@@ -3033,17 +3033,25 @@ const EM = (() => {
     // battery is 17 x 13 cm whatever engine sits ahead of it. (Fuseboxes
     // live in the cabin; the harness is a later chantier.)
     if (fwPlane && P.battOn) {
+      // G2802: the case at the fitted battery's own size when the fit names it (`battDims`, GEN_ELEC_PARTS:
+      // [length, width, height]: standing on the plate, its length across, its height up the plate, its width
+      // out of it); without, the 17 x 13 x 11.5 cm box it always was, byte for byte
+      const bd = Array.isArray(P.battDims) && P.battDims.length === 3 ? P.battDims : null;
+      const bW = bd ? bd[0] : 0.17, bH = bd ? bd[2] : 0.13, bD = bd ? bd[1] : 0.115;
+      const zTop = bd ? bD - 0.005 : 0.11, sA = bd ? bD - 0.011 : 0.104, sB = bd ? bD + 0.003 : 0.118;
+      // ...and LOW on the plate, where the frame bills it (61_gen_frame: the firewall ring's lower pair)
+      const yC = bd ? Math.min(-0.10 * P.fwH, -0.5 * P.fwH + 0.5 * bH + 0.03) : -0.10 * P.fwH;
       part('battBox', 'box');
-      prism([0.30 * P.fwW, -0.10 * P.fwH, 0], Z, X, Y,
-            roundRect(0.17, 0.13, 0.012), zFw - 0.005, zFw + 0.11,
+      prism([0.30 * P.fwW, yC, 0], Z, X, Y,
+            roundRect(bW, bH, 0.012), zFw - 0.005, zFw + zTop,
             ENGM_MAT.puck, true, true, 0.006);
       part('battStrap', 'box');
-      prism([0.30 * P.fwW, -0.10 * P.fwH, 0], Z, X, Y,
-            roundRect(0.176, 0.03, 0.008), zFw + 0.104, zFw + 0.118,
+      prism([0.30 * P.fwW, yC, 0], Z, X, Y,
+            roundRect(bd ? bW + 0.006 : 0.176, 0.03, 0.008), zFw + sA, zFw + sB,
             ENGM_MAT.flange, true, true);
       part('battTerm', 'solid', 2);
       for (const tx of [-1, 1])
-        lathe([0.30 * P.fwW + tx * 0.055, -0.10 * P.fwH + 0.045, zFw + 0.11],
+        lathe([0.30 * P.fwW + tx * (bd ? 0.32 * bW : 0.055), yC + (bd ? 0.35 * bH : 0.045), zFw + zTop],
               Z, { u: X, w: Y }, [
           { t: -0.006, r: 0.011 }, { t: 0.020, r: 0.009 },
         ], ENGM_MAT.flange, false, true, S.detail);

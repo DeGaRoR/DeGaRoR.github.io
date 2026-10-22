@@ -147,9 +147,9 @@ function make(THREE) {
     const padMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false });
     for (const g of model.gauges) {
       if (!/^(switch|knob|key|flap)$/.test(g.c.law) || !g.obj.add) continue;
-      const pad = new THREE.Mesh(new THREE.SphereGeometry(g.c.law === 'key' ? 0.022 : g.c.law === 'flap' ? 0.024 : 0.016, 8, 6), padMat);
+      const pad = new THREE.Mesh(new THREE.SphereGeometry(g.c.padR || (g.c.law === 'key' ? 0.022 : g.c.law === 'flap' ? 0.024 : 0.016), 8, 6), padMat);
       if (g.c.law === 'flap') pad.position.set(0, -0.012, -0.030);   // G335: on the knob, not the buried pivot
-      if (g.c.slide) pad.position.set(0, 0, -0.012);                  // G371: a push-pull's knob
+      if (g.c.slide) pad.position.set(0, 0, g.c.padR ? -0.004 : -0.012);   // G371: a push-pull's knob (G2802: a breaker's button)
       pad.userData.pickPad = 1;
       // C4b (G875): answered, never drawn - three's Raycaster tests every layer-0 object, shown or not; drawn, the
       // pads were ~12 empty draws (colorWrite off) in the transparent pass every frame

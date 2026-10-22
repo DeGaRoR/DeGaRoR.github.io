@@ -2809,6 +2809,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             out2.ctl.perSI = c.per / S.k;              // one turn per this much SI
           }
           if (c.steps) out2.ctl.steps = c.steps;
+          if (c.padR) out2.ctl.padR = c.padR;          // G2802: a small part's own pick pad (a breaker at a 16 mm pitch)
         }
         if (A.ax2) Object.assign(out2.ctl,
           { ax2: dirA(A.ax2), drive2: c.drive2, sgn2: c.sgn2, k2: c.k2 || 1 });

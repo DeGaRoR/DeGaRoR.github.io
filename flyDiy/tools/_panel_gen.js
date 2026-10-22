@@ -263,9 +263,140 @@ const T_KEYS = { asi: [0, 0], ai: [1, 0], alt: [2, 0], turn: [0, 1], dg: [1, 1],
 // dials left off wins; a tie keeps the standard one.
 function layout(A, o) {
   const std = layoutCore(A, o, false);
-  if (!(A && A.flexLayout) || !std.overflow.length) return std;
+  if (!(A && A.flexLayout) || !std.overflow.length) return placeExtras(A, o, std);
   const flex = layoutCore(A, o, true);
-  return flex.overflow.length < std.overflow.length ? flex : std;
+  return placeExtras(A, o, flex.overflow.length < std.overflow.length ? flex : std);
+}
+// THE EXTRAS (G2802 / G2803, AVIONICS-GPS phase 2): the GPS screen and the breaker row. They are placed AFTER the
+// dials and the switches, into the plate those left free, and move nothing the rule above placed - a panel without
+// them lays out byte for byte as it did (GATE PANEL). Adds to the layout:
+//   screens[]     {k, cx, cy, w, h, sw, sh[, coaming, z, top]} - a unit's face (w x h) and its screen (sw x sh), cage
+//                 metres; `coaming` a portable in its cradle on the glareshield (centre cx, cy; z the cradle's
+//                 station, top the glareshield's height under it)
+//   breakers      {rows: [{y, pitch, row: [{k, x, y}]}], row (every button), pitch} - the breaker buttons, in rows
+//                 along clear runs, +x (the pilot's left) first
+//   extraOverflow the extras that found no room ('gps', 'breaker:<key>')
+// o.screens [{k, w, h, sw, sh, cradle}] (the GPS's GEN_AVIONICS face; cradle: a portable may stand on the
+// glareshield), o.breakers [keys] (genSystemsResolve's breakers).
+const CB_PITCH = 0.016, CB_PITCH_MIN = 0.013, CB_HALF = 0.009, CB_UP = 0.022;   // a 9 mm collar, its tape above it
+function placeExtras(A, o, L) {
+  o = o || {};
+  const screensWant = Array.isArray(o.screens) ? o.screens : [];
+  const cbWant = Array.isArray(o.breakers) ? o.breakers : [];
+  L.screens = []; L.breakers = { row: [], pitch: CB_PITCH }; L.extraOverflow = [];
+  if (!screensWant.length && !cbWant.length) return L;
+  const F = A && A.face ? A.face : null;
+  const KO = Array.isArray(A && A.keepOut) ? A.keepOut : [];
+  const yTop = L.yTop, yBot = L.yBot, xLim = L.xLim;
+  // the boxes already taken: every dial on the plate (its circle, a gap round it), every switch with its tape
+  const boxes = [];
+  for (const d of L.dials) if (!d.coaming) boxes.push({ circle: true, cx: d.cx, cy: d.cy, r: d.r + 0.006 });
+  for (const s of L.switches) {
+    const hw = s.kind === 'key' ? 0.022 : s.kind === 'flap' ? 0.013 : 0.013;
+    boxes.push({ x0: s.x - hw, x1: s.x + hw, y0: s.y - (s.kind === 'flap' ? 0.024 : 0.016),
+                 y1: s.y + (s.kind === 'flap' ? 0.046 : 0.032) });
+  }
+  for (const k of KO) boxes.push({ x0: k.x0 - 0.004, x1: k.x1 + 0.004, y0: k.y0 - 0.004, y1: k.y1 + 0.004 });
+  const hitsBox = (x0, x1, y0, y1) => boxes.some(b => {
+    if (b.circle) {
+      const nx = Math.max(x0, Math.min(b.cx, x1)), ny = Math.max(y0, Math.min(b.cy, y1));
+      return Math.hypot(nx - b.cx, ny - b.cy) < b.r;
+    }
+    return x1 > b.x0 && x0 < b.x1 && y1 > b.y0 && y0 < b.y1;
+  });
+  // a rectangle is ON the plate when the columns under it hold it, inset (the dials' own rule, PAN_INSET)
+  const onPlate = (x0, x1, y0, y1) => {
+    if (x0 < -xLim - 1e-6 || x1 > xLim + 1e-6 || y1 > yTop + 1e-6 || y0 < yBot - 1e-6) return false;
+    if (!F) return true;
+    const ns = Math.max(1, Math.ceil((x1 - x0) / 0.02));
+    for (let i = 0; i <= ns; i++) {
+      const x = x0 + (x1 - x0) * i / ns, c = F.at(x);
+      if (!c || Math.abs(c.x - x) > 0.03) return false;
+      if (y1 > c.y1 - PAN_INSET + 1e-6 || y0 < c.y0 + PAN_INSET - 1e-6) return false;
+    }
+    return true;
+  };
+  // THE SCREENS: the highest place nearest the panel's middle (a GPS sits in the centre stack), on a 5 mm grid
+  for (const S of screensWant) {
+    const w = +S.w, h = +S.h;
+    let best = null;
+    for (let cx = -xLim + w / 2; cx <= xLim - w / 2 + 1e-9; cx += 0.005)
+      for (let cy = yTop - h / 2; cy - h / 2 >= yBot - 1e-9; cy -= 0.005) {
+        const x0 = cx - w / 2, x1 = cx + w / 2, y0 = cy - h / 2, y1 = cy + h / 2;
+        if (!onPlate(x0, x1, y0, y1) || hitsBox(x0, x1, y0, y1)) continue;
+        const score = Math.abs(cx) + 0.5 * (yTop - y1);
+        if (!best || score < best.score - 1e-12) best = { cx, cy, score };
+        break;                                        // the highest at this x is the best at this x
+      }
+    if (best) {
+      const rec = { k: S.k, cx: best.cx, cy: best.cy, w, h, sw: +S.sw || w * 0.8, sh: +S.sh || h * 0.75 };
+      L.screens.push(rec);
+      boxes.push({ x0: rec.cx - w / 2 - 0.006, x1: rec.cx + w / 2 + 0.006, y0: rec.cy - h / 2 - 0.006, y1: rec.cy + h / 2 + 0.006 });
+      continue;
+    }
+    // A PORTABLE WITH NO ROOM ON THE PLATE stands in a cradle on the glareshield (where a portable is really
+    // carried when the panel is full), beside the compass on the pilot's right, leaning back to the eye. A unit
+    // built into the panel (`S.cradle` false) has no such place: it is named, not drawn.
+    if (S.cradle && A && (A.dashAftZ != null || L.zFace != null)) {
+      const cxC = -(0.035 + 0.014 + w / 2);
+      const zc = (A.dashAftZ != null ? A.dashAftZ : L.zFace) + 0.015;
+      const top = A.dashTopAt ? A.dashTopAt(cxC, w / 2, zc - 0.02, zc + 0.02) : (A.dashTop != null ? A.dashTop : yTop + PAN_INSET);
+      if (Math.abs(cxC) + w / 2 <= (A.halfW || xLim + 0.05) && isFinite(top)) {
+        L.screens.push({ k: S.k, cx: cxC, cy: top + 0.012 + h / 2, w, h, sw: +S.sw || w * 0.8, sh: +S.sh || h * 0.75,
+                         coaming: true, z: zc, top });
+        continue;
+      }
+    }
+    L.extraOverflow.push(S.k);
+  }
+  // THE BREAKERS: ONE row on the lowest clear run that holds them all (the pitch shrinks to 13 mm first); when no
+  // run does, rows along the lowest runs that hold three or more, at most three rows. What no run holds is
+  // named, never drawn over a dial.
+  if (cbWant.length) {
+    const rows = [];
+    let left = cbWant.slice();
+    const runAt = (y, pitch, minN) => {
+      let run0 = null;
+      for (let x = -xLim; x <= xLim + 1e-9; x += 0.002) {
+        const ok = onPlate(x - 0.001, x + 0.001, y - CB_HALF, y + CB_UP) && !hitsBox(x - 0.001, x + 0.001, y - CB_HALF, y + CB_UP);
+        if (ok && run0 === null) run0 = x;
+        if ((!ok || x + 0.002 > xLim + 1e-9) && run0 !== null) {
+          const run1 = ok ? x : x - 0.002;
+          const fit = Math.floor((run1 - run0 - 2 * CB_HALF) / pitch + 1e-9) + 1;
+          if (fit >= minN) return { lo: run0, hi: run1, fit };
+          run0 = null;
+        }
+      }
+      return null;
+    };
+    while (left.length && rows.length < 3) {
+      // the lowest run that holds EVERY breaker left, at either pitch; failing that, the lowest that holds three
+      let got = null;
+      for (const minN of left.length > 3 ? [left.length, 3] : [left.length]) {
+        for (const pitch of [CB_PITCH, CB_PITCH_MIN]) {
+          for (let y = yBot + CB_HALF + 0.002; y + CB_UP <= yTop + 1e-9 && !got; y += 0.004) {
+            const r = runAt(y, pitch, minN);
+            if (r) got = Object.assign(r, { y, pitch });
+          }
+          if (got) break;
+        }
+        if (got) break;
+      }
+      if (!got) break;
+      const take = left.slice(0, Math.min(left.length, got.fit));
+      left = left.slice(take.length);
+      // +x first (the tape's canvas reads left to right for the pilot), from the run's +x end
+      const row = [];
+      let x = got.hi - CB_HALF;
+      for (const k of take) { row.push({ k, x, y: got.y }); x -= got.pitch; }
+      rows.push({ y: got.y, pitch: got.pitch, row });
+      boxes.push({ x0: row[row.length - 1].x - CB_HALF - 0.004, x1: row[0].x + CB_HALF + 0.004,
+                   y0: got.y - CB_HALF - 0.004, y1: got.y + CB_UP + 0.002 });
+    }
+    for (const k of left) L.extraOverflow.push('breaker:' + k);
+    L.breakers = { rows, row: [].concat(...rows.map(r => r.row)), pitch: rows.length ? rows[0].pitch : CB_PITCH };
+  }
+  return L;
 }
 function layoutCore(A, o, flexRow) {
   o = o || {};
@@ -1020,7 +1151,7 @@ function paintAtlas(g, faces, units, o) {
   }
 }
 
-const API = { UNITS, FACES, REST, scaleOf, angleOf, angleOfDisp, layout, ATLAS_W, ATLAS_H, SLOT, COLS, slotRect, faceUV,
+const API = { UNITS, FACES, REST, scaleOf, angleOf, angleOfDisp, layout, placeExtras, ATLAS_W, ATLAS_H, SLOT, COLS, slotRect, faceUV,
               PAINT, paintAtlas, postIrrAt, D_BIG, D_SMALL, GAP, niceStep, dispToSI };
 if (typeof module !== 'undefined' && module.exports) module.exports = API;
 if (typeof window !== 'undefined') window.PANEL_GEN = API;

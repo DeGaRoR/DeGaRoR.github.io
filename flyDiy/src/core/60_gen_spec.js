@@ -2003,14 +2003,21 @@ const GEN_AVIONICS = {
     vor:  { name: 'VOR receiver + CDI',   kg: 1.6, price: 2200, amps: 0.5, later: true,
             note: 'a second-hand KX 155 + KI 208; navaids are a world item' },
   },
+  // G2803 (AVIONICS-GPS phase 2): the GPS is DRAWN now - a unit on the panel's plate whose screen is the moving map
+  // (src/viewer/gps_face.js) - so its rows lose `later` and carry their FACE: the unit's front (w x h) and the
+  // screen in it (sw x sh), m, from the makers' drawings. Mass, price and draw are unchanged. The portable is drawn
+  // in a panel cradle (the plate is where the layout has room; a yoke mount is the crew layer's, not this one's).
   gps: {
     none:     { name: 'no GPS',             kg: 0,   price: 0,    amps: 0 },
-    portable: { name: 'portable GPS',       kg: 0.7, price: 900,  amps: 0.5, later: true,
-                note: 'aera 660 class on a yoke mount' },
-    panel:    { name: 'panel GPS navigator', kg: 1.5, price: 4500, amps: 1.0, later: true,
-                note: 'GPS 175 class' },
-    glass:    { name: 'glass PFD/MFD',       kg: 3.5, price: 6500, amps: 2.5, later: true,
-                note: 'G3X Touch / HDX class with ADAHRS and magnetometer' },
+    portable: { name: 'portable GPS',       kg: 0.7, price: 900,  amps: 0.5,
+                face: { w: 0.135, h: 0.086, sw: 0.111, sh: 0.067 },
+                note: 'aera 660 class (135 x 86 mm, a 5 in 800 x 480 screen) in a panel cradle' },
+    panel:    { name: 'panel GPS navigator', kg: 1.5, price: 4500, amps: 1.0,
+                face: { w: 0.159, h: 0.051, sw: 0.112, sh: 0.040 },
+                note: 'GPS 175 class (6.25 x 2 in, a 4.8 in screen)' },
+    glass:    { name: 'glass PFD/MFD',       kg: 3.5, price: 6500, amps: 2.5,
+                face: { w: 0.198, h: 0.159, sw: 0.155, sh: 0.093 },
+                note: 'G3X Touch / HDX class with ADAHRS and magnetometer (a 7 in screen); drawn as its map page' },
   },
 };
 // THE TIERS: what each fit buys. Day VFR is what an engine and an airframe

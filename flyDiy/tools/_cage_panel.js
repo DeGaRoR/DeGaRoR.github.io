@@ -69,14 +69,17 @@ function toSpec() {
 }
 // the resolved fit, as the core answers it — tier, items, electrics, radios,
 // the bill, what was dropped and why
-function resolve() {
+function resolve(Pl) {
   if (!seeded) seed();
   const C = core();
   if (!C.resolve) return null;
   const S = (inGame() && window.GARAGE_SPEC && window.GARAGE_SPEC.get)
     ? Object.assign({}, window.GARAGE_SPEC.get(), { systems: cl(SY) })
     : { systems: cl(SY) };
-  return C.resolve(S);
+  // G2802: the lights the build has FITTED, so the breaker panel carries theirs (the cockpit binds the same list)
+  const P = Pl || (window.CAGE_UI && window.CAGE_UI.P) || null;
+  const lights = P && +P.lightOn ? EXT_LIGHTS.concat(INT_LIGHTS).filter(k => litFitted(P, k)) : [];
+  return C.resolve(S, { lights });
 }
 
 // the bench remembers its fit across reloads, as the energy panel does; the
@@ -284,6 +287,28 @@ function renderPanel() {
       Object.keys(tab).map(q => [q, tab[q].name + (tab[q].kg ? ' · ' + fmtKg(tab[q].kg) + ' · ' + fmtCr(tab[q].price) : '')]),
       R.elec[k], v => { makeCustom(); SY.elec[k] = v; renderPanel(); commit(); });
   }
+  // G2802 (AVIONICS-GPS phase 2): WHAT IS BOLTED IN, AND WHERE - the electrics rows as the parts the aeroplane
+  // carries (genSystemsResolve's parts: the engine bay draws the battery, the generator and the starter from these;
+  // the dash draws the breakers), each at the frame station it is billed on
+  const lay = LAST && LAST.layout;
+  if (R.parts && R.parts.length) {
+    const AT = { firewallLow: 'on the firewall, low (the engine bay)', engine: 'on the engine\'s accessory case',
+                 panel: 'behind the dash' };
+    const inst = row(elec, 'installed', 'each part where the aeroplane carries it, and what it weighs there');
+    inst.appendChild(el('span', 'v', R.parts.length + ' parts'));
+    for (const q of R.parts) {
+      const d = row(elec, '   ' + q.name, AT[q.at] || q.at);
+      d.appendChild(el('span', 'v', fmtKg(q.kg) + ' · ' + (AT[q.at] || q.at)));
+    }
+  }
+  if (R.breakers && R.breakers.length) {
+    const lost = lay && lay.extraOverflow ? lay.extraOverflow.filter(x => /^breaker:/.test(x)) : [];
+    const d = row(elec, 'breakers', 'a push-to-reset breaker per circuit, on the dash: pull one in flight and ' +
+      'what it feeds goes dark; one that pops out was overloaded');
+    d.appendChild(el('span', 'v', R.breakers.map(b => (CB_LABEL[b.key] || b.key) + ' ' + b.A).join(' · ') +
+      (lost.length ? ' — ' + lost.length + ' with no room on the dash' : '')));
+    if (lost.length) d.lastChild.style.color = '#e08a5a';
+  }
 
   // ---- the radios -------------------------------------------------------------
   const av = fold(B, 'radios', true);
@@ -294,6 +319,16 @@ function renderPanel() {
       Object.keys(tab).map(q => [q, tab[q].name + (tab[q].kg ? ' · ' + fmtKg(tab[q].kg) + ' · ' + fmtCr(tab[q].price) : '') +
         (tab[q].later ? ' — declared, not drawn yet' : '')]),
       R.avionics[k], v => { makeCustom(); SY.avionics[k] = v; renderPanel(); commit(); });
+  }
+  // G2803: where the GPS went - on the plate, in its cradle on the glareshield, or nowhere (named, not drawn)
+  if (R.avionics.gps !== 'none') {
+    const lay2 = LAST && LAST.layout;
+    const S = lay2 && lay2.screens ? lay2.screens.find(q => q.k === 'gps') : null;
+    const d = row(av, 'GPS on the dash', 'the moving map: the island, your track, the next waypoint and the ' +
+      'ground speed, alive on the avionics bus behind its breaker');
+    d.appendChild(el('span', 'v', S ? (S.coaming ? 'in a cradle on the glareshield' : 'on the panel')
+      : (lay2 ? 'no room on this dash — billed, not drawn' : '…')));
+    if (lay2 && !S) d.lastChild.style.color = '#e08a5a';
   }
 
   // ---- the bill ----------------------------------------------------------------
@@ -1355,12 +1390,125 @@ function keyAt(parent, x, y, z, pos) {
   return g;
 }
 
+// ---- G2802: THE BREAKERS (AVIONICS-GPS phase 2) -------------------------------------
+// A push-to-reset thermal breaker (a Klixon 7274's size): a plated 9 mm collar on the plate, a black 6 mm button
+// standing out of it with a white band round its foot that shows only when the button is OUT - pulled by the hand
+// or popped by an overload (the bus, 31_elec.js). Law 'switch', k 0, a 4 mm slide on `cb_<key>` (1 = out), its own
+// 7 mm pick pad (the 16 mm pitch would let the generic pad pick the neighbour).
+function breakerAt(parent, x, y, z, key, out) {
+  const K = KIT();
+  const base = K.Bag();
+  K.revolve(base, [x, y, z + 0.0005], [0, 0, -1],
+    [[0.0045, 0], [0.0045, 0.0018], [0.0038, 0.0026], [0, 0.0026]], 24, false);
+  base.mesh(parent, matFor('barrel'));
+  const g = gaugeAt(parent, 'edGauge_cb_' + key, [x, y, z - 0.0026], [0, 0, 1], 'cb_' + key, 'switch',
+    { k: 0, sgn: 1, slide: [0, 0, -0.004], slideDrive: 'cb_' + key, padR: 0.007 });
+  const btn = K.Bag();
+  K.revolve(btn, [0, 0, 0.0040], [0, 0, -1],
+    [[0.0030, 0], [0.0030, 0.0095], [0.0025, 0.0102], [0, 0.0102]], 20, false);
+  btn.mesh(g, matFor('knob'));
+  const band = K.Bag();                               // the white band, inside the collar while the button is in
+  K.revolve(band, [0, 0, 0.0038], [0, 0, -1], [[0.00305, 0], [0.00305, 0.0034], [0, 0.0034]], 20, false);
+  band.mesh(g, matFor('needle'));
+  if (out) g.position.z -= 0.004;
+  return g;
+}
+// the tape over the row: each breaker's name and its rating, on one canvas (`panelSet: 'cbtape'`, the reg tape's
+// contract: one material the join buckets and the flight rebuilds through material('cbtape')), repainted when the
+// row changes. Cells left to right are the row's +x first (the mirror rule: u runs against x).
+const CB_LABEL = { fuel: 'FUEL', volts: 'VOLT', aiE: 'ATT', turn: 'TURN', hobbs: 'HOBBS', com: 'COM', xpdr: 'XPDR',
+                   nav: 'NAV', gps: 'GPS', field: 'ALT FLD', navLt: 'NAV LT', beaconLt: 'BCN', landLt: 'LDG',
+                   taxiLt: 'TAXI', cabinLt: 'CABIN' };
+let cbMat = null, cbCv = null, cbTex = null, cbSig = null;
+function cbTapeMaterial(rows) {
+  if (!cbMat) {
+    cbCv = HAS_DOM ? document.createElement('canvas') : null;
+    if (cbCv) { cbCv.width = 1024; cbCv.height = 96; }
+    cbTex = cbCv ? new THREE.CanvasTexture(cbCv) : null;
+    if (cbTex) { cbTex.colorSpace = THREE.SRGBColorSpace; cbTex.anisotropy = 8; }
+    cbMat = new THREE.MeshStandardMaterial({ map: cbTex, color: 0xffffff, roughness: 0.92, metalness: 0,
+      transparent: true, alphaTest: 0.02, depthWrite: false, side: THREE.FrontSide });
+    cbMat.userData.aeroskin = 1;
+    cbMat.userData.panelSet = 'cbtape';
+    cbMat.userData.inside = 1;
+  }
+  // `rows`: [[{key, A}]] - one band of the canvas per row, the row's cells left to right (+x first)
+  if (rows && cbCv) {
+    const sig = JSON.stringify(rows.map(r => r.map(b => [b.key, b.A])));
+    if (sig !== cbSig) {
+      cbSig = sig;
+      const g = cbCv.getContext('2d');
+      if (g && g.clearRect) {
+        const nMax = Math.max(1, ...rows.map(r => r.length)), cw = Math.min(160, Math.floor(2048 / nMax));
+        cbCv.width = cw * nMax; cbCv.height = 96 * rows.length;
+        g.clearRect(0, 0, cbCv.width, cbCv.height);
+        g.textAlign = 'center'; g.textBaseline = 'middle';
+        rows.forEach((r, ri) => r.forEach((b, i) => {
+          const x0 = i * cw, y0 = ri * 96;
+          g.fillStyle = '#e6e1d5'; g.fillRect(x0 + 4, y0 + 6, cw - 8, 84);
+          g.fillStyle = '#1b1b1d';
+          g.font = `700 ${cw >= 120 ? 26 : 20}px ${FONT_REG}`;
+          g.fillText(CB_LABEL[b.key] || String(b.key).toUpperCase(), x0 + cw / 2, y0 + 32);
+          g.font = `600 30px ${FONT_REG}`;
+          g.fillText(b.A ? String(b.A) : '', x0 + cw / 2, y0 + 68);
+        }));
+        if (cbTex) cbTex.needsUpdate = true;
+      }
+    }
+  }
+  return cbMat;
+}
+// ---- G2803: THE GPS UNIT ------------------------------------------------------------
+// the fitted GPS's face (GEN_AVIONICS.gps[kind].face), or null with none fitted
+function gpsFace(R) {
+  const k = R && R.avionics && R.avionics.gps;
+  const row = k && k !== 'none' && typeof GEN_AVIONICS !== 'undefined' && GEN_AVIONICS.gps[k];
+  return row && row.face ? Object.assign({}, row.face) : null;
+}
+// the screen's material is the moving map's own (src/viewer/gps_face.js: FLYDIY_GPS.material(), one instance the
+// shed, the flight and a parked aeroplane share); a page without it (the bench) gets a dark glass in its place
+let gpsFallback = null;
+function gpsMaterial() {
+  const G = typeof window !== 'undefined' ? window.FLYDIY_GPS : null;
+  if (G && typeof G.material === 'function') { const m = G.material(); if (m) return m; }
+  if (!gpsFallback) {
+    gpsFallback = new THREE.MeshStandardMaterial({ color: 0x0b0d10, roughness: 0.25, metalness: 0, side: THREE.FrontSide });
+    gpsFallback.userData.aeroskin = 1; gpsFallback.userData.panelSet = 'gps'; gpsFallback.userData.inside = 1;
+  }
+  return gpsFallback;
+}
+// the unit: a bevelled block 10 mm proud of the plate, its screen one quad 0.3 mm proud of that, and two knobs
+// where the face leaves a margin beside the screen (the pilot's right, -x)
+function gpsUnitAt(parent, S) {
+  const K = KIT();
+  const bez = K.Bag();
+  bevelBlockInto(bez, 0, 0, 0.0005, -0.010, S.w / 2, S.h / 2, 0.002);
+  bez.mesh(parent, matFor('plate'));
+  // the screen leans to the pilot's left (+x) when the face leaves a margin wide enough for the knobs on the right
+  const side = (S.w - S.sw) / 2;
+  const knobs = side >= 0.016;
+  const xs = knobs ? side * 0.35 : 0;
+  const sb = UVBag(gpsMaterial());
+  const hw = S.sw / 2, hh = S.sh / 2, z = -0.0103;
+  sb.v([xs + hw, -hh, z], [0, 0]); sb.v([xs - hw, -hh, z], [1, 0]);   // u runs against x (the mirror rule)
+  sb.v([xs - hw, hh, z], [1, 1]); sb.v([xs + hw, hh, z], [0, 1]);
+  sb.quad(0, 1, 2, 3);
+  sb.mesh(parent, 'edGauge_gps');
+  if (knobs) {
+    // the margin on the pilot's right runs from the face's -x edge to the screen's: the knobs in its middle
+    const kn = K.Bag(), xK = (-(S.w / 2) + (xs - hw)) / 2;
+    for (const [yk, r] of [[-S.h * 0.22, 0.0068], [S.h * 0.22, 0.0045]])
+      K.revolve(kn, [xK, yk, -0.010], [0, 0, -1], [[r, 0], [r, 0.008], [r * 0.85, 0.009], [0, 0.009]], 24, false);
+    kn.mesh(parent, matFor('knob'));
+  }
+}
+
 // ---- the build ------------------------------------------------------------------
 const EXT_LIGHTS = ['taxi', 'beacon', 'land', 'nav'];
 const INT_LIGHTS = ['flood', 'instr', 'pedal', 'pax'];
 // G2796: each light fitted on its own (_cage_light.js `li_<k>Fit`, 1 by default)
 const litFitted = (P, k) => !P || P['li_' + k + 'Fit'] == null || !!+P['li_' + k + 'Fit'];
-let LAST = null, fontsWaited = false;
+let LAST = null, fontsWaited = false, extrasSig = null;
 // THE HOLES (G279): [{ g (the dial's group), r }] as built, resolved by
 // `holesIn(parent)` to centres in the parent's frame once the tree stands
 let HOLES = [];
@@ -1377,7 +1525,7 @@ function build(parent, A, P, pilotX) {
   const G = PG(), K = KIT();
   if (!G || !K) return null;
   MOVING = [];
-  const R = resolve();
+  const R = resolve(P);
   if (!R) return null;
   const units = R.units;
   const radios = ['com', 'xpdr'].filter(k => R.avionics[k] !== 'none');
@@ -1392,6 +1540,9 @@ function build(parent, A, P, pilotX) {
     intLights: lightsOn && +P.lightSw ? INT_LIGHTS.filter(k => litFitted(P, k)) : [],
     flapSwitch: P && Math.round(+P.flapCtl || 0) === 1,      // G335
     swStyle: (SY.look && SY.look.sw) || 'toggle',             // G371
+    // G2802 / G2803: the breaker row and the GPS unit, placed in what the dials and switches left free
+    breakers: (R.breakers || []).map(b => b.key),
+    screens: gpsFace(R) ? [Object.assign({ k: 'gps', cradle: R.avionics.gps === 'portable' }, gpsFace(R))] : [],
   });
   const grp = new THREE.Group();
   grp.name = 'edPanel';
@@ -1717,6 +1868,51 @@ function build(parent, A, P, pilotX) {
       const m = lb.mesh(lg, 'edGauge_label'); if (m) m.renderOrder = 3;
     }
   }
+  // ---- G2802: THE BREAKERS - a push-to-reset button per circuit on the plate, pulled (or tripped) out 4 mm, law
+  // 'switch' with no turn and a slide on `cb_<key>` (the push-pull's contract): the flight's click pulls and
+  // pushes it, the bus opens its loads (31_elec.js). One tape over the row names each and its rating.
+  const cbRows = (L.breakers && L.breakers.rows) || [];
+  for (const b of (L.breakers && L.breakers.row) || []) {
+    const sg = standOn(b.x, b.y, 0.006);
+    sg.name = 'edBreaker_' + b.k;
+    breakerAt(sg, 0, 0, 0, b.k, false);
+  }
+  if (cbRows.length && HAS_DOM) {
+    // ONE canvas for every row (the reg tape's contract: one material): row r's cells are the canvas's band r
+    const all = (L.breakers.row || []).map(b => (R.breakers || []).find(q => q.key === b.k) || { key: b.k, A: 0 });
+    const tm = cbTapeMaterial(cbRows.map(rw => rw.row.map(b => all.find(q => q.key === b.k))));
+    const nMax = Math.max(...cbRows.map(rw => rw.row.length)), nR = cbRows.length;
+    cbRows.forEach((rw, ri) => {
+      const n = rw.row.length, pitch = rw.pitch, h = 0.0095;
+      const xA = rw.row[0].x + pitch / 2, xB = rw.row[n - 1].x - pitch / 2, yT = rw.y + 0.0145;
+      const tg = standOn((xA + xB) / 2, yT, 0.01);
+      const tb = UVBag(tm);
+      const w = xA - xB, u1 = n / nMax, v0 = 1 - (ri + 1) / nR, v1 = 1 - ri / nR;
+      tb.v([w / 2, -h / 2, -0.0004], [0, v0]); tb.v([-w / 2, -h / 2, -0.0004], [u1, v0]);
+      tb.v([-w / 2, h / 2, -0.0004], [u1, v1]); tb.v([w / 2, h / 2, -0.0004], [0, v1]);
+      tb.quad(0, 1, 2, 3);
+      const m = tb.mesh(tg, 'edGauge_cbtape'); if (m) m.renderOrder = 3;
+    });
+  }
+  // ---- G2803: THE GPS - its unit on the plate (a bezel block, two knobs) and its screen, ONE quad on the GPS's own
+  // material (`panelSet: 'gps'`: the join buckets it and the flight's gps_face.js paints the moving map into it)
+  for (const S of (L.screens || [])) {
+    let sg;
+    if (S.coaming) {
+      // the cradle on the glareshield: a foot on the coaming, a short arm, the unit leaning back 12 deg to the eye,
+      // in the panel's own (unrotated) frame like the compass
+      sg = new THREE.Group();
+      sg.position.set(S.cx, S.cy, S.z);
+      sg.rotation.x = 0.21;
+      grp.add(sg);
+      const K = KIT(), foot = K.Bag();
+      bevelBlockInto(foot, S.cx, S.top + 0.003, S.z + 0.02, S.z - 0.02, 0.022, 0.003, 0.001);
+      K.revolve(foot, [S.cx, S.top, S.z + 0.006], [0, 1, 0], [[0.006, 0], [0.006, 0.014], [0, 0.014]], 16, false);
+      foot.mesh(grp, matFor('plate'));
+    } else sg = standOn(S.cx, S.cy, Math.min(S.w, S.h) * 0.4);
+    sg.name = 'edGps';
+    gpsUnitAt(sg, S);
+  }
   bowl.mesh(grp, matFor('bowl')); symC.mesh(grp, matFor('needle'));   // pale: the card is black now (G311)
   // THE REGISTRATION TAPE (G318): on the dash's roll above the plate, at
   // the centre — the band between the plate's top and the glareshield —
@@ -1742,6 +1938,12 @@ function build(parent, A, P, pilotX) {
         () => { if (facesMat) facesMat.emissiveIntensity = 0; });
   } catch (e) {}
   LAST = { layout: L, faces, slotOf, units, facts, group: grp };
+  // G2802 / G2803: the column says where the GPS and the breakers went, which only this build knows - re-render
+  // it once when that answer changes (the column renders before the rebuild a commit triggers)
+  {
+    const xs = JSON.stringify([L.extraOverflow || [], (L.screens || []).map(q => [q.k, !!q.coaming])]);
+    if (xs !== extrasSig) { extrasSig = xs; if (panelBody) try { renderPanel(); } catch (e) {} }
+  }
   // THE FONT LANDS AFTER THE FIRST PAINT: the vendored Plex loads async, so
   // the first atlas may be in the fallback face. When the fonts are ready the
   // sheet is painted again in place — same slots, one upload.
@@ -1768,7 +1970,8 @@ window.CAGE_PANEL = {
   build, get moving() { return MOVING; }, MAT,
   material: k => (k === 'faces' ? facesMaterial() : k === 'ao' ? aoMaterial()
                   : k === 'label' ? labelMaterial() : k === 'needle' ? needleMaterial()
-                  : k === 'reg' ? regMaterial() : k === 'keytape' ? keyTapeMaterial() : matFor(k)),
+                  : k === 'reg' ? regMaterial() : k === 'keytape' ? keyTapeMaterial()
+                  : k === 'cbtape' ? cbTapeMaterial() : k === 'gps' ? gpsMaterial() : matFor(k)),   // G2802 / G2803
   holes: holesIn,                              // G279: the plate's cut-outs, in a parent's frame
   tape, setReg,                                // G318: a tape for any surface; the registration
   atlas: () => atlasCv, last: () => LAST, faceDim,
