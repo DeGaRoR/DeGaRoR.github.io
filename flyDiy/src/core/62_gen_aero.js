@@ -325,6 +325,47 @@ function genStrips(S, fr) {
   return strips;
 }
 
+// ENGINE-CONFIGS-2 (G3490, 2026-10-22): WHOSE WAKE A LAYOUT'S STRIP FLIES IN. The solver's wash is the MEAN disc
+// (T / nE) - fine while every engine runs, wrong the moment one stops: a dead nose left half the wash on the tail, a
+// dead nacelle half the wash on its own wing. A layout's every strip names its disc (`washE`): the engine whose wake
+// is the strongest at the strip (the nose's or a pulling nacelle's of the strip's own side, by the same laws
+// genStrips blew them with), the tail the nose's - or, on a push-pull, -2: THE CENTRELINE IN SERIES, the two coaxial
+// discs' thrust through one disc (the pusher swallows the nose's slipstream and accelerates it again). -1 is a strip
+// no disc reaches (the mean, which it multiplies by a zero wash). A twin boom's fins stand outside a push-pull's
+// centreline wake (the booms are set the rear disc's radius + 0.30 m out): they lose it. Called only for a layout,
+// so every other def's strips are the objects they were.
+function genStripsLayout(S, fr, strips) {
+  const LAY = S.engLayout;
+  if (!(LAY === 'pushPull' || LAY === 'tri' || LAY === 'quad')) return strips;
+  const R = GEN_RULES, PP = S.pplant || POWERPLANTS[S.engine];
+  const Reff = ((S.prop && S.prop.D ? S.prop.D : PP.prop.D) / 2) * R.washSpread;
+  const N = fr.nodes, zOf = st => {
+    let z = 0, ws = 0;
+    for (const [i, w] of st.w) { z += N[i].p[2] * w; ws += w; }
+    return ws > 0 ? z / ws : 0;
+  };
+  const iNose = S.engAt.findIndex(e => e.mount === 'nose');
+  const nac = [];
+  S.engAt.forEach((e, i) => { if (e.mount === 'wing' && !e.pushes) nac.push({ i, z: e.z, side: e.side }); });
+  const tailE = LAY === 'pushPull' ? -2 : iNose;
+  for (const st of strips) {
+    if (st.kind === 'wing') {
+      const z = zOf(st), az = Math.abs(z), sd = z < 0 ? -1 : 1;
+      let best = -1, bw = 0;
+      if (iNose >= 0) { bw = Math.max(0, 1 - (az / Reff) * (az / Reff)); if (bw > 0) best = iNose; }
+      for (const n of nac) if (n.side === sd) {
+        const u = (az - n.z) / Reff, w = 1 - u * u;
+        if (w > bw) { bw = w; best = n.i; }
+      }
+      st.washE = best;
+    } else {
+      if (st.kind === 'fin' && LAY === 'pushPull' && Math.abs(zOf(st)) > Reff) st.wash = 0;
+      st.washE = st.wash > 0 ? tailE : -1;
+    }
+  }
+  return strips;
+}
+
 // THE WETTED BODY (PERF STUDY chantier 2, 2026-09-15). The surface the air
 // rubs on, from the DECLARED loft — the frame's station table (x, half
 // width, floor, deck) closed by the spec's own section curve (genSect at

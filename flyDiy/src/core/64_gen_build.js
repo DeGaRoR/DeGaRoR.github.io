@@ -984,7 +984,7 @@ function buildGen(specIn) {
     if (S.gear[k] === null || S.gear[k] === undefined) S._auto['gear.' + k] = true;
     S.gear[k] = v;
   }
-  const strips = genStrips(S, fr);
+  const strips = genStripsLayout(S, fr, genStrips(S, fr));   // (ENGINE-CONFIGS-2: a layout's strips name their disc)
   const params = genParams(S, fr, strips);
   const def = { nodes: fr.nodes, beams: fr.beams, strips, refs: fr.refs, params };
   def.spec = S; def.parts = fr.parts;

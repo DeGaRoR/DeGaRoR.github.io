@@ -248,13 +248,29 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const dmgCovered = !(S.fuselage && S.fuselage.covering === 'open');
   const dmgGlazed = dmgCovered && !(S.cab && S.cab.glazing === 'none');
   // the part a node belongs to, and the part's rank: the higher rank is the child of a joint (it comes off)
+  const dmgLay = S.engLayout === 'pushPull' || S.engLayout === 'tri' || S.engLayout === 'quad';
   const dmgPart = i => {
     const t = nodes[i].tag || '', z = P[i][2], sd = z < 0 ? 'L' : 'R';
     if (t === 'WF' || t === 'WR' || t === 'WB' || t === 'WB2') return { p: 'wing' + (nodes[i].plane || 0) + sd, r: 1, base: 'wing' + (nodes[i].plane || 0), wing: true };
     if (t.slice(0, 2) === 'BM') return { p: 'boom' + t[2], r: 2, base: 'boom' };
     if (/^(HF|HR|HB|HT)/.test(t)) return { p: 'stab', r: 3, base: 'stab' };
     if (/^(VF|VR|VX|FIN)/.test(t)) return Math.abs(z) > 0.2 ? { p: 'fin' + sd, r: 3, base: 'fin' } : { p: 'fin', r: 3, base: 'fin' };
-    if (/^(ENG|CGE|MNT)/.test(t)) return Math.abs(z) > (S.cab ? S.cab.halfW : 0.5) ? { p: 'eng' + sd, r: 3.5, base: 'eng' } : { p: 'eng', r: 3.5, base: 'eng' };
+    if (/^(ENG|CGE|MNT)/.test(t)) {
+      // ENGINE-CONFIGS-2 (G3491): A LAYOUT'S EVERY ENGINE IS ITS OWN PART (its own break group: one mount letting go
+      // takes its engine, not its neighbour's) - the nearest of the layout's mounts: the nose 'eng' as ever, a
+      // push-pull's pusher 'engAft', the inner wing pair 'engL' / 'engR' as ever, a four's outer pair 'engL2' / 'engR2'
+      if (dmgLay) {
+        let best = null, bd = Infinity;
+        for (const e of S.engAt) {
+          const ez = e.mount === 'wing' ? (z < 0 ? -e.z : e.z) : 0, d = Math.hypot(P[i][0] - e.x, z - ez);
+          if (d < bd) { bd = d; best = e; }
+        }
+        const pp = !best || best.mount === 'nose' ? 'eng' : best.mount === 'pusher' ? 'engAft'
+          : 'eng' + sd + (best.pair > 0 ? best.pair + 1 : '');
+        return { p: pp, r: 3.5, base: 'eng' };
+      }
+      return Math.abs(z) > (S.cab ? S.cab.halfW : 0.5) ? { p: 'eng' + sd, r: 3.5, base: 'eng' } : { p: 'eng', r: 3.5, base: 'eng' };
+    }
     if (t.slice(0, 4) === 'AXLE') return { p: 'gear' + sd, r: 4, base: 'gear' };
     if (t === 'TW') return { p: 'tw', r: 4, base: 'tw' };
     if (t === 'FLK' || t === 'FLD') return { p: 'float' + sd, r: 4, base: 'float' };
