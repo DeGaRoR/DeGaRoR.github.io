@@ -97834,3 +97834,9 @@ Strict light gate: 9 RED, none new by cause: over100 x4 = the reveal frame (HWCO
   the plot's other kits on load. That is decor only: nothing is removed, and its aeroplanes, slots and money are
   untouched. A cabin the player furnished otherwise (any other kit list) is left alone.
 - GATE STORY rows: the lock held every tick, the bench tool hidden by the body class, the cabin's kits.
+
+## A0 - landing L22c (22 Oct 2026, gates 16:00-17:06, pushed ~17:30): CABIN STRIP WITHOUT PAPI, THE TOWN'S LIFE INCREMENTAL, PILOTPAGE, APSMOOTH's KNOWN DROPPED; gate-screen + reveal-held HELD
+Rolling set (6): apsmooth-known-drop (Pilot: APSMOOTH's c172 level-off row back to the 10 m bar after G3332), gate-screen + reveal-held (HWCOV: frames under the roll-out screen split into their own rows; held frames counted), pilotpage (G3320: GATE PILOTPAGE, the validated legs flown in the page, 'full' tier), town200-life (HWCOV: scenery_life stands only the new houses' life, sliced; the town's 200 ms frames gone, circuit +2.52 ms), w1-papi (ED-2: the user's 'none' - Cabin Strip without PAPI; CONTRACT_FIELDS.w1 drops glide).
+- The battery on the six: AUDIO RED, NEW: WIRING "app.js: AUDIO.update is not in loop() between the render and PACE.end" - reveal-held's held-frame PACE.end before the hold's return; gate-screen is built on reveal-held, so both are out. Otherwise master's known reds.
+- Strict light gate on the six: over100 gone (the screen split), cub cockpit / metal chase tasks1s + cub cockpit taskWorst 2136 (the boot ~1 s class, still judged against 1 s as ruled), metal fuseWidth (accepted), floats world->garage 2.25 s (the known re-link).
+- Landed: 7332badc1 = master 5f3f2c797 + apsmooth-known-drop + pilotpage + town200-life + w1-papi, re-cooked (premises / fleet / map / parked); AUDIO STORY UISMOKE SCENERYED CONTRACTS PREMISES LIFE CITYHOST APSMOOTH PASS on that exact tree (17:10-17:20). HWCOV fixes the AUDIO wiring row vs the held path for L22d / L23b.

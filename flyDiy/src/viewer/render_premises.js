@@ -4167,7 +4167,7 @@ function make(THREE, scene, world, rec0, opts) {
     // premises chunk (its patch is the ring's material), so its 1024^2 repaint an item was work nobody read (G591)
     if (built && !o.game) paintWear();
     if (built && o.onBuilt) o.onBuilt(built, queue.length);
-    if (built && LIFE) LIFE.dirty();
+    if (built && LIFE) LIFE.built();   // (TOWN-200: their life parts only - the roads' and the masts' stand)
     if (built) freezeStatic();
     return built;
   }
