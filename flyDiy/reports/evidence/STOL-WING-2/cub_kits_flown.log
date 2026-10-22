@@ -1,0 +1,8 @@
+# the user's Cub (builds/cub_2026-09-20_corrected.json) through the game's load door, kits set in the cage rows; tree b5996b43b; scratch rig cubkit2.js (LB.gameSpec -> buildGen -> genShakedown corners -> machineSheet -> tools/_stol_fp.js fpLap)
+stock        stol null rounded Vs 56.6 Vs0 48.4 flapless false Vref 63.0 TO 142 ctl.elevator=0.185 ctl.flare=1.04 | lap completed lift 96.1 ldg 62
+kit          stol {"slat":"slot","slatSpan":1,"vg":1,"droop":0.25} drooped Vs 46.5 Vs0 40.9 flapless false Vref 61.9 TO 97 ctl.elevator=0.087 ctl.flare=1.17(warn) ctl.droop=0.88 | lap completed lift 83.5 ldg 70
+vg+tips      stol {"vg":1} drooped Vs 53.0 Vs0 46.0 flapless false Vref 62.8 TO 119 ctl.elevator=0.159 ctl.flare=1.03 | lap completed lift 89.2 ldg 66
+bush         stol {"vg":1,"cuff":1,"cuffSpan":0.4,"droop":0.25} drooped Vs 52.8 Vs0 44.6 flapless false Vref 61.7 TO 112 ctl.elevator=0.159 ctl.flare=1.04 ctl.droop=0.87 | lap completed lift 86.1 ldg 66
+auto+vg      stol {"slat":"auto","slatSpan":1,"vg":1} rounded Vs 45.9 Vs0 40.9 flapless false Vref 62.8 TO 99 ctl.elevator=0.072 ctl.flare=1.19(warn) | lap completed lift 85.0 ldg 72
+slot+vg      stol {"slat":"slot","slatSpan":1,"vg":1} rounded Vs 47.0 Vs0 41.8 flapless false Vref 62.7 TO 100 ctl.elevator=0.094 ctl.flare=1.17(warn) | lap completed lift 86.6 ldg 69
+kit+elev40   stol {"slat":"slot","slatSpan":1,"vg":1,"droop":0.25} drooped Vs 46.4 Vs0 40.8 flapless false Vref 60.7 TO 97 ctl.elevator=0.126 ctl.flare=1.14(warn) ctl.droop=0.87 | lap completed lift 81.3 ldg 65

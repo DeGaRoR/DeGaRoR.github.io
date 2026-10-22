@@ -1,0 +1,4 @@
+cub     def 8ff2d5d6246babbf fly dd4c0a3ce620304c draw b9db7b7226e1d9bc check cd22c0c69e75ee4e (warn Vref 62.96 km/h, Vs0 48.43, TO 142 m) lap 84c01b091606aa8d (completed, 248.50 s, 10 phases, lift-off 96.09 m, landing 62.00 m)  [76 s]
+jodel   def e9e28e9ad40d753f fly 1fe46819d1cd0238 draw 241172632adb7eaf check ac2e474757fad2c6 (warn Vref 88.16 km/h, Vs0 67.82, TO 206 m) lap 90589a378d31293a (completed, 353.28 s, 10 phases, lift-off 173.18 m, landing 238.00 m)  [194 s]
+cessna  def ca51e7f223492fdb fly 398140d7c56468e7 draw 8c4c7cf4b0413b39 check 9c244df303e7c189 (pass Vref 97.13 km/h, Vs0 74.71, TO 314 m) lap 99c7c1f6119f983b (completed, 330.75 s, 10 phases, lift-off 260.67 m, landing 209.00 m)  [185 s]
+rufus   def c2a7d48aef638a70 fly bf17b112061232d7 draw 6fc30c86300a447b check db76235b27a40e10 (pass Vref 68.81 km/h, Vs0 52.93, TO 77 m) lap 605fe9fc9e699ce6 (completed, 262.08 s, 10 phases, lift-off 61.23 m, landing 144.00 m)  [88 s]
