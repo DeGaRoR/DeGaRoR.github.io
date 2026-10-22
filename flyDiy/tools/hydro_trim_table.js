@@ -55,27 +55,33 @@ function fly(def, poh) {
   for (let s = 0; s < 60 * 8; s++) sim.step(1 / 60);
   const F = sim.hydro.floats;
   const st = () => {
-    const [xA] = sim.axes(); let vx = 0, x = 0;
-    for (let i = 0; i < sim.n; i++) { vx += sim.v[i * 3] * sim.m[i]; x += sim.p[i * 3] * sim.m[i]; }
-    return { V: -vx / M, x: x / M, trim: Math.asin(Math.max(-1, Math.min(1, -xA[1]))) * 180 / Math.PI,
+    const [xA] = sim.axes(); let vx = 0, vz = 0, x = 0, z = 0;
+    for (let i = 0; i < sim.n; i++) { vx += sim.v[i * 3] * sim.m[i]; vz += sim.v[i * 3 + 2] * sim.m[i]; x += sim.p[i * 3] * sim.m[i]; z += sim.p[i * 3 + 2] * sim.m[i]; }
+    // speed along the nose, not along -x: the engine's torque and P-factor (G2540 / G3077) swing a floatplane
+    // round on the water unless the pilot holds the heading - the rudder hold below does, the way a pilot would
+    return { V: -(vx * xA[0] + vz * xA[2]) / M, x: x / M, z: z / M, hdg: Math.atan2(xA[2], xA[0]) * 180 / Math.PI,
+             trim: Math.asin(Math.max(-1, Math.min(1, -xA[1]))) * 180 / Math.PI,
              R: F.reduce((a, q) => a + q.out.F[0], 0) / Wt, wet: F.reduce((a, q) => a + q.wet, 0) };
   };
-  const x0 = st().x, Vr = 0.97 * ((def.params.gen && def.params.gen.Vs) || 25);
+  const s0 = st(), x0 = s0.x, z0 = s0.z, Vr = 0.97 * ((def.params.gen && def.params.gen.Vs) || 25);
   sim.ctl.thr = 1; sim.ctl.de = 0.45;
   // 20 deg of flap, as a fraction of the build's own travel (00_registry / 60_gen_spec genTravel)
   if (poh) { const fl = def.spec.controls && def.spec.controls.flap; sim.ctl.flap = fl && fl.type && fl.type !== 'none' ? Math.min(1, 20 * Math.PI / 180 / C.genTravel('flap', fl.type)) : 0; }
-  let tP = null, hump = { R: 0, V: 0, trim: 0 }, dry = null, out = null, crashed = null, rot = false, past = null;
+  let tP = null, hP = null, hump = { R: 0, V: 0, trim: 0 }, dry = null, out = null, crashed = null, rot = false, past = null;
   for (let s = 0; s < MAXS * 60 && !out; s++) {
     sim.step(1 / 60);
     const r = st(), t = (s + 1) / 60;
     if (!Number.isFinite(r.V)) { crashed = 'non-finite'; break; }
     if (sim.out.dmg && sim.out.dmg.crashed) { crashed = 'crashed'; break; }
     const tq = tP == null ? 0 : (r.trim - tP) * 60; tP = r.trim;
+    // heading hold on the water (rudder + water rudders): measured sign, nose back to the run's line
+    { let dh = r.hdg - s0.hdg; dh -= 360 * Math.round(dh / 360); const hr = hP == null ? 0 : (dh - hP) * 60; hP = dh;
+      sim.ctl.dr = r.wet > 0 ? Math.max(-1, Math.min(1, 0.08 * dh + 0.04 * hr)) : 0; }
     if (poh && (sim.out.V || 0) >= Vr) rot = true;
     sim.ctl.de = rot ? 0.45 : r.V > 9 ? Math.max(-0.2, Math.min(0.45, 0.2 + 0.04 * (6 - r.trim) - 0.01 * tq)) : 0.45;
     if (r.wet > 0 && r.V < 14 && r.R > hump.R) hump = { R: r.R, V: r.V, trim: r.trim };
     if (!past && r.V >= 16 && r.wet > 0) past = { R: r.R, t, trim: r.trim };
-    if (r.wet === 0) { if (!dry) dry = { t, V: r.V, dist: Math.abs(r.x - x0) }; else if (t - dry.t >= 2) out = dry; }
+    if (r.wet === 0) { if (!dry) dry = { t, V: r.V, dist: Math.hypot(r.x - x0, r.z - z0) }; else if (t - dry.t >= 2) out = dry; }
     else dry = null;
   }
   const b = def.parts.floats[0].P.B;
