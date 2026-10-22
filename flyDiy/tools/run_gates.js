@@ -703,6 +703,10 @@ const GATES = [
   // THE PILOT MATRIX as a ratchet (G399 / PILOT-ROADMAP P0.3): the quick set
   // against tools/pilot_baseline.json — no cell may get worse
   { id: 'PILOTMATRIX', file: '_pilotmatrix_check.js', tier: 'full', timeout: 3600_000, weight: 4, wall: 800 },
+  // G3306 (AP-ADAPT): does a certified build look stable when the autopilot flies it - the user's Rufus B and the Mosquito
+  // beside the validated set, the game's flight and the user's skip-to-line-up path: the roll from tail-up, the air after
+  // the lift-off, the height against the plan, the hands, the touch (thresholds in the file's header)
+  { id: 'APSMOOTH', file: '_apsmooth_check.js', tier: 'full', timeout: 1800_000, weight: 4, wall: 600 },
   { id: 'VIEW', file: '_view_check.js', tier: 'core' },
   // THE LIFT-STRUT FOOT (G86-G88): the site the fitting is built on — the
   // frame's own strut root snapped to the built skin — and the declared

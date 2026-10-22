@@ -7988,6 +7988,7 @@
   function playerFlightStart() {
     flSlot = slotOnStand(); flEnded = false; flLastEnd = null;
     if (CAREER_DEV) careerFlightStart();
+    if (CAREER_DEV && STORY_PAGE) storyLadderReset();   // G3370 (TUTO-FLIGHT): a roll-out is a new flight for T1's ladder
     if (!flSlot) return;
     try {
       const f = (def && typeof playerFootOfDef === 'function') ? playerFootOfDef(def) : null;
@@ -9088,27 +9089,116 @@
   // (OK); shown again on each new beat. Never centred, never over the middle; the garage's look (editor.css #stTim).
   // The portrait is a PLACEHOLDER silhouette (no image, no real person).
   let stTimEl = null, stTimBeat = null, stTimI = 0, stTimShut = false;
+  const STIM_FACE = '<svg class="stTimFace" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="23"/><circle class="h" cx="24" cy="19" r="8"/><path class="h" d="M9 41c2-9 8-13 15-13s13 4 15 13"/></svg>';
   function storyTimSync() {
     if (!STORY_PAGE || typeof document === 'undefined' || !document.body) return;
     const s = stLive(), id = s && !s.open ? s.beat : null, L = id ? storyTimLines(id, playerLoad()) : [];
     if (id !== stTimBeat) { stTimBeat = id; stTimI = 0; stTimShut = false; }
+    // G3370 (TUTO-FLIGHT): T1's flight speaks the LADDER in the band instead (Tim's own T1 lines are the shed's)
+    const lad = storyLadderNow();
+    if (lad) return storyLadderShow(lad);
     if (!L.length || stTimShut || (window.FLYDIY_AP && typeof window.FLYDIY_AP.manual === 'function' && window.FLYDIY_AP.manual() && !inGarage)) { if (stTimEl) stTimEl.hidden = true; return; }
+    const i = Math.min(stTimI, L.length - 1), last = i >= L.length - 1;
+    stTimPut('', STIM_FACE + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>' + stEsc(STORY_TIM.role) + '</small><p>' + stEsc(L[i]) + '</p></div>' +
+      '<button type="button" class="stTimBtn" data-tim="' + (last ? 'ok' : 'next') + '">' + (last ? 'OK' : 'Next (' + (i + 1) + '/' + L.length + ')') + '</button>');
+  }
+  // the band itself, made once; its words written only when they change (the ladder's tick runs every half second)
+  function stTimPut(cls, html) {
     if (!stTimEl) {
       stTimEl = document.createElement('aside');
       stTimEl.id = 'stTim'; stTimEl.setAttribute('role', 'dialog'); stTimEl.setAttribute('aria-label', STORY_TIM.name + ', ' + STORY_TIM.role);
       stTimEl.addEventListener('click', ev => {
         const b = ev.target && ev.target.closest ? ev.target.closest('[data-tim]') : null;
         if (!b) return;
-        if (b.dataset.tim === 'next') stTimI++; else stTimShut = true;
+        if (b.dataset.tim === 'lad') stLadShut = stLad.i;          // (this card read: the band waits for the next one)
+        else if (b.dataset.tim === 'next') stTimI++; else stTimShut = true;
         storyTimSync();
       });
       document.body.appendChild(stTimEl);
     }
-    const i = Math.min(stTimI, L.length - 1), last = i >= L.length - 1;
-    const face = '<svg class="stTimFace" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="23"/><circle class="h" cx="24" cy="19" r="8"/><path class="h" d="M9 41c2-9 8-13 15-13s13 4 15 13"/></svg>';
-    stTimEl.innerHTML = face + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>' + stEsc(STORY_TIM.role) + '</small><p>' + stEsc(L[i]) + '</p></div>' +
-      '<button type="button" class="stTimBtn" data-tim="' + (last ? 'ok' : 'next') + '">' + (last ? 'OK' : 'Next (' + (i + 1) + '/' + L.length + ')') + '</button>';
+    if (stTimEl.className !== cls) stTimEl.className = cls;
+    if (stTimEl.dataset.html !== html) { stTimEl.innerHTML = html; stTimEl.dataset.html = html; }
     stTimEl.hidden = false;
+  }
+  // ---- G3370-G3379 (TUTO-FLIGHT): THE LADDER ON T1'S FLIGHT, AND "SKIP THE FLIGHT" (GAME-PLAN §R2, the user 19 Oct: "a few
+  // cards covering the basics ... text and/or image on transparent background in the bottom part of the screen. This will
+  // be deactivated if manual controls are taken. There will be an option to skip the tutorial flight and get straight into
+  // the WWII hangar"). The cards are 79_story.js STORY_LADDER, stepped by storyLadderStep (pure) on the pilot's own phase,
+  // its sim clock and the way left to HOME; Tim's band shows them on a transparent ground (#stTim.lad). One ladder per
+  // flight (a roll-out, playerFlightStart: a Restart or a Fly on keeps it). The player's hand on the controls ends it for
+  // that flight ('flydiy:manual', Pilot's AP-TOGGLE G3325). Only on the story's T1 (STORY_PAGE: never the sandbox, never
+  // ?career=1)
+  let stLad = STORY_PAGE ? storyLadderNew() : null, stLadShut = -1, stSkipEl = null;   // (the sandbox: the story is not loaded)
+  function storyLadderReset() { stLad = storyLadderNew(); stLadShut = -1; }
+  // the flight as the ladder reads it, or null in the shed (no pilot, or the garage)
+  function stFlightNow() {
+    if (inGarage || !ap) return null;
+    let dHome = null;
+    try { const id = storySite('home', world.aerodromes), H = (world.aerodromes || []).find(a => a && a.id === id), c = sim.cgPos();
+      if (H && typeof H.x === 'number' && typeof H.z === 'number') dHome = Math.hypot(c[0] - H.x, c[2] - H.z); } catch (e) {}
+    return { phase: ap.phase, t: +ap.t || 0, dHome, manual: !!(window.FLYDIY_AP && typeof window.FLYDIY_AP.manual === 'function' && window.FLYDIY_AP.manual()) };
+  }
+  // T1's flight: the ladder's card now (stepped), or null (not T1, or not flying)
+  function storyLadderNow() {
+    const s = stLive();
+    if (!s || s.open || s.beat !== 'T1') return null;
+    const F = stFlightNow();
+    if (!F) return null;
+    const r = storyLadderStep(stLad, F);
+    stLad = r.L;
+    return { card: r.card, i: stLad.i, n: STORY_LADDER.length, off: stLad.off };
+  }
+  function storyLadderShow(lad) {
+    if (!lad.card || lad.off || stLadShut === lad.i) { if (stTimEl) stTimEl.hidden = true; return; }
+    const C = lad.card;
+    stTimPut('lad', STIM_FACE + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>the flight · ' + (lad.i + 1) + ' of ' + lad.n + '</small>' +
+      '<p><b class="stLadT">' + stEsc(C.title) + '</b> ' + stEsc(C.text) + '</p></div>' +
+      (C.img ? '<img class="stLadImg" src="' + stEsc(C.img) + '" alt="">' : '') +
+      '<button type="button" class="stTimBtn" data-tim="lad">OK</button>');
+  }
+  // SKIP THE FLIGHT: T1 done exactly as a stop at HOME would do it - the stop's record into the story (its effects: the
+  // hangar ours, T2's client Cub on its way), the starter into the HOME hangar through the stop's own roll-in
+  // (playerArrive, then the garage there: playerGoTo), then the shed door. The skip IS the move: no flight of its own is
+  // written (no money, no logbook row, no clock) - a flight in the air is walked away from without its end being recorded
+  function storySkipFlight() {
+    const s = stLive();
+    if (!s || s.open || s.beat !== 'T1') return { ok: false, why: 'the flight to skip is the move (T1)' };
+    const home = storySite('home', world.aerodromes), slot = s.planes.starter;
+    if (!home || !slot) return { ok: false, why: home ? 'no starter aeroplane' : 'no aerodrome plays the WWII field' };
+    let d = playerLoad();
+    const W = d.fleet[slot] ? playerWhere(d, slot) : null;
+    const stop = careerStopRecord({ how: 'stopped', aero: home, slot, row: { from: (W && W.aero) || null, to: home, t: 0 } });
+    stLine = '';
+    const r = storyEvent({ k: 'stop', stop, slot }, d);
+    if (!r.ok) { storyCardSync(); return { ok: false, why: r.why }; }
+    d = r.doc;
+    const a = d.fleet[slot] ? playerArrive(d, slot, home, { prefer: PREM_MAIN }) : null;
+    if (a && a.ok) { d = a.doc; if (a.kind === 'in' && a.hangar && a.hangar !== d.here) { const g = playerGoTo(d, a.hangar); if (g.ok) d = g.doc; } }
+    const flying = !inGarage;
+    if (flying) flEnded = true;
+    player = d; playerSave();
+    try { baseId = d.sheds[d.here].base; } catch (e) {}
+    storyCardSync(); storyFlush(); storyTimSync(); storySkipSync();
+    try { if (window.GARAGE_SPEC && window.GARAGE_SPEC.syncShelf) window.GARAGE_SPEC.syncShelf(); } catch (e) {}
+    try { if (window.FLYDIY_PLAYER && window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); } catch (e) {}
+    // the shed door (the bar's own: the arrival card down, the flyouts shut, the roll-in screen), the room built at HOME
+    if (flying) { const b = document.getElementById('bHangar2'); if (b && b.onclick) b.onclick(); }
+    return { ok: true, why: '', here: d.here, where: d.fleet[slot] ? playerWhere(d, slot) : null };
+  }
+  // the pill at the bottom edge (the garage's look, never centred): T1 only, in the shed, on the stand and in flight
+  function storySkipSync() {
+    if (!STORY_PAGE || typeof document === 'undefined' || !document.body) return;
+    const s = stLive(), on = !!(s && !s.open && s.beat === 'T1' && !stIntroWas);
+    if (!stSkipEl && !on) return;
+    if (!stSkipEl) {
+      stSkipEl = document.createElement('button');
+      stSkipEl.type = 'button'; stSkipEl.id = 'stSkip';
+      stSkipEl.textContent = 'Skip the flight: straight to the WWII hangar';
+      stSkipEl.addEventListener('click', () => { const r = storySkipFlight(); if (!r.ok) console.warn('flyDiy (story): the skip - ' + r.why); });
+      document.body.appendChild(stSkipEl);
+    }
+    stSkipEl.hidden = !on;
+    try { document.body.classList.toggle('stSkipOn', on); } catch (e) {}
   }
   // THE BENCH NEVER STANDS IN THE SMALL SHED (the user, 19 Oct: "will never get the bench"): a property of the SHED - the
   // story's cabin shed (`story` on the shed record, G2743 / STORY-PAGE) - at every beat; the garage shows the design pane
@@ -9126,9 +9216,12 @@
     if (n) n.hidden = !small;
   }
   if (STORY_PAGE) {
-    try { storyCardSync(); storyFlush(); storyTimSync(); storyBenchRule(); } catch (e) { console.warn('flyDiy (story): the boot -', e && e.message); }
-    setInterval(() => { try { storyTimSync(); storyBenchRule(); } catch (e) {} }, 1500);
-    try { window.addEventListener('flydiy:manual', () => { try { storyTimSync(); } catch (e) {} }); } catch (e) {}
+    try { storyCardSync(); storyFlush(); storyTimSync(); storyBenchRule(); storySkipSync(); } catch (e) { console.warn('flyDiy (story): the boot -', e && e.message); }
+    setInterval(() => { try { storyTimSync(); storyBenchRule(); storySkipSync(); } catch (e) {} }, 1500);
+    // G3370: the ladder's tick (its card follows the pilot's phase; nothing runs off T1's flight)
+    setInterval(() => { try { if (stTimBeat === 'T1' && !inGarage) storyTimSync(); } catch (e) {} }, 500);
+    // (G3370: a hand on the controls in flight ends the ladder for that flight, at once)
+    try { window.addEventListener('flydiy:manual', ev => { try { if (ev && ev.detail && ev.detail.manual && !inGarage) stLad.off = true; storyTimSync(); } catch (e) {} }); } catch (e) {}
     try { storyIntroCurtain(); } catch (e) { console.warn('flyDiy (story): the opening -', e && e.message); }
     // G3384: a story with its starter - the design flow's "New aeroplane" door stays shut (design_flow.js maybeAutoOpen)
     try { const s = stLive(); if (s && s.planes && s.planes.starter) window.FLYDIY_STORY_STARTER = s.planes.starter; } catch (e) {}
@@ -9139,6 +9232,7 @@
       mask: () => storyMask(playerLoad()), jobsOpen: () => storyJobsOpen(playerLoad()), card: () => storyCardNow(),
       event: ev => { const r = storyEvent(ev); return { ok: r.ok, why: r.why, advanced: r.advanced, effects: r.effects }; },
       certified: storyCertified, flush: storyFlush, pending: () => stBusy || stQueue.length > 0, line: () => stLine,
+      ladder: () => ({ i: stLad.i, off: stLad.off, card: stLad.i >= 0 && !stLad.off ? STORY_LADDER[stLad.i].id : null }), skip: storySkipFlight,   // G3370
     };
   }
   window.FLYDIY_PLAYER = {
