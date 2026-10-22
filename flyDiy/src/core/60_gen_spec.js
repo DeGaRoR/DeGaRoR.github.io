@@ -2268,10 +2268,30 @@ function genPropAuto(pr, Vs) {
   return pick;
 }
 
+// `fm` IS FM^(2/3), NOT THE FIGURE OF MERIT (HYDRO-TRIM G3443's reading): momentum theory's
+// T = (FM P sqrt(2 rho A))^(2/3) = FM^(2/3) (2 rho A)^(1/3) P^(2/3), and genPropSynth multiplies by fm. So 'standard'
+// 0.477 is FM 0.33 (the A-65 + Sensenich anchor) and 'climb' 0.530 FM 0.386.
+// G3445 (FLOAT-KIT, the user 22 Oct: "4 yes" - fitting floats fits the certified seaplane propeller, OTHER PLANES ARE
+// LEFT ALONE): G3443 raised 'climb' for every aeroplane (0.530 -> 0.630) and is REVERTED - the land classes are
+// byte-identical to master. The float prop is its OWN class instead: 'seaplane', FM 0.50 (fm 0.630), the static figure
+// of merit measured on full-power fixed props standing - Flight Resource's static tests for STC SA02245CH (C170B,
+// O-360-A1A 180 hp, 1000 ft, 75 F): Hartzell 2-blade 76 in 672 lbf (FM 0.49), MT 2-blade 80 in 785 lbf (FM 0.59) - a
+// float prop is the fine prop that DOES reach rated rpm standing. pd 0.524: the 172's McCauley 1A200/WFA8243 is 82 x 43
+// in. NOT in GEN_PROP_AUTO_ORDER: 'auto' never picks it; only the float kit (GEN_SEAPLANE_PROPS, below) fits it.
 const GEN_PROP_PITCH = {
   climb:    { name: 'Fine (climb)',    fm: 0.530, pd: 0.55 },
   standard: { name: 'Standard',        fm: 0.477, pd: 0.70 },
   cruise:   { name: 'Coarse (cruise)', fm: 0.420, pd: 0.85 },
+  seaplane: { name: 'Seaplane (float prop)', fm: 0.630, pd: 0.524 },
+};
+// G3445 THE CERTIFIED SEAPLANE PROPELLER, per float model: what the float's STC fits with it (Wipaire's Wipline 2350
+// page, the 172R / 172S row: McCauley 1A200/WFA8243, fixed pitch; McCauley's naming = 82 in diameter x 43 in pitch).
+// A float model with no row here fits no propeller: the aeroplane keeps its own (the user: other planes left alone).
+// Read by the editor's float layer (tools/_cage_float.js) when floats are fitted; `D` m, `blades`, `material` the
+// cowl page's blade rows, `pitch` a GEN_PROP_PITCH class.
+const GEN_SEAPLANE_PROPS = {
+  'Wipline 2350': { name: 'McCauley 1A200/WFA8243 (82 x 43 in)', D: 2.083, blades: 2, material: 'alu', pitch: 'seaplane',
+                    for: 'Cessna 172 / 172R / 172S on Wipline 2350 (Wipaire STC)' },
 };
 
 // COWL INTAKES. Texture only, deliberately: a grill drawn on the cover reads at
