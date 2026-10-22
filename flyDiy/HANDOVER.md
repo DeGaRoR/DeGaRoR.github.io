@@ -97820,3 +97820,17 @@ and get straight into the WWII hangar."
 Rolling set: ap-adapt (AP-ADAPT G3300-G3307: every certified build flown smoothly; the user accepted by name, 22 Oct ~08:45, "1 yes": the float Cessna Ham-fist DEV persona banks 18.5 deg after lift-off, was 10.9; the Student no longer capsizes there; APSMOOTH's c172 level-off row KNOWN under 17 m until G3332), level-off-g3332 (Pilot: the climb captures cruise by TECS's height law in its last 5 s; the metal Cessna's balloon 15.7 -> 5.3 m; floats untouched (sim.hydro skipped); the user accepted by name "2 yes": the Cub's cross-country hold +0.1 m worst / +0.2 m rms), pier-tris (ASSETS-OCT: GATE HOUSE's PIER_TRIS to the shipped G2905 people / boat counts), tuto-flight (G3370: the first flight's cards in Tim's band, off on manual; 'Skip the flight' completes T1 at HOME).
 Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore). The two 43 changes were gated together here (PILOT PILOTMATRIX TAKEOFF TOUR APSMOOTH PASS).
 Strict light gate: 9 RED, none new by cause: over100 x4 = the reveal frame (HWCOV: the gate pins mirror=off in the shed, which re-runs worldCompile after the shot; fix reveal-held tested today); metal chase/cockpit tasks1s / taskWorst 1481-1797 = the boot ~1 s task class; metal fuseWidth busy (accepted).
+
+## G3351-G3352 - THE SMOKE RUN'S FIXES + THE COZY CABIN (2026-10-22, the GAME COORDINATOR; story_smoke.js on live L22b found them; the user on the cabin: "I liked it messy")
+- **G3351 the paint-only lock held.** The story's mask note fired on a CHANGE of mask. At a New career it fired before
+  editor.js defined EDITOR_LOCK, and the mask never changed again, so the lock never engaged (Shape stayed enabled at
+  T0). `storyLockSync` now holds EDITOR_LOCK to the mask at boot and on every 1.5 s tick.
+- **G3351 the bench TOOL hidden in the small shed.** #tabBench is no longer in the page; the bench's tests live in the
+  left panel's #edBench. `storyBenchRule` sets `body.stNoBench`, editor.css hides #edBench under it, and a note says
+  certification happens at the WWII field's hangar.
+- **G3352 the cozy cabin.** BASE_OFFERS.w1's kits are every kit but the office: the work bench (decor), wood and metal
+  machines, the plane and wing in build (wip), store, handling, comfort, curio. A New career's cabin gets them.
+- **READY - saves:** an EXISTING career's cabin shed whose kits are exactly the old thin set (park, bench, comfort) gains
+  the plot's other kits on load. That is decor only: nothing is removed, and its aeroplanes, slots and money are
+  untouched. A cabin the player furnished otherwise (any other kit list) is left alone.
+- GATE STORY rows: the lock held every tick, the bench tool hidden by the body class, the cabin's kits.
