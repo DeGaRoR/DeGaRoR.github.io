@@ -97903,3 +97903,30 @@ run looks right): from flyDiy/, `node tools/rollout_perf.js --build builds/c172r
 --world none --secs 120 --label hydrotrim_stc --shot-phase all` and `node tools/rollout_perf.js --build
 bugReports/cessnaFloatsWOrks.json --world none --secs 120 --label hydrotrim_floats --shot-phase all` (the analytic
 world's SEA lane; a float build is put there by applyRoute; the phases to-displace / to-step / climb in the summary).
+
+## G3445-G3449 - FLOAT-KIT: FITTING FLOATS FITS THE CERTIFIED SEAPLANE PROPELLER, A CARD SAYS WHAT ELSE CHANGES; G3443 REVERTED (LAND PROPS BYTE-IDENTICAL); THE TABLE HOLDS THE HEADING (2026-10-22, RUFUS-CERT for A0, the user's '4 yes'; branch claude/float-kit off origin/claude/hydro-trim e40ac5c2f, master merged; G3440-G3442 kept)
+
+**G3445** G3443 reverted ('climb' fm 0.630 -> 0.530, the land classes byte-identical to master: Cub, Jodel, Cessna, Rufus
+static thrust bit-identical after the master merge). The float prop is its own class `seaplane` (FM 0.50 measured, fm
+0.630, pd 0.524), never picked by 'auto'. `GEN_SEAPLANE_PROPS` (60_gen_spec): the certified seaplane propeller per float
+model - 'Wipline 2350': McCauley 1A200/WFA8243, 82 x 43 in (Wipaire STC).
+**G3446-G3447** tools/_cage_float.js `floatKitStep`: floats on with a float model that has a row fits its propeller (D,
+blades, material, pitch) and keeps the old one in `fltKitPrev*`; floats off (or a model without a row) puts it back
+exactly; a load never refits; a builder's later change is not fought. `floatKitCard` (#fkCard, editor.css, the --ed look,
+top right, never in flight): the propeller by name, ventral fin, water rudders, weight, the float's rated gross; OK / undo.
+GATE FLOATKIT (core, 21 checks). The STC build on 'seaplane'; the sheet says 'seaplane (float prop)'.
+**G3448-G3449** GATE DMGHULL (A0's fix A then A2): the small slips sampled 0-9 deg by 1; the small-slip keel = the wetted
+keel most of the 1-9 deg points share (the twin's hump pose has a keel station on the waterline). Same law, 1 %, >= 3
+points, every departure a keel change. tools/hydro_trim_table.js (and GATE HYDROTRIM, same fly()): the heading held by
+rudder + water rudders while wet, the speed read along the nose - on master's core the engine torque swings a floatplane
+~180 deg in 25 s with the rudder centred, which had made the 11:35 table meaningless on both cores.
+
+Table (reports/evidence/G3445, before = master's core, after = this branch; POH = flaps 20 + Vr): 172R STC 1157 kg - before
+not off in 90 s, after 30.1 s / 433 m (rig 38.0 s / 677 m); 172R + 2350 on the land prop not off on either (the case the
+kit fixes); Cessna floats 27.2 s / 352 m -> 22.0 s / 307 m; Wipline fixture 19.8 s / 260 m -> 17.4 s / 241 m; twin rig
+8.8 -> 8.6 s (its POH row noses over at 2 m/s on both cores: the tool's 20-deg flap, not a twin technique). Hump trim on the
+2350 13-14 -> 8-10 deg.
+Gates 14:20 (gates.txt): 27/32 PASS. DMGHULL PASS after A2 (15:21). DMGPLOUGH red = Pilot's hump-stick; TOUR shard 2 (float
+Cessna ground-loop on the SEA roll) = the joint float fix, Pilot's float-water-final (re-gate 20:50). POD and ROLLANIM are
+red on master 5f3f2c797 too (master_5f3f2c797_pod_rollanim.txt): POD's base was blessed on train 41; ROLLANIM's G1039
+framing - board items for their owners, not this branch.
