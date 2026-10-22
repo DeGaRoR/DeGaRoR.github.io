@@ -101,8 +101,11 @@ const BASE_OFFERS = {
     // (G3352, the user 22 Oct: "I liked it messy ... the wing in building, the plane in building, a couple of woodworking
     // machines and other props") the cabin is the cozy workshop: every kit but the office. The 'bench' KIT is the work
     // bench (decor); the certification bench (the TOOL) never stands here (app.js storyBenchRule)
+    // (G3352, the user 22 Oct: "If all props do not fit the hangar, you may slightly increase its size") 10 x 11 (20 x 22 m,
+    // the field shell's widest): with every kit the story's ultralight (Rufus, class ul1) stands inside; a Cub does not, and
+    // the story never brings one here (its client Cub lives at HOME) - `takes` names the class the offer is held to
     plots: { w1: { shells: ['field'], kits: ['park', 'bench', 'wood', 'metal', 'store', 'handling', 'comfort', 'curio', 'wip'], pf: 0.6,
-                   dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } } },
+                   takes: 'ul1', dims: { field: { HW: 10, HD: 11, EAVE: 4.0 } } } },
   },
   HOME: {
     words: 'Jolene AFB · the WWII field',

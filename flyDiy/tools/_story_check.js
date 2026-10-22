@@ -133,7 +133,8 @@ function run(M) {
   ok(back1.sheds.HOME.locked === 'story' && back1.sheds.w1 && back1.here === 'w1', 'saved and reloaded: the cabin and the lock kept');
   // a plane of ours away at HOME: bring it home / send it home before T1
   h = JSON.parse(JSON.stringify(h)); h.fleet.ul = { hangar: null, aero: 'HOME', kind: 'away' }; h = M.careerNormalise(h);
-  const bh = M.playerBringHome(h, 'ul');
+  const UL = { ul: { half: 4.7, fwd: 0.9, aft: 5.4 } };   // (G3352) the story's ultralight's footprint (GP_PARKED_FOOT.ul1), as the page hands it
+  const bh = M.playerBringHome(h, 'ul', { foots: UL });
   ok(bh.ok && M.playerWhere(bh.doc, 'ul').hangar === 'w1', 'bring it home before T1: to the cabin, never the locked HOME', JSON.stringify(M.playerWhere(bh.doc, 'ul')));
   ok(!M.playerSendTo(h, 'ul', 'HOME').ok, 'send-to HOME before T1: refused (not yours yet)');
   ok(M.playerSendTo(h, 'ul', 'w1').ok, 'send-to the cabin: ok');
@@ -146,7 +147,7 @@ function run(M) {
   const st = M.playerSendTo(x.doc, 'ul', 'HOME');
   ok(st.ok && M.playerWhere(st.doc, 'ul').hangar === 'HOME', 'send-to HOME after T1: inside HOME', JSON.stringify(M.playerWhere(st.doc, 'ul')));
   ok(!M.playerSendTo(x.doc, 'ul', 'w5').ok, 'send-to a hangar we do not hold: refused');
-  const back2 = M.playerSendTo(st.doc, 'ul', 'w1');
+  const back2 = M.playerSendTo(st.doc, 'ul', 'w1', { foots: UL });
   ok(back2.ok && M.playerWhere(back2.doc, 'ul').hangar === 'w1', 'send-to from INSIDE HOME back to the cabin: moved (not "already inside")', JSON.stringify(M.playerWhere(back2.doc, 'ul')));
   // ---- G3350 STORY-TIM: Tim's lines for every beat; the editor's story lock; the bench never in the small shed
   ok(M.STORY_TIM && M.STORY_TIM.name === 'Tim' && M.STORY_BEATS.every(B => M.storyTimLines(B.id).length >= 1 && M.storyTimLines(B.id).every(l => typeof l === 'string' && l.length > 8)),
