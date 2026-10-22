@@ -345,10 +345,18 @@ function makePilot(sim, def, world, opts) {
   // G3077 (TORQUE-RETUNE-66): THE NOSEWHEEL THAT WILL NOT LIFT - past Vr with the stick on the servo's 0.35 top for a second
   // and the nose not up, the pull goes on to the stick's full travel (ROLL, below); rotStuckT the time it has been so
   let rotPull = false, rotStuckT = 0;
+  // FLOAT-FAST-WATER (22 Oct): THE FLOATS' FINAL AND FLARE HAVE THE WATER'S ELEVATOR. The servo's air top (0.35) is a cruise
+  // pilot's; the float Cessna (nose-heavy: the floats, the load door) sat on it down the final ('vref-raised': 31.7 m/s asked,
+  // more flown, the flap taken away) and in the flare (the pitch law stops winding at 0.30): it could not raise the nose to
+  // bleed the speed, floated on power and met the water at 31-34 m/s - the skip, then the prop strike or the capsize
+  // (G3079's KNOWN). A seaplane pilot holds the stick back to the landing attitude. On the land aeroplanes nothing moves
+  // (0.35 and 0.30, as before, to the bit)
+  const floatsLand = () => !!sim.hydro && (ap.phase === 'FINAL' || ap.phase === 'FLARE');
+  const deAirTop = () => floatsLand() ? (A.deWater ?? 0.70) : 0.35, deSatAt = () => floatsLand() ? (A.deWater ?? 0.70) - 0.05 : 0.30;
   const SV = makeServos(sim, def, { pilot: 'pilot', now: () => ap.t, trike, rotateTD, TW, features: {
     trimCalm: true, groundP1D: true, xwBank: true, water: true, porpoise: true,
     // G396.2 / G970: on the step the stick comes all the way back, through LIFTOFF
-    deTop: (onG) => (sim.hydro && (onG > 0 || ap.phase === 'LIFTOFF')) ? (A.deWater ?? 0.70) : (rotPull && ap.phase === 'ROLL') ? (A.deRotateFull ?? 0.70) : 0.35 } });
+    deTop: (onG) => (sim.hydro && (onG > 0 || ap.phase === 'LIFTOFF')) ? (A.deWater ?? 0.70) : (rotPull && ap.phase === 'ROLL') ? (A.deRotateFull ?? 0.70) : deAirTop() } });
   const taxiFF = (() => {
     const PP = POWERPLANTS[def.params.powerplant];
     const PR = def.params.prop || PP.prop;
@@ -2025,7 +2033,7 @@ function makePilot(sim, def, world, opts) {
       // once the elevator has margin again (no saturation for 3 s, under 0.25 of its travel). Land aeroplanes as before
       // (CESSNA-VREF G2500 judges the metal Cessna on its raise - a generic change is train 66's)
       const capRamp = !!sim.hydro && SV.IthMax < SV.IthMaxT - 0.01;
-      const eSat = (deHeld() > 0.30 || (!capRamp && SV.Ith >= SV.IthMax - 1e-3 && (PRA ? thShortH : SV.thCA - th) > 0.03)) && V > (o.ias || A.VAppr) + 0.5
+      const eSat = (deHeld() > deSatAt() || (!capRamp && SV.Ith >= SV.IthMax - 1e-3 && (PRA ? thShortH : SV.thCA - th) > 0.03)) && V > (o.ias || A.VAppr) + 0.5
                    && (!PRA || ap.phase === 'FINAL');
       tDeSatT = eSat ? tDeSatT + dt : Math.max(0, tDeSatT - dt);
       if (tDeSatT > 1.5) tVAdapt = Math.min(tVAdapt + 0.5 * dt, 0.25 * (o.ias || A.VAppr));
@@ -4004,7 +4012,7 @@ function makePilot(sim, def, world, opts) {
         // the flight (the flare, the next circuit). No flap, or an elevator inside its budget: as before
         deF += (deHeld() - deF) * Math.min(1, dt / 0.5);
         if (FS && c.flap < fLDG - 0.01 && c.flap > fTO && deF > 0.18) { fLandCap = c.flap; flapTgt = c.flap; say('flap-limited', 'the elevator holds flap ' + c.flap.toFixed(2) + ' at its trim budget — no more'); }
-        if (FS && c.flap > fTO + 0.01 && deHeld() > 0.30) {
+        if (FS && c.flap > fTO + 0.01 && deHeld() > deSatAt()) {
           fCapT += dt;
           if (fCapT > 0.3) { fLandCap = Math.max(fTO, c.flap - 0.25); fCapT = 0; flapTgt = Math.min(flapTgt, fLandCap); say('flap-limited', 'the elevator cannot hold flap ' + c.flap.toFixed(2) + ' — landing on ' + fLandCap.toFixed(2)); }
         } else fCapT = 0;
@@ -4212,7 +4220,7 @@ function makePilot(sim, def, world, opts) {
           const vsC = -Math.max(sinkF, Math.max(0, hFl) / flTau) + altG * Math.hypot(vcg[0], vcg[2]);
           const ev = vsC - flVsF;
           // the elevator has no more to give: stop winding the demand up
-          const deSat = SV.aDe > 0.30;
+          const deSat = SV.aDe > deSatAt();
           flI = clamp(flI + (deSat ? -0.15 : (A.flareI ?? 0.30) * ev) * dt, 0, Math.max(0, flCap - thFlare0));
           const thC = clamp(thFlare0 + (A.flareP ?? 0.20) * ev + flI, thFlare0 - 0.02, flCap);
           // the pull: a firmer inner loop and the rotation's integrator authority
