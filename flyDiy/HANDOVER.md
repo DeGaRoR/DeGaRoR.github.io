@@ -97293,3 +97293,466 @@ G3030's regression was a bug: brkState frees the drawers on every unbroken frame
 Rolling set: cabin-pad (ED-2: GBOX declared above the premises block - the 'premises ground' boot step had thrown on EVERY boot since G3100, 13 Oct, so the near-ring sink, fine-ring clear, ring LOD rebuild and far-tier resink never ran; GATE WORLDRENDER now runs the step and fails on any premises warning; held side sheds wear their shell skin), dmg-impact-lag-handover (doc: impact lag closed at the 'moderate' bar, five angles tried and failed, the WATCH item), reveal-hitch (the reveal's grass pre-plant, grass only; the location guard; the frame catcher skips while BOOT is up), story-intro (G3380-G3386, the cabin cinematic + 'Sunset Plains' CC0; AUDIO wiring fixed; +~15 s on a New career's first load, under investigation).
 Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore).
 Strict light gate: 5 RED, none new by cause. over100 now x3 (cub chase gone; cub cockpit, metal chase/cockpit 0->2) = the reveal's first world frame (HWCOV); metal cockpit taskWorst 1416 ms = the ~1 s boot/settle task class (seen 1087-1591 since L19d; the restored boot step adds ~0.5 s of yields before the reveal); metal fuseWidth busy = accepted. The baseline (ee466b792, 12 Oct) predates G3100, i.e. it was taken with the boot step alive.
+## G3400-G3414 - CITY-A COOK: THE COOKED TOWN PACK (format + cook + GATE CITYCOOK) (2026-10-20, CITY-A for A0, cloud; branch claude/city-a off origin/claude/city-brief 6ce69e02)
+The format is `futureDesigns/CITY-PACK-FORMAT.md` (v1, the first commit, pushed first for CITY-B). Metlakatla is cooked into 13
+cells of 512 m. Per cell:
+- **far:** one static merged mesh, built at cook time, in 4 buckets and 2 draws:
+  - shell = walls + roofs (each kit house's FAR SHELL, at most 16 triangles, plus the landmarks' boxes);
+  - ground = the roads' ribbons + the lots' ground (draped, lifted).
+
+  12 B a vertex, quantized in the cell's box, vertex colour = the finish's albedo mean (sRGB). The gain is the runtime's
+  (`lod.farGain` 0.2, G559).
+- **near:**
+  - the kit rows: a complete TKIN instance file in the WORLD frame, which `TOWNKIT.decodeInstances` reads as it is;
+  - props at 20 B a row (the places cook's own placements);
+  - the uniques (63 landmarks, which stay on the unique path);
+  - the plot list (id, seed, rows, flags) for the editor and the life links.
+
+Nothing is per plot at run time.
+
+**What changed:**
+- **G3400:** `futureDesigns/CITY-PACK-FORMAT.md`.
+- **G3401:** `tools/city_cook.js` (new). It reads only committed inputs: the town variant's places cook, the kit pack and
+  table, and the composed record (for the roads and the ground). It writes `media/city/jolene/metlakatla/c_<i>_<j>.<h8>.bin`
+  and `src/core/city_packs.json`. It never writes `premises_packs.json`, `townkit_pack.json` or `media/world`.
+  - Deterministic: two cooks give byte-identical raw cells; gzip level 9, mtime 0; an unchanged cell keeps its shipped
+    gzip.
+  - **The kit table is stale against the fixture:** 6 of its plots are gone and 11 new plots (roads r1 / r3) have no row.
+    The cook gives those 11 their row with `town_kit.js assign` itself (plot flag 8), so **all 380 plots are kit rows,
+    0 unique.**
+  - The outbuildings are the places cook's plan: 51 are the table's own rows and 4 are placed from the plan, so no
+    hidden rows.
+- **G3402:** `tools/_citycook_check.js`, GATE CITYCOOK (core, ~20 s), registered in run_gates.js. It checks:
+  - the manifest;
+  - determinism;
+  - freshness, byte for byte;
+  - coverage: each of the 380 record plots in exactly one cell, its anchor's; the 63 items and 40 objects once each;
+    0 of the 276 default things;
+  - the draws: 4 buckets, at most 2 draws, the shell within 16 triangles a row;
+  - the ids, through townkit.js's own decoder: archetype < 33, house / outbuilding kinds, the finish's roof kind, props
+    in range;
+  - TOWN_OFF intact: TOWN_OFF = the default variant's drop / keep; the default places re-hash to their manifest hash;
+    premises_packs.json and townkit_pack.json are byte-identical after the cook; the seaplane base is absent;
+  - 4 negative controls: a plot moved, a plot dropped, an archetype id past the pack, a third draw.
+- **G3403:** GATE MEDIA reads `city_packs.json` (`tools/_media_check.js`, one line).
+- **G3404:** `tools/evidence/CITY-A-far.js`: a node software raster of the committed pack, written to
+  `reports/evidence/CITY-A/`:
+  - `town_far.png`: the far town;
+  - `cell_near.png`: the busiest cell's far mesh beside its 128 kit rows at lod 1, on one camera. The far shells sit on
+    the kit houses, mirrors included.
+
+**Untouched:**
+- the procedural path: the village, the editor's premises, piers, boats, waterfronts;
+- render_premises.js (the LIFTS are byte-identical: GATE PREMCOOK PASS), matlib.js, the premises fixture rev;
+- the page: nothing in the game reads the pack yet (CITY-B's host does). The town flag is unchanged, default OFF.
+
+**Numbers (Metlakatla v1):**
+
+| | |
+| --- | --- |
+| cells | 13 |
+| far draws for the whole town | 26 |
+| far triangles / vertices | 34 108 / 33 800 (at most 8 866 triangles a cell) |
+| kit rows | 435 |
+| props | 3 695 (99 keys) |
+| bytes | 747 KB raw, 473 KB gz (fetched by a town-ON page alone) |
+| cook | ~16 s (15 s of it is the compose) |
+| node decode of all 13 cells (gunzip + header + positions to f32) | ~25 ms; the biggest cell ~6 ms |
+
+**Gates** (`node tools/run_gates.js --only=CITYCOOK,PREMISES,PREMCOOK,TARR,KITHOST,TOWNKIT,METKIT,BUILD,MEDIA --no-build`):
+- PASS: CITYCOOK, PREMISES, PREMCOOK, TARR, TOWNKIT, BUILD, MEDIA.
+- **RED, the same on the untouched base:** a clean worktree of origin/claude/city-brief 6ce69e02 gives the identical
+  FAIL lines.
+  - KITHOST G: "every visible instance draws its house's (archetype, mirror, rung) - 2 of 537", and the instanced arm
+    535 vs 537.
+  - METKIT A: "every plot Metlakatla sows is a kit plot - 369 of 380". METKIT B: "7 rows off".
+
+  These are the stale kit table: the fixture moved after the table was baked (the 11 plots above). Not caused here. The
+  fix is a re-bake of the kit table (`node tools/town_kit.js --media`, which writes media/townkit, so it is the user's
+  call: git history). The city pack does not depend on it.
+
+**Asks for the user:**
+1. **The look of the far town** (the two PNGs; flat-shaded, no textures, so judge the shapes and where things stand):
+   - kit houses are a walls box plus their roof family's prism;
+   - landmarks are the box of their obstacle extent at 85 % of their height. An L-shaped building, or a curved quay or
+     breakwater, fills out its extent.
+
+   OK for past ~1 km?
+2. **Re-bake the kit table** (fixes METKIT / KITHOST on master, and lets the pack drop its 11 cook-assigned rows)? It
+   adds a new table file to git history.
+3. **Commit the pack's media** (473 KB in 13 files under media/city)? It is committed on this branch so CITY-B and the box
+   can test it; A0 lands it only after your look.
+
+**For A0, on the box:**
+1. `node tools/run_gates.js --only=CITYCOOK,MEDIA,PREMCOOK --no-build` (the pack fresh against the box's own zlib and
+   fixture).
+2. `node tools/evidence/CITY-A-far.js`, then look at `reports/evidence/CITY-A/{town_far,cell_near}.png`.
+3. **The re-cook rule:** whenever `premises_cook.js` re-cooks the town variant, `town_kit.js --media` re-bakes, or the
+   fixture moves:
+   - run `node tools/city_cook.js --island jolene`;
+   - commit `media/city/jolene/metlakatla` and `src/core/city_packs.json`.
+
+   GATE CITYCOOK says STALE until then. Its `inputs` names which input moved.
+4. **The perf A/B** needs CITY-B's host: nothing in the game draws the pack before it. With CITY-B landed, use the rig of
+   METLA-2.0-HANDOVER §5 (the `D:/pl/tools` tree):
+   - the floats route (`--build bugReports/cessnaFloatsWOrks.json`), `--gfx-set mirror=off`;
+   - the arms: OFF (`--variant nomet-sea`), ON as master (`?town=1`), ON + the pack (`?town=1` + CITY-B's flag);
+   - each at `--dest CIRCUIT` (the 4-6 km window) and `--dest mk_sea` (the close visit);
+   - summarise with `node tools/perf/metla_ab3.js <dir> --prefix ab`;
+   - accept on the enable rule (at most +3 ms of loop at 4 km, >34 ms frames within ~1 pt of OFF) and on the close-visit
+     p99 of ~50 ms or less;
+   - `--profile-live <at>,<secs>` on any >100 ms frame.
+
+## G3405-G3414 - CITY-A COOK v2: THE USER'S RULING (far shells at 1 km, no lot squares, the near LOTS: fences, gates, worn ground), THE KIT TABLE RE-SOWN, CITY-B'S PROPOSALS (2026-10-20, CITY-A for A0, cloud; branch claude/city-a, on G3400-G3404)
+**The user's ruling of 20 Oct, relayed by A0:**
+- the far town look is OK;
+- the far shells start at 1 km, kept as a dial (2 km is the fallback);
+- no flat lot squares anywhere;
+- the near lots: fences, gates, yard dressing and patches, as instanced near-only rows;
+- commit the media;
+- re-bake the kit table and drop the cook-assigned rows;
+- take CITY-B's proposals.
+
+The format is **v2** (`futureDesigns/CITY-PACK-FORMAT.md`), pushed first (71f3e389). Its section 0 lists what changed.
+
+**What changed:**
+- **G3405, the format v2:**
+  - the far mesh is the shells only (walls, roofs): **1 draw a cell**, with `far.owners` (per plot and per unique, its
+    index range: CITY-B's proposal 3);
+  - **no roads** (CITY-B's proposal 1: the pavement draws them at every distance) and **no lot ground**, far or near:
+    the terrain's texture is the lot;
+  - `lod.far` = 1000 m is THE DIAL. `nearIn` / `nearOut` = `far` -/+ 50, so the host may override it (`?cityfar=2000`)
+    with no re-cook;
+  - `lotFar` 400 m, `lotE1` 120 m;
+  - the **`lots` section** (32 B rows) and the town's **lot kit** file (§9);
+  - the lot cars are in the props;
+  - `v` stays strict (CITY-B's proposal 7). Proposal 4 (one bundle per town) is not taken; it is optional.
+- **G3406, the kit table re-sown, the approved archetypes kept:**
+  - `node tools/town_kit.js --table` (new) re-sows the table against the COMMITTED pack 2e8c3968 (the 30 + 3 approved
+    archetypes). `--media` would have re-clustered them: I ran it, saw a different set of medoids (the village has
+    46 plots now, 84 on 27 Sep), and reverted it.
+  - The table: `media/townkit/townkit_jolene_54528c50dfc7.bin`, 495 rows, 0 unplaced.
+  - **The sowing now stands on the page's ground:** `town_kit.js sow` composes on premises_cook's world, the one the
+    page uses, not a bare island_node world. The two differed by **2.45 m** under `mk_z_town:r3:2`, one of the new
+    plots. The table would have floated that house, while kit_lot (the page) put it on the ground. METKIT B caught it.
+- **G3407, the lot kit:** 27 pieces cooked from VILLAGE_GEN's own `buildFence` / `gateLeaf` at FENCE_HAND 0.6:
+  - posts and 2.4 m bays, rail and picket, each in 4 hands;
+  - the picket bay's lod 1 (rails + one panel, 60 triangles instead of ~450);
+  - a closed gate leaf and the taller gate posts, per style;
+  - the old stretch (the `fence_old` prop, stretched as `placeFence` does);
+  - 5 worn-ground kinds: path, drive, pad, slab, dry.
+
+  The vertex is the kit pack's 16 B; role post / deck = render_premises `fenceFinish`'s two materials.
+- **G3408, the lot rows:**
+  - every stretch of every plan is cut exactly as `buildFence` cuts it: clipped to the land, a post every 2.4 m, the
+    gate its own bay, the leaf swung by `buildFence`'s own noise. Bays are sheared to the ground between their posts;
+  - the worn ground is lotGround's own channels (paths, drive, pad, a commercial lot's slab, the dry ground at the
+    house's and the outbuilding's foot): strips and rectangles with a soft, noise-broken edge, at most 8 m a piece,
+    the inner seams unfaded;
+  - **lotGround's lawn tone over the whole lot is NOT drawn** (the user's "no flat lot squares");
+  - the 25 sites with fences carry their lots too (flag 128).
+- **G3409, GATE CITYCOOK v2:**
+  - 1 draw a cell, the owners tiling each bucket;
+  - every plot a row of the kit TABLE (0 assigned);
+  - the lot rows' pieces and owners;
+  - **the lots:** every bay between two posts; each owner's fences cover its plan's fenced edges clipped to the land
+    (41 024 of 41 017 m); every fence row on its plan's edge (5 cm); every corner on the composed ground (worst
+    0.84 cm); no ground piece past 8 m, and no lawn;
+  - 6 negative controls: + a lot row on a missing piece, + a bay taken out.
+- **G3410, the evidence:** `tools/evidence/CITY-A-far.js` writes `reports/evidence/CITY-A/`:
+  - `town_far.png`: shells only;
+  - `cell_near.png`: far vs kit + lot rows;
+  - `lots_close.png`: a 70 m street-level close-up of the fences, posts, gates and worn paths.
+
+**Numbers (Metlakatla v2):**
+
+| | |
+| --- | --- |
+| cells | 13 |
+| far draws for the whole town | **13** (v1: 26) |
+| far triangles | 6 388 (v1: 34 108) |
+| kit rows | 435, all the table's own (55 outbuildings) |
+| props | 3 743 |
+| lot rows | **35 892**: 14 878 posts, 13 374 bays, 378 gates + 756 gate posts, 2 032 old stretches, 4 474 worn pieces |
+| fence | 41.0 km |
+| bytes | 702 KB gz in the cells, + 35 KB gz the lot kit |
+| cook | ~17 s; GATE CITYCOOK ~25 s |
+
+**The near triangle budget, for CITY-B:**
+- the densest cell holds 10 167 lot rows, about 731 k triangles at lod 0;
+- `lotE1` 120 m (the picket lod 1) and `lotFar` 400 m are what bound a frame;
+- the shadow pass takes only flag-1 rows within min(`lotFar`, `castFar`).
+
+**Gates** (`--only=CITYCOOK,PREMISES,PREMCOOK,TARR,KITHOST,TOWNKIT,METKIT,BUILD,MEDIA --no-build`):
+- **PASS:** CITYCOOK, PREMISES, PREMCOOK (the LIFTS untouched), TARR, TOWNKIT, METKIT, BUILD, MEDIA.
+- **FAIL:** KITHOST, below.
+- METKIT is green now: 380 of 380 kit plots, each placed where the kit sowed it.
+- **KITHOST stays RED, and the table does not cause it.** It builds a fresh kit itself (`TK.run`). Its two FAIL lines
+  (G "2 of 537" and the instanced arm 535 vs 537) are a bug in `src/viewer/townkit.js` (CITY-B's file, so I did not
+  edit it): **`setBand` resets `rung` / `partner` to -1 without hiding the instances already drawn.**
+  - A partner slot that was visible before the reset stays visible. The next tick sees `pq === partner[h] === -1`
+    and never hides it.
+  - It shows on two village houses (z_village:r9:14/15) at the gate's eye.
+  - The same code is on claude/city-b.
+  - **The fix (one line, for CITY-B or A0), in `setBand` after `partner.fill(-1);`:**
+    `if (o.mode === 'batch') { for (const k in B) for (let id = 0; id < 2 * N; id++) B[k].bm.setVisibleAt(id, false); } else instDirty = true;`
+  - **Proven here:** with that line applied, GATE KITHOST PASSES. The edit was then reverted: the file is CITY-B's.
+
+**Asks for the user:**
+1. **The near lots' look:** `lots_close.png` (flat-shaded, no textures).
+   - The fences, posts and gates are the village's own, sheared to the ground.
+   - The worn ground is drawn only as the paths, the drive, the pad, the slab and the dry ground round the house. The
+     lawn tone over the whole plot (the old "square" patch) is gone.
+
+   Is the dry ground round the house a "flat lot square" to you? It is the house's footprint plus 1.2 m with a soft edge.
+   If yes, the cook drops that one kind and keeps the paths.
+2. **The kit table:** I re-sowed the TABLE only, on the approved archetypes (`--table`), not `--media`. `--media`
+   would re-cluster the 30 + 3 shapes, because the record has moved since 27 Sep. Confirm that is what you meant.
+
+**For A0, on the box:**
+1. `node tools/run_gates.js --only=CITYCOOK,MEDIA,PREMCOOK,TOWNKIT,METKIT --no-build`.
+2. `node tools/evidence/CITY-A-far.js`; look at `reports/evidence/CITY-A/{town_far,cell_near,lots_close}.png`.
+3. **The re-cook order** when the fixture moves:
+   - `node tools/premises_cook.js --island jolene`
+   - then `node tools/town_kit.js --table`
+   - then `node tools/city_cook.js --island jolene`
+   - commit `media/world/jolene/premises`, `media/townkit`, `media/city/jolene/metlakatla` and the three manifests.
+
+   GATE CITYCOOK names the input that moved (`inputs`) and fails if any plot needs a cook-assigned row.
+4. **The perf A/B** needs CITY-B's host on v2: the host must accept `v 2`, read the `lots` section and the lot kit, and
+   draw no ground stand-in. Then run the METLA-2.0 §5 rig as given in G3400-G3404.
+   - Add the near arm at the street level: the floats into `mk_sea`, then a taxi or a low pass over
+     `mk_z_town` (-3836, -8437).
+   - That is where the 731 k-triangle cell is.
+## G3415-G3422 - CITY-B RUNTIME: THE TOWN METER, THE NEAR RING, THE TOWN HOST FROM ITS PACK, GATE CITYHOST (2026-10-20, CITY-B for A0, cloud; branch claude/city-b off origin/claude/city-brief 6ce69e02)
+The requirement (CITY-2.0-PLAN, METLA-2.0-HANDOVER §0 / §4): an idle far town costs ~0 ms of CPU a frame and allocates
+nothing; no per-house Object3D far away; per-frame town JS is O(near ring), never O(town). Built in the plan's order. CITY-A's
+v1 format (`futureDesigns/CITY-PACK-FORMAT.md`, claude/city-a 15a8332f) landed mid-session: the host reads it as written, and
+GATE CITYHOST runs on CITY-A's real Metlakatla pack (13 cells, 435 kit rows, 3 695 props) as well as on its own fixture.
+
+- **G3415 THE METER** ("town ms"):
+  - `flight_recorder.js`: three columns, `town` (ms), `townN` (items visited), `townKB` (?townalloc=1, else NaN); 49 -> 52
+    columns (GATE FLIGHTREC's count updated). `FLIGHT_REC.town(ms, n, kb)`, allocation-free.
+  - `render_world.js` worldUpdate times every town-owned call as one: the premises stream, the patch / roads (geoTick), the
+    lots' cut, the premises' tick. `?townalloc=1`: Chrome's heap counter round them (its own read's cost calibrated off;
+    run Chrome with `--enable-precise-memory-info`). `premises.townFrame` = [ms, items, KB] of the last frame.
+  - `render_premises.js` TM: the parts (detail, hlod, kt - the kit / city host -, settle, life, trams, traffic, anim, rise,
+    freeze, far, pwr, hit, lots), their run sums, the items its walks visited; `townMeter()` once a frame.
+  - `tools/rollout_perf.js`: a TOWN line (ms med / p90 / p99 / max, frames over 2 / 5 ms, items, the parts, KB), the town's
+    share of every frame over 100 ms, `townFrames` in the JSON, `--town-alloc`.
+  - `tools/perf/town_meter.js` (the JSONs side by side), `tools/perf/town_meter_eval.js` (an `--eval` expression: the same
+    from the recorder, for a rig whose rollout_perf has none of the above).
+- **G3416 THE NEAR RING** (`src/viewer/town_ring.js`, new, in the world pack before render_premises): a list of what stands
+  within its own farthest switch of the eye, rebuilt only when the eye has moved 40 m (numeric cell keys, no string, no
+  allocation); an item leaving is put to its far state once. On TODAY's town (no pack needed):
+  - the detail walk (castShadow, props, the two detail cuts) walks the ring, not every house (houses join as they freeze);
+  - the far town's cells (hlodTick) walk a ring of cells; its 30-frame rescan of every house is by generation now;
+  - the kit host's tick (`TOWNKIT.host`) walks a ring of its houses - the same rungs as the full walk (GATE CITYHOST B,
+    house by house along a flight, band and hard switch);
+  - the lots' cells (lotsNear) ring, no key slicing; the settle walk visits the unsettled houses only;
+  - a road out of reach WAITS (its cars caught up on return) instead of sorting its cars every frame; trafficCount builds
+    no string a frame;
+  - scenery_life: its cells on a ring; an empty instance batch is no longer re-uploaded every frame; only the slots shown
+    last time are hidden (it hid every slot, every draw).
+  - `?townring=0` / `?kitring=0`: the walks of before (the A/B).
+- **G3417-G3420 THE TOWN HOST** (`TOWNKIT.decodeCityCell` / `cityOf` / `town`, in townkit.js):
+  - far cells = the cook's merged mesh, one static Mesh a cell (matrices composed once, off the walk), 2 draws (shell +
+    lots: the roads bucket is left to the town's own roads, which already draw everywhere), no shadow, the far town's own
+    material (lodMat 'hard') at lod.farGain;
+  - near cells (lod.nearIn / nearOut of the cell's box) = the instanced kit (the house host, 3 BatchedMeshes for the town),
+    the near cells' rows on their rungs; the cell keeps its lots' ground as the stand-in under the lots;
+  - props within lod.propFar of a cell: one InstancedMesh a key part (cast / flat by the cook's flag), written on change;
+  - the kit row's flag 8 honoured (a no-cast row: 0.25 in its data, the shadow pass drops it); a hidden row (an edited
+    plot) dropped near;
+  - zero allocation per tick, far and near (two V8 traps found and fixed: a double passed to a call that is not inlined -
+    Math.hypot included - is boxed; a closure inside a hot function makes it allocate its context on every call).
+- **In the game** (`render_premises.js` CITY): only with the town on AND `?cityhost=1` (default OFF; Metlakatla stays
+  behind the town flag). It loads `src/core/city_packs.json` and every cell (refused unless v1, frame 'world' and the
+  committed kit pack's sha - then the town is on the kit as before). A pack plot builds NOTHING (an unparented entry in
+  HOUSES, never sent to the worker); a pack object builds nothing (the pack's props draw it); the landmarks, a unique plot
+  and an edited plot keep the PROCEDURAL path - built from 400 m before their cell comes near, drawn while it is near,
+  never in the far town's bake; the near cells' obstacles rasterised 1.5 ms a frame. The mk_sea base is not in the pack
+  (CITY-A §9): with the town OFF nothing here runs, so it stays standalone.
+- **G3421 GATE CITYHOST** (`tools/_cityhost_check.js`, core, ~17 s, registered; `tools/_cityhost_fixture.js`: a v1 pack
+  from the committed kit, so the gate stands without CITY-A's pack).
+- **G3422 evidence**: `tools/evidence/CITY-B-host.js` - the host in headless Chromium: three views, three's shader checks on,
+  the tick timed in Chrome's V8, today's kit host beside it.
+- **The spec**: `futureDesigns/CITY-PACK-FORMAT.CITY-B.md` - what the host reads and, §3, the proposals for CITY-A's §13
+  (drop the far roads bucket or bucket the town's roads; a near lots section for the fences / patches; per-plot ranges in
+  the far mesh; one bundle per town).
+- **Not touched**: matlib.js, the LIFTS (GATE PREMCOOK PASS), the premises fixture rev, the village / editor premises /
+  piers / waterfronts (their builds are as they were), CITY-A's files.
+
+**Numbers** (cloud; the frame's real cost needs the box):
+| GATE CITYHOST on CITY-A's pack | census 116 Object3Ds for the whole town (13 cells + the kit's batches + ~98 prop meshes, hidden far) - today's ON: 279 house objects + their children; far-only frames (4-6.4 km, idle and on the circuit): 0 cells, 0 rows, 0 props visited; 0.12 bytes a tick far, 0.08 near (noise floor) |
+| the tick in Chrome's V8 (cloud CPU, SwiftShader page) | the town host idle far 0.69 us, on the circuit 0.60 us, idle near (435 rows on rungs) 8.5 us; TODAY's kit host from afar: the full walk 12.3 us -> the ring 0.86 us |
+| draws | far: 23 for the whole town (27.6 k triangles); near over the fullest cell: 151 (the props' meshes are most of it) |
+| kit ring vs full walk | identical rungs, 5 886 frames x 522 houses |
+
+**Gates** (`node tools/run_gates.js --only=CITYHOST,PREMISES,PREMCOOK,TARR,KITHOST,TOWNKIT,PAVEMENT,BUILD,FLIGHTREC,METKIT,HOUSEWORKER,WORLDRENDER,LIFE,ASSETS,GFX,HWCOV,SCENERYED,CONTACT,MEDIA --no-build`):
+- PASS: CITYHOST, PREMISES, PREMCOOK (the LIFTS byte-identical), TARR, TOWNKIT, PAVEMENT, BUILD, FLIGHTREC, HOUSEWORKER,
+  WORLDRENDER, LIFE, ASSETS, GFX, HWCOV, CONTACT, MEDIA.
+- RED, and identical on the untouched base (a clean worktree of origin/claude/city-brief 6ce69e02, run here):
+  - KITHOST G "every visible instance draws its house's (archetype, mirror, rung) - 2 of 537" and the instanced arm 535 vs
+    537; METKIT A "369 of 380" and B "7 rows off": the stale kit table (CITY-A's entry, ask 2);
+  - SCENERYED 20b "Metlakatla put back under 2500 ms" (3 353 ms here, 3 615 ms on the base): this cloud box's CPU, the
+    composer is not touched.
+- GATE CITYHOST with CITY-A's pack in the tree (its 13 cells and manifest copied in, not committed): 73 checks PASS - the
+  lines above marked "on CITY-A's pack" come from that run.
+
+1. **Near Metlakatla from the pack lacks its fences and yard dressing** (a kit plot builds nothing; the pack's props bring
+   the cars, boats, people, lamps and pier modules; the lots' flat ground stands in). Land the host for the A/B as it is,
+   or wait for CITY-A's near lots section (proposal 2)?
+2. **The far roads**: the host leaves the pack's road ribbons undrawn (the town's own roads already draw at every distance).
+   Keep that (default), or have the coarse far ribbon (G3214's look) - which needs the town's roads bucketed apart first?
+3. **The look of the near / far switch at ~1 km** on the box stills (A0's step 2): the far shell is the far town's material
+   at the cook's gain (0.2).
+
+**For A0, on the box** (cloud cannot judge a frame):
+1. Land claude/city-a and claude/city-b together (B reads A's pack; both append to HANDOVER - keep both entries). Then
+   `node tools/run_gates.js --only=CITYHOST,CITYCOOK,PREMISES,PREMCOOK,TARR,KITHOST,TOWNKIT,PAVEMENT,BUILD,FLIGHTREC,LIFE,METKIT,MEDIA --no-build`
+   (CITYHOST then runs on the real pack too: its line names `the pack metlakatla`).
+2. `node tools/evidence/CITY-B-host.js` -> `reports/evidence/CITY-B/town_{far,mid,near}.png` on the GPU and a `CITYB {...}`
+   line (the tick in us, the draws). The scene is a rig's (a flat plane, stand-in boxes for the props, a plain sun), not
+   the game's light. The committed stills are the cloud's (SwiftShader, CITY-A's pack): the kit near on its rungs with
+   the house stack's own textures and shadows, the lots' ground under them; far, the shells at the cook's gain.
+3. **The A/B** - METLA-2.0-HANDOVER §5's rig (D:/pl/tools), the floats circuit, the same route and summary. Four arms:
+   | arm | URL | what it is |
+   | --- | --- | --- |
+   | O | `--variant nomet-sea` | the town OFF |
+   | M | `--q "town=1&townring=0&kitring=0"` | ON, master's walks |
+   | K | `--q town=1` | ON, the kit with the near ring (G3415-G3416 alone) |
+   | P | `--q "town=1&cityhost=1"` | ON, the town from its pack (G3417+) |
+   Order P K M O O M K P, each at `--dest CIRCUIT` (4-6 km) and at `--dest mk_sea` (the close visit), every run with
+   `--build bugReports/cessnaFloatsWOrks.json --gfx-set mirror=off --eval @tools/perf/town_meter_eval.js --label ab_<arm><n>_<dest>`.
+   Summaries: `node tools/perf/metla_ab3.js <dir> --prefix ab` (evenness, loop: the enable rule) and the `eval` field of
+   each JSON (the town ms / items / parts / the town's share of each >100 ms frame); with this branch's rollout_perf also
+   `node tools/perf/town_meter.js <dir> --prefix ab`.
+   One allocation run per arm K and P: add `--q "...&townalloc=1" --chrome-flag --enable-precise-memory-info` (this
+   branch's rollout_perf: `--town-alloc`).
+   Accept on the enable rule (ON <= +3 ms of loop at 4 km, frames > 34 ms within ~1 pt of OFF) and the close visit (p99
+   <= ~50 ms). On any frame over 100 ms: `--profile-live <s - 1>,3` (the eval's over100 list names the second).
+
+## G3423-G3427 - CITY-B ROUND 2: THE USER'S RULINGS, THE NEAR LOTS (PACK v2), THE STREET VIEW (2026-10-20, CITY-B for A0, cloud; branch claude/city-b)
+The user's ruling of 20 Oct, through A0:
+- the far town is OK;
+- the switch is at 1 km, as a dial, with 2 km as the fallback;
+- no flat lot squares, near or far (the terrain's texture shows);
+- the town keeps its own roads (no far ribbon);
+- the fences and the yard dressing come back before we measure.
+
+CITY-A's format v2 (`futureDesigns/CITY-PACK-FORMAT.md`, claude/city-a 71f3e389) adds the lots section. At the time of
+writing that branch holds **the v2 spec only**: no v2 cook and no v2 pack yet. The host is coded to the spec, and GATE
+CITYHOST holds it on its own v2 fixture. It also still runs on CITY-A's v1 pack, which has no lots.
+
+- **G3423 the rulings** (`townkit.js` `town`):
+  - a far cell draws its SHELL alone: walls and roofs, 1 draw, no shadow. It is hidden while the cell is near. The cook's
+    lots and roads buckets are never drawn.
+  - The switch is `lod.far` (1 km), in at far - 50 and out at far + 50. Set it with `?cityfar=<m>` (2000 is the user's
+    fallback), or live with `WORLD.premises.city.host.setSwitch(m)`.
+  - render_premises asks for v2 and refuses v1 cells and manifests (the format's rule: the town stays on the kit as before).
+- **G3424-G3426 the near lots** (§9): within `lod.lotFar` (400 m) of a cell's box, near only, zero allocation a tick, in three
+  instanced tables written in place when the near set changes:
+  - **fence pieces:** the town's lot kit (`TOWNKIT.decodeLotKit`), split by role into the fence finish's post and deck
+    (`fenceFinish()`, as instanced siblings), scaled by length and sheared by the rise in the instance matrix. A row with
+    flag 1 casts, so shadows are near only.
+  - **old stretches:** the prop, scaled along x.
+  - **worn ground:** an instanced grid draped on its four corners in the vertex shader (`TOWNKIT.editLotGround`), with
+    lot_tex's set as its map in world metres, alpha faded from its edges and broken by noise. It casts nothing. There is no
+    lawn.
+  - A landmark's props and a unique plot's props and lots are left to the unique path. A pack's unique plot keeps its fence
+    (Metlakatla-bare skips it; it is built near only).
+  - **An edited plot** (`setPlotHidden`, from the owners' ranges §5.1) leaves the pack's draw entirely: its kit rows, its
+    props, its lots, and its range of the far shell, which the cell draws around.
+- **GATE CITYHOST** (66 checks) adds:
+  - the far mesh is the shell's buckets alone, 1 draw;
+  - the flight flown again at the dial's 2 km;
+  - **L** (on the fixture, and on CITY-A's pack once it is v2):
+    - the lot kit decodes;
+    - the lot rows drawn are exactly the lot-near cells', with 0 far;
+    - every fence instance stands on its row (origin on corner 0, length along its yaw, up by the rise);
+    - an old stretch is scaled length / piece.len;
+    - a worn ground carries its corners, size and seed;
+    - shadows: only flag-1 rows cast, within lotFar, and the worn ground never;
+    - a unique plot's rows are never the pack's;
+    - an edited plot leaves and comes back, and its far range is cut.
+  - The fixture (`tools/_cityhost_fixture.js`) cooks v2: shells with owners, a lot kit (post, rail bay, gate, old stretch,
+    two worn grounds), fences round every row with one side on a rise, a gate, old stretches, paths and pads. Every fourth
+    plot is unique.
+- **G3427 the STREET view** (`tools/evidence/CITY-B-host.js`): an eye 2 m up in the busiest cell's street, looking along it.
+  The street is found from the road ribbon nearest the cell's middle. The evidence page draws the pack's ribbons as a
+  stand-in for the town's roads. `--fixture` serves the v2 fixture in place of a pack (the near lots on a page before CITY-A's
+  v2 pack exists).
+- **Spec**: `futureDesigns/CITY-PACK-FORMAT.CITY-B.md` §4-5. The proposals for CITY-A's §14:
+  - the worn ground's `tex` names a lot_tex set;
+  - an old stretch's height;
+  - a post's row length 100;
+  - kind 4 / unique plots are the unique path's;
+  - the near-set rewrite cost.
+
+**Numbers (cloud; SwiftShader page; Chrome's V8 for the JS):**
+
+| far | 1 draw a cell: 13 for the town (v1 pack: 34 108 shell triangles) |
+| CITYHOST on the fixture's lots | 29 742 rows (28 726 fence pieces, 98 old stretches, 918 worn grounds) in 8 instanced meshes; up to 17 002 drawn near; 0 far; 0 bytes a tick idle near and far |
+| a near-set change of the lots (all 13 608 near rows re-written) | ~1.3 ms, once per lotFar crossing, never per frame |
+| the tick in V8 | the town host idle far 0.4-0.7 us, idle near 7-9 us; today's kit host from afar: its ring 0.4-0.5 us, the full walk 10-14 us |
+| shaders | the fence pieces and the draped worn ground link and draw in Chromium (no shader or page error) |
+
+**Evidence** (`reports/evidence/CITY-B/`):
+- `town_{far,mid,near,street}.png`: CITY-A's v1 pack, the shells only; the street view is in a Metlakatla street;
+- `fixture_lots_{near,street}.png`: the v2 fixture's fences and worn ground. Its look is the fixture's boxes, not the
+  village's fence.
+- The scenes are a rig's (a flat plane for the terrain, box stand-ins for the props, a plain sun), not the game's light.
+
+**Gates** (`node tools/run_gates.js --only=CITYHOST,PREMISES,PREMCOOK,TARR,KITHOST,TOWNKIT,PAVEMENT,BUILD,FLIGHTREC,METKIT,LIFE,ASSETS,WORLDRENDER,MEDIA --no-build`):
+- PASS: CITYHOST, PREMISES, PREMCOOK (the LIFTS byte-identical), TARR, TOWNKIT, PAVEMENT, BUILD, FLIGHTREC, LIFE, ASSETS,
+  WORLDRENDER, MEDIA.
+- RED, identical on the untouched base (the stale kit table, as before): KITHOST G (2 of 537), METKIT A (369 of 380) and B
+  (7 rows off).
+- CITYHOST with CITY-A's v1 pack copied into the tree (not committed): PASS. Its L lines say the pack has no lots section yet.
+
+**For the user:** nothing new to rule on. Once CITY-A's v2 pack lands, A0's stills (step 2 below) show the real fences, gates
+and worn ground from a street.
+
+1. Land claude/city-a (once its v2 cook and pack are in) with claude/city-b; keep both HANDOVER entries. Then run
+   `node tools/run_gates.js --only=CITYHOST,CITYCOOK,PREMISES,PREMCOOK,TARR,KITHOST,TOWNKIT,PAVEMENT,BUILD,FLIGHTREC,LIFE,METKIT,MEDIA --no-build`.
+   CITYHOST's lines then name `the pack metlakatla v2`, with its own L lines.
+2. `node tools/evidence/CITY-B-host.js` on the GPU gives `reports/evidence/CITY-B/town_{far,mid,near,street}.png`. The STREET
+   still is the view a pilot gets landing in a Metlakatla street. Before CITY-A's v2 pack: add `--fixture` for the lots.
+3. The A/B is unchanged from the G3415-G3422 entry above: arms O / M / K / P, P = `--q "town=1&cityhost=1"`, at CIRCUIT and
+   mk_sea. Add one P arm with `&cityfar=2000` if the 1 km switch shows on the box.
+
+### G3387-G3388 - STORY-INTRO: THE EYE-LEVEL ENDING, AND THE OPENING'S BOOT COST FROM 15 s TO ~0 (2026-10-21, for the GAME COORDINATOR; claude/story-intro on L21c's master 825d72b41)
+- **G3387, the eye-level ending** (ED-2's cabin-pad fix, L21c, stands the shed on its ground): the arc ends 35 m off the
+  door, 3 m over the ground, lens 38 deg, the horizon in. G3386's high ending stays as the fallback (ctx.end 'high',
+  `?introend=high`). Look 21 Oct 17:35 (A0's slot): the shed whole on its ground, its door to the camera, the forest behind,
+  the sky in the corner (stills with A0 for the user).
+- **G3388, the boot cost** (the user, 21 Oct: "15 seconds for a moving camera? Whyyyy? It's basically the same world..."):
+  - **Found** (the step's own ledger, window.FLYDIY_INTRO_PREP, and a CPU profile, 21:00): of the 'intro' step's 16-17 s,
+    ~12 s was ONE compile making 81 programs the boot never made. Their keys differed from their siblings' in the lights:
+    point 2 -> 0, spot 1 -> 0. The boot keys the whole world with the AEROPLANE in it (craftInWorldNow: its nav / landing
+    lamps), because a flight always has them; the opening draws the world from the shed with the aeroplane in the shed.
+    So every lit material needed a lamp-less variant. Neither streaming nor the world's own lights nor the room's air.
+  - **Fix:** while the opening plays, and while its step compiles and draws, the world wears zero-intensity stand-ins of
+    the aeroplane's light signature (craftLightsGuess's: point + spot, no shadow; storyIntroLamps). The opening draws
+    with the boot's own programs. Off at the swap (before any flight). The step's world updates are 4 a view, not 12.
+  - **Measured** (A0's slot 21:08): the 'intro' step **16.1-18.2 s -> 3.4 s, 0 new programs**. A New career's boot to the
+    screen lifting: **74.0 s** against **73.8 s** without the opening (`?intro=0`), and 88.5 s before the fix. So
+    ~0.2 s (one run each). No task over 150 ms in the shots or at the swap; one 607 ms under the black curtain before them.
+- **The 2.07 s task after the swap** (one eye-end stills run, 17:35): NOT reproduced in the two profiled eye-end runs
+  (21:00, 21:08), nor the high run. A 703 ms one had shown once on an older ending's stills run (20 Oct). Intermittent,
+  not the eye end's.
+- Gates on f1d987d4f (21:14, A0's slot): AUDIO, STORY, UISMOKE, UISMOKE-PHONE, MEDIA PASS, battery PASS.
+- Rigs: tools/perf/story_intro_prof.js (base / eye / high rows: the step's and the swap's CPU profiles, --onlyintro),
+  tools/perf/story_intro_look.js (--stillsonly, --q).
+
+## A0 - landing L21d (21 Oct 2026, gates 22:00-23:07, pushed ~23:25): NEW METLAKATLA v2 BEHIND ITS SWITCH, THE STORY INTRO'S EYE-LEVEL END + THE 15 s BOOT FIX
+Rolling set: city-v2 (A0's integration of claude/city-a G3400-G3414 + claude/city-b G3415-G3427 + the townkit setBand fix CITY-A specified for KITHOST; only with ?town=1&cityhost=1, the default game unchanged; 14 CITY / PREMISES / KIT gates PASS on the real v2 pack), story-intro (G3387 the eye-level end, ?introend=high the fallback; G3388 the boot cost: the opening wore no aircraft lights so 81 lit programs re-keyed - zero-intensity stand-ins: the 'intro' step 16-17 s -> 3.4 s, a New career +0.2 s). ap-adapt EXCLUDED (the user's explicit word on the DEV ham-fist persona line is pending).
+- The battery: master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore) + WORLDRENDER "impostor instances 60709 != canopy instances 59723" ONCE. It did not reproduce in 4 re-runs on the same tree (alone, after the premises / fleet / map cooks, twice): a load-dependent flake under the 8-job battery, owned by the world-render owner as a watch item.
+- The strict light gate: over100 x4 = the reveal's first world frame (HWCOV, named Thu 02:05); cub chase/cockpit tasks1s / taskWorst 1056 / 1292 ms = the boot ~1 s task class (now with the restored GBOX boot step; HWCOV found 364-488 ms settle slices ignoring G1075's 40 ms slicing -> ED-2). metal fuseWidth busy did not trip this time.
+- In-game v2 stills (ED-2, 19:10): 2-3x today's triangles in every view (+31 M at 1.2 km) - the 00:30 A/B decides; the far switch is suspected.
+
+## A0 - landing L22a (22 Oct 2026, gates 04:00-05:07 + a strict re-run 05:07-05:32, pushed ~05:40): THE FAR TOWN'S TEXTURE MEANS WITHOUT A CANVAS READBACK
+Cargo: hlod-means (HWCOV, ED-2 reviewed: meanOf reads TEX_MEANS from tools/tex_means.py -> src/viewer/tex_means.js, 385 maps; no drawImage / getImageData in the tick path; GATE PREMISES 22; an unknown map measured off the frame by createImageBitmap). The far town's merged tint may shift slightly (a true BOX mean replaces the browser's 4x4 downscale).
+Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore).
+Strict light gate, two runs on the same tree: run 1 RED 6 (cub chase/cockpit over100; cub chase compile 5814 ms; metal frame busy 564; cub round trip 2 garage -> world 1115 ms; metal fuseWidth busy); run 2 RED 6 (cub chase/cockpit + metal chase over100; cub cockpit taskWorst 1660; cub fuseLen busy 398; metal fuseWidth busy 150). Nothing reds in both runs except the over100 reveal frames (HWCOV, not solely meanOf after all) and fuseWidth (accepted): run-to-run noise, landed.
