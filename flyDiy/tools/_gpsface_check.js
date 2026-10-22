@@ -21,7 +21,8 @@
 //      the geometry's; no readback anywhere in the file
 //   E  NO ALLOCATION (a child under --expose-gc, GATE CITYHOST's method: new-space bytes a call, warmed, the
 //      least of five windows): the bus's step, the face's tick between repaints and WITH a repaint
-//   F  THE DASH (the headless scene with the crew and panel layers, the validated saves): the GPS unit lands on
+//   F  THE DASH (the headless scene with the crew and panel layers, the validated saves as the game loads them -
+//      tools/_load_build.js): the GPS unit lands on
 //      the plate clear of every dial and switch, or in its glareshield cradle, or is named (never drawn over a
 //      dial); the breakers are the resolver's, each a moving part on cb_<key>; the layout of the dials and
 //      switches is byte for byte the one without the extras
@@ -371,8 +372,9 @@ if (process.argv.includes('--dash')) {
   const BJ = require(path.join(T, '_bake_joined.js'));
   const { C: CC } = BJ.loadPanel();
   const W = SH.context().ctx; SH.stubCanvas();
+  // the spec the GAME flies for the save (tools/_load_build.js: the page's own load chain - GATE JOINPARITY's rule)
+  const s0 = require(path.join(T, '_load_build.js')).loadBuild(file).spec;
   const cerr = console.error; console.error = () => {};
-  const { spec: s0 } = SH.loadFixture(path.join(ROOT, file));
   const spec = cl(s0);
   if (gps !== 'keep') spec.systems = Object.assign({}, spec.systems, { avionics: Object.assign({}, spec.systems.avionics || {}, { gps }) });
   const def = CC.buildGen(cl(spec));

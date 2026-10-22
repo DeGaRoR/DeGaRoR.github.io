@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // AVIONICS-GPS phase 2 (G2801-G2809): THE VALIDATED AEROPLANES FLY AS THEY DID.
 // One node line per validated save (Cub, Jodel, Cessna 172, Rufus): the airframe the solver flies
-// (every node's mass and position, every beam, the ledger's mass) hashed twice, from the saved spec
-// as the game flies it and re-joined through the editor's chain (tools/_bake_joined.js), plus a
-// 20 s hands-off flight from the strip on the solver (the CG path hashed). The fixture is the
+// (every node's mass and position, every beam, the ledger's mass) hashed three times - the saved spec
+// as written, THE GAME'S (tools/_load_build.js: the page's own load chain, GATE JOINPARITY's one load
+// path - the aeroplane the game flies) and re-joined through the card bake (tools/_bake_joined.js) -
+// plus a 20 s flight on the solver of the game's airframe (the CG path hashed). The fixture is the
 // master tree's numbers (captured with --capture on origin/master before any G280x change);
 // a line that differs is a validated aeroplane that changed in flight.
 //   node tools/avionics_parity.js            compare against tools/fixtures/avionics_parity.json
@@ -12,6 +13,7 @@
 const fs = require('fs'), path = require('path'), crypto = require('crypto');
 const T = __dirname;
 const C = require(path.join(T, 'flight_core.js'));
+const LB = require(path.join(T, '_load_build.js'));
 const FIX = path.join(T, 'fixtures', 'avionics_parity.json');
 const BUILDS = {
   cub: 'builds/cub_2026-09-20_corrected.json',
@@ -54,7 +56,8 @@ function measure(key) {
   const file = JSON.parse(fs.readFileSync(path.join(T, '..', BUILDS[key]), 'utf8'));
   const spec = file.spec || file;
   const def = C.buildGen(JSON.parse(JSON.stringify(spec)));
-  const out = { def: defHash(def), ledger: ledgerSum(def), fly: flyHash(def) };
+  const game = C.buildGen(JSON.parse(JSON.stringify(LB.loadBuild(BUILDS[key]).spec)));
+  const out = { def: defHash(def), game: defHash(game), ledger: ledgerSum(game), fly: flyHash(game) };
   try {
     const BJ = require(path.join(T, '_bake_joined.js'));
     BJ.loadPanel();
@@ -77,10 +80,10 @@ const REF = JSON.parse(fs.readFileSync(FIX, 'utf8'));
 let bad = 0;
 for (const k in R) {
   const a = R[k], b = REF[k] || {};
-  const same = a.def === b.def && a.fly.hash === b.fly.hash && a.joined === b.joined &&
+  const same = a.def === b.def && a.game === b.game && a.fly.hash === b.fly.hash && a.joined === b.joined &&
                a.ledger.empty === b.ledger.empty && a.ledger.cost === b.ledger.cost;
   if (!same) bad++;
-  console.log(k.padEnd(7) + (same ? ' SAME ' : ' DIFF ') + 'airframe ' + a.def + ' (master ' + b.def + ')  joined ' + a.joined +
+  console.log(k.padEnd(7) + (same ? ' SAME ' : ' DIFF ') + 'game ' + a.game + ' (master ' + b.game + ')  saved ' + a.def + ' (master ' + b.def + ')  joined ' + a.joined +
               ' (master ' + b.joined + ')  20 s flight ' + a.fly.hash + ' cg ' + a.fly.cg.join(',') + ' (master ' + (b.fly && b.fly.hash) +
               ')  empty ' + a.ledger.empty.toFixed(3) + ' kg / ' + a.ledger.cost + ' cr (master ' + (b.ledger && b.ledger.empty.toFixed(3)) + ' / ' + (b.ledger && b.ledger.cost) + ')');
 }
