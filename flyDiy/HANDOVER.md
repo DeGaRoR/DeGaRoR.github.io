@@ -98011,3 +98011,206 @@ Rolling set (6), merged in order on master 2c2a74459 (L22c), HANDOVER unioned (t
 Battery (112 of 113 kept): PASS but master's standing reds, identical in L22b and L22c: CLOCK (1 of 777), CLOUD (1 of 239), KTX2 (the characters' budget: 5 characters with no char_tex_budget row), FRAMECOST (cessna boot/garage:restore updateMatrixWorld 2269 -> 4553). Each is on the board (backlog audit tonight).
 Strict light gate: RED (2), the same classes L22c landed with: metal cockpit tasks1s 0 -> 2 (the boot ~1 s task class, still judged against 1 s as ruled) and floats world -> garage 2.6 s (L22c 2.25, L22b 1.4: the known garage re-link; named for the backlog). Nothing new from this set.
 NOT in this train: float-kit / water-rollout (DMGPLOUGH hump technique + the water roll-out owed by the pilot - next week); TECH-MASK + NAMES (L23c); the cabin lamp + machines + Rufus's flood x4 (L23b); the four revived cloud branches (engine configs, STOL wing, avionics GPS, belly pod - Saturday, after their HANDOVER entries and box stills).
+
+## G3460-G3469 - BELLY-POD-2 RE-OPENED ON MASTER: THE POD THROUGH EVERY STEP - EDITED (A VOLUME IN THE GARAGE EDITOR), DRAWN, FLOWN (DRAG / MASS / CG / CLEARANCE / FREIGHT SPACE), ITS TAKE-OFF / CLIMB / CRUISE PENALTY ON THE SHEET, DAMAGED (ITS OWN BREAK GROUP, ITS SCRAPE, ITS FREIGHT AT RISK), BILLED; GATE POD RE-BLESSED, GATE DMGPOD (NEW) (2026-10-22, BELLY-POD-2 for A0, cloud - node + headless Chromium, no GPU; branch claude/belly-pod-2 off origin/master 2c2a74459, origin/master L22d 062c61251 merged in; G3460-G3467 used, G3468-G3469 unused)
+
+The brief: the user, 22 Oct - re-open the belly pod (parked in credit mode); their ruling of 7 Oct: "the pod goes through all
+the steps, a configurable volume from the garage editor". Master carried BELLY-POD G2410's part (60d_gen_pod.js: shape,
+space, drag, clearance, CG, mounts, bench row, plaque rows) but not BELLY-POD-2 G2675-G2679 (merged into train 43, then
+reverted when the user paused the pod, cde88339c). This session ports G2675's work onto master and does the rest.
+
+**G3460 THE PORT + GATE POD RE-BLESSED** (911172dee). G2675-G2679 cherry-picked onto master (the editor's "Belly pod"
+section under Fuselage, `tools/_cage_pod.js`; the drawn pod layer; the flown pod's four scraping nodes; GATE PODEDITOR;
+POD's section H); conflicts resolved by union (app.js's sheet-worker block kept and the pod's FLYDIY_POD door added,
+editor.css, _simworker_check's `cubPod` now loads through `_load_build.js` like its neighbour). The editor stills of
+G2679 were dropped (stale; the box takes new ones, below).
+- **GATE POD was red on master - a STALE BASE, not a pod fault**: its A rows (pod off = the base's bytes) held the
+  digests blessed on train 41 (0d2d76579), and every train since moved the validated defs. On master 2c2a74459, run in a
+  clean worktree (`node tools/run_gates.js --only=POD --no-build`, 86 s), the 12 reds were exactly those rows, every
+  other of the 228 green (the clearance, drag, CG, certificate and flown-leg rows all passing):
+  ```
+  FAIL cub: pod off, the whole def is the base's bytes (4eceefb3:143310)        FAIL cub: ... the shakedown sheet ... (bb1b9bfa:4189)
+  FAIL jodel: ... whole def ... (c656be5b:169871)                                FAIL jodel: ... sheet ... (8fc4c309:4249)
+  FAIL c172: ... whole def ... (313c46ec:162219)                                 FAIL c172: ... sheet ... (a9b0410b:4263)
+  FAIL floats: ... whole def ... (3e0633ce:179749)                               FAIL floats: ... sheet ... (400c4205:4084)
+  FAIL twinf: ... whole def ... (a34c7b5c:159379)                                FAIL twinf: ... sheet ... (cad91a93:4002)
+  FAIL metal: ... whole def ... (e4c9386a:154348)                                FAIL metal: ... sheet ... (ef03f4ec:4159)
+  228 checks, 12 failed -> GATE POD: FAIL
+  ```
+  (the base's digests are train 41's; master's own defs today read cub 95be854c:143346, jodel 7289f109:170653, c172
+  499ba90c:163005, ... - other bytes, the same aeroplanes). **Re-blessed from master's own core** in a worktree
+  (`_pod_check.js --bless` then `--bless-bytes`): the def / sheet digests and the certificate + 300-step bytes of the six
+  builds, i.e. "pod off = master before this branch" - the reference this work must not move. **Re-blessed again on
+  L22d 062c61251 after the merge: byte-identical** to the 2c2a74459 base (L22d moved none of the validated defs), so
+  tools/_pod_base.json is master's as of L22d.
+- `_pod_bytes.js` now also prints the whole def's and the shakedown sheet's digests: one line per build is the proof.
+
+**THE VALIDATED AEROPLANES WITHOUT A POD - UNCHANGED** (one node line each, run in a master worktree - 2c2a74459 and
+again L22d 062c61251 - and in this tree after the merge; identical to the bit - def digest, sheet digest, the whole
+certificate, 300 flown steps' FNV(p, v)):
+```
+node tools/_pod_bytes.js builds/cub_2026-09-20_corrected.json        def 95be854c:143346 sh 9b39d58a:10012 cert abcbbacb:378922 sim 3a1b6aa7
+node tools/_pod_bytes.js builds/jodel_2026-09-20_corrected.json      def 7289f109:170653 sh db4630f0:9896  cert ce563430:472860 sim e0e66628
+node tools/_pod_bytes.js builds/cessna172_2026-09-20_corrected.json  def 499ba90c:163005 sh 201976b5:9928  cert 36728cc5:450819 sim a08a99e5
+node tools/_pod_bytes.js "bugReports/cessnaMetal (1).json"           def 6842b9a0:155129 sh 83b2f1e9:9805  cert 51775781:422608 sim 7385f304
+node tools/_pod_bytes.js builds/rufus_2026-10-18_certified.json      def 69d562b8:140569 sh 22cf258c:9731  cert 45d302f5:373818 sim 3b0d9c6
+```
+(GATE POD's A / H5 rows hold the same for the Cub, Jodel, C172, floats, twin-floats and metal Cessna every run.)
+
+**1. THE EDITOR** (G2675's, on master): fitted (on = `GARAGE_SPEC.update({ pod })`, off = the key REMOVED), **hold volume**
+20-1000 L and **shape** (long and shallow <-> short and deep) mapped by the core onto length / width / depth
+(`genPodFromVolume`, bisected on the resolver with this aeroplane's own station table: the hold you ask for is the hold
+that is built), nose / tail fairings, **fore / aft** (double-click: auto, on the quarter chord), the hatch side, and the
+dimensions themselves; the --ed look; WYSIWYG (the drawn mesh is `genPodShell` of the same resolved record the physics
+uses). NEW here: the readouts' **cost** line (take-off / climb / cruise, below).
+
+**2. DRAWN** (G2677's): one mesh `edPod` (genPodShell, 24 stations x 16 round, nose fairing + boat-tail), in the livery's
+`pod` section (the body's colour, the spats' moulded trim), its walls stretched 2 cm into the drawn belly; carried by the
+snapshot into flight / the bake / the parked capture; nothing when absent. NEW (G3463): **in a wreck the drawn pod rides
+its own four nodes** (app.js brkInhStep: a rigid binding on `parts.podFrame.nodes`, never the belly's longerons) - torn
+off, it leaves with them. The mounts are inside the shell against the belly (not drawn).
+
+**3. FLOWN + THE SHEET'S PENALTY** (G3461). Drag (Raymer's build-up, on the axial row and the cross-flow), mass (the shell
+on its four nodes by lever, the ledger's moment its centroid), CG, the clearance per attitude, the cargo space - as G2410 /
+G2678. NEW: **`pod.perf` on the shakedown** - this aeroplane against the same aeroplane with NO pod (its drag area and its
+shell's kilograms taken off; `genTORunAt(.., cut)` / `genClimbAt(.., cdaOff)`, optional arguments that change nothing when
+absent): the take-off to 2.5 m, the climb rate at VClimb, the cruise by the sheet's rule. The plaque's new row
+**`pod cost`** ("take-off +5 m (170) · climb -0.16 m/s (2.82) · cruise -1.3 km/h (112)"), explained in plaque.js; the
+editor's readout `cost` line. The default pod (2.0 x 0.56 x 0.28 m):
+
+| build | take-off m | climb m/s | cruise km/h (sheet's rule) | flown TAS off / on / full (ACCEPT's leg) |
+|---|---|---|---|---|
+| the user's Cub | 165 -> 170 | 2.98 -> 2.82 | 113.0 -> 111.7 | 127.1 / 124.7 / 121.8 |
+| the Jodel | 213 -> 221 | 2.55 -> 2.36 | 126.5 -> 121.8 | 137.7 / 133.6 / 125.2 |
+| the Cessna 172 | 320 -> 325 | 3.84 -> 3.70 | 184.1 -> 180.2 | 195.9 / 192.0 / 189.2 |
+| the metal Cessna | 148 -> 151 | 6.98 -> 6.82 | 206.2 -> 203.2 | (not flown: ACCEPT's legs are the three above) |
+| the Rufus | 77 -> 81 | 4.91 -> 4.68 | 120.8 -> 119.2 | (not flown) |
+
+**THE FIXTURE - THE USER'S CESSNA WITH A POD** (G3462): `tools/fixtures/cessnaMetal_pod_2026-10-22.json` (never builds/),
+written by `node tools/pod_fixture.js --write`: the user's metal Cessna with a pod the editor's way (200 L at shape 0.5:
+2.52 x 0.63 x 0.32 m, hold 200 L, rated 104 kg, shell 12.4 kg, 3 503 cr). Clearance 0.19 m level / 0.10 m at the tail
+strike (fits). **Take-off 150 -> 153 m, climb 1378 -> 1337 ft/min (-41), cruise 111.4 -> 109.3 KTAS (-2.1 kt, -1.9 %)**.
+Against published pods (sources as found, A0 to open):
+- **C208 Caravan's belly pod: -9 kt cruise** (AOPA, Turbine Quick Look C208, 2017: 111 ft3, "penalizes cruise speed by
+  nine knots", ~5.5 %); Raisbeck's EPIC Caravan fairing recovers 4-5 KTAS of it (AIN 2021, raisbeck.com) - a big,
+  stepped, blunt pod.
+- **A C185 pod's POH supplement, as quoted on supercub.org: -6 / -7 / -8 kt at 75 / 65 / 55 % power, climb -40 ft/min**;
+  a shallow Aerocet-style pod on a 185: "2-3 knots and the climb by a tad"; 205 / 206 owners on backcountrypilot.org:
+  0 to 4-5 kt (forum posts: weak).
+- **Read**: the model's CLIMB cost on the fixture (-41 ft/min) is the 185 supplement's; its CRUISE cost (-2.1 kt) is the
+  shallow faired pod's, a third of the supplement's 6-8 kt. Raymer's build-up prices a SMOOTH moulded pod (Q 1.5); the
+  factory pods are blunter, with steps and doors. A ruling for the user (below).
+
+**4. DAMAGE ON** (G3463):
+- **Its own break group**: 61_gen_frame dmgPart tags `POD` nodes as part `pod` (rank 4), joint `mount`: the group
+  **`pod:mount`**, anchor the body, its breaking members exactly the 16 hangers (the 6 braces inside the part) - "a part
+  that scrapes, then tears off whole at its fittings". The generator's closed-set check clean.
+- **Its members as what they are** (GEN_POD: read only by the damage layer; no force, stiffness or mass moved): the
+  hangers 4130 steel fittings sized by the larger of (a) the full pod at 23.561(b)(3)'s 9 g forward and (b) the shell
+  bearing the aeroplane on the belly, its mass at `bearG` 10 g over the 16 (GAME, calibrated below); the braces E-glass,
+  the shell's two skins. **The hangers at the gear class's own stiffness (`mountK` 1, was 8)**: at x 8 the pod braced
+  the belly and the fuselage's own flexing loaded its fittings to 55 % of their ultimate PARKED (14 % at x 1).
+- **The scrape**: the solver records each pod node's slide (m), friction work (J) and peak load (N) in its own scrape
+  branch (`DMG.pod`, damage on + a pod only; never pushed; one compare otherwise). **`genPodDamage(def, D)`** (60d): the
+  wear = work / (eAbr x the node's quarter of the floor), eAbr 1.0e9 J/m3 (GAME: a laminate's specific abrasion energy -
+  A0 to source); tiers clean / scuffed (< 0.5 mm) / ground (< 2 mm, the outer skin) / holed / crushed (a member set or
+  broken) / torn off (the group); **freight safe / at risk (holed, crushed) / LOST (torn off)**.
+- **In the integrity record** (`sim.damage().structural`, which the worker already publishes once damaged): its `pod`
+  verdict; a holed / crushed / torn pod is damage, and **its words are the card's** ("belly pod torn off at its fittings
+  - slid 4 m, worn 0.0 mm; its freight LOST with it") - the hangers are gear-class and the record would otherwise have said
+  "the landing gear broke". The verdict is cached until the scrape or the breaks move (the host reads the record each frame).
+- **The belly landings** (GATE DMGPOD, damage on, turf, the touchdown at 1.1 x a CLmax-1.9 stall; GEAR UP = the wheels'
+  contact radii pulled into the wells, the stand-in for a retracted or collapsed gear the generator does not model):
+  the metal Cessna **on its wheels at 1.5 m/s: the pod untouched**; **gear up at 1.5 m/s: CRUSHED** (8 set, 4 broken, the
+  group holding; freight AT RISK); **gear up at 3 m/s: TORN OFF** (the group, 16 hangers; freight LOST); the **Jodel gear up
+  at 1.5 m/s: torn off** (its light mass sizes light fittings). bearG 20: nothing yields at either sink; 4: torn at any touch.
+  The page-reachable case for the box: the metal Cessna with a 0.60 m pod lands on pod and wheels together, slides 60-75 m
+  and grinds the floor 0.9-1.2 mm ('ground', freight safe).
+- Not done: no shell crack drawn on the pod (skin_break's composite tear runs on a laminate airframe's skins; the pod's
+  mesh rides rigid) - a look question for the box.
+
+**5. THE FREIGHT** (G3464): **the pod is a FREIGHT space**. `freightCardPod(card, def, yD)` (76_) gives the card its
+`pod` (the hold box in the card's frame, the side hatch, the floor limit 146 kg/m2, the rated load, the shell's kilograms
+at its centroid - the card's base was measured without one). The hatch rule `freightPodDoor`: sideways and level, straight
+or SWUNG IN round the corner (the ladder-round-a-corner bound, L <= ((W - t)^2/3 + (w - t)^2/3)^3/2). The packer: the cabin
+within its limits first, then the pod, then the cabin out of its limits; an item only the hatch takes goes to the pod; the
+report bills the shell, the pod's floor and its rated load (`report.pod`, only with a pod). The page's card (app.js
+frCard) carries it when the stand's aeroplane has a pod. **The pod's items ride the pod's own four nodes**
+(freightStrapAdds, by lever: mass and moment their own) - so a torn pod takes them; they are not drawn (inside the closed
+shell). **Lost freight is not delivered**: the stop record carries `structural.podLost` (kg) when the pod tore off with
+items in it, and the carry stage says "the freight in the belly pod (N kg) was lost with it" (73_contracts). Without a pod:
+every card, packing, report, record as before.
+
+**6. THE LEDGER** (G3465): the pod's price is its ledger line (G2410: 1 500 + 700 cr/m2 of moulding) and is in a new
+design's airframe price. NEW: **a scratch-built career airframe pays for a pod fitted later** (procureOnSave: the
+difference over `podPaid`, an `upgrade`; a removed pod refunds nothing, refitted it is paid again; a new design's pod is in
+its first save's price - econMaterialise's `podPaid`, not billed twice). **A bought aeroplane whose only change is the pod
+bills the pod's own line** (`fpNoPod`, kept at each save so removal is pod-only too) - G2676's finding: dm11 billed
+12 786 cr for a 3 027 cr pod by re-billing every line its kilograms re-gauged. The maker's certificate is still withdrawn
+(PROCURE's rule). A pod AND another edit: dm11 as before.
+
+**THE GATES** (`node tools/run_gates.js --only=<IDs> --no-build`, after `node tools/build.js`; the cloud's 4 cores).
+On the MERGED head (204ee7266 = this branch + L22d 062c61251), the pod's own three, exactly:
+```
+POD        413 checks, 0 failed (177 s)    GATE POD: PASS
+PODEDITOR   39 checks, 0 failed (22 s)     GATE PODEDITOR: PASS
+DMGPOD      52 checks, 0 failed (100 s)    GATE DMGPOD: PASS
+BATTERY: PASS
+```
+`_dmg_pod_check.js --selftest`: **6 of 6 caught** (the pod a part of the body, the fittings at the gear tube's section,
+the scrape not recorded, the pod's words lost to the gear's, the wear ten times slower, the pod's freight on the rings).
+
+**THE GREP RULE**: the gates whose file names a file this branch touched (30_solver, 60d_gen_pod, 61_gen_frame,
+64_gen_build, 73_contracts, 75_career_wire, 76_economy, 76_freight, 76_procure, 77_freight_load, 78_freight_strap,
+90_node_exports, app.js, plaque.js, garage.js, aeroskin.js, editor.css, _cage_pod / _cage_chain / _cage_parts / _cage_ui,
+_bake_joined, _simworker_check, _parts_check, _pod_check, _pod_bytes, run_gates) + the brief's list = **142 core gates**
+(app.js and 30_solver alone are read by most of the battery); the full-tier rows among them not run (TOUR, CESSNAVREF,
+BOOTLIFT, DMGHULL, DMGPLOUGH, DMGFLOATTO, SIMWORKER-PAGE / -EDGES / -PLACE, ARCHETYPES, SOAR).
+- **Before the merge** (8943857f8, the first 40 of the 142 in table order, 8 at a time): PASS - POSTFX INPUT SUBSTEP PACE
+  FLIGHTREC AUDIO BOOMBOX MIXLEAD CLIMATE ATMO GE **GEN** (4 shards) **PILOT** STRIPSURF TAXICLEAR ALTIPORT LINEUP PROFILE
+  DESTTO DEFAULT WEIGHT DRAG BIPLANE SKIN **UISMOKE** HWCOV SCENERY ASSETBUDGET ANIMALS **DMGMEMBERS** DMGCERTCOST DMGWIND.
+  RED and RED ON MASTER the same way (run on 2c2a74459 in a worktree, here): **AA** (2 of 33: "app.js routes the one
+  default-framebuffer render through the pass", "...keeps the un-passed render as the fallback"), **CLOCK** (1 of 777),
+  **FOG** (2 of 22: "app.js applies it for the MAIN camera", "...releases it in the same frame"), **CLOUD** (1 of 239: the
+  lamps pool row - master's known red). RED, not yet compared on master (the comparison was stopped for the merge):
+  **TREEHIT** (the trunk stops at 63.5 m of 60 ...), **TREECRASH** (jodel/trunk0 work median 19 724 -> 22 577 J against the
+  reference), **DMGCERT** (the metal Cessna broke at 7.21 g, the band 5.70-5.99), **DMGGEAR** (the twin's 90 km/h nose-in
+  rows) - none of these flies a pod, and without one the defs, the certificates and 300 flown steps are master's to the
+  bit (the identity lines above), so they read as this cloud machine's, not the branch's; the merged battery runs them
+  against master L22d on the same machine (below).
+- **On the merged head**: the 139 others RUNNING at the time of writing (8 at a time, ~8 h on this machine), with master L22d's verdicts for the eight reds above on the same machine beside them; the verdict lines land as an addendum to this entry.
+
+
+**THE ASKS FOR THE USER**
+1. **The cruise cost**: the model's pod costs ~2 kt where a 185's POH supplement says 6-8 kt (and the C208's 9 kt). Keep
+   Raymer's smooth-pod build-up (Q 1.5), or price the factory pods' blunt ends and steps (a bigger Q / a base-drag term)?
+2. **A pod on a bought aeroplane** withdraws the maker's certificate (PROCURE: any edit is a modification). A real pod is an
+   STC'd modification that keeps the airworthiness certificate - should the pod be the exception?
+3. **The damage ladder** (GAME numbers: bearG 10, eAbr 1e9 J/m3): a gear-up landing crushes the pod, a hard one tears it
+   off; the Jodel's light pod tears at 1.5 m/s. Right feel?
+4. **The fixed gear has no gear-up**: the belly landing is reachable in play only through a deep pod (or a collapsed leg).
+   A retractable-gear option is out of scope here.
+5. The C172 / metal Cessna's pod wears bare metal (its livery's rule, G2675's ask) - a painted pod instead?
+
+**THE EVIDENCE SCRIPT FOR A0'S BOX** (`tools/pod_box_evidence.js`, a live_driver client; take the GPU lock):
+```
+tools/perf/boxlock.sh take gpu BELLY-POD-2
+UDD="$(node -p "require('path').join(require('os').tmpdir(), 'pod2')")" SPORT=8581 DPORT=9481 Q='damage=1' \
+  node tools/live_driver.js <root> default dev.html 8582 &          # the Chrome profile under the temp dir, never C:/<name>
+node tools/pod_box_evidence.js --cmd 8582 --out reports/evidence/POD3            # ~15 min: garage, then the belly
+tools/perf/boxlock.sh drop gpu
+```
+GARAGE: the Cub (160 L), the metal Cessna (the fixture), the Jodel (refused in red), the Cub unticked - each fitted from
+the section's own box, the camera low on the quarter, + the plaque's belly-pod rows. LOOK FOR: the pod under the belly in
+the body's colour, no gap or step at the belly, the nose fairing and boat-tail, its shadow; the section in the --ed look,
+the cost line; the plaque's `pod cost`. BELLY: the metal Cessna with a 0.45 m pod, the circuit flown, a firm arrival
+(+1.5 m/s in the flare), stills every 0.5 s from the first touch to the stop, the integrity record's `pod` verdict.
+EXPECTED: a scrape on the aft pair, 'ground' or 'crushed'; the card never "the landing gear broke". LOOK FOR: the pod on
+the belly while it scrapes, the ground's scar under it, no frame spike at the first touch. Also the strict per-frame gate
+(FRAMECOST) without / with a pod (G2675's list: +2 draws with one, none without).
+
+**CODE TRAPS HELD**: 90_node_exports appended only; core pow on CORE_MATH (frPodSwing; `_core_math_sites.js` 0 stray);
+zero per-frame allocation added (the scrape record is typed arrays made at makeSim; the verdict cached); no WebGL readback;
+no generated file committed (build before the gates); the user's build files untouched (the fixture is a copy).
+
+READY for A0: claude/belly-pod-2
