@@ -33,8 +33,9 @@
    G3380 (STORY-INTRO): and the opening's Skip (#stIntro, story_intro.js injects its rules: a New career's only).
    G2799 (DROP-JSON): and the garage's 'drop to import' overlay (#gDrop, garage.js, body-level).
    G3350 (STORY-TIM): and Tim's band (#stTim, app.js, body-level).
-   G3360 (CAREERS): and the welcome's menu (#welcome, welcome.js, body-level: Continue / New career / the careers list). */
-:is(#wsUI, #edView, #mapScreen, #hsStore, #stIntro, #stCard, #gDrop, #stTim, #welcome) {
+   G3360 (CAREERS): and the welcome's menu (#welcome, welcome.js, body-level: Continue / New career / the careers list).
+   G3370 (TUTO-FLIGHT): and T1's "Skip the flight" (#stSkip, app.js, body-level). */
+:is(#wsUI, #edView, #mapScreen, #hsStore, #stIntro, #stCard, #gDrop, #stTim, #welcome, #stSkip) {
   --ed-panel:#201d1a; --ed-board:#1a1815;
   --ed-plate:rgba(32,29,26,.94);
   --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#97907f;
@@ -1846,6 +1847,20 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 #stTim .stTimTxt p { margin: 2px 0 0; }
 #stTim .stTimBtn { flex: none; min-height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--ed-acc, #d9a441);
   background: var(--ed-acc-soft, rgba(217,164,65,.15)); color: inherit; font: inherit; cursor: pointer; }
+/* G3370 (TUTO-FLIGHT): T1's ladder in Tim's band - the text on a TRANSPARENT ground (GAME-PLAN §R2), held legible over
+   the world by its shadow; and the Skip at the bottom edge (left, never centred), the band standing above it */
+#stTim.lad { background: transparent; border-color: transparent; text-shadow: 0 1px 2px rgba(0,0,0,.9), 0 0 8px rgba(0,0,0,.6); }
+#stTim.lad .stLadT { color: var(--ed-acc, #d9a441); margin-right: 4px; }
+#stTim.lad .stTimTxt small { color: var(--ed-ink, #f4efe6); }
+#stTim .stLadImg { flex: none; max-height: 72px; max-width: 120px; }
+#stSkip { position: fixed; left: 12px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 40; min-height: 36px; padding: 0 16px;
+  border-radius: 18px; border: 1px solid var(--ed-border); background: var(--ed-plate); color: var(--ed-ink); cursor: pointer;
+  font: 500 13px/1.2 'IBM Plex Sans', system-ui, sans-serif; font-style: normal; }
+#stSkip:focus-visible { border-color: var(--ed-acc); outline: none; }
+#stSkip[hidden] { display: none; }
+body.stSkipOn #stTim { bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
+:root.phone #stSkip { min-height: 48px; }
+:root.phone body.stSkipOn #stTim { bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
 .edTab.locked { opacity: .45; cursor: not-allowed; }
 #edLockNote { font-size: 12px; color: var(--ed-dim, #8a8d91); padding: 2px 8px 6px; }
 #stNoBench { font-size: 12px; color: var(--ed-dim, #8a8d91); margin-left: 8px; }
@@ -1869,3 +1884,6 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 #fkCard button { min-height: 32px; padding: 0 14px; border-radius: 6px; border: 1px solid var(--ed-btn-bd);
   background: var(--ed-btn-bg); color: var(--ed-ink); font: inherit; cursor: pointer; }
 #fkCard #fkOk { background: var(--ed-acc); color: var(--ed-acc-ink); border-color: var(--ed-acc); }
+/* G3351: the certification bench (the tool: the left panel's tests) never in the story's small shed */
+body.stNoBench #edBench { display: none !important; }
+#stNoBenchNote { font-size: 12px; color: var(--ed-dim); padding: 6px 10px; }

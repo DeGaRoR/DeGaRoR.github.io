@@ -7988,6 +7988,7 @@
   function playerFlightStart() {
     flSlot = slotOnStand(); flEnded = false; flLastEnd = null;
     if (CAREER_DEV) careerFlightStart();
+    if (CAREER_DEV && STORY_PAGE) storyLadderReset();   // G3370 (TUTO-FLIGHT): a roll-out is a new flight for T1's ladder
     if (!flSlot) return;
     try {
       const f = (def && typeof playerFootOfDef === 'function') ? playerFootOfDef(def) : null;
@@ -9088,47 +9089,160 @@
   // (OK); shown again on each new beat. Never centred, never over the middle; the garage's look (editor.css #stTim).
   // The portrait is a PLACEHOLDER silhouette (no image, no real person).
   let stTimEl = null, stTimBeat = null, stTimI = 0, stTimShut = false;
+  const STIM_FACE = '<svg class="stTimFace" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="23"/><circle class="h" cx="24" cy="19" r="8"/><path class="h" d="M9 41c2-9 8-13 15-13s13 4 15 13"/></svg>';
   function storyTimSync() {
     if (!STORY_PAGE || typeof document === 'undefined' || !document.body) return;
     const s = stLive(), id = s && !s.open ? s.beat : null, L = id ? storyTimLines(id, playerLoad()) : [];
     if (id !== stTimBeat) { stTimBeat = id; stTimI = 0; stTimShut = false; }
+    // G3370 (TUTO-FLIGHT): T1's flight speaks the LADDER in the band instead (Tim's own T1 lines are the shed's)
+    const lad = storyLadderNow();
+    if (lad) return storyLadderShow(lad);
     if (!L.length || stTimShut || (window.FLYDIY_AP && typeof window.FLYDIY_AP.manual === 'function' && window.FLYDIY_AP.manual() && !inGarage)) { if (stTimEl) stTimEl.hidden = true; return; }
+    const i = Math.min(stTimI, L.length - 1), last = i >= L.length - 1;
+    stTimPut('', STIM_FACE + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>' + stEsc(STORY_TIM.role) + '</small><p>' + stEsc(L[i]) + '</p></div>' +
+      '<button type="button" class="stTimBtn" data-tim="' + (last ? 'ok' : 'next') + '">' + (last ? 'OK' : 'Next (' + (i + 1) + '/' + L.length + ')') + '</button>');
+  }
+  // the band itself, made once; its words written only when they change (the ladder's tick runs every half second)
+  function stTimPut(cls, html) {
     if (!stTimEl) {
       stTimEl = document.createElement('aside');
       stTimEl.id = 'stTim'; stTimEl.setAttribute('role', 'dialog'); stTimEl.setAttribute('aria-label', STORY_TIM.name + ', ' + STORY_TIM.role);
       stTimEl.addEventListener('click', ev => {
         const b = ev.target && ev.target.closest ? ev.target.closest('[data-tim]') : null;
         if (!b) return;
-        if (b.dataset.tim === 'next') stTimI++; else stTimShut = true;
+        if (b.dataset.tim === 'lad') stLadShut = stLad.i;          // (this card read: the band waits for the next one)
+        else if (b.dataset.tim === 'next') stTimI++; else stTimShut = true;
         storyTimSync();
       });
       document.body.appendChild(stTimEl);
     }
-    const i = Math.min(stTimI, L.length - 1), last = i >= L.length - 1;
-    const face = '<svg class="stTimFace" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="23"/><circle class="h" cx="24" cy="19" r="8"/><path class="h" d="M9 41c2-9 8-13 15-13s13 4 15 13"/></svg>';
-    stTimEl.innerHTML = face + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>' + stEsc(STORY_TIM.role) + '</small><p>' + stEsc(L[i]) + '</p></div>' +
-      '<button type="button" class="stTimBtn" data-tim="' + (last ? 'ok' : 'next') + '">' + (last ? 'OK' : 'Next (' + (i + 1) + '/' + L.length + ')') + '</button>';
+    if (stTimEl.className !== cls) stTimEl.className = cls;
+    if (stTimEl.dataset.html !== html) { stTimEl.innerHTML = html; stTimEl.dataset.html = html; }
     stTimEl.hidden = false;
+  }
+  // ---- G3370-G3379 (TUTO-FLIGHT): THE LADDER ON T1'S FLIGHT, AND "SKIP THE FLIGHT" (GAME-PLAN §R2, the user 19 Oct: "a few
+  // cards covering the basics ... text and/or image on transparent background in the bottom part of the screen. This will
+  // be deactivated if manual controls are taken. There will be an option to skip the tutorial flight and get straight into
+  // the WWII hangar"). The cards are 79_story.js STORY_LADDER, stepped by storyLadderStep (pure) on the pilot's own phase,
+  // its sim clock and the way left to HOME; Tim's band shows them on a transparent ground (#stTim.lad). One ladder per
+  // flight (a roll-out, playerFlightStart: a Restart or a Fly on keeps it). The player's hand on the controls ends it for
+  // that flight ('flydiy:manual', Pilot's AP-TOGGLE G3325). Only on the story's T1 (STORY_PAGE: never the sandbox, never
+  // ?career=1)
+  let stLad = STORY_PAGE ? storyLadderNew() : null, stLadShut = -1, stSkipEl = null;   // (the sandbox: the story is not loaded)
+  function storyLadderReset() { stLad = storyLadderNew(); stLadShut = -1; }
+  // the flight as the ladder reads it, or null in the shed (no pilot, or the garage)
+  function stFlightNow() {
+    if (inGarage || !ap) return null;
+    let dHome = null;
+    try { const id = storySite('home', world.aerodromes), H = (world.aerodromes || []).find(a => a && a.id === id), c = sim.cgPos();
+      if (H && typeof H.x === 'number' && typeof H.z === 'number') dHome = Math.hypot(c[0] - H.x, c[2] - H.z); } catch (e) {}
+    return { phase: ap.phase, t: +ap.t || 0, dHome, manual: !!(window.FLYDIY_AP && typeof window.FLYDIY_AP.manual === 'function' && window.FLYDIY_AP.manual()) };
+  }
+  // T1's flight: the ladder's card now (stepped), or null (not T1, or not flying)
+  function storyLadderNow() {
+    const s = stLive();
+    if (!s || s.open || s.beat !== 'T1') return null;
+    const F = stFlightNow();
+    if (!F) return null;
+    const r = storyLadderStep(stLad, F);
+    stLad = r.L;
+    return { card: r.card, i: stLad.i, n: STORY_LADDER.length, off: stLad.off };
+  }
+  function storyLadderShow(lad) {
+    if (!lad.card || lad.off || stLadShut === lad.i) { if (stTimEl) stTimEl.hidden = true; return; }
+    const C = lad.card;
+    stTimPut('lad', STIM_FACE + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>the flight · ' + (lad.i + 1) + ' of ' + lad.n + '</small>' +
+      '<p><b class="stLadT">' + stEsc(C.title) + '</b> ' + stEsc(C.text) + '</p></div>' +
+      (C.img ? '<img class="stLadImg" src="' + stEsc(C.img) + '" alt="">' : '') +
+      '<button type="button" class="stTimBtn" data-tim="lad">OK</button>');
+  }
+  // SKIP THE FLIGHT: T1 done exactly as a stop at HOME would do it - the stop's record into the story (its effects: the
+  // hangar ours, T2's client Cub on its way), the starter into the HOME hangar through the stop's own roll-in
+  // (playerArrive, then the garage there: playerGoTo), then the shed door. The skip IS the move: no flight of its own is
+  // written (no money, no logbook row, no clock) - a flight in the air is walked away from without its end being recorded
+  function storySkipFlight() {
+    const s = stLive();
+    if (!s || s.open || s.beat !== 'T1') return { ok: false, why: 'the flight to skip is the move (T1)' };
+    const home = storySite('home', world.aerodromes), slot = s.planes.starter;
+    if (!home || !slot) return { ok: false, why: home ? 'no starter aeroplane' : 'no aerodrome plays the WWII field' };
+    let d = playerLoad();
+    const W = d.fleet[slot] ? playerWhere(d, slot) : null;
+    const stop = careerStopRecord({ how: 'stopped', aero: home, slot, row: { from: (W && W.aero) || null, to: home, t: 0 } });
+    stLine = '';
+    const r = storyEvent({ k: 'stop', stop, slot }, d);
+    if (!r.ok) { storyCardSync(); return { ok: false, why: r.why }; }
+    d = r.doc;
+    const a = d.fleet[slot] ? playerArrive(d, slot, home, { prefer: PREM_MAIN }) : null;
+    if (a && a.ok) { d = a.doc; if (a.kind === 'in' && a.hangar && a.hangar !== d.here) { const g = playerGoTo(d, a.hangar); if (g.ok) d = g.doc; } }
+    const flying = !inGarage;
+    if (flying) flEnded = true;
+    player = d; playerSave();
+    try { baseId = d.sheds[d.here].base; } catch (e) {}
+    storyCardSync(); storyFlush(); storyTimSync(); storySkipSync();
+    try { if (window.GARAGE_SPEC && window.GARAGE_SPEC.syncShelf) window.GARAGE_SPEC.syncShelf(); } catch (e) {}
+    try { if (window.FLYDIY_PLAYER && window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); } catch (e) {}
+    // the shed door (the bar's own: the arrival card down, the flyouts shut, the roll-in screen), the room built at HOME
+    if (flying) { const b = document.getElementById('bHangar2'); if (b && b.onclick) b.onclick(); }
+    return { ok: true, why: '', here: d.here, where: d.fleet[slot] ? playerWhere(d, slot) : null };
+  }
+  // the pill at the bottom edge (the garage's look, never centred): T1 only, in the shed, on the stand and in flight
+  function storySkipSync() {
+    if (!STORY_PAGE || typeof document === 'undefined' || !document.body) return;
+    const s = stLive(), on = !!(s && !s.open && s.beat === 'T1' && !stIntroWas);
+    if (!stSkipEl && !on) return;
+    if (!stSkipEl) {
+      stSkipEl = document.createElement('button');
+      stSkipEl.type = 'button'; stSkipEl.id = 'stSkip';
+      stSkipEl.textContent = 'Skip the flight: straight to the WWII hangar';
+      stSkipEl.addEventListener('click', () => { const r = storySkipFlight(); if (!r.ok) console.warn('flyDiy (story): the skip - ' + r.why); });
+      document.body.appendChild(stSkipEl);
+    }
+    stSkipEl.hidden = !on;
+    try { document.body.classList.toggle('stSkipOn', on); } catch (e) {}
   }
   // THE BENCH NEVER STANDS IN THE SMALL SHED (the user, 19 Oct: "will never get the bench"): a property of the SHED - the
   // story's cabin shed (`story` on the shed record, G2743 / STORY-PAGE) - at every beat; the garage shows the design pane
+  // (G3351: the smoke run of 22 Oct found #tabBench gone from the page - the bench's tests live in the left panel's
+  // #edBench now - so the rule hides THAT, by a body class editor.css reads, and says why in its place)
   function storyBenchRule() {
-    if (!STORY_PAGE) return;
+    if (!STORY_PAGE || typeof document === 'undefined' || !document.body) return;
     let small = false;
     try { const d = playerLoad(), sh = d.sheds && d.sheds[d.here]; small = !!(sh && sh.story); } catch (e) {}
-    const tb = typeof document !== 'undefined' ? document.getElementById('tabBench') : null;
-    if (!tb) return;
-    if (tb.hidden !== small) tb.hidden = small;
-    if (small) { const bn = document.getElementById('edBench'), td = document.getElementById('tabDesign');
-      if (bn && !bn.hidden && td && td.onclick) td.onclick(); }
-    let n = document.getElementById('stNoBench');
-    if (small && !n && tb.parentNode) { n = document.createElement('span'); n.id = 'stNoBench'; n.textContent = 'no bench in this shed'; tb.parentNode.appendChild(n); }
+    if (document.body.classList.contains('stNoBench') !== small) document.body.classList.toggle('stNoBench', small);
+    const bn = document.getElementById('edBench');
+    let n = document.getElementById('stNoBenchNote');
+    if (small && !n && bn && bn.parentNode) { n = document.createElement('div'); n.id = 'stNoBenchNote'; n.textContent = 'No bench in this shed: certification happens at the WWII field\u2019s hangar.'; bn.parentNode.insertBefore(n, bn); }
     if (n) n.hidden = !small;
   }
+  // G3351: THE PAINT-ONLY LOCK, KEPT. The story's mask note fires on a CHANGE of mask; at a New career it fired before
+  // editor.js had defined EDITOR_LOCK, and the mask never changed again, so the lock never engaged (the smoke run of 22
+  // Oct). This holds the editor's lock to the story's mask on every tick, whatever loaded first.
+  const STORY_LOCK_WHY = 'Tim: the structure comes later in the story - paint, liveries and colours for now.';
+  function storyLockSync() {
+    if (!STORY_PAGE || !window.EDITOR_LOCK || typeof window.EDITOR_LOCK.finishOnly !== 'function') return;
+    let want = false;
+    try { want = storyMask(playerLoad()) === 'finish'; } catch (e) {}
+    if (!!window.EDITOR_LOCK.locked() !== want) window.EDITOR_LOCK.finishOnly(want ? STORY_LOCK_WHY : null);
+  }
+  // G3352: a cabin shed made before the cozy kits (park + bench + comfort only) takes the plot's kits now - decor only,
+  // the same shed, its aeroplanes untouched
+  function storyCabinKits() {
+    if (!STORY_PAGE) return;
+    try {
+      const d = playerLoad(), id = d.here, sh = d.sheds && d.sheds[id];
+      if (!sh || !sh.story || JSON.stringify(sh.kits) !== '["park","bench","comfort"]') return;
+      const P = BASE_OFFERS[sh.base] && BASE_OFFERS[sh.base].plots[id];
+      if (!P || !P.kits || P.kits.length <= 3) return;
+      const n = JSON.parse(JSON.stringify(d)); n.sheds[id].kits = P.kits.slice(); player = n; playerSave();
+    } catch (e) { console.warn('flyDiy (story): the cabin kits -', e && e.message); }
+  }
   if (STORY_PAGE) {
-    try { storyCardSync(); storyFlush(); storyTimSync(); storyBenchRule(); } catch (e) { console.warn('flyDiy (story): the boot -', e && e.message); }
-    setInterval(() => { try { storyTimSync(); storyBenchRule(); } catch (e) {} }, 1500);
-    try { window.addEventListener('flydiy:manual', () => { try { storyTimSync(); } catch (e) {} }); } catch (e) {}
+    try { storyCabinKits(); storyCardSync(); storyFlush(); storyTimSync(); storyBenchRule(); storyLockSync(); storySkipSync(); } catch (e) { console.warn('flyDiy (story): the boot -', e && e.message); }
+    setInterval(() => { try { storyTimSync(); storyBenchRule(); storyLockSync(); storySkipSync(); } catch (e) {} }, 1500);
+    // G3370: the ladder's tick (its card follows the pilot's phase; nothing runs off T1's flight)
+    setInterval(() => { try { if (stTimBeat === 'T1' && !inGarage) storyTimSync(); } catch (e) {} }, 500);
+    // (G3370: a hand on the controls in flight ends the ladder for that flight, at once)
+    try { window.addEventListener('flydiy:manual', ev => { try { if (ev && ev.detail && ev.detail.manual && !inGarage) stLad.off = true; storyTimSync(); } catch (e) {} }); } catch (e) {}
     try { storyIntroCurtain(); } catch (e) { console.warn('flyDiy (story): the opening -', e && e.message); }
     // G3384: a story with its starter - the design flow's "New aeroplane" door stays shut (design_flow.js maybeAutoOpen)
     try { const s = stLive(); if (s && s.planes && s.planes.starter) window.FLYDIY_STORY_STARTER = s.planes.starter; } catch (e) {}
@@ -9139,6 +9253,7 @@
       mask: () => storyMask(playerLoad()), jobsOpen: () => storyJobsOpen(playerLoad()), card: () => storyCardNow(),
       event: ev => { const r = storyEvent(ev); return { ok: r.ok, why: r.why, advanced: r.advanced, effects: r.effects }; },
       certified: storyCertified, flush: storyFlush, pending: () => stBusy || stQueue.length > 0, line: () => stLine,
+      ladder: () => ({ i: stLad.i, off: stLad.off, card: stLad.i >= 0 && !stLad.off ? STORY_LADDER[stLad.i].id : null }), skip: storySkipFlight,   // G3370
     };
   }
   window.FLYDIY_PLAYER = {
@@ -16452,8 +16567,10 @@
     function hold() { P.acc = 0; }
     // the loop's own work this frame (ms) and what its solver steps took, for auto's reading; `ran` the solver
     // steps actually run (0 when the sim is still - the shed, a pause; 2x runs twice the steps owed)
-    function end(workMs, physMs, steps, now, ran) {
-      if (P.legacy) return;
+    // (REVEAL, A0 22 Oct: `held` - a frame the loop ran and did not draw (holdRender) reports itself too, so a reader of the
+    // frames sees each one; it is no reading of the pace: nothing here counts it)
+    function end(workMs, physMs, steps, now, ran, held) {
+      if (P.legacy || held) return;
       if (ran == null) ran = steps;
       if (ran > 0 && physMs > 0) { const s = physMs / ran; P.stepMs = P.stepMs ? P.stepMs + 0.1 * (s - P.stepMs) : s; P.lastPhys = physMs; }
       if (P.mode !== 'auto') return;
@@ -16950,7 +17067,7 @@
     // linked (S3): a frame between the world step and the compile step drew
     // the fresh scene and compiled everything synchronously - 12 s in one
     // task. The `frames` step lifts the hold and waits for two real frames.
-    if (holdRender) { if (FR) FR.end(false, cg); POSE_LERP.back(); BOOT.frame(); return; }   // (G1100: the newest step back)
+    if (holdRender) { if (FR) FR.end(false, cg); POSE_LERP.back(); PACE.end(perfNow() - tLoop0, physMs, pc.steps, typeof ts === 'number' ? ts : perfNow(), simwRan >= 0 ? 0 : ran, true); BOOT.frame(); return; }   // (REVEAL: the held frame told, not counted)   // (G1100: the newest step back)
     if (window.WORLD_RIG && WORLD_RIG.interior) WORLD_RIG.interior(!inGarage && HEADCAM_ACTIVE);   // A6: the cabin's probe while the eye is in the cockpit
     // THE WATER'S MIRROR (G460.11): the decor captured from the eye mirrored about the water when the eye is low
     // over it (the plane: the water under the eye, else under the CG - a shore eye looking at a lake); the sky
@@ -17256,6 +17373,18 @@
       .then(() => compileDepthVariants(scene, true, dress))
       .then(() => { if (typeof console !== 'undefined') console.info('lamps: the pool ' + (want ? 'armed' : 'disarmed') + ' after its programs linked (' + Math.round(performance.now() - t0) + ' ms)'); });
   }
+  // APPROACH (A0 22 Oct; HWCOV): A GROUP MADE AFTER THE WORLD'S COMPILE LINKS ITS DEPTH PROGRAMS IN THE BACKGROUND. The town kit
+  // (render_premises kitHost) casts only near (castFar); its depth programs linked in the frame its shadow came on - 0.5-2 s
+  // on the approach to mk_sea, downwind at ~2.5 km (the program watch: one 'depth' program made in that frame). Its meshes
+  // carry userData.mayCast (shader_warm keys them though they cast nothing yet); this compiles them, a group a task
+  function depthPrelinkGroup(grp) {
+    if (!grp || !WF || typeof renderer.compileAsync !== 'function' || typeof PROG_WARM === 'undefined' || tripKeys.worldCompile === undefined) return null;   // (before the world's compile: it meets them)
+    const kinds = { depth: false, distance: false };
+    scene.traverse(o => { if (o.isLight && o.castShadow && o.shadow) { if (o.isPointLight) kinds.distance = true; else kinds.depth = true; } });
+    const { helper, n } = PROG_WARM.depthVariants(THREE, renderer, [grp], { kinds });
+    return n ? compileSliced(helper, PLAIN_RT(), scene, true).catch(e => console.warn('depth prelink:', e && e.message)) : null;
+  }
+  if (typeof window !== 'undefined') window.FLYDIY_DEPTH_PRELINK = depthPrelinkGroup;
   function compileDepthVariants(sc, sliced, dress) {
     sc = sc || scene;
     const D = dress || (f => f());

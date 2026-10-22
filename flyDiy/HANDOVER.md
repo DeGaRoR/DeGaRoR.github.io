@@ -97930,3 +97930,257 @@ Gates 14:20 (gates.txt): 27/32 PASS. DMGHULL PASS after A2 (15:21). DMGPLOUGH re
 Cessna ground-loop on the SEA roll) = the joint float fix, Pilot's float-water-final (re-gate 20:50). POD and ROLLANIM are
 red on master 5f3f2c797 too (master_5f3f2c797_pod_rollanim.txt): POD's base was blessed on train 41; ROLLANIM's G1039
 framing - board items for their owners, not this branch.
+## G3370-G3379 - TUTO-FLIGHT: T1'S TUTORIAL LADDER IN TIM'S BAND, OFF WHEN MANUAL, AND "SKIP THE FLIGHT" STRAIGHT INTO THE WWII HANGAR (2026-10-22, for the GAME COORDINATOR, cloud - node + headless only; branch claude/tuto-flight off origin/master 2c42dfdf; the work: 4c6eb4790; NOT on claude/ready/ - the coordinator reviews first)
+GAME-PLAN §R2, the user 19 Oct: "a few cards covering the basics ... text and/or image on transparent background in the bottom
+part of the screen. This will be deactivated if manual controls are taken. There will be an option to skip the tutorial flight
+and get straight into the WWII hangar."
+- **Where it runs.** Only the story's T1 (the move to HOME), only under STORY_PAGE (never the sandbox, never ?career=1), and
+  nothing after T1. The ladder only in flight (on the roll-out stand and in the air); the Skip in the shed, on the stand and in
+  flight.
+- **The cards** (79_story.js `STORY_LADDER`, beside STORY_TIM: draft English, each with a text key `story.ladder.<id>` for the
+  narrative pack, a title, the text and an `img` slot - null for now; an image named there shows at the band's right).
+  Keyed to the pilot's own phases (43_pilot PILOT_PHASES; `at` lists them):
+  1. **Take-off** (DEPART, TAXI, LINEUP, STOP, HOLD, ROLL, ABORT, LIFTOFF, PUTDOWN): "The autopilot flies the whole trip: the
+     taxi, the line-up, the take-off roll and the climb. The phase bar names what it is doing. Sit back and watch."
+  2. **The map and the route** (CLIMB, CROSSWIND): "The map (on the left rail) shows where you are and the line the autopilot
+     follows to the WWII field. Every job is a flight like this one: from A to B, stopped and whole at the end."
+  3. **The work** (ENROUTE, ROUTE, DOWNWIND, BOX, LOITER): "That is the game: clients post jobs on the map, you fly them, they
+     pay. The money buys parts, aeroplanes and hangars, and hired pilots fly what you cannot. The jobs open once we have moved in."
+  4. **Building a plane** (no phase: after the cruise card, once the cruise has run 25 s of sim time or half the way to HOME is
+     flown): "In the hangar you change your aeroplanes. Click a part, then again to climb the tree to the whole plane. More wing
+     lands slower and shorter, more power climbs faster, every kilo costs both. A changed plane passes the bench before it flies
+     for money."
+  5. **The approach** (INBOUND, BASE, FINAL, GOAROUND, GLIDE): "The approach: the autopilot lines up with the runway, slows down
+     and holds the glide. If it does not like it, it goes round and tries again. A slower plane needs a shorter strip."
+  6. **The WWII field** (FLARE, ROLLOUT, STOPPED): "The flare, the roll-out, and we are home. Stop it on the field and the hangar
+     is ours: our first client is already on the way."
+- **The step** (`storyLadderStep(L, { phase, t, dHome, manual })`, pure): one card at a time, in order, never skipped, each held
+  at least 10 s of sim time (STORY_LADDER_RULE); a later phase pulls the ladder forward, an earlier one (a go-around's DOWNWIND)
+  never takes it back.
+- **On the page** (app.js, the story half): Tim's band (#stTim) shows the card on T1's flight instead of Tim's T1 lines (those
+  stay the shed's): Tim's portrait, "the flight · n of 6", the title and the text, OK (read: the band waits for the next card).
+  `#stTim.lad` is a TRANSPARENT ground (text shadow for the world behind). A half-second tick follows the phase (only while T1
+  flies; not in loop()). A roll-out is a new flight (playerFlightStart -> storyLadderReset, behind CAREER_DEV && STORY_PAGE); a
+  Restart or a Fly on keeps it.
+- **Off when manual.** 'flydiy:manual' with manual true (or FLYDIY_AP.manual() at a tick) ends the ladder for the rest of the
+  flight and hides the band; handing the aeroplane back does not bring it back.
+- **Skip the flight** (`#stSkip`, a pill at the bottom-left edge, the garage's look - joined editor.css's :is() token root;
+  48 px on the phone; Tim's band stands above it while it shows). Its words say what it does: "Skip the flight: straight to the
+  WWII hangar". `storySkipFlight()`:
+  - `storyEvent({ k: 'stop', stop: careerStopRecord({ how: 'stopped', aero: HOME, slot, row: { from: <where Rufus stands>, to: HOME, t: 0 } }), slot })`
+    - T1 done as a stop at HOME does it: the hangar effect (the lock lifted, its ledger line at 0), T2 entered, the client Cub's
+    effect queued and flushed (the Cub fetched, in the HOME hangar, bound);
+  - Rufus into the HOME hangar through the stop's own roll-in (playerArrive, prefer HOME; then playerGoTo: the garage there);
+  - no careerStopApply, no pilots logbook row, no clock: no money and no flight invented. In the air, the flight is walked away
+    from without its end recorded (flEnded), then the bar's own shed door (#bHangar2: the arrival card down, the roll-in
+    screen) builds the room at HOME. In the shed, FLYDIY_PLAYER.onChange -> roomFollow rebuilds the room at HOME.
+  - Off T1 it is hidden and refused. Also `window.FLYDIY_STORY.skip()` and `.ladder()` for rigs.
+- **GATE STORY**, a new section "the tutorial flight" (25 new rows, after the half's 8 source rows; headless over the half): the cards (5-6, keyed, the basics,
+  the pilot's phases); a cabin -> HOME flight steps all six in order; manual stops it for good; on the page: Tim's lines in the
+  shed, the ladder in flight (.lad), the six in order, OK, 'flydiy:manual' hides it, the hand-back keeps it off, the next roll-out
+  restarts it; none at T0 / T2; the Skip from the shed (T2, HOME ours, Rufus in the HOME hangar, here HOME, the client Cub in the
+  HOME hangar as it arrives, wallet / logbook / contracts unchanged) and in flight (the shed door, the flight's end not recorded);
+  the look. The harness gained `inGarage / ap / sim / flEnded / baseId`, a window event bus and a body classList.
+- **Gates** (22 Oct, cloud; the generated files built locally for the run, then put back - not committed):
+  GATE STORY: PASS (+ --selftest PASS), GATE UISMOKE: PASS, GATE UISMOKE-PHONE: PASS, GATE ROUTES: PASS, GATE GAMEPREM: PASS,
+  GATE GFX: PASS, GATE LAZY: PASS (--no-browser, the static half: MANIFEST.career unchanged), GATE CARDS: PASS (S1/S2; its
+  Chrome half SKIPPED here: no Chrome found by the gate).
+- **For the coordinator / the user:** the card texts are drafts for the narrative pack; the image slot is empty (no art
+  invented). The 10 s hold and the build card's call (25 s of cruise or halfway) are a first guess: on a short cabin -> HOME hop
+  the approach may arrive while "Building a plane" still holds its 10 s.
+
+## A0 - landing L22b (22 Oct 2026, gates 10:00-11:00, pushed ~11:05): THE SMOOTHER AUTOPILOT, THE LEVEL-OFF FIX, THE FIRST-FLIGHT TUTORIAL, THE PIER TEST TABLE
+Rolling set: ap-adapt (AP-ADAPT G3300-G3307: every certified build flown smoothly; the user accepted by name, 22 Oct ~08:45, "1 yes": the float Cessna Ham-fist DEV persona banks 18.5 deg after lift-off, was 10.9; the Student no longer capsizes there; APSMOOTH's c172 level-off row KNOWN under 17 m until G3332), level-off-g3332 (Pilot: the climb captures cruise by TECS's height law in its last 5 s; the metal Cessna's balloon 15.7 -> 5.3 m; floats untouched (sim.hydro skipped); the user accepted by name "2 yes": the Cub's cross-country hold +0.1 m worst / +0.2 m rms), pier-tris (ASSETS-OCT: GATE HOUSE's PIER_TRIS to the shipped G2905 people / boat counts), tuto-flight (G3370: the first flight's cards in Tim's band, off on manual; 'Skip the flight' completes T1 at HOME).
+Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore). The two 43 changes were gated together here (PILOT PILOTMATRIX TAKEOFF TOUR APSMOOTH PASS).
+Strict light gate: 9 RED, none new by cause: over100 x4 = the reveal frame (HWCOV: the gate pins mirror=off in the shed, which re-runs worldCompile after the shot; fix reveal-held tested today); metal chase/cockpit tasks1s / taskWorst 1481-1797 = the boot ~1 s task class; metal fuseWidth busy (accepted).
+
+## G2735-G2739 - ACCEPT-XWIND: THE CONTRACTS' CROSSWIND IS THE DESIGN CHECK'S RUDDER ROW (2026-10-15, ACCEPT-XWIND for the GAME COORDINATOR, cloud - node + headless UI smoke; branch claude/accept-xwind-g2735 off origin/master 85857a1e, DESIGN-TRUST G2640 on master since train 52c / G3050)
+
+The brief: the user via CERT-SLIM G2840, *"the cross wind is far too long and boring"*. CERT-SLIM kept a crosswind
+ladder row only for accepted contracts with an `xwindKt` criterion (resort.b2 >= 15 kt, clients.04 >= 12 kt); A0 asked
+ACCEPT to read DESIGN-TRUST's deterministic row instead, so the ladder can go entirely. Edits in src/core and tools only; no
+generated file committed (index.html, dev.html, tools/flight_core.js, sw.js, version.json, career_core: rebuild on the train).
+
+**G2735 ACCEPT reads ctl.rudder** (src/core/72_accept.js). `ACCEPT_KINDS.xwindKt` is still `src: 'static'`, now "the
+crosswind full rudder holds: the design check's rudder row (genDesignCheck ctl.rudder)". `acceptDesignRow(ev, id)` (new,
+exported in place of `acceptBenchXwind`, which is gone with `ACCEPT_MS_KT`) reads `ev.design` (genShakedown's `design` or
+its rows) when the evidence carries it, else the bench check's settled row `ev.bench.shake.design` (bench.js BENCH_TESTS
+shake: the rows the garage shows the player); a withdrawn (`stale`) or running check counts for nothing. The value is the
+row's own kt (2 decimals), the source line the row's `why` ("full rudder holds 19.74 deg of sideslip at 73.56 km/h").
+No bench check yet: value null -> acceptVerdict's `needs-test` ("the bench check has not been run: its design check gives
+the crosswind the rudder holds"). No solver call (GATE ACCEPT scans acceptDesignRow with the rest). accept_rec.js needed
+no change: its evidence() already hands BENCH_STATE().results (with `shake`) to acceptEvidence.
+
+**G2736 the contracts' kind** (src/core/73_contracts.js, 72_contract_data.js). `CONTRACT_CRIT_KINDS.xwindKt`: `when:
+'static', how: 'design', src: 'genDesignCheck ctl.rudder (64b_gen_design: full rudder's sideslip at 1.3 Vs; G2735)'`
+(`how` gains 'design' in the header's list). The criterion's words now match the row: `crit.xwindKt` "its rudder holds
+{v} kt of crosswind" (was "lands in {v} kt of crosswind"; "rudder" is not a configuration word - every aeroplane has one).
+
+**G2737 WINNABLE - both contracts, no threshold change.** ctl.rudder on master's code, the joined spec the game flies
+(tools/_load_build.js VALIDATED, GATE ACCEPT E), deterministic to the digit on a second, separate genDesignCheck run:
+
+| design | ctl.rudder (joined) | CONTRACTS' raw-file measure | cost |
+|---|---|---|---|
+| Cub | 13.41 kt | 13.63 | 30 834 |
+| Jodel | 16.50 kt | 16.80 | 34 422 |
+| metal Cessna | 19.33 kt | 19.46 | 94 095 |
+| Cessna floats | 21.91 kt | 22.12 | 95 789 |
+| twin floatplane | 12.61 kt | 11.49 | 35 442 |
+
+- resort.b2 (>= 15 kt): the Jodel, the metal Cessna, the Cessna floats. Its follow-up (prefers xwindKt: 18 kt) - the metal
+  Cessna and the floats.
+- clients.04 (>= 12 kt): every design on the joined spec (the twin on the raw file is 11.49: borderline, still four
+  others). NOTE, not mine and unchanged: clients.04 also asks **costMax <= 25 000**, and no validated design's bill is
+  under 31 000 - it is a build contract (the player builds a cheaper trainer), so the crosswind clause is met by stock
+  designs but the contract as a whole needs a new build. The coordinator may want to put that to the user.
+
+**G2738 nothing else in the career reads the ladder** - the remaining readers of the bench crosswind ladder, all GARAGE /
+bench, none career (for CERT-SLIM's owner to remove the kept row; I removed nothing):
+- src/viewer/bench.js BENCH_TESTS `xwind` row (:333-:377) and its card branch (:1297); on claude/cert-slim-g2840 also
+  its `when: api => api.xwindAsked()` and app.js `xwindAsked` (the contract test) - both now pointless: drop them with the row.
+- src/viewer/app.js the bench bridge xwindStart/xwindPoll/xwindEnd (:9495-:9530, :15454-:15457), the sheets'
+  `xwind: xwIfRun()` / restore (:15442-:15446), the plaque's "crosswind limit" rows and "in a crosswind" section (:9730-:9777).
+- src/viewer/bench_worker.js the `xwind` job (benchXwindRun); src/viewer/stickers.js the CROSSWIND sticker;
+  src/viewer/profile.js benchOff 'xwind'; src/core/44_machine_sheet.js `xwindLimit` (no caller passes opts.xwind);
+  src/core/42_crosswind.js (makeCrosswindProbe / genCrosswindLimit) itself. 66_gen_cert's gearDrop.xwind is the
+  certificate's landing case, unrelated.
+- tools: _bench_check.js, test_ui_smoke.js (the plaque's crosswind sheet rows), _takeoff_check.js, test_pilot.js,
+  bench_shot.js, arch_fly.js - they follow whatever CERT-SLIM does with the row.
+
+**G2739 GATES** (`node tools/run_gates.js --only=ACCEPT,CONTRACTS,ECON,LAZY,UISMOKE,BUILD`, after `node tools/build.js`):
+BATTERY PASS - UISMOKE 384 s, BUILD 5 s, ACCEPT 773 s (220 checks; the legs re-flown on master, flights.json updated),
+CONTRACTS 2504 checks, ECON 148, LAZY PASS. Selftests: ACCEPT 27 of 27 (new: the crosswind off another design row, in
+m/s, a withdrawn bench check counted, the crosswind still read off the ladder); CONTRACTS PASS (new: a crosswind no
+validated rudder holds, the crosswind flown on the bench again).
+- GATE ACCEPT E (new): per validated design - the design check ran; ctl.rudder in kt; the second run equal; xwindKt off
+  the bench check's row = ctl.rudder; off genShakedown's `design` (and its bare rows) the same; >= value ok, >= floor+1
+  refused. No check: null; withdrawn / running: null; a 9 m/s ladder row beside the check changes nothing; resort.b2 and
+  clients.04 each met (names printed). Section C's verdicts now ride the Cub's real bench-check row (xwindKt 8 ok, 15 fail;
+  §6.3's "cheap and forgiving": crosswind ok, cost refused).
+- GATE CONTRACTS (new): xwindKt static / design / src names genDesignCheck ctl.rudder; every design's rudder measured
+  (genShakedown's design, the raw-file path its cache already used); every xwindKt criterion, authored and down the
+  follow-up chains, met by >= 1 validated design; the static-kind rule admits how 'design'.
+
+Commits: a2b3fcb2 (code + gates); this section and the ACCEPT flights evidence on top.
+
+READY for the GAME COORDINATOR
+## G3351-G3352 - THE SMOKE RUN'S FIXES + THE COZY CABIN (2026-10-22, the GAME COORDINATOR; story_smoke.js on live L22b found them; the user on the cabin: "I liked it messy")
+- **G3351 the paint-only lock held.** The story's mask note fired on a CHANGE of mask. At a New career it fired before
+  editor.js defined EDITOR_LOCK, and the mask never changed again, so the lock never engaged (Shape stayed enabled at
+  T0). `storyLockSync` now holds EDITOR_LOCK to the mask at boot and on every 1.5 s tick.
+- **G3351 the bench TOOL hidden in the small shed.** #tabBench is no longer in the page; the bench's tests live in the
+  left panel's #edBench. `storyBenchRule` sets `body.stNoBench`, editor.css hides #edBench under it, and a note says
+  certification happens at the WWII field's hangar.
+- **G3352 the cozy cabin.** BASE_OFFERS.w1's kits are every kit but the office: the work bench (decor), wood and metal
+  machines, the plane and wing in build (wip), store, handling, comfort, curio. A New career's cabin gets them.
+- **READY - saves:** an EXISTING career's cabin shed whose kits are exactly the old thin set (park, bench, comfort) gains
+  the plot's other kits on load. That is decor only: nothing is removed, and its aeroplanes, slots and money are
+  untouched. A cabin the player furnished otherwise (any other kit list) is left alone.
+- GATE STORY rows: the lock held every tick, the bench tool hidden by the body class, the cabin's kits.
+
+## A0 - landing L22c (22 Oct 2026, gates 16:00-17:06, pushed ~17:30): CABIN STRIP WITHOUT PAPI, THE TOWN'S LIFE INCREMENTAL, PILOTPAGE, APSMOOTH's KNOWN DROPPED; gate-screen + reveal-held HELD
+Rolling set (6): apsmooth-known-drop (Pilot: APSMOOTH's c172 level-off row back to the 10 m bar after G3332), gate-screen + reveal-held (HWCOV: frames under the roll-out screen split into their own rows; held frames counted), pilotpage (G3320: GATE PILOTPAGE, the validated legs flown in the page, 'full' tier), town200-life (HWCOV: scenery_life stands only the new houses' life, sliced; the town's 200 ms frames gone, circuit +2.52 ms), w1-papi (ED-2: the user's 'none' - Cabin Strip without PAPI; CONTRACT_FIELDS.w1 drops glide).
+- The battery on the six: AUDIO RED, NEW: WIRING "app.js: AUDIO.update is not in loop() between the render and PACE.end" - reveal-held's held-frame PACE.end before the hold's return; gate-screen is built on reveal-held, so both are out. Otherwise master's known reds.
+- Strict light gate on the six: over100 gone (the screen split), cub cockpit / metal chase tasks1s + cub cockpit taskWorst 2136 (the boot ~1 s class, still judged against 1 s as ruled), metal fuseWidth (accepted), floats world->garage 2.25 s (the known re-link).
+- Landed: 7332badc1 = master 5f3f2c797 + apsmooth-known-drop + pilotpage + town200-life + w1-papi, re-cooked (premises / fleet / map / parked); AUDIO STORY UISMOKE SCENERYED CONTRACTS PREMISES LIFE CITYHOST APSMOOTH PASS on that exact tree (17:10-17:20). HWCOV fixes the AUDIO wiring row vs the held path for L22d / L23b.
+
+## G3250-G3259 - ECON-SIM: THE ECONOMY SIMULATION (GAME-PLAN §12) - FOUR POLICIES x 20 SEEDS ON THE GAME'S OWN CORE, MASTER'S PRICES AGAINST A PROPOSED TABLE; ROUTES ARE THE LEAK, LANDMARK CO-FUNDING IS THE SINK, TIME (NOT MONEY) IS WHAT MISSES (2026-10-22, for the GAME COORDINATOR, cloud - node only; branch claude/econ-sim off origin/master 2c2a7445 = L22c; the work: 7c1336bb; NOT on claude/ready/ - the coordinator reviews first; G3251-G3259 unused)
+- **The recommendation, in plain words (for the user):**
+  - **Routes leak money today.** The down payment is 8 round trips, paid on signing. A metal Cessna on HOME - strip 11 gets 103 920 up front, more than the plane costs (75 000), and every wait pays round trips by the hour. The router policy ends with 66 % of its income from routes (target <= 40 %). Proposed: perKm 100 -> 30, downTrips 8 -> 6, and a TIMETABLE of at most 6 round trips a sim day. With these the router is at 13 %.
+  - **Money stops meaning anything early.** The 60 000 grant plus T6's down payment already put the wallet at ~8x the next purchase at T7. By segments 2-3 the frugal player sits at 23x / 47x and the router at 29x / 45x: there is nothing left to want.
+  - **The planes are already priced right** for the Gran Turismo model. A Cub-class build takes 3 contracts of pace and the 4-seater 7 (8 with its rung): keep the ledger x labour.
+  - **The sink that holds is landmark co-funding** (§12's leading candidate, confirmed). Take it out and money at rest goes back to 15-48x; take out any other sink and it moves by a few hundredths. Proposed keystones: 2.5 / 6 / 12 Cubs (78 000 / 187 200 / 374 400). The machine-shop rungs, the hangars, the competitions and the occasions are taste, not sinks.
+  - **Drop the story career's 60 000 grant.** Pay a 20 000 commitment fee at T6 instead, beside the route's own down payment. That is the first real money, and enough for any one of the three occasions ("lose a plane, gain a choice").
+  - **Time is the real constraint, not money.** At 1x a contract is ~25 min of real play: the island's legs, the unpaid positioning, five minutes of circuit per leg. The tutorial alone is ~2.6 h (T5's survey flies 63 km), so the demo (tutorial + segment 1 at 14 contracts) is ~8.5 h, not 2-3. With the cruise at 4x, segment 1 could hold ~4 contracts in 3 h. The economy's ratios are per contract, so they hold whatever length is picked. **The demo length is the user's call:** a cruise time compression, a shorter T5, or a longer demo.
+- **tools/econ_sim.js** (a TOOL, not a gate: run_gates does not run it; no gate changed).
+  - It plays careers headless on tools/flight_core.js: careerNew + storyNewCareer (the Cabin Strip by name), then T0-T7 through storyStep / storyApply.
+    - The Rufus flies to HOME; the client's Cub is finished to the checklist and delivered to strip 11; T5's three authored jobs are flown through contractOnStop.
+    - The Cub goes on floats to the seaplane base, where T6 signs the real route (routeOffer + routeSign).
+  - Open play takes the offer (careerOfferIds: the real generator, the arcs, build contracts, night work) with the best pay per real minute that one free plane can fly (contractDoers over the designs). It is flown leg by leg, each stop handed to contractOnStop, and routeSettle runs at every landing and wait.
+  - The designs come off their build files through buildGen + genShakedown + careerDesignOfShake (cached in os.tmpdir): Rufus, Cub, Jodel, Chinook, metal Cessna, Cessna floats, composite Jodel; twinf from CONTRACT_DESIGNS.
+  - The policies:
+    - **frugal**: one work plane, upgrades only;
+    - **collector**: every type, the occasions, the hangars, every landmark;
+    - **router**: hires every pilot, puts a plane on a route for each free pilot;
+    - **competitor**: a dedicated design per competition class, every round entered.
+  - The SINKS are tested one at a time with `--ablate`; the route pay grid with `--sweep`.
+  - Nothing live is changed: every variant is set on the process's copy of ROUTES_PAY / ECON_BOOK.shells and restored.
+  - `node tools/econ_sim.js [--seeds=20] [--ablate] [--sweep] [--config=live|proposed|no-landmark|...] [--jobs=N] [--out=DIR] [--no-page]`. The full set (380 careers) takes ~3 min on 4 workers.
+  - The workers each play a fixed slice; a career a worker does not report is played in the parent, so nothing is lost and nothing hangs.
+- **What is the sim's, not the game's (stated on the page):**
+  - The three segments: a design's segment is what it wants of a hangar (tube / wood 1, metal 2, composite 3). A keystone needs 14 / 20 / 26 contracts in its segment, plus (proposal) its co-funding.
+  - The time model: a leg is its cruise + 300 s; menus and the editor cost the REAL_S minutes; a night is waited out; a window more than 3 h off is left for later.
+  - The competitions: NOT IN THE GAME, the proposal's data.
+  - Build contracts: the cheapest design meeting every criterion off its certificate numbers is built, flown and delivered.
+- **Measured (20 seeds, medians; live -> proposed):**
+  - pace: Cub 3 -> 3; 4-seater 7 -> 8 (with its rung); side hangar 5.5 -> 11;
+  - money at rest, segments 1 / 2 / 3:
+    - frugal 5.2 / 23 / 47 -> 2.8 / 0.8 / 0.7;
+    - collector 0.6 / 3.7 / 10 -> 0.5 / 0.5 / 0.5;
+    - router 11.5 / 29 / 45 -> 2.6 / 0.9 / 0.8;
+    - competitor 4.7 / 15 / 26 -> 1.8 / 0.6 / 0.6;
+  - route share, router: 0.66 -> 0.13;
+  - fleet at keystone 3: collector 12 vs frugal 4; every policy finishes on every seed.
+  - **Every proposal target is met except the demo hours.**
+- **THE PROPOSED TABLE (nothing applied; the coordinator / the user decide). One Cub = 31 203.**
+  - **The start:**
+    - the story career's grant 60 000 -> **0**;
+    - T6's commitment fee **20 000** (a story effect in 79_story.js storyApply 'routeOffer', beside the route's own down payment).
+  - **ROUTES_PAY** (78b_routes.js): `{ perKm: 100 -> 30, downTrips: 8 -> 6, dayTrips: 6 (new) }`.
+    - dayTrips means routeTerms' `tripS = max(the flown round trip, 86400 / dayTrips)`: a one-line change.
+    - The story Cub, SEA <-> HOME: 1 260 a trip / 10 080 down -> 380 / 2 280.
+    - The metal Cessna, HOME <-> strip 11: 12 990 / 103 920 -> 3 900 / 23 400.
+    - The whole table is on the page.
+  - **Airframes, unchanged** (ledger x labour 0.8):
+    - Cub 25 000, Jodel 27 500, Chinook 20 900, twin floats 28 400;
+    - metal Cessna 75 000, Cessna floats 76 600;
+    - composite Jodel 39 200.
+  - **Occasions** at 0.35 x catalogue: T7's three at 33 300 (the fabric 4-seater placeholder, 0.30 today) / 13 800 / 10 000, plus 2 one-time listings per segment.
+  - **Machine shop** (sink 2): Sheets and bolts 0.25 Cubs (7 800, today's metal kit), Composite and electronics 2.5 Cubs (78 000). Today the main hangar holds every kit.
+  - **Landmarks** (sink 1):
+    - keystones: Observatory 2.5 Cubs (78 000), hydro plant 6 (187 200), long runway 12 (374 400);
+    - optional: mining village 1.5, sky tram 3, Driftwood Landing 5.
+  - **ECON_BOOK.shells** field / club / works 1.8 / 3.2 / 5.4 -> **3.6 / 5.6 / 8.6** Cubs. A side field shed: 44 960 -> 89 840 at Tamgas Hill.
+  - **Competitions** (sink 4, to build): entry 0.08 / 0.15 / 0.25 Cubs by segment, prizes x3 / x1.6 / x0.8.
+  - **Pilot sign-ons:** unchanged.
+- **The calibration rows PROPOSED for tools/_econ_check.js** (NOT applied; GATE ECON still PASS, 149 checks, on its live bands):
+  ```
+  const ECON_BANDS_STORY = {
+    cubClass:   [3, 4],      // a Cub-class build (the scratch Cub)            measured 3
+    seat4:      [6, 8],      // a segment-2 4-seater (+ its machine-shop rung) measured 8
+    hangar1:    [8, 12],     // a side hangar (a field shed at Tamgas Hill)    measured 11
+    rest:       [0.3, 3],    // money at rest, every policy, every segment (median)
+    routeShare: [0, 0.40],   // route income / all income, the router           measured 0.13
+    keystones:  3,           // every policy reaches keystone 3 on every seed
+  };
+  const ECON_REF_STORY = { seeds: ['s1'..'s8'], policies: ['frugal', 'router'], segK: { 1: 14, 2: 20, 3: 26 } };
+  ```
+  - The gate would call econ_sim's playCareer, or a slim copy of it in 76_economy.js, once the coordinator picks one.
+- **Findings on the way (not fixed, outside the brief):**
+  - **Edits to an existing airframe are free.** app.js only charges econMaterialiseNow on a NEW slot. The floats on the Cub, an engine swap, anything cost nothing; only a new type costs money. "Upgrades" is not yet a sink (T2's edit bill is already measured: procureEditBill).
+  - **playerSideIds counts the story's cabin shed (w1) as a side hangar.** With the cabin, a story career can buy only ONE more side hangar (PREM_SIDE_MAX 2).
+  - **Build contracts are the richest work.** minedock.b2 and its follow-ups pay 56 000 / 64 400 / 74 060 for a ~21 000 ultralight airframe.
+  - **Segment 3 has one validated design** (the composite Jodel, 2 seats). A frugal player keeps the Cessna through it.
+- **Output:**
+  - futureDesigns/game/econ-sim/index.html: self-contained (Plex Sans inlined from vendor/fonts, inline SVG, the garage's dark look, a tooltip on every mark, a table under every chart; checked at 1100 and 390 px wide, no console error);
+  - econ_sim_results.json beside it.
+- **Checks:** `node --check tools/econ_sim.js`; GATE ECON PASS (unchanged); no generated file edited (the build left the tree clean); the numbers are identical on 5f3f2c79 and on L22c 2c2a7445.
+## HWCOV - GATE-SCREEN (22 Oct 2026, A0's ruling; for L22d): A GATE-SEMANTICS CHANGE - WHAT A LOADING SCREEN HOLDS IS THE SCREEN'S
+Why: the strict gate's reveal over100 (117-166 ms, every leg since L21c) was not a frame the player sees. The gate pins `--set mirror=off` IN THE SHED; the shed's settings screen compiles the shed only, so the roll-out's trip re-runs worldCompile and first light AFTER the shot, under its own roll-out screen, with the draw held (holdRender). Its 2-3 held frames folded into one row read as the flight's over100. The same rig with the setting applied before the load reveals clean (no hold, worst frame 50 ms; HWCOV probe 08:25). A0 kept the shed pin - a real player path - and ruled that frames under a screen leave over100 / taskWorst but are reported on their own rows.
+What changed (tools only):
+- tools/rollout_perf.js: the page records BOOT.state every frame from the first (`__RP.bs`); the JSON carries `bootSpans` (where the state was not 'gone'). A frame whose interval overlaps a span leaves `gates.over100ms`, and a long task that overlaps one leaves the worst task; `longTask1s` still counts EVERY task (batch A's rule: no main-thread task over 1 s during any load or settings change - the loads are the screens); `gates.screen` reports them: frames, over100, worst frame, tasks, taskWorst, tasks1s. Its ROLLOUT line reads "held under the roll-out screen", no verdict.
+- tools/rollout_ratchet.js (train_gate reads it): taskWorst counts tasks outside the screens only; tasks1s / tasks200 count every task, the screens' included (A0: the 1 s judgment never leaves a load). New rows `screenOver100` (abs 2), `screenWorst` (rel 0.25, abs 50 ms), `screenTaskWorst` (rel 0.25, abs 250 ms) - slack from the day's legs (2 frames over 100 ms, the worst 133-166 ms, the screen's worst task the boot settle's ~1.0 s). A JSON without bootSpans (older runs) reads as before.
+- Expect at the first gate on it: the rollout taskWorst row BETTER (the boot's ~1 s settle task now sits on screenTaskWorst; tasks1s still counts it), over100 better on the shed-pinned legs, and three FRESH screen rows per group - take them into the baseline with --update after the landing.
+- GATE FLIGHTREC: the ratchet's split on a synthetic run and the rig's source rows.
+In L22c from HWCOV (no entries of their own): TOWN-200 (ready/town200-life: the scenery life stands in parts, a house that lands stands only its own part - the town flight's 217 ms frames every ~1.4 s are gone; circuit P-O loop +2.52 ms, >34 +0.02 pt) and REVEAL accounting (ready/reveal-held: a held frame calls PACE.end(..., held); the rig's row says how many held frames it folds, col 29).
+
+## A0 - landing L22d (22 Oct 2026, gates 22:00-23:07, pushed ~23:20): STORY FIXES + THE COZY CABIN, CROSSWIND CONTRACTS, THE TOWN'S APPROACH FREEZE, THE LOADING-SCREEN ROWS, THE ECONOMY SIMULATOR
+Rolling set (6), merged in order on master 2c2a74459 (L22c), HANDOVER unioned (two append conflicts, union_conflict.py):
+- accept-xwind 3c9fb9eb4 (GAME): ACCEPT-XWIND G2735-G2739 + clients.04 costMax 25 000 -> 32 000 (the user, 22 Oct: "raise the clients.04 cap").
+- approach-depth 42d7057c5 (HWCOV): a caster switched off by distance (userData.mayCast) links its depth program ahead; a kit host made after the world compile prelinks its depth programs, sliced (FLYDIY_DEPTH_PRELINK). The new town's 0.5-2 s downwind freeze at ~2.5 km (one shadow-pass depth program linked on the spot). GATE PROGRAMS row.
+- econ-sim ac1324c61 (GAME, cloud G3250-G3259): tools/econ_sim.js + futureDesigns/game/econ-sim/ (page + json). A tool and a report: NOTHING applied to the game; the proposed table and the demo-length question wait for the user.
+- game-fri 5c50f4313 (GAME): the paint-only lock engages at T0 (G3350 fix), the bench rule (no cert bench in the small shed, G3351), the cozy cabin 10 x 11 with every kit (the user, 22 Oct: "I liked it messy"). 20:00 smoke green on the branch (its reds were the rig's, fixed on claude/story-smoke).
+- gate-screen e46e36159 + reveal-held 3b3ed858c (HWCOV): frames and tasks under a loading screen leave over100 / taskWorst for their own screen rows; a held frame reports itself (PACE.end(..., held)); GATE AUDIO's loop row reads the drawn frame's PACE.end (lastIndexOf) - the L22c AUDIO WIRING red fixed.
+Battery (112 of 113 kept): PASS but master's standing reds, identical in L22b and L22c: CLOCK (1 of 777), CLOUD (1 of 239), KTX2 (the characters' budget: 5 characters with no char_tex_budget row), FRAMECOST (cessna boot/garage:restore updateMatrixWorld 2269 -> 4553). Each is on the board (backlog audit tonight).
+Strict light gate: RED (2), the same classes L22c landed with: metal cockpit tasks1s 0 -> 2 (the boot ~1 s task class, still judged against 1 s as ruled) and floats world -> garage 2.6 s (L22c 2.25, L22b 1.4: the known garage re-link; named for the backlog). Nothing new from this set.
+NOT in this train: float-kit / water-rollout (DMGPLOUGH hump technique + the water roll-out owed by the pilot - next week); TECH-MASK + NAMES (L23c); the cabin lamp + machines + Rufus's flood x4 (L23b); the four revived cloud branches (engine configs, STOL wing, avionics GPS, belly pod - Saturday, after their HANDOVER entries and box stills).

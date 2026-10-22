@@ -50,7 +50,7 @@ const CONTRACT_FIELDS = {
   w4:       { id: 'w4',       name: 'strip 9',                  x: -1404, z: -17699, len: 216,  surf: 'gravel', alti: true, lit: true, glide: 'papi' },
   w8:       { id: 'w8',       name: 'strip 13',                 x: 4361,  z: -16251, len: 392,  surf: 'sand', lit: true },
   // (G2745, the user's save 17, 18 Oct: the Cabin Strip - the story's start, an S of gravel up a lake valley)
-  w1:       { id: 'w1',       name: 'Cabin Strip',              x: 2646,  z: -16040, len: 383,  surf: 'gravel', lit: true, glide: 'papi' },
+  w1:       { id: 'w1',       name: 'Cabin Strip',              x: 2646,  z: -16040, len: 383,  surf: 'gravel', lit: true },   // (22 Oct, the user: no PAPI at the Cabin Strip - a bush strip, no glideslope lights)
 };
 
 // ---- THE VALIDATED DESIGNS (the user's five; HANDOVER G1985's LB.VALIDATED, _treecrash_lib's BUILDS) -------
@@ -388,7 +388,7 @@ const CONTRACT_PROVIDERS = {
            rep: { provider: 'clients', gain: 0.75 }, unlock: { stage: 'clients:1' }, needs: { after: ['clients.02'] } }),
       C_({ id: 'clients.04', provider: 'clients', kind: 'build', title: 'ct.clients.04.title', brief: 'ct.clients.04.brief',
            stages: [{ subs: [{ do: 'deliver', to: 'HOME', crit: [
-             { k: 'costMax', op: '<=', v: 25000 },
+             { k: 'costMax', op: '<=', v: 32000 },   // (the user, 22 Oct: "raise the clients.04 cap" - 25 000 was under every validated design; 32 000 lets the stock Cub (31 203) qualify, the Jodel (34 363) not)
              { k: 'xwindKt', op: '>=', v: 12 },
              { k: 'seats', op: '>=', v: 2 }] }] }],
            pay: { base: 26000 }, rep: { provider: 'clients', gain: 1 }, needs: { rep: 1, after: ['clients.03'] },
@@ -578,7 +578,7 @@ const CONTRACT_TEXT = {
   'crit.powertrain': CT_('{v} power'), 'crit.tankL': CT_('a tank of at most {v} L'),
   'crit.batteryKWh': CT_('a battery of at most {v} kWh'), 'crit.spanM': CT_('a span of at most {v} m'),
   'crit.costMax': CT_('costs at most {v} credits'), 'crit.ultimateG': CT_('strong to {v} g'),
-  'crit.xwindKt': CT_('lands in {v} kt of crosswind'), 'crit.hydro': CT_('operates from water'),
+  'crit.xwindKt': CT_('its rudder holds {v} kt of crosswind'), 'crit.hydro': CT_('operates from water'),
   'crit.tasKmh': CT_('cruises at {v} km/h or more {at}'), 'crit.enduranceMin': CT_('{v} min in the air plus a reserve {at}'),
   'crit.rangeKm': CT_('{v} km on a tank'), 'crit.takeoffAt': CT_('takes off from {v} {at}'),
   'crit.landAt': CT_('lands at {v} {at}'),
@@ -637,7 +637,8 @@ const CONTRACT_OPS = ['>=', '<=', '=='];
 // ---- THE CRITERION KINDS (data: ACCEPT implements each kind, MAP labels each) -----------------------------
 //   k        the key a criterion names            unit   the value's unit ('' for a word, 'strip' for a field id)
 //   when     'static' (judged without flying: the phone may do it, GQ19) | 'flown' (a flight decides it)
-//   how      'spec' | 'ledger' | 'cert' (the structural certificate) | 'bench' (a BENCH_TESTS run) |
+//   how      'spec' | 'ledger' | 'cert' (the structural certificate) | 'design' (the design check's rows, no flight) |
+//            'bench' (a BENCH_TESTS run) |
 //            'leg' (the flown acceptance leg) | 'strip' (flown at that strip: the delivery or a demonstration)
 //   src      where today's number comes from (GAME §6.2)
 //   op       the operators the kind takes; band the sane values [lo, hi] (a criterion outside is invalid)
@@ -662,7 +663,7 @@ const CONTRACT_CRIT_KINDS = {
                   op: ['<='], band: [5000, 300000], follow: { mul: 0.9, round: 500 } },
   ultimateG:    { k: 'ultimateG',    unit: 'g',     when: 'static', how: 'cert',   src: 'the structural certificate (66_gen_cert.js ultimate)',
                   op: ['>='], band: [3, 12], follow: { add: 0.5, round: 0.5 } },
-  xwindKt:      { k: 'xwindKt',      unit: 'kt',    when: 'flown',  how: 'bench',  src: 'BENCH_TESTS xwind (genCrosswindLimit)',
+  xwindKt:      { k: 'xwindKt',      unit: 'kt',    when: 'static', how: 'design', src: 'genDesignCheck ctl.rudder (64b_gen_design: full rudder\'s sideslip at 1.3 Vs; G2735)',
                   op: ['>='], band: [5, 30], follow: { add: 3, round: 1 } },
   hydro:        { k: 'hydro',        unit: '',      when: 'flown',  how: 'bench',  src: 'BENCH_TESTS hydro + the delivery on water',
                   op: ['=='], values: [true], follow: null },
@@ -5351,6 +5352,45 @@ const STORY_TIM = {
   T6: ['We promised this one: floats on the Cub, and land it at the seaplane base.'],
   T7: ['The Cub is flying a route now. But look: three planes for sale, once only.'],
 };
+// G3370 (TUTO-FLIGHT, GAME-PLAN §R2, the user 19 Oct: "a few cards covering the basics of the game, and the basics of
+// building a plane"): THE LADDER on T1's flight - one card per stretch of the flight, in Tim's band (app.js #stTim) as text
+// (and an image when `img` names one; none yet), keyed to the pilot's own phases (43_pilot PILOT_PHASES). Draft English,
+// keyed for the narrative pack. `at`: the phases that call the card; `build`: no phase of its own - it follows the cruise
+// card once the cruise has run STORY_LADDER_RULE.cruiseS of sim time or half the way to HOME is flown
+const STORY_LADDER = [
+  { id: 'roll', key: 'story.ladder.roll', title: 'Take-off', img: null, at: ['DEPART', 'TAXI', 'LINEUP', 'STOP', 'HOLD', 'ROLL', 'ABORT', 'LIFTOFF', 'PUTDOWN'],
+    text: 'The autopilot flies the whole trip: the taxi, the line-up, the take-off roll and the climb. The phase bar names what it is doing. Sit back and watch.' },
+  { id: 'climb', key: 'story.ladder.climb', title: 'The map and the route', img: null, at: ['CLIMB', 'CROSSWIND'],
+    text: 'The map (on the left rail) shows where you are and the line the autopilot follows to the WWII field. Every job is a flight like this one: from A to B, stopped and whole at the end.' },
+  { id: 'cruise', key: 'story.ladder.cruise', title: 'The work', img: null, at: ['ENROUTE', 'ROUTE', 'DOWNWIND', 'BOX', 'LOITER'],
+    text: 'That is the game: clients post jobs on the map, you fly them, they pay. The money buys parts, aeroplanes and hangars, and hired pilots fly what you cannot. The jobs open once we have moved in.' },
+  { id: 'build', key: 'story.ladder.build', title: 'Building a plane', img: null, at: [],
+    text: 'In the hangar you change your aeroplanes. Click a part, then again to climb the tree to the whole plane. More wing lands slower and shorter, more power climbs faster, every kilo costs both. A changed plane passes the bench before it flies for money.' },
+  { id: 'approach', key: 'story.ladder.approach', title: 'The approach', img: null, at: ['INBOUND', 'BASE', 'FINAL', 'GOAROUND', 'GLIDE'],
+    text: 'The approach: the autopilot lines up with the runway, slows down and holds the glide. If it does not like it, it goes round and tries again. A slower plane needs a shorter strip.' },
+  { id: 'landing', key: 'story.ladder.landing', title: 'The WWII field', img: null, at: ['FLARE', 'ROLLOUT', 'STOPPED'],
+    text: 'The flare, the roll-out, and we are home. Stop it on the field and the hangar is ours: our first client is already on the way.' },
+];
+// hold: s of sim time each card stands before the next (one card at a time, never skipped); cruiseS / half: the build
+// card's call (the cruise's time, or the share of the way to HOME still to fly)
+const STORY_LADDER_RULE = { hold: 10, cruiseS: 25, half: 0.5 };
+const storyLadderNew = () => ({ i: -1, at: 0, cruise: null, d0: null, off: false });
+// one tick of the ladder (pure): L its state, o { phase (ap.phase), t (s of sim time), dHome (m to HOME, or null), manual }
+// -> { L, card } (card: STORY_LADDER[L.i], or null - none yet, or off). MANUAL ENDS IT: once the player takes the
+// controls, off for the rest of the flight (a hand-back does not bring it back)
+function storyLadderStep(L, o) {
+  L = Object.assign(storyLadderNew(), L || {}); o = o || {};
+  if (L.off || o.manual) { L.off = true; return { L, card: null }; }
+  const t = +o.t || 0, ids = STORY_LADDER.map(c => c.id), R = STORY_LADDER_RULE;
+  let want = STORY_LADDER.findIndex(c => c.at.includes(o.phase));
+  if (want === ids.indexOf('cruise')) {
+    if (L.cruise == null) L.cruise = t;
+    if (L.d0 == null && typeof o.dHome === 'number' && isFinite(o.dHome)) L.d0 = o.dHome;
+    if (t - L.cruise >= R.cruiseS || (L.d0 > 0 && typeof o.dHome === 'number' && o.dHome <= R.half * L.d0)) want = ids.indexOf('build');
+  }
+  if (want > L.i && (L.i < 0 || t - L.at >= R.hold)) { L.i++; L.at = t; }
+  return { L, card: L.i >= 0 ? STORY_LADDER[L.i] : null };
+}
 // (G3260 ROUTES: at T7, with the story's route signed, Tim names it and its down payment first)
 const storyTimLines = (id, doc) => { const L = (STORY_TIM[id] || []).slice(), r = id === 'T7' && doc ? storyRoute(doc) : null;
   if (r) L.unshift((typeof pilotsName === 'function' ? pilotsName(r.pilot) : r.pilot) + ' flies the Cub on ' + routeWords(r) + ' now. The client paid ' +

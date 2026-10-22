@@ -37,7 +37,8 @@
 //
 //   SCENERY_LIFE.make(THREE, host) -> L      host: see make()
 //     L.set(cfg)    the record's life block changed: re-stand (debounced)
-//     L.dirty()     the premises rebuilt / a house landed: re-stand when the build queue is empty
+//     L.dirty()     the premises rebuilt: re-stand when the build queue is empty
+//     L.built()     houses landed or were taken down: stand their parts only (TOWN-200)
 //     L.tick()      once a frame: re-stand if owed; the draw lists from the eye
 //     L.trafficOf(rd)  vehicles per km on a road the record left without traffic
 //     L.stats, L.items(cat), L.dispose()
@@ -232,7 +233,7 @@ function make(THREE, host) {
   const root = new T.Group(); root.name = 'premises:life'; root.matrixAutoUpdate = false;
   host.root.add(root);
   let KIT = null;                                   // the procedural geometries, built on the first stand
-  const stats = { on: false, items: 0, byCat: {}, visible: 0, draws: 0, placeMs: 0, updMs: 0, batches: 0, procVisible: 0 };
+  const stats = { on: false, items: 0, byCat: {}, visible: 0, draws: 0, placeMs: 0, updMs: 0, batches: 0, procVisible: 0, adds: 0, addMs: 0, packMs: 0, stands: 0 };
   // THE ITEMS: parallel arrays, one entry per placed thing (world matrix, kind, tint, cell)
   let IT = { n: 0, M: new Float32Array(0), kind: new Uint16Array(0), tint: new Float32Array(0), cat: [], cells: new Map(), cellList: [] };
   const KINDS = [];                                 // [{ id, cat, levels, shadowTo }]
@@ -344,7 +345,8 @@ function make(THREE, host) {
   // the water AT the point (a pond, a lake, the sea), not the sea level: a mast stood in a muskeg pond once
   const wet = (x, z) => { const w = host.waterAt ? host.waterAt(x, z) : host.waterY(); return Number.isFinite(w) ? w : -1e9; };
   let OCCG = new Map();
-  function occupy(x, z, r) { const k = Math.floor(x / 8) + ',' + Math.floor(z / 8); let L = OCCG.get(k); if (!L) OCCG.set(k, L = []); L.push([x, z, r]); }
+  let CUR_OCC = null;   // (TOWN-200: the part being stood keeps its own copy - a part taken down takes its ground back)
+  function occupy(x, z, r) { const k = Math.floor(x / 8) + ',' + Math.floor(z / 8); let L = OCCG.get(k); if (!L) OCCG.set(k, L = []); L.push([x, z, r]); if (CUR_OCC) CUR_OCC.push([x, z, r]); }
   // road clearance: distance (premises frame) to any road's edge
   let ROADS = [];
   function offRoad(lx, lz, m) { for (const r of ROADS) { if (Math.abs(lx - r.cx) > r.R + m || Math.abs(lz - r.cz) > r.R + m) continue; if (PG.roadDist(r, lx, lz) < r.w / 2 + m) return false; } return true; }
@@ -742,7 +744,7 @@ function make(THREE, host) {
     if (!offRoad(lx, lz, 25)) return false;
     for (const p of APRONS) if (PG.inPoly(p, lx, lz) || PG.sdPoly(p, lx, lz) < 25) return false;
     const w = host.frame().toWorld(lx, lz);
-    for (const b of BUILT) if (Math.hypot(b[0] - w[0], b[1] - w[1]) < 40) return false;
+    for (const b of BUILT) if (Math.hypot(b[0] - w[0], b[1] - w[1]) < 40) return false;   // (TOWN-200: every plot and item of the record, built or not)
     for (const m of MASTS) if (Math.hypot(m.x - w[0], m.z - w[1]) < (m.kind === kind ? 700 : 300)) return false;
     for (const r of runways) if (PG.inPoly(PG.runwayBox(r, 150), lx, lz)) return false;
     return true;
@@ -780,13 +782,25 @@ function make(THREE, host) {
   }
 
   // THE STAND: every law over what is built, from the seed; the items packed into cells
+  // TOWN-200 (A0 22 Oct; HWCOV): THE STAND IN PARTS. A house landing re-stood the whole life - every house, every road
+  // (roadDist, the ground's tiles decoded), every apron and the masts - in one frame: 200-260 ms every ~1.4 s of a town
+  // flight while the stream built (render_premises afterBuilt -> dirty). Now the stand is a BASE - the roads, the aprons,
+  // the parked aeroplanes' people and the masts, none of which a house moves: the masts keep off every plot and item of the
+  // RECORD (BUILT below), built or not - and ONE PART A HOUSE, stood in the houses' order over the base's ground. A house
+  // that lands stands its own part (built(): a few ms a house, sliced across frames) and the cells are re-packed; the base
+  // is stood again only by a full stand (a record or a life change, dirty()). Stood whole or a house at a time, the
+  // houses in the same order give the same items (GATE LIFE).
+  let BASE = { list: [], occ: [] }, PARTS = new Map(), PEND = [], SEED = 0, ADD = false, ADDED = false;
+  const LIFE_SLICE_MS = 4;   // a frame's share of the houses' parts (a house over it finishes; the next waits a frame)
   function place() {
     const t0 = performance.now();
-    LIST = []; OCCG = new Map(); CARS.length = 0; MASTS.length = 0;
+    stats.stands++;
+    LIST = []; OCCG = new Map(); CARS.length = 0; MASTS.length = 0; PARTS = new Map(); PEND.length = 0; ADD = false; ADDED = false; CUR_OCC = null;
     dropObstacles();
-    if (!cfg.on) { pack(); stats.placeMs = performance.now() - t0; return; }
+    if (!cfg.on) { BASE = { list: [], occ: [] }; packAll(); stats.placeMs = performance.now() - t0; return; }
     if (!KIT) KIT = buildKit(T);
     const rec = host.record() || {}, seed = PG.hash32((rec.seed | 0) + 1, (cfg.seed | 0) * 7919 + 17);
+    SEED = seed;
     CFG0 = cfg; REGIONS = regionsOf(rec);
     const zones = (host.zones() || []).filter(z => z.poly && z.poly.length > 2);
     const plots = host.plots() || [];
@@ -794,30 +808,76 @@ function make(THREE, host) {
     ROADS = (host.roads() || []).filter(r => r.pts && r.pts.length > 1).map(r => { const bb = PG.polyBBox ? PG.polyBBox(r.pts) : null; const cx = bb ? (bb.x0 + bb.x1) / 2 : r.pts[0][0], cz = bb ? (bb.z0 + bb.z1) / 2 : r.pts[0][1];
       const R = bb ? Math.hypot(bb.x1 - bb.x0, bb.z1 - bb.z0) / 2 : 1e9; return Object.assign({}, r, { cx, cz, R }); });
     const craft = host.aircraft() || [];
+    // THE BASE
+    CUR_OCC = []; LIST = [];
     // what stands already is occupied: the parked aeroplanes
     for (const c of craft) occupy(c.x, c.z, 4.5);   // the fuselage's reach (a wing tip is walked round, not into)
-    for (const ob of (host.objects ? host.objects() : [])) occupy(ob.x, ob.z, ob.r);   // what the record placed by hand (a prop, a board, a herd)
-    const houses = host.houses();
+    const objs = host.objects ? host.objects() : [];
+    for (const ob of objs) occupy(ob.x, ob.z, ob.r);   // what the record placed by hand (a prop, a board, a herd)
     APRONS = host.aprons() || [];
-    BUILT = []; if (houses) for (const [, h] of houses) if (h && h.grp && h.grp.position) BUILT.push([h.grp.position.x, h.grp.position.z]);
+    // what the masts keep 40 m from: the record's plots, items and objects, built or not (they kept off the BUILT houses -
+    // a mast moved as the stream built round it)
+    const F = host.frame();
+    BUILT = [];
+    for (const p of plots) { if (!p || p.kind === 'park' || p.kind === 'airfield') continue; const c = p.poly && p.poly.length > 2 ? PG.polyCentroid(p.poly) : p.front; if (c && isFinite(c[0])) BUILT.push(F.toWorld(c[0], c[1])); }
+    for (const it of ((host.items && host.items()) || [])) { const f = it && it.foot && it.foot.length > 2 ? PG.polyCentroid(it.foot) : it && isFinite(it.x) ? [it.x, it.z] : null; if (f) BUILT.push(F.toWorld(f[0], f[1])); }
+    for (const ob of objs) BUILT.push([ob.x, ob.z]);
     const sites = [];
-    if (houses) for (const [id, h] of houses) {
-      if (!h || h.failed || !h.grp || !h.built) continue;
-      // the house's own laws: its zone's life (a sown plot), its site's (an item)
-      const zn = h.plot && h.plot.zone != null ? entryOf('zones', h.plot.zone) : null, si = h.plot && h.plot.rec && h.plot.rec.site != null ? entryOf('sites', h.plot.rec.site) : null;
-      try { withLife([zn && zn.life, si && si.life], () => houseLife(h, PG.hash32(seed, PG.fnv(String(id))))); } catch (e) { console.warn('life: house', id, e && e.message); }
-      const ob = h.plot && h.plot.out;   // the outbuilding: placed as placeBuilt places it (the frame's yaw on the house's)
-      if (ob && ob.built && isFinite(ob.x)) { const F = host.frame(), w = F.toWorld(ob.x, ob.z);
-        try { withLife([zn && zn.life], () => houseLife({ built: ob.built, grp: { position: { x: w[0], y: ob.y || 0, z: w[1] }, rotation: { y: (ob.yaw || 0) + F.yaw } }, plot: h.plot, cat: 'shed' }, PG.hash32(seed, PG.fnv('out:' + id)))); } catch (e) { console.warn('life: outbuilding', id, e && e.message); } }
-    }
     for (const rd of ROADS) { const re = entryOf('roads', rd.id); try { withLife([re && re.life], () => roadLife(rd, PG.hash32(seed, PG.fnv('r:' + rd.id)), zones, plots)); } catch (e) { console.warn('life: road', rd.id, e && e.message); } }
     for (const [i, ap] of (host.aprons() || []).entries()) { try { apronLife(ap, PG.mulberry32(PG.hash32(seed, PG.fnv('a:' + i))), craft); } catch (e) { console.warn('life: apron', e && e.message); } }
     for (const [i, c] of craft.entries()) craftLife(c, PG.mulberry32(PG.hash32(seed, PG.fnv('c:' + i))));
     for (const s of (host.sites() || [])) sites.push(s);
     try { mastLife(PG.hash32(seed, 0x6d617374), zones, runways, plots, sites); } catch (e) { console.warn('life: masts', e && e.message); }
-    pack();
+    BASE = { list: LIST, occ: CUR_OCC }; LIST = []; CUR_OCC = null;
+    // THE HOUSES, a part each
+    const houses = host.houses();
+    if (houses) for (const [id, h] of houses) standHouse(id, h);
+    packAll();
     addObstacles();
     stats.placeMs = performance.now() - t0;
+  }
+  // one house's part: its own items and its own ground, over what stands already
+  function standHouse(id, h) {
+    const part = { h, list: [], occ: [] };
+    PARTS.delete(id); PARTS.set(id, part);   // (in the order it is stood: a house stood again goes last, as in HOUSES)
+    if (!h || h.failed || !h.grp || !h.built) return part;
+    const was = LIST; LIST = part.list; CUR_OCC = part.occ;
+    try {
+      // the house's own laws: its zone's life (a sown plot), its site's (an item)
+      const zn = h.plot && h.plot.zone != null ? entryOf('zones', h.plot.zone) : null, si = h.plot && h.plot.rec && h.plot.rec.site != null ? entryOf('sites', h.plot.rec.site) : null;
+      try { withLife([zn && zn.life, si && si.life], () => houseLife(h, PG.hash32(SEED, PG.fnv(String(id))))); } catch (e) { console.warn('life: house', id, e && e.message); }
+      const ob = h.plot && h.plot.out;   // the outbuilding: placed as placeBuilt places it (the frame's yaw on the house's)
+      if (ob && ob.built && isFinite(ob.x)) { const F = host.frame(), w = F.toWorld(ob.x, ob.z);
+        try { withLife([zn && zn.life], () => houseLife({ built: ob.built, grp: { position: { x: w[0], y: ob.y || 0, z: w[1] }, rotation: { y: (ob.yaw || 0) + F.yaw } }, plot: h.plot, cat: 'shed' }, PG.hash32(SEED, PG.fnv('out:' + id)))); } catch (e) { console.warn('life: outbuilding', id, e && e.message); } }
+    } finally { LIST = was; CUR_OCC = null; }
+    return part;
+  }
+  // the houses that landed (or were taken down) since: their parts, a slice a frame; the cells re-packed once they are all in
+  function standAdded(SL) {
+    const houses = host.houses();
+    if (ADD) {
+      ADD = false;
+      let gone = false;
+      for (const id of Array.from(PARTS.keys())) if (!houses || houses.get(id) !== PARTS.get(id).h) { PARTS.delete(id); gone = true; ADDED = true; }
+      if (gone) { OCCG = new Map(); for (const q of BASE.occ) occupy(q[0], q[1], q[2]); for (const P of PARTS.values()) for (const q of P.occ) occupy(q[0], q[1], q[2]); }
+      PEND.length = 0;
+      if (houses) for (const [id] of houses) if (!PARTS.has(id)) PEND.push(id);
+    }
+    if (!PEND.length && !ADDED) return;
+    const t0 = performance.now();
+    while (PEND.length && performance.now() - t0 < LIFE_SLICE_MS && !(SL && performance.now() >= SL.until)) {
+      const id = PEND.shift(), h = houses && houses.get(id);
+      if (h) { standHouse(id, h); ADDED = true; stats.adds++; }
+    }
+    if (!PEND.length && ADDED) { ADDED = false; packAll(); }
+    stats.addMs = performance.now() - t0;
+  }
+  function packAll() {
+    const t0 = performance.now();
+    LIST = BASE.list.slice();
+    for (const P of PARTS.values()) for (const it of P.list) LIST.push(it);
+    pack();
+    stats.packMs = performance.now() - t0;
   }
   function pack() {
     const n = LIST.length;
@@ -1006,7 +1066,7 @@ function make(THREE, host) {
       try { place(); } catch (e) { console.warn('life: stand', e); }
       beaconSync();
       if (host.onTraffic) host.onTraffic();
-    }
+    } else if (!owed && (ADD || PEND.length || ADDED)) { try { standAdded(SL); } catch (e) { console.warn('life: stand a house', e); } }   // (TOWN-200: a part a house)
     const eye = host.eye && host.eye();
     if (!eye) return;
     if (beacon) { const on = host.lampsOn ? host.lampsOn() : 0; beacon.material.emissiveIntensity = cfg.on && cfg.antennas > 0 ? 0.6 + 7 * on : 0; beacon.visible = cfg.on && cfg.antennas > 0; }
@@ -1025,6 +1085,8 @@ function make(THREE, host) {
     owed = true; owedAt = performance.now() + 150;   // a slider's drag re-stands once it pauses
   }
   function dirty() { owed = true; owedAt = performance.now() + 300; }
+  // houses landed (or were taken down): stand their parts only - the base stands (TOWN-200; a full stand owed covers them)
+  function built() { if (!owed) ADD = true; }
   // TRAFFIC on a road the record left without: vehicles a km (taxiways, tracks and the short stubs excluded)
   function trafficOf(rd) {
     if (!cfg.on || !(cfg.traffic > 0) || !rd || rd.traffic > 0) return 0;
@@ -1052,7 +1114,7 @@ function make(THREE, host) {
   }
   // the stand NOW (the gate, a script): what tick does once the build queue is empty
   function standNow() { owed = false; place(); beaconSync(); return stats.items; }
-  return { root, stats, set, dirty, tick, standNow, draw: e => draw(e), trafficOf, dispose, items, get cfg() { return Object.assign({}, cfg); }, masts: () => MASTS.slice(), kinds: () => KINDS.map(k => ({ id: k.id, cat: k.cat, levels: k.levels.map(l => (l.prop || l.proc) + '<' + l.to) })), redraw: () => { dirtyDraw = true; } };
+  return { root, stats, set, dirty, built, tick, standNow, draw: e => draw(e), trafficOf, dispose, items, get cfg() { return Object.assign({}, cfg); }, masts: () => MASTS.slice(), kinds: () => KINDS.map(k => ({ id: k.id, cat: k.cat, levels: k.levels.map(l => (l.prop || l.proc) + '<' + l.to) })), redraw: () => { dirtyDraw = true; } };
 }
 
 window.SCENERY_LIFE = { make, DEF, CATS, CUT, TIER_DIST, buildKit, QUIET, mergeLife };

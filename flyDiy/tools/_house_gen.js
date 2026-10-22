@@ -5841,14 +5841,15 @@ function buildOutboard(bags, P, Q, b) {
 }
 
 // the near-mesh cost of what the plan instances, for the bench's ledger and
-// for the gate's sanity: the sport fisher alone is 370k
+// for the gate's sanity (GATE HOUSE: = each baked prop's nt). G2905 (2026-10-18): the sport fisher and the five
+// scanned people are BASE-CUT by tools/prop_lod.js --base (370k -> 30k, 129-355k -> ~8k each)
 const PIER_TRIS = {
   pier_run: 11758, pier_ledge: 14162, pier_step: 14598, pier_head: 23280,
   pier_gate: 13010, pier_piles: 2460, pier_deck: 5512, boat_painted: 37348,
-  boat_clinker: 8358, boat_runabout: 11215, boat_tirola: 18742, boat_grady: 369673,
+  boat_clinker: 8358, boat_runabout: 11215, boat_tirola: 18742, boat_grady: 30051,
   boat_assault: 40036, boat_progress: 12083,
-  person_andrew: 354510, person_john: 310334,
-  person_charles: 174995, person_luke: 128902, person_koky: 331806,
+  person_andrew: 8073, person_john: 8054,
+  person_charles: 8000, person_luke: 8048, person_koky: 8000,
 };
 
 // ---------------------------------------------------------------------------
