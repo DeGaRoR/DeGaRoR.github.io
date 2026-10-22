@@ -3182,7 +3182,7 @@ if (opts && opts.workLamp && typeof opts.workLamp === 'object') {
   const L = new THREE.SpotLight(LAMP.rgb.getHex(), WORK.cd, 10, 0.62, 0.7, 2);
   L.castShadow = false;
   L.position.y = 0.12;
-  L.target.position.set(num(W.ax, -0.6), num(W.ay, 1.0), num(W.az, 0));
+  L.target.position.set(num(W.ax, -0.2), num(W.ay, 1.15), num(W.az, 0));   // the pilot's chest over the main axles (RUFUS-CERT)
   G.add(L.target);
   g.add(L);
   WORK.light = L;
@@ -4020,6 +4020,12 @@ return {
   dayDir: () => dayDirShed,
   get skyPhys() { return skyPhys; },
   moods: MOODS.map(m => m.name || m.n), setMood: setMood,
+  // G3354: the work lamp's live handle (the stills rig tunes it; null in a shed without one)
+  workLamp: () => WORK.light ? { cd: WORK.cd, at: WORK.light.parent.position.toArray(), aim: WORK.light.target.position.toArray() } : null,
+  setWorkLamp: o => { if (!WORK.light || !o) return false; if (typeof o.cd === 'number') { WORK.cd = o.cd; WORK.light.intensity = o.cd; }
+    if (Array.isArray(o.aim)) { WORK.light.target.position.fromArray(o.aim); WORK.light.target.updateMatrixWorld(); }
+    if (Array.isArray(o.at)) { WORK.light.parent.position.fromArray(o.at); WORK.light.parent.updateMatrixWorld(true); }
+    if (typeof o.angle === 'number') WORK.light.angle = o.angle; return true; },
   mood: () => moodI,
   // THE LIGHT SWITCHES: one per source, so a test can ask which one is doing
   // it. NOT `lights` - that name is already the dev handle onto the light
