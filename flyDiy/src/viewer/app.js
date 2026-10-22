@@ -16276,6 +16276,7 @@
     // garage 5 s after it began. A late spec waits for the next visit to the garage.
     apply(spec) { genSpec = spec; LAST_BAL = null; $('selAc').value = 'gen'; if (rolledOut) { specPending = true; return; } setAircraft('gen'); enterGarage(); },
     resolved: () => (curKey === 'gen' ? def.spec : null),
+    ledger: () => (curKey === 'gen' && def && def.parts ? def.parts.ledger : null),   // G2806: the bill by section
     shake: () => shakeOf(),
     // G439: the garage's field of view, degrees (the camera flyout's slider)
     garageFov: () => garageFov,

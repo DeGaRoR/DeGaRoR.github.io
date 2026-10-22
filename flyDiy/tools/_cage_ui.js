@@ -2602,6 +2602,10 @@ function applySpec(spec, what, steps) {
   if (window.CAGE_PANEL && window.CAGE_PANEL.fromSpec)
     try { window.CAGE_PANEL.fromSpec(spec && spec.systems); }
     catch (e) { console.error('instruments from spec:', e); }
+  // ...AND ITS FURNISHING (G2806): the seats' kind and the trim the build chose
+  if (window.CAGE_FURNISH && window.CAGE_FURNISH.fromSpec)
+    try { window.CAGE_FURNISH.fromSpec(spec && spec.outfit); }
+    catch (e) { console.error('furnishing from spec:', e); }
   anchorSize();                            // the loaded design is now x1.000
   syncSliders();
   if (steps) return (function* () { yield* buildSteps(); if (what && $('stat')) $('stat').textContent = what; })();

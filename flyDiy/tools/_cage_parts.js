@@ -1237,6 +1237,13 @@ const CAGE_PARTS = [
   { key: 'instruments', name: 'Instruments', parent: 'fit', layer: 'panel',
     panel: 'CAGE_PANEL' },
 
+  // THE FURNISHING (G2806, AVIONICS-GPS phase 2; the user, 11 Oct: "cabin furnishing accounted accurately, its own
+  // row"). The seats' kind and the cabin's trim as billed choices, through the same door as the Instruments
+  // (`panel: 'CAGE_FURNISH'`, tools/_cage_furnish.js, writing `spec.outfit`); the bill they add up to is the
+  // ledger's own `furnish` row. No parameters, no sections: the seats themselves are the crew layer's.
+  { key: 'furnishing', name: 'Furnishing', parent: 'fit', layer: 'crew',
+    panel: 'CAGE_FURNISH' },
+
   // =========================================================================
   // BUILD — what is true of the aeroplane rather than of one of its parts.
   // Scale is here and not on the fuselage because it is the recalibration

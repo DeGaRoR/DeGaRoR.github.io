@@ -1776,6 +1776,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       try { M.systems = window.CAGE_PANEL.toSpec(); }
       catch (e) { ERRS.push('the instruments could not be written to the build: '
                             + e.message); }
+    // ...AND THE FURNISHING (G2806), the Furnishing column's answer: the seats' kind and the trim (the trim only
+    // when one was chosen - an unset row writes no key, so a save that never opened it keeps its bytes)
+    if (window.CAGE_FURNISH && window.CAGE_FURNISH.toSpec)
+      try { const o = window.CAGE_FURNISH.toSpec(); if (o) M.outfit = o; }
+      catch (e) { ERRS.push('the furnishing could not be written to the build: '
+                            + e.message); }
     // G134: the drawn engine, resolved — null when the dials still ARE the
     // applied preset, so the registry row keeps flying under its own name.
     // A throw here is a real report, same rule as the shape and the finish.

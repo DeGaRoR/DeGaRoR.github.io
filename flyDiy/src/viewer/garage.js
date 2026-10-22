@@ -1377,6 +1377,8 @@ function garageInit(api) {
       // aeroplane that will fly, through this.
       preview: j => merge(spec, JSON.parse(JSON.stringify(j))),
       resolved: () => api.resolved(),
+      // G2806: the built aeroplane's ledger (genFrame's bill by section) - the Furnishing column reads its own row
+      ledger: () => (api.ledger ? api.ledger() : null),
       // a PERSIST door like the other two: the fleet rack and the gates read
       // it, and a stale answer here is the same lie in a smaller room
       json: () => { commit();

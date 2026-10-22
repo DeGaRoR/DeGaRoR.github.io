@@ -1740,6 +1740,26 @@ const GEN_SEATS = {
   standard: { name: 'Upholstered',        kg: 11.0, price: 900 },
   energy:   { name: 'Energy-absorbing',   kg: 15.0, price: 2600 },
 };
+// THE CABIN'S TRIM, CHOSEN (G2806, AVIONICS-GPS phase 2; the user, 11 Oct: "cabin furnishing (seats, panel, trim)
+// accounted accurately", a row of its own). The lining - side panels, floor covering, headliner, soundproofing, the
+// heater's ducting - as a fraction of Raymer's GA furnishings law on the design gross (GEN_OUTFIT.furnK's law). Until
+// now the fraction was the INSTRUMENT TIER's (a minimal panel bought a bare cabin, an IFR panel a lined one, whatever
+// was drawn: AVIONICS-STATUS §1A's hidden coupling). `spec.outfit.trim` chooses it; ABSENT (every save before this
+// row), it is the tier's, exactly as before - so a save that never touches the row bills what it did, byte for byte.
+//   k  the fraction of Raymer's furnishings (0.0582 W0 - 29.5 kg); priced at the outfit's 60 cr a kilo
+const GEN_TRIM = {
+  bare:  { name: 'Bare',            k: 0,    note: 'paint on the tubes and a rubber floor mat: a J-3' },
+  light: { name: 'Light trim',      k: 0.25, note: 'side pads, a floor mat, no headliner: a Champ or a Jodel' },
+  lined: { name: 'Lined',           k: 0.5,  note: 'side panels, carpet, a headliner: a basic trainer' },
+  full:  { name: 'Lined and quiet', k: 1.0,  note: 'the lot, soundproofed, with the heater ducted: a 172 as delivered' },
+};
+// THE LINING'S FRACTION: the chosen trim's, else the instrument tier's (the rule every save before G2806 bills by).
+// The ONE reader for the frame's furnishing and the design gross's fixed point (61_gen_frame), so the two agree.
+function genFurnK(S) {
+  const t = S && S.outfit && S.outfit.trim;
+  if (t != null && GEN_TRIM[t]) return GEN_TRIM[t].k;
+  return GEN_OUTFIT.furnK[genSystemsResolve(S).tier] || 0;
+}
 
 // AREAL DENSITIES for the sheet items, kg/m2 of surface.
 //   panel   an alloy instrument board with its mounts and coaming ribs
@@ -4585,6 +4605,8 @@ function clampSpec(spec) {
   S.fuel.litres = genClamp(S.fuel.litres, 0, 2000);
   if (!S.outfit || typeof S.outfit !== 'object') S.outfit = { seats: 'sling' };
   if (!GEN_SEATS[S.outfit.seats]) S.outfit.seats = 'sling';
+  // G2806: a trim the catalogue does not know is the tier's (removed, never written: an unset row adds no key)
+  if (S.outfit.trim != null && !GEN_TRIM[S.outfit.trim]) delete S.outfit.trim;
   {
     const E = S.energy || (S.energy = {});
     if (E.kind !== 'battery') E.kind = 'fuel';

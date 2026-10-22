@@ -683,6 +683,9 @@ const MANIFEST = {
     // Instruments part's column and the join's `systems` seam; its geometry
     // comes in session 3. Reads the crew's anchors, so after the crew.
     '_panel_gen.js', '_cage_panel.js',
+    // THE FURNISHING (G2806, AVIONICS-GPS phase 2): the seats' kind and the trim as billed rows - a column and the
+    // join's `outfit` seam, no geometry of its own (the seats it names are the crew's)
+    '_cage_furnish.js',
     '_gear_kit.js', '_gear_gen.js', '_gear_page.js',
     // THE FITTINGS (G81-G84), the reading and drawing halves. Pure modules
     // with no post hook, so they only have to be loaded before the layer.
