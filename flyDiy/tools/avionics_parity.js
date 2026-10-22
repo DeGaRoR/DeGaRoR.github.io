@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // AVIONICS-GPS phase 2 (G2801-G2809): THE VALIDATED AEROPLANES FLY AS THEY DID.
-// One node line per validated save (Cub, Jodel, Cessna 172, Rufus): the airframe the solver flies
+// One node line per validated save (the shipped set - Cub, Jodel, metal Cessna, Cessna floats, twin floatplane - and the
+// Cessna 172 and Rufus): the airframe the solver flies
 // (every node's mass and position, every beam, the ledger's mass) hashed three times - the saved spec
 // as written, THE GAME'S (tools/_load_build.js: the page's own load chain, GATE JOINPARITY's one load
 // path - the aeroplane the game flies) and re-joined through the card bake (tools/_bake_joined.js) -
@@ -15,12 +16,12 @@ const T = __dirname;
 const C = require(path.join(T, 'flight_core.js'));
 const LB = require(path.join(T, '_load_build.js'));
 const FIX = path.join(T, 'fixtures', 'avionics_parity.json');
-const BUILDS = {
-  cub: 'builds/cub_2026-09-20_corrected.json',
-  jodel: 'builds/jodel_2026-09-20_corrected.json',
-  cessna: 'builds/cessna172_2026-09-20_corrected.json',
-  rufus: 'builds/rufus_2026-10-18_certified.json',
-};
+// THE SHIPPED VALIDATED SET (tools/_load_build.js VALIDATED: the Cub, the Jodel, the metal Cessna, the Cessna floats,
+// the twin floatplane - the twin through its own float patch) and the brief's two more (the Cessna 172, Rufus)
+const BUILDS = {};
+for (const [k, v] of Object.entries(LB.VALIDATED)) BUILDS[k] = { file: v.build, patch: v.patch || null };
+BUILDS.cessna172 = { file: 'builds/cessna172_2026-09-20_corrected.json', patch: null };
+BUILDS.rufus = { file: 'builds/rufus_2026-10-18_certified.json', patch: null };
 const h = () => crypto.createHash('sha256');
 function defHash(def) {
   const H = h();
@@ -53,10 +54,12 @@ function flyHash(def) {
   return { hash: H.digest('hex').slice(0, 16), cg: c.map(x => +x.toFixed(4)) };
 }
 function measure(key) {
-  const file = JSON.parse(fs.readFileSync(path.join(T, '..', BUILDS[key]), 'utf8'));
+  const B = BUILDS[key];
+  let file = JSON.parse(fs.readFileSync(path.join(T, '..', B.file), 'utf8'));
+  if (B.patch) file = B.patch(file);
   const spec = file.spec || file;
   const def = C.buildGen(JSON.parse(JSON.stringify(spec)));
-  const game = C.buildGen(JSON.parse(JSON.stringify(LB.loadBuild(BUILDS[key]).spec)));
+  const game = C.buildGen(JSON.parse(JSON.stringify(LB.loadBuild(B.file, { patch: B.patch || undefined }).spec)));
   const out = { def: defHash(def), game: defHash(game), ledger: ledgerSum(game), fly: flyHash(game) };
   try {
     const BJ = require(path.join(T, '_bake_joined.js'));
@@ -87,5 +90,5 @@ for (const k in R) {
               ' (master ' + b.joined + ')  20 s flight ' + a.fly.hash + ' cg ' + a.fly.cg.join(',') + ' (master ' + (b.fly && b.fly.hash) +
               ')  empty ' + a.ledger.empty.toFixed(3) + ' kg / ' + a.ledger.cost + ' cr (master ' + (b.ledger && b.ledger.empty.toFixed(3)) + ' / ' + (b.ledger && b.ledger.cost) + ')');
 }
-console.log('AVIONICS PARITY: ' + (bad ? bad + ' aeroplane(s) changed' : 'the four validated aeroplanes unchanged'));
+console.log('AVIONICS PARITY: ' + (bad ? bad + ' aeroplane(s) changed' : 'the ' + Object.keys(R).length + ' validated aeroplanes unchanged'));
 process.exit(bad ? 1 : 0);

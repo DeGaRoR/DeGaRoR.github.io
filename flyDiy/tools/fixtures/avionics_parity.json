@@ -41,7 +41,70 @@
    "cost": 34383
   }
  },
- "cessna": {
+ "metal": {
+  "def": "bf7972bfa27e56ac",
+  "game": "0d07c0a5e5a63457",
+  "ledger": {
+   "empty": 668.611603,
+   "cost": 94095
+  },
+  "fly": {
+   "hash": "0078dd3818d4714b",
+   "cg": [
+    -676.8219,
+    279.3403,
+    508.5211
+   ]
+  },
+  "joined": "9eb4f9f8f68e48e2",
+  "joinedLedger": {
+   "empty": 667.525804,
+   "cost": 94045
+  }
+ },
+ "floats": {
+  "def": "6154f22ebfc3a53e",
+  "game": "cce39b9d2e8f5457",
+  "ledger": {
+   "empty": 732.289254,
+   "cost": 95789
+  },
+  "fly": {
+   "hash": "b3672d1fb8f99714",
+   "cg": [
+    -921.0456,
+    205.7557,
+    440.7487
+   ]
+  },
+  "joined": "489900658f90a5d3",
+  "joinedLedger": {
+   "empty": 728.36711,
+   "cost": 95633
+  }
+ },
+ "twinFloats": {
+  "def": "08898fe29c2176f2",
+  "game": "9e3ed7dfcb141c9a",
+  "ledger": {
+   "empty": 393.564229,
+   "cost": 35442
+  },
+  "fly": {
+   "hash": "47c1a382d60aa551",
+   "cg": [
+    -764.2129,
+    258.7227,
+    141.1463
+   ]
+  },
+  "joined": "922778083fddb1f2",
+  "joinedLedger": {
+   "empty": 391.010942,
+   "cost": 35343
+  }
+ },
+ "cessna172": {
   "def": "449918ffb4e0fdb0",
   "game": "c82ea22e6e6b484b",
   "ledger": {
