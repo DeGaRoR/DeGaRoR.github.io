@@ -845,7 +845,7 @@ function makePilot(sim, def, world, opts) {
   // filleted geometry planned once, followed by one lateral law (L1) with
   // the arc's curvature fed forward; `path: false` keeps the pursuit + arc
   let holdOutLate = false;   // G2450 (ENROUTE's escape, below)
-  let airPath = null, airPathI = 0, pathDbg = null, heldOut = false, pathFrom = null, escapeHdg = null, escapeCircle = false, terrainTurnSaid = false, tightSaid = false, vxHeld = false, vxSaid = false;
+  let airPath = null, airPathI = 0, pathDbg = null, heldOut = false, pathFrom = null, escapeHdg = null, escapeCircle = false, terrainTurnSaid = false, tightSaid = false, vxHeld = false, vxSaid = false, lvCap = false;
   let tIthr = 0, tIpit = 0, tHdot = 0, tWk = 1, tOn = false, tecsDbg = null;
   // G399.7: the speed the ELEVATOR can hold — raised while it sits on its nose-up stop
   let tDeSatT = 0, tVAdapt = 0, tVAdaptSaid = false, tVOkT = 0;   // tVOkT: G3081, the time the elevator has had margin (floats)
@@ -3665,6 +3665,22 @@ function makePilot(sim, def, world, opts) {
         const iasC = obstAhead ? VxF : agl > 2 * A.hSafe ? Math.min(ap.VCruise, ap.VClimb * (A.climbCruiseK ?? 1.10)) : ap.VClimb;
         engage('LOC', 'TECS', 'TECS', { vs: tClimbMax, alt: null, gs: null, vsUp: null, vsDn: null, ias: K ? Math.max(iasC, K.Vfloor) : iasC, bank: bankLim,
                                         vFloor: K ? K.Vfloor : null, toCap: K ? K.cap : null, wK: null, thMax: null, flc: K ? true : null });   // P0.5: full climb = the sheet's climbMax
+        // G3332 LEVEL-OFF: THE CAPTURE STARTS WHERE THE HEIGHT LAW ASKS THE CLIMB ALREADY FLOWN. The climb above flies the
+        // sheet's climbMax to hCruise - 8 (the cross-country's hand-over), where TECS's height law (0.2 /s) asked 1.6 m/s of
+        // the 7.6 flown: the metal Cessna ballooned 15.7 m past the plan on HOME -> w3 (APSMOOTH, 21 Oct; the circuit's
+        // CROSSWIND, on the height law from the ground up, captures within 1.3 m). Inside 5 s of the climb under the cruise
+        // height the climb is flown on the height law itself (vsUp the same climbMax), at the climb's speed: the vertical
+        // speed asked is the one flown at the zone's edge and the capture is the law's own exponential; the ground
+        // (obstAhead, the Vx climb) keeps the full climb. LATCHED: on the exponential the gap stays 5 s of the climb, so the
+        // zone is held until the gap opens 30 m past it (a new climb from below)
+        const capH = ap.refAlt + ap.hCruise, capE = capH - cg[1];
+        // NOT ON FLOATS (22 Oct, TOUR): the float Cessna's return to SEA lands at 31-34 m/s, skips and ends on a known prop-strike
+        // (G3079's KNOWN); any change to its climb out of mk_sea moves that landing (with this: a ground-loop, capsized at 16 m/s).
+        // Its climb stays master's until the float landing is fixed (the user's float-fix choice); the land aeroplanes get the capture
+        lvCap = !sim.hydro && !obstAhead && agl > 2 * A.hSafe && (lvCap ? capE < 5 * Math.max(vcg[1], 0) + 30 : vcg[1] > 0.5 && capE < 5 * vcg[1]);
+        if (lvCap)
+          engage('LOC', 'TECS', 'TECS', { alt: capH, vs: null, gs: null, vsUp: null, vsDn: null, ias: K ? Math.max(iasC, K.Vfloor) : iasC, bank: bankLim,
+                                          vFloor: K ? K.Vfloor : null, toCap: K ? K.cap : null, wK: null, thMax: null, flc: null });
         if (K) ap.climbKit = K;
         flapTgt = agl > 2 * A.hSafe ? 0 : fTO;
         // G381: the crosswind turn at 0.6 of the circuit height (was 0.35 —
