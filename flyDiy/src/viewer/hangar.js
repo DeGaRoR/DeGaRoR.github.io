@@ -3056,11 +3056,12 @@ kelvinRGB(LAMP.kelvin, LAMP.rgb);
 const LAMP_AT = LAYIT
   ? LAYIT.lamps.map(([lx, lz, ly]) => { const y = Math.min(ly, EAVE - 1.6);
       return [lx * HD / 20, lz * HW / 20, y, Math.max(0.1, Math.min(1.6, (y / (7.0 * 0.74)) * (y / (7.0 * 0.74))))]; })
-  : LAMP_XZ.map(([ax, az]) => [FX(ax), FZ(az), EAVE * 0.74, 0]);
+  : ((opts && Array.isArray(opts.lampXZ) && opts.lampXZ.length === LAMP_XZ.length && opts.lampXZ.every(p => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite)))
+      ? opts.lampXZ : LAMP_XZ).map(([ax, az]) => [FX(ax), FZ(az), EAVE * 0.74, 0]);   // G3354: a shed's own cross (opts.lampXZ)
 for (const [x, z, y, hk] of LAMP_AT) {
   const g = new THREE.Group(); g.position.set(x, y, z);
   const hook = 1.30;                       // prop origin, above the group
-  claim(prop('lamp_pendant', x, z, rr(-3, 3), y + hook), 'lamps');
+  g.userData.shade = claim(prop('lamp_pendant', x, z, rr(-3, 3), y + hook), 'lamps');   // G3354: moved with the fitting (setLampsAt)
   const roof = roofY(z), rodH = roof - (y + hook);   // NOT `top`: that is a light
   const drop = cyl(0.012, 0.012, rodH, M.steelDark, 0, hook + rodH / 2, 0, 6);
   g.add(drop);
@@ -4022,6 +4023,14 @@ return {
   moods: MOODS.map(m => m.name || m.n), setMood: setMood,
   // G3354: the work lamp's live handle (the stills rig tunes it; null in a shed without one)
   workLamp: () => WORK.light ? { cd: WORK.cd, at: WORK.light.parent.position.toArray(), aim: WORK.light.target.position.toArray() } : null,
+  // G3354: the five fittings' live handle (the stills rig tries them off the wing line): [x, z] in the room's metres
+  lampsAt: () => lamps.map(L => [L.parent.position.x, L.parent.position.z]),
+  setLampsAt: xz => { if (!Array.isArray(xz) || xz.length !== lamps.length) return false;
+    lamps.forEach((L, i) => { const g = L.parent, [x, z] = xz[i], dx = x - g.position.x, dz = z - g.position.z;
+      g.position.x = x; g.position.z = z; g.updateMatrixWorld(true);
+      const sh = g.userData.shade; if (sh) { sh.position.x += dx; sh.position.z += dz; sh.updateMatrixWorld(true); }
+      L.target.position.set(x, 0, z); L.target.updateMatrixWorld(); });
+    return true; },
   setWorkLamp: o => { if (!WORK.light || !o) return false; if (typeof o.cd === 'number') { WORK.cd = o.cd; WORK.light.intensity = o.cd; }
     if (Array.isArray(o.aim)) { WORK.light.target.position.fromArray(o.aim); WORK.light.target.updateMatrixWorld(); }
     if (Array.isArray(o.at)) { WORK.light.parent.position.fromArray(o.at); WORK.light.parent.updateMatrixWorld(true); }

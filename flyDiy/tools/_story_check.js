@@ -180,7 +180,7 @@ function run(M) {
     // G3354 (the user 22 Oct: "We need light in the cabin, right now it's a dark hole"): the cabin's work lamp
     { const P = M.BASE_OFFERS.w1.plots.w1, C = M.storyCabinShed('w1', 0).shed, HJ = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'hangar.js'), 'utf8');
       ok(P.workLamp && P.workLamp.cd > 0 && JSON.stringify(C.workLamp) === JSON.stringify(P.workLamp), 'the cabin plot hangs a work lamp, and the story cabin shed carries it (G3354)');
-      ok(/omit: shed\.omit, workLamp: shed\.workLamp \}\)/.test(APP) && /if \(opts && opts\.workLamp && typeof opts\.workLamp === 'object'\)/.test(HJ) && /L\.castShadow = false;\s+L\.position\.y = 0\.12;/.test(HJ),
+      ok(/omit: shed\.omit, workLamp: shed\.workLamp, lampXZ: shed\.lampXZ \}\)/.test(APP) && /if \(opts && opts\.workLamp && typeof opts\.workLamp === 'object'\)/.test(HJ) && /L\.castShadow = false;\s+L\.position\.y = 0\.12;/.test(HJ),
          'the page hands the work lamp to the room, and the room hangs it with no shadow map (the five fittings\' budget)'); }
     ok(/id = 'stTim'/.test(APP) && /FLYDIY_AP\.manual\(\) && !inGarage/.test(APP), 'Tim band at the bottom; it steps aside in flight when the player takes manual control');
   }

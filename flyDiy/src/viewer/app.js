@@ -1211,7 +1211,7 @@
       }
       hangar = genHangarBuild(THREE, shed.dims || undefined,
         { home: roomHome,
-          kits: shed.kits, shell: shed.shell, site: roomSite, layout: shed.layout, omit: shed.omit, workLamp: shed.workLamp });   // G2315 (WORKS-COZY): the career main hangar's layout; G3353 the props left out
+          kits: shed.kits, shell: shed.shell, site: roomSite, layout: shed.layout, omit: shed.omit, workLamp: shed.workLamp, lampXZ: shed.lampXZ });   // G2315 (WORKS-COZY): the career main hangar's layout; G3353 the props left out
       hangarScene.add(hangar.group);
       hangarScene.background = hangar.background;
       hangarScene.fog = hangar.fog;                     // a SENTINEL now: it only defines USE_FOG
@@ -9236,11 +9236,13 @@
       const thin = JSON.stringify(sh.kits) === '["park","bench","comfort"]' && P.kits && P.kits.length > 3;
       const omit = Array.isArray(P.omit) && !Array.isArray(sh.omit);
       const lamp = P.workLamp && typeof P.workLamp === 'object' && !sh.workLamp;   // G3354
-      if (!thin && !omit && !lamp) return;
+      const cross = Array.isArray(P.lampXZ) && JSON.stringify(P.lampXZ) !== JSON.stringify(sh.lampXZ || null);   // G3354
+      if (!thin && !omit && !lamp && !cross) return;
       const n = JSON.parse(JSON.stringify(d));
       if (thin) n.sheds[id].kits = P.kits.slice();
       if (omit) n.sheds[id].omit = P.omit.slice();
       if (lamp) n.sheds[id].workLamp = Object.assign({}, P.workLamp);
+      if (cross) n.sheds[id].lampXZ = P.lampXZ.map(p => p.slice());
       player = n; playerSave();
     } catch (e) { console.warn('flyDiy (story): the cabin kits -', e && e.message); }
   }
