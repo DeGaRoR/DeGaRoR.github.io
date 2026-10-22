@@ -82,6 +82,15 @@ const ALLOW = [
   // Cessna's restore 2269 -> 4553 is master's own, not admitted here)
   { key: 'boot/garage:seed/three.updateMatrixWorld', build: 'cub', rise: 900, why: 'the arch dash and the dials that now fit (G3341 flexible layout)', g: 'G3340' },
   { key: 'boot/garage:restore/', build: 'cub', rise: 40, why: 'the arch dash and the dials that now fit (G3341 flexible layout)', g: 'G3340' },
+  // G2802 (AVIONICS-GPS phase 2, the user 22 Oct: "the electrics as real 3D parts ... breakers"): the breaker row on the
+  // dash - five scene objects a breaker (its seat on the plate, the collar, the moving button group, the button, the
+  // band), 9 on the Cub (45 objects) and 15 on the Cessna (75), walked ~28 times in the garage seed. Measured 22 Oct on
+  // the same box against a clean origin/master worktree: the Cub's seed 18356 (master, G3340 admitted) -> 19625
+  // (+1269), its restore 806 -> 853 (+47); the Cessna's seed ~25365 (master, in tolerance) -> 27361 (+1996). The
+  // Cessna's restore (master 4553, here 4841) stays master's own red, not admitted here (G3340's note).
+  { key: 'boot/garage:seed/three.updateMatrixWorld', build: 'cub', rise: 2050, why: 'the breaker row as real parts (G2802) on top of the arch dash (G3340: +704)', g: 'G2802' },
+  { key: 'boot/garage:restore/', build: 'cub', rise: 90, why: 'the breaker row as real parts (G2802) on top of the arch dash (G3340: +28)', g: 'G2802' },
+  { key: 'boot/garage:seed/three.updateMatrixWorld', build: 'cessna', rise: 2100, why: 'the breaker row as real parts (G2802): 15 breakers, 75 objects', g: 'G2802' },
   // G1975.2 (DEADWOOD-BRIGHT, the user's call 2026-10-07): the snags dealt by the MIXES' own dead share (TREE_MIX.mixDead ON;
   // pine_georgeous was 53 % dead off its collection's share): the living trees that replace the snags carry 2-4x their
   // triangles - the Cub's stand +84 141 tris (+0.48 % of the frame) against the same code with ?mixdead=0 (census pair,
