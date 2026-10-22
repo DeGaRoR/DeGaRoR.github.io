@@ -9246,9 +9246,27 @@
       player = n; playerSave();
     } catch (e) { console.warn('flyDiy (story): the cabin kits -', e && e.message); }
   }
+  // G3355 THE CABIN FLOOD ON AT THE STORY START (the user 22 Oct: "the cabin flood switched on at the story start; no
+  // change to Rufus's file"): at T0 in the cabin shed, the cage's light switches go on once per page - the master switch
+  // and the cabin flood. A switch is a position, not the airframe (G3449: bench.js counts the levels as STATE, so the
+  // certificates hold); no build file is touched. Waits for the garage's CAGE_UI, then never again on this page.
+  let stFloodDone = false;
+  function storyFloodOn() {
+    if (!STORY_PAGE || stFloodDone) return;
+    const U = window.CAGE_UI;
+    if (!U || !U.P || typeof U.build !== 'function') return;
+    stFloodDone = true;
+    try {
+      const d = playerLoad(), sh = d.sheds && d.sheds[d.here], s = stLive();
+      if (!s || s.beat !== 'T0' || !sh || sh.story !== 'cabin') return;
+      if (+U.P.lightOn === 1 && +U.P.li_flood === 1) return;
+      U.P.lightOn = 1; U.P.li_flood = 1; U.build();
+      if (typeof U.syncSliders === 'function') U.syncSliders();
+    } catch (e) { console.warn('flyDiy (story): the cabin flood -', e && e.message); }
+  }
   if (STORY_PAGE) {
-    try { storyCabinKits(); storyCardSync(); storyFlush(); storyTimSync(); storyBenchRule(); storyLockSync(); storySkipSync(); } catch (e) { console.warn('flyDiy (story): the boot -', e && e.message); }
-    setInterval(() => { try { storyTimSync(); storyBenchRule(); storyLockSync(); storySkipSync(); } catch (e) {} }, 1500);
+    try { storyCabinKits(); storyCardSync(); storyFlush(); storyTimSync(); storyBenchRule(); storyLockSync(); storySkipSync(); storyFloodOn(); } catch (e) { console.warn('flyDiy (story): the boot -', e && e.message); }
+    setInterval(() => { try { storyTimSync(); storyBenchRule(); storyLockSync(); storySkipSync(); storyFloodOn(); } catch (e) {} }, 1500);
     // G3370: the ladder's tick (its card follows the pilot's phase; nothing runs off T1's flight)
     setInterval(() => { try { if (stTimBeat === 'T1' && !inGarage) storyTimSync(); } catch (e) {} }, 500);
     // (G3370: a hand on the controls in flight ends the ladder for that flight, at once)
