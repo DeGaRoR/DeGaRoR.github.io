@@ -217,7 +217,12 @@ function law(key) {
     // wetted keel's own constant) and the wetted keel (the keel stations under the water)
     const curve = [];
     const wetN = q => { let n = 0; for (const s of q.F.sta) if (q.out.d[s.K] > 0) n++; return n; };
-    for (let deg = 0; deg <= 90; deg += 5) {
+    // G3448 (FLOAT-KIT, A0's 'fix A'): the small slips sampled DENSELY, 0-9 deg by 1, then every 5 to 90 - the same law
+    // and bounds below (1 %, >= 3 points at the small-slip wetted keel), measured where that keel lives. The measured
+    // wake (G3440, Savitsky-Morabito) re-wets the afterbody from 10 deg of slip at the twin's hump pose (7.1 m/s,
+    // 6.3 deg), so a 5-deg grid left one point (5 deg) at the small-slip keel and the population rule could not be read.
+    const DEGS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]; for (let g = 10; g <= 90; g += 5) DEGS.push(g);
+    for (const deg of DEGS) {
       const q = f(U * Math.cos(deg * D2R), U * Math.sin(deg * D2R)), uw = U * U * Math.cos(deg * D2R) * Math.sin(deg * D2R);
       curve.push([deg, +Math.abs(q.side).toFixed(2), +Math.abs(q.panels).toFixed(2), uw > 1e-9 ? Math.abs(q.side) / uw : null, wetN(q)]);
     }
