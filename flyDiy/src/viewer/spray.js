@@ -39,8 +39,8 @@
     #include <common>
     #include <logdepthbuf_pars_vertex>
     attribute vec3 iPos; attribute vec3 iVel; attribute vec4 iA;   // iA: age01, size (m), seed, kind
-    uniform float uStretch;
-    varying vec2 vUv; varying vec4 vA;
+    uniform float uStretch; uniform float uMinNdc;
+    varying vec2 vUv; varying vec4 vA; varying float vK;
     void main() {
       vUv = uv; vA = iA;
       vec4 vp = modelViewMatrix * vec4(iPos, 1.0);
@@ -50,7 +50,12 @@
       vec2 ax = sp > 0.05 ? vv.xy / sp : vec2(1.0, 0.0);
       vec2 ay = vec2(-ax.y, ax.x);
       float s = iA.y;
-      float len = s + min(0.35, sp * uStretch) * (iA.w < 1.5 ? 1.0 : 0.15);   // (G2838: the heavy drop streaks like a droplet; the mist barely)
+      // G2838b: A SPECK, NEVER A DISC - a 3-12 mm drop is under a pixel past a few metres: its sprite is held at ~1 px (uMinNdc,
+      // NDC half-height units) and its alpha carries the rest (vK, the area ratio), so a small drop reads small at any range
+      float ndc = s * projectionMatrix[1][1] / max(0.05, -vp.z);
+      vK = 1.0;
+      if (ndc < uMinNdc && ndc > 0.0) { vK = max(0.12, (ndc / uMinNdc) * (ndc / uMinNdc)); s *= uMinNdc / ndc; }
+      float len = s + min(iA.w < 1.5 ? 0.6 : 0.35, sp * uStretch) * (iA.w < 1.5 ? 1.0 : 0.15);   // (G2838: the heavy drop streaks like a droplet; the mist barely; G2838b: a frame's motion)
       vec2 c = (uv - 0.5);
       vp.xy += ax * c.x * len * 2.0 + ay * c.y * s * 2.0;
       gl_Position = projectionMatrix * vp;
@@ -60,7 +65,7 @@
     precision highp float;
     #include <common>
     #include <logdepthbuf_pars_fragment>
-    varying vec2 vUv; varying vec4 vA;
+    varying vec2 vUv; varying vec4 vA; varying float vK;
     uniform vec3 uSunV; uniform vec3 uSunCol; uniform vec3 uSkyCol; uniform float uOpacity;
     float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
     float vnoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
@@ -78,7 +83,7 @@
       float tear = drop ? smoothstep(kind < 0.5 ? 0.15 : 0.1, 0.9, n) : smoothstep(0.18, 0.75, n * (1.0 - 0.35 * d2));
       float disc = smoothstep(1.0, drop ? (kind < 0.5 ? 0.25 : 0.35) : 0.05, d2);
       float fade = smoothstep(0.0, 0.1, age) * (1.0 - smoothstep(drop ? 0.75 : 0.6, 1.0, age));
-      float a = disc * tear * fade * uOpacity * (kind < 0.5 ? 0.45 : kind < 1.5 ? 0.6 : 0.07) * (0.6 + 0.4 * hash(vec2(seed, 3.1)));   // every particle its own density
+      float a = disc * tear * fade * uOpacity * (kind < 0.5 ? 0.45 : kind < 1.5 ? 0.6 : 0.07) * (0.6 + 0.4 * hash(vec2(seed, 3.1))) * vK;   // every particle its own density (G2838b: x the speck's area)
       if (a < 0.004) discard;
       // lit as white water: a sphere normal on the sprite, the sun wrapped, the sky's hemisphere,
       // and a forward-scatter lobe when the sun is behind it
@@ -103,7 +108,7 @@
     g.setAttribute('iPos', aP); g.setAttribute('iVel', aV); g.setAttribute('iA', aA);
     g.instanceCount = n;
     const mat = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false, depthTest: true, side: THREE.DoubleSide,
-      uniforms: { uStretch: { value: 0.014 }, uSunV: { value: new THREE.Vector3(0, 0, 1) }, uSunCol: { value: new THREE.Color(1, 1, 1) }, uSkyCol: { value: new THREE.Color(0.5, 0.6, 0.7) }, uOpacity: { value: 1 } } });
+      uniforms: { uStretch: { value: 0.03 }, uMinNdc: { value: 0.0019 }, uSunV: { value: new THREE.Vector3(0, 0, 1) }, uSunCol: { value: new THREE.Color(1, 1, 1) }, uSkyCol: { value: new THREE.Color(0.5, 0.6, 0.7) }, uOpacity: { value: 1 } } });
     mat.toneMapped = true;
     const mesh = new THREE.Mesh(g, mat); mesh.frustumCulled = false; mesh.renderOrder = 4;
     const sunW = new THREE.Vector3();
@@ -185,7 +190,10 @@
       float tear = smoothstep(0.30 + 0.45 * v, 0.80 + 0.12 * v, streak);           // torn more the farther out
       float film = mix(1.0, tear, smoothstep(0.08, 0.55, v));
       // the droplets the torn edge breaks into: a fine speckle past mid-flight, moving faster than the sheet
-      float speck = smoothstep(0.72, 0.9, vnoise(vec2(u * 140.0 + vL * 31.0, v * 55.0 - uTime * 7.0))) * smoothstep(0.45, 0.8, v) * (1.0 - smoothstep(0.92, 1.0, v));
+      float speck = smoothstep(0.62, 0.86, vnoise(vec2(u * 140.0 + vL * 31.0, v * 55.0 - uTime * 7.0))) * smoothstep(0.35, 0.8, v) * (1.0 - smoothstep(0.92, 1.0, v));
+      // G2837b HOLES THAT TRAVEL: the sheet torn through in moving patches (a fast fbm riding out along v), more the farther out -
+      // never the same silhouette twice
+      float holes = smoothstep(0.50, 0.66, fbm(vec2(u * 7.0 + vL * 9.0, v * 2.6 - uTime * 4.2) + 0.8 * wp));
       float ends = smoothstep(0.0, 0.14, u) * smoothstep(1.0, 0.82, u);           // the root line's ends feather
       float root = smoothstep(0.0, 0.07, v);                                        // soft at the waterline (no seam on the sea)
       float tip = 1.0 - smoothstep(0.86, 1.0, v);
@@ -193,7 +201,7 @@
       vec3 N = normalize(gl_FrontFacing ? vN : -vN), Vd = normalize(-vVP);
       float graze = pow(1.0 - abs(dot(N, Vd)), 1.3);
       float thick = mix(0.30, 1.0, graze);
-      float a = ((0.12 + 0.38 * body) * film * thick + 0.35 * speck) * ends * root * tip * s * uOpacity * mix(0.45, 0.32, vL);
+      float a = ((0.12 + 0.38 * body) * film * thick * (1.0 - holes * smoothstep(0.08, 0.35, v)) + 0.5 * speck) * ends * root * tip * s * uOpacity * mix(0.45, 0.32, vL);
       if (a < 0.003) discard;
       // white water under the sky: a wrapped Lambert from the sun, the sky's hemisphere, and the sun THROUGH the film
       // (translucency: the sun behind the sheet, toward the eye - the backlit fan that glows on a real run)
@@ -227,6 +235,10 @@
     const mesh = new THREE.Mesh(g, mat); mesh.frustumCulled = false; mesh.renderOrder = 3;
     const sunW = new THREE.Vector3(), G = 9.81;
     const tmpA = [0, 0, 0], tmpB = [0, 0, 0], rr = [];
+    // (G2837b) a cheap 2D value noise for the sheet's turbulence (the CPU's: the geometry moves, not only its alpha)
+    const hh = (x, y) => { const v = Math.sin(x * 127.1 + y * 311.7) * 43758.5453; return v - Math.floor(v); };
+    const vn2 = (x, y) => { const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy, wx = fx * fx * (3 - 2 * fx), wy = fy * fy * (3 - 2 * fy);
+      return (hh(ix, iy) * (1 - wx) + hh(ix + 1, iy) * wx) * (1 - wy) + (hh(ix, iy + 1) * (1 - wx) + hh(ix + 1, iy + 1) * wx) * wy; };
     // the roots resampled to NU points along the chine (Catmull-Rom through the given ones: any count >= 2)
     const rootAt = (R, f, o) => { const m = R.length - 1, x = Math.max(0, Math.min(m, f * m)), i = Math.min(m - 1, Math.floor(x)), t = x - i;
       const p0 = R[Math.max(0, i - 1)], p1 = R[i], p2 = R[Math.min(m, i + 1)], p3 = R[Math.min(m, i + 2)], t2 = t * t, t3 = t2 * t;
@@ -236,19 +248,29 @@
       mesh, n, NU, NV, NL,
       // set(i, roots, out, up, uo, uu, strength): roots = points [x, y, z] along the chine (fore to aft, any count >= 2),
       // out/up unit vectors, uo/uu the sheet's outward and upward speeds (m/s), strength 0..1 (the pressure's)
-      set(i, roots, out, up, uo, uu, strength) {
+      // set(i, roots, out, up, uo, uu, strength, t, gust): t the sheet's clock (s), gust 0..1 (the speed's and the pressure's share
+      // of the violence) - G2837b: the sheet is never the same twice
+      set(i, roots, out, up, uo, uu, strength, t, gust) {
         if (!roots || roots.length < 2) { api.hide(i); return; }
+        t = t || 0; gust = gust == null ? 0.5 : gust;
+        const side = [out[1] * up[2] - out[2] * up[1], out[2] * up[0] - out[0] * up[2], out[0] * up[1] - out[1] * up[0]];   // along the chine
+        const burst = 1 + 0.9 * gust * Math.pow(vn2(t * 1.9 + i * 3.7, 0.5), 3);   // a gust through the whole sheet
         for (let iu = 0; iu < NU; iu++) rr[iu] = rootAt(roots, iu / (NU - 1), rr[iu] || [0, 0, 0]);
         for (let l = 0; l < NL; l++) {
           const L = SHEET_LAYERS[l], o = i * perS + l * per;
           for (let iu = 0; iu < NU; iu++) {
             const u = iu / (NU - 1), r = rr[iu];
-            const uoU = uo * L.so * (0.8 + 0.4 * u), uuU = uu * L.su * (0.85 + 0.3 * Math.sin(Math.PI * u));   // aft flares, mid rises
+            // (G2837b) the reach and the height GUST along the chine and in time - a frame-group's shape, never a fixed wing
+            const gU = vn2(u * 2.7 + l * 1.9 + i * 5.1, t * 4.3), gH = vn2(u * 3.3 + l * 2.3 + i * 7.9 + 11.0, t * 5.1);
+            const uoU = uo * L.so * (0.8 + 0.4 * u) * (0.7 + 0.6 * gU * (0.5 + gust)) * burst, uuU = uu * L.su * (0.85 + 0.3 * Math.sin(Math.PI * u)) * (0.55 + 0.9 * gH * (0.5 + gust)) * burst;   // aft flares, mid rises
             const T = Math.max(0.05, 2 * uuU / G);
             for (let iv = 0; iv < NV; iv++) {
-              const v = iv / (NV - 1), t = v * T, k = o + iu * NV + iv;
-              const ho = uoU * t + L.off, hv = uuU * t - 0.5 * G * t * t;
-              pos[k * 3] = r[0] + out[0] * ho + up[0] * hv; pos[k * 3 + 1] = r[1] + out[1] * ho + up[1] * hv; pos[k * 3 + 2] = r[2] + out[2] * ho + up[2] * hv;
+              const v = iv / (NV - 1), tt = v * T, k = o + iu * NV + iv;
+              const ho = uoU * tt + L.off, hv = uuU * tt - 0.5 * G * tt * tt;
+              // (G2837b) shaken out of its arc: a turbulent offset growing with the flight (v^1.3), up to ~0.2-0.6 m at the tip
+              const ta = (0.2 + 0.4 * gust) * strength * Math.pow(v, 1.3), ph = u * 6.1 + l * 4.3 + i * 2.9;
+              const d1 = (vn2(ph, v * 3.1 - t * 5.7) - 0.5) * 2 * ta, d2 = (vn2(ph + 17.3, v * 2.7 - t * 6.3) - 0.5) * 2 * ta, d3 = (vn2(ph + 41.1, v * 3.4 - t * 4.9) - 0.5) * 1.4 * ta;
+              pos[k * 3] = r[0] + out[0] * (ho + d1) + up[0] * (hv + d2) + side[0] * d3; pos[k * 3 + 1] = r[1] + out[1] * (ho + d1) + up[1] * (hv + d2) + side[1] * d3; pos[k * 3 + 2] = r[2] + out[2] * (ho + d1) + up[2] * (hv + d2) + side[2] * d3;
               q[k * 3] = u; q[k * 3 + 1] = v; q[k * 3 + 2] = strength;
             }
           }
@@ -278,12 +300,12 @@
   }
   // the two kinds' laws, read by app.js's emitters and integration (one keeper)
   const KIND = {
-    droplet: { id: 0, life: [0.6, 1.0], size: [0.012, 0.04], grow: 1.6, drag: 0.25, gravity: 1.0 },   // size = the sprite's RADIUS, m
+    droplet: { id: 0, life: [0.5, 0.9], size: [0.003, 0.009], grow: 1.0, drag: 0.12, gravity: 1.0 },   // size = the sprite's RADIUS, m (G2838b: 3-9 mm - small, heavy by its speed and its drop)
     // G2838 (the user, 18 Oct: the misty puffs "look more like dust clouds, they're not convincing. These should probably be bigger,
     // heavier droplets, behaving differently"): kind 1 is now the HEAVY DROP - 3.5-7.5 cm, ballistic (full gravity, little drag),
     // thrown harder than the old puff (throw / lift: the emitter's speed scaled and lifted), never growing, falling back onto the
     // water where it dies with a small ring; a faint MIST (kind 2) rides along with a quarter of them - the old haze, much fainter
-    puff:    { id: 1, life: [0.7, 1.3], size: [0.035, 0.075], grow: 1.0, drag: 0.35, gravity: 1.0, throw: 2.2, lift: 1.4, mistShare: 0.25 },
+    puff:    { id: 1, life: [0.7, 1.3], size: [0.005, 0.012], grow: 1.0, drag: 0.15, gravity: 1.0, throw: 2.8, lift: 2.0, mistShare: 0.08 },   // (G2838b: 5-12 mm, thrown harder)
     mist:    { id: 2, life: [1.0, 1.6], size: [0.25, 0.45], grow: 1.3, drag: 2.2, gravity: 0.1 },
   };
   const SPRAY = { make, makeSheets, KIND, GLSL: { vert: VERT, frag: FRAG, sheetVert: SHEET_VERT, sheetFrag: SHEET_FRAG } };
