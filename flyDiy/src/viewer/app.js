@@ -9202,22 +9202,43 @@
   }
   // THE BENCH NEVER STANDS IN THE SMALL SHED (the user, 19 Oct: "will never get the bench"): a property of the SHED - the
   // story's cabin shed (`story` on the shed record, G2743 / STORY-PAGE) - at every beat; the garage shows the design pane
+  // (G3351: the smoke run of 22 Oct found #tabBench gone from the page - the bench's tests live in the left panel's
+  // #edBench now - so the rule hides THAT, by a body class editor.css reads, and says why in its place)
   function storyBenchRule() {
-    if (!STORY_PAGE) return;
+    if (!STORY_PAGE || typeof document === 'undefined' || !document.body) return;
     let small = false;
     try { const d = playerLoad(), sh = d.sheds && d.sheds[d.here]; small = !!(sh && sh.story); } catch (e) {}
-    const tb = typeof document !== 'undefined' ? document.getElementById('tabBench') : null;
-    if (!tb) return;
-    if (tb.hidden !== small) tb.hidden = small;
-    if (small) { const bn = document.getElementById('edBench'), td = document.getElementById('tabDesign');
-      if (bn && !bn.hidden && td && td.onclick) td.onclick(); }
-    let n = document.getElementById('stNoBench');
-    if (small && !n && tb.parentNode) { n = document.createElement('span'); n.id = 'stNoBench'; n.textContent = 'no bench in this shed'; tb.parentNode.appendChild(n); }
+    if (document.body.classList.contains('stNoBench') !== small) document.body.classList.toggle('stNoBench', small);
+    const bn = document.getElementById('edBench');
+    let n = document.getElementById('stNoBenchNote');
+    if (small && !n && bn && bn.parentNode) { n = document.createElement('div'); n.id = 'stNoBenchNote'; n.textContent = 'No bench in this shed: certification happens at the WWII field\u2019s hangar.'; bn.parentNode.insertBefore(n, bn); }
     if (n) n.hidden = !small;
   }
+  // G3351: THE PAINT-ONLY LOCK, KEPT. The story's mask note fires on a CHANGE of mask; at a New career it fired before
+  // editor.js had defined EDITOR_LOCK, and the mask never changed again, so the lock never engaged (the smoke run of 22
+  // Oct). This holds the editor's lock to the story's mask on every tick, whatever loaded first.
+  const STORY_LOCK_WHY = 'Tim: the structure comes later in the story - paint, liveries and colours for now.';
+  function storyLockSync() {
+    if (!STORY_PAGE || !window.EDITOR_LOCK || typeof window.EDITOR_LOCK.finishOnly !== 'function') return;
+    let want = false;
+    try { want = storyMask(playerLoad()) === 'finish'; } catch (e) {}
+    if (!!window.EDITOR_LOCK.locked() !== want) window.EDITOR_LOCK.finishOnly(want ? STORY_LOCK_WHY : null);
+  }
+  // G3352: a cabin shed made before the cozy kits (park + bench + comfort only) takes the plot's kits now - decor only,
+  // the same shed, its aeroplanes untouched
+  function storyCabinKits() {
+    if (!STORY_PAGE) return;
+    try {
+      const d = playerLoad(), id = d.here, sh = d.sheds && d.sheds[id];
+      if (!sh || !sh.story || JSON.stringify(sh.kits) !== '["park","bench","comfort"]') return;
+      const P = BASE_OFFERS[sh.base] && BASE_OFFERS[sh.base].plots[id];
+      if (!P || !P.kits || P.kits.length <= 3) return;
+      const n = JSON.parse(JSON.stringify(d)); n.sheds[id].kits = P.kits.slice(); player = n; playerSave();
+    } catch (e) { console.warn('flyDiy (story): the cabin kits -', e && e.message); }
+  }
   if (STORY_PAGE) {
-    try { storyCardSync(); storyFlush(); storyTimSync(); storyBenchRule(); storySkipSync(); } catch (e) { console.warn('flyDiy (story): the boot -', e && e.message); }
-    setInterval(() => { try { storyTimSync(); storyBenchRule(); storySkipSync(); } catch (e) {} }, 1500);
+    try { storyCabinKits(); storyCardSync(); storyFlush(); storyTimSync(); storyBenchRule(); storyLockSync(); storySkipSync(); } catch (e) { console.warn('flyDiy (story): the boot -', e && e.message); }
+    setInterval(() => { try { storyTimSync(); storyBenchRule(); storyLockSync(); storySkipSync(); } catch (e) {} }, 1500);
     // G3370: the ladder's tick (its card follows the pilot's phase; nothing runs off T1's flight)
     setInterval(() => { try { if (stTimBeat === 'T1' && !inGarage) storyTimSync(); } catch (e) {} }, 500);
     // (G3370: a hand on the controls in flight ends the ladder for that flight, at once)

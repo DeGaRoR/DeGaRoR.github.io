@@ -158,6 +158,15 @@ function run(M) {
     ok(/window\.EDITOR_LOCK = \{/.test(ED) && /if \(lockWhy && v !== 'finish'\) \{ lockSync\(\); return; \}/.test(ED), 'the editor holds the finish view while the story locks it (Shape / Design refused)');
     ok(/EDITOR_LOCK\.finishOnly\(m === 'finish' \?/.test(APP), 'the story hands its mask to the editor lock (a story stage: lifted with the mask)');
     ok(/function storyBenchRule\(\)/.test(APP) && /small = !!\(sh && sh\.story\)/.test(APP), 'the bench is hidden in the small story shed, at every beat (a property of the shed)');
+    // G3351 (the smoke run of 22 Oct): the TOOL hidden by a body class (the left panel's #edBench), the lock held every tick
+    const CSS = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'editor.css'), 'utf8');
+    ok(/document\.body\.classList\.toggle\('stNoBench', small\)/.test(APP) && /body\.stNoBench #edBench \{ display: none !important; \}/.test(CSS),
+       'the bench TOOL (#edBench, the left panel) is hidden in the small shed by a body class editor.css reads');
+    ok(/function storyLockSync\(\)/.test(APP) && /setInterval\(\(\) => \{ try \{[^}]*storyLockSync\(\)/.test(APP) && /storyLockSync\(\); storySkipSync\(\); \} catch/.test(APP),
+       'the paint-only lock is held to the story mask at boot AND on every tick (a late editor.js still gets it)');
+    { const K = M.BASE_OFFERS.w1.plots.w1.kits;
+      ok(['wood', 'metal', 'wip', 'store', 'handling', 'comfort', 'curio', 'bench'].every(k => K.includes(k)) && !K.includes('office'),
+         'the cabin is the cozy messy workshop: wood + metal machines, the plane and wing in build, store, handling, comfort, curio (G3352)'); }
     ok(/id = 'stTim'/.test(APP) && /FLYDIY_AP\.manual\(\) && !inGarage/.test(APP), 'Tim band at the bottom; it steps aside in flight when the player takes manual control');
   }
   // the save

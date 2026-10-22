@@ -98,7 +98,10 @@ const BASE_OFFERS = {
     words: 'the Cabin Strip · gravel up a lake valley',
     // (G2745) the Field shed only (the smallest shed; its footprint fits the strip's flat top), 18 x 20 m (ED-2 places the plot for it) so a
     // Cub stands inside with its kits (GATE GAMEPREM: "the field as offered takes a cub")
-    plots: { w1: { shells: ['field'], kits: ['park', 'bench', 'comfort'], pf: 0.6,
+    // (G3352, the user 22 Oct: "I liked it messy ... the wing in building, the plane in building, a couple of woodworking
+    // machines and other props") the cabin is the cozy workshop: every kit but the office. The 'bench' KIT is the work
+    // bench (decor); the certification bench (the TOOL) never stands here (app.js storyBenchRule)
+    plots: { w1: { shells: ['field'], kits: ['park', 'bench', 'wood', 'metal', 'store', 'handling', 'comfort', 'curio', 'wip'], pf: 0.6,
                    dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } } },
   },
   HOME: {
