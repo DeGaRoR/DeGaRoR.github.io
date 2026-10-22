@@ -357,6 +357,8 @@ function faceSuite(GPS) {
 const PANELS = [
   ['cub', 'builds/cub_2026-09-20_corrected.json', 'portable', 'plate'],
   ['cessna', 'builds/cessna172_2026-09-20_corrected.json', 'panel', 'plate'],
+  // the shipped metal Cessna (tools/_load_build.js VALIDATED.metal): A0's evidence build for tools/avionics_stills.js
+  ['metal', 'bugReports/cessnaMetal (1).json', 'portable', 'plate'],
   ['jodel', 'builds/jodel_2026-09-20_corrected.json', 'portable', 'coaming'],
   ['rufus', 'builds/rufus_2026-10-18_certified.json', 'glass', 'none'],
 ];

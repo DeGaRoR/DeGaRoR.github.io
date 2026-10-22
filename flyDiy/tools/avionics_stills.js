@@ -19,10 +19,11 @@
 // Writes <out>/<NN_state>.png and <out>/avionics.json.
 //
 // Usage (A0's box, the GPU lock held - tools/perf/boxlock.sh take gpu AVIONICS):
-//   node tools/live_driver.js <repo root> flyDiy/builds/cessna172_2026-09-20_corrected.json dev.html 8572
+//   node tools/live_driver.js <repo root> "flyDiy/bugReports/cessnaMetal (1).json" dev.html 8572
 //   node tools/avionics_stills.js 8572 <outDir> [portable|panel|glass]
-// The Cessna takes a portable or a panel GPS on its plate (GATE GPSFACE F); a Jodel's portable stands in its glareshield
-// cradle; a glass unit finds no room on any of the four validated dashes and is named, not drawn.
+// The shipped metal Cessna (tools/_load_build.js VALIDATED.metal) takes a portable (on the plate's left, 0.34 m out) or a
+// panel GPS (in the middle) and its 15 breakers in one row (GATE GPSFACE F holds the portable); the C172 likewise; a
+// Jodel's portable stands in its glareshield cradle; a glass unit finds no room on the validated dashes and is named.
 'use strict';
 const fs = require('fs'), path = require('path');
 const PORT = +(process.argv[2] || 8572), OUT = path.resolve(process.argv[3] || 'avionics_stills');
