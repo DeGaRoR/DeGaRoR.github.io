@@ -128,8 +128,15 @@ const evJs = async (js) => JSON.parse(await b.ev('JSON.stringify((() => { ' + js
       return window.FLYDIY_STORY.event({ k: 'certified', slot, spec: t, cost: 30000 });`);
     await sleep(1500);
     await beat('C1 T2 the checklist met (a certified event) -> T3', P => [[cert.ok, 'the certified event was refused: ' + cert.why], [P.beat === 'T3', 'not at T3 (' + P.beat + ')']]);
-    const stopAt = (role, who, extra) => evJs(`const s = window.FLYDIY_STORY.story(), slot = s.planes[${JSON.stringify(who)}], a = storySite(${JSON.stringify(role)}, (window.MAP_PACK && window.MAP_PACK.aerodromes) || []);
-      return window.FLYDIY_STORY.event(Object.assign({ k: 'stop', slot, stop: careerStopRecord({ how: 'stopped', aero: a, slot, row: { from: 'HOME', to: a, t: 600 } }) }, ${JSON.stringify(extra || {})}));`);
+    // the stop at a role's field: the page's own pick first (storySite over MAP_PACK), then every aerodrome of that kind until
+    // the story takes it - the rig must not guess wrong where the game's world lists more strips than the map (22 Oct)
+    const stopAt = (role, who, extra) => evJs(`const s = window.FLYDIY_STORY.story(), slot = s.planes[${JSON.stringify(who)}];
+      const L = (window.MAP_PACK && window.MAP_PACK.aerodromes) || [], first = storySite(${JSON.stringify(role)}, L);
+      const water = ${JSON.stringify(role)} === 'water', ids = [first].concat(L.filter(a => (a.kind === 'water') === water).map(a => a.id)).filter((x, i, A) => x && A.indexOf(x) === i);
+      let r = { ok: false, why: 'no candidate' };
+      for (const a of ids) { r = window.FLYDIY_STORY.event(Object.assign({ k: 'stop', slot, stop: careerStopRecord({ how: 'stopped', aero: a, slot, row: { from: 'HOME', to: a, t: 600 } }) }, ${JSON.stringify(extra || {})}));
+        if (r.ok) { r.at = a; break; } if (!/not at/.test(r.why || '')) break; }
+      return r;`);
     r = await stopAt('client', 'client'); await sleep(1500);
     await beat("C2 T3 delivered at the owner's strip -> T4", P => [[r.ok, 'the delivery stop was refused: ' + r.why], [P.beat === 'T4', 'not at T4 (' + P.beat + ')']]);
     r = await ev({ k: 'ack' }); await sleep(1500);
