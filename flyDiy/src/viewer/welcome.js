@@ -27,6 +27,12 @@
 //   console); the rigs and localhost skip it as they skip the card (implicitly the sandbox); ?welcome=1 / ?devgate=1
 //   force it there. THE CHOSEN MODE IS ONE PAGE GLOBAL, window.FLYDIY_MODE ('sandbox' | 'career' | 'garage'; null while
 //   the menu is up), written here alone. The sandbox reads nothing of it: it is today's page.
+// - THE CAREERS (G3360, CAREERS): every career its own document flydiy.career.<id>, an index flydiy.careers = { ids, last }.
+//   'main' (G2740's one slot) is migrated in place as the first entry (its key kept: no save moves); new ids are 'c' +
+//   base36 time; the dev career (?career=1, flydiy.career.dev) is never listed. Continue = the last played; New career = a
+//   NEW id, never over another; Careers... = the list (Continue / Rename inline / Delete, confirmed inside the menu). A
+//   broken document is skipped, never a crash. THE CAREER CHOSEN IS window.FLYDIY_CAREER_ID (+ FLYDIY_CAREER_NAME for a
+//   new one), written here alone before app.js runs, like FLYDIY_MODE.
 //
 // The pick reaches the graphics menu as WELCOME.pick: gfx_settings.js takes it the way it takes ?gfx= (the preset's
 // options, saved), so a later choice in the menu still wins. GATE GFX tests the pure half (gpuClass, memClass, mobile,
@@ -213,29 +219,48 @@
 #welcome button { transition:none; backdrop-filter:none; -webkit-backdrop-filter:none; }
 /* G2210 THE MODE MENU: IBM Plex Sans, three greys (ink, mid, dim) and the one accent; every row a 56 px target, 8 px
    apart (MOBILE-GARAGE R1/R3), and what a row would say on hover is written on it (R17: nothing hover-only) */
-#welcome { --w-ink:#f4efe6; --w-mid:#a59d8f; --w-dim:#7d766a; --w-acc:#e6a15a; }
+/* G3360 (CAREERS): the menu wears the garage's look - the --ed-* tokens (editor.css's one token root names #welcome) */
 #welcome .wcard.wmenu { width:min(440px, 100%); }
 #welcome .wmodes { display:flex; flex-direction:column; gap:8px; margin:14px 0 4px; }
 #welcome .wmode { display:grid; grid-template-columns:28px 1fr auto; align-items:center; column-gap:12px; min-height:56px; width:100%;
-  padding:9px 14px; border-radius:8px; text-align:left; cursor:pointer; color:var(--w-ink); background:rgba(255,255,255,.04);
-  border:1px solid rgba(255,255,255,.12); font:500 15px/1.25 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  padding:9px 14px; border-radius:8px; text-align:left; cursor:pointer; color:var(--ed-ink); background:var(--ed-btn-bg);
+  border:1px solid var(--ed-btn-bd); font:500 15px/1.25 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif; font-style:normal;
   letter-spacing:normal; text-transform:none; }   /* the page's buttons are small capitals (style.css): a menu row is a sentence */
-#welcome .wmode:hover:not([disabled]) { background:rgba(255,255,255,.08); }
+#welcome .wmode:hover:not([disabled]) { background:var(--ed-acc-soft); }
 #welcome .wmode:active { transform:none; }
-#welcome .wmode .wico { font-size:17px; line-height:1; text-align:center; color:var(--w-mid); }
-#welcome .wmode small { display:block; margin-top:2px; font:400 12px/1.35 'IBM Plex Sans', sans-serif; color:var(--w-mid); }
-#welcome .wmode .wtag { font:600 10px/1 'IBM Plex Sans', sans-serif; letter-spacing:.16em; text-transform:uppercase; color:var(--w-dim);
+#welcome .wmode .wico { font-size:17px; line-height:1; text-align:center; color:var(--ed-dim); }
+#welcome .wmode small { display:block; margin-top:2px; font:400 12px/1.35 'IBM Plex Sans', sans-serif; color:var(--ed-dim); }
+#welcome .wmode .wtag { font:600 10px/1 'IBM Plex Sans', sans-serif; letter-spacing:.16em; text-transform:uppercase; color:var(--ed-faint);
   border:1px solid currentColor; border-radius:10px; padding:4px 8px; }
-#welcome .wmode.wgo { border-color:var(--w-acc); background:rgba(230,161,90,.10); }
-#welcome .wmode.wgo .wico { color:var(--w-acc); }
-#welcome .wmode:focus-visible { outline:2px solid var(--w-acc); outline-offset:2px; }
-#welcome .wmode[disabled] { cursor:default; color:var(--w-dim); background:transparent; border-style:dashed; border-color:rgba(255,255,255,.10); }
-#welcome .wmode[disabled] .wico, #welcome .wmode[disabled] small { color:var(--w-dim); }
-#welcome .wmenu .wnote { color:var(--w-dim); }
+#welcome .wmode.wgo { border-color:var(--ed-acc); background:var(--ed-acc-soft); }
+#welcome .wmode.wgo .wico { color:var(--ed-acc); }
+#welcome .wmode:focus-visible { outline:2px solid var(--ed-acc); outline-offset:2px; }
+#welcome .wmode[disabled] { cursor:default; color:var(--ed-faint); background:transparent; border-style:dashed; border-color:var(--ed-hair); }
+#welcome .wmode[disabled] .wico, #welcome .wmode[disabled] small { color:var(--ed-faint); }
+#welcome .wmenu .wnote { color:var(--ed-faint); }
+#welcome .wmenu h1 { font:500 18px/1.3 'IBM Plex Sans', sans-serif; color:var(--ed-ink); }
+/* G3360 THE CAREERS LIST: a row per career (min 56 px), its three verbs written on it (nothing hover-only), the rename an
+   inline field, the delete asked inside the row */
+#welcome .wcars { display:flex; flex-direction:column; gap:8px; margin:14px 0 4px; }
+#welcome .wcar { display:flex; flex-wrap:wrap; align-items:center; gap:8px 10px; min-height:56px; padding:8px 10px 8px 14px; border-radius:8px;
+  box-sizing:border-box; color:var(--ed-ink); background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd); }
+#welcome .wcar .wcn { flex:1 1 160px; min-width:0; font:500 15px/1.25 'IBM Plex Sans', sans-serif; overflow-wrap:anywhere; }
+#welcome .wcar .wcn small { display:block; margin-top:2px; font:400 12px/1.35 'IBM Plex Sans', sans-serif; color:var(--ed-dim); }
+#welcome .wcar .wca { display:flex; flex-wrap:wrap; gap:6px; }
+#welcome .wbtn { min-height:40px; padding:0 12px; border-radius:6px; cursor:pointer; font:500 13px/1 'IBM Plex Sans', sans-serif; font-style:normal;
+  letter-spacing:normal; text-transform:none; color:var(--ed-ink); background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd); }
+#welcome .wbtn.wpri { color:var(--ed-acc-ink); background:var(--ed-acc); border-color:var(--ed-acc); }
+#welcome .wbtn.wbad { color:var(--ed-acc-ink); background:var(--ed-bad); border-color:var(--ed-bad); }
+#welcome .wbtn:focus-visible, #welcome .wname:focus-visible { outline:2px solid var(--ed-acc); outline-offset:2px; }
+#welcome .wname { flex:1 1 160px; min-width:0; min-height:40px; padding:0 10px; box-sizing:border-box; border-radius:6px; font:400 14px/1 'IBM Plex Sans', sans-serif;
+  font-style:normal; color:var(--ed-ink); background:var(--ed-track); border:1px solid var(--ed-border); }
+#welcome .wask { flex:1 1 100%; color:var(--ed-warn); font-size:13px; }
+#welcome .wmenu .wlink { color:var(--ed-dim); }
 /* the graphics card's own targets on a touch screen (R1/R3); a mouse sees the card as it was */
 @media (pointer: coarse) {
   #welcome .wpills { gap:8px; } #welcome .pill { min-height:48px; padding:0 14px; }
   #welcome .wplay { min-height:48px; } #welcome .wlink { min-height:48px; padding:0 4px; }
+  #welcome .wbtn, #welcome .wname { min-height:48px; }
 }
 `;
   const el = (tag, cls, text) => { const e = W.document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
@@ -347,13 +372,85 @@
   const MODES = ['sandbox', 'career', 'garage'];
   // G2740 (CAREER-ON, the user 13 Oct: "Let's push career tonight"): the career is READY - New career and Continue are live
   const READY = { sandbox: true, career: true, garage: false };
-  // the saved career a "Continue" resumes: the player document under flydiy.career.main (74_career.js careerKey('main')),
-  // read here before the core loads (the key is the core's CAREER_KEY + 'main'); null when there is none or it doesn't parse
-  const CAREER_MAIN_KEY = 'flydiy.career.main', CAREER_FRESH_KEY = 'flydiy.career.fresh';
-  const career = store => {
-    try { const d = JSON.parse(read(store, CAREER_MAIN_KEY) || 'null'); return d && d.mode === 'career' ? { name: (d.career && d.career.name) || 'your career' } : null; }
+  // ---- THE CAREERS (G3360, CAREERS): the index and the documents, read here before the core loads ---------------------
+  // A career is a player document under flydiy.career.<id> (74_career.js careerKey: the core's CAREER_KEY + id). The index
+  // flydiy.careers = { ids: [...], last: id } lists the player's; 'main' (G2740's one slot) is migrated in place as the first
+  // entry (its key kept: no save moves); a new id is 'c' + base36 time; 'dev' (?career=1) is never listed. A document that
+  // does not parse (or is no career) is skipped, kept on its key; an id whose document never came (a New career closed
+  // before app.js wrote it) leaves the index. G2740's fresh flag and .prev backup retire: a New career never overwrites one.
+  const CAREERS_KEY = 'flydiy.careers', CAREER_PRE = 'flydiy.career.', CAREER_FRESH_KEY = 'flydiy.career.fresh';
+  const CAREER_NAME = 'your career', CAREER_NAME_MAX = 40;
+  const STORY_OF = 8;                      // the story's beats T0-T7 (79_story.js STORY_BEATS; GATE STORY holds the count)
+  const careerIdOk = id => typeof id === 'string' && /^(main|c[0-9a-z]{1,16})$/.test(id);
+  const write = (store, k, v) => { try { store.setItem(k, v); return true; } catch (e) { return false; } };
+  const drop = (store, k) => { try { store.removeItem(k); } catch (e) {} };
+  const careerDoc = (store, id) => {
+    try { const d = JSON.parse(read(store, CAREER_PRE + id) || 'null'); return d && typeof d === 'object' && d.mode === 'career' && d.career && typeof d.career === 'object' ? d : null; }
     catch (e) { return null; }
   };
+  // one career as the menu shows it -> { id, name, line } or null (a broken document: skipped)
+  const careerRow = (store, id) => {
+    const d = careerIdOk(id) ? careerDoc(store, id) : null;
+    if (!d) return null;
+    const c = d.career, s = c.story && typeof c.story === 'object' ? c.story : null, m = s && /^T(\d)$/.exec(s.beat || '');
+    const line = s && (s.open || s.beat === 'open') ? 'the story done, the island open'
+      : m ? 'the story · ' + (+m[1] + 1) + ' of ' + STORY_OF
+      : c.started ? 'started ' + c.started : 'a career';
+    return { id, name: (typeof c.name === 'string' && c.name.trim()) || CAREER_NAME, line };
+  };
+  const careersWrite = (store, X) => write(store, CAREERS_KEY, JSON.stringify({ ids: X.ids.slice(), last: X.last }));
+  // the index as it stands, migrated: { ids, last } (written back when the read changed it)
+  const careersRead = store => {
+    let x = null; try { x = JSON.parse(read(store, CAREERS_KEY) || 'null'); } catch (e) {}
+    const was = x && Array.isArray(x.ids) ? x.ids : [], ids = [];
+    for (const id of was) if (careerIdOk(id) && ids.indexOf(id) < 0 && read(store, CAREER_PRE + id) != null) ids.push(id);
+    if (ids.indexOf('main') < 0 && careerDoc(store, 'main')) ids.unshift('main');
+    const live = ids.filter(id => careerRow(store, id));
+    const last = x && live.indexOf(x.last) >= 0 ? x.last : (live.length ? live[live.length - 1] : null);
+    const X = { ids, last };
+    if (!x || JSON.stringify(was) !== JSON.stringify(ids) || x.last !== last) careersWrite(store, X);
+    if (read(store, CAREER_FRESH_KEY) != null) drop(store, CAREER_FRESH_KEY);
+    return X;
+  };
+  // the careers the menu lists, in the index's order (broken documents skipped)
+  const careersList = store => careersRead(store).ids.map(id => careerRow(store, id)).filter(Boolean);
+  const careersLast = store => { const X = careersRead(store); return X.last ? careerRow(store, X.last) : null; };
+  // A NEW CAREER: a new id beside the others (never one in use), its default name ("your career", "your career 2", ...);
+  // listed and made the last at once - app.js writes its document (careerNew) under that id
+  const careersNew = (store, now) => {
+    let raw = [];                            // the ids as written (one not started yet is no id to take either)
+    try { const x = JSON.parse(read(store, CAREERS_KEY) || 'null'); if (x && Array.isArray(x.ids)) raw = x.ids; } catch (e) {}
+    const X = careersRead(store);
+    let t = Math.max(1, Math.floor(+now || 0)), id;
+    do { id = 'c' + (t++).toString(36); } while (X.ids.indexOf(id) >= 0 || raw.indexOf(id) >= 0 || read(store, CAREER_PRE + id) != null);
+    const names = X.ids.map(i => careerRow(store, i)).filter(Boolean).map(r => r.name);
+    let name = CAREER_NAME, n = 2;
+    while (names.indexOf(name) >= 0) name = CAREER_NAME + ' ' + n++;
+    X.ids.push(id); X.last = id; careersWrite(store, X);
+    return { id, name };
+  };
+  const careersPick = (store, id) => { const X = careersRead(store); if (!careerRow(store, id)) return false; X.last = id; careersWrite(store, X); return true; };
+  // RENAME: the document's own career.name (the rest of it untouched) -> the name kept, or null (refused: empty, broken)
+  const careersRename = (store, id, name) => {
+    const nm = String(name == null ? '' : name).replace(/\s+/g, ' ').trim().slice(0, CAREER_NAME_MAX);
+    const d = careerIdOk(id) ? careerDoc(store, id) : null;
+    if (!nm || !d) return null;
+    d.career.name = nm;
+    return write(store, CAREER_PRE + id, JSON.stringify(d)) ? nm : null;
+  };
+  // DELETE (confirmed by the menu first): the document and its index entry; the last moves to the newest left
+  const careersDelete = (store, id) => {
+    if (!careerIdOk(id)) return false;
+    const X = careersRead(store);
+    drop(store, CAREER_PRE + id);
+    X.ids = X.ids.filter(i => i !== id);
+    const live = X.ids.filter(i => careerRow(store, i));
+    if (X.last === id || live.indexOf(X.last) < 0) X.last = live.length ? live[live.length - 1] : null;
+    careersWrite(store, X);
+    return read(store, CAREER_PRE + id) == null;
+  };
+  // the career a load plays: the page globals app.js reads (welcome.js writes them alone, like FLYDIY_MODE)
+  const careerChoose = (id, name) => { W.FLYDIY_CAREER_ID = id; W.FLYDIY_CAREER_NAME = name || null; };
   // (query, navigator, host) -> { mode: a MODES entry, or null for the menu; why; asked: what ?mode= said }. Pure, GATE GFX
   const decideMode = (q, nav, host) => {
     const m = /[?&]mode=([a-z]+)/.exec(q || ''), asked = m ? m[1] : null;
@@ -376,6 +473,56 @@
     try { const r = JSON.parse(read(store, KEY) || 'null'); if (r && LABEL[r.preset]) return r.preset; } catch (e) {}   // the card's, before a load saved it
     return '';
   };
+  // THE CAREERS LIST (G3360): resolves 'career' (a career continued: FLYDIY_CAREER_ID set) or null (back to the menu).
+  // Each row: Continue, Rename (an inline field: Enter or Save keeps it, Escape or Cancel leaves it), Delete (asked inside
+  // the row - the page cannot show a confirm() - then the document and its index entry go)
+  const showCareers = store => new Promise(res => {
+    const { o, card } = open();
+    card.classList.add('wmenu');
+    card.appendChild(el('h1', null, 'Careers'));
+    const list = el('div', 'wcars'); list.setAttribute('role', 'list');
+    card.appendChild(list);
+    const btn = (label, act, cls, on) => { const b = el('button', 'wbtn' + (cls ? ' ' + cls : ''), label); b.type = 'button'; b.dataset.act = act; b.onclick = on; return b; };
+    let edit = null, ask = null;                    // the row being renamed / asked about
+    const paint = () => {
+      list.textContent = '';
+      let rows = [];
+      try { rows = careersList(store); } catch (e) { rows = []; }
+      if (!rows.length) list.appendChild(el('div', 'wnote', 'No career saved. New career, in the menu, starts one.'));
+      for (const r of rows) {
+        const it = el('div', 'wcar'); it.dataset.id = r.id; it.setAttribute('role', 'listitem');
+        const acts = el('div', 'wca');
+        if (edit === r.id) {
+          const inp = el('input', 'wname'); inp.type = 'text'; inp.value = r.name; inp.maxLength = CAREER_NAME_MAX;
+          inp.setAttribute('aria-label', 'the career’s name');
+          const keep = () => { careersRename(store, r.id, inp.value); edit = null; paint(); };
+          inp.onkeydown = e => { if (e && e.key === 'Enter') keep(); else if (e && e.key === 'Escape') { edit = null; paint(); } };
+          it.appendChild(inp);
+          acts.appendChild(btn('Save', 'save', 'wpri', keep));
+          acts.appendChild(btn('Cancel', 'cancel', '', () => { edit = null; paint(); }));
+          it.appendChild(acts); list.appendChild(it);
+          try { inp.focus(); } catch (e) {}
+          continue;
+        }
+        const nm = el('span', 'wcn', r.name); nm.appendChild(el('small', null, r.line)); it.appendChild(nm);
+        if (ask === r.id) {
+          it.appendChild(el('span', 'wask', 'Delete “' + r.name + '”? Its contracts, money and fleet go for good. The saved builds stay.'));
+          acts.appendChild(btn('Delete', 'confirm', 'wbad', () => { careersDelete(store, r.id); ask = null; paint(); }));
+          acts.appendChild(btn('Keep it', 'keep', '', () => { ask = null; paint(); }));
+        } else {
+          acts.appendChild(btn('Continue', 'continue', 'wpri', () => { careersPick(store, r.id); careerChoose(r.id); o.remove(); res('career'); }));
+          acts.appendChild(btn('Rename', 'rename', '', () => { edit = r.id; ask = null; paint(); }));
+          acts.appendChild(btn('Delete', 'delete', '', () => { ask = r.id; edit = null; paint(); }));
+        }
+        it.appendChild(acts); list.appendChild(it);
+      }
+    };
+    paint();
+    const foot = el('div', 'wfoot');
+    const back = el('button', 'wlink', 'back'); back.type = 'button'; back.onclick = () => { o.remove(); res(null); };
+    foot.appendChild(back); card.appendChild(foot);
+    stampFoot(card);
+  });
   // THE MENU: resolves with the mode chosen. Settings opens the graphics card in place and comes back here
   const showMenu = (env, d, store) => new Promise(res => {
     const { o, card } = open();
@@ -391,11 +538,17 @@
       return b;
     };
     const done = m => { o.remove(); res(m); };
-    const c = career(store);
-    const cont = c ? row('continue', '▶', 'Continue', 'Career “' + (c.name || '') + '”', '', () => done('career')) : null;
-    // G2740: a New career over a saved one starts afresh - app.js keeps the old document under flydiy.career.main.prev
-    row('career', '✚', 'New career', c ? 'start again (your current career is kept as a backup)' : 'contracts, money, your own fleet', READY.career ? '' : 'coming',
-      READY.career ? () => { if (c) { try { store.setItem(CAREER_FRESH_KEY, '1'); } catch (e) {} } done('career'); } : null);
+    // G3360 (CAREERS): Continue = the last played (its name and a line); New career = a NEW id beside the others;
+    // Careers... = the list (shown once there is one)
+    let all = [], c = null;
+    try { all = careersList(store); c = careersLast(store); } catch (e) { all = []; c = null; }
+    const cont = c ? row('continue', '▶', 'Continue', '“' + c.name + '” · ' + c.line, '', () => { careersPick(store, c.id); careerChoose(c.id); done('career'); }) : null;
+    row('career', '✚', 'New career', all.length ? 'a new career beside your ' + (all.length === 1 ? 'other one' : all.length + ' others') : 'contracts, money, your own fleet', READY.career ? '' : 'coming',
+      READY.career ? () => { const n = careersNew(store, Date.now()); careerChoose(n.id, n.name); done('career'); } : null);
+    if (all.length) row('careers', '☰', 'Careers…', all.length + (all.length === 1 ? ' career' : ' careers') + ': continue, rename or delete', '', () => {
+      o.remove();
+      showCareers(store).then(m => (m ? res(m) : showMenu(env, d, store).then(res)));
+    });
     const go = row('sandbox', '◇', 'Sandbox', 'everything free: the garage, the island, every aeroplane', '', () => done('sandbox'));
     go.classList.add('wgo');
     row('garage', '✎', 'Garage only', READY.garage ? 'build without loading the island' : 'build without loading the island: not built yet', READY.garage ? '' : 'coming',
@@ -440,6 +593,9 @@
   const API = W.WELCOME = {
     ORDER, LABEL, KEY, cleanGpu, gpuClass, isSoftware, memClass, mobileWhy, decide, isRig, probe,
     MODES, READY, decideMode, mode: null,   // G2210: mode = decideMode's answer for this load
+    // G3360 (CAREERS): the index's pure half (a store with getItem / setItem / removeItem), for the gates and the console
+    careers: { KEY: CAREERS_KEY, STORY_OF, idOk: careerIdOk, read: careersRead, list: careersList, last: careersLast, row: careerRow,
+               create: careersNew, pick: careersPick, rename: careersRename, remove: careersDelete },
     RIG: isRig(nav), SOFT: false, pick: null, decision: null, env: null,   // SOFT (G1460): the probe's card is a software renderer
     // the graphics menu's "re-check my computer": the welcome again, in place; resolves with the preset picked
     recheck: () => {
@@ -460,6 +616,12 @@
   let md;
   try { md = API.mode = decideMode(search(), nav, host); } catch (e) { md = API.mode = { mode: 'sandbox', why: 'the decision failed' }; }
   W.FLYDIY_MODE = md.mode;
+  // G3360 (CAREERS): ?mode=career (no menu) plays the last career, or a new one when there is none; ?career=1 is the dev
+  // career (app.js: flydiy.career.dev, never listed) and chooses nothing here
+  if (md.mode === 'career' && !md.dev) {
+    try { const st = W.localStorage, c = careersLast(st); if (c) careerChoose(c.id); else { const n = careersNew(st, Date.now()); careerChoose(n.id, n.name); } }
+    catch (e) { /* no storage: app.js plays G2740's 'main' */ }
+  }
   if (md.asked && MODES.indexOf(md.asked) >= 0 && md.mode !== md.asked) { try { console.warn('flyDiy: ?mode=' + md.asked + ' is not built yet - the sandbox boots'); } catch (e) {} }
   if (!W.document || !W.document.createElement) { if (!W.FLYDIY_MODE) W.FLYDIY_MODE = 'sandbox'; return; }
   let d;

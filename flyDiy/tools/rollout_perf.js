@@ -208,6 +208,11 @@ const PROGSRC = flag('progsrc');
 const CPU_THROTTLE = +opt('cpu-throttle', 0) || 0;
 const GPUX = +opt('gpux', 0) || 0;
 const GPUX_AT = opt('gpux-at', null);
+// --town-alloc (G3415, CITY-B): the town meter's allocation probe - ?townalloc=1 (render_world reads Chrome's heap counter round
+// the town's ticks) with Chrome's precise counter (--enable-precise-memory-info); the town ms and the items visited are read
+// every run (render_premises' townFrame, the TOWN line below)
+const TOWN_ALLOC = flag('town-alloc');
+if (TOWN_ALLOC) { q.push('townalloc=1'); CHROME_FLAGS.push('--enable-precise-memory-info'); }
 if (q.length) URL += (URL.includes('?') ? '&' : '?') + q.join('&');
 
 // ---- what the page is given before its first script --------------------------
@@ -270,7 +275,7 @@ function preScript() {
 const INSTALL = `(() => {
   const R = window.__RP; if (R.on) return 'have';
   const P = window.FLYDIY_PACE; if (!P) throw new Error('no FLYDIY_PACE');
-  R.fr = []; R.on = true; R.rev = 0;
+  R.fr = []; R.tw = []; R.on = true; R.rev = 0;
   const endW = P.end.bind(P);
   let wuMs = 0;
   const W = window.WORLD;
@@ -317,6 +322,10 @@ const INSTALL = `(() => {
       // G820 (C1c): THE PHYSICS WORKER'S readings (?simw): its step's cost (ms, eased), its dilation, its steps a turn at most (ms)
       .concat((() => { const SW = window.FLYDIY_SIMW; const w = SW && SW.perf ? SW.perf() : null; return w && w.live ? [+w.stepMs.toFixed(3), +w.dil.toFixed(4), +w.maxMs.toFixed(2)] : [null, null, null]; })()));
     R.wph = wph;
+    // G3415 THE TOWN METER of this frame (render_world filled premises.townFrame in this frame's worldUpdate): [town ms, items
+    // visited, KB allocated (null unless --town-alloc), then each part's ms in premises.town.parts' order]
+    { const PRx = W && W.premises, TF = PRx && PRx.townFrame, TP = PRx && PRx.town;
+      R.tw.push(TF ? [+TF[0].toFixed(3), TF[1], TF[2] === TF[2] ? +TF[2].toFixed(2) : null].concat(TP ? Array.from(TP.lastParts, v => +v.toFixed(3)) : []) : null); }
     lastNow = now; wuMs = 0; rMs = 0; shMs = 0; pmMs = 0; pmN = 0; mirMs = 0; mirN = 0; fldMs = 0;
     return endW(workMs, physMs, steps, now);
   };
@@ -453,6 +462,8 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
     const loadLt = JSON.parse(await ev('JSON.stringify(__RP.lt)')).filter(x => x[0] <= a0);
     console.log('  LOAD ' + tGarage.toFixed(1) + ' s to the shed · long tasks >= 50 ms (a frame under 20 fps each): ' + loadLt.length + ', over 100 ms: ' + loadLt.filter(x => x[1] > 100).length + ', worst ' + loadLt.reduce((m, x) => Math.max(m, x[1]), 0) + ' ms');
     console.log('  GARAGE fresh ' + JSON.stringify(garageFresh)); }
+  // G3320 (PILOTPAGE): --persona <name> - the shed's #selPersona set and its change fired before the roll-out (as tools/tour_real.js)
+  if (opt('persona', null)) console.log('  persona: ' + await ev("(()=>{const s=document.getElementById('selPersona');if(!s)return 'no #selPersona';s.value=" + JSON.stringify(opt('persona')) + ";s.dispatchEvent(new Event('change',{bubbles:true}));return window.FLYDIY_PERSONA?JSON.stringify(FLYDIY_PERSONA.get().profile):s.value;})()"));
   // ROLL OUT
   const tRoll = Date.now(), clickAt = await ev('performance.now()');
   // G1117: ONE press - the bar's (#bGo), else the first visible 'Roll out' (#edRoll, the editor's, says it too: clicking
@@ -693,7 +704,8 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
     fs.mkdirSync(path.dirname(OUT), { recursive: true });
     fs.writeFileSync(OUT.replace(/\.json$/, '_live.cpuprofile'), JSON.stringify(prof));
   }
-  const R = JSON.parse(await ev('JSON.stringify({ fr: __RP.fr, lt: __RP.lt })', 60000));
+  const R = JSON.parse(await ev('JSON.stringify({ fr: __RP.fr, lt: __RP.lt, tw: __RP.tw, twParts: window.WORLD && WORLD.premises && WORLD.premises.town ? WORLD.premises.town.parts : null })', 60000));
+  R.fr.forEach((r, i) => { r.tw = R.tw ? R.tw[i] || null : null; });   // (G3415: the town meter rides its frame through the filters)
   // G680: the world step's slices (app.js buildWorldSliced) - how many, the longest, the step's wall
   const worldSlices = JSON.parse(await ev('JSON.stringify(window.__WORLD_SLICES || null)').catch(() => 'null'));
   if (worldSlices) console.log('  world step: ' + worldSlices.n + ' yields in ' + worldSlices.ms + ' ms, the longest slice ' + worldSlices.worst + ' ms');
@@ -791,12 +803,32 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   if (SETTINGS) { const w = settingsRuns.reduce((m, r) => Math.max(m, r.worst), 0), n = settingsRuns.reduce((m, r) => m + r.over1s, 0);
     gates.settingsLongTask1s = { n, worst: w, pass: n === 0 }; }
   for (const [k, g] of Object.entries(gates)) console.log('  ROLLOUT ' + k + ': ' + (g.pass ? 'PASS' : 'FAIL') + ' ' + JSON.stringify(g));
+  // G3415 (CITY-B) THE TOWN METER: the town's ticks a frame (render_world's sum round the stream, the patch, the lots' cut and the
+  // premises' tick), the items they visited, the parts (render_premises TM_PARTS), the KB with --town-alloc; and every frame over
+  // 100 ms with the town's share of it (a hitch the town caused has its ms here; one it did not, a small number)
+  const townMeter = (() => {
+    const tw = fr.filter(r => r.tw), ms = tw.map(r => r.tw[0]); if (!tw.length) return null;
+    const parts = R.twParts || [], pm = parts.map((k, i) => [k, +(tw.reduce((a, r) => a + (r.tw[3 + i] || 0), 0) / tw.length).toFixed(3)]).sort((a, b) => b[1] - a[1]);
+    const kb = tw.filter(r => r.tw[2] != null).map(r => r.tw[2]);
+    const o = { frames: tw.length, msMed: +med(ms).toFixed(3), msP90: +pct(ms, 0.9).toFixed(3), msP99: +pct(ms, 0.99).toFixed(3), msMax: +Math.max(...ms).toFixed(2),
+      msMean: +(ms.reduce((a, b) => a + b, 0) / ms.length).toFixed(3), over2: +(ms.filter(x => x > 2).length / ms.length).toFixed(4), over5: +(ms.filter(x => x > 5).length / ms.length).toFixed(4),
+      visitsMed: med(tw.map(r => r.tw[1])), visitsMax: Math.max(...tw.map(r => r.tw[1])), parts: pm,
+      kbMean: kb.length ? +(kb.reduce((a, b) => a + b, 0) / kb.length).toFixed(3) : null, kbP99: kb.length ? +pct(kb, 0.99).toFixed(2) : null, kbFrames: kb.length,
+      over100: fr.filter(r => r[1] > 100).map(r => [+((r[0] - revealAt) / 1000).toFixed(2), +r[1].toFixed(0), r.tw ? r.tw[0] : null]) };
+    o.byPhase = {}; for (const k of Object.keys(groups)) { const m = groups[k].filter(r => r.tw).map(r => r.tw[0]); if (m.length) o.byPhase[k] = { msMed: +med(m).toFixed(3), msP99: +pct(m, 0.99).toFixed(3), msMax: +Math.max(...m).toFixed(2) }; }
+    console.log('  TOWN ms/frame: med ' + o.msMed + ' p90 ' + o.msP90 + ' p99 ' + o.msP99 + ' max ' + o.msMax + ' mean ' + o.msMean + ' · over 2 ms ' + (o.over2 * 100).toFixed(2) + ' %, over 5 ms ' + (o.over5 * 100).toFixed(2) + ' % · items visited med ' + o.visitsMed + ' max ' + o.visitsMax
+      + (o.kbMean != null ? ' · KB/frame mean ' + o.kbMean + ' p99 ' + o.kbP99 + ' (' + o.kbFrames + ' frames)' : ''));
+    console.log('  TOWN parts (mean ms/frame): ' + pm.filter(x => x[1] > 0).map(x => x[0] + ' ' + x[1]).join(' · '));
+    if (o.over100.length) console.log('  TOWN share of the frames over 100 ms [s, ms, town ms]: ' + o.over100.slice(0, 30).map(x => x.join('/')).join(' '));
+    return o;
+  })();
   console.log('  long tasks > 200 ms: ' + R.lt.filter(x => x[1] > 200).length + ' · worst 8: ' + lt.slice(0, 8).map(x => x[1] + '@' + (x[0] / 1000).toFixed(0) + 's').join(' '));
   if (exc.length) console.log('  page exceptions: ' + exc.length + ' · ' + exc.slice(0, 3).join(' | '));
   const result = { date: new Date().toISOString(), label: LABEL, url: URL, cold: COLD, build: BUILD, variant: VARIANT, gfx: GFX, world: WORLDN || 'jolene', cam: (where && where.cam) || CAM || null, camAsked: CAM, hover: HOVER, latency, size: SIZE, gpu, ua, dpr, gfx0: JSON.parse(gfx0 || 'null'), box,
     from: FROM, dest: DEST, afloat: AFLOAT, start: where,
-    tGarage, tReveal, premEmptyAt, hwstep, gpuWin, cpuThrottle: CPU_THROTTLE, gpux: GPUX, gpuxAt: GPUX_AT, garage: garageFresh, shot: shotStat, phases, dist: distAll, gates, simw, settings: settingsRuns, trips: tripRuns, town: townLine, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, progSrc, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
-    frames: fr.map(r => [+((r[0] - revealAt) / 1000).toFixed(3)].concat(r.slice(1), [r.ph, +r.spd.toFixed(2)])) };
+    tGarage, tReveal, premEmptyAt, hwstep, gpuWin, cpuThrottle: CPU_THROTTLE, gpux: GPUX, gpuxAt: GPUX_AT, garage: garageFresh, shot: shotStat, phases, dist: distAll, gates, simw, settings: settingsRuns, trips: tripRuns, town: townLine, townMeter, chromeFlags: CHROME_FLAGS, worldSlices: worldSlices, progSrc, longTasks: R.lt, shots, premStream, eval: evalOut, profile: profTop, bootLog: bootLog ? JSON.parse(bootLog) : null, exceptions: exc.slice(0, 20),
+    frames: fr.map(r => [+((r[0] - revealAt) / 1000).toFixed(3)].concat(r.slice(1), [r.ph, +r.spd.toFixed(2)])),
+    townParts: R.twParts || null, townFrames: fr.map(r => r.tw) };   // G3415: [town ms, items, KB | null, parts...] a frame (townParts' order), frame for frame with `frames`
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   fs.writeFileSync(OUT, JSON.stringify(result));
   console.log('  -> ' + OUT);

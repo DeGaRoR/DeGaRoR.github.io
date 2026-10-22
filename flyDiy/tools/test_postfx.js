@@ -71,10 +71,15 @@ const optionRows = KEYS.every(k => new RegExp("\\{ k: '" + k + "', label: '[^']+
 // shader does (the three slots' levels) and its "samples" go to the open occlusion query; a read fills the frame's copy
 // and the means row. A one-frame spike must be caught once (a lasting step never), with ONE read in the whole run -
 // no read a frame - and the eye must read at most every EYE_READ_MS.
-const CATCH = (async () => {
+// DEPART-HITCH (21 Oct): the picture is read only when asked (localStorage flydiy.rec.catch = 'shots'): the rows below run the
+// catcher twice - with 'shots' (the read, the picture, the means, as before) and by default (the event and its state, NO read)
+const catchRun = async shots => {
   const out = { ok: false, events: [], reads: 0, eyeReads: 0, queries: 0, threw: null };
   try {
-    const win = {}; new Function('window', src)(win);
+    const win = {};
+    const LS0 = globalThis.localStorage;
+    globalThis.localStorage = { getItem: k => (k === 'flydiy.rec.catch' && shots ? 'shots' : null) };   // (read once, as the module loads)
+    try { new Function('window', src)(win); } finally { if (LS0 === undefined) delete globalThis.localStorage; else globalThis.localStorage = LS0; }
     const P = win.POST_FX, sent = [];
     win.FLIGHT_REC = { event: (kind, ms, d) => sent.push([kind, d]), rec: { frame: 0 } };
     class V2 { constructor(x, y) { this.x = x || 0; this.y = y || 0; } set(x, y) { this.x = x; this.y = y; return this; } }
@@ -119,6 +124,10 @@ const CATCH = (async () => {
     const levels = [0.3, 0.3, 0.3, 0.62, 0.3, 0.3, 0.3, 0.55, 0.55, 0.55, 0.55, 0.55];   // a one-frame spike at 3, a lasting step at 7
     for (let i = 0; i < levels.length; i++) { win.FLIGHT_REC.rec.frame = 100 + i; rt.texture.level = levels[i]; P.catcher.tap(renderer, { far: 9000, near: 0.5, position: { y: 120 } }, rt); await tick(); }
     P.catcher.tap(renderer, null, rt); await tick(); await tick();
+    // REVEAL-FLASH: under the boot's screen (BOOT.state not 'gone') a draw is not a frame - no tap counted
+    const tapsBefore = P.catcher.summary().taps; win.BOOT = { state: 'run' };
+    for (let i = 0; i < 4; i++) { rt.texture.level = i % 2 ? 0.6 : 0.2; P.catcher.tap(renderer, { far: 9000, near: 0.5, position: { y: 4 } }, rt); await tick(); }
+    out.bootTaps = P.catcher.summary().taps - tapsBefore; delete win.BOOT;
     const sm = P.catcher.summary();
     out.events = sent.filter(e => e[0] === 'catch').map(e => e[1]); out.queries = sm.queries; out.trips = sm.trips;
     // the eye: on, rendered 40 frames back to back - its reads are throttled to EYE_READ_MS
@@ -126,7 +135,8 @@ const CATCH = (async () => {
     out.ok = true;
   } catch (e) { out.threw = String(e && e.stack || e); }
   return out;
-})();
+};
+const CATCH = catchRun(true).then(C => catchRun(false).then(C0 => Object.assign(C, { def: C0 })));
 CATCH.then(C => {
 const checks = {
   // --- the state ------------------------------------------------------------
@@ -182,11 +192,14 @@ const checks = {
     C.events.length === 1 && C.events[0].why === 'bright spike' && C.events[0].f === 103 && C.events[0].prev < 0.31 && C.events[0].next < 0.31 && C.events[0].mean > 0.6,
   'a lasting step is not a catch; every frame past the second was judged by a query (G1357)': !C.events.some(e => e.f >= 106) && C.queries >= 10 && C.trips === 1,
   'NO READ A FRAME: the catcher read once in the whole run - for its one catch (G1357 v2)': C.reads === 1,
+  'BY DEFAULT NO READ AT ALL: the same spike caught once, its state kept, no read and no picture (DEPART-HITCH)':
+    C.def.ok && C.def.events.length === 1 && C.def.events[0].f === 103 && /no read/.test(C.def.events[0].why) && C.def.events[0].jpeg === null && C.def.reads === 0 && C.def.trips === 1,
+  "the boot's offscreen draws are not frames: no tap while BOOT is up (REVEAL-FLASH)": C.bootTaps === 0 && C.def.bootTaps === 0,
   'a catch carries the state it was drawn with (far, eye, the cloud flag, the post rows) (G1357)':
     C.events.length === 1 && C.events[0].far === 9000 && 'eyeK' in C.events[0] && 'cloudShadow' in C.events[0] && !!C.events[0].post && 'jpeg' in C.events[0],
   "the eye reads at most every EYE_READ_MS, one in flight, issued from the frame (G1357, EVEN-30's long tasks)": C.eyeReads >= 1 && C.eyeReads <= Math.ceil(C.eyeMs / 250) + 1 && C.eyeReads < 10 && /EYE_READ_MS = 250/.test(code),
   'the decision is an occlusion query, the shots capped and spaced, the cost measured, the switch read (G1357)':
-    /ANY_SAMPLES_PASSED_CONSERVATIVE/.test(code) && /MAX_SHOTS: 6, GAP_MS: 5000/.test(code) && /tapUs/.test(code) && /flydiy\.rec\.catch/.test(code),
+    /ANY_SAMPLES_PASSED_CONSERVATIVE/.test(code) && /MAX_SHOTS: CAT_SHOTS \? 6 : 0, GAP_MS: 5000/.test(code) && /=== 'shots'/.test(code) && /tapUs/.test(code) && /flydiy\.rec\.catch/.test(code),
   'app.js taps the catcher only with the recorder on; aa_resolve taps after the post chain (G1357)':
     /aa\.setTap\(POST_FX\.catcher\.install\(\)\)/.test(app) && /FLIGHT_REC\.off/.test(app) && /if \(S\.post\) S\.post\(renderer, camera, S\.rt\);[\s\S]{0,400}if \(S\.tap\) S\.tap\(renderer, camera, S\.rt\);/.test(R('src/viewer/aa_resolve.js')),
 };

@@ -759,11 +759,21 @@ const GATES = [
   // TERRAIN at every footprint corner of every record; the LOD band complementary and the tick a superset; the looks;
   // both hosts (BatchedMesh, the InstancedMesh arm); render_premises' look-review wiring (~12 s)
   { id: 'KITHOST', file: '_kithost_check.js', tier: 'core' },
+  // THE TOWN HOST'S RUNTIME (G3415-G3421, CITY-B; futureDesigns/CITY-2.0-PLAN-2026-10-20.md): the near ring against brute
+  // force; the kit host's ring against its full walk (the same rungs, no house visited from 4 km); the town host on a city
+  // pack cooked from the committed kit (tools/_cityhost_fixture.js) - its Object3D census (cells + archetypes, nothing a
+  // plot), 0 visits on a far-only frame, 0 bytes a tick idle far and near, the near / far switch along a flight; the
+  // recorder's town meter; render_premises' / scenery_life's walks on the ring (~8 s)
+  { id: 'CITYHOST', file: '_cityhost_check.js', tier: 'core' },
   // METLAKATLA ON THE KIT (C3c, G860-G864): with the town composed, every plot Metlakatla sows is a kit plot of the
   // committed table (its seed) and nothing else is (the village, the landmarks); src/viewer/kit_lot.js places each lot's
   // house exactly where the kit's sowing did, keeps no house geometry (the pier's piles and the jetty alone), plans as
   // the lod-0 build; the zone's tide; the worker's wire; the outbuildings; the kit houses solid; the page's wiring (~55 s)
   { id: 'METKIT', file: '_metkit_check.js', tier: 'core' },
+  // THE COOKED TOWN (CITY-A, G3400-G3414; futureDesigns/CITY-PACK-FORMAT.md): tools/city_cook.js's pack - deterministic, fresh
+  // against the committed cells, every plot of the town record in exactly one 512 m cell (its anchor's), 2 far draws a cell,
+  // the kit rows through townkit.js's own decoder with valid archetypes, TOWN_OFF's variant untouched, negative controls (~20 s)
+  { id: 'CITYCOOK', file: '_citycook_check.js', tier: 'core', wall: 25 },
   // THE PARKED AEROPLANES (G411): builds as props, headless on a synthetic
   // snapshot - the record, the stance off the wheels, the hitbox by identity,
   // the ladder's membership, the cut (one bucket per triangle), the far rungs
@@ -873,6 +883,11 @@ const GATES = [
   // G2741 STORY-CORE: the tutorial's beats, pure; G2742 STORY-PAGE: + the page half (app.js's story half run headless over
   // the core: a New career at the cabin, the card, an ack, a stop at HOME -> the client's Cub in the hangar; Q1; the occasions)
   { id: 'STORY', file: '_story_check.js', tier: 'core', wall: 20 },
+  // G3260-G3269 ROUTES: a plane + a hired pilot + an A <-> B schedule (78b_routes.js, pure): sign / settle / end on clones,
+  // the terms against a hand-computed case, no pay without sim time, the lock (playerMove / playerSendTo refuse it), the
+  // save, the sandbox untouched, STORY's T6 signing a real route (app.js's story half headless: the arrival card's line);
+  // ~2 s. `--selftest`: four breaks, each red
+  { id: 'ROUTES', file: '_routes_check.js', tier: 'core', wall: 5 },
   // G2260 (ECONOMY): one price book, the career wallet's rules, the calibration bands, az through physical gates (~26 s)
   { id: 'ECON', file: '_econ_check.js', tier: 'core' },
   // PROCUREMENT (G2280 PROCURE, GAME-2026-10-06.md §5, §R GQ2): the makers' catalogues over the validated builds only,
@@ -924,6 +939,12 @@ const GATES = [
   // — the shaft speed against the J-3's real numbers, the burn against the
   // thermo sheet, nz at rest and in free fall, the key and the starter
   { id: 'RPM', file: '_rpm_check.js', tier: 'core' },
+  // G2080 ENGINE-TORQUE: the propeller's reaction torque, gyroscopic couple, P-factor and swirl - each effect's sign
+  // off a physical response on the user's Cub (both hands mirrored), the couples force-free, the twin's hands
+  { id: 'ENGTORQUE', file: '_engtorque_check.js', tier: 'core', wall: 90 },
+  // G2470 JODEL-PITCH: the air has no preferred heading - the same open-loop 3 s on eight headings, the five validated
+  // builds, flown the same to round-off (the Munk couple's arm was measured in the world's x-y plane); --selftest
+  { id: 'HEADING', file: '_heading_check.js', tier: 'core', wall: 60 },
   // ...and session 2: the fit as a list — catalogues, tiers, the resolver,
   // the ledger billing exactly its rows, the aerials reading the radios
   { id: 'PANEL', file: '_panel_check.js', tier: 'core' },

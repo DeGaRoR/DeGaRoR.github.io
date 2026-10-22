@@ -1109,6 +1109,7 @@ const SPLAT_GROUND = (() => {
       reach: () => grow(),         // re-read the grid's codes (a premises re-stamp); true when the arrays grow
       names: () => Object.assign({}, G.RECIPE.names),
       knobs: () => Object.assign({}, R.knobs),
+      knobsLive: () => R.knobs,   // REVEAL-HITCH: the live knobs, read only - a per-sample reader (render_world poolAt) copied them every call
       norm: () => Object.assign({}, R.norm || {}),   // the per-set gains the imagery asked for (see normGains)
       albedoMean: () => (R.albedoMean ? R.albedoMean.slice() : null),   // the world's mean LAND albedo, linear rgb (the hemisphere's ground half reads it)
       meanAt: (x, z, code, slopeDeg) => meanAt(x, z, code, slopeDeg),   // GRASS-DENSE G2562: the ground's colour as drawn, less its texture (below)
