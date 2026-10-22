@@ -11893,6 +11893,26 @@
       .then(() => compileDepthVariants(scene, true, dress))
       .catch(e => console.warn('world prelink (settled):', e && e.message));
   }
+  // REVEAL (A0 22 Oct; HWCOV): A WORLD SETTING CHANGED IN THE SHED LINKS FROM THE SHED. The settings screen there compiles the
+  // shed only; the world's programs, keyed on the graphics (worldCompile's key), waited for the roll-out - its trip ran
+  // worldCompile and first light AFTER the shot, under the roll-out screen, the loop holding the draw (holdRender) over the
+  // reveal (the strict gate pins mirror=off in the shed: its reveal row 133 ms, BOOT 'loading', the held frames' worldUpdate
+  // 35 + 30 + 25 ms). Now the shed's screen, once done, starts the world's link in the background - a group a task, the
+  // aeroplane dressed in the world per task as worldPrelinkSettled does (the shed draws as it was) - so the trip's
+  // worldCompile finds its programs known and linked, and its hold is the key's check
+  let worldPrelinkGfxP = null, worldPrelinkGfxK = null;
+  function worldPrelinkGfx() {
+    if (GARAGE_ONLY || !WF || typeof renderer.compileAsync !== 'function' || tripKeys.worldCompile === undefined || !inGarage) return null;
+    const S = TRIP_BY.worldCompile; let k = null; try { k = S.key(); } catch (e) { k = null; }
+    if (k === null || k === tripKeys.worldCompile || k === worldPrelinkGfxK) return worldPrelinkGfxP;   // nothing re-keyed, or on its way
+    worldPrelinkGfxK = k;
+    const dress = f => craftInWorldNow(() => craftLightsGuess(f));
+    const run = () => compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, dress)
+      .then(() => compileDepthVariants(scene, true, dress))
+      .catch(e => console.warn('world prelink (settings):', e && e.message));
+    worldPrelinkGfxP = Promise.resolve(worldPrelinkGfxP).then(run).then(() => { if (worldPrelinkGfxK === k) worldPrelinkGfxK = null; });
+    return worldPrelinkGfxP;
+  }
   // THE LOTS' GROUND, BEFORE THE FIRST LOT (G1085). LOT_GROUND's one material (lot_tex.js: the lawn splat, a ~6 KB
   // hook) is made when the first lot's mesh is - the premises' stream, in the settle - and its program then linked
   // ~20 s on the driver (warm: Chrome keeps no binary of it, like the ground's splats), the one link worldCompile was
@@ -12448,7 +12468,7 @@
           .then(() => { holdRender = false; return framesRendered(2); }) },   // G732
     ];
     BOOT.show('settings', { steps, set: 'settings', shots: garage ? 'garage' : 'rollout', require: [], landingLabel: 'the new settings',
-      done: () => { holdRender = false; if (held && !inGarage) running = true; }, idle: 20000, hard: 90000, quietFrames: 1 });
+      done: () => { holdRender = false; if (held && !inGarage) running = true; if (garage) setTimeout(worldPrelinkGfx, 0); }, idle: 20000, hard: 90000, quietFrames: 1 });   // (REVEAL: the world's link starts in the shed)
   }
   if (typeof window !== 'undefined') window.FLYDIY_SETTLE = settleScreen;
   // every texture a material of the scene holds (its uniforms' too), the environment and the background, sent to the
