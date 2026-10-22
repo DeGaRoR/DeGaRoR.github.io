@@ -218,6 +218,10 @@ const MANIFEST = {
     // THE STORY (G2741 STORY-CORE): the tutorial's beats T0-T7 as data, the story in the career document, one pure step
     // per event, the story's places by ROLE (the cabin strip as the user names it); GATE STORY. GAME-PLAN-2026-10-15 §3.
     '79_story.js',
+    // THE TECH MASK (G3230 TECH-MASK): the machine shop's three segments - every build option -> its segment, a design's
+    // stage (computed), the career's segment, the editor's rows, the market's and the makers' filter; pure, GATE TECH.
+    // GAME-PLAN-2026-10-15 §R, §4.
+    '79b_tech.js',
     '90_node_exports.js',
   ],
   // THE CAREER-ONLY CORE (G2685 CAREER-LAZY, the coordinator's sanity check 8 Oct: train 43 grew index.html by 324 KB,
@@ -240,7 +244,7 @@ const MANIFEST = {
   // page's pilot and the worker's fly them) and stays inline.
   routeDraw: 'route_draw.js',
   career: ['72_contract_data.js', '73_contracts.js', '74_career.js', '75_career_wire.js', '76_economy.js',
-    '76_procure.js', '76_pilots.js', '76_freight.js', '77_freight_load.js', '78b_routes.js', '79_story.js'],
+    '76_procure.js', '76_pilots.js', '76_freight.js', '77_freight_load.js', '78b_routes.js', '79_story.js', '79b_tech.js'],
   // baked 3D model payloads (tools/model_prep.py baked the PA-18 and C172
   // when they were flyable, tools/ref_prep.py the rest — all REFERENCE
   // planes since the fleet retired 2026-09-05; data, not core):

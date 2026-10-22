@@ -499,6 +499,9 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
    line under its widgets; the note spans the row */
 #edRows .r.noted { height:auto; min-height:30px; flex-wrap:wrap; padding-bottom:3px; }
 #edRows .r > .rn { flex:none; width:100%; font-size:10px; color:#e0a23a; padding-left:6px; line-height:12px; }
+/* G3230 TECH-MASK: the machine shop's reason, written under the row it greys (nothing hover-only) */
+#edRows .r.tech { height:auto; min-height:30px; flex-wrap:wrap; padding-bottom:3px; }
+#edRows .r > .rn.edTech { color:var(--ed-warn); }
 
 /* THE GROUP'S ROWS HANG OFF ITS TITLE rather than sharing its left edge (the
    user: "everything in the menu needs indentation"). One step, the same step
@@ -1701,6 +1704,8 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
    reason in the title — never simply absent (absence hides the backlog) */
 .dfTile:disabled { opacity:.35; cursor:not-allowed; }
 .dfTile:disabled:hover { border-color:var(--ed-btn-bd); }
+.dfTile.tech:disabled { opacity:.6; }
+.dfTile .dfTech { font:400 9px/1.2 'IBM Plex Sans'; color:var(--ed-warn, #d8a07a); text-align:center; }   /* G3230: the reason in the tile */
 
 .dfField, .dfList { background:var(--ed-btn-bg); color:var(--ed-ink);
   border:1px solid var(--ed-btn-bd); border-radius:7px; padding:6px 8px;
