@@ -97973,29 +97973,39 @@ same command; the same failing rows:**
 - `GATE DMGINST: FAIL`: the 'speed' trip and the worker host's diverged(), identical on master.
 - `GATE KTX2: FAIL`: row 10 (the characters' budget), identical on master; on A0's known list.
 
-**NOT YET PROVED at the time of writing (22 Oct ~22:15 UTC).** These are not claimed as master's. The master runs, and the solo
-re-runs of the gates that gave no verdict under four parallel gates, are going on the box. A follow-up commit on this branch
-replaces this paragraph with each one's line:
-- `GATE CLOUD: FAIL (1 of 239)`: "the pool is re-assigned every 30 frames to the nearest published lamps...". This is the lamps row
-  on A0's known list; the master run is pending, to show it is the same row.
-- `GATE FRAMECOST: FAIL (25)`: the Cub's and the Cessna's stand and taxi counters rose alike (taxi draws.main 844 -> 1078,
-  uniform4fv 626 -> 5208, Cessna shadow tris x2) and so did the garage:seed / restore updateMatrixWorld.
-  - The shape is PERF-1's stale-parked-cook finding of 18 Oct (taxi uniform4fv 626 -> 5176), not a few panel parts.
-  - The dash adds about 20 draws in the cockpit: the breaker buttons, one tape and one screen.
-  - A0's known red here is only "cessna garage:restore". The master run is pending.
-- `GATE DMGCERTCOST: FAIL`: node-time ceilings only (25-83 s against 18-48 s), measured with four gates at once. A solo
-  re-run and the master run are pending.
-- `GATE SIMWORKER-EDGES: FAIL (6)`: "the worker's world after the edit: grid r" and the NaN bounding-sphere errors at the gate's
-  own planned divergence (flight 3, NaN from step 601), on both builds; the master run is pending.
-- `GATE BOOTLIFT: FAIL` (the hard-timeout and ?diag=quick rows) and `GATE ROUNDTRIP: FAIL (1)` (the setup screen's sections
-  row): page rows; the master runs are pending.
-- POSEHIDDEN, PARKED, DMGDETERMINISM, DMGPAGEW gave no verdict: timeouts, and SIGKILL under the load. Solo re-runs pending.
-- DESTTO: `GATE DESTTO: PASS` on shards 0/3 and 1/3 (0 failures each); shard 2/3 was cut at the runner's 1800 s. A solo
-  re-run is pending.
-- TOUR, ARCHETYPES: still running at the time of writing.
-
-
-
+**Proved since (22 Oct, 23:15 UTC), on the same box and in the same way:**
+- `GATE CLOUD: FAIL (1 of 239)`: the lamps row "the pool is re-assigned every 30 frames...". Identical on master, and on A0's
+  known list.
+- `GATE ROUNDTRIP: FAIL (1)`: the setup screen's sections row. Identical on master.
+- `GATE DMGCERTCOST: FAIL`: node-time ceilings only. Master fails the same ceiling rows on this box (Cub 28.1 s against 18,
+  38.5 against 32, 68.3 against 42); how many cases go over moves with the box's load.
+- `GATE FRAMECOST: FAIL (25)`, now explained row by row:
+  - **The stand / taxi counters are the STALE PARKED COOK, not this branch's code.**
+    - `node tools/parked_cook.js --check`: "STALE: every key is captured live until a re-cook". Any editor or viewer change does
+      that, and the train re-cooks on its final build.
+    - The proof: a second clean origin/master worktree with ONE COMMENT changed in app.js (the build id moves, the cook goes
+      stale), FRAMECOST run there. Its Cessna shows the same rows: taxi draws.main 1087 (here 1088), uniform4fv 5216 (5218),
+      shadow tris 3 730 334 (3 732 380).
+    - That A/B's Cub page was OOM-killed (below); its rerun is queued.
+    - The cook cannot be redone in the cloud: `parked_cook.js` refuses SwiftShader ("cook on the GPU").
+  - **The garage seed / restore updateMatrixWorld rows ARE this branch's.** The breaker row is five scene objects a breaker:
+    9 on the Cub, 15 on the Cessna.
+    - Against master on the same box: the Cub's seed +1269 and its restore +47; the Cessna's seed +1996.
+    - Admitted in `tools/_framecost_check.js`'s ALLOW with reason and G-number (G2802), beside G3340's entries for the same
+      counters (02a74a6fc).
+    - The Cessna's restore stays master's own red, not admitted (master 4553, here 4841).
+- **No verdict = killed for memory.** POSEHIDDEN, PARKED, DMGDETERMINISM and DMGPAGEW, DESTTO's shard 2/3, and BOOTLIFT's four
+  `diag` rows (they read "undefined"; master has only the `hard` row): the kernel log shows five "Memory cgroup out of memory:
+  Killed process (node)" events, children of 4-6.6 GB, with four gates side by side in this 15 GB container.
+  - Master, run two at a time: `GATE DMGPAGEW: PASS`, `GATE PARKED: PASS`, `GATE POSEHIDDEN: PASS`.
+  - The branch's reruns, ONE AT A TIME (PARKED, DMGCERTCOST, DMGPAGEW, BOOTLIFT, FRAMECOST, DESTTO, DMGDETERMINISM,
+    ARCHETYPES), then FRAMECOST on master-with-a-comment and ARCHETYPES on master, are queued. They are not claimed here
+    until they report.
+- `GATE ARCHETYPES`: 3 of 4 shards PASS. One row FAILs: "Chinook-alike: the circuit completes — rejected-takeoff". It is a
+  flight row and the avionics_parity airframes are identical, but it is not claimed as master's until master's ARCHETYPES (queued)
+  shows the same row.
+- `GATE SIMWORKER-EDGES: FAIL (6)`: the master run is under way.
+- `GATE TOUR: PASS` (x4 shards), and `GATE DESTTO: PASS` on 2 of its 3 shards.
 
 **For the user (asks):**
 1. **Look at the stills** (A0's script below). Is the GPS's place right? The rule is the free plate nearest the middle, else a
