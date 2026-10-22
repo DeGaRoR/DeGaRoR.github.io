@@ -97826,3 +97826,85 @@ Rolling set (6): apsmooth-known-drop (Pilot: APSMOOTH's c172 level-off row back 
 - The battery on the six: AUDIO RED, NEW: WIRING "app.js: AUDIO.update is not in loop() between the render and PACE.end" - reveal-held's held-frame PACE.end before the hold's return; gate-screen is built on reveal-held, so both are out. Otherwise master's known reds.
 - Strict light gate on the six: over100 gone (the screen split), cub cockpit / metal chase tasks1s + cub cockpit taskWorst 2136 (the boot ~1 s class, still judged against 1 s as ruled), metal fuseWidth (accepted), floats world->garage 2.25 s (the known re-link).
 - Landed: 7332badc1 = master 5f3f2c797 + apsmooth-known-drop + pilotpage + town200-life + w1-papi, re-cooked (premises / fleet / map / parked); AUDIO STORY UISMOKE SCENERYED CONTRACTS PREMISES LIFE CITYHOST APSMOOTH PASS on that exact tree (17:10-17:20). HWCOV fixes the AUDIO wiring row vs the held path for L22d / L23b.
+
+## G3250-G3259 - ECON-SIM: THE ECONOMY SIMULATION (GAME-PLAN §12) - FOUR POLICIES x 20 SEEDS ON THE GAME'S OWN CORE, MASTER'S PRICES AGAINST A PROPOSED TABLE; ROUTES ARE THE LEAK, LANDMARK CO-FUNDING IS THE SINK, TIME (NOT MONEY) IS WHAT MISSES (2026-10-22, for the GAME COORDINATOR, cloud - node only; branch claude/econ-sim off origin/master 2c2a7445 = L22c; the work: 7c1336bb; NOT on claude/ready/ - the coordinator reviews first; G3251-G3259 unused)
+- **The recommendation, in plain words (for the user):**
+  - **Routes leak money today.** The down payment is 8 round trips, paid on signing. A metal Cessna on HOME - strip 11 gets 103 920 up front, more than the plane costs (75 000), and every wait pays round trips by the hour. The router policy ends with 66 % of its income from routes (target <= 40 %). Proposed: perKm 100 -> 30, downTrips 8 -> 6, and a TIMETABLE of at most 6 round trips a sim day. With these the router is at 13 %.
+  - **Money stops meaning anything early.** The 60 000 grant plus T6's down payment already put the wallet at ~8x the next purchase at T7. By segments 2-3 the frugal player sits at 23x / 47x and the router at 29x / 45x: there is nothing left to want.
+  - **The planes are already priced right** for the Gran Turismo model. A Cub-class build takes 3 contracts of pace and the 4-seater 7 (8 with its rung): keep the ledger x labour.
+  - **The sink that holds is landmark co-funding** (§12's leading candidate, confirmed). Take it out and money at rest goes back to 15-48x; take out any other sink and it moves by a few hundredths. Proposed keystones: 2.5 / 6 / 12 Cubs (78 000 / 187 200 / 374 400). The machine-shop rungs, the hangars, the competitions and the occasions are taste, not sinks.
+  - **Drop the story career's 60 000 grant.** Pay a 20 000 commitment fee at T6 instead, beside the route's own down payment. That is the first real money, and enough for any one of the three occasions ("lose a plane, gain a choice").
+  - **Time is the real constraint, not money.** At 1x a contract is ~25 min of real play: the island's legs, the unpaid positioning, five minutes of circuit per leg. The tutorial alone is ~2.6 h (T5's survey flies 63 km), so the demo (tutorial + segment 1 at 14 contracts) is ~8.5 h, not 2-3. With the cruise at 4x, segment 1 could hold ~4 contracts in 3 h. The economy's ratios are per contract, so they hold whatever length is picked. **The demo length is the user's call:** a cruise time compression, a shorter T5, or a longer demo.
+- **tools/econ_sim.js** (a TOOL, not a gate: run_gates does not run it; no gate changed).
+  - It plays careers headless on tools/flight_core.js: careerNew + storyNewCareer (the Cabin Strip by name), then T0-T7 through storyStep / storyApply.
+    - The Rufus flies to HOME; the client's Cub is finished to the checklist and delivered to strip 11; T5's three authored jobs are flown through contractOnStop.
+    - The Cub goes on floats to the seaplane base, where T6 signs the real route (routeOffer + routeSign).
+  - Open play takes the offer (careerOfferIds: the real generator, the arcs, build contracts, night work) with the best pay per real minute that one free plane can fly (contractDoers over the designs). It is flown leg by leg, each stop handed to contractOnStop, and routeSettle runs at every landing and wait.
+  - The designs come off their build files through buildGen + genShakedown + careerDesignOfShake (cached in os.tmpdir): Rufus, Cub, Jodel, Chinook, metal Cessna, Cessna floats, composite Jodel; twinf from CONTRACT_DESIGNS.
+  - The policies:
+    - **frugal**: one work plane, upgrades only;
+    - **collector**: every type, the occasions, the hangars, every landmark;
+    - **router**: hires every pilot, puts a plane on a route for each free pilot;
+    - **competitor**: a dedicated design per competition class, every round entered.
+  - The SINKS are tested one at a time with `--ablate`; the route pay grid with `--sweep`.
+  - Nothing live is changed: every variant is set on the process's copy of ROUTES_PAY / ECON_BOOK.shells and restored.
+  - `node tools/econ_sim.js [--seeds=20] [--ablate] [--sweep] [--config=live|proposed|no-landmark|...] [--jobs=N] [--out=DIR] [--no-page]`. The full set (380 careers) takes ~3 min on 4 workers.
+  - The workers each play a fixed slice; a career a worker does not report is played in the parent, so nothing is lost and nothing hangs.
+- **What is the sim's, not the game's (stated on the page):**
+  - The three segments: a design's segment is what it wants of a hangar (tube / wood 1, metal 2, composite 3). A keystone needs 14 / 20 / 26 contracts in its segment, plus (proposal) its co-funding.
+  - The time model: a leg is its cruise + 300 s; menus and the editor cost the REAL_S minutes; a night is waited out; a window more than 3 h off is left for later.
+  - The competitions: NOT IN THE GAME, the proposal's data.
+  - Build contracts: the cheapest design meeting every criterion off its certificate numbers is built, flown and delivered.
+- **Measured (20 seeds, medians; live -> proposed):**
+  - pace: Cub 3 -> 3; 4-seater 7 -> 8 (with its rung); side hangar 5.5 -> 11;
+  - money at rest, segments 1 / 2 / 3:
+    - frugal 5.2 / 23 / 47 -> 2.8 / 0.8 / 0.7;
+    - collector 0.6 / 3.7 / 10 -> 0.5 / 0.5 / 0.5;
+    - router 11.5 / 29 / 45 -> 2.6 / 0.9 / 0.8;
+    - competitor 4.7 / 15 / 26 -> 1.8 / 0.6 / 0.6;
+  - route share, router: 0.66 -> 0.13;
+  - fleet at keystone 3: collector 12 vs frugal 4; every policy finishes on every seed.
+  - **Every proposal target is met except the demo hours.**
+- **THE PROPOSED TABLE (nothing applied; the coordinator / the user decide). One Cub = 31 203.**
+  - **The start:**
+    - the story career's grant 60 000 -> **0**;
+    - T6's commitment fee **20 000** (a story effect in 79_story.js storyApply 'routeOffer', beside the route's own down payment).
+  - **ROUTES_PAY** (78b_routes.js): `{ perKm: 100 -> 30, downTrips: 8 -> 6, dayTrips: 6 (new) }`.
+    - dayTrips means routeTerms' `tripS = max(the flown round trip, 86400 / dayTrips)`: a one-line change.
+    - The story Cub, SEA <-> HOME: 1 260 a trip / 10 080 down -> 380 / 2 280.
+    - The metal Cessna, HOME <-> strip 11: 12 990 / 103 920 -> 3 900 / 23 400.
+    - The whole table is on the page.
+  - **Airframes, unchanged** (ledger x labour 0.8):
+    - Cub 25 000, Jodel 27 500, Chinook 20 900, twin floats 28 400;
+    - metal Cessna 75 000, Cessna floats 76 600;
+    - composite Jodel 39 200.
+  - **Occasions** at 0.35 x catalogue: T7's three at 33 300 (the fabric 4-seater placeholder, 0.30 today) / 13 800 / 10 000, plus 2 one-time listings per segment.
+  - **Machine shop** (sink 2): Sheets and bolts 0.25 Cubs (7 800, today's metal kit), Composite and electronics 2.5 Cubs (78 000). Today the main hangar holds every kit.
+  - **Landmarks** (sink 1):
+    - keystones: Observatory 2.5 Cubs (78 000), hydro plant 6 (187 200), long runway 12 (374 400);
+    - optional: mining village 1.5, sky tram 3, Driftwood Landing 5.
+  - **ECON_BOOK.shells** field / club / works 1.8 / 3.2 / 5.4 -> **3.6 / 5.6 / 8.6** Cubs. A side field shed: 44 960 -> 89 840 at Tamgas Hill.
+  - **Competitions** (sink 4, to build): entry 0.08 / 0.15 / 0.25 Cubs by segment, prizes x3 / x1.6 / x0.8.
+  - **Pilot sign-ons:** unchanged.
+- **The calibration rows PROPOSED for tools/_econ_check.js** (NOT applied; GATE ECON still PASS, 149 checks, on its live bands):
+  ```
+  const ECON_BANDS_STORY = {
+    cubClass:   [3, 4],      // a Cub-class build (the scratch Cub)            measured 3
+    seat4:      [6, 8],      // a segment-2 4-seater (+ its machine-shop rung) measured 8
+    hangar1:    [8, 12],     // a side hangar (a field shed at Tamgas Hill)    measured 11
+    rest:       [0.3, 3],    // money at rest, every policy, every segment (median)
+    routeShare: [0, 0.40],   // route income / all income, the router           measured 0.13
+    keystones:  3,           // every policy reaches keystone 3 on every seed
+  };
+  const ECON_REF_STORY = { seeds: ['s1'..'s8'], policies: ['frugal', 'router'], segK: { 1: 14, 2: 20, 3: 26 } };
+  ```
+  - The gate would call econ_sim's playCareer, or a slim copy of it in 76_economy.js, once the coordinator picks one.
+- **Findings on the way (not fixed, outside the brief):**
+  - **Edits to an existing airframe are free.** app.js only charges econMaterialiseNow on a NEW slot. The floats on the Cub, an engine swap, anything cost nothing; only a new type costs money. "Upgrades" is not yet a sink (T2's edit bill is already measured: procureEditBill).
+  - **playerSideIds counts the story's cabin shed (w1) as a side hangar.** With the cabin, a story career can buy only ONE more side hangar (PREM_SIDE_MAX 2).
+  - **Build contracts are the richest work.** minedock.b2 and its follow-ups pay 56 000 / 64 400 / 74 060 for a ~21 000 ultralight airframe.
+  - **Segment 3 has one validated design** (the composite Jodel, 2 seats). A frugal player keeps the Cessna through it.
+- **Output:**
+  - futureDesigns/game/econ-sim/index.html: self-contained (Plex Sans inlined from vendor/fonts, inline SVG, the garage's dark look, a tooltip on every mark, a table under every chart; checked at 1100 and 390 px wide, no console error);
+  - econ_sim_results.json beside it.
+- **Checks:** `node --check tools/econ_sim.js`; GATE ECON PASS (unchanged); no generated file edited (the build left the tree clean); the numbers are identical on 5f3f2c79 and on L22c 2c2a7445.
