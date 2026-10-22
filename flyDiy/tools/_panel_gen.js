@@ -530,7 +530,8 @@ function layoutCore(A, o, flexRow) {
     if (o.elec.altA) sw.push({ k: 'alt', kind: 'rocker' });
     // G318: an avionics master when a radio is fitted — the user drew the
     // tape; the bus gates the radios' loads on it
-    if ((o.radios || []).some(k => k === 'com' || k === 'xpdr')) sw.push({ k: 'avionics', kind: 'rocker' });
+    // G2801: ...and when any avionics is fitted (a NAV- or GPS-only fit had its loads on no switch at all)
+    if ((o.radios || []).some(k => k === 'com' || k === 'xpdr') || o.avionics) sw.push({ k: 'avionics', kind: 'rocker' });
   }
   for (const k of (o.extLights || [])) sw.push({ k, kind: o.swStyle === 'pushpull' ? 'pushpull' : 'toggle', light: true });   // G371
   for (const k of (o.intLights || [])) sw.push({ k, kind: 'knob', light: true });

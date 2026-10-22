@@ -1385,6 +1385,7 @@ function build(parent, A, P, pilotX) {
   const L = G.layout(A, {
     items: R.items, side: R.side, pilotX, radios,
     elec: { hasBus: R.hasBus, altA: R.altA },
+    avionics: ['com', 'xpdr', 'nav', 'gps'].some(k => R.avionics[k] !== 'none'),   // G2801: the avionics bus's master
     energyKind: R.energyKind,                                 // G442.1: the key's kind (a pack's power key)
     // G2796: a switch only for a light that is FITTED
     extLights: lightsOn && +P.lightSw ? EXT_LIGHTS.filter(k => litFitted(P, k)) : [],

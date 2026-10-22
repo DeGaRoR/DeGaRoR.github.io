@@ -41,7 +41,14 @@ const LAG_HANG = 1.2;
 const REST = { ias: 0, alt: 0, vs: 0, roll: 0, pitch: 0, r: 0, hdg: null, rpmEng: 0, nz: 1,
                nzMax: 1, nzMin: 1, oilP: 0, oilT: 15, fuelFrac: 0, volts: 0, beta: 0 };
 const PSI = 6894.757;
-const LIGHT_AMPS = { taxi: 5, beacon: 3, land: 8, nav: 2.5, flood: 0.5, instr: 0.6, pedal: 0.3, pax: 0.5 };
+// G2801: the lamps' draws are the core's (GEN_LIGHT_AMPS, 60_gen_spec.js), one table for the bus, the breaker
+// sizes and GATE ELEC; the literal is the fallback for a page without the core
+const LIGHT_AMPS = typeof GEN_LIGHT_AMPS !== 'undefined' ? GEN_LIGHT_AMPS
+  : { taxi: 5, beacon: 3, land: 8, nav: 2.5, flood: 0.5, instr: 0.6, pedal: 0.3, pax: 0.5 };
+const LIGHT_BREAKER = typeof GEN_LIGHT_BREAKER !== 'undefined' ? GEN_LIGHT_BREAKER : {};
+// the keys once (CK.frame turns them every frame: no Object.keys, no 'sw_' + k there)
+const LIGHT_KEYS = Object.keys(LIGHT_AMPS);
+const LIGHT_SW = LIGHT_KEYS.map(k => 'sw_' + k);
 const KEY_STEPS = ['off', 'l', 'r', 'both', 'start'];
 
 function interp(stops, v) {
@@ -92,9 +99,10 @@ function make(THREE) {
     } catch (e) {}
     CK.qnh = opts.fieldElev || 0;
     CK.pilotKey = opts.pilotKey || null;
-    // the bus from the fit
+    // the bus from the fit (G2801: with the lights the build has FITTED, so the breaker panel has theirs)
+    const litFit = CK.lightOn ? LIGHT_KEYS.filter(k => !CK.unfit.has(k)) : [];
     let fit = null;
-    try { if (typeof genSystemsResolve === 'function') fit = genSystemsResolve(spec || {}); } catch (e) {}
+    try { if (typeof genSystemsResolve === 'function') fit = genSystemsResolve(spec || {}, { lights: litFit }); } catch (e) {}
     CK.fit = fit;
     // A3: WHAT THE FUEL / CHARGE GAUGE READS AGAINST - the build's energy
     // kind and its DESIGN capacity (litres or kWh), the same rule the dash
@@ -106,18 +114,26 @@ function make(THREE) {
                 : (spec && spec.fuel && spec.fuel.designL > 0) ? +spec.fuel.designL : +((spec && spec.fuel && spec.fuel.litres) || 0);
       CK.energy = { kind: battery ? 'battery' : 'fuel', capacity: cap > 0 ? cap : 0 };
     }
-    const loads = fit ? fit.loads.map(l => ({ key: l.key, amps: l.amps })) : [];
-    for (const k of Object.keys(LIGHT_AMPS)) loads.push({ key: 'sw_' + k, amps: 0 });
+    // G2801: each load on its breaker, the radios on the avionics bus; a light's on its circuit's breaker
+    const breakers = fit && fit.breakers ? fit.breakers : [];
+    const hasCb = k => breakers.some(b => b.key === k);
+    const loads = fit ? fit.loads.map(l => ({ key: l.key, amps: l.amps, av: !!l.av, cb: l.cb != null ? l.cb : null })) : [];
+    for (const k of LIGHT_KEYS) loads.push({ key: 'sw_' + k, amps: 0, cb: hasCb(LIGHT_BREAKER[k]) ? LIGHT_BREAKER[k] : null });
     CK.bus = (typeof makeBus === 'function')
-      ? makeBus({ battAh: fit ? fit.battAh : 0, altA: fit ? fit.altA : 0, loads,
+      ? makeBus({ battAh: fit ? fit.battAh : 0, altA: fit ? fit.altA : 0, loads, breakers,
                   altCutIn: 1100, starterA: 150 })
       : null;
     if (CK.bus) { CK.bus.master = !!CK.sw.sw_master; CK.bus.alt = !!CK.sw.sw_alt; }
+    // THE BREAKERS (G2801): `cb_<key>` 0 = in, 1 = pulled (out) - the dash's push-pull law; all in at bind
+    CK.cbKeys = breakers.map(b => b.key); CK.cbSw = CK.cbKeys.map(k => 'cb_' + k);
+    for (const k of CK.cbSw) CK.sw[k] = 0;
+    CK.gpsFit = !!(fit && fit.avionics && fit.avionics.gps && fit.avionics.gps !== 'none');
     // the solver asks the bus before it cranks
     if (sim) sim.starterOk = () => !CK.bus || (fit && !fit.starter ? false : CK.bus.starterOk);
     for (const k of Object.keys(REST)) { raw[k] = REST[k]; CK.readings[k] = REST[k]; }
     raw.hdg = 0; CK.readings.hdg = 0;
     CK.lamps = model && model.lamps ? model.lamps : [];
+    CK.lampSw = CK.lamps.map(l => 'sw_' + l.key);      // per lamp, once (CK.glow runs every frame)
     CK.setupLights(model);
     CK.padSwitches(model);
     return CK;
@@ -217,16 +233,28 @@ function make(THREE) {
     if (ctx.day) CK.lightsRule(ctx.day, sim, cg);    // the switches reach the bus and the key reaches the engine
     if (bus) {
       bus.master = !!CK.sw.sw_master; bus.alt = !!CK.sw.sw_alt;
-      // G318: the avionics master gates the radios' loads
-      bus.on.com = !!CK.sw.sw_avionics; bus.on.xpdr = !!CK.sw.sw_avionics;
-      for (const k of Object.keys(LIGHT_AMPS)) {
-        const v = (CK.lightOn && !(CK.unfit && CK.unfit.has(k))) ? +CK.sw['sw_' + k] || 0 : 0;
-        bus.setLoad('sw_' + k, LIGHT_AMPS[k] * (k === 'beacon' ? 0.5 : 1) * (v > 0 ? (v > 1 ? 1 : v) : 0));
+      // G318: the avionics master gates the radios' loads; G2801: the whole avionics bus (COM, XPDR, NAV, GPS)
+      bus.avionics = !!CK.sw.sw_avionics;
+      // G2801: the breakers the hand pushed in or pulled
+      const cbK = CK.cbKeys, cbS = CK.cbSw;
+      for (let i = 0; i < cbK.length; i++) {
+        const inn = !(+CK.sw[cbS[i]] > 0.5);
+        if (inn && bus.cb[cbK[i]] === false) bus.tripped[cbK[i]] = false;
+        bus.cb[cbK[i]] = inn;
+      }
+      for (let i = 0; i < LIGHT_KEYS.length; i++) {
+        const k = LIGHT_KEYS[i], sk = LIGHT_SW[i];
+        const v = (CK.lightOn && !(CK.unfit && CK.unfit.has(k))) ? +CK.sw[sk] || 0 : 0;
+        bus.setLoad(sk, LIGHT_AMPS[k] * (k === 'beacon' ? 0.5 : 1) * (v > 0 ? (v > 1 ? 1 : v) : 0));
       }
       const rpmProp = (o.rpm && o.rpm[0]) || 0;
       bus.step(dt, rpmProp, E.crank > 0);
+      // a breaker that opened itself pops out under the hand
+      for (let i = 0; i < cbK.length; i++) if (bus.cb[cbK[i]] === false) CK.sw[cbS[i]] = 1;
     }
     const busOk = bus ? bus.ok : true;
+    // G2801: the GPS is alive on the avionics bus, behind its breaker
+    CK.gpsOn = CK.gpsFit && CK.pw('gps');
     // G318: THE NEW CONTROLS' NUMBERS ON THE LINKAGE. The parking brake holds
     // the wheels through ctl.brake after the hand's write; the trim wheel
     // shows the input's bias; the fuel selector its position. OFF stops the
@@ -250,7 +278,7 @@ function make(THREE) {
     const ias = o.Veas != null ? o.Veas : (o.V || 0);
     const vacOk = fit ? (fit.vac === 'pump' ? E.running : fit.vac === 'venturi' ? ias > 20 : false) : true;
     const aiElec = !!(fit && fit.items && fit.items.includes('aiE'));
-    const gyroOk = aiElec ? busOk : vacOk;
+    const gyroOk = aiElec ? CK.pw('aiE') : vacOk;
     CK.gyroOk = gyroOk; CK.busOk = busOk;
     // the raw numbers
     raw.ias = ias < 35 / 3.6 ? 0 : ias;   // G700: the ASI's floor - the needle sits on its stop below ~35 km/h (app.js hud)
@@ -258,7 +286,7 @@ function make(THREE) {
     raw.vs = o.vs || 0;
     raw.roll = o.roll || 0;                // G1107: erect or hanging plumb, the ball shows the attitude
     raw.pitch = o.pitch || 0;              // (a dead gyro only answers slower - LAG_HANG, below)
-    raw.r = busOk ? (o.r || 0) : 0;
+    raw.r = CK.pw('turn') ? (o.r || 0) : 0;          // G2801: the turn coordinator on its own breaker
     raw.beta = o.beta || 0;
     const hdgNow = navDeg(o.hdg || 0);
     raw.hdg = hdgNow;
@@ -277,8 +305,8 @@ function make(THREE) {
     const qty = onPack ? (F.soc != null ? clamp(F.soc, 0, 1) : (F.frac != null ? F.frac : 1))
               : (EK.capacity > 0 && F.litres != null) ? clamp(F.litres / EK.capacity, 0, 1)
               : (F.frac != null ? F.frac : 1);
-    raw.fuelFrac = (onPack || busOk) ? qty : 0;
-    raw.volts = bus ? bus.V : 0;
+    raw.fuelFrac = (onPack || CK.pw('fuel')) ? qty : 0;
+    raw.volts = bus && CK.pw('volts') ? bus.V : 0;
     // THE CLOCK IS THE DAY'S (SKY chantier): the world's local time when a day is on the
     // context, else 12:00 plus the flight's own clock as it always was
     const tClock = (ctx.day && ctx.day.localSeconds != null) ? ctx.day.localSeconds : 12 * 3600 + (ap && ap.t != null ? ap.t : CK.t);
@@ -317,34 +345,40 @@ function make(THREE) {
     const ex = (W.GFX && W.GFX.exposureBase && W.GFX.exposureBase() != null) ? W.GFX.exposureBase() : 0.92;
     return Math.pow(0.92 / Math.max(0.92, ex), p);
   };
+  // G2801: is a load alive - the bus up, the master, its breaker and its bus (true with no bus: the shed's bench)
+  CK.pw = key => (CK.bus ? CK.bus.powered(key) : true);
   CK.glow = dt => {
     const busOk = CK.busOk !== false;
     const beacon = 0.12 + 0.88 * Math.pow(Math.max(0, Math.cos(2 * Math.PI * 0.75 * CK.t)), 10);
     const kIn = CK.nightK(0.92), kOut = CK.nightK(0.8);
-    for (const l of (CK.lamps || [])) {
+    const LS = CK.lampSw || [];
+    for (let i = 0; i < (CK.lamps || []).length; i++) {
+      const l = CK.lamps[i];
       // the master / alternator buttons light with their own switch (4d),
-      // the lamps with theirs when the lights are fitted
-      const fitted = CK.lightOn || l.key === 'master' || l.key === 'alt';
-      const v = fitted && busOk ? clamp(+CK.sw['sw_' + l.key] || 0, 0, 1) : 0;
+      // the lamps with theirs when the lights are fitted; G2801 (W1): the
+      // avionics master's cap is its own switch's too, lights fitted or not;
+      // a lamp whose breaker is out is dark
+      const fitted = CK.lightOn || l.key === 'master' || l.key === 'alt' || l.key === 'avionics';
+      const v = fitted && busOk && CK.pw(LS[i]) ? clamp(+CK.sw[LS[i]] || 0, 0, 1) : 0;
       const gain = l.key === 'beacon' ? beacon : 1;
       const inside = l.key === 'flood' || l.key === 'pedal' || l.key === 'instr' || l.key === 'master' || l.key === 'alt';
       if (l.mesh.material && l.mesh.material.emissive)
         l.mesh.material.emissiveIntensity = v * gain * (l.kind === 'lens' ? 2.4 : 0.55) * (l.k || 1) * (inside ? kIn : kOut);   // G468: the socket's third
     }
     if (CK.model && CK.model.spot) {
-      const land = CK.lightOn && busOk ? clamp(+CK.sw.sw_land || 0, 0, 1) : 0;
-      const taxi = CK.lightOn && busOk ? clamp(+CK.sw.sw_taxi || 0, 0, 1) : 0;
+      const land = CK.lightOn && busOk && CK.pw('sw_land') ? clamp(+CK.sw.sw_land || 0, 0, 1) : 0;
+      const taxi = CK.lightOn && busOk && CK.pw('sw_taxi') ? clamp(+CK.sw.sw_taxi || 0, 0, 1) : 0;
       CK.model.spot.intensity = (4.0 * land + 1.6 * taxi) * kOut;
       CK.model.spot.angle = land ? 0.30 : 0.62;
     }
     // the cabin's own two lights follow their dimmers (G296)
     if (CK.model && CK.model.floodLight)
-      CK.model.floodLight.intensity = 0.9 * kIn * (CK.lightOn && busOk ? clamp(+CK.sw.sw_flood || 0, 0, 1) : 0);
+      CK.model.floodLight.intensity = 0.9 * kIn * (CK.lightOn && busOk && CK.pw('sw_flood') ? clamp(+CK.sw.sw_flood || 0, 0, 1) : 0);
     if (CK.model && CK.model.pedalLight)
-      CK.model.pedalLight.intensity = 0.35 * kIn * (CK.lightOn && busOk ? clamp(+CK.sw.sw_pedal || 0, 0, 1) : 0);
+      CK.model.pedalLight.intensity = 0.35 * kIn * (CK.lightOn && busOk && CK.pw('sw_pedal') ? clamp(+CK.sw.sw_pedal || 0, 0, 1) : 0);
     const W = typeof window !== 'undefined' ? window : {};
     const PLm = W.CAGE_PANEL && W.CAGE_PANEL.material ? W.CAGE_PANEL.material('faces') : null;
-    CK.dimNow = CK.lightOn && busOk ? clamp(+CK.sw.sw_instr || 0, 0, 1) : 0;   // the hands read it in pose (G305)
+    CK.dimNow = CK.lightOn && busOk && CK.pw('sw_instr') ? clamp(+CK.sw.sw_instr || 0, 0, 1) : 0;   // the hands read it in pose (G305)
     if (PLm) PLm.emissiveIntensity = CK.dimNow * 1.6 * kIn;
   };
 
@@ -361,7 +395,8 @@ function make(THREE) {
       switch (c.law) {
         case 'lin': {
           let v = R[drv]; if (v == null) v = 0;
-          if (!CK.busOk && c.gauge && CK.fit && isElectric(c.gauge)) v = REST[drv] != null ? REST[drv] : 0;
+          // G2801: an electric dial dies with its own breaker as with the bus
+          if (c.gauge && CK.fit && isElectric(c.gauge) && !(CK.busOk && CK.pw(c.gauge))) v = REST[drv] != null ? REST[drv] : 0;
           a1 = interp(c.stops, v) * D2R; break;
         }
         case 'turn': {

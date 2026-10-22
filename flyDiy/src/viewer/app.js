@@ -7044,7 +7044,9 @@
     const k = m[1], P = window.CAGE_UI.P;
     // the master and the alternator buttons: a state of the shed's own
     // (G311) — no bus behind them here, but they light and press
-    const row = (k === 'master' || k === 'alt') ? (k === 'alt' ? 'swAlt' : 'swMaster') : 'li_' + k;
+    // (G2801, W2: the avionics master is the shed's own state too - it looked up a `li_avionics` that never was)
+    const row = (k === 'master' || k === 'alt' || k === 'avionics')
+      ? ({ alt: 'swAlt', avionics: 'swAvionics' }[k] || 'swMaster') : 'li_' + k;
     if (!(row in P)) return false;
     const v = +P[row] || 0;
     const knob = /^(flood|instr|pedal|pax)$/.test(k);

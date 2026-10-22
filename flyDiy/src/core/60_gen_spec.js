@@ -1944,6 +1944,44 @@ const GEN_ELEC = {
   // the harness: master + breakers + the wire, once, plus a little per item
   harness: { kg: 1.2, kgPerItem: 0.15, price: 250 },
 };
+// THE ELECTRICS AS INSTALLED PARTS (G2801, AVIONICS-GPS phase 2; futureDesigns/AVIONICS-STATUS-2026-10.md §1B, §1G).
+// The rows above BILL; this table says what each billed thing IS once it is bolted in: its size, and where it hangs.
+// It moves no mass and no price: the parts genSystemsResolve lists are the bill's own rows broken out (the harness
+// row split into the bus - the master contactor, the bus bar and the breaker panel - and the wire), each `at` the
+// frame station 61_gen_frame bills it on (`firewallLow` the firewall ring's lower pair, `engine` the accessory case
+// = the engine pair, `panel` the firewall ring's top pair, where the dash hangs). The engine bay draws the battery,
+// the generator and the starter from these (no longer from its own rows); the dash draws the breakers.
+//   dims  a box, m (length x width x height, the battery's case); len / dia a can (the rotating machines)
+const GEN_ELEC_PARTS = {
+  battery: {
+    lead:    { dims: [0.178, 0.079, 0.168], note: 'Odyssey PC680: 178 x 79 x 168 mm' },
+    lithium: { dims: [0.150, 0.086, 0.132], note: 'EarthX ETX900: 150 x 86 x 132 mm' },
+  },
+  alternator: {
+    gen20: { len: 0.21, dia: 0.11, note: 'a belt generator on the case top' },
+    alt60: { len: 0.16, dia: 0.13, note: 'Plane-Power class, gear-driven on the accessory pad' },
+  },
+  starter: { yes: { len: 0.19, dia: 0.09, note: 'Sky-Tec class, on the ring gear' } },
+  // the bus: the master contactor and the bus bar (`kg`), plus a breaker each (`perBreaker`) - the share of the
+  // harness row that is not wire. The wire is the rest of the row, so the two always add up to it exactly.
+  bus: { kg: 0.45, perBreaker: 0.03 },
+  // a breaker's rating: the next standard push-to-reset size over 1.4 x what it feeds (a Klixon 7274's sizes);
+  // the alternator's field breaker is 5 A whatever the alternator
+  breakerSizes: [1, 2, 3, 5, 7.5, 10, 15, 20, 25, 30, 35],
+  breakerMargin: 1.4, fieldA: 5,
+};
+// THE LAMPS' DRAWS (A at 12 V) - cockpit.js's LIGHT_AMPS moved into the core (E6): the bus, the breaker sizes and
+// GATE ELEC read one table. The beacon draws half its rating on average (the lamp is pulsed).
+const GEN_LIGHT_AMPS = { taxi: 5, beacon: 3, land: 8, nav: 2.5, flood: 0.5, instr: 0.6, pedal: 0.3, pax: 0.5 };
+// the interior lamps share one breaker ('cabinLt'); each outside light has its own (named apart from the radios':
+// the NAV receiver's breaker is 'nav', the navigation lights' 'navLt')
+const GEN_LIGHT_BREAKER = { taxi: 'taxiLt', beacon: 'beaconLt', land: 'landLt', nav: 'navLt',
+                            flood: 'cabinLt', instr: 'cabinLt', pedal: 'cabinLt', pax: 'cabinLt' };
+function genBreakerSize(amps) {
+  const P = GEN_ELEC_PARTS, need = Math.max(1, (+amps || 0) * P.breakerMargin);
+  for (const s of P.breakerSizes) if (s >= need - 1e-9) return s;
+  return P.breakerSizes[P.breakerSizes.length - 1];
+}
 // THE AVIONICS. The radios need a bus; the aerials that carry them are
 // GEN_ACCESS rows (comm / nav / transponder) and read this through
 // genAccessNeeds. `later` rows are declared so the ledger's schema is final
@@ -2009,7 +2047,14 @@ const GEN_SYSTEMS_SIDES = ['pilot', 'centre'];
 //   (keys), dropped[] ({key, why}), rows[] ({key, group, name, kg, price,
 //   amps}), bill.panel/elec/avionics {kg, price}, kg, price, loads[] ({key,
 //   amps}), hasBus, battAh, altA, starter (bool), vac (key)
-function genSystemsResolve(S) {
+// G2801 (AVIONICS-GPS phase 2) adds, moving nothing in the bill:
+//   loads[].av      the radios ride the AVIONICS bus, behind the avionics master
+//   loads[].cb      the breaker that feeds the load
+//   breakers[]      {key, A, feeds[], group} - one per powered dial and radio, the alternator's field, and (with
+//                   opts.lights, the light keys the build has FITTED) one per outside light and one for the cabin's
+//   parts[]         {key, kind, name, kg, at, dims | len/dia} - the electrics as installed things (GEN_ELEC_PARTS);
+//                   the bus and the wire split the harness row and add up to it exactly
+function genSystemsResolve(S, opts) {
   const sy = (S && S.systems) || {};
   const tier = GEN_SYSTEMS[sy.fit] ? sy.fit : 'basic';
   const T = GEN_SYSTEMS[tier];
@@ -2067,13 +2112,54 @@ function genSystemsResolve(S) {
     const r = GEN_AVIONICS[k][avionics[k]];
     if (r.kg > 0 || r.price > 0) {
       rows.push({ key: k + ':' + avionics[k], group: 'avionics', name: r.name, kg: r.kg, price: r.price, amps: r.amps || 0 });
-      nPowered++; loads.push({ key: k, amps: r.amps || 0 });
+      nPowered++; loads.push({ key: k, amps: r.amps || 0, av: true });
     }
   }
   if (hasBus) {
     const H = GEN_ELEC.harness;
     rows.push({ key: 'harness', group: 'elec', name: 'master, breakers and harness',
                 kg: +(H.kg + H.kgPerItem * nPowered).toFixed(3), price: H.price, amps: 0 });
+  }
+  // THE BREAKERS (G2801): a load is fed through its own, the radios' through theirs on the avionics bus
+  const breakers = [];
+  if (hasBus) {
+    for (const l of loads) {
+      l.cb = l.key;
+      breakers.push({ key: l.key, A: genBreakerSize(l.amps), feeds: [l.key], group: l.av ? 'avionics' : 'panel' });
+    }
+    if (elec.alternator !== 'none')
+      breakers.push({ key: 'field', A: GEN_ELEC_PARTS.fieldA, feeds: ['alternator'], group: 'elec' });
+    const lit = (opts && Array.isArray(opts.lights)) ? opts.lights : [];
+    const lb = {};
+    for (const k of Object.keys(GEN_LIGHT_AMPS)) {
+      if (!lit.includes(k)) continue;
+      const b = GEN_LIGHT_BREAKER[k];
+      if (!lb[b]) { lb[b] = { key: b, A: 0, feeds: [], group: 'lights', amps: 0 }; breakers.push(lb[b]); }
+      lb[b].feeds.push(k); lb[b].amps += GEN_LIGHT_AMPS[k] * (k === 'beacon' ? 0.5 : 1);
+    }
+    for (const b of Object.values(lb)) { b.A = genBreakerSize(b.amps); delete b.amps; }
+  }
+  // THE PARTS (G2801): the electrics rows as installed things, each where the frame bills it
+  const parts = [];
+  {
+    const PT = GEN_ELEC_PARTS;
+    const put = (k, at) => {
+      const v = elec[k], r = GEN_ELEC[k][v], g = PT[k] && PT[k][v];
+      if (!(r && r.kg > 0)) return;
+      parts.push(Object.assign({ key: k, kind: v, name: r.name, kg: r.kg, at }, g ? cleanPart(g) : {}));
+    };
+    const cleanPart = g => { const o = {}; for (const q of ['dims', 'len', 'dia']) if (g[q] != null) o[q] = g[q]; return o; };
+    put('battery', 'firewallLow');
+    put('alternator', 'engine');
+    put('starter', 'engine');
+    put('vac', 'engine');
+    const hr = rows.find(r => r.key === 'harness');
+    if (hr) {
+      const busKg = +Math.min(hr.kg, PT.bus.kg + PT.bus.perBreaker * breakers.length).toFixed(3);
+      parts.push({ key: 'bus', kind: 'bus', name: 'master contactor, bus bar and ' + breakers.length + ' breakers',
+                   kg: busKg, at: 'panel', breakers: breakers.length });
+      parts.push({ key: 'wire', kind: 'wire', name: 'the wire', kg: hr.kg - busKg, at: 'panel' });
+    }
   }
   const sum = g => rows.filter(r => r.group === g)
     .reduce((a, r) => ({ kg: a.kg + r.kg, price: a.price + r.price }), { kg: 0, price: 0 });
@@ -2084,7 +2170,7 @@ function genSystemsResolve(S) {
     items, elec, avionics, dropped, rows,
     bill: { panel, elec: el, avionics: av },
     kg: panel.kg + el.kg + av.kg, price: panel.price + el.price + av.price,
-    loads, hasBus, battAh: GEN_ELEC.battery[elec.battery].Ah,
+    loads, breakers, parts, hasBus, battAh: GEN_ELEC.battery[elec.battery].Ah,
     altA: GEN_ELEC.alternator[elec.alternator].A,
     starter: elec.starter === 'yes', vac: elec.vac,
     // A3: what the `fuel` slot measures on this build - 'fuel' (litres, a

@@ -1,0 +1,82 @@
+{
+ "cub": {
+  "def": "358103acb25720b4",
+  "ledger": {
+   "empty": 353.794651,
+   "cost": 31203
+  },
+  "fly": {
+   "hash": "15729669f301a6b6",
+   "cg": [
+    -163.1685,
+    311.6399,
+    273.5504
+   ]
+  },
+  "joined": "f5a1e70c39bf09b5",
+  "joinedLedger": {
+   "empty": 354.112297,
+   "cost": 31215
+  }
+ },
+ "jodel": {
+  "def": "4b9627b45e434d0b",
+  "ledger": {
+   "empty": 340.555175,
+   "cost": 34363
+  },
+  "fly": {
+   "hash": "9f59ba25c147f214",
+   "cg": [
+    5.755,
+    202.5145,
+    326.5209
+   ]
+  },
+  "joined": "3b455460bc723d70",
+  "joinedLedger": {
+   "empty": 340.851299,
+   "cost": 34383
+  }
+ },
+ "cessna": {
+  "def": "449918ffb4e0fdb0",
+  "ledger": {
+   "empty": 641.259008,
+   "cost": 89078
+  },
+  "fly": {
+   "hash": "614d2d6afe510116",
+   "cg": [
+    -882.1556,
+    238.0485,
+    304.9259
+   ]
+  },
+  "joined": "654ab3118ac68616",
+  "joinedLedger": {
+   "empty": 642.890203,
+   "cost": 89189
+  }
+ },
+ "rufus": {
+  "def": "cebba3a093f39b4f",
+  "ledger": {
+   "empty": 273.440244,
+   "cost": 37581
+  },
+  "fly": {
+   "hash": "50bc60e5d22438e0",
+   "cg": [
+    -58.9835,
+    308.2959,
+    244.2894
+   ]
+  },
+  "joined": "27b35e2a38407caa",
+  "joinedLedger": {
+   "empty": 273.844361,
+   "cost": 37598
+  }
+ }
+}
