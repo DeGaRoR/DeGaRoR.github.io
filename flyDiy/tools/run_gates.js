@@ -883,6 +883,11 @@ const GATES = [
   // writes nothing, a drag nothing, a release once (genPodFromVolume's dims inside GEN_POD.clamp), the readouts the
   // core's, red with the reason, unticked = the key removed; the wiring's sources; --selftest 10 doctored rules
   { id: 'PODEDITOR', file: '_pod_editor_check.js', tier: 'core', wall: 20 },
+  // THE BELLY POD WITH THE DAMAGE LAYER ON (G3463 / G3464, BELLY-POD-2): its own break group (pod:mount, the 16 hangers),
+  // the hangers / braces as steel fittings and the glass shell; belly landings on the metal Cessna and the Jodel (gear
+  // down: untouched; gear up 1.5 m/s: crushed, freight at risk; 3 m/s: torn off, freight lost) in the integrity
+  // record's words; the scrape's wear; the pod's freight on its own nodes and lost with it in the career's stop record
+  { id: 'DMGPOD', file: '_dmg_pod_check.js', tier: 'core', weight: 2, wall: 90 },
   // THE CONTRACTS (G2240 CONTRACT-MODEL, GAME-2026-10-06.md §6/§7/§13.2): the record, the providers, the seeded job
   // generator, a stage's acceptance from a STOPPED, the follow-up build contract, the career document; every job and
   // arc stage flyable by a validated design, none doing every class (az); (G2430 CONTRACT-ROUTES) THE ROUTES: >= 60 % of

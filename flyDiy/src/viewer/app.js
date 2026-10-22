@@ -5088,6 +5088,7 @@
     if (!K.inhIt) {
       const lay = new Map(); for (const r of (model.data && model.data.layers) || []) { let L = lay.get(r[1]); if (!L) lay.set(r[1], L = []); L.push(r); }
       const surf = new Set(model.surfParts || []), strut = new Set(model.strutRigs || []);
+      const podN = def.parts && def.parts.podFrame ? def.parts.podFrame.nodes : null;   // G3463
       const L = [];
       for (const [own, , , , , , kind] of groups) {
         const R = own.brkR; if (!R) continue;
@@ -5107,6 +5108,11 @@
           E.fixed = [[rn, 1]]; cv.fill(SB.INH.rigid);
         } else if (surf.has(own)) cv.fill(SB.INH.cover);
         else if (strut.has(own)) cv.fill(SB.INH.tube);
+        else if (own.name && podN && model.mats && model.mats[own.name] && model.mats[own.name].sec === 'pod') {
+          // G3463 (BELLY-POD-2): THE BELLY POD RIDES ITS OWN FOUR NODES as one moulded body (61_gen_frame's podFrame): torn
+          // off at its fittings it leaves with them, crushed it follows them - never bound to the belly's longerons
+          E.fixed = podN.map(i => [i, 1 / podN.length]); cv.fill(SB.INH.rigid);
+        }
         else if (own.name) {
           const mt = model.mats && model.mats[own.name], sec = mt && mt.sec, role = sec ? (AEROSKIN.AERO_ROLE[sec] || '') : '';
           const rg = lay.get(own.name) || [], layer = new Array(nv).fill('');
@@ -8259,7 +8265,8 @@
     try {
       const D = sim.damage ? sim.damage() : null;
       const S = (D && D.structural) || (flDmg && flDmg.structural) || null;
-      return S ? { damaged: !!S.damaged, why: S.why || null } : null;
+      // (G3464: with a belly pod, its freight's fate - 60d genPodDamage: 'lost' when it tore off)
+      return S ? Object.assign({ damaged: !!S.damaged, why: S.why || null }, S.pod ? { podFreight: S.pod.freight } : {}) : null;
     } catch (e) { return null; }
   }
   function careerStopApply(d, how, W, wrecked) {
@@ -8429,7 +8436,9 @@
   function econMaterialiseNow(d, name) {
     const B = econBuildPrice();
     if (!B) return d;
-    const r = econMaterialise(d, name, B.cost, B.wants, { price: B.price });
+    // (G3465: a belly pod in the design is in the price - say so, so the same save does not bill it again)
+    const podPaid = curKey === 'gen' && def && def.parts && def.parts.ledger && def.parts.ledger.pod ? def.parts.ledger.pod.cost : 0;
+    const r = econMaterialise(d, name, B.cost, B.wants, podPaid > 0 ? { price: B.price, podPaid } : { price: B.price });
     if (!r.ok) { console.warn('flyDiy (career): ' + name + ' was saved but not paid for - ' + r.why); return d; }
     ecNote = 'built ' + name + ': ' + ecFmt(r.cost);
     return r.doc;
@@ -9380,7 +9389,9 @@
   // validated design the sandbox put there (frStandDesign)
   function frCard() {
     const slot = slotOnStand();
-    return freightLoadCard(playerLoad(), slot, frEnv(slot)) || (frStandDesign && FREIGHT_CARDS[frStandDesign]) || null;
+    const c = freightLoadCard(playerLoad(), slot, frEnv(slot)) || (frStandDesign && FREIGHT_CARDS[frStandDesign]) || null;
+    // G3464 (BELLY-POD-2): the stand's aeroplane with a belly pod - its hold is a space of the card (76_ freightCardPod)
+    return c && curKey === 'gen' && def && def.parts && def.parts.pod && typeof freightCardPod === 'function' ? freightCardPod(c, def, fsYD()) : c;
   }
   // THE FRAME: card -> world, on the stand. The card was measured off the CAGE MESH (tools/_freight_site.js: the
   // sheet's sections, y and the lateral as they are, x = zFw - z with zFw the join's wsFront ring, G49), and the cage
@@ -10690,6 +10701,10 @@
         (C.legs || []).some(l => !l.ok) ? 'bad' : judge('pod clearance', w.clear));
       R('pod drag', n1(p.cda, 3) + ' m² · ' + n1((p.dragShare || 0) * 100, 0) + '% of the body · '
         + n1((cr.dV || 0) * 3.6, 1) + ' km/h cruise · ' + n1(cr.dClimb, 2) + ' m/s climb');
+      // G3461 (BELLY-POD-2): what the pod costs this aeroplane against itself with no pod (its drag and its shell)
+      if (p.perf) R('pod cost', 'take-off ' + (p.perf.dTO >= 0 ? '+' : '') + n1(p.perf.dTO, 0) + ' m (' + n1(p.perf.toWith, 0) + ')'
+        + ' · climb ' + n1(p.perf.dClimb, 2) + ' m/s (' + n1(p.perf.climbWith, 2) + ')'
+        + ' · cruise ' + n1(p.perf.dCruise * 3.6, 1) + ' km/h (' + n1(p.perf.cruiseWith * 3.6, 0) + ')');
       if (b.staticMargin != null)
         R('pod full', (b.cgPct != null ? n1(b.cgPct * 100, 0) + '% MAC' : n1(b.cgX, 2) + ' m') + ' · margin '
           + n1(b.staticMargin, 2) + (b.overGross > 0 ? ' · ' + n1(b.overGross, 0) + ' kg over the design gross' : ''),

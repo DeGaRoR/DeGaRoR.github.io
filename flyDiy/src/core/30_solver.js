@@ -449,6 +449,14 @@ function makeSim(def, world) {
   // (params.scar === false: no record - GATE DMGSCAR's selftest, the A/B of its cost)
   const SCR = DMG_ON && P_.scar !== false && typeof scarMake === 'function' ? scarMake(def, P_.nEngines || 1) : null;
   if (SCR !== null) DMG.scar = SCR.out;
+  // G3463 (BELLY-POD-2): THE BELLY POD'S FLOOR ON THE GROUND - with the damage layer on and a pod fitted (61_gen_frame's
+  // parts.podFrame: its four nodes), each pod node's scrape is summed as the solver's own contact computes it: the
+  // distance it slid while pressed (m), the friction's work (J) and its peak normal force (N). Read by 60d_gen_pod
+  // genPodDamage (the shell ground through, the freight at risk); never pushed: the bits are the base's. Null without
+  // a pod or with the layer off: one compare in the scrape branch, nothing allocated per frame.
+  const PODS = DMG_ON && def.parts && def.parts.podFrame && def.parts.podFrame.nodes ? new Int8Array(n).fill(-1) : null;
+  if (PODS !== null) { def.parts.podFrame.nodes.forEach((i, k) => { PODS[i] = k; });
+    DMG.pod = { slide: new Float64Array(4), work: new Float64Array(4), fnPeak: new Float64Array(4), tFirst: -1, n: 0 }; }
   // G1802 (DMG-D0): THE PLASTIC WORK PER BEAM (J), beside the total: what the repair bill sums by the ledger's section
   // (bm.sec, G1803; DEFORM §10). Written only where the total is (beamYield, beamKink: the armed path), zeroed by reset()
   DMG.wB = new Float64Array(nb);
@@ -918,9 +926,25 @@ function makeSim(def, world) {
   // reads it there (sim_link) - the page's own core is never stepped (its damage() holds no break at all)
   const STRUCT_WORDS = { gear: 'the landing gear', wing: 'a wing', tail: 'the tail', fin: 'the tail', fus: 'the fuselage', boom: 'the tail boom',
                          cabane: 'a wing strut', interplane: 'a wing strut', wire: 'a bracing wire', float: 'a float', rod: 'a strut', bridge: 'a float' };
+  // G3463 (BELLY-POD-2): with a pod, its verdict rides here too (60d genPodDamage: scuffed / ground / holed / crushed /
+  // torn off, and its freight safe / at risk / lost) once the pod has touched or let go - a holed, crushed or torn pod
+  // is damage, its words the card's when its members are the first that broke (they are gear-class: "the landing gear
+  // broke" would be a lie). No pod: the record as it was, to the field.
+  const PODM = PODS !== null ? new Set(def.parts.podFrame.hangers.concat(def.parts.podFrame.braces)) : null;
+  // (the verdict kept until the scrape, the breaks or the sets move: the host reads this record every frame, and a pod
+  // at rest after its slide must cost nothing there)
+  let podC = null, podCn = -1, podCb = -1, podCy = -1;
   Object.defineProperty(DMG, 'structural', { configurable: true, enumerable: false, get: () => {
-    const separated = DMG.cl.map(c => c.tag), broken = DMG.primary, damaged = broken > 0 || separated.length > 0;
+    const separated = DMG.cl.map(c => c.tag), broken = DMG.primary;
     const fp = DMG.firstPrimary;
+    if (PODS !== null && typeof genPodDamage === 'function' && (DMG.pod.tFirst >= 0 || DMG.breaks > 0)) {
+      if (podC === null || podCn !== DMG.pod.n || podCb !== DMG.breaks || podCy !== DMG.yields) { podC = genPodDamage(def, DMG); podCn = DMG.pod.n; podCb = DMG.breaks; podCy = DMG.yields; }
+      const pod = podC, podBad = pod.state === 'holed' || pod.state === 'crushed' || pod.state === 'torn off';
+      const damaged = broken > 0 || separated.length > 0 || podBad;
+      return { damaged, broken, separated, pod,
+               why: !damaged ? null : (podBad && (!fp || PODM.has(fp.beam))) ? pod.say : fp ? (STRUCT_WORDS[fp.cls] || 'the structure') + ' broke' : 'a part came off' };
+    }
+    const damaged = broken > 0 || separated.length > 0;
     return { damaged, broken, separated, why: !damaged ? null : fp ? (STRUCT_WORDS[fp.cls] || 'the structure') + ' broke' : 'a part came off' };
   } });
   // ---- DMG-D3 CLUSTERS (G1840-G1842): A CLUSTER IS ONE BREAKABLE PART (DEFORM-AND-BREAK §4.7 (i)) ----
@@ -1278,6 +1302,7 @@ function makeSim(def, world) {
     DMG.wB.fill(0);   // G1802
     tkSub += 2;       // G1883: every member's contact starts again
     if (SCR !== null) scarReset(SCR);   // G2357: no scar (a new version, empty, if there was one: the page lets it go)
+    if (PODS !== null) { DMG.pod.slide.fill(0); DMG.pod.work.fill(0); DMG.pod.fnPeak.fill(0); DMG.pod.tFirst = -1; DMG.pod.n = 0; podC = null; }   // G3463
   }
   // (G1816) why a member broke, for the break-order gate: 'fold' (bent round a trunk past its fold angle), 'kink'
   // (crushed past ecu), 'ragged' (spruce's last stage), 'tension' (brittle at its strength, or ductile at etu), 'group'
@@ -3606,6 +3631,8 @@ function makeSim(def, world) {
           f[i3] -= kf*vx; f[i3+2] -= kf*vz;
           cIx -= kf * vx * dt; cIz -= kf * vz * dt;
           if (SCR !== null) scarHit(SCR, i, p[i3], p[i3+2], Fn, v[i3+1], kf * sp * sp, dt);   // G2357: the contact, read (DMG-SCAR)
+          if (PODS !== null && PODS[i] >= 0) { const P4 = DMG.pod, k = PODS[i]; P4.slide[k] += sp * dt; P4.work[k] += kf * sp * sp * dt; P4.n++;
+            if (Fn > P4.fnPeak[k]) P4.fnPeak[k] = Fn; if (P4.tFirst < 0) P4.tFirst = simT; }   // G3463: the pod's scrape, read
         } else if (SCR !== null) scarHit(SCR, i, p[i3], p[i3+2], Fn, v[i3+1], 0, dt);
       }
     }

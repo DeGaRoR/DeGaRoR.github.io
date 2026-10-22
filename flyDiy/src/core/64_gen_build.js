@@ -308,10 +308,13 @@ function genTrim(def) {
 // ---------------------------------------------------------------------------
 
 // WHAT IT CAN CLIMB, which is what decides how big a circuit it can fly.
-function genClimbAt(sim, def, W, aMax) {
+// (G3461, BELLY-POD-2: `cdaOff` m2 of drag area taken off the probe - the aeroplane WITHOUT its belly pod, the pod
+// sheet's own comparison; absent, nothing is subtracted and the number is the one it always was)
+function genClimbAt(sim, def, W, aMax, cdaOff) {
   const A = def.params.ap;
   const Vc = A.VClimb / sim.probeAir().easK;      // the EAS, flown as a TAS
   const rc = genProbeAt(sim, Vc, genAlphaForLift(sim, Vc, W, aMax));
+  if (cdaOff) rc.drag -= 0.5 * RHO * Vc * Vc * cdaOff;
   // RAW, and deliberately allowed to go negative. genTrim floors it at 0.004
   // because the autopilot's circuit geometry divides by it; a CEILING search
   // has to be able to see the gradient reach zero and pass through it, and a
@@ -343,8 +346,11 @@ function genClimbAt(sim, def, W, aMax) {
 // The roll used to integrate at ZERO body alpha ("conservative, deliberately");
 // since PERF STUDY chantier 3 it integrates at the attitude the pilot runs
 // it (three-point to VTailUp, then A.thTailUp) — see the loop.
-function genTORunAt(sim, def, W) {
+// (G3461, BELLY-POD-2: `cut` = { cda, m } - the roll of the same aeroplane with `cda` m2 less drag area and `m` its
+// mass: the belly pod's sheet asks it WITHOUT the pod; absent, the roll it always was)
+function genTORunAt(sim, def, W, cut) {
   const A_ = def.params.ap;
+  const cutQ = cut && cut.cda ? 0.5 * RHO * cut.cda : 0, mRoll = cut && cut.m > 0 ? cut.m : sim.totalM;
   // THE ROLL HAPPENS IN GROUND EFFECT (G159), and leaving it out was worth
   // 8 % of lift and therefore 15 % of the roll. The wheels are on the ground:
   // h/b is the aeroplane's own geometry, not the terrain's, so this is not the
@@ -382,8 +388,9 @@ function genTORunAt(sim, def, W) {
     const Vi = Vun * (i + 0.5) / NS;
     const Ti = sim.thrustAt(Vi, 0);
     const ri = genProbeAt(sim, Vi, thRest > 0 && Vi < vTU ? thRest : thRun);
+    if (cutQ) ri.drag -= cutQ * Vi * Vi;
     const Ni = Math.max(0, W - ri.Fy);                  // weight still on wheels
-    const ai = Math.max(0.15, (Ti - ri.drag - CRR * Ni) / sim.totalM);
+    const ai = Math.max(0.15, (Ti - ri.drag - CRR * Ni) / mRoll);
     sRoll += Vi * (Vun / NS) / ai;
   }
   // AIR SEGMENT, unstick to 2.5 m — DERIVED now (G115; the review's S7: the
@@ -396,6 +403,7 @@ function genTORunAt(sim, def, W) {
   // leaving, and the ROLL rejection is the number that matters.
   const W2 = W, Vscr = 1.15 * Vun;
   const rm = genProbeAt(sim, 1.10 * Vun, 0.06);
+  if (cutQ) rm.drag -= cutQ * 1.21 * Vun * Vun;
   const grad = Math.max(0.015,
     (sim.thrustAt(1.10 * Vun, 0) - rm.drag) / W2);
   const air = (2.5 + (Vscr * Vscr - Vun * Vun) / (2 * 9.81)) / grad;
@@ -756,6 +764,23 @@ function genShakedown(def, opts) {
       out.pod.cruise = { vWith, vWithout, dV: vWith - vWithout, dPct: vWithout > 0 ? (vWith / vWithout - 1) : 0,
                          dClimb: -0.5 * RHO * Vc * Vc * Vc * pd.cda / Math.max(1, W),
                          dRangePct: vWithout > 0 ? (vWith / vWithout - 1) : 0 };
+      // G3461 (BELLY-POD-2): THE PENALTY ON THE PERFORMANCE SHEET - this aeroplane against the SAME aeroplane with no
+      // pod at all (its drag area AND its shell's kilograms taken off; the freight in it, if any, stays aboard: it
+      // would ride somewhere), each by the sheet's own rule: the take-off to 2.5 m (genTORunAt, the roll in ground
+      // effect with the take-off notch), the climb at VClimb (genClimbAt x VClimb), the cruise (the rule above, at the
+      // lighter weight too). Deterministic: the probe is.
+      {
+        const m0 = Math.max(1, sim.totalM - R.shellKg), W0 = m0 * 9.81, vc = ap0.VClimb ? ap0.VClimb / sim.probeAir().easK : 0;
+        const to1 = genTORunAt(sim, def, W), to0 = genTORunAt(sim, def, W0, { cda: pd.cda, m: m0 });
+        const cl1 = genClimbAt(sim, def, W, aMax) * vc, cl0 = genClimbAt(sim, def, W0, aMax, pd.cda) * vc;
+        const dragAt0 = v => genProbeAt(sim, v, genAlphaForLift(sim, v, W0, aMax)).drag - 0.5 * RHO * v * v * pd.cda;
+        let lo = Math.max(1.05 * Vs0, out.VbestLD || 0), hi = 4 * Vs0, v0;
+        if (dragAt0(lo) >= 0.65 * sim.thrustAt(lo, 1)) v0 = lo;
+        else { for (let i = 0; i < 24; i++) { const m = 0.5 * (lo + hi); if (dragAt0(m) < 0.65 * sim.thrustAt(m, 1)) lo = m; else hi = m; } v0 = 0.5 * (lo + hi); }
+        out.pod.perf = { toWith: to1.TORun, toWithout: to0.TORun, dTO: to1.TORun - to0.TORun,
+                         climbWith: cl1, climbWithout: cl0, dClimb: cl1 - cl0,
+                         cruiseWith: vWith, cruiseWithout: v0, dCruise: vWith - v0, shellKg: R.shellKg };
+      }
     }
   }
   // High lift, measured rather than assumed. `gen.Vs` is the CLEAN stall the

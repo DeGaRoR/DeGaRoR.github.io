@@ -195,6 +195,16 @@ function freightStrapAdds(def, acc, o) {
     if (!p || !(p.kg > 0)) continue;
     const c = p.c || (p.at ? [0.5 * (p.at.x0 + p.at.x1), 0.5 * (p.at.y0 + p.at.y1), 0.5 * (p.at.z0 + p.at.z1)] : null);
     if (!c) continue;
+    // G3464 (BELLY-POD-2): AN ITEM IN THE BELLY POD RIDES THE POD'S OWN FOUR NODES (61_gen_frame podFrame: fore left / right,
+    // aft left / right), by lever along the floor's run and across - so a pod torn off at its fittings takes its freight
+    // with it (the damage layer's verdict: the freight lost)
+    if (p.space === 'pod' && def.parts.podFrame && def.parts.pod) {
+      const R = def.parts.pod, N = def.parts.podFrame.nodes, wx = fsClamp01((c[0] - R.xa) / Math.max(1e-9, R.xb - R.xa));
+      const zl = def.nodes[N[0]].p[2], zr = def.nodes[N[1]].p[2], wz = fsClamp01((c[2] - zl) / ((zr - zl) || 1e-9));
+      raw.push([N[0], p.kg * (1 - wx) * (1 - wz)], [N[1], p.kg * (1 - wx) * wz], [N[2], p.kg * wx * (1 - wz)], [N[3], p.kg * wx * wz]);
+      items.push({ id: p.id, kind: p.kind, kg: p.kg, g: [c[0], R.yBot + 0.5 * (R.depth || 0), c[2]], pod: true });
+      continue;
+    }
     const g = [c[0], freightStrapGenY(def, card, c[0], c[1], o.yD), c[2]];
     for (const s of freightStrapShares(def, g[0], g[1], g[2], p.kg)) raw.push(s);
     items.push({ id: p.id, kind: p.kind, kg: p.kg, g });
@@ -335,7 +345,7 @@ function fsBandInto(G, P, Q, side) {
 function freightStrapMesh(items, card, withModel) {
   const mk = () => ({ pos: [], nrm: [], idx: [] });
   const out = { boxes: {}, straps: mk(), metal: mk(), count: { stacks: 0, bands: 0, buckles: 0, anchors: 0, boxes: 0 } };
-  const L = (items || []).filter(p => p && p.at);
+  const L = (items || []).filter(p => p && p.at && p.space !== 'pod');   // (G3464: the pod's freight is inside its closed shell)
   const X = [1, 0, 0], Y = [0, 1, 0], Z = [0, 0, 1];
   for (const p of L) {
     if (withModel && withModel(p)) continue;

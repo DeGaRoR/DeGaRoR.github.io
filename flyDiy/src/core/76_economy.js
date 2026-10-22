@@ -153,7 +153,8 @@ function econMaterialise(doc, slot, cost, wants, opts) {
   if (!r.ok) return r;
   const C = r.doc.career;
   if (C && C.airframes && typeof C.airframes === 'object')
-    C.airframes[slot] = Object.assign({}, C.airframes[slot] || {}, { paid: price, how: opts.how || 'scratch', at: Math.round(r.doc.clock || 0) });
+    C.airframes[slot] = Object.assign({}, C.airframes[slot] || {}, { paid: price, how: opts.how || 'scratch', at: Math.round(r.doc.clock || 0) },
+      opts.podPaid > 0 ? { podPaid: Math.round(opts.podPaid) } : {});   // G3465: its belly pod is in that price (76_procure: not billed twice)
   return { ok: true, doc: r.doc, cost: price, why: '' };
 }
 // a hangar bought (71_ playerAcquire: needs the cash) / changed (playerUpgrade: shell, size, kits)

@@ -60,6 +60,22 @@ const GEN_POD = {
   // than a runway); at or under 0 it strikes, shown red with the number - the engineer's handbook: shown, not forbidden
   clearWarn: 0.08,
   nSta: 24,
+  // G3463 (BELLY-POD-2): THE FLOWN POD'S MEMBERS AS WHAT THEY ARE, for the damage layer (61_gen_frame's pod block; read
+  // only with damage on - the sections and materials change no force, stiffness or mass):
+  //   the 16 HANGERS are the four fittings' bolts and lugs: 4130 steel (GEN_CRASH.tubeFabric), sized so the pod FULL
+  //     (shell + rated load) holds 23.561(b)(3)'s 9 g forward at the ultimate (as recalled, the emergency landing's
+  //     cargo case; the same 9 g genCertPodMounts reports), a fitting's load over `mountShare` of the 16 (each pod
+  //     node hangs from all four fittings, so two members of a fitting's four carry its quarter); fittings break
+  //     brittle at 1.15 x their ultimate (30_solver dmgMember's seam rule)
+  //     - and, the larger, the shell BEARING the aeroplane against the belly between them on a belly landing: the
+  //     aeroplane's mass the frame is built at (genLattice's `gross`, parts.podFrame.bearKg) at `bearG` g over the 16 in compression (GAME, calibrated on the metal Cessna gear-up, damage on - a
+  //     gear-up landing at 0.5-1.5 m/s crushes the pod, 3 m/s tears it off at its fittings; at 20 g nothing yields, at
+  //     4 g it tears at any touch; a normal landing on the wheels never reaches it). `mountK` the hangers' stiffness
+  //     over the gear class's: x 1 (x 8 made the pod a brace of the belly - the fuselage's own flexing loaded its
+  //     fittings to 55 % of their ultimate parked; at x 1, 14 %)
+  //   the 6 BRACES are the moulded shell: E-glass (GEN_CRASH.glass), the section two skins of `shellSkin` round the
+  //     section's perimeter, shared by the six
+  mountG: 9, mountK: 1, mountShare: 1 / 8, bearG: 10, mountMat: 'tubeFabric', shellMat: 'glass', shellSkin: 0.0015,
 };
 
 const genPodOn = S => !!(S && S.pod && typeof S.pod === 'object' && +S.pod.on);
@@ -381,6 +397,8 @@ function genPodReadout(def, sh) {
   if (p) {
     const c = p.cruise || {};
     out.cruise = { vWith: c.vWith, vWithout: c.vWithout, dV: c.dV, dPct: c.dPct, dClimb: c.dClimb };
+    // G3461: the sheet's penalty against the same aeroplane with no pod (take-off, climb, cruise)
+    out.perf = p.perf ? Object.assign({}, p.perf) : null;
     out.rangeKm = sh.rangeKm;
     out.dRangeKm = sh.rangeKm != null && c.dRangePct != null ? sh.rangeKm - sh.rangeKm / (1 + c.dRangePct) : null;
     // the CG empty: the shell's moment taken back off the sheet's own mass and CG (the pod billed by moment, 61_)
@@ -419,4 +437,49 @@ function genPodNodesAt(R, ST) {
     out.push([x, y, z], [x, y, -z]);
   }
   return out;
+}
+
+// ---- THE POD IN A CRASH (G3463, BELLY-POD-2; the damage layer on) ---------------------------------------------------
+// A pod is sacrificial: on a gear-up or a collapsed-gear landing it is what touches, it scrapes, and on a hard one it
+// tears off at its fittings (61_gen_frame: its own part, group `pod:mount`, the 16 hangers its joint). Read after (or
+// during) a flight from the solver's damage record - never pushed into it:
+//   D.pod    each pod node's scrape (30_solver: slid metres, friction work, peak normal force)
+//   D.groups the groups broken (pod:mount = torn off), D.broken / D.wB the members broken / their plastic work
+// THE WEAR (Archard's law written as an energy: the volume abraded = the friction's work over a specific abrasion
+// energy): each node stands for a quarter of the floor, so its patch is worn by work / (GEN_POD_DMG.eAbr x the patch).
+// eAbr 1.0e9 J/m3 is GAME (the order of a polymer laminate's specific abrasion energy on an abrasive face; A0 to
+// source): with it a 1 000 kg aeroplane sliding 100 m on its pod wears its aft patches ~2 mm - the outer skin of a
+// glass / foam pod (two plies and a gelcoat: GEN_POD_DMG.skin) - which is what the pods' owners report of a gear-up
+// slide (the floor ground through, the freight in it scuffed or wet). The tiers:
+//   clean     no pod node touched                      freight safe
+//   scuffed   worn under GEN_POD_DMG.scuff (the gelcoat) freight safe
+//   ground    worn under the outer skin                 freight safe (a repair: the floor laid up again)
+//   holed     the outer skin ground through             freight AT RISK (the floor open to the runway)
+//   crushed   a pod member yielded or broke (no tear)   freight AT RISK (the shell deformed round it)
+//   torn off  the mount group let go                    freight LOST with the pod (left on the ground)
+// def: the built def (parts.pod, parts.podFrame); D: sim.damage(). -> null without a pod, else the verdict.
+const GEN_POD_DMG = { eAbr: 1.0e9, skin: 0.002, scuff: 0.0005 };
+function genPodDamage(def, D) {
+  const P = def && def.parts, R = P && P.pod, F = P && P.podFrame;
+  if (!R || !F) return null;
+  const S = D && D.pod, patch = Math.max(1e-3, (R.xb - R.xa) * 2 * R.hw / 4);
+  const worn = [0, 0, 0, 0], slide = [0, 0, 0, 0], work = [0, 0, 0, 0];
+  if (S) for (let k = 0; k < 4; k++) { slide[k] = S.slide[k]; work[k] = S.work[k]; worn[k] = S.work[k] / (GEN_POD_DMG.eAbr * patch); }
+  const wMax = Math.max(...worn), touched = slide.some(v => v > 0) || (S && S.fnPeak && Array.prototype.some.call(S.fnPeak, v => v > 0));
+  const mine = F.hangers.concat(F.braces);
+  const brk = new Set((D && D.broken) || []);
+  const nBroken = mine.filter(b => brk.has(b)).length;
+  const nSet = D && D.wB ? mine.filter(b => D.wB[b] > 0).length : 0;
+  const torn = !!(D && D.groups && D.groups.some(g => g.key === 'pod:mount'));
+  const state = torn ? 'torn off' : (nBroken || nSet) ? 'crushed' : wMax >= GEN_POD_DMG.skin ? 'holed'
+    : wMax >= GEN_POD_DMG.scuff ? 'ground' : touched ? 'scuffed' : 'clean';
+  const freight = torn ? 'lost' : (state === 'crushed' || state === 'holed') ? 'at risk' : 'safe';
+  const loadKg = R.loadKg || 0;
+  const mm = v => (v * 1000).toFixed(1);
+  const say = state === 'clean' ? null
+    : 'belly pod ' + state + (state === 'torn off' ? ' at its fittings' : '') + ' - slid ' + Math.max(...slide).toFixed(0) + ' m, worn '
+      + mm(wMax) + ' mm' + (freight === 'safe' ? '' : '; its freight ' + (freight === 'lost' ? 'LOST with it' : 'AT RISK') + (loadKg > 0 ? ' (' + Math.round(loadKg) + ' kg)' : ''));
+  return { state, freight, torn, touched: !!touched, worn, wornMax: wMax, slide, work, patch,
+           members: { broken: nBroken, set: nSet, of: mine.length }, loadKg, say,
+           tFirst: S ? S.tFirst : -1 };
 }

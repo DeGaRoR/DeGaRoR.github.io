@@ -350,6 +350,7 @@ function readRender() {
   const s = (v, d, u) => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(d) + (u || '');
   line('hold', Math.round(r.litres) + ' L · floor ' + r.floorM2.toFixed(2) + ' m² (' + r.maxKg + ' kg rated)');
   line('weight · price', '+' + r.emptyKg.toFixed(1) + ' kg empty · ' + Math.round(r.price).toLocaleString('en') + ' cr');
+  if (r.perf) line('cost', 'take-off ' + s(r.perf.dTO, 0, ' m') + ' · climb ' + s(r.perf.dClimb, 2, ' m/s') + ' · cruise ' + s(r.perf.dCruise * 3.6, 1, ' km/h'));
   line('drag', r.cda.toFixed(3) + ' m²' + (r.cruise ? ' · cruise ' + s(r.cruise.dV * 3.6, 1, ' km/h') + (r.dRangeKm != null ? ' · range ' + s(r.dRangeKm, 0, ' km') : '') : ' · cruise / range: measuring'));
   if (r.cgEmpty) {
     line('CG empty', s(r.cgEmpty.shift * 1000, 0, ' mm') + (r.cgEmpty.cgPct != null ? ' (' + (r.cgEmpty.cgPct * 100).toFixed(1) + ' % MAC)' : ''));

@@ -274,6 +274,12 @@ function careerStopRecord(o) {
   // (G2650 SIM-CLOCK) the day's own dusk / dawn (07b_clock.js dayDuskDawnH), only when the page hands them in: a
   // time-of-day window is judged on them (73_ contractWhenOk), else on the constants as before
   for (const k of ['duskH', 'dawnH']) if (typeof o[k] === 'number' && isFinite(o[k])) out[k] = Math.round(o[k] * 100) / 100;
+  // (G3464, BELLY-POD-2) THE BELLY POD TORN OFF TOOK ITS FREIGHT: the kilos of the items that rode in it (the damage
+  // layer's verdict, sim.damage().structural.pod: freight 'lost') - only then a key (every other record as it was)
+  if (o.structural && o.structural.podFreight === 'lost' && Array.isArray(o.items)) {
+    const kg = o.items.filter(p => p && p.space === 'pod').reduce((a, p) => a + (+p.kg || 0), 0);
+    if (kg > 0) out.structural.podLost = Math.round(kg * 1000) / 1000;
+  }
   return out;
 }
 // (G2705 CAREER-DAMAGE, §R.4: "free repair everywhere, but after a crash you reset to your STARTING PLACE") A CRASH

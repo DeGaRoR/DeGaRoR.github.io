@@ -1087,6 +1087,8 @@ function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
   if (sub.do === 'carry') {
     if (at === sub.to) {
       if (!(prog.picked || row.from === sub.from)) return { st: 'no', why: 'the load was not taken on at ' + nm(sub.from) };
+      // G3464 (BELLY-POD-2): the belly pod tore off on the way - its freight is on the ground behind, not delivered
+      if (S && S.podLost > 0) return { st: 'no', why: 'the freight in the belly pod (' + S.podLost + ' kg) was lost with it' };
       if (!loadOk(sub.load)) return { st: 'no', why: loadWhy(sub.load) };
       const w = whenWhy(); if (w) return { st: 'no', why: w };
       return { st: 'done', why: '' };

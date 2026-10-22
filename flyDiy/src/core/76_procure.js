@@ -748,13 +748,37 @@ function procureOnSave(doc, slot, spec, ledger) {
   // a save while the signature is still open (the garage settling, no input touched yet) is the aeroplane the garage
   // built: it signs, it does not withdraw
   if (A.factory && !A.anchored) return Object.assign(procureAnchor(doc, slot, spec), { modified: false, bill: null, why: 'signed on the garage\'s aeroplane' });
-  if (!A.fp || fp === A.fp) return { ok: true, doc, modified: !!A.modified, bill: null, why: A.fp ? 'the same aeroplane (a repaint is not a change)' : 'no certificate to withdraw' };
+  // G3465 (BELLY-POD-2): THE BELLY POD IS BOUGHT AS WHAT IT IS - a bolt-on part, its own ledger line (60d: the moulding,
+  // the fittings, the hatch). On an airframe with no certificate to withdraw (a scratch build) the save that fits it,
+  // or makes it dearer, pays the difference over what was paid for a pod before (`podPaid`; a smaller or removed pod
+  // refunds nothing, a pod fitted again is paid again); the airframe's own price is its first save's (econMaterialise)
+  if (!A.fp) {
+    const podNow = ledger && ledger.pod ? Math.round(+ledger.pod.cost || 0) : 0, paid = A.podPaid || 0;
+    if (podNow === paid) return { ok: true, doc, modified: !!A.modified, bill: null, why: 'no certificate to withdraw' };
+    const d = prClone(doc), R = d.career.airframes[slot], cost = Math.max(0, podNow - paid);
+    R.podPaid = podNow;
+    if (cost > 0) playerCharge(d, cost, 'upgrade', slot);
+    return { ok: true, doc: d, modified: !!A.modified, bill: cost > 0 ? { cost, lines: [{ k: 'pod', cost }] } : null, why: 'no certificate to withdraw' };
+  }
+  if (fp === A.fp) return { ok: true, doc, modified: !!A.modified, bill: null, why: 'the same aeroplane (a repaint is not a change)' };
   const L1 = ledger ? procureLedgerOf(ledger) : null;
-  const B = procureEditBill(A.ledger || null, L1 || A.ledger || null);
+  let B = procureEditBill(A.ledger || null, L1 || A.ledger || null);
+  // ...and on a bought aeroplane, when the pod is ALL that changed (the fingerprint without it is the signed one), the
+  // bill is the pod's own line: its ten kilograms re-gauge the structure, and dm11 would bill every re-gauged line as
+  // rebuilt (12 786 cr for a 3 027 cr pod on the Scout, HANDOVER G2676) - a bolt-on part rebuilds nothing. The maker's
+  // certificate is still withdrawn (PROCURE's rule: an edit is a modification)
+  // (the fingerprint without the pod is kept at each save - `fpNoPod` - so taking the pod off again is a pod-only change
+  // too: nothing to bill, the line removed)
+  const fpNoPod = procureFp(Object.assign({}, spec, { pod: undefined }));
+  if (fpNoPod === (A.fpNoPod || A.fp)) {
+    const c = L1 && L1.pod ? L1.pod[1] : 0, was = A.ledger && A.ledger.pod ? A.ledger.pod[1] : 0;
+    B = { cost: Math.max(0, c - was), lines: c > was ? [{ k: 'pod', cost: c - was }] : [] };
+  }
   const cost = (A.ledger && L1) ? procureEcon('edit', { cost: B.cost, slot }) : 0;
   const d = prClone(doc), R = d.career.airframes[slot];
   if (R.factory) R.withdrawn = { cert: R.cert, why: 'modified in the editor: the maker\'s certificate is withdrawn', at: Math.round(d.clock || 0) };
   R.factory = false; R.modified = true; R.fp = fp; R.cert = null;
+  if (spec && spec.pod !== undefined || A.fpNoPod) R.fpNoPod = fpNoPod;   // (G3465)
   if (L1) R.ledger = L1;
   if (cost > 0) playerCharge(d, cost, 'edit', slot);
   return { ok: true, doc: d, modified: true, bill: { cost, lines: B.lines }, why: '' };

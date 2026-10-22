@@ -258,12 +258,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     if (t.slice(0, 4) === 'AXLE') return { p: 'gear' + sd, r: 4, base: 'gear' };
     if (t === 'TW') return { p: 'tw', r: 4, base: 'tw' };
     if (t === 'FLK' || t === 'FLD') return { p: 'float' + sd, r: 4, base: 'float' };
+    // G3463 (BELLY-POD-2): the belly pod is a part of its own - its four nodes; the hangers to the fittings are its
+    // joint (group pod:mount, anchor the body: a pod scrapes, then tears off whole at its fittings, never mid-shell)
+    if (t === 'POD') return { p: 'pod', r: 4, base: 'pod' };
     return { p: 'body', r: 0, base: 'body' };          // the stations, the post, the nose tank's pair (VSN)
   };
   // which joint of its child part a member is: a wing's ROOT (its wing end on the root rib) or its STRUT (the fan,
   // the strut, the boxed outer's lower chord), the INTERPLANE truss; an engine's MOUNT; a gear's attach; a float's struts
   const dmgJoint = (C, cn, A) => C.wing ? (A.wing ? 'interplane' : (Math.abs(Math.abs(P[cn][2]) - (dmgRootZ[nodes[cn].plane || 0] ?? -1)) < 1e-6 ? 'root' : 'strut'))
-    : C.base === 'eng' ? 'mount' : C.base === 'float' ? 'strut' : (C.base === 'gear' || C.base === 'tw') ? 'gear' : 'attach';
+    : (C.base === 'eng' || C.base === 'pod') ? 'mount' : C.base === 'float' ? 'strut' : (C.base === 'gear' || C.base === 'tw') ? 'gear' : 'attach';
   const dmgGroup = (key, part, joint, anchor) => {
     if (dmgGrpKey[key] != null) return dmgGrpKey[key];
     dmgGroups.push({ id: dmgGroups.length, key, part, joint, anchor, t0: [], t1: [] });
@@ -2989,7 +2992,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // pod's mass (the shell, then the freight) by lever between the fore and aft pair, so the ledger's moment is the
   // shell's own centroid as before. They are ORDINARY nodes (r = 0, no wheel): a belly touch is the solver's scrape
   // branch (mu 0.8), on the pod. The members are noMass (the shell's mass is billed as its points) and stiff (the
-  // floats' x8 bracing: a moulded pod on its fittings is a rigid body). Without a pod none of this runs.
+  // floats' x8 bracing for the shell's six braces: a moulded pod is a rigid body; G3463: the hangers at the gear
+  // class's own stiffness, GEN_POD.mountK - at x8 the pod braced the belly and the fuselage's flexing loaded its
+  // fittings). Without a pod none of this runs.
   const podR = genPodResolve(S, ST);
   let podN = null, podM = null;
   if (podR) {
@@ -2999,11 +3004,18 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const ringA = F[ma] && ma !== mf ? ma : Math.min(F.length - 1, mf + 1), ringF = ringA === mf ? Math.max(0, mf - 1) : mf;
     podN = ff.map(q => N(q[0], q[1], q[2], 'POD'));
     const fit = [F[ringF].BL, F[ringF].BR, F[ringA].BL, F[ringA].BR];
-    const b0 = beams.length, KM = { noMass: true, kMul: 8, cMul: 0.1 };
+    // G3463: the hangers as the fittings' steel, the braces as the glass shell (GEN_POD.mount* / shell*: sections and
+    // materials the damage layer reads, nothing else)
+    const GP = GEN_POD, CR = typeof GEN_CRASH !== 'undefined' ? GEN_CRASH : null;
+    const hA = CR ? Math.max(GP.mountG * 9.81 * (podR.shellKg + podR.maxKg) * GP.mountShare / (1.15 * CR[GP.mountMat].tu),
+                             GP.bearG * 9.81 * (gross || 400) / 16 / CR[GP.mountMat].cy) : 0;
+    const bA = 2 * GP.shellSkin * (2 * podR.depth + 4 * podR.hw) / 6;
+    const b0 = beams.length, KM = { noMass: true, kMul: GP.mountK, cMul: 0.1, A: hA }, KB = { noMass: true, kMul: 8, cMul: 0.1, A: bA };
     for (const i of podN) for (const j of fit) B(i, j, 'gear', false, 'inner', undefined, KM);
     const [pfl, pfr, pal, par] = podN;
-    for (const [i, j] of [[pfl, pfr], [pal, par], [pfl, pal], [pfr, par], [pfl, par], [pfr, pal]]) B(i, j, 'gear', false, 'inner', undefined, KM);
-    podM = { nodes: podN.slice(), fittings: fit, rings: [ringF, ringA], hangers: [], braces: [] };
+    for (const [i, j] of [[pfl, pfr], [pal, par], [pfl, pal], [pfr, par], [pfl, par], [pfr, pal]]) B(i, j, 'gear', false, 'inner', undefined, KB);
+    for (let k = b0; k < beams.length; k++) beams[k].mat = k - b0 < 16 ? GP.mountMat : GP.shellMat;
+    podM = { nodes: podN.slice(), fittings: fit, rings: [ringF, ringA], hangers: [], braces: [], bearKg: gross || 400 };   // (G3463: the mass the fittings bear)
     for (let k = b0; k < beams.length; k++) (k - b0 < 16 ? podM.hangers : podM.braces).push(k);
     const onPod = (x, m) => {
       const w = genClamp((x - podR.xa) / Math.max(1e-6, podR.xb - podR.xa), 0, 1);

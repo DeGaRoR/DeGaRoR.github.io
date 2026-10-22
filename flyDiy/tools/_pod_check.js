@@ -232,6 +232,12 @@ function runChecks(C, D, src, F, CERT, quiet) {
     ok(c && c.dV < 0 && c.dClimb < 0 && near(c.dRangePct, c.dPct, 1e-12), k + ': it costs cruise (' + n(c && c.dV * 3.6, 2) + ' km/h) and climb (' + n(c && c.dClimb, 3) + ' m/s)');
     ok(near(c.dClimb, -0.5 * C.RHO * Math.pow(d.def1.params.ap.VClimb, 3) * pd.cda / (d.sh1.mass * 9.81), 1e-9), k + ': the climb cost is its drag x VClimb over the weight');
     ok(digest(d.sh1b.pod.cruise) === digest(c), k + ': the cruise cost deterministic (built twice)');
+    // G3461 (BELLY-POD-2): THE PERFORMANCE SHEET'S PENALTY - against the same aeroplane with no pod (its drag and its shell)
+    const q = p.perf;
+    ok(q && q.dTO >= 0 && q.dClimb < 0 && q.dCruise < 0 && q.toWith > 0 && digest(d.sh1b.pod.perf) === digest(q) && q.shellKg === R.shellKg,
+       k + ': the sheet\'s penalty - take-off ' + (q && q.toWithout) + ' -> ' + (q && q.toWith) + ' m, climb ' + n(q && q.climbWithout, 2) + ' -> ' + n(q && q.climbWith, 2) + ' m/s, cruise ' + n(q && q.cruiseWithout * 3.6, 1) + ' -> ' + n(q && q.cruiseWith * 3.6, 1) + ' km/h (deterministic)');
+    ok(q && q.dCruise <= c.dV + 1e-9 && near(q.cruiseWith, c.vWith, 1e-12), k + ': the cruise penalty with the shell\'s mass is at least the drag alone\'s, the same speed with the pod');
+    ok(q && !('perf' in (d.sh0.pod || {})) && !d.sh0.pod, k + ': no pod, no penalty block');
     rep(k.padEnd(7) + 'CdA ' + n(pd.cda, 4) + ' m2 (' + n(p.dragShare * 100, 1) + ' % of the body) · cruise ' + n(c.vWithout * 3.6, 1) + ' -> ' + n(c.vWith * 3.6, 1) + ' km/h (' + n(c.dPct * 100, 2) + ' %) · climb ' + n(c.dClimb, 3) + ' m/s · VCruise (clamped) ' + n(d.sh0.VCruise * 3.6, 1) + ' -> ' + n(d.sh1.VCruise * 3.6, 1) + ' · range ' + n(d.sh0.rangeKm, 0) + ' -> ' + n(d.sh1.rangeKm, 0) + ' km');
   }
 
@@ -288,7 +294,7 @@ function runChecks(C, D, src, F, CERT, quiet) {
   // ===== G. THE PAGE =====
   ok(/'60c_gen_energy\.js',[\s\S]{0,400}'60d_gen_pod\.js',[\s\S]{0,40}'61_gen_frame\.js'/.test(src.build), 'build.js: 60d_gen_pod.js between the energy and the frame');
   ok(/hasPod: \(\) => !!\(def && def\.parts && def\.parts\.pod\)/.test(src.app) && /podToggle: on =>/.test(src.app), 'app.js: the bench\'s bridge (hasPod, podToggle)');
-  const labels = ['pod', 'pod clearance', 'pod drag', 'pod full', 'pod mounts'];
+  const labels = ['pod', 'pod clearance', 'pod drag', 'pod cost', 'pod full', 'pod mounts'];
   ok(labels.every(l => src.app.indexOf("R('" + l + "'") >= 0), 'app.js: the plaque prints the pod\'s rows');
   ok(labels.every(l => src.plaque.PLAQUE_EXPLAIN ? !!src.plaque.PLAQUE_EXPLAIN[l] : new RegExp("'" + l + "': \\{ what:").test(src.plaqueTxt)) && /'belly pod': '/.test(src.plaqueTxt),
      'plaque.js: every pod row explained, the section its line');
@@ -449,10 +455,31 @@ function runChecks2(C, D, X, quiet) {
     ok(r.modified && !A.factory && A.modified && A.cert === null && A.withdrawn && A.withdrawn.cert && /certificate is withdrawn/.test(A.withdrawn.why),
        'a pod fitted and saved: MODIFIED - the factory certificate withdrawn (kept struck: "' + (A.withdrawn && A.withdrawn.why) + '")');
     const podLine = r.bill && r.bill.lines.find(l => l.k === 'pod');
-    ok(podLine && podLine.cost === Lp.pod.cost && r.bill.cost === C.procureEditBill(A0.ledger, C.procureLedgerOf(Lp)).cost && Math.round(w0 - r.doc.wallet) === r.bill.cost && r.doc.ledger.slice(-1)[0].k === 'edit',
-       'billed at build price (dm11), the same door as any edit: ' + r.bill.cost + ' cr (' + r.bill.lines.map(l => l.k + ' ' + l.cost).join(', ') + '), charged as an `edit`');
+    // G3465: a pod-only change bills the pod's OWN line (dm11 would bill every line its kilograms re-gauged)
+    const dm11 = C.procureEditBill(A0.ledger, C.procureLedgerOf(Lp)).cost;
+    ok(podLine && podLine.cost === Math.round(Lp.pod.cost) && r.bill.lines.length === 1 && r.bill.cost === podLine.cost && Math.round(w0 - r.doc.wallet) === r.bill.cost && r.doc.ledger.slice(-1)[0].k === 'edit' && dm11 > r.bill.cost,
+       'billed its own line, the pod: ' + r.bill.cost + ' cr, charged as an `edit` (dm11 over the re-gauged lines would have been ' + dm11 + ')');
     const r2 = C.procureOnSave(r.doc, 'Scout 1', b.envelope.spec, L0);
-    ok(r2.modified && r2.doc.career.airframes['Scout 1'].cert === null && !(r2.bill.lines.some(l => l.k === 'pod')), 'the pod removed and saved: a change again (the certificate stays withdrawn), the removed line bills nothing');
+    ok(r2.modified && r2.doc.career.airframes['Scout 1'].cert === null && r2.bill.cost === 0 && !(r2.bill.lines.some(l => l.k === 'pod')), 'the pod removed and saved: a change again (the certificate stays withdrawn), the removed line bills nothing (' + r2.bill.cost + ' cr)');
+    const other = Object.assign(clone(withPod), { baggage: (withPod.baggage || 0) + 5 }), Lo = C.buildGen(C.genMigrateSpec(clone(other))).parts.ledger;
+    const r3 = C.procureOnSave(doc, 'Scout 1', other, Lo);
+    ok(r3.bill && r3.bill.cost === C.procureEditBill(A0.ledger, C.procureLedgerOf(Lo)).cost, 'a pod AND another edit: dm11 as before (' + (r3.bill && r3.bill.cost) + ' cr)');
+    // a SCRATCH airframe (no certificate to withdraw): the pod is paid when fitted, the difference when enlarged,
+    // nothing when removed, again when refitted; a new design's pod is in its first save's price (not billed twice)
+    {
+      let d = C.careerNew({ id: 'pod2', seed: 'dev' }), pay = (dd, sp) => C.procureOnSave(dd, 'Cub 1', sp, C.buildGen(C.genMigrateSpec(clone(sp))).parts.ledger);
+      const m = C.econMaterialise(d, 'Cub 1', 20000, [], { price: 20000 }); d = m.doc;
+      const w1 = d.wallet, f1 = pay(d, withPod), big = Object.assign(clone(withPod), { pod: { on: 1, depth: 0.34 } }), f2 = pay(f1.doc, big);
+      const f3 = pay(f2.doc, b.envelope.spec), f4 = pay(f3.doc, withPod);
+      const cBig = Math.round(C.buildGen(C.genMigrateSpec(clone(big))).parts.ledger.pod.cost);
+      ok(m.ok && f1.bill && f1.bill.cost === Math.round(Lp.pod.cost) && Math.round(w1 - f1.doc.wallet) === f1.bill.cost && f1.doc.ledger.slice(-1)[0].k === 'upgrade'
+         && f2.bill && f2.bill.cost === cBig - Math.round(Lp.pod.cost) && !f3.bill && f3.doc.wallet === f2.doc.wallet && f4.bill && f4.bill.cost === Math.round(Lp.pod.cost),
+         'a scratch Cub: the pod fitted is paid (' + (f1.bill && f1.bill.cost) + ' cr, an `upgrade`), enlarged the difference (' + (f2.bill && f2.bill.cost) + '), removed nothing, refitted again (' + (f4.bill && f4.bill.cost) + ')');
+      const n = C.econMaterialise(C.careerNew({ id: 'pod3', seed: 'dev' }), 'Cub 2', 20000, [], { price: 20000, podPaid: Lp.pod.cost });
+      const n1 = C.procureOnSave(n.doc, 'Cub 2', withPod, Lp);
+      ok(n.ok && !n1.bill && n1.doc.wallet === n.doc.wallet, 'a NEW design with a pod: its first save\'s price holds the pod, the same save bills nothing more');
+      ok(/podPaid/.test(rd('src/viewer/app.js')) && /G3465/.test(rd('src/viewer/app.js')), 'the page hands the pod in the price to econMaterialise (app.js econMaterialiseNow)');
+    }
     const keep = C.procureOnSave(doc, 'Scout 1', clone(b.envelope.spec), null);
     ok(keep.doc === doc && !keep.modified, 'fitted and removed before a save: the spec WITHOUT the key is the signed aeroplane (not modified)');
     ok(C.procureFp(Object.assign(clone(b.envelope.spec), { pod: { on: 0 } })) !== A0.fp, '...which is why the editor REMOVES the key: `{ on: 0 }` is another fingerprint (GARAGE_SPEC.remove)');
