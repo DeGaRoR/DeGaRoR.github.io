@@ -2463,6 +2463,11 @@ const GEN_STOL = {
   fence: { dAs: 0.025, h: 0.12, cf: 0.008 },        // h: fence height in local chords
   dAsMax: 0.22,
   droopMax: 0.50,                                   // of a plain flap's travel
+  // G2823: the editor's three settings (the cage row wgDroop is an index): none, 10 and 20 deg of a plain flap's
+  // 40. Kitfox / Zenith flaperons and the Robertson / Horton droop kits run ~10-20 deg at full flap (the kits'
+  // supplements; owners report the aileron answering less the further it droops - GATE STOL, the design check's
+  // ctl.droop row)
+  droopSteps: [0, 0.25, 0.50],
   growCamber: 'slotted',                            // the Fowler's camber row under `grow`
   // THE MACHINE SHOP (the GAME coordinator's): which purchasable pack each
   // option would sit in. A FLAG, nothing more - no era, no calendar, no
@@ -2491,7 +2496,7 @@ function genStolCage(P) {
   return genStolOf({ slat: Object.keys(GEN_SLATS)[Math.round(+P.wgSlat || 0)] || 'none',
                      slatSpan: P.wgSlatSpan, vg: P.wgVG, fences: P.wgFence,
                      cuff: P.wgCuff, cuffSpan: P.wgCuffSpan,
-                     droop: P.wgDroop, grow: P.wgFowlerGrow });
+                     droop: GEN_STOL.droopSteps[Math.round(+P.wgDroop || 0)] || 0, grow: P.wgFowlerGrow });
 }
 // THE PLANE'S STOL RECORD, normalised: null when every device is off (the
 // key then leaves the spec - absent IS off, so an old file and a new file

@@ -70,7 +70,7 @@ function genClMax(def, flap) {
   // G2820: a STOL wing (slats, VGs, a cuff) stalls past 22 deg - the sweep
   // runs on to the devices' cap, on that wing only (every other wing's grid
   // is the one it always had)
-  const aTop = def.strips.some(st => st.stol) ? 22 + Math.ceil(GEN_STOL.dAsMax * 180 / Math.PI) : 22;
+  const aTop = def.strips.some(st => st.stol && (st.stol.dAs > 0 || st.stol.sa > 0)) ? 22 + Math.ceil(GEN_STOL.dAsMax * 180 / Math.PI) : 22;
   for (let a = -2; a <= aTop; a += 0.25) {
     const al = a * Math.PI / 180;
     const r = sim.probe([-V * CORE_MATH.cos(al), -V * CORE_MATH.sin(al), 0]);
@@ -110,8 +110,9 @@ function genTrim(def) {
   sim.reset(0);
   const W = sim.totalM * 9.81;
   // G185: the lowest of the planes' stall angles bounds the trim search
+  // G2822: each plane's stall angle as it flies (its STOL devices' gain on it; the section's own without)
   const aMax = 0.85 * (def.params.polarWings || [def.params.polarWing])
-    .reduce((m, p) => Math.min(m, p.aStall), Infinity);
+    .reduce((m, p, k) => Math.min(m, def.params.polarWings ? genStallAngle(def, p, k) : genStallAngle(def, p)), Infinity);
   // through the SIM, so the sheet and the aeroplane cannot disagree about how
   // much thrust there is in this air (G72). Identical at the datum.
   const Tav = v => sim.thrustAt(v, 1);
@@ -428,7 +429,7 @@ function genShakedown(def, opts) {
   sim.reset(0);
   const W = sim.totalM * 9.81;
   const V = def.params.ap.VCruise;
-  const aMax = 0.85 * def.params.polarWing.aStall;
+  const aMax = 0.85 * genStallAngle(def);   // G2822: the wing's stall angle as it flies
   const a = genAlphaForLift(sim, V, W, aMax);
   const r0 = genProbeAt(sim, V, a), r1 = genProbeAt(sim, V, a + 0.02);
   // THE GLIDE RATIO, MEASURED (G179.4, the user: "I struggle to pass the
@@ -1084,7 +1085,7 @@ function genDensityAlt(def) {
   const sim = makeSim(def, null);
   sim.reset(0);
   const W = sim.totalM * 9.81;
-  const aMax = 0.85 * def.params.polarWing.aStall;
+  const aMax = 0.85 * genStallAngle(def);   // G2822: the wing's stall angle as it flies
 
   const at = (h, dISA) => {
     sim.setAtmos(dISA ? makeAtmos({ dISA }) : ATMOS_ISA, h);

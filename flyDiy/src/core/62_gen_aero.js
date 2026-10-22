@@ -138,6 +138,28 @@ function genStolStrip(ST, semi, zLo, zHi, fences) {
   if (sa > 0) { const SL = GEN_SLATS.auto; o.sa = sa; o.scd = scd; o.so = SL.open; o.sb = SL.band; }
   return o;
 }
+// G2822 (STOL-WING-2): THE WING'S STALL ANGLE AS IT FLIES - the section's own
+// (`P.aStall`, the clean wing's) plus the STOL devices' stall-angle gain,
+// area-weighted over the plane's wing strips (an automatic slat counts OUT:
+// at the stall it is). Every solver of an attitude near the stall - the trim's
+// alpha cap (64_gen_build), the flare budget, the design check's sweeps - caps
+// at a fraction of THIS: on a slatted wing the clean section's angle is a wall
+// the wing does not have, and an approach "trimmed" against it is trimmed at
+// the wrong attitude. No STOL strip on the plane: the section's own number,
+// the same bits. `k` the plane (undefined: every plane's strips).
+function genStallAngle(def, P, k) {
+  P = P || def.params.polarWing;
+  const mine = st => st.kind === 'wing' && (k === undefined || (st.plane | 0) === k);
+  if (!def.strips || !def.strips.some(st => st.stol && mine(st))) return P.aStall;
+  let A = 0, Ag = 0;
+  for (const st of def.strips) {
+    if (!mine(st)) continue;
+    A += st.area;
+    const r = st.stol;
+    if (r) Ag += st.area * Math.min(r.mx, r.dAs + (r.sa || 0));
+  }
+  return P.aStall + (A > 0 ? Ag / A : 0);
+}
 function genStrips(S, fr) {
   const P = fr.parts, R = GEN_RULES, strips = [];
   // G134: the resolved row (custom dials outrank the preset), and the wash
@@ -219,11 +241,30 @@ function genStrips(S, fr) {
   // a flap lever (a flap record to drive it)
   const stDroop = (ST && ST.droop > 0 && flapRef && CT.aileron.span > 0) ? (() => {
     const kc = genFlapTau(CT.aileron.chord) / genFlapTau(GEN_FLAP_CREF), dCl = GEN_FLAPS.plain.dCl * kc * ST.droop;
-    return { dCl, dCd: GEN_FLAPS.plain.cd * kc * ST.droop, dCm: GEN_FLAP_CM * dCl };
+    // G2822: ...and its SECTION STALLS EARLIER, as a plain flap's does: at constant alpha a plain flap shifts the
+    // section's lift by ~1.8x what it adds to Clmax, so the stall angle comes down by ~0.8 dClmax / a0 (Abbott & von
+    // Doenhoff, Theory of Wing Sections, the plain-flap section data, as recalled: a 20 % plain flap at 20 deg buys
+    // ~0.5 of Clmax and stalls ~3-4 deg sooner). Here dAs = 0.8 dCl / (0.9 x 2 pi): 1.9 deg at the editor's 10 deg
+    // of droop, 3.9 at 20. The down-going aileron of a drooped pair is the one nearest its stall - the roll the
+    // owners of drooped kits say they lose (the design check's ctl.droop measures what is left)
+    return { dCl, dCd: GEN_FLAPS.plain.cd * kc * ST.droop, dCm: GEN_FLAP_CM * dCl, dAs: 0.8 * dCl / (0.9 * 2 * Math.PI) };
   })() : null;
   // Fowler area growth: the chord the surface adds per unit of flap
   const stGrow = (ST && ST.grow && fEnd >= 0 && GEN_FLAPS[CT.flap.type].slide > 0)
     ? GEN_FLAPS[CT.flap.type].slide * CT.flap.chord : 0;
+  // G2822 (STOL-WING-2): WHAT HANGS IN THE AIR ON THE WING - each fence's two faces (h x c, Cf 0.008) and the
+  // endplate's (the plate, Cf 0.006) - priced on the STRIP it stands on, as a profile drag over that strip's area:
+  // it flies where the device is, and when the damage layer takes the wing (or the tip) off, its drag goes with it
+  // (G2820 hung it on the fuselage's axial CdA, which a wingless wreck kept). genParams reports the same sum as
+  // gen.drag.stol; it is no longer in the body's term.
+  const TIPk = GEN_TIPS[wk.tip] || GEN_TIPS.rounded;
+  // (per side: one plate, one fence each - both faces; genParams' sum is both sides)
+  const stPlate = TIPk.plate ? 2 * (TIPk.plate[0] * PL.chordAt(semi)) * (TIPk.plate[1] * PL.chordAt(semi)) * 0.006 : 0;
+  const stXcd = (zLo, zHi, tip) => {
+    let a = tip ? stPlate : 0;
+    for (const zf of stFences) if (zf >= zLo && zf < zHi) { const c = PL.chordAt(zf); a += 2 * (GEN_STOL.fence.h * c) * c * GEN_STOL.fence.cf; }
+    return a;
+  };
 
   const zAll = [PL.zRoot, ...PL.zs];
   for (const [side, fw] of [[1, PL.wf.R], [-1, PL.wf.L]]) {
@@ -254,10 +295,13 @@ function genStrips(S, fr) {
           // reads the strip's own numbers, never a single aeroplane-wide one
           plane: k, sparSpacing: PL.sparSpacing, cf,
         });
-        if (ST) {
+        const xcd = (ST || stPlate > 0) ? stXcd(zLo, zHi, b === PL.zs.length - 1 && t > 0.5) : 0;
+        if (ST || xcd > 0) {
           // G2820: keys only where a device reaches - every other strip is
           // the object it always was
-          const sr = genStolStrip(ST, semi, zLo, zHi, stFences), last = strips[strips.length - 1];
+          const last = strips[strips.length - 1];
+          const sr = genStolStrip(ST, semi, zLo, zHi, stFences) || (xcd > 0 ? { dAs: 0, dCl: 0, cd: 0, mx: GEN_STOL.dAsMax } : null);
+          if (sr && xcd > 0) sr.cd += xcd / last.area;
           if (sr) last.stol = sr;
           if (stDroop && zc > aStart) last.dr = stDroop;
           if (stGrow > 0 && fFrac > 0) last.fg = stGrow;
@@ -1440,10 +1484,11 @@ function genParams(S, fr, strips) {
     cda.drag.pod = pd.cda;
     cda.drag.vol = (cda.drag.vol || 0) + fr.parts.pod.vol;
   }
-  // G2820: WHAT THE STOL WING HANGS IN THE AIR that no strip prices - the
-  // fences (two faces of h x c each, Cf 0.008) and the endplates (two faces
-  // of the plate, Cf 0.006). Axial only, the gear model's rule; absent on
-  // every aeroplane without them (not a key, not a term).
+  // G2820: WHAT THE STOL WING HANGS IN THE AIR - the fences (two faces of
+  // h x c each, Cf 0.008) and the endplates (two faces of the plate, Cf
+  // 0.006), both sides. G2822: the force rides the strips they stand on
+  // (genStrips stXcd); this is the same sum, REPORTED (gen.drag.stol) for
+  // the drag build-up's readers. Absent on every aeroplane without them.
   {
     let sd = 0;
     S.wings.forEach((wk, k) => {
@@ -1459,7 +1504,7 @@ function genParams(S, fr, strips) {
         sd += 2 * 2 * (GEN_STOL.fence.h * c) * c * GEN_STOL.fence.cf;
       }
     });
-    if (sd > 0) { cda.fusCdA[0] += sd; cda.drag.stol = sd; }
+    if (sd > 0) cda.drag.stol = sd;      // G2822: reported; the force rides the strips (genStrips stXcd)
   }
   cda.drag.axial = cda.fusCdA[0];
   // Control effectiveness from surface chord. The reference pairs are the

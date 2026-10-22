@@ -263,7 +263,8 @@ const WING_ITEMS = [
     ['wgAilChord', 'ail. chord', 0.10, 0.35, 0.01, { when: P => +P.wgAilOn }],
     // G2820: drooping ailerons ride the flap lever (only with a flap);
     // Fowler area growth only means something on a Fowler
-    ['wgDroop', 'aileron droop', 0, 0.50, 0.05,
+    // G2823: an index into GEN_STOL.droopSteps (none / 10 / 20 deg), its tiles in the slot
+    ['wgDroop', 'aileron droop', 0, 2, 1, ['none', '10 deg with flaps', '20 deg with flaps'],
      { when: P => +P.wgAilOn && FLAP_KEYS[Math.round(P.wgFlapType)] !== 'none' }],
     ['wgFowlerGrow', 'Fowler area growth', 0, 1, 1,
      { when: P => FLAP_KEYS[Math.round(P.wgFlapType)] === 'fowler' }],

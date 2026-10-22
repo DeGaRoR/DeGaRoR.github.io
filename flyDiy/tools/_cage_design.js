@@ -1259,9 +1259,11 @@ const DESIGN_ROWS = [
 
   // ---- G2820: THE STOL WING (60_gen_spec GEN_SLATS / GEN_STOL) ----------
   // Every device off by default; each tile writes its one cage row. The
-  // shape panel's 'STOL devices' group carries the spans.
+  // shape panel's 'STOL devices' group carries the spans. G2823 (STOL-WING-2,
+  // G2760's rule): each is its row's TWIN - the tiles stand in the row's slot
+  // on the wing's panel (one control per choice) and in the Custom-build grid.
   { key: 'wgSlat', label: 'Leading edge', kind: 'discriminator',
-    group: 'wing', status: 'live',
+    group: 'wing', status: 'live', twin: ['wgSlat'],
     help: 'a slat lets the wing fly to a higher angle before it stalls',
     read: P => Math.round(P.wgSlat || 0),
     options: () => ['none', 'slot', 'auto'].map((k, i) => ({
@@ -1269,32 +1271,33 @@ const DESIGN_ROWS = [
       icon: iconSlat(k), writes: { cage: { wgSlat: i } },
       ...(i && stolLock('slat') ? { inactive: stolLock('slat') } : {}) })) },
   { key: 'wgVG', label: 'Vortex generators', kind: 'discriminator',
-    group: 'wing', status: 'live',
+    group: 'wing', status: 'live', twin: ['wgVG'],
     read: P => Math.round(P.wgVG || 0),
     options: () => [['none', 0], ['VG row', 1]].map(([lb, v]) => ({
       value: v, label: lb, icon: iconStol('vg', v), writes: { cage: { wgVG: v } },
       ...(v && stolLock('vg') ? { inactive: stolLock('vg') } : {}) })) },
   { key: 'wgFence', label: 'Wing fences', kind: 'discriminator',
-    group: 'wing', status: 'live',
+    group: 'wing', status: 'live', twin: ['wgFence'],
     read: P => Math.round(P.wgFence || 0),
     options: () => [['none', 0], ['one a side', 1], ['two a side', 2]].map(([lb, v]) => ({
       value: v, label: lb, icon: iconStol('fence', v), writes: { cage: { wgFence: v } },
       ...(v && stolLock('fences') ? { inactive: stolLock('fences') } : {}) })) },
   { key: 'wgCuff', label: 'Leading-edge cuff', kind: 'discriminator',
-    group: 'wing', status: 'live',
+    group: 'wing', status: 'live', twin: ['wgCuff'],
     read: P => Math.round(P.wgCuff || 0),
     options: () => [['none', 0], ['outboard cuff', 1]].map(([lb, v]) => ({
       value: v, label: lb, icon: iconStol('cuff', v), writes: { cage: { wgCuff: v } },
       ...(v && stolLock('cuff') ? { inactive: stolLock('cuff') } : {}) })) },
   { key: 'wgDroop', label: 'Drooping ailerons', kind: 'discriminator',
-    group: 'wing', status: 'live',
+    group: 'wing', status: 'live', twin: ['wgDroop'],
     help: 'the ailerons go down with the flap lever',
-    read: P => (+P.wgDroop > 0 ? 0.35 : 0),
-    options: () => [['no droop', 0], ['droop with flaps', 0.35]].map(([lb, v]) => ({
+    // G2823: the row is an index into GEN_STOL.droopSteps (0, 10, 20 deg of a plain flap's 40)
+    read: P => Math.round(+P.wgDroop || 0),
+    options: () => [['no droop', 0], ['10 deg with flaps', 1], ['20 deg with flaps', 2]].map(([lb, v]) => ({
       value: v, label: lb, icon: iconStol('droop', v), writes: { cage: { wgDroop: v } },
       ...(v && stolLock('droop') ? { inactive: stolLock('droop') } : {}) })) },
   { key: 'wgFowlerGrow', label: 'Fowler area growth', kind: 'discriminator',
-    group: 'wing', status: 'live',
+    group: 'wing', status: 'live', twin: ['wgFowlerGrow'],
     help: 'a Fowler flap that adds its chord to the wing as it runs out',
     read: P => Math.round(P.wgFowlerGrow || 0),
     options: () => [['camber only', 0], ['area grows', 1]].map(([lb, v]) => ({

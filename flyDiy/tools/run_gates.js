@@ -106,7 +106,10 @@ const GATES = [
   // G2820 (STOL-WING): slats / slots, VGs, fences, cuffs, endplates, drooped tips, drooping ailerons, Fowler area
   // growth - every card off the STOL wing is its pre-G2820 bits (def, 4 s of flight, the drawn wing); each device
   // measured in the tunnel and drawn where it flies; Savannah / Super Cub / Highlander against their sheets
-  { id: 'STOL', file: '_stol_check.js', argv: ['--selftest'], tier: 'core', wall: 90 },
+  // G2821-G2824 (STOL-WING-2): the four validated builds joined and benched to master's bits too (the fixture is
+  // tools/_stol_samebits.js --capture's, on an untouched master); each device against its published range, the
+  // design check / Vref / damage on the STOL wing, the user's Cub with a STOL kit FLOWN (one circuit, ~2 min)
+  { id: 'STOL', file: '_stol_check.js', argv: ['--selftest'], tier: 'core', wall: 330 },
   { id: 'STRESS', file: 'test_stress.js', tier: 'core' },
   // G384: under core, GEN builds every configuration but flies four of the
   // sixteen circuits (test_gen.js CORE_FLY); --all flies them all

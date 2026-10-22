@@ -3030,7 +3030,7 @@ function makeSim(def, world) {
           }
           dAS -= Math.min(SR.mx, g);
         }
-        if (st.dr && ctl.flap > 0) { dCl += st.dr.dCl * ctl.flap; dCd += st.dr.dCd * ctl.flap; }
+        if (st.dr && ctl.flap > 0) { dCl += st.dr.dCl * ctl.flap; dCd += st.dr.dCd * ctl.flap; dAS += (st.dr.dAs || 0) * ctl.flap; }
         [Cl, Cd] = polar(al, P, sig, dCl, dCd, dAS);
       }
       // G461: the stab flies at the body's wake q (P_.tailEta, 1 on a fiche)

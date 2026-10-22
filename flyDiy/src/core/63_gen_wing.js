@@ -1108,14 +1108,14 @@ function genWingInto(def, out) {
       // rotated by `rot` about the upper end and moved by (dx, dy)
       const crescent = (a, b, k, rot, dx, dy, droop) => {
         const n = 10, out = [];
-        for (let i = 0; i <= n; i++) out.push(E.up(a * (1 - 0.5 * (1 - Math.cos(Math.PI * i / n)))));
-        for (let i = 1; i <= n; i++) out.push(E.lo(b * 0.5 * (1 - Math.cos(Math.PI * i / n))));
+        for (let i = 0; i <= n; i++) out.push(E.up(a * (1 - 0.5 * (1 - CORE_MATH.cos(Math.PI * i / n)))));
+        for (let i = 1; i <= n; i++) out.push(E.lo(b * 0.5 * (1 - CORE_MATH.cos(Math.PI * i / n))));
         // a droop fades to nothing at both ends (upper x=a, lower x=b), so
         // the glove blends into the skin it is bonded to
         if (droop) out.forEach((q, i) => { const e = i <= n ? a : b, u = Math.max(0, 1 - q[0] / e); q[1] -= droop * u * u; });
         const c0 = [0.10, E.up(0.10)[1] * 0.5 + E.lo(0.10)[1] * 0.5];
         const inn = out.slice().reverse().map(q => [c0[0] + k * (q[0] - c0[0]), c0[1] + k * (q[1] - c0[1])]);
-        const piv = out[0], cr = Math.cos(rot), sr = Math.sin(rot);
+        const piv = out[0], cr = CORE_MATH.cos(rot), sr = CORE_MATH.sin(rot);
         return out.concat(inn).map(([x, y]) => {
           const ux = x - piv[0], uy = y - piv[1];
           return [piv[0] + cr * ux - sr * uy + dx, piv[1] + sr * ux + cr * uy + dy];
@@ -1170,7 +1170,7 @@ function genWingInto(def, out) {
         for (const zf of genStolFences(ST, semiK, PP.zRoot, aStart, CTk.aileron.span)) {
           if (zf < zIn || zf > zOut) continue;
           const F = fr3(zf), H = (GEN_STOL.fence.h || 0.12), n = 12, inf = F.infl(0.3);
-          const xs = []; for (let i = 0; i <= n; i++) xs.push(0.75 * (1 - Math.cos(Math.PI * i / n)) / 2);
+          const xs = []; for (let i = 0; i <= n; i++) xs.push(0.75 * (1 - CORE_MATH.cos(Math.PI * i / n)) / 2);
           for (const off of [-0.0015, 0.0015]) {
             const lo = [], hi = [];
             const lw = E.lo(0.03), lwP = F.at(lw[0], lw[1]);
@@ -1197,7 +1197,7 @@ function genWingInto(def, out) {
         const F = fr3(zStraight), [hP, lP] = TIP.plate, x0 = -0.05, x1 = x0 + lP;
         const yTop = 0.55 * hP, yBot = -0.45 * hP, R = 0.18;
         const ring = [];
-        const arc = (cx, cy, a0, a1) => { for (let i = 0; i <= 5; i++) { const a = a0 + (a1 - a0) * i / 5; ring.push([cx + R * Math.cos(a), cy + R * Math.sin(a)]); } };
+        const arc = (cx, cy, a0, a1) => { for (let i = 0; i <= 5; i++) { const a = a0 + (a1 - a0) * i / 5; ring.push([cx + R * CORE_MATH.cos(a), cy + R * CORE_MATH.sin(a)]); } };
         ring.push([x1, yBot]); ring.push([x1, yTop]);
         arc(x0 + R, yTop - R, Math.PI / 2, Math.PI);
         arc(x0 + R, yBot + R, Math.PI, 1.5 * Math.PI);
