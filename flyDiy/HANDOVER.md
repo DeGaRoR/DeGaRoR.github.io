@@ -97930,3 +97930,66 @@ Gates 14:20 (gates.txt): 27/32 PASS. DMGHULL PASS after A2 (15:21). DMGPLOUGH re
 Cessna ground-loop on the SEA roll) = the joint float fix, Pilot's float-water-final (re-gate 20:50). POD and ROLLANIM are
 red on master 5f3f2c797 too (master_5f3f2c797_pod_rollanim.txt): POD's base was blessed on train 41; ROLLANIM's G1039
 framing - board items for their owners, not this branch.
+## G3370-G3379 - TUTO-FLIGHT: T1'S TUTORIAL LADDER IN TIM'S BAND, OFF WHEN MANUAL, AND "SKIP THE FLIGHT" STRAIGHT INTO THE WWII HANGAR (2026-10-22, for the GAME COORDINATOR, cloud - node + headless only; branch claude/tuto-flight off origin/master 2c42dfdf; the work: 4c6eb4790; NOT on claude/ready/ - the coordinator reviews first)
+GAME-PLAN §R2, the user 19 Oct: "a few cards covering the basics ... text and/or image on transparent background in the bottom
+part of the screen. This will be deactivated if manual controls are taken. There will be an option to skip the tutorial flight
+and get straight into the WWII hangar."
+- **Where it runs.** Only the story's T1 (the move to HOME), only under STORY_PAGE (never the sandbox, never ?career=1), and
+  nothing after T1. The ladder only in flight (on the roll-out stand and in the air); the Skip in the shed, on the stand and in
+  flight.
+- **The cards** (79_story.js `STORY_LADDER`, beside STORY_TIM: draft English, each with a text key `story.ladder.<id>` for the
+  narrative pack, a title, the text and an `img` slot - null for now; an image named there shows at the band's right).
+  Keyed to the pilot's own phases (43_pilot PILOT_PHASES; `at` lists them):
+  1. **Take-off** (DEPART, TAXI, LINEUP, STOP, HOLD, ROLL, ABORT, LIFTOFF, PUTDOWN): "The autopilot flies the whole trip: the
+     taxi, the line-up, the take-off roll and the climb. The phase bar names what it is doing. Sit back and watch."
+  2. **The map and the route** (CLIMB, CROSSWIND): "The map (on the left rail) shows where you are and the line the autopilot
+     follows to the WWII field. Every job is a flight like this one: from A to B, stopped and whole at the end."
+  3. **The work** (ENROUTE, ROUTE, DOWNWIND, BOX, LOITER): "That is the game: clients post jobs on the map, you fly them, they
+     pay. The money buys parts, aeroplanes and hangars, and hired pilots fly what you cannot. The jobs open once we have moved in."
+  4. **Building a plane** (no phase: after the cruise card, once the cruise has run 25 s of sim time or half the way to HOME is
+     flown): "In the hangar you change your aeroplanes. Click a part, then again to climb the tree to the whole plane. More wing
+     lands slower and shorter, more power climbs faster, every kilo costs both. A changed plane passes the bench before it flies
+     for money."
+  5. **The approach** (INBOUND, BASE, FINAL, GOAROUND, GLIDE): "The approach: the autopilot lines up with the runway, slows down
+     and holds the glide. If it does not like it, it goes round and tries again. A slower plane needs a shorter strip."
+  6. **The WWII field** (FLARE, ROLLOUT, STOPPED): "The flare, the roll-out, and we are home. Stop it on the field and the hangar
+     is ours: our first client is already on the way."
+- **The step** (`storyLadderStep(L, { phase, t, dHome, manual })`, pure): one card at a time, in order, never skipped, each held
+  at least 10 s of sim time (STORY_LADDER_RULE); a later phase pulls the ladder forward, an earlier one (a go-around's DOWNWIND)
+  never takes it back.
+- **On the page** (app.js, the story half): Tim's band (#stTim) shows the card on T1's flight instead of Tim's T1 lines (those
+  stay the shed's): Tim's portrait, "the flight · n of 6", the title and the text, OK (read: the band waits for the next card).
+  `#stTim.lad` is a TRANSPARENT ground (text shadow for the world behind). A half-second tick follows the phase (only while T1
+  flies; not in loop()). A roll-out is a new flight (playerFlightStart -> storyLadderReset, behind CAREER_DEV && STORY_PAGE); a
+  Restart or a Fly on keeps it.
+- **Off when manual.** 'flydiy:manual' with manual true (or FLYDIY_AP.manual() at a tick) ends the ladder for the rest of the
+  flight and hides the band; handing the aeroplane back does not bring it back.
+- **Skip the flight** (`#stSkip`, a pill at the bottom-left edge, the garage's look - joined editor.css's :is() token root;
+  48 px on the phone; Tim's band stands above it while it shows). Its words say what it does: "Skip the flight: straight to the
+  WWII hangar". `storySkipFlight()`:
+  - `storyEvent({ k: 'stop', stop: careerStopRecord({ how: 'stopped', aero: HOME, slot, row: { from: <where Rufus stands>, to: HOME, t: 0 } }), slot })`
+    - T1 done as a stop at HOME does it: the hangar effect (the lock lifted, its ledger line at 0), T2 entered, the client Cub's
+    effect queued and flushed (the Cub fetched, in the HOME hangar, bound);
+  - Rufus into the HOME hangar through the stop's own roll-in (playerArrive, prefer HOME; then playerGoTo: the garage there);
+  - no careerStopApply, no pilots logbook row, no clock: no money and no flight invented. In the air, the flight is walked away
+    from without its end recorded (flEnded), then the bar's own shed door (#bHangar2: the arrival card down, the roll-in
+    screen) builds the room at HOME. In the shed, FLYDIY_PLAYER.onChange -> roomFollow rebuilds the room at HOME.
+  - Off T1 it is hidden and refused. Also `window.FLYDIY_STORY.skip()` and `.ladder()` for rigs.
+- **GATE STORY**, a new section "the tutorial flight" (25 new rows, after the half's 8 source rows; headless over the half): the cards (5-6, keyed, the basics,
+  the pilot's phases); a cabin -> HOME flight steps all six in order; manual stops it for good; on the page: Tim's lines in the
+  shed, the ladder in flight (.lad), the six in order, OK, 'flydiy:manual' hides it, the hand-back keeps it off, the next roll-out
+  restarts it; none at T0 / T2; the Skip from the shed (T2, HOME ours, Rufus in the HOME hangar, here HOME, the client Cub in the
+  HOME hangar as it arrives, wallet / logbook / contracts unchanged) and in flight (the shed door, the flight's end not recorded);
+  the look. The harness gained `inGarage / ap / sim / flEnded / baseId`, a window event bus and a body classList.
+- **Gates** (22 Oct, cloud; the generated files built locally for the run, then put back - not committed):
+  GATE STORY: PASS (+ --selftest PASS), GATE UISMOKE: PASS, GATE UISMOKE-PHONE: PASS, GATE ROUTES: PASS, GATE GAMEPREM: PASS,
+  GATE GFX: PASS, GATE LAZY: PASS (--no-browser, the static half: MANIFEST.career unchanged), GATE CARDS: PASS (S1/S2; its
+  Chrome half SKIPPED here: no Chrome found by the gate).
+- **For the coordinator / the user:** the card texts are drafts for the narrative pack; the image slot is empty (no art
+  invented). The 10 s hold and the build card's call (25 s of cruise or halfway) are a first guess: on a short cabin -> HOME hop
+  the approach may arrive while "Building a plane" still holds its 10 s.
+
+## A0 - landing L22b (22 Oct 2026, gates 10:00-11:00, pushed ~11:05): THE SMOOTHER AUTOPILOT, THE LEVEL-OFF FIX, THE FIRST-FLIGHT TUTORIAL, THE PIER TEST TABLE
+Rolling set: ap-adapt (AP-ADAPT G3300-G3307: every certified build flown smoothly; the user accepted by name, 22 Oct ~08:45, "1 yes": the float Cessna Ham-fist DEV persona banks 18.5 deg after lift-off, was 10.9; the Student no longer capsizes there; APSMOOTH's c172 level-off row KNOWN under 17 m until G3332), level-off-g3332 (Pilot: the climb captures cruise by TECS's height law in its last 5 s; the metal Cessna's balloon 15.7 -> 5.3 m; floats untouched (sim.hydro skipped); the user accepted by name "2 yes": the Cub's cross-country hold +0.1 m worst / +0.2 m rms), pier-tris (ASSETS-OCT: GATE HOUSE's PIER_TRIS to the shipped G2905 people / boat counts), tuto-flight (G3370: the first flight's cards in Tim's band, off on manual; 'Skip the flight' completes T1 at HOME).
+Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore). The two 43 changes were gated together here (PILOT PILOTMATRIX TAKEOFF TOUR APSMOOTH PASS).
+Strict light gate: 9 RED, none new by cause: over100 x4 = the reveal frame (HWCOV: the gate pins mirror=off in the shed, which re-runs worldCompile after the shot; fix reveal-held tested today); metal chase/cockpit tasks1s / taskWorst 1481-1797 = the boot ~1 s task class; metal fuseWidth busy (accepted).

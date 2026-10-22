@@ -28,6 +28,14 @@
 //     rough terrain, ending on the shed at eye height with the lens closed (the zoom), black at the end;
 //   - played to its end -> the garage, the story at T0; Skip -> the garage within the skip's fade, the story at T0;
 //   - lazy (no static tag; FLYDIY_LAZY's map names it), the Skip at the bottom edge in the garage's look, the track on disk.
+// G3370-G3379 (TUTO-FLIGHT) T1'S LADDER AND ITS SKIP, headless over the same half -
+//   - the cards (79_story.js STORY_LADDER): 5-6, keyed for the narrative pack, on the pilot's own phases; a flight from the
+//     cabin to HOME steps them in order, one at a time; the player's hand on the controls ends them for the flight;
+//   - on the page: Tim's band shows them on T1's flight only (transparent ground), stops on 'flydiy:manual', a roll-out
+//     is a new flight; nothing off T1 (T0 in flight, T2 in flight);
+//   - "Skip the flight" at the bottom edge on T1 (the shed and in flight): T1 completed as a stop at HOME would (the stop
+//     record into the story), the starter in the HOME hangar, the garage there, T2's client Cub fired and standing in it,
+//     no money and no logbook row; in flight, the shed door and the flight's end not recorded; refused off T1.
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..');
@@ -195,13 +203,17 @@ async function page() {
   const mkEl = tag => { const e = { tag, id: '', hidden: false, dataset: {}, innerHTML: '', style: {}, _cls: new Set(), attrs: {}, listeners: {},
     classList: { toggle(c) { if (e._cls.has(c)) e._cls.delete(c); else e._cls.add(c); }, contains: c => e._cls.has(c) },
     setAttribute(k, v) { e.attrs[k] = v; }, addEventListener(t, f) { e.listeners[t] = f; } }; els.push(e); return e; };
-  const document = { body: { appendChild: e => e }, createElement: mkEl, getElementById: id => els.find(e => e.id === id) || null };
+  const bodyCls = new Set();
+  const document = { body: { appendChild: e => e, classList: { toggle: (c, on) => { if (on === undefined ? !bodyCls.has(c) : on) bodyCls.add(c); else bodyCls.delete(c); }, contains: c => bodyCls.has(c), add: c => bodyCls.add(c), remove: c => bodyCls.delete(c) } },
+                     createElement: mkEl, getElementById: id => els.find(e => e.id === id) || null };
   const aerosCabin = [{ id: 'HOME', name: 'Jolene AFB 13/31', kind: 'strip' }, { id: 'w6', name: 'strip 11', kind: 'strip' },
                       { id: 'SEA', name: 'Greywater Dock', kind: 'water' }, { id: 'w9', name: 'Cabin Strip', kind: 'strip' }];
   const world = { aerodromes: aerosCabin };
   let player = null, stand = null, liveSpec = null, fetched = [];
   const H = Object.assign(Object.create(null), M, {
     STORY_PAGE: true, CAREER_DEV: true, world, document, console: { log() {}, info() {}, warn() {}, error: console.error }, stIntroArm: false, location: { search: '' },
+    inGarage: true, ap: null, sim: null, flEnded: false, baseId: 'HOME',                  // (G3370: the flight as the ladder and the skip read it)
+    _ls: {}, addEventListener(t, f) { (this._ls[t] = this._ls[t] || []).push(f); }, dispatchEvent(ev) { for (const f of this._ls[ev.type] || []) f(ev); },
     CustomEvent: function (t, o) { this.type = t; this.detail = o && o.detail; }, JSON, Math, Date, Object, Array, String, Number, Set, Map, Promise, Error, isFinite, encodeURI,
     setTimeout, setInterval: () => 0,
     fetch: url => { fetched.push(url); const f = path.join(ROOT, decodeURI(url));
@@ -220,7 +232,7 @@ async function page() {
   const run = vm.runInContext('(function () {\n' + half + '\n' +
     'return { storyOnFlightEnd, storyCardSync, storyCardNow, storyEvent, storyRecord, storyCertified, stQueue: () => stQueue, line: () => stLine, el: () => stCardEl }; })', H, { filename: 'app.js (the story half)' });
   void run;
-  return { fails, ok, H, prefs, els, set: d => { player = d; }, get: () => player, standSet: n => { stand = n; }, specSet: s => { liveSpec = s; }, fetched, half, M, aerosCabin };
+  return { fails, ok, H, prefs, els, bodyCls, mkEl, set: d => { player = d; }, get: () => player, standSet: n => { stand = n; }, specSet: s => { liveSpec = s; }, fetched, half, M, aerosCabin };
 }
 
 async function pageRun() {
@@ -478,6 +490,125 @@ async function introRun() {
   return fails;
 }
 
+// ---- G3370-G3379 (TUTO-FLIGHT): T1'S LADDER AND "SKIP THE FLIGHT" ----------------------------------------------------
+async function ladderRun() {
+  const P = await page();
+  const { fails, ok, H, M, els, prefs } = P;
+  if (fails.length) return fails;
+  const app = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8'), css = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'editor.css'), 'utf8');
+  // ---- the cards, pure
+  const LAD = M.STORY_LADDER, ids = LAD.map(c => c.id);
+  ok(Array.isArray(LAD) && LAD.length >= 5 && LAD.length <= 6 && LAD.every(c => /^story\.ladder\.\w+$/.test(c.key) && c.title && typeof c.text === 'string' && c.text.length > 40 && c.text.length < 280 && 'img' in c),
+     "the ladder: 5-6 cards, each a text key for the narrative pack (title, text, an image slot)", ids.join(', '));
+  ok(ids.join() === 'roll,climb,cruise,build,approach,landing', 'in the flight\'s order: take-off, climb (the map), cruise (the game\'s loop), building, the approach, the landing at HOME');
+  const words = LAD.map(c => c.text).join(' ');
+  ok(/map/.test(words) && /jobs/.test(words) && /money/.test(words) && /hangar/.test(words) && /wing/.test(words) && /power/.test(words) && /bench/.test(words),
+     'the basics of the game (the map, the jobs, the money, the hangar) and of building a plane (wing, power, the bench)');
+  const named = [].concat(...LAD.map(c => c.at)), bad = named.filter(ph => !(ph in M.PILOT_PHASES));
+  ok(!bad.length && ['DEPART', 'ROLL', 'CLIMB', 'ENROUTE', 'FINAL', 'FLARE', 'STOPPED'].every(ph => named.includes(ph)), "keyed to the pilot's own phases (43_pilot PILOT_PHASES)", bad.join() || named.length + ' phases');
+  // a flight from the cabin to HOME, a tick a second: the cards in order, one at a time
+  const flight = [['DEPART', 20], ['ROLL', 12], ['CLIMB', 40], ['ENROUTE', 90], ['INBOUND', 30], ['FINAL', 40], ['FLARE', 6], ['ROLLOUT', 15], ['STOPPED', 10]];
+  const run = (manualAt) => { let L = M.storyLadderNew(), t = 0; const seen = [], D0 = 6000;
+    for (const [ph, n] of flight) for (let k = 0; k < n; k++, t++) {
+      const r = M.storyLadderStep(L, { phase: ph, t, dHome: D0 * (1 - t / 263), manual: manualAt != null && t >= manualAt && t < manualAt + 5 });
+      L = r.L; const c = r.card ? r.card.id : null; if (seen[seen.length - 1] !== c) seen.push(c); }
+    return { seen, L }; };
+  const A = run(null);
+  ok(A.seen.join() === ids.join(), 'a flight to HOME: every card in turn, none skipped', A.seen.join(' > '));
+  const B = run(70);
+  ok(B.L.off && B.seen[B.seen.length - 1] === null && !B.seen.slice(B.seen.indexOf(null)).some(Boolean),
+     'the player takes the controls: the ladder stops and stays off for the rest of the flight (the hand-back does not bring it back)', B.seen.join(' > '));
+  // ---- the page: T1 at the cabin, Tim's band
+  const settle = async () => { for (let i = 0; i < 400; i++) { await new Promise(r => setTimeout(r, 5)); if (!H.window.FLYDIY_STORY || !H.window.FLYDIY_STORY.pending()) { await new Promise(r => setTimeout(r, 5)); if (!H.window.FLYDIY_STORY.pending()) return; } } };
+  let man = false;
+  const D0 = 5200, home = { id: 'HOME', name: 'Jolene AFB 13/31', kind: 'strip', x: 0, z: 0 };
+  H.world.aerodromes = P.aerosCabin.map(a => (a.id === 'HOME' ? Object.assign({}, a, home) : a));
+  let cg = [D0, 300, 0];
+  H.sim = { cgPos: () => cg };
+  H.window.FLYDIY_AP = { manual: () => man };
+  const atT1 = () => { let d = M.storyNewCareer(M.careerNormalise(M.careerNew({ id: 'main', seed: 'ladder' })), { aeros: H.world.aerodromes }).doc;
+    d = M.storyStep(d, { k: 'ack' }, { aeros: H.world.aerodromes }).doc;
+    d = M.playerFleetReconcile(d, H.playerSlotNames()).doc;          // (playerLoad's own lift: the slots already written stand in the fleet)
+    P.set(d); return d; };
+  atT1();
+  H.inGarage = true; H.ap = null;
+  const X = vm.runInContext('(function () {\n' + P.half + '\nreturn { storyTimSync, storyLadderReset, storySkipSync, tim: () => stTimEl, skip: () => stSkipEl }; })', H)();
+  await settle();
+  let d = P.get();
+  ok(M.storyOf(d).beat === 'T1' && d.fleet.Rufus && M.playerWhere(d, 'Rufus').hangar === 'w9', 'the fixture: T1, Rufus in the cabin\'s shed');
+  X.storyTimSync();
+  ok(X.tim() && !X.tim().hidden && X.tim().className === '' && /WWII airport/.test(X.tim().innerHTML), "in the shed at T1: Tim's own T1 lines (no ladder on the ground)");
+  // the flight: a roll-out (playerFlightStart -> storyLadderReset), the pilot's phase and clock
+  const fly = (phase, t, x) => { H.ap.phase = phase; H.ap.t = t; if (x != null) cg = [x, 300, 0]; X.storyTimSync(); const e = X.tim(); return e && !e.hidden ? e : null; };
+  H.inGarage = false; H.ap = { phase: 'DEPART', t: 0 }; X.storyLadderReset();
+  let e = fly('DEPART', 0, D0);
+  ok(e && e.className === 'lad' && /Take-off/.test(e.innerHTML) && /the flight · 1 of 6/.test(e.innerHTML) && /data-tim="lad"/.test(e.innerHTML),
+     "in flight on T1: the band shows the ladder's first card (Tim, 'the flight · 1 of 6', OK), on the transparent ground (.lad)", e && e.className);
+  const order = [];
+  const push = el => { const m = el && /<b class="stLadT">([^<]+)<\/b>/.exec(el.innerHTML); const k = m ? m[1] : null; if (order[order.length - 1] !== k) order.push(k); };
+  let t = 0; push(e);
+  for (const [ph, n] of flight) for (let k = 0; k < n; k++, t++) push(fly(ph, t, D0 * (1 - t / 263)));
+  ok(order.filter(Boolean).join(' > ') === LAD.map(c => c.title).join(' > '), 'the band follows the flight: the six cards, in order', order.join(' > '));
+  // OK on a card: read, the band waits for the next
+  H.inGarage = false; H.ap = { phase: 'DEPART', t: 0 }; X.storyLadderReset(); e = fly('DEPART', 0, D0);
+  e.listeners.click({ target: { closest: () => ({ dataset: { tim: 'lad' } }) } });
+  ok(X.tim().hidden && !!fly('CLIMB', 30), "a card's OK hides it; the next card shows again");
+  // the hand on the controls: 'flydiy:manual' stops the ladder at once, for the rest of the flight
+  man = true; H.dispatchEvent({ type: 'flydiy:manual', detail: { manual: true, by: 'takeover' } });
+  ok(X.tim().hidden && H.window.FLYDIY_STORY.ladder().off === true, "'flydiy:manual' (the player takes control): the ladder stops and the band hides");
+  man = false; H.dispatchEvent({ type: 'flydiy:manual', detail: { manual: false, by: 'button' } });
+  ok(!fly('ENROUTE', 80) && !fly('FINAL', 200) && H.window.FLYDIY_STORY.ladder().off === true, 'the autopilot given back: still off for the rest of this flight');
+  H.ap = { phase: 'DEPART', t: 0 }; X.storyLadderReset();
+  ok(!!fly('DEPART', 0, D0) && H.window.FLYDIY_STORY.ladder().off === false, 'the next roll-out is a new flight: the ladder from its first card');
+  ok(/flSlot = slotOnStand\(\); flEnded = false; flLastEnd = null;\n\s*if \(CAREER_DEV\) careerFlightStart\(\);\n\s*if \(CAREER_DEV && STORY_PAGE\) storyLadderReset\(\);/.test(app) &&
+     /window\.addEventListener\('flydiy:manual', ev => \{ try \{ if \(ev && ev\.detail && ev\.detail\.manual && !inGarage\) stLad\.off = true;/.test(app),
+     "the source: a roll-out (playerFlightStart) resets it behind the story's guard; the 'flydiy:manual' event ends it");
+  // ---- nothing off T1: T0 and T2 in flight show no ladder
+  { const keep = P.get(); let d0 = M.storyNewCareer(M.careerNormalise(M.careerNew({ id: 'main', seed: 'ladder0' })), { aeros: H.world.aerodromes }).doc; P.set(d0);
+    H.ap = { phase: 'ENROUTE', t: 90 }; X.storyTimSync();
+    const t0 = X.tim().hidden || X.tim().className !== 'lad';
+    const d2 = JSON.parse(JSON.stringify(keep)); d2.career.story.beat = 'T2'; d2.career.story.done = ['T0', 'T1']; P.set(d2); X.storyTimSync();
+    const t2 = X.tim().hidden || X.tim().className !== 'lad';
+    ok(t0 && t2, 'no ladder off T1: a T0 or a T2 flight shows none');
+    X.storySkipSync();
+    ok(X.skip() && X.skip().hidden && !P.bodyCls.has('stSkipOn') && !H.window.FLYDIY_STORY.skip().ok, 'no Skip off T1 (the pill hidden, the skip refused)');
+    P.set(keep); }
+  // ---- SKIP THE FLIGHT, from the shed
+  H.inGarage = true; H.ap = null; X.storySkipSync();
+  const sk = X.skip();
+  ok(sk && sk.id === 'stSkip' && !sk.hidden && /Skip the flight/.test(sk.textContent) && P.bodyCls.has('stSkipOn'), 'T1 in the shed: "Skip the flight" shows at the bottom edge (Tim\'s band above it)');
+  d = P.get();
+  const w0 = d.wallet, log0 = JSON.stringify(d.career.pilots || null), led0 = d.ledger.length, con0 = JSON.stringify(d.career.contracts);
+  sk.listeners.click({});
+  await settle();
+  d = P.get();
+  const S = M.storyOf(d), cub = S.planes.client, RW = M.playerWhere(d, 'Rufus');
+  ok(S.beat === 'T2' && S.done.join() === 'T0,T1' && !d.sheds.HOME.locked && d.ledger.some(l => l.k === 'story' && l.ref === 'HOME'), 'Skip: T1 complete as a stop at HOME (the hangar ours, its ledger line)', S.beat);
+  ok(RW.kind === 'in' && RW.hangar === 'HOME' && d.here === 'HOME', 'Rufus straight into the HOME hangar, the garage there', JSON.stringify(RW) + ' here ' + d.here);
+  ok(cub && prefs.has('flydiy.build.' + cub) && M.playerWhere(d, cub).hangar === 'HOME' && d.career.airframes[cub].owner === 'client' && S.base.client && S.base.client.paint.job === 'bare',
+     "T2's client Cub effect fired: the Cub in the HOME hangar as it arrives, bound", cub + ' ' + JSON.stringify(M.playerWhere(d, cub || '')));
+  ok(d.wallet === w0 && JSON.stringify(d.career.pilots || null) === log0 && JSON.stringify(d.career.contracts) === con0 && d.ledger.filter(l => l.amount).length === 0 && d.ledger.length - led0 <= 2,
+     'no money, no logbook row, no contract moved: only what the stop records', 'wallet ' + d.wallet + ', ledger +' + (d.ledger.length - led0));
+  X.storySkipSync();
+  ok(X.skip().hidden && !P.bodyCls.has('stSkipOn') && /client/.test(H.window.FLYDIY_STORY.card().title.toLowerCase()), 'after the skip: the pill gone, the T2 card up');
+  // ---- SKIP THE FLIGHT, in the air: the shed door, the flight's end not recorded
+  atT1(); await settle();
+  let doors = 0; const door = P.mkEl('button'); door.id = 'bHangar2'; door.onclick = () => { doors++; };
+  H.inGarage = false; H.ap = { phase: 'ENROUTE', t: 120 }; H.flEnded = false; X.storyLadderReset(); fly('ENROUTE', 120, 2600);
+  const r = H.window.FLYDIY_STORY.skip();
+  await settle();
+  d = P.get();
+  ok(r.ok && M.storyOf(d).beat === 'T2' && M.playerWhere(d, 'Rufus').hangar === 'HOME' && d.here === 'HOME' && doors === 1 && H.flEnded === true && H.baseId === 'HOME',
+     'in flight: the same, then the shed door (the roll-in at HOME); the flight walked away from without an end recorded', JSON.stringify({ ok: r.ok, why: r.why, beat: M.storyOf(d).beat, w: M.playerWhere(d, 'Rufus'), here: d.here, doors, flEnded: H.flEnded, base: H.baseId }));
+  // ---- the look
+  const lad = (css.match(/#stTim\.lad \{[^}]*\}/) || [''])[0], sp = (css.match(/#stSkip \{[^}]*\}/) || [''])[0];
+  ok(/background: transparent/.test(lad) && /position: fixed/.test(sp) && /left: 12px/.test(sp) && /bottom: calc\(14px/.test(sp) && !/translate|left: ?50%|top: ?50%/.test(sp) &&
+     /IBM Plex Sans/.test(sp) && /font-style: normal/.test(sp) && /var\(--ed-plate\)/.test(sp) && /:is\([^)]*#stSkip[^)]*\) \{/.test(css) && /:root\.phone #stSkip \{ min-height: 48px; \}/.test(css),
+     "the look: the ladder on a transparent ground; the Skip at the bottom edge (never centred), the garage's look, 48 px on the phone");
+  H.inGarage = true; H.ap = null;
+  return fails;
+}
+
 if (!SELF) {
   (async () => {
     const f = run();
@@ -486,6 +617,8 @@ if (!SELF) {
     try { g = await pageRun(); } catch (e) { g = ['the page half threw: ' + (e && e.stack || e)]; console.log('  FAIL ' + g[0]); }
     console.log('  -- the opening (G3380-G3389 STORY-INTRO)');
     try { g = g.concat(await introRun()); } catch (e) { g.push('the opening threw: ' + (e && e.stack || e)); console.log('  FAIL ' + g[g.length - 1]); }
+    console.log('  -- the tutorial flight (G3370-G3379 TUTO-FLIGHT)');
+    try { g = g.concat(await ladderRun()); } catch (e) { g.push('the tutorial flight threw: ' + (e && e.stack || e)); console.log('  FAIL ' + g[g.length - 1]); }
     const all = f.concat(g);
     console.log(all.length ? all.length + ' failing' : 'all story rows hold');
     console.log('GATE STORY: ' + (all.length ? 'FAIL' : 'PASS'));

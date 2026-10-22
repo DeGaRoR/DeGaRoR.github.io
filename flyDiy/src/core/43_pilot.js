@@ -724,8 +724,28 @@ function makePilot(sim, def, world, opts) {
   // the climb-out's speed was raised on three); the expert on the elevator, as before
   let deDem = null, thShortH = 0;
   const deHeld = () => PRA ? (deDem ?? SV.aDe) : SV.aDe;
-  const humanise = (dt, onG) => {
+  // G3307 (AP-ADAPT, the user 18 Oct: the autopilot "can't keep it straight" on Rufus B - under a person, 19 Oct): THE
+  // LIFT-OFF IS FLOWN WITH FULL ATTENTION, as the wheels and the flare are. In the air a person flies the whole delay
+  // (the student 0.35 s) at an eased gain about the command's 1 s running mean: ~70 % of every surface a 1 s lag plus the
+  // delay, -82 deg of phase at the 4.5 s period the expert's heading / roll loops never had. Every build weaved right
+  // after the lift-off under the student and the ham-fist - the heading 15-19 deg, the bank 7-12 deg, at 1-30 m (Rufus B
+  // and the Cub alike; the expert 6-10). Through LIFTOFF, and CLIMB while under 30 m and 12 s after the lift-off, the
+  // person flies the wheels' delay (HUM_GCAP) at the whole gain; out of it, both blend back to the person's own over 3 s.
+  // The person's hands (slewK), over-rotation, wander and decisions are untouched; the expert never comes here.
+  // The delay through the window and its blend reads a RING of the person's commands (written every step) at the
+  // window's own delay, so neither the lift-off nor the blend restarts the delay line (a restart is a kick); the line
+  // restarts at the next touch as it always did. `globalThis.FLYDIY_HUM_LIFT === 'B'` (a measurement's, not a setting):
+  // the delay kept whole and the running mean's 1 s shortened to 0.3 s instead (the comparison, G3307's READY)
+  const HUM_LIFT_AGL = 30, HUM_LIFT_S = 12, HUM_LIFT_BLEND = 3;
+  const humanise = (dt, onG, agl) => {
     const c = sim.ctl;   // (the update's own `c` is not in scope here)
+    if (onG > 0) { HUM.liftT = null; HUM.liftOut = null; }
+    else if (ap.phase === 'LIFTOFF' && HUM.liftT == null) HUM.liftT = ap.t;
+    const liftWin = onG === 0 && HUM.liftT != null && HUM.liftOut == null &&
+                    (ap.phase === 'LIFTOFF' || (ap.phase === 'CLIMB' && agl < HUM_LIFT_AGL && ap.t - HUM.liftT < HUM_LIFT_S));
+    if (!liftWin && onG === 0 && HUM.liftT != null && HUM.liftOut == null) HUM.liftOut = ap.t;
+    const att = liftWin ? 1 : (HUM.liftOut != null ? Math.max(0, 1 - (ap.t - HUM.liftOut) / HUM_LIFT_BLEND) : 0);
+    const modeB = typeof globalThis !== 'undefined' && globalThis.FLYDIY_HUM_LIFT === 'B';
     deDem = deDem == null ? c.de : deDem + (c.de - deDem) * Math.min(1, dt / HUM_HOLD);
     // ON THE WHEELS THE DELAY IS SHORT (G1943: the student's 0.45 s inside the ground steer swerved the stock build 31
     // deg on the roll, a rejected take-off every time; G2085: 0.15 s still ground-looped the Jodel) - a person on the
@@ -737,10 +757,18 @@ function makePilot(sim, def, world, opts) {
     // the take-off group's rudder reversals / min): 0.05 s lifted every person off once but dithered the rudder (bush
     // 286, ham-fist 391); none: student 19, club 6, bush 6, ham-fist 147 (his hand) - the person's gain, hands and
     // unsteadiness still fly the water, their delay does not
-    const rx = (!!sim.hydro && onG > 0) ? 0 : (onG > 0 || ap.phase === 'FLARE') ? Math.min(PRF.reaction, HUM_GCAP) : PRF.reaction;
-    const g = humGain(rx, onG);
+    let rx = (!!sim.hydro && onG > 0) ? 0 : (onG > 0 || ap.phase === 'FLARE') ? Math.min(PRF.reaction, HUM_GCAP) : PRF.reaction;
+    let g = humGain(rx, onG), hRef = HUM_REF;
+    if (att > 0) {   // G3307: the lift-off's attention, blended
+      if (modeB) hRef = HUM_REF + (0.3 - HUM_REF) * att;
+      else { rx = rx + (Math.min(PRF.reaction, HUM_GCAP) - rx) * att; g = g + (1 - g) * att; }
+    }
+    // G3323 (2) (the Pilot coordinator's floats-person, the same guard): while the person's gain is whole the held part
+    // (HUM.ref) follows the command, so the first eased step after a whole spell (the wheels, the flare, the lift-off's
+    // window) starts from the command, not from a stale one
+    if (g === 1 && HUM.ref) { HUM.ref[0] = c.de; HUM.ref[1] = c.da; HUM.ref[2] = c.dr; }
     if (g !== 1) {
-      const a = Math.min(1, dt / HUM_REF);
+      const a = Math.min(1, dt / hRef);
       if (!HUM.ref) HUM.ref = [c.de, c.da, c.dr];
       const R = HUM.ref;
       R[0] += (c.de - R[0]) * a; R[1] += (c.da - R[1]) * a; R[2] += (c.dr - R[2]) * a;
@@ -779,7 +807,20 @@ function makePilot(sim, def, world, opts) {
     }
     const drNow = c.dr;
     const N = Math.round(rx / Math.max(1e-3, dt));
-    if (N > 0) {
+    // G3307: the ring of the person's commands, every step (the lift-off's delay line)
+    if (!HUM.ring) {
+      HUM.rs = Math.round(Math.max(PRF.reaction, HUM_GCAP) / Math.max(1e-3, dt)) + 2; HUM.ring = new Float64Array(3 * HUM.rs); HUM.rw = 0;
+      for (let k = 0; k < HUM.rs; k++) { HUM.ring[3 * k] = c.de; HUM.ring[3 * k + 1] = c.da; HUM.ring[3 * k + 2] = c.dr; }
+    }
+    const RG = HUM.ring, RS = HUM.rs, wNow = HUM.rw;
+    RG[3 * wNow] = c.de; RG[3 * wNow + 1] = c.da; RG[3 * wNow + 2] = c.dr; HUM.rw = (wNow + 1) % RS;
+    if (onG === 0 && HUM.liftT != null && !modeB) {
+      // in the air after a lift-off: the ring at this step's delay (continuous through the window and the blend; past
+      // the blend the same N steps the line held), and the line itself restarts at the next touch
+      const r = (wNow - Math.min(N, RS - 1) + RS) % RS;
+      c.de = RG[3 * r]; c.da = RG[3 * r + 1]; c.dr = RG[3 * r + 2];
+      HUM.n = -1;
+    } else if (N > 0) {
       if (!HUM.buf || HUM.n !== N) { HUM.n = N; HUM.buf = new Float64Array(3 * (N + 1)); for (let k = 0; k <= N; k++) { HUM.buf[3 * k] = c.de; HUM.buf[3 * k + 1] = c.da; HUM.buf[3 * k + 2] = c.dr; } HUM.i = 0; }
       const B = HUM.buf, w = HUM.i, r = (w + 1) % (N + 1);
       B[3 * w] = c.de; B[3 * w + 1] = c.da; B[3 * w + 2] = c.dr;
@@ -804,7 +845,7 @@ function makePilot(sim, def, world, opts) {
   // filleted geometry planned once, followed by one lateral law (L1) with
   // the arc's curvature fed forward; `path: false` keeps the pursuit + arc
   let holdOutLate = false;   // G2450 (ENROUTE's escape, below)
-  let airPath = null, airPathI = 0, pathDbg = null, heldOut = false, pathFrom = null, escapeHdg = null, escapeCircle = false, terrainTurnSaid = false, tightSaid = false, vxHeld = false, vxSaid = false;
+  let airPath = null, airPathI = 0, pathDbg = null, heldOut = false, pathFrom = null, escapeHdg = null, escapeCircle = false, terrainTurnSaid = false, tightSaid = false, vxHeld = false, vxSaid = false, lvCap = false;
   let tIthr = 0, tIpit = 0, tHdot = 0, tWk = 1, tOn = false, tecsDbg = null;
   // G399.7: the speed the ELEVATOR can hold — raised while it sits on its nose-up stop
   let tDeSatT = 0, tVAdapt = 0, tVAdaptSaid = false, tVOkT = 0;   // tVOkT: G3081, the time the elevator has had margin (floats)
@@ -2306,13 +2347,29 @@ function makePilot(sim, def, world, opts) {
         }
       } else ceilT = 0;
     };
+    // G3304 (AP-ADAPT, the user 18 Oct on the Mosquito: "it struggles a lot maintaining altitude"): THE GROUND THE
+    // AEROPLANE WILL FLY OVER. The circuit legs' floor read the ground 1500 m ahead along the leg's own line whatever was
+    // left of it; on the Mosquito's 41 m/s circuit at w3 the downwind's last kilometre looked past the base turn onto
+    // ground it never flies over - the target climbed 178 -> 505 m, snapped back at BASE, and the final began 70 m high (a
+    // go-around, the leg never finished). The 1500 m are now the PATH: this leg to its end plus one turn radius, then the
+    // next leg's first stretch for what is left of the 1500 (the Pilot coordinator's form: the hill strips keep their
+    // margin where the circuit turns toward the ground). A leg with 1500 m or more left looks as it did, seven samples
+    // the same; the last leg of a list (no next) looks as it did
     const legAlt = (L) => {
       const g = legGeom(L);
       const base = ap.altRef + (L.h != null ? L.h : ap.hCruise);
       // G3326: a designed approach's legs (fly.terrainOk) fly the designer's heights - the record vouches for the corridor
       if (L.designed && ap.route.to && ap.route.to.fly && ap.route.to.fly.terrainOk) return base;
-      const floor = terrainAhead(cg[0], cg[2], g.ux, g.uz, 1500) + Math.max(2 * A.hSafe, 40);
-      return Math.max(base, floor);
+      const rem = Math.max(0, (L.B[0] - cg[0]) * g.ux + (L.B[1] - cg[2]) * g.uz);
+      const N = (ap.legs && L === ap.legs[ap.legI]) ? ap.legs[ap.legI + 1] : null;
+      let gr;
+      if (rem >= 1500 || !N || !N.A || !N.B) gr = terrainAhead(cg[0], cg[2], g.ux, g.uz, 1500);
+      else {
+        const gN = legGeom(N);
+        gr = Math.max(terrainAhead(cg[0], cg[2], g.ux, g.uz, Math.min(1500, rem + Rturn)),
+                      terrainAhead(N.A[0], N.A[1], gN.ux, gN.uz, 1500 - rem));
+      }
+      return Math.max(base, gr + Math.max(2 * A.hSafe, 40));
     };
     const legSpeed = (L) => L.V === 'turn' ? VTurnLeg() : L.V === 'climb' ? ap.VClimb : ap.VCruise;
     // G2500 (CESSNA-VREF): THE STRIP LEFT AHEAD of the aeroplane along the landing frame (the roll-out's own)
@@ -3608,6 +3665,22 @@ function makePilot(sim, def, world, opts) {
         const iasC = obstAhead ? VxF : agl > 2 * A.hSafe ? Math.min(ap.VCruise, ap.VClimb * (A.climbCruiseK ?? 1.10)) : ap.VClimb;
         engage('LOC', 'TECS', 'TECS', { vs: tClimbMax, alt: null, gs: null, vsUp: null, vsDn: null, ias: K ? Math.max(iasC, K.Vfloor) : iasC, bank: bankLim,
                                         vFloor: K ? K.Vfloor : null, toCap: K ? K.cap : null, wK: null, thMax: null, flc: K ? true : null });   // P0.5: full climb = the sheet's climbMax
+        // G3332 LEVEL-OFF: THE CAPTURE STARTS WHERE THE HEIGHT LAW ASKS THE CLIMB ALREADY FLOWN. The climb above flies the
+        // sheet's climbMax to hCruise - 8 (the cross-country's hand-over), where TECS's height law (0.2 /s) asked 1.6 m/s of
+        // the 7.6 flown: the metal Cessna ballooned 15.7 m past the plan on HOME -> w3 (APSMOOTH, 21 Oct; the circuit's
+        // CROSSWIND, on the height law from the ground up, captures within 1.3 m). Inside 5 s of the climb under the cruise
+        // height the climb is flown on the height law itself (vsUp the same climbMax), at the climb's speed: the vertical
+        // speed asked is the one flown at the zone's edge and the capture is the law's own exponential; the ground
+        // (obstAhead, the Vx climb) keeps the full climb. LATCHED: on the exponential the gap stays 5 s of the climb, so the
+        // zone is held until the gap opens 30 m past it (a new climb from below)
+        const capH = ap.refAlt + ap.hCruise, capE = capH - cg[1];
+        // NOT ON FLOATS (22 Oct, TOUR): the float Cessna's return to SEA lands at 31-34 m/s, skips and ends on a known prop-strike
+        // (G3079's KNOWN); any change to its climb out of mk_sea moves that landing (with this: a ground-loop, capsized at 16 m/s).
+        // Its climb stays master's until the float landing is fixed (the user's float-fix choice); the land aeroplanes get the capture
+        lvCap = !sim.hydro && !obstAhead && agl > 2 * A.hSafe && (lvCap ? capE < 5 * Math.max(vcg[1], 0) + 30 : vcg[1] > 0.5 && capE < 5 * vcg[1]);
+        if (lvCap)
+          engage('LOC', 'TECS', 'TECS', { alt: capH, vs: null, gs: null, vsUp: null, vsDn: null, ias: K ? Math.max(iasC, K.Vfloor) : iasC, bank: bankLim,
+                                          vFloor: K ? K.Vfloor : null, toCap: K ? K.cap : null, wK: null, thMax: null, flc: null });
         if (K) ap.climbKit = K;
         flapTgt = agl > 2 * A.hSafe ? 0 : fTO;
         // G381: the crosswind turn at 0.6 of the circuit height (was 0.35 —
@@ -4371,7 +4444,7 @@ function makePilot(sim, def, world, opts) {
         if (onG > 0) go('ROLLOUT'); else go('CLIMB');
         break;
     }
-    if (!BX.on) { apply(); flapsTo(flapTgt); if (PRA) humanise(dt, onG); }   // G1943: a profile's hands (the expert's are the servos')
+    if (!BX.on) { apply(); flapsTo(flapTgt); if (PRA) humanise(dt, onG, aglG); }   // G1943: a profile's hands (the expert's are the servos')
     // G1880 (DMG-FLOATTO): THE PORPOISE DAMPED BY BOTH HANDS on a high thrust line's water take-off (39b S.porpoise):
     // the run and the lift-off on floats, until CLIMB; the power's ceiling and the stick's damping over what the laws
     // above set (nothing anywhere else: the base's controls to the bit)
