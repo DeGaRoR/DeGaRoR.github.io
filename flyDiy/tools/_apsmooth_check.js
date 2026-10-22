@@ -38,11 +38,9 @@ const BUILDS = [
   // the Jodel's leg is a HOME circuit: not a short strip (the user), and not w2 - its approach is flown into a 5 m/s tailwind
   // on an obstacle slope beyond the type's idle gradient (t66's stabilised gate goes round twice there: the Pilot coordinator's item)
   { k: 'jodel', f: 'builds/jodel_2026-09-20_corrected.json', order: 'HOME,HOME', trike: false },
-  // G3332 (the Pilot coordinator, 21 Oct): a KNOWN with a CEILING, not a skip - the climb -> cruise capture balloons 15.7 m
-  // on this validated type (master's since 19 Oct or earlier; the overshoot guard exposed it). Red above 17 m; its rms still
-  // judged at 5 m. When G3332 lands the KNOWN goes and the row returns to the 10 m bar
-  { k: 'c172', f: 'tools/fixtures/build_v10_cessnaMetal_2026-09-26.json', order: 'HOME,w3', trike: true,
-    overKnown: { ceil: 17, note: "KNOWN G3332 LEVEL-OFF: the climb -> cruise capture balloons 15.7 m on the validated metal Cessna (master since 19 Oct or earlier; Pilot's)" } },
+  // G3332 (LEVEL-OFF, landed L22b 22 Oct): the climb -> cruise capture no longer balloons on this validated type (15.7 -> 5.3 m,
+  // node, 21 Oct); its KNOWN (the 17 m ceiling) is gone - the row is judged at the 10 m bar like every other
+  { k: 'c172', f: 'tools/fixtures/build_v10_cessnaMetal_2026-09-26.json', order: 'HOME,w3', trike: true },
   { k: 'rufus', f: 'tools/fixtures/repro/rufus_2026-10-18_certified.json', order: 'HOME,w3', trike: false },
   { k: 'mosquito', f: 'tools/fixtures/repro/mosquito_3.json', order: 'HOME,w3', trike: false },
 ].filter(b => !opt('only') || opt('only').split(',').includes(b.k));
