@@ -11386,6 +11386,8 @@
     if (window.FLOWN_BAKE && FLOWN_BAKE.rest) FLOWN_BAKE.rest();
     rollShotUi(false);
     rolledOut = false;
+    // G2803: the GPS is the shed's again - off, its standby page on the glass, released by the flight
+    if (window.FLYDIY_GPS && window.FLYDIY_GPS.standby) window.FLYDIY_GPS.standby();
     if (specPending) { specPending = false; setAircraft('gen'); }
     if (!inGarage) {
       garageCamera();

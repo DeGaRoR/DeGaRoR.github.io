@@ -1470,9 +1470,9 @@ function gpsFace(R) {
 let gpsFallback = null;
 function gpsMaterial(aspect, kind) {
   const G = typeof window !== 'undefined' ? window.FLYDIY_GPS : null;
-  // (the panel is built in the shed: the unit stands there off, its name on the glass - a flight's bind darkens
-  // it and the bus lights it)
-  if (G && typeof G.material === 'function') { const m = G.material(aspect, kind); if (m) { if (G.standby) G.standby(); return m; } }
+  // (the unit stands in the shed off, its name on the glass - app.js puts it back in standby on the way into the
+  // garage; a flight's bind darkens it and the bus lights it; while a flight holds it, this call changes nothing)
+  if (G && typeof G.material === 'function') { const m = G.material(aspect, kind); if (m) return m; }
   if (!gpsFallback) {
     gpsFallback = new THREE.MeshStandardMaterial({ color: 0x0b0d10, roughness: 0.25, metalness: 0, side: THREE.FrontSide });
     gpsFallback.userData.aeroskin = 1; gpsFallback.userData.panelSet = 'gps'; gpsFallback.userData.inside = 1;

@@ -312,8 +312,17 @@ function faceSuite(GPS) {
   CK.gpsOn = true; const pb = S.paints;
   for (let i = 0; i < 60; i++) GPS.tick(1 / 60, CK);
   ok(S.paints === pb, 'D power back: the boot page holds before the map', S.paints - pb);
+  // a parked aeroplane's capture builds the panel for another build mid-flight: the bound unit is not touched
+  CK.gpsOn = true; for (let i = 0; i < 200; i++) GPS.tick(1 / 60, CK);
+  const cvB = S.cv, aB = S.aspect, kB = S.kind, onB = S.on;
+  const mB = GPS.material(C.GEN_AVIONICS.gps.glass.face.sw / C.GEN_AVIONICS.gps.glass.face.sh, 'glass');
+  ok(mB === S.mat && S.cv === cvB && S.aspect === aB && S.kind === kB && S.on === onB,
+    'D bound to a flight, a panel build for another aeroplane (another unit) neither resizes, renames nor resets it');
   GPS.standby();
-  ok(!S.on && S.mat.emissiveIntensity === 0, 'D the shed: standby, unlit');
+  ok(!S.on && !S.bound && S.mat.emissiveIntensity === 0, 'D the shed: standby, unlit, released');
+  GPS.material(C.GEN_AVIONICS.gps.glass.face.sw / C.GEN_AVIONICS.gps.glass.face.sh, 'glass');
+  ok(S.kind === 'glass' && near(S.aspect, C.GEN_AVIONICS.gps.glass.face.sw / C.GEN_AVIONICS.gps.glass.face.sh, 1e-9),
+    'D ...and in the shed the panel names and sizes the unit it drew');
   return out;
 }
 {
@@ -461,6 +470,11 @@ for (const [name, file, gps, want] of PANELS) {
   check(/window\.FLYDIY_GPS\.bind\(\{ kind: CK\.fit\.avionics\.gps, units: CK\.fit\.units, src: gpsSource\(\) \}\)/.test(app), 'H app.js binds the GPS with the cockpit');
   check(/m\.panel === 'gps' && window\.FLYDIY_GPS/.test(app), 'H app.js builds the screen on the GPS\'s own material (the editor block need not be loaded)');
   check(/avionics: 'swAvionics'/.test(app), 'H W2: the shed\'s avionics click is the shed\'s swAvionics');
+  {
+    const iG = app.indexOf('function enterGarage()');
+    check(iG > 0 && app.indexOf('window.FLYDIY_GPS.standby()', iG) > iG && app.indexOf('window.FLYDIY_GPS.standby()', iG) - iG < 1500,
+      'H app.js: entering the garage puts the GPS back in standby (the flight releases it)');
+  }
   const ck = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'cockpit.js'), 'utf8');
   check(/bus\.avionics = !!CK\.sw\.sw_avionics/.test(ck) && !/bus\.on\.com = /.test(ck), 'H cockpit.js: the avionics master is the avionics bus (COM / XPDR / NAV / GPS), not two loads');
 }

@@ -35,6 +35,7 @@ const S = {
   cv: null, g: null, tex: null, mat: null, aspect: 1.6, H: 320,
   kind: 'portable', units: 'aviation', src: null,
   on: false, dark: true, boot: 0, acc: 0, trackAcc: 0,
+  bound: false,                                  // a flight holds the unit (bind) until the shed takes it back (standby)
   // the track: x, z pairs, a ring
   tr: new Float32Array(TRACK_N * 2), trHead: 0, trN: 0, lastX: 0, lastZ: 0, have: false,
   // ground speed / track from the position between paints
@@ -63,6 +64,10 @@ function material(aspect, kind) {
   const THREE3 = T3();
   if (!THREE3) return null;
   const a = aspect > 0.2 ? aspect : S.aspect;
+  // WHILE A FLIGHT HOLDS THE UNIT the panel layer's calls change nothing: a parked aeroplane's capture builds the
+  // editor's panel for ANOTHER build (parked.js) and asks this material for its own screen - it gets this one as it
+  // stands, never resized or renamed under the flight
+  if (S.mat && S.bound) return S.mat;
   // the shed names the unit it drew (its standby page says which); a flight's bind names its own
   if (kind && kind !== S.kind && NAME[kind]) { S.kind = kind; if (S.mat && !S.on) paintStandby(); }
   if (!S.mat) {
@@ -282,9 +287,11 @@ function bind(o) {
   o = o || {};
   S.kind = o.kind || 'portable'; S.units = o.units === 'metric' ? 'metric' : 'aviation';
   S.src = o.src || null;
+  S.bound = false;                               // (sized below as the flight's unit, then held)
   const AV = typeof GEN_AVIONICS !== 'undefined' ? GEN_AVIONICS : null;
   const face = AV && AV.gps[S.kind] && AV.gps[S.kind].face;
   if (face && face.sw > 0 && face.sh > 0) material(face.sw / face.sh); else material();
+  S.bound = true;
   S.trHead = 0; S.trN = 0; S.have = false; S.acc = 0; S.trackAcc = 0; S.gs = 0; S.trk = 0; S.pT = 0;
   S.on = false; S.dark = false; S.boot = 0;
   paintDark(); S.dark = true;
@@ -341,8 +348,8 @@ function tick(dt, CK) {
 const API = {
   HZ, TRACK_N, TRACK_DT, RANGE, BOOT_S,
   material, bind, tick, state: () => S,
-  // the shed: the unit off, its standby page (the panel layer calls it when it builds the unit)
-  standby: () => { S.on = false; S.dark = false; S.boot = 0; if (S.mat) S.mat.emissiveIntensity = 0; paintStandby(); },
+  // the shed: the unit off, its standby page, released by the flight (app.js enterGarage)
+  standby: () => { S.bound = false; S.on = false; S.dark = false; S.boot = 0; if (S.mat) S.mat.emissiveIntensity = 0; paintStandby(); },
   // GATE GPSFACE: a canvas factory for node, and the page painters by name
   setCanvas: f => { canvasMaker = f; },
   waypoint: (x, z) => { FR.x = x; FR.z = z; return waypoint(); },
