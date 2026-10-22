@@ -307,10 +307,13 @@ const INSTALL = `(() => {
     const pre = R.airSeen ? 'ldg-' : 'to-';
     return pre + (Vg < 0.5 ? 'afloat' : onG >= 3 ? 'displace' : 'step');
   };
-  let lastNow = 0;
+  let lastNow = 0, heldN = 0;
   const ph = document.getElementById('phName');
   const prem = () => { const p = W && W.premises; return p && p.stats ? p.stats.queued : -1; };
   P.end = function (workMs, physMs, steps, now) {
+    // REVEAL (A0 22 Oct): a frame the loop ran and did NOT draw (holdRender: the trip's links) - its time and its worldUpdate
+    // fold into the next drawn frame's row, as before (the gap the player sees), and that row says how many it holds (col 29)
+    if (arguments[5]) { heldN++; return endW(workMs, physMs, steps, now, arguments[4], true); }
     const st = P.state();
     let agl = null, x = null, z = null, apPh = '', V = null, onG = null, hAgl = null, wph = '', man = 0;
     try { const s = window.FLIGHT_PROBE && FLIGHT_PROBE.sim(); if (s) { const cg = s.cgPos(); agl = cg[1] - FLIGHT_PROBE.world().terrainH(cg[0], cg[2]); x = cg[0]; z = cg[2];
@@ -326,7 +329,8 @@ const INSTALL = `(() => {
     // visited, KB allocated (null unless --town-alloc), then each part's ms in premises.town.parts' order]
     { const PRx = W && W.premises, TF = PRx && PRx.townFrame, TP = PRx && PRx.town;
       R.tw.push(TF ? [+TF[0].toFixed(3), TF[1], TF[2] === TF[2] ? +TF[2].toFixed(2) : null].concat(TP ? Array.from(TP.lastParts, v => +v.toFixed(3)) : []) : null); }
-    lastNow = now; wuMs = 0; rMs = 0; shMs = 0; pmMs = 0; pmN = 0; mirMs = 0; mirN = 0; fldMs = 0;
+    R.fr[R.fr.length - 1].push(heldN);
+    lastNow = now; wuMs = 0; rMs = 0; shMs = 0; pmMs = 0; pmN = 0; mirMs = 0; mirN = 0; fldMs = 0; heldN = 0;
     return endW(workMs, physMs, steps, now);
   };
   return 'installed';
@@ -814,7 +818,7 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
       msMean: +(ms.reduce((a, b) => a + b, 0) / ms.length).toFixed(3), over2: +(ms.filter(x => x > 2).length / ms.length).toFixed(4), over5: +(ms.filter(x => x > 5).length / ms.length).toFixed(4),
       visitsMed: med(tw.map(r => r.tw[1])), visitsMax: Math.max(...tw.map(r => r.tw[1])), parts: pm,
       kbMean: kb.length ? +(kb.reduce((a, b) => a + b, 0) / kb.length).toFixed(3) : null, kbP99: kb.length ? +pct(kb, 0.99).toFixed(2) : null, kbFrames: kb.length,
-      over100: fr.filter(r => r[1] > 100).map(r => [+((r[0] - revealAt) / 1000).toFixed(2), +r[1].toFixed(0), r.tw ? r.tw[0] : null]) };
+      over100: fr.filter(r => r[1] > 100).map(r => [+((r[0] - revealAt) / 1000).toFixed(2), +r[1].toFixed(0), r.tw ? r.tw[0] : null, r[29] || 0]) };   // (REVEAL: the held frames inside the gap)
     o.byPhase = {}; for (const k of Object.keys(groups)) { const m = groups[k].filter(r => r.tw).map(r => r.tw[0]); if (m.length) o.byPhase[k] = { msMed: +med(m).toFixed(3), msP99: +pct(m, 0.99).toFixed(3), msMax: +Math.max(...m).toFixed(2) }; }
     console.log('  TOWN ms/frame: med ' + o.msMed + ' p90 ' + o.msP90 + ' p99 ' + o.msP99 + ' max ' + o.msMax + ' mean ' + o.msMean + ' · over 2 ms ' + (o.over2 * 100).toFixed(2) + ' %, over 5 ms ' + (o.over5 * 100).toFixed(2) + ' % · items visited med ' + o.visitsMed + ' max ' + o.visitsMax
       + (o.kbMean != null ? ' · KB/frame mean ' + o.kbMean + ' p99 ' + o.kbP99 + ' (' + o.kbFrames + ' frames)' : ''));

@@ -417,9 +417,11 @@ function session(script) {
   verdict(sc.indexOf('flight_recorder.js') >= 0 && sc.indexOf('flight_recorder.js') < sc.indexOf('gfx_settings.js') && sc.indexOf('flight_recorder.js') < sc.indexOf('app.js') && sc.indexOf('flight_recorder.js') < sc.indexOf('render_world.js'),
     `7 the build's MANIFEST loads flight_recorder.js (at ${sc.indexOf('flight_recorder.js')}) before render_world, gfx_settings and app`);
   const L0 = app.indexOf('  function loop(ts) {'), L1 = app.indexOf('\n  }\n', L0), loop = app.slice(L0, L1);
-  const iB = loop.indexOf('if (FR) FR.begin(ts, pc);'), iP = loop.indexOf('const pc = PACE.frame(ts);'), iE = loop.indexOf('if (FR) FR.end(true, cg);'), iPE = loop.indexOf('PACE.end(');
+  const iB = loop.indexOf('if (FR) FR.begin(ts, pc);'), iP = loop.indexOf('const pc = PACE.frame(ts);'), iE = loop.indexOf('if (FR) FR.end(true, cg);'), iPE = loop.lastIndexOf('PACE.end(');   // (REVEAL: the drawn frame's - a held frame reports earlier, flagged)
   verdict(iP >= 0 && iB > iP && iE > 0 && iE < iPE && /if \(holdRender\) \{ if \(FR\) FR\.end\(false, cg\);/.test(loop),
     '  app.js: begin after the frame clock says the frame is ours, end before PACE.end, end(false) on the boot\'s hold');
+  verdict(/if \(holdRender\) \{ if \(FR\) FR\.end\(false, cg\); POSE_LERP\.back\(\); PACE\.end\([^;]*, true\);/.test(loop) && /function end\(workMs, physMs, steps, now, ran, held\) \{\s+if \(P\.legacy \|\| held\) return;/.test(app),
+    '  app.js: a held frame (holdRender) reports itself to PACE.end flagged held, and the pace counts nothing of it (REVEAL)');
   verdict(/if \(FR\) FR\.push\(0\); script\(1 \/ 60\); if \(FR\) FR\.pop\(\);/.test(loop) && /if \(FR\) FR\.push\(1\); sim\.step\(1 \/ 60\); if \(FR\) FR\.pop\(\);/.test(loop) && FR.SLOTS[0] === 'script' && FR.SLOTS[1] === 'solver',
     '  app.js: the pilot\'s script and each solver step pushed (slots 0 and 1 are script and solver)');
   const laps = ['other', 'world', 'scene', 'hud', 'mirror', 'render'].filter(k => loop.indexOf('FR.lap(FR.S.' + k + ')') < 0);
