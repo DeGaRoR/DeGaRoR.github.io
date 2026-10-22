@@ -98011,3 +98011,67 @@ Rolling set (6), merged in order on master 2c2a74459 (L22c), HANDOVER unioned (t
 Battery (112 of 113 kept): PASS but master's standing reds, identical in L22b and L22c: CLOCK (1 of 777), CLOUD (1 of 239), KTX2 (the characters' budget: 5 characters with no char_tex_budget row), FRAMECOST (cessna boot/garage:restore updateMatrixWorld 2269 -> 4553). Each is on the board (backlog audit tonight).
 Strict light gate: RED (2), the same classes L22c landed with: metal cockpit tasks1s 0 -> 2 (the boot ~1 s task class, still judged against 1 s as ruled) and floats world -> garage 2.6 s (L22c 2.25, L22b 1.4: the known garage re-link; named for the backlog). Nothing new from this set.
 NOT in this train: float-kit / water-rollout (DMGPLOUGH hump technique + the water roll-out owed by the pilot - next week); TECH-MASK + NAMES (L23c); the cabin lamp + machines + Rufus's flood x4 (L23b); the four revived cloud branches (engine configs, STOL wing, avionics GPS, belly pod - Saturday, after their HANDOVER entries and box stills).
+
+## G3500-G3509 - DC3-STUDY: CAN THE GARAGE BUILD A DC-3 THAT FLIES? NOT TODAY - THE AERODYNAMICS ARE READY, THE STRUCTURE AND THE PILOT ARE NOT (2026-10-23, cloud, node only; branch claude/dc3-study off master 062c6125 = L22d; for A0)
+The user (22 Oct): "can we model a DC3? ... launch at least a study? Identify where the game allows and where it may be limiting right now?"
+Study: futureDesigns/DC3-STUDY-2026-10.md (the real figures with sources, every limit with file:line, the plan). NOTHING in src/ changed;
+no shared file changed but this entry. New: tools/dc3_probe.js (a TOOL, not a gate), tools/fixtures/dc3_study_2026-10-23.json (the build),
+tools/fixtures/dc3_study_fullsize_2026-10-23.json (the full-size drawing, raw, for stills only).
+- **What was found, in plain words:**
+  - **It builds, through the garage's own path** (metal Cessna file + the DC-3's rows -> tools/_load_build.js -> buildGen; 0 join errors): two
+    R-1830s on the wing pair, alloy low cantilever wing, plain flaps (no split row), taildragger, 2 crew + 4.
+  - **The span clamp is not the binding one. The tail arm is: 6.5 m** (60_gen_spec.js:4130; hX / vX 9 m, cabin len 2.6 m). A full-size drawing joins
+    to a 21.3 m tail arm and flies a 10.5 m lattice under a 20 m drawing, resting on its nose frame (the join's ERRS say so). The fixture is
+    therefore a DC-3 wing and section at 0.62 scale (18 m, the envelope's end) with the fuselage SHORTENED to the 6.5 m post: 4.3 t, Sw 30.6 m2,
+    Vs 73 / 67 kt, SM 0.15, design check clean, 114 nodes, 198 substeps, 19 ms a frame in node (Cub 2.35, metal Cessna 4.60).
+  - **It does not stand.** The wing pair's engine bearer (61_gen_frame.js:1586-1640) buckles 0.25 s after spawn at 1.78 g: the same 74 mm2 members
+    as the 582 twin's 118 kg, under 1 890 kg of R-1830s. Proven: with a 150 kg engine the same build stands with 0 breaks.
+  - **With the bearer patched (in memory, sections x16) it rolls straight, then cannot rotate.** The elevator is on the servo's 0.35 stop from Vr;
+    the "rotate-pull" rescue is tricycle-only (43_pilot.js:3436). It lifts off at 61 m/s after 503 m, porpoises at 0.2-0.6 m and settles back
+    nose-down at 67 m/s (44 breaks). With rotate-pull allowed for taildraggers (in memory) the same: 0.6 m peak. No circuit to report.
+  - **Full size, clamps widened in memory** (span 29 m, chord 4.4 m, tail arm 16.6 m, the DC-3 tail, 5.64 m track, 3 110 L, members gauged to the weight):
+    11.2 t, Sw 89.9 m2, Vs 69 / 62 kt (real ~65 / 58), climb 6.2 m/s (real 5.7), cruise 141 kt, design check clean, 7.6 ms a frame.
+    It breaks at the cabin's aft frame (S2-S3 root-bend) 0.14 s after spawn. The lattice says why: **the cabin box is ONE bay** (S1 1.10 m -> S2
+    10.20 m), with the wing and the mains inside a 9.1 m bay. Today's 2.6 m cabin.len clamp hides it.
+  - **The gauge rule is sub-linear** ((W/ref)^0.30 / 0.49 / 0.41 / 0.75, cap 3.0; 60_gen_spec.js:1833-1836; kScale cap 4, 61:3196). Making it
+    linear in memory snowballs the 18 m build to 6.5 t with a negative margin: a size-gated rule is needed, not a dial.
+  - **The world mostly fits:**
+    - HOME 13/31 (2 325 x 45 m) and 02/20 (1 758 m) take it easily (real roll <= 518 m, landing over 50 ft 640 m); every other strip <= 1 020 m, 9 m wide.
+    - Hangars: only a WORKS shed (35 m door) at HOME / HOME.2 passes 29 m.
+    - No fleet spot holds it (the archetype union, half-span 8.0, 25_airfield.js:1043).
+    - Taxi clearance validated to 11 m only. The garage framing is a fixed 14 m (app.js:11348).
+  - **Engine-configs is not a prerequisite.** Master already flies the wing pair as a real twin: thrust per nacelle (30_solver.js:2828-2842),
+    a lever per engine, engL / engR break groups. The branch's per-disc wash is gated off for the pair; no conflict with widening the envelope.
+  - **Cockpit / career:**
+    - Two throttle levers exist; tacho and oil gauges read engine 0 only; one key for all engines.
+    - No job carries more than 3 passengers; routes pay by seats with no cap; fuel is free; no tech mask in code; no radial at the maker's.
+    - The prop is billed once on a twin (61_gen_frame.js:1028, probably a bug).
+- **The plan (G-numbers from this block; the full table with gates and risks in the study's §6):**
+  - **The flying DC-3** (about M-L in total; every change gated so a build inside today's envelope takes exactly today's path):
+    - G3501 bearer ∝ engine mass (S);
+    - G3502 the pilot on a heavy taildragger: rotate-pull, the lift-off porpoise (S-M);
+    - G3503 the envelope and the editor's rows (S);
+    - G3504 cabin-box stations (M);
+    - G3505 structure at size: gauge above ~2x refGross, kScale cap, CRASH_J, the 23.337 cert limit (M).
+  - **Then a DC-3 rather than a big twin, then playable:**
+    - G3506 split flap (S) + retracting mains (M);
+    - G3507 a 29 m parking class, the taxi census, the garage framing (S-M);
+    - G3508 per-engine gauges and key, engine-out (M);
+    - G3509 career: big-plane jobs, route cap, radial, segment 3 (M, the user's).
+  - **Cheapest first test:** G3501 + G3502 on the 18 m fixture - does a heavy taildragger fly with the pilot at all?
+- **For A0 on the box:**
+  - Stills: `git show origin/claude/engine-configs-2:flyDiy/tools/garage_shot.js > tools/_gs_file.tmp.js`, then
+    `node tools/_gs_file.tmp.js --file tools/fixtures/dc3_study_2026-10-23.json --out screenshots/dc3_study`, and the same with
+    `dc3_study_fullsize_2026-10-23.json --out screenshots/dc3_full` (the drawing the clamps cut). The `--file` door is that branch's (G2799 drop);
+    master's garage_shot has only `--stock`. Delete the tmp copy after.
+  - Re-run `node tools/dc3_probe.js` (~4 min; `--bearer` adds the in-memory bearer patch) to see the numbers on the box.
+- **Decisions for the user:**
+  1. Go for a real-size DC-3 (G3501-G3505, then G3506), or a stubby flying test first (G3501 + G3502 on the 18 m fixture)?
+  2. Where it lives in the career: segment 3 (the plan's "DC-3 at most"), a works shed only, HOME / 02-20 only.
+  3. Does a DC-3 bring its jobs (passengers, freight > 400 kg), and does the route pay get its cap (ECON-SIM's proposal) before it lands?
+- **Gates (only those that read the added files):**
+  - ASSETBUDGET, MEDIA, ASSETS, KNIFE: PASS.
+  - JOINPARITY: 1 FAIL, NOT this study's. It names five other tools that load a validated build raw (_apsmooth_check, _engtorque_check,
+    econ_sim, engine_torque_seasweep, hand_controls_probe), and the identical red is on L22d with tools/dc3_probe.js moved out of the tree. The
+    probe loads through _load_build.js, so the scan skips it.
+  - `node --check tools/dc3_probe.js` OK. The validated aircraft are untouched (no src/ or shared tool changed).
