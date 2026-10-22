@@ -1864,6 +1864,9 @@ body.stSkipOn #stTim { bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
 .edTab.locked { opacity: .45; cursor: not-allowed; }
 #edLockNote { font-size: 12px; color: var(--ed-dim, #8a8d91); padding: 2px 8px 6px; }
 #stNoBench { font-size: 12px; color: var(--ed-dim, #8a8d91); margin-left: 8px; }
+/* G3351: the certification bench (the tool: the left panel's tests) never in the story's small shed */
+body.stNoBench #edBench { display: none !important; }
+#stNoBenchNote { font-size: 12px; color: var(--ed-dim); padding: 6px 10px; }
 
 /* THE BELLY POD'S SECTION (G2675, BELLY-POD-2): the panel part's rows are the editor's own; its outer fold is
    flattened like the tanks', its quiet group labels are the type ladder's, and the readouts below them are facts,

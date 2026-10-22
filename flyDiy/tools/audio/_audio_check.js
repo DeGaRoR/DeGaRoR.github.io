@@ -664,7 +664,7 @@ function checkWiring(S) {
   const calls = S.app.split('AUDIO.update(').length - 1;
   if (calls !== 1) F.push('app.js calls AUDIO.update ' + calls + ' times (want 1)');
   const lp = S.app.indexOf('  function loop(ts) {'), le = S.app.indexOf('\n  }\n', lp);
-  const at = S.app.indexOf('AUDIO.update(', lp), rr = S.app.indexOf('renderer.render(inGarage', lp), pe = S.app.indexOf('PACE.end(', lp);
+  const at = S.app.indexOf('AUDIO.update(', lp), rr = S.app.indexOf('renderer.render(inGarage', lp), pe = S.app.lastIndexOf('PACE.end(', le);   // (REVEAL: the drawn frame's - a held frame reports earlier in the loop, flagged held)
   if (!(lp > 0 && at > rr && rr > lp && at < pe && pe < le)) F.push('app.js: AUDIO.update is not in loop() between the render and PACE.end');
   if (!/\{ k: 'audio', label: 'sound'[^\n]*secs: \['sound'\]/.test(S.app) || !/\n\s+sound: b => \(window\.AUDIO \? window\.AUDIO\.mount\(/.test(S.app)) F.push('the flight rail has no `audio` item mounting AUDIO');
   // SND-AIRFRAME: the model, the slots and the source after audio.js, before app.js; the worklet a served module

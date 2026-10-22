@@ -437,7 +437,8 @@ function run(mut) {
         ok(['HW', 'HD', 'EAVE'].every(k => dims[k] >= lim[k][0] && dims[k] <= lim[k][1]), pid + ': the ' + s + ' is offered inside its envelope');
         // as BOUGHT: the offer's kits, a bare shed for the starter's other shells (a rebuild keeps
         // the fit-out it has, and playerUpgrade refuses one that would push an aeroplane out)
-        const who = P.water ? 'floatplane' : (P.derelict ? 'jodel' : 'cub');
+        // (G3352) an offer may name the class it is held to (`takes`: the story's cabin, the ultralight) - else as before
+        const who = P.takes || (P.water ? 'floatplane' : (P.derelict ? 'jodel' : 'cub'));
         ok(R.hangarRoomFor({ shell: s, kits: P.kits || ['park'], dims }, FOOT(who), [], opts) >= 1,
            pid + ': the ' + s + ' as offered takes a ' + who);
       }

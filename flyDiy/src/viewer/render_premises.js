@@ -2388,7 +2388,7 @@ function make(THREE, scene, world, rec0, opts) {
         if (b.band) hcOf(r.geo, r.used, m => [detailOf(m.parent), 1], true, true);   // G1395: the house's radius sets its edge
         const mesh = new THREE.Mesh(r.geo, mat);
         mesh.castShadow = b.cast; mesh.receiveShadow = m0.receiveShadow; mesh.renderOrder = m0.renderOrder; mesh.matrixAutoUpdate = false; mesh.userData.batch = true; mesh.name = 'houses:town';
-        if (b.cast) cl.casters.push(mesh);
+        if (b.cast) { cl.casters.push(mesh); mesh.userData.mayCast = true; }   // (APPROACH: switched by distance - its depth program linked ahead)
         (b.band ? ng : ngH).add(mesh); td++;
         for (const m of r.used) { m.userData.merged = true; m.visible = false; tm++; }
       } else if (r.geo) r.geo.dispose();
@@ -2736,6 +2736,8 @@ function make(THREE, scene, world, rec0, opts) {
     } catch (e) { KT.status = 'error'; KT.err = String((e && e.message) || e); console.warn('town kit: the host', e); return null; }
     KT.host.group.name = 'premises:townkit';
     root.add(KT.host.group);
+    // APPROACH (A0 22 Oct): a kit made after the world's compile links its depth programs now, in the background (app.js)
+    if (typeof window !== 'undefined' && typeof window.FLYDIY_DEPTH_PRELINK === 'function') window.FLYDIY_DEPTH_PRELINK(KT.host.group);
     for (const [pid, h] of outOf) if (KT.outOwn.has(pid)) KT.host.setHidden(h, true);
     KT.O = O; KT.rowOf = rowOf; KT.plotHouses = plotHouses; KT.outOf = outOf;
     KT.hostMs = Math.round(performance.now() - t0);
@@ -3981,6 +3983,7 @@ function make(THREE, scene, world, rec0, opts) {
       if (!m.isMesh || !m.castShadow || !m.geometry) return; if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
       if (m.geometry.boundingSphere.radius * Math.max(m.scale.x, m.scale.y, m.scale.z) < 0.3) m.castShadow = false; });
     grp.userData.casters = grp.children.filter(m => m.isMesh && m.castShadow);
+    for (const m of grp.userData.casters) m.userData.mayCast = true;   // (APPROACH: switched by distance - its depth program linked ahead)
     grp.userData.castOn = true;
     // THE WALKS (G558): past the props' reach a house's whole dressing is switched off at its top, so neither the
     // view's walk nor each shadow cascade's walks through its prop ladders (3 735 over Metlakatla)

@@ -388,7 +388,7 @@ const CONTRACT_PROVIDERS = {
            rep: { provider: 'clients', gain: 0.75 }, unlock: { stage: 'clients:1' }, needs: { after: ['clients.02'] } }),
       C_({ id: 'clients.04', provider: 'clients', kind: 'build', title: 'ct.clients.04.title', brief: 'ct.clients.04.brief',
            stages: [{ subs: [{ do: 'deliver', to: 'HOME', crit: [
-             { k: 'costMax', op: '<=', v: 25000 },
+             { k: 'costMax', op: '<=', v: 32000 },   // (the user, 22 Oct: "raise the clients.04 cap" - 25 000 was under every validated design; 32 000 lets the stock Cub (31 203) qualify, the Jodel (34 363) not)
              { k: 'xwindKt', op: '>=', v: 12 },
              { k: 'seats', op: '>=', v: 2 }] }] }],
            pay: { base: 26000 }, rep: { provider: 'clients', gain: 1 }, needs: { rep: 1, after: ['clients.03'] },
@@ -578,7 +578,7 @@ const CONTRACT_TEXT = {
   'crit.powertrain': CT_('{v} power'), 'crit.tankL': CT_('a tank of at most {v} L'),
   'crit.batteryKWh': CT_('a battery of at most {v} kWh'), 'crit.spanM': CT_('a span of at most {v} m'),
   'crit.costMax': CT_('costs at most {v} credits'), 'crit.ultimateG': CT_('strong to {v} g'),
-  'crit.xwindKt': CT_('lands in {v} kt of crosswind'), 'crit.hydro': CT_('operates from water'),
+  'crit.xwindKt': CT_('its rudder holds {v} kt of crosswind'), 'crit.hydro': CT_('operates from water'),
   'crit.tasKmh': CT_('cruises at {v} km/h or more {at}'), 'crit.enduranceMin': CT_('{v} min in the air plus a reserve {at}'),
   'crit.rangeKm': CT_('{v} km on a tank'), 'crit.takeoffAt': CT_('takes off from {v} {at}'),
   'crit.landAt': CT_('lands at {v} {at}'),
@@ -637,7 +637,8 @@ const CONTRACT_OPS = ['>=', '<=', '=='];
 // ---- THE CRITERION KINDS (data: ACCEPT implements each kind, MAP labels each) -----------------------------
 //   k        the key a criterion names            unit   the value's unit ('' for a word, 'strip' for a field id)
 //   when     'static' (judged without flying: the phone may do it, GQ19) | 'flown' (a flight decides it)
-//   how      'spec' | 'ledger' | 'cert' (the structural certificate) | 'bench' (a BENCH_TESTS run) |
+//   how      'spec' | 'ledger' | 'cert' (the structural certificate) | 'design' (the design check's rows, no flight) |
+//            'bench' (a BENCH_TESTS run) |
 //            'leg' (the flown acceptance leg) | 'strip' (flown at that strip: the delivery or a demonstration)
 //   src      where today's number comes from (GAME §6.2)
 //   op       the operators the kind takes; band the sane values [lo, hi] (a criterion outside is invalid)
@@ -662,7 +663,7 @@ const CONTRACT_CRIT_KINDS = {
                   op: ['<='], band: [5000, 300000], follow: { mul: 0.9, round: 500 } },
   ultimateG:    { k: 'ultimateG',    unit: 'g',     when: 'static', how: 'cert',   src: 'the structural certificate (66_gen_cert.js ultimate)',
                   op: ['>='], band: [3, 12], follow: { add: 0.5, round: 0.5 } },
-  xwindKt:      { k: 'xwindKt',      unit: 'kt',    when: 'flown',  how: 'bench',  src: 'BENCH_TESTS xwind (genCrosswindLimit)',
+  xwindKt:      { k: 'xwindKt',      unit: 'kt',    when: 'static', how: 'design', src: 'genDesignCheck ctl.rudder (64b_gen_design: full rudder\'s sideslip at 1.3 Vs; G2735)',
                   op: ['>='], band: [5, 30], follow: { add: 3, round: 1 } },
   hydro:        { k: 'hydro',        unit: '',      when: 'flown',  how: 'bench',  src: 'BENCH_TESTS hydro + the delivery on water',
                   op: ['=='], values: [true], follow: null },
