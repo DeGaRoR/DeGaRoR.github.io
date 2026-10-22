@@ -14,8 +14,10 @@
 // 60_gen_spec GEN_SLATS / GEN_STOL hold the numbers and their sources; this
 // gate holds what can be held about them in node:
 //
-//   1 OFF IS THE BITS   every card (the JOINED bake) and the four validated
-//                       builds (the user's Cub, Jodel, C172, Rufus) rebuild,
+//   1 OFF IS THE BITS   every card (the JOINED bake) and the six validated
+//                       builds (tools/_load_build.js VALIDATED: Cub, Jodel,
+//                       metal Cessna, Cessna floats, twin floats; and the
+//                       certified Rufus) rebuild,
 //                       fly 4 s and draw exactly as the untouched master the
 //                       fixture names did (fixtures/stol_baseline.json.gz,
 //                       tools/_stol_samebits.js --capture - re-capture on a
@@ -129,20 +131,22 @@ console.log('1. OFF IS THE BITS (' + Object.keys(CARDS).length + ' cards against
     { module: m, exports: m.exports, console, Math, JSON, parseFloat, isFinite, Number, String, Array, Object,
       Uint8ClampedArray, Infinity, setTimeout, clearTimeout, setInterval, clearInterval, performance: { now: () => 0 }, Date, Symbol });
   const BE = m.exports;
-  // G2821: THE VALIDATED BUILDS (the user's Cub, Jodel, C172, Rufus): LOADED HERE through the game's own load door
+  // G2821: THE VALIDATED BUILDS (the load door's VALIDATED - Cub, Jodel, metal Cessna, Cessna floats, twin floats -
+  // and the certified Rufus): LOADED HERE through the game's own load door
   // (tools/_load_build.js: this tree's editor chain, the join, the merge, the energy write-back; the
   // join now STATES the STOL record, null when off: A3) to the very spec master joined, then built, flown, drawn,
   // and benched - the design check's every row and the machine sheet the autopilot flies its Vref from - to master's
   // bits. Their whole circuits are tools/_stol_samebits.js's (a lap is minutes; the HANDOVER has the two runs).
   const BUILDS = FIX.builds || {};
-  ok(Object.keys(BUILDS).length === 4, 'the fixture holds the four validated builds (' + Object.keys(BUILDS).join(' ') + ')');
+  ok(Object.keys(BUILDS).join() === 'cub,jodel,metal,floats,twinFloats,rufus',
+     'the fixture holds the six validated builds as the game ships them (' + Object.keys(BUILDS).join(' ') + ')');
   {
     const LB = require(path.join(T, '_load_build.js'));
     const BJ = require(path.join(T, '_bake_joined.js'));
     BJ.loadPanel();                                    // (the wing layer's PAGE.defaults, read below)
     for (const [k, B] of Object.entries(BUILDS)) {
-      const raw = JSON.parse(fs.readFileSync(path.join(T, '..', B.file), 'utf8'));
-      const J = LB.gameSpec(raw);                      // the game's own load door, this tree's chain
+      // the game's own load door, this tree's chain (the load door's VALIDATED table, its float patch included)
+      const J = (B.load.validated ? LB.loadValidated(B.load.validated) : LB.loadBuild(B.load.file)).spec;
       const stated = !!J.wings && J.wings[0].stol === null;          // the first plane carries the rows
       for (const w of J.wings || []) if (w && w.stol === null) delete w.stol;
       // the cage carries the eight new rows AT THEIR DEFAULTS (the wing layer's PAGE.defaults) and nothing else moves;

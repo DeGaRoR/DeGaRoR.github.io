@@ -17,8 +17,8 @@
 //       master that moves the physics (the gate says FAIL in section 1, and
 //       says which card).
 //
-// The builds are read from THIS tree's builds/ (the same file on both runs);
-// the core and the join are the root's.
+// The build files and the load door are the root's (the files are the same in
+// both trees); so are the core and the join.
 'use strict';
 const fs = require('fs'), path = require('path'), zlib = require('zlib');
 const T = __dirname;
@@ -34,27 +34,30 @@ const BJ = require(path.join(RT, '_bake_joined.js'));
 const LB = require(path.join(RT, '_load_build.js'));
 const FP = require(path.join(T, '_stol_fp.js'));
 
-// the validated aircraft (HANDOVER: the user's own files, the corrected / certified saves)
+// THE VALIDATED AIRCRAFT AS THE GAME SHIPS THEM (A0, 22 Oct): the load door's own table (tools/_load_build.js
+// VALIDATED - the Cub, the Jodel, the metal Cessna, the Cessna on floats, the twin floatplane with its float patch)
+// and the user's certified Rufus, each loaded THE GAME'S WAY. (The corrected C172 file is gone from the set: the
+// user dropped it.)
 const VALID = [
-  ['cub', 'builds/cub_2026-09-20_corrected.json'],
-  ['jodel', 'builds/jodel_2026-09-20_corrected.json'],
-  ['cessna', 'builds/cessna172_2026-09-20_corrected.json'],
-  ['rufus', 'builds/rufus_2026-10-18_certified.json'],
+  ['cub', { validated: 'cub' }], ['jodel', { validated: 'jodel' }], ['metal', { validated: 'metal' }],
+  ['floats', { validated: 'floats' }], ['twinFloats', { validated: 'twinFloats' }],
+  ['rufus', { file: 'builds/rufus_2026-10-18_certified.json' }],
 ];
-const rd = f => { const j = JSON.parse(fs.readFileSync(path.join(T, '..', f), 'utf8')); return j.spec || j; };
+const loadOf = L => L.validated ? LB.loadValidated(L.validated) : LB.loadBuild(L.file);
+const fileOf = L => L.validated ? LB.VALIDATED[L.validated].build + (LB.VALIDATED[L.validated].patch ? ' (+ its float patch)' : '') : L.file;
 const clone = o => JSON.parse(JSON.stringify(o));
 
 BJ.loadPanel();
 const out = { note: '', cards: {}, builds: {} };
-for (const [k, f] of VALID) {
+for (const [k, LD] of VALID) {
   const t0 = Date.now();
-  const spec = LB.gameSpec(JSON.parse(fs.readFileSync(path.join(T, '..', f), 'utf8')));
+  const spec = loadOf(LD).spec;
   const def = C.buildGen(clone(spec));
-  const rec = { file: f, spec, def: FP.fpDef(def), fly: FP.fpFly(C, def), draw: FP.fpDraw(C, def), ...FP.fpCheck(C, buildFresh(spec)) };
+  const rec = { load: LD, file: fileOf(LD), spec, def: FP.fpDef(def), fly: FP.fpFly(C, def), draw: FP.fpDraw(C, def), ...FP.fpCheck(C, buildFresh(spec)) };
   if (!NOLAP) rec.lap = FP.fpLap(C, buildFresh(spec));
   out.builds[k] = rec;
   const L = rec.lap;
-  console.log(k.padEnd(7) + ' def ' + rec.def + ' fly ' + rec.fly + ' draw ' + rec.draw + ' check ' + rec.check + ' (' + rec.checkWords + ')' +
+  console.log(k.padEnd(10) + ' def ' + rec.def + ' fly ' + rec.fly + ' draw ' + rec.draw + ' check ' + rec.check + ' (' + rec.checkWords + ')' +
               (L ? ' lap ' + L.hash + ' (' + L.outcome + ', ' + L.t.toFixed(2) + ' s, ' + L.phases + ' phases, lift-off ' +
                    (L.liftRun == null ? '-' : L.liftRun.toFixed(2)) + ' m, landing ' + (L.ldgRun == null ? '-' : L.ldgRun.toFixed(2)) + ' m)' : '') +
               '  [' + ((Date.now() - t0) / 1000).toFixed(0) + ' s]');

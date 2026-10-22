@@ -4,7 +4,7 @@
 //
 //   node tools/_serve.js 8450 &        (or any server over the repo root)
 //   node tools/stol_shots.js --url http://localhost:8450/flyDiy/dev.html \
-//        --build tools/fixtures/stol_cub_kit.json --compare builds/cub_2026-09-20_corrected.json \
+//        --build tools/fixtures/stol_cub_kit.json --compare cub \
 //        --out screenshots/stol-2026-10-22/cubkit [--views q,s,f,le,tip,panel,air] [--wait 15000] [--log]
 //
 // For each build (the kit, then --compare's stock aeroplane): the page booted, the build put through the garage's
@@ -20,7 +20,7 @@
 //     dbg.s - the run - and the flap lever): the run from ROLL to LIFTOFF in metres, the lift-off IAS, stills at the
 //     roll's start, at lift-off and 10 s into the climb, and the ailerons' drooped angle read off the model's
 //     moving parts with the flap down. Everything lands in <out>_<name>_takeoff.json beside the PNGs.
-// What A0 sends back: the PNGs and the two _takeoff.json (kit and stock): the lift-off runs in the page against
+// What A0 sends back: the PNGs and the two _takeoff.json (kit and stock, `--compare cub`): the lift-off runs in the page against
 // GATE STOL section 6's node numbers (kit 91 m, stock 105 m; the plaque's TO 106 / 157 m).
 'use strict';
 const { spawn } = require('child_process');
@@ -30,14 +30,22 @@ const http = require('http');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
 const URL = opt('url', 'http://localhost:8450/flyDiy/dev.html');
-const BUILDS = [opt('build', 'tools/fixtures/stol_cub_kit.json'), opt('compare', null)].filter(Boolean);
+// --compare: a key of the load door's VALIDATED table (tools/_load_build.js - the user's own files, one table) or a
+// file; the page then loads it through ITS door (GARAGE_SPEC.set), exactly as the shelf does
+const LB = require(path.join(__dirname, '_load_build.js'));
+const fileFor = x => (x && LB.VALIDATED[x]) ? LB.VALIDATED[x].build : x;
+const BUILDS = [opt('build', 'tools/fixtures/stol_cub_kit.json'), fileFor(opt('compare', null))].filter(Boolean);
 const OUT = opt('out', 'screenshots/stol-shots');
 const VIEWS = opt('views', 'q,s,f,le,tip,panel,air').split(',');
 const WAIT = +opt('wait', 15000);
 const AIR_MAX = +opt('airmax', 120000);
 const PORT = 9400 + (process.pid % 500);
-const CHROME = ['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-  'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe', '/usr/bin/google-chrome'].find(p => fs.existsSync(p));
+// --chrome <path> wins; then the box's Chrome; then the cloud container's Playwright Chromium (software GL: --soft)
+const CHROME = [opt('chrome', null), 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+  'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe', '/usr/bin/google-chrome',
+  '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'].find(p => p && fs.existsSync(p));
+// --soft: no GPU (SwiftShader through ANGLE - slow, every frame a CPU raster; the page boots on its software rung)
+const SOFT = argv.includes('--soft') ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] : [];
 if (!CHROME) { console.error('stol_shots: no Chrome'); process.exit(2); }
 const ROOT = path.join(__dirname, '..');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -49,8 +57,10 @@ async function one(file) {
   const raw = JSON.parse(fs.readFileSync(path.isAbsolute(file) ? file : path.join(ROOT, file), 'utf8'));
   const spec = raw.spec || raw;
   const udd = path.join(require('os').tmpdir(), 'cdp_stol_' + PORT + '_' + Date.now());
+  const T0 = Date.now();
   const ch = spawn(CHROME, ['--headless=new', '--remote-debugging-port=' + PORT, '--window-size=1920,1080', '--hide-scrollbars',
-    '--no-first-run', '--user-data-dir=' + udd, '--disable-gpu-sandbox', '--disable-frame-rate-limit', '--disable-gpu-vsync', 'about:blank'], { stdio: 'ignore' });
+    '--no-first-run', '--user-data-dir=' + udd, '--disable-gpu-sandbox', '--disable-frame-rate-limit', '--disable-gpu-vsync',
+    '--no-proxy-server', '--no-sandbox', ...SOFT, 'about:blank'], { stdio: 'ignore' });
   const kill = () => { try { if (process.platform === 'win32') require('child_process').execSync('taskkill /PID ' + ch.pid + ' /T /F', { stdio: 'ignore' }); else ch.kill(); } catch (e) { try { ch.kill(); } catch (e2) {} } };
   try {
     let tgt = null;
@@ -70,18 +80,23 @@ async function one(file) {
       const f = OUT + '_' + name + '_' + v + '.png'; fs.writeFileSync(f, Buffer.from(s.result.data, 'base64')); say('wrote ' + f); };
     await cmd('Page.enable'); await cmd('Runtime.enable');
     await cmd('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
+    // a fresh profile and an empty autosave (join_parity_page.js's rig: the build below is the only one it sees)
+    await cmd('Page.addScriptToEvaluateOnNewDocument', { source: 'try{localStorage.clear();}catch(e){}' });
     await cmd('Page.navigate', { url: URL });
+    // THE BOOT GONE (the loading screen's BOOT.state), no crew character still on the wire
+    const ready = '(window.BOOT && BOOT.state === "gone" && window.GARAGE_SPEC && window.CAGE_UI && window.FLIGHT_PROBE && !(window.CAGE_CREW_PENDING && CAGE_CREW_PENDING()))';
     let up = false;
-    for (let i = 0; i < 60 && !up; i++) { await sleep(1000); up = await ev("!!(window.GARAGE_SPEC && window.CAGE_UI && window.CAGE_JOIN && window.FLIGHT_PROBE)"); }
-    if (!up) throw new Error('the garage never came up');
+    for (let i = 0; i < 900 && !up; i++) { await sleep(2000); up = await ev(ready).catch(() => false); }
+    if (!up) throw new Error('the page never finished booting');
+    say(name + ' booted in ' + Math.round((Date.now() - T0) / 1000) + ' s');
     await sleep(3000);
-    // the fresh profile's chooser, if it is up: keep the build (the set below replaces it)
-    await ev("(()=>{[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0).forEach(x=>x.click());return 1})()");
-    // THE NEW-AEROPLANE DOOR, with the build's spec
+    // THE NEW-AEROPLANE DOOR, with the build's spec - then the spec unchanged for two reads 2 s apart (the energy
+    // layer's write-back rides a timer)
     await ev('(()=>{window.GARAGE_SPEC.set(' + JSON.stringify(spec) + ');return 1})()');
-    await sleep(WAIT);
-    await ev("(()=>{[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0).forEach(x=>x.click());return 1})()");
-    await sleep(1500);
+    { let last = null, same = 0;
+      for (let i = 0; i < 300; i++) { await sleep(2000); const sx = await ev(ready + ' ? JSON.stringify(GARAGE_SPEC.get()) : null').catch(() => null);
+        if (!sx) continue; if (sx === last) { if (++same >= 2) break; } else { last = sx; same = 0; } } }
+    await sleep(Math.min(WAIT, 5000));
     const rec = { build: file, at: new Date().toISOString() };
     // WYSIWYG: the editor's rows against the spec the join wrote
     rec.rows = await ev("(()=>{const P=(window.CAGE_UI&&window.CAGE_UI.P)||{};const o={};for(const k of ['wgSlat','wgSlatSpan','wgVG','wgFence','wgCuff','wgCuffSpan','wgDroop','wgFowlerGrow','wgTip','wgFlapType'])o[k]=P[k];return o})()");
@@ -93,11 +108,17 @@ async function one(file) {
       await sleep(1500);
       await ev("FLIGHT_PROBE.camSet(0.85,0.22,11),1"); await sleep(1500);
       await shot('panel');
+      // ...and scrolled to the STOL tiles (the 'Leading edge' row's tiles stand in its slot, G2823)
+      const found = await ev("(()=>{const el=[...document.querySelectorAll('*')].find(e=>e.children.length===0&&/^Leading edge$/i.test((e.textContent||'').trim()));if(!el)return false;el.scrollIntoView({block:'start'});return true})()");
+      say(name + ' the Leading edge row ' + (found ? 'found' : 'NOT FOUND'));
+      await sleep(800); await shot('panel_stol');
     }
     // the panels away, the aeroplane alone
     await ev("(()=>{for(const id of ['edWrap']){const e=document.getElementById(id);if(e)e.style.visibility='hidden';}for(const b of document.querySelectorAll('button')){if(/^‹(Properties|Parts)$/.test(b.textContent.trim()))b.click();}return 1})()");
     await sleep(1200);
-    const PRESETS = { q: [0.85, 0.22, 11], s: [Math.PI / 2, 0.05, 12], f: [0, 0.08, 11], le: [0.35, 0.10, 4.5], tip: [0.05, 0.02, 6.5] };
+    // FLIGHT_PROBE.camSet(az, el, dist): az 0 looks from BEHIND (seen in the cloud run, 22 Oct), so the front views
+    // sit near az PI; le is a low front quarter close to the wing's leading edge, tip the front view on one tip
+    const PRESETS = { q: [0.85, 0.22, 11], s: [Math.PI / 2, 0.05, 12], f: [Math.PI, 0.08, 11], le: [Math.PI - 0.55, 0.04, 5.5], tip: [Math.PI - 0.12, 0.02, 7.5] };
     for (const v of VIEWS) {
       const p = PRESETS[v]; if (!p) continue;
       await ev('FLIGHT_PROBE.camSet(' + p.join(',') + '),1'); await sleep(1500);

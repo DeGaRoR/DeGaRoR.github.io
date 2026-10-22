@@ -10,7 +10,7 @@
 //         2 s) - the strips, the flap lever and the ailerons all reached
 //   draw  genWing's groups (positions, indices, skin weights) + its moving list
 //   check the design check's rows and the machine sheet (fpCheck)
-//   lap   THE PILOT'S CIRCUIT off HOME in calm air (perf_study's fly(), the
+//   lap   THE PILOT'S CIRCUIT off HOME (a floatplane: off the SEA base) in calm air (perf_study's fly(), the
 //         damage layer as the build has it - ON by default): every phase
 //         change and its time, the lift-off run, the landing run, the
 //         outcome, and the hash of the final state. A circuit is ~5-10 min
@@ -43,8 +43,13 @@ function fpDraw(C, def) {
 function fpLap(C, def, maxS) {
   const world = C.makeWorld();
   const sim = C.makeSim(def, world); sim.reset(0);
+  // a floatplane flies its circuit off the water (the SEA base, GATE DMGFLOATTO's start); every other build off HOME
+  const water = !!(def.hydro || (def.parts && def.parts.floats));
+  const sea = water ? world.aerodromes.find(a => a.id === 'SEA') : null;
+  if (sea) C.placeAtAerodrome(sim, sea);
   for (let i = 0; i < 300; i++) sim.step(1 / 60);
   const ap = C.makePilot(sim, def, world);
+  if (sea) ap.setRoute(sea, sea);
   const trace = [];
   let ph = null, sRoll = null, lift = null, vsMin = Infinity;
   const N = Math.round((maxS || 900) * 60);

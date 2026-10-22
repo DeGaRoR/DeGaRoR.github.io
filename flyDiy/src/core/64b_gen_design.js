@@ -421,7 +421,8 @@ function genDesignCheck(def, sh, simIn, opts) {
     // ONE frame for the attitude and the moment (genProbeAt, the body's axes - the trim solver's own)
     const sm = makeSim(def, null);
     sm.reset(0);
-    const Vs0 = g.VsFlap || Vs, Va = 1.3 * Vs0, qA = 0.5 * RHO * Va * Va, Wt = sm.totalM * 9.81;
+    // the approach the autopilot flies: 1.3 x its Vs0 (G2826: the held one on a wing the elevator cannot stall)
+    const Vs0 = g.VsFlapAP || g.VsFlap || Vs, Va = 1.3 * Vs0, qA = 0.5 * RHO * Va * Va, Wt = sm.totalM * 9.81;
     sm.ctl.flap = 1;                  // FULL flap, whatever the landing schedule says (a flapless lander still droops)
     // each wing at ITS OWN attitude for the weight at that speed (the undrooped one flies a little higher): a scan
     // and a bisection, never a secant (with a drooped pair the lift curve has a knee below ~5 deg)
