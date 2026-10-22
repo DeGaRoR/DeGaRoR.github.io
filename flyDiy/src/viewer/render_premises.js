@@ -2074,18 +2074,37 @@ function make(THREE, scene, world, rec0, opts) {
     return out;
   }
   const texMean = new Map(); let texCv = null;
+  // HLOD-MEANS (A0 22 Oct; HWCOV): A MAP'S MEAN IS READ, NEVER MEASURED IN A FRAME. It was measured on first touch - the image
+  // drawn onto a 4 x 4 canvas and read back (drawImage + getImageData): a synchronous decode and readback, 217-287 ms of a boot
+  // settle slice and of the first world frame after the reveal (the strict gate's over100 x4; the boot profile: hlodTick >
+  // hlodCell > hlodMerge > meanOf). The shipped maps' means come with the page (src/viewer/tex_means.js, made by
+  // tools/tex_means.py: the same 4 x 4 BOX mean of the sRGB bytes, keyed by the file); a map with none (a runtime canvas: the big
+  // shed's sign) is measured OFF the frame - the browser resizes it to 4 x 4 on its decode thread (createImageBitmap) and its 16
+  // pixels are read when that lands - and merges with the material colour alone until then
+  const meanKey = img => { const s = img && img.src ? String(img.src) : ''; const i = s.indexOf('/media/'); return (i >= 0 ? s.slice(i + 1) : s.startsWith('media/') ? s : '').split('?')[0]; };
+  const meanMiss = new Set();
+  function meanLater(img) {
+    if (typeof createImageBitmap !== 'function') return;
+    createImageBitmap(img, { resizeWidth: 4, resizeHeight: 4, resizeQuality: 'medium' }).then(bm => {
+      try {
+        if (!texCv) { texCv = document.createElement('canvas'); texCv.width = texCv.height = 4; }
+        const x = texCv.getContext('2d', { willReadFrequently: true }); x.clearRect(0, 0, 4, 4); x.drawImage(bm, 0, 0);
+        const d = x.getImageData(0, 0, 4, 4).data; let r = 0, g = 0, b = 0;
+        for (let i = 0; i < 64; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; }
+        texMean.set(img, new THREE.Color().setRGB(r / 4080, g / 4080, b / 4080, THREE.SRGBColorSpace));
+      } catch (err) {} finally { if (bm && bm.close) bm.close(); }
+    }, () => {});
+  }
   function meanOf(tex) {
-    const img = tex && tex.image; if (!img || !img.width) return null;
+    const img = tex && tex.image; if (!img) return null;
     if (texMean.has(img)) return texMean.get(img);
-    let c = null;
-    try {
-      if (!texCv) { texCv = document.createElement('canvas'); texCv.width = texCv.height = 4; }
-      const x = texCv.getContext('2d', { willReadFrequently: true }); x.clearRect(0, 0, 4, 4); x.drawImage(img, 0, 0, 4, 4);
-      const d = x.getImageData(0, 0, 4, 4).data; let r = 0, g = 0, b = 0;
-      for (let i = 0; i < 64; i += 4) { r += d[i]; g += d[i + 1]; b += d[i + 2]; }
-      c = new THREE.Color().setRGB(r / 4080, g / 4080, b / 4080, THREE.SRGBColorSpace);
-    } catch (err) { c = null; }
-    texMean.set(img, c); return c;
+    const M = typeof TEX_MEANS !== 'undefined' ? TEX_MEANS : null, k = meanKey(img), m = M && k ? M[k] : null;
+    if (m) { const c = new THREE.Color().setRGB(m[0] / 255, m[1] / 255, m[2] / 255, THREE.SRGBColorSpace); texMean.set(img, c); return c; }   // (the table answers an image still decoding too)
+    if (!img.width) return null;   // not in the table and not decoded yet: asked again at the next merge
+    // not in the table: a runtime canvas, or a shipped map tools/tex_means.py does not scan - said once, so a new folder shows
+    if (k && !meanMiss.has(k)) { meanMiss.add(k); if (typeof console !== 'undefined') console.info('flyDiy: no TEX_MEANS for ' + k + ' (tools/tex_means.py: add its folder) - measured off the frame'); }
+    texMean.set(img, null); meanLater(img);
+    return null;
   }
   // THE NEAR TOWN, BAKED (G566, the user: "these assets are fixed ... could be joined and baked"): the 7 805 house
   // materials are 1 447 distinct - a house's finishes are clones carrying the same values. Once the queue is empty,

@@ -1669,6 +1669,26 @@ if (SELFTEST) {
   }
 }
 
+// 22 HLOD-MEANS (A0 22 Oct; HWCOV): THE FAR TOWN'S MEAN COLOURS ARE READ, NEVER MEASURED IN A FRAME. render_premises meanOf drew
+// each map onto a 4 x 4 canvas and read it back on first touch (217-287 ms in a boot settle slice and the reveal's first world
+// frame); the shipped maps' means now come with the page (src/viewer/tex_means.js, tools/tex_means.py)
+{
+  const RP = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'render_premises.js'), 'utf8');
+  const i0 = RP.indexOf('  function meanOf(tex) {'), i1 = i0 >= 0 ? RP.indexOf('\n  }\n', i0) : -1, body = i1 > i0 ? RP.slice(i0, i1) : '';
+  check(!!body && !/drawImage|getImageData/.test(body) && /TEX_MEANS/.test(body), '22 meanOf reads TEX_MEANS and draws / reads back no canvas (a map with none is measured off the frame)');
+  let TM = null;
+  try { TM = new Function(fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'tex_means.js'), 'utf8') + '\nreturn TEX_MEANS;')(); } catch (e) {}
+  const want = new Set();
+  for (const f of ['house_tex.js', 'hangar_walls.js', 'sign_tex.js']) {
+    let t = ''; try { t = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', f), 'utf8'); } catch (e) {}
+    for (const m of t.matchAll(/'(media\/tex\/[^']+\.(?:jpg|jpeg|png|webp))'/g)) if (/\/signs\//.test(m[1]) || /_(diff|paint)_/.test(m[1])) want.add(m[1]);
+  }
+  const miss = TM ? [...want].filter(k => !Array.isArray(TM[k])) : [...want];
+  check(!!TM && want.size > 0 && !miss.length, '22 tex_means.js holds a mean for every albedo map the house, wall and sign sets ship (re-run tools/tex_means.py after a texture prep)',
+    TM ? want.size + ' maps; missing ' + miss.length + ': ' + miss.slice(0, 4).join(', ') : 'no tex_means.js');
+  check(/\['src\/viewer', 'tex_means\.js'\]/.test(fs.readFileSync(path.join(TOOLS, 'build.js'), 'utf8')), '22 the world pack loads tex_means.js (tools/build.js)');
+}
+
 // ---------------------------------------------------------------------------
 if (fail.length) {
   for (const f of fail.slice(0, 30)) console.log('  ! ' + f);
