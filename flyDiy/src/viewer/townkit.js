@@ -1052,7 +1052,7 @@ float lotNoise(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0
     }
     // start: every cell far (its far mesh drawn; the kit's rows hidden until a cell comes near)
     for (let h = 0; h < NH; h++) K.farOne(h);
-    K.group.traverse(m => { if (m.isMesh) m.castShadow = false; });
+    K.group.traverse(m => { if (m.isMesh) { m.castShadow = false; m.userData.mayCast = true; } });   // (APPROACH: casts near - its depth programs are linked ahead, PROG_WARM)
     census();
     ST.buildMs = Math.round(now() - t0);
     function dispose() {

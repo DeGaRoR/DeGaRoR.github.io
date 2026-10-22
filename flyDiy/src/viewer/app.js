@@ -16595,8 +16595,10 @@
     function hold() { P.acc = 0; }
     // the loop's own work this frame (ms) and what its solver steps took, for auto's reading; `ran` the solver
     // steps actually run (0 when the sim is still - the shed, a pause; 2x runs twice the steps owed)
-    function end(workMs, physMs, steps, now, ran) {
-      if (P.legacy) return;
+    // (REVEAL, A0 22 Oct: `held` - a frame the loop ran and did not draw (holdRender) reports itself too, so a reader of the
+    // frames sees each one; it is no reading of the pace: nothing here counts it)
+    function end(workMs, physMs, steps, now, ran, held) {
+      if (P.legacy || held) return;
       if (ran == null) ran = steps;
       if (ran > 0 && physMs > 0) { const s = physMs / ran; P.stepMs = P.stepMs ? P.stepMs + 0.1 * (s - P.stepMs) : s; P.lastPhys = physMs; }
       if (P.mode !== 'auto') return;
@@ -17093,7 +17095,7 @@
     // linked (S3): a frame between the world step and the compile step drew
     // the fresh scene and compiled everything synchronously - 12 s in one
     // task. The `frames` step lifts the hold and waits for two real frames.
-    if (holdRender) { if (FR) FR.end(false, cg); POSE_LERP.back(); BOOT.frame(); return; }   // (G1100: the newest step back)
+    if (holdRender) { if (FR) FR.end(false, cg); POSE_LERP.back(); PACE.end(perfNow() - tLoop0, physMs, pc.steps, typeof ts === 'number' ? ts : perfNow(), simwRan >= 0 ? 0 : ran, true); BOOT.frame(); return; }   // (REVEAL: the held frame told, not counted)   // (G1100: the newest step back)
     if (window.WORLD_RIG && WORLD_RIG.interior) WORLD_RIG.interior(!inGarage && HEADCAM_ACTIVE);   // A6: the cabin's probe while the eye is in the cockpit
     // THE WATER'S MIRROR (G460.11): the decor captured from the eye mirrored about the water when the eye is low
     // over it (the plane: the water under the eye, else under the CG - a shore eye looking at a lake); the sky
@@ -17399,6 +17401,18 @@
       .then(() => compileDepthVariants(scene, true, dress))
       .then(() => { if (typeof console !== 'undefined') console.info('lamps: the pool ' + (want ? 'armed' : 'disarmed') + ' after its programs linked (' + Math.round(performance.now() - t0) + ' ms)'); });
   }
+  // APPROACH (A0 22 Oct; HWCOV): A GROUP MADE AFTER THE WORLD'S COMPILE LINKS ITS DEPTH PROGRAMS IN THE BACKGROUND. The town kit
+  // (render_premises kitHost) casts only near (castFar); its depth programs linked in the frame its shadow came on - 0.5-2 s
+  // on the approach to mk_sea, downwind at ~2.5 km (the program watch: one 'depth' program made in that frame). Its meshes
+  // carry userData.mayCast (shader_warm keys them though they cast nothing yet); this compiles them, a group a task
+  function depthPrelinkGroup(grp) {
+    if (!grp || !WF || typeof renderer.compileAsync !== 'function' || typeof PROG_WARM === 'undefined' || tripKeys.worldCompile === undefined) return null;   // (before the world's compile: it meets them)
+    const kinds = { depth: false, distance: false };
+    scene.traverse(o => { if (o.isLight && o.castShadow && o.shadow) { if (o.isPointLight) kinds.distance = true; else kinds.depth = true; } });
+    const { helper, n } = PROG_WARM.depthVariants(THREE, renderer, [grp], { kinds });
+    return n ? compileSliced(helper, PLAIN_RT(), scene, true).catch(e => console.warn('depth prelink:', e && e.message)) : null;
+  }
+  if (typeof window !== 'undefined') window.FLYDIY_DEPTH_PRELINK = depthPrelinkGroup;
   function compileDepthVariants(sc, sliced, dress) {
     sc = sc || scene;
     const D = dress || (f => f());
