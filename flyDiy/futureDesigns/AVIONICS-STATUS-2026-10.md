@@ -1,5 +1,22 @@
 # AVIONICS-STATUS — interior, electrics, avionics and lights: what the editor offers and what each option actually does (2026-10-12)
 
+> **Phase 2 (22 Oct, G2801-G2807, branch claude/avionics-gps-2; HANDOVER's entry of that name).** The user re-opened
+> this on 22 Oct with three steps:
+> 1. **The electrics as installed parts feeding the switches.**
+>    - Battery, alternator, starter, bus and breakers are parts with mass and position.
+>    - The engine bay draws them from the fit (E4).
+>    - The breakers sit on the dash and work in flight.
+>    - The avionics bus carries COM / XPDR / NAV / GPS (E3); the avionics cap is fixed (W1), and so is the shed's click (W2).
+> 2. **A live GPS face** on the panel: `src/viewer/gps_face.js`.
+> 3. **The furnishing as its own billed row:** the `furnish` section, the seat kind and `GEN_TRIM`. This fixes §1A's tier
+>    coupling as a choice; the validated saves keep their numbers.
+>
+> §4.5's "phase 3" reading (the GPS on the minimap) is superseded: the user asked for the GPS on the panel and the HUD
+> minimap untouched. Still open from §3/§4:
+> - E1, E2, E5-E9 and E10 (beyond the breakers);
+> - W3-W7;
+> - M2-M5 (the user's asks in that entry).
+
 G2800 AVIONICS-GPS, phase 1 (cloud, node only, read-only survey).
 
 **Two passes, one document.** A first pass on 10 Oct (commit 1e56d9b9, base train 42) wrote this file before the user's
