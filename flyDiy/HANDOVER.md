@@ -97826,3 +97826,233 @@ Rolling set (6): apsmooth-known-drop (Pilot: APSMOOTH's c172 level-off row back 
 - The battery on the six: AUDIO RED, NEW: WIRING "app.js: AUDIO.update is not in loop() between the render and PACE.end" - reveal-held's held-frame PACE.end before the hold's return; gate-screen is built on reveal-held, so both are out. Otherwise master's known reds.
 - Strict light gate on the six: over100 gone (the screen split), cub cockpit / metal chase tasks1s + cub cockpit taskWorst 2136 (the boot ~1 s class, still judged against 1 s as ruled), metal fuseWidth (accepted), floats world->garage 2.25 s (the known re-link).
 - Landed: 7332badc1 = master 5f3f2c797 + apsmooth-known-drop + pilotpage + town200-life + w1-papi, re-cooked (premises / fleet / map / parked); AUDIO STORY UISMOKE SCENERYED CONTRACTS PREMISES LIFE CITYHOST APSMOOTH PASS on that exact tree (17:10-17:20). HWCOV fixes the AUDIO wiring row vs the held path for L22d / L23b.
+
+## G2801-G2807 - AVIONICS-GPS PHASE 2: THE ELECTRICS AS INSTALLED PARTS (BATTERY, ALTERNATOR, BUS, BREAKERS) FEEDING THE SWITCHES; A LIVE GPS FACE ON THE PANEL; THE FURNISHING AS ITS OWN BILLED ROW (2026-10-22, AVIONICS-GPS for the user via A0, cloud - node + headless only, no GPU; branch claude/avionics-gps-2 off origin/master 2c2a74459; G2808-G2809 unused)
+
+**The ask (the user, 22 Oct):** re-open "Interior, electrics and the GPS" (parked 12 Oct in credit mode) and do the next steps of
+`futureDesigns/AVIONICS-STATUS-2026-10.md` (step 1's status, brought onto this branch from claude/avionics-gps-g2800) in its
+order, under the rulings of 11 Oct: the HUD minimap stays as it is, independent of any GPS in the cockpit; radio / transponder
+tuning is not a priority; cabin furnishing billed accurately as its own row.
+
+**What was built:**
+
+1. **G2801 - the electrics as installed parts; the breakers; the avionics bus.**
+   - `60_gen_spec.js`:
+     - `GEN_ELEC_PARTS`: the battery's case (PC680 178 x 79 x 168 mm, ETX900 150 x 86 x 132), the generator / alternator and
+       starter cans, and the bus = the master contactor + bus bar + a breaker each.
+     - `GEN_LIGHT_AMPS` / `GEN_LIGHT_BREAKER`: cockpit.js's LIGHT_AMPS moved into the core (E6).
+     - `genBreakerSize`: the next push-to-reset size over 1.4 x the draw; the field breaker is 5 A.
+     - `genSystemsResolve(S, {lights})` adds `breakers[]` (one per powered dial and radio, `field` for the alternator, one per
+       fitted outside light, one `cabinLt` for the cabin lamps; the NAV receiver's is `nav`, the nav lights' `navLt`) and
+       `parts[]` (each `at` the frame station it is billed on). The radios' loads are tagged `av`.
+     - **The bill's rows are untouched:** the bus and the wire split the harness row and sum to it exactly.
+   - `31_elec.js`: breakers (pulled, or tripped over their rating and staying out until pushed), the avionics bus
+     (`bus.avionics`), the alternator's field breaker, `bus.powered(key)`. No allocation in `step()`. A bus with no breakers
+     behaves exactly as it always did.
+   - `cockpit.js`:
+     - every electric dial, every lamp and the GPS ask `powered(key)`, so each goes dark with its own breaker as with the bus;
+     - COM / XPDR / NAV / GPS ride the avionics master (E3: NAV and the GPS were on no switch);
+     - the avionics cap lights with its own switch whether or not the lights layer is fitted (W1);
+     - `cb_<key>` switches: 0 in, 1 out; a tripped breaker pops out under the hand;
+     - the light loop and the lag loop no longer allocate a frame (key lists made once at bind).
+   - `app.js`: the shed's avionics click toggles `swAvionics` (W2: it looked up a `li_avionics` that never existed).
+   - The layout: an avionics master whenever any avionics is fitted.
+
+2. **G2802 - the electrics drawn where they are billed.**
+   - **The engine bay follows the fit** (`_cage_eng.js` `bayElec`, `_eng_mesh.js`):
+     - the battery box, the generator and the starter are the Instruments column's electrics, no longer the bay's own rows (E4);
+     - the battery is drawn at the fitted case's size, low on the firewall plate, where the frame bills it;
+     - the three bay rows show only on a page with no panel layer;
+     - an install key the mesh reads, never the engine's resolve; without the fit's dims the bay is byte for byte.
+   - **The breakers on the dash** (`_panel_gen.js` `placeExtras`, `_cage_panel.js`):
+     - placed AFTER the dials and switches, which lay out byte for byte as before (GATE GPSFACE F checks five validated
+       dashes);
+     - one row on the lowest clear run that holds them all (rows of three or more when none does);
+     - each breaker is a push-to-reset button: law `switch`, a 4 mm slide on `cb_<key>`, its own 7 mm pick pad (the join now
+       carries `padR`);
+     - one canvas tape names each breaker and its rating (`panelSet: 'cbtape'`).
+   - **The Instruments column** lists the installed parts (mass, and where each sits), the breakers with their ratings, and where
+     the GPS went.
+
+3. **G2803-G2804 - a live GPS face** (`src/viewer/gps_face.js`, new, `window.FLYDIY_GPS`; `GEN_AVIONICS.gps` rows now carry the
+   unit's and the screen's faces from the makers' drawings and lose `later`; mass, price and amps unchanged).
+   - **Where it goes:** the unit stands on the plate in the free space nearest the panel's middle. A portable with no room stands
+     in a cradle on the glareshield. A panel or glass unit with no room is named in the column ("no room on this dash - billed,
+     not drawn"), never drawn over a dial.
+   - **What it shows:**
+     - the island from the minimap's own baked picture, north up, 4 nm (8 km) across;
+     - the track: a Float32Array ring, a sample every 2 s;
+     - the active leg and next waypoint of the pilot's published plan (`ap.intent`, the same plan the minimap draws), else the
+       destination field, direct;
+     - GS / DTK / DIS / ETE and the track flown, in the build's units.
+   - **The cost rules:**
+     - `tick()` runs every frame on numbers only; the repaint and the upload happen at 4 Hz;
+     - it boots on power (1.6 s splash), and goes dark with the avionics master, its breaker or the bus;
+     - nothing is ever read back;
+     - measured zero bytes a call on both paths, the repaint included (the strings cached, the frame in module state, integers
+       to the canvas, no `Math.hypot`);
+     - while a flight holds the unit, a panel build for another aeroplane (a parked capture) neither resizes nor resets it;
+       entering the garage puts it back in standby.
+   - **The HUD minimap is untouched.**
+
+4. **G2805 - GATE GPSFACE** (`tools/_gpsface_check.js`, core, ~60 s, 135 checks, `--selftest`). It holds:
+   - the catalogue and the breakers;
+   - the bus's power matrix;
+   - the cockpit's switches and breakers;
+   - the face's cadence, power, leg, DTK and GS;
+   - an `--expose-gc` allocation child (GATE CITYHOST's method);
+   - the GPS and the breakers on five validated dashes, each loaded the game's way (Cub, C172 and the metal Cessna: the plate;
+     Jodel: the cradle; Rufus with a glass unit: named);
+   - the bay's battery case;
+   - the wiring.
+   The selftest catches a GPS that ignores the avionics master and a face that repaints every frame.
+
+5. **G2806 - the furnishing as its own billed row.**
+   - `GEN_TRIM` (bare / light / lined / lined and quiet: a share of Raymer's GA furnishings law) and `genFurnK(S)`: the chosen
+     trim, else the instrument tier's exactly as before. The hidden coupling of AVIONICS-STATUS §1A is now a choice.
+   - The chairs and the lining bill to a ledger section of their own, **`furnish`** (empty weight, priced):
+     - the node masses go on the same nodes in the same order;
+     - the outfit's one rounded price is split, so the total is the credit it was.
+   - The column: Cabin fit > **Furnishing** (`tools/_cage_furnish.js`, the Instruments column's door and look).
+     - The seat kind: a pick also draws it (the crew's `seatType`). A save whose drawn seat and billed kind disagree is said, and
+       left alone.
+     - The trim: unset = the tier's.
+     - The ledger's own `furnish` row is the bill shown.
+   - The join writes `spec.outfit`. An unseeded column writes nothing, so a headless join never replaces a save's seats.
+
+**The shipped validated set, unchanged in flight - one node line each.**
+- Run: `node tools/avionics_parity.js`. Built 22 Oct on this branch's tree.
+- What it checks per aeroplane, against a fixture captured with the same tool on a clean origin/master worktree:
+  - the solver's airframe the GAME flies, through `tools/_load_build.js` (the page's own load chain, GATE JOINPARITY's one load
+    path): every node's mass, position, fuel mass and radius, every beam's ends, stiffness and damping;
+  - the same airframe from the saved spec as written;
+  - the same through the card join (`tools/_bake_joined.js`);
+  - a 20 s flight's CG path on the game's airframe;
+  - the ledger's empty mass and cost.
+- Which aeroplanes: `_load_build.js` VALIDATED (Cub, Jodel, metal Cessna, Cessna floats, the twin floatplane through its float
+  patch), plus the brief's C172 and Rufus.
+```
+cub     SAME game c69780f252d5fc93 (master c69780f252d5fc93)  saved 358103acb25720b4 (master 358103acb25720b4)  joined f5a1e70c39bf09b5 (master f5a1e70c39bf09b5)  20 s flight ac9605ee65c4a230 cg -250.8304,317.9638,278.3591 (master ac9605ee65c4a230)  empty 351.263 kg / 30834 cr (master 351.263 / 30834)
+jodel   SAME game 6a292943df3cb646 (master 6a292943df3cb646)  saved 4b9627b45e434d0b (master 4b9627b45e434d0b)  joined 3b455460bc723d70 (master 3b455460bc723d70)  20 s flight d6f350fa57f6550c cg -7.4039,209.5297,321.1831 (master d6f350fa57f6550c)  empty 341.783 kg / 34422 cr (master 341.783 / 34422)
+metal   SAME game 0d07c0a5e5a63457 (master 0d07c0a5e5a63457)  saved bf7972bfa27e56ac (master bf7972bfa27e56ac)  joined 9eb4f9f8f68e48e2 (master 9eb4f9f8f68e48e2)  20 s flight 0078dd3818d4714b cg -676.8219,279.3403,508.5211 (master 0078dd3818d4714b)  empty 668.612 kg / 94095 cr (master 668.612 / 94095)
+floats  SAME game cce39b9d2e8f5457 (master cce39b9d2e8f5457)  saved 6154f22ebfc3a53e (master 6154f22ebfc3a53e)  joined 489900658f90a5d3 (master 489900658f90a5d3)  20 s flight b3672d1fb8f99714 cg -921.0456,205.7557,440.7487 (master b3672d1fb8f99714)  empty 732.289 kg / 95789 cr (master 732.289 / 95789)
+twinFloats SAME game 9e3ed7dfcb141c9a (master 9e3ed7dfcb141c9a)  saved 08898fe29c2176f2 (master 08898fe29c2176f2)  joined 922778083fddb1f2 (master 922778083fddb1f2)  20 s flight 47c1a382d60aa551 cg -764.2129,258.7227,141.1463 (master 47c1a382d60aa551)  empty 393.564 kg / 35442 cr (master 393.564 / 35442)
+cessna172 SAME game c82ea22e6e6b484b (master c82ea22e6e6b484b)  saved 449918ffb4e0fdb0 (master 449918ffb4e0fdb0)  joined 654ab3118ac68616 (master 654ab3118ac68616)  20 s flight f16661894db994f2 cg -909.2731,213.9518,341.901 (master f16661894db994f2)  empty 644.064 kg / 89242 cr (master 644.064 / 89242)
+rufus   SAME game 0c07382d3bbc4871 (master 0c07382d3bbc4871)  saved cebba3a093f39b4f (master cebba3a093f39b4f)  joined 27b35e2a38407caa (master 27b35e2a38407caa)  20 s flight 6f7cbcaf9c8c655a cg -58.791,308.2165,244.289 (master 6f7cbcaf9c8c655a)  empty 273.442 kg / 37581 cr (master 273.442 / 37581)
+AVIONICS PARITY: the 7 validated aeroplanes unchanged
+```
+
+**Gates (22 Oct, cloud).**
+- **How they were run:**
+  - one `node tools/run_gates.js --only=<ID> --no-build --jobs=2` per gate, four at a time, after a separate `node tools/build.js`
+    (the generated files were built for the run and are not committed);
+  - one runner call for the whole list could not finish here: 134 jobs, 21 done in 2 h, verdicts printed only at the end.
+- **Which gates (the grep rule, 118 of them):**
+  - every `tools/_*_check.js` that names a file this branch touched, by its basename on a word boundary;
+  - plus the brief's PANEL, INPUT, UISMOKE, UISMOKE-PHONE, GEN, ECON, PROCURE, FRAMECOST, BUILD and the new GPSFACE;
+  - "CERT" is DMGCERT (no gate is named CERT; DMGCERTCOST is in too);
+  - plus WEIGHT, POD, ELEC.
+
+**96 gates PASS, each line exactly as printed:**
+`GATE UPDATE: PASS`, `GATE HWCOV: PASS`, `GATE ROUTES: PASS`, `GATE BUILT: PASS`, `GATE UILAYER: PASS`, `GATE STORY: PASS`, `GATE WINGROWS: PASS`, `GATE GPSFACE: PASS`, `GATE ANIMALS: PASS`, `GATE ASSETBUDGET: PASS`, `GATE ATMO: PASS`, `GATE BUILD: PASS`, `GATE CHARS: PASS`, `GATE ASSETS: PASS`, `GATE HONESTY: PASS`, `GATE CITYHOST: PASS`, `GATE DEFAULT: PASS`, `GATE DESIGN: PASS`, `GATE DASH: PASS`, `GATE ELEC: PASS`, `GATE ECON: PASS`, `GATE ENGID: PASS`, `GATE ENERGY: PASS`, `GATE FADES: PASS`, `GATE FIT: PASS`, `GATE FLIGHTREC: PASS`, `GATE FLOWNBAKE: PASS`, `GATE ENGMESH: PASS`, `GATE FRAMES: PASS`, `GATE GFX: PASS`, `GATE HANGAR: PASS`, `GATE GAMEPREM: PASS`, `GATE JOIN: PASS`, `GATE HINGE: PASS`, `GATE KITHOST: PASS`, `GATE KNIFE: PASS`, `GATE LIFE: PASS`, `GATE LIGHT: PASS`, `GATE LIVERY: PASS`, `GATE MEDIA: PASS`, `GATE METKIT: PASS`, `GATE NAVAID: PASS`, `GATE PACE: PASS`, `GATE PANEL: PASS`, `GATE PARTS: PASS`, `GATE PILOTS: PASS`, `GATE PLAYER: PASS`, `GATE PROGRAMS: PASS`, `GATE REF: PASS`, `GATE SAVE: PASS`, `GATE SCENERY: PASS`, `GATE PREMISES: PASS`, `GATE SHADOWSKY: PASS`, `GATE STARTER: PASS`, `GATE STORAGE: PASS`, `GATE STOREDRAW: PASS`, `GATE SUBSTEP: PASS`, `GATE TARR: PASS`, `GATE UISMOKE-PHONE: PASS`, `GATE VIEW: PASS`, `GATE WATER: PASS`, `GATE WEATHER: PASS`, `GATE SIMWORKER: PASS`, `GATE TANKMOUNT: PASS`, `GATE STAGES: PASS`, `GATE WATERDAMP: PASS`, `GATE CONTACT: PASS`, `GATE VILLAGE: PASS`, `GATE POSEBACK: PASS`, `GATE WEIGHT: PASS`, `GATE NACLAG: PASS`, `GATE SHEETWORKER: PASS`, `GATE INPUT: PASS`, `GATE DMGWRECK: PASS`, `GATE ROLLSND: PASS`, `GATE UISMOKE: PASS`, `GATE PREMCOOK: PASS`, `GATE DMGSKINGPU: PASS`, `GATE DMGSKIN: PASS`, `GATE LINEUP: PASS`, `GATE FREIGHT: PASS`, `GATE LAZY: PASS`, `GATE DMGHEAL: PASS`, `GATE DMGSETTLE: PASS`, `GATE PROCURE: PASS`, `GATE DMGFPS: PASS`, `GATE ACCEPT: PASS`, `GATE STORESPOT: PASS`, `GATE DMGSCAR: PASS`, `GATE DMGWALL: PASS`, `GATE SIMWORKER-PLACE: PASS`, `GATE ROUTE: PASS` (x3 shards), `GATE SIMWORKER-PAGE: PASS`, `GATE ALTIPORT: PASS` (x4 shards), `GATE GEN: PASS` (x4 shards), `GATE EDBUGS: PASS`.
+(GPSFACE was re-run after its last change, the metal Cessna's dash: `GATE GPSFACE: PASS`, 135 checks, `--selftest` PASS.)
+
+**Red, and master's - proved on a clean `git worktree add <dir> origin/master` (2c2a74459) built with `node tools/build.js`, the
+same command; the same failing rows:**
+- `GATE VEHICLE: FAIL (2 rows)`: the DEF and AIRBORNE rows, identical on master.
+- `GATE ROLLANIM: FAIL (1 of 806)`: G1039 "flRevealStart still frames the stand as standFraming assumes", identical on master.
+- `GATE POD: FAIL`: 12 of 228, its "pod off = the base's bytes" digests on six builds, the same 12 on master (POD is not on A0's
+  known list, but it is red on master as it stands). This branch's `furnish` ledger row moves those bytes again (the ledger
+  only; the nodes are identical: avionics_parity). It was not re-blessed here.
+- `GATE JOINPARITY: 1 FAIL`: "no tool flies a validated build raw: _apsmooth_check.js, _engtorque_check.js,
+  engine_torque_seasweep.js, hand_controls_probe.js", the same four on master. This branch's two tools were on that list
+  until e15ba57b7 (both now load through `_load_build.js`).
+- `GATE SCENERYED: FAIL (1)`: the user's scenery save's unconfirmed removals, identical on master.
+- `GATE BENCH: FAIL`: "the phase strip knows all 24 pilot phases — not ROUTE, LOITER", identical on master.
+- `GATE DMGCERT: FAIL`: "BROKE AT 7.21 g (wing0R:strut, fitting)", identical on master.
+- `GATE DMGINST: FAIL`: the 'speed' trip and the worker host's diverged(), identical on master.
+- `GATE KTX2: FAIL`: row 10 (the characters' budget), identical on master; on A0's known list.
+
+**NOT YET PROVED at the time of writing (22 Oct ~22:15 UTC).** These are not claimed as master's. The master runs, and the solo
+re-runs of the gates that gave no verdict under four parallel gates, are going on the box. A follow-up commit on this branch
+replaces this paragraph with each one's line:
+- `GATE CLOUD: FAIL (1 of 239)`: "the pool is re-assigned every 30 frames to the nearest published lamps...". This is the lamps row
+  on A0's known list; the master run is pending, to show it is the same row.
+- `GATE FRAMECOST: FAIL (25)`: the Cub's and the Cessna's stand and taxi counters rose alike (taxi draws.main 844 -> 1078,
+  uniform4fv 626 -> 5208, Cessna shadow tris x2) and so did the garage:seed / restore updateMatrixWorld.
+  - The shape is PERF-1's stale-parked-cook finding of 18 Oct (taxi uniform4fv 626 -> 5176), not a few panel parts.
+  - The dash adds about 20 draws in the cockpit: the breaker buttons, one tape and one screen.
+  - A0's known red here is only "cessna garage:restore". The master run is pending.
+- `GATE DMGCERTCOST: FAIL`: node-time ceilings only (25-83 s against 18-48 s), measured with four gates at once. A solo
+  re-run and the master run are pending.
+- `GATE SIMWORKER-EDGES: FAIL (6)`: "the worker's world after the edit: grid r" and the NaN bounding-sphere errors at the gate's
+  own planned divergence (flight 3, NaN from step 601), on both builds; the master run is pending.
+- `GATE BOOTLIFT: FAIL` (the hard-timeout and ?diag=quick rows) and `GATE ROUNDTRIP: FAIL (1)` (the setup screen's sections
+  row): page rows; the master runs are pending.
+- POSEHIDDEN, PARKED, DMGDETERMINISM, DMGPAGEW gave no verdict: timeouts, and SIGKILL under the load. Solo re-runs pending.
+- DESTTO: `GATE DESTTO: PASS` on shards 0/3 and 1/3 (0 failures each); shard 2/3 was cut at the runner's 1800 s. A solo
+  re-run is pending.
+- TOUR, ARCHETYPES: still running at the time of writing.
+
+
+
+
+**For the user (asks):**
+1. **Look at the stills** (A0's script below). Is the GPS's place right? The rule is the free plate nearest the middle, else a
+   portable on the glareshield.
+2. **A glass unit fits on none of the five validated dashes GPSFACE builds.** Draw it anyway by taking a row of dials off, or keep "named, not
+   drawn"?
+3. **The furnishing defaults kept every validated aeroplane's numbers** (your "unchanged in flight"), so these mismatches remain
+   until you say:
+   - Rufus is drawn with composite shells and billed as tube-and-sling chairs (picking "Moulded pan" moves it +8 kg and its
+     certificate with it);
+   - the Cub's lining is the basic tier's "lined" (1.4 kg) where a J-3 is bare;
+   - chairs are still billed per row of the seat layout, not per seat (AVIONICS-STATUS M2: the 172 bills 2 chairs for 4 seats).
+   Fix them now (a re-freeze of those builds, named at the train), or leave them as the player's choices?
+4. **The trim is billed, not drawn** (no headliner or carpet mesh yet). Should a later pass draw it (AVIONICS-STATUS M4's drawn-area
+   billing), or is a billed choice enough?
+5. **Not done (out of this brief, or not a priority by your ruling):** the lights' own mass / price catalogue (status step A); the
+   turn coordinator's symbol, the fuel sight gauge and the ammeter needle (step B / D); COM / XPDR tuning.
+
+**Evidence script for A0's box (the cloud cannot render):**
+```
+tools/perf/boxlock.sh take gpu AVIONICS
+git checkout claude/avionics-gps-2 && node tools/build.js
+node tools/live_driver.js <repo root> "flyDiy/bugReports/cessnaMetal (1).json" dev.html 8572 &
+node tools/avionics_stills.js 8572 reports/evidence/AVIONICS/metal_portable portable
+#   optional, a fresh driver each (one build per page):
+#   the panel unit on the same Cessna -> metal_panel panel
+#   the Jodel's glareshield cradle: builds/jodel_2026-09-20_corrected.json -> jodel_cradle portable
+tools/perf/boxlock.sh drop gpu AVIONICS
+```
+Each run writes these stills, and `avionics.json` beside them with the cockpit's and the GPS's own readings per state:
+- `00_shed_panel`: the pilot's eye in the shed (the unit in standby, the breaker row and its tape);
+- `01_on_map`: the GPS live;
+- `02_avionics_off`: the GPS dark, the dials alive;
+- `03_gps_cb_out`: the GPS alone dark, its breaker standing out;
+- `04_master_off`: every electric dial at rest, the lamps dark;
+- `05_boot`, `06_on_again`: power back, the splash, then the map;
+- `07_taxi`, `08_climb`: the track and the GS alive;
+- `09_dusk`: the screen's glow under the night dimmer.
+The run also counts `gl.readPixels` calls over 10 s with the GPS live (expected 0 from this work), with the GPS's paints and
+uploads over the same 10 s (~40 each).
+Also worth a look in the shed:
+- the engine bay with the cowl off: the battery box at the PC680's size, low on the firewall;
+- Instruments > electrics > installed / breakers;
+- Cabin fit > Furnishing: pick "Upholstered" and the airliner seat is drawn; the bill row moves.
+
+On the metal Cessna (GATE GPSFACE F), the portable sits on the plate's left at 0.34 m out, the panel unit sits in the middle,
+and the 15 breakers sit in one row.
+
+**`90_node_exports.js`:** the export line only, six names added in place (GEN_ELEC_PARTS, GEN_LIGHT_AMPS,
+GEN_LIGHT_BREAKER, genBreakerSize, GEN_TRIM, genFurnK). Against origin/master the line differs by exactly those, nothing
+else in the file.
+
+**Files:**
+- `src/core/31_elec.js`, `60_gen_spec.js`, `61_gen_frame.js`, `90_node_exports.js`;
+- `src/viewer/app.js`, `cockpit.js`, `garage.js`, `gps_face.js` (new);
+- `tools/_cage_eng.js`, `_eng_mesh.js`, `_panel_gen.js`, `_cage_panel.js`, `_cage_join.js`, `_cage_furnish.js` (new),
+  `_cage_parts.js`, `_cage_ui.js`, `_cage8.html`, `_parts_check.js`, `build.js`, `run_gates.js`;
+- `tools/_gpsface_check.js` (new gate), `tools/avionics_parity.js` + `tools/fixtures/avionics_parity.json`,
+  `tools/avionics_stills.js`;
+- `futureDesigns/AVIONICS-STATUS-2026-10.md`.
