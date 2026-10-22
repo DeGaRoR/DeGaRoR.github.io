@@ -9202,22 +9202,43 @@
   }
   // THE BENCH NEVER STANDS IN THE SMALL SHED (the user, 19 Oct: "will never get the bench"): a property of the SHED - the
   // story's cabin shed (`story` on the shed record, G2743 / STORY-PAGE) - at every beat; the garage shows the design pane
+  // (G3351: the smoke run of 22 Oct found #tabBench gone from the page - the bench's tests live in the left panel's
+  // #edBench now - so the rule hides THAT, by a body class editor.css reads, and says why in its place)
   function storyBenchRule() {
-    if (!STORY_PAGE) return;
+    if (!STORY_PAGE || typeof document === 'undefined' || !document.body) return;
     let small = false;
     try { const d = playerLoad(), sh = d.sheds && d.sheds[d.here]; small = !!(sh && sh.story); } catch (e) {}
-    const tb = typeof document !== 'undefined' ? document.getElementById('tabBench') : null;
-    if (!tb) return;
-    if (tb.hidden !== small) tb.hidden = small;
-    if (small) { const bn = document.getElementById('edBench'), td = document.getElementById('tabDesign');
-      if (bn && !bn.hidden && td && td.onclick) td.onclick(); }
-    let n = document.getElementById('stNoBench');
-    if (small && !n && tb.parentNode) { n = document.createElement('span'); n.id = 'stNoBench'; n.textContent = 'no bench in this shed'; tb.parentNode.appendChild(n); }
+    if (document.body.classList.contains('stNoBench') !== small) document.body.classList.toggle('stNoBench', small);
+    const bn = document.getElementById('edBench');
+    let n = document.getElementById('stNoBenchNote');
+    if (small && !n && bn && bn.parentNode) { n = document.createElement('div'); n.id = 'stNoBenchNote'; n.textContent = 'No bench in this shed: certification happens at the WWII field\u2019s hangar.'; bn.parentNode.insertBefore(n, bn); }
     if (n) n.hidden = !small;
   }
+  // G3351: THE PAINT-ONLY LOCK, KEPT. The story's mask note fires on a CHANGE of mask; at a New career it fired before
+  // editor.js had defined EDITOR_LOCK, and the mask never changed again, so the lock never engaged (the smoke run of 22
+  // Oct). This holds the editor's lock to the story's mask on every tick, whatever loaded first.
+  const STORY_LOCK_WHY = 'Tim: the structure comes later in the story - paint, liveries and colours for now.';
+  function storyLockSync() {
+    if (!STORY_PAGE || !window.EDITOR_LOCK || typeof window.EDITOR_LOCK.finishOnly !== 'function') return;
+    let want = false;
+    try { want = storyMask(playerLoad()) === 'finish'; } catch (e) {}
+    if (!!window.EDITOR_LOCK.locked() !== want) window.EDITOR_LOCK.finishOnly(want ? STORY_LOCK_WHY : null);
+  }
+  // G3352: a cabin shed made before the cozy kits (park + bench + comfort only) takes the plot's kits now - decor only,
+  // the same shed, its aeroplanes untouched
+  function storyCabinKits() {
+    if (!STORY_PAGE) return;
+    try {
+      const d = playerLoad(), id = d.here, sh = d.sheds && d.sheds[id];
+      if (!sh || !sh.story || JSON.stringify(sh.kits) !== '["park","bench","comfort"]') return;
+      const P = BASE_OFFERS[sh.base] && BASE_OFFERS[sh.base].plots[id];
+      if (!P || !P.kits || P.kits.length <= 3) return;
+      const n = JSON.parse(JSON.stringify(d)); n.sheds[id].kits = P.kits.slice(); player = n; playerSave();
+    } catch (e) { console.warn('flyDiy (story): the cabin kits -', e && e.message); }
+  }
   if (STORY_PAGE) {
-    try { storyCardSync(); storyFlush(); storyTimSync(); storyBenchRule(); storySkipSync(); } catch (e) { console.warn('flyDiy (story): the boot -', e && e.message); }
-    setInterval(() => { try { storyTimSync(); storyBenchRule(); storySkipSync(); } catch (e) {} }, 1500);
+    try { storyCabinKits(); storyCardSync(); storyFlush(); storyTimSync(); storyBenchRule(); storyLockSync(); storySkipSync(); } catch (e) { console.warn('flyDiy (story): the boot -', e && e.message); }
+    setInterval(() => { try { storyTimSync(); storyBenchRule(); storyLockSync(); storySkipSync(); } catch (e) {} }, 1500);
     // G3370: the ladder's tick (its card follows the pilot's phase; nothing runs off T1's flight)
     setInterval(() => { try { if (stTimBeat === 'T1' && !inGarage) storyTimSync(); } catch (e) {} }, 500);
     // (G3370: a hand on the controls in flight ends the ladder for that flight, at once)
@@ -16546,8 +16567,10 @@
     function hold() { P.acc = 0; }
     // the loop's own work this frame (ms) and what its solver steps took, for auto's reading; `ran` the solver
     // steps actually run (0 when the sim is still - the shed, a pause; 2x runs twice the steps owed)
-    function end(workMs, physMs, steps, now, ran) {
-      if (P.legacy) return;
+    // (REVEAL, A0 22 Oct: `held` - a frame the loop ran and did not draw (holdRender) reports itself too, so a reader of the
+    // frames sees each one; it is no reading of the pace: nothing here counts it)
+    function end(workMs, physMs, steps, now, ran, held) {
+      if (P.legacy || held) return;
       if (ran == null) ran = steps;
       if (ran > 0 && physMs > 0) { const s = physMs / ran; P.stepMs = P.stepMs ? P.stepMs + 0.1 * (s - P.stepMs) : s; P.lastPhys = physMs; }
       if (P.mode !== 'auto') return;
@@ -17044,7 +17067,7 @@
     // linked (S3): a frame between the world step and the compile step drew
     // the fresh scene and compiled everything synchronously - 12 s in one
     // task. The `frames` step lifts the hold and waits for two real frames.
-    if (holdRender) { if (FR) FR.end(false, cg); POSE_LERP.back(); BOOT.frame(); return; }   // (G1100: the newest step back)
+    if (holdRender) { if (FR) FR.end(false, cg); POSE_LERP.back(); PACE.end(perfNow() - tLoop0, physMs, pc.steps, typeof ts === 'number' ? ts : perfNow(), simwRan >= 0 ? 0 : ran, true); BOOT.frame(); return; }   // (REVEAL: the held frame told, not counted)   // (G1100: the newest step back)
     if (window.WORLD_RIG && WORLD_RIG.interior) WORLD_RIG.interior(!inGarage && HEADCAM_ACTIVE);   // A6: the cabin's probe while the eye is in the cockpit
     // THE WATER'S MIRROR (G460.11): the decor captured from the eye mirrored about the water when the eye is low
     // over it (the plane: the water under the eye, else under the CG - a shore eye looking at a lake); the sky
@@ -17350,6 +17373,18 @@
       .then(() => compileDepthVariants(scene, true, dress))
       .then(() => { if (typeof console !== 'undefined') console.info('lamps: the pool ' + (want ? 'armed' : 'disarmed') + ' after its programs linked (' + Math.round(performance.now() - t0) + ' ms)'); });
   }
+  // APPROACH (A0 22 Oct; HWCOV): A GROUP MADE AFTER THE WORLD'S COMPILE LINKS ITS DEPTH PROGRAMS IN THE BACKGROUND. The town kit
+  // (render_premises kitHost) casts only near (castFar); its depth programs linked in the frame its shadow came on - 0.5-2 s
+  // on the approach to mk_sea, downwind at ~2.5 km (the program watch: one 'depth' program made in that frame). Its meshes
+  // carry userData.mayCast (shader_warm keys them though they cast nothing yet); this compiles them, a group a task
+  function depthPrelinkGroup(grp) {
+    if (!grp || !WF || typeof renderer.compileAsync !== 'function' || typeof PROG_WARM === 'undefined' || tripKeys.worldCompile === undefined) return null;   // (before the world's compile: it meets them)
+    const kinds = { depth: false, distance: false };
+    scene.traverse(o => { if (o.isLight && o.castShadow && o.shadow) { if (o.isPointLight) kinds.distance = true; else kinds.depth = true; } });
+    const { helper, n } = PROG_WARM.depthVariants(THREE, renderer, [grp], { kinds });
+    return n ? compileSliced(helper, PLAIN_RT(), scene, true).catch(e => console.warn('depth prelink:', e && e.message)) : null;
+  }
+  if (typeof window !== 'undefined') window.FLYDIY_DEPTH_PRELINK = depthPrelinkGroup;
   function compileDepthVariants(sc, sliced, dress) {
     sc = sc || scene;
     const D = dress || (f => f());

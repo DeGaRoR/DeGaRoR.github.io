@@ -191,6 +191,26 @@ const stand = cfg => { L.set(cfg || null); L.standNow(); return L.items(); };
   verdict(L.trafficOf(road) > 0 && a.length > 0, 'the overrides gone, the life is back');
 }
 
+// ---- 2c. TOWN-200 (A0 22 Oct): THE STAND IN PARTS - a house that lands stands its own part over the base (the roads, the
+// aprons, the masts are not stood again); a house at a time gives the items the whole stand gives, and a house taken down
+// takes its part with it ----------------------------------------------------------------------------------------------
+{
+  const full = stand(null), all = [...HOUSES], LANDED = new Map(), was = host.houses;
+  host.houses = () => LANDED;
+  stand(null);                                         // the base, no house landed yet
+  const s1 = L.stats.stands, a1 = L.stats.adds;
+  const run = () => { for (let i = 0; i < 60; i++) L.tick(); };
+  for (const [id, h] of all) { LANDED.set(id, h); L.built(); run(); }
+  const inc = L.items();
+  verdict(L.stats.stands === s1 && L.stats.adds - a1 === all.length && JSON.stringify(inc) === JSON.stringify(full),
+    'houses landing one at a time: ' + (L.stats.adds - a1) + ' parts stood, no whole stand (' + (L.stats.stands - s1) + '), the whole stand\'s items (' + inc.length + ' vs ' + full.length + ')');
+  LANDED.delete('h2'); L.built(); run();
+  const less = L.items(), m = new Map(all.filter(([id]) => id !== 'h2'));
+  host.houses = () => m; const ref = stand(null);
+  verdict(less.length < inc.length && JSON.stringify(less) === JSON.stringify(ref), 'a house taken down takes its part (' + inc.length + ' -> ' + less.length + '), the rest the whole stand\'s without it');
+  host.houses = was; stand(null);
+}
+
 // ---- 3. THE DRAW ---------------------------------------------------------------------------------------------
 {
   stand(null);
@@ -219,6 +239,7 @@ const stand = cfg => { L.set(cfg || null); L.standNow(); return L.items(); };
   verdict(RP.includes('built: h.built || null'), 'each house keeps its generator\'s report (HOUSES[].built)');
   verdict((RP.match(/trafficOf\(rd\)/g) || []).length >= 3, 'the traffic asks it for a road the record left without');
   verdict(/if \(LIFE\) \{ LIFE\.set\(rec\.life\); LIFE\.dirty\(\);/.test(RP), 'a rebuild hands it the record\'s life block');
+  verdict(/if \(built && LIFE\) LIFE\.built\(\);/.test(RP), 'a house landing stands its own life part (TOWN-200: LIFE.built, not a whole re-stand)');
   // (G2910 SCENERY-ED-2 made the tabs ACTION PALETTES: a section's rows moved from the inspector's body into the palette
   //  drawer under its tab - lifeRows(P) writes into the drawer palette.refresh() hands it. The section is reached when
   //  its tab is on the rail (SECTIONS), the drawer dispatches 'life' to lifeRows, and lifeRows writes its rows - the

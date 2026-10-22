@@ -1,0 +1,3920 @@
+{
+ "meta": {
+  "when": "2026-10-22 16:34 UTC",
+  "seeds": 20,
+  "ablSeeds": 5,
+  "sweepSeeds": 5,
+  "core": "tools/flight_core.js 31f1b9ebff",
+  "notes": [
+   "Every career starts with careerNew + storyNewCareer (the cabin found by name: the Cabin Strip, w1) and plays T0-T7 through storyStep / storyApply: the Rufus flies to HOME, the client's Cub is finished to the checklist (the client pays the work: no wallet line, as the page does), delivered to strip 11, given, flies T5's three authored jobs through contractOnStop, goes on floats (an edit: free today) and lands at the seaplane base, where T6 signs the real route with Kit (routeOffer + routeSign: the down payment).",
+   "Open play: each contract is the offer (careerOfferIds: the real generator, arcs, build contracts, night work) with the best pay per real minute that one free plane of the fleet can fly (contractDoers over the measured designs); flown leg by leg (positioning unpaid), each stop handed to contractOnStop. A windowed job is left for later when its window opens more than 3 h away; outside its window the player waits on the ground; a day leg is not flown between dusk and dawn (the night is waited out). Routes settle at every landing and wait (routeSettle), as the page does.",
+   "Build contracts: the cheapest design of the open segments that meets every criterion (read off its certificate numbers) is built (paid, the ledger x labour), flown to the client and delivered (it leaves the fleet). xwindKt / batteryKWh criteria are not attempted.",
+   "Segments are the sim's (TECH-MASK is not in the game): a design's segment is what it wants of a hangar (tube / wood 1, metal 2, composite 3); a segment opens its designs (and, in the proposal, after its machine-shop rung is bought); its keystone stands after {\"1\":14,\"2\":20,\"3\":26} contracts flown in it, and in the proposal once its landmark is co-funded.",
+   "Real time: every leg at 1× (cruise + 300 s), plus contract 2 min, wait 0 min, buy 2 min, build 12 min, buildContract 20 min, route 2 min, comp 4 min, T0 10 min, T2 25 min, T6 5 min, T7 4 min. These are estimates: the page measures nothing of a player.",
+   "The pace (\"contracts to X\") is the contracts flown from the start of the segment that sells X until their pay covers its price: the earning rate, not when a policy happened to buy.",
+   "Money at rest = the wallet / the cheapest thing the stage still offers that is not owned yet (an airframe type, an occasion, a side hangar, the segment's landmarks and the next rung); nothing left: the next segment's cheapest airframe.",
+   "Competitions are NOT in the game: the competitor in the live config buys the class designs (a fast one, a short-field one) and favours the challenge contracts; in the proposal it builds a dedicated design per class and enters every round (35 / 30 / 20 % gold / silver / bronze).",
+   "Not modelled: selling, damage (repair is free, a crash resets: no money), the used market beyond the occasions, the makers' catalogue (a maker costs more than building), reputation's effect beyond what the generator already reads, the player's own exploration time."
+  ]
+ },
+ "targets": {
+  "cubClass": [
+   3,
+   4
+  ],
+  "seat4": [
+   6,
+   8
+  ],
+  "hangar": [
+   8,
+   12
+  ],
+  "rest": [
+   0.3,
+   3
+  ],
+  "routeShare": 0.4,
+  "demoH": [
+   2,
+   3
+  ]
+ },
+ "segK": {
+  "1": 14,
+  "2": 20,
+  "3": 26
+ },
+ "live": {
+  "name": "live",
+  "grant": null,
+  "routes": null,
+  "dayTrips": 0,
+  "airframeF": 1,
+  "occasionF": null,
+  "landmarks": null,
+  "packs": null,
+  "comps": null,
+  "occasions": null,
+  "hangarsWanted": true
+ },
+ "proposed": {
+  "name": "proposed",
+  "grant": 0,
+  "storyFee": 20000,
+  "routes": {
+   "perKm": 30,
+   "downTrips": 6
+  },
+  "dayTrips": 6,
+  "airframeF": 1,
+  "occasionF": 0.35,
+  "shells": {
+   "field": 3.6,
+   "club": 5.6,
+   "works": 8.6
+  },
+  "landmarks": [
+   {
+    "id": "observatory",
+    "seg": 1,
+    "keystone": true,
+    "cubs": 2.5,
+    "words": "the Ardent Observatory (keystone 1)"
+   },
+   {
+    "id": "mine-village",
+    "seg": 1,
+    "keystone": false,
+    "cubs": 1.5,
+    "words": "the mining village"
+   },
+   {
+    "id": "hydro",
+    "seg": 2,
+    "keystone": true,
+    "cubs": 6,
+    "words": "the hydro plant (keystone 2)"
+   },
+   {
+    "id": "sky-tram",
+    "seg": 2,
+    "keystone": false,
+    "cubs": 3,
+    "words": "the sky tram"
+   },
+   {
+    "id": "community",
+    "seg": 3,
+    "keystone": false,
+    "cubs": 5,
+    "words": "Driftwood Landing"
+   },
+   {
+    "id": "long-runway",
+    "seg": 3,
+    "keystone": true,
+    "cubs": 12,
+    "words": "the long runway (keystone 3)"
+   }
+  ],
+  "packs": {
+   "2": {
+    "cubs": 0.25,
+    "words": "Sheets and bolts (the metal rung)"
+   },
+   "3": {
+    "cubs": 2.5,
+    "words": "Composite and electronics"
+   }
+  },
+  "comps": [
+   {
+    "id": "stol-1",
+    "seg": 1,
+    "cls": "stol",
+    "fee": 0.08,
+    "prizes": [
+     3,
+     1.6,
+     0.8
+    ],
+    "rounds": 3,
+    "words": "the bush STOL meet"
+   },
+   {
+    "id": "race-1",
+    "seg": 1,
+    "cls": "speed",
+    "fee": 0.08,
+    "prizes": [
+     3,
+     1.6,
+     0.8
+    ],
+    "rounds": 2,
+    "words": "the island air race"
+   },
+   {
+    "id": "float-2",
+    "seg": 2,
+    "cls": "floats",
+    "fee": 0.15,
+    "prizes": [
+     3,
+     1.6,
+     0.8
+    ],
+    "rounds": 3,
+    "words": "the float fly-in"
+   },
+   {
+    "id": "race-2",
+    "seg": 2,
+    "cls": "speed",
+    "fee": 0.15,
+    "prizes": [
+     3,
+     1.6,
+     0.8
+    ],
+    "rounds": 3,
+    "words": "the Sheets-and-bolts race"
+   },
+   {
+    "id": "eco-3",
+    "seg": 3,
+    "cls": "range",
+    "fee": 0.25,
+    "prizes": [
+     3,
+     1.6,
+     0.8
+    ],
+    "rounds": 3,
+    "words": "the economy run"
+   },
+   {
+    "id": "race-3",
+    "seg": 3,
+    "cls": "speed",
+    "fee": 0.25,
+    "prizes": [
+     3,
+     1.6,
+     0.8
+    ],
+    "rounds": 3,
+    "words": "the records week"
+   }
+  ],
+  "occasions": {
+   "perSeg": 2
+  },
+  "hangarsWanted": true
+ },
+ "judgeLive": [
+  {
+   "what": "contracts to a Cub-class build (pace, frugal)",
+   "target": "3-4",
+   "got": 3,
+   "ok": true
+  },
+  {
+   "what": "contracts to a segment-2 4-seater (pace, frugal)",
+   "target": "6-8",
+   "got": 7,
+   "ok": true
+  },
+  {
+   "what": "contracts to a side hangar (pace, frugal)",
+   "target": "8-12",
+   "got": 5.5,
+   "ok": false
+  },
+  {
+   "what": "money at rest, frugal, seg1 (median)",
+   "target": "0.3-3",
+   "got": 5.1957894736842105,
+   "ok": false
+  },
+  {
+   "what": "money at rest, frugal, seg2 (median)",
+   "target": "0.3-3",
+   "got": 23.342934782608694,
+   "ok": false
+  },
+  {
+   "what": "money at rest, frugal, seg3 (median)",
+   "target": "0.3-3",
+   "got": 46.978079710144925,
+   "ok": false
+  },
+  {
+   "what": "money at rest, collector, seg1 (median)",
+   "target": "0.3-3",
+   "got": 0.634109229256415,
+   "ok": true
+  },
+  {
+   "what": "money at rest, collector, seg2 (median)",
+   "target": "0.3-3",
+   "got": 3.7004464285714285,
+   "ok": false
+  },
+  {
+   "what": "money at rest, collector, seg3 (median)",
+   "target": "0.3-3",
+   "got": 9.974489795918366,
+   "ok": false
+  },
+  {
+   "what": "money at rest, router, seg1 (median)",
+   "target": "0.3-3",
+   "got": 11.520263157894735,
+   "ok": false
+  },
+  {
+   "what": "money at rest, router, seg2 (median)",
+   "target": "0.3-3",
+   "got": 28.981778169014085,
+   "ok": false
+  },
+  {
+   "what": "money at rest, router, seg3 (median)",
+   "target": "0.3-3",
+   "got": 44.86232394366198,
+   "ok": false
+  },
+  {
+   "what": "money at rest, competitor, seg1 (median)",
+   "target": "0.3-3",
+   "got": 4.651929824561403,
+   "ok": false
+  },
+  {
+   "what": "money at rest, competitor, seg2 (median)",
+   "target": "0.3-3",
+   "got": 15.252033492822967,
+   "ok": false
+  },
+  {
+   "what": "money at rest, competitor, seg3 (median)",
+   "target": "0.3-3",
+   "got": 25.58409090909091,
+   "ok": false
+  },
+  {
+   "what": "route income share, router",
+   "target": "<= 0.4",
+   "got": 0.6623798655656759,
+   "ok": false
+  },
+  {
+   "what": "route income share, frugal",
+   "target": "<= 0.4",
+   "got": 0.1307833605524375,
+   "ok": true
+  },
+  {
+   "what": "route income share, collector",
+   "target": "<= 0.4",
+   "got": 0.09887656381362034,
+   "ok": true
+  },
+  {
+   "what": "route income share, competitor",
+   "target": "<= 0.4",
+   "got": 0.1305970383780295,
+   "ok": true
+  },
+  {
+   "what": "the demo (tutorial + segment 1), real h at 1x, frugal",
+   "target": "2-3",
+   "got": 8.657234110283817,
+   "ok": false
+  },
+  {
+   "what": "the demo with the cruise at 4x (not in the game)",
+   "target": "2-3",
+   "got": 5.540019085440859,
+   "ok": false
+  },
+  {
+   "what": "fleet at keystone 3: collector ahead of frugal",
+   "target": "collector > frugal",
+   "got": "9 vs 4",
+   "ok": true
+  },
+  {
+   "what": "frugal finishes segment 3 (seeds)",
+   "target": "all",
+   "got": "20 / 20",
+   "ok": true
+  },
+  {
+   "what": "collector finishes segment 3 (seeds)",
+   "target": "all",
+   "got": "20 / 20",
+   "ok": true
+  },
+  {
+   "what": "router finishes segment 3 (seeds)",
+   "target": "all",
+   "got": "20 / 20",
+   "ok": true
+  },
+  {
+   "what": "competitor finishes segment 3 (seeds)",
+   "target": "all",
+   "got": "20 / 20",
+   "ok": true
+  }
+ ],
+ "judgeProp": [
+  {
+   "what": "contracts to a Cub-class build (pace, frugal)",
+   "target": "3-4",
+   "got": 3,
+   "ok": true
+  },
+  {
+   "what": "contracts to a segment-2 4-seater (pace, frugal)",
+   "target": "6-8",
+   "got": 8,
+   "ok": true
+  },
+  {
+   "what": "contracts to a side hangar (pace, frugal)",
+   "target": "8-12",
+   "got": 11,
+   "ok": true
+  },
+  {
+   "what": "money at rest, frugal, seg1 (median)",
+   "target": "0.3-3",
+   "got": 2.761711711711712,
+   "ok": true
+  },
+  {
+   "what": "money at rest, frugal, seg2 (median)",
+   "target": "0.3-3",
+   "got": 0.7732238247863248,
+   "ok": true
+  },
+  {
+   "what": "money at rest, frugal, seg3 (median)",
+   "target": "0.3-3",
+   "got": 0.6685363247863247,
+   "ok": true
+  },
+  {
+   "what": "money at rest, collector, seg1 (median)",
+   "target": "0.3-3",
+   "got": 0.5057004187285878,
+   "ok": true
+  },
+  {
+   "what": "money at rest, collector, seg2 (median)",
+   "target": "0.3-3",
+   "got": 0.46752955811870406,
+   "ok": true
+  },
+  {
+   "what": "money at rest, collector, seg3 (median)",
+   "target": "0.3-3",
+   "got": 0.4818616452991453,
+   "ok": true
+  },
+  {
+   "what": "money at rest, router, seg1 (median)",
+   "target": "0.3-3",
+   "got": 2.626126126126126,
+   "ok": true
+  },
+  {
+   "what": "money at rest, router, seg2 (median)",
+   "target": "0.3-3",
+   "got": 0.8890892094017093,
+   "ok": true
+  },
+  {
+   "what": "money at rest, router, seg3 (median)",
+   "target": "0.3-3",
+   "got": 0.776542467948718,
+   "ok": true
+  },
+  {
+   "what": "money at rest, competitor, seg1 (median)",
+   "target": "0.3-3",
+   "got": 1.8048717195456327,
+   "ok": true
+  },
+  {
+   "what": "money at rest, competitor, seg2 (median)",
+   "target": "0.3-3",
+   "got": 0.610899881124353,
+   "ok": true
+  },
+  {
+   "what": "money at rest, competitor, seg3 (median)",
+   "target": "0.3-3",
+   "got": 0.5816372863247863,
+   "ok": true
+  },
+  {
+   "what": "route income share, router",
+   "target": "<= 0.4",
+   "got": 0.13313757380437485,
+   "ok": true
+  },
+  {
+   "what": "route income share, frugal",
+   "target": "<= 0.4",
+   "got": 0.008153664627555122,
+   "ok": true
+  },
+  {
+   "what": "route income share, collector",
+   "target": "<= 0.4",
+   "got": 0.007329624539044126,
+   "ok": true
+  },
+  {
+   "what": "route income share, competitor",
+   "target": "<= 0.4",
+   "got": 0.007353283701345203,
+   "ok": true
+  },
+  {
+   "what": "the demo (tutorial + segment 1), real h at 1x, frugal",
+   "target": "2-3",
+   "got": 8.469861510702755,
+   "ok": false
+  },
+  {
+   "what": "the demo with the cruise at 4x (not in the game)",
+   "target": "2-3",
+   "got": 5.488926783932429,
+   "ok": false
+  },
+  {
+   "what": "fleet at keystone 3: collector ahead of frugal",
+   "target": "collector > frugal",
+   "got": "12 vs 4",
+   "ok": true
+  },
+  {
+   "what": "frugal finishes segment 3 (seeds)",
+   "target": "all",
+   "got": "20 / 20",
+   "ok": true
+  },
+  {
+   "what": "collector finishes segment 3 (seeds)",
+   "target": "all",
+   "got": "20 / 20",
+   "ok": true
+  },
+  {
+   "what": "router finishes segment 3 (seeds)",
+   "target": "all",
+   "got": "20 / 20",
+   "ok": true
+  },
+  {
+   "what": "competitor finishes segment 3 (seeds)",
+   "target": "all",
+   "got": "20 / 20",
+   "ok": true
+  }
+ ],
+ "aggregate": {
+  "live|frugal": {
+   "config": "live",
+   "policy": "frugal",
+   "seeds": 20,
+   "errors": [],
+   "stuck": [],
+   "routeShare": 0.1307833605524375,
+   "routeShareP90": 0.21562400762146713,
+   "done": 63,
+   "realH": 27.19162089446649,
+   "simH": 58.18611111111111,
+   "waitH": 34.35527777777777,
+   "wallet": 870920,
+   "income": {
+    "contract": 853845,
+    "story": 13780,
+    "route": 124110,
+    "routeDown": 10080,
+    "prize": 0
+   },
+   "spend": {
+    "airframe": 119500,
+    "occasion": 38500,
+    "hangar": 0,
+    "pilot": 0,
+    "landmark": 0,
+    "pack": 0,
+    "entry": 0
+   },
+   "pace": {
+    "cubClass": {
+     "med": 3,
+     "p10": 3,
+     "p90": 4,
+     "price": 25000,
+     "n": 20
+    },
+    "seat4": {
+     "med": 7,
+     "p10": 6,
+     "p90": 8,
+     "price": 75000,
+     "n": 20
+    },
+    "hangar": {
+     "med": 5.5,
+     "p10": 5,
+     "p90": 7,
+     "price": 44960,
+     "n": 20
+    }
+   },
+   "stages": {
+    "tutorial": {
+     "n": 20,
+     "realH": 2.624926605211565,
+     "realH4": 1.8249816513028911,
+     "simH": 1.8166666666666667,
+     "contracts": 3,
+     "routeShare": 0.4224643755238894,
+     "restMed": 8.386,
+     "restP10": 8.386,
+     "restP90": 8.386,
+     "over3": 1,
+     "under03": 0
+    },
+    "seg1": {
+     "n": 20,
+     "realH": 6.032307505072252,
+     "realH4": 3.715037434137968,
+     "simH": 12.133611111111112,
+     "contracts": 14,
+     "routeShare": 0.17437886901302024,
+     "restMed": 5.1957894736842105,
+     "restP10": 3.065964912280702,
+     "restP90": 7.647017543859649,
+     "over3": 0.9285714285714286,
+     "under03": 0
+    },
+    "seg2": {
+     "n": 20,
+     "realH": 7.992240311379095,
+     "realH4": 5.345179189626767,
+     "simH": 7.186388888888889,
+     "contracts": 20,
+     "routeShare": 0.06849359323891432,
+     "restMed": 23.342934782608694,
+     "restP10": 16.901811594202897,
+     "restP90": 29.38514492753623,
+     "over3": 1,
+     "under03": 0
+    },
+    "seg3": {
+     "n": 20,
+     "realH": 10.608676091165663,
+     "realH4": 7.493095811944639,
+     "simH": 15.840972222222224,
+     "contracts": 26,
+     "routeShare": 0.08175282398797545,
+     "restMed": 46.978079710144925,
+     "restP10": 35.21449275362319,
+     "restP90": 59.45905797101449,
+     "over3": 1,
+     "under03": 0
+    }
+   },
+   "keys": {
+    "tutorial": {
+     "reached": 20,
+     "n": 3,
+     "realH": 2.624926605211565,
+     "fleet": 2,
+     "types": 0,
+     "routes": 0,
+     "wallet": 83860
+    },
+    "seg1": {
+     "reached": 20,
+     "n": 17,
+     "realH": 8.657234110283817,
+     "fleet": 3,
+     "types": 2,
+     "routes": 1,
+     "wallet": 230985
+    },
+    "seg2": {
+     "reached": 20,
+     "n": 37,
+     "realH": 16.745983140785416,
+     "fleet": 4,
+     "types": 3,
+     "routes": 1,
+     "wallet": 433810
+    },
+    "seg3": {
+     "reached": 20,
+     "n": 63,
+     "realH": 27.19162089446649,
+     "fleet": 4,
+     "types": 5,
+     "routes": 1,
+     "wallet": 870920
+    }
+   },
+   "routeStory": {
+    "pay": 1260,
+    "down": 10080,
+    "tripS": 2051
+   },
+   "payMed": {
+    "1": 8375,
+    "2": 10995,
+    "3": 11480
+   },
+   "fleetEnd": [
+    "rufus",
+    "cub@route",
+    "cub",
+    "c172"
+   ],
+   "curve": [
+    {
+     "n": 3,
+     "med": 8.386,
+     "p10": 8.386,
+     "p90": 8.386
+    },
+    {
+     "n": 6,
+     "med": 3.542280701754386,
+     "p10": 3.3557894736842107,
+     "p90": 3.6891228070175437
+    },
+    {
+     "n": 9,
+     "med": 4.643859649122807,
+     "p10": 4.228771929824561,
+     "p90": 6.807368421052631
+    },
+    {
+     "n": 12,
+     "med": 5.7517543859649125,
+     "p10": 5.354035087719298,
+     "p90": 8.388421052631578
+    },
+    {
+     "n": 15,
+     "med": 7.255438596491228,
+     "p10": 6.470175438596491,
+     "p90": 9.974385964912281
+    },
+    {
+     "n": 18,
+     "med": 15.177173913043479,
+     "p10": 13.914492753623188,
+     "p90": 20.803623188405798
+    },
+    {
+     "n": 21,
+     "med": 17.666304347826085,
+     "p10": 15.93840579710145,
+     "p90": 23.666666666666668
+    },
+    {
+     "n": 24,
+     "med": 20.580072463768115,
+     "p10": 18.23840579710145,
+     "p90": 26.98985507246377
+    },
+    {
+     "n": 27,
+     "med": 23.009057971014492,
+     "p10": 21.3,
+     "p90": 28.76231884057971
+    },
+    {
+     "n": 30,
+     "med": 25.461594202898553,
+     "p10": 23.519565217391303,
+     "p90": 31.591304347826085
+    },
+    {
+     "n": 33,
+     "med": 27.9,
+     "p10": 25.997826086956522,
+     "p90": 33.765942028985506
+    },
+    {
+     "n": 36,
+     "med": 30.243478260869566,
+     "p10": 28.627536231884058,
+     "p90": 37.255797101449275
+    },
+    {
+     "n": 39,
+     "med": 33.56159420289855,
+     "p10": 31.534782608695654,
+     "p90": 41.380434782608695
+    },
+    {
+     "n": 42,
+     "med": 36.13840579710145,
+     "p10": 34.67173913043478,
+     "p90": 44.02536231884058
+    },
+    {
+     "n": 45,
+     "med": 39.9445652173913,
+     "p10": 37.107971014492755,
+     "p90": 51.232608695652175
+    },
+    {
+     "n": 48,
+     "med": 44.129710144927536,
+     "p10": 39.54710144927536,
+     "p90": 55.35
+    },
+    {
+     "n": 51,
+     "med": 48.208695652173915,
+     "p10": 41.573188405797104,
+     "p90": 57.78115942028985
+    },
+    {
+     "n": 54,
+     "med": 52.83478260869565,
+     "p10": 44.13333333333333,
+     "p90": 60.26521739130435
+    },
+    {
+     "n": 57,
+     "med": 56.434782608695656,
+     "p10": 46.94492753623189,
+     "p90": 62.594202898550726
+    },
+    {
+     "n": 60,
+     "med": 58.38913043478261,
+     "p10": 50.970289855072465,
+     "p90": 66.91811594202899
+    },
+    {
+     "n": 63,
+     "med": 63.11014492753623,
+     "p10": 55.61231884057971,
+     "p90": 70.40652173913044
+    }
+   ]
+  },
+  "live|collector": {
+   "config": "live",
+   "policy": "collector",
+   "seeds": 20,
+   "errors": [],
+   "stuck": [],
+   "routeShare": 0.09887656381362034,
+   "routeShareP90": 0.17619783616692428,
+   "done": 63,
+   "realH": 26.411324978694612,
+   "simH": 37.34638888888889,
+   "waitH": 15.188194444444445,
+   "wallet": 610635,
+   "income": {
+    "contract": 826450,
+    "story": 13780,
+    "route": 78120,
+    "routeDown": 10080,
+    "prize": 0
+   },
+   "spend": {
+    "airframe": 270400,
+    "occasion": 52300,
+    "hangar": 44960,
+    "pilot": 0,
+    "landmark": 0,
+    "pack": 0,
+    "entry": 0
+   },
+   "pace": {
+    "cubClass": {
+     "med": 3,
+     "p10": 3,
+     "p90": 4,
+     "price": 25000,
+     "n": 20
+    },
+    "seat4": {
+     "med": 7,
+     "p10": 7,
+     "p90": 8,
+     "price": 75000,
+     "n": 20
+    },
+    "hangar": {
+     "med": 5,
+     "p10": 5,
+     "p90": 7,
+     "price": 44960,
+     "n": 20
+    }
+   },
+   "stages": {
+    "tutorial": {
+     "n": 20,
+     "realH": 2.624926605211565,
+     "realH4": 1.8249816513028911,
+     "simH": 1.8166666666666667,
+     "contracts": 3,
+     "routeShare": 0.4224643755238894,
+     "restMed": 8.386,
+     "restP10": 8.386,
+     "restP90": 8.386,
+     "over3": 1,
+     "under03": 0
+    },
+    "seg1": {
+     "n": 20,
+     "realH": 5.314162784787447,
+     "realH4": 3.821971123664763,
+     "simH": 11.690694444444444,
+     "contracts": 14,
+     "routeShare": 0.1491426749257561,
+     "restMed": 0.634109229256415,
+     "restP10": 0.11782947805456702,
+     "restP90": 1.2851333333333335,
+     "over3": 0,
+     "under03": 0.21428571428571427
+    },
+    "seg2": {
+     "n": 20,
+     "realH": 7.703750810590588,
+     "realH4": 5.241243090199736,
+     "simH": 7.3758333333333335,
+     "contracts": 20,
+     "routeShare": 0.0695822674260633,
+     "restMed": 3.7004464285714285,
+     "restP10": 1.613137755102041,
+     "restP90": 6.051147959183673,
+     "over3": 0.625,
+     "under03": 0
+    },
+    "seg3": {
+     "n": 20,
+     "realH": 10.411465379503818,
+     "realH4": 7.550578168180284,
+     "simH": 9.890833333333333,
+     "contracts": 26,
+     "routeShare": 0.06414873157289612,
+     "restMed": 9.974489795918366,
+     "restP10": 6.87359693877551,
+     "restP90": 15.147448979591836,
+     "over3": 1,
+     "under03": 0
+    }
+   },
+   "keys": {
+    "tutorial": {
+     "reached": 20,
+     "n": 3,
+     "realH": 2.624926605211565,
+     "fleet": 2,
+     "types": 0,
+     "routes": 0,
+     "wallet": 83860
+    },
+    "seg1": {
+     "reached": 20,
+     "n": 17,
+     "realH": 7.939089389999012,
+     "fleet": 7,
+     "types": 6,
+     "routes": 1,
+     "wallet": 104480
+    },
+    "seg2": {
+     "reached": 20,
+     "n": 37,
+     "realH": 15.707300894953649,
+     "fleet": 8,
+     "types": 7,
+     "routes": 1,
+     "wallet": 261165
+    },
+    "seg3": {
+     "reached": 20,
+     "n": 63,
+     "realH": 26.411324978694612,
+     "fleet": 9,
+     "types": 8,
+     "routes": 1,
+     "wallet": 610635
+    }
+   },
+   "routeStory": {
+    "pay": 1260,
+    "down": 10080,
+    "tripS": 2051
+   },
+   "payMed": {
+    "1": 8715,
+    "2": 10560,
+    "3": 11075
+   },
+   "fleetEnd": [
+    "rufus",
+    "cub@route",
+    "cub",
+    "jodel",
+    "chinook",
+    "twinf",
+    "c172",
+    "c172f",
+    "cjodel"
+   ],
+   "curve": [
+    {
+     "n": 3,
+     "med": 8.386,
+     "p10": 8.386,
+     "p90": 8.386
+    },
+    {
+     "n": 6,
+     "med": 0.20151245551601424,
+     "p10": 0.027802491103202848,
+     "p90": 0.44684163701067614
+    },
+    {
+     "n": 9,
+     "med": 0.5622775800711743,
+     "p10": 0.0504,
+     "p90": 0.9664
+    },
+    {
+     "n": 12,
+     "med": 0.4498,
+     "p10": 0.2036,
+     "p90": 1.4862666666666666
+    },
+    {
+     "n": 15,
+     "med": 1.0388666666666668,
+     "p10": 0.6282666666666666,
+     "p90": 1.8972
+    },
+    {
+     "n": 18,
+     "med": 1.001138301273512,
+     "p10": 0.4545918367346939,
+     "p90": 2.5385204081632655
+    },
+    {
+     "n": 21,
+     "med": 1.9040816326530612,
+     "p10": 1.0181122448979592,
+     "p90": 3.7270408163265305
+    },
+    {
+     "n": 24,
+     "med": 2.7838010204081636,
+     "p10": 2.092857142857143,
+     "p90": 4.656887755102041
+    },
+    {
+     "n": 27,
+     "med": 3.5618622448979593,
+     "p10": 2.9872448979591835,
+     "p90": 5.410714285714286
+    },
+    {
+     "n": 30,
+     "med": 4.540433673469388,
+     "p10": 3.9502551020408165,
+     "p90": 6.444132653061224
+    },
+    {
+     "n": 33,
+     "med": 5.3867346938775515,
+     "p10": 4.719387755102041,
+     "p90": 7.247448979591836
+    },
+    {
+     "n": 36,
+     "med": 6.37155612244898,
+     "p10": 5.623214285714286,
+     "p90": 7.9625
+    },
+    {
+     "n": 39,
+     "med": 6.293749999999999,
+     "p10": 5.678826530612245,
+     "p90": 8.041581632653061
+    },
+    {
+     "n": 42,
+     "med": 7.24515306122449,
+     "p10": 6.506122448979592,
+     "p90": 9.48392857142857
+    },
+    {
+     "n": 45,
+     "med": 8.20561224489796,
+     "p10": 7.321683673469388,
+     "p90": 10.569642857142858
+    },
+    {
+     "n": 48,
+     "med": 9.085841836734694,
+     "p10": 8.04515306122449,
+     "p90": 11.269132653061224
+    },
+    {
+     "n": 51,
+     "med": 10.146811224489795,
+     "p10": 8.817857142857143,
+     "p90": 12.207142857142857
+    },
+    {
+     "n": 54,
+     "med": 11.406505102040816,
+     "p10": 10.221173469387756,
+     "p90": 13.549234693877551
+    },
+    {
+     "n": 57,
+     "med": 13.219132653061223,
+     "p10": 10.787244897959184,
+     "p90": 15.672704081632654
+    },
+    {
+     "n": 60,
+     "med": 14.540051020408164,
+     "p10": 11.447448979591837,
+     "p90": 16.917091836734695
+    },
+    {
+     "n": 63,
+     "med": 15.577423469387755,
+     "p10": 12.26811224489796,
+     "p90": 17.93954081632653
+    }
+   ]
+  },
+  "live|router": {
+   "config": "live",
+   "policy": "router",
+   "seeds": 20,
+   "errors": [],
+   "stuck": [],
+   "routeShare": 0.6623798655656759,
+   "routeShareP90": 0.7799075274991832,
+   "done": 63,
+   "realH": 27.799954227799823,
+   "simH": 58.18611111111111,
+   "waitH": 34.35527777777777,
+   "wallet": 2412675,
+   "income": {
+    "contract": 853845,
+    "story": 13780,
+    "route": 1554160,
+    "routeDown": 195600,
+    "prize": 0
+   },
+   "spend": {
+    "airframe": 161300,
+    "occasion": 52300,
+    "hangar": 0,
+    "pilot": 12500,
+    "landmark": 0,
+    "pack": 0,
+    "entry": 0
+   },
+   "pace": {
+    "cubClass": {
+     "med": 3,
+     "p10": 3,
+     "p90": 4,
+     "price": 25000,
+     "n": 20
+    },
+    "seat4": {
+     "med": 7,
+     "p10": 6,
+     "p90": 8,
+     "price": 75000,
+     "n": 20
+    },
+    "hangar": {
+     "med": 5.5,
+     "p10": 5,
+     "p90": 7,
+     "price": 44960,
+     "n": 20
+    }
+   },
+   "stages": {
+    "tutorial": {
+     "n": 20,
+     "realH": 2.624926605211565,
+     "realH4": 1.8249816513028911,
+     "simH": 1.8166666666666667,
+     "contracts": 3,
+     "routeShare": 0.4224643755238894,
+     "restMed": 55.906666666666666,
+     "restP10": 55.906666666666666,
+     "restP90": 55.906666666666666,
+     "over3": 1,
+     "under03": 0
+    },
+    "seg1": {
+     "n": 20,
+     "realH": 6.640640838405586,
+     "realH4": 4.3233707674713,
+     "simH": 12.133611111111112,
+     "contracts": 14,
+     "routeShare": 0.8008285249702266,
+     "restMed": 11.520263157894735,
+     "restP10": 7.185964912280702,
+     "restP90": 21.59122807017544,
+     "over3": 1,
+     "under03": 0
+    },
+    "seg2": {
+     "n": 20,
+     "realH": 7.992240311379094,
+     "realH4": 5.345179189626766,
+     "simH": 7.186388888888889,
+     "contracts": 20,
+     "routeShare": 0.48662954778694045,
+     "restMed": 28.981778169014085,
+     "restP10": 23.497711267605634,
+     "restP90": 34.76461267605634,
+     "over3": 1,
+     "under03": 0
+    },
+    "seg3": {
+     "n": 20,
+     "realH": 10.608676091165663,
+     "realH4": 7.493095811944636,
+     "simH": 15.840972222222224,
+     "contracts": 26,
+     "routeShare": 0.5281434109438108,
+     "restMed": 44.86232394366198,
+     "restP10": 37.843918870365044,
+     "restP90": 62.70880281690141,
+     "over3": 1,
+     "under03": 0
+    }
+   },
+   "keys": {
+    "tutorial": {
+     "reached": 20,
+     "n": 3,
+     "realH": 2.624926605211565,
+     "fleet": 2,
+     "types": 0,
+     "routes": 0,
+     "wallet": 83860
+    },
+    "seg1": {
+     "reached": 20,
+     "n": 17,
+     "realH": 9.265567443617151,
+     "fleet": 6,
+     "types": 4,
+     "routes": 4,
+     "wallet": 642145
+    },
+    "seg2": {
+     "reached": 20,
+     "n": 37,
+     "realH": 17.354316474118747,
+     "fleet": 7,
+     "types": 5,
+     "routes": 4,
+     "wallet": 1051050
+    },
+    "seg3": {
+     "reached": 20,
+     "n": 63,
+     "realH": 27.799954227799823,
+     "fleet": 7,
+     "types": 6,
+     "routes": 4,
+     "wallet": 2412675
+    }
+   },
+   "routeStory": {
+    "pay": 1260,
+    "down": 10080,
+    "tripS": 2051
+   },
+   "payMed": {
+    "1": 8375,
+    "2": 10995,
+    "3": 11480
+   },
+   "fleetEnd": [
+    "rufus",
+    "cub@route",
+    "cub",
+    "jodel@route",
+    "chinook@route",
+    "chinook@route",
+    "c172"
+   ],
+   "curve": [
+    {
+     "n": 3,
+     "med": 55.906666666666666,
+     "p10": 20.965,
+     "p90": 55.906666666666666
+    },
+    {
+     "n": 6,
+     "med": 7.662280701754386,
+     "p10": 7.475789473684211,
+     "p90": 8.62280701754386
+    },
+    {
+     "n": 9,
+     "med": 10.403157894736843,
+     "p10": 9.162456140350876,
+     "p90": 36.58210526315789
+    },
+    {
+     "n": 12,
+     "med": 14.521578947368422,
+     "p10": 11.91578947368421,
+     "p90": 43.69964912280702
+    },
+    {
+     "n": 15,
+     "med": 20.6119298245614,
+     "p10": 13.852631578947369,
+     "p90": 46.91298245614035
+    },
+    {
+     "n": 18,
+     "med": 22.132746478873237,
+     "p10": 20.04049295774648,
+     "p90": 48.26619718309859
+    },
+    {
+     "n": 21,
+     "med": 24.065140845070424,
+     "p10": 22.041901408450705,
+     "p90": 50.47394366197183
+    },
+    {
+     "n": 24,
+     "med": 26.383978873239435,
+     "p10": 24.25,
+     "p90": 53.44964788732394
+    },
+    {
+     "n": 27,
+     "med": 28.639612676056338,
+     "p10": 26.94507042253521,
+     "p90": 55.1274647887324
+    },
+    {
+     "n": 30,
+     "med": 31.176056338028168,
+     "p10": 28.9,
+     "p90": 57.59084507042254
+    },
+    {
+     "n": 33,
+     "med": 33.64753521126761,
+     "p10": 31.422887323943662,
+     "p90": 59.47676056338028
+    },
+    {
+     "n": 36,
+     "med": 35.74577464788732,
+     "p10": 33.38098591549296,
+     "p90": 61.6693661971831
+    },
+    {
+     "n": 39,
+     "med": 38.401408450704224,
+     "p10": 35.475352112676056,
+     "p90": 64.33274647887323
+    },
+    {
+     "n": 42,
+     "med": 40.618485915492954,
+     "p10": 28.297704081632652,
+     "p90": 66.525
+    },
+    {
+     "n": 45,
+     "med": 42.68327464788732,
+     "p10": 32.314795918367345,
+     "p90": 67.17474489795919
+    },
+    {
+     "n": 48,
+     "med": 44.66373239436619,
+     "p10": 33.98061224489796,
+     "p90": 70.1330985915493
+    },
+    {
+     "n": 51,
+     "med": 46.16549295774648,
+     "p10": 34.389030612244895,
+     "p90": 71.54285714285714
+    },
+    {
+     "n": 54,
+     "med": 47.59911971830986,
+     "p10": 37.309183673469384,
+     "p90": 72.67091836734694
+    },
+    {
+     "n": 57,
+     "med": 50.45669014084507,
+     "p10": 38.631632653061224,
+     "p90": 81.11760563380281
+    },
+    {
+     "n": 60,
+     "med": 57.48057092555332,
+     "p10": 39.859438775510206,
+     "p90": 95.29923469387755
+    },
+    {
+     "n": 63,
+     "med": 63.08048469387755,
+     "p10": 41.764030612244895,
+     "p90": 99.51581632653061
+    }
+   ]
+  },
+  "live|competitor": {
+   "config": "live",
+   "policy": "competitor",
+   "seeds": 20,
+   "errors": [],
+   "stuck": [],
+   "routeShare": 0.1305970383780295,
+   "routeShareP90": 0.22899957788096242,
+   "done": 63,
+   "realH": 26.690660278461422,
+   "simH": 57.09708333333333,
+   "waitH": 33.93277777777778,
+   "wallet": 860130,
+   "income": {
+    "contract": 827135,
+    "story": 13780,
+    "route": 121590,
+    "routeDown": 10080,
+    "prize": 0
+   },
+   "spend": {
+    "airframe": 119500,
+    "occasion": 52300,
+    "hangar": 0,
+    "pilot": 0,
+    "landmark": 0,
+    "pack": 0,
+    "entry": 0
+   },
+   "pace": {
+    "cubClass": {
+     "med": 3.5,
+     "p10": 3,
+     "p90": 4,
+     "price": 25000,
+     "n": 20
+    },
+    "seat4": {
+     "med": 7,
+     "p10": 6,
+     "p90": 8,
+     "price": 75000,
+     "n": 20
+    },
+    "hangar": {
+     "med": 6,
+     "p10": 5,
+     "p90": 7,
+     "price": 44960,
+     "n": 20
+    }
+   },
+   "stages": {
+    "tutorial": {
+     "n": 20,
+     "realH": 2.624926605211565,
+     "realH4": 1.8249816513028911,
+     "simH": 1.8166666666666667,
+     "contracts": 3,
+     "routeShare": 0.4224643755238894,
+     "restMed": 8.386,
+     "restP10": 8.386,
+     "restP90": 8.386,
+     "over3": 1,
+     "under03": 0
+    },
+    "seg1": {
+     "n": 20,
+     "realH": 5.7151079374802425,
+     "realH4": 3.5452077850745622,
+     "simH": 12.928333333333333,
+     "contracts": 14,
+     "routeShare": 0.18947299262970183,
+     "restMed": 4.651929824561403,
+     "restP10": 2.5935087719298244,
+     "restP90": 7.13859649122807,
+     "over3": 0.8571428571428571,
+     "under03": 0
+    },
+    "seg2": {
+     "n": 20,
+     "realH": 7.806399395496438,
+     "realH4": 5.232779069380271,
+     "simH": 7.46125,
+     "contracts": 20,
+     "routeShare": 0.06930092804384153,
+     "restMed": 15.252033492822967,
+     "restP10": 11.055023923444976,
+     "restP90": 19.00956937799043,
+     "over3": 1,
+     "under03": 0
+    },
+    "seg3": {
+     "n": 20,
+     "realH": 10.802450761443948,
+     "realH4": 7.3779226673667235,
+     "simH": 16.419027777777778,
+     "contracts": 26,
+     "routeShare": 0.07932875321677102,
+     "restMed": 25.58409090909091,
+     "restP10": 20.796826481788887,
+     "restP90": 31.433492822966507,
+     "over3": 1,
+     "under03": 0
+    }
+   },
+   "keys": {
+    "tutorial": {
+     "reached": 20,
+     "n": 3,
+     "realH": 2.624926605211565,
+     "fleet": 2,
+     "types": 0,
+     "routes": 0,
+     "wallet": 83860
+    },
+    "seg1": {
+     "reached": 20,
+     "n": 17,
+     "realH": 8.340034542691807,
+     "fleet": 4,
+     "types": 3,
+     "routes": 1,
+     "wallet": 222805
+    },
+    "seg2": {
+     "reached": 20,
+     "n": 37,
+     "realH": 16.124410632127784,
+     "fleet": 5,
+     "types": 4,
+     "routes": 1,
+     "wallet": 434765
+    },
+    "seg3": {
+     "reached": 20,
+     "n": 63,
+     "realH": 26.690660278461422,
+     "fleet": 5,
+     "types": 6,
+     "routes": 1,
+     "wallet": 860130
+    }
+   },
+   "routeStory": {
+    "pay": 1260,
+    "down": 10080,
+    "tripS": 2051
+   },
+   "payMed": {
+    "1": 7500,
+    "2": 10880,
+    "3": 11615
+   },
+   "fleetEnd": [
+    "rufus",
+    "cub@route",
+    "cub",
+    "jodel",
+    "c172"
+   ],
+   "curve": [
+    {
+     "n": 3,
+     "med": 8.386,
+     "p10": 8.386,
+     "p90": 8.386
+    },
+    {
+     "n": 6,
+     "med": 3.0245614035087716,
+     "p10": 2.7736842105263158,
+     "p90": 3.1635087719298247
+    },
+    {
+     "n": 9,
+     "med": 4.133157894736842,
+     "p10": 3.6242105263157893,
+     "p90": 4.549122807017544
+    },
+    {
+     "n": 12,
+     "med": 5.231228070175439,
+     "p10": 4.6284210526315785,
+     "p90": 7.768421052631579
+    },
+    {
+     "n": 15,
+     "med": 6.72298245614035,
+     "p10": 5.921754385964912,
+     "p90": 9.343859649122807
+    },
+    {
+     "n": 18,
+     "med": 9.694976076555024,
+     "p10": 8.378947368421052,
+     "p90": 13.044497607655503
+    },
+    {
+     "n": 21,
+     "med": 11.633492822966508,
+     "p10": 9.499521531100479,
+     "p90": 14.972248803827751
+    },
+    {
+     "n": 24,
+     "med": 13.327272727272728,
+     "p10": 11.494258373205742,
+     "p90": 16.707655502392345
+    },
+    {
+     "n": 27,
+     "med": 15.097368421052632,
+     "p10": 13.013397129186602,
+     "p90": 18.147368421052633
+    },
+    {
+     "n": 30,
+     "med": 16.726794258373207,
+     "p10": 14.767942583732058,
+     "p90": 19.79377990430622
+    },
+    {
+     "n": 33,
+     "med": 18.361722488038275,
+     "p10": 16.404306220095695,
+     "p90": 21.257416267942585
+    },
+    {
+     "n": 36,
+     "med": 19.317942583732055,
+     "p10": 17.013875598086123,
+     "p90": 22.94928229665072
+    },
+    {
+     "n": 39,
+     "med": 21.207655502392342,
+     "p10": 19.042105263157893,
+     "p90": 24.611004784688994
+    },
+    {
+     "n": 42,
+     "med": 22.964593301435407,
+     "p10": 13.755357142857143,
+     "p90": 26.478947368421053
+    },
+    {
+     "n": 45,
+     "med": 24.7811004784689,
+     "p10": 15.868367346938776,
+     "p90": 28.076555023923444
+    },
+    {
+     "n": 48,
+     "med": 26.4811004784689,
+     "p10": 15.922704081632654,
+     "p90": 29.654066985645933
+    },
+    {
+     "n": 51,
+     "med": 28.447607655502395,
+     "p10": 17.45076530612245,
+     "p90": 31.560765550239235
+    },
+    {
+     "n": 54,
+     "med": 28.898086124401914,
+     "p10": 17.26658163265306,
+     "p90": 33.154545454545456
+    },
+    {
+     "n": 57,
+     "med": 29.5688995215311,
+     "p10": 18.803061224489795,
+     "p90": 34.66172248803828
+    },
+    {
+     "n": 60,
+     "med": 22.674617346938774,
+     "p10": 19.820153061224488,
+     "p90": 39.445454545454545
+    },
+    {
+     "n": 63,
+     "med": 23.283545918367345,
+     "p10": 20.523724489795917,
+     "p90": 41.70622009569378
+    }
+   ]
+  },
+  "proposed|frugal": {
+   "config": "proposed",
+   "policy": "frugal",
+   "seeds": 20,
+   "errors": [],
+   "stuck": [],
+   "routeShare": 0.008153664627555122,
+   "routeShareP90": 0.012913502893856529,
+   "done": 63,
+   "realH": 27.575057333562143,
+   "simH": 58.15902777777778,
+   "waitH": 34.65680555555555,
+   "wallet": 73570,
+   "income": {
+    "contract": 845190,
+    "story": 33780,
+    "route": 5130,
+    "routeDown": 2280,
+    "prize": 0
+   },
+   "spend": {
+    "airframe": 119500,
+    "occasion": 43250,
+    "hangar": 0,
+    "pilot": 0,
+    "landmark": 639600,
+    "pack": 7800,
+    "entry": 0
+   },
+   "pace": {
+    "cubClass": {
+     "med": 3,
+     "p10": 3,
+     "p90": 4,
+     "price": 25000,
+     "n": 20
+    },
+    "seat4": {
+     "med": 8,
+     "p10": 7,
+     "p90": 9,
+     "price": 82800,
+     "n": 20
+    },
+    "hangar": {
+     "med": 11,
+     "p10": 10,
+     "p90": 13,
+     "price": 89840,
+     "n": 20
+    }
+   },
+   "stages": {
+    "tutorial": {
+     "n": 20,
+     "realH": 2.624926605211565,
+     "realH4": 1.8249816513028911,
+     "simH": 1.8166666666666667,
+     "contracts": 3,
+     "routeShare": 0.0632279534109817,
+     "restMed": 3.606,
+     "restP10": 3.606,
+     "restP90": 3.606,
+     "over3": 1,
+     "under03": 0
+    },
+    "seg1": {
+     "n": 20,
+     "realH": 5.84493490549119,
+     "realH4": 3.6639451326295385,
+     "simH": 12.133611111111112,
+     "contracts": 14,
+     "routeShare": 0.008246689278797074,
+     "restMed": 2.761711711711712,
+     "restP10": 1.1900900900900901,
+     "restP90": 4.271921921921922,
+     "over3": 0.42857142857142855,
+     "under03": 0
+    },
+    "seg2": {
+     "n": 20,
+     "realH": 8.088187251143953,
+     "realH4": 5.394249941035598,
+     "simH": 7.281805555555556,
+     "contracts": 20,
+     "routeShare": 0.0034500799642645076,
+     "restMed": 0.7732238247863248,
+     "restP10": 0.331116452991453,
+     "restP90": 1.2263087606837608,
+     "over3": 0,
+     "under03": 0.1
+    },
+    "seg3": {
+     "n": 20,
+     "realH": 11.047036309031334,
+     "realH4": 7.763096882638047,
+     "simH": 16.71138888888889,
+     "contracts": 26,
+     "routeShare": 0.004411884209644315,
+     "restMed": 0.6685363247863247,
+     "restP10": 0.3068509615384616,
+     "restP90": 1.1214209401709403,
+     "over3": 0,
+     "under03": 0.11538461538461539
+    }
+   },
+   "keys": {
+    "tutorial": {
+     "reached": 20,
+     "n": 3,
+     "realH": 2.624926605211565,
+     "fleet": 2,
+     "types": 0,
+     "routes": 0,
+     "wallet": 36060
+    },
+    "seg1": {
+     "reached": 20,
+     "n": 17,
+     "realH": 8.469861510702755,
+     "fleet": 3,
+     "types": 2.5,
+     "routes": 1,
+     "wallet": 76490
+    },
+    "seg2": {
+     "reached": 20,
+     "n": 37,
+     "realH": 16.720452262688703,
+     "fleet": 4,
+     "types": 4,
+     "routes": 1,
+     "wallet": 66345
+    },
+    "seg3": {
+     "reached": 20,
+     "n": 63,
+     "realH": 27.575057333562143,
+     "fleet": 4,
+     "types": 5,
+     "routes": 1,
+     "wallet": 73570
+    }
+   },
+   "routeStory": {
+    "pay": 380,
+    "down": 2280,
+    "tripS": 14400
+   },
+   "payMed": {
+    "1": 8325,
+    "2": 10945,
+    "3": 11600
+   },
+   "fleetEnd": [
+    "rufus",
+    "cub@route",
+    "chinook",
+    "c172"
+   ],
+   "curve": [
+    {
+     "n": 3,
+     "med": 3.606,
+     "p10": 3.606,
+     "p90": 3.606
+    },
+    {
+     "n": 6,
+     "med": 1.5487987987987988,
+     "p10": 1.3987987987987989,
+     "p90": 1.6666666666666667
+    },
+    {
+     "n": 9,
+     "med": 2.368168168168168,
+     "p10": 2.0702702702702704,
+     "p90": 2.6309309309309308
+    },
+    {
+     "n": 12,
+     "med": 3.126726726726727,
+     "p10": 2.8963963963963963,
+     "p90": 3.527027027027027
+    },
+    {
+     "n": 15,
+     "med": 4.038438438438439,
+     "p10": 3.5207207207207207,
+     "p90": 4.3732732732732735
+    },
+    {
+     "n": 18,
+     "med": 0.22427884615384616,
+     "p10": 0.16987179487179488,
+     "p90": 0.29097222222222224
+    },
+    {
+     "n": 21,
+     "med": 0.39134615384615384,
+     "p10": 0.30507478632478635,
+     "p90": 0.48830128205128204
+    },
+    {
+     "n": 24,
+     "med": 0.5791399572649573,
+     "p10": 0.4704594017094017,
+     "p90": 0.7408653846153846
+    },
+    {
+     "n": 27,
+     "med": 0.7416399572649572,
+     "p10": 0.6625,
+     "p90": 0.9030448717948718
+    },
+    {
+     "n": 30,
+     "med": 0.9115117521367522,
+     "p10": 0.8188568376068376,
+     "p90": 1.066559829059829
+    },
+    {
+     "n": 33,
+     "med": 1.0914529914529916,
+     "p10": 0.9901175213675214,
+     "p90": 1.2586004273504274
+    },
+    {
+     "n": 36,
+     "med": 1.2816773504273504,
+     "p10": 1.1705128205128206,
+     "p90": 1.4665064102564103
+    },
+    {
+     "n": 39,
+     "med": 0.23390758547008547,
+     "p10": 0.17297008547008547,
+     "p90": 0.32099358974358977
+    },
+    {
+     "n": 42,
+     "med": 0.3406517094017094,
+     "p10": 0.2747061965811966,
+     "p90": 0.4864850427350427
+    },
+    {
+     "n": 45,
+     "med": 0.44453792735042735,
+     "p10": 0.3441773504273504,
+     "p90": 0.7007211538461539
+    },
+    {
+     "n": 48,
+     "med": 0.5368189102564103,
+     "p10": 0.444017094017094,
+     "p90": 0.8620459401709402
+    },
+    {
+     "n": 51,
+     "med": 0.7027911324786325,
+     "p10": 0.5209668803418803,
+     "p90": 0.9396901709401709
+    },
+    {
+     "n": 54,
+     "med": 0.8746260683760684,
+     "p10": 0.611965811965812,
+     "p90": 1.0263087606837606
+    },
+    {
+     "n": 57,
+     "med": 0.9744791666666667,
+     "p10": 0.6997863247863247,
+     "p90": 1.1300747863247864
+    },
+    {
+     "n": 60,
+     "med": 1.0584268162393162,
+     "p10": 0.7821581196581197,
+     "p90": 1.2240384615384616
+    },
+    {
+     "n": 63,
+     "med": 1.1965010683760684,
+     "p10": 0.8545138888888889,
+     "p90": 1.3272970085470086
+    },
+    {
+     "n": 66,
+     "med": 1.1965010683760684,
+     "p10": 1.0003739316239317,
+     "p90": 1.3272970085470086
+    },
+    {
+     "n": 69,
+     "med": 1.1965010683760684,
+     "p10": 1.005048076923077,
+     "p90": 1.3272970085470086
+    }
+   ]
+  },
+  "proposed|collector": {
+   "config": "proposed",
+   "policy": "collector",
+   "seeds": 20,
+   "errors": [],
+   "stuck": [],
+   "routeShare": 0.007329624539044126,
+   "routeShareP90": 0.013886727077087577,
+   "done": 115,
+   "realH": 45.35778002501921,
+   "simH": 93.57069444444444,
+   "waitH": 53.835277777777776,
+   "wallet": 6595,
+   "income": {
+    "contract": 1412135,
+    "story": 33780,
+    "route": 8550,
+    "routeDown": 2280,
+    "prize": 0
+   },
+   "spend": {
+    "airframe": 147900,
+    "occasion": 191000,
+    "hangar": 89840,
+    "pilot": 0,
+    "landmark": 936000,
+    "pack": 85800,
+    "entry": 0
+   },
+   "pace": {
+    "cubClass": {
+     "med": 4,
+     "p10": 3,
+     "p90": 4,
+     "price": 25000,
+     "n": 20
+    },
+    "seat4": {
+     "med": 9,
+     "p10": 8,
+     "p90": 10,
+     "price": 82800,
+     "n": 20
+    },
+    "hangar": {
+     "med": 11,
+     "p10": 9,
+     "p90": 12,
+     "price": 89840,
+     "n": 20
+    }
+   },
+   "stages": {
+    "tutorial": {
+     "n": 20,
+     "realH": 2.624926605211565,
+     "realH4": 1.8249816513028911,
+     "simH": 1.8166666666666667,
+     "contracts": 3,
+     "routeShare": 0.0632279534109817,
+     "restMed": 3.606,
+     "restP10": 3.606,
+     "restP90": 3.606,
+     "over3": 1,
+     "under03": 0
+    },
+    "seg1": {
+     "n": 20,
+     "realH": 7.771301642515905,
+     "realH4": 5.268416551798262,
+     "simH": 14.768055555555556,
+     "contracts": 21,
+     "routeShare": 0.005773446508250358,
+     "restMed": 0.5057004187285878,
+     "restP10": 0.09069069069069069,
+     "restP90": 0.8972972972972972,
+     "over3": 0,
+     "under03": 0.30625
+    },
+    "seg2": {
+     "n": 20,
+     "realH": 14.80540109146376,
+     "realH4": 10.320378078627765,
+     "simH": 12.59986111111111,
+     "contracts": 37.5,
+     "routeShare": 0.0020992284443231203,
+     "restMed": 0.46752955811870406,
+     "restP10": 0.11276000784929358,
+     "restP90": 0.900001475657553,
+     "over3": 0,
+     "under03": 0.32916666666666666
+    },
+    "seg3": {
+     "n": 20,
+     "realH": 20.45162245439952,
+     "realH4": 13.911567443959877,
+     "simH": 44.25097222222222,
+     "contracts": 54,
+     "routeShare": 0.005747213523359849,
+     "restMed": 0.4818616452991453,
+     "restP10": 0.10478098290598291,
+     "restP90": 0.8934401709401709,
+     "over3": 0,
+     "under03": 0.31174838112858466
+    }
+   },
+   "keys": {
+    "tutorial": {
+     "reached": 20,
+     "n": 3,
+     "realH": 2.624926605211565,
+     "fleet": 2,
+     "types": 0,
+     "routes": 0,
+     "wallet": 36060
+    },
+    "seg1": {
+     "reached": 20,
+     "n": 24,
+     "realH": 10.39622824772747,
+     "fleet": 8,
+     "types": 6,
+     "routes": 1,
+     "wallet": 6370
+    },
+    "seg2": {
+     "reached": 20,
+     "n": 61,
+     "realH": 25.121077079720266,
+     "fleet": 10,
+     "types": 7,
+     "routes": 1,
+     "wallet": 9080
+    },
+    "seg3": {
+     "reached": 20,
+     "n": 115,
+     "realH": 45.35778002501921,
+     "fleet": 12,
+     "types": 8,
+     "routes": 1,
+     "wallet": 6595
+    }
+   },
+   "routeStory": {
+    "pay": 380,
+    "down": 2280,
+    "tripS": 14400
+   },
+   "payMed": {
+    "1": 9000,
+    "2": 10910,
+    "3": 10910
+   },
+   "fleetEnd": [
+    "rufus",
+    "cub@route",
+    "cub",
+    "cub",
+    "jodel",
+    "jodel",
+    "chinook",
+    "twinf",
+    "c172",
+    "c172",
+    "c172f",
+    "cjodel",
+    "cjodel"
+   ],
+   "curve": [
+    {
+     "n": 3,
+     "med": 3.606,
+     "p10": 3.606,
+     "p90": 3.606
+    },
+    {
+     "n": 6,
+     "med": 0.45435291751081225,
+     "p10": 0.3176056338028169,
+     "p90": 0.7062200956937799
+    },
+    {
+     "n": 9,
+     "med": 0.37792792792792795,
+     "p10": 0.12342342342342343,
+     "p90": 0.8422535211267606
+    },
+    {
+     "n": 12,
+     "med": 0.4009095634095634,
+     "p10": 0.09252136752136753,
+     "p90": 0.909009009009009
+    },
+    {
+     "n": 15,
+     "med": 0.5008974358974358,
+     "p10": 0.12205128205128205,
+     "p90": 0.7837837837837838
+    },
+    {
+     "n": 18,
+     "med": 0.4164102564102564,
+     "p10": 0.1621794871794872,
+     "p90": 0.913974358974359
+    },
+    {
+     "n": 21,
+     "med": 0.5134615384615384,
+     "p10": 0.10340605520926091,
+     "p90": 0.8601282051282051
+    },
+    {
+     "n": 24,
+     "med": 0.676662152401589,
+     "p10": 0.024033149171270717,
+     "p90": 0.9526923076923077
+    },
+    {
+     "n": 27,
+     "med": 0.49564314061162557,
+     "p10": 0.1770718232044199,
+     "p90": 0.907182320441989
+    },
+    {
+     "n": 30,
+     "med": 0.46712707182320445,
+     "p10": 0.0701246660730187,
+     "p90": 0.8096605744125326
+    },
+    {
+     "n": 33,
+     "med": 0.29357654860943705,
+     "p10": 0.12678094390026715,
+     "p90": 0.8116022099447514
+    },
+    {
+     "n": 36,
+     "med": 0.516139804096171,
+     "p10": 0.1613980409617097,
+     "p90": 0.7629118432769367
+    },
+    {
+     "n": 39,
+     "med": 0.6179875333926982,
+     "p10": 0.06228632478632479,
+     "p90": 0.8939225289403384
+    },
+    {
+     "n": 42,
+     "med": 0.2481303418803419,
+     "p10": 0.09071682991985752,
+     "p90": 0.6608974358974359
+    },
+    {
+     "n": 45,
+     "med": 0.522008547008547,
+     "p10": 0.08440170940170941,
+     "p90": 0.7614316239316239
+    },
+    {
+     "n": 48,
+     "med": 0.5463675213675214,
+     "p10": 0.06324786324786325,
+     "p90": 0.9467948717948718
+    },
+    {
+     "n": 51,
+     "med": 0.2265758547008547,
+     "p10": 0.0734508547008547,
+     "p90": 0.7664529914529915
+    },
+    {
+     "n": 54,
+     "med": 0.3607104700854701,
+     "p10": 0.08002136752136751,
+     "p90": 0.8414529914529915
+    },
+    {
+     "n": 57,
+     "med": 0.5134134615384616,
+     "p10": 0.22943376068376067,
+     "p90": 0.9178378378378378
+    },
+    {
+     "n": 60,
+     "med": 0.5713675213675213,
+     "p10": 0.03705128205128205,
+     "p90": 0.8819978632478632
+    },
+    {
+     "n": 63,
+     "med": 0.5313728632478633,
+     "p10": 0.08871794871794872,
+     "p90": 0.8394764957264957
+    },
+    {
+     "n": 66,
+     "med": 0.2684935897435897,
+     "p10": 0.06019230769230769,
+     "p90": 0.7386752136752137
+    },
+    {
+     "n": 69,
+     "med": 0.3454807692307692,
+     "p10": 0.10576923076923077,
+     "p90": 0.8879807692307692
+    },
+    {
+     "n": 72,
+     "med": 0.4776602564102564,
+     "p10": 0.25461538461538463,
+     "p90": 0.8337179487179487
+    },
+    {
+     "n": 75,
+     "med": 0.6251602564102564,
+     "p10": 0.04318910256410256,
+     "p90": 0.8074358974358974
+    },
+    {
+     "n": 78,
+     "med": 0.6012179487179488,
+     "p10": 0.08076923076923077,
+     "p90": 0.8652564102564102
+    },
+    {
+     "n": 81,
+     "med": 0.1864022435897436,
+     "p10": 0.025186965811965813,
+     "p90": 0.8590384615384615
+    },
+    {
+     "n": 84,
+     "med": 0.22113247863247865,
+     "p10": 0.09658119658119659,
+     "p90": 0.9364743589743589
+    },
+    {
+     "n": 87,
+     "med": 0.22760416666666666,
+     "p10": 0.14780982905982906,
+     "p90": 0.7439102564102564
+    },
+    {
+     "n": 90,
+     "med": 0.2849091880341881,
+     "p10": 0.1640758547008547,
+     "p90": 0.4269230769230769
+    },
+    {
+     "n": 93,
+     "med": 0.3644898504273504,
+     "p10": 0.2248931623931624,
+     "p90": 0.5090811965811965
+    },
+    {
+     "n": 96,
+     "med": 0.441159188034188,
+     "p10": 0.30101495726495725,
+     "p90": 0.5759348290598291
+    },
+    {
+     "n": 99,
+     "med": 0.5320779914529914,
+     "p10": 0.3730769230769231,
+     "p90": 0.6673611111111111
+    },
+    {
+     "n": 102,
+     "med": 0.6138221153846154,
+     "p10": 0.4655982905982906,
+     "p90": 0.7422542735042735
+    },
+    {
+     "n": 105,
+     "med": 0.6777110042735043,
+     "p10": 0.4844017094017094,
+     "p90": 0.8281784188034188
+    },
+    {
+     "n": 108,
+     "med": 0.7612980769230768,
+     "p10": 0.5846688034188035,
+     "p90": 0.8834134615384616
+    },
+    {
+     "n": 111,
+     "med": 0.8413194444444445,
+     "p10": 0.1933673469387755,
+     "p90": 0.9446848290598291
+    },
+    {
+     "n": 114,
+     "med": 0.6853899572649573,
+     "p10": 0.05943877551020408,
+     "p90": 0.9597222222222223
+    },
+    {
+     "n": 117,
+     "med": 0.19502551020408163,
+     "p10": 0.05943877551020408,
+     "p90": 0.9401709401709402
+    },
+    {
+     "n": 120,
+     "med": 0.17971938775510204,
+     "p10": 0.0326530612244898,
+     "p90": 0.5469387755102041
+    },
+    {
+     "n": 123,
+     "med": 0.16823979591836735,
+     "p10": 0.0326530612244898,
+     "p90": 0.36581632653061225
+    }
+   ]
+  },
+  "proposed|router": {
+   "config": "proposed",
+   "policy": "router",
+   "seeds": 20,
+   "errors": [],
+   "stuck": [],
+   "routeShare": 0.13313757380437485,
+   "routeShareP90": 0.2032701383520072,
+   "done": 63,
+   "realH": 27.673219562370896,
+   "simH": 56.25,
+   "waitH": 32.89972222222222,
+   "wallet": 139120,
+   "income": {
+    "contract": 855655,
+    "story": 33780,
+    "route": 95420,
+    "routeDown": 44040,
+    "prize": 0
+   },
+   "spend": {
+    "airframe": 119500,
+    "occasion": 78800,
+    "hangar": 0,
+    "pilot": 12500,
+    "landmark": 639600,
+    "pack": 7800,
+    "entry": 0
+   },
+   "pace": {
+    "cubClass": {
+     "med": 3,
+     "p10": 3,
+     "p90": 4,
+     "price": 25000,
+     "n": 20
+    },
+    "seat4": {
+     "med": 8,
+     "p10": 7,
+     "p90": 9,
+     "price": 82800,
+     "n": 20
+    },
+    "hangar": {
+     "med": 11,
+     "p10": 10,
+     "p90": 13,
+     "price": 89840,
+     "n": 20
+    }
+   },
+   "stages": {
+    "tutorial": {
+     "n": 20,
+     "realH": 2.624926605211565,
+     "realH4": 1.8249816513028911,
+     "simH": 1.8166666666666667,
+     "contracts": 3,
+     "routeShare": 0.0632279534109817,
+     "restMed": 24.04,
+     "restP10": 24.04,
+     "restP90": 24.04,
+     "over3": 1,
+     "under03": 0
+    },
+    "seg1": {
+     "n": 20,
+     "realH": 6.234877728591252,
+     "realH4": 3.9937321578473792,
+     "simH": 12.108194444444445,
+     "contracts": 14,
+     "routeShare": 0.32981424417008576,
+     "restMed": 2.626126126126126,
+     "restP10": 0.9385885885885886,
+     "restP90": 4.662162162162161,
+     "over3": 0.42857142857142855,
+     "under03": 0
+    },
+    "seg2": {
+     "n": 20,
+     "realH": 8.087540842691258,
+     "realH4": 5.389172253390354,
+     "simH": 7.186388888888889,
+     "contracts": 20,
+     "routeShare": 0.06268019376121534,
+     "restMed": 0.8890892094017093,
+     "restP10": 0.43344017094017095,
+     "restP90": 1.3349626068376068,
+     "over3": 0,
+     "under03": 0
+    },
+    "seg3": {
+     "n": 20,
+     "realH": 10.761378685428934,
+     "realH4": 7.61326133802389,
+     "simH": 15.940138888888889,
+     "contracts": 26,
+     "routeShare": 0.05346214725096947,
+     "restMed": 0.776542467948718,
+     "restP10": 0.3796474358974359,
+     "restP90": 1.2781650641025641,
+     "over3": 0,
+     "under03": 0.038461538461538464
+    }
+   },
+   "keys": {
+    "tutorial": {
+     "reached": 20,
+     "n": 3,
+     "realH": 2.624926605211565,
+     "fleet": 2,
+     "types": 0,
+     "routes": 0,
+     "wallet": 36060
+    },
+    "seg1": {
+     "reached": 20,
+     "n": 17,
+     "realH": 8.859804333802817,
+     "fleet": 6,
+     "types": 4,
+     "routes": 4,
+     "wallet": 90665
+    },
+    "seg2": {
+     "reached": 20,
+     "n": 37,
+     "realH": 17.017818954332306,
+     "fleet": 7,
+     "types": 5,
+     "routes": 4,
+     "wallet": 87890
+    },
+    "seg3": {
+     "reached": 20,
+     "n": 63,
+     "realH": 27.673219562370896,
+     "fleet": 7,
+     "types": 6,
+     "routes": 4,
+     "wallet": 139120
+    }
+   },
+   "routeStory": {
+    "pay": 380,
+    "down": 2280,
+    "tripS": 14400
+   },
+   "payMed": {
+    "1": 8290,
+    "2": 10965,
+    "3": 11685
+   },
+   "fleetEnd": [
+    "rufus",
+    "cub@route",
+    "chinook",
+    "cub@route",
+    "jodel@route",
+    "jodel@route",
+    "c172"
+   ],
+   "curve": [
+    {
+     "n": 3,
+     "med": 24.04,
+     "p10": 9.015,
+     "p90": 24.04
+    },
+    {
+     "n": 6,
+     "med": 1.1864864864864866,
+     "p10": 1.0093093093093093,
+     "p90": 1.4762762762762762
+    },
+    {
+     "n": 9,
+     "med": 2.2072072072072073,
+     "p10": 1.6765765765765765,
+     "p90": 3.391891891891892
+    },
+    {
+     "n": 12,
+     "med": 3.027927927927928,
+     "p10": 2.6159159159159158,
+     "p90": 4.882582582582582
+    },
+    {
+     "n": 15,
+     "med": 4.257957957957958,
+     "p10": 3.590690690690691,
+     "p90": 6.10960960960961
+    },
+    {
+     "n": 18,
+     "med": 0.30916132478632474,
+     "p10": 0.1891559829059829,
+     "p90": 0.6044337606837606
+    },
+    {
+     "n": 21,
+     "med": 0.49046474358974357,
+     "p10": 0.3332264957264957,
+     "p90": 0.808440170940171
+    },
+    {
+     "n": 24,
+     "med": 0.6909188034188034,
+     "p10": 0.5315705128205128,
+     "p90": 1.0387820512820514
+    },
+    {
+     "n": 27,
+     "med": 0.866159188034188,
+     "p10": 0.7302884615384615,
+     "p90": 1.189957264957265
+    },
+    {
+     "n": 30,
+     "med": 1.0481837606837607,
+     "p10": 0.9025106837606838,
+     "p90": 1.3914529914529914
+    },
+    {
+     "n": 33,
+     "med": 1.2161858974358974,
+     "p10": 1.100854700854701,
+     "p90": 1.538301282051282
+    },
+    {
+     "n": 36,
+     "med": 1.3976228632478631,
+     "p10": 1.303258547008547,
+     "p90": 1.8380876068376069
+    },
+    {
+     "n": 39,
+     "med": 0.3139957264957265,
+     "p10": 0.24722222222222223,
+     "p90": 0.5406784188034188
+    },
+    {
+     "n": 42,
+     "med": 0.41123130341880343,
+     "p10": 0.35518162393162395,
+     "p90": 0.6314369658119658
+    },
+    {
+     "n": 45,
+     "med": 0.5402911324786325,
+     "p10": 0.44463141025641023,
+     "p90": 0.8937232905982906
+    },
+    {
+     "n": 48,
+     "med": 0.6863915598290597,
+     "p10": 0.5422275641025641,
+     "p90": 1.0524839743589745
+    },
+    {
+     "n": 51,
+     "med": 0.8125534188034188,
+     "p10": 0.6012820512820513,
+     "p90": 1.1370726495726495
+    },
+    {
+     "n": 54,
+     "med": 0.9632345085470085,
+     "p10": 0.7327724358974359,
+     "p90": 1.2296207264957264
+    },
+    {
+     "n": 57,
+     "med": 1.1414129273504274,
+     "p10": 0.8368589743589744,
+     "p90": 1.327190170940171
+    },
+    {
+     "n": 60,
+     "med": 1.2328258547008546,
+     "p10": 1.0011752136752137,
+     "p90": 1.4673344017094017
+    },
+    {
+     "n": 63,
+     "med": 1.3715811965811966,
+     "p10": 1.1254540598290599,
+     "p90": 1.5885950854700854
+    }
+   ]
+  },
+  "proposed|competitor": {
+   "config": "proposed",
+   "policy": "competitor",
+   "seeds": 20,
+   "errors": [],
+   "stuck": [],
+   "routeShare": 0.007353283701345203,
+   "routeShareP90": 0.011724337818001626,
+   "done": 64.5,
+   "realH": 33.724277683909435,
+   "simH": 62.583194444444445,
+   "waitH": 35.93472222222222,
+   "wallet": 48145,
+   "income": {
+    "contract": 865020,
+    "story": 33780,
+    "route": 5700,
+    "routeDown": 2280,
+    "prize": 146750
+   },
+   "spend": {
+    "airframe": 223800,
+    "occasion": 43200,
+    "hangar": 0,
+    "pilot": 0,
+    "landmark": 639600,
+    "pack": 7800,
+    "entry": 87500
+   },
+   "pace": {
+    "cubClass": {
+     "med": 3,
+     "p10": 3,
+     "p90": 4,
+     "price": 25000,
+     "n": 20
+    },
+    "seat4": {
+     "med": 8,
+     "p10": 7,
+     "p90": 9,
+     "price": 82800,
+     "n": 20
+    },
+    "hangar": {
+     "med": 11,
+     "p10": 10,
+     "p90": 13,
+     "price": 89840,
+     "n": 20
+    }
+   },
+   "stages": {
+    "tutorial": {
+     "n": 20,
+     "realH": 2.624926605211565,
+     "realH4": 1.8249816513028911,
+     "simH": 1.8166666666666667,
+     "contracts": 3,
+     "routeShare": 0.0632279534109817,
+     "restMed": 3.606,
+     "restP10": 3.606,
+     "restP90": 3.606,
+     "over3": 1,
+     "under03": 0
+    },
+    "seg1": {
+     "n": 20,
+     "realH": 7.274797547223217,
+     "realH4": 5.345782720139138,
+     "simH": 13.089027777777778,
+     "contracts": 14,
+     "routeShare": 0.008509562927707565,
+     "restMed": 1.8048717195456327,
+     "restP10": 0.5063063063063062,
+     "restP90": 3.0953453453453452,
+     "over3": 0.14285714285714285,
+     "under03": 0.07142857142857142
+    },
+    "seg2": {
+     "n": 20,
+     "realH": 10.7032436008626,
+     "realH4": 7.764113263363596,
+     "simH": 9.225555555555555,
+     "contracts": 20.5,
+     "routeShare": 0.002773419267886604,
+     "restMed": 0.610899881124353,
+     "restP10": 0.16891025641025642,
+     "restP90": 1.0435472342602625,
+     "over3": 0,
+     "under03": 0.20869565217391306
+    },
+    "seg3": {
+     "n": 20,
+     "realH": 12.977950086662371,
+     "realH4": 9.881865076622763,
+     "simH": 18.150555555555556,
+     "contracts": 26,
+     "routeShare": 0.0033977393712818827,
+     "restMed": 0.5816372863247863,
+     "restP10": 0.20866720085470086,
+     "restP90": 1.1059695512820513,
+     "over3": 0.034382284382284384,
+     "under03": 0.2330316742081448
+    }
+   },
+   "keys": {
+    "tutorial": {
+     "reached": 20,
+     "n": 3,
+     "realH": 2.624926605211565,
+     "fleet": 2,
+     "types": 0,
+     "routes": 0,
+     "wallet": 36060
+    },
+    "seg1": {
+     "reached": 20,
+     "n": 17,
+     "realH": 9.899724152434782,
+     "fleet": 5,
+     "types": 4,
+     "routes": 1,
+     "wallet": 25075
+    },
+    "seg2": {
+     "reached": 20,
+     "n": 37.5,
+     "realH": 20.552907840712045,
+     "fleet": 7,
+     "types": 6,
+     "routes": 1,
+     "wallet": 20575
+    },
+    "seg3": {
+     "reached": 20,
+     "n": 64.5,
+     "realH": 33.724277683909435,
+     "fleet": 8,
+     "types": 6,
+     "routes": 1,
+     "wallet": 48145
+    }
+   },
+   "routeStory": {
+    "pay": 380,
+    "down": 2280,
+    "tripS": 14400
+   },
+   "payMed": {
+    "1": 7455,
+    "2": 10910,
+    "3": 11725
+   },
+   "fleetEnd": [
+    "rufus",
+    "cub@route",
+    "cub",
+    "chinook",
+    "jodel",
+    "c172",
+    "twinf",
+    "jodel"
+   ],
+   "curve": [
+    {
+     "n": 3,
+     "med": 3.606,
+     "p10": 3.606,
+     "p90": 3.606
+    },
+    {
+     "n": 6,
+     "med": 0.2870870870870871,
+     "p10": 0.12042042042042042,
+     "p90": 2.0282608695652176
+    },
+    {
+     "n": 9,
+     "med": 0.9463963963963964,
+     "p10": 0.7357357357357357,
+     "p90": 1.3672672672672672
+    },
+    {
+     "n": 12,
+     "med": 1.765915915915916,
+     "p10": 1.397897897897898,
+     "p90": 2.4
+    },
+    {
+     "n": 15,
+     "med": 2.5827327327327323,
+     "p10": 2.1072072072072072,
+     "p90": 3.3315315315315317
+    },
+    {
+     "n": 18,
+     "med": 0.8621032163128022,
+     "p10": 0.24507042253521127,
+     "p90": 1.7119402985074628
+    },
+    {
+     "n": 21,
+     "med": 0.20860042735042733,
+     "p10": 0.019497863247863248,
+     "p90": 0.8738738738738738
+    },
+    {
+     "n": 24,
+     "med": 0.21482371794871796,
+     "p10": 0.13349358974358974,
+     "p90": 0.4248931623931624
+    },
+    {
+     "n": 27,
+     "med": 0.3959668803418803,
+     "p10": 0.26789529914529914,
+     "p90": 0.6181623931623932
+    },
+    {
+     "n": 30,
+     "med": 0.586698717948718,
+     "p10": 0.4387820512820513,
+     "p90": 0.7965811965811965
+    },
+    {
+     "n": 33,
+     "med": 0.8077991452991453,
+     "p10": 0.600801282051282,
+     "p90": 0.9783119658119658
+    },
+    {
+     "n": 36,
+     "med": 0.9343215811965813,
+     "p10": 0.7867521367521367,
+     "p90": 1.2355769230769231
+    },
+    {
+     "n": 39,
+     "med": 0.872524154589372,
+     "p10": 0.1062232905982906,
+     "p90": 1.082638888888889
+    },
+    {
+     "n": 42,
+     "med": 0.24272168803418803,
+     "p10": 0.11605235042735043,
+     "p90": 2.624615384615385
+    },
+    {
+     "n": 45,
+     "med": 0.28060897435897436,
+     "p10": 0.18458867521367522,
+     "p90": 0.5882478632478633
+    },
+    {
+     "n": 48,
+     "med": 0.39111912393162396,
+     "p10": 0.25438034188034186,
+     "p90": 0.6600961538461538
+    },
+    {
+     "n": 51,
+     "med": 0.5448317307692307,
+     "p10": 0.35133547008547006,
+     "p90": 0.773931623931624
+    },
+    {
+     "n": 54,
+     "med": 0.6636485042735043,
+     "p10": 0.43170405982905985,
+     "p90": 0.8999465811965812
+    },
+    {
+     "n": 57,
+     "med": 0.8715277777777778,
+     "p10": 0.5720619658119658,
+     "p90": 0.9888621794871795
+    },
+    {
+     "n": 60,
+     "med": 0.9668536324786325,
+     "p10": 0.6729967948717949,
+     "p90": 1.1111645299145299
+    },
+    {
+     "n": 63,
+     "med": 1.0841212606837607,
+     "p10": 0.753258547008547,
+     "p90": 1.216025641025641
+    },
+    {
+     "n": 66,
+     "med": 1.1285924145299147,
+     "p10": 0.892681623931624,
+     "p90": 1.2291399572649573
+    },
+    {
+     "n": 69,
+     "med": 1.1285924145299147,
+     "p10": 0.9651175213675214,
+     "p90": 1.2291399572649573
+    },
+    {
+     "n": 72,
+     "med": 1.1285924145299147,
+     "p10": 1.0074252136752138,
+     "p90": 1.2291399572649573
+    }
+   ]
+  }
+ },
+ "tables": {
+  "price": [
+   {
+    "item": "T6's commitment fee (the story's, beside the route's down payment)",
+    "live": 0,
+    "proposed": 20000,
+    "rule": "a story effect (79_story.js routeOffer): the first real money, enough for any one T7 occasion"
+   },
+   {
+    "item": "the story career's starting grant",
+    "live": 60000,
+    "proposed": 0,
+    "rule": "the Rufus and the cabin are the start (§0); T6's down payment is the first money"
+   },
+   {
+    "item": "airframe: Cub (segment 1)",
+    "live": 25000,
+    "proposed": 25000,
+    "rule": "the ledger x labour 0.8 (unchanged)"
+   },
+   {
+    "item": "airframe: Jodel (segment 1)",
+    "live": 27500,
+    "proposed": 27500,
+    "rule": "the ledger x labour 0.8 (unchanged)"
+   },
+   {
+    "item": "airframe: Chinook (2-seat ultralight) (segment 1)",
+    "live": 20900,
+    "proposed": 20900,
+    "rule": "the ledger x labour 0.8 (unchanged)"
+   },
+   {
+    "item": "airframe: twin floatplane (segment 1)",
+    "live": 28400,
+    "proposed": 28400,
+    "rule": "the ledger x labour 0.8 (unchanged)"
+   },
+   {
+    "item": "airframe: metal Cessna (4 seats) (segment 2)",
+    "live": 75000,
+    "proposed": 75000,
+    "rule": "the ledger x labour 0.8 (unchanged)"
+   },
+   {
+    "item": "airframe: Cessna floats (segment 2)",
+    "live": 76600,
+    "proposed": 76600,
+    "rule": "the ledger x labour 0.8 (unchanged)"
+   },
+   {
+    "item": "airframe: composite Jodel (segment 3)",
+    "live": 39200,
+    "proposed": 39200,
+    "rule": "the ledger x labour 0.8 (unchanged)"
+   },
+   {
+    "item": "T7 occasion: occ:fabric4 (c172)",
+    "live": 28500,
+    "proposed": 33300,
+    "rule": "x 0.35 of the maker's catalogue (live 0.30-0.35)"
+   },
+   {
+    "item": "T7 occasion: occ:jodel (jodel)",
+    "live": 13800,
+    "proposed": 13800,
+    "rule": "x 0.35 of the maker's catalogue (live 0.30-0.35)"
+   },
+   {
+    "item": "T7 occasion: occ:cub (cub)",
+    "live": 10000,
+    "proposed": 10000,
+    "rule": "x 0.35 of the maker's catalogue (live 0.30-0.35)"
+   },
+   {
+    "item": "segment occasions (2 per segment)",
+    "live": null,
+    "proposed": "x 0.35 catalogue",
+    "rule": "one-time listings at each segment's opening (sink 5)"
+   },
+   {
+    "item": "machine shop: Sheets and bolts (the metal rung)",
+    "live": 0,
+    "proposed": 7800,
+    "rule": "0.25 Cubs (sink 2; today the main hangar holds every kit)"
+   },
+   {
+    "item": "machine shop: Composite and electronics",
+    "live": 0,
+    "proposed": 78000,
+    "rule": "2.5 Cubs (sink 2; today the main hangar holds every kit)"
+   },
+   {
+    "item": "landmark: the Ardent Observatory (keystone 1)",
+    "live": 0,
+    "proposed": 78000,
+    "rule": "2.5 Cubs, required to open the next segment (sink 1)"
+   },
+   {
+    "item": "landmark: the mining village",
+    "live": 0,
+    "proposed": 46800,
+    "rule": "1.5 Cubs, optional (sink 1)"
+   },
+   {
+    "item": "landmark: the hydro plant (keystone 2)",
+    "live": 0,
+    "proposed": 187200,
+    "rule": "6 Cubs, required to open the next segment (sink 1)"
+   },
+   {
+    "item": "landmark: the sky tram",
+    "live": 0,
+    "proposed": 93600,
+    "rule": "3 Cubs, optional (sink 1)"
+   },
+   {
+    "item": "landmark: Driftwood Landing",
+    "live": 0,
+    "proposed": 156000,
+    "rule": "5 Cubs, optional (sink 1)"
+   },
+   {
+    "item": "landmark: the long runway (keystone 3)",
+    "live": 0,
+    "proposed": 374400,
+    "rule": "12 Cubs, required to open the next segment (sink 1)"
+   },
+   {
+    "item": "side hangar: field at Tamgas Hill Strip",
+    "live": 44960,
+    "proposed": 89840,
+    "rule": "ECON_BOOK.shells.field 1.8 -> 3.6 Cubs x the plot factor (sink 3)"
+   },
+   {
+    "item": "side hangar: field at Skyline Altiport",
+    "live": 50580,
+    "proposed": 101070,
+    "rule": "ECON_BOOK.shells.field 1.8 -> 3.6 Cubs x the plot factor (sink 3)"
+   },
+   {
+    "item": "side hangar: club at Skyline Altiport",
+    "live": 89820,
+    "proposed": 157230,
+    "rule": "ECON_BOOK.shells.club 3.2 -> 5.6 Cubs x the plot factor (sink 3)"
+   },
+   {
+    "item": "side hangar: field at Metlakatla Seaplane Base",
+    "live": 44960,
+    "proposed": 89840,
+    "rule": "ECON_BOOK.shells.field 1.8 -> 3.6 Cubs x the plot factor (sink 3)"
+   },
+   {
+    "item": "side hangar: field at Annette Dock",
+    "live": 56200,
+    "proposed": 112300,
+    "rule": "ECON_BOOK.shells.field 1.8 -> 3.6 Cubs x the plot factor (sink 3)"
+   },
+   {
+    "item": "side hangar: club at Annette Dock",
+    "live": 99800,
+    "proposed": 174700,
+    "rule": "ECON_BOOK.shells.club 3.2 -> 5.6 Cubs x the plot factor (sink 3)"
+   },
+   {
+    "item": "competition: the bush STOL meet (segment 1)",
+    "live": null,
+    "proposed": 2500,
+    "rule": "entry 0.08 Cubs, prizes x3 / x1.6 / x0.8 (sink 4; not in the game)"
+   },
+   {
+    "item": "competition: the island air race (segment 1)",
+    "live": null,
+    "proposed": 2500,
+    "rule": "entry 0.08 Cubs, prizes x3 / x1.6 / x0.8 (sink 4; not in the game)"
+   },
+   {
+    "item": "competition: the float fly-in (segment 2)",
+    "live": null,
+    "proposed": 4700,
+    "rule": "entry 0.15 Cubs, prizes x3 / x1.6 / x0.8 (sink 4; not in the game)"
+   },
+   {
+    "item": "competition: the Sheets-and-bolts race (segment 2)",
+    "live": null,
+    "proposed": 4700,
+    "rule": "entry 0.15 Cubs, prizes x3 / x1.6 / x0.8 (sink 4; not in the game)"
+   },
+   {
+    "item": "competition: the economy run (segment 3)",
+    "live": null,
+    "proposed": 7800,
+    "rule": "entry 0.25 Cubs, prizes x3 / x1.6 / x0.8 (sink 4; not in the game)"
+   },
+   {
+    "item": "competition: the records week (segment 3)",
+    "live": null,
+    "proposed": 7800,
+    "rule": "entry 0.25 Cubs, prizes x3 / x1.6 / x0.8 (sink 4; not in the game)"
+   },
+   {
+    "item": "pilot sign-on (rookie)",
+    "live": 2500,
+    "proposed": 2500,
+    "rule": "unchanged"
+   },
+   {
+    "item": "pilot sign-on (pilot)",
+    "live": 5000,
+    "proposed": 5000,
+    "rule": "unchanged"
+   },
+   {
+    "item": "pilot sign-on (ace)",
+    "live": 10000,
+    "proposed": 10000,
+    "rule": "unchanged"
+   }
+  ],
+  "routes": [
+   {
+    "route": "Annette Dock - Jolene AFB 13/31",
+    "km": 3.9,
+    "design": "Cub",
+    "live": {
+     "pay": 1260,
+     "down": 10080,
+     "tripMin": 34,
+     "perDay": 53078
+    },
+    "proposed": {
+     "pay": 380,
+     "down": 2280,
+     "tripMin": 240,
+     "perDay": 2280
+    },
+    "airframe": 25000
+   },
+   {
+    "route": "Jolene AFB 13/31 - Tamgas Hill Strip",
+    "km": 2.7,
+    "design": "Cub",
+    "live": {
+     "pay": 850,
+     "down": 6800,
+     "tripMin": 33,
+     "perDay": 37279
+    },
+    "proposed": {
+     "pay": 260,
+     "down": 1560,
+     "tripMin": 240,
+     "perDay": 1560
+    },
+    "airframe": 25000
+   },
+   {
+    "route": "Jolene AFB 13/31 - Tamgas Hill Strip",
+    "km": 2.7,
+    "design": "metal Cessna (4 seats)",
+    "live": {
+     "pay": 1530,
+     "down": 12240,
+     "tripMin": 32,
+     "perDay": 69283
+    },
+    "proposed": {
+     "pay": 460,
+     "down": 2760,
+     "tripMin": 240,
+     "perDay": 2760
+    },
+    "airframe": 75000
+   },
+   {
+    "route": "Jolene AFB 13/31 - Tamgas Hill Strip",
+    "km": 2.7,
+    "design": "composite Jodel",
+    "live": {
+     "pay": 850,
+     "down": 6800,
+     "tripMin": 32,
+     "perDay": 37681
+    },
+    "proposed": {
+     "pay": 260,
+     "down": 1560,
+     "tripMin": 240,
+     "perDay": 1560
+    },
+    "airframe": 39200
+   },
+   {
+    "route": "Jolene AFB 13/31 - Skyline Altiport",
+    "km": 7.9,
+    "design": "Cub",
+    "live": {
+     "pay": 2540,
+     "down": 20320,
+     "tripMin": 38,
+     "perDay": 95167
+    },
+    "proposed": {
+     "pay": 760,
+     "down": 4560,
+     "tripMin": 240,
+     "perDay": 4560
+    },
+    "airframe": 25000
+   },
+   {
+    "route": "Jolene AFB 13/31 - Skyline Altiport",
+    "km": 7.9,
+    "design": "metal Cessna (4 seats)",
+    "live": {
+     "pay": 4560,
+     "down": 36480,
+     "tripMin": 35,
+     "perDay": 185666
+    },
+    "proposed": {
+     "pay": 1370,
+     "down": 8220,
+     "tripMin": 240,
+     "perDay": 8220
+    },
+    "airframe": 75000
+   },
+   {
+    "route": "Jolene AFB 13/31 - Skyline Altiport",
+    "km": 7.9,
+    "design": "composite Jodel",
+    "live": {
+     "pay": 2540,
+     "down": 20320,
+     "tripMin": 37,
+     "perDay": 97797
+    },
+    "proposed": {
+     "pay": 760,
+     "down": 4560,
+     "tripMin": 240,
+     "perDay": 4560
+    },
+    "airframe": 39200
+   },
+   {
+    "route": "Jolene AFB 13/31 - Jumbo Mine Street",
+    "km": 17.4,
+    "design": "Cub",
+    "live": {
+     "pay": 5560,
+     "down": 44480,
+     "tripMin": 48,
+     "perDay": 165251
+    },
+    "proposed": {
+     "pay": 1670,
+     "down": 10020,
+     "tripMin": 240,
+     "perDay": 10020
+    },
+    "airframe": 25000
+   },
+   {
+    "route": "Jolene AFB 13/31 - Jumbo Mine Street",
+    "km": 17.4,
+    "design": "metal Cessna (4 seats)",
+    "live": {
+     "pay": 9960,
+     "down": 79680,
+     "tripMin": 42,
+     "perDay": 343531
+    },
+    "proposed": {
+     "pay": 2990,
+     "down": 17940,
+     "tripMin": 240,
+     "perDay": 17940
+    },
+    "airframe": 75000
+   },
+   {
+    "route": "Jolene AFB 13/31 - Jumbo Mine Street",
+    "km": 17.4,
+    "design": "composite Jodel",
+    "live": {
+     "pay": 5560,
+     "down": 44480,
+     "tripMin": 46,
+     "perDay": 173361
+    },
+    "proposed": {
+     "pay": 1670,
+     "down": 10020,
+     "tripMin": 240,
+     "perDay": 10020
+    },
+    "airframe": 39200
+   },
+   {
+    "route": "Jolene AFB 13/31 - strip 11",
+    "km": 22.7,
+    "design": "Cub",
+    "live": {
+     "pay": 7250,
+     "down": 58000,
+     "tripMin": 54,
+     "perDay": 193095
+    },
+    "proposed": {
+     "pay": 2180,
+     "down": 13080,
+     "tripMin": 240,
+     "perDay": 13080
+    },
+    "airframe": 25000
+   },
+   {
+    "route": "Jolene AFB 13/31 - strip 11",
+    "km": 22.7,
+    "design": "metal Cessna (4 seats)",
+    "live": {
+     "pay": 12990,
+     "down": 103920,
+     "tripMin": 45,
+     "perDay": 412775
+    },
+    "proposed": {
+     "pay": 3900,
+     "down": 23400,
+     "tripMin": 240,
+     "perDay": 23400
+    },
+    "airframe": 75000
+   },
+   {
+    "route": "Jolene AFB 13/31 - strip 11",
+    "km": 22.7,
+    "design": "composite Jodel",
+    "live": {
+     "pay": 7250,
+     "down": 58000,
+     "tripMin": 51,
+     "perDay": 204305
+    },
+    "proposed": {
+     "pay": 2180,
+     "down": 13080,
+     "tripMin": 240,
+     "perDay": 13080
+    },
+    "airframe": 39200
+   }
+  ],
+  "routesPay": {
+   "live": {
+    "perKm": 100,
+    "kgUnit": 150,
+    "turnS": 1800,
+    "downTrips": 8,
+    "minKm": 1,
+    "round": 10
+   },
+   "proposed": {
+    "perKm": 30,
+    "kgUnit": 150,
+    "turnS": 1800,
+    "downTrips": 6,
+    "minKm": 1,
+    "round": 10,
+    "dayTrips": 6
+   }
+  }
+ },
+ "ablation": [
+  [
+   "no-landmark",
+   "frugal",
+   2.7270270270270274,
+   21.3185,
+   48.43192307692308,
+   1,
+   0.008148036966357184,
+   "5 / 5"
+  ],
+  [
+   "no-landmark",
+   "collector",
+   0.45080386486219076,
+   0.7582613172507631,
+   3.4691326530612248,
+   0,
+   0.005818086374522906,
+   "5 / 5"
+  ],
+  [
+   "no-landmark",
+   "router",
+   2.5424924924924923,
+   16.575000000000003,
+   36.04514925373134,
+   1,
+   0.13694796350542007,
+   "5 / 5"
+  ],
+  [
+   "no-landmark",
+   "competitor",
+   1.8046546546546547,
+   14.81865671641791,
+   42.83983050847458,
+   0.95,
+   0.007630959894428826,
+   "5 / 5"
+  ],
+  [
+   "no-packs",
+   "frugal",
+   2.7270270270270274,
+   0.8263621794871795,
+   0.6840544871794871,
+   0,
+   0.008148036966357184,
+   "5 / 5"
+  ],
+  [
+   "no-packs",
+   "collector",
+   0.5158547008547009,
+   0.4706730769230769,
+   0.49505876068376065,
+   0,
+   0.005010732050371044,
+   "5 / 5"
+  ],
+  [
+   "no-packs",
+   "router",
+   2.5424924924924923,
+   1.0784989316239315,
+   0.7754540598290598,
+   0,
+   0.13694796350542007,
+   "5 / 5"
+  ],
+  [
+   "no-packs",
+   "competitor",
+   1.8046546546546547,
+   0.659642094017094,
+   0.6023771367521367,
+   0,
+   0.008025504611145193,
+   "5 / 5"
+  ],
+  [
+   "no-buildings",
+   "frugal",
+   2.7270270270270274,
+   0.7846955128205129,
+   0.6632211538461539,
+   0,
+   0.008148036966357184,
+   "5 / 5"
+  ],
+  [
+   "no-buildings",
+   "collector",
+   0.5158547008547009,
+   0.4935363247863248,
+   0.49153311965811963,
+   0,
+   0.004939733803233937,
+   "5 / 5"
+  ],
+  [
+   "no-buildings",
+   "router",
+   2.5424924924924923,
+   1.036832264957265,
+   0.7546207264957265,
+   0,
+   0.13694796350542007,
+   "5 / 5"
+  ],
+  [
+   "no-buildings",
+   "competitor",
+   1.8046546546546547,
+   0.6566773504273504,
+   0.8097222222222222,
+   0,
+   0.005955490544352732,
+   "5 / 5"
+  ],
+  [
+   "no-comps",
+   "frugal",
+   2.7270270270270274,
+   0.7846955128205129,
+   0.6632211538461539,
+   0,
+   0.008148036966357184,
+   "5 / 5"
+  ],
+  [
+   "no-comps",
+   "collector",
+   0.5158547008547009,
+   0.47006558668401943,
+   0.49538461538461537,
+   0,
+   0.005416154801577336,
+   "5 / 5"
+  ],
+  [
+   "no-comps",
+   "router",
+   2.5424924924924923,
+   1.036832264957265,
+   0.7546207264957265,
+   0,
+   0.13694796350542007,
+   "5 / 5"
+  ],
+  [
+   "no-comps",
+   "competitor",
+   2.467567567567568,
+   0.7130074786324787,
+   0.6000133547008547,
+   0,
+   0.013199743820761374,
+   "5 / 5"
+  ],
+  [
+   "no-occasions",
+   "frugal",
+   2.6996996996997,
+   0.8159722222222222,
+   0.6629540598290599,
+   0,
+   0.008148036966357184,
+   "5 / 5"
+  ],
+  [
+   "no-occasions",
+   "collector",
+   0.5616666666666666,
+   0.48167735042735044,
+   0.507011217948718,
+   0,
+   0.011468000027435407,
+   "5 / 5"
+  ],
+  [
+   "no-occasions",
+   "router",
+   2.212162162162162,
+   0.9557425213675214,
+   0.7041399572649573,
+   0,
+   0.13694796350542007,
+   "5 / 5"
+  ],
+  [
+   "no-occasions",
+   "competitor",
+   1.8351351351351353,
+   0.5973982785602504,
+   0.7520322370865848,
+   0,
+   0.007775080680412563,
+   "5 / 5"
+  ],
+  [
+   "routes-live",
+   "frugal",
+   3.382732732732733,
+   1.1837339743589743,
+   0.8294070512820513,
+   0,
+   0.13235045861234596,
+   "5 / 5"
+  ],
+  [
+   "routes-live",
+   "collector",
+   0.39176888426888423,
+   0.4311965811965812,
+   0.4967681623931624,
+   0,
+   0.10943565143609238,
+   "5 / 5"
+  ],
+  [
+   "routes-live",
+   "router",
+   12.575225225225225,
+   4.223798076923076,
+   2.9481837606837606,
+   1,
+   0.6637566329868431,
+   "5 / 5"
+  ],
+  [
+   "routes-live",
+   "competitor",
+   2.70015015015015,
+   0.9526175213675214,
+   0.9472222222222222,
+   0,
+   0.08770576615558273,
+   "5 / 5"
+  ]
+ ],
+ "sweep": [
+  [
+   100,
+   0,
+   0.6576725254394079,
+   0.7742060456753455,
+   11.106756756756756,
+   3.9625801282051283,
+   7560
+  ],
+  [
+   100,
+   12,
+   0.48051816788235097,
+   0.6133942808546827,
+   7.516366366366366,
+   2.493135683760684,
+   7560
+  ],
+  [
+   100,
+   6,
+   0.3457932029360601,
+   0.46252069047056044,
+   6.396096096096096,
+   1.9706997863247864,
+   7560
+  ],
+  [
+   100,
+   4,
+   0.2851932782257751,
+   0.38551367331855135,
+   5.661861861861862,
+   1.7094818376068377,
+   7560
+  ],
+  [
+   60,
+   0,
+   0.5356701900201765,
+   0.6730907521932978,
+   7.024474474474474,
+   2.644951923076923,
+   4560
+  ],
+  [
+   60,
+   12,
+   0.3570683975704338,
+   0.48786697609445057,
+   4.868318318318318,
+   1.7624732905982905,
+   4560
+  ],
+  [
+   60,
+   6,
+   0.2409045407552062,
+   0.3406625282821837,
+   4.195645645645645,
+   1.4487980769230768,
+   4560
+  ],
+  [
+   60,
+   4,
+   0.19325621807586316,
+   0.2736157869599152,
+   3.754804804804805,
+   1.29196047008547,
+   4560
+  ],
+  [
+   40,
+   0,
+   0.43424126417240494,
+   0.5780347893886795,
+   4.971621621621622,
+   1.9822382478632479,
+   3000
+  ],
+  [
+   40,
+   12,
+   0.2698703328098241,
+   0.38800374252000835,
+   3.5373873873873873,
+   1.395272435897436,
+   3000
+  ],
+  [
+   40,
+   6,
+   0.17438020954182804,
+   0.2558763831598245,
+   3.0897897897897897,
+   1.186511752136752,
+   3000
+  ],
+  [
+   40,
+   4,
+   0.137506216162962,
+   0.20044366368753766,
+   2.7963963963963963,
+   1.0749732905982907,
+   3000
+  ],
+  [
+   30,
+   0,
+   0.3658125282770534,
+   0.5072620854107955,
+   3.956906906906907,
+   1.654780982905983,
+   2280
+  ],
+  [
+   30,
+   12,
+   0.21733613075699637,
+   0.3226349589498309,
+   2.878828828828829,
+   1.2135416666666667,
+   2280
+  ],
+  [
+   30,
+   6,
+   0.13694796350542007,
+   0.20530032864834627,
+   2.5424924924924923,
+   1.036832264957265,
+   2280
+  ],
+  [
+   30,
+   4,
+   0.10696382077488051,
+   0.15660191833175638,
+   2.3220720720720722,
+   0.9192040598290598,
+   2280
+  ],
+  [
+   20,
+   0,
+   0.27793387655708535,
+   0.40722388838179685,
+   2.9133633633633633,
+   1.3254006410256411,
+   1500
+  ],
+  [
+   20,
+   12,
+   0.156386781441494,
+   0.24125844947008263,
+   2.2174174174174173,
+   1.0310630341880342,
+   1500
+  ],
+  [
+   20,
+   6,
+   0.09578356823113161,
+   0.20092338188615805,
+   1.992942942942943,
+   0.8413194444444445,
+   1500
+  ],
+  [
+   20,
+   4,
+   0.0736000961307378,
+   0.1541230062286678,
+   1.8457957957957958,
+   0.7627938034188034,
+   1500
+  ]
+ ]
+}
