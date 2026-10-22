@@ -97840,3 +97840,13 @@ Rolling set (6): apsmooth-known-drop (Pilot: APSMOOTH's c172 level-off row back 
 - The battery on the six: AUDIO RED, NEW: WIRING "app.js: AUDIO.update is not in loop() between the render and PACE.end" - reveal-held's held-frame PACE.end before the hold's return; gate-screen is built on reveal-held, so both are out. Otherwise master's known reds.
 - Strict light gate on the six: over100 gone (the screen split), cub cockpit / metal chase tasks1s + cub cockpit taskWorst 2136 (the boot ~1 s class, still judged against 1 s as ruled), metal fuseWidth (accepted), floats world->garage 2.25 s (the known re-link).
 - Landed: 7332badc1 = master 5f3f2c797 + apsmooth-known-drop + pilotpage + town200-life + w1-papi, re-cooked (premises / fleet / map / parked); AUDIO STORY UISMOKE SCENERYED CONTRACTS PREMISES LIFE CITYHOST APSMOOTH PASS on that exact tree (17:10-17:20). HWCOV fixes the AUDIO wiring row vs the held path for L22d / L23b.
+
+## G3353 - CABIN-MACHINES: THE CABIN KEEPS TWO SMALL MACHINES (2026-10-22, GAME coordinator; claude/cabin-machines on game-fri 5c50f4313; gated Fri 23 Oct 09:05 for L23b)
+- The user's request, verbatim (via A0): "get rid of the large router (the largest of the woodworking machines). Keep only the 2 smaller ones (the drill and another)".
+- The change:
+  - hangarFit takes opts.omit. A left-out prop is reported in unplaced ('left out of this shed'), so placed + recipes + unplaced is still every declared row.
+  - BASE_OFFERS.w1.plots.w1.omit = panelsaw (4.4 x 3.6 m, the largest), bandsaw, jointer. The pillar drill and the thicknesser stay; every other kit prop stays.
+  - storyCabinShed copies the list onto the shed; storyCabinKits gives an existing story cabin the list once.
+  - The room (app.js -> hangar.js) and hangarObstacles both pass shed.omit.
+- "Another" = the thicknesser, the next smallest machine. If the user meant the band saw, change one word in the omit list.
+- GATE STORY: +3 rows.
