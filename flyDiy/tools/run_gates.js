@@ -884,6 +884,12 @@ const GATES = [
   // G2741 STORY-CORE: the tutorial's beats, pure; G2742 STORY-PAGE: + the page half (app.js's story half run headless over
   // the core: a New career at the cabin, the card, an ack, a stop at HOME -> the client's Cub in the hangar; Q1; the occasions)
   { id: 'STORY', file: '_story_check.js', tier: 'core', wall: 20 },
+  // G3240-G3249 NAMES (GAME-PLAN §13, the user 15 Oct: "Everything should have a fictional name"): no real person,
+  // organisation or place it lists is shown - the source's string literals (comments skipped), the island record, the
+  // built page (index.html + its chunks), the evaluated text tables (GAME_NAMES, the contracts, the plots, the story,
+  // the boot cards, MAP_PACK) and a saved record still carrying an old name (it shows the table's); the HOLDS (a painted
+  // sign, a recorded voice line) printed, a stale one red. ~2 s; `--selftest`: eight breaks red, a comment kept green (~10 s)
+  { id: 'NAMES', file: '_names_check.js', argv: ['--selftest'], tier: 'core', wall: 12 },
   // G3260-G3269 ROUTES: a plane + a hired pilot + an A <-> B schedule (78b_routes.js, pure): sign / settle / end on clones,
   // the terms against a hand-computed case, no pay without sim time, the lock (playerMove / playerSendTo refuse it), the
   // save, the sandbox untouched, STORY's T6 signing a real route (app.js's story half headless: the arrival card's line);

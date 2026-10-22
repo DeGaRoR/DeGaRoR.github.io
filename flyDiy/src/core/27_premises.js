@@ -77,7 +77,8 @@ const CATEGORIES = ['residential', 'shed', 'commercial', 'industrial', 'official
 // by hand). A zone may override its categories (zone.rules.cats). A second theme is a table, not a
 // rewrite: the same seven categories, other draws.
 const THEMES = {
-  alaska: { name: 'Alaska', blurb: 'the panhandle: wooden houses and their sheds, canneries and net lofts on the water, a mine and its tram, totems, a ball park',
+  // (G3240 NAMES: the id stays 'alaska' - records name it; the words the editor shows are fictional, GAME-PLAN §13)
+  alaska: { name: 'North Coast', blurb: 'the north coast: wooden houses and their sheds, canneries and net lofts on the water, a mine and its tram, totems, a ball park',
     categories: CATEGORIES,
     // each category's PLACEMENT LAW (THEME-ALASKA-RURAL-2026-09-14.md): zoned = the composer sows it on the
     // plots of a zone; hand = the editor stands it as a site (the palette lists every category)
@@ -1825,10 +1826,13 @@ function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
   if (S && S.stand) S.stand.elev = groundAt(S.stand.x, S.stand.z);
   const spawnElev = groundAt(spawnAt[0], spawnAt[1]);
   // a SEA LANE (G434): the analytic SEA's shape - kind 'water', no site, flat everywhere (the water is)
-  if (runwayIsWater(r)) return { id: r.id, name: r.name || 'sea lane', kind: 'water', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat: () => true,
+  // (G3240 NAMES) the name it shows is the names table's (01_names.js fieldName) for a field the table names - the
+  // user's own saved record may still carry an older one - else the record's own (a required-alone 27_ reads the record's)
+  const nm = (dflt) => typeof fieldName === 'function' ? fieldName(r.id, r.name || dflt) : (r.name || dflt);
+  if (runwayIsWater(r)) return { id: r.id, name: nm('sea lane'), kind: 'water', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat: () => true,
            surface: SURFACE.WATER, look: 'none', elev, tdz, spawn, spawnElev: elev, flyIn: false, premises: true, water: true,
            landHdg: r.approach === 0 ? hdg : r.approach === 1 ? hdg + Math.PI : null, slope: 0, disp: [0, 0], papi: [false, false], circuit: r.circuit || null };
-  return { id: r.id, name: r.name || 'strip', kind: 'strip', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat,
+  return { id: r.id, name: nm('strip'), kind: 'strip', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat,
            surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, look: RUNWAY_LOOKS[r.look] ? r.look : 'grass', elev, tdz, spawn: spawnAt, spawnElev, flyIn: false, premises: true,
            band: r.band === undefined ? null : r.band, pav: r.pav || null,   // the pavement's (v1.16): the renderer resolves them with the premises' recipe
            // the direction of travel when landing over the named end (end 0 -> end 1 is +hdg); the pilot reads it in calm air

@@ -28,6 +28,9 @@ const outPath = rel => { const p = path.join(OUT, rel); fs.mkdirSync(path.dirnam
 const MANIFEST = {
   core: [
     '00_registry.js',
+    // THE NAMES (G3240): every person, organisation and place the game shows, ONE table (fictional, GAME-PLAN §13).
+    // Ahead of everything that makes text; it also rides in the BOOT block (the loading screen's cards read it).
+    '01_names.js',
     // THE ATMOSPHERE (G72): pure, no dependencies, and needed by more than the
     // solver — 60_gen_spec synthesises the prop against a density and
     // 64_gen_build quotes stall speeds at one, so it sits in the 00_ band
@@ -950,9 +953,13 @@ function buildViewer(core) {
   // G1535: the build's id and date ride ahead of the boot scripts; their values are known only once every script is
   // read (BUILD_ID below), so the slot carries a marker that both pages swap for them (BUILD_MARK)
   // (update_now.js ahead of welcome.js: the welcome card's footer reads UPDATE_NOW.stamp as it opens)
-  const bodyArt = fill(bodyHtml, 'BOOT', BUILD_MARK + `\n<script>\n${cardsJs}\n${bootJs}</script>`
+  // (G3240 NAMES) the names table rides ahead of the cards, which read it before the core runs (01_names.js: a `var`,
+  // so the core's own copy re-declares it)
+  const namesJs = cardsJs ? read(path.join(CORE_DIR, '01_names.js')) : '';
+  const bodyArt = fill(bodyHtml, 'BOOT', BUILD_MARK + `\n<script>\n${namesJs}\n${cardsJs}\n${bootJs}</script>`
     + (updateJs ? `\n<script>\n${updateJs}</script>` : '') + (profileJs ? `\n<script>\n${profileJs}</script>` : '') + (welcomeJs ? `\n<script>\n${welcomeJs}</script>` : ''));
-  const bodyDev = fill(bodyHtml, 'BOOT', BUILD_MARK + '\n' + (cardsJs ? `<script src="src/viewer/${V.bootCards}?v=${sha(cardsJs).slice(0, 8)}"></script>\n` : '')
+  const bodyDev = fill(bodyHtml, 'BOOT', BUILD_MARK + '\n' + (namesJs ? `<script src="src/core/01_names.js?v=${sha(namesJs).slice(0, 8)}"></script>\n` : '')
+    + (cardsJs ? `<script src="src/viewer/${V.bootCards}?v=${sha(cardsJs).slice(0, 8)}"></script>\n` : '')
     + `<script src="src/viewer/${V.boot}?v=${sha(bootJs).slice(0, 8)}"></script>`
     + (updateJs ? `\n<script src="src/viewer/${V.updateNow}?v=${sha(updateJs).slice(0, 8)}"></script>` : '')
     + (profileJs ? `\n<script src="src/viewer/${V.profile}?v=${sha(profileJs).slice(0, 8)}"></script>` : '')

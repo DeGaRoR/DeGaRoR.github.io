@@ -2671,7 +2671,7 @@ function make(THREE, scene, world, rec0, opts) {
     if (!KT.want || KT.status !== 'off') return;
     KT.status = 'loading'; KT.t0 = performance.now();
     KT.island = (typeof window !== 'undefined' && window.ISLAND_BOOT && window.ISLAND_BOOT.id) || (world && world.id) || null;
-    const fail = e => { KT.status = 'error'; KT.err = String((e && e.message) || e); KT.want = false; console.warn('town kit: ' + KT.err + ' - Metlakatla builds unique'); };
+    const fail = e => { KT.status = 'error'; KT.err = String((e && e.message) || e); KT.want = false; console.warn('town kit: ' + KT.err + ' - the town builds unique'); };
     if (typeof DecompressionStream === 'undefined' || typeof fetch === 'undefined') { fail('no DecompressionStream / fetch'); return; }
     const lazy = window.TOWNKIT && window.KIT_LOT ? Promise.resolve() : window.FLYDIY_LAZY ? window.FLYDIY_LAZY(['townkit', 'kit_lot']) : Promise.resolve();
     KT.promise = Promise.all([lazy, fetch(kitBase() + 'src/core/townkit_pack.json').then(r => { if (!r.ok) throw new Error('no src/core/townkit_pack.json'); return r.json(); })])
@@ -2716,7 +2716,7 @@ function make(THREE, scene, world, rec0, opts) {
     const T = tarr(), HG = window.HOUSE_GEN;
     // (the stack and the generator come with the game's page: without them the town stays unique - decided here, before
     // the first job leaves: every caller that dispatches asks this first)
-    if (!T || !HG) { KT.status = 'error'; KT.err = 'no house_tarr / HOUSE_GEN'; console.warn('town kit: ' + KT.err + ' - Metlakatla builds unique'); return null; }
+    if (!T || !HG) { KT.status = 'error'; KT.err = 'no house_tarr / HOUSE_GEN'; console.warn('town kit: ' + KT.err + ' - the town builds unique'); return null; }
     const t0 = performance.now();
     if (KT.host) { KT.host.dispose(); KT.host = null; KT.rebuilt++; }
     const plots = new Map(O.records.plots.map(p => [p.id, p]));
