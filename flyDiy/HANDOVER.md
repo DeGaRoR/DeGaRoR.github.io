@@ -97930,3 +97930,227 @@ touches only for engMount 4-6 (no archetype card uses them).
   layout turns it back into that single mount.
 - No Skymaster ARCHETYPE card (the birth overlay) - the tile builds it on any airframe; a card is a follow-up and
   would add a flight to GATE ARCHETYPES.
+
+## G3490-G3494 - ENGINE-CONFIGS-2: THE SKYMASTER'S PUSH-PULL, THE THREE AND THE FOUR REVIVED ON TODAY'S MASTER - EACH DISC'S OWN WAKE, A BREAK GROUP PER ENGINE, ONE THROTTLE AN ENGINE, THE GARAGE'S NACELLES BACK, THREE EXAMPLE BUILDS (2026-10-22, ENGINE-CONFIGS for A0, cloud, node only; branch claude/engine-configs-2 = claude/engine-configs-g2790 4e9fa98be + b57cfad7f with origin/master 2c2a74459 (L22c) merged)
+
+**READY for A0 (pushed claude/engine-configs-2 only; sources only - A0's train builds the outputs).** The user, 22 Oct: "did we activate the 3 and 4 engines configurations? And the pusher + nose engine (like
+the Skymaster)?" - "revive the engine [configurations] as a cloud session". They were coded and READY on 12 Oct (G2790,
+the entry above) and never landed; 699 master commits since.
+
+**G-block.** G2795-G2799 were taken on master meanwhile (EDITOR-REVIEW trains A / B G2790-G2798, JOINPARITY G2799), so
+this work is **G3490-G3494** (unused on master and in every branch name). A0: confirm, or renumber.
+
+**What changed since 12 Oct (master's side, and what it meant here).**
+- G2080 ENGINE-TORQUE landed (reaction torque, gyroscopic couple, P-factor, slipstream swirl), retuned as t66 (G3077):
+  the solver already loops them PER ENGINE (out.propFx, engines[i].sense), so the layouts got them for free - but the
+  12 Oct "the Trimotor's nose cut: no yaw (< 0.5 deg)" bound was a prediction made without them, and the swirl reached
+  the tail from the NEAREST disc only (a push-pull's tail saw the nose's swirl, never the pusher's).
+- Damage ON by default (DMG trains): the frame's break groups are keyed by part, and a layout's engines shared parts
+  (the four's two nacelles a side were ONE group; the push-pull's pusher was the nose's 'eng').
+- G2880 NACELLE-LAG: a wing-mounted unit is placed again once the wing publishes - keyed engMount 2 / 3 only, so in
+  the garage the Three drew its nose alone and the Four NOTHING ("engine: no wing to hang the nacelles on").
+- JOINPARITY's census (G1985 / G2799): a tool reading a validated build raw is red - the 12 Oct gate did.
+- CORE_MATH in the core (DMG-DETERMINISM): the G2790 core code calls no Math.sin / cos / pow (checked).
+- The float kit's 'seaplane' prop class is not on master yet: nothing here touches the prop class (one propeller law per
+  aeroplane, as on 12 Oct).
+
+**1 THE MERGE** (c8b7327c9). Five conflicts: `90_node_exports.js` - master's line kept as it is, ONLY our three names
+appended (GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines; `git diff origin/master` on the file adds exactly those
+three and removes none); `_cage_join.js` master's G2365 drawn-flange
+height with G2790's per-unit flange (EU[i]; a layout's nose is unit 0, so a single reads EU[0] as before);
+`_cage_design.js` master's `twin: ['engMount']` + the layout note; `_cage_parts.js` master's 'thrust line & mounting'
+group + engNacAt2; HANDOVER both sides. node --check on every touched file.
+
+**2 THE LAYOUTS ON TODAY'S PHYSICS** (f2e08e9c6, d1c32ff47).
+- **Each disc's own wake** (62_gen_aero `genStripsLayout`, 30_solver; LAYOUTS ONLY - every other def has no `washE`
+  and the solver's pass is the one it was, to the bit). The solver's wash was the MEAN disc (T / nE): a dead engine
+  halved the wash everywhere instead of removing it behind itself (12 Oct named this). Now every strip of a layout names
+  its disc - a wing strip the nose's or its own side's pulling nacelle (the strongest wake, genStrips' own laws), the
+  tail the nose's (a three) or the push-pull's CENTRELINE IN SERIES (nose + pusher thrust through one disc: the pusher
+  swallows the nose's slipstream and accelerates it again) - and flies that disc's own momentum-theory wash. A twin
+  boom's fins stand outside a push-pull's wake (booms at the rear disc's radius + 0.30 m) and lose it. Measured
+  (ground run, full power): the three's discs 24.2 / 24.2 / 24.2 m/s; nose off 0.0 / 24.7 / 24.7 (the mean disc would
+  have left 19.8 m/s on the tail); the push-pull's series wake 49.0 m/s over one disc's 33.8, nose off the pusher's own.
+- **The pusher's torque and swirl on the tail**: the swirl at a tail strip now SUMS every running disc's (each faded by
+  its own wake radius) - the push-pull's counter-rotating pair takes back each other's swirl, and with the nose cut the
+  tail feels the pusher's. Reaction torque 473.9 / -473.9 N.m and angular momentum 186.3 / 186.3 with hands +1 / -1:
+  net zero to the bit (the rear hand is the nose's mirror, G2790's clamp).
+- **3 / 4 engines**: torque, P-factor and gyro already per engine; the three's sum 604.0 N.m (3 x 201.3), the four's
+  805.4 (4 x), same hand (one engine type per aeroplane).
+- **Damage ON**: a layout's every engine its own part and break group (61_gen_frame dmgPart: the nearest of the
+  layout's mounts): nose 'eng', pusher 'engAft', inner pair 'engL' / 'engR', the four's outer pair 'engL2' / 'engR2';
+  the bench's destruction line names "the rear / outer engine". genCertDrive and genCertMountKinds were already per
+  engine / nose-ring only. Certificates + the garage bench to 5.7 g, damage on: Skymaster-alike 531 members HELD 0
+  broken; three 423 HELD; four 432 HELD; and the three fixtures below HELD.
+- **The autopilot**: there is no engine-out logic in the pilot (no identify / feather / Vyse): the servos' yaw and roll
+  loops (39b) hold the asymmetric thrust, and GATE ENGCONFIG measures how well (the table). Nothing changed there.
+- **The garage**: NACELLE-LAG keyed on mounts 2 / 3 -> 2 / 3 / 5 / 6 in `_cage_eng` and `_cage_cowl` (the Three's and
+  the Four's nacelles draw again: 3 and 4 prop units joined); `propFitCheck` no longer reads a push-pull's rear disc
+  "through the body" (AF.surf holds the pod's last section past AF.z0; with twin booms there is no rod: the whole disc
+  behind a blunt pod read inside it - an aft unit's points behind AF.z0 are now out; a rod-boom pusher is unchanged);
+  the cockpit draws ONE THROTTLE LEVER AN ENGINE (`_cage_crew`: push-pull 2, three 3, four 4, on makeLinkage's own
+  thr0..thr3; the twin's two exactly as before - wall lever, panel rods and the console quadrant). The Skymaster-alike
+  ARCHETYPE card flies its rear pusher now (`engCount: 'pushPull'`; its note said "the rear pusher is owed"): its parked
+footprint's tail 5.7 -> 5.8 m (25_airfield GP_PARKED_FOOT, GATE TAXICLEAR) and its frames_corpus.json entry re-recorded
+alone (13 -> 11 rings: the pod ends at the aft bulkhead for the pusher; every other item byte-equal, GATE FRAMES).
+
+**3 GATES** - the grep rule (every tools/_*_check.js / test_*.js naming a touched file: 30_solver, 60_gen_spec,
+61_gen_frame, 62_gen_aero, 64_gen_build, 90_node_exports, 25_airfield, viewer/bench.js, the _cage_* layers) gave 90
+gates; + PILOT, PILOTMATRIX, DMGDETERMINISM, DMGCERT, DMGCERTCOST, BUILT. Changed since the first run (so re-run):
+25_airfield's footprint row (TAXICLEAR, CLOUD, SITE, STRIPSURF, TOUR, WORLD, WORLDRENDER), the fixtures (FRAMES,
+KNIFE, SUBSTEP, ENGCONFIG).
+Every line below is the gate's own verdict line from this branch's runs (`node tools/run_gates.js --only=<IDs>
+--no-build --jobs=4`, 22 Oct 16:53-21:30 UTC on the cloud box; then KNIFE, SUBSTEP, FRAMES, TAXICLEAR, ENGCONFIG and
+the world gates re-run on the final tree after the last fixture / footprint / identity edits):
+```
+GATE INPUT: PASS            GATE ATMOS: PASS           GATE SUBSTEP: PASS         GATE CLIMATE: PASS
+GATE GE: PASS               GATE GEN: PASS (x4 shards) GATE PILOT: PASS (x3)      GATE PROFILE: PASS
+GATE DEFAULT: PASS          GATE BIPLANE: PASS         GATE MASS: PASS            GATE UISMOKE: PASS
+GATE DMGMEMBERS: PASS       GATE DMGCERTCOST: PASS     GATE DMGNOSE: PASS         GATE DMGSETTLE: PASS
+GATE DMGDRIVE: PASS         GATE DMGDETERMINISM: PASS  GATE CONTACT: PASS         GATE MEDIA: PASS
+GATE BUILD: PASS            GATE BUILT: PASS           GATE SKINMAT: PASS         GATE LIVERYREACH: PASS
+GATE LIVERY: PASS           GATE WEATHER: PASS         GATE SURF: PASS            GATE EDBUGS: PASS
+GATE FIT: PASS              GATE HINGE: PASS           GATE CAGEFIT: PASS         GATE FRAMES: PASS
+GATE KNIFE: PASS            GATE FIN: PASS             GATE COWL: PASS            GATE NACLAG: PASS
+GATE JOIN: PASS             GATE WINGROWS: PASS        GATE DESIGNCHECK: PASS     GATE DESIGNSIM: PASS
+GATE SPECFIX: PASS          GATE ENGINE: PASS          GATE ENGID: PASS           GATE STARTER: PASS
+GATE SAVE: PASS             GATE SIMWORKER: PASS       GATE PARTS: PASS           GATE SHOULDER: PASS
+GATE DESIGN: PASS           GATE PILOTMATRIX: PASS     GATE VIEW: PASS            GATE PARKED: PASS
+GATE HITBOX: PASS           GATE WATER: PASS           GATE WATERDAMP: PASS       GATE RWYTREES: PASS
+GATE FLOATS: PASS           GATE ACCEPT: PASS          GATE STORY: PASS           GATE PROCURE: PASS
+GATE FREIGHT: PASS          GATE PILOTS: PASS          GATE ENERGYBASE: PASS      GATE ENERGY: PASS
+GATE TANKMOUNT: PASS        GATE ENGTORQUE: PASS       GATE HEADING: PASS         GATE PANEL: PASS
+GATE DASH: PASS             GATE ELEC: PASS            GATE FLEX: PASS (x3)       GATE LOAD: PASS
+GATE MOUNT: PASS            GATE AUDIOENG: PASS        GATE TAXICLEAR: PASS (x4)  GATE ENGCONFIG: PASS
+GATE STRIPSURF: PASS        GATE TOUR: PASS (x4)       GATE WORLDRENDER: PASS     GATE SITE: PASS
+```
+RED HERE AND RED ON MASTER 2c2a74459 WITH THE SAME FAIL LINES (each run on a clean master worktree on the same box,
+its FAIL lines diffed against this branch's: identical) - not this branch's, named for their owners:
+```
+GATE RADIALDIV: FAIL (3)      mosquito / mosquito_1 / cub HANDS OFF 20 s heading moves 47-56 deg
+GATE TREEHIT: FAIL            the trunk stops it (CG 63.5 m of 60)...
+GATE TREECRASH: FAIL          jodel/trunk0 work median moved (p 0.000)
+GATE DMGCERT: FAIL            BROKE AT 7.21 g (wing0R:strut) outside [5.70, 5.99]
+GATE DMGGEAR: FAIL            SEVERE for the twin: the boom root goes
+GATE DMGINST: FAIL            the worker host's diverged() false, then true
+GATE DMGFABRIC: FAIL          the base's bits (pinned digests moved)
+GATE DMGCOMPOSITE: FAIL       damage OFF on the base's bytes
+GATE POD: FAIL                pod off, the whole def is the base's bytes
+GATE ROLLANIM: FAIL (1 of 806: G1039 flRevealStart still frames the stand as standFraming assumes ...)
+GATE JOINPARITY: 1 FAIL       no tool flies a validated build raw: _apsmooth_check.js, _engtorque_check.js,
+                              engine_torque_seasweep.js, hand_controls_probe.js (master's own tools, t66 / G2480)
+GATE BENCH: FAIL              the phase strip knows all 24 pilot phases - not ROUTE, LOITER
+GATE ARCHETYPES: FAIL (1)     Chinook-alike: the circuit completes - rejected-takeoff (shard 0; shards 1-3 PASS,
+                              the Skymaster-alike push-pull flown and passing)
+GATE CLOUD: FAIL (1 of 239)   the pool is re-assigned every 30 frames to the nearest published lamps
+GATE WORLD: FAIL              island: 13/31 approaches under 4 % both ways
+GATE DMGTYRE: FAIL (4)        the Jodel / metal Cessna taxi-turn radius, the Cub's crosswind roll-out
+```
+(Several of these read digests pinned on other machines or trains: they may be green on A0's box. The comparison
+that matters here is branch == master.)
+
+GATE ENGCONFIG (`tools/_engconfig_check.js`, 318 s at --jobs=4) on today's master: 1 IDENTITY re-pinned on master
+2c2a74459 THROUGH tools/_load_build.js for the validated files (JOINPARITY's one load path; `--pin` prints the table on
+any tree - run on a master worktree and here: the 17 rows identical), with the user's metal Cessna file
+(bugReports/cessnaMetal (1).json), the Cessna on floats (bugReports/cessnaFloatsWOrks.json) and Rufus; 5 FLIGHT adds the stock single's own power cut as the
+reference the Trimotor's nose cut is held under; NEW 8 PHYSICS (torque / gyro pairs and sums, the wakes in the strips
+and in the solver, a break group per engine) and 9 FIXTURES (below).
+
+| build | cut | sideslip max | yaw rate max | heading | alt in 10 s | rudder |
+|---|---|---|---|---|---|---|
+| twin fixture (CONTROL) | port | 5.30 deg | 8.43 deg/s | 1.65 deg | -4.9 m | 0.213 |
+| stock single (REFERENCE) | its engine | 1.94 | 2.78 | 0.25 | -4.3 | 0.060 |
+| Skymaster-alike | none / nose / pusher | 0.01 / 0.02 / 0.03 | 0.14 / 0.16 / 0.13 | 0.21 / 0.18 | -0.3 / -8.8 / -8.3 | 0.002 |
+| three | none / nose / wing | 0.02 / 1.16 / 3.11 | 0.09 / 1.75 / 4.95 | 0.01 / 0.07 | -0.3 / -6.3 / -5.4 | 0.040 / 0.058 |
+| four | none / inner / outer | 0.07 / 2.83 / 5.33 | 0.13 / 3.53 / 6.64 | 0.01 / -0.20 | -0.2 / -4.3 / -4.4 | 0.093 / 0.176 |
+
+(12 Oct, before ENGINE-TORQUE: the three's nose cut 0.01 deg; now 1.16 - the nose's torque, P-factor and swirl on the
+fin go with it, as a single's power cut does: 1.94.)
+
+**4 THE VALIDATED AIRCRAFT, BEFORE / AFTER** - `node tools/engconfig_ab.js <build>`, one line per build (the aeroplane the game loads -
+tools/_load_build.js -, its static thrust, sha1 of out.thrust + out.thrustPer every frame of a 90 s autopilot flight
+from the runway, sha1 of every node's position once a second); "before" = the same script in a master 2c2a74459
+worktree:
+| build | def | thrust (static N / run sha1) | 90 s flight (sha1 / alt / V / phase) | before = after |
+|---|---|---|---|---|
+| cub | 2edac3d4580bbcb2 | 1214.657 / fd98d7fd01b776b8 | 7955310466070afd / 110.254 m / 31.683 m/s / DOWNWIND | YES, to the byte |
+| jodel | 38e084604f47abe6 | 1039.433 / be41c8020360b2e9 | 4a2b58c7fdfba895 / 129.922 m / 35.118 m/s / DOWNWIND | YES, to the byte |
+| metal | e4735c255b5f4c71 | 3005.203 / db2767f80725684f | c728236798f31f5b / 153.714 m / 49.838 m/s / DOWNWIND | YES, to the byte |
+| floats | 0c4b5dc1b32baeb4 | 3005.203 / 28374731d5126b1e | e7a89108a383667d / 1.667 m / 0 m/s / STOPPED | YES, to the byte |
+| rufus | e0f2ee3392db1461 | 1393.553 / 4a6dc1f58f288433 | 0472bef3cbbaf17c / 104.837 m / 33.184 m/s / DOWNWIND | YES, to the byte |
+
+(cub / jodel = builds/*_2026-09-20_corrected.json, metal = bugReports/cessnaMetal (1).json, floats =
+bugReports/cessnaFloatsWOrks.json, rufus = tools/fixtures/repro/rufus_2026-10-18_certified.json, every one through
+tools/_load_build.js. The floats row runs from the land strip like the others: the floatplane's pilot STOPS on the
+roll there, identically on master and here - its 90 s are the take-off run's bits.)
+def, thrust and flight byte-identical on all five. The JOINED SPEC's digest differs by one key only: `cage.engNacAt2:
+0.62` (the four's outer-nacelle row default, G2790), read by nothing unless engMount is 6 - the new-row pattern every
+editor row follows (the build is the same bits; a save gains the key).
+
+**5 EXAMPLE BUILDS** (tools/fixtures/, NOT builds/) - `node tools/engconfig_fixtures.js [--write]` bakes them: the
+tiles over the C172-alike card's choices (without its stock 172 cage), the page's chain (_bake_joined), then the GAME's
+load (tools/_load_build.js) to its fixpoint: opening each in the garage changes nothing (checked: the load is the file
+to the byte, no join error). Each passes the design check at its worst loading corner, flies a circuit with one engine
+cut, certifies and holds the bench:
+| fixture | layout | engines | mass | static margin drawn / worst corner | design | one engine cut (10 s) | bench 5.7 g |
+|---|---|---|---|---|---|---|---|
+| build_v10_engcfg_pushpull_2026-10-22.json | pushPull | 2 x IO-360 | 1027 kg | 0.150 / 0.119 | PASS | pusher: beta 0.03 deg, hdg 0.16, -6.6 m | HELD, 0 broken (586 members) |
+| build_v10_engcfg_trimotor_2026-10-22.json | tri | 3 x Rotax 912 | 826 kg | 0.241 / 0.162 | PASS | nose: beta 0.74 deg, hdg 0.13, -4.8 m | HELD, 0 broken (408) |
+| build_v10_engcfg_four_2026-10-22.json | quad | 4 x Rotax 912 | 938 kg | 0.221 / 0.158 | PASS | outer: beta 3.03 deg, hdg -0.09, -3.7 m | HELD, 0 broken (413) |
+
+Recipes (`tools/engconfig_fixtures.js FIX`, over the C172-alike card's choices): push-pull - wing 0.45 m aft, stab
+1.40 x span / 1.25 x chord; three - mid strut-braced wing, the round section, wing 0.15 m aft; four - mid strut-braced
+wing, 0.2 m aft. A damage-on circuit with the autopilot: no prop strike, nothing broken, on all three.
+
+What it took to balance them (the user's to know, it is the game's design story too):
+- The tiles' parent cards are tail-heavy ON MASTER already: the Twin bush hauler SM -0.11 as drawn, the
+  Skymaster-alike (nose only) -0.16 (-0.73 at the worst corner) - the design check FAILs both. The push-pull's 144 kg
+  pusher behind the cabin moves the CG further aft: the example moves the wing 0.45 m aft and grows the stab (1.40 x
+  span, 1.25 x chord).
+- On a HIGH wing the three's / four's nacelles put the thrust line 1.5 m up: at full power the aeroplane TIPS OVER ITS
+  NOSEWHEEL (7.4 kN.m of thrust moment about the nosewheel against 6.1 of weight - measured, the tail 6 m up in 3.7 s;
+  with damage on, 12 members broken). Real high-wing trimotors hung their engines under the wing. On a LOW wing the
+  nacelle discs clear the grass by 2 cm (a prop strike on the roll, then the bent prop's imbalance kinks the mount at
+  29 s). A CANTILEVER mid wing let go at its root on the bench's 5.7 g (the four BROKE UP, 2 broken). The examples use a
+  MID STRUT-BRACED wing.
+- Prop clearance on the examples' nose prop: 0.110 m (push-pull) / 0.129 (three) - the C172-alike airframe's own
+  nosewheel (its single-engine bake reads the same), under FAR 23.925's 7 in; the nacelles' discs 0.43+ m.
+
+**What to watch for / named, not done.**
+- The garage's prop-clearance note ('prop clr' in the gear layer's status) reads the NOSE prop only; the shakedown's
+  `propClear` row reads every engine (the lowest disc). A layout's nacelle strike is on the plaque, not in the shed's
+  note. Proposal: the gear note reads CAGE_ENG.units (a follow-up; the gear layer runs before the engine layer).
+- Every twin-boom build carries 8 `parts.dmg.issues` ("stab - boomL joins two parts in no group") ON MASTER (the
+  twin-boom fixture, a single pusher on twin booms) - the Skymaster-alike inherits them. Deform's: the stab's joints to
+  the booms want a group.
+- No Vmc on the plaque and no engine-out pilot logic (the servos hold it). No per-engine fuel selection / crossfeed (one
+  manifold, 12 Oct).
+- The stock designs' nose-prop "through the body (6 points)" (propFitCheck's 0.6 R ring on the cowl) shows up whenever
+  the disc is smaller than the cage's; the examples keep the cage's disc and have no join error.
+- ARCHETYPES now flies the Skymaster-alike as a push-pull (its card was nose-only and failed the design check before).
+
+**A0's notes of 22 Oct, done:** today's entry (this one); the Cessna on floats and the user's
+`bugReports/cessnaMetal (1).json` (the game's load) in GATE ENGCONFIG's identity AND in tools/engconfig_ab.js;
+90_node_exports.js adds only our three names; pushed claude/engine-configs-2 only (no claude/ready/*).
+
+**ASKS FOR THE USER.**
+1. Open Push-pull / Three / Four in the garage (or load the three fixtures: drop the .json on the garage) and look: the
+   pusher's cowl on the pod's bulkhead, the nacelles, the throttle levers (2 / 3 / 4).
+2. The Skymaster-alike card is now a push-pull and still tail-heavy as the card draws it (its design check FAILs on
+   master too): rebalance the card (the example's -0.45 m wing / bigger stab), or leave the card as the user's to fix?
+3. High-wing Three / Four tip over at full power on a tricycle: should the Three / Four tiles move the wing to MID (as
+   the examples do), hang the nacelles lower, or leave it to the builder with the bench's warning?
+
+**EVIDENCE SCRIPT for A0 (the box; cloud cannot render the game).** From flyDiy/ on claude/engine-configs-2, after
+`node tools/build.js` and the usual local server on :8450:
+```
+node tools/run_gates.js --only=ENGCONFIG --no-build
+node tools/engconfig_fixtures.js
+node tools/garage_shot.js --url http://localhost:8450/flyDiy/dev.html --file tools/fixtures/build_v10_engcfg_pushpull_2026-10-22.json --out screenshots/engcfg/pushpull --views q,s,t,x,air --clean
+node tools/garage_shot.js --url http://localhost:8450/flyDiy/dev.html --file tools/fixtures/build_v10_engcfg_trimotor_2026-10-22.json --out screenshots/engcfg/trimotor --views q,s,t,x,air --clean
+node tools/garage_shot.js --url http://localhost:8450/flyDiy/dev.html --file tools/fixtures/build_v10_engcfg_four_2026-10-22.json --out screenshots/engcfg/four --views q,s,t,x,air --clean
+for b in cub jodel metal floats rufus; do node tools/engconfig_ab.js $b; done
+```
+(`--file` is new and UNTESTED here (no GPU / Chrome in the cloud): the build DROPPED on the garage through DROP-JSON's door, G2799. `air` rolls out and shoots the
+chase view 30 s later. `x` is the see-inside top view: the throttle levers, one an engine. If the drop does not take,
+the page's own: Garage > Load > Import the .json, then the same views by hand.)
