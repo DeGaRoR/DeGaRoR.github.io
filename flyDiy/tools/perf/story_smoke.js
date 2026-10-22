@@ -40,7 +40,7 @@ const PROBE = `JSON.stringify((() => { const S = window.FLYDIY_STORY, s = S && S
     homeLocked: !!(d && d.sheds && d.sheds.HOME && d.sheds.HOME.locked), routes: d && d.career && d.career.routes ? d.career.routes.length : 0,
     fleet: d ? Object.keys(d.fleet || {}) : [], jobsOpen: S && S.jobsOpen ? S.jobsOpen() : null, mask: S && S.mask ? S.mask() : null,
     ladder: S && S.ladder ? S.ladder() : null, ap: window.FLYDIY_AP ? { manual: window.FLYDIY_AP.manual() } : null,
-    tim: el('stTim'), card: el('stCard'), skip: el('stSkip'), shape: tab('edTabShape'), design: tab('edTabDesign'), bench: tab('tabBench'),
+    tim: el('stTim'), card: el('stCard'), skip: el('stSkip'), shape: tab('edTabShape'), design: tab('edTabDesign'), bench: (() => { const e = document.getElementById('edBench'); return e ? { hidden: document.body.classList.contains('stNoBench') || !e.getClientRects().length } : null; })(),
     lock: window.EDITOR_LOCK && window.EDITOR_LOCK.locked ? window.EDITOR_LOCK.locked() : null,
     intro: window.FLYDIY_INTRO_LAST || null, shed: d && d.sheds ? d.sheds[d.here] : null, edLock: typeof window.EDITOR_LOCK, benchHiddenAttr: (() => { const e = document.getElementById('tabBench'); return e ? { hidden: e.hidden, disp: getComputedStyle(e).display, inDom: document.body.contains(e) } : null; })(), careers: (() => { try { return JSON.parse(localStorage.getItem('flydiy.careers') || 'null'); } catch (e) { return null; } })() }; })())`;
 const probe = async () => JSON.parse(await b.ev(PROBE, 30000));
@@ -131,10 +131,11 @@ const evJs = async (js) => JSON.parse(await b.ev('JSON.stringify((() => { ' + js
     // the stop at a role's field: the page's own pick first (storySite over MAP_PACK), then every aerodrome of that kind until
     // the story takes it - the rig must not guess wrong where the game's world lists more strips than the map (22 Oct)
     const stopAt = (role, who, extra) => evJs(`const s = window.FLYDIY_STORY.story(), slot = s.planes[${JSON.stringify(who)}];
-      const L = (window.MAP_PACK && window.MAP_PACK.aerodromes) || [], first = storySite(${JSON.stringify(role)}, L);
+      const L0 = (window.MAP_PACK && window.MAP_PACK.aerodromes) || [], first = storySite(${JSON.stringify(role)}, L0);
+      const L = L0.concat(['w6', 'w7', 'w5', 'nv_strip', 'HOME'].concat(Array.from({ length: 30 }, (_, i) => 'w' + (i + 1))).map(id => ({ id, kind: 'strip' })), ['SEA', 'mk_sea'].map(id => ({ id, kind: 'water' })));
       const water = ${JSON.stringify(role)} === 'water', ids = [first].concat(L.filter(a => (a.kind === 'water') === water).map(a => a.id)).filter((x, i, A) => x && A.indexOf(x) === i);
       let r = { ok: false, why: 'no candidate' };
-      for (const a of ids) { r = window.FLYDIY_STORY.event(Object.assign({ k: 'stop', slot, stop: careerStopRecord({ how: 'stopped', aero: a, slot, row: { from: 'HOME', to: a, t: 600 } }) }, ${JSON.stringify(extra || {})}));
+      for (const a of ids) { try { r = window.FLYDIY_STORY.event(Object.assign({ k: 'stop', slot, stop: careerStopRecord({ how: 'stopped', aero: a, slot, row: { from: 'HOME', to: a, t: 600 } }) }, ${JSON.stringify(extra || {})})); } catch (e) { r = { ok: false, why: 'not at ' + a + ' (threw: ' + e.message + ')' }; }
         if (r.ok) { r.at = a; break; } if (!/not at/.test(r.why || '')) break; }
       return r;`);
     r = await stopAt('client', 'client'); await sleep(1500);
@@ -153,7 +154,7 @@ const evJs = async (js) => JSON.parse(await b.ev('JSON.stringify((() => { ' + js
       [P.open && P.jobsOpen, 'the rails did not open (open ' + P.open + ', jobs ' + P.jobsOpen + ')']]);
 
     // ---- D: Careers - the welcome's menu on the same profile, Continue and a second New career
-    await b.load(base, PRE);
+    await b.load(base + (PORT ? '?welcome=1' : ''), PRE);
     await waitFor('!!document.querySelector("#welcome .wmode, #welcome .wplay")', 120000);
     await evJs('const p = document.querySelector("#welcome .wplay"); if (p && !document.querySelector("#welcome .wmode")) p.click(); return true;');
     await waitFor('!!document.querySelector("#welcome .wmode[data-mode=continue]")', 30000);
