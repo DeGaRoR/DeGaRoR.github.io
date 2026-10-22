@@ -285,6 +285,9 @@ function pilotsCompanion(doc) {
   return doc;
 }
 const pilotsHired = doc => (doc && doc.career && Array.isArray(doc.career.roster)) ? doc.career.roster.filter(id => PILOTS_ROSTER[id]) : [];
+// G3260 (ROUTES): a pilot on a route (78b_routes.js routeSign marks the row `route`): flies it alone - never picked, fired
+// or boated home until the route ends (routeEnd frees them)
+const pilotsOnRoute = (doc, id) => !!(doc && doc.career && doc.career.pilots && doc.career.pilots[id] && doc.career.pilots[id].route);
 
 // ---- THE MARKET: 2-3 recruitables at a time, refreshed with the job market (contractEpoch) --------------------------
 function pilotsOffers(doc) {
@@ -320,6 +323,7 @@ function pilotsHire(doc, id) {
 function pilotsFire(doc, id) {
   if (!doc || !doc.career) return plNo(doc, 'not a career');
   if (!pilotsHired(doc).includes(id)) return plNo(doc, (PILOTS_ROSTER[id] ? pilotsName(id) : id) + ' is not on the roster');
+  if (pilotsOnRoute(doc, id)) return plNo(doc, pilotsName(id) + ' flies a route: end it first');
   const d = pilotsBlock(plClone(doc)), c = d.career;
   c.roster = c.roster.filter(x => x !== id);
   c.pilots[id].hired = null; c.pilots[id].plane = null;
@@ -329,6 +333,7 @@ function pilotsFire(doc, id) {
 function pilotsPick(doc, id) {
   if (!doc || !doc.career) return plNo(doc, 'not a career');
   if (id !== 'me' && !pilotsHired(doc).includes(id)) return plNo(doc, id + ' is not on the roster');
+  if (id !== 'me' && pilotsOnRoute(doc, id)) return plNo(doc, pilotsName(id) + ' flies a route');
   const d = plClone(doc);
   d.career.pilotPick = id;
   return { ok: true, doc: d, why: '' };
@@ -336,7 +341,8 @@ function pilotsPick(doc, id) {
 const pilotsPicked = doc => {
   const c = doc && doc.career;
   if (!c) return 'me';
-  return c.pilotPick === 'me' ? 'me' : (pilotsHired(doc).includes(c.pilotPick) ? c.pilotPick : (pilotsHired(doc)[0] || 'me'));
+  const free = pilotsHired(doc).filter(id => !pilotsOnRoute(doc, id));     // (G3260: a route's pilot flies it alone)
+  return c.pilotPick === 'me' ? 'me' : (free.includes(c.pilotPick) ? c.pilotPick : (free[0] || 'me'));
 };
 
 // ---- PILOTS ARE PHYSICAL (GQ14) ------------------------------------------------------------------------------------
@@ -351,6 +357,7 @@ function pilotsPlace(doc, id) {
 // "TAKES THE BOAT HOME": free, to HOME, between flights (never while flying: the page offers it on the ground only)
 function pilotsBoatHome(doc, id) {
   if (!pilotsHired(doc).includes(id)) return plNo(doc, id + ' is not on the roster');
+  if (pilotsOnRoute(doc, id)) return plNo(doc, pilotsName(id) + ' flies a route: end it first');
   const home = plHome(doc);
   if (pilotsPlace(doc, id) === home) return plNo(doc, pilotsName(id) + ' is already at ' + home);
   const d = plClone(doc), P = d.career.pilots[id];
@@ -407,6 +414,7 @@ function pilotsRefusal(id, leg) {
 function pilotsCanFly(doc, id, at, leg) {
   if (id === 'me') return { ok: true, why: '' };
   if (!pilotsHired(doc).includes(id)) return { ok: false, kind: 'roster', why: id + ' is not on the roster' };
+  if (pilotsOnRoute(doc, id)) return { ok: false, kind: 'route', why: pilotsName(id) + ' flies a route' };
   const r = pilotsRefusal(id, leg);
   if (r) return { ok: false, kind: r.kind, trait: r.trait, key: r.key, vars: r.vars, why: r.why };
   const here = pilotsPlace(doc, id);
@@ -432,7 +440,7 @@ function pilotsOnFlightEnd(doc, f) {
   const fromAero = f.from || null;
   if (f.slot) for (const id of c.roster) {
     const P = c.pilots[id];
-    if (id !== who && P.plane === f.slot) { P.aero = fromAero || pilotsPlace(doc, id); P.plane = null; }
+    if (id !== who && P.plane === f.slot && !P.route) { P.aero = fromAero || pilotsPlace(doc, id); P.plane = null; }   // (G3260: a route's pilot stays bound)
   }
   if (!who) return { ok: true, doc: d, why: '', logged: null };
   const P = c.pilots[who];
@@ -484,7 +492,7 @@ function pilotsCard(doc, id, world) {
     traits: R.traits.map(t => ({ id: t, label: pilotsText('pilot.trait.' + t), how: PILOTS_TEXT['pilot.trait.' + t + '.how'] ? pilotsText('pilot.trait.' + t + '.how') : '' })),
     signOn: pilotsSignOn(id), hired, onOffer: !hired && pilotsOffers(doc).includes(id),
     at, atName: atRow ? (atRow.name || at) : null, atXZ: atRow ? [atRow.c ? atRow.c[0] : atRow.x, atRow.c ? atRow.c[1] : atRow.z] : null,
-    plane: rec && hired ? rec.plane || null : null,
+    plane: rec && hired ? rec.plane || null : null, route: rec && hired ? rec.route || null : null,
     flights: rec ? rec.log.length : 0, landings, grown: Math.round(G.f * 100), ceiling: R.grow ? R.grow.ceiling : null,
     picked: pilotsPicked(doc) === id,
   };

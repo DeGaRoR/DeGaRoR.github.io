@@ -730,11 +730,14 @@ function closeBirth() {
 // ...and AFTER the loading screen has lifted (LOADING S1): the door opens
 // onto a finished shed, never under or over the overlay (window.FLYDIY_READY
 // is the boot's promise; a page without one - a bench - opens as before).
+// G3384 (STORY-INTRO, the Game coordinator 20 Oct): NOT on a New career with the story - its starter (the user's Rufus) is
+// the aeroplane on the stand and T0's card says what to do (app.js's story half sets FLYDIY_STORY_STARTER; read at the
+// opening, after the boot)
 function maybeAutoOpen() {
   try {
     if (window.localStorage.getItem('flydiy.wip')) return;
     const ready = (window.FLYDIY_READY && typeof window.FLYDIY_READY.then === 'function') ? window.FLYDIY_READY : Promise.resolve();
-    ready.then(() => setTimeout(openBirth, 400));
+    ready.then(() => setTimeout(() => { if (!window.FLYDIY_STORY_STARTER) openBirth(); }, 400));
   } catch (e) {}
 }
 if (typeof window !== 'undefined') {

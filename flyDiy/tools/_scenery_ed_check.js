@@ -1200,12 +1200,36 @@ if (plots.length) {
   check(PG.roadFeel({ cls: 'paved' }) === PG.SURFACE.PAVED && PG.roadFeel({ cls: 'track' }) === PG.SURFACE.GRASS && PG.roadFeel({}) === PG.SURFACE.GRAVEL && PG.roadFeel({ cls: 'paved', surface: 6 }) === 6 &&
         PG.lookFeelsAs('worn', PG.SURFACE.PAVED) && !PG.lookFeelsAs('concrete', PG.SURFACE.GRAVEL) && PG.lookFeelsAs('dirt', PG.SURFACE.GRAVEL) && PG.lookFeelsAs('none', PG.SURFACE.GRASS),
         '34 roadFeel is the composer\'s rule (its surface, else its class), lookFeelsAs the looks\' table');
-  // the user's Jolene: its old look-and-feel splits stay as they were (no feel moved) - and each is one the inspector names
+  // FEEL FOLLOWS THE LOOK (the user, 19 Oct: "we retire that, feel follows looks"): a split converts where it is read - the
+  // shipped Jolene carries none, an old file's (Jolene before the change: a11 a15 a18 a19 a28, two tracks drawn dirt, a gravel
+  // road drawn concrete) loads as its looks feel; a look with no feel, a texture, wheels drawing nothing keep theirs; the
+  // inspector names no split any more
   const J = JSON.parse(fs.readFileSync(path.join(ROOT, 'tools', 'fixtures', 'island_jolene.json'), 'utf8')), JR = PG.normalise(J.layers ? J : (J.rec || J.premises));
-  const splitA = JR.layers.areas.filter(a => a.props && a.props.wheels && a.props.draw && a.props.draw.look && !PG.lookFeelsAs(a.props.draw.look, +a.props.wheels.surface)).map(a => a.id);
-  const splitR = JR.layers.roads.filter(r => r.look && !PG.lookFeelsAs(r.look, PG.roadFeel(r))).map(r => r.id);
-  check(splitA.length >= 1 && /an old file\\'s: drawn ' \+ L\.name \+ ', the wheels feel ' \+ nm/.test(UIs) && /an old file\\'s: drawn ' \+ \(PG\.RUNWAY_LOOKS\[e\.look\]/.test(UIs),
-        '34 Jolene\'s old splits kept and named (areas ' + splitA.join(' ') + '; roads ' + splitR.join(' ') + ')');
+  const splits = R0 => R0.layers.areas.filter(a => a.props && a.props.wheels && a.props.draw && a.props.draw.look && !PG.lookFeelsAs(a.props.draw.look, +a.props.wheels.surface)).map(a => a.id)
+    .concat(R0.layers.roads.filter(r => r.look && !PG.lookFeelsAs(r.look, PG.roadFeel(r))).map(r => r.id))
+    .concat(R0.layers.runways.filter(r => r.look && +r.surface !== PG.SURFACE.WATER && !PG.lookFeelsAs(r.look, r.surface === undefined ? PG.SURFACE.GRASS : +r.surface)).map(r => r.id));
+  const rawSplits = J.layers.areas.filter(a => a.props && a.props.wheels && a.props.draw && a.props.draw.look && !PG.lookFeelsAs(a.props.draw.look, +a.props.wheels.surface)).length;
+  check(splits(JR).length === 0 && rawSplits === 0, '34 the shipped Jolene: no look-and-feel split, as shipped and as loaded', splits(JR).join(' '));
+  const old = PG.normalise({ layers: {
+    areas: [{ id: 'oa', poly: [[0, 0], [20, 0], [20, 20]], props: { wheels: { surface: PG.SURFACE.PAVED, apron: true }, draw: { look: 'grass', z: 0 } } },
+            { id: 'ob', poly: [[0, 0], [20, 0], [20, 20]], props: { wheels: { surface: PG.SURFACE.GRAVEL } } },
+            { id: 'oc', poly: [[0, 0], [20, 0], [20, 20]], props: { wheels: { surface: PG.SURFACE.PAVED }, draw: { set: 'cracked' } } }],
+    roads: [{ id: 'ra', pts: [[0, 0], [50, 0]], w: 4, cls: 'track', look: 'dirt' }, { id: 'rb', pts: [[0, 9], [50, 9]], w: 4, cls: 'gravel', look: 'concrete' }, { id: 'rc', pts: [[0, 19], [50, 19]], w: 4, cls: 'gravel', look: 'sand' }],
+    runways: [Object.assign(JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { id: 'wa', c: [0, 300], len: 400, wid: 20, look: 'concrete', surface: PG.SURFACE.GRASS }),
+              Object.assign(JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { id: 'wb', c: [0, 600], len: 400, wid: 20, look: 'none', surface: PG.SURFACE.GRAVEL })] } });
+  const ar = id => old.layers.areas.find(a => a.id === id).props.wheels, rd = id => old.layers.roads.find(r => r.id === id), rw = id => old.layers.runways.find(r => r.id === id);
+  check(+ar('oa').surface === PG.SURFACE.GRASS && ar('oa').apron === true && +ar('ob').surface === PG.SURFACE.GRAVEL && +ar('oc').surface === PG.SURFACE.PAVED &&
+        rd('ra').cls === 'track' && +rd('ra').surface === PG.SURFACE.GRAVEL && rd('rb').cls === 'gravel' && +rd('rb').surface === PG.SURFACE.PAVED && +rd('rc').surface === PG.SURFACE.SAND && rd('rc').cls === 'gravel' &&
+        +rw('wa').surface === PG.SURFACE.PAVED && +rw('wb').surface === PG.SURFACE.GRAVEL && splits(old).length === 0,
+        '34 an old file\'s splits load as their looks feel (area, track drawn dirt, gravel drawn concrete, a strip) - a road keeps its class (a track stays a dashed path); no feel of its own, a texture, wheels alone: kept');
+  check(JSON.stringify(PG.normalise(JSON.parse(JSON.stringify(old)))) === JSON.stringify(old), '34 ...and a converted record converts to itself (the store round-trips)');
+  // the feel follows the look, no new trees grow in: an area that felt hard keeps trees and plots out (its exclude); one that
+  // felt soft gains nothing; the shipped a11 (paved, drawn grass) keeps them out too, composed
+  const oaP = old.layers.areas.find(a => a.id === 'oa').props;
+  check(oaP.exclude && JSON.stringify(oaP.exclude.what) === '["trees","plots"]' && !old.layers.areas.find(a => a.id === 'ob').props.exclude, '34 a hard area converted soft keeps trees and plots out (its exclude)', JSON.stringify(oaP.exclude));
+  const a11 = JR.layers.areas.find(a => a.id === 'a11'), OJ = PG.compose(PG.expandAreas(JR), synth), pc = PG.polyCentroid ? PG.polyCentroid(a11.poly) : a11.poly.reduce((s, q) => [s[0] + q[0] / a11.poly.length, s[1] + q[1] / a11.poly.length], [0, 0]), wc = OJ.frame.toWorld(pc[0], pc[1]);
+  check(+a11.props.wheels.surface === PG.SURFACE.GRASS && OJ.excludeAt(wc[0], wc[1], 'trees') && OJ.excludeAt(wc[0], wc[1], 'plots'), '34 Jolene\'s a11: drawn grass, felt grass - and no tree or plot inside, as when it was paved');
+  check(!/an old file\\'s: drawn/.test(UIs), '34 the inspector names no split any more (none survives a load)');
 }
 // 35 THE CABIN STRIP (G3097 / G3098; the user, 18 Oct: "we need to place the little hangar atop the flat bit of the new strip ...
 //    our second owned hangar ... a storage zone too ... the circuit should ensure to pass the tight zone before manoeuvring"):
@@ -1229,6 +1253,50 @@ if (plots.length) {
   check(!iss.length, '35 no issue names w1', iss.join(' / '));
 }
 
+// 36 WATER-LANE-ED (the user, 18 Oct: their OWN water runways): 'water' is one of the strip's surface pills - a floats lane
+//    (SURFACE.WATER, look 'none', no lights, no profile, no shoulder), composed on the water's level as SEA's; its land rows
+//    (altiport, profile, shoulder, lights) not shown; back to grass, the strip's lights back. SEA / mk_sea compose as before
+{
+  const pills = new Map(), labels = [];
+  const rows35 = Object.assign({}, rows, { pills: (h, label, opts, get, set) => { pills.set(label, { opts, get, set }); labels.push(label); }, check: (h, label) => { labels.push(label); },
+    slider: (h, label) => { labels.push(label); } });
+  const ed35 = UI.mount(new El('div'), { THREE: null, world: synth, R: makeR(), rows: rows35, els: { chk: null, plaque: null, strip: new El('div') }, viewEl: new El('div'), storage: null, fresh: true, camera: () => null, redraw: noop });
+  const rid = ed35.cmd('add', { layer: 'runways', entry: Object.assign(JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { name: 'my lane', c: [9000, 9000], hdg: 0, len: 900, wid: 120 }) });
+  const R35 = () => PG.findById(ed35.record(), rid).entry, re = () => { pills.clear(); labels.length = 0; ed35.select(null); ed35.select(rid); };
+  re();
+  const sp = pills.get('surface');
+  check(sp && sp.opts.some(o => o[0] === 'water') && sp.get() === 'grass' && labels.indexOf('altiport: land uphill (warns past 20 %)') >= 0, '36 a new strip is grass, and water is one of its surface pills');
+  sp.set('water'); re();
+  const w = R35();
+  check(+w.surface === PG.SURFACE.WATER && w.look === 'none' && JSON.stringify(w.papi) === '[false,false]' && w.profile === null && !w.altiport && pills.get('surface').get() === 'water', '36 water: a floats lane (surface 4, look none, no lights, no profile)', JSON.stringify({ s: w.surface, look: w.look, papi: w.papi }));
+  check(labels.indexOf('altiport: land uphill (warns past 20 %)') < 0 && labels.indexOf('terraformed to (m)') < 0 && !labels.some(l => /^lights at end/.test(l)), '36 ...its land rows not shown (altiport, shoulder, lights)', labels.join(' | '));
+  const O35 = PG.compose(ed35.record(), synth), A35 = O35.aerodromes.find(q => q.id === rid);
+  check(A35 && A35.kind === 'water' && PG.issues(ed35.record()).filter(t => t.indexOf(rid) >= 0).length === 0, '36 it composes as a water aerodrome (as SEA), no issue', A35 && A35.kind);
+  pills.get('surface').set('grass'); re();
+  check(+R35().surface === PG.SURFACE.GRASS && R35().look === 'grass' && JSON.stringify(R35().papi) === '[true,true]' && labels.some(l => /^lights at end/.test(l)), '36 back to grass: a land strip, its lights back');
+  ed35.close();
+  const J = PG.expandAreas(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec), OJ = PG.compose(J, synth);
+  check(['SEA', 'mk_sea'].every(id => { const a = OJ.aerodromes.find(q => q.id === id); return a && a.kind === 'water'; }), '36 SEA and mk_sea compose as water aerodromes, as before');
+}
+// 37 DROP-JSON (the user, 18 Oct; the scenery side - UX-A has the garage's): a .json dropped anywhere onto the scenery editor
+//    imports - a scenery envelope / bare record loads (the paste's path), a world look goes to the world rail's importLook,
+//    anything else is refused and said; 'drop to import' while dragging; capture phase, stopped (the garage's drop never sees it)
+{
+  const st = new El('div'), st36 = { s: '' };
+  const ed36 = UI.mount(new El('div'), { THREE: null, world: synth, R: makeR(), rows, els: { chk: null, plaque: null, strip: st }, viewEl: new El('div'), storage: null, fresh: true, camera: () => null, redraw: noop });
+  const recIn = PG.normalise({ name: 'dropped', layers: { runways: [Object.assign(JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { id: 'dz', name: 'dropped strip', c: [100, 100], hdg: 0, len: 400, wid: 20 })] } });
+  check(ed36.cmd('importText', { text: PG.envelope('dropped', recIn), name: 'dropped.json' }) === true && !!PG.findById(ed36.record(), 'dz'), '37 a dropped scenery envelope loads (its strip there)');
+  check(ed36.cmd('importText', { text: JSON.stringify(recIn), name: 'bare.json' }) === true && !!PG.findById(ed36.record(), 'dz'), '37 ...and a bare record');
+  let got = null; win.WORLD_RAIL = { importLook: o => { got = o; } };
+  check(ed36.cmd('importText', { text: JSON.stringify({ flydiy_world_look: 1, world: 'jolene', changes: {} }), name: 'look.json' }) === true && got && got.flydiy_world_look === 1, '37 a dropped world look goes to the world rail\'s importLook');
+  delete win.WORLD_RAIL;
+  const before = JSON.stringify(ed36.record());
+  check(ed36.cmd('importText', { text: 'not json {', name: 'x.json' }) === false && JSON.stringify(ed36.record()) === before, '37 a file that is not JSON is refused, the record untouched');
+  ed36.close();
+  const UIs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'premises_ui.js'), 'utf8'), WRs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'world_rail.js'), 'utf8');
+  check(['dragenter', 'dragover', 'dragleave', 'drop'].every(k => new RegExp("addEventListener\\('" + k + "', ev => \\{ ?\\n? *if \\(!active \\|\\| !fileDrag\\(ev\\)\\) return;").test(UIs)) && (UIs.match(/stopImmediatePropagation\(\)/g) || []).length >= 4 && /\}, true\);/.test(UIs) &&
+        /dropEl\.innerHTML = '<b>drop to import<\/b>/.test(UIs) && /importLook: o => \{ applyLook\(o, true\); saveLook\(\); \}/.test(WRs), '37 the page: capture-phase drag listeners while the editor is open (stopped there), the overlay, the world rail\'s importLook');
+}
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');

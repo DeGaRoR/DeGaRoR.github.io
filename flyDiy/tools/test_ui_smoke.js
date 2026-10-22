@@ -79,8 +79,13 @@ if (html.indexOf('id="boot"') < 0 || html.indexOf('id="boot"') > html.indexOf('<
     const b = run(q, host, n);
     if (b.FLYDIY_MODE !== want || b.FLYDIY_WELCOME) throw new Error('the welcome: ' + q + ' on ' + host + ' -> FLYDIY_MODE ' + b.FLYDIY_MODE + ', expected ' + want + ' with no screen');
     if (b.WELCOME.READY.career !== true) throw new Error("the welcome: the career is not READY (G2740 CAREER-ON: New career / Continue are live)");
+    // G3360 (CAREERS): the career a load plays is FLYDIY_CAREER_ID - ?mode=career chooses one (the last played; none saved
+    // here, so a new 'c' id); ?career=1 (the dev career) and the sandbox choose none
+    const cid = b.FLYDIY_CAREER_ID, dev = /career=1(&|$)/.test(q);
+    if (want === 'career' && !dev ? !/^c[0-9a-z]{1,16}$/.test(cid || '') : cid !== undefined)
+      throw new Error('the welcome: ' + q + ' on ' + host + ' -> FLYDIY_CAREER_ID ' + cid + (want === 'career' && !dev ? ', expected a new career id' : ', expected none'));
   }
-  console.log("the career flag: ?career=1 and ?mode=career -> FLYDIY_MODE 'career' (no screen); ?career=10 / ?career=0 -> the sandbox; the career READY (G2740)");
+  console.log("the career flag: ?career=1 and ?mode=career -> FLYDIY_MODE 'career' (no screen); ?career=10 / ?career=0 -> the sandbox; the career READY (G2740); ?mode=career chooses a career (FLYDIY_CAREER_ID), ?career=1 none (G3360)");
 }
 // G2320 (CAREER-WIRE): NO CAREER CODE RUNS WITHOUT THE FLAG - in app.js, every call into the career's page half outside that
 // half is guarded by CAREER_DEV (the half itself defines functions and the window.FLYDIY_CAREER door, under the flag)
@@ -92,12 +97,17 @@ if (html.indexOf('id="boot"') < 0 || html.indexOf('id="boot"') > html.indexOf('<
   const loose = outside.filter(l => !/CAREER_DEV/.test(l));
   if (loose.length) throw new Error('app.js calls the career outside the CAREER_DEV guard: ' + loose.map(l => l.trim().slice(0, 90)).join(' | '));
   // G2740 (CAREER-ON): the career is ?career=1 (the dev career, flydiy.career.dev) OR the welcome's choice (FLYDIY_MODE
-  // 'career': the player's career, flydiy.career.main); the sandbox keeps flydiy.player
+  // 'career': the player's career); the sandbox keeps flydiy.player. G3360 (CAREERS): the player's career is the one the
+  // welcome chose (FLYDIY_CAREER_ID: 'main' or a 'c' id, each flydiy.career.<id>; 'main' without one), ?career=1 'dev'
   if (!/const CAREER_DEVFLAG = \(\(\) => \{ try \{ return \/\[\?&\]career=1\(&\|\$\)\/\.test\(window\.location\.search/.test(app)) throw new Error('app.js: the dev flag is not ?career=1 alone');
   if (!/const CAREER_DEV = \(CAREER_DEVFLAG \|\| \(typeof window !== 'undefined' && window\.FLYDIY_MODE === 'career'\)\)/.test(app)) throw new Error("app.js: CAREER_DEV is not the dev flag or the welcome's career");
-  if (!/const CAREER_ID = CAREER_DEVFLAG \? 'dev' : 'main';/.test(app) || !/const PLAYER_KEY = CAREER_DEV \? careerKey\(CAREER_ID\) : 'flydiy\.player';/.test(app)) throw new Error("app.js: the career's key is not flydiy.career.dev / .main, or the sandbox's not flydiy.player");
+  if (!/const CAREER_PICK = \(\(\) => \{ try \{ const v = window\.FLYDIY_CAREER_ID; return typeof v === 'string' && \/\^\(main\|c\[0-9a-z\]\{1,16\}\)\$\/\.test\(v\) \? v : 'main'; \} catch \(e\) \{ return 'main'; \} \}\)\(\);/.test(app) ||
+      !/const CAREER_ID = CAREER_DEVFLAG \? 'dev' : CAREER_PICK;/.test(app) || !/const PLAYER_KEY = CAREER_DEV \? careerKey\(CAREER_ID\) : 'flydiy\.player';/.test(app))
+    throw new Error("app.js: the career's key is not flydiy.career.dev / the welcome's chosen id (main or a 'c' id, never 'dev'), or the sandbox's not flydiy.player");
+  // the retired G2740 backup: a New career is a new id, nothing in app.js moves a career document aside
+  if (/flydiy\.career\.fresh|PLAYER_KEY \+ '\.prev'/.test(app.replace(/\/\/[^\n]*/g, ''))) throw new Error('app.js: the retired fresh flag / .prev backup is still read');
   if (!/\nif \(CAREER_DEV\) window\.FLYDIY_CAREER = |  if \(CAREER_DEV\) window\.FLYDIY_CAREER = /.test(app)) throw new Error('app.js: window.FLYDIY_CAREER is not behind the flag');
-  console.log('the career flag in app.js: ' + outside.length + ' calls into the career outside its page half, every one behind CAREER_DEV (?career=1 -> flydiy.career.dev; the welcome career -> flydiy.career.main; the sandbox keeps flydiy.player)');
+  console.log('the career flag in app.js: ' + outside.length + ' calls into the career outside its page half, every one behind CAREER_DEV (?career=1 -> flydiy.career.dev; the welcome career -> flydiy.career.<FLYDIY_CAREER_ID>; the sandbox keeps flydiy.player)');
 }
 // G2260 (ECONOMY): THE WALLET ONLY IN A CAREER - in app.js every call into the economy outside its page half is guarded by
 // CAREER_DEV (the half defines the functions and window.FLYDIY_ECON, under the flag); garage.js's save asks the page
@@ -115,7 +125,8 @@ if (html.indexOf('id="boot"') < 0 || html.indexOf('id="boot"') > html.indexOf('<
   console.log('the wallet in app.js: ' + outside.length + ' calls into the economy outside its page half, every one behind CAREER_DEV; the save asks first (the sandbox: never)');
 }
 // G2742 (STORY-PAGE): THE STORY ONLY IN THE PLAYER'S CAREER - in app.js every call into the story (79_story.js) outside its
-// page half is behind CAREER_DEV; the half itself is STORY_PAGE = CAREER_DEV && CAREER_ID 'main' (the dev career ?career=1
+// page half is behind CAREER_DEV; the half itself is STORY_PAGE = CAREER_DEV && CAREER_ID not 'dev' (G3360: every player
+// career, each its own story; the dev career ?career=1
 // keeps none: every gate's fixture career stays rail-free), its doors (window.FLYDIY_STORY, the bench's hook) behind it
 {
   const app = pick('function setAircraft', 'app');
@@ -124,7 +135,7 @@ if (html.indexOf('id="boot"') < 0 || html.indexOf('id="boot"') > html.indexOf('<
   const outside = (app.slice(0, i0) + app.slice(i1)).split('\n').filter(l => /\bstory[A-Z]\w*\(/.test(l.replace(/\/\/.*$/, '')));
   const loose = outside.filter(l => !/CAREER_DEV/.test(l));
   if (loose.length) throw new Error('app.js calls the story outside the CAREER_DEV guard: ' + loose.map(l => l.trim().slice(0, 90)).join(' | '));
-  if (!/const STORY_PAGE = CAREER_DEV && CAREER_ID === 'main' && typeof storyNewCareer === 'function';/.test(app)) throw new Error("app.js: the story is not the player's career's alone (STORY_PAGE)");
+  if (!/const STORY_PAGE = CAREER_DEV && CAREER_ID !== 'dev' && typeof storyNewCareer === 'function';/.test(app)) throw new Error("app.js: the story is not the player's careers' alone (STORY_PAGE: never the dev career)");
   const half = app.slice(i0, i1);
   if (!/  if \(STORY_PAGE\) window\.BENCH_CERTIFIED = storyCertified;/.test(half) || !/  if \(STORY_PAGE\) \{\n/.test(half)) throw new Error("app.js: the story's doors are not behind STORY_PAGE");
   console.log('the story in app.js: ' + outside.length + ' calls into the story outside its page half, every one behind CAREER_DEV; the half behind STORY_PAGE (the player\'s career; ?career=1 keeps none)');
@@ -725,12 +736,12 @@ try {
     frames(30);
     // G2480 (HAND-CONTROLS): the LEFT toe brake reaches sim.ctl as the solver's differential brake (brakeD > 0: the
     // +z main, the left), and handing back takes it off the aeroplane
-    P.input().press('BracketLeft', true);
+    P.input().press('Semicolon', true);
     frames(30);
     if (!(P.sim().ctl.brakeD > 0.3))
       throw new Error('a held [ (the left toe brake) did not reach sim.ctl.brakeD under manual (' + P.sim().ctl.brakeD + ')');
     P.setManual(false);
-    P.input().press('BracketLeft', false);
+    P.input().press('Semicolon', false);
     if (P.sim().ctl.brakeD !== 0 || P.sim().ctl.wr !== null)
       throw new Error('setManual(false) left the hand\'s brakeD / wr on the aeroplane (' + P.sim().ctl.brakeD + ', ' + P.sim().ctl.wr + ')');
     frames(60);
@@ -1207,6 +1218,22 @@ try {
     if (P.sim().wheelsOnGround() < 2) throw new Error('the skip left the aeroplane off its wheels');
     if (!b.disabled) throw new Error('#bSkip still offered at the hold');
     console.log('skip to line-up: ' + Math.hypot(cg[0] - c0[0], cg[2] - c0[2]).toFixed(0) + ' m from the taxi to the hold, pilot in ' + ph + ', the button stands down');
+    // G3325 (AP-TOGGLE): the permanent toggle - in sight in flight, the autopilot by default, handed over and back through
+    // the published state (the story's cards read it), the button's words following
+    {
+      const AP = sandbox.window.FLYDIY_AP, bAP = els['bAP'];
+      if (!AP) throw new Error('FLYDIY_AP is not published (G3325)');
+      if (!bAP) throw new Error('#bAP, the autopilot toggle, is missing (G3325)');
+      if (!AP.autopilot()) throw new Error('the flight did not start on the autopilot (G3120 / G3325)');
+      if (bAP.hidden) throw new Error('#bAP is hidden in flight (G3325: always in sight)');
+      AP.set(false);
+      if (!AP.manual()) throw new Error('FLYDIY_AP.set(false) did not hand the aeroplane over');
+      if (!/^Manual/.test(bAP.textContent)) throw new Error('#bAP says ' + JSON.stringify(bAP.textContent) + ' by hand');
+      AP.set(true);
+      if (!AP.autopilot()) throw new Error('FLYDIY_AP.set(true) did not give the aeroplane back');
+      if (!/^Autopilot: ON/.test(bAP.textContent)) throw new Error('#bAP says ' + JSON.stringify(bAP.textContent) + ' on the autopilot');
+      console.log('the autopilot toggle (G3325): in sight, on by default, handed over and back');
+    }
   }
 
   // ---- THE RAILS (G760, the Jolene playtest §3): five items, folds, DEV behind a toggle, nothing lost --------
@@ -1233,9 +1260,8 @@ try {
     const WANT = {
       fly: ['from', 'to', 'taxi out', 'draw on the map',   // G3070: FLY > drawn route, through route_lazy.js's door
             'taxi graph', 'glide slopes', 'engine', 'lever', 'thrust', 'sync levers', 'the pilot', 'map the controls…',
-            // G2085 (PILOT-PERSONA): the personality row, every person, and the custom person's knobs (the census opens the fold)
-            'personality', 'Expert', 'Club', 'Student', 'Bush', 'Ham-fist', 'Custom', 'custom pilot', 'start from', 'reaction', 'hands', 'grip',
-            'unsteadiness', 'over-rotation', 'flare height', 'decisions', 'bank', 'comfort g', 'field technique', 'slips', 'step hold'],   // G2460: + decisions
+            // G3324: the personality row moved to DEV (PERSONA_ROWS below - the player's autopilot is the expert)
+            ],
       view: ['field of view', 'level horizon', 'lead the turn', 'free', 'small', 'show', 'large', 'north up', 'the three', 'frame rate', 'fps meter', 'screenshot'],
       sky: ['outside air', 'density altitude', 'wind', 'gusts', 'time of day', 'world'],
       graphics: ['preset'].concat(G.OPTIONS.map(o => o.label)),
@@ -1245,6 +1271,10 @@ try {
     // the covering's pills show while #bSkin does (applySkinVis hides it with no model on the stand - this stub's case)
     const skinShown = els['bSkin'] && els['bSkin'].style.display !== 'none';
     if (skinShown) WANT.dev.push('the covering', 'covered', 'frame', 'overlay');
+    // G2085 (PILOT-PERSONA) -> G3324 (the user, 19 Oct: the player's autopilot is ALWAYS the expert, the persona DEV's): the
+    // personality row, every person, and the custom person's knobs (the census opens the fold) - reached with DEV on only
+    const PERSONA_ROWS = ['personality', 'Expert', 'Club', 'Student', 'Bush', 'Ham-fist', 'Custom', 'custom pilot', 'start from', 'reaction', 'hands', 'grip',
+                          'unsteadiness', 'over-rotation', 'flare height', 'decisions', 'bank', 'comfort g', 'field technique', 'slips', 'step hold'];   // G2460 (t66): + decisions
     const reached = { rows: [], pills: [] };
     for (const it of items) {
       const c = R.census(it.k);
@@ -1257,6 +1287,21 @@ try {
       reached.rows.push(...c.rows); reached.pills.push(...c.pills);
       console.log('rail ' + it.k + (it.dev ? ' (behind the dev toggle)' : '') + ': ' + c.sections.join(' / ') + ' - ' + c.rows.length + ' rows, ' + c.pills.length + ' pills' +
                   (it.k === 'dev' && !skinShown ? ' (the covering hidden with #bSkin: no model on the stand here)' : ''));
+    }
+    // G3324: with DEV off the player's FLY has no personality row and the autopilot handed is the expert; with DEV on the
+    // whole person is there (every person and the custom person's knobs)
+    {
+      const c0 = R.census('fly'), h0 = new Set(c0.rows.concat(c0.pills));
+      if (h0.has('personality')) throw new Error('the personality row is in the player FLY with DEV off (G3324: the player flies the expert)');
+      const P = sandbox.window.FLYDIY_PERSONA;
+      if (P && P.get().profile !== 'expert') throw new Error('DEV off: the autopilot handed is ' + JSON.stringify(P.get().profile) + ', not the expert (G3324)');
+      R.dev(true);
+      const c1 = R.census('fly'), h1 = new Set(c1.rows.concat(c1.pills));
+      R.dev(false);
+      const miss = PERSONA_ROWS.filter(x => !h1.has(x));
+      if (miss.length) throw new Error('DEV on: FLY does not reach the persona: ' + miss.join(', '));
+      reached.rows.push(...c1.rows); reached.pills.push(...c1.pills);
+      console.log('the persona (G3324): DEV off - none, the expert flies; DEV on - ' + PERSONA_ROWS.length + ' rows and pills');
     }
     if (R.current() !== null) throw new Error('the census left a flyout open (' + R.current() + ')');
     // G3070 (ROUTE-LAZY): FLY > drawn route unfolded (the census opens every fold) is the drawing's first demand: its file

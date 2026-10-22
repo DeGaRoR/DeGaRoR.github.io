@@ -57,7 +57,7 @@ ck('the solver\'s sign convention is carried by the yaw scale (dr>0 is nose LEFT
   ck('no default key is Space, Enter or Escape (they belong to the buttons and flyouts)',
      !codes.some(c => c === 'Space' || c === 'Enter' || c === 'Escape'));
   ck('defaults bind by KeyboardEvent.code (layout-independent), not by .key',
-     codes.every(c => /^(Key[A-Z]|Digit\d|Numpad\w+|Arrow\w+|Page\w+|Home|End|Period|Comma|Bracket(Left|Right)|F\d+)$/.test(c)));   // (G2480: [ ] the toe brakes)
+     codes.every(c => /^(Key[A-Z]|Digit\d|Numpad\w+|Arrow\w+|Page\w+|Home|End|Period|Comma|Semicolon|Quote|F\d+)$/.test(c)));   // (G2480: ; ' the toe brakes - the brackets are the radio's station keys)
 }
 ck('the pref key', API.PREF === 'flydiy.input');
 ck('head axes exist for the tracker that is not wired yet (six, pass-through)',
@@ -299,14 +299,14 @@ const out = I => { const c = { eng: null }; I.write(c); return c; };
 const mainsOf = c => ({ L: Math.max(0, Math.min(1, c.brake + (c.brakeD || 0))), R: Math.max(0, Math.min(1, c.brake - (c.brakeD || 0))) });
 {
   const I = fresh();
-  I.press('BracketLeft', true); run(I, 30);
+  I.press('Semicolon', true); run(I, 30);
   let c = out(I), m = mainsOf(c);
-  ck('G2480: [ held → the LEFT main alone (L 1, R 0: brake 0.5, brakeD +0.5)', near(m.L, 1, 1e-9) && near(m.R, 0, 1e-9) && near(c.brakeD, 0.5, 1e-9));
-  I.press('BracketLeft', false); run(I, 30);
-  I.press('BracketRight', true); run(I, 30);
+  ck('G2480: ; held → the LEFT main alone (L 1, R 0: brake 0.5, brakeD +0.5)', near(m.L, 1, 1e-9) && near(m.R, 0, 1e-9) && near(c.brakeD, 0.5, 1e-9));
+  I.press('Semicolon', false); run(I, 30);
+  I.press('Quote', true); run(I, 30);
   c = out(I); m = mainsOf(c);
-  ck('G2480: ] held → the RIGHT main alone (brakeD −0.5)', near(m.R, 1, 1e-9) && near(m.L, 0, 1e-9) && near(c.brakeD, -0.5, 1e-9));
-  I.press('BracketRight', false); run(I, 30);
+  ck('G2480: Quote held → the RIGHT main alone (brakeD −0.5)', near(m.R, 1, 1e-9) && near(m.L, 0, 1e-9) && near(c.brakeD, -0.5, 1e-9));
+  I.press('Quote', false); run(I, 30);
   ck('G2480: released → no brake, no split', out(I).brake === 0 && out(I).brakeD === 0);
   I.press('KeyB', true); run(I, 12);
   c = out(I);
@@ -407,10 +407,10 @@ const mainsOf = c => ({ L: Math.max(0, Math.min(1, c.brake + (c.brakeD || 0))), 
   const store = { v: JSON.stringify(old), getItem() { return this.v; }, setItem(k, v) { this.v = v; } };
   const I = API.make({ store });
   ck('G2480: an old profile loads: its own bindings kept', I.bound('pitch')[0].pos === 'KeyW');
-  ck('...and the actions it never heard of take their defaults', I.bound('brakeL')[0].code === 'BracketLeft' && I.bound('trimRudR')[0].code === 'NumpadEnter' && I.opt('brakeSteer') === false);
-  const old2 = JSON.parse(JSON.stringify(old)); old2.bindings.viewNext = [{ dev: 'keyboard', type: 'key', code: 'BracketLeft' }];
+  ck('...and the actions it never heard of take their defaults', I.bound('brakeL')[0].code === 'Semicolon' && I.bound('trimRudR')[0].code === 'NumpadEnter' && I.opt('brakeSteer') === false);
+  const old2 = JSON.parse(JSON.stringify(old)); old2.bindings.viewNext = [{ dev: 'keyboard', type: 'key', code: 'Semicolon' }];
   const n = API.normalise(old2);
-  ck('...but a default key the old profile gives another action is left off (nothing fires twice)', n.bindings.brakeL.length === 0 && n.bindings.brakeR[0].code === 'BracketRight');
+  ck('...but a default key the old profile gives another action is left off (nothing fires twice)', n.bindings.brakeL.length === 0 && n.bindings.brakeR[0].code === 'Quote');
   const un = API.normalise(Object.assign({}, API.DEFAULTS, { bindings: Object.assign({}, API.DEFAULTS.bindings, { brakeL: [] }) }));
   ck('...and an action the player UNBOUND stays unbound', un.bindings.brakeL.length === 0);
 }
@@ -441,7 +441,7 @@ try {
     return { zLeft, nose: -dot([x2[0], x2[1], x2[2]], left), brakeD: bD, thr: sim.ctl.thr };
   };
   let n0, nL, nR;
-  try { n0 = roll(null); nL = roll('BracketLeft'); nR = roll('BracketRight'); } finally { C.PAR.propFx = fx0; }
+  try { n0 = roll(null); nL = roll('Semicolon'); nR = roll('Quote'); } finally { C.PAR.propFx = fx0; }
   sideM = { zLeft: n0.zLeft, none: n0.nose, L: nL.nose, R: nR.nose, bL: nL.brakeD, bR: nR.brakeD };
   console.log(`  G2480 side: the +z main sits ${n0.zLeft.toFixed(2)} m to the LEFT; 5 s at thr ${n0.thr.toFixed(2)} (propeller moments off), the nose toward the left: ` +
               `no brake ${n0.nose.toFixed(3)}, [ (brakeD ${nL.brakeD.toFixed(2)}) ${nL.nose.toFixed(3)}, ] (brakeD ${nR.brakeD.toFixed(2)}) ${nR.nose.toFixed(3)}`);

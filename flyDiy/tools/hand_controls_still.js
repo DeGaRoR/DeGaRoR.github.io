@@ -66,10 +66,10 @@ const tree = (() => { try { return require('child_process').execSync('git rev-pa
         L: +Math.min(1, Math.max(0, c.brake + c.brakeD)).toFixed(3), R: +Math.min(1, Math.max(0, c.brake - c.brakeD)).toFixed(3) }; };
       I.seed({});
       const out = {};
-      const ev = new KeyboardEvent('keydown', { code: 'BracketLeft', bubbles: true, cancelable: true });
+      const ev = new KeyboardEvent('keydown', { code: 'Semicolon', bubbles: true, cancelable: true });
       window.dispatchEvent(ev); out.defaultPrevented = ev.defaultPrevented;      // a bound key: the page does not also scroll / type
-      step(40); out.leftToe = read(); key('keyup', 'BracketLeft'); step(40);
-      key('keydown', 'BracketRight'); step(40); out.rightToe = read(); key('keyup', 'BracketRight'); step(40);
+      step(40); out.leftToe = read(); key('keyup', 'Semicolon'); step(40);
+      key('keydown', 'Quote'); step(40); out.rightToe = read(); key('keyup', 'Quote'); step(40);
       out.released = read();
       I.setOpt('brakeSteer', true);
       key('keydown', 'KeyB'); key('keydown', 'Period'); step(60); out.brakeSteerRightPedal = read();
@@ -81,8 +81,8 @@ const tree = (() => { try { return require('child_process').execSync('git rev-pa
       key('keydown', 'KeyV'); step(2); key('keyup', 'KeyV'); step(2); out.waterRudderThrice = read().wr;
       // ...and a key typed in a text field is NOT the aeroplane's (the guard)
       const ta = document.createElement('textarea'); document.body.appendChild(ta);
-      ta.dispatchEvent(new KeyboardEvent('keydown', { code: 'BracketLeft', bubbles: true, cancelable: true })); step(40);
-      out.inTextField = read(); ta.dispatchEvent(new KeyboardEvent('keyup', { code: 'BracketLeft', bubbles: true })); ta.remove(); step(20);
+      ta.dispatchEvent(new KeyboardEvent('keydown', { code: 'Semicolon', bubbles: true, cancelable: true })); step(40);
+      out.inTextField = read(); ta.dispatchEvent(new KeyboardEvent('keyup', { code: 'Semicolon', bubbles: true })); ta.remove(); step(20);
       return out;
     });
     log('keys', JSON.stringify(R.keys));
@@ -91,7 +91,7 @@ const tree = (() => { try { return require('child_process').execSync('git rev-pa
       const I = window.FLYDIY_INPUT;
       I.setOpt('brakeSteer', true);
       window.INPUT_PANEL.open(I, { who: () => 'in the shed' });
-      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'BracketLeft', bubbles: true }));
+      window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Semicolon', bubbles: true }));
       I.setTrims({ r: 0.14, a: 0.02 });
     });
     const shot = async (name, group) => {

@@ -755,7 +755,7 @@ for (const fx of fixtures) {
   rw.layers.runways[0].look = 'asphalt';
   check(!PG.issues(rw).some(t => /look/.test(t)), '16 a known look is not');
   const O = PG.compose(rw, synth);
-  check(O.aerodromes.length === 1 && O.aerodromes[0].look === 'asphalt' && O.aerodromes[0].surface === PG.SURFACE.GRASS, '16 the aerodrome record carries the look; the class stays the record\'s own');
+  check(O.aerodromes.length === 1 && O.aerodromes[0].look === 'asphalt' && O.aerodromes[0].surface === PG.SURFACE.PAVED, '16 the aerodrome record carries the look, and feels as it (FEEL FOLLOWS THE LOOK, the user 19 Oct: the class is the look\'s)');
 }
 
 // 17 THE STAGES (v1.33, G2300 STAGES): an entry, a site's item or a zone may carry `stage: { track, show, vary }` and
@@ -1504,7 +1504,7 @@ if (SELFTEST) {
               { id: 'a3', round: { c: [300, 0], r: 15 }, props: { draw: { look: 'concrete', z: 0 } } }] } });
     const O = PG.compose(r, synth), at = (x, z) => { const w = O.frame.toWorld(x, z); return O.surfaceAt(w[0], w[1]); };
     check(at(0, 0) === PG.SURFACE.PAVED && at(40, 0) === PG.SURFACE.GRAVEL, '20e a new area composes after the v1 entries (paved over the gravel at the same priority)');
-    check(at(200, 0) === PG.SURFACE.GRAVEL && at(300, 0) === PG.SURFACE.PAVED, '20e a round draw\'s wheels are its look\'s unless the area says its own');
+    check(at(200, 0) === PG.SURFACE.PAVED && at(300, 0) === PG.SURFACE.PAVED, '20e a round draw\'s wheels are its look\'s - an area\'s own other feel converts to it (FEEL FOLLOWS THE LOOK, the user 19 Oct)');
     check(O.rec.layers.surface.map(e => e.id).join() === 'y1,a1~w,a2~w' && O.rec.layers.material.map(e => e.id).join() === 'a2~d,a3~d' && O.rec.layers.material[1].round && !O.rec.layers.material[0].round, '20e the v1 entries an area expands into: ids <area>~w / ~d, the round kept only where it says the wheels', O.rec.layers.material.map(e => e.id + (e.round ? '(r)' : '')).join());
   }
   // 20f the shapes and the ids
@@ -1667,6 +1667,26 @@ if (SELFTEST) {
     check(hp === '5a61e780db99fc4b', '21d the junctions sow the same ' + JSON.parse(kp).length + ' plots as the town had without them (re-taken for rev 28: train 53, 13 Oct)', hp);
     check(!PG.issues(J).some(t => /junction|roadside/.test(t)), '21d no junction issue', PG.issues(J).filter(t => /junction|roadside/.test(t)).slice(0, 3).join('; '));
   }
+}
+
+// 22 HLOD-MEANS (A0 22 Oct; HWCOV): THE FAR TOWN'S MEAN COLOURS ARE READ, NEVER MEASURED IN A FRAME. render_premises meanOf drew
+// each map onto a 4 x 4 canvas and read it back on first touch (217-287 ms in a boot settle slice and the reveal's first world
+// frame); the shipped maps' means now come with the page (src/viewer/tex_means.js, tools/tex_means.py)
+{
+  const RP = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'render_premises.js'), 'utf8');
+  const i0 = RP.indexOf('  function meanOf(tex) {'), i1 = i0 >= 0 ? RP.indexOf('\n  }\n', i0) : -1, body = i1 > i0 ? RP.slice(i0, i1) : '';
+  check(!!body && !/drawImage|getImageData/.test(body) && /TEX_MEANS/.test(body), '22 meanOf reads TEX_MEANS and draws / reads back no canvas (a map with none is measured off the frame)');
+  let TM = null;
+  try { TM = new Function(fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'tex_means.js'), 'utf8') + '\nreturn TEX_MEANS;')(); } catch (e) {}
+  const want = new Set();
+  for (const f of ['house_tex.js', 'hangar_walls.js', 'sign_tex.js']) {
+    let t = ''; try { t = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', f), 'utf8'); } catch (e) {}
+    for (const m of t.matchAll(/'(media\/tex\/[^']+\.(?:jpg|jpeg|png|webp))'/g)) if (/\/signs\//.test(m[1]) || /_(diff|paint)_/.test(m[1])) want.add(m[1]);
+  }
+  const miss = TM ? [...want].filter(k => !Array.isArray(TM[k])) : [...want];
+  check(!!TM && want.size > 0 && !miss.length, '22 tex_means.js holds a mean for every albedo map the house, wall and sign sets ship (re-run tools/tex_means.py after a texture prep)',
+    TM ? want.size + ' maps; missing ' + miss.length + ': ' + miss.slice(0, 4).join(', ') : 'no tex_means.js');
+  check(/\['src\/viewer', 'tex_means\.js'\]/.test(fs.readFileSync(path.join(TOOLS, 'build.js'), 'utf8')), '22 the world pack loads tex_means.js (tools/build.js)');
 }
 
 // ---------------------------------------------------------------------------

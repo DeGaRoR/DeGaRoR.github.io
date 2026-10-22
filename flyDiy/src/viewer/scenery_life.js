@@ -234,7 +234,7 @@ function make(THREE, host) {
   let KIT = null;                                   // the procedural geometries, built on the first stand
   const stats = { on: false, items: 0, byCat: {}, visible: 0, draws: 0, placeMs: 0, updMs: 0, batches: 0, procVisible: 0 };
   // THE ITEMS: parallel arrays, one entry per placed thing (world matrix, kind, tint, cell)
-  let IT = { n: 0, M: new Float32Array(0), kind: new Uint16Array(0), tint: new Float32Array(0), cat: [], cells: new Map() };
+  let IT = { n: 0, M: new Float32Array(0), kind: new Uint16Array(0), tint: new Float32Array(0), cat: [], cells: new Map(), cellList: [] };
   const KINDS = [];                                 // [{ id, cat, levels, shadowTo }]
   const KIND_BY = new Map();
   let owed = true, owedAt = 0, frame = 0, lastEye = null, lastObst = [];
@@ -834,6 +834,7 @@ function make(THREE, host) {
       const K = KINDS[it.k], far = K.levels[K.levels.length - 1].to; if (far > c.far) c.far = far;
     }
     for (const c of IT.cells.values()) c.list = Int32Array.from(c.list);
+    IT.cellList = Array.from(IT.cells.values());   // (G3416: the draw's walk without the ring)
     LIST = [];
     stats.items = n; stats.byCat = byCat;
     // the bytes of every scan level used, on their way now (a level not landed is simply not drawn yet)
@@ -865,7 +866,7 @@ function make(THREE, host) {
   function procEnsure(P, n) {
     if (P.mesh && n <= P.cap) return;
     if (P.mesh) { root.remove(P.mesh); P.mesh.dispose(); }
-    P.cap = Math.max(64, n * 2);
+    P.cap = Math.max(64, n * 2); P.lastN = 0;   // (a new batch: every slot made hidden)
     if (!P.mat) P.mat = procMat();
     const M = new T.BatchedMesh(P.cap, P.nv, 0, P.mat);
     M.name = 'life:pieces' + (P.shadow ? ':cast' : ''); M.castShadow = P.shadow; M.receiveShadow = true; M.frustumCulled = false; M.matrixAutoUpdate = false;
@@ -889,8 +890,25 @@ function make(THREE, host) {
     return b;
   }
   const colTmp = new T.Color(), SCL = new T.Matrix4();
+  // G3416 (CITY-B): THE CELLS IN A NEAR RING (town_ring.js). The draw walked every cell of the life on every frame the eye moved
+  // (every frame of a flight), re-uploaded every batch's instance buffer even with nothing in it, and hid every slot of the
+  // pieces' batch: a far town paid it all. The cells within their farthest level (x the reach) are the ring's; a draw with
+  // nothing near after a draw with nothing near does nothing.
+  let RING = null, RING_K = -1, lastVis = -1;
+  const RL = () => (typeof window !== 'undefined' && window.TOWN_RING) || null;
+  function ringSync(K) {
+    const Lb = RL(); if (!Lb) { RING = null; return; }
+    RING = Lb.make({ cell: 256, move: 24 }); RING_K = K;
+    const cr = CELL * 0.71;
+    for (const c of IT.cells.values()) RING.add(c, c.x, c.z, c.far * K + cr);
+  }
   function draw(eye) {
     const t0 = performance.now();
+    if (cfg.on && IT.n && RL()) {
+      const K0 = reach();
+      if (!RING || RING.cellsOf !== IT.cells || K0 !== RING_K) { ringSync(K0); if (RING) RING.cellsOf = IT.cells; }
+      if (RING) { RING.update(eye.x, eye.z); if (RING.n === 0 && lastVis === 0) { stats.updMs = performance.now() - t0; stats.ringN = 0; return; } stats.ringN = RING.n; }
+    } else RING = null;
     for (const b of BATCH.values()) { b.idx.length = 0; b.shadow = false; }
     if (!PROC && KIT) PROC = { cast: procSet(true), flat: procSet(false) };
     if (PROC) { PROC.cast.list.length = 0; PROC.flat.list.length = 0; }
@@ -898,8 +916,9 @@ function make(THREE, host) {
     let vis = 0;
     if (cfg.on && IT.n) {
       const ex = eye.x, ey = eye.y, ez = eye.z, cr = CELL * 0.71;
-      for (const c of IT.cells.values()) {
-        const dc = Math.hypot(c.x - ex, c.z - ez) - cr;
+      const RLst = RING ? RING.list : IT.cellList, rn = RING ? RING.n : IT.cellList.length;
+      for (let q = 0; q < rn; q++) {
+        const c = RLst[q], dc = Math.hypot(c.x - ex, c.z - ez) - cr;
         if (dc > c.far * K) continue;
         for (let j = 0; j < c.list.length; j++) {
           const i = c.list[j], o = i * 16, kd = KINDS[IT.kind[i]];
@@ -932,10 +951,11 @@ function make(THREE, host) {
         root.add(b.mesh);
       }
       if (!b.mesh) continue;
+      if (!n && !b.lastN) continue;   // (G3416: nothing drawn, nothing was: no upload)
       const a = b.mesh.instanceMatrix.array, ca = b.mesh.instanceColor.array;
       for (let k = 0; k < n; k++) { const i = b.idx[k]; a.set(IT.M.subarray(i * 16, i * 16 + 16), k * 16); ca[k * 3] = IT.tint[i * 3]; ca[k * 3 + 1] = IT.tint[i * 3 + 1]; ca[k * 3 + 2] = IT.tint[i * 3 + 2]; }
-      b.mesh.count = n; b.mesh.visible = n > 0; b.mesh.castShadow = b.shadow;
-      b.mesh.instanceMatrix.needsUpdate = true; b.mesh.instanceColor.needsUpdate = true;
+      b.mesh.count = n; b.mesh.visible = n > 0; b.mesh.castShadow = b.shadow; b.lastN = n;
+      if (n) { b.mesh.instanceMatrix.needsUpdate = true; b.mesh.instanceColor.needsUpdate = true; }
       if (n) draws++;
     }
     // the pieces: the visible ones in the first slots, the rest hidden
@@ -955,14 +975,14 @@ function make(THREE, host) {
         M.setColorAt(k, colTmp);
         M.setVisibleAt(k, true);
       }
-      for (let k = n; k < P.cap; k++) M.setVisibleAt(k, false);
+      // (G3416: the slots shown last time and not now - every slot was hidden, every draw; a new batch's are hidden already)
       if (P.lastN > n) for (let k = n; k < P.lastN; k++) M.setVisibleAt(k, false);
       P.lastN = n;
       M.visible = n > 0;
       if (n) draws++;
       pv += n;
     }
-    stats.visible = vis; stats.procVisible = pv; stats.draws = draws; stats.batches = BATCH.size; stats.updMs = performance.now() - t0;
+    stats.visible = vis; stats.procVisible = pv; stats.draws = draws; stats.batches = BATCH.size; stats.updMs = performance.now() - t0; lastVis = vis;
   }
   // the mast's red light: lit at dusk (the lamps' own hand), a glow by day
   let beacon = null;

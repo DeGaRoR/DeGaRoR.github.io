@@ -186,19 +186,35 @@ const DOORS = {
     // DMG-D4b (train 41): GATE DMGCRASHUI boots the page under node (_page_node.js) with the file as its autosave (flydiy.wip)
     '_dmg_crash_ui_check',
     // (master train 42's: the hidden-pose check boots the page with the file as its autosave - the page's own chain)
-    '_posehidden_check'],
+    '_posehidden_check',
+    // (G2799, the census of 20 Oct: the tour flown in the real page from the WIP slot, the storage screen's shelf, the
+    // garage's clock bake under _page_node with the file as its autosave - the page's own chain each time)
+    'tour_real', 'storage_shot', '_clockbake_check'],
   // through a loader that is itself on the chain: pilot_trace.js specOf (a .json key; pilot_matrix.js flies its cells
   // through it), _treecrash_lib.js defOf
   viaPilotTrace: ['_pilotact_check', '_plan_check', '_rwytrees_check', '_taxiclear_check', 'pilot_matrix',
     // G2034 (DMG-RECAL): the bundle's - GATE DMGTYRE and its evidence spawn pilot_trace.js on the Cub's file, MILL-TAXI's
     // build list is flown through PT.specOf by _taxiclear_check / taxi_census
-    '_dmgtyre_check', 'dmgtyre_evidence', '_taxiclear_lib'],
-  viaTreecrash: ['_dmg_instruments_check', '_destto_check'],
+    '_dmgtyre_check', 'dmgtyre_evidence', '_taxiclear_lib',
+    // (G2799, the census of 20 Oct: ALTIPORT-ARRIVAL's trace and gate, FLOAT-AP's probe, TOUR-REAL's node twin, PILOT-PROFILE)
+    'altiport_trace', '_altiport_check', 'floats_probe', 'tour_real_node', '_profile_check'],
+  viaTreecrash: ['_dmg_instruments_check', '_destto_check',
+    // (G2799: ROUTE's flights, L.defOf)
+    '_route_check'],
   // never flies it: the stock designs' source (_cage_page5 rows were imported from these files), a comment, a paint
   // round trip at the spec level
-  spec: ['_cage_page5', '_cage_stab', '_livery_check'],
+  spec: ['_cage_page5', '_cage_stab', '_livery_check',
+    // (G2799, the census of 20 Oct) GEOM-FIXES's wing rows (the join's export and resolveSpec, spec-level); GARAGE-SHEET's
+    // worker against the main thread on the SAME spec, to the bit - a parity of two threads, not the game's aeroplane
+    '_wingrows_check', '_sheetworker_check'],
+  // THE DRAWING, NOT THE FLIGHT (G2799, DASH-REDESIGN's): the file seeds the editor's own layers headless
+  // (_scene_headless.js sceneBuild, the load door's seeding) and what is judged is what they draw - the dash, a tank
+  // through it, the stills; its physics rows bake the joined card (_bake_joined.js)
+  scene: ['dash_stills', '_dash_check'],
   // a JOIN UNDER TEST (the fixpoint of the join's own merge; the drawn ground against the flown): tools/_bake_joined.js
-  join: ['_specfix_check', 'ground_drawn', 'ground_gap'],
+  join: ['_specfix_check', 'ground_drawn', 'ground_gap',
+    // (G2799, the census of 20 Oct: DESIGN-CHECK, GEOPARITY and NACELLE-LAG fly the joined bake, _bake_joined.js)
+    '_designcheck_check', '_geoparity_check', '_naclag_check'],
   // THE LEGACY LIST (train 41, the user 8 Oct: 'let's not have different ways to build things, it's unmaintainable'):
   // the tools that predate JOIN-PARITY and read a validated file raw. Named, SHRINK-ONLY (owner Deform): at most these 19,
   // and an entry that no longer reads a validated file raw (moved to tools/_load_build.js, or gone) must be struck off.

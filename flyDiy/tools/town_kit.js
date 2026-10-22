@@ -6,6 +6,7 @@
 //   node tools/town_kit.js --media         -> the pack + the instance table into media/townkit/ and their manifest
 //                                             src/core/townkit_pack.json (ASK FIRST: git history keeps media/ forever)
 //   node tools/town_kit.js --sheet FILE    -> the contact sheet alone (PNG)
+//   node tools/town_kit.js --table         -> the instance table alone, re-sown on the COMMITTED pack's archetypes (G3406)
 //   --k N  archetypes for the houses (default 30; the outbuildings add their three)
 //
 // WHY. Every house in the game today is unique: its own P off the zone's sampler, its own ~10 000 triangles,
@@ -113,9 +114,13 @@ const townOf = zone => (/^mk_/.test(String(zone)) ? 'metlakatla' : 'village');
 function sow(opts) {
   const o = opts || {};
   const G = loadGens(), { PG, VG, HG, CAT } = G;
-  const rec = PG.unwrap(fs.readFileSync(FIXTURE, 'utf8')).rec;
-  const IW = require(path.join(TOOLS, 'island_node.js')).islandWorld('jolene', {});
-  const O = PG.compose(rec, IW, { catalogue: CAT, globals: G.win, pool: POOL });
+  // THE PAGE'S GROUND (CITY-A G3406): the zones composed on the world the PAGE composes them on - premises_cook's
+  // composeVariant, the town variant (the island made with its premises, G995) - not on a bare island_node world. The two
+  // agreed under 379 of Metlakatla's 380 plots and differed by 2.45 m under mk_z_town:r3:2 (a road the record gained
+  // after the kit was sown): the table's row stood that house in the air, and kit_lot (the page) placed it on the ground
+  const PCK = require(path.join(TOOLS, 'premises_cook.js'));
+  const town = PCK.VARIANTS.find(v => v.name === 'town');
+  const { W: IW, O, rec } = PCK.composeVariant('jolene', town, fs.readFileSync(FIXTURE, 'utf8'));
   const Tv = { h: (lx, lz) => O.localH(lx, lz), waterY: SEA, size: 20000 };
   const ZW = new Map();   // zone id -> its water (the tide its houses stand against)
   const TvOf = zid => { if (!ZW.has(zid)) ZW.set(zid, zoneWater(PG, IW, O.frame, rec.layers.zones.find(z => z.id === zid))); return Object.assign({}, Tv, { waterY: ZW.get(zid) }); };
@@ -840,7 +845,35 @@ function writeOut(R, dir, names) {
   fs.writeFileSync(pk, R.pack.gz); fs.writeFileSync(it, R.inst.gz);
   return [pk, it];
 }
-if (require.main === module) {
+// THE TABLE ALONE (CITY-A G3406, the user's ruling of 20 Oct): the record moves on (new roads, new plots) while the 30 + 3
+// archetypes are the approved ones (TOWNKIT-2026-09-27). `--media` re-clusters the archetypes themselves; `--table` re-sows
+// the zones as the game sows them today and stands every plot on the COMMITTED pack's archetypes (the same fit, nudge,
+// mirror, stretch and finish: assign), and writes the instance table alone - the pack, its bytes and its name unchanged.
+function tableRun() {
+  const man = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
+  const gz = fs.readFileSync(path.join(ROOT, man.pack.src));
+  if (crypto.createHash('sha256').update(gz).digest('hex') !== man.pack.sha256) throw new Error('town_kit --table: the committed pack is not the one townkit_pack.json names');
+  const raw = zlib.gunzipSync(gz), hl = raw.readUInt32LE(8), H = JSON.parse(raw.slice(12, 12 + hl).toString('utf8'));
+  const arch = H.archetypes.map(a => ({ id: a.id, split: a.split, kind: a.src && a.src.kind, foot: a.foot, P: a.P, roofKind: a.roofKind,
+    bbox: a.lods[0].pos.min.concat(a.lods[0].pos.max), members: [] }));
+  const t0 = Date.now(), S = sow();
+  const rows = assign(S, arch, H.finishSets);
+  const inst = instanceFile(rows, S, man.pack.sha256);
+  return { man, S, rows, inst, ms: Date.now() - t0 };
+}
+if (require.main === module && process.argv.includes('--table')) {
+  const T = tableRun(), miss = T.rows.filter(r => !r.a);
+  const town = t => T.S.houses.filter(s => s.town === t).length;
+  console.log('SOWN   ' + T.S.houses.length + ' plots (Metlakatla ' + town('metlakatla') + ', the village ' + town('village') + ') + ' + T.S.outs.length + ' outbuildings, in ' + (T.ms / 1000).toFixed(1) + ' s');
+  console.log('TABLE  ' + T.inst.count + ' instances on the committed pack ' + T.man.pack.sha256.slice(0, 12) + ' (' + (T.inst.gz.length / 1024).toFixed(1) + ' KB gz); unplaced ' + miss.length + (miss.length ? ': ' + miss.slice(0, 4).map(r => r.s.plot.id).join(' ') : ''));
+  const name = 'townkit_jolene_' + crypto.createHash('sha256').update(T.inst.gz).digest('hex').slice(0, 12) + '.bin', dir = path.join(ROOT, 'media', 'townkit');
+  const it = T.man.instances.find(i => i.id === 'jolene');
+  if (it && it.src !== 'media/townkit/' + name && fs.existsSync(path.join(ROOT, it.src))) fs.unlinkSync(path.join(ROOT, it.src));
+  fs.writeFileSync(path.join(dir, name), T.inst.gz);
+  T.man.instances = T.man.instances.filter(i => i.id !== 'jolene').concat([{ id: 'jolene', src: 'media/townkit/' + name, count: T.inst.count, stride: INST }]);
+  fs.writeFileSync(MANIFEST, JSON.stringify(T.man, null, 1) + '\n');
+  console.log('WROTE  media/townkit/' + name + ', src/core/townkit_pack.json (the pack unchanged)');
+} else if (require.main === module) {
   const argv = process.argv.slice(2), arg = k => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : null; };
   const R = run({ k: +(arg('--k') || 30) });
   report(R);
@@ -862,4 +895,4 @@ if (require.main === module) {
 
 module.exports = { loadGens, sow, feat, dist, splitOf, kMedoids, allot, FLOOR, pickArchetypes, canonP, stanceTop, buildArchetype, buildKit, takeLod, boxLod,
   encodePack, decodePack, encodeLod, decodeLod, octEnc, octDec, finishTable, finishOf, assign, fits, groundCorners, encodeInstances, decodeInstances,
-  instanceFile, rasterSheet, run, report, MANIFEST, INST, VSTRIDE, STRETCH, LOD_DIST, DRESSING, SEA, zoneWater };
+  instanceFile, rasterSheet, run, tableRun, report, MANIFEST, INST, VSTRIDE, STRETCH, LOD_DIST, DRESSING, SEA, zoneWater };
