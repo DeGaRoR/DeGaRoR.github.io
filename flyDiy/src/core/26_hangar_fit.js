@@ -922,6 +922,9 @@ function hangarFit(dims, kitKeys, opts) {
 
   const placed = [], recipes = [], unplaced = [];
   const placedKeys = new Set();
+  // G3353: a shed may leave named props out (opts.omit: the story's cabin keeps two small machines of the woodshop and
+  // the metalshop). A left-out row is REPORTED, never silent - the invariant below holds
+  const omit = new Set((opts && Array.isArray(opts.omit)) ? opts.omit : []);
   const lanes = { shop: [], build: [], back: [] };  // packed intervals per wall
 
   const resolve = s => {
@@ -947,6 +950,7 @@ function hangarFit(dims, kitKeys, opts) {
     if (isRecipe) { out.recipe = row.recipe; out.n = row.n; out.free = !!row.free; out.foot = row.foot; }
     else out.prop = row.prop;
     const label = isRecipe ? row.recipe : row.prop;
+    if (!isRecipe && omit.has(row.prop)) { unplaced.push({ kit, key: label, at: row.at, reason: 'left out of this shed' }); return; }
 
     // 1. bounds — even a `free` row: free waives the keepouts and the
     // packing (the hung wing is ALLOWED across the doorway), never the

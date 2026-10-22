@@ -1211,7 +1211,7 @@
       }
       hangar = genHangarBuild(THREE, shed.dims || undefined,
         { home: roomHome,
-          kits: shed.kits, shell: shed.shell, site: roomSite, layout: shed.layout });   // G2315 (WORKS-COZY): the career main hangar's layout
+          kits: shed.kits, shell: shed.shell, site: roomSite, layout: shed.layout, omit: shed.omit });   // G2315 (WORKS-COZY): the career main hangar's layout; G3353 the props left out
       hangarScene.add(hangar.group);
       hangarScene.background = hangar.background;
       hangarScene.fog = hangar.fog;                     // a SENTINEL now: it only defines USE_FOG
@@ -1457,7 +1457,7 @@
     // the stand's box, scene frame, and as a footprint about its origin (the model's)
     const sb = has ? { x0: q(bb.min.x), x1: q(bb.max.x), z0: q(bb.min.z), z1: q(bb.max.z) } : null;
     const footOf = n => parkFoot(playerFootOf(d, n));
-    const base = JSON.stringify([names, names.map(n => (d.fleet[n] && d.fleet[n].foot) || null), shed.shell, shed.layout || null, shed.dims || null, shed.kits]);
+    const base = JSON.stringify([names, names.map(n => (d.fleet[n] && d.fleet[n].foot) || null), shed.shell, shed.layout || null, shed.dims || null, shed.kits, shed.omit || null]);
     const sig = base + JSON.stringify(sb);
     if (sig !== RES.sig) {
       const off = { x: RES.dx || 0, z: RES.dz || 0 };
@@ -9225,15 +9225,21 @@
     if (!!window.EDITOR_LOCK.locked() !== want) window.EDITOR_LOCK.finishOnly(want ? STORY_LOCK_WHY : null);
   }
   // G3352: a cabin shed made before the cozy kits (park + bench + comfort only) takes the plot's kits now - decor only,
-  // the same shed, its aeroplanes untouched
+  // the same shed, its aeroplanes untouched; G3353: and the props the plot leaves out (the big machines), once
   function storyCabinKits() {
     if (!STORY_PAGE) return;
     try {
       const d = playerLoad(), id = d.here, sh = d.sheds && d.sheds[id];
-      if (!sh || !sh.story || JSON.stringify(sh.kits) !== '["park","bench","comfort"]') return;
+      if (!sh || !sh.story) return;
       const P = BASE_OFFERS[sh.base] && BASE_OFFERS[sh.base].plots[id];
-      if (!P || !P.kits || P.kits.length <= 3) return;
-      const n = JSON.parse(JSON.stringify(d)); n.sheds[id].kits = P.kits.slice(); player = n; playerSave();
+      if (!P) return;
+      const thin = JSON.stringify(sh.kits) === '["park","bench","comfort"]' && P.kits && P.kits.length > 3;
+      const omit = Array.isArray(P.omit) && !Array.isArray(sh.omit);
+      if (!thin && !omit) return;
+      const n = JSON.parse(JSON.stringify(d));
+      if (thin) n.sheds[id].kits = P.kits.slice();
+      if (omit) n.sheds[id].omit = P.omit.slice();
+      player = n; playerSave();
     } catch (e) { console.warn('flyDiy (story): the cabin kits -', e && e.message); }
   }
   if (STORY_PAGE) {

@@ -2837,7 +2837,8 @@ let FIT = { placed: [], recipes: [], unplaced: [], dims: { HW, HD, EAVE } };
 if (typeof hangarFit === 'function' && PROPS_OK) {
   FIT = hangarFit({ HW: HW, HD: HD, EAVE: EAVE }, KITS,
                   { reg: (typeof PROP_REG !== 'undefined') ? PROP_REG : null,
-                    shell: SHELL, layout: LAYOUT ? opts.layout : undefined });
+                    shell: SHELL, layout: LAYOUT ? opts.layout : undefined,
+                    omit: opts && opts.omit });   // G3353: the props this shed leaves out
   for (const p of FIT.placed) {
     const g = prop(p.prop, p.x, p.z, p.ry, p.y);
     // a group still waiting on its geometry has nothing to claim yet; the

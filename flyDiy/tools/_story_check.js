@@ -168,6 +168,15 @@ function run(M) {
     { const K = M.BASE_OFFERS.w1.plots.w1.kits;
       ok(['wood', 'metal', 'wip', 'store', 'handling', 'comfort', 'curio', 'bench'].every(k => K.includes(k)) && !K.includes('office'),
          'the cabin is the cozy messy workshop: wood + metal machines, the plane and wing in build, store, handling, comfort, curio (G3352)'); }
+    // G3353 (the user 22 Oct: "get rid of the large router ... Keep only the 2 smaller ones"): the cabin keeps the pillar
+    // drill and the thicknesser; the panel saw, the band saw and the surface planer are left out - and reported so
+    { const P = M.BASE_OFFERS.w1.plots.w1, C = M.storyCabinShed('w1', 0).shed, MACH = ['panelsaw', 'bandsaw', 'jointer', 'thicknesser', 'drillpress'];
+      ok(JSON.stringify(P.omit) === '["panelsaw","bandsaw","jointer"]' && JSON.stringify(C.omit) === JSON.stringify(P.omit), 'the cabin plot leaves out the big machines, and the story cabin shed carries that list (G3353)');
+      const F = M.hangarFit(C.dims, C.kits, { shell: 'field', reg: M.PROP_REG, omit: C.omit }), got = F.placed.map(p => p.prop).filter(k => MACH.includes(k));
+      ok(JSON.stringify(got.slice().sort()) === '["drillpress","thicknesser"]' && F.unplaced.filter(u => u.reason === 'left out of this shed').length === 3,
+         'the cabin stands two machines, the drill and the thicknesser; the three left out are reported, not silent (' + got.join(', ') + ')');
+      ok(/layout: shed\.layout, omit: shed\.omit \}\)/.test(APP) && /omit: opts && opts\.omit \}\);/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'hangar.js'), 'utf8')),
+         'the page builds the room with the shed\'s omit list (app.js -> hangar.js -> hangarFit)'); }
     ok(/id = 'stTim'/.test(APP) && /FLYDIY_AP\.manual\(\) && !inGarage/.test(APP), 'Tim band at the bottom; it steps aside in flight when the player takes manual control');
   }
   // the save
