@@ -237,7 +237,12 @@ function law(key) {
     // is the hull's constant to 1 % at every slip angle whose wetted keel is the small-slip one - and its peak at 45
     // where that holds through 40-50 deg; where it does not, every departure from the constant must come with a
     // change of the wetted keel (the afterbody re-wetting), never on its own
-    const k0 = curve[1][3], n0 = curve[1][4];
+    // G3449 (fix A2): the small-slip keel is the wetted keel MOST of the 1-9 deg points share, not the 1-deg point's -
+    // at the twin's hump pose (7.1 m/s, 6.4 deg after the master merge) one keel station rides the waterline, the 1-deg
+    // point has it dry and 2-9 deg wet; the law and bounds are unchanged (1 %, >= 3 points, every departure a keel change)
+    const smallN = {}; for (const x of curve) if (x[0] >= 1 && x[0] <= 9) smallN[x[4]] = (smallN[x[4]] || 0) + 1;
+    const n0 = +Object.keys(smallN).reduce((a, b) => smallN[b] > smallN[a] ? b : a);
+    const k0 = curve.find(x => x[3] != null && x[4] === n0)[3];
     const same = curve.filter(x => x[3] != null && x[4] === n0), dev = same.reduce((m, x) => Math.max(m, Math.abs(x[3] / k0 - 1)), 0);
     chk(same.length >= 3 && dev < 0.01, `${where}: the side term is U w x ${k0.toFixed(1)} kg/m (the wetted keel's m(TE)) to ${(100 * dev).toFixed(2)} % at the ${same.length} slip angles whose wetted keel is the small-slip one (${n0} stations; Jones' U w = V^2 sin b cos b, 1 %)`);
     const fixed4050 = curve.filter(x => x[0] >= 40 && x[0] <= 50).every(x => x[4] === n0);
