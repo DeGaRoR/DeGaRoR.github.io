@@ -13,7 +13,9 @@ from PIL import Image
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 # the albedo maps a far-town bag can carry (tools/_house_gen.js / _big_gen.js / _hangar_gen.js / _tower_gen.js / _totem_gen.js):
 # the house and wall sets' diff and paint maps, the lot / ground sets' diffs (the parks' grass), the sign sheets
-DIRS = [('media/tex/house', r'_(diff|paint)_'), ('media/tex/walls', r'_(diff|paint)_'), ('media/tex/ground', r'_diff_'), ('media/tex/signs', r'')]
+DIRS = [('media/tex/house', r'_(diff|paint)_'), ('media/tex/walls', r'_(diff|paint)_'), ('media/tex/ground', r'_diff_'), ('media/tex/signs', r''),
+        # (ED-2's review: the models' folders the tower / totem / pier / cabin bags read - every image, the extra entries cost nothing)
+        ('media/tex/totems', r''), ('media/tex/wood', r''), ('media/tex/pier', r''), ('media/tex/cabin', r'')]
 OUT = os.path.join(ROOT, 'src', 'viewer', 'tex_means.js')
 
 def mean4(path):
