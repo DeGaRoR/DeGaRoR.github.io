@@ -229,12 +229,11 @@ const kidsDone = PINMODE ? null : runKids();
 
 // 1 IDENTITY ------------------------------------------------------------------------------------------------------------
 // ENGINE-CONFIGS-2 (G3492, 22 Oct): re-pinned on master 2c2a74459 (train L22c) - every row equal on the branch; the user's
-// validated aeroplanes (the Cub, the Jodel, the twin floatplane's and the metal Cessna's files, and their Rufus) are
+// validated aeroplanes (the Cub, the Jodel, the twin floatplane's file, the metal Cessna, the Cessna on floats, Rufus) are
 // digested as the GAME flies them (tools/_load_build.js: the page's load door, the join, the merge - GATE JOINPARITY's
 // one load path), every other fixture as written. `--pin` prints this table for the tree it runs in (run it on master).
 say('1 IDENTITY - the saved builds and the single mounts, digested against master (2c2a74459)');
-const VAL_FILES = new Set(Object.values(LB.VALIDATED).map(v => v.build).concat(['tools/fixtures/build_v10_cessnaMetal_2026-09-26.json',
-  'tools/fixtures/repro/rufus_2026-10-18_certified.json']));
+const VAL_FILES = new Set(Object.values(LB.VALIDATED).map(v => v.build).concat(['tools/fixtures/repro/rufus_2026-10-18_certified.json']));
 const PIN = {
   'builds/cub_2026-09-20_corrected.json': '2edac3d4580bbcb2 869eee72737d7526',
   'builds/jodel_2026-09-20_corrected.json': '38e084604f47abe6 3fb1153b36c2c325',
@@ -244,7 +243,8 @@ const PIN = {
   'tools/fixtures/build_v8_twin-boom_2026-09-11.json': '954746f8316b9701 77b62ab7c4146aaa',
   'tools/fixtures/build_v7_twin_2026-09-04.json': 'a5586891e6aec073 221d6c2405b15e1e',
   'tools/fixtures/build_v8_pusher_2026-09-11.json': '268edc2070febf93 1e888903ddfb652c',
-  'tools/fixtures/build_v10_cessnaMetal_2026-09-26.json': 'e4735c255b5f4c71 7e50d230440c0ad2',
+  'bugReports/cessnaMetal (1).json': 'e4735c255b5f4c71 7e50d230440c0ad2',
+  'bugReports/cessnaFloatsWOrks.json': '0c4b5dc1b32baeb4 10f6c3086fad509f',
   'tools/fixtures/repro/rufus_2026-10-18_certified.json': 'e0f2ee3392db1461 bb817d87f0edc3eb',
   'stock nose': 'c61ce520a6cc85e2 31cce33943cc578a',
   'stock pusher': '04f30522a6a9ed04 5613f19c025bd3cf',
@@ -264,7 +264,8 @@ const ID_KEYS = ['builds/cub_2026-09-20_corrected.json', 'builds/jodel_2026-09-2
   'builds/cessna172_2026-09-20_corrected.json', 'builds/chinook_2026-09-21_corrected.json',
   'tools/fixtures/build_v7_ultralight_2026-09-05.json', 'tools/fixtures/build_v8_twin-boom_2026-09-11.json',
   'tools/fixtures/build_v7_twin_2026-09-04.json', 'tools/fixtures/build_v8_pusher_2026-09-11.json',
-  'tools/fixtures/build_v10_cessnaMetal_2026-09-26.json', 'tools/fixtures/repro/rufus_2026-10-18_certified.json',
+  // (A0, 22 Oct: the metal Cessna is the user's own file, and the Cessna on floats is in - both loaded the game's way)
+  'bugReports/cessnaMetal (1).json', 'bugReports/cessnaFloatsWOrks.json', 'tools/fixtures/repro/rufus_2026-10-18_certified.json',
   ...Object.keys(IDS)];
 for (const k of ID_KEYS) {
   let got;

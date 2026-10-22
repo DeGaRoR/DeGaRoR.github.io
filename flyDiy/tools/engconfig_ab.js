@@ -3,7 +3,7 @@
 // digested, so a change that must not move them is shown not to by running this once on master and once on the branch
 // and comparing the lines (the user, 22 Oct: "the validated aircraft must be byte-identical in thrust and flight").
 //
-//   node tools/engconfig_ab.js cub|jodel|metal|rufus      (one JSON line)
+//   node tools/engconfig_ab.js cub|jodel|metal|floats|rufus      (one JSON line)
 //
 // The aeroplane is the one the GAME flies (tools/_load_build.js: the page's load door, the join, the merge); then
 //   spec    the joined spec's digest
@@ -18,7 +18,7 @@ const T = __dirname;
 const LB = require('./_load_build.js');
 const C = require('./flight_core.js');
 const FILES = {
-  cub: LB.VALIDATED.cub.build, jodel: LB.VALIDATED.jodel.build, metal: LB.VALIDATED.metal.build,
+  cub: LB.VALIDATED.cub.build, jodel: LB.VALIDATED.jodel.build, metal: LB.VALIDATED.metal.build, floats: LB.VALIDATED.floats.build,
   rufus: 'tools/fixtures/repro/rufus_2026-10-18_certified.json',
 };
 const key = process.argv[2];
