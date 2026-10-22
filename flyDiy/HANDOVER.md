@@ -97977,8 +97977,13 @@ same command; the same failing rows:**
 - `GATE CLOUD: FAIL (1 of 239)`: the lamps row "the pool is re-assigned every 30 frames...". Identical on master, and on A0's
   known list.
 - `GATE ROUNDTRIP: FAIL (1)`: the setup screen's sections row. Identical on master.
-- `GATE DMGCERTCOST: FAIL`: node-time ceilings only. Master fails the same ceiling rows on this box (Cub 28.1 s against 18,
-  38.5 against 32, 68.3 against 42); how many cases go over moves with the box's load.
+- `GATE DMGCERTCOST`: node-time ceilings only. Master fails the same ceiling rows on this box with two gates beside it (Cub 28.1 s
+  against 18, 38.5 against 32, 68.3 against 42). The branch, run ALONE: `GATE DMGCERTCOST: PASS`.
+- `GATE SIMWORKER-EDGES: FAIL (6)`: the same six rows on master (the worker's world after the edit, "grid r", and the NaN
+  bounding-sphere errors at its own planned divergence, on the Cub and the Cessna).
+- `GATE PARKED: PASS`, the branch run alone (the parallel run had been OOM-killed).
+- **DMGDETERMINISM cannot finish within the runner's per-gate 1800 s on this box on master either.** No verdict on either tree,
+  so it is A0's to run on the box.
 - `GATE FRAMECOST: FAIL (25)`, now explained row by row:
   - **The stand / taxi counters are the STALE PARKED COOK, not this branch's code.**
     - `node tools/parked_cook.js --check`: "STALE: every key is captured live until a re-cook". Any editor or viewer change does
@@ -97998,13 +98003,12 @@ same command; the same failing rows:**
   `diag` rows (they read "undefined"; master has only the `hard` row): the kernel log shows five "Memory cgroup out of memory:
   Killed process (node)" events, children of 4-6.6 GB, with four gates side by side in this 15 GB container.
   - Master, run two at a time: `GATE DMGPAGEW: PASS`, `GATE PARKED: PASS`, `GATE POSEHIDDEN: PASS`.
-  - The branch's reruns, ONE AT A TIME (PARKED, DMGCERTCOST, DMGPAGEW, BOOTLIFT, FRAMECOST, DESTTO, DMGDETERMINISM,
-    ARCHETYPES), then FRAMECOST on master-with-a-comment and ARCHETYPES on master, are queued. They are not claimed here
-    until they report.
+  - The branch's reruns, ONE AT A TIME (DMGPAGEW, BOOTLIFT, FRAMECOST, DESTTO, ARCHETYPES), then FRAMECOST on
+    master-with-a-comment and ARCHETYPES on master, are running. The container restarted mid-queue on 23 Oct and the queue
+    was relaunched. None of these is claimed here until it reports.
 - `GATE ARCHETYPES`: 3 of 4 shards PASS. One row FAILs: "Chinook-alike: the circuit completes — rejected-takeoff". It is a
   flight row and the avionics_parity airframes are identical, but it is not claimed as master's until master's ARCHETYPES (queued)
   shows the same row.
-- `GATE SIMWORKER-EDGES: FAIL (6)`: the master run is under way.
 - `GATE TOUR: PASS` (x4 shards), and `GATE DESTTO: PASS` on 2 of its 3 shards.
 
 **For the user (asks):**
