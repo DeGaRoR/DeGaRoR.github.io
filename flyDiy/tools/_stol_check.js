@@ -595,12 +595,19 @@ if (!BENCH_ONLY || process.argv.includes('--cub')) {
     console.log('     the kit\'s design check: ' + dc.filter(x => /^ctl\.|^pitch\.sm/.test(x.id)).map(x => x.id + ' ' + x.value + (x.level === 'pass' ? '' : ' (' + x.level + ')')).join(', '));
     const dVs = 1 - gK.VsMeas / gS.VsMeas;
     ok(dVs >= 0.12 && dVs <= 0.25, `the kit's clean stall ${Math.round(100 * dVs)} % lower (the slot's -12..-17 % and the VGs' -6..-8 %, not simply added: 12..25 %)`);
-    ok(mK.Vref < mS.Vref, `a slower approach: Vref ${kmh(mK.Vref)} km/h (stock ${kmh(mS.Vref)}; R/STOL claims 15-25 mph slower - ours ${((mS.Vref - mK.Vref) * 2.237).toFixed(0)} mph)`);
+    // THE AUTOPILOT FLIES WHAT THE ELEVATOR CAN HOLD (G2826): the slot takes the stall past the attitude this Cub's
+    // elevator can reach in the flare (the design check's ctl.flare warns), so its ladder is off the held speed, the
+    // flap stays down (never G970's flapless cure: that took the VG Cub's landing roll from 62 m to 160) and the
+    // approach is no faster than the stock one
+    const fl = dc.find(x => x.id === 'ctl.flare') || {};
+    ok(gK.VsFlapAP > gK.VsFlap && mK.Vs0 === gK.VsFlapAP && fl.level && fl.level !== 'pass' && !gK.landsFlapless,
+       `the elevator holds ${kmh(gK.VsHeld)} km/h at the touchdown (the slatted stall ${kmh(gK.VsFlap)}; ctl.flare ${fl.value} ${fl.level}): the ladder's Vs0 is the held ${kmh(gK.VsFlapAP)}, flaps down`);
+    ok(mK.Vref <= mS.Vref * 1.02, `an approach no faster than the stock one: Vref ${kmh(mK.Vref)} km/h (stock ${kmh(mS.Vref)}; R/STOL claims 15-25 mph slower - on this Cub the elevator decides)`);
     const rd = dc.find(x => x.id === 'ctl.droop');
     ok(rd && rd.level === 'pass', `the kit's drooped ailerons keep their roll on the approach: ${rd ? rd.value + ' x, ' + rd.level : 'no row'}`);
     ok(L.outcome === 'completed', 'the pilot flies the kit\'s whole circuit: ' + L.outcome);
-    ok(L.liftRun != null && L.liftRun <= LS.liftRun * 1.03, `the lift-off run no longer than the stock one (${L.liftRun && L.liftRun.toFixed(1)} vs ${LS.liftRun.toFixed(1)} m: a taildragger unsticks at its three-point deck, where a slat buys nothing; the slot's drag is paid)`);
-    ok(L.ldgRun != null && L.ldgRun <= 0.85 * LS.ldgRun, `the landing roll at least 15 % shorter (${L.ldgRun} vs ${LS.ldgRun} m)`);
+    ok(L.liftRun != null && L.liftRun < LS.liftRun, `a shorter lift-off run (${L.liftRun && L.liftRun.toFixed(1)} vs ${LS.liftRun.toFixed(1)} m)`);
+    ok(L.ldgRun != null && L.ldgRun <= 1.25 * LS.ldgRun, `the landing roll held to the stock one's neighbourhood (${L.ldgRun} vs ${LS.ldgRun} m, <= +25 %: the touchdown is the elevator's, not the wing's)`);
   }
 }
 

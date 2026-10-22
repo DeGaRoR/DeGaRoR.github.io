@@ -971,7 +971,7 @@ function genTuneAP(def) {
     // the PA-18's documented cure: flap lift plus the nose-down dCm0 make a
     // tail-up wheel-landing hold noseover-prone, so pin the tail from touchdown
     A.VTailDown = 99;
-    A.VPinFull = Math.round(1.05 * g.VsFlap * 10) / 10;
+    A.VPinFull = Math.round(1.05 * (g.VsFlapAP || g.VsFlap) * 10) / 10;   // G2826: a STOL wing's held Vs0
   }
   return A;
 }
