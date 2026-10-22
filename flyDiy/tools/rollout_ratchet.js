@@ -58,7 +58,11 @@ function metrics(j) {
     for (const r of fr) { const k = Math.max(1, Math.round(r[1] / REFRESH)); if (prev !== null) { n++; if (k !== prev) ch++; } prev = k; }
     uneven = n ? ch / n : null;
   }
-  const lt = (j.longTasks || []).map(t => t[1]);
+  // GATE-SCREEN (A0 22 Oct): a task under a loading screen (j.bootSpans, rollout_perf) is the screen's: it leaves the task rows
+  // and is held on its own (screenTaskWorst); a run with no spans (before GATE-SCREEN) reads as before
+  const SP = (j.bootSpans || []).map(s => [s[0], s[1] == null ? Infinity : s[1]]), under = (a, b) => SP.some(s => a < s[1] && b > s[0]);
+  const ltS = (j.longTasks || []).filter(t => under(t[0], t[0] + t[1])).map(t => t[1]);
+  const lt = (j.longTasks || []).filter(t => !under(t[0], t[0] + t[1])).map(t => t[1]);
   const steps = (j.bootLog || []).filter(b => b.k === 'step' || b.k === 'run');
   let compile = null, inRoll = false;   // the roll-out run's compile step (not the garage's, not a settings screen's)
   for (const b of steps) { if (b.k === 'run') { inRoll = b.set === 'rollout'; continue; } if (inRoll && b.id === 'compile') { compile = b.ms; break; } }
@@ -93,6 +97,9 @@ function metrics(j) {
     over100: g.over100ms ? g.over100ms.n : null, below30s: g.below30run ? g.below30run.sec : null,
     tasks1s: lt.filter(x => x > 1000).length, tasks200: lt.filter(x => x > 200).length, taskWorst: lt.length ? Math.max(...lt) : 0,
     slice: j.worldSlices ? j.worldSlices.worst : null,
+    // GATE-SCREEN: what the loading screens held after the reveal (a trip's roll-out screen) - frames over 100 ms, the worst
+    // frame, the worst task (a run before GATE-SCREEN: null, no row)
+    screenOver100: g.screen ? g.screen.over100 : null, screenWorst: g.screen ? g.screen.worst : null, screenTaskWorst: j.bootSpans ? (ltS.length ? Math.max(...ltS) : 0) : null,
     // G1063.4: rollout_perf's tGarage is seconds from the navigation to the garage, its tReveal seconds from the
     // Roll out click to the flight (the old `tReveal - tGarage` subtracted a click-relative time from a
     // navigation-relative one). The load the player waits for is the FIRST FLIGHT: the garage, then the roll-out
@@ -135,6 +142,11 @@ const RULES = {
   tasks1s:  { up: false, rel: 0,    abs: 1,    unit: '' },   // a task at ~1 s flips across the line run to run; R4 still wants 0
   tasks200: { up: false, rel: 0.25, abs: 3,    unit: '' },
   taskWorst:{ up: false, rel: 0.15, abs: 150,  unit: 'ms' },
+  // GATE-SCREEN (A0 22 Oct): under a loading screen - slack from the day's gate legs (cessnaMetal cockpit, the shed's mirror pin:
+  // 2 frames over 100 ms, the worst 133-166 ms, the screen's worst task the settle's ~1.0 s)
+  screenOver100:   { up: false, rel: 0,    abs: 2,   unit: '' },
+  screenWorst:     { up: false, rel: 0.25, abs: 50,  unit: 'ms' },
+  screenTaskWorst: { up: false, rel: 0.25, abs: 250, unit: 'ms' },
   slice:    { up: false, rel: 0.15, abs: 150,  unit: 'ms' },
   garage:   { up: false, rel: 0.10, abs: 3,    unit: 's' },   // G1063.4: navigation -> the garage (the one loading since B8+B9)
   rollout:  { up: false, rel: 0.10, abs: 1,    unit: 's' },   // the Roll out click -> the flight
