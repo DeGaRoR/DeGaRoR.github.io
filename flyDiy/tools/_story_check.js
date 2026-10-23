@@ -175,7 +175,7 @@ function run(M) {
       const F = M.hangarFit(C.dims, C.kits, { shell: 'field', reg: M.PROP_REG, omit: C.omit }), got = F.placed.map(p => p.prop).filter(k => MACH.includes(k));
       ok(JSON.stringify(got.slice().sort()) === '["drillpress","thicknesser"]' && F.unplaced.filter(u => u.reason === 'left out of this shed').length === 3,
          'the cabin stands two machines, the drill and the thicknesser; the three left out are reported, not silent (' + got.join(', ') + ')');
-      ok(/layout: shed\.layout, omit: shed\.omit \}\)/.test(APP) && /omit: opts && opts\.omit \}\);/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'hangar.js'), 'utf8')),
+      ok(/layout: shed\.layout, omit: shed\.omit[,}]/.test(APP) && /omit: opts && opts\.omit \}\);/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'hangar.js'), 'utf8')),
          'the page builds the room with the shed\'s omit list (app.js -> hangar.js -> hangarFit)'); }
     // G3354 (the user 22 Oct: "We need light in the cabin, right now it's a dark hole"): the cabin's work lamp
     { const P = M.BASE_OFFERS.w1.plots.w1, C = M.storyCabinShed('w1', 0).shed, HJ = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'hangar.js'), 'utf8');
