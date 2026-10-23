@@ -1848,6 +1848,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       classWeights();   // a saved stack that starts at the class layer asks for them now
       gpuUploadNow();
       if (typeof WATER !== 'undefined' && WATER.setSDF) WATER.setSDF(gU.uGPackA.value, gU.uGGrid.value);   // G460: the water reads the coast and lake fields (kept until the material is made below)
+      if (typeof WATER !== 'undefined' && WATER.setCoast && ISLA) WATER.setCoast(ISLA.grid, ISLA.coast, lakeR);   // G2839: the same fields on the CPU - the ring's distances to land and water
       // THE SPLAT (alpha splatting, 2026-09-20): the ground drawn by terrain
       // type from the library (src/viewer/splat_ground.js owns it): two
       // texture arrays on top of the island's five units - 10 / 14 / 15 of 16

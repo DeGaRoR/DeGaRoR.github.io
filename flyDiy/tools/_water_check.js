@@ -303,6 +303,10 @@ console.log('\n3. THE LAWS');
         verdict(/let ringW = 1; const lake = Math\.abs\(waterY - MIR\.seaY\) > 0\.5, RG = RING && !lake;/.test(mp3) && /const skipList = RG && MIR\.ringSkip \?/.test(mp3) && /mc\.far = Math\.min\(camera\.far, RG \? MIR\.ringFar : MIR\.far\);/.test(mp3),
           "lakes keep today's full mirror: a plane over the sea's level is a lake - today's height fade and capture (grass and cover in it), the inland dissolve only");
         verdict(/if \(!PROTO\.hull \|\| MIR\.mode === 'off' \|\|/.test(w), "the aircraft's own reflection only while the mirror is not OFF (OFF = the sky; the shadow stays everywhere)"); }
+      // THE RING READS THE COAST FIELD (G2839, FRAMECOST 23 Oct: the probe search's terrainH / waterDrawY streamed the ground raster at
+      // the taxi): the distances from the island's own coast and lake bytes on the CPU; the probe search only without them
+      verdict(typeof W.setCoast === 'function' && /if \(CO\.G && CO\.coast\) return ringFromField\(eye, planeY\);/.test(w) && /WATER\.setCoast\(ISLA\.grid, ISLA\.coast, lakeR\)/.test(rw),
+        "the ring's distances to land and water come from the coast and lake fields on the CPU (no terrain queries, no streaming)");
       // G2839 ONE SKY: the probe's lookup lobe scaled under the mirror's weight (MIR.skyK, 1 = today's lobe: nothing changes without it)
       verdict(W.mirror.skyK === 1 && /uniform vec4 uWSky;/.test(W.GLSL.frag) && /getIBLRadiance\( geometryViewDir, nn, material\.roughness \* mix\(1\.0, uWSky\.x, uWMirror4\.x\) \)/.test(w) && /if \(U\) \{ U\.uWSky\.value\.x = MIR\.skyK;/.test(w) && /iblRadiance \*= mix\(1\.0, uWSky\.y, uWMirror4\.x\);/.test(w) && W.mirror.skyGain === 0 && /U\.uWSky\.value\.y = MIR\.skyGain > 0 \? MIR\.skyGain : PROTO\.ring && MIR\.mode === 'auto' && !MIR\.ringSky \? 1 \/ Math\.max\(0\.05, \(scene && scene\.environmentIntensity\) \|\| 1\) : 1;/.test(w),
         `one sky: under the mirror's weight the probe's lobe scales by MIR.skyK (${W.mirror.skyK}: today's lobe by default) and its level rises to the capture's (1 / the scene's environmentIntensity under the ring; 1 elsewhere)`);

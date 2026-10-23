@@ -1046,7 +1046,48 @@ const WATER = (() => {
   // ringLandDist(eye, isLand): the eye's distance to the nearest land, out to MIR.ringD1 (Infinity past it) - 32 headings in 25 m
   // steps, cached until the eye has moved 40 m or 0.5 s went by (the weight it feeds is smooth over 300 m: a stale metre is nothing)
   const ringTmp = { at: null, t: -1e9 };
+  // THE COAST FIELD ON THE CPU (G2839, FRAMECOST's census 23 Oct: the probe search below - ~500 terrainH / waterDrawY calls out to
+  // 1.3 km - streamed the ground raster at the taxi: texSubImage2D doubled, 5 bufferData a frame). setCoast(grid, coast, lake): the
+  // island's own fields (render_world: ISLA.coast and the drawn lakes' lakeR, signed metres x 4 round 128 - the water shader's
+  // uWSdf, read here from the same bytes). Inland, exact (the dissolve is 150 m, the field 512); seaward, exact to ~480 m and past it
+  // a coarse distance transform of the land mask (32 m cells, built once) - the ring's 1.0 -> 1.3 km
+  const CO = { G: null, coast: null, lake: null, dt: null, dtW: 0, dtH: 0, dtK: 0 };
+  function setCoast(grid, coast, lake) { CO.G = grid && coast ? grid : null; CO.coast = coast || null; CO.lake = lake || null; CO.dt = null; }
+  function coField(A, x, z, out) {
+    const G = CO.G, u = (x - G.x0) / G.cell - 0.5, v = (z - G.z0) / G.cell - 0.5;
+    if (u < 0 || v < 0 || u > G.w - 1 || v > G.h - 1) return out;
+    const i = Math.min(G.w - 2, Math.floor(u)), j = Math.min(G.h - 2, Math.floor(v)), fu = u - i, fv = v - j, q = j * G.w + i;
+    return (((A[q] * (1 - fu) + A[q + 1] * fu) * (1 - fv) + (A[q + G.w] * (1 - fu) + A[q + G.w + 1] * fu) * fv) - 128) * 4;
+  }
+  function coDT() {   // the land mask's distance, once: a 2-pass chamfer on 32 m cells (land 0)
+    const G = CO.G, k = Math.max(1, Math.round(32 / G.cell)), W2 = Math.ceil(G.w / k), H2 = Math.ceil(G.h / k), d = new Float32Array(W2 * H2), c = k * G.cell, cd = c * Math.SQRT2;
+    for (let j = 0; j < H2; j++) for (let i = 0; i < W2; i++) { let land = false;
+      for (let b = 0; b < k && !land; b++) for (let a = 0; a < k && !land; a++) { const ii = i * k + a, jj = j * k + b; if (ii < G.w && jj < G.h && CO.coast[jj * G.w + ii] > 128) land = true; }
+      d[j * W2 + i] = land ? 0 : 1e9; }
+    for (let j = 0; j < H2; j++) for (let i = 0; i < W2; i++) { const q = j * W2 + i; let v = d[q];
+      if (i > 0) v = Math.min(v, d[q - 1] + c); if (j > 0) { v = Math.min(v, d[q - W2] + c); if (i > 0) v = Math.min(v, d[q - W2 - 1] + cd); if (i < W2 - 1) v = Math.min(v, d[q - W2 + 1] + cd); } d[q] = v; }
+    for (let j = H2 - 1; j >= 0; j--) for (let i = W2 - 1; i >= 0; i--) { const q = j * W2 + i; let v = d[q];
+      if (i < W2 - 1) v = Math.min(v, d[q + 1] + c); if (j < H2 - 1) { v = Math.min(v, d[q + W2] + c); if (i < W2 - 1) v = Math.min(v, d[q + W2 + 1] + cd); if (i > 0) v = Math.min(v, d[q + W2 - 1] + cd); } d[q] = v; }
+    CO.dt = d; CO.dtW = W2; CO.dtH = H2; CO.dtK = c;
+  }
+  function ringFromField(eye, planeY) {
+    const sd = coField(CO.coast, eye.x, eye.z, -1e4);   // the coast: + inland, - at sea (metres); off the grid = the open sea
+    const lakePlane = Number.isFinite(planeY) && Math.abs(planeY - MIR.seaY) > 0.5;
+    let best;
+    if (sd >= 0) best = 0;
+    else if (sd > -480) best = -sd;
+    else { if (!CO.dt) coDT(); const G = CO.G, i = Math.floor((eye.x - G.x0) / CO.dtK), j = Math.floor((eye.z - G.z0) / CO.dtK);
+      best = i >= 0 && j >= 0 && i < CO.dtW && j < CO.dtH ? Math.max(480, CO.dt[j * CO.dtW + i]) : Infinity; }
+    // inland: the distance to the water ON THE MIRROR'S PLANE - the sea's line, or a lake's (+ inside, so - outside)
+    let wd = 0;
+    if (best === 0) { const lf = CO.lake ? coField(CO.lake, eye.x, eye.z, -1e4) : -1e4;
+      wd = lakePlane ? (lf >= 0 ? 0 : -lf) : sd;
+      if (!(wd <= MIR.ringIn)) wd = Infinity; }
+    MIR.landD = best; MIR.waterD = wd;
+    return best;
+  }
   function ringLandDist(eye, isLand, now, planeY) {
+    if (CO.G && CO.coast) return ringFromField(eye, planeY);
     if (typeof isLand !== 'function') return Infinity;
     if (ringTmp.at && Math.hypot(eye.x - ringTmp.at[0], eye.z - ringTmp.at[1]) < 40 && now - ringTmp.t < 0.5) return MIR.landD;
     let best = Infinity;
@@ -1585,7 +1626,7 @@ const WATER = (() => {
   const API = { NTR, S, PRESETS, BODIES, GLSL: { gerstner: GLSL_GERSTNER, gerstnerN: GLSL_GERSTNER_N, frag: GLSL_FRAG_PARS },
     make, material, tag, hook, setTime, time, bodyOptics, WATER_TYPES, setSea, seaChanged, setWind, setSDF, setInteraction, setNear, set, setTier, frame,
     gerstnerJS, gerstnerFromGLSL, sigma2JS, roughJS, bakeTile, makeTile, paintTestV, watch, stats,
-    mirrorRender, mirrorOff, mirror: MIR, obliqueClip, mirrorPlane, waterSeen, seen, hullRender, hullOff, hull: HULL, proto: PROTO, perspBounds,   // (G2830: the plane's rule and THE WATER SEEN, for GATE WATER)
+    mirrorRender, mirrorOff, mirror: MIR, setCoast, obliqueClip, mirrorPlane, waterSeen, seen, hullRender, hullOff, hull: HULL, proto: PROTO, perspBounds,   // (G2830: the plane's rule and THE WATER SEEN, for GATE WATER)
     stamp, fieldStep, fieldOn, fieldProbe, warmList, field: F, FIELD_N, FIELD_M, FIELD_LEVELS: LEVELS, fieldKernel, fieldKernelGain, kernelResponse, kernelSum, KERN_P,
     get uniforms() { return U; }, get trains() { return trains; }, get clock() { return T; } };
   if (typeof window !== 'undefined') window.WATER = API;
