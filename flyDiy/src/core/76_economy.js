@@ -55,7 +55,19 @@ const ECON_V = 1;
 //   loanTo       ...and pays the wallet back up to this (rounded up to `loanRound`)
 const ECON_BOOK = {
   ref: 'cub',
-  shells: { field: 1.8, club: 3.2, works: 5.4 },
+  // (G3359 ECON-APPLY, the user 23 Oct: "apply the economics table, keep demo time as it is for now"; ECON-SIM G3250 HANDOVER): the shells re-priced
+  // (field 1.8 -> 3.6, club 3.2 -> 5.6, works 5.4 -> 8.6 Cubs) - a side field shed at Tamgas Hill 44 960 -> 89 840
+  shells: { field: 3.6, club: 5.6, works: 8.6 },
+  // THE TABLE'S SINKS NOT YET BUILT INTO THE GAME (G3359: data only, read by nothing in play; tools/econ_sim.js plays them):
+  //   landmarks  the co-funding in Cubs; a keystone opens the next segment, the others are optional
+  //   rungs      the machine shop's rung of a segment, bought once it opens (its designs cannot be built before)
+  //   comps      competitions: entry in Cubs by segment, prizes x the entry for gold / silver / bronze
+  landmarks: [
+    { id: 'observatory', seg: 1, keystone: true,  cubs: 2.5 }, { id: 'mine-village', seg: 1, keystone: false, cubs: 1.5 },
+    { id: 'hydro',       seg: 2, keystone: true,  cubs: 6 },   { id: 'sky-tram',     seg: 2, keystone: false, cubs: 3 },
+    { id: 'long-runway', seg: 3, keystone: true,  cubs: 12 },  { id: 'community',    seg: 3, keystone: false, cubs: 5 } ],
+  rungs: { 2: { cubs: 0.25, words: 'Sheets and bolts' }, 3: { cubs: 2.5, words: 'Composite and electronics' } },
+  comps: { entry: { 1: 0.08, 2: 0.15, 3: 0.25 }, prizes: [3, 1.6, 0.8] },
   kits: { park: 0, bench: 0.05, wood: 0.16, metal: 0.24, store: 0.02, handling: 0.05,
           office: 0.1, comfort: 0.06, curio: 0, wip: 0 },
   makerMargin: 1.35,

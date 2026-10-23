@@ -381,7 +381,7 @@ const BREAKS = [
   ['a class nobody can do', { s73: sub("  bulk:     { test: subs => subs.some(s => s.load && s.load.bulk) },", "  bulk:     { test: subs => subs.some(s => s.load && s.load.bulk) },\n  ferry:    { test: subs => subs.some(s => s.do === 'carry') && false },") }],
   // the calibration
   ['the pay halved', { s73: sub('  baseF: 2.7, story: 2.6,', '  baseF: 1.35, story: 1.3,') }],
-  ['the hangars cheap', { s76: sub('  shells: { field: 1.8,', '  shells: { field: 0.4,') }],
+  ['the hangars cheap', { s76: sub('  shells: { field: 3.6,', '  shells: { field: 0.4,') }],
   ['the bands widened', { s76: sub('  hangar1:  [6, 10],', '  hangar1:  [0, 60],') }],
   ['the reference spends the grant first', { s76: sub('  const float = CAREER_GRANT, at = {}', '  const float = 0, at = {}') }],
   // no running cost
