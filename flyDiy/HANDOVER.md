@@ -98214,3 +98214,56 @@ zero per-frame allocation added (the scrape record is typed arrays made at makeS
 no generated file committed (build before the gates); the user's build files untouched (the fixture is a copy).
 
 READY for A0: claude/belly-pod-2
+
+### G3460-G3467 addendum (23 Oct) - THE MERGED HEAD'S BATTERY: EVERY GATE THAT READS A FILE OF THIS BRANCH
+
+Head ac765b8c1 (claude/belly-pod-2 = this work + master L22d 062c61251), `node tools/build.js` then
+`node tools/run_gates.js --only=<8 ids> --no-build --jobs=4`, chunk after chunk (one container restart: the chunk it
+cut was run again), 145 gates = the grep rule's 142 core gates + POD / PODEDITOR / DMGPOD; the cloud machine's 4 cores.
+Every red was run on master L22d in a worktree on the same machine, and its FAIL lines diffed with the branch's.
+
+**THE POD'S OWN THREE** (the final head):
+```
+POD        413 checks, 0 failed (158 s)    GATE POD: PASS
+PODEDITOR   39 checks, 0 failed (19 s)     GATE PODEDITOR: PASS
+DMGPOD      52 checks, 0 failed (52 s)     GATE DMGPOD: PASS          (--selftest: 6 of 6 caught)
+```
+**PASS (124)**: POSTFX INPUT SUBSTEP PACE FLIGHTREC AUDIO BOOMBOX MIXLEAD CLIMATE ATMO GE GEN PILOT STRIPSURF TAXICLEAR ALTIPORT LINEUP PROFILE DESTTO DEFAULT WEIGHT DRAG BIPLANE SKIN UISMOKE HWCOV SCENERY ASSETBUDGET ANIMALS DMGMEMBERS DMGCERTCOST DMGWIND DMGNOSE DMGFPS DMGSKIN DMGUPLOAD DMGCRASHUI DMGSETTLE DMGDRIVE DMGSKINGPU DMGPAGEW DMGWRECK DMGWALL DMGHEAL DMGSCAR DMGDETERMINISM GFX PROGRAMS ROLLSND UPDATE UILAYER CARDS FADES CONTACT SHADOWSKY MEDIA ASSETS BUILD SKINMAT LIVERYREACH LIVERY WEATHER LIGHT EDBUGS FIT POSEHIDDEN HINGE FRAMES KNIFE NACLAG JOIN GEOPARITY DESIGNCHECK SPECFIX STARTER SAVE SIMWORKER SHEETWORKER POSEBACK VILLAGE PARTS DESIGN REF HONESTY PREMISES PREMCOOK KITHOST PARKED FLOWNBAKE HITBOX WATER WATERDAMP RWYTREES FLOATS PLAYER GAMEPREM STORAGE STORESPOT STOREDRAW ACCEPT CONTRACTS STAGES STORY ROUTES ECON PROCURE FREIGHT PILOTS HANGAR ENERGYBASE ENERGY TANKMOUNT ENGTORQUE HEADING PANEL DASH ELEC FLEX LOAD MOUNT LAZY POD PODEDITOR DMGPOD.
+
+**RED (21) - EVERY ONE MASTER'S, NONE THE POD'S**:
+- **identical FAIL lines on master L22d, the same machine** (diffed): AA (2 of 33: the render pass rows), CLOCK (1 of 777),
+  FOG (2 of 22: the main camera rows), TREEHIT (the trunk stops at 63.5 m of 60 ...), TREECRASH (jodel/trunk0 work median
+  19 724 -> 22 577 J), DMGCERT (the metal Cessna broke at 7.21 g, band 5.70-5.99), DMGGEAR (the twin's 90 km/h nose-in),
+  DMGCLUSTERS (the fin pulled sideways, the twin's nose-in), DMGINST (k x 5 tripped at frame 1; the worker's diverged()),
+  DMGINTEGRITY (the engine through the firewall rows), DMGDAMP (14: the damper's |L - L0| / L0 over 10 s), DMGTYRE (4: the
+  taxi turn radius, the Cub's crosswind roll-out), DMGFABRIC (the base's bits rows), DMGCOMPOSITE (the base's bytes vs
+  claude/dmg-t41), ROUNDTRIP (1: the setup screen's sections), ROLLANIM (1 of 806: G1039 flRevealStart), BENCH (the phase
+  strip's 24 pilot phases - ROUTE, LOITER).
+- **CLOUD**: 1 of 239 alone (the lamps pool row - master's known red, the same on master); in the battery two headless
+  probe rows also timed out at 600 s while master's comparison loaded the same cores - not on its run alone.
+- **SCENERYED**: 1 timing row, "Metlakatla put back under 2500 ms" - master 2503 ms, the branch 3576 ms under the double load.
+- **JOINPARITY**: "no tool flies a validated build raw" - on master: _apsmooth_check, _engtorque_check, econ_sim,
+  engine_torque_seasweep, hand_controls_probe (master's five). The branch's own four (_pod_editor_check, pod_editor_shot,
+  pod_box_evidence, pod_fixture) now load through tools/_load_build.js (707a2256f): the branch names exactly master's five.
+- **FRAMECOST**: master's known row (cessna boot/garage:restore updateMatrixWorld 2269 -> 4553) + 21 stand / taxi rows
+  (draws.main, draws.shadow, the uniforms). **The stale parked cook, the gate's own hint**: any core or viewer edit moves
+  FLYDIY_BUILD and `node tools/parked_cook.js --check` reads STALE (manifest e6e03bc81c7f, this tree 0a568838566e), so the
+  parked aeroplanes are captured live. Proved: master L22d with ONLY this branch's src/core applied (its cook stale alike)
+  fails the identical 22 lines; master as it is (cook fresh) the 1. The aeroplane's own draws are equal (Cub stand 76 main
+  + 0 shadow, 59 materials, 13 programs, 93 meshes; Cessna 86 + 0, 63, 12, 103). The landing's re-cook settles it; the pod
+  with / without on FRAMECOST is on the box list above.
+
+**FIXED ON THE WAY** (this branch's own, found by the battery): **ECON** (1 of 149, "the airframe's price: its ledger x the
+main hangar's labour factor") - its source row reads econMaterialiseNow's call literally; the pod's `podPaid` now rides the
+airframe row after that call (ac765b8c1): ECON PASS. **JOINPARITY**'s four pod tools (above).
+
+**THE FIXTURE, RE-WRITTEN FROM THE GAME'S LOAD CHAIN** (707a2256f; tools/_load_build.js, not the file raw - the numbers
+above in this entry were the raw file's): the user's metal Cessna + 200 L pod (2.52 x 0.63 x 0.32 m): **take-off 151 -> 154 m
+(+3), climb 1369 -> 1328 ft/min (-40), cruise 110.6 -> 108.5 KTAS (-2.0 kt, -1.8 %)**; clearance 0.19 m level / 0.10 m at
+the tail strike. The climb cost is the C185 pod supplement's -40 ft/min; the cruise cost a shallow pod's 2-3 kt, under the
+supplement's 6-8 and the C208's 9 (ask 1 stands).
+
+Not run (the full tier): TOUR, CESSNAVREF, BOOTLIFT, DMGHULL, DMGPLOUGH, DMGFLOATTO, SIMWORKER-PAGE / -EDGES / -PLACE,
+ARCHETYPES, SOAR. The generated files are not committed (built for the gates, put back).
+
+READY for A0: claude/belly-pod-2 ac765b8c1 (+ this docs commit)
