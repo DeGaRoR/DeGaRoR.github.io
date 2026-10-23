@@ -1841,6 +1841,12 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
   border: 1px solid var(--ed-border); border-radius: 10px;
   font-family: 'IBM Plex Sans', system-ui, sans-serif; font-style: normal; font-size: 14px; line-height: 1.4; }
 #stTim[hidden] { display: none; }
+/* G3357: the beat card is a dev's view (?storycard=1); Tim's band carries the beat, its checklist and a chip when closed */
+body.stNoCard #stCard { display: none !important; }
+#stTim .stTimRows { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 2px; font-size: 13px; color: var(--ed-dim, #8a8d91); }
+#stTim .stTimRows li.ok { color: var(--ed-ink, #e8e4dc); }
+#stTim.min { right: auto; padding: 4px; gap: 0; }
+#stTim .stTimChip { all: unset; cursor: pointer; display: block; line-height: 0; }
 #stTim .stTimFace { width: 48px; height: 48px; flex: none; }
 #stTim .stTimFace circle:first-child { fill: var(--ed-btn-bg, #2a2d31); stroke: var(--ed-acc, #d9a441); stroke-width: 1.5; }
 #stTim .stTimFace .h { fill: var(--ed-dim, #8a8d91); }
