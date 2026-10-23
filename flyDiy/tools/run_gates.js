@@ -900,6 +900,12 @@ const GATES = [
   // save, the sandbox untouched, STORY's T6 signing a real route (app.js's story half headless: the arrival card's line);
   // ~2 s. `--selftest`: four breaks, each red
   { id: 'ROUTES', file: '_routes_check.js', tier: 'core', wall: 5 },
+  // G3230-G3239 TECH-MASK: the machine shop's three segments (79b_tech.js, pure): every GEN option has a segment, the
+  // validated builds' stages (TECH_DESIGNS re-derived from the files), the career's segment, the sandbox unchanged, the
+  // editor's own TECH-MASK block headless over the real cage rows and design table (exactly the above-segment options
+  // greyed, the story's lock first), the makers' and the used market's filter, the story's occasions at T7; ~2 s.
+  // `--selftest`: six breaks, each red
+  { id: 'TECH', file: '_tech_check.js', tier: 'core', wall: 5 },
   // G2260 (ECONOMY): one price book, the career wallet's rules, the calibration bands, az through physical gates (~26 s)
   { id: 'ECON', file: '_econ_check.js', tier: 'core' },
   // PROCUREMENT (G2280 PROCURE, GAME-2026-10-06.md §5, §R GQ2): the makers' catalogues over the validated builds only,
