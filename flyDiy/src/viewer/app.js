@@ -8436,9 +8436,10 @@
   function econMaterialiseNow(d, name) {
     const B = econBuildPrice();
     if (!B) return d;
-    // (G3465: a belly pod in the design is in the price - say so, so the same save does not bill it again)
+    const r = econMaterialise(d, name, B.cost, B.wants, { price: B.price });
+    // (G3465: a belly pod in the design is in that price - the airframe row says so, so the same save does not bill it again)
     const podPaid = curKey === 'gen' && def && def.parts && def.parts.ledger && def.parts.ledger.pod ? def.parts.ledger.pod.cost : 0;
-    const r = econMaterialise(d, name, B.cost, B.wants, podPaid > 0 ? { price: B.price, podPaid } : { price: B.price });
+    if (r.ok && podPaid > 0 && r.doc.career && r.doc.career.airframes && r.doc.career.airframes[name]) r.doc.career.airframes[name].podPaid = Math.round(podPaid);
     if (!r.ok) { console.warn('flyDiy (career): ' + name + ' was saved but not paid for - ' + r.why); return d; }
     ecNote = 'built ' + name + ': ' + ecFmt(r.cost);
     return r.doc;
