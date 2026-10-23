@@ -24,22 +24,26 @@ const flag = k => argv.includes('--' + k);
 
 // ---- THE DRAWING: the study's full-size rows (dc3Raw(1.0)) and what the widened envelope lets the editor draw -------
 // Every number below is a cage row (cage units x planeScale 1.6 = metres) or a gear row (metres, unscaled), as a player
-// would dial it. The join then measures: span 29.0, root chord 4.40, taper 0.45 (Sw ~92 m2), the leading edge 4.5 m aft
+// would dial it. The join then measures: span 29.0, root chord 4.40, taper 0.45 (Sw ~92 m2), the leading edge 5.1 m aft
 // of the windscreen base, the tail post ~17.8 m, the cabin box 2.4 x 2.6 x 9.0 m, the DC-3's 8.1 m stab and 3 m fin,
 // the 5.64 m track on 0.57 m tyres, two R-1830s 3.05 m off the centreline.
 const DC3_ROWS = {
   // the fuselage: cockpit 2.4 m, three cabin bays 9.0 m, a 3.5 m cone; a 2.5 m wide, 2.6 m deep section
   pilotLen: 1.5, paxCount: 3, paxLen: 1.75, boomLen: 2.2,
   halfW: 0.78, roofHalfW: 0.68, roofY: 0.85, keelY: -0.8,
-  // the wing: 29 m, 4.4 m root, 1.98 m tip (taper 0.45, the envelope's floor and the DC-3's own), 4 m aft of the
-  // cockpit ring (the fore / aft row, negative is aft)
-  wgSpan: 29, wgChord: 4.4, wgChordTip: 1.98, wgDx: -4,
+  // the wing: 29 m, 4.4 m root, 1.98 m tip (taper 0.45, the envelope's floor and the DC-3's own), 4.6 m aft of the
+  // cockpit ring (the fore / aft row, negative is aft): a scan's pick, static margin 0.09 and no design-check row
+  wgSpan: 29, wgChord: 4.4, wgChordTip: 1.98, wgDx: -4.6,
   // the nacelles 3.05 m out: the prop tips clear the cabin by 0.15 m
   engNacAt: 0.21,
-  // the mains under the nacelles: 5.64 m track, 1.14 m tyres, a 1.2 m oleo
-  s1X: 2.82, s1R: 0.57, s1Drop: 1.2, s1Z: 1.4,
+  // the mains under the nacelles: 5.64 m track, 1.14 m tyres, a 1.2 m oleo; the fitting 0.2 m aft of the datum puts
+  // the axle 5.5 m aft of the windscreen base - an 11.6 deg deck on three points (the DC-3's ~11.5) and the CG 34 deg
+  // behind the axle
+  s1X: 2.82, s1R: 0.57, s1Drop: 1.2, s1Z: -0.2,
   // the DC-3's tail: stab 8.2 x 2.25 m, fin chord 2.9 m (x the drawn, the stab and fin layers' size rows)
   stSpan: 1.41, stChord: 1.02, finChord: 1.34,
+  // the DC-3's split flaps (G3506's row, the flap table's fifth: 'split')
+  wgFlapType: 4,
 };
 function dc3FullRaw(over) {
   const j = PR.dc3Raw(1.0);

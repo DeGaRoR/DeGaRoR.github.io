@@ -203,7 +203,7 @@ function sheet(C, def, label) {
     onWheels: sh.onWheels, restsOn: sh.restsOn, deckAngle: sh.deckAngle, noseOver: sh.noseOver, propClear: sh.propClear,
     Vs: sh.Vs, VsFlap: sh.VsFlap, VAppr: sh.VAppr, VCruise: sh.VCruise, climbRate: sh.climbRate, TORun: sh.TORun,
     staticMargin: sh.staticMargin, LDbest: sh.LDbest, flyableCircuit: sh.flyableCircuit, thrCruise: sh.thrCruise,
-    price: sh.ledger && sh.ledger.total ? sh.ledger.total.cost : null, design: dc,
+    price: sh.ledger && sh.ledger.total ? sh.ledger.total.cost : (sh.cost != null ? sh.cost : null), design: dc,   // (DC3-BUILD: the shakedown's own `cost`)
   };
 }
 

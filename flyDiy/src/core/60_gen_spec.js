@@ -1509,6 +1509,12 @@ const GEN_FLAPS = {
   // on every other row, which is what makes them plain hinges.
   fowler:  { name: 'Fowler flap',  dCl: 2.05, cd: 0.095, rate: 0.14,
              slide: 0.62, drop: 0.10 },
+  // G3506 (DC3-BUILD, 2026-10-23): THE SPLIT FLAP - the DC-3's, the lower skin
+  // alone hinged down. About a plain flap's lift (Abbott & von Doenhoff: a 0.20c
+  // split flap ~0.9 on the 23012 / 2412 family) for markedly more drag - the
+  // flap a transport lands on steeply. Last in the table so every saved row's
+  // index (the editor's wgFlapType) is the one it was. Drawn as a plain hinge.
+  split:   { name: 'Split flap',   dCl: 0.90, cd: 0.110, rate: 0.20 },
 };
 
 // ===========================================================================
@@ -1545,7 +1551,7 @@ const GEN_TRAVEL = {                       // degrees, each way
 // the flap's own travel is the type's, where the type has an opinion: a
 // Fowler runs out further than it turns down, and a split flap goes further
 // than either. Absent = the table's own number.
-const GEN_FLAP_TRAVEL = { fowler: 35, slotted: 40, plain: 40 };
+const GEN_FLAP_TRAVEL = { fowler: 35, slotted: 40, plain: 40, split: 45 };   // (G3506: the DC-3's 45 deg)
 
 // travel in RADIANS for one surface key, which is what every caller wants
 function genTravel(which, flapType) {
