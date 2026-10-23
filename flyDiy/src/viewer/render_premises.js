@@ -2922,7 +2922,8 @@ function make(THREE, scene, world, rec0, opts) {
   //     it is near (the far cell's shell holds their box), never in the far town's bake.
   // Off (the default), or with no pack / a pack of another kit, nothing here runs: the town is on the kit as before.
   //   ?cityhost=1   the town from its pack
-  const CITY = { want: !!(KT.want && typeof location !== 'undefined' && /[?&]cityhost=1\b/.test(location.search || '')), on: false, status: 'off', err: null, man: null, town: null, city: null, host: null,
+  // (METLA-ON, the user 23 Oct: the town host from its pack is the default with the town on; ?cityhost=0 the old kit host, the A/B)
+  const CITY = { want: !!(KT.want && !(typeof location !== 'undefined' && /[?&]cityhost=0\b/.test(location.search || ''))), on: false, status: 'off', err: null, man: null, town: null, city: null, host: null,
                  O: null, plots: new Map(), bound: new Map(), objects: new Set(), boundBy: [], stubs: 0, hits: new Map(), hitQ: [], hitN: 0, hitMs: 0, loadMs: 0, props: new Set(), farMats: null };
   // THE SWITCH (G3423, the user 20 Oct: "at 1 km - a dial; 2 km the fallback"; the pack's lod.far): ?cityfar=<m> (absent: the
   // cook's 1 km), in at m - 50, out at m + 50; live: WORLD.premises.city.host.setSwitch(m)

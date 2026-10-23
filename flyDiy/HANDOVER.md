@@ -101513,3 +101513,11 @@ GAME-MENUS' tree showed alone on 27 Oct (s27-g11b: longTask1s n 4-9, worst 8.2 s
 ("take the risk for the menus, we don't care, land that"). Follow-up: GAME-MENUS' 10:25 no-blur A/B + HWCOV's cloud-march warm (f93b69c9c).
 Not in it: garage-flood (accepted 2 s; its ready awaited A0's ok), people-crowd (pushed after the train's merge), windows + fittings (CLIP red),
 cert-rule + cert-pod, new-shapes-1, lods-step1, the shed (its polish freezes 2.2 s), metla-on (L28b).
+## HWCOV - METLA-ON (23 Oct 2026, the user: "Metlakatla ON."; for L24a): METLAKATLA ON BY DEFAULT, WITH THE NEW TOWN HOST
+What ?town=1&cityhost=1 did is the default now; the GRAPHICS 'towns' row stays the way to turn it off.
+- gfx_settings: the 'towns' row's default is 'all' (`def`, a free row's default was its first step); pv 9 -> 10: a stored 'nearby' was the old default (every save wrote the free row), not a pick - it takes 'all'; a 'nearby' saved from now on stays. The budget's cap is unchanged: potato, laptop and the software rung never build Metlakatla.
+- build.js (the loader's raster variant): a 'nearby' saved before pv 10 reads as town on.
+- render_premises: the town host from its pack (CITY) with the town on unless ?cityhost=0 (the old kit host, for an A/B).
+- FRAMECOST's census stays the field's (town=0 in its query unless FRAMECOST_QUERY names the town): its baseline was taken with Metlakatla cut.
+- GATE GFX (the default, the migration, the loader rule), GATE CITYHOST row H.
+What the strict light gate sees with the town on (the user accepted the cost; Fri 23 Oct A/B, master 20a136670, floats P vs O): at the CIRCUIT (~6 km from the town) loop +2.9 ms (world +0.9, render +2.0), +26 draws, +1.1 M tris, frames over 34 ms +0.07 pt, p99 equal; the close visit p99 50.0 = off; the approach's town-host cell builds 167-434 ms ENROUTE (CITY-B's slicing, next week). The boot gains the town step (~1.9 s) and the kit's host (~0.3 s).
