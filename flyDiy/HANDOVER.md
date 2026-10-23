@@ -98015,9 +98015,9 @@ same command; the same failing rows:**
   - The branch's reruns, ONE AT A TIME (DMGPAGEW, BOOTLIFT, FRAMECOST, DESTTO, ARCHETYPES), then FRAMECOST on
     master-with-a-comment and ARCHETYPES on master, are running. The container restarted mid-queue on 23 Oct and the queue
     was relaunched. None of these is claimed here until it reports.
-- `GATE ARCHETYPES`: 3 of 4 shards PASS. One row FAILs: "Chinook-alike: the circuit completes — rejected-takeoff". It is a
-  flight row and the avionics_parity airframes are identical, but it is not claimed as master's until master's ARCHETYPES (queued)
-  shows the same row.
+- `GATE ARCHETYPES`: 3 of 4 shards PASS. Its one red row is in shard 0/4: "Chinook-alike: the circuit completes —
+  rejected-takeoff". It is master's: `node tools/_arch_check.js --shard=0/4` on the clean master worktree prints the same row
+  and `GATE ARCHETYPES: FAIL (1)` (23 Oct, run alone).
 - `GATE TOUR: PASS` (x4 shards), and `GATE DESTTO: PASS` on 2 of its 3 shards.
 
 **For the user (asks):**
