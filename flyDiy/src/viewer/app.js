@@ -9289,28 +9289,6 @@
       if (typeof U.syncSliders === 'function') U.syncSliders();
     } catch (e) { console.warn('flyDiy (story): the cabin flood -', e && e.message); }
   }
-  // G3357 THE CABIN FLOOD ON IN THE GARAGE (the user 23 Oct: "Interior flood light should be ON by default in the
-  // garage"; G3355 did it for Rufus at T0): an aeroplane put on the garage stand with its cabin flood FITTED and its
-  // lights' master on gets the flood switched on, once per aeroplane put there (the player may switch it off). A switch
-  // is a position, not the airframe (G3449: bench state). The master is never thrown here: with it off the lights are not
-  // built, and building them would add lights (a relink of every lit program); with it on the flood's lamp is already in
-  // the scene at 0, so this is a level, not a light more.
-  let gFloodKey = null;
-  function garageFloodOn() {
-    if (!inGarage) { gFloodKey = null; return; }
-    const U = window.CAGE_UI;
-    if (!U || !U.P || typeof U.build !== 'function') return;
-    let k = null;
-    try { k = String(slotOnStand() || 'stand'); } catch (e) { return; }
-    if (k === gFloodKey) return;
-    gFloodKey = k;
-    try {
-      if (+U.P.lightOn !== 1 || (U.P.li_floodFit != null && !+U.P.li_floodFit) || +U.P.li_flood === 1) return;
-      U.P.li_flood = 1; U.build();
-      if (typeof U.syncSliders === 'function') U.syncSliders();
-    } catch (e) { console.warn('flyDiy: the garage flood -', e && e.message); }
-  }
-  if (typeof window !== 'undefined' && typeof setInterval === 'function') setInterval(() => { try { garageFloodOn(); } catch (e) {} }, 1500);
   if (STORY_PAGE) {
     try { storyCabinKits(); storyCardSync(); storyFlush(); storyTimSync(); storyBenchRule(); storyLockSync(); storySkipSync(); storyFloodOn(); } catch (e) { console.warn('flyDiy (story): the boot -', e && e.message); }
     setInterval(() => { try { storyTimSync(); storyBenchRule(); storyLockSync(); storySkipSync(); storyFloodOn(); } catch (e) {} }, 1500);

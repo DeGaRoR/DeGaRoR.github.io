@@ -98040,8 +98040,8 @@ Strict light gate RED (6), the known classes: cub chase tasks1s 0 -> 2 / taskWor
   - the flight ladder's label reads "the flight" (was "the flight · i of 6").
 - GATE STORY: the two text rows now check there is no counter, plus one row for the band's layer and the button.
 
-## G3357 - STORY-TIM: TIM CARRIES THE BEAT, NO CG MARKS AT T0, THE CABIN FLOOD ON IN THE GARAGE (2026-10-23, GAME coordinator; claude/story-tim on story-ui 320dbfb1b, for L24a)
-- The user, verbatim: "Opening screen: I see no poinbt in the lines on the top left. Tim feels like he's enough, that feels like an artificial setpoint". And: "Interior flood light should be ON by default in the garage."
+## G3357 - STORY-TIM: TIM CARRIES THE BEAT, NO CG MARKS AT T0 (2026-10-23, GAME coordinator; claude/story-tim on story-ui 320dbfb1b, for L24a)
+- The user, verbatim: "Opening screen: I see no poinbt in the lines on the top left. Tim feels like he's enough, that feels like an artificial setpoint".
 - The beat card (#stCard) is off the player page: a body class (stNoCard) that editor.css reads. It is still built, since the gates read it, and ?storycard=1 shows it as a dev's view.
 - Tim's band now carries the beat:
   - on his last line, an ack beat's OK sends the ack;
@@ -98049,8 +98049,5 @@ Strict light gate RED (6), the known classes: cub chase tasks1s 0 -> 2 / taskWor
   - the story's messages (stLine) are his lines, each with its own OK;
   - a closed band leaves his face as a chip in the corner; a click reopens his last words.
 - The CG / neutral-point marks (gGrp) are hidden while the story holds the paint-only stage (T0). stMarksOff is a `var`, since placeIndicators may run first.
-- Garage flood (garageFloodOn, every page): an aeroplane put on the stand with a FITTED cabin flood and its lights' master ON gets li_flood = 1, once per aeroplane put there.
-  - The master is never thrown, so no light is ever added and nothing relinks.
-  - A switch is bench state (G3449), so certificates stand.
-  - Cost: one cage rebuild (~170 ms) when such an aeroplane comes onto the stand.
-- GATE STORY: +4 rows. The rig (claude/story-smoke d2122f20e) expects the card hidden and the flood on at T0.
+- The garage-wide cabin flood ("Interior flood light should be ON by default in the garage") is on its OWN branch, claude/garage-flood (G3358), stacked on this one: it changes the shed's light count, so A0's strict gate judges it apart.
+- GATE STORY: +3 rows. The rig (claude/story-smoke d2122f20e) expects the card hidden at T0.
