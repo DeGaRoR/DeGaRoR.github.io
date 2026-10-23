@@ -97981,7 +97981,14 @@ same command; the same failing rows:**
   against 18, 38.5 against 32, 68.3 against 42). The branch, run ALONE: `GATE DMGCERTCOST: PASS`.
 - `GATE SIMWORKER-EDGES: FAIL (6)`: the same six rows on master (the worker's world after the edit, "grid r", and the NaN
   bounding-sphere errors at its own planned divergence, on the Cub and the Cessna).
-- `GATE PARKED: PASS`, the branch run alone (the parallel run had been OOM-killed).
+- `GATE PARKED: PASS` and `GATE DMGPAGEW: PASS`, the branch runs alone (the parallel runs had been OOM-killed).
+- `GATE BOOTLIFT: FAIL (1)` run alone: only the `hard` row ("hard = 1 ms from the world on - never lifted while steps land"),
+  identical on master. The four `diag` rows of the parallel run were the load.
+- **`GATE FRAMECOST: FAIL (22)` run alone.**
+  - The breakers' three rows now read ALLOW: the Cub's seed 19625 and restore 853, the Cessna's seed 27361.
+  - The rest is the stale cook's stand / taxi rows on both builds, as above. Re-cooked by the train, not admitted.
+  - Plus the Cessna's restore, 4841: master's own red, at 4553 on master. The breakers' +288 on top of it is NOT admitted, so
+    say so if the train wants it in.
 - **DMGDETERMINISM cannot finish within the runner's per-gate 1800 s on this box on master either.** No verdict on either tree,
   so it is A0's to run on the box.
 - `GATE FRAMECOST: FAIL (25)`, now explained row by row:
