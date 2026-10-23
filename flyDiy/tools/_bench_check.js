@@ -145,12 +145,14 @@ console.log('THE WORD');
     const D = { waistY: 0.5, wgSpan: 9.0, lightOn: 0, zzNew: 0.42 };
     const s2 = { wings: [{ span: 10 }], energy: { hue: 0.1, tint: '#abc', finish: 'gloss', vessels: [{ capacity: 40, hue: 0.2, tint: '#123', finish: 'matt' }] },
                  systems: { avionics: 'basic', look: { bezel: 1, sw: 0 } },
-                 cage: { waistY: 0.5, wgSpan: 9.4, lightOn: 0, _viewLoops: 0, explodeD: 0, cabOcc: 0, paxOcc2: 0, li_reflect: 1, accDetail: 2 } };
+                 cage: { waistY: 0.5, wgSpan: 9.4, lightOn: 0, _viewLoops: 0, explodeD: 0, cabOcc: 0, paxOcc2: 0, li_reflect: 1, accDetail: 2, li_flood: 0, li_nav: 0, li_floodFit: 1 } };
     const g0 = BE.benchFingerprint(s2, D);
     const v = (mut, same, label) => { const c = JSON.parse(JSON.stringify(s2)); mut(c); ok((BE.benchFingerprint(c, D) === g0) === same, label); };
     v(c => { c.energy.hue = 0.9; c.energy.tint = '#000'; c.energy.finish = 'matt'; c.energy.vessels[0].hue = 0.7; c.energy.vessels[0].tint = '#fff'; }, true, 'a tank hue, tint or finish keeps it');
     v(c => { c.systems.look = { bezel: 3, sw: 2 }; }, true, 'the panel bezel keeps it');
     v(c => { c.cage.lightOn = 1; c.cage.cabOcc = 1; c.cage.paxOcc2 = 1; c.cage._viewLoops = 1; c.cage.explodeD = 0.4; c.cage.li_reflect = 0; c.cage.accDetail = 0; }, true, 'the lights, who is aboard, a view toggle and a look row keep it');
+    v(c => { c.cage.li_flood = 1; c.cage.li_nav = 1; }, true, 'a light switched on (the cabin flood, the nav lights) keeps it (G3449)');
+    v(c => { c.cage.li_floodFit = 0; }, false, 'a lamp taken out (li_floodFit) changes it');
     v(c => { c.cage.zzNew = 0.42; }, true, 'a cage row added at its default keeps it');
     v(c => { const o = {}; Object.keys(c.cage).reverse().forEach(k => o[k] = c.cage[k]); c.cage = o; }, true, 'the key order keeps it');
     v(c => { c.cage.waistY = 0.5 + 1e-12; }, true, 'a float printed to the last digit keeps it');
