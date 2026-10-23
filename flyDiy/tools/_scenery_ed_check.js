@@ -1316,10 +1316,10 @@ if (plots.length) {
   let dH = 0, dT = 0, flatW = 0; for (let x = 9920; x <= 10280; x += 7) for (let z = 9975; z <= 10025; z += 0.5) { const off = Math.abs(z - zc(x)), w = Ob.frame.toWorld(x, z);
     if (off > 2 + 6 + 0.05) dH = Math.max(dH, Math.abs(Ob.terrainAt(w[0], w[1]) - Oa.terrainAt(w[0], w[1])));
     if (!!Ob.excludeAt(w[0], w[1], 'trees') !== !!Oa.excludeAt(w[0], w[1], 'trees')) dT++; }
-  for (let x = 9960; x <= 10240; x += 9) { const c = Oa.frame.toWorld(x, zc(x)), e = Oa.frame.toWorld(x, zc(x) + 3.1);
+  for (let x = 9960; x <= 10240; x += 9) for (const o of [3.1, 4.3]) { const c = Oa.frame.toWorld(x, zc(x)), e = Oa.frame.toWorld(x, zc(x) + o);
     flatW = Math.max(flatW, Math.abs(Oa.terrainAt(c[0], c[1]) - Oa.terrainAt(e[0], e[1]))); }
   check(dH < 1e-9 && dT === 0, '38 the ground past the street\'s footprint and the trees\' clearing are the old street\'s (height ' + dH.toExponential(1) + ' m, clearing ' + dT + ' points differ)');
-  check(flatW < 0.005, '38 ...and the street is graded flat under all it draws now (3.1 m out of 3.2, under 5 mm - the old bed: 15 mm: ' + (flatW * 1000).toFixed(1) + ' mm off the centreline)');
+  check(flatW < 0.005 && PG.ROAD_SIDE_FLAT === 1.2 && PG.roadGradeW({ w: 5 }, 6).width === 5 && PG.roadGradeW({ w: 5 }, 6).falloff === 6, '38 ...and the street is graded flat under all it draws and CONTACT sees (3.1 and 4.3 m out: the carriageway 3.2 + the side 1.2; under 5 mm - the old bed 15 mm), an untraded road as ever: ' + (flatW * 1000).toFixed(1) + ' mm off the centreline)');
   const ra = Oa.roads.find(r => r.id === 's38'), rb = Ob.roads.find(r => r.id === 's38');
   check(ra && rb && ra.w === 6.4 && rb.w === 4 && ra.lay === 4 && rb.lay === 4 && PG.roadLayW({ w: 5 }) === 5 && PG.roadLayW({ w: 6.4, lay: 4 }) === 4, '38 the carriageway drawn is 2.4 m wider, the layout width the old one');
   const w2 = Oa.frame.toWorld(10100, 10002 + 2.9);

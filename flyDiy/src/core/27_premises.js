@@ -1540,6 +1540,17 @@ function zoneGrass(zone) { return Object.assign({}, ZONE_GRASS[zone && zone.kind
 // against - its plots' setback, its houses' fronts, its graded bed, its trees' clearing, its poles. A street that traded its side
 // for carriageway says its old width in `lay`, and nothing beside it moves. Unset: the carriageway, as ever.
 function roadLayW(r) { return r && +r.lay > 0 ? +r.lay : (+(r && r.w) || 3.6); }
+// ...and A TRADED STREET'S GRADE (the 23 Oct survey: GATE CONTACT's road edge / side counted the pavement within 5 mm of the
+// patch where the ground CURVES under it - a bank starting at the drawn edge, under the side's fade): flat under everything it
+// draws that CONTACT sees - the carriageway and ROAD_SIDE_FLAT past each edge (the side's fade reach) - its bank narrower by
+// as much, so the grade's OUTER edge (lay / 2 + falloff) is where it was and no ground past it moves. A road that traded
+// nothing (lay unset or = w): its grade as ever.
+const ROAD_SIDE_FLAT = 1.2;
+function roadGradeW(r, falloff) {
+  const w = +r.w || 3.6, lay = roadLayW(r), ext = Math.max(0, w - lay);
+  if (!(ext > 0)) return { width: lay, falloff };
+  return { width: w + 2 * ROAD_SIDE_FLAT, falloff: Math.max(1, falloff - ext / 2 - ROAD_SIDE_FLAT) };
+}
 function roadFeel(r) { return r.surface !== undefined && r.surface !== null ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL); }
 function lookFeelsAs(look, feel) { const L = RUNWAY_LOOKS[look]; return !L || L.surface === null || L.surface === undefined || +L.surface === +feel; }
 function roadLook(r) { const k = r.look && RUNWAY_LOOKS[r.look] ? r.look : (ROAD_LOOK[r.cls] || 'gravel'); return { key: k, row: RUNWAY_LOOKS[k] }; }
@@ -2792,7 +2803,7 @@ function compose(rec0, world, opts) {
     const BED = bedOf(r);
     let floor = null;
     if (BED) {
-      const hw = Math.max(roadLayW(r), +r.w || 3.6) / 2;   // (the bed's floor under the DRAWN carriageway)
+      const hw = roadGradeW(r, 0).width / 2;   // (the bed's floor under all a traded street draws)
       floor = dense.map((p, i) => {
         const a = dense[Math.max(0, i - 1)], b = dense[Math.min(dense.length - 1, i + 1)], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1, nx = -dz / l, nz = dx / l;
         return Math.max(hs[i], T1r(p[0] + nx * hw, p[1] + nz * hw), T1r(p[0] - nx * hw, p[1] - nz * hw)) + BED.fill;
@@ -2855,9 +2866,8 @@ function compose(rec0, world, opts) {
       const s = jAt.s, hAtS = sj => { let k = 0; while (k + 2 < s.length && s[k + 1] < sj) k++; const L = s[k + 1] - s[k]; return L > 1e-9 ? hs[k] + (hs[k + 1] - hs[k]) * Math.max(0, Math.min(1, (sj - s[k]) / L)) : hs[k]; };
       for (const [jid, sj, isEnd] of jAt) if (!JH.has(jid) || (!isEnd && JH.get(jid).end)) JH.set(jid, { h: hAtS(sj), end: isEnd });
     }
-    const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: dense.map((p, i) => [p[0], p[1], hs[i]]), width: Math.max(roadLayW(r), +r.w || 3.6) + (BED ? 2 * BED.shoulder : 0), falloff: Math.max(1, (BED ? BED.bank : (+r.falloff || 6)) - Math.max(0, (+r.w || 3.6) - roadLayW(r)) / 2), abs: true }, F.y0);
-    // (TOWN-ROAD-SIDES: a street that traded its side for carriageway is graded flat under all it DRAWS - its bank steeper by
-    //  as much, so the grade's outer edge, and every ground past it, is where it was: GATE CONTACT's road edge, SCENERYED 38)
+    const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: dense.map((p, i) => [p[0], p[1], hs[i]]), width: roadGradeW(r, 0).width + (BED ? 2 * BED.shoulder : 0), falloff: roadGradeW(r, BED ? BED.bank : (+r.falloff || 6)).falloff, abs: true }, F.y0);
+    // (TOWN-ROAD-SIDES: roadGradeW - a traded street flat under all it draws, its grade's outer edge where it was)
     if (M) mods.push(M);
   }
   // THE GROUND UNDER THE SITES (stage 5 -> T2): every item's shelf, from its entry, cut before anything is placed
@@ -4418,7 +4428,7 @@ function collect(globals) {
 const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale, roadLoneSegs, roadPatchChunks, LONE_R, roadCutAtPoly,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, profileCheck, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks, roadFeel, roadLayW, lookFeelsAs,
+  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, profileCheck, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks, roadFeel, roadLayW, roadGradeW, ROAD_SIDE_FLAT, lookFeelsAs,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces, TOWN_OFF,
   AREA_PROPS, AREA_LAYERS, AREA_SLOT, AREA_SUFFIX, AREA_TERRAFORM, AREA_EXCLUDE, MARK_KINDS, MARK_DEF, rectPoly, rectOk, areaFoldable, foldAreas, areaEntries, expandAreas, areaOfEntry, areaMarks, areaLabel,
   STAGE_KITS, STAGE_FENCE, STAGE_RUNWAY_VARY, stageFrameKey, stageBand, stageValue, stageStands, stageVaryOf, stageKitObjects, stageKitPoly, stageView, stageRestore, stageIssues,
