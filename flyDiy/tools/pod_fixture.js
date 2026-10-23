@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // G3462 (BELLY-POD-2): THE USER'S CESSNA WITH A POD - writes tools/fixtures/cessnaMetal_pod_2026-10-22.json: the user's
-// metal Cessna (bugReports/cessnaMetal (1).json, the validated 'metal' build) with a belly pod sized the way the garage
+// metal Cessna (the validated 'metal' build AS THE GAME FLIES IT - tools/_load_build.js, the page's own load chain; GATE
+// JOINPARITY's rule) with a belly pod sized the way the garage
 // editor sizes one (genPodFromVolume: a 200 L hold at shape 0.5 on this aeroplane's own station table), and prints its
 // sheet's pod rows (clearance, drag, the take-off / climb / cruise penalty). The build file itself is untouched.
 //   node tools/pod_fixture.js [--write]
@@ -8,9 +9,10 @@
 const fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..');
 const C = require(path.join(__dirname, 'flight_core.js'));
-const SRC = 'bugReports/cessnaMetal (1).json', OUT = 'tools/fixtures/cessnaMetal_pod_2026-10-22.json';
+const OUT = 'tools/fixtures/cessnaMetal_pod_2026-10-22.json';
 const LITRES = 200, SHAPE = 0.5;
-const env = JSON.parse(fs.readFileSync(path.join(ROOT, SRC), 'utf8'));
+const VB = require('./_load_build.js').loadValidated('metal');
+const env = { name: VB.name || 'cessnaMetal', spec: VB.spec };
 const spec = C.genMigrateSpec(JSON.parse(JSON.stringify(env.spec)));
 const d0 = C.buildGen(JSON.parse(JSON.stringify(spec)));
 const v = C.genPodFromVolume(spec, d0.parts.ST, LITRES, SHAPE);

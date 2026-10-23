@@ -44,7 +44,10 @@ const run = async (fn, arg) => { const b = await post('/run', 'return await (' +
 const shot = f => get('/shot?f=' + encodeURIComponent(path.join(OUT, f)));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const until = async (fn, ms, arg) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { try { if (await run(fn, arg) === true) return true; } catch (e) {} await sleep(500); } return false; };
-const specOf = f => { const j = JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8')); return j.spec || j; };
+// the builds as the game flies them (tools/_load_build.js: the page's own load chain - GATE JOINPARITY's rule); the fixture is
+// already that (tools/pod_fixture.js writes it from the chain)
+const LB = require('./_load_build.js');
+const specOf = f => /fixtures\//.test(f) ? (j => j.spec || j)(JSON.parse(fs.readFileSync(path.join(ROOT, f), 'utf8'))) : LB.loadBuild(f).spec;
 
 const out = { garage: [], belly: null, errors: [] };
 async function garage() {

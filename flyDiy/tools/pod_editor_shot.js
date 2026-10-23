@@ -15,6 +15,7 @@
 'use strict';
 const fs = require('fs'), path = require('path');
 const ROOT = path.join(__dirname, '..');
+const LB = require('./_load_build.js');
 let chromium;
 try { ({ chromium } = require('playwright')); } catch (e) {
   try { ({ chromium } = require(path.join(require('child_process').execSync('npm root -g').toString().trim(), 'playwright'))); }
@@ -58,7 +59,7 @@ const BUILDS = [
              measuring: sec ? /measuring/.test(sec.innerText) : null, boot: window.BOOT && window.BOOT.state };
   });
   for (const B of BUILDS) {
-    const j = JSON.parse(fs.readFileSync(path.join(ROOT, B.file), 'utf8')), spec = j.spec || j;
+    const spec = LB.loadBuild(B.file).spec;   // (G3467: as the game flies it - tools/_load_build.js)
     delete spec.pod;
     await ev(pg, s => { window.GARAGE_SPEC.set(s); }, spec);
     await until(pg, () => !!(window.GARAGE_SPEC.resolved && window.GARAGE_SPEC.resolved()), 120000);
@@ -88,7 +89,7 @@ const BUILDS = [
   }
   // the Cub again: the box unticked -> the key removed, the mesh gone
   {
-    const j = JSON.parse(fs.readFileSync(path.join(ROOT, BUILDS[0].file), 'utf8')), spec = j.spec || j;
+    const spec = LB.loadBuild(BUILDS[0].file).spec;
     spec.pod = { on: 1 };
     await ev(pg, s => { window.GARAGE_SPEC.set(s); }, spec);
     await until(pg, () => !!window.CAGE_POD_MESH, 120000);

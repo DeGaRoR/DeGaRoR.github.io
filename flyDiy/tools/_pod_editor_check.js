@@ -40,7 +40,8 @@ const CORE_TXT = rd('tools/flight_core.js');
 const FILES = { cub: 'builds/cub_2026-09-20_corrected.json', jodel: 'builds/jodel_2026-09-20_corrected.json',
                 c172: 'builds/cessna172_2026-09-20_corrected.json' };
 const clone = o => JSON.parse(JSON.stringify(o));
-const specOf = k => { const j = JSON.parse(rd(FILES[k])); return j.spec || j; };
+// (G3467: the builds as the game flies them - tools/_load_build.js, the page's own load chain; GATE JOINPARITY's rule)
+const specOf = k => require('./_load_build.js').loadBuild(FILES[k]).spec;
 
 // ---- a small DOM: what the section touches ----------------------------------------------------------------------
 function makeDoc() {
