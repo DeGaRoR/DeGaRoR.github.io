@@ -97911,6 +97911,16 @@ Rolling set (6): apsmooth-known-drop (Pilot: APSMOOTH's c172 level-off row back 
 - Strict light gate on the six: over100 gone (the screen split), cub cockpit / metal chase tasks1s + cub cockpit taskWorst 2136 (the boot ~1 s class, still judged against 1 s as ruled), metal fuseWidth (accepted), floats world->garage 2.25 s (the known re-link).
 - Landed: 7332badc1 = master 5f3f2c797 + apsmooth-known-drop + pilotpage + town200-life + w1-papi, re-cooked (premises / fleet / map / parked); AUDIO STORY UISMOKE SCENERYED CONTRACTS PREMISES LIFE CITYHOST APSMOOTH PASS on that exact tree (17:10-17:20). HWCOV fixes the AUDIO wiring row vs the held path for L22d / L23b.
 
+## G3353 - CABIN-MACHINES: THE CABIN KEEPS TWO SMALL MACHINES (2026-10-22, GAME coordinator; claude/cabin-machines on game-fri 5c50f4313; gated Fri 23 Oct 09:05 for L23b)
+- The user's request, verbatim (via A0): "get rid of the large router (the largest of the woodworking machines). Keep only the 2 smaller ones (the drill and another)".
+- The change:
+  - hangarFit takes opts.omit. A left-out prop is reported in unplaced ('left out of this shed'), so placed + recipes + unplaced is still every declared row.
+  - BASE_OFFERS.w1.plots.w1.omit = panelsaw (4.4 x 3.6 m, the largest), bandsaw, jointer. The pillar drill and the thicknesser stay; every other kit prop stays.
+  - storyCabinShed copies the list onto the shed; storyCabinKits gives an existing story cabin the list once.
+  - The room (app.js -> hangar.js) and hangarObstacles both pass shed.omit.
+- "Another" = the thicknesser, the next smallest machine. If the user meant the band saw, change one word in the omit list.
+- GATE STORY: +3 rows.
+
 ## G3250-G3259 - ECON-SIM: THE ECONOMY SIMULATION (GAME-PLAN §12) - FOUR POLICIES x 20 SEEDS ON THE GAME'S OWN CORE, MASTER'S PRICES AGAINST A PROPOSED TABLE; ROUTES ARE THE LEAK, LANDMARK CO-FUNDING IS THE SINK, TIME (NOT MONEY) IS WHAT MISSES (2026-10-22, for the GAME COORDINATOR, cloud - node only; branch claude/econ-sim off origin/master 2c2a7445 = L22c; the work: 7c1336bb; NOT on claude/ready/ - the coordinator reviews first; G3251-G3259 unused)
 - **The recommendation, in plain words (for the user):**
   - **Routes leak money today.** The down payment is 8 round trips, paid on signing. A metal Cessna on HOME - strip 11 gets 103 920 up front, more than the plane costs (75 000), and every wait pays round trips by the hour. The router policy ends with 66 % of its income from routes (target <= 40 %). Proposed: perKm 100 -> 30, downTrips 8 -> 6, and a TIMETABLE of at most 6 round trips a sim day. With these the router is at 13 %.
@@ -98011,3 +98021,12 @@ Rolling set (6), merged in order on master 2c2a74459 (L22c), HANDOVER unioned (t
 Battery (112 of 113 kept): PASS but master's standing reds, identical in L22b and L22c: CLOCK (1 of 777), CLOUD (1 of 239), KTX2 (the characters' budget: 5 characters with no char_tex_budget row), FRAMECOST (cessna boot/garage:restore updateMatrixWorld 2269 -> 4553). Each is on the board (backlog audit tonight).
 Strict light gate: RED (2), the same classes L22c landed with: metal cockpit tasks1s 0 -> 2 (the boot ~1 s task class, still judged against 1 s as ruled) and floats world -> garage 2.6 s (L22c 2.25, L22b 1.4: the known garage re-link; named for the backlog). Nothing new from this set.
 NOT in this train: float-kit / water-rollout (DMGPLOUGH hump technique + the water roll-out owed by the pilot - next week); TECH-MASK + NAMES (L23c); the cabin lamp + machines + Rufus's flood x4 (L23b); the four revived cloud branches (engine configs, STOL wing, avionics GPS, belly pod - Saturday, after their HANDOVER entries and box stills).
+
+## A0 - landing L23b (23 Oct 2026, gates 10:00-11:00, pushed ~11:20): THE CABIN AT T0 - LAMPS OFF THE WING, THE WORK LAMP, RUFUS'S FLOOD ON, FEWER MACHINES
+Rolling set (1): cabin-lamp ad3165a48 (GAME G3353-G3355 + RUFUS-CERT G3449 claude/light-switch-state merged in):
+- G3353 cabin-machines: the cabin plot w1 omits the panel saw, the band saw and the surface planer (the user, 22 Oct: "get rid of the large router ... keep only the 2 smaller ones"). The pillar drill and the thicknesser stay; all other clutter stays; no cert bench. hangarFit opts.omit reports the left-out props.
+- G3354 work lamp + the lamp-cross knob: a low pendant ahead of the stand, a constant SpotLight with no shadow map aimed into the cockpit (40 cd); the three wing-line fittings moved ahead of the wing's leading edge (plot lampXZ) - the user's guess, "maybe the lamps are too directly on top of the wing", was the main cause (08:10 stills, Game).
+- G3355 the T0 flip: the story turns Rufus's cabin flood on at T0 (switch state only; Rufus's file and certificate untouched: G3449 makes the lamp switch levels STATE in the bench fingerprint). The flood x4 (_cage_light.js 0.9 -> 4.0, reach 4.5 m), the user's "flood *4 looks good". Cost: one cage rebuild at T0, 172 ms, no relink.
+- Gates (Game 09:05, the gated tree + a STORY-only gate-file fix re-gated): HANGAR GAMEPREM PREMISES STORAGE SITE TAXICLEAR x4 UISMOKE LIGHT BEACON BAY ACCEPT STARTER SAVE STORY PASS.
+Battery: master's standing reds only (CLOCK 1/777, CLOUD 1/239, KTX2 the characters' budget, FRAMECOST restore row).
+Strict light gate RED (6), the known classes: cub chase tasks1s 0 -> 2 / taskWorst 1922, cub cockpit taskWorst 2189 (the boot ~1 s task class, judged against 1 s as ruled); cub chase compile 5924 / metal chase compile 5560 (the same compile spread L22a showed at 5814; the reports' boot compile steps are unchanged - 1311 / 1701 ms, 377 / 378 programs vs L22d's 1058 / 1652, 383 / 378: the lamp adds no program); floats water taxi @SEA p99 66.6 (= master's own N23 overnight value, before this branch).

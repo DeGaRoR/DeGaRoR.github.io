@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 07f6c9fdc45af850
+// body-sha256: 629dcae7057e7990
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -7896,6 +7896,9 @@ function hangarFit(dims, kitKeys, opts) {
 
   const placed = [], recipes = [], unplaced = [];
   const placedKeys = new Set();
+  // G3353: a shed may leave named props out (opts.omit: the story's cabin keeps two small machines of the woodshop and
+  // the metalshop). A left-out row is REPORTED, never silent - the invariant below holds
+  const omit = new Set((opts && Array.isArray(opts.omit)) ? opts.omit : []);
   const lanes = { shop: [], build: [], back: [] };  // packed intervals per wall
 
   const resolve = s => {
@@ -7921,6 +7924,7 @@ function hangarFit(dims, kitKeys, opts) {
     if (isRecipe) { out.recipe = row.recipe; out.n = row.n; out.free = !!row.free; out.foot = row.foot; }
     else out.prop = row.prop;
     const label = isRecipe ? row.recipe : row.prop;
+    if (!isRecipe && omit.has(row.prop)) { unplaced.push({ kit, key: label, at: row.at, reason: 'left out of this shed' }); return; }
 
     // 1. bounds — even a `free` row: free waives the keepouts and the
     // packing (the hung wing is ALLOWED across the doorway), never the
@@ -45084,7 +45088,18 @@ const BASE_OFFERS = {
     // the field shell's widest): with every kit the story's ultralight (Rufus, class ul1) stands inside; a Cub does not, and
     // the story never brings one here (its client Cub lives at HOME) - `takes` names the class the offer is held to
     plots: { w1: { shells: ['field'], kits: ['park', 'bench', 'wood', 'metal', 'store', 'handling', 'comfort', 'curio', 'wip'], pf: 0.6,
-                   takes: 'ul1', dims: { field: { HW: 10, HD: 11, EAVE: 4.0 } } } },
+                   takes: 'ul1', dims: { field: { HW: 10, HD: 11, EAVE: 4.0 } },
+                   // (G3353, the user 22 Oct: "get rid of the large router (the largest of the woodworking machines). Keep
+                   // only the 2 smaller ones (the drill and another)") the two smallest machines stay - the pillar drill and
+                   // the thicknesser; the panel saw (4.4 x 3.6 m), the band saw and the surface planer are left out
+                   omit: ['panelsaw', 'bandsaw', 'jointer'],
+                   // (G3354, the user 22 Oct: "We need light in the cabin, right now it's a dark hole") a work lamp hung
+                   // ahead of the stand, aimed into the ultralight's cockpit (hangar.js opts.workLamp)
+                   workLamp: { cd: 40 },
+                   // (G3354, the user 22 Oct: "Maybe the lamps are too directly on top of the wing") the field cross hung
+                   // one fitting over the stand and two over the 9.8 m wing's tips: those three hang ahead of the leading
+                   // edge instead (the 23 Oct stills' pick, d2), the fore and aft fittings stay. hangar.js LAMP_XZ units
+                   lampXZ: [[-8, 0], [-3.1, 0], [8, 0], [-3.1, 7.6], [-3.1, -7.6]] } },
   },
   HOME: {
     words: 'Jolene AFB · the WWII field',
@@ -45200,7 +45215,8 @@ function hangarObstacles(shed, reg) {
   if (typeof hangarFit !== 'function') return [];
   const kits = (shed && Array.isArray(shed.kits) && shed.kits.length) ? shed.kits : ['park'];
   // G2315: the shed's LAYOUT (cozy: the career's works) stands the kits elsewhere - its rows are the floor's obstacles
-  const fit = hangarFit(hangarDims(shed), kits, { shell: (shed && shed.shell) || 'club', reg, layout: shed && shed.layout });
+  const fit = hangarFit(hangarDims(shed), kits, { shell: (shed && shed.shell) || 'club', reg, layout: shed && shed.layout,
+    omit: shed && shed.omit });   // G3353
   const orient = (f, ry) => (Math.round((ry || 0) / (Math.PI / 2)) & 1) ? [f[1], f[0]] : [f[0], f[1]];
   const out = [];
   for (const p of fit.placed) {
@@ -52920,7 +52936,10 @@ function storyCabinShed(aero, clock) {
   const P = plot ? O.plots[plot] : null;
   const S = (typeof SHELLS !== 'undefined' && SHELLS.field) ? SHELLS.field.dims : {};
   return { id: plot || aero, shed: { shell: 'field', kits: ((P && P.kits) || STORY_CABIN_SHED.kits).slice(), base: aero, tenure: 'own',
-    dims: Object.assign({}, S, STORY_CABIN_SHED.dims, (P && P.dims && P.dims.field) || {}), since: Math.round(clock || 0), story: 'cabin' } };
+    dims: Object.assign({}, S, STORY_CABIN_SHED.dims, (P && P.dims && P.dims.field) || {}), since: Math.round(clock || 0), story: 'cabin',
+    ...(P && Array.isArray(P.omit) ? { omit: P.omit.slice() } : {}),   // G3353: the props the plot leaves out
+    ...(P && P.workLamp && typeof P.workLamp === 'object' ? { workLamp: Object.assign({}, P.workLamp) } : {}),   // G3354
+    ...(P && Array.isArray(P.lampXZ) ? { lampXZ: P.lampXZ.map(p => p.slice()) } : {}) } };   // G3354: the fittings off the wing line
 }
 // A NEW CAREER WITH THE STORY (the welcome's New career, the player's career 'main' only): storyStart with the starter's
 // slot, then the cabin - the strip that plays the cabin (storySite, never a guess) gets the smallest shed, the garage opens
