@@ -254,7 +254,7 @@
         if (!roots || roots.length < 2) { api.hide(i); return; }
         t = t || 0; gust = gust == null ? 0.5 : gust;
         const side = [out[1] * up[2] - out[2] * up[1], out[2] * up[0] - out[0] * up[2], out[0] * up[1] - out[1] * up[0]];   // along the chine
-        const burst = 1 + 0.9 * gust * Math.pow(vn2(t * 1.9 + i * 3.7, 0.5), 3);   // a gust through the whole sheet
+        const burst = 1 + 0.6 * gust * Math.pow(vn2(t * 1.9 + i * 3.7, 0.5), 3);   // a gust through the whole sheet (G2837c: 0.9 -> 0.6)
         for (let iu = 0; iu < NU; iu++) rr[iu] = rootAt(roots, iu / (NU - 1), rr[iu] || [0, 0, 0]);
         for (let l = 0; l < NL; l++) {
           const L = SHEET_LAYERS[l], o = i * perS + l * per;
@@ -262,13 +262,13 @@
             const u = iu / (NU - 1), r = rr[iu];
             // (G2837b) the reach and the height GUST along the chine and in time - a frame-group's shape, never a fixed wing
             const gU = vn2(u * 2.7 + l * 1.9 + i * 5.1, t * 4.3), gH = vn2(u * 3.3 + l * 2.3 + i * 7.9 + 11.0, t * 5.1);
-            const uoU = uo * L.so * (0.8 + 0.4 * u) * (0.7 + 0.6 * gU * (0.5 + gust)) * burst, uuU = uu * L.su * (0.85 + 0.3 * Math.sin(Math.PI * u)) * (0.55 + 0.9 * gH * (0.5 + gust)) * burst;   // aft flares, mid rises
+            const uoU = uo * L.so * (0.8 + 0.4 * u) * (0.8 + 0.4 * gU * (0.5 + gust)) * burst, uuU = uu * L.su * (0.85 + 0.3 * Math.sin(Math.PI * u)) * (0.65 + 0.6 * gH * (0.5 + gust)) * burst;   // aft flares, mid rises (G2837c: narrower gusts)
             const T = Math.max(0.05, 2 * uuU / G);
             for (let iv = 0; iv < NV; iv++) {
               const v = iv / (NV - 1), tt = v * T, k = o + iu * NV + iv;
               const ho = uoU * tt + L.off, hv = uuU * tt - 0.5 * G * tt * tt;
               // (G2837b) shaken out of its arc: a turbulent offset growing with the flight (v^1.3), up to ~0.2-0.6 m at the tip
-              const ta = (0.2 + 0.4 * gust) * strength * Math.pow(v, 1.3), ph = u * 6.1 + l * 4.3 + i * 2.9;
+              const ta = (0.12 + 0.25 * gust) * strength * Math.pow(v, 1.3), ph = u * 6.1 + l * 4.3 + i * 2.9;   // (G2837c: a gentler shake for the smaller sheet)
               const d1 = (vn2(ph, v * 3.1 - t * 5.7) - 0.5) * 2 * ta, d2 = (vn2(ph + 17.3, v * 2.7 - t * 6.3) - 0.5) * 2 * ta, d3 = (vn2(ph + 41.1, v * 3.4 - t * 4.9) - 0.5) * 1.4 * ta;
               pos[k * 3] = r[0] + out[0] * (ho + d1) + up[0] * (hv + d2) + side[0] * d3; pos[k * 3 + 1] = r[1] + out[1] * (ho + d1) + up[1] * (hv + d2) + side[1] * d3; pos[k * 3 + 2] = r[2] + out[2] * (ho + d1) + up[2] * (hv + d2) + side[2] * d3;
               q[k * 3] = u; q[k * 3 + 1] = v; q[k * 3 + 2] = strength;

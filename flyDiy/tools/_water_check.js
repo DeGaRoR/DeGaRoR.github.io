@@ -416,14 +416,14 @@ console.log('\n6. THE SPRAY');
   // gusts per root and in time and is shaken out of its arc, its holes travel, and it sheds chunks in bursts
   { const S3 = require('../src/viewer/spray.js');
     verdict(S3.KIND.droplet.size[1] <= 0.01 && S3.KIND.puff.size[1] <= 0.015 && /uniform float uStretch; uniform float uMinNdc;/.test(S3.GLSL.vert) && /if \(ndc < uMinNdc && ndc > 0\.0\)/.test(S3.GLSL.vert) && /\* vK;/.test(S3.GLSL.frag)
-      && /float holes = smoothstep\(0\.50, 0\.66, fbm\(/.test(S3.GLSL.sheetFrag) && /set\(i, roots, out, up, uo, uu, strength, t, gust\)/.test(src('src/viewer/spray.js')) && /const burst = 1 \+ 0\.9 \* gust/.test(src('src/viewer/spray.js'))
-      && /SHED CHUNKS/.test(app) && /const SPRAY_N = 1400,/.test(app),
+      && /float holes = smoothstep\(0\.50, 0\.66, fbm\(/.test(S3.GLSL.sheetFrag) && /set\(i, roots, out, up, uo, uu, strength, t, gust\)/.test(src('src/viewer/spray.js')) && /const burst = 1 \+ 0\.6 \* gust/.test(src('src/viewer/spray.js'))
+      && /SHED CHUNKS/.test(app) && /const SPRAY_N = 1400,/.test(app) && /const SPRAY_K = 0\.77, uo = 0\.45 \* V \* SPRAY_K, uu = Math\.min\(2\.6, 0\.22 \* V\) \* SPRAY_K;/.test(app),
       `the spray, violent: drops ${S3.KIND.droplet.size.join('-')} / ${S3.KIND.puff.size.join('-')} m held at ~1 px and streaked; the sheets gust, shake, tear in travelling holes and shed chunks`); }
   { const S2 = require('../src/viewer/spray.js'), fr = S2.GLSL.sheetFrag, vt = S2.GLSL.sheetVert;
     verdict(/attribute float aL;/.test(vt) && /varying vec3 vVP;/.test(vt) && /float graze = pow\(1\.0 - abs\(dot\(N, Vd\)\), 1\.3\);/.test(fr) && /float root = smoothstep\(0\.0, 0\.07, v\);/.test(fr) && /float through = pow\(max\(0\.0, dot\(-Vd, uSunV\)\), 5\.0\);/.test(fr) && /float speck = /.test(fr),
       'the chine sheets: three layers, a thin film (clear face-on, dense at grazing), soft at the waterline, torn into speckle, the sun through them'); }
   verdict(/SPRAY\.makeSheets\(THREE, nF \* 2, 24, 14\)/.test(app) && /F\._chineSta/.test(app) && /SH\.set\(si, roots, \[ox, 0, oz\], \[0, 1, 0\], uo, uu, strength, waterFx\.t \+ si \* 7\.3, gust\)/.test(app) && /D\.sheets\.commit\(waterFx\.t\)/.test(app), 'app.js builds two sheets per float off the wet chine stations and commits them each frame');
-  verdict(/uu - 9\.81 \* t \+ (?:0\.3|1\.2) \* Math\.random\(\)/.test(app), "the droplets peel off the sheet's far edge with its velocity (G2838b: a wider spread)");
+  verdict(/uu - 9\.81 \* t \+ (?:0\.3|1\.2|0\.8) \* Math\.random\(\)/.test(app), "the droplets peel off the sheet's far edge with its velocity (G2838b: a wider spread)");
   // THE FLOAT TRUSS REACHES THE GAME (G460.10, the user: "the cessna does not draw its float support structure")
   const join = src('tools/_cage_join.js');
   verdict(/pt\.kind === 'floatStrut';\s*\/\/ G460\.10/.test(join), "the join lists floatStrut among the truss kinds (its members exported for app.js's two-end follow)");
