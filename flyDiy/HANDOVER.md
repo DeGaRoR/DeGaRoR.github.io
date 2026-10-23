@@ -97998,7 +97998,9 @@ same command; the same failing rows:**
     - The proof: a second clean origin/master worktree with ONE COMMENT changed in app.js (the build id moves, the cook goes
       stale), FRAMECOST run there. Its Cessna shows the same rows: taxi draws.main 1087 (here 1088), uniform4fv 5216 (5218),
       shadow tris 3 730 334 (3 732 380).
-    - That A/B's Cub page was OOM-killed (below); its rerun is queued.
+    - The A/B run alone, 23 Oct: master with one comment changed fails THE SAME 22 ROWS as this branch, row for row. Cub taxi
+      draws.main 1077 (here 1078) and uniform4fv 5206 (here 5208); the Cessna's likewise. The one value apart is the Cessna's
+      restore (4553 there, 4841 here: the breakers' +288, below).
     - The cook cannot be redone in the cloud: `parked_cook.js` refuses SwiftShader ("cook on the GPU").
   - **The garage seed / restore updateMatrixWorld rows ARE this branch's.** The breaker row is five scene objects a breaker:
     9 on the Cub, 15 on the Cessna.
