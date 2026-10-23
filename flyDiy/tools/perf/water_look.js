@@ -131,10 +131,12 @@ async function runVariant(variant, views, idx) {
     };
     // (G2836) THE RING'S GRID: h<agl>_d<dist> - the aircraft agl m over the water (0: afloat), dist m from land seaward of the dock,
     // the eye 30 m further out and 5 m up, looking at it and the shore
-    for (const v of views) { const g = /^([hoi])(\d+)_d(\d+)$/.exec(v); if (!g || spec[v]) continue; const openSea = g[1] === 'o', inland = g[1] === 'i'; g.splice(1, 1);   // (round 2: o<agl>_d<dist> on the open sea)
+    for (const v of views) { const g = /^([hoij])(\d+)_d(\d+)$/.exec(v); if (!g || spec[v]) continue; const openSea = g[1] === 'o', inland = g[1] === 'i' || g[1] === 'j', outer = g[1] === 'j'; g.splice(1, 1);   // (round 2: o<agl>_d<dist> on the open sea)
       // (G2839 the shore crossing: i<agl>_d<dist> - over LAND, dist m in from the dock's shore along its normal, the eye further inland
       // looking back at the aircraft and the sea)
-      const P = JSON.parse(await ev(inland ? '(() => { const D = __WP.dock, n = D.n, k = n.r + ' + (+g[2]) + '; return JSON.stringify({ x: D.x + n.dx * k, z: D.z + n.dz * k, n, r: -' + (+g[2]) + ' }); })()'
+      // (G2839) j<agl>_d<dist>: inland from the OUTER coast - the same coast the o-views walk in to (o30_d300, o30_d40, j30_d200: one crossing)
+      const P = JSON.parse(await ev(outer ? '(() => { const T = __WP.towards(__WP.open, 40), n = T.n, k = (Number.isFinite(T.r) ? T.r : 40) + ' + (+g[2]) + '; return JSON.stringify({ x: T.x + n.dx * k, z: T.z + n.dz * k, n, r: -' + (+g[2]) + ' }); })()'
+        : inland ? '(() => { const D = __WP.dock, n = D.n, k = n.r + ' + (+g[2]) + '; return JSON.stringify({ x: D.x + n.dx * k, z: D.z + n.dz * k, n, r: -' + (+g[2]) + ' }); })()'
         : openSea ? 'JSON.stringify(__WP.towards(__WP.open, ' + (+g[2]) + '))' : 'JSON.stringify(__WP.seaward(__WP.dock, ' + (+g[2]) + '))'));
       const lvl = inland ? await ev('FLIGHT_PROBE.world().terrainH(' + P.x + ',' + P.z + ')') : await ev('__WP.level(' + P.x + ',' + P.z + ')'), agl = +g[1];
       spec[v] = () => ({ P, y: agl > 0.5 ? lvl + agl : lvl + H0 - 0.25, back: 30, up: 5, side: 6, toShore: !inland, yEye: (agl > 0.5 ? lvl + agl : lvl) + 5 });
