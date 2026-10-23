@@ -98051,3 +98051,14 @@ Strict light gate RED (6), the known classes: cub chase tasks1s 0 -> 2 / taskWor
 - The CG / neutral-point marks (gGrp) are hidden while the story holds the paint-only stage (T0). stMarksOff is a `var`, since placeIndicators may run first.
 - The garage-wide cabin flood ("Interior flood light should be ON by default in the garage") is on its OWN branch, claude/garage-flood (G3358), stacked on this one: it changes the shed's light count, so A0's strict gate judges it apart.
 - GATE STORY: +3 rows. The rig (claude/story-smoke d2122f20e) expects the card hidden at T0.
+
+## G3358 - GARAGE-FLOOD: THE CABIN FLOOD ON IN THE GARAGE (2026-10-23, GAME coordinator; claude/garage-flood on story-tim, judged apart)
+- The user, verbatim: "Interior flood light should be ON by default in the garage."
+- app.js garageFloodOn (every page, a 1.5 s tick): an aeroplane put on the stand with its cabin flood FITTED and its lights' master ON gets li_flood = 1, once per aeroplane put there (the player may switch it off).
+  - The master is never thrown.
+  - A switch is bench state (G3449), so certificates stand.
+- THE COST TO JUDGE: in the shed a fitted lamp's light is in three's light COUNT only while its row reads > 0 (G2787). So the flip changes the shed's light set, and its programs link in the background (GARAGE_LIGHTS_PREP) before the light shows.
+  - That's one more set to link for every flood-fitted aeroplane brought to the shed, plus one cage rebuild (~170 ms) per aeroplane put on the stand.
+  - Rufus's T0 flip (G3355, L23b) does the same once and showed no boot-compile change. A garage-wide default touches every flood-fitted plane (the Cessnas).
+  - A0's strict gate decides. If red, the cheaper road is to make the flood's default row 1 in the design data (_cage_light defaults), so the boot set is keyed with it - that's RUFUS's file and a certificate question.
+- GATE STORY: +1 row.

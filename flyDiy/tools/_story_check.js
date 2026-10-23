@@ -199,7 +199,11 @@ function run(M) {
          && /class="stTimRows"/.test(APP) && /data-tim="line"/.test(APP) && /data-tim="open"/.test(APP),
          "Tim's band carries the beat: his last line's OK moves an ack beat, the checklist rides under it, the story's messages are his, a closed band leaves a chip");
       ok(/stMarksOff = want;/.test(APP) && /&& !stMarksOff;/.test(APP) && /var stMarksOff = false;/.test(APP),
-         'the CG / neutral-point marks are off while the story holds the paint-only stage (T0)'); }
+         'the CG / neutral-point marks are off while the story holds the paint-only stage (T0)');
+    // G3358 (the user 23 Oct: "Interior flood light should be ON by default in the garage")
+      ok(/function garageFloodOn\(\)/.test(APP) && /if \(\+U\.P\.lightOn !== 1 \|\| \(U\.P\.li_floodFit != null && !\+U\.P\.li_floodFit\) \|\| \+U\.P\.li_flood === 1\) return;/.test(APP)
+         && /U\.P\.li_flood = 1; U\.build\(\);/.test(APP) && /setInterval\(\(\) => \{ try \{ garageFloodOn\(\); \}/.test(APP),
+         'in the garage the cabin flood goes on once per aeroplane put on the stand, only where fitted and the lights\' master is on (the master never thrown) (G3358)'); }
     ok(/id = 'stTim'/.test(APP) && /FLYDIY_AP\.manual\(\) && !inGarage/.test(APP), 'Tim band at the bottom; it steps aside in flight when the player takes manual control');
   }
   // the save
