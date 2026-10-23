@@ -112,7 +112,11 @@ const BASE_OFFERS = {
                    omit: ['panelsaw', 'bandsaw', 'jointer'],
                    // (G3354, the user 22 Oct: "We need light in the cabin, right now it's a dark hole") a work lamp hung
                    // ahead of the stand, aimed into the ultralight's cockpit (hangar.js opts.workLamp)
-                   workLamp: { cd: 40 } } },
+                   workLamp: { cd: 40 },
+                   // (G3354, the user 22 Oct: "Maybe the lamps are too directly on top of the wing") the field cross hung
+                   // one fitting over the stand and two over the 9.8 m wing's tips: those three hang ahead of the leading
+                   // edge instead (the 23 Oct stills' pick, d2), the fore and aft fittings stay. hangar.js LAMP_XZ units
+                   lampXZ: [[-8, 0], [-3.1, 0], [8, 0], [-3.1, 7.6], [-3.1, -7.6]] } },
   },
   HOME: {
     words: 'Jolene AFB · the WWII field',
