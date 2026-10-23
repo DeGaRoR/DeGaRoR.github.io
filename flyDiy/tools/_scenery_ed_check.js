@@ -1311,8 +1311,15 @@ if (plots.length) {
   const plotsOf = O => JSON.stringify((O.records.plots || []).map(q => [q.id, q.poly || q.foot || null, q.front || null, q.road || null]));
   const nPl = (Ob.records.plots || []).length;
   check(nPl > 0 && plotsOf(Ob) === plotsOf(Oa), '38 the plots along the street stand where they stood (' + nPl + ' plots)', nPl + ' plots');
-  let dH = 0, dT = 0; for (let x = 9920; x <= 10280; x += 7) for (let z = 9985; z <= 10015; z += 1.5) { const w = Ob.frame.toWorld(x, z); dH = Math.max(dH, Math.abs(Ob.terrainAt(w[0], w[1]) - Oa.terrainAt(w[0], w[1]))); if (!!Ob.excludeAt(w[0], w[1], 'trees') !== !!Oa.excludeAt(w[0], w[1], 'trees')) dT++; }
-  check(dH < 1e-9 && dT === 0, '38 the graded ground and the trees\' clearing are the old street\'s (height ' + dH.toExponential(1) + ' m, clearing ' + dT + ' points differ)');
+  // the ground: identical past the street's footprint (its old half-width + its falloff, 2 + 6 m), flat across all it draws now
+  const zc = x => (x < 10100 ? 10000 + (x - 9900) * 0.01 : 10002 - (x - 10100) * 0.01);   // the street's centreline (its three points)
+  let dH = 0, dT = 0, flatW = 0; for (let x = 9920; x <= 10280; x += 7) for (let z = 9975; z <= 10025; z += 0.5) { const off = Math.abs(z - zc(x)), w = Ob.frame.toWorld(x, z);
+    if (off > 2 + 6 + 0.05) dH = Math.max(dH, Math.abs(Ob.terrainAt(w[0], w[1]) - Oa.terrainAt(w[0], w[1])));
+    if (!!Ob.excludeAt(w[0], w[1], 'trees') !== !!Oa.excludeAt(w[0], w[1], 'trees')) dT++; }
+  for (let x = 9960; x <= 10240; x += 9) { const c = Oa.frame.toWorld(x, zc(x)), e = Oa.frame.toWorld(x, zc(x) + 3.1);
+    flatW = Math.max(flatW, Math.abs(Oa.terrainAt(c[0], c[1]) - Oa.terrainAt(e[0], e[1]))); }
+  check(dH < 1e-9 && dT === 0, '38 the ground past the street\'s footprint and the trees\' clearing are the old street\'s (height ' + dH.toExponential(1) + ' m, clearing ' + dT + ' points differ)');
+  check(flatW < 0.005, '38 ...and the street is graded flat under all it draws now (3.1 m out of 3.2, under 5 mm - the old bed: 15 mm: ' + (flatW * 1000).toFixed(1) + ' mm off the centreline)');
   const ra = Oa.roads.find(r => r.id === 's38'), rb = Ob.roads.find(r => r.id === 's38');
   check(ra && rb && ra.w === 6.4 && rb.w === 4 && ra.lay === 4 && rb.lay === 4 && PG.roadLayW({ w: 5 }) === 5 && PG.roadLayW({ w: 6.4, lay: 4 }) === 4, '38 the carriageway drawn is 2.4 m wider, the layout width the old one');
   const w2 = Oa.frame.toWorld(10100, 10002 + 2.9);

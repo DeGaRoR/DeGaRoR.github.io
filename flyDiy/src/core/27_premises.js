@@ -2792,7 +2792,7 @@ function compose(rec0, world, opts) {
     const BED = bedOf(r);
     let floor = null;
     if (BED) {
-      const hw = roadLayW(r) / 2;
+      const hw = Math.max(roadLayW(r), +r.w || 3.6) / 2;   // (the bed's floor under the DRAWN carriageway)
       floor = dense.map((p, i) => {
         const a = dense[Math.max(0, i - 1)], b = dense[Math.min(dense.length - 1, i + 1)], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1, nx = -dz / l, nz = dx / l;
         return Math.max(hs[i], T1r(p[0] + nx * hw, p[1] + nz * hw), T1r(p[0] - nx * hw, p[1] - nz * hw)) + BED.fill;
@@ -2855,7 +2855,9 @@ function compose(rec0, world, opts) {
       const s = jAt.s, hAtS = sj => { let k = 0; while (k + 2 < s.length && s[k + 1] < sj) k++; const L = s[k + 1] - s[k]; return L > 1e-9 ? hs[k] + (hs[k + 1] - hs[k]) * Math.max(0, Math.min(1, (sj - s[k]) / L)) : hs[k]; };
       for (const [jid, sj, isEnd] of jAt) if (!JH.has(jid) || (!isEnd && JH.get(jid).end)) JH.set(jid, { h: hAtS(sj), end: isEnd });
     }
-    const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: dense.map((p, i) => [p[0], p[1], hs[i]]), width: roadLayW(r) + (BED ? 2 * BED.shoulder : 0), falloff: BED ? BED.bank : (+r.falloff || 6), abs: true }, F.y0);
+    const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: dense.map((p, i) => [p[0], p[1], hs[i]]), width: Math.max(roadLayW(r), +r.w || 3.6) + (BED ? 2 * BED.shoulder : 0), falloff: Math.max(1, (BED ? BED.bank : (+r.falloff || 6)) - Math.max(0, (+r.w || 3.6) - roadLayW(r)) / 2), abs: true }, F.y0);
+    // (TOWN-ROAD-SIDES: a street that traded its side for carriageway is graded flat under all it DRAWS - its bank steeper by
+    //  as much, so the grade's outer edge, and every ground past it, is where it was: GATE CONTACT's road edge, SCENERYED 38)
     if (M) mods.push(M);
   }
   // THE GROUND UNDER THE SITES (stage 5 -> T2): every item's shelf, from its entry, cut before anything is placed
