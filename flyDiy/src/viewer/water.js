@@ -1046,18 +1046,22 @@ const WATER = (() => {
   // ringLandDist(eye, isLand): the eye's distance to the nearest land, out to MIR.ringD1 (Infinity past it) - 32 headings in 25 m
   // steps, cached until the eye has moved 40 m or 0.5 s went by (the weight it feeds is smooth over 300 m: a stale metre is nothing)
   const ringTmp = { at: null, t: -1e9 };
-  function ringLandDist(eye, isLand, now) {
+  function ringLandDist(eye, isLand, now, planeY) {
     if (typeof isLand !== 'function') return Infinity;
     if (ringTmp.at && Math.hypot(eye.x - ringTmp.at[0], eye.z - ringTmp.at[1]) < 40 && now - ringTmp.t < 0.5) return MIR.landD;
     let best = Infinity;
     if (isLand(eye.x, eye.z)) best = 0;
     else for (let k = 0; k < 32; k++) { const a = k / 32 * 2 * Math.PI, dx = Math.sin(a), dz = Math.cos(a);
       for (let r = 25; r <= MIR.ringD1 && r < best; r += 25) if (isLand(eye.x + dx * r, eye.z + dz * r)) { best = r; break; } }
-    // (round 2) and inland: the distance to the nearest water, out to MIR.ringIn (Infinity past it) - 0 over the water
+    // (round 2) and inland: the distance to the nearest water, out to MIR.ringIn (Infinity past it) - 0 over the water.
+    // G2839: only water ON THE MIRROR'S PLANE counts (MIR.waterAt: the drawn level, the sea's 0 where none) - a pond 110 m from
+    // HOME's stand at 31 m kept the sea's capture running at weight 0.18 for nothing (the shader's one-plane gate shows the
+    // pond the probe): FRAMECOST's census, 23 Oct
+    const onPlane = (x, z) => { if (typeof MIR.waterAt !== 'function' || !Number.isFinite(planeY)) return true; const y = MIR.waterAt(x, z); return Math.abs((Number.isFinite(y) ? y : MIR.seaY) - planeY) < 3; };
     let wd = 0;
     if (best === 0) { wd = Infinity;
       for (let k = 0; k < 32 && wd > 0; k++) { const a = k / 32 * 2 * Math.PI, dx = Math.sin(a), dz = Math.cos(a);
-        for (let r = 10; r <= MIR.ringIn && r < wd; r += 10) if (!isLand(eye.x + dx * r, eye.z + dz * r)) { wd = r; break; } } }
+        for (let r = 10; r <= MIR.ringIn && r < wd; r += 10) if (!isLand(eye.x + dx * r, eye.z + dz * r) && onPlane(eye.x + dx * r, eye.z + dz * r)) { wd = r; break; } } }
     ringTmp.at = [eye.x, eye.z]; ringTmp.t = now; MIR.landD = best; MIR.waterD = wd;
     return best;
   }
@@ -1114,7 +1118,7 @@ const WATER = (() => {
     // weight is today's (the 500 -> 900 m height fade above), its capture today's (grass and cover in it); only the inland dissolve
     // is kept, so a lake's mirror never switches at its shore either
     let ringW = 1; const lake = Math.abs(waterY - MIR.seaY) > 0.5, RG = RING && !lake; MIR.lake = lake;
-    if (RING) { const ld = ringLandDist(camera.position, opts.isLand || MIR.landAt, now);
+    if (RING) { const ld = ringLandDist(camera.position, opts.isLand || MIR.landAt, now, waterY);
       const inland = 1 - sstep(0, MIR.ringIn, MIR.waterD);
       ringW = lake ? inland : (1 - sstep(MIR.ringH0, MIR.ringH1, eyeAgl)) * (1 - sstep(MIR.ringD0, MIR.ringD1, ld)) * inland; MIR.ringW = ringW; }   // (round 2: x the inland fade)
     MIR.w = mirW * ringW;
