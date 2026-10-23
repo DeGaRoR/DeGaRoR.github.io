@@ -129,7 +129,8 @@ console.log('1. OFF IS THE BITS (' + Object.keys(CARDS).length + ' cards against
   const m = { exports: {} };
   vm.runInNewContext(fs.readFileSync(path.join(T, '..', 'src', 'viewer', 'bench.js'), 'utf8'),
     { module: m, exports: m.exports, console, Math, JSON, parseFloat, isFinite, Number, String, Array, Object,
-      Uint8ClampedArray, Infinity, setTimeout, clearTimeout, setInterval, clearInterval, performance: { now: () => 0 }, Date, Symbol });
+      Uint8ClampedArray, Infinity, setTimeout, clearTimeout, setInterval, clearInterval, performance: { now: () => 0 }, Date, Symbol,
+      genStolCageOff: C.genStolCageOff });             // G2827: the core's global, as bench.js finds it in the page
   const BE = m.exports;
   // G2821: THE VALIDATED BUILDS (the load door's VALIDATED - Cub, Jodel, metal Cessna, Cessna floats, twin floats -
   // and the certified Rufus): LOADED HERE through the game's own load door
@@ -159,12 +160,17 @@ console.log('1. OFF IS THE BITS (' + Object.keys(CARDS).length + ' cards against
       const atDef = Object.keys(rowsAt).every(r => J2.cage && J2.cage[r] === rowsAt[r]);
       for (const r of Object.keys(rowsAt)) if (J2.cage) delete J2.cage[r];
       const sameSpec = atDef && JSON.stringify(J2) === JSON.stringify(B.spec);
-      const fpSame = BE.benchFingerprint(J, rowsAt) === BE.benchFingerprint(B.spec, rowsAt);
+      // G2827: EVERY key the game hashes a build by is master's - the certificate (against the page's defaults), the
+      // parked fleet's bakes (no defaults: parked.js fleetSig), the certificate store's (genCertKey), the procurement's
+      const fpSame = BE.benchFingerprint(J, rowsAt) === BE.benchFingerprint(B.spec, rowsAt)
+        && BE.benchFingerprint(J, null) === BE.benchFingerprint(B.spec, null)
+        && C.genCertKey(C.buildGen(clone(J))) === C.genCertKey(C.buildGen(clone(B.spec)))
+        && C.procureFp(J) === C.procureFp(B.spec);
       const def = C.buildGen(clone(B.spec));
       const d = fpDef(def), f = fpFly(def), w = fpDraw(def), ck = FP.fpCheck(C, C.buildGen(clone(B.spec)));
       ok(sameSpec && stated && fpSame && d === B.def && f === B.fly && w === B.draw && ck.check === B.check,
          `${k} (${B.file}): joined here to master's spec${sameSpec ? '' : ' - DIFFERS'} + the STOL rows at their defaults (the join states stol: null${stated ? '' : ' - NOT'}; ` +
-         `the certificate's fingerprint ${fpSame ? 'the same' : 'MOVED'}), ` +
+         `the bench / parked / certificate-store / procurement keys ${fpSame ? 'the same' : 'MOVED'}), ` +
          `def ${d === B.def ? '=' : 'DIFFERS'}, 4 s ${f === B.fly ? '=' : 'DIFFERS'}, drawing ${w === B.draw ? '=' : 'DIFFERS'}, ` +
          `design check + sheet ${ck.check === B.check ? '=' : 'DIFFERS'} (${ck.checkWords})`);
     }

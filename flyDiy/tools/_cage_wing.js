@@ -89,8 +89,8 @@ PAGE.defaults = Object.assign({
   // G2820: THE STOL WING - every device off (60_gen_spec GEN_SLATS /
   // GEN_STOL). wgSlat indexes Object.keys(GEN_SLATS); the spans are
   // fractions of the semispan measured in from the tip.
-  wgSlat: 0, wgSlatSpan: 1.0, wgVG: 0, wgFence: 0, wgCuff: 0, wgCuffSpan: 0.40,
-  wgDroop: 0, wgFowlerGrow: 0,
+  // G2827: one table (60_gen_spec GEN_STOL_ROW_OFF), the value every fingerprint treats as absent
+  ...GEN_STOL_ROW_OFF,
   // G185: THE SECOND PLANE — the full key set of the first (port the full
   // surface: never a subset), its own position band, cabane height, nudge
   // and stagger (metres its leading edge sits AFT of the first plane's,

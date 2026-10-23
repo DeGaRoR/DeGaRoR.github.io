@@ -2491,6 +2491,20 @@ function genStolLocked(opt, owned) {
 // record or null - STATED in both states (A3), so the garage's merge can
 // take a device back off.
 const GEN_STOL_ROWS = ['wgSlat', 'wgSlatSpan', 'wgVG', 'wgFence', 'wgCuff', 'wgCuffSpan', 'wgDroop', 'wgFowlerGrow'];
+// G2827 (STOL-WING-2): THE ROWS' "OFF" - the wing layer's PAGE.defaults (tools/_cage_wing.js spreads this table) and
+// the value every fingerprint treats as ABSENT. A build that never touched a STOL row carries them at these values
+// once the editor has seen it (the cage states its rows), and every key the game hashes a build by - the certificate's
+// (genCertKey: the IndexedDB store's), the bench's and the parked fleet's (bench.js benchStripCosmetic: the shipped
+// parked bakes are keyed by it - a miss drew the fleet live, 139 draws for 2, GATE FRAMECOST), the procurement's -
+// must not see them: the build is the one it was before the STOL wing existed.
+const GEN_STOL_ROW_OFF = { wgSlat: 0, wgSlatSpan: 1.0, wgVG: 0, wgFence: 0, wgCuff: 0, wgCuffSpan: 0.40, wgDroop: 0, wgFowlerGrow: 0 };
+// the cage without its STOL rows at "off" (the same object when it has none: a hash over it is the old bytes)
+function genStolCageOff(cage) {
+  if (!cage || typeof cage !== 'object') return cage;
+  let out = null;
+  for (const k of GEN_STOL_ROWS) if (k in cage && cage[k] === GEN_STOL_ROW_OFF[k]) { out = out || Object.assign({}, cage); delete out[k]; }
+  return out || cage;
+}
 function genStolCage(P) {
   if (!P || !GEN_STOL_ROWS.some(k => P[k] != null)) return undefined;
   return genStolOf({ slat: Object.keys(GEN_SLATS)[Math.round(+P.wgSlat || 0)] || 'none',

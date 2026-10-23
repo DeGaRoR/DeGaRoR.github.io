@@ -600,6 +600,9 @@ function benchStripCosmetic(spec, defaults) {
   // the default (A3) - null hashes as the absent key every build before
   // the STOL wing carried, so no certificate is withdrawn for it
   if (Array.isArray(c.wings)) for (const w of c.wings) if (w && typeof w === 'object' && w.stol == null) delete w.stol;
+  // G2827: ...and the cage's STOL rows at "off" are the rows every build before them lacked - with the page's defaults
+  // (the certificate) they drop anyway; with none (the parked fleet's bakes, parked.js fleetSig) they must drop here
+  if (c.cage && typeof genStolCageOff === 'function') c.cage = genStolCageOff(c.cage);
   if (c.cage && typeof c.cage === 'object') {
     const D = (defaults && typeof defaults === 'object') ? defaults : null;
     const out = {};
