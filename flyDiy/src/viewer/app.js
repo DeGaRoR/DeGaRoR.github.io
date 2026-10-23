@@ -1211,7 +1211,7 @@
       }
       hangar = genHangarBuild(THREE, shed.dims || undefined,
         { home: roomHome,
-          kits: shed.kits, shell: shed.shell, site: roomSite, layout: shed.layout });   // G2315 (WORKS-COZY): the career main hangar's layout
+          kits: shed.kits, shell: shed.shell, site: roomSite, layout: shed.layout, omit: shed.omit, workLamp: shed.workLamp, lampXZ: shed.lampXZ });   // G2315 (WORKS-COZY): the career main hangar's layout; G3353 the props left out
       hangarScene.add(hangar.group);
       hangarScene.background = hangar.background;
       hangarScene.fog = hangar.fog;                     // a SENTINEL now: it only defines USE_FOG
@@ -1457,7 +1457,7 @@
     // the stand's box, scene frame, and as a footprint about its origin (the model's)
     const sb = has ? { x0: q(bb.min.x), x1: q(bb.max.x), z0: q(bb.min.z), z1: q(bb.max.z) } : null;
     const footOf = n => parkFoot(playerFootOf(d, n));
-    const base = JSON.stringify([names, names.map(n => (d.fleet[n] && d.fleet[n].foot) || null), shed.shell, shed.layout || null, shed.dims || null, shed.kits]);
+    const base = JSON.stringify([names, names.map(n => (d.fleet[n] && d.fleet[n].foot) || null), shed.shell, shed.layout || null, shed.dims || null, shed.kits, shed.omit || null]);
     const sig = base + JSON.stringify(sb);
     if (sig !== RES.sig) {
       const off = { x: RES.dx || 0, z: RES.dz || 0 };
@@ -9232,20 +9232,48 @@
     if (!!window.EDITOR_LOCK.locked() !== want) window.EDITOR_LOCK.finishOnly(want ? STORY_LOCK_WHY : null);
   }
   // G3352: a cabin shed made before the cozy kits (park + bench + comfort only) takes the plot's kits now - decor only,
-  // the same shed, its aeroplanes untouched
+  // the same shed, its aeroplanes untouched; G3353: and the props the plot leaves out (the big machines), once
   function storyCabinKits() {
     if (!STORY_PAGE) return;
     try {
       const d = playerLoad(), id = d.here, sh = d.sheds && d.sheds[id];
-      if (!sh || !sh.story || JSON.stringify(sh.kits) !== '["park","bench","comfort"]') return;
+      if (!sh || !sh.story) return;
       const P = BASE_OFFERS[sh.base] && BASE_OFFERS[sh.base].plots[id];
-      if (!P || !P.kits || P.kits.length <= 3) return;
-      const n = JSON.parse(JSON.stringify(d)); n.sheds[id].kits = P.kits.slice(); player = n; playerSave();
+      if (!P) return;
+      const thin = JSON.stringify(sh.kits) === '["park","bench","comfort"]' && P.kits && P.kits.length > 3;
+      const omit = Array.isArray(P.omit) && !Array.isArray(sh.omit);
+      const lamp = P.workLamp && typeof P.workLamp === 'object' && !sh.workLamp;   // G3354
+      const cross = Array.isArray(P.lampXZ) && JSON.stringify(P.lampXZ) !== JSON.stringify(sh.lampXZ || null);   // G3354
+      if (!thin && !omit && !lamp && !cross) return;
+      const n = JSON.parse(JSON.stringify(d));
+      if (thin) n.sheds[id].kits = P.kits.slice();
+      if (omit) n.sheds[id].omit = P.omit.slice();
+      if (lamp) n.sheds[id].workLamp = Object.assign({}, P.workLamp);
+      if (cross) n.sheds[id].lampXZ = P.lampXZ.map(p => p.slice());
+      player = n; playerSave();
     } catch (e) { console.warn('flyDiy (story): the cabin kits -', e && e.message); }
   }
+  // G3355 THE CABIN FLOOD ON AT THE STORY START (the user 22 Oct: "the cabin flood switched on at the story start; no
+  // change to Rufus's file"): at T0 in the cabin shed, the cage's light switches go on once per page - the master switch
+  // and the cabin flood. A switch is a position, not the airframe (G3449: bench.js counts the levels as STATE, so the
+  // certificates hold); no build file is touched. Waits for the garage's CAGE_UI, then never again on this page.
+  let stFloodDone = false;
+  function storyFloodOn() {
+    if (!STORY_PAGE || stFloodDone) return;
+    const U = window.CAGE_UI;
+    if (!U || !U.P || typeof U.build !== 'function') return;
+    stFloodDone = true;
+    try {
+      const d = playerLoad(), sh = d.sheds && d.sheds[d.here], s = stLive();
+      if (!s || s.beat !== 'T0' || !sh || sh.story !== 'cabin') return;
+      if (+U.P.lightOn === 1 && +U.P.li_flood === 1) return;
+      U.P.lightOn = 1; U.P.li_flood = 1; U.build();
+      if (typeof U.syncSliders === 'function') U.syncSliders();
+    } catch (e) { console.warn('flyDiy (story): the cabin flood -', e && e.message); }
+  }
   if (STORY_PAGE) {
-    try { storyCabinKits(); storyCardSync(); storyFlush(); storyTimSync(); storyBenchRule(); storyLockSync(); storySkipSync(); } catch (e) { console.warn('flyDiy (story): the boot -', e && e.message); }
-    setInterval(() => { try { storyTimSync(); storyBenchRule(); storyLockSync(); storySkipSync(); } catch (e) {} }, 1500);
+    try { storyCabinKits(); storyCardSync(); storyFlush(); storyTimSync(); storyBenchRule(); storyLockSync(); storySkipSync(); storyFloodOn(); } catch (e) { console.warn('flyDiy (story): the boot -', e && e.message); }
+    setInterval(() => { try { storyTimSync(); storyBenchRule(); storyLockSync(); storySkipSync(); storyFloodOn(); } catch (e) {} }, 1500);
     // G3370: the ladder's tick (its card follows the pilot's phase; nothing runs off T1's flight)
     setInterval(() => { try { if (stTimBeat === 'T1' && !inGarage) storyTimSync(); } catch (e) {} }, 500);
     // (G3370: a hand on the controls in flight ends the ladder for that flight, at once)
