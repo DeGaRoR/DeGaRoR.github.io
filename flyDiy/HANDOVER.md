@@ -97953,8 +97953,14 @@ AVIONICS PARITY: the 7 validated aeroplanes unchanged
   - "CERT" is DMGCERT (no gate is named CERT; DMGCERTCOST is in too);
   - plus WEIGHT, POD, ELEC.
 
-**96 gates PASS, each line exactly as printed:**
-`GATE UPDATE: PASS`, `GATE HWCOV: PASS`, `GATE ROUTES: PASS`, `GATE BUILT: PASS`, `GATE UILAYER: PASS`, `GATE STORY: PASS`, `GATE WINGROWS: PASS`, `GATE GPSFACE: PASS`, `GATE ANIMALS: PASS`, `GATE ASSETBUDGET: PASS`, `GATE ATMO: PASS`, `GATE BUILD: PASS`, `GATE CHARS: PASS`, `GATE ASSETS: PASS`, `GATE HONESTY: PASS`, `GATE CITYHOST: PASS`, `GATE DEFAULT: PASS`, `GATE DESIGN: PASS`, `GATE DASH: PASS`, `GATE ELEC: PASS`, `GATE ECON: PASS`, `GATE ENGID: PASS`, `GATE ENERGY: PASS`, `GATE FADES: PASS`, `GATE FIT: PASS`, `GATE FLIGHTREC: PASS`, `GATE FLOWNBAKE: PASS`, `GATE ENGMESH: PASS`, `GATE FRAMES: PASS`, `GATE GFX: PASS`, `GATE HANGAR: PASS`, `GATE GAMEPREM: PASS`, `GATE JOIN: PASS`, `GATE HINGE: PASS`, `GATE KITHOST: PASS`, `GATE KNIFE: PASS`, `GATE LIFE: PASS`, `GATE LIGHT: PASS`, `GATE LIVERY: PASS`, `GATE MEDIA: PASS`, `GATE METKIT: PASS`, `GATE NAVAID: PASS`, `GATE PACE: PASS`, `GATE PANEL: PASS`, `GATE PARTS: PASS`, `GATE PILOTS: PASS`, `GATE PLAYER: PASS`, `GATE PROGRAMS: PASS`, `GATE REF: PASS`, `GATE SAVE: PASS`, `GATE SCENERY: PASS`, `GATE PREMISES: PASS`, `GATE SHADOWSKY: PASS`, `GATE STARTER: PASS`, `GATE STORAGE: PASS`, `GATE STOREDRAW: PASS`, `GATE SUBSTEP: PASS`, `GATE TARR: PASS`, `GATE UISMOKE-PHONE: PASS`, `GATE VIEW: PASS`, `GATE WATER: PASS`, `GATE WEATHER: PASS`, `GATE SIMWORKER: PASS`, `GATE TANKMOUNT: PASS`, `GATE STAGES: PASS`, `GATE WATERDAMP: PASS`, `GATE CONTACT: PASS`, `GATE VILLAGE: PASS`, `GATE POSEBACK: PASS`, `GATE WEIGHT: PASS`, `GATE NACLAG: PASS`, `GATE SHEETWORKER: PASS`, `GATE INPUT: PASS`, `GATE DMGWRECK: PASS`, `GATE ROLLSND: PASS`, `GATE UISMOKE: PASS`, `GATE PREMCOOK: PASS`, `GATE DMGSKINGPU: PASS`, `GATE DMGSKIN: PASS`, `GATE LINEUP: PASS`, `GATE FREIGHT: PASS`, `GATE LAZY: PASS`, `GATE DMGHEAL: PASS`, `GATE DMGSETTLE: PASS`, `GATE PROCURE: PASS`, `GATE DMGFPS: PASS`, `GATE ACCEPT: PASS`, `GATE STORESPOT: PASS`, `GATE DMGSCAR: PASS`, `GATE DMGWALL: PASS`, `GATE SIMWORKER-PLACE: PASS`, `GATE ROUTE: PASS` (x3 shards), `GATE SIMWORKER-PAGE: PASS`, `GATE ALTIPORT: PASS` (x4 shards), `GATE GEN: PASS` (x4 shards), `GATE EDBUGS: PASS`.
+**The tally, all 118 accounted for (final, 23 Oct):**
+- 102 PASS: the battery's 97 below, plus PARKED, DMGPAGEW, POSEHIDDEN, DESTTO and DMGCERTCOST re-run alone (further down).
+- 14 red and master's, each with the same rows on master.
+- FRAMECOST, explained row by row: the stale parked cook, the breakers' admitted rows, master's own Cessna restore row.
+- DMGDETERMINISM: no verdict on either tree within the runner's 1800 s.
+
+**97 gates PASS in the battery, each line exactly as printed:**
+`GATE UPDATE: PASS`, `GATE HWCOV: PASS`, `GATE ROUTES: PASS`, `GATE BUILT: PASS`, `GATE UILAYER: PASS`, `GATE STORY: PASS`, `GATE WINGROWS: PASS`, `GATE GPSFACE: PASS`, `GATE ANIMALS: PASS`, `GATE ASSETBUDGET: PASS`, `GATE ATMO: PASS`, `GATE BUILD: PASS`, `GATE CHARS: PASS`, `GATE ASSETS: PASS`, `GATE HONESTY: PASS`, `GATE CITYHOST: PASS`, `GATE DEFAULT: PASS`, `GATE DESIGN: PASS`, `GATE DASH: PASS`, `GATE ELEC: PASS`, `GATE ECON: PASS`, `GATE ENGID: PASS`, `GATE ENERGY: PASS`, `GATE FADES: PASS`, `GATE FIT: PASS`, `GATE FLIGHTREC: PASS`, `GATE FLOWNBAKE: PASS`, `GATE ENGMESH: PASS`, `GATE FRAMES: PASS`, `GATE GFX: PASS`, `GATE HANGAR: PASS`, `GATE GAMEPREM: PASS`, `GATE JOIN: PASS`, `GATE HINGE: PASS`, `GATE KITHOST: PASS`, `GATE KNIFE: PASS`, `GATE LIFE: PASS`, `GATE LIGHT: PASS`, `GATE LIVERY: PASS`, `GATE MEDIA: PASS`, `GATE METKIT: PASS`, `GATE NAVAID: PASS`, `GATE PACE: PASS`, `GATE PANEL: PASS`, `GATE PARTS: PASS`, `GATE PILOTS: PASS`, `GATE PLAYER: PASS`, `GATE PROGRAMS: PASS`, `GATE REF: PASS`, `GATE SAVE: PASS`, `GATE SCENERY: PASS`, `GATE PREMISES: PASS`, `GATE SHADOWSKY: PASS`, `GATE STARTER: PASS`, `GATE STORAGE: PASS`, `GATE STOREDRAW: PASS`, `GATE SUBSTEP: PASS`, `GATE TARR: PASS`, `GATE UISMOKE-PHONE: PASS`, `GATE VIEW: PASS`, `GATE WATER: PASS`, `GATE WEATHER: PASS`, `GATE SIMWORKER: PASS`, `GATE TANKMOUNT: PASS`, `GATE STAGES: PASS`, `GATE WATERDAMP: PASS`, `GATE CONTACT: PASS`, `GATE VILLAGE: PASS`, `GATE POSEBACK: PASS`, `GATE WEIGHT: PASS`, `GATE NACLAG: PASS`, `GATE SHEETWORKER: PASS`, `GATE INPUT: PASS`, `GATE DMGWRECK: PASS`, `GATE ROLLSND: PASS`, `GATE UISMOKE: PASS`, `GATE PREMCOOK: PASS`, `GATE DMGSKINGPU: PASS`, `GATE DMGSKIN: PASS`, `GATE LINEUP: PASS`, `GATE FREIGHT: PASS`, `GATE LAZY: PASS`, `GATE DMGHEAL: PASS`, `GATE DMGSETTLE: PASS`, `GATE PROCURE: PASS`, `GATE DMGFPS: PASS`, `GATE ACCEPT: PASS`, `GATE STORESPOT: PASS`, `GATE DMGSCAR: PASS`, `GATE DMGWALL: PASS`, `GATE SIMWORKER-PLACE: PASS`, `GATE ROUTE: PASS` (x3 shards), `GATE SIMWORKER-PAGE: PASS`, `GATE ALTIPORT: PASS` (x4 shards), `GATE GEN: PASS` (x4 shards), `GATE EDBUGS: PASS`, `GATE TOUR: PASS` (x4 shards).
 (GPSFACE was re-run after its last change, the metal Cessna's dash: `GATE GPSFACE: PASS`, 135 checks, `--selftest` PASS.)
 
 **Red, and master's - proved on a clean `git worktree add <dir> origin/master` (2c2a74459) built with `node tools/build.js`, the
@@ -97973,52 +97979,42 @@ same command; the same failing rows:**
 - `GATE DMGINST: FAIL`: the 'speed' trip and the worker host's diverged(), identical on master.
 - `GATE KTX2: FAIL`: row 10 (the characters' budget), identical on master; on A0's known list.
 
-**Proved since (22 Oct, 23:15 UTC), on the same box and in the same way:**
-- `GATE CLOUD: FAIL (1 of 239)`: the lamps row "the pool is re-assigned every 30 frames...". Identical on master, and on A0's
-  known list.
-- `GATE ROUNDTRIP: FAIL (1)`: the setup screen's sections row. Identical on master.
-- `GATE DMGCERTCOST`: node-time ceilings only. Master fails the same ceiling rows on this box with two gates beside it (Cub 28.1 s
-  against 18, 38.5 against 32, 68.3 against 42). The branch, run ALONE: `GATE DMGCERTCOST: PASS`.
-- `GATE SIMWORKER-EDGES: FAIL (6)`: the same six rows on master (the worker's world after the edit, "grid r", and the NaN
-  bounding-sphere errors at its own planned divergence, on the Cub and the Cessna).
-- `GATE PARKED: PASS` and `GATE DMGPAGEW: PASS`, the branch runs alone (the parallel runs had been OOM-killed).
-- `GATE BOOTLIFT: FAIL (1)` run alone: only the `hard` row ("hard = 1 ms from the world on - never lifted while steps land"),
-  identical on master. The four `diag` rows of the parallel run were the load.
-- **`GATE FRAMECOST: FAIL (22)` run alone.**
-  - The breakers' three rows now read ALLOW: the Cub's seed 19625 and restore 853, the Cessna's seed 27361.
-  - The rest is the stale cook's stand / taxi rows on both builds, as above. Re-cooked by the train, not admitted.
-  - Plus the Cessna's restore, 4841: master's own red, at 4553 on master. The breakers' +288 on top of it is NOT admitted, so
-    say so if the train wants it in.
-- **DMGDETERMINISM cannot finish within the runner's per-gate 1800 s on this box on master either.** No verdict on either tree,
-  so it is A0's to run on the box.
-- `GATE FRAMECOST: FAIL (25)`, now explained row by row:
-  - **The stand / taxi counters are the STALE PARKED COOK, not this branch's code.**
-    - `node tools/parked_cook.js --check`: "STALE: every key is captured live until a re-cook". Any editor or viewer change does
-      that, and the train re-cooks on its final build.
-    - The proof: a second clean origin/master worktree with ONE COMMENT changed in app.js (the build id moves, the cook goes
-      stale), FRAMECOST run there. Its Cessna shows the same rows: taxi draws.main 1087 (here 1088), uniform4fv 5216 (5218),
-      shadow tris 3 730 334 (3 732 380).
-    - The A/B run alone, 23 Oct: master with one comment changed fails THE SAME 22 ROWS as this branch, row for row. Cub taxi
-      draws.main 1077 (here 1078) and uniform4fv 5206 (here 5208); the Cessna's likewise. The one value apart is the Cessna's
-      restore (4553 there, 4841 here: the breakers' +288, below).
-    - The cook cannot be redone in the cloud: `parked_cook.js` refuses SwiftShader ("cook on the GPU").
-  - **The garage seed / restore updateMatrixWorld rows ARE this branch's.** The breaker row is five scene objects a breaker:
-    9 on the Cub, 15 on the Cessna.
-    - Against master on the same box: the Cub's seed +1269 and its restore +47; the Cessna's seed +1996.
-    - Admitted in `tools/_framecost_check.js`'s ALLOW with reason and G-number (G2802), beside G3340's entries for the same
-      counters (02a74a6fc).
-    - The Cessna's restore stays master's own red, not admitted (master 4553, here 4841).
-- **No verdict = killed for memory.** POSEHIDDEN, PARKED, DMGDETERMINISM and DMGPAGEW, DESTTO's shard 2/3, and BOOTLIFT's four
-  `diag` rows (they read "undefined"; master has only the `hard` row): the kernel log shows five "Memory cgroup out of memory:
-  Killed process (node)" events, children of 4-6.6 GB, with four gates side by side in this 15 GB container.
-  - Master, run two at a time: `GATE DMGPAGEW: PASS`, `GATE PARKED: PASS`, `GATE POSEHIDDEN: PASS`.
-  - The branch's reruns, ONE AT A TIME (DMGPAGEW, BOOTLIFT, FRAMECOST, DESTTO, ARCHETYPES), then FRAMECOST on
-    master-with-a-comment and ARCHETYPES on master, are running. The container restarted mid-queue on 23 Oct and the queue
-    was relaunched. None of these is claimed here until it reports.
+**The rest, settled 22-23 Oct on the same box:**
+- **Gates that gave no verdict were killed for memory.** With four gates side by side in this 15 GB container, the kernel log
+  shows five "Memory cgroup out of memory: Killed process (node)" events, children of 4-6.6 GB. The victims: POSEHIDDEN, PARKED,
+  DMGPAGEW, DMGDETERMINISM, DESTTO's shard 2/3, and BOOTLIFT's four `diag` rows (they read "undefined"). Each was re-run ALONE:
+  - `GATE PARKED: PASS`, `GATE DMGPAGEW: PASS`, `GATE POSEHIDDEN: PASS`;
+  - `GATE DESTTO: PASS` on shard 2/3 alone (`node tools/_destto_check.js --shard=2/3`): with shards 0/3 and 1/3, all three PASS;
+  - `GATE DMGCERTCOST: PASS` alone (in parallel only its node-time ceilings failed, and master fails the same ceiling rows on
+    this box with two gates beside it).
+- **DMGDETERMINISM** cannot finish within the runner's per-gate 1800 s on this box, on master either. There is no verdict on
+  either tree, so it is A0's to run on the box.
+
+**Also red, and master's (the same rows on the clean master worktree):**
+- `GATE CLOUD: FAIL (1 of 239)`: the lamps row "the pool is re-assigned every 30 frames...". On A0's known list.
+- `GATE ROUNDTRIP: FAIL (1)`: the setup screen's sections row.
+- `GATE BOOTLIFT: FAIL (1)`, run alone: only the `hard` row ("hard = 1 ms from the world on - never lifted while steps land").
+- `GATE SIMWORKER-EDGES: FAIL (6)`: the same six rows on master. They are the worker's world after the edit ("grid r") and the NaN
+  bounding-sphere errors at the gate's own planned divergence, on the Cub and the Cessna.
 - `GATE ARCHETYPES`: 3 of 4 shards PASS. Its one red row is in shard 0/4: "Chinook-alike: the circuit completes —
-  rejected-takeoff". It is master's: `node tools/_arch_check.js --shard=0/4` on the clean master worktree prints the same row
-  and `GATE ARCHETYPES: FAIL (1)` (23 Oct, run alone).
-- `GATE TOUR: PASS` (x4 shards), and `GATE DESTTO: PASS` on 2 of its 3 shards.
+  rejected-takeoff". `node tools/_arch_check.js --shard=0/4` run alone prints the same row and `GATE ARCHETYPES: FAIL (1)` on
+  master and on this branch.
+
+**`GATE FRAMECOST: FAIL (22)`, run alone, explained row by row:**
+- **The stand / taxi counters (20 rows) are the STALE PARKED COOK, not this branch's code.**
+  - `node tools/parked_cook.js --check` says "STALE: every key is captured live until a re-cook". Any editor or viewer change
+    does that; the train re-cooks on its final build.
+  - The proof is an A/B: a second clean origin/master worktree with ONE COMMENT changed in app.js (the build id moves, so the cook
+    goes stale), FRAMECOST run alone there. It fails THE SAME 22 ROWS as this branch, row for row. Cub taxi draws.main 1077 (here
+    1078) and uniform4fv 5206 (here 5208); the Cessna's likewise.
+  - The cook cannot be redone in the cloud: `parked_cook.js` refuses SwiftShader ("cook on the GPU").
+- **The garage seed / restore updateMatrixWorld rows ARE this branch's.** The breaker row is five scene objects a breaker: 9 on
+  the Cub, 15 on the Cessna.
+  - Against master on the same box: the Cub's seed +1269 and its restore +47; the Cessna's seed +1996.
+  - Admitted in `tools/_framecost_check.js`'s ALLOW with reason and G-number (G2802), beside G3340's entries for the same
+    counters (02a74a6fc). They read ALLOW now.
+- **The Cessna's restore row (4841) is master's own red**, at 4553 on master and with the comment alone. The breakers' +288 on
+  top of it is NOT admitted, so the train has to say if it wants it in.
 
 **For the user (asks):**
 1. **Look at the stills** (A0's script below). Is the GPS's place right? The rule is the free plate nearest the middle, else a
