@@ -2945,7 +2945,9 @@ function compose(rec0, world, opts) {
   // the strip's tree rule. The runway's box + 30 m had kept the woods off the buildings near a strip; with the woods to the
   // strip's edge ('mapx') nothing did - the island's woodland and the viewer's fill read excludeAt(.., 'trees'), and a
   // building's keep-out reached only its zone's own planting. Every runway plot (a hangar's place: the offer's widest shell,
-  // else a field shed's 9 x 10) and every site item (its foot's box, below) + LOT_M keeps the trees out
+  // else a field shed's 9 x 10) and every site item (its foot's box, below) + LOT_M keeps the trees out. Their own kind,
+  // 'lot': read by the woodland's planting and the viewer's fill (excludeAt .. 'lot'), never by a zone's sowing (its plots
+  // keep their places - PREMISES 21d) nor by anything that reads 'trees' alone
   const LOT_M = 3;
   for (const r of runways) for (const p of (r.plots || [])) {
     if (!p || !isFinite(+p.x) || !isFinite(+p.z)) continue;
@@ -2954,7 +2956,7 @@ function compose(rec0, world, opts) {
     if (!(HW > 0 && HD > 0)) { HW = 9; HD = 10; }
     const c = CORE_MATH.cos(+p.hdg || 0), sn = CORE_MATH.sin(+p.hdg || 0), A = HD + LOT_M, B = HW + LOT_M;
     const poly = [[-A, -B], [A, -B], [A, B], [-A, B]].map(q => [+p.x + c * q[0] - sn * q[1], +p.z + sn * q[0] + c * q[1]]);
-    excl.push({ poly, bbox: polyBBox(poly), what: ['trees'], derived: true, lot: r.id + '/' + p.id });
+    excl.push({ poly, bbox: polyBBox(poly), what: ['lot'], derived: true, lot: r.id + '/' + p.id });
   }
   // THE TTYPE STAMPS (v1.20): each polygon with the code it stamps. 0 sea and 1 lake are
   // never overwritten - the water is not a place's to re-classify - and the codes
@@ -3938,7 +3940,7 @@ function compose(rec0, world, opts) {
         const rit = (st.items || []).find(q => (q.id || '') === it.item) || {};
         if (!rit.onRoad && !rit.bottomOnRoad && it.foot) for (const rd of roadObjs) if (!rd.runway && (roadInPoly(polyRoad(rd.pts, rd.w), it.foot).length || it.foot.some(q => roadDist(rd, q[0], q[1]) < rd.w / 2))) { S.issues.push('site ' + st.id + ': ' + it.item + ' stands on road ' + rd.id + ' (set it back, or put it on the road)'); break; }
       }
-      for (const k of S.keepOut) { ctx.keepOut.push(k); ctx.excludes.push(k); O.records.excludes.push(k); excl.push({ poly: k, bbox: polyBBox(k), what: ['trees'], derived: true, lot: st.id }); }   // (LOT-CLEAR: the woods too)
+      for (const k of S.keepOut) { ctx.keepOut.push(k); ctx.excludes.push(k); O.records.excludes.push(k); excl.push({ poly: k, bbox: polyBBox(k), what: ['lot'], derived: true, lot: st.id }); }   // (LOT-CLEAR: the woods too)
       for (const i of S.issues) O.records.issues.push(i);
     }
     O.records.links = solveLinks(rec, O.records.items, 'placed');
@@ -4004,7 +4006,7 @@ function compose(rec0, world, opts) {
         if (site.items.length) {
           const S = placeSite(site, cat, ctx);
           for (const it of S.items) { it.park = park.id; O.records.items.push(it); park.items.push(it); }
-          for (const k of S.keepOut) { ctx.keepOut.push(k); ctx.excludes.push(k); O.records.excludes.push(k); excl.push({ poly: k, bbox: polyBBox(k), what: ['trees'], derived: true, lot: park.id }); }   // (LOT-CLEAR)
+          for (const k of S.keepOut) { ctx.keepOut.push(k); ctx.excludes.push(k); O.records.excludes.push(k); excl.push({ poly: k, bbox: polyBBox(k), what: ['lot'], derived: true, lot: park.id }); }   // (LOT-CLEAR)
           for (const i of S.issues) O.records.issues.push(i);
         }
         // THE PARK'S DRESSING (placePark's, in the composer): the footpath from the road's verge to the
