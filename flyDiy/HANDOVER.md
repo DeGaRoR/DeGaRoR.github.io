@@ -98030,3 +98030,12 @@ Rolling set (1): cabin-lamp ad3165a48 (GAME G3353-G3355 + RUFUS-CERT G3449 claud
 - Gates (Game 09:05, the gated tree + a STORY-only gate-file fix re-gated): HANGAR GAMEPREM PREMISES STORAGE SITE TAXICLEAR x4 UISMOKE LIGHT BEACON BAY ACCEPT STARTER SAVE STORY PASS.
 Battery: master's standing reds only (CLOCK 1/777, CLOUD 1/239, KTX2 the characters' budget, FRAMECOST restore row).
 Strict light gate RED (6), the known classes: cub chase tasks1s 0 -> 2 / taskWorst 1922, cub cockpit taskWorst 2189 (the boot ~1 s task class, judged against 1 s as ruled); cub chase compile 5924 / metal chase compile 5560 (the same compile spread L22a showed at 5814; the reports' boot compile steps are unchanged - 1311 / 1701 ms, 377 / 378 programs vs L22d's 1058 / 1652, 383 / 378: the lamp adds no program); floats water taxi @SEA p99 66.6 (= master's own N23 overnight value, before this branch).
+
+## G3356 - STORY-UI: TIM ON TOP, NO STEP COUNTERS FOR THE PLAYER (2026-10-23, GAME coordinator; claude/story-ui off master 20a136670, for L23d)
+- The user's request, verbatim (on the T0 stills): "the Tim's lines seem not to render on top of everything, which it probably should. And why do I have a card stating I'm at step 1 ovcer 8. That's for us, not a player facing thing".
+- Tim's band (#stTim, editor.css) went from z-index 40 to 2147482500. It now draws over every game layer: the HUD bar (base / to / clock / roll out), the rails and the corner cards. Only the map screen's own menu (2147483000) stays above.
+- Counters removed from player-facing text (app.js):
+  - the beat card's header reads "The story" (was "The story · N of 8");
+  - Tim's button reads "Next" (was "Next (i/n)");
+  - the flight ladder's label reads "the flight" (was "the flight · i of 6").
+- GATE STORY: the two text rows now check there is no counter, plus one row for the band's layer and the button.

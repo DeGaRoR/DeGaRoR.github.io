@@ -324,8 +324,8 @@ async function pageRun() {
   ok(H.window.FLYDIY_STORY.mask() === 'finish' && H.window.FLYDIY_STORY.jobsOpen() === false, "window.FLYDIY_STORY: the tech mask's tutorial mode ('finish' at T0), the job list held");
   // ---- the beat card
   let el = half.el();
-  ok(el && el.id === 'stCard' && !el.hidden && /The cabin/.test(el.innerHTML) && /The story · 1 of 8/.test(el.innerHTML) && /data-st="ok"/.test(el.innerHTML) && /not yours yet/.test(el.innerHTML),
-     "the beat card: T0's title and brief, the step, the OK (an ack beat), the hangar not ours yet");
+  ok(el && el.id === 'stCard' && !el.hidden && /The cabin/.test(el.innerHTML) && /The story</.test(el.innerHTML) && !/ of \d/.test(el.innerHTML) && /data-st="ok"/.test(el.innerHTML) && /not yours yet/.test(el.innerHTML),
+     "the beat card: T0's title and brief, no step counter (G3356: dev-facing), the OK (an ack beat), the hangar not ours yet");
   ok(!/<i>|<em>|font-style:\s*italic/.test(el.innerHTML), 'the card writes no italics');
   el.listeners.click({ target: { closest: () => ({ dataset: { st: 'ok' } }) } });
   d = P.get();
@@ -574,8 +574,10 @@ async function ladderRun() {
   const fly = (phase, t, x) => { H.ap.phase = phase; H.ap.t = t; if (x != null) cg = [x, 300, 0]; X.storyTimSync(); const e = X.tim(); return e && !e.hidden ? e : null; };
   H.inGarage = false; H.ap = { phase: 'DEPART', t: 0 }; X.storyLadderReset();
   let e = fly('DEPART', 0, D0);
-  ok(e && e.className === 'lad' && /Take-off/.test(e.innerHTML) && /the flight · 1 of 6/.test(e.innerHTML) && /data-tim="lad"/.test(e.innerHTML),
-     "in flight on T1: the band shows the ladder's first card (Tim, 'the flight · 1 of 6', OK), on the transparent ground (.lad)", e && e.className);
+  ok(e && e.className === 'lad' && /Take-off/.test(e.innerHTML) && /the flight</.test(e.innerHTML) && !/ of \d/.test(e.innerHTML) && /data-tim="lad"/.test(e.innerHTML),
+     "in flight on T1: the band shows the ladder's first card (Tim, 'the flight', no counter - G3356, OK), on the transparent ground (.lad)", e && e.className);
+  ok(/#stTim \{[^}]*z-index: 2147482500;/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'editor.css'), 'utf8')) && /\(last \? 'OK' : 'Next'\)/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8')),
+     "Tim's band draws over every game layer (the HUD bar, the rails, the corner cards) and its button says Next, no line counter (G3356)");
   const order = [];
   const push = el => { const m = el && /<b class="stLadT">([^<]+)<\/b>/.exec(el.innerHTML); const k = m ? m[1] : null; if (order[order.length - 1] !== k) order.push(k); };
   let t = 0; push(e);
