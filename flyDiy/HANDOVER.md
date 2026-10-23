@@ -98030,3 +98030,12 @@ Rolling set (1): cabin-lamp ad3165a48 (GAME G3353-G3355 + RUFUS-CERT G3449 claud
 - Gates (Game 09:05, the gated tree + a STORY-only gate-file fix re-gated): HANGAR GAMEPREM PREMISES STORAGE SITE TAXICLEAR x4 UISMOKE LIGHT BEACON BAY ACCEPT STARTER SAVE STORY PASS.
 Battery: master's standing reds only (CLOCK 1/777, CLOUD 1/239, KTX2 the characters' budget, FRAMECOST restore row).
 Strict light gate RED (6), the known classes: cub chase tasks1s 0 -> 2 / taskWorst 1922, cub cockpit taskWorst 2189 (the boot ~1 s task class, judged against 1 s as ruled); cub chase compile 5924 / metal chase compile 5560 (the same compile spread L22a showed at 5814; the reports' boot compile steps are unchanged - 1311 / 1701 ms, 377 / 378 programs vs L22d's 1058 / 1652, 383 / 378: the lamp adds no program); floats water taxi @SEA p99 66.6 (= master's own N23 overnight value, before this branch).
+
+## HWCOV - METLA-ON (23 Oct 2026, the user: "Metlakatla ON."; for L24a): METLAKATLA ON BY DEFAULT, WITH THE NEW TOWN HOST
+What ?town=1&cityhost=1 did is the default now; the GRAPHICS 'towns' row stays the way to turn it off.
+- gfx_settings: the 'towns' row's default is 'all' (`def`, a free row's default was its first step); pv 9 -> 10: a stored 'nearby' was the old default (every save wrote the free row), not a pick - it takes 'all'; a 'nearby' saved from now on stays. The budget's cap is unchanged: potato, laptop and the software rung never build Metlakatla.
+- build.js (the loader's raster variant): a 'nearby' saved before pv 10 reads as town on.
+- render_premises: the town host from its pack (CITY) with the town on unless ?cityhost=0 (the old kit host, for an A/B).
+- FRAMECOST's census stays the field's (town=0 in its query unless FRAMECOST_QUERY names the town): its baseline was taken with Metlakatla cut.
+- GATE GFX (the default, the migration, the loader rule), GATE CITYHOST row H.
+What the strict light gate sees with the town on (the user accepted the cost; Fri 23 Oct A/B, master 20a136670, floats P vs O): at the CIRCUIT (~6 km from the town) loop +2.9 ms (world +0.9, render +2.0), +26 draws, +1.1 M tris, frames over 34 ms +0.07 pt, p99 equal; the close visit p99 50.0 = off; the approach's town-host cell builds 167-434 ms ENROUTE (CITY-B's slicing, next week). The boot gains the town step (~1.9 s) and the kit's host (~0.3 s).

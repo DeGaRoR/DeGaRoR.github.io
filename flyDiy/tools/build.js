@@ -1085,7 +1085,7 @@ function buildViewer(core) {
   // raster cells fetched below are this variant's alone: a town-off page never pays the town's cells
   var tq = new URLSearchParams(location.search).get('town'), townOn = true;
   if (tq !== null) townOn = tq === '1' || tq === 'all';
-  else { try { var gp = JSON.parse(localStorage.getItem('flydiy.gfx') || 'null'); townOn = !(gp && gp.town === 'nearby' && gp.pv >= 7); } catch (e) {} }
+  else { try { var gp = JSON.parse(localStorage.getItem('flydiy.gfx') || 'null'); townOn = !(gp && gp.town === 'nearby' && gp.pv >= 10); } catch (e) {} }   // (METLA-ON: a 'nearby' saved before pv 10 was the old default - gfx_settings makes it 'all')
   // (G1526, POTATO-DEEP) potato and laptop never build Metlakatla (GFX.BUDGETS town 'nearby'): their page composes the default
   // variant - a ?gfx= in the URL, else the saved preset's build budget (a custom mix keeps its last preset's: gp.build)
   if (tq === null) { try { var gq = new URLSearchParams(location.search).get('gfx'), gs = JSON.parse(localStorage.getItem('flydiy.gfx') || 'null');

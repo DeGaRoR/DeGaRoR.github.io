@@ -468,7 +468,8 @@ async function census(build) {
   // FRAMECOST_WORKERS=1 (G830): the page's house worker on (the harness's Worker shim and a fake IndexedDB in a fresh
   // directory - a cold cache), as the browser runs it; without it the page takes its no-Worker path, the inline build
   const wk = process.env.FRAMECOST_WORKERS ? { workers: /house_worker\.js/, idb: fs.mkdtempSync(path.join(require('os').tmpdir(), 'fc-idb-')), workerWaitMs: 900000 } : {};
-  const Q0 = process.env.FRAMECOST_QUERY || '';
+  // (METLA-ON: the census is the field's - Metlakatla cut, as its baseline was taken - unless the query names the town itself)
+  const Q0 = (q => /(^|&)town=/.test(q) ? q : (q ? q + '&' : '') + 'town=0')(process.env.FRAMECOST_QUERY || '');
   const P = await openPage(Object.assign({ quiet: true, storage, hooks, query: FLEETQ ? (Q0 ? Q0 + '&' : '') + 'fleet=1' : Q0 }, wk));
   const W = P.win;
   const snap = bootMark.snap;

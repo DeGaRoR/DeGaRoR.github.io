@@ -423,6 +423,17 @@ console.log('GATE GFX');
      "...the row at 'all' builds no Metlakatla on potato or laptop (saved or ?gfx=)");
   ok(town(Object.assign({}, FROZEN.gamer, { preset: 'gamer', pv: 8, town: 'all' })) === true && town(Object.assign({}, FROZEN.gamer, { preset: 'gamer', pv: 8, town: 'nearby' })) === false,
      "...gamer builds what its row says ('all' on, 'nearby' off)");
+  // METLA-ON (the user, 23 Oct: "Metlakatla ON."): the row's default is 'all' - a fresh player builds Metlakatla; a 'nearby' saved
+  // before pv 10 was the old default (every save wrote the free row) and takes 'all', one saved at pv 10 is the player's own
+  { const fresh = (pref, q) => { const w = makeWindow(pref ? { 'flydiy.gfx': JSON.stringify(pref) } : {}); if (q) w.location = { search: q };
+      vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'gfx_settings.js'), 'utf8'), Object.assign({ window: w, setInterval: () => 0, clearInterval: () => {} }, w));
+      return w.GFX; };
+    const f0 = fresh(null), old = fresh(Object.assign({}, FROZEN.gamer, { preset: 'gamer', pv: 9, fps: 30, town: 'nearby' })), own = fresh(Object.assign({}, FROZEN.gamer, { preset: 'gamer', pv: 10, fps: 30, town: 'nearby' }));
+    const fp = fresh(null, '?gfx=potato');
+    ok(f0.get().town === 'all' && f0.townAll() === true && old.get().town === 'all' && old.townAll() === true && old.get().pv === 10 && own.get().town === 'nearby' && own.townAll() === false && fp.townAll() === false,
+       `METLA-ON: a fresh player builds Metlakatla (${f0.get().town}); a 'nearby' saved at pv 9 takes 'all' (${old.get().town}), one saved at pv 10 stays off (${own.get().town}); potato still none`);
+    const bj2 = fs.readFileSync(path.join(__dirname, 'build.js'), 'utf8');
+    ok(/townOn = !\(gp && gp\.town === 'nearby' && gp\.pv >= 10\)/.test(bj2), "METLA-ON: the loader's raster variant reads a 'nearby' saved before pv 10 as the old default (town on)"); }
   { const w = makeWindow({ 'flydiy.gfx': JSON.stringify(Object.assign({}, FROZEN.gamer, { preset: 'gamer', pv: 8, town: 'all' })) }); w.WELCOME = { SOFT: true, RIG: false };
     vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'gfx_settings.js'), 'utf8'), Object.assign({ window: w, setInterval: () => 0, clearInterval: () => {} }, w));
     w.GFX.set('town', 'all');

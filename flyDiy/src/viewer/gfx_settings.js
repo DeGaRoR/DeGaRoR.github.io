@@ -176,9 +176,12 @@
     // (375 houses) held the Jolene taxi at 12-15 fps on the reference 3080 (30 without it): off by default, its record
     // kept. `free`: no preset sets it. Decided when the world is composed, so a change RELOADS the page (app.js TOWN;
     // ?town=1 in the URL wins over the row)
-    { k: 'town', label: 'towns', free: true, reload: true, steps: [
-        { v: 'nearby', label: 'field + sites', why: 'the airfield, the village, the mine, the native village and the tramway - Metlakatla off (the default) - RELOADS the page' },
-        { v: 'all', label: 'with Metlakatla', why: 'Metlakatla too: 375 houses 9 km east of the field, built as you come near - the taxi falls to ~15 fps on an RTX 3080 - RELOADS the page (never on the laptop and potato presets: their budget builds the field and the sites only)' } ] },
+    // METLA-ON (the user, 23 Oct: "Metlakatla ON."): ON BY DEFAULT with the new town host (render_premises CITY) - `def` is the
+    // row's default (a free row's was its first step); this row stays the way to turn it off. The budget's cap still keeps
+    // potato, laptop and the software rung on the field and the sites
+    { k: 'town', label: 'towns', free: true, reload: true, def: 'all', steps: [
+        { v: 'nearby', label: 'field + sites', why: 'the airfield, the village, the mine, the native village and the tramway - Metlakatla off - RELOADS the page' },
+        { v: 'all', label: 'with Metlakatla', why: 'Metlakatla too (the default): its houses 9 km east of the field, built as you come near - RELOADS the page (never on the laptop and potato presets: their budget builds the field and the sites only)' } ] },
     { k: 'rails', label: 'guardrails', steps: [
         { v: 'on',  label: 'on', why: 'a galvanised W-beam where a road runs along a drop or round a tight bend - one draw call a road' },
         { v: 'off', label: 'off', why: 'no guardrails anywhere' } ] },
@@ -347,7 +350,7 @@
   // G1295 (EVEN-30): the frame rate a preset brings while the player has not picked one - a hard 30 everywhere but ultra
   // (auto's trials of 60 were the judder: the user's 1.5 h log, 130 drops from 60 and 127 failed trials). 'custom' takes 30
   const FPS_OF = p => (p === 'ultra' ? 'auto' : 30);
-  const S = Object.assign({ preset: DEFAULT, build: DEFAULT, pv: 9, fps: FPS_OF(DEFAULT), fpsOwn: false }, PRESETS[DEFAULT]);   // pv: the pref's version (9: G2830, gamer's and ultra's auto mirror; 4: G570, the cover and town rows; 5: G1113, gamer's and ultra's tree bands; 6: G1114.2, gamer's 'mid'; 7: G1295, the frame rate per preset); fps: G586's frame rate (a free option); fpsOwn: the player picked it; build (G1230): the preset whose BUDGETS row the world builds to (a custom mix keeps the last preset's)
+  const S = Object.assign({ preset: DEFAULT, build: DEFAULT, pv: 10, fps: FPS_OF(DEFAULT), fpsOwn: false }, PRESETS[DEFAULT]);   // pv: the pref's version (9: G2830, gamer's and ultra's auto mirror; 4: G570, the cover and town rows; 5: G1113, gamer's and ultra's tree bands; 6: G1114.2, gamer's 'mid'; 7: G1295, the frame rate per preset); fps: G586's frame rate (a free option); fpsOwn: the player picked it; build (G1230): the preset whose BUDGETS row the world builds to (a custom mix keeps the last preset's)
   let expBase = null;                        // the exposure the writers last declared
   let eyeK = 1;                              // the eye's factor (post_fx.js's auto exposure); 1 with the row off
   // THE ONE WAY EXPOSURE IS WRITTEN: base in, base x step x eye on the renderer. A
@@ -382,12 +385,15 @@
       // pv 8 -> 9 (G2830, WATER-STEADY): gamer and ultra default to the AUTO mirror - a player ON either takes it (else the saved
       // rows read 'custom'); a custom mix keeps its own row (a saved 'live' - the menu's ON - stays on, a saved 'off' stays off)
       if (v && !(v.pv >= 9)) { if (v.preset === 'gamer' || v.preset === 'ultra') v.mirror = 'auto'; v.pv = 9; }
+      // pv 9 -> 10 (METLA-ON, the user 23 Oct): a stored 'nearby' was the old DEFAULT (every save wrote the free row), not a pick -
+      // it takes the new default, Metlakatla on; a 'nearby' saved from now on (pv 10) is the player's own and stays
+      if (v && !(v.pv >= 10)) { if (v.town === 'nearby') v.town = 'all'; v.pv = 10; }
       v0 = v && typeof v === 'object' ? v : null;
       try { W.localStorage.removeItem(KEY + '.auto'); } catch (e) {}   // G528's first-launch reading, retired with its probe
-      for (const o of OPTIONS) if (o.free && !(o.k in S)) S[o.k] = o.steps[0].v;   // train 32 (POTATO-DEEP's find): a free row (town) has a key, so a saved choice reads back
+      for (const o of OPTIONS) if (o.free && !(o.k in S)) S[o.k] = o.def || o.steps[0].v;   // train 32 (POTATO-DEEP's find): a free row (town) has a key, so a saved choice reads back
       if (v && typeof v === 'object') for (const k in v) if (k in S) S[k] = v[k];
     } catch (e) {}
-    for (const o of OPTIONS) if (!o.steps.some(s => s.v === S[o.k])) S[o.k] = o.free ? o.steps[0].v : PRESETS[DEFAULT][o.k];
+    for (const o of OPTIONS) if (!o.steps.some(s => s.v === S[o.k])) S[o.k] = o.free ? (o.def || o.steps[0].v) : PRESETS[DEFAULT][o.k];
     S.preset = presetOf();
     S.fpsOwn = S.fpsOwn === true;
     if (PRESETS[S.preset]) S.build = S.preset; else if (!BUDGETS[S.build]) S.build = DEFAULT;   // G1230: a custom mix builds to its last preset's budget
