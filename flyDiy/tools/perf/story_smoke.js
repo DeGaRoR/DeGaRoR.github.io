@@ -42,7 +42,7 @@ const PROBE = `JSON.stringify((() => { const S = window.FLYDIY_STORY, s = S && S
     ladder: S && S.ladder ? S.ladder() : null, ap: window.FLYDIY_AP ? { manual: window.FLYDIY_AP.manual() } : null,
     tim: el('stTim'), card: el('stCard'), skip: el('stSkip'), shape: tab('edTabShape'), design: tab('edTabDesign'), bench: (() => { const e = document.getElementById('edBench'); return e ? { hidden: document.body.classList.contains('stNoBench') || !e.getClientRects().length } : null; })(),
     lock: window.EDITOR_LOCK && window.EDITOR_LOCK.locked ? window.EDITOR_LOCK.locked() : null,
-    intro: window.FLYDIY_INTRO_LAST || null, shed: d && d.sheds ? d.sheds[d.here] : null, edLock: typeof window.EDITOR_LOCK, benchHiddenAttr: (() => { const e = document.getElementById('tabBench'); return e ? { hidden: e.hidden, disp: getComputedStyle(e).display, inDom: document.body.contains(e) } : null; })(), careers: (() => { try { return JSON.parse(localStorage.getItem('flydiy.careers') || 'null'); } catch (e) { return null; } })() }; })())`;
+    intro: window.FLYDIY_INTRO_LAST || null, shed: d && d.sheds ? d.sheds[d.here] : null, edLock: typeof window.EDITOR_LOCK, flood: window.CAGE_UI && window.CAGE_UI.P ? window.CAGE_UI.P.li_flood : null, benchHiddenAttr: (() => { const e = document.getElementById('tabBench'); return e ? { hidden: e.hidden, disp: getComputedStyle(e).display, inDom: document.body.contains(e) } : null; })(), careers: (() => { try { return JSON.parse(localStorage.getItem('flydiy.careers') || 'null'); } catch (e) { return null; } })() }; })())`;
 const probe = async () => JSON.parse(await b.ev(PROBE, 30000));
 async function still(name) {
   if (!STILLS) return null;
@@ -88,7 +88,8 @@ const evJs = async (js) => JSON.parse(await b.ev('JSON.stringify((() => { ' + js
       [P.hereBase && P.hereBase !== 'HOME', 'the garage is not at the cabin (' + P.hereBase + ')'],
       [P.homeLocked, 'HOME is not locked at T0'],
       [P.tim && P.tim.shown && /Tim/.test(P.tim.text), "Tim's band is not shown"],
-      [P.card && P.card.shown, 'the beat card is not shown'],
+      [!(P.card && P.card.shown), 'the beat card shows on the player page (G3357: Tim carries the beat)'],
+      [+P.flood === 1, 'the cabin flood is not on at T0 (G3355 / G3357: ' + P.flood + ')'],
       [P.mask === 'finish' && P.lock, 'the paint-only lock is not on (mask ' + P.mask + ', lock ' + P.lock + ')'],
       [P.shape && P.shape.disabled, 'Shape is not disabled at T0'],
       [P.bench && P.bench.hidden, 'the bench tab shows in the small shed'],
