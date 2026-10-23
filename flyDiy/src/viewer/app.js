@@ -7655,6 +7655,14 @@
   let crashWatch = null;
   const WATCH_REST = 6, WATCH_HOLD = 3;          // s of sim time: the debris' longest wait, then the wreck held still
   let flDmg = null;           // G1470 (TREE-CRASH): sim.damage() - the worker's verdict under the physics worker
+  // G2373 (DMG-OCCUPANT): the occupants' bands for a crash's card - [{ name, band }] from the worker (sim_link's occView)
+  // or the inline solver (34_occupant.js genOccWire); read only on the crash path
+  let flOcc = null;
+  const occNow = () => {
+    if (sim && 'occView' in sim) return sim.occView;
+    const D = sim && sim.damage ? sim.damage() : null;
+    return D && D.occ && typeof genOccWire === 'function' ? genOccWire(D.occ) : null;
+  };
   let flNextLeg = null;   // G700: the selects' block publishes nextLeg here - `Fly on` chains the next leg in place
   let flDestPend = () => false;   // G1945 DEST-TO: a To picked in the flare / roll-out - chained at STOPPED
   let userPaused = false;     // G650: set by the Pause button alone; the world's clocks hold on it (FLYDIY_HELD)
@@ -7700,6 +7708,7 @@
                           damage: () => flDmg,                                  // G1470: the crash's verdict (the worker's under it)
                           structural: () => flStructural(),                     // DMG-D4b (train 41): the aeroplane's integrity (GAME's career reads it)
                           arrival: td => { const A = flArrival(td); return { arrived: !!A.t, damaged: A.damaged, structural: A.S }; },   // (GATE rows: the certificate's rule)
+                          occ: () => flOcc,                                     // G2373: the occupants' bands the crash's card shows
                           // G1096: A RIG'S PLACEMENT, on the sim that flies - never sim().p / .v by hand: under the physics
                           // worker the page's sim is a view the next snapshot rewrites. { at: [x, y, z] the CG's place (a
                           // null axis kept) | by: [dx, dy, dz], zeroV, dv: [vx, vy, vz] } -> a promise of the CG
@@ -7914,6 +7923,9 @@
     const mm = Math.floor(t1 / 60), ss = Math.round(t1 - mm * 60);
     row('outcome', outcome.replace(/-/g, ' '));
     if (dmgWhy) row('certificate', 'Not certified - the aeroplane was damaged: ' + dmgWhy, 'warn');   // (DMG-D4b: the plain why)
+    // G2373 (DMG-OCCUPANT; the user, 7 Oct: "let's stay vague ... it's sad and frightening"): on a crash's card, one line
+    // per occupant - the seat's name as the crew page says it and ONE of the five words; nothing else, ever
+    if (wreckEnd) { flOcc = occNow() || flOcc; for (const [who, words] of occLines(flOcc)) row(who, words); }
     row('flight time', (mm ? mm + ' min ' + String(ss).padStart(2, '0') + ' s'
                            : ss + ' s'));
     row('distance', tel.km.toFixed(1) + ' km');
@@ -7958,6 +7970,14 @@
       bw.textContent = 'What went wrong';
     }
     el.hidden = false;
+  }
+  // G2373: the occupants' lines - only a seat's own name and only the five words (34_occupant.js GEN_OCC.bands); anything
+  // else in the payload is dropped. GATE DMGOCCUPANT scans what this returns and the card it draws
+  const OCC_WHO = /^(Pilot|Co-pilot|Passenger( [1-9][0-9]?)?)$/;
+  function occLines(occ) {
+    const words = typeof GEN_OCC !== 'undefined' && GEN_OCC.bands && GEN_OCC.bands.length === 5 ? GEN_OCC.bands : null;
+    if (!words || !Array.isArray(occ)) return [];
+    return occ.filter(o => o && OCC_WHO.test(o.name) && Number.isInteger(o.band) && o.band >= 0 && o.band < 5).map(o => [o.name, words[o.band]]);
   }
   let arrWhy = false, arrVerd = [];
   // G1868: a crash's card folds on its title (and unfolds); G3060 (CARDS-CORNER): every ending's card, in its corner
@@ -12736,7 +12756,7 @@
     testFlightOff();                                       // A9: a reset is not an arrival
     $('bPause').textContent = 'Pause'; $('bPause').classList.remove('on');
     telClear(); telLast = null; telHover = -1;
-    lastPhase = 'ROLL'; telBase = 0; flightLogged = false; flightOver = false; flEnd = null; crashWatch = null;
+    lastPhase = 'ROLL'; telBase = 0; flightLogged = false; flightOver = false; flEnd = null; crashWatch = null; flOcc = null;
     $('arrCard').hidden = true; arrivalShown = false;
     // THE TRACE IS A SUMMONED PANEL NOW, and a summoned panel is the player's:
     // fullReset used to close it, which is why the one number a flight
@@ -16949,6 +16969,7 @@
         // wreck over when it is at rest (or 4 s after the impact); the flight now runs on until the debris have come to rest
         // too (WATCH_REST at most), holds the wreck WATCH_HOLD more, and only then ends - the card small and in a corner
         const D = flDmg, up = !!(D && D.brokeUp);
+        flOcc = occNow();                                       // G2373: the occupants' bands (the worker sends them once, at the close)
         if (!crashWatch) { crashWatch = { t: sim.t, rest: null };
           $('phName').textContent = (up ? 'BROKE UP' : 'CRASHED') + (D && D.reason ? ': ' + D.reason : ''); }
         const W2 = window.FLYDIY_WRECK_STATS ? window.FLYDIY_WRECK_STATS() : null;

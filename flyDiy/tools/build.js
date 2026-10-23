@@ -102,6 +102,9 @@ const MANIFEST = {
     // THE GROUND'S SCAR (G2357, DMG-SCAR): a crash's ground contacts reduced to craters, gouges and the sweep - pure;
     // the solver feeds it behind the damage layer, the page's grass and decal read its primitives
     '34_scar.js',
+    // THE OCCUPANTS IN A CRASH (G2373, DMG-OCCUPANT): each filled seat's pulse and space, the criteria, five bands -
+    // pure; read by the solver behind the damage layer
+    '34_occupant.js',
     // THE GROUND PATH (G193): a declared pattern graph sampled into a path the
     // pilots follow (fillets, curvature, a STOP); pure, read by 25_'s
     // sitePattern consumers, the two pilots, pattern_vis.js and the gates.

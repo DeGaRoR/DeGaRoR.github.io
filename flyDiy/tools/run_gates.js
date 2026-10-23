@@ -411,6 +411,11 @@ const GATES = [
   // G2382 (DMG-SCAR2): + the join (a skipping slide one gouge, a crater only where a hard blow stopped), the resting wreck's
   // hull inside the cull, the runway's scuff readable from the chase camera, the floats' water crash scarless
   { id: 'DMGSCAR', file: '_dmg_scar_check.js', tier: 'core', weight: 3, wall: 950 },
+  // G2373-G2377 (DMG-OCCUPANT): each occupant's band after a crash (src/core/34_occupant.js) - one of five words, the
+  // criteria behind it in the gate's output only: the bands by case on the validated builds (the taxi and FAR 23.473's
+  // drop Unharmed, the 30 m/s centreline severe), damage off = no record, the recorder only reads, the hop once, the
+  // crash card under the worker scanned for any injury word. Six builds and one page process (~4 GB)
+  { id: 'DMGOCCUPANT', file: '_dmg_occupant_check.js', tier: 'core', weight: 4, wall: 900 },
   // G2353-G2356 (DMG-DETERMINISM): the same crash is the same bits everywhere - node refuses a stale generated core (the
   // "JIT" 154 / 204 was train 37's committed core); the standard crashes (taxi, nose-over, the 30 m/s trunks; damage OFF the
   // trunk and a 20 s flight) one hash under the interpreter, Sparkplug, Maglev, TurboFan; the certificate alike; and in a
