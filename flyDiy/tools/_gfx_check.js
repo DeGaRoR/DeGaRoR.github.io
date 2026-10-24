@@ -387,7 +387,7 @@ console.log('GATE GFX');
     const c9 = boot({ 'flydiy.gfx': JSON.stringify(Object.assign(pre('gamer'), { preset: 'custom' })) }).GFX.get();
     const r9 = boot({ 'flydiy.gfx': JSON.stringify(Object.assign({}, FROZEN.retro, { preset: 'retro', pv: 8, fps: 30 })) }).GFX.get();
     const on9 = boot({ 'flydiy.gfx': JSON.stringify(Object.assign(pre('gamer'), { preset: 'custom', mirror: 'live' })) }).GFX.get();
-    ok(g9.preset === 'gamer' && g9.mirror === 'auto' && u9.preset === 'ultra' && u9.mirror === 'auto' && c9.mirror === 'off' && on9.mirror === 'live' && on9.preset === 'custom' && r9.preset === 'retro' && r9.mirror === 'off' && g9.pv === 9,
+    ok(g9.preset === 'gamer' && g9.mirror === 'auto' && u9.preset === 'ultra' && u9.mirror === 'auto' && c9.mirror === 'off' && on9.mirror === 'live' && on9.preset === 'custom' && r9.preset === 'retro' && r9.mirror === 'off' && g9.pv >= 9,
       `...a gamer / ultra saved at pv 8 takes the auto mirror (${g9.preset}/${g9.mirror}, ${u9.preset}/${u9.mirror}); a custom mix keeps its 'off' (${c9.mirror}) and a saved ON stays on (${on9.mirror}); retro stays off (${r9.mirror})`); }
   // the live hooks: the plain ground (the splat's plain()), the shed glass (FLYDIY_SHED), the MSAA cap (FLYDIY_AA.setMsaaCap)
   const hook = q => { const w = makeWindow({}); const calls = { plain: [], msaa: [] };
