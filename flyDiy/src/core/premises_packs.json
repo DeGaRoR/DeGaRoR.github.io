@@ -3,7 +3,7 @@
   {
    "id": "jolene",
    "fixture": "tools/fixtures/island_jolene.json",
-   "cooked": "2026-10-23",
+   "cooked": "2026-10-24",
    "variants": [
     {
      "name": "default",
@@ -15,7 +15,7 @@
       "mk_mp_air",
       "mk_mf_air"
      ],
-     "record": "4fd43b6cdab0b5c9",
+     "record": "19415c0bb7b9ee83",
      "mods": 99,
      "places": {
       "things": 276,
@@ -34,7 +34,7 @@
     {
      "name": "town",
      "drop": [],
-     "record": "ebe1460d393edb57",
+     "record": "79020898d84c60a7",
      "mods": 172,
      "places": {
       "things": 759,
