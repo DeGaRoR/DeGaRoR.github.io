@@ -52,6 +52,11 @@
   // runs long before the load-test block further down is reached.
   let groundY = 0, rigLift = 0;
   let DEVCAM_ACTIVE = false;              // DEVCAM: the free camera has the eye this frame
+  // G3539 (HANGARS-LOOK): a developer's eye in the GARAGE, in the room's own frame (the door at local -x, the floor at 0):
+  // window.FLYDIY_ROOM_EYE([x, y, z], [tx, ty, tz]) holds it there until FLYDIY_ROOM_EYE(null) or the garage's own framing
+  // (the stills' inside-vs-outside pairs: the same local point through the room and through the world's shed)
+  let ROOM_EYE = null;
+  if (typeof window !== 'undefined') window.FLYDIY_ROOM_EYE = (p, t) => { ROOM_EYE = (Array.isArray(p) && Array.isArray(t)) ? { p: p.slice(), t: t.slice() } : null; return !!ROOM_EYE; };
   // THE WORLD EDITOR (G387): open = the host places the camera and the sim is held; PREM.host is
   // premises_host.js's, PREM.ed the mounted premises_ui.js; the panel is a right-hand column over
   // the flight screen and the view a transparent sheet over the canvas that takes the mouse
@@ -451,6 +456,11 @@
   function placeCamera() {
     if (PREM.open && PREM.host) { const r = renderer.domElement.getBoundingClientRect(); PREM.host.place({ width: r.width || innerWidth, height: r.height || innerHeight }); if (PREM.R) PREM.R.scaleHandles(camera, 6); return; }   // G387: the world editor's camera
     if (DEVCAM_ACTIVE) return;                          // DEVCAM placed it already
+    if (ROOM_EYE && inGarage && hangar && hangar.group) {   // G3539: FLYDIY_ROOM_EYE - a developer's eye in the room's own frame
+      const g = hangar.group; g.updateWorldMatrix(true, false);
+      const p = new THREE.Vector3().fromArray(ROOM_EYE.p).applyMatrix4(g.matrixWorld), t = new THREE.Vector3().fromArray(ROOM_EYE.t).applyMatrix4(g.matrixWorld);
+      camera.position.copy(p); camera.lookAt(t); return;
+    }
     if (HEADCAM_ACTIVE) return;                         // HEADCAM: the cockpit is a head, not an orbit
     let x = target.x + dist * Math.cos(el) * Math.cos(az),
         y = Math.max(0.4, target.y + dist * Math.sin(el)),
@@ -11527,7 +11537,7 @@
     return F;
   }
   function garageCamera() {
-    HEADCAM_ACTIVE = false; DEVCAM_ACTIVE = false;
+    HEADCAM_ACTIVE = false; DEVCAM_ACTIVE = false; ROOM_EYE = null;
     if (flyEye) { flyEye = null; setNear(CAM_NEAR); }
     if (edEye) exitInterior();
     if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();

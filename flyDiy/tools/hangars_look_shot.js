@@ -127,20 +127,6 @@ const SCENERY_HANGARS = `JSON.stringify((() => {
   if (!up) { fs.writeFileSync(path.join(OUT, 'shots.json'), JSON.stringify(Object.assign(twin, { errors: errs }), null, 1)); await browser.close(); srv.close(); process.exit(1); }
   twin.here = await ev('FLYDIY_PLAYER.doc().here');
   await sleep(6000);
-  if (want('cabin')) {
-    await shoot('cabin_room.jpg');
-    twin.probeRoom = await ev(PROBE);
-    // the roll-out, frame by frame (the shadows the user missed are "visible in the roll-out animation"); the probe mid-way
-    await ev("document.getElementById('edRoll').click()", 0);
-    for (let k = 0; k < 24; k++) {
-      await sleep(500);
-      await shoot('cabin_rollout_' + String(k).padStart(2, '0') + '.jpg');
-      if (k === 8) twin.probeRoll = await ev(PROBE);
-    }
-  } else await ev("document.getElementById('edRoll').click()", 0);
-  // the world
-  for (let i = 0; i < 120; i++) { await sleep(1000); if ((await ev('!!(window.FLYDIY_PREM_EYE && document.body && !document.body.classList.contains("garage"))', false)) === true) break; }
-  await sleep(8000);
   const eyeAt = async (name, p, t) => {
     const ok = await ev('window.FLYDIY_PREM_EYE(' + JSON.stringify(p) + ', ' + JSON.stringify(t) + ')', false);
     if (ok !== true) { console.log('  EYE REFUSED for ' + name + ' (' + ok + ')'); return false; }
@@ -154,27 +140,69 @@ const SCENERY_HANGARS = `JSON.stringify((() => {
     const b = await eyeAt(id + '_low', [x + (fx + sx) * r * 0.72, y + 1.7, z + (fz + sz) * r * 0.72], [x, y + 1.0, z]);
     return a && b;
   };
-  if (want('world') || want('cabin')) {
-    const plots = JSON.parse(await ev(`JSON.stringify((() => { const out = {}; for (const a of window.WORLD.aerodromes || []) { const s = siteOf(a.id); if (s && s.plots) for (const p of s.plots) out[p.id] = p; if (a.id === 'HOME' && s && s.hangar) out.HOME = { x: s.hangar.x, z: s.hangar.z, y: s.hangar.y || 0, hdg: s.hangar.ry, isHangar: 1 }; } return out; })())`, '{}') || '{}');
-    twin.plots = plots;
-    twin.sheds = await ev('JSON.stringify(window.WORLD.playerSheds ? window.WORLD.playerSheds() : null)', '');
-    for (const id of ['w1', 'HOME.2', 'HOME']) {
-      const p = plots[id]; if (!p) { console.log('  no plot ' + id); continue; }
-      const y = isFinite(p.y) ? p.y : (await ev('window.WORLD.terrainH ? WORLD.terrainH(' + p.x + ',' + p.z + ') : 0', 0));
-      // a plot's hdg points out of its door (gameprem_world_shot's eye); HOME's hangar ry is the shed's own yaw (the door at local -x)
-      const hdg = p.isHangar ? Math.PI - p.hdg : p.hdg;
-      await twoViews(id.replace('.', ''), p.x, +y || 0, p.z, hdg, id === 'w1' ? 11 : 15);
+  // THE PAIRS (G3539): the same points in the shed's own frame (the door at local -x, x across the depth, z across the
+  // width, the floor at 0) through the ROOM (FLYDIY_ROOM_EYE, before the roll-out) and through the WORLD's shed node
+  // (FLYDIY_PREM_EYE, after it) - the outside the user wants matching the inside, at the same scale
+  const PAIRS = (D) => ({
+    front: [[-D.HD - 18, 4.0, -5], [-D.HD, 2.0, 0]],
+    corner: [[-D.HD - 8, 1.6, D.HW + 8], [0, 1.4, 0]],
+    back: [[D.HD + 14, 3.0, -D.HW - 10], [0, 2.0, 0]],
+    far: [[-D.HD - 40, 10, 12], [0, 2.5, 0]],
+  });
+  const NODE = id => `(() => { const D = GARAGE_ENV._debug(), W = D && D.world; if (!W) return null; let n = null;
+    W.traverse(o => { if (!n && o.name === 'shed:' + ${JSON.stringify(id)}) n = o; });
+    if (!n && ${JSON.stringify(id)} === 'HOME') { const h = siteOf('HOME').hangar; W.traverse(o => { if (!n && o.isLOD && Math.abs(o.position.x - h.x) < 0.01 && Math.abs(o.position.z - h.z) < 0.01) n = o; }); }
+    return n; })()`;
+  const toWorld = (id, p) => ev(`(() => { const n = ${NODE(id)}; if (!n) return null; n.updateWorldMatrix(true, false); return new THREE.Vector3(${p.join(',')}).applyMatrix4(n.matrixWorld).toArray(); })()`, null);
+  const roomDims = async () => JSON.parse(await ev('JSON.stringify(GARAGE_ENV.dims())', 'null') || 'null');
+  const roomPairs = async (id) => {
+    const D = await roomDims(); if (!D) return null;
+    for (const [k, [p, t]] of Object.entries(PAIRS(D))) {
+      const ok = await ev('window.FLYDIY_ROOM_EYE ? FLYDIY_ROOM_EYE(' + JSON.stringify(p) + ',' + JSON.stringify(t) + ') : "no hook"', false);
+      if (ok !== true) { console.log('  ROOM EYE REFUSED ' + k + ' (' + ok + ')'); return D; }
+      await sleep(2500); await shoot(id + '_room_' + k + '.jpg');
     }
+    await ev('window.FLYDIY_ROOM_EYE && FLYDIY_ROOM_EYE(null)', 0);
+    return D;
+  };
+  const worldPairs = async (id, D) => {
+    for (const [k, [p, t]] of Object.entries(PAIRS(D))) {
+      const P = await toWorld(id, p), T = await toWorld(id, t);
+      if (!P || !T) { console.log('  no world node for ' + id); return false; }
+      await eyeAt(id.replace('.', '') + '_world_' + k, P, T);
+    }
+    return true;
+  };
+  if (want('cabin')) twin.roomDims = await roomPairs('w1');
+  else twin.roomDims = await roomDims();
+  if (want('cabin')) {
+    await shoot('w1_room_default.jpg');
+    twin.probeRoom = await ev(PROBE);
+    await ev("document.getElementById('edRoll').click()", 0);
+    for (let k = 0; k < 24; k++) {
+      await sleep(500);
+      await shoot('w1_rollout_' + String(k).padStart(2, '0') + '.jpg');
+      if (k === 8) twin.probeRoll = await ev(PROBE);
+    }
+  } else await ev("document.getElementById('edRoll').click()", 0);
+  for (let i = 0; i < 120; i++) { await sleep(1000); if ((await ev('!!(window.FLYDIY_PREM_EYE && document.body && !document.body.classList.contains("garage"))', false)) === true) break; }
+  await sleep(8000);
+  twin.sheds = await ev('JSON.stringify(window.WORLD.playerSheds ? window.WORLD.playerSheds() : null)', '');
+  // the world: the cabin's shed at the room's dims, then the other garages and the scenery's own hangars
+  if (twin.roomDims) await worldPairs('w1', twin.roomDims);
+  if (want('world')) {
+    const dimsOf = id => C.hangarDims(JSON.parse(doc).sheds[id] || { shell: 'club' });
+    for (const id of ['HOME.2', 'HOME']) await worldPairs(id, dimsOf(id));
+    const plots = JSON.parse(await ev(`JSON.stringify((() => { const out = {}; for (const a of window.WORLD.aerodromes || []) { const s = siteOf(a.id); if (s && s.plots) for (const p of s.plots) out[p.id] = p; } return out; })())`, '{}') || '{}');
     const sc = JSON.parse(await ev(SCENERY_HANGARS, '[]') || '[]');
     twin.scenery = sc;
     const near = (x, z) => sc.slice().sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z))[0];
     const picks = [];
-    if (plots.HOME) { const s = near(plots.HOME.x, plots.HOME.z); if (s) picks.push(s); }
-    if (plots.w3) { const s = near(plots.w3.x, plots.w3.z); if (s && !picks.includes(s)) picks.push(s); }
+    for (const id of ['HOME.2', 'w3']) if (plots[id]) { const q = near(plots[id].x, plots[id].z); if (q && !picks.includes(q)) picks.push(q); }
     for (let i = 0; i < picks.length; i++) {
-      const s = picks[i];
-      // the house frame: the door to +z, turned by the group's yaw
-      await twoViews('scenery_' + i, s.x, s.y, s.z, Math.PI / 2 - s.ry, 15);
+      const q = picks[i], hdg = Math.PI / 2 - q.ry, fx = Math.cos(hdg), fz = Math.sin(hdg);
+      await eyeAt('scenery_' + i + '_front', [q.x + fx * 30, q.y + 8, q.z + fz * 30], [q.x, q.y + 3, q.z]);
+      await eyeAt('scenery_' + i + '_low', [q.x + (fx - fz) * 20, q.y + 1.7, q.z + (fz + fx) * 20], [q.x, q.y + 1.0, q.z]);
     }
   }
   twin.errors = errs.slice(0, 8);
