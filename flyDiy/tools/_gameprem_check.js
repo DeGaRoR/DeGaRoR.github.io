@@ -222,7 +222,7 @@ function run(mut) {
     const got = R.hangarDoor({ shell: 'field', dims });
     ok(Math.abs(got.w - 10) < 1e-9 && Math.abs(want - 10) < 1e-9, 'G3537 the cabin door is 10 m in hangar.js and in hangarDoor (' + want + ' / ' + got.w + ')');
     const w1 = CORE.BASE_OFFERS.w1 && CORE.BASE_OFFERS.w1.plots.w1, d1 = w1 && w1.dims && w1.dims.field;
-    ok(!!d1 && d1.HW === 7 && d1.door === 10, 'G3537 the cabin strip shed is 14 m wide with a 10 m door', J(d1));
+    ok(!!d1 && d1.HW >= 8 && d1.HW <= 9 && d1.HD === 11 && d1.door === 10 && d1.leaves === 2, 'G3537 the cabin strip shed is 16-18 m wide, 22 m deep, a 10 m door in two leaves', J(d1));
     ok(R.hangarDoorWhy({ shell: 'field', dims }, { half: 4.9, fwd: 2, aft: 4, h: 2.2 }) === '' && R.hangarDoorWhy({ shell: 'field', dims }, { half: 5.0, fwd: 2, aft: 4, h: 2.2 }) !== '',
        'G3537 a 9.8 m span passes the cabin door at 0.1 m a side, a 10 m one does not');
   }
