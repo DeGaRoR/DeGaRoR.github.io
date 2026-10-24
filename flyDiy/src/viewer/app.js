@@ -6287,7 +6287,7 @@
   //   and fading with age. Two per float when planing: the step's own.
   // Cheap: one Points and one ribbon mesh per float, fixed buffers, on
   // `craft` in world coordinates. Nothing here touches the physics.
-  const SPRAY_N = 600, WAKE_N = 48;
+  const SPRAY_N = 1400, WAKE_N = 48;   // (G2838b: many small drops - the pool per float)
   let waterFx = null;
   // G2090 (WATER-LOOK): THE WET BODY'S SPRAY POOL - a build without floats meets the water on its belly, its flying
   // surfaces and its tyres (32_hydro.js wetBuild), so it gets the floats' sprite batch too: ONE pool for the page
@@ -6578,15 +6578,29 @@
         const NU = SH ? SH.NU : 8, roots = [];
         for (let u = 0; u < NU; u++) { const f = u / (NU - 1) * (pts.length - 1), i0 = Math.floor(f), i1 = Math.min(pts.length - 1, i0 + 1), t = f - i0;
           const a = pts[i0], b = pts[i1]; roots.push([a[0] + (b[0] - a[0]) * t, Math.max(fx.h, a[1] + (b[1] - a[1]) * t) + 0.02, a[2] + (b[2] - a[2]) * t]); }
-        const uo = 0.45 * V, uu = Math.min(2.6, 0.22 * V);
-        if (SH) SH.set(si, roots, [ox, 0, oz], [0, 1, 0], uo, uu, strength);
+        // (G2837c, the user 23 Oct: "it seems oversize now. Reduce that by about 2, or 1.5"): the sheet's launch scaled by SPRAY_K
+        // (0.77: its height and reach go as the square - ~0.6), the drops and the chunks thrown off it with it
+        const SPRAY_K = 0.77, uo = 0.45 * V * SPRAY_K, uu = Math.min(2.6, 0.22 * V) * SPRAY_K;
+        // G2837b THE VIOLENCE (the user, 22 Oct: "more chaotic, more violent, more turbulent"): the speed's and the step's pressure's
+        // share - the sheet's shape gusts with it (spray.js set's t and gust) and it sheds chunks in bursts
+        const gust = Math.min(1, V / 16) * (0.6 + 0.4 * Math.min(1, pdM / 6000));
+        if (SH) SH.set(si, roots, [ox, 0, oz], [0, 1, 0], uo, uu, strength, waterFx.t + si * 7.3, gust);
         // the droplets off the sheet's far edge (t = T: out at uo, falling at -uu), the rate with the pressure
-        const T = 2 * uu / 9.81, rate = Math.min(8, pdM / 2000) * dt * 60;
+        const T = 2 * uu / 9.81, rate = Math.min(24, 3 * pdM / 2000) * dt * 60;   // (G2838b: many small drops - three times the old rate)
         let n = Math.floor(rate); if (Math.random() < rate - n) n++;
         for (let j = 0; j < n; j++) {
           const r = roots[Math.floor(Math.random() * NU)], t = T * (0.6 + 0.4 * Math.random());
           sprayEmit(D, 0, r[0] + ox * uo * t, r[1] + uu * t - 4.905 * t * t, r[2] + oz * uo * t,
-            ox * uo * (0.7 + 0.3 * Math.random()) + (Math.random() - 0.5) * 0.6, uu - 9.81 * t + 0.3 * Math.random(), oz * uo * (0.7 + 0.3 * Math.random()) + (Math.random() - 0.5) * 0.6);
+            ox * uo * (0.7 + 0.5 * Math.random()) + (Math.random() - 0.5) * 1.6, uu - 9.81 * t + 0.8 * Math.random(), oz * uo * (0.7 + 0.5 * Math.random()) + (Math.random() - 0.5) * 1.6);   // (G2838b: a wide turbulent spread; G2837c: two thirds of it)
+        }
+        // (G2837b) SHED CHUNKS: in bursts with the speed, a clump of drops leaves the sheet together - a cluster with one velocity and
+        // a tight spread, a few heavy drops in it - so the edge throws pieces instead of a steady drizzle
+        if (Math.random() < dt * (1.5 + V / 5) * gust) {
+          const r = roots[Math.floor(Math.random() * NU)], t = T * (0.45 + 0.5 * Math.random()), kv = 0.9 + 0.5 * Math.random();
+          const bx = r[0] + ox * uo * t, by = r[1] + uu * t - 4.905 * t * t, bz = r[2] + oz * uo * t, cvx = ox * uo * kv, cvy = (uu - 9.81 * t) * kv + 0.8, cvz = oz * uo * kv;
+          const nb = 10 + Math.floor(14 * Math.random() * gust);
+          for (let j = 0; j < nb; j++) sprayEmit(D, j < 3 ? 1 : 0, bx + (Math.random() - 0.5) * 0.3, by + (Math.random() - 0.5) * 0.2, bz + (Math.random() - 0.5) * 0.3,
+            cvx + (Math.random() - 0.5) * 1.0, cvy + (Math.random() - 0.5) * 0.8, cvz + (Math.random() - 0.5) * 1.0);
         }
         // the sheet's mist: a puff for every ~12 droplets, outboard of the root, left behind by the hull
         if (n > 0 && Math.random() < n / 12) { const r = roots[Math.floor(Math.random() * NU)];
