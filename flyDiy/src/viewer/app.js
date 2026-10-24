@@ -9378,6 +9378,8 @@
     ap = mkPilot(curKey);
     ap.setRoute(from, H);
     ap.reEngage({ phase: 'INBOUND' });
+    // (the skip hands the aeroplane to the autopilot, as every flight starts: the hand is one toggle away)
+    try { if (manual && typeof setManual === 'function') setManual(false, 'skip'); } catch (e) {}
     try { destId = H.id; } catch (e) {}
     return { ok: true, why: '', final: H.id, pose: P };
   }
@@ -9510,6 +9512,9 @@
       event: ev => { const r = storyEvent(ev); return { ok: r.ok, why: r.why, advanced: r.advanced, effects: r.effects }; },
       certified: storyCertified, flush: storyFlush, pending: () => stBusy || stQueue.length > 0, line: () => stLine,
       ladder: () => ({ i: stLad.i, off: stLad.off, card: stLad.i >= 0 && !stLad.off ? STORY_LADDER[stLad.i].id : null }), skip: storySkipFlight,   // G3370
+      // G3580 (STORY-TUTOR): the tutor as the rigs read it - the beat, the step, what it waits for, the lock (its control)
+      tutor: () => { const L = stTut ? storyTutorSteps(stTut.beat) || [] : [], s = stTut ? L[stTut.i] : null;
+        return { beat: stTut ? stTut.beat : null, i: stTut ? stTut.i : -1, step: s ? s.id : null, wait: s ? s.wait || null : null, lock: stTutLockV ? Object.assign({}, stTutLockV) : null }; },
     };
   }
   window.FLYDIY_PLAYER = {
