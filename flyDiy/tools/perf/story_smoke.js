@@ -21,7 +21,7 @@
 //                   New career -> a second career at T0 (the opening skipped with Esc), two ids in flydiy.careers
 // A still per beat (--stills <dir>, OUTSIDE the repo; for A0's brief, never committed). Exceptions per beat.
 // The profile is under the system temp dir (C:), deleted at the end. Run inside a slot A0 names (GPU lock: the caller).
-// Usage: node tools/perf/story_smoke.js [--url <page>] [--port 8792] [--stills <dir>] [--out <json>]
+// Usage: node tools/perf/story_smoke.js [--url <page>] [--port 8792] [--stills <dir>] [--out <json>] [--t0cost [--hold 90]]
 //   (no --help: an unknown flag is ignored)
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
@@ -99,6 +99,34 @@ const next = async () => { const ok = await click('#stTim [data-tim="tnext"]'); 
     if (PORT) { if (await MB.serveRoot(PORT)) { console.error('story_smoke: port ' + PORT + ' is taken'); process.exit(4); } srv = MB.serve(PORT); await sleep(800); base = 'http://localhost:' + PORT + '/flyDiy/index.html'; }
     R.meta.base = base;
     process.env.MB_CHROME_FLAGS = ((process.env.MB_CHROME_FLAGS || '') + ' --autoplay-policy=no-user-gesture-required').trim();
+    // G3585 (A0, 25 Oct): --t0cost - THE WAITING CUB'S COST in the T0 cabin garage: a New career (no opening), the garage
+    // held still --hold s (no input: the fleet's bake may run), the page's long tasks and program links after the garage is
+    // up, the fleet's bake stats; then the CONTROL, ?stcub=0 (the Cub only at T2), on a fresh profile. Nothing else runs
+    if (argv.includes('--t0cost')) {
+      const HOLD = +opt('hold', 90) * 1000;
+      R.t0cost = [];
+      for (const [name, q] of [['cub waiting', ''], ['control (?stcub=0)', '&stcub=0']]) {
+        if (b) { await b.close(); try { fs.rmSync(UDD, { recursive: true, force: true }); } catch (e) {} }
+        b = await MB.browser(UDD);
+        const l0 = await b.load(base + '?mode=career&intro=0' + q, PRE);
+        await waitFor('!!(window.FLYDIY_STORY && window.FLYDIY_STORY.story() && window.FLYDIY_STORY.story().planes.starter && window.GARAGE_SPEC && window.GARAGE_SPEC.name())', 120000);
+        const t0 = await b.ev('performance.now()');
+        await sleep(HOLD);
+        const t1 = await b.ev('performance.now()');
+        const lt = JSON.parse(await b.ev('JSON.stringify((window.__MB.lt || []).filter(e => e[0] >= ' + t0 + '))'));
+        const ln = await b.links(t0, t1);
+        const fl = await evJs('const F = window.PARKED && window.PARKED.fleet; const s = window.FLYDIY_STORY.story(); return { stats: F ? F.stats : null, why: F ? F.why : null, queue: F ? F.queue.slice() : null, client: s.planes.client, beat: s.beat };');
+        const ms = lt.map(e => e[1]);
+        const row = { name, boot: l0.sec, hold: HOLD / 1000, longTasks: lt.length, worstMs: ms.length ? Math.max(...ms) : 0, over200: ms.filter(x => x >= 200).length, sumMs: ms.reduce((a, x) => a + x, 0), tasks: lt.slice(0, 40), links: ln, fleet: fl };
+        R.t0cost.push(row);
+        log('t0cost ' + name + ': boot ' + l0.sec + ' s; after the garage, ' + HOLD / 1000 + ' s still: ' + lt.length + ' long tasks, worst ' + row.worstMs + ' ms, ' + row.over200 + ' >= 200 ms; links ' + ln.n + ' (worst ' + ln.worstS + ' s); fleet ' + JSON.stringify(fl.stats) + ' client ' + fl.client);
+        await still('t0cost ' + name);
+      }
+      const [w, c] = R.t0cost;
+      R.beats.push({ name: 'T0COST the waiting Cub rides idle time', ok: w.over200 <= c.over200 && w.links.n <= c.links.n + 0, fails: [], exc: b.exc.splice(0), probe: { cub: w, control: c } });
+      log((R.beats[0].ok ? 'ok   ' : 'RED  ') + 'T0COST: >= 200 ms tasks ' + w.over200 + ' vs ' + c.over200 + ', links ' + w.links.n + ' vs ' + c.links.n + ', worst ' + w.worstMs + ' vs ' + c.worstMs + ' ms');
+      return;
+    }
     b = await MB.browser(UDD);
 
     // ---- A: a New career, the opening played through, the cabin at T0
