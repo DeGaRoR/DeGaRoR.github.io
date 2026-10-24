@@ -1,10 +1,18 @@
 #!/usr/bin/env node
 // story_smoke.js - THE STORY'S SMOKE RUN (the GAME COORDINATOR, 22 Oct): a New career played T0 -> T7 in headed Chrome
 // (master_bench.js's CDP rig), on the LIVE Pages build (default) or this tree served (--port). Before the user's test.
-//   A  NEW CAREER   a fresh profile, index.html?mode=career: the boot, the opening (played through: 'played'), the cabin
-//                   garage at T0 - Tim's band, the beat card, the paint-only lock (Shape / Design disabled), no bench
-//   B  T1           Rufus flown out (FLYDIY_STORE.fly: the roll-out): the tutorial ladder's first card on the stand; the
-//                   AP's manual (FLYDIY_AP.set(false)) stops it; then "Skip the flight" (FLYDIY_STORY.skip) -> HOME, T2
+//   A  NEW CAREER   a fresh profile, index.html?mode=career: the boot, the opening (played through: 'played'; no clouds
+//                   under it - G3588), the cabin garage at T0 - Tim's band, no card, the paint-only lock (Shape / Design
+//                   disabled), no bench. G3580 (STORY-TUTOR) TIM IS THE TUTORIAL: each T0 step checked with REAL clicks
+//                   (CDP mouse events, through the page's guard): a press off the step's control is held (the roll-out
+//                   stays in the shed), Next on words, the paint (GARAGE_SPEC.update - the act, not the editor's widgets),
+//                   the registration typed in its box (else the API), the OK -> T1; "Roll out" (G3583), N47RF (G3586)
+//   B  T1           Tim's T1 steps (Next, Next), Storage held, then the real "Roll out" click: the ladder's first card;
+//                   the AP's manual (FLYDIY_AP.set(false)) stops it; "Skip the flight" (FLYDIY_STORY.skip) -> ON THE FINAL
+//                   at HOME (G3584: in the air, the autopilot's), the landing flown -> T2; the ending a line, no card (G3581)
+//   B' T2 ARRIVAL   (G3585) Tim's "taxi or The shed" (nothing locked), the real The shed click -> the WWII hangar, Rufus
+//                   on the stand; Next, Next; Storage (the only control) - the floor shows the stand's plane (G3587); the
+//                   Cub's "work on" (real click) -> the Cub on the stand, Rufus out; Rufus tapped into INSIDE -> the list
 //   C  T2 -> T7     DRIVEN through the story's own door (FLYDIY_STORY.event), NOT flown or built by hand: the client Cub
 //                   in the hangar, its checklist met (a certified event), the delivery stop, the gift, three jobs, the
 //                   water stop on floats -> a REAL route signed (career.routes, the down payment in the wallet), the
@@ -40,7 +48,12 @@ const PROBE = `JSON.stringify((() => { const S = window.FLYDIY_STORY, s = S && S
     homeLocked: !!(d && d.sheds && d.sheds.HOME && d.sheds.HOME.locked), routes: d && d.career && d.career.routes ? d.career.routes.length : 0,
     fleet: d ? Object.keys(d.fleet || {}) : [], jobsOpen: S && S.jobsOpen ? S.jobsOpen() : null, mask: S && S.mask ? S.mask() : null,
     ladder: S && S.ladder ? S.ladder() : null, ap: window.FLYDIY_AP ? { manual: window.FLYDIY_AP.manual() } : null,
-    tim: el('stTim'), card: el('stCard'), skip: el('stSkip'), shape: tab('edTabShape'), design: tab('edTabDesign'), bench: (() => { const e = document.getElementById('edBench'); return e ? { hidden: document.body.classList.contains('stNoBench') || !e.getClientRects().length } : null; })(),
+    tim: el('stTim'), card: el('stCard'), skip: el('stSkip'), arr: (() => { const e = document.getElementById('arrCard'); return e ? { shown: !e.hidden && e.getClientRects().length > 0, line: e.classList.contains('line'), text: (e.textContent || '').replace(/\\s+/g, ' ').trim().slice(0, 160) } : null; })(),
+    tut: S && S.tutor ? S.tutor() : null, stTut: document.body.classList.contains('stTut'), roll: el('edRoll'), inGarage: !!(document.getElementById('edWrap') && !document.getElementById('edWrap').hidden),
+    reg: (() => { try { const s = window.GARAGE_SPEC.get(); return s && s.meta ? s.meta.reg : null; } catch (e) { return null; } })(), stand: (() => { try { return window.GARAGE_SPEC.name(); } catch (e) { return null; } })(),
+    passed: (() => { try { const st = window.BENCH_STATE(); return st ? { passed: !!st.passed, any: !!st.any } : null; } catch (e) { return null; } })(),
+    storeView: (() => { try { const V = window.FLYDIY_STORE.view(); return V ? { floor: V.floor, inside: V.inside.slots, outside: V.outside.slots } : null; } catch (e) { return null; } })(),
+    hsStore: el('hsStore'), shape: tab('edTabShape'), design: tab('edTabDesign'), bench: (() => { const e = document.getElementById('edBench'); return e ? { hidden: document.body.classList.contains('stNoBench') || !e.getClientRects().length } : null; })(),
     lock: window.EDITOR_LOCK && window.EDITOR_LOCK.locked ? window.EDITOR_LOCK.locked() : null,
     intro: window.FLYDIY_INTRO_LAST || null, shed: d && d.sheds ? d.sheds[d.here] : null, edLock: typeof window.EDITOR_LOCK, flood: window.CAGE_UI && window.CAGE_UI.P ? window.CAGE_UI.P.li_flood : null, benchHiddenAttr: (() => { const e = document.getElementById('tabBench'); return e ? { hidden: e.hidden, disp: getComputedStyle(e).display, inDom: document.body.contains(e) } : null; })(), careers: (() => { try { return JSON.parse(localStorage.getItem('flydiy.careers') || 'null'); } catch (e) { return null; } })() }; })())`;
 const probe = async () => JSON.parse(await b.ev(PROBE, 30000));
@@ -67,6 +80,17 @@ const ev = async (o) => JSON.parse(await b.ev('JSON.stringify(window.FLYDIY_STOR
 const PRE = `(function(){ var n = 0, t = setInterval(function(){ var p = document.querySelector('#welcome .wplay');
   if (p && !document.querySelector('#welcome .wmode')) { p.click(); clearInterval(t); } if (++n > 600) clearInterval(t); }, 500); })();`;
 const evJs = async (js) => JSON.parse(await b.ev('JSON.stringify((() => { ' + js + ' })())', 30000));
+// G3580: A REAL CLICK (CDP mouse events at the element's centre: through the page's capture-phase guard, as a player's)
+async function click(sel) {
+  const at = await evJs('const e = document.querySelector(' + JSON.stringify(sel) + '); if (!e) return null; const r = e.getBoundingClientRect(); return r.width ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;');
+  if (!at) return false;
+  for (const type of ['mouseMoved', 'mousePressed', 'mouseReleased']) await b.cmd('Input.dispatchMouseEvent', { type, x: at.x, y: at.y, button: 'left', clickCount: 1 });
+  await sleep(400);
+  return true;
+}
+const key = async (k, code, vk) => { await b.cmd('Input.dispatchKeyEvent', { type: 'keyDown', key: k, code, windowsVirtualKeyCode: vk }); await b.cmd('Input.dispatchKeyEvent', { type: 'keyUp', key: k, code, windowsVirtualKeyCode: vk }); };
+const waitStep = (id, ms) => waitFor('!!(window.FLYDIY_STORY && window.FLYDIY_STORY.tutor && window.FLYDIY_STORY.tutor().step === ' + JSON.stringify(id) + ')', ms || 20000);
+const next = async () => { const ok = await click('#stTim [data-tim="tnext"]'); await sleep(1800); return ok; };
 
 (async () => {
   try {
@@ -80,6 +104,13 @@ const evJs = async (js) => JSON.parse(await b.ev('JSON.stringify((() => { ' + js
     // ---- A: a New career, the opening played through, the cabin at T0
     const l = await b.load(base + '?mode=career', PRE);
     log('A boot ' + l.sec + ' s (' + l.state + ')');
+    // G3588: no clouds under the opening (a still mid-way for A0's brief; the veil and the composite read)
+    let introClouds = null;
+    if (await waitFor('!!(window.FLYDIY_INTRO && window.FLYDIY_INTRO.state())', 120000)) {
+      await sleep(9000);
+      introClouds = await evJs('const C = typeof CLOUDS !== "undefined" ? CLOUDS : null, q = C && C.compositeMesh ? C.compositeMesh() : null; return C ? { veil: C.S.veil, comp: q ? q.visible : null } : { none: true };');
+      await still('intro mid-way (no clouds)');
+    }
     await waitFor('!!window.FLYDIY_INTRO_LAST || (!!window.FLYDIY_STORY && !document.getElementById("stIntro"))', 180000);
     await sleep(3000);
     await beat('A the opening, then the cabin at T0', P => [
@@ -93,31 +124,81 @@ const evJs = async (js) => JSON.parse(await b.ev('JSON.stringify((() => { ' + js
       [P.mask === 'finish' && P.lock, 'the paint-only lock is not on (mask ' + P.mask + ', lock ' + P.lock + ')'],
       [P.shape && P.shape.disabled, 'Shape is not disabled at T0'],
       [P.bench && P.bench.hidden, 'the bench tab shows in the small shed'],
-      [P.jobsOpen === false, 'the generated jobs are not held']]);
+      [P.jobsOpen === false, 'the generated jobs are not held'],
+      [!introClouds || introClouds.none || (introClouds.veil === 0 && introClouds.comp !== true), 'clouds under the opening (G3588: ' + JSON.stringify(introClouds) + ')'],
+      [P.tut && P.tut.beat === 'T0' && P.tut.step === 'hello' && P.stTut, "the tutor is not at T0's first step, locked (" + JSON.stringify(P.tut) + ')'],
+      [P.reg === 'N47RF', "Rufus's registration is not N47RF (" + P.reg + ')'],
+      [P.roll && P.roll.text === 'Roll out', 'the roll-out button does not read just "Roll out" (' + (P.roll && P.roll.text) + ')']]);
+    // the guard: the roll-out pressed off its step stays in the shed
+    await click('#edRoll'); await sleep(2500);
+    await beat('A2 a press off the step is held (the roll-out stays in the shed)', P => [[P.inGarage && P.tut.step === 'hello', 'the press went through (' + JSON.stringify({ g: P.inGarage, t: P.tut }) + ')']]);
+    await next();
+    await beat('A3 Next -> the paint step (waits, no Next)', P => [[P.tut.step === 'paint' && P.tut.lock && P.tut.lock.allow === '#edWrap', 'not at the paint step (' + JSON.stringify(P.tut) + ')'],
+      [!/Next/.test(P.tim && P.tim.text || ''), 'the paint step offers a Next']]);
+    await evJs('const s = window.GARAGE_SPEC.get(); window.GARAGE_SPEC.update({ paint: Object.assign({}, s.paint, { base: 0x2b5d8c, trim: 0xf2efe6 }) }); return true;');
+    const painted = await waitStep('reg', 15000);
+    await beat('A4 painted -> the registration step', P => [[painted, 'the paint did not move the step (' + JSON.stringify(P.tut) + ')']]);
+    // the registration: typed in its box when the box is on screen (the tree's top), else the API (said)
+    const box = '#edWrap [data-dec="reg"] input[type=text]';
+    const typed = await evJs('const i = document.querySelector(' + JSON.stringify(box) + '); return !!(i && i.getClientRects().length);');
+    if (typed) { await click(box); await evJs('const i = document.querySelector(' + JSON.stringify(box) + '); i.select(); return true;'); await b.cmd('Input.insertText', { text: 'N512TB' }); await key('Enter', 'Enter', 13); }
+    else await evJs('window.GARAGE_SPEC.update({ meta: { reg: "N512TB" } }); return true;');
+    const regd = await waitStep('cert', 15000);
+    await beat('A5 the registration ' + (typed ? 'typed in its box' : 'set by the API (the box not on screen)') + ' -> the last words', P => [[regd, 'the registration did not move the step (' + JSON.stringify(P.tut) + ', reg ' + P.reg + ')']]);
 
-    // ---- B: T1 - the ack, the roll-out with the ladder's first card, manual stops it, Skip the flight
-    let r = await ev({ k: 'ack' });
-    await sleep(1500);
-    await beat('B1 T0 read -> T1', P => [[r.ok && P.beat === 'T1', 'the ack did not move the story to T1 (' + (r.why || P.beat) + ')'],
-      [P.mask !== 'finish' || true, '']]);
-    const starter = (await probe()).planes.starter;
-    const fly = await evJs('return window.FLYDIY_STORE && window.FLYDIY_STORE.fly ? (window.FLYDIY_STORE.fly(' + JSON.stringify(starter) + ') || { asked: true }) : { none: true };');
+    // ---- B: T1 - Tim's OK, his T1 steps, the real roll-out click, the ladder, manual, Skip onto the final, the landing
+    await next();
+    await beat("B1 the OK reads T0 -> T1 (Tim's news)", P => [[P.beat === 'T1' && P.tut.step === 'news', "not at T1's news (" + P.beat + ' ' + JSON.stringify(P.tut) + ')'],
+      [P.passed && P.passed.passed, 'Rufus is not certified on the stand (BENCH_STATE ' + JSON.stringify(P.passed) + ') - its first flight would test it']]);
+    await next(); await next();
+    await click('#gStore'); await sleep(1500);
+    await beat('B2 the roll step: Storage held, "Roll out" the way on', P => [[P.tut.step === 'roll', 'not at the roll step (' + JSON.stringify(P.tut) + ')'], [!(P.hsStore && P.hsStore.shown), 'Storage opened off its step']]);
+    await click('#edRoll');
     await waitFor('!!(window.FLYDIY_STORY && window.FLYDIY_STORY.ladder && window.FLYDIY_STORY.ladder().card)', 90000);
     await sleep(2000);
-    await beat('B2 T1 rolled out: the ladder\'s first card', P => [[!fly.none, 'FLYDIY_STORE.fly is missing'],
-      [P.ladder && P.ladder.card, 'no tutorial card on the stand (' + JSON.stringify(P.ladder) + ')'],
-      [P.tim && P.tim.shown, "Tim's band is not shown"], [P.skip && P.skip.shown, '"Skip the flight" is not shown']]);
+    await beat("B3 T1 rolled out (the real click): the ladder's first card, nothing locked", P => [[P.ladder && P.ladder.card, 'no tutorial card on the stand (' + JSON.stringify(P.ladder) + ')'],
+      [P.tim && P.tim.shown, "Tim's band is not shown"], [P.skip && P.skip.shown, '"Skip the flight" is not shown'], [!P.stTut, 'the page is locked in the air']]);
     await evJs('window.FLYDIY_AP && window.FLYDIY_AP.set(false); return true;');
     await sleep(2500);
-    await beat('B3 manual taken: the ladder stops', P => [[P.ap && P.ap.manual, 'the AP did not go manual'],
+    await beat('B4 manual taken: the ladder stops', P => [[P.ap && P.ap.manual, 'the AP did not go manual'],
       [P.ladder && (P.ladder.off || !P.ladder.card), 'the ladder still runs on manual (' + JSON.stringify(P.ladder) + ')']]);
-    r = await evJs('return window.FLYDIY_STORY.skip();');
-    await waitFor('!!(window.FLYDIY_STORY && window.FLYDIY_STORY.story() && window.FLYDIY_STORY.story().beat === "T2")', 60000);
-    await sleep(6000);
-    await beat('B4 Skip the flight -> HOME, T2', P => [[r.ok !== false, 'skip refused: ' + r.why], [P.beat === 'T2', 'not at T2 (' + P.beat + ')'],
-      [P.hereBase === 'HOME', 'the garage is not at HOME (' + P.hereBase + ')'], [!P.homeLocked, 'HOME is still locked'],
-      [P.planes && P.planes.client, 'no client Cub bound'], [P.fleet.indexOf(P.planes && P.planes.client) >= 0, 'the client Cub is not in the fleet'],
-      [!(P.shape && P.shape.disabled), 'the structure is still locked at T2']]);
+    let r = await evJs('return window.FLYDIY_STORY.skip();');
+    await sleep(3000);
+    await still('on the final at HOME');
+    await beat("B5 Skip the flight -> on the final at HOME (the autopilot's)", P => [[r.ok !== false && r.final, 'the skip did not go to the final: ' + JSON.stringify(r)], [P.beat === 'T1', 'T1 completed without a landing (' + P.beat + ')'], [P.ap && !P.ap.manual, 'the hand still has it']]);
+    const landed = await waitFor('!!(window.FLYDIY_STORY && window.FLYDIY_STORY.story() && window.FLYDIY_STORY.story().beat === "T2")', 300000);
+    await sleep(4000);
+    await beat('B6 the final flown: landed at HOME -> T2; the ending a line, no card', P => [[landed && P.beat === 'T2', 'no landing at HOME within 5 min (' + P.beat + ')'], [!P.homeLocked, 'HOME is still locked'],
+      [P.arr && P.arr.shown && P.arr.line, 'the ending is not a line (' + JSON.stringify(P.arr) + ')'], [P.tut && P.tut.step === 'down' && !P.stTut, 'Tim\'s "taxi or The shed" is not up, unlocked (' + JSON.stringify(P.tut) + ')'],
+      [P.planes && P.planes.client, 'no client Cub bound']]);
+
+    // ---- B': THE WWII ARRIVAL - The shed, Rufus in the new hangar, the contract, the Cub swapped in through Storage
+    await click('#bHangar2');
+    await waitFor('!!(window.FLYDIY_STORY.tutor().step === "hangar")', 90000);
+    await sleep(3000);
+    await beat("B'1 The shed -> the WWII hangar, Rufus on the stand", P => [[P.hereBase === 'HOME' && P.inGarage, 'not in the HOME garage (' + P.hereBase + ')'], [P.stand === P.planes.starter, 'Rufus is not on the stand (' + P.stand + ')'],
+      [P.tut.step === 'hangar' && P.stTut, "Tim's hangar words are not up (" + JSON.stringify(P.tut) + ')']]);
+    await next(); await next();
+    await click('#gStore'); await sleep(2000);
+    await beat("B'2 the contract, then Storage (the only control): the floor is the stand's", P => [[P.hsStore && P.hsStore.shown, 'Storage did not open'], [P.tut.step === 'swap', 'not at the swap (' + JSON.stringify(P.tut) + ')'],
+      [P.storeView && P.storeView.floor === P.stand, 'the floor shows ' + (P.storeView && P.storeView.floor) + ' while ' + P.stand + ' is on the stand (G3587)'],
+      [P.storeView && P.storeView.outside.indexOf(P.planes.client) >= 0, 'the Cub is not parked outside (' + JSON.stringify(P.storeView) + ')']]);
+    const P0 = await probe(), cub = P0.planes.client, rufus = P0.planes.starter;
+    await click('#hsStore .hsCard[data-name="' + rufus + '"] .hsFly'); await sleep(800);
+    await click('#hsStore .hsCard[data-name="' + cub + '"] .hsWork');
+    const swapped = await waitStep('park', 60000);
+    await sleep(2000);
+    await still('the Cub swapped onto the stand');
+    await beat("B'3 the Cub's work on -> the Cub on the stand, Rufus out; Rufus's Fly was held", P => [[swapped && P.stand === cub, 'the Cub is not on the stand (' + P.stand + ', ' + JSON.stringify(P.tut) + ')'], [P.inGarage, 'something rolled out']]);
+    await click('#hsStore .hsCard[data-name="' + rufus + '"]'); await click('#hsStore .hsCol[data-col="inside"] .hsColH');
+    const parked = await waitStep('list', 20000);
+    await sleep(1500);
+    await beat("B'4 Rufus tapped into INSIDE -> Tim's list (the checklist)", P => [[parked, 'Rufus did not reach an inside slot (' + JSON.stringify(P.storeView) + ')'], [/client/.test(P.tim && P.tim.text || ''), "Tim's list is not up"]]);
+    await next();
+    await evJs('window.STORAGE_UI && window.STORAGE_UI.close(); return true;');
+    await sleep(1000);
+    await still('Rufus inside, the Cub on the stand');
+    await beat("B'5 OK: the steps done, nothing locked", P => [[!P.stTut && !P.tut.step, 'still a step (' + JSON.stringify(P.tut) + ')']]);
 
     // ---- C: T2 -> T7 through the story's own door (not flown, not built by hand)
     const cert = await evJs(`const s = window.FLYDIY_STORY.story(), slot = s.planes.client; let spec = null;
