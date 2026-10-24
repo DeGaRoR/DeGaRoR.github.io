@@ -229,10 +229,13 @@ function econLoanJob(doc, id) {
 // 15-25, 25-35, 20-40) are scaled by the measured contracts-per-leg ratio, 0.78 (the reference's 21-22 / 26-28 / 22-23
 // contracts at the airframe / hangar2 / arc before, 17-18 / 21-22 / 18-19 after); the first hangar is unchanged (it
 // is bought inside the arc-only opening, 8 contracts both ways).
+// (G3359 ECON-APPLY: the user's table re-priced the shells x2 - the reference career, measured on the applied tree on 24
+// Oct over the 8 seeds: hangar1 13-14, airframe 20-21, arc 21-22, hangar2 27-30; the bands re-derived around them, the
+// table speaking, not a regression. Before: hangar1 6-10, airframe 12-20, hangar2 20-27)
 const ECON_BANDS = {
-  hangar1:  [6, 10],     // the first side hangar
-  airframe: [12, 20],    // a C172-class airframe (CONTRACT_DESIGNS.c172, materialised in the main hangar)   (G2260: 15-25)
-  hangar2:  [20, 27],    // the second side hangar                                                         (G2260: 25-35)
+  hangar1:  [11, 16],    // the first side hangar
+  airframe: [16, 24],    // a C172-class airframe (CONTRACT_DESIGNS.c172, materialised in the main hangar)   (G2260: 15-25)
+  hangar2:  [24, 33],    // the second side hangar                                                         (G2260: 25-35)
   arc:      [16, 31],    // a full arc: the first provider whose whole arc is complete (its track at its last stage) (G2260: 20-40)
 };
 // THE REFERENCE CAREER the bands are measured on (econReference). Stated, so the numbers mean something:
