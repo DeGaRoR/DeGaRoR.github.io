@@ -98057,3 +98057,19 @@ Strict light gate RED (6), the known classes: cub chase tasks1s 0 -> 2 / taskWor
 - In the story's small shed, Tim's lines end with STORY_BENCH_LINE: "No test bench in here, mind - certification happens at the WWII field's hangar."
 - The bench TOOL stays hidden there (body.stNoBench, G3351).
 - GATE STORY: +1 row.
+## G3359 - ECON-APPLY: THE ECONOMY TABLE APPLIED (2026-10-23, GAME coordinator; claude/econ-apply on story-ui 320dbfb1b, for L24a)
+- The user, verbatim: "apply the economics table, keep demo time as it is for now". ECON-SIM's proposed table (G3250 HANDOVER), as written:
+  - the story career starts without careerNew's grant: 79_story STORY_GRANT 0; storyNewCareer drops the grant's ledger line and its 60 000;
+  - T6's commitment fee: STORY_T6_FEE 20 000, paid beside the route's down payment (storyApply 'routeOffer'; offer.fee);
+  - ROUTES_PAY: perKm 100 -> 30, downTrips 8 -> 6, dayTrips 6 (new). routeTerms: flyS (as flown), tripS = max(flyS, 86400 / dayTrips). routePos flies the legs on flyS and waits at the home end for the rest;
+  - T7's fabric 4-seater occasion: 0.30 -> 0.35 x catalogue (the other two were already 0.35);
+  - ECON_BOOK.shells: field / club / works 1.8 / 3.2 / 5.4 -> 3.6 / 5.6 / 8.6 Cubs.
+- Data only: ECON_BOOK.landmarks (keystones 2.5 / 6 / 12 Cubs, optional 1.5 / 3 / 5), rungs (2: 0.25, 3: 2.5 Cubs) and comps (entry 0.08 / 0.15 / 0.25, prizes x3 / x1.6 / x0.8). None of these is in the game yet, and nothing in play reads them (econ_sim plays them).
+- Unchanged: the airframes, the pilot sign-ons, the demo length (no time compression; T5 as is).
+- Gates:
+  - ROUTES: the hand-computed case re-derived (480 a trip, 2 880 down, 2 160 s flown, 14 400 s timetabled), and every settle / end row in timetabled time;
+  - ROUTES' T6 rows: + the fee;
+  - STORY: +1 row, the story career's money;
+  - ECON: the mutant string reads the new shells;
+  - 90_node_exports: + STORY_GRANT, STORY_T6_FEE.
+- ECON stays on its live bands (the reference career). ECON_BANDS_STORY is checked by an econ_sim run, not in the gate: a playCareer inside GATE ECON would cost minutes.

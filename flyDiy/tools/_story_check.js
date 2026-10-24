@@ -322,6 +322,9 @@ async function pageRun() {
   // ---- a New career at the cabin: playerLoad's own step (careerNew -> storyNewCareer), then the page half boots
   let d = M.careerNormalise(M.careerNew({ id: 'main', seed: 'gate' }));
   let r = M.storyNewCareer(d, { aeros: aerosCabin });
+  { const g = (d.ledger || []).some(e => e.k === 'grant');
+    ok(r.ok && g && !(r.doc.ledger || []).some(e => e.k === 'grant') && r.doc.wallet === d.wallet - M.CAREER_GRANT + M.STORY_GRANT && M.STORY_GRANT === 0,
+       'the story career starts without careerNew\'s grant (G3359: STORY_GRANT 0, its ledger line gone)', r.doc.wallet); }
   d = r.doc;
   ok(r.ok && M.storyOf(d).beat === 'T0' && d.here === 'w9' && d.sheds.w9 && d.sheds.w9.shell === 'field' && d.sheds.w9.base === 'w9' && d.sheds.HOME.locked === 'story',
      'New career -> storyStart at the cabin: the smallest shed (a field shell) at "Cabin Strip", the garage there, the WWII hangar held', JSON.stringify(d.sheds.w9 && d.sheds.w9.dims));
