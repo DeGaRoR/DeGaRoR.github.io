@@ -143,6 +143,13 @@ function careerCopyName(doc, name, taken) {
   while (T.has(n) || (doc && doc.fleet && doc.fleet[n])) n = name + ' ' + i++ + ' @' + id;
   return n;
 }
+// a build SAVED in the career's garage: a name the career holds (its airframe row: the story's slots, a re-save) or a
+// copy's tagged name stays; a new name becomes the career's own slot, tagged as a copy is (the sandbox never edits it)
+function careerSaveKey(doc, name, taken) {
+  if (!doc || doc.mode !== 'career' || careerSlotTag(name)) return name;
+  if (doc.career && doc.career.airframes && doc.career.airframes[name]) return name;
+  return careerCopyName(doc, name, taken);
+}
 // ...and a design BROUGHT IN is a purchase: the economy's airframe price over its ledger (the main hangar's labour, as a
 // build materialised there - 76_economy.js econMaterialise, its row's how 'import', `of` the design it was copied from),
 // on the COPY's slot (the page writes the copy's envelope: the design frozen there); refused short of the cash

@@ -1185,6 +1185,10 @@ function garageInit(api) {
   }
   const saveAs = name => {
     if (!name) return;
+    // G3612 (A0 for the user 25 Oct: a career's planes are its own individual objects): in a career a NEW name is the
+    // career's own slot (api.slotKey: tagged ' @<career id>'), the plaque keeping the name typed
+    const typed = name;
+    if (api.slotKey) name = api.slotKey(name);
     commit();                       // save what is ON THE STAND, not what flew
     if (!log.built) log.built = new Date().toISOString().slice(0, 10);
     // NAMING IT IS NAMING IT (G65). The shelf's name and the aeroplane's own
@@ -1192,7 +1196,7 @@ function garageInit(api) {
     // headed a build "Garage Special" while the shelf called it yours. The
     // shelf row wins, because it is the one you typed.
     if (!spec.meta || typeof spec.meta !== 'object') spec.meta = {};
-    spec.meta.name = name;
+    spec.meta.name = typed;
     // PREM-S2: a save over this slot whose FINISH changed is a repaint (it resets the airframe's outside wear)
     let repainted = false;
     try { const prev = JSON.parse(lsGet(SLOT + name) || 'null');

@@ -354,6 +354,10 @@ async function pageRun() {
        r2 && !r2.ok && sb.join() === 'Rufus,Sandbox Jodel' && M.careerCopyName(r1.doc, 'Sandbox Jodel', [copy]) === 'Sandbox Jodel 2 @' + d.career.id,
        'a career\'s fleet is its own planes: a sandbox design on the shelf is not lifted in; buying it in is a purchase (refused short of the cash) that makes the career\'s OWN copy (its tagged slot, the design it came from) - the sandbox never lists the copy, a second copy is numbered (G3612)',
        own.join() + ' | ' + copy + ' | ' + (r0.why || '-') + ' | ' + (r1.cost || r1.why));
+    ok(M.careerSaveKey(d, 'My Racer', []) === 'My Racer @' + d.career.id && M.careerSaveKey(d, 'Rufus', []) === 'Rufus' && M.careerSaveKey(d, copy, []) === copy &&
+       M.careerSaveKey({ mode: 'sandbox' }, 'My Racer', []) === 'My Racer' &&
+       /if \(api\.slotKey\) name = api\.slotKey\(name\);/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'garage.js'), 'utf8')),
+       'a build saved under a new name in a career garage is the career\'s own slot (tagged); its own names and the sandbox\'s saves stay (G3612)');
     // the reset, once: an older career's row for a slot it never owned leaves at its next lift
     const old = JSON.parse(JSON.stringify(d)); old.fleet['Old Shelf Build'] = { hangar: null, aero: 'HOME' };
     const R = M.playerFleetReconcile(old, M.careerOwnSlots(old, ['Rufus', 'Old Shelf Build']));

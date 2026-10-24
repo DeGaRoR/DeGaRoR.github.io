@@ -16356,6 +16356,9 @@
     ownSlots: names => fleetSlotNames(playerLoad(), names),
     importable: CAREER_DEV ? (names => careerImportable(playerLoad(), names)) : null,
     slotLabel: n => (typeof careerSlotTag === 'function' && careerSlotTag(n) ? n.replace(CAREER_SLOT_TAG, '') : n),
+    // ...and a build saved in a career's garage under a NEW name is the career's own slot (a copy's tag; a name it
+    // already holds - the story's Rufus, a re-save - stays as it is)
+    slotKey: CAREER_DEV ? (n => careerSaveKey(playerLoad(), n, playerSlotNames())) : null,
     importPrice: CAREER_DEV ? (n => { const P = careerImportPrice(n); return P ? P.price : null; }) : null,
     importSlot: CAREER_DEV ? (n => careerImportNow(n)) : null,
     money: CAREER_DEV ? (v => ecFmt(v)) : null,
