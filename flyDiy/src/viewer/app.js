@@ -7761,7 +7761,7 @@
       // G3563 (AP-HONEST): THE HAND GIVES IT BACK TO THE SAME PLAN - the toggle never touches the route (ap.route, destId,
       // the remembered To): the pilot resumes the To it had, and says which (the user: "switching between manual and AP
       // should not change anything to the flight plan"; Rufus went back to the cabin's circuit with no word)
-      if (started && !inGarage) apWhyPlan();
+      if (started && !inGarage && ap.phase !== 'STOPPED') apWhyPlan();
     }
     flRender();
     if (flShown.has('controls')) flyOpenSet(flyOpen);
@@ -7985,7 +7985,7 @@
   // must be visible"). The reasons lived only in ap.report.verdicts - the end card's "What went wrong", read after the
   // flight. Now every frame of a flight (scriptView) hands the verdicts NEW since the last look to ap_why.js (AP_WHY.batch:
   // the strongest of the batch - a divert over its go-around - in a player's words) and a row goes up in the flight's
-  // top-left column (#apWhy, under the brief, never the screen's centre): the head (Going around at X / Diverting to Y /
+  // top-right corner (#apWhy, the top bar's empty third column above the map, never the screen's centre): the head (Going around at X / Diverting to Y /
   // Take-off stopped / Not going there ...) and the reason. The same verdicts inline and under the physics worker (the
   // report rides the snapshot whole when its count moves - sim_host.js meta). A row stands APWHY_S seconds (wall), the
   // newest on top, three at most; a click clears them. The hand giving the aeroplane back says what it flies now
@@ -8008,16 +8008,19 @@
     apWhyRows = apWhyRows.filter(r => now - r.at < 1000 * (APWHY_S[r.kind] || 15));
     const want = apWhyRows.length && !inGarage;
     if (!apWhyEl && want) {
-      const host = $('flBrief');
+      // THE TOP BAR'S EMPTY THIRD COLUMN (#flTop is `1fr auto 1fr`, the right third empty since the verbs went to the bottom):
+      // the top right, above the map - flLayout steps the map down under it, as under any of the bar's children. Not the
+      // top-left: the story's beat card (#stCard, fixed, z 40) stands there in a career and would cover it
+      const host = $('flTop');
       if (!host) return;
       apWhyEl = document.createElement('div');
       apWhyEl.id = 'apWhy'; apWhyEl.className = 'flPlate'; apWhyEl.setAttribute('role', 'status'); apWhyEl.setAttribute('aria-live', 'polite');
       apWhyEl.title = 'Why the autopilot changed its plan - click to clear';
       apWhyEl.addEventListener('click', () => { apWhyRows = []; apWhyDraw(); });
-      host.insertBefore(apWhyEl, $('flNotice') || null);
+      host.appendChild(apWhyEl);
     }
     if (!apWhyEl) return;
-    apWhyEl.hidden = !want;
+    if (apWhyEl.hidden !== !want) { apWhyEl.hidden = !want; try { flLayout(); } catch (e) {} }   // the map makes room / takes it back
     const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
     const key = apWhyRows.map(r => r.n).join(',');
     if (apWhyEl.dataset.k === key) return;

@@ -23,7 +23,7 @@
 //      verdicts appended, the route's ids moved to another strip - -> a 'go-around' row, then a 'divert' row on top naming
 //      both strips in plain words; the page's ap.route.to the diversion's (so the end card cannot say "Short of" the
 //      field it left), the brief's trip line says "diverted", FLYDIY_APROUTE diverted; #apWhy in the DOM, not hidden,
-//      inside #flBrief (the top-left column, never the screen's centre); no page error.
+//      a child of #flTop (the bar's empty third column, the top right - never the screen's centre); no page error.
 // NEGATIVE-VERIFIED (--selftest): 'noroute' strips the route from every snapshot (A's route and C's divert route go red),
 //   'noreport' strips the report (A's and C's rows go red).
 'use strict';
@@ -161,7 +161,7 @@ async function child() {
   await until(() => tamper.sent >= 1, 40); await P.frames(6);
   R.C.dv = rows().slice(n3); R.C.route = routeIds(); R.C.top = W.FLYDIY_APWHY.rows()[0] || null;
   const el = W.document.getElementById('apWhy');
-  R.C.dom = el ? { hidden: !!el.hidden, text: el.textContent, inBrief: !!(el.parentNode && el.parentNode.id === 'flBrief') } : null;
+  R.C.dom = el ? { hidden: !!el.hidden, text: el.textContent, inTop: !!(el.parentNode && el.parentNode.id === 'flTop') } : null;
   R.C.trip = (W.document.getElementById('flRouteV') || {}).textContent || null;
   R.C.map = W.FLYDIY_APROUTE.get(); if (R.C.map) R.C.map = { to: R.C.map.to, diverted: R.C.map.diverted, why: R.C.map.why };
   tamper = null;
@@ -212,7 +212,7 @@ function judge(R, say) {
   }
   if (!R.C.route || R.C.route.to !== R.T2.id) bad('C: the page\'s ap.route.to is not the diversion\'s ' + R.T2.id + ': ' + JSON.stringify(R.C.route));
   if (!R.C.top || R.C.top.kind !== 'divert') bad('C: the newest #apWhy row is not the divert');
-  if (!R.C.dom || R.C.dom.hidden || !R.C.dom.inBrief || !R.C.dom.text.includes('Diverting to')) bad('C: #apWhy is not shown in #flBrief with the divert: ' + JSON.stringify(R.C.dom));
+  if (!R.C.dom || R.C.dom.hidden || !R.C.dom.inTop || !R.C.dom.text.includes('Diverting to')) bad('C: #apWhy is not shown in #flTop with the divert: ' + JSON.stringify(R.C.dom));
   if (!R.C.trip || !/diverted/.test(R.C.trip)) bad('C: the brief\'s trip line does not say diverted: ' + R.C.trip);
   if (!R.C.map || !R.C.map.diverted || !R.C.map.to || R.C.map.to.id !== R.T2.id) bad('C: FLYDIY_APROUTE: ' + JSON.stringify(R.C.map));
   if (R.errors.length) bad('page errors: ' + R.errors.slice(0, 3).join(' | '));

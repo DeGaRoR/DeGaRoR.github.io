@@ -17,21 +17,22 @@
 //     OUT, the roll-out screen, SKIP TO LINE-UP (#bSkip), Fly (#bGo) - the sim at --rate.
 //   1 CLIMB: the map (#mmp) - the dashed line HOME -> To and the label "AP · <To>": shot 1_map_route.png
 //   2 THE TOGGLE: FLIGHT_PROBE.setManual(true), 4 s, setManual(false) -> #apWhy "AUTOPILOT ON - flying to <To>, as planned";
-//     FLYDIY_PLAN.get() before == after (the plan untouched): shots 2_toggle_brief.png (the top-left column), 2_toggle.png
+//     FLYDIY_PLAN.get() before == after (the plan untouched): shots 2_toggle_why.png (the top-right rows), 2_toggle.png
 //   3 A FORCED GO-AROUND (real: the pilot decides it): on FINAL, under 600 m from the field, the aeroplane is LIFTED 70 m by
 //     the rig's placement door (FLIGHT_PROBE.place({ by: [0, 70, 0] }) - on the worker's sim, the velocities kept) -> the
 //     pilot's own "high on the slope" / "past the aim" go-around -> #apWhy "GOING AROUND AT <To> - too high on the
-//     approach" the moment it happens: shots 3_goaround_brief.png, 3_goaround.png (the whole screen: nothing centred)
+//     approach" the moment it happens: shots 3_goaround_why.png, 3_goaround.png (the whole screen: nothing centred)
 //   4 A FORCED DIVERT (the worker's messages altered in the page, as GATE APHONEST does in node: the worker's snapshot's
 //     route ids moved to a second strip, the report given the three verdicts 43_pilot.js says when it refuses a strip -
 //     strip-too-short, go-around, divert): #apWhy "DIVERTING TO <T2> - <To> is too short today: landing at 84 km/h needs
 //     231 m to stop, only 180 m are left", the brief's trip line "... -> <T2> · diverted", the map's line to T2 and the
-//     To it left crossed: shots 4_divert_brief.png, 4_divert_map.png, 4_divert.png. Then the alteration is lifted (the
+//     To it left crossed: shots 4_divert_why.png, 4_divert_map.png, 4_divert.png. Then the alteration is lifted (the
 //     worker's real route comes back on the next snapshot: the page follows the worker, whatever it says).
 //   5 (--natural only) the user's case, unforced: the flight flown to its end (STOPPED / the card), every #apWhy row logged
 //     as it came; the arrival card shot 5_card.png - its title names where the aeroplane really went ("Arrived at" the
 //     diversion's strip, never "Short of" the one it left) and a "diverted" row says from where and why.
-// WHAT TO LOOK AT: the rows sit in the top-left column under the brief (never a card in the screen's centre), the game's
+// WHAT TO LOOK AT: the rows sit in the top right, the bar's empty third column above the map (never a card in the screen's
+// centre; the story's beat card keeps the top left), the map stepped down under them, the game's
 // plate (--ed-plate, the warn label, IBM Plex Sans, no italics); each appears within a frame of the pilot's decision.
 'use strict';
 const fs = require('fs'), path = require('path'), cp = require('child_process'), net = require('net');
@@ -122,7 +123,7 @@ const freePort = () => new Promise((res, rej) => { const s = net.createServer();
   const p1 = await ev('JSON.stringify(FLYDIY_PLAN.get())', null);
   steps.toggle = Object.assign(await state(), { before: JSON.parse(p0), after: JSON.parse(p1), same: p0 === p1 });
   say('toggle: plan ' + (p0 === p1 ? 'UNCHANGED' : 'CHANGED ' + p0 + ' -> ' + p1) + '; rows ' + JSON.stringify(steps.toggle.rows.map(r => r.head + ' - ' + r.line)));
-  await shot('2_toggle_brief', '#flBrief'); await shot('2_toggle');
+  await shot('2_toggle_why', '#apWhy'); await shot('2_toggle');
 
   if (!NATURAL) {
     // 3 a forced go-around: lifted on final
@@ -133,7 +134,7 @@ const freePort = () => new Promise((res, rej) => { const s = net.createServer();
       const ok = await waitFor("FLYDIY_APWHY.rows().some(r => r.kind === 'go-around')", 60, 250);
       steps.goaround = await state();
       say('go-around ' + (ok ? 'SAID: ' + JSON.stringify(steps.goaround.rows[0]) : 'not said in 60 s (phase ' + steps.goaround.phase + ')'));
-      await shot('3_goaround_brief', '#flBrief'); await shot('3_goaround');
+      await shot('3_goaround_why', '#apWhy'); await shot('3_goaround');
       await ev(`TEST_FLIGHT.rate(${RATE})`);
     } else say('  (no FINAL within 1500 s - no forced go-around)');
     // 4 a forced divert (the worker's messages altered)
@@ -151,7 +152,7 @@ const freePort = () => new Promise((res, rej) => { const s = net.createServer();
       await sleep(1500);
       steps.divert = Object.assign(await state(), { trip: await ev("document.getElementById('flRouteV').textContent", null) });
       say('divert ' + (ok ? 'SAID: ' + JSON.stringify(steps.divert.rows[0]) : 'not said') + '; trip "' + steps.divert.trip + '"; route ' + JSON.stringify(steps.divert.route && steps.divert.route.to));
-      await shot('4_divert_brief', '#flBrief'); await shot('4_divert_map', '#mmp'); await shot('4_divert');
+      await shot('4_divert_why', '#apWhy'); await shot('4_divert_map', '#mmp'); await shot('4_divert');
       await ev('window.__aphTamper = null');
     }
   } else {
@@ -160,7 +161,7 @@ const freePort = () => new Promise((res, rej) => { const s = net.createServer();
     const tEnd = Date.now() + 1800 * 1000;
     while (Date.now() < tEnd) {
       const L = JSON.parse(await ev('JSON.stringify(FLYDIY_APWHY.log())', '[]'));
-      for (; n < L.length; n++) { say('  row: ' + L[n].head + ' - ' + L[n].line); await shot('5_row_' + n, '#flBrief'); }
+      for (; n < L.length; n++) { say('  row: ' + L[n].head + ' - ' + L[n].line); await shot('5_row_' + n, '#apWhy'); }
       if ((await ev("FLIGHT_PROBE.ap().phase === 'STOPPED' || FLIGHT_PROBE.over()", false)) === true) break;
       await sleep(1000);
     }

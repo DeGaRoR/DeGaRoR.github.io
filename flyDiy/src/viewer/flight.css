@@ -249,12 +249,12 @@
 
 #flNotice span { font:400 11px/1.4 'IBM Plex Sans'; color:var(--ed-dim); }
 
-/* ---- G3560 (AP-HONEST): WHY THE AUTOPILOT CHANGED ITS PLAN - the flight's top-left column under the brief (app.js
-   apWhyDraw), never the screen's centre: the head in the notice's warn label, the reason in plain ink under it, the
-   newest row first, the older ones dimmer. A click clears it. The plan said back (the hand gives it back, a new To, a
-   drawn route) takes the accent instead of the warn. ---- */
-#ui #apWhy { display:flex; flex-direction:column; gap:7px; padding:8px 12px; margin-top:6px; max-width:520px;
-  border-color:rgba(216,160,122,.5); cursor:pointer; }
+/* ---- G3560 (AP-HONEST): WHY THE AUTOPILOT CHANGED ITS PLAN - the top bar's empty third column, the top right above
+   the map (app.js apWhyDraw; flLayout steps the map down under it), never the screen's centre: the head in the notice's
+   warn label, the reason in plain ink under it, the newest row first, the older ones dimmer. A click clears it. The plan
+   said back (the hand gives it back, a new To, a drawn route) takes the accent instead of the warn. ---- */
+#ui #apWhy { display:flex; flex-direction:column; gap:7px; padding:8px 12px; justify-self:end; width:max-content;
+  max-width:min(400px, 100%); box-sizing:border-box; border-color:rgba(216,160,122,.5); cursor:pointer; }
 #ui #apWhy[hidden] { display:none; }
 #apWhy .awRow { display:flex; flex-direction:column; gap:3px; min-width:0; }
 #apWhy .awRow + .awRow { padding-top:6px; border-top:1px solid var(--ed-hair); }
