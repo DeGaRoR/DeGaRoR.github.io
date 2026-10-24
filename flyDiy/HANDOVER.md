@@ -98438,3 +98438,22 @@ without the reports open.
 - A first battery run was stopped and restarted after G2374's fix (the close's pieces() bug, found reading the code: the
   'parted' row never fired; no band changed with it - every parted seat was already Fatal by its space or cell).
 - **Damage stays OFF by default**; with it off nothing here exists (DMGOCCUPANT's rows, DMGFPS, DMGWRECK's bits).
+
+## DMG-SCAR2 + DMG-OCCUPANT ON MASTER (claude/dmg-scar2-occupant, 24-25 Oct) - ONE INTEGRATION, TWO GATE READERS CHANGED
+- Merged onto master 20a136670 (scar2 first, occupant on top; exports a union, CORE_MATH 0 STRAY). Damage is ON by default on
+  master since L20b - the "stays OFF" lines above predate that. The crash card is the corner card; the occupants' five words
+  only.
+- Sat 24 Oct battery: both gates went red on master's physics (each green on its own branch). **Neither core changed - two
+  gate readers did, named here:**
+  - **DMGSCAR 2J (the skipping runs)** now reads a touchdown from the frames a node is IN the ground - the solver's own contact
+    rule (pen > 0 on rC = r - so), `touch` in _dmg_scar_lib.runCase. It read the footprint's 5 mm list before: a node hovering
+    in those 5 mm is pushed by nothing, leaves no slide in the record and no furrow, yet counted as a touchdown. The diag (24 Oct
+    23:10): the metal fly0 node 38 - a hover bridged a 0.68 s hop (over joinT 0.5: the core's two gouges were right); the Jodel
+    fly25 node 75 - hovers stretched its run 3.3 m past its last slide. The footprint checks keep the 5 mm list. Condition
+    (A0): the --join-off selftest still red on 2J.
+  - **DMGOCCUPANT**: an event the case's window cut open (the twin's late float bounce) runs on as the game would until it
+    closes, at most crashMax + quiet + 1 s; one open past that stays red; the row says how long it ran on. PASS 24 Oct 23:12.
+- The other 16 reds of that battery: an A/B on the base 20a136670 (Sun 25 Oct 11:15) - a red there too is master's (OPEN list,
+  its owner), not this branch's.
+- dmg_wreck_stills: scar-slide / scar-blow cases (+ a close 13 m view); scar-blow needs ?simw=0 (the worker stages trunk cases
+  only).
