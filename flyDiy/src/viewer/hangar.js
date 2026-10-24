@@ -1227,17 +1227,24 @@ if (FRAME === 'timber') {
   gm.rotation.y = -Math.PI / 2; gm.position.x = -HD;
   put(gm);
   // the leaf, its track, and the posts under the track's far end
-  const LW = DOOR_W + 0.4;
-  const parkZ = -(DOOR_W / 2 + LW / 2) + 1.0;   // clear, one metre on the jamb
-  const leafZ = EXT ? 0 : parkZ;
-  const tz0 = DOOR_W / 2 + 0.8, tz1 = parkZ - LW / 2 - 0.3;
-  put(box(0.12, 0.14, tz0 - tz1, M.steelDark, -HD - 0.24, DOOR_H + 0.42,
-          (tz0 + tz1) / 2));
-  for (const pz of [tz1 + 0.15, (tz1 - HW) / 2])
-    if (pz < -HW - 0.2)
-      put(box(0.14, DOOR_H + 0.38, 0.14, M.wood, -HD - 0.24,
-              (DOOR_H + 0.38) / 2, pz));
-  {
+  // G3537 (HANGARS-LOOK): `dims.leaves` 2 - a BI-PARTING PAIR (the cabin's 10 m door on a 14 m front: one 10.4 m leaf parked
+  // 7.4 m past the corner, a pair of 5.2 m leaves each about 3 m past its own); one leaf, as ever, otherwise
+  const PAIR = D0.leaves === 2;
+  const LW = PAIR ? DOOR_W / 2 + 0.2 : DOOR_W + 0.4;
+  const parks = PAIR ? [1, -1].map(s => ({ s, z: s * (DOOR_W / 2 + LW / 2 - 1.0), shut: s * LW / 2 }))
+                     : [{ s: -1, z: -(DOOR_W / 2 + LW / 2) + 1.0, shut: 0 }];   // clear, one metre on the jamb
+  for (const pk of parks) {
+    const far = pk.z + pk.s * (LW / 2 + 0.3);                 // the track's far end, past the corner
+    const near = PAIR ? 0 : DOOR_W / 2 + 0.8;                  // a pair's two tracks meet over the middle
+    const z0 = PAIR ? 0 : -pk.s * near;
+    put(box(0.12, 0.14, Math.abs(far - z0), M.steelDark, -HD - 0.24, DOOR_H + 0.42, (far + z0) / 2));
+    for (const pz of [far - pk.s * 0.15, (far + pk.s * HW) / 2])
+      if (pk.s * pz > HW + 0.2)
+        put(box(0.14, DOOR_H + 0.38, 0.14, M.wood, -HD - 0.24, (DOOR_H + 0.38) / 2, pz));
+  }
+  for (let li = 0; li < parks.length; li++) {
+    const pk = parks[li], leafZ = EXT ? pk.shut : pk.z;
+    {
     const g = new THREE.Group(); g.position.set(-HD - 0.15, 0, leafZ);
     g.add(mbox(0.08, DOOR_H + 0.12, LW, M.door, 0, (DOOR_H + 0.12) / 2, 0));
     // painted frame: sill and head channels, two stiles, and the Z-brace
@@ -1251,7 +1258,7 @@ if (FRAME === 'timber') {
     const brace = new THREE.Mesh(new THREE.BoxGeometry(0.07, bl, 0.16),
                                  M.doorTrim);
     brace.position.set(-0.03, DOOR_H / 2, 0);
-    brace.rotation.x = Math.atan2(LW - 0.8, DOOR_H - 0.6);
+    brace.rotation.x = Math.atan2(LW - 0.8, DOOR_H - 0.6) * (PAIR ? pk.s : 1);   // (a pair's braces mirror)
     brace.castShadow = brace.receiveShadow = true;
     g.add(brace);
     for (const o of [-0.35, 0, 0.35]) {               // hangers and rollers
@@ -1260,8 +1267,8 @@ if (FRAME === 'timber') {
                      o * LW, 12);
       wl.rotation.x = Math.PI / 2; g.add(wl);
     }
-    if (!EXT) {                                        // the wicket
-      const wz = LW / 2 - 1.0;
+    if (!EXT && li === 0) {                            // the wicket (one leaf of a pair)
+      const wz = (PAIR ? -pk.s : 1) * (LW / 2 - 1.0);
       g.add(box(0.05, 2.05, 0.86, M.doorTrim, -0.07, 1.03, wz));
       g.add(box(0.04, 1.92, 0.76, M.door, -0.10, 1.02, wz));
       g.add(cyl(0.028, 0.028, 0.12, M.brass, -0.14, 1.02, wz - 0.30, 10));
@@ -1269,6 +1276,7 @@ if (FRAME === 'timber') {
     g.traverse(o => { if (o.isMesh) { o.castShadow = true;
                                       o.receiveShadow = true; } });
     G.add(g);
+    }
   }
   if (!EXT) {
     const day = new THREE.Mesh(

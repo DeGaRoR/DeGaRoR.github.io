@@ -485,7 +485,7 @@ let PANE_MAT = null;
 const LIB = {};
 function bakeShell(P, S, fy, bags, litOn, F) {
   let ext = null;
-  try { ext = genHangarBuild(THREE, { HW: P.HW, HD: P.HD, EAVE: P.EAVE, door: P.doorW > 0 ? P.doorW : undefined }, { exterior: true, shell: SHELLS[Math.round(P.shell)] }); }
+  try { ext = genHangarBuild(THREE, { HW: P.HW, HD: P.HD, EAVE: P.EAVE, door: P.doorW > 0 ? P.doorW : undefined, leaves: P.leaves === 2 ? 2 : undefined }, { exterior: true, shell: SHELLS[Math.round(P.shell)] }); }
   catch (e) { if (typeof console !== 'undefined') console.warn('hangar shell:', e && e.message); return null; }
   if (!ext || !ext.group) return null;
   ext.group.updateMatrixWorld(true);

@@ -108,8 +108,9 @@ const BASE_OFFERS = {
                    // (G3537, the user 25 Oct: "The shed should have a door exactly 10m wide, that was the brief and the
                    // constraint on the cabin strip. You may keep a couple meters on both sides for the hangar itself, so a
                    // total width of 14m, but a 10m door") 14 x 22 m, the door 10.0 m; Rufus's 9.8 m wing passes it with
-                   // 0.1 m a side (doorClr - the door was cut for it); the depth and the eave as before
-                   takes: 'ul1', dims: { field: { HW: 7, HD: 11, EAVE: 4.0, door: 10, doorClr: 0.1 } },
+                   // 0.1 m a side (doorClr - the door was cut for it); the depth and the eave as before; a bi-parting PAIR of
+                   // leaves (a single 10.4 m leaf would park 7.4 m past the 2 m of wall beside it)
+                   takes: 'ul1', dims: { field: { HW: 7, HD: 11, EAVE: 4.0, door: 10, doorClr: 0.1, leaves: 2 } },
                    // (G3353, the user 22 Oct: "get rid of the large router (the largest of the woodworking machines). Keep
                    // only the 2 smaller ones (the drill and another)") the two smallest machines stay - the pillar drill and
                    // the thicknesser; the panel saw (4.4 x 3.6 m), the band saw and the surface planer are left out
@@ -221,6 +222,7 @@ function hangarDims(shed) {
   // G3537: a shed's own door (the cabin's 10 m) and its clearance through it, when it names them
   if (typeof d.door === 'number' && isFinite(d.door) && d.door > 0) out.door = d.door;
   if (typeof d.doorClr === 'number' && isFinite(d.doorClr) && d.doorClr >= 0) out.doorClr = d.doorClr;
+  if (d.leaves === 2) out.leaves = 2;   // a bi-parting pair (hangar.js, the timber shed)
   return out;
 }
 // THE DOOR, hangar.js's own two lines (GATE GAMEPREM source-scans them so the
