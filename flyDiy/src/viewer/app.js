@@ -8758,6 +8758,8 @@
   // waits to be read, the bind after the page makes a story plane. The effects it hands back are applied here (storyApply;
   // a plane's file fetched first). The beat card stands in the top-left corner (never centred), the garage's look.
   const stFiles = {};
+  // (G3585: ?stcub=0, a measuring rig's control - the client's Cub only at T2, as before; never the player's)
+  var ST_CUB_LATE = typeof location !== 'undefined' && /[?&]stcub=0(&|$)/.test(location.search || '');
   let stCardEl = null, stLine = '', stQueue = [], stBusy = false, stMemo = { fp: null, fb: null, L0: null, cost: null, next: null }, stMaskWas;
   const stLive = () => (STORY_PAGE ? storyOf(playerLoad()) : null);
   // G3380 (STORY-INTRO): the opening's player, its curtain, this frame's pose, what it set aside, the world's point (below)
@@ -8815,7 +8817,7 @@
     // starter stands (T0 / T1), quietly - so the fleet's bake (garage-only) has the cabin's minutes to make its prop, and
     // the T1 roll-out stands it at HOME (storyFleetFrom): it waits there, visible, when Rufus arrives. T2's own effect
     // then finds it here already
-    if (!starter && !s.planes.client && (s.beat === 'T0' || s.beat === 'T1') && !stQueue.some(q => q.k === 'clientPlane'))
+    if (!starter && !s.planes.client && (s.beat === 'T0' || s.beat === 'T1') && !stQueue.some(q => q.k === 'clientPlane') && !ST_CUB_LATE)
       stQueue.push({ k: 'clientPlane', at: 'home', beat: 'T2', early: true });
     const e = stQueue[0];
     if (!starter && !e) return;
