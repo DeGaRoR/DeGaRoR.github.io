@@ -526,6 +526,9 @@ const GATES = [
   // is the same room - the same oriented world-space triangles per material, casts and order as its sources swapped back
   // live; >= 300 fewer draws; every dressable part still worn; the exterior and opts.merge false untouched
   { id: 'ROOMMERGE', file: '_roommerge_check.js', tier: 'core', wall: 150 },
+  // G3630 (HANGAR-VIEW): the view out of the garage door is the world - the capture's faces and the lookup one convention,
+  // the distance resolve inverts three's depth, the boot / return / lights / outdoors seams, no GPU readback
+  { id: 'HANGARVIEW', file: '_hangarview_check.js', tier: 'core', wall: 30 },
   // G2111 (GARAGE-LAPTOP): the flown model hidden behind the editor's cage is not deformed in the garage - two deterministic
   // pages (the skip, the old every-frame pose) hold bit-identical skins when it is shown for a call and on the stand after
   // the roll-out; the idle garage uploads no more skin than before

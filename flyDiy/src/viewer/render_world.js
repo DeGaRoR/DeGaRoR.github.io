@@ -7861,7 +7861,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // F1: the TRUE visibility - what the eye can see through the mist we actually drew, as
     // against `day.visibilityKm`, which is what the day was AUTHORED with. The climate chantier
     // asked for this so the WEATHER panel and the pilot's briefing can quote the real one.
-    visM: () => VIS.visM, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, minimapBox, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, treeShadowed, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: (box) => repaintStrips(box), townGeoFinish: () => geoStep(0, true), get farLod() { return farLod; },   // (G2063: the far tier's cut and patch cache, for a rig)
+    visM: () => VIS.visM, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, minimapBox, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, exposureNow: () => LE.ex, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, treeShadowed, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: (box) => repaintStrips(box), townGeoFinish: () => geoStep(0, true), get farLod() { return farLod; },   // (G2063: the far tier's cut and patch cache, for a rig)
     // THE ROLL-OUT SCREEN'S HANDLES (LOADING S3): the ring grown under the
     // overlay, and the payload's settle to wait on (a rejected settle = cones)
     prewarm: (cg, o) => fillApi ? fillApi.prewarm(cg, o) : { phase: 'done', done: true, trees: 'fallback' },

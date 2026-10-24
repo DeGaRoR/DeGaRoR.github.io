@@ -1213,6 +1213,7 @@
         { home: roomHome,
           kits: shed.kits, shell: shed.shell, site: roomSite, layout: shed.layout, omit: shed.omit, workLamp: shed.workLamp, lampXZ: shed.lampXZ });   // G2315 (WORKS-COZY): the career main hangar's layout; G3353 the props left out
       hangarScene.add(hangar.group);
+      hviewAttach();   // G3630 (HANGAR-VIEW): the world's view out of the door, if one of this room stands
       hangarScene.background = hangar.background;
       hangarScene.fog = hangar.fog;                     // a SENTINEL now: it only defines USE_FOG
       // F3: the shed's air is a MEDIUM, set while we are in the room and cleared on the way out,
@@ -1270,6 +1271,120 @@
     if (hangar && typeof window.EDITOR_SYNC_NIGHT === 'function') try { window.EDITOR_SYNC_NIGHT(); } catch (e) {}
     return hangar;
   }
+
+  // ================= G3630 HANGAR-VIEW: THE WORLD'S OWN VIEW OUT OF THE DOOR (hangar_view.js) =================
+  // The user, 25 Oct: "making sure the outside view in the hangar matches the scenery". The room's outdoors (its sky
+  // sphere, field, strip and slab) stood in for a world the room never saw - and the boot builds that world round the
+  // stand with the shed on screen. So six faces of it are captured from the room's centre: at the boot, once the world
+  // rests at the stand ('frames', under the screen), and again - DEFERRED, a face a shed frame, the old view on screen
+  // until the new one is whole - when the room, the world's sun or its cover moved on (a return from a flight that ended
+  // near this shed; a flight ended far away leaves the view it had: the world there is not this shed's). The capture
+  // runs with the craft's LIGHTS in the world scene (craftInWorldNow, its meshes hidden): the world's programs are keyed
+  // with them (G1085), so nothing links. No view (the phone garage, no world, ?hview=0, a software renderer): the room's
+  // own outdoors, as before.
+  let hview = null, hviewKey = null, hviewFor = null, hviewWant = null, hviewFace = 0, hviewHold = 0, hviewFr = 0, hviewLast = null;
+  const HVIEW_N = { laptop: 768, potato: 768, retro: 768, current: 1024, gamer: 1024, ultra: 1536 };
+  const HVIEW_C = [0, 2, 0];          // the capture's eye in the shed's frame: the room's centre, a standing eye
+  const HVIEW_NEAR = 3000;            // a flight that ended this near the stand left the world there (m)
+  const hviewOff = () => { try { return /[?&]hview=0\b/.test(location.search || ''); } catch (e) { return false; } };
+  function hviewSize() {
+    const G = window.GFX; if (G && G.soft && G.soft()) return 0;
+    const b = G && G.budget ? G.budget() : null;
+    return (b && HVIEW_N[b.preset]) || 1024;
+  }
+  // the room's frame in the world: the world's own shed (a side hangar 'shed:<id>'; HOME's at the site's hangar)
+  function hviewNode() {
+    if (!WF) return null;
+    if (hangarRoom !== 'HOME') return scene.getObjectByName('shed:' + hangarRoom) || null;
+    const st = typeof siteOf === 'function' ? siteOf('HOME') : null, H = st && st.hangar;
+    if (!H) return null;
+    return scene.getObjectByName('shed:HOME') || scene.children.find(o => !o.isMesh && o.children && o.children.length &&
+      Math.abs(o.position.x - H.x) < 0.01 && Math.abs(o.position.z - H.z) < 0.01 && (H.ry === undefined || Math.abs(o.rotation.y - H.ry) < 1e-4)) || null;
+  }
+  // what the view shows: the room, where its shed stands, the world's sun (its own state, not the shed's clock: a world
+  // not updated since the flight shows the flight's light) and its cover
+  function hviewKeyNow(node) {
+    const S = WF && WF.SUN_SKY, d = world.day || {};
+    return [hangarRoom, node ? node.position.toArray().map(v => Math.round(v * 10)).join(',') + ',' + Math.round((node.rotation.y || 0) * 1e3) : '-',
+      S ? Math.round(S.y * 60) + ',' + Math.round(Math.atan2(S.x, S.z) * 30) : '-', Math.round((+d.cloudCover || 0) * 20), hviewSize()].join('|');
+  }
+  // the room's outdoors and the view: the view up for THIS room, its own outdoors down (or back, without one)
+  function hviewAttach() {
+    if (!hangar) return;
+    const up = !!(hview && hview.ready && hviewFor === hangarRoom);
+    if (hview) {
+      if (hview.group.parent !== hangarScene) hangarScene.add(hview.group);
+      hangar.group.updateMatrixWorld(true);
+      hview.group.matrixAutoUpdate = false; hview.group.matrix.copy(hangar.group.matrixWorld); hview.group.matrixWorldNeedsUpdate = true;
+      hview.on(up);
+    }
+    if (hangar.outdoorsShow) hangar.outdoorsShow(!up);
+  }
+  // one call: `faces` of the world drawn into the view's staging (all six: the boot's); true when the view is whole
+  function hviewCapture(faces) {
+    if (hviewOff() || typeof HANGAR_VIEW === 'undefined' || !WF || !hangar || !renderer.setRenderTarget) return false;
+    const N = hviewSize(); if (!N) return false;
+    const node = hviewNode(); if (!node) return false;
+    if (!hview) hview = HANGAR_VIEW.make(THREE, renderer);
+    HANGAR_VIEW.S.N = N;
+    const G = window.GFX, base = G && G.exposureBase ? G.exposureBase() : null;
+    const k = base > 0 ? renderer.toneMappingExposure / base : 1;   // the menu's step and the eye, as the world wears them
+    const ex = (WF.exposureNow && WF.exposureNow() > 0 ? WF.exposureNow() : WORLD_EXPOSURE) * k;
+    const meshes = [];
+    let r = null;
+    craftInWorldNow(() => {
+      craft.traverse(o => { if ((o.isMesh || o.isPoints || o.isLine || o.isSprite) && o.visible) { o.visible = false; meshes.push(o); } });   // its lights stay: the programs' key
+      try {
+        r = hview.capture({ scene, node, C: HVIEW_C, hide: [node], sky: WF.skyDome,
+          clouds: (typeof CLOUDS !== 'undefined' && CLOUDS.draw) ? CLOUDS.draw : null, faces, exposure: ex });
+      } finally { for (const o of meshes) o.visible = true; }
+    });
+    // whole: on screen, and the room's probe re-shot (it sees the view through the door: the floor and the aeroplane take the
+    // world's colours) - the clock's sliced bake, a step a frame
+    if (r && r.done) { hviewKey = hviewWant || hviewKeyNow(node); hviewFor = hangarRoom; hviewWant = null; hviewAttach(); try { bakeHangarEnvSliced(); } catch (e) {} }
+    return !!(r && r.done);
+  }
+  // THE BOOT'S: the six faces a task each (each a few world draws - under the screen, never one long task), then the
+  // view's two programs linked before the shed is revealed (no link at the reveal: HWCOV's garage-link rule)
+  function hviewBoot() {
+    if (!inGarage || hviewOff() || typeof HANGAR_VIEW === 'undefined' || !WF || !getHangar()) return Promise.resolve(null);
+    hviewWant = hviewKeyNow(hviewNode()); hviewFace = 0;
+    return new Promise(res => {
+      const tick = () => {
+        let done = false;
+        try { done = hviewCapture([hviewFace]); } catch (e) { console.warn('hangar view:', e && e.message); hviewWant = null; return res(null); }
+        if (!hview || (!done && ++hviewFace >= 6)) { hviewWant = null; return res(null); }
+        if (!done) { setTimeout(tick, 0); return; }
+        hviewFace = 0;
+        Promise.resolve(typeof compileSliced === 'function' ? compileSliced(hview.group, aa && aa.target ? aa.target() : null, hangarScene) : null)
+          .catch(() => {}).then(() => res(hview.stats()));
+      };
+      tick();
+    });
+  }
+  // a frame of the shed: the deferred recapture, a face a frame once the hold has run out (a return's first frames are
+  // the room's own: the reveal, the camera's settle)
+  function hviewTick() {
+    if (!hviewWant || !inGarage || !hangar) return;
+    if (hviewHold > 0) { hviewHold--; return; }
+    try { if (hviewCapture([hviewFace])) hviewFace = 0; else if (++hviewFace >= 6) { hviewFace = 0; hviewWant = null; } }
+    catch (e) { console.warn('hangar view:', e && e.message); hviewWant = null; }
+  }
+  // the flight's frames: where it is (every 32nd frame), for the return's "near the shed" test
+  function hviewFlight() { if ((++hviewFr & 31) === 0 && sim && sim.cgPos) { const p = sim.cgPos(); if (p) hviewLast = [p[0], p[2]]; } }
+  // back in the shed from a flight: a new view is wanted when what it would show moved on, and the world is this shed's
+  function hviewReturn() {
+    if (!hview || !WF) return;
+    const a = standAnchor(), near = !!(a && hviewLast && Math.hypot(hviewLast[0] - a[0], hviewLast[1] - a[2]) < HVIEW_NEAR);
+    const want = hviewKeyNow(hviewNode());
+    if (want === hviewKey && hviewFor === hangarRoom) return;
+    if (!near && hviewFor === hangarRoom) return;   // the world there is not this shed's: the view it had stays
+    if (!near) return;                              // (another room, the world elsewhere: its own outdoors until it is)
+    hviewWant = want; hviewFace = 0; hviewHold = 45;
+  }
+  if (typeof window !== 'undefined') window.FLYDIY_HVIEW = { stats: () => hview ? Object.assign(hview.stats(), { key: hviewKey, room: hviewFor, want: hviewWant }) : null,
+    capture: () => { hviewWant = hviewKeyNow(hviewNode()); for (let i = 0; i < 6; i++) if (hviewCapture([i])) break; return hview ? hview.stats() : null; },
+    show: v => { if (hview) hview.on(v); if (hangar && hangar.outdoorsShow) hangar.outdoorsShow(!(v !== false && hview && hview.ready)); return !!(hview && hview.ready); } };
 
   // A NEW SIZE IS A NEW ROOM. genHangarBuild builds a whole shed from nothing,
   // so changing a dimension means throwing the old one away and asking again —
@@ -11470,6 +11585,7 @@
     rolledOut = false;
     if (specPending) { specPending = false; setAircraft('gen'); }
     if (!inGarage) {
+      try { hviewReturn(); } catch (e) {}   // G3630 (HANGAR-VIEW): a new view out of the door, if what it shows moved on
       garageCamera();
       // G1063.3 (train 16's round trips: the shed at 30 fps after a flight, 54 fresh): the auto frame rate's verdict and
       // its trial backoff (up to 30 s) were the FLIGHT's; the shed is another scene - its policy starts as the first
@@ -12517,7 +12633,7 @@
         // every program linked, before the first frame draws them (the boot's warm draw from the stand is a first frame too)
         .then(() => typeof renderer.initTexture === 'function' ? uploadSliced(scene, 'frames', 'first light') : null)
         .then(() => shaderProgress(programsReady(30000), 'world', 60000))
-        .then(() => { if (inGarage) return Promise.resolve(worldWarmDraw()).then(() => revealPlant(120, 0, () => inGarage)); holdRender = false; return framesRendered(2); }));   // (REVEAL-HITCH: the stand's grass)
+        .then(() => { if (inGarage) return Promise.resolve(worldWarmDraw()).then(() => revealPlant(120, 0, () => inGarage)).then(() => hviewBoot()); holdRender = false; return framesRendered(2); }));   // (G3630: the view out of the door)   // (REVEAL-HITCH: the stand's grass)
     } },
   ];
   const TRIP_BY = {}; for (const s of TRIP_STEPS) TRIP_BY[s.id] = s;
@@ -17188,6 +17304,7 @@
     let framePresented = true;
     // G2070 (GARAGE-LAPTOP): the shed's shadow maps from their cached static depth + the casters that move (shed_shadow.js);
     // out of the shed its static depths are let go
+    if (inShed) hviewTick(); else if (!inGarage) hviewFlight();   // G3630 (HANGAR-VIEW): a face a frame when a new view is wanted
     const shedSh = inShed && window.SHED_SHADOW ? SHED_SHADOW.pre(renderer, garageScene(), camera, hangar) : false;
     if (!inGarage && window.SHED_SHADOW && SHED_SHADOW.held()) SHED_SHADOW.release();
     if (aa) framePresented = aa.render(inGarage && !introAt ? garageScene() : scene, camera) !== 'held';

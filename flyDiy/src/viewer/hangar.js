@@ -1540,6 +1540,7 @@ function renderSky(renderer) {
 // way to judge either the performance or the look.
 let skyMode = 'gpu';
 let skyMatBaked = null, skyMat = null, skyMesh = null, skyOnReady = null;
+let viewOut = false;   // (G3630 HANGAR-VIEW: outdoorsShow(false) - the world's view out of the door is up)
 if (!EXT && SKY_ROWS && THREE.MeshBasicMaterial && THREE.SphereGeometry) {
   skyMatBaked = new THREE.MeshBasicMaterial({ side: THREE.BackSide, fog: false });
   skyMat = gradeTextures() ? gradeMat.sphere : skyMatBaked;
@@ -1607,6 +1608,9 @@ function setSky(row) {
 //
 // The user, 2026-08-31: "The runway is usually perpendicular to the hangar.
 // The hangar is put on the side of the runway, usually at an extremity."
+// (G3630 HANGAR-VIEW) the outdoors' meshes are the room's children from here to the roof: outdoorsShow hides them
+// while the world's own view out of the door (hangar_view.js) stands in for them
+const OUT_N0 = G.children.length;
 if (!EXT) {
   // the HOME record is handed in rather than looked up: hangar.js has no world
   // and building one to read four numbers would be absurd. No record, no
@@ -2052,6 +2056,8 @@ if (!EXT) {
   }
 }
 
+// (G3630: the end of the outdoors' span - kept as a set: the room's merge below bins them apart and tags what it makes of them)
+const OUT_SET = new Set(G.children.slice(OUT_N0).filter(o => o.name !== 'room:polish'));
 // ---- roof: portal trusses, purlins, deck, roof lights ---------------------
 // where the roof lights ended up, published for the dust shafts below the
 // exterior return — which used to keep their own copy of the positions and
@@ -2302,8 +2308,9 @@ function mergeRoom(group, leave) {
   const bins = new Map(), take = [];
   let kept = 0;
   const plainRBR = THREE.Object3D && THREE.Object3D.prototype ? THREE.Object3D.prototype.onBeforeRender : null;
-  const walk = (o, ok) => {
+  const walk = (o, ok, out) => {
     if (skip.has(o)) { kept++; return; }
+    out = out || OUT_SET.has(o);   // (G3630: the outdoors bin apart - outdoorsShow hides what they merge into)
     if (o.isLOD) ok = false;
     if (o !== group && !o.visible) ok = false;
     if (o.isMesh) {
@@ -2317,14 +2324,14 @@ function mergeRoom(group, leave) {
       if (!fits) kept++;
       else {
         rel.multiplyMatrices(inv, o.matrixWorld);
-        const key = m.uuid + '|' + names.map(k => k + a[k].itemSize).join(',') + '|' + (o.castShadow ? 1 : 0) + (o.receiveShadow ? 1 : 0) + '|' + o.renderOrder;
-        let b = bins.get(key); if (!b) bins.set(key, b = { m, names, cast: o.castShadow, recv: o.receiveShadow, order: o.renderOrder, list: [] });
+        const key = m.uuid + '|' + names.map(k => k + a[k].itemSize).join(',') + '|' + (o.castShadow ? 1 : 0) + (o.receiveShadow ? 1 : 0) + '|' + o.renderOrder + (out ? '|out' : '');
+        let b = bins.get(key); if (!b) bins.set(key, b = { m, names, cast: o.castShadow, recv: o.receiveShadow, order: o.renderOrder, out: !!out, list: [] });
         b.list.push({ g, M: rel.clone(), o }); take.push(o);
       }
     }
-    for (const c of o.children.slice()) walk(c, ok);
+    for (const c of o.children.slice()) walk(c, ok, out);
   };
-  walk(group, true);
+  walk(group, true, false);
   let meshes = 0;
   const out = [], swapped = [];
   for (const b of bins.values()) {
@@ -2361,7 +2368,7 @@ function mergeRoom(group, leave) {
     geo.computeBoundingSphere(); geo.computeBoundingBox();
     const mesh = new THREE.Mesh(geo, b.m);
     mesh.castShadow = b.cast; mesh.receiveShadow = b.recv; mesh.renderOrder = b.order;
-    mesh.userData.roomMerged = b.list.length;
+    mesh.userData.roomMerged = b.list.length; if (b.out) mesh.userData.outdoor = true;
     for (const s of b.list) { swapped.push([s.o, s.o.parent]); if (s.o.parent) s.o.parent.remove(s.o); }   // (kept aside, never uploaded)
     out.push(mesh); meshes++;
   }
@@ -3408,7 +3415,7 @@ function applyMutes(m) {
   // intensity before the mutes run, so a muted light is restored for free when
   // it is switched back on — but nothing re-asserts `visible`, so an unlit
   // source that only ever gets hidden here can never come back.
-  if (skyMesh) skyMesh.visible = !muted.sky;
+  if (skyMesh) skyMesh.visible = !muted.sky && !viewOut;   // (G3630: the world's view out stands in for the sky)
 }
 // the three knobs. Anything the mood owns is re-applied through setMood, which
 // also re-runs the mutes over the top — the same door setLight goes through,
@@ -4066,5 +4073,14 @@ return {
   // the subset that stands OUTSIDE the shed: app.js lights these off the sky
   // rather than off the room's own probe. See the declaration near the top.
   outdoorMats: OUTDOOR,
+  // G3630 (HANGAR-VIEW): THE ROOM'S OWN OUTDOORS OFF while the world's view out of the door stands in (hangar_view.js):
+  // the sky sphere and the outdoors' span (the field, the strip, the slab, the kerbs, the tufts, the furniture); the
+  // polish on the room's own walls (HANGARS-LOOK's 'room:polish') stays. on: true puts them back
+  outdoorsShow: on => {
+    viewOut = on === false;
+    for (const o of G.children) if (OUT_SET.has(o) || (o.userData && o.userData.outdoor)) o.visible = !viewOut;
+    if (skyMesh) skyMesh.visible = !muted.sky && !viewOut;
+    return !viewOut;
+  },
 };
 }
