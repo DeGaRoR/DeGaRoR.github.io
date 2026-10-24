@@ -3576,13 +3576,18 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     return { key: c.key, label: c.label, rig, ready };
   };
   // role: 'pilot' | 'cop' | 'pax' — the seat's own select, or the cycle
+  // G3545 (AIRCRAFT-LOOKS, the user's playtest 24 Oct: "the old dummy still appears when importing the Chinook: retire it,
+  // Mixamo characters only"): THE ATD IS NOBODY'S BODY ANY MORE. A seat that names it (1, an old build's value - kept
+  // as stored) takes the mixed crew; a cycle run out takes the list again (a face repeats rather than the dummy). The
+  // ATD stays the skeleton every character is dressed on (the IK's instrument) and, with no character registered at
+  // all (a node gate's headless page), the fallback.
   const charFor = role => {
     const v = role === 'pilot' ? whoOf(pilotWho)
             : role === 'cop' ? whoOf(P.copWho) : 0;
-    if (v === 1) return null;                          // the ATD, by name
     if (v >= 2) return charAt(v - 2);                  // one person, by name
-    if (!cycle.length) return null;                    // mixed, nobody left: ATD
-    const i = cycle[cyc % cycle.length]; cyc++;
+    const pool = cycle.length ? cycle : CH_LIST.map((c, i) => i);
+    if (!pool.length) return null;                     // no character registered: the ATD
+    const i = pool[cyc % pool.length]; cyc++;
     return charAt(i);
   };
   const dressed = (dum, CH, role, idx) => {
@@ -3720,7 +3725,8 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       window.CAGE_SECMAT('dummy' + (idx === 1 ? 1 : 2),
         { surf: 0, fieldM: 1, side: THREE.FrontSide, tint0: 0xd6a11c }))
       || null;
-    const dum = makeDummy(group, suit, CH && CH.rig, CH && !CH.ready);
+    // G3545: a character still loading wears no ATD meanwhile - its shells are the pick proxy (invisible) until it lands
+    const dum = makeDummy(group, suit, CH && CH.rig, false);
     dum.fig.name = 'edDum' + (idx || 1);
     dum.fig.scale.setScalar(s);
     const SP = seat.SP || sp1;

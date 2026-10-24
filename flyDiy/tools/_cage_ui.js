@@ -2358,6 +2358,9 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
       try { const o = opts.optOrder(); if (Array.isArray(o) && o.length === names.length) order = o; }
       catch (e) {}
     }
+    // optHide (G3545): indices kept for what a saved number means but no longer offered - shown only to a build that
+    // still holds one (the retired ATD-01 crew row)
+    if (Array.isArray(opts.optHide)) order = order.filter(i => opts.optHide.indexOf(i) < 0 || +val === i);
     sel.innerHTML = order.map(i =>
       `<option value="${i}"${+val === i ? ' selected' : ''}>` +
       `${(shown && shown[i]) || names[i]}</option>`)
@@ -5014,8 +5017,9 @@ function buildMatPanel() {
   // G1320: the reach lives in AEROSKIN now (pure, gated by node) and
   // carries the layer sections that wore the base too — the rudder, the
   // wing, the tips — see aeroBaseReach
+  // G3541: an open fuselage (no skin) shows its truss - the pick repaints it too
   const baseReach = (map, prev, next, neutral, eq) =>
-    A.aeroBaseReach(map, prev, next, neutral, eq, names);
+    A.aeroBaseReach(map, prev, next, neutral, eq, names, { open: P.skinOn != null && !+P.skinOn });
   {
     const d = mkRow2('base colour', 'one colour for the whole aircraft — ' +
       'the skin, the rings, the bands and pillars, the nose deck, the cowl, ' +

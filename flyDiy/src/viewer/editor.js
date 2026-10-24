@@ -1080,7 +1080,8 @@ function editorInit(api) {
     // under a dressed character its shells are invisible click proxies and
     // the rows coloured nothing. Still TAKEN, so they never fall into the
     // root's 'unclaimed' bucket either.
-    const atdAboard = Math.round(+CU.P.pilotWho) === 1 || Math.round(+CU.P.copWho) === 1;
+    // G3545: no ATD is ever aboard now (a stored 1 seats the mixed crew, _cage_crew charFor)
+    const atdAboard = false;
     const DUMMY_SEC = new Set(['dummy1', 'dummy2']);
     for (const p of shown) {
       const els = [];
@@ -1421,7 +1422,7 @@ function editorInit(api) {
     // every layer's group are thrown away and remade on each build, and the
     // overlay hangs off both — so it has to be remade with them, or the tint
     // silently belongs to a mesh that no longer exists.
-    hiBuild(sel === 'craft' ? null : sel, 'sel');
+    hiBuild(sel, 'sel');                   // G3543: the root too (its silhouette)
     // ...AND SO IS THE PIN, for the same reason and one better: the row it
     // names is the row being DRAGGED, so the dot walks the corner it is
     // moving instead of standing where the corner used to be.
@@ -3658,15 +3659,39 @@ function editorInit(api) {
   function hiBuild(partKey, which, only) {
     hiClear(which);
     const root = window.CAGE_UI_SCENE;
-    // HIGHLIGHTING THE WHOLE AEROPLANE IS NOT A HIGHLIGHT. The root selects
-    // everything, and an overlay over everything is a tint over a tint — it
-    // says nothing and costs a copy of every index in the build.
-    if (!partKey || partKey === 'craft' || !root ||
-        typeof THREE === 'undefined') return;
+    if (!partKey || !root || typeof THREE === 'undefined') return;
     if (!hiMats) hiMats = { sel: hiMat(0.34), hov: hiMat(0.16),
                             selL: hiLine('sel'), hovL: hiLine('hov'),
                             selM: hiSilMask('sel'), hovM: hiSilMask('hov'),
                             selS: hiSilShell('sel'), hovS: hiSilShell('hov') };
+    // THE WHOLE AEROPLANE IS ONE SILHOUETTE (G3543, the user's playtest 24 Oct: "when the full plane is selected, the
+    // highlight should cover the whole plane, more clearly"). It drew nothing: an overlay over everything is a tint
+    // over a tint, and that ruling stands - so the root takes the silhouette whatever the style, the union contour of
+    // every drawn cage mesh and layer mesh (the mask over the whole footprint, the rim round it). Whole geometries,
+    // shared as the subsets are: no index is copied. Hidden meshes and invisible pick proxies (the crew's shells) are
+    // not the aeroplane's outline and are left out.
+    if (partKey === 'craft') {
+      const out = [];
+      const drawn = o => o.visible !== false && !(o.material && o.material.visible === false);
+      for (const child of root.children) {
+        if (child.userData && child.userData.matNames) {
+          if (drawn(child) && child.geometry && child.parent)
+            out.push(...hiSilPair(child.geometry, which, child.parent, child.scale));
+          continue;
+        }
+        if ((child.name || '').lastIndexOf('cageLayer:', 0) !== 0 || child.visible === false) continue;
+        const ms = [];
+        child.traverse(o => {
+          if (!o.isMesh || o.isSkinnedMesh || (o.userData && o.userData.edHi) || !drawn(o)) return;
+          for (let q = o.parent; q && q !== child; q = q.parent) if (q.visible === false) return;
+          ms.push(o);
+        });
+        for (const o of ms) out.push(...hiSilPair(o.geometry, which, o));
+      }
+      if (which === 'sel') { hiSel = out; pinFor = partKey; }
+      else hiHov = out;
+      return;
+    }
     const mat = hiMats[which];
     const wantFill = HI.mode === 'fill' || HI.mode === 'both';
     const wantLine = HI.mode === 'outline' || HI.mode === 'both';

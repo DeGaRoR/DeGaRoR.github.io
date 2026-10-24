@@ -13,7 +13,9 @@
 // character (52_char_codec.js CHAR_REG; empty in a page without them)
 // (G204.1) 0 = 'mixed crew': the characters rotate through the seats, no
 // two alike while there are enough of them; 1 = the ATD; 2.. = one person
-const WHO_NAMES = ['mixed crew (rotate)', 'ATD-01 crash dummy'].concat(
+// G3545: the ATD is retired (Mixamo characters only) - its index stays, so a stored 1 keeps its place; the crew layer
+// seats the mixed crew there and the select offers it only to a build that still holds it (optHide)
+const WHO_NAMES = ['mixed crew (rotate)', 'mixed crew (was the ATD-01)'].concat(
   typeof CHAR_REG !== 'undefined' ? CHAR_REG.order.map(k => CHAR_REG.chars[k].label) : []);
 // THE DEFAULT PILOT IS NAMED, NOT NUMBERED (2026-09-07, the user: 'by default,
 // there is only the pilot, [...] the car driver in red combi, with the
@@ -743,11 +745,11 @@ window.CAGE_PAGE = {
         // seat aboard, the passengers included), the ATD-01, or one declared
         // character (src/chars/, tools/chars_table.py order — the manifests
         // load ahead of this page, so the list is read here, once)
-        ['pilotWho',  'pilot',          0, WHO_NAMES.length - 1, 1, WHO_NAMES],
+        ['pilotWho',  'pilot',          0, WHO_NAMES.length - 1, 1, WHO_NAMES, { optHide: [1] }],
         ['cabOcc',    'co-pilot seated', 0, 1, 1,
          { when: P => +P.crewOn && +P.seatLayout === 1 }],
         ['copWho',    'co-pilot',       0, WHO_NAMES.length - 1, 1, WHO_NAMES,
-         { when: P => +P.crewOn && +P.seatLayout === 1 && +P.cabOcc }],
+         { when: P => +P.crewOn && +P.seatLayout === 1 && +P.cabOcc, optHide: [1] }],
       ], 'open', { when: P => +P.crewOn }],
       ['pilot pose', [
         ['dumSize',   'stature',        0, 2, 1, ['5th %ile — 1.52 m',
