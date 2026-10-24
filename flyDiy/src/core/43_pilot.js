@@ -571,6 +571,13 @@ function makePilot(sim, def, world, opts) {
     if (!DEST_KEPT.includes(ph) && !DEST_REPLAN.includes(ph)) { ap.nextTo = to; return 'queued'; }
     ap.nextTo = null;
     if (to === ap.route.to) return 'same';
+    // G3611: a drawn route being flown keeps flying - its end ('dest') reads the new To when it gets there
+    if (ap.drawn && (ap.drawn.state === 'flying' || ap.drawn.state === 'hold')) {
+      ap.route = { from, to }; ap.xc = from !== to;
+      ap.budget = Math.max(ap.budget, ap.t + routeBudget(ap._m ? { x: ap._m.x, z: ap._m.z } : (from && from.x != null ? from : null), to));
+      say('new-destination', 'the destination is now ' + (to.name || to.id) + ' - after the drawn route');
+      return 'kept';
+    }
     ap.route = { from, to };
     ap.xc = from !== to;
     ap.budget = Math.max(ap.budget, ap.t + routeBudget(ap._m ? { x: ap._m.x, z: ap._m.z } : (from && from.x != null ? from : null), to));   // the way left, from here

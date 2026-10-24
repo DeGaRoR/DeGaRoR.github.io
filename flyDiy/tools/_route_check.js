@@ -226,8 +226,11 @@ async function drawing(check, doctor) {
 // `persona` (G2085, train 40): a PILOT_PROFILES name flying the same route - the expert's laws with the person's traits
 // on top; the capture radius is that person's own (routePerf at their bank), the altitude +-25 m, and the hands' checks
 // (the reversals, the vertical speed flown) are logged, not judged: unsteady hands are the person
-function flight(key, end, check, doctor, persona, toId) {
+function flight(key, end, check, doctor, persona, toId, midToId) {
   const W = jolene(), H = W.aerodromes.find(a => a.id === 'HOME'), To = (toId && W.aerodromes.find(a => a.id === toId)) || H;
+  // (G3611: midToId - the To set 30 s into the drawn route, as the panel's "for this contract" in the air: the route flies on)
+  const MidTo = midToId ? W.aerodromes.find(a => a.id === midToId) : null;
+  let midHow = null, midState = null;
   const def = L.defOf(key);                     // the damage model ON (_treecrash_lib: damage unless `elastic`)
   const tag = 'fly:' + key + (persona ? '/' + persona : '') + ': ';
   const { sim, pose, site } = startAt(def, W, H);
@@ -257,6 +260,7 @@ function flight(key, end, check, doctor, persona, toId) {
     if (I.phase === 'ROUTE') {
       if (startT == null) { startT = ap.t; const A0 = ap.legs[0].A; capR[0] = C.routeCaptureR(R, 0, perf, { x: A0[0], z: A0[1] }); }
       routeSteps++;
+      if (MidTo && routeSteps === 1800) { midHow = ap.setDest(MidTo); midState = ap.drawn && ap.drawn.state; }
       da.step(sim.ctl.da || 0); dr.step(sim.ctl.dr || 0);
       const g = C.routeGroundAt(W, c[0], c[2], false); aglMin = Math.min(aglMin, c[1] - g);
       if (I.vsCmd != null && (I.vsCmd > I.vsUp + 1e-9 || I.vsCmd < I.vsDn - 1e-9)) vsAskBad++;
@@ -308,7 +312,8 @@ function flight(key, end, check, doctor, persona, toId) {
   } else {
     const c = sim.cgPos(), w = C.flightWhere(W, c[0], c[2], {});
     const want = end === 'home' ? 'HOME' : ap.route.to && ap.route.to.id;
-    if (end === 'dest') check(want === To.id, tag + 'the end (dest): the flight\'s own destination, not where it left', want + ' vs ' + To.id);
+    if (MidTo) check(midHow === 'kept' && midState === 'flying', tag + 'a new To in the air keeps the drawn route flying (G3611)', midHow + ' ' + midState);
+    if (end === 'dest') check(want === (MidTo || To).id, tag + 'the end (dest): the flight\'s own destination, not where it left', want + ' vs ' + (MidTo || To).id);
     check(ap.report.outcome === 'completed' && ap.phase === 'STOPPED' && w.id === want && !crashed, tag + 'the end (' + end + '): landed and stopped on ' + want,
           (ap.report.outcome || '-') + ' ' + ap.phase + ' ' + w.kind + ' ' + w.id + ' after ' + (s / 60).toFixed(0) + ' s: ' + phases.join('>') + ' | ' + vsay());
     if (end === 'land') {
@@ -328,6 +333,7 @@ const CASES = [
   // G3611 (the 24 Oct playtest, item 14): the drawn route as the way to a contract's stop - the Cub HOME -> Jolene AFB
   // 02/20 by the same five points, then on to its destination
   { id: 'fly:dest', run: (c, d) => flight('cub', 'dest', c, d, null, 'w2') },
+  { id: 'fly:dest-air', run: (c, d) => flight('cub', 'dest', c, d, null, null, 'w2') },   // the To set in the air, 30 s into the route
   // G2085 PILOT-PERSONA (train 40): the same route by the Cub's three people (A0: "build your laws as the expert
   // baseline that the persona traits act on top of")
   { id: 'persona:club', run: (c, d) => flight('cub', 'home', c, d, 'club') },
