@@ -98113,10 +98113,31 @@ Continues DC3-STUDY (G3500, origin/claude/dc3-study): its study, tools/dc3_probe
     "pod off, the whole def / sheet is the base's bytes": tools/_pod_base.json is stale against master's core; the raw-spec
     digests POD computes are byte-identical between master and this branch for all six of its builds).
   - **RADIALDIV:** the runner's 1 800 s default timeout ends it on this 4-core box, alone too (`[spawn error] ETIMEDOUT`;
-    reference wall 700 s). Run directly (`node tools/_radialdiv_check.js`): running at this push (the next push of this entry carries its verdict line).
-  - **Batch 2** (the damage battery, the solver and pilot gates that read 30_solver / 43_pilot) and **batch 3** (the
-    app.js readers) and the full tier (PILOTMATRIX, PILOTPAGE, DESIGNSIM, ARCHETYPES, SEAPLANE, BOOTLIFT): running at this
-    push; the next push of this entry carries every verdict line.
+    reference wall 700 s). Run directly (`node tools/_radialdiv_check.js`): `GATE RADIALDIV: FAIL (3)` - the 3 HANDS OFF rows (mosquito -55.8, mosquito_1
+    -55.9, cub -46.9 deg); **master's**: the same file on the origin/master worktree reads the identical 3 rows and numbers.
+  - **Batch 2** (a container restart lost the first run; re-run in chunks at --jobs=2):
+    - PASS: `GATE CLIMATE: PASS`, `GATE CONTACT: PASS`, `GATE GE: PASS`, `GATE PROFILE: PASS`, `GATE WATER: PASS`,
+      `GATE WATERDAMP: PASS`, `GATE FREIGHT: PASS`, `GATE PILOTS: PASS`, `GATE ENGTORQUE: PASS`, `GATE HEADING: PASS`,
+      `GATE PANEL: PASS`, `GATE ELEC: PASS`, `GATE DMGSETTLE: PASS`, `GATE DMGFPS: PASS`.
+    - RED, **master's** (control on the origin/master worktree, identical FAIL rows - diffed line for line):
+      `GATE TREEHIT: FAIL`, `GATE DMGCERT: FAIL`, `GATE DMGTYRE: FAIL (4)`, `GATE DMGFABRIC: FAIL` (its pinned base bits),
+      `GATE DMGCOMPOSITE: FAIL` (its pinned base bytes), `GATE BENCH: FAIL` ("the phase strip knows all 24 pilot phases -
+      not ROUTE, LOITER"), `GATE CLOUD: FAIL (1 of 239)` (master's listed standing red).
+    - RED, **not controlled** (no credit left for the control): `GATE HITBOX: FAIL` - one TIMING row ("the spec shape
+      costs less than the raster": 193 against 164 ms, run beside other gates; it PASSED on the master worktree run
+      alone-ish) - re-run it quiet; `GATE DMGCERTCOST: FAIL` - its row 1 is node wall time (56.5 s against a 42 s ceiling
+      on this slow 4-core box); `GATE DMGINST: FAIL` - worker / watchdog rows (the worker's certificate key, a blown
+      lattice's 'speed' trip, the worker host's diverged()), nothing that reads a build this branch changes. A0: control
+      these three on the box.
+  - **NOT RUN (out of session credit)** - A0 please run on the box: TREECRASH DMGGEAR DMGNOSE DMGDRIVE DMGWALL DMGSCAR
+    RWYTREES FLEX TAXICLEAR PLAN ROUTE DESTTO DMGSKIN DMGSKINGPU DMGPAGEW DMGWRECK DMGHEAL; batch 3, the app.js readers
+    (AA POSTFX INPUT ATMOS PACE FLIGHTREC AUDIO BOOMBOX FOG ATMO DEFAULT SKIN HWCOV SCENERY ASSETBUDGET ANIMALS GFX
+    PROGRAMS FRAMECOST ROUNDTRIP ROLLANIM ROLLSND UPDATE UILAYER FADES SHADOWSKY MEDIA ASSETS LIVERY WEATHER LIGHT
+    POSEHIDDEN SIMWORKER SHEETWORKER POSEBACK VIEW REF HONESTY PREMISES SCENERYED PREMCOOK PARKED FLOWNBAKE PLAYER
+    STORAGE STORESPOT STOREDRAW STAGES STORY ROUTES ECON PROCURE ENERGY AUDIOENG LAZY); the full tier (PILOTMATRIX,
+    PILOTPAGE, DESIGNSIM, ARCHETYPES, SEAPLANE, BOOTLIFT). The app.js change is two sandbox-only functions (G3507); every
+    core change is proven bit-identical on the six validated builds and on POD's raw path, so a new red there would be a
+    source scan, not a flown number.
 - **For A0 on the box:**
   - Stills of the DC-3 in the large hangar (master's garage_shot has only --stock; the --file door is engine-configs-2's,
     as in the study): `git show origin/claude/engine-configs-2:flyDiy/tools/garage_shot.js > tools/_gs_file.tmp.js`, then
