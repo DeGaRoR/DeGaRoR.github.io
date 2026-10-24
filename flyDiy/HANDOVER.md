@@ -97176,6 +97176,24 @@ Strict light gate: 8 RED, none new by cause: over100 x4 = the pre-existing revea
   - The numbers in ROUTES_PAY are a hypothesis. Waits pay (the brief says so): a 12 h wait on the story Cub's route earns
     ~26 000. Tune perKm / downTrips there if that is too rich.
 
+## G3612 - CAREER-OWN: A CAREER'S FLEET IS ITS OWN PLANES; A DESIGN BROUGHT IN IS A KIT - BOUGHT, COPIED, THEN CERTIFIED
+
+The user (25 Oct): "a career starts only with its own plane. Any imported plane in the career costs money" - "old careers
+are reset to only their own planes ... What you import is a design, then making it exist in game requires money and
+freezes the design, until the next edit. At that point, it is its own copy, and will live its life as an individual
+object" - "New copy starts uncertified. Like kitplanes, you can build it, you still need to certify it once built".
+- **Own = a career.airframes row** (74_career.js careerOwnSlots): the story's starter and client, a maker's / used one
+  bought, a build materialised in its garage, an import. Every playerFleetReconcile in app.js goes through
+  fleetSlotNames: a career is handed its own slots only, so an older career's other rows leave at its next lift (the
+  reset, once). The sandbox is handed every slot but a career's copies.
+- **A career's slot is tagged** `'<name> @<career id>'` (CAREER_SLOT_TAG): an import's copy (careerCopyName) and a build
+  saved under a new name in a career garage (careerSaveKey). The sandbox's lift and rack never list one, no other career
+  may import one; the rack shows the name without the tag (api.slotLabel); the plaque keeps the name typed.
+- **An import is a kit** (careerImport): the economy's airframe price over its ledger (econMaterialise, how 'import', `of`
+  the design), refused short of the cash; the page copies the design's envelope to the copy's slot with the plaque and
+  the logbook EMPTY - built, then certified. The sandbox's later edits never reach the copy.
+- Rule for new code: a path that writes a career slot and lifts it writes its airframes row FIRST, or the lift drops it.
+
 ## G3360-G3369 - CAREERS: SEVERAL CAREERS, EACH ITS OWN DOCUMENT; THE INDEX flydiy.careers; CONTINUE = THE LAST PLAYED, NEW CAREER = A NEW ID (NEVER OVER ONE), CAREERS... = THE LIST (CONTINUE / RENAME / DELETE, CONFIRMED IN THE MENU); EVERY PLAYER CAREER ITS OWN STORY (2026-10-20, the GAME COORDINATOR; cloud - node + the gates' vms, no browser; branch claude/careers off origin/master c7c16380; work @ 2024aaaa; G3361-G3369 unused)
 
 - **The index** (welcome.js, read before the core loads): `flydiy.careers = { ids: [...], last: id }`.
