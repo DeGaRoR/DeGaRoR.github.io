@@ -189,6 +189,7 @@
   // renderer, and this file is not a second one.
   const AA_COMMON = `
     uniform sampler2D tSrc;
+    uniform sampler2D tEyeK;   // EYE-GPU: the auto exposure's factor, a 1x1 texture post_fx keeps on the GPU (1 when off)
     uniform vec2  uTexel;
     uniform float uR;
     uniform float uDither;
@@ -215,8 +216,13 @@
   // renderer's own two chunks run here, once, over background + reflection +
   // cloud summed in radiance - nothing of this file's own (GATE AA reads the
   // includes and no other colour math). In display mode the chunks are absent.
+  // EYE-GPU (A0 24 Oct; HWCOV): THE ONE EXPOSURE READ HERE IS THE EYE'S. The auto exposure's factor lives on the GPU (post_fx
+  // eyes its frame into a 1x1 target - no CPU read: its readback held the user's flights 1.3-1.9 s behind the GPU's links) and
+  // scales the radiance once, here, before the renderer's own chunks - as the renderer's exposure would. Only under AA_LINEAR
+  // (GATE AA: it is the only exposure read this file may make)
   const AA_OUT = `
     #ifdef AA_LINEAR
+      gl_FragColor.rgb *= texture2D(tEyeK, vec2(0.5)).r;
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
     #endif
@@ -335,6 +341,7 @@
       // `off` (a 0-sample target, the blit resolve) and for a depth texture on it
       overlay: null, post: null, pre: null, tap: null, needRT: false,
       linear: false,       // G448.3: the linear split (radiance in the target, ONE tone map in the blit)
+      eyeU: { value: null }, eyeWhite: null,   // EYE-GPU: the eye's factor (post_fx writes .value; white = 1 when off)
     };
 
     try {
@@ -423,9 +430,12 @@
         S.fsScene.add(S.quad);
       }
       if (S.mat) S.mat.dispose();
+      if (!S.eyeWhite) { S.eyeWhite = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); S.eyeWhite.needsUpdate = true; }
+      if (!S.eyeU.value) S.eyeU.value = S.eyeWhite;
       S.mat = new THREE.ShaderMaterial({
         uniforms: {
           tSrc:    { value: S.rt.texture },
+          tEyeK:   S.eyeU,
           uTexel:  { value: new THREE.Vector2(1 / SW, 1 / SH) },
           uR:      { value: R },
           uDither: { value: S.dither },
@@ -575,6 +585,8 @@
       // G586: THE BUDGET IS THE FRAME CAP'S (app.js FLYDIY_PACE): 1000/60 ms at 60, 1000/30 at 30 - held at 30 the
       // scale does not blur a picture trying for a 60 the cap will never show, and may raise it back
       autoTarget: ms => { if (ms > 0 && ms !== AUTO.T) { AUTO.T = ms; AUTO.fr = []; AUTO.gpu = []; AUTO.probe = AUTO.up = null; } return AUTO.T; }, setDither, setLinear, linear: () => S.linear,
+      // EYE-GPU: the eye's factor, shared with post_fx (its .value the adapted 1x1 target, or white)
+      eyeU: S.eyeU, eyeWhite: () => { if (!S.eyeWhite) { S.eyeWhite = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); S.eyeWhite.needsUpdate = true; } return S.eyeWhite; },
       needRT, setOverlay: f => { S.overlay = f || null; }, setPost: f => { S.post = f || null; }, setPre: f => { S.pre = f || null; }, setTap: f => { S.tap = f || null; },
       // the pass's own target (LOADING S2): a program compiled with it bound
       // carries the canvas's tone mapping and colour space, which is what the

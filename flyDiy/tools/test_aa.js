@@ -174,6 +174,18 @@ const checks = {
     !/NoToneMapping/.test(src.replace(/^\s*\/\/.*$/gm, '')),
   'the pass never reads exposure':
     !/toneMappingExposure/.test(src.replace(/^\s*\/\/.*$/gm, '')),
+  // EYE-GPU (A0 24 Oct): THE ONE EXPOSURE READ ALLOWED - the auto exposure's 1x1 factor (tEyeK, post_fx's GPU loop), sampled once,
+  // inside the AA_LINEAR guard, right before the renderer's chunks. Any other exposure read - another texture or uniform scaling
+  // the colour there, the eye's anywhere else, toneMappingExposure (above) - fails
+  'EYE-GPU: the only exposure read is the eye texture, once, inside AA_LINEAR, right before the chunks':
+    (() => { const code = src.replace(/^\s*\/\/.*$/gm, '');
+             const m = /#ifdef AA_LINEAR([\s\S]*?)#endif/.exec(code); const inside = m ? m[1] : '';
+             const outside = code.replace(/#ifdef AA_LINEAR[\s\S]*?#endif/g, '');
+             const scales = inside.match(/gl_FragColor\.rgb\s*\*=[^;]*;/g) || [];
+             return (code.match(/texture2D\(tEyeK/g) || []).length === 1 && !/texture2D\(tEyeK/.test(outside)
+               && scales.length === 1 && /^gl_FragColor\.rgb \*= texture2D\(tEyeK, vec2\(0\.5\)\)\.r;$/.test(scales[0])
+               && inside.indexOf(scales[0]) < inside.indexOf('#include <tonemapping_fragment>')
+               && !/\*=\s*u[A-Z]\w*(Exposure|Gain|Eye|Expo)\b/.test(code); })(),
   'the target is still HALF FLOAT (precision, so dither has room to work)':
     /HalfFloatType/.test(src),
 
