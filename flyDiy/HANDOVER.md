@@ -98119,3 +98119,43 @@ Strict light gate RED (11), all in the known classes:
 - cub garage fps 26.7: ONE 2167 ms frame in 160; the other 159 at 33 ms (the garage hitch class, L24b 27.0).
 - metal chase flight 68.9 s vs 63.6 + 5.09 slack: 0.23 s over, the scripted flight's wall time. Named; re-read in L25a.
 Pushed with these, by the user's order of 25 Oct: land last week's items and priority 1 as soon as possible.
+
+## G3580-G3589 - STORY-TUTOR: TIM IS THE TUTORIAL, NO CARDS IN A CAREER, THE WWII ARRIVAL AND THE CUB SWAP, SKIP ONTO THE FINAL (2026-10-25, STORY-TUTOR [LOCAL-GPU] for the GAME coordinator; branch claude/story-tutor off ready/bench-tim, master L24c merged)
+The playtest ledger of 24 Oct (flydiy-notes/PLAYTEST-2026-10-24.md), items 1-7, 10 and 48.
+- **G3580 Tim is the tutorial** (item 2: "Each step checks that the action was done before moving on, tutorial-style. Tim replaces all cards. For now you've made Tim optional").
+  - 79_story.js `STORY_TUTOR`: a beat's lines are STEPS `{ id, say, wait?, allow?, pass?, free?, ack? }`.
+    `storyTutorTick` (pure) passes a step once its predicate is true. A step with no wait is just words, with a Next; the last step's OK sends the beat's ack.
+  - T0: hello > paint (painted, the finish panel) > reg (registered, its box, "Keep N47RF") > cert (OK: the ack).
+  - T1 in the shed: news > ap > roll (flying: Roll out or the Skip). In flight, the ladder runs (G3370).
+  - T2 (item 4, the WWII arrival): down > hangar > contract > store > swap > park > list.
+    - down: "taxi over, or The shed", free (nothing held: the taxi is the player's).
+    - hangar: Rufus on its stand in the new hangar.
+    - contract: the Cub is parked outside.
+    - store: Storage's button is the only control.
+    - swap: the Cub's card and the floor (not its fly / route / send).
+    - park: Rufus into an INSIDE slot, "storage keeps every plane".
+    - list: the client's checklist in the band.
+  - app.js holds the predicates (`STORY_TUTOR_FACTS`) and each step's control as selectors (`STORY_TUTOR_ALLOW`).
+  - THE GUARD (`storyTutorGuard`, the window, capture phase): pointerdown / mousedown / click / dblclick / touchstart / contextmenu / dragstart / dragover / drop / keydown outside the step's control are held.
+    Always let through: Tim's band, the loading screens, the opening and the 3D canvas.
+  - The control is lit by a style written per step (#stTutCss), so Storage's redraws keep the light; the rest of the controls are dimmed.
+  - Nothing is held under the opening, on the phone (the band still steps), in the air, or with `?tutor=0` (a dev's escape).
+  - The tutor's place is kept per career (`flydiy.story.tut.<career>`). `FLYDIY_STORY.tutor()` is for the rigs.
+  - A beat's entry messages (the hangar ours, the Cub outside) are not said twice: the steps say them.
+- **G3581 no card in a career** (item 1): the flight's ending is a LINE at the card's corner (`#arrCard.line`: no plate, no border, text shadowed over the world). It gives where, how long, how far and the career's own lines. No Log / What went wrong; "bring it home" stays. The story's line is Tim's.
+  - The sandbox keeps the card. Audit: the only other card a career meets was the beat card (off since G3357).
+  - Storage, the map and the boot / loading tips are panels the player opens, not cards: the tips are kept, pending the user's word.
+- **G3583 "Roll out"** (item 3): the story's starter on the stand reads just "Roll out" while the rails run.
+- **G3584 Skip the flight -> on the final** (item 5): from the shed, the roll-out as ever (the door shot), then a cut to the WWII field's final. In flight, the cut is immediate.
+  - `storyFinalPose`: 1500 m before the aim point on the runway's extended centreline; a 6 % slope over the field, never under 60 m over the ground; the landing heading; the sheet's Vref (else 1.3 Vs0, else 22 m/s).
+  - A fresh pilot is handed INBOUND with no legs: it plans the arrival from there (straight in when lined up). The hand is given back to the autopilot.
+  - The landing ends T1 as any landing at HOME does. The garage without a world (the phone) keeps the old skip (`storySkipHangar`).
+- **G3585 the Cub parked outside at HOME** (storyApply clientPlane: playerMove outside; no apron, it stays where the arrival put it).
+  - Its file is prefetched while T1 runs ("going into the hangar should already load the Cub": read as the slot ready the moment the landing hands T2 its effect).
+  - Rufus goes to a visible INSIDE slot by Tim's park step.
+- **G3586 Rufus's registration N47RF** (item 7; fictional): stEnvelope puts it in a NEW career's starter when its file carries the generator's F-PGAR. meta is cosmetic to the bench (BENCH_COSMETIC), so no certificate moves. Existing careers keep the Rufus they saved.
+- **G3587 Storage: the floor is the stand's** (item 10): the floor followed the stand only on a LOAD. FLYDIY_STORE.view() first puts the stand's aeroplane on the floor of its room (`storeFloorStand`, the core's playerFloorSync; no redraw from inside the view).
+- **G3588 no clouds in the intro** (item 48): under the opening the march never runs, but its composite quad kept the boot's last world frame visible, and the dome's cirrus veil follows CLOUDS.update. Both are off while it plays (CLOUDS.S.veil 0, the composite hidden); the veil comes back at the swap.
+- Item 6 (Rufus pre-certified): L24c re-stamped Rufus. The page run reads BENCH_STATE().passed on the stand before the first roll-out. CERT-REVIEW owns the rest.
+- GATE STORY: PASS (+ --selftest PASS), a new section "Tim, the tutorial" (+55 rows): the steps and their predicates / controls, the tick, the final's pose, N47RF, the page's T0 > T1 > T2 run with the guard probed, the source rows (the guard, Roll out, the line, the floor, the clouds, the skip). Two rows moved: the client's Cub is parked outside at HOME.
+- The rig: claude/story-smoke 0f63d2c8d (story_smoke.js) plays the tutor with REAL clicks (CDP mouse events through the guard), then the skip onto the final and the landing, the arrival, the swap.
