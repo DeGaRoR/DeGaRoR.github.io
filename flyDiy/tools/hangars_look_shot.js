@@ -17,6 +17,7 @@
 //
 //   node tools/hangars_look_shot.js --tag before            # all of it
 //   node tools/hangars_look_shot.js --tag after --only world
+//   node tools/hangars_look_shot.js --tag after_single --leaves 1   # the cabin's door as one leaf
 //   node tools/hangars_look_shot.js --headed
 'use strict';
 const fs = require('fs'), path = require('path'), cp = require('child_process'), http = require('http');
@@ -38,6 +39,8 @@ function docCabin() {
   const r = C.playerAcquire(d, 'HOME', 'HOME.2', 'club', 'own'); if (!r.ok) throw new Error('HOME.2: ' + r.why); d = r.doc;
   const cab = C.storyCabinShed('w1', d.clock || 0);
   d.sheds[cab.id] = cab.shed;
+  // --leaves 1: the cabin's door as one leaf (the comparison with the bi-parting pair, G3537)
+  if (opt('leaves', null) === '1' && cab.shed.dims) delete cab.shed.dims.leaves;
   d.here = cab.id;
   return d;
 }
