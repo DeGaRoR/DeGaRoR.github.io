@@ -9150,6 +9150,7 @@
   // (OK); shown again on each new beat. Never centred, never over the middle; the garage's look (editor.css #stTim).
   // The portrait is a PLACEHOLDER silhouette (no image, no real person).
   let stTimEl = null, stTimBeat = null, stTimI = 0, stTimShut = false, stTimK = null;
+  const ST_TIM_STATES = ['lad', 'tut', 'min'];   // the band's own looks (the ladder's transparent ground, a waiting step, the chip)
   const STIM_FACE = '<svg class="stTimFace" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="23"/><circle class="h" cx="24" cy="19" r="8"/><path class="h" d="M9 41c2-9 8-13 15-13s13 4 15 13"/></svg>';
   function storyTimSync() {
     if (!STORY_PAGE || typeof document === 'undefined' || !document.body) return;
@@ -9215,7 +9216,10 @@
       });
       document.body.appendChild(stTimEl);
     }
-    if (stTimEl.className !== cls) stTimEl.className = cls;
+    // (only the band's own state classes are written: a class another module puts on it - the shared drag helper's, the
+    // user's rule of 25 Oct: every in-game card draggable - is kept; no inline position is ever set here)
+    const want = String(stTimEl.className || '').split(/\s+/).filter(c => c && !ST_TIM_STATES.includes(c)).concat(cls ? [cls] : []).join(' ');
+    if (stTimEl.className !== want) stTimEl.className = want;
     if (stTimEl.dataset.html !== html) { stTimEl.innerHTML = html; stTimEl.dataset.html = html; }
     stTimEl.hidden = false;
   }
