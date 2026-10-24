@@ -729,6 +729,9 @@ async function tutorRun() {
   ok(e && !e.hidden && /dust it off/.test(e.innerHTML) && /data-tim="tnext"/.test(e.innerHTML) && P.bodyCls.has('stTut'), "T0's first step: Tim's words with Next; the page locked (body.stTut)");
   ok(held(tgt('#bGo')) && held(tgt('#edWrap')) && !held(tgt('#stTim')) && !held(tgt('[id^="boot"]')) && held(tgt('#gStore'), 'keydown'),
      'while a step stands, a press anywhere else is held at the window (the roll-out, the panel, a key); Tim\'s band and the loading screens are not');
+  // the shared card drag (FLYDIY_DRAG): a press on a card's handle moves the card, its clicks and buttons stay held
+  ok(!held(tgt('.cdHandle'), 'pointerdown') && !held(tgt('.cdHandle'), 'dblclick') && held(tgt('.cdHandle'), 'click') && held(tgt('.cdHandle', 'button'), 'pointerdown') && held(tgt('.cdHandle', '[data-nodrag]'), 'pointerdown'),
+     "a card's drag handle takes its press (the card moves) while a step stands; a click on it, or a control inside it, is still held");
   press('tnext'); e = tim();
   ok(/fresh coat/.test(e.innerHTML) && e.className === 'tut' && !/data-tim="tnext"/.test(e.innerHTML) && X.lock() && X.lock().allow === '#edWrap',
      'the paint step: no Next, the band on its accent edge, the finish panel the one control allowed', X.lock() && X.lock().allow);

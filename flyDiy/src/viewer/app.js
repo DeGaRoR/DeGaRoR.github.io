@@ -9312,6 +9312,9 @@
     const L = stTutLockV, t = ev && ev.target;
     if (!L || !t || typeof t.closest !== 'function') return;
     if (t.closest('#stTim, #stIntro, [id^="boot"]')) return;
+    // (the shared card drag, card_drag.js FLYDIY_DRAG - the user's rule of 25 Oct: every in-game card draggable: a press
+    // or a double-click on a card's handle moves the card, never a control in it; its clicks stay held)
+    if ((ev.type === 'pointerdown' || ev.type === 'dblclick') && t.closest('.cdHandle') && !t.closest('button, a, input, select, textarea, label, [data-nodrag]')) return;
     if (ev.type !== 'keydown' && typeof renderer !== 'undefined' && renderer && t === renderer.domElement) return;   // the 3D view: look around
     const drag = ev.type === 'drop' || ev.type === 'dragover';
     if (L.allow && t.closest(L.allow) && (drag || !L.deny || !t.closest(L.deny))) return;
