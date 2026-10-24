@@ -16302,6 +16302,8 @@
     ['controls', () => 'Controls', () => true, 'Options'],
     ['graphics', () => 'Graphics', () => true],
     ['sound', () => 'Sound', () => true],
+    // G3527: the cards the player has dragged (card_drag.js), all back where the game puts them - shown once one has moved
+    ['cards', () => 'Cards back in place', () => !!(window.FLYDIY_DRAG && window.FLYDIY_DRAG.keys().length)],
     ['main', () => 'Main menu', () => true, ''],
   ];
   function gmRender() {
@@ -16322,6 +16324,7 @@
   }
   function gmPlace() {
     if (!gmPanel || !gmBtn) return;
+    if (window.FLYDIY_DRAG && window.FLYDIY_DRAG.placed('menu')) return;   // G3527: dragged - card_drag.js keeps it there
     const r = gmBtn.getBoundingClientRect(), W0 = window.innerWidth || 1280;
     gmPanel.style.top = Math.round(r.bottom + 8) + 'px';
     if (inGarage) { gmPanel.style.left = Math.round(Math.max(12, Math.min(r.left, W0 - 272))) + 'px'; gmPanel.style.right = 'auto'; }
@@ -16350,6 +16353,7 @@
     if (k === 'controls') { if (window.INPUT_PANEL) window.INPUT_PANEL.open(INP, { who: () => (inGarage ? 'in the shed' : manual ? 'you are flying' : 'the autopilot is flying') }); return; }
     if (k === 'graphics') return gmRail('graphics');
     if (k === 'sound') return gmRail('audio');
+    if (k === 'cards') { if (window.FLYDIY_DRAG) window.FLYDIY_DRAG.resetAll(); gmRender(); gmPlace(); return; }
     if (k === 'main') { if (gmFlying()) { gmAsk = true; gmRender(); return; } return gmMainMenu(); }
     if (k === 'mainYes') return gmMainMenu();
     if (k === 'mainNo') { gmAsk = false; gmRender(); }

@@ -446,6 +446,10 @@ const GATES = [
   // the panels the player opens), the arrival / award / run cards anchored left + bottom; and Chrome (--disable-gpu, a bare
   // page with the real stylesheets) lays them in the lower-left quadrant (flight, workshop) / on the phone's sheet. ~5 s
   { id: 'CARDS', file: '_cards_check.js', tier: 'core', wall: 20 },
+  // G3526-G3529 (GAME-MENUS, the user 25 Oct: "any card you show in game should be draggable"): card_drag.js - the census
+  // (every card-like id draggable or allow-listed with its reason), the manifest (before app.js), the gesture in a stub DOM
+  // (threshold, save per key, buttons never drag, re-render / re-made cards put back, on screen, the double-click). ~1 s
+  { id: 'CARDDRAG', file: '_carddrag_check.js', tier: 'core', wall: 5 },
   // G3449 FLOAT-DUP: one pair of floats in the shed along the builder's path (dev.html, headless Chrome, software GL)
   { id: 'FLOATDUP', file: '_floatdup_check.js', tier: 'full', timeout: 900_000, wall: 300 },
   { id: 'FADES', file: '_fades_check.js', tier: 'core' },   // A2-FADES G670-G673: the prop disc, the grass's grow / pre-grow / lead, the premises' rise
