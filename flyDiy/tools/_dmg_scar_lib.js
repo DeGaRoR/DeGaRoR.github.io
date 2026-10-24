@@ -30,7 +30,11 @@ function runCase(key, c, opt) {
   opt = opt || {};
   const refs = L.defOf(key).refs, wheel = new Uint8Array(L.defOf(key).nodes.length);
   for (const i of (refs.mains || [])) wheel[i] = 1; if (refs.tw != null && refs.tw >= 0) wheel[refs.tw] = 1;
-  const contacts = [], cg = [], hubs = [], elev = c.elev, E = refs.engine || [];
+  const contacts = [], touch = [], cg = [], hubs = [], elev = c.elev, E = refs.engine || [];
+  // (touch: 25 Oct, the 2J reader's - a node IN the ground, the solver's own contact rule (pen = ground + rC - y > 0, rC =
+  // r - so for a node off the wheels): `contacts` keeps 5 mm over it for the footprint's checks, but a node hovering in those
+  // 5 mm is pushed by nothing and leaves no furrow - read as a touchdown it split one bounce into two runs)
+  const so = L.defOf(key).nodes.map(nd => nd.so || 0);
   let frames = 0;
   const o = { cert: opt.cert !== false, scar: opt.scar, elastic: opt.elastic,
     onFrame: (sim, f) => {
@@ -39,6 +43,7 @@ function runCase(key, c, opt) {
       for (let i = 0; i < sim.n; i++) {
         if (wheel[i]) continue;
         if (sim.p[i * 3 + 1] - sim.r[i] <= elev + 0.005) contacts.push(sim.p[i * 3], sim.p[i * 3 + 2], t, i);
+        if (sim.p[i * 3 + 1] - (sim.r[i] - so[i]) < elev) touch.push(sim.p[i * 3], sim.p[i * 3 + 2], t, i);
       }
       const g = sim.cgPos(); cg.push(g[0], g[2], t);
       if (E.length) { let x = 0, z = 0; for (const i of E) { x += sim.p[i * 3]; z += sim.p[i * 3 + 2]; } hubs.push(x / E.length, z / E.length); }
@@ -53,7 +58,7 @@ function runCase(key, c, opt) {
   return { key, id: c.id, label: c.label, elev, prims: S.prims, v: S.v, bytes: S.prims.length ? JSON.stringify(S.prims).length : 0,
     rec: R ? { hits: R.hits, frames: R.frames, seals: R.seals, ms: R.ms } : null, frames,
     crashed: Dm.crashed, breaks: Dm.breaks, reason: Dm.reason, over: Dm.over, strike: dr ? dr.strike : null, crushOn: dr ? dr.crushOn : null,
-    contacts, cg, hubs, wallMs, sim, r, R: (sim.def && sim.def.params) || null, rest };
+    contacts, touch, cg, hubs, wallMs, sim, r, R: (sim.def && sim.def.params) || null, rest };
 }
 // G2382: THE WRECK AS IT LIES at the run's end, the gate's own reading: its pieces (the nodes joined by members not broken -
 // a union-find of its own over the build's beams less sim.damage().broken), each piece's nodes whose bottom is within

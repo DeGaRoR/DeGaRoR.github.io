@@ -100,10 +100,11 @@ if (argv[0] === '--build') {
       if (H.length >= 3) { let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity; for (const q of H) { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); z0 = Math.min(z0, q[1]); z1 = Math.max(z1, q[1]); }
         for (let x = x0; x <= x1; x += 0.1) for (let z = z0; z <= z1; z += 0.1) if (inPoly(H, x, z)) test(x, z); }
     }
-    // 2J: the skipping runs the reader saw - per node, its touchdowns (frames in contact, a gap over 1.5 frames between),
+    // 2J: the skipping runs the reader saw - per node, its touchdowns (frames IN the ground - r.touch, the solver's contact
+    // rule, not the footprint's 5 mm: 25 Oct - a gap over 1.5 frames between),
     // a run of them with gaps under joinT, each landing on the run's line; a run of 3+ touchdowns over 2 m or more is a
     // skipping slide; its coverage is along its path (samples 10 cm apart)
-    const skips = []; { const by = new Map(); for (let j = 0; j < r.contacts.length; j += 4) { const i = r.contacts[j + 3]; if (!by.has(i)) by.set(i, []); by.get(i).push(r.contacts[j], r.contacts[j + 1], r.contacts[j + 2]); }
+    const skips = []; { const by = new Map(), TC = r.touch; for (let j = 0; j < TC.length; j += 4) { const i = TC[j + 3]; if (!by.has(i)) by.set(i, []); by.get(i).push(TC[j], TC[j + 1], TC[j + 2]); }
       for (const [i, A] of by) {
         let run = null, td = 0, tPrev = -1;
         const close = () => { if (run && td >= 3 && Math.hypot(run[run.length - 3] - run[0], run[run.length - 2] - run[1]) >= 2) skips.push({ i, td, pts: run }); };
