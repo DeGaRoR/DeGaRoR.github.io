@@ -1055,7 +1055,10 @@ function garageInit(api) {
     const mine = fleetEl.querySelector('.gfMine');
     const stockBox = fleetEl.querySelector('.gfStock');
     if (!mine || !stockBox) return;
-    const names = slotNames();
+    // G3612 (the user 25 Oct, item 39: "a career starts only with its own plane. Any imported plane in the career costs
+    // money"): a career's rack is its own builds (api.ownSlots); the shelf's others are the sandbox's, bought in below
+    const shelf = slotNames(), names = api.ownSlots ? api.ownSlots(shelf) : shelf;
+    const bring = api.ownSlots ? shelf.filter(n => names.indexOf(n) < 0) : [];
     mine.innerHTML = ''; stockBox.innerHTML = '';
     if (!names.length) {
       const d = document.createElement('div');
@@ -1118,6 +1121,28 @@ function garageInit(api) {
       }
       row.appendChild(del);
       mine.appendChild(row);
+    }
+    if (bring.length && api.importSlot) {
+      const hd = document.createElement('div');
+      hd.className = 'gfEmpty gfBringHd'; hd.textContent = 'from the sandbox — bought into this career:';
+      mine.appendChild(hd);
+      for (const n of bring) {
+        const row = document.createElement('div');
+        row.className = 'gfRow gfBring';
+        let p = null; try { p = api.importPrice ? api.importPrice(n) : null; } catch (e) { p = null; }
+        const pw = p == null ? 'the build does not read' : (api.money ? api.money(p) : String(p));
+        const b = rowBtn(n, 'buy in · ' + pw);
+        b.title = 'Bring this sandbox build into the career: a purchase, then it stands in your hangar';
+        b.disabled = p == null;
+        b.addEventListener('click', () => {
+          if (!confirm('Buy “' + n + '” into this career for ' + pw + '?')) return;
+          let r = null; try { r = api.importSlot(n); } catch (e) { r = { ok: false, why: String((e && e.message) || e) }; }
+          if (r && !r.ok) alert(r.why || 'refused');
+          renderFleet();
+        });
+        row.appendChild(b);
+        mine.appendChild(row);
+      }
     }
     for (const s of STOCK) {          // stock is not yours to delete: no ✕
       const row = document.createElement('div');

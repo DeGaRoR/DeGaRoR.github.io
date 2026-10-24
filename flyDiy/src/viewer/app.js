@@ -572,7 +572,7 @@
     // (71_player_bases.js playerFleetReconcile, pure: handed the slot names this page reads): a slot the ledger lacks is
     // lifted to the garage's base - inside while a slot is free and the floor packs it, outside after; a row whose slot
     // went (deleted in another tab) leaves. Idempotent, and it refuses nothing: forty builds keep forty aeroplanes.
-    try { if (typeof playerFleetReconcile === 'function') player = playerFleetReconcile(player, playerSlotNames()).doc; }
+    try { if (typeof playerFleetReconcile === 'function') player = playerFleetReconcile(player, fleetSlotNames(player)).doc; }
     catch (e) { console.warn('flyDiy: the fleet lift failed -', e && e.message); }
     // persist what the first load decided — a lift that is only re-run every
     // boot would keep reading prefs that may go stale under it, and a
@@ -624,6 +624,36 @@
     catch (e) {}
     return out.sort();
   }
+  // G3612 (the user 25 Oct, item 39): THE SLOTS THE LIFT IS HANDED - a career's own (74_career.js careerOwnSlots: its
+  // airframes and the fleet it stood), plus `extra` (the slot its garage has just saved: a purchase, materialised below);
+  // the sandbox: the whole shelf. (`names`: the shelf as a caller read it, else read here)
+  function fleetSlotNames(doc, names, extra) {
+    const all = Array.isArray(names) ? names : playerSlotNames();
+    if (!CAREER_DEV || typeof careerOwnSlots !== 'function') return all;
+    const own = careerOwnSlots(doc, all);
+    if (extra && all.indexOf(extra) >= 0 && own.indexOf(extra) < 0) own.push(extra);
+    return own;
+  }
+  // ...the garage's rack: the sandbox's builds not this career's, each with the price it is bought in at (null: the
+  // build's file does not read), and the purchase (the slot then lifted like any other: inside while it fits)
+  function careerImportPrice(name) {
+    let spec = null; try { const env = JSON.parse(prefGet('flydiy.build.' + name, 'null')); spec = env && env.spec; } catch (e) {}
+    const led = spec ? procureLedger(spec) : null;
+    if (!led) return null;
+    let wants = []; try { wants = typeof hangarWants === 'function' ? hangarWants(resolveSpec(genMigrateSpec(JSON.parse(JSON.stringify(spec))))) : []; } catch (e) {}
+    const cost = econLedgerCost(led);
+    return { cost, wants, price: econAirframePrice(cost, playerLoad().sheds[PREM_MAIN], wants) };
+  }
+  function careerImportNow(name) {
+    const P = careerImportPrice(name);
+    if (!P) return { ok: false, why: 'the build ' + name + ' does not read' };
+    const r = careerImport(playerLoad(), name, P.cost, P.wants);
+    if (!r.ok) { ecNote = r.why; econWalletSync(); return { ok: false, why: r.why }; }
+    player = playerFleetReconcile(r.doc, fleetSlotNames(r.doc)).doc; playerSave();
+    ecNote = 'bought ' + name + ' into the career: ' + ecFmt(r.cost);
+    try { if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); } catch (e) {}
+    return { ok: true, why: '', cost: r.cost };
+  }
   // PREM-S2: THE SLOTS DOOR (garage.js save / save as / delete / import -> api.slotsChanged). The lift again over the
   // names the shelf now holds; a SAVE measures the aeroplane on the stand (playerFootOfDef: its own nodes - the
   // footprint the hangar packs it by), and a save that REPAINTED it (the finish changed) resets its outside wear (GQ7).
@@ -633,7 +663,7 @@
       const foots = {};
       if (info.saved && curKey === 'gen' && def && typeof playerFootOfDef === 'function') { const f = playerFootOfDef(def); if (f) foots[info.saved] = f; }
       const isNew = !!(info.saved && !playerLoad().fleet[info.saved]);
-      let d = playerFleetReconcile(playerLoad(), Array.isArray(names) ? names : playerSlotNames(), { foots }).doc;
+      let d = playerFleetReconcile(playerLoad(), fleetSlotNames(playerLoad(), names, info.saved), { foots }).doc;   // (G3612: a career's own + the save)
       if (info.saved && d.fleet[info.saved]) {
         if (foots[info.saved]) d.fleet[info.saved].foot = parkFoot(foots[info.saved]);
         if (info.repainted) d = playerWearReset(d, info.saved).doc;
@@ -8782,7 +8812,7 @@
       stBusy = false;
       if (starter) {
         prefSet('flydiy.build.' + starter, JSON.stringify(stEnvelope(starter, file)));
-        player = playerFleetReconcile(playerLoad(), playerSlotNames()).doc; playerSave();
+        player = playerFleetReconcile(playerLoad(), fleetSlotNames(playerLoad())).doc; playerSave();
         storyEvent({ k: 'bind', role: 'starter', slot: starter, spec: file.spec });
         storyStand(starter);
       } else {
@@ -8792,7 +8822,7 @@
         const spec = storyClientSpec(file.spec);
         prefSet('flydiy.build.' + slot, JSON.stringify(stEnvelope(slot, { v: file.v, spec, plaque: null, log: null })));
         const a = storyApply(playerLoad(), e, { slot });
-        if (a.ok) { player = playerFleetReconcile(a.doc, playerSlotNames()).doc; playerSave(); if (a.line) stLine = a.line; }
+        if (a.ok) { player = playerFleetReconcile(a.doc, fleetSlotNames(a.doc)).doc; playerSave(); if (a.line) stLine = a.line; }
         storyEvent({ k: 'bind', role: 'client', slot, spec });
       }
       try { if (window.GARAGE_SPEC && window.GARAGE_SPEC.syncShelf) window.GARAGE_SPEC.syncShelf(); } catch (err) {}
@@ -9332,7 +9362,7 @@
     doc: () => JSON.parse(JSON.stringify(playerLoad())),
     // the gates' and the rigs' door: a whole document in, normalised and lifted like a load (then saved)
     // (with no storage there are no slots to read: the document's own fleet is kept as handed)
-    set: doc => { player = playerNormalise(playerMigrate(JSON.parse(JSON.stringify(doc)))); if (PREF) player = playerFleetReconcile(player, playerSlotNames()).doc; playerSave(); if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); return window.FLYDIY_PLAYER.doc(); },
+    set: doc => { player = playerNormalise(playerMigrate(JSON.parse(JSON.stringify(doc)))); if (PREF) player = playerFleetReconcile(player, fleetSlotNames(player)).doc; playerSave(); if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); return window.FLYDIY_PLAYER.doc(); },
     place: n => (typeof playerPlace === 'function' ? playerPlace(playerLoad(), n, world) : null),
     wear: n => (typeof playerWearNow === 'function' ? playerWearNow(playerLoad(), n) : 0),
     rollFrom: () => rollFromId(), slot: () => flSlot, last: () => flLastEnd,
@@ -9361,7 +9391,7 @@
   function procureCommit(r) {
     if (!r || !r.ok) return { ok: false, why: (r && r.why) || 'refused' };
     prefSet('flydiy.build.' + r.slot, JSON.stringify(r.envelope));
-    player = playerFleetReconcile(r.doc, playerSlotNames()).doc;
+    player = playerFleetReconcile(r.doc, fleetSlotNames(r.doc)).doc;
     playerSave();
     try { if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); } catch (e) {}
     if (CAREER_DEV) { try { careerPlateSync(); } catch (e) {} }
@@ -16313,6 +16343,11 @@
     slotsChanged: (names, info) => { playerSlotsChanged(names, info); if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); },
     // G2260 (ECONOMY): a career's first save of a new airframe is a purchase - refused short of the cash (the sandbox: '')
     canSave: (name, isNew) => (CAREER_DEV ? econSaveWhy(name, isNew) : ''),
+    // G3612 (item 39): a career's rack lists its own builds; the sandbox's others are bought in (the sandbox: no door)
+    ownSlots: CAREER_DEV ? (names => fleetSlotNames(playerLoad(), names)) : null,
+    importPrice: CAREER_DEV ? (n => { const P = careerImportPrice(n); return P ? P.price : null; }) : null,
+    importSlot: CAREER_DEV ? (n => careerImportNow(n)) : null,
+    money: CAREER_DEV ? (v => ecFmt(v)) : null,
     // G2280 (PROCURE): a slot the garage has just built (the join settled) - a maker's or a used airframe's factory
     // certificate is signed on THAT aeroplane, once (the build files are not the join's fixpoint: measured on the page)
     loaded: (name, spec) => { if (CAREER_DEV) procureLoaded(name, spec); storeFloorFollows(name); },

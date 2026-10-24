@@ -112,6 +112,26 @@ function careerNew(o) {
   return careerRefresh(d);
 }
 
+// G3612 (the user 25 Oct, item 39: "a career starts only with its own plane. Any imported plane in the career costs
+// money"): THE CAREER'S OWN SLOTS. The saved builds (flydiy.build.*) are the sandbox's shelf too; of them a career holds
+// the ones it has an airframe row for (career.airframes: the story's starter and client, a maker's or a used airframe
+// bought, a build materialised - paid - in its garage, an import bought) or a fleet row it already stood (a career older
+// than this rule keeps what it holds). The lift (playerFleetReconcile) is handed these, never the whole shelf. The
+// sandbox: every slot, as ever.
+function careerOwnSlots(doc, names) {
+  const L = Array.isArray(names) ? names : [];
+  if (!doc || doc.mode !== 'career') return L.slice();
+  const A = (doc.career && doc.career.airframes) || {}, F = doc.fleet || {}, has = Object.prototype.hasOwnProperty;
+  return L.filter(n => has.call(A, n) || has.call(F, n));
+}
+// ...and a sandbox build BROUGHT IN is a purchase: the economy's airframe price over its ledger (the main hangar's labour,
+// as a build materialised there - 76_economy.js econMaterialise, its row's how 'import'); refused short of the cash
+function careerImport(doc, slot, cost, wants) {
+  if (!doc || doc.mode !== 'career') return { ok: false, doc, why: 'not a career' };
+  if (careerOwnSlots(doc, [slot]).length) return { ok: false, doc, why: slot + ' is this career\u2019s already' };
+  return econMaterialise(doc, slot, cost, wants, { how: 'import' });
+}
+
 // THE NORMALISER: the player document's own (its walk first), then the career block filled where missing and
 // carried verbatim where present (unknown fields ride along).
 function careerNormalise(r) {

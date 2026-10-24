@@ -271,6 +271,9 @@ async function page() {
   H.window.GARAGE_SPEC = { get: () => liveSpec, preview: () => liveSpec, open: n => { stand = n; } };
   H.window.CAGE_JOIN = { export: () => liveSpec };
   vm.createContext(H);
+  // G3612: the page's own fleetSlotNames (the lift's slots: a career's own), which the story half's reconciles read
+  { const f0 = app.indexOf('  function fleetSlotNames('), f1 = app.indexOf('\n  }\n', f0) + 4;
+    if (f0 > 0) vm.runInContext(app.slice(f0, f1), H, { filename: 'app.js (fleetSlotNames)' }); }
   // `player` is the page's own let: the half assigns it - the shim reads it back through a setter pair
   Object.defineProperty(H, 'player', { get: () => player, set: v => { player = v; }, configurable: true });
   const run = vm.runInContext('(function () {\n' + half + '\n' +
@@ -328,6 +331,8 @@ async function pageRun() {
   d = r.doc;
   ok(r.ok && M.storyOf(d).beat === 'T0' && d.here === 'w9' && d.sheds.w9 && d.sheds.w9.shell === 'field' && d.sheds.w9.base === 'w9' && d.sheds.HOME.locked === 'story',
      'New career -> storyStart at the cabin: the smallest shed (a field shell) at "Cabin Strip", the garage there, the WWII hangar held', JSON.stringify(d.sheds.w9 && d.sheds.w9.dims));
+  // G3612 (the user 25 Oct, item 39): a sandbox build already on the shelf when the career is born is NOT the career's
+  prefs.set('flydiy.build.Sandbox Jodel', JSON.stringify({ v: 1, spec: {} }));
   P.set(d);
   const half = vm.runInContext('(function () {\n' + P.half + '\nreturn { storyOnFlightEnd, storyCardSync, storyRecord, careerAct: null, el: () => stCardEl, line: () => stLine }; })', H)();
   await settle();
@@ -335,6 +340,20 @@ async function pageRun() {
   const starterFile = M.STORY_FILES.starter.find(f => fs.existsSync(path.join(ROOT, f)));
   ok(prefs.has('flydiy.build.Rufus') && d.fleet.Rufus && d.fleet.Rufus.aero === 'w9' && d.fleet.Rufus.hangar === 'w9' && M.storyOf(d).planes.starter === 'Rufus',
      'the starter: the first file found (builds/ first) written as the slot "Rufus", standing in the cabin\'s shed', starterFile + ' -> ' + JSON.stringify(d.fleet.Rufus));
+  { // G3612: "a career starts only with its own plane. Any imported plane in the career costs money"
+    const own = M.careerOwnSlots(d, ['Rufus', 'Sandbox Jodel']), sb = M.careerOwnSlots(Object.assign({}, d, { mode: 'sandbox' }), ['Rufus', 'Sandbox Jodel']);
+    const r0 = M.careerImport(d, 'Sandbox Jodel', 10000, []);
+    const rich = JSON.parse(JSON.stringify(d)); rich.wallet = 1e6;
+    const r1 = M.careerImport(rich, 'Sandbox Jodel', 10000, []), r2 = r1.ok ? M.careerImport(r1.doc, 'Sandbox Jodel', 10000, []) : null;
+    ok(!d.fleet['Sandbox Jodel'] && own.join() === 'Rufus' && sb.length === 2 && !r0.ok && r1.ok && r1.cost > 0 && r1.doc.wallet === 1e6 - r1.cost &&
+       r1.doc.career.airframes['Sandbox Jodel'].how === 'import' && M.careerOwnSlots(r1.doc, ['Sandbox Jodel']).length === 1 && r2 && !r2.ok,
+       'a career\'s fleet is its own planes: a sandbox build on the shelf is not lifted in; bringing it in is a purchase (refused short of the cash, then its own), once (G3612)',
+       own.join() + ' | ' + (r0.why || '-') + ' | ' + (r1.cost || r1.why));
+    ok(/player = playerFleetReconcile\(player, fleetSlotNames\(player\)\)\.doc;/.test(app) && !/playerFleetReconcile\([^)]*playerSlotNames\(\)/.test(app) &&
+       /fleetSlotNames\(playerLoad\(\), names, info\.saved\)/.test(app) && /ownSlots: CAREER_DEV \? \(names => fleetSlotNames\(playerLoad\(\), names\)\) : null,/.test(app) &&
+       /const shelf = slotNames\(\), names = api\.ownSlots \? api\.ownSlots\(shelf\) : shelf;/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'garage.js'), 'utf8')),
+       'every lift is handed the career\'s own slots (the save just made with them); the garage\'s rack lists its own, the sandbox\'s others bought in (G3612)');
+  }
   ok(P.fetched[0] && P.fetched[0].startsWith('builds/') && P.fetched.slice(-1)[0] === starterFile, 'builds/ is asked before the archived candidate', P.fetched.join(' > '));
   ok(H.window.FLYDIY_STORY.mask() === 'finish' && H.window.FLYDIY_STORY.jobsOpen() === false, "window.FLYDIY_STORY: the tech mask's tutorial mode ('finish' at T0), the job list held");
   // ---- the beat card
