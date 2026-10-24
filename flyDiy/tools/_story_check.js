@@ -340,19 +340,31 @@ async function pageRun() {
   const starterFile = M.STORY_FILES.starter.find(f => fs.existsSync(path.join(ROOT, f)));
   ok(prefs.has('flydiy.build.Rufus') && d.fleet.Rufus && d.fleet.Rufus.aero === 'w9' && d.fleet.Rufus.hangar === 'w9' && M.storyOf(d).planes.starter === 'Rufus',
      'the starter: the first file found (builds/ first) written as the slot "Rufus", standing in the cabin\'s shed', starterFile + ' -> ' + JSON.stringify(d.fleet.Rufus));
-  { // G3612: "a career starts only with its own plane. Any imported plane in the career costs money"
-    const own = M.careerOwnSlots(d, ['Rufus', 'Sandbox Jodel']), sb = M.careerOwnSlots(Object.assign({}, d, { mode: 'sandbox' }), ['Rufus', 'Sandbox Jodel']);
-    const r0 = M.careerImport(d, 'Sandbox Jodel', 10000, []);
+  { // G3612 (the user 25 Oct): "a career starts only with its own plane. Any imported plane in the career costs money" /
+    // "old careers are reset to only their own planes ... What you import is a design ... it is its own copy"
+    const own = M.careerOwnSlots(d, ['Rufus', 'Sandbox Jodel']);
+    const copy = M.careerCopyName(d, 'Sandbox Jodel', ['Sandbox Jodel']);
+    const r0 = M.careerImport(d, 'Sandbox Jodel', copy, 10000, []);
     const rich = JSON.parse(JSON.stringify(d)); rich.wallet = 1e6;
-    const r1 = M.careerImport(rich, 'Sandbox Jodel', 10000, []), r2 = r1.ok ? M.careerImport(r1.doc, 'Sandbox Jodel', 10000, []) : null;
-    ok(!d.fleet['Sandbox Jodel'] && own.join() === 'Rufus' && sb.length === 2 && !r0.ok && r1.ok && r1.cost > 0 && r1.doc.wallet === 1e6 - r1.cost &&
-       r1.doc.career.airframes['Sandbox Jodel'].how === 'import' && M.careerOwnSlots(r1.doc, ['Sandbox Jodel']).length === 1 && r2 && !r2.ok,
-       'a career\'s fleet is its own planes: a sandbox build on the shelf is not lifted in; bringing it in is a purchase (refused short of the cash, then its own), once (G3612)',
-       own.join() + ' | ' + (r0.why || '-') + ' | ' + (r1.cost || r1.why));
+    const r1 = M.careerImport(rich, 'Sandbox Jodel', copy, 10000, []), r2 = r1.ok ? M.careerImport(r1.doc, 'Sandbox Jodel', copy, 10000, []) : null;
+    const sb = M.careerOwnSlots({ mode: 'sandbox' }, ['Rufus', copy, 'Sandbox Jodel']);
+    ok(!d.fleet['Sandbox Jodel'] && own.join() === 'Rufus' && copy === 'Sandbox Jodel @' + d.career.id && M.careerSlotTag(copy) && !r0.ok &&
+       r1.ok && r1.cost > 0 && r1.doc.wallet === 1e6 - r1.cost && r1.doc.career.airframes[copy].how === 'import' && r1.doc.career.airframes[copy].of === 'Sandbox Jodel' &&
+       M.careerOwnSlots(r1.doc, [copy, 'Sandbox Jodel']).join() === copy && M.careerImportable(r1.doc, ['Rufus', copy, 'Sandbox Jodel']).join() === 'Sandbox Jodel' &&
+       r2 && !r2.ok && sb.join() === 'Rufus,Sandbox Jodel' && M.careerCopyName(r1.doc, 'Sandbox Jodel', [copy]) === 'Sandbox Jodel 2 @' + d.career.id,
+       'a career\'s fleet is its own planes: a sandbox design on the shelf is not lifted in; buying it in is a purchase (refused short of the cash) that makes the career\'s OWN copy (its tagged slot, the design it came from) - the sandbox never lists the copy, a second copy is numbered (G3612)',
+       own.join() + ' | ' + copy + ' | ' + (r0.why || '-') + ' | ' + (r1.cost || r1.why));
+    // the reset, once: an older career's row for a slot it never owned leaves at its next lift
+    const old = JSON.parse(JSON.stringify(d)); old.fleet['Old Shelf Build'] = { hangar: null, aero: 'HOME' };
+    const R = M.playerFleetReconcile(old, M.careerOwnSlots(old, ['Rufus', 'Old Shelf Build']));
+    ok(!R.doc.fleet['Old Shelf Build'] && R.doc.fleet.Rufus && R.dropped.indexOf('Old Shelf Build') >= 0,
+       'an older career is reset to its own planes: a row for a slot it does not own leaves at the lift (G3612)', JSON.stringify(R.dropped));
+    const G = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'garage.js'), 'utf8');
     ok(/player = playerFleetReconcile\(player, fleetSlotNames\(player\)\)\.doc;/.test(app) && !/playerFleetReconcile\([^)]*playerSlotNames\(\)/.test(app) &&
-       /fleetSlotNames\(playerLoad\(\), names, info\.saved\)/.test(app) && /ownSlots: CAREER_DEV \? \(names => fleetSlotNames\(playerLoad\(\), names\)\) : null,/.test(app) &&
-       /const shelf = slotNames\(\), names = api\.ownSlots \? api\.ownSlots\(shelf\) : shelf;/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'garage.js'), 'utf8')),
-       'every lift is handed the career\'s own slots (the save just made with them); the garage\'s rack lists its own, the sandbox\'s others bought in (G3612)');
+       /fleetSlotNames\(playerLoad\(\), names, info\.saved\)/.test(app) && /ownSlots: names => fleetSlotNames\(playerLoad\(\), names\),/.test(app) &&
+       /const copy = careerCopyName\(playerLoad\(\), name, playerSlotNames\(\)\);/.test(app) && /prefSet\('flydiy\.build\.' \+ copy, JSON\.stringify\(env\)\);/.test(app) &&
+       /const shelf = slotNames\(\), names = api\.ownSlots \? api\.ownSlots\(shelf\) : shelf;/.test(G) && /const bring = api\.importable \? api\.importable\(shelf\) : \[\];/.test(G),
+       'every lift is handed the career\'s own slots (the save just made with them); the purchase writes the copy\'s own envelope; the rack lists its own, the designs bought in (G3612)');
   }
   ok(P.fetched[0] && P.fetched[0].startsWith('builds/') && P.fetched.slice(-1)[0] === starterFile, 'builds/ is asked before the archived candidate', P.fetched.join(' > '));
   ok(H.window.FLYDIY_STORY.mask() === 'finish' && H.window.FLYDIY_STORY.jobsOpen() === false, "window.FLYDIY_STORY: the tech mask's tutorial mode ('finish' at T0), the job list held");

@@ -1058,7 +1058,8 @@ function garageInit(api) {
     // G3612 (the user 25 Oct, item 39: "a career starts only with its own plane. Any imported plane in the career costs
     // money"): a career's rack is its own builds (api.ownSlots); the shelf's others are the sandbox's, bought in below
     const shelf = slotNames(), names = api.ownSlots ? api.ownSlots(shelf) : shelf;
-    const bring = api.ownSlots ? shelf.filter(n => names.indexOf(n) < 0) : [];
+    const bring = api.importable ? api.importable(shelf) : [];
+    const label = n => (api.slotLabel ? api.slotLabel(n) : n);
     mine.innerHTML = ''; stockBox.innerHTML = '';
     if (!names.length) {
       const d = document.createElement('div');
@@ -1086,7 +1087,7 @@ function garageInit(api) {
       const away = !!(P && P.kind !== 'none' && !P.here);
       row.className = 'gfRow' + (n === slotName ? ' cur' : '') + (away ? ' gfAway' : '');
       const meta = n === slotName ? 'on the stand' : slotMeta(n);
-      const b = rowBtn(n, meta);
+      const b = rowBtn(label(n), meta);   // (G3612: a career's copy shows its design's name)
       if (P && P.text) {
         const pl = document.createElement('i');
         pl.className = 'gfPlace gfPlace-' + P.kind; pl.textContent = P.text;

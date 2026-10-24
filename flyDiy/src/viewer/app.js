@@ -625,17 +625,18 @@
     return out.sort();
   }
   // G3612 (the user 25 Oct, item 39): THE SLOTS THE LIFT IS HANDED - a career's own (74_career.js careerOwnSlots: its
-  // airframes and the fleet it stood), plus `extra` (the slot its garage has just saved: a purchase, materialised below);
-  // the sandbox: the whole shelf. (`names`: the shelf as a caller read it, else read here)
+  // airframes), plus `extra` (the slot its garage has just saved: a purchase, materialised below); the sandbox: the shelf
+  // but the careers' copies. (`names`: the shelf as a caller read it, else read here)
   function fleetSlotNames(doc, names, extra) {
     const all = Array.isArray(names) ? names : playerSlotNames();
-    if (!CAREER_DEV || typeof careerOwnSlots !== 'function') return all;
-    const own = careerOwnSlots(doc, all);
-    if (extra && all.indexOf(extra) >= 0 && own.indexOf(extra) < 0) own.push(extra);
+    if (typeof careerOwnSlots !== 'function') return all;
+    const own = careerOwnSlots(CAREER_DEV ? doc : null, all);
+    if (CAREER_DEV && extra && all.indexOf(extra) >= 0 && own.indexOf(extra) < 0) own.push(extra);
     return own;
   }
-  // ...the garage's rack: the sandbox's builds not this career's, each with the price it is bought in at (null: the
-  // build's file does not read), and the purchase (the slot then lifted like any other: inside while it fits)
+  // ...the garage's rack: the sandbox's designs this career may buy in, each with the price (null: the build's file does
+  // not read), and the purchase: the design COPIED to the career's own slot (careerCopyName - frozen there: the sandbox's
+  // later edits never reach it, its own edits in this garage are its life), paid, then lifted like any other
   function careerImportPrice(name) {
     let spec = null; try { const env = JSON.parse(prefGet('flydiy.build.' + name, 'null')); spec = env && env.spec; } catch (e) {}
     const led = spec ? procureLedger(spec) : null;
@@ -647,12 +648,19 @@
   function careerImportNow(name) {
     const P = careerImportPrice(name);
     if (!P) return { ok: false, why: 'the build ' + name + ' does not read' };
-    const r = careerImport(playerLoad(), name, P.cost, P.wants);
+    const txt = prefGet('flydiy.build.' + name, null);
+    let env = null; try { env = JSON.parse(txt); } catch (e) {}
+    if (!env || !env.spec) return { ok: false, why: 'the build ' + name + ' does not read' };
+    const copy = careerCopyName(playerLoad(), name, playerSlotNames());
+    const r = careerImport(playerLoad(), name, copy, P.cost, P.wants);
     if (!r.ok) { ecNote = r.why; econWalletSync(); return { ok: false, why: r.why }; }
+    env.meta = Object.assign({}, env.meta || {}, { name: copy, career: r.doc.career.id, of: name });
+    env.plaque = null; env.log = null;   // (a new airframe: its own certificate and logbook to earn)
+    prefSet('flydiy.build.' + copy, JSON.stringify(env));
     player = playerFleetReconcile(r.doc, fleetSlotNames(r.doc)).doc; playerSave();
     ecNote = 'bought ' + name + ' into the career: ' + ecFmt(r.cost);
     try { if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); } catch (e) {}
-    return { ok: true, why: '', cost: r.cost };
+    return { ok: true, why: '', cost: r.cost, slot: copy };
   }
   // PREM-S2: THE SLOTS DOOR (garage.js save / save as / delete / import -> api.slotsChanged). The lift again over the
   // names the shelf now holds; a SAVE measures the aeroplane on the stand (playerFootOfDef: its own nodes - the
@@ -16343,8 +16351,11 @@
     slotsChanged: (names, info) => { playerSlotsChanged(names, info); if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); },
     // G2260 (ECONOMY): a career's first save of a new airframe is a purchase - refused short of the cash (the sandbox: '')
     canSave: (name, isNew) => (CAREER_DEV ? econSaveWhy(name, isNew) : ''),
-    // G3612 (item 39): a career's rack lists its own builds; the sandbox's others are bought in (the sandbox: no door)
-    ownSlots: CAREER_DEV ? (names => fleetSlotNames(playerLoad(), names)) : null,
+    // G3612 (item 39): a career's rack lists its own airframes, the sandbox's designs bought in below; the sandbox's rack
+    // never lists a career's copy
+    ownSlots: names => fleetSlotNames(playerLoad(), names),
+    importable: CAREER_DEV ? (names => careerImportable(playerLoad(), names)) : null,
+    slotLabel: n => (typeof careerSlotTag === 'function' && careerSlotTag(n) ? n.replace(CAREER_SLOT_TAG, '') : n),
     importPrice: CAREER_DEV ? (n => { const P = careerImportPrice(n); return P ? P.price : null; }) : null,
     importSlot: CAREER_DEV ? (n => careerImportNow(n)) : null,
     money: CAREER_DEV ? (v => ecFmt(v)) : null,
