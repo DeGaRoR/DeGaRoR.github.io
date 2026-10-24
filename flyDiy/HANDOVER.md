@@ -98119,3 +98119,29 @@ Strict light gate RED (11), all in the known classes:
 - cub garage fps 26.7: ONE 2167 ms frame in 160; the other 159 at 33 ms (the garage hitch class, L24b 27.0).
 - metal chase flight 68.9 s vs 63.6 + 5.09 slack: 0.23 s over, the scripted flight's wall time. Named; re-read in L25a.
 Pushed with these, by the user's order of 25 Oct: land last week's items and priority 1 as soon as possible.
+
+## G3620-G3629 DMG-LOOKS - THE STUDY: A WRECK THAT LOOKS TORN, NOT TAKEN APART (2026-10-25, DMG-LOOKS for the DEFORM COORDINATOR + the user; a CLOUD desk study, no GPU, no src/ change; branch claude/dmg-looks-study off origin/master)
+DMG-LOOKS: study at futureDesigns/DMG-LOOKS-STUDY-2026-10.md, for the Deform Coordinator + the user.
+- **The user's ask (25 Oct):** "The torn parts 'cut' too clean ... Structure should get bent elements, panels should tear irregularly, according to their materials, rupture points should be irregular and probably have a different texture ... And add the window damage texture to that."
+- **Why it looks cut (read in the code, §1).** There are three causes:
+  - skin_break `event()` removes the triangles spanning two pieces, which leaves a straight slot one triangle wide along the seam, with no cap;
+  - a crushed or bent member's drawn tube telescopes, because the 'tube' class is bound by station and the solver's `dk` / `kt1` / bend direction never reach the page;
+  - no rupture colour exists anywhere, and panes leave whole and uncracked (DEFORM §5.3's "windscreen cracked" switch was never built).
+- **The plan (§4).** It respects DMG IMPACT LAG's lesson: no GL objects and no program links at a crash.
+  - **P1a G3620** members drawn kinked at their rest length (the riding term plus the solver's bend on the hop).
+  - **P1b G3621-G3622** a seeded material tear path in `event()`: gap, rim jitter, and a curl field beside DRAPE; still only triangle removal.
+  - **P1c G3623** window crack states S1 crazing / S2 star / S3 failed in the glass hook (`uCrack`, a pane-material clone with the same program).
+  - **P2 G3624-G3626** the rupture rim (an edge distance per place, using the substrate colours aeroweather already has) plus scrape and scorch. **Needs A0's ruling:** option A is a varying in the aeroskin program; option B (recommended) is a rim overlay draw on the same ridden buffers, parked and linked at roll-out like ground_scar.
+  - **P3 G3627-G3629** flapping fabric ribbons, pre-fractured panes and shards, dents.
+- **The research sessions could fetch only github.com.** Every other source is search-confirmed (title and snippet). Marked so in §2; click through before quoting a number.
+- **Prototypes (node, `futureDesigns/dmg-looks/`):**
+  - `tear_proto.js` (`tear_panels.png`): today vs alloy / fabric / composite / ply. Its event costs 10-40 ms per 10 m of tear, unoptimised.
+  - `bend_proto.js` (`bend_members.svg`): a 0.50 m longeron 9 % short is drawn 0.495 m with a 10 cm kink, against 0.455 m straight today.
+  - `crack_proto.js` (`crack_states.png`, `crack_atlas.png`): procedural and asset-free, so no licence.
+- **Owners (§5):** Deform owns all of P1-P3. The glass hook and the aeroskin program changes go through A0.
+- **Open points (§8):**
+  - P2 option A vs B (A0);
+  - primer colour (the user);
+  - kink strength;
+  - crazing on hard landings;
+  - whether members break where they should fold, which is calibration for Deform and not drawing.
