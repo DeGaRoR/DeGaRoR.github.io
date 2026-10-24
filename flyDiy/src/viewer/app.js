@@ -6287,7 +6287,7 @@
   //   and fading with age. Two per float when planing: the step's own.
   // Cheap: one Points and one ribbon mesh per float, fixed buffers, on
   // `craft` in world coordinates. Nothing here touches the physics.
-  const SPRAY_N = 600, WAKE_N = 48;
+  const SPRAY_N = 1400, WAKE_N = 48;   // (G2838b: many small drops - the pool per float)
   let waterFx = null;
   // G2090 (WATER-LOOK): THE WET BODY'S SPRAY POOL - a build without floats meets the water on its belly, its flying
   // surfaces and its tyres (32_hydro.js wetBuild), so it gets the floats' sprite batch too: ONE pool for the page
@@ -6578,15 +6578,29 @@
         const NU = SH ? SH.NU : 8, roots = [];
         for (let u = 0; u < NU; u++) { const f = u / (NU - 1) * (pts.length - 1), i0 = Math.floor(f), i1 = Math.min(pts.length - 1, i0 + 1), t = f - i0;
           const a = pts[i0], b = pts[i1]; roots.push([a[0] + (b[0] - a[0]) * t, Math.max(fx.h, a[1] + (b[1] - a[1]) * t) + 0.02, a[2] + (b[2] - a[2]) * t]); }
-        const uo = 0.45 * V, uu = Math.min(2.6, 0.22 * V);
-        if (SH) SH.set(si, roots, [ox, 0, oz], [0, 1, 0], uo, uu, strength);
+        // (G2837c, the user 23 Oct: "it seems oversize now. Reduce that by about 2, or 1.5"): the sheet's launch scaled by SPRAY_K
+        // (0.77: its height and reach go as the square - ~0.6), the drops and the chunks thrown off it with it
+        const SPRAY_K = 0.77, uo = 0.45 * V * SPRAY_K, uu = Math.min(2.6, 0.22 * V) * SPRAY_K;
+        // G2837b THE VIOLENCE (the user, 22 Oct: "more chaotic, more violent, more turbulent"): the speed's and the step's pressure's
+        // share - the sheet's shape gusts with it (spray.js set's t and gust) and it sheds chunks in bursts
+        const gust = Math.min(1, V / 16) * (0.6 + 0.4 * Math.min(1, pdM / 6000));
+        if (SH) SH.set(si, roots, [ox, 0, oz], [0, 1, 0], uo, uu, strength, waterFx.t + si * 7.3, gust);
         // the droplets off the sheet's far edge (t = T: out at uo, falling at -uu), the rate with the pressure
-        const T = 2 * uu / 9.81, rate = Math.min(8, pdM / 2000) * dt * 60;
+        const T = 2 * uu / 9.81, rate = Math.min(24, 3 * pdM / 2000) * dt * 60;   // (G2838b: many small drops - three times the old rate)
         let n = Math.floor(rate); if (Math.random() < rate - n) n++;
         for (let j = 0; j < n; j++) {
           const r = roots[Math.floor(Math.random() * NU)], t = T * (0.6 + 0.4 * Math.random());
           sprayEmit(D, 0, r[0] + ox * uo * t, r[1] + uu * t - 4.905 * t * t, r[2] + oz * uo * t,
-            ox * uo * (0.7 + 0.3 * Math.random()) + (Math.random() - 0.5) * 0.6, uu - 9.81 * t + 0.3 * Math.random(), oz * uo * (0.7 + 0.3 * Math.random()) + (Math.random() - 0.5) * 0.6);
+            ox * uo * (0.7 + 0.5 * Math.random()) + (Math.random() - 0.5) * 1.6, uu - 9.81 * t + 0.8 * Math.random(), oz * uo * (0.7 + 0.5 * Math.random()) + (Math.random() - 0.5) * 1.6);   // (G2838b: a wide turbulent spread; G2837c: two thirds of it)
+        }
+        // (G2837b) SHED CHUNKS: in bursts with the speed, a clump of drops leaves the sheet together - a cluster with one velocity and
+        // a tight spread, a few heavy drops in it - so the edge throws pieces instead of a steady drizzle
+        if (Math.random() < dt * (1.5 + V / 5) * gust) {
+          const r = roots[Math.floor(Math.random() * NU)], t = T * (0.45 + 0.5 * Math.random()), kv = 0.9 + 0.5 * Math.random();
+          const bx = r[0] + ox * uo * t, by = r[1] + uu * t - 4.905 * t * t, bz = r[2] + oz * uo * t, cvx = ox * uo * kv, cvy = (uu - 9.81 * t) * kv + 0.8, cvz = oz * uo * kv;
+          const nb = 10 + Math.floor(14 * Math.random() * gust);
+          for (let j = 0; j < nb; j++) sprayEmit(D, j < 3 ? 1 : 0, bx + (Math.random() - 0.5) * 0.3, by + (Math.random() - 0.5) * 0.2, bz + (Math.random() - 0.5) * 0.3,
+            cvx + (Math.random() - 0.5) * 1.0, cvy + (Math.random() - 0.5) * 0.8, cvz + (Math.random() - 0.5) * 1.0);
         }
         // the sheet's mist: a puff for every ~12 droplets, outboard of the root, left behind by the hull
         if (n > 0 && Math.random() < n / 12) { const r = roots[Math.floor(Math.random() * NU)];
@@ -17300,7 +17314,11 @@
     // since applyStand stopped forcing them on) that is three fewer dirty
     // BufferAttributes and two fewer draws every frame
     if (lines && (lines.visible || pts.visible || (proxy && proxy.mesh.visible))) sync();
-    if (floatMeshes.length) syncFloats();
+    // G3449 (FLOAT-DUP, the user 22 Oct: "it's not an elongated floats, it's a duplicate, untextured" - G451.1 item 94
+    // back): the PHYSICS hull is the flight's stand-in for a model without drawn float parts. In the shed the cage layer
+    // draws the floats, and floats added there then a spec update (a design tile, the float kit's pitch) rebuild the
+    // model without them - so the physics hull is never shown in the shed, and synced only in flight (GATE FLOATDUP)
+    if (floatMeshes.length) { const ph = !inGarage; for (const m of floatMeshes) m.visible = ph; if (ph) syncFloats(); }
     if (waterFx && !inGarage) syncWaterFx(running ? fdt : 0);   // (G586: the spray on the frame's own time)
     // THE INTERACTION FIELD (H7, G460.8): on while a floatplane is over water (the CG's water level finite),
     // stepped before the render with the CG as its centre; off (the slot cleared) otherwise
@@ -17360,7 +17378,19 @@
       let wl = WF.waterDrawY ? WF.waterDrawY(camera.position.x, camera.position.z) : null;
       if (wl == null && WF.waterDrawY) wl = WF.waterDrawY(cgM[0], cgM[2]);
       if (wl == null && !WF.waterDrawY && world.waterH) { wl = world.waterH(camera.position.x, camera.position.z); if (!Number.isFinite(wl)) wl = world.waterH(cgM[0], cgM[2]); }
-      WATER.mirrorRender(THREE, renderer, scene, camera, Number.isFinite(wl) ? wl : null, { dt: fdt, clouds: (typeof CLOUDS !== 'undefined' && CLOUDS.draw) ? CLOUDS.draw : null, sky: WF.skyDome, hide: [WF.skyDome], hideMaterials: waterFx && waterFx.drops ? [waterFx.drops.spray && waterFx.drops.spray.material, waterFx.drops.sheets && waterFx.drops.sheets.material] : [] });
+      const wDrops = waterFx && waterFx.drops ? [waterFx.drops.spray && waterFx.drops.spray.material, waterFx.drops.sheets && waterFx.drops.sheets.material] : [];
+      // (G2831-G2833 prototypes, ?wrefl=b|c|bc: the sea's planar mirror off - the redesign's open sea has none; lakes keep it.
+      // A drawn level at the sea's own (0) is the sea or a lagoon at its level)
+      if (WATER.proto && WATER.proto.seaOff && Number.isFinite(wl) && Math.abs(wl) < 0.05) wl = null;
+      if (WATER.proto && WATER.proto.ring && !WATER.mirror.landAt && world.terrainH) WATER.mirror.landAt = (x, z) => { const wy = WF.waterDrawY ? WF.waterDrawY(x, z) : null; return world.terrainH(x, z) > (Number.isFinite(wy) ? wy : 0) + 0.5; };
+      if (WATER.proto && WATER.proto.ring && !WATER.mirror.waterAt && WF.waterDrawY) WATER.mirror.waterAt = (x, z) => WF.waterDrawY(x, z);   // (G2839: the inland dissolve counts the water on the mirror's own plane)   // (G2836: the ring's land test - over the DRAWN water's level: a lake at 38 m is water, round 2)
+      WATER.mirrorRender(THREE, renderer, scene, camera, Number.isFinite(wl) ? wl : null, { dt: fdt, clouds: (typeof CLOUDS !== 'undefined' && CLOUDS.draw) ? CLOUDS.draw : null, sky: WF.skyDome, hide: [WF.skyDome], hideMaterials: wDrops });
+      // (G2831 prototype b) the aircraft's own reflection: a hull-only capture at the water under it
+      if (WATER.proto && WATER.proto.hull && WATER.hullRender) {
+        let hy = WF.waterDrawY ? WF.waterDrawY(cgM[0], cgM[2]) : null;
+        if (hy == null && WF.waterDrawY) hy = WF.waterDrawY(camera.position.x, camera.position.z);
+        WATER.hullRender(THREE, renderer, scene, camera, Number.isFinite(hy) ? hy : null, craft, { hideMaterials: wDrops });
+      }
     }
     if (FR) FR.lap(FR.S.mirror);
     let framePresented = true;

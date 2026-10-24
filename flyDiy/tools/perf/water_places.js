@@ -8,6 +8,7 @@
 //   placeJS(kind, a, b) -> the aircraft held there, paused (frame_perf's place contract: returns JSON { at })
 //     coast:<d>:<agl>  d m from land (seaward of the dock), agl m over the water (agl <= 0.5: afloat at the rest height)
 //     lake:<agl>       on the lake point, agl m over its water
+//     open:<d>:<agl>   the outer coast's open sea (3 km+ from land), walked in to d m from land (d 0: the open point)
 'use strict';
 const FIND = `(() => {
   if (window.__WP) return 'have';
@@ -32,8 +33,16 @@ const FIND = `(() => {
     const n = nearLand(x, z, 400, (qx, qz) => w.terrainH(qx, qz) > y + 0.3);
     if (n && n.r >= 60) lake = { x, z, y, n };
   }
-  window.__WP = { nearLand, dock, seaward, lake, level, land };
-  return JSON.stringify({ dock: dock && { x: dock.x | 0, z: dock.z | 0, id: dock.id, shore: dock.n.r }, lake: lake && { x: lake.x | 0, z: lake.z | 0, y: +lake.y.toFixed(2), shore: lake.n.r } });
+  // (round 2) THE OUTER COAST: out from the island's middle along 16 headings until the nearest land is 3 km+ (the dock's sound is
+  // narrower than that: the 19 Oct study's '1000 / 1150 / 1300 m' all landed 750 m from land); towards(P, D): walk back toward land
+  // until it is D m away
+  let open = null;
+  for (let k = 0; k < 16 && !open; k++) { const a = k / 16 * Math.PI * 2, dx = Math.sin(a), dz = Math.cos(a);
+    for (let r = 2000; r <= 30000 && !open; r += 250) { const x = dx * r, z = dz * r; if (land(x, z)) continue;
+      const m = nearLand(x, z, 3100); if (!m) { const n = nearLand(x, z, 9000) || { r: 9000, dx: -dx, dz: -dz }; open = { x, z, n }; } } }
+  const towards = (P, D) => { let x = P.x, z = P.z, n = P.n; for (let i = 0; i < 600; i++) { const m = nearLand(x, z, Math.max(D + 400, 1600)); if (m) { n = m; if (m.r <= D) return { x, z, n, r: m.r }; } x += n.dx * 20; z += n.dz * 20; } return { x, z, n, r: NaN }; };
+  window.__WP = { nearLand, dock, seaward, lake, level, land, open, towards };
+  return JSON.stringify({ open: open && { x: open.x | 0, z: open.z | 0, shore: open.n.r }, dock: dock && { x: dock.x | 0, z: dock.z | 0, id: dock.id, shore: dock.n.r }, lake: lake && { x: lake.x | 0, z: lake.z | 0, y: +lake.y.toFixed(2), shore: lake.n.r } });
 })()`;
 
 // the CG's rest height over what it stands or floats on, read once at the roll-out (H0)
@@ -43,6 +52,7 @@ const REST = `(() => { if (window.__WP_H0 != null) return window.__WP_H0; const 
 
 function placeJS(kind, a, b) {
   const pick = kind === 'lake' ? `const P = __WP.lake; if (!P) throw new Error('no drawn lake found'); const lvl = P.y; const agl = ${+a || 0};`
+             : kind === 'open' ? `if (!__WP.open) throw new Error('no open sea found'); const P = ${+a || 0} > 0 ? __WP.towards(__WP.open, ${+a || 0}) : __WP.open; const lvl = __WP.level(P.x, P.z); const agl = ${+b || 0};`
                                : `const P = __WP.seaward(__WP.dock, ${+a || 300}); const lvl = __WP.level(P.x, P.z); const agl = ${+b || 0};`;
   return `(async () => { ${FIND}; const H0 = ${REST};
     ${pick}
