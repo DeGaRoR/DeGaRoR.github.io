@@ -2632,7 +2632,19 @@ const ECON_V = 1;
 //   loanTo       ...and pays the wallet back up to this (rounded up to `loanRound`)
 const ECON_BOOK = {
   ref: 'cub',
-  shells: { field: 1.8, club: 3.2, works: 5.4 },
+  // (G3359 ECON-APPLY, the user 23 Oct: "apply the economics table, keep demo time as it is for now"; ECON-SIM G3250 HANDOVER): the shells re-priced
+  // (field 1.8 -> 3.6, club 3.2 -> 5.6, works 5.4 -> 8.6 Cubs) - a side field shed at Tamgas Hill 44 960 -> 89 840
+  shells: { field: 3.6, club: 5.6, works: 8.6 },
+  // THE TABLE'S SINKS NOT YET BUILT INTO THE GAME (G3359: data only, read by nothing in play; tools/econ_sim.js plays them):
+  //   landmarks  the co-funding in Cubs; a keystone opens the next segment, the others are optional
+  //   rungs      the machine shop's rung of a segment, bought once it opens (its designs cannot be built before)
+  //   comps      competitions: entry in Cubs by segment, prizes x the entry for gold / silver / bronze
+  landmarks: [
+    { id: 'observatory', seg: 1, keystone: true,  cubs: 2.5 }, { id: 'mine-village', seg: 1, keystone: false, cubs: 1.5 },
+    { id: 'hydro',       seg: 2, keystone: true,  cubs: 6 },   { id: 'sky-tram',     seg: 2, keystone: false, cubs: 3 },
+    { id: 'long-runway', seg: 3, keystone: true,  cubs: 12 },  { id: 'community',    seg: 3, keystone: false, cubs: 5 } ],
+  rungs: { 2: { cubs: 0.25, words: 'Sheets and bolts' }, 3: { cubs: 2.5, words: 'Composite and electronics' } },
+  comps: { entry: { 1: 0.08, 2: 0.15, 3: 0.25 }, prizes: [3, 1.6, 0.8] },
   kits: { park: 0, bench: 0.05, wood: 0.16, metal: 0.24, store: 0.02, handling: 0.05,
           office: 0.1, comfort: 0.06, curio: 0, wip: 0 },
   makerMargin: 1.35,
@@ -2794,10 +2806,13 @@ function econLoanJob(doc, id) {
 // 15-25, 25-35, 20-40) are scaled by the measured contracts-per-leg ratio, 0.78 (the reference's 21-22 / 26-28 / 22-23
 // contracts at the airframe / hangar2 / arc before, 17-18 / 21-22 / 18-19 after); the first hangar is unchanged (it
 // is bought inside the arc-only opening, 8 contracts both ways).
+// (G3359 ECON-APPLY: the user's table re-priced the shells x2 - the reference career, measured on the applied tree on 24
+// Oct over the 8 seeds: hangar1 13-14, airframe 20-21, arc 21-22, hangar2 27-30; the bands re-derived around them, the
+// table speaking, not a regression. Before: hangar1 6-10, airframe 12-20, hangar2 20-27)
 const ECON_BANDS = {
-  hangar1:  [6, 10],     // the first side hangar
-  airframe: [12, 20],    // a C172-class airframe (CONTRACT_DESIGNS.c172, materialised in the main hangar)   (G2260: 15-25)
-  hangar2:  [20, 27],    // the second side hangar                                                         (G2260: 25-35)
+  hangar1:  [11, 16],    // the first side hangar
+  airframe: [16, 24],    // a C172-class airframe (CONTRACT_DESIGNS.c172, materialised in the main hangar)   (G2260: 15-25)
+  hangar2:  [24, 33],    // the second side hangar                                                         (G2260: 25-35)
   arc:      [16, 31],    // a full arc: the first provider whose whole arc is complete (its track at its last stage) (G2260: 20-40)
 };
 // THE REFERENCE CAREER the bands are measured on (econReference). Stated, so the numbers mean something:
@@ -5016,7 +5031,10 @@ const ROUTES_V = 1;
 // x (1 + the plane's payload / kgUnit) - a bigger plane earns more per trip, a faster one more trips a day: the route
 // rewards the design. The down payment is downTrips round trips' pay, paid on signing. turnS: the turnaround at the
 // ends, per round trip (§5.3 "plus a turnaround"). minKm: a route shorter than this pays as this.
-const ROUTES_PAY = { perKm: 100, kgUnit: 150, turnS: 1800, downTrips: 8, minKm: 1, round: 10 };
+// (G3359 ECON-APPLY, the user 23 Oct: "apply the economics table, keep demo time as it is for now"; ECON-SIM G3250 HANDOVER) perKm 100 -> 30, downTrips 8 -> 6,
+// and a TIMETABLE: at most dayTrips round trips a sim day (a round trip takes at least 86400 / dayTrips, the plane waiting
+// at its home end the rest) - waits no longer pay a fortune. The router's route share: 66 % -> 13 % (econ_sim, 20 seeds)
+const ROUTES_PAY = { perKm: 30, kgUnit: 150, turnS: 1800, downTrips: 6, dayTrips: 6, minKm: 1, round: 10 };
 const rtClone = o => JSON.parse(JSON.stringify(o));
 const rtNo = (doc, why, extra) => Object.assign({ ok: false, doc, why }, extra || {});
 const rtRound = v => Math.round(v / ROUTES_PAY.round) * ROUTES_PAY.round;
@@ -5047,9 +5065,11 @@ function routeDesignOf(doc, plane, o) {
 function routeTerms(km, D) {
   const P = ROUTES_PAY, seats = Math.max(1, D.seats | 0);
   const payloadKg = Math.max(0, seats - 1) * CONTRACT_FIT.occKg + (+D.bagKg || 0);
-  const tripS = Math.round(2 * km / D.cruiseKmh * 3600 + P.turnS);
+  // flyS: the round trip as flown (both legs + the turnarounds); tripS: as timetabled (G3359: at least a day / dayTrips)
+  const flyS = Math.round(2 * km / D.cruiseKmh * 3600 + P.turnS);
+  const tripS = P.dayTrips > 0 ? Math.max(flyS, Math.round(86400 / P.dayTrips)) : flyS;
   const pay = rtRound(2 * Math.max(P.minKm, km) * P.perKm * (1 + payloadKg / P.kgUnit));
-  return { km: Math.round(km * 100) / 100, cruiseKmh: Math.round(D.cruiseKmh), seats, payloadKg, tripS, pay, down: pay * P.downTrips };
+  return { km: Math.round(km * 100) / 100, cruiseKmh: Math.round(D.cruiseKmh), seats, payloadKg, flyS, tripS, pay, down: pay * P.downTrips };
 }
 // the end the plane comes back to: the end where a hangar of yours stands (b first, the story's HOME), else b
 function routeHomeOf(doc, a, b) {
@@ -5103,7 +5123,7 @@ function routeSign(doc, offer, plane, pilot, o) {
   c.routeN = (typeof c.routeN === 'number' && isFinite(c.routeN) ? c.routeN : c.routes.length) + 1;
   const route = { id: 'rt' + c.routeN, plane, pilot, a: offer.a, b: offer.b, home: offer.home || routeHomeOf(d, offer.a, offer.b),
                   signedAt: Math.round(now), trips: 0, settled: Math.round(now), km: offer.km, cruiseKmh: offer.cruiseKmh,
-                  tripS: offer.tripS, pay: offer.pay, down: offer.down, earned: offer.down };
+                  tripS: offer.tripS, flyS: offer.flyS > 0 ? offer.flyS : offer.tripS, pay: offer.pay, down: offer.down, earned: offer.down };
   c.routes.push(route);
   // the plane: on the route, standing nowhere of yours (its wear runs as outside: it flies)
   const e = d.fleet[plane];
@@ -5203,7 +5223,8 @@ function routesBlock(doc) {
 // WHERE THE PLANE IS ON ITS ROUTE at `now`: the cycle a -> b, the turnaround at b, b -> a, the turnaround at a (each
 // turnaround half of turnS) -> { leg: 'out' | 'atB' | 'back' | 'atA', f: 0..1 along a -> b }
 function routePos(r, now) {
-  const turn = ROUTES_PAY.turnS / 2, fly = Math.max(1, (r.tripS - ROUTES_PAY.turnS) / 2);
+  // (G3359: the legs take the FLOWN time; a timetabled trip's rest is spent at the home end, atA)
+  const turn = ROUTES_PAY.turnS / 2, fly = Math.max(1, (Math.min(r.tripS, r.flyS > 0 ? r.flyS : r.tripS) - ROUTES_PAY.turnS) / 2);
   const t = ((Math.max(0, (now == null ? r.settled : now) - r.signedAt) % r.tripS) + r.tripS) % r.tripS;
   if (t < fly) return { leg: 'out', f: t / fly };
   if (t < fly + turn) return { leg: 'atB', f: 1 };
@@ -5545,9 +5566,13 @@ const STORY_JOBS = ['clients.01', 'survey.01', 'resort.01'];
 // authored, never generated). PLACEHOLDERS until the user authors the two planes the story names (HANDOVER G2742): the
 // fabric 4-seater stands as the validated metal Cessna (meridian), the Jodel-class one as the validated Jodel (pinson);
 // the Cub is the story's own. `price` is the occasion's factor on the maker's catalogue (well under a used listing's).
+// (G3359 ECON-APPLY, the user 23 Oct: "apply the economics table, keep demo time as it is for now"; ECON-SIM G3250 HANDOVER): THE STORY'S MONEY. The story career
+// starts without careerNew's grant (STORY_GRANT 0: the Rufus, not 60 000) and T6 pays a commitment fee beside the route's
+// own down payment - the first real money, enough for any one of T7's occasions.
+const STORY_GRANT = 0, STORY_T6_FEE = 20000;
 const STORY_OCCASIONS = [
   { id: 'occ:fabric4', model: 'meridian', opts: { avionics: 'basic', finish: 'white', reg: 'N4OCC' }, hours: 2400, repair: 'skin',
-    seller: 'used.seller.3', aero: 'HOME', price: 0.30, placeholder: 'the fabric 4-seater (stands as the metal Cessna until authored)' },
+    seller: 'used.seller.3', aero: 'HOME', price: 0.35, placeholder: 'the fabric 4-seater (stands as the metal Cessna until authored)' },   // G3359: 0.30 -> 0.35, the table's
   { id: 'occ:jodel', model: 'pinson', opts: { engine: 'a65', finish: 'red', reg: 'N2OCC' }, hours: 1150, repair: 'none',
     seller: 'used.seller.0', aero: 'HOME', price: 0.35, placeholder: 'the Jodel-class one (stands as the validated Jodel until authored)' },
   { id: 'occ:cub', model: 'scout', opts: { engine: 'a65', avionics: 'minimal', finish: 'green', reg: 'N3OCC' }, hours: 1800, repair: 'gear',
@@ -5584,6 +5609,11 @@ function storyNewCareer(doc, o) {
   const r = storyStart(doc, slot);
   if (!r.ok) return r;
   const d = r.doc, s = storyNormalise(d.career.story), cabin = storySite('cabin', o.aeros);
+  // G3359: careerNew's grant is not the story career's - its ledger line goes and the wallet holds STORY_GRANT instead
+  if (d.mode === 'career' && typeof CAREER_GRANT === 'number' && Array.isArray(d.ledger)) {
+    const i = d.ledger.findIndex(e => e && e.k === 'grant' && e.amt === -CAREER_GRANT);
+    if (i >= 0) { d.ledger.splice(i, 1); d.wallet -= CAREER_GRANT; if (STORY_GRANT) playerCharge(d, -STORY_GRANT, 'grant', 'story'); }
+  }
   if (cabin && cabin !== 'HOME') {
     const C = storyCabinShed(cabin, d.clock);
     d.sheds[C.id] = C.shed;
@@ -5663,6 +5693,7 @@ function storyApply(doc, e, o) {
     const D = R.doc;
     Object.assign(offer, { route: R.route.id, down: R.route.down, pay: R.route.pay, tripS: R.route.tripS });
     s.offers = (s.offers || []).filter(x => x.k !== 'route').concat([offer]);
+    if (STORY_T6_FEE > 0) { playerCharge(D, -STORY_T6_FEE, 'story', 'T6:fee'); offer.fee = STORY_T6_FEE; }   // G3359: the commitment fee
     D.career.story = s;
     return { ok: true, doc: D, why: '', route: R.route, line: storyRouteLine(R.route, o.aeros) };
   } else if (e.k === 'occasions') {
