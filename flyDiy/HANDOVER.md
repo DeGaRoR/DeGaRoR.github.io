@@ -98120,7 +98120,7 @@ Strict light gate RED (11), all in the known classes:
 - metal chase flight 68.9 s vs 63.6 + 5.09 slack: 0.23 s over, the scripted flight's wall time. Named; re-read in L25a.
 Pushed with these, by the user's order of 25 Oct: land last week's items and priority 1 as soon as possible.
 
-## G3620-G3629 DMG-LOOKS - THE STUDY: A WRECK THAT LOOKS TORN, NOT TAKEN APART (2026-10-25, DMG-LOOKS for the DEFORM COORDINATOR + the user; a CLOUD desk study, no GPU, no src/ change; branch claude/dmg-looks-study off origin/master)
+## G3620-G3629 DMG-LOOKS - THE STUDY: A WRECK THAT LOOKS TORN, NOT TAKEN APART (2026-10-25, DMG-LOOKS for the DEFORM COORDINATOR + the user; a CLOUD desk study, no GPU, no src/ change; branch claude/dmg-looks-study off 2b381015 = train L24c (built))
 DMG-LOOKS: study at futureDesigns/DMG-LOOKS-STUDY-2026-10.md, for the Deform Coordinator + the user.
 - **The user's ask (25 Oct):** "The torn parts 'cut' too clean ... Structure should get bent elements, panels should tear irregularly, according to their materials, rupture points should be irregular and probably have a different texture ... And add the window damage texture to that."
 - **Why it looks cut (read in the code, §1).** There are three causes:
