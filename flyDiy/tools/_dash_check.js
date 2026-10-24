@@ -81,8 +81,16 @@ for (const b of BUILDS.slice(0, 2)) for (const st of [0, 1]) kids.push(new Promi
 check(CG2.cageFromSpec(null).dashStyle === 1, 'load: a new build (no file) gets the arch');
 for (const b of BUILDS) {
   const { spec } = SH.loadFixture(b);
-  check(spec.cage.dashStyle == null && CG2.cageFromSpec(spec).dashStyle === 0, 'load: ' + path.basename(b) + ' (saved before the row) keeps the box');
-  check(CG2.cageFromSpec(withStyle(spec, 1)).dashStyle === 1, 'load: a file carrying dashStyle 1 keeps the arch');
+  // G3451: every file saved before the switch takes the arch once, the dash it had kept as dashWas
+  { const L = CG2.cageFromSpec(spec);
+    check(spec.cage.dashStyle == null && L.dashStyle === 1 && L.dashWas === 0 && L.dashV === 1, 'load: ' + path.basename(b) + ' (saved before the row) takes the arch, was the box (G3451)', [L.dashStyle, L.dashWas, L.dashV]); }
+  { const L = CG2.cageFromSpec(withStyle(spec, 0));
+    check(L.dashStyle === 1 && L.dashWas === 0 && L.dashLegs === 1, 'load: a file carrying the box (dashStyle 0, no dashV) takes the arch (G3451)', [L.dashStyle, L.dashWas]); }
+  check(CG2.cageFromSpec(withStyle(spec, 1)).dashStyle === 1 && CG2.cageFromSpec(withStyle(spec, 1)).dashWas === 1, 'load: a file carrying dashStyle 1 keeps the arch');
+  { const s0 = withStyle(spec, 0); s0.cage.dashV = 1; const L = CG2.cageFromSpec(s0);
+    check(L.dashStyle === 0 && L.dashWas == null, 'load: a box picked after the switch (dashV 1) stands', [L.dashStyle, L.dashWas]); }
+  { const L = CG2.cageFromSpec(spec), L2 = CG2.cageFromSpec({ cage: CG2.cageToSpec(L) });
+    check(L2.dashStyle === 1 && L2.dashWas === 0 && L2.dashV === 1, 'load: the switch happens once - a save after it reloads the same (dashWas kept)'); }
 }
 {
   const birth = BJ.loadPanel().D.designBake(BJ.loadPanel().D.ARCHETYPES[0].sel, BJ.loadPanel().D.ARCHETYPES[0].over);

@@ -1894,7 +1894,8 @@ self.onmessage = function (e) {
     const pick = (o, ks) => { const r = {}; if (o && typeof o === 'object') for (const k of ks || []) if (o[k] !== undefined) r[k] = o[k]; return r; };
     const look = { paint: spec.paint || null, finish: spec.finish || null, meta: spec.meta || null, energy: pick(spec.energy, LK.energy),
                    vessels: spec.energy && Array.isArray(spec.energy.vessels) ? spec.energy.vessels.map(v => pick(v, LK.vessel)) : null,
-                   systems: pick(spec.systems, LK.systems), img: images ? hash(JSON.stringify(images)) : null };
+                   systems: pick(spec.systems, LK.systems), img: images ? hash(JSON.stringify(images)) : null,
+                   dash: spec.cage && typeof spec.cage === 'object' ? [spec.cage.dashStyle, spec.cage.dashLegs, spec.cage.dashV] : null };   // G3451: a look row (bench.js)
     return hash(['fleet', FLEET.V, COOK.V, BAKE.V, BAKE.S, BAKE.gutter, BAKE.glassK, BAKE.seam, JSON.stringify(CUT), JSON.stringify(WEAR), fp, canon(look)].join('|'));
   }
   const idbStore = {
