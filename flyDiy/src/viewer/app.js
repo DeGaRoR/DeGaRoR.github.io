@@ -17092,7 +17092,11 @@
     // since applyStand stopped forcing them on) that is three fewer dirty
     // BufferAttributes and two fewer draws every frame
     if (lines && (lines.visible || pts.visible || (proxy && proxy.mesh.visible))) sync();
-    if (floatMeshes.length) syncFloats();
+    // G3449 (FLOAT-DUP, the user 22 Oct: "it's not an elongated floats, it's a duplicate, untextured" - G451.1 item 94
+    // back): the PHYSICS hull is the flight's stand-in for a model without drawn float parts. In the shed the cage layer
+    // draws the floats, and floats added there then a spec update (a design tile, the float kit's pitch) rebuild the
+    // model without them - so the physics hull is never shown in the shed, and synced only in flight (GATE FLOATDUP)
+    if (floatMeshes.length) { const ph = !inGarage; for (const m of floatMeshes) m.visible = ph; if (ph) syncFloats(); }
     if (waterFx && !inGarage) syncWaterFx(running ? fdt : 0);   // (G586: the spray on the frame's own time)
     // THE INTERACTION FIELD (H7, G460.8): on while a floatplane is over water (the CG's water level finite),
     // stepped before the render with the CG as its centre; off (the slot cleared) otherwise
