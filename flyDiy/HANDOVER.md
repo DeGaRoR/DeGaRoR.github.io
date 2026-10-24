@@ -98119,3 +98119,40 @@ Strict light gate RED (11), all in the known classes:
 - cub garage fps 26.7: ONE 2167 ms frame in 160; the other 159 at 33 ms (the garage hitch class, L24b 27.0).
 - metal chase flight 68.9 s vs 63.6 + 5.09 slack: 0.23 s over, the scripted flight's wall time. Named; re-read in L25a.
 Pushed with these, by the user's order of 25 Oct: land last week's items and priority 1 as soon as possible.
+
+## G3630-G3639 - HANGAR-VIEW: THE VIEW OUT OF THE GARAGE DOOR IS THE WORLD (2026-10-25, for A0, local GPU; branch claude/hangar-view-g3630 off master 2b381015d; design D:/Dev/flydiy-notes/HANGAR-VIEW-DESIGN-2026-10.md)
+The user, 25 Oct: "making sure the outside view in the hangar matches the scenery. An idea would be to generate our own HDRI from the game. Or to build a simplified scene in front, but accurate."
+- THE PICK (A0 approved, 25 Oct): (a2), the WORLD captured at runtime with its depth. Not a cooked HDRI (8 plots x 6 moods ~72 MB, a GPU cook a train, stale on every scenery edit, no weather), and not a stand-in drawn every frame (a world frame inside the garage). The boot already builds and settles the world round the stand with the shed on screen ('frames', worldWarmDraw), so the real world is in the renderer before the reveal.
+- src/viewer/hangar_view.js (new, after hangar.js in the manifest):
+  - Six faces are rendered from the room's centre (shed frame [0, 2, 0], through the world's own shed node; the node is hidden for the draw): the world's dome, its clouds (CLOUDS.draw, as the mirror) and its scene.
+  - The capture target is display-space like aa_resolve's (isXRRenderTarget, sRGB): the door shows the world camera's pixels.
+  - The colour goes to a 3x2 RGBA8 atlas (N a face); the distance is resolved from the depth texture (reversed float or log) into a 3x2 half-float atlas (160 a face).
+  - In the room: a sphere mesh (256 x 192, its rows crowding the horizon), each vertex placed at the captured distance by a vertex fetch (NO readback anywhere). A triangle across a depth jump (fwidth(log D) > 0.5) is discarded, and a far shell shows through.
+  - Both are backdrops: no depth test or write, renderOrder -1001 / -1000, z pinned inside the clip.
+- app.js (the G3630 block after getHangar):
+  - The boot captures after the warm draw and the stand's grass (hviewBoot: a face a task, then compileSliced links the view's two programs before the reveal).
+  - A return from a flight wants a new view when the key moved (room, shed pose, the WORLD's sun bucket, cover, size) AND the flight ended within 3 km of the stand. It is deferred: 45 shed frames, then a face a frame into staging, swapped in whole.
+  - The capture runs inside craftInWorldNow with the craft's meshes hidden, so its LIGHTS stay in the world and the world's programs keep their key (no links).
+  - When the view lands, the room's probe is re-shot (bakeHangarEnvSliced).
+  - Sizes: laptop / potato / retro 768, current / gamer 1024, ultra 1536, none on a software renderer. ?hview=0 turns it off; ?hviewn=N is the rig's size A/B; FLYDIY_HVIEW is the rigs' handle (stats, capture, show, eye, flyFov).
+- hangar.js (outside HANGARS-LOOK's four blocks):
+  - OUT_N0 / OUT_SET mark the outdoors' span (field, strip, slab, kerbs, tufts, furniture); 'room:polish' stays.
+  - outdoorsShow(on) hides them and the sky sphere (applyMutes respects viewOut).
+  - mergeRoom bins the outdoors apart and tags what it makes of them (userData.outdoor): a few more merged meshes when a material is shared in and out.
+- render_world.js: WF.exposureNow (LE.ex) - the capture is lit with the world's eased exposure x the menu's step.
+- GATE HANGARVIEW (tools/_hangarview_check.js, core):
+  - the capture cameras and the lookup are one convention (4000 directions, a turned shed);
+  - the distance resolve inverts three's reversed depth and the log buffer;
+  - the boot / return / lights / outdoors / manifest / exposure / tier seams;
+  - no readback.
+- Rig: tools/perf/hangar_view_shot.js (per room, inside with the view | the world camera at the same eye | inside with ?hview=0).
+- WATCH FOR:
+  - garage_draws / ROOMMERGE: the merge's mesh count (the outdoor bins), and +2 draws (the far shell and the near mesh);
+  - FRAMECOST: no change in node (the harness never captures: no compileAsync);
+  - the cold / warm "navigation -> garage" rows: the boot's 6 faces;
+  - "world -> garage": nothing on the screen's clock (the recapture is deferred into the shed's frames), but those 6 frames each carry a face;
+  - HWCOV's garage-link rows: 4 new programs (near, far, blit, distance), linked under the boot's screen.
+- KNOWN:
+  - the world is not updated in the shed, so a view captured after hours in the shed shows the world's last light;
+  - a room switch in the shed (no flight) keeps its own outdoors until a return;
+  - parallax is exact from the room's centre and approximate as the orbit moves (the far shell fills the sheets).

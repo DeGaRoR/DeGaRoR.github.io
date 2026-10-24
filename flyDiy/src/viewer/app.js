@@ -1289,6 +1289,8 @@
   const hviewOff = () => { try { return /[?&]hview=0\b/.test(location.search || ''); } catch (e) { return false; } };
   function hviewSize() {
     const G = window.GFX; if (G && G.soft && G.soft()) return 0;
+    let q = null; try { q = /[?&]hviewn=(\d+)/.exec(location.search || ''); } catch (e) {}   // (the proof rig's resolution A/B)
+    if (q && +q[1] >= 128) return +q[1];
     const b = G && G.budget ? G.budget() : null;
     return (b && HVIEW_N[b.preset]) || 1024;
   }
@@ -1384,7 +1386,13 @@
   }
   if (typeof window !== 'undefined') window.FLYDIY_HVIEW = { stats: () => hview ? Object.assign(hview.stats(), { key: hviewKey, room: hviewFor, want: hviewWant }) : null,
     capture: () => { hviewWant = hviewKeyNow(hviewNode()); for (let i = 0; i < 6; i++) if (hviewCapture([i])) break; return hview ? hview.stats() : null; },
-    show: v => { if (hview) hview.on(v); if (hangar && hangar.outdoorsShow) hangar.outdoorsShow(!(v !== false && hview && hview.ready)); return !!(hview && hview.ready); } };
+    show: v => { if (hview) hview.on(v); if (hangar && hangar.outdoorsShow) hangar.outdoorsShow(!(v !== false && hview && hview.ready)); return !!(hview && hview.ready); },
+    // (the proof rig, tools/perf/hangar_view_shot.js) the shed's eye and its target in the world: the room's frame through
+    // the world's shed node - the world camera put there (FLYDIY_PREM_EYE + fov) shows what the door should
+    eye: () => { const n = hviewNode(); if (!n || !hangar) return null; hangar.group.updateMatrixWorld(true); n.updateMatrixWorld(true);
+      const inv = new THREE.Matrix4().copy(hangar.group.matrixWorld).invert(), W = p => new THREE.Vector3().fromArray(p).applyMatrix4(inv).applyMatrix4(n.matrixWorld).toArray();
+      const e = camera.position.toArray(), t = target.toArray(); return { room: hangarRoom, eye: e, target: t, fov: camera.fov, worldEye: W(e), worldTarget: W(t) }; },
+    flyFov: v => { cam.fov = +v; flApplyFov(); return camera.fov; } };
 
   // A NEW SIZE IS A NEW ROOM. genHangarBuild builds a whole shed from nothing,
   // so changing a dimension means throwing the old one away and asking again —
