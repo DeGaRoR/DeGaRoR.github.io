@@ -422,6 +422,11 @@ function session(script) {
     '  app.js: begin after the frame clock says the frame is ours, end before PACE.end, end(false) on the boot\'s hold');
   verdict(/if \(holdRender\) \{ if \(FR\) FR\.end\(false, cg\); POSE_LERP\.back\(\); PACE\.end\([^;]*, true\);/.test(loop) && /function end\(workMs, physMs, steps, now, ran, held\) \{\s+if \(P\.legacy \|\| held\) return;/.test(app),
     '  app.js: a held frame (holdRender) reports itself to PACE.end flagged held, and the pace counts nothing of it (REVEAL)');
+  // GARAGE-LINK (A0 24 Oct; HWCOV): the session header asks the GL nothing - the GPU's name is asked once, when the context is
+  // wrapped (a getParameter is a call the page waits on: one header() held the garage boot's end 2.2 s, the GPU linking)
+  { const fr = rd('src/viewer/flight_recorder.js'), hd = (fr.match(/function header\(\) \{[\s\S]*?\n    \}\n/) || [''])[0], wg = (fr.match(/function wrapGL\(gl\) \{[\s\S]*?\n    \}\n/) || [''])[0];
+    verdict(hd.length > 0 && !/getParameter|getExtension/.test(hd) && /H\.gpu = Object\.assign\(\{\}, rec\.gpuInfo\)/.test(hd) && /rec\.gpuInfo = \{ vendor: gl\.getParameter\(gl\.VENDOR\)/.test(wg),
+      '  flight_recorder: header() makes no GL call (the GPU named once in wrapGL, rec.gpuInfo) - GARAGE-LINK'); }
   // GATE-SCREEN (A0 22 Oct): what a loading screen holds after the reveal is the screen's - the rig splits its frames and tasks by
   // the spans BOOT.state was not 'gone' (bootSpans), and the ratchet holds them on their own rows
   { const RT = require('./rollout_ratchet.js'), rp = rd('tools/rollout_perf.js');
