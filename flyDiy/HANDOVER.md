@@ -98030,3 +98030,45 @@ Rolling set (1): cabin-lamp ad3165a48 (GAME G3353-G3355 + RUFUS-CERT G3449 claud
 - Gates (Game 09:05, the gated tree + a STORY-only gate-file fix re-gated): HANGAR GAMEPREM PREMISES STORAGE SITE TAXICLEAR x4 UISMOKE LIGHT BEACON BAY ACCEPT STARTER SAVE STORY PASS.
 Battery: master's standing reds only (CLOCK 1/777, CLOUD 1/239, KTX2 the characters' budget, FRAMECOST restore row).
 Strict light gate RED (6), the known classes: cub chase tasks1s 0 -> 2 / taskWorst 1922, cub cockpit taskWorst 2189 (the boot ~1 s task class, judged against 1 s as ruled); cub chase compile 5924 / metal chase compile 5560 (the same compile spread L22a showed at 5814; the reports' boot compile steps are unchanged - 1311 / 1701 ms, 377 / 378 programs vs L22d's 1058 / 1652, 383 / 378: the lamp adds no program); floats water taxi @SEA p99 66.6 (= master's own N23 overnight value, before this branch).
+
+## G3550 CERT-REVIEW - REVIEW READY, AWAITING THE USER'S RULE (24 Oct 2026, CLOUD for A0; branch claude/cert-review off master 20a13667 = L23b; G3550-G3559; target T-P1 Tue 27 Oct)
+The user, 24 Oct: "an independent review of the certification mechanism ... a certified plane remains certified in most
+conditions, based on reality ... almost every flight re-certifies ... I don't trust that system."
+THE REVIEW: futureDesigns/CERT-REVIEW-2026-10.md (file:line for every create / check / withdraw / re-award, every
+trigger with its frequency, the real-world rule, the proposed rule R1-R6 + migration M1-M4, the static-margin decision,
+the player's one line, six questions for the user). NOTHING IN THE GAME CHANGED: the doc, this entry and an evidence
+script only. PHASE 2 waits for flyDiy/futureDesigns/CERT-REVIEW-OK.md on this branch.
+FINDINGS (measured in node through the page's own editor layers - tools/_load_build.js's child chain, bench.js's own hash):
+- FOUR stamps, not one: the bench certificate (A), the structural certificate (B, 66_gen_cert - re-computes silently on a
+  physics change: the model to copy), the career's factory certificate (C, 76_procure procureFp - its own fingerprint and
+  version tag), the acceptance legs / logbook rows (D, 72_accept - expire on any fp change).
+- WITHDRAWN WITH NO CHANGE TO THE AEROPLANE (A, and D with it): every PHYSICS_V / GEN_SPEC_V bump (6 in 31 days; bumps 5
+  and 6 say the plaque's numbers do not move); a passenger aboard (the occupancy rows come back through cabin.occupied /
+  pax in the join's export: Cub 11419de2 -> ac258478); a different pilot or the crew hidden (pilotWho / crewOn - and the
+  energy layer re-shapes the Cub's nose tank 27 -> 24 / 37 L with them); a GPS fitted (systems.*). Repaint, light switches:
+  kept.
+- THE CESSNA FLOATPLANE'S FINGERPRINT MOVES DURING ITS OWN LOAD (gear.floats.x 1.2923 -> 1.2272 over the CG handshake:
+  0eed4c37 -> 3a55b61f -> 486838d7); Cub / Jodel / metal Cessna / Rufus steady. Page: see PAGE line below.
+- withdraw() drops the result's fp and numbers (bench.js:800-806): undoing an edit cannot restore a certificate.
+- "Every flight re-certifies": after any withdrawal the next unarmed arrival re-awards the test flight with its card
+  (bench.js:1164-1174) while the roundel stays off (shake + load stay struck).
+- DAMAGE NEVER TOUCHES A CERTIFICATE (only an armed test flight that ends damaged fails); the free repair neither.
+- C: a save after a physics bump makes a factory airframe MODIFIED and bills it (procureFp's tag 76_procure:401); and
+  PROCURE_STATE_ROWS lacks G3449's light-switch rows - the cabin flood on + a save = MODIFIED.
+- Static margin, the validated planes (worst corner): Cub 0.027, Jodel 0.030 (0.049 as drawn), metal 0.152, floats 0.232,
+  Rufus 0.165. Proposed: one band set everywhere (red < 0, orange 0-0.05 or > 0.40, green); the bench's warn 0.02 -> 0.05
+  at the worst corner (FAIL stays < 0: no certificate changes; the Cub and the Jodel gain an orange pointer), the
+  indicator and the plaque as loaded - RUFUS's T-P1 line stays as it is.
+- CERT-SLIM G2840 (read critically): a presentation change (fiche, one test); it touched no withdrawal trigger. Its fiche
+  is worth taking AFTER the rule.
+- On master only the Rufus carries a bench certificate of the validated planes, and it loads WITHDRAWN (p4 stamp; the
+  re-stamp waits on claude/ready/rufus-plaque). Under the proposed M1 the master file's p4 stamp itself would load held.
+EVIDENCE: tools/evidence/CERT-REVIEW.js (headless Chromium on dev.html: the live BENCH_FP() over a load, then a
+certificate stamped on the settled fp re-loaded through the slot door, then the Rufus file's own plaque).
+PAGE (the script, run here under SwiftShader, 24 Oct ~23:15): floats - the load door's BENCH_FP() ba141769 -> 040bab61 with no
+input, and a certificate stamped on the settled 040bab61 is WITHDRAWN at the slot door's reload ("the build or its physics
+changed since the certificate"); Cub 7072b5e6 steady, kept; Rufus master file a77a11c0 steady, its own p4 stamp 5a8b130e
+WITHDRAWN - and a77a11c0 IS the stamp on claude/ready/rufus-plaque fe8435ba: that re-stamp loads held on master.
+A0: `node tools/evidence/CERT-REVIEW.js --only floats,cub,metal,jodel` re-runs it (~8 min a build on SwiftShader).
+NEXT (Phase 2, after CERT-REVIEW-OK.md): the rule as the user rules it; gates BENCH DESIGNCHECK ACCEPT PROCURE STORY
+CONTRACTS DMGCERT DMGINSTRUMENTS POD CARDS SPECFIX SHEETWORKER + new BENCH rows (the stamps kept, the floats steady).
