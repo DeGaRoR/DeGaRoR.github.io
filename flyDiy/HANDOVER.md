@@ -98107,3 +98107,15 @@ The user's rulings: drop the coastal band and the transparency; give the aircraf
   - Cost: about +1 ms where the ring is on (its sky in the capture).
   - The probe path to one sky is CLOSED (21 Oct debug: the probe's clouds are too faint against its sky).
   - Next step when resumed: rebase onto master, exclude lakes, GATE WATER, then the coast/sea stills for the user.
+
+## A0 - landing L24c (25 Oct 2026, gates 23:50-01:01, pushed ~01:20): TIM ON TOP, THE STORY CARD OFF, THE FLOOD ON, THE ECONOMY, NAMES + TECH MASK, DOUBLE FLOATS, REFLECTIONS + SPRAY, THE STREET SIDES, THE PA-18 ON FLOATS, RUFUS RE-STAMPED
+L24b again without ready/lot-clear: lot-clear's gravel stand made CONTACT G1542's dead-end assumption stale. ED-2 fixed the row on claude/lot-clear 54d63446b; it re-gates Sun 01:45 and rides L25a.
+Rolling set: bench-phases, bench-tim, econ-apply, float-dup, garage-flood, names, pa18-floats, rufus-plaque, story-tim, story-ui, tech-mask, town-road-sides, water-reflections, water-spray.
+Battery: master's standing reds only - CLOCK (1 of 777), CLOUD (the lamp-pool row), FRAMECOST (the cessna boot/restore updateMatrixWorld counter), KTX2 row 10 (the characters' budget).
+Strict light gate RED (11), all in the known classes:
+- tasks1s / taskWorst: the boot ~1 s task class, judged against 1 s as ruled. Rows: cub chase tasks1s 2, cub cockpit tasks1s 4 / taskWorst 1891, metal chase tasks1s 3, metal cockpit tasks1s 3.
+- compile: cub chase 6785, metal chase 8522, metal cockpit 7733. The same spread L22a / L23b pushed with (5814 / 5924 / 5560); this run's own bench flags a shader-cache MISS (1 link > 5 s, 7.8 s).
+- floats world -> garage 2.99 s: the garage boot shader link (HWCOV's G1 slot, Sun 01:45, names and fixes it).
+- cub garage fps 26.7: ONE 2167 ms frame in 160; the other 159 at 33 ms (the garage hitch class, L24b 27.0).
+- metal chase flight 68.9 s vs 63.6 + 5.09 slack: 0.23 s over, the scripted flight's wall time. Named; re-read in L25a.
+Pushed with these, by the user's order of 25 Oct: land last week's items and priority 1 as soon as possible.
