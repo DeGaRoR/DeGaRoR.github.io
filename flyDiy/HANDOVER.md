@@ -98159,3 +98159,11 @@ The playtest ledger of 24 Oct (flydiy-notes/PLAYTEST-2026-10-24.md), items 1-7, 
 - Item 6 (Rufus pre-certified): L24c re-stamped Rufus. The page run reads BENCH_STATE().passed on the stand before the first roll-out. CERT-REVIEW owns the rest.
 - GATE STORY: PASS (+ --selftest PASS), a new section "Tim, the tutorial" (+55 rows): the steps and their predicates / controls, the tick, the final's pose, N47RF, the page's T0 > T1 > T2 run with the guard probed, the source rows (the guard, Roll out, the line, the floor, the clouds, the skip). Two rows moved: the client's Cub is parked outside at HOME.
 - The rig: claude/story-smoke 0f63d2c8d (story_smoke.js) plays the tutor with REAL clicks (CDP mouse events through the guard), then the skip onto the final and the landing, the arrival, the swap.
+- **The user's answers (25 Oct, via A0 / GAME), and what changed:**
+  - **G3585 the Cub, visibly outside.** The user: "the garage shows the plane you came with, the client's Cub is already waiting outside, Tim explains how you swap them in the garage."
+    - The fleet's prop bake runs in the garage only (parked.js), so a Cub placed at the landing could never show on arrival.
+    - The Cub is now put on HOME's apron as soon as the starter stands (storyFlush, T0 / T1): bound as the client's, its airframes row written before the lift, nothing said of it yet.
+    - While it waits, fleetCtx's drawn set is HOME's apron (`storyFleetFrom`), so its bake is wanted in the cabin's garage and the T1 roll-out stands it at HOME. T2's effect finds it there.
+    - The cost: one more garage bake at T0, one more parked prop during T1. During T0 / T1, Rufus's own apron prop is not baked (it is the flown one).
+  - **G3589 the loading tips off.** The user: "can go for now, we'll redo that properly at some point." boot.js keeps #bootCard hidden unless window.FLYDIY_BOOT_TIPS === true; the pictures still turn. GATE BOOT +1 row; its carousel rows run with the flag.
+  - The shared card drag (GAME-MENUS' FLYDIY_DRAG, card_drag.js) picks up #stTim and #arrCard by itself. The band writes only its own state classes, and the tutor's guard lets a `.cdHandle` take its pointerdown and dblclick (never a click, nor a control in it).
