@@ -8811,8 +8811,18 @@
     const s = stLive();
     if (!s) return;
     const starter = s.planes.starter && !stHasSlot(s.planes.starter) ? s.planes.starter : null;
+    // G3585 (the user 25 Oct: "the client's Cub is already waiting outside"): the Cub is put on HOME's apron as soon as the
+    // starter stands (T0 / T1), quietly - so the fleet's bake (garage-only) has the cabin's minutes to make its prop, and
+    // the T1 roll-out stands it at HOME (storyFleetFrom): it waits there, visible, when Rufus arrives. T2's own effect
+    // then finds it here already
+    if (!starter && !s.planes.client && (s.beat === 'T0' || s.beat === 'T1') && !stQueue.some(q => q.k === 'clientPlane'))
+      stQueue.push({ k: 'clientPlane', at: 'home', beat: 'T2', early: true });
     const e = stQueue[0];
     if (!starter && !e) return;
+    // (T2's effect on a Cub that already waits: nothing to fetch or write)
+    if (!starter && e.k === 'clientPlane' && !e.early && s.planes.client && stHasSlot(s.planes.client) && playerLoad().fleet[s.planes.client]) {
+      stQueue.shift(); storyFlush(); return;
+    }
     stBusy = true;
     const role = starter ? 'starter' : 'client';
     storyFile(role).then(file => {
@@ -8829,8 +8839,10 @@
         const spec = storyClientSpec(file.spec);
         prefSet('flydiy.build.' + slot, JSON.stringify(stEnvelope(slot, { v: file.v, spec, plaque: null, log: null })));
         const a = storyApply(playerLoad(), e, { slot });
-        if (a.ok) { player = playerFleetReconcile(a.doc, playerSlotNames()).doc; playerSave(); if (a.line) stLine = a.line; }
+        if (a.ok) { player = playerFleetReconcile(a.doc, playerSlotNames()).doc; playerSave(); if (a.line && !e.early) stLine = a.line; }
         storyEvent({ k: 'bind', role: 'client', slot, spec });
+        // (its apron prop: the fleet's bake runs in the garage's quiet; the drawn set is HOME's while it waits)
+        try { if (window.PARKED && window.PARKED.fleetQueue) window.PARKED.fleetQueue(slot); } catch (err) {}
       }
       try { if (window.GARAGE_SPEC && window.GARAGE_SPEC.syncShelf) window.GARAGE_SPEC.syncShelf(); } catch (err) {}
       try { if (window.FLYDIY_PLAYER && window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); } catch (err) {}
@@ -9432,6 +9444,9 @@
     if (flying) { const b = document.getElementById('bHangar2'); if (b && b.onclick) b.onclick(); }
     return { ok: true, why: '', here: d.here, where: d.fleet[slot] ? playerWhere(d, slot) : null };
   }
+  // G3585: while the client's Cub waits at HOME (T0 / T1), the fleet's drawn set is HOME's apron (the roll-out stands it
+  // there, and its bake is wanted) -> the aerodrome, or null (the fleet's own rule)
+  function storyFleetFrom() { const s = stLive(); return s && !s.open && (s.beat === 'T0' || s.beat === 'T1') && s.planes.client ? storySite('home', world.aerodromes) : null; }
   // G3583: the roll-out button says just "Roll out" for the story's starter while the rails run
   function storyRollPlain() { const s = stLive(); return !!(s && !s.open && s.planes.starter && slotOnStand() === s.planes.starter); }
   // the pill at the bottom edge (the garage's look, never centred): T1 only, in the shed, on the stand and in flight
@@ -12177,7 +12192,7 @@
       return playerResidentsShown(d, id, null, ((S && isFinite(S.parked)) ? S.parked : 2) + 1);
     } catch (e) { return []; }
   };
-  const fleetCtx = () => { const d = playerLoad(); return { world, doc: d, flown: slotOnStand(), from: inGarage ? rollFromId() : fromId,
+  const fleetCtx = () => { const d = playerLoad(); return { world, doc: d, flown: slotOnStand(), from: (CAREER_DEV && STORY_PAGE && storyFleetFrom()) || (inGarage ? rollFromId() : fromId),   // (G3585: the Cub waiting at HOME)
                             cap: window.PARKED && PARKED.fleetCap ? PARKED.fleetCap() : 6, inside: fleetInside(d) }; };
   const FS_ON = () => { const F = window.FLEET_STAND; if (!F) return false; F.setCtx(fleetCtx); return F.on(); };
   const fleetStandKey = () => { if (!FS_ON()) return ''; try { return '|fleet ' + FLEET_STAND.key(fleetCtx()); } catch (e) { return '|fleet ?'; } };

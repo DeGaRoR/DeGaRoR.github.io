@@ -335,7 +335,16 @@ async function pageRun() {
   const starterFile = M.STORY_FILES.starter.find(f => fs.existsSync(path.join(ROOT, f)));
   ok(prefs.has('flydiy.build.Rufus') && d.fleet.Rufus && d.fleet.Rufus.aero === 'w9' && d.fleet.Rufus.hangar === 'w9' && M.storyOf(d).planes.starter === 'Rufus',
      'the starter: the first file found (builds/ first) written as the slot "Rufus", standing in the cabin\'s shed', starterFile + ' -> ' + JSON.stringify(d.fleet.Rufus));
-  ok(P.fetched[0] && P.fetched[0].startsWith('builds/') && P.fetched.slice(-1)[0] === starterFile, 'builds/ is asked before the archived candidate', P.fetched.join(' > '));
+  const fetchedS = P.fetched.filter(u => !M.STORY_FILES.client.includes(u));
+  ok(fetchedS[0] && fetchedS[0].startsWith('builds/') && fetchedS.slice(-1)[0] === starterFile, 'builds/ is asked before the archived candidate', P.fetched.join(' > '));
+  // G3585 (the user 25 Oct: "the client's Cub is already waiting outside"): put on HOME's apron as soon as the starter
+  // stands, bound as the client's, quietly (no line for Tim at T0)
+  { const cl = M.storyOf(d).planes.client;
+    ok(cl && prefs.has('flydiy.build.' + cl) && M.playerStoreWhere(d, cl).kind === 'outside' && M.playerStoreWhere(d, cl).aero === 'HOME' && d.career.airframes[cl] && d.career.airframes[cl].owner === 'client' &&
+       M.storyOf(d).beat === 'T0' && !half.line() && M.storyOf(d).base.client && M.storyOf(d).base.client.paint.job === 'bare',
+       "T0: the client's Cub already waits outside at HOME (bound, its arrival spec kept, the client's row written before the lift), and nothing is said of it yet", cl + ' ' + JSON.stringify(cl ? M.playerStoreWhere(d, cl) : null)); }
+  ok(/from: \(CAREER_DEV && STORY_PAGE && storyFleetFrom\(\)\) \|\| \(inGarage \? rollFromId\(\) : fromId\)/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8')),
+     "while it waits (T0 / T1) the fleet's drawn set is HOME's apron: the Cub's prop baked in the cabin's garage, stood at HOME by the roll-out");
   ok(H.window.FLYDIY_STORY.mask() === 'finish' && H.window.FLYDIY_STORY.jobsOpen() === false, "window.FLYDIY_STORY: the tech mask's tutorial mode ('finish' at T0), the job list held");
   // ---- the beat card
   let el = half.el();

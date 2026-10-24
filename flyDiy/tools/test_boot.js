@@ -193,6 +193,13 @@ const KINDS = ['now', 'island', 'game', 'fly', 'garage'];
   if (kinds.some(n => n < 4)) fail('each kind wants 4+ cards: ' + KINDS.map((k, i) => k + ' ' + kinds[i]).join(', '));
   ok(CARDS.length + ' cards well-formed (' + KINDS.map((k, i) => k + ' ' + kinds[i]).join(', ') + ')');
 }
+// ---- G3589: the tips are off (the user, 25 Oct: "The loading screen tips can go for now"): the deck turns, the card hidden
+sandbox.localStorage._m.clear();
+B.show('garage', { deck: 'garage' });
+if (!els.bootCard.hidden) fail('the loading tips show (G3589: off unless a page sets FLYDIY_BOOT_TIPS)');
+B.hide();
+ok('the loading tips are off by default: the card stays hidden while the deck turns (G3589)');
+sandbox.FLYDIY_BOOT_TIPS = true;    // the carousel itself, kept for when the tips are redone
 // ---- 9: the deck ----------------------------------------------------------
 sandbox.localStorage._m.clear();
 B.show('garage', { deck: 'garage' });
