@@ -355,7 +355,7 @@ const POST_FX = (() => {
     const w = rt.width, h = rt.height;
     if (sized.w === w && sized.h === h) return;
     sized = { w, h };
-    for (const k in T) if (k !== 'eye' && k.slice(0, 3) !== 'cat') { T[k].dispose(); delete T[k]; }
+    for (const k in T) if (k.slice(0, 3) !== 'eye' && k.slice(0, 3) !== 'cat') { T[k].dispose(); delete T[k]; }
     // the bloom pyramid: 1/2 .. 1/32
     let bw = w >> 1, bh = h >> 1;
     for (let i = 0; i < 5; i++) { T['b' + i] = target(bw, bh, true); T['u' + i] = target(bw, bh, true); bw = Math.max(1, bw >> 1); bh = Math.max(1, bh >> 1); }

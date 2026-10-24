@@ -194,9 +194,9 @@ const checks = {
     build.indexOf("'aa_resolve.js'") > 0 &&
     build.indexOf("'aa_resolve.js'") < build.indexOf("'app.js'"),
   'app.js routes the one default-framebuffer render through the pass':
-    /aa\.render\(inGarage \? garageScene\(\) : scene, camera\)/.test(app),
+    /aa\.render\(inGarage (?:&& !introAt )?\? garageScene\(\) : scene, camera\)/.test(app),
   'app.js keeps the un-passed render as the fallback':
-    /else renderer\.render\(inGarage \? garageScene\(\) : scene, camera\)/.test(app),
+    /else renderer\.render\(inGarage (?:&& !introAt )?\? garageScene\(\) : scene, camera\)/.test(app),
   'the pass sizes off the drawing buffer, not CSS pixels':
     /getDrawingBufferSize/.test(app),
   'the flight camera flyout offers the tier (one fact, two readers)':
