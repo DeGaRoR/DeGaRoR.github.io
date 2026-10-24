@@ -99011,3 +99011,12 @@ Strict light gate RED both runs (13 / 16) vs the 12 Oct baseline; judged against
 - OPEN: floats water taxi @SEA p99 66.7 ms / over100 2 - re-run only (also L25a); suspect dmg-scar2-occupant's per-step record. A0 bisects it alone in tonight's 23:15 CPU+GPU slot; the owner fixes if it reproduces.
 - OPEN (Pilot): Rufus mine CALM still open: twice round, high 7-8 m at 58 m, divert; cause = the 1.4/LDbest slope cap needs a slip Rufus's aileron can't hold.
 Pushed by the user's order of 25 Oct: land last week's items and priority 1 as soon as possible.
+
+## G3540 - WHEELS-SPIN: A DRAWN WHEEL ROLLS ONLY ON THE GROUND, THEN RUNS DOWN (2026-10-25, AIRCRAFT-LOOKS, LOCAL; for T-P1 / L25c; claude/ready/wheels-spin)
+Why: the user's playtest 24 Oct, item 30 ("wheels keep turning the whole flight"). app.js poseModel turned each drawn wheel by its axle node's motion along body-x over R, every frame, with no ground test - in the air it spun at the flying speed.
+What changed (src/viewer/app.js only, drawing only - the solver's contact and every spec key untouched):
+- poseModel's wheel loop asks `wheelOn(w)`: the solver's own sim.wheelContacts() by node (refs.mains in order, refs.tw); on the water (floats are the contacts there) or for a wheel it does not list, the same law in the page - the axle node's height over groundH less R under 6 cm.
+- On the ground: the old roll (rotation.z -= mx / R) and the rate kept, w.om (rad/s, low-passed 0.5, capped at WHEEL_OM_MAX 90 m/s at the rim so a placement's jump is no roll).
+- Lifted: the rate runs down, |om| * exp(-dt / WHEEL_SPIN_TAU 3 s) - WHEEL_SPIN_BRAKE 8 rad/s^2 * dt, to zero (~5 s from a 25 m/s lift-off); a paused world holds it (`running`, as the prop).
+- Generated builds draw their wheels in the skin and never spun (63_gen_wing.js: "nothing spins the wheel"); unchanged. The roll-out shot (rollanim.js) turns the wheels itself; unchanged.
+Gates: SKIN SKINMAT CONTACT DMGSKINGPU LIGHT POSEHIDDEN ROLLANIM SIMWORKER UISMOKE AUDIO (every gate that reads poseModel / the wheel rows; none scans the changed line). Flown check: the Cub rolled out, the drawn wheels' angle sampled after the last contact (rig: the session's scratchpad, steps_wheels.js).
