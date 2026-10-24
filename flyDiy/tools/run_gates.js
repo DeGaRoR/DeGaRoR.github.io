@@ -619,6 +619,9 @@ const GATES = [
   // fingerprint ignores paint/finish/meta and nothing else) and wears its
   // stickers (one roundel per test, page 6, the seventh decal slot).
   { id: 'BENCH', file: '_bench_check.js', tier: 'core', wall: 90 },
+  // G3450 P1 CG-COLOURS: the garage's CG / neutral-point indicators wear one band (red / orange / green from
+  // genMarginBand, 0 / 5 % / 40 %), '!' on red and orange, a tooltip with the reasons on a hover and a tap.
+  { id: 'CGBAND', file: '_cgband_check.js', tier: 'core', wall: 30 },
   // G810 (ARCH-2026-09-27 §2.4): the solver on its own thread - src/viewer/sim_host.js in a worker_threads Worker
   // (the core only, the trimmed boot) driven through sim_view.js flies the page's inline loop to the bit on Jolene
   // (stock + the metal Cessna, a scripted input list stamped by step), its real-time log replays inline to the bit,

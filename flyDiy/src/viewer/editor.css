@@ -1875,3 +1875,17 @@ body.stSkipOn #stTim { bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
 /* G3351: the certification bench (the tool: the left panel's tests) never in the story's small shed */
 body.stNoBench #edBench { display: none !important; }
 #stNoBenchNote { font-size: 12px; color: var(--ed-dim); padding: 6px 10px; }
+
+/* P1 CG-COLOURS: the CG / neutral point tooltip (the garage, never in flight) - the --ed look, the band's colour on its
+   edge and title; on the body, so the tokens are redeclared as #fkCard does */
+#cgTip { position: fixed; z-index: 61; width: min(320px, calc(100vw - 16px)); pointer-events: none;
+  --ed-plate: rgba(32,29,26,.95); --ed-ink: #f4efe6; --ed-dim: #c0b8ac; --ed-faint: #97907f; --ed-border: rgba(255,248,236,.14);
+  background: var(--ed-plate); color: var(--ed-ink); border: 1px solid var(--ed-border); border-left-width: 4px; border-radius: 8px;
+  padding: 10px 12px; font-size: 12.5px; line-height: 1.4; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+#cgTip[hidden] { display: none; }
+#cgTip.b-red { border-left-color: #ff6b5b; } #cgTip.b-orange { border-left-color: #ffa13d; } #cgTip.b-green { border-left-color: #6fd08a; }
+#cgTip .cgT { font-weight: 600; margin-bottom: 4px; }
+#cgTip.b-red .cgT { color: #ff8d80; } #cgTip.b-orange .cgT { color: #ffb866; } #cgTip.b-green .cgT { color: #8fdca3; }
+#cgTip .cgW { color: var(--ed-dim); }
+#cgTip .cgF { color: var(--ed-ink); margin-top: 6px; }
+#cgTip .cgB { color: var(--ed-faint); margin-top: 6px; font-size: 11px; }

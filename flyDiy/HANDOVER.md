@@ -98119,3 +98119,26 @@ Strict light gate RED (11), all in the known classes:
 - cub garage fps 26.7: ONE 2167 ms frame in 160; the other 159 at 33 ms (the garage hitch class, L24b 27.0).
 - metal chase flight 68.9 s vs 63.6 + 5.09 slack: 0.23 s over, the scripted flight's wall time. Named; re-read in L25a.
 Pushed with these, by the user's order of 25 Oct: land last week's items and priority 1 as soon as possible.
+## G3450 - P1 CG-COLOURS: THE GARAGE'S CG / NEUTRAL-POINT INDICATORS WEAR ONE BAND - RED / ORANGE / GREEN, '!' ON RED AND ORANGE, A TOOLTIP WITH THE REASONS (2026-10-25, RUFUS-CERT for A0; claude/cg-colours; stills Sun 25 07:45 GPU; for L25b)
+
+The user, 24 Oct: the garage's CG / neutral point indicators get clear colour coding - RED = bad, ORANGE = acceptable, GREEN = good and safe - ONLY that coding, an added "!" in the wording for red and orange, and a tooltip explaining the reasons.
+
+- **Core** (`src/core/64b_gen_design.js`): `genMarginBand(sm)` and `GEN_MARGIN_BANDS`, exported. One function, so the garage and the gate read the same edges. It returns `{ band, mark, title, why, fix }`, or null when there is no margin.
+- **Page** (`src/viewer/app.js`): both posts, both labels and the ground bar take the band's colour. The old test (red below 5 %, amber/cyan otherwise) is gone. Red and orange add " !" to the neutral-point wording. A tooltip (`#cgTip`, styled per band in `editor.css`) gives the title, why and fix. It opens on a mouse hover over either label and on a tap (pointerup, before the pick). `window.CG_TIP` exposes it for the stills rig.
+- **Gate CGBAND** (`tools/_cgband_check.js`, core tier, node, about 5 s) checks:
+  - the band edges, the marks and the reasons;
+  - the user's corrected Cub comes out green;
+  - the user's `bugReports/birdman (1).json` comes out red (its row is skipped when the file is not in the tree);
+  - `app.js` and `editor.css` contain the band code.
+- **Not changed:** the bench's own `pitch.sm` row (it warns below 2 %). The certification rule belongs to CERT-REVIEW.
+
+**PROPOSAL - the band edges, for the user to judge from the stills:**
+
+| Static margin (CG ahead of the neutral point, % of mean chord) | Band | Meaning |
+|---|---|---|
+| below 0 | red ! | unstable in pitch: the nose keeps going after a bump |
+| 0 to 5 % | orange ! | flies but wanders (5 % was the indicator's old red line) |
+| 5 to 40 % | green | stable |
+| over 40 % | orange ! | very nose-heavy: the elevator may run out in the flare (the design check's own nose-heavy warning) |
+
+The edges are one table (`GEN_MARGIN_BANDS`), so changing them is a one-line edit.
