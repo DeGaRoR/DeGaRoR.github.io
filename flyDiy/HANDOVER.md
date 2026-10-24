@@ -98030,3 +98030,30 @@ Rolling set (1): cabin-lamp ad3165a48 (GAME G3353-G3355 + RUFUS-CERT G3449 claud
 - Gates (Game 09:05, the gated tree + a STORY-only gate-file fix re-gated): HANGAR GAMEPREM PREMISES STORAGE SITE TAXICLEAR x4 UISMOKE LIGHT BEACON BAY ACCEPT STARTER SAVE STORY PASS.
 Battery: master's standing reds only (CLOCK 1/777, CLOUD 1/239, KTX2 the characters' budget, FRAMECOST restore row).
 Strict light gate RED (6), the known classes: cub chase tasks1s 0 -> 2 / taskWorst 1922, cub cockpit taskWorst 2189 (the boot ~1 s task class, judged against 1 s as ruled); cub chase compile 5924 / metal chase compile 5560 (the same compile spread L22a showed at 5814; the reports' boot compile steps are unchanged - 1311 / 1701 ms, 377 / 378 programs vs L22d's 1058 / 1652, 383 / 378: the lamp adds no program); floats water taxi @SEA p99 66.6 (= master's own N23 overnight value, before this branch).
+
+## G3356 - STORY-UI: TIM ON TOP, NO STEP COUNTERS FOR THE PLAYER (2026-10-23, GAME coordinator; claude/story-ui off master 20a136670, for L23d)
+- The user's request, verbatim (on the T0 stills): "the Tim's lines seem not to render on top of everything, which it probably should. And why do I have a card stating I'm at step 1 ovcer 8. That's for us, not a player facing thing".
+- Tim's band (#stTim, editor.css) went from z-index 40 to 2147482500. It now draws over every game layer: the HUD bar (base / to / clock / roll out), the rails and the corner cards. Only the map screen's own menu (2147483000) stays above.
+- Counters removed from player-facing text (app.js):
+  - the beat card's header reads "The story" (was "The story · N of 8");
+  - Tim's button reads "Next" (was "Next (i/n)");
+  - the flight ladder's label reads "the flight" (was "the flight · i of 6").
+- GATE STORY: the two text rows now check there is no counter, plus one row for the band's layer and the button.
+
+## G3357 - STORY-TIM: TIM CARRIES THE BEAT, NO CG MARKS AT T0 (2026-10-23, GAME coordinator; claude/story-tim on story-ui 320dbfb1b, for L24a)
+- The user, verbatim: "Opening screen: I see no poinbt in the lines on the top left. Tim feels like he's enough, that feels like an artificial setpoint".
+- The beat card (#stCard) is off the player page: a body class (stNoCard) that editor.css reads. It is still built, since the gates read it, and ?storycard=1 shows it as a dev's view.
+- Tim's band now carries the beat:
+  - on his last line, an ack beat's OK sends the ack;
+  - the beat's checklist rows sit under his words (T2);
+  - the story's messages (stLine) are his lines, each with its own OK;
+  - a closed band leaves his face as a chip in the corner; a click reopens his last words.
+- The CG / neutral-point marks (gGrp) are hidden while the story holds the paint-only stage (T0). stMarksOff is a `var`, since placeIndicators may run first.
+- The garage-wide cabin flood ("Interior flood light should be ON by default in the garage") is on its OWN branch, claude/garage-flood (G3358), stacked on this one: it changes the shed's light count, so A0's strict gate judges it apart.
+- GATE STORY: +3 rows. The rig (claude/story-smoke d2122f20e) expects the card hidden at T0.
+
+## G3361 - BENCH-TIM: THE BENCH NOTE IS TIM'S LINE (2026-10-24, GAME coordinator; claude/bench-tim on story-tim 335b64fef)
+- The user's ruling ("I see no point in the lines on the top left. Tim feels like he's enough") covers the left panel's bench note too (A0, 24 Oct). The note (#stNoBenchNote) is no longer made, and an old one is removed.
+- In the story's small shed, Tim's lines end with STORY_BENCH_LINE: "No test bench in here, mind - certification happens at the WWII field's hangar."
+- The bench TOOL stays hidden there (body.stNoBench, G3351).
+- GATE STORY: +1 row.

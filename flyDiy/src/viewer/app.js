@@ -8862,8 +8862,13 @@
     return storyCard(d, o);
   }
   const stEsc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  // G3357 (the user 23 Oct: "I see no point in the lines on the top left. Tim feels like he's enough, that feels like an
+  // artificial setpoint"): the beat card is not the player's - Tim's band carries the beat (its OK, its checklist, the
+  // story's messages). The card is still made (the gates read it) and shown only with ?storycard=1 (a dev's view).
+  var STORY_CARD = typeof location !== 'undefined' && /[?&]storycard=1/.test(location.search || '');
   function storyCardSync() {
     if (!STORY_PAGE || typeof document === 'undefined' || !document.body) return;
+    if (document.body.classList.contains('stNoCard') === STORY_CARD) document.body.classList.toggle('stNoCard', !STORY_CARD);
     let K = null;
     try { K = storyCardNow(); } catch (e) { console.warn('flyDiy (story): the card -', e && e.message); }
     storyMaskNote();
@@ -8889,7 +8894,7 @@
     }
     const rows = K.rows.map(r => '<li class="' + (r.ok ? 'ok' : '') + '"><span class="stTick" aria-hidden="true">' + (r.ok ? '✓' : '') + '</span>' + stEsc(r.words) + '</li>').join('');
     const met = K.rows.filter(r => r.ok).length;
-    const html = '<button type="button" class="stHead" data-st="fold" aria-label="fold the story card"><span class="stStep">The story · ' + K.step + ' of ' + K.of + '</span>' +
+    const html = '<button type="button" class="stHead" data-st="fold" aria-label="fold the story card"><span class="stStep">The story</span>' +   // G3356: no step counter for the player (the user: "That's for us")
         '<b class="stTitle">' + stEsc(K.title) + '</b>' + (K.rows.length ? '<span class="stN">' + met + '/' + K.rows.length + '</span>' : '') + '</button>' +
       '<div class="stBody"><p class="stBrief">' + stEsc(K.brief) + '</p>' + (rows ? '<ul class="stRows">' + rows + '</ul>' : '') +
         (K.note ? '<p class="stNote">' + stEsc(K.note) + '</p>' : '') + (stLine ? '<p class="stLine">' + stEsc(stLine) + '</p>' : '') +
@@ -9088,19 +9093,36 @@
   // thing at the bottom of the screen, with a placeholder vignette portrait"). A line at a time (Next), closed on the last
   // (OK); shown again on each new beat. Never centred, never over the middle; the garage's look (editor.css #stTim).
   // The portrait is a PLACEHOLDER silhouette (no image, no real person).
-  let stTimEl = null, stTimBeat = null, stTimI = 0, stTimShut = false;
+  let stTimEl = null, stTimBeat = null, stTimI = 0, stTimShut = false, stTimK = null;
   const STIM_FACE = '<svg class="stTimFace" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="23"/><circle class="h" cx="24" cy="19" r="8"/><path class="h" d="M9 41c2-9 8-13 15-13s13 4 15 13"/></svg>';
   function storyTimSync() {
     if (!STORY_PAGE || typeof document === 'undefined' || !document.body) return;
-    const s = stLive(), id = s && !s.open ? s.beat : null, L = id ? storyTimLines(id, playerLoad()) : [];
+    const s = stLive(), id = s && !s.open ? s.beat : null, L0 = id ? storyTimLines(id, playerLoad()) : [];
+    // G3361: in the story's small shed, Tim says why there is no bench (the panel's note went)
+    let small = false;
+    try { const d = playerLoad(), sh = d.sheds && d.sheds[d.here]; small = !!(sh && sh.story) && inGarage; } catch (e) {}
+    const L = small && L0.length ? L0.concat([STORY_BENCH_LINE]) : L0;
     if (id !== stTimBeat) { stTimBeat = id; stTimI = 0; stTimShut = false; }
     // G3370 (TUTO-FLIGHT): T1's flight speaks the LADDER in the band instead (Tim's own T1 lines are the shed's)
     const lad = storyLadderNow();
     if (lad) return storyLadderShow(lad);
-    if (!L.length || stTimShut || (window.FLYDIY_AP && typeof window.FLYDIY_AP.manual === 'function' && window.FLYDIY_AP.manual() && !inGarage)) { if (stTimEl) stTimEl.hidden = true; return; }
+    const manual = window.FLYDIY_AP && typeof window.FLYDIY_AP.manual === 'function' && window.FLYDIY_AP.manual() && !inGarage;
+    // G3357: a story message (a refused delivery, a signed route) is Tim's to say, once, with its OK
+    if (stLine && !STORY_CARD && !manual) {
+      stTimPut('', STIM_FACE + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>' + stEsc(STORY_TIM.role) + '</small><p>' + stEsc(stLine) + '</p></div>' +
+        '<button type="button" class="stTimBtn" data-tim="line">OK</button>');
+      return;
+    }
+    if (!L.length || manual) { if (stTimEl) stTimEl.hidden = true; return; }
+    // G3357: closed, the band leaves Tim's face in the corner - a click brings his last words (and the checklist) back
+    if (stTimShut) { stTimPut('min', '<button type="button" class="stTimChip" data-tim="open" aria-label="' + stEsc(STORY_TIM.name) + '">' + STIM_FACE + '</button>'); return; }
     const i = Math.min(stTimI, L.length - 1), last = i >= L.length - 1;
-    stTimPut('', STIM_FACE + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>' + stEsc(STORY_TIM.role) + '</small><p>' + stEsc(L[i]) + '</p></div>' +
-      '<button type="button" class="stTimBtn" data-tim="' + (last ? 'ok' : 'next') + '">' + (last ? 'OK' : 'Next (' + (i + 1) + '/' + L.length + ')') + '</button>');
+    // G3357: on his last line the beat's own goal rides in the band - an ack beat's OK moves the story; a checklist shows
+    if (last && !STORY_CARD) { try { stTimK = storyCardNow(); } catch (e) { stTimK = null; } } else stTimK = null;
+    const K = stTimK, ack = !!(K && K.ack);
+    const rows = K && K.rows && K.rows.length ? '<ul class="stTimRows">' + K.rows.map(r => '<li class="' + (r.ok ? 'ok' : '') + '">' + (r.ok ? '\u2713 ' : '') + stEsc(r.words) + '</li>').join('') + '</ul>' : '';
+    stTimPut('', STIM_FACE + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>' + stEsc(STORY_TIM.role) + '</small><p>' + stEsc(L[i]) + '</p>' + rows + '</div>' +
+      '<button type="button" class="stTimBtn" data-tim="' + (last ? (ack ? 'ack' : 'ok') : 'next') + '">' + (last ? 'OK' : 'Next') + '</button>');
   }
   // the band itself, made once; its words written only when they change (the ladder's tick runs every half second)
   function stTimPut(cls, html) {
@@ -9111,7 +9133,11 @@
         const b = ev.target && ev.target.closest ? ev.target.closest('[data-tim]') : null;
         if (!b) return;
         if (b.dataset.tim === 'lad') stLadShut = stLad.i;          // (this card read: the band waits for the next one)
-        else if (b.dataset.tim === 'next') stTimI++; else stTimShut = true;
+        else if (b.dataset.tim === 'next') stTimI++;
+        else if (b.dataset.tim === 'line') { stLine = ''; storyCardSync(); }               // G3357: Tim's message read
+        else if (b.dataset.tim === 'open') stTimShut = false;                              // G3357: the chip
+        else if (b.dataset.tim === 'ack') { stTimShut = true; stLine = ''; storyEvent({ k: 'ack' }); }   // G3357: the beat read
+        else stTimShut = true;
         storyTimSync();
       });
       document.body.appendChild(stTimEl);
@@ -9151,7 +9177,7 @@
   function storyLadderShow(lad) {
     if (!lad.card || lad.off || stLadShut === lad.i) { if (stTimEl) stTimEl.hidden = true; return; }
     const C = lad.card;
-    stTimPut('lad', STIM_FACE + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>the flight · ' + (lad.i + 1) + ' of ' + lad.n + '</small>' +
+    stTimPut('lad', STIM_FACE + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>the flight</small>' +   // G3356: no counter
       '<p><b class="stLadT">' + stEsc(C.title) + '</b> ' + stEsc(C.text) + '</p></div>' +
       (C.img ? '<img class="stLadImg" src="' + stEsc(C.img) + '" alt="">' : '') +
       '<button type="button" class="stTimBtn" data-tim="lad">OK</button>');
@@ -9209,19 +9235,23 @@
     let small = false;
     try { const d = playerLoad(), sh = d.sheds && d.sheds[d.here]; small = !!(sh && sh.story); } catch (e) {}
     if (document.body.classList.contains('stNoBench') !== small) document.body.classList.toggle('stNoBench', small);
-    const bn = document.getElementById('edBench');
-    let n = document.getElementById('stNoBenchNote');
-    if (small && !n && bn && bn.parentNode) { n = document.createElement('div'); n.id = 'stNoBenchNote'; n.textContent = 'No bench in this shed: certification happens at the WWII field\u2019s hangar.'; bn.parentNode.insertBefore(n, bn); }
-    if (n) n.hidden = !small;
+    // G3361 (the user 23 Oct: "I see no point in the lines on the top left. Tim feels like he's enough"): the reason is
+    // Tim's to say (STORY_BENCH_LINE, his last words in the small shed), no note in the panel
+    const n = document.getElementById('stNoBenchNote');
+    if (n) n.remove();
   }
+  var STORY_BENCH_LINE = 'No test bench in here, mind - certification happens at the WWII field\u2019s hangar.';
   // G3351: THE PAINT-ONLY LOCK, KEPT. The story's mask note fires on a CHANGE of mask; at a New career it fired before
   // editor.js had defined EDITOR_LOCK, and the mask never changed again, so the lock never engaged (the smoke run of 22
   // Oct). This holds the editor's lock to the story's mask on every tick, whatever loaded first.
+  var stMarksOff = false;   // G3357 (a var: placeIndicators can run before this block)
   const STORY_LOCK_WHY = 'Tim: the structure comes later in the story - paint, liveries and colours for now.';
   function storyLockSync() {
-    if (!STORY_PAGE || !window.EDITOR_LOCK || typeof window.EDITOR_LOCK.finishOnly !== 'function') return;
+    if (!STORY_PAGE) return;
     let want = false;
     try { want = storyMask(playerLoad()) === 'finish'; } catch (e) {}
+    stMarksOff = want;   // G3357: the CG / neutral-point marks are design marks - off while only paint is allowed (T0)
+    if (!window.EDITOR_LOCK || typeof window.EDITOR_LOCK.finishOnly !== 'function') return;
     if (!!window.EDITOR_LOCK.locked() !== want) window.EDITOR_LOCK.finishOnly(want ? STORY_LOCK_WHY : null);
   }
   // G3352: a cabin shed made before the cozy kits (park + bench + comfort only) takes the plot's kits now - decor only,
@@ -10862,7 +10892,8 @@
   function placeIndicators() {
     const d = standOffset();
     // G255: a screenshot has no marks; G1115: nor the roll-out shot (the CG post and its labels rode out on the aeroplane)
-    gGrp.visible = !!d && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) && !window.__frLoading;   // G2345: not under the loading view (its own CG bar)
+    gGrp.visible = !!d && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) && !window.__frLoading   // G2345: not under the loading view (its own CG bar)
+      && !stMarksOff;   // G3357: not on the story's paint-only stage (T0)
     if (d) gGrp.position.set(d[0], d[1], d[2]);
   }
   function buildIndicators() {
