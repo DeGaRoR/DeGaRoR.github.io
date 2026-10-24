@@ -9097,7 +9097,11 @@
   const STIM_FACE = '<svg class="stTimFace" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="23"/><circle class="h" cx="24" cy="19" r="8"/><path class="h" d="M9 41c2-9 8-13 15-13s13 4 15 13"/></svg>';
   function storyTimSync() {
     if (!STORY_PAGE || typeof document === 'undefined' || !document.body) return;
-    const s = stLive(), id = s && !s.open ? s.beat : null, L = id ? storyTimLines(id, playerLoad()) : [];
+    const s = stLive(), id = s && !s.open ? s.beat : null, L0 = id ? storyTimLines(id, playerLoad()) : [];
+    // G3361: in the story's small shed, Tim says why there is no bench (the panel's note went)
+    let small = false;
+    try { const d = playerLoad(), sh = d.sheds && d.sheds[d.here]; small = !!(sh && sh.story) && inGarage; } catch (e) {}
+    const L = small && L0.length ? L0.concat([STORY_BENCH_LINE]) : L0;
     if (id !== stTimBeat) { stTimBeat = id; stTimI = 0; stTimShut = false; }
     // G3370 (TUTO-FLIGHT): T1's flight speaks the LADDER in the band instead (Tim's own T1 lines are the shed's)
     const lad = storyLadderNow();
@@ -9231,11 +9235,12 @@
     let small = false;
     try { const d = playerLoad(), sh = d.sheds && d.sheds[d.here]; small = !!(sh && sh.story); } catch (e) {}
     if (document.body.classList.contains('stNoBench') !== small) document.body.classList.toggle('stNoBench', small);
-    const bn = document.getElementById('edBench');
-    let n = document.getElementById('stNoBenchNote');
-    if (small && !n && bn && bn.parentNode) { n = document.createElement('div'); n.id = 'stNoBenchNote'; n.textContent = 'No bench in this shed: certification happens at the WWII field\u2019s hangar.'; bn.parentNode.insertBefore(n, bn); }
-    if (n) n.hidden = !small;
+    // G3361 (the user 23 Oct: "I see no point in the lines on the top left. Tim feels like he's enough"): the reason is
+    // Tim's to say (STORY_BENCH_LINE, his last words in the small shed), no note in the panel
+    const n = document.getElementById('stNoBenchNote');
+    if (n) n.remove();
   }
+  var STORY_BENCH_LINE = 'No test bench in here, mind - certification happens at the WWII field\u2019s hangar.';
   // G3351: THE PAINT-ONLY LOCK, KEPT. The story's mask note fires on a CHANGE of mask; at a New career it fired before
   // editor.js had defined EDITOR_LOCK, and the mask never changed again, so the lock never engaged (the smoke run of 22
   // Oct). This holds the editor's lock to the story's mask on every tick, whatever loaded first.

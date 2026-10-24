@@ -98051,3 +98051,9 @@ Strict light gate RED (6), the known classes: cub chase tasks1s 0 -> 2 / taskWor
 - The CG / neutral-point marks (gGrp) are hidden while the story holds the paint-only stage (T0). stMarksOff is a `var`, since placeIndicators may run first.
 - The garage-wide cabin flood ("Interior flood light should be ON by default in the garage") is on its OWN branch, claude/garage-flood (G3358), stacked on this one: it changes the shed's light count, so A0's strict gate judges it apart.
 - GATE STORY: +3 rows. The rig (claude/story-smoke d2122f20e) expects the card hidden at T0.
+
+## G3361 - BENCH-TIM: THE BENCH NOTE IS TIM'S LINE (2026-10-24, GAME coordinator; claude/bench-tim on story-tim 335b64fef)
+- The user's ruling ("I see no point in the lines on the top left. Tim feels like he's enough") covers the left panel's bench note too (A0, 24 Oct). The note (#stNoBenchNote) is no longer made, and an old one is removed.
+- In the story's small shed, Tim's lines end with STORY_BENCH_LINE: "No test bench in here, mind - certification happens at the WWII field's hangar."
+- The bench TOOL stays hidden there (body.stNoBench, G3351).
+- GATE STORY: +1 row.

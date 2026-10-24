@@ -199,7 +199,9 @@ function run(M) {
          && /class="stTimRows"/.test(APP) && /data-tim="line"/.test(APP) && /data-tim="open"/.test(APP),
          "Tim's band carries the beat: his last line's OK moves an ack beat, the checklist rides under it, the story's messages are his, a closed band leaves a chip");
       ok(/stMarksOff = want;/.test(APP) && /&& !stMarksOff;/.test(APP) && /var stMarksOff = false;/.test(APP),
-         'the CG / neutral-point marks are off while the story holds the paint-only stage (T0)'); }
+         'the CG / neutral-point marks are off while the story holds the paint-only stage (T0)');
+      ok(!/n\.id = 'stNoBenchNote'/.test(APP) && /var STORY_BENCH_LINE = 'No test bench in here/.test(APP) && /small && L0\.length \? L0\.concat\(\[STORY_BENCH_LINE\]\) : L0/.test(APP),
+         'no bench note in the panel: in the small shed Tim says it, his last line (G3361)'); }
     ok(/id = 'stTim'/.test(APP) && /FLYDIY_AP\.manual\(\) && !inGarage/.test(APP), 'Tim band at the bottom; it steps aside in flight when the player takes manual control');
   }
   // the save
