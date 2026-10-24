@@ -2638,7 +2638,7 @@ function makePilot(sim, def, world, opts) {
     // ...AND ENDS AS ITS RECORD SAYS
     const routeEnd = () => {
       const D = ap.drawn, Lz = ap.legs[ap.legs.length - 1];
-      say('route-done', 'the drawn route flown' + (D.end === 'hold' ? ' - holding over ' + Lz.name : D.end === 'home' ? ' - home' : ' - to the nearest strip'));
+      say('route-done', 'the drawn route flown' + (D.end === 'hold' ? ' - holding over ' + Lz.name : D.end === 'home' ? ' - home' : D.end === 'dest' ? ' - on to the destination' : ' - to the nearest strip'));
       const tl = Math.hypot(vcg[0], vcg[2]) || 1, ux = vcg[0] / tl, uz = vcg[2] / tl;
       if (D.end === 'hold') {
         // the orbit through the last point, tangent to the track there (no reversal), turning the way the route's last
@@ -2653,7 +2653,8 @@ function makePilot(sim, def, world, opts) {
         return 'LOITER';
       }
       D.state = 'done';
-      let to = ap.route && ap.route.from;
+      // (G3611: 'dest' - on to the flight's own destination, a contract's stop: the drawn route is the way there)
+      let to = ap.route && (D.end === 'dest' ? ap.route.to : ap.route.from);
       if (D.end === 'land' && world && world.aerodromes) {
         const need = Math.max(350, 1.4 * ((sheetOf() && sheetOf().LDGrun) || 0));
         let best = null, bd = Infinity;
