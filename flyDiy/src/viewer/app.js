@@ -9214,6 +9214,7 @@
   // locks nothing (the taxi). No lock under the opening, nor on the phone (its own panels; the band still steps). The
   // tutor's place is kept per career in this browser (a reload resumes the step it stood on).
   let stTut = null, stTutSnap = null, stTutDoneBeat = null, stTutLockV = null, stTutCssEl = null;
+  var STORY_TUTOR_OFF = typeof location !== 'undefined' && /[?&]tutor=0(&|$)/.test(location.search || '');
   const stTutKey = () => 'flydiy.story.tut.' + (typeof CAREER_ID !== 'undefined' ? CAREER_ID : 'main');
   const stTutCard = n => '#hsStore .hsCard[data-name="' + String(n || '').replace(/["\\]/g, '\\$&') + '"]';
   // (the cosmetic fingerprint a paint step compares: the paint and the per-piece finish of the build on the stand)
@@ -9277,6 +9278,7 @@
   function storyTutorLock(L) {
     let on = !!L;
     try { if (stIntro || stIntroWas || (window.PROFILE && window.PROFILE.name === 'phone')) on = false; } catch (e) {}
+    if (STORY_TUTOR_OFF) on = false;      // (a dev's ?tutor=0: the steps still step, nothing is held)
     const lock = on && !L.free ? L : null;
     stTutLockV = lock;
     if (typeof document === 'undefined' || !document.body) return;
