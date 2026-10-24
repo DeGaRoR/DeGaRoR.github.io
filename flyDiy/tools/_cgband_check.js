@@ -44,7 +44,7 @@ ok(/genMarginBand\(smV\)/.test(app), 'the indicator reads its band from genMargi
 ok(/post\(cg\[0\], cg\[2\], COL, 3\.2\)/.test(app) && /post\(npx, npz, COL, 2\.8\)/.test(app), 'both posts wear the band colour');
 ok(/'neutral point', COL, smTxt/.test(app) && /'centre of gravity', COL, cgTxt/.test(app), 'both labels wear the band colour');
 ok(!/smBad/.test(app), 'the old red-below-5 % test is gone');
-ok(/cgTipHover\(e\.clientX, e\.clientY\)/.test(app) && /cgTipTap\(e\.clientX, e\.clientY\)/.test(app), 'the tooltip opens on a hover and on a tap');
+ok(/cgTipHover\(e\.clientX, e\.clientY\)/.test(app) && /cgTipTap\(e\.clientX, e\.clientY, e\.pointerType === 'mouse'\)/.test(app), 'the tooltip opens on a hover and on a tap');
 const css = fs.readFileSync(path.join(FLY, 'src', 'viewer', 'editor.css'), 'utf8');
 ok(/#cgTip\b/.test(css) && /#cgTip\.b-red/.test(css) && /#cgTip\.b-orange/.test(css) && /#cgTip\.b-green/.test(css), 'the tooltip is styled per band (editor.css)');
 

@@ -7138,7 +7138,7 @@
     if (!resPick && downAt && edSit.visible && !SHOT.on && e.button === 0 &&
         Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 4 &&
         Date.now() - downAt.t < 500) {
-      const tipT = cgTipTap(e.clientX, e.clientY);   // P1: a tap on a CG / NP label opens its tooltip, and goes no further
+      const tipT = cgTipTap(e.clientX, e.clientY, e.pointerType === 'mouse');   // P1: a tap on a CG / NP label opens its tooltip, and goes no further
       const hit = tipT ? null : pickAt(e.clientX, e.clientY);
       if (tipT) { /* the tooltip */ }
       else if (window.BOOMBOX && hit && window.BOOMBOX.click(bbProp(), pickRay.ray, hit, canvas)) { /* the radio's panel */ }
@@ -10828,7 +10828,7 @@
   }
   function cgTipHide() { if (gTipEl) gTipEl.hidden = true; }
   function cgTipHover(cx, cy) { if (cgTipOn(cx, cy)) cgTipShow(cx, cy); else cgTipHide(); }
-  function cgTipTap(cx, cy) { if (cgTipOn(cx, cy)) { if (gTipEl && !gTipEl.hidden) cgTipHide(); else cgTipShow(cx, cy); return true; } cgTipHide(); return false; }
+  function cgTipTap(cx, cy, mouse) { if (cgTipOn(cx, cy)) { if (!mouse && gTipEl && !gTipEl.hidden) cgTipHide(); else cgTipShow(cx, cy); return true; } cgTipHide(); return false; }   // a mouse click keeps the hover's tip open; a second tap closes it
   if (typeof window !== 'undefined') window.CG_TIP = { on: cgTipOn, show: cgTipShow, hide: cgTipHide, band: () => gTipBand };
   // a word floated above each marker. Canvas -> sprite, because a line drawing
   // cannot say which post is which and the two are only 0.3 m apart on a stable
