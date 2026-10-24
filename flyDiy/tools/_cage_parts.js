@@ -1150,7 +1150,7 @@ const CAGE_PARTS = [
       ['trim wheel', ['trimX', 'trimY', 'trimZ']],         // G331
       ['parking brake', ['parkX', 'parkY', 'parkZ']],      // G2791
       ['fuel selector', ['fselX', 'fselY', 'fselZ']],      // G2791
-      ['floor', ['floorOn', 'floorLift']],                 // G331
+      ['floor', ['floorOn', 'floorLift', 'floorUp']],                 // G331
     ] },
 
   { key: 'cockpit', name: 'Cockpit & dash', parent: 'fit', layer: 'cage',

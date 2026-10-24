@@ -44,6 +44,10 @@ const DC3_ROWS = {
   stSpan: 1.41, stChord: 1.02, finChord: 1.34,
   // the DC-3's split flaps (G3506's row, the flap table's fifth: 'split')
   wgFlapType: 4,
+  // G3570 (DC3-2): the cabin floor 0.40 m over the sill the door gives - the real cabin's 1.98 m (6 ft 6 in) of
+  // headroom under this section's roof; the doors, the seats and the people stand on it (the user: "pilots and
+  // passengers are buried")
+  floorUp: 0.40,
 };
 function dc3FullRaw(over) {
   const j = PR.dc3Raw(1.0);

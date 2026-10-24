@@ -1340,7 +1340,9 @@ function genAccessNeeds(S) {
     // the cabin height as well, which mixed the cabin's frame into the gear's,
     // and it read `gear.drop` — a key that does not exist, so the fallback
     // fired on every aeroplane and the whole term was a constant.
-    sillH:     need(g.legDrop, 0.42) + need(g.wheelR, 0.20),
+    // G3570 (DC3-2): a raised cabin floor (cabin.floorUp, the cage's 'cabin floor height') lifts the door sills with
+    // it, so the climb in is that much higher; absent (every build before the row) adds nothing
+    sillH:     need(g.legDrop, 0.42) + need(g.wheelR, 0.20) + ((c.floorUp > 0) ? c.floorUp : 0),
     doorBoth:  true,
     derived,
   };
@@ -1423,7 +1425,7 @@ function genAccessNeedsCage(P, extra) {
     // and the cage's own keel is on the mesh. Passed in rather than guessed
     // here, and counted when it is not — a step that appears because nobody
     // measured is the decoration this table exists to refuse.
-    sillH:     E.sillH != null ? E.sillH : (derived++, 0.62),
+    sillH:     (E.sillH != null ? E.sillH : (derived++, 0.62)) + ((+P.floorUp > 0) ? +P.floorUp : 0),   // G3570: the raised floor's sills
     doorBoth:  !!(+P.doorOn) && !(+P.doorGone),
     derived,
   };
@@ -2494,6 +2496,14 @@ const GEN_RULES = {
   // builds sit at 0.47-0.50 of their own knee (the metal Cessna 1 049 kg, on
   // floats 1 111; the Cub 541 of 1 100, the Jodel 544 of 1 300).
   gaugeHoldK:   2,
+  // THE TAIL CONE'S ROOT AT SIZE (G3572, DC3-2): above the knee the shell's bending break (its root cut, 30_solver
+  // clCuts) holds at least this x the design weight x the cone's length - the moment the tail's loads make grows
+  // with the arm as well as the weight (the tailwheel's reaction, the empennage's inertia). 1.45 m/m: the validated
+  // float Cessna's own (Mu 67.2 kN.m over 1 111 kg x 4.25 m; the metal Cessna 1.54). The full-size DC-3's bare skin
+  // read 0.31 - a 220 kN.m root against ~1.5 MN.m for a real stringer-stiffened DC-3 cone (150 MPa over a ~2 mm
+  // smeared skin at R 1.3 m): it folded where a tail dropped after a braked stop. Strength only (the cut's sigB);
+  // the shell's stiffness, mass and bill stay G3505's. At or below the knee: the row's skin, to the bit
+  shellHoldKappa: 1.45,
   // A ROD BOOM IS A TUBE, AND THE TRUSS IS NOT (G199.5, 2026-09-07; the user:
   // "the stabs are moving with the tail wheel, and getting a huge torsion,
   // even when simply taxiing"). A rod-boom build flies the lofted default
@@ -4420,6 +4430,16 @@ function clampSpec(spec) {
   cb.occupied = Array.isArray(cb.occupied) && cb.occupied.length &&
                 cb.occupied.every(o => o === 0 || o === 1 || o === true || o === false)
     ? cb.occupied.map(o => o ? 1 : 0) : null;
+  // G3570 (DC3-2, 2026-10-24): THE CABIN FLOOR'S HEIGHT, metres over the floor the door sills give (the cage's
+  // 'cabin floor height', floorUp: it lifts the sills, and the floor, the seats and the people on it follow). The
+  // frame bills the occupants and the furnishing that much higher (61_gen_frame). READ OFF THE CAGE, which replaces
+  // as a whole (genSpecMerge) and writes the row only when raised (cageToSpec): a floor put back down can never
+  // stay up in the flown spec. A spec with no cage (a fiche) may say it here. ABSENT AT ITS DEFAULT: no key is
+  // written, so no build from before the row changes by a byte
+  {
+    const fu = S.cage ? +S.cage.floorUp : +cb.floorUp;
+    if (fu > 0 && isFinite(fu)) cb.floorUp = genClamp(fu, 0, 1.5); else delete cb.floorUp;
+  }
 
   const pl = cb.pilot || (cb.pilot = {});
   pl.show    = pl.show !== false;

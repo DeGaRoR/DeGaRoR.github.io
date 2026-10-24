@@ -2866,24 +2866,29 @@ function anchors(spec, P, mesh) {
   // keel line at that station (outline pts are raw cage units). An
   // EXPLODED door part is measured at its as-built place — the part's
   // faces record their translation as cutOff.
-  let sillOff = FLOOR_BOARDS;
+  // G3570 (DC3-2): THE RAISED CABIN FLOOR (floorUp, metres; absent = 0) - the floor stands exactly that much over
+  // the sill the door's own row gives; the door rose with it by whole rows (_cage_gen cageCut, mesh.doorRise), and
+  // that rise is taken back out of the measured sill so the floor is not the row step
+  const floorUp = (+P.floorUp > 0) ? +P.floorUp : 0;
+  let sillOff = FLOOR_BOARDS + floorUp;
   const doors = ((mesh && mesh.outlines) || []).filter(o =>
     o.kind === 'door' && o.pts && o.pts.length);
   if (doors.length) {
     const meanZ = o => o.pts.reduce((s, p) => s + p[2], 0) / o.pts.length;
     const front = doors.reduce((a, b) => meanZ(a) > meanZ(b) ? a : b);
-    let x0 = [0, 0, 0];
+    let x0 = [0, 0, 0], dk = null;
     if (mesh.F && front.ids) {
       const idset = new Set(front.ids);
       for (const f of mesh.F)
         if (f.cutOff && f.doorKey && f.v.some(vi => idset.has(vi))) {
-          x0 = f.cutOff; break;
+          x0 = f.cutOff; dk = f.doorKey; break;
         }
     }
     let off = 1e9;
     for (const p of front.pts)
       off = Math.min(off, (p[1] - x0[1]) * k - keelAt((p[2] - x0[2]) * k));
-    if (off > -0.05 && off < 0.5) sillOff = Math.max(0, off);
+    if (floorUp > 0) off -= ((mesh.doorRise && dk && mesh.doorRise[dk]) || 0) * k;   // G3570
+    if (off > -0.05 && off < 0.5) sillOff = Math.max(0, off) + floorUp;
   }
   // G331: `floorLift` is the builder's own number over the sill (0 = the
   // sill, where you step in) — the floor is drawn there and everything
