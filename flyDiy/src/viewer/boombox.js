@@ -167,6 +167,9 @@ var BOOMBOX = (function () {
   // G3533 (HANGARS-LOOK, the user 24 Oct: "the little radio UI back when clicking the boombox or its icon"): opened from the
   // quick bar's radio icon the card stands beside the ICON (`pin`, the button) and does not follow the radio
   let pin = null;
+  // and the card is DRAGGABLE (the user's rule, 25 Oct; card_drag.js registers #bbPanel under 'boombox'): once the player has
+  // put it somewhere, it stays there - neither the radio nor the icon moves it again (double-click on it = home)
+  const dragged = () => { try { return !!(G.FLYDIY_DRAG && G.FLYDIY_DRAG.placed && G.FLYDIY_DRAG.placed('boombox')); } catch (e) { return false; } };
   const refs = {};   // the live bits a refresh repaints (no rebuild under a dragged slider)
   const isOpen = () => !!panel;
   const D = () => G.document || null;
@@ -389,7 +392,7 @@ var BOOMBOX = (function () {
     if (panel) close();
     if (!open(o || null, canvasEl)) return false;
     pin = btn || null;
-    if (pin && pin.getBoundingClientRect) {
+    if (pin && pin.getBoundingClientRect && !dragged()) {
       const r = pin.getBoundingClientRect();
       let L = r.right - vx + 10;
       if (L + pw > vw - 12) L = r.left - vx - 10 - pw;
@@ -424,6 +427,7 @@ var BOOMBOX = (function () {
   function frame(camera, getObj) {
     if (!panel) return;
     if (pin) return;   // G3533: stood beside the icon - it stays there until Esc, a press outside or the icon again
+    if (dragged()) return;   // the player's place (card_drag.js) - not the radio's
     const o = typeof getObj === 'function' ? getObj() : getObj;
     const S = scratch();
     if (!o || !S || !camera || !shown(o)) { close(); return; }
