@@ -98306,3 +98306,92 @@ Rolling set (1): cabin-lamp ad3165a48 (GAME G3353-G3355 + RUFUS-CERT G3449 claud
 - Gates (Game 09:05, the gated tree + a STORY-only gate-file fix re-gated): HANGAR GAMEPREM PREMISES STORAGE SITE TAXICLEAR x4 UISMOKE LIGHT BEACON BAY ACCEPT STARTER SAVE STORY PASS.
 Battery: master's standing reds only (CLOCK 1/777, CLOUD 1/239, KTX2 the characters' budget, FRAMECOST restore row).
 Strict light gate RED (6), the known classes: cub chase tasks1s 0 -> 2 / taskWorst 1922, cub cockpit taskWorst 2189 (the boot ~1 s task class, judged against 1 s as ruled); cub chase compile 5924 / metal chase compile 5560 (the same compile spread L22a showed at 5814; the reports' boot compile steps are unchanged - 1311 / 1701 ms, 377 / 378 programs vs L22d's 1058 / 1652, 383 / 378: the lamp adds no program); floats water taxi @SEA p99 66.6 (= master's own N23 overnight value, before this branch).
+
+## G3356 - STORY-UI: TIM ON TOP, NO STEP COUNTERS FOR THE PLAYER (2026-10-23, GAME coordinator; claude/story-ui off master 20a136670, for L23d)
+- The user's request, verbatim (on the T0 stills): "the Tim's lines seem not to render on top of everything, which it probably should. And why do I have a card stating I'm at step 1 ovcer 8. That's for us, not a player facing thing".
+- Tim's band (#stTim, editor.css) went from z-index 40 to 2147482500. It now draws over every game layer: the HUD bar (base / to / clock / roll out), the rails and the corner cards. Only the map screen's own menu (2147483000) stays above.
+- Counters removed from player-facing text (app.js):
+  - the beat card's header reads "The story" (was "The story · N of 8");
+  - Tim's button reads "Next" (was "Next (i/n)");
+  - the flight ladder's label reads "the flight" (was "the flight · i of 6").
+- GATE STORY: the two text rows now check there is no counter, plus one row for the band's layer and the button.
+
+## G3357 - STORY-TIM: TIM CARRIES THE BEAT, NO CG MARKS AT T0 (2026-10-23, GAME coordinator; claude/story-tim on story-ui 320dbfb1b, for L24a)
+- The user, verbatim: "Opening screen: I see no poinbt in the lines on the top left. Tim feels like he's enough, that feels like an artificial setpoint".
+- The beat card (#stCard) is off the player page: a body class (stNoCard) that editor.css reads. It is still built, since the gates read it, and ?storycard=1 shows it as a dev's view.
+- Tim's band now carries the beat:
+  - on his last line, an ack beat's OK sends the ack;
+  - the beat's checklist rows sit under his words (T2);
+  - the story's messages (stLine) are his lines, each with its own OK;
+  - a closed band leaves his face as a chip in the corner; a click reopens his last words.
+- The CG / neutral-point marks (gGrp) are hidden while the story holds the paint-only stage (T0). stMarksOff is a `var`, since placeIndicators may run first.
+- The garage-wide cabin flood ("Interior flood light should be ON by default in the garage") is on its OWN branch, claude/garage-flood (G3358), stacked on this one: it changes the shed's light count, so A0's strict gate judges it apart.
+- GATE STORY: +3 rows. The rig (claude/story-smoke d2122f20e) expects the card hidden at T0.
+
+## G3361 - BENCH-TIM: THE BENCH NOTE IS TIM'S LINE (2026-10-24, GAME coordinator; claude/bench-tim on story-tim 335b64fef)
+- The user's ruling ("I see no point in the lines on the top left. Tim feels like he's enough") covers the left panel's bench note too (A0, 24 Oct). The note (#stNoBenchNote) is no longer made, and an old one is removed.
+- In the story's small shed, Tim's lines end with STORY_BENCH_LINE: "No test bench in here, mind - certification happens at the WWII field's hangar."
+- The bench TOOL stays hidden there (body.stNoBench, G3351).
+- GATE STORY: +1 row.
+## G3359 - ECON-APPLY: THE ECONOMY TABLE APPLIED (2026-10-23, GAME coordinator; claude/econ-apply on story-ui 320dbfb1b, for L24a)
+- The user, verbatim: "apply the economics table, keep demo time as it is for now". ECON-SIM's proposed table (G3250 HANDOVER), as written:
+  - the story career starts without careerNew's grant: 79_story STORY_GRANT 0; storyNewCareer drops the grant's ledger line and its 60 000;
+  - T6's commitment fee: STORY_T6_FEE 20 000, paid beside the route's down payment (storyApply 'routeOffer'; offer.fee);
+  - ROUTES_PAY: perKm 100 -> 30, downTrips 8 -> 6, dayTrips 6 (new). routeTerms: flyS (as flown), tripS = max(flyS, 86400 / dayTrips). routePos flies the legs on flyS and waits at the home end for the rest;
+  - T7's fabric 4-seater occasion: 0.30 -> 0.35 x catalogue (the other two were already 0.35);
+  - ECON_BOOK.shells: field / club / works 1.8 / 3.2 / 5.4 -> 3.6 / 5.6 / 8.6 Cubs.
+- Data only: ECON_BOOK.landmarks (keystones 2.5 / 6 / 12 Cubs, optional 1.5 / 3 / 5), rungs (2: 0.25, 3: 2.5 Cubs) and comps (entry 0.08 / 0.15 / 0.25, prizes x3 / x1.6 / x0.8). None of these is in the game yet, and nothing in play reads them (econ_sim plays them).
+- Unchanged: the airframes, the pilot sign-ons, the demo length (no time compression; T5 as is).
+- Gates:
+  - ROUTES: the hand-computed case re-derived (480 a trip, 2 880 down, 2 160 s flown, 14 400 s timetabled), and every settle / end row in timetabled time;
+  - ROUTES' T6 rows: + the fee;
+  - STORY: +1 row, the story career's money;
+  - ECON: the mutant string reads the new shells;
+  - 90_node_exports: + STORY_GRANT, STORY_T6_FEE.
+- ECON stays on its live bands (the reference career). ECON_BANDS_STORY is checked by an econ_sim run, not in the gate: a playCareer inside GATE ECON would cost minutes.
+Strict light gate: 12 RED, none new by cause. over100 x4 = the pre-existing reveal hitch (REVEAL-HITCH, HWCOV, fix in progress); taskWorst / tasks1s = the boot/settle and roll-out tasks around 1 s (HWCOV 19 Oct: 982-1099 ms on L19a too, +-0.5 s run to run); floats world->garage 2.4 s = the pre-existing program re-link (FLOATS-RELINK); metal fuseWidth busy = the cost the user accepted by name (15 Oct). The gate's profile now lives in C: temp and is deleted after.
+
+## G2831-G2839 - WATER-STEADY: THE REDESIGN STUDY (the ring, the hull's reflection, the shadow, one sky) - NOT LANDED, prototypes behind ?wrefl (2026-10-13/20, WATER-STEADY for A0, local GPU; branch claude/water-hull-g2831)
+The user's rulings: drop the coastal band and the transparency; give the aircraft its own reflection and shadow on all water; a full mirror within 1 km of land and below 300 m with a smooth fade and one sky (18 Oct); **LAKES: "keep full mirror for them" (20 Oct ~16:30). Lakes stay on today's full mirror (AUTO): the ring does not apply to lakes, and 19f690eab (MIR.ringSky) does not ship for lakes.**
+- **The prototypes (`?wrefl=b|c|bc|ring`, nothing in the page without the switch):**
+  - `hullRender`: a hull-only capture under `#ifdef W_HULL`, 0.1-0.2 ms GPU.
+  - The sea receives the shadow (c).
+  - The ring: weight = height (300 -> 400 m) x distance to land (1.0 -> 1.3 km) x distance to water inland (0 -> 150 m). Its land test reads the drawn water's level (881c1c989: a 38 m lake had read as land).
+  - `MIR.ringSky` (19f690eab): the ring keeps the sky in its capture.
+  - `MIR.skyK` / `MIR.skyGain` (the probe's lookup lobe and level under the mirror's weight) and debug view 14 (the probe lookup).
+- **Measured** (RTX 3080, gamer, the study doc has the tables):
+  - The open sea 3 km out: the ring costs 0 (8.9 ms GPU against master's 14.9).
+  - HOME's stand: unchanged (the over-land factor).
+  - The coast: the ring's capture costs 6.3 ms against master's 6.9.
+  - The lake (round 3, master 8f5e18457): today 21.3 ms, ring 20.0-20.5, no mirror 15.5.
+  - The capture is geometry-bound: resolution, scissor, frustum offset and a 2 km far cap don't reduce it; every-2nd-frame worsens pacing. All dropped.
+- **One sky: not solved.**
+  - The probe HAS the clouds (P1's dumps). P1, marching the frame's clouds into the probe (claude/water-p1-g2839), is PARKED.
+  - The water's probe lookup is heavily blurred (debug 14), and `skyK` was inert. Why is the queued debug, after L20d.
+  - `scene.environmentIntensity = 0.5` (app.js WORLD_ENV) halves the water's probe as well (MIR.skyGain lifts it under the ring).
+- **The lake's grey-white wash** is the sun's glint: Cox-Munk roughness ~0.41 at the rigs' pinned 5 m/s wind, with no lake term (water.js:282). It's on the board under 'Lakes fetch-limited wind'.
+- **Stills** (each looked at; the worktree's reports/evidence/): WATER-LOOK (P0), WATER-RING (ring_grid, ring_lake, ring2_*, sky_lobe, ring3_*), WATER-P1.
+- **Rigs:** `tools/perf/water_places.js` (coast / lake / open places from the terrain), `water_look.js` (--dials, h/o grids, --probe-dump on the P1 branch), frame_perf p99 and the over-34 ms share, mirror_census lake30 / lake150.
+- **Gates:** WATER PASS on f6d20fc02 (six rows the ring and hull edits had drifted, fixed in 175c078ce). CLOUD 7b was the old base's own and is gone after the rebase onto 8f5e18457. Gates have not been re-run since 8f6706f81.
+- **What to watch for (if the ring ships, for the coast and sea only):**
+  - lakes must keep today's mirror;
+  - the 1.0-1.3 km and 300-400 m fades must be dissolves;
+  - HOME's stand must pay nothing;
+  - the ring's sky must carry the clouds (ringSky) until the probe lookup is fixed.
+- **PARKED (21 Oct, A0, by the user's 20 Oct order: performance comes LAST, after the game test, Metlakatla 2.0, story/content, packaging and the public launch):** the coast/sea ring with `MIR.ringSky` is the ready-to-try lever for the perf phase. Ring for the coast and the sea ONLY (excluding lakes is its first code item); lakes stay on today's full mirror.
+  - Gain: about 6 ms GPU at the open sea; about 0.6 ms at the coast.
+  - Cost: about +1 ms where the ring is on (its sky in the capture).
+  - The probe path to one sky is CLOSED (21 Oct debug: the probe's clouds are too faint against its sky).
+  - Next step when resumed: rebase onto master, exclude lakes, GATE WATER, then the coast/sea stills for the user.
+
+## A0 - landing L24c (25 Oct 2026, gates 23:50-01:01, pushed ~01:20): TIM ON TOP, THE STORY CARD OFF, THE FLOOD ON, THE ECONOMY, NAMES + TECH MASK, DOUBLE FLOATS, REFLECTIONS + SPRAY, THE STREET SIDES, THE PA-18 ON FLOATS, RUFUS RE-STAMPED
+L24b again without ready/lot-clear: lot-clear's gravel stand made CONTACT G1542's dead-end assumption stale. ED-2 fixed the row on claude/lot-clear 54d63446b; it re-gates Sun 01:45 and rides L25a.
+Rolling set: bench-phases, bench-tim, econ-apply, float-dup, garage-flood, names, pa18-floats, rufus-plaque, story-tim, story-ui, tech-mask, town-road-sides, water-reflections, water-spray.
+Battery: master's standing reds only - CLOCK (1 of 777), CLOUD (the lamp-pool row), FRAMECOST (the cessna boot/restore updateMatrixWorld counter), KTX2 row 10 (the characters' budget).
+Strict light gate RED (11), all in the known classes:
+- tasks1s / taskWorst: the boot ~1 s task class, judged against 1 s as ruled. Rows: cub chase tasks1s 2, cub cockpit tasks1s 4 / taskWorst 1891, metal chase tasks1s 3, metal cockpit tasks1s 3.
+- compile: cub chase 6785, metal chase 8522, metal cockpit 7733. The same spread L22a / L23b pushed with (5814 / 5924 / 5560); this run's own bench flags a shader-cache MISS (1 link > 5 s, 7.8 s).
+- floats world -> garage 2.99 s: the garage boot shader link (HWCOV's G1 slot, Sun 01:45, names and fixes it).
+- cub garage fps 26.7: ONE 2167 ms frame in 160; the other 159 at 33 ms (the garage hitch class, L24b 27.0).
+- metal chase flight 68.9 s vs 63.6 + 5.09 slack: 0.23 s over, the scripted flight's wall time. Named; re-read in L25a.
+Pushed with these, by the user's order of 25 Oct: land last week's items and priority 1 as soon as possible.

@@ -1144,7 +1144,7 @@ function make(THREE, scene, world, rec0, opts) {
     // the verge the guardrail did NOT take, when it took exactly one (the photograph's arrangement)
     const rs = railG && railG.userData.guardrail ? railG.userData.guardrail.sides : null;
     const side = (rd.polesSide ? +rd.polesSide : 0) || (rs && rs.length === 1 ? -rs[0] : 0);
-    const g = PWR.build(THREE, { path: pr, w: rd.w, mode: rd.poles || 'auto', name: 'poles:' + rd.id,
+    const g = PWR.build(THREE, { path: pr, w: rd.w, mode: rd.poles || 'auto', name: 'poles:' + rd.id,   // (TOWN-ROAD-SIDES, 24 Oct stills: off the DRAWN pavement - at the layout width a traded street's poles stood 0.65 m inside its new asphalt)
       side, seed: PG.fnv(String(rd.id)) % 997, toWorld: (x, z) => F.toWorld(x, z), heightAt,
       keep: poleKeep(rd),
       place: q => { if (!PR.props[q.key]) return null; const o = pp(THREE, q.key, q.x, q.z, q.ry, q.y); if (q.scale) o.scale.setScalar(q.scale); tiltToGround(o, (x, z) => O.terrainAt(x, z), q.x, q.z, q.ry); return o; },
