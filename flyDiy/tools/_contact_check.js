@@ -254,9 +254,11 @@ if (process.argv.includes('--drawn')) {
         if (!O.pavedAt(mx + nx * 1.5, mz + nz * 1.5)) edge = { mx, mz, nx, nz }; }
       ok(!!edge, 'the pad has an open edge (grass 1.5 m out)');
       if (edge) {
+        // (the bound is the patch's side tuck, render_premises PATCH_TUCK.drop: grass within sideR1 = 3 m of a pavement's edge is drawn
+        //  2 cm under the ground on purpose, + 1 cm for the patch's vertex spacing - 21.2 mm read on 25 Oct; the dead end's pit was 0.4-0.6 m)
         const at2 = k => [edge.mx + edge.nx * k, edge.mz + edge.nz * k], past = at2(1.5), last = at2(-1), deep = at2(-6);
-        ok(!O.pavedAt(past[0], past[1]) && PL.sinkOf(past[0], past[1]) === 0 && Math.abs(PL.at(past[0], past[1]) - W.terrainHBuild(past[0], past[1])) < 0.02,
-          'G1542: 1.5 m off the stand pad\'s open edge nothing is paved, nothing sunk, the drawn patch within 2 cm of the ground (no pit at the pad\'s edge)', (1000 * (PL.at(past[0], past[1]) - W.terrainHBuild(past[0], past[1]))).toFixed(1) + ' mm');
+        ok(!O.pavedAt(past[0], past[1]) && PL.sinkOf(past[0], past[1]) === 0 && Math.abs(PL.at(past[0], past[1]) - W.terrainHBuild(past[0], past[1])) < 0.03,
+          'G1542: 1.5 m off the stand pad\'s open edge nothing is paved, nothing sunk, the drawn patch within 3 cm of the ground (the side tuck, no pit at the pad\'s edge)', (1000 * (PL.at(past[0], past[1]) - W.terrainHBuild(past[0], past[1]))).toFixed(1) + ' mm');
         const sL = PL.sinkOf(last[0], last[1]), sD = PL.sinkOf(deep[0], deep[1]);
         ok(sL > 0.03 && sL <= 0.0701, '...1 m inside the pad the patch takes the edge\'s 7 cm, not the deep sink', (sL * 100).toFixed(1) + ' cm');
         ok(sD > 0.5, '...6 m inside, the deep sink', sD.toFixed(2) + ' m');
