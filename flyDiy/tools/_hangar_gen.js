@@ -135,6 +135,12 @@ const DEF = {
   roofSet: SET_IDX('roof', 'corrworn'), doorSet: SET_IDX('door', 'rustymetal'), metalSet: SET_IDX('metal', 'galv'),
   beamSet: SET_IDX('beam', 'rough'), trimCol: 6, trimW: 0.08,
   dirt: 0.5, dirtH: 1.1, noise: 0.16, clouds: 0.5,
+  // G3538 (HANGARS-LOOK, the user 25 Oct: "use all the tricks and details of the house generation, and the weathering
+  // techniques used for generating the old mine"): the mine's dials, on the shell too - `weather` (the house's: chroma out,
+  // contrast flatter, the dirt up), the walls' cloud weathering and the roof's (`roofClouds`, a whisper), `age` (the
+  // frame's greying: desaturated and darker, as the mine's bare timber), `rust` (the house's steel mix on the gutters, the
+  // pipes and the fittings: rain on the up faces, streaks down), `bulkheads` (the lamp fittings over the door, unlit)
+  weather: 0, roofClouds: 0.12, age: 0, rust: 0, bulkheads: 0,
   ao: 0.85, aoRange: 0.7, aoDirect: 0.35, aoGround: 1,
 };
 const ROWS = [
@@ -164,8 +170,11 @@ const ROWS = [
 ];
 // THE THREE SHELLS OF THE GARAGE (HANGARS.md S4), and the airport rows they anchor
 const PRESETS = {
-  'field shed':   { shell: 0, HW: 7, HD: 9, EAVE: 3.6, wallSet: SET_IDX('wall', 'rawplank'), roofSet: SET_IDX('roof', 'corrrust'), doorSet: SET_IDX('door', 'board'), trimCol: 0, glazing: 1, roofLights: 0, backDoor: 0, personDoor: 1, dirt: 0.55 },
-  'field shed, small': { shell: 0, HW: 5.5, HD: 7, EAVE: 3.3, wallSet: SET_IDX('wall', 'rawplank'), roofSet: SET_IDX('roof', 'corrworn'), doorSet: SET_IDX('door', 'board'), trimCol: 0, glazing: 1, roofLights: 0, backDoor: 0, personDoor: 0, flue: 0, smoke: 0 },
+  // (G3538: the timber sheds wear the old mine's weathering - the kennecott mill's dials, a little gentler)
+  'field shed':   { shell: 0, HW: 7, HD: 9, EAVE: 3.6, wallSet: SET_IDX('wall', 'rawplank'), roofSet: SET_IDX('roof', 'corrrust'), doorSet: SET_IDX('door', 'board'), trimCol: 0, glazing: 1, roofLights: 0, backDoor: 0, personDoor: 1, dirt: 0.7, dirtH: 1.4,
+                    weather: 0.8, clouds: 0.75, roofClouds: 0.15, age: 0.45, rust: 0.4, bulkheads: 1 },
+  'field shed, small': { shell: 0, HW: 5.5, HD: 7, EAVE: 3.3, wallSet: SET_IDX('wall', 'rawplank'), roofSet: SET_IDX('roof', 'corrworn'), doorSet: SET_IDX('door', 'board'), trimCol: 0, glazing: 1, roofLights: 0, backDoor: 0, personDoor: 0, flue: 0, smoke: 0,
+                    dirt: 0.7, dirtH: 1.4, weather: 0.8, clouds: 0.75, roofClouds: 0.15, age: 0.45, rust: 0.4 },
   'club hangar':  { shell: 1, HW: 15, HD: 12.5, EAVE: 7.0 },
   'club hangar, long': { shell: 1, HW: 12, HD: 16, EAVE: 6.5, wallSet: SET_IDX('wall', 'rustymetal'), roofSet: SET_IDX('roof', 'galv') },
   'works hangar': { shell: 2, HW: 20, HD: 20, EAVE: 9.5, wallSet: SET_IDX('wall', 'factory'), roofSet: SET_IDX('roof', 'galv'), doorSet: SET_IDX('door', 'factory'), stemSet: SET_IDX('stem', 'concrete008'), sign: 1, signW: 6 },
@@ -177,7 +186,8 @@ const catOf = name => CATS[name] || null;
 function shellOf(P) {
   const timber = Math.round(P.shell) === 0;
   const HW = P.HW, HD = P.HD, EAVE = P.EAVE, RIDGE = EAVE + 2.6;   // hangar.js: RIDGE = EAVE + 2.6, every shell
-  const DOOR_W = Math.max(6, 2 * HW - 5), DOOR_H = timber ? EAVE - 0.5 : Math.min(6.4, EAVE - 1.4);
+  const D0 = { door: P.doorW };   // G3537: a shed's own door (hangar.js's expression)
+  const DOOR_W = (D0.door > 0) ? Math.min(D0.door, 2 * HW - 1) : Math.max(6, 2 * HW - 5), DOOR_H = timber ? EAVE - 0.5 : Math.min(6.4, EAVE - 1.4);
   const BD_W = Math.min(11.0, 2 * HW - 8), BD_H = Math.min(4.4, EAVE - 2.2);
   const SILL = Math.min(3.2, EAVE - 2.4), HEAD = Math.min(5.2, EAVE - 1.0);
   const MDZ = Math.min(13.5, HW - 1.5);                     // the personnel door, across from the middle (hangar.js's z)
@@ -406,7 +416,7 @@ function build(P0, lod, F) {
   }
 
   // ---- THE LIGHTS OVER THE DOOR: a bulkhead each side of the big opening
-  if (P.lights && Q.lod === 0) for (const s of [bigDoor.s0 - 0.5, bigDoor.s1 + 0.5]) {
+  if ((P.lights || P.bulkheads) && Q.lod === 0) for (const s of [bigDoor.s0 - 0.5, bigDoor.s1 + 0.5]) {   // (G3538: the fittings without the switch)
     const p = walls[0].W.P(s, bigDoor.y1 + 0.5, 1);
     HG.lampAt(bags, Q, p, [0, 0, 1], { k: 1.4, range: 14 });
   }
@@ -456,7 +466,7 @@ function build(P0, lod, F) {
   };
   // the bags this build carries (the shell's own beside the polish) and the materials for them
   const MATX = Object.assign({}, F ? F.MAT : MAT, ext ? ext.mats : {});
-  if (F && ext) { Object.assign(F.MAT, ext.mats); stats.shellShaded = finishShell(ext.mats, F.SHADE_U); }   // G3531
+  if (F && ext) { Object.assign(F.MAT, ext.mats); stats.shellShaded = finishShell(ext.mats, F.SHADE_U, P); }   // G3531
   return { bags, stats, P, V: { L: 2 * HW, w: 2 * HD, wallT: t, floorY: fy }, R: null, MAT: MATX, BAGS: OUT };
 }
 // THE BAKE (G405.1): hangar.js's exterior group, every mesh's geometry read
@@ -475,7 +485,7 @@ let PANE_MAT = null;
 const LIB = {};
 function bakeShell(P, S, fy, bags, litOn, F) {
   let ext = null;
-  try { ext = genHangarBuild(THREE, { HW: P.HW, HD: P.HD, EAVE: P.EAVE }, { exterior: true, shell: SHELLS[Math.round(P.shell)] }); }
+  try { ext = genHangarBuild(THREE, { HW: P.HW, HD: P.HD, EAVE: P.EAVE, door: P.doorW > 0 ? P.doorW : undefined }, { exterior: true, shell: SHELLS[Math.round(P.shell)] }); }
   catch (e) { if (typeof console !== 'undefined') console.warn('hangar shell:', e && e.message); return null; }
   if (!ext || !ext.group) return null;
   ext.group.updateMatrixWorld(true);
@@ -538,15 +548,25 @@ function shellClone(m, name) {
 }
 const SHELL_DIRT = { stem: [1.6, 0x453f36], door: [1.2, 0x6d6353], manDoor: [1.2, 0x6d6353], wall: [1.0, 0x6d6353], wallOut: [1.0, 0x6d6353],
   wallBack: [1.0, 0x6d6353], doorTrim: [0.9, 0x6d6353], steel: [0.8, 0x5a5246], steelDark: [0.8, 0x5a5246], wood: [1.0, 0x5d5446], beamMain: [1.0, 0x5d5446] };
-function finishShell(mats, SU) {
+// G3538: and the old mine's weathering over it - the walls' cloud weathering (P.clouds), the roof's whisper (P.roofClouds),
+// the timber's age (desaturated, darker: the frame and the cladding of a shed nobody painted)
+const SHELL_AGED = { wall: 1, wallBack: 1, wallOut: 1, door: 0.8, wood: 1.2, beamMain: 1.2, beamSec: 1.2, manDoor: 0.8 };
+function finishShell(mats, SU, P) {
   let n = 0;
+  const age = Math.max(0, Math.min(1, (P && P.age) || 0));
   for (const key in mats) {
     const m = mats[key], ud = m && m.userData;
     if (!ud || !ud.hangarShell || ud.houseShaded || !m.isMeshStandardMaterial) continue;
     const name = ud.hangarShell.split('/')[1];
     HG.shadeHouse(m, SU);
     const d = SHELL_DIRT[name] || (/^roof/.test(name) ? [0, 0x6d6353] : [1.0, 0x6d6353]);
-    m.userData.dirt.uDirtGain.value = d[0]; m.userData.dirt.uDirtOwn.value.setHex(d[1]); m.userData.dirt.uWander.value = 0;
+    const D = m.userData.dirt;
+    D.uDirtGain.value = d[0]; D.uDirtOwn.value.setHex(d[1]); D.uWander.value = 0;
+    const ag = (SHELL_AGED[name] || 0) * age;
+    D.uAgeDesat.value = Math.min(1, ag * 0.7); D.uAgeDark.value = Math.min(0.6, ag * 0.32);
+    const roof = /^roof/.test(name);
+    const ck = roof ? (P && P.roofClouds !== undefined ? P.roofClouds : 0.12) : (P && P.clouds !== undefined ? P.clouds : 0.5);
+    if (P && HG.cloudWeather && ck > 0 && !/^(glass|bulb|lamp)/.test(name)) HG.cloudWeather(m, ck, roof ? 1 : 0);
     n++;
   }
   return n;
@@ -569,6 +589,12 @@ function applyFinish(P, F) {
   SU.uDirtTop.value = g(0, 0) + (P.dirtH || 1) * 0.6; SU.uDirtH.value = Math.max(0.05, P.dirtH || 1);
   SU.uDirtK.value = P.dirt === undefined ? 0.5 : P.dirt; SU.uNoiseK.value = P.noise === undefined ? 0.16 : P.noise;
   SU.uAOd.value = P.aoDirect === undefined ? 0.35 : P.aoDirect; SU.uSag.value = 0;
+  // G3538: THE WEATHER DIAL, the house's own law (HOUSE_GEN applyFinish): chroma out, the contrast flatter, the dirt up
+  const wthr = Math.max(0, Math.min(1, P.weather || 0));
+  SU.uSat.value = Math.max(0.35, 1 - wthr * 0.45); SU.uCon.value = Math.max(0.80, 1 - wthr * 0.14);
+  if (wthr > 0) SU.uDirtK.value = (P.dirt === undefined ? 0.5 : P.dirt) * (0.35 + wthr * 1.1);
+  // and the steel mix on the galvanising (the tram's / the mill's rust: the up faces, the streaks, the patches)
+  if (P.rust > 0 && HG.steelMix && M.metal) HG.steelMix(M.metal, 'rust', Math.min(1, P.rust));
   for (const k of BAGS) {
     if (HOUSE_OWNED[k]) continue;
     const ud = M[k].userData && M[k].userData.dirt; if (!ud) continue;

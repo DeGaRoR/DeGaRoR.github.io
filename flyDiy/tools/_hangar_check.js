@@ -711,7 +711,7 @@ const BREAKS = [
   ['the club hangs the cozy lamps',
    { srcH: s => s.replace('const LAYIT = (LAYOUT && LAYOUT.light) || null;', 'const LAYIT = (typeof hangarLayout === "function" && hangarLayout("cozy", "works") || {}).light || null;') }],
   ['a wall drawn with a negative box',
-   { srcH: s => s.replace('const DOOR_W = Math.max(6, 2 * HW - 5)',
+   { srcH: s => s.replace('const DOOR_W = (D0.door > 0) ? Math.min(D0.door, 2 * HW - 1) : Math.max(6, 2 * HW - 5)',
                           'const DOOR_W = (2 * HW - 55)') }],
 ];
 let bad = 0;

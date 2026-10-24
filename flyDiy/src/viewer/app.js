@@ -9314,12 +9314,17 @@
       const omit = Array.isArray(P.omit) && !Array.isArray(sh.omit);
       const lamp = P.workLamp && typeof P.workLamp === 'object' && !sh.workLamp;   // G3354
       const cross = Array.isArray(P.lampXZ) && JSON.stringify(P.lampXZ) !== JSON.stringify(sh.lampXZ || null);   // G3354
-      if (!thin && !omit && !lamp && !cross) return;
+      // G3537 (the user 25 Oct: the cabin's door exactly 10 m, the shed 14 m wide): a cabin made at the old size (no door of
+      // its own) takes the plot's dims - the same shed, its aeroplane (Rufus passes the 10 m door), its kits
+      const want = P.dims && P.dims[sh.shell || 'field'];
+      const size = !!(want && want.door > 0 && !(sh.dims && sh.dims.door > 0));
+      if (!thin && !omit && !lamp && !cross && !size) return;
       const n = JSON.parse(JSON.stringify(d));
       if (thin) n.sheds[id].kits = P.kits.slice();
       if (omit) n.sheds[id].omit = P.omit.slice();
       if (lamp) n.sheds[id].workLamp = Object.assign({}, P.workLamp);
       if (cross) n.sheds[id].lampXZ = P.lampXZ.map(p => p.slice());
+      if (size) n.sheds[id].dims = Object.assign({}, want);
       player = n; playerSave();
     } catch (e) { console.warn('flyDiy (story): the cabin kits -', e && e.message); }
   }

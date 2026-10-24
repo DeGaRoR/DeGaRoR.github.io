@@ -141,7 +141,10 @@ const RIDGE = D0.RIDGE || (EAVE + 2.6);
 // the portal's formula leaves a 2.2 m opening, which is a stable door, not a
 // hangar door; a timber lintel is shallower than a steel header, so 0.5 m of
 // beam is what the opening actually gives up.
-const DOOR_W = Math.max(6, 2 * HW - 5);
+// G3537 (HANGARS-LOOK, the user 25 Oct: "the shed should have a door exactly 10m wide, that was the brief and the constraint
+// on the cabin strip ... a total width of 14m"): a shed's dims may name its door (`door`, metres; at least half a metre of
+// wall each side) - the cabin's 10 m - and every reader takes it from there (71 hangarDoor, HANGAR_GEN shellOf, the room's acoustics)
+const DOOR_W = (D0.door > 0) ? Math.min(D0.door, 2 * HW - 1) : Math.max(6, 2 * HW - 5);
 const DOOR_H = FRAME === 'timber' ? EAVE - 0.5 : Math.min(6.4, EAVE - 1.4);
 // THE BACK DOORS (G64, user: "I think we'd better add some doors over there and
 // have the wing hang in front of it"). A bi-parting pair: two leaves on ONE

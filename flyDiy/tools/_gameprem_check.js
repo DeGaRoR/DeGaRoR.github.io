@@ -209,11 +209,22 @@ function run(mut) {
   for (const sk of Object.keys(CORE.SHELLS)) {
     const lim = CORE.shellLims(sk);
     for (const pick of [0, 1]) for (const dims of [CORE.SHELLS[sk].dims, { HW: lim.HW[pick], HD: lim.HD[pick], EAVE: lim.EAVE[pick] }]) {
-      const want = mW && mH ? new Function('HW', 'EAVE', 'FRAME', 'return [' + mW[1] + ', ' + mH[1] + '];')(dims.HW, dims.EAVE, CORE.SHELLS[sk].frame) : [NaN, NaN];
+      const want = mW && mH ? new Function('HW', 'EAVE', 'FRAME', 'D0', 'return [' + mW[1] + ', ' + mH[1] + '];')(dims.HW, dims.EAVE, CORE.SHELLS[sk].frame, dims) : [NaN, NaN];
       const got = R.hangarDoor({ shell: sk, dims });
       ok(Math.abs(got.w - want[0]) < 1e-9 && Math.abs(got.h - want[1]) < 1e-9,
          'the ' + sk + ' door at ' + J(dims) + ' is hangar.js\'s (' + want.map(v => +v.toFixed(2)) + ' vs ' + [got.w, got.h].map(v => +v.toFixed(2)) + ')');
     }
+  }
+  // G3537: a shed that names its door (the cabin's 10 m) - hangar.js's line and hangarDoor agree, and Rufus's 9.8 m passes it
+  {
+    const dims = { HW: 7, HD: 11, EAVE: 4.0, door: 10, doorClr: 0.1 };
+    const want = mW ? new Function('HW', 'EAVE', 'FRAME', 'D0', 'return ' + mW[1] + ';')(dims.HW, dims.EAVE, 'timber', dims) : NaN;
+    const got = R.hangarDoor({ shell: 'field', dims });
+    ok(Math.abs(got.w - 10) < 1e-9 && Math.abs(want - 10) < 1e-9, 'G3537 the cabin door is 10 m in hangar.js and in hangarDoor (' + want + ' / ' + got.w + ')');
+    const w1 = CORE.BASE_OFFERS.w1 && CORE.BASE_OFFERS.w1.plots.w1, d1 = w1 && w1.dims && w1.dims.field;
+    ok(!!d1 && d1.HW === 7 && d1.door === 10, 'G3537 the cabin strip shed is 14 m wide with a 10 m door', J(d1));
+    ok(R.hangarDoorWhy({ shell: 'field', dims }, { half: 4.9, fwd: 2, aft: 4, h: 2.2 }) === '' && R.hangarDoorWhy({ shell: 'field', dims }, { half: 5.0, fwd: 2, aft: 4, h: 2.2 }) !== '',
+       'G3537 a 9.8 m span passes the cabin door at 0.1 m a side, a 10 m one does not');
   }
   const KITSETS = { bare: ['park'], bench: ['park', 'bench'], full: CORE.HANGAR_KITS_DEFAULT.slice() };
   const FLEETS = {
@@ -743,7 +754,7 @@ const BREAKS = [
   ['the door is ignored', { src71: sub('const why = hangarDoorWhy(shed, p.f);', "const why = '';") }],
   ['parked aeroplanes overlap', { src71: sub('const near = obs.concat(rects);', 'const near = obs;') }],
   ['the fit-out is ignored', { src71: sub('const obs = hangarObstacles(shed, opts && opts.reg).concat(', 'const obs = [].concat(') }],
-  ['the door formula drifts from hangar.js', { src71: sub('w: Math.max(6, 2 * D.HW - 5)', 'w: Math.max(6, 2 * D.HW - 4)') }],
+  ['the door formula drifts from hangar.js', { src71: sub('Math.max(6, 2 * HW - 5), h: timber', 'Math.max(6, 2 * HW - 4), h: timber') }],
   ['the lift refuses the overflow', { src71: sub('    const got = at ? pbIn(d, n, at) : pbOut(d, n, home);', '    if (!at) { delete d.fleet[n]; continue; }\n    const got = pbIn(d, n, at);') }],
   ['storing ignores the room', { src71: sub("  const F = playerFits(doc, hangarId, playerResidents(doc, hangarId).concat([name]), foots, opts);\n  if (!F.ok) return pbNo(doc, F.why);", "  const F = { ok: true };") }],
   ['arriving ignores the room', { src71: sub('if (playerFits(d, id, playerResidents(d, id).filter(n => n !== name).concat([name]), opts.foots, opts).ok) {', 'if (true) {') }],

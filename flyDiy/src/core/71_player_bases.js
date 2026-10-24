@@ -105,7 +105,11 @@ const BASE_OFFERS = {
     // the field shell's widest): with every kit the story's ultralight (Rufus, class ul1) stands inside; a Cub does not, and
     // the story never brings one here (its client Cub lives at HOME) - `takes` names the class the offer is held to
     plots: { w1: { shells: ['field'], kits: ['park', 'bench', 'wood', 'metal', 'store', 'handling', 'comfort', 'curio', 'wip'], pf: 0.6,
-                   takes: 'ul1', dims: { field: { HW: 10, HD: 11, EAVE: 4.0 } },
+                   // (G3537, the user 25 Oct: "The shed should have a door exactly 10m wide, that was the brief and the
+                   // constraint on the cabin strip. You may keep a couple meters on both sides for the hangar itself, so a
+                   // total width of 14m, but a 10m door") 14 x 22 m, the door 10.0 m; Rufus's 9.8 m wing passes it with
+                   // 0.1 m a side (doorClr - the door was cut for it); the depth and the eave as before
+                   takes: 'ul1', dims: { field: { HW: 7, HD: 11, EAVE: 4.0, door: 10, doorClr: 0.1 } },
                    // (G3353, the user 22 Oct: "get rid of the large router (the largest of the woodworking machines). Keep
                    // only the 2 smaller ones (the drill and another)") the two smallest machines stay - the pillar drill and
                    // the thicknesser; the panel saw (4.4 x 3.6 m), the band saw and the surface planer are left out
@@ -213,7 +217,11 @@ function hangarDims(shed) {
   const sh = (typeof SHELLS !== 'undefined' && SHELLS[shed && shed.shell]) || SHELLS.club;
   const d = (shed && shed.dims) || {};
   const pick = k => (typeof d[k] === 'number' && isFinite(d[k]) && d[k] > 0) ? d[k] : sh.dims[k];
-  return { HW: pick('HW'), HD: pick('HD'), EAVE: pick('EAVE') };
+  const out = { HW: pick('HW'), HD: pick('HD'), EAVE: pick('EAVE') };
+  // G3537: a shed's own door (the cabin's 10 m) and its clearance through it, when it names them
+  if (typeof d.door === 'number' && isFinite(d.door) && d.door > 0) out.door = d.door;
+  if (typeof d.doorClr === 'number' && isFinite(d.doorClr) && d.doorClr >= 0) out.doorClr = d.doorClr;
+  return out;
 }
 // THE DOOR, hangar.js's own two lines (GATE GAMEPREM source-scans them so the
 // two cannot drift): nearly the whole gable end; the portal's header takes
@@ -222,7 +230,8 @@ function hangarDoor(shed) {
   const D = hangarDims(shed);
   const sh = (typeof SHELLS !== 'undefined' && SHELLS[shed && shed.shell]) || SHELLS.club;
   const timber = sh.frame === 'timber';
-  return { w: Math.max(6, 2 * D.HW - 5), h: timber ? D.EAVE - 0.5 : Math.min(6.4, D.EAVE - 1.4) };
+  const D0 = D, HW = D.HW;   // (G3537: hangar.js's own expression, read with the same names)
+  return { w: (D0.door > 0) ? Math.min(D0.door, 2 * HW - 1) : Math.max(6, 2 * HW - 5), h: timber ? D.EAVE - 0.5 : Math.min(6.4, D.EAVE - 1.4) };
 }
 // What the fit-out stands on the floor: every prop and recipe hangarFit
 // PLACED (an unplaced one stands nowhere), as a plan rectangle at its
@@ -270,7 +279,9 @@ function parkFoot(f) {
 function hangarDoorWhy(shed, foot) {
   const door = hangarDoor(shed), f = parkFoot(foot);
   const span = 2 * f.half;
-  if (span + 2 * PARK_DOOR_CLR > door.w)
+  // G3537: a door cut for one aeroplane names its own clearance (the cabin's: Rufus's 9.8 m through 10 m)
+  const D = hangarDims(shed), clr = D.doorClr !== undefined ? D.doorClr : PARK_DOOR_CLR;
+  if (span + 2 * clr > door.w)
     return 'the span (' + span.toFixed(1) + ' m) does not pass the ' + door.w.toFixed(1) + ' m door';
   if (f.h && f.h > door.h - 0.1)
     return 'the height (' + f.h.toFixed(1) + ' m) does not pass the ' + door.h.toFixed(1) + ' m door';

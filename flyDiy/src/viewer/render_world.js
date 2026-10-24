@@ -6267,7 +6267,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const HGN = typeof window !== 'undefined' ? window.HANGAR_GEN : null;
       if (!SHELL.polish || !HGN || !HGN.build || !HGN.PRESETS || typeof document === 'undefined' || !POLISH_PRESET[shell]) return null;
       const P = Object.assign({}, HGN.DEF, HGN.PRESETS[POLISH_PRESET[shell]],
-        { HW: dims.HW, HD: dims.HD, EAVE: dims.EAVE, lights: 0, sign: 0, signKey: '' });
+        { HW: dims.HW, HD: dims.HD, EAVE: dims.EAVE, doorW: dims.door > 0 ? dims.door : 0, lights: 0, sign: 0, signKey: '' });   // (G3537: its own door)
       const fy = P.floorY || 0, c = Math.cos(H.ry || 0), sn = Math.sin(H.ry || 0), y0 = H.y !== undefined ? H.y : 0;
       // (X, Z) in the house frame -> the hangar's local (x = -Z, z = X) -> the world (the node's yaw), the height back in the frame
       P.ground = (X, Z) => { const hx = -Z, hz = X; return world.terrainH(H.x + hx * c + hz * sn, H.z - hx * sn + hz * c) - y0 + fy; };
