@@ -317,7 +317,7 @@ function makeBuilder(C) {
     if (j.kind === 'house') {
       parts.push(zoneWaterY(x));   // G843
       const z = (rec.layers.zones || []).find(q => q.id === x.zone), rd = O.roads.find(r => r.id === x.road) || O.roads[0];
-      parts.push(JSON.stringify(z ? z.rules || null : null), JSON.stringify(rd ? [rd.id, rd.pts, rd.w] : null), groundSig(x.poly, 40));
+      parts.push(JSON.stringify(z ? z.rules || null : null), JSON.stringify(rd ? [rd.id, rd.pts, PG.roadLayW ? PG.roadLayW(rd) : rd.w] : null), groundSig(x.poly, 40));
     } else if (j.kind === 'item') parts.push(groundSig(x.foot && x.foot.length ? x.foot : [[x.x, x.z]], 40), x.P && x.P.plotGround === false ? 'noGround' : '');
     else if (j.kind === 'fence') { const pts = []; for (const s of x.fences || []) { if (s.a) pts.push(s.a); if (s.b) pts.push(s.b); } parts.push(groundSig(pts, 10)); }
     return h64(parts.join('\u0001'));
@@ -359,7 +359,7 @@ function makeBuilder(C) {
     const rd = roadOverride || O.roads.find(r => r.id === plot.road) || O.roads[0];
     if (!rd) return D;
     const T = { h: Tv.h, size: Tv.size, waterY: Tv.waterY };
-    const vil = { rnd: PG.mulberry32(plot.seed ^ 0x5eed), V, road: { pts: rd.pts, w: rd.w }, fenced: S.fenced, T, spread: S.spread, plots: O.records.plots, houses: [] };
+    const vil = { rnd: PG.mulberry32(plot.seed ^ 0x5eed), V, road: { pts: rd.pts, w: PG.roadLayW ? PG.roadLayW(rd) : rd.w }, fenced: S.fenced, T, spread: S.spread, plots: O.records.plots, houses: [] };
     try { VG.finishPlot(vil, plot, house, built); } catch (e) { warn('premises dress', plot.id, e && e.message); return D; }
     D.ok = true;
     const posts = [];

@@ -205,7 +205,7 @@ console.log('THE STRIP');
   for (const m of PILOT.matchAll(/\bgo\('([A-Z_-]+)'\)/g)) phases.add(m[1]);
   { const i = PILOT.indexOf('const PILOT_PHASES = {'), j = PILOT.indexOf('};', i);
     for (const m of PILOT.slice(i, j).matchAll(/\b([A-Z]+): \[/g)) phases.add(m[1]); }
-  const unknown = [...phases].filter(p => BE.benchFlightStep(p) === 3 && !/DEPART|ENROUTE|CRUISE|HOLD|TURNBACK|DOWNWIND|BOX|CROSSWIND/.test(p));
+  const unknown = [...phases].filter(p => BE.benchFlightStep(p) === 3 && !/DEPART|ENROUTE|CRUISE|HOLD|TURNBACK|DOWNWIND|BOX|CROSSWIND|ROUTE|LOITER/.test(p));   // G2120 ROUTE-DRAW's legs (the drawn route, its orbit) are cruise
   ok(phases.size >= 15 && !unknown.length, 'the phase strip knows all ' + phases.size + ' pilot phases' + (unknown.length ? ' — not ' + unknown.join(', ') : ''));
   ok(BE.benchFlightStep('CROSSWIND 3.0 m/s') === 3 && BE.benchFlightStep('TAXI') === 0 && BE.benchFlightStep('STOPPED') === 5, 'the crosswind leg is cruise, taxi and stopped map to their steps (A9: the ladder has its own card)');
   // the stickers: a stub context that records calls and throws on nothing

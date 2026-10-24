@@ -22,7 +22,7 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
 const SIDES = [['before', opt('before', null)], ['after', opt('after', null)]].filter(s => s[1]);
 const BUILD = opt('build', 'bugReports/cessnaFloats.json');
-const SPEED = +opt('speed', 14), WAIT = +opt('wait', 2500);
+const SPEED = +opt('speed', 14), WAIT = +opt('wait', 2500), FRAMES = +opt('frames', 0);   // (G2837b) --frames N: N frames of the spray MOVING (the GIF's)
 const OUT = path.resolve(opt('out', 'screenshots/spray_look'));
 const VIEWS = [['side', 22, 0, 2.5], ['rear', 28, -1, 5], ['front', 30, 1, 2], ['close', 10, 0, 1.5]];   // [name, distance, fore(+)/aft(-)/abeam(0), eye height over the water]
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -106,6 +106,20 @@ async function runSide(name, url, idx) {
       fs.writeFileSync(file, Buffer.from(shot.result.data, 'base64'));
       rec.shots[v] = { file: path.basename(file), eye: [ex, ey, ez].map(t => +t.toFixed(1)) };
       console.log(`  ${name} ${v.padEnd(5)} -> ${file}`);
+    }
+    // (G2837b) THE SPRAY MOVING: the eye follows the aircraft abeam (16 m out, 2.2 m up, a page-side loop every animation frame), the
+    // run resumed, FRAMES shots ~120 ms apart - the frames of the user's GIF
+    if (FRAMES > 0) {
+      await ev(`(()=>{ const s0 = FLIGHT_PROBE.sim(); window.__sprayFol = true; const f = () => { if (!window.__sprayFol) return; const c = s0.cgPos(), v = s0.cgVel ? s0.cgVel() : [1, 0, 0], h = Math.hypot(v[0], v[2]) || 1;
+        const fx = v[0] / h, fz = v[2] / h, rx = -fz, rz = fx, ex = c[0] + rx * 16 - fx * 2, ez = c[2] + rz * 16 - fz * 2, ey = ${st.lvl} + 2.2;
+        const tx = c[0] - ex, tz = c[2] - ez, ty = (${st.lvl} + 0.8) - ey; DEV_CAM.pos.set(ex, ey, ez); DEV_CAM.yaw = Math.atan2(tx, -tz); DEV_CAM.pitch = Math.atan2(ty, Math.hypot(tx, tz));
+        requestAnimationFrame(f); }; f(); return 1; })()`);
+      await ev(RESUME); await sleep(600);
+      rec.frames = [];
+      for (let j = 0; j < FRAMES; j++) { const sh = await cmd('Page.captureScreenshot', { format: 'png' }); const fr = path.join(OUT, 'frames_' + name + '_' + String(j).padStart(2, '0') + '.png');
+        fs.writeFileSync(fr, Buffer.from(sh.result.data, 'base64')); rec.frames.push(path.basename(fr)); await sleep(120); }
+      await ev(PAUSE); await ev('(()=>{window.__sprayFol=false;return 1;})()');
+      console.log(`  ${name} frames: ${FRAMES} -> ${OUT}`);
     }
     ws.close();
   } catch (e) { rec.error = String(e.message || e); console.error('  ' + name + ': ' + rec.error); }

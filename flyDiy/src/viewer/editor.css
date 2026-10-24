@@ -1835,11 +1835,19 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 
 /* G3350 (STORY-TIM): Tim's band at the bottom (never centred, never over the middle) and the editor's story lock */
 #stTim { position: fixed; left: 12px; right: 12px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); max-width: 720px;
-  display: flex; align-items: center; gap: 12px; padding: 10px 12px; z-index: 40;
+  /* G3356 (the user 23 Oct: Tim's lines "should render on top of everything"): over the HUD bar, the rails and the
+     corner cards - every game layer; only the map screen's own menu (2147483000) stays above */
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px; z-index: 2147482500;
   background: var(--ed-plate); color: var(--ed-ink);
   border: 1px solid var(--ed-border); border-radius: 10px;
   font-family: 'IBM Plex Sans', system-ui, sans-serif; font-style: normal; font-size: 14px; line-height: 1.4; }
 #stTim[hidden] { display: none; }
+/* G3357: the beat card is a dev's view (?storycard=1); Tim's band carries the beat, its checklist and a chip when closed */
+body.stNoCard #stCard { display: none !important; }
+#stTim .stTimRows { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 2px; font-size: 13px; color: var(--ed-dim, #8a8d91); }
+#stTim .stTimRows li.ok { color: var(--ed-ink, #e8e4dc); }
+#stTim.min { right: auto; padding: 4px; gap: 0; }
+#stTim .stTimChip { all: unset; cursor: pointer; display: block; line-height: 0; }
 #stTim .stTimFace { width: 48px; height: 48px; flex: none; }
 #stTim .stTimFace circle:first-child { fill: var(--ed-btn-bg, #2a2d31); stroke: var(--ed-acc, #d9a441); stroke-width: 1.5; }
 #stTim .stTimFace .h { fill: var(--ed-dim, #8a8d91); }
