@@ -1330,6 +1330,19 @@ if (plots.length) {
   const AU = fs.readFileSync(path.join(TOOLS, 'metlakatla_author.py'), 'utf8');
   check(/if r\.get\('band'\) == 2:\s*\n\s*r\['lay'\] = r\['w'\]\s*\n\s*r\['w'\] = round\(r\['w'\] \+ 2 \* \(2 - 0\.8\), 3\)\s*\n\s*r\['band'\] = 0\.8/.test(AU), '38 the author makes them so (a re-author keeps the sides)');
 }
+// 39 TOWN-ROAD-SIDES, THE POLES (the 24 Oct stills: at the layout width a traded street's poles stood 0.55 m past its OLD edge -
+//    0.65 m inside its new asphalt): the power line plans off the DRAWN pavement - every pole past w / 2 on a traded street
+{
+  const PL = require(path.join(ROOT, 'src', 'viewer', 'powerline.js'));
+  const pts = [[0, 0], [150, 3], [300, 0]], road = PG.polyRoad(pts, 8.9);
+  const dOf = q => Math.min(...[0, 1].map(k => { const a = pts[k], b = pts[k + 1], dx = b[0] - a[0], dz = b[1] - a[1], t = Math.max(0, Math.min(1, ((q.x - a[0]) * dx + (q.z - a[1]) * dz) / (dx * dx + dz * dz))); return Math.hypot(q.x - a[0] - dx * t, q.z - a[1] - dz * t); }));
+  const drawn = PL.plan({ path: road, w: 8.9, seed: 3 }), atLay = PL.plan({ path: road, w: 6.5, seed: 3 });
+  const dmin = ps => Math.min(...ps.map(dOf));
+  check(drawn.poles.length > 3 && dmin(drawn.poles) > 8.9 / 2 + 0.3 && atLay.poles.length > 3 && dmin(atLay.poles) < 8.9 / 2,
+        '39 a traded street\'s poles plan off its drawn pavement (nearest ' + dmin(drawn.poles).toFixed(2) + ' m from the centreline, the asphalt to 4.45; at the layout width they stood at ' + dmin(atLay.poles).toFixed(2) + ')');
+  const RPs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
+  check(/const g = PWR\.build\(THREE, \{ path: pr, w: rd\.w, mode: rd\.poles \|\| 'auto'/.test(RPs), '39 ...and the page builds them at the drawn width (render_premises)');
+}
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');

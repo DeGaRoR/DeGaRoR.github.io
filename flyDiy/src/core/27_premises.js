@@ -1537,7 +1537,7 @@ function zoneGrass(zone) { return Object.assign({}, ZONE_GRASS[zone && zone.kind
 // whether a look feels as a class does (a look with no feel of its own - markings only - feels as anything)
 // A ROAD'S LAYOUT WIDTH (TOWN-ROAD-SIDES, the user 22 Oct: Metlakatla's streets "a smaller side ... the same overall width ...
 // a higher proportion of the road"): `w` is the carriageway DRAWN and felt, `lay` (when set) the width the town was laid out
-// against - its plots' setback, its houses' fronts, its graded bed, its trees' clearing, its poles. A street that traded its side
+// against - its plots' setback, its houses' fronts, its graded bed, its trees' clearing (its poles stand off what it DRAWS). A street that traded its side
 // for carriageway says its old width in `lay`, and nothing beside it moves. Unset: the carriageway, as ever.
 function roadLayW(r) { return r && +r.lay > 0 ? +r.lay : (+(r && r.w) || 3.6); }
 // ...and A TRADED STREET'S GRADE (the 23 Oct survey: GATE CONTACT's road edge / side counted the pavement within 5 mm of the
