@@ -9575,9 +9575,8 @@
     if (!frEntryEl) return;
     frEntryEl.hidden = !want;
     if (frEntryEl.textContent !== label) frEntryEl.textContent = label;
-    // beside the MAP when it stands (top centre), else in its place
-    frEntryEl.style.left = $('mapEntry') ? 'calc(50% + 52px)' : '50%';
-    frEntryEl.style.transform = $('mapEntry') ? 'none' : 'translateX(-50%)';
+    // beside MENU and CONTRACTS, top centre: one row, gmLayout's (G3521)
+    if (typeof gmLayout === 'function') gmLayout();
   }
   if (FREIGHT_PAGE) setInterval(() => { try { frEntrySync(); } catch (e) {} }, 700);
   if (FREIGHT_PAGE) window.FLYDIY_FREIGHT = {
@@ -13534,7 +13533,7 @@
   // exactly what you are asking, so the three cells are back — as
   // `instruments` toggles, off by default, signed as a pilot reads them
   // (+ is nose up, roll right, RIGHT pedal).
-  const R = ['ias','alt','vs','nrg','nrgU','aoa','bank','agl','thr','tas','pwr','de','da','dr']
+  const R = ['ias','alt','vs','nrg','nrgU','wind','windU','windA','aoa','bank','agl','thr','tas','pwr','de','da','dr']
     .reduce((o, k) => (o[k] = $('r-' + k), o), {});
   // A3: THE ENERGY CELL - the fourth number that is always there. Litres of a
   // tank or kWh of a pack (the build's kind, from sim.fuel), one decimal;
@@ -13560,6 +13559,27 @@
     }
     if (lab !== nrgLabel) { nrgLabel = lab; if (R.nrgU) R.nrgU.textContent = lab; }
     if (RD.nrg) RD.nrg.classList.toggle('warn', dead || frac < 0.1);
+  }
+  // G3524 (GAME-MENUS, the 24 Oct playtest: "a live wind indication on the HUD"): THE WIND AT THE AEROPLANE - the
+  // solver's out.windX / windZ (the air's velocity where the aeroplane is: the climate's wind, its gusts and the hills;
+  // the worker's copied over like the rest of sim.out), averaged over a second so a gust reads as a gust and not as
+  // flicker. The arrow is where the air GOES with the nose up (a headwind points down at you); the unit line is the
+  // bearing it comes FROM (the grid's: x east, z south - 09_climate bearingToBase's frame, so it reads as the weather
+  // panel's own); under 2 km/h it says calm. The text is written only when it changes.
+  const hudW = { x: 0, z: 0, t: 0, txt: '', lab: '', rot: '' };
+  function hudWind() {
+    if (!R.wind) return;
+    const o = sim.out || {}, now = performance.now(), dt = hudW.t ? Math.min(1, (now - hudW.t) / 1000) : 1;
+    hudW.t = now;
+    hudW.x += ((o.windX || 0) - hudW.x) * dt; hudW.z += ((o.windZ || 0) - hudW.z) * dt;
+    const kmh = Math.hypot(hudW.x, hudW.z) * 3.6, calm = kmh < 2;
+    const from = (Math.atan2(-hudW.x, hudW.z) * 57.29578 + 360) % 360;
+    let hdg = 0; try { const xA = sim.axes()[0]; hdg = Math.atan2(xA[0], -xA[2]) * 57.29578; } catch (e) {}
+    const txt = calm ? '0' : kmh.toFixed(0), lab = calm ? 'km/h · calm' : 'km/h · ' + String(Math.round(from) % 360).padStart(3, '0') + '°';
+    const rot = calm ? '' : 'rotate(' + Math.round((from + 180 - hdg + 360) % 360) + 'deg)';
+    if (txt !== hudW.txt) { hudW.txt = txt; R.wind.textContent = txt; }
+    if (lab !== hudW.lab) { hudW.lab = lab; if (R.windU) R.windU.textContent = lab; }
+    if (R.windA && rot !== hudW.rot) { hudW.rot = rot; R.windA.style.transform = rot; R.windA.classList.toggle('calm', calm); }
   }
   // the netto's state: a 3 s needle and a 20 s ring, as a vario has
   let nettoF = 0, nettoI = 0;
@@ -13616,6 +13636,7 @@
       }
     }
     hudEnergy();
+    hudWind();
     if (window.ACCEPT_REC) window.ACCEPT_REC.frame();   // G2273 (ACCEPT): the acceptance leg's tick (page) and its signature into the logbook
     if (CAREER_DEV) careerFrame(cg);                     // G2320 (CAREER-WIRE): the aerodromes passed (a survey's evidence)
     // NO GREEN: ok is simply the ink, and warn is only ever used against a
@@ -14176,12 +14197,8 @@
   let flDevOn = prefGet('flydiy.flDev', '') === '1';
   function flRailSync() {
     const scen = !!(window.SCENERY && window.SCENERY.on);
-    // G1091 (POLISH-2): with DEV on, a small tag names the trees-by-the-runways variant this world was planted with
-    { let tg = $('rwyTreesTag');
-      if (!tg && document.createElement && $('ui') && $('ui').appendChild) { tg = document.createElement('div'); tg.id = 'rwyTreesTag'; $('ui').appendChild(tg); }
-      if (tg) { const m = world && world.rwyTrees ? world.rwyTrees() : null;
-                tg.hidden = !(flDevOn && m && world.island);
-                tg.textContent = 'trees by the runways: ' + (m === 'mapx' ? 'map + shoulders & fans (mapx)' : m === 'map' ? 'the map (map)' : 'today'); } }
+    // (G1091's tag naming the trees-by-the-runways variant, bottom centre with DEV on, is gone: G3522, the 24 Oct playtest -
+    // "debug text at the bottom centre of the screen: remove"; world.rwyTrees() still answers it)
     for (const b of $('flRail').children) {
       if (b.dataset.f === 'dev') b.hidden = !(flDevOn || scen);
       if (b.dataset.dev === 'toggle') {
@@ -15139,7 +15156,7 @@
   // WHICH READOUTS THE PFD CARRIES — and the SMALL PFD overrides that answer
   // rather than editing it, so turning the small one off gives you back
   // exactly the set you had chosen.
-  const PFD_SMALL = ['ias', 'alt', 'vs', 'nrg', 'pwr'];   // A3: the energy stays on the small one
+  const PFD_SMALL = ['ias', 'alt', 'vs', 'nrg', 'pwr', 'wind'];   // A3: the energy stays on the small one; G3524: the wind too
   function flInstApply() {
     const small = !!panels.pfdSmall;
     const p = $('pfd');
@@ -15147,7 +15164,7 @@
     for (const d0 in RD) {
       if (!RD[d0]) continue;
       RD[d0].hidden = small ? PFD_SMALL.indexOf(d0) < 0
-                            : !(d0 === 'ias' || d0 === 'alt' || d0 === 'vs' || d0 === 'nrg' ||
+                            : !(d0 === 'ias' || d0 === 'alt' || d0 === 'vs' || d0 === 'nrg' || d0 === 'wind' ||
                                 instOn[d0]);
     }
     const f = $('pfdFold');
@@ -16181,6 +16198,172 @@
       setTimeout(drop, 12000);
     }
   }
+
+  // ---- G3520-G3522 (GAME-MENUS, the 24 Oct playtest, items 8 + 9): THE MENU, AND TAB IS THE MAP ------------------------
+  // "No clear way back to the main menu": a MENU pill, and Esc when nothing else is open, show ONE small panel at the
+  // screen's top-right edge under the pills (never a card in the centre: the game UI's rule), the garage's look. In
+  // flight it is the PAUSE menu: opening it holds the flight as #bPause does (the player's pause: FLYDIY_HELD) and Resume,
+  // Esc or the pill gives it back as it was. Its rows: Resume; Back to the shed (flight); Contracts and Map (where the map
+  // screen stands: the career, ?map=1); the options - Controls, Graphics, Sound - each the panel that already exists (the
+  // input panel, the rail's own two flyouts, pressed, never copied); Main menu - the welcome's menu again: what the
+  // autosaves keep is saved (UPDATE_NOW.saveAll, the Update pill's own), then the page reloads without ?mode / ?career
+  // (localhost and the rigs skip the menu, so there ?welcome=1 asks for it); in flight it asks once, inside the panel.
+  // TAB IS THE MAP (item 9): the map screen where it stands, else in flight the minimap large and back.
+  // gmLayout places the top pills - MENU, CONTRACTS (build.js's #mapEntry), the garage's LOAD (#frEntry) - as one row: top
+  // centre in the shed; in flight the top bar's empty right column (the PFD holds the centre: item 9, "the map button
+  // sits over important flight info")
+  let gmBtn = null, gmPanel = null, gmHeld = false, gmAsk = false, gmTabMap = null;
+  const gmVis = el => !!(el && !el.hidden && el.getClientRects && el.getClientRects().length > 0);   // (not offsetParent: null for a fixed box)
+  const gmMapOn = () => !!(window.MAP_MENU && window.MAP_MENU.isOpen && window.MAP_MENU.isOpen());
+  const gmTyping = () => { const a = document.activeElement; return !!(a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)); };
+  // what else holds the screen (its own Esc closes it first, or it owns the keys): then Esc and Tab are not ours
+  const gmBusy = () => {
+    const B = document.body.classList;
+    return SHOT.on || !!rollAnimSkip || B.contains('premOpen') || B.contains('shot') || !!$('welcome') || gmVis($('stIntro')) ||
+      (!inGarage && !!flyOpen) || gmVis($('edFly')) || gmVis($('edShelf')) || gmVis($('hsStore')) || gmVis($('bpDesk')) ||
+      !!(window.INPUT_PANEL && window.INPUT_PANEL.isOpen && window.INPUT_PANEL.isOpen()) ||
+      !!(window.FREIGHT_LOAD && window.FREIGHT_LOAD.isOpen && window.FREIGHT_LOAD.isOpen());
+  };
+  function gmHold(on) {   // #bPause's own click, said from here
+    running = !on; userPaused = !!on;
+    const b = $('bPause'); if (b) { b.textContent = running ? 'Pause' : 'Run'; b.classList.toggle('on', !running); }
+  }
+  const gmFlying = () => !inGarage && started;
+  function gmMainMenu() {
+    try { if (window.UPDATE_NOW && window.UPDATE_NOW.saveAll) window.UPDATE_NOW.saveAll(); } catch (e) {}
+    try {
+      const u = new URL(window.location.href);
+      for (const k of ['mode', 'career', 'welcome', 'v']) u.searchParams.delete(k);
+      const n = window.navigator || {};
+      if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(u.hostname) || n.webdriver || /HeadlessChrome/.test(n.userAgent || '')) u.searchParams.set('welcome', '1');
+      window.location.assign(u.toString());
+    } catch (e) { window.location.reload(); }
+  }
+  function gmMap(list) {
+    if (!$('mapEntry') || !window.FLYDIY_LAZY) return false;
+    window.FLYDIY_LAZY(['map_pack', 'map_menu']).then(() => { if (window.MAP_MENU) window.MAP_MENU.open(list ? { list } : {}); });
+    return true;
+  }
+  function gmRail(k) {   // the rail's own button for that flyout, in the shed or in flight
+    const b = document.querySelector((inGarage ? '#edRail' : '#flRail') + ' [data-f="' + k + '"]');
+    if (b) b.click();
+  }
+  const GM_ROWS = [
+    // [key, words, when]
+    ['resume', () => (gmFlying() ? 'Resume' : 'Close'), () => true],
+    ['shed', () => 'Back to the shed', () => !inGarage],
+    ['contracts', () => 'Contracts', () => !!$('mapEntry')],
+    ['map', () => 'Map', () => !!$('mapEntry') || !inGarage],
+    ['controls', () => 'Controls', () => true, 'Options'],
+    ['graphics', () => 'Graphics', () => true],
+    ['sound', () => 'Sound', () => true],
+    ['main', () => 'Main menu', () => true, ''],
+  ];
+  function gmRender() {
+    if (!gmPanel) return;
+    let h = '<div class="gmHead">' + (gmFlying() ? 'Paused' : 'Menu') + '<span class="gmKey">Esc</span></div>';
+    for (const [k, words, when, sec] of GM_ROWS) {
+      if (!when()) continue;
+      if (sec !== undefined) h += sec ? '<div class="gmSec">' + sec + '</div>' : '<div class="gmRule"></div>';
+      if (k === 'main' && gmAsk) {
+        h += '<div class="gmAsk">Leave this flight for the main menu? The flight is not kept; your saves are.</div>' +
+             '<div class="gmPair"><button type="button" class="gmRow pri" data-g="mainYes">Main menu</button><button type="button" class="gmRow" data-g="mainNo">Stay</button></div>';
+        continue;
+      }
+      h += '<button type="button" class="gmRow' + (k === 'resume' ? ' pri' : '') + '" data-g="' + k + '">' + words() +
+           (k === 'map' ? '<span class="gmKey">Tab</span>' : '') + '</button>';
+    }
+    gmPanel.innerHTML = h;
+  }
+  function gmPlace() {
+    if (!gmPanel || !gmBtn) return;
+    const r = gmBtn.getBoundingClientRect(), W0 = window.innerWidth || 1280;
+    gmPanel.style.top = Math.round(r.bottom + 8) + 'px';
+    if (inGarage) { gmPanel.style.left = Math.round(Math.max(12, Math.min(r.left, W0 - 272))) + 'px'; gmPanel.style.right = 'auto'; }
+    else { gmPanel.style.right = Math.round(Math.max(12, W0 - r.right)) + 'px'; gmPanel.style.left = 'auto'; }
+  }
+  function gmOpen(on) {
+    if (!gmPanel) return;
+    if (on && gmPanel.hidden) {
+      gmAsk = false;
+      gmHeld = gmFlying() && running;   // a flight paused here is resumed here; one the player had paused stays paused
+      if (gmHeld) gmHold(true);
+      gmRender(); gmPanel.hidden = false; gmPlace();
+      if (gmBtn) gmBtn.setAttribute('aria-expanded', 'true');
+      const f = gmPanel.querySelector('button'); if (f && f.focus) f.focus();
+    } else if (!on && !gmPanel.hidden) {
+      gmPanel.hidden = true; gmAsk = false;
+      if (gmBtn) gmBtn.setAttribute('aria-expanded', 'false');
+      if (gmHeld && !running && !inGarage) gmHold(false);
+      gmHeld = false;
+    }
+  }
+  function gmAct(k) {
+    if (k === 'resume') return gmOpen(false);
+    if (k === 'shed') { gmOpen(false); const b = $('bHangar2'); if (b) b.click(); return; }
+    if (k === 'contracts' || k === 'map') { gmOpen(false); if (!gmMap(k === 'contracts' ? 'contracts' : null)) gmTab(); return; }
+    if (k === 'controls') { if (window.INPUT_PANEL) window.INPUT_PANEL.open(INP, { who: () => (inGarage ? 'in the shed' : manual ? 'you are flying' : 'the autopilot is flying') }); return; }
+    if (k === 'graphics') return gmRail('graphics');
+    if (k === 'sound') return gmRail('audio');
+    if (k === 'main') { if (gmFlying()) { gmAsk = true; gmRender(); return; } return gmMainMenu(); }
+    if (k === 'mainYes') return gmMainMenu();
+    if (k === 'mainNo') { gmAsk = false; gmRender(); }
+  }
+  // TAB: the map screen (open / close), else in flight the minimap large - shown for the Tab if it was off - and back
+  function gmTab() {
+    if (gmMapOn()) { window.MAP_MENU.close(); return true; }
+    if (gmMap(null)) return true;
+    if (inGarage) return false;
+    if (gmTabMap) { const was = gmTabMap; gmTabMap = null; if (mapBig !== was.big) flMapBig(was.big); if (!was.show) flPanel('map', false); return true; }
+    gmTabMap = { show: !!panels.map, big: mapBig };
+    if (!panels.map) flPanel('map', true);
+    if (!mapBig) flMapBig(true);
+    return true;
+  }
+  function gmLayout() {
+    if (!gmBtn) return;
+    const B = document.body.classList, W0 = window.innerWidth || 1280;
+    const off = B.contains('shot') || B.contains('rollShot') || B.contains('premOpen') || !!$('welcome') || gmVis($('stIntro'));   // (the opening has its own Skip)
+    gmBtn.hidden = off;
+    if (off) { gmOpen(false); return; }
+    const fr = $('frEntry'), row = [gmBtn, $('mapEntry'), inGarage && fr && !fr.hidden ? fr : null].filter(Boolean), gap = 8;
+    const w = row.map(e => e.offsetWidth || 0), tot = w.reduce((a, b) => a + b, 0) + gap * (row.length - 1);
+    // the shed: one row centred at the top; flight: ending at the top bar's right inset (CONTRACTS, then MENU at the corner)
+    const order = inGarage ? row : row.slice(1).concat([gmBtn]), ow = order.map(e => e.offsetWidth || 0);
+    const phone = W0 <= 760, top = inGarage ? 10 : (phone ? 12 : 18);
+    let x = inGarage ? Math.round((W0 - tot) / 2) : W0 - (phone ? 12 : 22) - tot;
+    order.forEach((e, i) => { e.style.top = top + 'px'; e.style.left = Math.round(x) + 'px'; e.style.right = 'auto'; e.style.transform = 'none'; x += ow[i] + gap; });
+    if (!gmPanel.hidden) gmPlace();
+  }
+  if (typeof document.createElement === 'function' && document.body && document.body.appendChild) try {
+    const b = document.createElement('button');
+    b.id = 'gmMenu'; b.type = 'button'; b.textContent = 'MENU';
+    b.setAttribute('aria-label', 'the menu: resume, the shed, the options, the main menu'); b.setAttribute('aria-expanded', 'false');
+    b.style.cssText = 'position:fixed;top:10px;left:12px;z-index:2147482000;min-width:72px;min-height:48px;padding:0 18px;border-radius:24px;' +
+      "border:1px solid rgba(255,178,87,.85);background:rgba(28,24,20,.86);color:#ffb257;font:600 13px/1 'IBM Plex Sans',sans-serif;letter-spacing:.16em;cursor:pointer";
+    b.onclick = () => gmOpen(gmPanel.hidden);
+    const p = document.createElement('div');
+    p.id = 'gmPanel'; p.hidden = true; p.setAttribute('role', 'menu'); p.setAttribute('aria-label', 'the menu');
+    p.onclick = e => { const t = e.target && e.target.closest ? e.target.closest('[data-g]') : null; if (t) gmAct(t.dataset.g); };
+    document.body.appendChild(b); document.body.appendChild(p);
+    gmBtn = b; gmPanel = p;
+    window.addEventListener('resize', gmLayout);
+    setInterval(() => { try { gmLayout(); } catch (e) {} }, 500);
+    try { gmLayout(); } catch (e) {}
+    // Esc and Tab, ahead of the page's other key handlers (the capture phase) and only when nothing else holds them
+    window.addEventListener('keydown', e => {
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
+      if (e.key === 'Escape') {
+        if (!gmPanel.hidden) { if (!gmBusy()) { gmOpen(false); e.preventDefault(); e.stopImmediatePropagation(); } return; }
+        if (gmBusy() || gmMapOn() || gmTyping() || gmBtn.hidden) return;
+        gmOpen(true); e.preventDefault(); e.stopImmediatePropagation();
+      } else if (e.key === 'Tab' && !e.shiftKey) {
+        if (gmTyping() || gmBusy() || (gmBtn.hidden && !gmMapOn())) return;
+        if (gmTab()) { gmOpen(false); e.preventDefault(); e.stopImmediatePropagation(); }
+      }
+    }, true);
+  } catch (e) { console.warn('flyDiy: the menu -', e && e.message); gmBtn = gmPanel = null; }
+  window.FLYDIY_MENU = { open: () => gmOpen(true), close: () => gmOpen(false), isOpen: () => !!(gmPanel && !gmPanel.hidden), act: gmAct, tab: gmTab, layout: gmLayout };
 
   // ---- Esc closes; a click on the render closes ---------------------------
   window.addEventListener('keydown', e => {

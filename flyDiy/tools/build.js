@@ -1275,16 +1275,18 @@ window.FLYDIY_BOOT.then(function () {
   // G2252 (MAP-MENU): THE MAP ENTRY - only with ?map=1 (the dev flag) or in the career mode (FLYDIY_MODE, welcome.js's);
   // the sandbox has none. A button, and nothing else: the screen, its projection, the picture and the contracts load when
   // it is pressed (lazy, like diag.js)
+  // G3521 (GAME-MENUS, the 24 Oct playtest: "the map button is confused with the minimap"): the entry is CONTRACTS and
+  // opens the screen on the contracts list; Tab is the map (app.js); where it stands, beside MENU, is app.js gmLayout
   window.FLYDIY_MAP_SRC = { fixture: ${JSON.stringify(MAP_FIXTURE)} };
   var mapEntry = window.FLYDIY_MAP_ENTRY = function () {
     var on = /[?&]map=1(&|$)/.test(location.search) || window.FLYDIY_MODE === 'career';
     if (!on) return false;   // the sandbox: nothing touched
     if (!document.body || document.getElementById('mapEntry')) return !!document.getElementById('mapEntry');
     var b = document.createElement('button');
-    b.id = 'mapEntry'; b.type = 'button'; b.textContent = 'MAP'; b.setAttribute('aria-label', 'the island map and the contracts');
+    b.id = 'mapEntry'; b.type = 'button'; b.textContent = 'CONTRACTS'; b.setAttribute('aria-label', 'the contracts, on the island map');
     b.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:2147482000;min-width:72px;min-height:48px;padding:0 18px;border-radius:24px;' +
       "border:1px solid rgba(255,178,87,.85);background:rgba(28,24,20,.86);color:#ffb257;font:600 13px/1 'IBM Plex Sans',sans-serif;letter-spacing:.16em;cursor:pointer";
-    b.onclick = function () { lazy(['map_pack', 'map_menu']).then(function () { if (window.MAP_MENU) window.MAP_MENU.open(); }); };
+    b.onclick = function () { lazy(['map_pack', 'map_menu']).then(function () { if (window.MAP_MENU) window.MAP_MENU.open({ list: 'contracts' }); }); };
     document.body.appendChild(b);
     return true;
   };

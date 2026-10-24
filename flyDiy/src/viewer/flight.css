@@ -483,8 +483,10 @@ body.rollShot #flActs { display:none !important; }
    figures, and every text clips inside its own box. What the plate SAYS can never move its edges; only
    what you ask it to CARRY can (the instruments flyout's extra readouts wrap onto a second row).
    GATE UISMOKE holds this contract; tools/hud_fit_shot.js measures it in Chromium. */
+/* G3524 (the 24 Oct playtest: "a live wind indication on the HUD"): 540 and not 440 - the wind is the fifth always-on
+   cell, and the four that were there filled the 440 */
 #ui #pfd { grid-column:2; justify-self:center; padding:11px 14px 10px;
-  width:440px; box-sizing:border-box; overflow:hidden;
+  width:540px; box-sizing:border-box; overflow:hidden;
   background:var(--fl-glass); }
 
 #pfdRow { display:flex; flex-wrap:wrap; gap:6px 14px; align-items:flex-start; }
@@ -495,6 +497,11 @@ body.rollShot #flActs { display:none !important; }
 #ui .rd { flex:none; width:80px; min-width:0; overflow:hidden; text-align:right; }
 #ui .rd[data-i="nrg"], #ui .rd[data-i="netto"] { width:112px; }
 #ui .rd[data-i="thr"] { width:120px; }
+/* G3524: the wind - an arrow (where the air goes, the nose up), the speed; the unit line says where it comes from */
+#ui .rd[data-i="wind"] { width:100px; }
+#ui .rd b .windA { display:inline-block; width:18px; height:18px; margin-right:4px; vertical-align:2px;
+  fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; transform-origin:50% 50%; }
+#ui .rd b .windA.calm { visibility:hidden; }
 
 #ui .rd[hidden] { display:none; }
 
@@ -514,11 +521,13 @@ body.rollShot #flActs { display:none !important; }
 /* THE SMALL PFD (the user: "allow a minimized version of the top bar with
    smaller characters and only IAS, alt, Vs and power, plus the steps"). Two
    thirds of the type, four numbers, the steps unchanged. */
-#ui #pfd.small { padding:8px 11px 7px; width:372px; }
+#ui #pfd.small { padding:8px 11px 7px; width:448px; }   /* G3524: + the wind's 64 */
 #ui #pfd.small #pfdRow { gap:4px 12px; }
 #ui #pfd.small .rd { width:52px; }
 #ui #pfd.small .rd[data-i="nrg"], #ui #pfd.small .rd[data-i="netto"] { width:86px; }
 #ui #pfd.small .rd[data-i="thr"] { width:76px; }
+#ui #pfd.small .rd[data-i="wind"] { width:64px; }
+#ui #pfd.small .rd b .windA { width:12px; height:12px; margin-right:2px; vertical-align:1px; }
 #ui #pfd.small .rd b { font-size:19px; height:20px; line-height:20px; }
 #ui #pfd.small .rd i { font-size:7px; height:9px; line-height:9px; letter-spacing:.12em; }
 #ui #pfd.small #rail { margin-top:8px; padding-top:7px; height:22px; }
@@ -590,11 +599,6 @@ body.rollShot #flActs { display:none !important; }
 
 #track i.now { width:14px; background:var(--ed-acc); }
 
-/* G1091 (POLISH-2): the trees-by-the-runways variant, named while DEV is on - small, out of the way */
-#ui #rwyTreesTag { position:absolute; left:50%; bottom:6px; transform:translateX(-50%); padding:2px 8px;
-  font:500 9px/1.3 'IBM Plex Mono', monospace; letter-spacing:.04em; color:var(--ed-faint);
-  background:var(--fl-glass); border-radius:4px; pointer-events:none; white-space:nowrap; }
-#ui #rwyTreesTag[hidden] { display:none; }
 
 /* =========================================================================
    4. THE SUMMONED PANELS, and the arrival.
