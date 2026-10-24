@@ -2485,7 +2485,8 @@ function placeMobile(bb) {
   // ladder, the sack truck and the jerrycan against the far wall on the wrong
   // side. Which rows appear follows the chosen KITS: the cart is the handling
   // kit's, the toolbox the bench's, the jerrycan the stores' — a park-only
-  // shed walks nothing over to the aeroplane.
+  // shed walks only the boombox over (G3533: the garage radio stands in every
+  // hangar, its ring row `always`).
   const rows = (typeof hangarFitRing === 'function')
     ? hangarFitRing({ HW: HW, HD: HD, EAVE: EAVE }, KITS, bb) : [];
   for (const r of rows) prop(r.prop, r.x, r.z, r.ry, r.y, MOBILE);

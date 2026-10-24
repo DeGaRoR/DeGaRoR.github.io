@@ -194,7 +194,9 @@ function runA() {
   }
   const bare = CORE.hangarFitRing(dims, ['park'],
                                   { x0: -1, x1: 1, z0: -1, z1: 1 });
-  ok(bare.length === 0, 'a park-only shed walks nothing over');
+  // G3533 (HANGARS-LOOK): but the garage radio stands in every hangar - the boombox alone, from the office's `always` row
+  ok(bare.length === 1 && bare[0].prop === 'boombox', 'a park-only shed walks only the boombox over (' +
+     bare.map(r => r.prop).join(',') + ')');
 
   runCozy(union);
 }

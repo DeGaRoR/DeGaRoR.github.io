@@ -2090,6 +2090,9 @@ function editorInit(api) {
     // is AUDIO_MUSIC's row, not a rail row. A click: music if there was none (the sound on, music in the garage on -
     // OFF by default, so asking for music is what turns it on), else the next station (stepStation: [ / ]'s door).
     // A right-click or a long press: the radio off.
+    // G3533 (HANGARS-LOOK, the user 24 Oct: "the little radio UI back when clicking the boombox or its icon"): a click opens
+    // the boombox's own card beside the icon (stations, skip, volumes, my music) and a second click shuts it - with no
+    // music it also plays, as before; the station steps from the card or with [ / ]. No card (no page): the old step.
     { k: 'radio', state: 'AUDIO_MUSIC.station (flydiy.audio.station)',
       why: 'the radio\'s station: music.js\'s own state, stepped by the same stepStation the [ and ] keys call; music in ' +
            'the garage is a sound setting, and nothing the camera or the capture sees',
@@ -2099,14 +2102,20 @@ function editorInit(api) {
         const on = B.radio.playing();
         const st = M.station, name = B.radio.label(st === 'off' ? M.lastStation : st);
         return { on, off: false,
-          title: on ? 'Radio: ' + name + ' — click for the next station; right-click or hold to switch the radio off'
-            : 'Radio off — click to play ' + name,
+          title: on ? 'Radio: ' + name + ' — click for the radio; right-click or hold to switch it off'
+            : 'Radio off — click to play ' + name + ' and open the radio',
           // the boombox; playing, its two cones are sounding (solid), off they are dashed
           icon: '<path d="' + QI.box + '"/>' +
                 '<circle cx="5.9" cy="10.6" r="2"' + (on ? '' : ' stroke-dasharray="1.6 1.4"') + '/>' +
                 '<circle cx="12.1" cy="10.6" r="2"' + (on ? '' : ' stroke-dasharray="1.6 1.4"') + '/>' };
       },
-      act: () => { const B = window.BOOMBOX; if (B) B.radio.next(); },
+      act: btn => {
+        const B = window.BOOMBOX;
+        if (!B) return;
+        const was = B.radio.playing();
+        if (!was) B.radio.next();                                   // no music: the press asks for it, as before
+        if (!(B.toggleAt && B.toggleAt(btn)) && was) B.radio.next();   // no card to open (no page): the next station
+      },
       alt: () => { const B = window.BOOMBOX; if (B) B.radio.off(); } },
     // ---- the light --------------------------------------------------------
     // 2026-09-20: it presses the CLOCK now (the next preset on the day's own almanac), not the
@@ -2181,7 +2190,7 @@ function editorInit(api) {
       b.className = 'edQuickBtn';
       b.type = 'button';
       b.dataset.q = q.k;
-      b.onclick = () => { if (b.dataset.held) { delete b.dataset.held; return; } if (!b.disabled) { q.act(); syncQuick(); } };
+      b.onclick = () => { if (b.dataset.held) { delete b.dataset.held; return; } if (!b.disabled) { q.act(b); syncQuick(); } };   // (G3533: the button, for a card that stands beside it)
       // G1710: an entry's second action (the radio off): a right-click, or a press held QUICK_HOLD_MS (touch)
       if (q.alt) {
         let held = 0;

@@ -164,6 +164,9 @@ var BOOMBOX = (function () {
   // ---- THE PANEL -------------------------------------------------------------------------------------------------------
   let panel = null, body = null, obj = null, offs = [], vw = 0, vh = 0, vx = 0, vy = 0, cx = 0, cy = 0, cw = 0, ch = 0;
   let pw = 0, ph = 0, lastL = -1e9, lastT = -1e9, canvasEl = null;
+  // G3533 (HANGARS-LOOK, the user 24 Oct: "the little radio UI back when clicking the boombox or its icon"): opened from the
+  // quick bar's radio icon the card stands beside the ICON (`pin`, the button) and does not follow the radio
+  let pin = null;
   const refs = {};   // the live bits a refresh repaints (no rebuild under a dragged slider)
   const isOpen = () => !!panel;
   const D = () => G.document || null;
@@ -345,6 +348,7 @@ var BOOMBOX = (function () {
     if (t && t.closest && t.closest('#musicCredits')) return;   // the credits screen opened from here
     // a press ON the radio leaves it to the click that follows (which toggles the panel shut)
     if (t && t === canvasEl && hovered) return;
+    if (pin && t && pin.contains && pin.contains(t)) return;   // G3533: a press on the icon leaves it to its own click (the toggle)
     close();
   }
   // open beside the radio o; canvas: the render's (the anchor's pixels)
@@ -352,6 +356,7 @@ var BOOMBOX = (function () {
     const Dc = D();
     if (!Dc || !Dc.createElement) return false;
     obj = o; canvasEl = canvas || canvasEl;
+    pin = null;   // G3533: a click on the radio itself anchors the card to the radio again (toggleAt pins after this)
     if (!panel) {
       panel = el('div'); panel.id = 'bbPanel';
       panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-label', 'The radio');
@@ -378,7 +383,24 @@ var BOOMBOX = (function () {
     if (my && my.restore && radio.soundOn()) my.restore().then(() => { if (panel) refresh(); }, () => {});
     return true;
   }
+  // G3533: the quick bar's radio icon - the card beside the icon (the same card, the same rows); a second press shuts it
+  function toggleAt(btn, o) {
+    if (panel && pin && pin === btn) { close(); return false; }
+    if (panel) close();
+    if (!open(o || null, canvasEl)) return false;
+    pin = btn || null;
+    if (pin && pin.getBoundingClientRect) {
+      const r = pin.getBoundingClientRect();
+      let L = r.right - vx + 10;
+      if (L + pw > vw - 12) L = r.left - vx - 10 - pw;
+      L = Math.max(12, Math.min(vw - pw - 12, L));
+      const Tp = Math.max(12, Math.min(vh - ph - 12, r.top - vy));
+      panel.style.left = Math.round(L) + 'px'; panel.style.top = Math.round(Tp) + 'px';
+    }
+    return true;
+  }
   function close() {
+    pin = null;
     if (!panel) return;
     const Dc = D();
     Dc.removeEventListener('keydown', onKey, true);
@@ -401,6 +423,7 @@ var BOOMBOX = (function () {
   // the radio is gone (the shed left, the kit hidden) or off the screen. getObj: app.js's lookup, asked only now.
   function frame(camera, getObj) {
     if (!panel) return;
+    if (pin) return;   // G3533: stood beside the icon - it stays there until Esc, a press outside or the icon again
     const o = typeof getObj === 'function' ? getObj() : getObj;
     const S = scratch();
     if (!o || !S || !camera || !shown(o)) { close(); return; }
@@ -430,7 +453,7 @@ var BOOMBOX = (function () {
     return true;
   }
 
-  return { radio, pick, hitBox, hover, click, open, close, frame, refresh, placed, get isOpen() { return isOpen(); },
+  return { radio, pick, hitBox, hover, click, open, toggleAt, close, frame, refresh, placed, get isOpen() { return isOpen(); },
     get hovered() { return hovered; }, KEY, _localBox: localBox, _halo: () => halo };
 })();
 if (typeof window !== 'undefined') window.BOOMBOX = BOOMBOX;

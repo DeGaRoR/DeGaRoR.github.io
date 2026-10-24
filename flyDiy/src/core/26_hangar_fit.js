@@ -360,7 +360,9 @@ const HANGAR_KITS = {
       // THE GARAGE RADIO (SND-BOOMBOX, the user 2026-10-05: "place the boombox
       // close to the plane, and make it clickable"): on the floor abeam to
       // starboard, a metre forward of the tool chest, angled to the bay
-      { prop: 'boombox', station: 'abeamS', dx: -0.6, dz: 0.1, dry: Math.PI + 0.45 },
+      // G3533 (HANGARS-LOOK, the user 24 Oct: "the boombox in every hangar, the small shed included"): `always` - the
+      // ring stands it whatever the kits (the cabin and the side hangars carry no office); the claim stays the office's
+      { prop: 'boombox', station: 'abeamS', dx: -0.6, dz: 0.1, dry: Math.PI + 0.45, always: true },
     ],
   },
 
@@ -1042,13 +1044,17 @@ function hangarFitRing(dims, kitKeys, bb) {
   const keys = (kitKeys && kitKeys.length ? kitKeys : HANGAR_KITS_DEFAULT)
     .filter(k => HANGAR_KITS[k]);
   const out = [];
-  for (const k of keys)
-    for (const r of HANGAR_KITS[k].ring) {
-      const a = AT[r.station];
-      if (!a) continue;
-      out.push({ kit: k, prop: r.prop, x: a[0] + r.dx, z: a[1] + r.dz,
-                 ry: r.dry, y: r.y || 0 });
-    }
+  const row = (k, r) => {
+    const a = AT[r.station];
+    if (a) out.push({ kit: k, prop: r.prop, x: a[0] + r.dx, z: a[1] + r.dz,
+                      ry: r.dry, y: r.y || 0 });
+  };
+  for (const k of keys) for (const r of HANGAR_KITS[k].ring) row(k, r);
+  // G3533: a row marked `always` stands even when its kit was not chosen (the garage radio in every hangar)
+  for (const k of Object.keys(HANGAR_KITS)) {
+    if (keys.indexOf(k) >= 0) continue;
+    for (const r of HANGAR_KITS[k].ring) if (r.always) row(k, r);
+  }
   return out;
 }
 

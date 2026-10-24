@@ -180,6 +180,30 @@ function checkQuick(S) {
     q('radio').alt();
     if (!did(M.calls, 'setStation', 'off')) F.push('radio\'s second action: setStation(\'off\') not called');
   });
+  // G3533 (HANGARS-LOOK): on a page the press opens the boombox's card BESIDE THE ICON (no step), a second press shuts it;
+  // with no music the press also plays it
+  {
+    const A = fakeAudio({ mg: 1 }, {}), M = fakeMusic({ station: 'jazz' });
+    const pg = bbPage(S, { A, M, dom: true });
+    const Q = quickOf(S, pg), q = k => Q.find(x => x.k === k);
+    const btn = pg.document.createElement('button');
+    btn.getBoundingClientRect = () => ({ left: 40, top: 300, right: 76, bottom: 336, width: 36, height: 36 });
+    pg.document.getElementById('edView').appendChild(btn);
+    q('radio').act(btn);
+    if (!pg.B.isOpen) F.push('radio pressed on a page: the boombox card did not open');
+    if (did(M.calls, 'stepStation', 1)) F.push('radio pressed on a page with music: it stepped instead of opening the card');
+    const card = pg.document.getElementById('bbPanel');
+    if (!card || !(parseFloat(card.style.left) >= 76)) F.push('radio pressed on a page: the card is not beside the icon (left ' + (card && card.style.left) + ')');
+    pg.B.frame({ isPerspectiveCamera: true }, () => null);
+    if (!pg.B.isOpen) F.push('the card opened from the icon closed on the frame (it is pinned to the icon, not the radio)');
+    q('radio').act(btn);
+    if (pg.B.isOpen) F.push('radio pressed again: the card did not shut');
+    const A2 = fakeAudio({ mg: 0 }, {}), M2 = fakeMusic({ station: 'roots' });
+    const pg2 = bbPage(S, { A: A2, M: M2, dom: true });
+    const Q2 = quickOf(S, pg2);
+    Q2.find(x => x.k === 'radio').act(pg2.document.createElement('button'));
+    if (!did(A2.calls, 'set', 'musicGarage', 1) || !pg2.B.isOpen) F.push('radio pressed on a page with no music: not played and opened');
+  }
   // the bar's wiring: the second action bound, the repaint on AUDIO's events
   if (!/b\.oncontextmenu = e => \{ e\.preventDefault\(\); alt\(\); \};/.test(S.editor)) F.push('buildQuick: no right-click for the second action');
   if (!/setTimeout\(\(\) => \{ b\.dataset\.held = '1'; alt\(\); \}, QUICK_HOLD_MS\)/.test(S.editor)) F.push('buildQuick: no hold for the second action');
