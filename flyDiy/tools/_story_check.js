@@ -203,7 +203,9 @@ function run(M) {
     // G3358 (the user 23 Oct: "Interior flood light should be ON by default in the garage")
       ok(/function garageFloodOn\(\)/.test(APP) && /if \(\+U\.P\.lightOn !== 1 \|\| \(U\.P\.li_floodFit != null && !\+U\.P\.li_floodFit\) \|\| \+U\.P\.li_flood === 1\) return;/.test(APP)
          && /U\.P\.li_flood = 1; U\.build\(\);/.test(APP) && /setInterval\(\(\) => \{ try \{ garageFloodOn\(\); \}/.test(APP),
-         'in the garage the cabin flood goes on once per aeroplane put on the stand, only where fitted and the lights\' master is on (the master never thrown) (G3358)'); }
+         'in the garage the cabin flood goes on once per aeroplane put on the stand, only where fitted and the lights\' master is on (the master never thrown) (G3358)');
+      ok(!/n\.id = 'stNoBenchNote'/.test(APP) && /var STORY_BENCH_LINE = 'No test bench in here/.test(APP) && /small && L0\.length \? L0\.concat\(\[STORY_BENCH_LINE\]\) : L0/.test(APP),
+         'no bench note in the panel: in the small shed Tim says it, his last line (G3361)'); }
     ok(/id = 'stTim'/.test(APP) && /FLYDIY_AP\.manual\(\) && !inGarage/.test(APP), 'Tim band at the bottom; it steps aside in flight when the player takes manual control');
   }
   // the save
@@ -324,6 +326,9 @@ async function pageRun() {
   // ---- a New career at the cabin: playerLoad's own step (careerNew -> storyNewCareer), then the page half boots
   let d = M.careerNormalise(M.careerNew({ id: 'main', seed: 'gate' }));
   let r = M.storyNewCareer(d, { aeros: aerosCabin });
+  { const g = (d.ledger || []).some(e => e.k === 'grant');
+    ok(r.ok && g && !(r.doc.ledger || []).some(e => e.k === 'grant') && r.doc.wallet === d.wallet - M.CAREER_GRANT + M.STORY_GRANT && M.STORY_GRANT === 0,
+       'the story career starts without careerNew\'s grant (G3359: STORY_GRANT 0, its ledger line gone)', r.doc.wallet); }
   d = r.doc;
   ok(r.ok && M.storyOf(d).beat === 'T0' && d.here === 'w9' && d.sheds.w9 && d.sheds.w9.shell === 'field' && d.sheds.w9.base === 'w9' && d.sheds.HOME.locked === 'story',
      'New career -> storyStart at the cabin: the smallest shed (a field shell) at "Cabin Strip", the garage there, the WWII hangar held', JSON.stringify(d.sheds.w9 && d.sheds.w9.dims));
