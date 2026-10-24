@@ -99,7 +99,7 @@ function child(k) {
   const fly = (c, o) => {
     const T0 = C.GEN_OCC.trigG; if (o.trig != null) C.GEN_OCC.trigG = o.trig;
     const on0 = C.GEN_OCC.on; if (o.recOff) C.GEN_OCC.on = false;
-    let hop = null, pay = [];
+    let hop = null, pay = [], runOn = 0;
     const onStart = (sim) => { hop = SH.simOccHop(sim); };
     const onFrame = (sim) => { if (hop) { const x = hop(); if (x !== undefined) pay.push({ t: sim.t, x }); } };
     const oo = Object.assign({}, c.o, { onStart, onFrame }, o.elastic ? { elastic: true } : {});
@@ -108,6 +108,10 @@ function child(k) {
       if (c.kind === 'trunk') r = L.atTrunk(k, oo);
       else if (c.kind === 'drop') { const s473 = L.far473(k), dd = L.defOf(k), fwd = dd.params.gen.VsFlap || dd.params.gen.Vs; r = L.hardLanding(k, Object.assign({}, oo, { sink: c.o.k473 * s473, fwd })); }
       else r = L.waterCase(k, oo);
+      // (25 Oct) an event the case's window cut open (a late bounce on the floats) runs on as the game would, until it
+      // closes - at most crashMax + quiet + 1 s; one still open past that stays red below
+      const S0 = L.lastRun.sim, O0 = S0.occupants ? S0.occupants() : null;
+      for (let f = 0; O0 && O0.state.st === 2 && f < (C.GEN_OCC.crashMax + C.GEN_OCC.quiet + 1) * 60; f++) { S0.step(1 / 60); onFrame(S0); runOn = f + 1; }
     } finally { C.GEN_OCC.trigG = T0; C.GEN_OCC.on = on0; }
     const sim = L.lastRun.sim, D = sim.damage(), O = sim.occupants ? sim.occupants() : null;
     const res = D.occ || null;
@@ -116,7 +120,7 @@ function child(k) {
     // the reset: the hop says null once (the page drops the bands), then nothing
     let resetPay = [];
     if (hop && pay.length) { sim.reset(0); for (let f = 0; f < 3; f++) { const x = hop(); if (x !== undefined) resetPay.push(x); } }
-    return { r, res, pay, resetPay, after, hash, D: DD };
+    return { r, res, pay, resetPay, after, hash, D: DD, runOn };
   };
   for (const c of casesOf(k)) {
     const t0 = Date.now();
@@ -125,7 +129,7 @@ function child(k) {
     // the criteria behind an Unharmed with no record: the same case with the trigger at 1.5 g (a test setting)
     const M = !G.res || G.res.seats.every(s => s.band === 0) ? fly(c, { trig: 1.5 }) : null;
     const row = { id: c.id, label: c.label, want: c.want || null, D: G.D, seats, restraint: G.res ? G.res.restraint : null, restraintDefault: G.res ? G.res.restraintDefault : null,
-      seatType: G.res ? G.res.seatType : null, events: G.after.events, open: G.after.open,
+      seatType: G.res ? G.res.seatType : null, events: G.after.events, open: G.after.open, runOn: G.runOn,
       wire: G.pay.map(p => p.x), wireN: G.pay.length, resetPay: G.resetPay,
       measured: M && M.res ? M.res.seats.map(s => ({ name: s.name, band: s.band, crit: crit(s.crit) })) : null,
       seatsAboard: (() => { const O = L.lastRun.sim.occupants(); return O ? O.spec.seats.map(s => s.name) : []; })(),
@@ -243,7 +247,7 @@ function judgeBuild(B, say, bad) {
   say('== ' + B.label + ' (' + B.key + ')');
   for (const c of B.cases) {
     const words = c.seats ? c.seats.map(s => s.name + ': ' + FIVE[s.band]).join(', ') : 'no record - every seat Unharmed';
-    say('  ' + c.id.padEnd(13) + ' ' + words + '   [' + (c.D.crashed ? 'crashed: ' + c.D.reason : 'no crash') + '; contact ' + f1(c.D.gPeak) + ' g; ' + c.D.breaks + ' broken; ' + f1(c.secs) + ' s]');
+    say('  ' + c.id.padEnd(13) + ' ' + words + '   [' + (c.D.crashed ? 'crashed: ' + c.D.reason : 'no crash') + '; contact ' + f1(c.D.gPeak) + ' g; ' + c.D.breaks + ' broken; ' + f1(c.secs) + ' s' + (c.runOn ? '; ran on ' + f2(c.runOn / 60) + ' s to the close' : '') + ']');
     if (c.seats) for (const s of c.seats) say('      ' + s.name.padEnd(12) + ' ' + critLine(s.crit));
     if (c.measured) for (const s of c.measured) say('      (trigger 1.5 g) ' + s.name.padEnd(12) + ' ' + FIVE[s.band] + ' - ' + critLine(s.crit));
     // every seat aboard has a band, every band one of the five
