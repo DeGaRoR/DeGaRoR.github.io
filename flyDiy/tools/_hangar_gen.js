@@ -205,8 +205,11 @@ function build(P0, lod, F) {
   const rnd = rng(P.seed);
   const litOn = P.lights ? 1 : 0;
   // THE SHELL FROM hangar.js, baked into bags (browser, near mesh only); null headless
-  const ext = (Q.lod === 0 && !P.restated && typeof document !== 'undefined' && typeof genHangarBuild === 'function') ? bakeShell(P, S, fy, bags, litOn, F) : null;
-  const R = !ext;                                             // the restated shell draws only where hangar.js's does not
+  // G3534 (HANGARS-LOOK): `polishOnly` - the polish alone (the casings, the gutters and downpipes, the flue, the lamps, the
+  // ground skirt, their bake), no shell of either kind: the garage ROOM stands it on its own walls (hangar.js), so the
+  // building the roll-out shows is dressed as the world's is
+  const ext = (!P.polishOnly && Q.lod === 0 && !P.restated && typeof document !== 'undefined' && typeof genHangarBuild === 'function') ? bakeShell(P, S, fy, bags, litOn, F) : null;
+  const R = !ext && !P.polishOnly;                            // the restated shell draws only where hangar.js's does not
 
   if (R) {
     // ---- THE SLAB AND THE STEM: concrete from below the lowest corner to the floor, the brick course over it
@@ -443,7 +446,7 @@ function build(P0, lod, F) {
   }
   const stats = {
     tris, verts, per, bbox: bb, footprint: 4 * HW * HD, eave, ridge, ridgeY: ridge, eaveY: eave, floorY: fy,
-    shell: SHELLS[Math.round(P.shell)], dims: { HW, HD, EAVE }, role: 'hangar', source: ext ? 'hangar.js' : 'restated',
+    shell: SHELLS[Math.round(P.shell)], dims: { HW, HD, EAVE }, role: 'hangar', source: ext ? 'hangar.js' : (P.polishOnly ? 'polish' : 'restated'),
     door: { x: 0, z: HD, w: S.DOOR_W, h: S.DOOR_H, leaves: timber ? 1 : 6, shut: true },
     backDoor: backDoor ? { w: S.BD_W, h: S.BD_H } : null, personDoor: !!pdoor,
     bands: bands.length, roofLights: roofLights.length, gutterLen, downpipes, flue, smoke, sign,
@@ -453,7 +456,7 @@ function build(P0, lod, F) {
   };
   // the bags this build carries (the shell's own beside the polish) and the materials for them
   const MATX = Object.assign({}, F ? F.MAT : MAT, ext ? ext.mats : {});
-  if (F && ext) Object.assign(F.MAT, ext.mats);
+  if (F && ext) { Object.assign(F.MAT, ext.mats); stats.shellShaded = finishShell(ext.mats, F.SHADE_U); }   // G3531
   return { bags, stats, P, V: { L: 2 * HW, w: 2 * HD, wallT: t, floorY: fy }, R: null, MAT: MATX, BAGS: OUT };
 }
 // THE BAKE (G405.1): hangar.js's exterior group, every mesh's geometry read
@@ -493,7 +496,13 @@ function bakeShell(P, S, fy, bags, litOn, F) {
       bags[key] = Bag(key); keys.push(key);
       const name = nameOf.get(o.material) || 'misc';
       if (isGlass) mats[key] = paneMat;
-      else { if (!lib[name]) lib[name] = o.material; else if (lib[name] !== o.material && o.material.dispose) o.material.dispose(); mats[key] = lib[name]; }
+      else {
+        if (!lib[name]) lib[name] = o.material; else if (lib[name] !== o.material && o.material.dispose) o.material.dispose();
+        // G3531 (HANGARS-LOOK): a build with a finish of its own (every premises item, every player shed) wears a CLONE of
+        // the library's material - the same textures, shared - so the house's finish (finishShell: the dirt line, the
+        // baked occlusion) can ride it at THIS building's height; without a finish (a bench, a gate) the library's own
+        mats[key] = F ? shellClone(lib[name], shellName + '/' + name) : lib[name];
+      }
     }
     const bag = bags[key];
     const g = o.geometry, pa = g.attributes.position, na = g.attributes.normal, ua = g.attributes.uv;
@@ -514,6 +523,33 @@ function bakeShell(P, S, fy, bags, litOn, F) {
   // the copied geometries are ours now; the materials stay the hangar's (shared by every shell on the page)
   ext.group.traverse(o => { if (o.isMesh && o.geometry) o.geometry.dispose(); });
   return { keys, mats, panes };
+}
+// G3531 (HANGARS-LOOK, the user 24 Oct: "rebuild it with the house generator's care ... the bottom gradient as AO/shadow,
+// the blending"): the SHELL's own surfaces never took the house's shader (HANGAR_GEN.LIB is hangar.js's materials), so the
+// occlusion baked into every shell vertex (aHouseAO, bakeAO below) and the dirt line the finish declares were drawn on
+// the casings and the gutters and NOT on the walls. A clone per build (`userData.hangarShell` names it: the far town keeps
+// its item gain, the town's texture arrays leave it alone - render_premises farGain, house_tarr classifyMat) takes
+// HOUSE_GEN.shadeHouse with this build's SHADE_U: the ramp from the ground (the stem's dark tide line, the doors' splash,
+// pale dust on the cladding), all of the bake on the indirect light and a third on the albedo. The glass stays the pane.
+function shellClone(m, name) {
+  const c = m.clone();
+  c.userData = { hangarShell: name };
+  return c;
+}
+const SHELL_DIRT = { stem: [1.6, 0x453f36], door: [1.2, 0x6d6353], manDoor: [1.2, 0x6d6353], wall: [1.0, 0x6d6353], wallOut: [1.0, 0x6d6353],
+  wallBack: [1.0, 0x6d6353], doorTrim: [0.9, 0x6d6353], steel: [0.8, 0x5a5246], steelDark: [0.8, 0x5a5246], wood: [1.0, 0x5d5446], beamMain: [1.0, 0x5d5446] };
+function finishShell(mats, SU) {
+  let n = 0;
+  for (const key in mats) {
+    const m = mats[key], ud = m && m.userData;
+    if (!ud || !ud.hangarShell || ud.houseShaded || !m.isMeshStandardMaterial) continue;
+    const name = ud.hangarShell.split('/')[1];
+    HG.shadeHouse(m, SU);
+    const d = SHELL_DIRT[name] || (/^roof/.test(name) ? [0, 0x6d6353] : [1.0, 0x6d6353]);
+    m.userData.dirt.uDirtGain.value = d[0]; m.userData.dirt.uDirtOwn.value.setHex(d[1]); m.userData.dirt.uWander.value = 0;
+    n++;
+  }
+  return n;
 }
 function applyFinish(P, F) {
   const M = F ? F.MAT : MAT;
@@ -559,7 +595,8 @@ function randomHangar(seed) {
   return P;
 }
 
-window.HANGAR_GEN = { DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, SHELLS, ROLE_SETS, SET_IDX, CATS, catOf, shellOf, build, applyFinish, makeFinish, finishReport, randomHangar, LIB, library: shell => LIB[shell] || null };
+window.HANGAR_GEN = { DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, SHELLS, ROLE_SETS, SET_IDX, CATS, catOf, shellOf, build, applyFinish, makeFinish, finishReport, randomHangar, LIB, library: shell => LIB[shell] || null,
+  finishShell, SHELL_DIRT };   // G3531
 window.HANGAR_LIB = LIB;
 // THE CATALOGUE: a building with its door hook toward the road side
 window.HANGAR_GEN.CATALOGUE_V = 1;

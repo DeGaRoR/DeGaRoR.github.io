@@ -185,6 +185,7 @@ const ground = m => { GROUND.push(m); return m; };
 // probe cannot be asked to guess where the wall is.
 const OUTDOOR = [];
 const outdoor = m => { OUTDOOR.push(m); return ground(m); };
+let ROOM_POLISH = null;   // G3534: what the room's polish stood (hangar.polish)
 
 // THE SEED IS RESETTABLE, and it has to be (G123). The canvas sheets below are
 // MEMOISED across builds, so on the second build their draw callbacks do not
@@ -2050,6 +2051,46 @@ if (!EXT) {
     });
     put(siteTufts(THREE, rows, tuftMat, Y_FIELD - 0.02));
   }
+
+  // ---- G3534 (HANGARS-LOOK) THE POLISH ON THE ROOM'S OWN WALLS ------------
+  // The user, 24 Oct: "the garages' outsides should match the real scenery buildings". The world's sheds are HANGAR_GEN's
+  // builds now (render_world polishedShell): hangar.js's exterior with the house's polish over it. The roll-out shows THIS
+  // room from outside, so the same polish stands on the room's walls - HANGAR_GEN's own build of it (`polishOnly`: the
+  // casings round the door and the windows, the gutters and the downpipes cut to this ground, the ground skirt on the slab
+  // and the field, their bake), in the house frame (the door to +z) turned under this one (the door at local -x) by -PI/2
+  // and dropped by the slab's floorY. No flue (the stove corner brings its own through the roof), no lamps (the room's own).
+  // ?roompolish=0 or opts.polish === false: the room as it was.
+  {
+    const HGN = typeof window !== 'undefined' ? window.HANGAR_GEN : null;
+    const PRE = { field: 'field shed', club: 'club hangar', works: 'works hangar' }[SHELL];
+    let off = !!(opts && opts.polish === false);
+    try { off = off || (typeof location !== 'undefined' && /[?&]roompolish=0/.test(location.search || '')); } catch (e) {}
+    if (HGN && HGN.build && HGN.PRESETS && PRE && !off) {
+      try {
+        const P = Object.assign({}, HGN.DEF, HGN.PRESETS[PRE], { HW: HW, HD: HD, EAVE: EAVE, polishOnly: 1, lights: 0, sign: 0, signKey: '', flue: 0, smoke: 0 });
+        const fy = P.floorY || 0;
+        const apR = PLAIN ? SLAB_RECT : (SITE && SITE.apron ? L(SITE.apron) : SLAB_RECT);
+        // the house frame's (X, Z) is this room's (x = -Z, z = X): the slab's height on the apron, the field's off it
+        P.ground = (X, Z) => { const x = -Z, z = X; return ((x >= apR.x0 && x <= apR.x1 && z >= apR.z0 && z <= apR.z1) ? Y_APRON : Y_FIELD) + fy; };
+        const F = HGN.makeFinish(); HGN.applyFinish(P, F);
+        const built = HGN.build(P, 0, F);
+        // the dirt line is drawn against WORLD height: lifted by wherever the room's group stands (a uniform read at upload)
+        F.SHADE_U.uDirtY0 = { get value() { return G.matrixWorld.elements[13] - fy; }, set value(v) {} };
+        const inner = new THREE.Group();
+        inner.name = 'room:polish'; inner.rotation.y = -Math.PI / 2; inner.position.y = -fy;
+        for (const k of built.BAGS) if (built.bags[k] && built.MAT[k]) {
+          const m = built.bags[k].mesh(inner, built.MAT[k]);
+          if (m) { m.castShadow = true; m.receiveShadow = true; }
+        }
+        if (built.bags.aoskirt && F.MAT.aoskirt) {
+          const m = built.bags.aoskirt.mesh(inner, F.MAT.aoskirt);
+          if (m) { m.renderOrder = 5; m.castShadow = false; m.receiveShadow = false; }
+        }
+        G.add(inner);
+        ROOM_POLISH = { tris: built.stats.tris, gutter: built.stats.gutterLen, pipes: built.stats.downpipes, skirt: !!built.bags.aoskirt };
+      } catch (e) { ROOM_POLISH = { error: String(e && e.message || e) }; if (typeof console !== 'undefined') console.warn('room polish:', e && e.message); }
+    }
+  }
 }
 
 // ---- roof: portal trusses, purlins, deck, roof lights ---------------------
@@ -2290,6 +2331,42 @@ if (EXT) {
 // stub). Off: ?roommerge=0 or opts.merge === false. hangar.merged says what it did ({ sources, meshes, kept }); the
 // sources are kept aside (never uploaded: a few MB of CPU arrays) so hangar.roomMerge(false / true) swaps them back in and
 // out live - the GPU's same-task identity proof (tools/perf/garage_fps.js --roomidentity).
+// G3535 (HANGARS-LOOK, the user 24 Oct on the small shed: "the bottom gradient as AO/shadow ... the blending"): THE ROOM'S
+// WALLS WEAR THE HOUSE'S DIRT LINE. HOUSE_GEN.shadeHouse, the one patch every house material takes: the world height of
+// each fragment, a ramp from the ground (pow 1.7) mixed toward the material's own dirt - pale dust on the cladding and the
+// leaves, the stem's dark tide line - and roughened, plus the low-frequency noise that breaks the tiling. The room has no
+// per-vertex bake (its floor shadow and its lamps do that work), so its hook reads the occlusion as 1 (`aHouseAO` a
+// constant: no attribute to add to 470 boxes); the dirt line follows the room's group wherever it stands. Inside and out:
+// a shed's walls are dusty at the foot on both faces. ?roomdirt=0: the walls as they were.
+let ROOM_DIRT = 0;
+{
+  const HGH = typeof window !== 'undefined' ? window.HOUSE_GEN : null;
+  let off = !!(opts && opts.dirt === false);
+  try { off = off || (typeof location !== 'undefined' && /[?&]roomdirt=0/.test(location.search || '')); } catch (e) {}
+  if (!EXT && !off && HGH && HGH.shadeHouse && HGH.makeShadeU) {
+    const SU = HGH.makeShadeU();
+    SU.uDirtTop.value = 0.62; SU.uDirtH.value = 1.05; SU.uDirtK.value = FRAME === 'timber' ? 0.55 : 0.5; SU.uAOd.value = 0; SU.uSag.value = 0;
+    SU.uDirtY0 = { get value() { return G.matrixWorld.elements[13]; }, set value(v) {} };
+    const DIRT = FRAME === 'timber'
+      ? { wall: [1.0, 0x6d6353], wallBack: [1.0, 0x6d6353], door: [1.2, 0x6d6353], beamMain: [0.8, 0x5d5446] }
+      : { wallOut: [1.0, 0x6d6353], wall: [0.6, 0x6d6353], wallBack: [0.6, 0x6d6353], stem: [1.6, 0x453f36], door: [1.2, 0x6d6353], doorTrim: [0.9, 0x6d6353] };
+    for (const k in DIRT) {
+      const m = M[k];
+      if (!m || !m.isMeshStandardMaterial || (m.userData && m.userData.houseShaded)) continue;
+      HGH.shadeHouse(m, SU);
+      // the raw hook (the game's ATMO serves every material's own hook wrapped, kept aside as _atmoHook - atmo.js G432.2)
+      const hook = m._atmoHook || m.onBeforeCompile;
+      const noAO = function (sh, r) {
+        hook.call(this, sh, r);
+        sh.vertexShader = sh.vertexShader.replace('attribute float aHouseAO;', 'const float aHouseAO = 1.0;');
+      };
+      noAO.toString = () => 'room-noao+' + hook.toString();   // (three keys the program on the hook's text)
+      m.onBeforeCompile = noAO;
+      m.userData.dirt.uDirtGain.value = DIRT[k][0]; m.userData.dirt.uDirtOwn.value.setHex(DIRT[k][1]); m.userData.dirt.uWander.value = 0;
+      ROOM_DIRT++;
+    }
+  }
+}
 let roomMerged = null;
 const roomMergeOff = () => { if (opts && opts.merge === false) return true; try { return typeof location !== 'undefined' && /[?&]roommerge=0\b/.test(location.search || ''); } catch (e) { return false; } };
 if (!EXT && !roomMergeOff() && THREE.Matrix4 && THREE.Matrix3 && THREE.Box3 && THREE.BufferAttribute && THREE.BufferGeometry) {
@@ -3967,6 +4044,7 @@ return {
   texBudget: texBudget,        // dev: what the room costs in fragment samplers
   census: census,              // dev: meshes and triangles, which ARE draw calls here
   mats: M, shafts: shafts, faceShafts: faceShafts,
+  polish: ROOM_POLISH, dirt: ROOM_DIRT,   // G3534 / G3535
   // the kit that follows the aeroplane, and the equirect the caller may bake
   // an environment from instead of the room's own cube pass
   placeMobile: placeMobile, mobile: mobileList, mobileShow: mobileShow, mobileProp: mobileProp,
