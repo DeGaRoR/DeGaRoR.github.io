@@ -128,6 +128,7 @@ const next = async () => { const ok = await click('#stTim [data-tim="tnext"]'); 
       [!introClouds || introClouds.none || (introClouds.veil === 0 && introClouds.comp !== true), 'clouds under the opening (G3588: ' + JSON.stringify(introClouds) + ')'],
       [P.tut && P.tut.beat === 'T0' && P.tut.step === 'hello' && P.stTut, "the tutor is not at T0's first step, locked (" + JSON.stringify(P.tut) + ')'],
       [P.reg === 'N47RF', "Rufus's registration is not N47RF (" + P.reg + ')'],
+      [P.planes && P.planes.client && P.fleet.indexOf(P.planes.client) >= 0, "the client's Cub is not waiting at HOME yet (G3585: " + JSON.stringify(P.planes) + ')'],
       [P.roll && P.roll.text === 'Roll out', 'the roll-out button does not read just "Roll out" (' + (P.roll && P.roll.text) + ')']]);
     // the guard: the roll-out pressed off its step stays in the shed
     await click('#edRoll'); await sleep(2500);
@@ -168,9 +169,13 @@ const next = async () => { const ok = await click('#stTim [data-tim="tnext"]'); 
     await beat("B5 Skip the flight -> on the final at HOME (the autopilot's)", P => [[r.ok !== false && r.final, 'the skip did not go to the final: ' + JSON.stringify(r)], [P.beat === 'T1', 'T1 completed without a landing (' + P.beat + ')'], [P.ap && !P.ap.manual, 'the hand still has it']]);
     const landed = await waitFor('!!(window.FLYDIY_STORY && window.FLYDIY_STORY.story() && window.FLYDIY_STORY.story().beat === "T2")', 300000);
     await sleep(4000);
+    // G3585: the Cub stood on HOME's apron by the roll-out (FLEET_STAND's drawn set) - read, and a still for A0's brief
+    const apron = await evJs('const F = window.FLEET_STAND, P = F && F.state ? F.state : null; return { plan: P && P.plan ? P.plan.stand.map(p => p.slot + "@" + p.aero) : null, placed: P && P.stats ? P.stats.placed : null };');
+    await still('landed at HOME - the Cub waiting outside');
     await beat('B6 the final flown: landed at HOME -> T2; the ending a line, no card', P => [[landed && P.beat === 'T2', 'no landing at HOME within 5 min (' + P.beat + ')'], [!P.homeLocked, 'HOME is still locked'],
       [P.arr && P.arr.shown && P.arr.line, 'the ending is not a line (' + JSON.stringify(P.arr) + ')'], [P.tut && P.tut.step === 'down' && !P.stTut, 'Tim\'s "taxi or The shed" is not up, unlocked (' + JSON.stringify(P.tut) + ')'],
-      [P.planes && P.planes.client, 'no client Cub bound']]);
+      [P.planes && P.planes.client, 'no client Cub bound'],
+      [!apron.plan || apron.plan.some(x => x === P.planes.client + '@HOME'), "the Cub is not in HOME's drawn apron (" + JSON.stringify(apron) + ')']]);
 
     // ---- B': THE WWII ARRIVAL - The shed, Rufus in the new hangar, the contract, the Cub swapped in through Storage
     await click('#bHangar2');
