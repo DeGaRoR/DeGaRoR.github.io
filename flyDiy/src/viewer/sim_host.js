@@ -709,6 +709,14 @@ function makeSimHost(CORE, init, keptWorld) {
     const apNew = H.apGen !== genSent;
     if (apNew) { genSent = H.apGen; for (const k of Object.keys(rare)) delete rare[k]; }
     for (const k of Object.keys(ap)) {
+      // G3560 (AP-HONEST): THE NAVIGATOR'S READOUTS (38_nav.js: mode, the active leg, arrived, `last` - the box's NAV
+      // mode), sent only when `last` is a new object (the navigator writes one per update while it flies a leg); a
+      // navigator at rest (last null) sends nothing at all, so a flight off the box carries what it always carried
+      if (k === 'nav') {
+        const N = ap.nav, L = N ? N.last : null;
+        if (L !== (rare.navLast === undefined ? null : rare.navLast)) { rare.navLast = L; A.nav = N ? { mode: N.mode, active: N.active, arrived: !!N.arrived, last: simHostPlain(L, 3) || null } : null; }
+        continue;
+      }
       if (SIM_HOST_AP_SKIP.indexOf(k) >= 0) continue;
       const d = Object.getOwnPropertyDescriptor(ap, k);
       if (!d || d.get || typeof d.value === 'function') continue;

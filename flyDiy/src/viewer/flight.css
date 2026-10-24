@@ -249,6 +249,22 @@
 
 #flNotice span { font:400 11px/1.4 'IBM Plex Sans'; color:var(--ed-dim); }
 
+/* ---- G3560 (AP-HONEST): WHY THE AUTOPILOT CHANGED ITS PLAN - the flight's top-left column under the brief (app.js
+   apWhyDraw), never the screen's centre: the head in the notice's warn label, the reason in plain ink under it, the
+   newest row first, the older ones dimmer. A click clears it. The plan said back (the hand gives it back, a new To, a
+   drawn route) takes the accent instead of the warn. ---- */
+#ui #apWhy { display:flex; flex-direction:column; gap:7px; padding:8px 12px; margin-top:6px; max-width:520px;
+  border-color:rgba(216,160,122,.5); cursor:pointer; }
+#ui #apWhy[hidden] { display:none; }
+#apWhy .awRow { display:flex; flex-direction:column; gap:3px; min-width:0; }
+#apWhy .awRow + .awRow { padding-top:6px; border-top:1px solid var(--ed-hair); }
+#apWhy .awRow b { font:600 9.5px/1.2 'IBM Plex Sans'; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--ed-warn); }
+#apWhy .awRow span { font:400 12px/1.4 'IBM Plex Sans'; color:var(--ed-ink); }
+#apWhy .awRow.plan b, #apWhy .awRow.dest b, #apWhy .awRow.route b { color:var(--ed-acc); }
+#apWhy .awRow.old { opacity:.62; }
+#apWhy .awRow.old span { color:var(--ed-dim); font-size:11px; }
+
 /* ---- the verbs: far right of the same row, on the pixel #edActs owns ---- */
 /* THE VERBS, BOTTOM RIGHT — their own surface, opposite the look ribbon, on
    the row where what-you-do lives. They are not plated: four verbs in a row
