@@ -6418,6 +6418,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             genHangarSupported(THREE))) return;
       if (shedNode) { dropShed(shedNode); shedNode = null; }
       shedNode = shedNodeAt(SITE.hangar, dims);
+      if (shedNode && !shedNode.name) shedNode.name = 'shed:HOME';   // G3532: named as the side sheds are (a census tells the player's sheds from the scenery's)
     }
     // G2310 (PREM-S3): ONE SHED AT ONE PLACE - HOME's at the site's hangar (above), a side hangar at its plot (below):
     // the same exterior build, merge, coarse rung, LOD and ground; `dress` (a held hangar's shell skin + its parts,

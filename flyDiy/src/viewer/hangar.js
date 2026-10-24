@@ -2525,11 +2525,24 @@ const claim = (obj, k) => {
 // The slot is per-build like everything in this closure; the latest room owns
 // it, which is also who a late prop should report to.
 const PENDING_LIGHT = new Map();      // pending group -> switch key
+// G3536 (HANGARS-LOOK, the user 24 Oct: "the small hangar lacks shadows: the fuselage under construction and the covered car
+// cast none (visible in the roll-out animation)"): THE FLOOR PRINT FOLLOWS THE PROPS THAT LAND. The baked floor shadow
+// (G58, GS below) is the grounding every static prop has under a light with no shadow map - and in a timber shed by day
+// (no roof lights, no glazing band) it is nearly all of it - but it was baked when the room opened and when the kit moved,
+// never when a prop's meshes LANDED after that: a prop on the wire prints an empty group, and the fuselage on its
+// trestles joins FURN only once its own prop is warm (wipBody). So every landing asks the caller for a new print
+// (onFurnLanded, debounced like the probe: a dozen props landing together are one bake of four draws).
+let furnTimer = null, furnLanded = null;
+const furnAsk = () => {
+  if (furnTimer) clearTimeout(furnTimer);
+  furnTimer = setTimeout(() => { furnTimer = null; if (typeof furnLanded === 'function') furnLanded(); }, 250);
+};
 if (typeof window !== 'undefined') window.PROP_LANDED = (key, g) => {
   claim(g, PENDING_LIGHT.get(g) || 'glow');
   PENDING_LIGHT.delete(g);
   setMood(moodI);
   roomTexLanded();
+  furnAsk();
 };
 
 function prop(key, x, z, ry, y, parent) {
@@ -4050,6 +4063,7 @@ return {
   placeMobile: placeMobile, mobile: mobileList, mobileShow: mobileShow, mobileProp: mobileProp,
   // the baked floor shadow: re-run after anything on the floor moves
   bakeGroundShadow: GS.bake, disposeGroundShadow: GS.dispose,
+  onFurnLanded: fn => { furnLanded = fn; },   // G3536: a prop landed after the print - bake it again
   bakeCraftShadow: CS.bake,
   _gs: GS,                           // dev handle: the bake's own targets
   groundShadow: v => {

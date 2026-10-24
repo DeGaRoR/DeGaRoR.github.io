@@ -1242,6 +1242,9 @@
       // it through the open door just as the sky bake reads it directly — so
       // either way, the environment is worth having again once it lands
       if (hangar.onSkyReady) hangar.onSkyReady(() => bakeHangarEnv());
+      // G3536: a prop that lands after the floor print (the WIP fuselage on its trestles, a scan on the wire) prints too -
+      // now if the room is shown, else when it is next entered (applyEnv bakes it then anyway)
+      if (hangar.onFurnLanded) { const h0 = hangar; hangar.onFurnLanded(() => { if (hangar === h0 && inGarage && !envAway && h0.bakeGroundShadow) h0.bakeGroundShadow(renderer, hangarScene); }); }
       bakeHangarEnv();
       if (hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene);
       // the part system (G41, rehomed by HANGARS S1): the shell's default
