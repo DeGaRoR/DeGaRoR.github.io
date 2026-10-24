@@ -98119,7 +98119,7 @@ Strict light gate RED (11), all in the known classes:
 - cub garage fps 26.7: ONE 2167 ms frame in 160; the other 159 at 33 ms (the garage hitch class, L24b 27.0).
 - metal chase flight 68.9 s vs 63.6 + 5.09 slack: 0.23 s over, the scripted flight's wall time. Named; re-read in L25a.
 Pushed with these, by the user's order of 25 Oct: land last week's items and priority 1 as soon as possible.
-## G3430-G3434 - ASSETS wk44: THE LAKE-SHORE REEDS (playtest 24 Oct item 46) + THE 54-VEHICLE PACK HELD (item 45) (2026-10-24, ASSETS-OCT for A0; branch claude/assets-wk44)
+## G3430-G3434 - ASSETS wk44: THE LAKE-SHORE REEDS (playtest 24 Oct item 46) + THE 54-VEHICLE PACK DROPPED (item 45) (2026-10-24, ASSETS-OCT for A0; branch claude/assets-wk44)
 
 **THE REEDS (G3430)** - the user: reeds ("roseaux") in the grass round the lakes, from fern_grass_02.glb ("fern grass 02"
 by Digital screen official, CC BY 4.0; CREDITS.md). Today's pipeline, no new system:
@@ -98137,7 +98137,6 @@ by Digital screen official, CC BY 4.0; CREDITS.md). Today's pipeline, no new sys
 - the source goes to the main checkout's assets/vegetation/grass/ (gitignored); tools/tree_inspect.js indexes it
   (TREE_ASSETS = the main checkout's assets/ from a worktree).
 
-**THE 54-VEHICLE PACK (G3431) - HELD** ("54 Vehicle Pack" by PorscheAaron / HotWheelsA, labelled CC BY 4.0): the marks of a
-game extraction (59 meshes st_1..st_54 + ONE shared glass mesh st_gls for the whole set, one OBJ with a random-hash name,
-photo-sourced weathered 512 atlases in mixed styles, the set on a grid at ~1/15 scale). A suspect, not a proof - the user's
-call through A0 (the VotV rule) before anything is processed.
+**THE 54-VEHICLE PACK (G3431) - DROPPED** (25 Oct): the user, through A0: "the vehicle pack is from burnout 2, drop it" -
+a game rip, out under the credit-only rule. Nothing of it was processed or committed (no mesh, texture, manifest or credit
+row); the source file in bugReports/ is the user's to delete.
