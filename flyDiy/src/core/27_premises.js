@@ -810,6 +810,10 @@ function normalise(rec) {
   // v1.37: a road's junction ids run beside its points too, one slot each (a hand edit's short list padded with null)
   for (const rd of r.layers.roads) if (rd && Array.isArray(rd.nodes) && Array.isArray(rd.pts)) { while (rd.nodes.length < rd.pts.length) rd.nodes.push(null); rd.nodes.length = rd.pts.length; }
   feelFollowsLook(r);
+  // A ROAD'S BAND 0 IS NO BAND (the user, 24 Oct: the editor's band row could not give a road its side back - its minimum was 0,
+  // and a declared band 0 drew the band's 6 m fade): a road read with band 0 or null has its band taken away - its own side
+  // again (Jolene's r45). A strip's or an area's band 0 is kept (no cleared earth).
+  for (const rd of r.layers.roads) if (rd && 'band' in rd && !(+rd.band > 0)) delete rd.band;
   r.budget =Object.assign({}, d.budget, r.budget || {});
   if (typeof r.seed !== 'number') r.seed = 1;
   if (!THEMES[r.theme]) r.theme = THEME_DEF;
