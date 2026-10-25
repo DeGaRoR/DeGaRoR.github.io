@@ -46,7 +46,7 @@ var GROUND_SCAR = (() => {
   // streakW (m), its core at scuffA (0.85 -> 0.95), wandering `wander` m across; broken where its noise (a lattice every
   // gapL m) is under gapHard; the haze under them at hazeA
   const S = { lift: 0.03, liftHard: 0.08, step: 0.3, ring: 7, seg: 28, across: 6, rag: 0.25, acrossHard: 12, scuffA: 0.95, order: 6.5,
-    streakGap: 0.3, streakMax: 10, streakW: [0.04, 0.12], wander: 0.05, gapL: 2.5, gapHard: 0.15, hazeA: 0.25 };
+    streakGap: 0.3, streakMax: 10, streakW: [0.06, 0.16], wander: 0.05, gapL: 2.5, gapHard: 0.15, hazeA: 0.35 };
   const TEX_M = 1.6;                              // metres a tile of the soil
   const hsh = (x, z, s) => { let h = (x * 374761393 + z * 668265263 + s * 1013904223) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
   // tileable value noise on a period-P lattice
@@ -176,7 +176,7 @@ var GROUND_SCAR = (() => {
         }
         for (let i = 0; i + 1 < N; i++) for (let q = 0; q + 1 < cols; q++) {
           const a = base + i * cols + q, b = a + 1, c2 = a + cols, d = c2 + 1;
-          idx.push(a, c2, b, b, c2, d);
+          idx.push(a, b, c2, b, d, c2);   // (G3651: wound up - the material is FrontSide)
         }
       };
       const ends = (s, a, b) => Math.max(0, Math.min(1, (s - a) / fadeL, (L - s - b) / fadeL));
@@ -224,7 +224,7 @@ var GROUND_SCAR = (() => {
       }
       for (let i = 0; i + 1 < N; i++) for (let q = 0; q < A; q++) {
         const a = base + i * (A + 1) + q, b = a + 1, c = a + A + 1, d = c + 1;
-        idx.push(a, c, b, b, c, d);
+        idx.push(a, b, c, b, d, c);   // (G3651: wound up, as the crater: wound down, the strip was culled from above)
       }
       if (!cap || hard) return;
       // the spoil's lip ahead of the end: two rows - the heap (turf, strong) and its ragged front (alpha 0) - each column
@@ -237,7 +237,7 @@ var GROUND_SCAR = (() => {
       }
       for (let r = 0; r < 2; r++) for (let q = 0; q < A; q++) {
         const a = last + r * (A + 1) + q, b = a + 1, c = a + A + 1, d = c + 1;
-        idx.push(a, c, b, b, c, d);
+        idx.push(a, b, c, b, d, c);
       }
     };
     const THROW = typeof SCAR !== 'undefined' && SCAR.throw != null ? SCAR.throw : 0.3;

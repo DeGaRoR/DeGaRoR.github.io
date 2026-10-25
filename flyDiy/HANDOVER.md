@@ -98831,11 +98831,11 @@ PANEL a few metres long (read as a shadow), and vanished from a low eye. (A firs
 and broke that panel up: fainter still - replaced here.)
 Now, on hard ground only (the soft furrow and the crater are unchanged byte for byte), a scuff is:
 - LONG DARK STREAKS: one per S.streakGap 0.3 m of the strip's width (2 to S.streakMax 10), each its own narrow ribbon
-  (half-width S.streakW 0.04-0.12 m; a near-black core RUBBER 0.08 x the soil map at S.scuffA 0.95 x its strength 0.7-1,
+  (half-width S.streakW 0.06-0.16 m; a near-black core RUBBER 0.08 x the soil map at S.scuffA 0.95 x its strength 0.7-1,
   soft edges) at its own place across, wandering S.wander 0.05 m along the slide, starting and stopping at its own place
   (up to 1.5 m in from either end), broken now and then on a long one (noise every S.gapL 2.5 m under S.gapHard 0.15:
   about a tenth of its length - a part lifting);
-- under them a faint rubber haze (S.hazeA 0.25, SCUFF), its two edges ragged (0.65-1 x h) and feathered - no border;
+- under them a faint rubber haze (S.hazeA 0.35, SCUFF), its two edges ragged (0.65-1 x h) and feathered - no border;
 - the soil map stretched along the slide (3 x along, 0.35 x across): streaky grit;
 - every vertex inside the half-width h, at terrainH + liftHard, the same mesh / material / program (no new link).
 The stills rig: cases scuff-slide / scuff-blow (the scar cases from the three-quarter, the far chase 'aft' - behind the
@@ -98844,6 +98844,7 @@ scuff alone), and each case's scar record logged (its strips' ends, widths and l
 scuff's coverage of the slide, for the "long" half of the user's ask.
 Gates: DMGSCAR (2S: the darkening, alpha-weighted, and every vertex over the runway's layers) + MEDIA (the only two that
 read the file). Stills: scuff-slide + scuff-blow, the Cub and the metal Cessna, ?damage=1&simw=0.
+THE ROOT CAUSE (found Mon 26 Oct 00:2x on the box with the fixed noscar switch): the decal drew NO pixel on the runway - everystrip (the scuff, the furrow, its spoil cap) was wound face DOWN while the material is FrontSide, so from above each stripwas culled; only the craters (wound up) ever drew. The dark rectangles behind the wrecks in every still so far are therunway's own slabs (there with the decal hidden). Fixed: the three strip index orders wound up (a, b, c / b, d, c). Thisalso makes the soft-ground FURROWS (G2378) draw for the first time. Re-shoot (00:25, the Cub slide): thin streaks now show,faint - the streaks widened (0.06-0.16 m) and the haze raised (0.35) for the next look.
 
 ## G3450 - P1 CG-COLOURS: THE GARAGE'S CG / NEUTRAL-POINT INDICATORS WEAR ONE BAND - RED / ORANGE / GREEN, '!' ON RED AND ORANGE, A TOOLTIP WITH THE REASONS (2026-10-25, RUFUS-CERT for A0; claude/cg-colours; stills Sun 25 07:45 GPU; for L25b)
 
