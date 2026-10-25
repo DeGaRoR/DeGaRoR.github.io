@@ -16377,10 +16377,14 @@
     if (off) { gmOpen(false); return; }
     const fr = $('frEntry'), row = [gmBtn, $('mapEntry'), inGarage && fr && !fr.hidden ? fr : null].filter(Boolean), gap = 8;
     const w = row.map(e => e.offsetWidth || 0), tot = w.reduce((a, b) => a + b, 0) + gap * (row.length - 1);
-    // the shed: one row centred at the top; flight: ending at the top bar's right inset (CONTRACTS, then MENU at the corner)
+    // the shed: one row under the shed's top bar, from its left edge (the 25 Oct stills: centred at the top it covered
+    // the quick actions); flight: ending at the top bar's right inset (CONTRACTS, then MENU at the corner) - on a phone
+    // under the top bar's plate, which fills the width there
     const order = inGarage ? row : row.slice(1).concat([gmBtn]), ow = order.map(e => e.offsetWidth || 0);
-    const phone = W0 <= 760, top = inGarage ? 10 : (phone ? 12 : 18);
-    let x = inGarage ? Math.round((W0 - tot) / 2) : W0 - (phone ? 12 : 22) - tot;
+    const phone = W0 <= 760, under = el => el && el.getClientRects().length ? el.getBoundingClientRect() : null;
+    const bar = inGarage ? under($('edTopBar')) : (phone ? under($('pfd')) : null);
+    const top = bar ? Math.round(bar.bottom + 8) : (inGarage ? 10 : (phone ? 12 : 18));
+    let x = inGarage ? (bar ? Math.round(Math.max(12, Math.min(bar.left, W0 - tot - 12))) : Math.round((W0 - tot) / 2)) : W0 - (phone ? 12 : 22) - tot;
     order.forEach((e, i) => { e.style.top = top + 'px'; e.style.left = Math.round(x) + 'px'; e.style.right = 'auto'; e.style.transform = 'none'; x += ow[i] + gap; });
     if (!gmPanel.hidden) gmPlace();
   }
