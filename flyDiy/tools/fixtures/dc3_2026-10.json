@@ -904,7 +904,6 @@
    "yokeGap": 0.16,
    "floorOn": 1,
    "floorLift": 0,
-   "floorUp": 0.4,
    "trimX": 0,
    "trimY": 0,
    "trimZ": 0,
@@ -1042,7 +1041,8 @@
    "cw_stubWaist": -0.07,
    "cw_stubKeelH": 0.83,
    "cw_stubSqTop": 0.53,
-   "cw_stubSqBot": 0.35
+   "cw_stubSqBot": 0.35,
+   "floorUp": 0.4
   },
   "wings": [
    {

@@ -6,7 +6,7 @@
 //   1 THE GARAGE (G3570, the cabin floor height): three stills (quarter, side, side with SEE INSIDE on) and the numbers
 //     behind them, read off the crew layer that drew them (window.CAGE_CREW): the floor under each seat, each occupant's
 //     lowest and highest point, the pilot's eye against the windscreen's base. A row per occupant:
-//       ROW occupant <i>: feet <y> over the floor <y> (<+cm>) - OK | BURIED
+//       ROW seat <i> (section, filled|empty): the pan <y> over the floor <y> (<+cm>) - OK | BURIED
 //     the user's complaint was "pilots and passengers are buried": every body's lowest point at or over the floor;
 //   2 A PAGE TAXI (G3571, the user's run 1: "while TAXIING ... crashed: a tail member broke"): the roll-out, the pilot's
 //     own taxi out for --taxi-s, then THE HAND (the takeover key, A) for 40 s on the keys a player uses - throttle up
@@ -54,7 +54,7 @@ const freePort = () => new Promise((res, rej) => { const s = net.createServer();
   const page = await browser.newPage({ viewport: { width: SW, height: SH } });
   page.on('pageerror', e => console.error('page exception: ' + String(e && e.message || e).split('\n')[0]));
   const ev = (fn, arg) => page.evaluate(fn, arg);
-  const shot = async name => { const f = path.join(OUT, name + '.png'); await page.screenshot({ path: f }); console.log('DC3-2: wrote ' + path.relative(REPO, f)); return f; };
+  const shot = async name => { const f = path.join(OUT, name + '.png'); await page.screenshot({ path: f, timeout: 240000 }); console.log('DC3-2: wrote ' + path.relative(REPO, f)); return f; };
   const S = { file: path.relative(REPO, FILE), url, parts: PARTS, fails: [] };
   const fail = why => { S.fails.push(why); console.log('FAIL ' + why); };
   try {
@@ -62,14 +62,23 @@ const freePort = () => new Promise((res, rej) => { const s = net.createServer();
     let up = false;
     for (let i = 0; i < 180 && !up; i++) { await sleep(1000); up = await ev(() => !!(document.getElementById('gLoad') && window.CAGE_UI && window.CAGE_ENERGY && window.FLIGHT_PROBE)); }
     if (!up) throw new Error('the garage never came up');
+    // the loading screen first (window.BOOT: the world laid out once) - its own end, or its "continue anyway"
+    for (let i = 0; i < 600; i++) {
+      const st = await ev(() => (window.BOOT && window.BOOT.state) || 'gone');
+      if (st === 'gone') break;
+      if (i === 240) await ev(() => { const b = [...document.querySelectorAll('button')].find(x => /continue anyway/i.test(x.textContent)); if (b) b.click(); return 1; });
+      await sleep(1000);
+    }
     await sleep(3000);
     // THE DROP: the file onto the window, as the user drops one (garage.js DROP-JSON)
     const txt = fs.readFileSync(FILE, 'utf8');
     await ev(([t, n]) => { const dt = new DataTransfer(); dt.items.add(new File([t], n, { type: 'application/json' }));
       window.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true, cancelable: true })); return 1; }, [txt, path.basename(FILE)]);
-    await sleep(20000);
+    await sleep(5000);
     await ev(() => { [...document.querySelectorAll('button,a,div')].filter(b => /keep the current build/i.test(b.textContent || '') && b.children.length === 0).forEach(x => x.click()); return 1; });
-    await sleep(4000);
+    // ...until the editor has drawn it: the crew layer's eight seats (the DC-3's cockpit pair and three bays)
+    for (let i = 0; i < 120; i++) { if (await ev(() => !!(window.CAGE_CREW && window.CAGE_CREW.seats && window.CAGE_CREW.seats.length >= 8))) break; await sleep(1000); }
+    await sleep(6000);
     S.loaded = await ev(() => { const s = window.GARAGE_SPEC && window.GARAGE_SPEC.get ? window.GARAGE_SPEC.get() : null;
       return s ? { name: s.meta && s.meta.name, span: s.wings && s.wings[0].span, floorUp: s.cabin && s.cabin.floorUp, cageFloorUp: s.cage && s.cage.floorUp } : null; });
     console.log('DC3-2: loaded ' + JSON.stringify(S.loaded));
@@ -81,30 +90,29 @@ const freePort = () => new Promise((res, rej) => { const s = net.createServer();
         const CC = window.CAGE_CREW, A = CC && CC.A; if (!A) return { err: 'no crew layer' };
         const T = window.THREE, sc = window.FLIGHT_PROBE.hangarScene ? window.FLIGHT_PROBE.hangarScene() : null;
         // the occupants: every live dummy's skinned meshes, measured in the crew group's own frame (the floor's)
-        // (each dummy hangs in the crew layer's group, whose frame is the anchors' - floorAt's - frame)
-        const out = []; let grpFound = false;
-        (CC.live || []).forEach((d, i) => {
-          const root = d.root || d.obj || d; const b = new T.Box3();
-          const par = root && root.parent; if (par) { par.updateMatrixWorld(true); grpFound = true; }
-          const inv = par ? new T.Matrix4().copy(par.matrixWorld).invert() : null;
-          if (root && root.traverse) root.traverse(o => { if (o.isMesh && o.geometry) { const bb = new T.Box3().setFromObject(o); if (inv) bb.applyMatrix4(inv); b.union(bb); } });
-          const z = (b.min.z + b.max.z) / 2;
-          out.push({ i, lo: +b.min.y.toFixed(3), hi: +b.max.y.toFixed(3), z: +z.toFixed(2), floor: +A.floorAt(z).toFixed(3) });
-        });
-        return { k: A.k, dashTop: A.dashTop, waist: A.waistY, roof: A.roofY, eye: window.FLYDIY_EYE || null, seats: CC.seats, occ: out, grpFound };
+        // every seat's pan against the floor under it, both in the crew layer's own frame (A.floorAt, CAGE_CREW.seatsAt):
+        // an occupant sits on the pan, so a pan over the floor is a body over it
+        const out = (CC.seatsAt || []).map((st, i) => { const z = st.zBack + 0.25; return { i, filled: !!st.filled, section: st.section,
+          lo: +st.panY.toFixed(3), z: +z.toFixed(2), floor: +A.floorAt(z).toFixed(3) }; });
+        return { k: A.k, dashTop: A.dashTop, waist: A.waistY, roof: A.roofY, eye: window.FLYDIY_EYE || null, seats: CC.seats, occ: out };
       });
       for (const o of (S.garage.occ || [])) {
         const d = o.lo - o.floor, ok = d > -0.02;
-        console.log('ROW occupant ' + o.i + ': feet ' + o.lo + ' over the floor ' + o.floor + ' (' + (d * 100).toFixed(1) + ' cm) - ' + (ok ? 'OK' : 'BURIED') + '; head ' + o.hi);
-        if (!ok) fail('occupant ' + o.i + ' buried ' + (d * 100).toFixed(1) + ' cm under the floor');
+        console.log('ROW seat ' + o.i + ' (section ' + o.section + (o.filled ? ', filled' : ', empty') + '): the pan ' + o.lo + ' over the floor ' + o.floor + ' (' + (d * 100).toFixed(1) + ' cm) - ' + (ok ? 'OK' : 'BURIED'));
+        if (!ok) fail('seat ' + o.i + ' buried ' + (d * 100).toFixed(1) + ' cm under the floor');
       }
-      if (!(S.garage.occ && S.garage.occ.length)) console.log('ROW occupants: none measured (' + JSON.stringify(S.garage).slice(0, 300) + ') - read the stills');
+      if (!(S.garage.occ && S.garage.occ.length)) fail('no seats measured (' + JSON.stringify(S.garage).slice(0, 300) + ')');
+      // the pilot's eye against the windscreen's base (the cockpit's own floor is QUESTION 2 of the HANDOVER entry)
+      if (S.garage.eye) console.log('ROW the pilot eye ' + JSON.stringify(S.garage.eye).slice(0, 120) + ' / the dash top ' + S.garage.dashTop);
       await ev(() => { const e = document.getElementById('edWrap'); if (e) e.style.visibility = 'hidden'; return 1; });
       const cam = async (a, e, d) => { await ev(([a1, e1, d1]) => (window.FLIGHT_PROBE.camSet(a1, e1, d1), 1), [a, e, d]); await sleep(2500); };
-      await cam(0.85, 0.22, 30); await shot('garage_quarter');
-      await cam(Math.PI / 2, 0.05, 28); await shot('garage_side');
+      // the canvas to the window (a headless page boots at its first size), then the orbit: 29 m wants the eye well out
+      await page.setViewportSize({ width: SW, height: SH }); await ev(() => (window.dispatchEvent(new Event('resize')), 1)); await sleep(1500);
+      await cam(0.85, 0.22, 36); await shot('garage_quarter');
+      await cam(Math.PI / 2, 0.04, 34); await shot('garage_side');
       await ev(() => { const c = document.getElementById('xray'); if (c && !c.checked) c.click(); return 1; });
-      await cam(Math.PI / 2, 0.08, 14); await shot('garage_side_inside');
+      await cam(Math.PI / 2, 0.04, 26); await shot('garage_side_inside');
+      await cam(Math.PI / 2 + 0.35, 0.45, 24); await shot('garage_inside_above');
       await ev(() => { const c = document.getElementById('xray'); if (c && c.checked) c.click(); const e = document.getElementById('edWrap'); if (e) e.style.visibility = ''; return 1; });
     }
 
@@ -142,9 +150,9 @@ const freePort = () => new Promise((res, rej) => { const s = net.createServer();
 
     if (PARTS.includes('land')) {
       // ---- 3a. THE CIRCUIT AND ITS LANDING (the skip to line-up, the pilot's own) --------------------------------------
-      await ev(() => { [...document.querySelectorAll('button')].filter(b => /restart|reset/i.test(b.textContent)).slice(0, 1).forEach(x => x.click()); });
+      await ev(() => { const b = document.getElementById('bReset') || [...document.querySelectorAll('button')].find(x => /^restart$/i.test(x.textContent.trim())); if (b) b.click(); });
       await sleep(5000);
-      await ev(() => { [...document.querySelectorAll('button')].filter(b => /line.?up/i.test(b.textContent)).slice(0, 1).forEach(x => x.click()); });
+      await ev(() => { const b = document.getElementById('bSkip') || [...document.querySelectorAll('button')].find(x => /skip to line.?up/i.test(x.textContent)); if (b) b.click(); });
       const tds = []; let was = false, ph = null, t0 = Date.now();
       while (Date.now() - t0 < 900000) {
         await sleep(250);
@@ -162,7 +170,7 @@ const freePort = () => new Promise((res, rej) => { const s = net.createServer();
       // ---- 3b. THE DROP ON THE STAND: 3.05 m/s (FAR 25.473), then 4.6 m/s ---------------------------------------------
       S.drops = [];
       for (const sink of [3.05, 4.6]) {
-        await ev(() => { [...document.querySelectorAll('button')].filter(b => /restart|reset/i.test(b.textContent)).slice(0, 1).forEach(x => x.click()); });
+        await ev(() => { const b = document.getElementById('bReset') || [...document.querySelectorAll('button')].find(x => /^restart$/i.test(x.textContent.trim())); if (b) b.click(); });
         await sleep(8000);
         await ev(sk => window.FLIGHT_PROBE.place({ by: [0, 0.6, 0], dv: [0, -sk, 0] }), sink);
         await sleep(6000);

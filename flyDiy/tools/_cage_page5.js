@@ -151,7 +151,6 @@ window.CAGE_PAGE = {
     seatGap: 0.23, seat2H: -1, seat2Rake: -1, seat2Tilt: -1, ctlStick: 0,
     ctlThr: 0, ctlPed: 1, consoleOn: 0, stickX: 0, stickY: 0, stickZ: 0, yokeGap: 0.16,
     floorOn: 1, floorLift: 0,                    // G331: the floor, over the door sill
-    floorUp: 0,                                  // G3570: the cabin floor's height (doors with it); 0 is written as absent
     trimX: 0, trimY: 0, trimZ: 0,                // G331: the trim wheel's place
     parkX: 0, parkY: 0, parkZ: 0,                // G2791: the parking brake's place (offsets; 0 = its dash seat)
     fselX: 0, fselY: 0, fselZ: 0,                // G2791: the fuel selector's place (offsets; 0 = its wall seat)
@@ -733,8 +732,10 @@ window.CAGE_PAGE = {
         // storage below ... a control to get the floor higher up. Right now, pilots and passengers are buried"): THE
         // CABIN FLOOR'S HEIGHT, metres. It lifts the door sills (so the doors, the floor cut at the sill, every seat,
         // pedal and occupant on it follow), the step's climb, and the flown occupants' and floor's mass with them
-        // (cabin.floorUp, 61_gen_frame). 0 = the floor at the sills, written as absent
-        ['floorUp',   'cabin floor height', 0, 1.20, 0.005, { when: P => +P.crewOn }],
+        // (cabin.floorUp, 61_gen_frame). NOT IN THE DEFAULTS TABLE: a build that never moved it carries no key (G377's
+        // re-save writes every row the page knows - this one only once it is set), so no saved build changes by a byte;
+        // the row shows 0 while it is absent (`absent`, _cage_ui mkRow / syncSliders)
+        ['floorUp',   'cabin floor height', 0, 1.20, 0.005, { when: P => +P.crewOn, absent: 0 }],
       ], 'open'],
       // G180: WHO IS ABOARD is per SECTION. The cockpit's second seat is
       // here with the pilot dummy; each passenger bay's row is the bay's own

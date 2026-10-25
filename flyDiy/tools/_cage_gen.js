@@ -7739,7 +7739,6 @@ function cageToSpec(P) {
     if (typeof P[k] === 'function') continue;
     if (k in CAGE_VIEW_KEYS) continue;
     if (P[k] === undefined) continue;
-    if (k === 'floorUp' && !(+P[k] > 0)) continue;   // G3570: the floor at the sills is written as absent
     out[k] = P[k]; n++;
   }
   return n ? out : null;
