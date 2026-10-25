@@ -1088,6 +1088,8 @@ body.fl2 #flBar .verb[hidden] { display:none; }
 #ui .flTopB > b { font:500 12px/1.2 'IBM Plex Sans'; color:var(--ed-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 body.fl2 #flActs #bPause, body.fl2 #flActs #bReset, body.fl2 #flActs #bGo { display:none !important; }
 body.fl2 #ui #flRail { display:none !important; }
+/* in flight the $ in the corner is the map and the contracts: the CONTRACTS pill is the shed's */
+body.fl2.mode-fly #mapEntry { display:none !important; }
 /* the corner: the pause pill's look (app.js #gmMenu), round, 48 px - a thumb's */
 .flCornB { position:fixed; z-index:2147482000; min-width:48px; min-height:48px; padding:0 12px; border-radius:24px; box-sizing:border-box;
   display:none; align-items:center; justify-content:center; cursor:pointer;
