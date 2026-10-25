@@ -462,7 +462,14 @@ async function checkCharPage(T, over) {
 async function checkChars(over) {
   if (!fs.existsSync(abs('src/chars/chars_ktx2.js'))) { verdict(false, '10 the characters: no src/chars/chars_ktx2.js (node tools/char_tex_budget.js)'); return; }
   const T = loadCharTable(over);
-  await checkCharFiles(T, over);
+  // G3617: the crowd's cast keeps its budget rows in src/chars/crowd_pack.json (char_tex_budget.js writes them there,
+  // never into the boot table): the files check reads both (the page check stays on the crew's boot table)
+  let TF = T;
+  try {
+    const PK = JSON.parse(fs.readFileSync(abs('src/chars/crowd_pack.json'), 'utf8')).ktx2 || {};
+    TF = Object.assign({}, JSON.parse(JSON.stringify(PK)), T);
+  } catch (e) {}
+  await checkCharFiles(TF, over);
   await checkCharPage(T, over);
 }
 

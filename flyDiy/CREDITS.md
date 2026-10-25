@@ -912,6 +912,15 @@ apply to the PA-18, the C172, the hangar props and their derivatives only.
   (mixamo.com), Mixamo licence; baked as sampled joint rotations
   (`src/chars/*_anim.js`, `media/geo/chars/anim_*.bin`). Ch20 is the preview
   character those downloads carry, imported like the others.
+- **The passengers (G2970, G3617, G3619)**: the crowd's cast, Adobe Mixamo
+  characters Ch26 (Elizabeth), Ch06 (James), Ch27 (Martha), Ch31 (Leonard),
+  Ch28 (David), Ch08 (Adam), Ch37 (Jody), Ch21 (Kate) and Ch17 (Pete), and
+  the clips "Walking", "Neutral Idle", "Look Around", "Texting While
+  Standing", "Talking On A Cell Phone", "Standing W_Briefcase Idle", "Happy
+  Idle", "Sad Idle", "Swatting Bugs" and "Pacing And Talking On A Phone",
+  by Adobe Mixamo (mixamo.com), Mixamo licence; imported as-is like the crew
+  (`tools/chars_table.py` CAST / CROWD_CLIPS, lazy media files named by
+  `src/chars/crowd_pack.json`).
 
 ## Trees, billboards and terrain (`assets/treesRaw/`, W0a — candidates)
 

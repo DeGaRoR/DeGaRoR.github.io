@@ -9798,10 +9798,11 @@
     // G2970 (CHARACTERS): the crowd's cast first, once its manifests are in (crowdPrep), then the crew's own
     const cast = window.CROWD && window.CROWD.castKeys ? window.CROWD.castKeys() : [];
     const others = [...new Set(cast.concat((CC.list ? CC.list() : []).map(c => c && c.key)))].filter(k => k && !used.has(k));
+    const drawn = crowdPax(want.length, used);
     want.forEach((i, n) => {
       const s = got.card.seats.find(q => q.i === i);
       if (!s) return;
-      const key2 = others[n % Math.max(1, others.length)] || base.key;
+      const key2 = (drawn ? drawn[n % drawn.length] : others[n % Math.max(1, others.length)]) || base.key;
       const figM = base.figM.slice();
       let k = 1; try { const a = CC.rig(base.key), b = CC.rig(key2); if (a && b && a.height > 0 && b.height > 0) k = a.height / b.height; } catch (e) {}
       for (const j of [0, 1, 2, 4, 5, 6, 8, 9, 10]) figM[j] *= k;
@@ -9812,6 +9813,22 @@
       const frame = grp.children.length > before ? grp.children[grp.children.length - 1] : null;
       if (ps && ps[0]) FST.pax.push({ P: ps[0], frame, seat: i });
     });
+  }
+  // G3619 (PEOPLE, the user 25 Oct): WHO the job's passengers are - the job's own client first (FLYDIY_PEOPLE.client of the
+  // contract's provider), then the passenger pool drawn by the contract's id (the same job, the same faces on a reload);
+  // only people whose body the crowd's cast holds (CROWD.castKeys: a body not baked yet is skipped), never a reserved
+  // person or a pilot (the pool holds neither). -> body keys, or null without the seam / the cast (the cast order then)
+  function crowdPax(n, used) {
+    const FP = window.FLYDIY_PEOPLE, cast = window.CROWD && window.CROWD.castKeys ? window.CROWD.castKeys() : [];
+    if (!FP || typeof FP.pool !== 'function' || !cast.length || !(n > 0)) return null;
+    const has = new Set(cast), out = [], id = (FST.A && FST.A.contract) || null;
+    const take = pid => { const k = FP.char(pid); if (k && has.has(k) && !(used && used.has(k)) && !out.includes(k)) out.push(k); };
+    let rec = null;
+    try { rec = id && typeof careerContract === 'function' ? careerContract(playerLoad(), id) : null; } catch (e) {}
+    const c = rec && rec.provider && typeof FP.client === 'function' ? FP.client(rec.provider) : null;
+    if (c) take(c);
+    for (const pid of FP.pool('passenger', 64, id || 'sandbox')) { if (out.length >= n) break; take(pid); }
+    return out.length ? out : null;
   }
   // ---- G2970 (CHARACTERS): THE CROWD ------------------------------------------------------------------------------------
   // The passengers board at the stand. Every figure seated at the roll-out - a job's passenger FREIGHT-STRAP seats live
@@ -9915,7 +9932,10 @@
         CRW.queued = () => {
           try {
             const R = crowdRoute(seats.length);
-            CRW.M.board({ path: R.path, face: R.face, seats: seats.map(q => ({ seat: q.seat, key: q.key })) }).then(res, rej);
+            // G3619: they stand in a line at the embark point when the screen lifts, then walk out in order (seeded by
+            // the job: the same line on a reload)
+            CRW.M.board({ path: R.path, face: R.face, seats: seats.map(q => ({ seat: q.seat, key: q.key })),
+                          line: {}, seed: (FST.A && FST.A.contract) || 'sandbox' }).then(res, rej);
           } catch (e) { rej(e); }
         };
       });

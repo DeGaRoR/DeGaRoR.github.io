@@ -95,6 +95,16 @@ CAST = [
          src='leonard_Ch31_nonPBR.fbx', credit=_mixamo('Ch31')),
     dict(key='david', label='David', glb='assets/chars/glb/david.glb',
          src='david_Ch28_nonPBR (1).fbx', credit=_mixamo('Ch28')),
+    # G3617 (PEOPLE, the user 25 Oct): the bodies src/core/72_people.js names by
+    # these keys - a client each (adam, kate, pete) and a passenger (jody)
+    dict(key='adam', label='Adam', glb='assets/chars/glb/adam.glb',
+         src='adam_Ch08_nonPBR.fbx', credit=_mixamo('Ch08')),
+    dict(key='jody', label='Jody', glb='assets/chars/glb/jody.glb',
+         src='jody_Ch37_nonPBR.fbx', credit=_mixamo('Ch37')),
+    dict(key='kate', label='Kate', glb='assets/chars/glb/kate.glb',
+         src='kate_Ch21_nonPBR.fbx', credit=_mixamo('Ch21')),
+    dict(key='pete', label='Pete', glb='assets/chars/glb/pete.glb',
+         src='pete_worker_Ch17_nonPBR.fbx', credit=_mixamo('Ch17')),
 ]
 
 # THE CROWD'S CLIPS (G2970): baked once, shared by every character by joint name
@@ -118,6 +128,23 @@ CROWD_CLIPS = [
          src='Look Around.fbx', fps=15, credit=_clip('Look Around')),
     dict(key='texting', role='queue', glb='assets/chars/glb/anim_texting.glb',
          src='Texting While Standing.fbx', fps=15, credit=_clip('Texting While Standing')),
+    # G3619 (THE QUEUE, the user 25 Oct): the waiting line's idles, from the user's
+    # 33 under assets/chars/anims/. 'pace' keeps the Hips' ground track as `drift`
+    # (metres per frame about the first, the character's own axes): the one at the
+    # line's back walks it, everyone else stands
+    dict(key='phone', role='queue', glb='assets/chars/glb/anim_phone.glb',
+         src='Talking On A Cell Phone.fbx', fps=15, credit=_clip('Talking On A Cell Phone')),
+    dict(key='briefcase', role='queue', glb='assets/chars/glb/anim_briefcase.glb',
+         src='Standing W_Briefcase Idle.fbx', fps=15, credit=_clip('Standing W_Briefcase Idle')),
+    dict(key='happy', role='queue', glb='assets/chars/glb/anim_happy.glb',
+         src='Happy Idle.fbx', fps=15, credit=_clip('Happy Idle')),
+    dict(key='sad', role='queue', glb='assets/chars/glb/anim_sad.glb',
+         src='Sad Idle.fbx', fps=15, credit=_clip('Sad Idle')),
+    dict(key='swat', role='queue', glb='assets/chars/glb/anim_swat.glb',
+         src='Swatting Bugs.fbx', fps=15, credit=_clip('Swatting Bugs')),
+    dict(key='pacing', role='pace', glb='assets/chars/glb/anim_pacing.glb',
+         src='female_Pacing And Talking On A Phone.fbx', fps=15,
+         credit=_clip('Pacing And Talking On A Phone')),
 ]
 CROWD_SIT = 'sitidle'
 
@@ -125,7 +152,9 @@ CROWD_SIT = 'sitidle'
 # cast may cost on the wire (geometry .gz.bin + the KTX2 budget set it draws),
 # a clip's bin, and a member's triangles (the distance ladder draws each
 # person skinned under 60 m and a frozen copy past it - no decimation yet).
-CROWD_BUDGET = dict(memberMiB=6.0, castMiB=30.0, clipKiB=400, tris=60000)
+# G3617 (A0 25 Oct): castMiB 30 -> 36 for the four new bodies - a job fetches only
+# its own passengers' bodies (three at most in a C172), nothing at boot
+CROWD_BUDGET = dict(memberMiB=6.0, castMiB=36.0, clipKiB=400, tris=60000)
 
 # THE TEXTURE BUDGET (AS6, G935;the user's yes 2026-09-29: "modifying texture
 # sizes and formats is perfectly OK ... provided that a dedicated asset prep

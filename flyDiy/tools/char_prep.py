@@ -291,6 +291,28 @@ def bake_anim(row, report, root=False):
             bob = [round(y - m, 4) for y in ys]
         extra = {'role': row.get('role'), 'rootV': round(rootV, 4), 'bob': bob}
         print('          root %.3f m/s  bob +-%.3f m' % (rootV, max(abs(b) for b in bob)))
+        # G3619 (THE QUEUE): a 'pace' clip walks about a spot - its ground track
+        # rides as `drift`, [dx, dz] per frame about the first sample (world
+        # axes = the character's own: +z its front), so the feet stay planted
+        if hk and row.get('role') == 'pace':
+            ts, ps = hk
+            drift = []
+            for f in range(nf):
+                t = f / fps
+                k = 0
+                while k + 1 < len(ts) and ts[k + 1] <= t:
+                    k += 1
+                if k + 1 >= len(ts) or t <= ts[k]:
+                    x, z = ps[k][0], ps[k][2]
+                else:
+                    u = (t - ts[k]) / (ts[k + 1] - ts[k])
+                    x = ps[k][0] + (ps[k + 1][0] - ps[k][0]) * u
+                    z = ps[k][2] + (ps[k + 1][2] - ps[k][2]) * u
+                drift.append([round(x - ps[0][0], 3), round(z - ps[0][2], 3)])
+            extra['drift'] = drift
+            print('          drift %d frames, reach %.2f m, loop gap %.2f m'
+                  % (nf, max((d[0] ** 2 + d[1] ** 2) ** 0.5 for d in drift),
+                     (drift[-1][0] ** 2 + drift[-1][1] ** 2) ** 0.5))
     if report:
         return None, []
     rel = write_media('geo/chars', 'anim_' + row['key'], 'bin', bytes(buf))
