@@ -477,8 +477,9 @@ function run(mut) {
     ok(i > 0 && /CAREER_DEV/.test(APP.slice(APP.lastIndexOf('\n', i - 300), i)), 'the page\'s ' + call.split('(')[0] + ' is under CAREER_DEV');
   }
   ok((APP.match(/CAGE_CREW_PILOT\(/g) || []).length === 1 && /function careerCrewBody\(\) \{\s*if \(!CAREER_DEV\) return;/.test(APP), 'the crew\'s body door is called by the career only');
-  ok(/window\.CAGE_CREW_PILOT = key =>/.test(CREW) && /const pilotWho = crewIdx >= 0 \? crewIdx \+ 2 : P\.pilotWho;/.test(CREW) && (CREW.match(/FLYDIY_CREW_PILOT\s*=/g) || []).length === 1,
-     'the crew: the pilot seat takes the career\'s body only through CAGE_CREW_PILOT; else the spec\'s pilotWho');
+  // G3700: no spec names its pilot any more - the seat is the racer's (CAGE_CHAR.RACER) unless hired
+  ok(/window\.CAGE_CREW_PILOT = key =>/.test(CREW) && /const pilotIdx = crewIdx >= 0 \? crewIdx : keyIdx\(window\.CAGE_CHAR && window\.CAGE_CHAR\.RACER\);/.test(CREW) && (CREW.match(/FLYDIY_CREW_PILOT\s*=/g) || []).length === 1,
+     'the crew: the pilot seat takes the career\'s body only through CAGE_CREW_PILOT; else the racer');
   // the persona select: PILOT-PERSONA's own (when it is in the tree), untouched by this session
   // (G3324 PERSONA-DEV, train L20b: the persona is DEV's - personaProfile / the route row / the plate's pills gained a
   // personaDev() guard; the rows below accept it, their intent unchanged: the career first, the persona the sandbox's)

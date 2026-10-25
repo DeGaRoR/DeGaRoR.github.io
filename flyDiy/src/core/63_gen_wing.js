@@ -1312,7 +1312,7 @@ function genCapLoft(ids, mesh, flip) {
 // ---------------------------------------------------------------------------
 // genSkin IS GONE (G67.1). It stood here for the whole garage arc and built
 // the entire aeroplane: the fuselage covering, the glazing, the cowl, the
-// engine, the wheels, the propeller, the seats, the dummies and the wing.
+// engine, the wheels, the propeller, the seats, a seated figure and the wing.
 //
 // The CAGE replaced every one of those except the wing, over G12-G61, and
 // the wing is why this could not simply be deleted: `_cage_wing.js` built

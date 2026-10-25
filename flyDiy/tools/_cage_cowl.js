@@ -636,7 +636,7 @@ const COWL_TAPER_LO = 0.3, COWL_TAPER_HI = 1.15;   // the row's own range
 // made ugly things here" — an inverse-taper nose): the boxer, the in-line and
 // the electric keep the bench default again; only the radial is styled and
 // sized. The user's own method, for the record: match ~80 % of the width by
-// changing the CABIN width (the dummies need it), keep a continuous nose
+// changing the CABIN width (the crew needs it), keep a continuous nose
 // profile in line with the fuselage, possibly rising a tad, add a couple of
 // lobes for a boxer and tune them until the engine fits, then tune the cowl
 // length so the nose cone falls right, adjusting the engine's distance from

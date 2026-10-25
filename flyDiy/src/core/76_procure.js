@@ -61,7 +61,7 @@ const PROCURE_COSMETIC = ['paint', 'finish', 'meta'];          // bench.js BENCH
 // load with no edit). A readout is not a choice, so it never signs or withdraws a certificate.
 const PROCURE_READOUTS = ['fuel'];
 const PROCURE_LOOK = { energy: ['finish', 'hue', 'tint'], vessel: ['finish', 'hue', 'tint'], systems: ['look'] };
-const PROCURE_STATE_ROWS = /^_view|^(explodeD|dumOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail)$/;
+const PROCURE_STATE_ROWS = /^_view|^(explodeD|pilOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail)$/;
 const prClone = o => JSON.parse(JSON.stringify(o));
 const prNo = (doc, why) => ({ ok: false, doc, why });
 const prR100 = n => Math.round((+n || 0) / 100) * 100;

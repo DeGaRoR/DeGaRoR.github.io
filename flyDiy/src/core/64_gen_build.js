@@ -820,9 +820,9 @@ function genShakedown(def, opts) {
     } catch (e) {}
   }
   // THE CG ENVELOPE (2026-09-03). Every balance number above is quoted at
-  // WHATEVER LOADING IS DRAWN: `cabin.pilots` is the count of dummies the
-  // cage has switched on, `pax` the seats they fill, fuel as specified. A
-  // builder who leaves the second dummy on reads the two-up margin, and one
+  // WHATEVER LOADING IS DRAWN: `cabin.pilots` is the count of occupants the
+  // cage has seated, `pax` the seats they fill, fuel as specified. A
+  // builder who seats the second occupant reads the two-up margin, and one
   // who switches it off reads the solo margin — and neither is the number a
   // real aeroplane is certified on, which is a RANGE. (The user, on finding
   // both reference builds reading negative: "are we gathering the numbers

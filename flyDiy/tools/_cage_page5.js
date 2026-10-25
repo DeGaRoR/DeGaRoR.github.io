@@ -9,20 +9,14 @@
 // window.CAGE_UI, which only exists once _cage_ui.js has run — so each page
 // calls it in a trailing script.
 'use strict';
-// the crew models the select offers: the ATD first, then every registered
-// character (52_char_codec.js CHAR_REG; empty in a page without them)
-// (G204.1) 0 = 'mixed crew': the characters rotate through the seats, no
-// two alike while there are enough of them; 1 = the ATD; 2.. = one person
-const WHO_NAMES = ['mixed crew (rotate)', 'ATD-01 crash dummy'].concat(
+// who the co-pilot's select offers (G204.1; G3700): 0 = 'mixed crew' (the
+// characters rotate through the seats, no two alike while there are enough
+// of them), 1.. = one registered character (52_char_codec.js CHAR_REG; none
+// in a page without them). The PILOT is not a choice: the racer, always
+// (2026-09-07, the user: 'the car driver in red combi, with the helmet';
+// 25 Oct: 'it will always be them by default') - _cage_crew.js seats them.
+const CAB_NAMES = ['mixed crew (rotate)'].concat(
   typeof CHAR_REG !== 'undefined' ? CHAR_REG.order.map(k => CHAR_REG.chars[k].label) : []);
-// THE DEFAULT PILOT IS NAMED, NOT NUMBERED (2026-09-07, the user: 'by default,
-// there is only the pilot, [...] the car driver in red combi, with the
-// helmet'): Ch20's position in the registry, whatever order the table is
-// in; mixed crew where no registry is loaded (the node gates)
-const WHO_DEFAULT = (() => {
-  const i = typeof CHAR_REG !== 'undefined' ? CHAR_REG.order.indexOf('ch20') : -1;
-  return i >= 0 ? i + 2 : 0;
-})();
 // Jodel-ish defaults: near-semicircular top, full roundness, glass canopy.
 window.CAGE_PAGE = {
   defaultStep: 'crease',
@@ -156,23 +150,23 @@ window.CAGE_PAGE = {
     fselX: 0, fselY: 0, fselZ: 0,                // G2791: the fuel selector's place (offsets; 0 = its wall seat)
     flapCtl: 1,                                  // G335: the flaps' control — a floor lever or a dash switch (G442.3: the switch by default, the user's "initialize the flaps as a dash switch"; a saved build keeps its own)
     stickLen: 0.44, stickCrank: 0, thrX: 0, thrY: 0, thrZ: 0, thrLen: 0.16, pedalZ: 0.9,
-    pedalH: 0.18, pedalSpread: 0.10, pedalAngle: 25, dumOn: 1,
-    dumSize: 1, dumElbows: 0.08, dumKnees: 0, dumRecline: 0, dumMarkers: 1,
-    pilotWho: WHO_DEFAULT, copWho: 0, dumFist: 0.5, dumIdle: 1,
+    pedalH: 0.18, pedalSpread: 0.10, pedalAngle: 25, pilOn: 1,
+    pilElbows: 0.08, pilKnees: 0, pilRecline: 0,
+    cabWho: 0, pilFist: 0.5, pilIdle: 1,
     swMaster: 0, swAlt: 0, swAvionics: 0,      // G311/G318: the shed's button states (off, unlit)
     paxFeetOn: 1, paxFeetZ: 0.55, paxFeetY: 0, paxFeetX: 0.14, paxIdle: 1,
-    dumHandGrip: 0.075,
+    pilHandGrip: 0.075,
     // G2797: the hands apart (0 = one setting for both, as always)
-    dumHandsApart: 0, dumFistL: 0.5, dumFistR: 0.5, dumGripL: 0.075, dumGripR: 0.075,
+    pilHandsApart: 0, pilFistL: 0.5, pilFistR: 0.5, pilGripL: 0.075, pilGripR: 0.075,
     // G180 — WHO IS ABOARD, per section, and the passengers' own seat and
     // pose. THE PILOT ALONE by default (2026-09-07, the user: 'by default,
-    // there is only the pilot'); it was full — what `dum2On 1` (retired,
-    // migrated in cageFromSpec) drew and billed — until then. A saved
+    // there is only the pilot'); it was full — what the retired all-seats
+    // switch (migrated in cageFromSpec) drew and billed — until then. A saved
     // design keeps whatever it says. `seatPitch` is gone with the tandem
     // layout — a bay's length is its pitch.
     cabOcc: 0, paxOcc1: 0, paxOcc2: 0, paxOcc3: 0, paxOcc4: 0,
     paxAbreast: 0, flapX: 0, flapZ: 0,                                   // T2.3 (132), (18)
-    paxSeatZ: 0, paxSize: 1, paxRecline: 0,
+    paxSeatZ: 0, paxRecline: 0,
   },
 
   // THE CURATED TREE — cage4's game-panel preview + the crew group.
@@ -615,7 +609,7 @@ window.CAGE_PAGE = {
       ['aftRingWinW','window width',   -1, 0.25, 0.005],
       ['aftRingScrW','screen width',   -1, 0.25, 0.005],
     ], { when: P => +P.mirror }],
-    // THE CREW LAYER (cage5): seats, controls, dummy — a disjoint THREE
+    // THE CREW LAYER (cage5): seats, controls, occupants — a disjoint THREE
     // layer over the cage (never in the mesh, the gates or the OBJ).
     ['4c · crew & controls', [
       ['seats', [
@@ -730,60 +724,51 @@ window.CAGE_PAGE = {
          { when: P => +P.crewOn && +P.floorOn }],
       ], 'open'],
       // G180: WHO IS ABOARD is per SECTION. The cockpit's second seat is
-      // here with the pilot dummy; each passenger bay's row is the bay's own
+      // here with the pilot; each passenger bay's row is the bay's own
       // (`5 · passengers` below). A filled seat is a body drawn AND 80 kg
-      // billed where the seat is; `dum2On` (every seat filled or none) is
-      // retired and migrated in cageFromSpec.
+      // billed where the seat is; the retired all-seats switch (every seat
+      // filled or none) is migrated in cageFromSpec.
       ['aboard', [
-        // G2794: the PILOT, not the dummy it was before the characters ('aboard':
-        // the next row, the pilot choice, is labelled 'pilot' already)
-        ['dumOn',     'pilot aboard',   0, 1, 1],
-        // WHO FLIES (G204/G204.1): the pilot and the co-pilot each pick from
-        // the same list — mixed crew (the characters rotate through every
-        // seat aboard, the passengers included), the ATD-01, or one declared
-        // character (src/chars/, tools/chars_table.py order — the manifests
-        // load ahead of this page, so the list is read here, once)
-        ['pilotWho',  'pilot',          0, WHO_NAMES.length - 1, 1, WHO_NAMES],
+        // the pilot (the racer, G3700: no select) is seated and billed
+        ['pilOn',     'pilot aboard',   0, 1, 1],
+        // WHO SITS BESIDE THEM (G204/G204.1): mixed crew (the characters
+        // rotate through every seat aboard, the passengers included) or one
+        // declared character (src/chars/, tools/chars_table.py order — the
+        // manifests load ahead of this page, so the list is read here, once)
         ['cabOcc',    'co-pilot seated', 0, 1, 1,
          { when: P => +P.crewOn && +P.seatLayout === 1 }],
-        ['copWho',    'co-pilot',       0, WHO_NAMES.length - 1, 1, WHO_NAMES,
+        ['cabWho',    'co-pilot',       0, CAB_NAMES.length - 1, 1, CAB_NAMES,
          { when: P => +P.crewOn && +P.seatLayout === 1 && +P.cabOcc }],
       ], 'open', { when: P => +P.crewOn }],
       ['pilot pose', [
-        ['dumSize',   'stature',        0, 2, 1, ['5th %ile — 1.52 m',
-                                                  '50th %ile — 1.75 m',
-                                                  '95th %ile — 1.88 m']],
-        ['dumElbows', 'elbows in/out', -0.25, 0.25, 0.005],
-        ['dumKnees',  'knees in/out',  -0.25, 0.25, 0.005],
-        ['dumRecline','recline offset',-15, 25, 0.5],
-        ['dumHandGrip','hand on grip',  0, 0.16, 0.005,
-         { when: P => !+P.dumHandsApart }],
+        // G3700: no stature row - every character sits at its own height
+        ['pilElbows', 'elbows in/out', -0.25, 0.25, 0.005],
+        ['pilKnees',  'knees in/out',  -0.25, 0.25, 0.005],
+        ['pilRecline','recline offset',-15, 25, 0.5],
+        ['pilHandGrip','hand on grip',  0, 0.16, 0.005,
+         { when: P => !+P.pilHandsApart }],
         // G205: how far the fingers close (0 flat, 1 a fist; a character
         // only), and the pilot's breathing/glancing amplitude off the
         // sitting-idle clip (0 = a statue)
-        ['dumFist',   'fist closed',    0, 1, 0.05,
-         { when: P => !+P.dumHandsApart }],
+        ['pilFist',   'fist closed',    0, 1, 0.05,
+         { when: P => !+P.pilHandsApart }],
         // G2797 (the user's garage review, 18 Oct: "hand controls applied per
         // hand"): the two hands set apart - each one's fist and its place on
         // the grip; off, both follow the two rows above
-        ['dumHandsApart', 'each hand its own', 0, 1, 1],
-        ['dumFistL',  'left fist closed',  0, 1, 0.05, { when: P => !!+P.dumHandsApart }],
-        ['dumFistR',  'right fist closed', 0, 1, 0.05, { when: P => !!+P.dumHandsApart }],
-        ['dumGripL',  'left hand on grip',  0, 0.16, 0.005, { when: P => !!+P.dumHandsApart }],
-        ['dumGripR',  'right hand on grip', 0, 0.16, 0.005, { when: P => !!+P.dumHandsApart }],
+        ['pilHandsApart', 'each hand its own', 0, 1, 1],
+        ['pilFistL',  'left fist closed',  0, 1, 0.05, { when: P => !!+P.pilHandsApart }],
+        ['pilFistR',  'right fist closed', 0, 1, 0.05, { when: P => !!+P.pilHandsApart }],
+        ['pilGripL',  'left hand on grip',  0, 0.16, 0.005, { when: P => !!+P.pilHandsApart }],
+        ['pilGripR',  'right hand on grip', 0, 0.16, 0.005, { when: P => !!+P.pilHandsApart }],
         // G2798 (the user, 19 Oct: "put the movement at 1 by default, and it's
         // fine"): the pilot's idle motion is 1 in the defaults and every preset
         // (it was 0.5); a build that saved its own value keeps it
-        ['dumIdle',   'idle motion',    0, 1, 0.05],
-        ['dumMarkers','eye point',      0, 1, 1],
+        ['pilIdle',   'idle motion',    0, 1, 0.05],
       ], 'open', { when: P => +P.crewOn }],
-      // one pose for every passenger (the user: "all the passenger and dummy
-      // positions will be the same for all dummies"); a passenger holds no
-      // control, so the reach rows above do not apply
+      // one pose for every passenger (G180, the user: every passenger sits
+      // the same way); a passenger holds no control, so the reach rows above
+      // do not apply
       ['passenger pose', [
-        ['paxSize',   'stature',        0, 2, 1, ['5th %ile — 1.52 m',
-                                                  '50th %ile — 1.75 m',
-                                                  '95th %ile — 1.88 m']],
         ['paxRecline','recline offset',-15, 25, 0.5],
         // G205: the feet, placed without pedals — fore-aft from the seat
         // back, height over the bay floor, half-spread (metres); and the
@@ -1080,8 +1065,8 @@ window.CAGE_PAGE = {
       cowlLoops: 2, crBand: 3, crCap: 3, crNoseCap: 3, crSill: 0,
       crewOn: 1, ctlPed: 1, ctlStick: 0, ctlThr: 2,
       dashBack: 0.1, dashCrease: 3, dashDepth: 0.13, doorSill: 0.094,
-      cabOcc: 0, dumElbows: 0, dumKnees: 0, dumMarkers: 1, dumOn: 1,
-      dumRecline: 0, dumSize: 1, explodeD: 0, halfW: 0.525, intCons: 0,
+      cabOcc: 0, pilElbows: 0, pilKnees: 0, pilOn: 1,
+      pilRecline: 0, explodeD: 0, halfW: 0.525, intCons: 0,
       intOn: 1, mirror: 1, noseCrown: 0.16, noseFinish: 1, noseH: 1.07,
       noseLen: 0.97, noseTip: 0.97, noseW: 0.9, paxLen: 0.91,
       paxPillarW: 0.115, pedalH: 0.27, pedalSpread: 0.09, pedalZ: 0.965,
@@ -1296,12 +1281,13 @@ window.CAGE_PAGE = {
       stickX: 0, stickY: 0, stickZ: 0, floorOn: 1, floorLift: 0, trimX: 0,
       trimY: 0, trimZ: 0, flapCtl: 1, stickLen: 0.44, stickCrank: 0, thrX: 0,
       thrY: 0, thrZ: 0, thrLen: 0.16, pedalZ: 0.9, pedalH: 0.18,
-      pedalSpread: 0.1, pedalAngle: 25, dumOn: 1, dumSize: 1, dumElbows: 0.08,
-      dumKnees: 0, dumRecline: 0, dumMarkers: 1, pilotWho: 2, copWho: 5,
-      dumFist: 0.5, dumIdle: 1, swMaster: 0, swAlt: 0, swAvionics: 0,
+      pedalSpread: 0.1, pedalAngle: 25, pilOn: 1, pilElbows: 0.08,
+      pilKnees: 0, pilRecline: 0, cabWho: 4,
+      fpLegacy: { pilotWho: 2 },   // G3700: the retired pilot pick, kept for this design's fingerprint (bench.js)
+      pilFist: 0.5, pilIdle: 1, swMaster: 0, swAlt: 0, swAvionics: 0,
       paxFeetOn: 1, paxFeetZ: 0.55, paxFeetY: 0, paxFeetX: 0.14, paxIdle: 1,
-      dumHandGrip: 0.075, cabOcc: 1, paxOcc1: 0, paxOcc2: 0, paxOcc3: 0,
-      paxOcc4: 0, paxSeatZ: 0, paxSize: 1, paxRecline: 0, fltL: 6.95,
+      pilHandGrip: 0.075, cabOcc: 1, paxOcc1: 0, paxOcc2: 0, paxOcc3: 0,
+      paxOcc4: 0, paxSeatZ: 0, paxRecline: 0, fltL: 6.95,
       fltStep: 0.53, fltB: 0.68, fltBeta: 29, fltBetaA: 12.5, fltHs: 0.115,
       fltAft: 8.5, fltFlat: 0.59, fltBow: 0.43, fltBowB: 0.39, fltStern: 0.73,
       fltSide: 0.5, fltZ: -0.22, fltDrop: 1.08, fltInc: -0.5, fltTrack: 0.8,
@@ -1526,12 +1512,13 @@ window.CAGE_PAGE = {
       consoleOn: 0, stickX: 0, stickY: 0, stickZ: 0, floorOn: 1, floorLift: 0,
       trimX: 0, trimY: 0, trimZ: 0, flapCtl: 0, stickLen: 0.44, stickCrank: 0,
       thrX: 0, thrY: 0, thrZ: 0, thrLen: 0.16, pedalZ: 0.88, pedalH: 0.17,
-      pedalSpread: 0.1, pedalAngle: 47, dumOn: 1, dumSize: 1, dumElbows: 0.01,
-      dumKnees: 0, dumRecline: 0, dumMarkers: 1, pilotWho: 0, copWho: 0,
-      dumFist: 0.5, dumIdle: 1, swMaster: 0, swAlt: 0, swAvionics: 0,
+      pedalSpread: 0.1, pedalAngle: 47, pilOn: 1, pilElbows: 0.01,
+      pilKnees: 0, pilRecline: 0, cabWho: 0,
+      fpLegacy: { pilotWho: 0 },   // G3700: the retired pilot pick, kept for this design's fingerprint (bench.js)
+      pilFist: 0.5, pilIdle: 1, swMaster: 0, swAlt: 0, swAvionics: 0,
       paxFeetOn: 1, paxFeetZ: 0.55, paxFeetY: 0, paxFeetX: 0.14, paxIdle: 1,
-      dumHandGrip: 0.075, cabOcc: 0, paxOcc1: 0, paxOcc2: 0, paxOcc3: 0,
-      paxOcc4: 0, paxSeatZ: 0, paxSize: 1, paxRecline: 0, fltL: 4.3,
+      pilHandGrip: 0.075, cabOcc: 0, paxOcc1: 0, paxOcc2: 0, paxOcc3: 0,
+      paxOcc4: 0, paxSeatZ: 0, paxRecline: 0, fltL: 4.3,
       fltStep: 0.54, fltB: 0.67, fltBeta: 20, fltBetaA: 20, fltHs: 0.045,
       fltAft: 6.5, fltFlat: 0.3, fltBow: 0.36, fltBowB: 0.15, fltStern: 0.75,
       fltSide: 0.22, fltZ: 0, fltDrop: 0.55, fltInc: 0, fltTrack: 0.8,
@@ -1748,12 +1735,13 @@ window.CAGE_PAGE = {
       consoleOn: 0, stickX: 0, stickY: 0, stickZ: 0, floorOn: 1, floorLift: 0,
       trimX: 0, trimY: 0, trimZ: 0, flapCtl: 0, stickLen: 0.44, stickCrank: 0,
       thrX: 0.04, thrY: 0.14, thrZ: 0, thrLen: 0.16, pedalZ: 0.945,
-      pedalH: 0.165, pedalSpread: 0.1, pedalAngle: 47, dumOn: 1, dumSize: 1,
-      dumElbows: 0.01, dumKnees: 0, dumRecline: 0, dumMarkers: 1, pilotWho: 0,
-      copWho: 0, dumFist: 0.5, dumIdle: 1, swMaster: 0, swAlt: 0,
+      pedalH: 0.165, pedalSpread: 0.1, pedalAngle: 47, pilOn: 1,
+      pilElbows: 0.01, pilKnees: 0, pilRecline: 0,
+      cabWho: 0, pilFist: 0.5, pilIdle: 1, swMaster: 0, swAlt: 0,
+      fpLegacy: { pilotWho: 0 },   // G3700: the retired pilot pick, kept for this design's fingerprint (bench.js)
       swAvionics: 0, paxFeetOn: 1, paxFeetZ: 0.55, paxFeetY: 0,
-      paxFeetX: 0.14, paxIdle: 1, dumHandGrip: 0.075, cabOcc: 0, paxOcc1: 0,
-      paxOcc2: 0, paxOcc3: 0, paxOcc4: 0, paxSeatZ: 0.045, paxSize: 1,
+      paxFeetX: 0.14, paxIdle: 1, pilHandGrip: 0.075, cabOcc: 0, paxOcc1: 0,
+      paxOcc2: 0, paxOcc3: 0, paxOcc4: 0, paxSeatZ: 0.045,
       paxRecline: 0, fltL: 4.3, fltStep: 0.54, fltB: 0.67, fltBeta: 20,
       fltBetaA: 20, fltHs: 0.045, fltAft: 6.5, fltFlat: 0.3, fltBow: 0.36,
       fltBowB: 0.15, fltStern: 0.75, fltSide: 0.22, fltZ: 0, fltDrop: 0.55,
@@ -1964,12 +1952,13 @@ window.CAGE_PAGE = {
       yokeGap: 0.16, floorOn: 1, floorLift: 0, trimX: 0, trimY: 0, trimZ: 0,
       flapCtl: 1, stickLen: 0.44, stickCrank: 0, thrX: 0, thrY: 0, thrZ: 0,
       thrLen: 0.16, pedalZ: 0.9, pedalH: 0.18, pedalSpread: 0.1, pedalAngle: 25,
-      dumOn: 1, dumSize: 1, dumElbows: 0.08, dumKnees: 0, dumRecline: 0,
-      dumMarkers: 1, pilotWho: 2, copWho: 0, dumFist: 0.75, dumIdle: 1,
+      pilOn: 1, pilElbows: 0.08, pilKnees: 0, pilRecline: 0,
+      cabWho: 0, pilFist: 0.75, pilIdle: 1,
+      fpLegacy: { pilotWho: 2 },   // G3700: the retired pilot pick, kept for this design's fingerprint (bench.js)
       swMaster: 0, swAlt: 0, swAvionics: 0, paxFeetOn: 1, paxFeetZ: 0.67,
-      paxFeetY: 0.18, paxFeetX: 0.14, paxIdle: 1, dumHandGrip: 0.045, cabOcc: 0,
+      paxFeetY: 0.18, paxFeetX: 0.14, paxIdle: 1, pilHandGrip: 0.045, cabOcc: 0,
       paxOcc1: 0, paxOcc2: 0, paxOcc3: 0, paxOcc4: 0, paxSeatZ: 0.185,
-      paxSize: 1, paxRecline: 0, fltPreset: 15, fltDetail: 1, fltPaddle: 1,
+      paxRecline: 0, fltPreset: 15, fltDetail: 1, fltPaddle: 1,
       fltRudder: 1, fltL: 4.3, fltStep: 0.54, fltB: 0.67,
       fltH: 0.45454545454545453, fltBeta: 20, fltBetaBow: 30.21892547607422,
       fltBetaA: 20, fltHs: 0.045, fltAft: 6.5, fltAftCurve: 0.020273656845092775,
@@ -2459,7 +2448,6 @@ window.CAGE_PAGE = {
           floorLoop: { tint: 16764160 },
           gearLeg: { tint: 16764160 },
           pillarWindow: { tint: 16764160 },
-          dummy2: { tint: 6083612 },
           pillarPassenger: { tint: 16764160 },
           pillarTail: { tint: 16764160 },
           joint: { tint: 7368816 },
@@ -2695,7 +2683,6 @@ window.CAGE_PAGE = {
           floorLoop: { tint: 15854296 },
           gearLeg: { tint: 15854296 },
           pillarWindow: { tint: 15854296 },
-          dummy2: { tint: 14065948 },
           pillarPassenger: { tint: 15854296 },
           pillarTail: { tint: 15854296 },
           joint: { tint: 7368816 },

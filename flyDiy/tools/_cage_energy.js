@@ -635,7 +635,7 @@ function commitSoon() {
 }
 
 // THE CREW IS IN THE WAY, OR IT IS NOT. Every vertex of everything the crew
-// layer drew — seats, dummies, the panel, the sticks — tested against each
+// layer drew — seats, the occupants' posed bodies, the panel, the sticks — tested against each
 // body vessel's box. A box is convex, so a vertex inside it is a certain
 // intrusion; the memory of G83's false positives says not to use bounding
 // boxes for this, and this is not one.
@@ -653,7 +653,10 @@ function crewPoints(scene, inv) {
   const V = new THREE.Vector3(), meshes = [];
   let n = 0;
   crew.traverse(o => {
-    if (!o.isMesh || !o.geometry) return;
+    // a character's SKINNED mesh holds its bind pose (a T-pose, nowhere near
+    // the seat): its posed body is the plain mesh under it (G3700,
+    // _cage_char.js pickBody), and that is what the tank clears
+    if (!o.isMesh || o.isSkinnedMesh || !o.geometry) return;
     const pos = o.geometry.getAttribute('position');
     if (!pos) return;
     meshes.push(o); n += pos.count;
@@ -2389,7 +2392,7 @@ function renderPanel() {
   // ---- G101: THE BALANCE CHART, with the loading as what-ifs ---------------
   // Occupants and baggage here are VIEW state: the loading you want to SEE
   // the aeroplane at, not the loading the build carries (that is the crew
-  // layer's dummies and the spec's own baggage). Every point on the chart is
+  // layer's occupants and the spec's own baggage). Every point on the chart is
   // the core's shakedown over genSpecAtFuel — the same door as the reserve
   // sheet, the corners and the slider above.
   if (inGame() && window.BALANCE) {

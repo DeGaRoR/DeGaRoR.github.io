@@ -5,7 +5,7 @@
 // 5.7-6.0 M triangles a frame, 59.5 ms of the CPU submitting them. tools/perf/garage_draws.js (node, the Jodel,
 // retro) counts 6 809 draws a frame, and 4 798 of them are SHADOW MAPS - the key's 2048 map (1 277) and the five
 // lamps' 1024 maps (~3 500) - every map re-drawn every frame. Yet at rest THREE casters change between frames (the
-// beacon's rotor and the pilot dummy): the other 1 700 cast the same depth, frame after frame.
+// beacon's rotor and the pilot): the other 1 700 cast the same depth, frame after frame.
 //
 // So each shadow-casting light of the shed keeps a STATIC DEPTH: the casters that have held still for K frames,
 // drawn into the light's own map by three's own shadow pass (R.shadowMap.render - the same selection, frustum,

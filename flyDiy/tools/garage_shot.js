@@ -11,6 +11,15 @@
 // the seats, the bulkhead), `fleet` = the shelf with the row on it, `air` =
 // the roll-out and a chase shot 25 s later. Written because the Browser
 // pane lost its WebGL context and the user asked for pictures.
+//
+// G3700 (the racer is the only pilot): `--build builds/x.json` loads a saved
+// build (GARAGE_SPEC.set) in place of a stock row; the `crew` view selects the
+// Crew part with SEE INSIDE on and frames the pilot (the selection outline the
+// user judges by eye), `hands` frames the pilot's two hands on the controls
+// from three sides; `--dump f.json` writes the crew and the tanks as the page
+// measured them (the eye point, the seats, every vessel's fit, the bench's
+// fingerprint) for the before/after comparison. Both old and new crew names
+// are read, so the same rig shoots the tree before the change.
 'use strict';
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -23,6 +32,8 @@ const STOCK = opt('stock', 'cessna 172');
 const OUT = opt('out', 'screenshots/shot');
 const VIEWS = opt('views', 'q,s,f,t,x,fleet,air').split(',');
 const WAIT = +opt('wait', 15000);
+const BUILD = opt('build', null);
+const DUMP = opt('dump', null);
 const PORT = 9400 + (process.pid % 500);
 const CHROME = ['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
   'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe', '/usr/bin/google-chrome'].find(p => fs.existsSync(p));
@@ -62,7 +73,9 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   if (!rows) throw new Error('the shelf did not open');
   console.log('garage_shot: stock rows ' + JSON.stringify(rows));
   if (VIEWS.includes('fleet')) { await sleep(800); await shot('fleet'); }
-  const loaded = await ev("(()=>{const f=document.getElementById('gFleet');const b=[...f.querySelectorAll('.gfStock button')].find(x=>x.textContent.trim().toLowerCase().startsWith('" + STOCK.toLowerCase() + "'));if(!b)return false;b.click();return true;})()");
+  const loaded = BUILD
+    ? await ev("(async()=>{const r=await fetch(" + JSON.stringify(BUILD.split(String.fromCharCode(92)).join('/').replace(/^flyDiy\//, '')) + ");const j=await r.json();window.GARAGE_SPEC.set(j.spec||j);const f=document.getElementById('gFleet');if(f)f.style.display='none';return true})()")
+    : await ev("(()=>{const f=document.getElementById('gFleet');const b=[...f.querySelectorAll('.gfStock button')].find(x=>x.textContent.trim().toLowerCase().startsWith('" + STOCK.toLowerCase() + "'));if(!b)return false;b.click();return true;})()");
   if (!loaded) throw new Error('no stock row ' + STOCK);
   await sleep(WAIT);
   // the fresh profile's chooser ("NEW AEROPLANE") sits over the shed: keep what was loaded
@@ -83,8 +96,55 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   // the game's garage orbit (app.js az/el/dist, FLIGHT_PROBE.camSet): quarter, side, front, top
   const PRESETS = { q: [0.85, 0.22, 11], s: [Math.PI / 2, 0.05, 12], f: [0, 0.08, 11], t: [0.6, 1.25, 12] };
   const cam = async (a, e, d) => { await ev("FLIGHT_PROBE.camSet(" + a + "," + e + "," + d + "), 1"); await sleep(1500); };
+  // G3700: THE CREW AS THE PAGE HAS IT - the pilot's figure and hands (the
+  // names before and after the change), the eye, the seats, the tanks' fits
+  const CREW_JS = "(()=>{const S=FLIGHT_PROBE.hangarScene();let fig=null;S.traverse(o=>{if(!fig&&/^ed(Crew|Dum)1$/.test(o.name||''))fig=o;});" +
+    "const W=o=>{if(!o)return null;const v=new THREE.Vector3();o.getWorldPosition(v);return [+v.x.toFixed(3),+v.y.toFixed(3),+v.z.toFixed(3)];};" +
+    "const bone=(a,b)=>fig&&(fig.getObjectByName(a)||fig.getObjectByName(b));" +
+    "return {fig:W(fig),hip:W(bone('Hips','root')),hands:[W(bone('LeftHand','wristL')),W(bone('RightHand','wristR'))],head:W(bone('Head','head'))};})()";
+  const lookAt = async (pt, a, e, d) => {
+    await ev("FLIGHT_PROBE.pan(0,0,0), 1"); await sleep(200);
+    const t = await ev("FLIGHT_PROBE.camGet().target");
+    const T = Array.isArray(t) ? t : [t.x, t.y, t.z];
+    await ev("FLIGHT_PROBE.pan(" + (pt[0] - T[0]) + "," + (pt[1] - T[1]) + "," + (pt[2] - T[2]) + "), 1");
+    await cam(a, e, d);
+  };
+  if (DUMP) {
+    const d = await ev("JSON.stringify((()=>{const s=window.GARAGE_SPEC.get();const C=window.CAGE_CREW||{};const E=window.CAGE_CREW_EYE;" +
+      "const R=(window.CAGE_ENERGY&&window.CAGE_ENERGY.results)?window.CAGE_ENERGY.results():[];" +
+      "const live=(C.live||[]).map(o=>({key:o.live&&o.live.key,role:o.live&&o.live.role,s:o.live&&o.live.s}));" +
+      "return {name:s.meta&&s.meta.name,reg:s.meta&&s.meta.reg,fp:window.BENCH_FP?window.BENCH_FP():null," +
+      "eye:E&&E.p,seats:C.seatsAt,live,crew:" + CREW_JS + "," +
+      "tanks:R.map(r=>({on:r.on,ok:r.ok,why:r.why,section:r.section,shaped:r.shaped,dims:r.dims,capacity:r.capacity,crewHits:r.crewHits||0,c:r.c&&r.c.map(v=>+(+v).toFixed(3))})),cabin:s.cabin&&{pilots:s.cabin.pilots,pax:s.cabin.pax,seats:s.cabin.seats},mass:s.mass,fuel:s.fuel}})())");
+    fs.mkdirSync(path.dirname(DUMP), { recursive: true });
+    fs.writeFileSync(DUMP, d);
+    console.log('garage_shot: dump ' + DUMP + ' ' + d.slice(0, 400));
+  }
   for (const v of VIEWS) {
     if (v === 'fleet' || v === 'air') continue;
+    if (v === 'crew' || v === 'hands') {
+      const cr = await ev(CREW_JS);
+      console.log('garage_shot: crew ' + JSON.stringify(cr));
+      if (!cr.hip) { console.error('garage_shot: no pilot figure on the stand'); continue; }
+      await ev("(()=>{const c=document.getElementById('xray');if(c&&!c.checked){c.click();}return 1})()");
+      if (v === 'crew') {
+        await ev("window.EDITOR_SELECT('crew'), 1"); await sleep(1500);
+        const at = [cr.hip[0], cr.hip[1] + 0.25, cr.hip[2]];
+        await lookAt(at, 0.85, 0.22, 3.2); await shot('crew_q');
+        await lookAt(at, Math.PI / 2, 0.08, 3.0); await shot('crew_s');
+        await lookAt(at, 0.6, 0.9, 3.0); await shot('crew_t');
+        await ev("window.EDITOR_SELECT('craft'), 1"); await sleep(800);
+      } else {
+        const h = cr.hands.filter(Boolean);
+        const at = h.length ? h.reduce((a, p) => [a[0] + p[0] / h.length, a[1] + p[1] / h.length, a[2] + p[2] / h.length], [0, 0, 0]) : cr.hip;
+        await lookAt(at, 0.85, 0.35, 1.3); await shot('hands_q');
+        await lookAt(at, Math.PI / 2, 0.15, 1.2); await shot('hands_s');
+        await lookAt(at, 0.4, 1.0, 1.2); await shot('hands_t');
+      }
+      await ev("(()=>{const c=document.getElementById('xray');if(c&&c.checked){c.click();}FLIGHT_PROBE.pan(0,0,0);return 1})()");
+      await sleep(800);
+      continue;
+    }
     if (v === 'x') {
       // THE TANKS: the wing's skin meshes hidden for the picture (the shell,
       // the fuel and the spars stay), the see-inside switch on for the cabin

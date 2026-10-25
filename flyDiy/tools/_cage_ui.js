@@ -934,7 +934,7 @@ function secMat(name, g) {
     ccK: r.ccK, fieldK: r.fieldK,                    // G206
     metalK: r.metalK,                                // G215
     fieldLK: r.fieldLK,                              // G217
-    // G206.1: the crew layer's sections (the seats, the dummies) sit inside
+    // G206.1: the crew layer's sections (the seats, the floor) sit inside
     inside: (A.AERO_SEC[name] && A.AERO_SEC[name].layer === 'crew') ? 1 : 0,
     // G207: the flying surfaces, the cowl and the spats take a marking; the
     // engine, the mount, the gear, the struts, the crew do not

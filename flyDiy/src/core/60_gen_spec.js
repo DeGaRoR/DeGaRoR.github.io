@@ -3283,10 +3283,12 @@ const GEN_DEFAULT = {
     // moves — see 63_gen_skin.js). `depth` is how far aft the coaming shelf runs;
     // `wrap` is how far down the sill arc it wraps, and 0.5 is exactly the sill.
     panel: { on: true, depth: 0.27, inset: 0.06, wrap: 0.50 },
-    // THE OCCUPANT. A crash-test dummy on the first `pilots` seats. `stature` is
-    // standing height in metres and everything else is a pose angle in degrees.
-    // The rig is anthropometric (Drillis & Contini fractions), so the one length
-    // scales the figure and every chain hangs off the one before it.
+    // A RETIRED FIELD, UNREAD (G3700). The first generator posed a figure of
+    // its own from these numbers; the cage's crew layer seats the characters
+    // now (the pilot is the racer, _cage_crew.js) and nothing reads `pilot`.
+    // It stays, normalised as before, because every saved build carries it
+    // and the bench's fingerprint hashes it: dropping it would withdraw every
+    // certificate (A0's ruling, 25 Oct).
     pilot: { show: true, stature: 1.75, lean: 17, thigh: -9, shank: 10,
              armDown: 40, fore: 6, head: -11, armIn: 26,
              ankle: 40, toeOut: 7, hipOut: 0, kneeOut: 3 },

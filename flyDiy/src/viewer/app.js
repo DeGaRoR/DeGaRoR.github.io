@@ -2147,8 +2147,8 @@
     for (const r of recs) {
       const rig = CC.rig(r.key);
       if (!rig) continue;
-      const mkDum = (parent, nm) => {
-        const d = CW.ik.bareDummy(parent, rig);
+      const mkCrew = (parent, nm) => {
+        const d = CW.ik.bareRig(parent, rig);
         d.fig.name = nm + r.idx;
         new THREE.Matrix4().fromArray(r.figM)
           .decompose(d.fig.position, d.fig.quaternion, d.fig.scale);
@@ -2157,7 +2157,7 @@
         d.fig.updateMatrixWorld(true);
         return d;
       };
-      const dum = mkDum(frame, 'flDum'), sDum = mkDum(sFrame, 'flSolve');
+      const crew = mkCrew(frame, 'flCrew'), sCrew = mkCrew(sFrame, 'flSolve');
       const jobs = [];
       for (const j of r.jobs) {
         const cm = (ctlMoves || []).find(m => m.c && m.c.name === j.ctl);
@@ -2177,14 +2177,14 @@
                     ctx: { s: r.s, palm: r.palm, palmL: r.palmL, palmR: r.palmR, base: null, notes: null,
                            poleFig: new THREE.Vector3().fromArray(j.poleFig) } });
       }
-      const P = { key: r.key, dum, sDum, jobs, inst: null, fist: r.fist, fistL: r.fistL, fistR: r.fistR,
+      const P = { key: r.key, crew, sCrew, jobs, inst: null, fist: r.fist, fistL: r.fistL, fistR: r.fistR,
                   anim: (r.anim && r.anim.amp > 0) ? r.anim : null };
       out.push(P);
       const go = () => {
         if (P.dead) return;
         const inst = CC.instance(r.key);
         if (!inst) return;
-        CC.dress(inst, dum, { fist: r.fist, fistL: r.fistL, fistR: r.fistR, from: sDum });
+        CC.dress(inst, crew, { fist: r.fist, fistL: r.fistL, fistR: r.fistR, from: sCrew });
         P.inst = inst;
         if (P.anim && CC.animLoad) CC.animLoad(P.anim.key);
       };
@@ -2204,11 +2204,11 @@
       for (const j of P.jobs) {             // the parts, as they stand now
         j.sh.position.copy(j.part.position);
         j.sh.quaternion.copy(j.part.quaternion);
-        CW.ik.solveGripJob(P.sDum, j, j.ctx);
+        CW.ik.solveGripJob(P.sCrew, j, j.ctx);
       }
-      for (const bn in P.sDum.bones)        // solved locals -> the drawn twin
-        P.dum.bones[bn].quaternion.copy(P.sDum.bones[bn].quaternion);
-      CC.dress(P.inst, P.dum, { fist: P.fist, fistL: P.fistL, fistR: P.fistR, from: P.sDum });
+      for (const bn in P.sCrew.bones)        // solved locals -> the drawn twin
+        P.crew.bones[bn].quaternion.copy(P.sCrew.bones[bn].quaternion);
+      CC.dress(P.inst, P.crew, { fist: P.fist, fistL: P.fistL, fistR: P.fistR, from: P.sCrew });
       if (P.anim && CC.animStep) CC.animStep(P.inst, now, P.anim);
     }
   }
@@ -2247,7 +2247,7 @@
       if (!r || r.hb || !r.bind || r.bind.bound.length) return why('moves');        // the flex or a hinge writes it
       if (o.parent !== grp || !o.matrix.equals(I) || !o.position.equals({ x: 0, y: 0, z: 0 })) return why('posed');
       if (lampMesh.has(o) || rec.lamp || rec.lampCup) return why('lamp');
-      if (rec.char || rec.sec === 'dummy1') return why('crew');
+      if (rec.char) return why('crew');
       if (!mt || Array.isArray(mt) || mt.transparent || !(mt.opacity >= 1) || rec.opacity < 1 ||
           rec.fin === 'glass' || (mt.userData && mt.userData.aeroFinish === 'glass') || o.children.length) return why('clear');
       if (o.isSkinnedMesh || o.isInstancedMesh || !g || !g.index || !g.attributes.position ||
@@ -9787,7 +9787,7 @@
     for (const P of FST.pax) { P.P.dead = true; if (P.P.inst && window.CAGE_CHAR) window.CAGE_CHAR.dispose(P.P.inst); if (P.frame && P.frame.parent) P.frame.parent.remove(P.frame); }
     FST.pax = [];
     if (!grp) return;
-    for (const i of hide) { const o = grp.getObjectByName('flDum' + (i + 1)); if (o) { o.visible = false; FST.hidden.push(o); } }
+    for (const i of hide) { const o = grp.getObjectByName('flCrew' + (i + 1)); if (o) { o.visible = false; FST.hidden.push(o); } }
     const recs = M.data && M.data.people, got = fsAccepted(), CC = window.CAGE_CHAR;
     if (!want.length || !recs || !recs.length || !got || !got.card.seats || !CC) return;
     // a passenger the build does not seat: the build's pilot's posed record moved to that seat (card -> the cage sheet:
@@ -9844,8 +9844,8 @@
     const job = !!(FST.R && FST.R.seats && FST.R.seats.some(q => q.job && q.i > 0));
     // the live crew but the pilot (a C172's co-pilot holds the yoke: live, and a job's passenger sits there)
     if (CRW.all || job) for (const P of M.people || []) {
-      const nm = P && P.dum && P.dum.fig && P.dum.fig.name;
-      const r = nm && (M.data.people || []).find(q => nm === 'flDum' + q.idx);
+      const nm = P && P.crew && P.crew.fig && P.crew.fig.name;
+      const r = nm && (M.data.people || []).find(q => nm === 'flCrew' + q.idx);
       if (!r || r.role === 'pilot' || P.dead) continue;
       out.push({ seat: 'l:' + r.idx, key: P.key, meshes: () => (P.inst ? P.inst.meshes : []) });
     }

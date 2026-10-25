@@ -1120,7 +1120,7 @@ const CAGE_PARTS = [
 
   // =========================================================================
   // CABIN FIT — the crew layer (cage5): seats, controls, the dashboard and the
-  // dummy. A disjoint layer over the cage; never in the mesh, the gates or the
+  // occupants. A disjoint layer over the cage; never in the mesh, the gates or the
   // OBJ.
   // =========================================================================
   // 2026-09-04 (the user: "cabin fit should definitely be in cabin")
@@ -1189,18 +1189,17 @@ const CAGE_PARTS = [
     ] },
 
   { key: 'crew', name: 'Crew', parent: 'fit', layer: 'crew',
-    sections: ['dummy1', 'dummy2'],
     when: P => +P.crewOn,
     groups: [
       // G180: the cockpit's occupants and the two poses (a passenger bay's
       // occupancy is the bay's own row, see the Passenger bay part)
-      ['aboard', ['dumOn', 'pilotWho', 'cabOcc', 'copWho']],
-      ['pilot pose', ['dumSize', 'dumElbows', 'dumKnees', 'dumRecline',
-                      'dumHandGrip', 'dumFist', 'dumIdle']],
-      ['hands', ['dumHandsApart', 'dumFistL', 'dumFistR', 'dumGripL', 'dumGripR']],   // G2797
-      ['passenger pose', ['paxSize', 'paxRecline', 'paxFeetOn', 'paxFeetZ',
+      // G3700: the pilot is the racer (no select); the co-pilot picks
+      ['aboard', ['pilOn', 'cabOcc', 'cabWho']],
+      ['pilot pose', ['pilElbows', 'pilKnees', 'pilRecline',
+                      'pilHandGrip', 'pilFist', 'pilIdle']],
+      ['hands', ['pilHandsApart', 'pilFistL', 'pilFistR', 'pilGripL', 'pilGripR']],   // G2797
+      ['passenger pose', ['paxRecline', 'paxFeetOn', 'paxFeetZ',
                           'paxFeetY', 'paxFeetX', 'paxIdle']],
-      ['markers', ['dumMarkers'], EXPERT],                  // G2794: an expert's instrument
     ] },
 
   // LIGHTS ARE A CABIN FITTING and not a fuselage one, because the thing you
