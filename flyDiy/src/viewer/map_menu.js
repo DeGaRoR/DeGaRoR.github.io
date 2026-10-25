@@ -547,7 +547,7 @@
       b.push(btn('fire', 'Fire', true));
     }
     return '<p>' + esc(p.tagline) + '<span class="mmRw">Flies like: ' + esc(p.fliesLike) + '</span>' +
-      '<span class="mmRw">' + esc(p.traits.map(t => t.label).join(', ')) + ' · ' + esc(pilotWhere(M, p)) + (p.hired ? '' : ' · a one-time sign-on, no wages') + '</span></p>' +
+      '<span class="mmRw">' + esc(p.traits.map(t => t.label).join(', ')) + ' · ' + esc(pilotWhere(M, p)) + (p.hired ? '' : ' · sign-on ' + fmt(p.signOn)) + (p.wage ? ' · wage ' + fmt(p.wage) + ' a day' : '')   /* G3618: the paycheck at each day's end */ + '</span></p>' +
       '<div class="mmActs">' + b.join('') + '</div>' + (live ? '' : '<p class="mmFine">Hiring and firing come with the career (?career=1).</p>');
   }
   function pilotsListHTML(M, st) {

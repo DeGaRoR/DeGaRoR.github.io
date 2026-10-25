@@ -326,24 +326,30 @@ function run(mut) {
   const old = clone(d0); delete old.career.roster; delete old.career.pilots; delete old.career.pilotPick; delete old.career.pilotN;
   const no = M.careerNormalise(old);
   ok(eq(no.career.roster, []) && no.career.pilotPick === 'me' && no.career.pilotN === 0, 'an older career (no roster) normalises to "I fly"');
-  // the market
-  const offersAt = (doc, n) => { const x = clone(doc); x.career.contracts.done = Array.from({ length: n }, (_, i) => ({ id: 'x' + i, at: 0, pay: 0 })); return M.pilotsOffers(x); };
-  const seen = new Set();
-  for (let n = 0; n < 24; n++) {
-    const o = offersAt(d0, n);
-    ok(o.length >= M.PILOTS_MARKET.min && o.length <= M.PILOTS_MARKET.max && o.every(id => id !== 'brian' && R[id]), 'the offers at ' + n + ' done: 2-3 of the unhired (' + o + ')');
-    ok(eq(o, offersAt(d0, n)), 'the offers are deterministic');
-    ok(eq(o, offersAt(d0, M.contractEpoch(n) * M.CONTRACT_GEN.refreshEvery)), 'the offers hold within an epoch');
-    seen.add(o.join());
-  }
-  ok(seen.size >= 2, 'the offers refresh with the market (' + seen.size + ' different sets over 8 epochs)');
-  const d0b = clone(d0); d0b.career.seed = 'other';
-  const seeds = new Set([0, 3, 6, 9, 12, 15].map(n => offersAt(d0b, n).join() + '|' + offersAt(d0, n).join()));
-  ok(seeds.size >= 2, 'the offers follow the career\'s seed');
+  // the market (G3618, the user 25 Oct: "All 4 available"): every pilot not on the roster, always
+  ok(eq(M.pilotsOffers(d0), ORDER.filter(id => !d0.career.roster.includes(id))), 'the offers: every pilot not hired (' + M.pilotsOffers(d0) + ')');
+  { const x = clone(d0); x.career.contracts.done = Array.from({ length: 9 }, (_, i) => ({ id: 'x' + i, at: 0, pay: 0 }));
+    ok(eq(M.pilotsOffers(x), M.pilotsOffers(d0)), 'the offers do not move with the job market'); }
   // hire
   const off = M.pilotsOffers(d0), notOff = ORDER.filter(id => id !== 'brian' && !off.includes(id));
   const h = M.pilotsHire(d0, off[0]);
   ok(h.ok && h.doc.wallet === d0.wallet - M.pilotsSignOn(off[0]) && h.doc.career.roster.includes(off[0]), 'hire: on the roster, the sign-on charged (' + off[0] + ' ' + M.pilotsSignOn(off[0]) + ')');
+  ok(h.wage === M.pilotsWage(off[0]) && h.wage > 0 && h.fee === M.pilotsSignOn(off[0]), 'G3618: the hire says its fee and its wage; the wage is not charged at the hire');
+  // G3618 THE PAYDAY: the wage at the END of each day ("like classic paycheck"), the first at the end of the hiring day
+  { const day = M.pilotsDay(h.doc), at = k => day * M.PILOTS_DAY_S + M.PILOTS_PAY_UT_S + k;   // (k: s into the pay day)
+    const same = M.pilotsPayroll(h.doc, at(M.PILOTS_DAY_S - 1));
+    ok(same.ok && same.paid === 0 && same.doc === h.doc, 'payday: nothing within the hiring day (the same document back)');
+    const p1 = M.pilotsPayroll(h.doc, at(M.PILOTS_DAY_S + 5));
+    ok(p1.paid === h.wage && p1.doc.wallet === h.doc.wallet - h.wage && p1.doc.ledger[p1.doc.ledger.length - 1].k === 'wage', 'payday: the end of day 1 pays one wage, a ledger line (' + p1.paid + ')');
+    const p3 = M.pilotsPayroll(p1.doc, at(4 * M.PILOTS_DAY_S));
+    ok(p3.paid === 3 * h.wage && p3.lines[0].days === 3, 'payday: three more days ended, three wages (' + p3.paid + ')');
+    ok(M.pilotsPayroll(p3.doc, at(4 * M.PILOTS_DAY_S + 100)).paid === 0, 'payday: paid up, nothing twice');
+    const broke = clone(h.doc); broke.wallet = 10;
+    ok(M.pilotsPayroll(broke, at(2 * M.PILOTS_DAY_S)).doc.wallet === 10 - 2 * h.wage, 'payday: owed all the same - the wallet goes below zero');
+    ok(M.pilotsPayroll(d0, at(9 * M.PILOTS_DAY_S)).paid === 0, 'payday: the companion works for nothing (until STORY T6b retires it)'); }
+  { const c = M.pilotsCard(h.doc, off[0], null);
+    ok(typeof c.level === 'string' && c.level.length > 3 && Array.isArray(c.skills) && c.skills.length === M.PILOTS_ROSTER[off[0]].traits.length && c.wage === h.wage,
+       'G3618: the card states an experience level and skill chips (no "can fly" verdict) and the wage (' + c.level + ' | ' + c.skills + ')'); }
   const L = h.doc.ledger[h.doc.ledger.length - 1];
   ok(L && L.k === 'signon' && L.ref === off[0] && L.amt === M.pilotsSignOn(off[0]), 'hire: the ledger\'s sign-on line');
   ok(M.pilotsPlace(h.doc, off[0]) === 'HOME', 'a new hire signs on at HOME');
@@ -535,8 +541,9 @@ const MUTS = [
   ['hire anyone', sub("if (!pilotsOffers(doc).includes(id)) return plNo(doc, pilotsName(id) + ' is not looking for work right now');", '')],
   ['hire past the wallet', sub("if (doc.mode === 'career' && (doc.wallet || 0) < fee)", 'if (false)')],
   ['a refusal that mutates', sub('if (pilotsHired(doc).includes(id)) return plNo(doc,', 'if (pilotsHired(doc).includes(id)) return plNo((doc.wallet -= 1, doc),')],
-  ['the market shows everyone', sub('const n = Math.min(pool.length, PILOTS_MARKET.min + Math.floor(rng() * (PILOTS_MARKET.max - PILOTS_MARKET.min + 1)));', 'const n = pool.length;')],
-  ['the market never refreshes', sub("String(c.seed) + ':pilots:' + epoch", "String(c.seed) + ':pilots:'")],
+  ['the wage charged at the hire', sub("if (fee) playerCharge(d, fee, 'signon', id);", "if (fee) playerCharge(d, fee + pilotsWage(id), 'signon', id);")],
+  ['payday at the start of the day', sub('if (today > from) owed.push', 'if (today >= from) owed.push')],
+  ['a hired pilot still on the market', sub('return PILOTS_ORDER.filter(id => !hired.has(id));', 'return PILOTS_ORDER.slice();')],
   ['no companion', sub('c.roster = [PILOTS_COMPANION];', 'c.roster = [];')],
   ['the companion charged', sub('function pilotsSignOn(id) {\n  if (PILOTS_ROSTER[id] && PILOTS_ROSTER[id].companion) return 0;', 'function pilotsSignOn(id) {')],
   ['the price book ignored', sub("if (typeof econPrice === 'function')", 'if (false)')],
