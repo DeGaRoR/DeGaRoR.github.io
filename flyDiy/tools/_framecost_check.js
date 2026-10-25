@@ -91,6 +91,9 @@ const ALLOW = [
   { key: 'boot/garage:seed/three.updateMatrixWorld', build: 'cub', rise: 2050, why: 'the breaker row as real parts (G2802) on top of the arch dash (G3340: +704)', g: 'G2802' },
   { key: 'boot/garage:restore/', build: 'cub', rise: 90, why: 'the breaker row as real parts (G2802) on top of the arch dash (G3340: +28)', g: 'G2802' },
   { key: 'boot/garage:seed/three.updateMatrixWorld', build: 'cessna', rise: 2100, why: 'the breaker row as real parts (G2802): 15 breakers, 75 objects', g: 'G2802' },
+  // G2808.2 (the user 25 Oct: "Fix everything. Wysiwyg"): the billed things drawn on the Cessna's dash - the NAV head and
+  // the hour meter (two dials with their bezels, posts and screws), the slip ball, the ammeter's needle, the tapes
+  { key: 'boot/garage:seed/three.updateMatrixWorld', build: 'cessna', rise: 2750, why: 'the breakers (G2802, 2100) and the NAV head, the hour meter, the slip ball, the ammeter needle drawn (G2808.2)', g: 'G2808' },
   // G1975.2 (DEADWOOD-BRIGHT, the user's call 2026-10-07): the snags dealt by the MIXES' own dead share (TREE_MIX.mixDead ON;
   // pine_georgeous was 53 % dead off its collection's share): the living trees that replace the snags carry 2-4x their
   // triangles - the Cub's stand +84 141 tris (+0.48 % of the frame) against the same code with ?mixdead=0 (census pair,
