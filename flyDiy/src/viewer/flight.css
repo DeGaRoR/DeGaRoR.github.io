@@ -1062,7 +1062,7 @@ body.sceneryMode #flTop, body.sceneryMode #flActs, body.sceneryMode #pfd, body.s
 body.sceneryMode #telp, body.sceneryMode #arrCard, body.sceneryMode #flHint, body.sceneryMode #flNotice { display:none !important; }
 
 /* =========================================================================
-   G3710-G3719: THE FLIGHT LAYOUT (the user's 25 Oct mockup; app.js adds body.fl2 unless ?flui=old). The same
+   G3643-G3649: THE FLIGHT LAYOUT (the user's 25 Oct mockup; app.js adds body.fl2 unless ?flui=old). The same
    elements placed again: the top row (#flBar: the shed, Route, Conditions, Autopilot) over the readouts (#pfd) over
    the autopilot's words (folded unless body.fl2Ap); the corner top left (pause, $, the eye: .flCornB beside #gmMenu,
    placed by app.js gmLayout); the minimap top right with its own x (#mmX) and a button while it is away (#flMmB);
@@ -1098,7 +1098,7 @@ body.fl2.mode-fly #mapEntry { display:none !important; }
 body.fl2.mode-fly .flCornB { display:inline-flex; }
 body.fl2 .flCornB[hidden], body.shot .flCornB, body.rollShot .flCornB, body.premOpen .flCornB, body.sceneryMode .flCornB { display:none !important; }
 #flMmB { top:18px; right:22px; }
-/* G3715 photo mode: nothing on the screen - a click anywhere (or Esc) is the way back, not a button */
+/* G3648 photo mode: nothing on the screen - a click anywhere (or Esc) is the way back, not a button */
 body.fl2.mode-fly #shotBack { display:none !important; }
 #ui #mmX { position:absolute; top:8px; left:8px; z-index:2; width:32px; height:32px; padding:0; border-radius:16px; cursor:pointer;
   border:1px solid var(--ed-border); background:var(--ed-plate); color:var(--ed-ink); font:500 18px/1 'IBM Plex Sans'; }

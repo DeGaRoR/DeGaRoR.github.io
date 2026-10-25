@@ -14274,9 +14274,9 @@
 
   let flyOpen = null;
   let flSetupHost = null, flSetupOn = false, setupTouched = false;   // B8: the setup screen's view of this rail (below)
-  // G3710: THE FLIGHT LAYOUT of the 25 Oct mockup (below, after the menu) - on unless ?flui=old (the layout before it)
+  // G3643: THE FLIGHT LAYOUT of the 25 Oct mockup (below, after the menu) - on unless ?flui=old (the layout before it)
   const FL2 = !(typeof location !== 'undefined' && /[?&]flui=old(&|$)/.test(location.search || ''));
-  let flAnchorEl = null;   // G3711: the button a flyout was opened from (the top row, the readouts): it opens under it
+  let flAnchorEl = null;   // G3644: the button a flyout was opened from (the top row, the readouts): it opens under it
   let flPageHook = null;   // G3700: the menu's open page (gmPageRefresh) - a third view of these builders, rebuilt with the other two
   const flFps = { t0: 0, n: 0 };   // G441: the frame-rate row's window
   // G620: the rendered frames' rate: the recorder's 2 s (freezes in), else PACE's last 120 intervals
@@ -14627,7 +14627,7 @@
       : ready ? 'Ready. Your changes are in.' : 'Held for you: Fly lights up when the loading is done.';
   }
   function setupOpen() {
-    if (FL2) return;   // G3719
+    if (FL2) return;   // G3649
     const box = $('bootSetup'), host = $('bootSetupBody');
     if (!box || !host || !BOOT.hasUI || BOOT.state === 'gone' || BOOT.set !== 'garage') return;
     flSetupHost = host; setupTouched = false;
@@ -14765,7 +14765,7 @@
     setTimeout(resize, 0); setTimeout(resize, 220);
   }
   shotBack.onclick = () => shotSet(false);
-  // G3715 (the user 25 Oct: photo mode, 'clicking anywhere re enables'): a CLICK anywhere brings the interface back - a press
+  // G3648 (the user 25 Oct: photo mode, 'clicking anywhere re enables'): a CLICK anywhere brings the interface back - a press
   // that moved under 6 px; a drag still orbits the camera. Capture phase: the click is the shot's, nothing under it acts
   if (FL2) { let sx = 0, sy = 0;
     window.addEventListener('pointerdown', e => { sx = e.clientX; sy = e.clientY; }, true);
@@ -14908,7 +14908,7 @@
     // -------- the rail --------------------------------------------------
     camera(body) {
       const eyeWhy = flEyeWhy();
-      // G3713: the free camera is a developer's (the user 25 Oct: "free goes to dev") - shown with Dev on
+      // G3646: the free camera is a developer's (the user 25 Oct: "free goes to dev") - shown with Dev on
       flPills(body, FL_CAM.filter(c => !FL2 || c.k !== 'free' || flDevOn || cam.mode === 'free').map(c => ({ label: c.k, value: c.k,
                                        why: c.k === 'cockpit' ? eyeWhy : null })),
               o => o.value === cam.mode, o => flCamMode(o.value));
@@ -16507,7 +16507,7 @@
     const off = B.contains('shot') || B.contains('rollShot') || B.contains('premOpen') || !!$('welcome') || gmVis($('stIntro'));   // (the opening has its own Skip)
     gmBtn.hidden = off;
     if (off) { gmOpen(false); return; }
-    const fl2 = FL2 && document.body.classList.contains('fl2') && !inGarage;   // G3712: the flight's corner
+    const fl2 = FL2 && document.body.classList.contains('fl2') && !inGarage;   // G3645: the flight's corner
     const fr = $('frEntry'), row = (fl2 ? [gmBtn, $('flMapB'), $('flShotB'), $('flEyeB')] : [gmBtn, $('mapEntry'), inGarage && fr && !fr.hidden ? fr : null]).filter(Boolean), gap = 8;
     const word = fl2 ? 'II' : 'MENU'; if (gmBtn.textContent !== word) gmBtn.textContent = word;
     const w = row.map(e => e.offsetWidth || 0), tot = w.reduce((a, b) => a + b, 0) + gap * (row.length - 1);
@@ -16519,7 +16519,7 @@
     const bar = inGarage ? under($('edTopBar')) : (phone && !fl2 ? under($('pfd')) : null);
     let top = bar ? Math.round(bar.bottom + 8) : (inGarage ? 10 : (phone ? 12 : 18));
     let x = inGarage ? (bar ? Math.round(Math.max(12, Math.min(bar.left, W0 - tot - 12))) : Math.round((W0 - tot) / 2)) : fl2 ? (phone ? 12 : 22) : W0 - (phone ? 12 : 22) - tot;
-    let an = null; try { an = gmAnchor && !fl2 ? gmAnchor() : null; } catch (e) {}   // (G3712: in flight the corner is the layout's)   // G3700: another layout's place for the row (the phone garage)
+    let an = null; try { an = gmAnchor && !fl2 ? gmAnchor() : null; } catch (e) {}   // (G3645: in flight the corner is the layout's)   // G3700: another layout's place for the row (the phone garage)
     if (an && isFinite(an.top) && isFinite(an.left)) { top = Math.round(an.top); x = Math.round(an.left); }
     order.forEach((e, i) => { e.style.top = top + 'px'; e.style.left = Math.round(x) + 'px'; e.style.right = 'auto'; e.style.transform = 'none'; x += ow[i] + gap; });
     if (!gmPanel.hidden) gmPlace();
@@ -16570,7 +16570,7 @@
     anchor(fn) { gmAnchor = typeof fn === 'function' ? fn : null; gmLayout(); },
   };
 
-  // ---- G3710-G3719 THE FLIGHT LAYOUT (the user's 25 Oct mockup and answers) ---------------------------------------------
+  // ---- G3643-G3649 THE FLIGHT LAYOUT (the user's 25 Oct mockup and answers) ---------------------------------------------
   // "a simplified interface ... all the current options, but in a clearer, and more mobile friendly interface". The same
   // elements, placed again (body.fl2, flight.css), nothing copied:
   // - THE TOP ROW (#flBar): The shed (#bHangar2), Route, Conditions, Autopilot (#bAP) - Route and Conditions are flyouts
@@ -16626,7 +16626,7 @@
     bEye.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.4 10-6.4S22 12 22 12s-3.6 6.4-10 6.4S2 12 2 12Z"/><circle cx="12" cy="12" r="2.8"/></svg>';
     bMap.onclick = () => { gmOpen(false); if (!gmMap($('mapEntry') ? 'contracts' : null)) gmTab(); };
     bEye.onclick = () => flCamNext();
-    // G3715 PHOTO MODE (the user 25 Oct: 'a button for photo mode, on the top left, next to the contract access'): every
+    // G3648 PHOTO MODE (the user 25 Oct: 'a button for photo mode, on the top left, next to the contract access'): every
     // panel off (the screenshot mode, shotSet); a click anywhere, or Esc, brings them back
     const bShot = mk('button', 'flShotB', 'flCornB', '', 'Photo mode: hide the interface (click anywhere to bring it back)');
     bShot.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.2h3.6l1.6-2.4h6.6l1.6 2.4h3.6v10.6H3.5Z"/><circle cx="12" cy="13.2" r="3.4"/></svg>';
