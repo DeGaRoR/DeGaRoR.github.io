@@ -13614,7 +13614,7 @@
   const hudW = { x: 0, z: 0, t: 0, txt: '', lab: '', rot: '' };
   function hudWind() {
     if (!R.wind) return;
-    const o = sim.out || {}, now = performance.now(), dt = hudW.t ? Math.min(1, (now - hudW.t) / 1000) : 1;
+    const o = sim.out || {}, now = typeof performance !== 'undefined' ? performance.now() : Date.now(), dt = hudW.t ? Math.min(1, (now - hudW.t) / 1000) : 1;
     hudW.t = now;
     hudW.x += ((o.windX || 0) - hudW.x) * dt; hudW.z += ((o.windZ || 0) - hudW.z) * dt;
     const kmh = Math.hypot(hudW.x, hudW.z) * 3.6, calm = kmh < 2;
@@ -16387,6 +16387,7 @@
   if (typeof document.createElement === 'function' && document.body && document.body.appendChild) try {
     const b = document.createElement('button');
     b.id = 'gmMenu'; b.type = 'button'; b.textContent = 'MENU';
+    if (typeof b.setAttribute !== 'function') throw 0;   // the gates' stub DOM: no pills (gmBtn stays null, every gm* call a no-op)
     b.setAttribute('aria-label', 'the menu: resume, the shed, the options, the main menu'); b.setAttribute('aria-expanded', 'false');
     b.style.cssText = 'position:fixed;top:10px;left:12px;z-index:2147482000;min-width:72px;min-height:48px;padding:0 18px;border-radius:24px;' +
       "border:1px solid rgba(255,178,87,.85);background:rgba(28,24,20,.86);color:#ffb257;font:600 13px/1 'IBM Plex Sans',sans-serif;letter-spacing:.16em;cursor:pointer";
@@ -16411,7 +16412,7 @@
         if (gmTab()) { gmOpen(false); e.preventDefault(); e.stopImmediatePropagation(); }
       }
     }, true);
-  } catch (e) { console.warn('flyDiy: the menu -', e && e.message); gmBtn = gmPanel = null; }
+  } catch (e) { if (e !== 0) console.warn('flyDiy: the menu -', e && e.message); gmBtn = gmPanel = null; }
   window.FLYDIY_MENU = { open: () => gmOpen(true), close: () => gmOpen(false), isOpen: () => !!(gmPanel && !gmPanel.hidden), act: gmAct, tab: gmTab, layout: gmLayout };
 
   // ---- Esc closes; a click on the render closes ---------------------------
