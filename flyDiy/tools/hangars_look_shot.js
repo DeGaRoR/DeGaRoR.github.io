@@ -226,6 +226,24 @@ const SCENERY_HANGARS = `JSON.stringify((() => {
     return true;
   };
   if (want('cabin')) twin.roomDims = await roomPairs('w1');
+  // ITEM 36, SEEN: the covered car and the work-in-progress fuselage from 4.5 m off, 2.2 m up, in the room's frame (each
+  // piece's box centre taken to the room group's local frame), the floor print under them in shot
+  if (want('cabin')) {
+    await clean(true);
+    for (const [tag, re] of [['car', 'car_covered'], ['wip', 'airframe_jodel_body']]) {
+      const at = JSON.parse(await ev(`JSON.stringify((() => { const D = GARAGE_ENV._debug(), g = D && D.hangar && D.hangar.group; if (!g) return null;
+        let o = null; D.scene.traverse(n => { if (!o && n.name && /${re}/.test(n.name) && n.visible !== false) o = n; }); if (!o) return null;
+        g.updateWorldMatrix(true, false); const b = new THREE.Box3().setFromObject(o), c = b.getCenter(new THREE.Vector3());
+        return c.applyMatrix4(g.matrixWorld.clone().invert()).toArray(); })())`, 'null') || 'null');
+      if (!at) { console.log('  no ' + re + ' in the room'); continue; }
+      const p = [at[0] - 3.2, 2.2, at[2] + (at[2] > 0 ? -3.2 : 3.2)];
+      const ok = await ev('window.FLYDIY_ROOM_EYE ? FLYDIY_ROOM_EYE(' + JSON.stringify(p) + ',' + JSON.stringify([at[0], 0.3, at[2]]) + ') : "no hook"', false);
+      if (ok !== true) { console.log('  ROOM EYE REFUSED ' + tag); break; }
+      await sleep(2500); await shoot('w1_room_' + tag + '.jpg');
+    }
+    await ev('window.FLYDIY_ROOM_EYE && FLYDIY_ROOM_EYE(null)', 0);
+    await clean(false);
+  }
   else twin.roomDims = await roomDims();
   if (want('cabin')) {
     await shoot('w1_room_default.jpg');

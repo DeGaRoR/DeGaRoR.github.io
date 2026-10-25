@@ -7133,7 +7133,7 @@ function lampAt(bags, Q, p, n, o) {
   const out = 0.32, hw = 0.075, hh = 0.11;
   const c = [p[0] + nn[0] * out, p[1] + (opt.down ? -hh - 0.05 : hh + 0.05), p[2] + nn[2] * out];
   beam(bags.metal, p, [p[0] + nn[0] * (out + hw), p[1], p[2] + nn[2] * (out + hw)], 0.03, 0.03, [0, 1, 0], 0);
-  if (Q.lod !== 0) {
+  if (Q.lod !== 0 || opt.dark) {   // (opt.dark, G3538: a fitting with no switch - the closed box, no glass, no light)
     boxAB(bags.metal, [c[0] - hw - 0.02, c[1] - hh - 0.03, c[2] - hw - 0.02], [c[0] + hw + 0.02, c[1] + hh + 0.035, c[2] + hw + 0.02]);
   } else {
     const corner = (sx, sz) => [c[0] + sx * hw, 0, c[2] + sz * hw];
@@ -7154,7 +7154,7 @@ function lampAt(bags, Q, p, n, o) {
     }
     bags.glass.setGlow(0);
   }
-  LIT_LOG.lights.push({ kind: 'wall', x: c[0], y: c[1], z: c[2], nx: nn[0], nz: nn[2],
+  if (!opt.dark) LIT_LOG.lights.push({ kind: 'wall', x: c[0], y: c[1], z: c[2], nx: nn[0], nz: nn[2],
                         col: opt.col || [1.0, 0.82, 0.55], k: opt.k === undefined ? 0.7 : opt.k, range: opt.range || 9.0 });
   return c;
 }

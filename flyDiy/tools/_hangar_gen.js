@@ -418,7 +418,7 @@ function build(P0, lod, F) {
   // ---- THE LIGHTS OVER THE DOOR: a bulkhead each side of the big opening
   if ((P.lights || P.bulkheads) && Q.lod === 0) for (const s of [bigDoor.s0 - 0.5, bigDoor.s1 + 0.5]) {   // (G3538: the fittings without the switch)
     const p = walls[0].W.P(s, bigDoor.y1 + 0.5, 1);
-    HG.lampAt(bags, Q, p, [0, 0, 1], { k: 1.4, range: 14 });
+    HG.lampAt(bags, Q, p, [0, 0, 1], { k: 1.4, range: 14, dark: !P.lights });
   }
 
   // ---- THE SIGN over the door (the works): the aspect is the sign's, the board narrowed to the gable's band
@@ -466,7 +466,7 @@ function build(P0, lod, F) {
   };
   // the bags this build carries (the shell's own beside the polish) and the materials for them
   const MATX = Object.assign({}, F ? F.MAT : MAT, ext ? ext.mats : {});
-  if (F && ext) { Object.assign(F.MAT, ext.mats); stats.shellShaded = finishShell(ext.mats, F.SHADE_U, P); }   // G3531
+  if (F && ext && P.ownShell) { Object.assign(F.MAT, ext.mats); stats.shellShaded = finishShell(ext.mats, F.SHADE_U, P); }   // G3531
   return { bags, stats, P, V: { L: 2 * HW, w: 2 * HD, wallT: t, floorY: fy }, R: null, MAT: MATX, BAGS: OUT };
 }
 // THE BAKE (G405.1): hangar.js's exterior group, every mesh's geometry read
@@ -508,10 +508,11 @@ function bakeShell(P, S, fy, bags, litOn, F) {
       if (isGlass) mats[key] = paneMat;
       else {
         if (!lib[name]) lib[name] = o.material; else if (lib[name] !== o.material && o.material.dispose) o.material.dispose();
-        // G3531 (HANGARS-LOOK): a build with a finish of its own (every premises item, every player shed) wears a CLONE of
-        // the library's material - the same textures, shared - so the house's finish (finishShell: the dirt line, the
-        // baked occlusion) can ride it at THIS building's height; without a finish (a bench, a gate) the library's own
-        mats[key] = F ? shellClone(lib[name], shellName + '/' + name) : lib[name];
+        // G3531 (HANGARS-LOOK): a PLAYER'S shed (P.ownShell: render_world polishedShell, a few nodes) wears a CLONE of the
+        // library's material - the same textures, shared - so the house's finish (finishShell: the dirt line, the baked
+        // occlusion, the mine's weathering) can ride it at THIS building's height. The scenery's hangars keep the library's
+        // own, shared by every item (a clone each broke the town's batching: FRAMECOST 25 Oct, +235 draws at the taxi)
+        mats[key] = F && P.ownShell ? shellClone(lib[name], shellName + '/' + name) : lib[name];
       }
     }
     const bag = bags[key];
@@ -551,6 +552,8 @@ const SHELL_DIRT = { stem: [1.6, 0x453f36], door: [1.2, 0x6d6353], manDoor: [1.2
 // G3538: and the old mine's weathering over it - the walls' cloud weathering (P.clouds), the roof's whisper (P.roofClouds),
 // the timber's age (desaturated, darker: the frame and the cladding of a shed nobody painted)
 const SHELL_AGED = { wall: 1, wallBack: 1, wallOut: 1, door: 0.8, wood: 1.2, beamMain: 1.2, beamSec: 1.2, manDoor: 0.8 };
+// the painted leaves and the steel take half the walls' clouds (25 Oct stills: the full dose read as soot blotches on the doors)
+const SHELL_CLOUD = { door: 0.5, manDoor: 0.5, doorTrim: 0.5, steel: 0.5, steelDark: 0.5 };
 function finishShell(mats, SU, P) {
   let n = 0;
   const age = Math.max(0, Math.min(1, (P && P.age) || 0));
@@ -565,7 +568,7 @@ function finishShell(mats, SU, P) {
     const ag = (SHELL_AGED[name] || 0) * age;
     D.uAgeDesat.value = Math.min(1, ag * 0.7); D.uAgeDark.value = Math.min(0.6, ag * 0.32);
     const roof = /^roof/.test(name);
-    const ck = roof ? (P && P.roofClouds !== undefined ? P.roofClouds : 0.12) : (P && P.clouds !== undefined ? P.clouds : 0.5);
+    const ck = roof ? (P && P.roofClouds !== undefined ? P.roofClouds : 0.12) : (P && P.clouds !== undefined ? P.clouds : 0.5) * (SHELL_CLOUD[name] || 1);
     if (P && HG.cloudWeather && ck > 0 && !/^(glass|bulb|lamp)/.test(name)) HG.cloudWeather(m, ck, roof ? 1 : 0);
     n++;
   }

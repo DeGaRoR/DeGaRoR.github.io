@@ -6267,7 +6267,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const HGN = typeof window !== 'undefined' ? window.HANGAR_GEN : null;
       if (!SHELL.polish || !HGN || !HGN.build || !HGN.PRESETS || typeof document === 'undefined' || !POLISH_PRESET[shell]) return null;
       const P = Object.assign({}, HGN.DEF, HGN.PRESETS[POLISH_PRESET[shell]],
-        { HW: dims.HW, HD: dims.HD, EAVE: dims.EAVE, doorW: dims.door > 0 ? dims.door : 0, leaves: dims.leaves === 2 ? 2 : 0, lights: 0, sign: 0, signKey: '' });   // (G3537: its own door)
+        { HW: dims.HW, HD: dims.HD, EAVE: dims.EAVE, doorW: dims.door > 0 ? dims.door : 0, leaves: dims.leaves === 2 ? 2 : 0, lights: 0, sign: 0, signKey: '', ownShell: 1 });   // (G3537: its own door; G3531: its own shell finish)
       const fy = P.floorY || 0, c = Math.cos(H.ry || 0), sn = Math.sin(H.ry || 0), y0 = H.y !== undefined ? H.y : 0;
       // (X, Z) in the house frame -> the hangar's local (x = -Z, z = X) -> the world (the node's yaw), the height back in the frame
       P.ground = (X, Z) => { const hx = -Z, hz = X; return world.terrainH(H.x + hx * c + hz * sn, H.z - hx * sn + hz * c) - y0 + fy; };
@@ -6581,7 +6581,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const want = Object.assign({}, skin, dress && dress.parts ? dress.parts : {});
       const LIB = Object.assign({}, (typeof HANGAR_WALL_SETS !== 'undefined' && HANGAR_WALL_SETS) || {}, (typeof SITE_TEX_SETS !== 'undefined' && SITE_TEX_SETS) || {});
       const timber = shell === 'field';
-      const TARGET = { wallSides: [timber ? M.wall : M.wallOut], wallBack: [timber ? M.wall : M.wallOut], roof: [M.roofOut], stem: [M.stem], doorMain: [M.door], doorMan: [M.manDoor] };
+      // G3537: the timber shed's back gable is M.wallBack (hangar.js EXT), so its dress goes there - it stood white beside the
+      // room's planks
+      const TARGET = { wallSides: [timber ? M.wall : M.wallOut], wallBack: [timber ? (M.wallBack || M.wall) : M.wallOut], roof: [M.roofOut], stem: [M.stem], doorMain: [M.door], doorMan: [M.manDoor] };
       const tex = (img, srgb, tile) => {
         if (Array.isArray(img) || !img) return null;
         const t = new THREE.Texture(img); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1 / tile, 1 / tile);
