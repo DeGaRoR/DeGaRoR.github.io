@@ -16513,7 +16513,7 @@
     const bar = inGarage ? under($('edTopBar')) : (phone && !fl2 ? under($('pfd')) : null);
     let top = bar ? Math.round(bar.bottom + 8) : (inGarage ? 10 : (phone ? 12 : 18));
     let x = inGarage ? (bar ? Math.round(Math.max(12, Math.min(bar.left, W0 - tot - 12))) : Math.round((W0 - tot) / 2)) : fl2 ? (phone ? 12 : 22) : W0 - (phone ? 12 : 22) - tot;
-    let an = null; try { an = gmAnchor ? gmAnchor() : null; } catch (e) {}   // G3700: another layout's place for the row (the phone garage)
+    let an = null; try { an = gmAnchor && !fl2 ? gmAnchor() : null; } catch (e) {}   // (G3712: in flight the corner is the layout's)   // G3700: another layout's place for the row (the phone garage)
     if (an && isFinite(an.top) && isFinite(an.left)) { top = Math.round(an.top); x = Math.round(an.left); }
     order.forEach((e, i) => { e.style.top = top + 'px'; e.style.left = Math.round(x) + 'px'; e.style.right = 'auto'; e.style.transform = 'none'; x += ow[i] + gap; });
     if (!gmPanel.hidden) gmPlace();
