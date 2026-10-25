@@ -95,6 +95,68 @@ const STORY_BEATS = [
     done: [{ k: 'open' }] },
 ];
 const STORY_IDS = STORY_BEATS.map(b => b.id);
+// G3350 (STORY-TIM, the user 19 Oct): TIM - "your friend and business partner" - speaks each beat in the band at the
+// bottom of the screen (app.js #stTim), a line at a time. Draft English, keyed by beat: the narrative pack rewrites
+// them. The corner card stays the OBJECTIVE; Tim is the voice.
+const STORY_TIM = {
+  name: 'Tim', role: 'your friend and business partner',
+  T0: ['Morning! The ultralight has sat in this shed all winter. Let\u2019s dust it off.',
+       'Give it a fresh coat and a registration of your own. The structure stays as it is for now: paint, liveries and colours only.',
+       'Click the plane once, twice or three times to climb to the top of its tree. Up there you change the global colour, add liveries, or recolour any single piece.',
+       'It\u2019s pre-certified, so no bench needed here (this shed has none anyway). When it looks right, tap OK on the card.'],
+  T1: ['Good news: we got the old WWII airport. It\u2019s our base of operations now. Come and join me there.',
+       'You can take the controls yourself whenever you like, but you never have to. The autopilot flies every normal mission just as well.'],
+  T2: ['Our first client! Their Cub is in the hangar, unfinished. The list of what they want is on the card. Keep it on budget.'],
+  T3: ['Certified? Then fly it over to its owner.'],
+  T4: ['He can\u2019t pay us... so he\u2019s giving us the Cub. Not a bad trade.'],
+  T5: ['A few quick jobs with the Cub. Nothing fancy, just get them done.'],
+  T6: ['We promised this one: floats on the Cub, and land it at the seaplane base.'],
+  T7: ['The Cub is flying a route now. But look: three planes for sale, once only.'],
+};
+// G3370 (TUTO-FLIGHT, GAME-PLAN §R2, the user 19 Oct: "a few cards covering the basics of the game, and the basics of
+// building a plane"): THE LADDER on T1's flight - one card per stretch of the flight, in Tim's band (app.js #stTim) as text
+// (and an image when `img` names one; none yet), keyed to the pilot's own phases (43_pilot PILOT_PHASES). Draft English,
+// keyed for the narrative pack. `at`: the phases that call the card; `build`: no phase of its own - it follows the cruise
+// card once the cruise has run STORY_LADDER_RULE.cruiseS of sim time or half the way to HOME is flown
+const STORY_LADDER = [
+  { id: 'roll', key: 'story.ladder.roll', title: 'Take-off', img: null, at: ['DEPART', 'TAXI', 'LINEUP', 'STOP', 'HOLD', 'ROLL', 'ABORT', 'LIFTOFF', 'PUTDOWN'],
+    text: 'The autopilot flies the whole trip: the taxi, the line-up, the take-off roll and the climb. The phase bar names what it is doing. Sit back and watch.' },
+  { id: 'climb', key: 'story.ladder.climb', title: 'The map and the route', img: null, at: ['CLIMB', 'CROSSWIND'],
+    text: 'The map (on the left rail) shows where you are and the line the autopilot follows to the WWII field. Every job is a flight like this one: from A to B, stopped and whole at the end.' },
+  { id: 'cruise', key: 'story.ladder.cruise', title: 'The work', img: null, at: ['ENROUTE', 'ROUTE', 'DOWNWIND', 'BOX', 'LOITER'],
+    text: 'That is the game: clients post jobs on the map, you fly them, they pay. The money buys parts, aeroplanes and hangars, and hired pilots fly what you cannot. The jobs open once we have moved in.' },
+  { id: 'build', key: 'story.ladder.build', title: 'Building a plane', img: null, at: [],
+    text: 'In the hangar you change your aeroplanes. Click a part, then again to climb the tree to the whole plane. More wing lands slower and shorter, more power climbs faster, every kilo costs both. A changed plane passes the bench before it flies for money.' },
+  { id: 'approach', key: 'story.ladder.approach', title: 'The approach', img: null, at: ['INBOUND', 'BASE', 'FINAL', 'GOAROUND', 'GLIDE'],
+    text: 'The approach: the autopilot lines up with the runway, slows down and holds the glide. If it does not like it, it goes round and tries again. A slower plane needs a shorter strip.' },
+  { id: 'landing', key: 'story.ladder.landing', title: 'The WWII field', img: null, at: ['FLARE', 'ROLLOUT', 'STOPPED'],
+    text: 'The flare, the roll-out, and we are home. Stop it on the field and the hangar is ours: our first client is already on the way.' },
+];
+// hold: s of sim time each card stands before the next (one card at a time, never skipped); cruiseS / half: the build
+// card's call (the cruise's time, or the share of the way to HOME still to fly)
+const STORY_LADDER_RULE = { hold: 10, cruiseS: 25, half: 0.5 };
+const storyLadderNew = () => ({ i: -1, at: 0, cruise: null, d0: null, off: false });
+// one tick of the ladder (pure): L its state, o { phase (ap.phase), t (s of sim time), dHome (m to HOME, or null), manual }
+// -> { L, card } (card: STORY_LADDER[L.i], or null - none yet, or off). MANUAL ENDS IT: once the player takes the
+// controls, off for the rest of the flight (a hand-back does not bring it back)
+function storyLadderStep(L, o) {
+  L = Object.assign(storyLadderNew(), L || {}); o = o || {};
+  if (L.off || o.manual) { L.off = true; return { L, card: null }; }
+  const t = +o.t || 0, ids = STORY_LADDER.map(c => c.id), R = STORY_LADDER_RULE;
+  let want = STORY_LADDER.findIndex(c => c.at.includes(o.phase));
+  if (want === ids.indexOf('cruise')) {
+    if (L.cruise == null) L.cruise = t;
+    if (L.d0 == null && typeof o.dHome === 'number' && isFinite(o.dHome)) L.d0 = o.dHome;
+    if (t - L.cruise >= R.cruiseS || (L.d0 > 0 && typeof o.dHome === 'number' && o.dHome <= R.half * L.d0)) want = ids.indexOf('build');
+  }
+  if (want > L.i && (L.i < 0 || t - L.at >= R.hold)) { L.i++; L.at = t; }
+  return { L, card: L.i >= 0 ? STORY_LADDER[L.i] : null };
+}
+// (G3260 ROUTES: at T7, with the story's route signed, Tim names it and its down payment first)
+const storyTimLines = (id, doc) => { const L = (STORY_TIM[id] || []).slice(), r = id === 'T7' && doc ? storyRoute(doc) : null;
+  if (r) L.unshift((typeof pilotsName === 'function' ? pilotsName(r.pilot) : r.pilot) + ' flies the Cub on ' + routeWords(r) + ' now. The client paid ' +
+    routeMoney(r.down) + ' down, and every round trip pays ' + routeMoney(r.pay) + ' when you land or wait.');
+  return L; };
 const storyBeatOf = id => STORY_BEATS.find(b => b.id === id) || null;
 
 // ---- THE STATE --------------------------------------------------------------------------------------------------------
@@ -244,9 +306,13 @@ const STORY_JOBS = ['clients.01', 'survey.01', 'resort.01'];
 // authored, never generated). PLACEHOLDERS until the user authors the two planes the story names (HANDOVER G2742): the
 // fabric 4-seater stands as the validated metal Cessna (meridian), the Jodel-class one as the validated Jodel (pinson);
 // the Cub is the story's own. `price` is the occasion's factor on the maker's catalogue (well under a used listing's).
+// (G3359 ECON-APPLY, the user 23 Oct: "apply the economics table, keep demo time as it is for now"; ECON-SIM G3250 HANDOVER): THE STORY'S MONEY. The story career
+// starts without careerNew's grant (STORY_GRANT 0: the Rufus, not 60 000) and T6 pays a commitment fee beside the route's
+// own down payment - the first real money, enough for any one of T7's occasions.
+const STORY_GRANT = 0, STORY_T6_FEE = 20000;
 const STORY_OCCASIONS = [
   { id: 'occ:fabric4', model: 'meridian', opts: { avionics: 'basic', finish: 'white', reg: 'N4OCC' }, hours: 2400, repair: 'skin',
-    seller: 'used.seller.3', aero: 'HOME', price: 0.30, placeholder: 'the fabric 4-seater (stands as the metal Cessna until authored)' },
+    seller: 'used.seller.3', aero: 'HOME', price: 0.35, placeholder: 'the fabric 4-seater (stands as the metal Cessna until authored)' },   // G3359: 0.30 -> 0.35, the table's
   { id: 'occ:jodel', model: 'pinson', opts: { engine: 'a65', finish: 'red', reg: 'N2OCC' }, hours: 1150, repair: 'none',
     seller: 'used.seller.0', aero: 'HOME', price: 0.35, placeholder: 'the Jodel-class one (stands as the validated Jodel until authored)' },
   { id: 'occ:cub', model: 'scout', opts: { engine: 'a65', avionics: 'minimal', finish: 'green', reg: 'N3OCC' }, hours: 1800, repair: 'gear',
@@ -266,7 +332,10 @@ function storyCabinShed(aero, clock) {
   const P = plot ? O.plots[plot] : null;
   const S = (typeof SHELLS !== 'undefined' && SHELLS.field) ? SHELLS.field.dims : {};
   return { id: plot || aero, shed: { shell: 'field', kits: ((P && P.kits) || STORY_CABIN_SHED.kits).slice(), base: aero, tenure: 'own',
-    dims: Object.assign({}, S, STORY_CABIN_SHED.dims, (P && P.dims && P.dims.field) || {}), since: Math.round(clock || 0), story: 'cabin' } };
+    dims: Object.assign({}, S, STORY_CABIN_SHED.dims, (P && P.dims && P.dims.field) || {}), since: Math.round(clock || 0), story: 'cabin',
+    ...(P && Array.isArray(P.omit) ? { omit: P.omit.slice() } : {}),   // G3353: the props the plot leaves out
+    ...(P && P.workLamp && typeof P.workLamp === 'object' ? { workLamp: Object.assign({}, P.workLamp) } : {}),   // G3354
+    ...(P && Array.isArray(P.lampXZ) ? { lampXZ: P.lampXZ.map(p => p.slice()) } : {}) } };   // G3354: the fittings off the wing line
 }
 // A NEW CAREER WITH THE STORY (the welcome's New career, the player's career 'main' only): storyStart with the starter's
 // slot, then the cabin - the strip that plays the cabin (storySite, never a guess) gets the smallest shed, the garage opens
@@ -280,6 +349,11 @@ function storyNewCareer(doc, o) {
   const r = storyStart(doc, slot);
   if (!r.ok) return r;
   const d = r.doc, s = storyNormalise(d.career.story), cabin = storySite('cabin', o.aeros);
+  // G3359: careerNew's grant is not the story career's - its ledger line goes and the wallet holds STORY_GRANT instead
+  if (d.mode === 'career' && typeof CAREER_GRANT === 'number' && Array.isArray(d.ledger)) {
+    const i = d.ledger.findIndex(e => e && e.k === 'grant' && e.amt === -CAREER_GRANT);
+    if (i >= 0) { d.ledger.splice(i, 1); d.wallet -= CAREER_GRANT; if (STORY_GRANT) playerCharge(d, -STORY_GRANT, 'grant', 'story'); }
+  }
   if (cabin && cabin !== 'HOME') {
     const C = storyCabinShed(cabin, d.clock);
     d.sheds[C.id] = C.shed;
@@ -288,6 +362,8 @@ function storyNewCareer(doc, o) {
     s.cabin = { aero: cabin, hangar: C.id };
   } else { s.cabin = null; s.note = STORY_NO_CABIN; }
   d.career.story = s;
+  // G3230 (TECH-MASK): a new story career opens its machine shop at the first segment, Wood and fabric (79b_tech.js)
+  if (typeof techNew === 'function') d.career.tech = techNew();
   d.career.airframes[slot] = { from: 'story', story: 'starter', factory: false, modified: false, paid: 0, at: Math.round(d.clock || 0) };
   return { ok: true, doc: d, effects: r.effects, cabin: s.cabin, why: null };
 }
@@ -306,7 +382,10 @@ function storyClientSpec(cub) {
 //   clientPlane the client's Cub in the HOME hangar (o.slot: its slot, already written): stationed there, its airframe row
 //               the client's; the page then binds it ({ k: 'bind', role: 'client', slot, spec })
 //   giftPlane   the Cub is ours: the client's mark lifted, a ledger line at 0 (no money)
-//   routeOffer  ROUTES (G3260) absent: the offer recorded as a stub on the story (o.route: ROUTES' own record when present)
+//   routeOffer  G3260 (ROUTES): the route SIGNED - routeOffer + routeSign (78b_routes.js) with the gift Cub on the seaplane
+//               base <-> HOME and the career's companion (else the first free hired pilot): the down payment paid, the Cub
+//               and the pilot locked on the route; recorded on the story (`offers`: the route's id, the down payment).
+//               o.design: the Cub's own numbers (the page's shakedown row), else the validated Cub's
 //   occasions   the three authored listings on the used market (one-time: a sale removes it for good)
 //   open        the rails end (nothing to the world)
 // -> { ok, doc, why, line } (line: the words for the beat card / the arrival card, or null)
@@ -340,10 +419,25 @@ function storyApply(doc, e, o) {
     playerLedger(d, 'gift', 0, slot);
     line = 'The Cub is yours.';
   } else if (e.k === 'routeOffer') {
-    const offer = Object.assign({ k: 'route', plane: s.planes.gift || null, a: storySite(e.a, o.aeros) || e.a, b: storySite(e.b, o.aeros) || e.b,
-                                  at: clock, stub: !o.route }, o.route ? { route: stClone(o.route) } : {});
+    // G3260 (ROUTES): "the cub disappears and you're back with only the ultralight" (the user) - the route signed now
+    const plane = s.planes.gift || s.planes.client || null, a = storySite(e.a, o.aeros) || e.a, b = storySite(e.b, o.aeros) || e.b;
+    const pilot = storyRoutePilot(d);
+    const O = routeOffer(d, a, b, plane, { design: o.design });
+    const R = !O.ok ? O : !pilot ? { ok: false, why: 'no free hired pilot to fly it' } : routeSign(d, O.offer, plane, pilot, { now: o.now });
+    const offer = { k: 'route', plane, a, b, at: clock, pilot: pilot || null, signed: !!R.ok };
+    if (!R.ok) {
+      // (never a guess: the offer is kept with its reason; the beat has moved on)
+      offer.why = R.why;
+      s.offers = (s.offers || []).filter(x => x.k !== 'route').concat([offer]);
+      d.career.story = s;
+      return { ok: true, doc: d, why: R.why, line: 'The route could not be signed: ' + R.why + '.' };
+    }
+    const D = R.doc;
+    Object.assign(offer, { route: R.route.id, down: R.route.down, pay: R.route.pay, tripS: R.route.tripS });
     s.offers = (s.offers || []).filter(x => x.k !== 'route').concat([offer]);
-    line = o.route ? 'A route is offered, with a hired pilot.' : 'A route is offered (the routes come later: the offer is kept).';
+    if (STORY_T6_FEE > 0) { playerCharge(D, -STORY_T6_FEE, 'story', 'T6:fee'); offer.fee = STORY_T6_FEE; }   // G3359: the commitment fee
+    D.career.story = s;
+    return { ok: true, doc: D, why: '', route: R.route, line: storyRouteLine(R.route, o.aeros) };
   } else if (e.k === 'occasions') {
     s.occasions = STORY_OCCASIONS.slice(0, e.n || STORY_OCCASIONS.length).map(L => L.id);
     line = 'Three aeroplanes on offer, once only: see the Market.';
@@ -352,6 +446,21 @@ function storyApply(doc, e, o) {
   } else return stNo(doc, 'an unknown effect ' + e.k);
   d.career.story = s;
   return { ok: true, doc: d, why: '', line };
+}
+// G3260 (ROUTES): T6's pilot - the career's companion while free on the roster, else the first free hired pilot (or null)
+function storyRoutePilot(doc) {
+  const free = (typeof pilotsHired === 'function' ? pilotsHired(doc) : []).filter(id => !routeOfPilot(doc, id));
+  return free.includes(PILOTS_COMPANION) ? PILOTS_COMPANION : (free[0] || null);
+}
+// T6's words for the arrival card, the beat card and Tim: the route, its pilot, the down payment in the wallet
+function storyRouteLine(r, aeros) {
+  return 'Route signed: ' + r.plane + ' flies ' + routeWords(r, aeros) + ' with ' + (typeof pilotsName === 'function' ? pilotsName(r.pilot) : r.pilot) +
+    '. The down payment, ' + routeMoney(r.down) + ', is in the wallet; then ' + routeMoney(r.pay) + ' a round trip, paid at your landings and waits.';
+}
+// the route the story signed (T6), as its record stands now, or null
+function storyRoute(doc) {
+  const s = storyOf(doc), o = s && (s.offers || []).find(x => x.k === 'route' && x.signed && x.route);
+  return o ? (routesList(doc).find(r => r.id === o.route) || null) : null;
 }
 // THE OCCASIONS ON OFFER (procureMarketOf lists them before the generated ones): the authored listings the story listed,
 // minus the sold, in the used market's shape (76_procure.js procureUsedListing's), priced at the occasion's factor

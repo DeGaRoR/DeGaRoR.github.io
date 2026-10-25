@@ -1,0 +1,13 @@
+island_tour: the user's Cub (span 10.70 m), damage ON, 324 obstacles + 0 trunks in the world; HOME > nv_strip > mn_strip - the game's flight
+  ok   HOME > nv_strip       1035 s | dep: turned 269.3 deg (U-turn), roll 255.4 m in, lift-off 104.6 m | final 1693 m / 568.8 m, clear 10 m (ground) | td sink 0.56 m/s, 15.2 m/s, run 103 m, off -0.1 m | fuel 24.1 L | warnings go-around at 838.7 s
+    phases TAXI>STOP>HOLD>LINEUP>STOP>HOLD>LINEUP>STOP>HOLD>ROLL>LIFTOFF>CLIMB>INBOUND>FINAL>GOAROUND>CROSSWIND>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED
+    verdicts pivot: lined up the wrong way on a strip narrower than the turn — turning on the spot | go-around: high on the slope 536 m out (attempt 1)
+  ok   nv_strip > mn_strip    459 s | dep: turned 171.7 deg (U-turn), roll 19.5 m in, lift-off 53.7 m | final 1508.5 m / 358.8 m, clear 24.3 m (ground) | td sink 1.53 m/s, 13.9 m/s, run 51 m, off 0.2 m | fuel 22.3 L
+    phases LINEUP>STOP>HOLD>LINEUP>STOP>HOLD>LINEUP>STOP>HOLD>ROLL>LIFTOFF>CLIMB>ENROUTE>DOWNWIND>BASE>FINAL>FLARE>ROLLOUT>STOPPED
+    verdicts pivot: lined up the wrong way on a strip narrower than the turn — turning on the spot | committed-takeoff: past the point of stopping at V=13.3 with 104 m left — Vr in 26 m, continuing | vx-climb: ground ahead above the aeroplane — climbing at Vx 20.7 m/s until clear | aim-displaced: the approach to Jumbo Mine Street needs 15.2 deg over the obstacle 25 m out (7 m); flying 8.4 deg to an aim 122 m in
+TOUR DONE - 2 legs, fuel left 22.3 L, 819 s wall
+  the game: {"day":{"cloudCover":0.25,"cloudSeed":1,"cloudType":"cuh","date":"2026-06-22","groundAlbedo":0.15,"ozone":300,"rate":1,"rh":0.5,"turbidity":2.8,"utc":0,"wind":{"kts":8,"dirDeg":250,"gust":0.15,"refH":10,"breeze":1}},"shake":true,"stand":{"x":-154,"z":712},"mass":460.5,"fuel":27,"damage":true}
+
+real	13m51.146s
+user	13m41.722s
+sys	0m8.491s

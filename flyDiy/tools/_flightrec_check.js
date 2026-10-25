@@ -165,7 +165,7 @@ const S = FR.rec.S, SL = FR.SLOTS;
     `  the probe: agl ${r.agl}, speed ${r.spd}, phase ${R.names.phase[r.phase]}, camera ${R.names.cam[r.cam]}, flags ${r.flags}`);
   // G3322: the flight's columns, as the probe gave them (every value exact in a Float32), the pilot a code
   { const want = FLIGHT_FIELDS, bad = Object.keys(want).filter(k => k !== 'pilot' && r[k] !== want[k]);
-    verdict(!bad.length && R.names.pilot[r.pilot] === want.pilot && FR.COLS.length === 49,
+    verdict(!bad.length && R.names.pilot[r.pilot] === want.pilot && FR.COLS.length === 52,
       `  G3322 the flight's columns: hdg ${r.hdg}, pitch ${r.pitch}, bank ${r.bank}, beta ${r.beta}, ias ${r.ias}, ail ${r.ail} elev ${r.elev} rud ${r.rud} thr ${r.thr} brake ${r.brake} brd ${r.brd} flap ${r.flap}, pilot ${R.names.pilot[r.pilot]}, wind ${r.wspd} m/s from ${r.wdir}; ${FR.COLS.length} columns` + (bad.length ? ' - wrong: ' + bad.join(', ') : '')); }
   // a shader link inside the render: its time is the shader slot's, an event, and the page held by the first status read
   oneFrame(1, () => { const p = { id: 7 }; const a = gl.linkProgram(p); const lg = gl.getProgramInfoLog(p); const st = gl.getProgramParameter(p, gl.LINK_STATUS); const o2 = gl.getProgramParameter(p, 35); oneFrame.ret = [a, lg, st, o2]; });
@@ -417,9 +417,29 @@ function session(script) {
   verdict(sc.indexOf('flight_recorder.js') >= 0 && sc.indexOf('flight_recorder.js') < sc.indexOf('gfx_settings.js') && sc.indexOf('flight_recorder.js') < sc.indexOf('app.js') && sc.indexOf('flight_recorder.js') < sc.indexOf('render_world.js'),
     `7 the build's MANIFEST loads flight_recorder.js (at ${sc.indexOf('flight_recorder.js')}) before render_world, gfx_settings and app`);
   const L0 = app.indexOf('  function loop(ts) {'), L1 = app.indexOf('\n  }\n', L0), loop = app.slice(L0, L1);
-  const iB = loop.indexOf('if (FR) FR.begin(ts, pc);'), iP = loop.indexOf('const pc = PACE.frame(ts);'), iE = loop.indexOf('if (FR) FR.end(true, cg);'), iPE = loop.indexOf('PACE.end(');
+  const iB = loop.indexOf('if (FR) FR.begin(ts, pc);'), iP = loop.indexOf('const pc = PACE.frame(ts);'), iE = loop.indexOf('if (FR) FR.end(true, cg);'), iPE = loop.lastIndexOf('PACE.end(');   // (REVEAL: the drawn frame's - a held frame reports earlier, flagged)
   verdict(iP >= 0 && iB > iP && iE > 0 && iE < iPE && /if \(holdRender\) \{ if \(FR\) FR\.end\(false, cg\);/.test(loop),
     '  app.js: begin after the frame clock says the frame is ours, end before PACE.end, end(false) on the boot\'s hold');
+  verdict(/if \(holdRender\) \{ if \(FR\) FR\.end\(false, cg\); POSE_LERP\.back\(\); PACE\.end\([^;]*, true\);/.test(loop) && /function end\(workMs, physMs, steps, now, ran, held\) \{\s+if \(P\.legacy \|\| held\) return;/.test(app),
+    '  app.js: a held frame (holdRender) reports itself to PACE.end flagged held, and the pace counts nothing of it (REVEAL)');
+  // GARAGE-LINK (A0 24 Oct; HWCOV): the session header asks the GL nothing - the GPU's name is asked once, when the context is
+  // wrapped (a getParameter is a call the page waits on: one header() held the garage boot's end 2.2 s, the GPU linking)
+  { const fr = rd('src/viewer/flight_recorder.js'), hd = (fr.match(/function header\(\) \{[\s\S]*?\n    \}\n/) || [''])[0], wg = (fr.match(/function wrapGL\(gl\) \{[\s\S]*?\n    \}\n/) || [''])[0];
+    verdict(hd.length > 0 && !/getParameter|getExtension/.test(hd) && /H\.gpu = Object\.assign\(\{\}, rec\.gpuInfo\)/.test(hd) && /rec\.gpuInfo = \{ vendor: gl\.getParameter\(gl\.VENDOR\)/.test(wg),
+      '  flight_recorder: header() makes no GL call (the GPU named once in wrapGL, rec.gpuInfo) - GARAGE-LINK'); }
+  // GATE-SCREEN (A0 22 Oct): what a loading screen holds after the reveal is the screen's - the rig splits its frames and tasks by
+  // the spans BOOT.state was not 'gone' (bootSpans), and the ratchet holds them on their own rows
+  { const RT = require('./rollout_ratchet.js'), rp = rd('tools/rollout_perf.js');
+    const fr = [[1000, 33, 9, 0, 2, 0, 30, 'GARAGE'], [1133, 133, 42, 0, 2, 90, 30, 'HOLDING'], [1250, 117, 30, 0, 2, 21, 30, 'HOLDING'], [1283, 33, 20, 0, 2, 5, 30, 'HOLDING'], [1450, 167, 20, 0, 2, 140, 30, 'HOLDING']];
+    const j = { frames: fr, longTasks: [[-2000, 1010], [1100, 60], [1300, 140]], bootSpans: [[1010, 1240]], gates: { over100ms: { n: 1 }, screen: { over100: 2, worst: 133 } } };
+    const m = RT.metrics(j), m0 = RT.metrics(Object.assign({}, j, { bootSpans: undefined, gates: { over100ms: { n: 1 } } }));
+    const j2 = Object.assign({}, j, { longTasks: [[-2000, 300], [1100, 1060]] }), m2 = RT.metrics(j2);
+    verdict(m.taskWorst === 1010 && m.tasks1s === 1 && m2.tasks1s === 1 && m2.taskWorst === 300 && m2.screenTaskWorst === 1060 && m.screenTaskWorst === 60 && m.screenOver100 === 2 && m.screenWorst === 133 && m0.screenTaskWorst === null && m0.taskWorst === 1010
+      && ['screenOver100', 'screenWorst', 'screenTaskWorst'].every(k => RT.RULES[k] && !RT.RULES[k].info),
+      '  the ratchet: a task under a screen span leaves taskWorst for screenTaskWorst (' + m.screenTaskWorst + '), but a 1 s task under a screen still counts in tasks1s (batch A: no task over 1 s in any load); the screen\'s rows gated on their own; a run without spans reads as before (GATE-SCREEN)');
+    verdict(/R\.bs = \[\]; var bsL = null;/.test(rp) && /const frScr = fr\.filter\(r => scr\(r\[0\] - r\[1\], r\[0\]\)\)/.test(rp) && /const over100 = frFree\.filter/.test(rp) && /const lt = ltAll\.filter\(x => !scr\(/.test(rp) && /const lt1s = ltAll\.filter\(x => x\[1\] > 1000\)/.test(rp)
+      && /screen: \{ frames: frScr\.length, over100: over100S\.length/.test(rp) && /bootSpans: SPANS\.map/.test(rp),
+      '  rollout_perf: BOOT.state from the first frame; a frame overlapping a screen leaves over100, a task the worst task (the 1 s count keeps every task), for gates.screen; the JSON carries the spans (GATE-SCREEN)'); }
   verdict(/if \(FR\) FR\.push\(0\); script\(1 \/ 60\); if \(FR\) FR\.pop\(\);/.test(loop) && /if \(FR\) FR\.push\(1\); sim\.step\(1 \/ 60\); if \(FR\) FR\.pop\(\);/.test(loop) && FR.SLOTS[0] === 'script' && FR.SLOTS[1] === 'solver',
     '  app.js: the pilot\'s script and each solver step pushed (slots 0 and 1 are script and solver)');
   const laps = ['other', 'world', 'scene', 'hud', 'mirror', 'render'].filter(k => loop.indexOf('FR.lap(FR.S.' + k + ')') < 0);

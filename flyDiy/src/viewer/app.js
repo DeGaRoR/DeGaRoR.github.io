@@ -282,6 +282,10 @@
   const CK = (window.FLYDIY_COCKPIT && window.FLYDIY_COCKPIT.make)
     ? window.FLYDIY_COCKPIT.make(THREE) : null;
   window.FLYDIY_COCKPIT_I = CK;
+  // G2480 (HAND-CONTROLS): THE PARKING BRAKE UNDER THE HAND. cockpit.js wrote ctl.brake = 1 once a frame, after the
+  // steps - and the hand's write before EVERY step put its own brake back, so a parked aeroplane flown by hand rolled
+  // (inline and in the worker alike). The hand's write reads the knob now, as a floor on both mains
+  if (INP && INP.parkFrom) INP.parkFrom(() => !!(CK && CK.park));
   const scene = new THREE.Scene();
 
   // THE FAR PLANE (G401, the user: "it is unacceptable that a mountain disappears
@@ -518,20 +522,22 @@
   // (every career guard reads it): it means "a career is on". The sandbox: neither, today's page byte for byte.
   const CAREER_DEVFLAG = (() => { try { return /[?&]career=1(&|$)/.test(window.location.search || ''); } catch (e) { return false; } })();
   const CAREER_DEV = (CAREER_DEVFLAG || (typeof window !== 'undefined' && window.FLYDIY_MODE === 'career')) && typeof careerNew === 'function';
-  const CAREER_ID = CAREER_DEVFLAG ? 'dev' : 'main';
+  // G3360 (CAREERS): THE PLAYER'S CAREER IS THE ONE THE WELCOME CHOSE - window.FLYDIY_CAREER_ID, written by welcome.js
+  // before this script runs (like FLYDIY_MODE): 'main' (G2740's slot, kept on its key) or a 'c' + base36 id, each its own
+  // document flydiy.career.<id> (the index flydiy.careers is welcome.js's). None given (a rig's ?mode=career with no
+  // storage): 'main', as G2740. ?career=1 stays 'dev'. A New career is a NEW id, so nothing is overwritten (the fresh flag
+  // and the .prev backup retire)
+  const CAREER_PICK = (() => { try { const v = window.FLYDIY_CAREER_ID; return typeof v === 'string' && /^(main|c[0-9a-z]{1,16})$/.test(v) ? v : 'main'; } catch (e) { return 'main'; } })();
+  const CAREER_ID = CAREER_DEVFLAG ? 'dev' : CAREER_PICK;
   const PLAYER_KEY = CAREER_DEV ? careerKey(CAREER_ID) : 'flydiy.player';
-  // G2742 (STORY-PAGE): THE STORY rides the player's career alone (a New career from the welcome: 'main'); the dev career
-  // (?career=1) keeps none, so every gate's fixture career stays rail-free; the sandbox: never (its page half below)
-  const STORY_PAGE = CAREER_DEV && CAREER_ID === 'main' && typeof storyNewCareer === 'function';
-  // a New career over a saved one (welcome.js sets flydiy.career.fresh): the old document is kept under <key>.prev, once
-  if (CAREER_DEV && CAREER_ID === 'main') try {
-    if (localStorage.getItem('flydiy.career.fresh') === '1') {
-      const old = localStorage.getItem(PLAYER_KEY);
-      if (old) localStorage.setItem(PLAYER_KEY + '.prev', old);
-      localStorage.removeItem(PLAYER_KEY);
-      localStorage.removeItem('flydiy.career.fresh');
-    }
-  } catch (e) {}
+  // a New career's name (welcome.js: "your career", "your career 2", ...; renamed in its Careers list)
+  const CAREER_BIRTH_NAME = (() => { try { const v = window.FLYDIY_CAREER_NAME; return typeof v === 'string' && v.trim() ? v.trim().slice(0, 40) : 'your career'; } catch (e) { return 'your career'; } })();
+  // G2742 (STORY-PAGE): THE STORY rides the player's careers (G3360: every listed one - each New career its own story,
+  // its start, Tim, the opening once); the dev career (?career=1) keeps none, so every gate's fixture career stays
+  // rail-free; the sandbox: never (its page half below)
+  const STORY_PAGE = CAREER_DEV && CAREER_ID !== 'dev' && typeof storyNewCareer === 'function';
+  // G3380 (STORY-INTRO): the opening's arm - set by a NEW career's story start (playerLoad), once; Continue never sets it
+  let stIntroArm = false;
   let ecWalletEl = null, ecNote = '';      // G2260 (ECONOMY): the garage's wallet line (career only; its page half below)
   // G2315 (GARAGE-RESIDENTS): the career's airframes stand in its garage as fleet props, so the career turns the fleet on
   // (FLEET-PROPS A's bake on save, decode at the stand) unless the page said otherwise; the sandbox is untouched
@@ -543,7 +549,7 @@
     // G2630: a document that does not parse is SET ASIDE under <key>.corrupt (never silently lifted over and lost)
     { const txt = prefGet(PLAYER_KEY, null); doc = jsonReadFinite(txt, 'the player document');
       if (txt != null && doc == null && txt !== 'null') prefSet(PLAYER_KEY + '.corrupt', txt); }
-    const dev = CAREER_ID === 'dev', birth = { id: CAREER_ID, seed: dev ? 'dev' : 'c' + Date.now().toString(36), name: dev ? 'the dev career' : 'your career', started: new Date().toISOString().slice(0, 10) };
+    const dev = CAREER_ID === 'dev', birth = { id: CAREER_ID, seed: dev ? 'dev' : 'c' + Date.now().toString(36), name: dev ? 'the dev career' : CAREER_BIRTH_NAME, started: new Date().toISOString().slice(0, 10) };
     let born = false;
     if (!doc && CAREER_DEV) { doc = careerNew(birth); born = true; }
     else if (!doc) {                         // the one-time lift
@@ -560,7 +566,7 @@
       const taken = new Set(playerSlotNames());
       let slot = STORY_SLOTS.starter, i = 2; while (taken.has(slot)) slot = STORY_SLOTS.starter + ' ' + i++;
       const r = CAREER_DEV ? storyNewCareer(player, { aeros: (world && world.aerodromes) || [], starter: slot }) : { ok: false, why: 'not a career' };
-      if (r.ok) player = r.doc; else console.warn('flyDiy (story): the story did not start - ' + r.why);
+      if (r.ok) { player = r.doc; stIntroArm = true; } else console.warn('flyDiy (story): the story did not start - ' + r.why);
     } catch (e) { console.warn('flyDiy (story): the story did not start -', e && e.message); }
     // PREM-S2 (G2230): THE LIFT AT LOAD. Every saved build (a flydiy.build.* slot) is an airframe that stands somewhere
     // (71_player_bases.js playerFleetReconcile, pure: handed the slot names this page reads): a slot the ledger lacks is
@@ -1205,7 +1211,7 @@
       }
       hangar = genHangarBuild(THREE, shed.dims || undefined,
         { home: roomHome,
-          kits: shed.kits, shell: shed.shell, site: roomSite, layout: shed.layout });   // G2315 (WORKS-COZY): the career main hangar's layout
+          kits: shed.kits, shell: shed.shell, site: roomSite, layout: shed.layout, omit: shed.omit, workLamp: shed.workLamp, lampXZ: shed.lampXZ });   // G2315 (WORKS-COZY): the career main hangar's layout; G3353 the props left out
       hangarScene.add(hangar.group);
       hangarScene.background = hangar.background;
       hangarScene.fog = hangar.fog;                     // a SENTINEL now: it only defines USE_FOG
@@ -1451,7 +1457,7 @@
     // the stand's box, scene frame, and as a footprint about its origin (the model's)
     const sb = has ? { x0: q(bb.min.x), x1: q(bb.max.x), z0: q(bb.min.z), z1: q(bb.max.z) } : null;
     const footOf = n => parkFoot(playerFootOf(d, n));
-    const base = JSON.stringify([names, names.map(n => (d.fleet[n] && d.fleet[n].foot) || null), shed.shell, shed.layout || null, shed.dims || null, shed.kits]);
+    const base = JSON.stringify([names, names.map(n => (d.fleet[n] && d.fleet[n].foot) || null), shed.shell, shed.layout || null, shed.dims || null, shed.kits, shed.omit || null]);
     const sig = base + JSON.stringify(sb);
     if (sig !== RES.sig) {
       const off = { x: RES.dx || 0, z: RES.dz || 0 };
@@ -6281,7 +6287,7 @@
   //   and fading with age. Two per float when planing: the step's own.
   // Cheap: one Points and one ribbon mesh per float, fixed buffers, on
   // `craft` in world coordinates. Nothing here touches the physics.
-  const SPRAY_N = 600, WAKE_N = 48;
+  const SPRAY_N = 1400, WAKE_N = 48;   // (G2838b: many small drops - the pool per float)
   let waterFx = null;
   // G2090 (WATER-LOOK): THE WET BODY'S SPRAY POOL - a build without floats meets the water on its belly, its flying
   // surfaces and its tyres (32_hydro.js wetBuild), so it gets the floats' sprite batch too: ONE pool for the page
@@ -6572,15 +6578,29 @@
         const NU = SH ? SH.NU : 8, roots = [];
         for (let u = 0; u < NU; u++) { const f = u / (NU - 1) * (pts.length - 1), i0 = Math.floor(f), i1 = Math.min(pts.length - 1, i0 + 1), t = f - i0;
           const a = pts[i0], b = pts[i1]; roots.push([a[0] + (b[0] - a[0]) * t, Math.max(fx.h, a[1] + (b[1] - a[1]) * t) + 0.02, a[2] + (b[2] - a[2]) * t]); }
-        const uo = 0.45 * V, uu = Math.min(2.6, 0.22 * V);
-        if (SH) SH.set(si, roots, [ox, 0, oz], [0, 1, 0], uo, uu, strength);
+        // (G2837c, the user 23 Oct: "it seems oversize now. Reduce that by about 2, or 1.5"): the sheet's launch scaled by SPRAY_K
+        // (0.77: its height and reach go as the square - ~0.6), the drops and the chunks thrown off it with it
+        const SPRAY_K = 0.77, uo = 0.45 * V * SPRAY_K, uu = Math.min(2.6, 0.22 * V) * SPRAY_K;
+        // G2837b THE VIOLENCE (the user, 22 Oct: "more chaotic, more violent, more turbulent"): the speed's and the step's pressure's
+        // share - the sheet's shape gusts with it (spray.js set's t and gust) and it sheds chunks in bursts
+        const gust = Math.min(1, V / 16) * (0.6 + 0.4 * Math.min(1, pdM / 6000));
+        if (SH) SH.set(si, roots, [ox, 0, oz], [0, 1, 0], uo, uu, strength, waterFx.t + si * 7.3, gust);
         // the droplets off the sheet's far edge (t = T: out at uo, falling at -uu), the rate with the pressure
-        const T = 2 * uu / 9.81, rate = Math.min(8, pdM / 2000) * dt * 60;
+        const T = 2 * uu / 9.81, rate = Math.min(24, 3 * pdM / 2000) * dt * 60;   // (G2838b: many small drops - three times the old rate)
         let n = Math.floor(rate); if (Math.random() < rate - n) n++;
         for (let j = 0; j < n; j++) {
           const r = roots[Math.floor(Math.random() * NU)], t = T * (0.6 + 0.4 * Math.random());
           sprayEmit(D, 0, r[0] + ox * uo * t, r[1] + uu * t - 4.905 * t * t, r[2] + oz * uo * t,
-            ox * uo * (0.7 + 0.3 * Math.random()) + (Math.random() - 0.5) * 0.6, uu - 9.81 * t + 0.3 * Math.random(), oz * uo * (0.7 + 0.3 * Math.random()) + (Math.random() - 0.5) * 0.6);
+            ox * uo * (0.7 + 0.5 * Math.random()) + (Math.random() - 0.5) * 1.6, uu - 9.81 * t + 0.8 * Math.random(), oz * uo * (0.7 + 0.5 * Math.random()) + (Math.random() - 0.5) * 1.6);   // (G2838b: a wide turbulent spread; G2837c: two thirds of it)
+        }
+        // (G2837b) SHED CHUNKS: in bursts with the speed, a clump of drops leaves the sheet together - a cluster with one velocity and
+        // a tight spread, a few heavy drops in it - so the edge throws pieces instead of a steady drizzle
+        if (Math.random() < dt * (1.5 + V / 5) * gust) {
+          const r = roots[Math.floor(Math.random() * NU)], t = T * (0.45 + 0.5 * Math.random()), kv = 0.9 + 0.5 * Math.random();
+          const bx = r[0] + ox * uo * t, by = r[1] + uu * t - 4.905 * t * t, bz = r[2] + oz * uo * t, cvx = ox * uo * kv, cvy = (uu - 9.81 * t) * kv + 0.8, cvz = oz * uo * kv;
+          const nb = 10 + Math.floor(14 * Math.random() * gust);
+          for (let j = 0; j < nb; j++) sprayEmit(D, j < 3 ? 1 : 0, bx + (Math.random() - 0.5) * 0.3, by + (Math.random() - 0.5) * 0.2, bz + (Math.random() - 0.5) * 0.3,
+            cvx + (Math.random() - 0.5) * 1.0, cvy + (Math.random() - 0.5) * 0.8, cvz + (Math.random() - 0.5) * 1.0);
         }
         // the sheet's mist: a puff for every ~12 droplets, outboard of the root, left behind by the hull
         if (n > 0 && Math.random() < n / 12) { const r = roots[Math.floor(Math.random() * NU)];
@@ -7118,8 +7138,10 @@
     if (!resPick && downAt && edSit.visible && !SHOT.on && e.button === 0 &&
         Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 4 &&
         Date.now() - downAt.t < 500) {
-      const hit = pickAt(e.clientX, e.clientY);
-      if (window.BOOMBOX && hit && window.BOOMBOX.click(bbProp(), pickRay.ray, hit, canvas)) { /* the radio's panel */ }
+      const tipT = cgTipTap(e.clientX, e.clientY, e.pointerType === 'mouse');   // P1: a tap on a CG / NP label opens its tooltip, and goes no further
+      const hit = tipT ? null : pickAt(e.clientX, e.clientY);
+      if (tipT) { /* the tooltip */ }
+      else if (window.BOOMBOX && hit && window.BOOMBOX.click(bbProp(), pickRay.ray, hit, canvas)) { /* the radio's panel */ }
       else if (typeof window.EDITOR_PICK === 'function' && !edSwitchClick(hit)) window.EDITOR_PICK(hit, false);
     }
     downAt = null;
@@ -7147,6 +7169,7 @@
       const now = Date.now();
       if (now - (RES.hoverT || 0) > HOVER_MS) { RES.hoverT = now; residentHover(residentAt(e.clientX, e.clientY, false)); }
     }
+    if (!touches.size && !panD && !SHOT.on && e.pointerType === 'mouse' && gTipBand) cgTipHover(e.clientX, e.clientY);   // P1 CG-COLOURS
     if (!touches.size && !panD && edSit.visible && !SHOT.on &&
         typeof window.EDITOR_PICK === 'function') {
       const now = Date.now();
@@ -7649,6 +7672,14 @@
   let crashWatch = null;
   const WATCH_REST = 6, WATCH_HOLD = 3;          // s of sim time: the debris' longest wait, then the wreck held still
   let flDmg = null;           // G1470 (TREE-CRASH): sim.damage() - the worker's verdict under the physics worker
+  // G2373 (DMG-OCCUPANT): the occupants' bands for a crash's card - [{ name, band }] from the worker (sim_link's occView)
+  // or the inline solver (34_occupant.js genOccWire); read only on the crash path
+  let flOcc = null;
+  const occNow = () => {
+    if (sim && 'occView' in sim) return sim.occView;
+    const D = sim && sim.damage ? sim.damage() : null;
+    return D && D.occ && typeof genOccWire === 'function' ? genOccWire(D.occ) : null;
+  };
   let flNextLeg = null;   // G700: the selects' block publishes nextLeg here - `Fly on` chains the next leg in place
   let flDestPend = () => false;   // G1945 DEST-TO: a To picked in the flare / roll-out - chained at STOPPED
   let userPaused = false;     // G650: set by the Pause button alone; the world's clocks hold on it (FLYDIY_HELD)
@@ -7694,6 +7725,7 @@
                           damage: () => flDmg,                                  // G1470: the crash's verdict (the worker's under it)
                           structural: () => flStructural(),                     // DMG-D4b (train 41): the aeroplane's integrity (GAME's career reads it)
                           arrival: td => { const A = flArrival(td); return { arrived: !!A.t, damaged: A.damaged, structural: A.S }; },   // (GATE rows: the certificate's rule)
+                          occ: () => flOcc,                                     // G2373: the occupants' bands the crash's card shows
                           // G1096: A RIG'S PLACEMENT, on the sim that flies - never sim().p / .v by hand: under the physics
                           // worker the page's sim is a view the next snapshot rewrites. { at: [x, y, z] the CG's place (a
                           // null axis kept) | by: [dx, dy, dz], zeroV, dv: [vx, vy, vz] } -> a promise of the CG
@@ -7723,18 +7755,38 @@
   // from the live ctl so nothing jumps, and carries the AP's elevator as
   // trim. The test pilot's watchdog budget is pushed out past the time the
   // hand took, or it says 'gave-up' on the very next frame.
-  function setManual(on) {
+  // G3325 (AP-TOGGLE, the user 19 Oct): A PERMANENT TOGGLE - #bAP in the flight's actions, always in sight in flight:
+  // the autopilot by default (G3120: every flight starts on it), a hand on a flight control takes the aeroplane (the
+  // takeover, below: INP.flown), a press of the toggle gives it back. Tim (the story): you can take control yourself, you
+  // never have to - every normal mission flies on the autopilot. The state is published for the story's cards (they
+  // hide while the player flies): window.FLYDIY_AP { manual(), autopilot(), set(onAutopilot) } and the window event
+  // 'flydiy:manual' { manual, by: 'button' | 'key' | 'takeover' | 'api' } on every change
+  function apToggleSync() {
+    const b = $('bAP'); if (!b) return;
+    // (GAME's words, 19 Oct: a plain visible label and the key - R17, nothing hover-only; Tim says the rest at T1)
+    b.textContent = (manual ? 'Manual' : 'Autopilot: ON') + '  ·  A';
+    try { b.classList.toggle('on', !manual); b.setAttribute('aria-pressed', manual ? 'false' : 'true'); } catch (e) {}
+    b.title = manual ? 'You have the controls - press to hand the aeroplane back to the autopilot' : 'The autopilot flies it - press, or move the stick, the pedals or the throttle, to fly it yourself';
+  }
+  let apTakeArmed = true;   // G3325: the takeover armed (cleared by a hand-back until the controls are let go)
+  function setManual(on, by) {
     on = !!on;
     if (!INP || on === manual) return;
     manual = on;
+    if (!on) apTakeArmed = false;   // G3325
     prefSet('flydiy.flManual', on ? '1' : '0');
-    if (on) { INP.seed(sim.ctl); stillT = 0; }
+    // G2480: in the air the pilot's rudder and aileron become the hand's trims (the elevator always did); on the
+    // ground they start centred. Hand -> pilot: what only the hand writes leaves with it (sim_host handOff, the same)
+    if (on) { INP.seed(sim.ctl, { air: sim.wheelsOnGround() === 0 }); stillT = 0; }
     else {
+      sim.ctl.brakeD = 0; sim.ctl.wr = null;
       ap.reEngage({ phase: resyncPhase() });
       if (ap.budget) ap.budget = Math.max(ap.budget, ap.t + 300);
     }
     flRender();
     if (flShown.has('controls')) flyOpenSet(flyOpen);
+    apToggleSync();
+    try { window.dispatchEvent(new CustomEvent('flydiy:manual', { detail: { manual, by: by || 'api' } })); } catch (e) {}   // G3325
   }
   const GROUND_PHASES = ['DEPART', 'TAXI', 'LINEUP', 'HOLD', 'STOP', 'ROLL',
                          'LIFTOFF', 'ROLLOUT', 'STOPPED', 'ABORT', 'PUTDOWN'];
@@ -7888,6 +7940,9 @@
     const mm = Math.floor(t1 / 60), ss = Math.round(t1 - mm * 60);
     row('outcome', outcome.replace(/-/g, ' '));
     if (dmgWhy) row('certificate', 'Not certified - the aeroplane was damaged: ' + dmgWhy, 'warn');   // (DMG-D4b: the plain why)
+    // G2373 (DMG-OCCUPANT; the user, 7 Oct: "let's stay vague ... it's sad and frightening"): on a crash's card, one line
+    // per occupant - the seat's name as the crew page says it and ONE of the five words; nothing else, ever
+    if (wreckEnd) { flOcc = occNow() || flOcc; for (const [who, words] of occLines(flOcc)) row(who, words); }
     row('flight time', (mm ? mm + ' min ' + String(ss).padStart(2, '0') + ' s'
                            : ss + ' s'));
     row('distance', tel.km.toFixed(1) + ' km');
@@ -7933,6 +7988,14 @@
     }
     el.hidden = false;
   }
+  // G2373: the occupants' lines - only a seat's own name and only the five words (34_occupant.js GEN_OCC.bands); anything
+  // else in the payload is dropped. GATE DMGOCCUPANT scans what this returns and the card it draws
+  const OCC_WHO = /^(Pilot|Co-pilot|Passenger( [1-9][0-9]?)?)$/;
+  function occLines(occ) {
+    const words = typeof GEN_OCC !== 'undefined' && GEN_OCC.bands && GEN_OCC.bands.length === 5 ? GEN_OCC.bands : null;
+    if (!words || !Array.isArray(occ)) return [];
+    return occ.filter(o => o && OCC_WHO.test(o.name) && Number.isInteger(o.band) && o.band >= 0 && o.band < 5).map(o => [o.name, words[o.band]]);
+  }
   let arrWhy = false, arrVerd = [];
   // G1868: a crash's card folds on its title (and unfolds); G3060 (CARDS-CORNER): every ending's card, in its corner
   { const h = $('arrHead'); if (h && h.addEventListener) h.addEventListener('click', () => { const el = $('arrCard'); if (el) el.classList.toggle('min'); }); }
@@ -7962,6 +8025,7 @@
   function playerFlightStart() {
     flSlot = slotOnStand(); flEnded = false; flLastEnd = null;
     if (CAREER_DEV) careerFlightStart();
+    if (CAREER_DEV && STORY_PAGE) storyLadderReset();   // G3370 (TUTO-FLIGHT): a roll-out is a new flight for T1's ladder
     if (!flSlot) return;
     try {
       const f = (def && typeof playerFootOfDef === 'function') ? playerFootOfDef(def) : null;
@@ -7988,10 +8052,13 @@
       // G2665 (NIGHT-OPS): the career's day (and the sky it saw) is the stop's BEFORE the stop meets the contracts, so a
       // new epoch's offers are drawn under the night the aeroplane landed in (SIM-CLOCK saved it after; same instant)
       if (CAREER_DEV && d.career && world && world.day && typeof careerDaySet === 'function') { const r = careerDaySet(d, { date: world.day.date, utc: world.day.utc }); if (r.ok) d = careerCoverNote(r.doc); }
+      // G3260 (ROUTES): the routes' round trips flown up to this landing, paid now (before the stop's wallet line)
+      const rtSettled = CAREER_DEV && d.career ? routesSettleNow(d) : null; if (CAREER_DEV && rtSettled) d = rtSettled.doc;
       // G2320 (CAREER-WIRE): ...and the career meets the stop (careerOnStop: every accepted contract, the tracked first)
       if (CAREER_DEV && d.career) { const c = careerStopApply(d, how, W, wrecked); d = c.doc; out.career = c; }
       // G2742 (STORY-PAGE): ...and the story meets it (the stop, each contract it delivered), its effects applied
       if (CAREER_DEV && STORY_PAGE && d.career && out.career) d = storyOnFlightEnd(d, out);
+      if (CAREER_DEV && out.career && rtSettled && rtSettled.lines.length) out.career.lines.unshift(...rtSettled.lines);   // (G3260: the routes' line)
       // G2705 (CAREER-DAMAGE, §R.4): a crash in the career - back at the place the flight departed from, repaired, free
       // (75_ careerCrashReset); its line leads the career's lines on the arrival card. The sandbox: nothing (gp4 stands)
       const cz = (CAREER_DEV && d.career && wrecked) ? careerCrashReset(d, flSlot, fromAero) : null;
@@ -8276,7 +8343,10 @@
     }
     return out;
   }
-  const careerRecord = () => { const R = careerMapRecord(playerLoad(), world, { certs: careerCerts() }); return CAREER_DEV && STORY_PAGE ? storyRecord(R) : R; };
+  const careerRecord = () => { const R = careerMapRecord(playerLoad(), world, { certs: careerCerts() });
+    // G3260 (ROUTES): the map's lines and planes, each where it is on its route at the world's instant
+    R.routes = routesMapOf(playerLoad(), world && world.day ? { date: world.day.date, utc: world.day.utc } : null, world && world.aerodromes);
+    return CAREER_DEV && STORY_PAGE ? storyRecord(R) : R; };
   // the map's Accept / Track: careerAccept / careerTrack on the document (Track on a contract not yet accepted accepts
   // it first; Track on the tracked one untracks; Accept on an accepted one keeps it - abandoning is not this button's)
   function careerAct(id, what) {
@@ -8561,6 +8631,117 @@
     act: careerCrewAct, check: id => careerCrewCheck(id), flyer: () => crFlyer,
     card: id => pilotsCard(playerLoad(), id, world), offers: () => pilotsOffers(playerLoad()), hired: () => pilotsHired(playerLoad()),
   };
+  // ---- G3260-G3269 (ROUTES): THE ROUTES' PAGE HALF (every function below runs only under CAREER_DEV; 78b_routes.js is the
+  // model, pure) ---------------------------------------------------------------------------------------------------------
+  // The settle at every landing (playerFlightEnd: the round trips flown since, paid, a line on the arrival card) and every
+  // wait (the clock's 'flydiy:dayjump' of a wait: the wallet line says what came in); "Assign to a route" and "End route"
+  // on the storage cards (FLYDIY_STORE.route*); the map's line and plane (careerRecord's `routes`); and the stand: a plane
+  // on a route never stays on the stand, never rolls out.
+  // the plane's own numbers when this browser holds its shakedown (careerCerts: the map's certificate facts), else null
+  function routesDesignNow(slot) { try { return (CAREER_DEV && careerCerts()[slot]) || null; } catch (e) { return null; } }
+  // the settle on a document -> { doc, lines (the arrival card's), paid }
+  function routesSettleNow(d, now) {
+    if (!CAREER_DEV || !d || !d.career || !routesActive(d).length) return { doc: d, lines: [], paid: 0 };
+    const r = routeSettle(d, now);
+    return r.ok ? { doc: r.doc, lines: routeSettleLines(r, world && world.aerodromes), paid: r.paid } : { doc: d, lines: [], paid: 0 };
+  }
+  // a WAIT moved the clock (day_clock.js: 'wait:*' / 'fullmoon'): the round trips flown in it paid now, said on the wallet line
+  function routesOnWait(J) {
+    if (!J || !/^(wait|fullmoon)/.test(J.why || '') || !J.to) return;
+    const r = routesSettleNow(playerLoad(), J.to);
+    if (!r.paid) return;
+    player = r.doc; playerSave();
+    ecNote = 'routes +' + ecFmt(r.paid); econWalletSync();
+    storeChanged();
+  }
+  // the plane's gear and seats off its saved envelope (the storage card's)
+  const routesGear = n => { try { return storeCard(n).gear || null; } catch (e) { return null; } };
+  const routesFreePilots = d => pilotsHired(d).filter(id => !routeOfPilot(d, id));
+  // "ASSIGN TO A ROUTE": from where the plane stands to any aerodrome its gear can use, a free hired pilot to fly it
+  // -> { ok, why, a, aName, ends: [{ id, name, km }], pilots: [{ id, name }] }
+  function routesTargets(name) {
+    const d = playerLoad(), W = playerStoreWhere(d, name);
+    const no = why => ({ ok: false, why, a: W.aero || null, ends: [], pilots: [] });
+    if (W.kind === 'route') return no(name + ' flies a route already');
+    if (!W.aero || W.kind === 'none') return no(name + ' stands nowhere yet');
+    const pilots = routesFreePilots(d).map(id => ({ id, name: pilotsName(id) }));
+    const gear = routesGear(name), design = routesDesignNow(name), ends = [];
+    for (const id of Object.keys(CONTRACT_FIELDS)) {
+      if (id === W.aero) continue;
+      const O = routeOffer(d, W.aero, id, name, { gear, design });
+      if (O.ok) ends.push({ id, name: routeAeroName(id, world && world.aerodromes), km: O.offer.km });
+      else if (/numbers are not read/.test(O.why)) return no(O.why);
+    }
+    ends.sort((x, y) => x.km - y.km);
+    if (!pilots.length) return Object.assign(no('no free pilot: hire one on the map\'s Pilots list (a route needs a hired pilot)'), { ends });
+    return { ok: true, why: '', a: W.aero, aName: routeAeroName(W.aero, world && world.aerodromes), ends, pilots };
+  }
+  // the terms, in words, before signing -> { ok, why, offer, words }
+  function routesAsk(name, b, pilot) {
+    const d = playerLoad(), W = playerStoreWhere(d, name);
+    const O = routeOffer(d, W.aero, b, name, { gear: routesGear(name), design: routesDesignNow(name) });
+    if (!O.ok) return { ok: false, why: O.why };
+    return { ok: true, why: '', offer: O.offer, words: routeOfferWords(O.offer, world && world.aerodromes, pilot) };
+  }
+  function routesSignNow(name, b, pilot) {
+    try {
+      const A = routesAsk(name, b, pilot);
+      if (!A.ok) return A;
+      const r = routeSign(playerLoad(), A.offer, name, pilot);
+      if (!r.ok) return { ok: false, why: r.why };
+      player = r.doc; playerSave();
+      ecNote = 'route signed +' + ecFmt(r.route.down); econWalletSync();
+      storeChanged(); routesStandRule();
+      return { ok: true, why: '', route: r.route };
+    } catch (e) { return { ok: false, why: String((e && e.message) || e) }; }
+  }
+  function routesEndNow(name) {
+    try {
+      const R = routeOfPlane(playerLoad(), name);
+      if (!R) return { ok: false, why: name + ' flies no route' };
+      const r = routeEnd(playerLoad(), R.id);
+      if (!r.ok) return { ok: false, why: r.why };
+      player = r.doc; playerSave();
+      if (r.paid) { ecNote = 'routes +' + ecFmt(r.paid); econWalletSync(); }
+      storeChanged();
+      return { ok: true, why: '', where: r.where };
+    } catch (e) { return { ok: false, why: String((e && e.message) || e) }; }
+  }
+  // a storage card's route words -> null | { words, pilot, trips, pay }
+  function routesCardOf(name) {
+    const R = routeOfPlane(playerLoad(), name);
+    return R ? { id: R.id, words: routeWords(R, world && world.aerodromes), pilot: pilotsName(R.pilot), trips: R.trips, pay: R.pay } : null;
+  }
+  // THE STAND: a plane on a route is not on it - in the garage, the stand takes the story's starter, else the first plane
+  // of the garage's base that flies no route (none: it stays, and the roll-out refuses it)
+  function routesStandRule() {
+    if (!CAREER_DEV || !inGarage) return;
+    const d = playerLoad(), n = slotOnStand();
+    if (!n || !routeOfPlane(d, n) || !window.GARAGE_SPEC || !window.GARAGE_SPEC.open) return;
+    const base = d.sheds[d.here] ? d.sheds[d.here].base : null, s = CAREER_DEV && STORY_PAGE ? storyOf(d) : null;
+    const free = Object.keys(d.fleet).filter(k => !routeOfPlane(d, k));
+    const pick = (s && s.planes.starter && free.includes(s.planes.starter) ? s.planes.starter : null) ||
+      free.find(k => playerStoreWhere(d, k).aero === base) || null;
+    if (pick) try { window.GARAGE_SPEC.open(pick); } catch (e) {}
+  }
+  // the roll-out's refusal: the build on the stand flies a route (said on the wallet line)
+  function routesRollRefused() {
+    const n = slotOnStand(), R = n ? routeOfPlane(playerLoad(), n) : null;
+    if (!R) return false;
+    ecNote = n + ' flies the route ' + routeWords(R, world && world.aerodromes) + ': end it in Storage first'; econWalletSync();
+    routesStandRule();
+    return true;
+  }
+  if (CAREER_DEV) {
+    try { window.addEventListener('flydiy:dayjump', ev => { try { routesOnWait(ev && ev.detail); } catch (e) {} }); } catch (e) {}
+    setInterval(() => { try { routesStandRule(); } catch (e) {} }, 1500);
+    Object.assign(window.FLYDIY_STORE, {
+      routeTargets: n => routesTargets(n), routeAsk: (n, b, p) => routesAsk(n, b, p), routeSign: (n, b, p) => routesSignNow(n, b, p),
+      routeEnd: n => routesEndNow(n), routeOf: n => routesCardOf(n),
+    });
+    window.FLYDIY_CAREER.routes = { list: () => routesMapOf(playerLoad(), null, world && world.aerodromes), settle: (now) => { const r = routesSettleNow(playerLoad(), now); if (r.paid) { player = r.doc; playerSave(); } return r; },
+      sign: routesSignNow, end: routesEndNow, targets: routesTargets, ask: routesAsk };
+  }
   // ---- G2742-G2749 (STORY-PAGE): THE STORY'S PAGE HALF (every function below runs only under STORY_PAGE: the player's
   // career; 79_story.js is the model, pure) -------------------------------------------------------------------------------
   // The events into storyStep: the stop at every flight's end and each contract it delivered (storyOnFlightEnd, where the
@@ -8570,6 +8751,8 @@
   const stFiles = {};
   let stCardEl = null, stLine = '', stQueue = [], stBusy = false, stMemo = { fp: null, fb: null, L0: null, cost: null, next: null }, stMaskWas;
   const stLive = () => (STORY_PAGE ? storyOf(playerLoad()) : null);
+  // G3380 (STORY-INTRO): the opening's player, its curtain, this frame's pose, what it set aside, the world's point (below)
+  let stIntro = null, stIntroEl = null, stIntroPose = null, stIntroWas = null, stIntroAt = null, stIntroPlan = null;
   // the first of a story plane's files that loads (the starter: builds/ first, then the archived candidate)
   function storyFile(role) {
     if (!stFiles[role]) {
@@ -8599,8 +8782,11 @@
   function storyEffects(d, effects) {
     for (const e of effects || []) {
       if (e.k === 'clientPlane') { stQueue.push(e); continue; }
-      const a = storyApply(d, e, { aeros: world.aerodromes });
-      if (a.ok) { d = a.doc; if (a.line) stLine = a.line; } else console.warn('flyDiy (story): ' + e.k + ' - ' + a.why);
+      // (G3260 ROUTES: T6's route signed with the Cub's own numbers when this browser holds them - the routes' half)
+      const s0 = e.k === 'routeOffer' ? storyOf(d) : null, slot = s0 ? s0.planes.gift || s0.planes.client : null;
+      const a = storyApply(d, e, { aeros: world.aerodromes, design: slot && typeof routesDesignNow === 'function' ? routesDesignNow(slot) : null });
+      // (the lines add up: T6's route and T7's occasions both reach the arrival card)
+      if (a.ok) { d = a.doc; if (a.line) stLine = stLine ? stLine + ' ' + a.line : a.line; } else console.warn('flyDiy (story): ' + e.k + ' - ' + a.why);
     }
     return d;
   }
@@ -8713,12 +8899,17 @@
     return storyCard(d, o);
   }
   const stEsc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  // G3357 (the user 23 Oct: "I see no point in the lines on the top left. Tim feels like he's enough, that feels like an
+  // artificial setpoint"): the beat card is not the player's - Tim's band carries the beat (its OK, its checklist, the
+  // story's messages). The card is still made (the gates read it) and shown only with ?storycard=1 (a dev's view).
+  var STORY_CARD = typeof location !== 'undefined' && /[?&]storycard=1/.test(location.search || '');
   function storyCardSync() {
     if (!STORY_PAGE || typeof document === 'undefined' || !document.body) return;
+    if (document.body.classList.contains('stNoCard') === STORY_CARD) document.body.classList.toggle('stNoCard', !STORY_CARD);
     let K = null;
     try { K = storyCardNow(); } catch (e) { console.warn('flyDiy (story): the card -', e && e.message); }
     storyMaskNote();
-    if (!K && !stLine) { if (stCardEl) stCardEl.hidden = true; return; }
+    if ((!K && !stLine) || stIntroWas) { if (stCardEl) stCardEl.hidden = true; return; }
     if (!stCardEl) {
       stCardEl = document.createElement('aside');
       stCardEl.id = 'stCard'; stCardEl.setAttribute('role', 'status'); stCardEl.setAttribute('aria-label', 'the story');
@@ -8740,7 +8931,7 @@
     }
     const rows = K.rows.map(r => '<li class="' + (r.ok ? 'ok' : '') + '"><span class="stTick" aria-hidden="true">' + (r.ok ? '✓' : '') + '</span>' + stEsc(r.words) + '</li>').join('');
     const met = K.rows.filter(r => r.ok).length;
-    const html = '<button type="button" class="stHead" data-st="fold" aria-label="fold the story card"><span class="stStep">The story · ' + K.step + ' of ' + K.of + '</span>' +
+    const html = '<button type="button" class="stHead" data-st="fold" aria-label="fold the story card"><span class="stStep">The story</span>' +   // G3356: no step counter for the player (the user: "That's for us")
         '<b class="stTitle">' + stEsc(K.title) + '</b>' + (K.rows.length ? '<span class="stN">' + met + '/' + K.rows.length + '</span>' : '') + '</button>' +
       '<div class="stBody"><p class="stBrief">' + stEsc(K.brief) + '</p>' + (rows ? '<ul class="stRows">' + rows + '</ul>' : '') +
         (K.note ? '<p class="stNote">' + stEsc(K.note) + '</p>' : '') + (stLine ? '<p class="stLine">' + stEsc(stLine) + '</p>' : '') +
@@ -8748,16 +8939,415 @@
     if (stCardEl.dataset.html !== html) { stCardEl.innerHTML = html; stCardEl.dataset.html = html; }
     if (stCardEl.dataset.beat !== K.beat) { stCardEl.dataset.beat = K.beat; if (stCardEl.classList.contains('min') !== (prefGet('flydiy.story.fold', '') === K.beat)) stCardEl.classList.toggle('min'); }
   }
-  // the tech mask's tutorial mode (TECH-MASK G3230 reads it here, or listens for the event, once it lands)
+  // G3230 (TECH-MASK): the career's machine shop into the editor (79b_tech.js careerTechOf: null for a career without one,
+  // so the dev career greys nothing); the sandbox never calls it. On the editor's open and at every story card.
+  function techMaskSync() {
+    if (!CAREER_DEV || !window.TECH_MASK) return;
+    try { window.TECH_MASK.set(careerTechOf(playerLoad())); } catch (e) {}
+  }
+  // the tech mask's tutorial mode (TECH-MASK G3230: editor.js window.TECH_MASK.tutorial; also the event)
   function storyMaskNote() {
+    techMaskSync();
     const m = storyMask(playerLoad());
     if (m === stMaskWas) return;
     stMaskWas = m;
     try { if (window.TECH_MASK && typeof window.TECH_MASK.tutorial === 'function') window.TECH_MASK.tutorial(m); } catch (e) {}
+    // G3350: the story's structure lock is the editor's own (finish view only) until TECH-MASK lands - a STORY STAGE,
+    // lifted when the beat's mask is (the user: "the small shed will have structure enabled later on")
+    try { if (window.EDITOR_LOCK) window.EDITOR_LOCK.finishOnly(m === 'finish' ? 'Tim: the structure comes later in the story - paint, liveries and colours for now.' : null); } catch (e) {}
     try { window.dispatchEvent(new CustomEvent('flydiy-story', { detail: { mask: m } })); } catch (e) {}
   }
+  // ---- G3380-G3389 (STORY-INTRO): THE OPENING - a New career's cinematic over the cabin strip, its music, then the fade
+  // into the garage (the user, 19 Oct: "It zooms on the cabin, then we fade into the garage"; GAME-PLAN §R2). story_intro.js
+  // (lazy: FLYDIY_LAZY('story_intro'), never fetched by the sandbox, Continue or the phone garage) plans the camera from the
+  // cabin's record and plays it. The page's half: ARMED ONCE by a New career (playerLoad's stIntroArm; a reload is a
+  // Continue), never on the phone garage (no world) or with ?intro=0; a black curtain up under the loading screen
+  // (storyIntroCurtain), the cinematic when the boot lifts (bootOpts.done -> storyIntroBoot). NO SECOND WORLD: the boot's
+  // world, settled round the cabin's stand, is drawn FROM THE SHED - the loop asks storyIntroFrame for the eye (the
+  // world's update on the cabin's point, never the eye's: nothing streams far away) and draws the world's scene; the world's
+  // exposure, the room's air off, the radio held (music.js FLYDIY_MUSIC_HOLD). The garage stays booted under it: the fade
+  // back is a switch of the scene drawn (storyIntroSwap), nothing compiled or baked. Skip / Esc / a click: straight to the
+  // garage, the story at T0 (the opening never sends the story an event).
+  function storyIntroWanted() {
+    if (!STORY_PAGE || !stIntroArm) return false;
+    try { if (window.PROFILE && ((window.PROFILE.is && window.PROFILE.is('boot', 'garage')) || window.PROFILE.name === 'phone')) return false; } catch (e) {}
+    try { if (/[?&]intro=0(&|$)/.test(window.location.search || '')) return false; } catch (e) {}
+    return true;
+  }
+  // the curtain, black, under the loading screen (z 60 < the boot's 70): the garage never shows before the opening
+  function storyIntroCurtain() {
+    if (stIntroEl || !storyIntroWanted() || typeof document === 'undefined' || !document.body) return false;
+    stIntroEl = document.createElement('div'); stIntroEl.id = 'stIntro';
+    stIntroEl.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:60;background:#000';
+    document.body.appendChild(stIntroEl);
+    if (window.FLYDIY_LAZY) window.FLYDIY_LAZY('story_intro');   // fetched while the boot runs
+    // a New career rolls out from the cabin: a spawn remembered from the sandbox's route (another field) would settle the
+    // boot's world there, not round the cabin the opening looks at (this runs before the boot's world steps)
+    if (typeof spawnId !== 'undefined') spawnId = null;
+    return true;
+  }
+  // no opening after all (the module, the strip or the world missing): the curtain off, the garage as a New career had it
+  function storyIntroOff(why) {
+    stIntroArm = false;
+    if (stIntroEl && stIntroEl.parentNode) stIntroEl.parentNode.removeChild(stIntroEl);
+    stIntroEl = null;
+    if (why) console.warn('flyDiy (story): no opening - ' + why);
+  }
+  // the plan from the cabin's record (story_intro.js), once -> the plan, or a string: why there is none
+  function storyIntroPlan() {
+    if (stIntroPlan) return stIntroPlan;
+    const I = window.STORY_INTRO;
+    if (!I) return 'story_intro.js did not load';
+    if (!WF || !world) return 'no world to draw';
+    const id = roomBase(), A = (world.aerodromes || []).find(a => a.id === id);
+    if (!A || A.kind === 'water' || !isFinite(A.hdg)) return 'no strip at ' + id;
+    const st = typeof siteOf === 'function' ? siteOf(id) : null;
+    const pl = st && Array.isArray(st.plots) ? (st.plots.find(p => p.id === roomId()) || st.plots[0]) : null;
+    let end = null; try { const q = /[?&]introend=(eye|high)(&|$)/.exec(window.location.search || ''); if (q) end = q[1]; } catch (e) {}   // G3387: the ending, for a look
+    return (stIntroPlan = I.plan({ aero: A, plot: pl, terrainH: (x, z) => world.terrainH(x, z), waterH: typeof world.waterH === 'function' ? (x, z) => world.waterH(x, z) : null, end }));
+  }
+  // G3388 (THE BOOT COST, the user 21 Oct: "15 seconds for a moving camera? Whyyyy?"): THE WORLD WEARS THE AEROPLANE'S LIGHT
+  // SIGNATURE WHILE THE OPENING DRAWS IT. Every lit program's key counts the lights: the boot keys the whole world with the
+  // aeroplane in it (craftInWorldNow: its nav / landing lamps, 2 point + 1 spot on the Cub), because a flight always has
+  // them; the opening draws the world from the shed with the aeroplane in the shed - no lamps - so every lit material
+  // needed a variant the boot never made (the profile, 21 Oct 21:00: 81 programs keyed point 2 -> 0, spot 1 -> 0, a
+  // 12 s compile in the boot's 'intro' step; before that step, the first look's 42 links under black). Stand-ins of the
+  // same signature (intensity 0, no shadow: craftLightsGuess's) stand in the world while the opening plays and while its
+  // step compiles: the opening draws with the boot's own programs
+  let stIntroLampGrp = null;
+  function storyIntroLamps(on) {
+    if (!on) { if (stIntroLampGrp && stIntroLampGrp.parent) stIntroLampGrp.parent.remove(stIntroLampGrp); return; }
+    let sg = craftLightSig();
+    if (!sg || sg === '0,0') { sg = '2,1'; try { sg = localStorage.getItem(CRAFT_LIGHTS) || sg; } catch (e) {} }
+    if (!stIntroLampGrp || stIntroLampGrp.userData.sig !== sg) {
+      const [np, ns] = sg.split(',').map(Number), g = new THREE.Group();
+      for (let i = 0; i < (np || 0); i++) g.add(new THREE.PointLight(0xffffff, 0, 2, 1.6));
+      for (let i = 0; i < (ns || 0); i++) { const L = new THREE.SpotLight(0xffffff, 0, 120, 0.42, 0.5, 1.2); g.add(L); g.add(L.target); }
+      g.userData.sig = sg; g.name = 'storyIntroLamps'; stIntroLampGrp = g;
+    }
+    if (stIntroLampGrp.children.length && stIntroLampGrp.parent !== scene) scene.add(stIntroLampGrp);
+  }
+  // (a compile's dress: the lamps on for the call, off after)
+  const storyIntroDress = f => { try { storyIntroLamps(true); return f(); } finally { storyIntroLamps(false); } };
+  // THE OPENING'S VIEWS, LINKED UNDER THE LOADING SCREEN (the timed look, 20 Oct 03:45: drawn cold under the curtain, its
+  // warm views linked 42 programs the boot had not - three blocks on each first draw: a 14 s task in black). A boot step of
+  // a New career's alone (registered only while the curtain is up, below 'craft'): per view, the eye placed there and the
+  // world's update run (what that view makes: the cover ring's cells, the plots near the eye - every 10th update), the scene
+  // compiled on the driver's threads with its depth variants, every link waited for, then one draw - the boot's own
+  // 'frames' step, from the opening's eyes. The garage's eye is put back after each view (the loop draws the shed meanwhile).
+  // A COMPILE PER SHOT, not per view (the re-look, 20 Oct 15:45: a pass per view made the step 11-17 s): the shot's three
+  // views' updates first, then one compile of the scene and its links, then the three draws
+  function storyIntroPrepare() {
+    if (!stIntroEl || !WF || typeof renderer.compileAsync !== 'function') return;
+    const L = window.FLYDIY_LAZY ? window.FLYDIY_LAZY('story_intro') : Promise.resolve([!!window.STORY_INTRO]);
+    return L.then(() => {
+      const P = storyIntroPlan();
+      if (typeof P === 'string') return;
+      const at = (o, keep) => { camera.position.set(o.p[0], o.p[1], o.p[2]); camera.lookAt(o.l[0], o.l[1], o.l[2]); camera.updateMatrixWorld(); return keep; };
+      const task = () => new Promise(r => setTimeout(r, 0));
+      const eye = (o, f) => { const keep = { p: camera.position.clone(), q: camera.quaternion.clone() };
+        try { at(o); f(); } catch (e) { console.warn('story intro: the view', e && e.message); }
+        camera.position.copy(keep.p); camera.quaternion.copy(keep.q); camera.updateMatrixWorld(); };
+      // THE STEP'S OWN LEDGER (the user, 21 Oct: "15 seconds for a moving camera?"): per shot, each phase's wall time, the
+      // world's objects and three's programs before and after, the new programs' names - window.FLYDIY_INTRO_PREP (a rig reads it)
+      const LG = window.FLYDIY_INTRO_PREP = { t0: performance.now(), shots: [], ms: null };
+      const progs = () => (renderer.info && renderer.info.programs ? renderer.info.programs.slice() : []);
+      const objs = () => { let n = 0; scene.traverse(() => { n++; }); return n; };
+      // (the lights a lit program is keyed on: per kind, the visible ones and those casting a shadow)
+      const lights = () => { const c = {}; scene.traverse(o => { if (!o.isLight || !o.visible) return; const k = o.type.replace('Light', ''); c[k] = (c[k] || 0) + 1; if (o.castShadow) c[k + 'Sh'] = (c[k + 'Sh'] || 0) + 1; });
+        return Object.keys(c).sort().map(k => k + c[k]).join(' '); };
+      // (a new program's key against the old program of the same name whose key differs least: the differing fields)
+      const keyDiff = (nw, old) => { const out = {}; for (const p of nw.slice(0, 30)) { const a = String(p.cacheKey || '').split(','); let best = null, bd = 1e9;
+          for (const q of old) { if (q.name !== p.name) continue; const b = String(q.cacheKey || '').split(','); if (b.length !== a.length) continue; let d = 0; for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) d++; if (d < bd) { bd = d; best = b; } }
+          if (!best) { out['(no sibling)'] = (out['(no sibling)'] || 0) + 1; continue; }
+          for (let i = 0; i < a.length; i++) if (a[i] !== best[i]) { const k = '#' + i + ' ' + String(best[i]).slice(0, 24) + ' -> ' + String(a[i]).slice(0, 24); out[k] = (out[k] || 0) + 1; } }
+        return out; };
+      const shot = V => {
+        const R = { n: LG.shots.length, objs0: objs(), lights0: lights() }, P0 = new Set(progs());
+        let p = Promise.resolve(), t = performance.now();
+        const lap = k => () => { const n = performance.now(); R[k] = Math.round(n - t); t = n; };
+        for (const o of V) p = p.then(() => eye(o, () => { for (let k = 0; k < 4; k++) WF.worldUpdate(P.anchor); })).then(task);
+        return p.then(lap('updates')).then(() => { R.objs1 = objs(); R.lights1 = storyIntroDress(lights); return compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, storyIntroDress); }).then(lap('compile'))
+          .then(() => compileDepthVariants(scene, true, storyIntroDress)).then(lap('depth'))
+          .then(() => { const nw = progs().filter(x => !P0.has(x)); R.newProgs = nw.length; R.names = nw.map(x => x.name || '?').slice(0, 40); try { R.keyDiff = keyDiff(nw, [...P0]); } catch (e) { R.keyDiff = { error: e.message }; } return programsReady(30000); }).then(lap('links'))
+          .then(() => { let q = Promise.resolve(); for (const o of V) q = q.then(() => eye(o, () => storyIntroDress(() => { WF.worldUpdate(P.anchor); if (aa) aa.render(scene, camera); else renderer.render(scene, camera); }))).then(task); return q; })
+          .then(lap('draws')).then(() => { R.progsAfterDraw = progs().filter(x => !P0.has(x)).length - R.newProgs; LG.shots.push(R); LG.ms = Math.round(performance.now() - LG.t0); });
+      };
+      let p = Promise.resolve();
+      for (let i = 0; i < P.warm.length; i += 3) { const V = P.warm.slice(i, i + 3); p = p.then(() => (stIntroEl ? shot(V) : null)); }
+      return p;
+    }).catch(e => console.warn('story intro: the prepare', e && e.message));
+  }
+  function storyIntroBoot() {
+    if (!stIntroEl || stIntro) return;
+    stIntroArm = false;                    // once
+    const L = window.FLYDIY_LAZY ? window.FLYDIY_LAZY('story_intro') : Promise.resolve([!!window.STORY_INTRO]);
+    return L.then(() => {
+      const I = window.STORY_INTRO;
+      if (!inGarage) return storyIntroOff('not in the shed');
+      const plan = storyIntroPlan();
+      if (typeof plan === 'string') return storyIntroOff(plan);
+      let vol = 0.6;
+      try { if (window.AUDIO && window.AUDIO.enabled && window.AUDIO.get) vol = Math.min(1, 1.4 * window.AUDIO.get('master') * window.AUDIO.get('music')); } catch (e) {}
+      stIntroWas = { exp: typeof GFX !== 'undefined' && GFX && GFX.exposureBase ? GFX.exposureBase() : renderer.toneMappingExposure,
+                     mist: typeof ATMO !== 'undefined' && ATMO.MIST ? ATMO.MIST.room : null, fov: camera.fov };
+      setExp(WORLD_EXPOSURE);
+      if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = null;   // F3: the room's air stays in the room
+      window.FLYDIY_MUSIC_HOLD = true;
+      stIntroAt = plan.anchor;
+      try { storyIntroLamps(true); } catch (e) { console.warn('story intro: the lamps', e && e.message); }   // G3388
+      if (stCardEl) stCardEl.hidden = true;
+      stIntro = I.play({ plan, el: stIntroEl, music: vol, swap: storyIntroSwap,
+        done: how => { stIntro = null; stIntroEl = null; window.FLYDIY_INTRO_LAST = { how, T: plan.T }; } });
+      window.FLYDIY_INTRO = { state: () => (stIntro ? stIntro.state() : null), skip: () => { if (stIntro) stIntro.skip(); }, plan: () => plan };
+    }).catch(e => storyIntroOff(e && e.message));
+  }
+  // the garage back on screen (at black): its exposure, its air, its lens; the radio free; the beat card at T0
+  function storyIntroSwap() {
+    const W = stIntroWas;
+    stIntroPose = null; stIntroWas = null; stIntroAt = null;
+    try { storyIntroLamps(false); } catch (e) {}   // G3388: the world's lights as the flight will find them
+    if (W) {
+      setExp(W.exp);
+      if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = W.mist;
+      camera.fov = W.fov; camera.updateProjectionMatrix();
+    }
+    window.FLYDIY_MUSIC_HOLD = false;
+    storyCardSync();
+  }
+  // THE LOOP'S DOORS: this frame's eye placed on the camera -> the world's point (the cabin), or null (the garage is drawn)
+  function storyIntroFrame(dt) {
+    if (!stIntro) return null;
+    const o = stIntro.frame(dt);
+    stIntroPose = o;
+    if (!o) return null;
+    storyIntroPlace();
+    return stIntroAt;
+  }
+  // (again after the orbit's placeCamera, which writes the shed's eye every frame)
+  function storyIntroPlace() {
+    const o = stIntroPose;
+    if (!o) return;
+    camera.position.set(o.p[0], o.p[1], o.p[2]);
+    if (camera.fov !== o.fov) { camera.fov = o.fov; camera.updateProjectionMatrix(); }
+    camera.lookAt(o.l[0], o.l[1], o.l[2]);
+    camera.updateMatrixWorld();
+  }
+  // ---- G3350 (STORY-TIM): TIM'S BAND - the story's voice at the bottom of the screen (the user, 19 Oct: "a pop-up kind of
+  // thing at the bottom of the screen, with a placeholder vignette portrait"). A line at a time (Next), closed on the last
+  // (OK); shown again on each new beat. Never centred, never over the middle; the garage's look (editor.css #stTim).
+  // The portrait is a PLACEHOLDER silhouette (no image, no real person).
+  let stTimEl = null, stTimBeat = null, stTimI = 0, stTimShut = false, stTimK = null;
+  const STIM_FACE = '<svg class="stTimFace" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="23"/><circle class="h" cx="24" cy="19" r="8"/><path class="h" d="M9 41c2-9 8-13 15-13s13 4 15 13"/></svg>';
+  function storyTimSync() {
+    if (!STORY_PAGE || typeof document === 'undefined' || !document.body) return;
+    const s = stLive(), id = s && !s.open ? s.beat : null, L0 = id ? storyTimLines(id, playerLoad()) : [];
+    // G3361: in the story's small shed, Tim says why there is no bench (the panel's note went)
+    let small = false;
+    try { const d = playerLoad(), sh = d.sheds && d.sheds[d.here]; small = !!(sh && sh.story) && inGarage; } catch (e) {}
+    const L = small && L0.length ? L0.concat([STORY_BENCH_LINE]) : L0;
+    if (id !== stTimBeat) { stTimBeat = id; stTimI = 0; stTimShut = false; }
+    // G3370 (TUTO-FLIGHT): T1's flight speaks the LADDER in the band instead (Tim's own T1 lines are the shed's)
+    const lad = storyLadderNow();
+    if (lad) return storyLadderShow(lad);
+    const manual = window.FLYDIY_AP && typeof window.FLYDIY_AP.manual === 'function' && window.FLYDIY_AP.manual() && !inGarage;
+    // G3357: a story message (a refused delivery, a signed route) is Tim's to say, once, with its OK
+    if (stLine && !STORY_CARD && !manual) {
+      stTimPut('', STIM_FACE + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>' + stEsc(STORY_TIM.role) + '</small><p>' + stEsc(stLine) + '</p></div>' +
+        '<button type="button" class="stTimBtn" data-tim="line">OK</button>');
+      return;
+    }
+    if (!L.length || manual) { if (stTimEl) stTimEl.hidden = true; return; }
+    // G3357: closed, the band leaves Tim's face in the corner - a click brings his last words (and the checklist) back
+    if (stTimShut) { stTimPut('min', '<button type="button" class="stTimChip" data-tim="open" aria-label="' + stEsc(STORY_TIM.name) + '">' + STIM_FACE + '</button>'); return; }
+    const i = Math.min(stTimI, L.length - 1), last = i >= L.length - 1;
+    // G3357: on his last line the beat's own goal rides in the band - an ack beat's OK moves the story; a checklist shows
+    if (last && !STORY_CARD) { try { stTimK = storyCardNow(); } catch (e) { stTimK = null; } } else stTimK = null;
+    const K = stTimK, ack = !!(K && K.ack);
+    const rows = K && K.rows && K.rows.length ? '<ul class="stTimRows">' + K.rows.map(r => '<li class="' + (r.ok ? 'ok' : '') + '">' + (r.ok ? '\u2713 ' : '') + stEsc(r.words) + '</li>').join('') + '</ul>' : '';
+    stTimPut('', STIM_FACE + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>' + stEsc(STORY_TIM.role) + '</small><p>' + stEsc(L[i]) + '</p>' + rows + '</div>' +
+      '<button type="button" class="stTimBtn" data-tim="' + (last ? (ack ? 'ack' : 'ok') : 'next') + '">' + (last ? 'OK' : 'Next') + '</button>');
+  }
+  // the band itself, made once; its words written only when they change (the ladder's tick runs every half second)
+  function stTimPut(cls, html) {
+    if (!stTimEl) {
+      stTimEl = document.createElement('aside');
+      stTimEl.id = 'stTim'; stTimEl.setAttribute('role', 'dialog'); stTimEl.setAttribute('aria-label', STORY_TIM.name + ', ' + STORY_TIM.role);
+      stTimEl.addEventListener('click', ev => {
+        const b = ev.target && ev.target.closest ? ev.target.closest('[data-tim]') : null;
+        if (!b) return;
+        if (b.dataset.tim === 'lad') stLadShut = stLad.i;          // (this card read: the band waits for the next one)
+        else if (b.dataset.tim === 'next') stTimI++;
+        else if (b.dataset.tim === 'line') { stLine = ''; storyCardSync(); }               // G3357: Tim's message read
+        else if (b.dataset.tim === 'open') stTimShut = false;                              // G3357: the chip
+        else if (b.dataset.tim === 'ack') { stTimShut = true; stLine = ''; storyEvent({ k: 'ack' }); }   // G3357: the beat read
+        else stTimShut = true;
+        storyTimSync();
+      });
+      document.body.appendChild(stTimEl);
+    }
+    if (stTimEl.className !== cls) stTimEl.className = cls;
+    if (stTimEl.dataset.html !== html) { stTimEl.innerHTML = html; stTimEl.dataset.html = html; }
+    stTimEl.hidden = false;
+  }
+  // ---- G3370-G3379 (TUTO-FLIGHT): THE LADDER ON T1'S FLIGHT, AND "SKIP THE FLIGHT" (GAME-PLAN §R2, the user 19 Oct: "a few
+  // cards covering the basics ... text and/or image on transparent background in the bottom part of the screen. This will
+  // be deactivated if manual controls are taken. There will be an option to skip the tutorial flight and get straight into
+  // the WWII hangar"). The cards are 79_story.js STORY_LADDER, stepped by storyLadderStep (pure) on the pilot's own phase,
+  // its sim clock and the way left to HOME; Tim's band shows them on a transparent ground (#stTim.lad). One ladder per
+  // flight (a roll-out, playerFlightStart: a Restart or a Fly on keeps it). The player's hand on the controls ends it for
+  // that flight ('flydiy:manual', Pilot's AP-TOGGLE G3325). Only on the story's T1 (STORY_PAGE: never the sandbox, never
+  // ?career=1)
+  let stLad = STORY_PAGE ? storyLadderNew() : null, stLadShut = -1, stSkipEl = null;   // (the sandbox: the story is not loaded)
+  function storyLadderReset() { stLad = storyLadderNew(); stLadShut = -1; }
+  // the flight as the ladder reads it, or null in the shed (no pilot, or the garage)
+  function stFlightNow() {
+    if (inGarage || !ap) return null;
+    let dHome = null;
+    try { const id = storySite('home', world.aerodromes), H = (world.aerodromes || []).find(a => a && a.id === id), c = sim.cgPos();
+      if (H && typeof H.x === 'number' && typeof H.z === 'number') dHome = Math.hypot(c[0] - H.x, c[2] - H.z); } catch (e) {}
+    return { phase: ap.phase, t: +ap.t || 0, dHome, manual: !!(window.FLYDIY_AP && typeof window.FLYDIY_AP.manual === 'function' && window.FLYDIY_AP.manual()) };
+  }
+  // T1's flight: the ladder's card now (stepped), or null (not T1, or not flying)
+  function storyLadderNow() {
+    const s = stLive();
+    if (!s || s.open || s.beat !== 'T1') return null;
+    const F = stFlightNow();
+    if (!F) return null;
+    const r = storyLadderStep(stLad, F);
+    stLad = r.L;
+    return { card: r.card, i: stLad.i, n: STORY_LADDER.length, off: stLad.off };
+  }
+  function storyLadderShow(lad) {
+    if (!lad.card || lad.off || stLadShut === lad.i) { if (stTimEl) stTimEl.hidden = true; return; }
+    const C = lad.card;
+    stTimPut('lad', STIM_FACE + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>the flight</small>' +   // G3356: no counter
+      '<p><b class="stLadT">' + stEsc(C.title) + '</b> ' + stEsc(C.text) + '</p></div>' +
+      (C.img ? '<img class="stLadImg" src="' + stEsc(C.img) + '" alt="">' : '') +
+      '<button type="button" class="stTimBtn" data-tim="lad">OK</button>');
+  }
+  // SKIP THE FLIGHT: T1 done exactly as a stop at HOME would do it - the stop's record into the story (its effects: the
+  // hangar ours, T2's client Cub on its way), the starter into the HOME hangar through the stop's own roll-in
+  // (playerArrive, then the garage there: playerGoTo), then the shed door. The skip IS the move: no flight of its own is
+  // written (no money, no logbook row, no clock) - a flight in the air is walked away from without its end being recorded
+  function storySkipFlight() {
+    const s = stLive();
+    if (!s || s.open || s.beat !== 'T1') return { ok: false, why: 'the flight to skip is the move (T1)' };
+    const home = storySite('home', world.aerodromes), slot = s.planes.starter;
+    if (!home || !slot) return { ok: false, why: home ? 'no starter aeroplane' : 'no aerodrome plays the WWII field' };
+    let d = playerLoad();
+    const W = d.fleet[slot] ? playerWhere(d, slot) : null;
+    const stop = careerStopRecord({ how: 'stopped', aero: home, slot, row: { from: (W && W.aero) || null, to: home, t: 0 } });
+    stLine = '';
+    const r = storyEvent({ k: 'stop', stop, slot }, d);
+    if (!r.ok) { storyCardSync(); return { ok: false, why: r.why }; }
+    d = r.doc;
+    const a = d.fleet[slot] ? playerArrive(d, slot, home, { prefer: PREM_MAIN }) : null;
+    if (a && a.ok) { d = a.doc; if (a.kind === 'in' && a.hangar && a.hangar !== d.here) { const g = playerGoTo(d, a.hangar); if (g.ok) d = g.doc; } }
+    const flying = !inGarage;
+    if (flying) flEnded = true;
+    player = d; playerSave();
+    try { baseId = d.sheds[d.here].base; } catch (e) {}
+    storyCardSync(); storyFlush(); storyTimSync(); storySkipSync();
+    try { if (window.GARAGE_SPEC && window.GARAGE_SPEC.syncShelf) window.GARAGE_SPEC.syncShelf(); } catch (e) {}
+    try { if (window.FLYDIY_PLAYER && window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); } catch (e) {}
+    // the shed door (the bar's own: the arrival card down, the flyouts shut, the roll-in screen), the room built at HOME
+    if (flying) { const b = document.getElementById('bHangar2'); if (b && b.onclick) b.onclick(); }
+    return { ok: true, why: '', here: d.here, where: d.fleet[slot] ? playerWhere(d, slot) : null };
+  }
+  // the pill at the bottom edge (the garage's look, never centred): T1 only, in the shed, on the stand and in flight
+  function storySkipSync() {
+    if (!STORY_PAGE || typeof document === 'undefined' || !document.body) return;
+    const s = stLive(), on = !!(s && !s.open && s.beat === 'T1' && !stIntroWas);
+    if (!stSkipEl && !on) return;
+    if (!stSkipEl) {
+      stSkipEl = document.createElement('button');
+      stSkipEl.type = 'button'; stSkipEl.id = 'stSkip';
+      stSkipEl.textContent = 'Skip the flight: straight to the WWII hangar';
+      stSkipEl.addEventListener('click', () => { const r = storySkipFlight(); if (!r.ok) console.warn('flyDiy (story): the skip - ' + r.why); });
+      document.body.appendChild(stSkipEl);
+    }
+    stSkipEl.hidden = !on;
+    try { document.body.classList.toggle('stSkipOn', on); } catch (e) {}
+  }
+  // THE BENCH NEVER STANDS IN THE SMALL SHED (the user, 19 Oct: "will never get the bench"): a property of the SHED - the
+  // story's cabin shed (`story` on the shed record, G2743 / STORY-PAGE) - at every beat; the garage shows the design pane
+  // (G3351: the smoke run of 22 Oct found #tabBench gone from the page - the bench's tests live in the left panel's
+  // #edBench now - so the rule hides THAT, by a body class editor.css reads, and says why in its place)
+  function storyBenchRule() {
+    if (!STORY_PAGE || typeof document === 'undefined' || !document.body) return;
+    let small = false;
+    try { const d = playerLoad(), sh = d.sheds && d.sheds[d.here]; small = !!(sh && sh.story); } catch (e) {}
+    if (document.body.classList.contains('stNoBench') !== small) document.body.classList.toggle('stNoBench', small);
+    // G3361 (the user 23 Oct: "I see no point in the lines on the top left. Tim feels like he's enough"): the reason is
+    // Tim's to say (STORY_BENCH_LINE, his last words in the small shed), no note in the panel
+    const n = document.getElementById('stNoBenchNote');
+    if (n) n.remove();
+  }
+  var STORY_BENCH_LINE = 'No test bench in here, mind - certification happens at the WWII field\u2019s hangar.';
+  // G3351: THE PAINT-ONLY LOCK, KEPT. The story's mask note fires on a CHANGE of mask; at a New career it fired before
+  // editor.js had defined EDITOR_LOCK, and the mask never changed again, so the lock never engaged (the smoke run of 22
+  // Oct). This holds the editor's lock to the story's mask on every tick, whatever loaded first.
+  var stMarksOff = false;   // G3357 (a var: placeIndicators can run before this block)
+  const STORY_LOCK_WHY = 'Tim: the structure comes later in the story - paint, liveries and colours for now.';
+  function storyLockSync() {
+    if (!STORY_PAGE) return;
+    let want = false;
+    try { want = storyMask(playerLoad()) === 'finish'; } catch (e) {}
+    stMarksOff = want;   // G3357: the CG / neutral-point marks are design marks - off while only paint is allowed (T0)
+    if (!window.EDITOR_LOCK || typeof window.EDITOR_LOCK.finishOnly !== 'function') return;
+    if (!!window.EDITOR_LOCK.locked() !== want) window.EDITOR_LOCK.finishOnly(want ? STORY_LOCK_WHY : null);
+  }
+  // G3352: a cabin shed made before the cozy kits (park + bench + comfort only) takes the plot's kits now - decor only,
+  // the same shed, its aeroplanes untouched; G3353: and the props the plot leaves out (the big machines), once
+  function storyCabinKits() {
+    if (!STORY_PAGE) return;
+    try {
+      const d = playerLoad(), id = d.here, sh = d.sheds && d.sheds[id];
+      if (!sh || !sh.story) return;
+      const P = BASE_OFFERS[sh.base] && BASE_OFFERS[sh.base].plots[id];
+      if (!P) return;
+      const thin = JSON.stringify(sh.kits) === '["park","bench","comfort"]' && P.kits && P.kits.length > 3;
+      const omit = Array.isArray(P.omit) && !Array.isArray(sh.omit);
+      const lamp = P.workLamp && typeof P.workLamp === 'object' && !sh.workLamp;   // G3354
+      const cross = Array.isArray(P.lampXZ) && JSON.stringify(P.lampXZ) !== JSON.stringify(sh.lampXZ || null);   // G3354
+      if (!thin && !omit && !lamp && !cross) return;
+      const n = JSON.parse(JSON.stringify(d));
+      if (thin) n.sheds[id].kits = P.kits.slice();
+      if (omit) n.sheds[id].omit = P.omit.slice();
+      if (lamp) n.sheds[id].workLamp = Object.assign({}, P.workLamp);
+      if (cross) n.sheds[id].lampXZ = P.lampXZ.map(p => p.slice());
+      player = n; playerSave();
+    } catch (e) { console.warn('flyDiy (story): the cabin kits -', e && e.message); }
+  }
+  // G3355 THE CABIN FLOOD ON AT THE STORY START (the user 22 Oct: "the cabin flood switched on at the story start; no
+  // change to Rufus's file"): at T0 in the cabin shed, the cage's light switches go on once per page - the master switch
+  // and the cabin flood. A switch is a position, not the airframe (G3449: bench.js counts the levels as STATE, so the
+  // certificates hold); no build file is touched. Waits for the garage's CAGE_UI, then never again on this page.
+  let stFloodDone = false;
+  function storyFloodOn() {
+    if (!STORY_PAGE || stFloodDone) return;
+    const U = window.CAGE_UI;
+    if (!U || !U.P || typeof U.build !== 'function') return;
+    stFloodDone = true;
+    try {
+      const d = playerLoad(), sh = d.sheds && d.sheds[d.here], s = stLive();
+      if (!s || s.beat !== 'T0' || !sh || sh.story !== 'cabin') return;
+      if (+U.P.lightOn === 1 && +U.P.li_flood === 1) return;
+      U.P.lightOn = 1; U.P.li_flood = 1; U.build();
+      if (typeof U.syncSliders === 'function') U.syncSliders();
+    } catch (e) { console.warn('flyDiy (story): the cabin flood -', e && e.message); }
+  }
   if (STORY_PAGE) {
-    try { storyCardSync(); storyFlush(); } catch (e) { console.warn('flyDiy (story): the boot -', e && e.message); }
+    try { storyCabinKits(); storyCardSync(); storyFlush(); storyTimSync(); storyBenchRule(); storyLockSync(); storySkipSync(); storyFloodOn(); } catch (e) { console.warn('flyDiy (story): the boot -', e && e.message); }
+    setInterval(() => { try { storyTimSync(); storyBenchRule(); storyLockSync(); storySkipSync(); storyFloodOn(); } catch (e) {} }, 1500);
+    // G3370: the ladder's tick (its card follows the pilot's phase; nothing runs off T1's flight)
+    setInterval(() => { try { if (stTimBeat === 'T1' && !inGarage) storyTimSync(); } catch (e) {} }, 500);
+    // (G3370: a hand on the controls in flight ends the ladder for that flight, at once)
+    try { window.addEventListener('flydiy:manual', ev => { try { if (ev && ev.detail && ev.detail.manual && !inGarage) stLad.off = true; storyTimSync(); } catch (e) {} }); } catch (e) {}
+    try { storyIntroCurtain(); } catch (e) { console.warn('flyDiy (story): the opening -', e && e.message); }
+    // G3384: a story with its starter - the design flow's "New aeroplane" door stays shut (design_flow.js maybeAutoOpen)
+    try { const s = stLive(); if (s && s.planes && s.planes.starter) window.FLYDIY_STORY_STARTER = s.planes.starter; } catch (e) {}
     // T2's checklist follows the build on the stand (its ledger memoised on the spec's fingerprint)
     setInterval(() => { try { const s = stLive(); if (s && !s.open && s.beat === 'T2') storyCardSync(); } catch (e) {} }, 3000);
     window.FLYDIY_STORY = {
@@ -8765,6 +9355,7 @@
       mask: () => storyMask(playerLoad()), jobsOpen: () => storyJobsOpen(playerLoad()), card: () => storyCardNow(),
       event: ev => { const r = storyEvent(ev); return { ok: r.ok, why: r.why, advanced: r.advanced, effects: r.effects }; },
       certified: storyCertified, flush: storyFlush, pending: () => stBusy || stQueue.length > 0, line: () => stLine,
+      ladder: () => ({ i: stLad.i, off: stLad.off, card: stLad.i >= 0 && !stLad.off ? STORY_LADDER[stLad.i].id : null }), skip: storySkipFlight,   // G3370
     };
   }
   window.FLYDIY_PLAYER = {
@@ -10233,6 +10824,39 @@
   }
 
   let gInd = null, gLabels = [], gLabelsOld = [];
+  // P1 CG-COLOURS: THE TOOLTIP - the band in words and what to move, over either label: the pointer's hover (mouse,
+  // the existing hover throttle) or a TAP (no hover-only: the phone has none); a tap anywhere else closes it
+  let gTipBand = null, gTipEl = null;
+  function cgTipOn(cx, cy) {
+    if (!gTipBand || !gLabels.length || !inGarage) return false;
+    const r = canvas.getBoundingClientRect(), H = r.height || 1, k = camera.projectionMatrix.elements[5] || 2;
+    const v = new THREE.Vector3();
+    for (const sp of gLabels) {
+      if (!sp.visible) continue;
+      sp.getWorldPosition(v).project(camera);
+      if (v.z > 1) continue;
+      const sx = r.left + (v.x + 1) / 2 * r.width, sy = r.top + (1 - v.y) / 2 * H;
+      const hw = sp.scale.x * k * H / 2 * 0.5, hh = sp.scale.y * k * H / 2 * 0.5;   // a non-attenuated sprite: scale x the projection, in viewport heights
+      if (Math.abs(cx - sx) <= hw && Math.abs(cy - sy) <= hh) return true;
+    }
+    return false;
+  }
+  function cgTipShow(cx, cy) {
+    const B = gTipBand; if (!B) return;
+    if (!gTipEl) { gTipEl = document.createElement('div'); gTipEl.id = 'cgTip'; document.body.appendChild(gTipEl); }
+    gTipEl.className = 'b-' + B.band;
+    gTipEl.innerHTML = '<div class="cgT">' + (B.mark ? '! ' : '') + B.title + '</div><div class="cgW">' + B.why + '</div>' +
+      (B.fix ? '<div class="cgF">' + B.fix + '</div>' : '') +
+      '<div class="cgB">red under 0 % \u00b7 orange 0-5 % or over 40 % \u00b7 green 5-40 %</div>';
+    gTipEl.hidden = false;
+    const w = gTipEl.offsetWidth || 300, h = gTipEl.offsetHeight || 120;
+    gTipEl.style.left = Math.max(8, Math.min(innerWidth - w - 8, cx + 14)) + 'px';
+    gTipEl.style.top = Math.max(8, Math.min(innerHeight - h - 8, cy + 14)) + 'px';
+  }
+  function cgTipHide() { if (gTipEl) gTipEl.hidden = true; }
+  function cgTipHover(cx, cy) { if (cgTipOn(cx, cy)) cgTipShow(cx, cy); else cgTipHide(); }
+  function cgTipTap(cx, cy, mouse) { if (cgTipOn(cx, cy)) { if (!mouse && gTipEl && !gTipEl.hidden) cgTipHide(); else cgTipShow(cx, cy); return true; } cgTipHide(); return false; }   // a mouse click keeps the hover's tip open; a second tap closes it
+  if (typeof window !== 'undefined') window.CG_TIP = { on: cgTipOn, show: cgTipShow, hide: cgTipHide, band: () => gTipBand };
   // a word floated above each marker. Canvas -> sprite, because a line drawing
   // cannot say which post is which and the two are only 0.3 m apart on a stable
   // aeroplane. sizeAttenuation off keeps them legible at any zoom.
@@ -10345,7 +10969,8 @@
   function placeIndicators() {
     const d = standOffset();
     // G255: a screenshot has no marks; G1115: nor the roll-out shot (the CG post and its labels rode out on the aeroplane)
-    gGrp.visible = !!d && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) && !window.__frLoading;   // G2345: not under the loading view (its own CG bar)
+    gGrp.visible = !!d && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) && !window.__frLoading   // G2345: not under the loading view (its own CG bar)
+      && !stMarksOff;   // G3357: not on the story's paint-only stage (T0)
     if (d) gGrp.position.set(d[0], d[1], d[2]);
   }
   function buildIndicators() {
@@ -10370,7 +10995,7 @@
     const P = def.parts;
     const [xA] = sim.axes();
     // the live answer when there is one (see refreshIndicators), else the sim
-    let cg, d, smTxt = null, cgTxt = null, smBad = false;
+    let cg, d, smTxt = null, cgTxt = null, smV = null;
     const b = LAST_BAL;
     if (b && P.GAL != null && P.GAR != null) {
       const a = P.GAL * 3, c2 = P.GAR * 3;
@@ -10379,14 +11004,14 @@
       const k = b.cgX - b.gearX;
       cg = [mx + k * xA[0], my + k * xA[1], mz + k * xA[2]];
       d = b.npX - b.cgX;
-      if (b.staticMargin != null) { smTxt = 'stability margin ' + (b.staticMargin * 100).toFixed(0) + ' %'; smBad = b.staticMargin < 0.05; }
+      if (b.staticMargin != null) { smTxt = 'stability margin ' + (b.staticMargin * 100).toFixed(0) + ' %'; smV = b.staticMargin; }
       if (b.cBar > 0 && typeof b.xLEmac === 'number' && isFinite(b.xLEmac))
         cgTxt = ((b.cgX - b.xLEmac) / b.cBar * 100).toFixed(0) + ' % of the wing chord';
     } else {
       const s = shakeOf();
       cg = sim.cgPos();
       d = s.npX - s.cgX;
-      if (s.staticMargin != null) { smTxt = 'stability margin ' + (s.staticMargin * 100).toFixed(0) + ' %'; smBad = s.staticMargin < 0.05; }
+      if (s.staticMargin != null) { smTxt = 'stability margin ' + (s.staticMargin * 100).toFixed(0) + ' %'; smV = s.staticMargin; }
       if (s.cBar > 0 && typeof s.xLEmac === 'number' && isFinite(s.xLEmac))
         cgTxt = ((s.cgX - s.xLEmac) / s.cBar * 100).toFixed(0) + ' % of the wing chord';
     }
@@ -10401,7 +11026,14 @@
     // two markers stop being tellable apart.
     const lin = h => [(h >> 16 & 255) / 255, (h >> 8 & 255) / 255, (h & 255) / 255]
       .map(v => (v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
-    const AMBER = lin(0xffb257), CYAN = lin(0x63d3cc), PALE = lin(0xd3c3ae), RED = lin(0xff7b6b);
+    const AMBER = lin(0xffb257), PALE = lin(0xd3c3ae);
+    // P1 CG-COLOURS: ONE colour for the pair - red / orange / green from the margin's band (64b genMarginBand), the
+    // "!" on the margin's line for red and orange, the reasons in the tooltip (cgTip*)
+    const MB = (typeof genMarginBand === 'function') ? genMarginBand(smV) : null;
+    const BANDC = { red: lin(0xff6b5b), orange: lin(0xffa13d), green: lin(0x6fd08a) };
+    const COL = MB ? BANDC[MB.band] : AMBER;
+    if (MB && MB.mark && smTxt) smTxt += ' ' + MB.mark;
+    gTipBand = MB ? Object.assign({ sm: smV }, MB) : null;
     // an upright post from the ground to well above the aeroplane, so the two
     // are comparable at a glance from any angle
     const label = (px, py, pz, text, col, sub) => {
@@ -10414,11 +11046,11 @@
       for (const [dx, dz] of [[0.45, 0], [0, 0.45]])
         seg([px - dx, h, pz - dz], [px + dx, h, pz + dz], col);
     };
-    post(cg[0], cg[2], smBad ? RED : AMBER, 3.2);
+    post(cg[0], cg[2], COL, 3.2);
     // d: body-x offset NP - CG, aft positive; negative = the CG is BEHIND the
     // neutral point and the aeroplane is statically unstable (the post reds)
     const npx = cg[0] + d * xA[0], npz = cg[2] + d * xA[2];
-    post(npx, npz, CYAN, 2.8);
+    post(npx, npz, COL, 2.8);
     // NEUTRAL POINT, not centre of lift. It is where the pitching moment stops
     // changing with alpha — the aft limit the CG must stay ahead of — and the
     // gap between the two posts IS the static margin. The centre of lift is a
@@ -10426,10 +11058,10 @@
     // something false about what the gap means.
     // G255: WORDS, NOT INITIALS (the user: "CG, MAC, NP don't mean anything
     // to me apart from CG"). The rail's `legend` flyout says the rest.
-    label(npx, 2.8, npz, 'neutral point', CYAN, smTxt);
-    label(cg[0], 3.2, cg[2], 'centre of gravity', smBad ? RED : AMBER, cgTxt);
+    label(npx, 2.8, npz, 'neutral point', COL, smTxt);
+    label(cg[0], 3.2, cg[2], 'centre of gravity', COL, cgTxt);
     // and the margin itself, as a bar on the ground between the two posts
-    seg([cg[0], 0.05, cg[2]], [cg[0] + d * xA[0], 0.05, cg[2] + d * xA[2]], CYAN);
+    seg([cg[0], 0.05, cg[2]], [cg[0] + d * xA[0], 0.05, cg[2] + d * xA[2]], COL);
     // ground contacts: where it actually touches, wheel by wheel
     for (const k of ['GAL', 'GAR', 'TW']) {
       const i = P[k]; if (i == null || i < 0) continue;   // H2: a float build has no third wheel
@@ -10858,6 +11490,11 @@
   // the garage's own framing: the boot's (the rail's 'r') - also the roll-out shot's fixed eye (G1115.1, rollanim o.front)
   function garageFraming() {
     const F = { az: -2.5, el: 0.22, dist: 14 };
+    // G3507 (DC3-BUILD, 2026-10-23): A BUILD WIDER THAN THE OLD ENVELOPE IS FRAMED WHOLE. 14 m frames every build to the
+    // 18 m sailplane; the full-size DC-3's 29 m put the eye inside its own wingspan. Past 18 m the eye stands back in
+    // proportion (22.6 m at 29 m: 2.4 m inside the works' walls on this bearing). Every build to 18 m: 14, as ever
+    const spanG = def && def.params && def.params.gen ? def.params.gen.span : 0;
+    if (spanG > 18) F.dist = 14 * spanG / 18;
     // G439 (A5): A LOW SHED LOWERS THE EYE. At 14 m and 0.22 rad the eye
     // stands 3 m over the aeroplane's centre; the field shed's eave is 3.6 m,
     // and the room clamp pinned the camera to the ceiling, over the lamps,
@@ -10895,9 +11532,38 @@
     flReveal = 0;
     camera.fov = garageFov; camera.updateProjectionMatrix();
   }
+  // G3507 (DC3-BUILD, the user 23 Oct: "use the large hangar for now ... just for now and the sandbox"): A BUILD THE
+  // SANDBOX'S DOOR CANNOT TAKE - the full-size DC-3's 29 m against the club's 25 m door (71_player_bases hangarDoorWhy) -
+  // moves the sandbox's room to the WORKS shell (40 x 40 m, its 35 m door the only one that passes) through the shed
+  // sheet's own door (GARAGE_ENV.setShell: the room rebuilt, the eye re-framed, HOME's shed in the world follows). Never
+  // in a career (a shell there is a rebuild, paid - nothing game-related on the DC-3 yet), never for a build inside the
+  // old 18 m envelope (every saved build: the room is the player's, as ever), and never when no shed takes it
+  function sandboxWideRoom() {
+    try {
+      if (CAREER_DEV || !def || !def.params || !def.params.gen) return;
+      const span = def.params.gen.span;
+      if (!(span > 18) || typeof hangarDoorWhy !== 'function' || typeof SHELLS === 'undefined' || !SHELLS.works) return;
+      const foot = { half: span / 2 };
+      if (!hangarDoorWhy(shedHome(), foot)) return;                                   // this room's door takes it
+      if (hangarDoorWhy({ shell: 'works', dims: SHELLS.works.dims }, foot)) return;  // no shed does
+      if (window.GARAGE_ENV && window.GARAGE_ENV.setShell) window.GARAGE_ENV.setShell('works');
+    } catch (e) { console.warn('flyDiy: the wide build\'s room could not follow -', e && e.message); }
+  }
   // G680: a parked aeroplane's capture in flight holds the editor between its tasks - the doors that need the
   // player's own aeroplane in it (the shed, the editor, the sync) finish it first (parked.js flush)
   function parkedFlush() { if (typeof window !== 'undefined' && window.PARKED && window.PARKED.flush) window.PARKED.flush(); }   // hoisted: no TDZ
+  // GARAGE-RATTLE (the user's playtest 24 Oct: "a continuous rattling noise in the garage after a flight"; A0's read):
+  // sim.reset() zeroes the state but not sim.out, which only a STEP writes (30_solver.js: out.V = hyp3(v), the engines'
+  // rpm, the thrust) - and nothing steps in the shed. So the last flight's speed, rpm, thrust and wash stayed in sim.out
+  // and fed the sound (audio_params.js reads it every frame: the airframe's ground rattle and wind off V, the engine
+  // and prop voices off rpm) for as long as the shed was open. The return to the shed leaves sim.out as the boot's: at
+  // rest, every engine output at 0. (The roll-out shot writes its own engine fields over these, as it always did.)
+  function simOutAtRest(o) {
+    if (!o) return;
+    o.V = 0; o.Veas = 0; o.Vg = 0; o.vs = 0; o.alpha = 0; o.beta = 0; o.nz = 1;
+    o.thrust = 0; o.wash = 0; o.hydroWet = 0; o.submerged = false;
+    for (const k of ['rpm', 'rpmEng', 'thrustPer']) { const a = o[k]; if (a && a.length) for (let i = 0; i < a.length; i++) a[i] = 0; }
+  }
   function enterGarage() {
     crowdStop(false);                  // G2970: the stand's passengers seated, the start that waited on them dropped
     parkedFlush();
@@ -10907,6 +11573,7 @@
     rollShotUi(false);
     rolledOut = false;
     if (specPending) { specPending = false; setAircraft('gen'); }
+    sandboxWideRoom();                 // G3507: a build the sandbox's door cannot take moves the room to the works
     if (!inGarage) {
       garageCamera();
       // G1063.3 (train 16's round trips: the shed at 30 fps after a flight, 54 fresh): the auto frame rate's verdict and
@@ -10937,6 +11604,7 @@
     rig = null; rigTested = false;
     testFlightOff();                  // A9: back in the shed is not an arrival
     sim.reset(0);
+    simOutAtRest(sim.out);            // GARAGE-RATTLE: the last flight's speed / rpm no longer sound in the shed
     standOnWheels();
     // NO AERODROME. The garage is not a place on the map, and the apron
     // placement it used to inherit was the last thread tying the editor to the
@@ -11051,6 +11719,7 @@
         handover: !!handover, audioPose: window.AUDIO && AUDIO.space ? AUDIO.space.shotPose : null,   // G1715: the start, the space
         onDone: hh => { raBusy = false; placeIndicators(); done(cage, hh); } });   // (hh: the handle - a skip calls this before play returns)
       placeIndicators();                 // (G1115: the CG marks off for the shot - placeIndicators reads ROLLANIM.busy)
+      revealPlant(6, 30, () => raBusy && inGarage);   // REVEAL-HITCH: the stand's grass, a cell a slice while the shot plays
     } catch (e) { console.warn('rollanim:', e && e.message); raBusy = false; done(cage, null); }
     return h;
   }
@@ -11144,6 +11813,7 @@
     stamped: !!(sim && typeof sim.cert === 'function' && sim.cert()) });
   function rollOut(after, sync) {      // `after` runs when the aeroplane is on the stand and on screen (S3)
     if (GARAGE_ONLY) return;           // G2100: the phone garage has no world to roll out into
+    if (CAREER_DEV && routesRollRefused()) return;   // G3260 (ROUTES): a plane on a route never rolls out
     certKick();                        // G1831: the certificate's thread starts with the roll-out
     const reveal = () => { flRevealStart(); if (after) after(); };
     rollHold = false;   // G690: a screen cut short (a roll-in over it) must not hold the next flight
@@ -11632,6 +12302,60 @@
   // G1137 (LOAD-COMPILE): ...A VIEW A TASK. The six in one task were the 'frames' step's 1.0-1.6 s task (train 17's metal
   // Cessna: 1581 ms - the draws, their uniforms, ~16 ms of first-draw per program new to a view); a view per task keeps
   // each well under the second, and every link is done before the first of them (programsReady), as before
+  // REVEAL-HITCH (19 Oct, Game-ON polish): THE GRASS ROUND THE REVEAL'S EYE, PLANTED AHEAD. The shed's loop never runs the
+  // world's update, so the first flight frame after every roll-out planted the stand's grass itself - the cell under the
+  // reveal's eye whole (the field's near tier), ~0.2 s of the frame the strict gate's every leg showed at 0.7 s. The
+  // reveal's eye is the chase's start (flRevealStart: 1.7 x viewDist out, 0.16 up, swung off astern) easing to the chase
+  // (1 x viewDist) - its heading is the stand's, so the eyes are taken on twelve headings at both distances round the
+  // roll-out's stand; the world plants each eye's cells (render_world coverPlant -> cover_ring plantNear: the tier its own
+  // update would give them). Under the boot's overlay after the warm draw, and a slice a task during the roll-out shot
+  // (every roll-out: a flight that ended far away left the stand's cells dropped). ?revealplant=0: off (the A/B)
+  const REVEAL_PLANT_OFF = /[?&]revealplant=0(&|$)/.test((typeof location !== 'undefined' && location.search) || '');   // (the gates' node vm has no location)
+  // the roll-out stand's heading (its site's stand.hdg: the nose's - the tail, flRevealStart's hdg, is it + pi; checked on
+  // the metal Cessna and the Cub at HOME: -1.8656 / 1.2760), null where there is none (the water, a spawn)
+  function standHdg() {
+    try {
+      if (sim && sim.hydro) return null;
+      const from = aeroById(inGarage ? rollFromId() : fromId); if (!from) return null;
+      const st = (typeof siteOf === 'function') ? siteOf(from.id) : null, shedD = shedDimsAt(from.id, st);
+      const stand = st ? ((typeof standFor === 'function' && shedD) ? standFor(st, shedD, null) : st.stand) : null;
+      return stand && flStartTaxi() && Number.isFinite(+stand.hdg) ? +stand.hdg : null;
+    } catch (e) { return null; }
+  }
+  // [x, y, z, rad]: rad 'reach' = the ring's whole reach (what the first flight frame's update would queue), else metres
+  function revealEyes() {
+    const a = standAnchor(); if (!a) return null;
+    const D = (def && def.params && def.params.viewDist) || 12, eyes = [], h = standHdg();
+    const P = h !== null && cam.mode !== 'cockpit' && cam.mode !== 'tower' ? revealPoseOf([a[0], a[1] + 1.2, a[2]], h + Math.PI, 0, worldShedBox()) : null;
+    if (P) {
+      const cg = [a[0], a[1] + 1.2, a[2]], at = (az, el, d, rad) => [cg[0] + d * Math.cos(el) * Math.cos(az), cg[1] + d * Math.sin(el), cg[2] + d * Math.cos(el) * Math.sin(az), rad];
+      eyes.push(at(P.az, P.el, P.dist, 'reach'));   // the first frame's eye: everything its update would plant
+      for (let k = 1; k <= 4; k++) { const f = k / 4; eyes.push(at(P.az + (P.tgt - P.az) * f, P.el, P.dist + (P.D - P.dist) * f, 10)); }   // the ease toward the chase
+      { const Q = revealPoseOf(cg, h + Math.PI, -P.s, worldShedBox()); eyes.push(at(Q.az, Q.el, Q.dist, 10)); }   // the other side's start (the shot's side may differ)
+      return eyes;
+    }
+    for (const [k, el] of [[1.7, 0.16], [1, 0.25]]) for (let i = 0; i < 12; i++) { const hh = i * Math.PI / 6;
+      eyes.push([a[0] + D * k * Math.cos(el) * Math.cos(hh), a[1] + 1.5 + D * k * Math.sin(el), a[2] + D * k * Math.cos(el) * Math.sin(hh), 10]); }
+    return eyes;
+  }
+  // a slice of `sliceMs` a task (`gapMs` between) until every eye's cells stand, or `alive()` says stop
+  function revealPlant(sliceMs, gapMs, alive) {
+    if (REVEAL_PLANT_OFF || !WF || !WF.coverPlant) return Promise.resolve(null);
+    const eyes = revealEyes(); if (!eyes) return Promise.resolve(null);
+    const t00 = performance.now(); let built = 0, tasks = 0;
+    return new Promise(res => {
+      const tick = () => {
+        if (alive && !alive()) return res({ built, done: false });
+        let r; try { r = WF.coverPlant(eyes, sliceMs); } catch (e) { console.warn('reveal plant:', e && e.message); return res(null); }
+        built += r.built; tasks++;
+        if (r.done) { window.FLYDIY_REVEAL_PLANT = { built, tasks, ms: Math.round(performance.now() - t00) }; return res(window.FLYDIY_REVEAL_PLANT); }
+        setTimeout(tick, gapMs || 0);
+      };
+      tick();
+    });
+  }
+  window.FLYDIY_REVEAL_PLANT_NOW = () => revealPlant(1e9);
+  window.FLYDIY_REVEAL_EYES = () => revealEyes();   // (the probe's view of them)   // (tools/perf/reveal_probe.js: the harness's boot takes the synchronous path)
   function worldWarmDraw() {
     const a = standAnchor(); if (!a || !WF) return;
     const cam = camera.clone(), D = (def && def.params && def.params.viewDist) || 12;
@@ -11899,7 +12623,7 @@
         // every program linked, before the first frame draws them (the boot's warm draw from the stand is a first frame too)
         .then(() => typeof renderer.initTexture === 'function' ? uploadSliced(scene, 'frames', 'first light') : null)
         .then(() => shaderProgress(programsReady(30000), 'world', 60000))
-        .then(() => { if (inGarage) return worldWarmDraw(); holdRender = false; return framesRendered(2); }));
+        .then(() => { if (inGarage) return Promise.resolve(worldWarmDraw()).then(() => revealPlant(120, 0, () => inGarage)); holdRender = false; return framesRendered(2); }));   // (REVEAL-HITCH: the stand's grass)
     } },
   ];
   const TRIP_BY = {}; for (const s of TRIP_STEPS) TRIP_BY[s.id] = s;
@@ -12163,7 +12887,7 @@
     testFlightOff();                                       // A9: a reset is not an arrival
     $('bPause').textContent = 'Pause'; $('bPause').classList.remove('on');
     telClear(); telLast = null; telHover = -1;
-    lastPhase = 'ROLL'; telBase = 0; flightLogged = false; flightOver = false; flEnd = null; crashWatch = null;
+    lastPhase = 'ROLL'; telBase = 0; flightLogged = false; flightOver = false; flEnd = null; crashWatch = null; flOcc = null;
     $('arrCard').hidden = true; arrivalShown = false;
     // THE TRACE IS A SUMMONED PANEL NOW, and a summoned panel is the player's:
     // fullReset used to close it, which is why the one number a flight
@@ -12172,6 +12896,9 @@
     railPhase = ''; setRail(null);
   }
   $('bReset').onclick = fullReset;
+  // G3325: the toggle hands the aeroplane over, either way (the key's apToggle the same); the state for the story's cards
+  if ($('bAP')) $('bAP').onclick = () => setManual(!manual, 'button');
+  window.FLYDIY_AP = { manual: () => manual, autopilot: () => !manual, set: onAutopilot => setManual(!onAutopilot, 'api') };
   // selecting the Garage build puts you IN the garage. Since G35 the garage's
   // editor is the CAGE EDITOR overlay — it opens with the garage, and closing
   // it leaves you at the stand (builds bar, env buttons, Roll out & fly).
@@ -12559,6 +13286,7 @@
       }
     } catch (err) { console.error('cage editor boot:', err); }
     showCage = true;
+    if (CAREER_DEV) techMaskSync();         // G3230: the machine shop's greys (a career's only)
     applyStand();
     applyEnv();                             // parents the mount into the room
     placeEditor();
@@ -14315,8 +15043,9 @@
                 { who: () => (inGarage ? 'in the shed' : manual ? 'you are flying' : 'the autopilot is flying') }); });
       flNote(body, 'A controller appears once you press a button on it. On the ' +
                    'keyboard: arrows fly it, PageUp/PageDown the throttle, F/G ' +
-                   'the flaps, B the brakes, numpad 1/7 the trim, A hands it ' +
-                   'over either way, C walks the views.');
+                   'the flaps, B the brakes, ; and \' the left and right toe brakes, ' +
+                   'numpad 1/7 the trim, numpad 0/enter the rudder trim, 4/6 the aileron ' +
+                   'trim, A hands it over either way, C walks the views.');
     },
     // G387: WORLD - the premises editor over the flight scene
     world(body) {
@@ -15264,6 +15993,22 @@
   // that keeps moving under a hand is the G39 judder with a reason.
   let flReveal = 0;
   const FL_REVEAL_K = 0.022, FL_REVEAL_FRAMES = 360;
+  // THE REVEAL'S POSE (flRevealStart's, REVEAL-HITCH 19 Oct: the pre-plant asks it ahead, from the stand): the eye starts at
+  // az / el / dist round the CG and eases to the target azimuth `tgt` (orbit: the 0.55 swing off astern, chase: astern, wing:
+  // abeam); `s` the side - the eye standing further from the shed's centre, unless the roll-out shot's side is given
+  function revealPoseOf(cg, hdg, side, shed) {
+    const D = def.params.viewDist || 12;
+    const astern = hdg;                        // the eye at hdg is behind
+    const far = a => {
+      if (!shed) return 0;
+      const ex = cg[0] + D * Math.cos(a), ez = cg[2] + D * Math.sin(a);
+      return Math.hypot(ex - (shed.x0 + shed.x1) / 2, ez - (shed.z0 + shed.z1) / 2);
+    };
+    const s = side ? side : far(astern + 0.55) >= far(astern - 0.55) ? 1 : -1;
+    const tgt = cam.mode === 'wing' ? hdg - Math.PI / 2
+              : astern + (cam.mode === 'orbit' ? s * 0.55 : 0);
+    return { D, s, tgt, az: tgt + s * 0.45, el: 0.16, dist: D * 1.7 };
+  }
   function flRevealStart() {
     rollShotUi(false);                   // G1370: the verbs come back as the reveal hands over
     if (window.FLIGHT_REC && window.FLIGHT_REC.reveal) window.FLIGHT_REC.reveal('the flight');   // G1996: marked with or without a screen
@@ -15276,23 +16021,12 @@
     if (cam.mode === 'tower') return;
     const xA = sim.axes()[0], cg = sim.cgPos();
     const hdg = Math.atan2(xA[2], xA[0]);     // xAft: the tail's direction
-    const D = def.params.viewDist || 12;
-    const astern = hdg;                        // the eye at hdg is behind
-    // which side: the eye that stands further from the shed's centre
-    const far = a => {
-      if (!flShedBox) return 0;
-      const ex = cg[0] + D * Math.cos(a), ez = cg[2] + D * Math.sin(a);
-      return Math.hypot(ex - (flShedBox.x0 + flShedBox.x1) / 2,
-                        ez - (flShedBox.z0 + flShedBox.z1) / 2);
-    };
     // B10: after the roll-out shot the side is the shot's (it ended on this very frame), read once
-    const s = raSide ? raSide : far(astern + 0.55) >= far(astern - 0.55) ? 1 : -1;
+    const P = revealPoseOf(cg, hdg, raSide, flShedBox), D = P.D, tgt = P.tgt;
     raSide = 0;
-    const tgt = cam.mode === 'wing' ? hdg - Math.PI / 2
-              : astern + (cam.mode === 'orbit' ? s * 0.55 : 0);
     if (cam.mode === 'orbit') { azT = tgt; elT = 0.09; distT = D * 1.05; }
     else azT = tgt;                    // flCamera overwrites next frame, same base
-    az = tgt + s * 0.45; el = 0.16; dist = D * 1.7;
+    az = P.az; el = P.el; dist = P.dist;
     flHdg0 = hdg; flYawRate = 0;       // no phantom yaw-rate lead on frame one
     flReveal = FL_REVEAL_FRAMES;
     // G2300 (STAGES): A NEW BUILDING'S REVEAL - the roll-out after a stage advanced opens on it (its camera target, its
@@ -15567,6 +16301,8 @@
       $('bGo').textContent = stopped ? 'Fly on' : 'Fly the circuit';
       $('bGo').classList.remove('warn');
     }
+    // G3325: the autopilot toggle - always in sight once the flight has started (the stand, the roll, the air, stopped)
+    if ($('bAP')) { $('bAP').hidden = inGarage || !started; apToggleSync(); }
     $('bPause').hidden = !flying;
     $('bReset').hidden = !flying;
     syncSkip();                 // G771: the skip, from the stand (at roll-out) until the hold
@@ -16011,8 +16747,10 @@
     function hold() { P.acc = 0; }
     // the loop's own work this frame (ms) and what its solver steps took, for auto's reading; `ran` the solver
     // steps actually run (0 when the sim is still - the shed, a pause; 2x runs twice the steps owed)
-    function end(workMs, physMs, steps, now, ran) {
-      if (P.legacy) return;
+    // (REVEAL, A0 22 Oct: `held` - a frame the loop ran and did not draw (holdRender) reports itself too, so a reader of the
+    // frames sees each one; it is no reading of the pace: nothing here counts it)
+    function end(workMs, physMs, steps, now, ran, held) {
+      if (P.legacy || held) return;
       if (ran == null) ran = steps;
       if (ran > 0 && physMs > 0) { const s = physMs / ran; P.stepMs = P.stepMs ? P.stepMs + 0.1 * (s - P.stepMs) : s; P.lastPhys = physMs; }
       if (P.mode !== 'auto') return;
@@ -16253,12 +16991,21 @@
     // and in the air — the toggle and the view keys work under the AP, and
     // a stand with a real hand on it shows THAT instead of the sweep below.
     inpEv = INP ? INP.update(fdt) : null;
+    // G3325 (AP-TOGGLE): THE TAKEOVER - a hand on a flight control (the stick, the pedals, the lever, the brakes: INP.flown,
+    // never a view key or a trim) while the autopilot flies takes the aeroplane, as a pilot's hand on the yoke does; the
+    // toggle says so, a press gives it back
+    // (after a hand-back the takeover is re-armed only once the controls have been let go - a key or a stick still held
+    // as the aeroplane is handed back does not take it again: GATE UISMOKE's toe brake, released after setManual(false))
+    if (INP && INP.flown) {
+      if (!INP.flown()) apTakeArmed = true;
+      else if (!manual && apTakeArmed && !inGarage && started && FL.ready) setManual(true, 'takeover');
+    }
     // THE DAY ADVANCES WITH PLAY (SKY S1, ruling aj): one clock, shed and world; a game pause pauses it
     // (G586: in the shed on the frame's own time; in flight it ticks after the solver, on the sim's)
     if (typeof DAY_CLOCK !== 'undefined' && inGarage) DAY_CLOCK.tick(fdt);
     if ((frame & 63) === 0) clockRowsSync(false);   // G2650: the route rows' clock line, to the minute (a string compare)
     if (inpEv && !inGarage && FL.ready && inpEv.fired.length) {
-      if (inpEv.fired.indexOf('apToggle') >= 0) setManual(!manual);
+      if (inpEv.fired.indexOf('apToggle') >= 0) setManual(!manual, 'key');
       if (inpEv.fired.indexOf('viewNext') >= 0) flCamNext();
       // G442.3: the dash's bindable steps go to the cockpit, as a click would
       if (CK && CK.dashAction) for (const id of inpEv.fired) CK.dashAction(id);
@@ -16354,6 +17101,7 @@
         // wreck over when it is at rest (or 4 s after the impact); the flight now runs on until the debris have come to rest
         // too (WATCH_REST at most), holds the wreck WATCH_HOLD more, and only then ends - the card small and in a corner
         const D = flDmg, up = !!(D && D.brokeUp);
+        flOcc = occNow();                                       // G2373: the occupants' bands (the worker sends them once, at the close)
         if (!crashWatch) { crashWatch = { t: sim.t, rest: null };
           $('phName').textContent = (up ? 'BROKE UP' : 'CRASHED') + (D && D.reason ? ': ' + D.reason : ''); }
         const W2 = window.FLYDIY_WRECK_STATS ? window.FLYDIY_WRECK_STATS() : null;
@@ -16389,7 +17137,12 @@
     if (running) userPaused = false;
     if (typeof window !== 'undefined') window.FLYDIY_HELD = !inGarage && !running && userPaused;
     if (WF && WF.setLampsPrep && !lampsPrepSet) { lampsPrepSet = true; WF.setLampsPrep(lampsPrep); }   // G1340
-    if (!inGarage && WF) WF.worldUpdate((DEVCAM_ACTIVE || PREM.open)
+    // G3380 (STORY-INTRO): a New career's opening draws the WORLD from the shed - its eye this frame, the world's update on
+    // the cabin's point (null: no opening, the shed as always)
+    const introAt = CAREER_DEV && STORY_PAGE && inGarage ? storyIntroFrame(fdt) : null;
+    const inShed = inGarage && !introAt;
+    if (introAt && WF) WF.worldUpdate(introAt);
+    else if (!inGarage && WF) WF.worldUpdate((DEVCAM_ACTIVE || PREM.open)
       ? [camera.position.x, camera.position.y, camera.position.z] : cg);
     else if (hangar && garageIsHangar()) hangar.faceShafts(camera);
     if (FR) FR.lap(FR.S.world);        // G620: the world's update (its premises, cover ring and fill pushed apart)
@@ -16452,6 +17205,7 @@
     if (Math.abs(distT - dist) < 1e-3) dist = distT;
     placeCamera();
     if (typeof ROLLANIM !== 'undefined') ROLLANIM.camera();   // B10: the shot's eye over the orbit's
+    if (CAREER_DEV && introAt) storyIntroPlace();             // G3380: the opening's eye over the orbit's
     // (The part callout used to be re-projected here every other frame. It is
     // gone — it sat on the one thing it was naming — and the frame loop got
     // its projection back.)
@@ -16460,7 +17214,11 @@
     // since applyStand stopped forcing them on) that is three fewer dirty
     // BufferAttributes and two fewer draws every frame
     if (lines && (lines.visible || pts.visible || (proxy && proxy.mesh.visible))) sync();
-    if (floatMeshes.length) syncFloats();
+    // G3449 (FLOAT-DUP, the user 22 Oct: "it's not an elongated floats, it's a duplicate, untextured" - G451.1 item 94
+    // back): the PHYSICS hull is the flight's stand-in for a model without drawn float parts. In the shed the cage layer
+    // draws the floats, and floats added there then a spec update (a design tile, the float kit's pitch) rebuild the
+    // model without them - so the physics hull is never shown in the shed, and synced only in flight (GATE FLOATDUP)
+    if (floatMeshes.length) { const ph = !inGarage; for (const m of floatMeshes) m.visible = ph; if (ph) syncFloats(); }
     if (waterFx && !inGarage) syncWaterFx(running ? fdt : 0);   // (G586: the spray on the frame's own time)
     // THE INTERACTION FIELD (H7, G460.8): on while a floatplane is over water (the CG's water level finite),
     // stepped before the render with the CG as its centre; off (the slot cleared) otherwise
@@ -16494,7 +17252,7 @@
     // linked (S3): a frame between the world step and the compile step drew
     // the fresh scene and compiled everything synchronously - 12 s in one
     // task. The `frames` step lifts the hold and waits for two real frames.
-    if (holdRender) { if (FR) FR.end(false, cg); POSE_LERP.back(); BOOT.frame(); return; }   // (G1100: the newest step back)
+    if (holdRender) { if (FR) FR.end(false, cg); POSE_LERP.back(); PACE.end(perfNow() - tLoop0, physMs, pc.steps, typeof ts === 'number' ? ts : perfNow(), simwRan >= 0 ? 0 : ran, true); BOOT.frame(); return; }   // (REVEAL: the held frame told, not counted)   // (G1100: the newest step back)
     if (window.WORLD_RIG && WORLD_RIG.interior) WORLD_RIG.interior(!inGarage && HEADCAM_ACTIVE);   // A6: the cabin's probe while the eye is in the cockpit
     // THE WATER'S MIRROR (G460.11): the decor captured from the eye mirrored about the water when the eye is low
     // over it (the plane: the water under the eye, else under the CG - a shore eye looking at a lake); the sky
@@ -16507,7 +17265,7 @@
     // mirror's own hide and restore, which is why it brackets that whole block from outside.
     // Everything earlier in the frame - the probes, the far shadow cascade, the parked captures
     // in worldUpdate - renders from other eyes entirely and sees the world whole.
-    if (!inGarage && WF && WF.vis) WF.vis.apply(camera);
+    if (!inShed && WF && WF.vis) WF.vis.apply(camera);
     if (window.WATER && WATER.mirrorRender && !inGarage && WF) {
       // THE MIRROR'S PLANE IS THE DRAWN SURFACE (G460.11.4), not the physics' waterH: a procedural lake can sit
       // 0.6 m over the DEM lake the renderer draws, and a plane mirror 0.6 m off stretches the reflection (the
@@ -16520,32 +17278,44 @@
       let wl = WF.waterDrawY ? WF.waterDrawY(camera.position.x, camera.position.z) : null;
       if (wl == null && WF.waterDrawY) wl = WF.waterDrawY(cgM[0], cgM[2]);
       if (wl == null && !WF.waterDrawY && world.waterH) { wl = world.waterH(camera.position.x, camera.position.z); if (!Number.isFinite(wl)) wl = world.waterH(cgM[0], cgM[2]); }
-      WATER.mirrorRender(THREE, renderer, scene, camera, Number.isFinite(wl) ? wl : null, { dt: fdt, clouds: (typeof CLOUDS !== 'undefined' && CLOUDS.draw) ? CLOUDS.draw : null, sky: WF.skyDome, hide: [WF.skyDome], hideMaterials: waterFx && waterFx.drops ? [waterFx.drops.spray && waterFx.drops.spray.material, waterFx.drops.sheets && waterFx.drops.sheets.material] : [] });
+      const wDrops = waterFx && waterFx.drops ? [waterFx.drops.spray && waterFx.drops.spray.material, waterFx.drops.sheets && waterFx.drops.sheets.material] : [];
+      // (G2831-G2833 prototypes, ?wrefl=b|c|bc: the sea's planar mirror off - the redesign's open sea has none; lakes keep it.
+      // A drawn level at the sea's own (0) is the sea or a lagoon at its level)
+      if (WATER.proto && WATER.proto.seaOff && Number.isFinite(wl) && Math.abs(wl) < 0.05) wl = null;
+      if (WATER.proto && WATER.proto.ring && !WATER.mirror.landAt && world.terrainH) WATER.mirror.landAt = (x, z) => { const wy = WF.waterDrawY ? WF.waterDrawY(x, z) : null; return world.terrainH(x, z) > (Number.isFinite(wy) ? wy : 0) + 0.5; };
+      if (WATER.proto && WATER.proto.ring && !WATER.mirror.waterAt && WF.waterDrawY) WATER.mirror.waterAt = (x, z) => WF.waterDrawY(x, z);   // (G2839: the inland dissolve counts the water on the mirror's own plane)   // (G2836: the ring's land test - over the DRAWN water's level: a lake at 38 m is water, round 2)
+      WATER.mirrorRender(THREE, renderer, scene, camera, Number.isFinite(wl) ? wl : null, { dt: fdt, clouds: (typeof CLOUDS !== 'undefined' && CLOUDS.draw) ? CLOUDS.draw : null, sky: WF.skyDome, hide: [WF.skyDome], hideMaterials: wDrops });
+      // (G2831 prototype b) the aircraft's own reflection: a hull-only capture at the water under it
+      if (WATER.proto && WATER.proto.hull && WATER.hullRender) {
+        let hy = WF.waterDrawY ? WF.waterDrawY(cgM[0], cgM[2]) : null;
+        if (hy == null && WF.waterDrawY) hy = WF.waterDrawY(camera.position.x, camera.position.z);
+        WATER.hullRender(THREE, renderer, scene, camera, Number.isFinite(hy) ? hy : null, craft, { hideMaterials: wDrops });
+      }
     }
     if (FR) FR.lap(FR.S.mirror);
     let framePresented = true;
     // G2070 (GARAGE-LAPTOP): the shed's shadow maps from their cached static depth + the casters that move (shed_shadow.js);
     // out of the shed its static depths are let go
-    const shedSh = inGarage && window.SHED_SHADOW ? SHED_SHADOW.pre(renderer, garageScene(), camera, hangar) : false;
+    const shedSh = inShed && window.SHED_SHADOW ? SHED_SHADOW.pre(renderer, garageScene(), camera, hangar) : false;
     if (!inGarage && window.SHED_SHADOW && SHED_SHADOW.held()) SHED_SHADOW.release();
-    if (aa) framePresented = aa.render(inGarage ? garageScene() : scene, camera) !== 'held';
-    else renderer.render(inGarage ? garageScene() : scene, camera);
+    if (aa) framePresented = aa.render(inGarage && !introAt ? garageScene() : scene, camera) !== 'held';
+    else renderer.render(inGarage && !introAt ? garageScene() : scene, camera);
     if (shedSh) SHED_SHADOW.post();
     if (FR) FR.lap(FR.S.render);       // G620: the submit (the shadow passes and the shader links pushed apart)
-    if (drawGuard && !inGarage) drawGuard.flush(camera);   // G1340: the held draws' programs, compiled after the frame
+    if (drawGuard && !inShed) drawGuard.flush(camera);   // G1340: the held draws' programs, compiled after the frame
     // F1: the contract comes OFF here, after the main render and the mirror capture it covers
-    if (!inGarage && WF && WF.vis) WF.vis.release();
+    if (!inShed && WF && WF.vis) WF.vis.release();
     // THE SUN'S GLARE (SKY S7): additive quads over the resolved frame, gated on occlusion rays
     if (framePresented && typeof SKY_GLARE !== 'undefined' && world.day && typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.last) {   // (G1340: a held frame draws nothing on the canvas)
       const L = SKY_LIGHT.last;
-      const d = inGarage ? (hangar && hangar.dayDir ? hangar.dayDir() : null) : (WF ? [WF.SUN_SKY.x, WF.SUN_SKY.y, WF.SUN_SKY.z] : null);
+      const d = inShed ? (hangar && hangar.dayDir ? hangar.dayDir() : null) : (WF ? [WF.SUN_SKY.x, WF.SUN_SKY.y, WF.SUN_SKY.z] : null);
       if (d) {
         glareDir.set(d[0], d[1], d[2]);
-        SKY_GLARE.setOccluders(() => inGarage ? [garageScene()] : [craft]);
-        SKY_GLARE.setTerrain(inGarage ? null : (x, z) => world.terrainH(x, z));
+        SKY_GLARE.setOccluders(() => inShed ? [garageScene()] : [craft]);
+        SKY_GLARE.setTerrain(inShed ? null : (x, z) => world.terrainH(x, z));
         const mT = Math.max(L.T[0], L.T[1], L.T[2], 1e-6);
         // the clouds between the eye and the sun dim the flare (C2: the CPU column, the same field the shadow bakes)
-        const cT = (!inGarage && typeof CLOUDS !== 'undefined' && CLOUDS.sunT && !L.isMoon) ? CLOUDS.sunT(camera.position.x, camera.position.y, camera.position.z) : 1;
+        const cT = (!inShed && typeof CLOUDS !== 'undefined' && CLOUDS.sunT && !L.isMoon) ? CLOUDS.sunT(camera.position.x, camera.position.y, camera.position.z) : 1;
         SKY_GLARE.update(camera, glareDir, { lum: (0.2126 * L.T[0] + 0.7152 * L.T[1] + 0.0722 * L.T[2]) * cT, isMoon: L.isMoon, phase: L.phase,
                                              aspect: renderer.domElement.width / Math.max(1, renderer.domElement.height), tint: [L.T[0] / mT, L.T[1] / mT, L.T[2] / mT] });
         SKY_GLARE.render(renderer);
@@ -16800,6 +17570,18 @@
       .then(() => compileDepthVariants(scene, true, dress))
       .then(() => { if (typeof console !== 'undefined') console.info('lamps: the pool ' + (want ? 'armed' : 'disarmed') + ' after its programs linked (' + Math.round(performance.now() - t0) + ' ms)'); });
   }
+  // APPROACH (A0 22 Oct; HWCOV): A GROUP MADE AFTER THE WORLD'S COMPILE LINKS ITS DEPTH PROGRAMS IN THE BACKGROUND. The town kit
+  // (render_premises kitHost) casts only near (castFar); its depth programs linked in the frame its shadow came on - 0.5-2 s
+  // on the approach to mk_sea, downwind at ~2.5 km (the program watch: one 'depth' program made in that frame). Its meshes
+  // carry userData.mayCast (shader_warm keys them though they cast nothing yet); this compiles them, a group a task
+  function depthPrelinkGroup(grp) {
+    if (!grp || !WF || typeof renderer.compileAsync !== 'function' || typeof PROG_WARM === 'undefined' || tripKeys.worldCompile === undefined) return null;   // (before the world's compile: it meets them)
+    const kinds = { depth: false, distance: false };
+    scene.traverse(o => { if (o.isLight && o.castShadow && o.shadow) { if (o.isPointLight) kinds.distance = true; else kinds.depth = true; } });
+    const { helper, n } = PROG_WARM.depthVariants(THREE, renderer, [grp], { kinds });
+    return n ? compileSliced(helper, PLAIN_RT(), scene, true).catch(e => console.warn('depth prelink:', e && e.message)) : null;
+  }
+  if (typeof window !== 'undefined') window.FLYDIY_DEPTH_PRELINK = depthPrelinkGroup;
   function compileDepthVariants(sc, sliced, dress) {
     sc = sc || scene;
     const D = dress || (f => f());
@@ -17245,6 +18027,8 @@
   // rebuilt once more, ~0.5 s after the batch let go - seen in GATE ROUNDTRIP's trace at 'firstFrame'); compiled
   // before that, the first roll-out compiled the rebuilt model again
   if (!GARAGE_ONLY) bootTripStep('craft');   // G2100: the flown model's programs in the world's light: a roll-out's
+  // G3380 (STORY-INTRO): a New career's opening - its views linked under this screen (registered only while its curtain is up)
+  if (!GARAGE_ONLY && CAREER_DEV && STORY_PAGE && stIntroEl) bootStep('intro', 'the opening', 4, () => (CAREER_DEV ? storyIntroPrepare() : null));
   // THE AEROPLANE, AS IT SETTLED (B9): a commit feeds back into the editor - the flown spec's CG re-derives the tail's
   // sizing, the energy layer re-places the tanks - and the export moves a hair after it (the metal Cessna's tail stabH
   // 0.04729 -> 0.04720, converged after one more sync). The loading re-plans the aircraft's keyed steps once at its end
@@ -17294,7 +18078,8 @@
   if (typeof window !== 'undefined') window.SCENERY = SCENERY;
   const bootOpts = { set: 'garage', landingLabel: 'the last pieces landing',
     done: () => { tripClose(bootTrip); if (PK_ASYNC() && window.PARKED.async) { window.PARKED.async = false; parkedFlush(); } setupClose(); if (SCENERY_Q) setTimeout(() => SCENERY.enter(), 0);
-      if (SIMW) SIMW.prewarm(); startLoop(); },   // G820 (C1c): the physics worker's world made on its own thread while the player is in the shed
+      if (SIMW) SIMW.prewarm(); startLoop();
+      if (CAREER_DEV && STORY_PAGE) storyIntroBoot(); },   // G3380 (STORY-INTRO): a New career's opening, as the screen lifts   // G820 (C1c): the physics worker's world made on its own thread while the player is in the shed
     require: ['sky', 'env', 'room', 'props', 'propTex', 'skin', 'crew', 'crewTex', 'crewBuild'],
     // the program count rides on every step's log entry: what each step compiled
     probe: () => ({ programs: renderer.info && renderer.info.programs ? renderer.info.programs.length : -1 }) };

@@ -1,0 +1,122 @@
+GATE DMGOCCUPANT (G2373-G2377) - each occupant's band after a crash: one of ["Unharmed","Light injuries","Heavy injuries","Life threatening","Fatal injuries"], the criteria behind it here only
+== the source
+  the card's code (showArrival, occLines, drawArrNotes): 64 string literals, no injury word
+== the criteria's numerics
+  the DRI of a 10 g step: 14.856 (closed form 14.857)
+  a 30 g, 0.1 s uniform pulse: Eiband voluntary 1.200 at 0.1 s, moderate 0.667 at 0.1 s (want 1.200 / 0.667 at 0.1 s)
+  FAR 23.562's pulse just under the test (25.2 g, 12.4 m/s): past false, Heavy injuries (by restraint); 15 % over the peak and 10 % over the dV: past true, Heavy injuries
+== Cub (cub)
+  taxi          no record - every seat Unharmed   [no crash; contact 2.9 g; 0 broken; 33.4 s]
+      (trigger 1.5 g) Pilot        Unharmed - DRI 1.5 | Eiband x 0.09/0.06, y 0.00/0.00 (voluntary/moderate) | peak x 3.5 y 0.0 z 1.6 g, dV x 3.1 z 0.2 m/s | restraint 3.1/18.0 g | space 1.00, cell x1.00 | by -
+  noseover      Pilot: Unharmed   [crashed: a gear member broke; contact 2.7 g; 7 broken; 19.2 s]
+      Pilot        DRI 4.9 | Eiband x 0.12/0.08, y 0.00/0.00 (voluntary/moderate) | peak x 9.6 y 0.1 z 5.0 g, dV x 2.9 z 2.1 m/s | restraint 2.8/18.0 g | space 1.00, cell x1.00 | by -
+      (trigger 1.5 g) Pilot        Unharmed - DRI 4.9 | Eiband x 0.12/0.08, y 0.00/0.00 (voluntary/moderate) | peak x 9.6 y 0.1 z 5.0 g, dV x 2.9 z 2.1 m/s | restraint 2.8/18.0 g | space 1.00, cell x1.00 | by -
+  far473        no record - every seat Unharmed   [no crash; contact 2.1 g; 0 broken; 16.3 s]
+      (trigger 1.5 g) Pilot        Unharmed - DRI 3.7 | Eiband x 0.01/0.01, y 0.00/0.00 (voluntary/moderate) | peak x 0.4 y 0.0 z 2.9 g, dV x 0.4 z 1.3 m/s | restraint 0.3/18.0 g | space 1.00, cell x1.00 | by -
+  hard          no record - every seat Unharmed   [no crash; contact 3.0 g; 0 broken; 15.9 s]
+      (trigger 1.5 g) Pilot        Unharmed - DRI 6.5 | Eiband x 0.03/0.02, y 0.00/0.00 (voluntary/moderate) | peak x 1.5 y 0.0 z 4.8 g, dV x 0.7 z 4.3 m/s | restraint 0.7/18.0 g | space 1.00, cell x1.00 | by -
+  trunk0        Pilot: Fatal injuries   [crashed: broke up: the fuselage parted (TPB off the core); contact 26.1 g; 118 broken; 7.9 s]
+      Pilot        DRI 23.8 | Eiband x 1.07/0.71, y 0.04/0.02 (voluntary/moderate) | peak x 248.1 y 5.0 z 171.4 g, dV x 18.6 z 11.6 m/s PAST 23.562 | restraint 11.9/18.0 g | space 0.00, cell x19.07, PARTED | by space
+  trunk25       Pilot: Heavy injuries   [crashed: a wing member broke; contact 14.1 g; 56 broken; 7.7 s]
+      Pilot        DRI 5.8 | Eiband x 0.48/0.31, y 0.69/0.43 (voluntary/moderate) | peak x 20.7 y 17.6 z 19.3 g, dV x 10.4 z 4.9 m/s | restraint 17.0/18.0 g | space 0.75, cell x1.24 | by cell
+  damage OFF: occupants none, damage().occ absent, payloads 0; the recorder on / off / again: 50655c6e / 50655c6e / 50655c6e, the same bands and criteria
+  an intact flight (30 s level, damage ON): buffers none, events 0, payloads 0, armed frames 0, 439.5 m up
+== Jodel (jodel)
+  taxi          no record - every seat Unharmed   [no crash; contact 2.8 g; 0 broken; 66.7 s]
+      (trigger 1.5 g) Pilot        Unharmed - DRI 2.0 | Eiband x 0.08/0.05, y 0.01/0.01 (voluntary/moderate) | peak x 3.1 y 0.3 z 2.1 g, dV x 3.4 z 0.6 m/s | restraint 2.9/18.0 g | space 1.00, cell x1.01 | by -
+  noseover      Pilot: Unharmed   [crashed: a gear member broke; contact 2.7 g; 3 broken; 27.9 s]
+      Pilot        DRI 5.7 | Eiband x 0.14/0.10, y 0.09/0.06 (voluntary/moderate) | peak x 7.6 y 2.4 z 5.0 g, dV x 1.9 z 1.3 m/s | restraint 4.8/18.0 g | space 0.99, cell x1.01 | by -
+      (trigger 1.5 g) Pilot        Unharmed - DRI 5.7 | Eiband x 0.14/0.10, y 0.09/0.06 (voluntary/moderate) | peak x 7.6 y 2.4 z 5.0 g, dV x 1.9 z 1.3 m/s | restraint 4.8/18.0 g | space 0.99, cell x1.01 | by -
+  far473        no record - every seat Unharmed   [no crash; contact 3.2 g; 0 broken; 24.1 s]
+      (trigger 1.5 g) Pilot        Unharmed - DRI 7.5 | Eiband x 0.01/0.01, y 0.01/0.00 (voluntary/moderate) | peak x 0.6 y 0.2 z 5.7 g, dV x 0.4 z 2.7 m/s | restraint 0.4/18.0 g | space 1.00, cell x1.00 | by -
+  hard          Pilot: Unharmed   [no crash; contact 4.6 g; 0 broken; 18.7 s]
+      Pilot        DRI 10.5 | Eiband x 0.02/0.01, y 0.01/0.01 (voluntary/moderate) | peak x 0.7 y 0.4 z 7.8 g, dV x 0.5 z 4.6 m/s | restraint 0.5/18.0 g | space 1.00, cell x1.00 | by -
+      (trigger 1.5 g) Pilot        Unharmed - DRI 10.5 | Eiband x 0.02/0.01, y 0.01/0.01 (voluntary/moderate) | peak x 0.7 y 0.4 z 7.8 g, dV x 0.5 z 4.6 m/s | restraint 0.5/18.0 g | space 1.00, cell x1.00 | by -
+  trunk0        Pilot: Fatal injuries   [crashed: a fus member broke; contact 38.0 g; 135 broken; 9.9 s]
+      Pilot        DRI 21.0 | Eiband x 2.44/1.63, y 1.64/1.02 (voluntary/moderate) | peak x 215.8 y 54.3 z 119.4 g, dV x 38.7 z 8.6 m/s PAST 23.562 | restraint 75.0/18.0 g FAILED | space 0.96, cell x1.20 | by eibandX
+  trunk25       Pilot: Unharmed   [crashed: a wing member broke; contact 6.9 g; 111 broken; 14.0 s]
+      Pilot        DRI 8.4 | Eiband x 0.15/0.10, y 0.28/0.17 (voluntary/moderate) | peak x 14.1 y 8.6 z 9.2 g, dV x 6.9 z 6.7 m/s | restraint 5.0/18.0 g | space 0.89, cell x1.02 | by -
+      (trigger 1.5 g) Pilot        Unharmed - DRI 8.4 | Eiband x 0.15/0.10, y 0.28/0.17 (voluntary/moderate) | peak x 14.1 y 8.6 z 9.2 g, dV x 6.9 z 6.7 m/s | restraint 5.0/18.0 g | space 0.89, cell x1.02 | by -
+  damage OFF: occupants none, damage().occ absent, payloads 0; the recorder on / off / again: 611c4905 / 611c4905 / 611c4905, the same bands and criteria
+  an intact flight (30 s level, damage ON): buffers none, events 0, payloads 0, armed frames 0, 365.8 m up
+== metal Cessna (metal)
+  taxi          no record - every seat Unharmed   [no crash; contact 2.1 g; 0 broken; 61.9 s]
+      (trigger 1.5 g) Pilot        Unharmed - DRI 1.4 | Eiband x 0.07/0.04, y 0.00/0.00 (voluntary/moderate) | peak x 2.5 y 0.3 z 1.4 g, dV x 3.0 z 0.6 m/s | restraint 2.4/18.0 g | space 1.00, cell x1.00 | by -
+      (trigger 1.5 g) Co-pilot     Unharmed - DRI 1.4 | Eiband x 0.07/0.04, y 0.00/0.00 (voluntary/moderate) | peak x 2.5 y 0.3 z 1.4 g, dV x 3.0 z 0.6 m/s | restraint 2.4/18.0 g | space 1.00, cell x1.00 | by -
+  noseover      Pilot: Unharmed, Co-pilot: Unharmed   [crashed: a gear member broke; contact 5.0 g; 7 broken; 26.0 s]
+      Pilot        DRI 3.3 | Eiband x 0.16/0.10, y 0.04/0.03 (voluntary/moderate) | peak x 15.4 y 2.6 z 6.0 g, dV x 4.0 z 1.8 m/s | restraint 4.0/18.0 g | space 1.00, cell x1.01 | by -
+      Co-pilot     DRI 3.3 | Eiband x 0.16/0.10, y 0.04/0.03 (voluntary/moderate) | peak x 15.4 y 2.7 z 6.0 g, dV x 4.0 z 1.8 m/s | restraint 4.0/18.0 g | space 1.00, cell x1.01 | by -
+      (trigger 1.5 g) Pilot        Unharmed - DRI 3.3 | Eiband x 0.16/0.10, y 0.04/0.03 (voluntary/moderate) | peak x 15.4 y 2.6 z 6.0 g, dV x 4.0 z 1.8 m/s | restraint 4.0/18.0 g | space 1.00, cell x1.01 | by -
+      (trigger 1.5 g) Co-pilot     Unharmed - DRI 3.3 | Eiband x 0.16/0.10, y 0.04/0.03 (voluntary/moderate) | peak x 15.4 y 2.7 z 6.0 g, dV x 4.0 z 1.8 m/s | restraint 4.0/18.0 g | space 1.00, cell x1.01 | by -
+  far473        no record - every seat Unharmed   [no crash; contact 3.6 g; 0 broken; 21.1 s]
+      (trigger 1.5 g) Pilot        Unharmed - DRI 6.1 | Eiband x 0.03/0.02, y 0.00/0.00 (voluntary/moderate) | peak x 1.0 y 0.2 z 4.4 g, dV x 0.7 z 2.7 m/s | restraint 0.9/18.0 g | space 1.00, cell x1.00 | by -
+      (trigger 1.5 g) Co-pilot     Unharmed - DRI 6.1 | Eiband x 0.03/0.02, y 0.00/0.00 (voluntary/moderate) | peak x 1.0 y 0.2 z 4.4 g, dV x 0.7 z 2.7 m/s | restraint 0.9/18.0 g | space 1.00, cell x1.00 | by -
+  hard          Pilot: Unharmed, Co-pilot: Unharmed   [no crash; contact 5.0 g; 0 broken; 21.0 s]
+      Pilot        DRI 8.6 | Eiband x 0.04/0.03, y 0.00/0.00 (voluntary/moderate) | peak x 2.1 y 0.3 z 6.2 g, dV x 1.2 z 4.8 m/s | restraint 1.2/18.0 g | space 0.99, cell x1.01 | by -
+      Co-pilot     DRI 8.6 | Eiband x 0.04/0.03, y 0.00/0.00 (voluntary/moderate) | peak x 2.1 y 0.3 z 6.2 g, dV x 1.2 z 4.8 m/s | restraint 1.2/18.0 g | space 1.00, cell x1.01 | by -
+      (trigger 1.5 g) Pilot        Unharmed - DRI 8.6 | Eiband x 0.04/0.03, y 0.00/0.00 (voluntary/moderate) | peak x 2.1 y 0.3 z 6.2 g, dV x 1.2 z 4.8 m/s | restraint 1.2/18.0 g | space 0.99, cell x1.01 | by -
+      (trigger 1.5 g) Co-pilot     Unharmed - DRI 8.6 | Eiband x 0.04/0.03, y 0.00/0.00 (voluntary/moderate) | peak x 2.1 y 0.3 z 6.2 g, dV x 1.2 z 4.8 m/s | restraint 1.2/18.0 g | space 1.00, cell x1.01 | by -
+  trunk0        Pilot: Fatal injuries, Co-pilot: Fatal injuries   [crashed: a fus member broke; contact 37.0 g; 166 broken; 10.0 s]
+      Pilot        DRI 52.5 | Eiband x 2.27/1.51, y 0.66/0.41 (voluntary/moderate) | peak x 247.1 y 46.1 z 157.4 g, dV x 26.6 z 12.6 m/s PAST 23.562 | restraint 20.7/18.0 g FAILED | space 0.00, cell x5.43, PARTED | by dri
+      Co-pilot     DRI 53.9 | Eiband x 2.33/1.55, y 0.44/0.28 (voluntary/moderate) | peak x 243.2 y 45.3 z 159.1 g, dV x 26.2 z 12.9 m/s PAST 23.562 | restraint 20.7/18.0 g FAILED | space 0.00, cell x5.43, PARTED | by dri
+  trunk25       Pilot: Unharmed, Co-pilot: Unharmed   [crashed: a wing member broke; contact 4.8 g; 30 broken; 15.6 s]
+      Pilot        DRI 9.4 | Eiband x 0.18/0.12, y 0.11/0.07 (voluntary/moderate) | peak x 13.3 y 4.9 z 9.4 g, dV x 4.5 z 5.6 m/s | restraint 3.4/18.0 g | space 0.92, cell x1.02 | by -
+      Co-pilot     DRI 8.4 | Eiband x 0.17/0.11, y 0.15/0.09 (voluntary/moderate) | peak x 11.3 y 4.2 z 8.1 g, dV x 4.7 z 5.4 m/s | restraint 3.1/18.0 g | space 0.99, cell x1.02 | by -
+      (trigger 1.5 g) Pilot        Unharmed - DRI 9.4 | Eiband x 0.18/0.12, y 0.11/0.07 (voluntary/moderate) | peak x 13.3 y 4.9 z 9.4 g, dV x 4.5 z 5.6 m/s | restraint 3.4/18.0 g | space 0.92, cell x1.02 | by -
+      (trigger 1.5 g) Co-pilot     Unharmed - DRI 8.4 | Eiband x 0.17/0.11, y 0.15/0.09 (voluntary/moderate) | peak x 11.3 y 4.2 z 8.1 g, dV x 4.7 z 5.4 m/s | restraint 3.1/18.0 g | space 0.99, cell x1.02 | by -
+  damage OFF: occupants none, damage().occ absent, payloads 0; the recorder on / off / again: 34cb1bae / 34cb1bae / 34cb1bae, the same bands and criteria
+  an intact flight (30 s level, damage ON): buffers none, events 0, payloads 0, armed frames 0, 472.9 m up
+== Cessna floats (floats)
+  far473w       no record - every seat Unharmed   [no crash; contact 3.4 g; 0 broken; 86.5 s]
+      (trigger 1.5 g) Pilot        Unharmed - DRI 3.5 | Eiband x 0.06/0.04, y 0.01/0.01 (voluntary/moderate) | peak x 2.6 y 0.3 z 3.0 g, dV x 3.0 z 3.8 m/s | restraint 2.0/18.0 g | space 0.99, cell x1.00 | by -
+      (trigger 1.5 g) Co-pilot     Unharmed - DRI 3.5 | Eiband x 0.06/0.04, y 0.01/0.01 (voluntary/moderate) | peak x 2.6 y 0.3 z 3.0 g, dV x 3.0 z 3.8 m/s | restraint 2.0/18.0 g | space 0.99, cell x1.00 | by -
+  float-nosein  no record - every seat Unharmed   [no crash; contact 3.6 g; 0 broken; 22.2 s]
+      (trigger 1.5 g) Pilot        Unharmed - DRI 4.9 | Eiband x 0.03/0.02, y 0.01/0.00 (voluntary/moderate) | peak x 1.1 y 0.2 z 4.2 g, dV x 1.1 z 4.3 m/s | restraint 1.0/18.0 g | space 0.98, cell x1.00 | by -
+      (trigger 1.5 g) Co-pilot     Unharmed - DRI 4.9 | Eiband x 0.03/0.02, y 0.01/0.00 (voluntary/moderate) | peak x 1.1 y 0.2 z 4.2 g, dV x 1.1 z 4.3 m/s | restraint 1.0/18.0 g | space 0.98, cell x1.00 | by -
+  nosein-water  Pilot: Fatal injuries, Co-pilot: Fatal injuries   [crashed: a gear member broke; contact 35.3 g; 152 broken; 14.7 s]
+      Pilot        DRI 20.3 | Eiband x 2.15/1.43, y 0.53/0.33 (voluntary/moderate) | peak x 160.6 y 44.2 z 64.4 g, dV x 36.4 z 9.3 m/s PAST 23.562 | restraint 9.2/18.0 g | space 0.00, cell x4.08 | by space
+      Co-pilot     DRI 16.3 | Eiband x 2.05/1.37, y 0.91/0.57 (voluntary/moderate) | peak x 174.5 y 30.8 z 55.8 g, dV x 34.9 z 9.2 m/s PAST 23.562 | restraint 17.3/18.0 g | space 0.00, cell x4.08 | by space
+  damage OFF: occupants none, damage().occ absent, payloads 0; the recorder on / off / again: 6b6be27 / 6b6be27 / 6b6be27, the same bands and criteria
+== twin floatplane (twinFloats)
+  far473w       no record - every seat Unharmed   [no crash; contact 3.0 g; 0 broken; 84.0 s]
+      (trigger 1.5 g) Pilot        Unharmed - DRI 3.9 | Eiband x 0.02/0.02, y 0.00/0.00 (voluntary/moderate) | peak x 1.0 y 0.0 z 2.9 g, dV x 1.5 z 2.4 m/s | restraint 0.7/18.0 g | space 1.00, cell x1.00 | by -
+  float-nosein  Pilot: Unharmed   [no crash; contact 5.6 g; 0 broken; 23.7 s]
+      Pilot        DRI 5.5 | Eiband x 0.18/0.11, y 0.00/0.00 (voluntary/moderate) | peak x 7.0 y 0.1 z 4.8 g, dV x 9.7 z 11.2 m/s | restraint 5.6/18.0 g | space 0.99, cell x1.01 | by -
+      (trigger 1.5 g) Pilot        Unharmed - DRI 5.5 | Eiband x 0.18/0.11, y 0.00/0.00 (voluntary/moderate) | peak x 7.0 y 0.1 z 4.8 g, dV x 9.7 z 11.2 m/s | restraint 5.6/18.0 g | space 0.99, cell x1.02 | by -
+  nosein-water  Pilot: Fatal injuries   [crashed: broke up: the fuselage parted (TPB off the core); contact 25.3 g; 138 broken; 15.5 s]
+      Pilot        DRI 16.3 | Eiband x 1.49/0.99, y 0.35/0.22 (voluntary/moderate) | peak x 81.6 y 32.5 z 140.0 g, dV x 14.2 z 30.7 m/s PAST 23.562 | restraint 28.6/18.0 g FAILED | space 0.00, cell x3.44 | by space
+  damage OFF: occupants none, damage().occ absent, payloads 0; the recorder on / off / again: 581d594c / 581d594c / 581d594c, the same bands and criteria
+== Cub, the rear seat filled (cubFull)
+  taxi          no record - every seat Unharmed   [no crash; contact 2.7 g; 0 broken; 38.5 s]
+      (trigger 1.5 g) Pilot        Unharmed - DRI 1.5 | Eiband x 0.08/0.05, y 0.00/0.00 (voluntary/moderate) | peak x 3.0 y 0.0 z 1.4 g, dV x 3.1 z 0.2 m/s | restraint 2.9/18.0 g | space 1.00, cell x1.00 | by -
+      (trigger 1.5 g) Passenger    Unharmed - DRI 2.2 | Eiband x 0.08/0.05, y 0.00/0.00 (voluntary/moderate) | peak x 2.8 y 0.0 z 2.3 g, dV x 3.0 z 0.9 m/s | restraint 2.6/18.0 g | space 1.00, cell x1.00 | by -
+  far473        no record - every seat Unharmed   [no crash; contact 2.2 g; 0 broken; 12.6 s]
+      (trigger 1.5 g) Pilot        Unharmed - DRI 5.0 | Eiband x 0.01/0.01, y 0.00/0.00 (voluntary/moderate) | peak x 0.8 y 0.0 z 3.8 g, dV x 0.4 z 2.9 m/s | restraint 0.3/18.0 g | space 1.00, cell x1.00 | by -
+      (trigger 1.5 g) Passenger    Unharmed - DRI 6.1 | Eiband x 0.02/0.01, y 0.00/0.00 (voluntary/moderate) | peak x 0.9 y 0.0 z 5.1 g, dV x 0.5 z 2.9 m/s | restraint 0.4/18.0 g | space 1.00, cell x1.00 | by -
+  trunk0        Pilot: Fatal injuries, Passenger: Fatal injuries   [crashed: broke up: the fuselage parted (TPB off the core); contact 25.4 g; 122 broken; 8.7 s]
+      Pilot        DRI 30.5 | Eiband x 0.91/0.60, y 0.21/0.13 (voluntary/moderate) | peak x 301.8 y 43.2 z 195.9 g, dV x 19.0 z 11.7 m/s PAST 23.562 | restraint 4.2/18.0 g | space 0.00, cell x16.35, PARTED | by dri
+      Passenger    DRI 10.7 | Eiband x 0.72/0.48, y 0.13/0.08 (voluntary/moderate) | peak x 133.2 y 18.6 z 40.3 g, dV x 14.0 z 16.5 m/s PAST 23.562 | restraint 19.0/18.0 g FAILED | space 0.00, cell x15.11, PARTED | by space
+  trunk25       Pilot: Unharmed, Passenger: Unharmed   [crashed: a wing member broke; contact 9.6 g; 54 broken; 14.7 s]
+      Pilot        DRI 4.9 | Eiband x 0.29/0.20, y 0.52/0.32 (voluntary/moderate) | peak x 13.3 y 11.5 z 7.0 g, dV x 7.0 z 2.7 m/s | restraint 8.8/18.0 g | space 0.86, cell x1.01 | by -
+      Passenger    DRI 6.0 | Eiband x 0.34/0.23, y 0.51/0.32 (voluntary/moderate) | peak x 15.9 y 13.4 z 6.6 g, dV x 7.1 z 3.9 m/s | restraint 10.4/18.0 g | space 0.98, cell x1.06 | by -
+      (trigger 1.5 g) Pilot        Unharmed - DRI 4.9 | Eiband x 0.29/0.20, y 0.52/0.32 (voluntary/moderate) | peak x 13.3 y 11.5 z 7.0 g, dV x 7.0 z 2.7 m/s | restraint 8.8/18.0 g | space 0.86, cell x1.01 | by -
+      (trigger 1.5 g) Passenger    Unharmed - DRI 6.0 | Eiband x 0.34/0.23, y 0.51/0.32 (voluntary/moderate) | peak x 15.9 y 13.4 z 6.6 g, dV x 7.1 z 3.9 m/s | restraint 10.4/18.0 g | space 0.98, cell x1.06 | by -
+  damage OFF: occupants none, damage().occ absent, payloads 0; the recorder on / off / again: 5a9a559b / 5a9a559b / 5a9a559b, the same bands and criteria
+  an intact flight (30 s level, damage ON): buffers none, events 0, payloads 0, armed frames 0, 422.5 m up
+== the page (dev.html?simw=1&damage=1, the user's Cub under the physics worker, a trunk at 30 m/s)
+  live true, the mirror's occView true; the bands reached the page at 3.73 s; the card at 10.37 s (over true); verdict "broke up: the fuselage parted (TPB off the core)"; 3875 MB
+  the card's rows: [["outcome","broke up"],["Pilot","Fatal injuries"],["flight time","10 s"],["distance","0.0 km"],["peak strain","11925.24 %"]]
+  the scan: the card clean; the page's text clean (72276 chars)
+== the table (bands only)
+  Cub                       taxi: Unharmed | noseover: Pilot Unharmed | far473: Unharmed | hard: Unharmed | trunk0: Pilot Fatal injuries | trunk25: Pilot Heavy injuries
+  Jodel                     taxi: Unharmed | noseover: Pilot Unharmed | far473: Unharmed | hard: Pilot Unharmed | trunk0: Pilot Fatal injuries | trunk25: Pilot Unharmed
+  metal Cessna              taxi: Unharmed | noseover: Pilot Unharmed / Co-pilot Unharmed | far473: Unharmed | hard: Pilot Unharmed / Co-pilot Unharmed | trunk0: Pilot Fatal injuries / Co-pilot Fatal injuries | trunk25: Pilot Unharmed / Co-pilot Unharmed
+  Cessna floats             far473w: Unharmed | float-nosein: Unharmed | nosein-water: Pilot Fatal injuries / Co-pilot Fatal injuries
+  twin floatplane           far473w: Unharmed | float-nosein: Pilot Unharmed | nosein-water: Pilot Fatal injuries
+  Cub, the rear seat filled taxi: Unharmed | far473: Unharmed | trunk0: Pilot Fatal injuries / Passenger Fatal injuries | trunk25: Pilot Unharmed / Passenger Unharmed
+  (wall 307 s)
+GATE DMGOCCUPANT: PASS
+
+real	5m7.206s
+user	14m37.328s
+sys	0m33.884s

@@ -597,12 +597,12 @@ const PAVEMENT = (() => {
       if (TAB.mat && SHARED === L) { const U = TAB.mat.uniforms; U.uPavA.value = L.texA; U.uPavN.value = L.texN; U.uPavOn.value = 1; }   // G925: the one material
       if (old && old.texA && old !== L) { old.texA.dispose(); old.texN.dispose(); }
       for (const w of L.waiters || []) w(L); if (L.waiters) L.waiters.length = 0;   // (headless the library calls back at once, before `waiters`)
-      if (onReady) onReady(L);
+      GC_V++; if (onReady) onReady(L);
     }, old && old.ready ? old : null);   // G911: the old arrays lend the layers they hold (a grow fetches only the new sets)
     lib.waiters = lib.waiters || [];
     // until the new arrays decode, the materials keep the old ones (their layers still valid there)
     if (old && old.ready) { lib.texA = old.texA; lib.texN = old.texN; lib.readyOld = true; }
-    SHARED = lib;
+    SHARED = lib; GC_V++;
     if (lib.ready && TAB.mat) { const U = TAB.mat.uniforms; U.uPavA.value = lib.texA; U.uPavN.value = lib.texN; U.uPavOn.value = 1; }   // (headless: ready at once)
     return lib;
   }
@@ -1320,7 +1320,21 @@ float pvTread(float u, float x, float w, float seed) {
   // groundColor(cls, recipe): the drawn ground's linear colour beside a pavement of this class - its
   // BAND set (the cleared earth, the crushed stone) graded by the recipe (the premises' over the
   // module's); a tuft standing there takes it (the cover ring, v1.17)
+  // REVEAL-HITCH (19 Oct): MEMOISED. The cover ring asks it for every tuft of a cell beside a pavement (render_world coverAt),
+  // and each call deep-copied the whole module recipe (JSON parse + stringify): the first world frame after the roll-out
+  // planted the stand's grass cells at ~100 ms of it, and ~50 ms of the garbage it left. The answer depends on the class, the
+  // recipe given (a premises' pavement: the editor replaces it, never edits it in place - one answer per object), the
+  // module's R, the look overlay LIVE and the shared library's means: GC_V moves whenever one of the last three does.
+  let GC_V = 0;
+  const GC_MEMO = new WeakMap(), GC_NONE = { v: -1, m: new Map() };
   function groundColor(cls, recipe) {
+    let e = recipe && typeof recipe === 'object' ? GC_MEMO.get(recipe) : GC_NONE;
+    if (!e) { e = { v: GC_V, m: new Map() }; GC_MEMO.set(recipe, e); }
+    if (e.v !== GC_V) { e.v = GC_V; e.m.clear(); }
+    if (e.m.has(cls)) return e.m.get(cls);
+    const c = groundColor0(cls, recipe); e.m.set(cls, c); return c;
+  }
+  function groundColor0(cls, recipe) {
     const row = CLASS_DEF[cls]; if (!row) return null;
     const r = recipe ? Object.assign(JSON.parse(JSON.stringify(RECIPE)), recipe, { grade: Object.assign({}, RECIPE.grade, recipe.grade || {}) }) : R;
     const c = gradedMean(row.shoulder, r, SHARED), lk = lookOf(cls, r);
@@ -1353,6 +1367,7 @@ float pvTread(float u, float x, float w, float seed) {
   // look(THREE, o): the live overlay - an object of LOOK_KEYS (a key at undefined/null leaves it), null clears it;
   // returns the overlay. Every pavement in the page is re-applied (a row repack each: no rebuild)
   function look(THREE, o) {
+    GC_V++;
     if (o === null) LIVE = null;
     else if (o && typeof o === 'object') {
       const n = Object.assign({}, LIVE);
@@ -1720,8 +1735,8 @@ float pvTread(float u, float x, float w, float seed) {
   }
   // the mesh's shoulder for a band: the band, the fade past it, a metre of grass creep
   const shoulderFor = (band, recipe) => Math.max(1, band + (recipe || R).fadeW + 1);
-  function set(THREE, o) { for (const k in o) { if (k === 'grade') Object.assign(R.grade, o.grade); else R[k] = o[k]; } applyAll(THREE); }
-  function reset(THREE) { R = JSON.parse(JSON.stringify(RECIPE)); applyAll(THREE); }
+  function set(THREE, o) { for (const k in o) { if (k === 'grade') Object.assign(R.grade, o.grade); else R[k] = o[k]; } GC_V++; applyAll(THREE); }
+  function reset(THREE) { R = JSON.parse(JSON.stringify(RECIPE)); GC_V++; applyAll(THREE); }
   function debug(v) { DBG.value = v; }
   // ---- THE A/B (G928): `?pave=old` or `?pave=new` at load, PAVE_AB('old' | 'new') live, or a click on the box -----
   // The box (top centre, under PAVTEST's) names what is drawn. Live, each builder that registered a rebuild

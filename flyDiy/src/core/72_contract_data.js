@@ -15,9 +15,10 @@
 //
 // THE PEOPLE AND ORGANISATIONS ARE FICTIONAL (GQ20, a hard constraint): the
 // working names below are placeholders for the pack, and the island's real
-// community is not depicted. The fields' NAMES are geography and come from the
-// premises record (CONTRACT_FIELDS mirrors tools/fixtures/island_jolene.json;
-// the gate holds it to the record).
+// community is not depicted. So are the PLACES (G3240 NAMES, GAME-PLAN §13): a
+// field's name and every place a text names are GAME_NAMES' (01_names.js, the one
+// table). CONTRACT_FIELDS mirrors tools/fixtures/island_jolene.json through
+// contractFieldsOf, whose names are fieldName's; the gate holds it to the record.
 //
 // Pure data: no DOM, no THREE, no storage. Read by 73_contracts.js and
 // 74_career.js at call time.
@@ -31,14 +32,14 @@
 //            strip is lit, a water lane is not (contractFieldsOf derives it off the record, so a new site says it too)
 //   glide    the record's glideslope lights (`papi`): 'vasi' (Jolene AFB's two-bar VASI) | 'papi'; absent: none
 const CONTRACT_FIELDS = {
-  HOME:     { id: 'HOME',     name: 'Jolene AFB 13/31',         x: -301,  z: 221,    len: 2325, surf: 'concrete', lit: true, glide: 'vasi' },
-  w2:       { id: 'w2',       name: 'Jolene AFB 02/20',         x: 599,   z: -130,   len: 1758, surf: 'concrete', lit: true, glide: 'papi' },   // (rev 28: the user moved, shortened it, gave it a PAPI)
-  w3:       { id: 'w3',       name: 'Tamgas Hill Strip',        x: -811,  z: -2397,  len: 543,  surf: 'gravel', lit: true, glide: 'papi' },   // (rev 28: moved)
-  SEA:      { id: 'SEA',      name: 'Annette Dock',             x: 361,   z: -3661,  len: 1500, surf: 'water', lit: false },
-  mk_sea:   { id: 'mk_sea',   name: 'Metlakatla Seaplane Base', x: -3980, z: -9420,  len: 1500, surf: 'water', lit: false },
-  mn_strip: { id: 'mn_strip', name: 'Jumbo Mine Street',        x: 7250,  z: -15429, len: 250,  surf: 'gravel', lit: true },
-  nv_strip: { id: 'nv_strip', name: 'East Point Clearing',      x: 10030, z: -11660, len: 150,  surf: 'gravel', lit: true },
-  tw_ski:   { id: 'tw_ski',   name: 'Skyline Altiport',         x: 257,   z: -7707,  len: 380,  surf: 'grass', alti: true, lit: true },
+  HOME:     { id: 'HOME',     name: GAME_NAMES.fields.HOME,            x: -301,  z: 221,    len: 2325, surf: 'concrete', lit: true, glide: 'vasi' },
+  w2:       { id: 'w2',       name: GAME_NAMES.fields.w2,              x: 599,   z: -130,   len: 1758, surf: 'concrete', lit: true, glide: 'papi' },   // (rev 28: the user moved, shortened it, gave it a PAPI)
+  w3:       { id: 'w3',       name: GAME_NAMES.fields.w3,              x: -811,  z: -2397,  len: 543,  surf: 'gravel', lit: true, glide: 'papi' },   // (rev 28: moved)
+  SEA:      { id: 'SEA',      name: GAME_NAMES.fields.SEA,             x: 361,   z: -3661,  len: 1500, surf: 'water', lit: false },
+  mk_sea:   { id: 'mk_sea',   name: GAME_NAMES.fields.mk_sea,          x: -3980, z: -9420,  len: 1500, surf: 'water', lit: false },
+  mn_strip: { id: 'mn_strip', name: GAME_NAMES.fields.mn_strip,        x: 7250,  z: -15429, len: 250,  surf: 'gravel', lit: true },
+  nv_strip: { id: 'nv_strip', name: GAME_NAMES.fields.nv_strip,        x: 10030, z: -11660, len: 150,  surf: 'gravel', lit: true },
+  tw_ski:   { id: 'tw_ski',   name: GAME_NAMES.fields.tw_ski,          x: 257,   z: -7707,  len: 380,  surf: 'grass', alti: true, lit: true },
   // (G3014, the user 12 Oct: 'add them' - their rev 26 strips 10 and 11, contracts may land there)
   w5:       { id: 'w5',       name: 'strip 10',                 x: 3055,  z: -2837,  len: 310,  surf: 'gravel', lit: true, glide: 'papi' },
   w6:       { id: 'w6',       name: 'strip 11',                 x: -4172, z: -22110, len: 312,  surf: 'gravel', lit: true },
@@ -47,7 +48,7 @@ const CONTRACT_FIELDS = {
   w4:       { id: 'w4',       name: 'strip 9',                  x: -1404, z: -17699, len: 216,  surf: 'gravel', alti: true, lit: true, glide: 'papi' },
   w8:       { id: 'w8',       name: 'strip 13',                 x: 4361,  z: -16251, len: 392,  surf: 'sand', lit: true },
   // (G2745, the user's save 17, 18 Oct: the Cabin Strip - the story's start, an S of gravel up a lake valley)
-  w1:       { id: 'w1',       name: 'Cabin Strip',              x: 2646,  z: -16040, len: 383,  surf: 'gravel', lit: true, glide: 'papi' },
+  w1:       { id: 'w1',       name: 'Cabin Strip',              x: 2646,  z: -16040, len: 383,  surf: 'gravel', lit: true },   // (22 Oct, the user: no PAPI at the Cabin Strip - a bush strip, no glideslope lights)
 };
 
 // ---- THE VALIDATED DESIGNS (the user's five; HANDOVER G1985's LB.VALIDATED, _treecrash_lib's BUILDS) -------
@@ -385,7 +386,7 @@ const CONTRACT_PROVIDERS = {
            rep: { provider: 'clients', gain: 0.75 }, unlock: { stage: 'clients:1' }, needs: { after: ['clients.02'] } }),
       C_({ id: 'clients.04', provider: 'clients', kind: 'build', title: 'ct.clients.04.title', brief: 'ct.clients.04.brief',
            stages: [{ subs: [{ do: 'deliver', to: 'HOME', crit: [
-             { k: 'costMax', op: '<=', v: 25000 },
+             { k: 'costMax', op: '<=', v: 32000 },   // (the user, 22 Oct: "raise the clients.04 cap" - 25 000 was under every validated design; 32 000 lets the stock Cub (31 203) qualify, the Jodel (34 363) not)
              { k: 'xwindKt', op: '>=', v: 12 },
              { k: 'seats', op: '>=', v: 2 }] }] }],
            pay: { base: 26000 }, rep: { provider: 'clients', gain: 1 }, needs: { rep: 1, after: ['clients.03'] },
@@ -429,8 +430,8 @@ const CONTRACT_TEXT = {
   // the providers (working names; GQ20: fictional)
   'prov.field.name': CT_('The Field Trust'),
   'prov.field.desc': CT_('The old Army field\'s landlord. They lease it to anyone who will bring it back to life.'),
-  'prov.minedock.name': CT_('Jumbo Mine & Dock Co.'),
-  'prov.minedock.desc': CT_('One company reopening the old mine up the street strip and shipping through Annette Dock.'),
+  'prov.minedock.name': CT_(GAME_NAMES.mineCo),
+  'prov.minedock.desc': CT_('One company reopening the old mine up the street strip and shipping through ' + GAME_NAMES.fields.SEA + '.'),
   'prov.resort.name': CT_('Skyline Resort'),
   'prov.resort.desc': CT_('A small lodge above the hill, with a sloped strip and guests who want to see it all.'),
   'prov.survey.name': CT_('The Survey Office'),
@@ -452,7 +453,7 @@ const CONTRACT_TEXT = {
   'trk.resort.3': CT_('The strip lengthened'),
   'trk.survey.1': CT_('A windsock and tie-downs at East Point'),
   'trk.survey.2': CT_('East Point becomes a station'),
-  'trk.survey.3': CT_('The weather mast on Tamgas Hill'),
+  'trk.survey.3': CT_('The weather mast on ' + GAME_NAMES.hill),
   'trk.clients.1': CT_('The club house'),
   'trk.clients.2': CT_('A small museum hangar for your best design'),
   // goods (the load words)
@@ -493,21 +494,21 @@ const CONTRACT_TEXT = {
   'job.then.pair': CT_(', then over {at}, then back to {from}.'),
   'job.then.transit': CT_(', then land at {to}.'),
   // the arcs
-  'ct.field.01.title': CT_('Wake the field'), 'ct.field.01.brief': CT_('Show us the old field still flies: over to Tamgas Hill and back.'),
+  'ct.field.01.title': CT_('Wake the field'), 'ct.field.01.brief': CT_('Show us the old field still flies: over to ' + GAME_NAMES.hill + ' and back.'),
   'ct.field.01.done': CT_('Two landings, no drama. The Trust is listening.'),
-  'ct.field.02.title': CT_('Tools from the hill'), 'ct.field.02.brief': CT_('A crate of hand tools waits at Tamgas Hill. Bring it home.'),
+  'ct.field.02.title': CT_('Tools from the hill'), 'ct.field.02.brief': CT_('A crate of hand tools waits at ' + GAME_NAMES.hill + '. Bring it home.'),
   'ct.field.02.done': CT_('The bench has tools again.'),
   'ct.field.03.title': CT_('The first mail run'), 'ct.field.03.brief': CT_('Two mail sacks: one for the hill, one for the lodge. Any order.'),
   'ct.field.03.done': CT_('The Trust starts on the second hangar.'),
   'ct.field.04.title': CT_('The inspector'), 'ct.field.04.brief': CT_('Take the Trust\'s inspector to the hill, and bring her back.'),
   'ct.field.04.done': CT_('She signed the form without looking up.'),
-  'ct.field.05.title': CT_('Light the tower'), 'ct.field.05.brief': CT_('The tower\'s new lamp is at Tamgas Hill, and it is heavy.'),
+  'ct.field.05.title': CT_('Light the tower'), 'ct.field.05.brief': CT_('The tower\'s new lamp is at ' + GAME_NAMES.hill + ', and it is heavy.'),
   'ct.field.05.done': CT_('The tower is lit and the second hangar stands.'),
   'ct.minedock.01.title': CT_('Look at the road'), 'ct.minedock.01.brief': CT_('Fly over the mine street and tell us if it is still a strip.'),
   'ct.minedock.01.done': CT_('Rough, short, landable. The company is in.'),
   'ct.minedock.02.title': CT_('Engineers in'), 'ct.minedock.02.brief': CT_('Two engineers, from the field to the mine street.'),
   'ct.minedock.02.done': CT_('The headframe\'s frame goes up.'),
-  'ct.minedock.03.title': CT_('The pump'), 'ct.minedock.03.brief': CT_('Take the pump up to the mine, then bring the first samples down to Tamgas Hill, for the boat.'),
+  'ct.minedock.03.title': CT_('The pump'), 'ct.minedock.03.brief': CT_('Take the pump up to the mine, then bring the first samples down to ' + GAME_NAMES.hill + ', for the boat.'),
   'ct.minedock.03.done': CT_('The pump runs. The samples look good.'),
   'ct.minedock.04.title': CT_('Four of us, fast'), 'ct.minedock.04.brief': CT_('I need to get my team of four to the mine fast.'),
   'ct.minedock.04.follow': CT_('The team loves it. Same again, with one thing changed.'),
@@ -522,9 +523,9 @@ const CONTRACT_TEXT = {
   'ct.minedock.b2.follow': CT_('It works. Now the accountant has a request.'),
   'ct.resort.01.title': CT_('The first guest'), 'ct.resort.01.brief': CT_('Our first guest is at the field. Bring her up.'),
   'ct.resort.01.done': CT_('She wants to stay a week.'),
-  'ct.resort.02.title': CT_('A kitchen uphill'), 'ct.resort.02.brief': CT_('The kitchen\'s first order came in on the boat: from Tamgas Hill to the altiport.'),
+  'ct.resort.02.title': CT_('A kitchen uphill'), 'ct.resort.02.brief': CT_('The kitchen\'s first order came in on the boat: from ' + GAME_NAMES.hill + ' to the altiport.'),
   'ct.resort.02.done': CT_('The lodge\'s frame goes up.'),
-  'ct.resort.03.title': CT_('Show them the hill'), 'ct.resort.03.brief': CT_('Fly our photographer over Tamgas Hill, and back to the altiport.'),
+  'ct.resort.03.title': CT_('Show them the hill'), 'ct.resort.03.brief': CT_('Fly our photographer over ' + GAME_NAMES.hill + ', and back to the altiport.'),
   'ct.resort.03.done': CT_('The brochure has a cover.'),
   'ct.resort.04.title': CT_('Quiet, please'), 'ct.resort.04.brief': CT_('Electric. The guests hate the noise.'),
   'ct.resort.04.follow': CT_('The guests noticed. Can it do a little more?'),
@@ -544,7 +545,7 @@ const CONTRACT_TEXT = {
   'ct.survey.04.title': CT_('In and out of East Point'), 'ct.survey.04.brief': CT_('A plane for the East Point clearing: in and out, with an hour of fuel.'),
   'ct.survey.04.follow': CT_('It works. Could it take a second person?'),
   'ct.survey.04.done': CT_('East Point is a station.'),
-  'ct.survey.05.title': CT_('The weather mast'), 'ct.survey.05.brief': CT_('The mast\'s sections, from the field to Tamgas Hill, and the old instruments back to the office.'),
+  'ct.survey.05.title': CT_('The weather mast'), 'ct.survey.05.brief': CT_('The mast\'s sections, from the field to ' + GAME_NAMES.hill + ', and the old instruments back to the office.'),
   'ct.survey.05.done': CT_('The mast is up.'),
   'ct.clients.01.title': CT_('A ride for the doctor'), 'ct.clients.01.brief': CT_('The doctor has a clinic on the hill today, and an evening call at the lodge.'),
   'ct.clients.01.done': CT_('The doctor tells everyone.'),
@@ -562,20 +563,20 @@ const CONTRACT_TEXT = {
   'ct.clients.b1.title': CT_('A ridiculous tank'), 'ct.clients.b1.brief': CT_('An hour in the air on a ridiculous tank: twenty litres, no more.'),
   'ct.clients.b1.follow': CT_('An hour was fun. One more thing.'),
   // (G2665 NIGHT-OPS) the night work
-  'ct.field.n1.title': CT_('The night mail'), 'ct.field.n1.brief': CT_('The boat\'s mail sacks wait at Tamgas Hill. Into the field between midnight and one: the runway lights and the VASI are on.'),
+  'ct.field.n1.title': CT_('The night mail'), 'ct.field.n1.brief': CT_('The boat\'s mail sacks wait at ' + GAME_NAMES.hill + '. Into the field between midnight and one: the runway lights and the VASI are on.'),
   'ct.field.n1.done': CT_('The mail made the morning sort.'),
   'ct.minedock.n1.title': CT_('The late shift'), 'ct.minedock.n1.brief': CT_('The shift engineer is stuck at the mine street. Bring them down to the field after dusk.'),
   'ct.minedock.n1.done': CT_('Home for supper, late.'),
-  'ct.clients.n1.title': CT_('Night medevac'), 'ct.clients.n1.brief': CT_('A climber fell on Tamgas Hill. Take the doctor up, then bring them both down to the ambulance at the field before dawn. The patient can sit.'),
+  'ct.clients.n1.title': CT_('Night medevac'), 'ct.clients.n1.brief': CT_('A climber fell on ' + GAME_NAMES.hill + '. Take the doctor up, then bring them both down to the ambulance at the field before dawn. The patient can sit.'),
   'ct.clients.n1.done': CT_('The ambulance was waiting on the apron.'),
-  'ct.clients.n2.title': CT_('A stretcher case'), 'ct.clients.n2.brief': CT_('This one cannot sit: a stretcher and the doctor, from Tamgas Hill to the ambulance at the field, before dawn.'),
+  'ct.clients.n2.title': CT_('A stretcher case'), 'ct.clients.n2.brief': CT_('This one cannot sit: a stretcher and the doctor, from ' + GAME_NAMES.hill + ' to the ambulance at the field, before dawn.'),
   'ct.clients.n2.done': CT_('The stretcher went straight into the ambulance.'),
   // the criteria (labels; {v} the value, {at} the load or the strip)
   'crit.seats': CT_('{v} seats occupied'), 'crit.emptyKg': CT_('empty mass at most {v} kg'),
   'crit.powertrain': CT_('{v} power'), 'crit.tankL': CT_('a tank of at most {v} L'),
   'crit.batteryKWh': CT_('a battery of at most {v} kWh'), 'crit.spanM': CT_('a span of at most {v} m'),
   'crit.costMax': CT_('costs at most {v} credits'), 'crit.ultimateG': CT_('strong to {v} g'),
-  'crit.xwindKt': CT_('lands in {v} kt of crosswind'), 'crit.hydro': CT_('operates from water'),
+  'crit.xwindKt': CT_('its rudder holds {v} kt of crosswind'), 'crit.hydro': CT_('operates from water'),
   'crit.tasKmh': CT_('cruises at {v} km/h or more {at}'), 'crit.enduranceMin': CT_('{v} min in the air plus a reserve {at}'),
   'crit.rangeKm': CT_('{v} km on a tank'), 'crit.takeoffAt': CT_('takes off from {v} {at}'),
   'crit.landAt': CT_('lands at {v} {at}'),

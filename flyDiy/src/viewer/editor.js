@@ -1141,7 +1141,138 @@ function editorInit(api) {
     }
   }
 
+  // G3350 (STORY-TIM, the user 19 Oct: "at this stage, the structure is not available to edit"): THE STORY'S LOCK.
+  // window.EDITOR_LOCK.finishOnly(reason) holds the editor in the FINISH view (paint, liveries, per-part colour, the
+  // registration); Shape and Design are refused IN PLACE - disabled, the reason written under the tabs (nothing
+  // hover-only). finishOnly(null) lifts it. The story sets it from its mask (app.js storyMaskNote); the sandbox never does.
+  let lockWhy = null;
+  function lockSync() {
+    for (const id of ['edTabShape', 'edTabDesign']) { const t = $(id); if (t) { t.disabled = !!lockWhy; t.classList.toggle('locked', !!lockWhy); } }
+    let n = $('edLockNote');
+    if (lockWhy && !n) { const tabs = $('edTabShape') && $('edTabShape').parentNode; if (tabs) { n = document.createElement('div'); n.id = 'edLockNote'; tabs.parentNode.insertBefore(n, tabs.nextSibling); } }
+    if (n) { n.hidden = !lockWhy; n.textContent = lockWhy || ''; }
+    techApply();                          // G3230: the machine shop's mask yields to the lock, and returns when it lifts
+  }
+  window.EDITOR_LOCK = {
+    finishOnly(why) { lockWhy = why ? String(why) : null; lockSync(); if (lockWhy && view !== 'finish') setView('finish'); },
+    locked: () => lockWhy,
+  };
+
+  // ---- G3230 TECH-MASK: THE MACHINE SHOP IN THE EDITOR (begin) -------------------------------------------------------
+  // GAME-PLAN §4.3: the rows and options above the player's segment are greyed IN PLACE, the reason written in the row
+  // ("Machine shop: Sheets and bolts") and in the option's own words - nothing hover-only. CAREER ONLY: app.js hands the
+  // career's machine shop in (techMaskSync, behind CAREER_DEV) as window.TECH_MASK.set({ seg, entries }); with nothing set
+  // (the sandbox, a career without one) this pass touches nothing. THE STORY'S LOCK WINS while it holds (finishOnly above:
+  // the finish view, Shape and Design refused); the mask applies once it lifts. TECH_MASK.tutorial(mask) is the story's
+  // hand-over (app.js storyMaskNote): the beat's mode is kept ('finish' at T0 is the lock above; 'checklist' at T2 is the
+  // segment's own mask). A part ALREADY above the segment (an occasion, §4.4) is the player's to fly, not to modify: its
+  // whole row is held, with the reason. The keys are 79b_tech.js's (techRowKeys over the join's own vocabularies).
+  let techState = null, techTut = null;
+  const techOpts = new Map();             // option -> its own words, while greyed
+  const techHeld = new Map();             // widget -> its disabled state before the hold
+  const techNotes = new Map();            // row -> the reason's line
+  const techTiles = new Map();            // design tile 'row=value' -> its reason (cleared with the state)
+  const techCtx = names => ({ names,
+    engines: typeof CAGE_JOIN_ENGINES !== 'undefined' ? CAGE_JOIN_ENGINES : null,
+    propMats: typeof CAGE_JOIN_PROP_MATS !== 'undefined' ? CAGE_JOIN_PROP_MATS : null });
+  // the segment a key needs that the machine shop does not have (null = open)
+  function techAbove(key) {
+    if (!techState || !key || typeof techSegOf !== 'function') return null;
+    const s = techSegOf(key);
+    return s != null && s > techState.seg && !techState.entries.includes(key) ? s : null;
+  }
+  const techSegWords = segs => 'Machine shop: ' + Array.from(new Set(segs)).sort().map(techName).join(' / ');
+  function techOpt(op, why) {
+    if (why) {
+      if (!techOpts.has(op)) techOpts.set(op, op.textContent);
+      const t = techOpts.get(op) + ' · ' + why;
+      if (op.textContent !== t) op.textContent = t;
+      op.disabled = true;
+    } else if (techOpts.has(op)) {
+      op.textContent = techOpts.get(op); techOpts.delete(op);
+      op.disabled = !!op.hidden;          // the cage's optHide writes hidden and disabled together
+    }
+  }
+  function techHold(el, on) {
+    if (on) { if (!techHeld.has(el)) techHeld.set(el, !!el.disabled); el.disabled = true; }
+    else if (techHeld.has(el)) { el.disabled = techHeld.get(el); techHeld.delete(el); }
+  }
+  function techNote(row, text) {
+    let n = techNotes.get(row);
+    if (text) {
+      if (!n) { n = document.createElement('span'); n.className = 'rn edTech'; row.appendChild(n); techNotes.set(row, n); }
+      if (n.textContent !== text) n.textContent = text;
+      row.classList.add('tech');
+    } else if (n) { if (n.parentNode) n.parentNode.removeChild(n); techNotes.delete(row); row.classList.remove('tech'); }
+  }
+  function techApply() {
+    const on = !!techState && !lockWhy && !!CU && !!CU.ROWMETA;
+    if (!on) {
+      for (const op of Array.from(techOpts.keys())) techOpt(op, null);
+      for (const el of Array.from(techHeld.keys())) techHold(el, false);
+      for (const row of Array.from(techNotes.keys())) techNote(row, null);
+      return;
+    }
+    for (const meta of CU.ROWMETA) {
+      if (!meta.el || (meta.kind !== 'select' && meta.kind !== 'check')) continue;
+      const keys = typeof techRowKeys === 'function' ? techRowKeys(meta.k, techCtx(meta.names)) : null;
+      if (!keys) continue;
+      const cur = meta.kind === 'check' ? (meta.el.checked ? 1 : 0) : Math.round(+CU.P[meta.k] || 0);
+      const curAbove = techAbove(keys[cur]);
+      techHold(meta.el, curAbove != null);
+      const segs = [];
+      if (meta.kind === 'select') {
+        for (const op of Array.from(meta.el.options)) {
+          const s = curAbove == null ? techAbove(keys[+op.value]) : null;
+          techOpt(op, s != null ? techWhy(s) : null);
+          if (s != null && !op.hidden) segs.push(s);
+        }
+      } else { const s = curAbove == null ? techAbove(keys[1 - cur]) : null; techHold(meta.el, curAbove != null || s != null); if (s != null) segs.push(s); }
+      techNote(meta.row, curAbove != null ? techWhy(curAbove) + ': yours to fly as it is, not to modify'
+                         : segs.length ? techSegWords(segs) : null);
+    }
+  }
+  // a design tile's reason (design_flow.js tileGrid and the seed pill): the keys of every row the tile would write, its
+  // starting values included, against the machine shop
+  function techTileWhy(row, opt, seedOnly) {
+    if (!techState || lockWhy || !CU || !window.CAGE_DESIGN || !row || !opt) return null;
+    const id = (seedOnly ? 'seed:' : '') + row.key + '=' + opt.value;
+    if (techTiles.has(id)) return techTiles.get(id);
+    let why = null;
+    try {
+      const D = window.CAGE_DESIGN, P = Object.assign({}, CU.P);
+      const w = seedOnly ? D.designSeed(P, row.key, opt.value) : D.designApply(P, { [row.key]: opt.value }, { seeds: true });
+      const keys = techKeysOfPatch(w.spec);
+      for (const k of Object.keys(w.cage || {})) {
+        const meta = (CU.ROWMETA || []).find(m => m.k === k);
+        const ks = techRowKeys(k, techCtx(meta && meta.names));
+        const v = w.cage[k];
+        if (k === 'engPreset' && typeof v === 'string') { const t = techCtx().engines; if (t && t[v]) keys.push('eng:' + t[v]); }
+        else if (ks && ks[Math.round(+v || 0)]) keys.push(ks[Math.round(+v || 0)]);
+      }
+      const segs = keys.map(techAbove).filter(s => s != null);
+      why = segs.length ? techWhy(Math.max(...segs)) : null;
+    } catch (e) { why = null; }
+    techTiles.set(id, why);
+    return why;
+  }
+  window.TECH_MASK = {
+    set(t) {
+      const n = t && typeof t === 'object' ? { seg: Math.max(1, Math.min(3, Math.round(+t.seg) || 1)),
+        entries: Array.isArray(t.entries) ? t.entries.filter(k => typeof k === 'string') : [] } : null;
+      if (JSON.stringify(n) === JSON.stringify(techState)) return;
+      techState = n; techTiles.clear(); techApply();
+    },
+    tutorial(m) { techTut = m || null; techTiles.clear(); techApply(); },
+    state: () => (techState ? { seg: techState.seg, entries: techState.entries.slice(), tutorial: techTut, held: !!lockWhy } : null),
+    tileWhy: (row, opt) => techTileWhy(row, opt, false),
+    seedWhy: (row, opt) => techTileWhy(row, opt, true),
+    sig: () => (techState && !lockWhy ? 'T' + techState.seg + techState.entries.join(',') : ''),
+    apply: techApply,
+  };
+  // ---- G3230 TECH-MASK (end) -------------------------------------------------------------------------------------------
   function setView(v) {
+    if (lockWhy && v !== 'finish') { lockSync(); return; }   // G3350: the story's lock holds the finish view
     view = ['finish', 'design'].includes(v) ? v : 'shape';
     pref(LS_VIEW, view);
     wrap.classList.toggle('fin', view === 'finish');
@@ -1277,6 +1408,8 @@ function editorInit(api) {
     // build and every syncSliders, which is exactly when the geometry the
     // discrepancy line was measured against has been replaced.
     { const r = rootFor(sel); if (r && r.refresh) r.refresh(); }
+    // G3230 (TECH-MASK): the machine shop's greys, after every visibility pass (the cage's optHide rewrites the engine's)
+    techApply();
     // the tiles relight when P moved under them (a load, an undo, a preset)
     if (window.DESIGN_FLOW && window.DESIGN_FLOW.sync) window.DESIGN_FLOW.sync();
     const cEl = $('edChanged');

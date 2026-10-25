@@ -1018,12 +1018,12 @@ var COVER_RING = (() => {
     // budget) and the batched ones are deleted; a cell planted later skips them (push above). No shader, no uniform, no
     // program key moves: the fade's program draws fewer instances. `scar(null)` lets it go: the cells it touched are
     // dropped and plant again whole (the planting is hashed on the cell: the same cover as before the crash).
-    const SCR = { n: 0, prims: [], boxF: null, boxS: null };
+    const SCR = { n: 0, prims: [], boxF: null, boxS: null, bx: null };   // (bx: each primitive's box - scarBoxes, G2382)
     const inBox = (b, x, z) => !!b && x >= b[0] && x <= b[2] && z >= b[1] && z <= b[3];
     // (scarIn is the core's, 34_scar.js: the one footprint the page and the gate test)
     function scarCut(kind, x, z) {
-      if (kind === 'cover') return inBox(SCR.boxF, x, z) && scarIn(SCR.prims, x, z, false);
-      if (kind === 'shrub' || kind === 'debris') return inBox(SCR.boxS, x, z) && scarIn(SCR.prims, x, z, true);
+      if (kind === 'cover') return inBox(SCR.boxF, x, z) && scarIn(SCR.prims, x, z, false, SCR.bx);
+      if (kind === 'shrub' || kind === 'debris') return inBox(SCR.boxS, x, z) && scarIn(SCR.prims, x, z, true, SCR.bx);
       return false;
     }
     const cellIn = (cell, b) => !!b && (cell.cx + 1) * S.cell >= b[0] && cell.cx * S.cell <= b[2] && (cell.cz + 1) * S.cell >= b[1] && cell.cz * S.cell <= b[3];
@@ -1032,6 +1032,7 @@ var COVER_RING = (() => {
       const was = SCR.boxS;
       SCR.prims = (prims && prims.length && typeof scarIn === 'function') ? prims.slice() : []; SCR.n = SCR.prims.length;
       SCR.boxF = SCR.n ? scarBox(SCR.prims, false) : null; SCR.boxS = SCR.n ? scarBox(SCR.prims, true) : null;
+      SCR.bx = SCR.n && typeof scarBoxes === 'function' ? scarBoxes(SCR.prims) : null;
       let cut = 0, cells0 = 0, dropped = 0;
       // the cells under the scar before: planted again whole (or under the new scar, by push)
       if (was) for (const [k, cell] of [...cells]) if (cellIn(cell, was)) { dropCell(k); dropped++; }
@@ -1171,8 +1172,40 @@ var COVER_RING = (() => {
       let ni = 0; for (const c of cells.values()) ni += c.n; STAT.instances = ni;
       STAT.mixAt = ctx.biomeAt(ex, ez, 0.5);
     }
+    // REVEAL-HITCH (19 Oct): THE CELLS ROUND AN EYE, PLANTED NOW. The shed's loop never runs the world's update, so the first
+    // flight frame after a roll-out found the stand's ring unplanted - or planted from the boot's settle eye, 6 m up and 22 m
+    // off, at a coarser tier - and built the cell under the reveal's eye whole, its full stream (the field's 'near' tier),
+    // in that frame: the ~0.2 s of the reveal's hitch. app.js plants the reveal's eyes ahead (under the boot's overlay, and
+    // a cell a slice during the roll-out shot): every cell whose square lies within `rad` m of (ex, ez), at the tier
+    // `update` gives it from that eye (the same rule, the same height term), nearest first; a cell already planted as fine
+    // or finer is left, a coarser one planted again (its birth kept). `ms`: the time it may take (checked before each
+    // cell). Returns { built, done }
+    function plantNear(ex, ey, ez, rad, ms) {
+      if (!S.on || S.off || !pack || !BIO) return { built: 0, done: true };
+      const C = S.cell, t0 = performance.now(), want = [];
+      const tierFor = d => (!FIELD || !S.tier || d <= S.near * 0.5) ? 0 : d * 0.6;
+      const n = Math.ceil(rad / C) + 1, cx0 = Math.floor(ex / C), cz0 = Math.floor(ez / C);
+      for (let dz = -n; dz <= n; dz++) for (let dx = -n; dx <= n; dx++) {
+        const cx = cx0 + dx, cz = cz0 + dz;
+        const gx = Math.max(0, Math.abs((cx + 0.5) * C - ex) - C / 2), gz = Math.max(0, Math.abs((cz + 0.5) * C - ez) - C / 2);
+        if (Math.hypot(gx, gz) > rad) continue;
+        const tier = FIELD ? tierFor(Math.hypot(gx, gz, Math.max(0, ey - world.terrainH((cx + 0.5) * C, (cz + 0.5) * C) - 4))) : 0;
+        const have = cells.get(cellKey(cx, cz));
+        if (have && !(have.dTier > tier)) continue;   // planted, as fine or finer (a first-ring cell has no tier: whole)
+        want.push([Math.hypot(gx, gz), cx, cz, tier, have]);
+      }
+      want.sort((a, b) => a[0] - b[0]);
+      let built = 0;
+      for (const [, cx, cz, tier, have] of want) {
+        if (performance.now() - t0 > ms) return { built, done: false };
+        if (!have && cells.size >= S.maxCells) break;
+        let born; if (have) { born = have.born; dropCell(cellKey(cx, cz)); }
+        buildCell(cx, cz, tier, born); built++;
+      }
+      return { built, done: true };
+    }
     const api = {
-      update, root,
+      update, root, plantNear,
       get: () => Object.assign({}, S),
       set: o => { const was = Object.assign({}, S); Object.assign(S, o || {});
         if (FIELD && (S.cards !== was.cards || S.variants !== was.variants)) protos.clear();   // the tufts are cut again

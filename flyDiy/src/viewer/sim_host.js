@@ -321,6 +321,24 @@ function simDrvOf(sim) {
     crush: x.crush || 0, crushOf: x.crushOf || 0, crushLayer: x.crushLayer || null }));
 }
 
+// G2373 (DMG-OCCUPANT): THE OCCUPANTS' BANDS, TO THE PAGE, ONCE - when the solver closes an event (34_occupant.js: a
+// crash's at its end), its wire ({ name, band } per occupied seat: the criteria stay in the worker); null again after a
+// reset. A sim with no occupants' record (the damage layer off, no cabin) makes no hop: simOccHop returns null and the
+// meta never asks. hop: { v } the version the page holds; returns undefined (nothing new) or the payload (array | null)
+function simOccHop(sim) {
+  const O = sim.occupants && sim.occupants();
+  if (!O) return null;
+  const hop = { v: 0 };
+  const fn = () => {
+    const D = sim.damage(), v = D.occ ? O.state.ver : 0;
+    if (v === hop.v) return undefined;
+    hop.v = v;
+    return v && typeof genOccWire === 'function' ? genOccWire(D.occ) : null;
+  };
+  fn.forget = () => { hop.v = 0; };
+  return fn;
+}
+
 // the pilot's fields that are big and change rarely: sent when the object
 // changes (by reference), the rest of the pilot every snapshot
 const SIM_HOST_AP_RARE = ['legs', 'path', 'plan', 'taxiOut', 'site', 'accept'];   // (G2273: the acceptance leg's state, a new object per stage)
@@ -543,12 +561,21 @@ function makeSimHost(CORE, init, keptWorld) {
     }
   }
   // INP.write's door: the hand's axes every step it is on; an engine lever only where the aeroplane has one
+  // G2480 (HAND-CONTROLS): the toe brakes' brakeD and the water rudders' wr with them - before G2480 the hand's
+  // packet stopped at the flaps, and a differential brake the page set never reached the worker's sim. wr's null is a
+  // value (THE RULE), so it is written whenever the packet carries the field
+  const HAND_KEYS = ['de', 'da', 'dr', 'thr', 'brake', 'brakeD', 'flap'];
+  H.HAND_KEYS = HAND_KEYS;
   function writeHand(h) {
     const c = sim.ctl;
-    for (const k of ['de', 'da', 'dr', 'thr', 'brake', 'flap']) if (h[k] != null) c[k] = h[k];
+    for (const k of HAND_KEYS) if (h[k] != null) c[k] = h[k];
+    if ('wr' in h) c.wr = h.wr === 0 || h.wr === 1 ? h.wr : null;
     if (Array.isArray(h.eng) && Array.isArray(c.eng))
       for (let i = 0; i < c.eng.length && i < h.eng.length; i++) if (h.eng[i] != null && c.eng[i]) c.eng[i].thr = h.eng[i];
   }
+  // G2480: what only the hand writes leaves with it - the toe brakes' split (the pilot clears brakeD every update
+  // anyway, outside the box) and the water rudders' handle (the pilot never knew it: THE RULE again)
+  function handOff(c) { c.brakeD = 0; c.wr = null; }
   function apply(c) {
     const ap = H.ap;
     switch (c.cmd) {
@@ -565,6 +592,7 @@ function makeSimHost(CORE, init, keptWorld) {
         H.manual = !!c.on;
         if (H.manual) H.end.still = 0;           // app.js setManual(true): stillT = 0
         if (!H.manual) {
+          handOff(sim.ctl);                       // app.js setManual(false): the hand's own fields off the aeroplane (G2480)
           if (ap.reEngage) ap.reEngage({ phase: resyncPhase() });
           if (ap.budget) ap.budget = Math.max(ap.budget, ap.t + 300);
         }
@@ -693,6 +721,7 @@ function makeSimHost(CORE, init, keptWorld) {
   let dmgHop = simDmgHop0();
   const dmgCore = (def.refs && def.refs.noseFrame && def.refs.noseFrame.length) ? def.refs.noseFrame[0] : 0;
   H.dmgBytes = 0; H.dmgSends = 0; H.dmgMs = 0;   // the hop's cost, read by GATE DMGSKIN
+  const occHop = simOccHop(sim);                   // G2373: null with no occupants' record (the layer off)
   H.meta = () => {
     const ap = H.ap, A = {};
     // G820 (C1c): a NEW PILOT (Fly on's leg, the skip's) - every field again, and the view starts its copy afresh
@@ -719,6 +748,7 @@ function makeSimHost(CORE, init, keptWorld) {
     if (dmgB) { H.dmgMs += dmgHop.ms; H.dmgSends++; H.dmgBytes += JSON.stringify(dmgB).length; }
     const drv = simDrvOf(sim);                      // G1826
     const struct = sim.damage ? sim.damage().structural : null;   // DMG-D4b (train 41): only once damaged (nothing sent for a whole aeroplane)
+    const occ = occHop ? occHop() : undefined;      // G2373: once, at an event's close
     return {
       out: simHostPlain(sim.out, 3, ['hydro']),
       eng: simHostPlain(sim.eng, 3),
@@ -741,10 +771,11 @@ function makeSimHost(CORE, init, keptWorld) {
       ...(dmgB ? { dmgB } : {}),   // G1850: only when it changed
       ...(drv ? { drv } : {}),     // G1826: only once the drivetrain has a state
       ...(struct && struct.damaged ? { struct } : {}),   // DMG-D4b (train 41): the aeroplane's integrity, once damaged
+      ...(occ !== undefined ? { occ } : {}),   // G2373: the occupants' bands, once (null: a reset took them)
     };
   };
   // the pilot's rare fields go again after a re-init of the view (a new epoch)
-  H.forgetRare = () => { for (const k of Object.keys(rare)) delete rare[k]; dmgHop = simDmgHop0(); };   // (G1850: a new view holds nothing)
+  H.forgetRare = () => { for (const k of Object.keys(rare)) delete rare[k]; dmgHop = simDmgHop0(); if (occHop) occHop.forget(); };   // (G1850: a new view holds nothing)
   H.ready = () => ({ kind: 'ready', n, substeps: def.params.substeps, withV, len: LEN, fuelIdx: fuelIdx.slice(),
                      slots: SIM_SNAP, dt: SIM_HOST_DT, defSig: simHostDefSig(def), epoch: H.epoch });
   return H;
@@ -1015,4 +1046,4 @@ if (typeof window !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports)
   module.exports = { SIM_HOST_KEYS, SIM_HOST_CORE, SIM_HOST_DT, SIM_HOST_CATCH, SIM_HOST_STALL_MS, SIM_SNAP, simHostTrimBoot, simHostBootBytes, simHostWorldOp, simHostIsWorldOp, simHostMakeWorld, simHostProbe, simHostPlace,
                      simHostFetchBoot, simHostPlain, makeSimHost, simHostDefSig, simHostBody, simHostSource, simHostStart,
-                     simDmgHop, simDmgHop0, simDmgPieces, simDmgSets, SIM_DMG_SET_S };
+                     simDmgHop, simDmgHop0, simDmgPieces, simDmgSets, SIM_DMG_SET_S, simOccHop };

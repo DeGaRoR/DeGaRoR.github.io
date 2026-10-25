@@ -50,6 +50,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   let fineRing = null;                // TERRAIN FOLLOW-UP 2: the disc of fine tiles round the eye (its update, its clear)
   let ringLod = null;                // PERF 2026-09-23: the inner ring drawn in chunks by distance (its update, its rebuild, its stats)
   let farLod = null;                  // PERF 2026-09-23: the island's far terrain, cut to the eye (its update, its dials, its stats)
+  // G3100's ground box, HERE (CABIN-PAD, 21 Oct): declared further down it sat in its TDZ when the premises block - inline in this
+  // build - ran 'premises ground': refreshGroundSteps threw at its first line on every boot since 13 Oct, the catch printed "the
+  // record did not render", and the ring's sink under the patch, the fine ring's clear, the ring's rebuild and the far tier's
+  // resink never ran (the far tier kept the raw DEM over every remote cut: the cabin's field shed buried to the eaves). G570's trap
+  const GBOX = { on: !(typeof location !== 'undefined' && /[?&]groundbox=0(&|$)/.test(location.search || '')), adj: new WeakMap(), last: null };   // ?groundbox=0: the whole ring's normals, as before
   let farSinkOn = false;              // G527: the far terrain sinks under a premises' patch once the patch stands (farLod.resink; premisesR is not declared yet when the first cut is built)
   let rockMap = null, groundU = null; // the rocks' far tier (rock_map.js); the island ground uniforms, hoisted for it
   let cliffs = null;                  // the photoscanned cliff faces (cliffs.js)
@@ -1389,7 +1394,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // box + 30 m, a gravel/paved surface. Only the aerodrome box above (len/2 + 150, wid/2 + 60) and the
   // pavements kept it off, so the editor's tool drew a polygon the island's woods walked straight through.
   // The collidable woodland (20_world.js) has always obeyed it. Read at call time: the editor swaps the overlay
-  const premTreeEx = (x, z) => { const o = world.premises && world.premises.overlay; return !!(o && o.excludeAt && o.excludeAt(x, z, 'trees')); };
+  const premTreeEx = (x, z) => { const o = world.premises && world.premises.overlay; return !!(o && o.excludeAt && (o.excludeAt(x, z, 'trees') || o.excludeAt(x, z, 'lot'))); };   // (LOT-CLEAR: a building's lot too)
   // G1091 (POLISH-2): ON AN ISLAND THE RUNWAYS' CLEARANCES ARE THE CORE'S - world.treeAeroBlocked (the aerodrome
   // box above in 'today' only, the pavement by the variant) and world.treeGround (the class a tree reads; the map's
   // under a lifted shoulder) - the SAME calls the collidable woodland makes (20_world.js), so a tree you see stands
@@ -1843,6 +1848,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       classWeights();   // a saved stack that starts at the class layer asks for them now
       gpuUploadNow();
       if (typeof WATER !== 'undefined' && WATER.setSDF) WATER.setSDF(gU.uGPackA.value, gU.uGGrid.value);   // G460: the water reads the coast and lake fields (kept until the material is made below)
+      if (typeof WATER !== 'undefined' && WATER.setCoast && ISLA) WATER.setCoast(ISLA.grid, ISLA.coast, lakeR);   // G2839: the same fields on the CPU - the ring's distances to land and water
       // THE SPLAT (alpha splatting, 2026-09-20): the ground drawn by terrain
       // type from the library (src/viewer/splat_ground.js owns it): two
       // texture arrays on top of the island's five units - 10 / 14 / 15 of 16
@@ -2816,6 +2822,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     seaPlaneY = 0.0;   // the DRAWN sea level, for waterDrawY (WSH is this block's own: reading it from the API below threw every frame, G460.11.5)
     water.position.set((BX0 + BX1) / 2, seaPlaneY, (BZ0 + BZ1) / 2);
     water.renderOrder = -10;   // the first transparent drawn, whatever its bounding sphere says from far offshore
+    // (G2832 prototype c, ?wrefl=c|bc: the sea receives the aircraft's shadow - in three r186 a per-object uniform, no new
+    // program; the water's body term is lit by directLight.color, which carries the shadow, so the darkening is the
+    // upwelled light's and scales with the body's own reflectance: faint on the clear sea, plain in a silty harbour)
+    if (WSH && WSH.proto && WSH.proto.shadow) water.receiveShadow = true;
     if (WSH) WSH.watch(water, renderer);   // the perf rig's GPU timer round its draw
     scene.add(water);
     // THE NEAR SEA MOVES (H4, G393; before the water shader, ruling at's
@@ -2836,6 +2846,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     seaGeo.rotateX(-Math.PI / 2);
     const seaNear = new THREE.Mesh(wtag(seaGeo, 0, true), waterMat);
     seaNear.frustumCulled = false; seaNear.visible = false;
+    if (WSH && WSH.proto && WSH.proto.shadow) seaNear.receiveShadow = true;   // (G2832 prototype c)
     if (WSH) WSH.watch(seaNear, renderer);
     scene.add(seaNear);
     // THE SEA LANE IS MARKED (G396.2; the user: "we need to visualize the
@@ -5622,7 +5633,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
           // height, so the lakes' test never saw one. The same function, in JS, with the splat's live knobs.
           const poolAt = (x, z) => {
             const GF = (typeof GROUND_FIELDS !== 'undefined') ? GROUND_FIELDS : null; if (!GF || !GF.poolAt) return 0;
-            const sp = groundApi.splat ? groundApi.splat() : null; const K = (sp && sp.knobs) ? sp.knobs() : GF.RECIPE.knobs;   // the splat's live knobs (the terrain block's), else the recipe's
+            const sp = groundApi.splat ? groundApi.splat() : null; const K = (sp && sp.knobsLive) ? sp.knobsLive() : (sp && sp.knobs) ? sp.knobs() : GF.RECIPE.knobs;   // the splat's live knobs (the terrain block's), else the recipe's (REVEAL-HITCH: read, never copied - a call a sample)
             if (!(K.pudCover > 0)) return 0;
             let m = GF.poolAt((x + K.pudCell) * K.pudSlope, (z + K.pudCell) * K.pudSlope, K.pudCover, K.pudEdge);
             // A PUDDLE NEEDS A LEVEL PLACE (2026-09-23): the same ramp the shader runs (splat_ground sMat,
@@ -6509,7 +6520,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         const had = sideSheds.get(id);
         if (had && had.key === key) continue;
         if (had) dropShed(had.node);
-        const node = shedNodeAt({ x: +q.x, z: +q.z, ry: +q.ry || 0, y: q.y }, q.dims, q.dress || null);
+        // (CABIN-PAD, the cabin's grey roof, 21 Oct: a held side shed without parts drew the builder's plain material - the
+        // dress was laid only when the player had parts. A held shed always wears its shell's skin (HOME's stays undressed)
+        const node = shedNodeAt({ x: +q.x, z: +q.z, ry: +q.ry || 0, y: q.y }, q.dims, q.dress || {});
         node.name = 'shed:' + id; node.userData.premPlot = id;
         sideSheds.set(id, { key, node });
       }
@@ -7282,7 +7295,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     return aff.size;
   }
   // ---- GROUND BOX (G3100) END ------------------------------------------------------------------------------------------
-  const GBOX = { on: !(typeof location !== 'undefined' && /[?&]groundbox=0(&|$)/.test(location.search || '')), adj: new WeakMap(), last: null };   // ?groundbox=0: the whole ring's normals, as before
+  // (GBOX is declared at the top of the build - CABIN-PAD: refreshGroundSteps reads it inside the premises block's 'premises ground' step)
   function refreshGround(bb) { const g = refreshGroundSteps(bb); while (!g.next().done); }
   // G995 (A5-LOAD): the same in steps (the roll-out's world build: 2.0-2.4 s in one task at 'premises ground' - the
   // ring's heights under the patch from the raster, then the far tier's re-cut): a yield every 8 k vertices tested
@@ -7351,12 +7364,25 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     finally { if (FRw) FRw.pop(); }
   }
   let premTramLast = 0, premStreamTick = 0, lotsNearTick = 0;
+  // G3415 (CITY-B) THE TOWN METER: the town's ticks of this update (the stream, the patch and roads, the lots' cut, the premises'
+  // tick) timed as one into the recorder's 'town' column, with the items they visited (render_premises townMeter) and - with
+  // ?townalloc=1 - the KB they allocated (Chrome's heap counter round them: run Chrome with --enable-precise-memory-info, its
+  // own read's cost measured off at the first frames). premisesR.townFrame holds the last frame's [ms, items, KB] for a rig.
+  const TOWN_ALLOC = typeof location !== 'undefined' && /[?&]townalloc=1\b/.test(location.search || '') && typeof performance !== 'undefined' && !!performance.memory;
+  const townHeap = { bias: NaN, cal: [] };
+  const heapNow = () => performance.memory.usedJSHeapSize;
+  function townAllocKB(h0) {
+    const d = heapNow() - h0;
+    if (!(townHeap.bias === townHeap.bias)) { const b0 = heapNow(); townHeap.cal.push(heapNow() - b0); if (townHeap.cal.length >= 16) { townHeap.cal.sort((a, b) => a - b); townHeap.bias = townHeap.cal[8]; } return NaN; }
+    return d < 0 ? NaN : Math.max(0, d - townHeap.bias) / 1024;   // (a GC inside the window: no sample)
+  }
   function worldUpdate(cg) {
     // a live edit's builds one a frame; the premises streamed by the AIRCRAFT's position (G591: it was one item every
     // third frame from anywhere, parked or not - 18-29 ms a frame of the taxi)
     // G620: the flight recorder's pushes (flight_recorder.js; each a no-op outside the game's frame) - the premises' step,
     // the cover ring and the fill timed apart from the rest of this update, and each premises build an event
     const FRw = (typeof window !== 'undefined' && window.FLIGHT_REC) || null;
+    const tTown = premisesR ? performance.now() : 0, hTown = premisesR && TOWN_ALLOC ? heapNow() : 0;
     if (premisesR && premisesR.stats.queued) {
       const tP = FRw ? performance.now() : 0, q0 = premisesR.stats.queued;
       if (FRw) FRw.push(FRw.S.prem);
@@ -7366,7 +7392,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (premisesR && !(typeof window !== 'undefined' && window.PREMISES_HOST_OPEN)) geoTick(cg);   // G2063: the town's patch and roads, near it
     if (premisesR && premisesR.lotsNear && ++lotsNearTick % 10 === 0) premisesR.lotsNear(camera.position.x, camera.position.z);   // G3210: the plots near the eye only
     // the premises' trams run on the wall clock (G398.3): the sim may be held, the cabins still move
-    if (premisesR && premisesR.tick && (premisesR.stats.trams || premisesR.stats.traffic || premisesR.stats.animals || premisesR.stats.life)) { const now = performance.now(); premisesR.tick(premTramLast && !(typeof window !== 'undefined' && window.FLYDIY_HELD) ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }   // (G650: not while the player has paused)   // .life: the scenery's life re-cuts its draw lists from the eye (SCENERY LIFE)
+    if (premisesR && premisesR.tick && (premisesR.stats.trams || premisesR.stats.traffic || premisesR.stats.animals || premisesR.stats.town || premisesR.stats.life)) { const now = performance.now(); premisesR.tick(premTramLast && !(typeof window !== 'undefined' && window.FLYDIY_HELD) ? Math.min(0.1, (now - premTramLast) / 1000) : 0); premTramLast = now; }   // (G650: not while the player has paused)   // .life: the scenery's life re-cuts its draw lists from the eye (SCENERY LIFE)   // .town: the city host (G3417)
+    if (premisesR) {   // G3415: the town's share of this update, into the frame's row
+      const kb = TOWN_ALLOC ? townAllocKB(hTown) : NaN, ms = performance.now() - tTown, n = premisesR.townMeter ? premisesR.townMeter() : 0;
+      const TF = premisesR.townFrame; if (TF) { TF[0] = ms; TF[1] = n; TF[2] = kb; }
+      if (FRw && FRw.town) FRw.town(ms, n, kb);
+    }
     // G586: the frame's own dt (app.js FLYDIY_PACE; 1/60 where there is no clock - a rig, a harness)
     // G650: paused in flight (app.js FLYDIY_HELD) the frame lasts nothing for the sea and the sway
     const fdt = (typeof window !== 'undefined' && window.FLYDIY_HELD) ? 0 : (typeof window !== 'undefined' && window.FLYDIY_PACE) ? window.FLYDIY_PACE.dt : 1 / 60;
@@ -7836,6 +7867,22 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     prewarm: (cg, o) => fillApi ? fillApi.prewarm(cg, o) : { phase: 'done', done: true, trees: 'fallback' },
     ringReady: (cg, reach, loose) => fillApi ? fillApi.ringReady(cg, reach, loose) : true,   // (B9: the reach passed through - it was dropped here)
     ringStat: () => fillApi ? fillApi.ringStat() : null,
+    // REVEAL-HITCH (19 Oct): the grass field's and the cover ring's cells round each eye [x, y, z, rad], planted now (cover_ring
+    // plantNear; rad in metres, or 'reach': the ring's whole) - app.js hands it the reveal's eyes. `ms` for the call; { built, done }
+    coverPlant: (eyes, ms) => {
+      const t0 = performance.now(); let built = 0;
+      const TF = typeof window !== 'undefined' ? window.TREE_FILL : null;   // (the fill block's handle on its rings - this object's own closure does not reach them)
+      // the GRASS FIELD only (L20d's strict gate: a first-ring cell - 32 m, its shrubs, rocks and debris - inside a 6 ms slice was a
+      // 490 ms task on the Cub's round trip 2; the reveal frame's own cost was the field's cell - the first ring was planted by then)
+      const rings = [TF && TF.grass ? TF.grass() : null];
+      for (const e of eyes || []) for (const R of rings) {
+        if (!R || !R.plantNear) continue;
+        const left = ms - (performance.now() - t0); if (left <= 0) return { built, done: false };
+        const g = R.get(), rad = e[3] === 'reach' ? g.reach + g.cell : (+e[3] || 10);   // (an eye's own radius; 'reach': the ring's whole)
+        const r = R.plantNear(e[0], e[1], e[2], rad, left); built += r.built; if (!r.done) return { built, done: false };
+      }
+      return { built, done: true, ms: Math.round(performance.now() - t0) };
+    },
     treeState: () => fillApi ? fillApi.treeState() : 'fallback',
     rungWarm: () => fillApi && fillApi.rungWarm ? fillApi.rungWarm() : null,   // G730: the parked rungs' stand-ins (app.js rungPrelink)
     treeSettled: () => (treeSettleOf ? treeSettleOf() : Promise.resolve()).catch(() => null),

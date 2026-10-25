@@ -423,6 +423,8 @@ const SIM_LINK = (() => {
         const out = W.slice(); for (let i = 0; i < W[0]; i++) W[5 + i * 18 + 13] = 0; return out; } });
       // G1861.5 (DMG-D4b): ...and DMG-DRIVE's per-engine state (the worker's meta.drv, sim_view's view.drv): the prop draws its grade
       def('drv', { get: () => V.drv || null });
+      // G2373 (DMG-OCCUPANT): ...and the occupants' bands the worker closed (sim_view's view.occ: [{ name, band }] | null)
+      def('occView', { get: () => V.occ || null });
       // (...and the worker's node velocities and engines, under their own names - the wreck's reads only: a released part
       // leaves with its nodes' velocity, a seized prop stops; the page's own v / eng are never stepped under the worker)
       def('vView', { get: () => V.v || null });
@@ -546,7 +548,8 @@ const SIM_LINK = (() => {
         cmd({ cmd: 'over', on: !!S.over, outcome: S.over && F.ap.report ? F.ap.report.outcome || null : null }); F.sent.over = !!S.over;
       }
       if (S.manual && S.INP) {
-        const h = { de: null, da: null, dr: null, thr: null, brake: null, flap: null, eng: Array.isArray(F.realCtl.eng) ? F.realCtl.eng.map(() => ({})) : null };
+        // (G2480: the differential brake and the water rudders' handle ride with the rest - INP.write sets every field)
+        const h = { de: null, da: null, dr: null, thr: null, brake: null, brakeD: null, wr: null, flap: null, eng: Array.isArray(F.realCtl.eng) ? F.realCtl.eng.map(() => ({})) : null };
         S.INP.write(h);
         cmd({ cmd: 'hand', ctl: Object.assign({}, h, { eng: h.eng ? h.eng.map(e => (e.thr != null ? e.thr : null)) : null }) });
       }

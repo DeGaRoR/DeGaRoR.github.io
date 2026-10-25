@@ -1637,7 +1637,9 @@ PAGE.post = (ctx) => {
     group.add(l); group.add(l.target); lit.push(['land', l]);
   }
   if (S.flood && fit('flood')) {
-    const l = new THREE.PointLight(LIGHTS.flood.col, level(P, 'flood') * 0.9, 2.4, 1.6);
+    // G3449 (the user 22 Oct, Rufus's cabin at T0: "flood *4 looks good"): 4x the lamp (0.9 -> 4.0) and its reach
+    // 2.4 -> 4.5 m - at 0.9 / 2.4 the cabin flood on an open ultralight under a 9.8 m wing did not show in the shed
+    const l = new THREE.PointLight(LIGHTS.flood.col, level(P, 'flood') * 4.0, 4.5, 1.6);
     l.position.set(...S.flood.p);
     l.castShadow = false;
     group.add(l); lit.push(['flood', l]);

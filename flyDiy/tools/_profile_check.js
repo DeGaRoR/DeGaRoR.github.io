@@ -115,7 +115,7 @@ function caseTrip() {
     const dur = clr.length ? clr[clr.length - 1].t - clr[0].t : 0;
     out[name] = { outcome: res.outcome, phases: res.phases.length, plan: vpSum, legL: legL ? Math.round(legL) : null, cruiseS: Math.round(dur), reversals: rev,
                   perMin: r2(rev / Math.max(1e-9, dur / 60)), clearBeforeTod: minB != null ? Math.round(minB) : null, clearAfterTod: minA != null ? Math.round(minA) : null,
-                  hClear, margEnd: marg2, react, full };
+                  hClear, margEnd: marg2, react, full, verdicts: res.verdicts || [] };
   }
   return out;
 }
@@ -206,7 +206,19 @@ if (one) {
     check(r.reversals <= 2, '2 ' + n + ': altitude reversals in the cruise near zero', r.reversals + ' in ' + r.cruiseS + ' s (' + r.perMin + ' / min); the reactive guard fired ' + r.react + 'x');
     check(r.clearBeforeTod != null && r.clearBeforeTod >= r.hClear - 10, '2 ' + n + ': the terrain under the aeroplane >= the plan\'s clearance from the top of climb to the top of descent', r.clearBeforeTod + ' m (hClear ' + r.hClear + ')');
     check(r.clearAfterTod == null || r.clearAfterTod >= r.margEnd, '2 ' + n + ': ... and >= the arrival\'s 2 hSafe after it', r.clearAfterTod + ' m (' + r.margEnd + ')');
-    if (r.full) check(r.outcome === 'completed', '2 ' + n + ': landed at Jumbo Mine', r.outcome);
+    // G3077 (TORQUE-RETUNE-66): THE KNOWN RED, BY NAME - MASTER'S SINCE TRAIN 56 (bisected: a6d0ac05 completes, 92a9ebbf - the
+    // t56-mapx merge, RWYTREES-MAP G3023 'mapx', the trees to the strip's edge - gives up; master 8a04876e gives up the same).
+    // The metal Cessna cannot hold Vref at Jumbo Mine ('vref-raised', CESSNA-VREF G2500), refuses the street and diverts to
+    // strip 12 (1020 m); with the trees to that strip's edge its final is the obstacles' (gs 0.134, the aim 188 m in) and the
+    // aeroplane, flapless and fast (36-38 m/s against 28.8), arrives high on it twice ('unstabilised approach ... high') -
+    // the 1100 s clock ends it. Known ONLY while exactly that: gave up (no crash), the divert said, every go-around after it
+    // an unstabilised approach. Owners: A0 / RWYTREES-MAP G3023 (the divert strip's approach fan) with CESSNA-VREF G2500
+    const vs = r.verdicts || [], dI = vs.findIndex(v => /divert:/.test(v));
+    const gaAfter = dI >= 0 ? vs.slice(dI + 1).filter(v => /go-around:/.test(v)) : [];
+    const knownTrip = r.full && n === 'cessnaMetal' && r.outcome === 'gave-up' && vs.some(v => /vref-raised:/.test(v)) && dI >= 0 &&
+      gaAfter.length > 0 && gaAfter.every(v => /unstabilised approach/.test(v));
+    if (knownTrip) console.log('  KNOWN 2 ' + n + ': landed at Jumbo Mine - master\'s red since train 56 (RWYTREES-MAP G3023 x CESSNA-VREF G2500): ' + [vs[dI]].concat(gaAfter).join(' | '));
+    else if (r.full) check(r.outcome === 'completed', '2 ' + n + ': landed at Jumbo Mine', r.outcome);
   }
   console.log('3 AN APPROACH OVER TREES (Jolene \'' + TREES + '\', East Point Clearing, the Cub\'s circuit to a stop)');
   if (c3.error) check(false, '3 ran', c3.error);

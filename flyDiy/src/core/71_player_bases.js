@@ -98,8 +98,25 @@ const BASE_OFFERS = {
     words: 'the Cabin Strip · gravel up a lake valley',
     // (G2745) the Field shed only (the smallest shed; its footprint fits the strip's flat top), 18 x 20 m (ED-2 places the plot for it) so a
     // Cub stands inside with its kits (GATE GAMEPREM: "the field as offered takes a cub")
-    plots: { w1: { shells: ['field'], kits: ['park', 'bench', 'comfort'], pf: 0.6,
-                   dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } } },
+    // (G3352, the user 22 Oct: "I liked it messy ... the wing in building, the plane in building, a couple of woodworking
+    // machines and other props") the cabin is the cozy workshop: every kit but the office. The 'bench' KIT is the work
+    // bench (decor); the certification bench (the TOOL) never stands here (app.js storyBenchRule)
+    // (G3352, the user 22 Oct: "If all props do not fit the hangar, you may slightly increase its size") 10 x 11 (20 x 22 m,
+    // the field shell's widest): with every kit the story's ultralight (Rufus, class ul1) stands inside; a Cub does not, and
+    // the story never brings one here (its client Cub lives at HOME) - `takes` names the class the offer is held to
+    plots: { w1: { shells: ['field'], kits: ['park', 'bench', 'wood', 'metal', 'store', 'handling', 'comfort', 'curio', 'wip'], pf: 0.6,
+                   takes: 'ul1', dims: { field: { HW: 10, HD: 11, EAVE: 4.0 } },
+                   // (G3353, the user 22 Oct: "get rid of the large router (the largest of the woodworking machines). Keep
+                   // only the 2 smaller ones (the drill and another)") the two smallest machines stay - the pillar drill and
+                   // the thicknesser; the panel saw (4.4 x 3.6 m), the band saw and the surface planer are left out
+                   omit: ['panelsaw', 'bandsaw', 'jointer'],
+                   // (G3354, the user 22 Oct: "We need light in the cabin, right now it's a dark hole") a work lamp hung
+                   // ahead of the stand, aimed into the ultralight's cockpit (hangar.js opts.workLamp)
+                   workLamp: { cd: 40 },
+                   // (G3354, the user 22 Oct: "Maybe the lamps are too directly on top of the wing") the field cross hung
+                   // one fitting over the stand and two over the 9.8 m wing's tips: those three hang ahead of the leading
+                   // edge instead (the 23 Oct stills' pick, d2), the fore and aft fittings stay. hangar.js LAMP_XZ units
+                   lampXZ: [[-8, 0], [-3.1, 0], [8, 0], [-3.1, 7.6], [-3.1, -7.6]] } },
   },
   HOME: {
     words: 'Jolene AFB · the WWII field',
@@ -111,7 +128,7 @@ const BASE_OFFERS = {
     },
   },
   w3: {
-    words: 'Tamgas Hill · a strip above the trees',
+    words: GAME_NAMES.hill + ' · a strip above the trees',
     plots: { w3: { shells: ['field'], kits: ['park', 'bench'], pf: 0.8,
                    dims: { field: { HW: 8.5, HD: 9, EAVE: 3.6 } } } },
   },
@@ -121,16 +138,16 @@ const BASE_OFFERS = {
                        dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } } },
   },
   mn_strip: {
-    words: 'Jumbo Mine · a derelict shed on the street',
+    words: GAME_NAMES.mine + ' · a derelict shed on the street',
     plots: { mn_strip: { shells: ['field'], kits: ['park', 'bench', 'curio'], pf: 0.5, derelict: true } },
   },
   SEA: {
-    words: 'Annette Dock · a slipway',
+    words: GAME_NAMES.fields.SEA + ' · a slipway',
     plots: { SEA: { shells: ['field', 'club'], kits: ['park', 'store'], pf: 1, water: true,
                     dims: { field: { HW: 9, HD: 10, EAVE: 4.4 } } } },
   },
   mk_sea: {
-    words: 'Metlakatla · the seaplane float',
+    words: GAME_NAMES.town + ' · the seaplane float',
     plots: { mk_sea: { shells: ['field'], kits: ['park'], pf: 0.8, water: true,
                        dims: { field: { HW: 9, HD: 10, EAVE: 4.4 } } } },
   },
@@ -215,7 +232,8 @@ function hangarObstacles(shed, reg) {
   if (typeof hangarFit !== 'function') return [];
   const kits = (shed && Array.isArray(shed.kits) && shed.kits.length) ? shed.kits : ['park'];
   // G2315: the shed's LAYOUT (cozy: the career's works) stands the kits elsewhere - its rows are the floor's obstacles
-  const fit = hangarFit(hangarDims(shed), kits, { shell: (shed && shed.shell) || 'club', reg, layout: shed && shed.layout });
+  const fit = hangarFit(hangarDims(shed), kits, { shell: (shed && shed.shell) || 'club', reg, layout: shed && shed.layout,
+    omit: shed && shed.omit });   // G3353
   const orient = (f, ry) => (Math.round((ry || 0) / (Math.PI / 2)) & 1) ? [f[1], f[0]] : [f[0], f[1]];
   const out = [];
   for (const p of fit.placed) {
@@ -357,6 +375,9 @@ function hangarRoomFor(shed, foot, residents, opts) {
 // ---- THE DOCUMENT -----------------------------------------------------------
 const pbClone = o => JSON.parse(JSON.stringify(o));
 const pbNo = (doc, why) => ({ ok: false, doc, why });
+// G3260 (ROUTES): the refusal every door gives an aeroplane locked on a route (78b_routes.js routeSign; routeEnd frees it)
+const pbOnRoute = (doc, name) => { const e = doc.fleet[name] || {};
+  return name + ' flies the route ' + (e.a || '?') + '-' + (e.b || '?') + ': end the route first (free, no penalty)'; };
 // the hangars held at an aerodrome, sorted (the order a choice is made in)
 function playerHangarsAt(doc, aero) {
   const S = (doc && doc.sheds) || {};
@@ -382,6 +403,8 @@ function playerFootOf(doc, name, foots) {
 function playerWhere(doc, name) {
   const e = doc && doc.fleet && doc.fleet[name];
   if (!e) return { kind: 'none', hangar: null, aero: null };
+  // G3260 (ROUTES): an aeroplane on a route stands nowhere of yours: 'route' (78b_routes.js locks it there)
+  if (e.kind === 'route') return { kind: 'route', hangar: null, aero: e.aero || null };
   if (e.hangar && doc.sheds[e.hangar]) return { kind: 'in', hangar: e.hangar, aero: doc.sheds[e.hangar].base };
   const aero = e.aero || null;
   return { kind: aero && playerHangarsAt(doc, aero).length ? 'out' : 'away', hangar: null, aero };
@@ -480,6 +503,8 @@ function playerStoreWhere(doc, name) {
   const e = doc && doc.fleet && doc.fleet[name];
   const S = (doc && doc.sheds) || {};
   if (!e) return { kind: 'none', hangar: null, aero: null, slot: null };
+  // G3260 (ROUTES): ON A ROUTE - the sixth place: no building, no slot; the route's two ends on the row (78b_routes.js)
+  if (e.kind === 'route') return { kind: 'route', hangar: null, aero: e.aero || null, slot: null, route: e.route || null, a: e.a || null, b: e.b || null };
   const int = v => Number.isInteger(v) ? v : null;
   if (e.hangar && S[e.hangar]) {
     const k = (e.kind === 'floor' || e.kind === 'inside' || e.kind === 'long') ? e.kind : 'inside';
@@ -505,6 +530,7 @@ function playerStoreSettle(d) {
   const set = (m, k) => (m[k] || (m[k] = new Set()));
   for (const n of names) {
     const e = F[n];
+    if (e.kind === 'route') { e.hangar = null; delete e.slot; continue; }               // G3260: on a route, kept there
     if (e.hangar && !(S[e.hangar] && typeof S[e.hangar] === 'object')) e.hangar = null;   // a hangar gone: where it stood
     if (e.hangar) {
       if (typeof e.aero !== 'string' || e.aero !== S[e.hangar].base) e.aero = S[e.hangar].base;
@@ -671,7 +697,8 @@ function playerPlace(doc, name, world) {
   const L = (world && world.aerodromes) || [];
   const a = L.find(x => x.id === W.aero);
   const nm = W.kind === 'away' ? ((a && a.name) || W.aero) : W.aero;
-  const text = W.kind === 'in' ? 'in ' + W.hangar : (W.kind === 'out' ? 'out at ' : 'away at ') + nm;
+  const text = W.kind === 'in' ? 'in ' + W.hangar : W.kind === 'route' ? 'on route ' + (doc.fleet[name].a || '') + '-' + (doc.fleet[name].b || '')
+    : (W.kind === 'out' ? 'out at ' : 'away at ') + nm;
   const hereBase = doc.sheds[doc.here] ? doc.sheds[doc.here].base : PREM_MAIN;
   return { kind: W.kind, aero: W.aero, hangar: W.hangar, text, here: W.aero === hereBase, wear: playerWearNow(doc, name),
            store: playerStoreWhere(doc, name).kind };     // G2690: floor | inside | outside | long | away
@@ -723,6 +750,7 @@ function playerStore(doc, name, hangarId, foots, opts) {
   if (!e) return pbNo(doc, name + ' is not in the fleet');
   if (!shed) return pbNo(doc, 'no hangar ' + hangarId);
   const W = playerWhere(doc, name);
+  if (W.kind === 'route') return pbNo(doc, pbOnRoute(doc, name));
   if (W.aero !== shed.base) return pbNo(doc, name + ' is at ' + W.aero + ': fly it to ' + shed.base + ' first');
   if (e.hangar === hangarId && e.kind !== 'long') return { ok: true, doc, why: 'already inside' };   // (G2690: long-term comes back in)
   const why = hangarDoorWhy(shed, playerFootOf(doc, name, foots));
@@ -756,6 +784,7 @@ function playerArrive(doc, name, aero, opts) {
   if (!e) return pbNo(doc, name + ' is not in the fleet');
   if (!aero) return pbNo(doc, 'no aerodrome: an aeroplane stopped off-field is recovered, not arrived');
   const W = playerWhere(doc, name);
+  if (W.kind === 'route') return pbNo(doc, pbOnRoute(doc, name));
   if (W.aero === aero && W.kind === 'in') return { ok: true, doc, kind: 'in', hangar: W.hangar, why: 'back where it left' };
   // G2690: back on the apron it left, it is back in its own apron slot (nothing moves while it flies)
   const SW = playerStoreWhere(doc, name);
@@ -807,6 +836,7 @@ function playerBringHome(doc, name, opts) {
   const e = doc.fleet[name];
   if (!e) return pbNo(doc, name + ' is not in the fleet');
   const W = playerWhere(doc, name);
+  if (W.kind === 'route') return pbNo(doc, pbOnRoute(doc, name));
   const order = [];
   // (G2743) a SEND-TO names the one hangar; else the one it left, then the main hangar, then any other open one
   const cand = opts.to ? [opts.to] : [e.left, PREM_MAIN].concat(playerShedsOpen(doc));
@@ -856,6 +886,7 @@ function playerMove(doc, name, to, opts) {
   if (!e) return pbNo(doc, name + ' is not in the fleet');
   if (!PREM_STORE.kinds.includes(to.kind) || to.kind === 'away') return pbNo(doc, 'no such place: ' + to.kind);
   const W = playerStoreWhere(doc, name);
+  if (W.kind === 'route') return pbNo(doc, pbOnRoute(doc, name));
   if (W.kind === 'away') return pbNo(doc, name + ' is away at ' + W.aero + ': fly it to a base of yours, or bring it home');
   if (W.kind === 'none') return pbNo(doc, name + ' stands nowhere yet');
   const base = W.aero, ids = playerHangarsAt(doc, base);
@@ -931,6 +962,7 @@ function playerFloorSync(doc, name, opts) {
   const h = doc && doc.sheds && doc.sheds[doc.here];
   if (!e || !h) return { ok: true, doc, why: 'not in the fleet', where: null, swapped: null };
   const W = playerStoreWhere(doc, name);
+  if (W.kind === 'route') return { ok: true, doc, why: 'on a route', where: W, swapped: null };
   if (W.aero !== h.base || W.kind === 'away' || W.kind === 'none') return { ok: true, doc, why: 'at another base', where: W, swapped: null };
   return playerMove(doc, name, { kind: 'floor', hangar: doc.here }, opts);
 }
@@ -946,21 +978,23 @@ function playerFlyStart(doc, name) {
   const r = (start, why) => ({ ok: !!start, why: why || '', kind: W.kind, start: start || null, aero: W.aero, hangar: W.hangar });
   if (W.kind === 'none') return r(null, name + ' is not in the fleet');
   if (W.kind === 'long') return r(null, name + ' is kept long-term: load it first (a free slot, or the floor)');
+  if (W.kind === 'route') return r(null, pbOnRoute(doc, name));
   return r(W.kind === 'floor' ? 'door' : W.kind === 'inside' ? 'lineup' : 'stand');
 }
 // THE STORAGE SCREEN'S VIEW of a base (the garage's: `here`'s building and its aerodrome): -> { aero, hangar, shell,
 // floor, inside: { N, slots: [name | null] }, outside: { M, slots: [name | null] }, long: [names], others: [names in
-// another building here] }
+// another building here], routes: [names on a route with an end here (G3260: not movable until the route ends)] }
 function playerStoreView(doc, hangarId) {
   const id = hangarId || (doc && doc.here);
   const shed = doc && doc.sheds && doc.sheds[id];
   if (!shed) return null;
   const aero = shed.base, F = doc.fleet || {};
   const N = playerStoreSlots(doc, id).inside, M = playerBaseOutside(doc, aero);
-  const ins = new Array(N).fill(null), outs = new Array(M).fill(null), long = [], others = [];
+  const ins = new Array(N).fill(null), outs = new Array(M).fill(null), long = [], others = [], routes = [];
   let floor = null;
   for (const n of Object.keys(F).sort()) {
     const W = playerStoreWhere(doc, n);
+    if (W.kind === 'route') { if (W.a === aero || W.b === aero) routes.push(n); continue; }   // G3260: on a route from here
     if (W.aero !== aero) continue;
     if (W.kind === 'outside') { if (Number.isInteger(W.slot) && W.slot < M && !outs[W.slot]) outs[W.slot] = n; else long.push(n); continue; }
     if (W.kind === 'long') { long.push(n); continue; }
@@ -968,7 +1002,7 @@ function playerStoreView(doc, hangarId) {
     if (W.kind === 'floor') { if (!floor) floor = n; else long.push(n); continue; }
     if (W.kind === 'inside' && Number.isInteger(W.slot) && W.slot < N && !ins[W.slot]) ins[W.slot] = n; else others.push(n);
   }
-  return { aero, hangar: id, shell: shed.shell || 'club', floor, inside: { N, slots: ins }, outside: { M, slots: outs }, long, others };
+  return { aero, hangar: id, shell: shed.shell || 'club', floor, inside: { N, slots: ins }, outside: { M, slots: outs }, long, others, routes };
 }
 
 // THE DRAWN RESIDENTS of a building (the garage's L2 props beside the stand, WORKS-COZY): its INSIDE slots in slot

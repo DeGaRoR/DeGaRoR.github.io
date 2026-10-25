@@ -28,6 +28,9 @@ const outPath = rel => { const p = path.join(OUT, rel); fs.mkdirSync(path.dirnam
 const MANIFEST = {
   core: [
     '00_registry.js',
+    // THE NAMES (G3240): every person, organisation and place the game shows, ONE table (fictional, GAME-PLAN §13).
+    // Ahead of everything that makes text; it also rides in the BOOT block (the loading screen's cards read it).
+    '01_names.js',
     // THE ATMOSPHERE (G72): pure, no dependencies, and needed by more than the
     // solver — 60_gen_spec synthesises the prop against a density and
     // 64_gen_build quotes stall speeds at one, so it sits in the 00_ band
@@ -102,6 +105,9 @@ const MANIFEST = {
     // THE GROUND'S SCAR (G2357, DMG-SCAR): a crash's ground contacts reduced to craters, gouges and the sweep - pure;
     // the solver feeds it behind the damage layer, the page's grass and decal read its primitives
     '34_scar.js',
+    // THE OCCUPANTS IN A CRASH (G2373, DMG-OCCUPANT): each filled seat's pulse and space, the criteria, five bands -
+    // pure; read by the solver behind the damage layer
+    '34_occupant.js',
     // THE GROUND PATH (G193): a declared pattern graph sampled into a path the
     // pilots follow (fillets, curvature, a STOP); pure, read by 25_'s
     // sitePattern consumers, the two pilots, pattern_vis.js and the gates.
@@ -211,9 +217,17 @@ const MANIFEST = {
     // Accept into the career's record and freightAccepted(doc) for FREIGHT-STRAP; pure, GATE FREIGHT.
     '77_freight_load.js',
     '78_freight_strap.js',          // G2400 (FREIGHT-STRAP): the accepted load as point masses + the straps' geometry
+    // THE ROUTES (G3260 ROUTES): a plane + a hired pilot + an A <-> B schedule - the down payment on signing, the round
+    // trips paid on the sim clock at the player's landings and waits, the plane and the pilot locked until the route
+    // ends; pure, GATE ROUTES. GAME-PLAN-2026-10-15 §R, §3 T6, §5.3.
+    '78b_routes.js',
     // THE STORY (G2741 STORY-CORE): the tutorial's beats T0-T7 as data, the story in the career document, one pure step
     // per event, the story's places by ROLE (the cabin strip as the user names it); GATE STORY. GAME-PLAN-2026-10-15 §3.
     '79_story.js',
+    // THE TECH MASK (G3230 TECH-MASK): the machine shop's three segments - every build option -> its segment, a design's
+    // stage (computed), the career's segment, the editor's rows, the market's and the makers' filter; pure, GATE TECH.
+    // GAME-PLAN-2026-10-15 §R, §4.
+    '79b_tech.js',
     '90_node_exports.js',
   ],
   // THE CAREER-ONLY CORE (G2685 CAREER-LAZY, the coordinator's sanity check 8 Oct: train 43 grew index.html by 324 KB,
@@ -236,7 +250,7 @@ const MANIFEST = {
   // page's pilot and the worker's fly them) and stays inline.
   routeDraw: 'route_draw.js',
   career: ['72_contract_data.js', '73_contracts.js', '74_career.js', '75_career_wire.js', '76_economy.js',
-    '76_procure.js', '76_pilots.js', '76_freight.js', '77_freight_load.js', '79_story.js'],
+    '76_procure.js', '76_pilots.js', '76_freight.js', '77_freight_load.js', '78b_routes.js', '79_story.js', '79b_tech.js'],
   // baked 3D model payloads (tools/model_prep.py baked the PA-18 and C172
   // when they were flyable, tools/ref_prep.py the rest — all REFERENCE
   // planes since the fleet retired 2026-09-05; data, not core):
@@ -320,6 +334,7 @@ const MANIFEST = {
     // landing after the inlined viewer is soon enough.
     ['src/viewer', 'plume.js'], ['src/viewer', 'animals.js'], ['src/viewer', 'animal_run.js'],
     ['src/viewer', 'house_tex.js'], ['src/viewer', 'lot_tex.js'], ['src/viewer', 'sign_tex.js'],
+    ['src/viewer', 'tex_means.js'],   // HLOD-MEANS: the shipped albedo maps' means (tools/tex_means.py) - render_premises meanOf reads them
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'pier', 'pier_packs.json'), 'utf8')).map(f => ['src/pier', f]); } catch (e) { return []; } })(),
     // THE FREIGHT LOADS (G2405, tools/load_table.py): the loads + the camp dressing, slim manifests (bins on demand)
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'loads', 'loads_packs.json'), 'utf8')).map(f => ['src/loads', f]); } catch (e) { return []; } })(),
@@ -344,6 +359,8 @@ const MANIFEST = {
     ['src/viewer', 'premises_build.js'],
     // THE TOWN ON TEXTURE ARRAYS (G574): the stack, the slot table and the town materials the near bake draws with
     ['src/viewer', 'house_tarr.js'],
+    // THE NEAR RING (G3416, CITY-B): the list the town's per-frame walks visit (render_premises, scenery_life, townkit.js)
+    ['src/viewer', 'town_ring.js'],
     ['src/viewer', 'render_premises.js'],
   ].filter(([d, f]) => fs.existsSync(path.join(ROOT, d, f))),
   // LOADED ON DEMAND (AS1, G909): ~290 KB of the world pack that a flight on the default map never runs - the scenery
@@ -374,6 +391,9 @@ const MANIFEST = {
          ['src/viewer', 'world_rail.js'], ['vendor/ktx2', 'ktx2_loader.js'],
          ['src/viewer', 'townkit.js'], ['src/viewer', 'kit_lot.js'],
          ['src/viewer', 'diag.js'],
+         // G3380 (STORY-INTRO): a New career's opening (the cinematic over the cabin strip and its music) - asked for by the
+         // story's page half (app.js storyIntroCurtain) when a New career arms it; never by the sandbox, Continue or the phone
+         ['src/viewer', 'story_intro.js'],
          // G2252 (MAP-MENU): THE MAP SCREEN - its projection (map_pack.js, tools/map_bake.js writes it) and the screen; fetched
          // when the MAP entry is pressed, never before (the entry itself exists only with ?map=1 or in the career mode)
          ['src/viewer', 'map_pack.js'], ['src/viewer', 'map_menu.js'],
@@ -940,9 +960,13 @@ function buildViewer(core) {
   // G1535: the build's id and date ride ahead of the boot scripts; their values are known only once every script is
   // read (BUILD_ID below), so the slot carries a marker that both pages swap for them (BUILD_MARK)
   // (update_now.js ahead of welcome.js: the welcome card's footer reads UPDATE_NOW.stamp as it opens)
-  const bodyArt = fill(bodyHtml, 'BOOT', BUILD_MARK + `\n<script>\n${cardsJs}\n${bootJs}</script>`
+  // (G3240 NAMES) the names table rides ahead of the cards, which read it before the core runs (01_names.js: a `var`,
+  // so the core's own copy re-declares it)
+  const namesJs = cardsJs ? read(path.join(CORE_DIR, '01_names.js')) : '';
+  const bodyArt = fill(bodyHtml, 'BOOT', BUILD_MARK + `\n<script>\n${namesJs}\n${cardsJs}\n${bootJs}</script>`
     + (updateJs ? `\n<script>\n${updateJs}</script>` : '') + (profileJs ? `\n<script>\n${profileJs}</script>` : '') + (welcomeJs ? `\n<script>\n${welcomeJs}</script>` : ''));
-  const bodyDev = fill(bodyHtml, 'BOOT', BUILD_MARK + '\n' + (cardsJs ? `<script src="src/viewer/${V.bootCards}?v=${sha(cardsJs).slice(0, 8)}"></script>\n` : '')
+  const bodyDev = fill(bodyHtml, 'BOOT', BUILD_MARK + '\n' + (namesJs ? `<script src="src/core/01_names.js?v=${sha(namesJs).slice(0, 8)}"></script>\n` : '')
+    + (cardsJs ? `<script src="src/viewer/${V.bootCards}?v=${sha(cardsJs).slice(0, 8)}"></script>\n` : '')
     + `<script src="src/viewer/${V.boot}?v=${sha(bootJs).slice(0, 8)}"></script>`
     + (updateJs ? `\n<script src="src/viewer/${V.updateNow}?v=${sha(updateJs).slice(0, 8)}"></script>` : '')
     + (profileJs ? `\n<script src="src/viewer/${V.profile}?v=${sha(profileJs).slice(0, 8)}"></script>` : '')

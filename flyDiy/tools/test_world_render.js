@@ -251,6 +251,10 @@ const premStub = {
   stats: { queued: 0 },
   rebuild() { PREM.calls.push(['rebuild']); },
   drainNear(x, z, r) { PREM.calls.push(['drainNear', x, z, r]); },
+  // (CABIN-PAD, 21 Oct) the 'premises ground' step: the patch's box, so the boot runs refreshGroundSteps under it - the
+  // step G3100's GBOX killed in its TDZ on every boot from 13 Oct, unseen: this stub had no patchBounds and the step never ran
+  patchBounds() { PREM.calls.push(['patchBounds']); return { x0: -200, z0: -200, x1: 200, z1: 200 }; },
+  ringSink: () => 0, patchCovers: () => false,
 };
 // ...and TREE_PLACE (G1481, WOODLAND): the woodland planter's handle is kept, so the gate can plant by hand below
 const PLACE = {};
@@ -289,13 +293,14 @@ try {
   process.exit(1);
 }
 console.warn = warn0;
-// the boot made the premises, rebuilt it and drained the near ring at PREM_NEAR (3 km; G562), and said nothing
+// the boot made the premises, rebuilt it, drained the near ring at PREM_NEAR (3 km; G562) and sank the ground under its
+// patch ('premises ground': refreshGroundSteps to its end - a throw there is a warning, and a warning fails), and said nothing
 {
   const seq = PREM.calls.map(c => c[0]).join(' > '), dn = PREM.calls.find(c => c[0] === 'drainNear');
   console.log(`premises door: ${seq || 'never opened'}${dn ? ' (' + dn.slice(1).join(', ') + ')' : ''} | warnings ${PREM.warns.length}`);
   const bad = [];
   if (PREM.warns.length) bad.push('the premises block warned: ' + PREM.warns.join(' / '));
-  if (seq !== 'make > rebuild > drainNear') bad.push('the boot did not run make > rebuild > drainNear (got: ' + (seq || 'nothing') + ')');
+  if (seq !== 'make > rebuild > drainNear > patchBounds') bad.push('the boot did not run make > rebuild > drainNear > patchBounds - the premises ground step (got: ' + (seq || 'nothing') + ')');
   if (PREM.calls[0] && PREM.calls[0][1] !== true) bad.push('the premises was not made for the game (opts.game)');
   if (dn && !(dn[1] === 0 && dn[2] === 0 && dn[3] > 0)) bad.push('drainNear was not asked for a ring round the field: ' + dn.slice(1).join(', '));
   if (WF.premises !== premStub) bad.push('the rig does not hand back the premises it made (WF.premises)');

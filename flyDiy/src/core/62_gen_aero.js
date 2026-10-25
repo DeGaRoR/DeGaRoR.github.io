@@ -400,10 +400,14 @@ function genFusCdA(S, fr) {
   const ST = fr.parts.ST;
   let frontal = 0, sFwd = 0, sAft = 0;
   for (const s of ST) frontal = Math.max(frontal, 2 * s.w * (s.yt - s.yb));
+  // the nose and the cabin bays are the forward body: rings 0-2, or to the cabin's rear ring when a long cabin has
+  // frames along it (G3504, 61_gen_frame iCabR; GEN_RULES.cabBayMax)
+  const cabLen = S.cab && S.cab.len, iCR = (GEN_RULES.cabBayMax > 0 && cabLen > GEN_RULES.cabBayMax + 1e-6)
+    ? Math.max(2, ST.findIndex(s => Math.abs(s.x - (S.cab.noseGap + cabLen)) < 1e-6)) : 2;
   for (let i = 0; i < ST.length - 1; i++) {
     const a = ST[i], b = ST[i + 1];
     const A = 0.5 * ((a.yt - a.yb) + (b.yt - b.yb)) * (b.x - a.x);
-    if (i < 2) sFwd += A; else sAft += A;
+    if (i < iCR) sFwd += A; else sAft += A;
   }
   const D = GEN_DRAG, M = GEN_MATERIALS[S.material] || GEN_MATERIALS.tubeFabric;
   const wet = genFusSwet(S, ST);
@@ -674,7 +678,17 @@ function genTuneAP(def) {
   const gsIdle = g.dragAppr / g.W - A.thrFloor * g.TavailAppr / g.W;
   // gs/gsIdle across the fleet: 0.574 +/- 0.13, or 0.532 +/- 0.10 excluding the
   // flapless Cub — whose 0.822 is exactly why it floats 90 m off a 340 m strip.
-  A.gs = r3(cl(0.55 * gsIdle, 0.035, 0.10));
+  // G3305 (AP-ADAPT, the user 18 Oct: the Mosquito "struggles a lot maintaining altitude"): A NORMAL APPROACH WHERE THE
+  // AEROPLANE CAN FLY ONE. 0.55 gsIdle on a clean L/D-14.8 airframe is 2.1 deg: a 5.4 km final and a 5.5 km downwind,
+  // which at w3 ran into the 560-773 m ground beyond Tamgas Hill (the plan climbed over it, the final began 1.5-2.3x
+  // high, a go-around every time). The slope is floored at the shallowest VALIDATED approach (0.045, 2.6 deg: the metal
+  // Cessna's and the Cessna on floats' own - so the validated set flies the slopes it did; 0.052 was measured first and
+  // landed the metal Cessna at w3 firmer, 1.75 -> 2.31 m/s) as far as 0.8 of the aeroplane's own idle
+  // gradient at the approach allows (gsIdle: the flapped approach drag, the idle thrust - the AIR's gradient; the
+  // arrival lands into wind, a one-way strip's tailwind is the pilot's own vref-raised / go-around); a clean glider
+  // that cannot descend at 3 deg keeps the slope it can fly. Every build whose 0.55 gsIdle is already 0.052 or more
+  // flies the slope it did
+  A.gs = r3(Math.max(cl(0.55 * gsIdle, 0.035, 0.10), Math.min(0.045, 0.8 * gsIdle)));
   // thrAppr is EXACT, not a fit: it is the throttle that trims the approach.
   // Every fiche's hand value sits within speedThrottle's +-0.30 integrator band
   // of its true one — "close enough by hand". A generated build whose true
@@ -1397,7 +1411,9 @@ function genParams(S, fr, strips) {
     // THE PROP IS THE AEROPLANE'S, not the powerplant's. The solver prefers this
     // over POWERPLANTS[powerplant].prop when it is present, and a fiche never
     // sets it — so the fleet reads the registry exactly as before.
-    prop: { D: S.prop.D, Tstatic: S.prop.Tstatic, kV2: S.prop.kV2 },
+    // G2080: + I, the disc's polar moment (the gyroscopic couple), from the blades' own mass
+    prop: { D: S.prop.D, Tstatic: S.prop.Tstatic, kV2: S.prop.kV2,
+            I: S.prop.mass > 0 ? GEN_PROP_IK * S.prop.mass * (S.prop.D / 2) * (S.prop.D / 2) : 0 },
     // THE PANEL ARC (session 1): what the burn drains and the fuel gauge
     // reads in. A liquid aeroplane's litres come out of the drained `mFuel`
     // through its fuel's density; a pack has a capacity and a state of
