@@ -98997,3 +98997,17 @@ FIX: app.js simOutAtRest(o), called right after sim.reset(0) in enterGarage: V, 
 GATE AUDIO WIRING: enterGarage calls simOutAtRest(sim.out) within 40 chars after sim.reset(0), and simOutAtRest zeroes V and the three rpm arrays; 2 mutations (the call lost; the rpm arrays left), both red (checked statically on the real app.js before the slot).
 GATES: pending A0’s slot Mon 26 Oct 20:30-21:00 CPU (BUILD, UISMOKE, UILAYER, AUDIO, ROUNDTRIP, ROLLANIM, ROLLSND, BOOMBOX, --no-build). claude/ready/garage-rattle = the gated commit, pushed only if they all pass.
 HOT FILES: src/viewer/app.js (+13: the helper beside enterGarage, one call). tools/audio/_audio_check.js (+8). UILAYER’s enterGarage window (rollShotUi(false) at +479 of 600) is unaffected: the call sits after it.
+
+## A0 - landing L25b (25 Oct 2026, gates 14:46-15:13, re-run 15:20-15:46, pushed ~16:05): THE AUTOPILOT P1 FIXES, THE DC-3 CODE, CG COLOURS, SCARS + OCCUPANTS, THE GARAGE LINK, THE SHED RATTLE, LOT-CLEAR, NAMES, THE ROAD SIDE AT 0, ROLLANIM, TECH MASK
+Rolling set (11): cg-colours 65cd59390, dc3-build cda1392be, dmg-scar2-occupant 031e3af90, garage-link 2b1fc25d4, garage-rattle 90c175c67, lot-clear fefb65617, names 6ff338d3c, road-band-zero 15863dee8, rollanim-scan f5fd7c876, t-p1 c6c540897, tech-mask 518b7e38d. HELD: garage-flood 4746e32fa (land_hold.txt; Game's fix 899583076 rides L25c).
+A0 fix in the train: GATE BOOMBOX's 'click after the editor' anchor follows G3450's else-if (b0ade4c2a; the click order unchanged; BOOMBOX PASS).
+Battery: master's standing reds only - CLOCK (1 of 777), CLOUD (the lamp-pool row), FRAMECOST (the cessna boot/restore updateMatrixWorld key, identical to master), KTX2 row 10. ROLLANIM now passes.
+Strict light gate RED both runs (13 / 16) vs the 12 Oct baseline; judged against master L24c's own runs (tg_L24c):
+- load to garage: L24c mean 65.3 s over the six legs; L25b 68.0, re-run 67.3 (+2-3 s, inside the per-leg spread of 5-8 s run to run). Rows cub/metal cockpit/chase garage+flight are this drift.
+- compile / tasks1s / taskWorst: the known boot class (L24c had the same rows).
+- metal fuseWidth busy 396: bimodal 0 / ~400 ms per rep; L24b and L24c show the same 402 / 499 ms max - master's.
+- cub round trip 2 world -> garage worst task 628 ms: run 1 only; gone in the re-run - noise.
+- floats world -> garage 3.55 s / cub garage fps 28.5: the known garage-link / garage hitch class.
+- OPEN: floats water taxi @SEA p99 66.7 ms / over100 2 - re-run only (also L25a); suspect dmg-scar2-occupant's per-step record. A0 bisects it alone in tonight's 23:15 CPU+GPU slot; the owner fixes if it reproduces.
+- OPEN (Pilot): Rufus mine CALM still open: twice round, high 7-8 m at 58 m, divert; cause = the 1.4/LDbest slope cap needs a slip Rufus's aileron can't hold.
+Pushed by the user's order of 25 Oct: land last week's items and priority 1 as soon as possible.
