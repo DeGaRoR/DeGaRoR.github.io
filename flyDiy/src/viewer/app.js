@@ -14276,6 +14276,7 @@
   let flSetupHost = null, flSetupOn = false, setupTouched = false;   // B8: the setup screen's view of this rail (below)
   // G3643: THE FLIGHT LAYOUT of the 25 Oct mockup (below, after the menu) - on unless ?flui=old (the layout before it)
   const FL2 = !(typeof location !== 'undefined' && /[?&]flui=old(&|$)/.test(location.search || ''));
+  let photoOn = false, photoHook = null;   // G3742: photo mode (the layout's, below) - shotSet tells it the shot came or went
   let photoGrab = null;   // G3741: a function the next presented frame hands its canvas to (the photo), at the frame's end
   let flAnchorEl = null;   // G3644: the button a flyout was opened from (the top row, the readouts): it opens under it
   let flPageHook = null;   // G3740: the menu's open page (gmPageRefresh) - a third view of these builders, rebuilt with the other two
@@ -14762,6 +14763,7 @@
     if (UIL) UIL.see(camera, !on);
     if (on) { try { flyOpenSet(null); } catch (e) {} }
     if (typeof placeIndicators === 'function') placeIndicators();
+    if (photoHook) try { photoHook(on); } catch (e) { console.warn('flyDiy: photo mode -', e && e.message); }   // G3742
     // the canvas re-insets through its CSS transition; measure at both ends
     setTimeout(resize, 0); setTimeout(resize, 220);
   }
@@ -14904,7 +14906,7 @@
     camera(body) {
       const eyeWhy = flEyeWhy();
       // G3646: the free camera is a developer's (the user 25 Oct: "free goes to dev") - shown with Dev on
-      flPills(body, FL_CAM.filter(c => !FL2 || c.k !== 'free' || flDevOn || cam.mode === 'free').map(c => ({ label: c.k, value: c.k,
+      flPills(body, FL_CAM.filter(c => !FL2 || c.k !== 'free' || flDevOn || photoOn || cam.mode === 'free').map(c => ({ label: c.k, value: c.k,
                                        why: c.k === 'cockpit' ? eyeWhy : null })),
               o => o.value === cam.mode, o => flCamMode(o.value));
       // G441 (A4): the head look, as a switch (the L key presses it; Escape leaves it)
@@ -16627,17 +16629,59 @@
     // glass (flight.css); the second takes the next presented frame (photoGrab: the 3D frame alone - the button is not in
     // it), downloads it as flydiy-<date>-<time>.png and brings the interface back. Esc leaves without a picture; a drag
     // frames the shot (the camera's, as always)
-    const bShot = mk('button', 'flShotB', 'flCornB', '', 'Photo mode: hide the interface - press again to take the picture');
+    const bShot = mk('button', 'flShotB', 'flCornB', '', 'Photo mode: the flight paused, the camera free, a shutter');
     const photoName = () => { const d = new Date(), p = n => String(n).padStart(2, '0');
       return 'flydiy-' + d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()) + '.png'; };
     const photoSave = blob => { if (!blob) return; const a = document.createElement('a'), u = URL.createObjectURL(blob);
       a.href = u; a.download = photoName(); document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); };
+    const flash = mk('div', 'photoFlash');
+    document.body.appendChild(flash);
     const photoTake = () => { if (photoGrab) return;
-      photoGrab = cv => { cv.toBlob(photoSave, 'image/png'); shotSet(false); };   // (toBlob copies the frame now, encodes after)
+      photoGrab = cv => {   // (toBlob copies the frame now, encodes after); the flash is the page's, not the picture's
+        cv.toBlob(photoSave, 'image/png');
+        flash.classList.remove('on'); void flash.offsetWidth; flash.classList.add('on');
+      };
     };
+    // G3742 THE PHOTO BAR: the flight PAUSED (the player's pause, given back as it was), the CAMERA's own rows (the views -
+    // the free camera among them - the field of view, the level horizon, the lead, the smoothing: FL_BUILD.camera, as the
+    // flyout and the pause menu mount it), a real SHUTTER (as many pictures as you like) and Done. Bottom left, draggable
+    // by its head; the camera and the field of view go back to the flight's when it ends
+    const pBar = mk('div', 'photoBar'); pBar.hidden = true; pBar.setAttribute('role', 'group'); pBar.setAttribute('aria-label', 'photo mode');
+    pBar.innerHTML = '<div class="phHead"><b>Photo</b><span>paused</span></div><div id="photoBody"></div>' +
+      '<div class="phActs"><button type="button" id="photoDone">Done</button><button type="button" id="photoShutter" aria-label="Take the picture" title="Take the picture"><i></i></button></div>';
+    document.body.appendChild(pBar);
+    let photoWas = null;
+    const photoBuild = () => {
+      const body = $('photoBody'), keep = body.scrollTop;
+      while (body.firstChild) body.removeChild(body.firstChild);
+      FL_BUILD.camera(body);
+      if (cam.mode === 'free') flNote(body, 'The free camera: WASD / ZQSD to move, R / F up and down, Shift faster, the wheel its speed, drag to look.');
+      body.scrollTop = keep;
+    };
+    const photoBegin = () => {
+      if (photoOn || inGarage) return;
+      photoOn = true; photoWas = { mode: cam.mode, fov: cam.fov, held: running };
+      if (running) gmHold(true);
+      photoBuild(); pBar.hidden = false;
+      if (window.FLYDIY_DRAG) window.FLYDIY_DRAG.register('#photoBar', 'photo', { handle: '.phHead' });
+    };
+    const photoEnd = () => {
+      if (!photoOn) return;
+      photoOn = false; pBar.hidden = true;
+      const w = photoWas; photoWas = null;
+      if (w) {
+        if (cam.mode !== w.mode) flCamMode(w.mode);
+        if (cam.fov !== w.fov) { cam.fov = w.fov; flSave('Cam', cam); flApplyFov(); }
+        if (w.held && !running && !inGarage) gmHold(false);
+      }
+    };
+    photoHook = on => { if (on) photoBegin(); else photoEnd(); };
+    const hook0 = flPageHook; flPageHook = () => { if (hook0) hook0(); if (photoOn) photoBuild(); };   // (a pick rebuilds it, as the flyout)
+    $('photoShutter').onclick = () => photoTake();
+    $('photoDone').onclick = () => shotSet(false);
     bShot.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.2h3.6l1.6-2.4h6.6l1.6 2.4h3.6v10.6H3.5Z"/><circle cx="12" cy="13.2" r="3.4"/></svg>';
-    bShot.onclick = () => { if (SHOT.on) { photoTake(); return; } gmOpen(false); shotSet(true); };
-    window.FLYDIY_PHOTO = { take: photoTake, name: photoName };
+    bShot.onclick = () => { gmOpen(false); shotSet(true); };   // photo mode (photoHook): the bar has the shutter and Done
+    window.FLYDIY_PHOTO = { take: photoTake, name: photoName, on: () => photoOn, done: () => shotSet(false) };
     document.body.appendChild(bMap); document.body.appendChild(bShot); document.body.appendChild(bEye);
     // the minimap: a button while it is put away, an x on it to put it away
     const bMm = mk('button', 'flMmB', 'flCornB', '', 'The minimap: show');
