@@ -2756,17 +2756,10 @@
    "plot": 132
   }
  },
-<<<<<<<< HEAD:flyDiy/media/map/jolene_proj.4ca9bfa2.json
  "credit": "Jolene Island: the ground from USGS 3DEP IFSAR and ESA WorldCover; every name fictional (flyDiy/CREDITS.md)",
- "img": "media/map/jolene_map.87e4a4df.png",
- "imgBytes": 714707,
- "imgHash": "87e4a4df",
-========
- "credit": "Jolene Island: Annette Island, Southeast Alaska, renamed (USGS 3DEP IFSAR, ESA WorldCover; flyDiy/CREDITS.md)",
  "img": "media/map/jolene_map.b4545f2b.png",
  "imgBytes": 714719,
  "imgHash": "b4545f2b",
->>>>>>>> 2b381015d:flyDiy/media/map/jolene_proj.ef63f22e.json
  "art": {
   "img": "media/map/jolene_art.1b6f317e.jpg",
   "bytes": 936836,
