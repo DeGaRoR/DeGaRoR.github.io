@@ -202,14 +202,19 @@ const SCENERY_HANGARS = `JSON.stringify((() => {
     return n; })()`;
   const toWorld = (id, p) => ev(`(() => { const n = ${NODE(id)}; if (!n) return null; n.updateWorldMatrix(true, false); return new THREE.Vector3(${p.join(',')}).applyMatrix4(n.matrixWorld).toArray(); })()`, null);
   const roomDims = async () => JSON.parse(await ev('JSON.stringify(GARAGE_ENV.dims())', 'null') || 'null');
+  // the room's panels hidden for its stills (garage_shot.js --clean: every element off the canvas's own line), shown again after
+  const clean = on => ev(on ? "(()=>{const c=document.querySelector('canvas');window.__hlHid=[];document.querySelectorAll('body *').forEach(el=>{if(el.contains(c)||el.closest('canvas')||getComputedStyle(el).visibility==='hidden')return;el.style.visibility='hidden';window.__hlHid.push(el);});return window.__hlHid.length})()"
+    : "(()=>{(window.__hlHid||[]).forEach(el=>el.style.visibility='');window.__hlHid=[];return 1})()", 0);
   const roomPairs = async (id) => {
     const D = await roomDims(); if (!D) return null;
+    await clean(true);
     for (const [k, [p, t]] of Object.entries(PAIRS(D))) {
       const ok = await ev('window.FLYDIY_ROOM_EYE ? FLYDIY_ROOM_EYE(' + JSON.stringify(p) + ',' + JSON.stringify(t) + ') : "no hook"', false);
-      if (ok !== true) { console.log('  ROOM EYE REFUSED ' + k + ' (' + ok + ')'); return D; }
+      if (ok !== true) { console.log('  ROOM EYE REFUSED ' + k + ' (' + ok + ')'); await clean(false); return D; }
       await sleep(2500); await shoot(id + '_room_' + k + '.jpg');
     }
     await ev('window.FLYDIY_ROOM_EYE && FLYDIY_ROOM_EYE(null)', 0);
+    await clean(false);
     return D;
   };
   const worldPairs = async (id, D) => {
