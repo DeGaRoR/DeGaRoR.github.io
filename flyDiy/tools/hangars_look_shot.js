@@ -202,9 +202,13 @@ const SCENERY_HANGARS = `JSON.stringify((() => {
     return n; })()`;
   const toWorld = (id, p) => ev(`(() => { const n = ${NODE(id)}; if (!n) return null; n.updateWorldMatrix(true, false); return new THREE.Vector3(${p.join(',')}).applyMatrix4(n.matrixWorld).toArray(); })()`, null);
   const roomDims = async () => JSON.parse(await ev('JSON.stringify(GARAGE_ENV.dims())', 'null') || 'null');
-  // the room's panels hidden for its stills (garage_shot.js --clean: every element off the canvas's own line), shown again after
-  const clean = on => ev(on ? "(()=>{const c=document.querySelector('canvas');window.__hlHid=[];document.querySelectorAll('body *').forEach(el=>{if(el.contains(c)||el.closest('canvas')||getComputedStyle(el).visibility==='hidden')return;el.style.visibility='hidden';window.__hlHid.push(el);});return window.__hlHid.length})()"
-    : "(()=>{(window.__hlHid||[]).forEach(el=>el.style.visibility='');window.__hlHid=[];return 1})()", 0);
+  // the room's stills in the page's own SCREENSHOT MODE (app.js SHOT_MODE, G255: the panels' inset released so the
+  // canvas fills the window, the CG/NP posts and the UI layer hidden; its faint back button hidden too); a page without
+  // it (an older build) gets its panels hidden instead (garage_shot.js --clean)
+  const clean = async on => { const r = await ev(on
+    ? "(()=>{if(window.SHOT_MODE){SHOT_MODE.enter();const b=document.getElementById('shotBack');if(b)b.style.visibility='hidden';return 'shot';}const c=document.querySelector('canvas');window.__hlHid=[];document.querySelectorAll('body *').forEach(el=>{if(el.contains(c)||el.closest('canvas')||getComputedStyle(el).visibility==='hidden')return;el.style.visibility='hidden';window.__hlHid.push(el);});return window.__hlHid.length})()"
+    : "(()=>{if(window.SHOT_MODE&&SHOT_MODE.on){SHOT_MODE.exit();const b=document.getElementById('shotBack');if(b)b.style.visibility='';}(window.__hlHid||[]).forEach(el=>el.style.visibility='');window.__hlHid=[];return 1})()", 0);
+    await sleep(800); return r; };
   const roomPairs = async (id) => {
     const D = await roomDims(); if (!D) return null;
     await clean(true);
@@ -218,11 +222,13 @@ const SCENERY_HANGARS = `JSON.stringify((() => {
     return D;
   };
   const worldPairs = async (id, D) => {
+    await clean(true);   // the HUD out of the shot as the room's panels are (SHOT_MODE on both screens)
     for (const [k, [p, t]] of Object.entries(PAIRS(D))) {
       const P = await toWorld(id, p), T = await toWorld(id, t);
-      if (!P || !T) { console.log('  no world node for ' + id); return false; }
+      if (!P || !T) { console.log('  no world node for ' + id); await clean(false); return false; }
       await eyeAt(id.replace('.', '') + '_world_' + k, P, T);
     }
+    await clean(false);
     return true;
   };
   if (want('cabin')) twin.roomDims = await roomPairs('w1');

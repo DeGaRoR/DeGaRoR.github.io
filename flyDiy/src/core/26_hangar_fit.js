@@ -80,6 +80,10 @@ const SHELLS = {
       wallSides: { set: 'rawplank', tile: 2 },
       wallBack:  { set: 'rawplank', tile: 2 },
       roof:      { set: 'rustysheet', tile: 2 },
+      // (G3537, A0 25 Oct: the leaves read as light steel outside and warm boards inside - the same grey canvas boards
+      // under daylight and under the lamps): brown planks, dressed on both by this table (the room's setPart, the world's
+      // dressExterior)
+      doorMain:  { set: 'planks09', tile: 2 },
     },
     sky: 'alps', price: 6000, status: 'live',
   },
