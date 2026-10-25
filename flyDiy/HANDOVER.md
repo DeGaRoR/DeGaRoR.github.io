@@ -98694,3 +98694,22 @@ Continues DC3-STUDY (G3500, origin/claude/dc3-study): its study, tools/dc3_probe
   3. **The strength rule above the knee** (G3505) is a game rule, not physics: one lattice member stands for an
      airliner's stringers and skin. It is gated off below 2 x refGross. Accept it as the rule for big builds?
   4. Retracting mains (G3506 M), engine-out handling and per-engine gauges (G3508), the career (G3509): not started.
+
+## HWCOV - GARAGE-LINK + THE BOOT'S DRAW-AHEAD-OF-LINK TASKS (25 Oct 2026, A0's Sun 01:45 slot; for L25a)
+GARAGE-LINK (this branch): the flight recorder names the GPU once, in wrapGL (rec.gpuInfo: six getParameter calls); header()
+asks the GL nothing (the user's 24 Oct log: 2.2 s of header() GL queries behind the GPU process's links). The gate rig
+never runs header() (0 ms in four profiled boots, master and branch), so the rig cannot show it: the fix stands by code and
+GATE FLIGHTREC's source row.
+THE STRICT GATE'S tasks1s / taskWorst CLASS UNDER THE GARAGE BOOT SCREEN (master 2b381015d, rollout_perf cessnaMetal chase,
+the program watch + --profile-boot, two boots each): every 1-3 s task is a DRAW AHEAD OF A LINK - getUniforms
+(getProgramInfoLog) waiting on a program a step's compileAsync made and the GPU had not linked ('0 made' in that frame).
+All under the screen (boot 59-69 s), no frame over 100 ms after the reveal. The call chains:
+- the loop's own garage frames: loop > render (aa_resolve) > renderer.render - 1.4-2.8 s;
+- worldWarmDraw > view > render - 1.8 s;
+- the shadow pass in the loop: loop > render > SM.render > gRBD - 0.5-0.6 s;
+- worldUpdate > update > bakeSprites > renderer.render - 1.1 s.
+A FIRST FIX TRIED AND NOT TAKEN (claude/boot-links af46f43ef, not ready): the loop held its frame while BOOT loaded and any
+program was not isReady (3 s cap), and worldWarmDraw ran compileAsync + programsReady per view. Measured: the boot 86-92 s
+(was 59-69), the wait moved into hybridWarm > warmDrawSliced > craftInWorldNow (1.3-3.3 s), and 2 frames over 100 ms
+AFTER the reveal (1.4 / 2.5 s). Next: find what keeps the links pending that long (the parallel compile's queue behind
+the craft-in-world warm), not hold the frames on it.
