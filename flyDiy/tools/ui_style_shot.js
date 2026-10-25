@@ -35,6 +35,43 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = ''; r.on('data', d => b += d); r.on('end', () => { try { res(JSON.parse(b)); } catch (e) { rej(e); } }); }).on('error', rej); });
 const freePort = () => new Promise((res, rej) => { const s = net.createServer(); s.listen(0, '127.0.0.1', () => { const p = s.address().port; s.close(() => res(p)); }); s.on('error', rej); });
 
+// G3739 THE COMPUTED LOOK (A0 relay of the user, 25 Oct: "are we sure the rogue sections even use the same font and
+// size ... And the spacing between them? They feel smaller and more packed"): the inspector's rows, headings and
+// readouts as the browser computed them - medians over the visible ones - so a panel is compared with a reference part
+const MEASURE = `(() => {
+  const R = document.getElementById('edRows'); if (!R) return null;
+  const rr = R.getBoundingClientRect(), x0 = rr.left + parseFloat(getComputedStyle(R).paddingLeft);
+  const vis = e => { const b = e.getBoundingClientRect(); return b.height > 0 && b.width > 0 && e.offsetParent; };
+  const med = a => { a = a.filter(v => isFinite(v)).sort((p, q) => p - q); return a.length ? +a[a.length >> 1].toFixed(1) : null; };
+  const mode = a => { const m = {}; let b = null; for (const v of a) { m[v] = (m[v] || 0) + 1; if (b == null || m[v] > m[b]) b = v; } return b; };
+  const fam = cs => cs.fontFamily.split(',')[0].replace(/["']/g, '').trim();
+  const font = els => { const c = els.map(e => getComputedStyle(e)); return c.length ? { n: c.length, family: mode(c.map(fam)), size: med(c.map(x => parseFloat(x.fontSize))),
+    lh: med(c.map((x, i) => x.lineHeight === 'normal' ? NaN : parseFloat(x.lineHeight))), weight: mode(c.map(x => x.fontWeight)), color: mode(c.map(x => x.color)),
+    style: mode(c.map(x => x.fontStyle)), ls: mode(c.map(x => x.letterSpacing)), tt: mode(c.map(x => x.textTransform)) } : null; };
+  const rows = [...R.querySelectorAll('.r')].filter(e => vis(e) && !e.classList.contains('note') && e.querySelector(':scope > span.k'));
+  const pitch = [];
+  for (const r of rows) { const n = r.nextElementSibling; if (n && n.classList.contains('r') && !n.classList.contains('note') && vis(n)) pitch.push(n.getBoundingClientRect().top - r.getBoundingClientRect().top); }
+  const heads = [...R.querySelectorAll('.edH > span, .edRoot summary')].filter(vis);
+  const hEl = heads.map(h => h.closest('.edH') || h);
+  const above = [], below = [];
+  for (const h of hEl) { const b = h.getBoundingClientRect(); const p = h.previousElementSibling || (h.parentElement && h.parentElement.previousElementSibling);
+    if (p && vis(p)) above.push(b.top - p.getBoundingClientRect().bottom);
+    const n = h.nextElementSibling; const f = n && (n.classList.contains('r') ? n : n.querySelector && n.querySelector('.r')); if (f && vis(f)) below.push(f.getBoundingClientRect().top - b.bottom); }
+  const sel = [...R.querySelectorAll('.r select')].filter(vis);
+  const notes = [...R.querySelectorAll('.r.note, .r > .rn, .refNote')].filter(vis);
+  const vals = [...R.querySelectorAll('.r > .v')].filter(vis);
+  return {
+    rows: rows.length, rowH: med(rows.map(r => r.getBoundingClientRect().height)), pitch: med(pitch), labelLeft: med(rows.map(r => r.querySelector(':scope > span.k').getBoundingClientRect().left - x0)),
+    labelW: med(rows.map(r => r.querySelector(':scope > span.k').getBoundingClientRect().width)), gap: mode(rows.map(r => getComputedStyle(r).columnGap)),
+    padV: mode(rows.map(r => getComputedStyle(r).paddingTop + '/' + getComputedStyle(r).paddingBottom)),
+    label: font(rows.map(r => r.querySelector(':scope > span.k'))), value: font(vals),
+    select: sel.length ? Object.assign(font(sel), { h: med(sel.map(e => e.getBoundingClientRect().height)) }) : null,
+    head: font(heads), headAbove: med(above), headBelow: med(below), note: font(notes),
+    noteH: med(notes.map(e => e.getBoundingClientRect().height)),
+    serifOrItalic: [...R.querySelectorAll('*')].filter(e => vis(e) && (/serif/i.test(getComputedStyle(e).fontFamily.split(',')[0]) && !/sans/i.test(getComputedStyle(e).fontFamily.split(',')[0]) || getComputedStyle(e).fontStyle === 'italic')).length,
+  };
+})()`;
+
 async function pass(mode, port) {
   const phone = mode === 'phone';
   const W = phone ? 375 : 1600, H = phone ? 812 : 900;
@@ -89,9 +126,16 @@ async function pass(mode, port) {
     };
     const props = async () => { if (phone) { await ev("(()=>{const b=document.querySelector('#phTabs button[data-t=props]');if(b)b.click();return 1})()"); await sleep(600); } };
     const tab = async tid => { await ev("(()=>{const b=document.getElementById('" + tid + "');if(b)b.click();return !!b})()"); await sleep(900); };
+    const M = {};
+    const measure = async name => { await ev('(()=>{const s=' + SC + ';if(s)s.scrollTop=0;return 1})()'); await sleep(300); M[name] = await ev(MEASURE); };
+    // THE REFERENCE: the wings' rows (sliders, toggles, selects, group headings), one still and the measure
+    await ev("(()=>{window.EDITOR_SELECT('wings');return 1})()"); await sleep(1500); await props();
+    await tab('edTabShape');
+    await measure('ref_wings'); await shot('ref_wings_top');
     // THE TANKS: structure, then finish
     await ev("(()=>{window.EDITOR_SELECT('energy');return 1})()"); await sleep(1500); await props();
     await tab('edTabShape');
+    await measure('energy');
     await three('energy');
     await tab('edTabFinish');
     await three('energyFinish');
@@ -99,7 +143,13 @@ async function pass(mode, port) {
     // THE INSTRUMENTS, every fold open (the bill starts shut)
     await ev("(()=>{window.EDITOR_SELECT('instruments');return 1})()"); await sleep(1500); await props();
     await ev("(()=>{for(const d of document.querySelectorAll('#edRows .edRoot details'))d.open=true;return 1})()"); await sleep(500);
+    await measure('instruments');
     await three('instruments');
+    fs.writeFileSync(OUT + '_' + mode + '_metrics.json', JSON.stringify(M, null, 1));
+    const f = o => o ? o.family + ' ' + o.size + '/' + o.lh + ' w' + o.weight : '-';
+    console.log('ui_style_shot: ' + mode + ' metrics (rows rowH pitch labelLeft | label | value | select h | head above/below | note):');
+    for (const [k, m] of Object.entries(M)) if (m) console.log('  ' + k.padEnd(12) + ' ' + [m.rows, m.rowH, m.pitch, m.labelLeft].join(' ') + ' | ' + f(m.label) + ' | ' + f(m.value) +
+      ' | ' + (m.select ? f(m.select) + ' h' + m.select.h : '-') + ' | ' + f(m.head) + ' ' + m.headAbove + '/' + m.headBelow + ' | ' + f(m.note) + ' h' + m.noteH + (m.serifOrItalic ? ' SERIF/ITALIC x' + m.serifOrItalic : ''));
     ws.close();
   } finally {
     try { ch.kill(); } catch (e) {}
