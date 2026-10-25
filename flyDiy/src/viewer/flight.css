@@ -348,107 +348,107 @@ body.rollShot #flActs { display:none !important; }
   padding-bottom:9px; margin-bottom:6px;
   border-bottom:1px solid var(--ed-hair); }
 
-#flFlyBody .fr { display:flex; gap:10px; align-items:center; margin:7px 0;
+:is(#flFlyBody, #gmPage) .fr { display:flex; gap:10px; align-items:center; margin:7px 0;
   min-width:0; font:400 11.5px/1.3 'IBM Plex Sans'; color:var(--ed-dim); }
 
-#flFlyBody .fr > span.k { width:104px; flex:none; overflow:hidden;
+:is(#flFlyBody, #gmPage) .fr > span.k { width:104px; flex:none; overflow:hidden;
   text-overflow:ellipsis; white-space:nowrap; }
 
-#flFlyBody .fr > span.v { flex:1; min-width:0; text-align:right;
+:is(#flFlyBody, #gmPage) .fr > span.v { flex:1; min-width:0; text-align:right;
   font:500 11px/1 'IBM Plex Sans'; color:var(--ed-ink); }
 
-#flFlyBody .fr > b.v { flex:none; width:48px; text-align:right;
+:is(#flFlyBody, #gmPage) .fr > b.v { flex:none; width:48px; text-align:right;
   font:500 11px/1 'IBM Plex Sans'; color:var(--ed-ink); }
 
-#flFlyBody .fr.off { color:var(--ed-faint); }
+:is(#flFlyBody, #gmPage) .fr.off { color:var(--ed-faint); }
 
-#flFlyBody .fr.off > span.v, #flFlyBody .fr.off > b.v { color:var(--ed-faint); }
+:is(#flFlyBody, #gmPage) .fr.off > span.v, :is(#flFlyBody, #gmPage) .fr.off > b.v { color:var(--ed-faint); }
 
-#flFlyBody .fpills { display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 2px; }
+:is(#flFlyBody, #gmPage) .fpills { display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 2px; }
 
 /* 2026-09-20: a section head inside a flyout (the clouds panel's decks / veil / look / render) */
-#flFlyBody .fr.fsec { margin:12px 0 4px; padding-top:8px; border-top:1px solid var(--ed-hair); }
-#flFlyBody .fr.fsec > span.k { width:auto; font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em;
+:is(#flFlyBody, #gmPage) .fr.fsec { margin:12px 0 4px; padding-top:8px; border-top:1px solid var(--ed-hair); }
+:is(#flFlyBody, #gmPage) .fr.fsec > span.k { width:auto; font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em;
   text-transform:uppercase; color:var(--ed-faint); }
-#flFlyBody .fr.fsec:first-child { margin-top:2px; padding-top:0; border-top:0; }
+:is(#flFlyBody, #gmPage) .fr.fsec:first-child { margin-top:2px; padding-top:0; border-top:0; }
 
 /* G760: THE FOLDS - a section per old item (the flight rail) or per graphics group. The head is a
    button: the name, the line under it, a caret that turns; folded, only the head is drawn. */
-#flFlyBody .rsec { border-top:1px solid var(--ed-hair); }
-#flFlyBody .rsec:first-child { border-top:0; }
-#ui #flFlyBody .rsecHead { display:flex; flex-direction:column; align-items:flex-start; gap:3px;
+:is(#flFlyBody, #gmPage) .rsec { border-top:1px solid var(--ed-hair); }
+:is(#flFlyBody, #gmPage) .rsec:first-child { border-top:0; }
+:is(#ui :is(#flFlyBody, #gmPage), #gmPage) .rsecHead { display:flex; flex-direction:column; align-items:flex-start; gap:3px;
   width:100%; padding:9px 0 8px 16px; position:relative; border:0; background:transparent;
   cursor:pointer; text-align:left; color:var(--ed-dim); }
-#ui #flFlyBody .rsecHead::before { content:''; position:absolute; left:2px; top:12px;
+:is(#ui :is(#flFlyBody, #gmPage), #gmPage) .rsecHead::before { content:''; position:absolute; left:2px; top:12px;
   border:4px solid transparent; border-left:5px solid currentColor; border-right:0;
   transition:transform .12s ease; }
-#ui #flFlyBody .rsec.open > .rsecHead::before { transform:rotate(90deg); }
-#ui #flFlyBody .rsecHead:hover { color:var(--ed-ink); }
-#flFlyBody .rsecT { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em; text-transform:uppercase; }
-#flFlyBody .rsec.open > .rsecHead .rsecT { color:var(--ed-ink); }
-#flFlyBody .rsecS { font:400 10px/1.3 'IBM Plex Sans'; color:var(--ed-faint); }
-#flFlyBody .rsecBody { padding:0 0 10px; }
+:is(#ui :is(#flFlyBody, #gmPage), #gmPage) .rsec.open > .rsecHead::before { transform:rotate(90deg); }
+:is(#ui :is(#flFlyBody, #gmPage), #gmPage) .rsecHead:hover { color:var(--ed-ink); }
+:is(#flFlyBody, #gmPage) .rsecT { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em; text-transform:uppercase; }
+:is(#flFlyBody, #gmPage) .rsec.open > .rsecHead .rsecT { color:var(--ed-ink); }
+:is(#flFlyBody, #gmPage) .rsecS { font:400 10px/1.3 'IBM Plex Sans'; color:var(--ed-faint); }
+:is(#flFlyBody, #gmPage) .rsecBody { padding:0 0 10px; }
 
-#flFlyBody .fnote { margin-top:10px; padding-top:9px;
+:is(#flFlyBody, #gmPage) .fnote { margin-top:10px; padding-top:9px;
   border-top:1px solid var(--ed-hair);
   font:400 10.5px/1.6 'IBM Plex Sans'; color:var(--ed-faint); }
 /* G2085 (PILOT-PERSONA): the personalities, a line each - the one flying in ink */
-#flFlyBody .fpersona { margin-top:6px; padding-top:6px; line-height:1.45; }
-#flFlyBody .fpersona .fpLine { margin:2px 0; }
-#flFlyBody .fpersona .fpLine b { font-weight:600; color:var(--ed-dim); margin-right:2px; }
-#flFlyBody .fpersona .fpLine.on, #flFlyBody .fpersona .fpLine.on b { color:var(--ed-ink); }
+:is(#flFlyBody, #gmPage) .fpersona { margin-top:6px; padding-top:6px; line-height:1.45; }
+:is(#flFlyBody, #gmPage) .fpersona .fpLine { margin:2px 0; }
+:is(#flFlyBody, #gmPage) .fpersona .fpLine b { font-weight:600; color:var(--ed-dim); margin-right:2px; }
+:is(#flFlyBody, #gmPage) .fpersona .fpLine.on, :is(#flFlyBody, #gmPage) .fpersona .fpLine.on b { color:var(--ed-ink); }
 
-#ui .pill { font:500 10px/1 'IBM Plex Sans'; letter-spacing:.08em;
+:is(#ui, #gmPage) .pill { font:500 10px/1 'IBM Plex Sans'; letter-spacing:.08em;
   text-transform:uppercase; color:var(--ed-dim); background:transparent;
   border:1px solid var(--ed-btn-bd); border-radius:7px; padding:7px 11px;
   cursor:pointer; transition:border-color .12s ease; }
 
-#ui .pill:hover { border-color:rgba(255,255,255,.3); }
+:is(#ui, #gmPage) .pill:hover { border-color:rgba(255,255,255,.3); }
 
-#ui .pill.on { color:var(--ed-acc-ink); background:var(--ed-acc);
+:is(#ui, #gmPage) .pill.on { color:var(--ed-acc-ink); background:var(--ed-acc);
   border-color:var(--ed-acc); }
 
 /* a preset the aeroplane cannot offer says so and stays put — it carries its
    reason in its `title`, exactly as the editor's `interior` does */
-#ui .pill:disabled { opacity:.4; cursor:not-allowed; }
-#ui .pill:disabled:hover { border-color:var(--ed-btn-bd); }
+:is(#ui, #gmPage) .pill:disabled { opacity:.4; cursor:not-allowed; }
+:is(#ui, #gmPage) .pill:disabled:hover { border-color:var(--ed-btn-bd); }
 
 /* the flyout's own controls: the editor's switch and slider, verbatim
    metrics, because a toggle that looks different on the other screen is a
    different toggle */
-#ui .fsw { -webkit-appearance:none; appearance:none; flex:none;
+:is(#ui, #gmPage) .fsw { -webkit-appearance:none; appearance:none; flex:none;
   width:30px; height:16px; border-radius:9px; background:var(--ed-off);
   border:1px solid var(--ed-off-bd); position:relative; cursor:pointer;
   transition:background .12s ease, border-color .12s ease; }
 
-#ui .fsw::after { content:''; position:absolute; top:2px; left:2px;
+:is(#ui, #gmPage) .fsw::after { content:''; position:absolute; top:2px; left:2px;
   width:10px; height:10px; border-radius:50%; background:var(--ed-panel);
   transition:left .12s ease; }
 
-#ui .fsw:checked { background:var(--ed-acc); border-color:var(--ed-acc); }
+:is(#ui, #gmPage) .fsw:checked { background:var(--ed-acc); border-color:var(--ed-acc); }
 
-#ui .fsw:checked::after { left:16px; }
+:is(#ui, #gmPage) .fsw:checked::after { left:16px; }
 
-#ui .frng { flex:1; min-width:30px; height:18px; -webkit-appearance:none;
+:is(#ui, #gmPage) .frng { flex:1; min-width:30px; height:18px; -webkit-appearance:none;
   appearance:none; background:transparent; cursor:pointer; }
 
-#ui .frng::-webkit-slider-runnable-track { height:3px; border-radius:2px;
+:is(#ui, #gmPage) .frng::-webkit-slider-runnable-track { height:3px; border-radius:2px;
   background:var(--ed-track); }
 
-#ui .frng::-webkit-slider-thumb { -webkit-appearance:none; appearance:none;
+:is(#ui, #gmPage) .frng::-webkit-slider-thumb { -webkit-appearance:none; appearance:none;
   width:11px; height:11px; margin-top:-4px; border-radius:50%;
   background:var(--ed-acc); border:none; }
 
-#ui .frng::-moz-range-track { height:3px; border-radius:2px;
+:is(#ui, #gmPage) .frng::-moz-range-track { height:3px; border-radius:2px;
   background:var(--ed-track); }
 
-#ui .frng::-moz-range-thumb { width:11px; height:11px; border:none;
+:is(#ui, #gmPage) .frng::-moz-range-thumb { width:11px; height:11px; border:none;
   border-radius:50%; background:var(--ed-acc); }
 
 /* the borrowed selects — #selDest (G1945: #selFrom retired) — and the flyouts' own (the day panel's
    conditions select, its date field) wear the editor's row select, because in the
    flyout that is what they are */
-#ui .fsel { flex:1; min-width:0; padding:5px 8px;
+:is(#ui, #gmPage) .fsel { flex:1; min-width:0; padding:5px 8px;
   font:400 11px/1.2 'IBM Plex Sans'; letter-spacing:0; text-transform:none;
   color:var(--ed-ink); background:var(--ed-btn-bg);
   border:1px solid var(--ed-btn-bd); border-radius:5px; cursor:pointer;
@@ -456,9 +456,9 @@ body.rollShot #flActs { display:none !important; }
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='6'%3E%3Cpath d='M1 1l3.5 3.5L8 1' fill='none' stroke='%23c0b8ac' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
   background-repeat:no-repeat; background-position:right 7px center; }
 
-#ui .fsel option { background:var(--ed-panel); color:var(--ed-ink); }
+:is(#ui, #gmPage) .fsel option { background:var(--ed-panel); color:var(--ed-ink); }
 
-#ui .fsel:disabled { opacity:.45; cursor:default; }
+:is(#ui, #gmPage) .fsel:disabled { opacity:.45; cursor:default; }
 
 /* =========================================================================
    3. THE BOTTOM-RIGHT PFD — WHAT IT IS DOING.

@@ -14214,6 +14214,7 @@
 
   let flyOpen = null;
   let flSetupHost = null, flSetupOn = false, setupTouched = false;   // B8: the setup screen's view of this rail (below)
+  let flPageHook = null;   // G3700: the menu's open page (gmPageRefresh) - a third view of these builders, rebuilt with the other two
   const flFps = { t0: 0, n: 0 };   // G441: the frame-rate row's window
   // G620: the rendered frames' rate: the recorder's 2 s (freezes in), else PACE's last 120 intervals
   function flFpsText() {
@@ -14416,7 +14417,7 @@
   // is the only difference between the two families.
   // B8 (G1024): EVERY REFRESH REBUILDS BOTH VIEWS - the flyout, then the setup screen when it is up (flSetupBuild):
   // a pick in either is re-read from its keeper by both, which is all "live both ways" takes
-  function flyOpenSet(k) { flyOpenSet1(k); flSetupBuild(); }
+  function flyOpenSet(k) { flyOpenSet1(k); flSetupBuild(); if (flPageHook) flPageHook(); }
   function flyOpenSet1(k) {
     const fly = $('flFly'), body = $('flFlyBody'), head = $('flFlyHead');
     if (!fly) return;
@@ -16258,6 +16259,19 @@
   // centre in the shed; in flight the top bar's empty right column (the PFD holds the centre: item 9, "the map button
   // sits over important flight info")
   let gmBtn = null, gmPanel = null, gmHeld = false, gmAsk = false, gmTabMap = null;
+  // G3700 (the 25 Oct mockup: the rail goes to the pause menu; the phone garage shares it): A PAGE is one panel's worth of
+  // the rail's own rows, mounted INSIDE the menu - the third host of the same builders after the flyout and the setup
+  // screen (flSetupBuild), rebuilt with them (flPageHook), its selects borrowed and given back the same way (flReturn).
+  // FLYDIY_MENU.add() registers a row from another file (a page builder or an act); anchor() places the pill for a
+  // layout that is not this one (the phone garage)
+  let gmPageK = null, gmPageOff = null, gmAnchor = null;
+  const GM_ADD = [];   // {k, label, sec, when, act, page, before}
+  const GM_PAGES = {   // the menu's own pages: the rail's two items, mounted as they are
+    graphics: { label: 'Graphics', page: b => FL_BUILD.graphics(b) },
+    sound: { label: 'Sound', page: b => FL_SEC_BUILD.sound(b) },
+  };
+  const GM_H = { row: flRow, pills: flPills, range: flRange, toggle: flToggle, note: flNote, select: flSelect, field: flField,
+                 section: (h, key, title, sub) => flSection(h, key, title, sub) };
   const gmVis = el => !!(el && !el.hidden && el.getClientRects && el.getClientRects().length > 0);   // (not offsetParent: null for a fixed box)
   const gmMapOn = () => !!(window.MAP_MENU && window.MAP_MENU.isOpen && window.MAP_MENU.isOpen());
   const gmTyping = () => { const a = document.activeElement; return !!(a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)); };
@@ -16289,10 +16303,6 @@
     window.FLYDIY_LAZY(['map_pack', 'map_menu']).then(() => { if (window.MAP_MENU) window.MAP_MENU.open(list ? { list } : {}); });
     return true;
   }
-  function gmRail(k) {   // the rail's own button for that flyout, in the shed or in flight
-    const b = document.querySelector((inGarage ? '#edRail' : '#flRail') + ' [data-f="' + k + '"]');
-    if (b) b.click();
-  }
   const GM_ROWS = [
     // [key, words, when]
     ['resume', () => (gmFlying() ? 'Resume' : 'Close'), () => true],
@@ -16306,18 +16316,59 @@
     ['cards', () => 'Cards back in place', () => !!(window.FLYDIY_DRAG && window.FLYDIY_DRAG.keys().length)],
     ['main', () => 'Main menu', () => true, ''],
   ];
-  function gmRender() {
+  // the rows: the table above, and the added ones each before its `before` (default: Main menu)
+  function gmRows() {
+    const out = GM_ROWS.map(([k, words, when, sec]) => ({ k, words, when, sec }));
+    for (const a of GM_ADD) {
+      const r = { k: a.k, sec: a.sec,
+        words: () => (typeof a.label === 'function' ? a.label() : String(a.label || a.k)),
+        when: () => { try { return !a.when || !!a.when(); } catch (e) { return false; } } };
+      const i = out.findIndex(o => o.k === (a.before || 'main'));
+      out.splice(i < 0 ? out.length : i, 0, r);
+    }
+    return out;
+  }
+  const gmEsc = t => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const gmPageOf = k => GM_ADD.filter(a => a.k === k && a.page)[0] || GM_PAGES[k] || null;
+  function gmPageDrop() {   // the open page's own cleanup, then the selects it borrowed go home
+    const off = gmPageOff; gmPageOff = null;
+    if (off) try { off(); } catch (e) { console.warn('flyDiy: the menu page -', e && e.message); }
+    flReturn();
+  }
+  function gmPageSet(k) {
+    if (k && !gmPageOf(k)) return;
+    if (k && flyOpen) flyOpenSet(null);   // one view of the rows at a time (the flyout's borrowed selects come home first)
+    gmPageDrop(); gmPageK = k || null;
     if (!gmPanel) return;
+    if (gmPanel.hidden) { if (k) gmOpen(true); return; }
+    gmRender(); gmPlace();
+  }
+  function gmPageRefresh() { if (gmPanel && !gmPanel.hidden && gmPageK) gmRender(true); }
+  flPageHook = gmPageRefresh;
+  function gmRender(keep) {
+    if (!gmPanel) return;
+    gmPanel.classList.toggle('page', !!gmPageK);
+    if (gmPageK) {
+      const pg = gmPageOf(gmPageK), top = keep ? gmPanel.scrollTop : 0;
+      gmPageDrop();
+      gmPanel.innerHTML = '<div class="gmHead"><button type="button" class="gmBack" data-g="back">\u2039 ' + gmEsc(pg.label || gmPageK) +
+        '</button><span class="gmKey">Esc</span></div>';
+      const body = document.createElement('div'); body.id = 'gmPage'; gmPanel.appendChild(body);
+      try { const off = pg.page(body, GM_H); if (typeof off === 'function') gmPageOff = off; }
+      catch (e) { flNote(body, 'This page failed to build: ' + (e && e.message)); console.error(e); }
+      gmPanel.scrollTop = top;
+      return;
+    }
     let h = '<div class="gmHead">' + (gmFlying() ? 'Paused' : 'Menu') + '<span class="gmKey">Esc</span></div>';
-    for (const [k, words, when, sec] of GM_ROWS) {
+    for (const { k, words, when, sec } of gmRows()) {
       if (!when()) continue;
-      if (sec !== undefined) h += sec ? '<div class="gmSec">' + sec + '</div>' : '<div class="gmRule"></div>';
+      if (sec !== undefined) h += sec ? '<div class="gmSec">' + gmEsc(sec) + '</div>' : '<div class="gmRule"></div>';
       if (k === 'main' && gmAsk) {
         h += '<div class="gmAsk">Leave this flight for the main menu? The flight is not kept; your saves are.</div>' +
              '<div class="gmPair"><button type="button" class="gmRow pri" data-g="mainYes">Main menu</button><button type="button" class="gmRow" data-g="mainNo">Stay</button></div>';
         continue;
       }
-      h += '<button type="button" class="gmRow' + (k === 'resume' ? ' pri' : '') + '" data-g="' + k + '">' + words() +
+      h += '<button type="button" class="gmRow' + (k === 'resume' ? ' pri' : '') + '" data-g="' + gmEsc(k) + '">' + gmEsc(words()) +
            (k === 'map' ? '<span class="gmKey">Tab</span>' : '') + '</button>';
     }
     gmPanel.innerHTML = h;
@@ -16327,7 +16378,7 @@
     if (window.FLYDIY_DRAG && window.FLYDIY_DRAG.placed('menu')) return;   // G3527: dragged - card_drag.js keeps it there
     const r = gmBtn.getBoundingClientRect(), W0 = window.innerWidth || 1280;
     gmPanel.style.top = Math.round(r.bottom + 8) + 'px';
-    if (inGarage) { gmPanel.style.left = Math.round(Math.max(12, Math.min(r.left, W0 - 272))) + 'px'; gmPanel.style.right = 'auto'; }
+    if (inGarage) { gmPanel.style.left = Math.round(Math.max(12, Math.min(r.left, W0 - (gmPanel.offsetWidth || 260) - 12))) + 'px'; gmPanel.style.right = 'auto'; }
     else { gmPanel.style.right = Math.round(Math.max(12, W0 - r.right)) + 'px'; gmPanel.style.left = 'auto'; }
   }
   function gmOpen(on) {
@@ -16340,7 +16391,7 @@
       if (gmBtn) gmBtn.setAttribute('aria-expanded', 'true');
       const f = gmPanel.querySelector('button'); if (f && f.focus) f.focus();
     } else if (!on && !gmPanel.hidden) {
-      gmPanel.hidden = true; gmAsk = false;
+      gmPanel.hidden = true; gmAsk = false; gmPageDrop(); gmPageK = null; gmPanel.classList.remove('page');
       if (gmBtn) gmBtn.setAttribute('aria-expanded', 'false');
       if (gmHeld && !running && !inGarage) gmHold(false);
       gmHeld = false;
@@ -16351,8 +16402,14 @@
     if (k === 'shed') { gmOpen(false); const b = $('bHangar2'); if (b) b.click(); return; }
     if (k === 'contracts' || k === 'map') { gmOpen(false); if (!gmMap(k === 'contracts' ? 'contracts' : null)) gmTab(); return; }
     if (k === 'controls') { if (window.INPUT_PANEL) window.INPUT_PANEL.open(INP, { who: () => (inGarage ? 'in the shed' : manual ? 'you are flying' : 'the autopilot is flying') }); return; }
-    if (k === 'graphics') return gmRail('graphics');
-    if (k === 'sound') return gmRail('audio');
+    if (k === 'back') return gmPageSet(null);
+    if (gmPageOf(k)) return gmPageSet(k);   // G3700: Graphics, Sound and the added pages open inside the menu
+    const add = GM_ADD.filter(a => a.k === k)[0];
+    if (add && add.act) {
+      try { add.act(); } catch (e) { console.warn('flyDiy: the menu -', e && e.message); }
+      if (gmPanel && !gmPanel.hidden) { gmRender(); gmPlace(); }
+      return;
+    }
     if (k === 'cards') { if (window.FLYDIY_DRAG) window.FLYDIY_DRAG.resetAll(); gmRender(); gmPlace(); return; }
     if (k === 'main') { if (gmFlying()) { gmAsk = true; gmRender(); return; } return gmMainMenu(); }
     if (k === 'mainYes') return gmMainMenu();
@@ -16383,8 +16440,10 @@
     const order = inGarage ? row : row.slice(1).concat([gmBtn]), ow = order.map(e => e.offsetWidth || 0);
     const phone = W0 <= 760, under = el => el && el.getClientRects().length ? el.getBoundingClientRect() : null;
     const bar = inGarage ? under($('edTopBar')) : (phone ? under($('pfd')) : null);
-    const top = bar ? Math.round(bar.bottom + 8) : (inGarage ? 10 : (phone ? 12 : 18));
+    let top = bar ? Math.round(bar.bottom + 8) : (inGarage ? 10 : (phone ? 12 : 18));
     let x = inGarage ? (bar ? Math.round(Math.max(12, Math.min(bar.left, W0 - tot - 12))) : Math.round((W0 - tot) / 2)) : W0 - (phone ? 12 : 22) - tot;
+    let an = null; try { an = gmAnchor ? gmAnchor() : null; } catch (e) {}   // G3700: another layout's place for the row (the phone garage)
+    if (an && isFinite(an.top) && isFinite(an.left)) { top = Math.round(an.top); x = Math.round(an.left); }
     order.forEach((e, i) => { e.style.top = top + 'px'; e.style.left = Math.round(x) + 'px'; e.style.right = 'auto'; e.style.transform = 'none'; x += ow[i] + gap; });
     if (!gmPanel.hidden) gmPlace();
   }
@@ -16408,7 +16467,7 @@
     window.addEventListener('keydown', e => {
       if (e.ctrlKey || e.altKey || e.metaKey) return;
       if (e.key === 'Escape') {
-        if (!gmPanel.hidden) { if (!gmBusy()) { gmOpen(false); e.preventDefault(); e.stopImmediatePropagation(); } return; }
+        if (!gmPanel.hidden) { if (!gmBusy()) { if (gmPageK) gmPageSet(null); else gmOpen(false); e.preventDefault(); e.stopImmediatePropagation(); } return; }
         if (gmBusy() || gmMapOn() || gmTyping() || gmBtn.hidden) return;
         gmOpen(true); e.preventDefault(); e.stopImmediatePropagation();
       } else if (e.key === 'Tab' && !e.shiftKey) {
@@ -16417,7 +16476,22 @@
       }
     }, true);
   } catch (e) { if (e !== 0) console.warn('flyDiy: the menu -', e && e.message); gmBtn = gmPanel = null; }
-  window.FLYDIY_MENU = { open: () => gmOpen(true), close: () => gmOpen(false), isOpen: () => !!(gmPanel && !gmPanel.hidden), act: gmAct, tab: gmTab, layout: gmLayout };
+  window.FLYDIY_MENU = { open: () => gmOpen(true), close: () => gmOpen(false), isOpen: () => !!(gmPanel && !gmPanel.hidden), act: gmAct, tab: gmTab, layout: gmLayout,
+    // G3700: add({k, label, sec, when, act | page(body, H) -> cleanup?, before}) -> remove(); page(k | null); anchor(() => {top, left} | null)
+    add(row) {
+      if (!row || !row.k) return () => {};
+      const i = GM_ADD.findIndex(a => a.k === row.k); if (i >= 0) GM_ADD.splice(i, 1);
+      GM_ADD.push(row);
+      if (gmPanel && !gmPanel.hidden && !gmPageK) gmRender();
+      return () => {
+        const j = GM_ADD.indexOf(row); if (j < 0) return;
+        GM_ADD.splice(j, 1);
+        if (gmPageK === row.k) gmPageSet(null); else if (gmPanel && !gmPanel.hidden && !gmPageK) gmRender();
+      };
+    },
+    page: k => gmPageSet(k), current: () => gmPageK,
+    anchor(fn) { gmAnchor = typeof fn === 'function' ? fn : null; gmLayout(); },
+  };
 
   // ---- Esc closes; a click on the render closes ---------------------------
   window.addEventListener('keydown', e => {
