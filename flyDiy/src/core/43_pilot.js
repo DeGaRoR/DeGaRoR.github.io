@@ -2286,8 +2286,8 @@ function makePilot(sim, def, world, opts) {
       if (slipK > 0 && (AF.lat === 'LOC' || AF.lat === 'PATH')) {
         const dr0 = A.drSlip ?? 0.80, bCap = A.betaSlip ?? 0.61, phCap = A.bankSlip ?? 0.26, aU = Math.abs(c.da) / SERVO_GAINS.daMax;
         if (slipDr == null) slipDr = dr0;
-        const spiral = aU > 0.90 || Math.abs(ph) > phCap || Math.abs(beta) > bCap;
-        const calmS = aU < 0.70 && Math.abs(ph) < 0.66 * phCap && Math.abs(beta) < 0.86 * bCap;
+        const spiral = aU > (A.slipAU ?? 0.90) || Math.abs(ph) > phCap || Math.abs(beta) > bCap;
+        const calmS = aU < (A.slipAUlo ?? 0.70) && Math.abs(ph) < 0.66 * phCap && Math.abs(beta) < 0.86 * bCap;
         slipDr = clamp(slipDr + (spiral ? -0.4 : calmS ? 0.08 : 0) * dt, 0.15, dr0);
         c.dr = (1 - slipK) * c.dr + slipK * slipSg * slipDr;
       } else if (slipK === 0) slipDr = null;
@@ -4066,7 +4066,7 @@ function makePilot(sim, def, world, opts) {
         {
           const eE = (V * V - iasF * iasF) / (2 * 9.81) + above;
           const hOff = (A.flareK ?? 1.3) * A.flareAgl + 0.6 * V;
-          if ((ap.shortFld || (PRA && PRF.slip)) && slopeCaptured && aglG > hOff && c.thr < 0.10 && eE > 2) {
+          if ((ap.shortFld || (PRA && PRF.slip)) && slopeCaptured && aglG > hOff && c.thr < 0.10 && eE > (A.slipArm ?? 2)) {
             if (slipK === 0) slipSg = SV.crossWind(F) >= 0 ? 1 : -1;
             slipK = Math.min(1, slipK + dt / 3);
             if (!slipSaid) { slipSaid = true; say('slip', 'high on energy on the short final (+' + eE.toFixed(1) + ' m at idle) — slipping it down'); }
