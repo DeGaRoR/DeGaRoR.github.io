@@ -98548,7 +98548,7 @@ Strict light gate RED (11), all in the known classes:
 - metal chase flight 68.9 s vs 63.6 + 5.09 slack: 0.23 s over, the scripted flight's wall time. Named; re-read in L25a.
 Pushed with these, by the user's order of 25 Oct: land last week's items and priority 1 as soon as possible.
 
-### G3651 - THE RUNWAY SCUFF AS LONG DARK STREAKS (src/viewer/ground_scar.js, tools/dmg_wreck_stills.js; DEFORM, 25 Oct; branch claude/dmg-scuff on 031e3af90 = ready/dmg-scar2-occupant)
+### G3651 - THE RUNWAY SCUFF AS LONG DARK STREAKS (src/viewer/ground_scar.js, tools/dmg_wreck_stills.js; DEFORM, 25 Oct; branch claude/dmg-runway-scuff on 031e3af90 = ready/dmg-scar2-occupant)
 The user (25 Oct, via A0, on the st_0345 stills): "RUNWAY SCARS: I can see nothing. I'd expect long dark streaks". The
 G2381 scuff - 12 columns of one grey (SCUFF x the soil map, its alpha-weighted alpha ~0.58) - drew as a PALE, FLAT-EDGED
 PANEL a few metres long (read as a shadow), and vanished from a low eye. (A first try this morning, 3a7d95fda, feathered
