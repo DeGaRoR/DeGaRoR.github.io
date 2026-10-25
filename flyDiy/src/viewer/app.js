@@ -6287,7 +6287,7 @@
   //   and fading with age. Two per float when planing: the step's own.
   // Cheap: one Points and one ribbon mesh per float, fixed buffers, on
   // `craft` in world coordinates. Nothing here touches the physics.
-  const SPRAY_N = 600, WAKE_N = 48;
+  const SPRAY_N = 1400, WAKE_N = 48;   // (G2838b: many small drops - the pool per float)
   let waterFx = null;
   // G2090 (WATER-LOOK): THE WET BODY'S SPRAY POOL - a build without floats meets the water on its belly, its flying
   // surfaces and its tyres (32_hydro.js wetBuild), so it gets the floats' sprite batch too: ONE pool for the page
@@ -6578,15 +6578,29 @@
         const NU = SH ? SH.NU : 8, roots = [];
         for (let u = 0; u < NU; u++) { const f = u / (NU - 1) * (pts.length - 1), i0 = Math.floor(f), i1 = Math.min(pts.length - 1, i0 + 1), t = f - i0;
           const a = pts[i0], b = pts[i1]; roots.push([a[0] + (b[0] - a[0]) * t, Math.max(fx.h, a[1] + (b[1] - a[1]) * t) + 0.02, a[2] + (b[2] - a[2]) * t]); }
-        const uo = 0.45 * V, uu = Math.min(2.6, 0.22 * V);
-        if (SH) SH.set(si, roots, [ox, 0, oz], [0, 1, 0], uo, uu, strength);
+        // (G2837c, the user 23 Oct: "it seems oversize now. Reduce that by about 2, or 1.5"): the sheet's launch scaled by SPRAY_K
+        // (0.77: its height and reach go as the square - ~0.6), the drops and the chunks thrown off it with it
+        const SPRAY_K = 0.77, uo = 0.45 * V * SPRAY_K, uu = Math.min(2.6, 0.22 * V) * SPRAY_K;
+        // G2837b THE VIOLENCE (the user, 22 Oct: "more chaotic, more violent, more turbulent"): the speed's and the step's pressure's
+        // share - the sheet's shape gusts with it (spray.js set's t and gust) and it sheds chunks in bursts
+        const gust = Math.min(1, V / 16) * (0.6 + 0.4 * Math.min(1, pdM / 6000));
+        if (SH) SH.set(si, roots, [ox, 0, oz], [0, 1, 0], uo, uu, strength, waterFx.t + si * 7.3, gust);
         // the droplets off the sheet's far edge (t = T: out at uo, falling at -uu), the rate with the pressure
-        const T = 2 * uu / 9.81, rate = Math.min(8, pdM / 2000) * dt * 60;
+        const T = 2 * uu / 9.81, rate = Math.min(24, 3 * pdM / 2000) * dt * 60;   // (G2838b: many small drops - three times the old rate)
         let n = Math.floor(rate); if (Math.random() < rate - n) n++;
         for (let j = 0; j < n; j++) {
           const r = roots[Math.floor(Math.random() * NU)], t = T * (0.6 + 0.4 * Math.random());
           sprayEmit(D, 0, r[0] + ox * uo * t, r[1] + uu * t - 4.905 * t * t, r[2] + oz * uo * t,
-            ox * uo * (0.7 + 0.3 * Math.random()) + (Math.random() - 0.5) * 0.6, uu - 9.81 * t + 0.3 * Math.random(), oz * uo * (0.7 + 0.3 * Math.random()) + (Math.random() - 0.5) * 0.6);
+            ox * uo * (0.7 + 0.5 * Math.random()) + (Math.random() - 0.5) * 1.6, uu - 9.81 * t + 0.8 * Math.random(), oz * uo * (0.7 + 0.5 * Math.random()) + (Math.random() - 0.5) * 1.6);   // (G2838b: a wide turbulent spread; G2837c: two thirds of it)
+        }
+        // (G2837b) SHED CHUNKS: in bursts with the speed, a clump of drops leaves the sheet together - a cluster with one velocity and
+        // a tight spread, a few heavy drops in it - so the edge throws pieces instead of a steady drizzle
+        if (Math.random() < dt * (1.5 + V / 5) * gust) {
+          const r = roots[Math.floor(Math.random() * NU)], t = T * (0.45 + 0.5 * Math.random()), kv = 0.9 + 0.5 * Math.random();
+          const bx = r[0] + ox * uo * t, by = r[1] + uu * t - 4.905 * t * t, bz = r[2] + oz * uo * t, cvx = ox * uo * kv, cvy = (uu - 9.81 * t) * kv + 0.8, cvz = oz * uo * kv;
+          const nb = 10 + Math.floor(14 * Math.random() * gust);
+          for (let j = 0; j < nb; j++) sprayEmit(D, j < 3 ? 1 : 0, bx + (Math.random() - 0.5) * 0.3, by + (Math.random() - 0.5) * 0.2, bz + (Math.random() - 0.5) * 0.3,
+            cvx + (Math.random() - 0.5) * 1.0, cvy + (Math.random() - 0.5) * 0.8, cvz + (Math.random() - 0.5) * 1.0);
         }
         // the sheet's mist: a puff for every ~12 droplets, outboard of the root, left behind by the hull
         if (n > 0 && Math.random() < n / 12) { const r = roots[Math.floor(Math.random() * NU)];
@@ -8862,8 +8876,13 @@
     return storyCard(d, o);
   }
   const stEsc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  // G3357 (the user 23 Oct: "I see no point in the lines on the top left. Tim feels like he's enough, that feels like an
+  // artificial setpoint"): the beat card is not the player's - Tim's band carries the beat (its OK, its checklist, the
+  // story's messages). The card is still made (the gates read it) and shown only with ?storycard=1 (a dev's view).
+  var STORY_CARD = typeof location !== 'undefined' && /[?&]storycard=1/.test(location.search || '');
   function storyCardSync() {
     if (!STORY_PAGE || typeof document === 'undefined' || !document.body) return;
+    if (document.body.classList.contains('stNoCard') === STORY_CARD) document.body.classList.toggle('stNoCard', !STORY_CARD);
     let K = null;
     try { K = storyCardNow(); } catch (e) { console.warn('flyDiy (story): the card -', e && e.message); }
     storyMaskNote();
@@ -8889,7 +8908,7 @@
     }
     const rows = K.rows.map(r => '<li class="' + (r.ok ? 'ok' : '') + '"><span class="stTick" aria-hidden="true">' + (r.ok ? '✓' : '') + '</span>' + stEsc(r.words) + '</li>').join('');
     const met = K.rows.filter(r => r.ok).length;
-    const html = '<button type="button" class="stHead" data-st="fold" aria-label="fold the story card"><span class="stStep">The story · ' + K.step + ' of ' + K.of + '</span>' +
+    const html = '<button type="button" class="stHead" data-st="fold" aria-label="fold the story card"><span class="stStep">The story</span>' +   // G3356: no step counter for the player (the user: "That's for us")
         '<b class="stTitle">' + stEsc(K.title) + '</b>' + (K.rows.length ? '<span class="stN">' + met + '/' + K.rows.length + '</span>' : '') + '</button>' +
       '<div class="stBody"><p class="stBrief">' + stEsc(K.brief) + '</p>' + (rows ? '<ul class="stRows">' + rows + '</ul>' : '') +
         (K.note ? '<p class="stNote">' + stEsc(K.note) + '</p>' : '') + (stLine ? '<p class="stLine">' + stEsc(stLine) + '</p>' : '') +
@@ -8897,8 +8916,15 @@
     if (stCardEl.dataset.html !== html) { stCardEl.innerHTML = html; stCardEl.dataset.html = html; }
     if (stCardEl.dataset.beat !== K.beat) { stCardEl.dataset.beat = K.beat; if (stCardEl.classList.contains('min') !== (prefGet('flydiy.story.fold', '') === K.beat)) stCardEl.classList.toggle('min'); }
   }
-  // the tech mask's tutorial mode (TECH-MASK G3230 reads it here, or listens for the event, once it lands)
+  // G3230 (TECH-MASK): the career's machine shop into the editor (79b_tech.js careerTechOf: null for a career without one,
+  // so the dev career greys nothing); the sandbox never calls it. On the editor's open and at every story card.
+  function techMaskSync() {
+    if (!CAREER_DEV || !window.TECH_MASK) return;
+    try { window.TECH_MASK.set(careerTechOf(playerLoad())); } catch (e) {}
+  }
+  // the tech mask's tutorial mode (TECH-MASK G3230: editor.js window.TECH_MASK.tutorial; also the event)
   function storyMaskNote() {
+    techMaskSync();
     const m = storyMask(playerLoad());
     if (m === stMaskWas) return;
     stMaskWas = m;
@@ -9088,19 +9114,36 @@
   // thing at the bottom of the screen, with a placeholder vignette portrait"). A line at a time (Next), closed on the last
   // (OK); shown again on each new beat. Never centred, never over the middle; the garage's look (editor.css #stTim).
   // The portrait is a PLACEHOLDER silhouette (no image, no real person).
-  let stTimEl = null, stTimBeat = null, stTimI = 0, stTimShut = false;
+  let stTimEl = null, stTimBeat = null, stTimI = 0, stTimShut = false, stTimK = null;
   const STIM_FACE = '<svg class="stTimFace" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="23"/><circle class="h" cx="24" cy="19" r="8"/><path class="h" d="M9 41c2-9 8-13 15-13s13 4 15 13"/></svg>';
   function storyTimSync() {
     if (!STORY_PAGE || typeof document === 'undefined' || !document.body) return;
-    const s = stLive(), id = s && !s.open ? s.beat : null, L = id ? storyTimLines(id, playerLoad()) : [];
+    const s = stLive(), id = s && !s.open ? s.beat : null, L0 = id ? storyTimLines(id, playerLoad()) : [];
+    // G3361: in the story's small shed, Tim says why there is no bench (the panel's note went)
+    let small = false;
+    try { const d = playerLoad(), sh = d.sheds && d.sheds[d.here]; small = !!(sh && sh.story) && inGarage; } catch (e) {}
+    const L = small && L0.length ? L0.concat([STORY_BENCH_LINE]) : L0;
     if (id !== stTimBeat) { stTimBeat = id; stTimI = 0; stTimShut = false; }
     // G3370 (TUTO-FLIGHT): T1's flight speaks the LADDER in the band instead (Tim's own T1 lines are the shed's)
     const lad = storyLadderNow();
     if (lad) return storyLadderShow(lad);
-    if (!L.length || stTimShut || (window.FLYDIY_AP && typeof window.FLYDIY_AP.manual === 'function' && window.FLYDIY_AP.manual() && !inGarage)) { if (stTimEl) stTimEl.hidden = true; return; }
+    const manual = window.FLYDIY_AP && typeof window.FLYDIY_AP.manual === 'function' && window.FLYDIY_AP.manual() && !inGarage;
+    // G3357: a story message (a refused delivery, a signed route) is Tim's to say, once, with its OK
+    if (stLine && !STORY_CARD && !manual) {
+      stTimPut('', STIM_FACE + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>' + stEsc(STORY_TIM.role) + '</small><p>' + stEsc(stLine) + '</p></div>' +
+        '<button type="button" class="stTimBtn" data-tim="line">OK</button>');
+      return;
+    }
+    if (!L.length || manual) { if (stTimEl) stTimEl.hidden = true; return; }
+    // G3357: closed, the band leaves Tim's face in the corner - a click brings his last words (and the checklist) back
+    if (stTimShut) { stTimPut('min', '<button type="button" class="stTimChip" data-tim="open" aria-label="' + stEsc(STORY_TIM.name) + '">' + STIM_FACE + '</button>'); return; }
     const i = Math.min(stTimI, L.length - 1), last = i >= L.length - 1;
-    stTimPut('', STIM_FACE + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>' + stEsc(STORY_TIM.role) + '</small><p>' + stEsc(L[i]) + '</p></div>' +
-      '<button type="button" class="stTimBtn" data-tim="' + (last ? 'ok' : 'next') + '">' + (last ? 'OK' : 'Next (' + (i + 1) + '/' + L.length + ')') + '</button>');
+    // G3357: on his last line the beat's own goal rides in the band - an ack beat's OK moves the story; a checklist shows
+    if (last && !STORY_CARD) { try { stTimK = storyCardNow(); } catch (e) { stTimK = null; } } else stTimK = null;
+    const K = stTimK, ack = !!(K && K.ack);
+    const rows = K && K.rows && K.rows.length ? '<ul class="stTimRows">' + K.rows.map(r => '<li class="' + (r.ok ? 'ok' : '') + '">' + (r.ok ? '\u2713 ' : '') + stEsc(r.words) + '</li>').join('') + '</ul>' : '';
+    stTimPut('', STIM_FACE + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>' + stEsc(STORY_TIM.role) + '</small><p>' + stEsc(L[i]) + '</p>' + rows + '</div>' +
+      '<button type="button" class="stTimBtn" data-tim="' + (last ? (ack ? 'ack' : 'ok') : 'next') + '">' + (last ? 'OK' : 'Next') + '</button>');
   }
   // the band itself, made once; its words written only when they change (the ladder's tick runs every half second)
   function stTimPut(cls, html) {
@@ -9111,7 +9154,11 @@
         const b = ev.target && ev.target.closest ? ev.target.closest('[data-tim]') : null;
         if (!b) return;
         if (b.dataset.tim === 'lad') stLadShut = stLad.i;          // (this card read: the band waits for the next one)
-        else if (b.dataset.tim === 'next') stTimI++; else stTimShut = true;
+        else if (b.dataset.tim === 'next') stTimI++;
+        else if (b.dataset.tim === 'line') { stLine = ''; storyCardSync(); }               // G3357: Tim's message read
+        else if (b.dataset.tim === 'open') stTimShut = false;                              // G3357: the chip
+        else if (b.dataset.tim === 'ack') { stTimShut = true; stLine = ''; storyEvent({ k: 'ack' }); }   // G3357: the beat read
+        else stTimShut = true;
         storyTimSync();
       });
       document.body.appendChild(stTimEl);
@@ -9151,7 +9198,7 @@
   function storyLadderShow(lad) {
     if (!lad.card || lad.off || stLadShut === lad.i) { if (stTimEl) stTimEl.hidden = true; return; }
     const C = lad.card;
-    stTimPut('lad', STIM_FACE + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>the flight · ' + (lad.i + 1) + ' of ' + lad.n + '</small>' +
+    stTimPut('lad', STIM_FACE + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>the flight</small>' +   // G3356: no counter
       '<p><b class="stLadT">' + stEsc(C.title) + '</b> ' + stEsc(C.text) + '</p></div>' +
       (C.img ? '<img class="stLadImg" src="' + stEsc(C.img) + '" alt="">' : '') +
       '<button type="button" class="stTimBtn" data-tim="lad">OK</button>');
@@ -9209,19 +9256,23 @@
     let small = false;
     try { const d = playerLoad(), sh = d.sheds && d.sheds[d.here]; small = !!(sh && sh.story); } catch (e) {}
     if (document.body.classList.contains('stNoBench') !== small) document.body.classList.toggle('stNoBench', small);
-    const bn = document.getElementById('edBench');
-    let n = document.getElementById('stNoBenchNote');
-    if (small && !n && bn && bn.parentNode) { n = document.createElement('div'); n.id = 'stNoBenchNote'; n.textContent = 'No bench in this shed: certification happens at the WWII field\u2019s hangar.'; bn.parentNode.insertBefore(n, bn); }
-    if (n) n.hidden = !small;
+    // G3361 (the user 23 Oct: "I see no point in the lines on the top left. Tim feels like he's enough"): the reason is
+    // Tim's to say (STORY_BENCH_LINE, his last words in the small shed), no note in the panel
+    const n = document.getElementById('stNoBenchNote');
+    if (n) n.remove();
   }
+  var STORY_BENCH_LINE = 'No test bench in here, mind - certification happens at the WWII field\u2019s hangar.';
   // G3351: THE PAINT-ONLY LOCK, KEPT. The story's mask note fires on a CHANGE of mask; at a New career it fired before
   // editor.js had defined EDITOR_LOCK, and the mask never changed again, so the lock never engaged (the smoke run of 22
   // Oct). This holds the editor's lock to the story's mask on every tick, whatever loaded first.
+  var stMarksOff = false;   // G3357 (a var: placeIndicators can run before this block)
   const STORY_LOCK_WHY = 'Tim: the structure comes later in the story - paint, liveries and colours for now.';
   function storyLockSync() {
-    if (!STORY_PAGE || !window.EDITOR_LOCK || typeof window.EDITOR_LOCK.finishOnly !== 'function') return;
+    if (!STORY_PAGE) return;
     let want = false;
     try { want = storyMask(playerLoad()) === 'finish'; } catch (e) {}
+    stMarksOff = want;   // G3357: the CG / neutral-point marks are design marks - off while only paint is allowed (T0)
+    if (!window.EDITOR_LOCK || typeof window.EDITOR_LOCK.finishOnly !== 'function') return;
     if (!!window.EDITOR_LOCK.locked() !== want) window.EDITOR_LOCK.finishOnly(want ? STORY_LOCK_WHY : null);
   }
   // G3352: a cabin shed made before the cozy kits (park + bench + comfort only) takes the plot's kits now - decor only,
@@ -10862,7 +10913,8 @@
   function placeIndicators() {
     const d = standOffset();
     // G255: a screenshot has no marks; G1115: nor the roll-out shot (the CG post and its labels rode out on the aeroplane)
-    gGrp.visible = !!d && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) && !window.__frLoading;   // G2345: not under the loading view (its own CG bar)
+    gGrp.visible = !!d && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) && !window.__frLoading   // G2345: not under the loading view (its own CG bar)
+      && !stMarksOff;   // G3357: not on the story's paint-only stage (T0)
     if (d) gGrp.position.set(d[0], d[1], d[2]);
   }
   function buildIndicators() {
@@ -13135,6 +13187,7 @@
       }
     } catch (err) { console.error('cage editor boot:', err); }
     showCage = true;
+    if (CAREER_DEV) techMaskSync();         // G3230: the machine shop's greys (a career's only)
     applyStand();
     applyEnv();                             // parents the mount into the room
     placeEditor();
@@ -17061,7 +17114,11 @@
     // since applyStand stopped forcing them on) that is three fewer dirty
     // BufferAttributes and two fewer draws every frame
     if (lines && (lines.visible || pts.visible || (proxy && proxy.mesh.visible))) sync();
-    if (floatMeshes.length) syncFloats();
+    // G3449 (FLOAT-DUP, the user 22 Oct: "it's not an elongated floats, it's a duplicate, untextured" - G451.1 item 94
+    // back): the PHYSICS hull is the flight's stand-in for a model without drawn float parts. In the shed the cage layer
+    // draws the floats, and floats added there then a spec update (a design tile, the float kit's pitch) rebuild the
+    // model without them - so the physics hull is never shown in the shed, and synced only in flight (GATE FLOATDUP)
+    if (floatMeshes.length) { const ph = !inGarage; for (const m of floatMeshes) m.visible = ph; if (ph) syncFloats(); }
     if (waterFx && !inGarage) syncWaterFx(running ? fdt : 0);   // (G586: the spray on the frame's own time)
     // THE INTERACTION FIELD (H7, G460.8): on while a floatplane is over water (the CG's water level finite),
     // stepped before the render with the CG as its centre; off (the slot cleared) otherwise
@@ -17121,7 +17178,19 @@
       let wl = WF.waterDrawY ? WF.waterDrawY(camera.position.x, camera.position.z) : null;
       if (wl == null && WF.waterDrawY) wl = WF.waterDrawY(cgM[0], cgM[2]);
       if (wl == null && !WF.waterDrawY && world.waterH) { wl = world.waterH(camera.position.x, camera.position.z); if (!Number.isFinite(wl)) wl = world.waterH(cgM[0], cgM[2]); }
-      WATER.mirrorRender(THREE, renderer, scene, camera, Number.isFinite(wl) ? wl : null, { dt: fdt, clouds: (typeof CLOUDS !== 'undefined' && CLOUDS.draw) ? CLOUDS.draw : null, sky: WF.skyDome, hide: [WF.skyDome], hideMaterials: waterFx && waterFx.drops ? [waterFx.drops.spray && waterFx.drops.spray.material, waterFx.drops.sheets && waterFx.drops.sheets.material] : [] });
+      const wDrops = waterFx && waterFx.drops ? [waterFx.drops.spray && waterFx.drops.spray.material, waterFx.drops.sheets && waterFx.drops.sheets.material] : [];
+      // (G2831-G2833 prototypes, ?wrefl=b|c|bc: the sea's planar mirror off - the redesign's open sea has none; lakes keep it.
+      // A drawn level at the sea's own (0) is the sea or a lagoon at its level)
+      if (WATER.proto && WATER.proto.seaOff && Number.isFinite(wl) && Math.abs(wl) < 0.05) wl = null;
+      if (WATER.proto && WATER.proto.ring && !WATER.mirror.landAt && world.terrainH) WATER.mirror.landAt = (x, z) => { const wy = WF.waterDrawY ? WF.waterDrawY(x, z) : null; return world.terrainH(x, z) > (Number.isFinite(wy) ? wy : 0) + 0.5; };
+      if (WATER.proto && WATER.proto.ring && !WATER.mirror.waterAt && WF.waterDrawY) WATER.mirror.waterAt = (x, z) => WF.waterDrawY(x, z);   // (G2839: the inland dissolve counts the water on the mirror's own plane)   // (G2836: the ring's land test - over the DRAWN water's level: a lake at 38 m is water, round 2)
+      WATER.mirrorRender(THREE, renderer, scene, camera, Number.isFinite(wl) ? wl : null, { dt: fdt, clouds: (typeof CLOUDS !== 'undefined' && CLOUDS.draw) ? CLOUDS.draw : null, sky: WF.skyDome, hide: [WF.skyDome], hideMaterials: wDrops });
+      // (G2831 prototype b) the aircraft's own reflection: a hull-only capture at the water under it
+      if (WATER.proto && WATER.proto.hull && WATER.hullRender) {
+        let hy = WF.waterDrawY ? WF.waterDrawY(cgM[0], cgM[2]) : null;
+        if (hy == null && WF.waterDrawY) hy = WF.waterDrawY(camera.position.x, camera.position.z);
+        WATER.hullRender(THREE, renderer, scene, camera, Number.isFinite(hy) ? hy : null, craft, { hideMaterials: wDrops });
+      }
     }
     if (FR) FR.lap(FR.S.mirror);
     let framePresented = true;

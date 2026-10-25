@@ -3379,13 +3379,13 @@
       -8561.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -3396,7 +3396,8 @@
      "mk_j1",
      "mk_j2",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sa01",
@@ -3414,13 +3415,13 @@
       -8456.78
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -3430,7 +3431,8 @@
      null,
      "mk_j3",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sa02",
@@ -3448,13 +3450,13 @@
       -8616.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -3464,7 +3466,8 @@
      null,
      "mk_j4",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sa03",
@@ -3502,13 +3505,13 @@
       -8434.92
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -3523,7 +3526,8 @@
      "mk_j9",
      "mk_j10",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sa04",
@@ -3557,13 +3561,13 @@
       -8546.0
      ]
     ],
-    "w": 4.0,
+    "w": 6.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -3577,7 +3581,8 @@
      "mk_j14",
      "mk_j15",
      null
-    ]
+    ],
+    "lay": 4.0
    },
    {
     "id": "mk_sa05",
@@ -3591,18 +3596,19 @@
       -8368.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
     "smooth": 0,
-    "traffic": 0
+    "traffic": 0,
+    "lay": 3.2
    },
    {
     "id": "mk_sa06",
@@ -3644,13 +3650,13 @@
       -8448.38
      ]
     ],
-    "w": 4.0,
+    "w": 6.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -3666,7 +3672,8 @@
      "mk_j21",
      "mk_j22",
      "mk_j23"
-    ]
+    ],
+    "lay": 4.0
    },
    {
     "id": "mk_sa08",
@@ -3716,13 +3723,13 @@
       -8449.0
      ]
     ],
-    "w": 4.0,
+    "w": 6.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -3740,7 +3747,8 @@
      "mk_j31",
      "mk_j32",
      null
-    ]
+    ],
+    "lay": 4.0
    },
    {
     "id": "mk_sa12",
@@ -3778,13 +3786,13 @@
       -8736.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -3799,7 +3807,8 @@
      "mk_j37",
      "mk_j38",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sa15",
@@ -3829,13 +3838,13 @@
       -8611.0
      ]
     ],
-    "w": 4.0,
+    "w": 6.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -3848,7 +3857,8 @@
      "mk_j42",
      "mk_j43",
      null
-    ]
+    ],
+    "lay": 4.0
    },
    {
     "id": "mk_sa17",
@@ -3906,13 +3916,13 @@
       -8643.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -3932,7 +3942,8 @@
      "mk_j53",
      "mk_j54",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sa20",
@@ -3986,13 +3997,13 @@
       -8609.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4011,7 +4022,8 @@
      "mk_j63",
      "mk_j64",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sa22",
@@ -4065,13 +4077,13 @@
       -8671.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4090,7 +4102,8 @@
      "mk_j73",
      "mk_j74",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sa23",
@@ -4148,13 +4161,13 @@
       -8622.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4174,7 +4187,8 @@
      "mk_j84",
      "mk_j85",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sa29",
@@ -4204,13 +4218,13 @@
       -8333.84
      ]
     ],
-    "w": 4.0,
+    "w": 6.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4223,7 +4237,8 @@
      "mk_j88",
      "mk_j89",
      "mk_j90"
-    ]
+    ],
+    "lay": 4.0
    },
    {
     "id": "mk_sa30",
@@ -4249,13 +4264,13 @@
       -8486.0
      ]
     ],
-    "w": 4.0,
+    "w": 6.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4267,7 +4282,8 @@
      "mk_j93",
      "mk_j94",
      null
-    ]
+    ],
+    "lay": 4.0
    },
    {
     "id": "mk_sc33",
@@ -4281,13 +4297,13 @@
       -8544.0
      ]
     ],
-    "w": 4.0,
+    "w": 6.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4296,7 +4312,8 @@
     "nodes": [
      "mk_j2",
      null
-    ]
+    ],
+    "lay": 4.0
    },
    {
     "id": "mk_sc34",
@@ -4318,13 +4335,13 @@
       -8842.9
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4335,7 +4352,8 @@
      "mk_j44",
      "mk_j33",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc35",
@@ -4361,13 +4379,13 @@
       -8715.58
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4379,7 +4397,8 @@
      "mk_j34",
      "mk_j25",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc36",
@@ -4409,13 +4428,13 @@
       -8418.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4428,7 +4447,8 @@
      "mk_j5",
      "mk_j3",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc37",
@@ -4478,13 +4498,13 @@
       -8566.0
      ]
     ],
-    "w": 4.0,
+    "w": 6.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4502,7 +4522,8 @@
      "mk_j13",
      "mk_j6",
      null
-    ]
+    ],
+    "lay": 4.0
    },
    {
     "id": "mk_sc38",
@@ -4552,13 +4573,13 @@
       -8507.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4576,7 +4597,8 @@
      "mk_j14",
      "mk_j7",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc40",
@@ -4630,13 +4652,13 @@
       -8482.0
      ]
     ],
-    "w": 4.0,
+    "w": 6.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4655,7 +4677,8 @@
      "mk_j15",
      "mk_j8",
      null
-    ]
+    ],
+    "lay": 4.0
    },
    {
     "id": "mk_sc41",
@@ -4669,18 +4692,19 @@
       -8265.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
     "smooth": 0,
-    "traffic": 0
+    "traffic": 0,
+    "lay": 3.2
    },
    {
     "id": "mk_sc42",
@@ -4730,13 +4754,13 @@
       -8477.61
      ]
     ],
-    "w": 5.0,
+    "w": 7.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4754,7 +4778,8 @@
      "mk_j29",
      "mk_j20",
      "mk_j9"
-    ]
+    ],
+    "lay": 5.0
    },
    {
     "id": "mk_sc43",
@@ -4784,13 +4809,13 @@
       -8435.56
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4803,7 +4828,8 @@
      "mk_j21",
      "mk_j10",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc44",
@@ -4841,13 +4867,13 @@
       -8747.19
      ]
     ],
-    "w": 5.0,
+    "w": 7.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4862,7 +4888,8 @@
      "mk_j59",
      "mk_j50",
      "mk_j39"
-    ]
+    ],
+    "lay": 5.0
    },
    {
     "id": "mk_sc45",
@@ -4896,13 +4923,13 @@
       -8710.64
      ]
     ],
-    "w": 5.0,
+    "w": 7.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4916,7 +4943,8 @@
      "mk_j60",
      "mk_j51",
      "mk_j40"
-    ]
+    ],
+    "lay": 5.0
    },
    {
     "id": "mk_sc46",
@@ -4942,13 +4970,13 @@
       -8489.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4960,7 +4988,8 @@
      "mk_j31",
      "mk_j22",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc47",
@@ -4990,13 +5019,13 @@
       -8679.72
      ]
     ],
-    "w": 5.0,
+    "w": 7.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5009,7 +5038,8 @@
      "mk_j61",
      "mk_j52",
      "mk_j41"
-    ]
+    ],
+    "lay": 5.0
    },
    {
     "id": "mk_sc48",
@@ -5035,13 +5065,13 @@
       -8428.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5053,7 +5083,8 @@
      "mk_j32",
      "mk_j23",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc49",
@@ -5091,13 +5122,13 @@
       -8613.0
      ]
     ],
-    "w": 4.0,
+    "w": 6.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5112,7 +5143,8 @@
      "mk_j53",
      "mk_j42",
      null
-    ]
+    ],
+    "lay": 4.0
    },
    {
     "id": "mk_sc50",
@@ -5154,13 +5186,13 @@
       -8448.0
      ]
     ],
-    "w": 5.0,
+    "w": 7.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5176,7 +5208,8 @@
      "mk_j43",
      "mk_j109",
      null
-    ]
+    ],
+    "lay": 5.0
    },
    {
     "id": "mk_sc51",
@@ -5194,13 +5227,13 @@
       -8373.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5210,7 +5243,8 @@
      null,
      "mk_j110",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc52",
@@ -5244,13 +5278,13 @@
       -8452.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5264,7 +5298,8 @@
      "mk_j74",
      "mk_j64",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc55",
@@ -5278,13 +5313,13 @@
       -8331.0
      ]
     ],
-    "w": 3.6,
+    "w": 6.0,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5293,7 +5328,8 @@
     "nodes": [
      "mk_j113",
      null
-    ]
+    ],
+    "lay": 3.6
    },
    {
     "id": "mk_sc56",
@@ -5315,13 +5351,13 @@
       -8610.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5332,7 +5368,8 @@
      "mk_j114",
      "mk_j85",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc61",
@@ -5358,13 +5395,13 @@
       -8518.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5376,7 +5413,8 @@
      "mk_j86",
      "mk_j115",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc63",
@@ -5398,13 +5436,13 @@
       -8501.0
      ]
     ],
-    "w": 4.0,
+    "w": 6.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5415,7 +5453,8 @@
      "mk_j92",
      "mk_j87",
      null
-    ]
+    ],
+    "lay": 4.0
    },
    {
     "id": "mk_sc64",
@@ -5453,13 +5492,13 @@
       -8289.0
      ]
     ],
-    "w": 4.0,
+    "w": 6.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5474,7 +5513,8 @@
      "mk_j118",
      "mk_j119",
      null
-    ]
+    ],
+    "lay": 4.0
    },
    {
     "id": "mk_sc65",
@@ -5500,13 +5540,13 @@
       -8388.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5518,7 +5558,8 @@
      "mk_j89",
      "mk_j120",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc69",
@@ -5540,13 +5581,13 @@
       -8259.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5557,7 +5598,8 @@
      "mk_j121",
      "mk_j90",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc70",
@@ -5579,13 +5621,13 @@
       -8235.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5596,7 +5638,8 @@
      "mk_j122",
      "mk_j123",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_r_shore",
@@ -5734,10 +5777,10 @@
       -9077.27
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 7,
     "grade": 0.12,
@@ -5777,7 +5820,8 @@
      null,
      null,
      "mk_c_south"
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_ax00",
@@ -5807,10 +5851,10 @@
       -8352.5
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.12,
@@ -5823,7 +5867,8 @@
      null,
      null,
      null
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_ax01",
@@ -6093,10 +6138,10 @@
       -8997.6
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.12,
@@ -6169,7 +6214,8 @@
      null,
      null,
      null
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_ax02",
@@ -6323,10 +6369,10 @@
       -8287.8
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.12,
@@ -6370,7 +6416,8 @@
      null,
      null,
      "mk_j126"
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_ax03",
@@ -6516,10 +6563,10 @@
       -8359.0
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.12,
@@ -6561,7 +6608,8 @@
      null,
      null,
      "mk_j128"
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_ax04",
@@ -6691,10 +6739,10 @@
       -8287.8
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.12,
@@ -6732,7 +6780,8 @@
      null,
      null,
      "mk_j126"
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_ax05",
@@ -6822,10 +6871,10 @@
       -8074.0
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.12,
@@ -6853,7 +6902,8 @@
      null,
      null,
      "mk_c_north"
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_ax06",
@@ -6955,10 +7005,10 @@
       -8413.2
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.12,
@@ -6989,7 +7039,8 @@
      null,
      null,
      "mk_j129"
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_ax07",
@@ -7035,10 +7086,10 @@
       -8202.3
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.12,
@@ -7055,7 +7106,8 @@
      null,
      null,
      null
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_ax08",
@@ -7085,10 +7137,10 @@
       -8453.1
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.12,
@@ -7101,7 +7153,8 @@
      null,
      null,
      "mk_j125"
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_ax09",
@@ -7131,10 +7184,10 @@
       -8359.0
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.12,
@@ -7147,7 +7200,8 @@
      null,
      null,
      "mk_j128"
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_ax10",
@@ -7177,10 +7231,10 @@
       -8453.1
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.12,
@@ -7193,7 +7247,8 @@
      null,
      null,
      "mk_j125"
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_r_walden",
@@ -7263,10 +7318,10 @@
       -8277.07
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.09,
@@ -7290,7 +7345,8 @@
      null,
      null,
      "mk_c_east"
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_r_airport",
@@ -7432,16 +7488,17 @@
       -7760.0
      ]
     ],
-    "w": 6.0,
+    "w": 8.4,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.1,
     "smooth": 30,
     "traffic": 1,
-    "rail": "auto"
+    "rail": "auto",
+    "lay": 6.0
    },
    {
     "id": "mk_r_skaters",
@@ -7539,16 +7596,17 @@
       -8030.45
      ]
     ],
-    "w": 6.0,
+    "w": 8.4,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.1,
     "smooth": 30,
     "traffic": 1,
-    "rail": "auto"
+    "rail": "auto",
+    "lay": 6.0
    },
    {
     "id": "mk_r_graveyard",
@@ -7590,10 +7648,10 @@
       -7900.0
      ]
     ],
-    "w": 5.0,
+    "w": 7.4,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.11,
@@ -7610,7 +7668,8 @@
      null,
      null,
      null
-    ]
+    ],
+    "lay": 5.0
    },
    {
     "id": "mk_r_raven",
@@ -7648,16 +7707,17 @@
       -7772.0
      ]
     ],
-    "w": 5.5,
+    "w": 7.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.1,
     "smooth": 30,
     "traffic": 0,
-    "rail": "auto"
+    "rail": "auto",
+    "lay": 5.5
    },
    {
     "id": "mk_r_wolf",
@@ -7683,16 +7743,17 @@
       -7938.33
      ]
     ],
-    "w": 5.0,
+    "w": 7.4,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.1,
     "smooth": 30,
     "traffic": 0,
-    "rail": "auto"
+    "rail": "auto",
+    "lay": 5.0
    },
    {
     "id": "mk_r_breakwater",
@@ -7722,10 +7783,10 @@
       -8736.0
      ]
     ],
-    "w": 6.0,
+    "w": 8.4,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.1,
@@ -7739,7 +7800,8 @@
      null,
      "mk_j24",
      null
-    ]
+    ],
+    "lay": 6.0
    },
    {
     "id": "mn_main",
@@ -14011,7 +14073,7 @@
    },
    {
     "id": "w3",
-    "name": "Tamgas Hill Strip",
+    "name": "Ridgeback Strip",
     "c": [
      -811.27,
      -2396.97
@@ -14128,7 +14190,7 @@
    },
    {
     "id": "SEA",
-    "name": "Annette Dock",
+    "name": "Greywater Dock",
     "c": [
      360.5,
      -3660.99
@@ -14169,7 +14231,7 @@
    },
    {
     "id": "mk_sea",
-    "name": "Metlakatla Seaplane Base",
+    "name": "Cedar Harbour Seaplane Base",
     "c": [
      -3980.0,
      -9420.0
@@ -14210,7 +14272,7 @@
    },
    {
     "id": "mn_strip",
-    "name": "Jumbo Mine Street",
+    "name": "Copperhead Mine Street",
     "c": [
      7249.68,
      -15429.37
@@ -16784,7 +16846,7 @@
    },
    {
     "id": "s_strip",
-    "name": "Tamgas Hill",
+    "name": "Ridgeback",
     "at": {
      "x": -674.34,
      "z": -2356.03,
@@ -16901,7 +16963,7 @@
    },
    {
     "id": "mk_hall",
-    "name": "Metlakatla Town Hall",
+    "name": "Cedar Harbour Town Hall",
     "at": {
      "x": -3462.0,
      "z": -8724.0,
@@ -16924,7 +16986,7 @@
    },
    {
     "id": "mk_church_presb",
-    "name": "Metlakatla Presbyterian Church",
+    "name": "Cedar Harbour Church",
     "at": {
      "x": -3413.9,
      "z": -8772.1,
@@ -16947,7 +17009,7 @@
    },
    {
     "id": "mk_church_duncan",
-    "name": "William Duncan Memorial Church",
+    "name": "Memorial Church",
     "at": {
      "x": -3470.9,
      "z": -8630.1,
@@ -17016,7 +17078,7 @@
    },
    {
     "id": "mk_school_elem",
-    "name": "Richard Johnson Elementary School",
+    "name": "Cedar Harbour Elementary School",
     "at": {
      "x": -3321.0,
      "z": -8771.0,
@@ -17039,7 +17101,7 @@
    },
    {
     "id": "mk_school_high",
-    "name": "Metlakatla High School",
+    "name": "Cedar Harbour High School",
     "at": {
      "x": -3358.0,
      "z": -8598.0,
@@ -17062,7 +17124,7 @@
    },
    {
     "id": "mk_store_acc",
-    "name": "Alaska Commercial Company",
+    "name": "Harbour General Store",
     "at": {
      "x": -3467.9,
      "z": -8993.9,
@@ -17085,7 +17147,7 @@
    },
    {
     "id": "mk_cafe_als",
-    "name": "Al's American",
+    "name": "Dockside Diner",
     "at": {
      "x": -3466.0,
      "z": -8681.0,
@@ -17108,7 +17170,7 @@
    },
    {
     "id": "mk_inn",
-    "name": "Metlakatla Inn & Suites",
+    "name": "Cedar Harbour Inn & Suites",
     "at": {
      "x": -3365.0,
      "z": -8879.0,
@@ -17131,7 +17193,7 @@
    },
    {
     "id": "mk_museum",
-    "name": "Duncan Cottage Museum",
+    "name": "Cottage Museum",
     "at": {
      "x": -3209.0,
      "z": -8907.0,
@@ -17154,7 +17216,7 @@
    },
    {
     "id": "mk_post",
-    "name": "United States Postal Service",
+    "name": "Post office",
     "at": {
      "x": -3392.0,
      "z": -8560.0,
@@ -17177,7 +17239,7 @@
    },
    {
     "id": "mk_police",
-    "name": "Metlakatla Police",
+    "name": "Cedar Harbour Police",
     "at": {
      "x": -3268.0,
      "z": -8586.0,
@@ -17200,7 +17262,7 @@
    },
    {
     "id": "mk_clinic",
-    "name": "Annette Island Service Unit",
+    "name": "Island Clinic",
     "at": {
      "x": -3234.2,
      "z": -8695.8,
@@ -17223,7 +17285,7 @@
    },
    {
     "id": "mk_fire",
-    "name": "Metlakatla Fire Hall",
+    "name": "Cedar Harbour Fire Hall",
     "at": {
      "x": -3177.5,
      "z": -8744.5,
@@ -17246,7 +17308,7 @@
    },
    {
     "id": "mk_credit_union",
-    "name": "Tongass Federal Credit Union",
+    "name": "Harbour Credit Union",
     "at": {
      "x": -3220.5,
      "z": -8717.5,
@@ -17292,7 +17354,7 @@
    },
    {
     "id": "mk_senior",
-    "name": "Metlakatla Senior Citizens Center",
+    "name": "Cedar Harbour Senior Citizens Center",
     "at": {
      "x": -3552.5,
      "z": -8846.0,
@@ -17315,7 +17377,7 @@
    },
    {
     "id": "mk_longhouse",
-    "name": "Metlakatla Long House",
+    "name": "Cedar Harbour Long House",
     "at": {
      "x": -3674.2,
      "z": -8689.1,
@@ -17338,7 +17400,7 @@
    },
    {
     "id": "mk_harbormaster",
-    "name": "MIC Harbor master",
+    "name": "Harbour master",
     "at": {
      "x": -3838.2,
      "z": -8665.2,
@@ -17361,7 +17423,7 @@
    },
    {
     "id": "mk_se_winds",
-    "name": "Southeast Winds",
+    "name": "Sea Winds",
     "at": {
      "x": -3845.8,
      "z": -8617.5,
@@ -17384,7 +17446,7 @@
    },
    {
     "id": "mk_marine",
-    "name": "Tongass Marine Supply",
+    "name": "Harbour Marine Supply",
     "at": {
      "x": -3825.7,
      "z": -8665.7,
@@ -17453,7 +17515,7 @@
    },
    {
     "id": "mk_power",
-    "name": "Alaska Power & Telephone",
+    "name": "Island Power & Telephone",
     "at": {
      "x": -3026.0,
      "z": -8801.0,
@@ -17499,7 +17561,7 @@
    },
    {
     "id": "mk_gardens_shed",
-    "name": "Metlakatla Indian Community Gardens",
+    "name": "Cedar Harbour Community Gardens",
     "at": {
      "x": -2812.0,
      "z": -8354.0,
@@ -17522,7 +17584,7 @@
    },
    {
     "id": "mk_coffee",
-    "name": "Shadow Mountain Coffee",
+    "name": "Hilltop Coffee",
     "at": {
      "x": -1987.0,
      "z": -8404.0,
@@ -17545,7 +17607,7 @@
    },
    {
     "id": "mk_gas",
-    "name": "Annette Island gas fuel storage",
+    "name": "Jolene Island fuel storage",
     "at": {
      "x": -2379.0,
      "z": -8513.0,
@@ -17568,7 +17630,7 @@
    },
    {
     "id": "mk_housing",
-    "name": "Metlakatla Housing Authority",
+    "name": "Cedar Harbour Housing Authority",
     "at": {
      "x": -3271.0,
      "z": -7938.0,
@@ -17591,7 +17653,7 @@
    },
    {
     "id": "mk_social",
-    "name": "MIC Social Services",
+    "name": "Social Services",
     "at": {
      "x": -3279.0,
      "z": -7838.0,
@@ -17637,7 +17699,7 @@
    },
    {
     "id": "mk_wildlife",
-    "name": "MIC Fish and Wildlife",
+    "name": "Fish and Wildlife office",
     "at": {
      "x": -3000.56,
      "z": -8864.27,
@@ -17660,7 +17722,7 @@
    },
    {
     "id": "mk_ballpark",
-    "name": "Metlakatla Baseball Field",
+    "name": "Cedar Harbour Baseball Field",
     "at": {
      "x": -3324.0,
      "z": -8682.0,
@@ -17687,7 +17749,7 @@
    },
    {
     "id": "mk_court",
-    "name": "Metlakatla hard court",
+    "name": "Cedar Harbour hard court",
     "at": {
      "x": -3252.0,
      "z": -8640.0,
@@ -17710,7 +17772,7 @@
    },
    {
     "id": "mk_mp_west",
-    "name": "Metlakatla dock",
+    "name": "Cedar Harbour dock",
     "at": {
      "x": -3570.17,
      "z": -9091.68,
@@ -17769,7 +17831,7 @@
    },
    {
     "id": "mk_mf_air",
-    "name": "Metlakatla seaplane float",
+    "name": "Cedar Harbour seaplane float",
     "at": {
      "x": -3351.0,
      "z": -9114.0,
@@ -17797,7 +17859,7 @@
    },
    {
     "id": "mk_mf_harb_a",
-    "name": "Metlakatla Boat Harbor floats",
+    "name": "Cedar Harbour boat harbour floats",
     "at": {
      "x": -3905.0,
      "z": -8790.0,
@@ -17826,7 +17888,7 @@
    },
    {
     "id": "mk_mf_harb_b",
-    "name": "Metlakatla Boat Harbor floats, inner",
+    "name": "Cedar Harbour boat harbour floats, inner",
     "at": {
      "x": -3878.0,
      "z": -8776.0,
@@ -17855,7 +17917,7 @@
    },
    {
     "id": "mk_mw_cannery",
-    "name": "Annette Island Packing",
+    "name": "Jolene Island Packing",
     "at": {
      "x": -3081.5,
      "z": -9059.6,
@@ -17954,7 +18016,7 @@
    },
    {
     "id": "mk_mw_small",
-    "name": "Metlakatla small boat dock",
+    "name": "Cedar Harbour small boat dock",
     "at": {
      "x": -2946.0,
      "z": -8902.0,
@@ -18547,7 +18609,7 @@
    },
    {
     "id": "mn_s_mine",
-    "name": "Jumbo Mine",
+    "name": "Copperhead Mine",
     "at": {
      "x": 7265.12,
      "z": -15430.72,
@@ -18924,7 +18986,7 @@
    },
    {
     "id": "nv_grounds",
-    "name": "East Point Ceremonial Grounds",
+    "name": "East Point grounds",
     "at": {
      "x": 10096.92,
      "z": -11600.66,
@@ -19334,7 +19396,7 @@
    },
    {
     "id": "s_vor_ann",
-    "name": "Annette Island VOR/DME (ANN 117.1)",
+    "name": "Jolene VOR/DME (ANN 117.1)",
     "at": {
      "x": -1010.1,
      "z": -1663.3,
@@ -22638,17 +22700,17 @@
   "junctions": [
    {
     "id": "mk_c_east",
-    "name": "Metlakatla east (the Walden road)",
+    "name": "Cedar Harbour east (the east road)",
     "conn": true
    },
    {
     "id": "mk_c_north",
-    "name": "Metlakatla north (the old airport road)",
+    "name": "Cedar Harbour north (the old airport road)",
     "conn": true
    },
    {
     "id": "mk_c_south",
-    "name": "Metlakatla south (the shore road, the seaplane base)",
+    "name": "Cedar Harbour south (the shore road, the seaplane base)",
     "conn": true
    }
   ],
