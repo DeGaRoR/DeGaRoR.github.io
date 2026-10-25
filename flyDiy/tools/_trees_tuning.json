@@ -1545,8 +1545,8 @@
    "species": {
     "reed_marsh": {
      "proportion": 1,
-     "density": 0.9,
-     "patch": 0,
+     "density": 0.6,
+     "patch": 5,
      "size": 1
     }
    },
@@ -2509,8 +2509,8 @@
   },
   "reed_marsh": {
    "hue": 0,
-   "sat": 1,
-   "light": 1,
+   "sat": 0.15,
+   "light": 2.14,
    "bark": 1,
    "alpha": 0.5,
    "sink": 0.02,
@@ -2522,10 +2522,12 @@
    "implight": 1,
    "file": "fern_grass_02.glb",
    "kind": "cover",
-   "density": 0.9,
-   "patch": 0,
-   "vary": 0.06,
-   "noTint": 1
+   "density": 0.6,
+   "patch": 5,
+   "vary": 0.03,
+   "lift": 0.29,
+   "contrast": 0.35,
+   "patchShare": 0.5
   }
  },
  "biomes": {

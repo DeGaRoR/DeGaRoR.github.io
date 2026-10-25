@@ -98136,6 +98136,16 @@ by Digital screen official, CC BY 4.0; CREDITS.md). Today's pipeline, no new sys
   re-encode every tree map.
 - the source goes to the main checkout's assets/vegetation/grass/ (gitignored); tools/tree_inspect.js indexes it
   (TREE_ASSETS = the main checkout's assets/ from a worktree).
+- 25 Oct, after the first bake + the 05:00 look (the reeds stood as a solid neon-lime band along every bank, the fern's
+  own picture, noTint): the reed takes the grass's colour recipe instead (sat 0.15, light 2.14, lift 0.29, contrast 0.35:
+  the ground's colour at its foot, as grass_dry), beds (patch 5, share 0.5) and density 0.6 so the bank is not one ribbon;
+  tree_inspect no longer files a cut-out tuft in the cover folder as flat ground (the fern is 3 cm through its x0.001
+  wrapper - --only had found no species); tree_prep writes a NEW normal map as WebP q92 (media_lib's `normal` role; GATE
+  ASSETS jpgNormal stays at 75 - the maps already baked keep their .jpg until their species is baked again).
+- the live page at HOME (05:00 A/B, the same stand, the pack with and without the reed): the reed adds ~8 cover draws
+  (125 vs 117 cover meshes) and casts nothing (covers never cast: cover_ring castOf); none stand near the FRAMECOST taxi
+  point - the first gate run's FRAMECOST rise (+233 draws) is judged in the CPU slot against a control run on the
+  pre-bake pack.
 
 **THE 54-VEHICLE PACK (G3431) - DROPPED** (25 Oct): the user, through A0: "the vehicle pack is from burnout 2, drop it" -
 a game rip, out under the credit-only rule. Nothing of it was processed or committed (no mesh, texture, manifest or credit

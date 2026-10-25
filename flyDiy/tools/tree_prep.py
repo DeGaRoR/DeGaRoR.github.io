@@ -688,10 +688,12 @@ def bake_textures(g, bin_, used, stem):
             img = load_image(g, bin_, g['textures'][nr]['source']).convert('RGB')
             img = img.resize((max(1, img.width // 2), max(1, img.height // 2)),
                              Image.LANCZOS)
+            # WebP q92, media_lib's `normal` role (JPEG blocks tear a normal; GATE ASSETS jpgNormal - G3430):
+            # the maps already baked keep their .jpg until their species is baked again
             buf = _io.BytesIO()
-            img.save(buf, 'JPEG', quality=90)
+            img.save(buf, 'WEBP', quality=92, method=4)
             rec['nor'] = write_media('tex/trees', stem + '_' + safe(name) + '_nor',
-                                     'jpg', buf.getvalue())
+                                     'webp', buf.getvalue())
             wrote.append(rec['nor'])
         out[name] = rec
     return out, wrote
