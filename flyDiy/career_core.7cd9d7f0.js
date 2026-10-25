@@ -18,9 +18,10 @@
 //
 // THE PEOPLE AND ORGANISATIONS ARE FICTIONAL (GQ20, a hard constraint): the
 // working names below are placeholders for the pack, and the island's real
-// community is not depicted. The fields' NAMES are geography and come from the
-// premises record (CONTRACT_FIELDS mirrors tools/fixtures/island_jolene.json;
-// the gate holds it to the record).
+// community is not depicted. So are the PLACES (G3240 NAMES, GAME-PLAN §13): a
+// field's name and every place a text names are GAME_NAMES' (01_names.js, the one
+// table). CONTRACT_FIELDS mirrors tools/fixtures/island_jolene.json through
+// contractFieldsOf, whose names are fieldName's; the gate holds it to the record.
 //
 // Pure data: no DOM, no THREE, no storage. Read by 73_contracts.js and
 // 74_career.js at call time.
@@ -34,14 +35,14 @@
 //            strip is lit, a water lane is not (contractFieldsOf derives it off the record, so a new site says it too)
 //   glide    the record's glideslope lights (`papi`): 'vasi' (Jolene AFB's two-bar VASI) | 'papi'; absent: none
 const CONTRACT_FIELDS = {
-  HOME:     { id: 'HOME',     name: 'Jolene AFB 13/31',         x: -301,  z: 221,    len: 2325, surf: 'concrete', lit: true, glide: 'vasi' },
-  w2:       { id: 'w2',       name: 'Jolene AFB 02/20',         x: 599,   z: -130,   len: 1758, surf: 'concrete', lit: true, glide: 'papi' },   // (rev 28: the user moved, shortened it, gave it a PAPI)
-  w3:       { id: 'w3',       name: 'Tamgas Hill Strip',        x: -811,  z: -2397,  len: 543,  surf: 'gravel', lit: true, glide: 'papi' },   // (rev 28: moved)
-  SEA:      { id: 'SEA',      name: 'Annette Dock',             x: 361,   z: -3661,  len: 1500, surf: 'water', lit: false },
-  mk_sea:   { id: 'mk_sea',   name: 'Metlakatla Seaplane Base', x: -3980, z: -9420,  len: 1500, surf: 'water', lit: false },
-  mn_strip: { id: 'mn_strip', name: 'Jumbo Mine Street',        x: 7250,  z: -15429, len: 250,  surf: 'gravel', lit: true },
-  nv_strip: { id: 'nv_strip', name: 'East Point Clearing',      x: 10030, z: -11660, len: 150,  surf: 'gravel', lit: true },
-  tw_ski:   { id: 'tw_ski',   name: 'Skyline Altiport',         x: 257,   z: -7707,  len: 380,  surf: 'grass', alti: true, lit: true },
+  HOME:     { id: 'HOME',     name: GAME_NAMES.fields.HOME,            x: -301,  z: 221,    len: 2325, surf: 'concrete', lit: true, glide: 'vasi' },
+  w2:       { id: 'w2',       name: GAME_NAMES.fields.w2,              x: 599,   z: -130,   len: 1758, surf: 'concrete', lit: true, glide: 'papi' },   // (rev 28: the user moved, shortened it, gave it a PAPI)
+  w3:       { id: 'w3',       name: GAME_NAMES.fields.w3,              x: -811,  z: -2397,  len: 543,  surf: 'gravel', lit: true, glide: 'papi' },   // (rev 28: moved)
+  SEA:      { id: 'SEA',      name: GAME_NAMES.fields.SEA,             x: 361,   z: -3661,  len: 1500, surf: 'water', lit: false },
+  mk_sea:   { id: 'mk_sea',   name: GAME_NAMES.fields.mk_sea,          x: -3980, z: -9420,  len: 1500, surf: 'water', lit: false },
+  mn_strip: { id: 'mn_strip', name: GAME_NAMES.fields.mn_strip,        x: 7250,  z: -15429, len: 250,  surf: 'gravel', lit: true },
+  nv_strip: { id: 'nv_strip', name: GAME_NAMES.fields.nv_strip,        x: 10030, z: -11660, len: 150,  surf: 'gravel', lit: true },
+  tw_ski:   { id: 'tw_ski',   name: GAME_NAMES.fields.tw_ski,          x: 257,   z: -7707,  len: 380,  surf: 'grass', alti: true, lit: true },
   // (G3014, the user 12 Oct: 'add them' - their rev 26 strips 10 and 11, contracts may land there)
   w5:       { id: 'w5',       name: 'strip 10',                 x: 3055,  z: -2837,  len: 310,  surf: 'gravel', lit: true, glide: 'papi' },
   w6:       { id: 'w6',       name: 'strip 11',                 x: -4172, z: -22110, len: 312,  surf: 'gravel', lit: true },
@@ -432,8 +433,8 @@ const CONTRACT_TEXT = {
   // the providers (working names; GQ20: fictional)
   'prov.field.name': CT_('The Field Trust'),
   'prov.field.desc': CT_('The old Army field\'s landlord. They lease it to anyone who will bring it back to life.'),
-  'prov.minedock.name': CT_('Jumbo Mine & Dock Co.'),
-  'prov.minedock.desc': CT_('One company reopening the old mine up the street strip and shipping through Annette Dock.'),
+  'prov.minedock.name': CT_(GAME_NAMES.mineCo),
+  'prov.minedock.desc': CT_('One company reopening the old mine up the street strip and shipping through ' + GAME_NAMES.fields.SEA + '.'),
   'prov.resort.name': CT_('Skyline Resort'),
   'prov.resort.desc': CT_('A small lodge above the hill, with a sloped strip and guests who want to see it all.'),
   'prov.survey.name': CT_('The Survey Office'),
@@ -455,7 +456,7 @@ const CONTRACT_TEXT = {
   'trk.resort.3': CT_('The strip lengthened'),
   'trk.survey.1': CT_('A windsock and tie-downs at East Point'),
   'trk.survey.2': CT_('East Point becomes a station'),
-  'trk.survey.3': CT_('The weather mast on Tamgas Hill'),
+  'trk.survey.3': CT_('The weather mast on ' + GAME_NAMES.hill),
   'trk.clients.1': CT_('The club house'),
   'trk.clients.2': CT_('A small museum hangar for your best design'),
   // goods (the load words)
@@ -496,21 +497,21 @@ const CONTRACT_TEXT = {
   'job.then.pair': CT_(', then over {at}, then back to {from}.'),
   'job.then.transit': CT_(', then land at {to}.'),
   // the arcs
-  'ct.field.01.title': CT_('Wake the field'), 'ct.field.01.brief': CT_('Show us the old field still flies: over to Tamgas Hill and back.'),
+  'ct.field.01.title': CT_('Wake the field'), 'ct.field.01.brief': CT_('Show us the old field still flies: over to ' + GAME_NAMES.hill + ' and back.'),
   'ct.field.01.done': CT_('Two landings, no drama. The Trust is listening.'),
-  'ct.field.02.title': CT_('Tools from the hill'), 'ct.field.02.brief': CT_('A crate of hand tools waits at Tamgas Hill. Bring it home.'),
+  'ct.field.02.title': CT_('Tools from the hill'), 'ct.field.02.brief': CT_('A crate of hand tools waits at ' + GAME_NAMES.hill + '. Bring it home.'),
   'ct.field.02.done': CT_('The bench has tools again.'),
   'ct.field.03.title': CT_('The first mail run'), 'ct.field.03.brief': CT_('Two mail sacks: one for the hill, one for the lodge. Any order.'),
   'ct.field.03.done': CT_('The Trust starts on the second hangar.'),
   'ct.field.04.title': CT_('The inspector'), 'ct.field.04.brief': CT_('Take the Trust\'s inspector to the hill, and bring her back.'),
   'ct.field.04.done': CT_('She signed the form without looking up.'),
-  'ct.field.05.title': CT_('Light the tower'), 'ct.field.05.brief': CT_('The tower\'s new lamp is at Tamgas Hill, and it is heavy.'),
+  'ct.field.05.title': CT_('Light the tower'), 'ct.field.05.brief': CT_('The tower\'s new lamp is at ' + GAME_NAMES.hill + ', and it is heavy.'),
   'ct.field.05.done': CT_('The tower is lit and the second hangar stands.'),
   'ct.minedock.01.title': CT_('Look at the road'), 'ct.minedock.01.brief': CT_('Fly over the mine street and tell us if it is still a strip.'),
   'ct.minedock.01.done': CT_('Rough, short, landable. The company is in.'),
   'ct.minedock.02.title': CT_('Engineers in'), 'ct.minedock.02.brief': CT_('Two engineers, from the field to the mine street.'),
   'ct.minedock.02.done': CT_('The headframe\'s frame goes up.'),
-  'ct.minedock.03.title': CT_('The pump'), 'ct.minedock.03.brief': CT_('Take the pump up to the mine, then bring the first samples down to Tamgas Hill, for the boat.'),
+  'ct.minedock.03.title': CT_('The pump'), 'ct.minedock.03.brief': CT_('Take the pump up to the mine, then bring the first samples down to ' + GAME_NAMES.hill + ', for the boat.'),
   'ct.minedock.03.done': CT_('The pump runs. The samples look good.'),
   'ct.minedock.04.title': CT_('Four of us, fast'), 'ct.minedock.04.brief': CT_('I need to get my team of four to the mine fast.'),
   'ct.minedock.04.follow': CT_('The team loves it. Same again, with one thing changed.'),
@@ -525,9 +526,9 @@ const CONTRACT_TEXT = {
   'ct.minedock.b2.follow': CT_('It works. Now the accountant has a request.'),
   'ct.resort.01.title': CT_('The first guest'), 'ct.resort.01.brief': CT_('Our first guest is at the field. Bring her up.'),
   'ct.resort.01.done': CT_('She wants to stay a week.'),
-  'ct.resort.02.title': CT_('A kitchen uphill'), 'ct.resort.02.brief': CT_('The kitchen\'s first order came in on the boat: from Tamgas Hill to the altiport.'),
+  'ct.resort.02.title': CT_('A kitchen uphill'), 'ct.resort.02.brief': CT_('The kitchen\'s first order came in on the boat: from ' + GAME_NAMES.hill + ' to the altiport.'),
   'ct.resort.02.done': CT_('The lodge\'s frame goes up.'),
-  'ct.resort.03.title': CT_('Show them the hill'), 'ct.resort.03.brief': CT_('Fly our photographer over Tamgas Hill, and back to the altiport.'),
+  'ct.resort.03.title': CT_('Show them the hill'), 'ct.resort.03.brief': CT_('Fly our photographer over ' + GAME_NAMES.hill + ', and back to the altiport.'),
   'ct.resort.03.done': CT_('The brochure has a cover.'),
   'ct.resort.04.title': CT_('Quiet, please'), 'ct.resort.04.brief': CT_('Electric. The guests hate the noise.'),
   'ct.resort.04.follow': CT_('The guests noticed. Can it do a little more?'),
@@ -547,7 +548,7 @@ const CONTRACT_TEXT = {
   'ct.survey.04.title': CT_('In and out of East Point'), 'ct.survey.04.brief': CT_('A plane for the East Point clearing: in and out, with an hour of fuel.'),
   'ct.survey.04.follow': CT_('It works. Could it take a second person?'),
   'ct.survey.04.done': CT_('East Point is a station.'),
-  'ct.survey.05.title': CT_('The weather mast'), 'ct.survey.05.brief': CT_('The mast\'s sections, from the field to Tamgas Hill, and the old instruments back to the office.'),
+  'ct.survey.05.title': CT_('The weather mast'), 'ct.survey.05.brief': CT_('The mast\'s sections, from the field to ' + GAME_NAMES.hill + ', and the old instruments back to the office.'),
   'ct.survey.05.done': CT_('The mast is up.'),
   'ct.clients.01.title': CT_('A ride for the doctor'), 'ct.clients.01.brief': CT_('The doctor has a clinic on the hill today, and an evening call at the lodge.'),
   'ct.clients.01.done': CT_('The doctor tells everyone.'),
@@ -565,13 +566,13 @@ const CONTRACT_TEXT = {
   'ct.clients.b1.title': CT_('A ridiculous tank'), 'ct.clients.b1.brief': CT_('An hour in the air on a ridiculous tank: twenty litres, no more.'),
   'ct.clients.b1.follow': CT_('An hour was fun. One more thing.'),
   // (G2665 NIGHT-OPS) the night work
-  'ct.field.n1.title': CT_('The night mail'), 'ct.field.n1.brief': CT_('The boat\'s mail sacks wait at Tamgas Hill. Into the field between midnight and one: the runway lights and the VASI are on.'),
+  'ct.field.n1.title': CT_('The night mail'), 'ct.field.n1.brief': CT_('The boat\'s mail sacks wait at ' + GAME_NAMES.hill + '. Into the field between midnight and one: the runway lights and the VASI are on.'),
   'ct.field.n1.done': CT_('The mail made the morning sort.'),
   'ct.minedock.n1.title': CT_('The late shift'), 'ct.minedock.n1.brief': CT_('The shift engineer is stuck at the mine street. Bring them down to the field after dusk.'),
   'ct.minedock.n1.done': CT_('Home for supper, late.'),
-  'ct.clients.n1.title': CT_('Night medevac'), 'ct.clients.n1.brief': CT_('A climber fell on Tamgas Hill. Take the doctor up, then bring them both down to the ambulance at the field before dawn. The patient can sit.'),
+  'ct.clients.n1.title': CT_('Night medevac'), 'ct.clients.n1.brief': CT_('A climber fell on ' + GAME_NAMES.hill + '. Take the doctor up, then bring them both down to the ambulance at the field before dawn. The patient can sit.'),
   'ct.clients.n1.done': CT_('The ambulance was waiting on the apron.'),
-  'ct.clients.n2.title': CT_('A stretcher case'), 'ct.clients.n2.brief': CT_('This one cannot sit: a stretcher and the doctor, from Tamgas Hill to the ambulance at the field, before dawn.'),
+  'ct.clients.n2.title': CT_('A stretcher case'), 'ct.clients.n2.brief': CT_('This one cannot sit: a stretcher and the doctor, from ' + GAME_NAMES.hill + ' to the ambulance at the field, before dawn.'),
   'ct.clients.n2.done': CT_('The stretcher went straight into the ambulance.'),
   // the criteria (labels; {v} the value, {at} the load or the strip)
   'crit.seats': CT_('{v} seats occupied'), 'crit.emptyKg': CT_('empty mass at most {v} kg'),
@@ -938,13 +939,14 @@ const ctWet = f => !!f && f.surf === 'water';
 // THE FIELDS OF A WORLD: the same rows off the world's aerodromes (a premises record's runways or
 // world.aerodromes: `c` or x/z, len, the surface through 25_'s stripSurface). GATE CONTRACTS holds
 // CONTRACT_FIELDS equal to this over Jolene's record.
+// (G3240 NAMES) a row's name is fieldName's (01_names.js): the table's name for a field it names, else the record's own
 function contractFieldsOf(aerodromes) {
   const out = {};
   for (const a of (aerodromes || [])) {
     if (!a || !a.id || a.kind === 'meadow') continue;
     const x = Array.isArray(a.c) ? a.c[0] : a.x, z = Array.isArray(a.c) ? a.c[1] : a.z;
     const S = typeof stripSurface === 'function' ? stripSurface(a) : null;
-    const row = { id: a.id, name: a.name || a.id, x: Math.round(x), z: Math.round(z), len: Math.round(a.len || 0),
+    const row = { id: a.id, name: typeof fieldName === 'function' ? fieldName(a.id, a.name) : (a.name || a.id), x: Math.round(x), z: Math.round(z), len: Math.round(a.len || 0),
                   surf: S ? S.key : (+a.surface === 4 ? 'water' : 'grass') };
     if (a.altiport) row.alti = true;
     // (G2665 NIGHT-OPS) lit at night: 25_'s rule (runwayLightStrips - a land strip; a water lane none); the record's
@@ -1950,6 +1952,8 @@ function careerNormalise(r) {
   if (typeof pilotsBlock === 'function') pilotsBlock(d);
   // G3260 (ROUTES): the routes kept well-formed, the fleet's and the pilots' route marks agreeing with them (78b_routes.js)
   if (typeof routesBlock === 'function') routesBlock(d);
+  // G3230 (TECH-MASK): the machine shop kept well-formed WHEN PRESENT (79b_tech.js); a career without one stays without
+  if (c.tech !== undefined && typeof techNormalise === 'function') c.tech = techNormalise(c.tech);
   return d;
 }
 
@@ -3174,12 +3178,15 @@ const PROCURE_EFF_KEYS = ['cost', 'emptyKg', 'massKg', 'toM', 'cruiseKmh', 'rang
 // ---- VALIDATED ONLY ---------------------------------------------------------------------------------------
 const procureValidated = id => !!(typeof CONTRACT_DESIGNS !== 'undefined' && CONTRACT_DESIGNS[id] && CONTRACT_DESIGNS[id].build);
 // the catalogue the screens read: the makers, each with the models whose every design is a validated build; an
-// option value whose effect names no validated design of its model is dropped (never offered)
-function procureCatalogue() {
+// option value whose effect names no validated design of its model is dropped (never offered). (G3230 TECH-MASK) With a
+// career document, only the models whose stock stage is at or below its machine shop's segment (79b_tech.js techModelOk);
+// no document, or no machine shop, lists them all
+function procureCatalogue(doc) {
   const out = [];
+  const techOk = id => !doc || typeof techModelOk !== 'function' || techModelOk(doc, id);
   for (const mk of Object.keys(PROCURE_MAKERS)) {
     const models = Object.keys(PROCURE_MODELS).filter(id => PROCURE_MODELS[id].maker === mk)
-      .filter(id => Object.values(PROCURE_MODELS[id].designs).every(procureValidated));
+      .filter(id => Object.values(PROCURE_MODELS[id].designs).every(procureValidated)).filter(techOk);
     if (models.length) out.push({ maker: mk, models });
   }
   return out;
@@ -3500,6 +3507,9 @@ function procureBuyModel(doc, modelId, opts, o) {
   o = o || {};
   const F = procureOpts(modelId, opts);
   if (!F.ok) return prNo(doc, F.why);
+  // G3230 (TECH-MASK): a maker sells what the machine shop can keep - the model with these options at or below the segment
+  const stage = typeof techStageOfModel === 'function' && careerTechOf(doc) ? techStageOfModel(modelId, F.opts) : null;
+  if (stage != null && stage > careerTechSeg(doc)) return prNo(doc, techWhy(stage) + ': not in your machine shop yet');
   if (!o.fileSpec) return prNo(doc, 'the design\'s build file is not loaded');
   const slot = String(o.slot || '').trim();
   if (!prSlotFree(doc, o.slotNames, slot)) return prNo(doc, slot ? slot + ' is taken: name the aeroplane differently' : 'name the aeroplane');
@@ -3602,10 +3612,13 @@ function procureMarket(seed, done, sold) {
 const procureUsedById = (seed, id) => { const m = /^used:(\d+):(\d+)$/.exec(id || ''); return m ? procureUsedListing(seed, +m[1], +m[2]) : null; };
 // the market of a document: the career's seed and completed count; the sandbox's own seed ('sandbox', epoch 0).
 // (G2742 STORY-PAGE) A story's occasions first (79_story.js storyOccasionListings: authored, one-time; none without a story)
+// (G3230 TECH-MASK) A career with a machine shop sees the listings at or below its segment; an occasion (the story's
+// three: `occasion: true`) may stand one above (79b_tech.js techListingOk). No machine shop: every listing, as before
 function procureMarketOf(doc) {
   const c = doc && doc.career;
   const occ = (c && c.story && typeof storyOccasionListings === 'function') ? storyOccasionListings(doc) : [];
-  return occ.concat(procureMarket(c ? c.seed : 'sandbox', c ? c.contracts.done.length : 0, procureSold(doc)));
+  const all = occ.concat(procureMarket(c ? c.seed : 'sandbox', c ? c.contracts.done.length : 0, procureSold(doc)));
+  return typeof techListingOk === 'function' ? all.filter(L => techListingOk(doc, L)) : all;
 }
 function procureSold(doc) {
   const m = doc && ((doc.career && doc.career.market) || doc.market);
@@ -5622,6 +5635,8 @@ function storyNewCareer(doc, o) {
     s.cabin = { aero: cabin, hangar: C.id };
   } else { s.cabin = null; s.note = STORY_NO_CABIN; }
   d.career.story = s;
+  // G3230 (TECH-MASK): a new story career opens its machine shop at the first segment, Wood and fabric (79b_tech.js)
+  if (typeof techNew === 'function') d.career.tech = techNew();
   d.career.airframes[slot] = { from: 'story', story: 'starter', factory: false, modified: false, paid: 0, at: Math.round(d.clock || 0) };
   return { ok: true, doc: d, effects: r.effects, cabin: s.cabin, why: null };
 }
@@ -5770,5 +5785,323 @@ function storyCard(doc, o) {
   return { beat: B.id, title: B.title, brief: B.brief, rows, ack: G.k === 'ack', note: notes.join(' ') || null,
            step: STORY_IDS.indexOf(B.id) + 1, of: STORY_IDS.length };
 }
+// ===========================================================================
+// THE TECH MASK (G3230 TECH-MASK) — the machine shop's three segments, one
+// table: every build option -> the segment that unlocks it. The editor greys
+// what is above the player's segment, the market and the makers list what is
+// at or below it (an occasion one above), and a design's stage is the highest
+// segment of any option it uses — computed, never stored.
+// futureDesigns/game/GAME-PLAN-2026-10-15.md §R (binding: MACHINE-SHOP, no
+// eras, "a segmented tech tree"), §4.1-§4.4.
+// ===========================================================================
+// THE SHAPE: `career.tech = { seg: 1..3, entries: [key] }` rides the career block (74_career.js careerNormalise
+// normalises it when present). A NEW story career gets `{ seg: 1, entries: [] }` (79_story.js storyNewCareer). A career
+// without the key (every career made before this, the dev career ?career=1) and the sandbox have NO machine shop:
+// everything is open, exactly as before. `entries` is §4.2's later split of a segment into individual entries: a key
+// of TECH_TABLE listed there is open whatever the segment (v1 never writes one).
+// THE KEYS are '<group>:<option>' over the GEN tables' own option lists (GATE TECH walks every table both ways: every
+// option has a row, every row names an option that exists). The groups:
+//   mat     fuselage construction        GEN_MATERIALS        spec.fuselage.material
+//   surf    a flying surface's own        GEN_SURF_MATERIALS   wings[].material, tail.finMaterial / stabMaterial
+//   eng     the engine                    POWERPLANTS          engines[].type
+//   cfg     twin                          (engines.length)     more than one engine
+//   prop    the blades' material          GEN_PROP_MATS        prop.material
+//   pitch   the fixed pitch               GEN_PROP_PITCH       prop.pitch
+//   fit     the panel's tier              GEN_SYSTEMS          systems.fit
+//   elec.*  battery / alternator / ...    GEN_ELEC             genSystemsResolve(spec).elec
+//   av.*    com / xpdr / nav / gps        GEN_AVIONICS         genSystemsResolve(spec).avionics
+//   gear    the undercarriage's type      clampSpec's list     gear.type
+//   susp    the mains' springing          GEN_SUSPENSION       gear.suspension
+//   fair    the fairings' layup           GEN_FAIR_MATS        gear.fairMat, when a fairing is fitted
+//   glaze   the glazing's material        GEN_OUTFIT.glassKgM2By  cabin.glazingMat, when glazed
+//   canopy  a flat screen or a bubble     clampSpec's list     cabin.canopy.style
+//   fuel    the liquid                    GEN_FUELS            energy.fuel (a fuel build)
+//   cell    the pack's chemistry          GEN_CELLS            energy.cell (a battery build)
+//   kit     the STOL kit (G2820)          GEN_SLATS / GEN_STOL wings[].stol, any device fitted (the kit is on
+//                                                             claude/stol-wing-g2820, not on master yet: the row
+//                                                             waits for it and reads nothing until then)
+// NOT MASKED IN v1 (not in §4.1's columns): flaps, seats, tips, the tail's type, booms, the instrument items of a
+// custom fit (the fit's own electrics and avionics are masked), the glazing route (an open cockpit or a screen).
+// Pure: no DOM, no storage, no clock.
+// ===========================================================================
+const TECH_V = 1;
+const TECH_MAX = 3;
+// §R: the three segments, by material; v1 = the three unlocks
+const TECH_SEGS = {
+  1: { seg: 1, name: 'Wood and fabric' },
+  2: { seg: 2, name: 'Sheets and bolts' },
+  3: { seg: 3, name: 'Composite and electronics' },
+};
+// THE TABLE (a ruling per option, for the user to review: HANDOVER G3230 prints it). The rules it follows:
+//   steel tube, wood, fabric = 1; aluminium in any form = 2; carbon and glassfibre = 3.
+//   a naturally aspirated piston up to 115 kW (the O-320's 112 kW, the Super Cub's) = 1; a bigger or supercharged one
+//   = 2; the modern turbocharged Rotax 915 iS ("economical engines"), every electric motor and every turbine = 3.
+//   twins = 2. A tricycle = 2; the taildragger and floats = 1. A bubble canopy and polycarbonate = 2. Fairings: glassfibre
+//   = 1 (a homebuilt's wheel spats), alloy = 2, carbon = 3.
+//   the steam-gauge panels (minimal / basic) = 1; the IFR panel's 60 A alternator, vacuum pump, transponder and VOR = 2;
+//   GPS of any kind, the glass cockpit and a lithium battery = 3 (electronics). Suspension: all 1 (the Jodel's oleo legs).
+//   the propeller is bought off the shelf, not built of the airframe's material: every blade material and pitch = 1
+//   (the user's Rufus, the story's starter, flies a carbon prop on a wood-and-fabric airframe).
+const TECH_TABLE = {
+  // ---- materials
+  'mat:tubeFabric': 1, 'mat:wood': 1, 'mat:alloy': 2, 'mat:aluTube': 2, 'mat:carbon': 3, 'mat:glass': 3,
+  'surf:fabric': 1, 'surf:steel': 1, 'surf:alloy': 2, 'surf:aluFabric': 2, 'surf:carbon': 3, 'surf:glass': 3,
+  // ---- engines
+  'eng:a65_sensenich74': 1, 'eng:vw2180_wood': 1, 'eng:rotax277_pusher': 1, 'eng:rotax503_wood': 1, 'eng:rotax582_ivo': 1,
+  'eng:jabiru2200_std': 1, 'eng:rotax912_warp': 1, 'eng:o200_eprops': 1, 'eng:mikron3_wood': 1, 'eng:gipsymajor1_wood': 1,
+  'eng:verner7u_wood': 1, 'eng:rotec3600_std': 1, 'eng:o320_mccauley': 1,
+  'eng:io360_mccauley': 2, 'eng:o540_hartzell': 2, 'eng:io550_hartzell3': 2, 'eng:io720_hartzell3': 2, 'eng:ranger440_wood': 2,
+  'eng:hirth508_wood': 2, 'eng:argus10c_wood': 2, 'eng:w670_hs2b': 2, 'eng:r755_hs2b': 2, 'eng:m14p_v530': 2,
+  'eng:r985_hs2b20': 2, 'eng:r1340_hs12d40': 2, 'eng:r1830_hs23e50': 2,
+  'eng:rotax915_carbon': 3,
+  'eng:emrax268_carbon': 3, 'eng:emrax228_3blade': 3, 'eng:e811_velis': 3, 'eng:sp260d_class': 3, 'eng:eppg_direct_130': 3,
+  'eng:fes_folding_100': 3, 'eng:outrunner2212_9x47': 3, 'eng:outrunner3548_12x6': 3, 'eng:outrunner6374_18x10': 3,
+  'eng:pt6a114a_hartzell3': 3, 'eng:pt6a34_hartzell4': 3, 'eng:pt6a42_hartzell4': 3, 'eng:pt6a60a_hartzell4': 3,
+  'cfg:twin': 2,
+  'prop:wood': 1, 'prop:maple': 1, 'prop:walnut': 1, 'prop:alu': 1, 'prop:carbon': 1,
+  'pitch:climb': 1, 'pitch:standard': 1, 'pitch:cruise': 1,
+  // ---- systems / avionics
+  'fit:minimal': 1, 'fit:basic': 1, 'fit:custom': 1, 'fit:ifr': 2,
+  'elec.battery:none': 1, 'elec.battery:lead': 1, 'elec.battery:lithium': 3,
+  'elec.alternator:none': 1, 'elec.alternator:gen20': 1, 'elec.alternator:alt60': 2,
+  'elec.starter:none': 1, 'elec.starter:yes': 1,
+  'elec.vac:none': 1, 'elec.vac:venturi': 1, 'elec.vac:pump': 2,
+  'av.com:none': 1, 'av.com:compact': 1,
+  'av.xpdr:none': 1, 'av.xpdr:modeS': 2,
+  'av.nav:none': 1, 'av.nav:vor': 2,
+  'av.gps:none': 1, 'av.gps:portable': 3, 'av.gps:panel': 3, 'av.gps:glass': 3,
+  // ---- gear
+  'gear:taildragger': 1, 'gear:floats': 1, 'gear:tricycle': 2,
+  'susp:bungee': 1, 'susp:spring': 1, 'susp:oleo': 1,
+  'fair:glass': 1, 'fair:alloy': 2, 'fair:carbon': 3,
+  // ---- canopy / glazing
+  'glaze:acrylic': 1, 'glaze:glass': 1, 'glaze:polycarbonate': 2,
+  'canopy:screen': 1, 'canopy:bubble': 2,
+  // ---- energy (the liquid follows the engine; a pack is electric)
+  'fuel:avgas100LL': 1, 'fuel:mogas': 1, 'fuel:jetA': 3,
+  'cell:lifepo4': 3, 'cell:nmc': 3, 'cell:nca': 3,
+  // ---- the STOL kit (G2820: slats, VGs, cuffs, fences, drooped ailerons)
+  'kit:stol': 3,
+};
+// the gear types and canopy styles clampSpec accepts (60_gen_spec.js clampSpec: an unknown is rewritten to the first);
+// GATE TECH probes clampSpec with each and with an unknown, so this list cannot drift from it
+const TECH_GEAR_TYPES = ['taildragger', 'tricycle', 'floats'];
+const TECH_CANOPY_STYLES = ['screen', 'bubble'];
+// the powertrain families of the editor's `engPower` row (piston / electric / turbine), read off POWERPLANTS: a family
+// opens with the first of its engines
+const TECH_FAMILIES = { piston: ['four', 'two'], electric: ['electric'], turbine: ['turbine'] };
+
+const techName = seg => (TECH_SEGS[seg] ? TECH_SEGS[seg].name : '');
+// the words written next to a greyed row (nothing hover-only, §4.3)
+const techWhy = seg => 'Machine shop: ' + techName(seg);
+// a key's segment: the table's row, or a family's (its first engine), or null (an option the mask does not know is
+// never greyed)
+function techSegOf(key) {
+  if (typeof key !== 'string') return null;
+  if (TECH_TABLE[key] != null) return TECH_TABLE[key];
+  const m = /^fam:(\w+)$/.exec(key);
+  if (m && TECH_FAMILIES[m[1]] && typeof POWERPLANTS !== 'undefined') {
+    let s = null;
+    for (const k of Object.keys(POWERPLANTS)) {
+      if (!TECH_FAMILIES[m[1]].includes(POWERPLANTS[k].engine.family)) continue;
+      const v = TECH_TABLE['eng:' + k];
+      if (v != null && (s == null || v < s)) s = v;
+    }
+    return s;
+  }
+  return null;
+}
+
+// ---- A DESIGN'S STAGE -------------------------------------------------------------------------------------------------
+// every option a spec uses, as table keys (deduplicated, in group order). Raw or resolved: an absent row reads as
+// GEN_DEFAULT's (what clampSpec would fill), the systems through genSystemsResolve (the one reader the ledger uses)
+function techKeysOfSpec(spec) {
+  const S = spec && spec.spec && !spec.engines ? spec.spec : (spec || {});
+  const out = [], add = k => { if (!out.includes(k)) out.push(k); };
+  const D = typeof GEN_DEFAULT !== 'undefined' ? GEN_DEFAULT : {};
+  const fu = S.fuselage || {};
+  add('mat:' + (fu.material || (D.fuselage && D.fuselage.material) || 'tubeFabric'));
+  const surf = v => (v == null ? null : (typeof GEN_SURF_MATERIALS !== 'undefined' && GEN_SURF_MATERIALS[v]) ? v
+    : ((typeof GEN_SURF_LEGACY !== 'undefined' && GEN_SURF_LEGACY[v]) || null));
+  for (const w of (Array.isArray(S.wings) ? S.wings : [])) { const m = w && surf(w.material); if (m) add('surf:' + m); }
+  for (const f of ['finMaterial', 'stabMaterial']) { const m = S.tail && surf(S.tail[f]); if (m) add('surf:' + m); }
+  const E = Array.isArray(S.engines) && S.engines.length ? S.engines : (D.engines || []);
+  for (const e of E) if (e && e.type) add('eng:' + e.type);
+  if (E.length > 1) add('cfg:twin');
+  const pr = S.prop || {};
+  add('prop:' + (pr.material || 'wood'));
+  add('pitch:' + (pr.pitch || 'standard'));
+  for (const k of techKeysOfSystems(S)) add(k);
+  const g = S.gear || {};
+  add('gear:' + (TECH_GEAR_TYPES.includes(g.type) ? g.type : 'taildragger'));
+  add('susp:' + ((typeof GEN_SUSPENSION !== 'undefined' && GEN_SUSPENSION[g.suspension]) ? g.suspension : 'bungee'));
+  const faired = (g.fairing && g.fairing !== 'none') || (g.twFairing && g.twFairing !== 'none') || g.legFair === 'fair' || g.twLegFair === 'fair';
+  if (faired) add('fair:' + (g.fairMat || 'glass'));
+  const cb = S.cabin || {};
+  if (cb.glazing !== 'none') add('glaze:' + (cb.glazingMat || 'acrylic'));
+  add('canopy:' + (cb.canopy && cb.canopy.style === 'bubble' ? 'bubble' : 'screen'));
+  const en = S.energy || {};
+  if (en.kind === 'battery') add('cell:' + (en.cell || 'lifepo4'));
+  else add('fuel:' + (en.fuel || 'avgas100LL'));
+  for (const w of (Array.isArray(S.wings) ? S.wings : [])) if (w && techStolOn(w.stol)) add('kit:stol');
+  return out;
+}
+// the panel's keys: the tier, and the electrics and avionics it resolves to (genSystemsResolve: a radio without a bus
+// is dropped, so it is not counted)
+function techKeysOfSystems(S) {
+  const out = [];
+  let R = null;
+  try { R = typeof genSystemsResolve === 'function' ? genSystemsResolve(S || {}) : null; } catch (e) { R = null; }
+  if (!R) return ['fit:' + ((S && S.systems && S.systems.fit) || 'basic')];
+  out.push('fit:' + R.tier);
+  for (const k of ['battery', 'alternator', 'starter', 'vac']) out.push('elec.' + k + ':' + R.elec[k]);
+  for (const k of ['com', 'xpdr', 'nav', 'gps']) out.push('av.' + k + ':' + R.avionics[k]);
+  return out;
+}
+// a wing's STOL devices: G2820's own reader when it is in the core, else any device that is not 'none' / 0
+function techStolOn(st) {
+  if (!st || typeof st !== 'object') return false;
+  if (typeof genStolOf === 'function') { try { return !!genStolOf(st); } catch (e) { return false; } }
+  return Object.keys(st).some(k => !/Span$/.test(k) && st[k] && st[k] !== 'none');
+}
+// THE STAGE: the highest segment of any option the spec uses (1 for an empty spec). Computed, never stored.
+function techStageOfSpec(spec) {
+  let s = 1;
+  for (const k of techKeysOfSpec(spec)) { const v = techSegOf(k); if (v != null && v > s) s = v; }
+  return s;
+}
+// the keys of a spec above a segment, each with its own: [{ key, seg }]
+function techOver(spec, seg) {
+  return techKeysOfSpec(spec).map(key => ({ key, seg: techSegOf(key) })).filter(r => r.seg != null && r.seg > seg);
+}
+
+// ---- THE CAREER'S MACHINE SHOP ----------------------------------------------------------------------------------------
+const techNew = () => ({ seg: 1, entries: [] });
+function techNormalise(t) {
+  const d = techNew();
+  if (!t || typeof t !== 'object') return d;
+  const s = Math.round(+t.seg);
+  d.seg = Number.isFinite(s) ? Math.max(1, Math.min(TECH_MAX, s)) : 1;
+  if (Array.isArray(t.entries)) for (const k of t.entries) if (typeof k === 'string' && TECH_TABLE[k] != null && !d.entries.includes(k)) d.entries.push(k);
+  return d;
+}
+// the machine shop of a document: null = no mask (the sandbox, a career without one)
+const careerTechOf = doc => (doc && doc.mode === 'career' && doc.career && doc.career.tech) ? techNormalise(doc.career.tech) : null;
+// the player's segment (TECH_MAX when nothing is masked)
+const careerTechSeg = doc => { const t = careerTechOf(doc); return t ? t.seg : TECH_MAX; };
+// may this career use this option? (an unknown key is never refused)
+function careerTechAllows(doc, key) {
+  const t = careerTechOf(doc);
+  if (!t) return true;
+  const s = techSegOf(key);
+  return s == null || s <= t.seg || t.entries.includes(key);
+}
+// may this career own a design of this stage? an OCCASION may stand one segment above (§4.4: own it and fly it, the
+// parts above the segment not modifiable)
+const careerTechStageOk = (doc, stage, occasion) => stage <= careerTechSeg(doc) + (occasion ? 1 : 0);
+// a segment unlocked (the keystone landmark's effect, §4.2): never down, never past TECH_MAX -> { ok, doc, why }
+function careerTechUnlock(doc, seg) {
+  const t = careerTechOf(doc);
+  if (!t) return { ok: false, doc, why: 'no machine shop in this document' };
+  const s = Math.max(1, Math.min(TECH_MAX, Math.round(+seg) || 1));
+  if (s <= t.seg) return { ok: false, doc, why: 'segment ' + s + ' is open already' };
+  const d = JSON.parse(JSON.stringify(doc));
+  d.career.tech = Object.assign(techNormalise(d.career.tech), { seg: s });
+  return { ok: true, doc: d, why: null };
+}
+
+// ---- THE EDITOR'S ROWS --------------------------------------------------------------------------------------------------
+// the cage rows that choose an option, each option index -> its key (null = not masked). The join's own vocabularies
+// (_cage_join.js: intCons' order, the surfaces' CONS4 after 'as the aeroplane', glazeMat, the canopy tile, fairCons, the
+// nacelle mount, the powertrain). Two rows read the page's tables, handed in by the editor: `engPreset` (the row's
+// names through CAGE_JOIN_ENGINES) and `cw_material` (CAGE_JOIN_PROP_MATS). GATE TECH holds every list to the join.
+const TECH_SURF_ROW = [null, 'surf:carbon', 'surf:steel', 'surf:fabric', 'surf:alloy', 'surf:aluFabric', 'surf:glass'];
+const TECH_ROWS = {
+  intCons: ['mat:carbon', 'mat:tubeFabric', 'mat:wood', 'mat:alloy', 'mat:aluTube', 'mat:glass'],
+  wgCons: TECH_SURF_ROW, w2Cons: TECH_SURF_ROW, finCons: TECH_SURF_ROW, stCons: TECH_SURF_ROW,
+  glazeMat: ['glaze:acrylic', 'glaze:polycarbonate', 'glaze:glass'],
+  canopy: ['canopy:screen', 'canopy:screen', 'canopy:screen', 'canopy:bubble'],
+  fairCons: ['fair:glass', 'fair:carbon', 'fair:alloy'],
+  engMount: [null, null, null, 'cfg:twin'],
+  engPower: ['fam:piston', 'fam:electric', 'fam:turbine'],
+};
+// a row's keys, per option index; ctx: { names (the row's own option names), engines (CAGE_JOIN_ENGINES), propMats
+// (CAGE_JOIN_PROP_MATS) } -> [key | null] or null (a row the mask does not read)
+function techRowKeys(k, ctx) {
+  ctx = ctx || {};
+  if (TECH_ROWS[k]) return TECH_ROWS[k].slice();
+  if (k === 'engPreset' && Array.isArray(ctx.names) && ctx.engines)
+    return ctx.names.map(n => (ctx.engines[n] ? 'eng:' + ctx.engines[n] : null));
+  if (k === 'cw_material' && Array.isArray(ctx.propMats)) return ctx.propMats.map(m => (m ? 'prop:' + m : null));
+  return null;
+}
+// a spec PATCH's keys (a design tile's spec writes): the rows it names, only
+function techKeysOfPatch(p) {
+  const out = [];
+  if (!p || typeof p !== 'object') return out;
+  if (p.gear && TECH_GEAR_TYPES.includes(p.gear.type)) out.push('gear:' + p.gear.type);
+  if (p.systems && p.systems.fit) out.push('fit:' + p.systems.fit);
+  if (Array.isArray(p.engines)) { for (const e of p.engines) if (e && e.type) out.push('eng:' + e.type); if (p.engines.length > 1) out.push('cfg:twin'); }
+  if (p.fuselage && p.fuselage.material) out.push('mat:' + p.fuselage.material);
+  if (p.cabin && p.cabin.canopy && p.cabin.canopy.style) out.push('canopy:' + p.cabin.canopy.style);
+  return out;
+}
+
+// ---- THE MARKET AND THE MAKERS ------------------------------------------------------------------------------------------
+// THE VALIDATED DESIGNS' KEYS, as their build files are (CONTRACT_DESIGNS[id].build; the twin's floats patch applied).
+// A MEASURED table, never typed: GATE TECH re-derives every row from the file with techKeysOfSpec and fails on any
+// difference (`node tools/_tech_check.js --emit` prints the table) - the core cannot read a file, the gate can.
+const TECH_DESIGNS = {
+  cub: ['mat:tubeFabric', 'eng:a65_sensenich74', 'prop:wood', 'pitch:standard', 'fit:basic', 'elec.battery:lead', 'elec.alternator:gen20', 'elec.starter:yes', 'elec.vac:venturi', 'av.com:compact', 'av.xpdr:none', 'av.nav:none', 'av.gps:none', 'gear:taildragger', 'susp:bungee', 'glaze:acrylic', 'canopy:screen', 'fuel:avgas100LL'],
+  jodel: ['mat:wood', 'eng:a65_sensenich74', 'prop:wood', 'pitch:cruise', 'fit:basic', 'elec.battery:lead', 'elec.alternator:gen20', 'elec.starter:yes', 'elec.vac:venturi', 'av.com:compact', 'av.xpdr:none', 'av.nav:none', 'av.gps:none', 'gear:taildragger', 'susp:oleo', 'glaze:acrylic', 'canopy:screen', 'fuel:avgas100LL'],
+  c172: ['mat:alloy', 'eng:o540_hartzell', 'prop:alu', 'pitch:standard', 'fit:custom', 'elec.battery:lead', 'elec.alternator:alt60', 'elec.starter:yes', 'elec.vac:pump', 'av.com:compact', 'av.xpdr:modeS', 'av.nav:vor', 'av.gps:none', 'gear:tricycle', 'susp:spring', 'fair:glass', 'glaze:acrylic', 'canopy:screen', 'fuel:avgas100LL'],
+  c172f: ['mat:alloy', 'eng:o540_hartzell', 'prop:alu', 'pitch:standard', 'fit:custom', 'elec.battery:lead', 'elec.alternator:alt60', 'elec.starter:yes', 'elec.vac:pump', 'av.com:compact', 'av.xpdr:modeS', 'av.nav:vor', 'av.gps:none', 'gear:floats', 'susp:spring', 'fair:glass', 'glaze:acrylic', 'canopy:screen', 'fuel:avgas100LL'],
+  twinf: ['mat:tubeFabric', 'eng:rotax582_ivo', 'cfg:twin', 'prop:carbon', 'pitch:standard', 'fit:basic', 'elec.battery:lead', 'elec.alternator:gen20', 'elec.starter:yes', 'elec.vac:venturi', 'av.com:compact', 'av.xpdr:none', 'av.nav:none', 'av.gps:none', 'gear:floats', 'susp:spring', 'canopy:screen', 'fuel:avgas100LL'],
+};
+// a maker's model with its options, as keys: the design's keys with the rows its options write replaced (76_procure.js
+// prWrite: the engine -> every engine's type; the avionics -> the tier's own electrics and avionics). Exact: GATE TECH
+// holds it to techKeysOfSpec(procureSpec(...)) for every model and every option value.
+function techKeysOfModel(modelId, opts) {
+  if (typeof PROCURE_MODELS === 'undefined' || !PROCURE_MODELS[modelId]) return null;
+  const M = PROCURE_MODELS[modelId], o = opts || procureDefaults(modelId), design = procureDesignOf(modelId, o);
+  const base = TECH_DESIGNS[design];
+  if (!base) return null;
+  let keys = base.slice();
+  const val = r => (M.opts[r] && o[r] != null && o[r] !== M.opts[r].def) ? M.opts[r].vals[o[r]] : null;
+  const ev = val('engine');
+  if (ev && ev.eng && PROCURE_ENGINES[ev.eng]) {
+    const at = keys.findIndex(k => k.startsWith('eng:'));
+    keys = keys.filter(k => !k.startsWith('eng:'));
+    keys.splice(Math.max(0, at), 0, 'eng:' + PROCURE_ENGINES[ev.eng].type);
+  }
+  const av = val('avionics');
+  if (av && av.fit) {
+    const at = keys.findIndex(k => /^(fit|elec\.|av\.)/.test(k));
+    keys = keys.filter(k => !/^(fit|elec\.|av\.)/.test(k));
+    keys.splice(Math.max(0, at), 0, ...techKeysOfSystems({ systems: { fit: av.fit } }));
+  }
+  return keys;
+}
+function techStageOfKeys(keys) {
+  let s = 1;
+  for (const k of keys || []) { const v = techSegOf(k); if (v != null && v > s) s = v; }
+  return s;
+}
+const techStageOfModel = (modelId, opts) => { const k = techKeysOfModel(modelId, opts); return k ? techStageOfKeys(k) : null; };
+// a listing (used, or a story occasion) of this career: its stage <= the segment, one above for an occasion; a stage the
+// table cannot read (a design with no row) is never shown in a masked career
+function techListingOk(doc, L) {
+  if (!careerTechOf(doc)) return true;
+  const s = L ? techStageOfModel(L.model, L.opts) : null;
+  return s != null && careerTechStageOk(doc, s, !!(L && L.occasion));
+}
+// a maker's model in the catalogue: its STOCK model at or below the segment
+const techModelOk = (doc, modelId) => { if (!careerTechOf(doc)) return true; const s = techStageOfModel(modelId); return s != null && s <= careerTechSeg(doc); };
+// an option value on the sheet: the model with that one value at or below the segment
+const techOptionOk = (doc, modelId, opts, row, val) => {
+  if (!careerTechOf(doc)) return true;
+  const s = techStageOfModel(modelId, Object.assign({}, opts || procureDefaults(modelId), { [row]: val }));
+  return s != null && s <= careerTechSeg(doc);
+};
 
 //# sourceURL=career_core.js

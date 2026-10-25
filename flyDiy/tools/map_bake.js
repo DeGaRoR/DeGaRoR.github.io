@@ -429,7 +429,10 @@ function bake() {
   if (as.w !== w || as.h !== h) throw new Error('map_bake: ' + ART_SRC + ' is ' + as.w + ' x ' + as.h + ', not the frame\'s ' + w + ' x ' + h);
   // (G2435) THE INFRASTRUCTURE, off the record through compose (the town on: every place)
   const town = composeTown();
-  if (JSON.stringify(town.rec.layers.roads) !== JSON.stringify(rec.layers.roads)) throw new Error('map_bake: the composed record is not the fixture');
+  // (ROAD-BAND-ZERO, 25 Oct: the reader's roads are the fixture's as normalise reads them - a road's band 0 is no band, so
+  //  Jolene's r45 (band 0 in the file) composes without one; the raw file is not what compose saw)
+  const recRoads = Cx.PREMISES_GEN.normalise(JSON.parse(JSON.stringify(rec))).layers.roads;
+  if (JSON.stringify(town.rec.layers.roads) !== JSON.stringify(recRoads)) throw new Error('map_bake: the composed record is not the fixture');
   const infra = infraOf(rec, town.O, toPx);
   const proj = {
     v: 1, island: 'jolene', mpp: MPP, x0: X0, z0: Z0, x1: X1, z1: Z1, w, h,

@@ -1364,6 +1364,35 @@ if (plots.length) {
   const RPs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
   check(/const g = PWR\.build\(THREE, \{ path: pr, w: rd\.w, mode: rd\.poles \|\| 'auto'/.test(RPs), '39 ...and the page builds them at the drawn width (render_premises)');
 }
+// 40 A ROAD'S BAND BACK TO NONE (the user, 24 Oct: "a road's side stays very big once set manually, even back at 0; the original look
+//    never comes back" - they deleted a whole road): the row reaches its "none" notch; on a road, 0 or less takes the band away
+//    and the road draws its own side again (sided); a road loaded with band 0 / null is read so (Jolene's r45); a strip keeps 0
+{
+  const sl = new Map();
+  const rows40 = Object.assign({}, rows, { slider: (h, label, mn, mx, st, get, set, fmt) => { sl.set(label, { mn, get, set, fmt }); } });
+  ctxG.PAVEMENT = require(path.join(ROOT, 'src', 'viewer', 'pavement.js'));   // (the band row is a pavement row: the page has PAVEMENT, the harness lends it)
+  const ed40 = UI.mount(new El('div'), { THREE: null, world: synth, R: makeR(), rows: rows40, els: { chk: null, plaque: null, strip: new El('div') }, viewEl: new El('div'), storage: null, fresh: true, camera: () => null, redraw: noop });
+  const rid = ed40.cmd('add', { layer: 'roads', entry: { pts: [[11000, 11000], [11200, 11000]], w: 6, cls: 'paved' } });
+  const R40 = () => PG.findById(ed40.record(), rid).entry, re = () => { sl.clear(); ed40.select(null); ed40.select(rid); };
+  re();
+  const B = () => sl.get('band (m)');
+  check(B() && B().mn <= -0.5 && B().get() === -0.5 && !('band' in R40()), '40 a new road has no band and the row sits at its reachable "none" notch', JSON.stringify(B() && { mn: B().mn, v: B().get() }));
+  B().set(12); re();
+  check(R40().band === 12, '40 a band set by hand: 12 m');
+  B().set(0); re();
+  check(!('band' in R40()) && B().get() === -0.5 && /none/.test(B().fmt(-0.5)), '40 ...back to 0: the band is gone - the road\'s own side, as it was', JSON.stringify(R40().band));
+  const O40 = PG.compose(ed40.record(), synth), ro = (O40.roads || []).find(q => q.id === rid);
+  check(ro && ro.sided === true, '40 ...and it composes sided again (the plain side, not the band\'s fade)', ro && String(ro.sided));
+  B().set(5); re(); B().set(-0.5); re();
+  check(!('band' in R40()), '40 the "none" notch takes it away too');
+  ed40.close(); delete ctxG.PAVEMENT;
+  const L40 = PG.normalise({ layers: { roads: [{ id: 'z0', pts: [[0, 0], [50, 0]], w: 5, cls: 'paved', band: 0 }, { id: 'zn', pts: [[0, 9], [50, 9]], w: 5, cls: 'paved', band: null }, { id: 'z3', pts: [[0, 19], [50, 19]], w: 5, cls: 'paved', band: 3 }],
+    runways: [Object.assign(JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { id: 'b0', c: [0, 300], len: 400, wid: 20, band: 0 })] } });
+  const lr = id => L40.layers.roads.find(q => q.id === id);
+  check(!('band' in lr('z0')) && !('band' in lr('zn')) && lr('z3').band === 3 && L40.layers.runways[0].band === 0, '40 a road loaded with band 0 or null is read with none (its own side), a band 3 kept, a strip\'s band 0 kept');
+  const J40 = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')), r45 = PG.normalise(J40.layers ? J40 : (J40.rec || J40.premises)).layers.roads.find(q => q.id === 'r45');
+  check(r45 && !('band' in r45), '40 Jolene\'s r45 (band 0 in the file) draws its own side again');
+}
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
