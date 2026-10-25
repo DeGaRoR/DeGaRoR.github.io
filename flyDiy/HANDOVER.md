@@ -98145,3 +98145,42 @@ DMG-LOOKS: study at futureDesigns/DMG-LOOKS-STUDY-2026-10.md, for the Deform Coo
   - kink strength;
   - crazing on hard landings;
   - whether members break where they should fold, which is calibration for Deform and not drawing.
+
+### G3620-G3629 DMG-LOOKS, BRIEF 2 - STRUCTURE BY MATERIAL; THE USER'S RULINGS (2026-10-25, DMG-LOOKS for the DEFORM COORDINATOR; cloud, node only, no src/ change; branch claude/dmg-looks-study)
+- **The user's rulings (25 Oct):** grey primer; P2 option B (the parked rim overlay); no crazing on hard landings. All three are recorded in the study (§4 P1c, §4 P2, §8).
+- **Brief 2** (`futureDesigns/dmg-looks/BRIEF-2026-10-25-structure.md`) is answered in the study's §10.
+- **Today, every broken frame member is drawn split at exactly half its length.** This is skin_break's dominant-node rule on a tube bound by station. Kinked members (a break with a compression floor in the solver) are drawn split too.
+- **The drawn members cannot bend.** The flown snapshot has a ring only every ~14 cm (median 7 rings a metre; many members are one straight segment), measured headless by `structure_mesh.js`.
+- **The census** (`structure_census.js`: 4 standard crashes x Cub / Jodel / metal Cessna, as the game flies them, certificate on):
+  - a 30 m/s trunk breaks 24-145 members;
+  - 45-103 of them are **releases** with no strain of their own, and 83-99 % of those are at fittings or glue lines;
+  - the Cub's steel tears after folding at ~70-77 deg (`thf` 1.2 rad);
+  - bent but whole steel reaches -38 % chord;
+  - wood stays elastic, then breaks ragged or crushes.
+  - Full table: study §10.1.
+- **The design (§10.3).** Two parts:
+  - **(1) A parting rule**, event-time and free: releases at a fitting or bond are drawn whole on their part; kinked members are never split; fold, tension and wood breaks part at their own station.
+  - **(2) A member pool**: one parked mesh plus one program, linked at roll-out like ground_scar. Slots are given at events; the pool's vertex shader poses each slot from the slot state and the live nodes (DMG-SKINGPU's node texture), with rings clustered at the hinge or break.
+  - **Steel:** a creased, ovalised hinge that keeps L0; torn stubs that keep their bend, necked and jagged.
+  - **Alloy:** 2.5 crimps sized from the chord lost; a jagged tear through the rivet holes, a bare rim, grey primer.
+  - **Wood:** straight until broken; slivers 3-6 x depth plus a lengthwise split; greenstick; crush band.
+- **Pictures:** `futureDesigns/dmg-looks/steel_cage.png`, `alloy_frames.png`, `wood_members.png` (rest / today / proposed, drawn at the slot budget).
+- **Cost (§10.6):**
+  - parting rule: 0 triangles, 0 draws, under 1 ms at the event;
+  - pool: 272-828 triangles a slot, 27-98 slots in a 30 m/s crash (~10-45 k triangles), 0 at rest;
+  - event CPU for 10 broken + 30 bent members: ~10 us plus one small texSubImage;
+  - per frame: 0 CPU, except a bent-before-any-break frame (~4 kB node upload);
+  - 0 links at the crash.
+  - **FLAG:** the pool adds +1 draw while a wreck exists, so the brief's "0 new draws" is not met. The only 0-draw alternative is rings baked into every member: +10.5-30 k triangles always (+12-24 %, every shadow pass too), and a cage-generator change. Recommended: the pool.
+- **Solver data per member at an event (§10.5).**
+  - Missing today: a per-member `how` code (beamBreak keeps only the first break's), `fitEnd` (which end is the fitting), and `kt1` / `dk` / `dTx dTz dNx dNz` on the hop.
+  - Everything else is already on the page.
+  - About 8 bytes per changed member.
+- **Calibration candidates for Deform (§10.4; no physics changed):**
+  - C1: a kinked ductile member keeps no tension (it should stay one piece);
+  - C2: steel `thf` 69 deg (and alloy's 46 deg) tear folds early;
+  - C3: engine-mount tubes released at zero strain by the cluster cut (Jodel 112-115, metal 112-115 and 118);
+  - C4: gear legs likewise (Cub 380, Jodel 478, metal 428);
+  - C5: wing members cut at the root (drawing only);
+  - C6: wood's compression kink booked as a break (low priority).
+- **New files (node, `futureDesigns/dmg-looks/`):** `structure_census.js` (+ .json), `structure_mesh.js` (+ .txt), `structure_proto.js`, `raster3d.js`, `structure_cost_proto.txt`, and the three sheets.

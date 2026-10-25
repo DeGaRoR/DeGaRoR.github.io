@@ -1,0 +1,7 @@
+TRIANGLES A POOL SLOT (as drawn here; the GPU slot is the same mesh):
+  steel tube bent 272, torn (two stubs) 320
+  alloy angle buckled 414, torn 828
+  wood broken (slivers + end grain) 480
+THE EVENT (10 broken + 30 bent steel members):
+  the slots' state only (what the event really computes): 10.7 us
+  the CPU mirror building every vertex (upper bound, not done in the game): 21.2 ms for 11360 triangles

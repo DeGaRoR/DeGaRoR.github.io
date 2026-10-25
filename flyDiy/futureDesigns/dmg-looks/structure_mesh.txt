@@ -1,0 +1,12 @@
+cub_2026-09-20_corrected.json stube verts 29316 off-member 3116 | members 89 | tris/member p50 55 p90 238 | 1cm stations/member p50 7 | stations per metre p10/p50/p90 3/7/23
+   sumL 75.7 m  tris now 9772  tris at 4cm rings (no caps) 22740  x 2.60
+cub_2026-09-20_corrected.json sjoint verts 26520 off-member 13113 | members 26 | tris/member p50 124 p90 360 | 1cm stations/member p50 7 | stations per metre p10/p50/p90 2/6/18
+   sumL 30.9 m  tris now 8840  tris at 4cm rings (no caps) 9288  x 2.08
+jodel_2026-09-20_corrected.json swoodFrame verts 18876 off-member 8833 | members 87 | tris/member p50 16 p90 75 | 1cm stations/member p50 4 | stations per metre p10/p50/p90 2/6/15
+   sumL 83.7 m  tris now 6292  tris at 4cm rings (no caps) 16776  x 5.01
+jodel_2026-09-20_corrected.json sjoint verts 24216 off-member 12348 | members 27 | tris/member p50 92 p90 294 | 1cm stations/member p50 7 | stations per metre p10/p50/p90 2/6/18
+   sumL 29.7 m  tris now 8072  tris at 4cm rings (no caps) 8916  x 2.25
+cessnaMetal (1).json stoele verts 39864 off-member 15029 | members 137 | tris/member p50 33 p90 184 | 1cm stations/member p50 7 | stations per metre p10/p50/p90 2/7/19
+   sumL 144.6 m  tris now 13288  tris at 4cm rings (no caps) 43392  x 5.24
+cessnaMetal (1).json sjoint verts 62328 off-member 26520 | members 31 | tris/member p50 282 p90 876 | 1cm stations/member p50 14 | stations per metre p10/p50/p90 2/10/26
+   sumL 41.8 m  tris now 20776  tris at 4cm rings (no caps) 12540  x 1.05

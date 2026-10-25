@@ -43,7 +43,7 @@ a glass hook that already works in pane metres. So the first phase is a re-use, 
 
 | Phase | What the player sees | Where | New GL objects at a crash | Size |
 |---|---|---|---|---|
-| **P1a** member bends | crushed and bent tubes drawn kinked, at their real length | skin_break tube places + the riding shader; the solver's bend sent to the page | none | 1 session |
+| **P1a** structure by material (brief 2, §10) | steel tubes fold at a creased hinge and tear necked and bent; alloy frames crimp and tear jagged at their rivet line; wood stays straight, then splinters, splits, greensticks or crushes | **revised 25 Oct:** a parked **member pool** (frame members have no vertices to bend: §10.2), plus an event rule for where a broken member parts | none at the crash (the pool is made at roll-out); **+1 draw after a crash** | 2 sessions |
 | **P1b** torn line | a jagged, material-specific tear (rivet lines unzip, fabric splits along the weave, laminate cracks, ply splinters), petals curled | skin_break `event()`: the triangle choice, rim jitter, a CURL field beside DRAPE | none | 1-2 sessions |
 | **P1c** window cracks | crazing, impact stars, failed panes with missing shards, before a pane ever leaves | the glass hook (`aeroGlass`), one uniform block per pane | none (a material clone, same program) | 1 session |
 | **P2** rupture rim | bare metal, primer, raw wood, frayed thread, exposed fibre along every torn edge; scrape and scorch | an edge-distance value per place, fed to the weathering's substrate path or to a rim overlay draw | one program, linked at roll-out like the ground scar | 2 sessions + an A0 ruling |
@@ -276,7 +276,12 @@ close up, to erosion (P3).
 
 ### P1: cheap and convincing, no new GL objects at a crash (3-4 sessions)
 
-**P1a: MEMBERS BEND (G3620)**
+**P1a: MEMBERS BEND (G3620): SUPERSEDED on 25 Oct by §10 (structure by material, the member pool)**
+
+> Brief 2 measured the flown snapshot. A drawn frame member has a ring only every ~14 cm (median 7 per metre), and
+> many members are a single straight segment, so the riding term below has no vertices to bend. The term itself (the
+> kink that keeps the length) is kept and moves into the pool's vertex shader. The original text stays for the
+> record.
 
 - **The solver's bend to the page.** Send the solver's per-member bend on the damage hop, only for members whose
   set moved, only at an event: `kt1`, `dk` (or `ks`), and the bend direction (`dTx dTz dNx dNz`).
@@ -317,9 +322,9 @@ close up, to erosion (P3).
 
 - **States per pane.** S1 crazing, S2 star, S3 failed (prototype `crack_proto.js`, `crack_states.png`).
 - **Triggers.** Reuse DEFORM §5.3's switch:
-  - S1: a windscreen-frame member with permanent set over 0.2 %, or a very hard landing *(the threshold is a tuning
-    point)*;
-  - S2: set over 0.5 %, or a strike on the pane (bird, trunk, debris);
+  - S1 crazing: **no trigger of its own.** The user ruled on 25 Oct: no crazing on hard landings. Crazing shows only
+    as the core of an S2 star or an S3 failure;
+  - S2: a windscreen-frame member's set over 0.5 %, or a strike on the pane (bird, trunk, debris);
   - S3: wreck_debris's CRUSH (6 cm) **before** it releases the pane.
 - **S3 as a two-step.** The pane first fails in place (holes). Only a second crush step, or the carrying set breaking
   off, throws what is left as a body. Acrylic does both (§2.5).
@@ -345,7 +350,7 @@ close up, to erosion (P3).
 
   | Finish | Band 1 | Band 2 | Band 3 |
   |---|---|---|---|
-  | alclad | bare alloy, 0-4 mm, metal 0.9 | primer, 4-14 mm (zinc-chromate green-yellow or grey: a look ruling) | chipped paint to 3 cm |
+  | alclad | bare alloy, 0-4 mm, metal 0.9 | **grey primer** (the user, 25 Oct), 4-14 mm | chipped paint to 3 cm |
   | fabric | frayed thread, 0-8 mm, the undoped polyester colour | — | — |
   | composite | pale fibre, 0-6 mm | a dark delamination line | — |
   | ply | raw wood, 0-16 mm | — | — |
@@ -353,7 +358,7 @@ close up, to erosion (P3).
 
 - **Option A.** A vertex attribute `aRim` read by AEROSKIN_HOOK into the weathering's substrate path. It is the
   simplest look, but it adds a varying to the one program, which the WEATHER gate forbids today. **A0's ruling.**
-- **Option B (recommended).** A **rim overlay draw** per wreck fold:
+- **Option B: RULED by the user on 25 Oct.** A **rim overlay draw** per wreck fold:
   - it draws the **same ridden GL buffers** (the `GLBufferAttribute` DMG-SKINGPU already hands the geometries), so
     it rides for free;
   - it has **its own index** (the rim triangles only, written at the event) and its own `aRim` attribute;
@@ -468,13 +473,16 @@ helpers, and every noise function maps 1:1 onto GLSL.
 
 ## 8. Open points for the Deform Coordinator and the user
 
-1. **P2 A or B**: a varying in the one aeroskin program, or the parked rim overlay. A0's ruling. B is recommended.
-2. **Primer colour** for the alloy fleet's rim (zinc-chromate green-yellow, grey, or none): a look ruling for the
-   user.
+**The user's rulings, 25 Oct:** **grey primer**; **P2 option B** (the parked rim overlay); **no crazing on hard
+landings**. Brief 2 (Deform, the same day) adds: "proceed on the damage look, but beware of performance impact", and
+structure by material (§10).
+
+1. ~~P2 A or B~~: **B, ruled.**
+2. ~~Primer colour~~: **grey, ruled.**
 3. **How strongly a crushed tube kinks.** The proposal keeps the drawn length exactly. A partly elastic look (half
    the kink) is one constant if the box finds it too much.
-4. **S1 crazing on a hard landing**: is a cosmetic crack on a non-crash welcome, or noise? The user's call.
-5. **Does the physics break members too readily for the look?** The user wants "bent elements". If, on the box,
+4. ~~S1 crazing on a hard landing~~: **no, ruled.**
+5. **Does the physics break members too readily for the look?** Brief 2 measured it: §10.4 lists the candidates. The user wants "bent elements". If, on the box,
    members break where a tube should only fold, that is calibration (`thf`, `etu`, the group-release third,
    G1894), not drawing: the Deform Coordinator's. This study does not touch it.
 
@@ -559,3 +567,219 @@ helpers, and every noise function maps 1:1 onto GLSL.
 - https://texturecan.com/terms/
 - https://sharetextures.com/p/license
 - https://www.textures.com/about/terms-of-use
+
+---
+
+## 10. Structure by material (brief 2, 25 Oct: `dmg-looks/BRIEF-2026-10-25-structure.md`)
+
+**The ask.** The user, through A0: "We can proceed on the damage look, but beware of performance impact. ... a
+solution for the structural elements that should bend: the tubular cage, the wooden pillars, the metal frames. The
+metal should bend, wood should break like wood." The Deform Coordinator: extend the prototype (node only) on the
+three validated builds; name the solver data, the calibration items and the cost.
+
+**The answer in short.**
+
+1. **Today every broken member is drawn split at exactly half its length**, with flat open ends. The skin's rule
+   gives each place to its dominant end node, and on a tube bound by station that is t < 0.5 against t > 0.5.
+   Kinked members (the solver books a kink as a break with a compression floor) are drawn split as well.
+2. **The drawn members cannot bend.** A frame member in the flown snapshot has a ring only every ~14 cm: median 7 a
+   metre, and many members are one straight segment (§10.2). So bending needs vertices that do not exist.
+3. **The design.**
+   - A **member pool**: one mesh of canonical members, parked and compiled at roll-out.
+   - At an event, each bent or broken member gets a slot. The pool's vertex shader poses it from the solver's state
+     and the live nodes.
+   - The snapshot's own triangles for that member are collapsed, as today.
+   - Plus a free **event rule**: a member that came off at a fitting or a glue line goes whole with its part,
+     instead of being cut in two.
+4. **Cost.** 0 at rest. At a crash: no GL object made, no program linked, about 10 µs of CPU for 40 members, and
+   **one extra draw while a wreck exists**. That draw is the one point where the brief's "0 new draws" target is not
+   met; §10.6 gives the alternative and why it costs more.
+
+### 10.1 What the solver does to the structure: the census
+
+`dmg-looks/structure_census.js` flies the treecrash rig's four standard crashes on the Cub, the Jodel and the metal
+Cessna, as the game flies them (the join, with the certificate stamped). It reads every member at the end and saves
+`structure_census.json`.
+
+`how` is read back from each member's state at the frame it broke, because the solver keeps `how` only for the first
+break:
+
+- **kink**: compression past `ecu`, 3 %;
+- **fold**: a trunk bend past `thf`;
+- **ragged**: wood's staged break;
+- **tension**: stretched to `etu`, or brittle at yield;
+- **release**: no strain of its own. Its break group or its cluster's cut let it go.
+
+| Build | Crash | Visibly bent (h > 1.5 cm) | Broken | of which kink / fold / tension / ragged / release | release at a fitting or bond |
+|---|---|---|---|---|---|
+| Cub | 3 m/s taxi into a trunk | 0 | 0 | — | — |
+| Cub | 12 m/s nose-over | 6 | 7 | 0 / 7 / 0 / 0 / 0 | 0 |
+| Cub | 30 m/s trunk, centreline | 30 | 113 | 15 / 41 / 8 / 4 / 45 | 42 |
+| Cub | 30 m/s trunk, 2.5 m out | 35 | 49 | 9 / 8 / 1 / 2 / 29 | 24 |
+| Jodel | taxi | 0 | 0 | — | — |
+| Jodel | nose-over | 2 | 11 | 0 / 1 / 0 / 0 / 10 | 10 |
+| Jodel | trunk, centreline | 24 | 145 | 18 / 8 / 6 / 10 / 103 | 88 |
+| Jodel | trunk, 2.5 m out | 20 | 94 | 6 / 1 / 1 / 16 / 70 | 69 |
+| metal Cessna | taxi | 0 | 0 | — | — |
+| metal Cessna | nose-over | 0 | 7 | 1 / 1 / 0 / 0 / 5 | 5 |
+| metal Cessna | trunk, centreline | 35 | 141 | 14 / 8 / 29 / 0 / 90 | 80 |
+| metal Cessna | trunk, 2.5 m out | 14 | 24 | 4 / 5 / 4 / 0 / 11 | 10 |
+
+**What it says.**
+
+- **Releases dominate a 30 m/s crash.** 45-103 members per run break with no strain of their own. 83-99 % of them
+  are at a fitting or a glue line: the wing, tail and gear attachments letting go, which is right. They read as
+  "disassembled" only because the drawing cuts each one at mid-span. The event rule in §10.3 draws them whole on
+  their part, at **zero cost**.
+- **Steel folds tear at about 70°.** The Cub's steel members fold round the trunk; 41 of them tear on the
+  centreline run. The fold angle at the tear is 71-77° median, against `thf` = 1.2 rad (69°) for tubeFabric. Alloy
+  tears at 0.8 rad (46°); the measured range was 49-81°.
+- **Steel bends are large where they do not break.** Bent but whole Cub tubes reach −38 % chord (`dk` up to
+  0.38 m): exactly the "bent elements" the user asks for. Today they are drawn telescoped.
+- **Wood behaves as wood in the solver.** No tension set; `ragged` staged breaks (4-16 per run); compression
+  "kinks" at 3 %. The look is what is missing.
+
+### 10.2 Why the drawing cannot bend them today: the mesh
+
+`dmg-looks/structure_mesh.js` measures the flown snapshot headless (`tools/_dmg_wall_lib.js snapshotOf`: the page's
+layers and join). Each vertex of the structure groups is matched to its nearest member, within 8 cm at rest, and the
+distinct 1 cm stations along each member are counted. Output: `structure_mesh.txt`.
+
+| Build : group | Members | Triangles a member (p50 / p90) | Rings a metre (p10 / p50 / p90) |
+|---|---|---|---|
+| Cub : `stube` (the 4130 cage) | 89 | 55 / 238 | 3 / 7 / 23 |
+| Jodel : `swoodFrame` | 87 | 16 / 75 | 2 / 6 / 15 |
+| metal Cessna : `stoele` (the alloy frames) | 137 | 33 / 184 | 2 / 7 / 19 |
+
+A `tubeSeg` (`tools/_cage_gen.js`) is a six-sided tube with a ring at each end and nothing between. The bent runs
+(`tubePath`) have rings only at their polyline points. A hinge needs a ring at the hinge, crimps need 4-6 rings in a
+few centimetres, and splinters need strips along the member. None of that exists. Two ways to get it:
+
+- **(a) Bake rings in.** Re-mesh every frame member at a ring every 4 cm, always.
+  - Cost: Cub +13 k triangles (+14 % of the 91 k snapshot), Jodel +10.5 k (+12 %), metal Cessna up to +30 k (+24 % of
+    124 k; an upper estimate, because the match takes in some sheet near the frames).
+  - It is paid every frame and in every shadow pass, crashed or not.
+  - It is a change in the cage generator, not in Deform's files.
+  - Even then crimps and splinters are coarse at 4 cm.
+- **(b) The member pool.** It is drawn only after a crash, only for the members that need it (§10.3). **Recommended.**
+
+### 10.3 The design: the member pool and the parting rule
+
+**The parting rule** (event-time, in `skin_break.js` `event()`; no geometry, no cost). Where a broken member's drawn
+places part depends on `how`:
+
+| how (and seam) | Where it parts | Drawn as |
+|---|---|---|
+| release at a `fitting` or `bond` | at the fitting end | whole on its own part, the fitting torn at the end (a lug, a bolt hole, a glue line) |
+| release by a cluster's cut | at the cut's end (the cluster root) | whole, or a pool slot if the member is steel or alloy and should bend (calibration C3) |
+| fold | at the hinge `kt1` | pool slot: torn after the bend |
+| kink | **does not part** | pool slot: folded, one piece (the solver's floor holds its crushed length) |
+| tension (ductile) | a seeded neck station, 0.3-0.7 | pool slot: necked and torn |
+| ragged / tension (wood) | a seeded station, 0.3-0.7 | pool slot: splinters |
+
+**The member pool.**
+
+- **One parked mesh** of canonical members, made at roll-out with its own program. It is linked off the main thread
+  exactly as `ground_scar.js`, so there is **no program link and no GL object made in a crash**.
+- **Each slot is a member's worth of vertices.** The rings cluster round the slot's event station (the hinge, the
+  break), so a slot can show a crease or splinters at about 300-500 triangles.
+- **At an event**, a slot gets a few dozen floats: its two node indices, L0, section, material, `how`, station,
+  bend axis and seed. That is one small `texSubImage` into an existing texture, like the place textures' refresh. The
+  snapshot's triangles of that member are collapsed, as today (the member's triangles come from `tubePieces`, made at
+  binding).
+- **Each frame, the vertex shader poses every vertex** from its canonical coordinates, the slot's state and the two
+  nodes' live positions. It reads the node texture DMG-SKINGPU already uploads, so there is **no CPU per frame**.
+  The fragment shader colours the rim (bare steel, bare alloy, grey primer, raw wood) from the station distance: P2
+  option B's rim for members, in the same program.
+- **The prototype's pose functions are that vertex shader in JS** (`structure_proto.js`; the mirror rule of
+  `rideMirror` / `RIDE_VS`). Every vertex depends only on (s, around or strip index, slot state, A, B).
+- **Priority.** Slots go to the largest visible changes first. A cap of 128 slots covers every census run (at most 98
+  needed). Past the cap, members keep today's drawing.
+
+**The looks, by material and solver state** (pictures `dmg-looks/steel_cage.png`, `alloy_frames.png`,
+`wood_members.png`: rest / today / proposed, drawn at the slot budget):
+
+| Material | Solver state | Look |
+|---|---|---|
+| **Steel tube** (4130, tubeFabric: the Cub's cage, every engine mount) | set < 0 or `dk` > 0, not broken | two legs that keep L0, meeting at a short rounded crease at `kt1` (0.5 ± 0.15 seeded for a kink); the tube **ovalised** there (−38 % in the bend plane, +20 % across) and the crease's inside pushed in |
+| | fold past `thf`, or tension at `etu` | the crack opens at the crease. **Each stub keeps its bend** and a lip of the crease, its end **necked** (radius −40 % over 1.5 r) and **torn** (the end ring jagged ±0.9 r round the tube, seeded); bare steel at the tear |
+| | kink (a floor) | folded, **one piece**, never split |
+| **Alloy frame** (2024 / 6061 sections: the metal Cessna's formers, stringers, longerons) | set < 0 | **local buckling**: 2.5 crimps over a short zone (wavelength 2.2 × the flange width), amplitude from the chord lost (A = λ/π · √(δ/L_z)), flange tips moving most |
+| | broken (tension, kink, a fitting) | a **jagged tear along the rivet line**, zig-zagging between the holes (pitch 22 mm), the holes torn open, lips curled; bare alloy at the rim, then **grey primer** |
+| **Wood** (spruce longerons, spar caps, pillars; ply webs) | anything elastic | **straight**: the pool is never used for elastic wood |
+| | ragged, tension, or fold past `thf` | a full break: a comb of **slivers**, 3-6 × the section depth and uneven (some short), on both pieces; tips tapered; a **lengthwise split** running back 5 × depth from the break; raw wood at the fracture and the end grain |
+| | `dk` > 0 and not broken | **greenstick**: hanging bent at the crack, the tension face split and pulled out, the compression face folded |
+| | kink (compression past 3 %) | a **crush**: a kink band inclined across the depth, still one piece |
+
+**When the riding has not started.** A bent but unbroken frame has no skin riding yet, so DMG-SKINGPU's node texture
+is not uploaded. In that case only, the pool uploads its own nodes: ~100 nodes × 2 texels, about 4 kB a frame.
+
+### 10.4 Calibration candidates (for Deform; no physics changed here)
+
+| # | What | Where it shows (build, crash, members) | Why it matters for the look | Suggestion |
+|---|---|---|---|---|
+| C1 | A **kinked ductile member** (steel, alloy) is booked as broken: `k = c = 0`, a compression floor only (`30_solver.js` ~l. 1383, G1813). The pieces logic says "a kink floor pushes only ... neither holds". | Cub trunk 0: 15 (10 fuselage, 4 engine mount, 1 tail); Cub trunk 2.5: 7 steel; Jodel trunk 0: 8 engine-mount tubes; metal trunk 0: 14 (4 alloy fuselage, 9 mount / vessel tubes); metal trunk 2.5: 4 alloy | A kinked tube is still one welded piece that carries real tension. Today it can let pieces part at a kink, and the drawing splits it. | Keep a tension tie on a kinked ductile member (like DMG-FABRIC's cover tie: a fraction of `fy`, torn at `etu`). The drawing (§10.3) already keeps it one piece. |
+| C2 | **Steel folds tear at `thf` = 1.2 rad (69°)**; alloy at 0.8 rad (46°) | Cub trunk 0: 41 steel members torn after folding, median 77°; Cub nose-over: 7 (71-73°); metal Cessna: 14 (alloy, and the steel vessel members) | DEFORM §7.1 #5: "steel tube bends without breaking; the fabric wraps the bent frame". A real thin-wall tube folds flat before it cracks *(no number sourced here)*. | Revisit `thf` for tubeFabric (and perhaps alloy) against a source. Fewer torn tubes and more folded ones is the look the user asks for. |
+| C3 | **Engine-mount tubes released with zero strain** by the engine cluster's root cut | Jodel trunk 0: members 112-115; metal trunk 0: 112-115 and 118. (The Cub's mount folds instead.) | The mount comes off rigid and its tubes never bend. Real mounts bend and tear at the welds. | The mount struts yield before the cut fires, or the cut fires on the struts' own state. |
+| C4 | **Gear legs released with zero strain** by the gear cluster's cut | Cub trunk 2.5: 380; Jodel trunk 0 and trunk 2.5: 478; metal trunk 0 and trunk 2.5: 428 | A gear leg bending is a known real mode (DEFORM §7.3). Today it flies off straight. | As C3. |
+| C5 | **Wing members released at zero strain** (cluster cut, no group) | Cub: 192-195; Jodel trunk 0: 308-317; metal trunk 0: 264-267 | The panel leaving at its root is right. The spar caps never strain, so no splinter follows from the physics. | Drawing only: part them at the root end (§10.3). A wood spar's root may be drawn splintered. |
+| C6 | **Wood "kink"** (compression to 3 %) is a break | Jodel trunk 0: 10 wood (5 fuselage); trunk 2.5: 6 | Crushed wood keeps carrying compression (the floor does) and some tension. | Low priority; the drawing shows a crush band, one piece. |
+
+### 10.5 What the page needs from the solver, per member, at an event only
+
+| Item | In `30_solver.js` | On the page today | Missing / to add |
+|---|---|---|---|
+| material class | def `beams[i].mat` (tubeFabric / alloy / wood / ...) | yes (the page builds the def) | — |
+| section size | `b.A`; the drawn radius or width in the snapshot | measurable from the member's places at binding | — |
+| **how it broke** | `beamBreak(bi, how)`: only the first break's `how` is kept (`DMG.firstBreak`) | no | **a per-member code** (`Uint8Array` `DMG.how[bi]`: tension / kink / fold / ragged / group / cut / core), sent with the broken list |
+| break station | fold: `b.kt1`. Kink, tension, release: none | no | for fittings and bonds, **which end is the fitting** (`b.fitEnd`, stamped where `61_gen_frame.js` tags the seam); the other stations can be seeded on the page |
+| hinge station, depth | `b.kt1`, `b.dk` (trunk bends), `b.ks` (the chord deficit) | no (`simDmgHop` sends `ks` only for the set colour) | **send `kt1`, `dk`** for members whose bend moved, quantised, at events |
+| bend axis | `b.dTx dTz dNx dNz` (horizontal: trunk bends only) | no | **send them** with `kt1`. A kink has no axis in the solver; the page seeds a side, or reads it off the neighbours' lateral motion |
+| plastic set | `b.L0`, `b.Lr` | implicit: the live chord against the def's rest length | — |
+| wood state | `b.rgS` (ragged stage), `b.kink`, `dk` with not broken (greenstick) | no | covered by the `how` code plus `dk` |
+| grain axis | along the member | trivially | — |
+
+About 8 bytes per changed member. 100 members is under 1 kB per event, on the damage hop that already carries the
+broken list.
+
+### 10.6 The cost (the user's "beware of performance")
+
+Targets from the brief: 0 new draws, 0 program links at a crash, 0 per-frame CPU after the event.
+
+| Technique | Triangles | Event CPU (10 broken + 30 bent) | Per frame after the event | Draws | Meets the targets? |
+|---|---|---|---|---|---|
+| Parting rule (fittings whole, kinks unsplit) | 0 new | well under 1 ms: a pass over the broken members' places, in the existing event (budgeted 8 ms a frame) | 0 | 0 | **yes** |
+| Member pool, steel tube slot | 272 bent / 320 torn | slot state for 40 members: **~10 µs** measured; one small `texSubImage` | 0 CPU (the node texture is DMG-SKINGPU's); GPU vertex work on used slots only | **+1 while a wreck exists** (+1 more if it casts shadows; it need not) | **links: yes. CPU: yes** (except bent-before-any-break: ~4 kB node upload a frame). **Draws: no, +1** |
+| Member pool, alloy slot | 414 buckled / 828 torn (two pieces) | (in the above) | as above | (the same draw) | as above |
+| Member pool, wood slot | 480 broken | (in the above) | as above | (the same draw) | as above |
+| Pool total in a 30 m/s crash | 27-98 slots, about 10-45 k triangles; 0 at rest | — | — | — | — |
+| (a) Bake rings into every member | +10.5-30 k always (+12-24 %), and in every shadow pass | 0 | 0 | 0 | draws yes, **but always-on triangles**; a cage-generator change |
+| CPU mirror (the prototype building every vertex itself) | — | 21 ms for 11 k triangles | — | — | **not done in the game**: it is what the vertex shader replaces |
+
+**The flag.** "0 new draws" cannot be met with bendable members unless every member carries extra rings all the
+time (a). The pool's one draw exists only after a crash. That is the better trade under "beware of performance".
+Deform and the user decide.
+
+### 10.7 Files, owners, and the in-game test (Deform's next step)
+
+| Change | File : function | Owner |
+|---|---|---|
+| `how` per member, `fitEnd`, bend data on the hop | `src/core/30_solver.js` (`beamBreak`, the damage state); `src/core/61_gen_frame.js` (the seam stamp); `src/viewer/sim_host.js simDmgHop`, `sim_view.js simViewDmgState` | Deform |
+| The parting rule | `src/viewer/skin_break.js` `event()` (the per-place side for tube, wood-frame and alloy-frame places), `tubePieces` | Deform |
+| The member pool (parked mesh, slot texture, vertex and fragment shader) | new `src/viewer/dmg_members.js` (beside `ground_scar.js`); `app.js` roll-out compile list and `brkCage` | Deform |
+| Hide a pooled member's snapshot triangles | `skin_break.js` (the index collapse, `dead` marks) | Deform |
+| Calibration C1-C4 | `30_solver.js`, `60_gen_spec.js GEN_CRASH` (`thf`), the clusters | Deform (physics) |
+
+**The in-game test** (brief 2 §2): a switch, OFF by default. On the Cub, the Jodel and the metal Cessna:
+
+- before/after stills at the trunk 0 and trunk 2.5 crashes and the nose-over;
+- the cost against master: draws, triangles, the crash's worst frame (the DMG IMPACT LAG rig, `dmg_skingpu_box`),
+  and normal flight ABBA.
+
+### 10.8 The prototypes added (node only; run from `futureDesigns/dmg-looks/`)
+
+| File | What it does | Output |
+|---|---|---|
+| `structure_census.js` | The four standard crashes on the three validated builds, each member's end state and `how` | `structure_census.json`, the §10.1 table |
+| `structure_mesh.js` | The flown snapshot's frame meshing | `structure_mesh.txt` (§10.2) |
+| `structure_proto.js` + `raster3d.js` | The pool's pose functions per material and the pictures | `steel_cage.png`, `alloy_frames.png`, `wood_members.png`, `structure_cost_proto.txt` |
