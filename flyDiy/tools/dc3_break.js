@@ -22,6 +22,9 @@
 //              bumps of A m, lam m apart, at V m/s, the throttle and rudder held to it) with the damage LIVE, not
 //              probed - --field 0.04,3,8 (the certificate's), then rougher
 //     circuit  the pilot from the line-up, the whole circuit (~300 s of sim: slow)
+//     home     THE WHOLE TRIP (G3574): the pilot from the works stand - the taxi out, the circuit, the landing - then
+//              the taxi back to the stand on the hand (taxiBack); contacts, the least clearance (--track <file>: the plan)
+//     back     the taxi back alone, from where the home case's landing stopped (--from x,z, --hdg rec|own)
 'use strict';
 const fs = require('fs'), path = require('path');
 const T = __dirname, ROOT = path.join(T, '..');
@@ -211,6 +214,138 @@ function circuit(lim) {
   return { case: 'circuit', lim, phases: phases.join(' '), touchdowns: tds.slice(0, 6), smaxPct: r2(smax * 100), dmg: dmgSummary(sim, def), worst: worst(sim, def, TK) };
 }
 
+// ---- HOME: THE WHOLE TRIP (the user, 25 Oct: "it should be able to complete a circuit including taxi from and to the hangar
+// without hitting anything") - the pilot from the stand walked out of the shed (the works, G3507's room for a 29 m build):
+// the taxi out, the take-off, the circuit, the landing, the roll-out; then THE TAXI BACK, which the pilot does not fly (it
+// stops on the runway): a scripted hand (pure pursuit) on along the centreline to the hold ahead, then the way out that ends
+// there, backwards, to the stand. On the ground every 0.25 s: the airframe's least PLAN clearance (every node) to the nearest
+// footprint GATE TAXICLEAR measures (tools/_taxiclear_lib.js: the cooked places, their props, the dressing's cars, the parked
+// aeroplanes, the trunks); in the world, every obstacle contact (out.obst) and trunk hit
+const TL = require('./_taxiclear_lib.js');
+function home(lim) {
+  const TRACK = opt('track') ? [] : null;
+  const def = defOf(lim);
+  const H = TR.gameHost(C, W, def, HOME, HOME, { damage: true });
+  const sim = H.sim; H.queueCmd({ cmd: 'start' });
+  const SHP = TL.islandObstacles(C, 'jolene', 'town').concat(TL.treeTrunks(W)).concat(TL.registryObstacles(W)), IX = TL.index(SHP);
+  const TK = tracker(sim);
+  const R = { case: 'home', lim, phases: [], touchdowns: [], contacts: [], clear: { out: null, back: null }, stand: H.game.stand };
+  const clearNow = leg => {
+    let w = null;
+    for (let i = 0; i < sim.n; i++) { const x = sim.p[i * 3], z = sim.p[i * 3 + 2], q = IX.nearest(x, z, 25); const d = q ? q.d : 25;
+      if (!w || d < w.d) w = { d: r2(d), node: def.nodes[i].tag, what: q ? TL.fmtWhat(q.s) : 'nothing', at: [r2(x), r2(z)] }; }
+    if (!R.clear[leg] || w.d < R.clear[leg].d) R.clear[leg] = Object.assign({ t: r2(sim.t) }, w);
+  };
+  const contact = leg => { if (sim.out && sim.out.obst > 0 && R.contacts.length < 20) R.contacts.push({ leg, t: r2(sim.t), nodes: sim.out.obst }); };
+  let ph = null, wasAir = false, k = 0;
+  for (; k < 60 * 1300; k++) {
+    H.step(); TK.tick();
+    const ap = H.ap; if (ap.phase !== ph) { ph = ap.phase; R.phases.push(ph + '@' + (k / 60).toFixed(0)); if (ph === 'GOAROUND') (R.goArounds = R.goArounds || []).push(ap.gaWhy || null); }
+    const onG = sim.wheelsOnGround(), v = sim.cgVel(), cg = sim.cgPos(), h = cg[1] - W.terrainH(cg[0], cg[2]);
+    if (onG === 0 && h > 3) wasAir = true;
+    if (onG > 0 && wasAir) { R.touchdowns.push({ t: r2(k / 60), sink: r2(-v[1]), V: r2(Math.hypot(v[0], v[2])) }); wasAir = false; }
+    if (onG > 0 && k % 15 === 0) clearNow(R.touchdowns.length ? 'back' : 'out');
+    if (TRACK && k % 15 === 0) { const c = sim.cgPos(); TRACK.push([r2(c[0]), r2(c[2]), r2(k / 60), onG]); }
+    contact(R.touchdowns.length ? 'back' : 'out');
+    if (H.crashed() || ap.phase === 'STOPPED') break;
+  }
+  R.stopped = ph === 'STOPPED';
+  if (R.stopped && !H.crashed()) R.taxiBack = taxiBack(H, sim, def, TK, clearNow, contact, TRACK, k / 60);
+  R.trunkHits = sim.trunkHits ? sim.trunkHits() : null;
+  R.dmg = dmgSummary(sim, def); R.worst = worst(sim, def, TK);
+  if (TRACK) fs.writeFileSync(opt('track'), JSON.stringify(TRACK));   // --track file: the cg's plan every 0.25 s [x, z, t, wheels]
+  return R;
+}
+
+// THE TAXI BACK (G3574): off the runway to the stand the flight left from, the hand on the keys. The way out that passes
+// nearest the aeroplane (out[0]'s own leg runs down the runway: the backtrack to its hold) is followed from its nearest
+// point back to the stand. When that way lies BEHIND (the aeroplane rolled past its turn-off) it turns round first on the
+// runway and its graded band - a pivot does not work here (full rudder, the inside wheel locked and the outside engine
+// up turn the DC-3 3 deg in 10 s: the tailwheel's steering holds the tail), so a TEARDROP: over to one side
+// (--tdOff, 12 m), then a half circle (--tdR, 22 m) to the other, onto the way back
+function taxiBack(H, sim, def, TK, clearNow, contact, TRACK, t0) {
+  const st = C.siteOf('HOME'), shedD = C.playerShedDims(C.playerDefault(), 'HOME', st), stand = C.standFor(st, shedD, (x, z) => W.terrainH(x, z));
+  const P = C.sitePattern(HOME, Object.assign({}, st, { stand }), { half: def.params.gen.span / 2 });
+  const c0 = sim.cgPos(), ax0 = sim.axes()[0], fl = Math.hypot(ax0[0], ax0[2]), fx = -ax0[0] / fl, fz = -ax0[2] / fl;
+  const nearest = (r, x, z) => { let b = null; r.pts.forEach((q, i) => { const d = Math.hypot(q.x - x, q.z - z); if (!b || d < b.d) b = { i, d }; }); return b; };
+  let best = null;
+  for (const r of TL.routesOf(C, P).filter(q => q.name.startsWith('out'))) { const n = nearest(r, c0[0], c0[2]); if (!best || n.d < best.d) best = Object.assign({ r }, n); }
+  const out = { route: best.r.name, joinAt: r2(best.d), turn: null, parked: false, s: null };
+  // the way back from the nearest point: does it start along the heading or against it?
+  const q0 = best.r.pts[best.i], q1 = best.r.pts[Math.max(0, best.i - 20)];
+  const along = (q1.x - q0.x) * fx + (q1.z - q0.z) * fz;
+  let path = best.r.pts.slice(0, best.i + 1).reverse();
+  if (along < 0) {
+    const off = +opt('tdOff', 12), rad = +opt('tdR', 22), lx = -fz, lz = fx;   // (lx, lz): the left of the heading
+    const pre = [];
+    for (let s = 2; s <= 40; s += 2) { const o = off * Math.min(1, s / 30); pre.push({ x: c0[0] + fx * s - lx * o, z: c0[2] + fz * s - lz * o }); }
+    const e = pre[pre.length - 1], cx = e.x + lx * rad, cz = e.z + lz * rad;      // the half circle to the left
+    for (let a = 0; a <= Math.PI; a += 2 / rad) pre.push({ x: cx - lx * rad * Math.cos(a) + fx * rad * Math.sin(a), z: cz - lz * rad * Math.cos(a) + fz * rad * Math.sin(a) });
+    const end = pre[pre.length - 1], j = nearest(best.r, end.x, end.z);
+    path = pre.concat(best.r.pts.slice(0, Math.min(j.i, best.i) + 1).reverse());
+    out.turn = { kind: 'teardrop', off, rad, joinAt: r2(j.d) };
+  }
+  out.metres = path.length;
+  H.queueCmd({ cmd: 'manual', on: true });
+  let ip = 0, I = 0;
+  for (let f = 0; f < 60 * +opt('backSecs', 900); f++) {
+    const cg = sim.cgPos(), v = sim.cgVel(), V = Math.hypot(v[0], v[2]);
+    // the point steered to: 10 m on - or past any point already BEHIND the aeroplane within 30 m (a corner inside the DC-3's
+    // turning circle: steered at, it is circled, never reached)
+    { const ax1 = sim.axes()[0];
+      const ahead = q => (q.x - cg[0]) * -ax1[0] + (q.z - cg[2]) * -ax1[2];
+      while (ip < path.length - 1) { const d = Math.hypot(path[ip].x - cg[0], path[ip].z - cg[2]); if (d < 10 || (d < 30 && ahead(path[ip]) < 0)) ip++; else break; } }
+    const tg = path[ip], last = ip >= path.length - 1, dEnd = Math.hypot(path[path.length - 1].x - cg[0], path[path.length - 1].z - cg[2]);
+    const ax = sim.axes()[0], hNow = Math.atan2(-ax[2], -ax[0]);
+    let dh = hNow - Math.atan2(tg.z - cg[2], tg.x - cg[0]); while (dh > Math.PI) dh -= 2 * Math.PI; while (dh < -Math.PI) dh += 2 * Math.PI;
+    // (a corner ahead - the way turning more than 35 deg within 40 m - is met at a walk: at 6 m/s the DC-3 ran wide of the
+    //  runway's turn-off and went round it once)
+    const pa = path[Math.min(path.length - 1, ip + 20)], pb = path[Math.min(path.length - 1, ip + 40)];
+    let turnA = Math.atan2(pb.z - pa.z, pb.x - pa.x) - Math.atan2(pa.z - tg.z, pa.x - tg.x); while (turnA > Math.PI) turnA -= 2 * Math.PI; while (turnA < -Math.PI) turnA += 2 * Math.PI;
+    const Vt = last && dEnd < 25 ? Math.max(0, dEnd / 8) : Math.abs(dh) > 0.35 || Math.abs(turnA) > 0.6 ? 2.5 : 6;
+    const e2 = Vt - V; I = Math.max(-2, Math.min(2, I + e2 / 60));
+    const thr = Math.max(0, Math.min(0.6, 0.12 + 0.12 * e2 + 0.05 * I)), brake = e2 < -1.5 || (last && dEnd < 3) ? 0.6 : 0;
+    H.queueCmd({ cmd: 'hand', ctl: { thr, brake, dr: Math.max(-1, Math.min(1, 2.5 * dh)), de: -0.4, da: 0 } });
+    H.step(); TK.tick();
+    if (f % 15 === 0) clearNow('back'); contact('back');
+    if (TRACK && f % 15 === 0) { const c = sim.cgPos(); TRACK.push([r2(c[0]), r2(c[2]), r2(t0 + f / 60), 9]); }
+    if (LOG && f % 600 === 0) console.error('back ' + r2(f / 60) + ' s  at ' + r2(cg[0]) + ',' + r2(cg[2]) + '  V ' + r2(V) + '  dh ' + r2(dh) + '  ip ' + ip + '/' + path.length);
+    if (H.crashed()) break;
+    if (last && dEnd < 4 && V < 0.3) { out.parked = true; out.s = r2(f / 60); break; }
+  }
+  const cg = sim.cgPos(); out.endFromStand = r2(Math.hypot(cg[0] - path[path.length - 1].x, cg[2] - path[path.length - 1].z));
+  return out;
+}
+// --cases back: THE TAXI BACK ALONE, from where the home case's landing stopped (--from x,z: its STOPPED point; the
+// aeroplane on the runway's line, landing heading --hdg the runway's own or 'rec' its reciprocal)
+function back(lim) {
+  const def = defOf(lim);
+  const H = TR.gameHost(C, W, def, HOME, HOME, { damage: true });
+  const sim = H.sim, TK = tracker(sim), TRACK = opt('track') ? [] : null;
+  const [x, z] = opt('from', '-441.5,102.2').split(',').map(Number);
+  sim.reset(0); if (sim.stance) sim.stance();
+  C.placeAtAerodrome(sim, { hdg: HOME.hdg + (opt('hdg', 'rec') === 'rec' ? Math.PI : 0), spawn: [x, z], elev: W.terrainH(x, z) });
+  if (C.seatOnGround) C.seatOnGround(sim, (px, pz) => W.terrainH(px, pz), def.refs);
+  H.queueCmd({ cmd: 'start' });
+  if (sim.eng) for (let i = 0; i < sim.eng.length; i++) H.queueCmd({ cmd: 'setEngine', i, patch: { key: 'both', running: true } });
+  for (let f = 0; f < 120; f++) { H.queueCmd({ cmd: 'manual', on: true }); H.queueCmd({ cmd: 'hand', ctl: { thr: 0, brake: 1, dr: 0, de: -0.4, da: 0 } }); H.step(); }
+  const SHP = TL.islandObstacles(C, 'jolene', 'town').concat(TL.treeTrunks(W)).concat(TL.registryObstacles(W)), IX = TL.index(SHP);
+  const R = { case: 'back', lim, from: [x, z], contacts: [], clear: { back: null } };
+  const ax = sim.axes()[0]; R.hdgDeg = Math.round(Math.atan2(-ax[2], -ax[0]) * 180 / Math.PI);
+  const clearNow = leg => {
+    let w = null;
+    for (let i = 0; i < sim.n; i++) { const px = sim.p[i * 3], pz = sim.p[i * 3 + 2], q = IX.nearest(px, pz, 25); const d = q ? q.d : 25;
+      if (!w || d < w.d) w = { d: r2(d), node: def.nodes[i].tag, what: q ? TL.fmtWhat(q.s) : 'nothing', at: [r2(px), r2(pz)] }; }
+    if (!R.clear[leg] || w.d < R.clear[leg].d) R.clear[leg] = Object.assign({ t: r2(sim.t) }, w);
+  };
+  const contact = leg => { if (sim.out && sim.out.obst > 0 && R.contacts.length < 20) R.contacts.push({ leg, t: r2(sim.t), nodes: sim.out.obst }); };
+  R.taxiBack = taxiBack(H, sim, def, TK, clearNow, contact, TRACK, 0);
+  R.dmg = dmgSummary(sim, def);
+  if (TRACK) fs.writeFileSync(opt('track'), JSON.stringify(TRACK));
+  return R;
+}
+
+const LOG = argv.includes('--log');
 const cases = opt('cases', 'taxi,drop').split(','), lims = opt('lim', 'phys,cert').split(',');
 const hands = opt('hands', Object.keys(HANDS).join(',')).split(','), sinks = opt('sinks', '2.0,3.05,3.85,4.6').split(',').map(Number);
 const all = [];
@@ -220,6 +355,8 @@ for (const lim of lims) {
   if (cases.includes('drop')) for (const a of opt('atts', 'level').split(',')) for (const s of sinks) say(drop(lim, s, +opt('fwd', 34), a));
   if (cases.includes('field')) for (const fl of opt('field', '0.04,3,8').split(';')) { const [A, lam, V] = fl.split(',').map(Number); say(field(lim, A, lam, V, +opt('secs', 20))); }
   if (cases.includes('circuit')) say(circuit(lim));
+  if (cases.includes('home')) say(home(lim));
+  if (cases.includes('back')) say(back(lim));
 }
 if (CERT) console.log('certificate: ' + CERT._s.toFixed(1) + ' s');
 if (opt('json')) fs.writeFileSync(opt('json'), JSON.stringify(all, null, 1));

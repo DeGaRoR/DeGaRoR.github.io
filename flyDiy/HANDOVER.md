@@ -99163,3 +99163,86 @@ The DC-3 stays sandbox-only (G3507's works room); nothing in the career, contrac
      over the coaming. A 'cockpit floor' row of its own (the same machinery, section 0 only), or the pilot seat's height row?
   3. **"The storage below"**: the space under the raised floor is drawn but is not a freight hold (freight's holds are measured cards
      of the validated builds). Make it a second hold (FREIGHT's site tool + a card for the DC-3), or not while the DC-3 is an experiment?
+
+### G3573-G3574 - DC3-2 ROUND 2 (2026-10-25, cloud): THE SEATS' FREEDOM, AND HOME CLEARED FOR THE DC-3'S WHOLE TRIP (branch claude/dc3-2, rebased on L25b 61e93cb1)
+The user (25 Oct, verbatim): "Push back obstacles for real so the dc3 fits everywhere. It will become default scenery, so start from the
+latest. Let's have a very flexible seat height settings. And generally, for such a big place, Let's give bug freedom on the seat
+arrangements and sliders. The storage below the floor, don't do anything with it for now." Then: "Only home taxi should been cleaned,
+sorry. The WW2 strip is the only one where the DC3 can fly for now, but it should be able to complete a circuit including taxi from and
+to the hangar without hitting anything". And, on the plan pictures: "why don't you just take the lane in front, or change the default
+plane orientation? By the way, it does not even line up with the garage, so it is something to be fixed anyways, as it rolls out and
+should keep that rotation. ... did you try modifying the tail wheel for better turning? And using differential braking?"
+- **G3573 THE SEATS** (commit 555897f5):
+  - every seat and control row's range widened - pilot seat height (`seatH`) 0-1.50 m (was 0.06-0.50), passenger squab height
+    (`seat2H`) to 1.50, fore / aft +-1.50 m, rake 0-60, tilt -10-40, the side-by-side gap to 1.20 m; the stick, yoke, throttle, pedals,
+    flap / trim / park / fuel selector ranges doubled. Every new range CONTAINS the old one (a range only clamps the slider): no saved
+    build moves. GATE PANEL's source row for the yoke range moved with it;
+  - an airliner's cabin: `paxAbreast` 4-7 = 2 + 1, 2 + 2, 3 + 2, 3 + 3 with an aisle (0-3 as before, to the bit); new rows
+    `paxRows` (rows in a bay, 1-8), `paxPitch` (0.55-1.50 m), `paxAisle` (0.20-1.20 m), `paxSeatW` (0.38-0.80 m) - NOT in the
+    defaults table (absent = one row, 0.86, 0.45, 0.50: G377's every-row re-save writes them only once set; GATE PARTS: the pax part's
+    'seat layout' group claims them); a row that would stand past the bay's front ring is not drawn; `paxOcc1-4` are now counts
+    (0-48, filled row by row; 0-3 read as before);
+  - the core: `clampSpec` cabin.seats 24 -> 96, seatsX 12 -> 25 m (only a cabin past the old limits moves);
+  - found on the way: the headless editor chain (tools/_scene_headless.js) never ran assets.js's TEX_FLAT, so a build with SEATED
+    PASSENGERS threw in _cage_char.js and every layer after the crew was skipped (the join's seatsX missing); it runs it now;
+  - measured (the page's load chain): the DC-3 at 2 + 2, three rows a bay, 9 + 6 aboard: 38 seats, 15 passengers, seatsX 3.08-12.17 m,
+    10 068 kg, no scene errors. tools/evidence/DC3-2.js `--parts seats` draws it (a still from above, exit 1 under 26 seats).
+- **G3574 HOME, THE DC-3'S WHOLE TRIP** - reproduced first, then fixed in the scenery (no physics change):
+  - **WHY IT HIT (tools/dc3_break.js --cases home --track):** from the works stand the pilot's taxi out ran the DC-3's right wing 3.8 m
+    into the parked C172 af_park2 at 15.8 s, rode up on it and stood there 300 s (never airborne). Two causes:
+    1. **HOME's stand had no heading** (`stand.hdg: null`): `runwaySite` derives it toward taxiOut's first point - the way out for 13 -
+       so every aeroplane rolled out of the hangar along its door (-0.8552) and was SET DOWN 58 deg to the left (-1.8656). The wind's
+       way out (for 31, the east lane) then starts with a 107 deg right turn 13 m from the stand; the 29 m taildragger arcs through it
+       wide (its steered tailwheel: below) and its wing swept the parked row north of the lane;
+    2. the parked row (o3 / af_park1 / af_park2, SCENERY-ED-1's, noses east on z 639-644) stood inside that sweep.
+  - **THE FIXES (scenery; the manifest tools/fixtures/scenery_ship_rev28.json `fieldPatches` + its why, so a re-ship applies them
+    again; GATE SCENERYED 15 holds the fixture to the save + the patches):**
+    - **HOME's stand heading = the hangar's** (-0.8552; the stand already stood on the door's axis, 30.4 m out): the aeroplane rolls
+      out and keeps its rotation (the user's own line). The way out for 31 now starts 49 deg right, for 13 70 deg left;
+    - **the three parked aeroplanes** to the pad's west pocket beyond r_taxi_ne, by the fire bay: af_park1 (-166, 593), af_park2
+      (-170, 607), o3 (-170, 621), noses east at the user's own -1.637, keys kept, all on t_pad's flatten (GATE PARKED 7). NOT on the
+      painted apron af_y_park south of the lane: its stands are the player's fleet spots (GATE TAXICLEAR 10 went red when I tried).
+      The heading fix ALONE would not do: the flown line from the aligned stand passes af_park1's old spot with 1.2 m at the wingtip
+      (under TAXICLEAR's 3 m), af_park2's with 4.6;
+    - re-cooked: `premises_cook.js --island jolene` (one place cell p_m1_2 + the two terrain-type files), `fleet_spots.js --cook`
+      (GATE TAXICLEAR 10: HOME's spots re-planned round the moved aeroplanes).
+  - **THE PROOF - the whole trip, damage on, the game's host (dc3_break home; the works stand; the day's wind -> the 31 way out):**
+    | | before (L25b's scenery) | after (G3574) |
+    |---|---|---|
+    | taxi out | the wing into af_park2 at 15.8 s, stuck 300 s | 0 contacts, least clearance 13.6 m (the club's long hangar beside the stand) |
+    | the circuit | never airborne | lift-off 300 s, two go-arounds (master's T-P1 bounce rule: 1.0 / 1.2 m hops off 2.3-2.5 m/s touches at 34 m/s), the third committed: STOPPED 1 129 s |
+    | the taxi back (the hand, `taxiBack`) | - | a teardrop on the runway, the backtrack, out[0] reversed: parked 2.5 m off the stand at 203 s, 0 contacts, least clearance 6.2 m (the club's C172 o2) |
+    | damage | - | 0 yields, 0 breaks (gPeak 4.0 on the committed landing's 4.35 m/s second touch; the worst member 0.89, the inboard wing) |
+    Physics limits and certificate stamped: identical. Plans: reports/evidence/DC3-2/plan_home_before.png / plan_home_after.png
+    (the flown line dashed, the swept wings + 3 m pink); the runs' records home_trip_phys.json / home_trip_cert.json.
+  - **The user's questions, answered from the runs:** differential braking - tried for the turn on the runway (the toe brakes fully
+    split, `brakeD` the hand's own key, plus the outside engine full and the inside idling): 3 deg in 10 s. The tailwheel - NOT
+    modified: every taildragger's tailwheel is steered by the rudder to +-28.6 deg (62_gen_aero twSteer 0.5) and never casters, so a
+    pivot cannot swing the tail round; a real DC-3's swivels free (with a lock). That is a new ground law: QUESTION 4.
+  - tools/dc3_break.js: the `home` case (the whole trip, 1 300 s cap, the go-arounds' reasons, `--track`), `back` (the taxi back
+    alone from the landing's stop: `--from x,z`), `taxiBack` (the nearest way out from its nearest point; a teardrop when that way lies
+    behind - `--tdOff`, `--tdR`; a corner met at a walk; a point behind the aeroplane skipped, not circled).
+- **The identity proof (after all of it):** tools/dc3_identity.js on this tree against an origin/master L25b worktree - Cub, Jodel,
+  metal Cessna, Cessna floats, twin floatplane, Rufus: def, ledger, sheet, mass, the 20 s flight **ALL IDENTICAL**.
+- **Gates (this round, `--only=... --no-build`):** PASS - GEN (4 shards), BUILD, PARTS, SAVE, STARTER, EDBUGS, DESIGN, FRAMES, PANEL,
+  DASH, CABIN, JOIN, UISMOKE, SIMWORKER (seats); on the final scenery (the stand's heading included): TAXICLEAR (4 shards), LINEUP,
+  PARKED, ROLLANIM, TAKEOFF, PREMCOOK, CONTACT, STORESPOT, PILOT (3 shards), ACCEPT, UISMOKE, HANGAR, GAMEPREM; PREMISES and MEDIA on the
+  moved aeroplanes. RED, master's own on this box: `GATE PILOTS: FAIL` "kit is not where the aeroplane is: refused
+  (Kit is at Ridgeback Strip ...)" - the same line on the L25b worktree; `GATE SCENERYED: FAIL (1)` only 20b, a timing row (Metlakatla
+  put back under 2 500 ms: 2 915 ms here, 3 612 ms on the L25b worktree) - its row 15 (the shipped record = the save + the patches)
+  passes. (ROLLANIM's G1039 red of the first round was the dc3-build base's: L25b passes it, so does this tree.)
+- **Answered by the user this round:** QUESTION 1 (HOME's stand among the fleet): clear HOME's scenery for the trip - done above.
+  QUESTION 3 (the storage below): "don't do anything with it for now" - nothing done. QUESTION 2 (the cockpit floor): the pilot seat's
+  height row now reaches 1.50 m - the user's "very flexible seat height"; a cockpit floor of its own is still open if wanted.
+- **Questions for the user (new):**
+  4. **A swivelling tailwheel for the big taildraggers?** The DC-3 turns on a ~25 m radius at a walk (its tailwheel steered +-28.6 deg,
+     no castor), so it cannot pivot on a braked wheel as a real DC-3 does. A castoring tailwheel (free past the steering's range, or
+     unlocked by a cockpit lock) is a new ground law; it can be held to builds above G3505's knee so the validated ones stay
+     bit-identical. Wanted?
+  5. **The fleet's spots at HOME** (FLYDIY_FLEET, off by default): the planner keeps a light aeroplane's taxi half (5.5 m) off the
+     routes; three of HOME's re-planned spots (apron:34:255, 46:240, 46:270, z 632-647) lie inside the DC-3's swept wings from the
+     works stand. With the fleet on, the DC-3 would meet a parked fleet aeroplane there. Plan the spots for the widest build in the
+     garage, or leave it while the DC-3 is sandbox-only?
+  6. **The DC-3's landing** (master's autopilot, T-P1): it bounces 1.0-1.2 m off a 2.3-2.5 m/s touch at 34 m/s and goes round twice
+     before the committed third landing (4.35 m/s on its second touch, held). The trip completes; the pilot's flare for a heavy
+     taildragger is the pilot's lot (P1), not this branch's.
