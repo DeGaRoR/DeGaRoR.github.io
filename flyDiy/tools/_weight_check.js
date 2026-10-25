@@ -64,7 +64,11 @@ const TABLE = {
   // row for. Measured -45 % (from -74 before the gauge); Raymer's own
   // fuselage equation under-predicts this type by a third. Ratchet as the
   // rows land.
-  caravan:   { real: 2145, band: 0.50, src: '208 (PT6A-114A): 2145 typical equipped' },
+  // G2809 (the user, 25 Oct: "Wysiwyg, and as billed for all"): on a drawn cabin the lining is billed off the drawn
+  // surfaces, and the Raymer lump that stood in for the undrawn headliner, soundproofing and ten-seat interior
+  // (~180 kg on this gross) stepped aside: -47 -> -53 %. The band opens to 55 % for that, and closes again as the
+  // headliner and the soundproofing are drawn (and so billed).
+  caravan:   { real: 2145, band: 0.55, src: '208 (PT6A-114A): 2145 typical equipped' },
   // the MW5-alike: a 160 kg microlight built to the same ultralight
   // standard as the Savannah (the BUILD STANDARD row above is its lever
   // too); measured +33 % with the certified rows at their gauge
