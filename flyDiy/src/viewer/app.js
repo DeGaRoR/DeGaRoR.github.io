@@ -8939,8 +8939,15 @@
     if (stCardEl.dataset.html !== html) { stCardEl.innerHTML = html; stCardEl.dataset.html = html; }
     if (stCardEl.dataset.beat !== K.beat) { stCardEl.dataset.beat = K.beat; if (stCardEl.classList.contains('min') !== (prefGet('flydiy.story.fold', '') === K.beat)) stCardEl.classList.toggle('min'); }
   }
-  // the tech mask's tutorial mode (TECH-MASK G3230 reads it here, or listens for the event, once it lands)
+  // G3230 (TECH-MASK): the career's machine shop into the editor (79b_tech.js careerTechOf: null for a career without one,
+  // so the dev career greys nothing); the sandbox never calls it. On the editor's open and at every story card.
+  function techMaskSync() {
+    if (!CAREER_DEV || !window.TECH_MASK) return;
+    try { window.TECH_MASK.set(careerTechOf(playerLoad())); } catch (e) {}
+  }
+  // the tech mask's tutorial mode (TECH-MASK G3230: editor.js window.TECH_MASK.tutorial; also the event)
   function storyMaskNote() {
+    techMaskSync();
     const m = storyMask(playerLoad());
     if (m === stMaskWas) return;
     stMaskWas = m;
@@ -13279,6 +13286,7 @@
       }
     } catch (err) { console.error('cage editor boot:', err); }
     showCage = true;
+    if (CAREER_DEV) techMaskSync();         // G3230: the machine shop's greys (a career's only)
     applyStand();
     applyEnv();                             // parents the mount into the room
     placeEditor();

@@ -97,6 +97,7 @@ module.exports = function mapSmoke(html, phone) {
 
   // ---- the core over the fixture and the projection -------------------------------------------------------------------
   const C = require('./flight_core.js');
+  const NN = C.GAME_NAMES, NF = NN.fields;   // (G3240 NAMES) the names the map shows are the table's
   const MM = require(path.join(ROOT, 'src', 'viewer', 'map_menu.js'));
   const pack = JSON.parse(/window\.MAP_PACK = (\{[\s\S]*\});\s*$/.exec(packSrc)[1]);
   const fmt = n => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
@@ -147,7 +148,7 @@ module.exports = function mapSmoke(html, phone) {
   };
   for (const c of M.contracts) checkPara(M, c, '');
   const ph = para(M, M.contracts.find(c => c.id === 'minedock.j.parts'));
-  need(ph.includes('Jumbo Mine Street 250 × 18 m gravel, 347 m up → Annette Dock 1 500 m water lane · 14 km'), 'the runways condensed: ' + (/class="mmRw">([^<]*)/.exec(ph) || [])[1]);
+  need(ph.includes(NF.mn_strip + ' 250 × 18 m gravel, 347 m up → ' + NF.SEA + ' 1 500 m water lane · 14 km'), 'the runways condensed: ' + (/class="mmRw">([^<]*)/.exec(ph) || [])[1]);
   say('every paragraph (' + M.contracts.length + '): who + what + the pay, the runways condensed ("' + (/class="mmRw">([^<]*)/.exec(ph) || [])[1] + '"), the ✗\'s reason, ONE button (Track); no per-plane table');
   // ✓ / ✗ ONLY on the surface-vs-gear no-no's, against the fleet (wheels: Cub, Jodel, Voyager; floats: the C172)
   const mk = (MX, id) => MM.markOf(MX, MX.contracts.find(c => c.id === id));
@@ -170,7 +171,7 @@ module.exports = function mapSmoke(html, phone) {
     need(A.includes('At ' + escH(p.name)) && /data-act="atx"/.test(A), 'the "At ' + p.name + ' ✕" row');
   }
   need(!MM.atHTML(M, st) && /No contract involves/.test(MM.listHTML({ ...M, contracts: [] }, { at: 'nv_strip' })), 'the filter row without a place, or the empty place');
-  need(M.places.map(p => p.name).join() === 'Jolene AFB,Tamgas Hill Strip,Annette Dock,Metlakatla Seaplane Base,Jumbo Mine Street,East Point Clearing,Skyline Altiport,strip 10,strip 11,strip 12,strip 9,strip 13,Cabin Strip' &&
+  need(M.places.map(p => p.name).join() === ['Jolene AFB', NF.w3, NF.SEA, NF.mk_sea, NF.mn_strip, NF.nv_strip, NF.tw_ski, 'strip 10,strip 11,strip 12,strip 9,strip 13,Cabin Strip'].join() &&
        M.places.map(p => p.kind).join() === 'airfield,strip,seaplane,seaplane,mine,clearing,altiport,strip,strip,strip,altiport,strip,strip',   // + the user's strips 10-12 (w5-w7, SCENERY-SHIP rev27); strip 9 (w4, an altiport) + strip 13 (w8) appended (G3020 rev28); the Cabin Strip (w1, G3097)
        'the places and their kinds: ' + M.places.map(p => p.name + ' (' + p.kind + ')').join(', '));
   say('the place filter: ' + M.places.length + ' places (' + M.places.map(p => p.name + ' ' + MM.rowsOf(M, { at: p.id }).length).join(', ') + '), each listing exactly the contracts involving it, under "At <place> ✕"');
@@ -225,7 +226,7 @@ module.exports = function mapSmoke(html, phone) {
   const lo = k => ov(k, st, { x: -2500, z: -8300 });
   const l15 = lo(1.5), l2 = lo(2), l3 = lo(3);
   need(l15.n.labels === 0 && l2.n.labels + l2.n.held === IF.labels.length && l2.n.labels > 0 && l3.n.labels >= 3, 'the labels from the middle zoom (1.5x ' + l15.n.labels + ', 2x ' + l2.n.labels + ' + ' + l2.n.held + ' held, 3x ' + l3.n.labels + ')');
-  need(/class="mmLbl town"[^>]*>Metlakatla</.test(l3.html) && !/class="mmPoi"[^>]*>(Metlakatla|the cannery)</.test(l3.html), 'the town and the cannery are not named once, by their labels');
+  need(new RegExp('class="mmLbl town"[^>]*>' + NN.town + '<').test(l3.html) && !new RegExp('class="mmPoi"[^>]*>(' + NN.town + '|the cannery)<').test(l3.html), 'the town and the cannery are not named once, by their labels');
   const boxOf = (h, cls, w, hh) => [...h.matchAll(new RegExp('class="' + cls + (/"$/.test(cls) ? '' : '[^"]*"') + '[^>]*style="left:([-\\d.]+)px;top:([-\\d.]+)px[^"]*"[^>]*>([^<]*)<', 'g'))].map(m => ({ x: +m[1], y: +m[2], t: m[3], w: w(m[3]), h: hh }));
   for (const L of [l2, l3]) {
     const lb = boxOf(L.html, 'mmLbl', t => t.length * 7, 14), bd = boxOf(L.html, 'mmPl(?: water)?"', () => L.bs, L.bs).concat(boxOf(L.html, 'mmPlane', () => 24, 20));

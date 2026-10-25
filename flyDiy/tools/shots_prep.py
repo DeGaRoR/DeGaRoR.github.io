@@ -83,7 +83,7 @@ SHOTS = [
      'txt': 'A garage build out on the concrete. The time of day, the clouds and the wind are yours to set.'}),
     ('../bugReports/Screenshot 2026-09-26 144049.png', 'world', (1070, 128, 2204, 766),
      'every field on the map', {'w': 1600, 'q': 80,
-     'txt': 'The island is Annette Island, Alaska, from its real elevation data. The map names every field you can land on.'}),
+     'txt': 'The island is built from real elevation data; its names are the game\'s own. The map names every field you can land on.'}),
     ('../bugReports/Screenshot 2026-09-26 145815.png', 'world', (100, 0, 1908, 1017),
      'climbing out over the muskeg', {'w': 1600, 'q': 80,
      'txt': 'Forest, muskeg, heath and rock: the ground is read from the island\'s own land-cover maps.'}),

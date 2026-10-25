@@ -24,6 +24,8 @@
 // that breaks, a stall horn. A feature that changes changes its card.
 (function () {
   'use strict';
+  // (G3240 NAMES) every place a card names is the names table's (src/core/01_names.js, in this same block, ahead)
+  const N = GAME_NAMES, F = N.fields;
   const C = [
     // ---- right now: why this screen, and why the first time is longer ----
     { k: 'now', set: 'garage', t: 'The shed opens when it is finished',
@@ -40,22 +42,22 @@
       x: 'Shadows, water, clouds and the tone curve change what the graphics card draws, so those surfaces are recompiled first - here, not in the middle of your flight.' },
 
     // ---- the island --------------------------------------------------------
-    { k: 'island', set: 'rollout', t: 'Jolene is a real island',
-      x: 'Jolene is Annette Island, in south-east Alaska, built from its real elevation data. Its highest point is Tamgas Mountain, 1 096 m.' },
-    { k: 'island', set: 'rollout', t: 'Jolene AFB',
+    { k: 'island', set: 'rollout', t: N.island + ' is built from real ground',
+      x: N.island + "'s hills, shores and forests come from real elevation and land-cover data; its names are the game's own. Its highest point is " + N.mountain + ', 1 096 m.' },
+    { k: 'island', set: 'rollout', t: N.island + ' AFB',
       x: 'The home field is a Second World War cross of old concrete: 13/31 is 2 325 m long, 02/20 is 1 835 m. Room for anything you can build.' },
-    { k: 'island', set: 'rollout', t: 'Skyline Altiport',
+    { k: 'island', set: 'rollout', t: F.tw_ski,
       x: '380 m of grass on a slope that rises about 29 m. You land uphill and you leave downhill, whatever the wind says.' },
-    { k: 'island', set: 'rollout', t: 'Tamgas Hill Strip',
+    { k: 'island', set: 'rollout', t: F.w3,
       x: '520 m of gravel, one way only, with about 14.5 m of rise along it. Decide on the go-around before you are committed.' },
-    { k: 'island', set: 'rollout', t: 'Jumbo Mine Street',
+    { k: 'island', set: 'rollout', t: F.mn_strip,
       x: "The mining village's main street is the runway: 250 m of gravel, 676 m up the mountain, one way. You land north-north-east, over the south end." },
-    { k: 'island', set: 'rollout', t: 'East Point Clearing',
+    { k: 'island', set: 'rollout', t: F.nv_strip,
       x: 'The shortest strip on the island: 150 m of gravel cut in the trees, one way. The right speed on final, or a go-around.' },
     { k: 'island', set: 'rollout', t: 'Two lanes on the water',
-      x: 'Annette Dock and the Metlakatla Seaplane Base each have 1 500 m of water. Build floats, and the sea is a runway.' },
-    { k: 'island', set: 'rollout', t: 'Metlakatla',
-      x: "The island's one real town, rebuilt with its Town Hall, the Duncan Cottage Museum, the Long House and the boat harbour." },
+      x: F.SEA + ' and the ' + F.mk_sea + ' each have 1 500 m of water. Build floats, and the sea is a runway.' },
+    { k: 'island', set: 'rollout', t: N.town,
+      x: "The island's one town, with its Town Hall, the cottage museum, the Long House and the boat harbour." },
     { k: 'island', set: 'rollout', t: 'The Skyline tramway',
       x: 'Two cabins run the line in opposite directions, between the valley station and the ski lodge at the summit.' },
     { k: 'island', set: 'rollout', t: 'Look down',

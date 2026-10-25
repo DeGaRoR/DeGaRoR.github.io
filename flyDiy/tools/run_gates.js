@@ -901,11 +901,23 @@ const GATES = [
   // G2741 STORY-CORE: the tutorial's beats, pure; G2742 STORY-PAGE: + the page half (app.js's story half run headless over
   // the core: a New career at the cabin, the card, an ack, a stop at HOME -> the client's Cub in the hangar; Q1; the occasions)
   { id: 'STORY', file: '_story_check.js', tier: 'core', wall: 20 },
+  // G3240-G3249 NAMES (GAME-PLAN §13, the user 15 Oct: "Everything should have a fictional name"): no real person,
+  // organisation or place it lists is shown - the source's string literals (comments skipped), the island record, the
+  // built page (index.html + its chunks), the evaluated text tables (GAME_NAMES, the contracts, the plots, the story,
+  // the boot cards, MAP_PACK) and a saved record still carrying an old name (it shows the table's); the HOLDS (a painted
+  // sign, a recorded voice line) printed, a stale one red. ~2 s; `--selftest`: eight breaks red, a comment kept green (~10 s)
+  { id: 'NAMES', file: '_names_check.js', argv: ['--selftest'], tier: 'core', wall: 12 },
   // G3260-G3269 ROUTES: a plane + a hired pilot + an A <-> B schedule (78b_routes.js, pure): sign / settle / end on clones,
   // the terms against a hand-computed case, no pay without sim time, the lock (playerMove / playerSendTo refuse it), the
   // save, the sandbox untouched, STORY's T6 signing a real route (app.js's story half headless: the arrival card's line);
   // ~2 s. `--selftest`: four breaks, each red
   { id: 'ROUTES', file: '_routes_check.js', tier: 'core', wall: 5 },
+  // G3230-G3239 TECH-MASK: the machine shop's three segments (79b_tech.js, pure): every GEN option has a segment, the
+  // validated builds' stages (TECH_DESIGNS re-derived from the files), the career's segment, the sandbox unchanged, the
+  // editor's own TECH-MASK block headless over the real cage rows and design table (exactly the above-segment options
+  // greyed, the story's lock first), the makers' and the used market's filter, the story's occasions at T7; ~2 s.
+  // `--selftest`: six breaks, each red
+  { id: 'TECH', file: '_tech_check.js', tier: 'core', wall: 5 },
   // G2260 (ECONOMY): one price book, the career wallet's rules, the calibration bands, az through physical gates (~26 s)
   { id: 'ECON', file: '_econ_check.js', tier: 'core' },
   // PROCUREMENT (G2280 PROCURE, GAME-2026-10-06.md §5, §R GQ2): the makers' catalogues over the validated builds only,
