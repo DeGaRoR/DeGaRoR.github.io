@@ -7871,7 +7871,7 @@
   // build cannot offer (flEyeWhy says why, exactly as the pill does)
   function flCamNext() {
     if (inGarage || !FL.ready) return;
-    const ks = FL_CAM.map(c => c.k).filter(k => k !== 'cockpit' || !flEyeWhy());
+    const ks = FL_CAM.map(c => c.k).filter(k => (k !== 'cockpit' || !flEyeWhy()) && (!FL2 || k === 'chase' || k === 'cockpit'));
     flCamMode(ks[(ks.indexOf(cam.mode) + 1) % ks.length]);
     if (flShown.has('camera')) flyOpenSet(flyOpen);
   }
@@ -14274,6 +14274,9 @@
 
   let flyOpen = null;
   let flSetupHost = null, flSetupOn = false, setupTouched = false;   // B8: the setup screen's view of this rail (below)
+  // G3710: THE FLIGHT LAYOUT of the 25 Oct mockup (below, after the menu) - on unless ?flui=old (the layout before it)
+  const FL2 = !(typeof location !== 'undefined' && /[?&]flui=old(&|$)/.test(location.search || ''));
+  let flAnchorEl = null;   // G3711: the button a flyout was opened from (the top row, the readouts): it opens under it
   let flPageHook = null;   // G3700: the menu's open page (gmPageRefresh) - a third view of these builders, rebuilt with the other two
   const flFps = { t0: 0, n: 0 };   // G441: the frame-rate row's window
   // G620: the rendered frames' rate: the recorder's 2 s (freezes in), else PACE's last 120 intervals
@@ -14501,7 +14504,7 @@
       b.classList.toggle('on', b.dataset.f === k);
     for (const b of document.querySelectorAll('#flSlots .flSlot'))
       b.classList.toggle('on', b.dataset.s === k);
-    if (!k) { fly.hidden = true; return; }
+    if (!k) { fly.hidden = true; flAnchorEl = null; return; }
     fly.hidden = false;
     const rail = FL_RAIL_BY[k];
     head.textContent = rail ? (rail.head || rail.title) : (FL_SLOTS[k] || {}).title || k;
@@ -14624,6 +14627,7 @@
       : ready ? 'Ready. Your changes are in.' : 'Held for you: Fly lights up when the loading is done.';
   }
   function setupOpen() {
+    if (FL2) return;   // G3719
     const box = $('bootSetup'), host = $('bootSetupBody');
     if (!box || !host || !BOOT.hasUI || BOOT.state === 'gone' || BOOT.set !== 'garage') return;
     flSetupHost = host; setupTouched = false;
@@ -14694,10 +14698,11 @@
   function flPlaceFly(k) {
     const fly = $('flFly');
     if (!fly || fly.hidden || !k) return;
-    const rail = FL_RAIL.filter(x => x.k === k)[0];
-    const btn = rail
+    const anch = flAnchorEl && flAnchorEl.isConnected && flAnchorEl.getClientRects().length ? flAnchorEl : null;
+    const rail = anch ? null : FL_RAIL.filter(x => x.k === k)[0];
+    const btn = anch || (rail
       ? [...$('flRail').children].filter(b => b.dataset.f === k)[0]
-      : document.querySelector('#flSlots .flSlot[data-s="' + k + '"]');
+      : document.querySelector('#flSlots .flSlot[data-s="' + k + '"]'));
     const W = window.innerWidth, H = window.innerHeight;
     const w = fly.offsetWidth || 296;
     const bb = btn ? btn.getBoundingClientRect() : { left: 22, bottom: 90, top: 90 };
@@ -15325,7 +15330,7 @@
         const b = kid.getBoundingClientRect();
         if (b.width && b.right > x0 && b.left < x1) low = Math.max(low, b.bottom);
       }
-      const v = Math.round(Math.max(W > 760 ? 92 : 84, low ? low + 12 : 0)) + 'px';
+      const v = Math.round(Math.max(W > 760 ? (FL2 ? 18 : 92) : (FL2 ? 64 : 84), low ? low + 12 : 0)) + 'px';
       if (m.style.top !== v) m.style.top = v;
     }
     // THE RIBBON AND THE TRACE SHARE THE LEFT EDGE, and on a tall narrow
@@ -16441,7 +16446,7 @@
     if (window.FLYDIY_DRAG && window.FLYDIY_DRAG.placed('menu')) return;   // G3527: dragged - card_drag.js keeps it there
     const r = gmBtn.getBoundingClientRect(), W0 = window.innerWidth || 1280;
     gmPanel.style.top = Math.round(r.bottom + 8) + 'px';
-    if (inGarage) { gmPanel.style.left = Math.round(Math.max(12, Math.min(r.left, W0 - (gmPanel.offsetWidth || 260) - 12))) + 'px'; gmPanel.style.right = 'auto'; }
+    if (inGarage || (FL2 && document.body.classList.contains('fl2'))) { gmPanel.style.left = Math.round(Math.max(12, Math.min(r.left, W0 - (gmPanel.offsetWidth || 260) - 12))) + 'px'; gmPanel.style.right = 'auto'; }
     else { gmPanel.style.right = Math.round(Math.max(12, W0 - r.right)) + 'px'; gmPanel.style.left = 'auto'; }
   }
   function gmOpen(on) {
@@ -16495,16 +16500,18 @@
     const off = B.contains('shot') || B.contains('rollShot') || B.contains('premOpen') || !!$('welcome') || gmVis($('stIntro'));   // (the opening has its own Skip)
     gmBtn.hidden = off;
     if (off) { gmOpen(false); return; }
-    const fr = $('frEntry'), row = [gmBtn, $('mapEntry'), inGarage && fr && !fr.hidden ? fr : null].filter(Boolean), gap = 8;
+    const fl2 = FL2 && document.body.classList.contains('fl2') && !inGarage;   // G3712: the flight's corner
+    const fr = $('frEntry'), row = (fl2 ? [gmBtn, $('flMapB'), $('flEyeB')] : [gmBtn, $('mapEntry'), inGarage && fr && !fr.hidden ? fr : null]).filter(Boolean), gap = 8;
+    const word = fl2 ? 'II' : 'MENU'; if (gmBtn.textContent !== word) gmBtn.textContent = word;
     const w = row.map(e => e.offsetWidth || 0), tot = w.reduce((a, b) => a + b, 0) + gap * (row.length - 1);
     // the shed: one row under the shed's top bar, from its left edge (the 25 Oct stills: centred at the top it covered
     // the quick actions); flight: ending at the top bar's right inset (CONTRACTS, then MENU at the corner) - on a phone
     // under the top bar's plate, which fills the width there
-    const order = inGarage ? row : row.slice(1).concat([gmBtn]), ow = order.map(e => e.offsetWidth || 0);
+    const order = inGarage || fl2 ? row : row.slice(1).concat([gmBtn]), ow = order.map(e => e.offsetWidth || 0);
     const phone = W0 <= 760, under = el => el && el.getClientRects().length ? el.getBoundingClientRect() : null;
-    const bar = inGarage ? under($('edTopBar')) : (phone ? under($('pfd')) : null);
+    const bar = inGarage ? under($('edTopBar')) : (phone && !fl2 ? under($('pfd')) : null);
     let top = bar ? Math.round(bar.bottom + 8) : (inGarage ? 10 : (phone ? 12 : 18));
-    let x = inGarage ? (bar ? Math.round(Math.max(12, Math.min(bar.left, W0 - tot - 12))) : Math.round((W0 - tot) / 2)) : W0 - (phone ? 12 : 22) - tot;
+    let x = inGarage ? (bar ? Math.round(Math.max(12, Math.min(bar.left, W0 - tot - 12))) : Math.round((W0 - tot) / 2)) : fl2 ? (phone ? 12 : 22) : W0 - (phone ? 12 : 22) - tot;
     let an = null; try { an = gmAnchor ? gmAnchor() : null; } catch (e) {}   // G3700: another layout's place for the row (the phone garage)
     if (an && isFinite(an.top) && isFinite(an.left)) { top = Math.round(an.top); x = Math.round(an.left); }
     order.forEach((e, i) => { e.style.top = top + 'px'; e.style.left = Math.round(x) + 'px'; e.style.right = 'auto'; e.style.transform = 'none'; x += ow[i] + gap; });
@@ -16555,6 +16562,101 @@
     page: k => gmPageSet(k), current: () => gmPageK,
     anchor(fn) { gmAnchor = typeof fn === 'function' ? fn : null; gmLayout(); },
   };
+
+  // ---- G3710-G3719 THE FLIGHT LAYOUT (the user's 25 Oct mockup and answers) ---------------------------------------------
+  // "a simplified interface ... all the current options, but in a clearer, and more mobile friendly interface". The same
+  // elements, placed again (body.fl2, flight.css), nothing copied:
+  // - THE TOP ROW (#flBar): The shed (#bHangar2), Route, Conditions, Autopilot (#bAP) - Route and Conditions are flyouts
+  //   of the rail's own builders opening under their button (flAnchorEl): the trip (route, the drawn route, the start)
+  //   and SKY & WORLD (the day, the weather, the clouds); their labels say today's.
+  // - THE READOUTS under it (#pfd): a tap opens what they show (the instruments, the trace, the map); on a phone ONE
+  //   line - a cell that does not fit is left out (fl2Fit), the wind first, never a wrap.
+  // - THE AUTOPILOT'S WORDS (#rail + #phWhy) folded to the phase's one line by default; a tap unfolds them.
+  // - THE CORNER, top left: pause (the menu pill, "II" in flight), $ (the map and the contracts), the eye (chase <->
+  //   inside). THE MINIMAP top right: a button when it is put away, its own x to put it away, a tap = mid / max.
+  // - BOTTOM RIGHT only Skip to line-up, when it applies. No Fly: the shed's Roll out starts the flight, a new Route flies
+  //   on from where it stands, Restart is in the pause menu. The look rail is off the screen: its items are the pause
+  //   menu's pages (Camera, Display, Dev), Graphics and Sound already were.
+  if (FL2 && gmBtn && document.body) try {
+    document.body.classList.add('fl2');
+    const mk = (tag, id, cls, text, label) => { const e = document.createElement(tag); if (id) e.id = id; if (cls) e.className = cls; if (text) e.textContent = text;
+      if (label) { e.setAttribute('aria-label', label); e.title = label; } if (tag === 'button') e.type = 'button'; return e; };
+    // the top row
+    const bar = mk('div', 'flBar', 'flPlate');
+    const bRoute = mk('button', 'flRouteB', 'flTopB', '', 'Route: where it goes');
+    const bCond = mk('button', 'flCondB', 'flTopB', '', 'Conditions: the day, the weather');
+    bRoute.innerHTML = '<i>route</i><b></b>'; bCond.innerHTML = '<i>conditions</i><b></b>';
+    const shed = $('bHangar2'), apB = $('bAP');
+    bar.appendChild(shed); bar.appendChild(bRoute); bar.appendChild(bCond); bar.appendChild(apB);
+    $('flTop').insertBefore(bar, $('flTop').firstChild);
+    // a flyout of this row, under its button; the same button closes it
+    const flyFrom = (btn, k) => { if (flyOpen === k) { flyOpenSet(null); return; } flAnchorEl = btn; flyOpenSet(k); };
+    FL_SLOTS.trip = { title: 'Where it goes' };
+    FL_SLOTS.readouts = { title: 'What the readouts show' };
+    FL_BUILD.slot_trip = body => {
+      FL_BUILD.slot_route(body);
+      for (const k of ['drawn', 'start']) { const d = FL_SEC_BY[k], b = flSection(body, k, d.head || d.label, d.sub); if (b) FL_BUILD[k](b); }
+    };
+    FL_BUILD.slot_readouts = body => {
+      for (const k of ['instruments', 'trace', 'map']) { const d = FL_SEC_BY[k], b = flSection(body, k, d.head || d.label, d.sub); if (b) FL_BUILD[k](b); }
+    };
+    bRoute.onclick = () => flyFrom(bRoute, 'trip');
+    bCond.onclick = () => flyFrom(bCond, 'sky');
+    $('pfdRow').addEventListener('click', () => flyFrom($('pfd'), 'readouts'));
+    // the autopilot's words: folded by default, the phase line unfolds them
+    let apOpen = prefGet('flydiy.fl2Ap', '') === '1';
+    const apSet = on => { apOpen = !!on; prefSet('flydiy.fl2Ap', apOpen ? '1' : ''); document.body.classList.toggle('fl2Ap', apOpen); $('rail').setAttribute('aria-expanded', String(apOpen)); };
+    $('rail').title = 'What the pilot is doing: show / hide';
+    $('rail').addEventListener('click', e => { if (e.target && e.target.closest && e.target.closest('button')) return; apSet(!apOpen); });
+    apSet(apOpen);
+    // the corner: $ and the eye beside the pause pill (gmLayout places the three)
+    const bMap = mk('button', 'flMapB', 'flCornB', '$', 'The map and the contracts (Tab)');
+    const bEye = mk('button', 'flEyeB', 'flCornB', '', 'The view: behind / inside (V)');
+    bEye.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.4 10-6.4S22 12 22 12s-3.6 6.4-10 6.4S2 12 2 12Z"/><circle cx="12" cy="12" r="2.8"/></svg>';
+    bMap.onclick = () => { gmOpen(false); if (!gmMap($('mapEntry') ? 'contracts' : null)) gmTab(); };
+    bEye.onclick = () => flCamNext();
+    document.body.appendChild(bMap); document.body.appendChild(bEye);
+    // the minimap: a button while it is put away, an x on it to put it away
+    const bMm = mk('button', 'flMmB', 'flCornB', '', 'The minimap: show');
+    bMm.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20Z"/><path d="M9 4v13.5M15 6.5V20"/></svg>';
+    bMm.onclick = () => flPanel('map', true);
+    document.body.appendChild(bMm);
+    const mmX = mk('button', 'mmX', '', '\u00d7', 'The minimap: put away');
+    mmX.onclick = e => { e.stopPropagation(); if (mapBig) flMapBig(false); flPanel('map', false); };
+    $('mmp').appendChild(mmX);
+    // the pause menu takes the rail's items (G3700 pages) and the bottom row's Restart; the log in one press
+    const pg = (keys) => body => { for (const k of keys) { const d = FL_SEC_BY[k], b = flSection(body, k, d.head || d.label, d.sub); if (!b) continue;
+      try { (FL_SEC_BUILD[k] || FL_BUILD[k])(b); } catch (e) { flNote(b, 'This section failed to build: ' + (e && e.message)); } } };
+    window.FLYDIY_MENU.add({ k: 'restart', label: 'Restart the flight', when: () => gmFlying(), act: () => { gmOpen(false); fullReset(); }, before: 'contracts' });
+    window.FLYDIY_MENU.add({ k: 'camera', label: 'Camera', when: () => !inGarage, page: pg(['camera']), before: 'graphics' });
+    window.FLYDIY_MENU.add({ k: 'display', label: 'Display', when: () => !inGarage, page: pg(['instruments', 'map', 'trace', 'screen']), before: 'graphics' });
+    window.FLYDIY_MENU.add({ k: 'log', label: 'Export my log', sec: '', when: () => !!(window.FLIGHT_REC && window.FLIGHT_REC.save),
+      act: () => { try { window.FLIGHT_REC.save(); } catch (e) { console.warn('flyDiy: the log -', e && e.message); } }, before: 'main' });
+    window.FLYDIY_MENU.add({ k: 'dev', label: 'Dev', when: () => !inGarage,
+      page: body => { if (!flDevOn) flDevSet(true); pg(['patterns', 'engines', 'controls', 'ground', 'scenery', 'world', 'log', 'overlays'])(body);
+        const b = flSection(body, 'pilotS', 'pilot', 'the style and the personality'); if (b) FL_BUILD.slot_pilot(b); }, before: 'main' });
+    // what the row says: today's trip and day (their writers are the plate's - flRender), and the wind on a phone
+    const txt = id => (($(id) || {}).textContent || '').trim();
+    const fit = () => {   // a phone's readouts: one line - the cells that do not fit are left out, last first
+      const row = $('pfdRow'); if (!row) return;
+      const cells = [...row.children].filter(c => !c.hidden);
+      for (const c of cells) c.classList.remove('fl2Clip');
+      if ((window.innerWidth || 1280) > 760) return;
+      for (let i = cells.length - 1; i > 2 && row.scrollWidth > row.clientWidth + 1; i--) cells[i].classList.add('fl2Clip');
+    };
+    const tick = () => {
+      const r = txt('flRouteV'), d = txt('flDayV');
+      if (bRoute.lastChild.textContent !== r) bRoute.lastChild.textContent = r;
+      const wc = document.querySelector('#pfdRow .rd[data-i="wind"]'), wOut = !!(wc && wc.classList.contains('fl2Clip'));
+      const dw = d + (wOut ? ' \u00b7 ' + txt('r-wind') + ' km/h' : '');
+      if (bCond.lastChild.textContent !== dw) bCond.lastChild.textContent = dw;
+      fit();
+      const mmOff = !!($('mmp') || {}).hidden; if (bMm.hidden !== !mmOff) bMm.hidden = !mmOff;   // the button only while the minimap is away
+    };
+    setInterval(() => { try { if (!inGarage) tick(); } catch (e) {} }, 500);
+    window.addEventListener('resize', () => { try { fit(); } catch (e) {} });
+    window.FLYDIY_FL2 = { on: true, tick, fit, ap: apSet };
+  } catch (e) { console.warn('flyDiy: the flight layout -', e && e.message); document.body.classList.remove('fl2'); }
 
   // ---- Esc closes; a click on the render closes ---------------------------
   window.addEventListener('keydown', e => {
