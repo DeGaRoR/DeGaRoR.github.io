@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 7f7a984865f42943
+// body-sha256: 357353ecc9adc2ae
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -24056,6 +24056,7 @@ function makePilot(sim, def, world, opts) {
   // G3077 (TORQUE-RETUNE-66): THE NOSEWHEEL THAT WILL NOT LIFT - past Vr with the stick on the servo's 0.35 top for a second
   // and the nose not up, the pull goes on to the stick's full travel (ROLL, below); rotStuckT the time it has been so
   let rotPull = false, rotStuckT = 0;
+  let humpBack = true, humpThPk = null, humpEase = 0;   // G3444: the back stick through the hump (ROLL, on the water), the nose's peak, the ease to neutral
   const SV = makeServos(sim, def, { pilot: 'pilot', now: () => ap.t, trike, rotateTD, TW, features: {
     trimCalm: true, groundP1D: true, xwBank: true, water: true, porpoise: true,
     // G396.2 / G970: on the step the stick comes all the way back, through LIFTOFF
@@ -26974,7 +26975,7 @@ function makePilot(sim, def, world, opts) {
         }
         if (thRest === null) thRest = th;
         if (rollS0 === null) {
-          rollS0 = sAl; committedTO = false; humpR = humpPk = 0; humpPast = false; wrUp = false; rotPull = false; rotStuckT = 0;
+          rollS0 = sAl; committedTO = false; humpR = humpPk = 0; humpPast = false; wrUp = false; rotPull = false; rotStuckT = 0; humpBack = true; humpThPk = null; humpEase = 0;
           depC = null; toAccelDone = false; toHoldH = null; toLowT = 0; flcI = 0; flcTh = flcVt = null; flcSet = false; flcSetT = 0; flcRelax = 0;   // G2125: a new run, a new climb-out
           // P1.C: THE DEPARTURE PLAN (PILOT-ROADMAP C.3-C.4), the approach
           // plan's twin: 'short' when the strip is under 2 x the sheet's
@@ -27247,7 +27248,24 @@ function makePilot(sim, def, world, opts) {
         // (WATER_LEAD s), is short of the lift-off attitude, and eases to nothing over its last WATER_BAND - the
         // attitude servo (the rotation's integrator) holds it from there. 10.2 deg/s, 28.4 m/s (1.16 Vs); a hull that
         // never reaches the attitude (the twin's) keeps the full stick as before
-        if (sim.hydro && onG > 0) SV.deFloor = V > (A.vWaterStick ?? 1.12) * vr ? Math.max(0.02, waterPull(A.thRotate ?? A.liftoffTh)) : 0.02;
+        // G3444 (HYDRO-TRIM, the user's ruling 25 Oct): ...AND THROUGH THE HUMP THE STICK IS BACK, as the floatplane
+        // supplement and FAA-H-8083-23 fly it: full power, the stick back to raise the bow and keep the spray off the
+        // propeller, and once the nose stops rising (the hull on its hump) eased to the planing attitude. G396.4's
+        // "never back" was a cure for the H0 wake, under which a raised bow dried the afterbody and nothing held it
+        // (the sterns "buried" because the trim ran away); with the measured wake (32_hydro G3440) the afterbody holds
+        // the bow, and the neutral stick left the float Cessna at 5.4 deg through its hump (DMGPLOUGH's floor 6, the tank
+        // band 8-12) where the stick back gives 8.5-9. The pull (deHump, 0.45: GATE FLOATS' and the G3390 rig's) holds from
+        // the throttle-up until the pitch has come off its peak (from 3 m/s) by half a degree, the hump's resistance has
+        // fallen away (humpPast), or half of Vr; then it eases to neutral over humpEaseS (2 s) and stays off for the run
+        if (sim.hydro && onG > 0) {
+          if (humpBack) {
+            // (the peak is the hump's: tracked from 3 m/s - the throttle's ramp bobs the bow 2 deg at the start)
+            if (V > 3) humpThPk = humpThPk == null ? th : Math.max(humpThPk, th);
+            if ((humpThPk != null && th < humpThPk - 0.5 * Math.PI / 180) || humpPast || V > 0.5 * vr) humpBack = false;
+          } else humpEase = Math.min(1, humpEase + dt / (A.humpEaseS ?? 2));
+          const deHump = (A.deHump ?? 0.45) * (1 - humpEase);
+          SV.deFloor = V > (A.vWaterStick ?? 1.12) * vr ? Math.max(0.02, waterPull(A.thRotate ?? A.liftoffTh)) : Math.max(0.02, deHump);
+        }
         c.brake = 0;
         if (onG === 0 && V > vr) {
           go('LIFTOFF'); thLift0 = th; SV.IthMaxT = 0.15; SV.IthGain = null;
