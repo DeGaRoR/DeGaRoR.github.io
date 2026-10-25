@@ -128,7 +128,7 @@ const BASE_OFFERS = {
     },
   },
   w3: {
-    words: 'Tamgas Hill · a strip above the trees',
+    words: GAME_NAMES.hill + ' · a strip above the trees',
     plots: { w3: { shells: ['field'], kits: ['park', 'bench'], pf: 0.8,
                    dims: { field: { HW: 8.5, HD: 9, EAVE: 3.6 } } } },
   },
@@ -138,16 +138,16 @@ const BASE_OFFERS = {
                        dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } } },
   },
   mn_strip: {
-    words: 'Jumbo Mine · a derelict shed on the street',
+    words: GAME_NAMES.mine + ' · a derelict shed on the street',
     plots: { mn_strip: { shells: ['field'], kits: ['park', 'bench', 'curio'], pf: 0.5, derelict: true } },
   },
   SEA: {
-    words: 'Annette Dock · a slipway',
+    words: GAME_NAMES.fields.SEA + ' · a slipway',
     plots: { SEA: { shells: ['field', 'club'], kits: ['park', 'store'], pf: 1, water: true,
                     dims: { field: { HW: 9, HD: 10, EAVE: 4.4 } } } },
   },
   mk_sea: {
-    words: 'Metlakatla · the seaplane float',
+    words: GAME_NAMES.town + ' · the seaplane float',
     plots: { mk_sea: { shells: ['field'], kits: ['park'], pf: 0.8, water: true,
                        dims: { field: { HW: 9, HD: 10, EAVE: 4.4 } } } },
   },
