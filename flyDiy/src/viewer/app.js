@@ -634,34 +634,6 @@
     if (CAREER_DEV && extra && all.indexOf(extra) >= 0 && own.indexOf(extra) < 0) own.push(extra);
     return own;
   }
-  // ...the garage's rack: the sandbox's designs this career may buy in, each with the price (null: the build's file does
-  // not read), and the purchase: the design COPIED to the career's own slot (careerCopyName - frozen there: the sandbox's
-  // later edits never reach it, its own edits in this garage are its life), paid, then lifted like any other
-  function careerImportPrice(name) {
-    let spec = null; try { const env = JSON.parse(prefGet('flydiy.build.' + name, 'null')); spec = env && env.spec; } catch (e) {}
-    const led = spec ? procureLedger(spec) : null;
-    if (!led) return null;
-    let wants = []; try { wants = typeof hangarWants === 'function' ? hangarWants(resolveSpec(genMigrateSpec(JSON.parse(JSON.stringify(spec))))) : []; } catch (e) {}
-    const cost = econLedgerCost(led);
-    return { cost, wants, price: econAirframePrice(cost, playerLoad().sheds[PREM_MAIN], wants) };
-  }
-  function careerImportNow(name) {
-    const P = careerImportPrice(name);
-    if (!P) return { ok: false, why: 'the build ' + name + ' does not read' };
-    const txt = prefGet('flydiy.build.' + name, null);
-    let env = null; try { env = JSON.parse(txt); } catch (e) {}
-    if (!env || !env.spec) return { ok: false, why: 'the build ' + name + ' does not read' };
-    const copy = careerCopyName(playerLoad(), name, playerSlotNames());
-    const r = careerImport(playerLoad(), name, copy, P.cost, P.wants);
-    if (!r.ok) { ecNote = r.why; econWalletSync(); return { ok: false, why: r.why }; }
-    env.meta = Object.assign({}, env.meta || {}, { name: copy, career: r.doc.career.id, of: name });
-    env.plaque = null; env.log = null;   // (a new airframe: its own certificate and logbook to earn)
-    prefSet('flydiy.build.' + copy, JSON.stringify(env));
-    player = playerFleetReconcile(r.doc, fleetSlotNames(r.doc)).doc; playerSave();
-    ecNote = 'bought ' + name + ' into the career: ' + ecFmt(r.cost);
-    try { if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); } catch (e) {}
-    return { ok: true, why: '', cost: r.cost, slot: copy };
-  }
   // PREM-S2: THE SLOTS DOOR (garage.js save / save as / delete / import -> api.slotsChanged). The lift again over the
   // names the shelf now holds; a SAVE measures the aeroplane on the stand (playerFootOfDef: its own nodes - the
   // footprint the hangar packs it by), and a save that REPAINTED it (the finish changed) resets its outside wear (GQ7).
@@ -8532,6 +8504,34 @@
     b.hidden = !(D && D.damaged && !D.writeOff);
     if (!b.hidden) b.textContent = 'Repair · free';
   }
+  // G3612: the garage's rack (inside this half: career + economy calls, CAREER_DEV only) - the sandbox's designs this career may buy in, each with the price (null: the build's file does
+  // not read), and the purchase: the design COPIED to the career's own slot (careerCopyName - frozen there: the sandbox's
+  // later edits never reach it, its own edits in this garage are its life), paid, then lifted like any other
+  function careerImportPrice(name) {
+    let spec = null; try { const env = JSON.parse(prefGet('flydiy.build.' + name, 'null')); spec = env && env.spec; } catch (e) {}
+    const led = spec ? procureLedger(spec) : null;
+    if (!led) return null;
+    let wants = []; try { wants = typeof hangarWants === 'function' ? hangarWants(resolveSpec(genMigrateSpec(JSON.parse(JSON.stringify(spec))))) : []; } catch (e) {}
+    const cost = econLedgerCost(led);
+    return { cost, wants, price: econAirframePrice(cost, playerLoad().sheds[PREM_MAIN], wants) };
+  }
+  function careerImportNow(name) {
+    const P = careerImportPrice(name);
+    if (!P) return { ok: false, why: 'the build ' + name + ' does not read' };
+    const txt = prefGet('flydiy.build.' + name, null);
+    let env = null; try { env = JSON.parse(txt); } catch (e) {}
+    if (!env || !env.spec) return { ok: false, why: 'the build ' + name + ' does not read' };
+    const copy = careerCopyName(playerLoad(), name, playerSlotNames());
+    const r = careerImport(playerLoad(), name, copy, P.cost, P.wants);
+    if (!r.ok) { ecNote = r.why; econWalletSync(); return { ok: false, why: r.why }; }
+    env.meta = Object.assign({}, env.meta || {}, { name: copy, career: r.doc.career.id, of: name });
+    env.plaque = null; env.log = null;   // (a new airframe: its own certificate and logbook to earn)
+    prefSet('flydiy.build.' + copy, JSON.stringify(env));
+    player = playerFleetReconcile(r.doc, fleetSlotNames(r.doc)).doc; playerSave();
+    ecNote = 'bought ' + name + ' into the career: ' + ecFmt(r.cost);
+    try { if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); } catch (e) {}
+    return { ok: true, why: '', cost: r.cost, slot: copy };
+  }
   if (CAREER_DEV) window.FLYDIY_ECON = {
     price: econBuildPrice, saveWhy: econSaveWhy, shed: econShedDoor, repair: econRepairNow,
     wallet: () => playerLoad().wallet, note: () => ecNote, sync: econWalletSync,
@@ -16355,7 +16355,7 @@
     // never lists a career's copy
     ownSlots: names => fleetSlotNames(playerLoad(), names),
     importable: CAREER_DEV ? (names => careerImportable(playerLoad(), names)) : null,
-    slotLabel: n => (typeof careerSlotTag === 'function' && careerSlotTag(n) ? n.replace(CAREER_SLOT_TAG, '') : n),
+    slotLabel: n => (typeof CAREER_SLOT_TAG !== 'undefined' && typeof n === 'string' ? n.replace(CAREER_SLOT_TAG, '') : n),   // (the tag's text, no career call: G2320)
     // ...and a build saved in a career's garage under a NEW name is the career's own slot (a copy's tag; a name it
     // already holds - the story's Rufus, a re-save - stays as it is)
     slotKey: CAREER_DEV ? (n => careerSaveKey(playerLoad(), n, playerSlotNames())) : null,

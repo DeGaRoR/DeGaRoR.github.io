@@ -342,6 +342,7 @@ async function pageRun() {
      'the starter: the first file found (builds/ first) written as the slot "Rufus", standing in the cabin\'s shed', starterFile + ' -> ' + JSON.stringify(d.fleet.Rufus));
   { // G3612 (the user 25 Oct): "a career starts only with its own plane. Any imported plane in the career costs money" /
     // "old careers are reset to only their own planes ... What you import is a design ... it is its own copy"
+    const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');   // (pageRun's own app is a block below's)
     const own = M.careerOwnSlots(d, ['Rufus', 'Sandbox Jodel']);
     const copy = M.careerCopyName(d, 'Sandbox Jodel', ['Sandbox Jodel']);
     const r0 = M.careerImport(d, 'Sandbox Jodel', copy, 10000, []);
@@ -364,9 +365,9 @@ async function pageRun() {
     ok(!R.doc.fleet['Old Shelf Build'] && R.doc.fleet.Rufus && R.dropped.indexOf('Old Shelf Build') >= 0,
        'an older career is reset to its own planes: a row for a slot it does not own leaves at the lift (G3612)', JSON.stringify(R.dropped));
     const G = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'garage.js'), 'utf8');
-    ok(/player = playerFleetReconcile\(player, fleetSlotNames\(player\)\)\.doc;/.test(app) && !/playerFleetReconcile\([^)]*playerSlotNames\(\)/.test(app) &&
-       /fleetSlotNames\(playerLoad\(\), names, info\.saved\)/.test(app) && /ownSlots: names => fleetSlotNames\(playerLoad\(\), names\),/.test(app) &&
-       /const copy = careerCopyName\(playerLoad\(\), name, playerSlotNames\(\)\);/.test(app) && /prefSet\('flydiy\.build\.' \+ copy, JSON\.stringify\(env\)\);/.test(app) &&
+    ok(/player = playerFleetReconcile\(player, fleetSlotNames\(player\)\)\.doc;/.test(APP) && !/playerFleetReconcile\([^)]*playerSlotNames\(\)/.test(APP) &&
+       /fleetSlotNames\(playerLoad\(\), names, info\.saved\)/.test(APP) && /ownSlots: names => fleetSlotNames\(playerLoad\(\), names\),/.test(APP) &&
+       /const copy = careerCopyName\(playerLoad\(\), name, playerSlotNames\(\)\);/.test(APP) && /prefSet\('flydiy\.build\.' \+ copy, JSON\.stringify\(env\)\);/.test(APP) &&
        /const shelf = slotNames\(\), names = api\.ownSlots \? api\.ownSlots\(shelf\) : shelf;/.test(G) && /const bring = api\.importable \? api\.importable\(shelf\) : \[\];/.test(G),
        'every lift is handed the career\'s own slots (the save just made with them); the purchase writes the copy\'s own envelope; the rack lists its own, the designs bought in (G3612)');
   }
