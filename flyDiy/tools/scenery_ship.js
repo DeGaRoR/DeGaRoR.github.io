@@ -51,8 +51,11 @@ const restage = (saved, fx) => { const c = JSON.parse(JSON.stringify(saved)); if
   } return c; };
 // a save made on a stage below the max (JOLENE-FOLD 25 Oct: AFB (19) carried tw_ski at its resort<3 variant, nv_strip at
 // its survey<1 one): a field equal to a variant of the fixture's `stage.vary` is the stage's, not the user's - it gets the
-// whole record's value back (stageRestore's rule; a P key the same way)
-const devary = (saved, fx) => {
+// whole record's value back (stageRestore's rule; a P key the same way). And `stageSown` is the VIEW's mark on a zone below
+// its band (stageView), never authored: a save made on that view carried it (AFB (19): z_harbour) and stageRestore drops it,
+// so a record holding it never round-trips (GATE STAGES 7) - it never ships
+const devary = (saved0, fx) => {
+  const saved = saved0 && saved0.stageSown !== undefined ? Object.assign({}, saved0) : saved0; if (saved !== saved0) delete saved.stageSown;
   const vs = fx && fx.stage && Array.isArray(fx.stage.vary) ? fx.stage.vary : []; if (!vs.length) return saved;
   const c = JSON.parse(JSON.stringify(saved)), eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   for (const q of vs) for (const k of Object.keys(q)) {

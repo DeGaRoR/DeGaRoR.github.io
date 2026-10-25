@@ -659,7 +659,9 @@ if (plots.length) {
   // (JOLENE-FOLD) a save made below a track's max carries a staged entry at its `stage.vary` variant (AFB (19): tw_ski at
   //  resort<3, nv_strip at survey<1): a field equal to a variant is the stage's - the shipped entry's own value, as the ship
   //  tool's devary and stageRestore put it back
-  const devary = (y, x) => { const vs = x && x.stage && Array.isArray(x.stage.vary) ? x.stage.vary : []; if (!vs.length) return y;
+  //  (and the view's own `stageSown` mark never ships: the ship tool drops it)
+  const devary = (y0, x) => { const y = y0 && y0.stageSown !== undefined ? Object.assign({}, y0) : y0; if (y !== y0) delete y.stageSown;
+    const vs = x && x.stage && Array.isArray(x.stage.vary) ? x.stage.vary : []; if (!vs.length) return y;
     const c = JSON.parse(JSON.stringify(y)), eq = (p, q) => JSON.stringify(p) === JSON.stringify(q);
     for (const q of vs) for (const k of Object.keys(q)) { if (k === 'show') continue;
       if (k === 'P') { if (c.P) for (const pk of Object.keys(q.P || {})) if (eq(c.P[pk], q.P[pk])) { if (x.P && pk in x.P) c.P[pk] = x.P[pk]; else delete c.P[pk]; } continue; }
