@@ -98548,18 +98548,23 @@ Strict light gate RED (11), all in the known classes:
 - metal chase flight 68.9 s vs 63.6 + 5.09 slack: 0.23 s over, the scripted flight's wall time. Named; re-read in L25a.
 Pushed with these, by the user's order of 25 Oct: land last week's items and priority 1 as soon as possible.
 
-### G3651 - THE RUNWAY SCUFF FEATHERED AND BROKEN (src/viewer/ground_scar.js; DEFORM, 25 Oct; branch claude/dmg-scuff on 031e3af90 = ready/dmg-scar2-occupant)
-The user (25 Oct, via A0): the damage reads "too clean / too geometric"; the st_0345 stills showed the hard-ground scuff
-(G2381) as hard-edged dark RECTANGLES on the runway. The cause: on hard ground the strip kept a constant half-width, its
-alpha fell to 0 only in the outermost column, and each of its 12 streaks ran unbroken end to end at a fixed strength.
-Now, on hard ground only (the soft furrow and the crater are unchanged byte for byte):
-- the two edges ragged (S.ragHard 0.4: each side 0.6-1 x h, its own wobble), every vertex still inside h;
-- the alpha feathered across the outer half of the width (1 - smoothstep(0.45, 1, |u|));
-- each streak broken along the slide by its own 1-D value noise (~0.9 m lattice; below S.gapHard 0.32 a gap), its own
-  entry and exit (up to a quarter of the strip in from either end: ragged ends), its own shade (0.75-1.1 x SCUFF);
-- a long scuff (over 2 x S.runHard = 6 m) broken as a whole too (down to 12 %) every ~3 m - the slide lifting and touching;
-- the soil map stretched along the slide (3 x along, 0.35 x across): streaky grit, not blotches;
-- S.scuffA 0.85 -> 0.95 (the cores; the feather and the breaks take the rest) to keep 2S's darkening >= 30 %.
-Same mesh, material, texture and program (no new link); vertex count unchanged.
-Gates to run: DMGSCAR (2S darkening + every-vertex rows) + the grep-rule gates for src/viewer; stills: scar-slide on the
-Cub and the metal Cessna (st_0345's cases) to look at before ready.
+### G3651 - THE RUNWAY SCUFF AS LONG DARK STREAKS (src/viewer/ground_scar.js, tools/dmg_wreck_stills.js; DEFORM, 25 Oct; branch claude/dmg-scuff on 031e3af90 = ready/dmg-scar2-occupant)
+The user (25 Oct, via A0, on the st_0345 stills): "RUNWAY SCARS: I can see nothing. I'd expect long dark streaks". The
+G2381 scuff - 12 columns of one grey (SCUFF x the soil map, its alpha-weighted alpha ~0.58) - drew as a PALE, FLAT-EDGED
+PANEL a few metres long (read as a shadow), and vanished from a low eye. (A first try this morning, 3a7d95fda, feathered
+and broke that panel up: fainter still - replaced here.)
+Now, on hard ground only (the soft furrow and the crater are unchanged byte for byte), a scuff is:
+- LONG DARK STREAKS: one per S.streakGap 0.3 m of the strip's width (2 to S.streakMax 10), each its own narrow ribbon
+  (half-width S.streakW 0.04-0.12 m; a near-black core RUBBER 0.08 x the soil map at S.scuffA 0.95 x its strength 0.7-1,
+  soft edges) at its own place across, wandering S.wander 0.05 m along the slide, starting and stopping at its own place
+  (up to 1.5 m in from either end), broken now and then on a long one (noise every S.gapL 2.5 m under S.gapHard 0.15:
+  about a tenth of its length - a part lifting);
+- under them a faint rubber haze (S.hazeA 0.25, SCUFF), its two edges ragged (0.65-1 x h) and feathered - no border;
+- the soil map stretched along the slide (3 x along, 0.35 x across): streaky grit;
+- every vertex inside the half-width h, at terrainH + liftHard, the same mesh / material / program (no new link).
+The stills rig: cases scuff-slide / scuff-blow (the scar cases from the three-quarter, the far chase 'aft' - behind the
+aeroplane's heading, 12 deg, 40 m - and above), tag noscar (the same eye, the decal hidden: BEFORE / AFTER for the
+scuff alone), and each case's scar record logged (its strips' ends, widths and lengths; the wreck's place) - the
+scuff's coverage of the slide, for the "long" half of the user's ask.
+Gates: DMGSCAR (2S: the darkening, alpha-weighted, and every vertex over the runway's layers) + MEDIA (the only two that
+read the file). Stills: scuff-slide + scuff-blow, the Cub and the metal Cessna, ?damage=1&simw=0.
