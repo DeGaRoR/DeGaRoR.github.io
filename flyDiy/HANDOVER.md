@@ -99012,7 +99012,7 @@ Strict light gate RED both runs (13 / 16) vs the 12 Oct baseline; judged against
 - OPEN (Pilot): Rufus mine CALM still open: twice round, high 7-8 m at 58 m, divert; cause = the 1.4/LDbest slope cap needs a slip Rufus's aileron can't hold.
 Pushed by the user's order of 25 Oct: land last week's items and priority 1 as soon as possible.
 
-## G3530-G3539 - HANGARS-LOOK: THE GARAGES' OUTSIDES WEAR THE SCENERY'S FINISH, THE SMALL SHED WITH THE HOUSE'S CARE, THE BOOMBOX IN EVERY HANGAR (2026-10-25.., for A0, LOCAL-GPU; branch claude/hangars-look off master 20a136670 = L23b; playtest 24 Oct items 35-38; IN PROGRESS)
+## G3530-G3539 - HANGARS-LOOK: THE GARAGES' OUTSIDES WEAR THE SCENERY'S FINISH, THE SMALL SHED WITH THE HOUSE'S CARE, THE BOOMBOX IN EVERY HANGAR (2026-10-25.., for A0, LOCAL-GPU; claude/ready/hangars-look on master 61e93cb15 = L25b, gated 1823e0660; playtest 24 Oct items 35-38; READY for L25c)
 
 ### G3530 - THE HOUSE GENERATOR'S SUBTLETIES, READ BACK BEFORE ANY CHANGE (G229-G232.4, G257, G281, G283, G290, G302, G405-G405.1, G581)
 What makes a generated building sit in the world, in the order the house got it:
@@ -99064,3 +99064,11 @@ WHAT THE GARAGES HAD OF IT (read off the code, 25 Oct): the room (hangar.js) and
 ### G3539 - FLYDIY_ROOM_EYE (app.js), THE STILLS RIG (tools/hangars_look_shot.js)
 - `FLYDIY_ROOM_EYE(p, t)`: a dev eye in the ROOM's frame (the door at local -x, the floor at 0; p, t local), applied in placeCamera through the room group's matrixWorld; `FLYDIY_ROOM_EYE(null)` and garageCamera clear it; it returns true (the rig asserts it).
 - hangars_look_shot.js: the same four points (front / corner / back / far) in the shed's frame through the room and through the world's 'shed:<id>' node - the outside against the inside at the same scale - the roll-out every 0.5 s, HOME.2 and HOME, the shadow probe (item 36) into shots.json. Every still in the page's own screenshot mode (SHOT_MODE: the canvas the whole window, the CG/NP posts and the HUD out). Playwright when the box has it, else the system Chrome over CDP (the box has no playwright, 25 Oct); the profile in the OS temp dir, deleted per run.
+
+### THE GATES (Sun 25 Oct, s25-g15 GPU slot, on 0f57ad9da / 1823e0660)
+- The premises re-cooked on L25b (2 cells, p_m1_2 + p_m3_m10: the 18 m cabin) and committed (0f57ad9da); the parked cook re-cooked for the gate run only (not committed, the train re-cooks).
+- 25 PASS: HANGAR BOOMBOX STAND GAMEPREM ROOMMERGE HOUSE PREMISES TARR HOUSEWORKER ASSETS MATLIB LIGHT STORY UILAYER AUDIO PREMCOOK MEDIA CITYHOST KITHOST METKIT LOOKS GFX SITE CONTACT ROLLANIM.
+- FRAMECOST: FAIL (1) = master's own key only (cessna boot/garage:restore/three.updateMatrixWorld 2269 -> 4553, the same on a master 61e93cb15 control). The taxi's draws/uniforms red of the 16:00 run was the STALE parked cook (re-cooked: gone). One rise of this line, ADMITTED with A0 (an ALLOW row, both builds): boot/garage:compile/bytes.bufferData 1559360 -> 1653300 = G3534 the room's polish, uploaded once at compile by bakeHangarEnv's render of the room - proven by A/B (the polish off in source: 1559360, master's exact number; the boombox row off: unchanged).
+- TRAP for the next A/B: ?roompolish=0 / ?shellpolish=0 / ?roomdirt=0 do NOT reach the node page's hangar.js / render_world (the bytes did not move with any of them) - an A/B must switch in source until that is fixed (boarded, small).
+- Stills: reports/evidence/HANGARS-LOOK/s25 (44: the w1 room + roll-out + world pairs, HOME, HOME.2; shots.json the shadow probe), before/ and after/ beside it.
+- Not on this branch: G3540-G3542 the sign (claude/hangars-sign, Mon 02:00 GPU) and G3543 the vehicle prints (claude/vehicle-shadows, Mon 02:00 -> L26b).
