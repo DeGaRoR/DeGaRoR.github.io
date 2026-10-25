@@ -9414,6 +9414,10 @@
     if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'both', running: true });
     ap = mkPilot(curKey);
     ap.setRoute(from, H);
+    // (a fresh pilot's first update applies its DEFAULT modes before the phase's law engages its own: the elevator 'DE'
+    // with no setting - ctl.de undefined, a NaN in the first step, 'sim diverged' at 0 s (the 25 Oct page run). Every other
+    // start engages its modes on the ground first; this one starts in the air: the stick neutral for that one frame)
+    try { if (ap.afcs && ap.afcs.sel && !Number.isFinite(ap.afcs.sel.de)) ap.afcs.sel.de = 0; } catch (e) {}
     ap.reEngage({ phase: 'INBOUND' });
     // (the skip hands the aeroplane to the autopilot, as every flight starts: the hand is one toggle away)
     try { if (manual && typeof setManual === 'function') setManual(false, 'skip'); } catch (e) {}

@@ -217,10 +217,13 @@ function storyTutorNext(T, how) {
 // from - on the runway's extended centreline `d` m before the aim point (60 m in from the threshold), on a `gs` slope
 // over the field (never under `floor` m over the ground beneath), flying along the landing heading at V m/s and sinking
 // on the slope. a: the aerodrome record (x, z, hdg: the take-off heading, len, elev; spawn: the take-off end), groundH(x,
-// z) -> m or null -> { x, y, z, hdg, vx, vy, vz }: hdg in placeAtAerodrome's sense (the nose along (cos hdg, sin hdg))
+// z) -> m or null -> { x, y, z, hdg, vx, vy, vz }: hdg in placeAtAerodrome's sense (the nose along (cos hdg, sin hdg)).
+// 3 km out, not 1.5 (the 25 Oct page run): the pilot takes a lined-up arrival STRAIGHT IN only from 300 m before its IAF
+// (43_pilot planFromHere: the FAF at the circuit height on the slope, the IAF 400 m before it - ~2.3 km out on a 105 m
+// circuit); nearer, it joined the circuit (1.5 km out: a downwind, 227 s to the wheels; 3 km: the final at 40 s, 147 s)
 function storyFinalPose(a, o) {
   o = o || {};
-  const d = o.d || 1500, gs = o.gs || 0.06, V = o.V || 22, floor = o.floor || 60;
+  const d = o.d || 3000, gs = o.gs || 0.06, V = o.V || 22, floor = o.floor || 60;
   const ux = Math.cos(a.hdg), uz = Math.sin(a.hdg);
   const sp = a.spawn || [a.x || 0, a.z || 0], elev = +a.elev || 0;
   const ax = sp[0] + 60 * ux, az = sp[1] + 60 * uz;            // the aim point, 60 m in from the take-off end

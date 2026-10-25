@@ -710,9 +710,9 @@ async function tutorRun() {
   // the final's pose
   const H0 = { id: 'HOME', x: 0, z: 0, hdg: Math.PI, spawn: [0, 0], elev: 4, len: 900 };
   const FP = M.storyFinalPose(H0, { V: 20 }), along = (FP.x - (-60)) * Math.cos(H0.hdg) + FP.z * Math.sin(H0.hdg);
-  ok(Math.abs(Math.abs(FP.x - (-60)) - 1500) < 1 && Math.abs(FP.z) < 1e-6 && Math.abs(along + 1500) < 1 && Math.abs(FP.y - (4 + 90)) < 1e-6 &&
+  ok(Math.abs(Math.abs(FP.x - (-60)) - 3000) < 1 && Math.abs(FP.z) < 1e-6 && Math.abs(along + 3000) < 1 && Math.abs(FP.y - (4 + 180)) < 1e-6 &&
      Math.abs(Math.hypot(FP.vx, FP.vy, FP.vz) - 20) < 1e-6 && FP.vy < 0 && (FP.vx * Math.cos(H0.hdg) + FP.vz * Math.sin(H0.hdg)) > 0 && FP.hdg === H0.hdg,
-     "Skip on the final: 1500 m out on the runway's extended centreline, on a 6 % slope over the field, flying the landing heading at the approach speed, sinking", JSON.stringify({ x: Math.round(FP.x), y: FP.y, z: FP.z }));
+     "Skip on the final: 3 km out (before the pilot's IAF: straight in) on the runway's extended centreline, on a 6 % slope over the field, flying the landing heading at the approach speed, sinking", JSON.stringify({ x: Math.round(FP.x), y: FP.y, z: FP.z }));
   const FG = M.storyFinalPose(H0, { V: 20, groundH: () => 70 });
   ok(FG.y === 130, 'the final never under 60 m over the ground beneath it (a hill before the field)', FG.y);
   // ---- the page: T0 at the cabin, the lock
@@ -824,6 +824,8 @@ async function tutorRun() {
      'no clouds in the opening (G3588): the veil off and the stale composite hidden while it plays, the veil back at the swap');
   ok(/stSkipEl\.textContent = 'Skip the flight: start on the final';/.test(app) && /rollOut\(\(\) => \{ const r = storyFinalNow\(\);/.test(app) && /ap\.reEngage\(\{ phase: 'INBOUND' \}\);/.test(app),
      'Skip the flight: rolled out, then on the final at the WWII field, a fresh pilot planning its arrival from there (G3584); the garage alone keeps the hangar skip');
+  ok(/ap\.afcs\.sel\.de = 0; \} catch \(e\) \{\}\n\s*ap\.reEngage\(\{ phase: 'INBOUND' \}\);/.test(app),
+     "the skip's fresh pilot starts with the stick neutral before its first update (its default 'DE' mode has no setting: the sim diverged at 0 s, the 25 Oct page run)");
   H.inGarage = true; H.ap = null;
   return fails;
 }
