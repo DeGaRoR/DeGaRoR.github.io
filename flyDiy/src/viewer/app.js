@@ -861,6 +861,11 @@
   // missing constructor should leave the room unbuilt, not throw on boot.
   const hangarScene = new THREE.Scene();
   let hangar = null, hangarTried = false;
+  // G3726 (PHONE-GARAGE; the user, 25 Oct: "no garage at all, just dark studio as we had said"): THE BLACK STUDIO in the
+  // shed's place (studio.js) - the phone's room (PROFILE room 'studio'); on the desktop an option, OFF by default (the
+  // user: "an option only if it comes for free"): the default garage pays three boolean reads and nothing else
+  const STUDIO_PHONE = (() => { try { return !!(window.PROFILE && window.PROFILE.is && window.PROFILE.is('room', 'studio')); } catch (e) { return false; } })();
+  let studioOn = STUDIO_PHONE || prefGet('flydiy.garageStudio', '0') === '1', studio = null;
   if (typeof window !== 'undefined') window.FLYDIY_SHED = () => hangar;   // G1522: the garage's shed (its materials), for the menu's live rows
   // WHERE THE REFLECTIONS COME FROM (user: "can we get lighting from HDRI? Try
   // that as a new option"). Two sources, one target:
@@ -1185,6 +1190,11 @@
   // ...at once when the garage is up (the base select, "fly from there?", a rig's document): the room built for `here`
   function roomFollow() { try { if (inGarage && hangarRoom !== roomId()) { applyEnv(); garageCamera(); } } catch (e) {} }
   function getHangar() {
+    if (studioOn) {   // G3726: no shed where the studio stands - the room is the studio's, built once
+      if (!studio && typeof STUDIO !== 'undefined') try { studio = STUDIO.build(THREE, renderer, hangarScene, groundY + rigLift); }
+        catch (e) { console.error('studio: could not be built -', e && e.message); }
+      return null;
+    }
     if (hangarTried && hangarRoom !== roomId()) { if (hangar) disposeHangar(); else hangarTried = false; }
     if (hangarTried) return hangar;
     hangarTried = true;
@@ -1343,7 +1353,7 @@
   let hangarFailSaid = false;
   function garageScene() {
     const h = getHangar();
-    if (!h && !hangarFailSaid) {
+    if (!h && !hangarFailSaid && !studioOn) {
       hangarFailSaid = true;
       if (window.console) console.error(
         'garage: the hangar could not be built, so the room is empty. ' +
@@ -1352,6 +1362,19 @@
     return hangarScene;
   }
   function garageIsHangar() { garageScene(); return !!hangar; }
+  // G3726: the desktop's studio option (MENU > View, editor.js) - the shed disposed and the studio built, or back
+  function setStudio(on) {
+    on = !!on || STUDIO_PHONE;
+    if (on === studioOn) return studioOn;
+    studioOn = on;
+    if (!STUDIO_PHONE) prefSet('flydiy.garageStudio', on ? '1' : '0');
+    if (on) disposeHangar();
+    else if (studio) { studio.dispose(); studio = null; }
+    hangarTried = false;
+    if (inGarage) applyEnv();
+    return studioOn;
+  }
+  if (typeof window !== 'undefined') window.FLYDIY_STUDIO = { on: () => studioOn, phone: STUDIO_PHONE, set: setStudio, get: () => studio };
   // Put the aeroplane in the chosen room and give the renderer the settings
   // that room was lit for. Exposure is a RENDERER setting, not a scene one, so
   // it has to be handed back when we leave or the world inherits the hangar's.
@@ -1369,6 +1392,7 @@
     // room may ride a little LESS than the hop, so its floor stays a trestle
     // under the inverted aeroplane's lowest node — see LOAD_FLOOR_CLEAR.)
     if (hangar) hangar.group.position.y = groundY + rigLift;
+    if (studio) studio.setY(groundY + rigLift);   // G3726: the studio's pool stays under the wheels as the room did
     const inRoom = inGarage && garageIsHangar() && hangar;
     // THE MOBILE KIT stands next to whatever aeroplane is in the room, so it
     // is re-placed from the aeroplane's own footprint every time we come
@@ -17454,8 +17478,8 @@
     let framePresented = true;
     // G2070 (GARAGE-LAPTOP): the shed's shadow maps from their cached static depth + the casters that move (shed_shadow.js);
     // out of the shed its static depths are let go
-    const shedSh = inShed && window.SHED_SHADOW ? SHED_SHADOW.pre(renderer, garageScene(), camera, hangar) : false;
-    if (!inGarage && window.SHED_SHADOW && SHED_SHADOW.held()) SHED_SHADOW.release();
+    const shedSh = inShed && !studioOn && window.SHED_SHADOW ? SHED_SHADOW.pre(renderer, garageScene(), camera, hangar) : false;
+    if ((!inGarage || studioOn) && window.SHED_SHADOW && SHED_SHADOW.held()) SHED_SHADOW.release();   // (G3726: no shed in the studio)
     if (aa) framePresented = aa.render(inGarage && !introAt ? garageScene() : scene, camera) !== 'held';
     else renderer.render(inGarage && !introAt ? garageScene() : scene, camera);
     if (shedSh) SHED_SHADOW.post();

@@ -98145,3 +98145,34 @@ Pushed with these, by the user's order of 25 Oct: land last week's items and pri
   - the phone in flight.
   09 and 10 are byte-identical: the rig never asserted the map closed after Tab. Count 09 as "Tab = the map", not 10 as the CONTRACTS pill. The Mon 26 Oct TELEPORT stills assert it.
 - Next, G3640-G3649 TELEPORT for L26c (Mon 21:30): owned-garage markers on the map, a confirm row in the map, FLYDIY_PLAYER.gotoGarage (Game's claude/garage-go, G3613), and Tab = the map screen in every mode.
+
+## G3720-G3729 - PHONE-GARAGE: THE PLANE GETS TWO THIRDS, A BLACK STUDIO ON THE PHONE, THE RAIL INTO THE MENU, ONE TOP ROW FOR EVERY VERSION (2026-10-25, PHONE-GARAGE for A0; branch claude/phone-garage on GAME-MENUS' claude/game-menus-ui b12fbb04e - carried; target L26c)
+- The user, 25 Oct, on the phone garage: "much more room for the plane ... two thirds at least, no garage at all, just dark studio ... Only a third of the screen for the sliders. left rail goes completely. Unsaved becomes a simple disk button and the other icons are on the top row ... Everything feels laggy ... sacrifice the garage altogether ... in the garage, I'd like the pause menu too, and we can move the left rail to the pause menu ... Give explode in the garage a button at the top. Clicking it gives the slider. Have a single button with the radio, and pop up a little menu where we can also turn it off. Have a button for cycling through the views."
+- Then, relayed by A0: "For the buttons in the garage top bar, that's for all versions, not just mobile"; "desktop garage left rail follows same fate. black studio on desktop an option only if it comes for free. Then put it under view or something in the menu".
+- G3720 THE ESTATE (phone.css): portrait = the view 66.6dvh, the sheet + tab bar the last third; landscape = the sheet max(280px, 1/3 of the width).
+- G3721 THE DISK (editor.css, garage.js): #fbName is drawn as a disk icon on every version, the same button and shelf (save, save as, new, load, storage, import, export). Unsaved = an amber dot. The name is in its tooltip (garage.js writes it with the text).
+- G3722 EXPLODE ON TOP (editor.js QUICK 'explode', row 'explode'): a press opens #edPopCard under the button - the rail's explode item (explode + cutaway rows, borrowed) - a FLYDIY_DRAG card ('quickPop', card_drag.js CARDS). It closes on Esc, ×, a press outside, the button again, or when a MENU page takes the rows.
+- G3723 THE RADIO (editor.js QUICK 'radio', boombox.js openAt): a press opens THE BOOMBOX'S OWN CARD (#bbPanel: stations, volumes, off) pinned under the button (frame() leaves a pinned card alone; the phone's studio has no radio prop to follow). Right-click / hold = off, as before.
+- G3724 THE VIEWS (editor.js QUICK 'views'): each press = the next framing preset (3/4 front, side, plan, nose, interior when a pilot is fitted), through api.camera, as the camera pills do.
+- G3725 THE RAIL INTO THE MENU (every version):
+  - #edBotBar is display:none. The RAIL table, its flyout and the element stay (GATE VIEW, the rigs, the stub DOM).
+  - openFly has a HOST now (flyHost: null = #edFly; else a body). window.EDITOR_FLY_INTO(k, body, onClose) builds a rail item into any body and returns the cleanup that gives the rows back.
+  - The MENU (GAME-MENUS' FLYDIY_MENU.add) gets a View section above Options: Camera (gCamera), Display (gDisplay), Sky & light (gNight; not in the studio), Legend (gLegend) and, desktop only, Studio backdrop: on/off (gStudio). Controls / Graphics / Sound are the menu's own pages.
+  - FLYDIY_MENU.anchor puts the MENU pill on the top row after the quick actions when there is room (else the menu's own place under the bar).
+  - The editor's row styles (`:is(#wsUI, #edView ...)`, `#edFlyBody`) also cover #gmPage and #edPopCard, and phone.js gives their sliders the finger knob.
+  - Phone: the clock's button is hidden, and the reference button only shows with a reference standing.
+- G3726 THE BLACK STUDIO (studio.js NEW, in build.js's manifest after shed_shadow.js; app.js getHangar / setStudio; profile.js room):
+  - PROFILE phone room 'studio': the shed is never built (hangar stays null - the empty-room path, its error silenced for the studio).
+  - hangarScene gets a near-black background, a warm key / cool fill / rim (DirectionalLights, no shadow maps), a faint hemisphere, a floor pool (one transparent quad, a 128 px radial canvas) and one PMREM of a tiny dome + three soft boxes baked once.
+  - SHED_SHADOW is skipped in the studio. Exposure = WORLD_EXPOSURE (the no-room value).
+  - Desktop: an option, OFF by default (pref flydiy.garageStudio, MENU > View > Studio backdrop). setStudio disposes the shed and builds the studio, or back. The default garage pays three boolean reads; no program, no draw.
+- G3727 THE MEASUREMENTS:
+  - mobile_phone_cdp.js gained --size / --dpr / --no-adb / --shot / --cpu-throttle / --desk, plus R.view (the canvas's share of the screen, draws, triangles, programs, textures).
+  - S1 (Mon 03:15, GPU) = BEFORE on master (the shared checkout, read only); S3 (Mon 15:45, GPU) = AFTER on this branch, built and cooked. Each runs: S20 412x915 Cub at CPU x4, the desktop 1600x900 Cub, GARAGE-LAG on the desktop page (Cub + metal), 375x812 Cub x4, GARAGE-LAG on the phone page, S20 metal x4, S20 Cub x1.
+  - Outputs: the scratchpad's pg_before/ and pg_after/ -> reports/evidence/PHONE-GARAGE/ once read.
+- GATES: S2 (CPU), not run yet. The planned set, from grepping tools/ for every touched file:
+  - pass 1: UISMOKE, UISMOKE-PHONE, CARDDRAG, CARDS, BOOT, BUILD, BUILT, LAZY, PROFILE, VIEW, PANEL, UILAYER, HONESTY, PARTS, SAVE, REF, STORAGE
+  - pass 2: FRAMECOST alone
+  - pass 3: GFX, HANGAR, LIGHT, CONTACT, SHEDSHADOW, PROGRAMS, BENCH, STORY, CLOCKBAKE, SHEETWORKER, GAMEPREM
+  - pass 4: BOOTLIFT, ROUNDTRIP
+- Files of other sessions touched: card_drag.js (one CARDS line: #edPopCard), boombox.js (openAt + pinned), and GAME-MENUS' hook used as is.

@@ -1154,6 +1154,8 @@ function garageInit(api) {
     if (nm) {
       nm.textContent = slotName || 'unsaved';
       if (nm.classList) nm.classList.toggle('unsaved', !slotName);
+      // G3721 (PHONE-GARAGE): the name is a disk icon now (editor.css) - the name rides in its tooltip
+      nm.title = (slotName ? '“' + slotName + '”' : 'Not saved yet') + ' — save, save as, new, load, storage, import, export';
     }
     renderFleet();                    // a no-op until the rack is first built
   }

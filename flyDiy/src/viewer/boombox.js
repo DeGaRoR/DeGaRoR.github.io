@@ -164,6 +164,7 @@ var BOOMBOX = (function () {
   // ---- THE PANEL -------------------------------------------------------------------------------------------------------
   let panel = null, body = null, obj = null, offs = [], vw = 0, vh = 0, vx = 0, vy = 0, cx = 0, cy = 0, cw = 0, ch = 0;
   let pw = 0, ph = 0, lastL = -1e9, lastT = -1e9, canvasEl = null;
+  let pinned = false;   // G3723: opened from the top bar's radio button - stands under it, follows no prop
   const refs = {};   // the live bits a refresh repaints (no rebuild under a dragged slider)
   const isOpen = () => !!panel;
   const D = () => G.document || null;
@@ -343,6 +344,7 @@ var BOOMBOX = (function () {
     const t = e && e.target;
     if (panel && t && panel.contains && panel.contains(t)) return;
     if (t && t.closest && t.closest('#musicCredits')) return;   // the credits screen opened from here
+    if (t && t.closest && t.closest('[data-q="radio"]')) return;   // G3723: the top bar's radio button toggles it itself
     // a press ON the radio leaves it to the click that follows (which toggles the panel shut)
     if (t && t === canvasEl && hovered) return;
     close();
@@ -387,9 +389,23 @@ var BOOMBOX = (function () {
     for (const f of offs) { try { f(); } catch (e) {} }
     offs = [];
     if (panel.parentNode) panel.parentNode.removeChild(panel);
-    panel = null; body = null;
+    panel = null; body = null; pinned = false;
     for (const k in refs) delete refs[k];
     if (!hovered) cue(null, false);
+  }
+  // G3723 (PHONE-GARAGE; the user, 25 Oct: "a single button with the radio, and pop up a little menu where we can also
+  // turn it off"): THE SAME CARD, opened from the top bar's radio button and pinned under it - no prop to follow (the
+  // phone's studio has none), so frame() leaves it where it stands; card_drag.js moves it like any card
+  function openAt(btn) {
+    if (!open(null, canvasEl)) return false;
+    pinned = true;
+    if (G.FLYDIY_DRAG && G.FLYDIY_DRAG.placed && G.FLYDIY_DRAG.placed(KEY)) return true;
+    const view = panel.parentNode, vb = view && view.getBoundingClientRect ? view.getBoundingClientRect() : { left: 0, top: 0 };
+    const r = btn && btn.getBoundingClientRect ? btn.getBoundingClientRect() : null, W0 = G.innerWidth || 1280;
+    const L = Math.max(8, Math.min((r ? r.right - pw : 8), W0 - pw - 8));
+    panel.style.left = Math.round(L - vb.left) + 'px';
+    panel.style.top = Math.round((r ? r.bottom + 8 : 64) - vb.top) + 'px';
+    return true;
   }
   // app.js's click: true when the radio took it (the panel toggles)
   function click(o, ray, hit, canvas) {
@@ -400,7 +416,7 @@ var BOOMBOX = (function () {
   // the frame: NOTHING while closed. Open: the radio's top projected, the card moved when it moved a pixel; closed when
   // the radio is gone (the shed left, the kit hidden) or off the screen. getObj: app.js's lookup, asked only now.
   function frame(camera, getObj) {
-    if (!panel) return;
+    if (!panel || pinned) return;
     const o = typeof getObj === 'function' ? getObj() : getObj;
     const S = scratch();
     if (!o || !S || !camera || !shown(o)) { close(); return; }
@@ -430,7 +446,7 @@ var BOOMBOX = (function () {
     return true;
   }
 
-  return { radio, pick, hitBox, hover, click, open, close, frame, refresh, placed, get isOpen() { return isOpen(); },
+  return { radio, pick, hitBox, hover, click, open, openAt, close, frame, refresh, placed, get isOpen() { return isOpen(); },
     get hovered() { return hovered; }, KEY, _localBox: localBox, _halo: () => halo };
 })();
 if (typeof window !== 'undefined') window.BOOMBOX = BOOMBOX;
