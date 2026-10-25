@@ -16358,9 +16358,12 @@
       window.location.assign(u.toString());
     } catch (e) { window.location.reload(); }
   }
+  // G3642 (TELEPORT): the map screen in EVERY mode - where the career stands (CONTRACTS, ?map=1) its contracts and lists;
+  // elsewhere the island with your garages alone (source 'empty': no contracts), so the teleport is there in the sandbox too
   function gmMap(list) {
-    if (!$('mapEntry') || !window.FLYDIY_LAZY) return false;
-    window.FLYDIY_LAZY(['map_pack', 'map_menu']).then(() => { if (window.MAP_MENU) window.MAP_MENU.open(list ? { list } : {}); });
+    if (!window.FLYDIY_LAZY) return false;
+    const o = $('mapEntry') ? (list ? { list } : {}) : { source: 'empty' };
+    window.FLYDIY_LAZY(['map_pack', 'map_menu']).then(() => { if (window.MAP_MENU) window.MAP_MENU.open(o); });
     return true;
   }
   const GM_ROWS = [
@@ -16368,7 +16371,7 @@
     ['resume', () => (gmFlying() ? 'Resume' : 'Close'), () => true],
     ['shed', () => 'Back to the shed', () => !inGarage],
     ['contracts', () => 'Contracts', () => !!$('mapEntry')],
-    ['map', () => 'Map', () => !!$('mapEntry') || !inGarage],
+    ['map', () => 'Map', () => !!window.FLYDIY_LAZY],
     ['controls', () => 'Controls', () => true, 'Options'],
     ['graphics', () => 'Graphics', () => true],
     ['sound', () => 'Sound', () => true],
