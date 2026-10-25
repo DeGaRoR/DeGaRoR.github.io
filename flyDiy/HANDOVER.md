@@ -98181,3 +98181,7 @@ mask, and we can paint it and everything, like the other."
   checks shoreHere (no band without map[18]; a polygon wins).
 - the fern on the flowers' pattern: beds of 5 m at patchShare 0.6, density 0.45, the mix's size spread 0.3; its colour the
   ground's at its foot with the hueTurn swing (A0: the flower master on the fern's mesh is a follow-up after the stills).
+- THE FERN'S COLOUR CONTROL (the user, 25 Oct: "I need my lightness, saturation, hue control for them"): F8 > terrain types
+  > lake shore (18, now in the world rail's types: biome tab only - no ground row until the splat carries an 18) > the
+  lakeshore biome > reed marsh's card: hue / saturation / lightness (TREE_LEAF.tintOf, the species' own tint; the world look
+  exports it under `tints`). The same card's density / patch / share / size are the mix row's.
