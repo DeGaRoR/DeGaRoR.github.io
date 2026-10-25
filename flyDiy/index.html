@@ -404,8 +404,9 @@
    G2799 (DROP-JSON): and the garage's 'drop to import' overlay (#gDrop, garage.js, body-level).
    G3350 (STORY-TIM): and Tim's band (#stTim, app.js, body-level).
    G3360 (CAREERS): and the welcome's menu (#welcome, welcome.js, body-level: Continue / New career / the careers list).
-   G3370 (TUTO-FLIGHT): and T1's "Skip the flight" (#stSkip, app.js, body-level). */
-:is(#wsUI, #edView, #mapScreen, #hsStore, #stIntro, #stCard, #gDrop, #stTim, #welcome, #stSkip) {
+   G3370 (TUTO-FLIGHT): and T1's "Skip the flight" (#stSkip, app.js, body-level).
+   G3520 (GAME-MENUS): and the menu (#gmPanel, app.js, body-level: the pause menu in flight, the menu in the shed). */
+:is(#wsUI, #edView, #mapScreen, #hsStore, #stIntro, #stCard, #gDrop, #stTim, #welcome, #stSkip, #gmPanel) {
   --ed-panel:#201d1a; --ed-board:#1a1815;
   --ed-plate:rgba(32,29,26,.94);
   --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#97907f;
@@ -2251,6 +2252,31 @@ body.stSkipOn #stTim { bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
 body.stNoBench #edBench { display: none !important; }
 #stNoBenchNote { font-size: 12px; color: var(--ed-dim); padding: 6px 10px; }
 
+/* G3520 (GAME-MENUS, the 24 Oct playtest): THE MENU - one small panel under the MENU pill at the screen's top edge (the
+   right in flight, under the pills in the shed), never a card in the centre. The garage's plate, its sans, no italics;
+   every row a 48 px target (R1). Under the input panel (60) it opens, over the story's band and card (40). */
+#gmPanel { position:fixed; z-index:59; width:260px; max-width:calc(100vw - 24px); max-height:calc(100vh - 90px); overflow:auto;
+  box-sizing:border-box; padding:8px; display:flex; flex-direction:column; gap:4px;
+  background:var(--ed-plate); color:var(--ed-ink); border:1px solid var(--ed-border); border-radius:10px;
+  box-shadow:0 10px 28px rgba(0,0,0,.45); font:400 13px/1.3 'IBM Plex Sans', system-ui, sans-serif; font-style:normal; }
+#gmPanel[hidden] { display:none; }
+#gmPanel * { font-style:normal; box-sizing:border-box; }
+#gmPanel .gmHead { display:flex; align-items:baseline; justify-content:space-between; padding:4px 6px 6px;
+  font:600 11px/1.2 'IBM Plex Sans', sans-serif; letter-spacing:.16em; text-transform:uppercase; color:var(--ed-dim); }
+#gmPanel .gmSec { padding:8px 6px 2px; font:500 10px/1.2 'IBM Plex Sans', sans-serif; letter-spacing:.14em; text-transform:uppercase; color:var(--ed-faint); }
+#gmPanel .gmRule { height:1px; margin:6px 2px; background:var(--ed-hair); }
+#gmPanel .gmRow { all:unset; box-sizing:border-box; display:flex; align-items:center; justify-content:space-between; width:100%; min-height:48px;
+  padding:0 12px; border-radius:7px; border:1px solid transparent; cursor:pointer; color:var(--ed-ink);
+  font:500 13.5px/1.2 'IBM Plex Sans', sans-serif; }
+#gmPanel .gmRow:hover { background:var(--ed-acc-soft); }
+#gmPanel .gmRow:focus-visible { border-color:var(--ed-acc); }
+#gmPanel .gmRow.pri { background:var(--ed-acc); color:var(--ed-acc-ink); font-weight:600; }
+#gmPanel .gmKey { font:500 10px/1 'IBM Plex Mono', monospace; letter-spacing:.06em; color:var(--ed-faint); padding:3px 5px;
+  border:1px solid var(--ed-border); border-radius:4px; text-transform:none; }
+#gmPanel .gmAsk { padding:6px 8px 2px; color:var(--ed-dim); font-size:12.5px; line-height:1.4; }
+#gmPanel .gmPair { display:flex; gap:6px; }
+#gmPanel .gmPair .gmRow { justify-content:center; }
+body.shot #gmPanel, body.shot #gmMenu { display:none !important; }
 /* P1 CG-COLOURS: the CG / neutral point tooltip (the garage, never in flight) - the --ed look, the band's colour on its
    edge and title; on the body, so the tokens are redeclared as #fkCard does */
 #cgTip { position: fixed; z-index: 61; width: min(320px, calc(100vw - 16px)); pointer-events: none;
@@ -2750,8 +2776,10 @@ body.rollShot #flActs { display:none !important; }
    figures, and every text clips inside its own box. What the plate SAYS can never move its edges; only
    what you ask it to CARRY can (the instruments flyout's extra readouts wrap onto a second row).
    GATE UISMOKE holds this contract; tools/hud_fit_shot.js measures it in Chromium. */
+/* G3524 (the 24 Oct playtest: "a live wind indication on the HUD"): 540 and not 440 - the wind is the fifth always-on
+   cell, and the four that were there filled the 440 */
 #ui #pfd { grid-column:2; justify-self:center; padding:11px 14px 10px;
-  width:440px; box-sizing:border-box; overflow:hidden;
+  width:540px; box-sizing:border-box; overflow:hidden;
   background:var(--fl-glass); }
 
 #pfdRow { display:flex; flex-wrap:wrap; gap:6px 14px; align-items:flex-start; }
@@ -2762,6 +2790,11 @@ body.rollShot #flActs { display:none !important; }
 #ui .rd { flex:none; width:80px; min-width:0; overflow:hidden; text-align:right; }
 #ui .rd[data-i="nrg"], #ui .rd[data-i="netto"] { width:112px; }
 #ui .rd[data-i="thr"] { width:120px; }
+/* G3524: the wind - an arrow (where the air goes, the nose up), the speed; the unit line says where it comes from */
+#ui .rd[data-i="wind"] { width:100px; }
+#ui .rd b .windA { display:inline-block; width:18px; height:18px; margin-right:4px; vertical-align:2px;
+  fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; transform-origin:50% 50%; }
+#ui .rd b .windA.calm { visibility:hidden; }
 
 #ui .rd[hidden] { display:none; }
 
@@ -2781,11 +2814,13 @@ body.rollShot #flActs { display:none !important; }
 /* THE SMALL PFD (the user: "allow a minimized version of the top bar with
    smaller characters and only IAS, alt, Vs and power, plus the steps"). Two
    thirds of the type, four numbers, the steps unchanged. */
-#ui #pfd.small { padding:8px 11px 7px; width:372px; }
+#ui #pfd.small { padding:8px 11px 7px; width:448px; }   /* G3524: + the wind's 64 */
 #ui #pfd.small #pfdRow { gap:4px 12px; }
 #ui #pfd.small .rd { width:52px; }
 #ui #pfd.small .rd[data-i="nrg"], #ui #pfd.small .rd[data-i="netto"] { width:86px; }
 #ui #pfd.small .rd[data-i="thr"] { width:76px; }
+#ui #pfd.small .rd[data-i="wind"] { width:64px; }
+#ui #pfd.small .rd b .windA { width:12px; height:12px; margin-right:2px; vertical-align:1px; }
 #ui #pfd.small .rd b { font-size:19px; height:20px; line-height:20px; }
 #ui #pfd.small .rd i { font-size:7px; height:9px; line-height:9px; letter-spacing:.12em; }
 #ui #pfd.small #rail { margin-top:8px; padding-top:7px; height:22px; }
@@ -2857,11 +2892,6 @@ body.rollShot #flActs { display:none !important; }
 
 #track i.now { width:14px; background:var(--ed-acc); }
 
-/* G1091 (POLISH-2): the trees-by-the-runways variant, named while DEV is on - small, out of the way */
-#ui #rwyTreesTag { position:absolute; left:50%; bottom:6px; transform:translateX(-50%); padding:2px 8px;
-  font:500 9px/1.3 'IBM Plex Mono', monospace; letter-spacing:.04em; color:var(--ed-faint);
-  background:var(--fl-glass); border-radius:4px; pointer-events:none; white-space:nowrap; }
-#ui #rwyTreesTag[hidden] { display:none; }
 
 /* =========================================================================
    4. THE SUMMONED PANELS, and the arrival.
@@ -4061,7 +4091,7 @@ html.phone #bRun, html.phone #bAward, html.phone body.mode-fly #bAward {
     </div>
   </aside>
 </div>
-<script>window.FLYDIY_BUILD='1bd647158b91';window.FLYDIY_BUILD_DATE='2026-10-25T21:44:23.194Z';</script>
+<script>window.FLYDIY_BUILD='78e70962e09b';window.FLYDIY_BUILD_DATE='2026-10-25T22:48:48.085Z';</script>
 <script>
 // ===========================================================================
 // THE NAMES (G3240 NAMES, 2026-10-22; GAME-PLAN-2026-10-15 §R and §13). The user, 15 Oct: "Everything should have a
@@ -6053,6 +6083,10 @@ html.updNowUp #bootPanel { bottom:84px; }
              the label carries the endurance at the current draw once the
              solver says it; red under the reserve; EMPTY when starved. -->
         <div class="rd" data-i="nrg"><b id="r-nrg">0</b><i id="r-nrgU">L fuel</i></div>
+        <!-- G3524 (the 24 Oct playtest): THE WIND, live and always - the air at the aeroplane (the solver's own, a
+             second's average): an arrow where it goes with the nose up (a headwind points down at you), the speed in
+             km/h, and the unit line the bearing it comes FROM; "calm" under 2 km/h -->
+        <div class="rd" data-i="wind"><b><svg class="windA calm" id="r-windA" viewBox="0 0 18 18" aria-hidden="true"><path d="M9 15V3M4.5 7.5 9 3l4.5 4.5"/></svg><span id="r-wind">0</span></b><i id="r-windU">km/h wind</i></div>
         <div class="rd" data-i="aoa" hidden><b id="r-aoa">0.0</b><i>&deg; aoa</i></div>
         <div class="rd" data-i="bank" hidden><b id="r-bank">0.0</b><i>&deg; bank</i></div>
         <div class="rd" data-i="agl" hidden><b id="r-agl">0</b><i>m agl</i></div>
@@ -59264,7 +59298,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 })();
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='f43909908b99';window.FLYDIY_BUILD='1bd647158b91';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=b77b48a0"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='f43909908b99';window.FLYDIY_BUILD='78e70962e09b';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=b77b48a0"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -59311,7 +59345,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 <script type="text/x-flydiy">window.CAGE_UI_LAZY = 1; window.CAGE_IN_GAME = 1;</script>
 <script type="text/x-flydiy">
 (function () {
-  var SRC = {"_sport_gen":"tools/_sport_gen.js?v=4e7d9a83","_marine_gen":"tools/_marine_gen.js?v=7e5624cd","_navaid_gen":"tools/_navaid_gen.js?v=591dc503","scenery_landmark":"src/scenery/scenery_landmark.js?v=bfc3ff4b","scenery_vessel":"src/scenery/scenery_vessel.js?v=e743cbf2","scenery_wreck":"src/scenery/scenery_wreck.js?v=f02332a8","scenery_crowd":"src/scenery/scenery_crowd.js?v=7912e4ef","scenery_lods":"src/scenery/scenery_lods.js?v=4d103a39","camp_camp":"src/camp/camp_camp.js?v=1f4ae79d","camp_lods":"src/camp/camp_lods.js?v=15cbff06","infra_pylon":"src/infra/infra_pylon.js?v=552fef8f","premises_host":"src/viewer/premises_host.js?v=f48ddf2c","premises_ui":"src/viewer/premises_ui.js?v=387c0962","world_rail":"src/viewer/world_rail.js?v=2bef29f2","ktx2_loader":"vendor/ktx2/ktx2_loader.js?v=841b4114","townkit":"src/viewer/townkit.js?v=53c25ee1","kit_lot":"src/viewer/kit_lot.js?v=57d263e0","diag":"src/viewer/diag.js?v=b61f6912","story_intro":"src/viewer/story_intro.js?v=816a6e70","map_pack":"src/viewer/map_pack.js?v=ba5d4559","map_menu":"src/viewer/map_menu.js?v=90acc08b","freight_load":"src/viewer/freight_load.js?v=5693912b","freight_strap":"src/viewer/freight_strap.js?v=57b4d0e1","crowd":"src/viewer/crowd.js?v=0153cf17"}, got = {}, busy = 0;
+  var SRC = {"_sport_gen":"tools/_sport_gen.js?v=4e7d9a83","_marine_gen":"tools/_marine_gen.js?v=7e5624cd","_navaid_gen":"tools/_navaid_gen.js?v=591dc503","scenery_landmark":"src/scenery/scenery_landmark.js?v=bfc3ff4b","scenery_vessel":"src/scenery/scenery_vessel.js?v=e743cbf2","scenery_wreck":"src/scenery/scenery_wreck.js?v=f02332a8","scenery_crowd":"src/scenery/scenery_crowd.js?v=7912e4ef","scenery_lods":"src/scenery/scenery_lods.js?v=4d103a39","camp_camp":"src/camp/camp_camp.js?v=1f4ae79d","camp_lods":"src/camp/camp_lods.js?v=15cbff06","infra_pylon":"src/infra/infra_pylon.js?v=552fef8f","premises_host":"src/viewer/premises_host.js?v=f48ddf2c","premises_ui":"src/viewer/premises_ui.js?v=387c0962","world_rail":"src/viewer/world_rail.js?v=2bef29f2","ktx2_loader":"vendor/ktx2/ktx2_loader.js?v=841b4114","townkit":"src/viewer/townkit.js?v=53c25ee1","kit_lot":"src/viewer/kit_lot.js?v=57d263e0","diag":"src/viewer/diag.js?v=b61f6912","story_intro":"src/viewer/story_intro.js?v=816a6e70","map_pack":"src/viewer/map_pack.js?v=ba5d4559","map_menu":"src/viewer/map_menu.js?v=548bca8e","freight_load":"src/viewer/freight_load.js?v=5693912b","freight_strap":"src/viewer/freight_strap.js?v=57b4d0e1","crowd":"src/viewer/crowd.js?v=0153cf17"}, got = {}, busy = 0;
   window.FLYDIY_LAZY_SRC = SRC;
   var lazy = window.FLYDIY_LAZY = function (names) {
     return Promise.all([].concat(names).map(function (n) {
@@ -59337,16 +59371,18 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
   // G2252 (MAP-MENU): THE MAP ENTRY - only with ?map=1 (the dev flag) or in the career mode (FLYDIY_MODE, welcome.js's);
   // the sandbox has none. A button, and nothing else: the screen, its projection, the picture and the contracts load when
   // it is pressed (lazy, like diag.js)
+  // G3521 (GAME-MENUS, the 24 Oct playtest: "the map button is confused with the minimap"): the entry is CONTRACTS and
+  // opens the screen on the contracts list; Tab is the map (app.js); where it stands, beside MENU, is app.js gmLayout
   window.FLYDIY_MAP_SRC = { fixture: "tools/fixtures/contracts_sample.json?v=3e591f24" };
   var mapEntry = window.FLYDIY_MAP_ENTRY = function () {
     var on = /[?&]map=1(&|$)/.test(location.search) || window.FLYDIY_MODE === 'career';
     if (!on) return false;   // the sandbox: nothing touched
     if (!document.body || document.getElementById('mapEntry')) return !!document.getElementById('mapEntry');
     var b = document.createElement('button');
-    b.id = 'mapEntry'; b.type = 'button'; b.textContent = 'MAP'; b.setAttribute('aria-label', 'the island map and the contracts');
+    b.id = 'mapEntry'; b.type = 'button'; b.textContent = 'CONTRACTS'; b.setAttribute('aria-label', 'the contracts, on the island map');
     b.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:2147482000;min-width:72px;min-height:48px;padding:0 18px;border-radius:24px;' +
       "border:1px solid rgba(255,178,87,.85);background:rgba(28,24,20,.86);color:#ffb257;font:600 13px/1 'IBM Plex Sans',sans-serif;letter-spacing:.16em;cursor:pointer";
-    b.onclick = function () { lazy(['map_pack', 'map_menu']).then(function () { if (window.MAP_MENU) window.MAP_MENU.open(); }); };
+    b.onclick = function () { lazy(['map_pack', 'map_menu']).then(function () { if (window.MAP_MENU) window.MAP_MENU.open({ list: 'contracts' }); }); };
     document.body.appendChild(b);
     return true;
   };
@@ -125689,6 +125725,206 @@ var UI_LAYER = (function () {
 })();
 if (typeof window !== 'undefined') window.UI_LAYER = UI_LAYER;
 if (typeof module !== 'undefined') module.exports = UI_LAYER;
+</script>
+<script type="text/x-flydiy">
+// card_drag.js - EVERY CARD THE GAME SHOWS IS DRAGGABLE (G3526-G3529, GAME-MENUS; the user, 25 Oct: "super important;
+// any card you show in game should be draggable, so they never cover anything important anymore. This has been a real
+// pain.")
+//
+// ONE HELPER, window.FLYDIY_DRAG, for every card and panel the game shows over the view: the arrival / crash card, the
+// bench's run card and award, the story's card and Tim's band, the menu, the freight panel, the boombox, the controls
+// panel, the hardware notice. The flight's own HUD panels (the PFD, the minimap, the rail, the trace) keep app.js
+// flPlace - placed in the flight layer, laid out by flLayout - and are not cards.
+//
+// - A REGISTRY BY SELECTOR (CARDS below, + register()): a 400 ms scan finds each card wherever and whenever its own
+//   code makes it, so no card's code changes to become draggable, and a card made again (a re-render, a new element)
+//   is found again. card(el, key, opts) binds an element in hand.
+// - THE GESTURE is app.js flPlace's: pointer events (mouse, touch, pen), nothing captured until the pointer has moved
+//   4 px (a press that does not travel is a click and is left alone), then the pointer is captured and the click that
+//   ends the drag is eaten - one, in the capture phase. A drag never STARTS on a control (button, a, input, select,
+//   textarea, label, anything inside [data-nodrag]): a card's buttons stay buttons and its sliders stay sliders. The
+//   handle is the card itself unless the entry names one (a header).
+// - THE PLACE: none until the player drags - the card stands where its own CSS puts it. The first drag fixes its width
+//   (a card anchored left AND right would otherwise change size) and writes left / top with right / bottom auto,
+//   transform none and margin 0, inline, in the frame of its containing block (the viewport for a fixed card). Kept
+//   inside the viewport (all of it when it fits; its top-left corner when it does not), again on a resize.
+// - REMEMBERED PER CARD TYPE (the key), in localStorage flydiy.cardPos (every access wrapped: a browser that keeps
+//   nothing still drags, for the page's life). A card whose own code writes a position, or one made again, gets the
+//   saved place back at the next scan.
+// - A WAY BACK: a double-click on the handle puts that card back where its CSS puts it; resetAll() (the MENU's "Cards
+//   back in place") puts them all back.
+// - THE CLASSES: the card .cdCard, its handle .cdHandle (cursor: grab), body.cdDragging during a drag - a page guard
+//   that holds the pointer (the story's tutor steps) lets a target inside .cdHandle through.
+//
+// GATE CARDDRAG (tools/_carddrag_check.js): the census (every card-like id in src/viewer registered here or allow-listed
+// with its reason) and the gesture in a stub DOM. Pure half: require() gives { CARDS, clampPos, startsDrag }.
+(function () {
+  'use strict';
+  const W = typeof window !== 'undefined' ? window : null;
+
+  // [selector, key, handle selector ('' = the card itself)]
+  const CARDS = [
+    ['#arrCard', 'arrival', ''],      // the end of a flight and its crash form; the career's line (body.html, app.js)
+    ['#bRun', 'benchRun', ''],        // the bench's run card (bench.js)
+    ['#bAward', 'benchAward', ''],    // the bench's award / certificate (bench.js)
+    ['#stCard', 'story', ''],         // the story's beat card (app.js)
+    ['#stTim', 'tim', ''],            // Tim's band (app.js; its data-tim buttons stay buttons)
+    ['#gmPanel', 'menu', '.gmHead'],  // the menu (app.js G3520): by its header, the rows are all buttons
+    ['#frLoad', 'freight', ''],       // the freight loading panel (freight_load.js)
+    ['#bbPanel', 'boombox', ''],      // the boombox (boombox.js)
+    ['#ctlPanel', 'controls', ''],    // the controls panel (input_panel.js)
+    ['#hwNote', 'hwNote', ''],        // the graphics' hardware notice (gfx_settings.js)
+  ];
+  const STORE = 'flydiy.cardPos', MOVE_PX = 4, SCAN_MS = 400, KEEP = 40;
+  const NO_DRAG = 'button, a, input, select, textarea, label, option, [contenteditable="true"], [data-nodrag]';
+
+  // a position kept on screen: the whole card when it fits, else its top-left corner (pure)
+  function clampPos(p, w, h, vw, vh) {
+    const x = w <= vw ? Math.min(Math.max(0, p.x), vw - w) : Math.min(Math.max(0, p.x), Math.max(0, vw - KEEP));
+    const y = h <= vh ? Math.min(Math.max(0, p.y), vh - h) : Math.min(Math.max(0, p.y), Math.max(0, vh - KEEP));
+    return { x: Math.round(x), y: Math.round(y) };
+  }
+  // does a press on this target start a drag of its card? (not on a control; only inside the handle)
+  function startsDrag(target, handle) {
+    if (!target || !handle || typeof target.closest !== 'function') return false;
+    if (target.closest(NO_DRAG)) return false;
+    return target === handle || (typeof handle.contains === 'function' && handle.contains(target));
+  }
+  const CORE = { CARDS, clampPos, startsDrag, STORE, MOVE_PX };
+  if (!W || !W.document) { if (typeof module !== 'undefined') module.exports = CORE; return; }
+  const D = W.document;
+
+  // ---- the store -------------------------------------------------------------------------------------------------
+  let mem = null;
+  function load() {
+    if (mem) return mem;
+    mem = {};
+    try { const v = JSON.parse(W.localStorage.getItem(STORE) || '{}'); if (v && typeof v === 'object') for (const k of Object.keys(v)) { const p = v[k]; if (p && isFinite(p.x) && isFinite(p.y)) mem[k] = { x: +p.x, y: +p.y, w: isFinite(p.w) ? +p.w : 0 }; } }
+    catch (e) {}
+    return mem;
+  }
+  function save() { try { W.localStorage.setItem(STORE, JSON.stringify(load())); } catch (e) {} }
+
+  // ---- placing ---------------------------------------------------------------------------------------------------
+  const vw = () => W.innerWidth || (D.documentElement && D.documentElement.clientWidth) || 1280;
+  const vh = () => W.innerHeight || (D.documentElement && D.documentElement.clientHeight) || 720;
+  // the origin of the card's containing block, in viewport px (the viewport for a fixed card)
+  function origin(el) {
+    try {
+      if (W.getComputedStyle(el).position === 'fixed') return [0, 0];
+      const op = el.offsetParent; if (!op) return [0, 0];
+      const r = op.getBoundingClientRect();
+      return [r.left + (op.clientLeft || 0), r.top + (op.clientTop || 0)];
+    } catch (e) { return [0, 0]; }
+  }
+  const px = v => Math.round(v) + 'px';
+  function apply(el, p) {
+    const r = el.getBoundingClientRect(), w = p.w || r.width, q = clampPos(p, w, r.height, vw(), vh()), o = origin(el), s = el.style;
+    const want = { left: px(q.x - o[0]), top: px(q.y - o[1]), right: 'auto', bottom: 'auto', transform: 'none', margin: '0px' };
+    if (p.w) want.width = px(p.w);
+    for (const k of Object.keys(want)) if (s[k] !== want[k]) s[k] = want[k];
+    el.__cdSet = true;
+  }
+  function unapply(el) {
+    if (!el.__cdSet) return;
+    for (const k of ['left', 'top', 'right', 'bottom', 'transform', 'margin', 'width']) el.style[k] = '';
+    el.__cdSet = false;
+  }
+
+  // ---- the gesture (app.js flPlace's, on any card) ----------------------------------------------------------------
+  const bound = new Map();   // key -> { el, sel }
+  // the handle: the card, or its element matching the entry's selector - looked up at each press, since a card's own
+  // code may write its insides again (the menu does on every open); mark() puts the classes back on whatever is there
+  function handleOf(el, sel, t) {
+    if (!sel) return el;
+    const h = t && typeof t.closest === 'function' ? t.closest(sel) : null;
+    return h && (h === el || el.contains(h)) ? h : null;
+  }
+  function mark(el, sel) {
+    const hs = sel ? (el.querySelectorAll ? Array.from(el.querySelectorAll(sel)) : []) : [el];
+    for (const h of hs) { if (h.classList && !h.classList.contains('cdHandle')) h.classList.add('cdHandle'); if (h.style && h.style.touchAction !== 'none') h.style.touchAction = 'none'; }
+  }
+  function card(el, key, opts) {
+    if (!el || !key || el.__cdKey) return el;
+    opts = opts || {};
+    const sel = opts.handle || '';
+    el.__cdKey = key;
+    if (el.classList) el.classList.add('cdCard');
+    mark(el, sel);
+    bound.set(key, { el, sel });
+    let armed = false, moving = false, sx = 0, sy = 0, ox = 0, oy = 0, eat = false, pid = null;
+    el.addEventListener('pointerdown', e => {
+      if (e.button || !startsDrag(e.target, handleOf(el, sel, e.target))) return;
+      const r = el.getBoundingClientRect();
+      armed = true; moving = false; sx = e.clientX; sy = e.clientY; ox = e.clientX - r.left; oy = e.clientY - r.top; pid = e.pointerId;
+      e.stopPropagation();   // a press on a card is never a press on the world behind it
+    });
+    el.addEventListener('pointermove', e => {
+      if (!armed) return;
+      if (!moving) {
+        if (Math.abs(e.clientX - sx) + Math.abs(e.clientY - sy) < MOVE_PX) return;
+        moving = true;
+        // the capture only once it is a drag (flPlace's note: an early capture retargets the click onto the card)
+        try { el.setPointerCapture(pid); } catch (err) {}
+        if (D.body && D.body.classList) D.body.classList.add('cdDragging');
+      }
+      const P = load(), r = el.getBoundingClientRect(), p = P[key] || (P[key] = { x: 0, y: 0, w: 0 });
+      if (!p.w) p.w = Math.round(r.width);
+      p.x = e.clientX - ox; p.y = e.clientY - oy;
+      apply(el, p);
+      const q = clampPos(p, p.w, r.height, vw(), vh()); p.x = q.x; p.y = q.y;
+      e.preventDefault();
+    });
+    const up = () => {
+      if (!armed) return;
+      armed = false;
+      try { el.releasePointerCapture(pid); } catch (err) {}
+      if (!moving) return;   // it never travelled: a click
+      moving = false;
+      if (D.body && D.body.classList) D.body.classList.remove('cdDragging');
+      eat = true; W.setTimeout(() => { eat = false; }, 0);   // the click of this gesture, and only it
+      save();
+    };
+    el.addEventListener('pointerup', up);
+    el.addEventListener('pointercancel', up);
+    el.addEventListener('click', e => { if (eat) { eat = false; e.stopPropagation(); e.preventDefault(); } }, true);
+    el.addEventListener('dblclick', e => { if (!startsDrag(e.target, handleOf(el, sel, e.target))) return; reset(key); e.preventDefault(); });
+    const p = load()[key]; if (p) apply(el, p);
+    return el;
+  }
+  function reset(key) {
+    const P = load(); delete P[key]; save();
+    const b = bound.get(key); if (b) unapply(b.el);
+  }
+  function resetAll() { for (const k of Object.keys(load())) delete mem[k]; save(); for (const b of bound.values()) unapply(b.el); }
+
+  // ---- the scan: new cards bound, re-made ones re-bound, a moved card put back where the player left it ------------
+  const extra = [];
+  function scan() {
+    const P = load();
+    for (const [sel, key, handle] of CARDS.concat(extra)) {
+      let el = null; try { el = D.querySelector(sel); } catch (e) {}
+      if (!el) continue;
+      const b = bound.get(key);
+      if (!b || b.el !== el) { if (b) bound.delete(key); card(el, key, { handle }); continue; }
+      if (handle) mark(el, handle);
+      if (P[key] && !el.hidden) apply(el, P[key]);
+    }
+  }
+  function register(sel, key, opts) {
+    if (typeof sel !== 'string' || !key || CARDS.concat(extra).some(c => c[1] === key)) return false;
+    extra.push([sel, key, (opts && opts.handle) || '']); scan(); return true;
+  }
+  if (D.head && D.createElement) try {
+    const st = D.createElement('style');
+    st.textContent = '.cdHandle{cursor:grab}body.cdDragging,body.cdDragging .cdHandle{cursor:grabbing;-webkit-user-select:none;user-select:none}' +
+      '.cdHandle :is(button,a,input,select,textarea,label,[data-nodrag]){cursor:auto}.cdHandle button,.cdHandle a{cursor:pointer}';
+    D.head.appendChild(st);
+  } catch (e) {}
+  if (typeof W.setInterval === 'function') W.setInterval(() => { try { scan(); } catch (e) {} }, SCAN_MS);
+  if (typeof W.addEventListener === 'function') W.addEventListener('resize', () => { try { const P = load(); for (const [k, b] of bound) if (P[k] && !b.el.hidden) apply(b.el, P[k]); } catch (e) {} });
+  W.FLYDIY_DRAG = Object.assign({ card, register, reset, resetAll, scan, placed: key => !!load()[key], keys: () => Object.keys(load()) }, CORE);
+})();
 </script>
 <script type="text/x-flydiy">
 // ---------------------------------------------------------------------------
@@ -201937,9 +202173,8 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     if (!frEntryEl) return;
     frEntryEl.hidden = !want;
     if (frEntryEl.textContent !== label) frEntryEl.textContent = label;
-    // beside the MAP when it stands (top centre), else in its place
-    frEntryEl.style.left = $('mapEntry') ? 'calc(50% + 52px)' : '50%';
-    frEntryEl.style.transform = $('mapEntry') ? 'none' : 'translateX(-50%)';
+    // beside MENU and CONTRACTS, top centre: one row, gmLayout's (G3521)
+    if (typeof gmLayout === 'function') gmLayout();
   }
   if (FREIGHT_PAGE) setInterval(() => { try { frEntrySync(); } catch (e) {} }, 700);
   if (FREIGHT_PAGE) window.FLYDIY_FREIGHT = {
@@ -205977,7 +206212,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // exactly what you are asking, so the three cells are back — as
   // `instruments` toggles, off by default, signed as a pilot reads them
   // (+ is nose up, roll right, RIGHT pedal).
-  const R = ['ias','alt','vs','nrg','nrgU','aoa','bank','agl','thr','tas','pwr','de','da','dr']
+  const R = ['ias','alt','vs','nrg','nrgU','wind','windU','windA','aoa','bank','agl','thr','tas','pwr','de','da','dr']
     .reduce((o, k) => (o[k] = $('r-' + k), o), {});
   // A3: THE ENERGY CELL - the fourth number that is always there. Litres of a
   // tank or kWh of a pack (the build's kind, from sim.fuel), one decimal;
@@ -206003,6 +206238,27 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     }
     if (lab !== nrgLabel) { nrgLabel = lab; if (R.nrgU) R.nrgU.textContent = lab; }
     if (RD.nrg) RD.nrg.classList.toggle('warn', dead || frac < 0.1);
+  }
+  // G3524 (GAME-MENUS, the 24 Oct playtest: "a live wind indication on the HUD"): THE WIND AT THE AEROPLANE - the
+  // solver's out.windX / windZ (the air's velocity where the aeroplane is: the climate's wind, its gusts and the hills;
+  // the worker's copied over like the rest of sim.out), averaged over a second so a gust reads as a gust and not as
+  // flicker. The arrow is where the air GOES with the nose up (a headwind points down at you); the unit line is the
+  // bearing it comes FROM (the grid's: x east, z south - 09_climate bearingToBase's frame, so it reads as the weather
+  // panel's own); under 2 km/h it says calm. The text is written only when it changes.
+  const hudW = { x: 0, z: 0, t: 0, txt: '', lab: '', rot: '' };
+  function hudWind() {
+    if (!R.wind) return;
+    const o = sim.out || {}, now = typeof performance !== 'undefined' ? performance.now() : Date.now(), dt = hudW.t ? Math.min(1, (now - hudW.t) / 1000) : 1;
+    hudW.t = now;
+    hudW.x += ((o.windX || 0) - hudW.x) * dt; hudW.z += ((o.windZ || 0) - hudW.z) * dt;
+    const kmh = Math.hypot(hudW.x, hudW.z) * 3.6, calm = kmh < 2;
+    const from = (Math.atan2(-hudW.x, hudW.z) * 57.29578 + 360) % 360;
+    let hdg = 0; try { const xA = sim.axes()[0]; hdg = Math.atan2(xA[0], -xA[2]) * 57.29578; } catch (e) {}
+    const txt = calm ? '0' : kmh.toFixed(0), lab = calm ? 'km/h · calm' : 'km/h · ' + String(Math.round(from) % 360).padStart(3, '0') + '°';
+    const rot = calm ? '' : 'rotate(' + Math.round((from + 180 - hdg + 360) % 360) + 'deg)';
+    if (txt !== hudW.txt) { hudW.txt = txt; R.wind.textContent = txt; }
+    if (lab !== hudW.lab) { hudW.lab = lab; if (R.windU) R.windU.textContent = lab; }
+    if (R.windA && rot !== hudW.rot) { hudW.rot = rot; R.windA.style.transform = rot; R.windA.classList.toggle('calm', calm); }
   }
   // the netto's state: a 3 s needle and a 20 s ring, as a vario has
   let nettoF = 0, nettoI = 0;
@@ -206059,6 +206315,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       }
     }
     hudEnergy();
+    hudWind();
     if (window.ACCEPT_REC) window.ACCEPT_REC.frame();   // G2273 (ACCEPT): the acceptance leg's tick (page) and its signature into the logbook
     if (CAREER_DEV) careerFrame(cg);                     // G2320 (CAREER-WIRE): the aerodromes passed (a survey's evidence)
     // NO GREEN: ok is simply the ink, and warn is only ever used against a
@@ -206619,12 +206876,8 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   let flDevOn = prefGet('flydiy.flDev', '') === '1';
   function flRailSync() {
     const scen = !!(window.SCENERY && window.SCENERY.on);
-    // G1091 (POLISH-2): with DEV on, a small tag names the trees-by-the-runways variant this world was planted with
-    { let tg = $('rwyTreesTag');
-      if (!tg && document.createElement && $('ui') && $('ui').appendChild) { tg = document.createElement('div'); tg.id = 'rwyTreesTag'; $('ui').appendChild(tg); }
-      if (tg) { const m = world && world.rwyTrees ? world.rwyTrees() : null;
-                tg.hidden = !(flDevOn && m && world.island);
-                tg.textContent = 'trees by the runways: ' + (m === 'mapx' ? 'map + shoulders & fans (mapx)' : m === 'map' ? 'the map (map)' : 'today'); } }
+    // (G1091's tag naming the trees-by-the-runways variant, bottom centre with DEV on, is gone: G3522, the 24 Oct playtest -
+    // "debug text at the bottom centre of the screen: remove"; world.rwyTrees() still answers it)
     for (const b of $('flRail').children) {
       if (b.dataset.f === 'dev') b.hidden = !(flDevOn || scen);
       if (b.dataset.dev === 'toggle') {
@@ -207582,7 +207835,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // WHICH READOUTS THE PFD CARRIES — and the SMALL PFD overrides that answer
   // rather than editing it, so turning the small one off gives you back
   // exactly the set you had chosen.
-  const PFD_SMALL = ['ias', 'alt', 'vs', 'nrg', 'pwr'];   // A3: the energy stays on the small one
+  const PFD_SMALL = ['ias', 'alt', 'vs', 'nrg', 'pwr', 'wind'];   // A3: the energy stays on the small one; G3524: the wind too
   function flInstApply() {
     const small = !!panels.pfdSmall;
     const p = $('pfd');
@@ -207590,7 +207843,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     for (const d0 in RD) {
       if (!RD[d0]) continue;
       RD[d0].hidden = small ? PFD_SMALL.indexOf(d0) < 0
-                            : !(d0 === 'ias' || d0 === 'alt' || d0 === 'vs' || d0 === 'nrg' ||
+                            : !(d0 === 'ias' || d0 === 'alt' || d0 === 'vs' || d0 === 'nrg' || d0 === 'wind' ||
                                 instOn[d0]);
     }
     const f = $('pfdFold');
@@ -208624,6 +208877,181 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       setTimeout(drop, 12000);
     }
   }
+
+  // ---- G3520-G3522 (GAME-MENUS, the 24 Oct playtest, items 8 + 9): THE MENU, AND TAB IS THE MAP ------------------------
+  // "No clear way back to the main menu": a MENU pill, and Esc when nothing else is open, show ONE small panel at the
+  // screen's top-right edge under the pills (never a card in the centre: the game UI's rule), the garage's look. In
+  // flight it is the PAUSE menu: opening it holds the flight as #bPause does (the player's pause: FLYDIY_HELD) and Resume,
+  // Esc or the pill gives it back as it was. Its rows: Resume; Back to the shed (flight); Contracts and Map (where the map
+  // screen stands: the career, ?map=1); the options - Controls, Graphics, Sound - each the panel that already exists (the
+  // input panel, the rail's own two flyouts, pressed, never copied); Main menu - the welcome's menu again: what the
+  // autosaves keep is saved (UPDATE_NOW.saveAll, the Update pill's own), then the page reloads without ?mode / ?career
+  // (localhost and the rigs skip the menu, so there ?welcome=1 asks for it); in flight it asks once, inside the panel.
+  // TAB IS THE MAP (item 9): the map screen where it stands, else in flight the minimap large and back.
+  // gmLayout places the top pills - MENU, CONTRACTS (build.js's #mapEntry), the garage's LOAD (#frEntry) - as one row: top
+  // centre in the shed; in flight the top bar's empty right column (the PFD holds the centre: item 9, "the map button
+  // sits over important flight info")
+  let gmBtn = null, gmPanel = null, gmHeld = false, gmAsk = false, gmTabMap = null;
+  const gmVis = el => !!(el && !el.hidden && el.getClientRects && el.getClientRects().length > 0);   // (not offsetParent: null for a fixed box)
+  const gmMapOn = () => !!(window.MAP_MENU && window.MAP_MENU.isOpen && window.MAP_MENU.isOpen());
+  const gmTyping = () => { const a = document.activeElement; return !!(a && (/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) || a.isContentEditable)); };
+  // what else holds the screen (its own Esc closes it first, or it owns the keys): then Esc and Tab are not ours
+  const gmBusy = () => {
+    const B = document.body.classList;
+    return SHOT.on || !!rollAnimSkip || B.contains('premOpen') || B.contains('shot') || !!$('welcome') || gmVis($('stIntro')) ||
+      (!inGarage && !!flyOpen) || gmVis($('edFly')) || gmVis($('edShelf')) || gmVis($('hsStore')) || gmVis($('bpDesk')) ||
+      !!(window.INPUT_PANEL && window.INPUT_PANEL.isOpen && window.INPUT_PANEL.isOpen()) ||
+      !!(window.FREIGHT_LOAD && window.FREIGHT_LOAD.isOpen && window.FREIGHT_LOAD.isOpen());
+  };
+  function gmHold(on) {   // #bPause's own click, said from here
+    running = !on; userPaused = !!on;
+    const b = $('bPause'); if (b) { b.textContent = running ? 'Pause' : 'Run'; b.classList.toggle('on', !running); }
+  }
+  const gmFlying = () => !inGarage && started;
+  function gmMainMenu() {
+    try { if (window.UPDATE_NOW && window.UPDATE_NOW.saveAll) window.UPDATE_NOW.saveAll(); } catch (e) {}
+    try {
+      const u = new URL(window.location.href);
+      for (const k of ['mode', 'career', 'welcome', 'v']) u.searchParams.delete(k);
+      const n = window.navigator || {};
+      if (/^(localhost|127\.0\.0\.1|\[::1\])$/.test(u.hostname) || n.webdriver || /HeadlessChrome/.test(n.userAgent || '')) u.searchParams.set('welcome', '1');
+      window.location.assign(u.toString());
+    } catch (e) { window.location.reload(); }
+  }
+  function gmMap(list) {
+    if (!$('mapEntry') || !window.FLYDIY_LAZY) return false;
+    window.FLYDIY_LAZY(['map_pack', 'map_menu']).then(() => { if (window.MAP_MENU) window.MAP_MENU.open(list ? { list } : {}); });
+    return true;
+  }
+  function gmRail(k) {   // the rail's own button for that flyout, in the shed or in flight
+    const b = document.querySelector((inGarage ? '#edRail' : '#flRail') + ' [data-f="' + k + '"]');
+    if (b) b.click();
+  }
+  const GM_ROWS = [
+    // [key, words, when]
+    ['resume', () => (gmFlying() ? 'Resume' : 'Close'), () => true],
+    ['shed', () => 'Back to the shed', () => !inGarage],
+    ['contracts', () => 'Contracts', () => !!$('mapEntry')],
+    ['map', () => 'Map', () => !!$('mapEntry') || !inGarage],
+    ['controls', () => 'Controls', () => true, 'Options'],
+    ['graphics', () => 'Graphics', () => true],
+    ['sound', () => 'Sound', () => true],
+    // G3527: the cards the player has dragged (card_drag.js), all back where the game puts them - shown once one has moved
+    ['cards', () => 'Cards back in place', () => !!(window.FLYDIY_DRAG && window.FLYDIY_DRAG.keys().length)],
+    ['main', () => 'Main menu', () => true, ''],
+  ];
+  function gmRender() {
+    if (!gmPanel) return;
+    let h = '<div class="gmHead">' + (gmFlying() ? 'Paused' : 'Menu') + '<span class="gmKey">Esc</span></div>';
+    for (const [k, words, when, sec] of GM_ROWS) {
+      if (!when()) continue;
+      if (sec !== undefined) h += sec ? '<div class="gmSec">' + sec + '</div>' : '<div class="gmRule"></div>';
+      if (k === 'main' && gmAsk) {
+        h += '<div class="gmAsk">Leave this flight for the main menu? The flight is not kept; your saves are.</div>' +
+             '<div class="gmPair"><button type="button" class="gmRow pri" data-g="mainYes">Main menu</button><button type="button" class="gmRow" data-g="mainNo">Stay</button></div>';
+        continue;
+      }
+      h += '<button type="button" class="gmRow' + (k === 'resume' ? ' pri' : '') + '" data-g="' + k + '">' + words() +
+           (k === 'map' ? '<span class="gmKey">Tab</span>' : '') + '</button>';
+    }
+    gmPanel.innerHTML = h;
+  }
+  function gmPlace() {
+    if (!gmPanel || !gmBtn) return;
+    if (window.FLYDIY_DRAG && window.FLYDIY_DRAG.placed('menu')) return;   // G3527: dragged - card_drag.js keeps it there
+    const r = gmBtn.getBoundingClientRect(), W0 = window.innerWidth || 1280;
+    gmPanel.style.top = Math.round(r.bottom + 8) + 'px';
+    if (inGarage) { gmPanel.style.left = Math.round(Math.max(12, Math.min(r.left, W0 - 272))) + 'px'; gmPanel.style.right = 'auto'; }
+    else { gmPanel.style.right = Math.round(Math.max(12, W0 - r.right)) + 'px'; gmPanel.style.left = 'auto'; }
+  }
+  function gmOpen(on) {
+    if (!gmPanel) return;
+    if (on && gmPanel.hidden) {
+      gmAsk = false;
+      gmHeld = gmFlying() && running;   // a flight paused here is resumed here; one the player had paused stays paused
+      if (gmHeld) gmHold(true);
+      gmRender(); gmPanel.hidden = false; gmPlace();
+      if (gmBtn) gmBtn.setAttribute('aria-expanded', 'true');
+      const f = gmPanel.querySelector('button'); if (f && f.focus) f.focus();
+    } else if (!on && !gmPanel.hidden) {
+      gmPanel.hidden = true; gmAsk = false;
+      if (gmBtn) gmBtn.setAttribute('aria-expanded', 'false');
+      if (gmHeld && !running && !inGarage) gmHold(false);
+      gmHeld = false;
+    }
+  }
+  function gmAct(k) {
+    if (k === 'resume') return gmOpen(false);
+    if (k === 'shed') { gmOpen(false); const b = $('bHangar2'); if (b) b.click(); return; }
+    if (k === 'contracts' || k === 'map') { gmOpen(false); if (!gmMap(k === 'contracts' ? 'contracts' : null)) gmTab(); return; }
+    if (k === 'controls') { if (window.INPUT_PANEL) window.INPUT_PANEL.open(INP, { who: () => (inGarage ? 'in the shed' : manual ? 'you are flying' : 'the autopilot is flying') }); return; }
+    if (k === 'graphics') return gmRail('graphics');
+    if (k === 'sound') return gmRail('audio');
+    if (k === 'cards') { if (window.FLYDIY_DRAG) window.FLYDIY_DRAG.resetAll(); gmRender(); gmPlace(); return; }
+    if (k === 'main') { if (gmFlying()) { gmAsk = true; gmRender(); return; } return gmMainMenu(); }
+    if (k === 'mainYes') return gmMainMenu();
+    if (k === 'mainNo') { gmAsk = false; gmRender(); }
+  }
+  // TAB: the map screen (open / close), else in flight the minimap large - shown for the Tab if it was off - and back
+  function gmTab() {
+    if (gmMapOn()) { window.MAP_MENU.close(); return true; }
+    if (gmMap(null)) return true;
+    if (inGarage) return false;
+    if (gmTabMap) { const was = gmTabMap; gmTabMap = null; if (mapBig !== was.big) flMapBig(was.big); if (!was.show) flPanel('map', false); return true; }
+    gmTabMap = { show: !!panels.map, big: mapBig };
+    if (!panels.map) flPanel('map', true);
+    if (!mapBig) flMapBig(true);
+    return true;
+  }
+  function gmLayout() {
+    if (!gmBtn) return;
+    const B = document.body.classList, W0 = window.innerWidth || 1280;
+    const off = B.contains('shot') || B.contains('rollShot') || B.contains('premOpen') || !!$('welcome') || gmVis($('stIntro'));   // (the opening has its own Skip)
+    gmBtn.hidden = off;
+    if (off) { gmOpen(false); return; }
+    const fr = $('frEntry'), row = [gmBtn, $('mapEntry'), inGarage && fr && !fr.hidden ? fr : null].filter(Boolean), gap = 8;
+    const w = row.map(e => e.offsetWidth || 0), tot = w.reduce((a, b) => a + b, 0) + gap * (row.length - 1);
+    // the shed: one row under the shed's top bar, from its left edge (the 25 Oct stills: centred at the top it covered
+    // the quick actions); flight: ending at the top bar's right inset (CONTRACTS, then MENU at the corner) - on a phone
+    // under the top bar's plate, which fills the width there
+    const order = inGarage ? row : row.slice(1).concat([gmBtn]), ow = order.map(e => e.offsetWidth || 0);
+    const phone = W0 <= 760, under = el => el && el.getClientRects().length ? el.getBoundingClientRect() : null;
+    const bar = inGarage ? under($('edTopBar')) : (phone ? under($('pfd')) : null);
+    const top = bar ? Math.round(bar.bottom + 8) : (inGarage ? 10 : (phone ? 12 : 18));
+    let x = inGarage ? (bar ? Math.round(Math.max(12, Math.min(bar.left, W0 - tot - 12))) : Math.round((W0 - tot) / 2)) : W0 - (phone ? 12 : 22) - tot;
+    order.forEach((e, i) => { e.style.top = top + 'px'; e.style.left = Math.round(x) + 'px'; e.style.right = 'auto'; e.style.transform = 'none'; x += ow[i] + gap; });
+    if (!gmPanel.hidden) gmPlace();
+  }
+  if (typeof document.createElement === 'function' && document.body && document.body.appendChild) try {
+    const b = document.createElement('button');
+    b.id = 'gmMenu'; b.type = 'button'; b.textContent = 'MENU';
+    if (typeof b.setAttribute !== 'function') throw 0;   // the gates' stub DOM: no pills (gmBtn stays null, every gm* call a no-op)
+    b.setAttribute('aria-label', 'the menu: resume, the shed, the options, the main menu'); b.setAttribute('aria-expanded', 'false');
+    b.style.cssText = 'position:fixed;top:10px;left:12px;z-index:2147482000;min-width:72px;min-height:48px;padding:0 18px;border-radius:24px;' +
+      "border:1px solid rgba(255,178,87,.85);background:rgba(28,24,20,.86);color:#ffb257;font:600 13px/1 'IBM Plex Sans',sans-serif;letter-spacing:.16em;cursor:pointer";
+    b.onclick = () => gmOpen(gmPanel.hidden);
+    const p = document.createElement('div');
+    p.id = 'gmPanel'; p.hidden = true; p.setAttribute('role', 'menu'); p.setAttribute('aria-label', 'the menu');
+    p.onclick = e => { const t = e.target && e.target.closest ? e.target.closest('[data-g]') : null; if (t) gmAct(t.dataset.g); };
+    document.body.appendChild(b); document.body.appendChild(p);
+    gmBtn = b; gmPanel = p;
+    window.addEventListener('resize', gmLayout);
+    setInterval(() => { try { gmLayout(); } catch (e) {} }, 500);
+    try { gmLayout(); } catch (e) {}
+    // Esc and Tab, ahead of the page's other key handlers (the capture phase) and only when nothing else holds them
+    window.addEventListener('keydown', e => {
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
+      if (e.key === 'Escape') {
+        if (!gmPanel.hidden) { if (!gmBusy()) { gmOpen(false); e.preventDefault(); e.stopImmediatePropagation(); } return; }
+        if (gmBusy() || gmMapOn() || gmTyping() || gmBtn.hidden) return;
+        gmOpen(true); e.preventDefault(); e.stopImmediatePropagation();
+      } else if (e.key === 'Tab' && !e.shiftKey) {
+        if (gmTyping() || gmBusy() || (gmBtn.hidden && !gmMapOn())) return;
+        if (gmTab()) { gmOpen(false); e.preventDefault(); e.stopImmediatePropagation(); }
+      }
+    }, true);
+  } catch (e) { if (e !== 0) console.warn('flyDiy: the menu -', e && e.message); gmBtn = gmPanel = null; }
+  window.FLYDIY_MENU = { open: () => gmOpen(true), close: () => gmOpen(false), isOpen: () => !!(gmPanel && !gmPanel.hidden), act: gmAct, tab: gmTab, layout: gmLayout };
 
   // ---- Esc closes; a click on the render closes ---------------------------
   window.addEventListener('keydown', e => {
