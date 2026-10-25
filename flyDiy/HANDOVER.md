@@ -98150,3 +98150,14 @@ by Digital screen official, CC BY 4.0; CREDITS.md). Today's pipeline, no new sys
 **THE 54-VEHICLE PACK (G3431) - DROPPED** (25 Oct): the user, through A0: "the vehicle pack is from burnout 2, drop it" -
 a game rip, out under the credit-only rule. Nothing of it was processed or committed (no mesh, texture, manifest or credit
 row); the source file in bugReports/ is the user's to delete.
+
+**THE LAKE SHORE AS A BIOME (G3430, 25 Oct)** - the user, through A0: "you've only included the new ferns. It should be a
+new proper biome" - tall weeds, the ferns more spread with varying sizes and random colouration, some of the flowers.
+- mix `lakeshore` (terrain code 1): reed_marsh (the fern, beds of 5 m), grass_reed (tall weeds, beds of 6 m, x1.15),
+  flower_fireweed (sparse beds of 8 m), flower_foam (beds of 4 m), a few shrub_deciduous; the mix's coverSpread
+  0.08 -> 0.3 (the tufts' size jitter); no trees (count 0).
+- the fern's colour: `place.hueTurn` [-45, 6] degrees (new, cover_ring.js) - a hue turn about the grey axis per tuft, from
+  the tuft's own hash (the cell's R() stream and every other species untouched; a species without the key is
+  unchanged), green -> yellow -> bronze; lightness jitter vary 0.03 -> 0.1.
+- the flowers' colour is the KIND_MASTER flower look (trees.js), so the lake shore's fireweed / foam take the user's
+  24 Oct world look (claude/world-look-1024 c5292cf88, ED-2) when that lands - nothing of it is copied here.

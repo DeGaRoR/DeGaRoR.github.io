@@ -845,6 +845,13 @@ var COVER_RING = (() => {
           if (!noTint && !isShrub) {
             col = lifted([G.col[gk * 3], G.col[gk * 3 + 1], G.col[gk * 3 + 2]], lift);
             if (vary) { const j = 1 + (R() * 2 - 1) * vary; col = [col[0] * j, col[1] * j, col[2] * j]; }
+            // a species' own hue swing (G3430, the user: "random colouration"): place.hueTurn [lo, hi] degrees about the grey
+            // axis, from the tuft's own hash so the cell's stream R() - every other species' tufts - is untouched; the
+            // lake-shore fern runs green -> yellow -> bronze (negative is toward red)
+            if (place.hueTurn && GF && GF.hueTurn) {
+              const h = hsh(Math.round(x * 7.3) + 11, Math.round(z * 6.1) - 7), a = place.hueTurn[0] + h * (place.hueTurn[1] - place.hueTurn[0]);
+              col = GF.hueTurn(col, a * Math.PI / 180).map(v => Math.max(0, v));
+            }
           } else if (noTint && !isShrub && vary) { const j = 1 + (R() * 2 - 1) * vary; col = [j, j, j]; }
           push(p, x, yy, z, s, yaw, col, 0, 0); STAT.by[c.name] = (STAT.by[c.name] || 0) + 1; cell.by[c.name] = (cell.by[c.name] || 0) + 1;
         }
