@@ -25,6 +25,8 @@
 //   LIFT-OFF  the same run airborne (both floats dry for 2 s) in 18-36 s and 250-500 m (the brief: ~20-35 s,
 //             ~300-450 m; Wipaire ~335-365 m for 160-180 hp 172s); and with the G3390 rig's own technique (no flap,
 //             no rotation: the wing lifts it at the step attitude) it gets off too, inside 60 s.
+//             Both flown as a pilot flies them (G3446): the rudder holds the heading and the ailerons the wings against
+//             the propeller's torque (G2080) - the swing under 15 deg.
 'use strict';
 const path = require('path');
 const T = __dirname;
@@ -71,13 +73,14 @@ console.log('\nHUMP and LIFT-OFF (172R + Wipline 2350, STC prop 82x43, 1,157 kg,
   const rig = TT.fly(TT.CASES.c172r_stc.def(), false);
   for (const [k, r] of [['POH', poh], ['G3390 rig', rig]])
     console.log(`   ${k.padEnd(9)}: ${r.M} kg | hump R/W ${f(r.hump.R)} at ${f(r.hump.V, 1)} m/s (C_V ${f(r.hump.Cv, 2)}), trim ${f(r.hump.trim, 1)} deg | ` +
-      `at 16 m/s R/W ${r.past ? f(r.past.R) : '-'} | ` + (r.air ? `lift-off ${f(r.air.t, 1)} s, ${f(r.air.V, 1)} m/s, ${Math.round(r.air.dist)} m` : 'not off') + (r.crashed ? ` | ${r.crashed}` : ''));
+      `at 16 m/s R/W ${r.past ? f(r.past.R) : '-'} | swing ${f(r.swing, 1)} deg | ` + (r.air ? `lift-off ${f(r.air.t, 1)} s, ${f(r.air.V, 1)} m/s, ${Math.round(r.air.dist)} m` : 'not off') + (r.crashed ? ` | ${r.crashed}` : ''));
   verdict(poh.hump.R >= 0.12 && poh.hump.R <= 0.21 && poh.hump.Cv >= 2.2 && poh.hump.Cv <= 4.5,
     `the hump: R/W ${f(poh.hump.R)} at C_V ${f(poh.hump.Cv, 2)} (bound 0.12-0.21 at C_V 2.2-4.5)`);
   verdict(poh.hump.trim <= 11.5, `the trim at the hump ${f(poh.hump.trim, 1)} deg (bound 11.5; G3390 read 9.8-14, held there)`);
   verdict(!!poh.past && poh.past.R < 0.85 * poh.hump.R, `past the hump the drag falls: R/W ${poh.past ? f(poh.past.R) : '-'} at 16 m/s against ${f(poh.hump.R)} (bound 0.85 x)`);
   verdict(!!poh.air && poh.air.t >= 18 && poh.air.t <= 36 && poh.air.dist >= 250 && poh.air.dist <= 500 && !poh.crashed,
     `airborne in ${poh.air ? f(poh.air.t, 1) + ' s, ' + Math.round(poh.air.dist) + ' m' : 'never'} (bound 18-36 s, 250-500 m)`);
+  verdict(poh.swing < 15 && rig.swing < 15, `the heading held on the run (the rudder and ailerons of G3446 against the propeller's torque, G2080): swing ${f(poh.swing, 1)} / ${f(rig.swing, 1)} deg (bound 15)`);
   verdict(!!rig.air && rig.air.t <= 60 && !rig.crashed, `the G3390 rig's own technique gets off too: ${rig.air ? f(rig.air.t, 1) + ' s, ' + Math.round(rig.air.dist) + ' m' : 'never'} (bound 60 s)`);
 }
 

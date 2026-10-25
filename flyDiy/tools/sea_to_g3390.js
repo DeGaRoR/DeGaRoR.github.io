@@ -57,6 +57,21 @@ const load = (spec, kind) => {
   }
   return { def, M, fuelL: S.fuel.litres, cargo: S.cargo.kg };
 };
+// G3446 (HYDRO-TRIM, after train L25b): THE PILOT'S FEET AND HANDS. G2080 (ENGINE-TORQUE) made the propeller's torque,
+// P-factor and swirl real: with the rudder and the ailerons left alone the 172R swung 45 deg off its heading in 12 s and
+// heeled 17-19 deg onto a float - every take-off a water loop. A float pilot holds the heading with the rudder (the
+// water rudders below their raise speed, the air rudder on the step) and the wings level with the ailerons: the rudder
+// on the heading error from the throttle-up (2 per rad, damped by the yaw rate), the ailerons on the roll (2 per rad,
+// damped). Signs measured on the 172R (+dr swings the nose further the torque's way, -da lifts the low wing).
+const wrapPi = a => Math.atan2(Math.sin(a), Math.cos(a));
+function latHold(sim, L) {
+  const [xA, yU] = sim.axes(), psi = Math.atan2(xA[2], xA[0]), roll = Math.asin(Math.max(-1, Math.min(1, yU[2])));
+  if (L.psi0 == null) { L.psi0 = psi; L.e = 0; L.roll = roll; }
+  const e = wrapPi(psi - L.psi0), de = (e - L.e) * 60, dr = (roll - L.roll) * 60;
+  L.e = e; L.roll = roll;
+  sim.ctl.dr = Math.max(-1, Math.min(1, 2 * e + 1.0 * de));
+  sim.ctl.da = Math.max(-1, Math.min(1, 2 * roll + 0.5 * dr));
+}
 const out = [];
 for (const b of BUILDS) {
   const env = JSON.parse(fs.readFileSync(path.join(FLY, b), 'utf8')), spec = env.spec || env;
@@ -74,14 +89,16 @@ for (const b of BUILDS) {
     sim.ctl.thr = 0;
     for (let s = 0; s < 60 * 8; s++) sim.step(1 / 60);       // settle on the water
     const st = () => {
-      const [xA] = sim.axes(); let vx = 0, mm = 0, x = 0;
-      for (let i = 0; i < sim.n; i++) { vx += sim.v[i * 3] * sim.m[i]; x += sim.p[i * 3] * sim.m[i]; mm += sim.m[i]; }
-      const F = sim.hydro.floats;
-      return { V: -vx / mm, x: x / mm, trim: Math.asin(Math.max(-1, Math.min(1, -xA[1]))) * 180 / Math.PI,
-               R: F.reduce((a, q) => a + q.out.F[0], 0) / Wt, Fy: F.reduce((a, q) => a + q.out.F[1], 0) / Wt,
+      const [xA] = sim.axes(); let vx = 0, vz = 0, mm = 0, x = 0, z = 0;
+      for (let i = 0; i < sim.n; i++) { vx += sim.v[i * 3] * sim.m[i]; vz += sim.v[i * 3 + 2] * sim.m[i]; x += sim.p[i * 3] * sim.m[i]; z += sim.p[i * 3 + 2] * sim.m[i]; mm += sim.m[i]; }
+      const F = sim.hydro.floats, V = Math.hypot(vx, vz) / mm, ux = V > 0.05 ? vx / mm / V : -1, uz = V > 0.05 ? vz / mm / V : 0;
+      // (G3446: the speed along the track, the water's force against the motion - a swing read as a slow-down)
+      return { V, x: x / mm, z: z / mm, trim: Math.asin(Math.max(-1, Math.min(1, -xA[1]))) * 180 / Math.PI,
+               R: -F.reduce((a, q) => a + q.out.F[0] * ux + q.out.F[2] * uz, 0) / Wt, Fy: F.reduce((a, q) => a + q.out.F[1], 0) / Wt,
                wet: F.reduce((a, q) => a + q.wet, 0), vent: Math.min(...F.map(q => q.out.vent || 0)), Th: (sim.out.thrust || 0) / Wt };
     };
-    const x0 = st().x, ser = [];
+    const s0 = st(), x0 = s0.x, z0 = s0.z, ser = [], LAT = {};
+    let swing = 0;
     sim.ctl.thr = 1; sim.ctl.de = 0.45;
     // 20 deg of flap as a fraction of the build's own travel
     if (poh) { const fl = spec.controls && spec.controls.flap; sim.ctl.flap = fl && fl.type && fl.type !== 'none' ? Math.min(1, 20 * Math.PI / 180 / C.genTravel('flap', fl.type)) : 0; }
@@ -93,23 +110,24 @@ for (const b of BUILDS) {
       const tq = tP == null ? 0 : (r.trim - tP) * 60; tP = r.trim;
       if (poh && (sim.out.V || 0) >= VR) rot = true;
       sim.ctl.de = rot ? 0.45 : r.V > STEP_V ? Math.max(-0.2, Math.min(0.45, 0.2 + 0.04 * (STEP_TRIM - r.trim) - 0.01 * tq)) : 0.45;
+      latHold(sim, LAT); swing = Math.max(swing, Math.abs(LAT.e) * 180 / Math.PI);
       const a = (r.V - prevV) * 60 / 9.81; prevV = r.V;
       if (r.wet > 0 && r.V < 14 && r.R > hump.R) hump = { R: r.R, V: r.V, Th: r.Th, trim: r.trim };
       if (s % 60 === 59) {
         if (AIRSPD) console.log('   t' + Math.round(Tm) + ' V(water) ' + r.V.toFixed(1) + ' ias ' + JSON.stringify(sim.out.ias ?? null));
         ser.push({ t: Math.round(Tm), V: +r.V.toFixed(2), trim: +r.trim.toFixed(2), T: +r.Th.toFixed(4), R: +r.R.toFixed(4), D: +(r.Th - r.R - a).toFixed(4), vent: +r.vent.toFixed(3), wet: +r.wet.toFixed(2) });
       }
-      if (r.wet === 0 && r.Fy === 0 && s > 60) { if (!dry) dry = { t: +Tm.toFixed(1), V: +r.V.toFixed(1), dist: Math.round(Math.abs(r.x - x0)) }; else if (Tm >= dry.t + 2) { air = dry; break; } }
+      if (r.wet === 0 && r.Fy === 0 && s > 60) { if (!dry) dry = { t: +Tm.toFixed(1), V: +r.V.toFixed(1), dist: Math.round(Math.hypot(r.x - x0, r.z - z0)) }; else if (Tm >= dry.t + 2) { air = dry; break; } }
       else dry = null;
       if (sim.out.dmg && sim.out.dmg.crashed) { crashed = 'damage: crashed'; break; }
     }
     const row = { build: b, tech, flap: sim.ctl.flap, kind, windMs: wind, mass: Math.round(M), fuelL: Math.round(fuelL), cargo: Math.round(cargo), stepV: STEP_V, stepTrim: STEP_TRIM,
       T1: ser[0] ? ser[0].T : null, hump: { R: +hump.R.toFixed(3), V: +hump.V.toFixed(2), T: +hump.Th.toFixed(3), trim: hump.trim != null ? +hump.trim.toFixed(1) : null },
-      airborne: air, crashed, series: ser };
+      airborne: air, crashed, swing: +swing.toFixed(1), series: ser };
     out.push(row);
     console.log('  ' + tech.padEnd(5) + ' ' + kind.padEnd(5) + ' wind ' + wind + ' m/s | ' + row.mass + ' kg (fuel ' + row.fuelL + ' L, baggage ' + row.cargo + ' kg) | T/W at 1 s ' + f(row.T1) +
       ' | hump R/W ' + f(row.hump.R) + ' at ' + f(row.hump.V, 1) + ' m/s (T/W ' + f(row.hump.T) + ', trim ' + row.hump.trim + ') | ' +
-      (air ? 'AIRBORNE ' + air.t + ' s, ' + air.V + ' m/s, run ' + air.dist + ' m' : 'NOT airborne in ' + MAXS + ' s') + (crashed ? ' | ' + crashed : ''));
+      (air ? 'AIRBORNE ' + air.t + ' s, ' + air.V + ' m/s, run ' + air.dist + ' m' : 'NOT airborne in ' + MAXS + ' s') + ' | swing ' + f(swing, 1) + ' deg' + (crashed ? ' | ' + crashed : ''));
   }
 }
 fs.mkdirSync(OUT, { recursive: true });
