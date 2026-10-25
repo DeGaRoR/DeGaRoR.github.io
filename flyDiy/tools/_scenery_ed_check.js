@@ -1349,6 +1349,7 @@ if (plots.length) {
 {
   const sl = new Map();
   const rows40 = Object.assign({}, rows, { slider: (h, label, mn, mx, st, get, set, fmt) => { sl.set(label, { mn, get, set, fmt }); } });
+  ctxG.PAVEMENT = require(path.join(ROOT, 'src', 'viewer', 'pavement.js'));   // (the band row is a pavement row: the page has PAVEMENT, the harness lends it)
   const ed40 = UI.mount(new El('div'), { THREE: null, world: synth, R: makeR(), rows: rows40, els: { chk: null, plaque: null, strip: new El('div') }, viewEl: new El('div'), storage: null, fresh: true, camera: () => null, redraw: noop });
   const rid = ed40.cmd('add', { layer: 'roads', entry: { pts: [[11000, 11000], [11200, 11000]], w: 6, cls: 'paved' } });
   const R40 = () => PG.findById(ed40.record(), rid).entry, re = () => { sl.clear(); ed40.select(null); ed40.select(rid); };
@@ -1363,7 +1364,7 @@ if (plots.length) {
   check(ro && ro.sided === true, '40 ...and it composes sided again (the plain side, not the band\'s fade)', ro && String(ro.sided));
   B().set(5); re(); B().set(-0.5); re();
   check(!('band' in R40()), '40 the "none" notch takes it away too');
-  ed40.close();
+  ed40.close(); delete ctxG.PAVEMENT;
   const L40 = PG.normalise({ layers: { roads: [{ id: 'z0', pts: [[0, 0], [50, 0]], w: 5, cls: 'paved', band: 0 }, { id: 'zn', pts: [[0, 9], [50, 9]], w: 5, cls: 'paved', band: null }, { id: 'z3', pts: [[0, 19], [50, 19]], w: 5, cls: 'paved', band: 3 }],
     runways: [Object.assign(JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { id: 'b0', c: [0, 300], len: 400, wid: 20, band: 0 })] } });
   const lr = id => L40.layers.roads.find(q => q.id === id);
