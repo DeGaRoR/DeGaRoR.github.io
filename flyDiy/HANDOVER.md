@@ -98140,6 +98140,9 @@ What it took to balance them (the user's to know, it is the game's design story 
    master too): rebalance the card (the example's -0.45 m wing / bigger stab), or leave the card as the user's to fix?
 3. High-wing Three / Four tip over at full power on a tricycle: should the Three / Four tiles move the wing to MID (as
    the examples do), hang the nacelles lower, or leave it to the builder with the bench's warning?
+   **ANSWERED by the user, 25 Oct: "Leave the tip over to the builder."** The Three / Four tiles stay as they are (they
+   keep the wing where the builder put it); a high-wing layout that tips over at full power is the builder's to fix
+   (move the wing, a taildragger, less power). No code change; the example builds keep their mid wing.
 
 **EVIDENCE SCRIPT for A0 (the box; cloud cannot render the game).** From flyDiy/ on claude/engine-configs-2, after
 `node tools/build.js` and the usual local server on :8450:
