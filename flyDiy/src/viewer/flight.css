@@ -1069,7 +1069,7 @@ body.sceneryMode #telp, body.sceneryMode #arrCard, body.sceneryMode #flHint, bod
    bottom right only Skip to line-up. The rail, the brief's plate, Pause / Restart / Fly are off the screen (the
    pause menu has them); nothing is removed from the page (the gates drive the same elements).
    ========================================================================= */
-body.fl2 #flTop { left:236px; right:250px; top:18px; display:flex; flex-direction:column; align-items:center; gap:8px; }
+body.fl2 #flTop { left:276px; right:250px; top:18px; display:flex; flex-direction:column; align-items:center; gap:8px; }
 body.fl2 #flBrief { order:3; max-width:540px; }
 body.fl2 #ui #flPlate, body.fl2 #ui #flLine { display:none !important; }
 body.fl2 #ui #pfd { order:2; grid-column:auto; justify-self:auto; cursor:pointer; }
@@ -1098,10 +1098,12 @@ body.fl2.mode-fly #mapEntry { display:none !important; }
 body.fl2.mode-fly .flCornB { display:inline-flex; }
 body.fl2 .flCornB[hidden], body.shot .flCornB, body.rollShot .flCornB, body.premOpen .flCornB, body.sceneryMode .flCornB { display:none !important; }
 #flMmB { top:18px; right:22px; }
+/* G3715 photo mode: nothing on the screen - a click anywhere (or Esc) is the way back, not a button */
+body.fl2.mode-fly #shotBack { display:none !important; }
 #ui #mmX { position:absolute; top:8px; left:8px; z-index:2; width:32px; height:32px; padding:0; border-radius:16px; cursor:pointer;
   border:1px solid var(--ed-border); background:var(--ed-plate); color:var(--ed-ink); font:500 18px/1 'IBM Plex Sans'; }
 body:not(.fl2) #ui #mmX { display:none; }
-@media (max-width:1060px) {
+@media (max-width:1080px) {
   /* the corner row and the minimap take the top line; the row goes under them */
   body.fl2 #flTop { left:12px; right:12px; top:68px; }
 }

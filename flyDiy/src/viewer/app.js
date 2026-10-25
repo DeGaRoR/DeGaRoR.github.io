@@ -14765,6 +14765,12 @@
     setTimeout(resize, 0); setTimeout(resize, 220);
   }
   shotBack.onclick = () => shotSet(false);
+  // G3715 (the user 25 Oct: photo mode, 'clicking anywhere re enables'): a CLICK anywhere brings the interface back - a press
+  // that moved under 6 px; a drag still orbits the camera. Capture phase: the click is the shot's, nothing under it acts
+  if (FL2) { let sx = 0, sy = 0;
+    window.addEventListener('pointerdown', e => { sx = e.clientX; sy = e.clientY; }, true);
+    window.addEventListener('click', e => { if (!SHOT.on || Math.hypot(e.clientX - sx, e.clientY - sy) > 6) return;
+      shotSet(false); e.preventDefault(); e.stopImmediatePropagation(); }, true); }
   window.addEventListener('keydown', e => {
     if (SHOT.on && e.key === 'Escape') { shotSet(false); e.preventDefault(); e.stopImmediatePropagation(); }
   }, true);
@@ -16502,7 +16508,7 @@
     gmBtn.hidden = off;
     if (off) { gmOpen(false); return; }
     const fl2 = FL2 && document.body.classList.contains('fl2') && !inGarage;   // G3712: the flight's corner
-    const fr = $('frEntry'), row = (fl2 ? [gmBtn, $('flMapB'), $('flEyeB')] : [gmBtn, $('mapEntry'), inGarage && fr && !fr.hidden ? fr : null]).filter(Boolean), gap = 8;
+    const fr = $('frEntry'), row = (fl2 ? [gmBtn, $('flMapB'), $('flShotB'), $('flEyeB')] : [gmBtn, $('mapEntry'), inGarage && fr && !fr.hidden ? fr : null]).filter(Boolean), gap = 8;
     const word = fl2 ? 'II' : 'MENU'; if (gmBtn.textContent !== word) gmBtn.textContent = word;
     const w = row.map(e => e.offsetWidth || 0), tot = w.reduce((a, b) => a + b, 0) + gap * (row.length - 1);
     // the shed: one row under the shed's top bar, from its left edge (the 25 Oct stills: centred at the top it covered
@@ -16620,7 +16626,12 @@
     bEye.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.4 10-6.4S22 12 22 12s-3.6 6.4-10 6.4S2 12 2 12Z"/><circle cx="12" cy="12" r="2.8"/></svg>';
     bMap.onclick = () => { gmOpen(false); if (!gmMap($('mapEntry') ? 'contracts' : null)) gmTab(); };
     bEye.onclick = () => flCamNext();
-    document.body.appendChild(bMap); document.body.appendChild(bEye);
+    // G3715 PHOTO MODE (the user 25 Oct: 'a button for photo mode, on the top left, next to the contract access'): every
+    // panel off (the screenshot mode, shotSet); a click anywhere, or Esc, brings them back
+    const bShot = mk('button', 'flShotB', 'flCornB', '', 'Photo mode: hide the interface (click anywhere to bring it back)');
+    bShot.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.2h3.6l1.6-2.4h6.6l1.6 2.4h3.6v10.6H3.5Z"/><circle cx="12" cy="13.2" r="3.4"/></svg>';
+    bShot.onclick = () => { gmOpen(false); shotSet(true); };
+    document.body.appendChild(bMap); document.body.appendChild(bShot); document.body.appendChild(bEye);
     // the minimap: a button while it is put away, an x on it to put it away
     const bMm = mk('button', 'flMmB', 'flCornB', '', 'The minimap: show');
     bMm.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20Z"/><path d="M9 4v13.5M15 6.5V20"/></svg>';
