@@ -1098,8 +1098,10 @@ body.fl2.mode-fly #mapEntry { display:none !important; }
 body.fl2.mode-fly .flCornB { display:inline-flex; }
 body.fl2 .flCornB[hidden], body.shot .flCornB, body.rollShot .flCornB, body.premOpen .flCornB, body.sceneryMode .flCornB { display:none !important; }
 #flMmB { top:18px; right:22px; }
-/* G3648 photo mode: nothing on the screen - a click anywhere (or Esc) is the way back, not a button */
+/* G3648 / G3741 photo mode: nothing on the screen but the camera button - pressed again it takes the picture and the
+   interface comes back (Esc: back without one); the back button of the shed's screenshot mode is not needed here */
 body.fl2.mode-fly #shotBack { display:none !important; }
+body.fl2.mode-fly.shot #flShotB { display:inline-flex !important; box-shadow:0 0 0 3px rgba(255,178,87,.35); }
 #ui #mmX { position:absolute; top:8px; left:8px; z-index:2; width:32px; height:32px; padding:0; border-radius:16px; cursor:pointer;
   border:1px solid var(--ed-border); background:var(--ed-plate); color:var(--ed-ink); font:500 18px/1 'IBM Plex Sans'; }
 body:not(.fl2) #ui #mmX { display:none; }

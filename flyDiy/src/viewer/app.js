@@ -14276,6 +14276,7 @@
   let flSetupHost = null, flSetupOn = false, setupTouched = false;   // B8: the setup screen's view of this rail (below)
   // G3643: THE FLIGHT LAYOUT of the 25 Oct mockup (below, after the menu) - on unless ?flui=old (the layout before it)
   const FL2 = !(typeof location !== 'undefined' && /[?&]flui=old(&|$)/.test(location.search || ''));
+  let photoGrab = null;   // G3741: a function the next presented frame hands its canvas to (the photo), at the frame's end
   let flAnchorEl = null;   // G3644: the button a flyout was opened from (the top row, the readouts): it opens under it
   let flPageHook = null;   // G3740: the menu's open page (gmPageRefresh) - a third view of these builders, rebuilt with the other two
   const flFps = { t0: 0, n: 0 };   // G441: the frame-rate row's window
@@ -14765,12 +14766,6 @@
     setTimeout(resize, 0); setTimeout(resize, 220);
   }
   shotBack.onclick = () => shotSet(false);
-  // G3648 (the user 25 Oct: photo mode, 'clicking anywhere re enables'): a CLICK anywhere brings the interface back - a press
-  // that moved under 6 px; a drag still orbits the camera. Capture phase: the click is the shot's, nothing under it acts
-  if (FL2) { let sx = 0, sy = 0;
-    window.addEventListener('pointerdown', e => { sx = e.clientX; sy = e.clientY; }, true);
-    window.addEventListener('click', e => { if (!SHOT.on || Math.hypot(e.clientX - sx, e.clientY - sy) > 6) return;
-      shotSet(false); e.preventDefault(); e.stopImmediatePropagation(); }, true); }
   window.addEventListener('keydown', e => {
     if (SHOT.on && e.key === 'Escape') { shotSet(false); e.preventDefault(); e.stopImmediatePropagation(); }
   }, true);
@@ -16626,11 +16621,23 @@
     bEye.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-6.4 10-6.4S22 12 22 12s-3.6 6.4-10 6.4S2 12 2 12Z"/><circle cx="12" cy="12" r="2.8"/></svg>';
     bMap.onclick = () => { gmOpen(false); if (!gmMap($('mapEntry') ? 'contracts' : null)) gmTab(); };
     bEye.onclick = () => flCamNext();
-    // G3648 PHOTO MODE (the user 25 Oct: 'a button for photo mode, on the top left, next to the contract access'): every
-    // panel off (the screenshot mode, shotSet); a click anywhere, or Esc, brings them back
-    const bShot = mk('button', 'flShotB', 'flCornB', '', 'Photo mode: hide the interface (click anywhere to bring it back)');
+    // G3648 PHOTO MODE (the user 25 Oct: 'a button for photo mode, on the top left, next to the contract access') and G3741
+    // (the user: "clicking on it hides all but the button, reclicking on it automatically screenshot, dl the screenshot in
+    // PNG and re displays the interface"): the first press is the screenshot mode (shotSet) with this button left on the
+    // glass (flight.css); the second takes the next presented frame (photoGrab: the 3D frame alone - the button is not in
+    // it), downloads it as flydiy-<date>-<time>.png and brings the interface back. Esc leaves without a picture; a drag
+    // frames the shot (the camera's, as always)
+    const bShot = mk('button', 'flShotB', 'flCornB', '', 'Photo mode: hide the interface - press again to take the picture');
+    const photoName = () => { const d = new Date(), p = n => String(n).padStart(2, '0');
+      return 'flydiy-' + d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()) + '.png'; };
+    const photoSave = blob => { if (!blob) return; const a = document.createElement('a'), u = URL.createObjectURL(blob);
+      a.href = u; a.download = photoName(); document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 4000); };
+    const photoTake = () => { if (photoGrab) return;
+      photoGrab = cv => { cv.toBlob(photoSave, 'image/png'); shotSet(false); };   // (toBlob copies the frame now, encodes after)
+    };
     bShot.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.2h3.6l1.6-2.4h6.6l1.6 2.4h3.6v10.6H3.5Z"/><circle cx="12" cy="13.2" r="3.4"/></svg>';
-    bShot.onclick = () => { gmOpen(false); shotSet(true); };
+    bShot.onclick = () => { if (SHOT.on) { photoTake(); return; } gmOpen(false); shotSet(true); };
+    window.FLYDIY_PHOTO = { take: photoTake, name: photoName };
     document.body.appendChild(bMap); document.body.appendChild(bShot); document.body.appendChild(bEye);
     // the minimap: a button while it is put away, an x on it to put it away
     const bMm = mk('button', 'flMmB', 'flCornB', '', 'The minimap: show');
@@ -17661,6 +17668,7 @@
         SKY_GLARE.render(renderer);
       }
     }
+    if (photoGrab && framePresented) { const g = photoGrab; photoGrab = null; try { g(renderer.domElement); } catch (e) { console.warn('flyDiy: the photo -', e && e.message); } }   // G3741
     POSE_LERP.back();                  // G1100: the newest step's positions back, bit for bit, before anything else reads them
     if (window.AUDIO) AUDIO.update(sim, camera, fdt, def, cam, inGarage, world);   // G1600: the sound's numbers off the newest step (audio.js; nothing before a gesture)
     if (window.BOOMBOX) BOOMBOX.frame(camera, bbProp);   // G1711: the radio's panel follows the radio - nothing while it is closed
