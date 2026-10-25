@@ -18,6 +18,9 @@
 //   `do`: carry (a load from -> to) | fly (from? -> to, a challenge's medals) | land (at `to`) |
 //         survey (over `at`, departing `from`) | deliver (a build contract: the airframe lands at `to`, its
 //         `crit` judged by ACCEPT's hook) | accept (the criteria alone, judged by the hook, anywhere).
+// (MISSIONS-P0) A MISSION PACK (src/missions/*.json, 73b_missions.js) is read INTO this record: its legs are `stages`,
+// its steps `subs`; its new fields (places, new verbs and criteria, rules, timers, people) ride along, validated with
+// contractValidate(rec, { mission: true }), and contractRuntimeOk says whether this runtime can run the record yet.
 //
 // RULINGS THIS FILE HOLDS (GATE CONTRACTS proves each, --selftest breaks each):
 //   G-COST  pay depends on the JOB, never on the aeroplane: contractPay reads the job and the fields, and
@@ -38,6 +41,10 @@
 const CONTRACT_KINDS = ['contract', 'job', 'challenge', 'build', 'survey'];
 const CONTRACT_DO = ['carry', 'fly', 'land', 'survey', 'deliver', 'accept'];
 const CONTRACT_OPS = ['>=', '<=', '=='];
+// (MISSIONS-P0, futureDesigns/MISSIONS-2026-10-25.md §3.2) THE MISSION VERBS a pack's record may carry whose runtime is a
+// later phase (photo over a point, pass a gate / ring, park on a spot, wait, talk): contractValidate takes them only with
+// opts.mission (73b_missions.js), and a record holding one is never run (contractRuntimeOk) until its phase lands
+const CONTRACT_DO_NEXT = ['photo', 'pass', 'park', 'wait', 'talk'];
 
 // ---- THE CRITERION KINDS (data: ACCEPT implements each kind, MAP labels each) -----------------------------
 //   k        the key a criterion names            unit   the value's unit ('' for a word, 'strip' for a field id)
@@ -82,6 +89,25 @@ const CONTRACT_CRIT_KINDS = {
                   op: ['=='], at: ['pax', 'kg', 'fuelMin'], follow: null },
   landAt:       { k: 'landAt',       unit: 'strip', when: 'flown',  how: 'strip',  src: 'flown at that strip: the delivery\'s arrival',
                   op: ['=='], at: ['pax', 'kg', 'fuelMin'], follow: null },
+};
+// (MISSIONS-P0 §3.6) THE AIRCRAFT ORDER'S NEW CRITERIA: the same row shape, taken only by a pack's record (contractCritWhy
+// with opts.mission). ACCEPT does not judge them yet (phase 2: acceptVerdict's kinds), so a record naming one is never run
+// (contractRuntimeOk); the bench / leg each will read is named in `src`
+const CONTRACT_CRIT_NEXT = {
+  climbMs:  { k: 'climbMs',  unit: 'm/s',  when: 'flown',  how: 'bench', src: 'genShakedown climb at the load (the bench\'s best rate)',
+              op: ['>='], band: [0.5, 20], at: ['pax', 'kg'], follow: { add: 0.5, round: 0.5 } },
+  stallKmh: { k: 'stallKmh', unit: 'km/h', when: 'static', how: 'design', src: 'genShakedown Vs x 3.6, flaps down, at the load',
+              op: ['<='], band: [30, 200], at: ['pax', 'kg'], follow: { add: -5, round: 1 } },
+  toDistM:  { k: 'toDistM',  unit: 'm',    when: 'flown',  how: 'bench', src: 'genShakedown TORun at the load (the roll + the air segment to 15 m)',
+              op: ['<='], band: [30, 2000], at: ['pax', 'kg', 'fuelMin'], follow: { mul: 0.9, round: 5 } },
+  ldgDistM: { k: 'ldgDistM', unit: 'm',    when: 'flown',  how: 'bench', src: 'the landing distance from 15 m at the load (the bench, phase 2)',
+              op: ['<='], band: [30, 2000], at: ['pax', 'kg', 'fuelMin'], follow: { mul: 0.9, round: 5 } },
+  fuelLph:  { k: 'fuelLph',  unit: 'L/h',  when: 'flown',  how: 'leg',   src: 'the acceptance leg: the measured flow in a stabilised cruise',
+              op: ['<='], band: [2, 200], at: ['pax', 'kg', 'tasKmh'], follow: { mul: 0.9, round: 0.5 } },
+  cargoL:   { k: 'cargoL',   unit: 'L',    when: 'static', how: 'spec',  src: 'the hold\'s volume (FREIGHT_CARDS, measured off the mesh)',
+              op: ['>='], band: [10, 5000], follow: { mul: 1.2, round: 10 } },
+  pax:      { k: 'pax',      unit: 'pax',  when: 'static', how: 'spec',  src: 'the seats beside the pilot (genShakedown envelope.seats - 1)',
+              op: ['>='], band: [0, 7], follow: { add: 1 } },
 };
 
 // ---- (g1) A BUILD CRITERION NEVER NAMES A CONFIGURATION ---------------------------------------------------
@@ -339,6 +365,26 @@ function contractKm(a, b, fields) {
   return Math.hypot(A.x - B.x, A.z - B.z) / 1000;
 }
 const ctWet = f => !!f && f.surf === 'water';
+// (MISSIONS-P0 §3.1) A PLACE's plan position: a field id or { field } (its strip's centre), { pt: [x, z] }, { gate } (the
+// posts' middle), { ring: [x, y, z] }, { site, at: {x, z} } (73b_missions.js resolves a site's position onto the step);
+// null when it has none (a spot is its field's: { spot: '<field>:<id>' })
+function contractPlaceXZ(p, fields) {
+  const F = fields || CONTRACT_FIELDS;
+  if (typeof p === 'string') { const f = F[p]; return f ? [f.x, f.z] : null; }
+  if (!p || typeof p !== 'object') return null;
+  if (typeof p.field === 'string') return contractPlaceXZ(p.field, F);
+  if (Array.isArray(p.pt)) return [+p.pt[0], +p.pt[1]];
+  if (Array.isArray(p.gate) && p.gate.length === 2) return [(+p.gate[0][0] + +p.gate[1][0]) / 2, (+p.gate[0][1] + +p.gate[1][1]) / 2];
+  if (Array.isArray(p.ring)) return [+p.ring[0], +p.ring[2]];
+  if (p.at && typeof p.at === 'object') return [+p.at.x, +p.at.z];
+  if (typeof p.spot === 'string') return contractPlaceXZ(p.spot.split(':')[0], F);
+  return null;
+}
+// a field to a place, km (NaN when either has no position)
+function contractPlaceKm(a, p, fields) {
+  const A = contractPlaceXZ(a, fields), B = contractPlaceXZ(p, fields);
+  return A && B ? Math.hypot(A[0] - B[0], A[1] - B[1]) / 1000 : NaN;
+}
 
 // THE FIELDS OF A WORLD: the same rows off the world's aerodromes (a premises record's runways or
 // world.aerodromes: `c` or x/z, len, the surface through 25_'s stripSurface). GATE CONTRACTS holds
@@ -467,8 +513,9 @@ function contractNormalise(r) {
 
 // ---- THE VALIDATOR -----------------------------------------------------------------------------------------
 // -> [ 'reason', ... ] (empty = valid). opts.text: the text table; opts.fields; opts.ids: the ids `after` may name
-function contractCritWhy(c) {
-  const K = c && CONTRACT_CRIT_KINDS[c.k];
+// (MISSIONS-P0) opts.mission: a pack's record, which may also name CONTRACT_CRIT_NEXT's kinds
+function contractCritWhy(c, opts) {
+  const K = c && (CONTRACT_CRIT_KINDS[c.k] || (opts && opts.mission && CONTRACT_CRIT_NEXT[c.k]));
   if (!K) return 'unknown criterion kind ' + (c && c.k);
   if (!K.op.includes(c.op)) return c.k + ': operator ' + c.op + ' not one of ' + K.op.join(' ');
   if (K.unit === 'strip') { if (!ctField(c.v)) return c.k + ': no field ' + c.v; }
@@ -501,9 +548,9 @@ function contractValidate(rec, opts) {
     if (!st || !Array.isArray(st.subs) || !st.subs.length) { why.push(id + ': stage ' + i + ' has no subs'); return; }
     st.subs.forEach((s, j) => {
       const at = id + ' ' + i + '.' + j;
-      if (!CONTRACT_DO.includes(s.do)) { why.push(at + ': do ' + s.do + ' is not one of ' + CONTRACT_DO.join(' ')); return; }
+      if (!CONTRACT_DO.includes(s.do) && !(opts.mission && CONTRACT_DO_NEXT.includes(s.do))) { why.push(at + ': do ' + s.do + ' is not one of ' + CONTRACT_DO.join(' ')); return; }
       for (const f of ['from', 'to', 'at']) if (s[f] != null && !F[s[f]]) why.push(at + ': no field ' + s[f]);
-      if ((s.do === 'carry' || s.do === 'fly') && (!s.to || (s.do === 'carry' && !s.from))) why.push(at + ': ' + s.do + ' needs from and to');
+      if ((s.do === 'carry' || s.do === 'fly') && (!(s.to || (opts.mission && s.place)) || (s.do === 'carry' && !s.from))) why.push(at + ': ' + s.do + ' needs from and to');
       if (s.goods != null && !contractTextOk(s.goods, T)) why.push(at + ': goods key ' + s.goods + ' does not resolve');
       if ((s.do === 'land' || s.do === 'deliver') && !s.to) why.push(at + ': ' + s.do + ' needs to');
       if (s.do === 'survey' && (!s.at || !s.from)) why.push(at + ': survey needs at and from');
@@ -523,7 +570,7 @@ function contractValidate(rec, opts) {
       }
       if (s.crit != null) {
         if (r.kind !== 'build') why.push(at + ': criteria on a ' + r.kind + ' (build contracts only)');
-        for (const c of s.crit) { const w = contractCritWhy(c); if (w) why.push(at + ': ' + w); }
+        for (const c of s.crit) { const w = contractCritWhy(c, opts); if (w) why.push(at + ': ' + w); }
       }
       if ((s.do === 'deliver' || s.do === 'accept') && r.kind !== 'build') why.push(at + ': ' + s.do + ' on a ' + r.kind);
       if (s.when != null) { const ww = contractWhenWhy(s.when); if (ww) why.push(at + ': ' + ww); }
@@ -544,7 +591,10 @@ function contractValidate(rec, opts) {
     for (const c of crit) { if (seen[c.k]) why.push(id + ': criterion ' + c.k + ' named twice'); seen[c.k] = 1; }
     // (g1) never a configuration: the criteria, and the words the client says
     for (const c of crit) { const w = contractConfigWord(JSON.stringify(c)); if (w) why.push(id + ': criterion ' + c.k + ' names a configuration (' + w + ')'); }
-    for (const k of [r.title, r.brief, contractFollowKey(r)]) {
+    // (MISSIONS-P0, the user 25 Oct: "If I wanted 2 engines, I would be upset with 1 only") a pack's order that states
+    // its configuration as PREFERENCES (`prefs`, each bonus | mandatory) may say it in its words; the criteria never do
+    const prefs = opts.mission && Array.isArray(r.prefs) && r.prefs.length > 0;
+    for (const k of (prefs ? [] : [r.title, r.brief, contractFollowKey(r)])) {
       const w = T[k] && contractConfigWord(T[k].t);
       if (w) why.push(id + ': ' + k + ' names a configuration (' + w + ')');
     }
@@ -589,6 +639,33 @@ function contractCertifiable(rec) {
 // (G2665 NIGHT-OPS) A NIGHT CONTRACT NO VALIDATED DESIGN CAN FLY is held out the same way (74_ careerOfferIds: the
 // stretcher case, until a door takes the 2.0 m stretcher) - the ✗ stays the hard no-no of the player's own fleet only
 const contractFlyable = (rec, fields) => contractDoers(contractSubsOf(rec).filter(s => s.do !== 'deliver' && s.do !== 'accept'), fields).length > 0;
+
+// (MISSIONS-P0) CAN TODAY'S RUNTIME RUN THIS RECORD AS WRITTEN? '' yes, else why not. A pack's mission rides into a contract
+// record with its new fields (73b_missions.js missionToContract); those this file does not judge yet keep it OUT of the
+// career (73b missionPackInstall) until their phase lands - never a mission that cannot be completed, or one completed
+// against rules it does not apply. Presentation rides along freely: the client, the speakers (say), the done line, the
+// passengers' names (load.who), a step's id, the embedded route and the pack's tree.
+//   record: rules (§3.4), timers (§3.3), startFrom / prefs (§3.6), legs in an order other than seq, a leg's steps in an
+//           order other than any; step: a CONTRACT_DO_NEXT verb, a place (a point, a gate, a ring, a spot, a site),
+//           embark / disembark, require (maxMin, depart), an onDone doing more than speaking; criterion: CONTRACT_CRIT_NEXT
+const CONTRACT_RUNTIME_PENDING = ['rules', 'timers', 'startFrom', 'prefs'];
+function contractRuntimeOk(rec) {
+  const r = rec || {};
+  for (const k of CONTRACT_RUNTIME_PENDING) if (r[k] != null && !(Array.isArray(r[k]) && !r[k].length)) return k + ': phase 1-2 (no runtime yet)';
+  if (r.order != null && r.order !== 'seq') return 'legs in order ' + r.order + ' (no runtime yet)';
+  for (const st of r.stages || []) {
+    if (st.order != null && st.order !== 'any') return 'steps in order ' + st.order + ' (no runtime yet)';
+    for (const s of st.subs || []) {
+      if (!CONTRACT_DO.includes(s.do)) return 'do ' + s.do + ' (no runtime yet)';
+      if (s.place != null) return s.do + ' at a place that is not a field (no runtime yet)';
+      for (const k of ['embark', 'disembark', 'require']) if (s[k] != null) return s.do + ': ' + k + ' (no runtime yet)';
+      if (s.onDone != null && Object.keys(s.onDone).some(k => k !== 'say')) return s.do + ': onDone does more than speak (no runtime yet)';
+      for (const c of s.crit || []) if (!CONTRACT_CRIT_KINDS[c.k]) return 'criterion ' + c.k + ' (ACCEPT does not judge it yet)';
+    }
+  }
+  if (r.onDone != null && Object.keys(r.onDone).some(k => k !== 'say')) return 'onDone does more than speak (no runtime yet)';
+  return '';
+}
 
 // ---- THE AUTHORED CONTRACTS (the arcs, the standalone builds and the night work, normalised, by id) ---------------
 function contractAuthored() {
@@ -689,7 +766,7 @@ function contractPay(rec, fields) {
   for (const st of rec.stages || []) {
     let skm = 0, kg = 0, pax = 0, bulk = false;
     for (const s of st.subs || []) {
-      if (s.do === 'carry' || (s.do === 'fly' && s.from)) skm += contractKm(s.from, s.to, F);
+      if (s.do === 'carry' || (s.do === 'fly' && s.from)) skm += s.to || !s.place ? contractKm(s.from, s.to, F) : contractPlaceKm(s.from, s.place, F);
       if (s.do === 'survey') skm += 2 * contractKm(s.from, s.at, F);
       for (const k of ['from', 'to']) if (s[k]) touched[s[k]] = 1;
       if (s.load) { kg = Math.max(kg, s.load.kg || 0); pax = Math.max(pax, s.load.pax || 0); bulk = bulk || !!s.load.bulk; }

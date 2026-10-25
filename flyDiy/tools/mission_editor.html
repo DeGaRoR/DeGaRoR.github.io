@@ -1,0 +1,548 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mission Editor</title>
+<!--
+  THE MISSION EDITOR (MISSIONS-P0, futureDesigns/MISSIONS-2026-10-25.md §5) - a DEV TOOL, pure UI, no 3D. It loads the
+  game's own core (the LEAN set of tools/_missions_lib.js, below, in that order: GATE MISSIONS holds the list) so the
+  editor and the game agree on every verdict and on the reward. Serve flyDiy/ (any static server) and open
+  tools/mission_editor.html. Reads / writes a mission pack (src/missions/*.json): load a file or the built-in pack, edit,
+  Save downloads the JSON (commit it under src/missions/). Nothing is written anywhere else; the browser keeps a draft.
+-->
+<style>
+:root { --bg:#f6f5f2; --panel:#fff; --ink:#1d1f22; --mute:#6b7076; --line:#d9d7d2; --acc:#1f6feb; --bad:#c62828; --ok:#2e7d32; --warn:#b26a00; --sel:#e3edff; --ro:#efece6; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#16181b; --panel:#1f2226; --ink:#e7e9ec; --mute:#9aa1a9; --line:#33373d; --acc:#5b9dff; --bad:#ff6b6b; --ok:#66bb6a; --warn:#ffb74d; --sel:#22334f; --ro:#26292e; } }
+:root[data-theme="dark"] { --bg:#16181b; --panel:#1f2226; --ink:#e7e9ec; --mute:#9aa1a9; --line:#33373d; --acc:#5b9dff; --bad:#ff6b6b; --ok:#66bb6a; --warn:#ffb74d; --sel:#22334f; --ro:#26292e; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+header { display: flex; gap: 6px; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--line); background: var(--panel); flex-wrap: wrap; }
+header h1 { font-size: 14px; margin: 0 10px 0 0; }
+button, select, input, textarea { font: inherit; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 3px 6px; }
+button { cursor: pointer; } button:hover { border-color: var(--acc); }
+button.pri { background: var(--acc); color: #fff; border-color: var(--acc); }
+#main { display: grid; grid-template-columns: 290px 1fr 420px; height: calc(100% - 42px); }
+@media (max-width: 1100px) { #main { grid-template-columns: 1fr; height: auto; } }
+#tree, #form, #side { overflow: auto; border-right: 1px solid var(--line); padding: 8px; }
+#side { border-right: 0; display: flex; flex-direction: column; gap: 8px; }
+.node { padding: 2px 4px; border-radius: 3px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.node:hover { background: var(--sel); } .node.sel { background: var(--sel); outline: 1px solid var(--acc); }
+.node .k { color: var(--mute); font-size: 11px; margin-right: 4px; }
+.node.ro { color: var(--mute); } .node .bad { color: var(--bad); } .node .wait { color: var(--warn); }
+.ind1 { padding-left: 14px; } .ind2 { padding-left: 28px; } .ind3 { padding-left: 42px; } .ind4 { padding-left: 56px; }
+fieldset { border: 1px solid var(--line); border-radius: 6px; margin: 0 0 8px; padding: 6px 8px; }
+legend { color: var(--mute); font-size: 12px; }
+.row { display: grid; grid-template-columns: 120px 1fr; gap: 6px; align-items: center; margin: 3px 0; }
+.row > label { color: var(--mute); }
+.row input, .row select, .row textarea { width: 100%; }
+textarea { min-height: 54px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+.tools { display: flex; gap: 4px; flex-wrap: wrap; margin: 4px 0 8px; }
+.ro-box { background: var(--ro); border-radius: 6px; padding: 8px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+.card .who { display: flex; gap: 10px; align-items: center; }
+.face { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; background: var(--line); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 22px; color: var(--mute); flex: none; }
+.card h3 { margin: 6px 0 2px; font-size: 15px; } .card .brief { margin: 4px 0; }
+.card ul { margin: 4px 0; padding-left: 18px; } .pay { font-weight: 600; }
+.mute { color: var(--mute); } .badok { color: var(--ok); } .badno { color: var(--bad); } .wt { color: var(--warn); }
+#mapWrap { position: relative; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; height: 360px; background: #0b2a44; }
+#map { width: 100%; height: 100%; display: block; cursor: crosshair; }
+#mapHint { position: absolute; left: 6px; top: 6px; background: rgba(0,0,0,.6); color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 12px; pointer-events: none; }
+#val { max-height: 180px; overflow: auto; font-size: 12px; }
+#val div { padding: 1px 0; cursor: pointer; } #val div:hover { text-decoration: underline; }
+.pill { display: inline-block; padding: 0 6px; border-radius: 10px; font-size: 11px; border: 1px solid var(--line); }
+dialog { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; width: min(640px, 92vw); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Mission Editor <span class="pill">dev</span></h1>
+  <button id="bBuiltin">Load built-in</button>
+  <label><button id="bOpen" type="button">Open…</button><input id="fOpen" type="file" accept=".json,application/json" hidden></label>
+  <button id="bNew">New pack</button>
+  <button id="bRetro" title="missionPackFromContracts: today's 72_contract_data.js read into the model">Rebuild built-in from game</button>
+  <button id="bSave" class="pri">Save JSON</button>
+  <span id="status" class="mute"></span>
+  <span style="flex:1"></span>
+  <span id="vcount"></span>
+</header>
+<div id="main">
+  <div id="tree"></div>
+  <div id="form"></div>
+  <div id="side">
+    <div id="card" class="card"></div>
+    <div>
+      <div class="tools"><span class="mute">Map:</span><span id="pickLbl" class="mute">click a place's "pick" to set it</span>
+        <button id="bFit" type="button">fit</button></div>
+      <div id="mapWrap"><canvas id="map"></canvas><div id="mapHint"></div></div>
+    </div>
+    <fieldset><legend>Validation (the game's own: missionPackValidate)</legend><div id="val"></div></fieldset>
+  </div>
+</div>
+<dialog id="dlgRoute">
+  <form method="dialog">
+    <h3 style="margin-top:0">Import a drawn route</h3>
+    <p class="mute">Paste a route record (38c_route.js: <code>{ v, id, name, end, margin, pts: [{x, z, alt, ref, V}] }</code>), or the game's
+      library (<code>localStorage['flydiy.routes']</code>, a list: the first, or the one named below). It is EMBEDDED in the mission (its points).</p>
+    <textarea id="routeTxt" style="width:100%;min-height:160px"></textarea>
+    <div class="row"><label>name (library)</label><input id="routeName" placeholder="optional"></div>
+    <div class="row"><label>or a file</label><input id="routeFile" type="file" accept=".json"></div>
+    <menu style="display:flex;gap:6px;justify-content:flex-end;padding:0"><button value="cancel">Cancel</button><button id="routeOk" value="ok" class="pri">Import</button></menu>
+  </form>
+</dialog>
+
+<!-- THE GAME'S CORE: the LEAN set (tools/_missions_lib.js), in order. 72_people*.js are on claude/people until L26c: a
+     missing file is skipped (the person ids are then checked by their shape) -->
+<script data-core="01_names.js" src="../src/core/01_names.js"></script>
+<script data-core="72_people.js" src="../src/core/72_people.js" onerror="window.MS_NO_PEOPLE=1"></script>
+<script data-core="72_people_faces.js" src="../src/core/72_people_faces.js" onerror="0"></script>
+<script data-core="34_occupant.js" src="../src/core/34_occupant.js"></script>
+<script data-core="38c_route.js" src="../src/core/38c_route.js"></script>
+<script data-core="72_contract_data.js" src="../src/core/72_contract_data.js"></script>
+<script data-core="73_contracts.js" src="../src/core/73_contracts.js"></script>
+<script data-core="73b_missions.js" src="../src/core/73b_missions.js"></script>
+<script data-core="79_story.js" src="../src/core/79_story.js"></script>
+<!-- the island's 2-D map (map_bake.js) and the fleet's tie-down spots (fleet_spots.js --cook) -->
+<script src="../src/viewer/map_pack.js"></script>
+<script src="../src/viewer/fleet_spots_pack.js"></script>
+<script>
+'use strict';
+(function () {
+const $ = id => document.getElementById(id);
+const el = (tag, attrs, ...kids) => { const e = document.createElement(tag); for (const k in (attrs || {})) { if (k === 'on') for (const ev in attrs.on) e.addEventListener(ev, attrs.on[ev]); else if (k === 'cls') e.className = attrs[k]; else if (attrs[k] != null) e.setAttribute(k, attrs[k]); } for (const c of kids.flat()) if (c != null) e.append(c.nodeType ? c : String(c)); return e; };
+const clone = o => JSON.parse(JSON.stringify(o));
+const MAP = window.MAP_PACK || null, SPOTS = (window.FLEET_SPOTS_PACK && window.FLEET_SPOTS_PACK.aero) || {};
+const DRAFT = 'flydiy.missionEditor.draft';
+const S = { pack: null, sel: { t: 'pack' }, pick: null, file: 'pack.json' };
+const store = { get() { try { return localStorage.getItem(DRAFT); } catch (e) { return null; } }, set(v) { try { localStorage.setItem(DRAFT, v); } catch (e) { /* private window */ } } };
+
+// ---- the pack ------------------------------------------------------------------------------------------------------
+const emptyPack = () => ({ what: MISSION_PACK_WHAT, v: MISSION_PACK_V, id: 'new', title: '', campaigns: [], missions: [], sites: [], text: {} });
+function setPack(p, name) { S.pack = missionPackNormalise(p); S.sel = { t: 'pack' }; if (name) S.file = name; status('loaded ' + (name || '') + ': ' + S.pack.missions.length + ' missions'); renderAll(); }
+function status(s) { $('status').textContent = s; }
+function changed() { store.set(JSON.stringify({ file: S.file, pack: S.pack })); renderAll(); }
+const T = () => missionText(S.pack);
+const words = k => { const e = T()[k]; return e ? e.t : ''; };
+const setWords = (k, s) => { S.pack.text[k] = { t: s, draft: true }; };
+const mission = id => S.pack.missions.find(m => m.id === id) || null;
+const isTut = m => m && m.tutorial != null;
+const campOf = id => { for (const c of S.pack.campaigns) for (const h of c.chapters) if (h.missions.includes(id)) return { c, h }; return null; };
+const readOnly = () => { const m = S.sel.id && mission(S.sel.id); if (m && isTut(m)) return true; const c = S.sel.c != null && S.pack.campaigns[S.sel.c]; return !!(c && c.readonly); };
+
+// ---- the tree ------------------------------------------------------------------------------------------------------
+let WHY = [];
+const whyOf = id => WHY.filter(w => w === id || w.startsWith(id + ' ') || w.startsWith(id + ':'));
+function node(label, kind, sel, ind, cls) {
+  const on = JSON.stringify(sel) === JSON.stringify(S.sel);
+  return el('div', { cls: 'node ind' + ind + (on ? ' sel' : '') + (cls ? ' ' + cls : ''), on: { click: () => { S.sel = sel; S.pick = null; renderAll(); } } }, el('span', { cls: 'k' }, kind), label);
+}
+function missionLabel(m) {
+  if (isTut(m)) { const b = (typeof STORY_BEATS !== 'undefined' ? STORY_BEATS : []).find(x => x.id === m.tutorial); return el('span', {}, '🔒 ' + m.tutorial + ' ' + (b ? b.title : '')); }
+  const w = whyOf(m.id).length, rec = safe(() => missionToContract(m, { pack: S.pack })), rw = rec ? contractRuntimeOk(rec) : '';
+  return el('span', {}, m.id + ' ', el('span', { cls: 'mute' }, words(m.title) || ''), w ? el('span', { cls: 'bad' }, ' ✗' + w) : null, rw ? el('span', { cls: 'wait', title: rw }, ' ⏳') : null);
+}
+function renderTree() {
+  const t = $('tree'); t.innerHTML = '';
+  t.append(node(S.pack.id || '(pack)', 'pack', { t: 'pack' }, 0));
+  S.pack.campaigns.forEach((c, ci) => {
+    t.append(node(words(c.title) || c.id, c.tutorial ? 'tutorial' : 'campaign', { t: 'campaign', c: ci }, 0, c.readonly ? 'ro' : ''));
+    c.chapters.forEach((h, hi) => {
+      t.append(node((words(h.title) || h.id) + ' · ' + h.order, 'chapter', { t: 'chapter', c: ci, h: hi }, 1, c.readonly ? 'ro' : ''));
+      for (const id of h.missions) {
+        const m = mission(id);
+        if (!m) { t.append(el('div', { cls: 'node ind2 bad' }, 'missing ' + id)); continue; }
+        t.append(node(missionLabel(m), m.kind || 'tutorial', { t: 'mission', id }, 2, isTut(m) ? 'ro' : ''));
+        if (!isTut(m) && S.sel.id === id) legsTree(t, m, 3);
+      }
+    });
+  });
+  const loose = S.pack.missions.filter(m => !campOf(m.id));
+  if (loose.length) { t.append(el('div', { cls: 'mute', style: 'margin-top:6px' }, 'campaign-less')); for (const m of loose) { t.append(node(missionLabel(m), m.kind, { t: 'mission', id: m.id }, 1)); if (S.sel.id === m.id) legsTree(t, m, 2); } }
+  t.append(el('div', { cls: 'mute', style: 'margin-top:6px' }, 'sites'));
+  S.pack.sites.forEach((s, i) => t.append(node(s.id + ' · ' + s.state, 'site', { t: 'site', i }, 1)));
+  t.append(el('div', { cls: 'tools' },
+    el('button', { on: { click: () => { S.pack.campaigns.push({ id: 'cmp' + (S.pack.campaigns.length + 1), title: '', order: 'any', chapters: [] }); changed(); } } }, '+ campaign'),
+    el('button', { on: { click: () => addMission(null) } }, '+ mission'),
+    el('button', { on: { click: () => { S.pack.sites.push({ id: 'site' + (S.pack.sites.length + 1), asset: '', at: { x: 0, z: 0, hdg: 0 }, state: 'planned' }); S.sel = { t: 'site', i: S.pack.sites.length - 1 }; changed(); } } }, '+ site')));
+}
+function legsTree(t, m, ind) {
+  m.legs.forEach((L, li) => {
+    t.append(node('leg ' + (li + 1) + ' · ' + (L.order || 'any') + (L.rally ? ' · rally' : ''), 'leg', { t: 'leg', id: m.id, l: li }, ind));
+    L.steps.forEach((s, si) => t.append(node(stepWords(s), s.do, { t: 'step', id: m.id, l: li, s: si }, ind + 1)));
+  });
+}
+const placeWords = p => { const k = missionPlaceKind(p); if (!k) return ''; if (k === 'field') { const f = CONTRACT_FIELDS[msFieldOf(p)]; return f ? f.name : msFieldOf(p); }
+  if (k === 'pt') return 'pt ' + p.pt.map(Math.round).join(',') + ' r' + p.r; if (k === 'gate') return 'gate'; if (k === 'ring') return 'ring y' + p.ring[1]; if (k === 'spot') return 'spot ' + p.spot; return 'site ' + p.site; };
+const stepWords = s => (s.id ? s.id + ' ' : '') + (s.from ? placeWords(s.from) + ' → ' : '') + placeWords(s.place) + (s.load ? ' · ' + (s.load.kg || 0) + ' kg' + (s.load.pax ? ' + ' + (Array.isArray(s.load.pax) ? s.load.pax.length : s.load.pax) + ' pax' : '') : '');
+function addMission(chapter) {
+  let n = S.pack.missions.length + 1, id; do id = 'm' + n++; while (mission(id));
+  const prov = Object.keys(CONTRACT_PROVIDERS)[0];
+  const m = { id, provider: prov, kind: 'contract', title: 'ms.' + id + '.title', brief: 'ms.' + id + '.brief', client: msClientOf(prov),
+              legs: [{ steps: [{ do: 'carry', from: { field: 'HOME' }, place: { field: 'w3' }, load: { kg: 20, pax: 0 } }] }],
+              pay: { base: 1500 }, rep: { provider: prov, gain: 0.5 }, rules: Object.assign({}, MISSION_RULES_NEW) };
+  setWords(m.title, 'A new mission'); setWords(m.brief, 'What the client asks.');
+  S.pack.missions.push(m); if (chapter) chapter.missions.push(id);
+  S.sel = { t: 'mission', id }; changed();
+}
+
+// ---- the form ------------------------------------------------------------------------------------------------------
+const row = (label, input, hint) => el('div', { cls: 'row' }, el('label', { title: hint || '' }, label), input);
+function inp(v, set, o) {
+  o = o || {};
+  const e = el(o.area ? 'textarea' : 'input', { type: o.type || 'text', step: o.step || 'any', placeholder: o.ph || '' });
+  e.value = v == null ? '' : v; if (readOnly()) e.disabled = true;
+  e.addEventListener('change', () => { let x = e.value; if (o.type === 'number') x = x === '' ? null : +x; set(x); changed(); });
+  return e;
+}
+function sel(v, opts, set, o) {
+  const e = el('select'); if (o && o.blank) e.append(el('option', { value: '' }, o.blank));
+  for (const x of opts) { const [val, lab] = Array.isArray(x) ? x : [x, x]; const op = el('option', { value: String(val) }, lab); if (String(v) === String(val)) op.selected = true; e.append(op); }
+  if (readOnly()) e.disabled = true;
+  e.addEventListener('change', () => { set(e.value); changed(); }); return e;
+}
+function json(v, set, o) {
+  const e = el('textarea', { placeholder: (o && o.ph) || '' }); e.value = v == null ? '' : JSON.stringify(v, null, 1); if (readOnly()) e.disabled = true;
+  e.addEventListener('change', () => { const s = e.value.trim(); if (!s) { set(undefined); changed(); return; } try { set(JSON.parse(s)); e.style.borderColor = ''; changed(); } catch (er) { e.style.borderColor = 'var(--bad)'; status('not JSON: ' + er.message); } });
+  return e;
+}
+const ordSel = (v, set) => { const e = inp(v, set, { ph: 'seq | any | choose:N' }); e.setAttribute('list', 'orders'); return e; };
+const persons = () => { const T0 = typeof GAME_PEOPLE !== 'undefined' ? GAME_PEOPLE : null; return T0 ? Object.keys(T0).map(id => [id, T0[id].name + ' (' + T0[id].role + ')']) : msPeopleOf('client').map(id => [id, id + ' (stub: 72_people.js not loaded)']); };
+const personSel = (v, set) => sel(v || '', persons(), x => set(x || undefined), { blank: '—' });
+const fieldOpts = () => Object.keys(CONTRACT_FIELDS).map(id => [id, CONTRACT_FIELDS[id].name + ' (' + id + ')']);
+function textRow(label, key, set) {
+  // a record names KEYS: the words go to the pack's text table under the key (a game key is overridden there, kept)
+  const k = inp(key, set, { ph: 'text key' }), w = inp(words(key), x => setWords(key, x), { area: true });
+  if (!key) w.disabled = true;
+  return [row(label + ' key', k), row(label, w, T()[key] && !(S.pack.text[key]) ? 'the game\'s words (an edit writes the pack\'s override)' : '')];
+}
+function sayRows(label, v, set) {
+  const s = v || {};
+  return [row(label + ' who', personSel(s.who, x => set(x ? Object.assign({}, s, { who: x }) : undefined))),
+          ...(s.who ? textRow(label + ' text', s.text || '', k => set(Object.assign({}, s, { text: k }))) : [])];
+}
+function renderForm() {
+  const f = $('form'); f.innerHTML = '';
+  const s = S.sel, P = S.pack;
+  if (s.t === 'pack') {
+    f.append(el('h3', {}, 'The pack'), row('id', inp(P.id, x => P.id = x)), ...textRow('title', P.title, x => P.title = x),
+      row('format', el('span', { cls: 'mute' }, P.what + ' v' + P.v)),
+      el('p', { cls: 'mute' }, 'Structure B: campaign → chapter → mission → leg → step; each container in order seq | any | choose:N; `needs` cross-links. The tutorial (79_story.js) is listed read-only. Save, then commit the file under src/missions/ - GATE MISSIONS validates it.'));
+    if (P.legacy) f.append(el('fieldset', {}, el('legend', {}, 'legacy (the retrofit of 72_contract_data.js)'), el('div', {}, 'retrofitted: ' + P.legacy.retrofitted.length), el('div', {}, 'dropped: ' + (P.legacy.dropped.map(d => d.id + ' (' + d.why + ')').join(', ') || 'none'))));
+    return;
+  }
+  if (s.t === 'campaign') {
+    const c = P.campaigns[s.c];
+    f.append(el('h3', {}, (c.tutorial ? '🔒 tutorial · ' : 'campaign · ') + c.id));
+    if (c.readonly) f.append(el('div', { cls: 'ro-box' }, 'Tutorial / phase 0: the story stays exactly as it is (79_story.js). Read-only.'));
+    f.append(row('id', inp(c.id, x => c.id = x)), ...textRow('title', c.title, x => c.title = x),
+      row('provider', sel(c.provider || '', Object.keys(CONTRACT_PROVIDERS), x => c.provider = x || undefined, { blank: '— (any)' })),
+      row('order', ordSel(c.order, x => c.order = x), 'its chapters'), row('needs.after', inp(((c.needs || {}).after || []).join(', '), x => c.needs = x.trim() ? { after: x.split(/[\s,]+/).filter(Boolean) } : undefined, { ph: 'campaign / chapter ids' })),
+      row('mixed', sel(c.mixed ? 'yes' : 'no', ['no', 'yes'], x => c.mixed = x === 'yes' || undefined), 'missions of other providers allowed'));
+    if (!c.readonly) f.append(el('div', { cls: 'tools' }, el('button', { on: { click: () => { c.chapters.push({ id: c.id + '.ch' + (c.chapters.length + 1), title: '', order: 'seq', missions: [] }); changed(); } } }, '+ chapter'),
+      moveBtns(P.campaigns, s.c, i => S.sel = { t: 'campaign', c: i }), el('button', { on: { click: () => { if (confirm('Delete campaign ' + c.id + '? Its missions stay, campaign-less.')) { P.campaigns.splice(s.c, 1); S.sel = { t: 'pack' }; changed(); } } } }, '✕ delete')));
+    return;
+  }
+  if (s.t === 'chapter') {
+    const c = P.campaigns[s.c], h = c.chapters[s.h];
+    f.append(el('h3', {}, 'chapter · ' + h.id), row('id', inp(h.id, x => h.id = x)), ...textRow('title', h.title, x => h.title = x),
+      row('order', ordSel(h.order, x => h.order = x), 'its missions: seq = one at a time (an arc)'),
+      row('needs.after', inp(((h.needs || {}).after || []).join(', '), x => h.needs = x.trim() ? { after: x.split(/[\s,]+/).filter(Boolean) } : undefined)),
+      row('missions', el('span', {}, h.missions.join(' → '))));
+    if (!c.readonly) {
+      const add = sel('', S.pack.missions.filter(m => !campOf(m.id)).map(m => m.id), x => { if (x) h.missions.push(x); }, { blank: 'add a campaign-less mission…' });
+      f.append(el('div', { cls: 'tools' }, el('button', { on: { click: () => addMission(h) } }, '+ new mission'), add,
+        moveBtns(c.chapters, s.h, i => S.sel = { t: 'chapter', c: s.c, h: i }), el('button', { on: { click: () => { c.chapters.splice(s.h, 1); S.sel = { t: 'campaign', c: s.c }; changed(); } } }, '✕ delete')));
+    }
+    return;
+  }
+  if (s.t === 'site') {
+    const x = P.sites[s.i];
+    f.append(el('h3', {}, 'site · ' + x.id), row('id', inp(x.id, v => x.id = v)), row('asset', inp(x.asset, v => x.asset = v, { ph: 'meteo station' })),
+      row('x', inp(x.at.x, v => x.at.x = v, { type: 'number' })), row('z', inp(x.at.z, v => x.at.z = v, { type: 'number' })), row('hdg', inp(x.at.hdg, v => x.at.hdg = v, { type: 'number' })),
+      row('state', sel(x.state, MISSION_SITE_STATES, v => x.state = v)), row('track', sel(x.track || '', trackOpts(), v => x.track = v || undefined, { blank: '—' }), 'the world construction stage it reveals (76_stages)'),
+      el('div', { cls: 'tools' }, pickBtn('pick on map', { kind: 'siteAt', i: s.i }), el('button', { on: { click: () => { P.sites.splice(s.i, 1); S.sel = { t: 'pack' }; changed(); } } }, '✕ delete')));
+    return;
+  }
+  const m = mission(s.id);
+  if (!m) return;
+  if (isTut(m)) { tutorialForm(f, m); return; }
+  if (s.t === 'mission') missionForm(f, m);
+  else if (s.t === 'leg') legForm(f, m, s.l);
+  else if (s.t === 'step') stepForm(f, m, s.l, s.s);
+  f.append(el('fieldset', {}, el('legend', {}, 'raw JSON (this ' + s.t + ')'), json(s.t === 'mission' ? m : s.t === 'leg' ? m.legs[s.l] : m.legs[s.l].steps[s.s], v => {
+    if (v === undefined) return; if (s.t === 'mission') Object.assign(m, v); else if (s.t === 'leg') m.legs[s.l] = v; else m.legs[s.l].steps[s.s] = v; })));
+}
+const trackOpts = () => [].concat(...Object.keys(CONTRACT_TRACKS).map(t => Array.from({ length: CONTRACT_TRACKS[t].max }, (_, i) => t + ':' + (i + 1))));
+function moveBtns(list, i, reselect) {
+  const mv = d => { const j = i + d; if (j < 0 || j >= list.length) return; const [x] = list.splice(i, 1); list.splice(j, 0, x); reselect(j); changed(); };
+  return [el('button', { on: { click: () => mv(-1) } }, '↑'), el('button', { on: { click: () => mv(1) } }, '↓')];
+}
+function tutorialForm(f, m) {
+  const t = missionTutorial().find(x => x.beat === m.tutorial) || {};
+  f.append(el('h3', {}, '🔒 ' + m.id), el('div', { cls: 'ro-box' },
+    el('div', {}, el('b', {}, 'Tutorial / phase 0 - read-only. '), 'The beats stay exactly as they are (79_story.js STORY_BEATS); the full skip comes in phase 3.'),
+    el('h4', {}, t.title || ''), el('p', {}, t.brief || ''), el('div', { cls: 'mute' }, 'goal: ' + JSON.stringify(t.goal || {})),
+    el('ul', {}, (t.tim || []).map(x => el('li', {}, 'Tim: ' + x)))));
+}
+function missionForm(f, m) {
+  const ch = campOf(m.id);
+  f.append(el('h3', {}, 'mission · ' + m.id, ch ? el('span', { cls: 'mute' }, '  in ' + ch.h.id) : null));
+  const idIn = inp(m.id, x => { const old = m.id; if (!x || mission(x)) return; m.id = x; for (const c of S.pack.campaigns) for (const h of c.chapters) h.missions = h.missions.map(y => y === old ? x : y);
+    for (const o of S.pack.missions) if (o.needs && o.needs.after) o.needs.after = o.needs.after.map(y => y === old ? x : y); S.sel = { t: 'mission', id: x }; });
+  f.append(el('fieldset', {}, el('legend', {}, 'who and what'),
+    row('id', idIn), row('provider', sel(m.provider, Object.keys(CONTRACT_PROVIDERS).map(p => [p, contractText(CONTRACT_PROVIDERS[p].name, null, T())]), x => { m.provider = x; m.rep = Object.assign({}, m.rep, { provider: x }); })),
+    row('kind', sel(m.kind, CONTRACT_KINDS.filter(k => k !== 'job'), x => m.kind = x)), row('client (owner)', personSel(m.client, x => m.client = x), 'a GAME_PEOPLE id (72_people.js), never a free name'),
+    ...textRow('title', m.title, x => m.title = x), ...textRow('brief', m.brief, x => m.brief = x),
+    row('goods word', inp(m.goods || '', x => m.goods = x || undefined, { ph: 'goods.mail (a text key)' }))));
+  f.append(el('fieldset', {}, el('legend', {}, 'pay, reputation, unlocks, needs'),
+    row('pay.base', inp(m.pay.base, x => m.pay.base = +x || 0, { type: 'number' }), 'credits; an authored contract is paid base x the story factor, a build as written'),
+    row('pay.bonus', json(m.pay.bonus, v => { if (v === undefined) delete m.pay.bonus; else m.pay.bonus = v; }, { ph: '[{"crit":"medal","by":"gold","pct":100}]' })),
+    row('rep gain', inp(m.rep.gain, x => m.rep.gain = +x || 0, { type: 'number' })),
+    row('unlock', sel((m.unlock || {}).stage || '', trackOpts(), x => m.unlock = x ? { stage: x } : undefined, { blank: '—' }), 'a world construction stage (76_stages)'),
+    row('needs.after', inp(((m.needs || {}).after || []).join(', '), x => { const a = x.split(/[\s,]+/).filter(Boolean); m.needs = Object.assign({}, m.needs || {}, { after: a }); })),
+    row('needs.rep', inp((m.needs || {}).rep, x => { m.needs = Object.assign({}, m.needs || {}, { rep: +x || 0 }); }, { type: 'number' })),
+    row('legs order', ordSel(m.order || 'seq', x => m.order = x === 'seq' ? undefined : x))));
+  const R = m.rules || {};
+  f.append(el('fieldset', {}, el('legend', {}, 'rules (§3.4: a mission fails on a crash, a person harmed, freight harmed; damage assessed)'),
+    ...Object.keys(MISSION_RULES).map(k => row(k, k === 'injury'
+      ? inp(R.injury == null ? '' : (typeof R.injury === 'object' ? 'fail:' + R.injury.fail : R.injury), x => { m.rules = Object.assign({}, m.rules || {}); if (!x) delete m.rules.injury; else { const g = /^fail:(.+)$/.exec(x); m.rules.injury = g ? { fail: isNaN(+g[1]) ? g[1] : +g[1] } : x; } }, { ph: 'fail | ignore | fail:<band 1-4> (' + ((typeof GEN_OCC !== 'undefined' && GEN_OCC.bands) || []).join(', ') + ')' })
+      : sel(R[k] || '', MISSION_RULES[k], x => { m.rules = Object.assign({}, m.rules || {}); if (x) m.rules[k] = x; else delete m.rules[k]; }, { blank: '— (today: crash resets, keeps it live)' }))),
+    el('div', { cls: 'tools' }, el('button', { on: { click: () => { m.rules = Object.assign({}, MISSION_RULES_NEW); changed(); } } }, 'the new missions\' rules'), el('button', { on: { click: () => { delete m.rules; changed(); } } }, 'none (today\'s)'))));
+  f.append(el('fieldset', {}, el('legend', {}, 'timers (§3.3: start / stop on step ids; target s or {refKmh}; splits; medals)'),
+    json(m.timers, v => { if (v === undefined) delete m.timers; else m.timers = v; }, { ph: '[{"id":"speed","start":"g1","stop":"g2","target":90,"medals":[{"medal":"gold","le":80}]}]' })));
+  if (m.kind === 'build') {
+    f.append(el('fieldset', {}, el('legend', {}, 'aircraft order (§3.6)'),
+      row('startFrom', inp(typeof m.startFrom === 'object' ? JSON.stringify(m.startFrom) : (m.startFrom || ''), x => { m.startFrom = !x ? undefined : x.trim().startsWith('{') ? JSON.parse(x) : x; }, { ph: 'player | ' + Object.keys(CONTRACT_DESIGNS).join(' | ') + ' | {"build":"builds/x.json"}' })),
+      row('delivery', sel(m.delivery ? (m.delivery.sold ? 'sold' : 'kept') : '', [['sold', 'sold to the client, blueprint saved'], ['kept', 'kept in the fleet']], x => m.delivery = !x ? undefined : { sold: x === 'sold', blueprint: true }, { blank: '— (the default: sold, blueprint saved)' })),
+      row('followUp', json(m.followUp, v => m.followUp = v, { ph: '{"prefer":["tasKmh"],"add":[...]}' }), 'GQ26: a happy client asks again, one criterion changed'),
+      prefsEditor(m)));
+  }
+  f.append(el('fieldset', {}, el('legend', {}, 'the completion line'), ...sayRows('onDone.say', (m.onDone || {}).say, v => { m.onDone = v ? { say: v } : undefined; })));
+  f.append(el('fieldset', {}, el('legend', {}, 'the hidden route (a rally\'s course)'),
+    row('route', el('span', {}, m.route ? (m.route.name + ': ' + m.route.pts.length + ' points') : el('span', { cls: 'mute' }, 'none'))),
+    row('rally refKmh', inp((m.rally || {}).refKmh, x => m.rally = Object.assign({}, m.rally || {}, { refKmh: +x }), { type: 'number', ph: '150' })),
+    row('rally radius m', inp((m.rally || {}).r, x => m.rally = Object.assign({}, m.rally || {}, { r: +x }), { type: 'number', ph: '300' })),
+    el('div', { cls: 'tools' }, el('button', { on: { click: () => openRoute(m) } }, 'import a drawn route…'),
+      el('button', { on: { click: () => { if (!m.route) return status('no route'); if (!m.rally) m.rally = { refKmh: 150, r: 300 }; Object.assign(m, missionRallyDerive(m)); changed(); } } }, 'derive checkpoints + splits'),
+      m.route ? el('button', { on: { click: () => { delete m.route; delete m.rally; changed(); } } }, 'remove route') : null),
+    el('div', { cls: 'mute' }, 'Derived checkpoints are marked auto; edit one (or set auto to false) and a re-derive keeps it. auto: "place" keeps an authored split on a derived checkpoint.')));
+  f.append(el('div', { cls: 'tools' }, el('button', { on: { click: () => { m.legs.push({ steps: [] }); changed(); } } }, '+ leg'),
+    el('button', { on: { click: () => { const c = clone(m); let n = 2; while (mission(m.id + '.' + n)) n++; c.id = m.id + '.' + n; S.pack.missions.push(c); const ch2 = campOf(m.id); if (ch2) ch2.h.missions.push(c.id); S.sel = { t: 'mission', id: c.id }; changed(); } } }, 'duplicate'),
+    el('button', { on: { click: () => { if (!confirm('Delete mission ' + m.id + '?')) return; S.pack.missions = S.pack.missions.filter(x => x !== m); for (const c of S.pack.campaigns) for (const h of c.chapters) h.missions = h.missions.filter(y => y !== m.id); S.sel = { t: 'pack' }; changed(); } } }, '✕ delete')));
+}
+function prefsEditor(m) {
+  const box = el('div', {});
+  const list = m.prefs || [];
+  list.forEach((p, i) => box.append(el('div', { cls: 'tools' },
+    sel(p.k, Object.keys(MISSION_PREF_KINDS), x => { p.k = x; p.v = missionPrefValues(x)[0]; }),
+    sel(p.v, missionPrefValues(p.k) || [], x => p.v = isNaN(+x) ? x : +x),
+    sel(p.need || '', MISSION_NEED, x => { p.need = x; if (x === 'mandatory') delete p.pct; else if (!p.pct) p.pct = 10; }, { blank: 'bonus | mandatory?' }),
+    p.need === 'bonus' ? inp(p.pct, x => p.pct = +x, { type: 'number', ph: 'pct' }) : null,
+    el('button', { on: { click: () => { list.splice(i, 1); if (!list.length) delete m.prefs; changed(); } } }, '✕'))));
+  box.append(el('button', { on: { click: () => { m.prefs = list.concat([{ k: 'engines', v: 2, need: 'mandatory' }]); changed(); } } }, '+ preference'),
+    el('div', { cls: 'mute' }, '"If I wanted 2 engines, I would be upset with 1 only": each item is a bonus (+pct) or mandatory (no delivery without it). Phase 2 judges them.'));
+  return row('preferences', box);
+}
+function legForm(f, m, li) {
+  const L = m.legs[li];
+  f.append(el('h3', {}, m.id + ' · leg ' + (li + 1)), row('steps order', ordSel(L.order || 'any', x => L.order = x === 'any' ? undefined : x), 'any = today\'s (the subs of a stage in any order)'),
+    el('div', { cls: 'tools' }, el('button', { on: { click: () => { L.steps.push({ do: 'land', place: { field: 'HOME' } }); S.sel = { t: 'step', id: m.id, l: li, s: L.steps.length - 1 }; changed(); } } }, '+ step'),
+      moveBtns(m.legs, li, i => S.sel = { t: 'leg', id: m.id, l: i }), el('button', { on: { click: () => { m.legs.splice(li, 1); S.sel = { t: 'mission', id: m.id }; changed(); } } }, '✕ delete')));
+}
+function placeEditor(label, p, set, allow, pickKey) {
+  const k = missionPlaceKind(p) || '', box = el('div', {});
+  const kinds = allow.map(a => [a, a || '(none)']);
+  box.append(el('div', { cls: 'tools' }, sel(k, kinds, x => set(x === '' ? undefined : x === 'field' ? { field: 'HOME' } : x === 'pt' ? { pt: [0, -2000], r: MISSION_PLACE_R.pt } : x === 'gate' ? { gate: [[0, -2000], [100, -2000]], prop: 'balloons' }
+    : x === 'ring' ? { ring: [0, 200, -2000], r: MISSION_PLACE_R.ring, prop: 'donut' } : x === 'spot' ? { spot: 'HOME:' + ((SPOTS.HOME || [[0, 0, 0, 'x']])[0][3]) } : { site: (S.pack.sites[0] || {}).id || '' })),
+    k && k !== 'site' ? pickBtn('pick on map', pickKey) : null));
+  if (k === 'field') box.append(sel(msFieldOf(p), fieldOpts(), x => set({ field: x })));
+  if (k === 'pt') box.append(el('div', { cls: 'tools' }, 'x', inp(p.pt[0], x => { p.pt[0] = +x; }, { type: 'number' }), 'z', inp(p.pt[1], x => { p.pt[1] = +x; }, { type: 'number' }), 'r', inp(p.r, x => { p.r = +x; }, { type: 'number' })));
+  if (k === 'gate') box.append(el('div', { cls: 'tools' }, 'posts', json(p.gate, v => { p.gate = v; }), 'prop', sel(p.prop || '', MISSION_PROPS.gate, x => p.prop = x || undefined, { blank: '—' }), 'dir°', inp(p.dir, x => p.dir = x === null ? undefined : +x, { type: 'number' })));
+  if (k === 'ring') box.append(el('div', { cls: 'tools' }, 'x,y,z', json(p.ring, v => { p.ring = v; }), 'r', inp(p.r, x => p.r = +x, { type: 'number' }), 'dir°', inp(p.dir, x => p.dir = x === null ? undefined : +x, { type: 'number' })));
+  if (k === 'spot') { const [a] = String(p.spot).split(':'); box.append(el('div', { cls: 'tools' }, sel(a, Object.keys(SPOTS).filter(x => SPOTS[x].length), x => set({ spot: x + ':' + SPOTS[x][0][3] })), sel(p.spot, (SPOTS[a] || []).map(q => a + ':' + q[3]), x => set({ spot: x })))); }
+  if (k === 'site') box.append(sel(p.site, S.pack.sites.map(x => x.id), x => set({ site: x }), { blank: '—' }));
+  if (k === 'pt' || k === 'gate') {
+    const A = p.alt || {};
+    box.append(el('div', { cls: 'tools' }, 'alt min', inp(A.min, x => { p.alt = Object.assign({ ref: 'agl' }, p.alt || {}, { min: x == null ? undefined : +x }); }, { type: 'number' }),
+      'max', inp(A.max, x => { p.alt = Object.assign({ ref: 'agl' }, p.alt || {}, { max: x == null ? undefined : +x }); }, { type: 'number' }),
+      sel(A.ref || 'agl', ['agl', 'msl'], x => { p.alt = Object.assign({}, p.alt || {}, { ref: x }); }), el('button', { on: { click: () => { delete p.alt; changed(); } } }, 'no band')));
+  }
+  return row(label, box);
+}
+function stepForm(f, m, li, si) {
+  const L = m.legs[li], s = L.steps[si], allow = MISSION_PLACES_OF[s.do] || [''];
+  f.append(el('h3', {}, m.id + ' · leg ' + (li + 1) + ' · step ' + (si + 1)));
+  f.append(el('fieldset', {}, el('legend', {}, 'the step'),
+    row('do', sel(s.do, MISSION_DO, x => { s.do = x; const a = MISSION_PLACES_OF[x]; if (!a.includes(missionPlaceKind(s.place) || '')) s.place = a[0] === 'field' ? { field: 'HOME' } : undefined; })),
+    row('id', inp(s.id || '', x => s.id = x || undefined, { ph: 'for timers / rally (optional)' })),
+    placeEditor('place', s.place, v => { if (v === undefined) delete s.place; else s.place = v; }, allow, { kind: 'place', id: m.id, l: li, s: si }),
+    ['carry', 'fly', 'photo'].includes(s.do) ? row('from', sel(msFieldOf(s.from) || '', fieldOpts(), x => s.from = x ? { field: x } : undefined, { blank: '—' }), 'pickup / departure field') : null,
+    s.do === 'photo' ? el('div', { cls: 'mute' }, 'A photo over a FIELD is today\'s survey (the 450 m overflight); over a point it waits for phase 1 (the shutter + a line).') : null));
+  if (['carry', 'deliver', 'wait', 'talk', 'fly', 'land'].includes(s.do)) {
+    const Ld = s.load || {};
+    f.append(el('fieldset', {}, el('legend', {}, 'load and people'),
+      row('kg', inp(Ld.kg, x => s.load = Object.assign({}, s.load || { pax: 0 }, { kg: +x || 0 }), { type: 'number' })),
+      row('pax', inp(Array.isArray(Ld.pax) ? Ld.pax.join(', ') : Ld.pax, x => { const ids = String(x).split(/[\s,]+/).filter(Boolean); s.load = Object.assign({}, s.load || { kg: 0 }, { pax: ids.length && ids.every(y => isNaN(+y)) ? ids : (+x || 0) }); }, { ph: 'a count, or person ids: david, jody' })),
+      row('goods', inp(s.goods || '', x => s.goods = x || undefined, { ph: 'goods.mail' })),
+      row('embark', inp(Array.isArray(s.embark) ? s.embark.join(', ') : s.embark, x => s.embark = x ? x.split(/[\s,]+/).filter(Boolean).map(y => isNaN(+y) ? y : +y) : undefined, { ph: 'person ids or a count' })),
+      row('disembark', inp(Array.isArray(s.disembark) ? s.disembark.join(', ') : s.disembark, x => s.disembark = x ? x.split(/[\s,]+/).filter(Boolean).map(y => isNaN(+y) ? y : +y) : undefined))));
+  }
+  const R = s.require || {};
+  const setR = (k, v) => { s.require = Object.assign({}, s.require || {}); if (v === undefined || v === null || v === '') delete s.require[k]; else s.require[k] = v; if (!Object.keys(s.require).length) delete s.require; };
+  f.append(el('fieldset', {}, el('legend', {}, 'require'),
+    row('when', sel(R.when ? JSON.stringify(R.when) : '', [['{"before":"dusk"}', 'arrive before dusk'], ['{"after":"dusk"}', 'arrive after dusk'], ['{"before":"dawn"}', 'arrive before dawn']], x => setR('when', x ? JSON.parse(x) : undefined), { blank: '—' }), 'or {arrive:[h0,h1]} in the raw JSON'),
+    row('maxMin', inp(R.maxMin, x => setR('maxMin', x), { type: 'number', ph: 'minutes (the user\'s spec: allowed)' })),
+    row('depart', json(R.depart, v => setR('depart', v), { ph: '{"after":8} | {"at":[8,10]}' })),
+    s.do === 'deliver' || s.do === 'accept' ? row('plane (criteria)', json(R.plane, v => setR('plane', v), { ph: '[{"k":"seats","op":">=","v":4}] - kinds: ' + Object.keys(CONTRACT_CRIT_KINDS).concat(Object.keys(CONTRACT_CRIT_NEXT)).join(' ') })) : null,
+    s.do === 'fly' ? row('medals', json(s.medals, v => s.medals = v, { ph: '[{"medal":"gold","le":300}] (a challenge, the logbook time)' })) : null,
+    row('split s', inp(s.split, x => s.split = x == null ? undefined : +x, { type: 'number' }), 'a rally checkpoint\'s target from the first'),
+    row('auto', sel(s.auto == null ? '' : String(s.auto), ['true', 'place', 'false'], x => s.auto = x === '' ? undefined : x === 'true' ? true : x === 'false' ? false : 'place', { blank: '—' }))));
+  f.append(el('fieldset', {}, el('legend', {}, 'narrative'), ...sayRows('say', s.say, v => { if (v) s.say = v; else delete s.say; }),
+    ...sayRows('onDone.say', (s.onDone || {}).say, v => { s.onDone = Object.assign({}, s.onDone || {}); if (v) s.onDone.say = v; else delete s.onDone.say; if (!Object.keys(s.onDone).length) delete s.onDone; }),
+    row('onDone.site', inp(s.onDone && s.onDone.site ? s.onDone.site.id + ':' + s.onDone.site.state : '', x => { s.onDone = Object.assign({}, s.onDone || {}); const g = /^([^:]+):(\w+)$/.exec(x || ''); if (g) s.onDone.site = { id: g[1], state: g[2] }; else delete s.onDone.site; if (!Object.keys(s.onDone).length) delete s.onDone; }, { ph: 'siteId:building' }))));
+  f.append(el('div', { cls: 'tools' }, moveBtns(L.steps, si, i => S.sel = { t: 'step', id: m.id, l: li, s: i }), el('button', { on: { click: () => { L.steps.splice(si + 1, 0, clone(s)); changed(); } } }, 'duplicate'),
+    el('button', { on: { click: () => { L.steps.splice(si, 1); S.sel = { t: 'leg', id: m.id, l: li }; changed(); } } }, '✕ delete')));
+}
+
+// ---- the card preview (the owner's portrait, the words as the map shows them, the live reward) -----------------------
+function safe(f) { try { return f(); } catch (e) { return null; } }
+function renderCard() {
+  const c = $('card'); c.innerHTML = '';
+  const m = S.sel.id && mission(S.sel.id);
+  if (!m) { c.append(el('div', { cls: 'mute' }, 'Select a mission to see its card.')); return; }
+  if (isTut(m)) { const t = missionTutorial().find(x => x.beat === m.tutorial) || {}; c.append(el('div', { cls: 'who' }, face('tim'), el('div', {}, el('div', { cls: 'mute' }, 'Tim · tutorial / phase 0'), el('h3', {}, t.title || m.id))), el('p', { cls: 'brief' }, t.brief || '')); return; }
+  const rec = safe(() => missionToContract(m, { pack: S.pack }));
+  if (!rec) { c.append(el('div', { cls: 'badno' }, 'this mission does not convert (see the validation)')); return; }
+  const Tx = T(), vars = safe(() => contractVars(rec, CONTRACT_FIELDS, Tx)) || {};
+  const prov = CONTRACT_PROVIDERS[m.provider];
+  const rw = safe(() => missionReward(m, { pack: S.pack }));
+  c.append(el('div', { cls: 'who' }, face(m.client), el('div', {}, el('div', {}, el('b', {}, m.client ? msPersonName(m.client) : '—'), el('span', { cls: 'mute' }, ' · ' + (prov ? contractText(prov.name, null, Tx) : m.provider) + ' · ' + m.kind)),
+    el('h3', {}, contractText(rec.title, vars, Tx)))));
+  c.append(el('p', { cls: 'brief' }, contractText(rec.brief, vars, Tx)));
+  const ul = el('ul', {});
+  m.legs.forEach((L, i) => L.steps.forEach(s => ul.append(el('li', {}, el('span', { cls: 'mute' }, 'leg ' + (i + 1) + ' '), s.do + ' ' + stepWords(s) + (s.require && s.require.when ? ' · ' + contractWhenWords(s.require.when) : '') +
+    (s.require && s.require.plane ? ' · ' + s.require.plane.map(q => safe(() => contractCritWords(q, CONTRACT_FIELDS, Tx)) || q.k).join('; ') : '')))));
+  c.append(ul);
+  for (const p of m.prefs || []) c.append(el('div', {}, contractText('pref.' + p.need, { p: contractText('pref.' + p.k, { v: p.v }, Tx) }, Tx) + (p.need === 'bonus' ? ' (+' + p.pct + ' %)' : '')));
+  if (m.onDone && m.onDone.say) c.append(el('div', { cls: 'mute' }, '“' + contractText(m.onDone.say.text, vars, Tx) + '” - ' + msPersonName(m.onDone.say.who)));
+  if (rw) c.append(el('div', { cls: 'pay' }, 'offered ' + rw.pay.total + ' · paid ' + rw.paid + (rw.best !== rw.paid ? ' · best ' + rw.best : '') + (rw.prefs ? ' · prefs +' + rw.prefs + ' %' : '') + ' credits' + (rw.pay.km ? ' · ' + rw.pay.km + ' km' : '')),
+    el('div', { cls: rw.why ? 'wt' : 'badok' }, rw.why ? '⏳ waits for its runtime: ' + rw.why : '✓ today\'s runtime runs it'));
+  const w = whyOf(m.id);
+  if (w.length) c.append(el('div', { cls: 'badno' }, w.slice(0, 6).map(x => el('div', {}, '✗ ' + x))));
+}
+function face(id) {
+  const src = id && typeof peopleFace === 'function' ? peopleFace(id, 64) : null;
+  if (src) { const im = el('img', { cls: 'face', src: '../' + src, alt: id }); im.onerror = () => im.replaceWith(el('div', { cls: 'face' }, (id || '?')[0].toUpperCase())); return im; }
+  return el('div', { cls: 'face', title: window.MS_NO_PEOPLE ? '72_people.js not loaded (claude/people, L26c)' : '' }, (id || '?')[0].toUpperCase());
+}
+
+// ---- the map (MAP_PACK: px = (x - x0) / mpp, py = (z - z0) / mpp; north up) ------------------------------------------
+const cv = $('map'), cx = cv.getContext('2d');
+const V = { s: 0.2, ox: 0, oy: 0, img: null, drag: null };
+if (MAP) { const im = new Image(); im.onload = () => { V.img = im; drawMap(); }; im.src = '../' + ((MAP.art && MAP.art.img) || MAP.img); }
+const w2s = (x, z) => [((x - MAP.x0) / MAP.mpp) * V.s + V.ox, ((z - MAP.z0) / MAP.mpp) * V.s + V.oy];
+const s2w = (sx, sy) => [((sx - V.ox) / V.s) * MAP.mpp + MAP.x0, ((sy - V.oy) / V.s) * MAP.mpp + MAP.z0];
+function fit(pts) {
+  if (!MAP) return;
+  const W = cv.clientWidth, H = cv.clientHeight; let x0 = MAP.x0, x1 = MAP.x1, z0 = MAP.z0, z1 = MAP.z1;
+  if (pts && pts.length) { x0 = Math.min(...pts.map(p => p[0])) - 1500; x1 = Math.max(...pts.map(p => p[0])) + 1500; z0 = Math.min(...pts.map(p => p[1])) - 1500; z1 = Math.max(...pts.map(p => p[1])) + 1500; }
+  V.s = Math.min(W / ((x1 - x0) / MAP.mpp), H / ((z1 - z0) / MAP.mpp));
+  V.ox = W / 2 - ((x0 + x1) / 2 - MAP.x0) / MAP.mpp * V.s; V.oy = H / 2 - ((z0 + z1) / 2 - MAP.z0) / MAP.mpp * V.s;
+}
+function missionPts(m) {
+  const out = [];
+  const put = p => { const q = contractPlaceXZ(p, CONTRACT_FIELDS) || (missionPlaceKind(p) === 'site' ? ((S.pack.sites.find(x => x.id === p.site) || {}).at && [S.pack.sites.find(x => x.id === p.site).at.x, S.pack.sites.find(x => x.id === p.site).at.z]) : null); if (q) out.push(q); };
+  for (const L of m.legs || []) for (const s of L.steps || []) { if (s.from) put(s.from); if (s.place) put(s.place); }
+  for (const p of (m.route && m.route.pts) || []) out.push([p.x, p.z]);
+  return out;
+}
+function drawMap() {
+  const W = cv.width = cv.clientWidth * devicePixelRatio, H = cv.height = cv.clientHeight * devicePixelRatio;
+  cx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0); cx.clearRect(0, 0, W, H);
+  if (!MAP) { cx.fillStyle = '#fff'; cx.fillText('no map pack (src/viewer/map_pack.js)', 10, 20); return; }
+  if (V.img) cx.drawImage(V.img, V.ox, V.oy, MAP.w * V.s, MAP.h * V.s);
+  cx.font = '11px system-ui'; cx.lineWidth = 1.5;
+  for (const id of Object.keys(CONTRACT_FIELDS)) { const f = CONTRACT_FIELDS[id], [x, y] = w2s(f.x, f.z); cx.fillStyle = f.surf === 'water' ? '#4fc3f7' : '#ffd54f'; cx.beginPath(); cx.arc(x, y, 4, 0, 7); cx.fill(); cx.fillStyle = '#fff'; cx.fillText(f.name, x + 6, y + 3); }
+  for (const s of S.pack.sites) { const [x, y] = w2s(s.at.x, s.at.z); cx.strokeStyle = '#ce93d8'; cx.strokeRect(x - 5, y - 5, 10, 10); cx.fillStyle = '#ce93d8'; cx.fillText(s.id, x + 7, y + 3); }
+  const m = S.sel.id && mission(S.sel.id);
+  if (!m || isTut(m)) return;
+  if (m.route) { cx.setLineDash([5, 4]); cx.strokeStyle = '#ffffffaa'; cx.beginPath(); m.route.pts.forEach((p, i) => { const [x, y] = w2s(p.x, p.z); i ? cx.lineTo(x, y) : cx.moveTo(x, y); }); cx.stroke(); cx.setLineDash([]); }
+  m.legs.forEach((L, li) => L.steps.forEach((s, si) => {
+    const on = S.sel.t === 'step' && S.sel.l === li && S.sel.s === si, col = on ? '#ff5252' : '#69f0ae';
+    cx.strokeStyle = col; cx.fillStyle = col;
+    const fr = s.from && contractPlaceXZ(s.from, CONTRACT_FIELDS), k = missionPlaceKind(s.place);
+    let to = s.place ? contractPlaceXZ(s.place, CONTRACT_FIELDS) : null;
+    if (k === 'site') { const st = S.pack.sites.find(x => x.id === s.place.site); to = st ? [st.at.x, st.at.z] : null; }
+    if (fr && to) { const a = w2s(fr[0], fr[1]), b = w2s(to[0], to[1]); cx.beginPath(); cx.moveTo(a[0], a[1]); cx.lineTo(b[0], b[1]); cx.stroke(); }
+    if (k === 'pt') { const [x, y] = w2s(s.place.pt[0], s.place.pt[1]); cx.beginPath(); cx.arc(x, y, Math.max(3, s.place.r / MAP.mpp * V.s), 0, 7); cx.stroke(); cx.fillText((s.id || s.do) + (s.split != null ? ' ' + s.split + 's' : ''), x + 6, y - 6); }
+    if (k === 'gate') { const a = w2s(s.place.gate[0][0], s.place.gate[0][1]), b = w2s(s.place.gate[1][0], s.place.gate[1][1]); cx.lineWidth = 3; cx.beginPath(); cx.moveTo(a[0], a[1]); cx.lineTo(b[0], b[1]); cx.stroke(); cx.lineWidth = 1.5; cx.fillText(s.id || 'gate', b[0] + 5, b[1]); }
+    if (k === 'ring') { const [x, y] = w2s(s.place.ring[0], s.place.ring[2]); cx.beginPath(); cx.arc(x, y, 6, 0, 7); cx.stroke(); cx.beginPath(); cx.arc(x, y, 2, 0, 7); cx.fill(); cx.fillText((s.id || 'ring') + ' y' + s.place.ring[1], x + 8, y); }
+    if (k === 'spot') { const [a, id] = s.place.spot.split(':'), q = (SPOTS[a] || []).find(z => z[3] === id); if (q) { const [x, y] = w2s(q[0], q[1]); cx.fillRect(x - 3, y - 3, 6, 6); } }
+  }));
+  if (S.sel.t === 'step') { const s = m.legs[S.sel.l].steps[S.sel.s]; if (s && missionPlaceKind(s.place) === 'spot') { const a = s.place.spot.split(':')[0]; cx.fillStyle = '#ffffff88'; for (const q of SPOTS[a] || []) { const [x, y] = w2s(q[0], q[1]); cx.fillRect(x - 2, y - 2, 4, 4); } } }
+}
+function pickBtn(label, key) { return el('button', { on: { click: () => { S.pick = Object.assign({ n: 0 }, key); $('pickLbl').textContent = 'picking: click the map (Esc to stop)'; $('pickLbl').className = 'wt'; } } }, label); }
+function applyPick(wx, wz) {
+  const P = S.pick; if (!P) return;
+  if (P.kind === 'siteAt') { const s = S.pack.sites[P.i]; s.at.x = Math.round(wx); s.at.z = Math.round(wz); S.pick = null; return changed(); }
+  const m = mission(P.id), s = m && m.legs[P.l].steps[P.s]; if (!s) return;
+  const k = missionPlaceKind(s.place);
+  if (k === 'field') { let best = null, bd = 1e18; for (const id of Object.keys(CONTRACT_FIELDS)) { const f = CONTRACT_FIELDS[id], d = Math.hypot(f.x - wx, f.z - wz); if (d < bd) { bd = d; best = id; } } s.place = { field: best }; S.pick = null; }
+  else if (k === 'pt') { s.place.pt = [Math.round(wx), Math.round(wz)]; S.pick = null; }
+  else if (k === 'ring') { s.place.ring = [Math.round(wx), s.place.ring[1], Math.round(wz)]; S.pick = null; }
+  else if (k === 'gate') { s.place.gate[P.n] = [Math.round(wx), Math.round(wz)]; P.n++; if (P.n > 1) S.pick = null; else $('pickLbl').textContent = 'picking: the second post'; }
+  else if (k === 'spot') { let best = null, bd = 1e18; for (const a of Object.keys(SPOTS)) for (const q of SPOTS[a]) { const d = Math.hypot(q[0] - wx, q[1] - wz); if (d < bd) { bd = d; best = a + ':' + q[3]; } } if (best) s.place = { spot: best }; S.pick = null; }
+  if (!S.pick) { $('pickLbl').textContent = 'set'; $('pickLbl').className = 'mute'; }
+  changed();
+}
+cv.addEventListener('wheel', e => { e.preventDefault(); const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top, k = e.deltaY < 0 ? 1.25 : 0.8; V.ox = mx - (mx - V.ox) * k; V.oy = my - (my - V.oy) * k; V.s *= k; drawMap(); }, { passive: false });
+cv.addEventListener('mousedown', e => { V.drag = { x: e.clientX, y: e.clientY, ox: V.ox, oy: V.oy, moved: false }; });
+window.addEventListener('mousemove', e => { const r = cv.getBoundingClientRect(); if (MAP && e.target === cv) { const [x, z] = s2w(e.clientX - r.left, e.clientY - r.top); $('mapHint').textContent = 'x ' + Math.round(x) + '  z ' + Math.round(z); }
+  if (!V.drag) return; const dx = e.clientX - V.drag.x, dy = e.clientY - V.drag.y; if (Math.abs(dx) + Math.abs(dy) > 3) V.drag.moved = true; if (V.drag.moved) { V.ox = V.drag.ox + dx; V.oy = V.drag.oy + dy; drawMap(); } });
+window.addEventListener('mouseup', e => { const D = V.drag; V.drag = null; if (D && !D.moved && e.target === cv && MAP) { const r = cv.getBoundingClientRect(); const [x, z] = s2w(e.clientX - r.left, e.clientY - r.top); applyPick(x, z); } });
+window.addEventListener('keydown', e => { if (e.key === 'Escape' && S.pick) { S.pick = null; $('pickLbl').textContent = 'stopped'; } });
+$('bFit').onclick = () => { const m = S.sel.id && mission(S.sel.id); fit(m && !isTut(m) ? missionPts(m) : null); drawMap(); };
+window.addEventListener('resize', drawMap);
+
+// ---- the route import (a 38c_route.js record, or the game's library) -----------------------------------------------------
+let routeFor = null;
+function openRoute(m) { routeFor = m; $('routeTxt').value = ''; $('dlgRoute').showModal(); }
+$('routeFile').onchange = e => { const f = e.target.files[0]; if (f) f.text().then(t => { $('routeTxt').value = t; }); };
+$('dlgRoute').addEventListener('close', () => {
+  if ($('dlgRoute').returnValue !== 'ok' || !routeFor) return;
+  try {
+    let r = JSON.parse($('routeTxt').value);
+    if (r && r.route && r.route.pts) r = r.route;                         // the draft (flydiy.routeDraw: { v, route, fly })
+    if (Array.isArray(r)) { const n = $('routeName').value.trim(); r = (n && r.find(x => x && x.name === n)) || r[0]; }
+    const R = routeNormalise(r);
+    if (!R || R.pts.length < 2) throw new Error('not a route with 2+ points');
+    routeFor.route = R; if (!routeFor.rally) routeFor.rally = { refKmh: 150, r: 300 };
+    status('route imported: ' + R.name + ', ' + R.pts.length + ' points'); fit(missionPts(routeFor)); changed();
+  } catch (e) { status('route import failed: ' + e.message); }
+});
+
+// ---- validation, render, I/O --------------------------------------------------------------------------------------------
+function renderVal() {
+  WHY = safe(() => missionPackValidate(S.pack, { spots: SPOTS })) || ['the validator threw'];
+  const v = $('val'); v.innerHTML = '';
+  $('vcount').innerHTML = WHY.length ? '<span class="badno">✗ ' + WHY.length + ' problem(s)</span>' : '<span class="badok">✓ the pack validates</span>';
+  if (!WHY.length) v.append(el('div', { cls: 'badok' }, '✓ valid - GATE MISSIONS will agree (the same core)'));
+  for (const w of WHY) v.append(el('div', { on: { click: () => { const id = w.split(/[ :]/)[0], m = mission(id); if (m) { S.sel = { t: 'mission', id }; renderAll(); } } } }, '✗ ' + w));
+}
+function renderAll() { renderVal(); renderTree(); renderForm(); renderCard(); drawMap(); }
+$('bSave').onclick = () => { const txt = JSON.stringify(S.pack, null, 1) + '\n'; const a = el('a', { href: URL.createObjectURL(new Blob([txt], { type: 'application/json' })), download: S.file || 'pack.json' }); document.body.append(a); a.click(); a.remove(); status('saved ' + S.file); };
+$('bOpen').onclick = () => $('fOpen').click();
+$('fOpen').onchange = e => { const f = e.target.files[0]; if (f) f.text().then(t => { try { setPack(JSON.parse(t), f.name); } catch (er) { status('not a pack: ' + er.message); } }); };
+$('bBuiltin').onclick = () => fetch('../src/missions/builtin.json').then(r => r.json()).then(p => setPack(p, 'builtin.json'), e => status('could not fetch the built-in pack (serve flyDiy/ over http): ' + e.message));
+$('bNew').onclick = () => { if (confirm('Start an empty pack? (the current one stays only if saved)')) setPack(emptyPack(), 'pack.json'); };
+$('bRetro').onclick = () => { if (confirm('Rebuild the built-in pack from today\'s 72_contract_data.js? (the retrofit)')) setPack(missionPackFromContracts(), 'builtin.json'); };
+document.body.append(el('datalist', { id: 'orders' }, ['seq', 'any', 'choose:1', 'choose:2', 'choose:3'].map(o => el('option', { value: o }))));
+
+const d = store.get();
+let start = null; try { start = d && JSON.parse(d); } catch (e) { start = null; }
+if (start && start.pack) setPack(start.pack, start.file); else setPack(missionPackFromContracts(), 'builtin.json');
+requestAnimationFrame(() => { fit(); drawMap(); });
+})();
+</script>
+</body>
+</html>

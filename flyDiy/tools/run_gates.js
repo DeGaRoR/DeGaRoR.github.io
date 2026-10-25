@@ -892,6 +892,12 @@ const GATES = [
   // 3-stop chain flown through the stop records; 64 doctored rules. ~2 s (20 s cold: the five designs' shakedown,
   // cached in the OS temp dir by content)
   { id: 'CONTRACTS', file: '_contracts_check.js', tier: 'core' },
+  // MISSIONS-P0 (futureDesigns/MISSIONS-2026-10-25.md): the mission packs (src/missions/*.json, 73b_missions.js) - every
+  // pack validates (the tree, the orders, the places, the people, each record through contractValidate), the editor's
+  // core judges them as the full core; the BUILT-IN pack is today's contracts (each record, its pay, the install, the
+  // offers and documents of two careers walked under both); the tutorial listed read-only; the new model's rules each
+  // refused alone; the rally's derived checkpoints. ~25 s. `--selftest`: 18 doctored rules, each red (~8 min)
+  { id: 'MISSIONS', file: '_missions_check.js', tier: 'core', wall: 45 },
   // THE STAGES (G2300 STAGES, contract v1.33, GAME-2026-10-06.md §11): the sandbox's composed record = the island cook's
   // hash (today's island, byte for byte, both variants); every stage value of every track composes (valid, the village
   // unmoved, the altiport and East Point by their stage); MILL-TAXI's census at every stage with the kits' solids; never
