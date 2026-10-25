@@ -338,6 +338,13 @@ function makePilot(sim, def, world, opts) {
   const threePoint = !trike && (GP.cap < 1 || highThrust);
   // every taildragger rotates at Vr (G193); every TRICYCLE rotates too (G202)
   const rotateTD = !trike && (A.rotate != null ? !!A.rotate : true);
+  // G3502 (DC3-BUILD, 2026-10-23): A HEAVY TAILDRAGGER IS PULLED OFF TOO. The rotate-pull below (G3077) was the tricycle's:
+  // a taildragger's tail-up schedule never sat on the stop. The full-size DC-3 (11 t, a 3.4 m disc's thrust line well
+  // below its CG) does: from Vr the elevator rides the servo's 0.35 top with the nose under its lift-off attitude and
+  // it runs on (DC3-STUDY §3: lift-off at 1.6 Vs, a porpoise, settled back). Above heavyTDKg (no taildragger the garage
+  // had built weighs a third of it) the same rescue: past Vr, a second on the stop with the attitude under the
+  // rotation target, the top opens to the stick's full travel until the wheels leave. Every lighter taildragger: unchanged
+  const heavyTD = !trike && !sim.hydro && sim.totalM > (A.heavyTDKg ?? 3000);
   // G1570: THE SERVOS ARE ONE MODULE (39b_servos.js), shared with 40 and 41;
   // this pilot flies it with its own laws on (the calm-air course trim, P1.D's
   // ground steer, the aileron into wind, the water's branch and stick top)
@@ -671,6 +678,12 @@ function makePilot(sim, def, world, opts) {
   let pAsst = 0, flLeft = Infinity;
   // G1936: the forward slip on a short final (FINAL, below) - its amount 0..1, its side, said once
   let slipK = 0, slipSg = 1, slipSaid = false;
+  // G3472 (T-P1 SLIP-BETA): the slip's rudder, this airframe's (eased off a sideslip past A.betaSlip); the last time it slipped
+  let slipDr = null, slipLastT = -1e9;
+  // G3471 (T-P1 BOUNCE): the time off the ground in this hop of the roll-out, and the hop judged a bounce (flown, not rolled)
+  let bounceT = 0, bounceOn = false;
+  // G3473 (T-P1 PLAN-KEPT): the autopilot given back in the air (ap.reEngage) - the arrival judged from here once
+  let reEngAir = false;
   // G1938: THE PIVOT (TAXI / LINEUP, below) - the tightest turn the wheels steer (39_ground_path groundRmin, at the
   // taxi's 0.85 of rudder) and the pivot in progress { hdg, j, thr, t0 }; a trike's nosewheel turns tight enough
   const RgMin = (typeof groundRmin === 'function') ? groundRmin(def, 0.85) : Infinity;
@@ -856,7 +869,7 @@ function makePilot(sim, def, world, opts) {
   let fLandCap = 1, fCapT = 0, deF = 0;
   let abortV0 = null, abortS0 = null, committedTO = false;
   ap.reEngage = (o) => {
-    pendReEng = true;
+    pendReEng = true; reEngAir = true;
     if (o && typeof o.phase === 'string' && o.phase !== ap.phase) go(o.phase);
   };
   ap.taxiFF = taxiFF;
@@ -2066,8 +2079,15 @@ function makePilot(sim, def, world, opts) {
       // once the elevator has margin again (no saturation for 3 s, under 0.25 of its travel). Land aeroplanes as before
       // (CESSNA-VREF G2500 judges the metal Cessna on its raise - a generic change is train 66's)
       const capRamp = !!sim.hydro && SV.IthMax < SV.IthMaxT - 0.01;
+      // G3470 (T-P1 RUFUS-250; the user 25 Oct: "Rufus is a super STOL, it should definitely not refuse 250m, not the expert
+      // autopilot at least"): THE SLIP'S ELEVATOR IS THE SLIP'S. Crossed controls hold the nose up against the yaw's drop and
+      // the drag the slip is for keeps the speed over the reference while it does - the elevator on its stop is the
+      // technique, not the airframe's limit. Rufus into the mine (Jumbo Mine Street, 250 m): slip at 842 s, 'cannot hold
+      // 17.6 m/s' at 847 s, the touch judged at 21.3 m/s and the 250 m strip refused (171 m needed = 171 m left) for strip 13.
+      // Not judged while slipping nor for 2 s after it
+      if (slipK > 0.02) slipLastT = ap.t;
       const eSat = (deHeld() > 0.30 || (!capRamp && SV.Ith >= SV.IthMax - 1e-3 && (PRA ? thShortH : SV.thCA - th) > 0.03)) && V > (o.ias || A.VAppr) + 0.5
-                   && (!PRA || ap.phase === 'FINAL');
+                   && (!PRA || ap.phase === 'FINAL') && ap.t - slipLastT > 2;
       tDeSatT = eSat ? tDeSatT + dt : Math.max(0, tDeSatT - dt);
       if (tDeSatT > 1.5) tVAdapt = Math.min(tVAdapt + 0.5 * dt, 0.25 * (o.ias || A.VAppr));
       if (sim.hydro && !eSat) { tVOkT += dt; if (tVOkT > 3 && SV.aDe < 0.25) tVAdapt = Math.max(0, tVAdapt - 0.25 * dt); } else tVOkT = 0;
@@ -2261,7 +2281,23 @@ function makePilot(sim, def, world, opts) {
         default: break;
       }
       // G1936: THE SLIP'S RUDDER, mixed over the lateral law's (whose bank then holds the track)
-      if (slipK > 0 && (AF.lat === 'LOC' || AF.lat === 'PATH')) c.dr = (1 - slipK) * c.dr + slipK * slipSg * (A.drSlip ?? 0.80);
+      // G3472 (T-P1 SLIP-BETA; A0's read of the user's ultralight, 24 Oct: the fixed 0.80 of rudder put a 379 kg airframe 28-33
+      // deg side-on in 2-4 s, the aileron on its cap, two incipient spirals): THE SLIP'S RUDDER IS WHAT THE AILERON CAN HOLD.
+      // The bank that keeps the track is the aileron's; past its stop the rudder's roll wins and the aeroplane slides off the
+      // line. Rufus on 0.80 (replay 25 Oct 07:45): 28 deg side-on, the aileron on its 0.30 stop from the first second, the bank
+      // walked -3 -> +10 deg and the calm final ended 111 m off the centreline, twice round; in the day's wind 4.9 m/s down and
+      // 5 m low, twice round. Two earlier cuts eased it on the SIDESLIP (15 deg: hunted 4 <-> 23 deg every 4 s, high 8 m) and
+      // on the bank (never reached: the slide is in the track, not the bank). The rudder starts at drSlip (0.80) and is
+      // eased (0.4 /s) while the aileron works past 90 % of its stop (or the bank past bankSlip 15 deg, the sideslip past
+      // betaSlip 35 deg), given back (0.08 /s) only under 70 % with both well inside
+      if (slipK > 0 && (AF.lat === 'LOC' || AF.lat === 'PATH')) {
+        const dr0 = A.drSlip ?? 0.80, bCap = A.betaSlip ?? 0.61, phCap = A.bankSlip ?? 0.26, aU = Math.abs(c.da) / SERVO_GAINS.daMax;
+        if (slipDr == null) slipDr = dr0;
+        const spiral = aU > (A.slipAU ?? 0.90) || Math.abs(ph) > phCap || Math.abs(beta) > bCap;
+        const calmS = aU < (A.slipAUlo ?? 0.70) && Math.abs(ph) < 0.66 * phCap && Math.abs(beta) < 0.86 * bCap;
+        slipDr = clamp(slipDr + (spiral ? -0.4 : calmS ? 0.08 : 0) * dt, 0.15, dr0);
+        c.dr = (1 - slipK) * c.dr + slipK * slipSg * slipDr;
+      } else if (slipK === 0) slipDr = null;
       // G381.1: POWER WHEN THE ELEVATOR RUNS OUT. On the approach and in the
       // flare, an aeroplane whose elevator sits on its nose-up stop cannot
       // hold the slope or the hold-off at idle — the drawn-tail Caravan-alike
@@ -2780,6 +2816,20 @@ function makePilot(sim, def, world, opts) {
     // position and track (ap.setDest); the box flies on until it hands back (CLIMB plans then)
     // G2120: a route drawn in the air begins from here (ap.flyRoute 'now'), the To's re-plan below then leaves it
     if (routeGo && !BX.on && onG === 0 && DEST_REPLAN.includes(ap.phase) && ap.drawn && !replanReq) { routeGo = false; go(routeStart()); }
+    // G3473 (T-P1 PLAN-KEPT; the user's story flight 24 Oct, A0's read: Rufus flown by hand 60 s off the Cabin Strip's
+    // designed approach, given back - reEngage kept the phase and the OLD legs, BASE ended at once and the FINAL began 4.4 km
+    // out at 665 m): THE PLAN KEPT IS THE DESTINATION, NOT THE LEGS. Given back in the air on a leg of the arrival, the
+    // arrival at the SAME To is planned again from where the hand left the aeroplane (the To's own re-plan, G1945); on the
+    // slope of the final it was flying (60 m of the line, 30 m of the slope) it flies on; a drawn route still being flown
+    // resumes as drawn (its follower judges 'left' itself). On the ground: as before
+    if (reEngAir) {
+      reEngAir = false;
+      if (onG === 0 && !BX.on && DEST_REPLAN.includes(ap.phase) && ap.route && ap.route.to && !(ap.drawn && (ap.drawn.state === 'flying' || ap.drawn.state === 'hold'))) {
+        const dF = ap.xAim != null ? ap.xAim - sAl : -1;
+        const onSlope = ap.phase === 'FINAL' && dF > 0 && Math.abs(sCr) < 60 && Math.abs(cg[1] - (aimAlt() + dF * ap.gs)) < 30;
+        if (!onSlope) { replanReq = true; say('replan', 'back on the autopilot - planning the arrival at ' + (ap.route.to.name || ap.route.to.id) + ' from here'); }
+      }
+    }
     if (replanReq && !BX.on && onG === 0 && DEST_REPLAN.includes(ap.phase)) {
       replanReq = false; replanning = true; routeGo = false;
       if (ap.drawn && (ap.drawn.state === 'flying' || ap.drawn.state === 'hold')) ap.drawn.state = 'left';
@@ -3438,6 +3488,10 @@ function makePilot(sim, def, world, opts) {
           if (!rotPull && rotStuckT > 1.0) { rotPull = true; say('rotate-pull', 'the nose will not come up at ' + V.toFixed(1) + ' m/s on the stop - full back stick'); }
         }
         else if (softTO) deRoll = 0.20;                        // P1.C soft, a trike: the nosewheel light through the roll
+        if (heavyTD && V > vrT && vert === 'PITCH') {        // G3502: a heavy taildragger on the stop past Vr
+          rotStuckT = (SV.aDe >= 0.34 && th < pitch - 0.035) ? rotStuckT + dt : 0;
+          if (!rotPull && rotStuckT > 1.0) { rotPull = true; say('rotate-pull', 'the tail will not come down to the lift-off attitude at ' + V.toFixed(1) + ' m/s on the stop - full back stick'); }
+        }
         // G970: ON THE WATER THE RUN ATTITUDE IS NOT A WHEEL'S. G431's tail-up
         // attitude (liftoffTh - 0.05, the J-3's run a few degrees under its
         // fly-off one) reached the float card too, and G431 measured it there
@@ -4023,7 +4077,7 @@ function makePilot(sim, def, world, opts) {
         {
           const eE = (V * V - iasF * iasF) / (2 * 9.81) + above;
           const hOff = (A.flareK ?? 1.3) * A.flareAgl + 0.6 * V;
-          if ((ap.shortFld || (PRA && PRF.slip)) && slopeCaptured && aglG > hOff && c.thr < 0.10 && eE > 2) {
+          if ((ap.shortFld || (PRA && PRF.slip)) && slopeCaptured && aglG > hOff && c.thr < 0.10 && eE > (A.slipArm ?? 2)) {
             if (slipK === 0) slipSg = SV.crossWind(F) >= 0 ? 1 : -1;
             slipK = Math.min(1, slipK + dt / 3);
             if (!slipSaid) { slipSaid = true; say('slip', 'high on energy on the short final (+' + eE.toFixed(1) + ' m at idle) — slipping it down'); }
@@ -4289,7 +4343,7 @@ function makePilot(sim, def, world, opts) {
           else engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'IDLE', { pitch: thC, bank: 0.10, idle: A.flareThr ?? 0 });
         }
         if (onG > 0) {
-          go('ROLLOUT');
+          go('ROLLOUT'); bounceT = 0; bounceOn = false;
           SV.pitchK = SV.pitchDK = 1; SV.IthMaxT = 0.15; SV.IthGain = null;
           // G381: a three-point arrival (the attitude at or above the rest
           // attitude, less 3 deg) is pinned from the first frame
@@ -4336,7 +4390,23 @@ function makePilot(sim, def, world, opts) {
         // LEVEL by the air's roll law (the roll-out's ground law steers a hull, not a wing), the touch attitude held, and a
         // little power (0.15) cushions the next contact instead of a closed throttle dropping it on a float (FAA-H-8083-23:
         // a skip is not landed again off its top - the attitude held, power to soften, then idle once settled)
-        if (sim.hydro && onG === 0 && V > 0.7 * VsW) engage('LOC', 'PITCH', 'SET', { thr: A.waterSkipThr ?? 0.15, pitch: Math.min(ap.tdInfo ? ap.tdInfo.th : th, flCap), bank: 0.05 });
+        // G3471 (T-P1 BOUNCE; the user's DC-3, 24 Oct: "it thought it was rolling out while it actually bumped, it went up and
+        // then crashed"): ON LAND TOO, A BOUNCE IS FLOWN. ROLLOUT begins at the first contact; a hop off it (every wheel off,
+        // the wheels over 0.3 m for 0.15 s, still over 0.7 Vs0) ran the ground laws in the air - the DC-3 entered ROLLOUT at
+        // 2.5 m on a wheel's kiss, the taildragger's full-back stick and the closed throttle ballooned it to 7.7 m at 16.5 deg,
+        // it mushed down at 4.6 m/s and broke up on the second hit. In the hop: G3330's skip law (wings level, the touch
+        // attitude, 0.15 of power to cushion the next contact, no brakes); a hop past bounceGA (2 m) or still climbing at a
+        // metre is not landed off its top - round again (twice, then committed: held as a hop). Only a hop past 0.3 m changes
+        // anything: a wheel's flicker on the roll-out rolls on as before
+        if (!sim.hydro) {
+          bounceT = onG === 0 && aglG > (A.bounceH ?? 0.3) && V > 0.7 * VsW ? bounceT + dt : 0;
+          if (bounceT > 0.15) bounceOn = true; else if (onG > 0) bounceOn = false;
+          if (bounceOn && (ap.gaN || 0) < 2 && !committed && (aglG > (A.bounceGA ?? 2.0) || (vcg[1] > 1.0 && aglG > 1.0))) {
+            goAround('bounced ' + aglG.toFixed(1) + ' m off the touch at ' + V.toFixed(1) + ' m/s'); break;
+          }
+        }
+        if (bounceOn) engage('LOC', 'PITCH', 'SET', { thr: A.bounceThr ?? 0.15, pitch: Math.min(ap.tdInfo ? ap.tdInfo.th : th, flCap), bank: 0.05 });
+        else if (sim.hydro && onG === 0 && V > 0.7 * VsW) engage('LOC', 'PITCH', 'SET', { thr: A.waterSkipThr ?? 0.15, pitch: Math.min(ap.tdInfo ? ap.tdInfo.th : th, flCap), bank: 0.05 });
         else if (sim.hydro && V > 0.7 * VsW) engage('RWY', 'PITCH', 'SET', { thr: 0, pitch: Math.min(ap.tdInfo ? ap.tdInfo.th : th, flCap) });
         else if (trike) {
           // P1.B soft: the nosewheel stays off to 0.7 Vs, then full up
@@ -4394,6 +4464,7 @@ function makePilot(sim, def, world, opts) {
         // lateral — wings level, the nose held on the centreline — until the
         // wheels are back.
         if (onG === 0 && phaseT < 6 && AF.lat === 'RWY') { AF.lat = 'DECRAB'; ap.trackHold = true; }
+        if (bounceOn) brakeRamp = 0;   // G3471: no brake waiting for the next contact
         c.brake = brakeRamp * Math.min(1, Math.max(0, (Vg - A.VBrakeRelease) / 2.0));
         setStatus('rolling out', [cond('ground speed', Vg, A.VStop, Vg < A.VStop, 'm/s')]);
         if (Vg < A.VStop || phaseT > 120) {

@@ -400,10 +400,14 @@ function genFusCdA(S, fr) {
   const ST = fr.parts.ST;
   let frontal = 0, sFwd = 0, sAft = 0;
   for (const s of ST) frontal = Math.max(frontal, 2 * s.w * (s.yt - s.yb));
+  // the nose and the cabin bays are the forward body: rings 0-2, or to the cabin's rear ring when a long cabin has
+  // frames along it (G3504, 61_gen_frame iCabR; GEN_RULES.cabBayMax)
+  const cabLen = S.cab && S.cab.len, iCR = (GEN_RULES.cabBayMax > 0 && cabLen > GEN_RULES.cabBayMax + 1e-6)
+    ? Math.max(2, ST.findIndex(s => Math.abs(s.x - (S.cab.noseGap + cabLen)) < 1e-6)) : 2;
   for (let i = 0; i < ST.length - 1; i++) {
     const a = ST[i], b = ST[i + 1];
     const A = 0.5 * ((a.yt - a.yb) + (b.yt - b.yb)) * (b.x - a.x);
-    if (i < 2) sFwd += A; else sAft += A;
+    if (i < iCR) sFwd += A; else sAft += A;
   }
   const D = GEN_DRAG, M = GEN_MATERIALS[S.material] || GEN_MATERIALS.tubeFabric;
   const wet = genFusSwet(S, ST);

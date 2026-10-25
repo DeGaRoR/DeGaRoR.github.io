@@ -366,7 +366,8 @@ function noteAt(R, key, over) {
 }
 function checkWingRows(A, R) {
   let ok = true;
-  const E = CORE.GEN_WING_ENVELOPE;
+  // G3503 (DC3-BUILD): the rows reach the BIG envelope (a wing drawn past 18 m is clamped by GEN_WING_ENVELOPE.big)
+  const E = Object.assign({}, CORE.GEN_WING_ENVELOPE, CORE.GEN_WING_ENVELOPE.big || {});
   for (const [k, env] of [['wgSpan', E.span], ['wgChord', E.chord]]) {
     const r = R.get(k);
     ok = check(!!r && r[2] === env[0] && r[3] === env[1],

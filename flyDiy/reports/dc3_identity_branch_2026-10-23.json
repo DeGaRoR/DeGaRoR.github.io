@@ -1,0 +1,186 @@
+{
+ "cub": {
+  "def": "de98033d0f274188",
+  "nodes": 97,
+  "beams": 404,
+  "mass": 460.70322237014057,
+  "ledger": "fa750420ca60caf7",
+  "price": 30834.31025033046,
+  "empty": 351.2632223701409,
+  "sheet": "3fa4b994e0107a43",
+  "cert": "eabd589aad9dceaf",
+  "fly20": {
+   "hash": "0792be32e76e11df",
+   "cg": [
+    -277.8485,
+    17.8553,
+    0.457
+   ],
+   "v": [
+    -20.7311,
+    2.7516,
+    0.0053
+   ],
+   "phase": "LIFTOFF",
+   "phases": [
+    "0.00 ROLL",
+    "10.95 LIFTOFF"
+   ],
+   "breaks": 0
+  }
+ },
+ "jodel": {
+  "def": "deace763bbdc5935",
+  "nodes": 115,
+  "beams": 502,
+  "mass": 464.1828041916167,
+  "ledger": "30072de30cc4cbd1",
+  "price": 34422.32467116612,
+  "empty": 341.7828041916168,
+  "sheet": "53bd6196469ed256",
+  "cert": "a772ed39c57d6147",
+  "fly20": {
+   "hash": "6186b11dbdf3d0a8",
+   "cg": [
+    -266.5301,
+    2.676,
+    1.2182
+   ],
+   "v": [
+    -23.6413,
+    0.9447,
+    0.266
+   ],
+   "phase": "LIFTOFF",
+   "phases": [
+    "0.00 ROLL",
+    "15.78 LIFTOFF"
+   ],
+   "breaks": 0
+  }
+ },
+ "metal": {
+  "def": "07770b8036ad43ec",
+  "nodes": 107,
+  "beams": 452,
+  "mass": 888.7716034943926,
+  "ledger": "34395605aecc0918",
+  "price": 94094.53620430434,
+  "empty": 668.6116034943923,
+  "sheet": "f61362c0e9041f83",
+  "cert": "df0b4cb5b0129c7d",
+  "fly20": {
+   "hash": "f63e0c6e285c33bf",
+   "cg": [
+    -453.3149,
+    35.521,
+    3.3625
+   ],
+   "v": [
+    -34.4627,
+    7.638,
+    -0.3885
+   ],
+   "phase": "CLIMB",
+   "phases": [
+    "0.00 ROLL",
+    "11.70 LIFTOFF",
+    "17.82 CLIMB"
+   ],
+   "breaks": 0
+  }
+ },
+ "floats": {
+  "def": "a2aeaec3e2bec67c",
+  "nodes": 134,
+  "beams": 543,
+  "mass": 952.4492536922977,
+  "ledger": "a6f5d804a0a7d277",
+  "price": 95788.50427714387,
+  "empty": 732.2892536922974,
+  "sheet": "d8678811647cdcd6",
+  "cert": "b7a52107d678fbaa",
+  "fly20": {
+   "hash": "f7e2f6143853eeeb",
+   "cg": [
+    -1.3517,
+    1.6719,
+    0.0888
+   ],
+   "v": [
+    -0.1093,
+    0,
+    0.0073
+   ],
+   "phase": "ROLL",
+   "phases": [
+    "0.00 ROLL"
+   ],
+   "breaks": 0
+  }
+ },
+ "twinFloats": {
+  "def": "67eb58eb56cef01a",
+  "nodes": 96,
+  "beams": 409,
+  "mass": 426.17111313503995,
+  "ledger": "9ac56199b4f44d52",
+  "price": 34804.16624407739,
+  "empty": 332.4911131350401,
+  "sheet": "3bfcebb39e05ccc6",
+  "cert": "072b4bcd4a324d59",
+  "fly20": {
+   "hash": "75824897ea1c3d12",
+   "cg": [
+    -444.8099,
+    83.8327,
+    5.3718
+   ],
+   "v": [
+    -26.4055,
+    4.9614,
+    5.3542
+   ],
+   "phase": "CROSSWIND",
+   "phases": [
+    "0.00 ROLL",
+    "6.27 LIFTOFF",
+    "9.15 CLIMB",
+    "17.02 CROSSWIND"
+   ],
+   "breaks": 0
+  }
+ },
+ "rufus": {
+  "def": "c5a3fc72ccd7da76",
+  "nodes": 95,
+  "beams": 395,
+  "mass": 404.711879546807,
+  "ledger": "f007bcca4d3148c8",
+  "price": 54043.02354091247,
+  "empty": 313.19187954680734,
+  "sheet": "d2c1cd4b6157f486",
+  "cert": "7862a6f8b6a8b191",
+  "fly20": {
+   "hash": "c55df0906b437aef",
+   "cg": [
+    -405.768,
+    87.4581,
+    15.5308
+   ],
+   "v": [
+    -25.4043,
+    2.9175,
+    9.9668
+   ],
+   "phase": "CROSSWIND",
+   "phases": [
+    "0.00 ROLL",
+    "5.13 LIFTOFF",
+    "9.28 CLIMB",
+    "15.73 CROSSWIND"
+   ],
+   "breaks": 0
+  }
+ }
+}
