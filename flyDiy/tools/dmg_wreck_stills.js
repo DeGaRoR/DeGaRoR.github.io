@@ -62,12 +62,12 @@ const CASES = {
 // G3651: the ground's decal shown or hidden (the scene's 'scar:decal'; the page lays it again only on a new seal), and the
 // scar record's strips and patches (their ends, widths, lengths), the wreck's place - the scuff's coverage of the slide
 function pageScarVis(on) {
-  let sc = FLIGHT_PROBE.model(); while (sc && sc.parent) sc = sc.parent;
+  let sc = FLIGHT_PROBE.model() && FLIGHT_PROBE.model().grp; while (sc && sc.parent) sc = sc.parent;
   const d = sc && sc.getObjectByName('scar:decal'); if (d && d.geometry !== d.userData.parked) d.visible = !!on;
   return new Promise(r => setTimeout(() => r(d ? { visible: d.visible, verts: d.geometry.getAttribute('position').count } : null), 400));
 }
 function pageScar() {
-  const s = FLIGHT_PROBE.sim(), R = s && s.damageScar && s.damageScar(), m = FLIGHT_PROBE.model(), r2 = v => Math.round(v * 100) / 100;
+  const s = FLIGHT_PROBE.sim(), R = s && s.damageScar && s.damageScar(), m = FLIGHT_PROBE.model() && FLIGHT_PROBE.model().grp, r2 = v => Math.round(v * 100) / 100;
   const len = p => { let L = 0; for (let j = 2; j < p.length; j += 2) L += Math.hypot(p[j] - p[j - 2], p[j + 1] - p[j - 1]); return r2(L); };
   return { at: m ? [r2(m.position.x), r2(m.position.z)] : null, segs: R ? R.segs.length : null, stat: window.FLYDIY_SCAR || null,
     prims: R && R.out ? R.out.prims.filter(p => p.k === 'g' || p.k === 'c').map(p => p.k === 'g' ? { k: 'g', s: p.s, w: p.w, L: len(p.p), from: [p.p[0], p.p[1]], to: [p.p[p.p.length - 2], p.p[p.p.length - 1]] } : { k: 'c', s: p.s, r: p.r, at: [p.x, p.z] }) : null };
