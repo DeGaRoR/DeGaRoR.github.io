@@ -689,7 +689,7 @@ function makePilot(sim, def, world, opts) {
   const RgMin = (typeof groundRmin === 'function') ? groundRmin(def, 0.85) : Infinity;
   let piv = null, pivSaid = false, pivN = 0;
   // G3480 (DC-3 TAXI): the brake turn on (the wheels not holding the route's turn), the cross-track it last saw, said once
-  let bsOn = false, bsXT = 0, bsSaid = false, bsH = null, bsT = 0;
+  let bsOn = false, bsXT = 0, bsSaid = false, bsT = 0;
   // G2450: the room a turn on the spot asks from a strip's end - the half-span + 1.5 m (the wing sweeps round the CG),
   // 6 m at least (the tail's swing behind the mains)
   const pivRoom = () => Math.max(6, ((def.params.gen && def.params.gen.span > 0) ? def.params.gen.span / 2 : 5) + 1.5);
@@ -3067,18 +3067,17 @@ function makePilot(sim, def, world, opts) {
           // way: the follower's own steering as before. An aeroplane whose wheels hold the route's turns never meets it
           const eH = wrapPi(hF - Math.atan2(nose[1], nose[0])), axt = Math.abs(L.ey);
           const drC = SV.taxiRudder(drFF, drMaxG);
-          // (the turn the wheels MAKE: the nose's swing over the ground speed - a radius past twice the one they steer and 20 m,
-          // held 1 s, rolling over 1 m/s; the Cub's tailwheel steers 9.4 m (G1938), the DC-3 swung 29 m out of the HOME stand)
-          const noseH = Math.atan2(nose[1], nose[0]), rY = bsH == null ? 0 : wrapPi(noseH - bsH) / Math.max(dt, 1e-3); bsH = noseH;
-          const rTurn = Math.abs(rY) > 1e-3 ? Vg / Math.abs(rY) : Infinity, wide = Vg > 1 && rTurn > Math.max(A.taxiBsR ?? 20, 2 * RgMin);
-          bsT = Math.abs(drC) > 0.95 * drMaxG && Math.abs(eH) > 0.35 && wide ? bsT + dt : 0;
+          // (ONLY AN AIRFRAME WHOSE WHEELS CANNOT STEER THE SITE'S OWN LANE TURN - RgMin past 13 m, the pivot's Rpiv: the user's
+          // DC-3 steers 29.2 m on its tailwheel, the Cub 11.3, Rufus 9.6, the Jodel 9.2, the C172 5.3 - the first cut, for every
+          // airframe, moved the Cub's Jolene stand-to-roll 190 -> 234 s and its altiport TAXICLEAR calibration; held 1 s)
+          bsT = RgMin > (A.taxiBsRg ?? 13) && Math.abs(drC) > 0.95 * drMaxG && Math.abs(eH) > 0.35 ? bsT + dt : 0;
           if (!bsOn && bsT > 1.0 && axt > (A.taxiBsXT ?? 3) && axt > bsXT) bsOn = true;
           else if (bsOn && Math.abs(eH) < 0.15) bsOn = false;
           bsXT = axt;
           let gsp = pathSpeed(ap.path, L.i, Vg, vMax, L.sRem);
           if (bsOn) {
             gsp = Math.min(gsp, A.taxiVTurn ?? 1.5);
-            if (!bsSaid) { bsSaid = true; say('brake-turn', 'the wheels do not hold the turn (' + axt.toFixed(1) + ' m off the route, ' + Math.round(Math.abs(eH) * 57.3) + ' deg off its way, turning on ' + (isFinite(rTurn) ? Math.round(rTurn) : '-') + ' m) — turning on the inside brake'); }
+            if (!bsSaid) { bsSaid = true; say('brake-turn', 'the wheels do not hold the turn (' + axt.toFixed(1) + ' m off the route, ' + Math.round(Math.abs(eH) * 57.3) + ' deg off its way, the wheels steer ' + RgMin.toFixed(1) + ' m) — turning on the inside brake'); }
           }
           engage('TAXI', 'DE', 'TAXI', { dr: drC, de: A.taxiDe ?? 0.30, gsp });
           if (bsOn) c.brakeD = -Math.sign(eH) * clamp(Math.abs(eH) / 0.6, 0.3, 1) * (A.taxiBrakeD ?? 0.6);
