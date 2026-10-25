@@ -11883,6 +11883,19 @@
       poll();
     });
 
+  // BOOT-LINKS: a program still linking while the loading screen is up (the loop holds its frame; 3 s at most a run)
+  let bootLinkT0 = 0, bootLinkHolds = 0;
+  function bootLinksPending() {
+    if (typeof BOOT === 'undefined' || BOOT.state !== 'loading' || typeof renderer.compileAsync !== 'function' || !renderer.info || !renderer.info.programs) { bootLinkT0 = 0; return false; }
+    let wait = false;
+    for (const pr of renderer.info.programs) if (pr.isReady && !pr.isReady()) { wait = true; break; }
+    if (!wait) { bootLinkT0 = 0; return false; }
+    const t = perfNow(); if (!bootLinkT0) bootLinkT0 = t;
+    if (t - bootLinkT0 > 3000) return false;
+    bootLinkHolds++; return true;
+  }
+  if (typeof window !== 'undefined') window.FLYDIY_BOOTLINKS = () => ({ holds: bootLinkHolds });
+
   // ---- B9 (G1020-G1022): ONE LOADING FOR THE WHOLE GAME, THEN INSTANT ROUND TRIPS -------------------------------------
   // The user (2026-09-28): "no impact on performance below 30 fps. Maybe a slightly longer loading upfront is the way to
   // go". THE FIRST BOOT builds the shed AND the world under its one screen: the world's steps below ride the garage
@@ -12257,12 +12270,16 @@
       const h = i * Math.PI / 3;
       cam.position.set(a[0] + 1.3 * D * Math.cos(h), a[1] + 0.35 * D, a[2] + 1.3 * D * Math.sin(h)); cam.lookAt(a[0], a[1] + 1.5, a[2]);
       cam.updateProjectionMatrix(); cam.updateMatrixWorld(true);
-      worldSettle(); if (aa) aa.render(scene, cam); else renderer.render(scene, cam);
+      worldSettle();
+      // BOOT-LINKS: what this view's settle brought in compiled, and every program linked, before it is drawn (the garage boot:
+      // a 1.8 s getUniforms wait in this draw, programs made and not linked)
+      return Promise.resolve(renderer.compileAsync(scene, cam)).catch(() => {}).then(() => programsReady(5000))
+        .then(() => { if (aa) aa.render(scene, cam); else renderer.render(scene, cam); });
     };
     return new Promise(res => {
       let i = 0;
-      const tick = () => { try { view(i); } catch (e) { console.warn('world warm draw:', e && e.message); }
-        if (++i < 6 && inGarage) setTimeout(tick, 0); else res(); };
+      const tick = () => Promise.resolve().then(() => view(i)).catch(e => console.warn('world warm draw:', e && e.message))
+        .then(() => { if (++i < 6 && inGarage) setTimeout(tick, 0); else res(); });
       tick();
     });
   }
@@ -17144,7 +17161,13 @@
     // linked (S3): a frame between the world step and the compile step drew
     // the fresh scene and compiled everything synchronously - 12 s in one
     // task. The `frames` step lifts the hold and waits for two real frames.
-    if (holdRender) { if (FR) FR.end(false, cg); POSE_LERP.back(); PACE.end(perfNow() - tLoop0, physMs, pc.steps, typeof ts === 'number' ? ts : perfNow(), simwRan >= 0 ? 0 : ran, true); BOOT.frame(); return; }   // (REVEAL: the held frame told, not counted)   // (G1100: the newest step back)
+    // BOOT-LINKS (HWCOV, A0's Sun 25 Oct slot): UNDER THE LOADING SCREEN A FRAME NEVER DRAWS AHEAD OF A LINK. The garage boot's
+    // 1.4-2.9 s tasks were the loop's own frames (and the shadow pass in them) drawing programs a step's compileAsync had
+    // made and the GPU had not linked yet - getUniforms waits on the link (the program watch: '0 made' in those frames). While
+    // the screen is loading and any program is still linking (isReady: KHR_parallel_shader_compile, never blocks) the frame
+    // is held as holdRender holds it, 3 s at most a run of holds. Nothing changes once the screen is gone
+    const bootLinkHold = !holdRender && bootLinksPending();
+    if (holdRender || bootLinkHold) { if (FR) FR.end(false, cg); POSE_LERP.back(); PACE.end(perfNow() - tLoop0, physMs, pc.steps, typeof ts === 'number' ? ts : perfNow(), simwRan >= 0 ? 0 : ran, true); BOOT.frame(); return; }   // (REVEAL: the held frame told, not counted)   // (G1100: the newest step back)
     if (window.WORLD_RIG && WORLD_RIG.interior) WORLD_RIG.interior(!inGarage && HEADCAM_ACTIVE);   // A6: the cabin's probe while the eye is in the cockpit
     // THE WATER'S MIRROR (G460.11): the decor captured from the eye mirrored about the water when the eye is low
     // over it (the plane: the water under the eye, else under the CG - a shore eye looking at a lake); the sky
