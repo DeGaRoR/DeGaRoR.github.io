@@ -427,3 +427,37 @@ The codebase already states the rule:
    named at the train?
 5. The fuel sight gauge: draw it (proposed), or stop billing it?
 6. Phase 3 go?
+
+## 9. WHERE EACH ITEM WENT (G2801-G2809, 22-25 Oct; the user's 25 Oct ruling: "Fix everything. Wysiwyg, and as billed for all")
+
+The questions of §8 are answered by that ruling: trim from the drawn areas (Raymer the check, for a spec with no
+drawing); the seat kinds as proposed; the fuel sight drawn; every validated aeroplane re-billed (HANDOVER G2808-G2809
+has the before / after table).
+
+| item | where it went |
+|---|---|
+| E1 lamps with no battery | G2809: the light layer draws none and the panel no switch; none billed |
+| E2 a load for an undrawn lamp | G2809: the light census (`systems.lights`); the flight loads only drawn lamps |
+| E3 NAV / GPS not drawn, not behind the master | G2801 (the avionics bus), G2803 (the GPS), G2808.2 (the NAV head) |
+| E4 the bay's battery / alternator / starter | G2802 (they follow the fit) |
+| E5 the venturi by the tier's name | G2808.2 (by `elec.vac`) |
+| E6 LIGHT_AMPS in the viewer | G2801 (`GEN_LIGHT_AMPS` in the core) |
+| E7 the turn coordinator dead, the ball static | G2808.2 (the symbol banks, the ball rides the slip) |
+| E8 the fuel sight not drawn | G2808.2 (the cap's wire) |
+| E9 the crown beacon | G2809 (only with a beacon fitted, the lights and a battery; billed as that beacon) |
+| E10 a generator / starter with no battery | G2809 (not fitted, "no battery") |
+| W1, W2 the avionics cap and the shed's click | G2801 |
+| W3 the DG with an electric AI | G2808.2 |
+| W4 the windmilling alternator | G2808.2 |
+| W5 the ammeter | G2808.2 (a second needle on the volt / ammeter) |
+| W6 the tapes | G2808.2 ('Taxi', 'Flood' written on the blank tile) |
+| W7 the beacon's rate | G2808.2 |
+| M1 the seat kind | G2809 (the drawn seat's) |
+| M2 the seat count | G2809 (a chair at every seat drawn) |
+| M3 the panel board | G2809 (the drawn facia and dash) |
+| M4 the trim | G2809 (the drawn shoulders, door panels, console and floor; the trim is their finish) |
+| M5 the lights' mass | G2809 (`GEN_LIGHT_PARTS`, per lamp drawn) |
+| the hour meter (faceless) | G2808.2 (drawn) |
+| the controls by type and stations | G2809 |
+| what the dash has no room for | G2808.1 (not drawn = not billed: `systems.noRoom`) |
+| the GPS in front of the pilot | G2808.1 (screen first, the dials packed round it) |
