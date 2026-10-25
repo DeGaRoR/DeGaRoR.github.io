@@ -28,6 +28,9 @@ const outPath = rel => { const p = path.join(OUT, rel); fs.mkdirSync(path.dirnam
 const MANIFEST = {
   core: [
     '00_registry.js',
+    // THE NAMES (G3240): every person, organisation and place the game shows, ONE table (fictional, GAME-PLAN §13).
+    // Ahead of everything that makes text; it also rides in the BOOT block (the loading screen's cards read it).
+    '01_names.js',
     // THE ATMOSPHERE (G72): pure, no dependencies, and needed by more than the
     // solver — 60_gen_spec synthesises the prop against a density and
     // 64_gen_build quotes stall speeds at one, so it sits in the 00_ band
@@ -102,6 +105,9 @@ const MANIFEST = {
     // THE GROUND'S SCAR (G2357, DMG-SCAR): a crash's ground contacts reduced to craters, gouges and the sweep - pure;
     // the solver feeds it behind the damage layer, the page's grass and decal read its primitives
     '34_scar.js',
+    // THE OCCUPANTS IN A CRASH (G2373, DMG-OCCUPANT): each filled seat's pulse and space, the criteria, five bands -
+    // pure; read by the solver behind the damage layer
+    '34_occupant.js',
     // THE GROUND PATH (G193): a declared pattern graph sampled into a path the
     // pilots follow (fillets, curvature, a STOP); pure, read by 25_'s
     // sitePattern consumers, the two pilots, pattern_vis.js and the gates.
@@ -218,6 +224,10 @@ const MANIFEST = {
     // THE STORY (G2741 STORY-CORE): the tutorial's beats T0-T7 as data, the story in the career document, one pure step
     // per event, the story's places by ROLE (the cabin strip as the user names it); GATE STORY. GAME-PLAN-2026-10-15 §3.
     '79_story.js',
+    // THE TECH MASK (G3230 TECH-MASK): the machine shop's three segments - every build option -> its segment, a design's
+    // stage (computed), the career's segment, the editor's rows, the market's and the makers' filter; pure, GATE TECH.
+    // GAME-PLAN-2026-10-15 §R, §4.
+    '79b_tech.js',
     '90_node_exports.js',
   ],
   // THE CAREER-ONLY CORE (G2685 CAREER-LAZY, the coordinator's sanity check 8 Oct: train 43 grew index.html by 324 KB,
@@ -240,7 +250,7 @@ const MANIFEST = {
   // page's pilot and the worker's fly them) and stays inline.
   routeDraw: 'route_draw.js',
   career: ['72_contract_data.js', '73_contracts.js', '74_career.js', '75_career_wire.js', '76_economy.js',
-    '76_procure.js', '76_pilots.js', '76_freight.js', '77_freight_load.js', '78b_routes.js', '79_story.js'],
+    '76_procure.js', '76_pilots.js', '76_freight.js', '77_freight_load.js', '78b_routes.js', '79_story.js', '79b_tech.js'],
   // baked 3D model payloads (tools/model_prep.py baked the PA-18 and C172
   // when they were flyable, tools/ref_prep.py the rest — all REFERENCE
   // planes since the fleet retired 2026-09-05; data, not core):
@@ -950,9 +960,13 @@ function buildViewer(core) {
   // G1535: the build's id and date ride ahead of the boot scripts; their values are known only once every script is
   // read (BUILD_ID below), so the slot carries a marker that both pages swap for them (BUILD_MARK)
   // (update_now.js ahead of welcome.js: the welcome card's footer reads UPDATE_NOW.stamp as it opens)
-  const bodyArt = fill(bodyHtml, 'BOOT', BUILD_MARK + `\n<script>\n${cardsJs}\n${bootJs}</script>`
+  // (G3240 NAMES) the names table rides ahead of the cards, which read it before the core runs (01_names.js: a `var`,
+  // so the core's own copy re-declares it)
+  const namesJs = cardsJs ? read(path.join(CORE_DIR, '01_names.js')) : '';
+  const bodyArt = fill(bodyHtml, 'BOOT', BUILD_MARK + `\n<script>\n${namesJs}\n${cardsJs}\n${bootJs}</script>`
     + (updateJs ? `\n<script>\n${updateJs}</script>` : '') + (profileJs ? `\n<script>\n${profileJs}</script>` : '') + (welcomeJs ? `\n<script>\n${welcomeJs}</script>` : ''));
-  const bodyDev = fill(bodyHtml, 'BOOT', BUILD_MARK + '\n' + (cardsJs ? `<script src="src/viewer/${V.bootCards}?v=${sha(cardsJs).slice(0, 8)}"></script>\n` : '')
+  const bodyDev = fill(bodyHtml, 'BOOT', BUILD_MARK + '\n' + (namesJs ? `<script src="src/core/01_names.js?v=${sha(namesJs).slice(0, 8)}"></script>\n` : '')
+    + (cardsJs ? `<script src="src/viewer/${V.bootCards}?v=${sha(cardsJs).slice(0, 8)}"></script>\n` : '')
     + `<script src="src/viewer/${V.boot}?v=${sha(bootJs).slice(0, 8)}"></script>`
     + (updateJs ? `\n<script src="src/viewer/${V.updateNow}?v=${sha(updateJs).slice(0, 8)}"></script>` : '')
     + (profileJs ? `\n<script src="src/viewer/${V.profile}?v=${sha(profileJs).slice(0, 8)}"></script>` : '')

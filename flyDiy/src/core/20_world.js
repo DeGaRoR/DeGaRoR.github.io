@@ -719,7 +719,7 @@ function makeWorld(seed, opts) {
       if (SET.inCore(x, z)) continue;          // clear of settlement cores
       if (AERO.inBox(x, z, 30)) continue;      // clear of strips + margin
       if (PM && PM.vegAt && PM.vegAt(x, z) === null) continue;   // G1385: a cover polygon whose vegetation is none
-      if (PM && PM.excludeAt(x, z, 'trees')) continue;   // clear of the premises' excludes: its plots, its strips' boxes, its sites, its clear zones
+      if (PM && (PM.excludeAt(x, z, 'trees') || PM.excludeAt(x, z, 'lot'))) continue;   // clear of the premises' excludes: its plots, its strips' boxes, its sites, its clear zones; and every building's lot (LOT-CLEAR)
       // ...and clear of the premises' PAVEMENTS and their bands (2026-09-22, the user: "we have a lot
       // of trees on the roads"). On an island SET is stubbed, so this is the only thing that keeps a
       // collidable tree off a village street - the same law the grass obeys (contract v1.17)

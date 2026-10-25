@@ -839,11 +839,11 @@ function run(mut) {
     {
       const e = M.careerNew({ seed: 'words' });
       const L = M.careerNightLine(e, A['field.n1']);
-      ok(L && L.line.startsWith('arrive 00:00-01:00') && /Tamgas Hill Strip lit \(PAPI\)/.test(L.line) && /Jolene AFB lit \(VASI\)/.test(L.line), 'night: the mail\'s line - ' + (L && L.line));
+      ok(L && L.line.startsWith('arrive 00:00-01:00') && L.line.includes(CORE.GAME_NAMES.fields.w3 + ' lit (PAPI)') && /Jolene AFB lit \(VASI\)/.test(L.line), 'night: the mail\'s line - ' + (L && L.line));
       const sea = M.contractNormalise({ id: 'x', provider: 'minedock', kind: 'job', title: 'job.minedock.mail.title', brief: 'job.minedock.mail.brief',
                                        stages: [{ subs: [{ do: 'carry', from: 'SEA', to: 'mk_sea', load: { kg: 20, pax: 0 }, when: { after: 'dusk' } }] }], rep: { provider: 'minedock', gain: 0 } });
       const LS = M.careerNightLine(e, sea);
-      ok(LS && /Annette Dock unlit/.test(LS.line) && /Metlakatla Seaplane Base unlit/.test(LS.line), 'night: water lanes are unlit (' + (LS && LS.line) + ')');
+      ok(LS && LS.line.includes(CORE.GAME_NAMES.fields.SEA + ' unlit') && LS.line.includes(CORE.GAME_NAMES.fields.mk_sea + ' unlit'), 'night: water lanes are unlit (' + (LS && LS.line) + ')');
       ok(M.contractMoonWords({ phase: 'full', up: true }) === 'full moon, up' && M.contractMoonWords({ phase: 'half', up: false }) === 'half moon, down'
          && M.contractMoonWords({ phase: 'new', up: true }) === 'no moon' && M.contractMoonWords({ phase: 'full', up: true, overcast: true }) === 'overcast: no moon light', 'night: the moon in words');
       // the line's moon is the NEXT opening's, at the window's middle
