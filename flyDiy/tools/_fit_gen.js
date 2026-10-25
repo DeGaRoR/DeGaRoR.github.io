@@ -209,6 +209,17 @@ const FORMS = {
            at(F, s * L * 0.42, 0, hh * 0.55), d * 0.045, 6);
   },
 
+  // THE FUEL SIGHT GAUGE (G2808, E8 of the status: billed, never drawn, and the minimal fit's only fuel
+  // instrument): the J-3's cork on a wire - the proud cap with a stiff wire standing up through the middle of the
+  // lid, its top bent over into a small hook the pilot reads against the windscreen. The cork rides inside the tank.
+  capSight(bags, F, S, ctx) {
+    FORMS.capProud(bags, F, S, ctx);
+    const d = S.d || 0.075, hh = S.h || 0.014, rise = S.wire || 0.11;
+    revolve(bags.metal, F.p, F.n, [[d * 0.09, hh * 0.98], [d * 0.07, hh * 1.25], [0, hh * 1.25]], 12, false);  // the guide boss
+    tube(bags.metal, at(F, 0, 0, hh), at(F, 0, 0, hh + rise), 0.0012, 6);
+    tube(bags.metal, at(F, 0, 0, hh + rise), at(F, 0.012, 0, hh + rise + 0.006), 0.0012, 6);
+  },
+
   // a flush cap: the same part, let into the skin. Almost nothing stands
   // proud — which is the point of a flush cap and why the wing gets one.
   capFlush(bags, F, S) {

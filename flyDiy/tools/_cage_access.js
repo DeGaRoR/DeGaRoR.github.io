@@ -459,6 +459,9 @@ PAGE.post = ctx => {
         ? (r => ({ com: r.avionics.com !== 'none', nav: r.avionics.nav !== 'none',
                    xpdr: r.avionics.xpdr !== 'none' }))(genSystemsResolve(GS))
         : undefined,
+      // G2808: the fitted dials and the suction (the static port, the venturi, the fuel sight's wire)
+      items: (typeof genSystemsResolve === 'function') ? genSystemsResolve(GS).items : undefined,
+      vac: (typeof genSystemsResolve === 'function') ? genSystemsResolve(GS).vac : undefined,
       material: GS.fuselage && GS.fuselage.material,
       cargo: GS.cargo && GS.cargo.len,
     };

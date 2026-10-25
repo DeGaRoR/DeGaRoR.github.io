@@ -28,7 +28,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const navDeg = rad => ((rad * 180 / Math.PI) % 360 + 360) % 360;
 // the instruments' own lags (s), and what a dead one relaxes toward
 const LAG = { ias: 0.25, alt: 0.2, vs: 2.5, rpmEng: 0.3, nz: 0.1, oilP: 1.0, oilT: 8.0,
-              fuelFrac: 1.5, volts: 0.4, roll: 0.15, pitch: 0.15, r: 0.4, beta: 0.3, hdg: 0.5 };
+              fuelFrac: 1.5, volts: 0.4, roll: 0.15, pitch: 0.15, r: 0.4, beta: 0.3, hdg: 0.5, ampsOut: 0.4 };
 // G1107 (CUB-COCKPIT, 2026-09-30, the user from the Cub's seat: "the attitude
 // indicator shows an inclination on the ground, where the plane is perfectly
 // level"): session 4d's spun-down gyro LEANT to a fixed 11.5 deg bank (REST.roll
@@ -39,7 +39,7 @@ const LAG = { ias: 0.25, alt: 0.2, vs: 2.5, rpmEng: 0.3, nz: 0.1, oilP: 1.0, oil
 // wings level reads level at any pitch. The rest is the ball's seed, level.
 const LAG_HANG = 1.2;
 const REST = { ias: 0, alt: 0, vs: 0, roll: 0, pitch: 0, r: 0, hdg: null, rpmEng: 0, nz: 1,
-               nzMax: 1, nzMin: 1, oilP: 0, oilT: 15, fuelFrac: 0, volts: 0, beta: 0 };
+               nzMax: 1, nzMin: 1, oilP: 0, oilT: 15, fuelFrac: 0, volts: 0, beta: 0, ampsOut: 0 };
 const PSI = 6894.757;
 // G2801: the lamps' draws are the core's (GEN_LIGHT_AMPS, 60_gen_spec.js), one table for the bus, the breaker
 // sizes and GATE ELEC; the literal is the fallback for a page without the core
@@ -85,6 +85,8 @@ function make(THREE) {
     opts = opts || {};
     const L = (data && data.lights) || {};
     CK.lightOn = L.on !== false;
+    // G2808 (W7): the beacon flashes at the rate the design turns its mirror (the shed's li_beaconRpm), 45 rpm unset
+    CK.beaconHz = (L.beaconRpm != null && isFinite(+L.beaconRpm) ? Math.max(0, +L.beaconRpm) : 45) / 60;
     // G2796: the lights the builder did not fit (the join names them): no load
     CK.unfit = new Set(Array.isArray(L.unfit) ? L.unfit : []);
     for (const k of Object.keys(LIGHT_AMPS)) CK.sw['sw_' + k] = L[k] != null ? +L[k] : 0;
@@ -249,7 +251,8 @@ function make(THREE) {
         const v = (CK.lightOn && !(CK.unfit && CK.unfit.has(k))) ? +CK.sw[sk] || 0 : 0;
         bus.setLoad(sk, LIGHT_AMPS[k] * (k === 'beacon' ? 0.5 : 1) * (v > 0 ? (v > 1 ? 1 : v) : 0));
       }
-      const rpmProp = (o.rpm && o.rpm[0]) || 0;
+      // G2808 (W4): the alternator is belted to the ENGINE - a windmilling prop with the engine stopped charges nothing
+      const rpmProp = E.running ? (o.rpm && o.rpm[0]) || 0 : 0;
       bus.step(dt, rpmProp, E.crank > 0);
       // a breaker that opened itself pops out under the hand
       for (let i = 0; i < cbK.length; i++) if (bus.cb[cbK[i]] === false) CK.sw[cbS[i]] = 1;
@@ -309,6 +312,7 @@ function make(THREE) {
               : (F.frac != null ? F.frac : 1);
     raw.fuelFrac = (onPack || CK.pw('fuel')) ? qty : 0;
     raw.volts = bus && CK.pw('volts') ? bus.V : 0;
+    raw.ampsOut = bus && CK.pw('volts') ? -bus.amps : 0;   // G2808 (W5): the ammeter, out of the battery (+ discharge)
     // THE CLOCK IS THE DAY'S (SKY chantier): the world's local time when a day is on the
     // context, else 12:00 plus the flight's own clock as it always was
     const tClock = (ctx.day && ctx.day.localSeconds != null) ? ctx.day.localSeconds : 12 * 3600 + (ap && ap.t != null ? ap.t : CK.t);
@@ -330,7 +334,9 @@ function make(THREE) {
       if (!tau) { R[k] = raw[k]; continue; }
       R[k] += (raw[k] - R[k]) * Math.min(1, dt / tau);
     }
-    if (!gyroOk && !aiElec) R.hdgDg = R.hdgDg == null ? R.hdg : R.hdgDg;   // a dead DG freezes
+    // a dead DG freezes - the DG is a SUCTION gyro whatever attitude indicator sits beside it (G2808, W3: with an
+    // electric AI fitted it used to run on that AI's power)
+    if (!vacOk) R.hdgDg = R.hdgDg == null ? R.hdg : R.hdgDg;
     else R.hdgDg = R.hdg;
     // the lamps and the faces
     CK.glow(dt);
@@ -353,7 +359,7 @@ function make(THREE) {
   CK.pw = key => (CK.bus ? CK.bus.powered(key) : true);
   CK.glow = dt => {
     const busOk = CK.busOk !== false;
-    const beacon = 0.12 + 0.88 * Math.pow(Math.max(0, Math.cos(2 * Math.PI * 0.75 * CK.t)), 10);
+    const beacon = 0.12 + 0.88 * Math.pow(Math.max(0, Math.cos(2 * Math.PI * (CK.beaconHz != null ? CK.beaconHz : 0.75) * CK.t)), 10);
     const kIn = CK.nightK(0.92), kOut = CK.nightK(0.8);
     const LS = CK.lampSw || [];
     for (let i = 0; i < (CK.lamps || []).length; i++) {

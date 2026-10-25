@@ -145,6 +145,16 @@ function scaleOf(key, units, o) {
     case 'turn':
       // the aeroplane symbol tilts: rate one (3 deg/s) = the mark at ±20 deg
       return { min: -6, max: 6, k: 180 / Math.PI, a0: -40, sweep: 80, unit: '2 MIN', major: 3, minor: 3, arcs: [] };
+    case 'slip':
+      // G2808 (E7): the inclinometer's ball in its tube, on the turn coordinator - sideslip (rad) along the tube's
+      // +-20 deg; drawn with sgn -1, so a slip to the right sends the ball right (the side the air comes from)
+      return { min: -0.25, max: 0.25, k: 1, a0: -20, sweep: 40, unit: '', major: 0.25, minor: 0.25, arcs: [] };
+    case 'amps':
+      // G2808 (W5): THE AMMETER HALF of the volt / ammeter - a second, shorter needle over the bottom gap the volts
+      // scale leaves (5:05 to 6:55). It reads the current OUT of the battery (discharge +), so a charging battery
+      // swings it to the pilot's right, under the '+'; the printed marks are the law's own (ticks / angleOf)
+      return { min: -30, max: 30, k: 1, a0: 152, sweep: 56, unit: 'AMPS', major: 30, minor: 10, arcs: [],
+               labels: { '-30': '+', 0: '0', 30: '\u2212' } };
     case 'clock':
       return { min: 0, max: 12, k: 1, a0: 0, sweep: 360, unit: '', major: 1, minor: 1 / 5, arcs: [] };
     default:
@@ -181,6 +191,10 @@ const FACES = {
   oilT:   { painter: 'oilT', hands: [{ name: 'needle', drive: 'oilT', law: 'lin', L: 0.8, w: 0.07, tail: 0.08 }] },
   fuel:   { painter: 'fuel', hands: [{ name: 'needle', drive: 'fuelFrac', law: 'lin', L: 0.8, w: 0.07, tail: 0.08 }] },
   volts:  { painter: 'volts', hands: [{ name: 'needle', drive: 'volts', law: 'lin', L: 0.8, w: 0.07, tail: 0.08 }] },
+  // G2808: two hands that ride another face, each on its own scale - the ammeter's needle on the volts dial (W5),
+  // the slip ball in the turn coordinator's tube (E7). No painter: the host face paints their marks.
+  amps:   { painter: null, host: 'volts', hands: [{ name: 'needle', drive: 'ampsOut', law: 'lin', L: 0.55, w: 0.05, tail: 0.08 }] },
+  slip:   { painter: null, host: 'turn', hands: [{ name: 'ball', kind: 'ball', drive: 'beta', law: 'lin' }] },
   clock:  { painter: 'clock', hands: [
               { name: 'hour', drive: 'clockH', law: 'turn', per: 12, L: 0.55, w: 0.08, tail: 0.08 },
               { name: 'minute', drive: 'clockM', law: 'turn', per: 60, L: 0.85, w: 0.06, tail: 0.08 },
@@ -189,10 +203,14 @@ const FACES = {
   // digits live)
   com:    { painter: 'com', hands: [] },
   xpdr:   { painter: 'xpdr', hands: [] },
+  // G2808: the NAV receiver's head (it was billed and powered with nothing on the panel) and the hour meter
+  nav:    { painter: 'nav', hands: [] },
+  hobbs:  { painter: 'hobbs', hands: [] },
 };
 // the instrument light's rest pose for each drive when nothing feeds it
 const REST = { ias: 0, alt: 0, vs: 0, roll: 0, pitch: 0, r: 0, hdg: 0, rpmEng: 0, nz: 1, nzMax: 1,
-               nzMin: 1, oilP: 0, oilT: 40, fuelFrac: 0, volts: 0, clockH: 10, clockM: 10, clockS: 0 };
+               nzMin: 1, oilP: 0, oilT: 40, fuelFrac: 0, volts: 0, clockH: 10, clockM: 10, clockS: 0,
+               beta: 0, ampsOut: 0 };
 
 // THE LAW: a reading (SI) to a clock angle (deg) for one hand of one face.
 function angleOf(key, hand, v, units, o) {
@@ -548,7 +566,7 @@ function layoutCore(A, o, flexRow, glass) {
   const compact = !has('ai') && !has('aiE') && !has('dg') && !has('turn');
   let gx0 = 0, dir = -1, groupW = 0;             // the engine group's edge, for the radios
   const aiKey = has('aiE') ? 'aiE' : (has('ai') ? 'ai' : null);
-  const radioKeys = (o.radios || []).filter(k => k === 'com' || k === 'xpdr');
+  const radioKeys = (o.radios || []).filter(k => k === 'com' || k === 'xpdr' || k === 'nav');   // G2808: the NAV head
   const screens = [];
   let tBroken = false;
   // the switch row along the bottom band: key, master, alt, then the
@@ -708,12 +726,12 @@ function layoutCore(A, o, flexRow, glass) {
       }
     }
     const GROUP = { asi: 't', alt: 't', turn: 't', dg: 't', vsi: 't', ai: 't', aiE: 't',
-                    tacho: 'eng', gmeter: 'eng', fuel: 'eng', oilP: 'eng', oilT: 'eng', volts: 'eng', clock: 'eng',
+                    tacho: 'eng', gmeter: 'eng', fuel: 'eng', oilP: 'eng', oilT: 'eng', volts: 'eng', clock: 'eng', hobbs: 'eng',
                     com: 'radio', xpdr: 'radio', nav: 'radio' };
     // (the primary three, then the engine's speed and the fuel - the gauge that says how long the flight can last -
     // before the gyros that only back the scan up)
     const order = (tDone ? [] : [aiKey, 'asi', 'alt']).concat(['tacho', 'fuel']).concat(tDone ? [] : ['turn', 'dg', 'vsi'])
-      .concat(['gmeter', 'oilP', 'oilT', 'volts', 'clock'])
+      .concat(['gmeter', 'oilP', 'oilT', 'volts', 'clock', 'hobbs'])
       .filter((k, i, a) => k && has(k) && a.indexOf(k) === i).concat(radioKeys);
     for (const k of order) {
       const r = rOf(k), g = GROUP[k] || k, head = dials.find(d => d.group === g);
@@ -736,7 +754,7 @@ function layoutCore(A, o, flexRow, glass) {
     // outboard on their own columns' sides; without an AI the compact
     // panel's: the ASI in the middle, the altimeter right, the tacho left)
     const order = (aiKey ? [aiKey, 'asi', 'alt', 'turn', 'vsi', 'dg'] : ['asi', 'alt', 'tacho'])
-      .concat(['asi', 'alt', 'turn', 'vsi', 'dg', 'tacho', 'gmeter', 'fuel', 'clock', 'oilP', 'oilT', 'volts'])
+      .concat(['asi', 'alt', 'turn', 'vsi', 'dg', 'tacho', 'gmeter', 'fuel', 'clock', 'oilP', 'oilT', 'volts', 'hobbs'])
       .filter((k, i, a) => k && has(k) && a.indexOf(k) === i).concat(radioKeys);
     const edge = [xC, xC];                        // the row's -x and +x edges so far
     let first = true, side = aiKey ? 1 : 0;       // 0: -x (the pilot's right) next, 1: +x
@@ -757,7 +775,7 @@ function layoutCore(A, o, flexRow, glass) {
     }
   } else if (compact) {
     const big = ['asi', 'alt', 'tacho', 'vsi', 'gmeter'].filter(has);
-    const smalls = ['fuel', 'oilP', 'oilT', 'volts', 'clock'].filter(has);
+    const smalls = ['fuel', 'oilP', 'oilT', 'volts', 'clock', 'hobbs'].filter(has);
     // offsets from the centre, alternating: 0, the pilot's right (-x), left (+x), ...
     const spread = (n, pitch) => { const o = [0]; for (let i = 1; o.length < n; i++) { o.push(-i * pitch); if (o.length < n) o.push(i * pitch); } return o; };
     const rowOf = (keys, r, pitch, yWant) => {
@@ -795,7 +813,7 @@ function layoutCore(A, o, flexRow, glass) {
   // the FUEL / CHARGE gauge heads the cluster (A3): on a short plate the
   // last small gauge is the one that falls off, and the one that says how
   // long the flight can last is not the one to lose
-  const small = ['fuel', 'oilP', 'oilT', 'volts'].filter(has);
+  const small = ['fuel', 'oilP', 'oilT', 'volts', 'hobbs'].filter(has);      // G2808: the hour meter drawn, last
   groupW = Math.max(eng.length ? eng.length * colW : 0, small.length ? 2 * (D_SMALL + GAP) : 0);
   gx0 = xT - 1.5 * colW - GAP - 0.010;    // the group's near (left) edge, going −x
   dir = -1;
@@ -1264,7 +1282,10 @@ const PAINT = {
   volts(g, R, units, o) {
     const F = faceBase(g, R);
     ticks(g, F, 'volts', units, o, { fontK: 0.17 });
-    unitText(g, F, 'VOLTS', 0.36, 0.11);
+    // G2808 (W5): the ammeter's marks over the bottom gap, from the same law its needle turns by
+    ticks(g, F, 'amps', units, o, { fontK: 0.15, labelIn: 0.26 });
+    unitText(g, F, 'VOLTS', 0.22, 0.10);
+    unitText(g, F, 'AMPS', 0.42, 0.08);
     hub(g, F, 0.10);
   },
   clock(g, R, units, o) {
@@ -1292,6 +1313,30 @@ const PAINT = {
     g.fillText('COM', cx, cy - r * 0.55); g.fillText('STBY 121.500', cx, cy + r * 0.32);
     g.fillStyle = '#3a3d44'; g.beginPath(); g.arc(cx - r * 0.45, cy + r * 0.62, r * 0.16, 0, 2 * Math.PI); g.fill();
     g.beginPath(); g.arc(cx + r * 0.45, cy + r * 0.62, r * 0.16, 0, 2 * Math.PI); g.fill();
+  },
+  nav(g, R) {
+    const F = faceBase(g, R); const { cx, cy, r } = F;
+    g.fillStyle = '#1a1c1f'; g.fillRect(cx - r * 0.72, cy - r * 0.30, r * 1.44, r * 0.46);
+    g.fillStyle = '#7fe08a'; g.font = `600 ${Math.round(r * 0.26)}px ${FONT_MONO}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    g.fillText('110.50', cx, cy - r * 0.07);
+    g.fillStyle = INK_DIM; g.font = `500 ${Math.round(r * 0.11)}px ${FONT}`;
+    g.fillText('NAV', cx, cy - r * 0.55); g.fillText('STBY 113.90', cx, cy + r * 0.32);
+    g.fillStyle = '#3a3d44'; g.beginPath(); g.arc(cx - r * 0.45, cy + r * 0.62, r * 0.16, 0, 2 * Math.PI); g.fill();
+    g.beginPath(); g.arc(cx + r * 0.45, cy + r * 0.62, r * 0.16, 0, 2 * Math.PI); g.fill();
+  },
+  // THE HOUR METER (G2808): a counter window, four white drums and the tenths in reverse, over HOURS
+  hobbs(g, R) {
+    const F = faceBase(g, R); const { cx, cy, r } = F;
+    const w = r * 1.30, h = r * 0.36, x0 = cx - w / 2, y0 = cy - h / 2, cw = w / 5;
+    g.fillStyle = '#050607'; g.fillRect(x0, y0, w, h);
+    g.font = `600 ${Math.round(r * 0.28)}px ${FONT_MONO}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+    for (let i = 0; i < 5; i++) {
+      if (i === 4) { g.fillStyle = INK; g.fillRect(x0 + 4 * cw + 1, y0 + 1, cw - 2, h - 2); }
+      g.fillStyle = i === 4 ? '#101214' : INK;
+      g.fillText('0', x0 + (i + 0.5) * cw, cy + r * 0.01);
+    }
+    g.fillStyle = INK_DIM; g.font = `500 ${Math.round(r * 0.12)}px ${FONT}`;
+    g.fillText('HOURS', cx, cy + r * 0.40); g.fillText('1/10', cx + r * 0.52, cy - r * 0.32);
   },
   xpdr(g, R) {
     const F = faceBase(g, R); const { cx, cy, r } = F;

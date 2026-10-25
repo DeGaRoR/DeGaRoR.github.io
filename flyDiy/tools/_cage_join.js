@@ -2926,6 +2926,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           if (!f) unfit.push(k);
         }
         if (unfit.length) lights.unfit = unfit;
+        // G2808 (W7): the beacon's rate, which the flight flashed at a fixed 45 rpm (written only off the default)
+        if (Pl.li_beaconRpm != null && +Pl.li_beaconRpm !== 45) lights.beaconRpm = +Pl.li_beaconRpm;
       }
     } catch (e) {}
     // G266.1: THE DRAWN TAIL, in the frame every baked vertex is in

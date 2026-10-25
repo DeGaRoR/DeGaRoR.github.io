@@ -564,8 +564,9 @@ const nrm3 = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / 
 // 'label'`), so the flight rebuilds it through `material('label')`. A
 // tape is a quad a hair off the plate, alpha-tested (ragged tape edges,
 // no sorting); which tape a switch wears is LABEL_OF.
-const LABEL_OF = { pax: 'Cabin', flood: 'Dash', instr: 'Instr', pedal: 'Feet',
-                   beacon: 'beac', nav: 'pos', land: 'land', taxi: 'cruise',
+// (G2808: the taxi light and the flood wear their own words, WORD_OF - the sheet's 'cruise' and 'Dash' named other things)
+const LABEL_OF = { pax: 'Cabin', instr: 'Instr', pedal: 'Feet',
+                   beacon: 'beac', nav: 'pos', land: 'land',
                    master: 'Bat.', alt: 'Alt.', avionics: 'Avionics',        // G318: the second sheet
                    flap: 'Flaps',                                              // G335: the dash switch's tape
                    key: 'OFF/R/L/BOTH' };                                      // G371: the magneto sequence over the key
@@ -698,6 +699,45 @@ function keyTapeMaterial() {
   const sh = labelSheet();
   if (sh && sh.img && !(sh.img.complete && sh.img.naturalWidth)) sh.img.addEventListener('load', paint);
   return keyTapeMat;
+}
+// THE WORDS THE USER'S SHEET HAS NO TAPE FOR (G2808, W6 of the status: the taxi light wore the sheet's 'cruise' - a
+// cruise light is another lamp - and the cabin flood its 'Dash'): written on the blank tile the way the key's OFF / ON
+// is, one tile a word, on ONE material (`panelSet: 'wordtape'`, the reg tape's contract: the join buckets it, the
+// flight rebuilds it through material('wordtape'))
+const WORD_TAPE = ['Taxi', 'Flood'];
+const WORD_OF = { taxi: 'Taxi', flood: 'Flood' };
+let wordTapeMat = null;
+function wordTapeMaterial() {
+  if (wordTapeMat) return wordTapeMat;
+  const n = WORD_TAPE.length;
+  const cv = HAS_DOM ? document.createElement('canvas') : null;
+  if (cv) { cv.width = 512; cv.height = 160 * n; }
+  const tex = cv ? new THREE.CanvasTexture(cv) : null;
+  if (tex) { tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; }
+  wordTapeMat = new THREE.MeshStandardMaterial({ map: tex, color: 0xffffff, roughness: 0.92, metalness: 0,
+    transparent: true, alphaTest: 0.02, depthWrite: false, side: THREE.FrontSide });
+  wordTapeMat.userData.aeroskin = 1;
+  wordTapeMat.userData.panelSet = 'wordtape';
+  wordTapeMat.userData.inside = 1;
+  const paint = () => {
+    if (!cv) return;
+    const g = cv.getContext('2d'), sh = labelSheet();
+    if (!g || !g.clearRect) return;
+    g.clearRect(0, 0, 512, 160 * n);
+    const bi = sh ? sh.names.indexOf('blank') : -1;
+    WORD_TAPE.forEach((word, i) => {
+      if (sh && sh.img && sh.img.complete && sh.img.naturalWidth && bi >= 0)
+        g.drawImage(sh.img, 0, bi * sh.h, sh.w, sh.h, 0, i * 160, 512, 160);
+      else { g.fillStyle = '#e6e1d5'; g.fillRect(24, i * 160 + 30, 464, 100); }
+      g.fillStyle = '#1b1b1d'; g.font = `700 76px ${FONT_REG}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.save(); g.translate(256, i * 160 + 84); g.rotate(-0.02); g.fillText(word, 0, 0); g.restore();
+    });
+    if (tex) tex.needsUpdate = true;
+  };
+  paint();
+  const sh = labelSheet();
+  if (sh && sh.img && !(sh.img.complete && sh.img.naturalWidth)) sh.img.addEventListener('load', paint);
+  return wordTapeMat;
 }
 function setReg(text) {
   const t = String(text == null ? '' : text).trim();
@@ -1546,7 +1586,7 @@ function build(parent, A, P, pilotX) {
   const R = resolve(P);
   if (!R) return null;
   const units = R.units;
-  const radios = ['com', 'xpdr'].filter(k => R.avionics[k] !== 'none');
+  const radios = ['com', 'xpdr', 'nav'].filter(k => R.avionics[k] !== 'none');   // G2808: the NAV head drawn
   const lightsOn = P && +P.lightOn;
   const L = G.layout(A, {
     items: R.items, side: R.side, pilotX, radios,
@@ -1803,13 +1843,21 @@ function build(parent, A, P, pilotX) {
     if (!F) { meshDial(); continue; }
     if (d.k === 'turn') {
       // the aeroplane symbol tilts about +z; the ball sits in its tube
-      const g = gaugeAt(dg, 'edGauge_turn_plane', [cx, cy, zF - 0.0065], [0, 0, 1], 'r', 'lin', { sgn: 1, k: 1 });
+      // (G2808, E7: with its gauge and hand, so the join bakes the law's stops - without them the symbol never banked)
+      const g = gaugeAt(dg, 'edGauge_turn_plane', [cx, cy, zF - 0.0065], [0, 0, 1], 'r', 'lin', { sgn: 1, k: 1, gauge: 'turn', hand: 'plane', units });
       const sb = K.Bag();
       K.boxIn(sb, [0, 0, 0], [r * 0.62, 0.0018, 0.0008], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
       K.boxIn(sb, [0, r * 0.10, 0], [0.0018, r * 0.12, 0.0008], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
       K.boxIn(sb, [0, -r * 0.02, 0], [r * 0.10, r * 0.06, 0.0008], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
       sb.mesh(g, matFor('symbol'));
-      K.revolve(hub, [cx, cy + r * 0.50, zF - 0.0065], [0, 0, 1], [[r * 0.055, -0.001], [r * 0.055, 0.001]], 12, true);
+      // THE BALL (G2808, E7): it hangs in the painted tube - an arc of 1.05 r about a point 0.55 r over the face's
+      // centre - and swings along it with the sideslip (FACES.slip; it was a fixed disc, drawn above the centre)
+      const gb = gaugeAt(dg, 'edGauge_turn_ball', [cx, cy + r * 0.55, zF - 0.0060], [0, 0, 1], 'beta', 'lin',
+        { sgn: -1, k: 1, gauge: 'slip', hand: 'ball', units });
+      const bb = K.Bag(), rb = r * 0.075, prof = [];
+      for (let i = 0; i <= 8; i++) { const ph = Math.PI * i / 8; prof.push([rb * Math.sin(ph), -rb * Math.cos(ph)]); }
+      K.revolve(bb, [0, -r * 1.05, 0], [0, 0, 1], prof, 14, false);
+      bb.mesh(gb, matFor('hub'));
       meshDial(); continue;
     }
     for (const H of F.hands) {
@@ -1824,7 +1872,24 @@ function build(parent, A, P, pilotX) {
       nb.mesh(g, needleAt(g, degH, faceDim(P)));         // lit by the posts (G305)
       g.rotation.z = clockRad(degH);
     }
-    hubAt(hub, cx, cy, zF - 0.004 - 0.0012 * F.hands.length, r * 0.10);   // G442.2: the cap hides the tails
+    // G2808 (W5): a hand that rides this face on its own scale (the ammeter on the volt / ammeter)
+    let nH = F.hands.length;
+    for (const hk of Object.keys(G.FACES)) {
+      const FX = G.FACES[hk];
+      if (FX.host !== d.k || hk === 'slip') continue;
+      for (const H of FX.hands) {
+        const v0 = rest[H.drive] != null ? rest[H.drive] : 0;
+        const g = gaugeAt(dg, 'edGauge_' + d.k + '_' + hk, [cx, cy, zF - 0.004], [0, 0, 1], H.drive, H.law,
+          { sgn: 1, k: 1, hand: H.name, gauge: hk, units });
+        const nb = K.Bag();
+        needleInto(nb, H, r * 0.86, 0.0025 + 0.0012 * nH);
+        const degH = G.angleOf(hk, H, v0, units, facts);
+        nb.mesh(g, needleAt(g, degH, faceDim(P)));
+        g.rotation.z = clockRad(degH);
+        nH++;
+      }
+    }
+    hubAt(hub, cx, cy, zF - 0.004 - 0.0012 * nH, r * 0.10);   // G442.2: the cap hides the tails
     meshDial();
   }
   // ---- the switch row, each on the plate under it
@@ -1871,6 +1936,15 @@ function build(parent, A, P, pilotX) {
       const w = 0.040, h = w * 160 / 512;
       lb.v([w / 2, -h / 2, 0], [0, 0]); lb.v([-w / 2, -h / 2, 0], [1, 0]); lb.v([-w / 2, h / 2, 0], [1, 1]); lb.v([w / 2, h / 2, 0], [0, 1]);
       lb.quad(0, 1, 2, 3);
+      const m = lb.mesh(lg, 'edGauge_label'); if (m) m.renderOrder = 3;
+    } else if (WORD_OF[s.k] && sheet && HAS_DOM) {
+      // G2808 (W6): the taxi light's and the flood's own words
+      const lg = new THREE.Group();
+      lg.position.set(0, 0.019, -0.0006);
+      sg.add(lg);
+      const lb = UVBag(wordTapeMaterial());
+      const w = Math.min(0.038, (s.pitch || 0.040) - 0.002), h = w * 160 / 512;
+      labelInto(lb, WORD_TAPE.indexOf(WORD_OF[s.k]), WORD_TAPE.length, 0, 0, 0, w, h);
       const m = lb.mesh(lg, 'edGauge_label'); if (m) m.renderOrder = 3;
     } else if (li >= 0) {
       const lg = new THREE.Group();
@@ -1990,7 +2064,8 @@ window.CAGE_PANEL = {
   material: k => (k === 'faces' ? facesMaterial() : k === 'ao' ? aoMaterial()
                   : k === 'label' ? labelMaterial() : k === 'needle' ? needleMaterial()
                   : k === 'reg' ? regMaterial() : k === 'keytape' ? keyTapeMaterial()
-                  : k === 'cbtape' ? cbTapeMaterial() : k === 'gps' ? gpsMaterial() : matFor(k)),   // G2802 / G2803
+                  : k === 'cbtape' ? cbTapeMaterial() : k === 'gps' ? gpsMaterial()            // G2802 / G2803
+                  : k === 'wordtape' ? wordTapeMaterial() : matFor(k)),                          // G2808
   holes: holesIn,                              // G279: the plate's cut-outs, in a parent's frame
   tape, setReg,                                // G318: a tape for any surface; the registration
   atlas: () => atlasCv, last: () => LAST, faceDim,
