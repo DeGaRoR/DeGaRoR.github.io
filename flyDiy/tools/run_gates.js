@@ -939,6 +939,11 @@ const GATES = [
   // deterministic and capped; a pilot follows their aeroplane; hire / fire / the boat; the sandbox's doors inert;
   // 36 doctored rules. ~2 s
   { id: 'PILOTS', file: '_pilots_check.js', tier: 'core' },
+  // G3760 (HIRE): pilotCanFly - the pilot's own laws asked before the flight (the hire card, routeSign). The expert's
+  // refusal IS makePilot departFrom's (every validated land build x every strip under 700 m); the gear; a contract row
+  // = the aerodrome record; a normal-approach person refuses at least the expert's; the wind only on a one-way strip,
+  // never a headwind's credit; the boundary; the card's words; pure. Then the roster's table (information)
+  { id: 'PILOTCANFLY', file: '_canfly_check.js', tier: 'core' },
   // THE HANGAR (HANGARS S2/S3): shells, kits, capabilities and the placement
   // contract. The kit tables partition the declared prop tables exactly once,
   // every capability verb is grantable, every kit places into every shell OR

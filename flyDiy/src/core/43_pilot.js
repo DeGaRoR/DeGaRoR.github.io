@@ -247,6 +247,69 @@ function pilotProfileSpec(p) {
   }
   return o;
 }
+// G3760 (HIRE, Game's seam): CAN THIS PILOT TAKE THIS AEROPLANE INTO THIS STRIP? Pure, for the hire card (what a pilot
+// can fly) and routeSign (no crew for a leg they would not fly) - the AP's own laws, so a refusal at dispatch is the
+// one the pilot would make on the way:
+//   gear       stripAllows (G1375): floats on water only, wheels never on it, skis on snow and grass
+//   land       G2450: the sheet's landing run (LDGrun, the stop from 1.15 Vs0) longer than the strip - every pilot,
+//              the expert too (makePilot's departFrom / setDest say 'strip-too-short' and do not go)
+//   technique  a person whose profile flies the NORMAL approach everywhere (the student: technique.field 'normal' -
+//              makePilot keeps it on every strip, G1943) lands 1.3 Vs0 on the 12 % mark (60 m in at least; 40 m on
+//              a strip of 700 m and more) and floats 3 s: refused when the stop from the touch does not fit past
+//              that. No margin on top (the user 25 Oct: "try if there's a reasonable chance, not too conservative")
+// THE WIND: only a one-way strip's (an altiport's `landHdg`, landed that way whatever the wind) - the component behind
+// the landing adds to the touch over the ground (G2530's law); a headwind is not credited; a two-way strip is landed
+// into the wind. No crosswind law: the AP has none, so none is made up here (a person's wind limit is 76_pilots'
+// trait refusal, pilotsRefusal 'weather'). Water lanes have no run laws (the AP's: shortOfRun skips them).
+//   profile  a PILOT_PROFILES name, an object profile (76_pilots' pilotsProfile) or a resolved one (pilotProfile's)
+//   def      the built aeroplane; its sheet is machineSheet with no shakedown (the landing run and Vs0 are the build's own
+//            numbers, the same the flying pilot reads), memoised per def - opts.sheet passes one
+//   strip    an aerodrome record (len, surface/water, altiport, landHdg) or a CONTRACT_FIELDS row (len, surf, alti)
+//   wind     null | [wx, wz] | { x, z }: the wind's velocity (m/s, where it blows to) - the climate's own sense
+//   opts     { who: the person's name, plane: the aeroplane's, sheet }
+// -> { ok, why, kind: null | 'gear' | 'land' | 'technique', len, need } - `why` is the card's one line
+const PILOT_CANFLY_SHEETS = typeof WeakMap === 'function' ? new WeakMap() : null;
+function pilotCanFly(profile, def, strip, wind, opts) {
+  opts = opts || {};
+  const P = profile && typeof profile === 'object' && profile.reaction !== undefined ? profile : pilotProfile(profile);
+  const who = opts.who || 'The pilot', plane = opts.plane || (def && def.spec && def.spec.name) || 'the aeroplane';
+  const name = (strip && strip.name) || (strip && strip.id) || 'the strip', len = strip && strip.len > 0 ? strip.len : 0;
+  const no = (kind, line, need) => ({ ok: false, kind, why: who + ' won\'t take the ' + plane + ' into ' + name + ': ' + line, len: Math.round(len), need: Math.round(need || 0) });
+  const yes = need => ({ ok: true, kind: null, why: '', len: Math.round(len), need: need != null ? Math.round(need) : null });
+  if (!strip) return yes(null);
+  // the strip as 25_airfield's rule reads it: a CONTRACT_FIELDS row carries its surface as a word
+  const key = typeof strip.surf === 'string' ? strip.surf : null;
+  const wet = key === 'water' || strip.water || strip.kind === 'water' || +strip.surface === 4;
+  const rec = key ? (wet ? { kind: 'water' } : key === 'snow' ? { snow: true } : { surface: STRIP_ENUM_SURF.indexOf(key) >= 0 ? STRIP_ENUM_SURF.indexOf(key) : (STRIP_SURFACES[key] && STRIP_SURFACES[key].cls === 'hard' ? 5 : 0) }) : strip;
+  if (typeof stripAllows === 'function') {
+    const G = stripAllows(stripGear(def), rec);
+    if (!G.ok) return no('gear', G.why, 0);
+  }
+  if (wet || !(len > 0)) return yes(null);
+  let S = opts.sheet || (PILOT_CANFLY_SHEETS && def && typeof def === 'object' ? PILOT_CANFLY_SHEETS.get(def) : null);
+  if (!S && def && typeof machineSheet === 'function') { S = machineSheet(def); if (S && PILOT_CANFLY_SHEETS) PILOT_CANFLY_SHEETS.set(def, S); }
+  const run = S && S.LDGrun, Vs0 = S && S.Vs0;
+  if (!(run > 0)) return yes(null);
+  // the touch over the ground: a one-way strip's wind behind the landing (never a headwind's credit)
+  let tail = 0;
+  if ((strip.altiport || strip.alti) && typeof strip.landHdg === 'number' && wind) {
+    const wx = Array.isArray(wind) ? wind[0] : wind.x, wz = Array.isArray(wind) ? wind[1] : wind.z;
+    if (Number.isFinite(wx) && Number.isFinite(wz)) tail = Math.max(0, wx * CORE_MATH.cos(strip.landHdg) + wz * CORE_MATH.sin(strip.landHdg));
+  }
+  const Vtd = Vs0 > 0 ? 1.15 * Vs0 : null;
+  // the sheet's stop law (LDGrun = Vtd^2 / 2a + Vtd): its deceleration, so a faster touch is stopped the same way
+  const aS = Vtd && run > Vtd ? Vtd * Vtd / (2 * (run - Vtd)) : null;
+  const stop = v => aS ? v * v / (2 * aS) + v : run;
+  const behind = tail > 0.5 ? ' with ' + tail.toFixed(1) + ' m/s behind' : '';
+  const needL = Vtd ? stop(Vtd + tail) : run;
+  if (needL > len) return no('land', Math.round(len) + ' m of strip for a ' + Math.round(needL) + ' m landing run' + behind, needL);
+  if (P.active && P.field === 'normal' && Vtd) {
+    const aim = len < 700 ? Math.max(60, 0.12 * len) : 40, Vg = Vtd + tail, needT = aim + 3 * Vg + stop(Vg);
+    if (needT > len) return no('technique', 'the normal approach (' + Math.round(aim) + ' m in, the float, the stop' + behind + ') needs ' + Math.round(needT) + ' m of ' + Math.round(len), needT);
+    return yes(needT);
+  }
+  return yes(needL);
+}
 
 function makePilot(sim, def, world, opts) {
   opts = opts || {};
