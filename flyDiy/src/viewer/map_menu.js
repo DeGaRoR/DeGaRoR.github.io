@@ -567,7 +567,7 @@
   function marketAdapt(P, doc, board) {
     if (!P || typeof P.procureCatalogue !== 'function') return null;
     const career = !!(doc && doc.career);
-    const makers = P.procureCatalogue().map(m => { const K = P.PROCURE_MAKERS[m.maker];
+    const makers = P.procureCatalogue(doc).map(m => { const K = P.PROCURE_MAKERS[m.maker];
       return { id: m.maker, name: P.procureText(K.name), line: P.procureText(K.line), colour: K.colour, models: m.models.slice() }; });
     const used = (doc ? P.procureMarketOf(doc) : []).map(L => Object.assign({}, L, { words: P.procureUsedWords(L), cert: P.procureUsedCert(L),
       name: P.procureText(P.PROCURE_MODELS[L.model].name), colour: P.PROCURE_MAKERS[P.PROCURE_MODELS[L.model].maker].colour }));

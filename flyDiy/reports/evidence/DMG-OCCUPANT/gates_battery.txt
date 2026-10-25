@@ -1,0 +1,337 @@
+tools/flight_core.js (2317.5 KB), index.html (11853.1 KB), dev.html (108.7 KB) — syntax OK, build 7c4f1149aba7 (317 named inputs), 1099 ms
+[run_gates] 0/23 jobs done · running DMGGEAR 30 s, DMGINST 30 s
+[run_gates] 0/23 jobs done · running DMGGEAR 60 s, DMGINST 60 s
+[run_gates] 0/23 jobs done · running DMGGEAR 90 s, DMGINST 90 s
+[run_gates] 0/23 jobs done · running DMGGEAR 120 s, DMGINST 120 s
+[run_gates] 0/23 jobs done · running DMGGEAR 150 s, DMGINST 150 s
+[run_gates] 0/23 jobs done · running DMGGEAR 180 s, DMGINST 180 s
+[run_gates] 1/23 jobs done · running DMGGEAR 210 s, UISMOKE 10 s
+[run_gates] 1/23 jobs done · running DMGGEAR 240 s, UISMOKE 40 s
+[run_gates] 1/23 jobs done · running DMGGEAR 270 s, UISMOKE 70 s
+[run_gates] 1/23 jobs done · running DMGGEAR 300 s, UISMOKE 100 s
+=== UISMOKE ===
+G1090 the top bar holds one size over 47 texts (29 phase labels): desktop 440 x 143, desktop small 372 x 76, phone screen x 132, phone small screen x 76; the pilot's area 35 px, two lines clamped + the plan line
+ran app block: raf x1877, handlers wired: _ce1003 _ce1006 _ce1015 _ce1019 _ce1023 _ce1031 _ce1034 _ce1043 _ce1047 _ce105 _ce1051 _ce1059 _ce1062 _ce1066 _ce1075 _ce1079 _ce1083 _ce1091 _ce1094 _ce1098 _ce1107 _ce1115 _ce1116 _ce1119 _ce1128 _ce1136 _ce1139 _ce1143 _ce1152 _ce1156 _ce116 _ce1160 _ce1168 _ce1171 _ce1180 _ce1184 _ce120 _ce124 _ce130 _ce135 _ce136 _ce138 _ce139 _ce140 _ce143 _ce147 _ce151 _ce155 _ce159 _ce163 _ce167 _ce173 _ce178 _ce184 _ce191 _ce192 _ce193 _ce194 _ce195 _ce196 _ce201 _ce202 _ce203 _ce204 _ce208 _ce209 _ce210 _ce211 _ce212 _ce213 _ce217 _ce218 _ce219 _ce220 _ce224 _ce225 _ce228 _ce232 _ce236 _ce240 _ce244 _ce248 _ce255 _ce265 _ce276 _ce282 _ce286 _ce292 _ce296 _ce300 _ce304 _ce308 _ce31 _ce316 _ce322 _ce325 _ce332 _ce333 _ce338 _ce341 _ce346 _ce347 _ce349 _ce350 _ce351 _ce354 _ce358 _ce362 _ce366 _ce372 _ce379 _ce383 _ce387 _ce391 _ce395 _ce399 _ce403 _ce407 _ce411 _ce415 _ce419 _ce425 _ce429 _ce433 _ce436 _ce442 _ce445 _ce446 _ce447 _ce450 _ce460 _ce461 _ce465 _ce468 _ce47 _ce473 _ce495 _ce501 _ce509 _ce510 _ce513 _ce520 _ce521 _ce522 _ce523 _ce524 _ce525 _ce530 _ce531 _ce532 _ce533 _ce537 _ce538 _ce539 _ce540 _ce541 _ce542 _ce546 _ce547 _ce548 _ce549 _ce553 _ce554 _ce557 _ce564 _ce565 _ce566 _ce567 _ce571 _ce572 _ce576 _ce577 _ce58 _ce581 _ce582 _ce583 _ce584 _ce585 _ce586 _ce59 _ce590 _ce591 _ce592 _ce593 _ce594 _ce595 _ce599 _ce60 _ce600 _ce604 _ce605 _ce607 _ce61 _ce614 _ce615 _ce616 _ce617 _ce62 _ce621 _ce622 _ce623 _ce624 _ce628 _ce629 _ce63 _ce630 _ce631 _ce635 _ce636 _ce637 _ce638 _ce64 _ce642 _ce643 _ce647 _ce648 _ce649 _ce65 _ce651 _ce658 _ce659 _ce663 _ce664 _ce666 _ce67 _ce673 _ce674 _ce675 _ce679 _ce680 _ce681 _ce682 _ce686 _ce687 _ce689 _ce696 _ce697 _ce698 _ce70 _ce702 _ce703 _ce704 _ce705 _ce709 _ce710 _ce711 _ce715 _ce716 _ce720 _ce721 _ce725 _ce726 _ce728 _ce73 _ce735 _ce736 _ce740 _ce741 _ce742 _ce746 _ce747 _ce751 _ce752 _ce755 _ce76 _ce761 _ce766 _ce770 _ce774 _ce778 _ce782 _ce786 _ce79 _ce790 _ce794 _ce798 _ce802 _ce806 _ce810 _ce814 _ce817 _ce82 _ce825 _ce828 _ce837 _ce845 _ce846 _ce849 _ce85 _ce858 _ce863 _ce867 _ce873 _ce877 _ce88 _ce882 _ce883 _ce885 _ce886 _ce887 _ce890 _ce894 _ce898 _ce902 _ce906 _ce91 _ce910 _ce914 _ce918 _ce929 _ce933 _ce937 _ce94 _ce945 _ce951 _ce954 _ce958 _ce963 _ce97 _ce985 _ce991 _ce995 bEdit bGo bHangar2 bLog bMood bPause bReset bSkin bSkip bWhy bootFly edClose flLine mm pfdFold selAc selCond selDest selPilot tabBench tabDesign
+GATE UISMOKE: PASS
+[run_gates] 2/23 jobs done · running DMGGEAR 330 s, SIMWORKER 2 s
+[run_gates] 2/23 jobs done · running DMGGEAR 360 s, SIMWORKER 32 s
+[run_gates] 2/23 jobs done · running DMGGEAR 390 s, SIMWORKER 62 s
+[run_gates] 5/23 jobs done · running DMGGEAR 420 s
+[run_gates] 5/23 jobs done · running DMGGEAR 450 s
+[run_gates] 5/23 jobs done · running DMGGEAR 480 s
+[run_gates] 5/23 jobs done · running DMGGEAR 510 s
+[run_gates] 5/23 jobs done · running DMGGEAR 540 s
+[run_gates] 5/23 jobs done · running DMGGEAR 570 s
+[run_gates] 5/23 jobs done · running DMGGEAR 600 s
+[run_gates] 5/23 jobs done · running DMGGEAR 630 s
+[run_gates] 5/23 jobs done · running DMGGEAR 661 s
+[run_gates] 5/23 jobs done · running DMGGEAR 691 s
+[run_gates] 5/23 jobs done · running DMGGEAR 721 s
+[run_gates] 5/23 jobs done · running DMGGEAR 751 s
+[run_gates] 5/23 jobs done · running DMGGEAR 781 s
+[run_gates] 5/23 jobs done · running DMGGEAR 811 s
+[run_gates] 5/23 jobs done · running DMGGEAR 841 s
+[run_gates] 6/23 jobs done · running DMGWIND 11 s
+[run_gates] 6/23 jobs done · running DMGWIND 41 s
+[run_gates] 6/23 jobs done · running DMGWIND 71 s
+[run_gates] 6/23 jobs done · running DMGWIND 101 s
+[run_gates] 6/23 jobs done · running DMGWIND 131 s
+[run_gates] 6/23 jobs done · running DMGWIND 161 s
+[run_gates] 6/23 jobs done · running DMGWIND 191 s
+[run_gates] 6/23 jobs done · running DMGWIND 221 s
+[run_gates] 6/23 jobs done · running DMGWIND 251 s
+[run_gates] 6/23 jobs done · running DMGWIND 281 s
+[run_gates] 6/23 jobs done · running DMGWIND 312 s
+[run_gates] 6/23 jobs done · running DMGWIND 342 s
+[run_gates] 6/23 jobs done · running DMGWIND 372 s
+[run_gates] 6/23 jobs done · running DMGWIND 402 s
+[run_gates] 6/23 jobs done · running DMGWIND 432 s
+[run_gates] 6/23 jobs done · running DMGWIND 462 s
+[run_gates] 6/23 jobs done · running DMGWIND 492 s
+[run_gates] 6/23 jobs done · running DMGWIND 522 s
+[run_gates] 6/23 jobs done · running DMGWIND 552 s
+[run_gates] 6/23 jobs done · running DMGWIND 582 s
+[run_gates] 6/23 jobs done · running DMGWIND 612 s
+[run_gates] 6/23 jobs done · running DMGWIND 642 s
+[run_gates] 6/23 jobs done · running DMGWIND 672 s
+[run_gates] 6/23 jobs done · running DMGWIND 702 s
+[run_gates] 7/23 jobs done · running DMGNOSE 16 s
+[run_gates] 7/23 jobs done · running DMGNOSE 46 s
+[run_gates] 7/23 jobs done · running DMGNOSE 76 s
+[run_gates] 7/23 jobs done · running DMGNOSE 106 s
+[run_gates] 7/23 jobs done · running DMGNOSE 136 s
+[run_gates] 7/23 jobs done · running DMGNOSE 166 s
+[run_gates] 7/23 jobs done · running DMGNOSE 196 s
+[run_gates] 7/23 jobs done · running DMGNOSE 226 s
+[run_gates] 7/23 jobs done · running DMGNOSE 256 s
+[run_gates] 7/23 jobs done · running DMGNOSE 286 s
+[run_gates] 7/23 jobs done · running DMGNOSE 316 s
+[run_gates] 7/23 jobs done · running DMGNOSE 346 s
+[run_gates] 7/23 jobs done · running DMGNOSE 376 s
+[run_gates] 7/23 jobs done · running DMGNOSE 407 s
+[run_gates] 7/23 jobs done · running DMGNOSE 437 s
+[run_gates] 7/23 jobs done · running DMGNOSE 467 s
+[run_gates] 7/23 jobs done · running DMGNOSE 497 s
+[run_gates] 8/23 jobs done · running DMGDRIVE 19 s
+[run_gates] 8/23 jobs done · running DMGDRIVE 49 s
+[run_gates] 8/23 jobs done · running DMGDRIVE 79 s
+[run_gates] 8/23 jobs done · running DMGDRIVE 109 s
+[run_gates] 8/23 jobs done · running DMGDRIVE 139 s
+[run_gates] 8/23 jobs done · running DMGDRIVE 170 s
+[run_gates] 8/23 jobs done · running DMGDRIVE 200 s
+[run_gates] 8/23 jobs done · running DMGDRIVE 230 s
+[run_gates] 8/23 jobs done · running DMGDRIVE 260 s
+[run_gates] 8/23 jobs done · running DMGDRIVE 290 s
+[run_gates] 8/23 jobs done · running DMGDRIVE 320 s
+[run_gates] 8/23 jobs done · running DMGDRIVE 350 s
+[run_gates] 8/23 jobs done · running DMGDRIVE 380 s
+[run_gates] 8/23 jobs done · running DMGDRIVE 410 s
+[run_gates] 8/23 jobs done · running DMGDRIVE 440 s
+[run_gates] 8/23 jobs done · running DMGDRIVE 470 s
+[run_gates] 8/23 jobs done · running DMGDRIVE 500 s
+[run_gates] 8/23 jobs done · running DMGDRIVE 530 s
+[run_gates] 8/23 jobs done · running DMGDRIVE 560 s
+[run_gates] 8/23 jobs done · running DMGDRIVE 590 s
+[run_gates] 8/23 jobs done · running DMGDRIVE 620 s
+[run_gates] 9/23 jobs done · running TREECRASH 11 s
+[run_gates] 9/23 jobs done · running TREECRASH 41 s
+[run_gates] 9/23 jobs done · running TREECRASH 71 s
+[run_gates] 9/23 jobs done · running TREECRASH 101 s
+[run_gates] 9/23 jobs done · running TREECRASH 131 s
+[run_gates] 9/23 jobs done · running TREECRASH 161 s
+[run_gates] 9/23 jobs done · running TREECRASH 191 s
+[run_gates] 9/23 jobs done · running TREECRASH 221 s
+[run_gates] 9/23 jobs done · running TREECRASH 251 s
+[run_gates] 9/23 jobs done · running TREECRASH 281 s
+[run_gates] 9/23 jobs done · running TREECRASH 311 s
+[run_gates] 9/23 jobs done · running TREECRASH 341 s
+[run_gates] 9/23 jobs done · running TREECRASH 371 s
+[run_gates] 9/23 jobs done · running TREECRASH 401 s
+[run_gates] 9/23 jobs done · running TREECRASH 431 s
+[run_gates] 9/23 jobs done · running TREECRASH 461 s
+[run_gates] 9/23 jobs done · running TREECRASH 491 s
+[run_gates] 9/23 jobs done · running TREECRASH 521 s
+[run_gates] 9/23 jobs done · running TREECRASH 551 s
+=== TREECRASH ===
+  ok    SEVERE: 150 km/h, 10 m/s, 60 deg nose-in: the worst member 14.30 (gear, tension); 124 set {"fus":58,"wing":37,"tail":29}, 138 broken, 25.25 g, CRASHED (broke up: the fuselage parted (TPB off the core)) - must yield, break and crash; the damage follows the beams' own loads
+  50/50 checks
+GATE TREECRASH: PASS
+[run_gates] 10/23 jobs done · running DMGCLUSTERS 17 s
+[run_gates] 10/23 jobs done · running DMGCLUSTERS 47 s
+[run_gates] 10/23 jobs done · running DMGCLUSTERS 77 s
+[run_gates] 10/23 jobs done · running DMGCLUSTERS 107 s
+[run_gates] 10/23 jobs done · running DMGCLUSTERS 137 s
+[run_gates] 10/23 jobs done · running DMGCLUSTERS 167 s
+[run_gates] 10/23 jobs done · running DMGCLUSTERS 197 s
+[run_gates] 10/23 jobs done · running DMGCLUSTERS 227 s
+[run_gates] 10/23 jobs done · running DMGCLUSTERS 257 s
+[run_gates] 10/23 jobs done · running DMGCLUSTERS 287 s
+[run_gates] 10/23 jobs done · running DMGCLUSTERS 317 s
+[run_gates] 10/23 jobs done · running DMGCLUSTERS 347 s
+[run_gates] 10/23 jobs done · running DMGCLUSTERS 377 s
+[run_gates] 10/23 jobs done · running DMGCLUSTERS 407 s
+[run_gates] 10/23 jobs done · running DMGCLUSTERS 437 s
+[run_gates] 10/23 jobs done · running DMGCLUSTERS 467 s
+[run_gates] 10/23 jobs done · running DMGCLUSTERS 497 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 27 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 57 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 87 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 117 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 147 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 177 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 207 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 237 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 268 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 298 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 328 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 358 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 388 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 418 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 448 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 478 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 508 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 538 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 568 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 598 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 628 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 658 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 688 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 718 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 748 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 778 s
+[run_gates] 11/23 jobs done · running DMGUPLOAD 808 s
+[run_gates] 12/23 jobs done · running DMGWALL 3 s
+[run_gates] 12/23 jobs done · running DMGWALL 34 s
+[run_gates] 12/23 jobs done · running DMGWALL 64 s
+[run_gates] 12/23 jobs done · running DMGWALL 94 s
+[run_gates] 12/23 jobs done · running DMGWALL 124 s
+[run_gates] 12/23 jobs done · running DMGWALL 154 s
+[run_gates] 12/23 jobs done · running DMGWALL 184 s
+[run_gates] 13/23 jobs done · running DMGOCCUPANT 22 s
+[run_gates] 13/23 jobs done · running DMGOCCUPANT 52 s
+[run_gates] 13/23 jobs done · running DMGOCCUPANT 82 s
+[run_gates] 13/23 jobs done · running DMGOCCUPANT 112 s
+[run_gates] 13/23 jobs done · running DMGOCCUPANT 142 s
+[run_gates] 13/23 jobs done · running DMGOCCUPANT 172 s
+[run_gates] 13/23 jobs done · running DMGOCCUPANT 202 s
+[run_gates] 13/23 jobs done · running DMGOCCUPANT 233 s
+[run_gates] 13/23 jobs done · running DMGOCCUPANT 263 s
+[run_gates] 13/23 jobs done · running DMGOCCUPANT 293 s
+[run_gates] 14/23 jobs done · running DMGFPS 11 s
+[run_gates] 14/23 jobs done · running DMGFPS 41 s
+[run_gates] 14/23 jobs done · running DMGFPS 71 s
+[run_gates] 14/23 jobs done · running DMGFPS 101 s
+[run_gates] 14/23 jobs done · running DMGFPS 131 s
+[run_gates] 14/23 jobs done · running DMGFPS 161 s
+[run_gates] 15/23 jobs done · running DMGCERTCOST 15 s
+[run_gates] 15/23 jobs done · running DMGCERTCOST 45 s
+[run_gates] 16/23 jobs done · running DMGCERT 8 s
+[run_gates] 16/23 jobs done · running DMGCERT 38 s
+[run_gates] 16/23 jobs done · running DMGCERT 68 s
+[run_gates] 16/23 jobs done · running DMGCERT 98 s
+[run_gates] 16/23 jobs done · running DMGCERT 128 s
+[run_gates] 16/23 jobs done · running DMGCERT 158 s
+[run_gates] 16/23 jobs done · running DMGCERT 188 s
+[run_gates] 16/23 jobs done · running DMGCERT 218 s
+[run_gates] 16/23 jobs done · running DMGCERT 248 s
+[run_gates] 16/23 jobs done · running DMGCERT 278 s
+[run_gates] 17/23 jobs done · running DMGSKIN 17 s
+[run_gates] 17/23 jobs done · running DMGSKIN 47 s
+[run_gates] 17/23 jobs done · running DMGSKIN 77 s
+[run_gates] 18/23 jobs done · running DMGSKINGPU 1 s
+[run_gates] 18/23 jobs done · running DMGSKINGPU 31 s
+[run_gates] 18/23 jobs done · running DMGSKINGPU 61 s
+[run_gates] 19/23 jobs done · running DMGINTEGRITY 4 s
+[run_gates] 19/23 jobs done · running DMGINTEGRITY 34 s
+[run_gates] 20/23 jobs done · running DMGPAGEW 14 s
+[run_gates] 20/23 jobs done · running DMGPAGEW 44 s
+[run_gates] 20/23 jobs done · running DMGPAGEW 74 s
+[run_gates] 20/23 jobs done · running DMGPAGEW 104 s
+[run_gates] 20/23 jobs done · running DMGPAGEW 134 s
+[run_gates] 20/23 jobs done · running DMGPAGEW 164 s
+[run_gates] 20/23 jobs done · running DMGPAGEW 194 s
+[run_gates] 20/23 jobs done · running DMGPAGEW 224 s
+[run_gates] 21/23 jobs done · running DMGWRECK 18 s
+[run_gates] 21/23 jobs done · running DMGWRECK 48 s
+[run_gates] 21/23 jobs done · running DMGWRECK 78 s
+[run_gates] 21/23 jobs done · running DMGWRECK 108 s
+[run_gates] 21/23 jobs done · running DMGWRECK 138 s
+[run_gates] 21/23 jobs done · running DMGWRECK 168 s
+[run_gates] 22/23 jobs done · running DMGMEMBERS 17 s
+=== DMGMEMBERS ===
+  ok    the bench to destruction: first yield at 13.01 g; the first member broken at 28.03 g: wing tubeFabric fitting (tension) S1BR-WF; the first GROUP at 28.07 g: wing0L:strut; 40 broken, groups wing0L:strut, wing0R:strut, engR:mount, engL:mount
+  85/85 checks
+GATE DMGMEMBERS: PASS
+=== DMGCERT ===
+  REPORT  the drawn lift struts in compression: member 133 certified 5.8 kN (bow) -> crushes at 10.5 kN (physics 36.3); member 134 certified 3.2 kN (dropDriftR) -> crushes at 5.9 kN (physics 36.3); member 135 certified 12.6 kN (dropDriftR) -> crushes at 22.8 kN (physics 36.3); member 136 certified 3.6 kN (flownElevF) -> crushes at 6.5 kN (physics 36.3)
+  70/70 checks
+GATE DMGCERT: PASS
+=== DMGGEAR ===
+  twin floatplane td 1.0 0.33 | td 1.5 0.39 | td 23.473 0.46 | taxi on the water at 4 m/s 0.19 | taxi on the water at 4 m/s in a light chop (5 m/s of wind) 0.19 | circuit 0.23 | crosswind circuit 0.26
+  72/72 checks
+GATE DMGGEAR: PASS
+=== DMGCERTCOST ===
+  ok   a corrupted record is refused and deleted
+  ok   a stale record (another GEN_CERT_V) is refused and deleted
+GATE DMGCERTCOST: PASS
+=== DMGWIND ===
+  --    REPORT the Cub, no wind, started at 3.6 m/s, the trunk across the nose (-0.45..0.45 m): none of 19 break the mount
+  12/12 checks
+GATE DMGWIND: PASS
+=== DMGNOSE ===
+  --    REPORT metal Cessna: a nose-over at 4 m/s (DMG-DRIVE's): strike stoppage, the nose on the - 0 cm (-, 0 J, 0.0 kN), 0 broken
+  41/41 checks
+GATE DMGNOSE: PASS
+=== DMGCLUSTERS ===
+  REPORT  (clean) the BMR levered over an obstacle at its mid-span station (bay 1; the station pushed up, the tail down): BMR station by bend at 3.33 s (17.57 kN.m bending, -0.00 torque; limits 17.57 / 14.31 / 14.16), 6 members broken (its bay, 0 others), the part rigid to 0.2 mm and 0.34 m off; clusters now BML:17, BMR:14, FINR:16, FINL:17, BMR/aft:3
+  83/83 checks
+GATE DMGCLUSTERS: PASS
+=== DMGINST ===
+          broken k = 0                  rgb 0.890 0.180 0.170  #e32e2b
+  33/33 checks
+GATE DMGINST: PASS
+=== DMGFPS ===
+  ok    worker host, turns of 4, the page reading every 2: ends at step 240 (its first read at or after 240); bitwise the 60 fps run there, the same verdict (0.0 J, 0 broken, 0 yields; past the 60 fps end +0.000 J, +0 broken)
+  145/145 checks
+GATE DMGFPS: PASS
+=== DMGINTEGRITY ===
+Broke up (the flight over at once): twin floatplane, a severe float nose-in (150 km/h, 10 m/s, 60 deg): at 0.14 s (TPB)
+  54/54 checks
+GATE DMGINTEGRITY: PASS
+=== DMGSKIN ===
+  ok    app.js: the skin's break path (24 calls) runs only through brkGen / brkCage, each returning at once unless the damage state holds a broken member
+  116/116 checks
+GATE DMGSKIN: PASS
+=== DMGUPLOAD ===
+  cub DAMAGE OFF: the heal upload marking fired 0 times; 0 stale
+  cub: fold buffers checked fresh 44, after 44 (by class {"mesh":322,"fold":44})
+GATE DMGUPLOAD: PASS
+=== DMGDRIVE ===
+  --    the teardown's internal damage (seeded, 15 %): AOPA, 2007 (the DEFORM doc §10.2's line: only 10-20 % of the engines torn down after a strike show internal damage) 10-20 % - a ratio for the bill, never a gate
+  135/135 checks
+GATE DMGDRIVE: PASS
+=== DMGSKINGPU ===
+  ok    RIDE_VS carries the mirror's steps (the 8 slots on the dominant's hemisphere, the normalised turn, the offset turned, the drape, the frame, B^T n)
+  57/57 checks
+GATE DMGSKINGPU: PASS
+=== DMGPAGEW ===
+  the page: {"br":98,"firstT":1.333,"recs":113,"riding":555738,"wreck":true,"gone":11,"bodies":11}; the mirror's dmgState on the page's sim
+  ok    the worker's breaks on the page, the skin break and the debris ran there
+GATE DMGPAGEW: PASS
+=== DMGWRECK ===
+  ok    app.js: the wreck path (debris, the strike's drawing, the cockpit rule) only through wreckFrame, returning at once unless the damage state holds damage or an engine has seized
+  160/160 checks
+GATE DMGWRECK: PASS
+=== DMGWALL ===
+
+112 checks, 0 failed, 191 s
+GATE DMGWALL: PASS
+=== DMGOCCUPANT ===
+  Cub, the rear seat filled taxi: Unharmed | far473: Unharmed | trunk0: Pilot Fatal injuries / Passenger Fatal injuries | trunk25: Pilot Unharmed / Passenger Unharmed
+  (wall 312 s)
+GATE DMGOCCUPANT: PASS
+=== BUILD ===
+  ok     the clock, the date and the run all ride the save envelope
+
+GATE BUILD: PASS
+=== JOIN ===
+  ok     G1283: a station inside the envelope flies as measured, in silence
+  ok     G1283: no core loaded, no claim
+GATE JOIN: PASS
+=== SIMWORKER ===
+
+35 checks, 0 failed, 68.7 s
+GATE SIMWORKER: PASS
+
+──────── summary ────────
+UISMOKE   PASS   128.6 s
+TREECRASH PASS   564.4 s
+DMGMEMBERS PASS    44.2 s
+DMGCERT   PASS   290.8 s
+DMGGEAR   PASS   859.5 s
+DMGCERTCOST PASS    67.5 s
+DMGWIND   PASS   715.7 s
+DMGNOSE   PASS   507.3 s
+DMGCLUSTERS PASS   499.9 s
+DMGINST   PASS   200.1 s
+DMGFPS    PASS   175.6 s
+DMGINTEGRITY PASS    50.3 s
+DMGSKIN   PASS   105.9 s
+DMGUPLOAD PASS   834.6 s
+DMGDRIVE  PASS   639.3 s
+DMGSKINGPU PASS    87.3 s
+DMGPAGEW  PASS   236.2 s
+DMGWRECK  PASS   180.9 s
+DMGWALL   PASS   191.3 s
+DMGOCCUPANT PASS   311.8 s
+BUILD     PASS     1.7 s
+JOIN      PASS     5.8 s
+SIMWORKER PASS    69.0 s
+total           6767.7 s
+wall            6362.7 s  (jobs 4)
+
+BATTERY: PASS
+
+real	106m3.931s
+user	272m26.840s
+sys	4m58.022s
