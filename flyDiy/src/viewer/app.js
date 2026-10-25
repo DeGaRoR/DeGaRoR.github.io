@@ -9328,7 +9328,7 @@
       // its own) takes the plot's dims - the same shed, its aeroplane (Rufus passes the 10 m door), its kits
       const want = P.dims && P.dims[sh.shell || 'field'];
       const size = !!(want && want.door > 0 && !(sh.dims && sh.dims.door > 0));
-      const signed = !!(want && want.sign && !(sh.dims && sh.dims.sign));   // G3540: the plot's sign, on a cabin made before it
+      const signed = !!(want && ((want.sign && !(sh.dims && sh.dims.sign)) || (want.ground && !(sh.dims && sh.dims.ground))));   // G3540/G3541: the plot's sign and ground, on a cabin made before them
       if (!thin && !omit && !lamp && !cross && !size && !signed) return;
       const n = JSON.parse(JSON.stringify(d));
       if (thin) n.sheds[id].kits = P.kits.slice();
@@ -9336,7 +9336,7 @@
       if (lamp) n.sheds[id].workLamp = Object.assign({}, P.workLamp);
       if (cross) n.sheds[id].lampXZ = P.lampXZ.map(p => p.slice());
       if (size) n.sheds[id].dims = Object.assign({}, want);
-      else if (signed) n.sheds[id].dims = Object.assign({}, n.sheds[id].dims, { sign: Object.assign({}, want.sign) });
+      else if (signed) n.sheds[id].dims = Object.assign({}, n.sheds[id].dims, want.sign ? { sign: Object.assign({}, want.sign) } : {}, want.ground ? { ground: Object.assign({}, want.ground) } : {});
       player = n; playerSave();
     } catch (e) { console.warn('flyDiy (story): the cabin kits -', e && e.message); }
   }

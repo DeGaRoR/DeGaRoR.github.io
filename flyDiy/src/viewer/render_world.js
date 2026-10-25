@@ -6268,7 +6268,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (!SHELL.polish || !HGN || !HGN.build || !HGN.PRESETS || typeof document === 'undefined' || !POLISH_PRESET[shell]) return null;
       const P = Object.assign({}, HGN.DEF, HGN.PRESETS[POLISH_PRESET[shell]],
         { HW: dims.HW, HD: dims.HD, EAVE: dims.EAVE, doorW: dims.door > 0 ? dims.door : 0, leaves: dims.leaves === 2 ? 2 : 0, lights: 0, sign: 0, signKey: '', ownShell: 1 },   // (G3537: its own door; G3531: its own shell finish)
-        HGN.signDials ? HGN.signDials(dims.sign) : {});   // (G3540: its own sign, the room's too)
+        HGN.signDials ? HGN.signDials(dims.sign) : {},   // (G3540: its own sign, the room's too)
+        HGN.groundDials ? HGN.groundDials(dims.ground) : {});   // (G3541/G3542: its own ground - the apron, the dark ring, the dark foot - the room's too)
       const fy = P.floorY || 0, c = Math.cos(H.ry || 0), sn = Math.sin(H.ry || 0), y0 = H.y !== undefined ? H.y : 0;
       // (X, Z) in the house frame -> the hangar's local (x = -Z, z = X) -> the world (the node's yaw), the height back in the frame
       P.ground = (X, Z) => { const hx = -Z, hz = X; return world.terrainH(H.x + hx * c + hz * sn, H.z - hx * sn + hz * c) - y0 + fy; };
@@ -6283,9 +6284,12 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (built.bags.smoke && F.MAT.smoke) { const m = built.bags.smoke.mesh(inner, F.MAT.smoke); if (m) { m.renderOrder = 10; flat.push(m); } }
       if (built.bags.aoskirt && F.MAT.aoskirt) { const m = built.bags.aoskirt.mesh(inner, F.MAT.aoskirt); if (m) { m.renderOrder = 5; flat.push(m); } }
       F.SHADE_U.uDirtY0.value = y0 - fy;   // G581: the dirt line drawn in the house frame, lifted by where it stands
+      // G3541/G3542: the shed's ground pad on the terrain (one draw: the apron, the dark ring round the walls), shadowed
+      const pad = built.pad && HGN.padMesh ? HGN.padMesh(THREE, built.pad) : null;
+      if (pad) inner.add(pad);
       const mats = {};
       for (const k in built.MAT) if (k.slice(0, 2) === 'h_') mats[k.slice(2)] = built.MAT[k];
-      return { group, mats, flat, dims: { HW: dims.HW, HD: dims.HD, EAVE: dims.EAVE, RIDGE: dims.EAVE + 2.6 }, polished: true, stats: built.stats };
+      return { group, mats, flat, pad, dims: { HW: dims.HW, HD: dims.HD, EAVE: dims.EAVE, RIDGE: dims.EAVE + 2.6 }, polished: true, stats: built.stats };
     }
     // the merged shell's coarse rung (G1398): its meshes of at least `share` of the surface, sharing their geometry and
     // material (nothing copied); null when that keeps nothing. `cast` (a Set of materials): only those cast - the outer
@@ -6433,6 +6437,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
       });
       for (const m of shed.flat || []) { m.castShadow = false; m.receiveShadow = false; }   // G3532: the skirt and the smoke
+      if (shed.pad) { shed.pad.castShadow = false; shed.pad.receiveShadow = true; }   // G3541: the pad takes the shed's shadow (blended over the terrain, it must)
       // G600 (A1-STAND, playtest 2026-09-26): THE SHELL IS A HANDFUL OF DRAWS. The 278 meshes below were 278
       // draws in the main pass, 278 more in the near shadow map (every frame: the stand is inside its 90 m) and
       // again in the far map - at the stand, where the frame was measured. Nothing in the exterior moves (the

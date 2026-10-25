@@ -1645,6 +1645,15 @@ if (!EXT) {
   const PLAIN = !!(SITE && !SITE.apron);
   // the slab in front of the door, in the shed's own frame (the door is at local -x)
   const SLAB_RECT = { x0: -HD - 42, x1: -HD + 0.5, z0: -HW - 12, z1: HW + 12 };
+  // G3541/G3542 (the user 25 Oct: "the pavement in front: concrete in the garage and dirt in the world. Can we ensure these
+  // are aligned and using the same materials?"): a plot's dims.ground is the ground round this shed in the room as in the
+  // world - HANGAR_GEN's pad (the apron, the dark ring round the walls) on the field, in place of the slab; the polish
+  // build below stands it, as render_world's polishedShell does. PAD_RECT: where no tuft grows (its fading rim left to them)
+  const HGN_G = typeof window !== 'undefined' ? window.HANGAR_GEN : null;
+  const GROUND = (PLAIN && D0 && D0.ground && HGN_G && HGN_G.groundDials) ? HGN_G.groundDials(D0.ground) : null;
+  const PAD = GROUND && GROUND.pad ? GROUND.pad : null;
+  const PAD_RECT = PAD ? { x0: -HD - PAD.apron + PAD.fade, x1: HD + PAD.ring * 0.5,
+                           z0: -HW - Math.max(PAD.ring, PAD.side) * 0.5, z1: HW + Math.max(PAD.ring, PAD.side) * 0.5 } : null;
 
   // ---- THE LIBRARY MATERIALS ---------------------------------------------
   // The ground wears scanned sets now (assets/airfield -> the ground library, ground_tex.js), and
@@ -1915,20 +1924,21 @@ if (!EXT) {
 
     // ---- THE APRON ------------------------------------------------------
     const ap = PLAIN ? SLAB_RECT : L(SITE.apron);
-    pad(ap, Y_APRON, M.apron);
-    kerb(ap, Y_APRON, SLAB, M.apron);
+    // (G3541: a plot's own ground stands instead - the pad, in the polish block - and none of the slab's paint)
+    if (!PAD) pad(ap, Y_APRON, M.apron);
+    if (!PAD) kerb(ap, Y_APRON, SLAB, M.apron);
     // SAW-CUT JOINTS on a 5 m grid, the way a slab that size is actually
     // poured and cut. They are what makes the eye read SIZE off the concrete.
-    for (let x = ap.x0 + 5; x < ap.x1 - 0.5; x += 5)
+    if (!PAD) for (let x = ap.x0 + 5; x < ap.x1 - 0.5; x += 5)
       paint(x - 0.02, ap.z0, x + 0.02, ap.z1, 0x2b2823, Y_APRON + 0.004, 0.55);
-    for (let z = ap.z0 + 5; z < ap.z1 - 0.5; z += 5)
+    if (!PAD) for (let z = ap.z0 + 5; z < ap.z1 - 0.5; z += 5)
       paint(ap.x0, z - 0.02, ap.x1, z + 0.02, 0x2b2823, Y_APRON + 0.004, 0.55);
     // the slot drain across the door line, and the lead-in the aeroplane
     // follows out to the taxiway
-    paint(ap.x1 - 1.4, -DOOR_W / 2, ap.x1 - 1.1, DOOR_W / 2, 0x1d1b18, Y_APRON + 0.005, 0.85);
+    if (!PAD) paint(ap.x1 - 1.4, -DOOR_W / 2, ap.x1 - 1.1, DOOR_W / 2, 0x1d1b18, Y_APRON + 0.005, 0.85);
     const tx = PLAIN ? null : L(SITE.taxiway);
     const lead = tx ? (tx.z0 + tx.z1) / 2 : 0;
-    paint(ap.x0, -0.09, ap.x1, 0.09, 0xd8bd4a, Y_APRON + 0.006, 0.9);
+    if (!PAD) paint(ap.x0, -0.09, ap.x1, 0.09, 0xd8bd4a, Y_APRON + 0.006, 0.9);
     if (tx) paint(ap.x0 - 0.02, Math.min(0, lead), ap.x0 + 0.16, Math.max(0, lead),
           0xd8bd4a, Y_APRON + 0.006, 0.9);
     // tie-down rings, from the declaration
@@ -2047,7 +2057,7 @@ if (!EXT) {
       roughness: 0.92, metalness: 0, fog: false, envMapIntensity: ENV_OUT }));
 
     // where a tuft may NOT stand: the paving, the strip, and the shed itself
-    const blocks = PLAIN ? [SLAB_RECT, { x0: -HD - 0.5, x1: HD + 0.5, z0: -HW - 0.5, z1: HW + 0.5 }]
+    const blocks = PLAIN ? [PAD_RECT || SLAB_RECT, { x0: -HD - 0.5, x1: HD + 0.5, z0: -HW - 0.5, z1: HW + 0.5 }]
                 : [L(SITE.apron), L(SITE.taxiway),
                     { x0: -HD - 0.5, x1: HD + 0.5, z0: -HW - 0.5, z1: HW + 0.5 }];
     if (R && !PLAIN) {
@@ -2078,12 +2088,27 @@ if (!EXT) {
     try { off = off || (typeof location !== 'undefined' && /[?&]roompolish=0/.test(location.search || '')); } catch (e) {}
     if (HGN && HGN.build && HGN.PRESETS && PRE && !off) {
       try {
+        // G3540 v2 (the user 25 Oct: "the hanging wing under construction must never sit in front of it"): the inside sign's
+        // wall and spot from this room's own fit (the same call the props stand by below: hangarSignSpot keeps it off the
+        // hung wing, its straps, the stove's flue and anything tall at that wall); the plot's spot when the fit cannot say
+        let spot = null;
+        if (D0.sign && typeof hangarFit === 'function' && typeof hangarSignSpot === 'function') {
+          try {
+            const kits0 = (opts && opts.kits && opts.kits.length) ? opts.kits.slice() : ((typeof HANGAR_KITS_DEFAULT !== 'undefined') ? HANGAR_KITS_DEFAULT.slice() : []);
+            const reg0 = (typeof PROP_REG !== 'undefined') ? PROP_REG : null;
+            const fit0 = hangarFit({ HW: HW, HD: HD, EAVE: EAVE }, kits0, { reg: reg0, shell: SHELL, layout: LAYOUT ? opts.layout : undefined, omit: opts && opts.omit });
+            spot = hangarSignSpot({ HW: HW, HD: HD, EAVE: EAVE }, fit0, D0.sign, reg0);
+          } catch (e) { spot = null; }
+        }
         const P = Object.assign({}, HGN.DEF, HGN.PRESETS[PRE], { HW: HW, HD: HD, EAVE: EAVE, polishOnly: 1, lights: 0, sign: 0, signKey: '', flue: 0, smoke: 0 },
-          HGN.signDials ? HGN.signDials(D0.sign) : {});   // (G3540: the shed's own sign, as the world's shed wears it)
+          HGN.signDials ? HGN.signDials(D0.sign, spot) : {},   // (G3540: the shed's own sign, as the world's shed wears it)
+          GROUND || {});   // (G3541/G3542: the plot's ground - the pad, the dark foot - as the world's shed stands on it)
         const fy = P.floorY || 0;
         const apR = PLAIN ? SLAB_RECT : (SITE && SITE.apron ? L(SITE.apron) : SLAB_RECT);
         // the house frame's (X, Z) is this room's (x = -Z, z = X): the slab's height on the apron, the field's off it
-        P.ground = (X, Z) => { const x = -Z, z = X; return ((x >= apR.x0 && x <= apR.x1 && z >= apR.z0 && z <= apR.z1) ? Y_APRON : Y_FIELD) + fy; };
+        // (G3541: on a plot's own ground there is no slab - the field all round, the pad draped on it)
+        P.ground = PAD ? (() => Y_FIELD + fy)
+          : (X, Z) => { const x = -Z, z = X; return ((x >= apR.x0 && x <= apR.x1 && z >= apR.z0 && z <= apR.z1) ? Y_APRON : Y_FIELD) + fy; };
         const F = HGN.makeFinish(); HGN.applyFinish(P, F);
         const built = HGN.build(P, 0, F);
         // the dirt line is drawn against WORLD height: lifted by wherever the room's group stands (a uniform read at upload)
@@ -2098,8 +2123,16 @@ if (!EXT) {
           const m = built.bags.aoskirt.mesh(inner, F.MAT.aoskirt);
           if (m) { m.renderOrder = 5; m.castShadow = false; m.receiveShadow = false; }
         }
+        // G3541/G3542: the plot's ground pad, the world's own (HANGAR_GEN padMesh), lit as the room's outdoors are
+        const pm = built.pad && HGN.padMesh ? HGN.padMesh(THREE, built.pad, { fog: false, envMapIntensity: ENV_OUT }) : null;
+        if (pm) { outdoor(pm.material); inner.add(pm); }
         G.add(inner);
-        ROOM_POLISH = { tris: built.stats.tris, gutter: built.stats.gutterLen, pipes: built.stats.downpipes, skirt: !!built.bags.aoskirt };
+        // (G3540 v2: where the inside sign hung, in this room's frame - x = -Z, z = X - for the stills rig and the gates;
+        // G3541: the pad's triangles)
+        const si = built.stats.sign && built.stats.sign.inside;
+        ROOM_POLISH = { tris: built.stats.tris, gutter: built.stats.gutterLen, pipes: built.stats.downpipes, skirt: !!built.bags.aoskirt,
+          signIn: si ? { x: +(-si.z).toFixed(3), y: +(si.y - fy).toFixed(3), z: +si.x.toFixed(3), nx: -si.nz, nz: si.nx, at: si.at, fit: !!spot } : null,
+          pad: built.stats.pad ? built.stats.pad.tris : 0, footDark: built.stats.footDark || 0 };
       } catch (e) { ROOM_POLISH = { error: String(e && e.message || e) }; if (typeof console !== 'undefined') console.warn('room polish:', e && e.message); }
     }
   }
@@ -2358,6 +2391,12 @@ let ROOM_DIRT = 0;
   if (!EXT && !off && HGH && HGH.shadeHouse && HGH.makeShadeU) {
     const SU = HGH.makeShadeU();
     SU.uDirtTop.value = 0.62; SU.uDirtH.value = 1.05; SU.uDirtK.value = FRAME === 'timber' ? 0.55 : 0.5; SU.uAOd.value = 0; SU.uSag.value = 0;
+    // G3542 (the user 25 Oct: "a bottom-up gradient on the walls, dark at the ground to transparent - the ground's AO on the
+    // building"): a plot's dims.ground takes the line DARK, as HANGAR_GEN footDirt does the world's shed - full at the
+    // field (10 cm under the floor), gone footH up, the shadow's colour at its foot dial (both faces: the floor's contact too)
+    const HGF = typeof window !== 'undefined' ? window.HANGAR_GEN : null;
+    const FOOT = (D0 && D0.ground && HGF && HGF.groundDials) ? HGF.groundDials(D0.ground) : null;
+    if (FOOT && FOOT.footAO > 0) { SU.uDirtTop.value = -0.10 + FOOT.footH; SU.uDirtH.value = FOOT.footH; SU.uDirtK.value = 1; }
     SU.uDirtY0 = { get value() { return G.matrixWorld.elements[13]; }, set value(v) {} };
     const DIRT = FRAME === 'timber'
       ? { wall: [1.0, 0x6d6353], wallBack: [1.0, 0x6d6353], door: [1.2, 0x6d6353], beamMain: [0.8, 0x5d5446] }
@@ -2375,6 +2414,7 @@ let ROOM_DIRT = 0;
       noAO.toString = () => 'room-noao+' + hook.toString();   // (three keys the program on the hook's text)
       m.onBeforeCompile = noAO;
       m.userData.dirt.uDirtGain.value = DIRT[k][0]; m.userData.dirt.uDirtOwn.value.setHex(DIRT[k][1]); m.userData.dirt.uWander.value = 0;
+      if (FOOT && FOOT.footAO > 0) { m.userData.dirt.uDirtGain.value = FOOT.footAO; m.userData.dirt.uDirtOwn.value.setHex(0x221d17); }   // (HANGAR_GEN's FOOT_DARK)
       ROOM_DIRT++;
     }
   }

@@ -215,7 +215,12 @@ const SCENERY_HANGARS = `JSON.stringify((() => {
   const roomPairs = async (id) => {
     const D = await roomDims(); if (!D) return null;
     await clean(true);
-    for (const [k, [p, t]] of Object.entries(PAIRS(D))) {
+    // G3540 v2: the inside sign where the room's fit hung it (hangar.polish.signIn, the room's frame), 6 m off it, eye high
+    const pol = JSON.parse(await ev('JSON.stringify((GARAGE_ENV._debug().hangar || {}).polish || null)', 'null') || 'null');
+    const si = pol && pol.signIn, PR = PAIRS(D);
+    if (si) PR.signin = [[si.x + si.nx * 6, 1.8, si.z + si.nz * 6], [si.x, si.y, si.z]];
+    console.log('  the inside sign: ' + (si ? si.at + ' at (' + si.x + ', ' + si.y + ', ' + si.z + ')' + (si.fit ? ' (fit)' : ' (plot)') : 'none') + (pol ? ', pad tris ' + pol.pad + ', dark foot ' + pol.footDark : ''));
+    for (const [k, [p, t]] of Object.entries(PR)) {
       const ok = await ev('window.FLYDIY_ROOM_EYE ? FLYDIY_ROOM_EYE(' + JSON.stringify(p) + ',' + JSON.stringify(t) + ') : "no hook"', false);
       if (ok !== true) { console.log('  ROOM EYE REFUSED ' + k + ' (' + ok + ')'); await clean(false); return D; }
       await sleep(2500); await shoot(id + '_room_' + k + '.jpg');

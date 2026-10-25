@@ -132,6 +132,8 @@ const DEF = {
   gutter: 1, flue: 1, smoke: 1, smokeK: 0.55, smokeLean: 0.35, lights: 0,
   sign: 0, signKey: '', signW: 4.0,
   signPlank: 0, signIn: 0, signInX: 0,   // G3540: the sign as a hung plank; a second one inside, on the back wall at house x
+  signInWall: 0,   // G3540: the inside one's wall - 0 the back wall (at house x signInX), 1 / -1 the flank at house x = +-HW (at house z signInX)
+  footAO: 0, footH: 1.0, pad: null,   // G3542: the ground's dark on the walls' foot (the dirt line taken dark); G3541/G3542: the shed's ground pad (groundDials)
   wallSet: SET_IDX('wall', 'rustysheet'), wallTint: 0xffffff, stemSet: SET_IDX('stem', 'sandstone'),
   roofSet: SET_IDX('roof', 'corrworn'), doorSet: SET_IDX('door', 'rustymetal'), metalSet: SET_IDX('metal', 'galv'),
   beamSet: SET_IDX('beam', 'rough'), trimCol: 6, trimW: 0.08,
@@ -161,6 +163,8 @@ const ROWS = [
     ['signW', 'its width', 1, 8, 0.1, null, P => !!P.sign],
     ['signPlank', 'a hung plank', 0, 1, 1, null, P => !!P.sign],
     ['signIn', 'one inside too', 0, 1, 1, null, P => !!P.sign && !!P.signPlank],
+    ['signInWall', 'on the back / a flank', -1, 1, 1, null, P => !!P.sign && !!P.signIn],
+    ['footAO', 'the dark foot', 0, 0.9, 0.05], ['footH', 'its height', 0.2, 3, 0.05],
     ['signInX', 'inside, along the back', -20, 20, 0.1, null, P => !!P.signIn],
   ]],
   ['finish', [
@@ -206,20 +210,116 @@ function rng(seed) { let st = ((seed | 0) * 2654435761 + 11) >>> 0; return () =>
 // slot - the billboard alpha-cut at 0.5, so the painted board's own ragged edge is the silhouette; the body is held a
 // little inside that edge so it never shows round it. Returns the face's place (the sign slot's reading).
 function signPlank(bags, Q, o) {
-  const c = Math.cos(o.rot), s = Math.sin(o.rot), X = [c, s, 0], U = [-s, c, 0], t = 0.04;
-  const at = (a, b, z) => [o.x + X[0] * a + U[0] * b, o.y + X[1] * a + U[1] * b, z];
-  const zb = o.z + t / 2, zf = o.z + t + 0.004;
-  beam(bags.beam, at(-o.w / 2 * 0.985, 0, zb), at(o.w / 2 * 0.985, 0, zb), t / 2, o.h / 2 * 0.94, U, 0, { bevel: Q.lod === 0 ? 0.006 : 0 });
-  const C = [o.x, o.y, zf];
-  face(bags.glass, [at(-o.w / 2, -o.h / 2, zf), at(o.w / 2, -o.h / 2, zf), at(o.w / 2, o.h / 2, zf), at(-o.w / 2, o.h / 2, zf)], [0, 0, 1],
-       p => { const d = [p[0] - C[0], p[1] - C[1]]; return [(d[0] * X[0] + d[1] * X[1]) / o.w + 0.5, (d[0] * U[0] + d[1] * U[1]) / o.h + 0.5]; });
-  return { x: o.x, y: o.y, z: zf, w: o.w, h: o.h, nx: 0, nz: 1, rot: o.rot };
+  // G3540 v2 (the user 25 Oct: "a wooden plank with the wood texture, the image projected on top ... the thickness UV
+  // mapped properly, end grain on the edges"): the plank is the whole board in the beam's wood - its face, its two long
+  // edges along the grain, its two ends ACROSS it (u up the end, v through the thickness, packed tight: the rings of a
+  // sawn end) - and the painted image lies on it, alpha-cut, so where the painting is clear the wood shows. `yaw` turns
+  // the board about y (0: facing +z); `rot` tilts it in its own plane.
+  const yw = o.yaw || 0, N = [Math.sin(yw), 0, Math.cos(yw)], Rr = [Math.cos(yw), 0, -Math.sin(yw)], Y = [0, 1, 0];
+  const c = Math.cos(o.rot), s = Math.sin(o.rot), X = add(mul(Rr, c), mul(Y, s)), U = add(mul(Rr, -s), mul(Y, c)), t = 0.04;
+  const at = (a, b, d) => add(add(add([o.x, o.y, o.z], mul(X, a)), mul(U, b)), mul(N, d));
+  const hw2 = o.w / 2, hh = o.h / 2, d0 = 0.004, d1 = d0 + t;
+  const loc = (p, d) => { const q = sub(p, at(0, 0, d)); return [dot(q, X), dot(q, U)]; };
+  // the face, the long edges (the grain along), the ends (end grain); no back - it is on the wall
+  face(bags.beam, [at(-hw2, -hh, d1), at(hw2, -hh, d1), at(hw2, hh, d1), at(-hw2, hh, d1)], N, p => { const l = loc(p, d1); return [l[0] + hw2, l[1] + hh]; });
+  for (const sb of [-1, 1])
+    face(bags.beam, [at(-hw2, sb * hh, d0), at(hw2, sb * hh, d0), at(hw2, sb * hh, d1), at(-hw2, sb * hh, d1)], mul(U, sb),
+         p => { const q = sub(p, at(0, 0, 0)); return [dot(q, X) + hw2, dot(q, N) * 3]; });
+  for (const sa of [-1, 1])
+    face(bags.beam, [at(sa * hw2, -hh, d0), at(sa * hw2, hh, d0), at(sa * hw2, hh, d1), at(sa * hw2, -hh, d1)], mul(X, sa),
+         p => { const q = sub(p, at(0, 0, 0)); return [(dot(q, U) + hh) * 0.35, dot(q, N) * 6]; });
+  // the painting, 4 mm proud of the wood
+  const df = d1 + 0.004;
+  face(bags.glass, [at(-hw2, -hh, df), at(hw2, -hh, df), at(hw2, hh, df), at(-hw2, hh, df)], N, p => { const l = loc(p, df); return [l[0] / o.w + 0.5, l[1] / o.h + 0.5]; });
+  // NO SHADOW IS CAST (the face is alpha-cut; the user: "fake it"): a soft dark rectangle on the wall behind the board, a
+  // little low (the light is from above), its edge fading over 12 cm - the contact the board would leave - in the ground
+  // skirt's bag (the house's multiply-dark, its alpha from the vertex: no new draw)
+  const sk = bags.aoskirt;
+  if (sk) {
+    const dz = 0.002, k = 0.5, sp = 0.12, lo = 0.05;
+    const P0 = (a, b, gl) => { sk.setGlow(gl); return sk.v(at(a, b - lo, dz), [0, 0]); };
+    const inn = [P0(-hw2 - 0.01, -hh - 0.01, k), P0(hw2 + 0.01, -hh - 0.01, k), P0(hw2 + 0.01, hh + 0.01, k), P0(-hw2 - 0.01, hh + 0.01, k)];
+    const out = [P0(-hw2 - sp, -hh - sp, 0), P0(hw2 + sp, -hh - sp, 0), P0(hw2 + sp, hh + sp * 0.6, 0), P0(-hw2 - sp, hh + sp * 0.6, 0)];
+    sk.quad(inn[0], inn[1], inn[2], inn[3]);
+    for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; sk.quad(out[i], out[j], inn[j], inn[i]); }
+    sk.setGlow(0);
+  }
+  const F0 = at(0, 0, df);
+  return { x: F0[0], y: F0[1], z: F0[2], w: o.w, h: o.h, nx: N[0], nz: N[2], rot: o.rot };
 }
-// a shed's own sign (a plot's dims.sign: { key, w, inside }) as the build's dials, for the world's shed and the room alike
-function signDials(sg) {
+// a shed's own sign (a plot's dims.sign: { key, w, inside }) as the build's dials, for the world's shed and the room alike;
+// `spot` (the room's, from its fit: hangarSignSpot) says where the inside one hangs: { wall: 0 the back, 1 / -1 a flank, at }
+function signDials(sg, spot) {
   if (!sg || typeof sg.key !== 'string' || !sg.key) return { sign: 0, signKey: '' };
   const inside = typeof sg.inside === 'number' && isFinite(sg.inside);
-  return { sign: 1, signKey: sg.key, signW: sg.w > 0 ? sg.w : 2, signPlank: 1, signIn: inside ? 1 : 0, signInX: inside ? sg.inside : 0 };
+  const sp = spot && typeof spot.at === 'number' && isFinite(spot.at) ? spot : null;
+  return { sign: 1, signKey: sg.key, signW: sg.w > 0 ? sg.w : 2, signPlank: 1, signIn: inside ? 1 : 0,
+           signInX: sp ? sp.at : (inside ? sg.inside : 0), signInWall: sp ? (sp.wall | 0) : 0 };
+}
+// G3541/G3542 (the user 25 Oct: "the pavement in front: concrete in the garage and dirt in the world - aligned and using
+// the same materials"; "the building is not anchored"): a plot's dims.ground - { set, apron, side, ring, fade, ao, foot }
+// - as the build's dials, for the world's shed and the room alike. The pad (padData) is ONE draped grid in the house frame:
+// the apron `apron` m out of the door, `side` m past each flank, `ring` m round the back; the set's own texture at metric
+// uv; its alpha fading over `ring` at the back and the flanks and over `fade` at the front; its colour the ground's
+// occlusion - `ao` dark at the walls, gone `ring` m out ((1 - d)^2, the skirt's own curve). `foot`: the walls' dark foot.
+function groundDials(gd) {
+  if (!gd || typeof gd.set !== 'string' || !gd.set) return { pad: null, footAO: 0 };
+  const n = (v, d, lo, hi) => (typeof v === 'number' && isFinite(v)) ? Math.max(lo, Math.min(hi, v)) : d;
+  const pad = { set: gd.set, apron: n(gd.apron, 12, 0, 60), side: n(gd.side, 1, 0.3, 20), ring: n(gd.ring, 1, 0.3, 4),
+                fade: n(gd.fade, 2, 0.3, 10), ao: n(gd.ao, 0.55, 0, 0.9), tile: n(gd.tile, 2, 0.25, 20), cell: 1 };
+  return { pad, footAO: n(gd.foot, 0.5, 0, 0.9), footH: n(gd.footH, 1.0, 0.2, 3), aoGround: 0 };
+}
+function padData(T, g, HW, HD) {
+  const ring = T.ring, side = Math.max(ring, T.side), x0 = -HW - side, x1 = HW + side, z0 = -HD - ring, z1 = HD + Math.max(T.apron, ring);
+  const nx = Math.max(2, Math.ceil((x1 - x0) / T.cell)), nz = Math.max(2, Math.ceil((z1 - z0) / T.cell));
+  const sm = v => { const q = Math.max(0, Math.min(1, v)); return q * q * (3 - 2 * q); };
+  const pos = [], uv = [], col = [], idx = [];
+  for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) {
+    const X = x0 + (x1 - x0) * i / nx, Z = z0 + (z1 - z0) * j / nz;
+    const a = sm(Math.min(X - x0, x1 - X) / side) * sm((Z - z0) / ring) * sm((z1 - Z) / T.fade);
+    const dx = Math.max(0, Math.abs(X) - HW), dz = Math.max(0, Math.abs(Z) - HD), d = Math.min(1, Math.hypot(dx, dz) / ring);
+    const k = 1 - T.ao * (1 - d) * (1 - d);
+    pos.push(X, g(X, Z) + 0.025, Z); uv.push(X, Z); col.push(k, k, k, a);
+  }
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    const a = j * (nx + 1) + i, b = a + 1, c2 = a + nx + 1, d2 = c2 + 1;
+    idx.push(a, c2, b, b, c2, d2);
+  }
+  return { pos, uv, col, idx, set: T.set, tile: T.tile, rect: { x0, x1, z0, z1 } };
+}
+// the pad as a mesh (both callers): a draped grid, the set's maps at its tile, lit and shadowed, blended (never written to depth)
+function padMesh(THREE, data, extra) {
+  if (!data || !THREE || !THREE.BufferGeometry) return null;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(data.pos, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(data.uv, 2));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(data.col, 4));
+  geo.setIndex(data.idx); geo.computeVertexNormals();
+  const o = Object.assign({ roughness: 1, metalness: 0, vertexColors: true, transparent: true, depthWrite: false,
+                            polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }, extra || {});
+  const maps = typeof siteGroundMaps === 'function' ? siteGroundMaps(THREE, data.set, data.tile, (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 8) : null;
+  if (maps) Object.assign(o, maps); else o.color = 0x8a7a62;
+  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial(o));
+  m.name = 'shed:pad'; m.castShadow = false; m.receiveShadow = true; m.renderOrder = 4;
+  return m;
+}
+// G3542 (the user: "a bottom-up gradient on the walls, dark at the ground to transparent - the ground's AO on the
+// building"): the house's dirt line taken DARK - its ramp put on the ground (full at the foot, gone `footH` up) and its
+// colour the shadow's, at `footAO` whatever the weather made of the dirt dial. Every material this finish shades, roofs out.
+const FOOT_DARK = 0x221d17;
+function footDirt(mats, SU, P, g0) {
+  if (!(P.footAO > 0)) return 0;
+  const H = Math.max(0.2, P.footH || 1);
+  SU.uDirtTop.value = g0 + H; SU.uDirtH.value = H;
+  const gain = P.footAO / Math.max(0.05, SU.uDirtK.value);
+  let n = 0;
+  for (const k in mats) {
+    const m = mats[k], D = m && m.userData && m.userData.dirt;
+    if (!D || /^(glass|pane|smoke|aoskirt)$/.test(k)) continue;
+    const nm = (m.userData.hangarShell || k).split('/').pop();
+    D.uDirtGain.value = /^roof/.test(nm) ? 0 : gain; D.uDirtOwn.value.setHex(FOOT_DARK); n++;
+  }
+  return n;
 }
 function build(P0, lod, F) {
   const P = Object.assign({}, DEF, P0 || {});
@@ -467,10 +567,14 @@ function build(P0, lod, F) {
         const out = signPlank(bags, Q, { x: (jr() - 0.5) * 0.16, y, z: HD + wf + 0.012, w: sw, h: sh, rot: (jr() - 0.5) * 0.05 });
         sign = Object.assign(out, { at: 'gable', key: P.signKey });
         if (P.signIn) {
-          // the back wall's inside face (the house frame's -z; the garage stand looks at it past the aeroplane), under the eave
-          const yi = eave - 0.25 - sh / 2;
-          const inn = signPlank(bags, Q, { x: P.signInX + (jr() - 0.5) * 0.16, y: yi, z: -HD + wf + 0.012, w: sw, h: sh, rot: (jr() - 0.5) * 0.05 });
-          sign.inside = Object.assign(inn, { at: 'back wall, inside' });
+          // inside, under the eave: the back wall's inside face (the house frame's -z; the garage stand looks at it past the
+          // aeroplane) at house x = signInX, or a flank's (signInWall +-1: the wall at house x = +-HW) at house z = signInX -
+          // the room picks the spot from its fit, clear of the hung wing and everything else standing at that wall
+          const yi = eave - 0.25 - sh / 2, jx = (jr() - 0.5) * 0.16, jt = (jr() - 0.5) * 0.05, fl = P.signInWall | 0;
+          const inn = fl
+            ? signPlank(bags, Q, { x: fl * (HW - wf - 0.012), y: yi, z: P.signInX + jx, w: sw, h: sh, rot: jt, yaw: -fl * Math.PI / 2 })
+            : signPlank(bags, Q, { x: P.signInX + jx, y: yi, z: -HD + wf + 0.012, w: sw, h: sh, rot: jt });
+          sign.inside = Object.assign(inn, { at: fl ? (fl > 0 ? '+x' : '-x') + ' flank, inside' : 'back wall, inside' });
         }
       }
     }
@@ -485,6 +589,8 @@ function build(P0, lod, F) {
   const occ = [{ x: 0, z: 0, hx: HW + pt, hz: HD + pt, k: 0.75, soft: 2.2 }];
   for (const o of occ) o.dry = true;
   if (P.aoGround) HG.buildGroundAO(bags.aoskirt, occ, g);
+  // G3541/G3542: the shed's ground pad (the apron and the dark ring round the footprint; the callers stand it: padMesh)
+  const pad = P.pad && P.pad.set ? padData(P.pad, g, HW + pt / 2, HD + pt / 2) : null;
   const OUT = BAGS.concat(ext ? ext.keys : []);
   const aoInfo = K.bakeAO(OUT.map(k => bags[k]), { strength: P.ao === undefined ? 0.85 : P.ao, range: P.aoRange || 0.7, ground: g });
   let tris = 0, verts = 0; const per = {};
@@ -506,7 +612,9 @@ function build(P0, lod, F) {
   // the bags this build carries (the shell's own beside the polish) and the materials for them
   const MATX = Object.assign({}, F ? F.MAT : MAT, ext ? ext.mats : {});
   if (F && ext && P.ownShell) { Object.assign(F.MAT, ext.mats); stats.shellShaded = finishShell(ext.mats, F.SHADE_U, P); }   // G3531
-  return { bags, stats, P, V: { L: 2 * HW, w: 2 * HD, wallT: t, floorY: fy }, R: null, MAT: MATX, BAGS: OUT };
+  if (F && P.footAO > 0) stats.footDark = footDirt(MATX, F.SHADE_U, P, g(0, 0));   // G3542 (after the shell's own dirt)
+  stats.pad = pad ? { tris: pad.idx.length / 3, rect: pad.rect, set: pad.set } : null;
+  return { bags, stats, P, V: { L: 2 * HW, w: 2 * HD, wallT: t, floorY: fy }, R: null, MAT: MATX, BAGS: OUT, pad };
 }
 // THE BAKE (G405.1): hangar.js's exterior group, every mesh's geometry read
 // through its world matrix, turned from the hangar's frame (the long axis x,
@@ -649,6 +757,15 @@ function applyFinish(P, F) {
     const tx = new THREE.Texture(set.img); tx.colorSpace = THREE.SRGBColorSpace; tx.wrapS = tx.wrapT = THREE.ClampToEdgeWrapping;
     const ok = () => { tx.needsUpdate = true; }; if (set.img.complete && set.img.naturalWidth) ok(); else if (set.img.addEventListener) set.img.addEventListener('load', ok);
     M.glass = new THREE.MeshStandardMaterial({ map: tx, roughness: 0.75, alphaTest: 0.5, color: 0xffffff });   // (G3540: cut, never blended)
+    // G3540 v2 (the user: "slightly darkened sign edges"): the painting darker toward its rim, a band of 7 % of its height
+    // all round (the width's uv scaled by the aspect so the band is one width), the board's own edge in shade
+    if (P.signPlank) {
+      const asp = (typeof SIGN_TEX_META !== 'undefined' && SIGN_TEX_META && SIGN_TEX_META[P.signKey] && SIGN_TEX_META[P.signKey].aspect) || 3;
+      const hook = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n' +
+        '  { vec2 se = min(vMapUv, 1.0 - vMapUv); diffuseColor.rgb *= mix(0.62, 1.0, smoothstep(0.0, 0.07, min(se.x * ' + asp.toFixed(3) + ', se.y))); }'); };
+      M.glass.onBeforeCompile = hook;
+      M.glass.customProgramCacheKey = () => 'signedge' + asp.toFixed(3);
+    }
   }
 }
 function finishReport() {
@@ -664,7 +781,7 @@ function randomHangar(seed) {
 }
 
 window.HANGAR_GEN = { DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, SHELLS, ROLE_SETS, SET_IDX, CATS, catOf, shellOf, build, applyFinish, makeFinish, finishReport, randomHangar, LIB, library: shell => LIB[shell] || null,
-  finishShell, SHELL_DIRT, signDials };   // G3531; G3540
+  finishShell, SHELL_DIRT, signDials, groundDials, padMesh };   // G3531; G3540; G3541/G3542
 window.HANGAR_LIB = LIB;
 // THE CATALOGUE: a building with its door hook toward the road side
 window.HANGAR_GEN.CATALOGUE_V = 1;
