@@ -46,6 +46,8 @@
 //   the cable would otherwise take the forward of --port); --shot <file.jpg> the page after the boot, with the VIEW's share
 //   of the screen (the canvas box / the viewport) and the frame's draw calls / triangles (FLYDIY_RENDERER.info) in R.view;
 //   --cpu-throttle N (CDP's main thread N x slower, set AFTER the boot and the shot: the phone's CPU, roughly).
+//   --desk: the DESKTOP garage instead (--size at --dpr, no mobile, no touch, no touch checks; the orbit is a mouse drag) -
+//   the user, 25 Oct: the new top bar is for every version, so the desktop garage is measured the same way.
 'use strict';
 const { execFileSync } = require('child_process');
 const fs = require('fs'), path = require('path');
@@ -109,7 +111,8 @@ async function connect() {
   await cmd('Page.enable'); await cmd('Runtime.enable'); await cmd('Inspector.enable'); await cmd('Performance.enable');
   // --emulate (G2103): a desktop Chrome / headless Chromium dressed as the S20 FE (412 x 915 at 2.625, touch) - the cloud's
   // smoke test of this rig, and the box's before the phone is plugged in. Never on the phone itself
-  if (flag('emulate')) { await cmd('Emulation.setDeviceMetricsOverride', { width: SIZE[0], height: SIZE[1], deviceScaleFactor: DPR, mobile: true });
+  if (flag('desk')) await cmd('Emulation.setDeviceMetricsOverride', { width: SIZE[0], height: SIZE[1], deviceScaleFactor: DPR, mobile: false });
+  else if (flag('emulate')) { await cmd('Emulation.setDeviceMetricsOverride', { width: SIZE[0], height: SIZE[1], deviceScaleFactor: DPR, mobile: true });
     await cmd('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 }); }
   return { ver, tab, cmd, ev, S, close: async () => { try { await fetch(base + '/json/close/' + tab.id); } catch (e) {} } };
 }
@@ -295,9 +298,11 @@ async function touchChecks(C) {
     const vp = JSON.parse(await C.ev('JSON.stringify([innerWidth, innerHeight])'));
     const fp = C.ev('__MP.frames(' + FRAMES + ').then(JSON.stringify)', FRAMES * 1000 + 30000);
     const y = vp[1] * 0.35, x0 = vp[0] * 0.3, x1 = vp[0] * 0.7, tEnd = Date.now() + FRAMES * 1000;
-    await C.cmd('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x0, y }] });
-    for (let i = 0; Date.now() < tEnd; i++) { const u = (Math.sin(i / 15) + 1) / 2; await C.cmd('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x0 + (x1 - x0) * u, y }] }); await sleep(16); }
-    await C.cmd('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    const DESK = flag('desk'), mouse = (type, x) => C.cmd('Input.dispatchMouseEvent', { type, x, y, button: 'left', buttons: type === 'mouseReleased' ? 0 : 1, clickCount: 1 });
+    if (DESK) await mouse('mousePressed', x0); else await C.cmd('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x0, y }] });
+    for (let i = 0; Date.now() < tEnd; i++) { const u = (Math.sin(i / 15) + 1) / 2, x = x0 + (x1 - x0) * u;
+      if (DESK) await mouse('mouseMoved', x); else await C.cmd('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y }] }); await sleep(16); }
+    if (DESK) await mouse('mouseReleased', x1); else await C.cmd('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     R.frames.orbit = stat(JSON.parse(await fp));
     log('frames at rest: ' + JSON.stringify(R.frames.rest) + '\nframes orbiting: ' + JSON.stringify(R.frames.orbit)); save();
   }
