@@ -1901,7 +1901,7 @@ body.stNoBench #edBench { display: none !important; }
 #gmPanel .gmAsk { padding:6px 8px 2px; color:var(--ed-dim); font-size:12.5px; line-height:1.4; }
 #gmPanel .gmPair { display:flex; gap:6px; }
 #gmPanel .gmPair .gmRow { justify-content:center; }
-/* G3700: a PAGE of the menu - the rail's own rows (flight.css styles them under #gmPage as under the flyout), wider, with
+/* G3740: a PAGE of the menu - the rail's own rows (flight.css styles them under #gmPage as under the flyout), wider, with
    its way back in the header (the header is still the drag handle; the button is a control, so a press on it never drags) */
 #gmPanel.page { width:312px; }
 #gmPanel .gmBack { all:unset; box-sizing:border-box; display:inline-flex; align-items:center; min-height:40px; margin:-8px 0 -8px -6px;

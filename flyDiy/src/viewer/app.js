@@ -14277,7 +14277,7 @@
   // G3643: THE FLIGHT LAYOUT of the 25 Oct mockup (below, after the menu) - on unless ?flui=old (the layout before it)
   const FL2 = !(typeof location !== 'undefined' && /[?&]flui=old(&|$)/.test(location.search || ''));
   let flAnchorEl = null;   // G3644: the button a flyout was opened from (the top row, the readouts): it opens under it
-  let flPageHook = null;   // G3700: the menu's open page (gmPageRefresh) - a third view of these builders, rebuilt with the other two
+  let flPageHook = null;   // G3740: the menu's open page (gmPageRefresh) - a third view of these builders, rebuilt with the other two
   const flFps = { t0: 0, n: 0 };   // G441: the frame-rate row's window
   // G620: the rendered frames' rate: the recorder's 2 s (freezes in), else PACE's last 120 intervals
   function flFpsText() {
@@ -16331,7 +16331,7 @@
   // centre in the shed; in flight the top bar's empty right column (the PFD holds the centre: item 9, "the map button
   // sits over important flight info")
   let gmBtn = null, gmPanel = null, gmHeld = false, gmAsk = false, gmTabMap = null;
-  // G3700 (the 25 Oct mockup: the rail goes to the pause menu; the phone garage shares it): A PAGE is one panel's worth of
+  // G3740 (the 25 Oct mockup: the rail goes to the pause menu; the phone garage shares it): A PAGE is one panel's worth of
   // the rail's own rows, mounted INSIDE the menu - the third host of the same builders after the flyout and the setup
   // screen (flSetupBuild), rebuilt with them (flPageHook), its selects borrowed and given back the same way (flReturn).
   // FLYDIY_MENU.add() registers a row from another file (a page builder or an act); anchor() places the pill for a
@@ -16478,7 +16478,7 @@
     if (k === 'contracts' || k === 'map') { gmOpen(false); if (!gmMap(k === 'contracts' ? 'contracts' : null)) gmTab(); return; }
     if (k === 'controls') { if (window.INPUT_PANEL) window.INPUT_PANEL.open(INP, { who: () => (inGarage ? 'in the shed' : manual ? 'you are flying' : 'the autopilot is flying') }); return; }
     if (k === 'back') return gmPageSet(null);
-    if (gmPageOf(k)) return gmPageSet(k);   // G3700: Graphics, Sound and the added pages open inside the menu
+    if (gmPageOf(k)) return gmPageSet(k);   // G3740: Graphics, Sound and the added pages open inside the menu
     const add = GM_ADD.filter(a => a.k === k)[0];
     if (add && add.act) {
       try { add.act(); } catch (e) { console.warn('flyDiy: the menu -', e && e.message); }
@@ -16519,7 +16519,7 @@
     const bar = inGarage ? under($('edTopBar')) : (phone && !fl2 ? under($('pfd')) : null);
     let top = bar ? Math.round(bar.bottom + 8) : (inGarage ? 10 : (phone ? 12 : 18));
     let x = inGarage ? (bar ? Math.round(Math.max(12, Math.min(bar.left, W0 - tot - 12))) : Math.round((W0 - tot) / 2)) : fl2 ? (phone ? 12 : 22) : W0 - (phone ? 12 : 22) - tot;
-    let an = null; try { an = gmAnchor && !fl2 ? gmAnchor() : null; } catch (e) {}   // (G3645: in flight the corner is the layout's)   // G3700: another layout's place for the row (the phone garage)
+    let an = null; try { an = gmAnchor && !fl2 ? gmAnchor() : null; } catch (e) {}   // (G3645: in flight the corner is the layout's)   // G3740: another layout's place for the row (the phone garage)
     if (an && isFinite(an.top) && isFinite(an.left)) { top = Math.round(an.top); x = Math.round(an.left); }
     order.forEach((e, i) => { e.style.top = top + 'px'; e.style.left = Math.round(x) + 'px'; e.style.right = 'auto'; e.style.transform = 'none'; x += ow[i] + gap; });
     if (!gmPanel.hidden) gmPlace();
@@ -16554,7 +16554,7 @@
     }, true);
   } catch (e) { if (e !== 0) console.warn('flyDiy: the menu -', e && e.message); gmBtn = gmPanel = null; }
   window.FLYDIY_MENU = { open: () => gmOpen(true), close: () => gmOpen(false), isOpen: () => !!(gmPanel && !gmPanel.hidden), act: gmAct, tab: gmTab, layout: gmLayout,
-    // G3700: add({k, label, sec, when, act | page(body, H) -> cleanup?, before}) -> remove(); page(k | null); anchor(() => {top, left} | null)
+    // G3740: add({k, label, sec, when, act | page(body, H) -> cleanup?, before}) -> remove(); page(k | null); anchor(() => {top, left} | null)
     add(row) {
       if (!row || !row.k) return () => {};
       const i = GM_ADD.findIndex(a => a.k === row.k); if (i >= 0) GM_ADD.splice(i, 1);
@@ -16640,7 +16640,7 @@
     const mmX = mk('button', 'mmX', '', '\u00d7', 'The minimap: put away');
     mmX.onclick = e => { e.stopPropagation(); if (mapBig) flMapBig(false); flPanel('map', false); };
     $('mmp').appendChild(mmX);
-    // the pause menu takes the rail's items (G3700 pages) and the bottom row's Restart; the log in one press
+    // the pause menu takes the rail's items (G3740 pages) and the bottom row's Restart; the log in one press
     const pg = (keys) => body => { for (const k of keys) { const d = FL_SEC_BY[k], b = flSection(body, k, d.head || d.label, d.sub); if (!b) continue;
       try { (FL_SEC_BUILD[k] || FL_BUILD[k])(b); } catch (e) { flNote(b, 'This section failed to build: ' + (e && e.message)); } } };
     window.FLYDIY_MENU.add({ k: 'restart', label: 'Restart the flight', when: () => gmFlying(), act: () => { gmOpen(false); fullReset(); }, before: 'contracts' });
