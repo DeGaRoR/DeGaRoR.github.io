@@ -98161,3 +98161,23 @@ new proper biome" - tall weeds, the ferns more spread with varying sizes and ran
   unchanged), green -> yellow -> bronze; lightness jitter vary 0.03 -> 0.1.
 - the flowers' colour is the KIND_MASTER flower look (trees.js), so the lake shore's fireweed / foam take the user's
   24 Oct world look (claude/world-look-1024 c5292cf88, ED-2) when that lands - nothing of it is copied here.
+
+**18 LAKESHORE - THE BIOME'S MASK (G3430, 25 Oct)** - the user, through A0: "I'd want the reeds to be a proper biome with its
+mask, and we can paint it and everything, like the other."
+- 18 is a VEGETATION code (28c_biomes SHORE, NAMES[18] 'lake shore'; the tuning map "18": "lakeshore", code 1's "1" gone).
+  Its mask is the land within shoreReach (12 m, ragged by shoreJit 0.35 on a 17 m noise) of a drawn lake's line, under the
+  bank's slope (bankLo 22 deg; the steeper faces stay the 17 rock bank): render_world BIO.shore reads drawnLakeSD - the
+  splat's own lsd field, bilinear as the shader reads it.
+- PAINTED like any biome: a premises cover polygon in the editor's biome tool grows `lakeshore` anywhere (the list is the
+  pack's mixes), and a polygon that speaks (none, another biome, its own mix) erases the band under it (BIO.shoreHere).
+  NOT a terrain-type stamp: STAMP_CODES stays as it is - the splat cannot draw an 18 (NCODE 17; the ground grid's codes are
+  masked at 15). The ground under the band is its own code's. Its own ground texture would be a splat widening (the
+  user's call, asked through A0).
+- THE COVER RING plants it as a SECOND PASS per cell: the centre's mix on its own points (the band's points skipped), then
+  the lake shore's rows on the band's points whatever the centre - a 32 m cell's one mix would miss a 12 m band or swallow
+  the cell. A cell with no band point plants exactly as before (the stream unchanged). The stones stay the centre's; the
+  TREES keep their own code's mix (the fill and the placed trees never read the band).
+- treeReachOf: 1 on the grid -> 18 reached (the fern loads where there are lakes); GATE TREES mirrors it; GATE PREMISES 17
+  checks shoreHere (no band without map[18]; a polygon wins).
+- the fern on the flowers' pattern: beds of 5 m at patchShare 0.6, density 0.45, the mix's size spread 0.3; its colour the
+  ground's at its foot with the hueTurn swing (A0: the flower master on the fern's mesh is a follow-up after the stills).

@@ -1545,9 +1545,10 @@
    "species": {
     "reed_marsh": {
      "proportion": 1,
-     "density": 0.6,
+     "density": 0.45,
      "patch": 5,
-     "size": 1
+     "size": 1,
+     "patchShare": 0.6
     },
     "grass_reed": {
      "proportion": 1,
@@ -2556,7 +2557,6 @@
   }
  },
  "biomes": {
-  "1": "lakeshore",
   "2": "grassland",
   "3": "muskeg",
   "4": "shore",
@@ -2570,6 +2570,7 @@
   "13": "conifer",
   "14": "conifer_scrub",
   "15": "borders",
-  "16": "city_trees"
+  "16": "city_trees",
+  "18": "lakeshore"
  }
 }
