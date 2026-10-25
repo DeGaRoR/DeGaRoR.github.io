@@ -99063,3 +99063,37 @@ Strict light gate RED (6), all in known classes; the loads are back inside their
 - metal fuseWidth busy 393: the bimodal 0 / ~400 ms rep (master's own L24b / L24c show the same).
 - world -> garage: cub round trip 2 at 2.02 s, floats at 5.29 s. The class red since L24c (2.99 / 3.55 there); HWCOV has the cause, the per-trip cacheKey churn of fragment 66e30961, and its Mon 12:45 slot names the owner.
 Pushed by the user's order of 25 Oct: land as soon as possible.
+## G3710-G3712 - COWL-RES: THE NOSE DECK AND THE COWL'S TOP ARCH AT THE DASH'S DENSITY, FROM THE PILOT'S EYE, DISPLAY ONLY (2026-10-25, COWL-RES for A0, local; branch claude/vibrant-maxwell-3f5b3a; target claude/ready/cowl-res, L27b / T-P1)
+The user (25 Oct): "a higher resolution subsurf for the nose and cowl in interior view, matching the resolution of the
+dashboard ... the top arch of the cowl and nose, very visible in interior view, that do not hold up. The Cessna is the
+worst example, with edges and corners very visible."
+- WHAT IT IS (code read). Two surfaces ahead of the windscreen. (a) THE FUSELAGE NOSE DECK: with `front rings`
+  (cowlLoops) 0 - the Cessna, the metal Cessna, the Cub and the Jodel - the deck from the windscreen base to the twin
+  band is ONE control quad a side (buildCage2's low bands: P.waist -> C.waist), so level 2 leaves 4 x 4 facets of
+  ~11 cm (C172 noseLen 0.45). Rufus has 2 rings, which is why it looks better. (b) THE ENGINE COWL (_cowl_gen.js,
+  0.9 m on the C172): its azimuths are equal-sagitta, so the flattish TOP gets the fewest samples - the part the pilot
+  looks along. The cowl's lips are their own fine profiles and are not touched.
+- WHY NOT THE CAGE: G445/G468 item 73 tried rings in the nose run; CAGEFIT refused (template ring for ring) and the
+  finer skin moved gear.twY 0.5 mm, which flips every certificate. So both fixes are DRAWN-ONLY.
+- G3710 `cageEyeRefine(m, {zNose, k})` (_cage_gen.js): the deck faces (body / pillarFront, forward of the 'nose' zone's
+  z0, up-facing, upper half) split k x k (4) on a curved patch THROUGH the sheet's vertices - each edge a cubic Hermite
+  off its two smooth normals, the inside a Coons patch. The sheet's vertices never move, new ones are APPENDED (every
+  index keeps its meaning), an edge's points depend on that edge alone (no crack between split faces), a creased edge
+  or one a non-skin face shares stays straight, and a face outside the deck on a split edge takes the points into its
+  outline (fan from a clear corner, else from its centre: no T-junction). The field (aStruct) is interpolated, the old
+  normals kept, the new ones meshFrom's face average. _cage_ui draws meshFrom(sdE); MS, the measurements and the join
+  read the sheet. THE DRAG PREVIEW (G1443 deformTick / standRestore) carries the appended vertices on their parents
+  (meshObj.userData.eye) - without it every nose-slider tick would have fallen back to a whole build.
+- G3711 `prepareMesh({eyeArc})` (_cowl_gen.js): every upper-half interval longer than eyeArc / detail is split evenly
+  in theta; today's samples all stay (the lip, the seam, the cut read the same array). A bare call (the bench,
+  GATE COWL's port check) is byte-identical. _cage_cowl passes COWL_EYE_ARC (0.025 m, a page constant - nothing saved,
+  no spec or certificate moves).
+- OFF: a parked aeroplane's capture (parked.js holdEditor `run` sets CAGE_EYE_OFF while the parked spec is held - A0:
+  "YES skip it in parked capture"); `CAGE_UI.eyeRefine = false` (the rigs' BEFORE: the geometry master draws).
+- G3712 RIGS: tools/cowl_res_rig.js (node: dash vs deck vs cowl top - edge length, face-to-face angle; the pass's ms,
+  tris, verts; no sheet vertex moved, no new open edge), tools/cowl_res_stills.js (GPU: the garage's INTERIOR pill,
+  before/after in one page and one camera, `ahead` + `left`).
+- STATE: WIP 44dc3383a, node --check only. Slots (A0): CPU Mon 26 03:00-03:25 the rig (cr_cpu.sh), GPU Mon 26
+  04:05-04:30 the stills (cr_gpu.sh). Then: density tuned to the dash's numbers, rebase on master after L26b (G3451 arch
+  dash), gates COWL, CAGEFIT, FIT, CLIP, SURF, SKIN, SKINMAT, JOIN, JOINPARITY, VIEW, LIGHT, DESIGN, PARKED, DMGSKIN,
+  DMGSKINGPU, FRAMECOST + the GARAGE-LAG bench, the parked re-cook check after the build, AFTER stills to the user.
