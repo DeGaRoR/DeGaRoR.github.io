@@ -1343,6 +1343,43 @@ if (plots.length) {
   const RPs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
   check(/const g = PWR\.build\(THREE, \{ path: pr, w: rd\.w, mode: rd\.poles \|\| 'auto'/.test(RPs), '39 ...and the page builds them at the drawn width (render_premises)');
 }
+// 41 THE USER'S EDITOR ITEMS (24 Oct playtest 40-42): the checks panel says only what is wrong (the long list gone); the editor
+//    opens in FLY (WASD) seeded from the flight's eye, the orbit's centre on the aeroplane (not the island-wide extent); a zone's
+//    plot cars: rules.cars false flags every plot it sows noCar, rules.noCar [ids] those alone, none set - every plot record as
+//    before; the village generator parks no car on a noCar plot (after its draws); the renderer builds a switched plot again
+{
+  const flat = { id: 'flat', terrainH: () => 0, waterH: () => -100 };
+  const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec;
+  const key = O => JSON.stringify(O.records.plots);
+  const O0 = PG.compose(J, flat, { raster: false }), z = J.layers.zones.find(q => O0.records.plots.some(p => p.zone === q.id && p.kind !== 'park'));
+  check(z && !O0.records.plots.some(p => 'noCar' in p), '41 no zone saying so: no plot carries noCar (' + O0.records.plots.length + ' plots)');
+  const mine = O0.records.plots.filter(p => p.zone === z.id), one = mine[0];
+  const J1 = JSON.parse(JSON.stringify(J)); J1.layers.zones.find(q => q.id === z.id).rules = Object.assign({}, z.rules, { noCar: [one.id] });
+  const O1 = PG.compose(J1, flat, { raster: false });
+  check(O1.records.plots.filter(p => p.noCar).map(p => p.id).join() === one.id, '41 a plot\'s cars switched off: it alone carries noCar (' + one.id + ')');
+  check(JSON.stringify(O1.records.plots.map(p => { const c = Object.assign({}, p); delete c.noCar; return c; })) === key(O0), '41 ...and every plot otherwise the same, its boundary and seed too');
+  const J2 = JSON.parse(JSON.stringify(J)); J2.layers.zones.find(q => q.id === z.id).rules = Object.assign({}, z.rules, { cars: false });
+  const O2 = PG.compose(J2, flat, { raster: false });
+  check(O2.records.plots.filter(p => p.zone === z.id).every(p => p.noCar) && O2.records.plots.filter(p => p.zone !== z.id).every(p => !p.noCar), '41 the zone\'s cars off: its ' + mine.length + ' plots, and no other');
+  const VGs = fs.readFileSync(path.join(TOOLS, '_village_gen.js'), 'utf8'), RPs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8'), APs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+  check(/if \(plot\.noCar\) \{ plot\.car = null; if \(plot\.drive\) plot\.drive\.car = null; \}/.test(VGs) && /if \(plot\.lot && plot\.noCar\) plot\.lot\.cars = \[\];/.test(VGs), '41 the village generator parks no car on a noCar plot (a house\'s, its drive\'s, a lot\'s bays)');
+  check(/!!p\.noCar !== !!\(h\.plot && h\.plot\.noCar\)/.test(RPs), '41 the renderer builds a plot again when its cars switch');
+  check(/'plot cars'/.test(UI_SRC) && /pick plots: a click switches one plot\\'s cars/.test(UI_SRC) && /name === 'plotCar'/.test(UI_SRC), '41 the zone\'s inspector: the cars switch and the plot pick');
+  // the pick, end to end: a click in the plot puts it in noCar, a second takes it out
+  let zid = null;
+  const ed41 = UI.mount(new El('div'), { THREE: null, world: synth, R: Object.assign(makeR(), { plots: () => [{ zone: zid, id: zid + '.1', poly: [[0, 0], [30, 0], [30, 30], [0, 30]] }] }), rows, els: { chk: new El('div'), plaque: null, strip: new El('div') }, viewEl: new El('div'), storage: null, fresh: true, camera: () => null, redraw: noop });
+  zid = ed41.cmd('add', { layer: 'zones', entry: { id: 'zc41', kind: 'residential', poly: [[-10, -10], [40, -10], [40, 40], [-10, 40]] } });
+  ed41.cmd('plotCar', { zone: zid, x: 15, z: 15 });
+  const nc1 = ((PG.findById(ed41.record(), zid).entry.rules || {}).noCar || []).join();
+  ed41.cmd('plotCar', { zone: zid, x: 15, z: 15 });
+  const nc2 = (PG.findById(ed41.record(), zid).entry.rules || {}).noCar;
+  check(nc1 === zid + '.1' && nc2 === undefined, '41 a plot picked: its cars off (noCar ' + nc1 + '), picked again: back (' + JSON.stringify(nc2) + ')');
+  // the checks panel: what is wrong, never the list of what is right
+  check(!/✓/.test(String(UI_SRC.match(/function checks\(\) \{[\s\S]*?\n  \}/)[0].split('els.chk.innerHTML')[1] || '')), '41 the checks panel lists no passed check (the long list gone): a failed check, the first issue, the warnings\' count');
+  ed41.close();
+  check(/const eye0 = camera\.position\.clone\(\), q0 = camera\.quaternion\.clone\(\);/.test(APs) && /camera\.position\.copy\(eye0\); camera\.quaternion\.copy\(q0\); PREM\.host\.cameras\.set\('fly'\);/.test(APs) && !/cameras\.frame\(ov\.extent\)/.test(APs),
+        '41 the editor opens in FLY (WASD) from the flight\'s eye, the orbit centred on the aeroplane - not framed on the island-wide extent');
+}
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
