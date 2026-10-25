@@ -396,8 +396,12 @@ for (const seed of [0, 1, 6, 12, 42]) {
 // its own (playerPlotSite: its stand and taxiOut) censused as a stand is (6): the stand, its parked box, every route
 // half + 3 m off every solid thing, the pattern sound. CALIBRATION: the mine's shed given a way of its own (a stand off its
 // door, down the street) reads MILL-TAXI's faults - which is why its plot has none; a plot moved onto the hut is seen.
+// JOLENE-FOLD (the user, 25 Oct, on the base plot w1 and the AFB (19) cabin dressing: "2c and keep my props where they are,
+// as long as they don't collide with a plane"): a prop by the plot's footprint is NOT a fault - the plot's solid row reads
+// every solid thing BUT the props (IXP); a prop fails only where it meets a plane, and those rows stand on the full index
+// (IX, props in): the fleet's spots (10, and the spots row below), every stand and route (6), a plot's own way (below).
 if (BASE) {
-  const pave = L.paveOf(WI), inp = L.spotInputs(WI, IX, pave);
+  const pave = L.paveOf(WI), inp = L.spotInputs(WI, IX, pave), IXP = L.index(SH.filter(q => q.tag !== 'prop'));
   const foot = id => { for (const a in C.BASE_OFFERS) { const P = C.BASE_OFFERS[a].plots[id]; if (!P) continue; let HW = 0, HD = 0;
     for (const sh of P.shells) { const d = (P.dims && P.dims[sh]) || C.SHELLS[sh].dims; HW = Math.max(HW, d.HW); HD = Math.max(HD, d.HD); } return { HW, HD }; } return null; };
   const outline = (p, F, m) => { const fx = Math.cos(p.hdg), fz = Math.sin(p.hdg), nx = -fz, nz = fx, A = F.HD + m, B = F.HW + m, pts = [];
@@ -405,8 +409,8 @@ if (BASE) {
     return pts; };
   const plotRows = (p, a, s) => {
     const F = foot(p.id), pts = outline(p, F, 0), R = C.siteRunway(a), rows = [];
-    let sol = Infinity, what = null; for (const q of pts) { const n = IX.nearest(q[0], q[1], 25); if (n && n.d < sol) { sol = n.d; what = n.s; } }
-    rows.push(['3 m off every solid thing', sol >= L.MARGIN - 1e-9, sol.toFixed(2) + ' m' + (what ? ' to ' + L.fmtWhat(what) : '')]);
+    let sol = Infinity, what = null; for (const q of pts) { const n = IXP.nearest(q[0], q[1], 25); if (n && n.d < sol) { sol = n.d; what = n.s; } }
+    rows.push(['3 m off every solid thing but a prop', sol >= L.MARGIN - 1e-9, sol.toFixed(2) + ' m' + (what ? ' to ' + L.fmtWhat(what) : '')]);
     const inR = pts.some(q => { const dx = q[0] - R.cx, dz = q[1] - R.cz, al = dx * R.dx + dz * R.dz, cr = dx * R.nx + dz * R.nz; return Math.abs(al) <= R.len / 2 + 15 && Math.abs(cr) <= R.half + 15; });
     rows.push(['15 m off the strip', !inR, '']);
     if (!a.water) for (const B of VB) {
