@@ -991,7 +991,7 @@ function makePilot(sim, def, world, opts) {
   // the user's OK on the 25 Oct table)
   const stopRC = v => (A.stopShortK ?? 0.84) * (0.8 * v * v / (2 * Math.max(0.5, aStopOf())) + v);
   // (the two knobs, per airframe in def.params.ap; their defaults are the table's decision)
-  const RC_ = !!(A.rc ?? false), GSF_ = !!(A.gsFly ?? false);
+  const RC_ = !!(A.rc ?? true), GSF_ = !!(A.gsFly ?? true);
   const gammaGA = () => { const S = sheetOf(); return S && S.gammaClimb ? 0.8 * S.gammaClimb : 0.08; };
   const dirLim = (mode) => ({ gs: A.gs, gsMax: gsMax(), gammaClimb: gammaGA(), mode, LDGrun: sheetOf() && sheetOf().LDGrun ? sheetOf().LDGrun : null, TORun: sheetOf() && sheetOf().TORun ? sheetOf().TORun : null });
   // the take-off / landing direction at an aerodrome: the runway model's two
