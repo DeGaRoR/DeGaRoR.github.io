@@ -48,6 +48,7 @@ const CASES = {
   // G3651 (the user, 25 Oct: the runway scuffs "I can see nothing"): the scuff on the runway BEFORE / AFTER at the same eye
   // (tag noscar: the wreck as drawn, the ground's decal hidden) from the three-quarter, the far chase (aft) and above
   'scuff-slide': { label: 'the runway scuff of a slide: a trunk at 30 m/s, 2.5 m out, the wreck skidding on (G3651)', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 2.5, steps: 1500 }, cams: [['q34', 28, 22], ['aft', 12, 40], ['side', 78, 30]] },
+  'furrow-slide': { label: 'the furrow of a slide on soft ground: the scuff-slide 25 m off the runway, on the grass (G3651)', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 2.5, lat: 25, steps: 1500 }, cams: [['q34', 28, 22], ['aft', 12, 40], ['side', 78, 30]] },
   'scuff-blow': { label: 'the runway scuff of a blow: a nose-in at 180 km/h, 10 m/s down, 60 deg (G3651)', o: { kind: 'ground', V: 50, sink: 10, pitch: 60, steps: 1500 }, cams: [['q34', 28, 22], ['aft', 12, 40], ['side', 78, 30]] },
   'trunk-2.5': { label: 'a trunk at 30 m/s, the wing 2.5 m out (DMG-D4a\'s wing still)', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 2.5, steps: 1500 }, cams: [[200, 22, 16], [250, 55, 26]] },
   'nosein':    { label: 'a nose-in on the ground (180 km/h, 10 m/s, 60 deg; DMG-D4a\'s nose-in still)', o: { kind: 'ground', V: 50, sink: 10, pitch: 60, steps: 1500 }, cams: [[150, 20, 12], [235, 28, 14]] },
@@ -251,7 +252,8 @@ async function pageStage(o) {
   sim.reset(0); placeAtAerodrome(sim, strip);
   const n = sim.n, p = sim.p, v = sim.v, fx = Math.cos(strip.hdg), fz = Math.sin(strip.hdg);
   // ON THE RUNWAY (its centre less 300 m: open, flat, its trees cleared): the stand's is in the woods
-  { const c = sim.cgPos(), dx = strip.x - 300 * fx - c[0], dz = strip.z - 300 * fz - c[2]; for (let i = 0; i < n; i++) { p[i*3] += dx; p[i*3+2] += dz; } }
+  // (o.lat, G3651: the stand moved o.lat m across the runway - off it, on the grass: the soft ground's furrow)
+  { const c = sim.cgPos(), la = o.lat || 0, dx = strip.x - 300 * fx - fz * la - c[0], dz = strip.z - 300 * fz + fx * la - c[2]; for (let i = 0; i < n; i++) { p[i*3] += dx; p[i*3+2] += dz; } }
   const c0 = sim.cgPos(), ground = world.terrainH(c0[0], c0[2]);
   let yMin = Infinity; for (let i = 0; i < n; i++) yMin = Math.min(yMin, p[i*3+1] - (sim.r[i] || 0));
   const scene = P.craft().parent;
