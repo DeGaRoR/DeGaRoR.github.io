@@ -133,17 +133,17 @@
    "id": "tw_ski",
    "name": "Skyline Altiport",
    "kind": "strip",
-   "x": 272,
-   "z": -7733.44,
+   "x": 257,
+   "z": -7707.46,
    "hdg": -1.0472,
-   "len": 320,
+   "len": 380,
    "wid": 18,
    "surface": {
     "key": "grass",
     "word": "grass",
     "cls": "grass"
    },
-   "elev": 702,
+   "elev": 696,
    "altiport": true
   },
   {
@@ -2856,9 +2856,9 @@
   }
  },
  "credit": "Jolene Island: the ground from USGS 3DEP IFSAR and ESA WorldCover; every name fictional (flyDiy/CREDITS.md)",
- "img": "media/map/jolene_map.b5a56b47.png",
- "imgBytes": 714937,
- "imgHash": "b5a56b47",
+ "img": "media/map/jolene_map.9e95a0ec.png",
+ "imgBytes": 714941,
+ "imgHash": "9e95a0ec",
  "art": {
   "img": "media/map/jolene_art.1b6f317e.jpg",
   "bytes": 936836,
