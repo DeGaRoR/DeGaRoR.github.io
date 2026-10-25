@@ -656,7 +656,16 @@ if (plots.length) {
   //  the shipped entry's own (the old club hangar, the mine's mill)
   const svItems = (x, y) => { if (!Array.isArray(x.items) || !Array.isArray(y.items)) return x; const ids = new Set(y.items.map(q => q && q.id));
     return Object.assign({}, x, { items: x.items.filter(it => !(it && it.stage) || ids.has(it.id)) }); };
-  const same = (L, x, y) => L === 'areas' ? canA(unC(x)) === canA(unC(y)) : unC(svItems(x, y)) === unC(y);
+  // (JOLENE-FOLD) a save made below a track's max carries a staged entry at its `stage.vary` variant (AFB (19): tw_ski at
+  //  resort<3, nv_strip at survey<1): a field equal to a variant is the stage's - the shipped entry's own value, as the ship
+  //  tool's devary and stageRestore put it back
+  const devary = (y, x) => { const vs = x && x.stage && Array.isArray(x.stage.vary) ? x.stage.vary : []; if (!vs.length) return y;
+    const c = JSON.parse(JSON.stringify(y)), eq = (p, q) => JSON.stringify(p) === JSON.stringify(q);
+    for (const q of vs) for (const k of Object.keys(q)) { if (k === 'show') continue;
+      if (k === 'P') { if (c.P) for (const pk of Object.keys(q.P || {})) if (eq(c.P[pk], q.P[pk])) { if (x.P && pk in x.P) c.P[pk] = x.P[pk]; else delete c.P[pk]; } continue; }
+      if (eq(c[k], q[k])) { if (x[k] === undefined) delete c[k]; else c[k] = JSON.parse(JSON.stringify(x[k])); } }
+    return c; };
+  const same = (L, x, y) => L === 'areas' ? canA(unC(x)) === canA(unC(y)) : unC(svItems(x, y)) === unC(devary(y, x));
   // (JOLENE-FOLD) an area the save folded from STAGED v1 entries (the sandbox's view carries no stage, so they fold; the shipped
   //  record's staged entries do not - sg_x_mill, sg_x_lodge): its entries against those sources, stage aside
   const fromStaged = e => !!(e.src && Object.keys(e.src).length) && Object.entries(e.src).every(([k, s]) => (A.layers[k] || []).some(q => q.id === s[0] && q.stage));

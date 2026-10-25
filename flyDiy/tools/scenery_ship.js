@@ -49,7 +49,20 @@ const restage = (saved, fx) => { const c = JSON.parse(JSON.stringify(saved)); if
     for (const it of c.items) { const f = fx.items.find(q => q && q.id === it.id); if (f && f.stage !== undefined) it.stage = f.stage; }
     fx.items.forEach((f, n) => { if (f && f.stage !== undefined && !c.items.some(q => q && q.id === f.id)) c.items.splice(Math.min(n, c.items.length), 0, JSON.parse(JSON.stringify(f))); });
   } return c; };
-const staged = e => !!(e && (e.stage || (Array.isArray(e.items) && e.items.some(it => it && it.stage)) || /^sg_/.test(String(e.id || ''))));
+// a save made on a stage below the max (JOLENE-FOLD 25 Oct: AFB (19) carried tw_ski at its resort<3 variant, nv_strip at
+// its survey<1 one): a field equal to a variant of the fixture's `stage.vary` is the stage's, not the user's - it gets the
+// whole record's value back (stageRestore's rule; a P key the same way)
+const devary = (saved, fx) => {
+  const vs = fx && fx.stage && Array.isArray(fx.stage.vary) ? fx.stage.vary : []; if (!vs.length) return saved;
+  const c = JSON.parse(JSON.stringify(saved)), eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  for (const q of vs) for (const k of Object.keys(q)) {
+    if (k === 'show') continue;
+    if (k === 'P') { if (c.P) for (const pk of Object.keys(q.P || {})) if (eq(c.P[pk], q.P[pk])) { if (fx.P && pk in fx.P) c.P[pk] = fx.P[pk]; else delete c.P[pk]; } continue; }
+    if (eq(c[k], q[k])) { if (fx[k] === undefined) delete c[k]; else c[k] = JSON.parse(JSON.stringify(fx[k])); }
+  }
+  return c;
+};
+const staged = e => !!(e && (e.stage ||(Array.isArray(e.items) && e.items.some(it => it && it.stage)) || /^sg_/.test(String(e.id || ''))));
 
 function verify() {
   const A = PG.dropPlaces(PG.unwrap(fs.readFileSync(FIX, 'utf8')).rec, CUTP, KEEP).rec, bad = [];
@@ -69,7 +82,7 @@ const del = (layer, id, note) => { ops.push({ layer, op: 'del', id }); why.push(
 for (const L of ['roads', 'runways', 'sites', 'zones', 'objects', 'links', 'junctions']) {
   const sv = (RS[L] || []).filter(e => e && !EXCEPT.has(e.id) && !(L === 'zones' && e.kind === 'clear'));
   const fx = new Map((RF[L] || []).filter(e => e && !cutId(e.id) && !(L === 'zones' && e.kind === 'clear')).map(e => [e.id, e]));
-  for (const e0 of sv) { const e = L === 'roads' ? trimmed(e0) : e0, f = fx.get(e.id); if (!f) set(L, e, 'new' + (e !== e0 ? ', stopped at ' + TRIM.get(e.id) + ' (' + e0.pts.length + ' -> ' + e.pts.length + ' points)' : '')); else if (normEntry(L, unstage(f)) !== normEntry(L, unstage(e))) set(L, restage(e, f), 'changed' + (staged(f) ? ', its stages kept' : '')); }
+  for (const e1 of sv) { const e0 = devary(e1, fx.get(e1.id)), e = L === 'roads' ? trimmed(e0) : e0, f = fx.get(e.id); if (!f) set(L, e, 'new' + (e !== e0 ? ', stopped at ' + TRIM.get(e.id) + ' (' + e0.pts.length + ' -> ' + e.pts.length + ' points)' : '')); else if (normEntry(L, unstage(f)) !== normEntry(L, unstage(e))) set(L, restage(e, f), 'changed' + (staged(f) ? ', its stages kept' : '')); }
   const ids = new Set(sv.map(e => e.id));
   for (const [id, f] of fx) if (!ids.has(id) && !EXCEPT.has(id)) { if (staged(f)) why.push('stage ' + L + ' ' + id + ' (not in the sandbox view: kept)'); else if (REMOVE.has(id)) del(L, id, 'removed by the user, confirmed'); else why.push('REMOVED IN THE SAVE, kept until confirmed: ' + L + ' ' + id); }
 }

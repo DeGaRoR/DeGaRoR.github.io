@@ -14791,8 +14791,6 @@
     },
     "treeBox": false,
     "departure": 1,
-    "sock": false,
-    "ties": false,
     "stage": {
      "track": "survey",
      "show": [
@@ -14814,7 +14812,7 @@
    {
     "id": "tw_ski",
     "name": "Skyline Altiport",
-    "len": 320,
+    "len": 380,
     "wid": 18,
     "surface": 0,
     "look": "grass",
@@ -14845,14 +14843,14 @@
     "profile": [
      [
       0,
-      -9.8
+      -15.96
      ],
      [
-      0.4656,
+      0.55,
       4.94
      ],
      [
-      0.7862,
+      0.82,
       12.6
      ],
      [
@@ -14869,8 +14867,8 @@
     },
     "altiport": true,
     "c": [
-     272,
-     -7733.44
+     257,
+     -7707.46
     ],
     "hdg": -1.0472,
     "stage": {
@@ -14887,7 +14885,7 @@
        ],
        "len": 320,
        "c": [
-        272,
+        272.0,
         -7733.44
        ],
        "profile": [
