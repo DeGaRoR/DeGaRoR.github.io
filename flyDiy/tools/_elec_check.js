@@ -155,6 +155,38 @@ function run() {
     bus.step(1, 2000, false);
     check(bus.V === 14.1 && bus.ok, 'generator only: the loads are carried above cut-in');
   }
+
+  // ---- 7. G2809: WHAT IS DRAWN IS BILLED (the user, 25 Oct: "Wysiwyg, and as billed for all") ---------------------
+  {
+    const LP = C.GEN_LIGHT_PARTS;
+    const census = { nav: 3, beacon: 1, land: 1, pedal: 1 };
+    const R = C.genSystemsResolve({ systems: { fit: 'basic', lights: census } });
+    const lr = R.rows.filter(r => /^light:/.test(r.key));
+    check(lr.length === 4 && lr.every(r => Math.abs(r.kg - LP[r.key.slice(6)].kg * census[r.key.slice(6)]) < 1e-9 &&
+          r.price === LP[r.key.slice(6)].price * census[r.key.slice(6)]), 'lamps: one row a key drawn, billed per lamp',
+          lr.map(r => r.key + ' ' + r.kg).join(', '));
+    check(JSON.stringify(R.lamps) === JSON.stringify(['nav', 'beacon', 'land', 'pedal']), 'lamps: the keys drawn, for the flight\'s loads', R.lamps);
+    check(R.breakers.some(b => b.key === 'navLt') && !R.breakers.some(b => b.key === 'taxiLt') && R.breakers.some(b => b.key === 'cabinLt'),
+          'lamps: the breakers are the drawn lamps\' (no taxi lamp, no taxi breaker)');
+    const Rn = C.genSystemsResolve({ systems: { fit: 'basic', lights: {} } });
+    check(!Rn.rows.some(r => /^light:/.test(r.key)) && !Rn.breakers.some(b => /Lt$/.test(b.key)), 'lamps: none drawn, none billed');
+    check(C.genSystemsResolve({ systems: { fit: 'basic' } }).lamps === null, 'lamps: no census (a spec with no drawing) - every fitted light counts');
+    // no battery: no lamp, no generator, no starter
+    const R0 = C.genSystemsResolve({ systems: { fit: 'custom', items: ['asi', 'alt'], lights: census,
+      elec: { battery: 'none', alternator: 'gen20', starter: 'yes', vac: 'none' } } });
+    check(!R0.rows.some(r => /^light:|^alternator:|^starter:/.test(r.key)) && R0.elec.alternator === 'none' && !R0.starter,
+          'no battery: no lamp, no generator, no starter billed');
+    check(['alternator', 'starter', 'light:nav'].every(k => R0.dropped.some(d => d.key === k && d.why === 'no battery')),
+          'no battery: each named "no battery"', R0.dropped.map(d => d.key).join());
+    // the harness carries a lamp's wire as any powered item's
+    const Rh = C.genSystemsResolve({ systems: { fit: 'basic', lights: { nav: 3 } } }), Rh0 = C.genSystemsResolve({ systems: { fit: 'basic', lights: {} } });
+    const hk = q => q.rows.find(r => r.key === 'harness').kg;
+    check(Math.abs(hk(Rh) - hk(Rh0) - C.GEN_ELEC.harness.kgPerItem) < 1e-9, 'lamps: each key drawn adds its wire to the harness');
+    // no room on the dash = not billed
+    const Rr = C.genSystemsResolve({ systems: { fit: 'ifr', noRoom: ['volts', 'xpdr', 'breaker:aiE'] } });
+    check(!Rr.items.includes('volts') && Rr.avionics.xpdr === 'none' && !Rr.breakers.some(b => b.key === 'aiE') && Rr.items.includes('aiE'),
+          'no room: the dial and the radio not billed, the breaker not fitted (its load fed straight)');
+  }
   return fail.length === 0;
 }
 

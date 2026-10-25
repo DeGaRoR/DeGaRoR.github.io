@@ -107,10 +107,18 @@ function sceneBuild(spec, opts) {
   const scene = new C.THREE.Scene();
   const errors = C.errors.slice();
   const stat = { textContent: '' };
+  // the editor's built mesh, as _cage_ui.js publishes it before its chain (CAGE_UI.MS): the light layer mounts the
+  // cabin flood and the passenger lamps on its ceiling rails and roof - without it node drew neither (G2809: the
+  // lamps drawn are billed now, so node has to draw what the page draws)
+  W.CAGE_UI = Object.assign(W.CAGE_UI || {}, { MS: built.mesh, P });   // (and the rows it built from, as the page's)
   if (PAGE.post) {
     try { PAGE.post({ scene, spec: built.spec, mesh: built.sheet, P, stat }); }
     catch (e) { errors.push('post: ' + (e && e.stack || e)); }
   }
+  // G331's LATE hooks (the crew's floor), drained after the chain as _cage_ui.js's build does (drainLate) - so a join
+  // that follows sees the floor, as the page's does (G2809: the floor board is billed off its drawn area)
+  if (PAGE.late && PAGE.late.length)
+    for (const f of PAGE.late.splice(0)) { try { f(); } catch (e) { errors.push('late: ' + (e && e.stack || e)); } }
   scene.updateMatrixWorld(true);
   return { scene, P, spec: built.spec, built, FS, ms: Date.now() - t0, errors,
            stat: stat.textContent, W };

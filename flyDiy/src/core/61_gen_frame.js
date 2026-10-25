@@ -2848,6 +2848,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     spend(r.price);
     if (r.key.startsWith('battery:')) halfOn(F[0].BL, F[0].BR, r.kg);
     else if (r.key === 'harness') halfOn(F[0].TL, F[0].TR, r.kg);
+    // G2809: the lamps drawn - the beacon at the tail, the tip / wing lamps on the wing's carry-through (the cabin's
+    // front ring, top), the cabin's lamps on its front ring
+    else if (r.key === 'light:beacon') halfOn(F[F.length - 1].TL, F[F.length - 1].TR, r.kg);
+    else if (r.key === 'light:nav' || r.key === 'light:land' || r.key === 'light:taxi') halfOn(F[1].TL, F[1].TR, r.kg);
+    else if (r.key.startsWith('light:')) halfOn(F[1].TL, F[1].TR, r.kg);
     else halfOn(engPair[0], engPair[1], r.kg);
   }
   sec('avionics');
@@ -2870,6 +2875,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // exactly what that check is for: an occupant weighs 80 kg and nothing
     // else may ride in on the same number.
     const seats = Math.max(1, seatRows.length);
+    // G2809: A DRAWN CABIN BILLS WHAT IT DRAWS - a chair at every seat the cabin draws (cabin.seatsX: the
+    // cockpit's and every bay's, each at its own station), the board and the lining off the drawn surfaces, the
+    // control stations the crew drew. A spec with no drawing (a fiche, an archetype) bills as it always did.
+    const DR = genDrawnCabin(S);
+    const chairs = DR ? (seatsX ? seatsX.length : (S.seats != null ? Math.max(0, S.seats) : seats)) : seats;
     const EN = (S.engines && S.engines[0]) || {};
     const PPn = S.pplant || POWERPLANTS[EN.type] || POWERPLANTS.a65_sensenich74;
     const kW = ((PPn.engine && PPn.engine.powerW) || 0) / 1000;
@@ -2877,11 +2887,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // SEATS: one per position, at the weight of the kind you chose.
     // Spread over the seat frames so they sit where the people sit — the
     // cabin rings, which is where `pt` already puts the occupants.
-    const seatM = seat.kg * seats;
+    const seatM = seat.kg * chairs;
     // THE PANEL BOARD, from its own geometry. `cab.panel` carries the depth
     // and how far the coaming wraps; the board spans the cabin.
     let panelM = 0;
-    if (cb.panel && cb.panel.on) {
+    if (DR) panelM = (DR.board || 0) * O.panelKgM2 + (DR.dash || 0) * O.dashShellKgM2;   // G2809: as drawn
+    else if (cb.panel && cb.panel.on) {
       const pw = 2 * cb.halfW * (0.6 + 0.8 * (cb.panel.wrap || 0));
       panelM = pw * (cb.panel.depth || 0.25) * O.panelKgM2;
     }
@@ -2913,7 +2924,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // THE CONTROLS, from the reach: out to the tips and back to the tail.
     // Dual controls are a second stick and a second set of pedals.
     const reach = S.geom.semi + S.fuse.tailArm;
-    const ctlM = O.ctlKgM * reach + (seats > 1 ? O.ctlDualKg : 0);
+    // G2809: the stations the crew drew - a second set for each past the first, a yoke's column over a stick
+    const CT = DR && S.outfit && S.outfit.ctl;
+    const ctlM = CT ? O.ctlKgM * reach + Math.max(0, CT.stations - 1) * O.ctlDualKg + CT.stations * (O.ctlStationKg[CT.kind] || 0)
+                    : O.ctlKgM * reach + (seats > 1 ? O.ctlDualKg : 0);
     // THE GLAZING: the windscreen and the side windows, over the cabin.
     // ...an OPEN FRAME (PERF STUDY chantier 1) has a windscreen and no side
     // windows — there is no side to put them in
@@ -2932,6 +2946,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // (G2806: the fraction is genFurnK's - the chosen trim, else the tier's exactly as before)
     const furnM = (GG && GG.W0 > 0)
       ? genFurnK(S) * Math.max(0, O.furnKgPerKg * GG.W0 - O.furnKgOffset) : 0;
+    // G2809: THE DRAWN LINING - the pads on the sill shoulders, the door panels and the console at the trim's pad
+    // density, the floor board's ply under its covering; both passes (a fixed mass, not a law of the gross)
+    const TR = GEN_TRIM[(S.outfit && S.outfit.trim) || 'light'] || GEN_TRIM.light;
+    const trimM = DR ? ((DR.shoulder || 0) + (DR.door || 0) + (DR.console || 0)) * TR.pad +
+                       (DR.floor || 0) * (O.floorPlyKgM2 + TR.cover) : 0;
     // WHERE IT ALL SITS. Each item goes on the frame it belongs to, so the
     // centre of gravity is the real one: seats and controls and glazing on
     // the cabin rings, the panel and the plumbing at the panel frame, the
@@ -2946,8 +2965,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // airframe the solver flies is the same to the last bit (tools/avionics_parity.js).
     sec('furnish');
     if (seatsX && seatsX.length)
-      for (let i = 0; i < seats; i++) billAt(seatAt(i) != null ? seatAt(i) : ST[1].x, seat.kg);
-    else half(F[1].BL, F[1].BR, seatM);
+      for (let i = 0; i < chairs; i++) billAt(seatAt(i) != null ? seatAt(i) : ST[1].x, seat.kg);
+    else if (seatM > 0) half(F[1].BL, F[1].BR, seatM);
     sec('outfit');
     half(F[1].TL, F[1].TR, panelM + plumbM);
     // the cowl and the exhaust go where the ENGINE is (2026-09-04). On a
@@ -2971,11 +2990,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     sec('furnish');
     half(F[1].BL, F[1].BR, 0.5 * furnM);
     half(F[iCabR].BL, F[iCabR].BR, 0.5 * furnM);
+    if (trimM > 0) { half(F[1].BL, F[1].BR, 0.5 * trimM); half(F[iCabR].BL, F[iCabR].BR, 0.5 * trimM); }   // G2809
     // the price: the outfit's one rounded sum as before, the furnishing's share (the chairs and 60 cr a kilo of
     // lining) carved out of it, so the total is the credit it was
-    const outfitCr = Math.round(seat.price * seats + 40 * (panelM + cowlM + glassM) +
-                                28 * (exhM + plumbM + ctlM) + 60 * furnM);
-    const furnCr = Math.round(seat.price * seats + 60 * furnM);
+    const outfitCr = Math.round(seat.price * chairs + 40 * (panelM + cowlM + glassM) +
+                                28 * (exhM + plumbM + ctlM) + 60 * (furnM + trimM));
+    const furnCr = Math.round(seat.price * chairs + 60 * (furnM + trimM));
     spend(furnCr);
     sec('outfit');
     spend(outfitCr - furnCr);

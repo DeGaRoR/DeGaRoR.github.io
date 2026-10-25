@@ -70,9 +70,27 @@ function noRoom() {
   const L = LAST && LAST.layout;
   return L ? (L.overflow || []).concat(L.extraOverflow || []) : [];
 }
+// THE LAMPS DRAWN (G2809): the light layer's census (CAGE_LIGHT.drawn: lamps a key), the lights fitted and a battery
+// behind them, plus the dials' post lights when the instrument light is fitted - genSystemsResolve bills a lamp per
+// lamp and the flight loads only these
+function lampCensus() {
+  const P = window.CAGE_UI && window.CAGE_UI.P;
+  if (!P || !+P.lightOn) return {};
+  const R = resolve(P);
+  if (!R || !R.hasBus) return {};
+  const D = (window.CAGE_LIGHT && window.CAGE_LIGHT.drawn) || {}, o = {};
+  for (const k of Object.keys(D)) if (D[k] > 0 && litFitted(P, k)) o[k] = D[k];
+  if (litFitted(P, 'instr') && LAST && LAST.layout && LAST.layout.dials.some(d => !d.coaming)) o.instr = 1;
+  // ...and the beacon the fittings layer stands on the crown or the rod where no fin carries one (it is that lamp)
+  const AC = window.CAGE_ACCESS;
+  const crown = AC && Array.isArray(AC.placed) ? AC.placed.filter(q => q.key === 'beacon').length : 0;
+  if (crown && litFitted(P, 'beacon')) o.beacon = (o.beacon || 0) + crown;
+  return o;
+}
 function toSpec() {
   if (!seeded) seed();
   const o = cl(SY), nr = noRoom();
+  o.lights = lampCensus();
   // (written when there is something; an empty list only over an earlier one, so a build that always fitted keeps
   // its bytes - garage.js's merge replaces an array whole)
   let had = false;
@@ -1594,8 +1612,9 @@ function build(parent, A, P, pilotX) {
     avionics: ['com', 'xpdr', 'nav', 'gps'].some(k => R.avionics[k] !== 'none'),   // G2801: the avionics bus's master
     energyKind: R.energyKind,                                 // G442.1: the key's kind (a pack's power key)
     // G2796: a switch only for a light that is FITTED
-    extLights: lightsOn && +P.lightSw ? EXT_LIGHTS.filter(k => litFitted(P, k)) : [],
-    intLights: lightsOn && +P.lightSw ? INT_LIGHTS.filter(k => litFitted(P, k)) : [],
+    // (G2809: and a battery to feed them - with none the light layer draws no lamp, so no switch either)
+    extLights: lightsOn && +P.lightSw && R.hasBus ? EXT_LIGHTS.filter(k => litFitted(P, k)) : [],
+    intLights: lightsOn && +P.lightSw && R.hasBus ? INT_LIGHTS.filter(k => litFitted(P, k)) : [],
     flapSwitch: P && Math.round(+P.flapCtl || 0) === 1,      // G335
     swStyle: (SY.look && SY.look.sw) || 'toggle',             // G371
     // G2802 / G2803: the breaker row and the GPS unit, placed in what the dials and switches left free

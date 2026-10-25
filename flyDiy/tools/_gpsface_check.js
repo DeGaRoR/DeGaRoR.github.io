@@ -531,6 +531,41 @@ for (const [name, file, gps, want, onLine, allDials] of PANELS) {
 }
 
 // =====================================================================================================================
+// I THE DRAWN CABIN (G2809, the user of 25 Oct: "Wysiwyg, and as billed for all"): a spec carrying the editor's
+// measured cabin (outfit.drawn, outfit.ctl) bills a chair at every seat drawn, the board and the lining off the drawn
+// surfaces (the Raymer lump steps aside), the control stations drawn; the same spec with no drawing bills as before
+// =====================================================================================================================
+{
+  const base = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'cessna172_2026-09-20_corrected.json'), 'utf8'));
+  const S0 = cl(base.spec || base);
+  delete (S0.outfit || {}).drawn; delete (S0.outfit || {}).ctl;
+  const ledg = S => C.buildGen(cl(S)).parts.ledger;
+  const L0 = ledg(S0);
+  const D = { board: 0.32, dash: 0.51, shoulder: 0.51, door: 2.67, floor: 1.53, console: 0 };
+  const S1 = cl(S0); S1.outfit = Object.assign({}, S1.outfit, { seats: 'sling', drawn: D, ctl: { stations: 2, kind: 'yoke' } });
+  const L1 = ledg(S1);
+  const O = C.GEN_OUTFIT, T = C.GEN_TRIM.light, seat = C.GEN_SEATS.sling;
+  const nSeats = Array.isArray(S1.cabin && S1.cabin.seatsX) ? S1.cabin.seatsX.length : (S1.cabin && S1.cabin.seats);
+  const trimKg = (D.shoulder + D.door + D.console) * T.pad + D.floor * (O.floorPlyKgM2 + T.cover);
+  check(Math.abs(L1.furnish.mass - (seat.kg * nSeats + trimKg)) < 1e-6,
+    'I the furnishing row is a chair at every seat drawn plus the drawn lining at the trim\'s densities (no Raymer lump)',
+    L1.furnish.mass.toFixed(3) + ' / ' + (seat.kg * nSeats + trimKg).toFixed(3));
+  check(C.genFurnK(S1) === 0 && C.genFurnK(S0) > 0, 'I the Raymer fraction steps aside on a drawn cabin, and only there');
+  const S2 = cl(S1); S2.outfit.trim = 'full';
+  const L2 = ledg(S2);
+  const fullKg = (D.shoulder + D.door + D.console) * C.GEN_TRIM.full.pad + D.floor * (O.floorPlyKgM2 + C.GEN_TRIM.full.cover);
+  check(Math.abs((L2.furnish.mass - L1.furnish.mass) - (fullKg - trimKg)) < 1e-6, 'I the trim is the drawn surfaces\' finish (light -> lined and quiet)');
+  const S3 = cl(S1); S3.outfit.ctl = { stations: 1, kind: 'stick' };
+  const L3 = ledg(S3);
+  check(Math.abs((L1.outfit.mass - L3.outfit.mass) - (O.ctlDualKg + 2 * O.ctlStationKg.yoke)) < 1e-6, 'I the controls: a second station and the yokes\' columns billed as drawn');
+  const S4 = cl(S1); S4.outfit.drawn = Object.assign({}, D, { board: 0, dash: 0 });
+  const L4 = ledg(S4);
+  check(Math.abs((L1.outfit.mass - L4.outfit.mass) - (D.board * O.panelKgM2 + D.dash * O.dashShellKgM2)) < 1e-6, 'I the panel board and its shell billed off the drawn dash (no dash, no board)');
+  check(JSON.stringify(ledg(S0)) === JSON.stringify(L0), 'I a spec with no drawing bills as it always did (deterministic)');
+  say('I drawn cabin: furnish ' + L1.furnish.mass.toFixed(2) + ' kg (' + nSeats + ' chairs, lining ' + trimKg.toFixed(2) + ' kg) against ' + L0.furnish.mass.toFixed(2) + ' kg undrawn');
+}
+
+// =====================================================================================================================
 // --selftest: a doctored bus and a doctored face must go red
 // =====================================================================================================================
 if (SELFTEST) {

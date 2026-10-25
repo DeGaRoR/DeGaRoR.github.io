@@ -106,6 +106,8 @@ function make(THREE) {
     let fit = null;
     try { if (typeof genSystemsResolve === 'function') fit = genSystemsResolve(spec || {}, { lights: litFit }); } catch (e) {}
     CK.fit = fit;
+    // G2809 (E2): a light with no lamp drawn (the census: fit.lamps) puts no load on the bus, as one not fitted
+    if (fit && Array.isArray(fit.lamps)) for (const k of LIGHT_KEYS) if (!fit.lamps.includes(k)) CK.unfit.add(k);
     // A3: WHAT THE FUEL / CHARGE GAUGE READS AGAINST - the build's energy
     // kind and its DESIGN capacity (litres or kWh), the same rule the dash
     // painted its F by (_cage_panel scaleFacts). The solver's `litres0` is

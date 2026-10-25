@@ -21,9 +21,12 @@
 // Usage (A0's box, the GPU lock held - tools/perf/boxlock.sh take gpu AVIONICS):
 //   node tools/live_driver.js <repo root> "flyDiy/bugReports/cessnaMetal (1).json" dev.html 8572
 //   node tools/avionics_stills.js 8572 <outDir> [portable|panel|glass]
-// The shipped metal Cessna (tools/_load_build.js VALIDATED.metal) takes a portable (on the plate's left, 0.34 m out) or a
-// panel GPS (in the middle) and its 15 breakers in one row (GATE GPSFACE F holds the portable); the C172 likewise; a
-// Jodel's portable stands in its glareshield cradle; a glass unit finds no room on the validated dashes and is named.
+// G2808 (the user, 25 Oct: "GPS placement is in front of the pilot, glass cockpit style"): every kind lays out
+// SCREEN FIRST, on the pilot's line - the shipped metal Cessna (tools/_load_build.js VALIDATED.metal) takes the glass
+// unit there with all its dials and its 15 breakers (GATE GPSFACE F holds glass and portable); the C172 and the Cub
+// likewise; a Jodel's portable stands in its glareshield cradle on the pilot's line (on its plate it would cost a
+// dial), and its glass unit fits only in the middle, four gauges giving way (named, not drawn, not billed).
+// Try `glass` first on the metal Cessna: node tools/avionics_stills.js 8572 <outDir> glass
 'use strict';
 const fs = require('fs'), path = require('path');
 const PORT = +(process.argv[2] || 8572), OUT = path.resolve(process.argv[3] || 'avionics_stills');
@@ -57,7 +60,7 @@ const READ = `const CK = window.FLYDIY_COCKPIT_I, G = window.FLYDIY_GPS, S = G ?
     GARAGE_SPEC.update({ systems: JSON.parse(JSON.stringify(SY)) });
     if (window.CAGE_UI && CAGE_UI.build) CAGE_UI.build();
     const L = CP.last() && CP.last().layout;
-    return { screens: L && L.screens, extraOverflow: L && L.extraOverflow, breakers: L && L.breakers && L.breakers.row.length };`);
+    return { screens: L && L.screens, overflow: L && L.overflow, extraOverflow: L && L.extraOverflow, breakers: L && L.breakers && L.breakers.row.length };`);
   console.log('fit: ' + JSON.stringify(info.fit));
   await sleep(4000);
   // ---- 00 the shed: the pilot's eye on the dash

@@ -8,10 +8,13 @@
 //
 //   seats  GEN_SEATS (tube and sling / moulded pan / upholstered / energy-absorbing), each priced and weighed per
 //          chair. WHAT YOU SEE: a pick here also sets the drawn seat (the crew's `seatType`: a sling is the tube
-//          frame, a pan or a crushable seat the composite shell, an upholstered one the airliner seat); a build whose
-//          drawn seat and billed kind disagree (a save from before this column) is said, and left as it is.
-//   trim   GEN_TRIM (bare / light / lined / lined and quiet), the fraction of Raymer's furnishings law - or unset,
-//          the panel tier's fraction exactly as every save before this column billed it (genFurnK).
+//          frame, a pan or a crushable seat the composite shell, an upholstered one the airliner seat); G2809: the
+//          kind BILLED is always the drawn seat's (a shell is a pan, or the crushable seat when that is the pick).
+//   trim   GEN_TRIM (bare / light / lined / lined and quiet): G2809, the FINISH of what the cabin draws - the pads
+//          on the sill shoulders, the door panels and the console, the floor's covering; unset is light.
+// G2809 (the user, 25 Oct: "Wysiwyg, and as billed for all"): the join writes what is drawn, always - the seats'
+// kind off the drawn seat, the drawn surfaces (m2, measured here off the cage's sheets and the crew's floor and
+// console) and the control stations; the ledger bills those (61_gen_frame, genDrawnCabin).
 //
 // Load order: after _cage_panel.js (build.js MANIFEST.editor, _cage8.html, _parts_check.js - the three lists).
 // Node-loadable with no document (GATE PARTS): nothing touches the DOM at load.
@@ -45,12 +48,63 @@ function seed() {
     try { fromSpec(window.GARAGE_SPEC.get().outfit); } catch (e) {}
   }
 }
-// the join's seam: the trim only when one was chosen (an unset row writes no key); null when unseeded
+// THE DRAWN FURNISHING (G2809, the user of 25 Oct: "Wysiwyg, and as billed for all"): measured off the build the
+// editor just drew, so the ledger bills what is there - the cage's own sheets by material (the dash shell, its facia,
+// the sill shoulders, the door panels: m2, through the editor's metre scale) at the end of the post chain, and the
+// crew layer's floor and console (its own record, read when the join asks: the floor lands after the chain)
+let SHEETS = null;
+const SHEET_OF = { dash: 'dash', dashFace: 'board', shoulder: 'shoulder', doorPanel: 'door' };
+function measureSheets(ctx) {
+  const m = ctx && ctx.mesh, P = ctx && ctx.P;
+  if (!m || !m.V || !m.F) return null;
+  const FS = ((window.CAGE2 && window.CAGE2.CAGE_UNIT) || 1) * ((P && P.planeScale) || 1);
+  const V = m.V, out = { board: 0, dash: 0, shoulder: 0, door: 0 };
+  for (const f of m.F) {
+    const k = SHEET_OF[f.m];
+    if (!k || !f.v || f.v.length < 3) continue;
+    const p0 = V[f.v[0]];
+    for (let i = 1; i + 1 < f.v.length; i++) {
+      const p1 = V[f.v[i]], p2 = V[f.v[i + 1]];
+      const ux = p1[0] - p0[0], uy = p1[1] - p0[1], uz = p1[2] - p0[2], vx = p2[0] - p0[0], vy = p2[1] - p0[1], vz = p2[2] - p0[2];
+      out[k] += 0.5 * Math.hypot(uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx) * FS * FS;
+    }
+  }
+  return out;
+}
+{
+  const PAGE = window.CAGE_PAGE || (window.CAGE_PAGE = {});
+  const prevPost = PAGE.post;
+  PAGE.post = ctx => {
+    if (prevPost) prevPost(ctx);
+    try { SHEETS = measureSheets(ctx); } catch (e) { SHEETS = null; }
+  };
+}
+// the control stations the crew drew (a stick, a yoke or a side stick each) and their kind (the crew's ctlStick)
+const CTL_KIND = ['stick', 'yoke', 'side', 'none'];
+function controls(P) {
+  const mv = (window.CAGE_CREW && window.CAGE_CREW.moving) || [];
+  const stations = mv.filter(m => /^edCtl_(stick|yoke|sideStick)(#\d+)?$/.test(m.name)).length;
+  return { stations, kind: CTL_KIND[Math.round(+((P && P.ctlStick) || 0))] || 'stick' };
+}
+const r4 = x => +(+x || 0).toFixed(4);
+// the kind billed for the seat DRAWN (the crew's seatType): a tube frame is a sling, a shell a moulded pan (or the
+// energy-absorbing seat when that is the column's pick - the same shell drawn), an airliner seat upholstered
+function billedKind(P) {
+  const t = Math.round(+((P && P.seatType) || 0));
+  return t === 2 ? 'standard' : t === 1 ? (OF.seats === 'energy' ? 'energy' : 'basic') : 'sling';
+}
+// THE JOIN'S SEAM: what is drawn, always (G2809) - the seats' kind off the drawn seat, the drawn areas, the control
+// stations; the trim (the finish of the drawn pads and floor covering) only when one was chosen, so a save that
+// never chose keeps its own
 function toSpec() {
   if (!seeded) seed();
-  if (!seeded) return null;
-  const o = { seats: OF.seats };
-  if (OF.trim) o.trim = OF.trim;
+  const P = window.CAGE_UI && window.CAGE_UI.P;
+  const o = { seats: billedKind(P) };
+  if (seeded && OF.trim) o.trim = OF.trim;
+  const S = SHEETS || {}, CR = window.CAGE_CREW || {};
+  o.drawn = { board: r4(S.board), dash: r4(S.dash), shoulder: r4(S.shoulder), door: r4(S.door),
+              floor: r4(CR.floor && CR.floor.areaM2), console: r4(CR.consoleM2) };
+  o.ctl = controls(P);
   return o;
 }
 // COMMIT - the spec is the owner. The trim goes as written, null included: back to unset clears a choice.
@@ -116,27 +170,44 @@ function render() {
   // ---- the seats
   select(body, 'seats', 'the kind of chair at every seat, priced and weighed per chair; a pick also draws it',
     Object.keys(SE).map(k => [k, SE[k].name + ' · ' + fmtKg(SE[k].kg) + ' · ' + fmtCr(SE[k].price) + ' each']),
-    OF.seats, v => { OF.seats = v; seeded = true; drawSeat(v); render(); commit(); });
+    // (G2809: the select shows the kind BILLED - the drawn seat's; a pick draws its seat)
+    (window.CAGE_UI && window.CAGE_UI.P) ? billedKind(window.CAGE_UI.P) : OF.seats,
+    v => { OF.seats = v; seeded = true; drawSeat(v); render(); commit(); });
   const U = window.CAGE_UI, P = U && U.P;
-  if (P && P.seatType != null && Math.round(+P.seatType) !== DRAWN[OF.seats]) {
-    const d = row(body, 'drawn', 'the seat the cabin draws (the crew\'s seat type) is not the kind billed');
-    const want = Object.keys(DRAWN).find(k => DRAWN[k] === Math.round(+P.seatType));
-    const v = el('span', 'v', 'a ' + DRAWN_NAME[Math.round(+P.seatType)] + ', billed as ' + SE[OF.seats].name.toLowerCase() +
-      (want ? ' - pick ' + SE[want].name + ' to bill what is drawn' : ''));
-    v.style.color = '#e08a5a';
-    d.appendChild(v);
+  // G2809: the kind billed is the seat DRAWN (a pick above draws it; the crew's seat type draws it too)
+  if (P && P.seatType != null) {
+    const kind = billedKind(P);
+    const d = row(body, 'drawn', 'the seat the cabin draws (the crew\'s seat type) - the kind the ledger bills, at every seat drawn');
+    d.appendChild(el('span', 'v', 'a ' + DRAWN_NAME[Math.round(+P.seatType)] + ' · billed as ' + SE[kind].name.toLowerCase()));
   }
-  // ---- the trim
-  let tierName = 'the panel tier', tierK = null;
-  try {
-    const R = window.CAGE_PANEL && window.CAGE_PANEL.resolve ? window.CAGE_PANEL.resolve() : null;
-    if (R && typeof GEN_OUTFIT !== 'undefined') { tierName = R.tier; tierK = GEN_OUTFIT.furnK[R.tier] || 0; }
-  } catch (e) {}
-  const opts = [['', 'as the panel tier (' + tierName + (tierK != null ? ': ' + Math.round(tierK * 100) + ' %' : '') + ')']]
-    .concat(Object.keys(TR).map(k => [k, TR[k].name + ' · ' + Math.round(TR[k].k * 100) + ' %']));
+  // ---- the trim: the finish of the drawn pads and floor covering (G2809)
+  const opts = [['', 'light (unset)']].concat(Object.keys(TR).map(k => [k, TR[k].name + ' · pads ' + TR[k].pad + ' kg/m² · cover ' + TR[k].cover + ' kg/m²']));
   select(body, 'trim', Object.keys(TR).map(k => TR[k].name + ': ' + TR[k].note).join('\n') +
-    '\n(a share of the GA furnishings law on the design gross; billed, not drawn - no headliner or carpet mesh yet)',
+    '\n(the finish of what the cabin draws: the sill shoulders, the door panels, the console and the floor\'s covering)',
     opts, OF.trim || '', v => { OF.trim = v || null; seeded = true; render(); commit(); });
+  // ---- what the cabin draws, as the ledger bills it (G2809)
+  {
+    const o = toSpec(), D = o.drawn || {}, T = TR[OF.trim || 'light'] || TR.light;
+    const O = typeof GEN_OUTFIT !== 'undefined' ? GEN_OUTFIT : null;
+    const line = (label, title, m2, kgM2) => {
+      if (!(m2 > 0)) return;
+      const d = row(body, label, title);
+      d.appendChild(el('span', 'v', m2.toFixed(2) + ' m² · ' + fmtKg(m2 * kgM2)));
+    };
+    if (O) {
+      line('panel board', 'the instrument facia as drawn, an alloy board', D.board, O.panelKgM2);
+      line('dash shell', 'the coaming and glareshield round it, a moulded shell', D.dash, O.dashShellKgM2);
+      line('sill shoulders', 'the pads on the sill shoulders, at the trim\'s density', D.shoulder, T.pad);
+      line('door panels', 'the door panels, at the trim\'s density', D.door, T.pad);
+      line('console', 'the centre console box, at the trim\'s density', D.console, T.pad);
+      line('floor', 'the floor board (ply) under the trim\'s covering', D.floor, O.floorPlyKgM2 + T.cover);
+      const c = o.ctl;
+      if (c) {
+        const d = row(body, 'controls', 'the control stations the cabin draws: each past the first is a second set; a yoke\'s column weighs more than a stick');
+        d.appendChild(el('span', 'v', c.stations + ' station' + (c.stations === 1 ? '' : 's') + ' · ' + c.kind));
+      }
+    }
+  }
   // ---- the bill: the ledger's own furnish row, off the aeroplane the garage built
   let L = null;
   try { L = window.GARAGE_SPEC && window.GARAGE_SPEC.ledger ? window.GARAGE_SPEC.ledger() : null; } catch (e) {}

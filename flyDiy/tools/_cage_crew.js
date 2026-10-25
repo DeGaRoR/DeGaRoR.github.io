@@ -2349,7 +2349,10 @@ function buildFloor(g, A, P, mesh, seats, scene) {
   const fg = new THREE.Group(); fg.name = 'edFloor'; g.add(fg);
   const grv = K.Bag(), scr = K.Bag();
   const X = [1, 0, 0], Y = [0, 1, 0], Z = [0, 0, 1];
-  let nHoles = 0;
+  let nHoles = 0, areaM2 = 0;
+  // (G2809: the boards' plan area - each outline less its holes - is what the furnishing bills, at the ply's and
+  // the covering's areal mass; the keel's slope adds well under a percent)
+  const shoelace = pts => { let a = 0; for (let i = 0; i < pts.length; i++) { const p = pts[i], q = pts[(i + 1) % pts.length]; a += p[0] * q[1] - q[0] * p[1]; } return Math.abs(a) / 2; };
   for (const [za, zb] of runs) {
     const poly = slice(za, zb);
     if (poly.length < 6) continue;
@@ -2364,6 +2367,7 @@ function buildFloor(g, A, P, mesh, seats, scene) {
       shape.holes.push(p);
     }
     nHoles += mine.length;
+    areaM2 += shoelace(poly) - mine.reduce((a, h) => a + (h.x1 - h.x0) * (h.z1 - h.z0), 0);
     const geo = new THREE.ExtrudeGeometry(shape, { depth: FLOOR_T, bevelEnabled: false });
     // the board follows the keel: every vertex lifted by its station's
     // floor height (local y is -z, local z is up)
@@ -2432,6 +2436,7 @@ function buildFloor(g, A, P, mesh, seats, scene) {
   }
   grv.mesh(fg, M.knob); scr.mesh(fg, M.plated);
   return { obj: fg, holes: nHoles, slots: slots.length, notches: merged[1].length + merged[-1].length, z: [+z0.toFixed(3), +z1.toFixed(3)],
+           areaM2: +areaM2.toFixed(4),
            // the record (CAGE_CREW.floor): where the board was cut, for the notes and the gate
            cut: { notches: [1, -1].flatMap(sd => merged[sd].map(e => ({ side: sd, z: +e.z.toFixed(3), hw: +e.hw.toFixed(3), depth: +e.depth.toFixed(3) }))),
                   slots: slots.map(s => s.map(v => +v.toFixed(3))), holes: holes.map(h => ({ x: [+h.x0.toFixed(3), +h.x1.toFixed(3)], z: [+h.z0.toFixed(3), +h.z1.toFixed(3)] })) } };
@@ -3415,7 +3420,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // through the pilot's lap. A console throttle without the box floats on
   // its own small mount, which buildConsole has handled since 2026-08-19.
   const boxWanted = sbs && !!(+P.consoleOn);
-  let consoleThr = null;
+  let consoleThr = null, consoleM2 = 0;
   if (boxWanted || thrMode === 2) {
     // sbs: between the seats. Otherwise on the throttle-hand side —
     // yoke flies left-handed (throttle right), sticks right-handed
@@ -3425,6 +3430,25 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     cog.name = 'edConsole';                              // G113: named
     group.add(cog);
     consoleThr = buildConsole(cog, A, P, cx, thrMode === 2, boxWanted);
+    // G2809: the box's own surface (the trim the furnishing bills), off its meshes in the layer's metres
+    if (boxWanted) {
+      let a = 0;
+      cog.updateMatrixWorld(true);
+      const inv = new THREE.Matrix4().copy(cog.matrixWorld).invert(), mm = new THREE.Matrix4();
+      const vA = new THREE.Vector3(), vB = new THREE.Vector3(), vC = new THREE.Vector3();
+      cog.traverse(o => {
+        if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
+        mm.multiplyMatrices(inv, o.matrixWorld);
+        const pa = o.geometry.attributes.position, ix = o.geometry.index, n = ix ? ix.count : pa.count;
+        for (let i = 0; i + 2 < n; i += 3) {
+          vA.fromBufferAttribute(pa, ix ? ix.getX(i) : i).applyMatrix4(mm);
+          vB.fromBufferAttribute(pa, ix ? ix.getX(i + 1) : i + 1).applyMatrix4(mm);
+          vC.fromBufferAttribute(pa, ix ? ix.getX(i + 2) : i + 2).applyMatrix4(mm);
+          a += vB.sub(vA).cross(vC.sub(vA)).length() / 2;
+        }
+      });
+      consoleM2 = +a.toFixed(4);
+    }
   }
   const tg = new THREE.Group();
   tg.name = 'edCtl';                                     // G113: named
@@ -3491,7 +3515,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       try {
         const fl = buildFloor(myGroup, A, P, mesh, places, scene);
         FLOOR_LAST.obj = fl ? fl.obj : null;
-        if (window.CAGE_CREW) window.CAGE_CREW.floor = fl ? { holes: fl.holes, slots: fl.slots, notches: fl.notches, z: fl.z, cut: fl.cut } : null;
+        if (window.CAGE_CREW) window.CAGE_CREW.floor = fl ? { holes: fl.holes, slots: fl.slots, notches: fl.notches, z: fl.z, cut: fl.cut, areaM2: fl.areaM2 } : null;
       } catch (e) { console.warn('floor (G331):', e); }
     };
     const late = () => {
@@ -3849,6 +3873,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // coaming lip is, how wide the cabin is at a station — and re-deriving them
   // over there would be a second description of the cabin.
   const DBG = window.CAGE_CREW = { stations: [], panel, floorN, A,
+    consoleM2,                            // G2809: the centre console box's surface (m2; 0 without the box)
     // G272: the dark under the dash, for the join (craft space, see footwellOf)
     footwell: FOOTWELL,
     // G279: the plate's cut-outs behind the attitude indicators (craft space)

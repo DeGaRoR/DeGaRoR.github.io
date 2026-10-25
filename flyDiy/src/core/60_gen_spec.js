@@ -1177,7 +1177,9 @@ const GEN_ACCESS = {
     // an aeroplane with no fin to carry one (a V-tail), and the rod boom
     // keeps its clamped one (G189, GATE FIT's row); the crown placer now
     // refuses the fin's footprint as well, for every crown row.
-    need: R => R.systems === 'minimal' ? 0 : R.booms ? 0 : R.rod ? 1 : R.fin ? 0 : 1,
+    // G2809 (E9): only where a beacon IS fitted - the lights on, the beacon among them and a battery behind it
+    // (R.beaconLamp; unknown on a spec with no drawing: the rule as before) - and billed and loaded as that lamp
+    need: R => R.beaconLamp === false ? 0 : R.systems === 'minimal' ? 0 : R.booms ? 0 : R.rod ? 1 : R.fin ? 0 : 1,
     // 'free', not 'ring'. A beacon is a small light on its own doubler and
     // does not bolt through a frame, and snapping it to one put it on the
     // same station as the comm aerial — two fittings in one place, which
@@ -1312,6 +1314,8 @@ function genAccessNeeds(S) {
     // G2808: the fitted dials and the suction, as the core resolves them (the static port, the venturi, the sight)
     items:     genSystemsResolve(S).items,
     vac:       genSystemsResolve(S).vac,
+    // G2809: a beacon fitted as a lamp (the census the join wrote; none known on a spec with no drawing)
+    beaconLamp: (S.systems && S.systems.lights && typeof S.systems.lights === 'object') ? +S.systems.lights.beacon > 0 : undefined,
     material:  f.material || 'tubeFabric',
     cargo:     (S.cargo && S.cargo.len) || 0,
     engine:    !!((S.engines && S.engines.length) || S.engine),
@@ -1386,6 +1390,9 @@ function genAccessNeedsCage(P, extra) {
     // G2808: the fitted dials and the suction (the editor hands the resolved ones over; a bench takes the tier's)
     items:     Array.isArray(E.items) ? E.items : genSystemsResolve({ systems: { fit: E.systems || 'basic' } }).items,
     vac:       E.vac !== undefined ? E.vac : genSystemsResolve({ systems: { fit: E.systems || 'basic' } }).vac,
+    // G2809: the beacon fitted as a lamp - the editor's answer (lights, beacon, battery), else the cage's own rows
+    beaconLamp: E.beaconLamp !== undefined ? !!E.beaconLamp
+      : !!(+(P.lightOn == null ? 0 : P.lightOn) && (P.li_beaconFit == null || +P.li_beaconFit)),
     material:  E.material || 'tubeFabric',
     cargo:     E.cargo || 0,
     engine:    !!(P.engOn == null ? 1 : +P.engOn),
@@ -1766,15 +1773,25 @@ const GEN_SEATS = {
 // was drawn: AVIONICS-STATUS §1A's hidden coupling). `spec.outfit.trim` chooses it; ABSENT (every save before this
 // row), it is the tier's, exactly as before - so a save that never touches the row bills what it did, byte for byte.
 //   k  the fraction of Raymer's furnishings (0.0582 W0 - 29.5 kg); priced at the outfit's 60 cr a kilo
+// G2809: ON A DRAWN CABIN (spec.outfit.drawn - every build the editor measured) THE TRIM IS THE FINISH OF THE DRAWN
+// SURFACES: `pad` kg/m2 on the sill shoulders, the door panels and the console, `cover` kg/m2 over the floor board;
+// unset is 'light'. `k` (Raymer's fraction) is the rule only for a spec with no drawing (a fiche, an archetype).
 const GEN_TRIM = {
-  bare:  { name: 'Bare',            k: 0,    note: 'paint on the tubes and a rubber floor mat: a J-3' },
-  light: { name: 'Light trim',      k: 0.25, note: 'side pads, a floor mat, no headliner: a Champ or a Jodel' },
-  lined: { name: 'Lined',           k: 0.5,  note: 'side panels, carpet, a headliner: a basic trainer' },
-  full:  { name: 'Lined and quiet', k: 1.0,  note: 'the lot, soundproofed, with the heater ducted: a 172 as delivered' },
+  bare:  { name: 'Bare',            k: 0,    pad: 0.6, cover: 0.3, note: 'painted panels and a rubber floor mat: a J-3' },
+  light: { name: 'Light trim',      k: 0.25, pad: 1.2, cover: 0.6, note: 'thin pads and a floor mat: a Champ or a Jodel' },
+  lined: { name: 'Lined',           k: 0.5,  pad: 2.0, cover: 0.9, note: 'upholstered panels and carpet: a basic trainer' },
+  full:  { name: 'Lined and quiet', k: 1.0,  pad: 3.0, cover: 1.5, note: 'upholstered and soundproofed behind, thick carpet: a 172 as delivered' },
 };
+// a drawn cabin's measured surfaces (m2), or null for a spec with no drawing
+function genDrawnCabin(S) {
+  const d = S && S.outfit && S.outfit.drawn;
+  return (d && typeof d === 'object') ? d : null;
+}
 // THE LINING'S FRACTION: the chosen trim's, else the instrument tier's (the rule every save before G2806 bills by).
 // The ONE reader for the frame's furnishing and the design gross's fixed point (61_gen_frame), so the two agree.
+// G2809: 0 on a drawn cabin - its lining is billed from the drawn surfaces (a fixed mass in both passes).
 function genFurnK(S) {
+  if (genDrawnCabin(S)) return 0;
   const t = S && S.outfit && S.outfit.trim;
   if (t != null && GEN_TRIM[t]) return GEN_TRIM[t].k;
   return GEN_OUTFIT.furnK[genSystemsResolve(S).tier] || 0;
@@ -1819,6 +1836,19 @@ const GEN_OUTFIT = {
   // the design gross the first pass solved (it is part of that fixed point).
   furnK: { minimal: 0, basic: 0.5, ifr: 1.0, custom: 0.5 },
   furnKgPerKg: 0.0582, furnKgOffset: 29.5,
+  // THE DRAWN FURNISHING (G2809, the user of 25 Oct: "Wysiwyg, and as billed for all"). When the editor measured
+  // the cabin it drew (spec.outfit.drawn, m2), the panel board and the lining are billed from THOSE surfaces and
+  // the two estimates above step aside (the cab.panel board, the Raymer lump - which stays the cross-check):
+  //   board  the instrument facia, panelKgM2 (an alloy board with its mounts)
+  //   dash   the moulded dash shell round it, the coaming and the glareshield: dashShellKgM2
+  //   shoulder / door / console   the sill shoulders, the door panels, the console box: the trim's pad density
+  //   floor  the floor board (ply, floorPlyKgM2) under the trim's covering
+  dashShellKgM2: 2.4,
+  floorPlyKgM2: 2.5,
+  // CONTROLS AS DRAWN (G2809): each station the crew draws past the first is a second set (ctlDualKg), and a
+  // station's column over a plain stick weighs this much more (a yoke's column, tube and wheel; a side stick's
+  // gimbal box)
+  ctlStationKg: { stick: 0, yoke: 1.5, side: 0.4, none: 0 },
 };
 
 // THE GAUGE LAW (PERF STUDY chantier 1, 2026-09-15). Per structural class,
@@ -2017,6 +2047,21 @@ const GEN_LIGHT_AMPS = { taxi: 5, beacon: 3, land: 8, nav: 2.5, flood: 0.5, inst
 // the NAV receiver's breaker is 'nav', the navigation lights' 'navLt')
 const GEN_LIGHT_BREAKER = { taxi: 'taxiLt', beacon: 'beaconLt', land: 'landLt', nav: 'navLt',
                             flood: 'cabinLt', instr: 'cabinLt', pedal: 'cabinLt', pax: 'cabinLt' };
+// THE LAMPS AS PARTS (G2809, AVIONICS-STATUS M5 / E1 / E2; the user, 25 Oct: "Wysiwyg, and as billed for all"): a
+// fitting's mass and price PER LAMP DRAWN - the light layer's census (spec.systems.lights {key: lamps}, the join
+// writes it from what the layer drew). A lamp on a build with no battery is not drawn and not billed; a key with no
+// lamp drawn (the passenger light with no passenger seat) puts no load on the bus.
+//   nav      one tip or tail light (a set is three)        instr  the posts on the bezels and their rheostat
+const GEN_LIGHT_PARTS = {
+  nav:    { name: 'navigation light',   kg: 0.20, price: 140 },
+  beacon: { name: 'beacon',             kg: 0.45, price: 380 },
+  land:   { name: 'landing light',      kg: 0.40, price: 240 },
+  taxi:   { name: 'taxi light',         kg: 0.40, price: 200 },
+  flood:  { name: 'cabin flood',        kg: 0.08, price: 45 },
+  instr:  { name: 'instrument posts',   kg: 0.10, price: 90 },
+  pedal:  { name: 'pedal light',        kg: 0.08, price: 45 },
+  pax:    { name: 'passenger light',    kg: 0.08, price: 45 },
+};
 function genBreakerSize(amps) {
   const P = GEN_ELEC_PARTS, need = Math.max(1, (+amps || 0) * P.breakerMargin);
   for (const s of P.breakerSizes) if (s >= need - 1e-9) return s;
@@ -2143,6 +2188,9 @@ function genSystemsResolve(S, opts) {
     if (noRoom.has(k)) { dropped.push({ key: k, why: 'no room on the dash' }); continue; }
     items.push(k);
   }
+  // G2809 (E10): a generator or a starter with no battery has nothing to charge and nothing to crank from - not fitted
+  for (const k of ['alternator', 'starter'])
+    if (!hasBus && elec[k] !== 'none') { dropped.push({ key: k, why: 'no battery' }); elec[k] = 'none'; }
   for (const k of ['com', 'xpdr', 'nav', 'gps'])
     if (avionics[k] !== 'none' && !hasBus) { dropped.push({ key: k, why: 'no battery' }); avionics[k] = 'none'; }
     else if (avionics[k] !== 'none' && noRoom.has(k)) { dropped.push({ key: k, why: 'no room on the dash' }); avionics[k] = 'none'; }
@@ -2169,6 +2217,20 @@ function genSystemsResolve(S, opts) {
       nPowered++; loads.push({ key: k, amps: r.amps || 0, av: true });
     }
   }
+  // THE LAMPS DRAWN (G2809): each key's lamps billed per lamp, its load on the bus; with no battery none is drawn
+  // (the light layer asks hasBus) and any the census still names is dropped
+  const census = (sy.lights && typeof sy.lights === 'object') ? sy.lights : null;
+  const lampKeys = [];
+  if (census) for (const k of Object.keys(GEN_LIGHT_PARTS)) {
+    const n = Math.max(0, Math.round(+census[k] || 0));
+    if (!n) continue;
+    if (!hasBus) { dropped.push({ key: 'light:' + k, why: 'no battery' }); continue; }
+    const r = GEN_LIGHT_PARTS[k];
+    rows.push({ key: 'light:' + k, group: 'elec', name: r.name + (n > 1 ? ' x ' + n : ''), kg: +(r.kg * n).toFixed(3),
+                price: r.price * n, amps: GEN_LIGHT_AMPS[k] || 0, lamps: n });
+    lampKeys.push(k);
+    nPowered++;
+  }
   if (hasBus) {
     const H = GEN_ELEC.harness;
     rows.push({ key: 'harness', group: 'elec', name: 'master, breakers and harness',
@@ -2185,7 +2247,7 @@ function genSystemsResolve(S, opts) {
     }
     if (elec.alternator !== 'none' && !noRoom.has('breaker:field'))
       breakers.push({ key: 'field', A: GEN_ELEC_PARTS.fieldA, feeds: ['alternator'], group: 'elec' });
-    const lit = (opts && Array.isArray(opts.lights)) ? opts.lights : [];
+    const lit = (opts && Array.isArray(opts.lights)) ? opts.lights : census ? lampKeys : [];
     const lb = {};
     for (const k of Object.keys(GEN_LIGHT_AMPS)) {
       if (!lit.includes(k)) continue;
@@ -2228,6 +2290,8 @@ function genSystemsResolve(S, opts) {
     bill: { panel, elec: el, avionics: av },
     kg: panel.kg + el.kg + av.kg, price: panel.price + el.price + av.price,
     loads, breakers, parts, hasBus, battAh: GEN_ELEC.battery[elec.battery].Ah,
+    // G2809: the light keys with a lamp drawn (null: no census - a spec with no drawing, every fitted light counts)
+    lamps: census ? lampKeys : null,
     altA: GEN_ELEC.alternator[elec.alternator].A,
     starter: elec.starter === 'yes', vac: elec.vac,
     // A3: what the `fuel` slot measures on this build - 'fuel' (litres, a
@@ -4691,6 +4755,20 @@ function clampSpec(spec) {
   if (!GEN_SEATS[S.outfit.seats]) S.outfit.seats = 'sling';
   // G2806: a trim the catalogue does not know is the tier's (removed, never written: an unset row adds no key)
   if (S.outfit.trim != null && !GEN_TRIM[S.outfit.trim]) delete S.outfit.trim;
+  // G2809: the drawn cabin's surfaces (m2, finite, >= 0, at most 30 each) and the control stations (0..4, a known
+  // kind); anything else is no drawing at all
+  if (S.outfit.drawn != null) {
+    const d = S.outfit.drawn, o = {};
+    if (d && typeof d === 'object') for (const k of ['board', 'dash', 'shoulder', 'door', 'floor', 'console'])
+      o[k] = genClamp(isFinite(+d[k]) ? +d[k] : 0, 0, 30);
+    if (d && typeof d === 'object') S.outfit.drawn = o; else delete S.outfit.drawn;
+  }
+  if (S.outfit.ctl != null) {
+    const c = S.outfit.ctl;
+    if (c && typeof c === 'object' && GEN_OUTFIT.ctlStationKg[c.kind] != null)
+      S.outfit.ctl = { stations: Math.round(genClamp(isFinite(+c.stations) ? +c.stations : 1, 0, 4)), kind: c.kind };
+    else delete S.outfit.ctl;
+  }
   {
     const E = S.energy || (S.energy = {});
     if (E.kind !== 'battery') E.kind = 'fuel';

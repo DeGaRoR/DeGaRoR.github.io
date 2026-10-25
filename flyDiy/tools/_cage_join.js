@@ -651,6 +651,9 @@ function cageJoinSpec(P, M, T) {
   // the panel arc, session 2: the fit, the same way (a null inside it is
   // 'the tier's answer' and must survive — garage.js's merge keeps nulls)
   if (M.systems !== undefined) spec.systems = M.systems;
+  // G2809: THE FURNISHING AS DRAWN (the Furnishing layer's answer: the seats' kind off the drawn seat, the drawn
+  // dash, trim and floor areas, the control stations) - it bills what the cabin shows
+  if (M.outfit !== undefined) spec.outfit = M.outfit;
   return spec;
 }
 
