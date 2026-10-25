@@ -97821,6 +97821,282 @@ Rolling set: ap-adapt (AP-ADAPT G3300-G3307: every certified build flown smoothl
 Battery: only master's known reds (CLOCK, CLOUD lamps rows; KTX2 row 10; FRAMECOST cessna garage:restore). The two 43 changes were gated together here (PILOT PILOTMATRIX TAKEOFF TOUR APSMOOTH PASS).
 Strict light gate: 9 RED, none new by cause: over100 x4 = the reveal frame (HWCOV: the gate pins mirror=off in the shed, which re-runs worldCompile after the shot; fix reveal-held tested today); metal chase/cockpit tasks1s / taskWorst 1481-1797 = the boot ~1 s task class; metal fuseWidth busy (accepted).
 
+## G3240-G3249 - NAMES: EVERY PERSON, ORGANISATION AND PLACE THE GAME SHOWS IS FICTIONAL - ONE NAMES TABLE (src/core/01_names.js), THE ISLAND RECORD RENAMED WITHOUT A REV BUMP, THE MAP RE-BAKED, GATE NAMES (2026-10-22, for the GAME COORDINATOR, cloud - node + headless only; branch claude/names off origin/master 5f3f2c79; the work: f0b52c22; NOT on claude/ready/ - it lands only after the user OKs the table below)
+
+### THE TABLE FOR THE USER'S OK (edit the right-hand column; each row is ONE line in `src/core/01_names.js`)
+
+| real (shown until today) | proposed fictional | where it is one line |
+|---|---|---|
+| Annette (the island references) | **Jolene** | `GAME_NAMES.island` |
+| Metlakatla (the town) | **Cedar Harbour** | `GAME_NAMES.town` |
+| Metlakatla Seaplane Base | **Cedar Harbour Seaplane Base** | `GAME_NAMES.fields.mk_sea` |
+| Annette Dock | **Greywater Dock** | `GAME_NAMES.fields.SEA` |
+| Tamgas Hill Strip | **Ridgeback Strip** | `GAME_NAMES.fields.w3` |
+| Tamgas Hill (the strip's hill, in the briefs) | **Ridgeback** | `GAME_NAMES.hill` |
+| Mount Tamgas / Tamgas Mountain (the summit, 1 096 m) | **Mount Ardent** | `GAME_NAMES.mountain` |
+| Jumbo Mine | **Copperhead Mine** | `GAME_NAMES.mine` |
+| Jumbo Mine Street | **Copperhead Mine Street** | `GAME_NAMES.fields.mn_strip` |
+| Jumbo Mine & Dock Co. (the provider) | **Copperhead Mine & Dock Co.** | `GAME_NAMES.mineCo` |
+| Annette Island VOR/DME | **Jolene VOR/DME** | `GAME_NAMES.vor` |
+
+The island record's SITE names (the scenery editor's lists; `tools/fixtures/island_jolene.json`) follow the table and were
+renamed in the record itself (no rev bump - see below). The ones marked **for the user** were REAL people or organisations,
+replaced by plain generic words until the user names them:
+
+| site id | real (until today) | now (generic; **for the user** = name it) |
+|---|---|---|
+| s_strip | Tamgas Hill | Ridgeback |
+| mn_s_mine | Jumbo Mine | Copperhead Mine |
+| mk_hall, mk_school_high, mk_inn, mk_police, mk_fire, mk_senior, mk_longhouse, mk_housing, mk_ballpark, mk_court, mk_mp_west, mk_mf_air, mk_mf_harb_a/b, mk_mw_small | Metlakatla Town Hall / High School / Inn & Suites / Police / Fire Hall / Senior Citizens Center / Long House / Housing Authority / Baseball Field / hard court / dock / seaplane float / Boat Harbor floats (inner) / small boat dock | Cedar Harbour ... (the same words) |
+| mk_gas | Annette Island gas fuel storage | Jolene Island fuel storage |
+| s_vor_ann | Annette Island VOR/DME (ANN 117.1) | Jolene VOR/DME (ANN 117.1) |
+| mk_c_east / north / south (junctions) | Metlakatla east (the Walden road) / north / south | Cedar Harbour east (the east road) / north / south |
+| mk_church_presb | Metlakatla Presbyterian Church | Cedar Harbour Church - **for the user** |
+| mk_church_duncan | William Duncan Memorial Church (a real person) | Memorial Church - **for the user** |
+| mk_school_elem | Richard Johnson Elementary School (a real person) | Cedar Harbour Elementary School - **for the user** |
+| mk_museum | Duncan Cottage Museum (a real person) | Cottage Museum - **for the user** |
+| mk_store_acc | Alaska Commercial Company | Harbour General Store - **for the user** |
+| mk_cafe_als | Al's American | Dockside Diner - **for the user** |
+| mk_post | United States Postal Service | Post office - **for the user** |
+| mk_clinic | Annette Island Service Unit | Island Clinic - **for the user** |
+| mk_credit_union | Tongass Federal Credit Union | Harbour Credit Union - **for the user** |
+| mk_harbormaster / mk_social / mk_wildlife | MIC Harbor master / MIC Social Services / MIC Fish and Wildlife (the real community's initials) | Harbour master / Social Services / Fish and Wildlife office - **for the user** |
+| mk_se_winds | Southeast Winds | Sea Winds - **for the user** |
+| mk_marine | Tongass Marine Supply | Harbour Marine Supply - **for the user** (its painted sign still says the old name: HELD, below) |
+| mk_power | Alaska Power & Telephone | Island Power & Telephone - **for the user** |
+| mk_gardens_shed | Metlakatla Indian Community Gardens | Cedar Harbour Community Gardens - **for the user** |
+| mk_coffee | Shadow Mountain Coffee | Hilltop Coffee - **for the user** |
+| mk_mw_cannery | Annette Island Packing | Jolene Island Packing - **for the user** |
+| nv_grounds | East Point Ceremonial Grounds | East Point grounds - **for the user** |
+
+Kept as they are (generic words, not names): Congregational Church, Kingdom Hall, Employment & Training, Landscaping office,
+Mini-mart, Harbour fuel / boat shed, Bayside dock / net pens, breakwater armour, Main Street, the Skyline names, East Point.
+
+### THE AUDIT - every other displayed name (applied = clear-cut; **for the user** = a decision, NOT applied)
+
+Applied:
+- **The loading screen's cards** (`src/viewer/boot_cards.js`, now built from the table): "Jolene is a real island / Jolene is
+  Annette Island, in south-east Alaska ... Tamgas Mountain" -> "Jolene is built from real ground: its hills, shores and forests
+  come from real elevation and land-cover data; its names are the game's own. Its highest point is Mount Ardent, 1 096 m.";
+  the town card: "the island's one real town ... the Duncan Cottage Museum" -> "the island's one town ... the cottage museum";
+  the field cards' titles read `GAME_NAMES.fields`.
+- **The loading screen's picture caption** (`shots_pack.json` + its baker's table `tools/shots_prep.py`, the same words in
+  both - the baker cannot re-run in the cloud: its captures are gitignored): "The island is Annette Island, Alaska, from its
+  real elevation data" -> "The island is built from real elevation data; its names are the game's own".
+- **The map** (`tools/map_bake.js` re-baked, node only, 31 s: `map_pack.js` + `media/map/jolene_proj.4ca9bfa2.json`; the
+  picture and the painting are byte-identical): the aerodromes (through the world, which reads the table), the town label and
+  POI (`GAME_NAMES.town`), the summit (`GAME_NAMES.mountain`, was "Tamgas Hill"), the credit line ("Jolene Island: Annette
+  Island, Southeast Alaska, renamed (...)" -> "Jolene Island: the ground from USGS 3DEP IFSAR and ESA WorldCover; every name
+  fictional (flyDiy/CREDITS.md)" - the DATA stays credited, the real place is not shown).
+- **The contracts** (`72_contract_data.js`): the 8 named fields read `GAME_NAMES.fields`; 11 briefs said "Tamgas Hill" ->
+  `GAME_NAMES.hill`; the provider "Jumbo Mine & Dock Co." -> `GAME_NAMES.mineCo`; "shipping through Annette Dock" -> the table.
+- **The plot words** (`71_player_bases.js` BASE_OFFERS): "Tamgas Hill · / Jumbo Mine · / Annette Dock · / Metlakatla ·" -> the table.
+- **The beacon** (`38_nav.js` NAV_FIXES): "Annette Island VOR/DME" -> `GAME_NAMES.vor` (the id `ANN` stays).
+- **The graphics menu's town row** (`gfx_settings.js`): "with Metlakatla" / "Metlakatla too" -> the table's town; "the native
+  village" -> "the east village". Two console warnings in render_premises.js ("Metlakatla builds unique") -> "the town".
+- **The scenery editor's theme** (`27_premises.js` THEMES): shown "Alaska" / "the panhandle: ..." -> "North Coast" / "the north
+  coast: ..." (the id `alaska` stays: records name it).
+
+**For the user** (not applied - each is a call, or needs an asset re-made):
+1. **A painted sign** (HELD in GATE NAMES): `tongass_marine` "Tongass Marine Supply" - the real business in the real town;
+   the words are in the user's own picture (assets/billboards -> tools/sign_prep.js). Proposed: repaint as "Harbour Marine
+   Supply". The same sign set has **"Admiralty Air Taxi" / "Admiralty Police"** (Admiralty Island is a real island nearby),
+   **"Kootz Landing General Store" / "Kootz Landing School"** (likely after Kootznoowoo, the Tlingit name of Admiralty Island)
+   and "Sitka Spruce Lumber" (a tree species; Sitka is also a real town). Proposed: "Gannet Air Taxi", "Harbour Police",
+   "Driftwood Landing General Store / School" (the plan's §5.1 default for the remote community), keep "Sitka Spruce" (the tree).
+2. **A recorded voice line** (HELD in GATE NAMES): the radio's `wx.softStrip.1` says "After this rain, Tamgas Hill strip will
+   be soft" (an mp3, tools/audio/voice_render.py, local). Re-voice as "Ridgeback strip" or drop the line (A0).
+3. **The clock's time zone** (`07_day.js`, `28_island.js`): "AKST / AKDT" (Alaska time) - shown by the dev panel and in the
+   day's records. Proposed: "JST/JDT" is taken (Japan) -> **"JLT / JLDT"** (Jolene time), same offsets.
+4. **The beacon's ident and frequency**: `ANN` 117.1 MHz at its FAA-published position is the real navaid. The ident is an
+   internal id (kept); if the instruments show it, propose **JOL**, 117.1 kept or moved (e.g. 116.4).
+5. **Aircraft and engine makers** (real organisations' products): the validated designs "Cub" (Piper), "Jodel", "metal Cessna"
+   / "Cessna floats" (CONTRACT_DESIGNS labels, 76_freight, the story's "stands as the metal Cessna"), the engine catalogue
+   (`00_registry.js`: Rotax, Lycoming, the Wasp Junior, the Gipsy Major, the PT6A, EMRAX, Pipistrel's E-811 - also a boot
+   card), the reference planes (`refplane.js`: Cessna 172 / 195, Jodel D.112, Piper PA-28 ...), the floats catalogue
+   (`32_hydro.js`: Cessna, Piper, de Havilland Beaver / Twin Otter, Pilatus ...), the plaque's "A J-3 ... a Jodel D.112".
+   A wide vocabulary call (the user's own build files are named so). Proposed default: keep - type names, not depictions.
+6. **The real community depicted, not named**: the East Point "native village" (`nv_` sites, its grounds, the totems of
+   `_totem_gen.js` and of the theme's blurb) and the town's Long House. Names are now fictional; whether to keep the depiction
+   is the user's call (proposed: keep the village as "East Point", fictional newcomers per §13's "Driftwood Landing" idea).
+7. **"Jolene AFB"** names a US Air Force base (the real field was an Army airfield). Fictional island, generic designation:
+   proposed keep.
+8. Kept on purpose (not depictions): the wildlife's species names on the map ("Roosevelt elk", "Sitka doe"), the GPU names
+   in the welcome's device gate (hardware), the music credits (licence attribution: Holizna, Ketsa, Jelly Roll Morton ...), the
+   data credits (USGS, ESA, Meta / WRI) in CREDITS.md and in `world_packs.json`'s credit (not shown; it still says "Annette
+   Island, Southeast Alaska" - generated by tools/world_prep.js from bench/: A0 rewords it at the next world bake).
+
+### HOW IT WORKS
+- **`src/core/01_names.js` - THE ONE TABLE** (`GAME_NAMES`: island, town, hill, mountain, mine, vor, mineCo, and `fields`
+  by internal id; `fieldName(id, recName)`: the table's name for a field it names, else the record's own). First in
+  MANIFEST.core after 00_registry, exported (90_node_exports), and ALSO in the BOOT block ahead of boot_cards.js (the
+  loading screen runs before the core): it is a `var`, so the core's copy re-declares it (a const would throw). dev.html
+  gets a `<script src="src/core/01_names.js">` ahead of the cards.
+- **Where a field's name is made**: `27_premises.js runwayAerodrome` (the island's runways -> world.aerodromes: the map, the
+  arrival card, the plot list, the pilots' words, the story's places) and `73_contracts.js contractFieldsOf` both go through
+  `fieldName`. So **the user's own saved scenery** (localStorage, which keeps the old names: the fixture is never re-revved
+  over it) shows the table's names for every field the table names. A field NOT in the table (the Cabin Strip, strips 9-13)
+  shows the record's own name, so the user's editor names still work and the story still finds "Cabin...".
+- **The island record** (`tools/fixtures/island_jolene.json`): 45 `"name"` strings changed in place by a text replace (the
+  file's bytes otherwise identical; its `rev` unchanged, asserted), so no user save is dropped. **Known**: the user's own
+  saved copy keeps the OLD site names in the scenery editor's lists until they take the fixture again; a future
+  scenery_ship.js of a user save made before today would bring them back - GATE NAMES goes red on that (it scans the record).
+- **Internal ids untouched** (HOME, w1-w8, SEA, mk_sea, mn_strip, nv_strip, tw_ski, ANN, the theme `alaska`, every site id):
+  no save, contract, route or story document changes.
+- The gates' own stub data (tools/_story_check, _routes_check, audio/_audio_check, _gameprem_check ...) still use the old
+  names inside their own fixtures: not shown, left alone.
+
+### GATE NAMES (`tools/_names_check.js`, registered in run_gates.js after STORY, core, `--selftest`, ~12 s)
+19 real names held out (the table's four, then the audit's: Alaska, Tongass, Ketchikan, Tsimshian, Walden, Duncan, Richard
+Johnson, Alaska Commercial, Al's American, United States Postal Service, Shadow Mountain, Southeast Winds, MIC, Indian
+Community, Ceremonial Grounds), read four ways: (1) every string literal of src/core and src/viewer (a small JS tokenizer:
+comments skipped - they are never shown), the island record's strings, shots_pack.json, the voice script's lines,
+world_packs' island names; (2) the built page - index.html's inline scripts and markup, career_core.<h8>.js, route_draw.<h8>.js;
+(3) the text tables evaluated off tools/flight_core.js (GAME_NAMES, CONTRACT_FIELDS, CONTRACT_TEXT, BASE_OFFERS, NAV_FIXES,
+STORY_BEATS / STORY_TIM / storyTimLines / STORY_LADDER, PILOTS_TEXT / ROSTER), the boot cards run as the BOOT block runs them,
+MAP_PACK; (4) an old save: every field the table names, recorded under its old name, shows the table's through
+runwayAerodrome and contractFieldsOf, and the record agrees with the table. HOLDS (the painted sign, the voice line) are
+printed every run with their owner; a stale hold is red. `--selftest`: 8 breaks red (a brief, the table, a record site, a
+card, the built page, the map pack, the override undone, a stale hold), a real name in a comment kept green.
+
+### GATES (22 Oct, cloud; the generated files built locally for the run, then put back - not committed)
+Run through run_gates (`--only=...`, `--jobs=4`), twice (the second after the re-cooks below):
+GATE NAMES: PASS (+ its selftest: 9 of 9), GATE CONTRACTS: PASS, GATE MAPBAKE: PASS (+ selftest), GATE PREMISES: PASS,
+GATE SAVE: PASS, GATE PLAYER: PASS, GATE STORY: PASS, GATE UISMOKE: PASS, GATE UISMOKE-PHONE: PASS, GATE GFX: PASS,
+GATE BOOT: PASS, GATE NAV: PASS, GATE NAVAID: PASS, GATE ECON: PASS, GATE GAMEPREM: PASS, GATE MEDIA: PASS, GATE ROUTES: PASS,
+GATE CARDS: PASS, GATE PREMCOOK: PASS, GATE STAGES: PASS, GATE CITYCOOK: PASS, GATE CITYHOST: PASS.
+**GATE SCENERYED: FAIL (1)** - row 20b, a timing budget ("with Metlakatla put back under 2500 ms": 3315 ms here). NOT this
+work's: a clean origin/master worktree on the same machine gives the same red (3279 ms). Its row 15 (the shipped record is
+the user's rev 28 save entry by entry) was red on the renames and is green with the manifest patch below.
+Not run (long or swept): DESTTO, ACCEPT, FREIGHT, PROCURE, LAZY, TOUR (they read 71/72/73 the way CONTRACTS / ECON / GAMEPREM
+do, through the core's exports, which now carry GAME_NAMES).
+
+What the first run caught, and the fixes (all in f0b52c22):
+- **The cooks hash the record, names included** (PREMCOOK, STAGES, CITYCOOK red): the cooked place cells carry the site names.
+  Re-cooked, node only, as premises_cook.js's header says to ("cook when the fixture changes"): `node tools/premises_cook.js
+  --island jolene` (6 min 22 s: 22 place cells re-written, every raster cell unchanged - content-addressed, nothing written),
+  then `node tools/city_cook.js --island jolene` (17 s: the city pack's files unchanged, only src/core/city_packs.json's input
+  hashes). The geometry is the same; only the names in the cells moved.
+- **Gates that spelled the old names in their expectations**: _contracts_check.js (the night lines), _gameprem_check.js
+  (gp1's base name), _map_smoke.js (UISMOKE's map half: the runways condensed, the places list, the town label) now read
+  CORE.GAME_NAMES, so a later edit of the table keeps them green.
+- **SCENERYED 15** (the shipped record = the user's rev 28 save): the renames go in the ship manifest's `fieldPatches`
+  (tools/fixtures/scenery_ship_rev28.json: w3, SEA, mn_strip, s_strip, mn_s_mine, nv_grounds -> {name}), with a line in
+  fieldPatchesWhy - the same mechanism SCENERY-ED-1 used for HOME. The mk_ town entries are held back from that save, so
+  they needed none.
+
+### FILES
+New: `src/core/01_names.js`, `tools/_names_check.js`, `media/map/jolene_proj.4ca9bfa2.json` (the bake's; `jolene_proj.f561c547.json`
+pruned), 22 `media/world/jolene/premises/p_*.bin` (the re-cook's; 22 pruned), `src/core/premises_packs.json` +
+`src/core/city_packs.json` (the cooks' manifests), `tools/fixtures/scenery_ship_rev28.json` (fieldPatches), and the three gates'
+expectations (_contracts_check.js, _gameprem_check.js, _map_smoke.js). Changed: `tools/build.js` (MANIFEST.core + the BOOT block), `src/core/27_premises.js`, `38_nav.js`, `71_player_bases.js`,
+`72_contract_data.js`, `73_contracts.js`, `90_node_exports.js`, `src/viewer/boot_cards.js`, `gfx_settings.js`, `render_premises.js`,
+`shots_pack.json`, `map_pack.js` (re-baked), `tools/fixtures/island_jolene.json`, `tools/map_bake.js`, `tools/shots_prep.py`,
+`tools/test_boot.js` (runs 01_names.js ahead of the cards, as the page does), `tools/run_gates.js`. NOT committed: index.html,
+dev.html, tools/flight_core.js, sw.js, version.json, career_core.<h8>.js (the train builds them).
+
+## G3230-G3239 - TECH-MASK: THE MACHINE SHOP'S THREE SEGMENTS, ONE TABLE - THE EDITOR GREYS IN PLACE, THE MAKERS AND THE MARKET FILTER, A DESIGN'S STAGE COMPUTED (2026-10-22, for the GAME COORDINATOR, cloud - node + headless only; branch claude/tech-mask off origin/master 5f3f2c79; the work: 0e66868e; NOT on claude/ready/ - the coordinator reviews first)
+GAME-PLAN §R (binding: MACHINE-SHOP, no eras, "a segmented tech tree"), §4.1-§4.4. Three segments: **1 Wood and fabric**, **2 Sheets
+and bolts**, **3 Composite and electronics**. v1 = the three unlocks; `entries` is the finer key for later.
+- **src/core/79b_tech.js** (pure, career-lazy: MANIFEST.core after 79_story + MANIFEST.career; GATE LAZY now counts TWELVE
+  modules; exported in 90_).
+  - `TECH_TABLE`: every build option -> its segment, keyed `<group>:<option>` over the GEN tables' own lists (below).
+  - `techStageOfSpec(spec)` = the highest segment of any option the spec uses (`techKeysOfSpec`; the panel through
+    genSystemsResolve). Computed, never stored: nothing is written into a spec or a save.
+  - `career.tech = { seg: 1, entries: [] }`. A NEW story career gets it (79_story.js storyNewCareer). careerNormalise
+    normalises it when present (seg clamped 1-3, entries to the table's keys) and adds nothing to a career without one.
+  - `careerTechAllows(doc, key)`, `careerTechSeg`, `careerTechStageOk(doc, stage, occasion)` (an occasion may stand one above,
+    §4.4), `careerTechUnlock(doc, seg)` (the keystone landmark's effect: on a clone, never down; nothing calls it yet).
+  - **No machine shop = everything open**: the sandbox, the dev career (?career=1) and every career made before this (no
+    `tech` key). Say if older careers should start at segment 1 instead.
+- **The editor** (editor.js, the TECH-MASK block after the story's lock; editor.css `.r.tech` / `.rn.edTech` / `.dfTech`).
+  - `window.TECH_MASK.set({ seg, entries })` from app.js `techMaskSync` (behind CAREER_DEV: on the editor's open and at every
+    story card). The sandbox never sets it, and with nothing set the pass touches nothing.
+  - The rows' options above the segment are disabled IN PLACE: the reason in the option's own words ("aluminium · Machine
+    shop: Sheets and bolts") and a line under the row ("Machine shop: Sheets and bolts / Composite and electronics"). Nothing
+    hover-only. The rows: construction (fuselage, each wing, fin, stab), glazing material, canopy, fairing build, the engine
+    catalogue (through CAGE_JOIN_ENGINES), the powertrain, the nacelle (twin) mount, the blade material.
+  - The design tiles (design_flow.js tileGrid; the game draws construction, powertrain and engine count as tiles in their
+    rows' slots) are greyed with the reason inside the tile; the starting-values pill likewise. A tile's keys are the rows
+    it writes, its starting values included (so "Normal category" waits for segment 2: its IO-360 and aluminium).
+  - **The story's lock wins**: while EDITOR_LOCK.finishOnly holds (T0) the mask yields; it applies when the lock lifts.
+    `TECH_MASK.tutorial(mask)` takes the story's hand-over (app.js storyMaskNote already called it); the mode is kept
+    ('checklist' at T2 = the segment's own mask, nothing narrower in v1).
+  - A part ALREADY above the segment (an occasion's): its whole row is held, "Machine shop: Sheets and bolts: yours to fly as
+    it is, not to modify".
+- **The makers and the market** (76_procure.js; map_menu.js passes the document).
+  - `procureCatalogue(doc)`: the models whose stock stage is at or below the segment (segment 1: the Cub and the Jodel).
+  - `procureBuyModel` refuses a model + options above it, with the reason.
+  - `procureMarketOf(doc)`: the listings at or below the segment; an `occasion` listing one above. The story's three
+    occasions carry the flag, so all three stay listed at T7 (the fabric 4-seater still stands as the metal Cessna: 2).
+  - A maker's model is read without its file: `TECH_DESIGNS` (the validated builds' keys, a MEASURED table that GATE TECH
+    re-derives from every build file; `--emit` prints it) with the rows its options write swapped (`techKeysOfModel`,
+    exact against procureSpec for all 57 option combinations).
+- **The validated builds**: Cub 1, Jodel 1, metal Cessna 2 (alloy, O-540, the IFR electrics, tricycle), Cessna floats 2,
+  twin floatplane 2 (the twin). The story's Rufus 1, the client's Cub 1, T2's checklist finish 1.
+- **GATE TECH** (tools/_tech_check.js, core, ~2 s; `--selftest`: six breaks, each red). The table both ways over the GEN
+  tables; the join's vocabularies and the rows' option counts; the stages; the career; the sandbox unchanged; editor.js's
+  own block headless over the real cage rows and the real design table (EXACTLY the above-segment options greyed at segment
+  1 - 53 options over 12 rows -, none at 3, none with no state, none under the lock, the held row, an entry); the makers;
+  the used market; the occasions at T7.
+
+**THE SEGMENT TABLE, for the user to review** (79b_tech.js TECH_TABLE; the rules are in its header):
+
+| option | 1 Wood and fabric | 2 Sheets and bolts | 3 Composite and electronics |
+|---|---|---|---|
+| fuselage | tubeFabric, wood | alloy, aluTube | carbon, glass |
+| a surface's own (wing / fin / stab) | fabric, steel | alloy, aluFabric | carbon, glass |
+| engine | a65_sensenich74, vw2180_wood, rotax277_pusher, rotax503_wood, rotax582_ivo, jabiru2200_std, rotax912_warp, o200_eprops, mikron3_wood, gipsymajor1_wood, verner7u_wood, rotec3600_std, o320_mccauley | io360_mccauley, o540_hartzell, io550_hartzell3, io720_hartzell3, ranger440_wood, hirth508_wood, argus10c_wood, w670_hs2b, r755_hs2b, m14p_v530, r985_hs2b20, r1340_hs12d40, r1830_hs23e50 | rotax915_carbon, emrax268_carbon, emrax228_3blade, e811_velis, sp260d_class, eppg_direct_130, fes_folding_100, outrunner2212_9x47, outrunner3548_12x6, outrunner6374_18x10, pt6a114a_hartzell3, pt6a34_hartzell4, pt6a42_hartzell4, pt6a60a_hartzell4 |
+| configuration | - | twin | - |
+| prop blades | wood, maple, walnut, alu, carbon | - | - |
+| prop pitch | climb, standard, cruise | - | - |
+| panel tier | minimal, basic, custom | ifr | - |
+| electrics: battery | none, lead | - | lithium |
+| electrics: alternator | none, gen20 | alt60 | - |
+| electrics: starter | none, yes | - | - |
+| electrics: vac | none, venturi | pump | - |
+| avionics: com | none, compact | - | - |
+| avionics: xpdr | none | modeS | - |
+| avionics: nav | none | vor | - |
+| avionics: gps | none | - | portable, panel, glass |
+| gear | taildragger, floats | tricycle | - |
+| suspension | bungee, spring, oleo | - | - |
+| fairing layup | glass | alloy | carbon |
+| glazing material | acrylic, glass | polycarbonate | - |
+| canopy | screen | bubble | - |
+| fuel | avgas100LL, mogas | - | jetA |
+| battery cells | - | - | lifepo4, nmc, nca |
+| kit | - | - | stol |
+
+The rulings that are mine, to confirm or move (one line each in the table):
+1. **The propeller is segment 1 whatever its material.** Rufus flies a carbon prop on a wood-and-fabric airframe; carbon = 3
+   would have put the story's own starter above segment 1.
+2. **Suspension is all segment 1.** The validated Jodel has oleo legs.
+3. **Glassfibre fairings are segment 1** (a homebuilt's spats); alloy 2, carbon 3. The glassfibre FUSELAGE is 3.
+4. **A naturally aspirated piston up to 115 kW is 1** (the O-320, the Super Cub's, and the Rotec radial included); the
+   Rotax 915 iS (turbo) is 3, as §4.1's "economical engines".
+5. **GPS of any kind and a lithium battery are 3**; the IFR panel's alternator, pump, transponder and VOR are 2.
+6. **Not masked in v1** (not in §4.1's columns): flaps, seats, tips, the tail's type, booms, a custom fit's instrument items.
+   The twin is masked; twin booms, pod-and-rod and the V-tail ("the designs it favours") are not.
+7. **The STOL kit (G2820) is one key, `kit:stol` = 3.** The kit is on claude/stol-wing-g2820 only; the row reads
+   `wings[].stol` (through genStolOf when that lands) and nothing until then. Its tips (endplate / drooped) are not masked.
+
+**Known gaps (for review):**
+- The tricycle is greyed on the undercarriage tile; the third wheel's own sliders (s2Z) can still move a nose wheel forward
+  in the shape view. The stage then reads 2 (techStageOfSpec); nothing refuses the save.
+- Nothing refuses a SAVE above the segment yet (the editor greys the choices; a plane loaded from a file outside the career
+  is held row by row, not refused).
+
+**Gates** (22 Oct, cloud; the generated files built locally for the run, then put back - not committed):
+- 34 gates through `node tools/run_gates.js --only=... --jobs=6`, once. PASS (31): TECH (+ `--selftest` PASS, 6 breaks), BUILD, LAZY (its
+  Chromium boot included), STORY, UISMOKE, UISMOKE-PHONE, PROCURE, GFX, CARDS, STORAGE, STOREDRAW, HONESTY, PARTS, PANEL, VIEW, UILAYER,
+  REF, MEDIA, ASSETS, ENERGY, SKINMAT, CLIMATE, INPUT, SHEETWORKER, ROUTES, CONTRACTS, ECON, PILOTS, PLAYER, HANGAR, FREIGHT.
+- RED, none mine: CLOCK (1 of 777) and BENCH ("the phase strip knows all 24 pilot phases - not ROUTE, LOITER") fail identically on
+  untouched origin/master 5f3f2c79 (re-run there); CLOUD's one row is the lamps row, master's known red.
+- Not run (the brief: no long or timed gates): DESTTO (3 shards, ~25 min; reads careerNormalise, which adds nothing to a career
+  without `tech` - GATE TECH holds that), ACCEPT (reads only the manifest order: 72_accept before 90_node_exports, unchanged),
+  NACLAG (a timed lag gate; reads design_flow.js's birth path, untouched).
+
 ## G2735-G2739 - ACCEPT-XWIND: THE CONTRACTS' CROSSWIND IS THE DESIGN CHECK'S RUDDER ROW (2026-10-15, ACCEPT-XWIND for the GAME COORDINATOR, cloud - node + headless UI smoke; branch claude/accept-xwind-g2735 off origin/master 85857a1e, DESIGN-TRUST G2640 on master since train 52c / G3050)
 
 The brief: the user via CERT-SLIM G2840, *"the cross wind is far too long and boring"*. CERT-SLIM kept a crosswind
@@ -98568,3 +98844,192 @@ scuff alone), and each case's scar record logged (its strips' ends, widths and l
 scuff's coverage of the slide, for the "long" half of the user's ask.
 Gates: DMGSCAR (2S: the darkening, alpha-weighted, and every vertex over the runway's layers) + MEDIA (the only two that
 read the file). Stills: scuff-slide + scuff-blow, the Cub and the metal Cessna, ?damage=1&simw=0.
+
+## G3450 - P1 CG-COLOURS: THE GARAGE'S CG / NEUTRAL-POINT INDICATORS WEAR ONE BAND - RED / ORANGE / GREEN, '!' ON RED AND ORANGE, A TOOLTIP WITH THE REASONS (2026-10-25, RUFUS-CERT for A0; claude/cg-colours; stills Sun 25 07:45 GPU; for L25b)
+
+The user, 24 Oct: the garage's CG / neutral point indicators get clear colour coding - RED = bad, ORANGE = acceptable, GREEN = good and safe - ONLY that coding, an added "!" in the wording for red and orange, and a tooltip explaining the reasons.
+
+- **Core** (`src/core/64b_gen_design.js`): `genMarginBand(sm)` and `GEN_MARGIN_BANDS`, exported. One function, so the garage and the gate read the same edges. It returns `{ band, mark, title, why, fix }`, or null when there is no margin.
+- **Page** (`src/viewer/app.js`): both posts, both labels and the ground bar take the band's colour. The old test (red below 5 %, amber/cyan otherwise) is gone. Red and orange add " !" to the neutral-point wording. A tooltip (`#cgTip`, styled per band in `editor.css`) gives the title, why and fix. It opens on a mouse hover over either label and on a tap (pointerup, before the pick). `window.CG_TIP` exposes it for the stills rig.
+- **Gate CGBAND** (`tools/_cgband_check.js`, core tier, node, about 5 s) checks:
+  - the band edges, the marks and the reasons;
+  - the user's corrected Cub comes out green;
+  - the user's `bugReports/birdman (1).json` comes out red (its row is skipped when the file is not in the tree);
+  - `app.js` and `editor.css` contain the band code.
+- **Not changed:** the bench's own `pitch.sm` row (it warns below 2 %). The certification rule belongs to CERT-REVIEW.
+
+**PROPOSAL - the band edges, for the user to judge from the stills:**
+
+| Static margin (CG ahead of the neutral point, % of mean chord) | Band | Meaning |
+|---|---|---|
+| below 0 | red ! | unstable in pitch: the nose keeps going after a bump |
+| 0 to 5 % | orange ! | flies but wanders (5 % was the indicator's old red line) |
+| 5 to 40 % | green | stable |
+| over 40 % | orange ! | very nose-heavy: the elevator may run out in the flare (the design check's own nose-heavy warning) |
+
+The edges are one table (`GEN_MARGIN_BANDS`), so changing them is a one-line edit.
+## G3501-G3509 - DC3-BUILD: A FULL-SIZE DC-3 (29 m, 2 x R-1830) BUILT THROUGH THE GARAGE'S OWN PATH STANDS, ROLLS, ROTATES, FLIES THE CIRCUIT AND LANDS IN NODE; THE SIX VALIDATED BUILDS BIT-IDENTICAL TO MASTER (2026-10-23/24, cloud, node only; branch claude/dc3-build off master 20a13667 = L23b; NOT on claude/ready/; for A0)
+The user (23 Oct, verbatim): "On the DC3, we'll go full size. It does not really have a place in the career yet, but you could use the large hangar for now, and set this one the the 'works' preset, just for now and the sandbox. Don't consider anything game-related on the DC3 yet."
+Continues DC3-STUDY (G3500, origin/claude/dc3-study): its study, tools/dc3_probe.js and both of its fixtures are brought across (the probe gains one printer fix and exports).
+- **What was done, in plain words:**
+  - **The DC-3 exists at full size and flies.** tools/fixtures/dc3_2026-10.json is born as the garage births a build: the
+    metal Cessna's file with the DC-3's rows dialled into the editor at planeScale 1.6, then the page's own load door
+    (tools/_load_build.js: the editor's layers draw it, the join measures it, the energy layer fits the tanks), then
+    buildGen. **0 join errors, design check clean** (13 rows, no fail; one warn: yaw.dutch 0.124). The pilot (43_pilot)
+    flies it from HOME through the whole circuit: **outcome "completed", 0 breaks, no crash, gPeak 1.66.**
+  - **What it took (each change gated on the build's size or mass, so a build inside today's envelope takes today's path):**
+    - G3501 **the wing pair's engine bearer sized to the engine** (61_gen_frame.js, wing nacelle): above
+      GEN_RULES.mountHeavyKg (500 kg a side) every bearer member's damage section x (side mass / mountRefKg 59 kg,
+      the 582 twin's calibration) - the R-1830's x16. Strength only (A); k, c, mass and bill as built.
+    - G3502 **the rotate-pull for a heavy taildragger** (43_pilot.js): over A.heavyTDKg (3 000 kg), past Vr, a
+      second on the 0.35 stop under the rotation attitude opens the stop to full travel (the tricycle's G3077 rescue).
+      It is a safety net: the fixture never needed it (no 'rotate-pull' verdict), and no porpoise was seen at lift-off,
+      so no lift-off damping was added.
+    - G3503 **the big envelope** (60_gen_spec.js): a wing asked over 18 m (genBig / genEnvBig / genWingEnv) is clamped
+      by GEN_WING_ENVELOPE.big (span 30, chord 5.0, xLE 9.0), GEN_TAIL_ENVELOPE.big (stab 9 x 3 m, fin 4 x 3.5 m),
+      GEN_FIELDS clampBig (cabin 1.40 / 3.00 / 10.0 m, tail arm 20, hX / vX 21, Sh 27, Sv 15, Svt 20, leg drop 1.8),
+      gear (track 6, wheel 0.65, tailwheel x 20, mains x 8) and fuel (4 000 L, 2 000 a vessel). A build of 18 m or less
+      is clamped by exactly master's numbers (proven: the metal Cessna's drawn 1.51 m cabin stays held at 1.45; an
+      ungated widening moved it - caught by the identity run, then gated). The editor's rows: span 6.5-30, chord and
+      tip chord to 5.0, fore / aft -6.0..1.8 (_cage_wing.js); half track 0-3.2 m, wheel to 0.65, leg drop to 1.6
+      (_cage_gear.js). The join's ERRS rows and the wing layer's station window read the big envelope past 18 m drawn.
+    - G3504 **frames along a long cabin** (61_gen_frame.js): a cabin longer than GEN_RULES.cabBayMax (2.6 m, the old
+      ceiling) gets evenly spaced full-section rings; its rear ring is iCabR (2 on every cabin inside the old ceiling).
+      The DC-3's 9.04 m cabin has 4 bays of 2.26 m (stations 1.10 3.36 5.62 7.88 10.14). genFusCdA's fore / aft body
+      split follows (62_gen_aero.js).
+    - G3505 **strength at size** (61_gen_frame.js, 30_solver.js): above GEN_RULES.gaugeHoldK (2) x the airframe
+      material's refGross (alloy 2 222 kg), a gauged member's damage section grows with the design gross over that knee
+      (the DC-3's x4.1) and the tail cone's shell skin by its root (the bending limit ~t^2: x4.1); mass, bill and k stay
+      the gauge's. CRASH_J grows with the mass above 3 t. Without this the full size broke its cabin-to-tail-cone joint
+      settling on its wheels (S5-S6 root-bend, 0.12 s): the aft longerons were the 172's 180 mm2 class floor.
+    - G3506 **the split flap** (S): GEN_FLAPS.split (dCl 0.90, cd 0.110, rate 0.20; travel 45 deg), appended last so no
+      saved wgFlapType index moves; the DC-3 lands on it. **Retracting mains (M) not done.**
+    - G3507 **sandbox only** (src/viewer/app.js): a build whose span the sandbox room's door cannot take (the club's
+      25 m against 29 m; 71_player_bases hangarDoorWhy) moves the sandbox's room to the WORKS shell through the shed
+      sheet's own door (GARAGE_ENV.setShell: rebuilt, re-framed, HOME's shed in the world follows) - never in a career,
+      never for a build of 18 m or less, never when no shed takes it; the garage eye stands back in proportion past
+      18 m (22.6 m at 29 m). Nothing in the career, contracts, economy, story, tech mask or parking.
+- **The numbers vs the real DC-3** (`node tools/dc3_build.js`; flown at 8 527 kg: full 3 110 L, 2 crew; the real MTOW
+  is 11 431 kg, so the speeds are also given scaled by sqrt(11 431 / 8 527) = 1.158):
+  | | real DC-3 | flown fixture | scaled to MTOW |
+  |---|---|---|---|
+  | span / wing area / AR | 29.0 m / 91.7 m2 / 9.2 | 29.0 / 92.8 / 9.1 | |
+  | root chord / taper / track | ~4.4 m / ~0.45 / 5.64 m | 4.40 / 0.45 / 5.64 | |
+  | cabin box / tail arm | 2.34 x 1.98 x 9.1 m inside | 2.43 x 2.63 x 9.04 outside the skin / 17.84 m | |
+  | deck angle on three points | ~11.5 deg | 11.6 deg | |
+  | mass | 7 650 empty, 11 431 MTOW | 8 527 (empty ~6 130) | |
+  | Vs clean / flaps (kt) | ~67 / 58 | 59 / 53 | 68 / 62 |
+  | Vappr (kt) | ~80-85 | 78 | 90 |
+  | climb (m/s) | 5.7 | 8.5 sheet, 9.9 flown max | (lighter: not comparable) |
+  | cruise (kt) | 160-180 | 132 sheet = the 2.2 Vs cap (64_gen_build.js:137), not a drag figure | |
+  | take-off | roll 271-518 m | sheet 305 m; flown: off the ground (0.5 m) after 437 m at 81 kt, 15 m after 677 m | |
+  | landing | over 50 ft 640 m, roll 244 m | flown: from 15 m 791 m, roll 233 m; touchdown 1.09 m/s at 64 kt on the mains | |
+  | static margin | | 0.091 (no corner row) | |
+  | the circuit (pilot) | | ROLL 0 s, LIFTOFF 17.0, CLIMB 28.2, CROSSWIND 39.5, DOWNWIND 65.3, BASE 133.5, FINAL 166.6, FLARE 268.7, ROLLOUT 274.6, STOPPED 305.6 s; 240 m AGL | |
+  | lattice | | 132 nodes / 585 beams / 33 strips, 147 substeps; certificate 47 s | |
+  | price (ledger) | | 507 263 | |
+  | solver per 60 Hz frame (node, airborne) | | 11.5-12.0 ms measured alone (16 ms beside six other processes); the study's Cub 2.35, metal Cessna 4.60, its 18 m fit build 19.0 | |
+- **The identity proof** (tools/dc3_identity.js, loaded the game's way through tools/_load_build.js; before = an
+  origin/master 20a13667 worktree, after = this branch; reports/dc3_identity_master_2026-10-23.json and
+  reports/dc3_identity_branch_2026-10-23.json): Cub, Jodel, metal Cessna, Cessna floats, twin floatplane, Rufus - the
+  def (sha1 of the whole def), the shakedown sheet, the mass / cost ledger, the certificate (genCertify without its
+  wall-clock `ms`), the mass and a 20 s flight (spawn, settle, the pilot's take-off; every node's position and velocity)
+  **ALL IDENTICAL**. Also the raw-spec path GATE POD builds (no load door, + the C172 fixture): byte-identical between
+  the two cores.
+- **Gates** (`node tools/run_gates.js --only=... --no-build`, this box: 4 cores):
+  - **PASS (40, batch 1):** `GATE GEN: PASS` (4 shards), `GATE PILOT: PASS` (3 shards), `GATE TAKEOFF: PASS`, `GATE DESIGN: PASS`,
+    `GATE DESIGNCHECK: PASS`, `GATE JOIN: PASS`, `GATE PARTS: PASS`, `GATE SUBSTEP: PASS`, `GATE KNIFE: PASS`, `GATE FLAPS: PASS`,
+    `GATE HINGE: PASS`, `GATE MOUNT: PASS`, `GATE DMGMEMBERS: PASS`, `GATE FLOATS: PASS`, `GATE SPECFIX: PASS`, `GATE WINGROWS: PASS`,
+    `GATE BUILD: PASS`, `GATE FIT: PASS`, `GATE MASS: PASS`, `GATE LOAD: PASS`, `GATE BIPLANE: PASS`, `GATE FRAMES: PASS`,
+    `GATE GEAR: PASS`, `GATE BAY: PASS`, `GATE EDBUGS: PASS`, `GATE STARTER: PASS`, `GATE SAVE: PASS`, `GATE WINGSPLIT: PASS`,
+    `GATE NACLAG: PASS`, `GATE ENERGYBASE: PASS`, `GATE SKINMAT: PASS`, `GATE HANGAR: PASS`, `GATE GAMEPREM: PASS`,
+    `GATE UISMOKE: PASS`, `GATE ACCEPT: PASS`, `GATE LINEUP: PASS`, `GATE STRIPSURF: PASS`, `GATE ENGINE: PASS`, `GATE ENGID: PASS`.
+  - **RED, master's (control run on an origin/master 20a13667 worktree, the same rows):** `GATE JOINPARITY: 1 FAIL` (five
+    other tools fly a validated build raw: _apsmooth_check, _engtorque_check, econ_sim, engine_torque_seasweep,
+    hand_controls_probe - the study's finding; the new dc3 tools load through _load_build.js) and `GATE POD: FAIL` (12 rows,
+    "pod off, the whole def / sheet is the base's bytes": tools/_pod_base.json is stale against master's core; the raw-spec
+    digests POD computes are byte-identical between master and this branch for all six of its builds).
+  - **RADIALDIV:** the runner's 1 800 s default timeout ends it on this 4-core box, alone too (`[spawn error] ETIMEDOUT`;
+    reference wall 700 s). Run directly (`node tools/_radialdiv_check.js`): `GATE RADIALDIV: FAIL (3)` - the 3 HANDS OFF rows (mosquito -55.8, mosquito_1
+    -55.9, cub -46.9 deg); **master's**: the same file on the origin/master worktree reads the identical 3 rows and numbers.
+  - **Batch 2** (a container restart lost the first run; re-run in chunks at --jobs=2):
+    - PASS: `GATE CLIMATE: PASS`, `GATE CONTACT: PASS`, `GATE GE: PASS`, `GATE PROFILE: PASS`, `GATE WATER: PASS`,
+      `GATE WATERDAMP: PASS`, `GATE FREIGHT: PASS`, `GATE PILOTS: PASS`, `GATE ENGTORQUE: PASS`, `GATE HEADING: PASS`,
+      `GATE PANEL: PASS`, `GATE ELEC: PASS`, `GATE DMGSETTLE: PASS`, `GATE DMGFPS: PASS`.
+    - RED, **master's** (control on the origin/master worktree, identical FAIL rows - diffed line for line):
+      `GATE TREEHIT: FAIL`, `GATE DMGCERT: FAIL`, `GATE DMGTYRE: FAIL (4)`, `GATE DMGFABRIC: FAIL` (its pinned base bits),
+      `GATE DMGCOMPOSITE: FAIL` (its pinned base bytes), `GATE BENCH: FAIL` ("the phase strip knows all 24 pilot phases -
+      not ROUTE, LOITER"), `GATE CLOUD: FAIL (1 of 239)` (master's listed standing red).
+    - RED, **not controlled** (no credit left for the control): `GATE HITBOX: FAIL` - one TIMING row ("the spec shape
+      costs less than the raster": 193 against 164 ms, run beside other gates; it PASSED on the master worktree run
+      alone-ish) - re-run it quiet; `GATE DMGCERTCOST: FAIL` - its row 1 is node wall time (56.5 s against a 42 s ceiling
+      on this slow 4-core box); `GATE DMGINST: FAIL` - worker / watchdog rows (the worker's certificate key, a blown
+      lattice's 'speed' trip, the worker host's diverged()), nothing that reads a build this branch changes. A0: control
+      these three on the box.
+  - **NOT RUN (out of session credit)** - A0 please run on the box: TREECRASH DMGGEAR DMGNOSE DMGDRIVE DMGWALL DMGSCAR
+    RWYTREES FLEX TAXICLEAR PLAN ROUTE DESTTO DMGSKIN DMGSKINGPU DMGPAGEW DMGWRECK DMGHEAL; batch 3, the app.js readers
+    (AA POSTFX INPUT ATMOS PACE FLIGHTREC AUDIO BOOMBOX FOG ATMO DEFAULT SKIN HWCOV SCENERY ASSETBUDGET ANIMALS GFX
+    PROGRAMS FRAMECOST ROUNDTRIP ROLLANIM ROLLSND UPDATE UILAYER FADES SHADOWSKY MEDIA ASSETS LIVERY WEATHER LIGHT
+    POSEHIDDEN SIMWORKER SHEETWORKER POSEBACK VIEW REF HONESTY PREMISES SCENERYED PREMCOOK PARKED FLOWNBAKE PLAYER
+    STORAGE STORESPOT STOREDRAW STAGES STORY ROUTES ECON PROCURE ENERGY AUDIOENG LAZY); the full tier (PILOTMATRIX,
+    PILOTPAGE, DESIGNSIM, ARCHETYPES, SEAPLANE, BOOTLIFT). The app.js change is two sandbox-only functions (G3507); every
+    core change is proven bit-identical on the six validated builds and on POD's raw path, so a new red there would be a
+    source scan, not a flown number.
+- **For A0 on the box:**
+  - Stills of the DC-3 in the large hangar (master's garage_shot has only --stock; the --file door is engine-configs-2's,
+    as in the study): `git show origin/claude/engine-configs-2:flyDiy/tools/garage_shot.js > tools/_gs_file.tmp.js`, then
+    `node tools/_gs_file.tmp.js --file tools/fixtures/dc3_2026-10.json --out screenshots/dc3_build` (the sandbox: the room
+    should switch itself to the works when the 29 m build lands - G3507; if the shot shows the club, that hook did not run
+    in the shot's path: say so). Delete the tmp copy after. The garage camera at 22.6 m is untested on a screen.
+  - A page flight if a rig exists: load the fixture in the sandbox, roll out at HOME 13/31, let the pilot fly the circuit.
+  - `node tools/dc3_build.js` (~7 min: sheet, certificate, the pilot's circuit) and `node tools/dc3_identity.js --cert`.
+- **Decisions for the user:**
+  1. **The sandbox room for a wide build** (G3507): it switches HOME's sandbox room to the works, and stays the works
+     afterwards (the shed sheet can put the club back). Keep, or switch back automatically when a narrow build loads?
+  2. **The DC-3's weight**: the build is ~1.5 t under the real empty weight (the gauge's Raymer exponents bill the
+     structure light at this size) and seats 8 (the cabin's drawn pax bays); at MTOW the real DC-3 carries 21+.
+     Bring the empty weight up (a heavier gauge above the knee), or keep the lighter aeroplane?
+  3. **The strength rule above the knee** (G3505) is a game rule, not physics: one lattice member stands for an
+     airliner's stringers and skin. It is gated off below 2 x refGross. Accept it as the rule for big builds?
+  4. Retracting mains (G3506 M), engine-out handling and per-engine gauges (G3508), the career (G3509): not started.
+
+## HWCOV - GARAGE-LINK + THE BOOT'S DRAW-AHEAD-OF-LINK TASKS (25 Oct 2026, A0's Sun 01:45 slot; for L25a)
+GARAGE-LINK (this branch): the flight recorder names the GPU once, in wrapGL (rec.gpuInfo: six getParameter calls); header()
+asks the GL nothing (the user's 24 Oct log: 2.2 s of header() GL queries behind the GPU process's links). The gate rig
+never runs header() (0 ms in four profiled boots, master and branch), so the rig cannot show it: the fix stands by code and
+GATE FLIGHTREC's source row.
+THE STRICT GATE'S tasks1s / taskWorst CLASS UNDER THE GARAGE BOOT SCREEN (master 2b381015d, rollout_perf cessnaMetal chase,
+the program watch + --profile-boot, two boots each): every 1-3 s task is a DRAW AHEAD OF A LINK - getUniforms
+(getProgramInfoLog) waiting on a program a step's compileAsync made and the GPU had not linked ('0 made' in that frame).
+All under the screen (boot 59-69 s), no frame over 100 ms after the reveal. The call chains:
+- the loop's own garage frames: loop > render (aa_resolve) > renderer.render - 1.4-2.8 s;
+- worldWarmDraw > view > render - 1.8 s;
+- the shadow pass in the loop: loop > render > SM.render > gRBD - 0.5-0.6 s;
+- worldUpdate > update > bakeSprites > renderer.render - 1.1 s.
+A FIRST FIX TRIED AND NOT TAKEN (claude/boot-links af46f43ef, not ready): the loop held its frame while BOOT loaded and any
+program was not isReady (3 s cap), and worldWarmDraw ran compileAsync + programsReady per view. Measured: the boot 86-92 s
+(was 59-69), the wait moved into hybridWarm > warmDrawSliced > craftInWorldNow (1.3-3.3 s), and 2 frames over 100 ms
+AFTER the reveal (1.4 / 2.5 s). Next: find what keeps the links pending that long (the parallel compile's queue behind
+the craft-in-world warm), not hold the frames on it.
+
+## G1729 - GARAGE-RATTLE: THE SHED NO LONGER HEARS THE LAST FLIGHT (2026-10-24, the Sound Coordinator; branch claude/garage-rattle off origin/master 20a136670 = L23b; for T-P1 Tue 27)
+The user’s playtest 24 Oct (A0’s ledger D:/Dev/flydiy-notes/PLAYTEST-2026-10-24.md items 31, 60): "a continuous RATTLING noise in the garage after a flight". A0’s read: the aeroplane’s speed stays frozen at the last flight’s value and keeps feeding the sound in the shed.
+CAUSE: enterGarage calls sim.reset(0), which zeroes the STATE (velocities, the panel: engines running) but not sim.out, which only a STEP writes (30_solver.js: out.V = hyp3(v) ~2858, the engines’ rpm, the thrust). Nothing steps in the shed, so the last flight’s V / Vg / vs / alpha, rpm / rpmEng / thrustPer, thrust and wash stayed in sim.out, and audio_params.js reads it every frame: the airframe’s ground rattle and wind off V, the engine and prop voices off rpm, for as long as the shed was open. At boot sim.out is zero, which is why a fresh shed was quiet. With the physics worker the mirror’s reset drops the flight first (sim_link.js: the flight is the page’s again), so sim.out after the reset is the page’s own object, the one the sound reads and the next flight starts from (sim_link copies it into the worker’s init).
+FIX: app.js simOutAtRest(o), called right after sim.reset(0) in enterGarage: V, Veas, Vg, vs, alpha, beta 0, nz 1, thrust, wash, hydroWet 0, submerged false, rpm / rpmEng / thrustPer zeroed in place. The return to the shed leaves sim.out as the boot’s. The roll-out shot writes its own engine fields over these, as before; the solver is untouched (no core change, no parked-cook stale).
+GATE AUDIO WIRING: enterGarage calls simOutAtRest(sim.out) within 40 chars after sim.reset(0), and simOutAtRest zeroes V and the three rpm arrays; 2 mutations (the call lost; the rpm arrays left), both red (checked statically on the real app.js before the slot).
+GATES: pending A0’s slot Mon 26 Oct 20:30-21:00 CPU (BUILD, UISMOKE, UILAYER, AUDIO, ROUNDTRIP, ROLLANIM, ROLLSND, BOOMBOX, --no-build). claude/ready/garage-rattle = the gated commit, pushed only if they all pass.
+HOT FILES: src/viewer/app.js (+13: the helper beside enterGarage, one call). tools/audio/_audio_check.js (+8). UILAYER’s enterGarage window (rollShotUi(false) at +479 of 600) is unaffected: the call sits after it.
+
+## A0 - landing L25b (25 Oct 2026, gates 14:46-15:13, re-run 15:20-15:46, pushed ~16:05): THE AUTOPILOT P1 FIXES, THE DC-3 CODE, CG COLOURS, SCARS + OCCUPANTS, THE GARAGE LINK, THE SHED RATTLE, LOT-CLEAR, NAMES, THE ROAD SIDE AT 0, ROLLANIM, TECH MASK
+Rolling set (11): cg-colours 65cd59390, dc3-build cda1392be, dmg-scar2-occupant 031e3af90, garage-link 2b1fc25d4, garage-rattle 90c175c67, lot-clear fefb65617, names 6ff338d3c, road-band-zero 15863dee8, rollanim-scan f5fd7c876, t-p1 c6c540897, tech-mask 518b7e38d. HELD: garage-flood 4746e32fa (land_hold.txt; Game's fix 899583076 rides L25c).
+A0 fix in the train: GATE BOOMBOX's 'click after the editor' anchor follows G3450's else-if (b0ade4c2a; the click order unchanged; BOOMBOX PASS).
+Battery: master's standing reds only - CLOCK (1 of 777), CLOUD (the lamp-pool row), FRAMECOST (the cessna boot/restore updateMatrixWorld key, identical to master), KTX2 row 10. ROLLANIM now passes.
+Strict light gate RED both runs (13 / 16) vs the 12 Oct baseline; judged against master L24c's own runs (tg_L24c):
+- load to garage: L24c mean 65.3 s over the six legs; L25b 68.0, re-run 67.3 (+2-3 s, inside the per-leg spread of 5-8 s run to run). Rows cub/metal cockpit/chase garage+flight are this drift.
+- compile / tasks1s / taskWorst: the known boot class (L24c had the same rows).
+- metal fuseWidth busy 396: bimodal 0 / ~400 ms per rep; L24b and L24c show the same 402 / 499 ms max - master's.
+- cub round trip 2 world -> garage worst task 628 ms: run 1 only; gone in the re-run - noise.
+- floats world -> garage 3.55 s / cub garage fps 28.5: the known garage-link / garage hitch class.
+- OPEN: floats water taxi @SEA p99 66.7 ms / over100 2 - re-run only (also L25a); suspect dmg-scar2-occupant's per-step record. A0 bisects it alone in tonight's 23:15 CPU+GPU slot; the owner fixes if it reproduces.
+- OPEN (Pilot): Rufus mine CALM still open: twice round, high 7-8 m at 58 m, divert; cause = the 1.4/LDbest slope cap needs a slip Rufus's aileron can't hold.
+Pushed by the user's order of 25 Oct: land last week's items and priority 1 as soon as possible.
