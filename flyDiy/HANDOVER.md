@@ -99045,3 +99045,21 @@ What changed (src/viewer/app.js only, drawing only - the solver's contact and ev
 - Lifted: the rate runs down, |om| * exp(-dt / WHEEL_SPIN_TAU 3 s) - WHEEL_SPIN_BRAKE 8 rad/s^2 * dt, to zero (~5 s from a 25 m/s lift-off); a paused world holds it (`running`, as the prop).
 - Generated builds draw their wheels in the skin and never spun (63_gen_wing.js: "nothing spins the wheel"); unchanged. The roll-out shot (rollanim.js) turns the wheels itself; unchanged.
 Gates: SKIN SKINMAT CONTACT DMGSKINGPU LIGHT POSEHIDDEN ROLLANIM SIMWORKER UISMOKE AUDIO (every gate that reads poseModel / the wheel rows; none scans the changed line). Flown check: the Cub rolled out, the drawn wheels' angle sampled after the last contact (rig: the session's scratchpad, steps_wheels.js).
+
+## A0 - landing L25c (as L25c2, 25 Oct 2026, gates 23:00-23:46, pushed ~23:55): CAREER OWNS ITS OWN PLANES, THE CG WARNING SIGN, THE EYE KEEPS ITS PAIR, THE ROUTE COPIED FROM THE WORKER, WHEELS STOP IN THE AIR
+The first L25c (9 readies, gates 21:30-22:42) was RED and did not land. Against L25b it showed:
+- loads +10-14 s on all four legs;
+- FRAMECOST stand/taxi tris.shadow up (Cessna taxi 1.9M -> 3.7M) and taxi texSubImage2D 288K -> 784K;
+- HOME world -> garage 4.23 s.
+Three suspects are HELD in land_hold.txt and each will be measured alone on master on Mon 26 (10:15-11:30):
+- garage-flood 3682f7b61 (Game suspects the lamp's light-count relink on garage entry);
+- jolene-fold 1f32797a6 (ED-2 suspects its WORLD-LOOK defaults: muskeg forest debris 14 -> 131 per 1000, batched and shadow-casting from 0.35 m);
+- hangars-look bc8421977.
+game-menus 80eba5083 is held as well: an editor.css clash; it is re-merged at 00:00 for L26a.
+Rolling set (5): career-own 8edbfb296, cg-warn c727ca713, eye-gpu 9a8d8670b, route-copy dc8fb0b01, wheels-spin cc2138297.
+Battery: master's standing reds only - CLOCK (1 of 777), CLOUD (the lamp-pool row), FRAMECOST (the cessna boot/restore updateMatrixWorld key, identical to master), KTX2 row 10. AUDIOENG, red in the first run, passes here.
+Strict light gate RED (6), all in known classes; the loads are back inside their slack:
+- compile / tasks1s: the boot class.
+- metal fuseWidth busy 393: the bimodal 0 / ~400 ms rep (master's own L24b / L24c show the same).
+- world -> garage: cub round trip 2 at 2.02 s, floats at 5.29 s. The class red since L24c (2.99 / 3.55 there); HWCOV has the cause, the per-trip cacheKey churn of fragment 66e30961, and its Mon 12:45 slot names the owner.
+Pushed by the user's order of 25 Oct: land as soon as possible.
