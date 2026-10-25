@@ -1080,8 +1080,7 @@ function editorInit(api) {
     // under a dressed character its shells are invisible click proxies and
     // the rows coloured nothing. Still TAKEN, so they never fall into the
     // root's 'unclaimed' bucket either.
-    // G3545: no ATD is ever aboard now (a stored 1 seats the mixed crew, _cage_crew charFor)
-    const atdAboard = false;
+    const atdAboard = Math.round(+CU.P.pilotWho) === 1 || Math.round(+CU.P.copWho) === 1;
     const DUMMY_SEC = new Set(['dummy1', 'dummy2']);
     for (const p of shown) {
       const els = [];

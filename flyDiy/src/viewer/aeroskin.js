@@ -3363,7 +3363,14 @@ const AERO_ALBEDO_FS = `
     // turns its lateral axis about its own centre on a face looking down (the craft normal's z); paint (noMirror)
     // keeps the one handedness, as before.
     float pmir = mix((vCraftNrm.z < 0.0) ? -1.0 : 1.0, 1.0, step(0.5, uDecC[di].w));
-    vec2 sideC2 = vec2((aeroA.y - uDecA[di].x) * mir,
+    // G3547 (the user, 25 Oct: "the top side and bottom sides should be treated differently, and that should be the same
+    // for the stabs and the fins"): the SIDE box's far flank is the face's, not the position's. Both faces of a fin stand
+    // the same few cm (a twin boom's the same metre) off the craft's plane, so the position mirrored both or neither and
+    // one face read backwards; the normal tells them apart, as aSide does below. Where the face looks up or down (a
+    // fuselage's crown and belly) the position decides, as before, and on a flank the two agree.
+    float nx = vCraftNrm.x / max(1e-4, length(vCraftNrm));
+    float smir = mix((abs(nx) > 0.25) ? sign(nx) : aeroSideF, 1.0, step(0.5, uDecC[di].w));
+    vec2 sideC2 = vec2((aeroA.y - uDecA[di].x) * smir,
                         aeroA.z - uDecA[di].y);
     vec2 planC = vec2((aeroA.x - uDecA[di].x) * pmir, aeroA.y - uDecA[di].y);
     vec2 boxC = mix(sideC2, planC, step(1.5, mode));

@@ -2358,9 +2358,6 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
       try { const o = opts.optOrder(); if (Array.isArray(o) && o.length === names.length) order = o; }
       catch (e) {}
     }
-    // optHide (G3545): indices kept for what a saved number means but no longer offered - shown only to a build that
-    // still holds one (the retired ATD-01 crew row)
-    if (Array.isArray(opts.optHide)) order = order.filter(i => opts.optHide.indexOf(i) < 0 || +val === i);
     sel.innerHTML = order.map(i =>
       `<option value="${i}"${+val === i ? ' selected' : ''}>` +
       `${(shown && shown[i]) || names[i]}</option>`)
