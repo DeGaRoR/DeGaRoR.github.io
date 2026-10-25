@@ -163,6 +163,7 @@ const FX = v => v * HD / 13, FZ = v => v * HW / 18;
 // down the file and the mood code at the bottom has to be able to find it: a
 // light nothing holds a reference to is a light nothing can turn off.
 const STOVE = { light: null, cd0: (LAYIT && LAYIT.stove) ? LAYIT.stove.cd : 14 };
+const WORK = { light: null, cd: 0 };   // G3354: the story cabin's work lamp (hung below; up here: setMood can run before it)
 
 // THE GROUND, DECLARED. Every surface here is something the reflection probe
 // sees BELOW itself, and what a probe sees below itself is the single largest
@@ -2837,7 +2838,8 @@ let FIT = { placed: [], recipes: [], unplaced: [], dims: { HW, HD, EAVE } };
 if (typeof hangarFit === 'function' && PROPS_OK) {
   FIT = hangarFit({ HW: HW, HD: HD, EAVE: EAVE }, KITS,
                   { reg: (typeof PROP_REG !== 'undefined') ? PROP_REG : null,
-                    shell: SHELL, layout: LAYOUT ? opts.layout : undefined });
+                    shell: SHELL, layout: LAYOUT ? opts.layout : undefined,
+                    omit: opts && opts.omit });   // G3353: the props this shed leaves out
   for (const p of FIT.placed) {
     const g = prop(p.prop, p.x, p.z, p.ry, p.y);
     // a group still waiting on its geometry has nothing to claim yet; the
@@ -3054,11 +3056,12 @@ kelvinRGB(LAMP.kelvin, LAMP.rgb);
 const LAMP_AT = LAYIT
   ? LAYIT.lamps.map(([lx, lz, ly]) => { const y = Math.min(ly, EAVE - 1.6);
       return [lx * HD / 20, lz * HW / 20, y, Math.max(0.1, Math.min(1.6, (y / (7.0 * 0.74)) * (y / (7.0 * 0.74))))]; })
-  : LAMP_XZ.map(([ax, az]) => [FX(ax), FZ(az), EAVE * 0.74, 0]);
+  : ((opts && Array.isArray(opts.lampXZ) && opts.lampXZ.length === LAMP_XZ.length && opts.lampXZ.every(p => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite)))
+      ? opts.lampXZ : LAMP_XZ).map(([ax, az]) => [FX(ax), FZ(az), EAVE * 0.74, 0]);   // G3354: a shed's own cross (opts.lampXZ)
 for (const [x, z, y, hk] of LAMP_AT) {
   const g = new THREE.Group(); g.position.set(x, y, z);
   const hook = 1.30;                       // prop origin, above the group
-  claim(prop('lamp_pendant', x, z, rr(-3, 3), y + hook), 'lamps');
+  g.userData.shade = claim(prop('lamp_pendant', x, z, rr(-3, 3), y + hook), 'lamps');   // G3354: moved with the fitting (setLampsAt)
   const roof = roofY(z), rodH = roof - (y + hook);   // NOT `top`: that is a light
   const drop = cyl(0.012, 0.012, rodH, M.steelDark, 0, hook + rodH / 2, 0, 6);
   g.add(drop);
@@ -3159,6 +3162,31 @@ if (LAYIT && LAYIT.pendants) for (const [lx, lz, ly] of LAYIT.pendants) {
   const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), M.bulb);
   bulb.position.y = 0.12; bulb.castShadow = false;
   g.add(bulb);
+  G.add(g);
+}
+// G3354 THE WORK LAMP (the story's cabin; the user 22 Oct: "We need light in the cabin, right now it's a dark hole"). The
+// ultralight's own cabin flood is a small lamp under a 9.8 m wing (RUFUS-CERT's stills): the shed hangs a work lamp low
+// ahead of the stand and to the side, its bulb lit, with a SpotLight aimed back under the wing into the cockpit. NO shadow
+// map (the texture-unit budget stays the five fittings'); constant like the stove, on the lamps' switch.
+// opts.workLamp: { cd, x, z, y, ax, ay, az } - the room's frame, the nose toward the door at -x
+if (opts && opts.workLamp && typeof opts.workLamp === 'object') {
+  const W = opts.workLamp, num = (v, d) => (typeof v === 'number' && isFinite(v) ? v : d);
+  const x = num(W.x, -2.8), z = num(W.z, 1.8), y = Math.min(num(W.y, 2.3), EAVE - 1.0), hook = 1.30;
+  const g = new THREE.Group(); g.position.set(x, y, z);
+  claim(prop('lamp_pendant', x, z, rr(-3, 3), y + hook), 'lamps');
+  const rodH = roofY(z) - (y + hook);
+  if (rodH > 0.05) g.add(cyl(0.012, 0.012, rodH, M.steelDark, 0, hook + rodH / 2, 0, 6));
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.055, 10, 8), M.bulb);
+  bulb.position.y = 0.12; bulb.castShadow = false;
+  g.add(bulb);
+  WORK.cd = num(W.cd, 40);
+  const L = new THREE.SpotLight(LAMP.rgb.getHex(), WORK.cd, 10, 0.62, 0.7, 2);
+  L.castShadow = false;
+  L.position.y = 0.12;
+  L.target.position.set(num(W.ax, -0.2), num(W.ay, 1.15), num(W.az, 0));   // the pilot's chest over the main axles (RUFUS-CERT)
+  G.add(L.target);
+  g.add(L);
+  WORK.light = L;
   G.add(g);
 }
 
@@ -3366,6 +3394,7 @@ function applyMutes(m) {
   if (muted.stove && STOVE.light) STOVE.light.intensity = 0;
   if (muted.lamps) {
     for (const L of lamps) L.intensity = 0;
+    if (WORK.light) WORK.light.intensity = 0;   // G3354
     M.bulb.emissiveIntensity = 0;
   }
   if (muted.panels) M.skyPanel.emissiveIntensity = 0;
@@ -3521,6 +3550,7 @@ const setMood = i => {
   // which is the opposite of what a night wants. It is a constant, set once
   // and reasserted here only so a mood change cannot leave it muted-then-lit.
   if (STOVE.light) STOVE.light.intensity = STOVE.cd0;
+  if (WORK.light) { WORK.light.intensity = WORK.cd; WORK.light.color.copy(LAMP.rgb); }   // G3354: the work lamp, constant
   // the environment is baked in ONE sky, so it has to be scaled with
   // everything else or the room stays lit by a sun that has gone. THIS LOOP
   // REACHES ONLY THE OUTDOOR LIST since W0.5a (r186): a material's own
@@ -3991,6 +4021,20 @@ return {
   dayDir: () => dayDirShed,
   get skyPhys() { return skyPhys; },
   moods: MOODS.map(m => m.name || m.n), setMood: setMood,
+  // G3354: the work lamp's live handle (the stills rig tunes it; null in a shed without one)
+  workLamp: () => WORK.light ? { cd: WORK.cd, at: WORK.light.parent.position.toArray(), aim: WORK.light.target.position.toArray() } : null,
+  // G3354: the five fittings' live handle (the stills rig tries them off the wing line): [x, z] in the room's metres
+  lampsAt: () => lamps.map(L => [L.parent.position.x, L.parent.position.z]),
+  setLampsAt: xz => { if (!Array.isArray(xz) || xz.length !== lamps.length) return false;
+    lamps.forEach((L, i) => { const g = L.parent, [x, z] = xz[i], dx = x - g.position.x, dz = z - g.position.z;
+      g.position.x = x; g.position.z = z; g.updateMatrixWorld(true);
+      const sh = g.userData.shade; if (sh) { sh.position.x += dx; sh.position.z += dz; sh.updateMatrixWorld(true); }
+      L.target.position.set(x, 0, z); L.target.updateMatrixWorld(); });
+    return true; },
+  setWorkLamp: o => { if (!WORK.light || !o) return false; if (typeof o.cd === 'number') { WORK.cd = o.cd; WORK.light.intensity = o.cd; }
+    if (Array.isArray(o.aim)) { WORK.light.target.position.fromArray(o.aim); WORK.light.target.updateMatrixWorld(); }
+    if (Array.isArray(o.at)) { WORK.light.parent.position.fromArray(o.at); WORK.light.parent.updateMatrixWorld(true); }
+    if (typeof o.angle === 'number') WORK.light.angle = o.angle; return true; },
   mood: () => moodI,
   // THE LIGHT SWITCHES: one per source, so a test can ask which one is doing
   // it. NOT `lights` - that name is already the dev handle onto the light

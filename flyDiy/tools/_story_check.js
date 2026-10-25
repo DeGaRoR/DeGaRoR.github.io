@@ -133,7 +133,8 @@ function run(M) {
   ok(back1.sheds.HOME.locked === 'story' && back1.sheds.w1 && back1.here === 'w1', 'saved and reloaded: the cabin and the lock kept');
   // a plane of ours away at HOME: bring it home / send it home before T1
   h = JSON.parse(JSON.stringify(h)); h.fleet.ul = { hangar: null, aero: 'HOME', kind: 'away' }; h = M.careerNormalise(h);
-  const bh = M.playerBringHome(h, 'ul');
+  const UL = { ul: { half: 4.7, fwd: 0.9, aft: 5.4 } };   // (G3352) the story's ultralight's footprint (GP_PARKED_FOOT.ul1), as the page hands it
+  const bh = M.playerBringHome(h, 'ul', { foots: UL });
   ok(bh.ok && M.playerWhere(bh.doc, 'ul').hangar === 'w1', 'bring it home before T1: to the cabin, never the locked HOME', JSON.stringify(M.playerWhere(bh.doc, 'ul')));
   ok(!M.playerSendTo(h, 'ul', 'HOME').ok, 'send-to HOME before T1: refused (not yours yet)');
   ok(M.playerSendTo(h, 'ul', 'w1').ok, 'send-to the cabin: ok');
@@ -146,7 +147,7 @@ function run(M) {
   const st = M.playerSendTo(x.doc, 'ul', 'HOME');
   ok(st.ok && M.playerWhere(st.doc, 'ul').hangar === 'HOME', 'send-to HOME after T1: inside HOME', JSON.stringify(M.playerWhere(st.doc, 'ul')));
   ok(!M.playerSendTo(x.doc, 'ul', 'w5').ok, 'send-to a hangar we do not hold: refused');
-  const back2 = M.playerSendTo(st.doc, 'ul', 'w1');
+  const back2 = M.playerSendTo(st.doc, 'ul', 'w1', { foots: UL });
   ok(back2.ok && M.playerWhere(back2.doc, 'ul').hangar === 'w1', 'send-to from INSIDE HOME back to the cabin: moved (not "already inside")', JSON.stringify(M.playerWhere(back2.doc, 'ul')));
   // ---- G3350 STORY-TIM: Tim's lines for every beat; the editor's story lock; the bench never in the small shed
   ok(M.STORY_TIM && M.STORY_TIM.name === 'Tim' && M.STORY_BEATS.every(B => M.storyTimLines(B.id).length >= 1 && M.storyTimLines(B.id).every(l => typeof l === 'string' && l.length > 8)),
@@ -158,6 +159,49 @@ function run(M) {
     ok(/window\.EDITOR_LOCK = \{/.test(ED) && /if \(lockWhy && v !== 'finish'\) \{ lockSync\(\); return; \}/.test(ED), 'the editor holds the finish view while the story locks it (Shape / Design refused)');
     ok(/EDITOR_LOCK\.finishOnly\(m === 'finish' \?/.test(APP), 'the story hands its mask to the editor lock (a story stage: lifted with the mask)');
     ok(/function storyBenchRule\(\)/.test(APP) && /small = !!\(sh && sh\.story\)/.test(APP), 'the bench is hidden in the small story shed, at every beat (a property of the shed)');
+    // G3351 (the smoke run of 22 Oct): the TOOL hidden by a body class (the left panel's #edBench), the lock held every tick
+    const CSS = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'editor.css'), 'utf8');
+    ok(/document\.body\.classList\.toggle\('stNoBench', small\)/.test(APP) && /body\.stNoBench #edBench \{ display: none !important; \}/.test(CSS),
+       'the bench TOOL (#edBench, the left panel) is hidden in the small shed by a body class editor.css reads');
+    ok(/function storyLockSync\(\)/.test(APP) && /setInterval\(\(\) => \{ try \{[^}]*storyLockSync\(\)/.test(APP) && /storyLockSync\(\); storySkipSync\(\);( storyFloodOn\(\);)? \} catch/.test(APP),
+       'the paint-only lock is held to the story mask at boot AND on every tick (a late editor.js still gets it)');
+    { const K = M.BASE_OFFERS.w1.plots.w1.kits;
+      ok(['wood', 'metal', 'wip', 'store', 'handling', 'comfort', 'curio', 'bench'].every(k => K.includes(k)) && !K.includes('office'),
+         'the cabin is the cozy messy workshop: wood + metal machines, the plane and wing in build, store, handling, comfort, curio (G3352)'); }
+    // G3353 (the user 22 Oct: "get rid of the large router ... Keep only the 2 smaller ones"): the cabin keeps the pillar
+    // drill and the thicknesser; the panel saw, the band saw and the surface planer are left out - and reported so
+    { const P = M.BASE_OFFERS.w1.plots.w1, C = M.storyCabinShed('w1', 0).shed, MACH = ['panelsaw', 'bandsaw', 'jointer', 'thicknesser', 'drillpress'];
+      ok(JSON.stringify(P.omit) === '["panelsaw","bandsaw","jointer"]' && JSON.stringify(C.omit) === JSON.stringify(P.omit), 'the cabin plot leaves out the big machines, and the story cabin shed carries that list (G3353)');
+      const F = M.hangarFit(C.dims, C.kits, { shell: 'field', reg: M.PROP_REG, omit: C.omit }), got = F.placed.map(p => p.prop).filter(k => MACH.includes(k));
+      ok(JSON.stringify(got.slice().sort()) === '["drillpress","thicknesser"]' && F.unplaced.filter(u => u.reason === 'left out of this shed').length === 3,
+         'the cabin stands two machines, the drill and the thicknesser; the three left out are reported, not silent (' + got.join(', ') + ')');
+      ok(/layout: shed\.layout, omit: shed\.omit[,}]/.test(APP) && /omit: opts && opts\.omit \}\);/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'hangar.js'), 'utf8')),
+         'the page builds the room with the shed\'s omit list (app.js -> hangar.js -> hangarFit)'); }
+    // G3354 (the user 22 Oct: "We need light in the cabin, right now it's a dark hole"): the cabin's work lamp
+    { const P = M.BASE_OFFERS.w1.plots.w1, C = M.storyCabinShed('w1', 0).shed, HJ = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'hangar.js'), 'utf8');
+      ok(P.workLamp && P.workLamp.cd > 0 && JSON.stringify(C.workLamp) === JSON.stringify(P.workLamp), 'the cabin plot hangs a work lamp, and the story cabin shed carries it (G3354)');
+      ok(Array.isArray(P.lampXZ) && P.lampXZ.length === 5 && P.lampXZ.filter(p => Math.abs(p[1]) > 0.1 || Math.abs(p[0]) < 1).every(p => p[0] <= -2.5) && JSON.stringify(C.lampXZ) === JSON.stringify(P.lampXZ),
+         'the cabin\'s five fittings: none over the ultralight\'s wing - the wing-line three hang ahead of the leading edge, and the story cabin shed carries the cross (G3354)');
+      ok(/omit: shed\.omit, workLamp: shed\.workLamp, lampXZ: shed\.lampXZ \}\)/.test(APP) && /if \(opts && opts\.workLamp && typeof opts\.workLamp === 'object'\)/.test(HJ) && /L\.castShadow = false;\s+L\.position\.y = 0\.12;/.test(HJ),
+         'the page hands the work lamp to the room, and the room hangs it with no shadow map (the five fittings\' budget)'); }
+    // G3355 (the user 22 Oct: "the cabin flood switched on at the story start; no change to Rufus's file")
+    { const BJ = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'bench.js'), 'utf8');
+      ok(/function storyFloodOn\(\)/.test(APP) && /s\.beat !== 'T0' \|\| !sh \|\| sh\.story !== 'cabin'/.test(APP) && /U\.P\.lightOn = 1; U\.P\.li_flood = 1; U\.build\(\);/.test(APP)
+         && /storySkipSync\(\); storyFloodOn\(\); \} catch \(e\) \{ console\.warn/.test(APP) && /storySkipSync\(\); storyFloodOn\(\); \} catch \(e\) \{\} \}, 1500\)/.test(APP),
+         'at T0 in the cabin the cage\'s flood goes on once (the switch, not the build file), at boot or when the garage arrives');
+      ok(/li_\(\?:nav\|beacon\|taxi\|land\|flood\|instr\|pedal\|pax\)/.test(BJ), 'the flood switch is bench STATE (G3449), so the T0 flip leaves the certificates standing'); }
+    // G3357 (the user 23 Oct: "I see no point in the lines on the top left. Tim feels like he's enough"; "Interior flood
+    // light should be ON by default in the garage")
+    { const CSS2 = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'editor.css'), 'utf8');
+      ok(/classList\.toggle\('stNoCard', !STORY_CARD\)/.test(APP) && /body\.stNoCard #stCard \{ display: none !important; \}/.test(CSS2) && /\[\?&\]storycard=1/.test(APP),
+         'the beat card is off the player page (a body class editor.css reads); ?storycard=1 shows it (a dev view)');
+      ok(/data-tim="' \+ \(last \? \(ack \? 'ack' : 'ok'\) : 'next'\)/.test(APP) && /b\.dataset\.tim === 'ack'\) \{ stTimShut = true; stLine = ''; storyEvent\(\{ k: 'ack' \}\); \}/.test(APP)
+         && /class="stTimRows"/.test(APP) && /data-tim="line"/.test(APP) && /data-tim="open"/.test(APP),
+         "Tim's band carries the beat: his last line's OK moves an ack beat, the checklist rides under it, the story's messages are his, a closed band leaves a chip");
+      ok(/stMarksOff = want;/.test(APP) && /&& !stMarksOff;/.test(APP) && /var stMarksOff = false;/.test(APP),
+         'the CG / neutral-point marks are off while the story holds the paint-only stage (T0)');
+      ok(!/n\.id = 'stNoBenchNote'/.test(APP) && /var STORY_BENCH_LINE = 'No test bench in here/.test(APP) && /small && L0\.length \? L0\.concat\(\[STORY_BENCH_LINE\]\) : L0/.test(APP),
+         'no bench note in the panel: in the small shed Tim says it, his last line (G3361)'); }
     ok(/id = 'stTim'/.test(APP) && /FLYDIY_AP\.manual\(\) && !inGarage/.test(APP), 'Tim band at the bottom; it steps aside in flight when the player takes manual control');
   }
   // the save
@@ -278,6 +322,9 @@ async function pageRun() {
   // ---- a New career at the cabin: playerLoad's own step (careerNew -> storyNewCareer), then the page half boots
   let d = M.careerNormalise(M.careerNew({ id: 'main', seed: 'gate' }));
   let r = M.storyNewCareer(d, { aeros: aerosCabin });
+  { const g = (d.ledger || []).some(e => e.k === 'grant');
+    ok(r.ok && g && !(r.doc.ledger || []).some(e => e.k === 'grant') && r.doc.wallet === d.wallet - M.CAREER_GRANT + M.STORY_GRANT && M.STORY_GRANT === 0,
+       'the story career starts without careerNew\'s grant (G3359: STORY_GRANT 0, its ledger line gone)', r.doc.wallet); }
   d = r.doc;
   ok(r.ok && M.storyOf(d).beat === 'T0' && d.here === 'w9' && d.sheds.w9 && d.sheds.w9.shell === 'field' && d.sheds.w9.base === 'w9' && d.sheds.HOME.locked === 'story',
      'New career -> storyStart at the cabin: the smallest shed (a field shell) at "Cabin Strip", the garage there, the WWII hangar held', JSON.stringify(d.sheds.w9 && d.sheds.w9.dims));
@@ -292,8 +339,8 @@ async function pageRun() {
   ok(H.window.FLYDIY_STORY.mask() === 'finish' && H.window.FLYDIY_STORY.jobsOpen() === false, "window.FLYDIY_STORY: the tech mask's tutorial mode ('finish' at T0), the job list held");
   // ---- the beat card
   let el = half.el();
-  ok(el && el.id === 'stCard' && !el.hidden && /The cabin/.test(el.innerHTML) && /The story · 1 of 8/.test(el.innerHTML) && /data-st="ok"/.test(el.innerHTML) && /not yours yet/.test(el.innerHTML),
-     "the beat card: T0's title and brief, the step, the OK (an ack beat), the hangar not ours yet");
+  ok(el && el.id === 'stCard' && !el.hidden && /The cabin/.test(el.innerHTML) && /The story</.test(el.innerHTML) && !/ of \d/.test(el.innerHTML) && /data-st="ok"/.test(el.innerHTML) && /not yours yet/.test(el.innerHTML),
+     "the beat card: T0's title and brief, no step counter (G3356: dev-facing), the OK (an ack beat), the hangar not ours yet");
   ok(!/<i>|<em>|font-style:\s*italic/.test(el.innerHTML), 'the card writes no italics');
   el.listeners.click({ target: { closest: () => ({ dataset: { st: 'ok' } }) } });
   d = P.get();
@@ -542,8 +589,10 @@ async function ladderRun() {
   const fly = (phase, t, x) => { H.ap.phase = phase; H.ap.t = t; if (x != null) cg = [x, 300, 0]; X.storyTimSync(); const e = X.tim(); return e && !e.hidden ? e : null; };
   H.inGarage = false; H.ap = { phase: 'DEPART', t: 0 }; X.storyLadderReset();
   let e = fly('DEPART', 0, D0);
-  ok(e && e.className === 'lad' && /Take-off/.test(e.innerHTML) && /the flight · 1 of 6/.test(e.innerHTML) && /data-tim="lad"/.test(e.innerHTML),
-     "in flight on T1: the band shows the ladder's first card (Tim, 'the flight · 1 of 6', OK), on the transparent ground (.lad)", e && e.className);
+  ok(e && e.className === 'lad' && /Take-off/.test(e.innerHTML) && /the flight</.test(e.innerHTML) && !/ of \d/.test(e.innerHTML) && /data-tim="lad"/.test(e.innerHTML),
+     "in flight on T1: the band shows the ladder's first card (Tim, 'the flight', no counter - G3356, OK), on the transparent ground (.lad)", e && e.className);
+  ok(/#stTim \{[^}]*z-index: 2147482500;/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'editor.css'), 'utf8')) && /\(last \? 'OK' : 'Next'\)/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8')),
+     "Tim's band draws over every game layer (the HUD bar, the rails, the corner cards) and its button says Next, no line counter (G3356)");
   const order = [];
   const push = el => { const m = el && /<b class="stLadT">([^<]+)<\/b>/.exec(el.innerHTML); const k = m ? m[1] : null; if (order[order.length - 1] !== k) order.push(k); };
   let t = 0; push(e);

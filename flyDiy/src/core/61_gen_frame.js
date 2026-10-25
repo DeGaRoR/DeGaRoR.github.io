@@ -312,6 +312,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     return null;
   };
   const boxRearJ = S.fuse ? S.fuse.boxRear : -1;
+  // G3505: the gauge's knee for strength (GEN_RULES.gaugeHoldK x the airframe material's design gross); Infinity = off
+  const kneeW = R.gaugeHoldK > 0 ? R.gaugeHoldK * (((GEN_MATERIALS[S.material] || {}).refGross) || 550) : Infinity;
   const B = (a, b, cls, ext, vis, mnt, opt) => {
     const L = Math.hypot(P[b][0]-P[a][0], P[b][1]-P[a][1], P[b][2]-P[a][2]);
     // A MEMBER BETWEEN TWO POINTS THAT ARE ONE POINT IS REFUSED (REVIEW
@@ -451,6 +453,17 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // `cover`, not `lin`. Measured: on the metal Cessna its own billed area put a wing member at 133 % of yield
       // at the 3.8 g limit (a 172's wing holds it), the class's at 52 % - the load test's own figure.
       bm.A = lin > 0 && MM.phys ? Math.max(lin * aftG * webK * g1, lin) / MM.phys.rho : 0;
+      // G3505 (DC3-BUILD, 2026-10-23): AN AIRLINER'S MEMBERS HOLD ITS STRESS. The gauge above is Raymer's mass rule,
+      // sub-linear in the gross (fus 0.30, wing 0.49, tail 0.41, gear 0.75, capped at 3) - right for what the structure
+      // WEIGHS, and on the fleet the members' strength is calibrated with it. But one lattice member stands for what an
+      // airliner carries in many (stringers, skin, frames), and its loads grow with the gross: at 9 t the DC-3's aft
+      // longerons were the 172's 180 mm2 (the class floor) and its tail cone broke settling on its wheels (DC3-BUILD).
+      // Above GEN_RULES.gaugeHoldK x the AIRFRAME's design gross (its material row's refGross: the knee is the
+      // aeroplane's, not a part's - a tube strut on an alloy floatplane is not past a 550 kg row's knee), a gauged
+      // member's SECTION (strength only: the damage model's A) grows in proportion to the design gross over that knee,
+      // so its stress holds; the mass, the bill and k stay the gauge's. At or below the knee (every saved build: the
+      // heaviest, the Cessna on floats, is 0.50 of its 2 222 kg) nothing is multiplied.
+      if (bk && GG && GG.W0 > kneeW) bm.A *= GG.W0 / kneeW;
       bm.mat = genPhysKey(MM.phys);
       // G2361 (DMG-MOUNTRIG): a member whose section is its own and not its class row's (the nose mount's bearer, its
       // isolators, the engine's case: GEN_RULES.mountTubeA / mountIsoA / mountCaseA) - weightless ones, so only the
@@ -458,6 +471,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // (an isolator is listed in parts.dmg.iso, not flagged on the member: a field on 8 members of ~450 gives the solver's
       // hottest loop two shapes of beam - measured, the Cub's step with the damage layer on 2.5 -> 5 ms a frame)
       if (opt && opt.A > 0) bm.A = opt.A;
+      // G3501: a heavy wing engine's bearer (GEN_RULES.mountHeavyKg): its section times opt.aMul
+      if (opt && opt.aMul > 1) bm.A *= opt.aMul;
       if (opt && opt.iso) dmgIso.push(beams.length);
       if (opt && opt.lump) dmgLump.push(beams.length);
     }
@@ -665,6 +680,14 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const cabRear = cab.noseGap + cab.len;
   const boxRear = fu.boxRear;                 // cabin + cargo bay: full section
   const xs = [0, cab.noseGap, cabRear];
+  // G3504 (DC3-BUILD, 2026-10-23): A LONG CABIN HAS FRAMES ALONG IT. The cabin box was always one bay, ring 1 to ring 2,
+  // which the 2.6 m cabin.len ceiling kept short; a DC-3's is 9 m, and its wing and mains then sat inside a single
+  // bay (DC3-STUDY §3: the full size broke at the cabin's aft frame 0.14 s after spawn). A cabin longer than
+  // GEN_RULES.cabBayMax gets evenly spaced full-section rings between its front and rear, so no bay is longer than
+  // that; the cabin's rear ring is then iCabR (2 on every cabin inside the old ceiling: today's lattice, to the bit).
+  const nCabSub = (R.cabBayMax > 0 && cab.len > R.cabBayMax + 1e-6) ? Math.ceil(cab.len / R.cabBayMax - 1e-9) - 1 : 0;
+  for (let k = nCabSub; k >= 1; k--) xs.splice(2, 0, cab.noseGap + cab.len * k / (nCabSub + 1));
+  const iCabR = 2 + nCabSub;
   if (boxRear > cabRear + 1e-6) xs.push(boxRear);
   for (let i = 1; i <= fu.tailBays; i++)
     xs.push(boxRear + (fu.tailArm - boxRear) * i / fu.tailBays);
@@ -840,7 +863,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const SHELL = (!ROD_TUBE && S.fuse.boom !== 'rod' && S.fuse.boom !== 'twin' && fusCovered
                  && !(R.shellBoom === 0 || R.shellBoom === false)) ? (R.shellSkin || {})[S.material] : null;
   if (SHELL && SHELL.t > 0 && M && M.phys && M.phys.E > 0) {
-    const E = M.phys.E * (SHELL.eK || 1), tS = SHELL.t, G = E / 2.6;
+    // G3505 (DC3-BUILD): ABOVE THE GAUGE'S KNEE THE SKIN THICKENS (GEN_RULES.gaugeHoldK, the members' rule in B above):
+    // the shell's skin by the root of the design gross over the knee, so its buckling-bound bending strength (~t^2)
+    // grows in proportion to the gross, as the members' sections do - the DC-3's tailcone skin is 0.8-1.6 mm where a
+    // 172's is 0.5-0.6. At or below the knee (every saved build) the row's own t
+    const tS = (GG && GG.W0 > kneeW) ? SHELL.t * Math.sqrt(GG.W0 / kneeW) : SHELL.t;
+    const E = M.phys.E * (SHELL.eK || 1), G = E / 2.6;
     const cl = [], rings = [];
     ST.forEach((st, i) => { if (st.x >= boxRear - 1e-6) {
       cl.push(F[i].BL, F[i].BR, F[i].TL, F[i].TR);
@@ -1583,14 +1611,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const cgA = S.engCgAft;
     const farN = (a, b) => Math.hypot(P[a][0] - P[b][0], P[a][1] - P[b][1],
                                       P[a][2] - P[b][2]) > 0.05;
-    const hangEngine = (e, mountNodes, anchors, z, mEng, mProp) => {
+    const hangEngine = (e, mountNodes, anchors, z, mEng, mProp, aMul) => {
       if (cgA == null) {
         for (const n of mountNodes) pt(n, (mEng + mProp) / mountNodes.length);
         return;
       }
       const CG = N(e.x + (e.pushes ? -cgA : cgA), e.y, z, 'CGE');
+      const locOpt = aMul > 1 ? { noMass: true, aMul } : { noMass: true };     // G3501
       for (const q of mountNodes.concat(anchors))
-        if (farN(CG, q)) B(CG, q, 'fus', false, 'inner', true, { noMass: true });
+        if (farN(CG, q)) B(CG, q, 'fus', false, 'inner', true, locOpt);
       pt(CG, mEng);
       for (const n of mountNodes) pt(n, mProp / mountNodes.length);
     };
@@ -1646,6 +1675,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                             * (xFat(e.z) - e.x);
         const feet = R.mountFoot
           ? NM(xFoot, ySp + (above ? -depth : depth), e.z, 'MNT') : null;
+        // G3501: the bearer's section factor (1 = today's members)
+        const mSide = engDryM + S.prop.mass;
+        const bearA = (R.mountHeavyKg > 0 && mSide > R.mountHeavyKg) ? mSide / (R.mountRefKg || 59) : 1;
         for (const [n, o, ft] of [[NL, 'L', feet && feet[0]],
                                   [NR, 'R', feet && feet[1]]]) {
           const W = wf[o];
@@ -1655,10 +1687,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
           // to its spar fittings) - not a thin tube of the class's section: no Euler (30_solver dmgMember, as the
           // strut fan's hidden members). Measured: the twin's ENGL-WR (1.71 m) buckled at 4.52 kN, 1.47 x 23.361's limit
           // torque, against its certified 8.69 kN. The post keeps its tube
-          const LUMP = { lump: true };
+          // G3501 (DC3-BUILD): above GEN_RULES.mountHeavyKg a side, every bearer member's section in proportion to
+          // the side's engine (aMul); below it the calls are today's, to the bit
+          const LUMP = bearA > 1 ? { lump: true, aMul: bearA } : { lump: true };
+          const BMb = bearA > 1 ? (a, b2, vis) => B(a, b2, 'fus', false, vis || null, true, { aMul: bearA }) : BM;
           for (const q of ring) B(n, q, 'fus', false, null, true, LUMP);
           if (ft != null) {
-            BM(n, ft);                                   // the post
+            BMb(n, ft);                                  // the post
             for (const q of ring) B(ft, q, 'fus', false, 'inner', true, LUMP);
             // a box's own cap can sit where the foot does (an engine drawn
             // exactly on a station, on the spar) — a zero-length member is
@@ -1667,12 +1702,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                                         P[q][2] - P[ft][2]) > 0.05;
             for (const caps of [W.FB, W.RB]) if (caps)
               for (const k of [b, b + 1])
-                if (caps[k] != null && far(caps[k])) BM(ft, caps[k], 'inner');
+                if (caps[k] != null && far(caps[k])) BMb(ft, caps[k], 'inner');
           }
           // a whole engine a side — at its CG when the row knows one, on the
           // nacelle node otherwise (the mirror's z is the node's own)
           hangEngine({ x: e.x, y: e.y, pushes: e.pushes }, [n], ring,
-                     P[n][2], engDryM, S.prop.mass);
+                     P[n][2], engDryM, S.prop.mass, bearA);
         }
         engNodes.push(NL, NR); engIdx.push(0, 1);
       }
@@ -2635,7 +2670,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     if (occ ? !occ[i] : i >= aboard) continue;
     const sx = seatAt(i);
     if (sx != null) { billAt(sx, 80); continue; }
-    const ri = seatRows[i] != null ? Math.min(seatRows[i], F.length - 1)
+    // (G3504: a layout's second row is the cabin's rear ring, wherever the long cabin's frames put it)
+    const ri = seatRows[i] != null ? Math.min(seatRows[i] >= 2 ? seatRows[i] + nCabSub : seatRows[i], F.length - 1)
              : Math.min(1 + Math.floor(i / abreast), F.length - 1);
     const rg = F[ri] || F[1];
     pt(rg.BL, 40); pt(rg.BR, 40);
@@ -2930,11 +2966,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     }
     half(F[1].TL, F[1].TR, glassM);
     half(F[1].BL, F[1].BR, 0.5 * ctlM);
-    half(F[2].BL, F[2].BR, 0.5 * ctlM);
+    half(F[iCabR].BL, F[iCabR].BR, 0.5 * ctlM);         // G3504: the cabin's rear ring
     // the furnishing on the cabin floor, both rings
     sec('furnish');
     half(F[1].BL, F[1].BR, 0.5 * furnM);
-    half(F[2].BL, F[2].BR, 0.5 * furnM);
+    half(F[iCabR].BL, F[iCabR].BR, 0.5 * furnM);
     // the price: the outfit's one rounded sum as before, the furnishing's share (the chairs and 60 cr a kilo of
     // lining) carved out of it, so the total is the credit it was
     const outfitCr = Math.round(seat.price * seats + 40 * (panelM + cowlM + glassM) +
@@ -2972,7 +3008,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   if (fu.cargoLen > 1e-6) {
     // the bay spans frames 2 (cabin rear) and 3 (its own aft bulkhead); spread
     // the freight across both so it sits IN the bay rather than on one end
-    for (const rg of [F[2], F[3]]) { pt(rg.BL, 0.25 * load); pt(rg.BR, 0.25 * load); }
+    for (const rg of [F[iCabR], F[iCabR + 1]]) { pt(rg.BL, 0.25 * load); pt(rg.BR, 0.25 * load); }
   } else {
     // ...IN THE BOX, behind the last seat (G457): the "baggage frame" was
     // ring 3 — on a build whose box ends at ring 2 that is the first TAIL
@@ -2984,7 +3020,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const boxX = ST.reduce((m, s) => (s.x <= boxRear + 1e-6 ? Math.max(m, s.x) : m), 0);
     if (lastSeat != null && isFinite(lastSeat) && lastSeat < boxX) billAt(0.5 * (lastSeat + boxX), load);
     else { const bi = ST.findIndex(s => Math.abs(s.x - boxX) < 1e-6);
-           const bag = F[bi >= 0 ? bi : Math.min(3, F.length - 1)];
+           const bag = F[bi >= 0 ? bi : Math.min(iCabR + 1, F.length - 1)];
            pt(bag.BL, 0.5 * load); pt(bag.BR, 0.5 * load); }
   }
 
@@ -3005,7 +3041,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     noseFrame: [F[0].BL, F[0].BR, F[0].TL, F[0].TR],
     tailMid: [TPB, TPT],
     upLo: [F[0].BL, F[0].BR], upHi: [F[0].TL, F[0].TR],
-    fusDrag: [F[2].BL, F[2].BR, F[2].TL, F[2].TR],
+    fusDrag: [F[iCabR].BL, F[iCabR].BR, F[iCabR].TL, F[iCabR].TR],
     fusDragAft: [F[F.length-2].BL, F[F.length-2].BR, F[F.length-2].TL, F[F.length-2].TR],
     engine: engNodes, engineOf: engIdx, mains: [GAL, GAR], tw: TW, fin: FIN, fin2: FIN2,
     // THE DRAWING'S DATUM IS THE WING CARRY-THROUGH (G179.3, the user: "we
