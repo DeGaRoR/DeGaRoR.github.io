@@ -1729,7 +1729,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // T2.3 (132): the bays' own abreast when the row says so
     const paxAb0 = Math.round(+P.paxAbreast || 0);
     const perRow = abreast ? 2 : 1;
-    const perBay = paxAb0 >= 1 && paxAb0 <= 3 ? paxAb0 : perRow;
+    // (G3573: 4-7 an aisle's two blocks - 2 + 1, 2 + 2, 3 + 2, 3 + 3 - and `paxRows` rows of them; the crew layer's own
+    // count, which also drops a row past the bay's front ring, is the one the drawn path below reads)
+    const perAb = paxAb0 >= 4 && paxAb0 <= 7 ? [3, 4, 5, 6][paxAb0 - 4] : paxAb0 >= 1 && paxAb0 <= 3 ? paxAb0 : perRow;
+    const perBay = perAb * Math.max(1, Math.round(+P.paxRows || 1));
     M.seating = bays >= 3 ? (abreast ? 'side4' : 'tandem4')
              : bays >= 1 ? (abreast ? 'side2' : 'tandem2')
              : 'single';

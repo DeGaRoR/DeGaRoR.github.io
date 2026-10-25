@@ -12,6 +12,8 @@
 //     own taxi out for --taxi-s, then THE HAND (the takeover key, A) for 40 s on the keys a player uses - throttle up
 //     (PageUp), S-turns on the pedals (Comma / Period), a firm stop on the brakes (B) - with the damage layer on;
 //     the verdict: FLIGHT_PROBE.damage() (crashed? why?), the peak strain the trace reads;
+//   1b THE SEATS (G3573, --parts seats): 2 + 2 with an aisle, three rows a bay, the bays seated by count; the seats the
+//     crew layer stood and a still from above;
 //   3 A FIRM LANDING (G3572, the user's run 2: "dropped at 4.6 m/s ... the fuselage broke"): the skip to line-up, the
 //     pilot's whole circuit and its landing (~5 min of sim), every touchdown's sink as the PFD's vertical speed reads it
 //     and the damage after; then THE DROP on the stand: the aeroplane lifted and let fall at 3.05 m/s (10 ft/s, FAR
@@ -113,6 +115,26 @@ const freePort = () => new Promise((res, rej) => { const s = net.createServer();
       await ev(() => { const c = document.getElementById('xray'); if (c && !c.checked) c.click(); return 1; });
       await cam(Math.PI / 2, 0.04, 26); await shot('garage_side_inside');
       await cam(Math.PI / 2 + 0.35, 0.45, 24); await shot('garage_inside_above');
+      await ev(() => { const c = document.getElementById('xray'); if (c && c.checked) c.click(); const e = document.getElementById('edWrap'); if (e) e.style.visibility = ''; return 1; });
+    }
+
+    if (PARTS.includes('seats')) {
+      // ---- 1b. THE SEAT LAYOUT (G3573: the user, 25 Oct, "for such a big place, let's give big freedom on the seat
+      // arrangements and sliders"): 2 + 2 with an aisle, three rows a bay at 0.86 m, the bays seated by count; the seats the
+      // crew layer stood (CAGE_CREW.seatsAt) and a still from above with SEE INSIDE on
+      S.seats = await ev(() => {
+        const U = window.CAGE_UI; if (!U || !U.setParam) return { err: 'no CAGE_UI.setParam' };
+        const rows = { paxAbreast: 5, paxRows: 3, paxPitch: 0.86, paxAisle: 0.50, paxOcc1: 9, paxOcc2: 6, seat2H: 0.30 };
+        for (const [k, v] of Object.entries(rows)) U.setParam(k, v);
+        if (U.syncSliders) U.syncSliders(); if (U.build) U.build(); if (U.republish) U.republish();
+        return { rows };
+      });
+      await sleep(4000);
+      S.seats.got = await ev(() => { const CC = window.CAGE_CREW; return CC ? { seats: (CC.seatsAt || []).length, filled: (CC.seatsAt || []).filter(q => q.filled).length } : null; });
+      console.log('DC3-2: seats ' + JSON.stringify(S.seats));
+      if (!S.seats.got || !(S.seats.got.seats >= 26)) fail('the 2 + 2 layout stood ' + JSON.stringify(S.seats.got) + ' seats (want 2 pilots + 24 or more)');
+      await ev(() => { const c = document.getElementById('xray'); if (c && !c.checked) c.click(); const e = document.getElementById('edWrap'); if (e) e.style.visibility = 'hidden'; return 1; });
+      await ev(() => (window.FLIGHT_PROBE.camSet(Math.PI / 2 + 0.2, 1.2, 22), 1)); await sleep(2500); await shot('seats_above');
       await ev(() => { const c = document.getElementById('xray'); if (c && c.checked) c.click(); const e = document.getElementById('edWrap'); if (e) e.style.visibility = ''; return 1; });
     }
 

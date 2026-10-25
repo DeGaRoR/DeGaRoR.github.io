@@ -471,6 +471,8 @@ const CAGE_PARTS = [
              at: 'aft of the cabin' },
     groups: [
       ['bays', ['paxCount', 'paxLen', 'paxAbreast']],       // T2.3 (132)
+      // G3573 (DC3-2): the rows of seats in each bay, their pitch, the aisle and the seat's width
+      ['seat layout', ['paxRows', 'paxPitch', 'paxAisle', 'paxSeatW']],
       // G180: who sits in each bay is the BAY's own row — click a bay, seat
       // its passengers (bays counted front to back from the cockpit)
       ['aboard', ['paxOcc1', 'paxOcc2', 'paxOcc3', 'paxOcc4']],
