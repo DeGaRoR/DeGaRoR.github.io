@@ -19,7 +19,7 @@
 //   tanks     the energy layer's own fit, the builds' REAL tanks: 0 points
 //             through the arch's dash, and the box's count > 0 (the test is
 //             not vacuous: the box's slanted bottom stood through them)
-//   physics   the joined card flies the same mass and CG with either dash
+//   physics   the joined card flies the same mass with either dash but for the drawn dash's own surfaces (G2809)
 // One child process per (build, style) for the energy layer: the layers keep
 // module state across builds (GATE TANKMOUNT's measured trap).
 //
@@ -172,14 +172,25 @@ for (const key of ['cub', 'c172']) {
   const mc = st => { const s0 = D.designBake(a.sel, a.over); s0.cage.dashStyle = st; const j = BJ.bakeJoined(s0);
     const g = C.buildGen(JSON.parse(JSON.stringify(j.spec))); let m = 0; const c = [0, 0, 0];
     for (const n of g.nodes) { m += n.m || 0; for (let k = 0; k < 3; k++) c[k] += (n.m || 0) * n.p[k]; }
-    return [m, c.map(v => v / m)]; };
+    const L = g.parts.ledger, sec = k => (L[k] ? L[k].mass : 0);
+    return [m, c.map(v => v / m), (j.spec.outfit && j.spec.outfit.drawn) || null, j.spec, sec('outfit') + sec('furnish')]; };
   // (a warm-up bake first: the first joined bake in a process reads 41 g
   // off every later one, whatever the dash - the layers' module state, the
   // carry-over GATE TANKMOUNT measured; not this gate's to fix)
   mc(1);
-  const [m0, c0] = mc(0), [m1, c1] = mc(1);
-  check(Math.abs(m0 - m1) < 1e-9 && c0.every((v, k) => Math.abs(v - c1[k]) < 1e-9), 'physics: ' + key + ' flies the same mass and CG with either dash',
-    m0.toFixed(4) + ' vs ' + m1.toFixed(4) + ' kg');
+  const [m0, c0, d0, s0, o0] = mc(0), [m1, c1, d1, s1, o1] = mc(1);
+  // G2809 (the user, 25 Oct: "Wysiwyg, and as billed for all"): the dash is billed off what is DRAWN - the facia and
+  // the shell round it - so the two cards are the same aeroplane but for those surfaces: the joined specs differ in
+  // the dash's row and its drawn areas alone, the outfit bills exactly their difference, and the structure follows
+  // the design gross that moved with it (the gauge law), nothing else
+  if (!check(!!(d0 && d1), 'physics: ' + key + ': the join measured the drawn dash (outfit.drawn)')) continue;
+  const strip = sp => { const q = JSON.parse(JSON.stringify(sp)); delete q.cage.dashStyle; delete q.outfit.drawn.board; delete q.outfit.drawn.dash; return JSON.stringify(q); };
+  check(strip(s0) === strip(s1), 'physics: ' + key + ': the two joined cards differ only in the dash row and its drawn facia / shell');
+  const O = C.GEN_OUTFIT;
+  const want = (d1.board - d0.board) * O.panelKgM2 + (d1.dash - d0.dash) * O.dashShellKgM2;
+  check(Math.abs((o1 - o0) - want) < 1e-6 && Math.abs(m1 - m0) < 3 * Math.abs(want) + 1e-6,
+    'physics: ' + key + ' flies the same aeroplane with either dash, but for the drawn dash\'s own surfaces (and the gross they move)',
+    'outfit ' + (o1 - o0).toFixed(4) + ' kg against the drawn ' + want.toFixed(4) + '; all ' + m0.toFixed(4) + ' vs ' + m1.toFixed(4) + ' kg');
 }
 
 Promise.all(kids).then(res => {
