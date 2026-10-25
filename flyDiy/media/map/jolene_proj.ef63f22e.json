@@ -46,7 +46,7 @@
   },
   {
    "id": "w3",
-   "name": "Tamgas Hill Strip",
+   "name": "Ridgeback Strip",
    "kind": "strip",
    "x": -811.27,
    "z": -2396.97,
@@ -63,7 +63,7 @@
   },
   {
    "id": "SEA",
-   "name": "Annette Dock",
+   "name": "Greywater Dock",
    "kind": "water",
    "x": 360.5,
    "z": -3660.99,
@@ -80,7 +80,7 @@
   },
   {
    "id": "mk_sea",
-   "name": "Metlakatla Seaplane Base",
+   "name": "Cedar Harbour Seaplane Base",
    "kind": "water",
    "x": -3980,
    "z": -9420,
@@ -97,7 +97,7 @@
   },
   {
    "id": "mn_strip",
-   "name": "Jumbo Mine Street",
+   "name": "Copperhead Mine Street",
    "kind": "strip",
    "x": 7249.68,
    "z": -15429.37,
@@ -450,7 +450,7 @@
  "pois": [
   {
    "id": "mk_hall",
-   "label": "Metlakatla",
+   "label": "Cedar Harbour",
    "x": -3462,
    "z": -8724
   },
@@ -474,7 +474,7 @@
   },
   {
    "id": "summit",
-   "label": "Tamgas Hill",
+   "label": "Mount Ardent",
    "x": 9106,
    "z": -5886,
    "elev": 1100
@@ -2715,7 +2715,7 @@
    },
    {
     "id": "mk_hall",
-    "label": "Metlakatla",
+    "label": "Cedar Harbour",
     "style": "town",
     "poi": "mk_hall",
     "x": 628,
@@ -2756,10 +2756,17 @@
    "plot": 132
   }
  },
+<<<<<<<< HEAD:flyDiy/media/map/jolene_proj.4ca9bfa2.json
+ "credit": "Jolene Island: the ground from USGS 3DEP IFSAR and ESA WorldCover; every name fictional (flyDiy/CREDITS.md)",
+ "img": "media/map/jolene_map.87e4a4df.png",
+ "imgBytes": 714707,
+ "imgHash": "87e4a4df",
+========
  "credit": "Jolene Island: Annette Island, Southeast Alaska, renamed (USGS 3DEP IFSAR, ESA WorldCover; flyDiy/CREDITS.md)",
  "img": "media/map/jolene_map.b4545f2b.png",
  "imgBytes": 714719,
  "imgHash": "b4545f2b",
+>>>>>>>> 2b381015d:flyDiy/media/map/jolene_proj.ef63f22e.json
  "art": {
   "img": "media/map/jolene_art.1b6f317e.jpg",
   "bytes": 936836,
