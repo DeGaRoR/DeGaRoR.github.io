@@ -555,7 +555,9 @@ function make(THREE, ctx) {
     const S = M.stats;
     S.shown = S.posed = S.frozen = S.boarding = S.line = 0;
     for (const one of M.runs) {
-      one.R.step(dt);
+      // the run's clock starts with its first drawn frame (G3619: the line's hold is seen whole, however long the
+      // programs took to compile)
+      if (one.ready) one.R.step(dt);
       // the ladder: distances first, then the CAP nearest pose every frame
       const order = [];
       for (const h of one.H) {
