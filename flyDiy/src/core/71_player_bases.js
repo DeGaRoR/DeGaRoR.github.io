@@ -112,7 +112,12 @@ const BASE_OFFERS = {
                    // smallest in 16-18 m where the fit drops none of the cozy kit AND the ultralight still parks: 18 m (25 Oct: hangarFit
                    // places 41 pieces as at 20 m from 17 m up - 16 m loses the engine stand and a propane bottle - but at 17 m the
                    // ultralight finds no room beside them, hangarRoomFor 0; GATE STORY); 22 m deep, as before
-                   takes: 'ul1', dims: { field: { HW: 9, HD: 11, EAVE: 4.0, door: 10, doorClr: 0.1, leaves: 2 } },
+                   // (G3540, the user 25 Oct: "a hand-painted sign on a wood plank that says 'the Shed' ... hung on a visible
+                   // wall inside the small shed, and also as a sign on top of the door. Ideally, it's a large one, 2m wide")
+                   // the one plank twice: over the door pair, and on the back wall the stand looks at, 3.5 m toward the
+                   // person door (clear of the stove's flue, over the hose reel), under the eave
+                   takes: 'ul1', dims: { field: { HW: 9, HD: 11, EAVE: 4.0, door: 10, doorClr: 0.1, leaves: 2,
+                                                  sign: { key: 'the_shed', w: 2.0, inside: 3.5 } } },
                    // (G3353, the user 22 Oct: "get rid of the large router (the largest of the woodworking machines). Keep
                    // only the 2 smaller ones (the drill and another)") the two smallest machines stay - the pillar drill and
                    // the thicknesser; the panel saw (4.4 x 3.6 m), the band saw and the surface planer are left out
@@ -225,6 +230,8 @@ function hangarDims(shed) {
   if (typeof d.door === 'number' && isFinite(d.door) && d.door > 0) out.door = d.door;
   if (typeof d.doorClr === 'number' && isFinite(d.doorClr) && d.doorClr >= 0) out.doorClr = d.doorClr;
   if (d.leaves === 2) out.leaves = 2;   // a bi-parting pair (hangar.js, the timber shed)
+  // G3540: a shed's own sign ({ key, w, inside }: HANGAR_GEN signDials - over the door, and on the back wall inside)
+  if (d.sign && typeof d.sign.key === 'string' && d.sign.key) out.sign = Object.assign({}, d.sign);
   return out;
 }
 // THE DOOR, hangar.js's own two lines (GATE GAMEPREM source-scans them so the

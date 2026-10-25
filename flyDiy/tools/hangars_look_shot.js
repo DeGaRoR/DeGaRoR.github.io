@@ -195,6 +195,9 @@ const SCENERY_HANGARS = `JSON.stringify((() => {
     corner: [[-D.HD - 8, 1.6, D.HW + 8], [0, 1.4, 0]],
     back: [[D.HD + 14, 3.0, -D.HW - 10], [0, 2.0, 0]],
     far: [[-D.HD - 40, 10, 12], [0, 2.5, 0]],
+    // G3540, the user's plank: over the door pair (outside), and on the back wall the stand looks at (inside, 3.5 m along)
+    sign: [[-D.HD - 7, 3.0, 1.5], [-D.HD, 4.6, 0]],
+    signin: [[2, 1.8, 0.5], [D.HD, 3.45, 3.5]],
   });
   const NODE = id => `(() => { const D = GARAGE_ENV._debug(), W = D && D.world; if (!W) return null; let n = null;
     W.traverse(o => { if (!n && o.name === 'shed:' + ${JSON.stringify(id)}) n = o; });

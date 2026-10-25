@@ -1164,6 +1164,9 @@ signs on a clear ground (`assets/billboards/signs_sheet_1.png`), cut by
 `media/tex/signs/`. Admiralty Air Taxi, Harbor Fuel & Bait, Kootz Landing
 General Store, Tidal Cup Cafe, Bear Coast Tours, Sitka Spruce Lumber, North
 Channel Motel, Tongass Marine Supply. No third-party licence applies.
+The cabin shed's plank, "The Shed" (G3540), is the user's own too: one sign to
+a file (`assets/billboards/The Shed - sign.png`), cut to its alpha by the same
+`tools/sign_import.py` (its SINGLES table) and shipped as a 1024-wide webp.
 
 ## The world's data — Jolene Island (raw in `assets/island/raw/jolene/` (local, gitignored); SHIPPED as `media/world/jolene/`)
 

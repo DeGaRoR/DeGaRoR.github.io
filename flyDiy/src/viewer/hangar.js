@@ -2078,7 +2078,8 @@ if (!EXT) {
     try { off = off || (typeof location !== 'undefined' && /[?&]roompolish=0/.test(location.search || '')); } catch (e) {}
     if (HGN && HGN.build && HGN.PRESETS && PRE && !off) {
       try {
-        const P = Object.assign({}, HGN.DEF, HGN.PRESETS[PRE], { HW: HW, HD: HD, EAVE: EAVE, polishOnly: 1, lights: 0, sign: 0, signKey: '', flue: 0, smoke: 0 });
+        const P = Object.assign({}, HGN.DEF, HGN.PRESETS[PRE], { HW: HW, HD: HD, EAVE: EAVE, polishOnly: 1, lights: 0, sign: 0, signKey: '', flue: 0, smoke: 0 },
+          HGN.signDials ? HGN.signDials(D0.sign) : {});   // (G3540: the shed's own sign, as the world's shed wears it)
         const fy = P.floorY || 0;
         const apR = PLAIN ? SLAB_RECT : (SITE && SITE.apron ? L(SITE.apron) : SLAB_RECT);
         // the house frame's (X, Z) is this room's (x = -Z, z = X): the slab's height on the apron, the field's off it
@@ -2091,7 +2092,7 @@ if (!EXT) {
         inner.name = 'room:polish'; inner.rotation.y = -Math.PI / 2; inner.position.y = -fy;
         for (const k of built.BAGS) if (built.bags[k] && built.MAT[k]) {
           const m = built.bags[k].mesh(inner, built.MAT[k]);
-          if (m) { m.castShadow = true; m.receiveShadow = true; }
+          if (m) { m.castShadow = k !== 'glass'; m.receiveShadow = true; }   // (G3540: the sign's face casts nothing; its plank does)
         }
         if (built.bags.aoskirt && F.MAT.aoskirt) {
           const m = built.bags.aoskirt.mesh(inner, F.MAT.aoskirt);

@@ -131,6 +131,7 @@ const DEF = {
   glazing: 1, roofLights: 1, backDoor: 1, personDoor: 1,
   gutter: 1, flue: 1, smoke: 1, smokeK: 0.55, smokeLean: 0.35, lights: 0,
   sign: 0, signKey: '', signW: 4.0,
+  signPlank: 0, signIn: 0, signInX: 0,   // G3540: the sign as a hung plank; a second one inside, on the back wall at house x
   wallSet: SET_IDX('wall', 'rustysheet'), wallTint: 0xffffff, stemSet: SET_IDX('stem', 'sandstone'),
   roofSet: SET_IDX('roof', 'corrworn'), doorSet: SET_IDX('door', 'rustymetal'), metalSet: SET_IDX('metal', 'galv'),
   beamSet: SET_IDX('beam', 'rough'), trimCol: 6, trimW: 0.08,
@@ -158,6 +159,9 @@ const ROWS = [
     ['lights', 'lights', 0, 1, 1], ['sign', 'a sign over the door', 0, 1, 1],
     ['signKey', 'billboard', 0, 0, 1, [''].concat(Object.keys((typeof SIGN_TEX_META !== 'undefined' && SIGN_TEX_META) || {})), P => !!P.sign],
     ['signW', 'its width', 1, 8, 0.1, null, P => !!P.sign],
+    ['signPlank', 'a hung plank', 0, 1, 1, null, P => !!P.sign],
+    ['signIn', 'one inside too', 0, 1, 1, null, P => !!P.sign && !!P.signPlank],
+    ['signInX', 'inside, along the back', -20, 20, 0.1, null, P => !!P.signIn],
   ]],
   ['finish', [
     ['wallSet', 'wall', 0, ROLE_SETS.wall.length - 1, 1, setNames('wall')], ['stemSet', 'stem', 0, ROLE_SETS.stem.length - 1, 1, setNames('stem')],
@@ -197,6 +201,26 @@ function shellOf(P) {
 function rng(seed) { let st = ((seed | 0) * 2654435761 + 11) >>> 0; return () => { st = (st + 0x6D2B79F5) >>> 0; let t = st; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
 // ---- the build ---------------------------------------------------------------
+// THE SIGN AS A PLANK (G3540): a board of the frame's own timber (bags.beam: its edges are wood) standing `z` off the
+// wall's plane (its back there, its face toward +z), turned `rot` in its own plane, the painted face over it on the glass
+// slot - the billboard alpha-cut at 0.5, so the painted board's own ragged edge is the silhouette; the body is held a
+// little inside that edge so it never shows round it. Returns the face's place (the sign slot's reading).
+function signPlank(bags, Q, o) {
+  const c = Math.cos(o.rot), s = Math.sin(o.rot), X = [c, s, 0], U = [-s, c, 0], t = 0.04;
+  const at = (a, b, z) => [o.x + X[0] * a + U[0] * b, o.y + X[1] * a + U[1] * b, z];
+  const zb = o.z + t / 2, zf = o.z + t + 0.004;
+  beam(bags.beam, at(-o.w / 2 * 0.985, 0, zb), at(o.w / 2 * 0.985, 0, zb), t / 2, o.h / 2 * 0.94, U, 0, { bevel: Q.lod === 0 ? 0.006 : 0 });
+  const C = [o.x, o.y, zf];
+  face(bags.glass, [at(-o.w / 2, -o.h / 2, zf), at(o.w / 2, -o.h / 2, zf), at(o.w / 2, o.h / 2, zf), at(-o.w / 2, o.h / 2, zf)], [0, 0, 1],
+       p => { const d = [p[0] - C[0], p[1] - C[1]]; return [(d[0] * X[0] + d[1] * X[1]) / o.w + 0.5, (d[0] * U[0] + d[1] * U[1]) / o.h + 0.5]; });
+  return { x: o.x, y: o.y, z: zf, w: o.w, h: o.h, nx: 0, nz: 1, rot: o.rot };
+}
+// a shed's own sign (a plot's dims.sign: { key, w, inside }) as the build's dials, for the world's shed and the room alike
+function signDials(sg) {
+  if (!sg || typeof sg.key !== 'string' || !sg.key) return { sign: 0, signKey: '' };
+  const inside = typeof sg.inside === 'number' && isFinite(sg.inside);
+  return { sign: 1, signKey: sg.key, signW: sg.w > 0 ? sg.w : 2, signPlank: 1, signIn: inside ? 1 : 0, signInX: inside ? sg.inside : 0 };
+}
 function build(P0, lod, F) {
   const P = Object.assign({}, DEF, P0 || {});
   const Q = { lod: lod | 0 };
@@ -430,10 +454,25 @@ function build(P0, lod, F) {
     if (y1 - y0 > 0.4) {
       const sw = Math.min(P.signW, (y1 - y0) * aspect, S.DOOR_W - 1), sh = sw / aspect;
       const y = y0 + sh / 2, z = HD + hw + 0.05;
-      const c0 = [-sw / 2, y - sh / 2, z];
-      face(bags.glass, [c0, [sw / 2, y - sh / 2, z], [sw / 2, y + sh / 2, z], [-sw / 2, y + sh / 2, z]], [0, 0, 1], p => [(p[0] + sw / 2) / sw, (p[1] - c0[1]) / sh]);
-      boxAB(bags.trim, [-sw / 2, y - sh / 2, z - 0.05], [sw / 2, y + sh / 2, z - 0.005], { pz: true });
-      sign = { x: 0, y, z, w: sw, h: sh, nx: 0, nz: 1, at: 'gable', key: P.signKey || '' };
+      if (!P.signPlank) {
+        const c0 = [-sw / 2, y - sh / 2, z];
+        face(bags.glass, [c0, [sw / 2, y - sh / 2, z], [sw / 2, y + sh / 2, z], [-sw / 2, y + sh / 2, z]], [0, 0, 1], p => [(p[0] + sw / 2) / sw, (p[1] - c0[1]) / sh]);
+        boxAB(bags.trim, [-sw / 2, y - sh / 2, z - 0.05], [sw / 2, y + sh / 2, z - 0.005], { pz: true });
+        sign = { x: 0, y, z, w: sw, h: sh, nx: 0, nz: 1, at: 'gable', key: P.signKey || '' };
+      } else {
+        // G3540 (the user 25 Oct: "a hand-painted sign on a wood plank ... on top of the door" and "on a visible wall
+        // inside"): the board hung, not printed - its own jitter (a stream apart from the build's, so nothing after it moves)
+        const jr = rng((P.seed | 0) * 7 + 3540);
+        const wf = Math.max(hw, 0.07);                         // the wall's face: hangar.js's timber boards are 0.14 thick
+        const out = signPlank(bags, Q, { x: (jr() - 0.5) * 0.16, y, z: HD + wf + 0.012, w: sw, h: sh, rot: (jr() - 0.5) * 0.05 });
+        sign = Object.assign(out, { at: 'gable', key: P.signKey });
+        if (P.signIn) {
+          // the back wall's inside face (the house frame's -z; the garage stand looks at it past the aeroplane), under the eave
+          const yi = eave - 0.25 - sh / 2;
+          const inn = signPlank(bags, Q, { x: P.signInX + (jr() - 0.5) * 0.16, y: yi, z: -HD + wf + 0.012, w: sw, h: sh, rot: (jr() - 0.5) * 0.05 });
+          sign.inside = Object.assign(inn, { at: 'back wall, inside' });
+        }
+      }
     }
   }
 
@@ -609,7 +648,7 @@ function applyFinish(P, F) {
     const set = SIGN_TEX_SETS[P.signKey];
     const tx = new THREE.Texture(set.img); tx.colorSpace = THREE.SRGBColorSpace; tx.wrapS = tx.wrapT = THREE.ClampToEdgeWrapping;
     const ok = () => { tx.needsUpdate = true; }; if (set.img.complete && set.img.naturalWidth) ok(); else if (set.img.addEventListener) set.img.addEventListener('load', ok);
-    M.glass = new THREE.MeshStandardMaterial({ map: tx, roughness: 0.75, transparent: true, alphaTest: 0.5, color: 0xffffff });
+    M.glass = new THREE.MeshStandardMaterial({ map: tx, roughness: 0.75, alphaTest: 0.5, color: 0xffffff });   // (G3540: cut, never blended)
   }
 }
 function finishReport() {
@@ -625,7 +664,7 @@ function randomHangar(seed) {
 }
 
 window.HANGAR_GEN = { DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, SHELLS, ROLE_SETS, SET_IDX, CATS, catOf, shellOf, build, applyFinish, makeFinish, finishReport, randomHangar, LIB, library: shell => LIB[shell] || null,
-  finishShell, SHELL_DIRT };   // G3531
+  finishShell, SHELL_DIRT, signDials };   // G3531; G3540
 window.HANGAR_LIB = LIB;
 // THE CATALOGUE: a building with its door hook toward the road side
 window.HANGAR_GEN.CATALOGUE_V = 1;

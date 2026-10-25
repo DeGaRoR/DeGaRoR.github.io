@@ -6267,7 +6267,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const HGN = typeof window !== 'undefined' ? window.HANGAR_GEN : null;
       if (!SHELL.polish || !HGN || !HGN.build || !HGN.PRESETS || typeof document === 'undefined' || !POLISH_PRESET[shell]) return null;
       const P = Object.assign({}, HGN.DEF, HGN.PRESETS[POLISH_PRESET[shell]],
-        { HW: dims.HW, HD: dims.HD, EAVE: dims.EAVE, doorW: dims.door > 0 ? dims.door : 0, leaves: dims.leaves === 2 ? 2 : 0, lights: 0, sign: 0, signKey: '', ownShell: 1 });   // (G3537: its own door; G3531: its own shell finish)
+        { HW: dims.HW, HD: dims.HD, EAVE: dims.EAVE, doorW: dims.door > 0 ? dims.door : 0, leaves: dims.leaves === 2 ? 2 : 0, lights: 0, sign: 0, signKey: '', ownShell: 1 },   // (G3537: its own door; G3531: its own shell finish)
+        HGN.signDials ? HGN.signDials(dims.sign) : {});   // (G3540: its own sign, the room's too)
       const fy = P.floorY || 0, c = Math.cos(H.ry || 0), sn = Math.sin(H.ry || 0), y0 = H.y !== undefined ? H.y : 0;
       // (X, Z) in the house frame -> the hangar's local (x = -Z, z = X) -> the world (the node's yaw), the height back in the frame
       P.ground = (X, Z) => { const hx = -Z, hz = X; return world.terrainH(H.x + hx * c + hz * sn, H.z - hx * sn + hz * c) - y0 + fy; };
@@ -6277,7 +6278,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       if (!built || !built.stats || built.stats.source !== 'hangar.js') return null;   // headless / no canvas: the bare exterior
       const group = new THREE.Group(), inner = new THREE.Group();
       inner.rotation.y = -Math.PI / 2; inner.position.y = -fy; group.add(inner);
-      for (const k of built.BAGS) if (built.bags[k] && built.MAT[k]) built.bags[k].mesh(inner, built.MAT[k]);
+      for (const k of built.BAGS) if (built.bags[k] && built.MAT[k]) { const m = built.bags[k].mesh(inner, built.MAT[k]); if (m && k === 'glass') m.castShadow = false; }   // (G3540: the sign's face casts nothing; its plank does)
       const flat = [];
       if (built.bags.smoke && F.MAT.smoke) { const m = built.bags.smoke.mesh(inner, F.MAT.smoke); if (m) { m.renderOrder = 10; flat.push(m); } }
       if (built.bags.aoskirt && F.MAT.aoskirt) { const m = built.bags.aoskirt.mesh(inner, F.MAT.aoskirt); if (m) { m.renderOrder = 5; flat.push(m); } }
