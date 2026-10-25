@@ -976,6 +976,20 @@ function makePilot(sim, def, world, opts) {
   // the gradient a go-around may count on (0.8 of the measured Vy climb —
   // it begins at Vref, flaps down)
   const gsMax = () => { const S = sheetOf(); return S && S.LDbest ? clamp(1.4 / S.LDbest, 0.07, 0.16) : 0.105; };
+  // G3490 (RUFUS-MINE; the user 25 Oct: "that thing needs to be STOL capable, so let's ensure it can land the mine easily"):
+  // THE SLOPE A FLAPLESS AIRFRAME FLIES. 1.4 / LDbest is the flaps' and the gear's 40 %; with no landing flap there is the
+  // slip's share only, as far as the aileron holds it (A.gsSlipK, 1.1): Rufus at idle on the mine's final, 19 m/s, sank 2.5
+  // m/s - 0.13 over the ground in calm air, 0.145 slipping on the aileron's stop - under the 0.16 the cap asked, met the
+  // slope from below 730 m out, 8 m high at 58 m, twice round and a divert. Behind A.gsFly (off until the user's OK)
+  const gsFly = () => {
+    const S = sheetOf(), FL = def.params.flaps, G_ = def.params.gen || {};
+    const flapless = !FL || (FL.ldg ?? 1) <= 0 || !!G_.landsFlapless;
+    return A.gsFly && flapless && S && S.LDbest ? clamp((A.gsSlipK ?? 1.1) / S.LDbest, 0.07, 0.16) : gsMax();
+  };
+  // G3491 (REASONABLE-CHANCE; the user 25 Oct: "the autopilot should try if there's a reasonable chance ... if it crashes, it
+  // crashes"): the stop a decision is judged on is the brakes' full 100 % (the planning keeps its 80 %): A.rc (off until
+  // the user's OK on the 25 Oct table)
+  const stopRC = v => (A.stopShortK ?? 0.84) * (0.8 * v * v / (2 * Math.max(0.5, aStopOf())) + v);
   const gammaGA = () => { const S = sheetOf(); return S && S.gammaClimb ? 0.8 * S.gammaClimb : 0.08; };
   const dirLim = (mode) => ({ gs: A.gs, gsMax: gsMax(), gammaClimb: gammaGA(), mode, LDGrun: sheetOf() && sheetOf().LDGrun ? sheetOf().LDGrun : null, TORun: sheetOf() && sheetOf().TORun ? sheetOf().TORun : null });
   // the take-off / landing direction at an aerodrome: the runway model's two
@@ -1212,9 +1226,21 @@ function makePilot(sim, def, world, opts) {
       const sThr0 = alongOf(F, [to.x, 0, to.z]) - to.len / 2;
       const aimNeed = (D.obst.h - D.thrH + 15) / ap.gs - D.obst.d;              // metres past the threshold
       const runNeed = (sheetOf() && sheetOf().LDGrun) || 0;
-      if (aimNeed > ap.xAim - sThr0 && to.len - aimNeed >= 1.3 * runNeed) {
+      if (aimNeed > ap.xAim - sThr0 && to.len - aimNeed >= (A.rc ? 1.0 : 1.3) * runNeed) {   // (G3491: the sheet's run itself)
         ap.xAim = sThr0 + aimNeed; ap.appr.aimIn = Math.round(aimNeed); ap.appr.displaced = Math.round(aimNeed);
         say('aim-displaced', 'the approach to ' + (to.name || to.id) + ' needs ' + (Math.atan(D.reqGs) * 57.3).toFixed(1) + ' deg over the obstacle ' + D.obst.d + ' m out (' + Math.round(D.obst.h - D.thrH) + ' m); flying ' + (Math.atan(ap.gs) * 57.3).toFixed(1) + ' deg to an aim ' + Math.round(aimNeed) + ' m in');
+      }
+    }
+    // G3490: A SLOPE THE AIRFRAME CANNOT FLY IS NOT PLANNED - the aim moves down the strip until the obstacle clears on the
+    // slope it flies (G2125's own law), when the strip left past it still holds the landing run; else as before (the
+    // planned slope stays the obstacle's: never a path under the cone)
+    if (A.gsFly && D && D.obst && ap.appr && !ap.appr.displaced && gsFly() < ap.gs - 1e-4) {
+      const gF = gsFly(), sThr0 = alongOf(F, [to.x, 0, to.z]) - to.len / 2;
+      const aimNeed = (D.obst.h - D.thrH + 15) / gF - D.obst.d;
+      const runNeed = (sheetOf() && sheetOf().LDGrun) || 0;
+      if (aimNeed > ap.xAim - sThr0 && to.len - aimNeed >= (A.rc ? 1.0 : 1.3) * runNeed) {
+        ap.gs = gF; ap.xAim = sThr0 + aimNeed; ap.appr.aimIn = Math.round(aimNeed); ap.appr.displaced = Math.round(aimNeed);
+        say('aim-displaced', 'this airframe flies ' + (Math.atan(gF) * 57.3).toFixed(1) + ' deg at idle (no landing flap) - the approach to ' + (to.name || to.id) + ' aims ' + Math.round(aimNeed) + ' m in, over the obstacle ' + D.obst.d + ' m out (' + Math.round(D.obst.h - D.thrH) + ' m)');
       }
     }
     if (ap.appr) { ap.appr.gs = Math.round(ap.gs * 1000) / 1000; ap.appr.reqGs = D ? Math.round(D.reqGs * 1000) / 1000 : null; }   // G1936: the slope flown, the obstacles'
@@ -2467,7 +2493,7 @@ function makePilot(sim, def, world, opts) {
       }
       heldJudged = ap.shortFld ? 'short' : 'normal';
       const room = sEnd - ap.xAim - fl;
-      if (heldJudged === 'short' && room < needS && dAim > 0) {
+      if (heldJudged === 'short' && room < (A.rc ? (A.stopShortK ?? 0.84) * (0.8 * (need - Vg) + Vg) : needS) && dAim > 0) {   // (G3491: the stop at full brakes)
         heldJudged = 'refused';
         say('strip-too-short', (to.name || to.id) + ': the elevator holds ' + Vtd.toFixed(1) + ' m/s' + (tail > 0.5 ? ' (' + Vg.toFixed(1) + ' over the ground: ' + tail.toFixed(1) + ' m/s of wind behind on its one way in)' : '') + ', the short-field stop from it needs ' + r0(needS) +
             ' m, ' + r0(Math.max(0, room)) + ' m are left past the aim and the float - not landing there');
@@ -2490,6 +2516,7 @@ function makePilot(sim, def, world, opts) {
       return false;
     };
     const goAround = why => {
+      const fitLast = heldJudged === 'short' || heldJudged === 'normal';   // G3491: the last approach judged landable
       ap.gaN = (ap.gaN || 0) + 1; ap.gaWhy = why;
       say('go-around', why + ' (attempt ' + ap.gaN + ')');
       go('GOAROUND'); gaT = 0; SV.IthMaxT = 0.15; finalLevel = null; tVAdapt = 0; tDeSatT = 0; heldSeed = !!ap.vHeld; heldJudged = null; heldTail = null;
@@ -2501,7 +2528,8 @@ function makePilot(sim, def, world, opts) {
       // at two and the third arrival is committed - into the trees past East Point's end on the user's Cub (touched
       // 81 m in, stopped 74 m past it). A pilot diverts: the nearest strip this gear lands on with room for the
       // landing run (1.6 x the sheet's, 450 m at least), said, flown as a cross-country from here
-      if (ap.shortFld && ap.gaN >= 2 && world && world.aerodromes) {
+      // (G3491: with A.rc, a strip the last approach was judged to fit is not diverted from - the third is committed)
+      if (ap.shortFld && ap.gaN >= 2 && world && world.aerodromes && !(A.rc && fitLast)) {
         const need = Math.max(450, 1.6 * ((sheetOf() && sheetOf().LDGrun) || 0));
         let best = null, bd = Infinity;
         for (const a of world.aerodromes) {
@@ -4185,11 +4213,19 @@ function makePilot(sim, def, world, opts) {
               sink: Math.min(S.sinkMax, Math.max(S.sinkK * nomSink, nomSink + S.sinkAdd)),
               xt: Math.max(ST.gaXT, d * Math.tan(S.xtDeg * Math.PI / 180)) };
             const have = { vLo: iasF + tVAdapt - stabVf, vHi: stabVf - iasF - tVAdapt, dev: Math.abs(above), sink: stabSf, xt: Math.abs(sCr) };
+            // G3491: HIGH ON A SHORT FINAL AT IDLE IS FLOWN WHILE THE TOUCH STILL FITS - from here at the slope it is flying, the
+            // touch past the aim, the float and the stop at full brakes inside the strip (A.rc)
+            let rcHigh = false;
+            if (A.rc && above > 0 && ap.shortFld && c.thr < 0.10) {
+              const to = ap.route.to, gNow = stabSf / Math.max(5, Math.hypot(vcg[0], vcg[2])), Vt = iasF + tVAdapt;
+              const over = Math.max(0, hAim / Math.max(0.03, gNow) - d), sEnd = (to.x - F.ox) * F.ux + (to.z - F.oz) * F.uz + to.len / 2;
+              rcHigh = sEnd - (ap.xAim + over) - 3 * Vt >= stopRC(Vt);
+            }
             let why = null;
             for (const k in lim) {
               const r = have[k] / lim[k];
               if (r > R.worst[k]) R.worst[k] = Math.round(r * 100) / 100;
-              if (r > 1 && !why) why = k === 'vLo' ? 'slow ' + stabVf.toFixed(1) + ' m/s for ' + (iasF + tVAdapt).toFixed(1)
+              if (r > 1 && !why && !(k === 'dev' && rcHigh)) why = k === 'vLo' ? 'slow ' + stabVf.toFixed(1) + ' m/s for ' + (iasF + tVAdapt).toFixed(1)
                 : k === 'vHi' ? 'fast ' + stabVf.toFixed(1) + ' m/s for ' + (iasF + tVAdapt).toFixed(1)
                 : k === 'dev' ? (above > 0 ? 'high ' : 'low ') + Math.abs(above).toFixed(0) + ' m on the slope'
                 : k === 'sink' ? 'sinking ' + stabSf.toFixed(1) + ' m/s'
