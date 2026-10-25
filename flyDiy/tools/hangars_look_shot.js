@@ -29,7 +29,51 @@ const ONLY = opt('only', null) ? opt('only').split(',') : null;
 const want = k => !ONLY || ONLY.includes(k);
 const OUT = path.join(ROOT, 'reports', 'evidence', 'HANGARS-LOOK', TAG);
 let pw;
-try { pw = require('playwright'); } catch (e) { pw = require(path.join(cp.execSync('npm root -g').toString().trim(), 'playwright')); }
+try { pw = require('playwright'); } catch (e) { try { pw = require(path.join(cp.execSync('npm root -g').toString().trim(), 'playwright')); } catch (e2) { pw = cdpPlaywright(); } }
+// the box has no playwright: the system Chrome over CDP (garage_shot.js's rig), behind the few calls this rig makes
+// (launch / newContext / newPage / on('pageerror') / addInitScript / goto / evaluate / screenshot / close); the
+// profile in the OS temp dir (C:), deleted when the browser closes
+function cdpPlaywright() {
+  const CHROME = ['C:/Program Files/Google/Chrome/Application/chrome.exe', 'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
+    '/usr/bin/google-chrome'].find(p => fs.existsSync(p));
+  if (!CHROME) throw new Error('no playwright and no Chrome');
+  const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = ''; r.on('data', d => b += d); r.on('end', () => { try { res(JSON.parse(b)); } catch (e) { rej(e); } }); }).on('error', rej); });
+  const wait = ms => new Promise(r => setTimeout(r, ms));
+  return { chromium: { launch: async (o) => {
+    const port = 9400 + (process.pid % 500), udd = path.join(require('os').tmpdir(), 'hl_cdp_' + port + '_' + Date.now());
+    const ch = cp.spawn(CHROME, [o.headless === false ? '' : '--headless=new', '--remote-debugging-port=' + port, '--window-size=1600,900', '--hide-scrollbars',
+      '--no-first-run', '--user-data-dir=' + udd, '--disable-gpu-sandbox'].concat(o.args || []).filter(Boolean).concat(['about:blank']), { stdio: 'ignore' });
+    let tgt = null;
+    for (let i = 0; i < 60 && !tgt; i++) { await wait(400); try { tgt = (await getJSON('http://127.0.0.1:' + port + '/json')).find(t => t.type === 'page'); } catch (e) {} }
+    if (!tgt) throw new Error('Chrome never answered on ' + port);
+    const ws = new WebSocket(tgt.webSocketDebuggerUrl); await new Promise(r => ws.onopen = r);
+    let id = 0; const waits = new Map(), on = { pageerror: [], load: [] };
+    ws.onmessage = m => { const d = JSON.parse(m.data);
+      if (d.id && waits.has(d.id)) { waits.get(d.id)(d); waits.delete(d.id); }
+      if (d.method === 'Runtime.exceptionThrown') { const x = d.params.exceptionDetails; const msg = (x.exception && x.exception.description) || x.text || 'error'; on.pageerror.forEach(f => f({ message: msg })); }
+      if (d.method === 'Page.loadEventFired') { const l = on.load.splice(0); l.forEach(f => f()); } };
+    const cmd = (method, params) => new Promise(r => { const i = ++id; waits.set(i, r); ws.send(JSON.stringify({ id: i, method, params: params || {} })); });
+    await cmd('Page.enable'); await cmd('Runtime.enable');
+    const page = {
+      on: (k, f) => { if (on[k]) on[k].push(f); },
+      addInitScript: (fn, arg) => cmd('Page.addScriptToEvaluateOnNewDocument', { source: '(' + fn.toString() + ')(' + JSON.stringify(arg) + ')' }),
+      goto: async (url, q) => { const loaded = new Promise(r => on.load.push(r)); await cmd('Page.navigate', { url });
+        await Promise.race([loaded, wait((q && q.timeout) || 300000)]); },
+      evaluate: async (expr) => { const r = await cmd('Runtime.evaluate', { expression: String(expr), awaitPromise: true, returnByValue: true });
+        if (!r.result || r.result.exceptionDetails) { const x = r.result && r.result.exceptionDetails; throw new Error((x && ((x.exception && x.exception.description) || x.text)) || JSON.stringify(r.error || r)); }
+        return r.result.result.value; },
+      screenshot: async (q) => { const s = await cmd('Page.captureScreenshot', { format: q.type === 'png' ? 'png' : 'jpeg', quality: q.type === 'png' ? undefined : (q.quality || 88) });
+        if (!s.result) throw new Error('screenshot: ' + JSON.stringify(s.error)); fs.writeFileSync(q.path, Buffer.from(s.result.data, 'base64')); },
+    };
+    return {
+      newContext: async (c) => { const v = (c && c.viewport) || { width: 1600, height: 900 };
+        await cmd('Emulation.setDeviceMetricsOverride', { width: v.width, height: v.height, deviceScaleFactor: 1, mobile: false }); return { newPage: async () => page, close: async () => {} }; },
+      close: async () => { try { ws.close(); } catch (e) {}
+        try { if (process.platform === 'win32') cp.execSync('taskkill /PID ' + ch.pid + ' /T /F', { stdio: 'ignore' }); else ch.kill(); } catch (e) {}
+        await wait(800); try { fs.rmSync(udd, { recursive: true, force: true }); } catch (e) {} },
+    };
+  } } };
+}
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const C = require('./flight_core.js');
 

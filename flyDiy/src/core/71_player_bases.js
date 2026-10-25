@@ -109,8 +109,9 @@ const BASE_OFFERS = {
                    // constraint on the cabin strip" - then: "the pair of doors, keep the clutter and you may add a meter or 2
                    // on each side, for a total of 16-18m. Don't make it longer") the door 10.0 m, a bi-parting PAIR of 5.2 m
                    // leaves; Rufus's 9.8 m wing passes it with 0.1 m a side (doorClr - the door was cut for it); the width the
-                   // smallest in 16-18 m where the fit drops none of the cozy kit (hangarFit, measured); 22 m deep, as before
-                   takes: 'ul1', dims: { field: { HW: 8, HD: 11, EAVE: 4.0, door: 10, doorClr: 0.1, leaves: 2 } },
+                   // smallest in 16-18 m where the fit drops none of the cozy kit: 17 m (hangarFit, 25 Oct: 41 pieces placed as at 20 m;
+                   // 16 m loses the engine stand and a propane bottle); 22 m deep, as before
+                   takes: 'ul1', dims: { field: { HW: 8.5, HD: 11, EAVE: 4.0, door: 10, doorClr: 0.1, leaves: 2 } },
                    // (G3353, the user 22 Oct: "get rid of the large router (the largest of the woodworking machines). Keep
                    // only the 2 smaller ones (the drill and another)") the two smallest machines stay - the pillar drill and
                    // the thicknesser; the panel saw (4.4 x 3.6 m), the band saw and the surface planer are left out
