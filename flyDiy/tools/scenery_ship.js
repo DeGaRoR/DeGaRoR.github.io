@@ -41,9 +41,14 @@ const cutId = id => CUTP.some(p => String(id || '').startsWith(p)) && !KEEP.incl
 const normEntry = (layer, e) => { const r = PG.DEF(); r.layers[layer] = [JSON.parse(JSON.stringify(e))]; return N(PG.normalise(r).layers[layer][0]); };
 // an entry without its stages (its own and its items'): what the sandbox's view of it is
 const unstage = e => { const c = JSON.parse(JSON.stringify(e)); delete c.stage; if (Array.isArray(c.items)) for (const it of c.items) if (it) delete it.stage; return c; };
-// the save's entry with the fixture's stages put back (its own, and each item's by id)
+// the save's entry with the fixture's stages put back (its own, and each item's by id) - and a staged item the save has not
+// at all kept where it stood (JOLENE-FOLD 25 Oct: an item shown only below a track's max - s_club's old hangar, the mine's
+// mill - is not in the sandbox's view, so the save never carries it)
 const restage = (saved, fx) => { const c = JSON.parse(JSON.stringify(saved)); if (fx && fx.stage !== undefined) c.stage = fx.stage;
-  if (fx && Array.isArray(fx.items) && Array.isArray(c.items)) for (const it of c.items) { const f = fx.items.find(q => q && q.id === it.id); if (f && f.stage !== undefined) it.stage = f.stage; } return c; };
+  if (fx && Array.isArray(fx.items) && Array.isArray(c.items)) {
+    for (const it of c.items) { const f = fx.items.find(q => q && q.id === it.id); if (f && f.stage !== undefined) it.stage = f.stage; }
+    fx.items.forEach((f, n) => { if (f && f.stage !== undefined && !c.items.some(q => q && q.id === f.id)) c.items.splice(Math.min(n, c.items.length), 0, JSON.parse(JSON.stringify(f))); });
+  } return c; };
 const staged = e => !!(e && (e.stage || (Array.isArray(e.items) && e.items.some(it => it && it.stage)) || /^sg_/.test(String(e.id || ''))));
 
 function verify() {
@@ -75,12 +80,14 @@ for (const [id, a] of savedAreas) {
   if (EXCEPT.has(id) || cutId(id)) continue;
   const f = fixAreas.get(id);
   if (f && N(Object.assign({}, f, { src: null })) === N(Object.assign({}, a, { src: null }))) continue;   // (the sources' indexes are the migration's bookkeeping)
-  if (a.src && Object.keys(a.src).length) {
-    // its v1 entries, in their sources' layers and ids; a source it no longer makes goes
+  // (JOLENE-FOLD: an area the fixture holds as an area - in its `areas` layer, which the migration splits into sources no
+  //  layer holds - ships as one, as the save wrote it)
+  if (a.src && Object.keys(a.src).length && !(RF.areas || []).some(x => x.id === id)) {
+    // its v1 entries, in their sources' layers and ids (a source's stage kept); a source it no longer makes goes
     const made = PG.areaEntries(a), mk = new Set();
-    for (const q of made) { const L = q.layer, e = q.entry; mk.add(L + ':' + e.id); const old = (RF[L] || []).find(x => x.id === e.id); if (!old || normEntry(L, old) !== normEntry(L, e)) set(L, e, 'area ' + id + (old ? ' changed' : ' new source')); }
+    for (const q of made) { const L = q.layer, e = q.entry; mk.add(L + ':' + e.id); const old = (RF[L] || []).find(x => x.id === e.id); if (!old || normEntry(L, unstage(old)) !== normEntry(L, e)) set(L, restage(e, old), 'area ' + id + (old ? ' changed' : ' new source')); }
     for (const L of Object.keys(f ? f.src || {} : {})) { const sid = f.src[L][0]; if (!mk.has(L + ':' + sid)) del(L, sid, 'area ' + id + ' no longer makes it'); }
-  } else set('areas', rawAreas.get(id) || a, f ? 'changed' : 'new area');
+  } else { const w = JSON.parse(JSON.stringify(rawAreas.get(id) || a)); delete w.src; set('areas', w, f ? 'changed' : 'new area'); }
 }
 for (const [id, f] of fixAreas) if (!savedAreas.has(id) && !cutId(id) && !EXCEPT.has(id)) {
   const v1 = f.src ? Object.keys(f.src).map(L => (RF[L] || []).find(x => x.id === f.src[L][0])).filter(Boolean) : [];

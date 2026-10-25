@@ -1,0 +1,183 @@
+{
+ "what": "the user's Jolene AFB (19) scenery folded into island_jolene.json (the user, 25 Oct via A0: 'my new scenery gets folded in right away'; tools/scenery_ship.js + .py, ED-2's Sun 25 Oct slot); GATE SCENERYED 15 holds it - rev 28's manifest (scenery_ship_rev28.json) stays as the record of that ship",
+ "save": "scenery_user_jolene_afb19.json",
+ "source": "D:/Dev/DeGaRoR.github.io/flyDiy/bugReports/Jolene AFB (19).json (the user, 24 Oct)",
+ "sha256": "039026d76a44727db4e4ed07ab0459b35405ee60e84e4913ae4373e00fe62357",
+ "except": [
+  "sg_k_club:0",
+  "sg_k_club:1",
+  "sg_k_club:2",
+  "sg_k_club:3",
+  "sg_k_club:4",
+  "sg_k_club:5",
+  "sg_k_club:6",
+  "sg_k_club:7",
+  "sg_k_club:8",
+  "sg_k_club:9",
+  "sg_k_club:10",
+  "sg_k_club:11",
+  "sg_k_club:12",
+  "sg_k_club:13",
+  "sg_k_club:14",
+  "sg_k_club:15",
+  "sg_k_club:16",
+  "sg_k_club:17",
+  "sg_k_club:18",
+  "sg_k_club:19",
+  "sg_k_club:20",
+  "sg_k_club:21",
+  "sg_k_club:22",
+  "sg_k_club:frame",
+  "sg_k_club:clear",
+  "mk_sea",
+  "mk_mp_air",
+  "mk_mf_air"
+ ],
+ "remove": [
+  "r_airport",
+  "r_strip",
+  "y_taxi_ne",
+  "y_taxi_e",
+  "x_fan13_1",
+  "x_fan02_1",
+  "x_fan3_1",
+  "y_sh13_0",
+  "y_sh13_1",
+  "y_sh02_0",
+  "y_sh02_1",
+  "x_fan02_0"
+ ],
+ "record": [
+  "pavement"
+ ],
+ "trim": {},
+ "answers": "the user, 11 Oct ~23:55 (relayed by A0): the 4 village roads go (-53 houses accepted); the runway shoulders y_sh13_0/1, y_sh02_0/1 and the fan x_fan02_0 stay (untested); the pavement settings ship; r25 stops at strip 10 (w5); 12 Oct 03:05: 'all new editions can be considered default' - rev 26 (strip 11 w6 ships, flat like w5); 12 Oct 15:47 rev 27: w7 'strip 12' (1020 m dirt, the North East strip) + its roads r37 / r38, r31 joined to r37 (j1), the pavement's look - shipped (A0: w7 joins CONTRACT_FIELDS like w5 / w6, no own clear); 13 Oct 00:50 rev 28 (A0 relaying): 'I have fixed the altiports, so the current save is all you need, nothing to ignore. I have added a few runways; they need integrating in the trunk.' - w4 'strip 9' ships (the one altiport left; w1 gone), w8 'strip 13' new, w2 / w3 moved and shortened, HOME's area reworked (r_airport, r_strip, y_taxi_ne, y_taxi_e and the fans x_fan13_1 / x_fan02_1 / x_fan3_1 removed in the save); A0 13 Oct ~01:00: the ship-only shoulders y_sh13_0/1, y_sh02_0/1 and the fan x_fan02_0 (never in a save; the 40 m tree cut at HOME) dropped too; w4 + w8 join CONTRACT_FIELDS; every own clear as authored 25 Oct 00:50 (via A0): Jolene AFB (19) folds into master now; the game always loads master.",
+ "clearDefault": [],
+ "clearDefaultWhy": "none: every strip's own clear is the user's authored one (A0 12 Oct ~16:10, and 13 Oct: 'keep every own clear as authored') - HOME 0 / 60, w2 4 / 5, w3 6 / 150, w4 0 / 20, w5, w6, w7, w8 12 / 150",
+ "plotMoves": {
+  "SEA": {
+   "SEA": [
+    747,
+    -2851
+   ]
+  }
+ },
+ "plotMovesWhy": "the user 12 Oct (via A0): keep the cannery s2; the career base plot SEA moved 13.5 m west (760.5 -> 747.0), the smallest move that keeps its largest shell 3 m off the cannery (GATE TAXICLEAR 12); applied after the ship - a re-ship must apply it again",
+ "kept": "ship-only entries no save carries and the user never removed: the VOR clear s_vor_ann_clear (the AFB (19) save carries the site s_vor_ann itself); the staged sg_ entries (kept by the ship)",
+ "altiport": "rev 28: the user fixed the altiports themselves - w1 'strip 8' deleted in the save, w4 'strip 9' kept and reshaped (216 m, 4-point profile 28 -> -17.6 m, own clear 0 / 20) and shipped; nothing held back. 18 Oct (the user: 'strip 9 stays, the slope rules ... relaxed'): its 33.7 % and 14.2 % crest are WARNINGS (PG.warnings), no longer refusals",
+ "fieldPatches": {
+  "HOME": {
+   "hangar": {
+    "x": -138.12,
+    "z": 700.58,
+    "hdg": -0.8552
+   },
+   "stand": {
+    "x": -118.11,
+    "z": 677.57,
+    "hdg": null
+   },
+   "taxiOut": [
+    [
+     -128,
+     645
+    ],
+    [
+     -142.55,
+     563.38
+    ],
+    [
+     -143.88,
+     389.2
+    ],
+    [
+     -128.23,
+     371.19
+    ]
+   ],
+   "taxiOut1": [
+    [
+     -100,
+     672
+    ],
+    [
+     -40,
+     676
+    ],
+    [
+     1.61,
+     682.64
+    ],
+    [
+     175.8,
+     635.49
+    ]
+   ],
+   "plots": [
+    {
+     "id": "HOME.2",
+     "x": -118,
+     "z": 780,
+     "hdg": -1.9635
+    }
+   ]
+  },
+  "o3": {
+   "x": -57,
+   "z": 642,
+   "yaw": -1.637
+  },
+  "af_park1": {
+   "x": -75,
+   "z": 644,
+   "yaw": -1.637
+  },
+  "af_park2": {
+   "x": -95,
+   "z": 639,
+   "yaw": -1.637
+  },
+  "w3": {
+   "name": "Ridgeback Strip"
+  },
+  "SEA": {
+   "name": "Greywater Dock"
+  },
+  "mn_strip": {
+   "name": "Copperhead Mine Street"
+  },
+  "s_strip": {
+   "name": "Ridgeback"
+  },
+  "mn_s_mine": {
+   "name": "Copperhead Mine"
+  },
+  "nv_grounds": {
+   "name": "East Point grounds"
+  },
+  "mn_y_stand": {
+   "props": {
+    "terraform": {
+     "kind": "flatten",
+     "level": 346.8,
+     "falloff": 13.5,
+     "abs": true,
+     "order": 0
+    },
+    "wheels": {
+     "surface": 6
+    },
+    "draw": {
+     "look": "gravel",
+     "band": 2,
+     "z": 0
+    }
+   }
+  },
+  "s_vor_ann": {
+   "name": "Jolene VOR/DME (ANN 117.1)"
+  }
+ },
+ "fieldPatchesWhy": "(t53, 13 Oct: taxiOut1 ends where r_taxi_e's own line meets 13/31's centreline - (175.8, 635.49) - its 16 m dogleg onto the strip was a 1.9 m corner under the 6 m TAXICLEAR 3 holds) SCENERY-ED-1 G2890 (A0 13 Oct ~01:20 'GO'): HOME's main hangar beside the user's long club hangar, its stand, and the two taxi-outs rerouted over rev 28's y_pad and r_taxi_ne / r_taxi_e (r_airport / r_strip are gone); applied after the ship - a re-ship must apply it again; the user's import with the same patch: D:/Dev/flydiy-notes/inbox/jolene_rev28d_home_hangar.json. plots HOME.2 unchanged (pending the user); + plots (ED-1, A0's (a), 13 Oct ~02:15): HOME.2 keeps its shed position and heading and loses its own stand + taxiOut - two of its points ((-130,705), (-138,690)) lay inside the new main hangar; runwaySite serves it the field's new stand / route. The user's import: D:/Dev/flydiy-notes/inbox/jolene_rev28e_home_hangar.json (supersedes rev28d); + the three parked aeroplanes o3 / af_park1 / af_park2 moved onto the pad (t_pad's flatten), keys kept (SCENERY-ED-1, 13 Oct ~15:00: the user's rev 28 note 'the aircraft collection must be redone'; rev 28's y_pad no longer reached them - GATE PARKED 7) - in a row, noses to the eastbound route G3240 NAMES (22 Oct, GAME-PLAN §13, the user: 'Everything should have a fictional name'): w3, SEA, mn_strip, s_strip, mn_s_mine, nv_grounds take their fictional names (src/core/01_names.js; the record renamed without a rev bump) - the save keeps the user's old ones. + mn_y_stand (LOT-CLEAR, the user 22 Oct at the old mine: 'a surface for the starting zone ... the starting zone itself has no pavement'): the mine strip's stand drawn gravel like its lane (band 2) - shipped as the v1 material mn_y_stand_d beside the save's surface; applied after the ship - a re-ship must apply it again + s_vor_ann (JOLENE-FOLD, 25 Oct): the AFB (19) save carries the VOR site with its old name - names' fictional one kept. Every fieldPatch is applied after the ship (the save predates names and lot-clear) - a re-ship must apply them again",
+ "exceptWhy": "sg_k_club:0..22, :frame, :clear - the club kit's STAGE EXPANSION (the editor's stage view expands a kit into its pieces and the save kept them: an editor bug, not the user's scenery); mk_sea, mk_mp_air, mk_mf_air - the town's seaplane base, which the save keeps (TOWN_OFF.keep) and the gate's town cut drops: shipped as they stand (names' fictional names)"
+}
