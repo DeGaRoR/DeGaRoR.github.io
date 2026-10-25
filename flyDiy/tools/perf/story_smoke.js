@@ -161,6 +161,22 @@ const next = async () => { const ok = await click('#stTim [data-tim="tnext"]'); 
       [P.reg === 'N47RF', "Rufus's registration is not N47RF (" + P.reg + ')'],
       [P.planes && P.planes.client && P.fleet.indexOf(P.planes.client) >= 0, "the client's Cub is not waiting at HOME yet (G3585: " + JSON.stringify(P.planes) + ')'],
       [P.roll && P.roll.text === 'Roll out', 'the roll-out button does not read just "Roll out" (' + (P.roll && P.roll.text) + ')']]);
+    // ITEM 6's diag (the 25 Oct runs: Rufus's shake reads 'stale (the build changed)' from the cabin's first frame - the
+    // bench's EDIT hook): the fingerprint the bench computes now vs the file's stamp, and the canon rows that differ between
+    // what the editor exports, the slot's stored spec and the certified file (each stripped as the bench strips it)
+    try {
+      const fpd = JSON.parse(await b.ev(`(async () => { try {
+        const G = window.GARAGE_SPEC, D = G && G.cageDefaults ? G.cageDefaults() : null, J = window.CAGE_JOIN;
+        const f = await fetch('builds/rufus_2026-10-18_certified.json').then(r => r.json());
+        const st = window.BENCH_STATE(), fpOf = s => benchHash(benchVersionTag() + benchCanon(benchStripCosmetic(s, D)));
+        const flat = (o, pre, out) => { if (o && typeof o === 'object' && !Array.isArray(o)) { for (const k of Object.keys(o)) flat(o[k], pre ? pre + '.' + k : k, out); } else out[pre] = JSON.stringify(o); return out; };
+        const ex = J.export(), A = flat(benchStripCosmetic(ex, D), '', {}), S = flat(benchStripCosmetic(G.get(), D), '', {}), F = flat(benchStripCosmetic(f.spec, D), '', {});
+        const diff = (X, Y) => [...new Set([...Object.keys(X), ...Object.keys(Y)])].filter(k => X[k] !== Y[k]).slice(0, 40).map(k => k + ': ' + String(X[k]).slice(0, 60) + ' | ' + String(Y[k]).slice(0, 60));
+        return JSON.stringify({ stamp: f.plaque.results.shake.fp, tag: benchVersionTag(), fpExport: fpOf(ex), fpStored: fpOf(G.get()), fpFile: fpOf(f.spec),
+          rows: Object.keys(st.results || {}).map(k => k + ':' + JSON.stringify(st.results[k]).slice(0, 120)), exportVsFile: diff(A, F), storedVsFile: diff(S, F) });
+      } catch (e) { return JSON.stringify({ err: String(e && e.stack || e).slice(0, 400) }); } })()`, 60000));
+      log('item6 fp ' + JSON.stringify(fpd));
+    } catch (e) { log('item6 fp diag failed: ' + e.message); }
     // the guard: the roll-out pressed off its step stays in the shed
     await click('#edRoll'); await sleep(2500);
     await beat('A2 a press off the step is held (the roll-out stays in the shed)', P => [[P.inGarage && P.tut.step === 'hello', 'the press went through (' + JSON.stringify({ g: P.inGarage, t: P.tut }) + ')']]);
