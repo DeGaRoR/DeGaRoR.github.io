@@ -467,7 +467,7 @@ function makePilot(sim, def, world, opts) {
     ap.phase = ph; phaseT = 0;
     if (wrHold) { sim.ctl.wr = null; wrHold = false; }
     if (ph === 'ROLLOUT') wrLanded = false;
-    piv = null;                                  // G1938: a pivot belongs to the phase that began it
+    piv = null; bsT = 0; bsN = 0;                // G1938: a pivot belongs to the phase that began it (G3480: and its count)
     { const S_ = ap.afcs.sel; S_.wK = S_.vFloor = S_.toCap = S_.thrFull = S_.flc = S_.thMin = null; if (flcOn) { flcOn = false; SV.IthGain = null; SV.pitchK = 1; } }   // G2125: the climb law's selections are the phase's that set them
   };
   const PATS = {};
@@ -688,8 +688,8 @@ function makePilot(sim, def, world, opts) {
   // taxi's 0.85 of rudder) and the pivot in progress { hdg, j, thr, t0 }; a trike's nosewheel turns tight enough
   const RgMin = (typeof groundRmin === 'function') ? groundRmin(def, 0.85) : Infinity;
   let piv = null, pivSaid = false, pivN = 0;
-  // G3480 (DC-3 TAXI): the brake turn on (the wheels not holding the route's turn), the cross-track it last saw, said once
-  let bsOn = false, bsXT = 0, bsSaid = false, bsT = 0;
+  // G3480 (DC-3 TAXI): the time the wheels have not held the route's turn, the turns on the spot it took, said once
+  let bsT = 0, bsN = 0, bsSaid = false;
   // G2450: the room a turn on the spot asks from a strip's end - the half-span + 1.5 m (the wing sweeps round the CG),
   // 6 m at least (the tail's swing behind the mains)
   const pivRoom = () => Math.max(6, ((def.params.gen && def.params.gen.span > 0) ? def.params.gen.span / 2 : 5) + 1.5);
@@ -3061,26 +3061,25 @@ function makePilot(sim, def, world, opts) {
           // a minute on the stock, the C172 and the aluminium C172)
           // G3480 (DC-3 TAXI; the user's DC-3 replayed out of the HOME stand 25 Oct: the rudder on its stop for 15 s at 3.3 m/s,
           // swung 30 m wide of the taxi route, into the parked aircraft beside the stand at 20 s, the taxi timed out at 327 s):
-          // WHERE THE WHEELS CANNOT HOLD THE TURN, THE BRAKE TURNS IT. The rudder on its stop, the nose 20 deg and more off the
-          // way, the route more than 3 m away and still going: the inside brake (G1938's differential brake, the pivot's sign)
-          // and the turn walked at 1.5 m/s - a big taildragger turns on its brakes, not its tailwheel. Back within 9 deg of the
-          // way: the follower's own steering as before. An aeroplane whose wheels hold the route's turns never meets it
-          const eH = wrapPi(hF - Math.atan2(nose[1], nose[0])), axt = Math.abs(L.ey);
+          // AN AIRFRAME WHOSE WHEELS CANNOT STEER THE SITE'S OWN LANE TURN TURNS ON THE SPOT. Its wheels steer past 13 m (RgMin,
+          // the pivot's Rpiv: the DC-3 29.2 m on its tailwheel - the Cub 11.3, Rufus 9.6, the Jodel 9.2, the C172 5.3 never meet
+          // it); the rudder on its stop with the nose 20 deg and more off the way for 0.5 s: stop and pivot to the way (G1938's
+          // pivot - the inside brake, full rudder, a burst of power), then the follower from where it stood; while it rolls the
+          // turns are walked at 1.5 m/s. (The first cut, for every airframe, moved the Cub's Jolene stand-to-roll 190 -> 234 s;
+          // the second, the inside brake at 1.5 m/s with no stop, still turned the DC-3 on ~25 m into a parked wing at 46 s)
+          const eH = wrapPi(hT - Math.atan2(nose[1], nose[0])), bigG = RgMin > (A.taxiBsRg ?? 13);
           const drC = SV.taxiRudder(drFF, drMaxG);
-          // (ONLY AN AIRFRAME WHOSE WHEELS CANNOT STEER THE SITE'S OWN LANE TURN - RgMin past 13 m, the pivot's Rpiv: the user's
-          // DC-3 steers 29.2 m on its tailwheel, the Cub 11.3, Rufus 9.6, the Jodel 9.2, the C172 5.3 - the first cut, for every
-          // airframe, moved the Cub's Jolene stand-to-roll 190 -> 234 s and its altiport TAXICLEAR calibration; held 1 s)
-          bsT = RgMin > (A.taxiBsRg ?? 13) && Math.abs(drC) > 0.95 * drMaxG && Math.abs(eH) > 0.35 ? bsT + dt : 0;
-          if (!bsOn && bsT > 1.0 && axt > (A.taxiBsXT ?? 3) && axt > bsXT) bsOn = true;
-          else if (bsOn && Math.abs(eH) < 0.15) bsOn = false;
-          bsXT = axt;
-          let gsp = pathSpeed(ap.path, L.i, Vg, vMax, L.sRem);
-          if (bsOn) {
-            gsp = Math.min(gsp, A.taxiVTurn ?? 1.5);
-            if (!bsSaid) { bsSaid = true; say('brake-turn', 'the wheels do not hold the turn (' + axt.toFixed(1) + ' m off the route, ' + Math.round(Math.abs(eH) * 57.3) + ' deg off its way, the wheels steer ' + RgMin.toFixed(1) + ' m) — turning on the inside brake'); }
+          bsT = bigG && Math.abs(drC) > 0.95 * drMaxG && Math.abs(eH) > 0.35 ? bsT + dt : 0;
+          if (bsT > 0.5 && bsN < 6) {
+            bsT = 0; bsN++;
+            piv = { hdg: hT, j: L.i, t0: ap.t, thr: 0, sg: eH >= 0 ? 1 : -1 }; pivN++;
+            if (!bsSaid) { bsSaid = true; say('pivot', 'a turn of ' + Math.round(Math.abs(eH) * 57.3) + ' deg that the wheels (' + RgMin.toFixed(1) + ' m) cannot steer on the route - turning on the spot'); }
+            pivotFly(piv.hdg);
+            break;
           }
+          let gsp = pathSpeed(ap.path, L.i, Vg, vMax, L.sRem);
+          if (bigG && Math.abs(eH) > 0.2) gsp = Math.min(gsp, A.taxiVTurn ?? 1.5);
           engage('TAXI', 'DE', 'TAXI', { dr: drC, de: A.taxiDe ?? 0.30, gsp });
-          if (bsOn) c.brakeD = -Math.sign(eH) * clamp(Math.abs(eH) / 0.6, 0.3, 1) * (A.taxiBrakeD ?? 0.6);
           const tMax = 40 + 1.6 * ap.path.len / taxiV;
           setStatus('following the taxi route to the hold', [
             cond('to the hold', Math.round(L.sRem), 2, L.sRem < 2, 'm'),
