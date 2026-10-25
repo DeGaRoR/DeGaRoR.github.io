@@ -1507,6 +1507,44 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 
 #edInfo .note:first-child { margin-top:0; }
 
+/* G3730-G3737 UI-STYLE (the user, 25 Oct: the tank and the instruments
+   panels "still carry styling which is not in line with the styling of the
+   other menus"). What those two panels wrote inline — a yellow selection
+   outline, a cold red, an 11 px readout cssText, a blue-green CG bar, a
+   second 6 px indent — is a class here, on the column's tokens. Only where
+   a CG mark stands (its `left`) is still written by the code. */
+
+/* the instruments column is a panel-owned root like the shed's and the
+   tanks' (G136): its outer fold is flattened and its rows hang one indent in */
+.edRoot > details[data-g="instruments"] { border:0; border-radius:0;
+  padding:0; margin:0; }
+.edRoot > details[data-g="instruments"] > summary { display:none; }
+#edRows .edRoot > details[data-g="instruments"] > div { margin-left:var(--ed-indent); }
+
+/* the tank a click on the solid picked: the tree's selection colour */
+.edRoot details.on { border-color:var(--ed-acc); }
+
+/* a READOUT row: a sentence, not a control — it wraps and grows, where a
+   control row is the fixed 30 px rhythm (and the phone's tap height) */
+#edRows .edRoot .r.note { display:block; height:auto; min-height:0;
+  padding:3px 0 5px; white-space:normal;
+  font:400 10.5px/1.5 'IBM Plex Sans'; color:var(--ed-dim); }
+#edRows .edRoot .r.note .noteH { font:var(--ed-t-group); letter-spacing:.16em;
+  text-transform:uppercase; color:var(--ed-faint); margin:4px 0 4px; }
+#edRows .edRoot .bad, #edRows .edRoot .r > .v.bad { color:var(--ed-bad); }
+
+/* a verb that is the whole row (+ add a tank, remove this tank) */
+#edRows .r button.wide { flex:1; }
+
+/* the CG envelope bar: corner to corner in % MAC, the CG's mark on it */
+.cgBar { position:relative; height:10px; margin:4px 0 6px;
+  border:1px solid var(--ed-hair); border-radius:3px; background:var(--ed-track); }
+.cgBar > i { position:absolute; top:0; bottom:0; width:2px; margin-left:-1px;
+  background:var(--ed-dim); }
+.cgBar > i.cg { width:4px; margin-left:-2px; background:var(--ed-acc); }
+.cgChart { display:block; width:100%; height:170px; margin:4px 0 6px;
+  border-radius:4px; background:var(--ed-track); }
+
 /* A ROOT THAT BUILDS ITS OWN PANEL (G108). The shed's is an accordion of its
    own — ten material sub-groups under nine plain rows — so it is the one thing
    in this column with real nesting, and the nesting is ALL it needs: the row
