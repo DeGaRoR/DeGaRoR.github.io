@@ -98134,10 +98134,11 @@ What it took to balance them (the user's to know, it is the game's design story 
 90_node_exports.js adds only our three names; pushed claude/engine-configs-2 only (no claude/ready/*).
 
 **ASKS FOR THE USER.**
-1. Open Push-pull / Three / Four in the garage (or load the three fixtures: drop the .json on the garage) and look: the
+1. (the user, 25 Oct: "I'll test later") Open Push-pull / Three / Four in the garage (or load the three fixtures: drop the .json on the garage) and look: the
    pusher's cowl on the pod's bulkhead, the nacelles, the throttle levers (2 / 3 / 4).
 2. The Skymaster-alike card is now a push-pull and still tail-heavy as the card draws it (its design check FAILs on
    master too): rebalance the card (the example's -0.45 m wing / bigger stab), or leave the card as the user's to fix?
+   **ANSWERED by the user, 25 Oct: "you can rebalance the skymaster" - DONE, the G3494 addendum below.**
 3. High-wing Three / Four tip over at full power on a tricycle: should the Three / Four tiles move the wing to MID (as
    the examples do), hang the nacelles lower, or leave it to the builder with the bench's warning?
    **ANSWERED by the user, 25 Oct: "Leave the tip over to the builder."** The Three / Four tiles stay as they are (they
@@ -98157,3 +98158,48 @@ for b in cub jodel metal floats rufus; do node tools/engconfig_ab.js $b; done
 (`--file` is new and UNTESTED here (no GPU / Chrome in the cloud): the build DROPPED on the garage through DROP-JSON's door, G2799. `air` rolls out and shoots the
 chase view 30 s later. `x` is the see-inside top view: the throttle levers, one an engine. If the drop does not take,
 the page's own: Garage > Load > Import the .json, then the same views by hand.)
+
+### G3494 addendum (2026-10-25) - THE SKYMASTER-ALIKE CARD REBALANCED (the user: "you can rebalance the skymaster")
+
+The user, 25 Oct, on ask 2: "I'll test later, and you can rebalance the skymaster" (ask 1, the garage look, stays theirs).
+
+**What was wrong** (`_cage_design.js` ARCHETYPES 'skymaster', baked as the game bakes a card - designBake, the page's
+chain, then the game's load): static margin **-0.52 as drawn, -0.94 at the worst corner** (CG 93-139 % MAC against a
+neutral point of 41-46 %; even master's nose-only card read -0.16 / -0.73). Two causes:
+- `paxCount: 3` drew a 2.4 m cabin of EIGHT seats ('side4'), while the card's own note says four: the full cabin added
+  560 kg about 0.5 m aft of the solo CG;
+- the wing stood ahead of an aeroplane whose 144 kg rear IO-360 hangs off the aft bulkhead.
+
+**The card now**: `paxCount: 1` (four seats, the C172-alike's 2 + 2, as the note says) and `wgDx: -0.5` (the wing,
+and the twin booms and tail it carries, 0.5 m aft). Nothing else on the card moved (boomX 1.25, boomLen 3.2, the
+look).
+| | before (25 Oct) | after |
+|---|---|---|
+| static margin as drawn (bake / game load) | -0.516 | 0.147 / 0.100 |
+| CG over the four corners (% MAC) | 93 / 99 / 134 / 139 | 23 / 28 / 27 / 32 |
+| neutral point (% MAC) | 41-46 | 37-38 |
+| design check | FAIL (pitch.sm, pitch.short) | PASS |
+| mass (solo, full fuel) | 1234 kg | 1069 kg |
+| bench to 5.7 g, damage on | BROKE UP, 2 broken | HELD - over yield, 0 broken (master's nose-only card: the same verdict) |
+| circuit, autopilot, damage on | - | downwind at 54 s, nothing broken, no prop strike |
+| one engine cut on the downwind (10 s) | - | nose: beta 0.04 deg, hdg -0.20, -4.0 m; pusher: 0.03 deg, -0.23, -3.2 m |
+Wing 0.7 m aft or more puts it into the rear disc (propFitCheck: "through the wing"), 0.4 m leaves the worst corner
+at +0.006 (WARN): 0.5 is the middle. The over-yield on the bench is the card's cantilever high wing (the real 337's
+construction), as on master's card.
+
+Followed by: GP_PARKED_FOOT skymaster tail 5.8 -> **6.2 m** (the booms moved aft with the wing: 6.16 m; GATE
+TAXICLEAR), frames_corpus.json's Skymaster-alike entry alone re-recorded (GATE FRAMES; every other recorded item
+byte-equal).
+
+**Gates on the final tree** (`run_gates.js --only=... --no-build`):
+```
+GATE DESIGN: PASS           GATE DEFAULT: PASS         GATE SUBSTEP: PASS         GATE FRAMES: PASS
+GATE PARKED: PASS           GATE HITBOX: PASS          GATE ENGCONFIG: PASS       GATE TAXICLEAR: PASS (x4)
+GATE TOUR: PASS (x4)        GATE SITE: PASS            GATE STRIPSURF: PASS       GATE WORLDRENDER: PASS
+GATE BUILD: PASS            GATE BUILT: PASS           GATE ARCHETYPES: PASS (shards 1-3; the Skymaster-alike:
+                                                       "the circuit completes", "full stop inside 700 s")
+```
+Red on the same FAIL lines as master 2c2a74459 (unchanged from the 22 Oct list): GATE ARCHETYPES shard 0 (the
+Chinook-alike's rejected take-off), GATE ROLLANIM (G1039 flRevealStart), GATE CLOUD (1 of 239), GATE WORLD. HITBOX
+was run alone: its two rows are a timing (spec shape vs raster, ms) that went red with four gates sharing this box's
+four cores and PASS alone, as in the 22 Oct battery.

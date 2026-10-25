@@ -2316,9 +2316,15 @@ const ARCHETYPES = [
   // ENGINE-CONFIGS-2 (G3493, 22 Oct): THE REAR PUSHER IS PAID - the Engines row's Push-pull tile (G2790): the nose engine
   // and a second IO-360 pushing behind the cabin, its prop between the booms (boomX 1.25 is the rear disc's radius +
   // 0.31 m), the two turning opposite ways
+  // ENGINE-CONFIGS-2 (the user, 25 Oct: "you can rebalance the skymaster"): THE CARD BALANCES. It read a static margin
+  // of -0.52 as drawn (-0.94 at the worst corner; -0.16 already as a nose-only single on master): paxCount 3 drew a
+  // 2.4 m cabin of EIGHT seats (the note says four) whose full load sat 0.5 m further aft, and the wing stood ahead
+  // of an aeroplane whose 144 kg pusher hangs off the aft bulkhead. Now the note's four seats (paxCount 1, the C172's
+  // 2 + 2) and the wing 0.5 m aft: CG 23-32 % MAC over the four corners, the neutral point 37-38 %, the design check
+  // PASS, the rear disc clear of the wing (0.7 m aft puts the wing into it)
   { key: 'skymaster', kind: 'recreation', name: 'Skymaster-alike', note: 'twin ' +
       'booms off a high wing, four seats, an engine in the nose and one pushing behind the cabin',
-    sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 3,
+    sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, booms: 'twin',
            section: 3,
            wgPos: 0, wgBrace: 1, wgTip: 1, wgFlapType: 1,
@@ -2327,7 +2333,7 @@ const ARCHETYPES = [
            finArch: 'straight', empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0x1b3a5c },
     over: { cage: Object.assign({}, PLAN_TAPER, { boomX: 1.25, boomLen: 3.2,
                                                    boomWf: 0.18, boomHf: 0.27,
-                                                   boomWa: 0.126, boomHa: 0.189 }),
+                                                   boomWa: 0.126, boomHa: 0.189, wgDx: -0.5 }),
             spec: { finish: { decals: { m1On: 1, m1Pat: 0, m1A: 0x1b3a5c,
                                         m1B: 0xefe6cf, m1D: 0x1b3a5c } } } } },
   { key: 'p38', kind: 'recreation', name: 'P-38-alike', note: 'a puller a boom, ' +
