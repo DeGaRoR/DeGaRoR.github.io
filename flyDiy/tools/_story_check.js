@@ -190,6 +190,18 @@ function run(M) {
          && /storySkipSync\(\); storyFloodOn\(\); \} catch \(e\) \{ console\.warn/.test(APP) && /storySkipSync\(\); storyFloodOn\(\); \} catch \(e\) \{\} \}, 1500\)/.test(APP),
          'at T0 in the cabin the cage\'s flood goes on once (the switch, not the build file), at boot or when the garage arrives');
       ok(/li_\(\?:nav\|beacon\|taxi\|land\|flood\|instr\|pedal\|pax\)/.test(BJ), 'the flood switch is bench STATE (G3449), so the T0 flip leaves the certificates standing'); }
+    // G3357 (the user 23 Oct: "I see no point in the lines on the top left. Tim feels like he's enough"; "Interior flood
+    // light should be ON by default in the garage")
+    { const CSS2 = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'editor.css'), 'utf8');
+      ok(/classList\.toggle\('stNoCard', !STORY_CARD\)/.test(APP) && /body\.stNoCard #stCard \{ display: none !important; \}/.test(CSS2) && /\[\?&\]storycard=1/.test(APP),
+         'the beat card is off the player page (a body class editor.css reads); ?storycard=1 shows it (a dev view)');
+      ok(/data-tim="' \+ \(last \? \(ack \? 'ack' : 'ok'\) : 'next'\)/.test(APP) && /b\.dataset\.tim === 'ack'\) \{ stTimShut = true; stLine = ''; storyEvent\(\{ k: 'ack' \}\); \}/.test(APP)
+         && /class="stTimRows"/.test(APP) && /data-tim="line"/.test(APP) && /data-tim="open"/.test(APP),
+         "Tim's band carries the beat: his last line's OK moves an ack beat, the checklist rides under it, the story's messages are his, a closed band leaves a chip");
+      ok(/stMarksOff = want;/.test(APP) && /&& !stMarksOff;/.test(APP) && /var stMarksOff = false;/.test(APP),
+         'the CG / neutral-point marks are off while the story holds the paint-only stage (T0)');
+      ok(!/n\.id = 'stNoBenchNote'/.test(APP) && /var STORY_BENCH_LINE = 'No test bench in here/.test(APP) && /small && L0\.length \? L0\.concat\(\[STORY_BENCH_LINE\]\) : L0/.test(APP),
+         'no bench note in the panel: in the small shed Tim says it, his last line (G3361)'); }
     ok(/id = 'stTim'/.test(APP) && /FLYDIY_AP\.manual\(\) && !inGarage/.test(APP), 'Tim band at the bottom; it steps aside in flight when the player takes manual control');
   }
   // the save
@@ -310,6 +322,9 @@ async function pageRun() {
   // ---- a New career at the cabin: playerLoad's own step (careerNew -> storyNewCareer), then the page half boots
   let d = M.careerNormalise(M.careerNew({ id: 'main', seed: 'gate' }));
   let r = M.storyNewCareer(d, { aeros: aerosCabin });
+  { const g = (d.ledger || []).some(e => e.k === 'grant');
+    ok(r.ok && g && !(r.doc.ledger || []).some(e => e.k === 'grant') && r.doc.wallet === d.wallet - M.CAREER_GRANT + M.STORY_GRANT && M.STORY_GRANT === 0,
+       'the story career starts without careerNew\'s grant (G3359: STORY_GRANT 0, its ledger line gone)', r.doc.wallet); }
   d = r.doc;
   ok(r.ok && M.storyOf(d).beat === 'T0' && d.here === 'w9' && d.sheds.w9 && d.sheds.w9.shell === 'field' && d.sheds.w9.base === 'w9' && d.sheds.HOME.locked === 'story',
      'New career -> storyStart at the cabin: the smallest shed (a field shell) at "Cabin Strip", the garage there, the WWII hangar held', JSON.stringify(d.sheds.w9 && d.sheds.w9.dims));
@@ -324,8 +339,8 @@ async function pageRun() {
   ok(H.window.FLYDIY_STORY.mask() === 'finish' && H.window.FLYDIY_STORY.jobsOpen() === false, "window.FLYDIY_STORY: the tech mask's tutorial mode ('finish' at T0), the job list held");
   // ---- the beat card
   let el = half.el();
-  ok(el && el.id === 'stCard' && !el.hidden && /The cabin/.test(el.innerHTML) && /The story · 1 of 8/.test(el.innerHTML) && /data-st="ok"/.test(el.innerHTML) && /not yours yet/.test(el.innerHTML),
-     "the beat card: T0's title and brief, the step, the OK (an ack beat), the hangar not ours yet");
+  ok(el && el.id === 'stCard' && !el.hidden && /The cabin/.test(el.innerHTML) && /The story</.test(el.innerHTML) && !/ of \d/.test(el.innerHTML) && /data-st="ok"/.test(el.innerHTML) && /not yours yet/.test(el.innerHTML),
+     "the beat card: T0's title and brief, no step counter (G3356: dev-facing), the OK (an ack beat), the hangar not ours yet");
   ok(!/<i>|<em>|font-style:\s*italic/.test(el.innerHTML), 'the card writes no italics');
   el.listeners.click({ target: { closest: () => ({ dataset: { st: 'ok' } }) } });
   d = P.get();
@@ -574,8 +589,10 @@ async function ladderRun() {
   const fly = (phase, t, x) => { H.ap.phase = phase; H.ap.t = t; if (x != null) cg = [x, 300, 0]; X.storyTimSync(); const e = X.tim(); return e && !e.hidden ? e : null; };
   H.inGarage = false; H.ap = { phase: 'DEPART', t: 0 }; X.storyLadderReset();
   let e = fly('DEPART', 0, D0);
-  ok(e && e.className === 'lad' && /Take-off/.test(e.innerHTML) && /the flight · 1 of 6/.test(e.innerHTML) && /data-tim="lad"/.test(e.innerHTML),
-     "in flight on T1: the band shows the ladder's first card (Tim, 'the flight · 1 of 6', OK), on the transparent ground (.lad)", e && e.className);
+  ok(e && e.className === 'lad' && /Take-off/.test(e.innerHTML) && /the flight</.test(e.innerHTML) && !/ of \d/.test(e.innerHTML) && /data-tim="lad"/.test(e.innerHTML),
+     "in flight on T1: the band shows the ladder's first card (Tim, 'the flight', no counter - G3356, OK), on the transparent ground (.lad)", e && e.className);
+  ok(/#stTim \{[^}]*z-index: 2147482500;/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'editor.css'), 'utf8')) && /\(last \? 'OK' : 'Next'\)/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8')),
+     "Tim's band draws over every game layer (the HUD bar, the rails, the corner cards) and its button says Next, no line counter (G3356)");
   const order = [];
   const push = el => { const m = el && /<b class="stLadT">([^<]+)<\/b>/.exec(el.innerHTML); const k = m ? m[1] : null; if (order[order.length - 1] !== k) order.push(k); };
   let t = 0; push(e);

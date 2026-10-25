@@ -55,7 +55,19 @@ const ECON_V = 1;
 //   loanTo       ...and pays the wallet back up to this (rounded up to `loanRound`)
 const ECON_BOOK = {
   ref: 'cub',
-  shells: { field: 1.8, club: 3.2, works: 5.4 },
+  // (G3359 ECON-APPLY, the user 23 Oct: "apply the economics table, keep demo time as it is for now"; ECON-SIM G3250 HANDOVER): the shells re-priced
+  // (field 1.8 -> 3.6, club 3.2 -> 5.6, works 5.4 -> 8.6 Cubs) - a side field shed at Tamgas Hill 44 960 -> 89 840
+  shells: { field: 3.6, club: 5.6, works: 8.6 },
+  // THE TABLE'S SINKS NOT YET BUILT INTO THE GAME (G3359: data only, read by nothing in play; tools/econ_sim.js plays them):
+  //   landmarks  the co-funding in Cubs; a keystone opens the next segment, the others are optional
+  //   rungs      the machine shop's rung of a segment, bought once it opens (its designs cannot be built before)
+  //   comps      competitions: entry in Cubs by segment, prizes x the entry for gold / silver / bronze
+  landmarks: [
+    { id: 'observatory', seg: 1, keystone: true,  cubs: 2.5 }, { id: 'mine-village', seg: 1, keystone: false, cubs: 1.5 },
+    { id: 'hydro',       seg: 2, keystone: true,  cubs: 6 },   { id: 'sky-tram',     seg: 2, keystone: false, cubs: 3 },
+    { id: 'long-runway', seg: 3, keystone: true,  cubs: 12 },  { id: 'community',    seg: 3, keystone: false, cubs: 5 } ],
+  rungs: { 2: { cubs: 0.25, words: 'Sheets and bolts' }, 3: { cubs: 2.5, words: 'Composite and electronics' } },
+  comps: { entry: { 1: 0.08, 2: 0.15, 3: 0.25 }, prizes: [3, 1.6, 0.8] },
   kits: { park: 0, bench: 0.05, wood: 0.16, metal: 0.24, store: 0.02, handling: 0.05,
           office: 0.1, comfort: 0.06, curio: 0, wip: 0 },
   makerMargin: 1.35,
@@ -217,10 +229,13 @@ function econLoanJob(doc, id) {
 // 15-25, 25-35, 20-40) are scaled by the measured contracts-per-leg ratio, 0.78 (the reference's 21-22 / 26-28 / 22-23
 // contracts at the airframe / hangar2 / arc before, 17-18 / 21-22 / 18-19 after); the first hangar is unchanged (it
 // is bought inside the arc-only opening, 8 contracts both ways).
+// (G3359 ECON-APPLY: the user's table re-priced the shells x2 - the reference career, measured on the applied tree on 24
+// Oct over the 8 seeds: hangar1 13-14, airframe 20-21, arc 21-22, hangar2 27-30; the bands re-derived around them, the
+// table speaking, not a regression. Before: hangar1 6-10, airframe 12-20, hangar2 20-27)
 const ECON_BANDS = {
-  hangar1:  [6, 10],     // the first side hangar
-  airframe: [12, 20],    // a C172-class airframe (CONTRACT_DESIGNS.c172, materialised in the main hangar)   (G2260: 15-25)
-  hangar2:  [20, 27],    // the second side hangar                                                         (G2260: 25-35)
+  hangar1:  [11, 16],    // the first side hangar
+  airframe: [16, 24],    // a C172-class airframe (CONTRACT_DESIGNS.c172, materialised in the main hangar)   (G2260: 15-25)
+  hangar2:  [24, 33],    // the second side hangar                                                         (G2260: 25-35)
   arc:      [16, 31],    // a full arc: the first provider whose whole arc is complete (its track at its last stage) (G2260: 20-40)
 };
 // THE REFERENCE CAREER the bands are measured on (econReference). Stated, so the numbers mean something:
