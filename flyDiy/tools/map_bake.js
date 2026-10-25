@@ -41,6 +41,9 @@
 'use strict';
 const fs = require('fs'), path = require('path'), zlib = require('zlib');
 const ROOT = path.join(__dirname, '..');
+// (G3240 NAMES) every place the map names is the names table's (src/core/01_names.js, read off its source: the bake
+// needs no build for it); the aerodromes' names come through the world, whose runways read the same table
+const GAME_NAMES = (() => { const c = {}; require('vm').runInNewContext(fs.readFileSync(path.join(ROOT, 'src', 'core', '01_names.js'), 'utf8'), c); return c.GAME_NAMES; })();
 
 // ---- THE LOOK (a muted chart: the UI's bone and ink around it, the land quiet so markers read) -----------------------
 const MPP = 12;                     // metres per pixel: the island's ~23 x 31 km land in ~2200 x 2800 px
@@ -61,15 +64,15 @@ const C = {
 const ROAD_MIN_PX = 0.55, RWY_GROW_PX = 0.5;
 // (G2324) THE PAINTING: its committed source (the approved mock's, the user's AI map) and the sea at its edge
 const ART_SRC = 'futureDesigns/game/map-mock/map_ai2.jpg', ART_EDGE = '#004279';
-// the places of interest the map names from the middle zoom (§R.2: Metlakatla, the mine, the lodge, the cannery,
-// Tamgas Hill): the island record's sites by id - their positions are the record's; the hill is the island's summit
-const POI_SITES = [['mk_hall', 'Metlakatla'], ['mn_s_mine', 'the mine'], ['tw_s_summit', 'the lodge'], ['mk_mw_cannery', 'the cannery']];
-const POI_SUMMIT = 'Tamgas Hill';   // a road is at least ~1 px; a runway's rectangle grows half a pixel (a 12 m strip is still a line)
+// the places of interest the map names from the middle zoom (§R.2: the town, the mine, the lodge, the cannery, the
+// summit): the island record's sites by id - their positions are the record's; the summit is the island's highest point
+const POI_SITES = [['mk_hall', GAME_NAMES.town], ['mn_s_mine', 'the mine'], ['tw_s_summit', 'the lodge'], ['mk_mw_cannery', 'the cannery']];
+const POI_SUMMIT = GAME_NAMES.mountain;   // a road is at least ~1 px; a runway's rectangle grows half a pixel (a 12 m strip is still a line)
 // (G2435) THE INFRASTRUCTURE: Douglas-Peucker tolerances (picture px) of the roads' three zoom bands (far, mid, close);
 // a main road (drawn from the fit) is one at least MAIN_W m wide or one the record names; the zone kinds drawn; the
 // labels - [kind, the record's id, the word, the style, the place of interest it stands for (drawn once)]
 const INFRA_DP = [3, 1, 0.25], MAIN_W = 5.5, INFRA_ZONES = ['residential', 'commercial', 'industrial', 'harbour', 'park'];
-const INFRA_LABELS = [['zone', 'z_village', 'the village', 'village', null], ['site', 'mk_hall', 'Metlakatla', 'town', 'mk_hall'],
+const INFRA_LABELS = [['zone', 'z_village', 'the village', 'village', null], ['site', 'mk_hall', GAME_NAMES.town, 'town', 'mk_hall'],
   ['item', 'mn_s_mine/mill', 'the mill', 'work', null], ['item', 'mk_mw_cannery/mk_mw_cannery_b0', 'the cannery', 'work', 'mk_mw_cannery'],
   ['link', 'tw_l_tram', 'Skyline Tramway', 'tram', null]];
 
@@ -426,14 +429,17 @@ function bake() {
   if (as.w !== w || as.h !== h) throw new Error('map_bake: ' + ART_SRC + ' is ' + as.w + ' x ' + as.h + ', not the frame\'s ' + w + ' x ' + h);
   // (G2435) THE INFRASTRUCTURE, off the record through compose (the town on: every place)
   const town = composeTown();
-  if (JSON.stringify(town.rec.layers.roads) !== JSON.stringify(rec.layers.roads)) throw new Error('map_bake: the composed record is not the fixture');
+  // (ROAD-BAND-ZERO, 25 Oct: the reader's roads are the fixture's as normalise reads them - a road's band 0 is no band, so
+  //  Jolene's r45 (band 0 in the file) composes without one; the raw file is not what compose saw)
+  const recRoads = Cx.PREMISES_GEN.normalise(JSON.parse(JSON.stringify(rec))).layers.roads;
+  if (JSON.stringify(town.rec.layers.roads) !== JSON.stringify(recRoads)) throw new Error('map_bake: the composed record is not the fixture');
   const infra = infraOf(rec, town.O, toPx);
   const proj = {
     v: 1, island: 'jolene', mpp: MPP, x0: X0, z0: Z0, x1: X1, z1: Z1, w, h,
     rule: 'px = (x - x0) / mpp, py = (z - z0) / mpp; north up (-z is north); the grid labels are km from the world origin (north positive)',
     aerodromes: aeros, plots, hotspots, pois, infra,
     look: { rwyGrowPx: RWY_GROW_PX, colours: { hard: idx.hard, grass: idx.grass, lane: idx.lane, plot: idx.plot } },
-    credit: 'Jolene Island: Annette Island, Southeast Alaska, renamed (USGS 3DEP IFSAR, ESA WorldCover; flyDiy/CREDITS.md)',
+    credit: GAME_NAMES.island + ' Island: the ground from USGS 3DEP IFSAR and ESA WorldCover; every name fictional (flyDiy/CREDITS.md)',
   };
   return { png, proj, pix, w, h, P, idx, art, artSize: as, town };
 }

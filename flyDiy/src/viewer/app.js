@@ -7138,8 +7138,10 @@
     if (!resPick && downAt && edSit.visible && !SHOT.on && e.button === 0 &&
         Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) < 4 &&
         Date.now() - downAt.t < 500) {
-      const hit = pickAt(e.clientX, e.clientY);
-      if (window.BOOMBOX && hit && window.BOOMBOX.click(bbProp(), pickRay.ray, hit, canvas)) { /* the radio's panel */ }
+      const tipT = cgTipTap(e.clientX, e.clientY, e.pointerType === 'mouse');   // P1: a tap on a CG / NP label opens its tooltip, and goes no further
+      const hit = tipT ? null : pickAt(e.clientX, e.clientY);
+      if (tipT) { /* the tooltip */ }
+      else if (window.BOOMBOX && hit && window.BOOMBOX.click(bbProp(), pickRay.ray, hit, canvas)) { /* the radio's panel */ }
       else if (typeof window.EDITOR_PICK === 'function' && !edSwitchClick(hit)) window.EDITOR_PICK(hit, false);
     }
     downAt = null;
@@ -7167,6 +7169,7 @@
       const now = Date.now();
       if (now - (RES.hoverT || 0) > HOVER_MS) { RES.hoverT = now; residentHover(residentAt(e.clientX, e.clientY, false)); }
     }
+    if (!touches.size && !panD && !SHOT.on && e.pointerType === 'mouse' && gTipBand) cgTipHover(e.clientX, e.clientY);   // P1 CG-COLOURS
     if (!touches.size && !panD && edSit.visible && !SHOT.on &&
         typeof window.EDITOR_PICK === 'function') {
       const now = Date.now();
@@ -7669,6 +7672,14 @@
   let crashWatch = null;
   const WATCH_REST = 6, WATCH_HOLD = 3;          // s of sim time: the debris' longest wait, then the wreck held still
   let flDmg = null;           // G1470 (TREE-CRASH): sim.damage() - the worker's verdict under the physics worker
+  // G2373 (DMG-OCCUPANT): the occupants' bands for a crash's card - [{ name, band }] from the worker (sim_link's occView)
+  // or the inline solver (34_occupant.js genOccWire); read only on the crash path
+  let flOcc = null;
+  const occNow = () => {
+    if (sim && 'occView' in sim) return sim.occView;
+    const D = sim && sim.damage ? sim.damage() : null;
+    return D && D.occ && typeof genOccWire === 'function' ? genOccWire(D.occ) : null;
+  };
   let flNextLeg = null;   // G700: the selects' block publishes nextLeg here - `Fly on` chains the next leg in place
   let flDestPend = () => false;   // G1945 DEST-TO: a To picked in the flare / roll-out - chained at STOPPED
   let userPaused = false;     // G650: set by the Pause button alone; the world's clocks hold on it (FLYDIY_HELD)
@@ -7714,6 +7725,7 @@
                           damage: () => flDmg,                                  // G1470: the crash's verdict (the worker's under it)
                           structural: () => flStructural(),                     // DMG-D4b (train 41): the aeroplane's integrity (GAME's career reads it)
                           arrival: td => { const A = flArrival(td); return { arrived: !!A.t, damaged: A.damaged, structural: A.S }; },   // (GATE rows: the certificate's rule)
+                          occ: () => flOcc,                                     // G2373: the occupants' bands the crash's card shows
                           // G1096: A RIG'S PLACEMENT, on the sim that flies - never sim().p / .v by hand: under the physics
                           // worker the page's sim is a view the next snapshot rewrites. { at: [x, y, z] the CG's place (a
                           // null axis kept) | by: [dx, dy, dz], zeroV, dv: [vx, vy, vz] } -> a promise of the CG
@@ -7928,6 +7940,9 @@
     const mm = Math.floor(t1 / 60), ss = Math.round(t1 - mm * 60);
     row('outcome', outcome.replace(/-/g, ' '));
     if (dmgWhy) row('certificate', 'Not certified - the aeroplane was damaged: ' + dmgWhy, 'warn');   // (DMG-D4b: the plain why)
+    // G2373 (DMG-OCCUPANT; the user, 7 Oct: "let's stay vague ... it's sad and frightening"): on a crash's card, one line
+    // per occupant - the seat's name as the crew page says it and ONE of the five words; nothing else, ever
+    if (wreckEnd) { flOcc = occNow() || flOcc; for (const [who, words] of occLines(flOcc)) row(who, words); }
     row('flight time', (mm ? mm + ' min ' + String(ss).padStart(2, '0') + ' s'
                            : ss + ' s'));
     row('distance', tel.km.toFixed(1) + ' km');
@@ -7988,6 +8003,14 @@
       if (bw) bw.hidden = true;
     }
     el.hidden = false;
+  }
+  // G2373: the occupants' lines - only a seat's own name and only the five words (34_occupant.js GEN_OCC.bands); anything
+  // else in the payload is dropped. GATE DMGOCCUPANT scans what this returns and the card it draws
+  const OCC_WHO = /^(Pilot|Co-pilot|Passenger( [1-9][0-9]?)?)$/;
+  function occLines(occ) {
+    const words = typeof GEN_OCC !== 'undefined' && GEN_OCC.bands && GEN_OCC.bands.length === 5 ? GEN_OCC.bands : null;
+    if (!words || !Array.isArray(occ)) return [];
+    return occ.filter(o => o && OCC_WHO.test(o.name) && Number.isInteger(o.band) && o.band >= 0 && o.band < 5).map(o => [o.name, words[o.band]]);
   }
   let arrWhy = false, arrVerd = [];
   // G1868: a crash's card folds on its title (and unfolds); G3060 (CARDS-CORNER): every ending's card, in its corner
@@ -8967,8 +8990,15 @@
     if (stCardEl.dataset.html !== html) { stCardEl.innerHTML = html; stCardEl.dataset.html = html; }
     if (stCardEl.dataset.beat !== K.beat) { stCardEl.dataset.beat = K.beat; if (stCardEl.classList.contains('min') !== (prefGet('flydiy.story.fold', '') === K.beat)) stCardEl.classList.toggle('min'); }
   }
-  // the tech mask's tutorial mode (TECH-MASK G3230 reads it here, or listens for the event, once it lands)
+  // G3230 (TECH-MASK): the career's machine shop into the editor (79b_tech.js careerTechOf: null for a career without one,
+  // so the dev career greys nothing); the sandbox never calls it. On the editor's open and at every story card.
+  function techMaskSync() {
+    if (!CAREER_DEV || !window.TECH_MASK) return;
+    try { window.TECH_MASK.set(careerTechOf(playerLoad())); } catch (e) {}
+  }
+  // the tech mask's tutorial mode (TECH-MASK G3230: editor.js window.TECH_MASK.tutorial; also the event)
   function storyMaskNote() {
+    techMaskSync();
     const m = storyMask(playerLoad());
     if (m === stMaskWas) return;
     stMaskWas = m;
@@ -11027,6 +11057,39 @@
   }
 
   let gInd = null, gLabels = [], gLabelsOld = [];
+  // P1 CG-COLOURS: THE TOOLTIP - the band in words and what to move, over either label: the pointer's hover (mouse,
+  // the existing hover throttle) or a TAP (no hover-only: the phone has none); a tap anywhere else closes it
+  let gTipBand = null, gTipEl = null;
+  function cgTipOn(cx, cy) {
+    if (!gTipBand || !gLabels.length || !inGarage) return false;
+    const r = canvas.getBoundingClientRect(), H = r.height || 1, k = camera.projectionMatrix.elements[5] || 2;
+    const v = new THREE.Vector3();
+    for (const sp of gLabels) {
+      if (!sp.visible) continue;
+      sp.getWorldPosition(v).project(camera);
+      if (v.z > 1) continue;
+      const sx = r.left + (v.x + 1) / 2 * r.width, sy = r.top + (1 - v.y) / 2 * H;
+      const hw = sp.scale.x * k * H / 2 * 0.5, hh = sp.scale.y * k * H / 2 * 0.5;   // a non-attenuated sprite: scale x the projection, in viewport heights
+      if (Math.abs(cx - sx) <= hw && Math.abs(cy - sy) <= hh) return true;
+    }
+    return false;
+  }
+  function cgTipShow(cx, cy) {
+    const B = gTipBand; if (!B) return;
+    if (!gTipEl) { gTipEl = document.createElement('div'); gTipEl.id = 'cgTip'; document.body.appendChild(gTipEl); }
+    gTipEl.className = 'b-' + B.band;
+    gTipEl.innerHTML = '<div class="cgT">' + (B.mark ? '! ' : '') + B.title + '</div><div class="cgW">' + B.why + '</div>' +
+      (B.fix ? '<div class="cgF">' + B.fix + '</div>' : '') +
+      '<div class="cgB">red under 0 % \u00b7 orange 0-5 % or over 40 % \u00b7 green 5-40 %</div>';
+    gTipEl.hidden = false;
+    const w = gTipEl.offsetWidth || 300, h = gTipEl.offsetHeight || 120;
+    gTipEl.style.left = Math.max(8, Math.min(innerWidth - w - 8, cx + 14)) + 'px';
+    gTipEl.style.top = Math.max(8, Math.min(innerHeight - h - 8, cy + 14)) + 'px';
+  }
+  function cgTipHide() { if (gTipEl) gTipEl.hidden = true; }
+  function cgTipHover(cx, cy) { if (cgTipOn(cx, cy)) cgTipShow(cx, cy); else cgTipHide(); }
+  function cgTipTap(cx, cy, mouse) { if (cgTipOn(cx, cy)) { if (!mouse && gTipEl && !gTipEl.hidden) cgTipHide(); else cgTipShow(cx, cy); return true; } cgTipHide(); return false; }   // a mouse click keeps the hover's tip open; a second tap closes it
+  if (typeof window !== 'undefined') window.CG_TIP = { on: cgTipOn, show: cgTipShow, hide: cgTipHide, band: () => gTipBand };
   // a word floated above each marker. Canvas -> sprite, because a line drawing
   // cannot say which post is which and the two are only 0.3 m apart on a stable
   // aeroplane. sizeAttenuation off keeps them legible at any zoom.
@@ -11165,7 +11228,7 @@
     const P = def.parts;
     const [xA] = sim.axes();
     // the live answer when there is one (see refreshIndicators), else the sim
-    let cg, d, smTxt = null, cgTxt = null, smBad = false;
+    let cg, d, smTxt = null, cgTxt = null, smV = null;
     const b = LAST_BAL;
     if (b && P.GAL != null && P.GAR != null) {
       const a = P.GAL * 3, c2 = P.GAR * 3;
@@ -11174,14 +11237,14 @@
       const k = b.cgX - b.gearX;
       cg = [mx + k * xA[0], my + k * xA[1], mz + k * xA[2]];
       d = b.npX - b.cgX;
-      if (b.staticMargin != null) { smTxt = 'stability margin ' + (b.staticMargin * 100).toFixed(0) + ' %'; smBad = b.staticMargin < 0.05; }
+      if (b.staticMargin != null) { smTxt = 'stability margin ' + (b.staticMargin * 100).toFixed(0) + ' %'; smV = b.staticMargin; }
       if (b.cBar > 0 && typeof b.xLEmac === 'number' && isFinite(b.xLEmac))
         cgTxt = ((b.cgX - b.xLEmac) / b.cBar * 100).toFixed(0) + ' % of the wing chord';
     } else {
       const s = shakeOf();
       cg = sim.cgPos();
       d = s.npX - s.cgX;
-      if (s.staticMargin != null) { smTxt = 'stability margin ' + (s.staticMargin * 100).toFixed(0) + ' %'; smBad = s.staticMargin < 0.05; }
+      if (s.staticMargin != null) { smTxt = 'stability margin ' + (s.staticMargin * 100).toFixed(0) + ' %'; smV = s.staticMargin; }
       if (s.cBar > 0 && typeof s.xLEmac === 'number' && isFinite(s.xLEmac))
         cgTxt = ((s.cgX - s.xLEmac) / s.cBar * 100).toFixed(0) + ' % of the wing chord';
     }
@@ -11196,7 +11259,14 @@
     // two markers stop being tellable apart.
     const lin = h => [(h >> 16 & 255) / 255, (h >> 8 & 255) / 255, (h & 255) / 255]
       .map(v => (v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
-    const AMBER = lin(0xffb257), CYAN = lin(0x63d3cc), PALE = lin(0xd3c3ae), RED = lin(0xff7b6b);
+    const AMBER = lin(0xffb257), PALE = lin(0xd3c3ae);
+    // P1 CG-COLOURS: ONE colour for the pair - red / orange / green from the margin's band (64b genMarginBand), the
+    // "!" on the margin's line for red and orange, the reasons in the tooltip (cgTip*)
+    const MB = (typeof genMarginBand === 'function') ? genMarginBand(smV) : null;
+    const BANDC = { red: lin(0xff6b5b), orange: lin(0xffa13d), green: lin(0x6fd08a) };
+    const COL = MB ? BANDC[MB.band] : AMBER;
+    if (MB && MB.mark && smTxt) smTxt += ' ' + MB.mark;
+    gTipBand = MB ? Object.assign({ sm: smV }, MB) : null;
     // an upright post from the ground to well above the aeroplane, so the two
     // are comparable at a glance from any angle
     const label = (px, py, pz, text, col, sub) => {
@@ -11209,11 +11279,11 @@
       for (const [dx, dz] of [[0.45, 0], [0, 0.45]])
         seg([px - dx, h, pz - dz], [px + dx, h, pz + dz], col);
     };
-    post(cg[0], cg[2], smBad ? RED : AMBER, 3.2);
+    post(cg[0], cg[2], COL, 3.2);
     // d: body-x offset NP - CG, aft positive; negative = the CG is BEHIND the
     // neutral point and the aeroplane is statically unstable (the post reds)
     const npx = cg[0] + d * xA[0], npz = cg[2] + d * xA[2];
-    post(npx, npz, CYAN, 2.8);
+    post(npx, npz, COL, 2.8);
     // NEUTRAL POINT, not centre of lift. It is where the pitching moment stops
     // changing with alpha — the aft limit the CG must stay ahead of — and the
     // gap between the two posts IS the static margin. The centre of lift is a
@@ -11221,10 +11291,10 @@
     // something false about what the gap means.
     // G255: WORDS, NOT INITIALS (the user: "CG, MAC, NP don't mean anything
     // to me apart from CG"). The rail's `legend` flyout says the rest.
-    label(npx, 2.8, npz, 'neutral point', CYAN, smTxt);
-    label(cg[0], 3.2, cg[2], 'centre of gravity', smBad ? RED : AMBER, cgTxt);
+    label(npx, 2.8, npz, 'neutral point', COL, smTxt);
+    label(cg[0], 3.2, cg[2], 'centre of gravity', COL, cgTxt);
     // and the margin itself, as a bar on the ground between the two posts
-    seg([cg[0], 0.05, cg[2]], [cg[0] + d * xA[0], 0.05, cg[2] + d * xA[2]], CYAN);
+    seg([cg[0], 0.05, cg[2]], [cg[0] + d * xA[0], 0.05, cg[2] + d * xA[2]], COL);
     // ground contacts: where it actually touches, wheel by wheel
     for (const k of ['GAL', 'GAR', 'TW']) {
       const i = P[k]; if (i == null || i < 0) continue;   // H2: a float build has no third wheel
@@ -11653,6 +11723,11 @@
   // the garage's own framing: the boot's (the rail's 'r') - also the roll-out shot's fixed eye (G1115.1, rollanim o.front)
   function garageFraming() {
     const F = { az: -2.5, el: 0.22, dist: 14 };
+    // G3507 (DC3-BUILD, 2026-10-23): A BUILD WIDER THAN THE OLD ENVELOPE IS FRAMED WHOLE. 14 m frames every build to the
+    // 18 m sailplane; the full-size DC-3's 29 m put the eye inside its own wingspan. Past 18 m the eye stands back in
+    // proportion (22.6 m at 29 m: 2.4 m inside the works' walls on this bearing). Every build to 18 m: 14, as ever
+    const spanG = def && def.params && def.params.gen ? def.params.gen.span : 0;
+    if (spanG > 18) F.dist = 14 * spanG / 18;
     // G439 (A5): A LOW SHED LOWERS THE EYE. At 14 m and 0.22 rad the eye
     // stands 3 m over the aeroplane's centre; the field shed's eave is 3.6 m,
     // and the room clamp pinned the camera to the ceiling, over the lamps,
@@ -11690,9 +11765,38 @@
     flReveal = 0;
     camera.fov = garageFov; camera.updateProjectionMatrix();
   }
+  // G3507 (DC3-BUILD, the user 23 Oct: "use the large hangar for now ... just for now and the sandbox"): A BUILD THE
+  // SANDBOX'S DOOR CANNOT TAKE - the full-size DC-3's 29 m against the club's 25 m door (71_player_bases hangarDoorWhy) -
+  // moves the sandbox's room to the WORKS shell (40 x 40 m, its 35 m door the only one that passes) through the shed
+  // sheet's own door (GARAGE_ENV.setShell: the room rebuilt, the eye re-framed, HOME's shed in the world follows). Never
+  // in a career (a shell there is a rebuild, paid - nothing game-related on the DC-3 yet), never for a build inside the
+  // old 18 m envelope (every saved build: the room is the player's, as ever), and never when no shed takes it
+  function sandboxWideRoom() {
+    try {
+      if (CAREER_DEV || !def || !def.params || !def.params.gen) return;
+      const span = def.params.gen.span;
+      if (!(span > 18) || typeof hangarDoorWhy !== 'function' || typeof SHELLS === 'undefined' || !SHELLS.works) return;
+      const foot = { half: span / 2 };
+      if (!hangarDoorWhy(shedHome(), foot)) return;                                   // this room's door takes it
+      if (hangarDoorWhy({ shell: 'works', dims: SHELLS.works.dims }, foot)) return;  // no shed does
+      if (window.GARAGE_ENV && window.GARAGE_ENV.setShell) window.GARAGE_ENV.setShell('works');
+    } catch (e) { console.warn('flyDiy: the wide build\'s room could not follow -', e && e.message); }
+  }
   // G680: a parked aeroplane's capture in flight holds the editor between its tasks - the doors that need the
   // player's own aeroplane in it (the shed, the editor, the sync) finish it first (parked.js flush)
   function parkedFlush() { if (typeof window !== 'undefined' && window.PARKED && window.PARKED.flush) window.PARKED.flush(); }   // hoisted: no TDZ
+  // GARAGE-RATTLE (the user's playtest 24 Oct: "a continuous rattling noise in the garage after a flight"; A0's read):
+  // sim.reset() zeroes the state but not sim.out, which only a STEP writes (30_solver.js: out.V = hyp3(v), the engines'
+  // rpm, the thrust) - and nothing steps in the shed. So the last flight's speed, rpm, thrust and wash stayed in sim.out
+  // and fed the sound (audio_params.js reads it every frame: the airframe's ground rattle and wind off V, the engine
+  // and prop voices off rpm) for as long as the shed was open. The return to the shed leaves sim.out as the boot's: at
+  // rest, every engine output at 0. (The roll-out shot writes its own engine fields over these, as it always did.)
+  function simOutAtRest(o) {
+    if (!o) return;
+    o.V = 0; o.Veas = 0; o.Vg = 0; o.vs = 0; o.alpha = 0; o.beta = 0; o.nz = 1;
+    o.thrust = 0; o.wash = 0; o.hydroWet = 0; o.submerged = false;
+    for (const k of ['rpm', 'rpmEng', 'thrustPer']) { const a = o[k]; if (a && a.length) for (let i = 0; i < a.length; i++) a[i] = 0; }
+  }
   function enterGarage() {
     crowdStop(false);                  // G2970: the stand's passengers seated, the start that waited on them dropped
     parkedFlush();
@@ -11702,6 +11806,7 @@
     rollShotUi(false);
     rolledOut = false;
     if (specPending) { specPending = false; setAircraft('gen'); }
+    sandboxWideRoom();                 // G3507: a build the sandbox's door cannot take moves the room to the works
     if (!inGarage) {
       garageCamera();
       // G1063.3 (train 16's round trips: the shed at 30 fps after a flight, 54 fresh): the auto frame rate's verdict and
@@ -11732,6 +11837,7 @@
     rig = null; rigTested = false;
     testFlightOff();                  // A9: back in the shed is not an arrival
     sim.reset(0);
+    simOutAtRest(sim.out);            // GARAGE-RATTLE: the last flight's speed / rpm no longer sound in the shed
     standOnWheels();
     // NO AERODROME. The garage is not a place on the map, and the apron
     // placement it used to inherit was the last thread tying the editor to the
@@ -13014,7 +13120,7 @@
     testFlightOff();                                       // A9: a reset is not an arrival
     $('bPause').textContent = 'Pause'; $('bPause').classList.remove('on');
     telClear(); telLast = null; telHover = -1;
-    lastPhase = 'ROLL'; telBase = 0; flightLogged = false; flightOver = false; flEnd = null; crashWatch = null;
+    lastPhase = 'ROLL'; telBase = 0; flightLogged = false; flightOver = false; flEnd = null; crashWatch = null; flOcc = null;
     $('arrCard').hidden = true; arrivalShown = false;
     // THE TRACE IS A SUMMONED PANEL NOW, and a summoned panel is the player's:
     // fullReset used to close it, which is why the one number a flight
@@ -13416,6 +13522,7 @@
       }
     } catch (err) { console.error('cage editor boot:', err); }
     showCage = true;
+    if (CAREER_DEV) techMaskSync();         // G3230: the machine shop's greys (a career's only)
     applyStand();
     applyEnv();                             // parents the mount into the room
     placeEditor();
@@ -17230,6 +17337,7 @@
         // wreck over when it is at rest (or 4 s after the impact); the flight now runs on until the debris have come to rest
         // too (WATCH_REST at most), holds the wreck WATCH_HOLD more, and only then ends - the card small and in a corner
         const D = flDmg, up = !!(D && D.brokeUp);
+        flOcc = occNow();                                       // G2373: the occupants' bands (the worker sends them once, at the close)
         if (!crashWatch) { crashWatch = { t: sim.t, rest: null };
           $('phName').textContent = (up ? 'BROKE UP' : 'CRASHED') + (D && D.reason ? ': ' + D.reason : ''); }
         const W2 = window.FLYDIY_WRECK_STATS ? window.FLYDIY_WRECK_STATS() : null;
