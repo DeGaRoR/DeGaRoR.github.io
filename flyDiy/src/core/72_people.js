@@ -15,8 +15,10 @@
 //              always had, only the name and the face became official)
 //   passenger  the random pool (the crowd's queue, G2970 / G3619) - a client still rides its own provider's jobs
 // THE BODIES: Brian = Ch01 (the user 25 Oct: "He's ch01. Bald, with a white polo"), Bryce = Ch42, Sophie = ch02 (the FBX
-// filed as brian_Ch02 is hers), Megan = Ch22; ch08 / ch17 / ch21 / ch37 (Adam, Pete, Kate, Jody) are baked by G3617 -
-// until then the crowd skips a person whose body it does not hold (window.CROWD.castKeys).
+// filed as brian_Ch02 is hers), Megan = Ch22. `char` is the tools/chars_table.py KEY: the crew's bakes by their Mixamo
+// number (ch01 ch02 ch20 ch22 ch42, remy), the crowd's cast by the person (david elizabeth james leonard martha); adam /
+// jody / kate / pete (Mixamo Ch08 / Ch37 / Ch21 / Ch17) are baked by G3617 under those keys - until then the crowd skips a
+// person whose body it does not hold (window.CROWD.castKeys).
 // THE PORTRAITS (G3615): media/people/<id>_<px>.webp, px in PEOPLE_FACE_PX, cut from the user's originals
 // (assets/chars/people, never written) by tools/portrait_prep.py: premultiplied resizes and a clean edge (no red
 // specks round the hair - the user, 25 Oct: "unacceptable"). Fetched only when shown: never at boot, never precached.
@@ -32,11 +34,11 @@ const GAME_PEOPLE = {
   sophie:    { id: 'sophie',    name: 'Sophie',    file: 'Sofie',     char: 'ch02', role: 'reserved', why: 'your girlfriend' },
   tim:       { id: 'tim',       name: 'Tim',       file: 'Tim',       char: null,   role: 'reserved', why: 'your friend and business partner: a voice on the phone', voice: true },
   // ---- clients: one face per provider (72_contract_data.js CONTRACT_PROVIDERS) ----
-  leonard:   { id: 'leonard',   name: 'Leonard',   file: 'Leonard',   char: 'ch31', role: 'client', org: 'field' },
-  pete:      { id: 'pete',      name: 'Pete',      file: 'Pete',      char: 'ch17', role: 'client', org: 'minedock' },
-  martha:    { id: 'martha',    name: 'Martha',    file: 'Martha',    char: 'ch27', role: 'client', org: 'resort' },
-  kate:      { id: 'kate',      name: 'Kate',      file: 'Kate',      char: 'ch21', role: 'client', org: 'survey' },
-  adam:      { id: 'adam',      name: 'Adam',      file: 'adam',      char: 'ch08', role: 'client', org: 'clients' },
+  leonard:   { id: 'leonard',   name: 'Leonard',   file: 'Leonard',   char: 'leonard', role: 'client', org: 'field' },
+  pete:      { id: 'pete',      name: 'Pete',      file: 'Pete',      char: 'pete', role: 'client', org: 'minedock' },
+  martha:    { id: 'martha',    name: 'Martha',    file: 'Martha',    char: 'martha', role: 'client', org: 'resort' },
+  kate:      { id: 'kate',      name: 'Kate',      file: 'Kate',      char: 'kate', role: 'client', org: 'survey' },
+  adam:      { id: 'adam',      name: 'Adam',      file: 'adam',      char: 'adam', role: 'client', org: 'clients' },
   // ---- pilots for hire: the pack's four tuned persons, on the bodies they always wore ----
   brian:     { id: 'brian',     name: 'Brian',     file: 'Brian',     char: 'ch01', role: 'pilot', from: 'kit',
                fly: { profile: { base: 'club', knobs: { reaction: 0.25, smooth: 0.8, bankK: 0.85, comfortG: 1.25 } },
@@ -54,10 +56,10 @@ const GAME_PEOPLE = {
                       style: 'normal', traits: ['short-field', 'loves-taildraggers', 'refuses-nothing'], grow: { rate: 'steady', ceiling: 'expert' },
                       pack: { style: 'not given: normal', grow: 'not given: steady to the expert, on tailwheel types only (loves taildraggers)' } } },
   // ---- passengers: the random pool ----
-  david:     { id: 'david',     name: 'David',     file: 'David',     char: 'ch28', role: 'passenger' },
-  elizabeth: { id: 'elizabeth', name: 'Elizabeth', file: 'Elizabeth', char: 'ch26', role: 'passenger' },
-  james:     { id: 'james',     name: 'James',     file: 'James',     char: 'ch06', role: 'passenger' },
-  jody:      { id: 'jody',      name: 'Jody',      file: 'Jody',      char: 'ch37', role: 'passenger' },
+  david:     { id: 'david',     name: 'David',     file: 'David',     char: 'david', role: 'passenger' },
+  elizabeth: { id: 'elizabeth', name: 'Elizabeth', file: 'Elizabeth', char: 'elizabeth', role: 'passenger' },
+  james:     { id: 'james',     name: 'James',     file: 'James',     char: 'james', role: 'passenger' },
+  jody:      { id: 'jody',      name: 'Jody',      file: 'Jody',      char: 'jody', role: 'passenger' },
 };
 const PEOPLE_IDS = Object.keys(GAME_PEOPLE);
 // the narrative pack's pilot ids -> the person wearing each (an older save's roster, the pack's import)
