@@ -2874,7 +2874,8 @@ function makePilot(sim, def, world, opts) {
       // (the last 25 deg at ~7 deg/s: a fixed 60 % there crawled the Cub's last 20 deg for 27 s)
       const rT = near ? 0.12 : 0.35;
       // (a tricycle's at 0.6 at most: at 0.75 the C172 swung 5.4 m, at 0.6 4.3 m - scratch trk)
-      if (slow) piv.thr = clamp(piv.thr + (r < rT ? 0.15 : -0.30) * dt, 0.15, A.pivotThrMax ?? (trike ? 0.60 : 0.75));
+      // (G3480: an airframe whose wheels steer past 13 m - the 8.5 t DC-3 turned 36 deg in 30 s on 0.75 - to full power)
+      if (slow) piv.thr = clamp(piv.thr + (r < rT ? 0.15 : -0.30) * dt, 0.15, A.pivotThrMax ?? (trike ? 0.60 : RgMin > (A.taxiBsRg ?? 13) ? 1.0 : 0.75));
       const noseDown = thRest != null && th < thRest - 0.10;      // the tail coming up: no power
       // G1949: ON THE HEADING (within the 9 deg the end asks) the power stays off and the brakes stop it - a burst
       // there kept the Cub creeping at 1.2 m/s, never 'done', 6 m along a teardrop's diagonal (ISLAND-TOUR, Jumbo Mine)
@@ -3080,7 +3081,8 @@ function makePilot(sim, def, world, opts) {
           let gsp = pathSpeed(ap.path, L.i, Vg, vMax, L.sRem);
           if (bigG && Math.abs(eH) > 0.2) gsp = Math.min(gsp, A.taxiVTurn ?? 1.5);
           engage('TAXI', 'DE', 'TAXI', { dr: drC, de: A.taxiDe ?? 0.30, gsp });
-          const tMax = 40 + 1.6 * ap.path.len / taxiV;
+          // (G3480: the big airframe's turns walked and its turns on the spot are its route's time too - the DC-3 timed out at 327 s)
+          const tMax = (40 + 1.6 * ap.path.len / taxiV) * (bigG ? 2 : 1) + 45 * bsN;
           setStatus('following the taxi route to the hold', [
             cond('to the hold', Math.round(L.sRem), 2, L.sRem < 2, 'm'),
             cond('off the line', Math.abs(L.ey), 2.5, Math.abs(L.ey) < 2.5, 'm')]);
@@ -3184,7 +3186,7 @@ function makePilot(sim, def, world, opts) {
                        : (alig > 0.988 && Math.abs(sCr) < 8 && Math.abs(eR) < 0.15)) {
           if (ap.stopAfterLineup) { go('STOP'); break; }
           go('ROLL'); ap.t = Math.max(ap.t, 1); rollS0 = null;
-        } else if (phaseT > 60) { say('lineup-timeout', 'could not line up in 60 s — stopping to replan'); go('STOP'); }
+        } else if (phaseT > (RgMin > (A.taxiBsRg ?? 13) ? 120 : 60)) { say('lineup-timeout', 'could not line up in ' + Math.round(phaseT) + ' s — stopping to replan'); go('STOP'); }   // (G3480: a big airframe's turn on the spot, 120 s)
         break;
       }
 
