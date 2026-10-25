@@ -98119,3 +98119,29 @@ Strict light gate RED (11), all in the known classes:
 - cub garage fps 26.7: ONE 2167 ms frame in 160; the other 159 at 33 ms (the garage hitch class, L24b 27.0).
 - metal chase flight 68.9 s vs 63.6 + 5.09 slack: 0.23 s over, the scripted flight's wall time. Named; re-read in L25a.
 Pushed with these, by the user's order of 25 Oct: land last week's items and priority 1 as soon as possible.
+
+## G3520-G3529 - GAME-MENUS: A WAY BACK, THE MAP ON TAB, CONTRACTS, THE WIND, NO DEBUG TEXT, ONE PLANE CHIP, EVERY CARD DRAGS (2026-10-25, GAME-MENUS for A0; claude/ready/game-menus a705ad8c3, for L25c)
+- The user's asks, playtest 24 Oct (PLAYTEST-2026-10-24 items 8, 9, 12, 49), and the card rule of 25 Oct ("any card you show in game should be draggable, so they never cover anything important anymore").
+- G3520 MENU (src/viewer/app.js gm*, editor.css #gmPanel): a MENU pill, plus Esc, in the shed and in flight. In flight it pauses (#bPause reads Run). The panel offers Resume, Back to the shed (flight only), Map (Tab), Options (Controls / Graphics / Sound) and Main menu. Main menu asks to confirm in flight ("The flight is not kept; your saves are."). The pills sit under what is there:
+  - in the shed, under #edTopBar from its left edge (centred at the top they covered the quick actions);
+  - in flight, at the top bar's right inset;
+  - on a phone in flight, under #pfd (they covered the route strip).
+  The panel opens under its pill. window.FLYDIY_MENU = {open, close, isOpen, act, tab, layout}.
+- G3521 TAB = THE MAP. G3522 CONTRACTS is its own pill (career only), so it is no longer confused with the minimap. The old map button moved off the flight info.
+- G3523 WIND on the PFD (body.html wind cell, flight.css; the PFD widens 540 / 448 on a phone): an arrow turned to the wind, km/h and the degrees it blows from, live from sim.out.
+- G3524 the debug text at the bottom centre (#rwyTreesTag) is removed.
+- G3525 the map's plane icons (bugReports 151939, the Cabin Strip): src/viewer/map_menu.js draws at most 3 plane icons per stand; more than 3 show as one chip "✈N".
+- The map hook for AP-HONEST (G3560s): window.FLYDIY_MAP_LAYERS is a list of draw layers that the map calls each frame with its projection. AP-HONEST pushes its route layer there and touches nothing else in map_menu.js. MAP_MENU.open({list}) opens on a list.
+- G3526-G3529 CARD DRAG (src/viewer/card_drag.js, in build.js's MANIFEST after ui_layer.js): every in-game card gets a .cdHandle and drags. The position is kept per card key. A double-click on the handle puts the card back. window.FLYDIY_DRAG = {keys, placed, resetAll, ...}. STORY-TUTOR's tutor guard lets .cdHandle pointerdown and dblclick through. New GATE CARDDRAG (tools/_carddrag_check.js): every card class is wired, drag moves it, and reset returns it.
+- In the gates' stub DOM the pills are not built (a quiet throw 0: gmBtn stays null, so every gm* call is a no-op). hudWind falls back to Date.now() where the vm has no performance.
+- The parked aeroplanes are re-cooked on build 3791eb8aac40 (parked_cook --check: same). On a stale cook, FRAMECOST's stand / taxi rows jump (uniform4fv x8): see [[core-change-stales-parked-cook]] and the G1560 entry.
+- Gates (Sun 25 Oct 20:00, CPU s25-c14, on a705ad8c3; UNTIMED): PASS for UISMOKE, UISMOKE-PHONE, BOOT, CARDDRAG, BUILD, BUILT and LAZY. FRAMECOST FAIL (1), and that one is master's standing key: cessna boot/garage:restore/three.updateMatrixWorld 2269 -> 4553. The 12:00 run's CLOUD (the lamp pool) and DMGINST reds are master's (the core is identical).
+- Stills (GPU, Sun 15:45, on a705ad8c3, 0 page errors), sent to A0:
+  - the wind cell;
+  - Esc -> PAUSED with the menu;
+  - the confirm;
+  - the menu dragged;
+  - the career map with "✈8";
+  - the phone in flight.
+  09 and 10 are byte-identical: the rig never asserted the map closed after Tab. Count 09 as "Tab = the map", not 10 as the CONTRACTS pill. The Mon 26 Oct TELEPORT stills assert it.
+- Next, G3640-G3649 TELEPORT for L26c (Mon 21:30): owned-garage markers on the map, a confirm row in the map, FLYDIY_PLAYER.gotoGarage (Game's claude/garage-go, G3613), and Tab = the map screen in every mode.
