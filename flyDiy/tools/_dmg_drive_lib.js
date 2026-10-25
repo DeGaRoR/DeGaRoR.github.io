@@ -210,10 +210,6 @@ function trunkStrike(key, o) {
 // and the run held `secs` s: the strike's tier, the engine, the imbalance, the mount
 function tipStrike(key, o) {
   const C = L.core(), def = L.defOf(key, o), elev = 0, { W, TH, strip } = L.flatWorld(elev);
-  // G3448 (HYDRO-TRIM, decided 25 Oct): A LAND GRAZE ON LAND. flatWorld flattens the ground to 0 m but keeps the world's
-  // water, which stands at 0 m there too - the float Cessna's graze ran in a sheet of water, its floats under the hull
-  // law, and the mount's tear moved with that law (1.50 s on master L25b, outside the window with G3440). The strip is dry
-  W.waterH = () => -1e9;
   const sim = C.makeSim(def, W); sim.reset(0); L.lastRun.sim = sim;
   C.placeAtAerodrome(sim, Object.assign({}, strip, { elev, spawnElev: elev }));
   sim.ctl.brake = 1;

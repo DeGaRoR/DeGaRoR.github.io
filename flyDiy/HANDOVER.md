@@ -99012,13 +99012,14 @@ Strict light gate RED both runs (13 / 16) vs the 12 Oct baseline; judged against
 - OPEN (Pilot): Rufus mine CALM still open: twice round, high 7-8 m at 58 m, divert; cause = the 1.4/LDbest slope cap needs a slip Rufus's aileron can't hold.
 Pushed by the user's order of 25 Oct: land last week's items and priority 1 as soon as possible.
 
-## G3440-G3446 - HYDRO-TRIM: THE STOCK 172R GETS OFF WIPAIRE'S EXACT FLOAT - THE MEASURED WAKE BEHIND THE STEP (THE AFTERBODY HOLDS THE TRIM), THE TRANSOM IN THE WATER IT SITS IN, NO SKIN FRICTION ON A SHEDDING CHINE'S SIDE, THE FINE PROP AT FM 0.50, THE PILOT'S STICK BACK THROUGH THE HUMP, DMGHULL PER WETTED KEEL, THE RIGS' RUDDER AND AILERONS; GATE HYDROTRIM (2026-10-20 / 25, HYDRO-TRIM for A0, cloud - node only; branch claude/hydro-trim off claude/hydro-trim-rig 8698ddb47, master L25b 61e93cb1 merged in; G3447-G3448 unused, G3449 is RUFUS-CERT's)
+## G3440-G3448 - HYDRO-TRIM: THE STOCK 172R GETS OFF WIPAIRE'S EXACT FLOAT - THE MEASURED WAKE BEHIND THE STEP (THE AFTERBODY HOLDS THE TRIM), THE TRANSOM IN THE WATER IT SITS IN, NO SKIN FRICTION ON A SHEDDING CHINE'S SIDE, THE FINE PROP AT FM 0.50, THE PILOT'S STICK BACK THROUGH THE HUMP, DMGHULL PER WETTED KEEL, THE RIGS' RUDDER AND AILERONS, THE THREE RED GATES DECIDED; GATE HYDROTRIM (2026-10-20 / 25, HYDRO-TRIM for A0, cloud - node only; branch claude/hydro-trim off claude/hydro-trim-rig 8698ddb47, master L25b 61e93cb1 merged in; G3449 is RUFUS-CERT's, not this branch's)
 
-**FOR A0, IN ONE PARAGRAPH.** Ready to land on the user's word except three gates, each red because of this change
-and each named below with its numbers (DMGPLOUGH, TAKEOFF, DMGDRIVE - asks A-C at the end); ARCHETYPES and PILOTS are
-red on master L25b too. The pilot changed (G3444), so the user's rule asks a BROWSER-FLOWN check: the command lines
-are at the end. Rounds: 20 Oct (G3440-G3443, the physics and the asks), 25 Oct (the user: "I go with all your
-recommendations"; G3444-G3446 and master L25b merged in).
+**FOR A0, IN ONE PARAGRAPH.** Ready to land on the user's word. Every gate run is green except ARCHETYPES and PILOTS,
+red on master L25b too (the same lines). The three this change turned red (DMGPLOUGH, TAKEOFF, DMGDRIVE) were decided by
+the user's word of 25 Oct ("decide on the 3 questions, do what you think is best") - G3447-G3448, below. The pilot
+changed (G3444), so the user's rule asks a BROWSER-FLOWN check: the command lines are at the end. Rounds: 20 Oct
+(G3440-G3443, the physics and the asks), 25 Oct (the user: "I go with all your recommendations"; G3444-G3446 and master
+L25b merged in; then "decide on the 3 questions": G3447-G3448).
 
 **THE BUG (G3390).** The user: "taking the validated C172 and putting the exact Wipaire floats on it should work out of
 the box, otherwise we have another issue with realism." The corrected 172R on catalogue-exact Wipline 2350s, at
@@ -99099,8 +99100,8 @@ float preset, no airframe number moved.
 
 **THE USER'S RULINGS (25 Oct, "I go with all your recommendations") AND WHAT WAS DONE.**
 1. The prop change (G3443): KEPT.
-2. DMGPLOUGH vs the pilot's neutral hump stick: the pilot holds the stick back through the hump (G3444) - DONE. The gate
-   is still red: see ask A.
+2. DMGPLOUGH vs the pilot's neutral hump stick: the pilot holds the stick back through the hump (G3444) - DONE. DMGPLOUGH stayed
+   red until G3447 (below).
 3. DMGHULL's population: the law per wetted-keel group (G3445) - DONE, DMGHULL green.
 4. The land prop on 2350s stays on the water at the STC gross (T/W 0.194; off at half fuel in 63-74 s): accepted as
    expected - Wipaire's STC specifies the float prop. No change.
@@ -99141,18 +99142,7 @@ every gate that flies a float build under the pilot, since the pilot changed):
   DMGHULL, PROPS, TOUR, PILOTMATRIX, ACCEPT, BENCH, DESIGNCHECK, DESTTO, GFX, SIMWORKER, STRIPSURF.
 - RED ON MASTER L25b TOO (not this change, the same lines): ARCHETYPES ("Chinook-alike: the circuit completes -
   rejected-takeoff"), PILOTS ("kit is not where the aeroplane is: refused (Kit is at Ridgeback Strip)").
-- RED FROM THIS CHANGE (master L25b green), see the asks:
-  - DMGPLOUGH: "Cessna on floats: keel trim at the hump 5.4 deg inside 6-12". Master L25b 7.0 deg at C_V 2.6 (its
-    resistance peak there; 12.4 the highest over C_V 1.5-4). Here the bow rises to 7.5 deg at C_V 2.6 under the pilot's new pull, but the gate's hump is
-    the resistance maximum, a broad plateau at 9-13 m/s (C_V 4) where the afterbody in the wake holds the hull at
-    5.4-6.1 deg - with the stick neutral, eased, or held back until the afterbodies dry (all three measured).
-  - TAKEOFF: "technique twinf: the lift-off at 1.0-1.65 Vs - 1.65": the twin on floats lifts at 30.4 m/s = 1.652 Vs;
-    master 30.3 m/s = 1.647 Vs - master sits on the same edge, 0.1 m/s under it.
-  - DMGDRIVE: "a trunk grazing the tips (3 cm) at full power ... the mount lets go - s later": the float Cessna's row.
-    DMGDRIVE's flat strip keeps the world's water at the ground's level (tools/_treecrash_lib.js flatWorld: terrainH 0,
-    waterH the world's), so the float Cessna "on land" sits in a sheet of water and the hull law acts on it. The same
-    blade lost, the same imbalance (87.86 -> 87.84 kN), 2369 rpm both; master's mount lets go 1.50 s after, here not
-    inside the 3 s window. The twin's same row is OPEN already (Deform G2398: the mount holds there too).
+- RED FROM THIS CHANGE (master L25b green) - DECIDED, green now (G3447-G3448, below): DMGPLOUGH, TAKEOFF, DMGDRIVE.
 
 **REFERENCES.** Savitsky, D. & Morabito, M., "Surface wave contours associated with the forebody wake of stepped
 planing hulls", Marine Technology 47(1), 2010, pp. 1-16 (doi 10.5957/mtsn.2010.47.1.1) - the centreline and quarter-beam
@@ -99171,17 +99161,27 @@ Cessna floatplane supplement for the technique (flaps 20, the stick back until t
 KIAS) - as recalled, A0 to confirm against the Wipaire / Cessna supplement. Wipaire's Wipline 2350 page (the 172R/S
 row, 2,550 lb, McCauley 1A200/WFA8243) as G3390.
 
-**ASKS FOR THE USER (what is still open).**
-A. DMGPLOUGH's hump floor (6 deg, G2032's inference: "a hull at its hump that trims no higher than it would plane is
-   not ploughing"). With the measured wake the float Cessna's resistance peak is a plateau at C_V 4 where it rides
-   5.4-6.1 deg whatever the stick; its bow does rise to 7.5 deg at C_V 2.6. Options: (1) read the floor at the bow's
-   own peak over C_V 1.5-4 (7.5 deg: inside 6-12), (2) the floor to 5 deg, (3) keep it red and look at the hull again.
-   The physics session's lean: (1) - the plough is the bow-up attitude, which the hull shows; the resistance maximum of
-   a 235 hp aeroplane unloading on its wing is a late plateau.
-B. TAKEOFF's twin lift-off at 1.652 Vs against 1.65 (master 1.647): accept the edge (the bound to 1.66), or the twin's
-   own pull (G2470's, unchanged here) - its lift-off is the pull's, not the hump's.
-C. DMGDRIVE's float-Cessna graze: list it OPEN beside the twin's (Deform G2398: the mount timing), or give the flat
-   strip no water (flatWorld's waterH at -infinity: a land test on land - the physics session's lean).
+**THE THREE RED GATES, DECIDED (the user, 25 Oct: "decide on the 3 questions, do what you think is best").**
+- G3447 DMGPLOUGH (`tools/_dmgplough_check.js`) judges the plough as the bow's HIGHEST keel trim over C_V 1.5-4, inside
+  the same 6-12 deg band; the trim at the resistance maximum is printed beside it. Red was "keel trim at the hump 5.4 deg
+  inside 6-12" (master L25b 7.0 at C_V 2.6, its resistance peak there; 12.4 its highest over C_V 1.5-4). With the
+  measured wake and the stick back the float Cessna's bow rises to 7.5 deg at C_V 2.6 and the pull eases; its resistance
+  maximum is a late plateau at C_V 4 (a 235 hp aeroplane unloading on its wing) where the afterbody in the wake holds it
+  at 5.4-6.1 deg whatever the stick (neutral, eased, held until the afterbodies dry: all three measured) - the hull has
+  already ploughed. Now: 7.5 deg, PASS. (Not taken: the floor to 5 deg - it would pass a hull that never ploughs.)
+- G3447 TAKEOFF (`tools/_takeoff_check.js`): the twin on floats' lift-off band 1.65 -> 1.67 Vs. Red was 1.652 Vs (30.4
+  m/s); master L25b 1.647 (30.3) - 0.1 m/s under the band it was given at 1.64 (G3074, the user's "simple margins to
+  recalibrate"). Its lift-off is G2470's pull, not the hump's: the same recalibration with the band's original margin
+  (1 %). Every other floatplane keeps 1.6. PASS.
+- G3448 DMGDRIVE (`tools/_dmg_drive_check.js`): the float Cessna's full-power trunk graze is OPEN beside the twin's
+  (Deform G2398), the strike itself still asserted (a blade lost, separation, finite). Red was "the mount lets go - s
+  later". MEASURED: not the water (the flat strip's water at the ground's level was the first suspicion - the row was
+  identical on a dry strip, that change not kept) but THE CERTIFICATE: the gate flies `cert: true`, and the float
+  Cessna's certificate sizes its members from its water cases too; with the measured wake those loads fell, and under
+  the graze's 87.8 kN of imbalance - far past any certified case - the tail's attachments give first (wing0R:root >
+  fin:attach > stab:attach) and the mount holds through the 3 s window. This tree with the H0 hull terms back (HYDRO.DEF
+  wakeSM 0, sideShed 0): the mount at 1.55 s (master 1.50) - the hull law, through the certificate. Which member goes
+  first in a beyond-design shake is Deform's question; the line prints the order.
 
 **A0 - LANDING AND THE BROWSER-FLOWN CHECK.** The branch carries master L25b (merged 25 Oct; the generated files rebuilt
 from the merged sources). The pilot changed (G3444) - the user's rule for autopilot changes: fly it in the browser on
