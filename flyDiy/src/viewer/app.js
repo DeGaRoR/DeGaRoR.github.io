@@ -11071,6 +11071,9 @@
     const BANDC = { red: lin(0xff6b5b), orange: lin(0xffa13d), green: lin(0x6fd08a) };
     const COL = MB ? BANDC[MB.band] : AMBER;
     if (MB && MB.mark && smTxt) smTxt += ' ' + MB.mark;
+    // G3452 (the user 25 Oct: "I'd put a warning sign straight in the CG text if not good (red or orange)"): the CG's own
+    // readout opens on a warning sign; with no readout (no wing chord) the band's title stands in
+    if (MB && MB.mark) cgTxt = '⚠ ' + (cgTxt || MB.title);
     gTipBand = MB ? Object.assign({ sm: smV }, MB) : null;
     // an upright post from the ground to well above the aeroplane, so the two
     // are comparable at a glance from any angle
