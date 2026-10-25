@@ -31,7 +31,12 @@ const BUILDS = ['cub', 'jodel', 'metal', 'floats', 'twinFloats'];
 // 1e214874 against its first parent 7122b955) - node tools/_treecrash_lib.js atTrunk, secs 4, D1a's physics (no certificate).
 // Was claude/dmg-tune 849058d8 (FABRIC's own base); the train-41 assembly moved those bits (BUNDLE-GREEN's engine at its
 // drawn height, master's train 40), so the reference is FABRIC's absence on THIS tree. HANDOVER: TRAIN 41's references.
-const BASE = { 'cub-t25-on': '6c8a933ccd97', 'cub-t25-off': 'c4b54a686043', 'cub-t0-on': '0503144b2625', 'cub-t0-off': '9b507be9c5c5', 'metal-t25-on': '174ca146f36c', 'metal-t25-off': 'c67a2e50d137', 'metal-t0-on': '14bdcf12d3b7', 'metal-t0-off': 'd620f807b296' };
+// G2809 (AVIONICS-GPS, the user 25 Oct: "Wysiwyg, and as billed for all"): the Cub and the metal Cessna are billed
+// as drawn (the seats, the board, the lining, the controls, the lamps: +5.3 / +9.5 kg), so their trunks are other
+// runs - re-frozen on claude/avionics-gps-2 from this gate's own lines, the ties-off run equal to the no-tie damage-ON
+// run where no panel parted (cub t0). Was: cub-t25 6c8a933ccd97 / c4b54a686043, cub-t0 0503144b2625 / 9b507be9c5c5,
+// metal-t25 174ca146f36c / c67a2e50d137, metal-t0 14bdcf12d3b7 / d620f807b296.
+const BASE = { 'cub-t25-on': '05fcfaebc04c', 'cub-t25-off': '3eb9f26c8f4f', 'cub-t0-on': 'bc92ebbbd551', 'cub-t0-off': '3c99c4591c4f', 'metal-t25-on': '12b2fbfa84f8', 'metal-t25-off': 'cee4990ccf54', 'metal-t0-on': '588d64872930', 'metal-t0-off': '117e4cdb54e5' };
 const CRASH = [['cub', 'trunk25'], ['cub', 'trunk0'], ['jodel', 'trunk25'], ['metal', 'trunk0']];
 const KIND = { cub: 'fabric', jodel: 'fabric', metal: 'sheet', floats: 'sheet', twinFloats: 'fabric' };
 
