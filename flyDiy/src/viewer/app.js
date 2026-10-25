@@ -9437,13 +9437,14 @@
     let SH = null; try { SH = ap.sheet; } catch (e) {}       // (the machine sheet's approach speed: Vref, else 1.3 Vs0)
     const V = Math.max(14, Math.min(40, +ap.VAppr || (SH && (+SH.Vref || (+SH.Vs0 ? 1.3 * SH.Vs0 : 0))) || 22));
     const P = storyFinalPose(H, { V, groundH: (x, z) => (world && typeof world.terrainH === 'function' ? world.terrainH(x, z) : null) });
-    const from = aeroById(fromId) || H;
     sim.reset(0);
     placeAtAerodrome(sim, { hdg: P.hdg, spawn: [P.x, P.z], elev: P.y });
     for (let i = 0; i < sim.n; i++) { sim.v[i * 3] = P.vx; sim.v[i * 3 + 1] = P.vy; sim.v[i * 3 + 2] = P.vz; }
     if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'both', running: true });
     ap = mkPilot(curKey);
-    ap.setRoute(from, H);
+    // (a circuit at the WWII field, not the cabin -> HOME leg: a cross-country route flies to the pattern entry first - the
+    // 25 Oct 20:15 page run, 5 min round the circuit from 3 km out; a circuit's arrival takes the lined-up final straight in)
+    ap.setRoute(H, H);
     // (a fresh pilot's first update applies its DEFAULT modes before the phase's law engages its own: the elevator 'DE'
     // with no setting - ctl.de undefined, a NaN in the first step, 'sim diverged' at 0 s (the 25 Oct page run). Every other
     // start engages its modes on the ground first; this one starts in the air: the stick neutral for that one frame)

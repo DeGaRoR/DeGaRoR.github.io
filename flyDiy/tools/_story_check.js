@@ -713,8 +713,8 @@ async function tutorRun() {
   ok(Math.abs(Math.abs(FP.x - (-60)) - 3000) < 1 && Math.abs(FP.z) < 1e-6 && Math.abs(along + 3000) < 1 && Math.abs(FP.y - (4 + 180)) < 1e-6 &&
      Math.abs(Math.hypot(FP.vx, FP.vy, FP.vz) - 20) < 1e-6 && FP.vy < 0 && (FP.vx * Math.cos(H0.hdg) + FP.vz * Math.sin(H0.hdg)) > 0 && FP.hdg === H0.hdg,
      "Skip on the final: 3 km out (before the pilot's IAF: straight in) on the runway's extended centreline, on a 6 % slope over the field, flying the landing heading at the approach speed, sinking", JSON.stringify({ x: Math.round(FP.x), y: FP.y, z: FP.z }));
-  const FG = M.storyFinalPose(H0, { V: 20, groundH: () => 70 });
-  ok(FG.y === 130, 'the final never under 60 m over the ground beneath it (a hill before the field)', FG.y);
+  const FG = M.storyFinalPose(H0, { V: 20, groundH: () => 150 });
+  ok(FG.y === 210, 'the final never under 60 m over the ground beneath it (a hill before the field)', FG.y);
   // ---- the page: T0 at the cabin, the lock
   const settle = async () => { for (let i = 0; i < 400; i++) { await new Promise(r => setTimeout(r, 5)); if (!H.window.FLYDIY_STORY || !H.window.FLYDIY_STORY.pending()) { await new Promise(r => setTimeout(r, 5)); if (!H.window.FLYDIY_STORY.pending()) return; } } };
   let d = M.storyNewCareer(M.careerNormalise(M.careerNew({ id: 'main', seed: 'tutor' })), { aeros: P.aerosCabin }).doc;
@@ -826,6 +826,8 @@ async function tutorRun() {
      'Skip the flight: rolled out, then on the final at the WWII field, a fresh pilot planning its arrival from there (G3584); the garage alone keeps the hangar skip');
   ok(/ap\.afcs\.sel\.de = 0; \} catch \(e\) \{\}\n\s*ap\.reEngage\(\{ phase: 'INBOUND' \}\);/.test(app),
      "the skip's fresh pilot starts with the stick neutral before its first update (its default 'DE' mode has no setting: the sim diverged at 0 s, the 25 Oct page run)");
+  ok(/function storyFinalNow\(\)[\s\S]{0,2400}ap\.setRoute\(H, H\);/.test(app),
+     "the skip's pilot flies a circuit at the WWII field (a cabin -> HOME route flew to the pattern entry first: 5 min round the circuit, the 25 Oct 20:15 page run)");
   H.inGarage = true; H.ap = null;
   return fails;
 }
