@@ -41,6 +41,11 @@
 // orbit, a pinch - and a screenshot of the garage (phone_<build>_<stamp>_garage.jpg). The S20 run for A0:
 //   node tools/perf/mobile_phone_cdp.js --url "http://localhost:8700/flyDiy/index.html?profile=phone" --build cub --cold --soak 10
 // (ADB: the PATH's adb, else D:/Dev/platform-tools/adb.exe, else ADB=<path>.)
+// G3727 (PHONE-GARAGE, 25 Oct): THE BOX'S A/B OF THE PHONE GARAGE, a desktop Chrome on the box's GPU dressed as a phone.
+//   --size WxH (default 412x915, the S20 FE) and --dpr D (2.625) for --emulate; --no-adb (no adb call at all: a phone on
+//   the cable would otherwise take the forward of --port); --shot <file.jpg> the page after the boot, with the VIEW's share
+//   of the screen (the canvas box / the viewport) and the frame's draw calls / triangles (FLYDIY_RENDERER.info) in R.view;
+//   --cpu-throttle N (CDP's main thread N x slower, set AFTER the boot and the shot: the phone's CPU, roughly).
 'use strict';
 const { execFileSync } = require('child_process');
 const fs = require('fs'), path = require('path');
@@ -61,7 +66,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const MiB = x => +(x / 1048576).toFixed(1);
 const pct = (a, p) => { const s = a.slice().sort((x, y) => x - y); return s.length ? +s[Math.min(s.length - 1, Math.floor(p * (s.length - 1)))].toFixed(1) : null; };
 const med = a => pct(a, 0.5);
-const adb = (...a) => { try { return execFileSync(ADB, a, { encoding: 'utf8', timeout: 20000 }); } catch (e) { return ''; } };
+const SIZE = opt('size', '412x915').split('x').map(Number), DPR = +opt('dpr', 2.625), SHOT = opt('shot', null), THROTTLE = +opt('cpu-throttle', 0);
+const adb = (...a) => { if (flag('no-adb')) return ''; try { return execFileSync(ADB, a, { encoding: 'utf8', timeout: 20000 }); } catch (e) { return ''; } };
 const log = s => console.log(s);
 
 // ---- the phone's side: memory, temperature ----
@@ -103,7 +109,7 @@ async function connect() {
   await cmd('Page.enable'); await cmd('Runtime.enable'); await cmd('Inspector.enable'); await cmd('Performance.enable');
   // --emulate (G2103): a desktop Chrome / headless Chromium dressed as the S20 FE (412 x 915 at 2.625, touch) - the cloud's
   // smoke test of this rig, and the box's before the phone is plugged in. Never on the phone itself
-  if (flag('emulate')) { await cmd('Emulation.setDeviceMetricsOverride', { width: 412, height: 915, deviceScaleFactor: 2.625, mobile: true });
+  if (flag('emulate')) { await cmd('Emulation.setDeviceMetricsOverride', { width: SIZE[0], height: SIZE[1], deviceScaleFactor: DPR, mobile: true });
     await cmd('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 }); }
   return { ver, tab, cmd, ev, S, close: async () => { try { await fetch(base + '/json/close/' + tab.id); } catch (e) {} } };
 }
@@ -221,6 +227,16 @@ async function touchChecks(C) {
     while (Date.now() - t0 < 900000) { await sleep(2000); let st = 'x'; try { st = await C.ev('window.BOOT ? BOOT.state : (document.readyState === "complete" ? "gone" : "x")', 5000); } catch (e) {} if (st === 'gone') break; }
     await sleep(3000);
   }
+  // ---- G3727: THE VIEW (its share of the screen, the frame's draws) and the still, then the CPU throttle ----
+  try { await sleep(3000);
+    R.view = JSON.parse(await C.ev(`new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => {
+      const c = document.getElementById('c'), b = c ? c.getBoundingClientRect() : null, R0 = window.FLYDIY_RENDERER, inf = R0 && R0.info ? R0.info.render : {};
+      r(JSON.stringify({ w: innerWidth, h: innerHeight, dpr: devicePixelRatio, canvas: b ? [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)] : null,
+        viewShare: b ? +((b.width * b.height) / (innerWidth * innerHeight)).toFixed(3) : null, calls: inf.calls, triangles: inf.triangles,
+        programs: R0 && R0.info && R0.info.programs ? R0.info.programs.length : null, textures: R0 && R0.info ? R0.info.memory.textures : null }));
+    })))`, 60000)); log('view: ' + JSON.stringify(R.view)); save(); } catch (e) { R.view = { error: String(e) }; }
+  if (SHOT) { try { const sh = await C.cmd('Page.captureScreenshot', { format: 'jpeg', quality: 88 }); fs.writeFileSync(SHOT, Buffer.from(sh.result.data, 'base64')); log('shot -> ' + SHOT); } catch (e) { log('shot failed: ' + e); } }
+  if (THROTTLE > 1) { await C.cmd('Emulation.setCPUThrottlingRate', { rate: THROTTLE }); R.cpuThrottle = THROTTLE; log('CPU throttle x' + THROTTLE); }
   // ---- SHARE + STORAGE PROBE (G1517): can this phone's share sheet carry a build FILE, and will its storage keep it ----
   // Chrome shares only a permitted list of file types (JSON is not believed to be on it: the .txt twin is the fallback);
   // persisted() / estimate() say whether a build saved on the phone survives storage pressure.
