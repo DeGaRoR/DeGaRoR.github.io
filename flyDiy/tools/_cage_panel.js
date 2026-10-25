@@ -63,19 +63,34 @@ function fromSpec(sy) {
   seeded = true;
   if (panelBody) renderPanel();
 }
+// WHAT THE DASH HAD NO ROOM FOR (G2808): the last layout's overflow - dials, radio heads, the GPS, breakers - as
+// genSystemsResolve's `noRoom` keys. Only the join's answer and the column's bill carry it; the layout itself is
+// laid out from SY, which never does, so a dropped dial is offered the dash again on every build.
+function noRoom() {
+  const L = LAST && LAST.layout;
+  return L ? (L.overflow || []).concat(L.extraOverflow || []) : [];
+}
 function toSpec() {
   if (!seeded) seed();
-  return cl(SY);
+  const o = cl(SY), nr = noRoom();
+  // (written when there is something; an empty list only over an earlier one, so a build that always fitted keeps
+  // its bytes - garage.js's merge replaces an array whole)
+  let had = false;
+  try { const g = window.GARAGE_SPEC && window.GARAGE_SPEC.get && window.GARAGE_SPEC.get(); had = !!(g && g.systems && Array.isArray(g.systems.noRoom) && g.systems.noRoom.length); } catch (e) {}
+  if (nr.length || had) o.noRoom = nr;
+  return o;
 }
 // the resolved fit, as the core answers it — tier, items, electrics, radios,
-// the bill, what was dropped and why
-function resolve(Pl) {
+// the bill, what was dropped and why. `billed`: as the join writes it, what the dash had no room for dropped (G2808)
+function resolve(Pl, billed) {
   if (!seeded) seed();
   const C = core();
   if (!C.resolve) return null;
+  const sy = cl(SY);
+  if (billed) sy.noRoom = noRoom();
   const S = (inGame() && window.GARAGE_SPEC && window.GARAGE_SPEC.get)
-    ? Object.assign({}, window.GARAGE_SPEC.get(), { systems: cl(SY) })
-    : { systems: cl(SY) };
+    ? Object.assign({}, window.GARAGE_SPEC.get(), { systems: sy })
+    : { systems: sy };
   // G2802: the lights the build has FITTED, so the breaker panel carries theirs (the cockpit binds the same list)
   const P = Pl || (window.CAGE_UI && window.CAGE_UI.P) || null;
   const lights = P && +P.lightOn ? EXT_LIGHTS.concat(INT_LIGHTS).filter(k => litFitted(P, k)) : [];
@@ -228,7 +243,8 @@ function renderPanel() {
     B.appendChild(el('div', 'r', 'the core (flight_core.js) is not loaded — no catalogue'));
     return;
   }
-  const R = resolve();
+  // R: the fit as chosen (the selects); RB: as carried and billed - what the dash had no room for dropped (G2808)
+  const R = resolve(), RB = resolve(null, true) || R;
 
   // ---- the tier, the units, the side --------------------------------------
   select(B, 'fit', 'a tier presets the list, the electrics and the radios; ' +
@@ -251,11 +267,11 @@ function renderPanel() {
     LOOK_SW, SY.look.sw, v => { SY.look.sw = v; renderPanel(); commit(); });
 
   // ---- the dials -----------------------------------------------------------
-  const dials = fold(B, 'dials · ' + R.items.length + ' fitted', true);
-  const fitted = new Set(R.items);
+  const dials = fold(B, 'dials · ' + RB.items.length + ' fitted', true);
+  const fitted = new Set(RB.items);
   const wanted = new Set(SY.items || (C.TIERS[R.tier].items || C.TIERS.basic.items));
   const dropped = {};
-  for (const d of R.dropped) dropped[d.key] = d.why;
+  for (const d of RB.dropped) dropped[d.key] = d.why;
   for (const k of Object.keys(C.INSTR)) {
     const r = C.INSTR[k];
     const d = row(dials, r.name, (r.note || '') + (r.power !== 'none' ? ' · needs ' +
@@ -305,8 +321,8 @@ function renderPanel() {
     const lost = lay && lay.extraOverflow ? lay.extraOverflow.filter(x => /^breaker:/.test(x)) : [];
     const d = row(elec, 'breakers', 'a push-to-reset breaker per circuit, on the dash: pull one in flight and ' +
       'what it feeds goes dark; one that pops out was overloaded');
-    d.appendChild(el('span', 'v', R.breakers.map(b => (CB_LABEL[b.key] || b.key) + ' ' + b.A).join(' · ') +
-      (lost.length ? ' — ' + lost.length + ' with no room on the dash' : '')));
+    d.appendChild(el('span', 'v', RB.breakers.map(b => (CB_LABEL[b.key] || b.key) + ' ' + b.A).join(' · ') +
+      (lost.length ? ' — ' + lost.length + ' with no room on the dash (not fitted, not billed)' : '')));
     if (lost.length) d.lastChild.style.color = '#e08a5a';
   }
 
@@ -326,18 +342,18 @@ function renderPanel() {
     const S = lay2 && lay2.screens ? lay2.screens.find(q => q.k === 'gps') : null;
     const d = row(av, 'GPS on the dash', 'the moving map: the island, your track, the next waypoint and the ' +
       'ground speed, alive on the avionics bus behind its breaker');
-    d.appendChild(el('span', 'v', S ? (S.coaming ? 'in a cradle on the glareshield' : 'on the panel')
-      : (lay2 ? 'no room on this dash — billed, not drawn' : '…')));
+    d.appendChild(el('span', 'v', S ? (S.coaming ? 'in a cradle on the glareshield' : 'on the panel, in front of the pilot')
+      : (lay2 ? 'no room on this dash — not fitted, not billed' : '…')));
     if (lay2 && !S) d.lastChild.style.color = '#e08a5a';
   }
 
   // ---- the bill ----------------------------------------------------------------
-  const bill = fold(B, 'the bill · ' + fmtKg(R.kg) + ' · ' + fmtCr(R.price), false);
+  const bill = fold(B, 'the bill · ' + fmtKg(RB.kg) + ' · ' + fmtCr(RB.price), false);
   const groups = [['panel', 'instruments'], ['elec', 'electrics'], ['avionics', 'radios']];
   for (const [g, name] of groups) {
-    const rows = R.rows.filter(r => r.group === g);
+    const rows = RB.rows.filter(r => r.group === g);
     if (!rows.length) continue;
-    const sum = R.bill[g];
+    const sum = RB.bill[g];
     const h = row(bill, name, '');
     h.appendChild(el('span', 'v', fmtKg(sum.kg) + ' · ' + fmtCr(sum.price)));
     for (const r of rows) {
@@ -345,13 +361,13 @@ function renderPanel() {
       d.appendChild(el('span', 'v', fmtKg(r.kg) + ' · ' + fmtCr(r.price)));
     }
   }
-  if (R.dropped.length) {
-    const d = row(bill, 'not fitted', 'items this build cannot feed — they bill nothing');
-    d.appendChild(el('span', 'v', R.dropped.map(x => (C.INSTR[x.key] ? C.INSTR[x.key].name : x.key) +
+  if (RB.dropped.length) {
+    const d = row(bill, 'not fitted', 'items this build cannot feed, or the dash has no room for — they bill nothing');
+    d.appendChild(el('span', 'v', RB.dropped.map(x => (C.INSTR[x.key] ? C.INSTR[x.key].name : x.key) +
       ' (' + x.why + ')').join(', ')));
   }
-  if (R.loads.length) {
-    const amps = R.loads.reduce((a, l) => a + l.amps, 0);
+  if (RB.loads.length) {
+    const amps = RB.loads.reduce((a, l) => a + l.amps, 0);
     const d = row(bill, 'bus load', 'the continuous draw of everything fitted, at 12 V');
     d.appendChild(el('span', 'v', amps.toFixed(1) + ' A' +
       (R.altA ? ' of ' + R.altA + ' A' : '') + (R.battAh ? ' · ' + R.battAh + ' Ah' : '')));
@@ -1940,10 +1956,11 @@ function build(parent, A, P, pilotX) {
         () => { if (facesMat) facesMat.emissiveIntensity = 0; });
   } catch (e) {}
   LAST = { layout: L, faces, slotOf, units, facts, group: grp };
-  // G2802 / G2803: the column says where the GPS and the breakers went, which only this build knows - re-render
-  // it once when that answer changes (the column renders before the rebuild a commit triggers)
+  // G2802 / G2803: the column says where the GPS and the breakers went (G2808: and which dials found no room - the
+  // bill drops them), which only this build knows - re-render it once when that answer changes (the column renders
+  // before the rebuild a commit triggers)
   {
-    const xs = JSON.stringify([L.extraOverflow || [], (L.screens || []).map(q => [q.k, !!q.coaming])]);
+    const xs = JSON.stringify([L.overflow || [], L.extraOverflow || [], (L.screens || []).map(q => [q.k, !!q.coaming])]);
     if (xs !== extrasSig) { extrasSig = xs; if (panelBody) try { renderPanel(); } catch (e) {} }
   }
   // THE FONT LANDS AFTER THE FIRST PAINT: the vendored Plex loads async, so

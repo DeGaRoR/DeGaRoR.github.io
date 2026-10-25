@@ -261,11 +261,60 @@ const T_KEYS = { asi: [0, 0], ai: [1, 0], alt: [2, 0], turn: [0, 1], dg: [1, 1],
 // LOWEST height at which a clear run holds it - under the dials where they
 // leave the room, beside them where they do not. The layout with fewer
 // dials left off wins; a tie keeps the standard one.
+// THE GLASS PANEL (G2808, the user's ruling of 25 Oct: "GPS placement is in front of the pilot, glass cockpit
+// style. The same device could later hold a real MFD / PFD ... just get rid of some manual gauges, or find a more
+// flexible way to place them. If really too small, then it does not fit"). A build with a screen (o.screens: the
+// GPS today, a PFD / MFD later through the same record) lays out SCREEN FIRST: the unit on the pilot's line as high
+// as it fits under the crown, then every dial in the scan's priority at the clear place nearest the pilot's line and
+// highest, then the switch row on the lowest clear run. Tried with the bottom band kept for the switches and
+// without; the one that leaves fewer dials off wins. What finds no place is overflow: named in the column, not
+// drawn - and not billed (genSystemsResolve's `noRoom`, which the join writes from this layout).
+// What a layout costs (G2808): a screen outweighs every dial, a dial every switch drawn under a dial or a screen,
+// that switch a T broken into single dials, and that every breaker with no room
+const layoutCost = L => (L.screenLost ? 1000 : 0) + 10 * L.overflow.length + 5 * (L.swClash || 0) +
+  (L.tBroken ? 3 : 0) + (L.extraOverflow ? L.extraOverflow.length : 0);
+// the packer's three ways with the switch row: the bottom band kept for it, the strip laid first, nothing kept
+const PACK_MODES = [[false, true], [true, 'strip'], [true, true]];
 function layout(A, o) {
+  if (o && Array.isArray(o.screens) && o.screens.length) {
+    let best = null;
+    for (const [fr, mode] of PACK_MODES) {
+      const L = placeExtras(A, o, layoutCore(A, o, fr, mode));
+      if (!best || layoutCost(L) < layoutCost(best)) best = L;
+      if (!layoutCost(best)) break;
+    }
+    // A PORTABLE NEED NOT COST A DIAL: one the plate holds only by sending a dial off the dash (or a switch under
+    // one) stands in its cradle on the glareshield instead - on the pilot's line, in front of him all the same -
+    // and the dials are laid out as they would be without it
+    if (layoutCost(best) && o.screens.every(S => S.cradle)) {
+      const oc = Object.assign({}, o, { cradleFirst: true });
+      const C = placeExtras(A, oc, dialLayout(A, Object.assign({}, o, { screens: [] })));
+      if (layoutCost(C) < layoutCost(best)) best = C;
+    }
+    return best;
+  }
+  return placeExtras(A, o, dialLayout(A, o));
+}
+// the dials and the switches, no screen: the standard rule, the flexible row, then the packer
+function dialLayout(A, o) {
   const std = layoutCore(A, o, false);
-  if (!(A && A.flexLayout) || !std.overflow.length) return placeExtras(A, o, std);
-  const flex = layoutCore(A, o, true);
-  return placeExtras(A, o, flex.overflow.length < std.overflow.length ? flex : std);
+  if (!std.overflow.length) return std;
+  let best = std;
+  if (A && A.flexLayout) { const flex = layoutCore(A, o, true); if (flex.overflow.length < best.overflow.length) best = flex; }
+  // ...AND WHEN THE RULES ABOVE STILL LEAVE A DIAL OFF, THE PACKER (G2808: a dial off the dash is a dial not
+  // billed, so it gets every chance): the glass panel's own, with no screen - the T as a block where it fits, each
+  // other dial at the clear place nearest its group - taken only when it leaves fewer dials off and no switch
+  // under a dial
+  if (best.overflow.length) {
+    let P = null;
+    for (const [fr, mode] of PACK_MODES) {
+      const L = layoutCore(A, o, fr, mode);
+      if (L.swClash) continue;
+      if (!P || layoutCost(L) < layoutCost(P)) P = L;
+    }
+    if (P && P.overflow.length < best.overflow.length) best = P;
+  }
+  return best;
 }
 // THE EXTRAS (G2802 / G2803, AVIONICS-GPS phase 2): the GPS screen and the breaker row. They are placed AFTER the
 // dials and the switches, into the plate those left free, and move nothing the rule above placed - a panel without
@@ -283,7 +332,8 @@ function placeExtras(A, o, L) {
   o = o || {};
   const screensWant = Array.isArray(o.screens) ? o.screens : [];
   const cbWant = Array.isArray(o.breakers) ? o.breakers : [];
-  L.screens = []; L.breakers = { row: [], pitch: CB_PITCH }; L.extraOverflow = [];
+  const placed = Array.isArray(L.screens) ? L.screens : [];        // the glass layout's own (G2808)
+  L.screens = placed.slice(); L.breakers = { row: [], pitch: CB_PITCH }; L.extraOverflow = [];
   if (!screensWant.length && !cbWant.length) return L;
   const F = A && A.face ? A.face : null;
   const KO = Array.isArray(A && A.keepOut) ? A.keepOut : [];
@@ -297,6 +347,7 @@ function placeExtras(A, o, L) {
                  y1: s.y + (s.kind === 'flap' ? 0.046 : 0.032) });
   }
   for (const k of KO) boxes.push({ x0: k.x0 - 0.004, x1: k.x1 + 0.004, y0: k.y0 - 0.004, y1: k.y1 + 0.004 });
+  for (const q of placed) boxes.push({ x0: q.cx - q.w / 2 - 0.006, x1: q.cx + q.w / 2 + 0.006, y0: q.cy - q.h / 2 - 0.006, y1: q.cy + q.h / 2 + 0.006 });
   const hitsBox = (x0, x1, y0, y1) => boxes.some(b => {
     if (b.circle) {
       const nx = Math.max(x0, Math.min(b.cx, x1)), ny = Math.max(y0, Math.min(b.cy, y1));
@@ -318,8 +369,10 @@ function placeExtras(A, o, L) {
   };
   // THE SCREENS: the highest place nearest the panel's middle (a GPS sits in the centre stack), on a 5 mm grid
   for (const S of screensWant) {
+    if (placed.some(q => q.k === S.k)) continue;
     const w = +S.w, h = +S.h;
     let best = null;
+    if (!(o.cradleFirst && S.cradle))
     for (let cx = -xLim + w / 2; cx <= xLim - w / 2 + 1e-9; cx += 0.005)
       for (let cy = yTop - h / 2; cy - h / 2 >= yBot - 1e-9; cy -= 0.005) {
         const x0 = cx - w / 2, x1 = cx + w / 2, y0 = cy - h / 2, y1 = cy + h / 2;
@@ -338,7 +391,9 @@ function placeExtras(A, o, L) {
     // carried when the panel is full), beside the compass on the pilot's right, leaning back to the eye. A unit
     // built into the panel (`S.cradle` false) has no such place: it is named, not drawn.
     if (S.cradle && A && (A.dashAftZ != null || L.zFace != null)) {
-      const cxC = -(0.035 + 0.014 + w / 2);
+      // on the pilot's line (G2808), clear of the compass in the middle of the coaming
+      const xP = L.side === 'centre' ? 0 : (o.pilotX || 0), clr = 0.035 + 0.014 + w / 2;
+      const cxC = Math.abs(xP) >= clr ? xP : (xP > 0 ? clr : -clr);
       const zc = (A.dashAftZ != null ? A.dashAftZ : L.zFace) + 0.015;
       const top = A.dashTopAt ? A.dashTopAt(cxC, w / 2, zc - 0.02, zc + 0.02) : (A.dashTop != null ? A.dashTop : yTop + PAN_INSET);
       if (Math.abs(cxC) + w / 2 <= (A.halfW || xLim + 0.05) && isFinite(top)) {
@@ -350,11 +405,13 @@ function placeExtras(A, o, L) {
     L.extraOverflow.push(S.k);
   }
   // THE BREAKERS: ONE row on the lowest clear run that holds them all (the pitch shrinks to 13 mm first); when no
-  // run does, rows along the lowest runs that hold three or more, at most three rows. What no run holds is
+  // run does, rows along the lowest runs that hold three or more (then two), at most five rows. What no run holds is
   // named, never drawn over a dial.
   if (cbWant.length) {
     const rows = [];
-    let left = cbWant.slice();
+    // (a load the dash had no room for - a dial or a radio head in the overflow, a screen named - is not fitted, so
+    // neither is its breaker, G2808)
+    let left = cbWant.filter(k => !L.overflow.includes(k) && !L.extraOverflow.includes(k));
     const runAt = (y, pitch, minN) => {
       let run0 = null;
       for (let x = -xLim; x <= xLim + 1e-9; x += 0.002) {
@@ -369,10 +426,11 @@ function placeExtras(A, o, L) {
       }
       return null;
     };
-    while (left.length && rows.length < 3) {
-      // the lowest run that holds EVERY breaker left, at either pitch; failing that, the lowest that holds three
+    while (left.length && rows.length < 5) {
+      // the lowest run that holds EVERY breaker left, at either pitch; failing that, the lowest that holds three,
+      // then two (G2808: a crowded plate's breakers in short rows, rather than off the dash and off the bill)
       let got = null;
-      for (const minN of left.length > 3 ? [left.length, 3] : [left.length]) {
+      for (const minN of left.length > 3 ? [left.length, 3, 2] : left.length > 2 ? [left.length, 2] : [left.length]) {
         for (const pitch of [CB_PITCH, CB_PITCH_MIN]) {
           for (let y = yBot + CB_HALF + 0.002; y + CB_UP <= yTop + 1e-9 && !got; y += 0.004) {
             const r = runAt(y, pitch, minN);
@@ -398,7 +456,7 @@ function placeExtras(A, o, L) {
   }
   return L;
 }
-function layoutCore(A, o, flexRow) {
+function layoutCore(A, o, flexRow, glass) {
   o = o || {};
   const items = o.items || [], side = o.side || 'pilot', pilotX = o.pilotX || 0;
   // THE PLATE (session 4b): when the crew measured the dash's face plate
@@ -491,7 +549,182 @@ function layoutCore(A, o, flexRow) {
   let gx0 = 0, dir = -1, groupW = 0;             // the engine group's edge, for the radios
   const aiKey = has('aiE') ? 'aiE' : (has('ai') ? 'ai' : null);
   const radioKeys = (o.radios || []).filter(k => k === 'com' || k === 'xpdr');
-  if (flexRow) {
+  const screens = [];
+  let tBroken = false;
+  // the switch row along the bottom band: key, master, alt, then the
+  // light throws and the dimmers — pitch 40 mm, centred under the T
+  const sw = [];
+  // THE KEY IS ALWAYS THERE (G442.1, the playtest: "the KEY / MASTER / ALT
+  // row is missing on builds without a bus"): a piston engine's key is its
+  // MAGNETO switch (OFF / R / L / BOTH) and a hand-propped Cub has one - the
+  // bus buys the START position, the master and the alternator rockers, not
+  // the key. On a battery build the key is the pack's POWER key, two
+  // positions (OFF / ON) on the same lock, `power: true` for the tape.
+  sw.push({ k: 'key', kind: 'key', power: o.energyKind === 'battery' });
+  if (o.elec && o.elec.hasBus) {
+    sw.push({ k: 'master', kind: 'rocker' });
+    if (o.elec.altA) sw.push({ k: 'alt', kind: 'rocker' });
+    // G318: an avionics master when a radio is fitted — the user drew the
+    // tape; the bus gates the radios' loads on it
+    // G2801: ...and when any avionics is fitted (a NAV- or GPS-only fit had its loads on no switch at all)
+    if ((o.radios || []).some(k => k === 'com' || k === 'xpdr') || o.avionics) sw.push({ k: 'avionics', kind: 'rocker' });
+  }
+  for (const k of (o.extLights || [])) sw.push({ k, kind: o.swStyle === 'pushpull' ? 'pushpull' : 'toggle', light: true });   // G371
+  for (const k of (o.intLights || [])) sw.push({ k, kind: 'knob', light: true });
+  if (o.flapSwitch) sw.push({ k: 'flap', kind: 'flap' });     // G335: at the row's right end, a Cessna's
+  // the row's room at a height: the plate's width there less the keep-outs
+  // (G442.1) and, on the flexible row, less every dial whose own switch
+  // room or face covers that height - its free runs of switch centres
+  const runsAt = (y, withDials) => {
+    const xS = xLimAt(y), lo0 = -xS + 0.02, hi0 = xS - 0.02;
+    const cuts = KO.filter(k => k.y1 > y - 0.012 && k.y0 < y + 0.012).map(k => [k.x0 - 0.012, k.x1 + 0.012]);
+    if (withDials) for (const d of dials) if (!d.coaming && y > d.cy - d.r - SW_DROP - 1e-9 && y < d.cy + d.r + 0.012)
+      cuts.push([d.cx - d.r - 0.012, d.cx + d.r + 0.012]);
+    if (withDials) for (const q of screens) if (y > q.cy - q.h / 2 - SW_DROP - 1e-9 && y < q.cy + q.h / 2 + 0.012)
+      cuts.push([q.cx - q.w / 2 - 0.012, q.cx + q.w / 2 + 0.012]);
+    cuts.sort((a, b) => a[0] - b[0]);
+    const runs = []; let a = lo0;
+    for (const c of cuts) { if (c[0] > a) runs.push([a, Math.min(c[0], hi0)]); a = Math.max(a, c[1]); }
+    if (a < hi0) runs.push([a, hi0]);
+    return runs.filter(r => r[1] - r[0] > 0.02);
+  };
+  let screenLost = false;
+  // THE STRIP FIRST (G2808, glass === 'strip'): the switch row laid on the plate's lowest clear run BEFORE anything
+  // else, and the screen and the dials kept off it alone - the bottom band beside it is theirs (a short plate whose
+  // whole band, kept, would cost dials, and whose band, given away, would leave the switches nowhere)
+  let strip = null;
+  if (glass === 'strip') {
+    const y = yBot + 0.010, rs = runsAt(y, false);
+    if (rs.length) {
+      const holds = rs.filter(r => r[0] <= xC && xC <= r[1]);
+      const R = (holds.length ? holds : rs).reduce((m, r) => (r[1] - r[0] > m[1] - m[0] ? r : m));
+      const pitch = Math.min(0.030, (R[1] - R[0]) / Math.max(1, sw.length - 1 || 1));
+      let x = Math.min(R[1], Math.max(R[0] + pitch * (sw.length - 1), xC + pitch * (sw.length - 1) / 2));
+      const at = [];
+      for (const q of sw) { at.push(Object.assign({ x: clamp(x, R[0], R[1]), y, pitch }, q)); x -= pitch; }
+      strip = { at, y, x0: Math.min(...at.map(q => q.x)), x1: Math.max(...at.map(q => q.x)) };
+    }
+  }
+  const offStrip = (x0, x1, y0, y1) => !strip || !(x1 > strip.x0 && x0 < strip.x1 && y0 < strip.y + SW_DROP + 1e-9 && y1 > strip.y);
+  if (glass) {
+    // THE GLASS PANEL (G2808; see layout()). The plate's columns, memoised by the millimetre: the packer below asks
+    // the same few hundred x's thousands of times
+    const colMemo = new Map();
+    const colAt = x => { const q = Math.round(x * 1000); let c = colMemo.get(q); if (c === undefined) { c = F ? F.at(q / 1000) || null : null; colMemo.set(q, c); } return c; };
+    const yLow = yBot + (flexRow ? 0 : SW_ROOM);
+    // a rectangle ON the plate: inside the outline, inset, clear of the keep-outs and of the switch band
+    const rectFits = (x0, x1, y0, y1) => {
+      if (x0 < -xLim - 1e-6 || x1 > xLim + 1e-6 || y1 > yTop + 1e-6 || y0 < yLow - 1e-6) return false;
+      if (kept(x0, x1, y0, y1) || !offStrip(x0 - 0.008, x1 + 0.008, y0 - 0.008, y1 + 0.008)) return false;
+      if (!F) return true;
+      const ns = Math.max(1, Math.ceil((x1 - x0) / 0.01));
+      for (let i = 0; i <= ns; i++) {
+        const x = x0 + (x1 - x0) * i / ns, c = colAt(x);
+        if (!c || Math.abs(c.x - x) > 0.03) return false;
+        if (y1 > c.y1 - PAN_INSET + 1e-6 || y0 < c.y0 + PAN_INSET - 1e-6) return false;
+      }
+      return true;
+    };
+    const dialFits = (cx, cy, r) => {
+      if (Math.abs(cx) + r > xLim + 1e-6 || cy + r > yTop + 1e-6 || cy - r < yLow - 1e-6) return false;
+      if (kept(cx - r, cx + r, cy - r, cy + r) || !offStrip(cx - r - 0.008, cx + r + 0.008, cy - r, cy + r)) return false;
+      if (!F) return true;
+      for (const sN of [-1, -0.7, -0.35, 0, 0.35, 0.7, 1]) {
+        const c = colAt(cx + sN * r);
+        if (!c || Math.abs(c.x - (cx + sN * r)) > 0.03) return false;
+        const h = r * Math.sqrt(1 - sN * sN);
+        if (cy + h > c.y1 - PAN_INSET + 1e-6 || cy - h < c.y0 + PAN_INSET - 1e-6) return false;
+      }
+      return true;
+    };
+    // clear of what is placed: a screen and a GAP round it, a dial and a GAP between bezels
+    const clearOf = (cx, cy, r) => {
+      for (const d of dials) { const dx = d.cx - cx, dy = d.cy - cy, m = d.r + r + GAP; if (dx * dx + dy * dy < m * m - 1e-9) return false; }
+      for (const q of screens) {
+        const nx = Math.max(q.cx - q.w / 2, Math.min(cx, q.cx + q.w / 2)), ny = Math.max(q.cy - q.h / 2, Math.min(cy, q.cy + q.h / 2));
+        const dx = nx - cx, dy = ny - cy, m = r + GAP;
+        if (dx * dx + dy * dy < m * m - 1e-9) return false;
+      }
+      return true;
+    };
+    // THE SCREENS: on the pilot's line, as high as they fit - the score is the distance off the line plus half the
+    // drop under the crown, on a 5 mm grid (a keep-out or the plate's edge slides a unit sideways, not down a row)
+    for (const S of (Array.isArray(o.screens) ? o.screens : [])) {
+      const w = +S.w, h = +S.h;
+      let best = null;
+      for (let cx = -xLim + w / 2; cx <= xLim - w / 2 + 1e-9; cx += 0.005)
+        for (let cy = yTop - h / 2; cy - h / 2 >= yLow - 1e-9; cy -= 0.005) {
+          const x0 = cx - w / 2, x1 = cx + w / 2, y0 = cy - h / 2, y1 = cy + h / 2;
+          if (!rectFits(x0, x1, y0, y1)) continue;
+          if (screens.some(q => x1 + GAP > q.cx - q.w / 2 && x0 - GAP < q.cx + q.w / 2 && y1 + GAP > q.cy - q.h / 2 && y0 - GAP < q.cy + q.h / 2)) continue;
+          const score = Math.abs(cx - xC) + 0.5 * (yTop - y1);
+          if (!best || score < best.score - 1e-12) best = { cx, cy, score };
+          break;                                      // the highest at this x is the best at this x
+        }
+      if (best) screens.push({ k: S.k, cx: best.cx, cy: best.cy, w, h, sw: +S.sw || w * 0.8, sh: +S.sh || h * 0.75 });
+      else screenLost = true;                         // placeExtras tries it again (a portable's cradle) or names it
+    }
+    // THE DIALS. The flight group first, AS A T where it fits as one (the six-pack's scan kept beside the screen: the
+    // attitude in the middle of the top row, the airspeed on its left, the altimeter on its right, the turn, the
+    // heading and the climb under them - only the fitted ones, no blanking holes); then each dial on its own, in the
+    // scan's priority (what the T could not hold, the engine, the fuel, the rest, the radio heads last). A place is
+    // scored by its drop under the crown (x 0.7) plus its distance from its group - the pilot's line for the group's
+    // first dial, the group's first dial after that - so an engine cluster stays a cluster.
+    const BIG = new Set(['asi', 'ai', 'aiE', 'alt', 'dg', 'turn', 'vsi', 'tacho', 'gmeter']);
+    const rOf = k => (BIG.has(k) ? D_BIG / 2 : D_SMALL / 2);
+    const scan = (r, score) => {
+      let best = null;
+      for (let cx = -xLim + r; cx <= xLim - r + 1e-9; cx += 0.005)
+        for (let cy = yTop - r; cy - r >= yLow - 1e-9; cy -= 0.005) {
+          if (!clearOf(cx, cy, r) || !dialFits(cx, cy, r)) continue;
+          const sc = score(cx, cy);
+          if (!best || sc < best.score - 1e-12) best = { cx, cy, score: sc };
+          break;                                      // the highest at this x is the best at this x
+        }
+      return best;
+    };
+    const tKeys = ['asi', 'alt', 'turn', 'dg', 'vsi'].filter(has).concat(aiKey ? [aiKey] : []);
+    const tPos = k => (k === aiKey ? T_KEYS.ai : T_KEYS[k]);
+    let tDone = false;
+    if (tKeys.length >= 2) {
+      // the T's anchor is its top row's middle slot; a one-row T when nothing is fitted on its bottom row
+      const rows = tKeys.some(k => tPos(k)[1] === 1) ? 2 : 1, R0 = D_BIG / 2;
+      let best = null;
+      for (let ax = -xLim; ax <= xLim + 1e-9; ax += 0.005)
+        for (let ay = yTop - R0; ay - R0 - (rows - 1) * rowH >= yLow - 1e-9; ay -= 0.005) {
+          let ok = true;
+          for (const k of tKeys) {
+            const [c, rr] = tPos(k), cx = ax + (1 - c) * colW, cy = ay - rr * rowH;
+            if (!clearOf(cx, cy, R0) || !dialFits(cx, cy, R0)) { ok = false; break; }
+          }
+          if (!ok) continue;
+          const sc = Math.abs(ax - xC) + 0.7 * (yTop - ay - R0);
+          if (!best || sc < best.score - 1e-12) best = { ax, ay, score: sc };
+          break;
+        }
+      if (best) {
+        for (const k of tKeys) { const [c, rr] = tPos(k); dials.push({ k, cx: best.ax + (1 - c) * colW, cy: best.ay - rr * rowH, r: R0, group: 't' }); }
+        tDone = true;
+      }
+    }
+    const GROUP = { asi: 't', alt: 't', turn: 't', dg: 't', vsi: 't', ai: 't', aiE: 't',
+                    tacho: 'eng', gmeter: 'eng', fuel: 'eng', oilP: 'eng', oilT: 'eng', volts: 'eng', clock: 'eng',
+                    com: 'radio', xpdr: 'radio', nav: 'radio' };
+    // (the primary three, then the engine's speed and the fuel - the gauge that says how long the flight can last -
+    // before the gyros that only back the scan up)
+    const order = (tDone ? [] : [aiKey, 'asi', 'alt']).concat(['tacho', 'fuel']).concat(tDone ? [] : ['turn', 'dg', 'vsi'])
+      .concat(['gmeter', 'oilP', 'oilT', 'volts', 'clock'])
+      .filter((k, i, a) => k && has(k) && a.indexOf(k) === i).concat(radioKeys);
+    for (const k of order) {
+      const r = rOf(k), g = GROUP[k] || k, head = dials.find(d => d.group === g);
+      const best = scan(r, (cx, cy) => 0.7 * (yTop - cy - r) + (head ? Math.hypot(cx - head.cx, cy - head.cy) : Math.abs(cx - xC)));
+      if (best) dials.push({ k, cx: best.cx, cy: best.cy, r, group: g });
+      else overflow.push(k);
+    }
+    for (const d of dials) delete d.group;
+    xT = screens.length ? screens[0].cx : xC;
+    tBroken = tKeys.length >= 2 && !tDone;
+  } else if (flexRow) {
     // ONE ROW, from the pilot's centre out: the flight group first (the
     // T's top row, then its bottom row), the engine, the small gauges, the
     // radios last - each dial beside the last on the side it alternates to,
@@ -601,7 +834,7 @@ function layoutCore(A, o, flexRow) {
   }   // (the T)
   // the radios: a column past the engine group, 57 mm controllers (the
   // flexible row carried them along itself)
-  const radios = flexRow ? [] : radioKeys;
+  const radios = (flexRow || glass) ? [] : radioKeys;
   if (radios.length) {
     // past whatever the group reached (a small gauge sent along the row)
     for (const d of dials) if (!d.coaming && d.k !== 'clock' && !(d.k in T_KEYS) && d.k !== 'aiE')
@@ -621,7 +854,7 @@ function layoutCore(A, o, flexRow) {
   // that has no gyro to scan there is no scan to keep, and the hole takes
   // the dial that had nowhere else - the T's first row first, big dials at
   // their size, small ones centred in the slot.
-  if (overflow.length && !compact && !flexRow) {
+  if (overflow.length && !compact && !flexRow && !glass) {
     const taken = (cx, cy) => dials.some(d => !d.coaming && Math.hypot(d.cx - cx, d.cy - cy) < d.r + 1e-6);
     for (const k of overflow.slice()) {
       const r = (k === 'tacho' || k === 'gmeter' || k in T_KEYS || k === 'aiE') ? D_BIG / 2 : D_SMALL / 2;
@@ -646,44 +879,9 @@ function layoutCore(A, o, flexRow) {
     const coam = A.dashTopAt ? A.dashTopAt(cx, 0.05, zc - 0.03, zc + 0.03) : hasDash ? A.dashTop : yTop + PAN_INSET;
     dials.push({ k: 'compass', cx, cy: coam + r * 0.5 + 0.002, r, coaming: true, z: zc });
   }
-  // the switch row along the bottom band: key, master, alt, then the
-  // light throws and the dimmers — pitch 40 mm, centred under the T
-  const sw = [];
-  // THE KEY IS ALWAYS THERE (G442.1, the playtest: "the KEY / MASTER / ALT
-  // row is missing on builds without a bus"): a piston engine's key is its
-  // MAGNETO switch (OFF / R / L / BOTH) and a hand-propped Cub has one - the
-  // bus buys the START position, the master and the alternator rockers, not
-  // the key. On a battery build the key is the pack's POWER key, two
-  // positions (OFF / ON) on the same lock, `power: true` for the tape.
-  sw.push({ k: 'key', kind: 'key', power: o.energyKind === 'battery' });
-  if (o.elec && o.elec.hasBus) {
-    sw.push({ k: 'master', kind: 'rocker' });
-    if (o.elec.altA) sw.push({ k: 'alt', kind: 'rocker' });
-    // G318: an avionics master when a radio is fitted — the user drew the
-    // tape; the bus gates the radios' loads on it
-    // G2801: ...and when any avionics is fitted (a NAV- or GPS-only fit had its loads on no switch at all)
-    if ((o.radios || []).some(k => k === 'com' || k === 'xpdr') || o.avionics) sw.push({ k: 'avionics', kind: 'rocker' });
-  }
-  for (const k of (o.extLights || [])) sw.push({ k, kind: o.swStyle === 'pushpull' ? 'pushpull' : 'toggle', light: true });   // G371
-  for (const k of (o.intLights || [])) sw.push({ k, kind: 'knob', light: true });
-  if (o.flapSwitch) sw.push({ k: 'flap', kind: 'flap' });     // G335: at the row's right end, a Cessna's
-  // the row's room at a height: the plate's width there less the keep-outs
-  // (G442.1) and, on the flexible row, less every dial whose own switch
-  // room or face covers that height - its free runs of switch centres
-  const runsAt = (y, withDials) => {
-    const xS = xLimAt(y), lo0 = -xS + 0.02, hi0 = xS - 0.02;
-    const cuts = KO.filter(k => k.y1 > y - 0.012 && k.y0 < y + 0.012).map(k => [k.x0 - 0.012, k.x1 + 0.012]);
-    if (withDials) for (const d of dials) if (!d.coaming && y > d.cy - d.r - SW_DROP - 1e-9 && y < d.cy + d.r + 0.012)
-      cuts.push([d.cx - d.r - 0.012, d.cx + d.r + 0.012]);
-    cuts.sort((a, b) => a[0] - b[0]);
-    const runs = []; let a = lo0;
-    for (const c of cuts) { if (c[0] > a) runs.push([a, Math.min(c[0], hi0)]); a = Math.max(a, c[1]); }
-    if (a < hi0) runs.push([a, hi0]);
-    return runs.filter(r => r[1] - r[0] > 0.02);
-  };
   let ySw = Math.max(yBot + 0.010, (dials.filter(d => !d.coaming).reduce((m, d) => Math.min(m, d.cy - d.r), yTop)) - SW_DROP);
   let flexRun = null;
-  if (flexRow) {
+  if ((flexRow || glass) && !strip) {
     // the LOWEST height whose clear run holds the row at a 30 mm pitch
     const need = 0.030 * Math.max(0, sw.length - 1);
     for (let y = yBot + 0.010; y <= yTop - 0.010 + 1e-9 && !flexRun; y += 0.004) {
@@ -692,6 +890,17 @@ function layoutCore(A, o, flexRow) {
       const holds = ok.filter(r => r[0] <= xC && xC <= r[1]);
       flexRun = (holds.length ? holds : ok).reduce((m, r) => (r[1] - r[0] > m[1] - m[0] ? r : m));
       ySw = y;
+    }
+  }
+  // NO ONE RUN HOLDS THE ROW (G2808, a glass panel on a short plate - the Jodel's): the lowest height whose clear
+  // runs hold it BETWEEN them at a 26 mm pitch, +x first, rather than a row drawn over a screen or a dial
+  let multi = null;
+  if ((flexRow || glass) && !flexRun && !strip) {
+    for (let y = yBot + 0.010; y <= yTop - 0.010 + 1e-9 && !multi; y += 0.004) {
+      const rs = runsAt(y, true).sort((a, b) => b[1] - a[1]);
+      let cap = 0;
+      for (const r of rs) cap += Math.floor((r[1] - r[0]) / 0.026 + 1e-9) + 1;
+      if (cap >= sw.length) { multi = rs; ySw = y; }
     }
   }
   const xSw = xLimAt(ySw);                     // the plate's own width down there
@@ -711,15 +920,31 @@ function layoutCore(A, o, flexRow) {
       lo = best[0]; hi = best[1];
     }
   }
+  if (strip) for (const q of strip.at) switches.push(q);
+  else if (multi) {
+    let i = 0;
+    for (const r of multi) {
+      for (let x = r[1]; x >= r[0] - 1e-9 && i < sw.length; x -= 0.026) switches.push(Object.assign({ x, y: ySw, pitch: 0.026 }, sw[i++]));
+      if (i >= sw.length) break;
+    }
+  } else {
   const pitch = Math.min(0.040, (hi - lo) / Math.max(1, sw.length - 1 || 1));
   let x = Math.min(hi, Math.max(lo + pitch * (sw.length - 1), xC + pitch * (sw.length - 1) / 2));
   for (const s of sw) { switches.push(Object.assign({ x: clamp(x, lo, hi), y: ySw, pitch }, s)); x -= pitch; }   // the pitch rides along: the tapes size to it
+  }
   // the extent, the way the crew always published it
-  const onPanel = dials.filter(d => !d.coaming);
+  // (a glass panel's screens are in its extent too, G2808: a box of half-sizes hx, hy)
+  const onPanel = dials.filter(d => !d.coaming).map(d => ({ cx: d.cx, cy: d.cy, hx: d.r, hy: d.r }))
+    .concat(screens.map(q => ({ cx: q.cx, cy: q.cy, hx: q.w / 2, hy: q.h / 2 })));
   const ext = onPanel.length ? {
-    x0: Math.min(...onPanel.map(d => d.cx - d.r)), x1: Math.max(...onPanel.map(d => d.cx + d.r)),
-    y0: Math.min(...onPanel.map(d => d.cy - d.r)), y1: Math.max(...onPanel.map(d => d.cy + d.r)), z: zFace } : null;
+    x0: Math.min(...onPanel.map(d => d.cx - d.hx)), x1: Math.max(...onPanel.map(d => d.cx + d.hx)),
+    y0: Math.min(...onPanel.map(d => d.cy - d.hy)), y1: Math.max(...onPanel.map(d => d.cy + d.hy)), z: zFace } : null;
+  // (a switch under a dial or a screen - the rule GATE PANEL / GPSFACE read: within a bezel's width plus 8 mm, from
+  // the switch room under it to its top - counted, so the layouts tried can be weighed by it, G2808)
+  const swClash = switches.filter(s => dials.some(d => !d.coaming && Math.abs(s.x - d.cx) < d.r + 0.008 && s.y > d.cy - d.r - SW_DROP + 1e-9 && s.y < d.cy + d.r) ||
+    screens.some(q => s.x > q.cx - q.w / 2 - 0.008 && s.x < q.cx + q.w / 2 + 0.008 && s.y > q.cy - q.h / 2 - 0.008 && s.y < q.cy + q.h / 2 + 0.008)).length;
   return { dials, switches, ext, zFace, yTop, yBot, yMid: (yTop + yBot) / 2, xLim, overflow, xT, side, compact,
+           screens, screenLost, glass: !!glass, swClash, tBroken,
            // the plate's plane, for the builder to stand the dials on
            plane: F ? { zTop: F.zTop, yTop: F.yTop, tilt: F.tilt } : null };
 }

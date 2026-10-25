@@ -2111,6 +2111,11 @@ function genSystemsResolve(S, opts) {
   const seen = new Set(), items = [], dropped = [];
   const hasBus = elec.battery !== 'none';
   const vacOn = elec.vac !== 'none';
+  // NO ROOM ON THE DASH (G2808, the user: "Wysiwyg, and as billed for all"): what the panel's layout could not place
+  // (a dial, a radio head, the GPS, a breaker - the join writes `noRoom` from the layout the dash was drawn with) is
+  // not drawn, so it is not carried: off the bill, off the bus. The panel layer lays out from its own state, which
+  // never holds this list, so a dial dropped here is offered the dash again on every build.
+  const noRoom = new Set(Array.isArray(sy.noRoom) ? sy.noRoom.filter(k => typeof k === 'string') : []);
   for (const k of src) {
     const r = rowOf(k);
     if (!r || seen.has(k)) continue;
@@ -2121,10 +2126,12 @@ function genSystemsResolve(S, opts) {
     if (battery && !custom && (k === 'oilP' || k === 'oilT')) { dropped.push({ key: k, why: 'no oil (electric)' }); continue; }
     if (r.power === 'elec' && !hasBus) { dropped.push({ key: k, why: 'no battery' }); continue; }
     if (r.power === 'vac' && !vacOn) { dropped.push({ key: k, why: 'no suction' }); continue; }
+    if (noRoom.has(k)) { dropped.push({ key: k, why: 'no room on the dash' }); continue; }
     items.push(k);
   }
   for (const k of ['com', 'xpdr', 'nav', 'gps'])
     if (avionics[k] !== 'none' && !hasBus) { dropped.push({ key: k, why: 'no battery' }); avionics[k] = 'none'; }
+    else if (avionics[k] !== 'none' && noRoom.has(k)) { dropped.push({ key: k, why: 'no room on the dash' }); avionics[k] = 'none'; }
   // the bill, row by row
   const rows = [], loads = [];
   const nTanks = Math.max(1, ((S && S.energy && S.energy.vessels) || []).length || 1);
@@ -2156,17 +2163,20 @@ function genSystemsResolve(S, opts) {
   // THE BREAKERS (G2801): a load is fed through its own, the radios' through theirs on the avionics bus
   const breakers = [];
   if (hasBus) {
+    // (a breaker the dash had no room for is not fitted: its load is fed straight off the bus, G2808)
     for (const l of loads) {
+      if (noRoom.has('breaker:' + l.key)) continue;
       l.cb = l.key;
       breakers.push({ key: l.key, A: genBreakerSize(l.amps), feeds: [l.key], group: l.av ? 'avionics' : 'panel' });
     }
-    if (elec.alternator !== 'none')
+    if (elec.alternator !== 'none' && !noRoom.has('breaker:field'))
       breakers.push({ key: 'field', A: GEN_ELEC_PARTS.fieldA, feeds: ['alternator'], group: 'elec' });
     const lit = (opts && Array.isArray(opts.lights)) ? opts.lights : [];
     const lb = {};
     for (const k of Object.keys(GEN_LIGHT_AMPS)) {
       if (!lit.includes(k)) continue;
       const b = GEN_LIGHT_BREAKER[k];
+      if (noRoom.has('breaker:' + b)) continue;
       if (!lb[b]) { lb[b] = { key: b, A: 0, feeds: [], group: 'lights', amps: 0 }; breakers.push(lb[b]); }
       lb[b].feeds.push(k); lb[b].amps += GEN_LIGHT_AMPS[k] * (k === 'beacon' ? 0.5 : 1);
     }

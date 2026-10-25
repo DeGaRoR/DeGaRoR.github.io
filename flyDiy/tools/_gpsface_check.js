@@ -22,10 +22,13 @@
 //   E  NO ALLOCATION (a child under --expose-gc, GATE CITYHOST's method: new-space bytes a call, warmed, the
 //      least of five windows): the bus's step, the face's tick between repaints and WITH a repaint
 //   F  THE DASH (the headless scene with the crew and panel layers, the validated saves as the game loads them -
-//      tools/_load_build.js): the GPS unit lands on
-//      the plate clear of every dial and switch, or in its glareshield cradle, or is named (never drawn over a
-//      dial); the breakers are the resolver's, each a moving part on cb_<key>; the layout of the dials and
-//      switches is byte for byte the one without the extras
+//      tools/_load_build.js; G2808, the glass panel): the screen goes FIRST, in front of the pilot - every GPS kind,
+//      on the plate on the pilot's line where the plate holds it there (the Cessnas, the Cub), clear of every dial
+//      and switch; a glass unit fits both Cessnas with every dial still on the dash; what the dash has no room for
+//      (the Jodel's glass costs it four gauges, Rufus's three) is named, not drawn, and NOT BILLED - the join's `noRoom` is the
+//      layout's overflow, and the core's bill on the joined spec carries none of it; the breakers drawn are the
+//      billed ones, each a moving part on cb_<key>; a portable with no room on the plate stands in its cradle on
+//      the pilot's line, clear of the compass
 //   G  THE BAY (_eng_mesh.js): the battery case is the fitted battery's size, on the firewall plate; without the
 //      fit's dims it is the 17 x 13 cm box it always was
 //   H  THE WIRING: the manifest, app.js's bind / tick / material, the shed's avionics click
@@ -354,13 +357,20 @@ function faceSuite(GPS) {
 // =====================================================================================================================
 // F THE DASH (the validated saves through the headless scene, the panel layers in)
 // =====================================================================================================================
+// [name, save, gps kind, where the screen goes, on the pilot's line, every dial on the dash]
 const PANELS = [
-  ['cub', 'builds/cub_2026-09-20_corrected.json', 'portable', 'plate'],
-  ['cessna', 'builds/cessna172_2026-09-20_corrected.json', 'panel', 'plate'],
+  ['cub', 'builds/cub_2026-09-20_corrected.json', 'glass', 'plate', true, true],
+  ['cub', 'builds/cub_2026-09-20_corrected.json', 'portable', 'plate', true, true],
+  ['cessna', 'builds/cessna172_2026-09-20_corrected.json', 'glass', 'plate', true, true],
   // the shipped metal Cessna (tools/_load_build.js VALIDATED.metal): A0's evidence build for tools/avionics_stills.js
-  ['metal', 'bugReports/cessnaMetal (1).json', 'portable', 'plate'],
-  ['jodel', 'builds/jodel_2026-09-20_corrected.json', 'portable', 'coaming'],
-  ['rufus', 'builds/rufus_2026-10-18_certified.json', 'glass', 'none'],
+  ['metal', 'bugReports/cessnaMetal (1).json', 'glass', 'plate', true, true],
+  ['metal', 'bugReports/cessnaMetal (1).json', 'portable', 'plate', true, true],
+  // the Jodel's short plate: a portable there would cost dials, so it stands in its cradle on the pilot's line; the
+  // glass unit fits only in the middle, and four gauges give way to it
+  ['jodel', 'builds/jodel_2026-09-20_corrected.json', 'portable', 'coaming', true, true],
+  ['jodel', 'builds/jodel_2026-09-20_corrected.json', 'glass', 'plate', false, false],
+  // Rufus's glass unit in front of the pilot costs the DG and the oil gauges (the tacho stays: it comes first)
+  ['rufus', 'builds/rufus_2026-10-18_certified.json', 'glass', 'plate', true, false],
 ];
 function dashOf(file, gps) {
   // one scene context per process is the layers' contract: each case its own child
@@ -379,10 +389,11 @@ if (process.argv.includes('--dash')) {
   const cerr = console.error; console.error = () => {};
   const spec = cl(s0);
   if (gps !== 'keep') spec.systems = Object.assign({}, spec.systems, { avionics: Object.assign({}, spec.systems.avionics || {}, { gps }) });
+  delete spec.systems.noRoom;
   const def = CC.buildGen(cl(spec));
   W.CAGE_ENERGY.fromSpec(spec.energy, spec);
   W.CAGE_PANEL.fromSpec(spec.systems);
-  // catch the layout's arguments: the same plate laid out with the extras and without
+  // catch the layout's arguments (the pilot's line)
   let args = null;
   const lay0 = W.PANEL_GEN.layout;
   W.PANEL_GEN.layout = (A, o) => { args = { A, o }; return lay0(A, o); };
@@ -391,44 +402,80 @@ if (process.argv.includes('--dash')) {
   W.CAGE_UI = { P: r.P };                      // the rows the build read (the fitted lights: the breaker panel's)
   console.error = cerr;
   const L = W.CAGE_PANEL.last().layout;
-  const bare = args ? lay0(args.A, Object.assign({}, args.o, { screens: [], breakers: [] })) : null;
-  const same = bare && JSON.stringify([bare.dials, bare.switches, bare.overflow]) === JSON.stringify([L.dials, L.switches, L.overflow]);
-  const R = W.CAGE_PANEL.resolve();
+  // what the join writes, and the core's bill on the spec it writes it into
+  const sys = W.CAGE_PANEL.toSpec();
+  const RJ = CC.genSystemsResolve(Object.assign({}, spec, { systems: sys }));
+  const RB = W.CAGE_PANEL.resolve(null, true);
   const mv = W.CAGE_PANEL.moving.filter(m => /^edGauge_cb_/.test(m.name)).map(m => ({ name: m.name, drive: m.drive, law: m.law, slide: m.slide, padR: m.padR }));
   let gpsMat = null, gpsMesh = 0;
   r.scene.traverse(o => { if (o.name === 'edGauge_gps') { gpsMesh++; gpsMat = o.material && o.material.userData && o.material.userData.panelSet; } });
   process.stdout.write(JSON.stringify({ L: { dials: L.dials, switches: L.switches, screens: L.screens, breakers: L.breakers, extraOverflow: L.extraOverflow,
-    yTop: L.yTop, yBot: L.yBot, xLim: L.xLim }, same, breakers: R.breakers.map(b => b.key), moving: mv, gpsMesh, gpsMat,
-    face: args && args.A && args.A.face ? { cols: args.A.face.cols.map(c => [c.x, c.y0, c.y1]) } : null, errors: r.errors.length }) + '\n');
+    overflow: L.overflow, yTop: L.yTop, yBot: L.yBot, xLim: L.xLim }, pilotX: args && args.o.side === 'centre' ? 0 : (args && args.o.pilotX) || 0,
+    noRoom: sys.noRoom || [], billed: { items: RB.items, avionics: RB.avionics, breakers: RB.breakers.map(b => b.key), dropped: RB.dropped },
+    joined: { rows: RJ.rows.map(q => q.key), avionics: RJ.avionics, items: RJ.items },
+    moving: mv, gpsMesh, gpsMat, errors: r.errors.length }) + '\n');
   process.exit(0);
 }
-for (const [name, file, gps, want] of PANELS) {
+for (const [name, file, gps, want, onLine, allDials] of PANELS) {
   let D = null;
-  try { D = dashOf(file, gps); } catch (e) { check(false, 'F ' + name + ' builds headless', String(e.message).slice(0, 200)); continue; }
-  const L = D.L;
-  check(D.errors === 0, 'F ' + name + ' + ' + gps + ': the scene builds clean');
-  check(D.same, 'F ' + name + ': the dials, the switches and the overflow are byte for byte the layout without the extras');
+  const tag = 'F ' + name + ' + ' + gps;
+  try { D = dashOf(file, gps); } catch (e) { check(false, tag + ' builds headless', String(e.message).slice(0, 200)); continue; }
+  const L = D.L, Dp = L.dials.filter(d => !d.coaming);
+  check(D.errors === 0, tag + ': the scene builds clean');
   const S = (L.screens || []).find(q => q.k === 'gps');
   const where = S ? (S.coaming ? 'coaming' : 'plate') : 'none';
-  check(where === want, 'F ' + name + ' + ' + gps + ': the GPS ' + (want === 'none' ? 'finds no room and is named' : 'stands ' + (want === 'plate' ? 'on the plate' : 'in its glareshield cradle')), where);
-  if (want === 'none') check(L.extraOverflow.includes('gps') && D.gpsMesh === 0, 'F ' + name + ': named in extraOverflow, nothing drawn');
-  else check(D.gpsMesh === 1 && D.gpsMat === 'gps', 'F ' + name + ': one screen, on the GPS\'s own material (the join\'s `gps` bucket)', D.gpsMesh + ' ' + D.gpsMat);
+  check(where === want, tag + ': the GPS ' + (want === 'none' ? 'finds no room and is named' : 'stands ' + (want === 'plate' ? 'on the plate' : 'in its glareshield cradle')), where);
+  if (want === 'none') check(L.extraOverflow.includes('gps') && D.gpsMesh === 0, tag + ': named in extraOverflow, nothing drawn');
+  else check(D.gpsMesh === 1 && D.gpsMat === 'gps', tag + ': one screen, on the GPS\'s own material (the join\'s `gps` bucket)', D.gpsMesh + ' ' + D.gpsMat);
+  if (S && onLine) check(Math.abs(S.cx - D.pilotX) <= 0.0026, tag + ': the screen in front of the pilot (on the pilot\'s line)', S.cx.toFixed(3) + ' / ' + D.pilotX.toFixed(3));
   if (S && !S.coaming) {
     const x0 = S.cx - S.w / 2, x1 = S.cx + S.w / 2, y0 = S.cy - S.h / 2, y1 = S.cy + S.h / 2;
-    const hitDial = L.dials.filter(d => !d.coaming).find(d => { const nx = Math.max(x0, Math.min(d.cx, x1)), ny = Math.max(y0, Math.min(d.cy, y1)); return Math.hypot(nx - d.cx, ny - d.cy) < d.r; });
+    const hitDial = Dp.find(d => { const nx = Math.max(x0, Math.min(d.cx, x1)), ny = Math.max(y0, Math.min(d.cy, y1)); return Math.hypot(nx - d.cx, ny - d.cy) < d.r; });
     const hitSw = L.switches.find(s => s.x > x0 - 0.008 && s.x < x1 + 0.008 && s.y > y0 - 0.008 && s.y < y1 + 0.008);
-    check(!hitDial && !hitSw, 'F ' + name + ': the GPS clear of every dial and switch', (hitDial && hitDial.k) || (hitSw && hitSw.k));
-    check(x0 >= -L.xLim - 1e-6 && x1 <= L.xLim + 1e-6 && y1 <= L.yTop + 1e-6 && y0 >= L.yBot - 1e-6, 'F ' + name + ': the GPS inside the plate');
+    check(!hitDial && !hitSw, tag + ': the GPS clear of every dial and switch', (hitDial && hitDial.k) || (hitSw && hitSw.k));
+    check(x0 >= -L.xLim - 1e-6 && x1 <= L.xLim + 1e-6 && y1 <= L.yTop + 1e-6 && y0 >= L.yBot - 1e-6, tag + ': the GPS inside the plate');
   }
+  let ov = null;
+  for (let a = 0; a < Dp.length; a++) for (let b = a + 1; b < Dp.length; b++) if (Math.hypot(Dp[a].cx - Dp[b].cx, Dp[a].cy - Dp[b].cy) < Dp[a].r + Dp[b].r - 1e-6) ov = Dp[a].k + '/' + Dp[b].k;
+  check(!ov, tag + ': no two dials overlap', ov);
+  const swHit = L.switches.find(s => Dp.some(d => Math.abs(s.x - d.cx) < d.r + 0.008 && s.y > d.cy - d.r - 0.028 + 1e-9 && s.y < d.cy + d.r));
+  check(!swHit, tag + ': no switch under a dial', swHit && swHit.k);
+  if (allDials) check(!L.overflow.length, tag + ': every dial on the dash beside the screen', L.overflow.join());
+  else check(L.overflow.length > 0, tag + ': gauges give way to the screen (named)', L.overflow.join());
+  // NO ROOM = NOT BILLED: the join writes the layout's overflow as `noRoom`, and the core's bill on that spec carries
+  // none of it - no dial row, no radio row, no breaker
+  const lostAll = L.overflow.concat(L.extraOverflow);
+  check(JSON.stringify(D.noRoom.slice().sort()) === JSON.stringify(lostAll.slice().sort()), tag + ': the join\'s noRoom is the layout\'s overflow', D.noRoom.join());
+  const billedLost = lostAll.filter(k => D.joined.items.includes(k) || (D.joined.avionics[k] && D.joined.avionics[k] !== 'none') ||
+    D.joined.rows.some(q => q === k || q.startsWith(k + ':')));
+  check(!billedLost.length, tag + ': nothing the dash has no room for is billed (the core, on the joined spec)', billedLost.join());
+  check(L.overflow.every(k => D.billed.dropped.some(q => q.key === k && /no room/.test(q.why))), tag + ': the column names each one "no room on the dash"');
   const row = (L.breakers && L.breakers.row) || [];
-  const lost = L.extraOverflow.filter(x => /^breaker:/.test(x)).map(x => x.slice(8));
-  check(row.map(b => b.k).concat(lost).sort().join() === D.breakers.slice().sort().join(), 'F ' + name + ': the breakers on the dash are the resolver\'s (drawn or named)', row.length + ' drawn');
-  check(lost.length === 0, 'F ' + name + ': every breaker found room', lost.join());
+  check(row.map(b => b.k).sort().join() === D.billed.breakers.slice().sort().join(), tag + ': the breakers drawn are the billed ones', row.length + ' drawn / ' + D.billed.breakers.length);
+  if (allDials) check(!L.extraOverflow.some(x => /^breaker:/.test(x)), tag + ': every breaker found room', L.extraOverflow.join());
   check(D.moving.length === row.length && D.moving.every(m => m.law === 'switch' && /^cb_/.test(m.drive) && m.slide && m.padR === 0.007),
-    'F ' + name + ': each breaker a moving part on cb_<key>, a slide and its own pad', D.moving.length);
-  const hitB = row.find(b => L.dials.some(d => !d.coaming && Math.hypot(d.cx - b.x, d.cy - b.y) < d.r + 0.009));
-  check(!hitB, 'F ' + name + ': no breaker on a dial', hitB && hitB.k);
-  say('F ' + name + ' + ' + gps + ': GPS ' + where + (S ? ' at ' + S.cx.toFixed(3) + ', ' + S.cy.toFixed(3) : '') + '; ' + row.length + ' breakers in ' + ((L.breakers && L.breakers.rows) || []).length + ' row(s)');
+    tag + ': each breaker a moving part on cb_<key>, a slide and its own pad', D.moving.length);
+  const hitB = row.find(b => Dp.some(d => Math.hypot(d.cx - b.x, d.cy - b.y) < d.r + 0.009));
+  check(!hitB, tag + ': no breaker on a dial', hitB && hitB.k);
+  say(tag + ': GPS ' + where + (S ? ' at ' + S.cx.toFixed(3) + ', ' + S.cy.toFixed(3) + ' (pilot ' + D.pilotX.toFixed(3) + ')' : '') + '; ' +
+      Dp.length + ' dials' + (L.overflow.length ? ', no room: ' + L.overflow.join(' ') : '') + '; ' + row.length + ' breakers in ' +
+      ((L.breakers && L.breakers.rows) || []).length + ' row(s)' + (L.extraOverflow.length ? ', no room: ' + L.extraOverflow.join(' ') : ''));
+}
+// THE CRADLE (pure layout): a portable with no room on a tiny plate stands on the glareshield on the pilot's line,
+// clear of the compass in the middle; a panel-mounted unit there is named
+{
+  const PG = require(path.join(T, '_panel_gen.js'));
+  const tiny = { dashTop: 0.86, dashLip: 0.79, dashAftZ: 2.0, zDash: 2.0, halfW: 0.30, floorAt: () => 0 };
+  const base = { items: ['asi', 'alt', 'compass'], side: 'pilot', pilotX: 0.18, radios: [], elec: { hasBus: true, altA: 20 } };
+  // (a unit taller than the 90 mm the band always offers)
+  const Lc = PG.layout(tiny, Object.assign({}, base, { screens: [{ k: 'gps', w: 0.135, h: 0.096, sw: 0.111, sh: 0.067, cradle: true }] }));
+  const Sc = Lc.screens.find(q => q.k === 'gps');
+  check(Sc && Sc.coaming && Math.abs(Sc.cx - 0.18) < 1e-9, 'F cradle: a portable with no room on the plate stands on the glareshield on the pilot\'s line', Sc && Sc.cx);
+  const Lc0 = PG.layout(tiny, Object.assign({}, base, { pilotX: 0.02, screens: [{ k: 'gps', w: 0.135, h: 0.096, cradle: true }] }));
+  const S0 = Lc0.screens.find(q => q.k === 'gps');
+  check(S0 && S0.coaming && Math.abs(S0.cx) - S0.w / 2 >= 0.035 + 0.014 - 1e-9, 'F cradle: ...slid clear of the compass when the pilot sits in the middle', S0 && S0.cx);
+  const Lp = PG.layout(tiny, Object.assign({}, base, { screens: [{ k: 'gps', w: 0.159, h: 0.1, cradle: false }] }));
+  check(!Lp.screens.length && Lp.extraOverflow.includes('gps'), 'F cradle: a panel unit with no room is named, not drawn');
 }
 
 // =====================================================================================================================
