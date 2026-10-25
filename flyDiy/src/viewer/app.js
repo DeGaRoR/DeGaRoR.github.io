@@ -14902,7 +14902,8 @@
     // -------- the rail --------------------------------------------------
     camera(body) {
       const eyeWhy = flEyeWhy();
-      flPills(body, FL_CAM.map(c => ({ label: c.k, value: c.k,
+      // G3713: the free camera is a developer's (the user 25 Oct: "free goes to dev") - shown with Dev on
+      flPills(body, FL_CAM.filter(c => !FL2 || c.k !== 'free' || flDevOn || cam.mode === 'free').map(c => ({ label: c.k, value: c.k,
                                        why: c.k === 'cockpit' ? eyeWhy : null })),
               o => o.value === cam.mode, o => flCamMode(o.value));
       // G441 (A4): the head look, as a switch (the L key presses it; Escape leaves it)
@@ -16609,6 +16610,10 @@
     $('rail').title = 'What the pilot is doing: show / hide';
     $('rail').addEventListener('click', e => { if (e.target && e.target.closest && e.target.closest('button')) return; apSet(!apOpen); });
     apSet(apOpen);
+    // the test flight's clock on the phase line, one press (the controls flyout's 1x / 2x, the same simRateSet; never on floats)
+    const bRate = mk('button', 'fl2Rate', 'pill', '1×', 'The test flight’s clock: 1x / 2x');
+    bRate.onclick = () => simRateSet(simRate === 2 ? 1 : 2);
+    $('rail').insertBefore(bRate, $('pfdFold'));
     // the corner: $ and the eye beside the pause pill (gmLayout places the three)
     const bMap = mk('button', 'flMapB', 'flCornB', '$', 'The map and the contracts (Tab)');
     const bEye = mk('button', 'flEyeB', 'flCornB', '', 'The view: behind / inside (V)');
@@ -16651,6 +16656,7 @@
       const dw = d + (wOut ? ' \u00b7 ' + txt('r-wind') + ' km/h' : '');
       if (bCond.lastChild.textContent !== dw) bCond.lastChild.textContent = dw;
       fit();
+      bRate.hidden = !testFlight; const rw = simRate + '×'; if (bRate.textContent !== rw) bRate.textContent = rw; bRate.disabled = floatsOn();
       const mmOff = !!($('mmp') || {}).hidden; if (bMm.hidden !== !mmOff) bMm.hidden = !mmOff;   // the button only while the minimap is away
     };
     setInterval(() => { try { if (!inGarage) tick(); } catch (e) {} }, 500);

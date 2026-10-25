@@ -1076,6 +1076,8 @@ body.fl2 #ui #pfd { order:2; grid-column:auto; justify-self:auto; cursor:pointer
 body.fl2 #ui #pfd #pfdFold { display:none; }
 body.fl2 #ui #rail { cursor:pointer; }
 body.fl2:not(.fl2Ap) #ui #phWhy { display:none; }
+#ui #fl2Rate { flex:none; margin-left:auto; padding:4px 9px; }
+#ui #fl2Rate[hidden], body:not(.fl2) #ui #fl2Rate { display:none; }
 body.fl2 #flBar { order:1; display:flex; align-items:stretch; gap:6px; width:540px; box-sizing:border-box; padding:5px; }
 body.fl2 #flBar .verb { flex:none; padding:9px 13px; }
 body.fl2 #flBar .verb[hidden] { display:none; }
