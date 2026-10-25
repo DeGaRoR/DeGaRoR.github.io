@@ -1628,11 +1628,16 @@ function deformTick(stand, step, L) {
   const D = new Float32Array(nB * 3);
   for (let i = 0; i < nB; i++) { D[i * 3] = b.V[i][0] - V[i][0]; D[i * 3 + 1] = b.V[i][1] - V[i][1]; D[i * 3 + 2] = b.V[i][2] - V[i][2]; }
   const pa = meshObj.geometry.attributes.position, a = pa.array, map = I.map;
-  if (a.length !== V.length * 3) { PREVIEW.deformWhy = 'the stand is not this sheet'; return false; }
+  const ey = meshObj.userData.eye;         // G3710: the deck's appended vertices, each riding its parent
+  if (a.length !== (V.length + (ey ? ey.parent.length : 0)) * 3 || (ey && ey.nSheet !== V.length)) { PREVIEW.deformWhy = 'the stand is not this sheet'; return false; }
   const F = standFollowers(I);
   for (let i = 0; i < V.length; i++) {
     const j = map[i] * 3, p = V[i];
     a[i * 3] = p[0] + D[j]; a[i * 3 + 1] = p[1] + D[j + 1]; a[i * 3 + 2] = p[2] + D[j + 2];
+  }
+  if (ey) for (let e = 0, o = V.length * 3; e < ey.parent.length; e++, o += 3) {
+    const j = map[ey.parent[e]] * 3;
+    a[o] = ey.v0[e * 3] + D[j]; a[o + 1] = ey.v0[e * 3 + 1] + D[j + 1]; a[o + 2] = ey.v0[e * 3 + 2] + D[j + 2];
   }
   pa.needsUpdate = true;
   meshObj.geometry.boundingSphere = null; meshObj.geometry.boundingBox = null;
@@ -1672,9 +1677,10 @@ function standSoon() {
 function standRestore(stand) {
   const I = stand && DEFORM.get(stand);
   if (!I || !I.dirty || !meshObj || stand.mesh !== MS) return;
-  const V = stand.mesh.V, a = meshObj.geometry.attributes.position.array;
-  if (a.length === V.length * 3) {
+  const V = stand.mesh.V, a = meshObj.geometry.attributes.position.array, ey = meshObj.userData.eye;
+  if (a.length === (V.length + (ey ? ey.parent.length : 0)) * 3) {
     for (let i = 0; i < V.length; i++) { a[i * 3] = V[i][0]; a[i * 3 + 1] = V[i][1]; a[i * 3 + 2] = V[i][2]; }
+    if (ey) a.set(ey.v0, V.length * 3);
     meshObj.geometry.attributes.position.needsUpdate = true;
     meshObj.geometry.boundingSphere = null; meshObj.geometry.boundingBox = null;
   }
@@ -1950,9 +1956,22 @@ function* buildSteps() {
   const sd = (P.glazeOn == null || +P.glazeOn) ? sd0
     : { ...sd0, F: sd0.F.filter(f => !GLASSM.has(f.m) && f.m !== 'paneEdge') };
   const surfSel = $('surf') ? $('surf').value : 'off';
+  // G3710 (COWL-RES): THE NOSE DECK AS THE EYE SEES IT - the displayed skin only (cageEyeRefine in _cage_gen.js says
+  // why); MS, every measurement and the join's spec keep the sheet. A parked aeroplane's capture holds it off
+  // (CAGE_EYE_OFF: nobody sits in a parked cockpit); the diagnostic views draw the sheet as it is.
+  const zones = G.cageBodyZones ? G.cageBodyZones(spec) : null;
+  const zNose = zones && zones.find(z => z.key === 'nose');
+  const eyeOn = G.cageEyeRefine && zNose && !window.CAGE_EYE_OFF
+    && !(window.CAGE_UI && window.CAGE_UI.eyeRefine === false);
+  const sdE = eyeOn ? G.cageEyeRefine(sd, { zNose: zNose.z0 }) : sd;
   meshObj = (surfSel !== 'off') ? surfMesh(sd, surfSel)
     : ($('curv') && $('curv').checked) ? curvatureMesh(sd)
-    : ($('wire') && $('wire').checked) ? quadWire(sd) : meshFrom(sd);
+    : ($('wire') && $('wire').checked) ? quadWire(sd) : meshFrom(sdE);
+  // the appended vertices ride the drag preview with their parents (deformTick / standRestore)
+  meshObj.userData.eye = (meshObj.geometry && sdE !== sd && meshObj.geometry.attributes.position.count === sdE.V.length) ? {
+    parent: sdE.eyeParent, nSheet: sdE.nSheet,
+    v0: Float32Array.from(sdE.V.slice(sdE.nSheet).flat()),
+  } : null;
   // THE UNIT (see CAGE_UNIT in _cage_gen.js): metres = cage x CAGE_UNIT
   // x planeScale. The cage scales; crew scenery is already metric and
   // never does. Pages without the param build at the unit exactly.
@@ -1963,7 +1982,7 @@ function* buildSteps() {
   // and the answer travels on the object that carries the skin, in the same
   // coordinates its positions are in (cage units, before FS), so a reader
   // needs the mesh and nothing else.
-  meshObj.userData.bodyZones = G.cageBodyZones ? G.cageBodyZones(spec) : null;
+  meshObj.userData.bodyZones = zones;
   // THE FRAMES (T2.1): the resolved table for the rows' readout, and each
   // frame's station range (cage units) for the row-hover highlight
   meshObj.userData.frameZones = G.cageFrameZones ? G.cageFrameZones(spec) : null;

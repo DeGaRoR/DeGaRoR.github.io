@@ -51,6 +51,10 @@ const ROWS = window.COWL_ROWS || [];
 // their rows and builds their meshes. Their VALUES still ride through
 // CW.P (SHOWN keeps them), so the tool stays one parameter set.
 const SKIP_GROUPS = new Set(['g_mesh', 'g_spin', 'g_prop']);
+// G3711 (COWL-RES): the cowl's top arch, sampled for the pilot's eye - the longest interval the upper half keeps,
+// in metres at detail 1 (the dash's own pitch; prepareMesh's eyeArc). A page constant, not a design row: nothing a
+// build saves, so no spec and no certificate moves.
+const COWL_EYE_ARC = 0.025;
 // THE NACELLE (2026-09-04, the user: "the original engine cage/bench tool had
 // a nacelle generator, can we have this back please?"): the bench's
 // termination group is back — `aftMode` (blend / tail cone), `tailLen`,
@@ -1131,7 +1135,10 @@ function cowlPlace(ctx, again) {
   const nacelle = station.synthetic && Math.round(CW.P.aftMode) === 1;
   if (CW.P.fwLipOn !== undefined) CW.P.fwLipOn = nacelle ? 0 : CW.P.fwLipOn;
   CW.prepareLid();
-  CW.prepareMesh();
+  // G3711 (COWL-RES): the top arch sampled finer for the pilot's eye, except in a parked aeroplane's capture
+  // (CAGE_EYE_OFF) - nobody sits in that cockpit. COWL_EYE_ARC: the longest interval left on the upper half (m).
+  CW.prepareMesh(window.CAGE_EYE_OFF || (window.CAGE_UI && window.CAGE_UI.eyeRefine === false) ? undefined
+    : { eyeArc: COWL_EYE_ARC });
   // COWL ALPHA (G29, user): see the engine through the shell. The view panel
   // owns the dial (viewer state, never spec) and the materials are built to
   // it — read HERE, before the shell is built, because the alpha is now part

@@ -256,9 +256,13 @@
     const realST = W.setTimeout;
     // G2220: while a parked aeroplane is held, every step runs with the editor's sit-pitch mount at the identity (the
     // layers measure hinge lines and datums through it; the player's pitch moved their last digits)
+    // G3710: a parked aeroplane is never seen from its own cockpit - its deck and cowl are drawn at the sheet's
+    // density (CAGE_EYE_OFF, read by _cage_ui's display pass and _cage_cowl's sampling)
     const run = fn => {
       const unmount = asOn && W.PARKED.neutralSteps !== false ? neutralMount(J) : null;
-      try { return run0(fn); } finally { if (unmount) unmount(); }
+      const eye0 = W.CAGE_EYE_OFF;
+      if (asOn) W.CAGE_EYE_OFF = 1;
+      try { return run0(fn); } finally { W.CAGE_EYE_OFF = eye0; if (unmount) unmount(); }
     };
     const run0 = fn => {
       W.setTimeout = function (cb, ms) { const a = Array.prototype.slice.call(arguments, 2);

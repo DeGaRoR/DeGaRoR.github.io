@@ -8791,6 +8791,238 @@ function cageShoulder(m, S) {
   return withPanel(out);
 }
 
+// THE NOSE DECK AS THE EYE SEES IT (G3710, COWL-RES; the user, 25 Oct: "a
+// higher resolution subsurf for the nose and cowl in interior view, matching
+// the resolution of the dashboard ... the top arch of the cowl and nose ...
+// do not hold up. The Cessna is the worst example"). With `front rings` 0 the
+// deck from the windscreen base to the firewall is ONE control quad a side,
+// so level 2 leaves it four facets of ~11 cm along and across, a metre from
+// the pilot's eye, where the dash beside it is several times finer.
+//
+// WHY NOT THE CAGE (G468, item 73, tried and withdrawn): a ring in the nose
+// run is a different cage - GATE CAGEFIT holds the generator to the template
+// ring for ring - and the finer skin moves the measured rows (gear.twY by
+// 0.5 mm), which flips every certificate's fingerprint. So this is a pass on
+// the DISPLAYED mesh only: the sheet the measurements, the fit, the join and
+// the aero read is the one cageSheet returned, untouched.
+//
+// WHAT IT DOES. Each deck face (fuselage skin forward of the windscreen base,
+// upper half, facing up) is split k x k on a curved patch THROUGH the
+// existing vertices: every edge a cubic Hermite from its two smooth normals,
+// the inside a Coons patch of its four edges. Nothing that exists moves -
+// the new vertices are appended, so every index the sheet had still means
+// what it meant - and an edge's points depend on that edge alone, so two
+// split faces meet without a crack. A creased edge, or one a non-skin face
+// shares (glass, a seal, the cap), stays a straight line. A face outside the
+// deck with a split edge takes the points into its own outline (a fan from a
+// corner that is clear of them, else from its centre), so no T-junction is
+// left either. The field (aStruct) is interpolated with the position, so a
+// rivet row runs straight through. Normals: the ones every vertex had before
+// stay; the new ones are the refined faces' own average (meshFrom's rule
+// for vertices no pass described).
+//
+// opt: { zNose: the windscreen base (cage units; cageBodyZones' 'nose'.z0),
+//        k: the split per side (default 4) }. Returns m itself when there is
+// no deck to split, else a new mesh with `eyeParent` (Int32Array: each
+// appended vertex's nearest original vertex, for the garage's in-place
+// preview) and `nSheet` (the original vertex count).
+const CAGE_EYE_SKIN = new Set(['body', 'pillarFront']);
+function cageEyeRefine(m, opt) {
+  const o = opt || {};
+  const zN = o.zNose;
+  if (!m || !m.V || !m.F || zN == null || !isFinite(zN)) return m;
+  const k = Math.max(2, Math.min(8, Math.round(o.k || 4)));
+  const V = m.V, F = m.F, A = m.A || null, E = m.E || null;
+  const nrmOf = f => {                     // Newell: the fan's summed area vector
+    const n = [0, 0, 0], q = f.v.length;
+    for (let i = 0; i < q; i++) {
+      const a = V[f.v[i]], b = V[f.v[(i + 1) % q]];
+      n[0] += (a[1] - b[1]) * (a[2] + b[2]); n[1] += (a[2] - b[2]) * (a[0] + b[0]);
+      n[2] += (a[0] - b[0]) * (a[1] + b[1]);
+    }
+    return n;
+  };
+  // ---- the deck --------------------------------------------------------------
+  const cand = [];
+  let yLo = 1e9, yHi = -1e9;
+  for (let fi = 0; fi < F.length; fi++) {
+    const f = F[fi];
+    if (f.v.length !== 4 || !CAGE_EYE_SKIN.has(f.m) || f.capFace || f.win || f.door) continue;
+    let fwd = true;
+    for (const i of f.v) if (!(V[i][2] >= zN - 1e-6)) { fwd = false; break; }
+    if (!fwd) continue;
+    cand.push(fi);
+    for (const i of f.v) { const y = V[i][1]; if (y < yLo) yLo = y; if (y > yHi) yHi = y; }
+  }
+  if (!cand.length) return m;
+  const yMid = (yLo + yHi) / 2;
+  const deck = new Set();
+  for (const fi of cand) {
+    const f = F[fi], n = nrmOf(f), L = Math.hypot(n[0], n[1], n[2]);
+    if (!(L > 0) || n[1] / L < 0.2) continue;          // up-facing: the arch, not an inner shell's roof
+    let cy = 0; for (const i of f.v) cy += V[i][1];
+    if (cy / 4 < yMid) continue;                         // the upper half: not an inner shell's floor
+    deck.add(fi);
+  }
+  if (!deck.size) return m;
+  // ---- the normals every vertex has now (meshFrom's / three's rule) -----------
+  const nV = V.length;
+  const N0 = new Float64Array(nV * 3);
+  const known = new Uint8Array(nV);
+  if (m.N) for (let i = 0; i < m.N.length && i < nV; i++) {
+    const n = m.N[i];
+    if (!n || (n[0] === 0 && n[1] === 0 && n[2] === 0)) continue;
+    known[i] = 1; N0[i * 3] = n[0]; N0[i * 3 + 1] = n[1]; N0[i * 3 + 2] = n[2];
+  }
+  {
+    const acc = new Float64Array(nV * 3);
+    for (const f of F) {
+      if (m.N && !f.v.some(i => !known[i])) continue;
+      const n = nrmOf(f);
+      for (const i of f.v) { acc[i * 3] += n[0]; acc[i * 3 + 1] += n[1]; acc[i * 3 + 2] += n[2]; }
+    }
+    for (let i = 0; i < nV; i++) {
+      if (known[i]) continue;
+      const l = Math.hypot(acc[i * 3], acc[i * 3 + 1], acc[i * 3 + 2]) || 1;
+      N0[i * 3] = acc[i * 3] / l; N0[i * 3 + 1] = acc[i * 3 + 1] / l; N0[i * 3 + 2] = acc[i * 3 + 2] / l;
+    }
+  }
+  // ---- the edges: who shares them, and whether they may bend ------------------
+  const ek = (a, b) => a < b ? a + '_' + b : b + '_' + a;
+  const deckEdges = new Map();             // key -> { a, b } (a < b)
+  for (const fi of deck) {
+    const v = F[fi].v;
+    for (let i = 0; i < 4; i++) {
+      const a = v[i], b = v[(i + 1) % 4], key = ek(a, b);
+      if (!deckEdges.has(key)) deckEdges.set(key, { a: Math.min(a, b), b: Math.max(a, b), skin: 0, other: 0 });
+    }
+  }
+  const touched = [];                      // faces outside the deck on a deck edge
+  const onDeck = new Uint8Array(nV);
+  for (const fi of deck) for (const i of F[fi].v) onDeck[i] = 1;
+  for (let fi = 0; fi < F.length; fi++) {
+    const v = F[fi].v, q = v.length;
+    let nd = 0;
+    for (let i = 0; i < q; i++) nd += onDeck[v[i]];
+    if (nd < 2) continue;                  // (the slider's tick: most faces never build a key)
+    let hit = false;
+    for (let i = 0; i < q; i++) {
+      const e = deckEdges.get(ek(v[i], v[(i + 1) % q]));
+      if (!e) continue;
+      hit = true;
+      if (CAGE_EYE_SKIN.has(F[fi].m) && !F[fi].capFace) e.skin++; else e.other++;
+    }
+    if (hit && !deck.has(fi)) touched.push(fi);
+  }
+  // ---- the new vertices -------------------------------------------------------
+  const NVo = V.slice(), NAo = A ? A.slice() : null, NNo = [];
+  for (let i = 0; i < nV; i++) NNo.push([N0[i * 3], N0[i * 3 + 1], N0[i * 3 + 2]]);
+  const parent = [];
+  const addV = (p, a, par) => {
+    NVo.push(p); if (NAo) NAo.push(a); NNo.push(null); parent.push(par);
+    return NVo.length - 1;
+  };
+  const lerpA = (qa, qb, t) => (qa && qb) ? [0, 1, 2, 3].map(i => qa[i] + (qb[i] - qa[i]) * t) : null;
+  const nrm = i => [N0[i * 3], N0[i * 3 + 1], N0[i * 3 + 2]];
+  // an edge's k-1 inner points, from a to b (a < b); straight when it may not bend
+  for (const [key, e] of deckEdges) {
+    const pa = V[e.a], pb = V[e.b];
+    const bend = !e.other && e.skin >= 2 && !(E && (E.get(key) || 0) >= 1);
+    let ta = null, tb = null;
+    if (bend) {
+      const d = [pb[0] - pa[0], pb[1] - pa[1], pb[2] - pa[2]], L = Math.hypot(d[0], d[1], d[2]);
+      const tan = n => {
+        const s = d[0] * n[0] + d[1] * n[1] + d[2] * n[2];
+        const t = [d[0] - s * n[0], d[1] - s * n[1], d[2] - s * n[2]], l = Math.hypot(t[0], t[1], t[2]);
+        return l > 1e-12 ? t.map(x => x * L / l) : d.slice();
+      };
+      ta = tan(nrm(e.a)); tb = tan(nrm(e.b));
+    }
+    e.pts = [];
+    for (let s = 1; s < k; s++) {
+      const t = s / k;
+      let p;
+      if (bend) {
+        const t2 = t * t, t3 = t2 * t;
+        const h00 = 2 * t3 - 3 * t2 + 1, h10 = t3 - 2 * t2 + t, h01 = -2 * t3 + 3 * t2, h11 = t3 - t2;
+        p = [0, 1, 2].map(i => h00 * pa[i] + h10 * ta[i] + h01 * pb[i] + h11 * tb[i]);
+      } else p = [0, 1, 2].map(i => pa[i] + (pb[i] - pa[i]) * t);
+      e.pts.push(addV(p, NAo ? lerpA(A[e.a], A[e.b], t) : null, t < 0.5 ? e.a : e.b));
+    }
+  }
+  // the points of edge (a -> b) in that direction, ends included
+  const run = (a, b) => {
+    const e = deckEdges.get(ek(a, b));
+    const inner = a < b ? e.pts : e.pts.slice().reverse();
+    return [a].concat(inner, [b]);
+  };
+  // ---- the deck faces, k x k --------------------------------------------------
+  const outF = [];
+  const drop = new Set(deck);
+  for (const fi of deck) {
+    const f = F[fi], [v0, v1, v2, v3] = f.v;
+    const C0 = run(v0, v1), C1 = run(v3, v2), D0 = run(v0, v3), D1 = run(v1, v2);
+    const P0 = V[v0], P1 = V[v1], P2 = V[v2], P3 = V[v3];
+    const grid = [];                       // grid[j][i]: u = i/k along v0->v1, v = j/k along v0->v3
+    for (let j = 0; j <= k; j++) {
+      const row = [];
+      for (let i = 0; i <= k; i++) {
+        if (j === 0) { row.push(C0[i]); continue; }
+        if (j === k) { row.push(C1[i]); continue; }
+        if (i === 0) { row.push(D0[j]); continue; }
+        if (i === k) { row.push(D1[j]); continue; }
+        const u = i / k, w = j / k;
+        const c0 = NVo[C0[i]], c1 = NVo[C1[i]], d0 = NVo[D0[j]], d1 = NVo[D1[j]];
+        const p = [0, 1, 2].map(x =>
+          (1 - w) * c0[x] + w * c1[x] + (1 - u) * d0[x] + u * d1[x]
+          - ((1 - u) * (1 - w) * P0[x] + u * (1 - w) * P1[x] + (1 - u) * w * P3[x] + u * w * P2[x]));
+        let a = null;
+        if (NAo && A[v0] && A[v1] && A[v2] && A[v3])
+          a = [0, 1, 2, 3].map(x => (1 - u) * (1 - w) * A[v0][x] + u * (1 - w) * A[v1][x]
+                                  + (1 - u) * w * A[v3][x] + u * w * A[v2][x]);
+        const par = u < 0.5 ? (w < 0.5 ? v0 : v3) : (w < 0.5 ? v1 : v2);
+        row.push(addV(p, a, par));
+      }
+      grid.push(row);
+    }
+    for (let j = 0; j < k; j++)
+      for (let i = 0; i < k; i++)
+        outF.push(Object.assign({}, f, { v: [grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i]] }));
+  }
+  // ---- the ring round it: the split edges' points in its own outline -----------
+  for (const fi of touched) {
+    const f = F[fi], v = f.v, q = v.length;
+    const poly = [], split = [];
+    for (let i = 0; i < q; i++) {
+      const a = v[i], b = v[(i + 1) % q], e = deckEdges.get(ek(a, b));
+      poly.push(a);
+      split.push(!!e);
+      if (e) for (const p of run(a, b).slice(1, -1)) poly.push(p);
+    }
+    drop.add(fi);
+    let apex = -1;
+    for (let i = 0; i < q; i++) if (!split[i] && !split[(i - 1 + q) % q]) { apex = i; break; }
+    if (apex >= 0) {
+      const s = poly.indexOf(v[apex]);
+      outF.push(Object.assign({}, f, { v: poly.slice(s).concat(poly.slice(0, s)) }));
+    } else {
+      const c = [0, 0, 0];
+      for (const i of v) { c[0] += V[i][0] / q; c[1] += V[i][1] / q; c[2] += V[i][2] / q; }
+      let ca = null;
+      if (NAo && v.every(i => A[i])) { ca = [0, 0, 0, 0]; for (const i of v) for (let x = 0; x < 4; x++) ca[x] += A[i][x] / q; }
+      const ci = addV(c, ca, v[0]);
+      for (let i = 0; i < poly.length; i++)
+        outF.push(Object.assign({}, f, { v: [ci, poly[i], poly[(i + 1) % poly.length]] }));
+    }
+  }
+  const out = Object.assign({}, m, {
+    V: NVo, F: F.filter((_, fi) => !drop.has(fi)).concat(outF), N: NNo,
+    eyeParent: Int32Array.from(parent), nSheet: nV,
+  });
+  if (NAo) out.A = NAo;
+  return out;
+}
+
 // THE FIELD RE-MEASURED ON THE SMOOTH SKIN (G476, playtest item 149, the
 // user's Screenshot 2026-09-19 162154: "mapping issue on the centre section,
 // back and belly - stretched rivets"). sC is the arc round the CONTROL ring's
@@ -9067,7 +9299,7 @@ if (typeof module !== 'undefined')
                      CAGE_FRAME_KEYS, CAGE_FRAME_ORDER, CAGE_FRAME_NAMES, CAGE_LEGACY_FRAME,
                      cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                      CAGE_UNIT,
-                     buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc,
+                     buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageEyeRefine,
                      cageRims, cageInterior, cageCut, cageGlassSill,
                      cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                      cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,
@@ -9078,7 +9310,7 @@ if (typeof window !== 'undefined')
                    CAGE_FRAME_KEYS, CAGE_FRAME_ORDER, CAGE_FRAME_NAMES, CAGE_LEGACY_FRAME,
                    cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                    CAGE_UNIT,
-                   buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc,
+                   buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageEyeRefine,
                    cageRims, cageInterior, cageCut, cageGlassSill,
                    cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                    cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,
