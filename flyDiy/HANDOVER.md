@@ -98142,3 +98142,127 @@ The user, 24 Oct: the garage's CG / neutral point indicators get clear colour co
 | over 40 % | orange ! | very nose-heavy: the elevator may run out in the flare (the design check's own nose-heavy warning) |
 
 The edges are one table (`GEN_MARGIN_BANDS`), so changing them is a one-line edit.
+## G3501-G3509 - DC3-BUILD: A FULL-SIZE DC-3 (29 m, 2 x R-1830) BUILT THROUGH THE GARAGE'S OWN PATH STANDS, ROLLS, ROTATES, FLIES THE CIRCUIT AND LANDS IN NODE; THE SIX VALIDATED BUILDS BIT-IDENTICAL TO MASTER (2026-10-23/24, cloud, node only; branch claude/dc3-build off master 20a13667 = L23b; NOT on claude/ready/; for A0)
+The user (23 Oct, verbatim): "On the DC3, we'll go full size. It does not really have a place in the career yet, but you could use the large hangar for now, and set this one the the 'works' preset, just for now and the sandbox. Don't consider anything game-related on the DC3 yet."
+Continues DC3-STUDY (G3500, origin/claude/dc3-study): its study, tools/dc3_probe.js and both of its fixtures are brought across (the probe gains one printer fix and exports).
+- **What was done, in plain words:**
+  - **The DC-3 exists at full size and flies.** tools/fixtures/dc3_2026-10.json is born as the garage births a build: the
+    metal Cessna's file with the DC-3's rows dialled into the editor at planeScale 1.6, then the page's own load door
+    (tools/_load_build.js: the editor's layers draw it, the join measures it, the energy layer fits the tanks), then
+    buildGen. **0 join errors, design check clean** (13 rows, no fail; one warn: yaw.dutch 0.124). The pilot (43_pilot)
+    flies it from HOME through the whole circuit: **outcome "completed", 0 breaks, no crash, gPeak 1.66.**
+  - **What it took (each change gated on the build's size or mass, so a build inside today's envelope takes today's path):**
+    - G3501 **the wing pair's engine bearer sized to the engine** (61_gen_frame.js, wing nacelle): above
+      GEN_RULES.mountHeavyKg (500 kg a side) every bearer member's damage section x (side mass / mountRefKg 59 kg,
+      the 582 twin's calibration) - the R-1830's x16. Strength only (A); k, c, mass and bill as built.
+    - G3502 **the rotate-pull for a heavy taildragger** (43_pilot.js): over A.heavyTDKg (3 000 kg), past Vr, a
+      second on the 0.35 stop under the rotation attitude opens the stop to full travel (the tricycle's G3077 rescue).
+      It is a safety net: the fixture never needed it (no 'rotate-pull' verdict), and no porpoise was seen at lift-off,
+      so no lift-off damping was added.
+    - G3503 **the big envelope** (60_gen_spec.js): a wing asked over 18 m (genBig / genEnvBig / genWingEnv) is clamped
+      by GEN_WING_ENVELOPE.big (span 30, chord 5.0, xLE 9.0), GEN_TAIL_ENVELOPE.big (stab 9 x 3 m, fin 4 x 3.5 m),
+      GEN_FIELDS clampBig (cabin 1.40 / 3.00 / 10.0 m, tail arm 20, hX / vX 21, Sh 27, Sv 15, Svt 20, leg drop 1.8),
+      gear (track 6, wheel 0.65, tailwheel x 20, mains x 8) and fuel (4 000 L, 2 000 a vessel). A build of 18 m or less
+      is clamped by exactly master's numbers (proven: the metal Cessna's drawn 1.51 m cabin stays held at 1.45; an
+      ungated widening moved it - caught by the identity run, then gated). The editor's rows: span 6.5-30, chord and
+      tip chord to 5.0, fore / aft -6.0..1.8 (_cage_wing.js); half track 0-3.2 m, wheel to 0.65, leg drop to 1.6
+      (_cage_gear.js). The join's ERRS rows and the wing layer's station window read the big envelope past 18 m drawn.
+    - G3504 **frames along a long cabin** (61_gen_frame.js): a cabin longer than GEN_RULES.cabBayMax (2.6 m, the old
+      ceiling) gets evenly spaced full-section rings; its rear ring is iCabR (2 on every cabin inside the old ceiling).
+      The DC-3's 9.04 m cabin has 4 bays of 2.26 m (stations 1.10 3.36 5.62 7.88 10.14). genFusCdA's fore / aft body
+      split follows (62_gen_aero.js).
+    - G3505 **strength at size** (61_gen_frame.js, 30_solver.js): above GEN_RULES.gaugeHoldK (2) x the airframe
+      material's refGross (alloy 2 222 kg), a gauged member's damage section grows with the design gross over that knee
+      (the DC-3's x4.1) and the tail cone's shell skin by its root (the bending limit ~t^2: x4.1); mass, bill and k stay
+      the gauge's. CRASH_J grows with the mass above 3 t. Without this the full size broke its cabin-to-tail-cone joint
+      settling on its wheels (S5-S6 root-bend, 0.12 s): the aft longerons were the 172's 180 mm2 class floor.
+    - G3506 **the split flap** (S): GEN_FLAPS.split (dCl 0.90, cd 0.110, rate 0.20; travel 45 deg), appended last so no
+      saved wgFlapType index moves; the DC-3 lands on it. **Retracting mains (M) not done.**
+    - G3507 **sandbox only** (src/viewer/app.js): a build whose span the sandbox room's door cannot take (the club's
+      25 m against 29 m; 71_player_bases hangarDoorWhy) moves the sandbox's room to the WORKS shell through the shed
+      sheet's own door (GARAGE_ENV.setShell: rebuilt, re-framed, HOME's shed in the world follows) - never in a career,
+      never for a build of 18 m or less, never when no shed takes it; the garage eye stands back in proportion past
+      18 m (22.6 m at 29 m). Nothing in the career, contracts, economy, story, tech mask or parking.
+- **The numbers vs the real DC-3** (`node tools/dc3_build.js`; flown at 8 527 kg: full 3 110 L, 2 crew; the real MTOW
+  is 11 431 kg, so the speeds are also given scaled by sqrt(11 431 / 8 527) = 1.158):
+  | | real DC-3 | flown fixture | scaled to MTOW |
+  |---|---|---|---|
+  | span / wing area / AR | 29.0 m / 91.7 m2 / 9.2 | 29.0 / 92.8 / 9.1 | |
+  | root chord / taper / track | ~4.4 m / ~0.45 / 5.64 m | 4.40 / 0.45 / 5.64 | |
+  | cabin box / tail arm | 2.34 x 1.98 x 9.1 m inside | 2.43 x 2.63 x 9.04 outside the skin / 17.84 m | |
+  | deck angle on three points | ~11.5 deg | 11.6 deg | |
+  | mass | 7 650 empty, 11 431 MTOW | 8 527 (empty ~6 130) | |
+  | Vs clean / flaps (kt) | ~67 / 58 | 59 / 53 | 68 / 62 |
+  | Vappr (kt) | ~80-85 | 78 | 90 |
+  | climb (m/s) | 5.7 | 8.5 sheet, 9.9 flown max | (lighter: not comparable) |
+  | cruise (kt) | 160-180 | 132 sheet = the 2.2 Vs cap (64_gen_build.js:137), not a drag figure | |
+  | take-off | roll 271-518 m | sheet 305 m; flown: off the ground (0.5 m) after 437 m at 81 kt, 15 m after 677 m | |
+  | landing | over 50 ft 640 m, roll 244 m | flown: from 15 m 791 m, roll 233 m; touchdown 1.09 m/s at 64 kt on the mains | |
+  | static margin | | 0.091 (no corner row) | |
+  | the circuit (pilot) | | ROLL 0 s, LIFTOFF 17.0, CLIMB 28.2, CROSSWIND 39.5, DOWNWIND 65.3, BASE 133.5, FINAL 166.6, FLARE 268.7, ROLLOUT 274.6, STOPPED 305.6 s; 240 m AGL | |
+  | lattice | | 132 nodes / 585 beams / 33 strips, 147 substeps; certificate 47 s | |
+  | price (ledger) | | 507 263 | |
+  | solver per 60 Hz frame (node, airborne) | | 11.5-12.0 ms measured alone (16 ms beside six other processes); the study's Cub 2.35, metal Cessna 4.60, its 18 m fit build 19.0 | |
+- **The identity proof** (tools/dc3_identity.js, loaded the game's way through tools/_load_build.js; before = an
+  origin/master 20a13667 worktree, after = this branch; reports/dc3_identity_master_2026-10-23.json and
+  reports/dc3_identity_branch_2026-10-23.json): Cub, Jodel, metal Cessna, Cessna floats, twin floatplane, Rufus - the
+  def (sha1 of the whole def), the shakedown sheet, the mass / cost ledger, the certificate (genCertify without its
+  wall-clock `ms`), the mass and a 20 s flight (spawn, settle, the pilot's take-off; every node's position and velocity)
+  **ALL IDENTICAL**. Also the raw-spec path GATE POD builds (no load door, + the C172 fixture): byte-identical between
+  the two cores.
+- **Gates** (`node tools/run_gates.js --only=... --no-build`, this box: 4 cores):
+  - **PASS (40, batch 1):** `GATE GEN: PASS` (4 shards), `GATE PILOT: PASS` (3 shards), `GATE TAKEOFF: PASS`, `GATE DESIGN: PASS`,
+    `GATE DESIGNCHECK: PASS`, `GATE JOIN: PASS`, `GATE PARTS: PASS`, `GATE SUBSTEP: PASS`, `GATE KNIFE: PASS`, `GATE FLAPS: PASS`,
+    `GATE HINGE: PASS`, `GATE MOUNT: PASS`, `GATE DMGMEMBERS: PASS`, `GATE FLOATS: PASS`, `GATE SPECFIX: PASS`, `GATE WINGROWS: PASS`,
+    `GATE BUILD: PASS`, `GATE FIT: PASS`, `GATE MASS: PASS`, `GATE LOAD: PASS`, `GATE BIPLANE: PASS`, `GATE FRAMES: PASS`,
+    `GATE GEAR: PASS`, `GATE BAY: PASS`, `GATE EDBUGS: PASS`, `GATE STARTER: PASS`, `GATE SAVE: PASS`, `GATE WINGSPLIT: PASS`,
+    `GATE NACLAG: PASS`, `GATE ENERGYBASE: PASS`, `GATE SKINMAT: PASS`, `GATE HANGAR: PASS`, `GATE GAMEPREM: PASS`,
+    `GATE UISMOKE: PASS`, `GATE ACCEPT: PASS`, `GATE LINEUP: PASS`, `GATE STRIPSURF: PASS`, `GATE ENGINE: PASS`, `GATE ENGID: PASS`.
+  - **RED, master's (control run on an origin/master 20a13667 worktree, the same rows):** `GATE JOINPARITY: 1 FAIL` (five
+    other tools fly a validated build raw: _apsmooth_check, _engtorque_check, econ_sim, engine_torque_seasweep,
+    hand_controls_probe - the study's finding; the new dc3 tools load through _load_build.js) and `GATE POD: FAIL` (12 rows,
+    "pod off, the whole def / sheet is the base's bytes": tools/_pod_base.json is stale against master's core; the raw-spec
+    digests POD computes are byte-identical between master and this branch for all six of its builds).
+  - **RADIALDIV:** the runner's 1 800 s default timeout ends it on this 4-core box, alone too (`[spawn error] ETIMEDOUT`;
+    reference wall 700 s). Run directly (`node tools/_radialdiv_check.js`): `GATE RADIALDIV: FAIL (3)` - the 3 HANDS OFF rows (mosquito -55.8, mosquito_1
+    -55.9, cub -46.9 deg); **master's**: the same file on the origin/master worktree reads the identical 3 rows and numbers.
+  - **Batch 2** (a container restart lost the first run; re-run in chunks at --jobs=2):
+    - PASS: `GATE CLIMATE: PASS`, `GATE CONTACT: PASS`, `GATE GE: PASS`, `GATE PROFILE: PASS`, `GATE WATER: PASS`,
+      `GATE WATERDAMP: PASS`, `GATE FREIGHT: PASS`, `GATE PILOTS: PASS`, `GATE ENGTORQUE: PASS`, `GATE HEADING: PASS`,
+      `GATE PANEL: PASS`, `GATE ELEC: PASS`, `GATE DMGSETTLE: PASS`, `GATE DMGFPS: PASS`.
+    - RED, **master's** (control on the origin/master worktree, identical FAIL rows - diffed line for line):
+      `GATE TREEHIT: FAIL`, `GATE DMGCERT: FAIL`, `GATE DMGTYRE: FAIL (4)`, `GATE DMGFABRIC: FAIL` (its pinned base bits),
+      `GATE DMGCOMPOSITE: FAIL` (its pinned base bytes), `GATE BENCH: FAIL` ("the phase strip knows all 24 pilot phases -
+      not ROUTE, LOITER"), `GATE CLOUD: FAIL (1 of 239)` (master's listed standing red).
+    - RED, **not controlled** (no credit left for the control): `GATE HITBOX: FAIL` - one TIMING row ("the spec shape
+      costs less than the raster": 193 against 164 ms, run beside other gates; it PASSED on the master worktree run
+      alone-ish) - re-run it quiet; `GATE DMGCERTCOST: FAIL` - its row 1 is node wall time (56.5 s against a 42 s ceiling
+      on this slow 4-core box); `GATE DMGINST: FAIL` - worker / watchdog rows (the worker's certificate key, a blown
+      lattice's 'speed' trip, the worker host's diverged()), nothing that reads a build this branch changes. A0: control
+      these three on the box.
+  - **NOT RUN (out of session credit)** - A0 please run on the box: TREECRASH DMGGEAR DMGNOSE DMGDRIVE DMGWALL DMGSCAR
+    RWYTREES FLEX TAXICLEAR PLAN ROUTE DESTTO DMGSKIN DMGSKINGPU DMGPAGEW DMGWRECK DMGHEAL; batch 3, the app.js readers
+    (AA POSTFX INPUT ATMOS PACE FLIGHTREC AUDIO BOOMBOX FOG ATMO DEFAULT SKIN HWCOV SCENERY ASSETBUDGET ANIMALS GFX
+    PROGRAMS FRAMECOST ROUNDTRIP ROLLANIM ROLLSND UPDATE UILAYER FADES SHADOWSKY MEDIA ASSETS LIVERY WEATHER LIGHT
+    POSEHIDDEN SIMWORKER SHEETWORKER POSEBACK VIEW REF HONESTY PREMISES SCENERYED PREMCOOK PARKED FLOWNBAKE PLAYER
+    STORAGE STORESPOT STOREDRAW STAGES STORY ROUTES ECON PROCURE ENERGY AUDIOENG LAZY); the full tier (PILOTMATRIX,
+    PILOTPAGE, DESIGNSIM, ARCHETYPES, SEAPLANE, BOOTLIFT). The app.js change is two sandbox-only functions (G3507); every
+    core change is proven bit-identical on the six validated builds and on POD's raw path, so a new red there would be a
+    source scan, not a flown number.
+- **For A0 on the box:**
+  - Stills of the DC-3 in the large hangar (master's garage_shot has only --stock; the --file door is engine-configs-2's,
+    as in the study): `git show origin/claude/engine-configs-2:flyDiy/tools/garage_shot.js > tools/_gs_file.tmp.js`, then
+    `node tools/_gs_file.tmp.js --file tools/fixtures/dc3_2026-10.json --out screenshots/dc3_build` (the sandbox: the room
+    should switch itself to the works when the 29 m build lands - G3507; if the shot shows the club, that hook did not run
+    in the shot's path: say so). Delete the tmp copy after. The garage camera at 22.6 m is untested on a screen.
+  - A page flight if a rig exists: load the fixture in the sandbox, roll out at HOME 13/31, let the pilot fly the circuit.
+  - `node tools/dc3_build.js` (~7 min: sheet, certificate, the pilot's circuit) and `node tools/dc3_identity.js --cert`.
+- **Decisions for the user:**
+  1. **The sandbox room for a wide build** (G3507): it switches HOME's sandbox room to the works, and stays the works
+     afterwards (the shed sheet can put the club back). Keep, or switch back automatically when a narrow build loads?
+  2. **The DC-3's weight**: the build is ~1.5 t under the real empty weight (the gauge's Raymer exponents bill the
+     structure light at this size) and seats 8 (the cabin's drawn pax bays); at MTOW the real DC-3 carries 21+.
+     Bring the empty weight up (a heavier gauge above the knee), or keep the lighter aeroplane?
+  3. **The strength rule above the knee** (G3505) is a game rule, not physics: one lattice member stands for an
+     airliner's stringers and skin. It is gated off below 2 x refGross. Accept it as the rule for big builds?
+  4. Retracting mains (G3506 M), engine-out handling and per-engine gauges (G3508), the career (G3509): not started.
