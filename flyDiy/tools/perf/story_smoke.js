@@ -88,7 +88,8 @@ async function click(sel) {
   await sleep(400);
   return true;
 }
-const key = async (k, code, vk) => { await b.cmd('Input.dispatchKeyEvent', { type: 'keyDown', key: k, code, windowsVirtualKeyCode: vk }); await b.cmd('Input.dispatchKeyEvent', { type: 'keyUp', key: k, code, windowsVirtualKeyCode: vk }); };
+// (Enter carries its character: a text box commits on change, which Chrome fires only on the keypress, not the raw keyDown)
+const key = async (k, code, vk) => { await b.cmd('Input.dispatchKeyEvent', Object.assign({ type: 'keyDown', key: k, code, windowsVirtualKeyCode: vk }, k === 'Enter' ? { text: '\r', unmodifiedText: '\r' } : {})); await b.cmd('Input.dispatchKeyEvent', { type: 'keyUp', key: k, code, windowsVirtualKeyCode: vk }); };
 const waitStep = (id, ms) => waitFor('!!(window.FLYDIY_STORY && window.FLYDIY_STORY.tutor && window.FLYDIY_STORY.tutor().step === ' + JSON.stringify(id) + ')', ms || 20000);
 const next = async () => { const ok = await click('#stTim [data-tim="tnext"]'); await sleep(1800); return ok; };
 
@@ -108,7 +109,9 @@ const next = async () => { const ok = await click('#stTim [data-tim="tnext"]'); 
       for (const [name, q] of [['cub waiting', ''], ['control (?stcub=0)', '&stcub=0']]) {
         if (b) { await b.close(); try { fs.rmSync(UDD, { recursive: true, force: true }); } catch (e) {} }
         b = await MB.browser(UDD);
-        const l0 = await b.load(base + '?mode=career&intro=0' + q, PRE);
+        // (the bench's recorder - long tasks, program links - without its storage writes: the pre-script from its recorder on)
+        const REC = (() => { const t = MB.preScript('default'); return t.slice(t.indexOf('(function(){ if (window.__MB)')); })();
+        const l0 = await b.load(base + '?mode=career&intro=0' + q, REC + ';' + PRE);
         await waitFor('!!(window.FLYDIY_STORY && window.FLYDIY_STORY.story() && window.FLYDIY_STORY.story().planes.starter && window.GARAGE_SPEC && window.GARAGE_SPEC.name())', 120000);
         const t0 = await b.ev('performance.now()');
         await sleep(HOLD);
