@@ -401,7 +401,7 @@ for (const seed of [0, 1, 6, 12, 42]) {
 // every solid thing BUT the props (IXP); a prop fails only where it meets a plane, and those rows stand on the full index
 // (IX, props in): the fleet's spots (10, and the spots row below), every stand and route (6), a plot's own way (below).
 if (BASE) {
-  const pave = L.paveOf(WI), inp = L.spotInputs(WI, IX, pave), IXP = L.index(SH.filter(q => q.tag !== 'prop'));
+  const pave = L.paveOf(WI), inp = L.spotInputs(WI, IX, pave), IXP = L.index(SH.filter(q => q.tag !== 'prop' && q.tag !== 'prop?'));   // ('prop?': a prop whose key has no box, a 0.6 m disc)
   const foot = id => { for (const a in C.BASE_OFFERS) { const P = C.BASE_OFFERS[a].plots[id]; if (!P) continue; let HW = 0, HD = 0;
     for (const sh of P.shells) { const d = (P.dims && P.dims[sh]) || C.SHELLS[sh].dims; HW = Math.max(HW, d.HW); HD = Math.max(HD, d.HD); } return { HW, HD }; } return null; };
   const outline = (p, F, m) => { const fx = Math.cos(p.hdg), fz = Math.sin(p.hdg), nx = -fz, nz = fx, A = F.HD + m, B = F.HW + m, pts = [];
