@@ -2275,18 +2275,20 @@ function makePilot(sim, def, world, opts) {
       }
       // G1936: THE SLIP'S RUDDER, mixed over the lateral law's (whose bank then holds the track)
       // G3472 (T-P1 SLIP-BETA; A0's read of the user's ultralight, 24 Oct: the fixed 0.80 of rudder put a 379 kg airframe 28-33
-      // deg side-on in 2-4 s, the aileron on its cap, two incipient spirals): THE SLIP'S RUDDER IS THE AIRFRAME'S - EASED ON A
-      // SPIRAL, NOT ON A DEEP SLIP. It starts at drSlip (0.80) and is eased off (0.5 /s) while the bank runs past bankSlip (15
-      // deg; the slip's own bank stays under 6) or the sideslip past betaSlip (35 deg), given back (0.1 /s) only once both are
-      // well inside (10 deg, 30 deg). A first cut eased it past 15 deg of SIDESLIP: Rufus flies a steady 27 deg slip on 0.80
-      // (bank under 6 deg, 4 m/s down) and the cap hunted it 4 <-> 23 deg every 4 s at 2.6 m/s down - high 8 m at 58 m on
-      // the calm mine final, twice round, diverted (replay 25 Oct 04:50)
+      // deg side-on in 2-4 s, the aileron on its cap, two incipient spirals): THE SLIP'S RUDDER IS WHAT THE AILERON CAN HOLD.
+      // The bank that keeps the track is the aileron's; past its stop the rudder's roll wins and the aeroplane slides off the
+      // line. Rufus on 0.80 (replay 25 Oct 07:45): 28 deg side-on, the aileron on its 0.30 stop from the first second, the bank
+      // walked -3 -> +10 deg and the calm final ended 111 m off the centreline, twice round; in the day's wind 4.9 m/s down and
+      // 5 m low, twice round. Two earlier cuts eased it on the SIDESLIP (15 deg: hunted 4 <-> 23 deg every 4 s, high 8 m) and
+      // on the bank (never reached: the slide is in the track, not the bank). The rudder starts at drSlip (0.80) and is
+      // eased (0.4 /s) while the aileron works past 90 % of its stop (or the bank past bankSlip 15 deg, the sideslip past
+      // betaSlip 35 deg), given back (0.08 /s) only under 70 % with both well inside
       if (slipK > 0 && (AF.lat === 'LOC' || AF.lat === 'PATH')) {
-        const dr0 = A.drSlip ?? 0.80, bCap = A.betaSlip ?? 0.61, phCap = A.bankSlip ?? 0.26;
+        const dr0 = A.drSlip ?? 0.80, bCap = A.betaSlip ?? 0.61, phCap = A.bankSlip ?? 0.26, aU = Math.abs(c.da) / SERVO_GAINS.daMax;
         if (slipDr == null) slipDr = dr0;
-        const spiral = Math.abs(ph) > phCap || Math.abs(beta) > bCap;
-        const calmS = Math.abs(ph) < 0.66 * phCap && Math.abs(beta) < 0.86 * bCap;
-        slipDr = clamp(slipDr + (spiral ? -0.5 : calmS ? 0.1 : 0) * dt, 0.15, dr0);
+        const spiral = aU > 0.90 || Math.abs(ph) > phCap || Math.abs(beta) > bCap;
+        const calmS = aU < 0.70 && Math.abs(ph) < 0.66 * phCap && Math.abs(beta) < 0.86 * bCap;
+        slipDr = clamp(slipDr + (spiral ? -0.4 : calmS ? 0.08 : 0) * dt, 0.15, dr0);
         c.dr = (1 - slipK) * c.dr + slipK * slipSg * slipDr;
       } else if (slipK === 0) slipDr = null;
       // G381.1: POWER WHEN THE ELEVATOR RUNS OUT. On the approach and in the
