@@ -107,7 +107,9 @@ function infraCheck(proj, rec, O, C) {
   ok(LB.length === 5 && LB.every(l => Number.isInteger(l.x) && Number.isInteger(l.y) && (!l.poi || proj.pois.some(p => p.id === l.poi))), 'the labels: ' + LB.map(l => l.label + (l.poi ? ' (for ' + l.poi + ')' : '')).join(', '));
   const raw = Buffer.byteLength(JSON.stringify(I)), gz = require('zlib').gzipSync(JSON.stringify(I), { level: 9 }).length;
   // (G3014, ACCEPTED BY NAME - the user 12 Oct, "accept the map data at 18.2 KB compressed (budget 20 KB): yes" (12 Oct 21:33, via A0): their strips, roads and zones grew the projection; 48 / 16 -> 72 / 20 KB)
-  ok(raw <= 72 * 1024 && gz <= 20 * 1024, 'its budget: ' + (raw / 1024).toFixed(1) + ' KB raw <= 72 KB, ' + (gz / 1024).toFixed(1) + ' KB gzipped <= 20 KB (sha8 ' + require('./_media_lib.js').sha8(Buffer.from(JSON.stringify(I))) + ')');
+  // (JOLENE-FOLD 25 Oct, A0: raw 72 -> 76 KB for the user's own scenery - AFB (19) adds ~2.5 KB of map; the user ruled "no
+  //  gz-KB work", a size budget never holds their content back)
+  ok(raw <= 76 * 1024 && gz <= 20 * 1024, 'its budget: ' + (raw / 1024).toFixed(1) + ' KB raw <= 76 KB, ' + (gz / 1024).toFixed(1) + ' KB gzipped <= 20 KB (sha8 ' + require('./_media_lib.js').sha8(Buffer.from(JSON.stringify(I))) + ')');
   return W;
 }
 
