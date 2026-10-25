@@ -99011,3 +99011,11 @@ Strict light gate RED both runs (13 / 16) vs the 12 Oct baseline; judged against
 - OPEN: floats water taxi @SEA p99 66.7 ms / over100 2 - re-run only (also L25a); suspect dmg-scar2-occupant's per-step record. A0 bisects it alone in tonight's 23:15 CPU+GPU slot; the owner fixes if it reproduces.
 - OPEN (Pilot): Rufus mine CALM still open: twice round, high 7-8 m at 58 m, divert; cause = the 1.4/LDbest slope cap needs a slip Rufus's aileron can't hold.
 Pushed by the user's order of 25 Oct: land last week's items and priority 1 as soon as possible.
+
+## G3452 - CG-WARN: A WARNING SIGN IN THE CG READOUT ITSELF ON RED AND ORANGE (2026-10-25, RUFUS-CERT for A0; claude/cg-warn, on top of G3450; for L25c or L26a)
+
+The user on the G3450 stills (25 Oct): "The CG coloring looks good, but I'd put a warning sign straight in the CG text if not good (red or orange)."
+- src/viewer/app.js: when the margin's band carries its mark (red or orange), the centre of gravity's readout opens on a ⚠ ("⚠ 52 % of the wing chord"). A build with no wing chord has no readout, so the band's title stands in ("⚠ unstable in pitch"). A green build is unchanged. The "!" on the margin line and the tooltip stay as G3450 shipped them.
+- The ⚠ is not in IBM Plex Mono; the label canvas draws it from the system's symbol font (Segoe UI Symbol, Apple Symbols, Noto). Its still is the check.
+- GATE CGBAND: one source row for the readout's sign.
+- Gates: CGBAND, UISMOKE, plus one red still to show the glyph.
