@@ -42,7 +42,11 @@ var GROUND_SCAR = (() => {
   // OPAQUE at terrainH + 0.04 (renderOrder 5, writing depth) with its paint over it (6), pavement.js lifts a strip's side
   // 0.06-0.08 - under any of them the scuff was drawn and then hidden (the runway's nose-over, 7 Oct). The mesh draws at
   // renderOrder 6.5: after the runway's paint, before the editor's lines (7+)
-  const S = { lift: 0.03, liftHard: 0.08, step: 0.3, ring: 7, seg: 28, across: 6, rag: 0.25, acrossHard: 12, scuffA: 0.85, order: 6.5 };
+  // G3651: ragHard the scuff's edges' wobble, gapHard the noise level under which a streak breaks (~1/3 of its length),
+  // runHard the metres between the breaks of a long scuff as a whole; scuffA 0.85 -> 0.95 (its cores: the feather and the
+  // breaks take the rest)
+  const S = { lift: 0.03, liftHard: 0.08, step: 0.3, ring: 7, seg: 28, across: 6, rag: 0.25, acrossHard: 12, scuffA: 0.95, order: 6.5,
+    ragHard: 0.4, gapHard: 0.32, runHard: 3 };
   const TEX_M = 1.6;                              // metres a tile of the soil
   const hsh = (x, z, s) => { let h = (x * 374761393 + z * 668265263 + s * 1013904223) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
   // tileable value noise on a period-P lattice
@@ -110,6 +114,9 @@ var GROUND_SCAR = (() => {
   const wob = (a, seed, per) => { let f = PH.get(seed); if (!f) PH.set(seed, f = [0, 1, 2].map(k => 2 * Math.PI * hsh(k, 7, seed)));
     let v = 0; for (let k = 0; k < 3; k++) v += WA[k] * Math.sin(a * (per ? WP[k] : 2 * Math.PI / WL[k]) + f[k]); return v; };
   const seedOf = (x, z, k) => ((Math.round(x * 100) * 73856093) ^ (Math.round(z * 100) * 19349663) ^ (k * 83492791)) | 0;
+  // G3651: 1-D value noise in [0, 1] (a lattice every unit of x), and a smoothstep - the scuff's breaks and its feather
+  const n1 = (x, seed) => { const i = Math.floor(x), f = x - i, t = f * f * (3 - 2 * f); return hsh(i, 3, seed) * (1 - t) + hsh(i + 1, 3, seed) * t; };
+  const sstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
   // a polyline resampled every S.step
   const resample = Q => {
     const pts = [];
@@ -130,10 +137,10 @@ var GROUND_SCAR = (() => {
     // (G2382: three reads of the ground a vertex, not six - the normal from forward differences over e, the water test
     // (scarSurf's: the water above the ground - 5 cm) on the height already read)
     let lift = S.lift;
-    const vert = (x, z, c, a) => {
+    const vert = (x, z, c, a, tu, tv) => {
       const y = gH(x, z), e = 0.25;
       const nx = y - gH(x + e, z), nz = y - gH(x, z + e), ny = e, l = Math.hypot(nx, ny, nz);
-      pos.push(x, y + lift, z); nrm.push(nx / l, ny / l, nz / l); uv.push(x / TEX_M, z / TEX_M);
+      pos.push(x, y + lift, z); nrm.push(nx / l, ny / l, nz / l); uv.push(tu != null ? tu : x / TEX_M, tv != null ? tv : z / TEX_M);
       const w = wH ? wH(x, z) : NaN;
       col.push(c[0], c[1], c[2], Number.isFinite(w) && w > y - 0.05 ? 0 : a);
       return pos.length / 3 - 1;
@@ -143,29 +150,46 @@ var GROUND_SCAR = (() => {
     // wobble, 0.75-1 x h), the floor dark down the middle by the depth, the spoil turf-tinted at the edges, the entry
     // faded in; `cap` - the end where it stopped: the spoil pushed ahead of it (a ragged lip of turf, inside the capsule's
     // end); without it the end fades. Hard: S.acrossHard columns, each a streak of its own strength (rubber and metal
-    // drawn along the slide), dark, both ends faded.
+    // drawn along the slide), dark. G3651 (the user, 25 Oct: the scuffs read as hard dark RECTANGLES - "too clean, too
+    // geometric"): a hard strip FEATHERED and BROKEN - its two edges ragged as a furrow's but deeper (S.ragHard), its
+    // alpha falling off across the outer half of the width (not in the last column only), each streak broken along the
+    // slide by its own noise (gaps where the tyre or the skin lifted: S.gapHard of its length) and starting and ending at
+    // its own place (ragged ends, not one straight cut), a long scuff broken as a whole too (every S.runHard m about);
+    // each streak a shade of its own, the soil map stretched along the slide (streaky grit, not blotches). Every vertex
+    // still inside the half-width h (the gouge's capsule).
     const strip = (pts, h, hard, deep, seed, cap) => {
       const N = pts.length / 2, A = hard ? S.acrossHard : S.across, base = pos.length / 3;
       let Ltot = 0; for (let i = 1; i < N; i++) Ltot += Math.hypot(pts[i * 2] - pts[i * 2 - 2], pts[i * 2 + 1] - pts[i * 2 - 1]);
       const fadeL = Math.max(0.05, Math.min(h, Ltot / 3));
-      const sw = []; for (let q = 0; q <= A; q++) sw.push(hsh(q, 5, seed) > 0.45 ? 1 : 0.3);   // the streaks' strengths
+      const sw = []; for (let q = 0; q <= A; q++) sw.push(hsh(q, 5, seed) > 0.45 ? 1 : hard ? 0.55 : 0.3);   // the streaks' strengths
+      // (hard: each streak's own entry and exit - up to a quarter of the strip in from either end - and its own shade)
+      const sIn = [], sOut = [], sh = [];
+      if (hard) for (let q = 0; q <= A; q++) { const r = Math.min(1.5 * h, Ltot / 4);
+        sIn.push(r * hsh(q, 9, seed)); sOut.push(r * hsh(q, 10, seed)); sh.push(0.75 + 0.35 * hsh(q, 15, seed)); }
       let s = 0, tx = 1, tz = 0, hl = h, hr = h;
       for (let i = 0; i < N; i++) {
         const i0 = Math.max(0, i - 1), i1 = Math.min(N - 1, i + 1);
         tx = pts[i1 * 2] - pts[i0 * 2]; tz = pts[i1 * 2 + 1] - pts[i0 * 2 + 1]; const tl = Math.hypot(tx, tz) || 1; tx /= tl; tz /= tl;
         if (i) s += Math.hypot(pts[i * 2] - pts[i * 2 - 2], pts[i * 2 + 1] - pts[i * 2 - 1]);
         const fin = Math.min(1, s / fadeL), fout = cap ? 1 : Math.min(1, (Ltot - s) / fadeL), end = Math.min(fin, fout);
-        hl = hard ? h : h * (1 - S.rag * (0.5 + 0.5 * wob(s, seed + 11, false)));
-        hr = hard ? h : h * (1 - S.rag * (0.5 + 0.5 * wob(s, seed + 23, false)));
+        const rag = hard ? S.ragHard : S.rag;
+        hl = h * (1 - rag * (0.5 + 0.5 * wob(s, seed + 11, false)));
+        hr = h * (1 - rag * (0.5 + 0.5 * wob(s, seed + 23, false)));
+        // (hard: the whole scuff's breaks - a long slide lifts and touches again; a short one is never cut through)
+        const run = hard && Ltot > 2 * S.runHard ? 0.12 + 0.88 * sstep(0.2, 0.4, n1(s / S.runHard, seed + 7)) : 1;
         for (let q = 0; q <= A; q++) {
           const u = q / A * 2 - 1, k = Math.abs(u), o = u * (u < 0 ? hl : hr), edge = q === 0 || q === A;
           let c, a;
           if (hard) {
-            c = SCUFF; a = edge ? 0 : S.scuffA * sw[q] * (0.75 + 0.25 * wob(s, seed + 37 * q, false)) * end;
-          } else {
-            c = k < 0.4 ? mixC(DEEP, FLOOR, (k / 0.4) * (1 - deep * 0.6)) : mixC(FLOOR, TURF, (k - 0.4) / 0.6);
-            a = 0.95 * (edge ? 0 : k > 0.7 ? (1 - (k - 0.7) / 0.3 * 0.6) * (0.85 + 0.15 * wob(s, seed + 31, false)) : 1) * end;
+            const eq = Math.min(1, Math.max(0, (s - sIn[q]) / fadeL), Math.max(0, (Ltot - s - sOut[q]) / fadeL));
+            const brk = sstep(S.gapHard, S.gapHard + 0.18, n1(s / 0.9, seed + 101 * q));
+            c = [SCUFF[0] * sh[q], SCUFF[1] * sh[q], SCUFF[2] * sh[q]];
+            a = edge ? 0 : S.scuffA * sw[q] * (1 - sstep(0.45, 1, k)) * brk * run * eq * (0.85 + 0.15 * wob(s, seed + 37 * q, false));
+            vert(pts[i * 2] - tz * o, pts[i * 2 + 1] + tx * o, c, a, s / (TEX_M * 3), o / (TEX_M * 0.35));
+            continue;
           }
+          c = k < 0.4 ? mixC(DEEP, FLOOR, (k / 0.4) * (1 - deep * 0.6)) : mixC(FLOOR, TURF, (k - 0.4) / 0.6);
+          a = 0.95 * (edge ? 0 : k > 0.7 ? (1 - (k - 0.7) / 0.3 * 0.6) * (0.85 + 0.15 * wob(s, seed + 31, false)) : 1) * end;
           vert(pts[i * 2] - tz * o, pts[i * 2 + 1] + tx * o, c, a);
         }
       }

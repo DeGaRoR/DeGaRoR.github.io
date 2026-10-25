@@ -98547,3 +98547,19 @@ Strict light gate RED (11), all in the known classes:
 - cub garage fps 26.7: ONE 2167 ms frame in 160; the other 159 at 33 ms (the garage hitch class, L24b 27.0).
 - metal chase flight 68.9 s vs 63.6 + 5.09 slack: 0.23 s over, the scripted flight's wall time. Named; re-read in L25a.
 Pushed with these, by the user's order of 25 Oct: land last week's items and priority 1 as soon as possible.
+
+### G3651 - THE RUNWAY SCUFF FEATHERED AND BROKEN (src/viewer/ground_scar.js; DEFORM, 25 Oct; branch claude/dmg-scuff on 031e3af90 = ready/dmg-scar2-occupant)
+The user (25 Oct, via A0): the damage reads "too clean / too geometric"; the st_0345 stills showed the hard-ground scuff
+(G2381) as hard-edged dark RECTANGLES on the runway. The cause: on hard ground the strip kept a constant half-width, its
+alpha fell to 0 only in the outermost column, and each of its 12 streaks ran unbroken end to end at a fixed strength.
+Now, on hard ground only (the soft furrow and the crater are unchanged byte for byte):
+- the two edges ragged (S.ragHard 0.4: each side 0.6-1 x h, its own wobble), every vertex still inside h;
+- the alpha feathered across the outer half of the width (1 - smoothstep(0.45, 1, |u|));
+- each streak broken along the slide by its own 1-D value noise (~0.9 m lattice; below S.gapHard 0.32 a gap), its own
+  entry and exit (up to a quarter of the strip in from either end: ragged ends), its own shade (0.75-1.1 x SCUFF);
+- a long scuff (over 2 x S.runHard = 6 m) broken as a whole too (down to 12 %) every ~3 m - the slide lifting and touching;
+- the soil map stretched along the slide (3 x along, 0.35 x across): streaky grit, not blotches;
+- S.scuffA 0.85 -> 0.95 (the cores; the feather and the breaks take the rest) to keep 2S's darkening >= 30 %.
+Same mesh, material, texture and program (no new link); vertex count unchanged.
+Gates to run: DMGSCAR (2S darkening + every-vertex rows) + the grep-rule gates for src/viewer; stills: scar-slide on the
+Cub and the metal Cessna (st_0345's cases) to look at before ready.
