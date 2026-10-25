@@ -99011,3 +99011,155 @@ Strict light gate RED both runs (13 / 16) vs the 12 Oct baseline; judged against
 - OPEN: floats water taxi @SEA p99 66.7 ms / over100 2 - re-run only (also L25a); suspect dmg-scar2-occupant's per-step record. A0 bisects it alone in tonight's 23:15 CPU+GPU slot; the owner fixes if it reproduces.
 - OPEN (Pilot): Rufus mine CALM still open: twice round, high 7-8 m at 58 m, divert; cause = the 1.4/LDbest slope cap needs a slip Rufus's aileron can't hold.
 Pushed by the user's order of 25 Oct: land last week's items and priority 1 as soon as possible.
+
+## G3570-G3579 - DC3-2: THE CABIN FLOOR GOES UP (A NEW ROW, ABSENT AT ITS DEFAULT) AND THE DC-3 STOPS FOLDING - THE PAGE'S TAXI AND LANDING BREAKS REPRODUCED THROUGH THE GAME'S HOST: THE TAIL CONE'S ROOT WAS ONE FIFTH OF THE FLEET'S, NOW HELD; THE OTHER TAXI BREAKS ARE COLLISIONS AT HOME'S CROWDED STAND (2026-10-24, cloud, node only; branch claude/dc3-2 off origin/claude/dc3-build b5142615; NOT on claude/ready/; for A0)
+The user (24 Oct, verbatim): "the dc3 as such is an experiment, and making it an official plane requires a lot more work. Yet the code
+modifications leading to it to exist are green lit by me. Yet, the breaking issue is serious and should be addressed soon." And: "in such
+plane, I guess the floor is quite high up in the fuselage, with the storage below. So there should be a control (if not already) to get
+the floor higher up. Right now, pilots and passengers are buried."
+The DC-3 stays sandbox-only (G3507's works room); nothing in the career, contracts, story, economy or parking.
+- **What was done, in plain words:**
+  - **G3570 THE CABIN FLOOR HEIGHT** (a new row, 'cabin floor height', the crew page's floor group, 0-1.20 m). What existed: the crew
+    layer's floor is the front door's measured sill (+ `floorLift`, -0.10..+0.20 m, 'floor over sill'); the door's own sill row
+    (`doorSill`, 0-0.25 cage units) drops whole MESH ROWS (`_cage_gen.js` cutZone), so on the DC-3 0.25 more of it moved the door's
+    bottom 0.27 -> 1.18 m over the keel, and the crew layer's sill window (0.5 m) then threw the measurement away and put the floor
+    back on the boards over the keel. No row raised the floor 0.4 m and kept it there. The new row `floorUp` (metres) is the smallest extension of those rows:
+    - the FLOOR stands exactly floorUp over where the sill put it (`_cage_crew.js` anchors: sillOff + floorUp), so every seat, pedal,
+      console and occupant (all stand on A.floorAt) follows; the doorless boards too;
+    - the DOORS rise with it by the most whole mesh rows that fit under it (`cageCut` cutZone `up`; the rise published per door,
+      mesh.doorRise, and taken back out of the measured sill so the floor is the floor, not the row step). At 0.40 m the DC-3's door
+      bottom rose 0.31 m and stands 6 cm under the raised floor;
+    - the STEP (GEN_ACCESS step / grab handle: sillH) counts the climb the raised sill adds, both its game-side and editor-side rows;
+    - FLOWN: `clampSpec` reads cabin.floorUp OFF THE CAGE (the cage replaces as a whole in genSpecMerge and `cageToSpec` writes the
+      row only when raised, so a floor put back down cannot stay up in the flown spec), and the frame (61_gen_frame onRing) bills the
+      occupants, the seats, the bags in the cabin and the furnishing (Raymer's furnishings row, the floor in it) floorUp higher - shared
+      between a ring's bottom and top pair. DC-3: the CG 2.2 cm higher, the mass identical (8 527.24 kg);
+    - THE SPACE BELOW: not a hold. Freight's holds are measured cards for the validated builds only (FREIGHT_CARDS); an under-floor
+      hold is a second freight space = a new system: QUESTION 3 below.
+    - ABSENT AT ITS DEFAULT: the row is NOT in the page's defaults table (CAGE_PAGE.defaults), so a build that never moved it
+      carries no key - G377's re-save (every row the page knows, GATE BUILD's theorem) writes it only once it is set; the row shows
+      0 while absent (a new generic row option `absent`, _cage_ui.js mkRow / syncSliders: a stale value from the aeroplane loaded
+      before can no longer stay on the slider); the core deletes a 0. **The six validated builds bit-identical** (below). (A first
+      cut put floorUp: 0 in the defaults and stripped it in cageToSpec: GATE BUILD's 12 "the re-save carries every row" rows went
+      red - the load door rebuilds spec.cage from the whole row table, which is also why a default would have reached every
+      validated def.) The DC-3 fixture is rebuilt with floorUp 0.40 (DC3_ROWS): the real cabin's
+      1.98 m (6 ft 6 in) under this section's roof. Measured headless (the page's load chain): the floor under the pilots -1.044 ->
+      -0.663 m, the seat pans -0.88 -> -0.50, the pilots' heads 0.07 -> 0.45 m.
+    - **Not solved by it - the cockpit**: the DC-3 drawing's windscreen base (the dash top) stands at +0.87 m, the pilots' eyes at
+      ~+0.33 with the floor at 0.40: still 0.5 m under it. The real DC-3's cockpit floor sits a step over the cabin's; here there is one
+      floor for the cockpit and the cabin. The pilot seat's own row ('up / down (squab height)', to 0.50 m) lifts the pilots 0.35 m more;
+      a cockpit floor of its own is a new control: QUESTION 2.
+  - **G3571 WHY THE TAXI BROKE (run 1)** - reproduced through the GAME's host (tools/dc3_break.js: src/viewer/sim_host.js via
+    _tour_lib gameHost - the stand walked out of the WORKS shed (G3507's room for a 29 m build), the wheels seated, manual mode, the
+    hand's packet every step, damage ON; with and without the certificate - the page flies its first minute on the physics limits and
+    stamps the certificate when the bench's thread answers, 34-56 s in node for this build). Two causes, neither the tail's members:
+    1. **COLLISIONS AT THE STAND.** HOME's stand for a 29 m build is in the middle of the parked fleet and the props: a parked aeroplane
+       7.1 m from the DC-3's CG (inside its 14.5 m half-span), another at 18 m, props at 20-40 m, sheds at 32 m (29_obstacles records).
+       A full-rudder turn under power from the stand drives into one at 8 s; the obstacle's push is the trees' CAPPED spring
+       (30_solver KTn = min(2.2e4, 2e5 m) N/m a node - DC3-STUDY §4 named it), so an 8.5 t aeroplane sinks into a parked Cub, rides up
+       onto it (out.obst 4-16 nodes; the CG climbed 4 m at 12 m/s, vy 5 m/s) and breaks when it falls off: the stabiliser's attach
+       fittings (tail class, 189 mm2, 65 kN) yield first - "a tail member broke" is this. With the parked fleet removed the same turn
+       met a prop; with every obstacle removed it holds (no yield). QUESTION 1.
+    2. **THE TAIL CONE'S ROOT**, after a braked stop: full brakes from 10 m/s pitch the DC-3 from its 11.6 deg deck to 2.7 deg (the tail
+       ~2.2 m up); it stops and the tail falls back at 4.7 m/s; the shell's ROOT CUT (the cabin-to-tailcone joint, S5-S6) parts in
+       bending at 220.3 kN.m = exactly its limit (30_solver clCuts 'root-bend', ratio 1.0002), the rivet-line longerons go with it.
+       Full power to 25 m/s and full brakes: the same, "the fuselage parted (TPB off the core)". No obstacle in either.
+  - **G3572 THE LANDING (run 2)** - reproduced: the pilot from the line-up through the whole circuit, certificate stamped: FLARE 265 s,
+    ROLLOUT 271, touchdown 2.3 m/s at 34.5 m/s, the bounce, 4.51 m/s at 28.4 m/s (the user's 4.6), and at 277.0 s "a fus member
+    broke" - S5BL-S6BL, the same root cut. The certificate never restamps a cluster's cuts (only members): the cone's root is its
+    PHYSICS, the bare skin's buckling (61_gen_frame SHELL sigB: 0.605 E t / R x NASA SP-8007's knockdown, the record's own comment:
+    "A LOWER BOUND ... a real tailcone is stringer- and frame-stiffened").
+  - **The sizing against real numbers** - the root's bending limit over the design weight x the cone's length (the moment the tail's
+    loads make grows with both):
+    | build | W0 kg | cone m | root Mu kN.m | Mu / (W0 g L) |
+    |---|---|---|---|---|
+    | metal Cessna (validated) | 1 049 | 4.25 | 67.2 | 1.54 |
+    | Cessna floats (validated) | 1 111 | 4.25 | 67.2 | 1.45 |
+    | Jodel (validated, ply) | 544 | 2.87 | 74.6 | 4.87 |
+    | DC-3 as DC3-BUILD left it | 9 007 | 8.18 | 220 | **0.31** |
+    | DC-3, G3572 | 9 007 | 8.18 | 1 048 | 1.45 |
+    A real DC-3 cone (24ST alclad, stringer-stiffened: ~150 MPa over a ~2 mm smeared skin at R ~1.3 m) carries ~1.5 MN.m; FAR 25.481's
+    tail-down landing at 10 ft/s puts ~0.2 MN.m limit (0.3 ultimate) through it from the tailwheel's reaction (static 545 kg x the
+    landing's 2.67 g at 8.5 m) and the empennage's inertia - the old root broke at 1.1 x the limit, not 1.5 x. **G3572**: above
+    G3505's knee (2 x the material's design gross) the shell's break stress is raised until its root holds GEN_RULES.shellHoldKappa
+    (1.45, the validated float Cessna's own figure) x W0 g x the cone's length; the solver still caps it at the alloy's ultimate
+    (282 MPa against 470 here). STRENGTH ONLY: EI, GJ, Kt, the mass and the bill stay the skin's (G3505's rule for members). At or
+    under the knee nothing is set (every saved build: the heaviest sits at 0.50 of its knee).
+  - **After G3572** (tools/dc3_break.js, the same cases; `--kappa 0` is the before):
+    | case (damage on, the game's host; physics limits unless said) | before (`--kappa 0`, DC3-BUILD's cone) | after (G3572) |
+    |---|---|---|
+    | open ground (every obstacle out): full power to 24.7 m/s, then full brakes | "the fuselage parted (TPB off the core)" 20.3 s | holds, 0 yields |
+    | open ground: throttle bursts, full-rudder swings, firm stops at 10 m/s | root-bend S5-S6, 9.3 s | holds, 0 yields |
+    | open ground: S-turns at 11 m/s, full-rudder circles at 12.7 m/s, full back stick and brakes at 16 m/s | - | hold, 0 yields |
+    | the works stand, parked fleet out: bursts and firm stops | root-bend S5-S6, 9.75 s | holds, 0 yields |
+    | the works stand, everything in: bursts and firm stops | root-bend after the tail drop | **collision** 5.8 s (a prop / a parked aeroplane), "a tail member broke" (the stab's attach, HTR-S9BR), 54 m, peak strain 68 % - the user's run 1 |
+    | the works stand, everything in: full-rudder turn at 55 % power | collision 8.9 s, breaks up 9.6 s | collision 7.5 s, "the airframe crushed" 13.6 s |
+    | rough field (genCertTaxi's ground, damage live): 0.04 m bumps / 3 m at 8 m/s (the certificate's) | holds | holds (cert-stamped too) |
+    | rough field: 0.08 m / 3 m at 8 m/s | root-bend 2.5 s | holds, worst member 0.68 (cert-stamped: holds, gear 0.89) |
+    | rough field: 0.08 m / 5 m at 12 m/s | root-bend 7.6 s | holds, worst 0.74 (the inboard wing by the nacelle) |
+    | drop on the mains, no lift, 34 m/s along (genCertDrop's, damage live) | physics limits | certificate stamped |
+    |---|---|---|
+    | level (23.479) 3.05 m/s (10 ft/s) | 0 yields, nz 2.06 | 0 yields; the gear's bracket at 0.83 |
+    | level 3.85 / 4.6 m/s | 0 yields (worst 0.72 / 0.94, the inboard wing) | the main gear's bracket gives (yields), no break, the fuselage whole |
+    | three-point (25.481) and tail first (3 deg past it), 3.05 / 4.6 m/s | 0 yields | 0 yields (the gear 0.96 at 4.6) |
+    | any attitude, 5.5 m/s | the inboard wing member by the nacelle takes a set; no break | - |
+    (the drops held before G3572 too: a whole-body drop does not swing the tail; a braked stop's tail-fall and the bounce do)
+    THE USER'S RUN 2, the pilot from the line-up, certificate stamped: the same circuit to the same touchdowns (2.30 m/s at 34.5 m/s,
+    the bounce, **4.51 m/s** at 28.4, 1.89 m/s): before "a fus member broke" (S5BL-S6BL root-bend) at 277.0 s; after **0 yields, 0
+    breaks, STOPPED at 309 s** (gPeak 4.0; the inboard wing member at 0.96 the worst).
+- **The identity proof** (tools/dc3_identity.js, the page's load chain, against DC3-BUILD's reports/dc3_identity_branch_2026-10-23.json,
+  itself identical to master 20a13667): Cub, Jodel, metal Cessna, Cessna floats, twin floatplane, Rufus - the def
+  (sha1 of the whole def), the mass / cost ledger, the shakedown sheet, the mass and the 20 s flight **ALL IDENTICAL** (run after the
+  last core change; the floor row and the cone rule are both absent / unset under the knee)
+- **Gates** (`node tools/run_gates.js --only=... --no-build`, this box: 4 cores):
+  - **PASS, on the final tree:** `GATE GEN: PASS` (4 shards), `GATE PILOT: PASS` (3 shards), `GATE FLEX: PASS` (3 shards),
+    `GATE BUILD: PASS`, `GATE PARTS: PASS`, `GATE SAVE: PASS`, `GATE STARTER: PASS`, `GATE EDBUGS: PASS`, `GATE DESIGN: PASS`,
+    `GATE FRAMES: PASS`, `GATE KNIFE: PASS`, `GATE FIT: PASS`, `GATE HINGE: PASS`, `GATE JOIN: PASS`, `GATE WINGROWS: PASS`,
+    `GATE DESIGNCHECK: PASS`, `GATE SUBSTEP: PASS`, `GATE GEAR: PASS`, `GATE BAY: PASS`, `GATE CABIN: PASS`, `GATE SPECFIX: PASS`,
+    `GATE FLAPS: PASS`, `GATE MASS: PASS`, `GATE DMGMEMBERS: PASS`, `GATE FLOATS: PASS`, `GATE LOAD: PASS`, `GATE MOUNT: PASS`,
+    `GATE TAKEOFF: PASS`, `GATE LINEUP: PASS`, `GATE DMGSETTLE: PASS`, `GATE FREIGHT: PASS`, `GATE ENGID: PASS`, `GATE ENERGY: PASS`,
+    `GATE PANEL: PASS`, `GATE DASH: PASS`, `GATE PILOTS: PASS`, `GATE FIN: PASS`, `GATE SURF: PASS`, `GATE SHOULDER: PASS`,
+    `GATE LIVERY: PASS`, `GATE LIVERYREACH: PASS`, `GATE MEDIA: PASS`, `GATE TANKMOUNT: PASS`, `GATE PROCURE: PASS`,
+    `GATE SIMWORKER: PASS`, `GATE VIEW: PASS`, `GATE WATER: PASS`, `GATE WEATHER: PASS`, `GATE UISMOKE: PASS`, `GATE ACCEPT: PASS`,
+    `GATE HANGAR: PASS`, `GATE GAMEPREM: PASS`, `GATE SKINMAT: PASS`, `GATE NACLAG: PASS`, `GATE WINGSPLIT: PASS`,
+    `GATE ENERGYBASE: PASS`, `GATE BIPLANE: PASS`, `GATE STRIPSURF: PASS`, `GATE ENGINE: PASS`, `GATE COWL: PASS`, `GATE CAGEFIT: PASS`
+    `GATE DMGNOSE: PASS`
+  - **RED, the base's** (controls run on an origin/claude/dc3-build b5142615 worktree, the same file):
+    - `GATE DMGCLUSTERS: FAIL` - 3 rows (the FIN pulled sideways twice, the twin's severe nose-in): **the 108 rows identical line for
+      line** on the base (diffed). DC3-BUILD did not run it.
+    - `GATE ROLLANIM: FAIL (1 of 806)` - "G1039 flRevealStart still frames the stand as standFraming assumes": the same row red on the
+      base (with a timing row there, 64.1 bytes / frame against 64). A source scan of app.js's framing: DC3-BUILD's G3507
+      garageFraming change is the likely cause (not this branch's: app.js untouched here). DC3-BUILD did not run it.
+    - `GATE TREECRASH: FAIL` - 1 row, "jodel/trunk0 against the reference ... work MOVED p 0.000, work median 19724.1 -> 22577.2":
+      **the same row, the same numbers on the base** (run directly on both: the runner's 1 800 s timeout ended it once beside other
+      gates on this 4-core box; alone it reads 899 s). The Jodel's def and flight are bit-identical here (the identity proof).
+    - `GATE DMGGEAR: FAIL` - 1 row, "SEVERE for the twin: the 90 km/h, 5 m/s, 20 deg nose-in ... the boom root goes": **its 72
+      rows identical line for line on the base** (run directly on both: the runner's 1 800 s timeout ends it on this box).
+  - (The first gate batch had BUILD red - 12 rows, "the re-save carries every row" - from a first cut of G3570; fixed as said above,
+    and batch 1's editor readers re-run on the final tree: the PASS list is the final tree's.)
+  - **NOT RUN** (session time; the identity proof covers the validated builds' def and flight bit for bit): A0, please - DC3-BUILD's
+    own not-run list (DMGWALL DMGSCAR RWYTREES TAXICLEAR PLAN ROUTE DESTTO DMGSKIN DMGSKINGPU DMGPAGEW DMGWRECK DMGHEAL; batch 3;
+    the full tier), plus DMGCERT DMGTYRE DMGFABRIC DMGCOMPOSITE JOINPARITY POD (red on master per DC3-BUILD's controls), RADIALDIV, DESIGNSIM.
+- **Tools:** tools/dc3_break.js (a tool, not a gate: taxi / drop / field / circuit through the game's host, --kappa 0 the before),
+  tools/evidence/DC3-2.js (for A0: the garage stills with the floor's numbers, a page taxi on the keys, the circuit's landing and two
+  drops on the stand through FLIGHT_PROBE.place - UNTESTED ON A SCREEN: the cloud box cannot render the world).
+- **For A0 on the box:**
+  - `node tools/evidence/DC3-2.js` (the PNGs in reports/evidence/DC3-2/; a ROW per seat: its pan over the floor; exit 1 on a buried
+    seat, a crashed taxi or a broken 3.05 m/s drop). Smoke-run here on the cloud box (Playwright, SwiftShader), garage part only:
+    the page booted, the dropped fixture loaded as "DC-3 (full size) 8527 kg all-up, 29.0 m span", cage floorUp 0.4, the eight
+    seat pans 0.149-0.150 m over the floor at -0.648 / -0.663 (the node chain's numbers), four stills written - but the room's
+    camera clamp kept the eye close (the 29 m build in "Home base - the WWII hangar") and the canvas filled half the window here:
+    look at the stills on the GPU and take wider ones if they are as tight. The taxi and landing parts were not run here.
+  - Rebase: master moved to L24c (2b381015) while this ran; dc3-build was not on it yet (T-BG, Sun 25 Oct 16:00). Rebase this branch
+    once dc3-build lands, re-run tools/dc3_identity.js against the new master (L24c re-stamped Rufus and added double floats: the
+    reference fingerprints move with master, not with this branch).
+  - The gates listed NOT RUN below.
+- **Questions for the user:**
+  1. **HOME's stand for a 29 m build** stands among the parked fleet (one 7 m off the DC-3's CG, inside its half-span) and the
+     props: a turn there hits something. And the obstacles' push is a light aeroplane's (the trees' capped spring): a heavy
+     aeroplane rides up onto a parked Cub and is thrown. A clear stand for the wide build (DC3-STUDY's G3507 parking class), the
+     obstacle spring scaled with the aeroplane's mass above 3 t (gated as CRASH_J_KG is), both, or leave it (sandbox only)?
+  2. **The cockpit floor**: one floor for the cockpit and the cabin today; the DC-3's pilots need ~0.5 m more than its passengers to see
+     over the coaming. A 'cockpit floor' row of its own (the same machinery, section 0 only), or the pilot seat's height row?
+  3. **"The storage below"**: the space under the raised floor is drawn but is not a freight hold (freight's holds are measured cards
+     of the validated builds). Make it a second hold (FREIGHT's site tool + a card for the DC-3), or not while the DC-3 is an experiment?
