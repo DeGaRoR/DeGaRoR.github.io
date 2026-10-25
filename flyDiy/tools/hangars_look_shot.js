@@ -229,6 +229,20 @@ const SCENERY_HANGARS = `JSON.stringify((() => {
     await clean(false);
     return D;
   };
+  // G3541 THE PAD PROBE (A0 25 Oct: "one frame with the pad forced bright red at the top of the run, to prove it
+  // draws"): every 'shed:pad' mesh in the world and the room wears flat red over its whole grid (the fade off: the extent shows), one
+  // frame is shot, the materials go back. Logs how many pads it found and whether each is visible/in the scene.
+  const padProbe = async (on) => JSON.parse(await ev(`JSON.stringify((() => {
+    const D = GARAGE_ENV._debug(), roots = [...new Set([D && D.world, D && D.scene].filter(Boolean))], seen = new Set(), out = [];
+    if (${on}) { window.__padProbe = [];
+      for (const r of roots) r.traverse(o => { if (o.isMesh && o.name === 'shed:pad' && !seen.has(o)) { seen.add(o);
+        let v = true; for (let p = o; p; p = p.parent) if (!p.visible) v = false;
+        window.__padProbe.push([o, o.material]);
+        o.material = new THREE.MeshBasicMaterial({ color: 0xff0000, vertexColors: false, transparent: true, depthWrite: false,
+          polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1, fog: false });
+        out.push({ visible: v, tris: o.geometry.index ? o.geometry.index.count / 3 : 0, order: o.renderOrder, recv: o.receiveShadow }); } });
+    } else { for (const [o, m] of window.__padProbe || []) o.material = m; window.__padProbe = []; }
+    return out; })())`, '[]') || '[]');
   const worldPairs = async (id, D) => {
     await clean(true);   // the HUD out of the shot as the room's panels are (SHOT_MODE on both screens)
     for (const [k, [p, t]] of Object.entries(PAIRS(D))) {
@@ -273,7 +287,15 @@ const SCENERY_HANGARS = `JSON.stringify((() => {
   await sleep(8000);
   twin.sheds = await ev('JSON.stringify(window.WORLD.playerSheds ? window.WORLD.playerSheds() : null)', '');
   // the world: the cabin's shed at the room's dims, then the other garages and the scenery's own hangars
-  if (twin.roomDims) await worldPairs('w1', twin.roomDims);
+  if (twin.roomDims) {
+    const pads = await padProbe(true);
+    console.log('  PAD PROBE: ' + pads.length + ' pad(s) ' + JSON.stringify(pads));
+    const P = await toWorld('w1', [-twin.roomDims.HD - 18, 6.0, -6]), T = await toWorld('w1', [-twin.roomDims.HD - 4, 0, 0]);
+    if (P && T) { await clean(true); await eyeAt('w1_world_padprobe', P, T); await clean(false); }
+    await padProbe(false);
+    twin.padProbe = pads;
+    await worldPairs('w1', twin.roomDims);
+  }
   if (want('world')) {
     const dimsOf = id => C.hangarDims(JSON.parse(doc).sheds[id] || { shell: 'club' });
     for (const id of ['HOME.2', 'HOME']) await worldPairs(id, dimsOf(id));
