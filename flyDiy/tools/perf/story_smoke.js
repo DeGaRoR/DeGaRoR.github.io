@@ -197,7 +197,8 @@ const next = async () => { const ok = await click('#stTim [data-tim="tnext"]'); 
     let r = await evJs('return window.FLYDIY_STORY.skip();');
     await sleep(3000);
     await still('on the final at HOME');
-    await beat("B5 Skip the flight -> on the final at HOME (the autopilot's)", P => [[r.ok !== false && r.final, 'the skip did not go to the final: ' + JSON.stringify(r)], [P.beat === 'T1', 'T1 completed without a landing (' + P.beat + ')'], [P.ap && !P.ap.manual, 'the hand still has it']]);
+    await beat("B5 Skip the flight -> on the final at HOME (the autopilot's)", P => [[r.ok !== false && r.final, 'the skip did not go to the final: ' + JSON.stringify(r)], [P.beat === 'T1', 'T1 completed without a landing (' + P.beat + ')'], [P.ap && !P.ap.manual, 'the hand still has it'],
+      [!(P.arr && P.arr.shown) && !P.inGarage, 'the flight ended at once (' + (P.arr && P.arr.text) + ')']]);
     const landed = await waitFor('!!(window.FLYDIY_STORY && window.FLYDIY_STORY.story() && window.FLYDIY_STORY.story().beat === "T2")', 300000);
     await sleep(4000);
     // G3585: the Cub stood on HOME's apron by the roll-out (FLEET_STAND's drawn set) - read, and a still for A0's brief
