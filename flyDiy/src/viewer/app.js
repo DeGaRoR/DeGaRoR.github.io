@@ -11545,6 +11545,18 @@
   // G680: a parked aeroplane's capture in flight holds the editor between its tasks - the doors that need the
   // player's own aeroplane in it (the shed, the editor, the sync) finish it first (parked.js flush)
   function parkedFlush() { if (typeof window !== 'undefined' && window.PARKED && window.PARKED.flush) window.PARKED.flush(); }   // hoisted: no TDZ
+  // GARAGE-RATTLE (the user's playtest 24 Oct: "a continuous rattling noise in the garage after a flight"; A0's read):
+  // sim.reset() zeroes the state but not sim.out, which only a STEP writes (30_solver.js: out.V = hyp3(v), the engines'
+  // rpm, the thrust) - and nothing steps in the shed. So the last flight's speed, rpm, thrust and wash stayed in sim.out
+  // and fed the sound (audio_params.js reads it every frame: the airframe's ground rattle and wind off V, the engine
+  // and prop voices off rpm) for as long as the shed was open. The return to the shed leaves sim.out as the boot's: at
+  // rest, every engine output at 0. (The roll-out shot writes its own engine fields over these, as it always did.)
+  function simOutAtRest(o) {
+    if (!o) return;
+    o.V = 0; o.Veas = 0; o.Vg = 0; o.vs = 0; o.alpha = 0; o.beta = 0; o.nz = 1;
+    o.thrust = 0; o.wash = 0; o.hydroWet = 0; o.submerged = false;
+    for (const k of ['rpm', 'rpmEng', 'thrustPer']) { const a = o[k]; if (a && a.length) for (let i = 0; i < a.length; i++) a[i] = 0; }
+  }
   function enterGarage() {
     crowdStop(false);                  // G2970: the stand's passengers seated, the start that waited on them dropped
     parkedFlush();
@@ -11585,6 +11597,7 @@
     rig = null; rigTested = false;
     testFlightOff();                  // A9: back in the shed is not an arrival
     sim.reset(0);
+    simOutAtRest(sim.out);            // GARAGE-RATTLE: the last flight's speed / rpm no longer sound in the shed
     standOnWheels();
     // NO AERODROME. The garage is not a place on the map, and the apron
     // placement it used to inherit was the last thread tying the editor to the
