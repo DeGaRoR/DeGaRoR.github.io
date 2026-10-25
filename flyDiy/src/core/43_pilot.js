@@ -2275,14 +2275,18 @@ function makePilot(sim, def, world, opts) {
       }
       // G1936: THE SLIP'S RUDDER, mixed over the lateral law's (whose bank then holds the track)
       // G3472 (T-P1 SLIP-BETA; A0's read of the user's ultralight, 24 Oct: the fixed 0.80 of rudder put a 379 kg airframe 28-33
-      // deg side-on in 2-4 s, the aileron on its cap, two incipient spirals): THE SLIP'S RUDDER IS THE AIRFRAME'S. It starts at
-      // drSlip (0.80) and is eased off while the sideslip stands past betaSlip (15 deg, a pilot's slip), given back at 0.2 /s
-      // under it - an airframe that never reaches 15 deg on 0.80 flies the slip it flew
+      // deg side-on in 2-4 s, the aileron on its cap, two incipient spirals): THE SLIP'S RUDDER IS THE AIRFRAME'S - EASED ON A
+      // SPIRAL, NOT ON A DEEP SLIP. It starts at drSlip (0.80) and is eased off (0.5 /s) while the bank runs past bankSlip (15
+      // deg; the slip's own bank stays under 6) or the sideslip past betaSlip (35 deg), given back (0.1 /s) only once both are
+      // well inside (10 deg, 30 deg). A first cut eased it past 15 deg of SIDESLIP: Rufus flies a steady 27 deg slip on 0.80
+      // (bank under 6 deg, 4 m/s down) and the cap hunted it 4 <-> 23 deg every 4 s at 2.6 m/s down - high 8 m at 58 m on
+      // the calm mine final, twice round, diverted (replay 25 Oct 04:50)
       if (slipK > 0 && (AF.lat === 'LOC' || AF.lat === 'PATH')) {
-        const dr0 = A.drSlip ?? 0.80, bCap = A.betaSlip ?? 0.26;
+        const dr0 = A.drSlip ?? 0.80, bCap = A.betaSlip ?? 0.61, phCap = A.bankSlip ?? 0.26;
         if (slipDr == null) slipDr = dr0;
-        const bX = Math.abs(beta) - bCap;
-        slipDr = clamp(slipDr + (bX > 0 ? -1.0 * bX / bCap : 0.2) * dt, 0.15, dr0);
+        const spiral = Math.abs(ph) > phCap || Math.abs(beta) > bCap;
+        const calmS = Math.abs(ph) < 0.66 * phCap && Math.abs(beta) < 0.86 * bCap;
+        slipDr = clamp(slipDr + (spiral ? -0.5 : calmS ? 0.1 : 0) * dt, 0.15, dr0);
         c.dr = (1 - slipK) * c.dr + slipK * slipSg * slipDr;
       } else if (slipK === 0) slipDr = null;
       // G381.1: POWER WHEN THE ELEVATOR RUNS OUT. On the approach and in the
