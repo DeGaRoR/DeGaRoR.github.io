@@ -39,6 +39,6 @@ for (const k of BUILDS) {
     let verts = 0, tris = 0, added = 0, drawers = 0, dropped = 0, total = 0;
     for (const S of states.values()) { verts += S.nVerts; tris += S.ovTri.size; added += S.nTris; dropped += S.dropped; if (S.ovTri.size) drawers++; }
     for (const f of frames) total += f; const worst = frames.length ? Math.max(...frames) : 0, sorted = frames.slice().sort((a, b) => a - b);
-    console.log(`${k.padEnd(6)} ${cid.padEnd(10)} outer rim: ${String(tris).padStart(5)} triangles live (${added} added, ${verts} overlay vertices - a triangle that dies later keeps its slots), in ${drawers} groups (= transform-feedback draws, + 1 overlay draw)  dropped ${dropped}  |  update a frame: worst ${worst.toFixed(1)} ms, p50 ${(sorted[Math.floor(sorted.length / 2)] || 0).toFixed(2)} ms, total ${total.toFixed(0)} ms over ${frames.length} frames`);
+    console.log(`${k.padEnd(6)} ${cid.padEnd(10)} outer rim: ${String(tris).padStart(5)} triangles live (${added} added, ${verts} overlay vertices - a triangle that dies later keeps its slots), in ${drawers} groups (= transform-feedback draws, + 1 overlay draw)  dropped ${dropped}  |  the adjacency (once a record; belongs at binding) ${buildMs.toFixed(1)} ms  |  update an event-frame, the adjacency included: worst ${worst.toFixed(1)} ms, p50 ${(sorted[Math.floor(sorted.length / 2)] || 0).toFixed(2)} ms, total ${total.toFixed(0)} ms over ${frames.length} frames`);
   }
 }
