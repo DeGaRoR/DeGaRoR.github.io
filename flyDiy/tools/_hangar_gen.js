@@ -756,7 +756,7 @@ function applyFinish(P, F) {
     const set = SIGN_TEX_SETS[P.signKey];
     const tx = new THREE.Texture(set.img); tx.colorSpace = THREE.SRGBColorSpace; tx.wrapS = tx.wrapT = THREE.ClampToEdgeWrapping;
     const ok = () => { tx.needsUpdate = true; }; if (set.img.complete && set.img.naturalWidth) ok(); else if (set.img.addEventListener) set.img.addEventListener('load', ok);
-    M.glass = new THREE.MeshStandardMaterial({ map: tx, roughness: 0.75, alphaTest: 0.5, color: 0xffffff });   // (G3540: cut, never blended)
+    M.glass = std(0xffffff, { map: tx, roughness: 0.75, alphaTest: 0.5 });   // (G3540: cut, never blended; the file's one material site - GATE ASSETS AS4a)
     // G3540 v2 (the user: "slightly darkened sign edges"): the painting darker toward its rim, a band of 7 % of its height
     // all round (the width's uv scaled by the aspect so the band is one width), the board's own edge in shade
     if (P.signPlank) {
