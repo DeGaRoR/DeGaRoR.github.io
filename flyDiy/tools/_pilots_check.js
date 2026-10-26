@@ -374,9 +374,8 @@ function run(mut) {
   ok(M.pilotsPlace(bh, 'kit') === 'HOME', '"bring it home": the pilot with it comes home too');
   d = fly(d, 'me', 'mn_strip', true);
   ok(M.pilotsPlace(d, 'kit') === 'w3' && d.career.pilots.kit.plane === null && M.playerWhere(d, 'Cub').aero === 'mn_strip', 'you flew the Cub on to the mine: kit stays at w3');
-  // w3 is named "Ridgeback Strip" since G3240 NAMES (was Tamgas): the refusal names the place the pilot is
   const away = M.pilotsCanFly(d, 'kit', 'mn_strip', base);
-  ok(!away.ok && away.kind === 'away' && !away.boat && /w3|Tamgas|Ridgeback/.test(away.why), 'kit is not where the aeroplane is: refused (' + away.why + ')');
+  ok(!away.ok && away.kind === 'away' && !away.boat && /w3|Tamgas/.test(away.why), 'kit is not where the aeroplane is: refused (' + away.why + ')');
   const boatQ = M.pilotsCanFly(d, 'kit', 'HOME', base);
   ok(!boatQ.ok && boatQ.boat === true, 'the aeroplane is at HOME: the boat brings kit');
   const bt = M.pilotsBoatHome(d, 'kit');
