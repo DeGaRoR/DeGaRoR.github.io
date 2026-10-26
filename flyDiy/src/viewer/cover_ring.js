@@ -868,7 +868,16 @@ var COVER_RING = (() => {
                 const h = hsh(Math.round(x * 7.3) + 11, Math.round(z * 6.1) - 7), a = place.hueTurn[0] + h * (place.hueTurn[1] - place.hueTurn[0]);
                 col = GF.hueTurn(col, a * Math.PI / 180).map(v => Math.max(0, v));
               }
-            } else if (noTint && !isShrub && vary) { const j = 1 + (R() * 2 - 1) * vary; col = [j, j, j]; }
+            } else if (noTint && !isShrub && vary) { const j = 1 + (R() * 2 - 1) * vary; col = [j, j, j];
+              // an untinted species' small hue swing (G3430, the user 27 Oct: "don't color them as the ground", the reeds on their
+              // own hue/sat/light and "a small variation per instance"): the multiplier that turns place.hueRef (the tinted texel's
+              // mean, relative) by hueTurn [lo, hi] degrees - a grey multiplier has no hue to turn; the tuft's own hash, as above
+              if (place.hueTurn && place.hueRef && GF && GF.hueTurn) {
+                const h = hsh(Math.round(x * 7.3) + 11, Math.round(z * 6.1) - 7), a = place.hueTurn[0] + h * (place.hueTurn[1] - place.hueTurn[0]);
+                const rf = place.hueRef, t = GF.hueTurn(rf, a * Math.PI / 180);
+                col = [0, 1, 2].map(i => j * Math.max(0, t[i]) / Math.max(1e-3, rf[i]));
+              }
+            }
             push(p, x, yy, z, s, yaw, col, 0, 0); STAT.by[c.name] = (STAT.by[c.name] || 0) + 1; cell.by[c.name] = (cell.by[c.name] || 0) + 1;
           }
         }

@@ -2531,8 +2531,8 @@
   },
   "reed_marsh": {
    "hue": 0,
-   "sat": 0.15,
-   "light": 2.14,
+   "sat": 1,
+   "light": 0.24,
    "bark": 1,
    "alpha": 0.5,
    "sink": 0.02,
@@ -2546,14 +2546,19 @@
    "kind": "cover",
    "density": 0.6,
    "patch": 5,
-   "vary": 0.1,
-   "lift": 0.29,
-   "contrast": 0.35,
+   "vary": 0.06,
+   "contrast": 0.6,
    "patchShare": 0.5,
    "hueTurn": [
-    -45,
-    6
-   ]
+    -4,
+    4
+   ],
+   "hueRef": [
+    0.74,
+    1,
+    0.31
+   ],
+   "noTint": 1
   }
  },
  "biomes": {
