@@ -99260,3 +99260,164 @@ else in the file.
 - `tools/_gpsface_check.js` (new gate), `tools/avionics_parity.js` + `tools/fixtures/avionics_parity.json`,
   `tools/avionics_stills.js`;
 - `futureDesigns/AVIONICS-STATUS-2026-10.md`.
+
+## G2808-G2809 - THE GLASS PANEL (THE SCREEN IN FRONT OF THE PILOT, THE DIALS PACKED ROUND IT) AND WYSIWYG BILLING FOR ALL: NO ROOM = NOT BILLED, THE DASH'S DEAD ITEMS ALIVE, THE CABIN, THE LAMPS AND THE CONTROLS BILLED AS DRAWN (2026-10-25, AVIONICS-GPS for the user, cloud - node + headless only, no GPU; branch claude/avionics-gps-2)
+
+**The ask (the user, 25 Oct, on G2801-G2807's entry):** "GPS placement is in front of the pilot, glass cockpit style. The
+same device could later hold a real mfd/pfd. Why does the glass unit not fit? Just get rid of some manual gauges, or find a
+more flexible way to place them. If really too small, then it does not fit. But at least the cessna should have room. Fix
+everything. Wysiwyg, and as billed for all."
+
+That overrides G2801-G2807's "the validated aeroplanes unchanged": every validated aeroplane's empty mass moves, measured
+below against master, and the parity fixture is re-captured on this branch.
+
+**Why the glass unit did not fit:** G2803 placed the screen AFTER the dials and the switches, into what they left free.
+On every validated dash the T, the engine cluster and the switch row had already taken the plate.
+
+**What was built:**
+
+1. **G2808.1 - the glass panel** (`tools/_panel_gen.js`).
+   - **Screen first.** A build with a screen (every GPS kind; a PFD / MFD later through the same `screens` record) lays out
+     the screen first: on the pilot's line, as high as the plate holds it.
+   - **The dials round it:** the T as a block beside the screen where it fits; then each dial at the clear place nearest
+     its group, the tacho and the fuel gauge before the backup gyros, the radio heads last.
+   - **The switch row:** three ways - the bottom band kept for it, the switch strip laid first, or the lowest clear run
+     (split across runs if no one run holds it). The cheapest layout wins: a screen outweighs a dial, a dial a switch
+     drawn under a dial, that a broken T, that a breaker.
+   - **A portable that would cost a dial** stands in its cradle on the glareshield, on the pilot's line, clear of the
+     compass.
+   - **A panel with no screen** whose standard or flexible layout leaves dials off now gets the same packer. The Cub's
+     volts and COM and the Jodel's VSI, oil temperature, volts and COM are on the dash; they were billed and not drawn.
+   - **The breakers:** rows of two allowed, five rows at most; no breaker for a load the dash had no room for.
+   - **No room = not billed.** `genSystemsResolve` reads `systems.noRoom` (the join writes it from the layout's overflow):
+     those dials, radio heads, the GPS and breakers are off the bill and off the bus, and the column names each "no room
+     on the dash". The layout reads the panel's own state, which never holds the list, so a dropped dial is offered the
+     dash again on every build.
+   - **Where it lands** (GATE GPSFACE F, the saves as the game loads them):
+
+     | build + GPS | screen | dials | no room |
+     |---|---|---|---|
+     | Cub + glass | on the plate, on the pilot's line | 11 | none |
+     | Cub + portable | on the plate, on the pilot's line | 11 | none |
+     | C172 + glass | on the plate, on the pilot's line | 15 | none |
+     | metal Cessna + glass | on the plate, on the pilot's line | 15 | none |
+     | metal Cessna + portable | on the plate, on the pilot's line | 15 | none |
+     | Jodel + portable | cradle on the glareshield, pilot's line | 11 | none |
+     | Jodel + glass | on the plate, middle (the arch is too low at the pilot) | 7 | VSI, volts, clock, COM |
+     | Rufus + glass | on the plate, on the pilot's line | 3 | DG, oil pressure, oil temperature |
+
+2. **G2808.2 - what is drawn works, what is billed is drawn** (AVIONICS-STATUS E3, E5, E7, E8, W3-W7).
+   - **E7 the turn coordinator:** its symbol now banks (rate one = 20 deg). The join had baked no law for it.
+   - **The slip ball:** a moving part in the painted tube, riding the sideslip (`FACES.slip`). It was a fixed disc above
+     the centre.
+   - **W5 the ammeter:** a second needle on the volt / ammeter face, over the bottom gap, painted from the same law
+     (`FACES.amps`). It reads the current out of the battery; charging swings it to the '+'.
+   - **E3 / hour meter:** the NAV receiver's head and the hour meter are drawn (faces `nav`, `hobbs`). Both were billed
+     and powered with nothing on the panel.
+   - **E8 the fuel sight gauge:** the nose cap grows its wire (`_fit_gen.js capSight`).
+   - **E5 the venturi** is drawn where the fit's suction is a venturi, on any airframe. **The static ports** are drawn
+     where an instrument reads the static line.
+   - **W3:** the DG freezes without suction, whatever attitude indicator sits beside it.
+   - **W4:** the alternator charges only with the engine running.
+   - **W7:** the beacon flashes at the design's rate (`li_beaconRpm`).
+   - **W6:** the taxi light and the flood wear their own words on painted tapes. The user's sheet has no tile for them:
+     its 'cruise' and 'Dash' named other things.
+
+3. **G2809 - billed as drawn, for every aeroplane the editor drew** (`spec.outfit.drawn`, `outfit.ctl`, `systems.lights`).
+   A spec with no drawing (a fiche, an archetype) bills exactly as before.
+   - **The seats:** the kind billed is the drawn seat's (tube frame = sling, shell = moulded pan or the crushable seat,
+     airliner = upholstered), and there is a chair at every seat drawn (`cabin.seatsX`, the bays' too).
+   - **The panel board and its shell** are billed off the drawn facia and dash (6.0 and 2.4 kg/m2). No dash, no board.
+   - **The lining** is the drawn sill shoulders, door panels, console and floor, at the trim's densities. The trim
+     choice (bare / light / lined / lined and quiet) is now the finish of those surfaces; unset is light. The Raymer lump
+     steps aside on a drawn cabin and stays the rule for a spec with no drawing.
+   - **The controls:** each control station drawn past the first is a second set (3.4 kg), plus a yoke's column over a
+     stick (1.5 kg a station).
+   - **The lamps:** `GEN_LIGHT_PARTS` (kg and price per lamp), billed per lamp the light layer drew (its census).
+     - With no battery the light layer draws no lamp and the panel no light switch.
+     - A light with no lamp drawn (the passenger light with no passenger seat) puts no load on the bus.
+     - The crown / rod beacon fitting is drawn only where a beacon is fitted with the lights and a battery, and is billed
+       as that beacon. It is still a fitting, not a glowing lamp.
+   - **No battery:** the generator and the starter are not fitted (dropped "no battery", not drawn in the bay).
+   - **The measuring:**
+     - `_cage_furnish.js` measures the cage's dash, facia, shoulder and door-panel sheets off the post chain's mesh.
+     - `_cage_crew.js` publishes the floor's plan area and the console box's surface.
+     - The join now writes `spec.outfit` (it computed it and dropped it before).
+   - **Node draws what the page draws** (`tools/_scene_headless.js`):
+     - the late hooks (the crew's floor) are drained after the chain, as `_cage_ui.js` does;
+     - the built mesh (`CAGE_UI.MS`) and the rows are published before it, so the light layer mounts the flood and the
+       passenger lamps in node as on the page. Node drew neither before.
+
+**The validated aeroplanes, master (origin/master 61e93cb15) against this branch, loaded the game's way
+(tools/_load_build.js, no join cache):**
+
+| aeroplane | empty kg (master -> branch) | price cr | CG x (m, model) | furnishing + outfit kg | electrics kg | radios kg | what moved |
+|---|---|---|---|---|---|---|---|
+| Cub | 351.26 -> 356.52 (+5.26) | 30834 -> 32495 (+1661) | 0.7045 -> 0.7104 | 37.43 -> 38.73 | 17.05 -> 20.44 | 1.00 -> 1.00 | 1 stick drawn (dual no longer billed); floor 1.37 m2, shoulders, board; lamps x8 |
+| Jodel | 341.78 -> 355.09 (+13.30) | 34422 -> 36300 (+1878) | 0.4211 -> 0.4355 | 28.53 -> 36.94 | 17.05 -> 20.44 | 1.00 -> 1.00 | 2 chairs + 2 stick stations drawn (1 chair, no dual billed before); floor, shoulders; lamps |
+| metal Cessna | 668.61 -> 678.08 (+9.46) | 94095 -> 95774 (+1679) | 0.6431 -> 0.6505 | 66.00 -> 70.68 | 19.10 -> 22.65 | 3.30 -> 3.30 | 4 chairs (2 billed), 2 yokes; door panels 2.7 m2, floor 1.85 m2; Raymer lump off; lamps |
+| Cessna floats | 732.29 -> 739.65 (+7.36) | 95789 -> 97336 (+1547) | 0.6513 -> 0.6570 | 70.80 -> 73.64 | 19.10 -> 22.65 | 3.30 -> 3.30 | as the metal Cessna (the same cabin) |
+| twin floatplane | 393.56 -> 397.81 (+4.25) | 35442 -> 35736 (+294) | 0.9468 -> 0.9560 | 21.32 -> 22.59 | 17.05 -> 20.51 | 1.00 -> 0.00 | COM: no room on its dash, not billed (-1.0 kg, -1 608 cr); lamps incl. 2 beacons |
+| Cessna 172 | 644.06 -> 648.33 (+4.27) | 89242 -> 90603 (+1361) | 0.6863 -> 0.6888 | 74.14 -> 74.35 | 19.10 -> 22.65 | 3.30 -> 3.30 | 4 chairs, 2 yokes, door panels, floor; Raymer lump off; lamps |
+| Rufus | 273.44 -> 285.15 (+11.71) | 37581 -> 39864 (+2283) | 0.7344 -> 0.7481 | 22.63 -> 29.25 | 16.60 -> 20.21 | 0.00 -> 0.00 | its shell seat billed as a moulded pan (a sling before); floor; lamps incl. 2 beacons |
+
+Reproduce with `node tools/avionics_bill_table.js <a master worktree's flyDiy>`. The parity fixture (`tools/fixtures/avionics_parity.json`) is re-captured on these numbers; `node tools/avionics_parity.js` now reads SAME on all seven.
+
+**Gates** (`node tools/run_gates.js --only=<ID> --no-build`, after `node tools/build.js`; the grep rule over every file this
+branch touched against master = 205 gates; run three at a time with `--jobs=1`, the ones killed for memory or time re-run ALONE):
+
+- **`GATE ID: PASS` (176):** ACCEPT, AERO, ALTIPORT, ANIMALS, ASSETBUDGET, ASSETS, ATMO, ATMOS, AUDIO, AUDIOENG, BAY, BEACON, BENCH, BIPLANE, BOOMBOX, BOOT, BUILD, CARDS, CARS, CGBAND, CHARS, CITYHOST, CLIMATE, CLIP, CLOCKBAKE, CONTACT, CONTRACTS, DAY, DEFAULT, DESIGN, DESIGNCHECK, DMGCRASHUI, DMGFPS, DMGHEAL, DMGMEMBERS, DMGOCCUPANT, DMGPAGEW, DMGSETTLE, DMGSKIN, DMGSKINGPU, DMGWALL, DMGWRECK, DRAG, ECON, EDBUGS, ELEC, ENERGY, ENGID, ENGINE, ENGMESH, FADES, FIN, FIT, FLAPS, FLEX, FLIGHTREC, FLOATS, FLOWNBAKE, FRAMES, FREIGHT, GAMEPREM, GE, GENPAIRS, GEOPARITY, GFX, GPSFACE, GRASSSIDES, HANGAR, HEADING, HINGE, HITBOX, HONEST, HONESTY, HOUSE, HOUSEWORKER, HWCOV, HYDRO, HYDRODYN, HYPOT, INPUT, JOIN, KITHOST, KNIFE, LAZY, LIFE, LIGHT, LIVERY, LOAD, LOADS, MAPBAKE, MASS, MEDIA, METKIT, MOUNT, NACLAG, NAMES, NAV, NAVAID, OBSTACLE, OBSTFRAME, PACE, PANEL, PARKED, PARTS, PAVEMENT, PILOT, PLAN, PLAYER, POSEBACK, POSEHIDDEN, POSTFX, PREMCOOK, PREMISES, PREMRASTER, PROCURE, PROFILE, PROGRAMS, PROPS, REF, ROLLSND, ROUTES, RPM, SAVE, SCENERY, SHADOWSKY, SHEETWORKER, SIMWORKER, SIMWORKER-PAGE, SIMWORKER-PLACE, SITE, SKIN, SKINMAT, SPECFIX, STAGES, STARTER, STORAGE, STOREDRAW, STORESPOT, STORY, STRESS, STRIPGROUND, STRIPSURF, SUBSTEP, TANKMOUNT, TARR, TAXICLEAR, TECH, TREE, TREES, UILAYER, UISMOKE, UISMOKE-PHONE, UPDATE, VIEW, VILLAGE, WATER, WATERDAMP, WEATHER, WETFX, WINGROWS, WINGSPLIT, WIPLINE, WORLDRENDER; and run alone after the parallel run: `GATE GEN: PASS` (4 / 4 shards),
+  `GATE DESTTO: PASS` (3 / 3 shards), `GATE TREECRASH: PASS`, `GATE DMGFABRIC: PASS`, `GATE DMGUPLOAD: PASS`, `GATE BIOME: PASS`,
+  `GATE SETTLE: PASS`, `GATE DMGCERTCOST: PASS`, `GATE RWYTREES: PASS`, `GATE DASH: PASS`, `GATE ENERGYBASE: PASS`,
+  `GATE WEIGHT: PASS`, `GATE BUILT: PASS` (the outputs rebuilt in the working tree; the committed ones lag until the train's
+  (built) commit, as the rule says).
+- **Re-frozen, named (the validated aeroplanes moved on purpose):**
+  - ENERGYBASE `--bless`: every node and CG unchanged; the furnishing row split out of the outfit (G2806, the sums
+    unchanged), the venturi now on the alloy and carbon cases (E5).
+  - DMGFABRIC: the Cub's and the metal Cessna's trunk bases (the old bits kept in the comment).
+  - TREECRASH `--write-ref`: the 30 m/s ensemble reference (the Jodel's member work 19.7 -> 24.4 kJ).
+  - WEIGHT: the Caravan's band 50 -> 55 % (the undrawn interior's Raymer lump stepped aside; -47 -> -53 %).
+  - FRAMECOST: the Cessna's garage seed admits the dash's new parts (2 100 -> 2 750, G2808).
+  - DASH: the physics row restated (the two dashes differ by their drawn facia and shell, and the gross they move).
+  - the avionics parity fixture, re-captured.
+- **Red, and master's (the same rows on a clean origin/master worktree, run alone):** AA, FOG, PILOTS, CLOCK, VEHICLE, ROLLANIM, POD,
+  JOINPARITY, SCENERYED, CLOUD, KTX2, DMGINST, DMGCERT, RWYLIGHTS, LAKEBED, WORLD, TREEHIT, RADIALDIV, BOOTLIFT, ROUNDTRIP,
+  SIMWORKER-EDGES, ARCHETYPES (the Chinook's rejected take-off, shard 0/4). DMGDETERMINISM: no verdict inside the runner's
+  1800 s, on master too.
+- **FRAMECOST: FAIL (22), run alone:** 21 stand / taxi rows are the STALE PARKED COOK (`parked_cook.js --check`: stale on any
+  viewer / editor change; master with one comment changed fails the same rows - G2807's A/B), the train re-cooks on the GPU.
+  The Cessna's garage-restore row is master's own red (4 553 there); the dash's parts add ~390 more, NOT admitted - the train's
+  to take or not.
+- **RED AND MINE - the validated aeroplanes now fly what they weigh (asks below):**
+  - TAKEOFF (2 rows): the twin floatplane taxiing off its stand rolls its stab 2.60 / 2.77 deg against the mains (limit 2.5;
+    master 2.36 / 2.42). The two tail beacons billed (0.45 kg each, drawn at the fin and on the rod) do it: without them 2.44,
+    with one 2.69.
+  - LINEUP (1 row): Jolene w4, the default Cub's rest height at the roll's start -9.9 cm against the stand (limit 6; master
+    -5.2): its line-up point moves 0.5 m on the sloped strip with the new CG.
+  - TOUR (3 rows, the user's Cub): tw_ski > mn_strip diverts to w7 (3 of 6 legs; master flies 5 of 6 and stops at the known
+    water red on 02/20).
+  - ROUTE (1 row): the Jodel (+13.3 kg) climbs 1.7 m/s on WP1, the drawn profile's own limit (master's verdict pending: its run
+    ran out the runner's 1800 s; re-run uncapped).
+  - DMGSCAR (2 of 105): the 30 m/s trunk crash's gouge point and the grass cull's footprint move with the heavier aeroplanes;
+    master PASSes it.
+
+**For A0 on the box:**
+- `node tools/avionics_stills.js 8572 <outDir> glass` on the shipped metal Cessna: the glass unit in front of the pilot,
+  live (the stills script's header has the live_driver line).
+- The page's join against node's (`GATE JOINPARITY`): node now drains the late hooks and publishes `CAGE_UI.MS`, so the floor
+  area and the lamp census should agree with the page's. JOINPARITY was red on master here; please run it on the box.
+
+**Asks for the user:**
+- **The validated aeroplanes now fly what they weigh, and five gates feel it** (TAKEOFF, LINEUP, TOUR, ROUTE, DMGSCAR above).
+  Nothing was lightened or moved to pass them. For each: accept the new behaviour (the gate re-baselined, named), or say
+  what should change. The sharpest is the twin floatplane's taxi (TAKEOFF): its two tail beacons are now real 0.45 kg
+  parts; a lighter LED beacon, or dropping the rod's clamped beacon where the fin already carries one (which alone still
+  gives 2.69 deg), or a 2.8 deg bound for that aeroplane.
+- **The Jodel's glass unit:** its plate is too low at the pilot's seat, so it sits in the middle and four gauges give way. Keep
+  that, or should a glass unit refuse a plate it cannot put on the pilot's line?
+- **The densities are first numbers:** pads 0.6 / 1.2 / 2.0 / 3.0 kg/m2 by trim, floor ply 2.5 + a covering of 0.3 to 1.5,
+  the dash shell 2.4, a yoke's column 1.5 kg over a stick, a beacon 0.45 kg, a nav light 0.2.
+- **The headliner and the soundproofing are not drawn,** so a drawn cabin no longer bills them (the Caravan's band opened
+  to 55 % for it). Draw them as parts next (then they bill again), or keep a share of Raymer's lump for them meanwhile?
+- **The crown / rod beacon** is billed and on the bus, but it is a fitting, not a glowing lamp: make it the light layer's
+  lamp next?
