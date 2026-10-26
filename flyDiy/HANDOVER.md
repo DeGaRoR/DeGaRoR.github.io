@@ -99064,7 +99064,7 @@ Strict light gate RED (6), all in known classes; the loads are back inside their
 - world -> garage: cub round trip 2 at 2.02 s, floats at 5.29 s. The class red since L24c (2.99 / 3.55 there); HWCOV has the cause, the per-trip cacheKey churn of fragment 66e30961, and its Mon 12:45 slot names the owner.
 Pushed by the user's order of 25 Oct: land as soon as possible.
 
-## G3510-G3519 - NEW-SHAPES-1: THE ROUND BODY (THE AERO NOSE'S FULL RINGS, ENDING IN THE ENGINE FACE) AND THE OCCUPANT SECTIONS OPEN AT THE TOP, CLEAN; A STEARMAN AND A TIGER MOTH THROUGH THE LOAD DOOR, FLOWN; THE SIX VALIDATED BUILDS BIT-IDENTICAL (2026-10-26, NEW-SHAPES-1, cloud - node + headless only; branch claude/new-shapes-1 off origin/master d7e181f4e = L25c, origin/master merged (no move since); READY as claude/ready/new-shapes-1 on the user's 26 Oct order; G3514-G3519 unused)
+## G3510-G3519 - NEW-SHAPES-1: THE ROUND BODY (THE AERO NOSE'S FULL RINGS, ENDING IN THE ENGINE FACE) AND THE OCCUPANT SECTIONS OPEN AT THE TOP, CLEAN; A STEARMAN AND A TIGER MOTH THROUGH THE LOAD DOOR, FLOWN; THE SIX VALIDATED BUILDS BIT-IDENTICAL (2026-10-26, NEW-SHAPES-1, cloud - node + headless only; branch claude/new-shapes-1 off origin/master d7e181f4e = L25c, origin/master merged (no move since); READY as claude/ready/new-shapes-1 on the user's 26 Oct order; G3514-G3517 the user's second round of 26 Oct (rear pilot, the cards moved, the screen glass billed, the bench pictures); G3518-G3519 unused)
 The user (23 Oct, verbatim): "did we ever start anything from the geometry study, because we'd need some of that for a proper stearman / cylinder type fuselages with openings for individuals" - "It has to draw on our existing systems as much as possible, so fuselage shaping methods just work too, and we generate section with pillars, like the other geometry. It is really important not to reinvent a new system that does not build or integrate well with the current one." - "the proofs would be a stearman and a moth. The round fuselage can probably try and look at the aeronose shape (ambiguously named), that already gets rid of the more complex windshield geometry for a shapable cylinder. The sections holding the pilot and second person should be identified as proper sections, and the fuselage openings should be clean. Yet I'm not sure that you should build on open cockpit. Reading the previous study is important too, yet take it with a grain of salt. Should be in future plans"
 
 **READY for A0** (the user, 26 Oct: "When ready: merge origin/master, run the node gates for every file you touch + GEN
@@ -99207,17 +99207,14 @@ stations: one set of stations, drawn and flown.
 
 ### THE PROOFS - a Stearman and a Tiger Moth, through the game's own load path
 
-`node tools/newshapes_build.js --build` births each from the shed's own archetype card (_cage_design.js ARCHETYPES
-'stearman' - the Continental W-670 from the catalogue, N struts, wires, lower ailerons, oleo mains - and 'tigermoth' -
-the DH Gipsy Major, the swept upper plane), designBake, then writes the new shape's rows into the cage as a builder
-dials them (`ROWS` in the tool, every one a panel row), then THE PAGE'S LOAD DOOR (tools/_load_build.js) ->
-tools/fixtures/stearman_2026-10.json, tools/fixtures/tigermoth_2026-10.json. `node tools/newshapes_build.js` loads
-each fixture through the door again, builds, benches (genShakedown + the design check at the loading corners),
-measures the openings ON THE EDITOR'S OWN SHEET and the crew ON THE CREW LAYER AS DRAWN, certifies and flies the
-game's pilot (43_pilot) from HOME through the circuit (tools/dc3_probe.js fly). Two changes to the cards, both
-stated in the tool: the Stearman takes the Cub's 'rounded' fin (the card's 'broad' fin reads vTaper 0.24 against the
-flown 0.35 floor - a join ERRS row on master's card itself), its wings 0.30 forward instead of 0.60 (the round body's
-CG is further aft); both mains dropped for a prop clearance over FAR 23.925 (see below).
+`node tools/newshapes_build.js --build` births each from the shed's own archetype card - since G3516 the cards ARE the
+round body + open tandem (_cage_design.js ARCHETYPES 'stearman': the Continental W-670 from the catalogue, N struts,
+wires, lower ailerons, oleo mains; 'tigermoth': the DH Gipsy Major, the swept upper plane; both `...OPEN_TANDEM` and the
+pilot in the rear) - designBake, then THE PAGE'S LOAD DOOR (tools/_load_build.js) -> tools/fixtures/stearman_2026-10.json,
+tools/fixtures/tigermoth_2026-10.json. `node tools/newshapes_build.js` loads each fixture through the door again, builds,
+benches (genShakedown + the design check at the loading corners), measures the openings ON THE EDITOR'S OWN SHEET and the
+crew ON THE CREW LAYER AS DRAWN, certifies and flies the game's pilot (43_pilot) from HOME through the circuit
+(tools/dc3_probe.js fly). Numbers below are the final head's (the Stearman re-flown after the G3517 gear move).
 
 | | Stearman (fixture) | real PT-17 | Tiger Moth (fixture) | real DH.82A |
 |---|---|---|---|---|
@@ -99226,33 +99223,64 @@ CG is further aft); both mains dropped for a prop clearance over FAR 23.925 (see
 | openings as drawn (L x W) | 0.57 x 0.60 m, 0.64 x 0.61 m; 0.25 m decking between | | 0.53 x 0.44, 0.57 x 0.45; 0.25 between | |
 | skin boundary | 3 loops (the 2 openings, 40 edges each + the engine face), 0 over-shared edges | | the same | |
 | anything inside an opening (truss, liners, bulkheads; >15 mm in, above the rail) | **nothing** | | **nothing** | |
-| seated heads | both inside their own opening, 21-22 cm over the coaming rail, 12-13 cm over the crown | | 21-22 / 13-14 cm | |
-| cabin as flown | glazing 'none' (open), 2 seats, screen drag 0.070 m2 | | the same | |
+| seated heads | both inside their own opening, 21-22 cm over the coaming rail, 11-13 cm over the crown | | 21-22 / 13-14 cm | |
+| cabin as flown | glazing 'none' (open), 2 seats, screen drag 0.070 m2, screens 0.228 m2 billed as glass | | the same, 0.176 m2 | |
 | span | 9.80 m | 9.80 m (32 ft 2 in) | 8.94 m | 8.94 m (29 ft 4 in) |
-| wing area (both planes) | 28.8 m2 | ~27.6 m2 (297 sq ft, as recalled) | 23.7 m2 | 22.2 m2 (239 sq ft) |
-| empty | 904 kg | 878 kg (1 936 lb; 876 kg in one source) | 574 kg | 495-506 kg (1 090-1 115 lb) |
-| flown mass | 1 224 kg (2 seats, the card's 174 L) | MTOW 1 232 kg (2 717 lb) | 816 kg (2 seats, 87 L) | MTOW 828 kg (1 825 lb) |
+| wing area (both planes, the centre cut-out) | 28.3 m2 | ~27.6 m2 (297 sq ft, as recalled) | 23.4 m2 | 22.2 m2 (239 sq ft) |
+| empty | 917 kg | 878 kg (1 936 lb; 876 kg in one source) | 580 kg | 495-506 kg (1 090-1 115 lb) |
+| flown mass | 1 242 kg (2 seats, the card's 174 L) | MTOW 1 232 kg (2 717 lb) | 823 kg (2 seats, 87 L) | MTOW 828 kg (1 825 lb) |
 | Vs clean | 42 kt | 44-48 kt (51 / 55 mph power on / off) | 38 kt | 37 kt (43 mph) |
-| climb | sheet 3.8, flown max 5.3 m/s | 4.1-4.3 m/s (800-840 ft/min) | sheet 2.7, flown max 3.9 | 3.4-4.1 m/s (673-798 ft/min) |
-| take-off | sheet 276 m; flown off at 373 m, 66 kt; 15 m at 528 m | | sheet 294; off at 343 m, 58 kt; 15 m at 497 m | |
-| landing | touchdown 1.72 m/s at 48 kt; from 15 m 574 m, roll 68 m | | 2.06 m/s at 48 kt; 539 m, roll 144 m | |
-| the circuit (pilot) | outcome completed, 0 breaks, no crash, gPeak 1.88, no prop strike | | completed, 0 breaks, gPeak 2.05, no prop strike | |
-| static margin / prop clearance (level) | 0.100 / 0.271 m | | 0.323 / 0.242 m | |
-| price (ledger) | 82 104 | | 57 598 | |
+| climb | sheet 3.7, flown max 5.2 m/s | 4.1-4.3 m/s (800-840 ft/min) | sheet 2.7, flown max 3.9 | 3.4-4.1 m/s (673-798 ft/min) |
+| take-off | sheet 291 m; flown off at 387 m, 66 kt; 15 m at 541 m | | sheet 301; off at 343 m, 58 kt; 15 m at 492 m | |
+| landing | touchdown 1.48 m/s at 51 kt; from 15 m 600 m, roll 70 m | | 2.29 m/s at 48 kt; 531 m, roll 153 m | |
+| the circuit (pilot) | outcome completed, 0 breaks, no crash, gPeak 1.67, **no prop strike** | | completed, 0 breaks, gPeak 2.16, no prop strike | |
+| static margin / prop clearance (level) / nose-over angle | 0.205 / 0.317 m / 17 deg | | 0.307 / 0.251 m / 15 deg | |
+| price (ledger) | 82 872 | | 57 936 | |
 
 Sources (searched 26 Oct; they disagree where ranges are given): Military Aviation Museum, Planes of Fame, CAF Airbase
 Arizona (azcaf.org), stearmanflyin.com, historyofwar.org (PT-17); de Havilland Aircraft Museum, Shuttleworth,
-aeropedia.com.au, GlobalAir (DH.82A). The sheet's "cruise" (Stearman 83, Moth 70 kt) is the sheet's speed cap, not a
-measured maximum (real 108 / 90-95 kt) - not compared. The Moth is 13-16 % heavy empty (the cause is not measured here); the
-Stearman 3 % heavy and its stall 2-6 kt low (the biplane's 28.8 m2 against ~27.6).
+aeropedia.com.au, GlobalAir (DH.82A). The sheet's "cruise" (Stearman 83, Moth 69 kt) is the sheet's speed cap, not a
+measured maximum (real 108 / 90-95 kt) - not compared. The Moth is 15-17 % heavy empty (the cause is not measured here); the
+Stearman 4 % heavy, 0.8 % over its MTOW with the card's full 174 L, and its stall 2-6 kt low (28.3 m2 against ~27.6).
 
 **Found on the way, fixed in the proofs' rows:** (1) the first cut sat both heads 16 cm UNDER the coaming - an open
 section has no door, so the crew stands on the keel + floorboards (_cage_crew.js anchors) and a seated head's top is
 1.07 m over the keel: the keel is set for the coaming to stand ~0.88 m over it. (2) that shallower keel took the
 Stearman's level prop clearance to -0.12 m and it flew a PROP STRIKE (the design check does not test the disc's
-clearance; the plaque's `propClear` does): the mains' drop 0.33 -> 0.72 m (0.271 m), the Moth's 0.33 -> 0.43 (0.242).
-(3) the screens' edge band carried the cloth liner over the opening until it took the `paneEdge` flag every pane
-edge carries. (4) the pilot's instrument panel hung 0.9 m ahead under the decking (G3513).
+clearance; the plaque's `propClear` does): the mains dropped (Stearman s1Drop 0.80, Moth 0.43). (3) the screens' edge
+band carried the cloth liner over the opening until it took the `paneEdge` flag every pane edge carries. (4) the
+pilot's instrument panel hung 0.9 m ahead under the decking (G3513). (5) G3517: with the wings forward the Stearman's
+mains at the cage's s1Z 2.00 left the CG 33 deg AHEAD of the axle (shakedown noseOver -32.8): the circuit was clean
+but the rollout braking nosed it over - a prop strike at 314 s, 11 m/s. s1Z 2.30 gives 17 deg (the Moth's 15) and the
+circuit flies out to STOPPED. (The design check does not test the nose-over angle either; the plaque's `noseOver` does.)
+
+### G3514-G3517 - THE USER'S SECOND ROUND (26 Oct: "an option in the seat section to designate back seat as pilot seat.
+Move the archetypes ... Try to account for the glass weight. If the rear is designated as the pilot, it gets the
+dashboard. The other gets nothing for now. ... maybe you can do the plane bench?")
+- **G3515 the rear pilot.** Seats > seating: `pilotRear` ('pilot's seat': the front (cockpit) / the rear (bay 1)),
+  shown for a tandem with a bay (seatLayout !== 1, paxCount >= 1). Absent from spec.cage at 0 (`CAGE_ZERO_ABSENT`, G2827),
+  so no validated build moves. When 1, _cage_crew.js `crewPilotRear` seats the pilot in the rear bay's row (seatsX pilot
+  first), the panel, the stick, the throttle and the pedals at the rear opening (zDash at `pax1OpenB`), and the front
+  cockpit seat is a passenger seat with nothing (no panel, no controls - "the other gets nothing for now"). The join's
+  open-cockpit rule follows the seated sections, and M.pilots / M.pax count by the seat, not the section. GATE BUILD
+  asserts the row absent at 0 and written at 1 (G3515).
+- **G3516 the cards moved.** 'stearman' and 'tigermoth' now birth the round body + open tandem, the pilot in the rear
+  (`OPEN_TANDEM` in _cage_design.js) - the fixtures are the cards. The Stearman's 'broad' fin (a vTaper join ERRS row
+  on master's card) is the Cub's 'rounded'. GATE ARCHETYPES re-baked them (see the gates).
+- **G3516 the screen glass billed.** src/core/60_gen_spec.js keeps a `cabin.screenM2` only when the join writes one
+  (no default: absent from every validated build's spec); 61_gen_frame.js bills `glassKg x screenM2` when the cabin
+  flies open (`glazing 'none'`) with a section open. The measured screen area comes from the sheet (cageGlazedM2, now
+  skipping the screens' inner face, `f.paneBack`, so a two-sided screen counts once): +1.04 kg Stearman, +0.8 kg Moth.
+- **G3517 the cockpits under the upper plane.** The first bench picture had the Stearman's upper wing over both
+  openings and its screens through the skin: the cards now carry a long forward deck (aeroWsLen), the wings a little
+  forward (wgDx), the upper plane higher (wgParaH) and the centre section cut back at the trailing edge (wgCentre 3,
+  'cutout' - the PT-17's and the DH.82A's). Then the Stearman's mains forward (above, (5)).
+- **G3514 the bench pictures.** `tools/bench_shot.js` loads a build into tools/_cage8.html (the standalone cage bench,
+  not the garage) through its own load door (CAGE_UI.applySpec), hides the panel and reads PNGs off the bench's own
+  renderer (headless Chromium + SwiftShader; serve the repo root on :8450 first). Views q, s, f, top, r, c (the
+  cockpits, close). _cage8.html lacked `src/core/60d_gen_pod.js` (the wing layer calls genPodResolve) - added, the bench
+  drew no wings without it. Pictures (gitignored): flyDiy/screenshots/newshapes/{stearman,tigermoth}_{quarter,side,top,cockpits}.png.
+- **Leather:** left as is (the coaming is the window joints' riveted metal strip) - the user was "not sure".
 
 ### THE IDENTITY PROOF - loaded the game's way, master vs branch
 `tools/newshapes_identity.js` (the DC3-BUILD tool's method, with the drawing and the keys added): each validated build
@@ -99338,20 +99366,20 @@ A merge conflict, if any, is the one line beside cageCanopy in each path: keep b
   is on; Cabin > opening and Passenger bay > opening open each section, live.
 
 ### DECISIONS FOR THE USER
-1. **Which cockpit is the pilot's.** The cage seats the pilot in the FRONT section (the Cabin, ahead of the bays, as
-   every build); a PT-17 and a DH.82A are flown solo from the REAR cockpit. Keep (the rear is the "second person"),
-   or let a tandem put the pilot in the rear section (the crew layer's job, and the CG)?
-2. **The archetype cards** ('stearman', 'tigermoth' in _cage_design.js) still birth a closed cabin with a windscreen
-   (and the Stearman card's 'broad' fin reads a join ERRS row on master). Move both cards to the round body + open
-   cockpits (the fixtures' rows; GATE ARCHETYPES re-baselines), or keep them and the fixtures apart?
-3. **The coaming is the window joints' metal strip** (riveted, the joint material) - the vocabulary does not fork. A
-   padded leather roll would be its own section name and look: wanted?
-4. **The screens' glass is not billed** when the cockpit flies open (`cabin.glazing 'none'` bills no glass; ~0.5 kg on
-   these two). Bill the measured screen area when open (a one-line src/core change in 61_gen_frame, a gated one)?
-5. **The rear cockpit has no panel and no controls** (the crew layer draws one panel and one set). Dual controls in the
-   second section: owed, if wanted.
+1. **The taper aft of the rear cockpit.** The round body steps down to the tail cone behind the rear opening (the
+   cage's taper starts at the bays' end); the real types run the turtle deck smoothly to the fin. A longer deck is the
+   frames' job (boomLen re-trips the fin's vTaper on the Stearman): wanted?
+2. **The Moth's Gipsy and cowl.** The inline Gipsy Major sits bare on the engine face (no long DH cowl); the round body's
+   front rows (aeroLen, aeroTipW/H, aeroDroop) shape the nose ahead of the face, not a cowl over the engine. A cowl
+   over an inline is COWL work, not this branch's.
+3. **The COM blade aerial** stands on the decking between the cockpits (the cage's antenna on the crown). Move it aft, or
+   leave it?
+4. **Leather coaming** (a padded roll, its own section name and look): still open - left as the metal strip for now.
+5. **Dual controls / a panel in the front cockpit** when the pilot is in the rear: "nothing for now" - owed if wanted.
 6. **A mixed cabin** (a closed cockpit ahead of an open rear seat) flies as a closed cabin (the cabin's screen step,
    glass billed): fine, or a per-seat open term?
+7. **The built files** (index.html, dev.html, sw.js, version.json; flight_core.js when the core moves) are committed on
+   this branch in their own "(built)" commits, the train's way; A0 may prefer to rebuild them at merge.
 
 ### WHAT IS LEFT (said plainly)
 - The study's GLAZED BAND (CONFIGURATIONS §3.4: glazing as a fraction of a ring, the Aeroprakt windshield) - not done;
