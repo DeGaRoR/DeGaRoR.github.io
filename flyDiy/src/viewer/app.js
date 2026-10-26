@@ -9880,6 +9880,19 @@
       if (ps && ps[0]) FST.pax.push({ P: ps[0], frame, seat: i });
     });
   }
+  // ---- G3614 (PEOPLE): THE PEOPLE'S DOOR -------------------------------------------------------------------------------
+  // 72_people.js's one list, for the page's readers: the crowd (PEOPLE-CROWD G3619: who queues - pool('passenger', n, seed)
+  // and each one's body, char(id)), the map's client faces, the pilots' cards, Tim's band. face(id, px): the portrait's
+  // URL for a display of px CSS pixels (null: no such person / no cut) - nothing is fetched until an <img> asks for it.
+  window.FLYDIY_PEOPLE = {
+    get: id => (GAME_PEOPLE[id] ? JSON.parse(JSON.stringify(GAME_PEOPLE[id])) : null),
+    of: role => peopleOf(role),
+    name: id => peopleName(id),
+    char: id => (GAME_PEOPLE[id] ? GAME_PEOPLE[id].char : null),
+    client: org => peopleClientOf(org),
+    pool: (role, n, seed) => peoplePool(role, n, seed),
+    face: (id, px) => peopleFace(id, px),
+  };
   // ---- G2970 (CHARACTERS): THE CROWD ------------------------------------------------------------------------------------
   // The passengers board at the stand. Every figure seated at the roll-out - a job's passenger FREIGHT-STRAP seats live
   // (fsPeople, its own character: the crowd's cast first), the build's own baked into the flown model (one bucket per
