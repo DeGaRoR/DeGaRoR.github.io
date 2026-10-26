@@ -624,7 +624,7 @@ module.exports = function mapSmoke(html, phone) {
   // PILOTS (G2290): the real record - kit hired, 2-3 looking for work; Hire / Flies next / Fire (disabled in the preview)
   const pst = { list: 'pilots', at: null, phone };
   const PL = MR.pilots || [], PH = MM.listHTML(MR, pst);
-  need(PL.length >= 3 && PL.length <= 4 && PL.filter(p => p.hired).map(p => p.id).join() === 'kit' && PL.filter(p => !p.hired).every(p => p.onOffer), 'the real Pilots: kit hired, 2-3 looking for work (' + PL.map(p => p.id + (p.hired ? '*' : '')).join() + ')');
+  need(PL.length >= 3 && PL.length <= 4 && PL.filter(p => p.hired).map(p => p.id).join() === 'brian' && PL.filter(p => !p.hired).every(p => p.onOffer), 'the real Pilots: brian hired, 2-3 looking for work (' + PL.map(p => p.id + (p.hired ? '*' : '')).join() + ')');
   need(keysOf(PH).length === PL.length && PH.indexOf('Your pilots') < PH.indexOf('data-key="p:kit"') && PH.indexOf('data-key="p:kit"') < PH.indexOf('Looking for work'), 'the Pilots list: a row per pilot, yours first');
   for (const p of PL) {
     const b = checkItem(MR, pst, 'p:' + p.id, 'the Pilots: ');
