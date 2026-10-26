@@ -68,7 +68,7 @@ const MISSION_RULES = { crash: ['fail', 'reset'], injury: ['fail', 'ignore'], fr
 // §3.4's rules for a NEW mission that states none (the built-in pack states none: today's crash resets, keeps it live)
 const MISSION_RULES_NEW = { crash: 'fail', injury: 'fail', freight: 'fail', damage: 'assess' };
 const MISSION_SITE_STATES = ['planned', 'building', 'built'];
-const MISSION_REQUIRE = ['when', 'maxMin', 'depart', 'plane'];
+const MISSION_REQUIRE = ['when', 'maxMin', 'depart', 'plane', 'waitMin'];
 // THE PREFERENCES (§3.6, §7): a configuration word set, each read off the spec in phase 2 (`of`). Values are the GEN
 // vocabulary (60_gen_spec.js); a live table, when present, is the authority (missionPrefValues)
 const MISSION_PREF_KINDS = {
@@ -366,6 +366,10 @@ function missionWhy(m, ctx) {
       else { const w = missionPlaceWhy(s.place, { fields: F, sites, spots: ctx.spots }); if (w) why.push(at + ': ' + w); }
       if (s.from != null) { const f = msFieldOf(s.from); if (!f || !F[f]) why.push(at + ': from must be a field, got ' + JSON.stringify(s.from)); }
       if (s.do === 'photo' && missionPlaceKind(s.place) === 'field' && s.from == null) why.push(at + ': a photo over a field departs from a field (`from`: today\'s survey)');
+      // (MISSIONS-P1) an IN-FLIGHT step (a pass, a photo or a fly to a point / gate / ring) is judged off the flight's
+      // evidence by its id, and a timer starts / stops on ids: it needs one
+      if (['pass', 'photo', 'fly'].includes(s.do) && ['pt', 'gate', 'ring'].includes(missionPlaceKind(s.place)) && !s.id) why.push(at + ': an in-flight ' + s.do + ' needs an id (its evidence, its timers)');
+      if (s.do === 'wait' && !(s.require && s.require.waitMin != null)) why.push(at + ': wait needs require.waitMin');
       if (s.load && Array.isArray(s.load.pax)) people(s.load.pax, at + ' load.pax', 'a passenger');
       for (const e of ['embark', 'disembark']) if (s[e] != null) people(s[e], at + ' ' + e, 'a passenger');
       if (s.require != null) {
@@ -374,6 +378,8 @@ function missionWhy(m, ctx) {
           for (const q of Object.keys(s.require)) if (!MISSION_REQUIRE.includes(q)) why.push(at + ': require.' + q + ' is not one of ' + MISSION_REQUIRE.join(' '));
           const R = s.require;
           if (R.maxMin != null && !(msNum(R.maxMin) && R.maxMin > 0 && R.maxMin <= 1440)) why.push(at + ': require.maxMin is 1-1440 minutes');
+          if (R.waitMin != null && !(msNum(R.waitMin) && R.waitMin > 0 && R.waitMin <= 1440)) why.push(at + ': require.waitMin is 1-1440 minutes');
+          if (R.waitMin != null && s.do !== 'wait') why.push(at + ': require.waitMin on a ' + s.do + ' (wait only)');
           if (R.depart != null) {
             const D = R.depart, h = v => msNum(v) && v >= 0 && v <= 24;
             const ok = msObj(D) && Object.keys(D).length === 1 && ((D.after != null && h(D.after)) || (D.before != null && h(D.before)) || (Array.isArray(D.at) && D.at.length === 2 && D.at.every(h) && D.at[0] !== D.at[1]));
@@ -571,7 +577,9 @@ function missionPackContracts(pack) {
 // met: the night list's check - a validated design flies it - is the one a flying mission needs). HELD OUT, with the
 // reason: a mission the runtime cannot run yet (contractRuntimeOk), a choose:N chapter or a chapter / campaign with needs
 // of its own (phase 1), a seq campaign of more than one chapter (phase 1), a mission of another provider in a seq chapter.
-// Pure: returns { providers, held: [{ id, why }] }; the table handed in is not changed (its jobs, goods, fields kept).
+// Pure: returns { providers, held: [{ id, why }], text }; the table handed in is not changed (its jobs, goods, fields
+// kept). `text` is the pack's own words over the model's labels (MISSION_TEXT): the boot merges it into CONTRACT_TEXT
+// with the providers, or the card reads a pack mission's keys as [keys].
 function missionPackInstall(pack, providers) {
   const P = missionPackNormalise(pack), base = providers || CONTRACT_PROVIDERS, out = {}, held = [];
   const recs = missionPackContracts(P);
@@ -597,7 +605,7 @@ function missionPackInstall(pack, providers) {
       }
     }
   }
-  return { providers: out, held };
+  return { providers: out, held, text: Object.assign({}, MISSION_TEXT, msClone(P.text || {})) };
 }
 
 // ---- THE REWARD (the editor's live line) ----------------------------------------------------------------------------

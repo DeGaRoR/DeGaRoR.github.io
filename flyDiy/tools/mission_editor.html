@@ -94,13 +94,15 @@ dialog { background: var(--panel); color: var(--ink); border: 1px solid var(--li
 <!-- THE GAME'S CORE: the LEAN set (tools/_missions_lib.js), in build.js MANIFEST.core's order -->
 <script data-core="01_names.js" src="../src/core/01_names.js"></script>
 <script data-core="26_hangar_fit.js" src="../src/core/26_hangar_fit.js"></script>
-<script data-core="72_people_faces.js" src="../src/core/72_people_faces.js"></script>
-<script data-core="72_people.js" src="../src/core/72_people.js"></script>
 <script data-core="34_occupant.js" src="../src/core/34_occupant.js"></script>
 <script data-core="38c_route.js" src="../src/core/38c_route.js"></script>
+<script data-core="72_people_faces.js" src="../src/core/72_people_faces.js"></script>
+<script data-core="72_people.js" src="../src/core/72_people.js"></script>
+<script data-core="72_accept.js" src="../src/core/72_accept.js"></script>
 <script data-core="72_contract_data.js" src="../src/core/72_contract_data.js"></script>
 <script data-core="73_contracts.js" src="../src/core/73_contracts.js"></script>
 <script data-core="73b_missions.js" src="../src/core/73b_missions.js"></script>
+<script data-core="73c_mission_run.js" src="../src/core/73c_mission_run.js"></script>
 <script data-core="79_story.js" src="../src/core/79_story.js"></script>
 <!-- the island's 2-D map (map_bake.js) and the fleet's tie-down spots (fleet_spots.js --cook) -->
 <script src="../src/viewer/map_pack.js"></script>
@@ -497,7 +499,7 @@ function drawMap() {
     if (k === 'pt') { const [x, y] = w2s(s.place.pt[0], s.place.pt[1]); cx.beginPath(); cx.arc(x, y, Math.max(3, s.place.r / MAP.mpp * V.s), 0, 7); cx.stroke(); cx.fillText((s.id || s.do) + (s.split != null ? ' ' + s.split + 's' : ''), x + 6, y - 6); }
     if (k === 'gate') { const a = w2s(s.place.gate[0][0], s.place.gate[0][1]), b = w2s(s.place.gate[1][0], s.place.gate[1][1]); cx.lineWidth = 3; cx.beginPath(); cx.moveTo(a[0], a[1]); cx.lineTo(b[0], b[1]); cx.stroke(); cx.lineWidth = 1.5; cx.fillText(s.id || 'gate', b[0] + 5, b[1]); }
     if (k === 'ring') { const [x, y] = w2s(s.place.ring[0], s.place.ring[2]); cx.beginPath(); cx.arc(x, y, 6, 0, 7); cx.stroke(); cx.beginPath(); cx.arc(x, y, 2, 0, 7); cx.fill(); cx.fillText((s.id || 'ring') + ' y' + s.place.ring[1], x + 8, y); }
-    if (k === 'spot') { const [a, id] = s.place.spot.split(':'), q = (SPOTS[a] || []).find(z => z[3] === id); if (q) { const [x, y] = w2s(q[0], q[1]); cx.fillRect(x - 3, y - 3, 6, 6); } }
+    if (k === 'spot') { const i0 = s.place.spot.indexOf(':'), a = s.place.spot.slice(0, i0), id = s.place.spot.slice(i0 + 1), q = (SPOTS[a] || []).find(z => z[3] === id); if (q) { const [x, y] = w2s(q[0], q[1]); cx.fillRect(x - 3, y - 3, 6, 6); } }
   }));
   if (S.sel.t === 'step') { const s = m.legs[S.sel.l].steps[S.sel.s]; if (s && missionPlaceKind(s.place) === 'spot') { const a = s.place.spot.split(':')[0]; cx.fillStyle = '#ffffff88'; for (const q of SPOTS[a] || []) { const [x, y] = w2s(q[0], q[1]); cx.fillRect(x - 2, y - 2, 4, 4); } } }
 }

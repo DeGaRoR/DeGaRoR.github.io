@@ -86,7 +86,22 @@ const ACCEPT_KINDS = {
   rangeKm:      { src: 'flown',  op: '>=', unit: 'km',     what: 'TAS x the endurance, still air' },
   takeoffAt:    { src: 'flown',  op: '==', unit: '',       what: 'a take-off from that strip, in the logbook' },
   landAt:       { src: 'flown',  op: '==', unit: '',       what: 'a landing and a stop on that strip, in the logbook' },
+  // (MISSIONS-P2) THE AIRCRAFT ORDER'S NEW CRITERIA (73_contracts.js CONTRACT_CRIT_NEXT): the size off the measured plan
+  // (playerFootOfDef: the built nodes), the shakedown's numbers (ev.shake: genShakedown's { Vs, TORun, climbRate, mass },
+  // handed in by the bench - never computed here, GQ19), the leg's measured flow. A load (`at.pax` / `at.kg`) scales
+  // the shakedown's solo-full-fuel number by first-order laws (ACCEPT_LOAD_LAWS). ldgDistM and cargoL are not answered
+  // yet (no landing distance is measured; the hold's volume is the validated designs' only) - an order naming one waits.
+  heightM:      { src: 'static', op: '<=', unit: 'm',      what: 'the parked height: the built nodes (playerFootOfDef h)' },
+  lengthM:      { src: 'static', op: '<=', unit: 'm',      what: 'nose and propeller to tail: the built nodes (playerFootOfDef fwd + aft)' },
+  fitsShed:     { src: 'static', op: '==', unit: '',       what: 'through the shed’s door and parked inside it, its fit-out stood (hangarDoorWhy + hangarPark)' },
+  pax:          { src: 'static', op: '>=', unit: 'pax',    what: 'the seats beside the pilot (cabin.seats - 1)' },
+  stallKmh:     { src: 'static', op: '<=', unit: 'km/h',   what: 'the shakedown’s stall speed (Vs), at a load by the square-root law' },
+  toDistM:      { src: 'static', op: '<=', unit: 'm',      what: 'the shakedown’s take-off distance to the screen (TORun), at a load by the (W/W0)^2 law' },
+  climbMs:      { src: 'static', op: '>=', unit: 'm/s',    what: 'the shakedown’s climb rate at VClimb, at a load by the (W0/W)^2 law (first order)' },
+  fuelLph:      { src: 'flown',  op: '<=', unit: 'L/h',    what: 'the acceptance leg: the measured flow, litres an hour' },
 };
+// (MISSIONS-P2) the shakedown is measured solo, full fuel (its `mass`); a criterion's load adds occupants x occKg + kg
+const ACCEPT_LOAD_LAWS = { occKg: 80, stall: 0.5, toRun: 2, climb: -2 };   // value x (W / W0)^law
 
 const acceptNum = v => (typeof v === 'number' && isFinite(v)) ? v : null;
 function acceptCmp(op, a, b) {
@@ -217,6 +232,28 @@ function acceptStatic(c, ev) {
       const v = settled ? !!r.ok : null;
       return { k: c.k, ok: v === true && (c.v == null || c.v === true), value: v, need: 'lifts off the water',
                source: settled ? 'the bench’s hydroplane test: ' + (r.verdict || '') : 'the bench’s hydroplane test has not been run (a float build only)' };
+    }
+    // (MISSIONS-P2) the size, the seats beside the pilot, the shakedown's numbers
+    case 'heightM': return out(ev.foot && acceptNum(ev.foot.h) != null ? ev.foot.h : null, 'the measured plan: the built nodes (playerFootOfDef h)');
+    case 'lengthM': return out(ev.foot ? Math.round((ev.foot.fwd + ev.foot.aft) * 10) / 10 : null, 'the measured plan: nose and propeller to tail (playerFootOfDef)');
+    case 'pax': return out(ev.seats != null ? Math.max(0, ev.seats - 1) : null, 'the spec: cabin.seats less the pilot\'s');
+    case 'fitsShed': {
+      const at = c.at && typeof c.at === 'object' ? c.at : {};
+      const shed = Object.assign({ shell: c.v }, at.dims ? { dims: at.dims } : {});
+      if (!ev.foot || typeof hangarDoorWhy !== 'function' || typeof hangarPark !== 'function')
+        return { k: c.k, ok: false, value: null, need: 'fits a ' + c.v + ' shed', source: 'no measured plan yet (the roll-out measures it)' };
+      const why = hangarDoorWhy(shed, ev.foot) || ((hangarPark(shed, [{ name: 'order', foot: ev.foot }]).unplaced[0] || {}).why || '');
+      return { k: c.k, ok: !why, value: !why, need: 'through the door and parked inside a ' + c.v + ' shed' + (at.dims ? ' (' + 2 * at.dims.HW + ' x ' + 2 * at.dims.HD + ' m, eave ' + at.dims.EAVE + ' m)' : ''),
+               source: 'the measured plan through hangarDoor and hangarPark (71_player_bases)', why };
+    }
+    case 'stallKmh': case 'toDistM': case 'climbMs': {
+      const SH = ev.shake || null, L = ACCEPT_LOAD_LAWS;
+      const raw = !SH ? null : c.k === 'stallKmh' ? acceptNum(SH.Vs) != null ? SH.Vs * 3.6 : null : c.k === 'toDistM' ? acceptNum(SH.TORun) : acceptNum(SH.climbRate);
+      if (raw == null) return out(null, 'the bench’s shakedown has not been read (ev.shake): run the bench');
+      const a = c.at && typeof c.at === 'object' ? c.at : {}, W0 = acceptNum(SH.mass);
+      const add = (acceptNum(a.pax) || 0) * L.occKg + (acceptNum(a.kg) || 0);
+      const r = W0 > 0 && add > 0 ? Math.pow((W0 + add) / W0, c.k === 'stallKmh' ? L.stall : c.k === 'toDistM' ? L.toRun : L.climb) : 1;
+      return out(Math.round(raw * r * 10) / 10, 'the shakedown (genShakedown ' + (c.k === 'stallKmh' ? 'Vs' : c.k === 'toDistM' ? 'TORun' : 'climbRate') + ')' + (r !== 1 ? ', scaled to ' + Math.round(W0 + add) + ' kg' : ''));
     }
   }
   return { k: c.k, ok: false, value: null, need: String(c.v), source: 'not a static kind' };
@@ -523,7 +560,7 @@ function acceptVerdict(crit, evidence) {
       Object.assign(row, { value: s.value, need: s.need, source: s.source, ok: s.ok });
       if (s.why) row.why = s.why;
       row.status = s.ok ? 'ok' : s.value == null ? 'needs-test' : 'fail';
-    } else if (c.k === 'tasKmh' || c.k === 'enduranceMin' || c.k === 'rangeKm') {
+    } else if (c.k === 'tasKmh' || c.k === 'enduranceMin' || c.k === 'rangeKm' || c.k === 'fuelLph') {
       const need = acceptLoadOf(c);
       const legs = acceptLegsFor(ev, need);
       const leg = legs[legs.length - 1];
@@ -536,7 +573,7 @@ function acceptVerdict(crit, evidence) {
           : any.every(r => !r.valid) ? 'no VALID leg: ' + ((any[any.length - 1].why || []).join('; ') || 'rejected')
           : 'no valid leg at that load';
       } else {
-        let val = leg[c.k];
+        let val = c.k === 'fuelLph' ? leg.flowLh : leg[c.k];
         // a criterion with its own reserve: the gross endurance less that one
         if ((c.k === 'enduranceMin' || c.k === 'rangeKm') && acceptNum(c.reserveMin) != null && acceptNum(leg.grossMin) != null) {
           const end = Math.round((leg.grossMin - c.reserveMin) * 10) / 10;
@@ -545,6 +582,7 @@ function acceptVerdict(crit, evidence) {
         row.value = acceptNum(val);
         row.ok = row.value != null && acceptCmp(op, row.value, c.v);
         row.status = row.ok ? 'ok' : 'fail';
+        if (c.k === 'fuelLph' && row.value == null) row.status = 'needs-flight';   // (MISSIONS-P2) a leg with no litres (a pack, or no fuel density)
         row.source = 'the acceptance leg of ' + (leg.when || '?') + ' (' + leg.decl.legMin + ' min at ' + Math.round(leg.decl.thr * 100) + ' % throttle, '
           + (leg.load && leg.load.occupants != null ? leg.load.occupants + ' aboard, ' : '') + 'sig ' + leg.sig + ')';
         row.leg = leg.sig;
