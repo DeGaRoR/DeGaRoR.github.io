@@ -208,12 +208,13 @@ function run(mut) {
   { const SC = M.PEOPLE_BG_SCENES, BG = M.PEOPLE_BG;
     for (const id of M.PEOPLE_IDS) ok(!!SC[BG[id]], id + ': one background, a scene of the user\'s (' + BG[id] + ')');
     for (const sc of Object.keys(SC)) {
-      ok(/^\d\d_\w+$/.test(sc) && typeof SC[sc].for === 'string', sc + ': the user\'s own file name, and whom it is for');
+      ok(/^BG-[\w-]+$/.test(sc), sc + ': the user\'s own name (BG-<type>: the type of character it is for)');
       ok(eq(SC[sc].who.slice().sort(), M.PEOPLE_IDS.filter(id => BG[id] === sc).sort()), sc + ': its `who` is exactly the people the table gives it');
       const f = M.PEOPLE_BGS[sc + '_' + M.PEOPLE_BG_PX];
       ok(!!f && fs.existsSync(path.join(ROOT, 'media', 'people', f)), sc + ': its ' + M.PEOPLE_BG_PX + ' px cut ships (' + f + ')');
     }
     ok(new Set(ORDER.map(id => BG[id])).size === ORDER.length, 'the hirable pilots never share a background (' + ORDER.map(id => BG[id]) + ')');
+    for (const id of ORDER) ok(BG[id] === M.PEOPLE_BG_PILOT[R[id].profile.base], id + ': a pilot\'s background is their level\'s type (' + R[id].profile.base + ' -> ' + BG[id] + ')');
     for (const id of ORDER) ok(M.pilotsCard(M.careerNew({ id: 'bg', seed: 'dev' }), id, null).bg === M.peopleBg(id) && !!M.peopleBg(id),
       id + ': the hire card layers its background (large format); the head stays the transparent cut');
     ok(M.peopleBg('nobody') === null, 'no person, no background'); }

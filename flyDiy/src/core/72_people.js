@@ -23,12 +23,13 @@
 // (assets/chars/people, never written) by tools/portrait_prep.py: premultiplied resizes and a clean edge (no red
 // specks round the hair - the user, 25 Oct: "unacceptable"). Fetched only when shown: never at boot, never precached.
 // THE BACKGROUNDS (G3620, the user 26 Oct: "here are backgrounds for the characters. They're fit for a type of character
-// in the game ... build a hard mapping table if we have fixed roles for everyone ... Small portrait heads keep their
-// transparency, only when displayed in large format do they get their background"): ten golden-hour scenes, ONE per
-// person (PEOPLE_BG, a hard table; the four hirable pilots never share one). A large display (the hire cards, the map's
-// big contract portrait) LAYERS the untouched transparent head over peopleBg(id) - never baked into the head, so every
-// small head (map rows, chips, Tim's band) stays transparent. media/people/<the user's file name>_<px>.webp, cut from the user's
-// originals by tools/portrait_prep.py bgs, fetched only when a large display is drawn.
+// in the game ... Small portrait heads keep their transparency, only when displayed in large format do they get their
+// background"; and "the mapping is in the name"): the user's ten BG-<type> pictures, keyed BY THEIR NAMES. Each person
+// is given the TYPE their role makes them (PEOPLE_BG: a pilot by experience level, a client or passenger by what they
+// are). A large display (the hire cards, the map's big contract portrait) LAYERS the untouched transparent head over
+// peopleBg(id) - never baked into the head, so every small head (map rows, chips, Tim's band) stays transparent.
+// media/people/BG-<type>_<px>.<sha8>.webp, cut from the user's originals by tools/portrait_prep.py bgs, fetched only
+// when a large display is drawn.
 // Pure data + pure helpers: no DOM, no storage, no clock, no random (the pool takes a seed).
 // ===========================================================================
 const PEOPLE_V = 1;
@@ -36,20 +37,22 @@ const PEOPLE_ROLES = ['reserved', 'client', 'pilot', 'passenger'];
 const PEOPLE_FACE_PX = [128, 256, 512];
 const PEOPLE_FACE_DIR = 'media/people/';
 const PEOPLE_BG_PX = 512;   // the backgrounds' one cut: a hire card is ~230-300 CSS px wide (512 = sharp at 2x)
-// the scenes, keyed by the user's own file names (portrait-backgrounds-2026-10-26/<name>.webp), each with WHOM it is for
-// (the character type it fits) and who wears it (PEOPLE_BG below is the hard table; GATE PILOTS holds the two agreeing)
+// the user's backgrounds BY THEIR NAMES (backgrounds-2026-10-26/BG-<type>.png: the name is the type of character it is
+// for), each with who wears it (PEOPLE_BG below; GATE PILOTS holds the two agreeing)
 const PEOPLE_BG_SCENES = {
-  '01_apron_workshop_barrels':     { for: 'the mechanic who flies',          who: ['brian'] },
-  '02_lodge_deck':                 { for: 'the resort, its guests, off duty', who: ['martha', 'sophie', 'elizabeth'] },
-  '03_bush_hangar_map_floatplane': { for: 'the bush pilot',                   who: ['megan'] },
-  '04_cabin_porch_garden':         { for: 'the locals, the homesteaders',     who: ['leonard', 'jody'] },
-  '05_fish_dock_pier_boats':       { for: 'the dock and mine workers',        who: ['pete', 'james'] },
-  '06_glacier_viewpoint':          { for: 'the surveyors, the sightseers',    who: ['kate', 'david'] },
-  '07_tower_paved_apron':          { for: 'the professionals, charter clients', who: ['stig', 'adam'] },
-  '08_club_hangar_windsock':       { for: 'the new pilot, the flying club',   who: ['remy'] },
-  '09_open_workshop_windsock':     { for: 'the shed: your partner',           who: ['tim'] },
-  '10_rustic_hangar_cliff':        { for: 'the old hand, rough and seasoned', who: ['bryce'] },
+  'BG-Tim':              { who: ['tim'] },
+  'BG-pilot-rookie':     { who: ['remy'] },
+  'BG-pilot-amateur':    { who: ['brian'] },
+  'BG-pilot-normal':     { who: ['stig', 'bryce'] },
+  'BG-pilot-bush':       { who: ['megan'] },
+  'BG-worker':           { who: ['pete', 'kate'] },
+  'BG-local-man':        { who: ['leonard', 'james'] },
+  'BG-local-woman':      { who: ['sophie', 'martha'] },
+  'BG-tourist-normal':   { who: ['adam', 'david'] },
+  'BG-tourist-indoorsy': { who: ['elizabeth', 'jody'] },
 };
+// a hired pilot's type is their experience level (76_pilots.js PILOTS_LEVEL's base -> the user's pilot types)
+const PEOPLE_BG_PILOT = { student: 'BG-pilot-rookie', club: 'BG-pilot-amateur', hamfist: 'BG-pilot-normal', bush: 'BG-pilot-bush', expert: 'BG-pilot-normal' };
 const GAME_PEOPLE = {
   // ---- reserved: the story's own ----
   stig:      { id: 'stig',      name: 'Stig',      file: 'Stig',      char: 'ch20', role: 'reserved', why: 'the test pilot' },
@@ -84,24 +87,24 @@ const GAME_PEOPLE = {
   jody:      { id: 'jody',      name: 'Jody',      file: 'Jody',      char: 'jody', role: 'passenger' },
 };
 const PEOPLE_IDS = Object.keys(GAME_PEOPLE);
-// G3620 THE BACKGROUND OF EACH PERSON (fixed, by their role in the game; GATE PILOTS: everyone has one, the pilots differ)
+// G3620 EACH PERSON'S TYPE (fixed by their role; GATE PILOTS: everyone has one, a pilot's is their level's)
 const PEOPLE_BG = {
-  stig: '07_tower_paved_apron',                    // the test pilot: the professional field
-  sophie: '02_lodge_deck',                         // your girlfriend: off duty, on the deck
-  tim: '09_open_workshop_windsock',                // your friend and partner: the shed by the strip
-  leonard: '04_cabin_porch_garden',                // the field's client: the local, his porch
-  pete: '05_fish_dock_pier_boats',                 // the mine & dock: the fish dock
-  martha: '02_lodge_deck',                         // the resort: the lodge deck
-  kate: '06_glacier_viewpoint',                    // the survey: the glacier viewpoint
-  adam: '07_tower_paved_apron',                    // the charter clients: met at the airport
-  brian: '01_apron_workshop_barrels',              // weekend pilot who fixes engines: the open workshop
-  bryce: '10_rustic_hangar_cliff',                 // experienced, rough hands: the rustic hangar on the cliff
-  remy: '08_club_hangar_windsock',                 // a fresh licence: the club's tidy hangar
-  megan: '03_bush_hangar_map_floatplane',          // the bush pilot: the bush hangar, the map, the floatplane
-  david: '06_glacier_viewpoint',                   // passengers: the sightseers and the locals
-  elizabeth: '02_lodge_deck',
-  james: '05_fish_dock_pier_boats',
-  jody: '04_cabin_porch_garden',
+  tim: 'BG-Tim',                          // Tim's own
+  stig: 'BG-pilot-normal',                // the test pilot: a professional
+  sophie: 'BG-local-woman',               // your girlfriend: she lives here (not a pilot)
+  leonard: 'BG-local-man',                // the field's client: a local
+  pete: 'BG-worker',                      // the mine & dock: hard hat, hi-vis
+  martha: 'BG-local-woman',               // the resort's owner: a local
+  kate: 'BG-worker',                      // the survey: out on the job
+  adam: 'BG-tourist-normal',              // the charter clients: visitors
+  remy: 'BG-pilot-rookie',                // student: a fresh licence
+  brian: 'BG-pilot-amateur',              // club: the weekend pilot
+  bryce: 'BG-pilot-normal',               // hamfist: experienced, rough hands
+  megan: 'BG-pilot-bush',                 // bush
+  david: 'BG-tourist-normal',             // passengers: visitors and locals
+  elizabeth: 'BG-tourist-indoorsy',
+  james: 'BG-local-man',
+  jody: 'BG-tourist-indoorsy',
 };
 // the narrative pack's pilot ids -> the person wearing each (an older save's roster, the pack's import)
 const PEOPLE_FROM_PACK = PEOPLE_IDS.filter(id => GAME_PEOPLE[id].from).reduce((o, id) => (o[GAME_PEOPLE[id].from] = id, o), {});

@@ -14,7 +14,7 @@
 #        checkout's flyDiy/assets/chars/people.
 #   python -I portrait_prep.py bgs [<originals dir>]   G3620: every scene of 72_people.js PEOPLE_BG_SCENES, cut to
 #        PEOPLE_BG_PX (opaque, a plain LANCZOS square) as media/people/<the user's name>_<px>.<sha8>.webp + src/core/72_people_bgs.js
-#        (peopleBg reads it); stale bg cuts removed. Default originals: the user's inbox portrait-backgrounds-2026-10-26.
+#        (peopleBg reads it); stale bg cuts removed. Default originals: the user's inbox backgrounds-2026-10-26 (BG-<type>.png).
 import hashlib, io, os, re, sys
 import numpy as np
 from PIL import Image
@@ -49,7 +49,7 @@ def reds(im):
     a = np.asarray(im.convert('RGBA')).astype(int)
     return int(((a[..., 0] > 200) & (a[..., 1] < 40) & (a[..., 2] < 40) & (a[..., 3] >= 8) & (a[..., 3] < 240)).sum())
 
-BG_FILE = re.compile(r'^\d\d_\w+_\d+\.[0-9a-f]{8}\.webp$')   # a background's cut: <the user's nn_name>_<px>.<sha8>.webp
+BG_FILE = re.compile(r'^BG-[\w-]+_\d+\.[0-9a-f]{8}\.webp$')   # a background's cut: <the user's BG-<type>>_<px>.<sha8>.webp
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 
@@ -89,11 +89,11 @@ def ship_bgs(orig):
     block = re.search(r"const PEOPLE_BG_SCENES = \{(.*?)\n\};", src, re.S).group(1)
     scenes = re.findall(r"^  '([^']+)':", block, re.M)   # the user's own file names, kept as they are
     px = int(re.search(r"const PEOPLE_BG_PX = (\d+);", src).group(1))
-    orig = orig or 'D:/Dev/flydiy-notes/inbox/portrait-backgrounds-2026-10-26'
+    orig = orig or 'D:/Dev/flydiy-notes/inbox/backgrounds-2026-10-26'   # the user's BG-<type>.png
     out_dir = os.path.join(ROOT, 'media', 'people'); os.makedirs(out_dir, exist_ok=True)
     bgs, keep, total = {}, set(), 0
     for sc in scenes:
-        im = Image.open(os.path.join(orig, sc + '.webp')).convert('RGB')
+        im = Image.open(os.path.join(orig, sc + '.png')).convert('RGB')
         w, h = im.size; e = min(w, h)
         im = im.crop(((w - e) // 2, (h - e) // 2, (w - e) // 2 + e, (h - e) // 2 + e)).resize((px, px), Image.LANCZOS)
         b = io.BytesIO(); im.save(b, 'WEBP', quality=80, method=6); data = b.getvalue()
