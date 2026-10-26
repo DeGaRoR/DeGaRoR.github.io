@@ -31,6 +31,7 @@
 //   node tools/perf/mobile_phone_cdp.js [--url http://localhost:8700/flyDiy/index.html?gfx=potato] [--build cub|metal]
 //        [--cold] [--rows wgSpan,wgChord,stSpan,paxLen] [--reps 3] [--ticks 4] [--frames 10] [--soak 10] [--skip boot,drag,frames,soak]
 //        [--port 9222] [--out tools/perf/phone_<build>_<stamp>.json]
+//        [--shot <jpg>] [--shot2 <jpg> --shot2-js '<the page script, run before the second still>']
 //   --build puts that validated build in flydiy.wip before the page's first script (the phone opens on it).
 //   --cold clears the origin's cache and storage first (a first visit); otherwise a warm load (run it twice: the first warms).
 //   When the garage-only entry exists (MOBILE-GARAGE phase M1), point --url at it: the same rig, the same table.
@@ -68,7 +69,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const MiB = x => +(x / 1048576).toFixed(1);
 const pct = (a, p) => { const s = a.slice().sort((x, y) => x - y); return s.length ? +s[Math.min(s.length - 1, Math.floor(p * (s.length - 1)))].toFixed(1) : null; };
 const med = a => pct(a, 0.5);
-const SIZE = opt('size', '412x915').split('x').map(Number), DPR = +opt('dpr', 2.625), SHOT = opt('shot', null), THROTTLE = +opt('cpu-throttle', 0);
+const SIZE = opt('size', '412x915').split('x').map(Number), DPR = +opt('dpr', 2.625), SHOT = opt('shot', null), SHOT2 = opt('shot2', null), SHOT2JS = opt('shot2-js', null), THROTTLE = +opt('cpu-throttle', 0);
 const adb = (...a) => { if (flag('no-adb')) return ''; try { return execFileSync(ADB, a, { encoding: 'utf8', timeout: 20000 }); } catch (e) { return ''; } };
 const log = s => console.log(s);
 
@@ -239,6 +240,9 @@ async function touchChecks(C) {
         programs: R0 && R0.info && R0.info.programs ? R0.info.programs.length : null, textures: R0 && R0.info ? R0.info.memory.textures : null }));
     })))`, 60000)); log('view: ' + JSON.stringify(R.view)); save(); } catch (e) { R.view = { error: String(e) }; }
   if (SHOT) { try { const sh = await C.cmd('Page.captureScreenshot', { format: 'jpeg', quality: 88 }); fs.writeFileSync(SHOT, Buffer.from(sh.result.data, 'base64')); log('shot -> ' + SHOT); } catch (e) { log('shot failed: ' + e); } }
+  // G3728/G3729: a second still after a script of the page's own (--shot2-js: open a panel, scroll a row into view)
+  if (SHOT2) { try { if (SHOT2JS) await C.ev('(async () => { ' + SHOT2JS + ' })()', 30000); await new Promise(r => setTimeout(r, 2500));
+    const sh = await C.cmd('Page.captureScreenshot', { format: 'jpeg', quality: 88 }); fs.writeFileSync(SHOT2, Buffer.from(sh.result.data, 'base64')); log('shot2 -> ' + SHOT2); } catch (e) { log('shot2 failed: ' + e); } }
   if (THROTTLE > 1) { await C.cmd('Emulation.setCPUThrottlingRate', { rate: THROTTLE }); R.cpuThrottle = THROTTLE; log('CPU throttle x' + THROTTLE); }
   // ---- SHARE + STORAGE PROBE (G1517): can this phone's share sheet carry a build FILE, and will its storage keep it ----
   // Chrome shares only a permitted list of file types (JSON is not believed to be on it: the .txt twin is the fallback);
