@@ -290,6 +290,28 @@ const tick = () => new Promise(r => setImmediate(r));
   // stamped, and the fetch path below is compared with these digests, not with the page's stamped arrays
   const digest = a => (a && a.byteLength != null ? require('crypto').createHash('md5').update(a).digest('hex') : JSON.stringify(a));
   const pristine = {}; for (const k of SH.SIM_HOST_KEYS) pristine[k] = digest(k.split('.').reduce((o, s) => o && o[s], trimmed));
+  // ---- 0 THE ROUTE (G3610, the 24 Oct playtest's item 53): the worker's route reaches the page's pilot - sim_host sends
+  // ap.route as its two ids, sim_link's mirror hands them to routeCopy, which takes the page world's aerodromes ONCE per
+  // change of the worker's ids (a destination the page has just asked for, not stepped yet, is not undone)
+  console.log('0 THE ROUTE (the worker\'s divert on the page)');
+  {
+    const LK = require(path.join(ROOT, 'src', 'viewer', 'sim_link.js')).SIM_LINK;
+    const LSRC = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'sim_link.js'), 'utf8'), HSRC = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'sim_host.js'), 'utf8');
+    const home = { id: 'home', name: 'HOME' }, mine = { id: 'mn_strip', name: 'Jumbo Mine Street' }, s13 = { id: 'w13', name: 'Strip 13' }, far = { id: 'far', name: 'Far' };
+    const W = { aerodromes: [home, mine, s13, far] };
+    const F = { ap: { route: { from: home, to: mine } } };
+    const c0 = LK.routeCopy(F, { from: 'home', to: 'mn_strip' }, W);
+    const c1 = LK.routeCopy(F, { from: 'mn_strip', to: 'w13' }, W);   // 43_pilot's divert: from the old to, to the strip with the room
+    const after = F.ap.route;
+    F.ap.route = { from: home, to: far };                                // the page's setTo, the worker one step behind
+    const c2 = LK.routeCopy(F, { from: 'mn_strip', to: 'w13' }, W);
+    const c3 = LK.routeCopy(F, { from: 'mn_strip', to: 'nowhere' }, W);
+    ok(!c0 && c1 && after.from === mine && after.to === s13 && !c2 && F.ap.route.to === far && !c3 && F.ap.route.to === far,
+       'the worker\'s divert is the page\'s route (the world\'s own aerodromes: ' + after.from.name + ' -> ' + after.to.name + '); the same ids twice leave a page setTo alone; an unknown id changes nothing');
+    ok(/if \(routeCopy\(F, V\.ap\.route, world\)\)/.test(LSRC) && /const AP_SKIP = \['route', 'nav', 'sheet'\]/.test(LSRC) &&
+       /if \(k === 'route'\) \{ A\.route = \{ from: v\.from && v\.from\.id, to: v\.to && v\.to\.id \}; continue; \}/.test(HSRC),
+       'the mirror copies it every snapshot (route still out of the field merge), the host sends the two ids every snapshot');
+  }
   // ---- 1 THE BLOB (first: a premises world writes the process's AIRFIELD_SITES - 20_world.js - and the page's
   // analytic flight below must read the core's own; the host's thread has its own core)
   console.log('1 THE BLOB (simHostSource in a worker-like global)');

@@ -2290,8 +2290,14 @@ function mount(host, ctx) {
   function pavRows(e, id, layer, ed, lookRow) {
     if (!PAVM) return;
     const L = lookRow || null;
-    rows.slider(insp, 'band (m)', 0, 60, 0.5, () => (e.band === null || e.band === undefined) ? -0.5 : e.band, v => ed(x => { x.band = v < 0 ? null : v; }, 'band of ' + id, 'band'),
-      v => v < 0 ? "the look's" : v.toFixed(1) + ' m');
+    // (the user, 24 Oct: "a road's side stays very big once set manually, even back at 0; the original look never comes back" -
+    //  the row's minimum was 0, so its "the look's" notch at -0.5 could not be reached, and a road's declared band 0 is not its
+    //  side: it drew the band's 6 m fade. Now the notch is reachable, and on a ROAD 0 or less takes the band away - the road's
+    //  own side again; on a strip or an apron 0 stays "no cleared earth")
+    const road = layer === 'roads';
+    rows.slider(insp, 'band (m)', -0.5, 60, 0.5, () => (e.band === null || e.band === undefined || (road && !(+e.band > 0))) ? -0.5 : e.band,
+      v => ed(x => { if (v < 0 || (road && !(v > 0))) delete x.band; else x.band = v; }, 'band of ' + id, 'band'),
+      v => v < 0 ? (road ? "none (the road's own side)" : "the look's") : v.toFixed(1) + ' m');
     rows.note(insp, 'the band is the ground drawn beside the pavement - the cleared earth beside a strip, the gravel beside a road - fading into the terrain past it');
     const RS = PAVM.resolve(e, rec, L);
     const label = { paintAge: 'paint age', crackK: 'cracks', rubberK: 'rubber (touchdown)', laneW: 'lane width (m)', wet: 'wet', mossK: 'moss', patchK: 'patches' };
