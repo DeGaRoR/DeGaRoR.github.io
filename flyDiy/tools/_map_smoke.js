@@ -621,18 +621,18 @@ module.exports = function mapSmoke(html, phone) {
   need(+/--ms:(\d+)px/.exec(oF3.html)[1] > +/--ms:(\d+)px/.exec(oF.html)[1], 'the Fleet\'s markers are not sized to the zoom');
   need(o1R.n.marks === 0 && o1R.n.planes === 2, 'the contracts list draws the other lists\' markers');
   say('the Fleet: ' + M1.fleet.length + ' rows (✈, the name, the payload), the paragraph "' + fb.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() + '", no button; the place filter; a marker per aeroplane at its base, sized to the zoom (' + /--ms:(\d+)px/.exec(oF.html)[1] + ' -> ' + /--ms:(\d+)px/.exec(oF3.html)[1] + ' px)');
-  // PILOTS (G2290): the real record - kit hired, 2-3 looking for work; Hire / Flies next / Fire (disabled in the preview)
+  // PILOTS (G2290): the real record - brian hired, 2-3 looking for work; Hire / Flies next / Fire (disabled in the preview)
   const pst = { list: 'pilots', at: null, phone };
   const PL = MR.pilots || [], PH = MM.listHTML(MR, pst);
-  need(PL.length >= 3 && PL.length <= 4 && PL.filter(p => p.hired).map(p => p.id).join() === 'kit' && PL.filter(p => !p.hired).every(p => p.onOffer), 'the real Pilots: kit hired, 2-3 looking for work (' + PL.map(p => p.id + (p.hired ? '*' : '')).join() + ')');
-  need(keysOf(PH).length === PL.length && PH.indexOf('Your pilots') < PH.indexOf('data-key="p:kit"') && PH.indexOf('data-key="p:kit"') < PH.indexOf('Looking for work'), 'the Pilots list: a row per pilot, yours first');
+  need(PL.length >= 3 && PL.length <= 4 && PL.filter(p => p.hired).map(p => p.id).join() === 'brian' && PL.filter(p => !p.hired).every(p => p.onOffer), 'the real Pilots: brian hired, 2-3 looking for work (' + PL.map(p => p.id + (p.hired ? '*' : '')).join() + ')');
+  need(keysOf(PH).length === PL.length && PH.indexOf('Your pilots') < PH.indexOf('data-key="p:brian"') && PH.indexOf('data-key="p:brian"') < PH.indexOf('Looking for work'), 'the Pilots list: a row per pilot, yours first');
   for (const p of PL) {
     const b = checkItem(MR, pst, 'p:' + p.id, 'the Pilots: ');
     need(b.includes(p.fliesLike.replace(/&/g, '&amp;').replace(/'/g, '&#39;')) && p.traits.every(t => b.includes(t.label.replace(/'/g, '&#39;'))), p.id + ': the paragraph lacks how they fly or a trait');
     need(p.hired ? /data-pa="fire"/.test(b) : b.includes('data-pa="hire" data-pid="' + p.id + '"') && b.includes('Hire · ' + fmt(p.signOn)), p.id + ': the paragraph lacks ' + (p.hired ? 'Fire' : 'Hire · its fee'));
     need(/data-act="pilot"[^>]*disabled/.test(b), p.id + ': the preview (no live career) lets Hire / Fire act');
   }
-  need(MM.listMarkers(MR, pst).some(m => m.kind === 'pilot' && m.key === 'p:kit' && m.aero === 'HOME') && keysOf(MM.listHTML(MR, Object.assign({}, pst, { at: MR.placeOf.HOME }))).join() === 'p:kit', 'the hired pilot is not a marker at HOME, or the place filter keeps the others');
+  need(MM.listMarkers(MR, pst).some(m => m.kind === 'pilot' && m.key === 'p:brian' && m.aero === 'HOME') && keysOf(MM.listHTML(MR, Object.assign({}, pst, { at: MR.placeOf.HOME }))).join() === 'p:brian', 'the hired pilot is not a marker at HOME, or the place filter keeps the others');
   need(/come with the career/.test(MM.listHTML(M, pst)), 'the fixture\'s Pilots (the sandbox ?map=1) do not say they come with the career');
   say('the Pilots (real record): ' + PL.map(p => p.name + (p.hired ? ' (hired)' : ' (' + p.signOn + ')')).join(', ') + '; a row each (initials, the name, flights / the fee), the paragraph (the line, flies like, the traits, the place), Hire or Flies next + Fire; kit a marker at HOME; the fixture: with the career');
   // MARKET (G2280): the makers' models (validated builds only), the used listings where they stand, the drawing board

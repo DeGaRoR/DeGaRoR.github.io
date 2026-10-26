@@ -99201,3 +99201,51 @@ Strict light gate RED (6), all in known classes; the loads are back inside their
 - metal fuseWidth busy 393: the bimodal 0 / ~400 ms rep (master's own L24b / L24c show the same).
 - world -> garage: cub round trip 2 at 2.02 s, floats at 5.29 s. The class red since L24c (2.99 / 3.55 there); HWCOV has the cause, the per-trip cacheKey churn of fragment 66e30961, and its Mon 12:45 slot names the owner.
 Pushed by the user's order of 25 Oct: land as soon as possible.
+
+## MISSIONS-P0 - MERGE: origin/master d7e181f4 (L25c) + origin/claude/people 2caa3e6a INTO claude/missions-p0; THE PEOPLE STUBS DROPPED; GATES (2026-10-26, cloud; for Game's local review, the GPU gates and the push to ready/)
+
+**Merged.** `857f546e` = origin/master **d7e181f4e** (train L25c built) into claude/missions-p0 (was 92611762);
+`6cb7109e` = origin/claude/people **2caa3e6a** (G3614-G3616 + the PILOTS w3 row) on top. Conflicts, both times only:
+- `src/core/90_node_exports.js`: the UNION - master's / people's list + this branch's six (CONTRACT_DO_NEXT,
+  CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk) after
+  contractFlyable. Every one of the 947 names is defined in MANIFEST.core (none dropped, no duplicates).
+- `HANDOVER.md`: both sides kept (this branch's MISSIONS-P0 entry, then master's L25c entries).
+- Built / cooked files: none conflicted; the committed tools/flight_core.js, index.html, dev.html, sw.js, version.json are
+  master's d7e181f4 build (this branch commits no built file - the core is stale until A0 / Game builds).
+
+**The stubs dropped** (`2d99e861`): 72_people.js is on the branch and in MANIFEST.core, so 73b_missions.js reads
+GAME_PEOPLE / peopleClientOf / peopleName directly - MS_CLIENT_STUB and the ms* fallbacks are gone. Every person id must
+be a GAME_PEOPLE key (a free name and an unknown id refused, a `voice` never aboard); GATE MISSIONS's rows "a voice
+aboard" (always run now) and "a person the table does not hold" (new). The editor and tools/_missions_lib.js load
+72_people_faces.js then 72_people.js (MANIFEST.core's order) as required files; the editor re-checked headless on the
+merged tree: no 404, no page error, the portraits shown. (The MISSIONS-P0 entry above still describes the stub: superseded.)
+
+**Merge fix-ups in two gates (people x master, not missions)**: claude/people renamed the pack's pilot `kit` -> `brian`
+(PEOPLE_FROM_PACK; PILOTS_COMPANION = brian) but master's `tools/_routes_check.js` (21 refs, + `rafe` -> `bryce`) and
+`tools/_map_smoke.js` (the Pilots rows 624-635, UISMOKE's MAP block) still named `kit`: ROUTES threw at its line 84
+(pilots.kit undefined) and UISMOKE / UISMOKE-PHONE failed "the real Pilots: kit hired" on master + people ALONE (checked in
+a separate worktree: d7e181f4 + 2caa3e6a, no missions code - red; d7e181f4 alone - green). Renamed the ids, no expectation
+relaxed. The fleet's "kit" (an aeroplane) rows in _map_smoke.js untouched.
+
+**Gates** (a private copy of the merged tree, `node tools/build.js` there - build 658ad6881170 - then `run_gates.js
+--only=... --no-build`; ROUTES / UISMOKE / UISMOKE-PHONE re-run after the fix-ups):
+```
+GATE MISSIONS: PASS
+GATE CONTRACTS: PASS
+GATE STAGES: PASS
+GATE ECON: PASS
+GATE CLOCK: FAIL (1 of 777)
+GATE FREIGHT: PASS
+GATE PROCURE: PASS
+GATE ACCEPT: PASS
+GATE STORY: PASS
+GATE ROUTES: PASS            (first run: FAIL - threw, pilots.kit; fixed above)
+GATE SAVE: PASS
+GATE UISMOKE: PASS           (first run: FAIL - "the real Pilots: kit hired"; fixed above)
+GATE UISMOKE-PHONE: PASS     (first run: FAIL - the same)
+GATE DEFAULT: PASS
+```
+**CLOCK is red on pure origin/master d7e181f4 too** (the same 1 of 777, checked in a clean worktree): its row "the
+sandbox's player document is unchanged (no day: the pref keeps it; PLAYER_V 2)" pins `CORE.PLAYER_V === 2`, and
+70_player.js holds PLAYER_V = 3 (the sandbox's default has no `day`, no `career`: only the version pin is stale). Not this
+branch's - for CLOCK's owner / A0 (a one-token pin, or a deliberate v3 the row should say).
