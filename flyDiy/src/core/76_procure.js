@@ -389,9 +389,17 @@ function prCanon(v) {
   const ks = Object.keys(v).filter(k => v[k] !== undefined).sort();
   return '{' + ks.map(k => JSON.stringify(k) + ':' + prCanon(v[k])).join(',') + '}';
 }
-// the spec minus what is not the aeroplane (bench.js benchStripCosmetic's blocks and state rows; every other row
-// counts) -> 8 hex digits, the physics version folded in (a certificate from an older physics is another's)
+// G3780 CERT-RULE (the user 26 Oct: "R1-R6 yes"; CERT-REVIEW M3): the factory certificate is signed with the bench's
+// MAJOR fingerprint - ONE list (66b_cert_rule.js certMajor: no version tag, no minor or measured row), so a game update,
+// a passenger, a GPS or the cabin's light switches never make a bought aeroplane MODIFIED or bill it again (the
+// PROCURE_STATE_ROWS copy below had drifted from the bench's: the G3449 switches billed). The old `p1` hash stays only
+// to recognise an airframe signed under it (procureP1Matches).
 function procureFp(spec) {
+  if (!spec || typeof spec !== 'object') return null;
+  const M = (typeof certMajor === 'function') ? certMajor(spec) : null;
+  return M ? M.fp : procureFpP1(spec);
+}
+function procureFpP1(spec, sv, pv) {
   if (!spec || typeof spec !== 'object') return null;
   const c = prClone(spec);
   for (const k of PROCURE_COSMETIC.concat(PROCURE_READOUTS)) delete c[k];
@@ -401,8 +409,17 @@ function procureFp(spec) {
   }
   if (c.systems && typeof c.systems === 'object') for (const k of PROCURE_LOOK.systems) delete c.systems[k];
   if (c.cage && typeof c.cage === 'object') for (const k of Object.keys(c.cage)) if (PROCURE_STATE_ROWS.test(k)) delete c.cage[k];
-  const tag = 'p1|v' + (typeof GEN_SPEC_V !== 'undefined' ? GEN_SPEC_V : 0) + '|p' + (typeof PHYSICS_V !== 'undefined' ? PHYSICS_V : 0) + '|';
+  if (sv == null) sv = typeof GEN_SPEC_V !== 'undefined' ? GEN_SPEC_V : 0;
+  if (pv == null) pv = typeof PHYSICS_V !== 'undefined' ? PHYSICS_V : 0;
+  const tag = 'p1|v' + sv + '|p' + pv + '|';
   return ('0000000' + contractHash(tag + prCanon(c)).toString(16)).slice(-8);
+}
+// M3: was `h` this same spec's p1 signature under ANY version the game ever had? (then the airframe never changed)
+function procureP1Matches(spec, h) {
+  if (!spec || !h) return false;
+  const SV = Math.max(10, typeof GEN_SPEC_V !== 'undefined' ? GEN_SPEC_V : 0), PV = Math.max(6, typeof PHYSICS_V !== 'undefined' ? PHYSICS_V : 0);
+  for (let sv = 0; sv <= SV; sv++) for (let pv = 0; pv <= PV; pv++) if (procureFpP1(spec, sv, pv) === h) return true;
+  return false;
 }
 // a ledger (buildGen's parts.ledger) as the airframe row keeps it: { key: [mass kg 0.01, cost 1] }
 function procureLedgerOf(L) {
@@ -758,6 +775,19 @@ function procureOnSave(doc, slot, spec, ledger) {
   // built: it signs, it does not withdraw
   if (A.factory && !A.anchored) return Object.assign(procureAnchor(doc, slot, spec), { modified: false, bill: null, why: 'signed on the garage\'s aeroplane' });
   if (!A.fp || fp === A.fp) return { ok: true, doc, modified: !!A.modified, bill: null, why: A.fp ? 'the same aeroplane (a repaint is not a change)' : 'no certificate to withdraw' };
+  // G3780 M3: SIGNED UNDER THE OLD HASH, THE SAME AEROPLANE: re-signed with the major fingerprint, nothing withdrawn,
+  // nothing billed - and an airframe an earlier update alone had made MODIFIED (its file's own p1 under another
+  // version) gets its maker's certificate back (that bill was nothing: an update moves no ledger row)
+  if (A.fps !== 'p2' && procureP1Matches(spec, A.fp)) {
+    const d = prClone(doc), R = d.career.airframes[slot];
+    R.fp = fp; R.fps = 'p2';
+    return { ok: true, doc: d, modified: !!R.modified, bill: null, why: 're-signed under the certificate rule (G3780)' };
+  }
+  if (A.modified && !A.factory && A.withdrawn && A.withdrawn.cert && A.fps !== 'p2' && A.fpFile && procureP1Matches(spec, A.fpFile)) {
+    const d = prClone(doc), R = d.career.airframes[slot];
+    R.factory = true; R.modified = false; R.cert = R.withdrawn.cert; delete R.withdrawn; R.fp = fp; R.fps = 'p2';
+    return { ok: true, doc: d, modified: false, bill: null, why: "the maker's certificate restored: only a game update had moved it (G3780)" };
+  }
   const L1 = ledger ? procureLedgerOf(ledger) : null;
   const B = procureEditBill(A.ledger || null, L1 || A.ledger || null);
   const cost = (A.ledger && L1) ? procureEcon('edit', { cost: B.cost, slot }) : 0;

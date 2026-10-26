@@ -73,6 +73,70 @@ function benchDesignHtml(d) {
       '</div>').join('') + '</div>';
 }
 
+// G3780: THE WING LOADING'S VERDICT, one function for the rig's last state - the quick run's (the bench's thread,
+// unpaced) and the watched rig's (kept as a DEV tool)
+function benchLoadVerdict(st) {
+  if (!st) return { verdict: 'no wing to load', ok: false };
+  // G1800: the rig's NaN / velocity-guard ending is 'SIM DIVERGED' (the numbers' fault, not a member); 'BROKE UP'
+  // stays the structure's, for the damage layer's test to destruction (DMG-D2a)
+  const diverged = st.verdict === 'SIM DIVERGED', broke = diverged || st.verdict === 'BROKE UP';
+  const bent = st.ultPct != null && isFinite(st.ultPct) && st.ultPct > LOAD_TIP_CAP;
+  const overYield = st.ultYield != null && isFinite(st.ultYield) && st.ultYield >= 100;
+  const ok = !broke && !bent;
+  const why = diverged ? 'the simulation diverged before the ultimate load (a numerical fault, not a member)'
+            : broke ? 'a member let go before the ultimate load'
+            : bent ? 'the tip bent ' + benchNum(st.ultPct, 1) + ' % of the semispan at ultimate — past the '
+                     + LOAD_TIP_CAP + ' % a wing can bend and still be called held' : '';
+  return {
+    done: true,
+    verdict: broke ? st.verdict : bent ? 'NOT HELD — bent ' + benchNum(st.ultPct, 1) + ' %' : 'HELD',
+    ok,
+    note: 'limit ' + benchNum(st.limitPct, 2) + ' % of semispan · ultimate '
+      + benchNum(st.ultPct, 2) + ' %'
+      + (st.ultYield == null ? ''
+         : ' · worst member ' + benchNum(st.ultYield, 0) + ' % of the yield proxy'
+           + (st.worstCls ? ' (' + st.worstCls + ')' : '')),
+    why,
+    // the proxy, reported and named for what it is
+    warn: overYield ? 'worst member at ' + benchNum(st.ultYield, 0) + ' % of the yield proxy'
+            + (st.worstCls ? ' (' + st.worstCls + ')' : '')
+            + ' — reported, not failed: one area per member class, the lift strut sized as a wing member' : '',
+    fix: ok ? '' : 'the levers below are measured on this wing: fixation (lift struts), '
+       + 'construction (an aluminium or carbon wing), span.',
+    // the advisor runs after a fail OR a warning
+    advise: !ok || overYield,
+    // G1832 (DMG-D2a): and with the damage layer on, the free test to destruction: LIMIT / ULTIMATE / BROKE-AT
+    destroy: !diverged,
+  };
+}
+
+// G3780: THE HYDROPLANE'S VERDICT, one function for the run's end - the quick run's (to the end, quietly: app.js
+// hydroQuick) and the watched one's
+function benchHydroVerdict(r) {
+  if (!r) return { verdict: 'no run', ok: false };
+  if (r.none) return { verdict: 'NO WATER TO RUN ON', ok: false, note: 'this world has no sea lane, or the build has no floats' };
+  const A = r.adv, why = [], fix = [];
+  const off = !!r.lift && !r.bad;
+  if (r.bad) why.push('the simulation diverged on the water');   // G1800
+  if (A && A.reserve < 1.8) { why.push('the floats are UNDERSIZED: the pair displaces ' + benchNum(A.reserve, 2) + ' x the weight (1.8 needed)'); fix.push('a bigger float — the catalogue puts ' + benchNum(A.grossKg, 0) + ' kg on the ' + A.recommend); }
+  if (!off && r.hump.R >= 0.8 * r.TW) { why.push('the hump costs R/W ' + benchNum(r.hump.R, 2) + ' at ' + benchNum(r.hump.V * 3.6, 0) + ' km/h against ' + benchNum(r.TW, 2) + ' of thrust — no margin to climb it'); fix.push('more thrust or less weight over the hump: a coarser propeller, a bigger engine, fuel off'); }
+  if (!off && A && A.narrow) { why.push('the floats are NARROW for the weight (' + A.line.replace(/^.*NARROW: /, '') + ')'); fix.push('the catalogue' + String.fromCharCode(39) + 's row for ' + benchNum(A.grossKg, 0) + ' kg is the ' + A.recommend); }
+  if (!off && r.ventMax < 0.5) { why.push('the step never ventilated (air ' + benchNum(r.airMax, 2) + '): the chine sits too deep'); fix.push('a wider or longer float, or less weight — the chine must ride within the step\'s height of the surface'); }
+  if (!off && r.trimMax > 14) { why.push('the trim ran to ' + benchNum(r.trimMax, 0) + '° nose-up'); fix.push('the step further aft under the CG, or less back-stick'); }
+  if (!off && !why.length) why.push('it reached ' + benchNum(r.Vmax * 3.6, 0) + ' km/h on the water and stayed there (' + String(r.phase).toLowerCase() + ')');
+  return {
+    done: true,
+    verdict: off ? 'LIFTS OFF THE WATER' : r.bad ? 'SIM DIVERGED' : (r.ventMax < 0.5 || r.hump.R >= 0.8 * r.TW) ? 'STUCK AT THE HUMP' : 'STAYED ON THE WATER',
+    ok: off,
+    note: 'hump R/W ' + benchNum(r.hump.R, 2) + ' at ' + benchNum(r.hump.V * 3.6, 0) + ' km/h · T/W ' + benchNum(r.TW, 2)
+        + ' · step air ' + benchNum(r.ventMax, 2) + ' · trim ' + benchNum(r.trimMin, 0) + '…' + benchNum(r.trimMax, 0) + '°'
+        + (off ? ' · off at ' + benchNum(r.lift.t, 0) + ' s, ' + benchNum(r.lift.dist, 0) + ' m, ' + benchNum(r.lift.V * 3.6, 0) + ' km/h' : '')
+        + (A ? ' · floats ' + benchNum(A.reserve, 2) + ' x the ' + benchNum(A.grossKg, 0) + ' kg (' + A.verdict + ')' : ''),
+    why: why.join('; '),
+    fix: fix.join('; '),
+  };
+}
+
 const BENCH_TESTS = [
   {
     id: 'shake',
@@ -126,8 +190,12 @@ const BENCH_TESTS = [
     id: 'load',
     name: 'Wing loading',
     blurb: 'Sandbags to +3.8 g limit and +5.7 g ultimate, FAR 23 normal.',
-    kind: 'live',
-    needs: ['loadTest', 'loadTestState', 'endLoadTest'],
+    // G3780 (the user 26 Oct: "Everything should be as fast as the bench check"): COMPUTED, NOT WATCHED - the same rig,
+    // unpaced on the bench's thread (app.js startLoadQuick), its verdict when it lands. The watched sandbag rig stays
+    // behind as a DEV tool (start / poll / stop below, api.loadTest).
+    kind: 'quick',
+    needs: ['loadQuick'],
+    quick(api, done) { api.loadQuick(st => done(st && st.error ? { verdict: 'not measured', ok: false, note: st.error } : benchLoadVerdict(st))); },
     steps: ['on its back', 'settling', 'to +3.8 g limit', 'to +5.7 g ultimate', 'holding'],
     // The rig is src/core/65_gen_loadtest.js — the same object GATE LOAD ticks
     // headlessly, so the verdict on screen and the verdict in the battery are
@@ -174,37 +242,7 @@ const BENCH_TESTS = [
         live: { g: st.n, tipPct: st.tipPct, phase: st.phase, nTarget: st.nTarget,
                 limit: st.limit, ult: st.ult, thread, rate: st.rate },
       };
-      // G1800: the rig's NaN / velocity-guard ending is 'SIM DIVERGED' (the numbers' fault, not a member); 'BROKE UP'
-      // stays the structure's, for the damage layer's test to destruction (DMG-D2a)
-      const diverged = st.verdict === 'SIM DIVERGED', broke = diverged || st.verdict === 'BROKE UP';
-      const bent = st.ultPct != null && isFinite(st.ultPct) && st.ultPct > LOAD_TIP_CAP;
-      const overYield = st.ultYield != null && isFinite(st.ultYield) && st.ultYield >= 100;
-      const ok = !broke && !bent;
-      const why = diverged ? 'the simulation diverged before the ultimate load (a numerical fault, not a member)'
-                : broke ? 'a member let go before the ultimate load'
-                : bent ? 'the tip bent ' + benchNum(st.ultPct, 1) + ' % of the semispan at ultimate — past the '
-                         + LOAD_TIP_CAP + ' % a wing can bend and still be called held' : '';
-      return {
-        done: true,
-        verdict: broke ? st.verdict : bent ? 'NOT HELD — bent ' + benchNum(st.ultPct, 1) + ' %' : 'HELD',
-        ok,
-        note: 'limit ' + benchNum(st.limitPct, 2) + ' % of semispan · ultimate '
-          + benchNum(st.ultPct, 2) + ' %'
-          + (st.ultYield == null ? ''
-             : ' · worst member ' + benchNum(st.ultYield, 0) + ' % of the yield proxy'
-               + (st.worstCls ? ' (' + st.worstCls + ')' : '')),
-        why,
-        // the proxy, reported and named for what it is
-        warn: overYield ? 'worst member at ' + benchNum(st.ultYield, 0) + ' % of the yield proxy'
-                + (st.worstCls ? ' (' + st.worstCls + ')' : '')
-                + ' — reported, not failed: one area per member class, the lift strut sized as a wing member' : '',
-        fix: ok ? '' : 'the levers below are measured on this wing: fixation (lift struts), '
-           + 'construction (an aluminium or carbon wing), span.',
-        // the advisor runs after a fail OR a warning
-        advise: !ok || overYield,
-        // G1832 (DMG-D2a): and with the damage layer on, the free test to destruction: LIMIT / ULTIMATE / BROKE-AT
-        destroy: !diverged,
-      };
+      return benchLoadVerdict(st);
     },
     stop(api) { api.endLoadTest(); },
   },
@@ -319,63 +357,9 @@ const BENCH_TESTS = [
       };
     },
   },
-  {
-    // THE CROSSWIND CARD (A9, the user: "the crosswind test should be
-    // separate and offer better feedback"; "the last certification remains
-    // stuck on crosswinds"). It was phase seven of the flight test: four to
-    // seven departures with the bar pinned at 90-99 % and no verdict of its
-    // own. Its own row now, ADVISORY like the density altitude (a crosswind
-    // limit is a rating, not airworthiness), run on the bench's thread with
-    // one line per rung as it lands, and a verdict that names the limit,
-    // the rung that failed and why. The bar is the plaque's own (4 m/s,
-    // plaque.js PLAQUE_BOUNDS); the fix line is the plaque's own WHY. The
-    // ladder itself is 42_crosswind.js's, untouched.
-    id: 'xwind',
-    name: 'Crosswind',
-    blurb: 'Departures in a rising crosswind, until the roll leaves the strip’s lines.',
-    kind: 'live',
-    offscreen: true,
-    advisory: true,
-    needs: ['xwindStart', 'xwindPoll', 'xwindEnd'],
-    steps: ['2 m/s', '4 m/s', '6 m/s', '8 m/s', 'bisecting'],
-    start(api) { api.xwindStart(); },
-    poll(api) {
-      const r = api.xwindPoll();
-      if (!r) return { done: true, verdict: 'no ladder running', ok: false };
-      const runs = r.runs || [];
-      const rungLine = q => benchNum(q.w, 1) + ' m/s · ' + (q.ok ? 'airborne, roll ' + benchNum(q.roll, 1) + ' m'
-                                                             : (q.why || 'failed') + (q.roll != null ? ', roll ' + benchNum(q.roll, 1) + ' m' : ''));
-      if (!r.done) {
-        const w = r.w || 0;
-        return {
-          done: false,
-          running: (w > 0 ? 'departing in ' + benchNum(w, 1) + ' m/s across' : runs.length ? 'lining up for the next rung' : 'departing in calm air')
-            + (r.t ? ' · t=' + benchNum(r.t, 0) + ' s' : ''),
-          progress: r.frac || 0,
-          step: runs.length >= 4 ? 4 : Math.min(3, Math.max(0, Math.round(w / 2) - 1)),
-          live: { rungs: runs.map(rungLine), w, t: r.t },
-        };
-      }
-      const X = r.result;
-      if (!X) return { done: true, verdict: 'NOT MEASURED', ok: false, note: r.error || 'the ladder did not finish' };
-      const lo = benchBound('crosswind limit');
-      const lim = X.limit == null ? X.cap : X.limit;
-      const ok = lim >= lo;
-      const first = X.failW != null ? benchNum(X.failW, 1) + ' m/s: ' + (X.failWhy || 'failed') : null;
-      return {
-        done: true,
-        verdict: (X.limit == null ? 'CROSSWIND LIMIT > ' + benchNum(X.cap, 0) : 'CROSSWIND LIMIT ' + benchNum(X.limit, 1)) + ' m/s',
-        ok,
-        note: runs.map(rungLine).join(' · '),
-        why: ok ? '' : 'the limit is under the ' + lo + ' m/s bar' + (first ? ' — first failed at ' + first : ''),
-        fix: ok ? '' : benchWhyFix('crosswind limit'),
-        rungs: runs.map(rungLine),
-        limit: lim, capped: X.limit == null,   // G2273 (ACCEPT): the number a contract's crosswind criterion reads (m/s)
-        fills: 'plaque',
-      };
-    },
-    stop(api) { api.xwindEnd(); },
-  },
+  // (G3780: THE CROSSWIND LADDER IS GONE - the user 26 Oct: "No long tests that would need to re-run". Its number is
+  // the design check's own rudder row, ctl.rudder, the one the contracts read (72_accept xwindKt); the crosswind
+  // roundel follows it (benchInit xwindCert). 42_crosswind.js and app.js's xwind driver stay for DEV.)
   {
     // THE HYDROPLANE TEST (S1, G451.1; the playtest: "hydroplane test +
     // guidance", "should the 172 lift off on stock floats?"). A row the bench
@@ -388,11 +372,12 @@ const BENCH_TESTS = [
     id: 'hydro',
     name: 'Hydroplane',
     blurb: 'Full power from rest on the sea: the hump, the step, the lift-off — and why.',
-    kind: 'live',
-    offscreen: true,
+    // G3780: COMPUTED, NOT WATCHED - the same run on its second sim, to its end in slices, its verdict when it lands
+    kind: 'quick',
     when: api => typeof api.hasFloats === 'function' && api.hasFloats(),
     steps: ['afloat', 'the plough', 'the hump', 'on the step', 'lift-off'],
-    needs: ['hydroStart', 'hydroPoll', 'hydroEnd'],
+    needs: ['hydroQuick'],
+    quick(api, done) { api.hydroQuick(r => done(benchHydroVerdict(r))); },
     start(api) { api.hydroStart(); },
     poll(api) {
       const r = api.hydroPoll();
@@ -405,26 +390,7 @@ const BENCH_TESTS = [
         step: ['afloat', 'the plough', 'the hump', 'on the step', 'lift-off'].indexOf(r.phase),
         live: r,
       };
-      const A = r.adv, why = [], fix = [];
-      const off = !!r.lift && !r.bad;
-      if (r.bad) why.push('the simulation diverged on the water');   // G1800
-      if (A && A.reserve < 1.8) { why.push('the floats are UNDERSIZED: the pair displaces ' + benchNum(A.reserve, 2) + ' x the weight (1.8 needed)'); fix.push('a bigger float — the catalogue puts ' + benchNum(A.grossKg, 0) + ' kg on the ' + A.recommend); }
-      if (!off && r.hump.R >= 0.8 * r.TW) { why.push('the hump costs R/W ' + benchNum(r.hump.R, 2) + ' at ' + benchNum(r.hump.V * 3.6, 0) + ' km/h against ' + benchNum(r.TW, 2) + ' of thrust — no margin to climb it'); fix.push('more thrust or less weight over the hump: a coarser propeller, a bigger engine, fuel off'); }
-      if (!off && A && A.narrow) { why.push('the floats are NARROW for the weight (' + A.line.replace(/^.*NARROW: /, '') + ')'); fix.push('the catalogue' + String.fromCharCode(39) + 's row for ' + benchNum(A.grossKg, 0) + ' kg is the ' + A.recommend); }
-      if (!off && r.ventMax < 0.5) { why.push('the step never ventilated (air ' + benchNum(r.airMax, 2) + '): the chine sits too deep'); fix.push('a wider or longer float, or less weight — the chine must ride within the step\'s height of the surface'); }
-      if (!off && r.trimMax > 14) { why.push('the trim ran to ' + benchNum(r.trimMax, 0) + '° nose-up'); fix.push('the step further aft under the CG, or less back-stick'); }
-      if (!off && !why.length) why.push('it reached ' + benchNum(r.Vmax * 3.6, 0) + ' km/h on the water and stayed there (' + String(r.phase).toLowerCase() + ')');
-      return {
-        done: true,
-        verdict: off ? 'LIFTS OFF THE WATER' : r.bad ? 'SIM DIVERGED' : (r.ventMax < 0.5 || r.hump.R >= 0.8 * r.TW) ? 'STUCK AT THE HUMP' : 'STAYED ON THE WATER',
-        ok: off,
-        note: 'hump R/W ' + benchNum(r.hump.R, 2) + ' at ' + benchNum(r.hump.V * 3.6, 0) + ' km/h · T/W ' + benchNum(r.TW, 2)
-            + ' · step air ' + benchNum(r.ventMax, 2) + ' · trim ' + benchNum(r.trimMin, 0) + '…' + benchNum(r.trimMax, 0) + '°'
-            + (off ? ' · off at ' + benchNum(r.lift.t, 0) + ' s, ' + benchNum(r.lift.dist, 0) + ' m, ' + benchNum(r.lift.V * 3.6, 0) + ' km/h' : '')
-            + (A ? ' · floats ' + benchNum(A.reserve, 2) + ' x the ' + benchNum(A.grossKg, 0) + ' kg (' + A.verdict + ')' : ''),
-        why: why.join('; '),
-        fix: fix.join('; '),
-      };
+      return benchHydroVerdict(r);
     },
     stop(api) { api.hydroEnd(); },
   },
@@ -724,15 +690,57 @@ function benchHash(str) {
 // `f2` is the scheme above: a certificate hashed under the first scheme can
 // never equal one hashed under this, so it loads withdrawn with its own
 // reason (BENCH_RESTORE) instead of as a silent "the build changed".
-const BENCH_FP_SCHEME = 'f2';
-function benchVersionTag() {
-  const sv = (typeof GEN_SPEC_V !== 'undefined') ? GEN_SPEC_V : 0;
-  const pv = (typeof PHYSICS_V !== 'undefined') ? PHYSICS_V : 0;
-  return BENCH_FP_SCHEME + '|v' + sv + '|p' + pv + '|';
+// G3780 CERT-RULE (the user 26 Oct: "R1-R6 yes"): f2 is now only the OLD scheme, kept to recognise a certificate
+// stamped under it (BENCH_RESTORE's migration M1). The live scheme is f3 below.
+const BENCH_FP_F2 = 'f2';
+function benchVersionTag(sv, pv) {
+  if (sv == null) sv = (typeof GEN_SPEC_V !== 'undefined') ? GEN_SPEC_V : 0;
+  if (pv == null) pv = (typeof PHYSICS_V !== 'undefined') ? PHYSICS_V : 0;
+  return BENCH_FP_F2 + '|v' + sv + '|p' + pv + '|';
 }
-function benchFingerprint(spec, defaults) {
+function benchFingerprintF2(spec, defaults) {
   const c = benchStripCosmetic(spec, defaults);
   return c ? benchHash(benchVersionTag() + benchCanon(c)) : null;
+}
+// THE MAJOR FINGERPRINT (G3780, CERT-REVIEW R1): the page's own deviation rules first (a cage row at the default
+// aeroplane's value, the frames as deviations, the dash as certified: benchStripCosmetic), then the certificate's
+// ONE list (66b_cert_rule.js certStrip: no minor block, no state row, no measured row) hashed per group and with
+// NO version tag - a game update is not a change to the aeroplane (R3: it re-checks, BENCH_RESTORE). Returns
+// { fp, groups }; the groups name what changed (R4).
+const BENCH_FP_SCHEME = 'f3';
+// the rule's functions: the page's core globals, else (node: the gates require this file) the built core's
+let benchRuleCore = null;
+function benchRule() {
+  if (typeof certMajorOf === 'function' && typeof certStrip === 'function') return { certMajorOf, certStrip };
+  if (benchRuleCore) return benchRuleCore;
+  try {
+    if (typeof require === 'function' && typeof __dirname === 'string') {
+      const C = require(require('path').join(__dirname, '..', '..', 'tools', 'flight_core.js'));
+      if (C && C.certMajorOf) benchRuleCore = { certMajorOf: C.certMajorOf, certStrip: C.certStrip };
+    }
+  } catch (e) {}
+  return benchRuleCore;
+}
+function benchMajor(spec, defaults) {
+  const c = benchStripCosmetic(spec, defaults);
+  const R = c ? benchRule() : null;
+  return R ? R.certMajorOf(R.certStrip(c)) : null;
+}
+function benchFingerprint(spec, defaults) {
+  const M = benchMajor(spec, defaults);
+  return M ? M.fp : null;
+}
+// M1: every f2 hash this same body could have carried, under any (GEN_SPEC_V, PHYSICS_V) the game ever had - a
+// certificate whose f2 is one of them was measured on THIS aeroplane, whatever the version (CERT-REVIEW §6.1)
+function benchF2Set(spec, defaults) {
+  const c = benchStripCosmetic(spec, defaults);
+  const out = new Set();
+  if (!c) return out;
+  const body = benchCanon(c);
+  const SV = Math.max(10, (typeof GEN_SPEC_V !== 'undefined') ? GEN_SPEC_V : 0);
+  const PV = Math.max(6, (typeof PHYSICS_V !== 'undefined') ? PHYSICS_V : 0);
+  for (let sv = 0; sv <= SV; sv++) for (let pv = 0; pv <= PV; pv++) out.add(benchHash(benchVersionTag(sv, pv) + body));
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -776,17 +784,20 @@ function benchInit(api) {
   // ...against THE DEFAULT AEROPLANE (A9): the merged page defaults garage.js
   // publishes (GARAGE_SPEC.cageDefaults), so only a row the builder moved
   // counts. Without them (an older garage.js) every row counts, as before.
-  function fpNow() {
-    try {
-      const J = window.CAGE_JOIN;
-      if (!J || typeof J.export !== 'function') return null;
-      const G = window.GARAGE_SPEC;
-      let D = null;
-      try { D = (G && typeof G.cageDefaults === 'function') ? G.cageDefaults() : null; } catch (e) { D = null; }
-      if (!D && window.CAGE_PAGE && window.CAGE_PAGE.defaults) D = window.CAGE_PAGE.defaults;
-      return benchFingerprint(J.export(), D);
-    } catch (e) { return null; }
+  // G3780: the export and the defaults, once per call; majorNow() the f3 { fp, groups } (R1), fpNow() its fp
+  function liveSpec() {
+    const J = window.CAGE_JOIN;
+    if (!J || typeof J.export !== 'function') return null;
+    const G = window.GARAGE_SPEC;
+    let D = null;
+    try { D = (G && typeof G.cageDefaults === 'function') ? G.cageDefaults() : null; } catch (e) { D = null; }
+    if (!D && window.CAGE_PAGE && window.CAGE_PAGE.defaults) D = window.CAGE_PAGE.defaults;
+    return { spec: J.export(), D };
   }
+  function majorNow() {
+    try { const L = liveSpec(); return L ? benchMajor(L.spec, L.D) : null; } catch (e) { return null; }
+  }
+  function fpNow() { const M = majorNow(); return M ? M.fp : null; }
 
   // ---- the certificate ---------------------------------------------------
   // `stale` is a result the build outgrew: it stays on its row, struck
@@ -800,32 +811,65 @@ function benchInit(api) {
   // G208) is stamped with the loaded build's own, so it is kept exactly as
   // long as a fresh one would be.
   const settled = id => results[id] && !results[id].running && !results[id].stale;
-  const awarded = id => settled(id) && results[id].ok;
+  // G3780 R3: a certificate an update's re-check now fails is SUSPENDED - kept, with the row and the fix - and
+  // counts for nothing until fixed
+  const awarded = id => settled(id) && results[id].ok && !results[id].suspended;
   const anyRun = () => Object.keys(results).some(settled);
   const anyStale = () => Object.keys(results).some(id => results[id] && results[id].stale);
+  const anySuspended = () => Object.keys(results).some(id => settled(id) && results[id].suspended);
   // ADVISORY rows (dalt) do not gate the certificate — measured-but-not-a-
   // bush-plane is information, not failure (G107).
   const gating = () => BENCH_TESTS.filter(t => usable(t) && !t.advisory);
-  const passed = () => gating().every(t => awarded(t.id));
+  // G3780 R5: a damaged airframe is GROUNDED until it is repaired (Q3 (b): the repair alone returns it)
+  let grounded = null;      // { why, when } | null
+  // G3780 R6: the airworthiness card shows once per aeroplane, never again on a return
+  let masterShown = false;
+  const passed = () => !grounded && gating().every(t => awarded(t.id));
+  // the stickers: every awarded row; and the CROSSWIND roundel off the design check's own rudder row (G3780: the
+  // watched ladder is gone - its number was always this row, the one the contracts read: 72_accept xwindKt)
+  const xwindCert = () => {
+    const s = results.shake;
+    if (!awarded('shake') || !s.design || !s.design.rows) return null;
+    const row = s.design.rows.filter(x => x.id === 'ctl.rudder')[0];
+    const kt = row && row.value != null ? +row.value : NaN;
+    return isFinite(kt) && kt >= benchBound('crosswind limit') * 1.944 ? { id: 'xwind', when: s.when || null, kt } : null;
+  };
   const certs = () => BENCH_TESTS.filter(t => awarded(t.id))
-    .map(t => ({ id: t.id, when: results[t.id].when || null }));
+    .map(t => ({ id: t.id, when: results[t.id].when || null })).concat(xwindCert() ? [xwindCert()] : []);
   const plaqueOn = () => BENCH_TESTS.some(t => settled(t.id) && results[t.id].fills === 'plaque');
 
-  function withdraw(reason) {
+  // G3780 R4: A MAJOR CHANGE SUPERSEDES, IT DOES NOT FORGET. The result keeps its numbers and its fingerprint,
+  // struck through with the change named ("the wing or the structure changed"), so undoing the change restores it
+  // (BENCH_DIRTY below) with no test. The TEST FLIGHT is never superseded (the user 26 Oct: "nothing that ever needs
+  // re-flying"; R6: awarded once). `ids` limits it to the rows the change concerns (default: all but the flight).
+  function supersede(reason, ids) {
     let n = 0;
     for (const id in results) {
       const r = results[id];
-      if (!r || r.running || r.stale) continue;
-      results[id] = { stale: true, was: r.verdict || '', ok: false,
-                      when: r.when || null, why: reason };
+      if (!r || r.running || r.stale || id === 'flight') continue;
+      if (ids && ids.indexOf(id) < 0) continue;
+      results[id] = Object.assign({}, r, { stale: true, was: r.verdict || '', why: reason });
       n++;
     }
-    if (!n) return;
+    if (!n) return 0;
     withdrawnNote = reason;
     api.plaque(plaqueOn());
     persist();
     stickersChanged();
     render();
+    return n;
+  }
+  // the other way: a row whose own fingerprint is the live one again stands again
+  function unsupersede(fp) {
+    let n = 0;
+    for (const id in results) {
+      const r = results[id];
+      if (!r || !r.stale || !r.fp || r.fp !== fp) continue;
+      const k = Object.assign({}, r); delete k.stale; delete k.was; delete k.why;
+      results[id] = k; n++;
+    }
+    if (n && !anyStale()) withdrawnNote = '';
+    return n;
   }
   // THE DIRTY HOOK, on a fingerprint (G208). A rebuild used to clear the
   // whole bench; now it asks whether the aeroplane changed. Debounced,
@@ -833,30 +877,51 @@ function benchInit(api) {
   // free; a withdrawal 150 ms late is still a withdrawal. A dirty that
   // arrives with nothing settled on the bench does nothing, which is also
   // what keeps the load path's own storms off a restored certificate.
+  // G3780: the change, named by the groups that moved (66b_cert_rule.js; a core-less page says it plainly)
+  const changeLine = (a, b) => {
+    const g = (typeof certGroupsChanged === 'function') ? certGroupsChanged(a, b) : null;
+    return (typeof certChangeLine === 'function') ? certChangeLine(g) : 'the aeroplane changed';
+  };
+  // ...under R1 only a MAJOR change gets here (a passenger, a GPS, the crew, the cargo, a game update move nothing)
+  // and R4 re-runs the instant checks itself once the hand has let go (scheduleRecheck): the player is never asked
   let dirtyT = null;
   window.BENCH_DIRTY = () => {
     if (busy || live || flown) return;
-    if (!anyRun()) return;
+    if (!anyRun() && !anyStale()) return;
     if (dirtyT) clearTimeout(dirtyT);
     dirtyT = setTimeout(() => {
       dirtyT = null;
-      if (busy || live || !anyRun()) return;
-      const fp = fpNow();
-      if (fp == null) return;                       // cannot say: keep
-      const changed = Object.keys(results).some(id =>
-        settled(id) && results[id].fp && results[id].fp !== fp);
-      const unstamped = Object.keys(results).some(id => settled(id) && !results[id].fp);
-      if (changed || unstamped) withdraw('the build changed');
+      if (busy || live || flown) return;
+      const M = majorNow();
+      if (!M) return;                               // cannot say: keep
+      const back = unsupersede(M.fp);               // the change undone: what was measured on it stands again
+      const moved = Object.keys(results).filter(id => id !== 'flight' && settled(id) && results[id].fp !== M.fp);
+      if (moved.length) {
+        supersede(changeLine(results[moved[0]].groups, M.groups), moved);
+        scheduleRecheck();
+      } else if (back) { api.plaque(plaqueOn()); persist(); stickersChanged(); render(); changed(); }
     }, 150);
   };
+  // R4: THE INSTANT CHECKS RE-RUN THEMSELVES after a major change, once the edits stop (a slider drag is many
+  // changes); quietly - no card, no watch (the user 26 Oct: "Everything should be as fast as the bench check")
+  let recheckT = null;
+  function scheduleRecheck() {
+    if (recheckT) clearTimeout(recheckT);
+    recheckT = setTimeout(() => {
+      recheckT = null;
+      if (busy || live || flown || dirtyT) { scheduleRecheck(); return; }
+      if (!anyStale()) return;
+      runQuiet(null);
+    }, 1200);
+  }
   // ...and the other direction: every SETTLED result mirrors the bench into
   // the store, so the envelope always says what the bench would say.
   function persist() {
     try {
       const G = window.GARAGE_SPEC;
       if (!G || !G.plaque) return;
-      if (!Object.keys(results).length) { G.plaque(null); return; }
-      G.plaque({ when: today(), trimUse,
+      if (!Object.keys(results).length && !grounded) { G.plaque(null); return; }
+      G.plaque({ when: today(), trimUse, grounded, masterShown,
                  results: JSON.parse(JSON.stringify(results)),
                  sheets: (typeof api.sheets === 'function') ? api.sheets()
                                                             : null });
@@ -868,57 +933,85 @@ function benchInit(api) {
   window.BENCH_RESTORE = pq => {
     if (live || flown) return;
     if (dirtyT) { clearTimeout(dirtyT); dirtyT = null; }
-    if (!pq || !pq.results || !Object.keys(pq.results).length) {
-      results = {}; withdrawnNote = '';
+    if (!pq || ((!pq.results || !Object.keys(pq.results).length) && !pq.grounded)) {
+      results = {}; withdrawnNote = ''; grounded = null; masterShown = false;
       api.plaque(false); stickersChanged(); render();
       return;
     }
     busy = true;
-    results = JSON.parse(JSON.stringify(pq.results));
+    results = JSON.parse(JSON.stringify(pq.results || {}));
     for (const id in results) if (results[id] && results[id].running) delete results[id];
     trimUse = pq.trimUse !== false;
-    withdrawnNote = anyStale() ? 'the build changed' : '';
-    // THE RESTORE COMPARES, IT DOES NOT STAMP (TAIL CHANTIER 2 P5, ruling
-    // (p)). It used to write the LIVE fingerprint onto any certificate that
-    // had none — re-certifying a pre-G208 result against whatever aeroplane
-    // was on the stand — and never looked at a stored one. Now: a settled
-    // certificate whose fingerprint is not the live one (the build changed,
-    // or the physics did — PHYSICS_V is in the fingerprint) is WITHDRAWN
-    // here with the reason, kept struck through as the dirty hook keeps
-    // them; one with no fingerprint at all is withdrawn as certified before
-    // fingerprints. Only what was measured on THIS aeroplane under THIS
-    // physics loads valid.
-    const fp = fpNow();
-    if (fp) {
-      let changed = 0, unstamped = 0, old = 0;
+    grounded = pq.grounded || null;
+    // (a save from before G3780 that was airworthy has seen its card: it is not shown again)
+    masterShown = pq.masterShown != null ? !!pq.masterShown : Object.keys(results).length > 0;
+    // THE RESTORE UNDER THE RULE (G3780, CERT-REVIEW R3 + §6.1). It compares the MAJOR fingerprint (f3, no version):
+    //   - f3, the same aeroplane: HELD. Measured under another game version: held, and the bench check re-runs
+    //     silently (recheckUpdate): it holds -> re-stamped with a log line; it fails -> SUSPENDED, the row and the fix;
+    //   - f3, a major change since: superseded, the change named, its numbers kept (undoing it restores it);
+    //   - M1, f2: its hash is this same body's under SOME past (GEN_SPEC_V, PHYSICS_V) -> re-stamped f3 silently,
+    //     its day kept, and the re-check runs once (the Rufus' story file stamped on PHYSICS_V 4 loads held);
+    //   - M2, no fingerprint, or an f2 of another body: withdrawn, honestly - one run of the bench check restores it;
+    //   - THE TEST FLIGHT is the airframe's (R6): an awarded flight stays awarded, re-stamped.
+    const SV = (typeof GEN_SPEC_V !== 'undefined') ? GEN_SPEC_V : 0, PV = (typeof PHYSICS_V !== 'undefined') ? PHYSICS_V : 0;
+    let L = null; try { L = liveSpec(); } catch (e) { L = null; }
+    const M = L ? benchMajor(L.spec, L.D) : null;
+    let F2 = null, recheck = false;
+    if (M) {
       for (const id in results) {
         const r = results[id];
-        if (!r || r.stale) continue;
-        if (!r.fp) unstamped++;
-        else if (r.fps !== BENCH_FP_SCHEME) old++;     // A9: the first scheme's hash
-        else if (r.fp !== fp) changed++;
-      }
-      if (changed || unstamped || old) {
-        const reason = changed ? 'the build or its physics changed since the certificate'
-                     : old ? 'certified under the old fingerprint — run the tests once more'
-                           : 'certified before fingerprints';
-        for (const id in results) {
-          const r = results[id];
-          if (!r || r.stale) continue;
-          if (!r.fp || r.fp !== fp)
-            results[id] = { stale: true, was: r.verdict || '', ok: false,
-                            when: r.when || null, why: reason };
+        if (!r) continue;
+        if (r.stale) {                                  // a superseded row (f3) whose aeroplane is on the stand again
+          if (r.fps === BENCH_FP_SCHEME && r.fp === M.fp) { const k = Object.assign({}, r); delete k.stale; delete k.was; delete k.why; results[id] = k; }
+          continue;
         }
-        withdrawnNote = reason;
+        if (r.fps === BENCH_FP_SCHEME && r.fp) {
+          if (r.fp === M.fp) { if (r.sv !== SV || r.pv !== PV) recheck = true; continue; }
+          if (id === 'flight') continue;
+          results[id] = Object.assign({}, r, { stale: true, was: r.verdict || '', why: changeLine(r.groups, M.groups) });
+          continue;
+        }
+        if (r.fp) {
+          if (!F2) F2 = benchF2Set(L.spec, L.D);
+          if (F2.has(r.fp)) {
+            results[id] = Object.assign({}, r, { fp: M.fp, groups: M.groups, fps: BENCH_FP_SCHEME, sv: null, pv: null, f2: r.fp });
+            recheck = true;
+            continue;
+          }
+        }
+        if (id === 'flight' && r.ok) { results[id] = Object.assign({}, r, { fp: M.fp, groups: M.groups, fps: BENCH_FP_SCHEME, sv: SV, pv: PV }); continue; }
+        results[id] = { stale: true, was: r.verdict || '', ok: false, when: r.when || null,
+                        why: r.fp ? 'certified on another build or under an older fingerprint: one run of the bench check restores it'
+                                  : 'certified before fingerprints: one run of the bench check restores it' };
       }
     }
+    const st = Object.keys(results).map(id => results[id]).filter(r => r && r.stale);
+    withdrawnNote = st.length ? (st[0].why || 'the aeroplane changed') : '';
     if (typeof api.restoreSheets === 'function')
       api.restoreSheets(pq.sheets || null);
     api.plaque(plaqueOn());
     busy = false;
     stickersChanged();
     render();
+    if (recheck) setTimeout(recheckUpdate, 400);
   };
+  // R3: A GAME UPDATE RE-CHECKS SILENTLY. The bench check alone (the wing loading and the flight are the airframe's:
+  // the structure did not change, only the model); no card. Holds -> every held row re-stamped with this version and
+  // the row says so; fails -> the certificate is SUSPENDED: the row, the number and the fix, until the aeroplane changes.
+  function recheckUpdate() {
+    if (live || flown || busy || dirtyT) { setTimeout(recheckUpdate, 800); return; }
+    const SV = (typeof GEN_SPEC_V !== 'undefined') ? GEN_SPEC_V : 0, PV = (typeof PHYSICS_V !== 'undefined') ? PHYSICS_V : 0;
+    const stamp = () => { for (const id in results) { const r = results[id]; if (r && !r.stale && r.fps === BENCH_FP_SCHEME) { r.sv = SV; r.pv = PV; } } };
+    const t = BENCH_TESTS.filter(x => x.id === 'shake')[0];
+    const old = results.shake;
+    if (!t || !usable(t) || !old || old.stale || !old.ok) { stamp(); persist(); return; }
+    runOne(t, () => {
+      const r = results.shake;
+      if (r && r.ok) { r.recheck = { when: today(), sv: SV, pv: PV, was: old.when || null }; r.when = old.when || r.when; stamp(); }
+      else if (r) r.suspended = { when: today(), why: r.why || r.verdict || '', fix: r.fix || '' };
+      persist(); stickersChanged(); render(); changed();
+    }, { quiet: true });
+  }
   // app.js labels ROLL OUT off BENCH_STATE, so it has to be told when that
   // changed rather than polling it every frame
   const changed = () => {
@@ -936,6 +1029,8 @@ function benchInit(api) {
     const f = results.flight;
     return { any: anyRun(), passed: passed(), results, certs: certs(),
              stale: anyStale(),
+             // G3780: the states the HUD and the header speak (R3 suspended, R5 grounded); the change a superseded row names
+             suspended: anySuspended(), grounded, change: anyStale() ? withdrawnNote : '',
              trim: (trimUse && f && !f.stale && !f.running && f.ok
                     && f.trim != null && isFinite(f.trim)) ? f.trim : null };
   };
@@ -955,11 +1050,18 @@ function benchInit(api) {
   // a result settles: stamped with the day and the aeroplane, noted in the
   // logbook, persisted, and — when the test was run rather than restored —
   // awarded in the card over the view. `after` runs when the card closes.
-  function settle(t, r, fp, after) {
+  // G3780: `quiet` (every test now, the user 26 Oct: "as fast as the bench check") settles without the test's own
+  // card - the one card left is the airworthiness certificate's, ONCE per aeroplane (R6: masterShown)
+  function settle(t, r, fp, after, quiet) {
     const wasPassed = passed();
     r.when = today();
     r.fp = fp;
     r.fps = BENCH_FP_SCHEME;      // which scheme hashed it (A9): the restore reads it
+    // G3780: the groups (R4 names a later change) and the versions it was measured under (R3 re-checks on another)
+    const M = majorNow();
+    r.groups = (M && M.fp === fp) ? M.groups : null;
+    r.sv = (typeof GEN_SPEC_V !== 'undefined') ? GEN_SPEC_V : 0;
+    r.pv = (typeof PHYSICS_V !== 'undefined') ? PHYSICS_V : 0;
     results[t.id] = r;
     if (r.fills === 'plaque' && r.ok !== undefined) api.plaque(plaqueOn());
     if (!anyStale()) withdrawnNote = '';
@@ -969,9 +1071,14 @@ function benchInit(api) {
     persist();
     stickersChanged();
     render();
+    changed();
     // THE MASTER'S MOMENT (A9): the last gating certificate lands, the whole
     // certificate is held — the airworthiness card follows the test's own
-    if (!wasPassed && passed()) award(t, r, () => awardMaster(after));
+    // (G3780 R6: once per aeroplane; a re-check or a return never replays it)
+    const master = !wasPassed && passed() && !masterShown;
+    if (master) masterShown = true, persist();
+    if (quiet) { if (master) awardMaster(after); else if (after) after(); }
+    else if (master) award(t, r, () => awardMaster(after));
     else award(t, r, after);
     // G2742 (STORY-PAGE): the page hears the airworthiness certificate land (app.js: the career's story; nobody else sets it)
     if (!wasPassed && passed() && typeof window.BENCH_CERTIFIED === 'function') { try { window.BENCH_CERTIFIED(); } catch (e) {} }
@@ -1059,7 +1166,9 @@ function benchInit(api) {
            A.lines.map(l => '<div>' + esc(l) + '</div>').join('') + '</div>';
   };
 
-  function runOne(t, after) {
+  // G3780: opts.quiet - no card, no freeze, the result settles in its row (a re-check, a run-all, every row's button)
+  function runOne(t, after, opts) {
+    const quiet = !!(opts && opts.quiet);
     if (live || flown || !usable(t)) { if (after) after(); return; }
     busy = true;
     const errs = sync();
@@ -1072,7 +1181,7 @@ function benchInit(api) {
       // certificate — and here it would be reading one for an aeroplane that
       // was never successfully built.
       settle(t, { verdict: 'CANNOT MEASURE THIS BUILD', ok: false,
-                  note: errs.join(' · ') }, fp, after);
+                  note: errs.join(' · ') }, fp, after, quiet);
       api.plaque(false);
       return render();
     }
@@ -1106,18 +1215,32 @@ function benchInit(api) {
       }, 120);
       return;
     }
+    // G3780: A COMPUTED TEST OFF THE PAGE (the wing loading's rig unpaced on the bench's thread, the hydroplane's run
+    // to its end in slices): the row says it is measuring, nothing is watched, the verdict settles when it lands
+    if (t.kind === 'quick') {
+      results[t.id] = { running: 'measuring', ok: false };
+      render();
+      let done = false;
+      const fin = r => {
+        if (done) return; done = true;
+        if (!results[t.id] || !results[t.id].running) { if (after) after(); return; }   // overtaken (a new aeroplane)
+        settle(t, r || { verdict: 'not measurable', ok: false }, fp, after, true);
+      };
+      try { t.quick(api, fin); } catch (e) { fin({ verdict: 'threw: ' + e.message, ok: false }); }
+      return;
+    }
     // an instant test still takes a moment (the tunnel); the card shows
     // first, then the measurement runs, then the award
-    freeze(t, true);
+    if (!quiet) freeze(t, true);
     results[t.id] = { running: 'measuring', ok: false };
     render();
     setTimeout(() => {
       let r;
       try { r = t.run(api); }
       catch (e) { r = { verdict: 'threw: ' + e.message, ok: false }; }
-      unfreeze();
-      settle(t, r, fp, after);
-    }, 40);
+      if (!quiet) unfreeze();
+      settle(t, r, fp, after, quiet);
+    }, quiet ? 0 : 40);
   }
 
   function endLive(t, r) {
@@ -1175,16 +1298,43 @@ function benchInit(api) {
   // live one the plaque's "proved in flight" row is withdrawn against
   window.BENCH_FP_OUT = () => outFp;
   window.BENCH_FP = () => fpNow();
+  // G3780 M4: the live aeroplane's f2 hashes under every game version (memoised on the live f3): what a leg, a logbook
+  // row or a certificate signed before the rule carries when it was measured on this same aeroplane
+  let aliasMemo = null;
+  window.BENCH_FP_ALIASES = () => {
+    try {
+      const L = liveSpec(); if (!L) return [];
+      const M = benchMajor(L.spec, L.D); if (!M) return [];
+      if (!aliasMemo || aliasMemo.fp !== M.fp) aliasMemo = { fp: M.fp, list: Array.from(benchF2Set(L.spec, L.D)) };
+      return aliasMemo.list;
+    } catch (e) { return []; }
+  };
+  // G3780 R6 (the user 26 Oct: "nothing that ever needs re-flying"): the flight is awarded ONCE - by the first arrival,
+  // armed or not - and never asked again, never replayed: any later arrival of an aeroplane whose flight stands changes
+  // nothing, whatever its fingerprint. (R5's grounding is the career's damage record: BENCH_GROUND below.)
   window.BENCH_FLIGHT_LOGGED = f => {
     const t = BENCH_TESTS.filter(x => x.id === 'flight')[0];
     if (!t || !f) return;
     const F = flown; flown = null;
     const fp = (f.armed && f.armed.fp) || (F && F.fp) || outFp || fpNow();
-    if (!F && !f.armed && !f.arrived) return;
-    if (!F && !f.armed && awarded('flight') && results.flight.fp && results.flight.fp === fp) return;   // held: once
     if (results.flight && results.flight.running) delete results.flight;
+    if (awarded('flight')) { render(); if (F && F.after) F.after(); return; }   // held: once, for good
+    if (!F && !f.armed && !f.arrived) return;
     const r = t.judge(f);
-    settle(t, r, fp, F ? F.after : null);
+    settle(t, r, fp, F ? F.after : null, true);
+  };
+  // R5: GROUNDED, AND THE REPAIR RETURNS IT (Q3 (b)). The career's damage record grounds (app.js, the flight's DMG
+  // verdict / fleet[slot].damage); its repair (econRepair, careerCrashReset) calls BENCH_REPAIRED. The sandbox rolls a
+  // fresh airframe out each time: nothing there stays damaged, so nothing grounds past the flight.
+  window.BENCH_GROUND = why => {
+    if (grounded && grounded.why === why) return;
+    grounded = { why: String(why || 'damaged'), when: today() };
+    persist(); stickersChanged(); render(); changed();
+  };
+  window.BENCH_REPAIRED = () => {
+    if (!grounded) return;
+    grounded = null;
+    persist(); stickersChanged(); render(); changed();
   };
 
   // the logbook stub (G63's envelope): what was tested, and what it said
@@ -1196,19 +1346,19 @@ function benchInit(api) {
     } catch (e) {}
   }
 
-  function runAll() {
-    // sequentially, because a live test owns the sim while it runs, and
-    // each award card closes before the next test starts. A FLOWN row goes
-    // last and ends the queue: the aeroplane is out of the shed after it.
-    const queue = BENCH_TESTS.filter(t => usable(t) && t.kind !== 'flown')
-      .concat(BENCH_TESTS.filter(t => usable(t) && t.kind === 'flown'));
+  // G3780 (the user 26 Oct: "No long tests that would need to re-run. Everything should be as fast as the bench check
+  // and the altitude check"): RUN THE TESTS = every computed row, quietly, one after the other (no card but the
+  // airworthiness one, once). The test flight is not in it: the first arrival awards it (R6).
+  function runQuiet(after) {
+    const queue = BENCH_TESTS.filter(t => usable(t) && t.kind !== 'flown' && t.kind !== 'live');
     const next = () => {
       const t = queue.shift();
-      if (!t) return;
-      runOne(t, next);
+      if (!t) { if (after) after(); return; }
+      runOne(t, next, { quiet: true });
     };
     next();
   }
+  function runAll() { runQuiet(null); }
 
   // ---- THE FREEZE AND THE RUN CARD (G208) --------------------------------
   // Built once, on the body, so they sit over the view and not inside the
@@ -1533,20 +1683,34 @@ function benchInit(api) {
   function render() {
     const bits = [];
     const nCert = certs().length, nGate = gating().length;
+    // G3780 (CERT-REVIEW §8): ONE line about the certificate - airworthy (and when it was re-checked), the change a
+    // major edit made (and that the checks are re-running), suspended after an update (the row and the fix),
+    // grounded (the damage, repair it)
+    const running = Object.keys(results).some(id => results[id] && results[id].running) || !!recheckT;
+    const sh = results.shake, rc = sh && !sh.stale && sh.recheck ? sh.recheck : null;
+    const firstWhen = (sh && sh.when) || null;
     const v = live ? '<b class="run">TESTING</b>'
       : flown ? '<b class="run">FLYING</b>'
+      : grounded ? '<b class="bad">GROUNDED</b>'
+      : anySuspended() ? '<b class="bad">SUSPENDED</b>'
+      : running ? '<b class="run">CHECKING</b>'
       : anyRun()
       ? (passed() ? '<b class="cert">AIRWORTHY</b>'
                   : '<b class="bad">NOT PASSED</b>')
-      : anyStale() ? '<b class="stale">WITHDRAWN</b>'
+      : anyStale() ? '<b class="stale">CHANGED</b>'
       : '<b class="dim">UNTESTED</b>';
+    const susp = anySuspended() ? (results.shake && results.shake.suspended) || null : null;
+    const line1 = grounded ? 'grounded · ' + grounded.why + ': repair it'
+      : susp ? 'suspended after the update · ' + (susp.why || '') + (susp.fix ? ' → ' + susp.fix : '')
+      : passed() ? 'airworthy' + (firstWhen ? ' · certified ' + firstWhen : '') + (rc ? ' · re-checked ' + rc.when : '')
+      : anyStale() ? withdrawnNote + (running ? ' · re-checking' : ' · run the tests')
+      : null;
     bits.push('<div class="bHead"><span>engineering bench</span>' + v +
       '<button id="bRunAll">run the tests</button>' +
       '<div class="bSeals">' +
       BENCH_TESTS.filter(usable).map(t => sealCanvas(t.id, awarded(t.id), 34)).join('') +
-      '<em>' + (nCert ? nCert + ' of ' + BENCH_TESTS.filter(usable).length + ' certificates'
-                        + (passed() ? ' · airworthy' : nGate && !passed() ? '' : '')
-                      : withdrawnNote ? 'certificates withdrawn — ' + withdrawnNote
+      '<em>' + (line1 != null ? line1
+                      : nCert ? nCert + ' of ' + BENCH_TESTS.filter(usable).length + ' certificates'
                       : 'no certificate yet') + '</em>' +
       '</div></div>');
     for (const t of BENCH_TESTS) {
@@ -1563,8 +1727,9 @@ function benchInit(api) {
       if (!can) line = 'not built yet';
       else if (!r) line = 'not run';
       else if (r.running) line = r.running;
-      else if (r.stale) line = '<s>' + (r.was || '') + '</s><i>withdrawn — ' + (r.why || 'the build changed') + '</i>';
-      else line = (r.verdict || '') + (r.when ? '<i>' + (r.ok ? 'certified ' : '') + r.when + '</i>' : '');
+      else if (r.stale) line = '<s>' + (r.was || '') + '</s><i>' + (r.why || 'the aeroplane changed') + (recheckT ? ' · re-checking' : '') + '</i>';
+      else if (r.suspended) line = (r.verdict || '') + '<i>suspended after the update of ' + r.suspended.when + '</i>';
+      else line = (r.verdict || '') + (r.when ? '<i>' + (r.ok ? 'certified ' : '') + r.when + (r.recheck ? ' · re-checked ' + r.recheck.when : '') + '</i>' : '');
       // the advisor's line (G208): after the bench check, the tunnel's trim;
       // after the test flight, the trim the pilot held, and the offer to make
       // it the roll-out default
@@ -1585,7 +1750,8 @@ function benchInit(api) {
       bits.push('<div class="bT ' + cls + '">' +
         '<div class="bT1">' + sealCanvas(t.id, awarded(t.id), 26) +
         '<span class="bN">' + t.name + '</span>' +
-        (can ? '<button data-t="' + t.id + '">' + (r && !r.running && !r.stale ? 'run again' : 'run') + '</button>' : '') +
+        // (G3780 R6: the flight is awarded once - its row has nothing to run again)
+        (can && !(t.kind === 'flown' && awarded(t.id)) ? '<button data-t="' + t.id + '">' + (t.kind === 'flown' ? 'fly it now' : r && !r.running && !r.stale ? 'run again' : 'run') + '</button>' : '') +
         '<b>' + line + '</b></div>' +
         '<div class="bB">' + t.blurb + '</div>' +
         // the test card's own fields (G107.1) — values live in cardVals so a
@@ -1624,7 +1790,7 @@ function benchInit(api) {
       b.disabled = busyNow();
       b.onclick = () => {
         const t = BENCH_TESTS.filter(x => x.id === b.dataset.t)[0];
-        if (t) runOne(t);
+        if (t) runOne(t, null, { quiet: true });
       };
     });
     rows.querySelectorAll('input[data-card]').forEach(inp => {
@@ -1641,6 +1807,7 @@ function benchInit(api) {
 }
 
 if (typeof module !== 'undefined' && module.exports)
-  module.exports = { BENCH_TESTS, BENCH_COSMETIC, BENCH_LOOK, BENCH_STATE_ROWS, BENCH_FP_SCHEME,
+  module.exports = { BENCH_TESTS, BENCH_COSMETIC, BENCH_LOOK, BENCH_STATE_ROWS, BENCH_FP_SCHEME, BENCH_FP_F2,
+                     benchMajor, benchFingerprintF2, benchF2Set, benchVersionTag,
                      benchStripCosmetic, benchCanon, benchSame, benchHash, LOAD_TIP_CAP, benchLeverLine, benchDestroyLine,
                      benchFingerprint, benchFlightStep, benchTrimWords, benchNum, benchDesignHtml };

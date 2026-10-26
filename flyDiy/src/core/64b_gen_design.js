@@ -240,15 +240,18 @@ function genDesignCheck(def, sh, simIn, opts) {
   const smD = sh ? sh.staticMargin : -D.Cma / Math.max(1e-6, D.CLa);
   const smA = sh && sh.envelope && isFinite(sh.envelope.staticMarginAft) ? sh.envelope.staticMarginAft : smD;
   {
-    const lvl = smA < 0 ? 'fail' : (smA < 0.02 || smD > 0.40) ? 'warn' : 'pass';
+    // G3780 (CERT-REVIEW §7, the user 26 Oct "R1-R6 yes" with the study's Q5): ONE set of bands everywhere - red < 0,
+    // orange 0-0.05 or > 0.40, green 0.05-0.40 (genMarginBand, the garage's posts). The warn line moves 0.02 -> 0.05 (the
+    // fix text always aimed at 0.05); the FAIL line stays at 0, so a warn still certifies and no certificate changes
+    const lvl = smA < 0 ? 'fail' : (smA < 0.05 || smD > 0.40) ? 'warn' : 'pass';
     const cbar = D.c;
     row({ id: 'pitch.sm', group: 'pitch', label: 'Static margin (CG ahead of the neutral point)',
           value: r3(smA), unit: 'MAC', level: lvl,
-          limit: 'fail < 0 at any loading; warn < 0.02 (nearly neutral) or > 0.40 as drawn (nose-heavy)',
+          limit: 'fail < 0 at any loading; warn < 0.05 (nearly neutral) or > 0.40 as drawn (nose-heavy)',
           why: 'as drawn ' + r3(smD) + (sh && sh.envelope ? ', at the worst loading corner (' + sh.envelope.worst.label + ') ' + r3(smA)
                                                           : ' (the loading corners were not run: the drawn loading only)') +
                ' of the mean chord. Below zero the aeroplane diverges in pitch: any bump grows.',
-          fix: smA < 0.02 ? 'move the CG forward by ' + r2((0.05 - smA) * cbar) + ' m (ballast in the nose, the wing aft, ' +
+          fix: smA < 0.05 ? 'move the CG forward by ' + r2((0.05 - smA) * cbar) + ' m (ballast in the nose, the wing aft, ' +
                             'or the tanks/seats forward), or grow the stabiliser'
              : smD > 0.40 ? 'the CG is far forward: the elevator must hold the nose up at every speed - move the wing ' +
                             'forward or the load aft by ' + r2((smD - 0.25) * cbar) + ' m' : '' });
