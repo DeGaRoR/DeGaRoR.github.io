@@ -7,10 +7,11 @@
 // glareshield, the roll, the lip and the flat plate, and rebuilds the sides
 // and the bottom. This judges, on the validated saved builds (the Cub, the
 // Jodel, the Cessna) built with the arch opted in:
-//   load      a saved build without the row keeps the box (dashStyle 0), and
-//             its sheet is the box's byte for byte against an explicit 0; a
-//             new build (no file / a birth spec) gets the arch; a file that
-//             carries the row keeps it
+//   load      a saved build from before the switch (no dashV) takes the arch
+//             once, the dash it had kept as dashWas (G3451), and its sheet is
+//             the arch's byte for byte against an explicit 1; a new build (no
+//             file / a birth spec) gets the arch; a dash picked after the
+//             switch (dashV 1) stands
 //   open      no dash face between the legs under the plate
 //   edge      the cheeks' forward edge is ONE vertical line at zFront, from
 //             the legs' foot to just under the glareshield
@@ -45,7 +46,7 @@ if (argv[0] === '--tank') {
   SH.stubCanvas();
   console.error = () => {};
   const spec = JSON.parse(JSON.stringify(SH.loadFixture(argv[1]).spec));
-  spec.cage = Object.assign({}, spec.cage, { dashStyle: +argv[2] });
+  spec.cage = Object.assign({}, spec.cage, { dashStyle: +argv[2], dashV: 1 });   // (G3451: the style stands)
   const def = C.buildGen(JSON.parse(JSON.stringify(spec)));
   W.CAGE_ENERGY.fromSpec(spec.energy, spec);
   SH.sceneBuild(spec, { garage: spec, resolved: () => def.spec, inGame: true });
@@ -66,7 +67,9 @@ const CG2 = SH.context().ctx.CAGE2;
 const hashOf = M => { const h = crypto.createHash('md5');
   for (const f of M.F) h.update(f.m + ':' + f.v.map(v => M.V[v].map(x => x.toFixed(7)).join(',')).join(';') + '|');
   return h.digest('hex'); };
-const withStyle = (spec, st) => Object.assign(JSON.parse(JSON.stringify(spec)), { cage: Object.assign({}, spec.cage, { dashStyle: st }) });
+// (G3451: a style picked after the switch carries dashV 1, so the box stands; rawStyle is a file from before it)
+const withStyle = (spec, st) => Object.assign(JSON.parse(JSON.stringify(spec)), { cage: Object.assign({}, spec.cage, { dashStyle: st, dashV: 1 }) });
+const rawStyle = (spec, st) => Object.assign(JSON.parse(JSON.stringify(spec)), { cage: Object.assign({}, spec.cage, { dashStyle: st }) });
 
 // the tank children run while the geometry is judged here
 const kids = [];
@@ -84,9 +87,9 @@ for (const b of BUILDS) {
   // G3451: every file saved before the switch takes the arch once, the dash it had kept as dashWas
   { const L = CG2.cageFromSpec(spec);
     check(spec.cage.dashStyle == null && L.dashStyle === 1 && L.dashWas === 0 && L.dashV === 1, 'load: ' + path.basename(b) + ' (saved before the row) takes the arch, was the box (G3451)', [L.dashStyle, L.dashWas, L.dashV]); }
-  { const L = CG2.cageFromSpec(withStyle(spec, 0));
+  { const L = CG2.cageFromSpec(rawStyle(spec, 0));
     check(L.dashStyle === 1 && L.dashWas === 0 && L.dashLegs === 1, 'load: a file carrying the box (dashStyle 0, no dashV) takes the arch (G3451)', [L.dashStyle, L.dashWas]); }
-  check(CG2.cageFromSpec(withStyle(spec, 1)).dashStyle === 1 && CG2.cageFromSpec(withStyle(spec, 1)).dashWas === 1, 'load: a file carrying dashStyle 1 keeps the arch');
+  check(CG2.cageFromSpec(rawStyle(spec, 1)).dashStyle === 1 && CG2.cageFromSpec(rawStyle(spec, 1)).dashWas === 1, 'load: a file carrying dashStyle 1 keeps the arch');
   { const s0 = withStyle(spec, 0); s0.cage.dashV = 1; const L = CG2.cageFromSpec(s0);
     check(L.dashStyle === 0 && L.dashWas == null, 'load: a box picked after the switch (dashV 1) stands', [L.dashStyle, L.dashWas]); }
   { const L = CG2.cageFromSpec(spec), L2 = CG2.cageFromSpec({ cage: CG2.cageToSpec(L) });
@@ -128,7 +131,7 @@ const GEO = BUILDS.map(b => ({ nm: path.basename(b).split('_')[0], spec: SH.load
 for (const g of GEO) {
   const nm = g.nm, spec = g.spec;
   const r0 = SH.sceneBuild(spec, {}), rB = SH.sceneBuild(withStyle(spec, 0), {}), rA = SH.sceneBuild(withStyle(spec, 1), {});
-  if (g.saved) check(hashOf(r0.built.sheet) === hashOf(rB.built.sheet), nm + ': the saved build\'s sheet is the box\'s, byte for byte');
+  if (g.saved) check(hashOf(r0.built.sheet) === hashOf(rA.built.sheet), nm + ': the saved build\'s sheet is the arch\'s, byte for byte (G3451: it takes the arch on load)');
   if (g.legs) check(rA.built.sheet.dashArch && rA.built.sheet.dashArch.yFoot < rA.built.sheet.dashArch.yPlate - 0.02,
     nm + ': no door - the legs run below the plate to a rail');
   const M = rA.built.sheet, FS = rA.FS, DA = M.dashArch;
