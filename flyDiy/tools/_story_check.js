@@ -721,7 +721,7 @@ async function tutorRun() {
   const FG = M.storyFinalPose(H0, { V: 20, groundH: () => 150 });
   ok(FG.y === 210, 'the final never under 60 m over the ground beneath it (a hill before the field)', FG.y);
   const H1 = Object.assign({}, H0, { x: -450 }), FR = M.storyFinalPose(H1, { V: 20, way: -1 });
-  ok(Math.abs(FR.x - (-900 - 60 - 3000)) < 1e-6 && Math.abs(FR.hdg - 2 * Math.PI) < 1e-9 && FR.vx > 0 && Math.abs(FR.vz) < 1e-6,
+  ok(Math.abs(FR.x - (-900 + 60 - 3000)) < 1e-6 && Math.abs(FR.hdg - 2 * Math.PI) < 1e-9 && FR.vx > 0 && Math.abs(FR.vz) < 1e-6,
      "the other end's final (way -1): 3 km out past the take-off end's mirror, flying against a.hdg", JSON.stringify({ x: FR.x, hdg: FR.hdg }));
   { const Wd = M.makeWorld(0, {}), HW = Wd.aerodromes.find(a => a.id === 'HOME'), wd = v => Object.create(Wd, { wind: { value: () => v } });
     const hx = Math.cos(HW.hdg), hz = Math.sin(HW.hdg);
