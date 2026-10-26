@@ -8113,6 +8113,9 @@
       if (CAREER_DEV && d.career) { const c = careerStopApply(d, how, W, wrecked); d = c.doc; out.career = c; }
       // G2742 (STORY-PAGE): ...and the story meets it (the stop, each contract it delivered), its effects applied
       if (CAREER_DEV && STORY_PAGE && d.career && out.career) d = storyOnFlightEnd(d, out);
+      // G3585 (B'1): the stop's story effects can lift that hangar's lock (T1 done: the WWII field's hangar is ours) -
+      // the roll-in opens there now, where the go-to above was refused while it was still locked
+      if (out.moved && out.moved.kind === 'in' && out.moved.hangar && out.moved.hangar !== d.here && !out.room) { const g = playerGoTo(d, out.moved.hangar); if (g.ok) { d = g.doc; out.room = out.moved.hangar; } }
       if (CAREER_DEV && out.career && rtSettled && rtSettled.lines.length) out.career.lines.unshift(...rtSettled.lines);   // (G3260: the routes' line)
       // G2705 (CAREER-DAMAGE, §R.4): a crash in the career - back at the place the flight departed from, repaired, free
       // (75_ careerCrashReset); its line leads the career's lines on the arrival card. The sandbox: nothing (gp4 stands)
