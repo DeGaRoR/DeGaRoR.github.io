@@ -117,6 +117,20 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
         await shot(tag + '_' + mode + '_' + nm);
       }
       await ev("(()=>{if(window.HEAD_CAM){HEAD_CAM.yaw=0;HEAD_CAM.pitch=0;}return 1})()");
+      // WHICH SURFACE IS IT: the head raised 10 cm (HEAD_BOX's top) and pitched down, with the cowl, then without it
+      // (every 'cageLayer:cowl' group hidden) - what remains is the fuselage's deck
+      const COWLVIS = v => "(()=>{let n=0;const S=window.CAGE_SCENE;if(S)S.traverse(o=>{if(o.name==='cageLayer:cowl'){o.visible=" + v + ";n++;}});return n})()";
+      await ev("(()=>{if(window.HEAD_CAM){HEAD_CAM.off.set(0,0.10,0);HEAD_CAM.yaw=0.35;HEAD_CAM.pitch=-0.5;}return 1})()");
+      await sleep(2000); await shot(tag + '_' + mode + '_up');
+      const nCowl = await ev(COWLVIS(false)); await sleep(1200); await shot(tag + '_' + mode + '_up_nocowl');
+      await ev(COWLVIS(true));
+      await ev("(()=>{if(window.HEAD_CAM){HEAD_CAM.off.set(0,0,0);HEAD_CAM.yaw=0;HEAD_CAM.pitch=0;}return 1})()");
+      // OUTSIDE, CLOSE: the orbit from ahead, left and above, looking down on the nose's top arch (FLIGHT_PROBE.camSet,
+      // garage_shot's handle; az = PI looks the build in the nose)
+      await pill('3/4 front'); await sleep(1500);
+      await ev("FLIGHT_PROBE.camSet(" + (Math.PI * 0.78) + ", 0.62, 4.2), FLIGHT_PROBE.camSettle && FLIGHT_PROBE.camSettle(), 1");
+      await sleep(2500); if (!NOHIDE) await ev(HIDE); await shot(tag + '_' + mode + '_outside');
+      console.log('cowl_res_stills: ' + tag + ' ' + mode + ' cowl groups hidden for _up_nocowl: ' + nCowl);
       const row = Object.assign({ build: tag, mode }, JSON.parse(drew));
       info.push(row); console.log('cowl_res_stills: ' + JSON.stringify(row));
     }
