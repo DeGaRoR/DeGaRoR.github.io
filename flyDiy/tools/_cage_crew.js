@@ -2842,7 +2842,10 @@ function anchors(spec, P, mesh) {
   const rg = n => R.rings.find(r => r.name === n);
   const cabB = rg('pilCabB');
   const win = rg('ring');
-  const wsF = rg('wsFront') || rg('aeroWsA') || win;
+  // G3511: an OPEN pilot section's panel stands under its fore coaming (the
+  // opening's fore ring, cpOpenB) - not under the decking ahead of it, at the
+  // windscreen ring a closed cabin's dash hangs from
+  const wsF = rg('cpOpenB') || rg('wsFront') || rg('aeroWsA') || win;
   // centreline keel polyline, scaled to world (metres)
   const pts = R.rings.map(r => ({
     z: (r.lv.keel.zC != null ? r.lv.keel.zC : r.lv.keel.z) * k,
