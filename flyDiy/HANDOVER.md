@@ -99064,14 +99064,16 @@ Strict light gate RED (6), all in known classes; the loads are back inside their
 - world -> garage: cub round trip 2 at 2.02 s, floats at 5.29 s. The class red since L24c (2.99 / 3.55 there); HWCOV has the cause, the per-trip cacheKey churn of fragment 66e30961, and its Mon 12:45 slot names the owner.
 Pushed by the user's order of 25 Oct: land as soon as possible.
 
-## G3510-G3519 - NEW-SHAPES-1: THE ROUND BODY (THE AERO NOSE'S FULL RINGS, ENDING IN THE ENGINE FACE) AND THE OCCUPANT SECTIONS OPEN AT THE TOP, CLEAN; A STEARMAN AND A TIGER MOTH THROUGH THE LOAD DOOR, FLOWN; THE SIX VALIDATED BUILDS BIT-IDENTICAL (2026-10-26, NEW-SHAPES-1, cloud - node + headless only; branch claude/new-shapes-1 off origin/master d7e181f4e = L25c, origin/master merged (no move since); READY as claude/ready/new-shapes-1 on the user's 26 Oct order; G3514-G3517 the user's second round of 26 Oct (rear pilot, the cards moved, the screen glass billed, the bench pictures); G3518-G3519 unused)
+## G3510-G3519 - NEW-SHAPES-1: THE ROUND BODY (THE AERO NOSE'S FULL RINGS, ENDING IN THE ENGINE FACE) AND THE OCCUPANT SECTIONS OPEN AT THE TOP, CLEAN; A STEARMAN AND A TIGER MOTH THROUGH THE LOAD DOOR, FLOWN; THE SIX VALIDATED BUILDS BIT-IDENTICAL (2026-10-26, NEW-SHAPES-1, cloud - node + headless only; branch claude/new-shapes-1 off origin/master d7e181f4e = L25c, origin/master merged (no move since); READY as claude/ready/new-shapes-1 on the user's 26 Oct order; G3514-G3517 the user's second round of 26 Oct (rear pilot, the cards moved, the screen glass billed, the bench pictures); G3518 the energy layer's datum on the round body; G3519 unused)
 The user (23 Oct, verbatim): "did we ever start anything from the geometry study, because we'd need some of that for a proper stearman / cylinder type fuselages with openings for individuals" - "It has to draw on our existing systems as much as possible, so fuselage shaping methods just work too, and we generate section with pillars, like the other geometry. It is really important not to reinvent a new system that does not build or integrate well with the current one." - "the proofs would be a stearman and a moth. The round fuselage can probably try and look at the aeronose shape (ambiguously named), that already gets rid of the more complex windshield geometry for a shapable cylinder. The sections holding the pilot and second person should be identified as proper sections, and the fuselage openings should be clean. Yet I'm not sure that you should build on open cockpit. Reading the previous study is important too, yet take it with a grain of salt. Should be in future plans"
 
 **READY for A0** (the user, 26 Oct: "When ready: merge origin/master, run the node gates for every file you touch + GEN
 BUILD PARTS SAVE STARTER DESIGN FRAMES JOIN, push claude/ready/new-shapes-1 with a READY note; A0 runs the GPU gates and
-stills"). Nothing in src/ changed (no flight_core rebuild, FRAMECOST not owed); the editor's layers (tools/_cage_gen.js,
-_cage_join.js, _cage_page5.js, _cage_parts.js, _cage_crew.js) and one gate (tools/test_build.js, a stated exception)
-did. **The six validated builds are bit-identical to master** on every key the game hashes them by (below). The rows
+stills"). src/core moved by two gated lines (G3516, the open cockpit's screen glass: 60_gen_spec.js keeps a
+`cabin.screenM2` the join writes, 61_gen_frame.js bills it; tools/flight_core.js rebuilt; FRAMECOST owed on the box);
+the editor's layers (tools/_cage_gen.js, _cage_join.js, _cage_page5.js, _cage_parts.js, _cage_crew.js, _cage_design.js's
+two cards, _vessel_gen.js's datum), the bench page (tools/_cage8.html: one script tag) and two gates' baselines
+(tools/test_build.js, a stated exception; FRAMES' corpus, the two cards) did. **The six validated builds are bit-identical to master** on every key the game hashes them by (below). The rows
 are OFF by default: no build changes until a builder opens a section or turns the round body on.
 
 ### STEP 0 - THE READING AND THE MAP (written before the code)
@@ -99296,47 +99298,57 @@ through the tree's own load door (`--root`: an origin/master d7e181f4e worktree,
 reports/newshapes_identity_master_2026-10-26.json / reports/newshapes_identity_branch_2026-10-26.json, compared:
 **Cub, Jodel, metal Cessna (bugReports/cessnaMetal (1).json), Cessna floats (bugReports/cessnaFloatsWOrks.json), the
 twin floatplane, Rufus: ALL IDENTICAL** - spec, def, draw, certKey, procureFp, ledger, price, sheet, design, mass,
-nodes, beams, fly20 (`IDENTITY: ALL IDENTICAL`, on the final head; also on two earlier heads of the branch).
+nodes, beams, fly20 (`IDENTITY: ALL IDENTICAL`, re-run on the final head - after the src/core glass line (G3516) and
+the energy datum (G3518) - and on three earlier heads of the branch; the branch report came out byte-identical to
+the one committed at G3512).
 Why it holds: every change is gated on a row a validated build does not have (`aeroNose` 0 on all six; no section
-open, so `S.open` is 0 and the opening rows never reach spec.cage), and the frameZ refactor is the same code run
+open, so `S.open` is 0 and the opening rows never reach spec.cage; `pilotRear` absent at 0; `cabin.screenM2` only
+written for an open section; the energy datum reads `wsFront` first, which all six have), and the frameZ refactor is the same code run
 from one function (CAGEFIT / FRAMES hold the template and the corpus to the bit).
 
 ### THE GATES (`node tools/run_gates.js --only=<IDs> --no-build`, this cloud box: 4 cores; every gate whose file reads a
-touched file - grep of tools/ for _cage_gen / _cage_join / _cage_page5 / _cage_parts / the load chain - plus GEN BUILD
-PARTS SAVE STARTER DESIGN FRAMES JOIN, BIPLANE, KNIFE, the glazing readers; FRAMECOST not owed: no core file moved)
-- **On the final head** (after the last editor change, G3513 _cage_crew.js), PASS:
-  `GATE CAGEFIT: PASS`, `GATE FRAMES: PASS`, `GATE KNIFE: PASS`, `GATE SURF: PASS`, `GATE SAVE: PASS`,
-  `GATE SHOULDER: PASS`, `GATE DASH: PASS`, `GATE CLIP: PASS`, `GATE FIT: PASS`, `GATE SKINMAT: PASS`,
-  `GATE LIVERY: PASS`, `GATE LIVERYREACH: PASS`, `GATE EDBUGS: PASS`, `GATE JOIN: PASS`, `GATE DESIGN: PASS`,
-  `GATE DESIGNCHECK: PASS`, `GATE BIPLANE: PASS`, `GATE BUILD: PASS`, `GATE PARTS: PASS`, `GATE SPECFIX: PASS`,
-  `GATE WINGROWS: PASS`, `GATE STARTER: PASS`, `GATE ENGINE: PASS`, `GATE ENGID: PASS`, `GATE GEOPARITY: PASS`,
-  `GATE FIN: PASS`, `GATE NACLAG: PASS`, `GATE HINGE: PASS`.
-- **The core batch** (GEN, PILOT and the remaining readers; run on the head with G3510-G3512, the G3513 crew line inert
-  on every build it reads - the six validated builds' drawing hashes are master's on the final head), PASS:
-  `GATE GEN: PASS` (4 shards), `GATE PILOT: PASS` (3 shards), `GATE SUBSTEP: PASS`, `GATE STRIPSURF: PASS`,
-  `GATE TAKEOFF: PASS`, `GATE LINEUP: PASS`, `GATE DEFAULT: PASS`, `GATE WEIGHT: PASS`, `GATE DRAG: PASS`,
-  `GATE INPUT: PASS`, `GATE ROLLANIM: PASS`, `GATE ROLLSND: PASS`, `GATE MEDIA: PASS`, `GATE WEATHER: PASS`,
-  `GATE SIMWORKER: PASS`, `GATE CGBAND: PASS`, `GATE VIEW: PASS`, `GATE SITE: PASS`, `GATE HONESTY: PASS`,
-  `GATE HYDRODYN: PASS`, `GATE WATER: PASS`, `GATE WATERDAMP: PASS`, `GATE FLOATS: PASS`, `GATE STORESPOT: PASS`,
-  `GATE ACCEPT: PASS`, `GATE TECH: PASS`, `GATE PROCURE: PASS`, `GATE ENERGY: PASS`, `GATE TANKMOUNT: PASS`,
-  `GATE PANEL: PASS`, `GATE AUDIOENG: PASS` (and BUILD, DESIGN, SKINMAT, LIVERY, FRAMES again: PASS).
+touched file - grep of tools/ for _cage_gen / _cage_join / _cage_page5 / _cage_parts / _cage_crew / _cage_design /
+_vessel_gen / the load chain - plus GEN BUILD PARTS SAVE STARTER DESIGN FRAMES JOIN, BIPLANE, KNIFE, the glazing
+readers, and ARCHETYPES (full tier: the cards moved). src/core moved (60_gen_spec, 61_gen_frame: the screen glass), so
+the core battery was re-run on the final cards.)
+- **Final round** (after the G3517 cards and the G3516 core line; the energy-layer readers again after G3518), PASS:
+  `GATE CAGEFIT`, `FRAMES` (after the corpus line below), `KNIFE`, `SURF`, `SAVE`, `SHOULDER`, `DASH`, `CLIP`, `FIT`,
+  `SKINMAT`, `LIVERY`, `LIVERYREACH`, `EDBUGS` (40 rows, 0 red), `JOIN`, `DESIGN`, `DESIGNCHECK`, `BIPLANE`, `BUILD`,
+  `PARTS`, `SPECFIX`, `WINGROWS`, `STARTER`, `ENGINE`, `ENGID`, `GEOPARITY`, `FIN`, `NACLAG`, `HINGE`; `GEN` (4 shards),
+  `PILOT` (3 shards), `SUBSTEP`, `STRIPSURF`, `TAKEOFF`, `LINEUP`, `DEFAULT`, `WEIGHT`, `DRAG`, `INPUT`, `ROLLANIM`,
+  `ROLLSND`, `MEDIA`, `WEATHER`, `SIMWORKER`, `CGBAND`, `VIEW`, `SITE`, `HONESTY`, `HYDRODYN`, `WATER`, `WATERDAMP`,
+  `FLOATS`, `STORESPOT`, `ACCEPT`, `TECH`, `PROCURE`, `ENERGY`, `TANKMOUNT`, `PANEL`, `AUDIOENG`; `ARCHETYPES` all
+  but one row (below) - Stearman-alike and Tiger Moth-alike fly the circuit (`--only=stearman`, `--only=tigermoth`: PASS).
   (ACCEPT re-records reports/evidence/ACCEPT/flights.json as it runs - a run artifact, restored, not committed.)
+- **Reds found and fixed in this round:**
+  - `GATE FRAMES: FAIL (2)` - "IDENTITY arch:Stearman-alike / arch:Tiger Moth-alike - ring count 13 -> 19": the corpus
+    holds every card's rings, and the two cards moved (G3516). Re-recorded THOSE TWO ITEMS ONLY (a full `--record`
+    would also have added eight saved builds the corpus never held); every other item, the head and the date as
+    recorded. Then PASS.
+  - `GATE TANKMOUNT: FAIL (4)` - both cards' wing-root tank sent to the nose, through the cowl and the engine: the
+    energy layer's VESSEL_GEN.specFromCage read the datum off `wsFront` only, the round body has none, the first build
+    saw no bays and the layer's "a vessel in a bay this aeroplane does not have goes to the nose" moved it for good.
+    G3518: the datum through `cageFirewallZ` (the join's and the wing layer's one home). Then PASS (the fixtures were
+    not affected - in the game's load path the layer reads GARAGE_SPEC.resolved - and rebuild byte-identical).
+  - `GATE BIPLANE: FAIL` - "a biplane builds in under 3x the stock (3.03x)", a wall-clock row measured beside four
+    ARCHETYPES shards; alone: PASS (the same row read 2.01x and 1.75x on earlier heads).
 - **RED, master's** - each controlled on an origin/master d7e181f4e worktree, the same rows:
+  - `GATE ARCHETYPES: FAIL (1)` - "Chinook-alike: the circuit completes - rejected-takeoff": `--only=chinook` on
+    master, the same row. Not a card this branch touches.
   - `GATE JOINPARITY: 1 FAIL` - "no tool flies a validated build raw: _apsmooth_check.js, _engtorque_check.js,
-    _floatdup_check.js, econ_sim.js, engine_torque_seasweep.js, hand_controls_probe.js" - identical on master (DC3-BUILD
-    recorded it with five; master has six). This branch's new tools load through tools/_load_build.js and are not
-    listed.
-  - `GATE DMGDETERMINISM: FAIL` - 19 rows "Chromium <hash> - node <hash>" (the browser's V8 against node's on the
-    damage runs, the broken counts and energies equal): **every hash on both sides identical** between master and this
-    branch (diffed row for row).
+    _floatdup_check.js, econ_sim.js, engine_torque_seasweep.js, hand_controls_probe.js" - identical on master. This
+    branch's new tools load through tools/_load_build.js and are not listed.
+  - `GATE DMGDETERMINISM: FAIL` - 19 rows "Chromium <hash> - node <hash>" (and the page's Math against node's): the
+    browser's V8 against node's on the damage runs, the broken counts and energies equal; every hash identical
+    between master and this branch (diffed row for row on the first round).
   - `GATE DMGCERTCOST: FAIL` - "the worker's certificate is node's (... worst relative difference 1.4e-8 ...)": the
     same row on master.
-- **Gate semantics changed (one, stated):** GATE BUILD's G377 "the re-save carries every row" counts the table without
-  CAGE_OPEN_ROWS while every section is closed, and asserts the exception both ways ("absent from a closed build (0
-  present) and ALL written once one section opens (12 of 12)"). Without it the gate was red on 12 rows, exactly the
-  rows the identity needs absent.
-- NOT RUN here (full tier, or the page / GPU): TOUR CESSNAVREF DMGHULL DMGFLOATTO DESIGNSIM ARCHETYPES SEAPLANE SOAR;
-  the GPU / app.js gates are A0's. ARCHETYPES re-bakes the cards, which this branch does not change.
+- **Gate semantics changed (stated):** GATE BUILD's G377 "the re-save carries every row" counts the table without
+  CAGE_OPEN_ROWS while every section is closed and without CAGE_ZERO_ABSENT (`pilotRear`) at 0, and asserts both
+  exceptions both ways (G3511: "absent from a closed build (0 present) and ALL written once one section opens (12 of
+  12)"; G3515: "the rear-pilot row is absent at 0 and written at 1"). FRAMES' corpus: the two card items re-recorded.
+- NOT RUN here (full tier, or the page / GPU): TOUR CESSNAVREF DMGHULL DMGFLOATTO DESIGNSIM SEAPLANE SOAR, and
+  FRAMECOST (src/core moved: a GPU gate, A0's); the GPU / app.js gates are A0's.
 
 ### COORDINATION - COWL-RES (the user, 26 Oct: "it adds a third Catmull-Clark level on the nose at construction (the eye
 sheet, cageSheet, G3713) - don't touch cageSheet's subdivision step without reading claude/cowl-res first")
@@ -99350,7 +99362,7 @@ so a local extra level that calls cageSubdivide carries them; a level that rebui
 A merge conflict, if any, is the one line beside cageCanopy in each path: keep both.
 
 ### FOR A0 ON THE BOX (GPU gates and stills; cloud cannot render)
-- Stills of both proofs in the garage. master's tools/garage_shot.js has only `--stock`; the `--file` door is on
+- Stills of both proofs in the garage (the cloud took bench pictures instead - G3514, tools/bench_shot.js). master's tools/garage_shot.js has only `--stock`; the `--file` door is on
   origin/claude/engine-configs-2 (DC3-BUILD used it the same way):
   `git show origin/claude/engine-configs-2:flyDiy/tools/garage_shot.js > tools/_gs_file.tmp.js`, then
   `node tools/_gs_file.tmp.js --file tools/fixtures/stearman_2026-10.json --out screenshots/newshapes_stearman` and
@@ -99358,8 +99370,8 @@ A merge conflict, if any, is the one line beside cageCanopy in each path: keep b
   tmp copy after. LOOK FOR: the two openings clean (rounded-rectangle outline, no sliver at the decking, nothing of
   the interior across them), the coaming strip round each, the two small screens standing ahead, the heads above
   the coaming, the radial / the Gipsy bolted to the engine face, the turtle deck running through to the cowl.
-- The GPU gates of the battery (the app.js readers - nothing in src/ changed, so a red there is a source scan, not a
-  build: every validated build's drawing hash is master's): SKIN DMGSKINGPU LIGHT LOOKS FRAMECOST UISMOKE ...
+- The GPU gates of the battery (the app.js readers; src/core moved by two gated lines (the screen glass, G3516) that
+  no validated build reaches - every validated build's drawing hash, def and fly20 are master's), FRAMECOST included: SKIN DMGSKINGPU LIGHT LOOKS FRAMECOST UISMOKE ...
   (A0's own list); and `node tools/newshapes_build.js` (~10 min: both sheets, certificates, the pilot's circuits) and
   `node tools/newshapes_identity.js --root=<master worktree> --out=a.json`, `--out=b.json`, `--cmp=a.json,b.json`.
 - A page check of the editor: Fuselage > roundness shows `body front`; Nose shows the round body's front rows when it
