@@ -251,7 +251,9 @@ function boot(opt) {
     check(k.length && b.log.filter(e => e[0] === 'assign').length === 1, 'P5 one navigation however often it is pressed');
     check(!b.shown(), 'P5 the pill goes once Update is pressed');
     const P = fs.readFileSync(V('premises_ui.js'), 'utf8');
-    check(/UPDATE_NOW\.onBeforeUpdate\(\(\) => \{ if \(!saveT \|\| !storage\) return;[^\n]*storage\.setItem\(LS_WIP/.test(P),
+    // (SCENERY VERSIONS: the autosave writes through writeWip, which keeps the last edits once and ends in the same setItem)
+    check(/UPDATE_NOW\.onBeforeUpdate\(\(\) => \{ if \(!saveT \|\| !storage\) return;[^\n]*(storage\.setItem\(LS_WIP|writeWip\()/.test(P)
+      && /const writeWip = t => \{[\s\S]{0,1200}?storage\.setItem\(LS_WIP, t\); \};/.test(P),
       'P5 premises_ui.js registers its pending autosave as a flush');
     const G = fs.readFileSync(V('garage.js'), 'utf8');
     check(/function commit\(\)[\s\S]{0,400}writeWip\(\)/.test(G) && /touch, commit, onCommit/.test(G), 'P5 GARAGE_SPEC.commit is garage.js\'s autosave (writeWip)');

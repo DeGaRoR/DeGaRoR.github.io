@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // scenery_version.js - SCENERY VERSIONS (ED-2, 24 Oct): a named scenery version into the repo. The WORLD panel's "save my edits as
 // a version" downloads <id>.json (a premises envelope + its `scenery` stamp {id, name, date, base}); this files it under
-// media/scenery/<island>/ and lists it in that folder's index.json - from then on every machine loads it with the Scenery picker
-// or ?scenery=<id>. A user's save (the editor's FILE export, no stamp) takes --id / --name.
+// media/scenery/<island>/ and lists it in that folder's index.json - from then on every machine's scenery editor offers it under
+// FILE > 'load a version' (the game itself always boots master; GATE MEDIA reads the index as its files' manifest). A user's save (the editor's FILE export, no stamp) takes --id / --name.
 //   node tools/scenery_version.js add <file.json> [--island jolene] [--id <id>] [--name "<name>"] [--from "<what it came from>"]
 //   node tools/scenery_version.js list [--island jolene]
 'use strict';
