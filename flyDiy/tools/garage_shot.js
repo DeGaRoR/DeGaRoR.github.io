@@ -20,6 +20,14 @@
 // measured them (the eye point, the seats, every vessel's fit, the bench's
 // fingerprint) for the before/after comparison. Both old and new crew names
 // are read, so the same rig shoots the tree before the change.
+// `--cglog f.json` records, from before the build is loaded, every CG the
+// page publishes (FLYDIY_CG_MODEL), every balance answer (cgMX/cgMY with the
+// loading the spec carried then) and the float layer's step station: why a
+// floatplane's step moved on a load. The crew views assert the frame loop
+// first (rAF counted, the eye read back): a loop that never placed the camera
+// gets each framing placed by the orbit's own formula and one frame drawn by
+// hand, said in the log. A page call that does not answer in 60 s stops the
+// run naming the step (the 26 Oct PA-18 loads hung silently).
 'use strict';
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -34,6 +42,7 @@ const VIEWS = opt('views', 'q,s,f,t,x,fleet,air').split(',');
 const WAIT = +opt('wait', 15000);
 const BUILD = opt('build', null);
 const DUMP = opt('dump', null);
+const CGLOG = opt('cglog', null);
 const PORT = 9400 + (process.pid % 500);
 const CHROME = ['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
   'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe', '/usr/bin/google-chrome'].find(p => fs.existsSync(p));
@@ -54,7 +63,8 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     if (m.method === 'Runtime.exceptionThrown') console.error('page exception: ' + (m.params.exceptionDetails.exception && m.params.exceptionDetails.exception.description || m.params.exceptionDetails.text).split(String.fromCharCode(10)).slice(0, 3).join(' | '));
     if (LOG && m.method === 'Runtime.consoleAPICalled') console.log('page ' + m.params.type + ': ' + m.params.args.map(a => a.value !== undefined ? a.value : a.description).join(' ').slice(0, 1200)); };
   const cmd = (method, params) => new Promise(r => { const i = ++id; waits.set(i, r); ws.send(JSON.stringify({ id: i, method, params: params || {} })); });
-  const ev = async expr => { const r = await cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true });
+  const ev = async expr => { const r = await Promise.race([cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }),
+      sleep(60000).then(() => { throw new Error('page: no answer in 60 s to ' + expr.slice(0, 90)); })]);
     if (!r.result || r.result.exceptionDetails) throw new Error('page: ' + JSON.stringify(r.result && r.result.exceptionDetails && r.result.exceptionDetails.text)); return r.result.result.value; };
   const shot = async name => { const s = await cmd('Page.captureScreenshot', { format: 'png' });
     fs.mkdirSync(path.dirname(OUT), { recursive: true });
@@ -68,6 +78,7 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   let up = false;
   for (let i = 0; i < 60 && !up; i++) { await sleep(1000); up = await ev("!!(document.getElementById('gLoad') && window.CAGE_UI && window.CAGE_ENERGY)"); }
   if (!up) throw new Error('the garage never came up');
+  console.log('garage_shot: the garage up, boot ' + await ev("window.BOOT&&BOOT.state"));
   await sleep(3000);
   // the shelf, and the stock row
   const openFleet = "(async()=>{const u=[...document.querySelectorAll('button')].find(b=>/^(unsaved|" + STOCK.replace(/\s+/g, '') + ")$/i.test(b.textContent.trim()))||[...document.querySelectorAll('button')].find(b=>/unsaved/i.test(b.textContent));if(u)u.click();await new Promise(r=>setTimeout(r,500));document.getElementById('gLoad').click();await new Promise(r=>setTimeout(r,800));const f=document.getElementById('gFleet');return f?[...f.querySelectorAll('.gfStock button')].map(b=>b.textContent.trim()):null})()";
@@ -75,6 +86,12 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   if (!rows) throw new Error('the shelf did not open');
   console.log('garage_shot: stock rows ' + JSON.stringify(rows));
   if (VIEWS.includes('fleet')) { await sleep(800); await shot('fleet'); }
+  // G3700 --cglog: the CG trail, armed before the load (what the float layer stood its step on, and when)
+  if (CGLOG) await ev("(()=>{const L=window.__cgLog=[],t0=performance.now(),T=()=>+(performance.now()-t0).toFixed(0);" +
+    "const spec=()=>{try{const s=window.GARAGE_SPEC.get();return {occ:s.cabin&&s.cabin.occupied,pilots:s.cabin&&s.cabin.pilots,pax:s.cabin&&s.cabin.pax,seatsX:s.cabin&&s.cabin.seatsX,fuel:s.fuel&&s.fuel.litres,floatX:s.gear&&s.gear.floats&&s.gear.floats.x,mass:s.mass}}catch(e){return null}};" +
+    "(window.BALANCE_LISTENERS=window.BALANCE_LISTENERS||[]).push(r=>L.push({t:T(),k:'bal',cgMX:r.cgMX,cgMY:r.cgMY,mass:r.mass,spec:spec(),crewPending:!!(window.CAGE_CREW_PENDING&&CAGE_CREW_PENDING()),held:!!(window.CAGE_FLOAT_HELD&&CAGE_FLOAT_HELD())}));" +
+    "let cg=null,st=null;setInterval(()=>{const c=JSON.stringify(window.FLYDIY_CG_MODEL||null);if(c!==cg){cg=c;L.push({t:T(),k:'cg',cg:window.FLYDIY_CG_MODEL,spec:spec(),crewPending:!!(window.CAGE_CREW_PENDING&&CAGE_CREW_PENDING())});}" +
+    "const F=window.CAGE_FLOAT,s2=F?JSON.stringify([F.zStep,F.cgZ,F.cgY,F.cgFrom]):null;if(s2!==st){st=s2;L.push({t:T(),k:'step',zStep:F&&F.zStep,cgZ:F&&F.cgZ,cgY:F&&F.cgY,cgFrom:F&&F.cgFrom,zFw:window.CAGE_DATUM&&CAGE_DATUM.zFw,held:!!(window.CAGE_FLOAT_HELD&&CAGE_FLOAT_HELD())});}},100);return 1})()");
   const loaded = BUILD
     ? await ev("(async()=>{const r=await fetch(" + JSON.stringify(BUILD.split(String.fromCharCode(92)).join('/').replace(/^flyDiy\//, '')) + ");const j=await r.json();window.GARAGE_SPEC.set(j.spec||j);const f=document.getElementById('gFleet');if(f)f.style.display='none';return true})()")
     : await ev("(()=>{const f=document.getElementById('gFleet');const b=[...f.querySelectorAll('.gfStock button')].find(x=>x.textContent.trim().toLowerCase().startsWith('" + STOCK.toLowerCase() + "'));if(!b)return false;b.click();return true;})()");
@@ -98,7 +115,14 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   console.log('garage_shot: loaded ' + info);
   // the game's garage orbit (app.js az/el/dist, FLIGHT_PROBE.camSet): quarter, side, front, top
   const PRESETS = { q: [0.85, 0.22, 11], s: [Math.PI / 2, 0.05, 12], f: [0, 0.08, 11], t: [0.6, 1.25, 12] };
-  const cam = async (a, e, d) => { await ev("FLIGHT_PROBE.camSet(" + a + "," + e + "," + d + "), 1"); await sleep(1500); };
+  // G3700: a dead loop's framing, by hand - placeCamera's orbit (app.js) and one frame drawn
+  let FORCE = false;
+  const force = async (a, e, d, pt) => console.log('garage_shot: frame drawn by hand, eye ' + await ev("(()=>{const g=FLIGHT_PROBE.camGet(),c=FLIGHT_PROBE.camera(),t=" + (pt ? JSON.stringify(pt) : 'g.target') + ";" +
+    "const a=" + a + ",e=" + e + ",d=" + d + ";c.position.set(t[0]+d*Math.cos(e)*Math.cos(a),Math.max(0.4,t[1]+d*Math.sin(e)),t[2]+d*Math.cos(e)*Math.sin(a));" +
+    "c.lookAt(t[0],t[1],t[2]);c.updateMatrixWorld(true);FLIGHT_PROBE.renderer().render(FLIGHT_PROBE.hangarScene(),c);return JSON.stringify(c.position.toArray().map(v=>+v.toFixed(2)))})()"));
+  const cam = async (a, e, d, pt) => { await ev("FLIGHT_PROBE.camSet(" + a + "," + e + "," + d + "), 1"); await sleep(1500); if (FORCE) await force(a, e, d, pt); };
+  const loopCheck = async () => JSON.parse(await ev("(async()=>{let n=0;const t0=performance.now();await new Promise(r=>{const f=()=>{n++;if(performance.now()-t0<1000)requestAnimationFrame(f);else r();};requestAnimationFrame(f);});" +
+    "const g=FLIGHT_PROBE.camGet();return JSON.stringify({raf:n,boot:window.BOOT&&BOOT.state,hidden:document.hidden,eye:g.eye,target:g.target})})()"));
   // G3700: THE CREW AS THE PAGE HAS IT - the pilot's figure and hands (the
   // names before and after the change), the eye, the seats, the tanks' fits
   const CREW_JS = "(()=>{const S=FLIGHT_PROBE.hangarScene();let fig=null;S.traverse(o=>{if(!fig&&/^ed(Crew|Dum)1$/.test(o.name||''))fig=o;});" +
@@ -110,7 +134,7 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     const t = await ev("FLIGHT_PROBE.camGet().target");
     const T = Array.isArray(t) ? t : [t.x, t.y, t.z];
     await ev("FLIGHT_PROBE.pan(" + (pt[0] - T[0]) + "," + (pt[1] - T[1]) + "," + (pt[2] - T[2]) + "), 1");
-    await cam(a, e, d);
+    await cam(a, e, d, pt);
     console.log('garage_shot: camera ' + JSON.stringify(await ev("(()=>{const g=FLIGHT_PROBE.camGet();return {eye:g.eye.map(v=>+v.toFixed(2)),target:g.target.map(v=>+v.toFixed(2)),dist:g.dist}})()")) + ' aimed at ' + JSON.stringify(pt));
   };
   if (DUMP) {
@@ -132,6 +156,11 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     console.log('garage_shot: fp settle ' + JSON.parse(d).fp + ' -> ' + await ev("window.BENCH_FP?window.BENCH_FP():null"));
     console.log('garage_shot: dump ' + DUMP + ' ' + d.slice(0, 400));
   }
+  if (CGLOG) {
+    const L = await ev("JSON.stringify(window.__cgLog||[])");
+    fs.mkdirSync(path.dirname(CGLOG), { recursive: true }); fs.writeFileSync(CGLOG, L);
+    console.log('garage_shot: cglog ' + CGLOG + ' (' + JSON.parse(L).length + ' rows)');
+  }
   for (const v of VIEWS) {
     if (v === 'fleet' || v === 'air') continue;
     if (v === 'crew' || v === 'hands') {
@@ -140,6 +169,11 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
       if (!cr.hip) { console.error('garage_shot: no pilot figure on the stand'); continue; }
       // the control: the whole aeroplane from the quarter first, and where the camera is after each framing
       if (v === 'crew') {
+        // THE LOOP, ASSERTED: rAF ticking, and the eye placed off the origin after a camSet
+        await ev("FLIGHT_PROBE.camSet(" + PRESETS.q.join(',') + "), 1"); await sleep(1500);
+        const lc = await loopCheck();
+        FORCE = !(lc.raf >= 5) || lc.eye.every(x => Math.abs(x) < 1e-6);
+        console.log('garage_shot: loop ' + JSON.stringify(lc) + (FORCE ? '  NOT PLACING THE CAMERA - every framing drawn by hand' : '  ticking'));
         await cam(PRESETS.q[0], PRESETS.q[1], PRESETS.q[2]);
         if (await shot('control_q') < 30000) {
           console.error('garage_shot: the control frame is BLANK - stopping; camera ' + JSON.stringify(await ev("(()=>{const g=FLIGHT_PROBE.camGet();return {eye:g.eye,target:g.target,az:g.az,el:g.el,dist:g.dist}})()")));
