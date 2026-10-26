@@ -64,6 +64,9 @@ const DEF = {
   lineYaw: 0.17,    // rad: each one's facing about the aeroplane's door, seeded
   hold: 2.5,        // s the line stands once drawn before the first one walks (R.go() releases it sooner)
   idleHalf: 25,     // m: a waiting person past this is posed every second frame
+  // the user 26 Oct ("passengers should have shadows"): the CAP nearest cast; ?crowdshadow=0 turns it off (the frame-cost
+  // table's A/B: the shadow passes' draws and triangles with and without the people)
+  shadow: !(typeof location !== 'undefined' && /[?&]crowdshadow=0(&|$)/.test(location.search || '')),
 };
 CR.DEF = DEF;
 
@@ -590,7 +593,7 @@ function make(THREE, ctx) {
       order.forEach((h, k) => {
         park(h, 2);
         // a shadow for the CAP nearest only (the depth pass of a 50k-triangle skin is not free)
-        for (const sm of h.inst.meshes) sm.castShadow = k < DEF.cap;
+        for (const sm of h.inst.meshes) sm.castShadow = DEF.shadow && k < DEF.cap;
         if (k >= DEF.cap && (frame + h.p.i) % 3) return;
         // G3619: a waiting one past idleHalf on every second frame (an idle's half rate does not show at 25 m)
         if (h.p.state === 'line' && h.d > DEF.idleHalf && (frame + h.p.i) % 2) return;

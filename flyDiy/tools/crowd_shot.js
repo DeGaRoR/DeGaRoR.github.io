@@ -8,7 +8,7 @@
 //   --people a,b,c   the bodies to seat when the page has no FLYDIY_PEOPLE (Game's seam): a stub pool of exactly those
 //                    (the still's caption says so); with the seam on the page it is never replaced
 //   cd <worktree> && node flyDiy/tools/_serve.js 8152 . --fallback D:/Dev/DeGaRoR.github.io &
-//   node flyDiy/tools/crowd_shot.js [--port 8152] [--out <dir>] [--people adam,jody,kate] [--page dev.html]   -> "CROWD SHOT: PASS|FAIL"
+//   node flyDiy/tools/crowd_shot.js [--port 8152] [--out <dir>] [--people adam,jody,kate] [--page dev.html] [--diag]   -> "CROWD SHOT: PASS|FAIL"
 // Guarded by boxlock (GPU) - never run beside a lock. No --help.
 'use strict';
 const fs = require('fs'), path = require('path'), cp = require('child_process'), http = require('http'), os = require('os');
@@ -81,6 +81,29 @@ async function chrome() {
       one.R.goT = 1e9; return one.R.people.every(p => p.state === 'line'); }).catch(() => false);
   }
   check(lined, '1 the line is drawn at the embark point, everyone waiting');
+  // --diag (G3619, the user 26 Oct: "passengers should have shadows"): what the shadow passes see of each person -
+  // castShadow, the near/far layer bits, the world sphere render_world's nearTag measures (it tags only r >= 0.75 m),
+  // whether the near map's caster list holds the mesh, and the near map's cache counters
+  if (argv.includes('--diag') && lined) {
+    await sleep(1500);
+    const dg = await P.ev(() => {
+      const SN = window.SHADOW_NEAR, one = window.CROWD.last.runs[0], T = window.THREE || (typeof THREE !== 'undefined' ? THREE : null);
+      const NL = SN && SN.NEAR_LAYER, FL = SN && SN.FAR_LAYER, sp = T && T.Sphere ? new T.Sphere() : null;
+      const listed = new Set(((SN && SN.CACHE && SN.CACHE.near) || []).map(q => q.o));   // the casters the near map last drew with
+      const ms = [];
+      for (const h of one.H) if (h) for (const sm of h.inst.meshes) {
+        const g = sm.geometry; if (g && !g.boundingSphere) g.computeBoundingSphere();
+        let r = null; if (sp && g && g.boundingSphere) { sp.copy(g.boundingSphere).applyMatrix4(sm.matrixWorld); r = +sp.radius.toFixed(2); }
+        ms.push({ who: h.p.key, name: sm.name, skinned: !!sm.isSkinnedMesh, cast: sm.castShadow, vis: sm.visible && h.g.visible,
+          near: NL != null ? sm.layers.isEnabled(NL) : null, far: FL != null ? sm.layers.isEnabled(FL) : null, r, listed: listed.has(sm),
+          culled: sm.frustumCulled, depth: !!sm.customDepthMaterial, mat: sm.material && sm.material.type });
+      }
+      return { sn: !!SN, stat: SN && SN.CACHE ? SN.CACHE.stat : null, S: SN && SN.S ? { cache: SN.S.cache, half: SN.S.half, boxPrune: SN.S.boxPrune } : null, ms };
+    }).catch(e => ({ err: String(e && e.message || e) }));
+    fs.writeFileSync(path.join(OUT, 'crowd_shadow_diag.json'), JSON.stringify(dg, null, 1));
+    console.log('  diag: ' + (dg.ms ? dg.ms.length + ' meshes, cast ' + dg.ms.filter(m => m.cast).length + ', near-layer ' + dg.ms.filter(m => m.near).length +
+      ', listed ' + dg.ms.filter(m => m.listed).length + ', r >= 0.75 ' + dg.ms.filter(m => m.r >= 0.75).length : dg.err || 'no SHADOW_NEAR') + ' -> crowd_shadow_diag.json');
+  }
   // the eye beside what is shown: the people's centroid, the line's direction toward the door, 8 m out to one side
   const aim = (side, back) => P.ev(([side, back]) => {
     const M = window.CROWD.last, one = M.runs[0], hs = one.H.filter(h => h && h.g.visible);
