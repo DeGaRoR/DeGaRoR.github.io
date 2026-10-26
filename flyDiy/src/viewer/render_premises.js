@@ -114,6 +114,7 @@ function make(THREE, scene, world, rec0, opts) {
   // G3543 VEHICLE PRINTS' state (the prints themselves: by the traffic, below)
   const PRINT = { on: !(typeof location !== 'undefined' && /[?&]carprints=0\b/.test(location.search || '')),
                   geo: null, mat: null, st: null, tr: null, cars: [], frame: 0, life: -1, lifeList: [], trN: -1, tick: 0, n: 0, nTr: 0 };
+  const PRINT_LIFT = { st: 0.2, tr: 0.2 };   // (G3543: the parked cars' and the traffic's, prints_probe.js)
   const PRINT_REACH = 800;   // a 4.5 m car's print is ~3 px there (the standing ones; a car's own cull distance is ~3.5 km)
   const PRINT_TMP = { m: new THREE.Matrix4(), ri: new THREE.Matrix4(), s: new THREE.Matrix4(), o: new THREE.Object3D() };
   // THE STATIC SUBTREES LEAVE THE MATRIX WALK (PERF 2026-09-23). The frame is CPU-bound on Jolene (three's render()
@@ -1823,14 +1824,17 @@ function make(THREE, scene, world, rec0, opts) {
         d.fill(Math.round(255 * a), (j * N + i) * 4, (j * N + i) * 4 + 4);
       }
       const tex = new THREE.DataTexture(d, N, N, THREE.RGBAFormat); tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearFilter; tex.needsUpdate = true;
-      PRINT.mat = MATLIB.make(THREE, 'basic', { color: 0x000000, alphaMap: tex, transparent: true, opacity: 0.55, depthWrite: false,
+      PRINT.mat = MATLIB.make(THREE, 'basic', { color: 0x000000, alphaMap: tex, transparent: true, opacity: 0.75, depthWrite: false,   // (the user 26 Oct: "you can make the shadows darker")
         polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
       PRINT.mat.name = 'premises:carprint';
-      // 0.2 m up: the drawn ground and the roads' ribbons stand over heightAt between their samples (the road's ribbon rides
-      // 0.07 over it: PAV.roadGeometry lift; a solid probe at 0.3 showed on the dirt and the concrete roads, 26 Oct)
-      PRINT.geo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0.2, 0);
+      // HOW HIGH (the user 26 Oct: "undo your lifts now, to the minimum where it remains visible"): a car stands on heightAt,
+      // the drawn ground over it - the roads' ribbons 0.07 up between their 3 m samples, the paved lots 0.08, the patch and the
+      // fine tiles - so each print rides the least lift that keeps its core over every drawn layer under it, by the cars'
+      // class: tools/prints_probe.js drops a print at every lane spot and lot cell of Jolene against ground_drawn's drawnAt
+      PRINT.geo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, PRINT_LIFT.st, 0);
+      PRINT.geoTr = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, PRINT_LIFT.tr, 0);
     }
-    const m = new THREE.InstancedMesh(PRINT.geo, PRINT.mat, Math.max(16, cap));
+    const m = new THREE.InstancedMesh(name === 'premises:carprints:traffic' ? PRINT.geoTr : PRINT.geo, PRINT.mat, Math.max(16, cap));
     m.name = name; m.count = 0; m.frustumCulled = false; m.castShadow = false; m.receiveShadow = false;
     m.renderOrder = 6.5;   // after the roads' and the runways' see-through skins (2..6), before the editor's lines (7, 8)
     m.matrixAutoUpdate = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -4866,7 +4870,7 @@ function make(THREE, scene, world, rec0, opts) {
     for (const c of G.roads.children) if (c.isMesh) disposePav(c);   // G925: the pavement's rows (and an own material's MATS entry) given back
     if (KT.host) { KT.host.dispose(); KT.host = null; }   // (C3c)
     for (const k of ['st', 'tr']) if (PRINT[k]) { root.remove(PRINT[k]); PRINT[k].dispose(); PRINT[k] = null; }   // (G3543)
-    if (PRINT.mat) { PRINT.mat.alphaMap.dispose(); PRINT.mat.dispose(); PRINT.geo.dispose(); PRINT.mat = PRINT.geo = null; }
+    if (PRINT.mat) { PRINT.mat.alphaMap.dispose(); PRINT.mat.dispose(); PRINT.geo.dispose(); PRINT.geoTr.dispose(); PRINT.mat = PRINT.geo = PRINT.geoTr = null; }
     PRINT.cars.length = 0; PRINT.lifeList = []; PRINT.life = -1;
     scene.remove(root);
   }
