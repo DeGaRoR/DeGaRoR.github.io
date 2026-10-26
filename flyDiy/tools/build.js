@@ -178,6 +178,9 @@ const MANIFEST = {
     // THE CERTIFICATE (G1830, DMG-D2a): the load cases and the per-member envelope; needs 65_'s rig constants and
     // 30_'s makeSim (the drop); called at a flight's start and by the bench, never in the garage's edit loop
     '66_gen_cert.js',
+    // THE CERTIFICATE'S RULE (G3780 CERT-RULE): the major/minor row list and the `f3` major fingerprint, ONE list read by
+    // the bench (bench.js), the career's factory certificate (76_procure procureFp) and the acceptance legs; pure
+    '66b_cert_rule.js',
     // THE PLAYER (HANGARS S1): the player's property as one document — its
     // own version and migrator walk beside the spec's (G105: state that is
     // not the aeroplane costs no spec version). References 26_'s default kit
