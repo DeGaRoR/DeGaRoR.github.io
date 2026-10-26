@@ -9405,6 +9405,33 @@
       if (typeof U.syncSliders === 'function') U.syncSliders();
     } catch (e) { console.warn('flyDiy (story): the cabin flood -', e && e.message); }
   }
+  // G3358 THE CABIN FLOOD ON IN THE GARAGE (the user 23 Oct: "Interior flood light should be ON by default in the
+  // garage"; G3355 did it for Rufus at T0): an aeroplane put on the garage stand with its cabin flood FITTED and its
+  // lights' master on gets the flood switched on, once per aeroplane put there (the player may switch it off). A switch
+  // is a position, not the airframe (G3449: bench state). The master is never thrown here: with it off the lights are not
+  // built, and building them would add lights (a relink of every lit program); with it on the flood's lamp is already in
+  // the scene (made at 0). NOTE (G2787): in the shed a fitted lamp's light is in three's COUNT only while its row reads
+  // > 0, so this flip changes the shed's light set - its programs link in the background (GARAGE_LIGHTS_PREP) before the
+  // light shows; A0's strict gate judges the boot compile.
+  // ...SO THE FLOOD IS IN THE FIRST BUILD (A0 25 Oct, L25a held: a flip + U.build() after the boot changed the shed's
+  // light set - 38 lit programs re-linked, compile/links 5 -> 43 - and every garage entry re-ran it). The stand's own
+  // loads ARM it (the editor's seed at the boot, garage.js loadSpec for an aeroplane put on the stand) and the editor's
+  // load sets the row between the rows and the build (CAGE_UI applySpec's 'flydiy:specApplied'): the build that was
+  // coming anyway holds the lamp, never a build of its own. A parked capture's load is not armed. Once per aeroplane
+  // a page: switched off, it stays off.
+  var gFloodArm = null;
+  const gFloodSeen = new Set();
+  function garageFloodArm(name) { gFloodArm = name == null ? null : String(name || 'stand'); }
+  if (typeof window !== 'undefined' && window.addEventListener) window.addEventListener('flydiy:specApplied', () => {
+    const k = gFloodArm; gFloodArm = null;
+    if (k == null || gFloodSeen.has(k)) return;
+    gFloodSeen.add(k);
+    try {
+      const P = window.CAGE_UI && window.CAGE_UI.P;
+      if (!P || +P.lightOn !== 1 || (P.li_floodFit != null && !+P.li_floodFit) || +P.li_flood === 1) return;
+      P.li_flood = 1;   // (applySpec's syncSliders and its build follow)
+    } catch (e) { console.warn('flyDiy: the garage flood -', e && e.message); }
+  });
   if (STORY_PAGE) {
     try { storyCabinKits(); storyCardSync(); storyFlush(); storyTimSync(); storyBenchRule(); storyLockSync(); storySkipSync(); storyFloodOn(); } catch (e) { console.warn('flyDiy (story): the boot -', e && e.message); }
     setInterval(() => { try { storyTimSync(); storyBenchRule(); storyLockSync(); storySkipSync(); storyFloodOn(); } catch (e) {} }, 1500);
@@ -13307,8 +13334,9 @@
         catch (err) { console.error('cage editor seed (finish):', err); }
       return;
     }
-    try { E.applySpec(genSpec); }
+    try { garageFloodArm(slotOnStand()); E.applySpec(genSpec); }   // (G3358: the flood in this first build)
     catch (err) { console.error('cage editor seed:', err); }
+    finally { garageFloodArm(null); }
     // G190: the autosave's image pages come back before the editor exists;
     // the seed is the first moment they can be baked onto the atlas
     try {
@@ -13324,7 +13352,10 @@
     const E = window.CAGE_UI;
     if (edSeeded || !E || !E.applySpecSteps || !genSpec || !genSpec.cage || !Object.keys(genSpec.cage).length) { seedEditor(); return; }
     edSeeded = true;
-    try { yield* E.applySpecSteps(genSpec); }
+    try {
+      let g; try { garageFloodArm(slotOnStand()); g = E.applySpecSteps(genSpec); } finally { garageFloodArm(null); }   // (G3358)
+      yield* g;
+    }
     catch (err) { console.error('cage editor seed:', err); }
     try {
       const G = window.GARAGE_SPEC;
@@ -16484,6 +16515,7 @@
   window.CAGE_RESET_BUILD = () => { if (window.GARAGE_SPEC) window.GARAGE_SPEC.set(playerDefaultSpec()); };
   if (typeof garageInit === 'function') garageInit({
     defaults: playerDefaultSpec,
+    floodArm: n => garageFloodArm(n),   // G3358: an aeroplane put on the stand gets the flood in its own load's build
     // PREM-S2 (G2230): THE SHELF'S DOORS INTO THE FLEET LEDGER - save / save as / delete / import (the lift), the
     // place badge of a row, "fly from there?" (the garage goes to that base when a hangar is held there; the roll-out
     // starts where the aeroplane stands either way), and "bring it home" (GQ5)
