@@ -1,0 +1,14 @@
+# THE PROGRAM CENSUS (G2379)
+# 1. tools/program_census.js --linkless --boots 1 --url 'http://localhost:8361/flyDiy/dev.html?world=jolene&damage=1' (node tools/_serve.js, the cloud's
+#    SwiftShader): the shed reached at 132 s, the roll-out NEVER lifted - killed after 52 min (the coordinator's note: the cloud cannot
+#    render the game's world). No count from it; the box's census is the coordinator's (damage on and off, before / after).
+# 2. The same count in node on the scar's own objects: node tools/dmg_scar2_census.js --before <4575e99f's flyDiy> - the real three r186 over
+#    the fake WebGL2 (as GATE DMGSCAR 7), a lit, shadowed, fogged scene with a ground; damage ON parks the decal as the roll-out does and
+#    compiles, then lays and draws each of the six cases' scars (the tree's own, cases.json); damage OFF makes no decal:
+base (4575e99f), damage OFF: at the roll-out 1 links, 1 program keys; 1 links, 1 keys (no link after the roll-out)
+base (4575e99f), damage ON : at the roll-out 2 links, 2 program keys; 6 scars laid and drawn (20844 triangles) -> 2 links, 2 keys (no link after the roll-out)
+this tree, damage OFF: at the roll-out 1 links, 1 program keys; 1 links, 1 keys (no link after the roll-out)
+this tree, damage ON : at the roll-out 2 links, 2 program keys; 6 scars laid and drawn (28504 triangles) -> 2 links, 2 keys (no link after the roll-out)
+the program keys, base vs this tree: damage OFF the same, damage ON the same
+damage ON over OFF (this tree): +1 program key(s) at the roll-out - the decal's, parked and linked with the scene; none after
+# 3. GATE DMGSCAR 7 (gate_dmgscar.txt): the cover ring + the decal on the real three, the scar laid and drawn and the cull done - links 7 -> 7, keys 7 -> 7.

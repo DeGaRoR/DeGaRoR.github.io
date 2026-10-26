@@ -25,7 +25,10 @@ const ROUTES_V = 1;
 // x (1 + the plane's payload / kgUnit) - a bigger plane earns more per trip, a faster one more trips a day: the route
 // rewards the design. The down payment is downTrips round trips' pay, paid on signing. turnS: the turnaround at the
 // ends, per round trip (§5.3 "plus a turnaround"). minKm: a route shorter than this pays as this.
-const ROUTES_PAY = { perKm: 100, kgUnit: 150, turnS: 1800, downTrips: 8, minKm: 1, round: 10 };
+// (G3359 ECON-APPLY, the user 23 Oct: "apply the economics table, keep demo time as it is for now"; ECON-SIM G3250 HANDOVER) perKm 100 -> 30, downTrips 8 -> 6,
+// and a TIMETABLE: at most dayTrips round trips a sim day (a round trip takes at least 86400 / dayTrips, the plane waiting
+// at its home end the rest) - waits no longer pay a fortune. The router's route share: 66 % -> 13 % (econ_sim, 20 seeds)
+const ROUTES_PAY = { perKm: 30, kgUnit: 150, turnS: 1800, downTrips: 6, dayTrips: 6, minKm: 1, round: 10 };
 const rtClone = o => JSON.parse(JSON.stringify(o));
 const rtNo = (doc, why, extra) => Object.assign({ ok: false, doc, why }, extra || {});
 const rtRound = v => Math.round(v / ROUTES_PAY.round) * ROUTES_PAY.round;
@@ -56,9 +59,11 @@ function routeDesignOf(doc, plane, o) {
 function routeTerms(km, D) {
   const P = ROUTES_PAY, seats = Math.max(1, D.seats | 0);
   const payloadKg = Math.max(0, seats - 1) * CONTRACT_FIT.occKg + (+D.bagKg || 0);
-  const tripS = Math.round(2 * km / D.cruiseKmh * 3600 + P.turnS);
+  // flyS: the round trip as flown (both legs + the turnarounds); tripS: as timetabled (G3359: at least a day / dayTrips)
+  const flyS = Math.round(2 * km / D.cruiseKmh * 3600 + P.turnS);
+  const tripS = P.dayTrips > 0 ? Math.max(flyS, Math.round(86400 / P.dayTrips)) : flyS;
   const pay = rtRound(2 * Math.max(P.minKm, km) * P.perKm * (1 + payloadKg / P.kgUnit));
-  return { km: Math.round(km * 100) / 100, cruiseKmh: Math.round(D.cruiseKmh), seats, payloadKg, tripS, pay, down: pay * P.downTrips };
+  return { km: Math.round(km * 100) / 100, cruiseKmh: Math.round(D.cruiseKmh), seats, payloadKg, flyS, tripS, pay, down: pay * P.downTrips };
 }
 // the end the plane comes back to: the end where a hangar of yours stands (b first, the story's HOME), else b
 function routeHomeOf(doc, a, b) {
@@ -112,7 +117,7 @@ function routeSign(doc, offer, plane, pilot, o) {
   c.routeN = (typeof c.routeN === 'number' && isFinite(c.routeN) ? c.routeN : c.routes.length) + 1;
   const route = { id: 'rt' + c.routeN, plane, pilot, a: offer.a, b: offer.b, home: offer.home || routeHomeOf(d, offer.a, offer.b),
                   signedAt: Math.round(now), trips: 0, settled: Math.round(now), km: offer.km, cruiseKmh: offer.cruiseKmh,
-                  tripS: offer.tripS, pay: offer.pay, down: offer.down, earned: offer.down };
+                  tripS: offer.tripS, flyS: offer.flyS > 0 ? offer.flyS : offer.tripS, pay: offer.pay, down: offer.down, earned: offer.down };
   c.routes.push(route);
   // the plane: on the route, standing nowhere of yours (its wear runs as outside: it flies)
   const e = d.fleet[plane];
@@ -212,7 +217,8 @@ function routesBlock(doc) {
 // WHERE THE PLANE IS ON ITS ROUTE at `now`: the cycle a -> b, the turnaround at b, b -> a, the turnaround at a (each
 // turnaround half of turnS) -> { leg: 'out' | 'atB' | 'back' | 'atA', f: 0..1 along a -> b }
 function routePos(r, now) {
-  const turn = ROUTES_PAY.turnS / 2, fly = Math.max(1, (r.tripS - ROUTES_PAY.turnS) / 2);
+  // (G3359: the legs take the FLOWN time; a timetabled trip's rest is spent at the home end, atA)
+  const turn = ROUTES_PAY.turnS / 2, fly = Math.max(1, (Math.min(r.tripS, r.flyS > 0 ? r.flyS : r.tripS) - ROUTES_PAY.turnS) / 2);
   const t = ((Math.max(0, (now == null ? r.settled : now) - r.signedAt) % r.tripS) + r.tripS) % r.tripS;
   if (t < fly) return { leg: 'out', f: t / fly };
   if (t < fly + turn) return { leg: 'atB', f: 1 };

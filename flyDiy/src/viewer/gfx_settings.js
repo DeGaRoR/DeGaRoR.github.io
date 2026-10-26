@@ -29,6 +29,8 @@
   const W = (typeof window !== 'undefined') ? window : null;
   if (!W) return;
   const KEY = 'flydiy.gfx';
+  // (G3240 NAMES) the town's shown name is the names table's (src/core/01_names.js, in the BOOT block); a sandbox without it says 'the town'
+  const TOWN_NAME = (typeof GAME_NAMES !== 'undefined' && GAME_NAMES.town) || 'the town';
   // THE RIGS (G528): a headless or driven browser - the gates, frame_perf, the scratch rigs - measures a FIXED frame; the
   // auto scale, when a player picked it, stands down there unless the URL asks (?autoscale=1)
   // (G1210: welcome.js, evaluated first, asks the same question of the same navigator - its answer when it is there)
@@ -177,8 +179,8 @@
     // kept. `free`: no preset sets it. Decided when the world is composed, so a change RELOADS the page (app.js TOWN;
     // ?town=1 in the URL wins over the row)
     { k: 'town', label: 'towns', free: true, reload: true, steps: [
-        { v: 'nearby', label: 'field + sites', why: 'the airfield, the village, the mine, the native village and the tramway - Metlakatla off (the default) - RELOADS the page' },
-        { v: 'all', label: 'with Metlakatla', why: 'Metlakatla too: 375 houses 9 km east of the field, built as you come near - the taxi falls to ~15 fps on an RTX 3080 - RELOADS the page (never on the laptop and potato presets: their budget builds the field and the sites only)' } ] },
+        { v: 'nearby', label: 'field + sites', why: 'the airfield, the village, the mine, the east village and the tramway - ' + TOWN_NAME + ' off (the default) - RELOADS the page' },
+        { v: 'all', label: 'with ' + TOWN_NAME, why: TOWN_NAME + ' too: 375 houses 9 km east of the field, built as you come near - the taxi falls to ~15 fps on an RTX 3080 - RELOADS the page (never on the laptop and potato presets: their budget builds the field and the sites only)' } ] },
     { k: 'rails', label: 'guardrails', steps: [
         { v: 'on',  label: 'on', why: 'a galvanised W-beam where a road runs along a drop or round a tight bend - one draw call a road' },
         { v: 'off', label: 'off', why: 'no guardrails anywhere' } ] },

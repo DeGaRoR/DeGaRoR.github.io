@@ -1297,6 +1297,81 @@ if (plots.length) {
   check(['dragenter', 'dragover', 'dragleave', 'drop'].every(k => new RegExp("addEventListener\\('" + k + "', ev => \\{ ?\\n? *if \\(!active \\|\\| !fileDrag\\(ev\\)\\) return;").test(UIs)) && (UIs.match(/stopImmediatePropagation\(\)/g) || []).length >= 4 && /\}, true\);/.test(UIs) &&
         /dropEl\.innerHTML = '<b>drop to import<\/b>/.test(UIs) && /importLook: o => \{ applyLook\(o, true\); saveLook\(\); \}/.test(WRs), '37 the page: capture-phase drag listeners while the editor is open (stopped there), the overlay, the world rail\'s importLook');
 }
+// 38 TOWN-ROAD-SIDES (the user, 22 Oct, Metlakatla's streets: "a smaller side to the road. The same overall width (including the
+//    side), but a higher proportion of the road. The sides should be between a third and a half of their current width"): a street
+//    with its 2 m side traded for carriageway (band 0.8, w + 2.4, `lay` = its old w) DRAWS wider and feels paved there, and nothing
+//    beside it moves - the plots, the houses' fronts, the graded ground and the trees' clearing are the old street's; the shipped
+//    Metlakatla: every street converted, w + 2 band as it was
+{
+  const zone = { id: 'z38', kind: 'residential', poly: [[9900, 9940], [10300, 9940], [10300, 10060], [9900, 10060]] };
+  const street = x => Object.assign({ id: 's38', pts: [[9900, 10000], [10100, 10002], [10300, 10000]], cls: 'paved', look: 'worn', graded: true, falloff: 6, clear: 3 }, x);
+  const recOf = x => PG.normalise({ seed: 38, theme: 'alaska', layers: { roads: [street(x)], zones: [JSON.parse(JSON.stringify(zone))] } });
+  const before = recOf({ w: 4, band: 2 }), after = recOf({ w: 6.4, band: 0.8, lay: 4 });
+  const Ob = PG.compose(before, synth), Oa = PG.compose(after, synth);
+  const plotsOf = O => JSON.stringify((O.records.plots || []).map(q => [q.id, q.poly || q.foot || null, q.front || null, q.road || null]));
+  const nPl = (Ob.records.plots || []).length;
+  check(nPl > 0 && plotsOf(Ob) === plotsOf(Oa), '38 the plots along the street stand where they stood (' + nPl + ' plots)', nPl + ' plots');
+  // the ground: identical past the street's footprint (its old half-width + its falloff, 2 + 6 m), flat across all it draws now
+  const zc = x => (x < 10100 ? 10000 + (x - 9900) * 0.01 : 10002 - (x - 10100) * 0.01);   // the street's centreline (its three points)
+  let dH = 0, dT = 0, flatW = 0; for (let x = 9920; x <= 10280; x += 7) for (let z = 9975; z <= 10025; z += 0.5) { const off = Math.abs(z - zc(x)), w = Ob.frame.toWorld(x, z);
+    if (off > 2 + 6 + 0.05) dH = Math.max(dH, Math.abs(Ob.terrainAt(w[0], w[1]) - Oa.terrainAt(w[0], w[1])));
+    if (!!Ob.excludeAt(w[0], w[1], 'trees') !== !!Oa.excludeAt(w[0], w[1], 'trees')) dT++; }
+  for (let x = 9960; x <= 10240; x += 9) for (const o of [3.1, 4.3]) { const c = Oa.frame.toWorld(x, zc(x)), e = Oa.frame.toWorld(x, zc(x) + o);
+    flatW = Math.max(flatW, Math.abs(Oa.terrainAt(c[0], c[1]) - Oa.terrainAt(e[0], e[1]))); }
+  check(dH < 1e-9 && dT === 0, '38 the ground past the street\'s footprint and the trees\' clearing are the old street\'s (height ' + dH.toExponential(1) + ' m, clearing ' + dT + ' points differ)');
+  check(flatW < 0.005 && PG.ROAD_SIDE_FLAT === 1.2 && PG.roadGradeW({ w: 5 }, 6).width === 5 && PG.roadGradeW({ w: 5 }, 6).falloff === 6, '38 ...and the street is graded flat under all it draws and CONTACT sees (3.1 and 4.3 m out: the carriageway 3.2 + the side 1.2; under 5 mm - the old bed 15 mm), an untraded road as ever: ' + (flatW * 1000).toFixed(1) + ' mm off the centreline)');
+  const ra = Oa.roads.find(r => r.id === 's38'), rb = Ob.roads.find(r => r.id === 's38');
+  check(ra && rb && ra.w === 6.4 && rb.w === 4 && ra.lay === 4 && rb.lay === 4 && PG.roadLayW({ w: 5 }) === 5 && PG.roadLayW({ w: 6.4, lay: 4 }) === 4, '38 the carriageway drawn is 2.4 m wider, the layout width the old one');
+  const w2 = Oa.frame.toWorld(10100, 10002 + 2.9);
+  check(Oa.surfaceAt(w2[0], w2[1]) === PG.SURFACE.PAVED, '38 ...and the wheels feel the paved carriageway where the side was (2.9 m out)');
+  // the shipped Metlakatla
+  const JM = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')), mk = JM.layers.roads.filter(r => /^mk_/.test(r.id) && +r.lay > 0);
+  check(mk.length >= 60 && mk.every(r => r.band === 0.8 && Math.abs(r.w - r.lay - 2.4) < 1e-6) && !JM.layers.roads.some(r => /^mk_/.test(r.id) && r.band === 2), '38 the shipped Metlakatla: ' + mk.length + ' streets, side 0.8 m, carriageway + 2.4 m (w + 2 band unchanged), the old width in lay');
+  const AU = fs.readFileSync(path.join(TOOLS, 'metlakatla_author.py'), 'utf8');
+  check(/if r\.get\('band'\) == 2:\s*\n\s*r\['lay'\] = r\['w'\]\s*\n\s*r\['w'\] = round\(r\['w'\] \+ 2 \* \(2 - 0\.8\), 3\)\s*\n\s*r\['band'\] = 0\.8/.test(AU), '38 the author makes them so (a re-author keeps the sides)');
+}
+// 39 TOWN-ROAD-SIDES, THE POLES (the 24 Oct stills: at the layout width a traded street's poles stood 0.55 m past its OLD edge -
+//    0.65 m inside its new asphalt): the power line plans off the DRAWN pavement - every pole past w / 2 on a traded street
+{
+  const PL = require(path.join(ROOT, 'src', 'viewer', 'powerline.js'));
+  const pts = [[0, 0], [150, 3], [300, 0]], road = PG.polyRoad(pts, 8.9);
+  const dOf = q => Math.min(...[0, 1].map(k => { const a = pts[k], b = pts[k + 1], dx = b[0] - a[0], dz = b[1] - a[1], t = Math.max(0, Math.min(1, ((q.x - a[0]) * dx + (q.z - a[1]) * dz) / (dx * dx + dz * dz))); return Math.hypot(q.x - a[0] - dx * t, q.z - a[1] - dz * t); }));
+  const drawn = PL.plan({ path: road, w: 8.9, seed: 3 }), atLay = PL.plan({ path: road, w: 6.5, seed: 3 });
+  const dmin = ps => Math.min(...ps.map(dOf));
+  check(drawn.poles.length > 3 && dmin(drawn.poles) > 8.9 / 2 + 0.3 && atLay.poles.length > 3 && dmin(atLay.poles) < 8.9 / 2,
+        '39 a traded street\'s poles plan off its drawn pavement (nearest ' + dmin(drawn.poles).toFixed(2) + ' m from the centreline, the asphalt to 4.45; at the layout width they stood at ' + dmin(atLay.poles).toFixed(2) + ')');
+  const RPs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
+  check(/const g = PWR\.build\(THREE, \{ path: pr, w: rd\.w, mode: rd\.poles \|\| 'auto'/.test(RPs), '39 ...and the page builds them at the drawn width (render_premises)');
+}
+// 40 A ROAD'S BAND BACK TO NONE (the user, 24 Oct: "a road's side stays very big once set manually, even back at 0; the original look
+//    never comes back" - they deleted a whole road): the row reaches its "none" notch; on a road, 0 or less takes the band away
+//    and the road draws its own side again (sided); a road loaded with band 0 / null is read so (Jolene's r45); a strip keeps 0
+{
+  const sl = new Map();
+  const rows40 = Object.assign({}, rows, { slider: (h, label, mn, mx, st, get, set, fmt) => { sl.set(label, { mn, get, set, fmt }); } });
+  ctxG.PAVEMENT = require(path.join(ROOT, 'src', 'viewer', 'pavement.js'));   // (the band row is a pavement row: the page has PAVEMENT, the harness lends it)
+  const ed40 = UI.mount(new El('div'), { THREE: null, world: synth, R: makeR(), rows: rows40, els: { chk: null, plaque: null, strip: new El('div') }, viewEl: new El('div'), storage: null, fresh: true, camera: () => null, redraw: noop });
+  const rid = ed40.cmd('add', { layer: 'roads', entry: { pts: [[11000, 11000], [11200, 11000]], w: 6, cls: 'paved' } });
+  const R40 = () => PG.findById(ed40.record(), rid).entry, re = () => { sl.clear(); ed40.select(null); ed40.select(rid); };
+  re();
+  const B = () => sl.get('band (m)');
+  check(B() && B().mn <= -0.5 && B().get() === -0.5 && !('band' in R40()), '40 a new road has no band and the row sits at its reachable "none" notch', JSON.stringify(B() && { mn: B().mn, v: B().get() }));
+  B().set(12); re();
+  check(R40().band === 12, '40 a band set by hand: 12 m');
+  B().set(0); re();
+  check(!('band' in R40()) && B().get() === -0.5 && /none/.test(B().fmt(-0.5)), '40 ...back to 0: the band is gone - the road\'s own side, as it was', JSON.stringify(R40().band));
+  const O40 = PG.compose(ed40.record(), synth), ro = (O40.roads || []).find(q => q.id === rid);
+  check(ro && ro.sided === true, '40 ...and it composes sided again (the plain side, not the band\'s fade)', ro && String(ro.sided));
+  B().set(5); re(); B().set(-0.5); re();
+  check(!('band' in R40()), '40 the "none" notch takes it away too');
+  ed40.close(); delete ctxG.PAVEMENT;
+  const L40 = PG.normalise({ layers: { roads: [{ id: 'z0', pts: [[0, 0], [50, 0]], w: 5, cls: 'paved', band: 0 }, { id: 'zn', pts: [[0, 9], [50, 9]], w: 5, cls: 'paved', band: null }, { id: 'z3', pts: [[0, 19], [50, 19]], w: 5, cls: 'paved', band: 3 }],
+    runways: [Object.assign(JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { id: 'b0', c: [0, 300], len: 400, wid: 20, band: 0 })] } });
+  const lr = id => L40.layers.roads.find(q => q.id === id);
+  check(!('band' in lr('z0')) && !('band' in lr('zn')) && lr('z3').band === 3 && L40.layers.runways[0].band === 0, '40 a road loaded with band 0 or null is read with none (its own side), a band 3 kept, a strip\'s band 0 kept');
+  const J40 = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')), r45 = PG.normalise(J40.layers ? J40 : (J40.rec || J40.premises)).layers.roads.find(q => q.id === 'r45');
+  check(r45 && !('band' in r45), '40 Jolene\'s r45 (band 0 in the file) draws its own side again');
+}
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');

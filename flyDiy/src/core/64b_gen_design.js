@@ -426,3 +426,27 @@ function genDesignCheck(def, sh, simIn, opts) {
            modes: { spiral: lat.spiral, roll: lat.roll, dutch: lat.dutch, short: sp },
            deriv: D };
 }
+
+// ---- P1 CG-COLOURS (the user, 24 Oct: "the garage's CG / neutral point indicators get clear colour coding: RED = bad,
+// ORANGE = acceptable, GREEN = good and safe - ONLY that coding, an added "!" in the wording for red and orange, and a
+// tooltip explaining the reasons"). THE BAND OF A STATIC MARGIN (CG ahead of the neutral point, fraction of the mean
+// chord), one function so the garage's posts and the gate read the same edges. PROPOSED edges (the user judges them
+// from the stills): below 0 the aeroplane is unstable in pitch (red); 0-5 % flies but wanders (orange - the indicator's
+// old red line); over 40 % is the design check's own nose-heavy warn (orange); 5-40 % stable (green). The bench's own
+// pitch.sm row (above) is NOT changed: it warns below 2 % - the certification rule is CERT-REVIEW's.
+const GEN_MARGIN_BANDS = { unstable: 0, comfy: 0.05, noseHeavy: 0.40 };
+function genMarginBand(sm) {
+  if (sm == null || typeof sm !== 'number' || !isFinite(sm)) return null;
+  const pct = Math.round(Math.abs(sm) * 100), B = GEN_MARGIN_BANDS;
+  if (sm < B.unstable) return { band: 'red', mark: '!', title: 'unstable in pitch',
+    why: 'the centre of gravity is ' + pct + ' % of the wing chord BEHIND the neutral point: after a bump the nose keeps going, and no trim holds it',
+    fix: 'move weight forward (engine, pilot, tank, battery) or the wing aft, until the margin is over 5 %' };
+  if (sm < B.comfy) return { band: 'orange', mark: '!', title: 'barely stable',
+    why: 'a ' + pct + ' % margin: it flies, but the nose wanders and it is tiring to fly hands-off',
+    fix: 'a little weight forward or the wing a little aft: 5 % or more is comfortable' };
+  if (sm > B.noseHeavy) return { band: 'orange', mark: '!', title: 'very nose-heavy',
+    why: 'a ' + pct + ' % margin: steady, but the elevator may run out when you raise the nose to land',
+    fix: 'move weight aft or the wing forward, or give the tail more area' };
+  return { band: 'green', mark: '', title: 'stable',
+    why: 'a ' + pct + ' % margin: the nose comes back by itself after a gust', fix: '' };
+}

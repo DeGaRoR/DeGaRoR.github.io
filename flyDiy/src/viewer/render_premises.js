@@ -1144,7 +1144,7 @@ function make(THREE, scene, world, rec0, opts) {
     // the verge the guardrail did NOT take, when it took exactly one (the photograph's arrangement)
     const rs = railG && railG.userData.guardrail ? railG.userData.guardrail.sides : null;
     const side = (rd.polesSide ? +rd.polesSide : 0) || (rs && rs.length === 1 ? -rs[0] : 0);
-    const g = PWR.build(THREE, { path: pr, w: rd.w, mode: rd.poles || 'auto', name: 'poles:' + rd.id,
+    const g = PWR.build(THREE, { path: pr, w: rd.w, mode: rd.poles || 'auto', name: 'poles:' + rd.id,   // (TOWN-ROAD-SIDES, 24 Oct stills: off the DRAWN pavement - at the layout width a traded street's poles stood 0.65 m inside its new asphalt)
       side, seed: PG.fnv(String(rd.id)) % 997, toWorld: (x, z) => F.toWorld(x, z), heightAt,
       keep: poleKeep(rd),
       place: q => { if (!PR.props[q.key]) return null; const o = pp(THREE, q.key, q.x, q.z, q.ry, q.y); if (q.scale) o.scale.setScalar(q.scale); tiltToGround(o, (x, z) => O.terrainAt(x, z), q.x, q.z, q.ry); return o; },
@@ -2388,7 +2388,7 @@ function make(THREE, scene, world, rec0, opts) {
         if (b.band) hcOf(r.geo, r.used, m => [detailOf(m.parent), 1], true, true);   // G1395: the house's radius sets its edge
         const mesh = new THREE.Mesh(r.geo, mat);
         mesh.castShadow = b.cast; mesh.receiveShadow = m0.receiveShadow; mesh.renderOrder = m0.renderOrder; mesh.matrixAutoUpdate = false; mesh.userData.batch = true; mesh.name = 'houses:town';
-        if (b.cast) cl.casters.push(mesh);
+        if (b.cast) { cl.casters.push(mesh); mesh.userData.mayCast = true; }   // (APPROACH: switched by distance - its depth program linked ahead)
         (b.band ? ng : ngH).add(mesh); td++;
         for (const m of r.used) { m.userData.merged = true; m.visible = false; tm++; }
       } else if (r.geo) r.geo.dispose();
@@ -2671,7 +2671,7 @@ function make(THREE, scene, world, rec0, opts) {
     if (!KT.want || KT.status !== 'off') return;
     KT.status = 'loading'; KT.t0 = performance.now();
     KT.island = (typeof window !== 'undefined' && window.ISLAND_BOOT && window.ISLAND_BOOT.id) || (world && world.id) || null;
-    const fail = e => { KT.status = 'error'; KT.err = String((e && e.message) || e); KT.want = false; console.warn('town kit: ' + KT.err + ' - Metlakatla builds unique'); };
+    const fail = e => { KT.status = 'error'; KT.err = String((e && e.message) || e); KT.want = false; console.warn('town kit: ' + KT.err + ' - the town builds unique'); };
     if (typeof DecompressionStream === 'undefined' || typeof fetch === 'undefined') { fail('no DecompressionStream / fetch'); return; }
     const lazy = window.TOWNKIT && window.KIT_LOT ? Promise.resolve() : window.FLYDIY_LAZY ? window.FLYDIY_LAZY(['townkit', 'kit_lot']) : Promise.resolve();
     KT.promise = Promise.all([lazy, fetch(kitBase() + 'src/core/townkit_pack.json').then(r => { if (!r.ok) throw new Error('no src/core/townkit_pack.json'); return r.json(); })])
@@ -2716,7 +2716,7 @@ function make(THREE, scene, world, rec0, opts) {
     const T = tarr(), HG = window.HOUSE_GEN;
     // (the stack and the generator come with the game's page: without them the town stays unique - decided here, before
     // the first job leaves: every caller that dispatches asks this first)
-    if (!T || !HG) { KT.status = 'error'; KT.err = 'no house_tarr / HOUSE_GEN'; console.warn('town kit: ' + KT.err + ' - Metlakatla builds unique'); return null; }
+    if (!T || !HG) { KT.status = 'error'; KT.err = 'no house_tarr / HOUSE_GEN'; console.warn('town kit: ' + KT.err + ' - the town builds unique'); return null; }
     const t0 = performance.now();
     if (KT.host) { KT.host.dispose(); KT.host = null; KT.rebuilt++; }
     const plots = new Map(O.records.plots.map(p => [p.id, p]));
@@ -2736,6 +2736,8 @@ function make(THREE, scene, world, rec0, opts) {
     } catch (e) { KT.status = 'error'; KT.err = String((e && e.message) || e); console.warn('town kit: the host', e); return null; }
     KT.host.group.name = 'premises:townkit';
     root.add(KT.host.group);
+    // APPROACH (A0 22 Oct): a kit made after the world's compile links its depth programs now, in the background (app.js)
+    if (typeof window !== 'undefined' && typeof window.FLYDIY_DEPTH_PRELINK === 'function') window.FLYDIY_DEPTH_PRELINK(KT.host.group);
     for (const [pid, h] of outOf) if (KT.outOwn.has(pid)) KT.host.setHidden(h, true);
     KT.O = O; KT.rowOf = rowOf; KT.plotHouses = plotHouses; KT.outOf = outOf;
     KT.hostMs = Math.round(performance.now() - t0);
@@ -3981,6 +3983,7 @@ function make(THREE, scene, world, rec0, opts) {
       if (!m.isMesh || !m.castShadow || !m.geometry) return; if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere();
       if (m.geometry.boundingSphere.radius * Math.max(m.scale.x, m.scale.y, m.scale.z) < 0.3) m.castShadow = false; });
     grp.userData.casters = grp.children.filter(m => m.isMesh && m.castShadow);
+    for (const m of grp.userData.casters) m.userData.mayCast = true;   // (APPROACH: switched by distance - its depth program linked ahead)
     grp.userData.castOn = true;
     // THE WALKS (G558): past the props' reach a house's whole dressing is switched off at its top, so neither the
     // view's walk nor each shadow cascade's walks through its prop ladders (3 735 over Metlakatla)

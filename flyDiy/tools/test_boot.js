@@ -77,6 +77,7 @@ els.bootShots = el('bootShots');
 });
 vm.createContext(sandbox);
 const cardsSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'boot_cards.js'), 'utf8');
+vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', 'core', '01_names.js'), 'utf8'), sandbox, { filename: '01_names.js' });   // (G3240) the names table rides ahead of the cards
 vm.runInContext(cardsSrc, sandbox, { filename: 'boot_cards.js' });   // the same block as the page: the cards ahead of boot.js
 vm.runInContext(src, sandbox, { filename: 'boot.js' });
 const B = sandbox.BOOT;

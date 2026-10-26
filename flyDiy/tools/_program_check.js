@@ -120,6 +120,21 @@ function warmThenFrame(useOld) {
   const late = keysOf(R).filter(k => !before.has(k));
   ok(late.length === 0, '1 a point light\'s shadow (distance programs) is warmed too', late.length ? late.map(k => k.slice(0, 30)).join(' / ') : undefined);
 }
+// APPROACH (A0 22 Oct; HWCOV): a caster switched off by distance (the town kit past castFar, a far house) carries
+// userData.mayCast - its depth program is warmed though it casts nothing yet, and the frame its shadow comes on links nothing
+{
+  const run = flag => { const B = boot(); B.load(WARM_SRC); const { THREE, renderer: R, ctx } = B;
+    const sc = new THREE.Scene(), dl = new THREE.DirectionalLight(0xffffff, 1); dl.castShadow = true; sc.add(dl);
+    const o = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({ side: THREE.DoubleSide })); o.castShadow = false; if (flag) o.userData.mayCast = true; sc.add(o);
+    const cam = new THREE.PerspectiveCamera(); cam.position.z = 5; sc.updateMatrixWorld(true);
+    R.compile(sc, cam); const { helper } = ctx.PROG_WARM.depthVariants(THREE, R, [sc]);
+    R.setRenderTarget(new THREE.WebGLRenderTarget(4, 4)); ctx.PROG_WARM.fogless(sc, () => R.compile(helper, cam, sc)); R.setRenderTarget(null);
+    R.render(sc, cam); const before = new Set(keysOf(R));
+    o.castShadow = true; R.render(sc, cam);   // the shadow comes on
+    return keysOf(R).filter(k => !before.has(k) && /^depth/.test(k)).length; };
+  const withFlag = run(true), without = run(false);
+  ok(withFlag === 0 && without >= 1, '1 a caster switched off by distance (userData.mayCast) has its depth program warmed: its shadow coming on links nothing (' + withFlag + '; CONTROL without the flag: ' + without + ')');
+}
 // the stand-in shares the caster's data and never moves the caster
 {
   const B = boot(); B.load(WARM_SRC); const { THREE, renderer: R, ctx } = B; const { sc } = zoo(B);

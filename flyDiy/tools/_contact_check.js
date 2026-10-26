@@ -235,18 +235,35 @@ if (process.argv.includes('--drawn')) {
   const vz = O.rec.layers.zones.find(z => z.kind === 'residential' && z.poly && z.poly.length >= 3);
   if (vz) { let cx = 0, cz = 0; for (const q of vz.poly) { cx += q[0]; cz += q[1]; } const w = O.frame.toWorld(cx / vz.poly.length, cz / vz.poly.length);
     ok(Math.abs(PL.dropAt(w[0], w[1]) - PL.PATCH_TUCK.drop) < 1e-12, 'inside a residential zone (' + vz.id + ') the lots keep the patch 2 cm under them (G434.2)', (PL.dropAt(w[0], w[1]) * 1000).toFixed(1) + ' mm'); }
-  // the dead end: mn_strip's stand is the START of mn_stand_lane, a dead end; the parked wheels stand just past it
+  // the mine's stand: the START of mn_stand_lane, on its own drawn pad since LOT-CLEAR (it was a dead end on grass: G1542)
   const mn = C2.siteOf('mn_strip').stand, lane = O.roads.find(r => r.id === 'mn_stand_lane');
   if (lane && mn) {
     const P0 = O.frame.toWorld(lane.pts[0][0], lane.pts[0][1]), P1 = O.frame.toWorld(lane.pts[1][0], lane.pts[1][1]);
-    const ul = Math.hypot(P1[0] - P0[0], P1[1] - P0[1]), ux = (P1[0] - P0[0]) / ul, uz = (P1[1] - P0[1]) / ul, at = k => [P0[0] + ux * k, P0[1] + uz * k];
-    const past = at(-1.5), last = at(1), deep = at(6);
     ok(Math.hypot(P0[0] - mn.x, P0[1] - mn.z) < 0.5, 'mn_strip\'s stand is the start of mn_stand_lane', Math.hypot(P0[0] - mn.x, P0[1] - mn.z).toFixed(2) + ' m');
-    ok(!O.pavedAt(past[0], past[1]) && PL.sinkOf(past[0], past[1]) === 0 && Math.abs(PL.at(past[0], past[1]) - W.terrainHBuild(past[0], past[1])) < 0.02,
-      'G1542: 1.5 m past the dead end nothing is paved, nothing sunk, the drawn patch within 2 cm of the ground (it was a 0.4-0.6 m pit)', (1000 * (PL.at(past[0], past[1]) - W.terrainHBuild(past[0], past[1]))).toFixed(1) + ' mm');
-    const sL = PL.sinkOf(last[0], last[1]), sD = PL.sinkOf(deep[0], deep[1]);
-    ok(sL > 0.03 && sL <= 0.0701, '...1 m inside it the patch takes the edge\'s 7 cm, not the deep sink', (sL * 100).toFixed(1) + ' cm');
-    ok(sD > 0.5, '...6 m inside, the deep sink', sD.toFixed(2) + ' m');
+    // (LOT-CLEAR, 24 Oct, the user's "a surface for the starting zone": the stand is a drawn gravel PAD now, mn_y_stand_d - the
+    //  lane no longer dead-ends on grass, it starts on the pad. G1542's pit is held at the PAD's open edge - the first edge with
+    //  unpaved ground 1.5 m out - with the three readings the dead end had)
+    const padE = O.rec.layers.material.find(m => m.id === 'mn_y_stand_d');
+    ok(!!padE && !!O.pavedAt(mn.x, mn.z), 'mn_strip\'s stand stands on its drawn pad (mn_y_stand_d)', padE ? 'paved ' + !!O.pavedAt(mn.x, mn.z) : 'no pad');
+    if (padE) {
+      const PP = padE.poly.map(q => O.frame.toWorld(q[0], q[1]));
+      let cx = 0, cz = 0; for (const q of PP) { cx += q[0] / PP.length; cz += q[1] / PP.length; }
+      let edge = null;
+      for (let i = 0; i < PP.length && !edge; i++) { const A = PP[i], B = PP[(i + 1) % PP.length], mx = (A[0] + B[0]) / 2, mz = (A[1] + B[1]) / 2;
+        let nx = -(B[1] - A[1]), nz = B[0] - A[0]; const L = Math.hypot(nx, nz) || 1; nx /= L; nz /= L; if (nx * (mx - cx) + nz * (mz - cz) < 0) { nx = -nx; nz = -nz; }
+        if (!O.pavedAt(mx + nx * 1.5, mz + nz * 1.5)) edge = { mx, mz, nx, nz }; }
+      ok(!!edge, 'the pad has an open edge (grass 1.5 m out)');
+      if (edge) {
+        // (the bound is the patch's side tuck, render_premises PATCH_TUCK.drop: grass within sideR1 = 3 m of a pavement's edge is drawn
+        //  2 cm under the ground on purpose, + 1 cm for the patch's vertex spacing - 21.2 mm read on 25 Oct; the dead end's pit was 0.4-0.6 m)
+        const at2 = k => [edge.mx + edge.nx * k, edge.mz + edge.nz * k], past = at2(1.5), last = at2(-1), deep = at2(-6);
+        ok(!O.pavedAt(past[0], past[1]) && PL.sinkOf(past[0], past[1]) === 0 && Math.abs(PL.at(past[0], past[1]) - W.terrainHBuild(past[0], past[1])) < 0.03,
+          'G1542: 1.5 m off the stand pad\'s open edge nothing is paved, nothing sunk, the drawn patch within 3 cm of the ground (the side tuck, no pit at the pad\'s edge)', (1000 * (PL.at(past[0], past[1]) - W.terrainHBuild(past[0], past[1]))).toFixed(1) + ' mm');
+        const sL = PL.sinkOf(last[0], last[1]), sD = PL.sinkOf(deep[0], deep[1]);
+        ok(sL > 0.03 && sL <= 0.0701, '...1 m inside the pad the patch takes the edge\'s 7 cm, not the deep sink', (sL * 100).toFixed(1) + ' cm');
+        ok(sD > 0.5, '...6 m inside, the deep sink', sD.toFixed(2) + ' m');
+      }
+    }
   } else ok(false, 'mn_stand_lane and mn_strip\'s stand found');
   // the stock build at every stand: its tyres (node - r) on the drawn ground, and the physics contact on terrainH
   const def0 = C2.buildGen(JSON.parse(JSON.stringify(C2.GEN_DEFAULT)));
