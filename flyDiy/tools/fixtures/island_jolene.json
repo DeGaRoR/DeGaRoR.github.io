@@ -2782,6 +2782,30 @@
       -7910.67
      ]
     ]
+   },
+   {
+    "id": "mn_y_stand_d",
+    "poly": [
+     [
+      7270.77,
+      -15308.75
+     ],
+     [
+      7267.37,
+      -15347.6
+     ],
+     [
+      7300.24,
+      -15350.48
+     ],
+     [
+      7303.64,
+      -15311.62
+     ]
+    ],
+    "look": "gravel",
+    "band": 2,
+    "z": 0
    }
   ],
   "exclude": [
@@ -14049,7 +14073,7 @@
    },
    {
     "id": "w3",
-    "name": "Tamgas Hill Strip",
+    "name": "Ridgeback Strip",
     "c": [
      -811.27,
      -2396.97
@@ -14166,7 +14190,7 @@
    },
    {
     "id": "SEA",
-    "name": "Annette Dock",
+    "name": "Greywater Dock",
     "c": [
      360.5,
      -3660.99
@@ -14207,7 +14231,7 @@
    },
    {
     "id": "mk_sea",
-    "name": "Metlakatla Seaplane Base",
+    "name": "Cedar Harbour Seaplane Base",
     "c": [
      -3980.0,
      -9420.0
@@ -14248,7 +14272,7 @@
    },
    {
     "id": "mn_strip",
-    "name": "Jumbo Mine Street",
+    "name": "Copperhead Mine Street",
     "c": [
      7249.68,
      -15429.37
@@ -16822,7 +16846,7 @@
    },
    {
     "id": "s_strip",
-    "name": "Tamgas Hill",
+    "name": "Ridgeback",
     "at": {
      "x": -674.34,
      "z": -2356.03,
@@ -16939,7 +16963,7 @@
    },
    {
     "id": "mk_hall",
-    "name": "Metlakatla Town Hall",
+    "name": "Cedar Harbour Town Hall",
     "at": {
      "x": -3462.0,
      "z": -8724.0,
@@ -16962,7 +16986,7 @@
    },
    {
     "id": "mk_church_presb",
-    "name": "Metlakatla Presbyterian Church",
+    "name": "Cedar Harbour Church",
     "at": {
      "x": -3413.9,
      "z": -8772.1,
@@ -16985,7 +17009,7 @@
    },
    {
     "id": "mk_church_duncan",
-    "name": "William Duncan Memorial Church",
+    "name": "Memorial Church",
     "at": {
      "x": -3470.9,
      "z": -8630.1,
@@ -17054,7 +17078,7 @@
    },
    {
     "id": "mk_school_elem",
-    "name": "Richard Johnson Elementary School",
+    "name": "Cedar Harbour Elementary School",
     "at": {
      "x": -3321.0,
      "z": -8771.0,
@@ -17077,7 +17101,7 @@
    },
    {
     "id": "mk_school_high",
-    "name": "Metlakatla High School",
+    "name": "Cedar Harbour High School",
     "at": {
      "x": -3358.0,
      "z": -8598.0,
@@ -17100,7 +17124,7 @@
    },
    {
     "id": "mk_store_acc",
-    "name": "Alaska Commercial Company",
+    "name": "Harbour General Store",
     "at": {
      "x": -3467.9,
      "z": -8993.9,
@@ -17123,7 +17147,7 @@
    },
    {
     "id": "mk_cafe_als",
-    "name": "Al's American",
+    "name": "Dockside Diner",
     "at": {
      "x": -3466.0,
      "z": -8681.0,
@@ -17146,7 +17170,7 @@
    },
    {
     "id": "mk_inn",
-    "name": "Metlakatla Inn & Suites",
+    "name": "Cedar Harbour Inn & Suites",
     "at": {
      "x": -3365.0,
      "z": -8879.0,
@@ -17169,7 +17193,7 @@
    },
    {
     "id": "mk_museum",
-    "name": "Duncan Cottage Museum",
+    "name": "Cottage Museum",
     "at": {
      "x": -3209.0,
      "z": -8907.0,
@@ -17192,7 +17216,7 @@
    },
    {
     "id": "mk_post",
-    "name": "United States Postal Service",
+    "name": "Post office",
     "at": {
      "x": -3392.0,
      "z": -8560.0,
@@ -17215,7 +17239,7 @@
    },
    {
     "id": "mk_police",
-    "name": "Metlakatla Police",
+    "name": "Cedar Harbour Police",
     "at": {
      "x": -3268.0,
      "z": -8586.0,
@@ -17238,7 +17262,7 @@
    },
    {
     "id": "mk_clinic",
-    "name": "Annette Island Service Unit",
+    "name": "Island Clinic",
     "at": {
      "x": -3234.2,
      "z": -8695.8,
@@ -17261,7 +17285,7 @@
    },
    {
     "id": "mk_fire",
-    "name": "Metlakatla Fire Hall",
+    "name": "Cedar Harbour Fire Hall",
     "at": {
      "x": -3177.5,
      "z": -8744.5,
@@ -17284,7 +17308,7 @@
    },
    {
     "id": "mk_credit_union",
-    "name": "Tongass Federal Credit Union",
+    "name": "Harbour Credit Union",
     "at": {
      "x": -3220.5,
      "z": -8717.5,
@@ -17330,7 +17354,7 @@
    },
    {
     "id": "mk_senior",
-    "name": "Metlakatla Senior Citizens Center",
+    "name": "Cedar Harbour Senior Citizens Center",
     "at": {
      "x": -3552.5,
      "z": -8846.0,
@@ -17353,7 +17377,7 @@
    },
    {
     "id": "mk_longhouse",
-    "name": "Metlakatla Long House",
+    "name": "Cedar Harbour Long House",
     "at": {
      "x": -3674.2,
      "z": -8689.1,
@@ -17376,7 +17400,7 @@
    },
    {
     "id": "mk_harbormaster",
-    "name": "MIC Harbor master",
+    "name": "Harbour master",
     "at": {
      "x": -3838.2,
      "z": -8665.2,
@@ -17399,7 +17423,7 @@
    },
    {
     "id": "mk_se_winds",
-    "name": "Southeast Winds",
+    "name": "Sea Winds",
     "at": {
      "x": -3845.8,
      "z": -8617.5,
@@ -17422,7 +17446,7 @@
    },
    {
     "id": "mk_marine",
-    "name": "Tongass Marine Supply",
+    "name": "Harbour Marine Supply",
     "at": {
      "x": -3825.7,
      "z": -8665.7,
@@ -17491,7 +17515,7 @@
    },
    {
     "id": "mk_power",
-    "name": "Alaska Power & Telephone",
+    "name": "Island Power & Telephone",
     "at": {
      "x": -3026.0,
      "z": -8801.0,
@@ -17537,7 +17561,7 @@
    },
    {
     "id": "mk_gardens_shed",
-    "name": "Metlakatla Indian Community Gardens",
+    "name": "Cedar Harbour Community Gardens",
     "at": {
      "x": -2812.0,
      "z": -8354.0,
@@ -17560,7 +17584,7 @@
    },
    {
     "id": "mk_coffee",
-    "name": "Shadow Mountain Coffee",
+    "name": "Hilltop Coffee",
     "at": {
      "x": -1987.0,
      "z": -8404.0,
@@ -17583,7 +17607,7 @@
    },
    {
     "id": "mk_gas",
-    "name": "Annette Island gas fuel storage",
+    "name": "Jolene Island fuel storage",
     "at": {
      "x": -2379.0,
      "z": -8513.0,
@@ -17606,7 +17630,7 @@
    },
    {
     "id": "mk_housing",
-    "name": "Metlakatla Housing Authority",
+    "name": "Cedar Harbour Housing Authority",
     "at": {
      "x": -3271.0,
      "z": -7938.0,
@@ -17629,7 +17653,7 @@
    },
    {
     "id": "mk_social",
-    "name": "MIC Social Services",
+    "name": "Social Services",
     "at": {
      "x": -3279.0,
      "z": -7838.0,
@@ -17675,7 +17699,7 @@
    },
    {
     "id": "mk_wildlife",
-    "name": "MIC Fish and Wildlife",
+    "name": "Fish and Wildlife office",
     "at": {
      "x": -3000.56,
      "z": -8864.27,
@@ -17698,7 +17722,7 @@
    },
    {
     "id": "mk_ballpark",
-    "name": "Metlakatla Baseball Field",
+    "name": "Cedar Harbour Baseball Field",
     "at": {
      "x": -3324.0,
      "z": -8682.0,
@@ -17725,7 +17749,7 @@
    },
    {
     "id": "mk_court",
-    "name": "Metlakatla hard court",
+    "name": "Cedar Harbour hard court",
     "at": {
      "x": -3252.0,
      "z": -8640.0,
@@ -17748,7 +17772,7 @@
    },
    {
     "id": "mk_mp_west",
-    "name": "Metlakatla dock",
+    "name": "Cedar Harbour dock",
     "at": {
      "x": -3570.17,
      "z": -9091.68,
@@ -17807,7 +17831,7 @@
    },
    {
     "id": "mk_mf_air",
-    "name": "Metlakatla seaplane float",
+    "name": "Cedar Harbour seaplane float",
     "at": {
      "x": -3351.0,
      "z": -9114.0,
@@ -17835,7 +17859,7 @@
    },
    {
     "id": "mk_mf_harb_a",
-    "name": "Metlakatla Boat Harbor floats",
+    "name": "Cedar Harbour boat harbour floats",
     "at": {
      "x": -3905.0,
      "z": -8790.0,
@@ -17864,7 +17888,7 @@
    },
    {
     "id": "mk_mf_harb_b",
-    "name": "Metlakatla Boat Harbor floats, inner",
+    "name": "Cedar Harbour boat harbour floats, inner",
     "at": {
      "x": -3878.0,
      "z": -8776.0,
@@ -17893,7 +17917,7 @@
    },
    {
     "id": "mk_mw_cannery",
-    "name": "Annette Island Packing",
+    "name": "Jolene Island Packing",
     "at": {
      "x": -3081.5,
      "z": -9059.6,
@@ -17992,7 +18016,7 @@
    },
    {
     "id": "mk_mw_small",
-    "name": "Metlakatla small boat dock",
+    "name": "Cedar Harbour small boat dock",
     "at": {
      "x": -2946.0,
      "z": -8902.0,
@@ -18585,7 +18609,7 @@
    },
    {
     "id": "mn_s_mine",
-    "name": "Jumbo Mine",
+    "name": "Copperhead Mine",
     "at": {
      "x": 7265.12,
      "z": -15430.72,
@@ -18962,7 +18986,7 @@
    },
    {
     "id": "nv_grounds",
-    "name": "East Point Ceremonial Grounds",
+    "name": "East Point grounds",
     "at": {
      "x": 10096.92,
      "z": -11600.66,
@@ -19372,7 +19396,7 @@
    },
    {
     "id": "s_vor_ann",
-    "name": "Annette Island VOR/DME (ANN 117.1)",
+    "name": "Jolene VOR/DME (ANN 117.1)",
     "at": {
      "x": -1010.1,
      "z": -1663.3,
@@ -22676,17 +22700,17 @@
   "junctions": [
    {
     "id": "mk_c_east",
-    "name": "Metlakatla east (the Walden road)",
+    "name": "Cedar Harbour east (the east road)",
     "conn": true
    },
    {
     "id": "mk_c_north",
-    "name": "Metlakatla north (the old airport road)",
+    "name": "Cedar Harbour north (the old airport road)",
     "conn": true
    },
    {
     "id": "mk_c_south",
-    "name": "Metlakatla south (the shore road, the seaplane base)",
+    "name": "Cedar Harbour south (the shore road, the seaplane base)",
     "conn": true
    }
   ],

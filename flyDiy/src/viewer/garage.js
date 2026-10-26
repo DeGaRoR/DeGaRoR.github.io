@@ -1055,7 +1055,11 @@ function garageInit(api) {
     const mine = fleetEl.querySelector('.gfMine');
     const stockBox = fleetEl.querySelector('.gfStock');
     if (!mine || !stockBox) return;
-    const names = slotNames();
+    // G3612 (the user 25 Oct, item 39: "a career starts only with its own plane. Any imported plane in the career costs
+    // money"): a career's rack is its own builds (api.ownSlots); the shelf's others are the sandbox's, bought in below
+    const shelf = slotNames(), names = api.ownSlots ? api.ownSlots(shelf) : shelf;
+    const bring = api.importable ? api.importable(shelf) : [];
+    const label = n => (api.slotLabel ? api.slotLabel(n) : n);
     mine.innerHTML = ''; stockBox.innerHTML = '';
     if (!names.length) {
       const d = document.createElement('div');
@@ -1083,7 +1087,7 @@ function garageInit(api) {
       const away = !!(P && P.kind !== 'none' && !P.here);
       row.className = 'gfRow' + (n === slotName ? ' cur' : '') + (away ? ' gfAway' : '');
       const meta = n === slotName ? 'on the stand' : slotMeta(n);
-      const b = rowBtn(n, meta);
+      const b = rowBtn(label(n), meta);   // (G3612: a career's copy shows its design's name)
       if (P && P.text) {
         const pl = document.createElement('i');
         pl.className = 'gfPlace gfPlace-' + P.kind; pl.textContent = P.text;
@@ -1118,6 +1122,28 @@ function garageInit(api) {
       }
       row.appendChild(del);
       mine.appendChild(row);
+    }
+    if (bring.length && api.importSlot) {
+      const hd = document.createElement('div');
+      hd.className = 'gfEmpty gfBringHd'; hd.textContent = 'from the sandbox — bought into this career:';
+      mine.appendChild(hd);
+      for (const n of bring) {
+        const row = document.createElement('div');
+        row.className = 'gfRow gfBring';
+        let p = null; try { p = api.importPrice ? api.importPrice(n) : null; } catch (e) { p = null; }
+        const pw = p == null ? 'the build does not read' : (api.money ? api.money(p) : String(p));
+        const b = rowBtn(n, 'buy in · ' + pw);
+        b.title = 'Bring this sandbox build into the career: a purchase, then it stands in your hangar';
+        b.disabled = p == null;
+        b.addEventListener('click', () => {
+          if (!confirm('Buy “' + n + '” into this career for ' + pw + '?')) return;
+          let r = null; try { r = api.importSlot(n); } catch (e) { r = { ok: false, why: String((e && e.message) || e) }; }
+          if (r && !r.ok) alert(r.why || 'refused');
+          renderFleet();
+        });
+        row.appendChild(b);
+        mine.appendChild(row);
+      }
     }
     for (const s of STOCK) {          // stock is not yours to delete: no ✕
       const row = document.createElement('div');
@@ -1161,6 +1187,10 @@ function garageInit(api) {
   }
   const saveAs = name => {
     if (!name) return;
+    // G3612 (A0 for the user 25 Oct: a career's planes are its own individual objects): in a career a NEW name is the
+    // career's own slot (api.slotKey: tagged ' @<career id>'), the plaque keeping the name typed
+    const typed = name;
+    if (api.slotKey) name = api.slotKey(name);
     commit();                       // save what is ON THE STAND, not what flew
     if (!log.built) log.built = new Date().toISOString().slice(0, 10);
     // NAMING IT IS NAMING IT (G65). The shelf's name and the aeroplane's own
@@ -1168,7 +1198,7 @@ function garageInit(api) {
     // headed a build "Garage Special" while the shelf called it yours. The
     // shelf row wins, because it is the one you typed.
     if (!spec.meta || typeof spec.meta !== 'object') spec.meta = {};
-    spec.meta.name = name;
+    spec.meta.name = typed;
     // PREM-S2: a save over this slot whose FINISH changed is a repaint (it resets the airframe's outside wear)
     let repainted = false;
     try { const prev = JSON.parse(lsGet(SLOT + name) || 'null');

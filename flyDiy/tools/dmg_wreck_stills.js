@@ -41,6 +41,10 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const CASES = {
   'trunk-0':   { label: 'a trunk at 30 m/s, the centreline', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 0, steps: 1500 }, cams: [[200, 22, 14], [300, 45, 20], [120, 12, 10]] },
   'trunk-3v':  { label: 'a trunk at 30 m/s, the centreline - side, three-quarter front, top (the user, 14 Oct)', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 0, steps: 1500 }, cams: [['side', 10, 14], ['q34', 18, 13], ['side', 80, 17]] },
+  // (24 Oct, DMG-SCAR2 for the user: the ground's scar - a slide (the 2.5 m trunk, the wreck skidding on) and a hard blow on
+  // the ground (the nose-in, a bounce or a stop) - from a three-quarter view and from nearly above, the scar in frame)
+  'scar-slide': { label: 'the scar of a slide: a trunk at 30 m/s, 2.5 m out, the wreck skidding on (DMG-SCAR2)', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 2.5, steps: 1500 }, cams: [['q34', 28, 22], ['side', 78, 30], ['q34', 13, 8]] },
+  'scar-blow': { label: 'the scar of a blow on the ground: a nose-in at 180 km/h, 10 m/s down, 60 deg (DMG-SCAR2)', o: { kind: 'ground', V: 50, sink: 10, pitch: 60, steps: 1500 }, cams: [['q34', 28, 22], ['side', 78, 30], ['q34', 13, 8]] },
   'trunk-2.5': { label: 'a trunk at 30 m/s, the wing 2.5 m out (DMG-D4a\'s wing still)', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 2.5, steps: 1500 }, cams: [[200, 22, 16], [250, 55, 26]] },
   'nosein':    { label: 'a nose-in on the ground (180 km/h, 10 m/s, 60 deg; DMG-D4a\'s nose-in still)', o: { kind: 'ground', V: 50, sink: 10, pitch: 60, steps: 1500 }, cams: [[150, 20, 12], [235, 28, 14]] },
   // G1863: the cockpit rule - the severe nose-in watched from the pilot's eye; no stills, its verdict read
