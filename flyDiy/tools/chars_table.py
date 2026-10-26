@@ -133,7 +133,7 @@ CROWD_CLIPS = [
     # (metres per frame about the first, the character's own axes): the one at the
     # line's back walks it, everyone else stands
     dict(key='phone', role='queue', glb='assets/chars/glb/anim_phone.glb',
-         src='Talking On A Cell Phone.fbx', fps=15, credit=_clip('Talking On A Cell Phone')),
+         src='Talking On A Cell Phone.fbx', fps=12, credit=_clip('Talking On A Cell Phone')),
     dict(key='briefcase', role='queue', glb='assets/chars/glb/anim_briefcase.glb',
          src='Standing W_Briefcase Idle.fbx', fps=15, credit=_clip('Standing W_Briefcase Idle')),
     dict(key='happy', role='queue', glb='assets/chars/glb/anim_happy.glb',
@@ -153,8 +153,10 @@ CROWD_SIT = 'sitidle'
 # a clip's bin, and a member's triangles (the distance ladder draws each
 # person skinned under 60 m and a frozen copy past it - no decimation yet).
 # G3617 (A0 25 Oct): castMiB 30 -> 36 for the four new bodies - a job fetches only
-# its own passengers' bodies (three at most in a C172), nothing at boot
-CROWD_BUDGET = dict(memberMiB=6.0, castMiB=36.0, clipKiB=400, tris=60000)
+# its own passengers' bodies (three at most in a C172), nothing at boot.
+# Measured at the bake (26 Oct): 41.36 MiB for ten, adam 6.01 -> A0 26 Oct:
+# castMiB 42, memberMiB 6.1 (a lazy ceiling: ~13 MiB fetched for three seats)
+CROWD_BUDGET = dict(memberMiB=6.1, castMiB=42.0, clipKiB=400, tris=60000)
 
 # THE TEXTURE BUDGET (AS6, G935;the user's yes 2026-09-29: "modifying texture
 # sizes and formats is perfectly OK ... provided that a dedicated asset prep
