@@ -99,6 +99,8 @@ const MISSION_TEXT = {
   'crit.toDistM': MT_('takes off in {v} m or less {at}'), 'crit.ldgDistM': MT_('lands in {v} m or less {at}'),
   'crit.fuelLph': MT_('burns {v} L/h or less {at}'), 'crit.cargoL': MT_('a hold of {v} L or more'),
   'crit.pax': MT_('{v} passengers beside the pilot'),
+  'crit.heightM': MT_('at most {v} m high'), 'crit.lengthM': MT_('at most {v} m long'),
+  'crit.fitsShed': MT_('fits their {v}: through the door, parked inside'),
   'pref.engines': MT_('{v} engines'), 'pref.thrust': MT_('a {v} propeller'), 'pref.wing': MT_('a {v} wing'),
   'pref.tail': MT_('a {v} tail'), 'pref.gear': MT_('{v} gear'), 'pref.canopy': MT_('a {v} canopy'),
   'pref.suspension': MT_('{v} suspension'),

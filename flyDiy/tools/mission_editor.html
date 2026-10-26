@@ -93,6 +93,7 @@ dialog { background: var(--panel); color: var(--ink); border: 1px solid var(--li
 
 <!-- THE GAME'S CORE: the LEAN set (tools/_missions_lib.js), in build.js MANIFEST.core's order -->
 <script data-core="01_names.js" src="../src/core/01_names.js"></script>
+<script data-core="26_hangar_fit.js" src="../src/core/26_hangar_fit.js"></script>
 <script data-core="72_people_faces.js" src="../src/core/72_people_faces.js"></script>
 <script data-core="72_people.js" src="../src/core/72_people.js"></script>
 <script data-core="34_occupant.js" src="../src/core/34_occupant.js"></script>
@@ -314,7 +315,7 @@ function missionForm(f, m) {
       row('startFrom', inp(typeof m.startFrom === 'object' ? JSON.stringify(m.startFrom) : (m.startFrom || ''), x => { m.startFrom = !x ? undefined : x.trim().startsWith('{') ? JSON.parse(x) : x; }, { ph: 'player | ' + Object.keys(CONTRACT_DESIGNS).join(' | ') + ' | {"build":"builds/x.json"}' })),
       row('delivery', sel(m.delivery ? (m.delivery.sold ? 'sold' : 'kept') : '', [['sold', 'sold to the client, blueprint saved'], ['kept', 'kept in the fleet']], x => m.delivery = !x ? undefined : { sold: x === 'sold', blueprint: true }, { blank: '— (the default: sold, blueprint saved)' })),
       row('followUp', json(m.followUp, v => m.followUp = v, { ph: '{"prefer":["tasKmh"],"add":[...]}' }), 'GQ26: a happy client asks again, one criterion changed'),
-      prefsEditor(m)));
+      sizeEditor(m), prefsEditor(m)));
   }
   f.append(el('fieldset', {}, el('legend', {}, 'the completion line'), ...sayRows('onDone.say', (m.onDone || {}).say, v => { m.onDone = v ? { say: v } : undefined; })));
   f.append(el('fieldset', {}, el('legend', {}, 'the hidden route (a rally\'s course)'),
@@ -328,6 +329,26 @@ function missionForm(f, m) {
   f.append(el('div', { cls: 'tools' }, el('button', { on: { click: () => { m.legs.push({ steps: [] }); changed(); } } }, '+ leg'),
     el('button', { on: { click: () => { const c = clone(m); let n = 2; while (mission(m.id + '.' + n)) n++; c.id = m.id + '.' + n; S.pack.missions.push(c); const ch2 = campOf(m.id); if (ch2) ch2.h.missions.push(c.id); S.sel = { t: 'mission', id: c.id }; changed(); } } }, 'duplicate'),
     el('button', { on: { click: () => { if (!confirm('Delete mission ' + m.id + '?')) return; S.pack.missions = S.pack.missions.filter(x => x !== m); for (const c of S.pack.campaigns) for (const h of c.chapters) h.missions = h.missions.filter(y => y !== m.id); S.sel = { t: 'pack' }; changed(); } } }, '✕ delete')));
+}
+// THE SIZE (the user, 26 Oct: "so they fit in their sheds: width, height and length"): spanM / heightM / lengthM and
+// fitsShed (a SHELLS row, the client's own dims optional) - criteria of the order's delivery step (require.plane)
+function sizeEditor(m) {
+  const st = [].concat(...m.legs.map(L => L.steps)).find(s => s.do === 'deliver' || s.do === 'accept');
+  if (!st) return row('size', el('span', { cls: 'mute' }, 'add a deliver step first'));
+  const plane = () => (st.require && st.require.plane) || [];
+  const get = k => plane().find(c => c.k === k);
+  const put = (k, c) => { st.require = Object.assign({}, st.require || {}); const L = plane().filter(x => x.k !== k); if (c) L.push(c); st.require.plane = L;
+    if (!L.length) delete st.require.plane; if (!Object.keys(st.require).length) delete st.require; };
+  const num = k => inp((get(k) || {}).v, x => put(k, x == null ? null : { k, op: '<=', v: +x }), { type: 'number', ph: 'm' });
+  const sh = get('fitsShed') || {}, D = (sh.at && sh.at.dims) || {};
+  const shed = (v, dims) => put('fitsShed', v ? Object.assign({ k: 'fitsShed', op: '==', v }, dims ? { at: { dims } } : {}) : null);
+  const dimIn = k => inp(D[k], x => { const d = Object.assign({}, SHELLS[sh.v].dims, D); if (x == null) return shed(sh.v, null); d[k] = +x; shed(sh.v, d); }, { type: 'number', ph: String(SHELLS[sh.v].dims[k]) });
+  const words = k => SHELLS[k].name + ' (' + 2 * SHELLS[k].dims.HW + ' x ' + 2 * SHELLS[k].dims.HD + ' m, eave ' + SHELLS[k].dims.EAVE + ' m)';
+  return row('size (their shed)', el('div', {},
+    el('div', { cls: 'tools' }, 'span ≤', num('spanM'), 'height ≤', num('heightM'), 'length ≤', num('lengthM')),
+    el('div', { cls: 'tools' }, 'shed', sel(sh.v || '', Object.keys(SHELLS).map(k => [k, words(k)]), x => shed(x, null), { blank: '— none' }),
+      sh.v ? ['own HW', dimIn('HW'), 'HD', dimIn('HD'), 'EAVE', dimIn('EAVE')] : null),
+    el('div', { cls: 'mute' }, 'Width = the span. The shed: through its door and parked inside, its fit-out stood (phase 2 judges it off the airframe\'s footprint). Own dims for an odd shed: half-width, half-depth, eave (m).')));
 }
 function prefsEditor(m) {
   const box = el('div', {});

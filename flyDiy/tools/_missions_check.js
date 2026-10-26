@@ -88,7 +88,9 @@ function samplePack() {
         pay: { base: 2500 }, rep: { provider: 'clients', gain: 0.5 } },
       { id: 's.order', provider: 'clients', kind: 'build', title: 'ms.s.order.title', brief: 'ms.s.order.brief', client: 'adam',
         legs: [{ steps: [{ do: 'deliver', place: 'HOME', require: { plane: [{ k: 'seats', op: '>=', v: 2 }, { k: 'climbMs', op: '>=', v: 3, at: { pax: 1 } },
-          { k: 'toDistM', op: '<=', v: 250, at: { pax: 1, kg: 0 } }, { k: 'pax', op: '>=', v: 1 }] } }] }],
+          { k: 'toDistM', op: '<=', v: 250, at: { pax: 1, kg: 0 } }, { k: 'pax', op: '>=', v: 1 },
+          { k: 'spanM', op: '<=', v: 10 }, { k: 'heightM', op: '<=', v: 2.6 }, { k: 'lengthM', op: '<=', v: 7.5 },
+          { k: 'fitsShed', op: '==', v: 'field', at: { dims: { HW: 6, HD: 8, EAVE: 3.2 } } }] } }] }],
         prefs: [{ k: 'engines', v: 2, need: 'mandatory' }, { k: 'gear', v: 'tricycle', need: 'bonus', pct: 10 }],
         startFrom: 'cub', delivery: { sold: true, blueprint: true },
         pay: { base: 40000 }, rep: { provider: 'clients', gain: 1 }, followUp: { prefer: ['seats'] } },
@@ -219,6 +221,11 @@ function run(mut) {
     ['a bonus preference with no pct', p => { delete p.missions[3].prefs[1].pct; }, /pct/],
     ['a preference value the GEN does not know', p => { p.missions[3].prefs[1].v = 'quadricycle'; }, /not one of/],
     ['a new criterion out of its band', p => { p.missions[3].legs[0].steps[0].require.plane[1].v = 90; }, /outside/],
+    ['a plane 30 m high', p => { p.missions[3].legs[0].steps[0].require.plane.find(c => c.k === 'heightM').v = 30; }, /heightM: 30 outside/],
+    ['a length asked as more', p => { p.missions[3].legs[0].steps[0].require.plane.find(c => c.k === 'lengthM').op = '>='; }, /lengthM: operator/],
+    ['a shed nobody builds', p => { p.missions[3].legs[0].steps[0].require.plane.find(c => c.k === 'fitsShed').v = 'barn'; }, /no shed shell barn/],
+    ['a shed of negative width', p => { p.missions[3].legs[0].steps[0].require.plane.find(c => c.k === 'fitsShed').at.dims.HW = -2; }, /at\.dims/],
+    ['a shed judged at a load', p => { p.missions[3].legs[0].steps[0].require.plane.find(c => c.k === 'fitsShed').at.pax = 1; }, /at\.pax. not a condition/],
     ['an unknown rule', p => { p.missions[0].rules.weather = 'fail'; }, /rules\.weather/],
     ['an injury band past fatal', p => { p.missions[0].rules.injury = { fail: 7 }; }, /band/],
     ['a departure window of one hour twice', p => { p.missions[2].legs[0].steps[0].require.depart = { at: [8, 8] }; }, /depart/],
@@ -276,6 +283,14 @@ function run(mut) {
   ok(/rules/.test(one({ do: 'land', place: 'HOME' }, { rules: { crash: 'fail' } })), 'runtime: a rule alone waits');
   ok(/maxMin|require/.test(one({ do: 'carry', from: 'HOME', place: 'w3', load: { kg: 5, pax: 0 }, require: { maxMin: 60 } })), 'runtime: a max duration alone waits');
   ok(/climbMs/.test(one({ do: 'deliver', place: 'HOME', require: { plane: [{ k: 'climbMs', op: '>=', v: 3 }] } }, { kind: 'build' })), 'runtime: a new criterion alone waits');
+  for (const c of [{ k: 'heightM', op: '<=', v: 2.5 }, { k: 'lengthM', op: '<=', v: 7 }, { k: 'fitsShed', op: '==', v: 'club' }])
+    ok(new RegExp(c.k).test(one({ do: 'deliver', place: 'HOME', require: { plane: [c] } }, { kind: 'build' })), 'runtime: ' + c.k + ' alone waits (ACCEPT judges it in phase 2)');
+  ok(one({ do: 'deliver', place: 'HOME', require: { plane: [{ k: 'spanM', op: '<=', v: 9 }] } }, { kind: 'build' }) === '', 'runtime: the span (today\'s spanM) runs');
+  // the size in words (the card): the shed by its name, the client's own dims
+  const TX = M.missionText(S), shedC = S.missions[3].legs[0].steps[0].require.plane.find(c => c.k === 'fitsShed');
+  const sw2 = M.contractCritWords(shedC, null, TX);
+  ok(sw2.includes(M.SHELLS.field.name) && sw2.includes('12 x 16 m, eave 3.2 m'), 'the shed in words: ' + sw2);
+  ok(M.contractCritWords({ k: 'heightM', op: '<=', v: 2.6 }, null, TX) === 'at most 2.6 m high' && M.contractCritWords({ k: 'lengthM', op: '<=', v: 7.5 }, null, TX) === 'at most 7.5 m long', 'the height and the length in words');
   ok(/order/.test(M.contractRuntimeOk(Object.assign(M.missionToContract({ id: 'x', provider: 'clients', kind: 'contract', title: 't', brief: 'b', legs: [{ order: 'seq', steps: [{ do: 'land', place: 'HOME' }] }],
     pay: { base: 1 }, rep: { provider: 'clients', gain: 0 } }, {})))), 'runtime: steps in order seq wait');
   // the pay reads places: a carry to a site is paid its km, never NaN

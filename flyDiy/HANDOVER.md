@@ -99249,3 +99249,23 @@ GATE DEFAULT: PASS
 sandbox's player document is unchanged (no day: the pref keeps it; PLAYER_V 2)" pins `CORE.PLAYER_V === 2`, and
 70_player.js holds PLAYER_V = 3 (the sandbox's default has no `day`, no `career`: only the version pin is stale). Not this
 branch's - for CLOCK's owner / A0 (a one-token pin, or a deliberate v3 the row should say).
+
+## MISSIONS-P0 - THE SIZE OF AN ORDER (width, height, length, "fits their shed") + THE CLOCK PIN (2026-10-26, cloud)
+
+The user (26 Oct): "the orders could specify requests in terms of plane dimensions (so they fit in their sheds), width,
+height and length" - and "fix the CLOCK pin to PLAYER_V 3".
+- **Width = spanM** (today's criterion, static, runs now). **New in CONTRACT_CRIT_NEXT** (73_contracts.js; static, how
+  'spec'; ACCEPT judges them in phase 2, so an order naming one waits: contractRuntimeOk):
+  `heightM` (<=, 1-8 m: the parked footprint's h - the fin or the wing top, the number 71_ hangarDoorWhy reads),
+  `lengthM` (<=, 3-25 m: nose and propeller to tail, the footprint's fwd + aft), `fitsShed` (==, a SHELLS row of
+  26_hangar_fit.js - club | works | field - with optional `at.dims: { HW, HD, EAVE }` for the client's own odd shed:
+  through its door (hangarDoorWhy) and parked inside with its fit-out (hangarPark) - phase 2 runs those two on the
+  delivered airframe's footprint). contractCritWhy checks the shell and the dims; contractCritWords names the shed
+  ("fits their Field shed (12 x 16 m, eave 3.2 m): through the door, parked inside") and now reads both tables.
+- The editor: an order's "size (their shed)" row (span / height / length, the shed and its own dims), written into the
+  delivery step's require.plane; it loads 26_hangar_fit.js (LEAN, gated) so its verdicts are the game's.
+- GATE MISSIONS: the sample order carries all four; refused alone: 30 m high, a length asked as "more", a shed nobody
+  builds, a negative width, a shed judged at a load; each new size criterion alone waits for the runtime, the span runs;
+  the words.
+- **GATE CLOCK**: its sandbox row now pins `PLAYER_V === 3` (70_player.js's; was 2 - red on master d7e181f4 too).
+- Gates (private build): MISSIONS, CONTRACTS, CLOCK, NAMES PASS.

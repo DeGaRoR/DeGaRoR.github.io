@@ -108,6 +108,15 @@ const CONTRACT_CRIT_NEXT = {
               op: ['>='], band: [10, 5000], follow: { mul: 1.2, round: 10 } },
   pax:      { k: 'pax',      unit: 'pax',  when: 'static', how: 'spec',  src: 'the seats beside the pilot (genShakedown envelope.seats - 1)',
               op: ['>='], band: [0, 7], follow: { add: 1 } },
+  // THE SIZE (the user, 26 Oct: "the orders could specify requests in terms of plane dimensions, so they fit in their sheds:
+  // width, height and length") - the width is spanM (above); the airframe's parked footprint is 71_'s parkFoot frame
+  // { half, fwd, aft, h }; a shed is a SHELLS row (26_hangar_fit.js), its door 71_ hangarDoor
+  heightM:  { k: 'heightM',  unit: 'm',    when: 'static', how: 'spec',  src: 'the parked height: the footprint\'s h (the fin or the wing\'s top, off the mesh; 71_ hangarDoorWhy reads it)',
+              op: ['<='], band: [1, 8], follow: { add: -0.2, round: 0.1 } },
+  lengthM:  { k: 'lengthM',  unit: 'm',    when: 'static', how: 'spec',  src: 'nose and propeller to tail: the footprint\'s fwd + aft (25_ GP_PARKED_FOOT\'s frame)',
+              op: ['<='], band: [3, 25], follow: { mul: 0.95, round: 0.1 } },
+  fitsShed: { k: 'fitsShed', unit: 'shell', when: 'static', how: 'spec', src: 'through the shed\'s door (71_ hangarDoorWhy) and parked inside it with its fit-out stood (hangarPark); at.dims: the client\'s own shed { HW, HD, EAVE } (half-width, half-depth, eave, m), else the shell\'s',
+              op: ['=='], at: ['dims'], follow: null },
 };
 
 // ---- (g1) A BUILD CRITERION NEVER NAMES A CONFIGURATION ---------------------------------------------------
@@ -446,8 +455,10 @@ function contractKeys(rec) {
 const contractFollowKey = rec => 'ct.' + String(rec.base || rec.id).split('+')[0] + '.follow';
 // a criterion as words (MAP's card): its label with the value (a strip by its name) and the load it is judged at
 function contractCritWords(c, fields, text) {
-  const F = fields || CONTRACT_FIELDS, K = CONTRACT_CRIT_KINDS[c.k] || {};
-  const v = K.unit === 'strip' ? (F[c.v] ? F[c.v].name : c.v) : (c.v === true ? '' : c.v);
+  const F = fields || CONTRACT_FIELDS, K = CONTRACT_CRIT_KINDS[c.k] || CONTRACT_CRIT_NEXT[c.k] || {};
+  const v = K.unit === 'strip' ? (F[c.v] ? F[c.v].name : c.v)
+    : K.unit === 'shell' ? ((typeof SHELLS !== 'undefined' && SHELLS[c.v] ? SHELLS[c.v].name : c.v) + (c.at && c.at.dims ? ' (' + 2 * c.at.dims.HW + ' x ' + 2 * c.at.dims.HD + ' m, eave ' + c.at.dims.EAVE + ' m)' : ''))
+    : (c.v === true ? '' : c.v);
   let at = '';
   if (c.at && (c.at.pax || c.at.kg)) at = 'with ' + contractLoadWords({ kg: c.at.kg || 0, pax: c.at.pax || 0 }, 'goods.kit', text);
   return contractText('crit.' + c.k, { v, at }, text).replace(/\s+$/, '');
@@ -519,12 +530,16 @@ function contractCritWhy(c, opts) {
   if (!K) return 'unknown criterion kind ' + (c && c.k);
   if (!K.op.includes(c.op)) return c.k + ': operator ' + c.op + ' not one of ' + K.op.join(' ');
   if (K.unit === 'strip') { if (!ctField(c.v)) return c.k + ': no field ' + c.v; }
+  else if (K.unit === 'shell') { if (typeof SHELLS === 'undefined' || !SHELLS[c.v]) return c.k + ': no shed shell ' + c.v + ' (26_hangar_fit.js SHELLS)'; }
   else if (K.values) { if (!K.values.includes(c.v)) return c.k + ': ' + c.v + ' not one of ' + K.values.join(' '); }
   else if (typeof c.v !== 'number' || !isFinite(c.v) || c.v < K.band[0] || c.v > K.band[1])
     return c.k + ': ' + c.v + ' outside ' + K.band[0] + '..' + K.band[1] + ' ' + K.unit;
   if (c.at != null) {
     if (typeof c.at !== 'object') return c.k + ': `at` is not an object';
     for (const a of Object.keys(c.at)) if (!(K.at || []).includes(a)) return c.k + ': `at.' + a + '` not a condition of this kind';
+    const D = c.at.dims;
+    if (D != null && (!D || typeof D !== 'object' || ['HW', 'HD', 'EAVE'].some(k => !(typeof D[k] === 'number' && D[k] > 0 && D[k] <= 60))))
+      return c.k + ': at.dims is the shed\'s { HW, HD, EAVE } (half-width, half-depth, eave: m, 0-60)';
   }
   return '';
 }
