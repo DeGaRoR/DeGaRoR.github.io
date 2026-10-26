@@ -1137,7 +1137,8 @@ function cowlPlace(ctx, again) {
   CW.prepareLid();
   // G3711 (COWL-RES): the top arch sampled finer for the pilot's eye, except in a parked aeroplane's capture
   // (CAGE_EYE_OFF) - nobody sits in that cockpit. COWL_EYE_ARC: the longest interval left on the upper half (m).
-  CW.prepareMesh(window.CAGE_EYE_OFF || (window.CAGE_UI && window.CAGE_UI.eyeRefine === false) ? undefined
+  CW.prepareMesh(window.CAGE_EYE_OFF || (window.CAGE_EYE_URL_OFF && window.CAGE_EYE_URL_OFF())
+    || (window.CAGE_UI && window.CAGE_UI.eyeRefine === false) ? undefined
     : { eyeArc: COWL_EYE_ARC });
   // COWL ALPHA (G29, user): see the engine through the shell. The view panel
   // owns the dial (viewer state, never spec) and the materials are built to

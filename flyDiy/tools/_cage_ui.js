@@ -1514,6 +1514,10 @@ let LAST_SHEET = null;
 const PREVIEW = { n: 0, last: null, deform: 0, deformWhy: '' };
 let DEFORMED = false;                   // a deformed tick since the last whole build (its sit is the stand's)
 const PREVIEW_OFF = () => /(^|[?&])garage=old(&|$)/.test((typeof location !== 'undefined' && location.search) || '');
+// ?eye=off: G3710/G3711's eye pass held off on this page (GARAGE-LAG's before, one tree; _cage_cowl reads it too)
+const EYE_URL_OFF = () => /(^|[?&])eye=off(&|$)/.test((typeof location !== 'undefined' && location.search) || '');
+if (typeof window !== 'undefined') window.CAGE_EYE_URL_OFF = EYE_URL_OFF;
+let EYE_CACHE = null;                   // G3710: the last eye pass { s: the sheet, key, out }
 // G1443 (GARAGE-INSTANT): THE STAND, DEFORMED. A drag tick on a row that moves the CAGE (the fuselage's length,
 // widths, heights, the nose, the deck lines - the same cage topology) would rebuild the sheet (subdivision, glass,
 // cuts, rims, interior, shoulder: 55-250 ms) and every layer on it. The preview moves what stands instead:
@@ -1961,10 +1965,18 @@ function* buildSteps() {
   // (CAGE_EYE_OFF: nobody sits in a parked cockpit); the diagnostic views draw the sheet as it is.
   const zones = G.cageBodyZones ? G.cageBodyZones(spec) : null;
   const zNose = zones && zones.find(z => z.key === 'nose');
-  const eyeOn = G.cageEyeRefine && zNose && !window.CAGE_EYE_OFF
+  const eyeOn = G.cageEyeRefine && zNose && !window.CAGE_EYE_OFF && !EYE_URL_OFF()
     && !(window.CAGE_UI && window.CAGE_UI.eyeRefine === false);
-  // edge 0.016 m: the dash's own median facet edge (cowl_res_rig: 1.6 cm on every validated build)
-  const sdE = eyeOn ? G.cageEyeRefine(sd, { zNose: zNose.z0, edge: 0.016 / fieldM() }) : sd;
+  // edge 0.016 m: the dash's own median facet edge (cowl_res_rig: 1.6 cm on every validated build). Drag ticks never
+  // come here (G1443 deforms the stand, G1442 restores it); a whole build on the SAME sheet (a dropdown, the release's
+  // whole way) takes the last pass's result: one entry, keyed by the sheet object and what decides the displayed faces.
+  const diag = surfSel !== 'off' || ($('curv') && $('curv').checked) || ($('wire') && $('wire').checked);
+  let sdE = sd;
+  if (eyeOn && !diag) {
+    const key = [P.skinOn == null || P.skinOn ? 1 : 0, P.glazeOn == null || +P.glazeOn ? 1 : 0, zNose.z0, fieldM()].join('|');
+    if (EYE_CACHE && EYE_CACHE.s === s && EYE_CACHE.key === key) sdE = EYE_CACHE.out;
+    else { sdE = G.cageEyeRefine(sd, { zNose: zNose.z0, edge: 0.016 / fieldM() }); EYE_CACHE = { s, key, out: sdE }; }
+  }
   meshObj = (surfSel !== 'off') ? surfMesh(sd, surfSel)
     : ($('curv') && $('curv').checked) ? curvatureMesh(sd)
     : ($('wire') && $('wire').checked) ? quadWire(sd) : meshFrom(sdE);
