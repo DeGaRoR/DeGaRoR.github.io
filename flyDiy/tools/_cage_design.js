@@ -1902,13 +1902,15 @@ const ARCHETYPES = [
            gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
            finArch: 'rounded', empennage: 'conv', scheme: 'trim', base: 0xf2c437, trim: 0x1b3a5c },
     over: { cage: { wgSpan: 8.94, wgChord: 1.37, wgChordTip: 1.37, wgTipX: 0.30,
-                    wgParaH: 0.40, w2Span: 8.94, w2Chord: 1.37, w2ChordTip: 1.37,
+                    // G3517: the front cockpit under the centre section, the rear one clear of the trailing edge (the
+                    // DH.82A's), the upper plane higher; the wings 0.25 forward hold the margin at 0.30
+                    wgParaH: 0.62, wgDx: 0.25, w2Span: 8.94, w2Chord: 1.37, w2ChordTip: 1.37,
                     w2Pos: 2, w2Stagger: 0.55, wgAilOn: 0, w2AilOn: 1,
                     bpInter: 0, bpWires: 1, bpCabane: 0,
                     ...OPEN_TANDEM,
                     halfW: 0.43, roofHalfW: 0.34, roofY: 0.58, keelY: -0.67, waistY: 0.22, floorY: -0.32,
                     pilotLen: 0.95, paxLen: 1.00, s1Drop: 0.46,      // (a prop clearance of 0.25 m: FAR 23.925 0.229)
-                    aeroWsLen: 1.10, aeroLen: 0.95, aeroTipW: 0.55, aeroTipH: 0.60, aeroDroop: 0.10 },
+                    aeroWsLen: 1.45, aeroLen: 0.95, aeroTipW: 0.55, aeroTipH: 0.60, aeroDroop: 0.10 },
             spec: { fuel: { litres: 87 } } } },       // 19 imp gal, the centre-section tank
   // PERF STUDY chantier 0 (2026-09-15): the PT-17's engine is the 220 hp
   // W-670 (a row since G195), not the 450 hp R-985 the card flew (ROC
@@ -1925,14 +1927,17 @@ const ARCHETYPES = [
            // ERRS row on the card itself)
            finArch: 'rounded', empennage: 'conv', scheme: 'trim', base: 0xf2c437, trim: 0x1b3a5c },
     over: { cage: { wgSpan: 9.80, wgChord: 1.52, wgChordTip: 1.52, wgTipX: 0,
-                    wgDx: 0.30,      // G3517: the round body's CG is further aft than the old cabin's (margin 0.10)
-                    wgParaH: 0.45, w2Span: 9.80, w2Chord: 1.52, w2ChordTip: 1.52,
+                    // G3517: the cockpits stand AFT of the upper wing as on the PT-17 (the front opening under its trailing
+                    // edge, the rear clear of it - the bench's first picture had the wing over both and the screens
+                    // through its skin): a long forward deck (aeroWsLen), the wings 0.15 forward, the upper plane higher
+                    wgDx: 0.45,      // (margin 0.19)
+                    wgParaH: 0.75, w2Span: 9.80, w2Chord: 1.52, w2ChordTip: 1.52,
                     w2Pos: 2, w2Stagger: 0.60, wgAilOn: 0, w2AilOn: 1,
                     bpInter: 0, bpWires: 1, bpCabane: 0, cw_propD: 2.5,
                     ...OPEN_TANDEM,
                     halfW: 0.58, roofHalfW: 0.46, roofY: 0.72, keelY: -0.55, waistY: 0.28, floorY: -0.30,
                     pilotLen: 1.00, paxLen: 1.10, s1Drop: 0.72,
-                    aeroWsLen: 1.15, aeroLen: 0.55, aeroTipW: 0.92, aeroTipH: 0.86, aeroDroop: 0.0 },
+                    aeroWsLen: 1.85, aeroLen: 0.55, aeroTipW: 0.92, aeroTipH: 0.86, aeroDroop: 0.0 },
             spec: { fuel: { litres: 174 }, prop: { D: 2.5, blades: 2 } } } },      // 46 US gal in the upper centre section
   { key: 'pittsAlike', kind: 'fiction', name: 'aerobatic biplane', note: 'short-span four-aileron ' +
       'biplane on I struts and wires, spring gear, flat six',
