@@ -93,6 +93,11 @@ function depart(def, opts) {
   // 3.82 with the switch off. The bound is 2.5 deg: under the 3.09 the
   // user complained about, with room for the fleet's spread, and it will
   // catch the boom quietly going soft again.
+  // G2810 (AVIONICS-GPS): 2.8 deg. G2809 bills the lamps the fixture's census asks for as real parts at their drawn
+  // places, and the fixture's two beacons (0.45 kg each, drawn at the fin and clamped on the rod) are point masses at
+  // the end of the boom the roll is measured across (the same file is the validated 'twin floatplane' on floats).
+  // Measured on the 2 m/s cross (-z) taxi: no beacon 2.44, one 2.69, two 2.77 (calm 2.60). Physics of the mass now
+  // carried, not a softer boom: still under the 3.09 the user complained about.
   const iH = def.nodes.findIndex(n => n.tag === 'HTL'), iH2 = def.nodes.findIndex(n => n.tag === 'HTR');
   const [iL, iR] = def.refs.mains;
   const stabRoll = () => {
@@ -145,7 +150,7 @@ function judge(name, r, opts) {
   if (opts.stand) {
     check(r.phases.some(p => p.phase === 'TAXI'), tag + 'taxied off the stand');
     check(r.maxXT < 2.5, tag + 'taxi cross-track under 2.5 m', r.maxXT.toFixed(2) + ' m');
-    check(r.maxStabRoll < 2.5, tag + 'the stab rolls under 2.5 deg against the mains through the taxi (G199.5, P6)',
+    check(r.maxStabRoll < 2.8, tag + 'the stab rolls under 2.8 deg against the mains through the taxi (G199.5, P6; G2810 the tail beacons)',
           r.maxStabRoll.toFixed(2) + ' deg');
     check(r.minPost > 2.0, tag + 'never within 2 m of a fence post', r.minPost.toFixed(1) + ' m');
     check(r.offStrip === 0, tag + 'never on the strip’s flanks outside its length', r.offStrip + ' frames');

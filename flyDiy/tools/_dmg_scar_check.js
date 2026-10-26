@@ -78,11 +78,16 @@ if (argv[0] === '--build') {
     const h1 = hashOf(sim);
     const r0 = S.runCase(k, c, { scar: false }), h0 = hashOf(r0.sim);
     // the reader's contacts / the hub's track / the CG's track, for "under the contacts"
-    const near = (x, z, list, step, lim) => { for (let j = 0; j < list.length; j += step) if (Math.hypot(list[j] - x, list[j + 1] - z) <= lim) return true; return false; };
+    const near0 = (x, z, list, step, lim) => { for (let j = 0; j < list.length; j += step) if (Math.hypot(list[j] - x, list[j + 1] - z) <= lim) return true; return false; };
+    // (G2810: a contact is also its way in - the frame's path ending on it, the lib's `paths`: the core's touches are the
+    // substeps', the reader's samples the frame ends)
+    const nearPath = (x, z, lim) => { const P = r.paths || []; for (let j = 0; j < P.length; j += 4) if (C.scarSegD([P[j], P[j + 1], P[j + 2], P[j + 3]], x, z) <= lim) return true; return false; };
+    const near = (x, z, list, step, lim) => near0(x, z, list, step, lim) || (list === r.contacts && nearPath(x, z, lim));
     const bad = [];
     for (const p of r.prims) {
       if (p.k === 'c') { if (!near(p.x, p.z, r.contacts, 4, p.r + 0.5) && !near(p.x, p.z, r.hubs, 2, Rp + 0.5)) bad.push('crater at ' + p.x + ',' + p.z); }
-      else if (p.k === 'g') { for (let j = 0; j < p.p.length; j += 2) { const ok = p.ps ? near(p.p[j], p.p[j + 1], r.hubs, 2, Rp + 0.5) : (near(p.p[j], p.p[j + 1], r.contacts, 4, p.w / 2 + 0.5) || near(p.p[j], p.p[j + 1], r.hubs, 2, Rp + 0.5)); if (!ok) { bad.push((p.ps ? 'slot' : 'gouge') + ' point ' + p.p[j] + ',' + p.p[j + 1]); break; } } }
+      else if (p.k === 'g') { for (let j = 0; j < p.p.length; j += 2) { const ok = p.ps ? near(p.p[j], p.p[j + 1], r.hubs, 2, Rp + 0.5) : (near(p.p[j], p.p[j + 1], r.contacts, 4, p.w / 2 + 0.5) || near(p.p[j], p.p[j + 1], r.hubs, 2, Rp + 0.5)); if (!ok) { let dc = Infinity; for (let q = 0; q < r.contacts.length; q += 4) dc = Math.min(dc, Math.hypot(r.contacts[q] - p.p[j], r.contacts[q + 1] - p.p[j + 1]));
+        bad.push((p.ps ? 'slot' : 'gouge') + ' point ' + p.p[j] + ',' + p.p[j + 1] + ' (vertex ' + (j / 2) + ' of ' + (p.p.length / 2) + ', w ' + p.w + ', the nearest contact ' + dc.toFixed(2) + ' m)'); break; } } }
       else if (p.k === 's') { for (let j = 0; j < p.p.length; j += 2) if (!near(p.p[j], p.p[j + 1], r.cg, 3, 0.5)) { bad.push('sweep point ' + p.p[j]); break; } }
     }
     // the contacts' share inside the footprint (a REPORT: a light touch that slid under 0.3 m and dug no bowl leaves none)
@@ -249,7 +254,7 @@ function pageChecks(prims0, yes, rep, extra, hard) {
   for (let i = 0; i < 2; i++) CR.update();
   const after = census();
   // 6: exactly the footprint
-  const setA = new Set(after); let wrongCut = 0, wrongKept = 0, rocksGone = 0, nCover = 0, cutBy = {};
+  const setA = new Set(after); let wrongCut = 0, wrongKept = 0, rocksGone = 0, nCover = 0, cutBy = {}; const keptAt = [];
   for (const r of before) {
     const [kind, xs, zs] = r.split(':'), x = +xs, z = +zs, gone = !setA.has(r);
     const inside = kind === 'cover' ? ctx.scarIn(prims, x, z, false) : (kind === 'shrub' || kind === 'debris') ? ctx.scarIn(prims, x, z, true) : false;
@@ -257,11 +262,12 @@ function pageChecks(prims0, yes, rep, extra, hard) {
     if (gone) cutBy[kind] = (cutBy[kind] || 0) + 1;
     if (kind === 'rock' && gone) rocksGone++;
     else if (gone && !inside) wrongCut++;
-    else if (!gone && inside) wrongKept++;
+    else if (!gone && inside) { wrongKept++; if (keptAt.length < 8) keptAt.push(kind + '@' + x.toFixed(2) + ',' + z.toFixed(2)); }
   }
   const nothingNew = after.every(r => before.includes(r));
   yes(cut.cut > 0 && wrongCut === 0 && wrongKept === 0 && rocksGone === 0 && nothingNew && (cutBy.cover || 0) > 0,
-    '6 the grass cull is exactly the footprint: ' + (cutBy.cover || 0) + ' tufts gone of ' + nCover + ', ' + (cutBy.shrub || 0) + ' shrubs and ' + (cutBy.debris || 0) + ' debris (the sweep too); none outside, none left inside, the rocks all kept (' + cut.cells + ' cells, ' + cullMs.toFixed(1) + ' ms)');
+    '6 the grass cull is exactly the footprint: ' + (cutBy.cover || 0) + ' tufts gone of ' + nCover + ', ' + (cutBy.shrub || 0) + ' shrubs and ' + (cutBy.debris || 0) + ' debris (the sweep too); none outside, none left inside, the rocks all kept (' + cut.cells + ' cells, ' + cullMs.toFixed(1) + ' ms)' +
+    (wrongCut || wrongKept || rocksGone || !nothingNew ? ' - ' + wrongCut + ' cut outside, ' + wrongKept + ' kept inside ' + JSON.stringify(keptAt.slice(0, 4)) + ', ' + rocksGone + ' rocks gone' + (nothingNew ? '' : ', new instances') : ''));
   // a cell planted after the event: the eye goes away (the ring drops everything) and comes back (it plants again)
   camera.position.set(3000, 3, 0); camera.updateMatrixWorld(); for (let i = 0; i < 4; i++) CR.update();
   camera.position.set(0, 3, 0); camera.updateMatrixWorld(); for (let i = 0; i < 4; i++) CR.update();

@@ -56,14 +56,21 @@ const wheelGap = (sim, def, W) => {
 };
 
 // where the departure begins in the game: the site's stand (taxi out), else the spawn identity
-function startPose(sim, a, site) {
+// G2810: a strip with no stand gets its spawn SEATED (seatOnGround: the third wheel onto its own ground), as the
+// stand starts and the skip itself are (app.js applyRoute G700, placeAtLineup). The spawn identity alone sets the
+// wheels at a.elev: on a sloped strip (the analytic w4, ~6.6 % along the heading) the tailwheel starts 0.33 m inside
+// the uphill ground and the solver flings the tail up. Master's Cub kicked to 15 deg nose-down and was still falling
+// back when the 3 s sample read its height (-5.2 cm); G2809's Cub (CG 9 mm further forward) went over to 43 deg (-9.9).
+// The reference was a moment in a kick, not an aeroplane at rest.
+function startPose(sim, a, site, W, def) {
   sim.reset(0); if (sim.stance) sim.stance();
-  if (site && site.stand) C.placeAtStand(sim, a, site.stand); else C.placeAtAerodrome(sim, a);
+  if (site && site.stand) C.placeAtStand(sim, a, site.stand);
+  else { C.placeAtAerodrome(sim, a); if (W && def) C.seatOnGround(sim, (x, z) => W.terrainH(x, z), def.refs); }
 }
 // the pose the pilot's taxi would end on, asked from the start pose (as app.js asks it)
 function poseFor(def, W, a, site) {
   const sim = C.makeSim(def, W);
-  startPose(sim, a, site);
+  startPose(sim, a, site, W, def);
   const ap = C.makePilot(sim, def, W, {});
   ap.setRoute(a, a); ap.departFrom(a, a, site);
   // the rest height the aeroplane settles to where it starts - what the gear must read at the hold too

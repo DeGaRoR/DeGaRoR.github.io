@@ -206,8 +206,26 @@ function knownCubRoll(b, L2) {
   if (!ks.length || !ks.every(k => k === 'ground-loop' || k === 'off-strip') || D.breaks || D.crashed || L2.landedOn !== 'w2') return null;
   return "the user's Cub's roll-out on 02/20 after East Point (G2540 #3, OWED G3075, accepted by the user 13 Oct): " + L2.faults.map(f => f.k + ': ' + f.note).join('; ');
 }
+//   THE USER'S CUB AT COPPERHEAD MINE STREET - FLAPLESS SINCE G2809 (G2810, the user 26 Oct: "accept the new behaviour ...
+//   if it is explainable through more accurate weight accounting or physics, OK"). G2809 bills the lamps the Cub's census
+//   draws (+3.8 kg with their wiring and breakers, the beacon and the white nav lamp at the tail) and its drawn cabin floor
+//   (+1.3 kg): the CG 5.9 mm aft (x 0.7045 -> 0.7104 m), and the full-flap approach's trim -0.1494 -> -0.1548 of
+//   elevator - past G2034's nose-down budget (0.1543) by 0.0005, so the shakedown lands it FLAPLESS (Vs0 13.45 -> 15.81,
+//   Vref 17.5 -> 20.6 m/s; the lamps taken back off, the flaps come back). On the tw_ski > mn_strip leg the faster final
+//   is high twice ('unstabilised approach ... high 6 m on the slope') and the pilot diverts to the nearest strip with room.
+//   Known only while it is exactly that: the build lands flapless, two go-arounds then 'divert' said, the only fault
+//   'diverted', landed and stopped on the strip diverted to, no break, no crash (the tour ends there: 3 of 6 legs)
+function knownCubFlapless(b, L2, R) {
+  if (b !== 'cub' || L2.from !== 'tw_ski' || L2.to !== 'mn_strip' || !R.flapless) return null;
+  const said = c => (L2.verdicts || []).filter(v => v.startsWith(c)), D = L2.damage || {};
+  if (said('go-around').length < 2 || !said('divert').length || !L2.divertedTo || L2.landedOn !== L2.divertedTo ||
+      !L2.faults.every(f => f.k === 'diverted') || D.breaks || D.crashed) return null;   // ('diverted' is said STOPPED, on the ground)
+  return "the user's Cub lands flapless since G2809's bill (G2810: the CG 5.9 mm aft, the full-flap trim past G2034's budget) - " +
+    said('go-around').length + ' go-arounds, ' + said('divert')[0] + '; landed and stopped on ' + L2.landedOn + ', no other fault';
+}
 function knownRed(b, L2, R) {
   { const kc = knownCubRoll(b, L2); if (kc) return kc; }
+  { const kf = knownCubFlapless(b, L2, R); if (kf) return kf; }
   // G3077 (TORQUE-RETUNE-66): ...AND THE USER'S CUB, THE SAME WATER. With its roll-out straight on 02/20 again (G3075's loop gone:
   // 131 m, 0.1 m off the centreline) the Cub stops on the strip, and its propeller meets the same cover-grid water on the old
   // concrete in the last metres (t 1024 of the leg flown alone, 3060 in the tour) - ISLAND-TOUR G1971's, the C172's finding:
@@ -246,6 +264,7 @@ if (!STRIPS) {
     // G1970 (ISLAND-TOUR-2): THE GAME'S FLIGHT - TOUR-REAL (G2065) flew this tour in the game and node's was not it (a calm
     // day, the file's 45 L, a pilot with no shakedown): the worker's host, the game's day ticked, the load door's aeroplane
     const R = TR.flyTour(C, TW.W, def, order, { game: {}, log: SHOW ? (L2 => console.log(TR.fmtLeg(L2))) : null });
+    R.flapless = !!(def.params.gen && def.params.gen.landsFlapless);   // (G2810: the known red's own condition)
     console.log('  ' + B.name + ': ' + order.join(' > ') + ' - ' + (R.done ? 'DONE' : 'NOT DONE') + ', ' + R.legs.length + ' legs, fuel left ' + R.fuel + ' L (' + ((Date.now() - t0) / 1000).toFixed(0) + ' s)');
     check(def.params.damage === true && R.game && R.game.damage === true, '5 ' + B.name + ': the damage is ON');
     // the flight is the game's: DAY_CLOCK's day (the 8 kt breeze), the garage's shakedown behind the pilot, the aeroplane the

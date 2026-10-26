@@ -99421,3 +99421,84 @@ branch touched against master = 205 gates; run three at a time with `--jobs=1`, 
   to 55 % for it). Draw them as parts next (then they bill again), or keep a share of Raymer's lump for them meanwhile?
 - **The crown / rod beacon** is billed and on the bus, but it is a fitting, not a glowing lamp: make it the light layer's
   lamp next?
+
+## G2810 - THE FIVE REDS OF G2809, EXPLAINED WITH NUMBERS ON BOTH TREES, THEN RE-BASELINED BY NAME (2026-10-26, AVIONICS-GPS for the user, cloud - node + headless only; branch claude/avionics-gps-2)
+
+The user, 26 Oct: "Accept the new behaviour for all five, re-baseline them, but for the lineup and route, we have to
+understand what happens. If we do understand, and it is explainable through more accurate weight accounting or physics,
+OK ... Why 5 cm difference? Why the diversion?"
+
+Each red was measured on this branch and on a clean origin/master worktree (61e93cb15), from the same probe. Three were
+weight and physics. Two were not what G2808-G2809's entry said they were: LINEUP was a flaw in the gate's own reference,
+and DMGSCAR was one gate sampling flaw and one core box bug. Both are fixed, not frozen.
+
+**LINEUP (Jolene w4, "why 5 cm"): THE GATE'S REFERENCE WAS A MOMENT IN A KICK, NOT AN AEROPLANE AT REST.**
+- w4 has no stand, so the gate's reference pose ("the CG's height over the ground, settled where it starts") was the spawn
+  identity alone (`placeAtAerodrome`): the wheels at the record's `elev`, not on the ground. w4 slopes ~6.6 % along the
+  heading, so the tailwheel starts **0.326 m inside the uphill ground**, on both trees.
+- The solver flings the tail out. Master's default Cub kicks to 15.5 deg nose-down and is still falling back when the 3 s
+  sample reads its height (-5.2 cm). This branch's (CG 9 mm further forward, the bill) goes past the tipping point and
+  rests at 43 deg nose-down, the tail 3.8 m up (-9.9 cm). The skip itself (`placeAtLineup`, seated) was right on both.
+- The 5 cm was the difference between two snapshots of a nose-over, not a weight effect. G2810 seats the no-stand
+  reference (`seatOnGround`, as the stand starts and the skip are; `tools/_lineup_check.js` startPose). w4 then reads
+  **+0.1 cm on both trees**, and `GATE LINEUP: PASS` on both.
+- **Not fixed here (a follow-up):** the game's own no-stand start (`app.js` applyRoute's `else placeAtAerodrome`, and
+  `sim_host.js`'s) is unseated in the same way. If a player can start a flight on w4, the Cub kicks (master) or noses over
+  (this branch) at the spawn. Seat it, re-checking the gates' spawn datums (39c says they are untouched by design).
+
+**TOUR (the user's Cub, tw_ski > mn_strip, "why the diversion"): THE BILL TIPS A KNIFE-EDGE RULE AND THE CUB LANDS FLAPLESS.**
+- The divert is not the 5 kg. Every landing of the tour is faster on this branch (HOME > w3 touches at 18.5 m/s against
+  13.7; w3 > tw_ski at 17.9 against 13.4). The pilot's sheet says why: **master Vs0 13.45 m/s (flaps), this branch Vs0 = Vs
+  = 15.81 (no flaps)**; Vref 17.5 -> 20.6, VAppr 19.5 -> 23.4.
+- G2034's trim budget (src/core/64_gen_build.js): a full-flap approach whose trim needs more than 0.1543 of nose-down
+  elevator is landed flapless. The Cub's full-flap trim: **master -0.1494** (inside by 0.005), **this branch -0.1548**
+  (past by 0.0005). G2034's own comment names this Cub as the borderline one.
+- What moved the trim: the CG went **5.9 mm aft** (x 0.7045 -> 0.7104 m). Taking each G2809 bill back off (the probe):
+  the lamps with their wiring and breakers +3.8 kg (the beacon and the white nav lamp at the tail) move it 4.2 mm, and the
+  flaps come back; the drawn cabin floor +1.3 kg moves it 1.5 mm. Seats, trim and controls do not move it.
+- At Copperhead Mine Street the faster final ends high twice ("unstabilised approach at 60 m: high 6 m on the slope",
+  attempts 1 and 2). The pilot then says "divert: twice round Copperhead Mine Street - diverting to strip 12" and lands and
+  stops on w7. Master flies the same leg with flaps, displacing its aim 122 m in over the obstacle, and lands.
+- Re-baselined as a **named known red** (`knownCubFlapless`, tools/_tour_check.js). It is known only while it is exactly
+  that: the build lands flapless, two go-arounds then 'divert' said, the only fault 'diverted', landed and stopped on the
+  strip diverted to, no break, no crash. The tour then ends there (3 of 6 legs; master ended at 5 of 6, at the known water
+  red on 02/20).
+- **A follow-up worth having:** the rule is flaps or nothing, so 0.0005 of trim costs 3 m/s of approach. The largest
+  landing flap setting that fits the budget would keep most of it; then retire the known red.
+
+**ROUTE (the Jodel's WP1): WEIGHT, AS PLANNED.** Master 464.18 kg, climbMax 2.545 m/s, so the plan's limit
+(ROUTE_CLIMB_K 0.70 of it) is 1.781. This branch weighs 477.49 kg (+13.3, two chairs and two stick stations billed as
+drawn), climbMax 2.415, limit 1.691. The gate route's WP1 asks 1.70, so the planner now warns, as it should for a heavier
+aeroplane. Re-baselined: `PROFILE_KNOWN.jodel` (tools/_route_check.js) allows exactly that warning, inside 3 % of the
+limit. Every other check of the flight still judges it, the route flown as drawn. (The Cub: limit 2.192 -> 2.156, no
+warning.)
+
+**TAKEOFF (the v7 ultralight fixture, the stand taxi's stab roll): PHYSICS OF THE MASS NOW CARRIED.** The fixture
+(the validated 'twin floatplane' is the same file on floats) draws two beacons, 0.45 kg each, at the fin and clamped on
+the rod: point masses at the end of the boom the roll is measured across. On the 2 m/s cross (-z) taxi: no beacon 2.44
+deg, one 2.69, two 2.77 (calm 2.60; master 2.36 / 2.42). The bound goes 2.5 -> **2.8 deg**, still under the 3.09 the user
+complained about.
+
+**DMGSCAR (2 of 105): NOT RE-BASELINED - ONE GATE SAMPLING FLAW, ONE CORE BUG, BOTH FIXED.** These are invariants, not
+frozen numbers. The rows now say what they find (vertex, width, the nearest contact; what was kept, where).
+- **Row 2**, the metal Cessna's 30 m/s centreline trunk: a gouge's first vertex 0.84 m from the nearest recorded contact
+  (allowed w/2 + 0.5 = 0.66). The core records touches at the solver's substeps (1/1440 s); the gate's reader samples
+  contacts at frame ends. Node 35, a part flung at ~60 m/s (0.99 m in a frame), is 3.2 cm up at the end of frame t = 1.383
+  and on the ground at t = 1.4. Its path between them passes **5 mm** from the gouge's start, 15 % into the frame. The scar
+  is right; the reader is blind mid-frame. The lib now keeps each contact's way in (`paths`: the node's frame-to-frame path
+  ending on the contact), and "under the contacts" accepts it.
+- **Row 6**, the user's Cub 2.5 m out, the grass cull: a debris and two shrubs kept inside the sweep. `scarSweepIn` takes
+  each sweep leg at its wider end; `scarBoxes` (per primitive) boxed that, but the whole-footprint `scarBox(prims, true)`
+  boxed each point at its own width. This sweep's widths jump 4.21 -> 10.62 m between neighbours, so the cover ring's box
+  stopped at x 43.69 and the shrubs at 43.84-43.91 were never tested. **Fixed in src/core/34_scar.js** (a sweep's point at
+  the widest of its legs). In the game, a crash's sweep now takes every shrub and debris inside it, not only those
+  inside an under-sized box.
+
+**Gates, this round** (`node tools/run_gates.js --only=<ID> --no-build`, run alone after `node tools/build.js`):
+`GATE LINEUP: PASS`, `GATE TAKEOFF: PASS`, `GATE ROUTE: PASS` (3 / 3 shards; and `--only fly:jodel` alone: "fly:jodel:
+KNOWN (G2810): WP1 climbs 1.7 m/s, plan limit +1.7 | the plan limit 1.691 m/s, WP vs 1.71 ..." then `GATE ROUTE: PASS`),
+`GATE DMGSCAR: PASS` (105 of 105), and for the scar box change (the files that read the cover ring or scarBox):
+`GATE COVER: PASS`, `GATE STAND: PASS`, `GATE FADES: PASS`, `GATE MEDIA: PASS`, `GATE PAVEMENT: PASS`, `GATE BUILT: PASS`.
+TOUR's verdict comes from the merge run (its four shards need the machine to themselves; see the READY note).
+The probes: `tools/avionics_bill_table.js` for the bill; the pilot sheet (`machineSheet` on `_tour_lib.defOf(cub)`) and
+`def.params.gen.landsFlapless` for the flaps, on both trees.
