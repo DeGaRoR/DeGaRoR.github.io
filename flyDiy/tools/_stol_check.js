@@ -667,6 +667,46 @@ if (!BENCH_ONLY) {
 }
 
 // =========================================================================
+// 8. THE SHOWCASE STOL CUB (G2829, the user 26 Oct: "Build a STOL cub, and do to it the modifications you need to
+// demonstrate real STOL capabilities. Give it a new paintjob too, and large wheels"): tools/fixtures/
+// stol_cub_showcase.json - the user's Cub with the kit (full-span fixed slot, VGs, drooped tips, ailerons drooped
+// 10 deg), a Rotax 915 iS (141 hp for the A-65's 65, 4 kg heavier: the CG stays), 31-inch tundra tyres (s1R 0.39),
+// a 45 % elevator on a 20 % wider stab (the slatted wing's stall attitude is past what the stock elevator holds -
+// section 6's ctl.flare - and a bigger tail is what the real STOL Cubs carry) and a new paint job. Every change is
+// an editor row in spec.cage, JOINED here through the game's load door. Read on the design numbers (the circuits
+// are in reports/evidence/STOL-WING-2/showcase_flown.log: lift-off 50.6 m against the stock 96.1).
+if (!BENCH_ONLY) {
+  console.log('8. THE SHOWCASE STOL CUB (tools/fixtures/stol_cub_showcase.json)');
+  const SHOW = JSON.parse(fs.readFileSync(path.join(T, 'fixtures', 'stol_cub_showcase.json'), 'utf8'));
+  const J = require(path.join(T, '_load_build.js')).gameSpec(SHOW);
+  const stockB = FIX.builds && FIX.builds.cub;
+  ok(J.engines[0].type === 'rotax915_carbon' && Math.abs(J.gear.wheelR - 0.39) < 0.02 && J.wings[0].tip === 'drooped' &&
+     J.wings[0].stol && J.wings[0].stol.slat === 'slot' && J.wings[0].stol.vg && J.wings[0].stol.droop > 0,
+     `the editor's rows join to the showcase: ${J.engines[0].type}, wheel radius ${J.gear.wheelR.toFixed(3)} m, ${JSON.stringify(J.wings[0].stol)}, tip ${J.wings[0].tip}`);
+  if (!stockB) ok(false, 'the fixture holds the stock Cub (builds.cub)');
+  else {
+    const dS = C.buildGen(clone(stockB.spec)), dK = C.buildGen(clone(J));
+    const gS = dS.params.gen, gK = dK.params.gen;
+    const mS = C.machineSheet(dS, { shakedown: C.genShakedown(dS, { corners: true }) });
+    const shK = C.genShakedown(dK, { corners: true }), mK = C.machineSheet(dK, { shakedown: shK });
+    const kmh = v => (v * 3.6).toFixed(1);
+    ok(J.controls.elevator.chord > 1.3 * stockB.spec.controls.elevator.chord && J.tail.hSpan > 1.15 * stockB.spec.tail.hSpan,
+       `the bigger tail: elevator chord ${J.controls.elevator.chord.toFixed(2)} (stock ${stockB.spec.controls.elevator.chord.toFixed(2)}), stab span ${J.tail.hSpan.toFixed(2)} m (stock ${stockB.spec.tail.hSpan.toFixed(2)})`);
+    ok(dK.params.ap.TORun <= 0.5 * dS.params.ap.TORun, `the take-off run halved and more: plaque ${dK.params.ap.TORun} m (stock ${dS.params.ap.TORun})`);
+    ok(gK.VsMeas <= 0.9 * gS.VsMeas, `the clean stall ${kmh(gK.VsMeas)} km/h (stock ${kmh(gS.VsMeas)})`);
+    // genStolHeld writes no key when the elevator reaches the slatted wing's whole range (section 6's kit gets one)
+    ok(!gK.landsFlapless && gK.VsFlapAP === undefined && mK.Vs0 === gK.VsFlap,
+       `the elevator holds the slatted stall in the flare: no held-speed key, the ladder's Vs0 is the wing's ${kmh(gK.VsFlap)} km/h, flaps down`);
+    ok(mK.Vref <= 0.92 * mS.Vref, `a slower approach: Vref ${kmh(mK.Vref)} km/h (stock ${kmh(mS.Vref)})`);
+    const L = dK.parts.ledger;
+    ok(L.stol && L.stol.mass > 5, `the kit is billed: ${L.stol && L.stol.mass.toFixed(1)} kg, ${L.stol && Math.round(L.stol.cost)}`);
+    const dc = (shK.design && shK.design.rows) || [];
+    ok(shK.design && shK.design.verdict !== 'fail' && !dc.some(r => r.level === 'fail'),
+       `the design check: ${shK.design && shK.design.verdict} (${dc.filter(r => r.level !== 'pass').map(r => r.id + ' ' + r.value).join(', ')})`);
+  }
+}
+
+// =========================================================================
 if (SELF) {
   console.log('SELFTEST (each break must be caught)');
   const t = [];

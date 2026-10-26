@@ -109,7 +109,7 @@ const GATES = [
   // G2821-G2824 (STOL-WING-2): the six validated builds (as the game ships and loads them) benched to master's bits too (the fixture is
   // tools/_stol_samebits.js --capture's, on an untouched master); each device against its published range, the
   // design check / Vref / damage on the STOL wing, the user's Cub with a STOL kit FLOWN (one circuit, ~2 min)
-  { id: 'STOL', file: '_stol_check.js', argv: ['--selftest'], tier: 'core', wall: 330 },
+  { id: 'STOL', file: '_stol_check.js', argv: ['--selftest'], tier: 'core', wall: 480 },
   { id: 'STRESS', file: 'test_stress.js', tier: 'core' },
   // G384: under core, GEN builds every configuration but flies four of the
   // sixteen circuits (test_gen.js CORE_FLY); --all flies them all
