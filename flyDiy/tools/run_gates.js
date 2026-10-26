@@ -626,6 +626,9 @@ const GATES = [
   // fingerprint ignores paint/finish/meta and nothing else) and wears its
   // stickers (one roundel per test, page 6, the seventh decal slot).
   { id: 'BENCH', file: '_bench_check.js', tier: 'core', wall: 90 },
+  // G3780 CERT-RULE (the user 26 Oct: "Everything should be as fast as the bench check and the altitude check"): no
+  // watched test left, and the bench check, the density altitude and the computed wing loading each under a ceiling
+  { id: 'BENCHTIME', file: '_benchtime_check.js', tier: 'core', wall: 120 },
   // G3450 P1 CG-COLOURS: the garage's CG / neutral-point indicators wear one band (red / orange / green from
   // genMarginBand, 0 / 5 % / 40 %), '!' on red and orange, a tooltip with the reasons on a hover and a tap.
   { id: 'CGBAND', file: '_cgband_check.js', tier: 'core', wall: 30 },
