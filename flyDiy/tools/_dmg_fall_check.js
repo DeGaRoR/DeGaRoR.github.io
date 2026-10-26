@@ -10,7 +10,7 @@
 //      the pieces are still (DMG.rest, or past WATCH_PIECES with nothing falling, or past WATCH_FALL), plus WATCH_HOLD.
 //      At the freeze no piece off the core (3 nodes or more, the solver's own pieces: pieceOf) has its lowest point
 //      more than 0.3 m over the ground. Cases: 30 m/s into a trunk on the centreline and 2.5 m out, the 6 m/s drop,
-//      and a break-up in the air (a flown pull to nz 9 at 58 m/s, 400 m up, then the controls let go)
+//      and a break-up from the air (a flown pull to nz 9 at 58 m/s, 400 m up, then the nose down under power into the ground)
 //   2. ONE RULE: app.js's watch reads D.rest and D.fall with the constants this gate plays; sim_host.js sends them under
 //      the physics worker; the HUD's word strips a break-up's own 'broke up:' (no "BROKE UP: broke up:")
 //   3. A WHOLE FLIGHT: the circuit on the Cub never crashes, DMG.rest stays null (the rest is a crash's only)
@@ -56,12 +56,17 @@ if (argv[0] === '--part') {
   let sim;
   if (AIR) {
     const r = L.pull(key, { nz: 9, V: 58, hold: 0.3, secs: 4, onFrame });
-    sim = L.lastRun.sim; out.nz = +r.nzMax.toFixed(2); sim.ctl.de = 0; sim.ctl.thr = 0;
-    for (let f = 0; f < 60 * (WATCH_FALL + WATCH_HOLD + 10) && !done && Number.isFinite(sim.p[1]); f++) { sim.step(1 / 60); onFrame(sim); }
+    // the Cub and the Jodel hold their wing through the pull (nz 6.5 / 5.7): then the nose goes down under power, into
+    // the ground from 400 m - the high-speed break-up that throws pieces up (the metal Cessna's, 20:05 Mon 26 Oct: a
+    // 17.7 kg piece 0.4-2 m up at 13 m/s at the old freeze); a nose-down input is the pull's sense reversed (pull()'s sgn -1)
+    sim = L.lastRun.sim; out.nz = +r.nzMax.toFixed(2); sim.ctl.de = sim.damage().crashed ? 0 : 0.5; sim.ctl.thr = sim.damage().crashed ? 0 : 1;
+    for (let f = 0; f < 60 * (WATCH_FALL + WATCH_HOLD + 30) && !done && Number.isFinite(sim.p[1]); f++) { if (sim.damage().crashed) { sim.ctl.de = 0; sim.ctl.thr = 0; } sim.step(1 / 60); onFrame(sim); }
   } else {
     const secs = WATCH_PIECES + WATCH_HOLD + 12;
     const c = Object.assign({}, c0, { run: (k, o) => c0.run(k, Object.assign(o, { secs })) });
     sim = S.runCase(key, c, { onFrame }).sim || L.lastRun.sim;
+    // a case's run can end before the watch does (drop6 is 300 frames): the game's clock goes on, so the sim does too
+    for (let f = 0; f < 60 * (WATCH_FALL + WATCH_HOLD + 10) && !done && Number.isFinite(sim.p[1]); f++) { sim.step(1 / 60); onFrame(sim); }
   }
   const D = sim.damage(); out.crashed = D.crashed; out.reason = D.reason; out.brokeUp = !!D.brokeUp; out.broken = (D.broken || []).length; out.finite = L.finite(sim);
   if (!done && out.over != null) out.pcs = read(sim);   // (the run ended before the freeze: read at its end, flagged)
