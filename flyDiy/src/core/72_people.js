@@ -22,12 +22,34 @@
 // THE PORTRAITS (G3615): media/people/<id>_<px>.webp, px in PEOPLE_FACE_PX, cut from the user's originals
 // (assets/chars/people, never written) by tools/portrait_prep.py: premultiplied resizes and a clean edge (no red
 // specks round the hair - the user, 25 Oct: "unacceptable"). Fetched only when shown: never at boot, never precached.
+// THE BACKGROUNDS (G3620, the user 26 Oct: "here are backgrounds for the characters. They're fit for a type of character
+// in the game ... build a hard mapping table if we have fixed roles for everyone ... Small portrait heads keep their
+// transparency, only when displayed in large format do they get their background"): ten golden-hour scenes, ONE per
+// person (PEOPLE_BG, a hard table; the four hirable pilots never share one). A large display (the hire cards, the map's
+// big contract portrait) LAYERS the untouched transparent head over peopleBg(id) - never baked into the head, so every
+// small head (map rows, chips, Tim's band) stays transparent. media/people/<the user's file name>_<px>.webp, cut from the user's
+// originals by tools/portrait_prep.py bgs, fetched only when a large display is drawn.
 // Pure data + pure helpers: no DOM, no storage, no clock, no random (the pool takes a seed).
 // ===========================================================================
 const PEOPLE_V = 1;
 const PEOPLE_ROLES = ['reserved', 'client', 'pilot', 'passenger'];
 const PEOPLE_FACE_PX = [128, 256, 512];
 const PEOPLE_FACE_DIR = 'media/people/';
+const PEOPLE_BG_PX = 512;   // the backgrounds' one cut: a hire card is ~230-300 CSS px wide (512 = sharp at 2x)
+// the scenes, keyed by the user's own file names (portrait-backgrounds-2026-10-26/<name>.webp), each with WHOM it is for
+// (the character type it fits) and who wears it (PEOPLE_BG below is the hard table; GATE PILOTS holds the two agreeing)
+const PEOPLE_BG_SCENES = {
+  '01_apron_workshop_barrels':     { for: 'the mechanic who flies',          who: ['brian'] },
+  '02_lodge_deck':                 { for: 'the resort, its guests, off duty', who: ['martha', 'sophie', 'elizabeth'] },
+  '03_bush_hangar_map_floatplane': { for: 'the bush pilot',                   who: ['megan'] },
+  '04_cabin_porch_garden':         { for: 'the locals, the homesteaders',     who: ['leonard', 'jody'] },
+  '05_fish_dock_pier_boats':       { for: 'the dock and mine workers',        who: ['pete', 'james'] },
+  '06_glacier_viewpoint':          { for: 'the surveyors, the sightseers',    who: ['kate', 'david'] },
+  '07_tower_paved_apron':          { for: 'the professionals, charter clients', who: ['stig', 'adam'] },
+  '08_club_hangar_windsock':       { for: 'the new pilot, the flying club',   who: ['remy'] },
+  '09_open_workshop_windsock':     { for: 'the shed: your partner',           who: ['tim'] },
+  '10_rustic_hangar_cliff':        { for: 'the old hand, rough and seasoned', who: ['bryce'] },
+};
 const GAME_PEOPLE = {
   // ---- reserved: the story's own ----
   stig:      { id: 'stig',      name: 'Stig',      file: 'Stig',      char: 'ch20', role: 'reserved', why: 'the test pilot' },
@@ -62,6 +84,25 @@ const GAME_PEOPLE = {
   jody:      { id: 'jody',      name: 'Jody',      file: 'Jody',      char: 'jody', role: 'passenger' },
 };
 const PEOPLE_IDS = Object.keys(GAME_PEOPLE);
+// G3620 THE BACKGROUND OF EACH PERSON (fixed, by their role in the game; GATE PILOTS: everyone has one, the pilots differ)
+const PEOPLE_BG = {
+  stig: '07_tower_paved_apron',                    // the test pilot: the professional field
+  sophie: '02_lodge_deck',                         // your girlfriend: off duty, on the deck
+  tim: '09_open_workshop_windsock',                // your friend and partner: the shed by the strip
+  leonard: '04_cabin_porch_garden',                // the field's client: the local, his porch
+  pete: '05_fish_dock_pier_boats',                 // the mine & dock: the fish dock
+  martha: '02_lodge_deck',                         // the resort: the lodge deck
+  kate: '06_glacier_viewpoint',                    // the survey: the glacier viewpoint
+  adam: '07_tower_paved_apron',                    // the charter clients: met at the airport
+  brian: '01_apron_workshop_barrels',              // weekend pilot who fixes engines: the open workshop
+  bryce: '10_rustic_hangar_cliff',                 // experienced, rough hands: the rustic hangar on the cliff
+  remy: '08_club_hangar_windsock',                 // a fresh licence: the club's tidy hangar
+  megan: '03_bush_hangar_map_floatplane',          // the bush pilot: the bush hangar, the map, the floatplane
+  david: '06_glacier_viewpoint',                   // passengers: the sightseers and the locals
+  elizabeth: '02_lodge_deck',
+  james: '05_fish_dock_pier_boats',
+  jody: '04_cabin_porch_garden',
+};
 // the narrative pack's pilot ids -> the person wearing each (an older save's roster, the pack's import)
 const PEOPLE_FROM_PACK = PEOPLE_IDS.filter(id => GAME_PEOPLE[id].from).reduce((o, id) => (o[GAME_PEOPLE[id].from] = id, o), {});
 
@@ -77,6 +118,13 @@ function peopleFace(id, px) {
   const cut = PEOPLE_FACE_PX.find(p => p >= want) || PEOPLE_FACE_PX[PEOPLE_FACE_PX.length - 1], k = id + '_' + cut;
   const F = typeof PEOPLE_FACES !== 'undefined' ? PEOPLE_FACES : {};   // 72_people_faces.js: the content-named cut
   return F[k] ? PEOPLE_FACE_DIR + F[k] : null;
+}
+// G3620 the background behind `id`'s head in a LARGE display (a hire card, the big contract portrait): the path of its
+// one cut, or null (no such person, no scene, or a cut tools/portrait_prep.py bgs has not made). Small heads never ask.
+function peopleBg(id) {
+  const sc = PEOPLE_BG[id], B = typeof PEOPLE_BGS !== 'undefined' ? PEOPLE_BGS : {};   // 72_people_bgs.js: content-named
+  const k = sc && PEOPLE_BG_SCENES[sc] ? sc + '_' + PEOPLE_BG_PX : null;
+  return k && B[k] ? PEOPLE_FACE_DIR + B[k] : null;
 }
 // n people of a role, drawn without repeats by a seed (the same seed, the same people, in the same order); fewer when
 // the role holds fewer. A string or number seed; the hash is FNV-1a, the draw a xorshift - no Math.random.

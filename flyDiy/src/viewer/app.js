@@ -8711,7 +8711,10 @@
     const card = id => {
       const c = pilotsCard(d, id, world);
       const short = d.mode === 'career' ? c.signOn - wallet : -1;
-      return '<div class="hrCard">' + (c.portrait ? '<img src="' + hireEsc(c.portrait) + '" alt="' + hireEsc(c.name) + '" loading="lazy" decoding="async">' : '') +
+      // G3620: the head over its background (the user 26 Oct: "only when displayed in large format do they get their
+      // background") - the <img>'s CSS background, behind the transparent head; the head file is never touched
+      const bg = c.bg ? ' style="background:url(' + hireEsc(c.bg) + ') center/cover"' : '';   // (a media/people path: no space, no paren)
+      return '<div class="hrCard">' + (c.portrait ? '<img src="' + hireEsc(c.portrait) + '"' + bg + ' alt="' + hireEsc(c.name) + '" loading="lazy" decoding="async">' : '') +
         '<div><div class="hrNm">' + hireEsc(c.name) + '</div><div class="hrTag">' + hireEsc(c.tagline) + '</div></div>' +
         '<div class="hrLvl">' + hireEsc(c.level) + '</div>' +
         '<div class="hrChips">' + c.skills.map(k => '<span>' + hireEsc(k) + '</span>').join('') + '</div>' +

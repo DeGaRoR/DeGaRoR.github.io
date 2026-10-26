@@ -204,6 +204,19 @@ function run(mut) {
     for (const t of X.traits) ok(!!M.PILOTS_TRAITS[t], r.id + ': trait ' + t + ' is a hook');
     if (X.grow) ok(!!M.PILOTS_GROW[X.grow.rate] && !!M.PILOT_PROFILES[X.grow.ceiling], r.id + ': the growth names a rate and a profile');
   }
+  // ==== G3620 THE BACKGROUNDS (the user 26 Oct: "a hard mapping table ... fixed roles for everyone") ====
+  { const SC = M.PEOPLE_BG_SCENES, BG = M.PEOPLE_BG;
+    for (const id of M.PEOPLE_IDS) ok(!!SC[BG[id]], id + ': one background, a scene of the user\'s (' + BG[id] + ')');
+    for (const sc of Object.keys(SC)) {
+      ok(/^\d\d_\w+$/.test(sc) && typeof SC[sc].for === 'string', sc + ': the user\'s own file name, and whom it is for');
+      ok(eq(SC[sc].who.slice().sort(), M.PEOPLE_IDS.filter(id => BG[id] === sc).sort()), sc + ': its `who` is exactly the people the table gives it');
+      const f = M.PEOPLE_BGS[sc + '_' + M.PEOPLE_BG_PX];
+      ok(!!f && fs.existsSync(path.join(ROOT, 'media', 'people', f)), sc + ': its ' + M.PEOPLE_BG_PX + ' px cut ships (' + f + ')');
+    }
+    ok(new Set(ORDER.map(id => BG[id])).size === ORDER.length, 'the hirable pilots never share a background (' + ORDER.map(id => BG[id]) + ')');
+    for (const id of ORDER) ok(M.pilotsCard(M.careerNew({ id: 'bg', seed: 'dev' }), id, null).bg === M.peopleBg(id) && !!M.peopleBg(id),
+      id + ': the hire card layers its background (large format); the head stays the transparent cut');
+    ok(M.peopleBg('nobody') === null, 'no person, no background'); }
   ok(P.reserved && eq(Object.keys(M.PILOTS_RESERVED).sort(), ['ch02', 'ch20']), 'ch20 (the test pilot) and ch02 (kept) are the reserved bodies, as the pack says');
   ok(M.PILOTS_COMPANION === WEAR.kit && R[WEAR.kit].companion && ORDER.filter(id => R[id].companion).length === 1, 'one companion: the pack\'s kit, worn by ' + WEAR.kit + ' (until HIRE G3618)');
   lines.push('the pack: 4 pilots, bodies, the companion, ' + P.rows.reduce((a, r) => a + Object.keys(r.knobs).length, 0) + ' knobs, ' + P.rows.reduce((a, r) => a + r.phrases.length, 0) + ' trait phrases - the roster exactly');

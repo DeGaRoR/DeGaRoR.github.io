@@ -533,6 +533,7 @@ function pilotsCard(doc, id, world) {
   const initials = name.split(/\s+/).map(s => s[0] || '').join('').slice(0, 2).toUpperCase();
   return {
     id, who: R.who, name, initials, portrait: R.portrait || null, companion: !!R.companion,
+    bg: typeof peopleBg === 'function' ? peopleBg(id) : null,   // G3620: behind the head in a LARGE display only
     tagline: pilotsText('pilot.' + id + '.tagline'), bio: pilotsText('pilot.' + id + '.bio'), pitch: pilotsText('pilot.' + id + '.pitch'),
     fliesLike: (PILOTS_TEXT['pilot.' + id + '.flies'] && !PILOTS_TEXT['pilot.' + id + '.flies'].draft) ? pilotsText('pilot.' + id + '.flies') : pilotsFliesLike(G.flat),
     style: R.style,
