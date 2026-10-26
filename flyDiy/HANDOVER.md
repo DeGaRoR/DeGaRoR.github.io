@@ -99129,3 +99129,5 @@ Strict light gate RED (6), all in known classes; the loads are back inside their
 - metal fuseWidth busy 393: the bimodal 0 / ~400 ms rep (master's own L24b / L24c show the same).
 - world -> garage: cub round trip 2 at 2.02 s, floats at 5.29 s. The class red since L24c (2.99 / 3.55 there); HWCOV has the cause, the per-trip cacheKey churn of fragment 66e30961, and its Mon 12:45 slot names the owner.
 Pushed by the user's order of 25 Oct: land as soon as possible.
+
+G3430 (Mon 26 Oct 20:20 still, ASSETS): 30 of 76 lake-shore ferns stood BLACK. The shore band's nodes lie on the island's 10 m lake cells (code 1), and the cover ring took their tuft colour from that code - the lake's, black (the grass field already swaps a dry lake cell for the land code round it, G2572; the ring did not). Fix: a shore node on code 1 takes the colour of the nearest land code (6 then 12 m, eight ways) - the colour only; its code and mix are untouched. CODE ONLY (node --check): re-gate (COVER TREES FADES STAND + FRAMECOST with the control) and a re-still before the reeds go ready.

@@ -449,9 +449,15 @@ var COVER_RING = (() => {
           if (kind[k] && !mix[k]) mix[k] = 'lawn'; if (kind[k] && !ok[k] && ctx.okAt(x, z)) ok[k] = 1; }
         // THE FIELD'S COLOUR IS THE GROUND AS DRAWN (G2562): the splat's mean at the point (splat_ground meanAt, through
         // ctx.groundMeanAt) - except ON a grass pavement, which draws its own (cv.col: the class's set as graded)
+        // (G3430) A SHORE node on the lake's 10 m cells (code 1) takes the colour of the land round it, as the grass field's code
+        // does above (G2572): the lake code's colour is black, and 30 of 76 lake-shore ferns stood black in the Mon 20:20 still
+        let cdC = cd;
+        if (shore[k] && cd === 1 && ctx.codeAt) {
+          find2: for (const rr of [6, 12]) for (let a = 0; a < 8; a++) { const c2 = ctx.codeAt(x + Math.cos(a * 0.7854) * rr, z + Math.sin(a * 0.7854) * rr, r); if (c2 >= 2) { cdC = c2; break find2; } }
+        }
         let c;
         if (FIELD && S.colour && ctx.groundMeanAt) c = (cv && cv.col && (cv.surf || (cv.cls === 'grass' && cv.kill > 0.5))) ? cv.col : (cd >= 0 ? ctx.groundMeanAt(x, z, cd) : null) || imageryAt(x, z);
-        else c = (cv && cv.col) ? cv.col : (cd >= 0 ? colAt(x, z, cd) : null) || imageryAt(x, z);
+        else c = (cv && cv.col) ? cv.col : (cdC >= 0 ? colAt(x, z, cdC) : null) || imageryAt(x, z);
         if (c) { col[k * 3] = c[0]; col[k * 3 + 1] = c[1]; col[k * 3 + 2] = c[2]; } else { col[k * 3] = 0.3; col[k * 3 + 1] = 0.3; col[k * 3 + 2] = 0.15; }
       }
       const at = (x, z) => Math.round((z - z0) / SG) * N + Math.round((x - x0) / SG);
