@@ -70,7 +70,20 @@
   const REACH = 0.05;
   // (train 41: a covering record's incremental event - FABRIC's ties read across pieces - local / skipped as any (true), or
   // made whole at every event (false: the reference, by construction))
-  const OPT = { localCov: true };
+  const OPT = { localCov: true, looks: false };
+  // G3770 (DMG-LOOKS, ?dmglook=1: OPT.looks): THE PARTING RULE - where a broken frame member's drawn places part, by how it
+  // broke. Today every broken member is drawn split at exactly half its length (each place on its dominant end: t < 0.5
+  // against t > 0.5), its flat ends open; the census (futureDesigns/dmg-looks, study 10.1): 45-103 members a 30 m/s
+  // crash break with no strain of their own, released at a fitting or by a cluster's cut, and read 'taken apart'. A
+  // record's R.look (dmg_members.js plan(), the page's, at the event) gives each member a station:
+  //   s in [0, 1]   the places with t < s go with end a, the rest with end b (0: all with b - the member whole on b's
+  //                 side; 1: all with a). A release goes whole with the part that came off; a fold parts at its hinge
+  //                 (kt1); a tension, ragged or core break at a seeded station 0.3-0.7
+  //   -1            UNPARTED: a kink (the solver's floor holds its crushed length) on one piece - its places keep both
+  //                 ends' weights and its triangles stay: one piece, never split
+  //   NaN           no rule (today's)
+  // and R.look.hide[bi] - a member the member pool draws (dmg_members.js): its own triangles go (collapsed, as a break's)
+  const LOOK_NONE = NaN;
   const HELD = (() => { const F = typeof GEN_COVER !== 'undefined' && GEN_COVER.fabric ? GEN_COVER.fabric : { eu: 0.15, slack: (8 / 3) * 0.06 * 0.06 };
     return (1 + F.eu) * (1 + F.slack) * (1 + 0.15); })();
   const SHELL_TEAR = 0.05;    // G2047: a composite shell's crack (above)
@@ -249,16 +262,23 @@
       for (let q = 0; q < nP; q++) _pw[q] = 0;
       for (let k = 0; k < K; k++) { const w = ww[o + k]; if (w !== 0) _pw[pc[wi[o + k]]] += w; }
       let best = -Infinity; for (let q = 0; q < nP; q++) if (_pw[q] > best) { best = _pw[q]; P = q; } }
+    // (G3770: the parting rule - a broken member's place goes with the end its station gives it, or keeps both, unparted)
+    const L = R.look, m = L && R.mem ? R.mem[v] : -1, sP = m >= 0 ? L.part[m] : LOOK_NONE;
+    let side = -1, ua = -1, ub = -1;
+    if (sP === sP) { const bm = R.T.beams[m];
+      if (sP < 0) { ua = bm.a; ub = bm.b; }
+      else { side = sP === 0 ? bm.b : sP === 1 ? bm.a : R.mt[v] < sP ? bm.a : bm.b; if (pc) P = pc[side]; } }
     vp[v] = P;
     // its dominant node on that piece
     let d = wi[o], dw = -Infinity;
     for (let k = 0; k < K; k++) { const w = ww[o + k], i = wi[o + k]; if (w !== 0 && w > dw && (!pc || pc[i] === P)) { dw = w; d = i; } }
+    if (side >= 0) d = side;
     dom[v] = d;
     // 2. kept: on its piece, not across a broken member from its dominant node
     let s = 0, drop = false;
     for (let k = 0; k < K; k++) {
       const w = ww[o + k], i = wi[o + k];
-      const keep = w !== 0 && (!pc || pc[i] === P || (R.tp && tiedTo(R.tp, i, P))) && !BP.has(d, i);   // (G2040: or tied to P)
+      const keep = w !== 0 && (!pc || pc[i] === P || (R.tp && tiedTo(R.tp, i, P))) && (!BP.has(d, i) || (ua >= 0 && ((d === ua && i === ub) || (d === ub && i === ua))));   // (G2040: or tied to P; G3770: or its own unparted member)
       if (w !== 0 && !keep) drop = true;
       w2[o + k] = keep ? w : 0; s += keep ? w : 0;
     }
@@ -314,6 +334,8 @@
     // (and only while its binding is the one its last event read: a binding rewritten since - DMG-WALL's bindInherit /
     // wallSync bump R.dv - is re-made whole)
     const dvIn = R.dv | 0;
+    R.T = T;                                         // (G3770: the parting rule reads the members' ends)
+    const LK = R.look && R.mem ? R.look : null, lkNew = !!LK && R.evLook !== LK.v;   // (G3770: the look moved since this record's last event)
     // (G2040 x G1818, train 41: a COVERING's event also reads FABRIC's cover ties - which nodes are tied to which pieces
     // (prepV's keep), which tied pairs hold or tore (brokenPairs). Their nodes are touched too: a tie made, torn or whose
     // ends changed piece since the record's last event; no record of the last ties - the event is made whole)
@@ -323,6 +345,7 @@
       const M = R.nodeMask, pc = D.pc, n = M.length; let touched = false;
       if (tieT) for (let j = 0; j < tieT.length && !touched; j++) if (M[tieT[j]]) touched = true;
       if (R._bmBound && R._bmBound.length) touched = true;   // (train 41: places bound since the last event - their triangles)
+      if (lkNew) for (let j = 0; j < LK.nodes.length && !touched; j++) if (M[LK.nodes[j]]) touched = true;   // (G3770)
       for (let k = R.evBr; k < D.br.length && !touched; k++) { const b = T.beams[D.br[k]]; if (!b) continue;
         for (const i of [b.a, b.b]) { if (M[i]) { touched = true; break; }
           for (const bj of T.adj[i]) { const c = T.beams[bj]; if (M[c.a] || M[c.b]) { touched = true; break; } } if (touched) break; } }
@@ -390,6 +413,7 @@
         for (const i of [b.a, b.b]) { Tm[i] = 1; for (const bj of T.adj[i]) { const c = T.beams[bj]; Tm[c.a] = Tm[c.b] = 1; } } }
       for (let i = 0; i < n; i++) if ((pc ? pc[i] : 0) !== R.evPc[i]) Tm[i] = 1;
       if (tieT) for (let j = 0; j < tieT.length; j++) Tm[tieT[j]] = 1;   // (G2040: the ties' nodes)
+      if (lkNew) for (let j = 0; j < LK.nodes.length; j++) Tm[LK.nodes[j]] = 1;   // (G3770: the members whose station or pool slot moved)
       chg = R._chg && R._chg.length === nv ? R._chg : (R._chg = new Uint8Array(nv));
       chg.fill(0);
       if (R._evBound) for (const v of R._evBound) chg[v] = 1;
@@ -425,14 +449,18 @@
     const vx = x => { const o = at(x) * K; for (let k = 0; k < K; k++) if (w2[o + k] !== 0 && pc[wi[o + k]] !== vp[x]) return true; return false; };
     // (a vertex reaching across turns with its OWN piece's nodes only - onNodes: two pieces' turns blended swung its lever)
     if (!R.heldTorn) R.heldTorn = 0;
+    const MEM = LK ? R.mem : null;
     for (let t = 0; t < nt; t++) {
       const a = i0[t * 3], b = i0[t * 3 + 1], c = i0[t * 3 + 2];
       let gone = dead[t] >= 2;                   // torn by stretch earlier (or cut off the wall, G1858; gone with its covering, G1856): stays gone
       if (!gone && chg && !chg[a] && !chg[b] && !chg[c]) gone = dead[t] === 1;   // (G1818: untouched: as it stands)
       else if (!gone) {
         const span = vp[a] !== vp[b] || vp[b] !== vp[c];
-        gone = (span && !(cov && bridged(a, b) && bridged(b, c) && bridged(a, c))) ||
-               brk(dom[a], dom[b]) || brk(dom[b], dom[c]) || brk(dom[a], dom[c]);
+        // (G3770: a triangle of one member - its three places on it - is the pool's when the pool draws the member, and
+        // never spans its own member's break when that member is unparted)
+        const mm = MEM ? MEM[a] : -1, own = mm >= 0 && MEM[b] === mm && MEM[c] === mm;
+        gone = (own && LK.hide[mm] === 1) || (span && !(cov && bridged(a, b) && bridged(b, c) && bridged(a, c))) ||
+               (!(own && LK.part[mm] < 0) && (brk(dom[a], dom[b]) || brk(dom[b], dom[c]) || brk(dom[a], dom[c])));
         if (cov) held[t] = 0;
         dead[t] = gone ? 1 : 0;
         if (cov && !gone && (span || vx(a) || vx(b) || vx(c))) held[t] = 1;
@@ -487,7 +515,7 @@
       else for (let k = 0; k < wi.length; k++) M[wi[k]] = 1;
       const E = R.evPc && R.evPc.length === n ? R.evPc : (R.evPc = new Int32Array(n));
       for (let i = 0; i < n; i++) E[i] = pc ? pc[i] : 0;
-      R.evBr = D.br.length; R.evDv = R.dv | 0;
+      R.evBr = D.br.length; R.evDv = R.dv | 0; R.evLook = LK ? LK.v : null;
       // (G2040: the ties this event read - the next one's comparison)
       R.evTied = D.tied ? new Set(D.tied) : null; R.evTorn = D.torn ? new Set(D.torn) : null; }
     return true;
@@ -1122,18 +1150,21 @@
     for (const E of L) {
       const R = E.R, K = R.K, P = R.g.pos;
       const tubeOf = tubePieces(E, Sall, st);
+      // (G3770: OPT.looks - each tube place's member and its station on it, for the parting rule and the pool)
+      if (OPT.looks && E.cv.indexOf(INH.tube) >= 0) { R.mem = new Int32Array(R.nv).fill(-1); R.mt = new Float32Array(R.nv); } else { R.mem = null; R.mt = null; }
       for (const c of [INH.tube, INH.cover]) for (const v of placesOf(E, c)) {
         const x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2];
         if (++_n >= every) { _n = 0; yield st.places; } _acc.clear(); st.places++;
         if (c === INH.tube && tubeOf && tubeOf.has(v)) { const u = tubeOf.get(v);
           if (u.node >= 0) _acc.add(u.node, 1);
           else { const g = Sall[u.seg]; let t = ((x - g.ax) * g.ex + (y - g.ay) * g.ey + (z - g.az) * g.ez) / g.L2; t = t < 0 ? 0 : t > 1 ? 1 : t;
-            _acc.add(g.a, 1 - t); _acc.add(g.b, t); }
+            _acc.add(g.a, 1 - t); _acc.add(g.b, t); if (R.mem) { R.mem[v] = g.bi; R.mt[v] = t; } }
           st.tube++; }
         else if (c === INH.tube) { const m = nearSegs(Sall, x, y, z, 1);
           // (always its nearest member, however far: a drawn tube off the physics line - a lift strut drawn beside its member -
           // blended over the covering's frame was stretched metres when its piece went; counted past TUBE_R)
-          if (m) { const g = Sall[_mi[0]]; _acc.add(g.a, 1 - _mt[0]); _acc.add(g.b, _mt[0]); if (_md[0] < TUBE_R * TUBE_R) st.tube++; else st.tubeFar++; } }
+          if (m) { const g = Sall[_mi[0]]; _acc.add(g.a, 1 - _mt[0]); _acc.add(g.b, _mt[0]); if (_md[0] < TUBE_R * TUBE_R) st.tube++; else st.tubeFar++;
+            if (R.mem && _md[0] < TUBE_R * TUBE_R) { R.mem[v] = g.bi; R.mt[v] = _mt[0]; } } }
         else { coverInto(_acc, S, x, y, z); st.cover++; }
         if (_acc.n && _acc.put(R.wi, R.ww, v * K, K)) st.over8++;
       }
@@ -1190,7 +1221,8 @@
     for (const E of L) { const R = E.R, K = R.K, rp = R.rep, cv = E.cv;
       for (let v = 0; v < R.nv; v++) { const u = rp ? rp[v] : v;
         if (cv[u] === INH.keep) { st.keep++; continue; }
-        if (u !== v) for (let k = 0; k < K; k++) { R.wi[v * K + k] = R.wi[u * K + k]; R.ww[v * K + k] = R.ww[u * K + k]; }
+        if (u !== v) { for (let k = 0; k < K; k++) { R.wi[v * K + k] = R.wi[u * K + k]; R.ww[v * K + k] = R.ww[u * K + k]; }
+          if (R.mem) { R.mem[v] = R.mem[u]; R.mt[v] = R.mt[u]; } }   // (G3770)
         R.g.bound[v] = 1; }
       if (R.pending) { const P2 = Array.from(R.pending).filter(v => !R.g.bound[v]); R.pending = P2.length ? Int32Array.from(P2) : null; }
       R.dv = (R.dv || 0) + 1; R.dirtyPl = null; }

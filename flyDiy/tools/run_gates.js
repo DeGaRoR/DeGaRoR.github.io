@@ -367,6 +367,10 @@ const GATES = [
   // (out past 1 mm in at most 1 % of the place-frames), no compact part triangle past 1 %, on the validated builds' crashes
   // with the binding inherited (the old binding beside it for the report). Three builds at once
   { id: 'DMGWALL', file: '_dmg_wall_check.js', tier: 'core', weight: 3, wall: 1200 },   // (G2354: the 30 m/s rows' ensembles)
+  // G3770-G3773 (DMG-LOOKS, ?dmglook=1): the frame members by material - off = master's skin bytes, the parting rule
+  // (released members whole, unparted kinks), the member pool's plan and its pose (the vertex shader's JS mirror) on the
+  // validated land builds' crashes. Three builds at once
+  { id: 'DMGLOOK', file: '_dmg_look_check.js', tier: 'core', weight: 3, wall: 900 },
   { id: 'DMGHEAL', file: '_dmg_heal_check.js', tier: 'core', weight: 4, wall: 300 },   // G1859.8 (DMG-WALL): a wreck's tears never reach the next flight (node page)
   // G1886 (DMG-DAMP): the deformation damper takes deformation, not rotation - in vacuum the five validated builds spun
   // about roll, pitch and yaw keep L about the CG (<= 1e-3 over 10 s, the damper's own share <= 1e-5), the pre-G1885

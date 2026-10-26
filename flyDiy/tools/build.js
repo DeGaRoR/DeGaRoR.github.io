@@ -649,6 +649,8 @@ const MANIFEST = {
               'skin_break.js',
               // G1818 (DMG-SKINGPU): the wreck's skin ridden on the GPU (window.SKIN_GPU; app.js brkGpu - nothing at load)
               'skin_gpu.js',
+              // G3770 (DMG-LOOKS): the wreck's frame members by material - the parting rule's plan and the member pool (window.DMG_MEMBERS; ?dmglook=1)
+              'dmg_members.js',
               // G1860-G1863 (DMG-D4b): the wreck's non-member parts - debris, the prop strike, the cockpit rule (window.WRECK_DEBRIS, pure)
               'wreck_debris.js',
               'world_boot.js', 'app.js',
