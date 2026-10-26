@@ -8791,300 +8791,159 @@ function cageShoulder(m, S) {
   return withPanel(out);
 }
 
-// THE NOSE DECK AS THE EYE SEES IT (G3710, COWL-RES; the user, 25 Oct: "a
-// higher resolution subsurf for the nose and cowl in interior view, matching
-// the resolution of the dashboard ... the top arch of the cowl and nose ...
-// do not hold up. The Cessna is the worst example"). With `front rings` 0 the
-// deck from the windscreen base to the firewall is ONE control quad a side,
-// so level 2 leaves it four facets of ~11 cm along and across, a metre from
-// the pilot's eye, where the dash beside it is several times finer.
+// THE EYE'S THIRD LEVEL (G3713, COWL-RES; the user, 26 Oct: "the plane is built from the low poly cage, with 2
+// levels of subdivision ... a lot of operations work further on that base subdivided mesh ... Don't try to subdivide
+// the finished model ... It's in the construction of the plane, we need 3 levels rather than 2"). The polygonality
+// they marked from the C172's seat is the windscreen base against the deck: the panes are faces of the subdivided
+// sheet, so that edge is the level-2 polygon, and nothing after the sill / cut / knife / canopy can round it.
 //
-// WHY NOT THE CAGE (G468, item 73, tried and withdrawn): a ring in the nose
-// run is a different cage - GATE CAGEFIT holds the generator to the template
-// ring for ring - and the finer skin moves the measured rows (gear.twY by
-// 0.5 mm), which flips every certificate's fingerprint. So this is a pass on
-// the DISPLAYED mesh only: the sheet the measurements, the fit, the join and
-// the aero read is the one cageSheet returned, untouched.
+// So the EYE SHEET is a second cageSheet with one more Catmull-Clark step between the two global levels and
+// everything that works on them (cageSheet's opts.eye). The MEASURED sheet - the fit, the join, the aero, the
+// certificates - is the level-2 one, built exactly as before: the eye sheet is only ever drawn.
 //
-// WHAT IT DOES. Each deck face (fuselage skin forward of the windscreen base,
-// upper half, facing up) is split k x k on a curved patch THROUGH the
-// existing vertices: every edge a cubic Hermite from its two smooth normals,
-// the inside a Coons patch of its four edges. Nothing that exists moves -
-// the new vertices are appended, so every index the sheet had still means
-// what it meant - and an edge's points depend on that edge alone, so two
-// split faces meet without a crack. A creased edge, or one a non-skin face
-// shares (glass, a seal, the cap), stays a straight line. A face outside the
-// deck with a split edge takes the points into its own outline (a fan from a
-// corner that is clear of them, else from its centre), so no T-junction is
-// left either. The field (aStruct) is interpolated with the position, so a
-// rivet row runs straight through. Normals: the ones every vertex had before
-// stay; the new ones are the refined faces' own average (meshFrom's rule
-// for vertices no pass described).
-//
-// An edge leaves a corner along its chord, not its tangent, where that
-// corner's normal is more than 35 deg off the edge's own two faces: a corner
-// on the windscreen base or the shoulder crease averages across the crease,
-// and its tangent plane would fold the patch. And the bow fades in over
-// o.taper from the edges that must stay straight (see THE BOW FADES IN).
-//
-// opt: { zNose: the windscreen base (cage units; cageBodyZones' 'nose'.z0),
-//        edge: the target facet edge (cage units): k = the deck's median edge
-//        over it rounded, 2..8 (none when the deck is that fine already),
-//        taper: the fade-in length of the bow from a straight edge (cage units),
-//        k: a fixed split per side instead (default 4) }. Returns m itself when there is
-// no deck to split, else a new mesh with `eyeParent` (Int32Array: each
-// appended vertex's nearest original vertex, for the garage's in-place
-// preview) and `nSheet` (the original vertex count).
-const CAGE_EYE_SKIN = new Set(['body', 'pillarFront']);
-function cageEyeRefine(m, opt) {
-  const o = opt || {};
-  const zN = o.zNose;
-  if (!m || !m.V || !m.F || zN == null || !isFinite(zN)) return m;
-  const V = m.V, F = m.F, A = m.A || null, E = m.E || null;
-  const nrmOf = f => {                     // Newell: the fan's summed area vector
-    const n = [0, 0, 0], q = f.v.length;
-    for (let i = 0; i < q; i++) {
-      const a = V[f.v[i]], b = V[f.v[(i + 1) % q]];
-      n[0] += (a[1] - b[1]) * (a[2] + b[2]); n[1] += (a[2] - b[2]) * (a[0] + b[0]);
-      n[2] += (a[0] - b[0]) * (a[1] + b[1]);
-    }
-    return n;
-  };
-  // ---- the deck --------------------------------------------------------------
-  const cand = [];
-  let yLo = 1e9, yHi = -1e9;
-  for (let fi = 0; fi < F.length; fi++) {
-    const f = F[fi];
-    if (f.v.length !== 4 || !CAGE_EYE_SKIN.has(f.m) || f.capFace || f.win || f.door) continue;
-    let fwd = true;
-    for (const i of f.v) if (!(V[i][2] >= zN - 1e-6)) { fwd = false; break; }
-    if (!fwd) continue;
-    cand.push(fi);
-    for (const i of f.v) { const y = V[i][1]; if (y < yLo) yLo = y; if (y > yHi) yHi = y; }
-  }
-  if (!cand.length) return m;
-  const yMid = (yLo + yHi) / 2;
-  const deck = new Set();
-  for (const fi of cand) {
-    const f = F[fi], n = nrmOf(f), L = Math.hypot(n[0], n[1], n[2]);
-    if (!(L > 0) || n[1] / L < 0.2) continue;          // up-facing: the arch, not an inner shell's roof
-    let cy = 0; for (const i of f.v) cy += V[i][1];
-    if (cy / 4 < yMid) continue;                         // the upper half: not an inner shell's floor
-    deck.add(fi);
-  }
-  if (!deck.size) return m;
-  let k = Math.max(2, Math.min(8, Math.round(o.k || 4)));
-  if (o.edge > 0) {                        // the split from the deck's own median edge
-    const L = [];
-    for (const fi of deck) {
-      const v = F[fi].v;
-      for (let i = 0; i < 4; i++) {
-        const a = V[v[i]], b = V[v[(i + 1) % 4]];
-        L.push(Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]));
-      }
-    }
-    L.sort((x, y) => x - y);
-    const kk = Math.round(L[L.length >> 1] / o.edge);   // Rufus (2 cm a side already): 1 = left as it is
-    if (kk < 2) return m;
-    k = Math.min(8, kk);
-  }
-  // ---- the normals the deck's vertices have now (meshFrom's / three's rule) ---
-  // Only the deck's own: a vertex elsewhere with none keeps none, and meshFrom
-  // gives it its faces' average as it does today (a fanned ring face sums to
-  // the same area vector).
-  const nV = V.length;
-  const onDeck = new Uint8Array(nV);
-  for (const fi of deck) for (const i of F[fi].v) onDeck[i] = 1;
-  const N0 = new Float64Array(nV * 3);
-  const known = new Uint8Array(nV);
-  if (m.N) for (let i = 0; i < m.N.length && i < nV; i++) {
-    const n = m.N[i];
-    if (!n || (n[0] === 0 && n[1] === 0 && n[2] === 0)) continue;
-    known[i] = 1; N0[i * 3] = n[0]; N0[i * 3 + 1] = n[1]; N0[i * 3 + 2] = n[2];
-  }
-  const need = new Uint8Array(nV);
-  let unknown = 0;
-  for (let i = 0; i < nV; i++) if (onDeck[i] && !known[i]) { need[i] = 1; unknown++; }
-  if (unknown) {
-    const acc = new Float64Array(nV * 3);
-    for (const f of F) {
-      const v = f.v, q = v.length;
-      let hit = 0;
-      for (let i = 0; i < q; i++) hit |= need[v[i]];
-      if (!hit) continue;
-      const n = nrmOf(f);
-      for (const i of v) { acc[i * 3] += n[0]; acc[i * 3 + 1] += n[1]; acc[i * 3 + 2] += n[2]; }
-    }
-    for (let i = 0; i < nV; i++) {
-      if (!need[i]) continue;
-      const l = Math.hypot(acc[i * 3], acc[i * 3 + 1], acc[i * 3 + 2]) || 1;
-      N0[i * 3] = acc[i * 3] / l; N0[i * 3 + 1] = acc[i * 3 + 1] / l; N0[i * 3 + 2] = acc[i * 3 + 2] / l;
-    }
-  }
-  // ---- the edges: who shares them, and whether they may bend ------------------
-  const ek = (a, b) => a < b ? a + '_' + b : b + '_' + a;
-  const deckEdges = new Map();             // key -> { a, b } (a < b)
-  for (const fi of deck) {
-    const v = F[fi].v;
-    for (let i = 0; i < 4; i++) {
-      const a = v[i], b = v[(i + 1) % 4], key = ek(a, b);
-      if (!deckEdges.has(key)) deckEdges.set(key, { a: Math.min(a, b), b: Math.max(a, b), skin: 0, other: 0, n: [0, 0, 0] });
-    }
-  }
-  const touched = [];                      // faces outside the deck on a deck edge
+// cageSubdivideRegion(m, inReg): one more level on the faces inReg picks. The region is cut out as its own mesh and
+// handed to cageSubdivide itself (the creases, the field, the tags, the seam lists - one subdivision rule, not a
+// second copy), with every edge it shares with the rest held as a crease for that step: its point is the exact
+// midpoint and its two ends follow the crease curve, so the faces outside - still level 2 - take the midpoint into
+// their outline and the moved ends as they are, and nothing cracks. Region faces come out as quads, the ring round
+// it as n-gons (meshFrom fans them).
+function cageSubdivideRegion(m, inReg) {
+  const V = m.V, F = m.F, E = m.E || new Map(), nV = V.length;
+  const reg = new Uint8Array(F.length);
+  let nReg = 0;
+  for (let fi = 0; fi < F.length; fi++) if (inReg(F[fi], fi)) { reg[fi] = 1; nReg++; }
+  if (!nReg) return m;
+  if (nReg === F.length) return cageSubdivide(m);
+  // every edge: how many region faces and how many outside faces use it
+  const EK = new Map();
   for (let fi = 0; fi < F.length; fi++) {
     const v = F[fi].v, q = v.length;
-    let nd = 0;
-    for (let i = 0; i < q; i++) nd += onDeck[v[i]];
-    if (nd < 2) continue;                  // (the slider's tick: most faces never build a key)
+    for (let k = 0; k < q; k++) {
+      const key = cageEdgeKey(v[k], v[(k + 1) % q]);
+      let c = EK.get(key);
+      if (!c) { c = [0, 0]; EK.set(key, c); }
+      c[reg[fi] ? 0 : 1]++;
+    }
+  }
+  // the region as its own mesh
+  const sIdx = new Int32Array(nV).fill(-1), back = [], sV = [];
+  const sF = [];
+  for (let fi = 0; fi < F.length; fi++) {
+    if (!reg[fi]) continue;
+    const f = F[fi];
+    for (const i of f.v) if (sIdx[i] < 0) { sIdx[i] = back.length; back.push(i); sV.push(V[i]); }
+    sF.push(Object.assign({}, f, { v: f.v.map(i => sIdx[i]) }));
+  }
+  const sE = new Map();
+  for (const [key, c] of EK) {
+    if (!c[0]) continue;
+    let w = E.get(key) || 0;
+    if (c[1]) w = Math.max(w, 1);                        // the region's border: a crease for this step
+    if (w > 0) { const [a, b] = key.split('_').map(Number); sE.set(cageEdgeKey(sIdx[a], sIdx[b]), w); }
+  }
+  const sub = { V: sV, F: sF, E: sE };
+  if (m.A) sub.A = back.map(i => m.A[i] || null);
+  if (m.VW) {
+    const vw = new Map();
+    for (const [i, w] of m.VW) if (sIdx[i] >= 0) vw.set(sIdx[i], w);
+    if (vw.size) sub.VW = vw;
+  }
+  const LISTS = ['dashRim', 'seamS', 'seamA', 'dashRimA', 'seamSA'].concat(m.seamKeys || []);
+  if (m.seamKeys) sub.seamKeys = m.seamKeys;
+  for (const key of LISTS) if (m[key]) {
+    sub[key] = [];
+    for (const [a, b] of m[key]) {
+      const c = EK.get(cageEdgeKey(a, b));
+      if (c && c[0] && sIdx[a] >= 0 && sIdx[b] >= 0) sub[key].push([sIdx[a], sIdx[b]]);
+    }
+  }
+  const S = cageSubdivide(sub);
+  // back into the sheet: the region's own vertices move in place (they are level 3 now), the new ones append
+  const NV = V.slice(), NA = m.A ? m.A.slice() : null;
+  if (NA) while (NA.length < nV) NA.push(null);
+  const map = new Int32Array(S.V.length);
+  for (let j = 0; j < S.V.length; j++) {
+    if (j < back.length) { map[j] = back[j]; NV[back[j]] = S.V[j]; if (NA && S.A) NA[back[j]] = S.A[j]; }
+    else { map[j] = NV.length; NV.push(S.V[j]); if (NA) NA.push(S.A ? S.A[j] : null); }
+  }
+  // the border's midpoints, read off cageSubdivide's children (corner k of a face: [cur, ep(cur, next), fp, ...])
+  const bep = new Map();
+  let off = 0;
+  for (const f of sF) {
+    const q = f.v.length;
+    for (let k = 0; k < q; k++) {
+      const key = cageEdgeKey(back[f.v[k]], back[f.v[(k + 1) % q]]);
+      const c = EK.get(key);
+      if (c && c[1]) bep.set(key, map[S.F[off + k].v[1]]);
+    }
+    off += q;
+  }
+  const NF = [];
+  for (let fi = 0; fi < F.length; fi++) {
+    if (reg[fi]) continue;
+    const f = F[fi], v = f.v, q = v.length, out = [];
     let hit = false;
-    for (let i = 0; i < q; i++) {
-      const e = deckEdges.get(ek(v[i], v[(i + 1) % q]));
-      if (!e) continue;
-      hit = true;
-      if (CAGE_EYE_SKIN.has(F[fi].m) && !F[fi].capFace) {
-        e.skin++;
-        const n = nrmOf(F[fi]), l = Math.hypot(n[0], n[1], n[2]) || 1;
-        e.n[0] += n[0] / l; e.n[1] += n[1] / l; e.n[2] += n[2] / l;
-      } else e.other++;
+    for (let k = 0; k < q; k++) {
+      out.push(v[k]);
+      const ep = bep.get(cageEdgeKey(v[k], v[(k + 1) % q]));
+      if (ep != null) { out.push(ep); hit = true; }
     }
-    if (hit && !deck.has(fi)) touched.push(fi);
+    NF.push(hit ? Object.assign({}, f, { v: out }) : f);
   }
-  // ---- the new vertices -------------------------------------------------------
-  const NVo = V.slice(), NAo = A ? A.slice() : null, NNo = new Array(nV);
-  if (NAo) while (NAo.length < nV) NAo.push(null);   // a field shorter than the sheet (Rufus): appended rows stay aligned
-  for (let i = 0; i < nV; i++) NNo[i] = known[i] ? m.N[i] : need[i] ? [N0[i * 3], N0[i * 3 + 1], N0[i * 3 + 2]] : null;
-  const parent = [];
-  const addV = (p, a, par) => {
-    NVo.push(p); if (NAo) NAo.push(a); NNo.push(null); parent.push(par);
-    return NVo.length - 1;
-  };
-  const lerpA = (qa, qb, t) => (qa && qb) ? [0, 1, 2, 3].map(i => qa[i] + (qb[i] - qa[i]) * t) : null;
-  const nrm = i => [N0[i * 3], N0[i * 3 + 1], N0[i * 3 + 2]];
-  for (const [key, e] of deckEdges) e.bend = !e.other && e.skin >= 2 && !(E && (E.get(key) || 0) >= 1);
-  // THE BOW FADES IN FROM WHAT MUST STAY STRAIGHT. An edge that may not bend (the windscreen base's seal, the
-  // firewall's open border, a crease) sits beside a bending one; on the C172 the deck's rows are strips (5 cm deep,
-  // 32 cm across, and the firewall ring 7 mm) and the whole bow would be taken up inside the first strip - a fold
-  // (63 deg between neighbours, measured). So each edge bows by w = its distance from the nearest straight edge over
-  // o.taper (cage units; 0 = no fade; the page 5 cm: the C172's deck is 23 cm between its two fixed rows), capped at 1 - a function of that edge alone, so two faces still agree on it.
-  // (A first try passed "straight" across thin faces instead: it ran across every C172 row and left the centreline
-  // ridge at 21 deg - the edge the user sees.)
-  const fixedE = [];
-  for (const e of deckEdges.values()) if (!e.bend) fixedE.push(e);
-  const segD = (p, a, b) => {
-    const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], l2 = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
-    const t = l2 > 0 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * d[0] + (p[1] - a[1]) * d[1] + (p[2] - a[2]) * d[2]) / l2)) : 0;
-    return Math.hypot(p[0] - a[0] - t * d[0], p[1] - a[1] - t * d[1], p[2] - a[2] - t * d[2]);
-  };
-  for (const e of deckEdges.values()) {
-    e.w = e.bend ? 1 : 0;
-    if (!e.bend || !(o.taper > 0) || !fixedE.length) continue;
-    const pa = V[e.a], pb = V[e.b], mid = [(pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2, (pa[2] + pb[2]) / 2];
-    let dm = Infinity;
-    for (const f of fixedE) { const dd = segD(mid, V[f.a], V[f.b]); if (dd < dm) dm = dd; }
-    e.w = Math.min(1, dm / o.taper);
+  for (const f of S.F) NF.push(Object.assign({}, f, { v: f.v.map(j => map[j]) }));
+  const NE = new Map();
+  for (const [key, w] of E) { const c = EK.get(key); if (!c || !c[0]) NE.set(key, w); }
+  for (const [key, w] of S.E) { const [a, b] = key.split('_').map(Number); NE.set(cageEdgeKey(map[a], map[b]), w); }
+  const out = { V: NV, F: NF, E: NE };
+  if (NA) out.A = NA;
+  if (m.VW || S.VW) {
+    const vw = new Map();
+    if (m.VW) for (const [i, w] of m.VW) if (sIdx[i] < 0) vw.set(i, w);
+    if (S.VW) for (const [j, w] of S.VW) vw.set(map[j], w);
+    if (vw.size) out.VW = vw;
   }
-  // an edge's k-1 inner points, from a to b (a < b); straight when it may not bend
-  for (const [key, e] of deckEdges) {
-    const pa = V[e.a], pb = V[e.b];
-    const bend = e.bend;
-    let ta = null, tb = null;
-    if (bend) {
-      const d = [pb[0] - pa[0], pb[1] - pa[1], pb[2] - pa[2]], L = Math.hypot(d[0], d[1], d[2]);
-      const tan = n => {
-        const s = d[0] * n[0] + d[1] * n[1] + d[2] * n[2];
-        const t = [d[0] - s * n[0], d[1] - s * n[1], d[2] - s * n[2]], l = Math.hypot(t[0], t[1], t[2]);
-        return l > 1e-12 ? t.map(x => x * L / l) : d.slice();
-      };
-      const el = Math.hypot(e.n[0], e.n[1], e.n[2]) || 1;
-      const off = i => { const n = nrm(i); return (n[0] * e.n[0] + n[1] * e.n[1] + n[2] * e.n[2]) / el < 0.819; };  // cos 35
-      ta = off(e.a) ? d.slice() : tan(nrm(e.a)); tb = off(e.b) ? d.slice() : tan(nrm(e.b));
-    }
-    e.pts = [];
-    for (let s = 1; s < k; s++) {
-      const t = s / k;
-      let p;
-      if (bend) {
-        const t2 = t * t, t3 = t2 * t;
-        const h00 = 2 * t3 - 3 * t2 + 1, h10 = t3 - 2 * t2 + t, h01 = -2 * t3 + 3 * t2, h11 = t3 - t2;
-        p = [0, 1, 2].map(i => { const L = pa[i] + (pb[i] - pa[i]) * t;
-          return L + e.w * (h00 * pa[i] + h10 * ta[i] + h01 * pb[i] + h11 * tb[i] - L); });
-      } else p = [0, 1, 2].map(i => pa[i] + (pb[i] - pa[i]) * t);
-      e.pts.push(addV(p, NAo ? lerpA(A[e.a], A[e.b], t) : null, t < 0.5 ? e.a : e.b));
-    }
+  if (m.seamKeys) out.seamKeys = m.seamKeys;
+  for (const key of LISTS) if (m[key]) {
+    out[key] = [];
+    for (const [a, b] of m[key]) { const c = EK.get(cageEdgeKey(a, b)); if (c && !c[0]) out[key].push([a, b]); }
+    for (const [a, b] of (S[key] || [])) out[key].push([map[a], map[b]]);
   }
-  // the points of edge (a -> b) in that direction, ends included
-  const run = (a, b) => {
-    const e = deckEdges.get(ek(a, b));
-    const inner = a < b ? e.pts : e.pts.slice().reverse();
-    return [a].concat(inner, [b]);
-  };
-  // ---- the deck faces, k x k --------------------------------------------------
-  const outF = [];
-  const drop = new Uint8Array(F.length);
-  for (const fi of deck) drop[fi] = 1;
-  for (const fi of deck) {
-    const f = F[fi], [v0, v1, v2, v3] = f.v;
-    const C0 = run(v0, v1), C1 = run(v3, v2), D0 = run(v0, v3), D1 = run(v1, v2);
-    const P0 = V[v0], P1 = V[v1], P2 = V[v2], P3 = V[v3];
-    const grid = [];                       // grid[j][i]: u = i/k along v0->v1, v = j/k along v0->v3
-    for (let j = 0; j <= k; j++) {
-      const row = [];
-      for (let i = 0; i <= k; i++) {
-        if (j === 0) { row.push(C0[i]); continue; }
-        if (j === k) { row.push(C1[i]); continue; }
-        if (i === 0) { row.push(D0[j]); continue; }
-        if (i === k) { row.push(D1[j]); continue; }
-        const u = i / k, w = j / k;
-        const c0 = NVo[C0[i]], c1 = NVo[C1[i]], d0 = NVo[D0[j]], d1 = NVo[D1[j]];
-        const p = [0, 1, 2].map(x =>
-          (1 - w) * c0[x] + w * c1[x] + (1 - u) * d0[x] + u * d1[x]
-          - ((1 - u) * (1 - w) * P0[x] + u * (1 - w) * P1[x] + (1 - u) * w * P3[x] + u * w * P2[x]));
-        let a = null;
-        if (NAo && A[v0] && A[v1] && A[v2] && A[v3])
-          a = [0, 1, 2, 3].map(x => (1 - u) * (1 - w) * A[v0][x] + u * (1 - w) * A[v1][x]
-                                  + (1 - u) * w * A[v3][x] + u * w * A[v2][x]);
-        const par = u < 0.5 ? (w < 0.5 ? v0 : v3) : (w < 0.5 ? v1 : v2);
-        row.push(addV(p, a, par));
-      }
-      grid.push(row);
-    }
-    for (let j = 0; j < k; j++)
-      for (let i = 0; i < k; i++)
-        outF.push(Object.assign({}, f, { v: [grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i]] }));
-  }
-  // ---- the ring round it: the split edges' points in its own outline -----------
-  for (const fi of touched) {
-    const f = F[fi], v = f.v, q = v.length;
-    const poly = [], split = [];
-    for (let i = 0; i < q; i++) {
-      const a = v[i], b = v[(i + 1) % q], e = deckEdges.get(ek(a, b));
-      poly.push(a);
-      split.push(!!e);
-      if (e) for (const p of run(a, b).slice(1, -1)) poly.push(p);
-    }
-    drop[fi] = 1;
-    let apex = -1;
-    for (let i = 0; i < q; i++) if (!split[i] && !split[(i - 1 + q) % q]) { apex = i; break; }
-    if (apex >= 0) {
-      const s = poly.indexOf(v[apex]);
-      outF.push(Object.assign({}, f, { v: poly.slice(s).concat(poly.slice(0, s)) }));
-    } else {
-      const c = [0, 0, 0];
-      for (const i of v) { c[0] += V[i][0] / q; c[1] += V[i][1] / q; c[2] += V[i][2] / q; }
-      let ca = null;
-      if (NAo && v.every(i => A[i])) { ca = [0, 0, 0, 0]; for (const i of v) for (let x = 0; x < 4; x++) ca[x] += A[i][x] / q; }
-      const ci = addV(c, ca, v[0]);
-      for (let i = 0; i < poly.length; i++)
-        outF.push(Object.assign({}, f, { v: [ci, poly[i], poly[(i + 1) % poly.length]] }));
-    }
-  }
-  const out = Object.assign({}, m, {
-    V: NVo, F: F.filter((_, fi) => !drop[fi]).concat(outF), N: NNo,
-    eyeParent: Int32Array.from(parent), nSheet: nV,
-  });
-  if (NAo) out.A = NAo;
   return out;
+}
+
+// cageEyeLevel(m, spec, eye): THE VARIANTS (the user, 26 Oct: "We can try only with the cowl smoothed, but I think we
+// should also do the nose section of the fuselage, then we probably need to do the whole fuselage, but we may also
+// cut what is behind the aft bulkhead ... Try all ... and benchmark"). eye.variant:
+//   1  the cowl only (the cowl's own detail 2 - _cage_cowl.js; the fuselage stays level 2: nothing here)
+//   2  + the fuselage's nose section: every face forward of the windscreen's aft edge (the deck, the windscreen, the
+//      A-pillars' foot, the front frame) - the ring band whole, top and bottom
+//   3  the whole fuselage at level 3
+//   4  the whole fuselage at level 3 but aft of the cabin's aft bulkhead (the pax zone's aft ring, pilPaxA; the cabin's
+//      without a pax bay): the taper, the boom and the tail stay level 2 - never seen from the seat
+// m is the level-2 sheet straight out of the global subdivision (cageSheet calls this before cageRefitArc).
+function cageEyeLevel(m, spec, eye) {
+  const v = eye && +eye.variant || 0;
+  if (v === 3) return cageSubdivide(m);
+  if (v !== 2 && v !== 4) return m;
+  const zones = cageBodyZones(spec);
+  const zOf = k => { const z = zones.find(x => x.key === k); return z && isFinite(z.z0) ? z.z0 : null; };
+  let zCut = null;
+  if (v === 2) {
+    zCut = zOf('nose');
+    if (zCut == null) return m;
+    let zWs = Infinity;                                  // the windscreen's aft edge
+    for (const f of m.F) {
+      if (f.m !== 'windshield') continue;
+      for (const i of f.v) if (m.V[i][2] < zWs) zWs = m.V[i][2];
+    }
+    if (isFinite(zWs)) zCut = Math.min(zCut, zWs);
+  } else {
+    zCut = zOf('pax');
+    if (zCut == null) zCut = zOf('cabin');
+    if (zCut == null) return cageSubdivide(m);
+  }
+  const cz = f => { let s = 0; for (const i of f.v) s += m.V[i][2]; return s / f.v.length; };
+  return cageSubdivideRegion(m, f => cz(f) >= zCut - 1e-6);
 }
 
 // THE FIELD RE-MEASURED ON THE SMOOTH SKIN (G476, playtest item 149, the
@@ -9220,11 +9079,13 @@ function cageSheet(P, opts) {
   const step = (opts && opts.step != null) ? opts.step : 'crease';
   const L = (opts && opts.level != null) ? +opts.level : 2;
   const spec = cageSpec({ ...P });
-  if (opts && opts.passKeep && step === 'crease' && !((P.explodeD || 0) > 0) && !(spec.cut && spec.cut.explode > 0))
+  const eye = opts && opts.eye && +opts.eye.variant >= 2 ? opts.eye : null;   // G3713: the eye sheet (never measured)
+  if (opts && opts.passKeep && !eye && step === 'crease' && !((P.explodeD || 0) > 0) && !(spec.cut && spec.cut.explode > 0))
     return cageSheetKept(spec, step, L);
   const m = buildCage2(spec, step);
   let s = m;
   for (let i = 0; i < L; i++) s = cageSubdivide(s);
+  if (eye && L > 0) s = cageEyeLevel(s, spec, eye);
   if (L > 0) s = cageRefitArc(s);
   // DRAWN WINDOWS (G245): with any drawn, the pax glass BAND is skin again —
   // before the sill and the cut see it, so neither extends nor separates a
@@ -9363,7 +9224,7 @@ if (typeof module !== 'undefined')
                      CAGE_FRAME_KEYS, CAGE_FRAME_ORDER, CAGE_FRAME_NAMES, CAGE_LEGACY_FRAME,
                      cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                      CAGE_UNIT,
-                     buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageEyeRefine,
+                     buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel,
                      cageRims, cageInterior, cageCut, cageGlassSill,
                      cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                      cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,
@@ -9374,7 +9235,7 @@ if (typeof window !== 'undefined')
                    CAGE_FRAME_KEYS, CAGE_FRAME_ORDER, CAGE_FRAME_NAMES, CAGE_LEGACY_FRAME,
                    cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                    CAGE_UNIT,
-                   buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageEyeRefine,
+                   buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel,
                    cageRims, cageInterior, cageCut, cageGlassSill,
                    cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                    cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,

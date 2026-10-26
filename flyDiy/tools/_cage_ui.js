@@ -1514,10 +1514,21 @@ let LAST_SHEET = null;
 const PREVIEW = { n: 0, last: null, deform: 0, deformWhy: '' };
 let DEFORMED = false;                   // a deformed tick since the last whole build (its sit is the stand's)
 const PREVIEW_OFF = () => /(^|[?&])garage=old(&|$)/.test((typeof location !== 'undefined' && location.search) || '');
-// ?eye=off: G3710/G3711's eye pass held off on this page (GARAGE-LAG's before, one tree; _cage_cowl reads it too)
+// ?eye=off: G3713's eye sheet held off on this page (GARAGE-LAG's before, one tree; _cage_cowl reads it too)
 const EYE_URL_OFF = () => /(^|[?&])eye=off(&|$)/.test((typeof location !== 'undefined' && location.search) || '');
 if (typeof window !== 'undefined') window.CAGE_EYE_URL_OFF = EYE_URL_OFF;
-let EYE_CACHE = null;                   // G3710: the last eye pass { s: the sheet, key, out }
+let EYE_CACHE = null;                   // G3713: the last eye sheet { s: the level-2 sheet, v: the variant, out }
+// THE EYE VARIANT (G3713): 0 off, 1 the cowl at detail 2, 2 + the nose section at level 3, 3 the whole fuselage at
+// level 3, 4 the whole fuselage but aft of the aft bulkhead. ?eyelod=N or CAGE_EYE_VARIANT (a rig's); held at 0 by
+// ?eye=off and in a parked aeroplane's capture (CAGE_EYE_OFF).
+const EYE_VARIANT = () => {
+  if ((typeof window !== 'undefined' && window.CAGE_EYE_OFF) || EYE_URL_OFF()) return 0;
+  const w = typeof window !== 'undefined' ? window.CAGE_EYE_VARIANT : null;
+  if (w != null) return Math.max(0, Math.min(4, Math.round(+w) || 0));
+  const q = /(^|[?&])eyelod=([0-4])(&|$)/.exec((typeof location !== 'undefined' && location.search) || '');
+  return q ? +q[2] : 0;
+};
+if (typeof window !== 'undefined') window.CAGE_EYE_VARIANT_OF = EYE_VARIANT;
 // G1443 (GARAGE-INSTANT): THE STAND, DEFORMED. A drag tick on a row that moves the CAGE (the fuselage's length,
 // widths, heights, the nose, the deck lines - the same cage topology) would rebuild the sheet (subdivision, glass,
 // cuts, rims, interior, shoulder: 55-250 ms) and every layer on it. The preview moves what stands instead:
@@ -1960,32 +1971,35 @@ function* buildSteps() {
   const sd = (P.glazeOn == null || +P.glazeOn) ? sd0
     : { ...sd0, F: sd0.F.filter(f => !GLASSM.has(f.m) && f.m !== 'paneEdge') };
   const surfSel = $('surf') ? $('surf').value : 'off';
-  // G3710 (COWL-RES): THE NOSE DECK AS THE EYE SEES IT - the displayed skin only (cageEyeRefine in _cage_gen.js says
-  // why); MS, every measurement and the join's spec keep the sheet. A parked aeroplane's capture holds it off
-  // (CAGE_EYE_OFF: nobody sits in a parked cockpit); the diagnostic views draw the sheet as it is.
+  // G3713 (COWL-RES): THE EYE SHEET - the same aeroplane built with a THIRD subdivision level where the variant puts
+  // it (cageEyeLevel in _cage_gen.js: 2 the nose section, 3 the whole fuselage, 4 all but aft of the aft bulkhead; 1 is
+  // the cowl alone, _cage_cowl.js), DRAWN in place of the level-2 sheet. Everything measured - MS, the fit, the join,
+  // the glazed area, the layers - keeps `s`, the level-2 sheet: the eye sheet is never read for a number. A parked
+  // aeroplane's capture holds it off (CAGE_EYE_OFF), and so does ?eye=off; the diagnostic views draw the sheet as it is.
+  // One entry kept, keyed by the level-2 sheet object and the variant: a whole build on the same sheet pays nothing.
   const zones = G.cageBodyZones ? G.cageBodyZones(spec) : null;
-  const zNose = zones && zones.find(z => z.key === 'nose');
-  const eyeOn = G.cageEyeRefine && zNose && !window.CAGE_EYE_OFF && !EYE_URL_OFF()
-    && !(window.CAGE_UI && window.CAGE_UI.eyeRefine === false);
-  // edge 0.016 m: the dash's own median facet edge (cowl_res_rig: 1.6 cm on every validated build); taper 0.05 m: the
-  // bow's fade-in from the windscreen base and the firewall (THE BOW FADES IN, _cage_gen.js). Drag ticks never
-  // come here (G1443 deforms the stand, G1442 restores it); a whole build on the SAME sheet (a dropdown, the release's
-  // whole way) takes the last pass's result: one entry, keyed by the sheet object and what decides the displayed faces.
   const diag = surfSel !== 'off' || ($('curv') && $('curv').checked) || ($('wire') && $('wire').checked);
-  let sdE = sd;
-  if (eyeOn && !diag) {
-    const key = [P.skinOn == null || P.skinOn ? 1 : 0, P.glazeOn == null || +P.glazeOn ? 1 : 0, zNose.z0, fieldM()].join('|');
-    if (EYE_CACHE && EYE_CACHE.s === s && EYE_CACHE.key === key) sdE = EYE_CACHE.out;
-    else { sdE = G.cageEyeRefine(sd, { zNose: zNose.z0, edge: 0.016 / fieldM(), taper: 0.05 / fieldM() }); EYE_CACHE = { s, key, out: sdE }; }
+  const eyeV = EYE_VARIANT();
+  let sEye = s;
+  if (eyeV >= 2 && !diag && G.cageEyeLevel) {
+    if (EYE_CACHE && EYE_CACHE.s === s && EYE_CACHE.v === eyeV) sEye = EYE_CACHE.out;
+    else {
+      const t0 = performance.now();
+      sEye = G.cageSheet(P, { step, level: L, eye: { variant: eyeV } }).mesh;
+      if (window.CAGE_UI) window.CAGE_UI.eyeMs = performance.now() - t0;
+      EYE_CACHE = { s, v: eyeV, out: sEye };
+    }
   }
+  if (window.CAGE_UI) window.CAGE_UI.eyeVariant = eyeV;
+  const sdE0 = sEye === s ? sd0 : ((P.skinOn == null || P.skinOn) ? sEye : { ...sEye, F: sEye.F.filter(f => !skinCull(f.m)) });
+  const sdE = sEye === s ? sd : ((P.glazeOn == null || +P.glazeOn) ? sdE0
+    : { ...sdE0, F: sdE0.F.filter(f => !GLASSM.has(f.m) && f.m !== 'paneEdge') });
   meshObj = (surfSel !== 'off') ? surfMesh(sd, surfSel)
     : ($('curv') && $('curv').checked) ? curvatureMesh(sd)
     : ($('wire') && $('wire').checked) ? quadWire(sd) : meshFrom(sdE);
-  // the appended vertices ride the drag preview with their parents (deformTick / standRestore)
-  meshObj.userData.eye = (meshObj.geometry && sdE !== sd && meshObj.geometry.attributes.position.count === sdE.V.length) ? {
-    parent: sdE.eyeParent, nSheet: sdE.nSheet,
-    v0: Float32Array.from(sdE.V.slice(sdE.nSheet).flat()),
-  } : null;
+  // the drag preview (deformTick) moves the level-2 sheet's vertices in place: an eye sheet has its own, so it
+  // refuses and the tick builds whole (the prototype's cost - the shipping eye sheet is the interior view's only)
+  meshObj.userData.eye = null;
   // THE UNIT (see CAGE_UNIT in _cage_gen.js): metres = cage x CAGE_UNIT
   // x planeScale. The cage scales; crew scenery is already metric and
   // never does. Pages without the param build at the unit exactly.

@@ -405,7 +405,7 @@ function equalise(w,N,M){
   }
   return out;
 }
-function prepareMesh(opt){
+function prepareMesh(){
   const d=clamp(P.detail,0.35,2), ze=zEnd();
   seamOn2=false;                                   // tables ignore the seam step
 
@@ -423,31 +423,6 @@ function prepareMesh(opt){
     w[i]=0.15*seg+Math.sqrt(dt*seg*R);   // equal sagitta: density ~ sqrt(kappa)
   }
   AZ=equalise(w,Math.max(28,Math.round(60*d)),M).map(u=>u*TAU);
-  /* THE TOP ARCH AS THE EYE SEES IT (G3711, COWL-RES; the user: "the top arch of
-     the cowl and nose, very visible in interior view, do not hold up"). Equal
-     sagitta puts the fewest samples where the section is flattest - the top,
-     which is the part the pilot looks along from a metre away. opt.eyeArc (m):
-     every interval of the upper half longer than that (over the detail dial) is
-     split evenly in theta. The arc is the LARGEST probe's (the aft section,
-     nearest the eye - rep, the squarest, is the small front ring on the C172).
-     Today's samples all stay (the lip, the seam and the cut read the same
-     array), and the surface is analytic, so this is the same cowl sampled
-     finer. The bench and the port check call this bare: byte-identical there. */
-  const eyeArc=opt&&opt.eyeArc>0?opt.eyeArc/d:0;          // the detail dial still governs
-  if(eyeArc){
-    const out=[], n=AZ.length;
-    const big=probe.reduce((x,y)=>(y.a+y.bT+y.bB>x.a+x.bT+x.bB?y:x));
-    for(let j=0;j<n;j++){
-      const t0=AZ[j], t1=j+1<n?AZ[j+1]:AZ[0]+TAU;
-      out.push(t0);
-      if(!(Math.max(Math.sin(t0),Math.sin((t0+t1)/2),Math.sin(t1))>0.2)) continue;  // the upper half, above the waist
-      let arc=0, q=sectPt(t0,big);
-      for(let s=1;s<=8;s++){const r=sectPt(t0+(t1-t0)*s/8,big); arc+=Math.hypot(r[0]-q[0],r[1]-q[1]); q=r;}
-      const k=Math.min(8,Math.ceil(arc/eyeArc-1e-9));
-      for(let s=1;s<k;s++) out.push(t0+(t1-t0)*s/k);
-    }
-    AZ=out;
-  }
 
   // --- stations: weighted by turning of the deck meridian ---
   const MZ=480, mp=[];

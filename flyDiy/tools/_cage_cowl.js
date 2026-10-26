@@ -51,10 +51,6 @@ const ROWS = window.COWL_ROWS || [];
 // their rows and builds their meshes. Their VALUES still ride through
 // CW.P (SHOWN keeps them), so the tool stays one parameter set.
 const SKIP_GROUPS = new Set(['g_mesh', 'g_spin', 'g_prop']);
-// G3711 (COWL-RES): the cowl's top arch, sampled for the pilot's eye - the longest interval the upper half keeps,
-// in metres at detail 1 (the dash's own pitch; prepareMesh's eyeArc). A page constant, not a design row: nothing a
-// build saves, so no spec and no certificate moves.
-const COWL_EYE_ARC = 0.016;                 // cowl_res_rig: the dash's median edge is 1.6 cm
 // THE NACELLE (2026-09-04, the user: "the original engine cage/bench tool had
 // a nacelle generator, can we have this back please?"): the bench's
 // termination group is back — `aftMode` (blend / tail cone), `tailLen`,
@@ -1049,6 +1045,7 @@ PAGE.post = ctx => {
 // the layer's own build; `again` is the first pass's starter decision when the
 // wing places it again (returned here for that)
 function cowlPlace(ctx, again) {
+  if (CW.__eyeDet0 != null) { CW.P.detail = CW.__eyeDet0; CW.__eyeDet0 = null; }   // G3713: a thrown build's dial
   const { scene, mesh, P, stat } = ctx;
   dispose(group); group = null;
   if (!P.cowlOn) return null;
@@ -1135,11 +1132,14 @@ function cowlPlace(ctx, again) {
   const nacelle = station.synthetic && Math.round(CW.P.aftMode) === 1;
   if (CW.P.fwLipOn !== undefined) CW.P.fwLipOn = nacelle ? 0 : CW.P.fwLipOn;
   CW.prepareLid();
-  // G3711 (COWL-RES): the top arch sampled finer for the pilot's eye, except in a parked aeroplane's capture
-  // (CAGE_EYE_OFF) - nobody sits in that cockpit. COWL_EYE_ARC: the longest interval left on the upper half (m).
-  CW.prepareMesh(window.CAGE_EYE_OFF || (window.CAGE_EYE_URL_OFF && window.CAGE_EYE_URL_OFF())
-    || (window.CAGE_UI && window.CAGE_UI.eyeRefine === false) ? undefined
-    : { eyeArc: COWL_EYE_ARC });
+  // G3713 (COWL-RES): THE EYE VARIANT'S COWL - from variant 1 up the cowl is sampled at detail 2 (the page's own
+  // `cowl detail` row at its top, 2x the samples round and along), for this build only: nothing saved. Every builder
+  // below reads the dial (the lips, the spinner, the propeller, the aft ring), so it holds until this function returns
+  // (restored there, and at the top of the next call should a build have thrown). Held off in a parked aeroplane's
+  // capture and by ?eye=off (CAGE_EYE_VARIANT_OF says 0 there).
+  const eyeV = window.CAGE_EYE_VARIANT_OF ? window.CAGE_EYE_VARIANT_OF() : 0;
+  if (eyeV >= 1) { CW.__eyeDet0 = CW.P.detail; CW.P.detail = Math.max(2, +CW.P.detail || 1); }
+  CW.prepareMesh();
   // COWL ALPHA (G29, user): see the engine through the shell. The view panel
   // owns the dial (viewer state, never spec) and the materials are built to
   // it — read HERE, before the shell is built, because the alpha is now part
@@ -1275,6 +1275,7 @@ function cowlPlace(ctx, again) {
       `${(CW.zEnd() * 1000).toFixed(0)} mm long` +
       (face.seat ? ` · seat +${(face.seat * 1000).toFixed(1)} mm` : '');
   }
+  if (CW.__eyeDet0 != null) { CW.P.detail = CW.__eyeDet0; CW.__eyeDet0 = null; }   // G3713: the dial as it was
   return forEng.dec || null;
 }
 // THE AERO AFT, CUT 1 (2026-09-04, TWIN-BOOM spec §1.2; the user: "an 'aero

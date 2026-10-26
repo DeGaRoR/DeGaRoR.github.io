@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // cowl_res_stills.js - THE NOSE FROM THE PILOT'S EYE, BEFORE AND AFTER (G3712, COWL-RES)
 //
-//   node tools/cowl_res_stills.js --out <dir> [--builds a.json,b.json] [--modes before,after] [--wait 9000] [--log]
+//   node tools/cowl_res_stills.js --out <dir> [--builds a.json,b.json] [--modes v0,v1,v2,v3,v4,lvl3] [--views ahead,ext34,outside]
+//        [--wait 9000] [--log] [--nohide]   (G3713: the eye variants, one page, one camera; the counts in cowl_res_stills.json)
 //
 // garage_shot.js's rig (headless Chrome on this machine's GPU, CDP), on THIS tree served by tools/_serve.js (the
 // main checkout as the fallback for the gitignored data), dev.html (the loose sources: no build needed). Per build
@@ -25,11 +26,14 @@ const BUILDS = opt('builds', 'builds/cessna172_2026-09-20_corrected.json,builds/
 // modes: before = master's geometry (level 2, no eye pass) | after = the eye pass | lvl3 = THE FREE LEVEL-3 LOOK: the
 // hidden subsurf select (#lvl, G106.1's bench instrument) at 3 for the whole plane + cowl detail 2 - a look at what a
 // third construction level gives, not a shipping path (it moves the measured rows)
-const MODES = opt('modes', 'before,lvl3').split(',');
+const MODES = opt('modes', 'v0,v1,v2,v3,v4').split(',');
+// views: ahead (THE USER'S VIEW: seated, ahead over the panel) ext34 (the editor's 3/4 front) outside (close, down on
+// the arch) left right down (the head turned) up nocowl (the head raised 10 cm, with and without the cowl)
+const VIEWS = opt('views', 'ahead,ext34,outside').split(',');
 const WAIT = +opt('wait', 9000);
 const LOG = argv.includes('--log');
 const NOHIDE = argv.includes('--nohide');
-const LOOKS = [['left', 0.75, -0.45], ['right', -0.75, -0.45], ['down', 0, -0.6]];   // rad: yaw (+ = left), pitch             // the page as it is (a rig check)
+const LOOKS = [['left', 0.75, -0.45], ['right', -0.75, -0.45], ['down', 0, -0.6]];   // rad: yaw (+ = left), pitch
 const ROOT = path.join(__dirname, '..', '..');            // the repo root: the page is /flyDiy/dev.html
 const MAIN = 'D:/Dev/DeGaRoR.github.io';
 const PORT = 8700 + (process.pid % 200), DBG = 9700 + (process.pid % 200);
@@ -93,55 +97,63 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     return got === 1;
   };
   const info = [];
+  // the page's own counters: the fuselage's triangles, the frame's triangles and draws (three's renderer.info, the
+  // last frame drawn), the eye sheet's build ms (_cage_ui, CAGE_UI.eyeMs) and the cowl's sample count
+  const COUNT = "JSON.stringify((()=>{try{let fus=null;const S=window.CAGE_SCENE;const walk=o=>{if(o.userData&&o.userData.bodyZones){fus=o;}(o.children||[]).forEach(walk);};if(S)walk(S);const g=fus&&fus.geometry;const R=window.FLIGHT_PROBE&&FLIGHT_PROBE.renderer&&FLIGHT_PROBE.renderer();const ri=R&&R.info&&R.info.render;return {fuselageVerts:g?g.attributes.position.count:null,fuselageTris:g?(g.index?g.index.count/3:g.attributes.position.count/3):null,frameTris:ri?ri.triangles:null,draws:ri?ri.calls:null,eyeVariant:window.CAGE_UI.eyeVariant,eyeMs:window.CAGE_UI.eyeMs!=null?+window.CAGE_UI.eyeMs.toFixed(1):null,cowl:window.CAGE_COWL?{len:window.CAGE_COWL.len,aps:window.CAGE_COWL.aps}:null};}catch(e){return {err:String(e)};}})())";
+  const HIDE = "(()=>{document.querySelectorAll('body *').forEach(el=>{el.style.visibility='';});const c=[...document.querySelectorAll('canvas')].sort((x,y)=>y.clientWidth*y.clientHeight-x.clientWidth*x.clientHeight)[0];const keep=new Set();let e=c;while(e){keep.add(e);e=e.parentElement;}document.querySelectorAll('body *').forEach(el=>{if(!keep.has(el)&&!el.contains(c))el.style.visibility='hidden';});return 1})()";
+  const COWLVIS = v => "(()=>{let n=0;const S=window.CAGE_SCENE;if(S)S.traverse(o=>{if(o.name==='cageLayer:cowl'){o.visible=" + v + ";n++;}});return n})()";
+  const HEAD = (x, y, z, yaw, pitch) => ev("(()=>{if(window.HEAD_CAM){HEAD_CAM.off.set(" + x + "," + y + "," + z + ");HEAD_CAM.yaw=" + yaw + ";HEAD_CAM.pitch=" + pitch + ";}return 1})()");
   for (const b of BUILDS) {
     const raw = JSON.parse(fs.readFileSync(path.join(__dirname, '..', b), 'utf8'));
     const spec = raw.spec || raw, tag = path.basename(b, '.json');
     for (const mode of MODES) {
-      await pill('3/4 front');
+      // v0..v4 = the eye variant (G3713: 0 off, 1 the cowl, 2 + the nose section, 3 the whole fuselage, 4 all but aft
+      // of the aft bulkhead); before / after = G3710's switch (gone: both draw master's level 2); lvl3 = the free look
+      const mv = /^v([0-4])$/.exec(mode), variant = mv ? +mv[1] : 0, lvl = mode === 'lvl3' ? 3 : 2;
       const specM = mode === 'lvl3' ? Object.assign({}, spec, { cw_detail: 2 }) : spec;
-      await ev("(()=>{const l=document.getElementById('lvl');if(l)l.value='" + (mode === 'lvl3' ? 3 : 2) + "';window.CAGE_UI.eyeRefine = " + (mode === 'after') + "; window.GARAGE_SPEC.set(" + JSON.stringify(specM) + "); return 1})()");
+      await pill('3/4 front');
+      await ev("(()=>{const l=document.getElementById('lvl');if(l)l.value='" + lvl + "';window.CAGE_EYE_VARIANT=" + variant + ";window.GARAGE_SPEC.set(" + JSON.stringify(specM) + ");return 1})()");
       await sleep(WAIT);
       await settle(120, tag + ' ' + mode);
       await ev("(()=>{[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0).forEach(x=>x.click());return 1})()");
-      // the aeroplane alone: everything that is not the canvas's own line hidden (garage_shot --clean)
-      const HIDE = "(()=>{document.querySelectorAll('body *').forEach(el=>{el.style.visibility='';});const c=[...document.querySelectorAll('canvas')].sort((x,y)=>y.clientWidth*y.clientHeight-x.clientWidth*x.clientHeight)[0];const keep=new Set();let e=c;while(e){keep.add(e);e=e.parentElement;}document.querySelectorAll('body *').forEach(el=>{if(!keep.has(el)&&!el.contains(c))el.style.visibility='hidden';});return 1})()";
       if (!NOHIDE) await ev(HIDE);
-      const drew = await ev("JSON.stringify((()=>{try{let fus=null;const S=window.CAGE_SCENE;const walk=o=>{if(o.userData&&o.userData.bodyZones){fus=o;}(o.children||[]).forEach(walk);};if(S)walk(S);const g=fus&&fus.geometry;return {fuselageVerts:g?g.attributes.position.count:null,deckSplit:!!(fus&&fus.userData.eye),eyeAppended:fus&&fus.userData.eye?fus.userData.eye.parent.length:0,cowl:window.CAGE_COWL?{len:window.CAGE_COWL.len,aps:window.CAGE_COWL.aps}:null,eyeRefine:window.CAGE_UI.eyeRefine};}catch(e){return {err:String(e)};}})())");
-      const ok = await pill('interior');
-      if (!ok) { console.log('cowl_res_stills: ' + tag + ' ' + mode + ': no interior view (no pilot?)'); continue; }
-      await sleep(3500);
-      if (!NOHIDE) await ev(HIDE);                      // the flyout the pill may have opened
-      // THE EYE ASSERTED (the stills-rig rule): the camera within 0.5 m of the crew layer's eye marker, else no picture
-      const eye = JSON.parse(await ev("JSON.stringify((()=>{const E=window.CAGE_CREW_EYE,F=window.FLIGHT_PROBE,c=F&&F.camera&&F.camera();if(!E||!c)return {ok:false,why:!E?'no crew eye':'no camera'};const p=c.position;const d=Math.hypot(p.x-E.p[0],p.y-E.p[1],p.z-E.p[2]);return {ok:d<0.5,d:+d.toFixed(3),boot:" + BOOTUP + "};})())"));
-      console.log('cowl_res_stills: ' + tag + ' ' + mode + ' eye ' + JSON.stringify(eye));
-      if (!eye.ok || eye.boot) { console.log('cowl_res_stills: ' + tag + ' ' + mode + ': NOT at the pilot\'s eye - no picture'); continue; }
-      await shot(tag + '_' + mode + '_ahead');
-      // the head turned the same way every time (HEAD_CAM, panel_shot's handle; the mouse drag did not move it):
-      // over each shoulder of the nose and down - from the seat the deck and the cowl sit under the glareshield line
-      for (const [nm, yaw, pitch] of LOOKS) {
-        await ev("(()=>{if(window.HEAD_CAM){HEAD_CAM.yaw=" + yaw + ";HEAD_CAM.pitch=" + pitch + ";}return 1})()");
-        await sleep(2000);
-        await shot(tag + '_' + mode + '_' + nm);
+      const row = { build: tag, mode };
+      // THE EXTERIOR 3/4: the editor's own preset (the same framing every variant)
+      if (VIEWS.includes('ext34')) {
+        await sleep(1500); if (!NOHIDE) await ev(HIDE);
+        await shot(tag + '_' + mode + '_ext34');
+        row.ext = JSON.parse(await ev(COUNT));
       }
-      await ev("(()=>{if(window.HEAD_CAM){HEAD_CAM.yaw=0;HEAD_CAM.pitch=0;}return 1})()");
-      // WHICH SURFACE IS IT: the head raised 10 cm (HEAD_BOX's top) and pitched down, with the cowl, then without it
-      // (every 'cageLayer:cowl' group hidden) - what remains is the fuselage's deck
-      const COWLVIS = v => "(()=>{let n=0;const S=window.CAGE_SCENE;if(S)S.traverse(o=>{if(o.name==='cageLayer:cowl'){o.visible=" + v + ";n++;}});return n})()";
-      await ev("(()=>{if(window.HEAD_CAM){HEAD_CAM.off.set(0,0.10,0);HEAD_CAM.yaw=0.35;HEAD_CAM.pitch=-0.5;}return 1})()");
-      await sleep(2000); await shot(tag + '_' + mode + '_up');
-      const nCowl = await ev(COWLVIS(false)); await sleep(1200); await shot(tag + '_' + mode + '_up_nocowl');
-      await ev(COWLVIS(true));
-      await ev("(()=>{if(window.HEAD_CAM){HEAD_CAM.off.set(0,0,0);HEAD_CAM.yaw=0;HEAD_CAM.pitch=0;}return 1})()");
-      // OUTSIDE, CLOSE: the orbit from ahead, left and above, looking down on the nose's top arch (FLIGHT_PROBE.camSet,
-      // garage_shot's handle; az = PI looks the build in the nose)
-      await pill('3/4 front'); await sleep(1500);
-      await ev("FLIGHT_PROBE.camSet(" + (Math.PI * 0.78) + ", 0.62, 4.2), FLIGHT_PROBE.camSettle && FLIGHT_PROBE.camSettle(), 1");
-      await sleep(2500); if (!NOHIDE) await ev(HIDE); await shot(tag + '_' + mode + '_outside');
-      console.log('cowl_res_stills: ' + tag + ' ' + mode + ' cowl groups hidden for _up_nocowl: ' + nCowl);
-      const row = Object.assign({ build: tag, mode }, JSON.parse(drew));
+      // OUTSIDE, CLOSE: the orbit from ahead, left and above, looking down on the nose's top arch
+      if (VIEWS.includes('outside')) {
+        await ev("FLIGHT_PROBE.camSet(" + (Math.PI * 0.78) + ", 0.62, 4.2), FLIGHT_PROBE.camSettle && FLIGHT_PROBE.camSettle(), 1");
+        await sleep(2500); if (!NOHIDE) await ev(HIDE); await shot(tag + '_' + mode + '_outside');
+      }
+      const inside = VIEWS.some(v => ['ahead', 'left', 'right', 'down', 'up', 'nocowl'].includes(v));
+      if (inside) {
+        const ok = await pill('interior');
+        if (!ok) { console.log('cowl_res_stills: ' + tag + ' ' + mode + ': no interior view (no pilot?)'); info.push(row); continue; }
+        await sleep(3500);
+        if (!NOHIDE) await ev(HIDE);                    // the flyout the pill may have opened
+        // THE EYE ASSERTED (the stills-rig rule): the camera within 0.5 m of the crew layer's eye marker, else no picture
+        const eye = JSON.parse(await ev("JSON.stringify((()=>{const E=window.CAGE_CREW_EYE,F=window.FLIGHT_PROBE,c=F&&F.camera&&F.camera();if(!E||!c)return {ok:false,why:!E?'no crew eye':'no camera'};const p=c.position;const d=Math.hypot(p.x-E.p[0],p.y-E.p[1],p.z-E.p[2]);return {ok:d<0.5,d:+d.toFixed(3),boot:" + BOOTUP + "};})())"));
+        row.eye = eye;
+        if (!eye.ok || eye.boot) { console.log('cowl_res_stills: ' + tag + ' ' + mode + ': NOT at the pilot\'s eye - no picture'); info.push(row); continue; }
+        // THE USER'S VIEW (their marked-up still, 26 Oct): seated, ahead over the panel - the arch against the runway
+        if (VIEWS.includes('ahead')) { await HEAD(0, 0, 0, 0, 0); await sleep(1500); await shot(tag + '_' + mode + '_ahead'); row.cockpit = JSON.parse(await ev(COUNT)); }
+        for (const [nm, yaw, pitch] of LOOKS) if (VIEWS.includes(nm)) { await HEAD(0, 0, 0, yaw, pitch); await sleep(2000); await shot(tag + '_' + mode + '_' + nm); }
+        if (VIEWS.includes('up') || VIEWS.includes('nocowl')) {
+          await HEAD(0, 0.10, 0, 0.35, -0.5); await sleep(2000);
+          if (VIEWS.includes('up')) await shot(tag + '_' + mode + '_up');
+          if (VIEWS.includes('nocowl')) { await ev(COWLVIS(false)); await sleep(1200); await shot(tag + '_' + mode + '_up_nocowl'); await ev(COWLVIS(true)); }
+        }
+        await HEAD(0, 0, 0, 0, 0);
+        await pill('3/4 front');
+      }
       info.push(row); console.log('cowl_res_stills: ' + JSON.stringify(row));
     }
   }
+  await ev("(()=>{window.CAGE_EYE_VARIANT=null;const l=document.getElementById('lvl');if(l)l.value='2';return 1})()");
   fs.writeFileSync(path.join(OUT, 'cowl_res_stills.json'), JSON.stringify({ info, errors: errs }, null, 1));
   ws.close();
   done(0);
