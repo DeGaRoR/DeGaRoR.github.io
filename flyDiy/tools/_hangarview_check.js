@@ -76,6 +76,11 @@ const HV = require(path.join(ROOT, 'src', 'viewer', 'hangar_view.js'));
   ok(/'hangar\.js',\s*\n\s*'hangar_view\.js'/.test(build), '3f the build manifest carries hangar_view.js after hangar.js');
   ok(/exposureNow: \(\) => LE\.ex/.test(rw), '3g the world hands its eased exposure (the capture is lit as the world shows it)');
   ok(/HVIEW_N = \{ laptop: 768, potato: 768, retro: 768/.test(app) && /G\.soft && G\.soft\(\)\) return 0/.test(app), '3h potato / laptop / retro at 768, none on a software renderer');
+  ok(/linear: hviewLinear\(\)/.test(app) && /cap\.isXRRenderTarget = !lin;/.test(hv) && /if \(uLin > 0\.5\) \{ c = pow\(c, vec3\(2\.2\)\); c = uK \* c/.test(hv) && /hviewGain\(\);   \/\/ \(the mood moves/.test(app),
+    '3i the capture is drawn as the world frame is (the linear split: radiance, decoded in the room under the exposure ratio; else display-space)');
+  ok(/camera\.position\.set\(HVIEW_C\[0\], HVIEW_C\[1\], HVIEW_C\[2\]\)\.applyMatrix4\(node\.matrixWorld\)/.test(app) && /camera\.position\.copy\(keepEye\)/.test(app) && /if \(first && WF\.worldUpdate\)/.test(app),
+    '3j the world is updated and drawn from the capture eye (the main camera there, put back after every face)');
+  ok(/if \(!hviewWant \|\| hviewBooting/.test(app), '3k the shed frames never capture while the boot does (one set, six faces)');
   // 4 no readback
   ok(!/readRenderTargetPixels|readPixels|getBufferSubData/.test(hv), '4 NO READBACK in hangar_view.js (the distance reaches the mesh by a vertex fetch)');
 }

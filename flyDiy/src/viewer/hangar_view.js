@@ -59,7 +59,7 @@ var HANGAR_VIEW = (() => {
     const faceU = () => ({ uF: { value: basis.map(b => b.F) }, uU: { value: basis.map(b => b.U) }, uR: { value: basis.map(b => b.R) } });
     const viewMat = near => new THREE.ShaderMaterial({
       uniforms: Object.assign(faceU(), { uCol: { value: null }, uDist: { value: null }, uC: { value: V3() }, uFar: { value: S.far },
-        uHalf: { value: 0.5 / S.N }, uHalfD: { value: 0.5 / S.n }, uJump: { value: S.jump } }),
+        uHalf: { value: 0.5 / S.N }, uHalfD: { value: 0.5 / S.n }, uJump: { value: S.jump }, uLin: { value: 0 }, uK: { value: 1 } }),
       defines: near ? { HV_NEAR: '' } : {},
       vertexShader: GLSL_FACE + `
         uniform sampler2D uDist; uniform vec3 uC; uniform float uFar, uHalfD;
@@ -76,13 +76,18 @@ var HANGAR_VIEW = (() => {
           gl_Position.z = 0.5 * gl_Position.w;   // a backdrop: never clipped by the room camera's near / far (no depth test)
         }`,
       fragmentShader: GLSL_FACE + `
-        uniform sampler2D uCol; uniform float uHalf, uJump;
+        uniform sampler2D uCol; uniform float uHalf, uJump, uLin, uK;
         varying vec3 vDir; varying float vL;
         void main() {
           #ifdef HV_NEAR
           if (fwidth(vL) > uJump) discard;     // a sheet across a depth jump: the far shell shows through
           #endif
-          gl_FragColor = vec4(texture2D(uCol, hvAtlas(normalize(vDir), uHalf)).rgb, 1.0);   // display values, raw (no tone map)
+          vec3 c = texture2D(uCol, hvAtlas(normalize(vDir), uHalf)).rgb;
+          // LINEAR (the room's target is aa_resolve's linear split): the capture's radiance, decoded, scaled by the world's
+          // exposure over the room's - the room's ONE tone map in the blit then shows the world camera's pixels.
+          // DISPLAY (the display-space target, or the canvas): the capture's display values, raw (no tone map)
+          if (uLin > 0.5) { c = pow(c, vec3(2.2)); c = uK * c / max(vec3(1.0) - c, vec3(1.0 / 255.0)); }
+          gl_FragColor = vec4(c, 1.0);
         }`,
       depthTest: false, depthWrite: false, side: THREE.DoubleSide, fog: false, toneMapped: false });
     // the near mesh: a sphere whose rows crowd the horizon (e = 90 deg x s (0.25 + 0.75 s^2), s uniform in [-1, 1])
@@ -114,8 +119,9 @@ var HANGAR_VIEW = (() => {
     const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), null); quad.frustumCulled = false;
     const qScene = new THREE.Scene(); qScene.add(quad);
     const qCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-    const blitMat = new THREE.ShaderMaterial({ uniforms: { uT: { value: null } }, vertexShader: QUAD_VERT,
-      fragmentShader: 'uniform sampler2D uT; varying vec2 vUv; void main() { gl_FragColor = vec4(texture2D(uT, vUv).rgb, 1.0); }',
+    const blitMat = new THREE.ShaderMaterial({ uniforms: { uT: { value: null }, uLin: { value: 0 } }, vertexShader: QUAD_VERT,
+      fragmentShader: 'uniform sampler2D uT; uniform float uLin; varying vec2 vUv; void main() { vec3 c = max(texture2D(uT, vUv).rgb, vec3(0.0));' +
+        ' if (uLin > 0.5) c = pow(c / (vec3(1.0) + c), vec3(1.0 / 2.2)); gl_FragColor = vec4(c, 1.0); }',
       depthTest: false, depthWrite: false, toneMapped: false });
     // the depth buffer to metres along the ray: reversed float ([0, 1], near at 1: w = f n / ((f - n) d + n)) or the
     // logarithmic buffer (d = log2(1 + w) / log2(far + 1)); the face's 90 degrees take w to the distance
@@ -133,17 +139,19 @@ var HANGAR_VIEW = (() => {
       col: new THREE.WebGLRenderTarget(3 * N, 2 * N, { type: THREE.UnsignedByteType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false }),
       dist: new THREE.WebGLRenderTarget(3 * n, 2 * n, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false }),
       done: 0, N, n });
-    const capTarget = N => {
-      if (cap && cap.width === N) return cap;
+    const capTarget = (N, lin) => {
+      if (cap && cap.width === N && cap.userData.lin === lin) return cap;
       if (cap) cap.dispose();
       cap = new THREE.WebGLRenderTarget(N, N, { type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter,
         generateMipmaps: false, depthBuffer: true, stencilBuffer: true, samples: S.samples,
         depthTexture: new THREE.DepthTexture(N, N, RZ ? THREE.FloatType : THREE.UnsignedInt248Type) });
       cap.depthTexture.format = THREE.DepthStencilFormat; cap.depthTexture.minFilter = cap.depthTexture.magFilter = THREE.NearestFilter;
       cap.resolveStencilBuffer = false;
-      // DISPLAY-SPACE, as aa_resolve's target (W0.5a): the materials tone-map and encode per material.toneMapped, the
-      // dome's raw display values stay raw - the capture holds what the world camera's frame holds
-      cap.isXRRenderTarget = true; cap.texture.colorSpace = THREE.SRGBColorSpace;
+      // AS THE WORLD'S FRAME IS DRAWN (aa_resolve): DISPLAY-SPACE (W0.5a: the materials tone-map and encode per
+      // material.toneMapped, the dome's display values raw) or THE LINEAR SPLIT (G448.3, the presets' 'linear' compositing:
+      // radiance, the one tone map in the blit) - the capture holds what the world camera's target holds
+      cap.isXRRenderTarget = !lin; cap.texture.colorSpace = lin ? THREE.LinearSRGBColorSpace : THREE.SRGBColorSpace;
+      cap.userData.lin = lin;
       return cap;
     };
     const region = (rt, k, size) => { const x = (k % 3) * size, y = Math.floor(k / 3) * size; rt.viewport.set(x, y, size, size); rt.scissor.set(x, y, size, size); rt.scissorTest = true; };
@@ -155,7 +163,10 @@ var HANGAR_VIEW = (() => {
       const N = Math.max(128, Math.min(S.N, Math.floor(maxTex / 3))), n = S.n;
       const list = o.faces || [0, 1, 2, 3, 4, 5];
       if (!st.stage || st.stage.N !== N || st.stage.n !== n) { if (st.stage && st.stage !== st.live) disposeSet(st.stage); st.stage = atlases(N, n); }
-      const T = capTarget(N);
+      const lin = !!o.linear;
+      if (st.stage.done && st.stage.lin !== lin) { disposeSet(st.stage); st.stage = atlases(N, n); }   // (a set is one mode)
+      st.stage.lin = lin;
+      const T = capTarget(N, lin);
       capCam = capCam || new THREE.PerspectiveCamera(90, 1, S.near, S.far);
       if (typeof UI_LAYER !== 'undefined' && UI_LAYER.blind) UI_LAYER.blind(capCam);
       capCam.near = S.near; capCam.far = S.far; capCam.updateProjectionMatrix();
@@ -190,7 +201,7 @@ var HANGAR_VIEW = (() => {
           if (o.clouds) { try { o.clouds(renderer, capCam, T); } catch (e) {} }
           renderer.render(o.scene, capCam);
           // the face into the staging atlases: colour as drawn, distance resolved
-          blitMat.uniforms.uT.value = T.texture; region(st.stage.col, k, N); pass(blitMat, st.stage.col);
+          blitMat.uniforms.uT.value = T.texture; blitMat.uniforms.uLin.value = lin ? 1 : 0; region(st.stage.col, k, N); pass(blitMat, st.stage.col);
           distMat.uniforms.uD.value = T.depthTexture; distMat.uniforms.uDZ.value.set(RZ ? 1 : 0, S.near, S.far); region(st.stage.dist, k, n); pass(distMat, st.stage.dist);
           st.stage.done |= 1 << k; st.faces++;
         }
@@ -206,8 +217,8 @@ var HANGAR_VIEW = (() => {
         if (old) disposeSet(old);
         for (const m of [farMesh, nearMesh]) { const U = m.material.uniforms;
           U.uCol.value = st.live.col.texture; U.uDist.value = st.live.dist.texture; U.uC.value.set(o.C[0], o.C[1], o.C[2]);
-          U.uHalf.value = 0.5 / st.live.N; U.uHalfD.value = 0.5 / st.live.n; U.uFar.value = S.far; U.uJump.value = S.jump; }
-        st.C = o.C.slice(); st.captures++;
+          U.uHalf.value = 0.5 / st.live.N; U.uHalfD.value = 0.5 / st.live.n; U.uFar.value = S.far; U.uJump.value = S.jump; U.uLin.value = st.live.lin ? 1 : 0; }
+        st.C = o.C.slice(); st.captures++; st.live.ex = o.exposure > 0 ? o.exposure : null;
         if (cap) { cap.dispose(); cap = null; }   // the capture target is let go between sets (MSAA + depth at N: ~30 MB at 1024)
         group.visible = st.on;
       }
@@ -220,6 +231,9 @@ var HANGAR_VIEW = (() => {
       get ready() { return !!st.live; },
       get staging() { return !!(st.stage && st.stage.done); },
       on(v) { st.on = v !== false; group.visible = st.on && !!st.live; return st.on; },
+      // the linear set's gain: the world's exposure at the capture over the room's now (app.js, every shed frame - the mood moves it)
+      gain(k) { if (k > 0) for (const m of [farMesh, nearMesh]) m.material.uniforms.uK.value = k; return st.live ? st.live.ex : null; },
+      get linear() { return !!(st.live && st.live.lin); },
       // what it holds: the sizes, the GPU bytes (colour RGBA8 + distance RGBA16F), the captures and their time
       stats: () => ({ live: !!st.live, N: st.live ? st.live.N : 0, n: st.live ? st.live.n : 0, captures: st.captures, faces: st.faces,
         ms: Math.round(st.ms), lastMs: Math.round(st.lastMs * 10) / 10, C: st.C,

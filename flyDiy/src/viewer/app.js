@@ -1282,7 +1282,11 @@
   // runs with the craft's LIGHTS in the world scene (craftInWorldNow, its meshes hidden): the world's programs are keyed
   // with them (G1085), so nothing links. No view (the phone garage, no world, ?hview=0, a software renderer): the room's
   // own outdoors, as before.
-  let hview = null, hviewKey = null, hviewFor = null, hviewWant = null, hviewFace = 0, hviewHold = 0, hviewFr = 0, hviewLast = null;
+  let hview = null, hviewKey = null, hviewFor = null, hviewWant = null, hviewFace = 0, hviewHold = 0, hviewFr = 0, hviewLast = null, hviewBooting = false;
+  // the room's target is the world's (aa_resolve): the linear split (the presets' 'linear' compositing) or display-space
+  const hviewLinear = () => !!(aa && aa.target && aa.target() && aa.linear && aa.linear());
+  // a linear view's gain: the world's exposure at its capture over the room's now (the room's one tone map does the rest)
+  function hviewGain() { if (hview && hview.linear) { const ex = hview.gain(0); if (ex > 0 && renderer.toneMappingExposure > 0) hview.gain(ex / renderer.toneMappingExposure); } }
   const HVIEW_N = { laptop: 768, potato: 768, retro: 768, current: 1024, gamer: 1024, ultra: 1536 };
   const HVIEW_C = [0, 2, 0];          // the capture's eye in the shed's frame: the room's centre, a standing eye
   const HVIEW_NEAR = 3000;            // a flight that ended this near the stand left the world there (m)
@@ -1318,7 +1322,7 @@
       if (hview.group.parent !== hangarScene) hangarScene.add(hview.group);
       hangar.group.updateMatrixWorld(true);
       hview.group.matrixAutoUpdate = false; hview.group.matrix.copy(hangar.group.matrixWorld); hview.group.matrixWorldNeedsUpdate = true;
-      hview.on(up);
+      hview.on(up); hviewGain();
     }
     if (hangar.outdoorsShow) hangar.outdoorsShow(!up);
   }
@@ -1329,17 +1333,31 @@
     const node = hviewNode(); if (!node) return false;
     if (!hview) hview = HANGAR_VIEW.make(THREE, renderer);
     HANGAR_VIEW.S.N = N;
-    const G = window.GFX, base = G && G.exposureBase ? G.exposureBase() : null;
-    const k = base > 0 ? renderer.toneMappingExposure / base : 1;   // the menu's step and the eye, as the world wears them
-    const ex = (WF.exposureNow && WF.exposureNow() > 0 ? WF.exposureNow() : WORLD_EXPOSURE) * k;
+    const G = window.GFX, base = G && G.exposureBase ? G.exposureBase() : null, exRoom = renderer.toneMappingExposure;
+    const k = base > 0 ? exRoom / base : 1;   // the menu's step and the eye, as the world wears them
     const meshes = [];
     let r = null;
+    // THE WORLD SEEN FROM THE CAPTURE'S EYE: the world's update reads the MAIN camera (the aerial perspective's atlases, the
+    // trees' and the cover's eye uniform, the far tier's cut, the lamps) - in the shed that camera stands in the room's frame,
+    // near the world's origin (the 26 Oct stills: HOME's tree line gone, the haze of another place). So for the capture it
+    // stands at the room's centre in the world, and the first face of a set runs the world's update there once (the stand's
+    // anchor, as worldSettle) - the camera put back after every face
+    const keepEye = camera.position.clone(), first = !hview.staging;
+    node.updateMatrixWorld(true);
+    camera.position.set(HVIEW_C[0], HVIEW_C[1], HVIEW_C[2]).applyMatrix4(node.matrixWorld);
     craftInWorldNow(() => {
       craft.traverse(o => { if ((o.isMesh || o.isPoints || o.isLine || o.isSprite) && o.visible) { o.visible = false; meshes.push(o); } });   // its lights stay: the programs' key
       try {
+        if (first && WF.worldUpdate) {
+          const a = standAnchor();
+          if (a) { WF.worldUpdate([a[0], a[1] + 1.5, a[2]]);
+            // (the world's day writes the exposure through GFX: the room's put back - its base and the renderer's)
+            if (G && G.setExposure && base > 0) G.setExposure(renderer, base); renderer.toneMappingExposure = exRoom; }
+        }
+        const ex = (WF.exposureNow && WF.exposureNow() > 0 ? WF.exposureNow() : WORLD_EXPOSURE) * k;
         r = hview.capture({ scene, node, C: HVIEW_C, hide: [node], sky: WF.skyDome,
-          clouds: (typeof CLOUDS !== 'undefined' && CLOUDS.draw) ? CLOUDS.draw : null, faces, exposure: ex });
-      } finally { for (const o of meshes) o.visible = true; }
+          clouds: (typeof CLOUDS !== 'undefined' && CLOUDS.draw) ? CLOUDS.draw : null, faces, exposure: ex, linear: hviewLinear() });
+      } finally { for (const o of meshes) o.visible = true; camera.position.copy(keepEye); }
     });
     // whole: on screen, and the room's probe re-shot (it sees the view through the door: the floor and the aeroplane take the
     // world's colours) - the clock's sliced bake, a step a frame
@@ -1350,8 +1368,9 @@
   // view's two programs linked before the shed is revealed (no link at the reveal: HWCOV's garage-link rule)
   function hviewBoot() {
     if (!inGarage || hviewOff() || typeof HANGAR_VIEW === 'undefined' || !WF || !getHangar()) return Promise.resolve(null);
-    hviewWant = hviewKeyNow(hviewNode()); hviewFace = 0;
-    return new Promise(res => {
+    hviewWant = hviewKeyNow(hviewNode()); hviewFace = 0; hviewBooting = true;
+    return new Promise(res0 => {
+      const res = v => { hviewBooting = false; res0(v); };
       const tick = () => {
         let done = false;
         try { done = hviewCapture([hviewFace]); } catch (e) { console.warn('hangar view:', e && e.message); hviewWant = null; return res(null); }
@@ -1367,7 +1386,8 @@
   // a frame of the shed: the deferred recapture, a face a frame once the hold has run out (a return's first frames are
   // the room's own: the reveal, the camera's settle)
   function hviewTick() {
-    if (!hviewWant || !inGarage || !hangar) return;
+    hviewGain();   // (the mood moves the room's exposure)
+    if (!hviewWant || hviewBooting || !inGarage || !hangar) return;
     if (hviewHold > 0) { hviewHold--; return; }
     try { if (hviewCapture([hviewFace])) hviewFace = 0; else if (++hviewFace >= 6) { hviewFace = 0; hviewWant = null; } }
     catch (e) { console.warn('hangar view:', e && e.message); hviewWant = null; }
