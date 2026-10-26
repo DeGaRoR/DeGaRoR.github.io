@@ -124,7 +124,16 @@ rim, here 2 rings round every removed or torn triangle.
 - **The draw count is the catch.** The rim falls in up to **23 snapshot groups**, roughly the page's drawers (39 on
   the Cub, G3022). So **an overlay per drawer would cost up to ~23 draws.**
 
-**How to keep it at one draw** (recommended: **B3**):
+**How to keep it at one draw.** The user ruled on 26 Oct: **B3, outer skin only**.
+
+> **Correction, 26 Oct.** DMG-SKINGPU's place textures are **per drawer** (`skin_gpu.js` `D.tex`). So B3's extra
+> transform-feedback pass is one small draw **per drawer that has rim places**, each with that drawer's textures bound,
+> writing into the overlay's parked buffers at its range. The visible overlay is still **one draw**.
+>
+> With the outer skin only, the real crashes put the rim in 3-5 groups on the Cub (`port/rim_events.txt`), so that is
+> 3-5 transform-feedback calls a frame. The port kit (`port/README.md` §2) has the CPU side ready: `RimState`, checked.
+
+
 
 | Variant | Draws | Per frame | At the event | Note |
 |---|---|---|---|---|

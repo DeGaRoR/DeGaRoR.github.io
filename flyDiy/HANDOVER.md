@@ -98225,3 +98225,24 @@ DMG-LOOKS: study at futureDesigns/DMG-LOOKS-STUDY-2026-10.md, for the Deform Coo
 **Wiring is Deform's, not done here:**
 - the slot goes in the pool (`dmg_members.js`);
 - B3 needs one more transform-feedback draw in `skin_gpu.js`, the incremental rim pass in `skin_break.js event()`, and a parked overlay mesh plus material beside `ground_scar.js`.
+
+### G3620-G3629 DMG-LOOKS PORT KIT + IN-GAME STILLS RIG - FOR A FAST MERGE (2026-10-26, DMG-LOOKS for the DEFORM COORDINATOR; cloud, node + headless Chromium; branch claude/dmg-looks-study; nothing on claude/dmg-looks touched)
+- **The user's rulings (26 Oct):** B3 for the rim overlay, outer skin only.
+- **Port kit:** `futureDesigns/dmg-looks/port/` (start with its README, which has the wiring steps). Pure modules, JS mirror and GLSL side by side:
+  - `dmg_looks_noise.js`;
+  - `dmg_looks_alloy.js`: the alloy pool slot - a canonical 480-triangle mesh (21 rings), a 16-float slot state, `dlAlloyPose` / `dlAlloyFrag`;
+  - `dmg_looks_rim.js`: `isOuter`, an incremental `RimState` per skin_break record per event, `dlRimBands`.
+- **GATE `port/check_port.js`** runs the GLSL in a real WebGL2 (headless Chromium, SwiftShader, transform feedback) against the JS mirror. **PASS:**
+  - alloy pose: worst 0.001 mm over 3,024 vertices and 12 slots;
+  - alloy fragments: 7,200 / 7,200 the same;
+  - rim bands: 4,000 / 4,000 the same;
+  - the incremental rim equals the from-scratch rim after 6 events.
+- **B3 correction.** DMG-SKINGPU's place textures are per drawer (`D.tex`), so the overlay's ride is one small transform-feedback draw per drawer that has rim places, plus one overlay draw. With the outer skin only, the Cub's crashes put the rim in 3-5 groups. Per-event timings: `port/rim_events.txt`.
+- **In-game stills rig:** `futureDesigns/dmg-looks/looks_stills.js`.
+  - It runs the real page on the cloud's software GPU (`tools/soft_still.js`) with `?damage=1&simw=0`.
+  - Crashes: trunk 0, trunk 2.5 and the nose-over, on the Cub, the Jodel and the metal Cessna, each stepped until the wreck rests, frozen, then shot from fixed cameras.
+  - `--after "<js>"` shoots the AFTER set on the same frozen frame; `--sheet <build>` composes before | after.
+  - **Deform: name the switch**, and the AFTER set can be taken from the cloud as soon as `claude/dmg-looks` is pushed.
+- **A lead for Deform (not investigated further).** On SwiftShader, master logs `GL_INVALID_OPERATION: glDrawArrays: A transform feedback buffer that would be written to is also bound to a non-transform-feedback target` during the crash, which is ANGLE rejecting a DMG-SKINGPU riding draw.
+  - The still still shows the wreck posed.
+  - ANGLE's validation is the same on Windows, so it is worth a look on the box (`skin_gpu.js` frame(): the transform-feedback buffers `D.posBuf` / `D.nrmBuf` / `D.wBuf` must be bound nowhere else at the draw).
