@@ -583,19 +583,23 @@ function makeModifier0(m, y0) {
     const corners = [[R.x0 - mF, R.z0 - mB], [R.x1 + mF, R.z0 - mB], [R.x1 + mF, R.z1 + mF], [R.x0 - mF, R.z1 + mF]].map(q => [c[0] + q[0] * cy + q[1] * sy, c[1] - q[0] * sy + q[1] * cy]);
     const bbox = polyBBox(corners);
     const level = +m.level;
+    // G3660: a RAMP shelf's plane (siteShelves need 'ramp'): the level at the item's point c, rising by tilt [d/dx, d/dz]
+    // in the world; a shelf without one keeps the flat arithmetic exactly
+    const tilt = m.tilt || null, levAt = tilt ? (x, z) => level + tilt[0] * (x - c[0]) + tilt[1] * (z - c[1]) : null;
     // (the ceiling: level + (h - level) sm, sm in [0, 1] - between h and the level)
     // (G611: a rectangle whose four corners lie in the pad rect - the item's frame, a margin of a micron - reads
     // the level at every point: k = 0 there)
     const inR = (x, z) => { const dx = x - c[0], dz = z - c[1], lx = dx * cy - dz * sy, lz = dx * sy + dz * cy;
       return lx >= R.x0 + 1e-6 && lx <= R.x1 - 1e-6 && lz >= R.z0 + 1e-6 && lz <= R.z1 - 1e-6; };
     const covers = (x0, z0, x1, z1) => inR(x0, z0) && inR(x1, z0) && inR(x0, z1) && inR(x1, z1);
-    return { id: m.id, kind: 'shelf', bbox, bound: () => ({ t: level, add: 0 }), covers, feather: Math.min(mF, mB), apply: (x, z, h) => {
+    return { id: m.id, kind: 'shelf', bbox, bound: () => ({ t: levAt ? Math.max(levAt(bbox.x0, bbox.z0), levAt(bbox.x1, bbox.z0), levAt(bbox.x0, bbox.z1), levAt(bbox.x1, bbox.z1)) : level, add: 0 }), covers, feather: Math.min(mF, mB), apply: (x, z, h) => {
       if (x < bbox.x0 || x > bbox.x1 || z < bbox.z0 || z > bbox.z1) return h;
       const dx = x - c[0], dz = z - c[1];
       const lx = dx * cy - dz * sy, lz = dx * sy + dz * cy;
       const k = Math.max(Math.max(0, R.z0 - lz) / mB, Math.max(0, R.x0 - lx, lx - R.x1, lz - R.z1) / mF);
       if (k >= 1) return h;
       const sm = k * k * (3 - 2 * k);
+      if (levAt) { const L = levAt(x, z); return L + (h - L) * sm; }
       return level + (h - level) * sm;
     } };
   }
@@ -1983,8 +1987,22 @@ function siteShelves(site, cat, T) {
     const foot = entry.foot ? entry.foot(P) : null;
     if (!foot || foot.length < 3) return;
     const fb = polyBBox(foot);
-    let level;
-    if (entry.ground.need === 'level' || entry.ground.level === 'high') {
+    let level, tilt = null;
+    if (entry.ground.need === 'ramp') {
+      // G3660 THE RAMP (the meteo station; the user 25 Oct: "Keep the level pad tight around the building. The real one is
+      // positioned slightly on a slope, but a small one"): the foot's least-squares PLANE (8 x 8 samples), its slope capped
+      // at ground.maxSlope (0.06 when unsaid); `level` the plane at the item's point, `tilt` its world gradient [d/dx, d/dz]
+      let n = 0, mx = 0, mz = 0, mh = 0; const S = [];
+      for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) { const w = toWorld(fb.x0 + (i + 0.5) / 8 * (fb.x1 - fb.x0), fb.z0 + (j + 0.5) / 8 * (fb.z1 - fb.z0)); const h = T(w[0], w[1]); S.push([w[0] - c[0], w[1] - c[1], h]); n++; mx += w[0] - c[0]; mz += w[1] - c[1]; mh += h; }
+      mx /= n; mz /= n; mh /= n;
+      let sxx = 0, szz = 0, sxz = 0, sxh = 0, szh = 0;
+      for (const q of S) { const dx = q[0] - mx, dz = q[1] - mz, dh = q[2] - mh; sxx += dx * dx; szz += dz * dz; sxz += dx * dz; sxh += dx * dh; szh += dz * dh; }
+      const det = sxx * szz - sxz * sxz;
+      let a = det > 1e-9 ? (sxh * szz - szh * sxz) / det : 0, b = det > 1e-9 ? (szh * sxx - sxh * sxz) / det : 0;
+      const s0 = Math.hypot(a, b), cap = entry.ground.maxSlope === undefined ? 0.06 : +entry.ground.maxSlope;
+      if (s0 > cap) { a *= cap / s0; b *= cap / s0; }
+      level = mh - a * mx - b * mz; tilt = [+a.toFixed(5), +b.toFixed(5)];
+    } else if (entry.ground.need === 'level' || entry.ground.level === 'high') {
       level = -Infinity;
       for (const q of foot) { const w = toWorld(q[0], q[1]); level = Math.max(level, T(w[0], w[1])); }
     } else {
@@ -1997,7 +2015,9 @@ function siteShelves(site, cat, T) {
     // is 1.5 x drop / margin) - a station on a 35 % flank had a 14 m wall over its 6 m margin
     const rectW = [[fb.x0, fb.z0], [fb.x1, fb.z0], [fb.x1, fb.z1], [fb.x0, fb.z1]].map(q => toWorld(q[0], q[1]));
     const f = bankFalloff(rectW, T, level, entry.ground.falloff || 6);
-    out.push({ id, kind: 'shelf', c, yaw, rect: { x0: fb.x0, z0: fb.z0, x1: fb.x1, z1: fb.z1 }, level, marginF: f, marginB: f, drop: +polyDrop(rectW, T, level, 0).toFixed(2) });
+    const sh = { id, kind: 'shelf', c, yaw, rect: { x0: fb.x0, z0: fb.z0, x1: fb.x1, z1: fb.z1 }, level, marginF: f, marginB: f, drop: +polyDrop(rectW, T, level, 0).toFixed(2) };
+    if (tilt) sh.tilt = tilt;   // G3660: a ramp's plane (the shelf modifier reads it)
+    out.push(sh);
   });
   return out;
 }
@@ -4417,8 +4437,8 @@ function checks(rec0, world, opts) {
 // the catalogue — collect what the loaded generators export, or DERIVE an
 // entry per preset for those without one (the contract §2.2)
 // ---------------------------------------------------------------------------
-const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN', 'HANGAR_GEN', 'TOWER_GEN', 'MARINE_GEN', 'NAVAID_GEN'];   // SPORT_GEN: the sports grounds (G392); MARINE_GEN: the harbour kit (2026-09-22) - piers, floats, moles, wharves, net pens
-const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport', HANGAR_GEN: 'hangar', TOWER_GEN: 'tower', NAVAID_GEN: 'navaid', MARINE_GEN: 'marine' };
+const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN', 'HANGAR_GEN', 'TOWER_GEN', 'MARINE_GEN', 'NAVAID_GEN', 'METEO_GEN'];   // SPORT_GEN: the sports grounds (G392); MARINE_GEN: the harbour kit (2026-09-22) - piers, floats, moles, wharves, net pens
+const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport', HANGAR_GEN: 'hangar', TOWER_GEN: 'tower', NAVAID_GEN: 'navaid', MARINE_GEN: 'marine', METEO_GEN: 'meteo' };   // METEO_GEN: the meteo station (G3660)
 function collect(globals) {
   const entries = new Map(), aliases = {}, issuesOut = [];
   for (const g of GENERATORS) {

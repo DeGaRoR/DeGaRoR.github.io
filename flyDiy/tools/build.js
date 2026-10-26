@@ -379,6 +379,7 @@ const MANIFEST = {
   lazy: [['tools', '_sport_gen.js'], ['tools', '_marine_gen.js'],
          // ASSETS-OCT G2909: the radio navaids (the Annette Island DVOR/DME) - asked for when the record names a navaid/ key
          ['tools', '_navaid_gen.js'],
+         ['tools', '_meteo_gen.js'],   // G3660: the meteo station (world_boot asks for it when the record places one)
          // ASSETS-OCT G2904: the scenery kit's packs (src/scenery/, slim manifests - their bins and maps are lazy media
          // too) - asked for by world_boot when the record holds prop objects and by the editor's model placer, in the
          // manifest's order (the levels pack last: its rows name the props they stand in for)
