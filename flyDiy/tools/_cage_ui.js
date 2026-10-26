@@ -2358,7 +2358,8 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
     // reads differently (the engine row reads by power).
     let order = names.map((n, i) => i);
     if (typeof opts.optOrder === 'function') {
-      try { const o = opts.optOrder(); if (Array.isArray(o) && o.length === names.length) order = o; }
+      // (G3575: a SUBSET shows only those - the third wheel's steering row hides 'fixed'; every index still means its name)
+      try { const o = opts.optOrder(); if (Array.isArray(o) && o.length >= 1 && o.length <= names.length && o.every(i => Number.isInteger(i) && i >= 0 && i < names.length)) order = o; }
       catch (e) {}
     }
     sel.innerHTML = order.map(i =>

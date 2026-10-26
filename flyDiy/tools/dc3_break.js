@@ -260,6 +260,8 @@ function home(lim) {
   }
   R.stopped = ph === 'STOPPED';
   if (R.stopped && !H.crashed()) R.taxiBack = taxiBack(H, sim, def, TK, clearNow, contact, TRACK, k / 60);
+  // the pilot's own words on its turns on the spot (43_pilot say 'pivot'; G3575: a full swivel's off the stand and at corners)
+  R.pivots = ((H.ap.report && H.ap.report.verdicts) || []).filter(q => q.code === 'pivot').map(q => q.t + ' s: ' + q.note);
   R.trunkHits = sim.trunkHits ? sim.trunkHits() : null;
   R.dmg = dmgSummary(sim, def); R.worst = worst(sim, def, TK);
   if (TRACK) fs.writeFileSync(opt('track'), JSON.stringify(TRACK));   // --track file: the cg's plan every 0.25 s [x, z, t, wheels]

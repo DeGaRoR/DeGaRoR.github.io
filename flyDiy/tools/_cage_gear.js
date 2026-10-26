@@ -132,7 +132,9 @@ const station = (i, name) => [name, [
    { when: P => +P['s' + i + 'On'] && Math.round(P['s' + i + 'Leg']) !== 3,
      dim: 'm' }],
   ['s' + i + 'Brake', 'brake',        0, 1, 1, sOn(i)],
-  ['s' + i + 'Steer', 'steering',     0, 2, 1, GP.STEERS, sOn(i)],
+  // (G3575, the user 26 Oct: "remove fixed" - on the THIRD wheel: it flew as 'linked' anyway; the mains keep their 'fixed',
+  // their own and only value. A saved third wheel at 0 still flies linked, as it always did)
+  ['s' + i + 'Steer', 'steering',     i === 2 ? 1 : 0, 2, 1, GP.STEERS, i === 2 ? Object.assign(sOn(i), { optOrder: () => [1, 2] }) : sOn(i)],
   // G133: the castor exclusion is GONE — legTailwheel draws its own shell
   // now, so the switch that was two lies (G121.2) is two truths everywhere
   ['s' + i + 'Fair',  'fairing',      0, 2, 1, ['none', 'spat', 'trousers'],

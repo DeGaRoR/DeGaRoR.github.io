@@ -99295,8 +99295,15 @@ your handover notes that you got explicit permission".
   SCENERYED only its 20b timing row (as before). Identity ALL IDENTICAL.
 - **NOT YET:** origin/master merged (after Tue 08:00, when L27a carries ab6a84914), the gates re-run on the merge, then the READY
   commit pushed as claude/ready/dc3-3.
-- **Questions:**
-  7. 'fixed' (s2Steer 0) still flies as 'linked' (steered): make it a real fixed wheel (no steering - a skid / a locked wheel), or
-     drop it from the row?
-  8. The autopilot's own taxi uses the toe brake only past the rudder's stop under power (G3077), so it rarely pivots a full-swivel
-     aeroplane: it taxis it as a linked one. Teach it the pivot (the taxi back's law) for the wide builds?
+- **The user's answers (26 Oct): "remove fixed, and teach the autopilot the pivot":**
+  - **'fixed' is gone from the THIRD wheel's row** (tools/_cage_gear.js: its dropdown shows 'linked' and 'full swivel' - the row's
+    `optOrder` may now be a subset, tools/_cage_ui.js mkRow; every index still means its name, so a saved number never changes
+    meaning). The mains keep 'fixed' (their own and only value). A saved third wheel at 0 flies linked, as it always did;
+  - **the autopilot pivots a full-swivel aeroplane** (43_pilot `SWIV`, a taildragger with params.twSwivel - every other build: not
+    one line of it): (1) OFF THE STAND - the way out's first 10 m more than 45 deg off the nose: pivotFly onto it first; (2) AT A
+    TAXI CORNER tighter than the wheels steer (1 / (1.1 Rpiv)) turning more than 45 deg: rolled on to the corner's middle, turned on
+    the spot (pivotFly: the inside toe brake, which breaks the swivel out) to the heading the path leaves it on, the path taken up
+    there. The long-strip rule (no pivot at HOME's lane U-turn) stays for every other build. HOME's trip: "a 49 deg corner tighter
+    than the wheels steer (29.2 m) - turning on the spot (the tailwheel swivels)" at 61.6 s; the trip complete (0 contacts, 0 yields,
+    STOPPED, parked 2.5 m off the stand) - home_trip_swivel_phys.json; GATE PILOT (3 shards), PILOTACT, LINEUP, TAKEOFF, UISMOKE,
+    GEAR, PARTS, BUILD, SAVE, ENGINE, ENGID, EDBUGS, STARTER, DESIGN PASS; identity ALL IDENTICAL.
