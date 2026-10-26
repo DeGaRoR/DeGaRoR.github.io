@@ -383,7 +383,7 @@ function run(mut) {
   d = fly(d, 'me', 'mn_strip', true);
   ok(M.pilotsPlace(d, 'brian') === 'w3' && d.career.pilots.brian.plane === null && M.playerWhere(d, 'Cub').aero === 'mn_strip', 'you flew the Cub on to the mine: brian stays at w3');
   const away = M.pilotsCanFly(d, 'brian', 'mn_strip', base);
-  ok(!away.ok && away.kind === 'away' && !away.boat && /w3|Tamgas/.test(away.why), 'brian is not where the aeroplane is: refused (' + away.why + ')');
+  ok(!away.ok && away.kind === 'away' && !away.boat && [M.GAME_NAMES.fields.w3, 'w3'].some(w => away.why.includes(w)), 'brian is not where the aeroplane is: refused (' + away.why + ')');
   const boatQ = M.pilotsCanFly(d, 'brian', 'HOME', base);
   ok(!boatQ.ok && boatQ.boat === true, 'the aeroplane is at HOME: the boat brings brian');
   const bt = M.pilotsBoatHome(d, 'brian');
