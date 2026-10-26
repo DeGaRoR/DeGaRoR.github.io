@@ -1,0 +1,180 @@
+{
+ "root": "/home/user/DeGaRoR.github.io/flyDiy",
+ "builds": {
+  "cub": {
+   "spec": "2529808b1d3f9e14",
+   "def": "de98033d0f274188",
+   "draw": {
+    "draw": "fb0a8227",
+    "meshes": 533,
+    "verts": 214140
+   },
+   "nodes": 97,
+   "beams": 404,
+   "mass": 460.70322237014057,
+   "certKey": "f5f1744e",
+   "procureFp": "03610dfb",
+   "ledger": "fa750420ca60caf7",
+   "price": 30834.31025033046,
+   "empty": 351.2632223701409,
+   "design": "ee3e9f363d26205b",
+   "joinErrors": 0,
+   "sheet": "3fa4b994e0107a43",
+   "fly20": {
+    "hash": "8d1cb5804d733bf9",
+    "phase": "LIFTOFF",
+    "phases": [
+     "0.00 ROLL",
+     "10.95 LIFTOFF"
+    ],
+    "breaks": 0
+   }
+  },
+  "jodel": {
+   "spec": "c7603abb8f42ec53",
+   "def": "deace763bbdc5935",
+   "draw": {
+    "draw": "2f397f80",
+    "meshes": 509,
+    "verts": 188347
+   },
+   "nodes": 115,
+   "beams": 502,
+   "mass": 464.1828041916167,
+   "certKey": "b33894ac",
+   "procureFp": "64839dc7",
+   "ledger": "30072de30cc4cbd1",
+   "price": 34422.32467116612,
+   "empty": 341.7828041916168,
+   "design": "7be1b7751ab25726",
+   "joinErrors": 0,
+   "sheet": "53bd6196469ed256",
+   "fly20": {
+    "hash": "299830de0541d75f",
+    "phase": "LIFTOFF",
+    "phases": [
+     "0.00 ROLL",
+     "15.78 LIFTOFF"
+    ],
+    "breaks": 0
+   }
+  },
+  "metal": {
+   "spec": "0b7956e571a2325b",
+   "def": "07770b8036ad43ec",
+   "draw": {
+    "draw": "b1610530",
+    "meshes": 766,
+    "verts": 271567
+   },
+   "nodes": 107,
+   "beams": 452,
+   "mass": 888.7716034943926,
+   "certKey": "95a9f343",
+   "procureFp": "39ab1f0e",
+   "ledger": "34395605aecc0918",
+   "price": 94094.53620430434,
+   "empty": 668.6116034943923,
+   "design": "ac38412a5384fcde",
+   "joinErrors": 0,
+   "sheet": "f61362c0e9041f83",
+   "fly20": {
+    "hash": "6026dcb83610316f",
+    "phase": "CLIMB",
+    "phases": [
+     "0.00 ROLL",
+     "11.70 LIFTOFF",
+     "17.82 CLIMB"
+    ],
+    "breaks": 0
+   }
+  },
+  "floats": {
+   "spec": "4f00c12cf377c532",
+   "def": "a2aeaec3e2bec67c",
+   "draw": {
+    "draw": "53c7b111",
+    "meshes": 757,
+    "verts": 267244
+   },
+   "nodes": 134,
+   "beams": 543,
+   "mass": 952.4492536922977,
+   "certKey": "ee173e8a",
+   "procureFp": "8120755a",
+   "ledger": "a6f5d804a0a7d277",
+   "price": 95788.50427714387,
+   "empty": 732.2892536922974,
+   "design": "10d9ccf386271b65",
+   "joinErrors": 0,
+   "sheet": "d8678811647cdcd6",
+   "fly20": {
+    "hash": "da9977add52ada73",
+    "phase": "ROLL",
+    "phases": [
+     "0.00 ROLL"
+    ],
+    "breaks": 0
+   }
+  },
+  "twinFloats": {
+   "spec": "ee9ee8689de6a312",
+   "def": "abedb89f7cbb1730",
+   "draw": {
+    "draw": "516dbf2f",
+    "meshes": 443,
+    "verts": 220224
+   },
+   "nodes": 123,
+   "beams": 500,
+   "mass": 487.2442290358587,
+   "certKey": "6adea871",
+   "procureFp": "a7611eeb",
+   "ledger": "5f7543b819cc4078",
+   "price": 35442.06695542597,
+   "empty": 393.56422903585917,
+   "design": "cff52ced957669a5",
+   "joinErrors": 0,
+   "sheet": "6656239dc407d6f5",
+   "fly20": {
+    "hash": "7b179443a26458c9",
+    "phase": "ROLL",
+    "phases": [
+     "0.00 ROLL"
+    ],
+    "breaks": 0
+   }
+  },
+  "rufus": {
+   "spec": "ee7f6143ac304c3b",
+   "def": "c5a3fc72ccd7da76",
+   "draw": {
+    "draw": "50eaf9e4",
+    "meshes": 325,
+    "verts": 165658
+   },
+   "nodes": 95,
+   "beams": 395,
+   "mass": 404.711879546807,
+   "certKey": "c10fa441",
+   "procureFp": "51ee71bb",
+   "ledger": "f007bcca4d3148c8",
+   "price": 54043.02354091247,
+   "empty": 313.19187954680734,
+   "design": "7588fd550b50aa7a",
+   "joinErrors": 0,
+   "sheet": "d2c1cd4b6157f486",
+   "fly20": {
+    "hash": "d41372e336b8d8ce",
+    "phase": "CROSSWIND",
+    "phases": [
+     "0.00 ROLL",
+     "5.13 LIFTOFF",
+     "9.28 CLIMB",
+     "15.73 CROSSWIND"
+    ],
+    "breaks": 0
+   }
+  }
+ }
+}
