@@ -39,13 +39,17 @@ let fails = 0, checks = 0;
 const ok = (cond, msg) => { checks++; if (!cond) { fails++; console.log('  FAIL ' + msg); } else console.log('  ok   ' + msg); };
 
 // the three modules, loaded as CommonJS (they export when `module` exists)
+// (G3780: with the certificate's rule from the built core, as the page has it: certMajorOf / certStrip / ... globals)
+let CORE = null; try { CORE = require(path.join(ROOT, 'tools', 'flight_core.js')); } catch (e) {}
+const RULE = CORE && CORE.certMajorOf ? { certMajorOf: CORE.certMajorOf, certStrip: CORE.certStrip, certGroupsChanged: CORE.certGroupsChanged,
+                                          certChangeLine: CORE.certChangeLine } : {};
 function load(f) {
   const src = rd(f);
   const m = { exports: {} };
-  vm.runInNewContext(src, { module: m, exports: m.exports, console, Math, JSON,
+  vm.runInNewContext(src, Object.assign({ module: m, exports: m.exports, console, Math, JSON,
     parseFloat, isFinite, Number, String, Array, Object, Uint8ClampedArray,
     Infinity, setTimeout, clearTimeout, setInterval, clearInterval, performance,
-    Date, Symbol });
+    Date, Symbol }, RULE));
   return m.exports;
 }
 const PL = load('src/viewer/plaque.js');
@@ -152,14 +156,14 @@ console.log('THE WORD');
     v(c => { c.systems.look = { bezel: 3, sw: 2 }; }, true, 'the panel bezel keeps it');
     v(c => { c.cage.lightOn = 1; c.cage.cabOcc = 1; c.cage.paxOcc2 = 1; c.cage._viewLoops = 1; c.cage.explodeD = 0.4; c.cage.li_reflect = 0; c.cage.accDetail = 0; }, true, 'the lights, who is aboard, a view toggle and a look row keep it');
     v(c => { c.cage.li_flood = 1; c.cage.li_nav = 1; }, true, 'a light switched on (the cabin flood, the nav lights) keeps it (G3449)');
-    v(c => { c.cage.li_floodFit = 0; }, false, 'a lamp taken out (li_floodFit) changes it');
+    v(c => { c.cage.li_floodFit = 0; }, true, 'a lamp taken out (li_floodFit) keeps it (G3780 R2: lamps fitted are minor)');
     v(c => { c.cage.zzNew = 0.42; }, true, 'a cage row added at its default keeps it');
     v(c => { const o = {}; Object.keys(c.cage).reverse().forEach(k => o[k] = c.cage[k]); c.cage = o; }, true, 'the key order keeps it');
     v(c => { c.cage.waistY = 0.5 + 1e-12; }, true, 'a float printed to the last digit keeps it');
     v(c => { c.cage.zzNew = 0.5; }, false, 'a cage row moved off its default changes it');
     v(c => { c.cage.wgSpan = 9.0; }, false, 'a row put back to its default changes it (it was moved)');
     v(c => { c.energy.vessels[0].capacity = 60; }, false, 'a vessel capacity changes it');
-    v(c => { c.systems.avionics = 'ifr'; }, false, 'the systems fit changes it');
+    v(c => { c.systems.avionics = 'ifr'; }, true, 'the systems fit keeps it (G3780 R2: avionics and instruments are minor)');
     ok(BE.benchFingerprint(s2, null) !== g0 && /^[0-9a-f]{8}$/.test(BE.benchFingerprint(s2, null)), 'without defaults every row counts (a core-only caller)');
     ok(typeof BE.BENCH_FP_SCHEME === 'string' && /^f\d$/.test(BE.BENCH_FP_SCHEME), 'the scheme is named in the tag');
     ok(BE.benchCanon({ b: 1, a: [2, { d: 1, c: 2 }] }) === '{"a":[2,{"c":2,"d":1}],"b":1}', 'canonical JSON sorts keys at every depth');
@@ -172,22 +176,29 @@ console.log('THE WORD');
   {
     const withV = pv => {
       const m = { exports: {} };
-      vm.runInNewContext(rd('src/viewer/bench.js'), { module: m, exports: m.exports, console, Math, JSON,
+      vm.runInNewContext(rd('src/viewer/bench.js'), Object.assign({ module: m, exports: m.exports, console, Math, JSON,
         parseFloat, isFinite, Number, String, Array, Object, Uint8ClampedArray, Infinity,
         setTimeout, clearTimeout, setInterval, clearInterval, performance, Date, Symbol,
-        GEN_SPEC_V: 8, PHYSICS_V: pv });
+        GEN_SPEC_V: 8, PHYSICS_V: pv }, RULE));
       return m.exports.benchFingerprint(spec);
     };
-    ok(withV(1) !== withV(2) && withV(1) === withV(1), 'another PHYSICS_V is another fingerprint, the same one the same');
-    ok(withV(1) !== f0, 'the versions are folded in (a bare context reads v0|p0)');
+    // G3780 CERT-RULE (the user 26 Oct "R1-R6 yes"): A GAME UPDATE IS NOT A CHANGE TO THE AEROPLANE - the major
+    // fingerprint (f3) carries no version (R3 re-checks instead); the old f2 still folds them in (M1 recognises it)
+    ok(withV(1) === withV(2) && withV(1) === f0, 'another PHYSICS_V is the same f3 fingerprint (R3: an update re-checks, never withdraws)');
+    const f2V = pv => { const m = { exports: {} }; vm.runInNewContext(rd('src/viewer/bench.js'), Object.assign({ module: m, exports: m.exports, console, Math, JSON,
+        parseFloat, isFinite, Number, String, Array, Object, Uint8ClampedArray, Infinity, setTimeout, clearTimeout, setInterval, clearInterval,
+        performance, Date, Symbol, GEN_SPEC_V: 8, PHYSICS_V: pv }, RULE)); return m.exports.benchFingerprintF2(spec); };
+    ok(f2V(4) !== f2V(6), 'the OLD f2 still folds the versions in');
+    ok(BE.benchF2Set(spec).has(f2V(4)) && BE.benchF2Set(spec).has(f2V(6)) && !BE.benchF2Set(wg).has(f2V(4)),
+       'M1: an f2 certificate of this body under ANY past version is recognised (and not one of another body)');
   }
   // the bench source keeps the promises the comment makes
   const src = rd('src/viewer/bench.js');
-  ok(/results\[id\]\.fp && results\[id\]\.fp !== fp/.test(src), 'the dirty hook compares fingerprints');
+  ok(/results\[id\]\.fp !== M\.fp/.test(src) && /unsupersede\(M\.fp\)/.test(src), 'the dirty hook compares the major fingerprint, and an undone change restores (G3780 R4)');
   ok(!/if \(results\[id\] && !results\[id\]\.stale && !results\[id\]\.fp\) results\[id\]\.fp = fp/.test(src) &&
-     /certified before fingerprints/.test(src) && /physics changed since the certificate/.test(src)
-     && /certified under the old fingerprint/.test(src) && /r\.fps = BENCH_FP_SCHEME/.test(src),
-     'the restore withdraws a changed, unstamped or old-scheme certificate instead of stamping the live fingerprint on it');
+     /certified before fingerprints/.test(src) && /benchF2Set\(L\.spec, L\.D\)/.test(src) && /setTimeout\(recheckUpdate/.test(src)
+     && /r\.suspended = \{/.test(src) && /r\.fps = BENCH_FP_SCHEME/.test(src),
+     'the restore: held on the same aeroplane, re-checked under another version (R3: suspended if it fails), an f2 of this body re-stamped (M1), an unstamped one withdrawn (M2)');
   ok(/stale: true/.test(src) && /withdrawn/.test(src), 'a withdrawn certificate is kept, struck through');
   ok(/r\.when = today\(\)/.test(src), 'every settled result is dated');
   ok(/trim: \(trimUse && f/.test(src), 'BENCH_STATE carries the advised trim only from a live, accepted flight');
@@ -195,6 +206,50 @@ console.log('THE WORD');
   ok(/report\.trimDe/.test(PILOT) && /trimAcc/.test(PILOT), 'the pilot publishes the trim it held');
   ok(BE.benchTrimWords(0) === 'neutral' && BE.benchTrimWords(0.06) === '3 clicks nose up'
      && BE.benchTrimWords(-0.02) === '1 click nose down', 'trim words in clicks of 0.02');
+}
+
+// ---- THE CERTIFICATE'S RULE (G3780, CERT-REVIEW §6.2: the keep / withdraw rows) ----------------------------------------
+console.log('THE RULE');
+if (!CORE || !CORE.certMajor) console.log('  skip  tools/flight_core.js not built');
+else {
+  const fx = JSON.parse(rd('tools/_bench_fixture_build.json')).spec;
+  const M0 = BE.benchMajor(fx, null);
+  ok(M0 && /^[0-9a-f]{8}$/.test(M0.fp) && Object.keys(M0.groups).join() === 'structure,engine,gear,tail,wb', 'f3: the major fingerprint and its five groups (' + (M0 && M0.fp) + ')');
+  const mut = f => { const c = JSON.parse(JSON.stringify(fx)); f(c); return BE.benchMajor(c, null); };
+  // R2: minor, loading and measured rows never withdraw (CERT-REVIEW T3-T6)
+  const keeps = [
+    [c => { c.cabin = Object.assign({}, c.cabin, { pax: 1, occupied: [1, 1], pilots: 1 }); c.cage = Object.assign({}, c.cage, { paxOcc1: 1, cabOcc: 1 }); }, 'a passenger aboard (T4)'],
+    [c => { c.cage = Object.assign({}, c.cage, { pilotWho: 2, crewOn: 0 }); }, 'another pilot, the crew hidden (T5)'],
+    [c => { c.systems = Object.assign({}, c.systems, { avionics: { gps: 'g1', com: 'c1' }, fit: 'ifr' }); }, 'a GPS and a radio (T6)'],
+    [c => { c.cargo = { len: 1, kg: 80 }; c.fuel = { litres: 12, tank: 'nose' }; }, 'the cargo and the fuel aboard'],
+    [c => { c.cabin = Object.assign({}, c.cabin, { glazedM2: 9.9, seatsX: [1, 2] }); }, 'the glazed area and the seats\' stations (measured)'],
+    [c => { c.meta = { name: 'X', reg: 'N1ORF' }; c.paint = { base: 1 }; }, 'the name, the registration and the paint'],
+  ];
+  for (const [f, label] of keeps) { const M = mut(f); ok(M && M.fp === M0.fp, 'keeps: ' + label); }
+  {  // T3: a floatplane's step station follows the CG (_cage_float.js): the join's measured x / y never count
+    const fl = c => { c.gear = Object.assign({}, c.gear, { type: 'floats', floats: { model: 'f1500', x: 1.2923, y: -1.0 } }); };
+    const A = mut(fl), B = mut(c => { fl(c); c.gear.floats.x = 1.2272; c.gear.floats.y = -0.99; }), Cm = mut(c => { fl(c); c.gear.floats.model = 'f2000'; });
+    ok(A && B && A.fp === B.fp && Cm.fp !== A.fp, "keeps: the floats' station the join measures off the CG (T3) - and another float model is a change");
+  }
+  // R4: a major change moves its OWN group, and the bench names it
+  const moves = [
+    [c => { c.wings[0].span = (+c.wings[0].span || 10) + 0.5; }, 'structure', 'the wing or the structure changed'],
+    [c => { c.engines = (c.engines || [{}]).map(e => Object.assign({}, e, { type: 'rotax912_warp_x' })); }, 'engine', 'the engine or the propeller changed'],
+    [c => { c.gear = Object.assign({}, c.gear, { type: c.gear && c.gear.type === 'tricycle' ? 'taildragger' : 'tricycle' }); }, 'gear', 'the landing gear changed'],
+    [c => { c.tail = Object.assign({}, c.tail, { hSpan: ((c.tail && +c.tail.hSpan) || 3) + 0.3 }); }, 'tail', 'the tail or the controls changed'],
+    [c => { c.energy = Object.assign({}, c.energy, { vessels: [{ bay: 'nose', capacity: 60, form: 'box' }] }); }, 'wb', 'the tanks, the seats or the pod changed'],
+  ];
+  for (const [f, g, line] of moves) {
+    const M = mut(f), ch = M ? CORE.certGroupsChanged(M0.groups, M.groups) : null;
+    ok(M && M.fp !== M0.fp && ch && ch.join() === g && CORE.certChangeLine(ch) === line, 'withdraws and names it: ' + line + ' (' + (ch && ch.join()) + ')');
+  }
+  // M3: the career's factory certificate on the same list; a version-only change re-signs, a real one does not
+  const p1v = CORE.procureFpP1(fx, 8, 4);
+  ok(CORE.procureFp(fx) === M0.fp && CORE.procureP1Matches(fx, p1v) && !CORE.procureP1Matches(mut(c => { c.wings[0].span += 0.5; }) && JSON.parse(JSON.stringify(Object.assign({}, fx, { wings: [Object.assign({}, fx.wings[0], { span: (+fx.wings[0].span || 10) + 0.5 })] }))), p1v),
+     'M3: procureFp is the bench\'s f3; a p1 signature of this spec under any version is recognised, another spec\'s is not');
+  // M4: a leg signed under an alias (the old f2) still counts
+  ok(CORE.acceptFpOk({ fp: 'aaaaaaaa', fpAlias: ['bbbbbbbb'] }, 'bbbbbbbb') && !CORE.acceptFpOk({ fp: 'aaaaaaaa', fpAlias: ['bbbbbbbb'] }, 'cccccccc')
+     && CORE.acceptFpOk({ fp: null }, 'x'), 'M4: an acceptance leg under the live f3 or one of its f2 aliases counts, another build\'s does not');
 }
 
 // ---- THE STRIP -----------------------------------------------------------
@@ -230,7 +285,8 @@ console.log('THE STRIP');
   ok(ST.stickerMasterDate({ certs: [{ id: 'shake', when: '2026-09-20' }, { id: 'dalt', when: '2026-09-22' }, { id: 'flight', when: '2026-09-21' }] }) === '2026-09-21',
      'the master is dated by the last GATING certificate (a rating does not date it)');
   ok(calls.includes('arc') && calls.includes('fillText') && calls.includes('rotate'), 'a roundel is a disc with lettering round it');
-  ok(ST.STICKER_ORDER.length === 6 && ST.STICKER_ORDER.every(id => BE.BENCH_TESTS.some(t => t.id === id))
+  // (G3780: the crosswind's roundel is the design check's rudder row now - no test of its own: benchInit xwindCert)
+  ok(ST.STICKER_ORDER.length === 6 && ST.STICKER_ORDER.every(id => id === 'xwind' || BE.BENCH_TESTS.some(t => t.id === id))
      && BE.BENCH_TESTS.every(t => t.sticker === false || ST.STICKER_ORDER.includes(t.id))
      && BE.BENCH_TESTS.filter(t => t.sticker === false).map(t => t.id).join() === 'pod',
      'one sticker per declared test, and every test has one (six: the crosswind\'s A9, the hydroplane\'s S1 G451.1; the belly pod\'s G2410 row, an option measured, wears none)');
@@ -308,12 +364,23 @@ console.log('THE THREAD');
   ok(/const DIRECTOR_CUTS = \{/.test(APP) && /director\.frame\(\)/.test(APP) && /if \(!directorPick\) director\.stop\(\)/.test(APP), 'the director cuts on the phases and a framing pick ends it');
   ok(/let simRate = 1/.test(APP) && /nStep = pc\.steps \* simRate/.test(APP) && /for \(let k = 0; k < nStep; k\+\+\)/.test(APP) && /not on floats/.test(APP) && /simRateSet\(1\)/.test(APP), '2x steps twice a frame (twice what the real time owes, G586), refuses floats, drops itself');
   // the crosswind card
-  ok(xw && xw.advisory === true && xw.kind === 'live' && xw.offscreen === true && xw.needs.join() === 'xwindStart,xwindPoll,xwindEnd', 'the crosswind is its own advisory card');
-  const api = { xwindPoll: () => ({ done: true, result: { limit: 5.5, cap: 10, failW: 6, failWhy: 'off the edge line', runs: [] }, runs: [{ w: 2, ok: true, roll: 1.2 }, { w: 6, ok: false, why: 'off the edge line', roll: 3.4 }] }) };
-  const xr = xw.poll(api);
-  ok(xr.done && xr.ok && /CROSSWIND LIMIT 5\.5 m\/s/.test(xr.verdict) && xr.rungs.length === 2 && /off the edge line/.test(xr.rungs[1]), 'the verdict names the limit and every rung');
-  const xr2 = xw.poll({ xwindPoll: () => ({ done: true, result: { limit: 2, cap: 10, failW: 4, failWhy: 'never airborne', runs: [] }, runs: [] }) });
-  ok(!xr2.ok && /under the 4 m\/s bar/.test(xr2.why) && /4\.0 m\/s: never airborne/.test(xr2.why), 'under the plaque\'s bar it says why, with the first failed rung');
+  // G3780 (the user 26 Oct: "No long tests that would need to re-run. Everything should be as fast as the bench check"):
+  // NO WATCHED TEST LEFT - the crosswind ladder is gone (its number is the design check's ctl.rudder, the contracts'),
+  // the wing loading and the hydroplane are COMPUTED (kind 'quick': the rig unpaced on the bench's thread, the water run
+  // to its end), the test flight is the first arrival's
+  ok(!xw && !BE.BENCH_TESTS.some(t => t.kind === 'live'), 'no watched test left: the crosswind ladder is gone, nothing is live (G3780)');
+  ok(/const xwindCert = \(\) =>/.test(src) && /x\.id === 'ctl\.rudder'/.test(src) && /benchBound\('crosswind limit'\) \* 1\.944/.test(src),
+     "the crosswind roundel is the design check's rudder row against the plaque's bar");
+  const ld = BE.BENCH_TESTS.filter(t => t.id === 'load')[0], hy = BE.BENCH_TESTS.filter(t => t.id === 'hydro')[0];
+  ok(ld && ld.kind === 'quick' && ld.needs.join() === 'loadQuick' && hy && hy.kind === 'quick' && hy.needs.join() === 'hydroQuick',
+     'the wing loading and the hydroplane are computed (quick), not watched');
+  let ldr = null; ld.quick({ loadQuick: cb => cb({ verdict: 'HELD', limitPct: 1.2, ultPct: 3.4, ultYield: 60, done: true }) }, r => { ldr = r; });
+  ok(ldr && ldr.ok && ldr.verdict === 'HELD' && /3\.40 %/.test(ldr.note), "the quick wing loading reads the rig's last state with the watched rig's own verdict");
+  let ldb = null; ld.quick({ loadQuick: cb => cb({ verdict: 'BROKE UP', ultPct: 20, done: true }) }, r => { ldb = r; });
+  ok(ldb && !ldb.ok && /let go/.test(ldb.why), 'a member that lets go still fails the wing loading');
+  ok(/function startLoadQuick\(cb\)/.test(APP) && /kind: 'loadq'/.test(APP) && /loadQuick: cb => startLoadQuick\(cb\)/.test(APP)
+     && /job\.kind === 'loadq'/.test(rd('src/viewer/bench_worker.js')) && /function hydroQuick\(cb\)/.test(APP),
+     "the page runs the rig unpaced on the bench's thread (page fallback) and the water run to its end");
   ok(/get runs\(\) \{ return runs; \}/.test(rd('src/core/42_crosswind.js')), 'the probe publishes its rungs as they land (read-only)');
   ok(/'in a crosswind'/.test(rd('src/viewer/plaque.js')) && /'first rung failed'/.test(rd('src/viewer/plaque.js')) && /xwind: xwIfRun\(\)/.test(APP), 'the plaque has the crosswind section, from the card\'s sheet');
   // the identity of the worker's path with the rig's
@@ -408,6 +475,7 @@ function benchSession(store, join, opts) {
     Array, Object, Uint8ClampedArray, Infinity, NaN, Date, Symbol, Promise, Error, performance: { now: () => 0 },
     setTimeout: (f) => { timers.push(f); return timers.length; }, clearTimeout() {}, setInterval: () => 0, clearInterval() {},
     requestAnimationFrame() {}, Event: function () {} };
+  Object.assign(ctx, RULE);                                      // G3780: the certificate's rule, as the page has it
   ctx.exports = ctx.module.exports;
   vm.runInNewContext(rd('src/viewer/bench.js'), ctx);
   const api = { plaque() {}, sheets: () => null, restoreSheets() {}, testFlight: () => true };
@@ -439,9 +507,11 @@ function benchSession(store, join, opts) {
   };
   const A = run(false), B = run(true);
   ok(A.f1 && A.f1.ok && /^[0-9a-f]{8}$/.test(A.f1.fp || ''), 'an unarmed arrival settles the flight certificate on the roll-out\'s fingerprint (' + (A.f1 && A.f1.fp) + ')');
-  ok(A.first === 1 && A.second === 0, `the award card shows on the first arrival and not again (${A.first}, then ${A.second})`);
+  // G3780 R6 (the user 26 Oct: "nothing that ever needs re-flying"): awarded once, quietly (the only card left is the
+  // airworthiness one, once), and a later arrival changes nothing
+  ok(A.first === 0 && A.second === 0 && A.f1 && A.f1.ok, `the first arrival awards the flight quietly and a second changes nothing (${A.first}, then ${A.second} cards)`);
   ok(A.kept && A.f2.when === A.f1.when, 'the reload restores it valid, with its first day' + (A.f2 && A.f2.stale ? ' - withdrawn: ' + A.f2.why : ''));
-  ok(!B.kept, 'NEGATIVE: the pre-G700 arrival (fingerprinted out in the world) is lost on the reload' + (B.f2 ? ' (' + (B.f2.why || 'kept') + ')' : ''));
+  ok(B.kept, "R6: even an arrival fingerprinted out in the world (pre-G700) keeps its flight across the reload - the flight is the airframe's" + (B.f2 && B.f2.stale ? ' (' + B.f2.why + ')' : ''));
   // G680: the door's body is rollOutStand (rollOut decides the screen; from the shed the build's sync runs under it first)
   const rollAt = APP.indexOf('function rollOutStand(') >= 0 ? APP.indexOf('function rollOutStand(') : APP.indexOf('function rollOut(');
   const rollS = APP.slice(rollAt, rollAt + 800), fpAt = rollS.search(/window\.BENCH_ROLLOUT\(\)/), ceAt = rollS.indexOf('closeEditor()');

@@ -505,9 +505,16 @@ function acceptStopAt(world, x, z) {
 //   fp       the live fingerprint: a leg or a row under another is WITHDRAWN (the bench's stickers' rule)
 // -> { rows: [{ k, op, v, at, status, ok, value, need, margin, marginPct, beat, source, why? }],
 //      ok, needsFlight, needsTest, beaten, bonusPct }
+// G3780 CERT-RULE M4: a leg or a row signed under the live fingerprint, or under one of its ALIASES - the same
+// aeroplane's old f2 hashes (bench.js BENCH_FP_ALIASES: the body under any game version), so contract progress made
+// before the rule changed is kept. `ev.fp` null: cannot say, everything counts (as before).
+function acceptFpOk(ev, fp) {
+  if (!ev || ev.fp == null) return true;
+  return fp === ev.fp || (Array.isArray(ev.fpAlias) && fp != null && ev.fpAlias.indexOf(fp) >= 0);
+}
 function acceptLegsFor(ev, need) {
   const legs = (ev && ev.legs) || [];
-  return legs.filter(r => acceptSigned(r) && r.valid && (ev.fp == null || r.fp === ev.fp) && acceptLoadOk(need, r.load));
+  return legs.filter(r => acceptSigned(r) && r.valid && acceptFpOk(ev, r.fp) && acceptLoadOk(need, r.load));
 }
 function acceptVerdict(crit, evidence) {
   const ev = evidence || {};
@@ -532,7 +539,7 @@ function acceptVerdict(crit, evidence) {
         const any = ((ev.legs) || []).filter(r => acceptSigned(r));
         row.status = 'needs-flight';
         row.source = !any.length ? 'no acceptance leg in the logbook'
-          : any.every(r => ev.fp != null && r.fp !== ev.fp) ? 'every leg was flown before the build changed (withdrawn)'
+          : any.every(r => !acceptFpOk(ev, r.fp)) ? 'every leg was flown before the build changed (withdrawn)'
           : any.every(r => !r.valid) ? 'no VALID leg: ' + ((any[any.length - 1].why || []).join('; ') || 'rejected')
           : 'no valid leg at that load';
       } else {
@@ -553,7 +560,7 @@ function acceptVerdict(crit, evidence) {
       // takeoffAt / landAt: the logbook's rows under this fingerprint
       const id = acceptAeroOf(c), need = acceptLoadOf(c);
       row.need = (c.k === 'takeoffAt' ? 'a take-off from ' : 'a landing and stop at ') + id + (need.occupants != null ? ' with ' + need.occupants + ' aboard' : '');
-      const rowsF = ((ev.flights) || []).filter(f => f && (ev.fp == null || f.fp === ev.fp) && acceptLoadOk(need, { occupants: f.occ, payloadKg: f.payloadKg }));
+      const rowsF = ((ev.flights) || []).filter(f => f && acceptFpOk(ev, f.fp) && acceptLoadOk(need, { occupants: f.occ, payloadKg: f.payloadKg }));
       const hit = rowsF.filter(f => c.k === 'takeoffAt'
         ? f.from === id && f.sink != null                                   // it left that strip and arrived somewhere
         : f.at === id && f.sink != null && !f.outcome);                     // it landed and stopped there
@@ -561,7 +568,7 @@ function acceptVerdict(crit, evidence) {
       row.ok = !!last; row.value = last ? id : null;
       row.status = last ? 'ok' : 'needs-flight';
       row.source = last ? 'the logbook: ' + (last.from || '?') + ' → ' + (last.at || last.to || '?') + ' on ' + (last.on || '?') + (last.run != null ? ', landing run ' + last.run + ' m' : '')
-                        : 'not yet done there' + (((ev.flights) || []).some(f => f && ev.fp != null && f.fp !== ev.fp) ? ' (earlier flights were of another build)' : '');
+                        : 'not yet done there' + (((ev.flights) || []).some(f => f && !acceptFpOk(ev, f.fp)) ? ' (earlier flights were of another build)' : '');
     }
     // THE MARGIN, for the bonus: how far past the line, as a fraction of it
     if (row.ok && acceptNum(row.value) != null && acceptNum(c.v) != null && op !== '==' && c.v !== 0) {
@@ -578,10 +585,10 @@ function acceptVerdict(crit, evidence) {
 
 // the plaque's "proved in flight" row: the last valid leg under the live
 // fingerprint, or { withdrawn } when every leg is another build's (null: none)
-function acceptPlaqueLeg(legs, fp) {
+function acceptPlaqueLeg(legs, fp, alias) {
   const signed = (legs || []).filter(r => acceptSigned(r) && r.valid);
   if (!signed.length) return null;
-  const mine = signed.filter(r => fp == null || r.fp === fp);
+  const mine = signed.filter(r => acceptFpOk({ fp, fpAlias: alias }, r.fp));
   if (mine.length) return { leg: mine[mine.length - 1], n: mine.length };
   return { withdrawn: true, leg: signed[signed.length - 1] };
 }

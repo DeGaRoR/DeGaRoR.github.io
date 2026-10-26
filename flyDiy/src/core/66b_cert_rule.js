@@ -30,9 +30,10 @@ const CERT_LOOK = { energy: ['finish', 'hue', 'tint'], vessel: ['finish', 'hue',
 // the cargo aboard, the fuel aboard (the tanks' DESIGN is energy.vessels)
 const CERT_MINOR_BLOCKS = ['systems', 'cargo', 'fuel'];
 // the cage's STATE and MINOR rows - views, the explode, who is aboard and whether the crew is shown, the lamps'
-// switches and dimmers, the reflector glow, the fastener density (BENCH_STATE_ROWS and PROCURE_STATE_ROWS, now one).
+// switches and dimmers, the lamps FITTED (li_*Fit: minor, a W&B update), the reflector glow, the fastener density
+// (BENCH_STATE_ROWS and PROCURE_STATE_ROWS, now one).
 // The crew's names: pilotWho / copWho / cabWho / crewOn (master), pil* after G3700 (the racer), dum* before it.
-const CERT_STATE_ROWS = /^_view|^(explodeD|dumOn|pilOn|crewOn|pilotWho|copWho|cabWho|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|li_(?:nav|beacon|taxi|land|flood|instr|pedal|pax))$/;
+const CERT_STATE_ROWS = /^_view|^(explodeD|dumOn|pilOn|crewOn|pilotWho|copWho|cabWho|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|li_(?:nav|beacon|taxi|land|flood|instr|pedal|pax)|li_[a-z]+Fit)$/;
 // rows the JOIN MEASURES off the design (never the player's): a block -> its measured keys
 const CERT_MEASURED = {
   cabin: ['glazedM2', 'glazingMat', 'seatsX', 'occupied', 'pilots', 'pax'],
