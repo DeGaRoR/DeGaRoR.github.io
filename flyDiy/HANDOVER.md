@@ -98868,7 +98868,7 @@ Pushed with these, by the user's order of 25 Oct: land last week's items and pri
   09 and 10 are byte-identical: the rig never asserted the map closed after Tab. Count 09 as "Tab = the map", not 10 as the CONTRACTS pill. The Mon 26 Oct TELEPORT stills assert it.
 - Next, G3640-G3649 TELEPORT for L26c (Mon 21:30): owned-garage markers on the map, a confirm row in the map, FLYDIY_PLAYER.gotoGarage (Game's claude/garage-go, G3613), and Tab = the map screen in every mode.
 
-## G3720-G3729 - PHONE-GARAGE: THE PLANE GETS TWO THIRDS, A BLACK STUDIO ON THE PHONE, THE RAIL INTO THE MENU, ONE TOP ROW FOR EVERY VERSION (2026-10-25, PHONE-GARAGE for A0; branch claude/phone-garage on GAME-MENUS' claude/game-menus-ui b12fbb04e - carried; target L26c)
+## G3720-G3729 - PHONE-GARAGE: THE PLANE GETS TWO THIRDS, A BLACK STUDIO ON THE PHONE, THE RAIL INTO THE MENU, ONE TOP ROW FOR EVERY VERSION (2026-10-25, PHONE-GARAGE for A0; branch claude/phone-garage on GAME-MENUS' claude/game-menus-ui b12fbb04e - carried; target L27a)
 - The user, 25 Oct, on the phone garage: "much more room for the plane ... two thirds at least, no garage at all, just dark studio ... Only a third of the screen for the sliders. left rail goes completely. Unsaved becomes a simple disk button and the other icons are on the top row ... Everything feels laggy ... sacrifice the garage altogether ... in the garage, I'd like the pause menu too, and we can move the left rail to the pause menu ... Give explode in the garage a button at the top. Clicking it gives the slider. Have a single button with the radio, and pop up a little menu where we can also turn it off. Have a button for cycling through the views."
 - Then, relayed by A0: "For the buttons in the garage top bar, that's for all versions, not just mobile"; "desktop garage left rail follows same fate. black studio on desktop an option only if it comes for free. Then put it under view or something in the menu".
 - G3720 THE ESTATE (phone.css): portrait = the view 66.6dvh, the sheet + tab bar the last third; landscape = the sheet max(280px, 1/3 of the width).
@@ -98892,11 +98892,30 @@ Pushed with these, by the user's order of 25 Oct: land last week's items and pri
   - mobile_phone_cdp.js gained --size / --dpr / --no-adb / --shot / --cpu-throttle / --desk, plus R.view (the canvas's share of the screen, draws, triangles, programs, textures).
   - S1 (Mon 03:15, GPU) = BEFORE on master (the shared checkout, read only); S3 (Mon 15:45, GPU) = AFTER on this branch, built and cooked. Each runs: S20 412x915 Cub at CPU x4, the desktop 1600x900 Cub, GARAGE-LAG on the desktop page (Cub + metal), 375x812 Cub x4, GARAGE-LAG on the phone page, S20 metal x4, S20 Cub x1.
   - Outputs: the scratchpad's pg_before/ and pg_after/ -> reports/evidence/PHONE-GARAGE/ once read.
-- GATES: S2 (CPU), not run yet. The planned set, from grepping tools/ for every touched file:
-  - pass 1: UISMOKE, UISMOKE-PHONE, CARDDRAG, CARDS, BOOT, BUILD, BUILT, LAZY, PROFILE, VIEW, PANEL, UILAYER, HONESTY, PARTS, SAVE, REF, STORAGE
-  - pass 2: FRAMECOST alone
-  - pass 3: GFX, HANGAR, LIGHT, CONTACT, SHEDSHADOW, PROGRAMS, BENCH, STORY, CLOCKBAKE, SHEETWORKER, GAMEPREM
-  - pass 4: BOOTLIFT, ROUNDTRIP
+- G3728 THE BURGER (the user, 26 Oct: "the menu button has no place. Make it a burger menu on the top leftmost, before the disk icon"):
+  - editor.js #edMenu: a 3-line icon, first on #edFleet (the disk's plate), on every version. It opens the same FLYDIY_MENU.
+  - app.js (GAME-MENUS' code, changed here): FLYDIY_MENU.opener(el). While that icon is visible, gmLayout hides the MENU pill (flight keeps it), gmPlace hangs the panel under the icon, and Esc/Tab and aria-expanded follow it.
+- G3729 THE TANK WITHOUT A FRAME (the user, 26 Oct: "get rid of the frame, we use that nowhere else. Keep the warning, but not the container"):
+  - The frame was the bordered tank card, details[data-ves] and its finish twin [data-veslook] (tools/_cage_energy.js). editor.css flattens both like UI-STYLE's instruments (G3736): the summary is the group's heading, in --ed-acc when picked. The red "needs N of M L" line is unchanged.
+  - The pick is a class now: UI-STYLE G3730's own 4 _cage_energy.js lines, copied word for word (outline -> .on), since ui-style is held.
+- G3723 fix: the radio act uses window globals only (GATE BOOMBOX runs QUICK in a vm), plays when there's no music, and steps when no card opens (HANGARS-LOOK G3533's contract, for the later fold onto toggleAt).
+- MEASURED (S20 412x915, CPU x4, Cub; BEFORE master 03:15 / AFTER 15:50):
+  - Frames: at rest 12.2 -> 60 fps, orbiting 11 -> 59.4 fps.
+  - Rendering: programs 397 -> 24, textures 639 -> 65. Memory: JS heap peak 748 -> 189 MB. Boot 108 -> 30 s.
+  - Drags (drawn): wgSpan 298 -> 126 ms, stSpan 187 -> 31 ms. The view's share of the screen 0.58 -> 0.67.
+  - Desktop 1600x900 (the shed): 60/60 fps before and after, drags within noise.
+  - garage_lag desk HUNG after its warm-up on the after tree (timeout), so 375x812 / lag phone / metal / x1 were skipped. Evidence only: a Tue 08:30 GPU re-run.
+- GATES, on the built + re-cooked tree (ccaa51836, build d21a95f11ba1, parked_cook --check same):
+  - Mon 20:40, all PASS: BOOMBOX, VIEW, CARDDRAG, PANEL, BUILD, BUILT, UISMOKE, UISMOKE-PHONE.
+  - Mon 16:35 S2 (on 9f20ac6dd): UISMOKE, UISMOKE-PHONE, CARDDRAG, CARDS, BOOT, BUILD, BUILT, PANEL, VIEW, UILAYER and PROFILE PASS.
+    - BOOMBOX red, fixed in bd63c2cb7.
+    - FRAMECOST red only on master's standing line "cessna boot/garage:restore/three.updateMatrixWorld rose 2269 -> 4553".
+    - ROUNDTRIP red only on master's standing line "the setup screen's sections" ('drawn' since ROUTE-DRAW, 7 Oct).
+  - The user's rule: no full battery on minor UI changes.
+- CARRIED on the ready branch:
+  - GAME-MENUS b12fbb04e (FLYDIY_MENU add/page/anchor) and 1bafe174a (origin/claude/ready/game-menus, merged here).
+  - UI-STYLE G3730's 4 _cage_energy.js lines.
+- EVIDENCE: reports/evidence/PHONE-GARAGE/{before,after,after2}/. after2 holds the burger and the tank stills, phone and desktop.
 - Files of other sessions touched: card_drag.js (one CARDS line: #edPopCard), boombox.js (openAt + pinned), and GAME-MENUS' hook used as is.
 ## G3450 - P1 CG-COLOURS: THE GARAGE'S CG / NEUTRAL-POINT INDICATORS WEAR ONE BAND - RED / ORANGE / GREEN, '!' ON RED AND ORANGE, A TOOLTIP WITH THE REASONS (2026-10-25, RUFUS-CERT for A0; claude/cg-colours; stills Sun 25 07:45 GPU; for L25b)
 
