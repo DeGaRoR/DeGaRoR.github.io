@@ -1003,13 +1003,25 @@ window.METEO_GEN = { DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, SETS, SET_IDX, GROUND
 // THE CATALOGUE: a landmark complex; its way in is the flat disc's door on the +z side
 window.METEO_GEN.CATALOGUE_V = 1;
 window.METEO_GEN.CATALOGUE_ALIASES = {};
+// G3660 THE PAD'S OUTLINE (27_premises ground need 'ramp'): the convex hull of the drum, the flat disc and the core, each
+// + 1.5 m (the user: "Keep the level pad tight around the building"); the triangulation pillar stands on its own stones
+const outlineOf = p => {
+  const m = 1.5, pts = [];
+  const circ = (x, z, r) => { for (let i = 0; i < 24; i++) { const a = i * Math.PI / 12; pts.push([x + (r + m) * Math.cos(a), z + (r + m) * Math.sin(a)]); } };
+  circ(0, 0, p.d1R); if (p.d2On) circ(p.d2x, p.d2z, p.d2R); circ(p.tx, p.tz, 4.5);
+  pts.sort((u, v) => u[0] - v[0] || u[1] - v[1]);
+  const cr = (o, u, v) => (u[0] - o[0]) * (v[1] - o[1]) - (u[1] - o[1]) * (v[0] - o[0]), lo = [], hi = [];
+  for (const q of pts) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
+  for (let i = pts.length - 1; i >= 0; i--) { const q = pts[i]; while (hi.length >= 2 && cr(hi[hi.length - 2], hi[hi.length - 1], q) <= 0) hi.pop(); hi.push(q); }
+  return lo.slice(0, -1).concat(hi.slice(0, -1)).map(q => [+q[0].toFixed(2), +q[1].toFixed(2)]);
+};
 window.METEO_GEN.CATALOGUE = Object.keys(PRESETS).map(name => {
   const Pd = Object.assign({}, DEF, PRESETS[name]);
   const ext = P => { const p = Object.assign({}, Pd, P || {}); const x0 = Math.min(-p.d1R, p.d2On ? p.d2x - p.d2R : 0, p.tx - p.topR) - 2, x1 = Math.max(p.d1R, p.obelisk ? p.obX + 1.5 : 0) + 2;
     const z0 = Math.min(-p.d1R, p.d2On ? p.d2z - p.d2R : 0, p.tz - p.topR) - 2, z1 = Math.max(p.d1R, p.d2On ? p.d2z + p.d2R : 0, p.obelisk ? p.obZ + 1.5 : 0) + 3; return { x0, x1, z0, z1 }; };
   return { key: 'meteo/' + name, kind: 'complex', gen: 'METEO_GEN', preset: name, P: Object.assign({}, Pd), frame: 'house',
     foot: P => { const e = ext(P); return [[e.x0, e.z0], [e.x1, e.z0], [e.x1, e.z1], [e.x0, e.z1]]; }, keepOut: 4,
-    ground: { need: 'ramp', maxSlope: 0.06, falloff: 8, standing: 'slab' },
+    ground: { need: 'ramp', maxSlope: 0.06, falloff: 8, standing: 'slab', outline: P => outlineOf(Object.assign({}, Pd, P || {})) },
     size: P => { const e = ext(P); return { L: e.x1 - e.x0, w: e.z1 - e.z0 }; },
     hooks: P => [{ name: 'door', kind: 'path', p: [0, 0, ext(P).z1], dir: [0, 0, 1] }], hooksOf: () => [],
     lod: { dist: [0, 300, 900, 2500] }, slots: { lights: 'stats.lit.lights', ao: 'stats.groundAO' },
