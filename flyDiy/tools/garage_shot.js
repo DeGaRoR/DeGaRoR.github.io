@@ -60,7 +60,7 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     fs.mkdirSync(path.dirname(OUT), { recursive: true });
     const f = OUT + '_' + name + '.png'; const png = Buffer.from(s.result.data, 'base64'); fs.writeFileSync(f, png);
     // a flat frame (one colour, the canvas not drawn or the camera on nothing) compresses to a few KB: say so
-    console.log('garage_shot: wrote ' + f + (png.length < 30000 ? '  BLANK? (' + png.length + ' bytes)' : '')); };
+    console.log('garage_shot: wrote ' + f + (png.length < 30000 ? '  BLANK? (' + png.length + ' bytes)' : '')); return png.length; };
   await cmd('Page.enable'); await cmd('Runtime.enable');
   await cmd('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
   await cmd('Page.navigate', { url: URL });
@@ -127,6 +127,9 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
       "if(!D&&window.CAGE_PAGE)D=window.CAGE_PAGE.defaults;const c=benchStripCosmetic(window.CAGE_JOIN.export(),D);" +
       "const S=o=>Array.isArray(o)?o.map(S):(o&&typeof o==='object')?Object.keys(o).sort().reduce((a,k)=>(a[k]=S(o[k]),a),{}):o;return S(c)})(),null,1)");
     fs.writeFileSync(DUMP.replace(/\.json$/, '') + '_strip.json', strip);
+    // the fingerprint settled? read again 5 s on (a character or a tank landing late would move it)
+    await sleep(5000);
+    console.log('garage_shot: fp settle ' + JSON.parse(d).fp + ' -> ' + await ev("window.BENCH_FP?window.BENCH_FP():null"));
     console.log('garage_shot: dump ' + DUMP + ' ' + d.slice(0, 400));
   }
   for (const v of VIEWS) {
@@ -136,7 +139,13 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
       console.log('garage_shot: crew ' + JSON.stringify(cr));
       if (!cr.hip) { console.error('garage_shot: no pilot figure on the stand'); continue; }
       // the control: the whole aeroplane from the quarter first, and where the camera is after each framing
-      if (v === 'crew') { await cam(PRESETS.q[0], PRESETS.q[1], PRESETS.q[2]); await shot('control_q'); }
+      if (v === 'crew') {
+        await cam(PRESETS.q[0], PRESETS.q[1], PRESETS.q[2]);
+        if (await shot('control_q') < 30000) {
+          console.error('garage_shot: the control frame is BLANK - stopping; camera ' + JSON.stringify(await ev("(()=>{const g=FLIGHT_PROBE.camGet();return {eye:g.eye,target:g.target,az:g.az,el:g.el,dist:g.dist}})()")));
+          ws.close(); ch.kill(); process.exit(3);
+        }
+      }
       await ev("(()=>{const c=document.getElementById('xray');if(c&&!c.checked){c.click();}return 1})()");
       if (v === 'crew') {
         await ev("window.EDITOR_SELECT('crew'), 1"); await sleep(1500);
