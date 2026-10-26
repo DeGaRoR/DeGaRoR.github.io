@@ -343,13 +343,14 @@ const ctWet = f => !!f && f.surf === 'water';
 // THE FIELDS OF A WORLD: the same rows off the world's aerodromes (a premises record's runways or
 // world.aerodromes: `c` or x/z, len, the surface through 25_'s stripSurface). GATE CONTRACTS holds
 // CONTRACT_FIELDS equal to this over Jolene's record.
+// (G3240 NAMES) a row's name is fieldName's (01_names.js): the table's name for a field it names, else the record's own
 function contractFieldsOf(aerodromes) {
   const out = {};
   for (const a of (aerodromes || [])) {
     if (!a || !a.id || a.kind === 'meadow') continue;
     const x = Array.isArray(a.c) ? a.c[0] : a.x, z = Array.isArray(a.c) ? a.c[1] : a.z;
     const S = typeof stripSurface === 'function' ? stripSurface(a) : null;
-    const row = { id: a.id, name: a.name || a.id, x: Math.round(x), z: Math.round(z), len: Math.round(a.len || 0),
+    const row = { id: a.id, name: typeof fieldName === 'function' ? fieldName(a.id, a.name) : (a.name || a.id), x: Math.round(x), z: Math.round(z), len: Math.round(a.len || 0),
                   surf: S ? S.key : (+a.surface === 4 ? 'water' : 'grass') };
     if (a.altiport) row.alti = true;
     // (G2665 NIGHT-OPS) lit at night: 25_'s rule (runwayLightStrips - a land strip; a water lane none); the record's

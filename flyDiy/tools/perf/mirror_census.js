@@ -40,6 +40,9 @@ const EYES = {
   sea40:  { pos: [2800, 40, 0],   yaw: 270, pitch: -10 },
   sea300: { pos: [3000, 300, 0],  yaw: 270, pitch: -25 },   // the island ahead from the air
   lake:   { pos: [-604, 120, -1150], yaw: 0, pitch: -40 },  // an inland lake (water_shot's)
+  // (G2836 round 3) ON the drawn lake (water_places' finder): 30 / 150 m over its water, looking at its nearest shore
+  lake30:  { wp: 30, pitch: -12 },
+  lake150: { wp: 150, pitch: -30 },
   inland: { pos: [0, 0, 0], yaw: 180, pitch: -15, inland: true },  // over the densest forest, 110 m up (frame_perf's rule)
   sky:    { pos: [0, 0, 0], yaw: 180, pitch: 35, inland: true },   // the same place looking up: no water in the frame
 };
@@ -159,6 +162,13 @@ const SETTLED = `(() => new Promise(res => {
     return JSON.stringify([best.x, w.terrainH(best.x, best.z) + 110, best.z]); })()`));
   if (SKIP) console.log('  skip -> ' + await ev(`(()=>{ WATER.mirror.skip = (${SKIP}) || []; return WATER.mirror.skip.length + ' objects left out of the capture'; })()`));
   const rows = [];
+  if (VIEWS.some(v => EYES[v] && EYES[v].wp)) {   // (round 3) the drawn lake, found once
+    const WPm = require('./water_places.js'); await ev(WPm.FIND);
+    const L = JSON.parse(await ev('JSON.stringify(window.__WP && __WP.lake ? { x: __WP.lake.x, y: __WP.lake.y, z: __WP.lake.z, n: __WP.lake.n } : null)'));
+    for (const v of VIEWS) { const E = EYES[v]; if (!E || !E.wp) continue; if (!L) { delete EYES[v]; continue; }
+      const n = L.n || { dx: 0, dz: -1 }; E.pos = [L.x, L.y + E.wp, L.z]; E.yaw = Math.atan2(n.dx, -n.dz) * 180 / Math.PI; }
+    console.log('  lake: ' + (L ? `(${L.x | 0}, ${L.z | 0}) at ${L.y.toFixed(1)} m, shore ${L.n ? L.n.r : '?'} m` : 'none found'));
+  }
   for (const v of VIEWS) {
     const E = EYES[v]; if (!E) { console.log('  (no view ' + v + ')'); continue; }
     const p = E.inland ? inland : E.pos;
