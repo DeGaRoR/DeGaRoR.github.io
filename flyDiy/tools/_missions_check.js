@@ -148,7 +148,7 @@ function run(mut) {
       ok(M.contractRuntimeOk(r) === '', id + ': runnable today (' + M.contractRuntimeOk(r) + ')');
       ok(M.contractCertifiable(r) === M.contractCertifiable(a) && M.contractFlyable(r) === M.contractFlyable(a), id + ': held out as today (certificate, flyable)');
       const m = B.missions.find(x => x.id === id);
-      ok(m && m.client === M.msClientOf(a.provider), id + ': its owner is the provider\'s client');
+      ok(m && m.client === M.peopleClientOf(a.provider), id + ': its owner is the provider\'s client');
       ok(!m.onDone || (m.onDone.say.who === m.client && M.contractTextOk(m.onDone.say.text)), id + ': the done line is the client\'s, a key');
     }
     const I = M.missionPackInstall(B);
@@ -236,7 +236,8 @@ function run(mut) {
     ['a step id twice', p => { p.missions[0].legs[0].steps[1].id = 'g1'; }, /twice/],
     ['a photo over a field with no departure', p => { p.missions[2].legs[0].steps[1].place = 'w3'; }, /departs from a field/],
     ['an unknown verb', p => { p.missions[2].legs[0].steps[1].do = 'loop'; }, /not one of carry/],
-    ['a voice aboard', p => { p.missions[2].legs[0].steps[0].load.pax = ['tim']; }, M.GAME_PEOPLE ? /voice/ : /./, !M.GAME_PEOPLE],
+    ['a voice aboard', p => { p.missions[2].legs[0].steps[0].load.pax = ['tim']; }, /voice/],
+    ['a person the table does not hold', p => { p.missions[2].client = 'zorro'; }, /not in the people table/],
     ['the pack is v2', p => { p.v = 2; }, /v must be 1/],
   ];
   for (const [label, f, re, skip] of broken) {

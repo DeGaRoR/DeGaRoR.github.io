@@ -25,7 +25,7 @@
 //              its legs, leg: its steps); needs { after: [ids], rep? } the cross-links (a mission's after names missions,
 //              a container's names containers)
 // THE MISSION: today's record's fields (id provider kind title brief pay rep unlock needs repeat followUp goods) and
-//   client     the owner: a GAME_PEOPLE id (72_people.js; the provider's client by default) - the card's portrait
+//   client     the owner: a GAME_PEOPLE id (72_people.js; peopleClientOf(provider) by default) - the card's portrait
 //   legs       [ { order?, steps: [ step ] } ]                           (today's stages)
 //   order?     the legs' order (seq)
 //   onDone?    { say: { who, text } }                 the completion line (72_'s ct.<id>.done)
@@ -49,7 +49,7 @@
 //              (a field may be written as its id: 'w3'); alt { min?, max?, ref: 'agl' | 'msl' }
 //   from       where a carry is picked up / a fly or a photo departs (a field)
 //   photo over a FIELD is today's survey (the 450 m overflight); over a point it is phase 1's (the shutter + a line)
-// Pure: no DOM, no storage, no clock, no random. Reads 72_ / 73_ (and, when present, 72_people.js, 79_story.js,
+// Pure: no DOM, no storage, no clock, no random. Reads 72_people.js, 72_ / 73_ (and, when present, 79_story.js,
 // 38c_route.js, 34_occupant.js, the GEN tables, the map / spot packs handed in) at call time.
 // ===========================================================================
 
@@ -84,19 +84,12 @@ const MISSION_NEED = ['bonus', 'mandatory'];
 // the record's fields a mission adds (the legacy projection strips them: missionStrip)
 const MISSION_RIDE = { rec: ['client', 'onDone', 'rules', 'timers', 'startFrom', 'prefs', 'delivery', 'route', 'rally', 'order', 'pack', 'campaign', 'chapter'],
                        stage: ['order'], sub: ['id', 'say', 'onDone', 'embark', 'disembark', 'require', 'split', 'auto', 'place'], load: ['who'] };
-// a person when 72_people.js is not loaded yet (claude/people lands in L26c): the providers' clients by id only (the
-// design's §8 - never the table); peopleClientOf / peopleName / peopleOf are the authority once present
-const MS_CLIENT_STUB = { field: 'leonard', minedock: 'pete', resort: 'martha', survey: 'kate', clients: 'adam' };
-const msClientOf = org => (typeof peopleClientOf === 'function' ? peopleClientOf(org) : (MS_CLIENT_STUB[org] || null));
-const msPeopleOf = role => (typeof peopleOf === 'function' ? peopleOf(role) : (role === 'client' ? Object.values(MS_CLIENT_STUB) : []));
-const msPersonName = id => (typeof peopleName === 'function' ? peopleName(id) : String(id));
-const msPeopleTable = () => (typeof GAME_PEOPLE !== 'undefined' && GAME_PEOPLE ? GAME_PEOPLE : null);
-// '' when `id` names a person (the table when loaded; else an id's shape - a free name is never one), else why not
+// THE PEOPLE are 72_people.js's (GAME_PEOPLE, the one list - §8): a person in a pack is its id, never a free name; the
+// provider's client is peopleClientOf's. '' when `id` names a person, else why not
 function missionPersonWhy(id, as) {
   if (typeof id !== 'string' || !/^[a-z][a-z0-9_]*$/.test(id)) return (as || 'a person') + ' must be a person id (72_people.js), got ' + JSON.stringify(id);
-  const T = msPeopleTable();
-  if (T && !T[id]) return (as || 'a person') + ' ' + id + ' is not in the people table';
-  if (T && (as === 'a passenger') && T[id].voice) return id + ' is a voice, never aboard';
+  if (!GAME_PEOPLE[id]) return (as || 'a person') + ' ' + id + ' is not in the people table';
+  if (as === 'a passenger' && GAME_PEOPLE[id].voice) return id + ' is a voice, never aboard';
   return '';
 }
 // the mission model's own words (merged under the pack's text and over CONTRACT_TEXT: missionText)
@@ -218,7 +211,7 @@ function missionNormalise(m) {
   if (typeof o.provider !== 'string') o.provider = '';
   if (typeof o.kind !== 'string') o.kind = 'contract';
   for (const k of ['title', 'brief']) if (typeof o[k] !== 'string') o[k] = '';
-  if (o.client == null && o.provider) { const c = msClientOf(o.provider); if (c) o.client = c; }
+  if (o.client == null && o.provider) { const c = peopleClientOf(o.provider); if (c) o.client = c; }
   if (!Array.isArray(o.legs)) o.legs = [];
   o.legs = o.legs.map(L => { const l = msObj(L) ? L : {}; l.steps = Array.isArray(l.steps) ? l.steps.map(missionStepNorm) : []; return l; });
   if (!msObj(o.pay)) o.pay = { base: 0 };
@@ -674,7 +667,7 @@ function missionPackFromContracts(opts) {
   const pack = { what: MISSION_PACK_WHAT, v: MISSION_PACK_V, id: 'builtin', title: 'The built-in missions (72_contract_data.js, retrofitted)',
                  campaigns: [], missions: [], sites: [], text: {}, legacy: { retrofitted: [], dropped: (opts.dropped || []).map(msClone) } };
   for (const p of Object.keys(CONTRACT_PROVIDERS)) {
-    const Pr = CONTRACT_PROVIDERS[p], client = msClientOf(p);
+    const Pr = CONTRACT_PROVIDERS[p], client = peopleClientOf(p);
     const C = { id: 'prov.' + p, title: Pr.name, provider: p, order: 'any', chapters: [] };
     const lists = [['arc', 'seq'], ['builds', 'any'], ['night', 'any']];
     for (const [k, order] of lists) {

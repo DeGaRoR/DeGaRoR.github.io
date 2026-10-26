@@ -91,11 +91,10 @@ dialog { background: var(--panel); color: var(--ink); border: 1px solid var(--li
   </form>
 </dialog>
 
-<!-- THE GAME'S CORE: the LEAN set (tools/_missions_lib.js), in order. 72_people*.js are on claude/people until L26c: a
-     missing file is skipped (the person ids are then checked by their shape) -->
+<!-- THE GAME'S CORE: the LEAN set (tools/_missions_lib.js), in build.js MANIFEST.core's order -->
 <script data-core="01_names.js" src="../src/core/01_names.js"></script>
-<script data-core="72_people.js" src="../src/core/72_people.js" onerror="window.MS_NO_PEOPLE=1"></script>
-<script data-core="72_people_faces.js" src="../src/core/72_people_faces.js" onerror="0"></script>
+<script data-core="72_people_faces.js" src="../src/core/72_people_faces.js"></script>
+<script data-core="72_people.js" src="../src/core/72_people.js"></script>
 <script data-core="34_occupant.js" src="../src/core/34_occupant.js"></script>
 <script data-core="38c_route.js" src="../src/core/38c_route.js"></script>
 <script data-core="72_contract_data.js" src="../src/core/72_contract_data.js"></script>
@@ -177,7 +176,7 @@ const stepWords = s => (s.id ? s.id + ' ' : '') + (s.from ? placeWords(s.from) +
 function addMission(chapter) {
   let n = S.pack.missions.length + 1, id; do id = 'm' + n++; while (mission(id));
   const prov = Object.keys(CONTRACT_PROVIDERS)[0];
-  const m = { id, provider: prov, kind: 'contract', title: 'ms.' + id + '.title', brief: 'ms.' + id + '.brief', client: msClientOf(prov),
+  const m = { id, provider: prov, kind: 'contract', title: 'ms.' + id + '.title', brief: 'ms.' + id + '.brief', client: peopleClientOf(prov),
               legs: [{ steps: [{ do: 'carry', from: { field: 'HOME' }, place: { field: 'w3' }, load: { kg: 20, pax: 0 } }] }],
               pay: { base: 1500 }, rep: { provider: prov, gain: 0.5 }, rules: Object.assign({}, MISSION_RULES_NEW) };
   setWords(m.title, 'A new mission'); setWords(m.brief, 'What the client asks.');
@@ -206,7 +205,7 @@ function json(v, set, o) {
   return e;
 }
 const ordSel = (v, set) => { const e = inp(v, set, { ph: 'seq | any | choose:N' }); e.setAttribute('list', 'orders'); return e; };
-const persons = () => { const T0 = typeof GAME_PEOPLE !== 'undefined' ? GAME_PEOPLE : null; return T0 ? Object.keys(T0).map(id => [id, T0[id].name + ' (' + T0[id].role + ')']) : msPeopleOf('client').map(id => [id, id + ' (stub: 72_people.js not loaded)']); };
+const persons = () => PEOPLE_IDS.map(id => [id, GAME_PEOPLE[id].name + ' (' + GAME_PEOPLE[id].role + ')']);
 const personSel = (v, set) => sel(v || '', persons(), x => set(x || undefined), { blank: '—' });
 const fieldOpts = () => Object.keys(CONTRACT_FIELDS).map(id => [id, CONTRACT_FIELDS[id].name + ' (' + id + ')']);
 function textRow(label, key, set) {
@@ -416,7 +415,7 @@ function renderCard() {
   const Tx = T(), vars = safe(() => contractVars(rec, CONTRACT_FIELDS, Tx)) || {};
   const prov = CONTRACT_PROVIDERS[m.provider];
   const rw = safe(() => missionReward(m, { pack: S.pack }));
-  c.append(el('div', { cls: 'who' }, face(m.client), el('div', {}, el('div', {}, el('b', {}, m.client ? msPersonName(m.client) : '—'), el('span', { cls: 'mute' }, ' · ' + (prov ? contractText(prov.name, null, Tx) : m.provider) + ' · ' + m.kind)),
+  c.append(el('div', { cls: 'who' }, face(m.client), el('div', {}, el('div', {}, el('b', {}, m.client ? peopleName(m.client) : '—'), el('span', { cls: 'mute' }, ' · ' + (prov ? contractText(prov.name, null, Tx) : m.provider) + ' · ' + m.kind)),
     el('h3', {}, contractText(rec.title, vars, Tx)))));
   c.append(el('p', { cls: 'brief' }, contractText(rec.brief, vars, Tx)));
   const ul = el('ul', {});
@@ -424,16 +423,16 @@ function renderCard() {
     (s.require && s.require.plane ? ' · ' + s.require.plane.map(q => safe(() => contractCritWords(q, CONTRACT_FIELDS, Tx)) || q.k).join('; ') : '')))));
   c.append(ul);
   for (const p of m.prefs || []) c.append(el('div', {}, contractText('pref.' + p.need, { p: contractText('pref.' + p.k, { v: p.v }, Tx) }, Tx) + (p.need === 'bonus' ? ' (+' + p.pct + ' %)' : '')));
-  if (m.onDone && m.onDone.say) c.append(el('div', { cls: 'mute' }, '“' + contractText(m.onDone.say.text, vars, Tx) + '” - ' + msPersonName(m.onDone.say.who)));
+  if (m.onDone && m.onDone.say) c.append(el('div', { cls: 'mute' }, '“' + contractText(m.onDone.say.text, vars, Tx) + '” - ' + peopleName(m.onDone.say.who)));
   if (rw) c.append(el('div', { cls: 'pay' }, 'offered ' + rw.pay.total + ' · paid ' + rw.paid + (rw.best !== rw.paid ? ' · best ' + rw.best : '') + (rw.prefs ? ' · prefs +' + rw.prefs + ' %' : '') + ' credits' + (rw.pay.km ? ' · ' + rw.pay.km + ' km' : '')),
     el('div', { cls: rw.why ? 'wt' : 'badok' }, rw.why ? '⏳ waits for its runtime: ' + rw.why : '✓ today\'s runtime runs it'));
   const w = whyOf(m.id);
   if (w.length) c.append(el('div', { cls: 'badno' }, w.slice(0, 6).map(x => el('div', {}, '✗ ' + x))));
 }
 function face(id) {
-  const src = id && typeof peopleFace === 'function' ? peopleFace(id, 64) : null;
+  const src = id ? peopleFace(id, 64) : null;
   if (src) { const im = el('img', { cls: 'face', src: '../' + src, alt: id }); im.onerror = () => im.replaceWith(el('div', { cls: 'face' }, (id || '?')[0].toUpperCase())); return im; }
-  return el('div', { cls: 'face', title: window.MS_NO_PEOPLE ? '72_people.js not loaded (claude/people, L26c)' : '' }, (id || '?')[0].toUpperCase());
+  return el('div', { cls: 'face' }, (id || '?')[0].toUpperCase());
 }
 
 // ---- the map (MAP_PACK: px = (x - x0) / mpp, py = (z - z0) / mpp; north up) ------------------------------------------

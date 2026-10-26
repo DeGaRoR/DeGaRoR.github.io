@@ -7,22 +7,23 @@
 //                players, the careers); false (default): the LEAN set alone -
 //                exactly the files tools/mission_editor.html loads
 //   mut: { '<file>': src => src }  the selftest's doctoring
-// 72_people.js is loaded when src/core has it (claude/people, L26c): the person
-// ids are then checked against the table; without it, by their shape.
+// 72_people.js (GAME_PEOPLE) is part of both sets: every person id is checked against
+// the table.
 // ============================================================================
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const CORE_DIR = path.join(__dirname, '..', 'src', 'core');
 // the editor's set, in its <script> order (the people table when present, after the names)
-const LEAN = ['01_names.js', '72_people.js', '72_people_faces.js', '34_occupant.js', '38c_route.js',
+const LEAN = ['01_names.js', '72_people_faces.js', '72_people.js', '34_occupant.js', '38c_route.js',
               '72_contract_data.js', '73_contracts.js', '73b_missions.js', '79_story.js'];
 // over the core, the model's own files (and the people) fresh; the rest is the core's
-const FRESH = ['72_people.js', '72_people_faces.js', '72_contract_data.js', '73_contracts.js', '73b_missions.js', '74_career.js', '75_career_wire.js'];
+const FRESH = ['72_people_faces.js', '72_people.js', '72_contract_data.js', '73_contracts.js', '73b_missions.js', '74_career.js', '75_career_wire.js'];
 const namesOf = s => [...s.matchAll(/^(?:const|let|function)\s+([A-Za-z_$][\w$]*)/gm)].map(m => m[1]);
 const has = f => fs.existsSync(path.join(CORE_DIR, f));
 function loadMissions(opts) {
   opts = opts || {};
-  const files = (opts.core ? FRESH : LEAN).filter(has);
+  const files = opts.core ? FRESH : LEAN;
+  for (const f of files) if (!has(f)) throw new Error('missions: src/core/' + f + ' is missing');
   const src = {};
   for (const f of files) { const s = fs.readFileSync(path.join(CORE_DIR, f), 'utf8'); src[f] = opts.mut && opts.mut[f] ? opts.mut[f](s) : s; }
   const names = [].concat(...files.map(f => namesOf(src[f]))).filter((n, i, a) => a.indexOf(n) === i);
