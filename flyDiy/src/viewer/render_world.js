@@ -1394,7 +1394,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // box + 30 m, a gravel/paved surface. Only the aerodrome box above (len/2 + 150, wid/2 + 60) and the
   // pavements kept it off, so the editor's tool drew a polygon the island's woods walked straight through.
   // The collidable woodland (20_world.js) has always obeyed it. Read at call time: the editor swaps the overlay
-  const premTreeEx = (x, z) => { const o = world.premises && world.premises.overlay; return !!(o && o.excludeAt && o.excludeAt(x, z, 'trees')); };
+  const premTreeEx = (x, z) => { const o = world.premises && world.premises.overlay; return !!(o && o.excludeAt && (o.excludeAt(x, z, 'trees') || o.excludeAt(x, z, 'lot'))); };   // (LOT-CLEAR: a building's lot too)
   // G1091 (POLISH-2): ON AN ISLAND THE RUNWAYS' CLEARANCES ARE THE CORE'S - world.treeAeroBlocked (the aerodrome
   // box above in 'today' only, the pavement by the variant) and world.treeGround (the class a tree reads; the map's
   // under a lifted shoulder) - the SAME calls the collidable woodland makes (20_world.js), so a tree you see stands

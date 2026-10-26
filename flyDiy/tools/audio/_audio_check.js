@@ -661,6 +661,12 @@ function checkWiring(S) {
   const ip = list.indexOf("'audio/audio_params.js'"), ia = list.indexOf("'audio/audio.js'"), iw = list.indexOf("'app.js'");
   if (!(ip >= 0 && ia > ip && iw > ia)) F.push('build.js MANIFEST.viewer.scripts does not list audio/audio_params.js, audio/audio.js before app.js');
   if (!/audio: \{ modules: \[/.test(S.build) || !/window\.FLYDIY_AUDIO_SRC=\$\{JSON\.stringify\(AUDIO_SRC\)\}/.test(S.build)) F.push('build.js does not publish MANIFEST.audio.modules as FLYDIY_AUDIO_SRC');
+  // GARAGE-RATTLE (the user's playtest 24 Oct: a continuous rattle in the shed after a flight): the return to the shed
+  // leaves sim.out at rest - nothing steps there, and the last flight's speed / rpm fed the airframe and the engine
+  { const g = S.app.indexOf('  function enterGarage() {'), r = S.app.indexOf('    sim.reset(0);\n', g), z = S.app.indexOf('simOutAtRest(sim.out);', r);
+    const f = S.app.indexOf('  function simOutAtRest(o) {'), body = f >= 0 ? S.app.slice(f, S.app.indexOf('\n  }\n', f)) : '';
+    if (!(g >= 0 && r > g && z > r && z - r < 40)) F.push('enterGarage does not set sim.out at rest right after sim.reset(0) (GARAGE-RATTLE: the last flight’s speed sounds in the shed)');
+    if (!/o\.V = 0;/.test(body) || body.indexOf("'rpm', 'rpmEng', 'thrustPer'") < 0) F.push('simOutAtRest does not zero the speed and the engines’ rpm (GARAGE-RATTLE)'); }
   const calls = S.app.split('AUDIO.update(').length - 1;
   if (calls !== 1) F.push('app.js calls AUDIO.update ' + calls + ' times (want 1)');
   const lp = S.app.indexOf('  function loop(ts) {'), le = S.app.indexOf('\n  }\n', lp);
@@ -4545,6 +4551,8 @@ const MUT = [
   ['the garage setting ignored', 'music', 'if (garage) return musicGarage ? C_GARAGE : C_NONE;', 'if (garage) return C_GARAGE;', 'MUSIC_CTX'],
   ['the loading button never shown', 'music', 'b.hidden = false;   // shown: the sound is built', 'b.hidden = true;   // shown: the sound is built', 'MUSIC_WIRING'],
   ['the shed back to full', 'ambmodel', 'const GARAGE_K = Math.pow(10, -12 / 20);', 'const GARAGE_K = 1;', 'AMBPLACES'],
+  ['the shed keeps the flight’s speed', 'app', '    simOutAtRest(sim.out);            // GARAGE-RATTLE', '    void 0;                           // GARAGE-RATTLE (the call lost)', 'WIRING'],
+  ['the shed keeps the flight’s rpm', 'app', "for (const k of ['rpm', 'rpmEng', 'thrustPer'])", "for (const k of ['thrustPer'])", 'WIRING'],
   ['the loading setting ignored', 'music', 'if (welcome) return musicLoading ? C_WELCOME : C_NONE;', 'if (welcome) return C_WELCOME;', 'MUSIC_WIRING'],
   ['the loading screens back to the welcome-tagged few', 'music', '(c === C_WELCOME || c === C_CRUISE ? ix.slice() : ix.filter(', '(c === C_CRUISE ? ix.slice() : ix.filter(', 'MUSIC_SHUFFLE'],
   ['only the first boot is a loading screen', 'audio', "welcome = B && (B.state === 'loading' || B.state === 'landing' || B.state === 'waiting') ? 1 : 0;", "welcome = welcome && B && B.state !== 'gone' ? 1 : 0;", 'MUSIC_CTX'],
