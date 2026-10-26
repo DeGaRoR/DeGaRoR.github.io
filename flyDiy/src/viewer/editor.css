@@ -1549,7 +1549,8 @@ html.phone #edRows .edRoot .r.note,
 html.phone #edRows .edRoot .r > span.v { font-size:13.5px; }
 #edRows .edRoot .r.note .noteH { font:var(--ed-t-group); letter-spacing:.16em;
   text-transform:uppercase; color:var(--ed-faint); margin:4px 0 4px; }
-#edRows .edRoot .bad, #edRows .edRoot .r > .v.bad { color:var(--ed-bad); }
+#edRows .edRoot .bad, #edRows .edRoot .r.note.bad,
+  #edRows .edRoot .r > .v.bad { color:var(--ed-bad); }
 
 /* a verb that is the whole row (+ add a tank, remove this tank) */
 #edRows .r button.wide { flex:1; }
