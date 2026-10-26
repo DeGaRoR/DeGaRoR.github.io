@@ -878,6 +878,9 @@ async function tutorRun() {
      "the skip's fresh pilot starts with the stick neutral before its first update (its default 'DE' mode has no setting: the sim diverged at 0 s, the 25 Oct page run)");
   ok(/function storyFinalNow\(\)[\s\S]{0,2400}ap\.setRoute\(H, H\);/.test(app),
      "the skip's pilot flies a circuit at the WWII field (a cabin -> HOME route flew to the pattern entry first: 5 min round the circuit, the 25 Oct 20:15 page run)");
+  ok(/const stUsed = !armed && \(\(\) => \{ try \{ const s = stLive\(\); return !!\(s && !s\.open && s\.planes && s\.planes\.starter && flSlot === s\.planes\.starter\); \}/.test(app) &&
+     /if \(typeof window\.BENCH_FLIGHT_LOGGED === 'function' && curKey === 'gen' && !stUsed\) \{/.test(app),
+     "Rufus is a used machine: while the story runs, its landings award no flight certificate (the user 27 Oct), a bench-armed test flight still does");
   ok(/d = storyOnFlightEnd\(d, out\);\s*\n(?:\s*\/\/.*\n)*\s*if \(out\.moved && out\.moved\.kind === 'in' && out\.moved\.hangar && out\.moved\.hangar !== d\.here && !out\.room\) \{ const g = playerGoTo\(d, out\.moved\.hangar\);/.test(app),
      "a landing whose story effects lift the hangar's lock (T1 done) opens the roll-in there: the go-to again after storyOnFlightEnd (B'1, the 26 Oct page run: The shed opened the cabin's garage)");
   H.inGarage = true; H.ap = null;

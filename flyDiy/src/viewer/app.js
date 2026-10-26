@@ -10453,7 +10453,11 @@
     }
     const armed = testFlight; testFlight = null;
     director.stop(); simRateSet(1);
-    if (typeof window.BENCH_FLIGHT_LOGGED === 'function' && curKey === 'gen') {
+    // G3585 (the user 27 Oct: "Rufus is meant at already having had its first flight a long time ago ... It's a used
+    // machine"): while the story runs, its starter's landings award (and celebrate) no flight certificate - a test
+    // flight armed at the bench still does; the logbook row above is written either way
+    const stUsed = !armed && (() => { try { const s = stLive(); return !!(s && !s.open && s.planes && s.planes.starter && flSlot === s.planes.starter); } catch (e) { return false; } })();
+    if (typeof window.BENCH_FLIGHT_LOGGED === 'function' && curKey === 'gen' && !stUsed) {
       try {
         window.BENCH_FLIGHT_LOGGED({
           report: tfVal.report, arrived: !!t, outcome, t: tfVal.t, manual: !!manual, damaged: A.damaged,
