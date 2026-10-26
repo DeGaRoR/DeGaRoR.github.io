@@ -1823,7 +1823,7 @@ function make(THREE, scene, world, rec0, opts) {
         d.fill(Math.round(255 * a), (j * N + i) * 4, (j * N + i) * 4 + 4);
       }
       const tex = new THREE.DataTexture(d, N, N, THREE.RGBAFormat); tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearFilter; tex.needsUpdate = true;
-      PRINT.mat = new THREE.MeshBasicMaterial({ color: 0x000000, alphaMap: tex, transparent: true, opacity: 0.5, depthWrite: false,
+      PRINT.mat = MATLIB.make(THREE, 'basic', { color: 0x000000, alphaMap: tex, transparent: true, opacity: 0.5, depthWrite: false,
         polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
       PRINT.mat.name = 'premises:carprint';
       PRINT.geo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0.04, 0);
@@ -1840,6 +1840,12 @@ function make(THREE, scene, world, rec0, opts) {
     if (m && m.instanceMatrix.count >= n) return m;
     if (m) { root.remove(m); m.dispose(); }
     return (PRINT[which] = printMesh(Math.max(n, m ? m.instanceMatrix.count * 2 : 64), which === 'st' ? 'premises:carprints' : 'premises:carprints:traffic'));
+  }
+  // the drawn prints only go up (n matrices, never the mesh's whole room: FRAMECOST bytes.bufferSubData); none drawn, nothing sent
+  function printUpload(m, n) {
+    m.count = n;
+    if (!n) return;
+    const a = m.instanceMatrix; a.clearUpdateRanges(); a.addUpdateRange(0, n * 16); a.needsUpdate = true;
   }
   // the print's size from the car's: a little past its body, the soft edge outside it
   function printScale(W, L) { return PRINT_TMP.s.makeScale((W || 1.8) + 0.5, 1, (L || 4.5) + 0.6); }
@@ -1887,7 +1893,7 @@ function make(THREE, scene, world, rec0, opts) {
       if (eye && Math.hypot(e.x - eye.x, e.z - eye.z) > lr) continue;
       st.setMatrixAt(n++, e.M);
     }
-    if (n || st.count) { st.count = n; st.instanceMatrix.needsUpdate = true; }
+    printUpload(st, n);
     PRINT.n = n;
   }
   // the traffic: tickPost opens the frame's list (printTraffic(-1)), moveTraffic writes each posed car, tickPost closes it
@@ -3187,7 +3193,7 @@ function make(THREE, scene, world, rec0, opts) {
       const e = o.eye && o.eye();
       if (PRINT.tr) PRINT.trN = 0;   // (G3543: the posed cars' prints, this frame's)
       for (const [, tr] of TRAFFIC) moveTraffic(tr, dt, e);
-      if (PRINT.tr) { const n = PRINT.trN; if (n || PRINT.tr.count) { PRINT.tr.count = n; PRINT.tr.instanceMatrix.needsUpdate = true; } PRINT.nTr = n; PRINT.trN = -1; }
+      if (PRINT.tr) { const n = PRINT.trN; printUpload(PRINT.tr, n); PRINT.nTr = n; PRINT.trN = -1; }
       trafficCount();
     }
     if (PRINT.on && ++PRINT.tick % 15 === 0) printsStatic(o.eye ? o.eye() : null);   // (G3543: the cars that stand)
