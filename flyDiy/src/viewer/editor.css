@@ -1304,6 +1304,13 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
           mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M3 4.5h12M3 9h12M3 13.5h12'/%3E%3C/svg%3E") center / 18px 18px no-repeat; }
 #edFleet #edMenu:hover { background:rgba(255,255,255,.07); color:var(--ed-ink); }
 #edFleet #edMenu[aria-expanded="true"] { background:rgba(255,255,255,.09); color:var(--ed-ink); }
+/* G3729 (the user, 26 Oct, the tank panel: "get rid of the frame, we use that nowhere else. Keep the warning, but not the
+   container"): a tank (_cage_energy.js details[data-ves], its finish twin [data-veslook]) is a flat group like the
+   instruments' (UI-STYLE G3736) - no box, its summary the group's heading, the picked one in the selection colour; its
+   red line (.r.note.bad, --ed-bad) stays as it is */
+.edRoot details:is([data-ves], [data-veslook]) { border:0; border-radius:0; padding:0; margin:0; outline:0 !important; }
+.edRoot details:is([data-ves], [data-veslook]) > summary { padding:18px 0 6px; }
+.edRoot details:is([data-ves], [data-veslook]).on > summary { color:var(--ed-acc); }
 #edTopBar { flex-wrap:nowrap; gap:6px; }
 #edTopBar #edQuick { margin-left:0; }
 /* the rail is gone from the screen (its items are MENU pages, editor.js gmRows); the table, its flyout host and the
