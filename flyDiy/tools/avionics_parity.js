@@ -5,9 +5,11 @@
 // (every node's mass and position, every beam, the ledger's mass) hashed three times - the saved spec
 // as written, THE GAME'S (tools/_load_build.js: the page's own load chain, GATE JOINPARITY's one load
 // path - the aeroplane the game flies) and re-joined through the card bake (tools/_bake_joined.js) -
-// plus a 20 s flight on the solver of the game's airframe (the CG path hashed). The fixture is the
-// master tree's numbers (captured with --capture on origin/master before any G280x change);
-// a line that differs is a validated aeroplane that changed in flight.
+// plus a 20 s flight on the solver of the game's airframe (the CG path hashed). The fixture was the
+// master tree's numbers through G2807 (every validated aeroplane identical); G2808-G2809 (the user,
+// 25 Oct: "Wysiwyg, and as billed for all") moved every one on purpose - the before / after is in
+// HANDOVER (tools/avionics_bill_table.js reproduces it) - and the fixture is now re-captured on that
+// branch: a line that differs is a validated aeroplane that changed since.
 //   node tools/avionics_parity.js            compare against tools/fixtures/avionics_parity.json
 //   node tools/avionics_parity.js --capture  write the fixture from this tree
 'use strict';
