@@ -22,7 +22,10 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
 const OUT = path.resolve(opt('out', 'cowl_res_stills'));
 const BUILDS = opt('builds', 'builds/cessna172_2026-09-20_corrected.json,builds/cessna172_2026-09-20.json,builds/cub_2026-09-20_corrected.json').split(',');
-const MODES = opt('modes', 'before,after').split(',');
+// modes: before = master's geometry (level 2, no eye pass) | after = the eye pass | lvl3 = THE FREE LEVEL-3 LOOK: the
+// hidden subsurf select (#lvl, G106.1's bench instrument) at 3 for the whole plane + cowl detail 2 - a look at what a
+// third construction level gives, not a shipping path (it moves the measured rows)
+const MODES = opt('modes', 'before,lvl3').split(',');
 const WAIT = +opt('wait', 9000);
 const LOG = argv.includes('--log');
 const NOHIDE = argv.includes('--nohide');
@@ -95,7 +98,8 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     const spec = raw.spec || raw, tag = path.basename(b, '.json');
     for (const mode of MODES) {
       await pill('3/4 front');
-      await ev("(()=>{window.CAGE_UI.eyeRefine = " + (mode === 'after') + "; window.GARAGE_SPEC.set(" + JSON.stringify(spec) + "); return 1})()");
+      const specM = mode === 'lvl3' ? Object.assign({}, spec, { cw_detail: 2 }) : spec;
+      await ev("(()=>{const l=document.getElementById('lvl');if(l)l.value='" + (mode === 'lvl3' ? 3 : 2) + "';window.CAGE_UI.eyeRefine = " + (mode === 'after') + "; window.GARAGE_SPEC.set(" + JSON.stringify(specM) + "); return 1})()");
       await sleep(WAIT);
       await settle(120, tag + ' ' + mode);
       await ev("(()=>{[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0).forEach(x=>x.click());return 1})()");
