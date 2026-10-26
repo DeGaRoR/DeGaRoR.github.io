@@ -9778,8 +9778,11 @@
   // (work only when the model or the seats change: the 700 ms tick re-asserts the hidden figures and nothing else)
   function fsPeople() {
     const R = FST.R, M = model, grp = M && M.grp;
-    const hide = R && grp ? R.seats.filter(s => s.build && !s.job).map(s => s.i) : [];
-    const want = R && grp ? R.seats.filter(s => s.job && !s.build).map(s => s.i) : [];
+    // G3619: a job's seat the build already fills (a C172's co-pilot, a pilot's body) takes a drawn passenger too -
+    // the build's figure hidden there, so only the job's people queue (pilots and the reserved never do)
+    const jobOwn = s => s.job && s.build && s.i > 0;
+    const hide = R && grp ? R.seats.filter(s => (s.build && !s.job) || jobOwn(s)).map(s => s.i) : [];
+    const want = R && grp ? R.seats.filter(s => (s.job && !s.build) || jobOwn(s)).map(s => s.i) : [];
     const key = (grp ? grp.uuid : '') + '|' + hide.join(',') + '|' + want.join(',');
     if (key === FST.paxKey) { for (const o of FST.hidden) if (o.visible) o.visible = false; return; }
     FST.paxKey = key;
@@ -9864,7 +9867,8 @@
     if (CRW.all || job) for (const P of M.people || []) {
       const nm = P && P.dum && P.dum.fig && P.dum.fig.name;
       const r = nm && (M.data.people || []).find(q => nm === 'flDum' + q.idx);
-      if (!r || r.role === 'pilot' || P.dead) continue;
+      // (a figure a job's passenger replaced - fsPeople hid it - stays out of the line)
+      if (!r || r.role === 'pilot' || P.dead || FST.hidden.some(o => o.name === nm)) continue;
       out.push({ seat: 'l:' + r.idx, key: P.key, meshes: () => (P.inst ? P.inst.meshes : []) });
     }
     if (CRW.all || job) for (const k in M.meshes || {}) {
