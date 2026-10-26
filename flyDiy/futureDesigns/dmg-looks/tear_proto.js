@@ -258,4 +258,5 @@ function perf() {
     console.log(`${k.padEnd(10)} event ${ms.toFixed(1)} ms on the band only (${S.nt} triangles, a 10.2 m tear; warm, 3rd run; the per-place loops still walk all ${M.nv})`);
   }
 }
-main();
+if (require.main === module) main();
+module.exports = { grid, event, PROFILES, W, H, HS, X0 };

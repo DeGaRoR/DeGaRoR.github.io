@@ -40,8 +40,16 @@ function draw(C, V, tris) {
       const px = x + 0.5, py = y + 0.5, l1 = ((B[1] - Cc[1]) * (px - Cc[0]) + (Cc[0] - B[0]) * (py - Cc[1])) / den, l2 = ((Cc[1] - A[1]) * (px - Cc[0]) + (A[0] - Cc[0]) * (py - Cc[1])) / den, l3 = 1 - l1 - l2;
       if (l1 < -1e-6 || l2 < -1e-6 || l3 < -1e-6) continue;
       const zz = l1 * A[2] + l2 * B[2] + l3 * Cc[2], o = y * C.w + x;
-      if (zz >= C.z[o]) continue; C.z[o] = zz;
-      C.img[o * 4] = c[0] * 255; C.img[o * 4 + 1] = c[1] * 255; C.img[o * 4 + 2] = c[2] * 255;
+      if (zz >= C.z[o]) continue;
+      let cc = c;
+      if (t.frag) {                                              // a fragment pass: interpolated attributes -> colour, or discard
+        const at = t.attr[0].map((_, i) => l1 * t.attr[0][i] + l2 * t.attr[1][i] + l3 * t.attr[2][i]);
+        const f = t.frag(at, front); if (!f) continue;
+        const sp2 = (f.spec || 0) * Math.pow(Math.max(0, (n[0] * h[0] + n[1] * h[1] + n[2] * h[2]) / hl), 24);
+        cc = f.col.map(q => Math.min(1, q * lam + sp2));
+      }
+      C.z[o] = zz;
+      C.img[o * 4] = cc[0] * 255; C.img[o * 4 + 1] = cc[1] * 255; C.img[o * 4 + 2] = cc[2] * 255;
     }
   }
 }

@@ -98184,3 +98184,44 @@ DMG-LOOKS: study at futureDesigns/DMG-LOOKS-STUDY-2026-10.md, for the Deform Coo
   - C5: wing members cut at the root (drawing only);
   - C6: wood's compression kink booked as a break (low priority).
 - **New files (node, `futureDesigns/dmg-looks/`):** `structure_census.js` (+ .json), `structure_mesh.js` (+ .txt), `structure_proto.js`, `raster3d.js`, `structure_cost_proto.txt`, and the three sheets.
+
+### G3620-G3629 DMG-LOOKS STRETCH - THE ALLOY SLOT (CRIMPS + THE RIVET-LINE TEAR) AND THE P2 RIM OVERLAY (OPTION B), NODE PROTOTYPES + TRIANGLE COUNTS (2026-10-26, DMG-LOOKS for the DEFORM COORDINATOR; cloud, node only; branch claude/dmg-looks-study)
+**Write-up:** `futureDesigns/dmg-looks/STRETCH-ALLOY-RIM-2026-10-26.md`. Deform implements (a)-(d) on `claude/dmg-looks` (Tue night).
+
+**File boundary.** `claude/dmg-looks` was not on the remote on 26 Oct, so nothing outside `futureDesigns/dmg-looks/` was touched:
+- no `src/`, no tools, not the study doc;
+- the only existing files edited are my own `tear_proto.js` (its main is guarded; output unchanged) and `raster3d.js`.
+
+**The alloy slot** (`alloy_proto.js` -> `alloy_slot.png`). It uses the cage's own metalAngle section: two prisms, w 30 mm, T 5 mm.
+- **Crimps** are progressive folds of half-length H ≈ (b²t)^(1/3), with the real t 1.2 mm.
+  - That gives H = 10.3 mm, and each fold eats 15 mm.
+  - The formula is Wierzbicki & Abramowicz 1983 as recalled; its constant was not verified, so it is a dial.
+  - The solver's lost chord picks 1-3 folds; past 45 mm the member also kinks.
+- **The tear runs through the rivet line.** It crosses the net section into hole k, links up along the row to hole k+1, then the outstanding leg shears on a slant.
+  - Holes on the crack are elongated x1.9.
+  - The rivets stay on the skin side.
+  - Lips curl; bare alloy at the crack, grey primer elsewhere.
+- **The pool's own program may discard.** The vertex pass collapses past the crack's bound; the fragment pass cuts the exact zig-zag and the holes.
+- **Triangles per slot:** 312 (1 fold), 504 (3 folds, with or without the kink), 768 (torn, two pieces). These replace study §10.6's 414 / 828.
+
+**The P2 rim overlay, option B** (`rim_overlay_proto.js` -> `rim_overlay.png`). The skin program is unchanged; a second draw colours only the rim triangles from the per-place edge distance:
+- 2024 skin: bare alloy, then grey primer, then chipped paint;
+- fabric: frayed thread;
+- composite: pale fibre;
+- ply: raw wood.
+
+**Its real size** (`rim_census.js`). This is the headless snapshot ridden by skin_break as GATE DMGWALL rides it, one build per process (a second build in one process drew a different snapshot):
+- at most ~8 k rim triangles and ~6.5 k rim places per crash; the index is under 100 kB;
+- the naive rim pass over a whole crash takes 7-76 ms; done incrementally per event it fits the 8 ms budget;
+- **the rim falls in up to 23 of 47 snapshot groups (≈ drawers)**, so an overlay per drawer would cost up to 23 draws.
+
+**Recommended: B3, "the overlay rides itself".**
+- The overlay keeps its own small vertex list: copies of the rim places' `aPl` / `aN0` plus `aRim`.
+- That list goes through the same `RIDE_VS` program in one extra transform-feedback draw, writing parked buffers sized at roll-out (16 k vertices and 16 k triangles, ~0.5 MB).
+- Then one overlay draw.
+- Cost: 1 draw plus 1 transform-feedback draw; 0 links; 0 CPU per frame; 0 GL objects at the crash; `RIDE_VS`'s source is unchanged.
+- B1 (per drawer: 1-23 draws) and B2 (a double transform-feedback write, plus a ~2 MB `aRim` buffer made at the first break) are costed in the write-up.
+
+**Wiring is Deform's, not done here:**
+- the slot goes in the pool (`dmg_members.js`);
+- B3 needs one more transform-feedback draw in `skin_gpu.js`, the incremental rim pass in `skin_break.js event()`, and a parked overlay mesh plus material beside `ground_scar.js`.

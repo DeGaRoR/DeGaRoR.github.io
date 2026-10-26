@@ -1,0 +1,5 @@
+RIM OVERLAY (option B) on the 1.2 x 0.8 m test panel (1564 triangles, 3.5 cm): rim band 3 cm
+  alu        rim triangles 101 of 1515 live (6.7 %) for a 0.8 m tear: 126 a metre
+  fabric     rim triangles 104 of 1447 live (7.2 %) for a 0.8 m tear: 130 a metre
+  composite  rim triangles 167 of 1464 live (11.4 %) for a 0.8 m tear: 209 a metre
+  ply        rim triangles 114 of 1498 live (7.6 %) for a 0.8 m tear: 143 a metre

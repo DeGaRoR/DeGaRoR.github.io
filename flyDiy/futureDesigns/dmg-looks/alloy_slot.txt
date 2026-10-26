@@ -1,0 +1,7 @@
+ALLOY SLOT (cage section: 2 prisms x 6-point loops = 12 quads a ring segment = 24 triangles)
+H = 10.3 mm (H_K 1), a fold eats 15.0 mm (EFF 0.73)
+  crushed 12 mm: 1 fold              312 triangles
+  crushed 42 mm: 3 folds             504 triangles
+  crushed 75 mm: 3 folds + a kink    504 triangles
+  torn (two pieces)                  768 triangles
+  fragment pass (torn slots only): the crack cut(u) - 3 branches + one 3-octave noise - and the holes within 2.2 pitches (~5 tests)
