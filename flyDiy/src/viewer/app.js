@@ -119,6 +119,12 @@
           return !TOWN.cut && !SVnow() ? ls : { getItem: k => ls.getItem(k), removeItem: k => ls.removeItem(k), key: i => ls.key(i), get length() { return ls.length; },
             setItem: (k, v) => { if (k === WIP_KEY || k.startsWith('flydiy.premises.slot.')) try { const U = PREMISES_GEN.unwrap(v), SV = SVnow(); if (SV) U.rec = PREMISES_GEN.stageRestore(U.rec, SV); v = PREMISES_GEN.envelope(U.name, TOWN.cut ? PREMISES_GEN.restorePlaces(U.rec, TOWN.cut) : U.rec, U.plaque, U.log); } catch (e) {} ls.setItem(k, v); } };
         } catch (e) { return null; } })(), wipKey: WIP_KEY,
+        // SCENERY VERSIONS (ED-2; the user, 25 Oct: 'when getting into the scenery editor, there is an option to load a version, and that's
+        // the only place where scenery can be loaded'): the game boots master (world_boot.js), so the editor opens on it; FILE > 'load a
+        // version' offers master (what this page composed), the editor's last autosave and the named versions of the repo. A loaded
+        // record is cut like the boot's (prep: the town switch's places), so it composes as the game would; a save puts them back (above)
+        scenery: WB.SCN ? { island: WB.SCN.island, master: rec0, versions: () => WB.SCN.versions(), versionText: v => WB.SCN.versionText(v),
+          prep: t => { if (TOWN.all || typeof PREMISES_GEN === 'undefined') return t; try { const U = PREMISES_GEN.unwrap(t), D = PREMISES_GEN.dropPlaces(U.rec, TOWN.off, TOWN.keep); return D.n ? PREMISES_GEN.envelope(U.name, D.rec, U.plaque, U.log) : t; } catch (e) { return t; } } } : null,
         rig: (typeof window !== 'undefined' && window.WORLD && window.WORLD.rig) || null, day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null,   // SKY chantier: LIGHT and TIME in the game's editor
         redraw: dirtyDraw, frameText: () => '', pool: () => [], site: PREM.host.site, catalogue: PREMISES_GEN.collect(window), fresh: true, record: rec0, overlayOn: () => false,
         // G1400 (EDITOR-LAG): an edit of the OBJECTS layer (a prop, a tree, a billboard, an aeroplane, an animal), or a
@@ -15136,7 +15142,8 @@
       const b = document.createElement('button'); b.className = 'pill'; b.textContent = PREM.open ? 'close the scenery editor' : 'open the scenery editor';
       b.onclick = () => { if (PREM.open) PREM.close(); else PREM.openEditor(); flyOpenSet(null); };
       body.appendChild(b);
-      if (rec) { const c = document.createElement('button'); c.className = 'pill'; c.textContent = 'clear the saved premises (the map\'s own at the next boot)'; c.onclick = () => { try { localStorage.removeItem(WIP_KEY); } catch (e) {} flNote(body, 'cleared - reload for the map\'s own premises'); }; body.appendChild(c); }
+      // (SCENERY VERSIONS: the 'clear the saved premises' pill is gone - the game boots master whatever the editor saved, and the
+      // editor's copy is the user's work: FILE > 'load a version' reaches it, nothing on the rail deletes it)
     },
     // CLIMATE K2: THE WEATHER - weather_ui.js in this rail's own rows and pills
     weather(body) {
