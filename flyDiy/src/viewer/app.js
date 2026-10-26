@@ -1412,7 +1412,9 @@
     eye: () => { const n = hviewNode(); if (!n || !hangar) return null; hangar.group.updateMatrixWorld(true); n.updateMatrixWorld(true);
       const inv = new THREE.Matrix4().copy(hangar.group.matrixWorld).invert(), W = p => new THREE.Vector3().fromArray(p).applyMatrix4(inv).applyMatrix4(n.matrixWorld).toArray();
       const e = camera.position.toArray(), t = target.toArray(); return { room: hangarRoom, eye: e, target: t, fov: camera.fov, worldEye: W(e), worldTarget: W(t) }; },
-    flyFov: v => { cam.fov = +v; flApplyFov(); return camera.fov; } };
+    flyFov: v => { cam.fov = +v; flApplyFov(); return camera.fov; },
+    // (the A/B rig) the return's deferred recapture asked for now, as hviewReturn asks it (45 shed frames, then a face a frame)
+    defer: () => { if (!hview || !WF) return false; hviewWant = hviewKeyNow(hviewNode()); hviewFace = 0; hviewHold = 45; return true; } };
 
   // A NEW SIZE IS A NEW ROOM. genHangarBuild builds a whole shed from nothing,
   // so changing a dimension means throwing the old one away and asking again —
