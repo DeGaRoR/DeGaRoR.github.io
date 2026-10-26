@@ -112,6 +112,56 @@ function careerNew(o) {
   return careerRefresh(d);
 }
 
+// G3612 (the user 25 Oct, item 39: "a career starts only with its own plane. Any imported plane in the career costs
+// money"; then: "old careers are reset to only their own planes, and yes, once a plane is imported into a career, it
+// becomes its own plane. What you import is a design, then making it exist in game requires money and freezes the
+// design, until the next edit. At that point, it is its own copy, and will live its life as an individual object"):
+// THE CAREER'S OWN SLOTS. The saved builds (flydiy.build.*) are one shelf; of them a career holds the ones it has an
+// airframe row for (career.airframes: the story's starter and client, a maker's or a used airframe bought, a build
+// materialised - paid - in its garage, an import bought). The lift (playerFleetReconcile) is handed these, never the whole
+// shelf - so an older career's rows for anything else leave at its next load (the reset, once: the lift drops a row whose
+// slot it was not handed). The sandbox: every slot but a career's copies (careerSlotTag).
+const CAREER_SLOT_TAG = / @(main|dev|c[0-9a-z]{1,16})$/;
+const careerSlotTag = name => typeof name === 'string' && CAREER_SLOT_TAG.test(name);
+function careerOwnSlots(doc, names) {
+  const L = Array.isArray(names) ? names : [];
+  if (!doc || doc.mode !== 'career') return L.filter(n => !careerSlotTag(n));
+  const A = (doc.career && doc.career.airframes) || {}, has = Object.prototype.hasOwnProperty;
+  return L.filter(n => has.call(A, n));
+}
+// the sandbox's designs a career may buy in: the shelf's slots that are neither its own nor any career's copy
+function careerImportable(doc, names) {
+  const own = careerOwnSlots(doc, names);
+  return (Array.isArray(names) ? names : []).filter(n => own.indexOf(n) < 0 && !careerSlotTag(n));
+}
+// THE COPY'S NAME: the design's name, tagged with the career's id (' @<id>' - the sandbox never lists it, no other career
+// holds it); a second copy of the same design numbered before the tag
+function careerCopyName(doc, name, taken) {
+  const id = doc && doc.career && typeof doc.career.id === 'string' && /^(main|dev|c[0-9a-z]{1,16})$/.test(doc.career.id) ? doc.career.id : 'main';
+  const T = new Set(taken || []);
+  let n = name + ' @' + id, i = 2;
+  while (T.has(n) || (doc && doc.fleet && doc.fleet[n])) n = name + ' ' + i++ + ' @' + id;
+  return n;
+}
+// a build SAVED in the career's garage: a name the career holds (its airframe row: the story's slots, a re-save) or a
+// copy's tagged name stays; a new name becomes the career's own slot, tagged as a copy is (the sandbox never edits it)
+function careerSaveKey(doc, name, taken) {
+  if (!doc || doc.mode !== 'career' || careerSlotTag(name)) return name;
+  if (doc.career && doc.career.airframes && doc.career.airframes[name]) return name;
+  return careerCopyName(doc, name, taken);
+}
+// ...and a design BROUGHT IN is a purchase: the economy's airframe price over its ledger (the main hangar's labour, as a
+// build materialised there - 76_economy.js econMaterialise, its row's how 'import', `of` the design it was copied from),
+// on the COPY's slot (the page writes the copy's envelope: the design frozen there); refused short of the cash
+function careerImport(doc, design, copy, cost, wants) {
+  if (!doc || doc.mode !== 'career') return { ok: false, doc, why: 'not a career' };
+  if (careerSlotTag(design)) return { ok: false, doc, why: design + ' is a career\u2019s own airframe, not a design' };
+  if (!careerSlotTag(copy) || (doc.career.airframes && doc.career.airframes[copy])) return { ok: false, doc, why: 'no copy to make' };
+  const r = econMaterialise(doc, copy, cost, wants, { how: 'import' });
+  if (r.ok) r.doc.career.airframes[copy].of = design;
+  return r;
+}
+
 // THE NORMALISER: the player document's own (its walk first), then the career block filled where missing and
 // carried verbatim where present (unknown fields ride along).
 function careerNormalise(r) {
@@ -157,6 +207,8 @@ function careerNormalise(r) {
   if (typeof pilotsBlock === 'function') pilotsBlock(d);
   // G3260 (ROUTES): the routes kept well-formed, the fleet's and the pilots' route marks agreeing with them (78b_routes.js)
   if (typeof routesBlock === 'function') routesBlock(d);
+  // G3230 (TECH-MASK): the machine shop kept well-formed WHEN PRESENT (79b_tech.js); a career without one stays without
+  if (c.tech !== undefined && typeof techNormalise === 'function') c.tech = techNormalise(c.tech);
   return d;
 }
 

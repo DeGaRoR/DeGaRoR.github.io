@@ -236,12 +236,15 @@ const PROCURE_EFF_KEYS = ['cost', 'emptyKg', 'massKg', 'toM', 'cruiseKmh', 'rang
 // ---- VALIDATED ONLY ---------------------------------------------------------------------------------------
 const procureValidated = id => !!(typeof CONTRACT_DESIGNS !== 'undefined' && CONTRACT_DESIGNS[id] && CONTRACT_DESIGNS[id].build);
 // the catalogue the screens read: the makers, each with the models whose every design is a validated build; an
-// option value whose effect names no validated design of its model is dropped (never offered)
-function procureCatalogue() {
+// option value whose effect names no validated design of its model is dropped (never offered). (G3230 TECH-MASK) With a
+// career document, only the models whose stock stage is at or below its machine shop's segment (79b_tech.js techModelOk);
+// no document, or no machine shop, lists them all
+function procureCatalogue(doc) {
   const out = [];
+  const techOk = id => !doc || typeof techModelOk !== 'function' || techModelOk(doc, id);
   for (const mk of Object.keys(PROCURE_MAKERS)) {
     const models = Object.keys(PROCURE_MODELS).filter(id => PROCURE_MODELS[id].maker === mk)
-      .filter(id => Object.values(PROCURE_MODELS[id].designs).every(procureValidated));
+      .filter(id => Object.values(PROCURE_MODELS[id].designs).every(procureValidated)).filter(techOk);
     if (models.length) out.push({ maker: mk, models });
   }
   return out;
@@ -562,6 +565,9 @@ function procureBuyModel(doc, modelId, opts, o) {
   o = o || {};
   const F = procureOpts(modelId, opts);
   if (!F.ok) return prNo(doc, F.why);
+  // G3230 (TECH-MASK): a maker sells what the machine shop can keep - the model with these options at or below the segment
+  const stage = typeof techStageOfModel === 'function' && careerTechOf(doc) ? techStageOfModel(modelId, F.opts) : null;
+  if (stage != null && stage > careerTechSeg(doc)) return prNo(doc, techWhy(stage) + ': not in your machine shop yet');
   if (!o.fileSpec) return prNo(doc, 'the design\'s build file is not loaded');
   const slot = String(o.slot || '').trim();
   if (!prSlotFree(doc, o.slotNames, slot)) return prNo(doc, slot ? slot + ' is taken: name the aeroplane differently' : 'name the aeroplane');
@@ -664,10 +670,13 @@ function procureMarket(seed, done, sold) {
 const procureUsedById = (seed, id) => { const m = /^used:(\d+):(\d+)$/.exec(id || ''); return m ? procureUsedListing(seed, +m[1], +m[2]) : null; };
 // the market of a document: the career's seed and completed count; the sandbox's own seed ('sandbox', epoch 0).
 // (G2742 STORY-PAGE) A story's occasions first (79_story.js storyOccasionListings: authored, one-time; none without a story)
+// (G3230 TECH-MASK) A career with a machine shop sees the listings at or below its segment; an occasion (the story's
+// three: `occasion: true`) may stand one above (79b_tech.js techListingOk). No machine shop: every listing, as before
 function procureMarketOf(doc) {
   const c = doc && doc.career;
   const occ = (c && c.story && typeof storyOccasionListings === 'function') ? storyOccasionListings(doc) : [];
-  return occ.concat(procureMarket(c ? c.seed : 'sandbox', c ? c.contracts.done.length : 0, procureSold(doc)));
+  const all = occ.concat(procureMarket(c ? c.seed : 'sandbox', c ? c.contracts.done.length : 0, procureSold(doc)));
+  return typeof techListingOk === 'function' ? all.filter(L => techListingOk(doc, L)) : all;
 }
 function procureSold(doc) {
   const m = doc && ((doc.career && doc.career.market) || doc.market);

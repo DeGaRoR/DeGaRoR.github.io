@@ -60,7 +60,7 @@ ok(!!NAME && sha8(career) === NAME.slice(12, 20), NAME + ': named by its own sha
 const parts = {};
 for (const f of B.MANIFEST.core) parts[f] = read('src/core/' + f);
 const CAREER = B.MANIFEST.core.filter(f => B.MANIFEST.career.includes(f));
-ok(CAREER.length === 11 && B.MANIFEST.career.length === 11, 'MANIFEST.career: the eleven career-only modules (G2741: + 79_story.js; G3260: + 78b_routes.js) (' + B.MANIFEST.career.join(', ') + ')');
+ok(CAREER.length === 12 && B.MANIFEST.career.length === 12, 'MANIFEST.career: the twelve career-only modules (G2741: + 79_story.js; G3260: + 78b_routes.js; G3230: + 79b_tech.js) (' + B.MANIFEST.career.join(', ') + ')');
 ok(career.includes(CAREER.map(f => parts[f]).join('')), 'career_core = the nine modules concatenated in MANIFEST.core\'s order (' + KB(career.length) + ')');
 
 // ---- 2 the page -----------------------------------------------------------------------------------------------------
