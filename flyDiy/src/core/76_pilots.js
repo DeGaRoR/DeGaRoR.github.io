@@ -556,7 +556,8 @@ function pilotsImportPack(pack, text) {
     const id = p && pilotsId(p.id);
     if (!p || !PILOTS_ROSTER[id]) { why.push('no pilot ' + (p && p.id)); continue; }
     const b = 'pilot.' + id + '.';
-    put(b + 'tagline', p.tagline);   // (G3614: the name is the person's own, never the pack's) put(b + 'bio', p.backstory); put(b + 'voice', p.voice);
+    // (G3614: the name is the person's own, never the pack's)
+    put(b + 'tagline', p.tagline); put(b + 'bio', p.backstory); put(b + 'voice', p.voice);
     put(b + 'flies', p.fliesLike); put(b + 'pitch', p.pitch);
     for (const k of Object.keys(p.barks || {})) put(b + 'bark.' + k, p.barks[k]);
   }
