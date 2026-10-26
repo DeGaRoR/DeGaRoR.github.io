@@ -17245,7 +17245,10 @@
     if (introAt && WF) WF.worldUpdate(introAt);
     else if (!inGarage && WF) WF.worldUpdate((DEVCAM_ACTIVE || PREM.open)
       ? [camera.position.x, camera.position.y, camera.position.z] : cg);
-    else if (hangar && garageIsHangar()) hangar.faceShafts(camera);
+    else if (hangar && garageIsHangar()) {
+      hangar.faceShafts(camera);
+      if (hangar.polishFollow) hangar.polishFollow(camera, renderer, hangarScene);   // G3534b: the polish's outside, only from outside
+    }
     if (FR) FR.lap(FR.S.world);        // G620: the world's update (its premises, cover ring and fill pushed apart)
     if (CRW.M && !inGarage) crowdTick(rollHold || (typeof window !== 'undefined' && window.FLYDIY_HELD) ? 0 : fdt);   // G2970: the passengers
     // G1100 (POSE-SMOOTH): FROM HERE TO THE RENDER THE SIM'S POSITIONS ARE THE DRAWN ONES - between the last two steps,

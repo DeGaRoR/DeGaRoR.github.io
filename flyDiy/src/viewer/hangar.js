@@ -189,6 +189,7 @@ const ground = m => { GROUND.push(m); return m; };
 const OUTDOOR = [];
 const outdoor = m => { OUTDOOR.push(m); return ground(m); };
 let ROOM_POLISH = null;   // G3534: what the room's polish stood (hangar.polish)
+let POLISH_OUT = null;    // G3534b: its pieces outside the walls, drawn only while the eye stands outside (polishFollow)
 
 // THE SEED IS RESETTABLE, and it has to be (G123). The canvas sheets below are
 // MEMOISED across builds, so on the second build their draw callbacks do not
@@ -2126,13 +2127,38 @@ if (!EXT) {
         // G3541/G3542: the plot's ground pad, the world's own (HANGAR_GEN padMesh), lit as the room's outdoors are
         const pm = built.pad && HGN.padMesh ? HGN.padMesh(THREE, built.pad, { fog: false, envMapIntensity: ENV_OUT }) : null;
         if (pm) { outdoor(pm.material); inner.add(pm); }
+        // G3534b (A0 26 Oct s26-g0h, alone on master: the room's entry 4.90 s, 1.81 s with the polish off, every entry after
+        // 0.44 s more): what stands OUTSIDE the walls - the casings, the gutters and pipes, the sign over the door, the skirt -
+        // is split off into its own group and drawn only while the eye stands outside (the roll-out); the room's own passes
+        // (the frame, the env bake, the floor's shadow bakes) never see it from in here. The inside sign stays where it was,
+        // the pad too (the field through the door). The split is by each triangle's centre in the house frame (x to +-HW,
+        // z to +-HD): inside the walls' line stays, the rest goes
+        const OUT = new THREE.Group(); OUT.name = 'room:polish-out'; OUT.visible = false;
+        const inWalls = (x, z) => Math.abs(x) < HW - 0.02 && Math.abs(z) < HD - 0.02;
+        for (const m of inner.children.slice()) {
+          if (!m.isMesh || m === pm || !m.geometry || !m.geometry.attributes.position) continue;
+          const g = m.geometry, pos = g.attributes.position, ix = g.index, n = ix ? ix.count : pos.count, keep = [], go = [];
+          for (let t = 0; t + 2 < n; t += 3) {
+            const a = ix ? ix.getX(t) : t, b = ix ? ix.getX(t + 1) : t + 1, c = ix ? ix.getX(t + 2) : t + 2;
+            (inWalls((pos.getX(a) + pos.getX(b) + pos.getX(c)) / 3, (pos.getZ(a) + pos.getZ(b) + pos.getZ(c)) / 3) ? keep : go).push(a, b, c);
+          }
+          if (!go.length) continue;
+          if (!keep.length) { inner.remove(m); OUT.add(m); continue; }
+          const tw = new THREE.Mesh(g.clone(), m.material);
+          tw.castShadow = m.castShadow; tw.receiveShadow = m.receiveShadow; tw.renderOrder = m.renderOrder;
+          g.setIndex(keep); tw.geometry.setIndex(go);
+          OUT.add(tw);
+        }
+        inner.add(OUT);
+        POLISH_OUT = OUT.children.length ? OUT : null;
         G.add(inner);
         // (G3540 v2: where the inside sign hung, in this room's frame - x = -Z, z = X - for the stills rig and the gates;
         // G3541: the pad's triangles)
         const si = built.stats.sign && built.stats.sign.inside;
         ROOM_POLISH = { tris: built.stats.tris, gutter: built.stats.gutterLen, pipes: built.stats.downpipes, skirt: !!built.bags.aoskirt,
           signIn: si ? { x: +(-si.z).toFixed(3), y: +(si.y - fy).toFixed(3), z: +si.x.toFixed(3), nx: -si.nz, nz: si.nx, at: si.at, fit: !!spot } : null,
-          pad: built.stats.pad ? built.stats.pad.tris : 0, footDark: built.stats.footDark || 0 };
+          pad: built.stats.pad ? built.stats.pad.tris : 0, footDark: built.stats.footDark || 0,
+          out: POLISH_OUT ? POLISH_OUT.children.length : 0, shown: 0, compiled: false };   // (G3534b: the outside group, polishFollow)
       } catch (e) { ROOM_POLISH = { error: String(e && e.message || e) }; if (typeof console !== 'undefined') console.warn('room polish:', e && e.message); }
     }
   }
@@ -3375,6 +3401,27 @@ const faceShafts = cam => {
   }
 };
 
+// G3534b: THE POLISH'S OUTSIDE FOLLOWS THE EYE - drawn only while the eye stands outside the walls (this room's frame:
+// the door at -x, x to +-HD, z to +-HW; over the ridge counts as outside), the host calling this every garage frame as it
+// calls faceShafts. Its programs are compiled async once the room has stood a second, so the roll-out's first frame
+// outside does not stop to build them.
+const _pInv = new THREE.Matrix4(), _pEye = new THREE.Vector3();
+let polishFrames = 0;
+const polishFollow = (cam, renderer, scene) => {
+  const O = POLISH_OUT;
+  if (!O || !cam) return false;
+  cam.getWorldPosition(_pEye).applyMatrix4(_pInv.copy(G.matrixWorld).invert());
+  const out = Math.abs(_pEye.x) > HD - 0.15 || Math.abs(_pEye.z) > HW - 0.15 || _pEye.y > RIDGE + 0.3 || _pEye.y < -0.5;
+  if (!ROOM_POLISH.compiled && !out && ++polishFrames > 60 && renderer && typeof renderer.compileAsync === 'function' && scene) {
+    ROOM_POLISH.compiled = true;
+    O.visible = true;
+    try { renderer.compileAsync(O, cam, scene).catch(() => {}); } catch (e) {}
+    O.visible = false;
+  }
+  if (O.visible !== out) { O.visible = out; if (out) ROOM_POLISH.shown++; }
+  return out;
+};
+
 // THE SHAFT HAS TO REACH THE FLOOR, and how far that is depends on how high
 // the roof is — which has been a parameter since G53 (user: "do the light
 // cones respond to the lamp's height?"). It did not: the length was a flat
@@ -4109,7 +4156,8 @@ return {
   texBudget: texBudget,        // dev: what the room costs in fragment samplers
   census: census,              // dev: meshes and triangles, which ARE draw calls here
   mats: M, shafts: shafts, faceShafts: faceShafts,
-  polish: ROOM_POLISH, dirt: ROOM_DIRT,   // G3534 / G3535
+  get polish() { return ROOM_POLISH; }, dirt: ROOM_DIRT,   // G3534 / G3535 (G3534b: read live - shown, compiled)
+  polishFollow: polishFollow, polishOut: () => POLISH_OUT,   // G3534b: the polish's outside, drawn only from outside
   // the kit that follows the aeroplane, and the equirect the caller may bake
   // an environment from instead of the room's own cube pass
   placeMobile: placeMobile, mobile: mobileList, mobileShow: mobileShow, mobileProp: mobileProp,
