@@ -416,7 +416,8 @@ var BOOMBOX = (function () {
   // the frame: NOTHING while closed. Open: the radio's top projected, the card moved when it moved a pixel; closed when
   // the radio is gone (the shed left, the kit hidden) or off the screen. getObj: app.js's lookup, asked only now.
   function frame(camera, getObj) {
-    if (!panel || pinned) return;
+    if (!panel) return;
+    if (pinned) return;   // G3723: stood under the top bar's button - it stays until Esc, a press outside or the button
     const o = typeof getObj === 'function' ? getObj() : getObj;
     const S = scratch();
     if (!o || !S || !camera || !shown(o)) { close(); return; }

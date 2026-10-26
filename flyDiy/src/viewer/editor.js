@@ -2012,7 +2012,7 @@ function editorInit(api) {
         const st = M.station, name = B.radio.label(st === 'off' ? M.lastStation : st);
         return { on, off: false,
           title: on ? 'Radio: ' + name + ' — click for the stations and the volume; right-click or hold to switch it off'
-            : 'Radio off — click for the stations and the volume',
+            : 'Radio off — click to play ' + name + ' and open the stations and the volume',
           // the boombox; playing, its two cones are sounding (solid), off they are dashed
           icon: '<path d="' + QI.box + '"/>' +
                 '<circle cx="5.9" cy="10.6" r="2"' + (on ? '' : ' stroke-dasharray="1.6 1.4"') + '/>' +
@@ -2020,12 +2020,16 @@ function editorInit(api) {
       },
       // G3723 (the user: "a single button with the radio, and pop up a little menu where we can also turn it off"): the
       // boombox's own card (stations, volumes, off), pinned under the button - one radio card, wherever it is opened from
-      act: () => {
+      // (the act names only window globals: GATE BOOMBOX runs QUICK alone in a vm. With no music the press also plays it;
+      // no card to open - no page - it is the old next station.)
+      act: btn => {
         const B = window.BOOMBOX;
         if (!B) return;
         if (B.isOpen) { B.close(); return; }
-        qPopOpen(null);
-        if (B.openAt) B.openAt(qBtn('radio'));
+        if (window.EDITOR_QUICK_POP) window.EDITOR_QUICK_POP(null);
+        const was = B.radio.playing();
+        if (!was) B.radio.next();
+        if (!(B.openAt && B.openAt(btn)) && was) B.radio.next();
       },
       alt: () => { const B = window.BOOMBOX; if (B) B.radio.off(); } },
     // ---- the light --------------------------------------------------------
@@ -2176,7 +2180,7 @@ function editorInit(api) {
       b.className = 'edQuickBtn';
       b.type = 'button';
       b.dataset.q = q.k;
-      b.onclick = () => { if (b.dataset.held) { delete b.dataset.held; return; } if (!b.disabled) { q.act(); syncQuick(); } };
+      b.onclick = () => { if (b.dataset.held) { delete b.dataset.held; return; } if (!b.disabled) { q.act(b); syncQuick(); } };   // (the button: the radio's card stands under it)
       // G1710: an entry's second action (the radio off): a right-click, or a press held QUICK_HOLD_MS (touch)
       if (q.alt) {
         let held = 0;
