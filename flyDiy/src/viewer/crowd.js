@@ -67,6 +67,11 @@ const DEF = {
   // the user 26 Oct ("passengers should have shadows"): the CAP nearest cast; ?crowdshadow=0 turns it off (the frame-cost
   // table's A/B: the shadow passes' draws and triangles with and without the people)
   shadow: !(typeof location !== 'undefined' && /[?&]crowdshadow=0(&|$)/.test(location.search || '')),
+  // the user 26 Oct ("fake contact shadows for passengers like we have for the plane's wheels"): a soft ellipse under
+  // EVERY drawn person's feet (contact_shadow.js's blob, one instanced draw for the crowd); ?crowdcontact=0 off (the A/B)
+  contact: !(typeof location !== 'undefined' && /[?&]crowdcontact=0(&|$)/.test(location.search || '')),
+  footLen: 0.62, footWid: 0.46, footA: 0.55, footCore: 0.35,   // m along the facing / across; the halo's and the core's darkness
+  contactMax: 32,  // people the one draw holds
 };
 CR.DEF = DEF;
 
@@ -439,7 +444,10 @@ CR.fadeObjects = fadeObjects;
 // ctx.done(seat)        optional: a person has boarded
 function make(THREE, ctx) {
   const CC = W && W.CAGE_CHAR;
-  const M = { people: [], stats: { shown: 0, posed: 0, frozen: 0, boarding: 0, line: 0 }, runs: [] };
+  const M = { people: [], stats: { shown: 0, posed: 0, frozen: 0, boarding: 0, line: 0, feet: 0 }, runs: [] };
+  const CS = W && W.CONTACT_SHADOW, UP = [0, 1, 0];
+  let feet = null;   // the feet's blobs: made with the first run (nothing at boot, nothing without a job)
+  const FEET = [];
   const QA = new Float32Array(4), QB = new Float32Array(4);
   const qa = new THREE.Quaternion(), qb = new THREE.Quaternion();
   const MATS = new Map();   // char material -> its walker twin
@@ -532,6 +540,8 @@ function make(THREE, ctx) {
         });
         const one = { R, H, clips, name, seen: new Set(), ready: !ctx.compile };
         M.runs.push(one);
+        // the feet's blobs: contact_shadow's own mesh and program (the world's tyres link it), one draw for the crowd
+        if (!feet && DEF.contact && CS && CS.make) { feet = CS.make(THREE, DEF.contactMax); feet.name = 'crowd:feet'; ctx.scene.add(feet); }
         // THE PROGRAMS BEFORE THE FIRST DRAW: the walkers' twins compiled off the frame (renderer.compileAsync), the
         // group drawn once they are - a person appears a moment late rather than a frame arriving late
         // (three's compile walks VISIBLE objects, synchronously, before its promise: shown for the call, hidden after)
@@ -558,13 +568,14 @@ function make(THREE, ctx) {
     frame++;
     const e = ctx.eye ? ctx.eye() : null;
     const S = M.stats;
-    S.shown = S.posed = S.frozen = S.boarding = S.line = 0;
+    S.shown = S.posed = S.frozen = S.boarding = S.line = S.feet = 0;
+    FEET.length = 0;
     for (const one of M.runs) {
       // the run's clock starts with its first drawn frame (G3619: the line's hold is seen whole, however long the
       // programs took to compile)
       if (one.ready) one.R.step(dt);
       // the ladder: distances first, then the CAP nearest pose every frame
-      const order = [];
+      const order = [], SN = typeof window !== 'undefined' ? window.SHADOW_NEAR : null;
       for (const h of one.H) {
         if (!h) continue;
         const p = h.p;
@@ -581,7 +592,12 @@ function make(THREE, ctx) {
         if (!on) { park(h, 0); continue; }
         S.shown++;
         if (p.state === 'line') S.line++;
-        h.g.position.set(p.x, ctx.ground(p.x, p.z) + p.bob, p.z);
+        const gy = ctx.ground(p.x, p.z);
+        h.g.position.set(p.x, gy + p.bob, p.z);
+        // the feet's blob: faded with the boarding (p.stand), along the facing
+        if (DEF.contact && feet) { const k = p.state === 'board' ? p.stand : 1;
+          if (k > 0.02) FEET.push({ kind: 'foot', x: p.x, z: p.z, gy, n: UP, ax: [Math.sin(p.yaw), Math.cos(p.yaw)], len: DEF.footLen, wid: DEF.footWid,
+            a: DEF.footA * k, core: DEF.footCore * k, cu: 0.55, cv: 0.6 }); }
         h.g.rotation.set(0, p.yaw, 0);
         if (p.state === 'board') {
           S.boarding++;
@@ -605,8 +621,11 @@ function make(THREE, ctx) {
         const c = h.p.clip;
         pose(h, { clip: { a: cv.a, ta: c.ta, b: cv.b, tb: c.tb, w: c.w } }, one.clips);
         S.posed++;
+        // an idle casting into the near map: its shadow follows the pose (shadow_near's posedHz)
+        if (k < DEF.cap && DEF.shadow && h.p.state === 'line' && SN && SN.posed) SN.posed();
       });
     }
+    if (feet) { CS.update(THREE, feet, FEET); S.feet = feet.count; }
     // a run whose everyone boarded is put away
     for (let i = M.runs.length - 1; i >= 0; i--) if (M.runs[i].R.done()) { drop(M.runs[i]); M.runs.splice(i, 1); }
     return S.shown;

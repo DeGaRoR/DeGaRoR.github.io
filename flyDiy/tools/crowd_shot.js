@@ -105,19 +105,19 @@ async function chrome() {
       ', listed ' + dg.ms.filter(m => m.listed).length + ', r >= 0.75 ' + dg.ms.filter(m => m.r >= 0.75).length : dg.err || 'no SHADOW_NEAR') + ' -> crowd_shadow_diag.json');
   }
   // the eye beside what is shown: the people's centroid, the line's direction toward the door, 8 m out to one side
-  const aim = (side, back) => P.ev(([side, back]) => {
+  const aim = (side, back, up = 1.7) => P.ev(([side, back, up]) => {
     const M = window.CROWD.last, one = M.runs[0], hs = one.H.filter(h => h && h.g.visible);
     if (!hs.length) return null;
     const c = [0, 0, 0]; for (const h of hs) { c[0] += h.g.position.x; c[1] += h.g.position.y; c[2] += h.g.position.z; }
     c[0] /= hs.length; c[1] /= hs.length; c[2] /= hs.length;
     const to = one.R.P.pts[one.R.P.pts.length - 1];
     let dx = to[0] - c[0], dz = to[1] - c[2]; const L = Math.hypot(dx, dz) || 1; dx /= L; dz /= L;
-    const p = [c[0] - dz * side - dx * back, c[1] + 1.7, c[2] + dx * side - dz * back], t = [c[0] + dx * 2, c[1] + 0.9, c[2] + dz * 2];
+    const p = [c[0] - dz * side - dx * back, c[1] + up, c[2] + dx * side - dz * back], t = up < 1.7 ? [c[0], c[1] + 0.2, c[2]] : [c[0] + dx * 2, c[1] + 0.9, c[2] + dz * 2];
     const ok = window.FLYDIY_PREM_EYE(p, t);
     return { ok, p, t, n: hs.length, keys: hs.map(h => h.p.key + ':' + h.p.state) };
-  }, [side, back]);
-  const take = async (n, name, side, back) => {
-    const e = await aim(side, back);
+  }, [side, back, up]);
+  const take = async (n, name, side, back, up) => {
+    const e = await aim(side, back, up);
     await sleep(1500);
     const st = await P.ev(() => ({ c: window.FLYDIY_CROWD ? window.FLYDIY_CROWD() : null,
       // the free eye's own pose (DEVCAM drives the camera from it every frame)
@@ -132,6 +132,8 @@ async function chrome() {
   };
   if (lined) {
     await take(1, 'line', 8, 2);
+    // the user 26 Oct: the feet - the contact blobs and the sun's shadows on the apron, close and low
+    await take(4, 'feet', 3.2, 1.2, 1.1);
     // released: they walk out in order
     await P.ev(() => window.CROWD.last.runs[0].R.go());
     await sleep(3500);

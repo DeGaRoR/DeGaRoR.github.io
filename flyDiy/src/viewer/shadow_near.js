@@ -316,6 +316,9 @@ var SHADOW_NEAR = (function () {
   // below - parked.js is left alone: its source is in the cook's signature) and the pass swaps only those.
   // ?parkshadow=0 (or S.parkShadow = false): every rung casts itself, as before - the A/B.
   const PARKSH = { live: new Set(), swapped: [], passes: 0, swaps: 0 };
+  const POSED = { at: -1e9 };   // G3619: the last frame a queued passenger casting into the near map was posed (crowd.js)
+  S.posedHz = (m => (m ? +m[1] : 0))(typeof location !== 'undefined' && /[?&]posedhz=(\d+)(?:&|$)/.exec(location.search || ''));
+  const posed = () => { POSED.at = typeof performance !== 'undefined' ? performance.now() : 0; };
   S.parkShadow = !(typeof location !== 'undefined' && /[?&]parkshadow=0(?:&|$)/.test(location.search || ''));
   (function lodWatch() {
     const P = typeof THREE !== 'undefined' && THREE.LOD && THREE.LOD.prototype;
@@ -556,6 +559,10 @@ var SHADOW_NEAR = (function () {
     const eps = CACHE.eps = Math.max(S.poseEps, S.poseEpsTx * 2 * (C1.H || S.half) / (S.size * craftK()));   // a quarter of the craft's texel (3.4 mm for a Cub on the ground at 1024)
     if (!why && partMoved(CACHE.parts, false) > eps) why = 'craft';
     if (!why && partMoved(CACHE.near, false) > eps) why = 'nearMoved';
+    // G3619 (the user 26 Oct: "make the idle shadows smooth if cheap"): a queue's people idle in place - their bones move,
+    // no matrix does - so their shadows wait for the age redraw; while one is posed (crowd.js posed()) the map is redrawn
+    // at S.posedHz (0 = the cache as it was; ?posedhz=N, the A/B)
+    if (!why && S.posedHz > 0 && now - POSED.at < 250 && now - CACHE.at >= 1000 / S.posedHz - 2) why = 'posed';
     if (why) {
       CACHE.key.set(CACHE.cur); CACHE.at = now;
       partMoved(CACHE.parts, true);
@@ -786,7 +793,7 @@ var SHADOW_NEAR = (function () {
       return um.apply(this, arguments);
     };
   }
-  const API = { S, pcf, C1, AIM, EYES, FARH, HOOK, PARKSH, HOLD, CACHE, due, layout, NEAR_LAYER, FAR_LAYER, CRAFT_LAYER, install, inject, make, tag, tagCraft, follow, aim, aimPoint, drawnPoint, farLight, hook, eyes, apply, setNear, unprune, get installed() { return installed; } };
+  const API = { S, pcf, C1, AIM, EYES, FARH, HOOK, PARKSH, POSED, posed, HOLD, CACHE, due, layout, NEAR_LAYER, FAR_LAYER, CRAFT_LAYER, install, inject, make, tag, tagCraft, follow, aim, aimPoint, drawnPoint, farLight, hook, eyes, apply, setNear, unprune, get installed() { return installed; } };
   if (typeof window !== 'undefined') { window.SHADOW_NEAR = API; API.install(); eyesInit(); }
   return API;
 })();
