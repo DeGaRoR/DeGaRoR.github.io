@@ -16289,6 +16289,11 @@
   // FLYDIY_MENU.add() registers a row from another file (a page builder or an act); anchor() places the pill for a
   // layout that is not this one (the phone garage)
   let gmPageK = null, gmPageOff = null, gmAnchor = null;
+  // G3728 (PHONE-GARAGE; the user, 26 Oct: "the menu button has no place. Make it a burger menu on the top leftmost, before
+  // the disk icon"): a page's own icon that opens the menu (the garage's burger, editor.js) - while it shows, the MENU
+  // pill stands down and the panel hangs under the icon
+  let gmOpener = null;
+  const gmAt = () => (gmOpener && gmVis(gmOpener) ? gmOpener : gmBtn);
   const GM_ADD = [];   // {k, label, sec, when, act, page, before}
   const GM_PAGES = {   // the menu's own pages: the rail's two items, mounted as they are
     graphics: { label: 'Graphics', page: b => FL_BUILD.graphics(b) },
@@ -16400,7 +16405,7 @@
   function gmPlace() {
     if (!gmPanel || !gmBtn) return;
     if (window.FLYDIY_DRAG && window.FLYDIY_DRAG.placed('menu')) return;   // G3527: dragged - card_drag.js keeps it there
-    const r = gmBtn.getBoundingClientRect(), W0 = window.innerWidth || 1280;
+    const r = gmAt().getBoundingClientRect(), W0 = window.innerWidth || 1280;
     gmPanel.style.top = Math.round(r.bottom + 8) + 'px';
     if (inGarage) { gmPanel.style.left = Math.round(Math.max(12, Math.min(r.left, W0 - (gmPanel.offsetWidth || 260) - 12))) + 'px'; gmPanel.style.right = 'auto'; }
     else { gmPanel.style.right = Math.round(Math.max(12, W0 - r.right)) + 'px'; gmPanel.style.left = 'auto'; }
@@ -16413,10 +16418,12 @@
       if (gmHeld) gmHold(true);
       gmRender(); gmPanel.hidden = false; gmPlace();
       if (gmBtn) gmBtn.setAttribute('aria-expanded', 'true');
+      if (gmOpener) gmOpener.setAttribute('aria-expanded', 'true');
       const f = gmPanel.querySelector('button'); if (f && f.focus) f.focus();
     } else if (!on && !gmPanel.hidden) {
       gmPanel.hidden = true; gmAsk = false; gmPageDrop(); gmPageK = null; gmPanel.classList.remove('page');
       if (gmBtn) gmBtn.setAttribute('aria-expanded', 'false');
+      if (gmOpener) gmOpener.setAttribute('aria-expanded', 'false');
       if (gmHeld && !running && !inGarage) gmHold(false);
       gmHeld = false;
     }
@@ -16454,14 +16461,15 @@
     if (!gmBtn) return;
     const B = document.body.classList, W0 = window.innerWidth || 1280;
     const off = B.contains('shot') || B.contains('rollShot') || B.contains('premOpen') || !!$('welcome') || gmVis($('stIntro'));   // (the opening has its own Skip)
-    gmBtn.hidden = off;
+    const alt = !off && gmAt() !== gmBtn;   // G3728: the page's own icon opens it - the pill stands down
+    gmBtn.hidden = off || alt;
     if (off) { gmOpen(false); return; }
-    const fr = $('frEntry'), row = [gmBtn, $('mapEntry'), inGarage && fr && !fr.hidden ? fr : null].filter(Boolean), gap = 8;
+    const fr = $('frEntry'), row = [alt ? null : gmBtn, $('mapEntry'), inGarage && fr && !fr.hidden ? fr : null].filter(Boolean), gap = 8;
     const w = row.map(e => e.offsetWidth || 0), tot = w.reduce((a, b) => a + b, 0) + gap * (row.length - 1);
     // the shed: one row under the shed's top bar, from its left edge (the 25 Oct stills: centred at the top it covered
     // the quick actions); flight: ending at the top bar's right inset (CONTRACTS, then MENU at the corner) - on a phone
     // under the top bar's plate, which fills the width there
-    const order = inGarage ? row : row.slice(1).concat([gmBtn]), ow = order.map(e => e.offsetWidth || 0);
+    const order = inGarage || alt ? row : row.slice(1).concat([gmBtn]), ow = order.map(e => e.offsetWidth || 0);
     const phone = W0 <= 760, under = el => el && el.getClientRects().length ? el.getBoundingClientRect() : null;
     const bar = inGarage ? under($('edTopBar')) : (phone ? under($('pfd')) : null);
     let top = bar ? Math.round(bar.bottom + 8) : (inGarage ? 10 : (phone ? 12 : 18));
@@ -16492,10 +16500,10 @@
       if (e.ctrlKey || e.altKey || e.metaKey) return;
       if (e.key === 'Escape') {
         if (!gmPanel.hidden) { if (!gmBusy()) { if (gmPageK) gmPageSet(null); else gmOpen(false); e.preventDefault(); e.stopImmediatePropagation(); } return; }
-        if (gmBusy() || gmMapOn() || gmTyping() || gmBtn.hidden) return;
+        if (gmBusy() || gmMapOn() || gmTyping() || gmAt().hidden) return;   // (G3728: the burger, where it stands in for the pill)
         gmOpen(true); e.preventDefault(); e.stopImmediatePropagation();
       } else if (e.key === 'Tab' && !e.shiftKey) {
-        if (gmTyping() || gmBusy() || (gmBtn.hidden && !gmMapOn())) return;
+        if (gmTyping() || gmBusy() || (gmAt().hidden && !gmMapOn())) return;
         if (gmTab()) { gmOpen(false); e.preventDefault(); e.stopImmediatePropagation(); }
       }
     }, true);
@@ -16515,6 +16523,7 @@
     },
     page: k => gmPageSet(k), current: () => gmPageK,
     anchor(fn) { gmAnchor = typeof fn === 'function' ? fn : null; gmLayout(); },
+    opener(el) { gmOpener = el || null; gmLayout(); },   // G3728: the page's own menu icon (null: the pill again)
   };
 
   // ---- Esc closes; a click on the render closes ---------------------------

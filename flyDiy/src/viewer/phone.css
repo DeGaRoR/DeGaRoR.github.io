@@ -35,8 +35,8 @@ html.phone #edView { left:0 !important; top:0; right:auto !important; bottom:aut
 html.phone #edActs, html.phone #edRoute, html.phone #bootSetup, html.phone #bootRoute { display:none !important; }
 html.phone #edTopBar { left:8px !important; right:8px !important; top:8px !important; }
 /* G3721: the name is a disk (editor.css), at a finger's size */
-html.phone #edFleet #fbName { width:40px; height:40px; }
-html.phone #edFleet #fbName::before { left:11px; top:11px; }
+html.phone #edFleet :is(#fbName, #edMenu) { width:40px; height:40px; }
+html.phone #edFleet :is(#fbName, #edMenu)::before { left:11px; top:11px; }
 html.phone #edTopBar { gap:6px; }
 html.phone #edQuick { gap:2px; padding:3px; }
 /* the studio has no day (the clock's button) and the reference button only shows with a reference standing - room to spare */

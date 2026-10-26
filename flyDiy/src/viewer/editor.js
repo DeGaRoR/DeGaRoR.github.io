@@ -2162,6 +2162,17 @@ function editorInit(api) {
       label: () => 'Studio backdrop: ' + (window.FLYDIY_STUDIO && window.FLYDIY_STUDIO.on() ? 'on' : 'off'),
       when: () => inShed() && !studio() && !!window.FLYDIY_STUDIO,
       act: () => { const S = window.FLYDIY_STUDIO; S.set(!S.on()); } });
+    // G3728 (the user, 26 Oct: "the menu button has no place. Make it a burger menu on the top leftmost, before the disk
+    // icon"): the burger opens the same menu, first on the top bar's plate - every version; the MENU pill stands down
+    const fleet = $('edFleet');
+    if (M.opener && fleet && !$('edMenu')) {
+      const b = document.createElement('button');
+      b.id = 'edMenu'; b.type = 'button'; b.title = 'Menu';
+      b.setAttribute('aria-label', 'the menu: resume, the shed, the options, the main menu'); b.setAttribute('aria-expanded', 'false');
+      b.onclick = () => { if (M.isOpen()) M.close(); else M.open(); };
+      fleet.insertBefore(b, fleet.firstChild);
+      M.opener(b);
+    }
     if (M.anchor) M.anchor(() => {
       if (!inShed()) return null;
       const q = $('edQuick'), r = q && q.getClientRects().length ? q.getBoundingClientRect() : null;
