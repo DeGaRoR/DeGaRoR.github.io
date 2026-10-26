@@ -46,11 +46,15 @@ const ROWS = {
     halfW: 0.58, roofHalfW: 0.46, roofY: 0.72, keelY: -0.55, waistY: 0.28, floorY: -0.30, paxSeatZ: 0.12,
     pilotLen: 1.00, paxLen: 1.10,
     wgDx: 0.30,          // the card's 0.60 stood the wings forward of the R-985's nose; the round body's CG is further aft
+    // the mains' drop (a gear row, metres, drawn and flown): the shallower keel took the card's 0.33 to a level-attitude
+    // prop clearance of -0.12 m (a prop strike flown); 0.72 m gives 0.27 m, over FAR 23.925's 0.229 for a taildragger
+    s1Drop: 0.72,
     aeroWsLen: 1.15, aeroLen: 0.55, aeroTipW: 0.92, aeroTipH: 0.86, aeroDroop: 0.0,
   }),
   tigermoth: Object.assign({}, COMMON, {
     halfW: 0.43, roofHalfW: 0.34, roofY: 0.58, keelY: -0.67, waistY: 0.22, floorY: -0.32, paxSeatZ: 0.12,
     pilotLen: 0.95, paxLen: 1.00,
+    s1Drop: 0.43,        // the card's 0.33 left the prop 0.14 m off the ground level; 0.43 gives 0.24 (FAR 23.925 0.229)
     aeroWsLen: 1.10, aeroLen: 0.95, aeroTipW: 0.55, aeroTipH: 0.60, aeroDroop: 0.10,
   }),
 };
@@ -173,7 +177,8 @@ function report(key, L, C, PR) {
     ['empty kg', rng(R.empty), sh.empty, 0], ['flown mass kg', '(MTOW ' + R.mtow + ')', m, 0],
     ['Vs clean kt', rng(R.VsKt), kt(sh.Vs), 0], ['Vmax / cruise kt (sheet)', rng(R.VmaxKt), kt(sh.VCruise), 0],
     ['climb m/s (sheet)', rng(R.climbMs), sh.climbRate, 1], ['take-off roll m (sheet)', '-', sh.TORun, 0],
-    ['static margin', '-', sh.staticMargin, 3], ['price (ledger)', '-', sh.cost, 0],
+    ['static margin', '-', sh.staticMargin, 3], ['prop clearance m (level)', '>= 0.229 (FAR 23.925)', sh.propClear, 3],
+    ['price (ledger)', '-', sh.cost, 0],
   ];
   for (const [k, r, v, d] of rows) console.log('    ' + k.padEnd(28) + String(r).padStart(14) + '  ' + (v == null || !isFinite(v) ? '-' : (+v).toFixed(d)).padStart(10));
   return { def, sh, D, mass: m, dc };
