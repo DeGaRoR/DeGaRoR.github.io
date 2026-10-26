@@ -132,6 +132,7 @@ const DEF = {
   gutter: 1, flue: 1, smoke: 1, smokeK: 0.55, smokeLean: 0.35, lights: 0,
   sign: 0, signKey: '', signW: 4.0,
   signPlank: 0, signIn: 0, signInX: 0,   // G3540: the sign as a hung plank; a second one inside, on the back wall at house x
+  signInW: 0,   // G3540 v4: the inside one's own width (0: the outside one's)
   signInWall: 0,   // G3540: the inside one's wall - 0 the back wall (at house x signInX), 1 / -1 the flank at house x = +-HW (at house z signInX)
   footAO: 0, footH: 1.0, pad: null,   // G3542: the ground's dark on the walls' foot (the dirt line taken dark); G3541/G3542: the shed's ground pad (groundDials)
   wallSet: SET_IDX('wall', 'rustysheet'), wallTint: 0xffffff, stemSet: SET_IDX('stem', 'sandstone'),
@@ -166,6 +167,7 @@ const ROWS = [
     ['signInWall', 'on the back / a flank', -1, 1, 1, null, P => !!P.sign && !!P.signIn],
     ['footAO', 'the dark foot', 0, 0.9, 0.05], ['footH', 'its height', 0.2, 3, 0.05],
     ['signInX', 'inside, along the back', -20, 20, 0.1, null, P => !!P.signIn],
+    ['signInW', 'inside, its width (0: as outside)', 0, 8, 0.1, null, P => !!P.signIn],
   ]],
   ['finish', [
     ['wallSet', 'wall', 0, ROLE_SETS.wall.length - 1, 1, setNames('wall')], ['stemSet', 'stem', 0, ROLE_SETS.stem.length - 1, 1, setNames('stem')],
@@ -247,14 +249,15 @@ function signPlank(bags, Q, o) {
   const F0 = at(0, 0, df);
   return { x: F0[0], y: F0[1], z: F0[2], w: o.w, h: o.h, nx: N[0], nz: N[2], rot: o.rot };
 }
-// a shed's own sign (a plot's dims.sign: { key, w, inside }) as the build's dials, for the world's shed and the room alike;
+// a shed's own sign (a plot's dims.sign: { key, w, inside, inW }) as the build's dials, for the world's shed and the room alike;
 // `spot` (the room's, from its fit: hangarSignSpot) says where the inside one hangs: { wall: 0 the back, 1 / -1 a flank, at }
 function signDials(sg, spot) {
   if (!sg || typeof sg.key !== 'string' || !sg.key) return { sign: 0, signKey: '' };
   const inside = typeof sg.inside === 'number' && isFinite(sg.inside);
   const sp = spot && typeof spot.at === 'number' && isFinite(spot.at) ? spot : null;
   return { sign: 1, signKey: sg.key, signW: sg.w > 0 ? sg.w : 2, signPlank: 1, signIn: inside ? 1 : 0,
-           signInX: sp ? sp.at : (inside ? sg.inside : 0), signInWall: sp ? (sp.wall | 0) : 0 };
+           signInX: sp ? sp.at : (inside ? sg.inside : 0), signInWall: sp ? (sp.wall | 0) : 0,
+           signInW: sg.inW > 0 ? sg.inW : 0 };   // (G3540 v4: the inside board's own width)
 }
 // G3541/G3542 (the user 25 Oct: "the pavement in front: concrete in the garage and dirt in the world - aligned and using
 // the same materials"; "the building is not anchored"): a plot's dims.ground - { set, apron, side, ring, fade, ao, foot }
@@ -550,9 +553,18 @@ function build(P0, lod, F) {
   if (P.sign && P.signKey) {   // no board without a billboard to fill it (a blank one read as a black hole over the door)
     const meta = (typeof SIGN_TEX_META !== 'undefined' && SIGN_TEX_META && P.signKey) ? SIGN_TEX_META[P.signKey] : null;
     const aspect = meta ? meta.aspect : 4;
-    const y0 = bigDoor.y1 + 0.85, y1 = yRoof(0) - 0.35;
+    let y0 = bigDoor.y1 + 0.85, sw = 0;
+    const y1 = yRoof(0) - 0.35;
     if (y1 - y0 > 0.4) {
-      const sw = Math.min(P.signW, (y1 - y0) * aspect, S.DOOR_W - 1), sh = sw / aspect;
+      sw = Math.min(P.signW, (y1 - y0) * aspect, S.DOOR_W - 1);
+      // G3540 v4 (the user 27 Oct: "about 8 meters total, and it should fit on the gambrel"): the hung plank as wide as the
+      // gable holds - its foot 0.6 m over the door's head (clear of the timber leaf's track, hangar.js DOOR_H + 0.49), its
+      // top corners 0.15 m under the roof line (yRoof(w/2) = yRoof(0) - tp w/2), so w = (yRoof(0) - 0.15 - foot) / (1/aspect + tp/2);
+      // the field shed's 18 m gable holds ~5.5 m, whatever the plot asks
+      if (P.signPlank) { y0 = bigDoor.y1 + 0.6; sw = Math.min(P.signW, (yRoof(0) - 0.15 - y0) / (1 / aspect + tp / 2), 2 * HW - 1); }
+    }
+    if (sw > 0.5) {
+      const sh = sw / aspect;
       const y = y0 + sh / 2, z = HD + hw + 0.05;
       if (!P.signPlank) {
         const c0 = [-sw / 2, y - sh / 2, z];
@@ -570,10 +582,15 @@ function build(P0, lod, F) {
           // inside, under the eave: the back wall's inside face (the house frame's -z; the garage stand looks at it past the
           // aeroplane) at house x = signInX, or a flank's (signInWall +-1: the wall at house x = +-HW) at house z = signInX -
           // the room picks the spot from its fit, clear of the hung wing and everything else standing at that wall
-          const yi = eave - 0.25 - sh / 2, jx = (jr() - 0.5) * 0.16, jt = (jr() - 0.5) * 0.05, fl = P.signInWall | 0;
+          // (G3540 v4, the user 27 Oct: "inside, maybe a 6 meters one, and no problem if it hangs low"): its own width
+          // (signInW; 0 the outside one's), its top 0.25 m under the eave as ever, its foot no lower than 1 m, on its wall
+          const fl = P.signInWall | 0, wallL = fl ? 2 * HD : 2 * HW;
+          const wi0 = P.signInW > 0 ? Math.min(P.signInW, wallL - 1.2, (eave - 0.25 - fy - 1.0) * aspect) : sw, hi = wi0 / aspect;
+          const ux = Math.max(-(wallL / 2 - 0.6 - wi0 / 2), Math.min(wallL / 2 - 0.6 - wi0 / 2, P.signInX));
+          const yi = eave - 0.25 - hi / 2, jx = (jr() - 0.5) * 0.16, jt = (jr() - 0.5) * 0.05;
           const inn = fl
-            ? signPlank(bags, Q, { x: fl * (HW - wf - 0.012), y: yi, z: P.signInX + jx, w: sw, h: sh, rot: jt, yaw: -fl * Math.PI / 2 })
-            : signPlank(bags, Q, { x: P.signInX + jx, y: yi, z: -HD + wf + 0.012, w: sw, h: sh, rot: jt });
+            ? signPlank(bags, Q, { x: fl * (HW - wf - 0.012), y: yi, z: ux + jx, w: wi0, h: hi, rot: jt, yaw: -fl * Math.PI / 2 })
+            : signPlank(bags, Q, { x: ux + jx, y: yi, z: -HD + wf + 0.012, w: wi0, h: hi, rot: jt });
           sign.inside = Object.assign(inn, { at: fl ? (fl > 0 ? '+x' : '-x') + ' flank, inside' : 'back wall, inside' });
         }
       }

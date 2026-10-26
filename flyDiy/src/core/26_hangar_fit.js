@@ -1038,7 +1038,11 @@ function hangarFit(dims, kitKeys, opts) {
 // null when no wall is clear (the plot's own spot stands).
 function hangarSignSpot(dims, fit, sign, reg) {
   if (!dims || !fit || !sign) return null;
-  const HW = dims.HW, HD = dims.HD, w = sign.w > 0 ? sign.w : 2, half = w / 2 + 0.35, NEAR = 3.2, TALL = 2.2;
+  // (G3540 v4: the inside board's own width, inW; a wide one hangs low - TALL is its foot, 0.1 m under: the board's top 0.25 m
+  // under the eave, its height the width over the billboard's aspect)
+  const HW = dims.HW, HD = dims.HD, w = sign.inW > 0 ? sign.inW : (sign.w > 0 ? sign.w : 2), half = w / 2 + 0.35, NEAR = 3.2;
+  const meta = (typeof SIGN_TEX_META !== 'undefined' && SIGN_TEX_META && sign.key) ? SIGN_TEX_META[sign.key] : null;
+  const TALL = Math.min(2.2, (dims.EAVE || 4) - 0.25 - w / (meta && meta.aspect > 0 ? meta.aspect : 4) - 0.1);
   const R = reg || (typeof PROP_REG !== 'undefined' ? PROP_REG : null);
   const items = [];
   const add = (it, foot, tall) => {
