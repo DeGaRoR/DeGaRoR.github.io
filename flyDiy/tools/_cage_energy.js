@@ -1753,7 +1753,10 @@ function balanceApply(r) {
     window.FLYDIY_CG_MODEL = [r.cgMX, r.cgMY];
     const moved = !prev || Math.hypot(prev[0] - r.cgMX, prev[1] - r.cgMY) > 0.02;
     const UI = window.CAGE_UI, P = UI && UI.P;
-    if (moved && P && +P.gearFloats > 0 && typeof UI.build === 'function') {
+    // (a load holds the floats where the file saved them until an edit: no
+    // rebuild for the CG then, G3700 - _cage_float.js CAGE_FLOAT_HELD)
+    const held = typeof window.CAGE_FLOAT_HELD === 'function' && window.CAGE_FLOAT_HELD();
+    if (moved && !held && P && +P.gearFloats > 0 && typeof UI.build === 'function') {
       clearTimeout(balanceApply._t);
       balanceApply._t = setTimeout(() => { try { UI.build(); } catch (e) {} }, 60);
     }
