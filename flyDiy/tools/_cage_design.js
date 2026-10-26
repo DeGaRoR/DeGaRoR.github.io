@@ -1940,6 +1940,9 @@ const ARCHETYPES = [
                     ...OPEN_TANDEM,
                     halfW: 0.58, roofHalfW: 0.46, roofY: 0.72, keelY: -0.55, waistY: 0.28, floorY: -0.30,
                     pilotLen: 1.00, paxLen: 1.10, s1Drop: 0.80,      // (0.72 flew a prop strike once the wings came forward)
+                    // G3517: the mains 0.30 forward - at the cage's 2.00 the CG sat 33 deg AHEAD of the axle and the
+                    // rollout braking nosed it over (a prop strike at 314 s); 2.30 gives 17 deg (the Moth's 15)
+                    s1Z: 2.30,
                     aeroWsLen: 1.85, aeroLen: 0.55, aeroTipW: 0.92, aeroTipH: 0.86, aeroDroop: 0.0 },
             spec: { fuel: { litres: 174 }, prop: { D: 2.5, blades: 2 } } } },      // 46 US gal in the upper centre section
   { key: 'pittsAlike', kind: 'fiction', name: 'aerobatic biplane', note: 'short-span four-aileron ' +
