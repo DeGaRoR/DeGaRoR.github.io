@@ -99129,3 +99129,42 @@ worst example, with edges and corners very visible."
   the shoulder (to look at). The 04:27 take of the same corner still reads alike - whether that patch is the deck or the
   cowl's shoulder is the next still's question (the cowl hidden, the head raised 10 cm, an outside close-up of the arch).
   NOT READY: the Tue gate slots stand, the ready push waits for a still that shows the arch.
+
+## G3713 - COWL-RES: THE EYE SHEET, A THIRD SUBDIVISION LEVEL AT CONSTRUCTION (2026-10-26, COWL-RES for A0; replaces G3710/G3711)
+The user, after the 04:27 pair (before/after alike): "the plane is built from the low poly cage, with 2 levels of
+subdivision ... Don't try to subdivide the finished model ... It's in the construction of the plane, we need 3 levels
+rather than 2." Their marked-up still (C172 seated, ahead): the arch's silhouette against the runway is the WINDSCREEN
+BASE - the glass panes meet the deck there, panes are faces of the subdivided sheet, so that edge is the level-2 polygon
+(one kink per ~12 cm, ~120 px at the eye). G3710's display refine had to keep it straight (the glass is flat): it could
+never round it. Then: "We can try only with the cowl smoothed ... the nose section ... the whole fuselage ... cut what
+is behind the aft bulkhead ... Try all ... and benchmark."
+- THE KNOBS FOUND. The cage level has no spec row: only the hidden `lvl` select (subsurf 0-3, G106.1's bench
+  instrument). cageSheet applies it to the whole sheet and the measured rows read that sheet - lvl 3 as-is moves
+  physics (G468: the finer nose moved gear.twY 0.5 mm, certificates flip). The cowl's own is `cw_detail` (the
+  polycount group's "cowl detail", 0.35-2); the validated builds don't set it (1).
+- G3713 cageSubdivideRegion(m, inReg) (_cage_gen.js): one more Catmull-Clark step on a face set, through cageSubdivide
+  itself on the region cut out as its own mesh (creases, field, tags, seam lists - one rule), the region's border held
+  as a crease for that step (exact midpoints, the ends on the crease curve), the faces outside taking the midpoints into
+  their outline (n-gons): no crack. cageEyeLevel(m, spec, {variant}): 2 the nose section (every face forward of the
+  windscreen's aft edge), 3 the whole fuselage, 4 all but aft of the cabin's aft bulkhead (the pax zone's aft ring).
+  cageSheet(P, {eye}) runs it between the global levels and cageRefitArc - before the sill / cut / knife / canopy /
+  rims / interior / shoulder - and never through the kept-stages path.
+- THE MEASURED SHEET IS UNTOUCHED: _cage_ui draws the eye sheet (one entry cached per level-2 sheet and variant) and
+  keeps `s`, the level-2 sheet, for MS, the fit, the join, the glazed area, the layers. Variant 1+ = the cowl at detail
+  2 for that build (_cage_cowl.js, the dial held through cowlPlace and restored at its return). _cowl_gen.js is master's.
+- SWITCH (prototype): ?eyelod=0..4 or window.CAGE_EYE_VARIANT; ?eye=off and the parked capture (CAGE_EYE_OFF) hold 0.
+  Default 0 = master's geometry until the user picks. The flight bakes what the garage draws (CAGE_JOIN.snapshot walks
+  the editor's mount), so ?eyelod=N reaches the flight; A0: in the shipping version the snapshot takes the eye sheet
+  (one visual, damage binds it as today), the garage draws it in the interior view only (asked of the user).
+- Known prototype cost: with an eye sheet drawn the drag preview (deformTick) refuses (its own vertices) and a tick
+  builds whole - the shipping eye sheet is the interior view's only. Overlays computed on the level-2 sheet (decals,
+  panels) may sit a hair off a level-3 skin: look at the stills.
+- RIGS: tools/cowl_res_rig.js (node: per variant the sheet ms, tris, the windscreen base polygon's segment / sharpest
+  turn, the deck facets, the open-border length (a crack would add to it), the measured sheet's hash unchanged, the
+  cowl at detail 1 / 2); tools/cowl_res_stills.js (modes v0..v4 / lvl3, views ahead = THE USER'S VIEW, ext34,
+  outside, left/right/down/up/nocowl; tris, draws, eye ms per view in its JSON).
+- SLOTS (A0): Tue 01:55-02:15 GPU s27-g1w the rig then the stills (C172, metal, Cub; fallback v0,v1,lvl3 if a variant
+  throws); Tue 06:30 rebase on L26c; Tue 07:45-09:15 CPU s27-c4c the 43 CPU gates (+ DMGWALLPATH / FLOWNBAKE grep) then
+  FRAMECOST per variant (chase + cockpit, FRAMECOST_QUERY=eyelod=N); Tue 13:00-13:45 GPU s27-g7w parked cook + GPU gates
+  + GARAGE-LAG per variant. Then the table + stills to A0, the user picks, the shipping wiring, its own gates.
+- STATE: 77da883b8, node --check only - NOTHING RUN YET (no box before 01:55). NOT READY.
