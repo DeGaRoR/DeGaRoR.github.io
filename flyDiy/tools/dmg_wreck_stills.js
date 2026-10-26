@@ -51,6 +51,12 @@ const CASES = {
   'cockpit':   { label: 'the severe nose-in from the cockpit view (the camera rule)', o: { kind: 'ground', V: 50, sink: 10, pitch: 60, steps: 900 }, cams: [], cockpit: true },
   // the nose-over (the user; DMG-WALL's census staging): the Cub rolling at 12 m/s into a 35 cm stump that takes the wheels
   'noseover':  { label: 'a nose-over: 12 m/s on the ground into a 35 cm stump (the wheels stopped)', o: { kind: 'trunk', D: 12, agl: 0, V: 12, off: 0, top: 0.35, r: 0.25, steps: 1200, thr: 0 }, cams: [[200, 22, 9], [90, 15, 7], [300, 40, 10]] },
+  // DMG-FALL (the user, 25 Oct: "detached parts hang metres high"): the same crash frozen where the game's watch froze it
+  // BEFORE (--stop old: the debris bodies settled or 6 s, + 3 s) and where it freezes it now (--stop new: the solver's own
+  // pieces still too - D.rest, or 12 s with none falling, or 40 s; app.js's WATCH_* constants, + 3 s); a low side eye
+  // shows a piece's height over the ground
+  'fall-dive':  { label: 'a dive into the ground under power: 65 m/s, 30 m/s down, 45 deg (DMG-FALL; the break-up that throws pieces)', o: { kind: 'ground', V: 65, sink: 30, pitch: 45, steps: 3200 }, cams: [['side', 6, 40], ['q34', 22, 34]] },
+  'fall-trunk': { label: 'a trunk at 30 m/s on the centreline (DMG-FALL)', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 0, steps: 3200 }, cams: [['side', 6, 30], ['q34', 22, 26]] },
   'taxi':      { label: 'a taxi into a trunk at 3 m/s, the throttle shut (the prop strike: a wooden prop snaps, a metal one bends)', o: { kind: 'trunk', D: 6, agl: 0, V: 3, off: 0, steps: 700, thr: 0 }, cams: [[150, 8, 4.5], [215, 14, 6], ['nose', 10, 4.2], ['noseL', 6, 3.0]] },
 };
 
@@ -273,7 +279,7 @@ async function pageRunOn(o) {
   const raf = () => new Promise(r => requestAnimationFrame(() => r()));
   const ms = [], trace = [];
   const FRr = window.FLIGHT_REC && window.FLIGHT_REC.rec, C = FRr ? FRr.COLS : null, col = k => C ? C.indexOf(k) : -1;
-  let s = 0, settled = 0, t1 = performance.now(); window.__d4bMountT = null;
+  let s = 0, settled = 0, t1 = performance.now(); window.__d4bMountT = null; window.__fallW = null;
   for (; s < (o.steps || 1200); s += 2) {
     sim.ctl.thr = (window.__d4bO && window.__d4bO.thr) || 0;
     const p0 = performance.now(); step(1 / 60); step(1 / 60); const phys = performance.now() - p0;
@@ -290,11 +296,32 @@ async function pageRunOn(o) {
     const W = window.FLYDIY_WRECK_STATS(), D = sim.damage();
     // (the first engine-mount member to break and when - the coordinator: the mount first, or the strike?)
     if (window.__d4bMountT == null && D.broken.length) { const df = P.def(); for (const bi of D.broken) { const b = sim.beams[bi], ta = df.nodes[b.a].tag || '', tb = df.nodes[b.b].tag || '', ea = /^(ENG|CGE)/.test(ta), eb = /^(ENG|CGE)/.test(tb); if (ea !== eb) { window.__d4bMountT = { t: +sim.t.toFixed(3), member: ta + '-' + tb }; break; } } }
+    if (o.stop) {   // DMG-FALL: the game's watch played on the page's own sim, old rule or new (see CASES 'fall-*')
+      if (D.over && !window.__fallW) window.__fallW = { t: sim.t, rOld: null, rNew: null };
+      const fw = window.__fallW;
+      if (fw) { const tw = sim.t - fw.t, base = !W.bodies.some(b => !b.asleep && !b.sunk) || tw > 6, still = D.rest != null || (tw > 12 && !D.fall) || tw > 40;
+        if (fw.rOld == null && base) fw.rOld = sim.t;
+        if (fw.rNew == null && base && still) fw.rNew = sim.t;
+        const r = o.stop === 'old' ? fw.rOld : fw.rNew;
+        if (r != null && sim.t - r >= 3) { fw.freeze = sim.t; break; } }
+      continue;
+    }
     if ((D.over || (!D.crashed && s > 400)) && W.bodies.every(b => b.asleep)) { if (++settled > 40) break; }
+  }
+  // DMG-FALL: the solver's own pieces at the stop (3 nodes or more), each one's lowest point over the ground under it
+  let fall = null;
+  if (o.stop && sim.pieceOf) {
+    const df = P.def(), wd = P.world(), Pc = sim.pieceOf(), by = new Map(), n = sim.n;
+    for (let i = 0; i < n; i++) { const h = sim.p[i*3+1] - (sim.r[i] || 0) - wd.terrainH(sim.p[i*3], sim.p[i*3+2]);
+      const q = by.get(Pc[i]) || { n: 0, hMin: 1e9, m: 0, vMax: 0 }; q.n++; q.hMin = Math.min(q.hMin, h); q.m += df.nodes[i].m || 0;
+      q.vMax = Math.max(q.vMax, Math.hypot(sim.v[i*3], sim.v[i*3+1], sim.v[i*3+2])); by.set(Pc[i], q); }
+    const nf = [].concat(df.refs.noseFrame || [], df.refs.tailMid || []).filter(i => i >= 0 && i < n)[0], core = nf != null ? Pc[nf] : null;
+    const pcs = [...by.entries()].filter(([, q]) => q.n >= 3).map(([r, q]) => ({ core: r === core, n: q.n, m: +q.m.toFixed(1), hMin: +q.hMin.toFixed(2), v: +q.vMax.toFixed(1) }));
+    fall = Object.assign({ stop: o.stop, inAir: pcs.filter(q => !q.core && q.hMin > 0.3).length, off: pcs.filter(q => !q.core).length, pcs }, window.__fallW || {});
   }
   if ('__d4bWind' in window) { P.world().wind = window.__d4bWind; delete window.__d4bWind; }
   const D = sim.damage(), q = ms.slice().sort((a, b) => a - b);
-  return { steps: s, crashed: D.crashed, over: !!D.over, reason: D.reason, broken: D.broken.length, brokeUp: !!D.brokeUp,
+  return { fall, steps: s, crashed: D.crashed, over: !!D.over, reason: D.reason, broken: D.broken.length, brokeUp: !!D.brokeUp,
     mountFirst: window.__d4bMountT, frameMed: +q[q.length >> 1].toFixed(1), frameP95: +q[Math.floor(q.length * 0.95)].toFixed(1), frameMax: +q[q.length - 1].toFixed(1), trace: o.trace ? trace : undefined,
     wreck: window.FLYDIY_WRECK_STATS(), skin: window.FLYDIY_SKINBREAK_STATS() };
 }
@@ -400,7 +427,7 @@ if (require.main === module) (async () => {
     out.intact = [];
     for (const [ci, c] of C.cams.entries()) { await run(pageView, c); out.intact.push({ cam: c, census: await run(pageCensus), file: ci === 0 ? await shoot(path.join(OUT, k + '_' + (ci + 1) + '_intact.jpg')) : null }); }
     if (C.cockpit) await post('/run', "FLIGHT_PROBE.camMode('cockpit'); await new Promise(r => setTimeout(r, 1500)); return FLIGHT_PROBE.camModeNow();");
-    out.stage = await run(pageStage, Object.assign({}, C.o, { run: true }));
+    out.stage = await run(pageStage, Object.assign({}, C.o, { run: true }, opt('stop', null) ? { stop: opt('stop') } : {}));
     if (C.cockpit) { out.camAfter = await post('/run', 'return FLIGHT_PROBE.camModeNow();'); out.eye = out.stage.wreck && { cut: out.stage.wreck.eyeCut, eye: out.stage.wreck.eye, cab: out.stage.wreck.cab };
       await post('/run', "FLIGHT_PROBE.camMode('chase'); return 1;"); }
     console.log(k, JSON.stringify(out.stage).slice(0, 600));
