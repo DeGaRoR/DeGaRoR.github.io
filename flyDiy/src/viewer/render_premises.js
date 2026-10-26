@@ -1819,17 +1819,20 @@ function make(THREE, scene, world, rec0, opts) {
     if (!PRINT.geo) {
       const N = 32, d = new Uint8Array(N * N * 4), ss = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
       for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
-        const u = (i + 0.5) / N, v = (j + 0.5) / N, a = ss(Math.min(u, 1 - u) / 0.3) * ss(Math.min(v, 1 - v) / 0.3);
+        const u = (i + 0.5) / N, v = (j + 0.5) / N, a = ss(Math.min(u, 1 - u) / 0.2) * ss(Math.min(v, 1 - v) / 0.2);
         d.fill(Math.round(255 * a), (j * N + i) * 4, (j * N + i) * 4 + 4);
       }
       const tex = new THREE.DataTexture(d, N, N, THREE.RGBAFormat); tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearFilter; tex.needsUpdate = true;
-      PRINT.mat = MATLIB.make(THREE, 'basic', { color: 0x000000, alphaMap: tex, transparent: true, opacity: 0.5, depthWrite: false,
+      PRINT.mat = MATLIB.make(THREE, 'basic', { color: 0x000000, alphaMap: tex, transparent: true, opacity: 0.55, depthWrite: false,
         polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
       PRINT.mat.name = 'premises:carprint';
-      PRINT.geo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0.04, 0);
+      // 0.2 m up: the drawn ground and the roads' ribbons stand over heightAt between their samples (the road's ribbon rides
+      // 0.07 over it: PAV.roadGeometry lift; a solid probe at 0.3 showed on the dirt and the concrete roads, 26 Oct)
+      PRINT.geo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, 0.2, 0);
     }
     const m = new THREE.InstancedMesh(PRINT.geo, PRINT.mat, Math.max(16, cap));
     m.name = name; m.count = 0; m.frustumCulled = false; m.castShadow = false; m.receiveShadow = false;
+    m.renderOrder = 6.5;   // after the roads' and the runways' see-through skins (2..6), before the editor's lines (7, 8)
     m.matrixAutoUpdate = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     root.add(m);
     return m;
@@ -1847,8 +1850,9 @@ function make(THREE, scene, world, rec0, opts) {
     if (!n) return;
     const a = m.instanceMatrix; a.clearUpdateRanges(); a.addUpdateRange(0, n * 16); a.needsUpdate = true;
   }
-  // the print's size from the car's: a little past its body, the soft edge outside it
-  function printScale(W, L) { return PRINT_TMP.s.makeScale((W || 1.8) + 0.5, 1, (L || 4.5) + 0.6); }
+  // the print's size from the car's: past its body by ~0.5 m a side, the soft edge outside it (+0.5/+0.6 hid it all under the
+  // body seen from above: only the faded rim showed, the bench's stills 26 Oct)
+  function printScale(W, L) { return PRINT_TMP.s.makeScale((W || 1.8) + 1.0, 1, (L || 4.5) + 1.2); }
   // a yard's or a lot's car (placeDress): its prop stands, frozen with the yard; the print follows it while it is in the scene
   function printAdd(ob, key) {
     if (!PRINT.on || !ob) return;
