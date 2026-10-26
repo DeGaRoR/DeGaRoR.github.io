@@ -99244,3 +99244,103 @@ analytic world's SEA lane; a float build is put there by applyRoute). The twin o
 float patch is tools/_load_build.js `twinFloats`): fly it from the garage's validated list if the page offers it.
 Look for: the bow up through the hump (to-displace / to-step), eased onto the step, no water loop, lift-off; the
 summary's phase times.
+
+## READY - claude/ready/hydro-trim (G3440-G3448 HYDRO-TRIM, 26 Oct 2026, cloud - node only; for the train)
+
+- MERGED: origin/master **d7e181f4e** (train L25c; re-fetched before the merge and again before the push: unchanged).
+  Conflicts: HANDOVER.md (both kept), the built files master's side (index.html, dev.html, sw.js, version.json,
+  tools/flight_core.js - the train rebuilds them; the gates below ran on a local build of the merged sources, not
+  committed). 90_node_exports.js merged clean: every exported name still defined in src/core. No media/parked,
+  *_packs.json or map_pack.js differ from master.
+- WHAT THE BRANCH CHANGES (the G3440-G3448 entry above): src/core/32_hydro.js (the measured wake, the transom's air,
+  the side friction), src/core/60_gen_spec.js ('climb' fm 0.53 -> 0.63), src/core/43_pilot.js (the stick back through
+  the hump), tools: _hydrotrim_check.js (new gate, run_gates row), hydro_trim_table.js, sea_to_g3390.js, the
+  DMGHULL / DMGPLOUGH / TAKEOFF / DMGDRIVE assertions; builds/c172r_wipline2350_{landprop,stcprop}_2026-10-20.json
+  (G3390's test builds); evidence.
+- VALIDATED BUILDS: bit-identical to master d7e181f4e over a 90 s pilot-flown circuit (positions and velocities
+  hashed): the Cub f95db325, the Jodel 639f7167, the metal Cessna b1cb85e4, the corrected 172 1f3e634f. The float
+  Cessna DIFFERS on the water only (its design sheet - Vs, static thrust - identical): the approved hull law (G3440,
+  the user 20 Oct "fix the physics") and the pilot's hump stick (G3444, the user's ruling 25 Oct). The twin on floats
+  likewise. No validated aeroplane flies a 'climb' prop.
+- GATES: `node --max-old-space-size=4096 tools/run_gates.js --no-build --jobs=4 --only=<60>` - every gate whose file
+  names a changed file (grep of flyDiy/tools: 48), plus BUILD, JOIN, PARTS, SAVE, STARTER, SIMWORKER, PILOT, plus HYDRO,
+  WIPLINE, DMGFLOATTO, PROPS, PILOTMATRIX, ACCEPT, DESIGNCHECK, GFX (this branch's earlier batteries). Verdicts:
+    ACCEPT    PASS   850.5 s
+    ALTIPORT  PASS   583.3 s  [4 shards]
+    ANIMALS   PASS     2.8 s
+    ARCHETYPES FAIL  1311.8 s  [4 shards]
+    ASSETBUDGET PASS     5.0 s
+    ATMOS     PASS     1.9 s
+    BENCH     PASS    72.9 s
+    BIPLANE   PASS   104.1 s
+    BUILD     PASS     2.6 s
+    CESSNAVREF PASS   472.2 s  [2 shards]
+    CLIMATE   PASS    22.8 s
+    CLOUD     FAIL   867.9 s
+    DESIGN    PASS    18.7 s
+    DESIGNCHECK PASS   301.7 s
+    DESTTO    PASS  1593.4 s  [3 shards]
+    DMGCOMPOSITE FAIL   321.3 s
+    DMGDRIVE  PASS   771.6 s
+    DMGFLOATTO PASS   127.3 s
+    DMGHULL   PASS   273.2 s
+    DMGINST   FAIL   224.1 s
+    DMGPLOUGH PASS   182.3 s
+    FIT       PASS     9.2 s
+    FLEX      PASS   289.1 s  [3 shards]
+    FLOATS    PASS    52.3 s
+    GEN       PASS   581.1 s  [4 shards]
+    GFX       PASS     0.7 s
+    HYDRO     PASS     6.3 s
+    HYDRODYN  PASS   165.2 s
+    HYDROTRIM PASS   119.4 s
+    JOIN      PASS     7.5 s
+    KITHOST   PASS    34.1 s
+    LINEUP    PASS   190.3 s
+    MEDIA     PASS     1.6 s
+    MIXLEAD   PASS    42.6 s
+    PARTS     PASS     4.5 s
+    PILOT     PASS   307.0 s  [3 shards]
+    PILOTMATRIX PASS  1505.2 s
+    PILOTPAGE FAIL  1047.1 s
+    PILOTS    FAIL     0.9 s
+    PLAN      PASS   404.4 s
+    PREMISES  PASS   109.0 s
+    PROPS     PASS     1.2 s
+    ROUTE     PASS   615.5 s  [3 shards]
+    SAVE      PASS     0.5 s
+    SEAPLANE  PASS   216.0 s
+    SHEETWORKER PASS    41.4 s
+    SIMWORKER PASS   106.9 s
+    STARTER   PASS     0.3 s
+    STORY     PASS     2.5 s
+    STRIPSURF PASS    11.9 s
+    TAKEOFF   PASS   401.3 s
+    TAXICLEAR PASS   402.3 s  [4 shards]
+    TOUR      PASS  1921.0 s  [4 shards]
+    TREECRASH FAIL  1147.6 s
+    TREEHIT   FAIL   394.6 s
+    UISMOKE   PASS   361.6 s
+    VILLAGE   PASS   138.5 s
+    WATERDAMP PASS    46.7 s
+    WETFX     PASS    47.9 s
+    WIPLINE   PASS    10.8 s
+- RED ON MASTER d7e181f4e TOO (all 8 reds - re-run on a master worktree, the same 8 gates, the same 17 FAIL lines):
+    ARCHETYPES FAIL  1397.7 s  [4 shards]
+    CLOUD     FAIL   722.6 s
+    DMGCOMPOSITE FAIL   331.5 s
+    DMGINST   FAIL   273.8 s
+    PILOTPAGE FAIL   719.6 s
+    PILOTS    FAIL     0.8 s
+    TREECRASH FAIL  1100.7 s
+    TREEHIT   FAIL   393.3 s
+  (ARCHETYPES: "Chinook-alike: the circuit completes - rejected-takeoff"; CLOUD: "the pool is re-assigned every 30 frames
+  to the nearest published lamps..."; DMGCOMPOSITE: damage-off bytes vs claude/dmg-t41; DMGINST: the k x 5 lattice
+  trips at frame 1; PILOTPAGE: no Chrome on this box; PILOTS: "kit is not where the aeroplane is"; TREECRASH: jodel/trunk0
+  work moved vs the reference; TREEHIT: "the trunk stops it" 63.5 m of 60.) None is red from this branch.
+- NEEDS THE GPU / A BROWSER (A0 runs these): PILOTPAGE (rollout_perf / tour_real: "no Chrome found" here - its four
+  expert legs, the floats one at SEA > mk_sea included); and the browser-flown check the pilot change asks for (the
+  user's rule for autopilot changes): `node tools/rollout_perf.js --build bugReports/cessnaFloatsWOrks.json --world none
+  --secs 120 --label hydrotrim_floats --shot-phase all` and `node tools/rollout_perf.js --build
+  builds/c172r_wipline2350_stcprop_2026-10-20.json --world none --secs 120 --label hydrotrim_stc --shot-phase all`
+  (the bow up through the hump, eased onto the step, no water loop, lift-off).
