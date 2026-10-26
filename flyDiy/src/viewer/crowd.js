@@ -523,6 +523,8 @@ function make(THREE, ctx) {
           for (const o of inst.tree.objs) if (o.isBone) { o.getWorldPosition(v); if (v.y < yMin) yMin = v.y; }
           inst.tree.root.position.y = -(isFinite(yMin) ? yMin : 0);
           g.add(inst.tree.root);
+          // the shadow (the user 26 Oct): render_world's nearTag takes the whole person's sphere for each piece
+          for (const sm of inst.meshes) sm.userData.crowdPerson = g;
           g.visible = false;
           ctx.scene.add(g);
           if (ctx.seatFade) ctx.seatFade(p.seat, 0);
