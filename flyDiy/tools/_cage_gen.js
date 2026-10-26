@@ -8821,8 +8821,16 @@ function cageShoulder(m, S) {
 // stay; the new ones are the refined faces' own average (meshFrom's rule
 // for vertices no pass described).
 //
+// An edge leaves a corner along its chord, not its tangent, where that
+// corner's normal is more than 35 deg off the edge's own two faces: a corner
+// on the windscreen base or the shoulder crease averages across the crease,
+// and its tangent plane would fold the patch (measured: 61 deg between
+// neighbours on the C172's shoulder, 21 deg before).
+//
 // opt: { zNose: the windscreen base (cage units; cageBodyZones' 'nose'.z0),
-//        k: the split per side (default 4) }. Returns m itself when there is
+//        edge: the target facet edge (cage units): k = the deck's median edge
+//        over it rounded, 2..8 (none when the deck is that fine already),
+//        k: a fixed split per side instead (default 4) }. Returns m itself when there is
 // no deck to split, else a new mesh with `eyeParent` (Int32Array: each
 // appended vertex's nearest original vertex, for the garage's in-place
 // preview) and `nSheet` (the original vertex count).
@@ -8831,7 +8839,6 @@ function cageEyeRefine(m, opt) {
   const o = opt || {};
   const zN = o.zNose;
   if (!m || !m.V || !m.F || zN == null || !isFinite(zN)) return m;
-  const k = Math.max(2, Math.min(8, Math.round(o.k || 4)));
   const V = m.V, F = m.F, A = m.A || null, E = m.E || null;
   const nrmOf = f => {                     // Newell: the fan's summed area vector
     const n = [0, 0, 0], q = f.v.length;
@@ -8865,8 +8872,28 @@ function cageEyeRefine(m, opt) {
     deck.add(fi);
   }
   if (!deck.size) return m;
-  // ---- the normals every vertex has now (meshFrom's / three's rule) -----------
+  let k = Math.max(2, Math.min(8, Math.round(o.k || 4)));
+  if (o.edge > 0) {                        // the split from the deck's own median edge
+    const L = [];
+    for (const fi of deck) {
+      const v = F[fi].v;
+      for (let i = 0; i < 4; i++) {
+        const a = V[v[i]], b = V[v[(i + 1) % 4]];
+        L.push(Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]));
+      }
+    }
+    L.sort((x, y) => x - y);
+    const kk = Math.round(L[L.length >> 1] / o.edge);   // Rufus (2 cm a side already): 1 = left as it is
+    if (kk < 2) return m;
+    k = Math.min(8, kk);
+  }
+  // ---- the normals the deck's vertices have now (meshFrom's / three's rule) ---
+  // Only the deck's own: a vertex elsewhere with none keeps none, and meshFrom
+  // gives it its faces' average as it does today (a fanned ring face sums to
+  // the same area vector).
   const nV = V.length;
+  const onDeck = new Uint8Array(nV);
+  for (const fi of deck) for (const i of F[fi].v) onDeck[i] = 1;
   const N0 = new Float64Array(nV * 3);
   const known = new Uint8Array(nV);
   if (m.N) for (let i = 0; i < m.N.length && i < nV; i++) {
@@ -8874,15 +8901,21 @@ function cageEyeRefine(m, opt) {
     if (!n || (n[0] === 0 && n[1] === 0 && n[2] === 0)) continue;
     known[i] = 1; N0[i * 3] = n[0]; N0[i * 3 + 1] = n[1]; N0[i * 3 + 2] = n[2];
   }
-  {
+  const need = new Uint8Array(nV);
+  let unknown = 0;
+  for (let i = 0; i < nV; i++) if (onDeck[i] && !known[i]) { need[i] = 1; unknown++; }
+  if (unknown) {
     const acc = new Float64Array(nV * 3);
     for (const f of F) {
-      if (m.N && !f.v.some(i => !known[i])) continue;
+      const v = f.v, q = v.length;
+      let hit = 0;
+      for (let i = 0; i < q; i++) hit |= need[v[i]];
+      if (!hit) continue;
       const n = nrmOf(f);
-      for (const i of f.v) { acc[i * 3] += n[0]; acc[i * 3 + 1] += n[1]; acc[i * 3 + 2] += n[2]; }
+      for (const i of v) { acc[i * 3] += n[0]; acc[i * 3 + 1] += n[1]; acc[i * 3 + 2] += n[2]; }
     }
     for (let i = 0; i < nV; i++) {
-      if (known[i]) continue;
+      if (!need[i]) continue;
       const l = Math.hypot(acc[i * 3], acc[i * 3 + 1], acc[i * 3 + 2]) || 1;
       N0[i * 3] = acc[i * 3] / l; N0[i * 3 + 1] = acc[i * 3 + 1] / l; N0[i * 3 + 2] = acc[i * 3 + 2] / l;
     }
@@ -8894,12 +8927,10 @@ function cageEyeRefine(m, opt) {
     const v = F[fi].v;
     for (let i = 0; i < 4; i++) {
       const a = v[i], b = v[(i + 1) % 4], key = ek(a, b);
-      if (!deckEdges.has(key)) deckEdges.set(key, { a: Math.min(a, b), b: Math.max(a, b), skin: 0, other: 0 });
+      if (!deckEdges.has(key)) deckEdges.set(key, { a: Math.min(a, b), b: Math.max(a, b), skin: 0, other: 0, n: [0, 0, 0] });
     }
   }
   const touched = [];                      // faces outside the deck on a deck edge
-  const onDeck = new Uint8Array(nV);
-  for (const fi of deck) for (const i of F[fi].v) onDeck[i] = 1;
   for (let fi = 0; fi < F.length; fi++) {
     const v = F[fi].v, q = v.length;
     let nd = 0;
@@ -8910,13 +8941,18 @@ function cageEyeRefine(m, opt) {
       const e = deckEdges.get(ek(v[i], v[(i + 1) % q]));
       if (!e) continue;
       hit = true;
-      if (CAGE_EYE_SKIN.has(F[fi].m) && !F[fi].capFace) e.skin++; else e.other++;
+      if (CAGE_EYE_SKIN.has(F[fi].m) && !F[fi].capFace) {
+        e.skin++;
+        const n = nrmOf(F[fi]), l = Math.hypot(n[0], n[1], n[2]) || 1;
+        e.n[0] += n[0] / l; e.n[1] += n[1] / l; e.n[2] += n[2] / l;
+      } else e.other++;
     }
     if (hit && !deck.has(fi)) touched.push(fi);
   }
   // ---- the new vertices -------------------------------------------------------
-  const NVo = V.slice(), NAo = A ? A.slice() : null, NNo = [];
-  for (let i = 0; i < nV; i++) NNo.push([N0[i * 3], N0[i * 3 + 1], N0[i * 3 + 2]]);
+  const NVo = V.slice(), NAo = A ? A.slice() : null, NNo = new Array(nV);
+  if (NAo) while (NAo.length < nV) NAo.push(null);   // a field shorter than the sheet (Rufus): appended rows stay aligned
+  for (let i = 0; i < nV; i++) NNo[i] = known[i] ? m.N[i] : need[i] ? [N0[i * 3], N0[i * 3 + 1], N0[i * 3 + 2]] : null;
   const parent = [];
   const addV = (p, a, par) => {
     NVo.push(p); if (NAo) NAo.push(a); NNo.push(null); parent.push(par);
@@ -8924,10 +8960,29 @@ function cageEyeRefine(m, opt) {
   };
   const lerpA = (qa, qb, t) => (qa && qb) ? [0, 1, 2, 3].map(i => qa[i] + (qb[i] - qa[i]) * t) : null;
   const nrm = i => [N0[i * 3], N0[i * 3 + 1], N0[i * 3 + 2]];
+  for (const [key, e] of deckEdges) e.bend = !e.other && e.skin >= 2 && !(E && (E.get(key) || 0) >= 1);
+  // a STRIP keeps its straight side: a deck face under a third as deep as it
+  // is long (the C172's 7 mm ring at the firewall) with one long edge straight
+  // makes the opposite one straight too, so the bow fades across the next full
+  // row instead of folding the strip (63 deg between neighbours, measured)
+  for (let pass = 0, ch = true; ch && pass < 16; pass++) {
+    ch = false;
+    for (const fi of deck) {
+      const v = F[fi].v;
+      for (let s = 0; s < 2; s++) {
+        const e0 = deckEdges.get(ek(v[s], v[s + 1])), e1 = deckEdges.get(ek(v[s + 3 & 3], v[s + 2]));
+        if (e0.bend === e1.bend) continue;
+        const P = V[v[s]], Q = V[v[s + 1]], R = V[v[s + 2]], S = V[v[s + 3 & 3]];
+        const len = Math.max(Math.hypot(P[0] - Q[0], P[1] - Q[1], P[2] - Q[2]), Math.hypot(S[0] - R[0], S[1] - R[1], S[2] - R[2]));
+        const dep = Math.hypot((P[0] + Q[0] - S[0] - R[0]) / 2, (P[1] + Q[1] - S[1] - R[1]) / 2, (P[2] + Q[2] - S[2] - R[2]) / 2);
+        if (dep < len / 3) { e0.bend = e1.bend = false; ch = true; }
+      }
+    }
+  }
   // an edge's k-1 inner points, from a to b (a < b); straight when it may not bend
   for (const [key, e] of deckEdges) {
     const pa = V[e.a], pb = V[e.b];
-    const bend = !e.other && e.skin >= 2 && !(E && (E.get(key) || 0) >= 1);
+    const bend = e.bend;
     let ta = null, tb = null;
     if (bend) {
       const d = [pb[0] - pa[0], pb[1] - pa[1], pb[2] - pa[2]], L = Math.hypot(d[0], d[1], d[2]);
@@ -8936,7 +8991,9 @@ function cageEyeRefine(m, opt) {
         const t = [d[0] - s * n[0], d[1] - s * n[1], d[2] - s * n[2]], l = Math.hypot(t[0], t[1], t[2]);
         return l > 1e-12 ? t.map(x => x * L / l) : d.slice();
       };
-      ta = tan(nrm(e.a)); tb = tan(nrm(e.b));
+      const el = Math.hypot(e.n[0], e.n[1], e.n[2]) || 1;
+      const off = i => { const n = nrm(i); return (n[0] * e.n[0] + n[1] * e.n[1] + n[2] * e.n[2]) / el < 0.819; };  // cos 35
+      ta = off(e.a) ? d.slice() : tan(nrm(e.a)); tb = off(e.b) ? d.slice() : tan(nrm(e.b));
     }
     e.pts = [];
     for (let s = 1; s < k; s++) {
@@ -8958,7 +9015,8 @@ function cageEyeRefine(m, opt) {
   };
   // ---- the deck faces, k x k --------------------------------------------------
   const outF = [];
-  const drop = new Set(deck);
+  const drop = new Uint8Array(F.length);
+  for (const fi of deck) drop[fi] = 1;
   for (const fi of deck) {
     const f = F[fi], [v0, v1, v2, v3] = f.v;
     const C0 = run(v0, v1), C1 = run(v3, v2), D0 = run(v0, v3), D1 = run(v1, v2);
@@ -8999,7 +9057,7 @@ function cageEyeRefine(m, opt) {
       split.push(!!e);
       if (e) for (const p of run(a, b).slice(1, -1)) poly.push(p);
     }
-    drop.add(fi);
+    drop[fi] = 1;
     let apex = -1;
     for (let i = 0; i < q; i++) if (!split[i] && !split[(i - 1 + q) % q]) { apex = i; break; }
     if (apex >= 0) {
@@ -9016,7 +9074,7 @@ function cageEyeRefine(m, opt) {
     }
   }
   const out = Object.assign({}, m, {
-    V: NVo, F: F.filter((_, fi) => !drop.has(fi)).concat(outF), N: NNo,
+    V: NVo, F: F.filter((_, fi) => !drop[fi]).concat(outF), N: NNo,
     eyeParent: Int32Array.from(parent), nSheet: nV,
   });
   if (NAo) out.A = NAo;

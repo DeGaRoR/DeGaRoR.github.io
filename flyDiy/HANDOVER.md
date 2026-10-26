@@ -99086,7 +99086,7 @@ worst example, with edges and corners very visible."
   (meshObj.userData.eye) - without it every nose-slider tick would have fallen back to a whole build.
 - G3711 `prepareMesh({eyeArc})` (_cowl_gen.js): every upper-half interval longer than eyeArc / detail is split evenly
   in theta; today's samples all stay (the lip, the seam, the cut read the same array). A bare call (the bench,
-  GATE COWL's port check) is byte-identical. _cage_cowl passes COWL_EYE_ARC (0.025 m, a page constant - nothing saved,
+  GATE COWL's port check) is byte-identical. _cage_cowl passes COWL_EYE_ARC (0.016 m, a page constant - nothing saved,
   no spec or certificate moves).
 - OFF: a parked aeroplane's capture (parked.js holdEditor `run` sets CAGE_EYE_OFF while the parked spec is held - A0:
   "YES skip it in parked capture"); `CAGE_UI.eyeRefine = false` (the rigs' BEFORE: the geometry master draws).
@@ -99097,3 +99097,22 @@ worst example, with edges and corners very visible."
   04:05-04:30 the stills (cr_gpu.sh). Then: density tuned to the dash's numbers, rebase on master after L26b (G3451 arch
   dash), gates COWL, CAGEFIT, FIT, CLIP, SURF, SKIN, SKINMAT, JOIN, JOINPARITY, VIEW, LIGHT, DESIGN, PARKED, DMGSKIN,
   DMGSKINGPU, FRAMECOST + the GARAGE-LAG bench, the parked re-cook check after the build, AFTER stills to the user.
+- RIG Mon 26 03:00 (A0's CPU slot s26-c2c; scratchpad cr_rig_final.json). The dash's median facet edge is 1.6 cm on
+  every build, so the target is 1.6 cm: the page passes `edge: 0.016 / fieldM()` and k = the deck's median edge over it,
+  ROUNDED, 2..8 (C172 8, metal 8, Cub 5, Jodel 6; Rufus already 2 cm a side and its pass median says 2).
+  | build | deck edge p50 now -> after | face angle p50/p90 now -> after | cowl top longest chord | pass | tris |
+  | C172 corrected | 12.1 -> 1.5 cm | 3.6/14.6 -> 0.04/1.9 deg | 7.5 -> 1.6 cm | 8.4 ms | +8232 (66752) |
+  | metal C172 | 14.4 -> 1.8 cm | 3.3/12.5 -> 0.04/2.0 deg | 7.5 -> 1.6 cm | 5.1 ms | +8232 |
+  | Cub corrected | 7.4 -> 1.5 cm | 7.7/31.4 -> 0.6/6.8 deg | 4.9 -> 1.75 cm | 5.0 ms | +3848 |
+  | Jodel corrected | 9.0 -> 1.75 cm | 7.7/34.9 -> 0.9/5.6 deg | 5.8 -> 1.6 cm | 3.9 ms | +3752 |
+  | Rufus certified | 2.0 -> 0.5 cm | 5.1/36.7 -> 0.5/7.9 deg | (no cowl) | 3.3 ms | +4806 |
+  Clean on all five: no sheet vertex moved, the open borders' total length unchanged (the extra open-edge COUNT is the
+  firewall border split straight - nothing opened), the field aligned. Three fixes the first run found: (1) Rufus's
+  field (A) is shorter than its sheet - appended rows went to the wrong vertices; now padded with null first. (2) a 63 deg
+  fold in the C172's 7 mm pillarFront strip at the firewall: its front border stays straight (the corners' normals face
+  the firewall) while the edge 7 mm behind bowed ~1 cm. A face under a third as deep as long now passes a straight edge
+  to its opposite one (the bow fades over the next 10 cm row), and an edge leaves a corner along its chord where the
+  corner's normal is > 35 deg off the edge's own faces. Max angle now 22 deg = the shoulder crease as today. (3) the
+  cowl's arc was measured on the squarest probe (the C172's small front ring): now the largest, and the intervals that
+  straddle the waist line count. Cost cut 13 -> 8 ms on the C172: normals only for the deck's own vertices (meshFrom
+  fills the rest exactly as today).

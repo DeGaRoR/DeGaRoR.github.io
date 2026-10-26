@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 // cowl_res_rig.js - THE NOSE DECK AND THE COWL'S TOP, MEASURED AGAINST THE DASH (G3712, COWL-RES)
 //
-//   node tools/cowl_res_rig.js [--builds a.json,b.json] [--arc 0.025] [--k 4] [--json out.json]
+//   node tools/cowl_res_rig.js [--builds a.json,b.json] [--arc 0.016] [--edge 0.016 | --k 4] [--json out.json]
 //
 // The user (25 Oct): the top arch of the cowl and nose "do not hold up" from the cockpit while the dash beside them
 // is smooth. This puts numbers on it, per validated build, with no browser:
 //   DASH   the dash's own faces (dash, dashFace): edge length and the angle between neighbouring faces - the target
 //   DECK   the fuselage skin forward of the windscreen base, upper half: the same two numbers, the sheet as drawn
 //          today and after cageEyeRefine (G3710), plus what the pass costs (ms, triangles, vertices) and that it
-//          is clean (no vertex of the sheet moved, no new open edge = no crack and no T-junction)
+//          is clean (no vertex of the sheet moved; the open borders' total length unchanged = a border is split
+//          straight, nothing opened = no crack)
 //   COWL   _cowl_gen's top arch at its aft station (the part nearest the eye): the longest chord and the turn
 //          between chords on the upper half, today's samples and with prepareMesh's eyeArc (G3711)
 // One process, the cage in node (cageSheet = the page's own sheet); the cowl section from the build's cw_ rows
@@ -22,8 +23,9 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i
 const ROOT = path.join(__dirname, '..');
 const BUILDS = opt('builds', ['cessna172_2026-09-20_corrected', 'cessna172_2026-09-20', 'cub_2026-09-20_corrected',
   'jodel_2026-09-20_corrected', 'rufus_2026-10-18_certified'].map(b => 'builds/' + b + '.json').join(',')).split(',');
-const ARC = +opt('arc', 0.025);
+const ARC = +opt('arc', 0.016);
 const K = +opt('k', 4);
+const EDGE = opt('k', null) ? 0 : +opt('edge', 0.016);   // metres, the page's default
 const G = require('./_cage_gen.js');
 
 const pct = (a, q) => { if (!a.length) return NaN; const s = a.slice().sort((x, y) => x - y); return s[Math.min(s.length - 1, Math.floor(q * s.length))]; };
@@ -60,14 +62,16 @@ function facets(m, sel, unit) {
   }
   return { faces: m.F.filter(sel).length, len50: pct(len, 0.5), len90: pct(len, 0.9), ang50: pct(ang, 0.5), ang90: pct(ang, 0.9), angMax: ang.length ? Math.max(...ang) : NaN };
 }
-const openEdges = m => {
+const openEdges = m => {              // [count, total length]
   const c = new Map();
   for (const f of m.F) for (let i = 0; i < f.v.length; i++) {
     const a = f.v[i], b = f.v[(i + 1) % f.v.length], k = a < b ? a + '_' + b : b + '_' + a;
-    c.set(k, (c.get(k) || 0) + 1);
+    if (!c.has(k)) c.set(k, [a, b, 0]);
+    c.get(k)[2]++;
   }
-  let n = 0; for (const v of c.values()) if (v === 1) n++;
-  return n;
+  let n = 0, len = 0;
+  for (const [a, b, q] of c.values()) if (q === 1) { n++; len += Math.hypot(m.V[a][0] - m.V[b][0], m.V[a][1] - m.V[b][1], m.V[a][2] - m.V[b][2]); }
+  return [n, len];
 };
 const tris = m => m.F.reduce((s, f) => s + f.v.length - 2, 0);
 
@@ -115,7 +119,8 @@ for (const b of BUILDS) {
   const row = { build: path.basename(b), cowlLoops: P.cowlLoops, cowlOn: P.cowlOn, sheetMs: tSheet };
   row.dash = facets(m, f => f.m === 'dash' || f.m === 'dashFace', unit);
   if (!zn) { row.deck = null; report.push(row); continue; }
-  const r = G.cageEyeRefine(m, { zNose: zn.z0, k: K });
+  const ro = EDGE ? { zNose: zn.z0, edge: EDGE / unit } : { zNose: zn.z0, k: K };
+  const r = G.cageEyeRefine(m, ro);
   // the deck as the pass picks it, before and after: the faces it split (before) and their children (after)
   const nS = r.nSheet || m.V.length;
   const deckSel = mm => (f) => ['body', 'pillarFront'].includes(f.m) && f.v.length === 4 && f.v.every(i => mm.V[i][2] >= zn.z0 - 1e-6)
@@ -124,12 +129,13 @@ for (const b of BUILDS) {
   row.deckAfter = r === m ? null : facets(r, deckSel(r), unit);
   // the cost and the cleanliness
   const N = 30, t1 = process.hrtime.bigint();
-  for (let i = 0; i < N; i++) G.cageEyeRefine(m, { zNose: zn.z0, k: K });
+  for (let i = 0; i < N; i++) G.cageEyeRefine(m, ro);
   row.refineMs = Number(process.hrtime.bigint() - t1) / 1e6 / N;
   row.trisBefore = tris(m); row.trisAfter = tris(r); row.vertsAdded = r.V.length - m.V.length;
   let moved = 0; for (let i = 0; i < nS; i++) if (r.V[i] !== m.V[i]) moved++;
   row.sheetVertsMoved = moved;
-  row.openBefore = openEdges(m); row.openAfter = openEdges(r);
+  const o0 = openEdges(m), o1 = openEdges(r);
+  row.openBefore = o0[0]; row.openAfter = o1[0]; row.openLenDelta = Math.abs(o1[1] - o0[1]);
   row.fieldPure = !m.A || r.V.length === (r.A || []).length;
   row.cowlBefore = P.cowlOn ? cowlTop(P, 0) : null;
   row.cowlAfter = P.cowlOn ? cowlTop(P, ARC) : null;
@@ -140,11 +146,11 @@ for (const r of report) {
   console.log('== ' + r.build + '  (front rings ' + r.cowlLoops + ', cowl ' + (r.cowlOn ? 'on' : 'off') + ', sheet ' + r.sheetMs + ' ms)');
   const line = (k, s) => s && console.log('  ' + k.padEnd(12) + 'faces ' + String(s.faces).padStart(5) + '  edge p50/p90 ' + f2(s.len50 * 100) + '/' + f2(s.len90 * 100) + ' cm' + '  angle p50/p90/max ' + f2(s.ang50) + '/' + f2(s.ang90) + '/' + f2(s.angMax) + ' deg');
   line('dash', r.dash); line('deck now', r.deckBefore); line('deck after', r.deckAfter);
-  if (r.refineMs != null) console.log('  pass ' + r.refineMs.toFixed(2) + ' ms, tris ' + r.trisBefore + ' -> ' + r.trisAfter + ' (+' + (r.trisAfter - r.trisBefore) + '), +' + r.vertsAdded + ' verts; sheet verts moved ' + r.sheetVertsMoved + ', open edges ' + r.openBefore + ' -> ' + r.openAfter + (r.fieldPure ? '' : ', FIELD SHORT'));
+  if (r.refineMs != null) console.log('  pass ' + r.refineMs.toFixed(2) + ' ms, tris ' + r.trisBefore + ' -> ' + r.trisAfter + ' (+' + (r.trisAfter - r.trisBefore) + '), +' + r.vertsAdded + ' verts; sheet verts moved ' + r.sheetVertsMoved + ', open edges ' + r.openBefore + ' -> ' + r.openAfter + ' (length +' + (r.openLenDelta || 0).toExponential(1) + ')' + (r.fieldPure ? '' : ', FIELD SHORT'));
   const cl = (k, c) => c && console.log('  ' + k.padEnd(12) + 'samples ' + c.az + ' (' + c.top + ' on the top)  longest chord ' + f2(c.chordMax * 100) + ' cm  turn max ' + f2(c.turnMax) + ' deg');
   cl('cowl now', r.cowlBefore); cl('cowl after', r.cowlAfter);
 }
-const bad = report.filter(r => r.sheetVertsMoved || (r.openAfter != null && r.openAfter !== r.openBefore));
-console.log(bad.length ? 'cowl_res_rig: NOT CLEAN on ' + bad.map(r => r.build).join(', ') : 'cowl_res_rig: clean (no sheet vertex moved, no new open edge) on ' + report.length + ' builds');
-if (opt('json', null)) fs.writeFileSync(opt('json'), JSON.stringify({ arc: ARC, k: K, report }, null, 1));
+const bad = report.filter(r => r.sheetVertsMoved || r.openLenDelta > 1e-6 || r.fieldPure === false);
+console.log(bad.length ? 'cowl_res_rig: NOT CLEAN on ' + bad.map(r => r.build).join(', ') : 'cowl_res_rig: clean (no sheet vertex moved, no border opened, the field aligned) on ' + report.length + ' builds');
+if (opt('json', null)) fs.writeFileSync(opt('json'), JSON.stringify({ arc: ARC, k: K, edge: EDGE, report }, null, 1));
 process.exit(bad.length ? 1 : 0);

@@ -1963,7 +1963,8 @@ function* buildSteps() {
   const zNose = zones && zones.find(z => z.key === 'nose');
   const eyeOn = G.cageEyeRefine && zNose && !window.CAGE_EYE_OFF
     && !(window.CAGE_UI && window.CAGE_UI.eyeRefine === false);
-  const sdE = eyeOn ? G.cageEyeRefine(sd, { zNose: zNose.z0 }) : sd;
+  // edge 0.016 m: the dash's own median facet edge (cowl_res_rig: 1.6 cm on every validated build)
+  const sdE = eyeOn ? G.cageEyeRefine(sd, { zNose: zNose.z0, edge: 0.016 / fieldM() }) : sd;
   meshObj = (surfSel !== 'off') ? surfMesh(sd, surfSel)
     : ($('curv') && $('curv').checked) ? curvatureMesh(sd)
     : ($('wire') && $('wire').checked) ? quadWire(sd) : meshFrom(sdE);

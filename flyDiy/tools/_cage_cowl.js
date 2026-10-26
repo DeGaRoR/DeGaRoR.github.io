@@ -54,7 +54,7 @@ const SKIP_GROUPS = new Set(['g_mesh', 'g_spin', 'g_prop']);
 // G3711 (COWL-RES): the cowl's top arch, sampled for the pilot's eye - the longest interval the upper half keeps,
 // in metres at detail 1 (the dash's own pitch; prepareMesh's eyeArc). A page constant, not a design row: nothing a
 // build saves, so no spec and no certificate moves.
-const COWL_EYE_ARC = 0.025;
+const COWL_EYE_ARC = 0.016;                 // cowl_res_rig: the dash's median edge is 1.6 cm
 // THE NACELLE (2026-09-04, the user: "the original engine cage/bench tool had
 // a nacelle generator, can we have this back please?"): the bench's
 // termination group is back — `aftMode` (blend / tail cone), `tailLen`,
