@@ -1520,6 +1520,13 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
   padding:0; margin:0; }
 .edRoot > details[data-g="instruments"] > summary { display:none; }
 #edRows .edRoot > details[data-g="instruments"] > div { margin-left:var(--ed-indent); }
+/* G3739: its sub-groups (looks, dials, bill) are SECTIONS, not objects: no
+   box, the heading is the column's group heading at the .edH rhythm (24 above,
+   6 below, the Wings reference measured) and the rows stand at the same indent
+   as every part's rows, not 11 px further in */
+.edRoot > details[data-g="instruments"] details { border:0; border-radius:0;
+  padding:0; margin:0; }
+.edRoot > details[data-g="instruments"] details > summary { padding:24px 0 6px; }
 
 /* the tank a click on the solid picked: the tree's selection colour */
 .edRoot details.on { border-color:var(--ed-acc); }
@@ -1527,8 +1534,19 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 /* a READOUT row: a sentence, not a control — it wraps and grows, where a
    control row is the fixed 30 px rhythm (and the phone's tap height) */
 #edRows .edRoot .r.note { display:block; height:auto; min-height:0;
-  padding:3px 0 5px; white-space:normal;
-  font:400 10.5px/1.5 'IBM Plex Sans'; color:var(--ed-dim); }
+  padding:4px 0 6px; white-space:normal;
+  font:400 12px/1.5 'IBM Plex Sans'; color:var(--ed-dim); }
+/* G3739: a value here is the label's size (12 px; the 11 px faint span.v
+   read as "smaller and more packed", the user). A slider's value is the
+   column's value (ink, 500, the 64 px column); a readout after a label or a
+   switch takes the row's free width on one line - in the 64 px column
+   `350 cr · 0.40 kg` broke in two inside the 30 px row */
+#edRows .edRoot .r > span.v { font:400 12px/1 'IBM Plex Sans'; color:var(--ed-dim); }
+#edRows .edRoot .r > input[type=range] + span.v { font-weight:500; color:var(--ed-ink); }
+#edRows .edRoot .r > :is(span.k, input[type=checkbox]) + span.v { flex:1; width:auto;
+  min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+html.phone #edRows .edRoot .r.note,
+html.phone #edRows .edRoot .r > span.v { font-size:13.5px; }
 #edRows .edRoot .r.note .noteH { font:var(--ed-t-group); letter-spacing:.16em;
   text-transform:uppercase; color:var(--ed-faint); margin:4px 0 4px; }
 #edRows .edRoot .bad, #edRows .edRoot .r > .v.bad { color:var(--ed-bad); }
