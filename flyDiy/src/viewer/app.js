@@ -4629,6 +4629,7 @@
     brkHealUpload(BRK.model);
     BRK.posed = false; if (BRK.model && BRK.model.brk) BRK.model.brk.NF = {};   // (G1867.1: the nodes' turns start again)
     if (BRK.model) { BRK.model._pose = null; BRK.model._poseNG = null; }   // re-posed from the rest on the next frame
+    brkLookClear();                                       // G3770
     BRK.recs.length = 0; BRK.model = null;
   }
   // an index array changed: every geometry drawing it re-uploads it (the rig's mesh, and the flown bake's views on the
@@ -4709,6 +4710,7 @@
               if (SKIN_BREAK.event(R, K.T, D || { br: [], vB: -2 })) brkIdx(R); R.vB = -1; brkNrm(R); n++; }
             if (n) { brkHealUpload(model); model._pose = null; model._poseNG = null; K.healLetGo = (K.healLetGo | 0) + n; } } } }
       BRK.recs.length = 0; BRK.posed = false; if (model && model.brk) model.brk.NF = {};
+      brkLookClear();                                     // G3770
       return null;
     }
     BRK.model = model;
@@ -5023,6 +5025,8 @@
         brkDetach(pa, geo, base);                          // G1858.2: the snapshot never ridden
         const R = brkRec(own, { nv, idx: geo.index.array }, geo, bD, K.rest, fab, true, inhOn ? SB.INH_K : SB.NEAR_K);
         R.secName = own.name || own.meshName || null;   // (the tear census: which bucket - tools/dmg_wreck_stills.js pageTears)
+        if (lookOn()) { const mt = own.name && model.mats ? model.mats[own.name] : null;   // (G3770: the member pool's paint)
+          if (mt && mt.color != null) { const c = new THREE.Color(mt.color); R.col = [c.r, c.g, c.b]; } }
         R.baseD = bD; R.w = new Float64Array(nv * 3);
         // (G1858.1: its as-built positions - the rig's own rest array, the drawn attribute's content before any pose - and
         // that attribute: a heal puts them back. The cage's pose never rewrites a STATIC bucket (it rides the group matrix),
@@ -5043,6 +5047,7 @@
     // done every place rides its nearest node (as G1864's budget); when it is, every record's event is made again on it
     let tInh = 0;
     if (inhOn) { const t0 = performance.now(); brkInhStep(groups); tInh = performance.now() - t0; }
+    if (inhOn) brkLook(D, K, groups);                     // G3770 (DMG-LOOKS): the parting rule's plan and the pool's slots
     let evd = false, evLeft = false;
     { const evMs = brkEvMs(), ng = groups.length, at = ng ? (BRK.evAt || 0) % ng : 0;   // (G3022 v3: from where the last frame stopped)
       for (let j = 0; j < ng; j++) {
@@ -5066,6 +5071,7 @@
     if (!inhOn) for (const R of BRK.recs) { if (left <= 0) break; if (R.pending) left -= SB.bindMore(R, K.T, left); }
     const t2 = performance.now();
     SB.nodeFrames(K.NF, K.T, D, K.rest, sim.p, true);
+    if (lookMesh && lookMesh.userData.look.used) DMG_MEMBERS.frame(lookMesh, sim.p, K.NF.q, cg);   // G3770
     const t3 = performance.now();
     const X = { Mi: inv3(xA, yU), B: basis(xA, yU), cg, o, w: null, n: null, nB: null };
     BRK.X = X;
@@ -5209,6 +5215,39 @@
   // (tools/dmg_wall_census.js). Measured: it takes the lining's leaks but not the window beads' (most of the black), so
   // it is the FALLBACK - it runs only on the old binding (?wallbind=0); the inherited one (G1855-G1857) keeps the
   // lining whole on its covering
+  // G3770-G3773 (DMG-LOOKS, dmg_members.js says what and why): ?dmglook=1 (window.FLYDIY_DMGLOOK = true, read at load) -
+  // the wreck's frame members drawn by material: the parting rule (skin_break.js R.look) and the member pool, parked with
+  // the world (worldSettle) and drawn once something is broken. OFF by default: nothing here runs, nothing is made
+  try { if (/[?&]dmglook=1(&|$)/.test(location.search || '')) window.FLYDIY_DMGLOOK = true; } catch (e) {}
+  const lookOn = () => window.FLYDIY_DMGLOOK === true && typeof DMG_MEMBERS !== 'undefined' && !!window.SKIN_BREAK;
+  if (lookOn()) SKIN_BREAK.OPT.looks = true;
+  let lookMesh = null;
+  const LOOK = { P: null, vB: -1, M: null, mFor: null, plans: 0, ms: 0, msMax: 0, mMs: 0, slots: 0 };
+  function brkLook(D, K, groups) {
+    if (!lookOn()) return;
+    // the snapshot's members, measured once its binding is done (the records' R.mem: skin_break.js inhSteps)
+    if (K.inhL && K.inhSt && K.inhSt.done && LOOK.mFor !== K.inhL) {
+      const t0 = performance.now(); LOOK.M = DMG_MEMBERS.measure(K.inhL.map(E => E.R), K.T, K.rest); LOOK.mFor = K.inhL; LOOK.vB = -1;
+      LOOK.mMs = performance.now() - t0; }
+    if (LOOK.vB === D.vB) return;
+    const t0 = performance.now(), M = LOOK.mFor === K.inhL ? LOOK.M : null;
+    LOOK.P = DMG_MEMBERS.plan(K.T, D, M, K.rest, LOOK.P); LOOK.vB = D.vB; LOOK.plans++;
+    for (const [own] of groups) if (own.brkR) own.brkR.look = LOOK.P;
+    LOOK.slots = lookMesh && M ? DMG_MEMBERS.assign(lookMesh, LOOK.P, M, K.T, K.rest) : 0;
+    const ms = performance.now() - t0; LOOK.ms += ms; if (ms > LOOK.msMax) LOOK.msMax = ms;
+  }
+  function brkLookClear() {
+    if (lookMesh) DMG_MEMBERS.clear(lookMesh);
+    if (!LOOK.P && LOOK.vB === -1) return;
+    LOOK.P = null; LOOK.vB = -1;
+    const K = model && model.brk; for (const R of (K && K.allRecs) || BRK.recs) R.look = null;
+  }
+  // the coordinator's read (GATE DMGLOOK's page rows, the stills rig)
+  window.FLYDIY_DMGLOOK_STATS = () => ({ on: lookOn(), parked: !!lookMesh, visible: !!(lookMesh && lookMesh.visible), slots: LOOK.slots, plans: LOOK.plans,
+    planMs: +LOOK.ms.toFixed(2), planMsMax: +LOOK.msMax.toFixed(2), measureMs: +LOOK.mMs.toFixed(2), measured: !!LOOK.M,
+    frames: lookMesh ? lookMesh.userData.look.frames : 0, frameMsMax: lookMesh ? +lookMesh.userData.look.msMax.toFixed(3) : 0,
+    modes: LOOK.P ? LOOK.P.slots.reduce((o, q) => (o[q.mode] = (o[q.mode] || 0) + 1, o), {}) : null,
+    parts: LOOK.P ? (() => { let w = 0, u = 0, s = 0; for (const x of LOOK.P.part) { if (x !== x) continue; if (x < 0) u++; else if (x === 0 || x === 1) w++; else s++; } return { whole: w, unparted: u, station: s }; })() : null });
   const WALL_ROLES = new Set(['liner', 'fire', 'sill', 'doorPad']);
   try { if (/[?&]skinwall=0(&|$)/.test(location.search || '')) window.FLYDIY_SKINWALL = false; } catch (e) {}
   window.FLYDIY_SKINWALL_STATS = () => { const L = BRK.recs.filter(R => R.wallIn), K = model && model.brk;
@@ -13108,6 +13147,9 @@
         contactMesh = CONTACT_SHADOW.make(THREE); scene.add(contactMesh); }
       // G2359 (DMG-SCAR): the scar's decal, parked in the world before its compile (its program linked with the world's)
       if (!scarMesh && typeof GROUND_SCAR !== 'undefined' && scarPageOn()) { scarMesh = GROUND_SCAR.make(THREE); scene.add(scarMesh); }
+      // G3770 (DMG-LOOKS): the member pool, parked likewise (?dmglook=1 only)
+      if (!lookMesh && lookOn() && scarPageOn()) { lookMesh = DMG_MEMBERS.make(THREE); scene.add(lookMesh);
+        if (renderer.initTexture) renderer.initTexture(lookMesh.userData.look.tex); }   // (its slot texture allocated now, not at the crash)
     } catch (e) { console.warn('world settle:', e && e.message); }
     finally { camera.position.copy(keep); }
   }
