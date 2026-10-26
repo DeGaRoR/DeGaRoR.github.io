@@ -3833,6 +3833,9 @@
   // offset), now kept only where the lots are (render_premises patchDrop); on HOME's apron the drop sank the Cub's tail
   // 20 mm into the concrete (tools/ground_drawn.js). The dial stays: a nonzero value is the old rig, for an A/B.
   const TW_DRAW_DROP = 0;
+  // G3540: a lifted wheel's run-down (poseModel) - the rate's drag time (s), a steady bearing brake (rad/s^2), and the
+  // most a rolling wheel is credited with (m/s at the rim: a placement's jump is no roll)
+  const WHEEL_SPIN_TAU = 3, WHEEL_SPIN_BRAKE = 8, WHEEL_OM_MAX = 90;
   const mR = new THREE.Matrix4();
   function poseRigid(o) {
     if (!model || !model.K4 || !o || !o.matrix || !o.matrix.multiplyMatrices || !o.quaternion) return;
@@ -4199,6 +4202,17 @@
               dx * yU[0] + dy * yU[1] + dz * yU[2] - O[1],
               dx * vZ.x + dy * vZ.y + dz * vZ.z];
     };
+    const WC = model.wheelParts && typeof sim.wheelContacts === 'function' ? sim.wheelContacts() : null;   // G3540
+    const wheelOn = w => {
+      const refs = def && def.refs;
+      if (WC && !WC.water && refs) {
+        const k = (refs.mains || []).indexOf(w.idx);
+        if (k >= 0 && WC.mains && k < WC.mains.length) return !!WC.mains[k];
+        if (refs.tw === w.idx) return !!WC.tw;
+      }
+      const i3 = w.idx * 3;
+      return sim.p[i3 + 1] - groundH(sim.p[i3], sim.p[i3 + 2]) - Math.max(0.05, w.R) < 0.06;
+    };
     if (model.wheelParts) for (const w of model.wheelParts) {
       if (!w.obj.position || !w.obj.position.set) continue;    // smoke stub
       const i3 = w.idx * 3;
@@ -4215,11 +4229,26 @@
                              w.pivot[2] + L[2] - w.rest0[2]);
         else w.obj.position.set(L[0], L[1], L[2]);
       }
+      // G3540 (WHEELS-SPIN, the user's playtest 24 Oct: "wheels keep turning the whole flight"): IT ROLLS ONLY ON THE
+      // GROUND. The axle's motion spun the wheel in the air at the flying speed. Now a wheel touching (the solver's own
+      // wheelContacts, by its node: the mains in order and the third wheel; on the water, or a wheel it does not list, the
+      // same law here - its rim within 6 cm of the ground) rolls with its node as before and keeps that rate (w.om, rad/s);
+      // lifted, it runs down on its bearing - a drag on the rate and a steady brake, ~5 s from a lift-off at 25 m/s.
+      // A paused world holds it (as the prop). Drawing only: the solver's contact is untouched.
       if (w.prev && w.obj.rotation) {
         const mx = (sim.p[i3] - w.prev[0]) * xA[0] +
                    (sim.p[i3 + 1] - w.prev[1]) * xA[1] +
                    (sim.p[i3 + 2] - w.prev[2]) * xA[2];
-        w.obj.rotation.z -= mx / Math.max(0.05, w.R);
+        const R = Math.max(0.05, w.R), dt = frameDt();
+        if (wheelOn(w)) {
+          w.obj.rotation.z -= mx / R;
+          const om = Math.max(-WHEEL_OM_MAX / R, Math.min(WHEEL_OM_MAX / R, -mx / R / Math.max(1e-3, dt)));
+          w.om = w.om == null ? om : w.om + (om - w.om) * 0.5;
+        } else if (running && w.om) {
+          const a = Math.abs(w.om) * Math.exp(-dt / WHEEL_SPIN_TAU) - WHEEL_SPIN_BRAKE * dt;
+          w.om = a > 0 ? Math.sign(w.om) * a : 0;
+          w.obj.rotation.z += w.om * dt;
+        }
       }
       w.prev = [sim.p[i3], sim.p[i3 + 1], sim.p[i3 + 2]];
       poseRigid(w.obj);                               // G357: in the true frame
@@ -11084,6 +11113,9 @@
     const BANDC = { red: lin(0xff6b5b), orange: lin(0xffa13d), green: lin(0x6fd08a) };
     const COL = MB ? BANDC[MB.band] : AMBER;
     if (MB && MB.mark && smTxt) smTxt += ' ' + MB.mark;
+    // G3452 (the user 25 Oct: "I'd put a warning sign straight in the CG text if not good (red or orange)"): the CG's own
+    // readout opens on a warning sign; with no readout (no wing chord) the band's title stands in
+    if (MB && MB.mark) cgTxt = '⚠ ' + (cgTxt || MB.title);
     gTipBand = MB ? Object.assign({ sm: smV }, MB) : null;
     // an upright post from the ground to well above the aeroplane, so the two
     // are comparable at a glance from any angle
