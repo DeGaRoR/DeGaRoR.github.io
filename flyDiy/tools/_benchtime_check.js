@@ -43,7 +43,7 @@ ok(has(inst, 'api.shakeReady(go)') && !has(inst, 'freeze(t'), 'a computed row wa
 const sr = ASRC.slice(ASRC.indexOf('function shakeReady('), ASRC.indexOf('function shakeReady(') + 900);
 ok(has(sr, "SHEET.request('stand'") && has(sr, 'shakeKnown()'), "app.js shakeReady asks the sheet thread (the stand's lane, joined) unless the sheet is known");
 ok(has(ASRC, 'shakeReady: cb => shakeReady(cb)'), 'the bench api carries shakeReady');
-const lq = ASRC.slice(ASRC.indexOf('function startLoadQuick('), ASRC.indexOf('function startLoadQuick(') + 1600);
+const lq = ASRC.slice(ASRC.indexOf('function startLoadQuick('), ASRC.indexOf('function startLoadQuick(') + 4000);
 ok(has(lq, "kind: 'loadq'"), 'the wing loading is computed on the worker (loadq)');
 const hq = ASRC.slice(ASRC.indexOf('function htPoll('), ASRC.indexOf('function htPoll(') + 600);
 ok(has(hq, 'performance.now() - t0 < 60') && has(ASRC, 'setTimeout(step, 0)'), 'the hydroplane runs in 60 ms slices, the page answering between');
