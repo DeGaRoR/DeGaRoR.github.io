@@ -1828,6 +1828,12 @@ const PLAN_C172 = { wgCrankAt: 0.42, wgCrankChord: P => +P.wgChord,
                     wgChordTip: P => +(+P.wgChord * 0.72).toFixed(2),
                     wgTipX: 0.30 };
 
+// G3517: the open tandem trainer's rows (the round body, both sections open, the pilot in the rear)
+const OPEN_TANDEM = {
+  aeroNose: 1, noseFinish: 0, topRound: 1, botRound: 0,
+  cpOpen: 1, paxOpen1: 1, paxCount: 1, pilotRear: 1, cabOcc: 0, paxSeatZ: 0.12,
+  openCut: 0, openFore: 0.12, openAft: 0.12, openRim: 0.022, openScreen: 1, openScreenH: 0.24, openScreenRake: 38,
+};
 const ARCHETYPES = [
   { key: 'cub', kind: 'recreation', name: 'Cub-alike', note: 'taildragger, strut-braced high ' +
       'wing, windscreen, tube & fabric, tandem',
@@ -1881,8 +1887,14 @@ const ARCHETYPES = [
   // (the DH.82's inverted Gipsy Major had no row in the join's engine map
   // until G195; PERF STUDY chantier 0 (2026-09-15) puts the card on it -
   // the study had flagged its power numbers as not comparable)
+  // G3517 (NEW-SHAPES-1, the user 26 Oct: "Move the archetypes, the current ones are rubbish anyways"): the two
+  // tandem trainers are BORN as what they are - the round body (the aero nose's full rings to the engine face,
+  // topRound 1 over slab sides), both sections open with a coaming and a small screen ahead of each, the pilot in
+  // the REAR seat (as both types are flown solo; the panel and the controls go with them). The rows are the ones
+  // the proofs were measured and flown on (tools/newshapes_build.js, HANDOVER G3510): the keel set so a seated head
+  // stands ~21 cm over the coaming, the mains dropped for a prop clearance over FAR 23.925's 0.229 m.
   { key: 'tigermoth', kind: 'recreation', name: 'Tiger Moth-alike', note: 'wood & fabric biplane, ' +
-      'swept upper plane, lower ailerons, wires, tandem open cockpits, inverted Gipsy Major',
+      'swept upper plane, lower ailerons, wires, round turtle-deck body, tandem open cockpits flown from the rear, inverted Gipsy Major',
     sel: { class: 'eab', role: 'trainer', seatLayout: 0, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 2, boomStyle: 0, section: 1,
            wgPos: 3, wgBrace: 1, wgTip: 2, wgFlapType: 0, planes: 'biplane',
@@ -1892,25 +1904,35 @@ const ARCHETYPES = [
     over: { cage: { wgSpan: 8.94, wgChord: 1.37, wgChordTip: 1.37, wgTipX: 0.30,
                     wgParaH: 0.40, w2Span: 8.94, w2Chord: 1.37, w2ChordTip: 1.37,
                     w2Pos: 2, w2Stagger: 0.55, wgAilOn: 0, w2AilOn: 1,
-                    bpInter: 0, bpWires: 1, bpCabane: 0 },
+                    bpInter: 0, bpWires: 1, bpCabane: 0,
+                    ...OPEN_TANDEM,
+                    halfW: 0.43, roofHalfW: 0.34, roofY: 0.58, keelY: -0.67, waistY: 0.22, floorY: -0.32,
+                    pilotLen: 0.95, paxLen: 1.00, s1Drop: 0.46,      // (a prop clearance of 0.25 m: FAR 23.925 0.229)
+                    aeroWsLen: 1.10, aeroLen: 0.95, aeroTipW: 0.55, aeroTipH: 0.60, aeroDroop: 0.10 },
             spec: { fuel: { litres: 87 } } } },       // 19 imp gal, the centre-section tank
   // PERF STUDY chantier 0 (2026-09-15): the PT-17's engine is the 220 hp
   // W-670 (a row since G195), not the 450 hp R-985 the card flew (ROC
   // +156 %, V75 +35 % against the type - the engine, not the airframe)
   { key: 'stearman', kind: 'recreation', name: 'Stearman-alike', note: 'radial biplane trainer, ' +
-      'oleo gear, wires and N struts, lower ailerons',
+      'oleo gear, wires and N struts, lower ailerons, round turtle-deck body, tandem open cockpits flown from the rear',
     sel: { class: 'n23', role: 'trainer', seatLayout: 0, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 1, boomStyle: 0, section: 1,
            wgPos: 3, wgBrace: 1, wgTip: 2, wgFlapType: 0, planes: 'biplane',
            engFamily: 'radial', engModel: 'Continental W-670', engMount: 'nose',
            prop: 'alu2',                       // chantier 2: a 2.5 m two-blade metal, not the cage's 1.91
            gearLayout: 'tail', suspension: 'oleo', s1Fair: 0,
-           finArch: 'broad', empennage: 'conv', scheme: 'trim', base: 0xf2c437, trim: 0x1b3a5c },
+           // G3517: the Cub's rounded fin - the 'broad' one read vTaper 0.24 against the flown 0.35 floor (a join
+           // ERRS row on the card itself)
+           finArch: 'rounded', empennage: 'conv', scheme: 'trim', base: 0xf2c437, trim: 0x1b3a5c },
     over: { cage: { wgSpan: 9.80, wgChord: 1.52, wgChordTip: 1.52, wgTipX: 0,
-                    wgDx: 0.60,      // wings forward: the R-985 sits on the nose (CG 22 % MAC, margin 21 %)
+                    wgDx: 0.30,      // G3517: the round body's CG is further aft than the old cabin's (margin 0.10)
                     wgParaH: 0.45, w2Span: 9.80, w2Chord: 1.52, w2ChordTip: 1.52,
                     w2Pos: 2, w2Stagger: 0.60, wgAilOn: 0, w2AilOn: 1,
-                    bpInter: 0, bpWires: 1, bpCabane: 0, cw_propD: 2.5 },
+                    bpInter: 0, bpWires: 1, bpCabane: 0, cw_propD: 2.5,
+                    ...OPEN_TANDEM,
+                    halfW: 0.58, roofHalfW: 0.46, roofY: 0.72, keelY: -0.55, waistY: 0.28, floorY: -0.30,
+                    pilotLen: 1.00, paxLen: 1.10, s1Drop: 0.72,
+                    aeroWsLen: 1.15, aeroLen: 0.55, aeroTipW: 0.92, aeroTipH: 0.86, aeroDroop: 0.0 },
             spec: { fuel: { litres: 174 }, prop: { D: 2.5, blades: 2 } } } },      // 46 US gal in the upper centre section
   { key: 'pittsAlike', kind: 'fiction', name: 'aerobatic biplane', note: 'short-span four-aileron ' +
       'biplane on I struts and wires, spring gear, flat six',

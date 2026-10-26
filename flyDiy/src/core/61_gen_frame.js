@@ -2921,7 +2921,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // skin carries, drawn windows included), the cabin-box estimate
     // otherwise; the material's own areal density either way
     const glassKg = (O.glassKgM2By && O.glassKgM2By[cb.glazingMat]) || O.glassKgM2;
-    const glassM = cb.glazing === 'none' ? 0        // an open cockpit (2026-09-04)
+    // G3516: ...but an open cockpit's SCREENS are glass (the user: "try to account for the glass weight"): their
+    // measured area, while a section really is open and the glazing is on (a stale figure on a closed or unglazed
+    // build bills nothing)
+    const cgS = S.cage || {};
+    const openS = ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4'].some(k => Math.round(+cgS[k] || 0) > 0)
+      && !(cgS.glazeOn != null && !+cgS.glazeOn);
+    const glassM = cb.glazing === 'none' ? (openS && cb.screenM2 > 0 ? glassKg * cb.screenM2 : 0)   // an open cockpit (2026-09-04)
       : glassKg * (cb.glazedM2 > 0 ? cb.glazedM2
                    : (2 * cb.halfW * cb.h * 0.55 +
                       (fusCovered ? 2 * cb.len * cb.h * 0.30 : 0)));

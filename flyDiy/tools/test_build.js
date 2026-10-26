@@ -588,7 +588,8 @@ function nullPaths(o, pre, out) {
     // (G3511: the occupant openings' rows are the one stated exception — they
     // are absent while every section is closed, so a build that never opened
     // one keeps every key the game hashes it by: CAGE_OPEN_ROWS, cageToSpec)
-    const shutRows = CAGE2.CAGE_OPEN_ROWS && !CAGE2.cageAnyOpen(P1) ? CAGE2.CAGE_OPEN_ROWS : [];
+    const shutRows = (CAGE2.CAGE_OPEN_ROWS && !CAGE2.cageAnyOpen(P1) ? CAGE2.CAGE_OPEN_ROWS : [])
+      .concat((CAGE2.CAGE_ZERO_ABSENT || []).filter(k => !(+P1[k] > 0)));   // (G3515: the rear pilot at 0, the same rule)
     const thin = Object.keys(slim).length,
           table = Object.keys(P1).filter(k => !(k in CAGE2.CAGE_VIEW_KEYS) &&
                                               typeof P1[k] !== 'function' &&
@@ -612,7 +613,7 @@ function nullPaths(o, pre, out) {
   const baked = CAGE2.cageToSpec(F0) || {};
   // (G3511: but the openings' rows while every section is closed — and the
   // first one opened brings them all into the file)
-  const shut = CAGE2.CAGE_OPEN_ROWS || [];
+  const shut = (CAGE2.CAGE_OPEN_ROWS || []).concat(CAGE2.CAGE_ZERO_ABSENT || []);
   const want = Object.keys(F0).filter(k => !(k in CAGE2.CAGE_VIEW_KEYS) &&
                                             typeof F0[k] !== 'function' && !shut.includes(k));
   ok(Object.keys(baked).length === want.length && want.every(k => k in baked),
@@ -620,9 +621,13 @@ function nullPaths(o, pre, out) {
      Object.keys(baked).length + ' keys) — a default that moves cannot move a saved design');
   {
     const opened = CAGE2.cageToSpec(Object.assign(full(), { paxOpen1: 1 })) || {};
-    ok(shut.length > 0 && !shut.some(k => k in baked) && shut.every(k => k in opened),
-       'G3511: the opening rows are absent from a closed build (' + shut.filter(k => k in baked).length +
-       ' present) and ALL written once one section opens (' + shut.filter(k => k in opened).length + ' of ' + shut.length + ')');
+    const OR = CAGE2.CAGE_OPEN_ROWS || [];
+    ok(OR.length > 0 && !OR.some(k => k in baked) && OR.every(k => k in opened),
+       'G3511: the opening rows are absent from a closed build (' + OR.filter(k => k in baked).length +
+       ' present) and ALL written once one section opens (' + OR.filter(k => k in opened).length + ' of ' + OR.length + ')');
+    const rear = CAGE2.cageToSpec(Object.assign(full(), { pilotRear: 1 })) || {};
+    ok(!('pilotRear' in baked) && rear.pilotRear === 1,
+       'G3515: the rear-pilot row is absent at 0 and written at 1');
   }
   ok(baked.crKeel === CAGE2.CAGE_PARAMS.crKeel && baked.finThick === F0.finThick &&
      !('explodeD' in baked),

@@ -4644,6 +4644,13 @@ function clampSpec(spec) {
   if (!['acrylic', 'polycarbonate', 'glass'].includes(cb.glazingMat)) cb.glazingMat = 'acrylic';
   cb.glazedM2 = (typeof cb.glazedM2 === 'number' && isFinite(cb.glazedM2) && cb.glazedM2 >= 0)
     ? genClamp(cb.glazedM2, 0, 40) : null;
+  // G3516 (NEW-SHAPES-1): an OPEN COCKPIT'S SCREENS, m2 as the join measured them (cabin.glazing 'none' because every
+  // seated section is open, tools/_cage_join.js). ABSENT unless the join wrote it - no default, so every build that
+  // never opened a section keeps every key it had; the frame bills it (61_gen_frame)
+  if ('screenM2' in cb) {
+    if (typeof cb.screenM2 === 'number' && isFinite(cb.screenM2) && cb.screenM2 > 0) cb.screenM2 = genClamp(cb.screenM2, 0, 10);
+    else delete cb.screenM2;
+  }
   // G185: the wing clamp is a function of the PLANE (clampWing, above), run
   // on every entry of wings[] — a biplane's second plane keeps the same
   // envelope as the first.

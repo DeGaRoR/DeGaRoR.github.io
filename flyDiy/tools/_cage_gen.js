@@ -7872,6 +7872,9 @@ function cageFromSpec(spec) {
 // that never opened a cockpit is byte for byte the build it was.
 const CAGE_OPEN_ROWS = ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4',
   'openCut', 'openFore', 'openAft', 'openRim', 'openScreen', 'openScreenH', 'openScreenRake'];
+// G3515: a layer row that is ABSENT at 0 the same way (the rear-pilot seat): a
+// build that never set it keeps every key it had
+const CAGE_ZERO_ABSENT = ['pilotRear'];
 const cageAnyOpen = P => !!P && ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4']
   .some(k => Math.round(+P[k] || 0) > 0);
 function cageToSpec(P) {
@@ -7884,6 +7887,7 @@ function cageToSpec(P) {
     if (k in CAGE_VIEW_KEYS) continue;
     if (P[k] === undefined) continue;
     if (shut && CAGE_OPEN_ROWS.includes(k)) continue;
+    if (CAGE_ZERO_ABSENT.includes(k) && !(+P[k] > 0)) continue;
     out[k] = P[k]; n++;
   }
   return n ? out : null;
@@ -8485,6 +8489,7 @@ function cageOpenings(m, S) {
         const f = { v, m: mat, att: 1 };
         if (mat === 'windshield' && face === out) f.win = 1;    // one frame, on the forward face
         if (mat === 'paneEdge') f.paneEdge = 1;                  // (the liners and the zones skip it, as every pane edge)
+        if (mat === 'windshield' && face !== out) f.paneBack = 1;   // the back face: one pane, measured once (cageGlazedM2)
         F.push(f);
       };
       const nb = base.length;
@@ -9329,7 +9334,7 @@ function cageGlazedM2(s, FS) {
   let a = 0;
   if (!s || !s.F || !s.V) return 0;
   for (const f of s.F) {
-    if (!CAGE_GLASS_MATS.has(f.m) || f.v.length < 3) continue;
+    if (!CAGE_GLASS_MATS.has(f.m) || f.v.length < 3 || f.paneBack) continue;   // (G3516: a screen's back face is the same pane)
     const p0 = s.V[f.v[0]];
     for (let i = 1; i + 1 < f.v.length; i++) {
       const p1 = s.V[f.v[i]], p2 = s.V[f.v[i + 1]];
@@ -9360,7 +9365,7 @@ function cageFirewallZ(zOf) {
 
 if (typeof module !== 'undefined')
   module.exports = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB, cageJointSweep,
-                     CAGE_OPEN_ROWS, cageAnyOpen, cageOpenings,
+                     CAGE_OPEN_ROWS, CAGE_ZERO_ABSENT, cageAnyOpen, cageOpenings,
                      CAGE_FRAME_KEYS, CAGE_FRAME_ORDER, CAGE_FRAME_NAMES, CAGE_LEGACY_FRAME,
                      cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                      CAGE_UNIT,
@@ -9372,7 +9377,7 @@ if (typeof module !== 'undefined')
                      CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };
 if (typeof window !== 'undefined')
   window.CAGE2 = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB,
-                     CAGE_OPEN_ROWS, cageAnyOpen, cageOpenings,
+                     CAGE_OPEN_ROWS, CAGE_ZERO_ABSENT, cageAnyOpen, cageOpenings,
                    CAGE_FRAME_KEYS, CAGE_FRAME_ORDER, CAGE_FRAME_NAMES, CAGE_LEGACY_FRAME,
                    cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                    CAGE_UNIT,

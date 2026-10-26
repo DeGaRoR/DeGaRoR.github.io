@@ -2,10 +2,10 @@
 // newshapes_build.js - NEW-SHAPES-1 (G3510-G3519, cloud, 2026-10-26): THE ROUND BODY AND THE OPEN OCCUPANT SECTIONS,
 // PROVEN ON TWO AEROPLANES. A TOOL, not a gate. The user (23 Oct): "the proofs would be a stearman and a moth".
 //
-// Each aeroplane is born as the shed births one: the archetype card the design flow already carries (_cage_design.js
-// ARCHETYPES 'stearman' / 'tigermoth': the biplane, the engine from the catalogue, the gear, the wires), designBake ->
-// the birth spec, then the NEW SHAPE'S ROWS written into its cage as a builder would dial them (the round body: aeroNose
-// + the firewall nose, topRound; the two occupant sections open, the coaming, the screens), then THE PAGE'S OWN LOAD
+// Each aeroplane is born as the shed births one: the archetype card the design flow carries (_cage_design.js
+// ARCHETYPES 'stearman' / 'tigermoth': the biplane, the engine from the catalogue, the gear, the wires - and since
+// G3517 the round body, the two open sections and the rear-seat pilot), designBake -> the birth spec, the second person
+// aboard (FLY), then THE PAGE'S OWN LOAD
 // DOOR (tools/_load_build.js: the editor's layers draw it headless, the join measures it, the energy layer fits the
 // tanks) -> buildGen. Nothing is patched in memory.
 //
@@ -28,48 +28,20 @@ const REAL = {
     span: 8.94, length: 7.29, Sw: 22.2, empty: [495, 506], mtow: 828, VsKt: 37, VmaxKt: [90, 95], climbMs: [3.4, 4.1] },
 };
 
-// ---- THE NEW SHAPE'S ROWS (cage units x planeScale 0.745 = metres; every one a panel row) ---------------------------
-const COMMON = {
-  // THE ROUND BODY (G3510): the full rings through the front, a firewall nose (the radial / the Gipsy bolt to it)
-  aeroNose: 1, noseFinish: 0, topRound: 1, botRound: 0,
-  // THE OCCUPANT SECTIONS (G3511): the front (the Cabin's) and the rear (passenger bay 1) both open; the second person
-  // seated in the rear
-  cpOpen: 1, paxOpen1: 1, paxCount: 1, paxOcc1: 1, cabOcc: 0,
-  openCut: 0, openFore: 0.12, openAft: 0.12, openRim: 0.022, openScreen: 1, openScreenH: 0.24, openScreenRake: 38,
-};
-const ROWS = {
-  stearman: Object.assign({}, COMMON, {
-    // THE COAMING UNDER THE CHIN: an open section has no door, so the crew stands on the keel + its floorboards
-    // (_cage_crew.js anchors) and a seated head's top is 1.07 m over the keel - the keel is set so the coaming rail
-    // stands ~0.88 m over it (the first cut, keel -0.85, left both heads 16 cm UNDER the rail); the rear seat 12 cm
-    // forward off the opening's aft lip
-    halfW: 0.58, roofHalfW: 0.46, roofY: 0.72, keelY: -0.55, waistY: 0.28, floorY: -0.30, paxSeatZ: 0.12,
-    pilotLen: 1.00, paxLen: 1.10,
-    wgDx: 0.30,          // the card's 0.60 stood the wings forward of the R-985's nose; the round body's CG is further aft
-    // the mains' drop (a gear row, metres, drawn and flown): the shallower keel took the card's 0.33 to a level-attitude
-    // prop clearance of -0.12 m (a prop strike flown); 0.72 m gives 0.27 m, over FAR 23.925's 0.229 for a taildragger
-    s1Drop: 0.72,
-    aeroWsLen: 1.15, aeroLen: 0.55, aeroTipW: 0.92, aeroTipH: 0.86, aeroDroop: 0.0,
-  }),
-  tigermoth: Object.assign({}, COMMON, {
-    halfW: 0.43, roofHalfW: 0.34, roofY: 0.58, keelY: -0.67, waistY: 0.22, floorY: -0.32, paxSeatZ: 0.12,
-    pilotLen: 0.95, paxLen: 1.00,
-    s1Drop: 0.43,        // the card's 0.33 left the prop 0.14 m off the ground level; 0.43 gives 0.24 (FAR 23.925 0.229)
-    aeroWsLen: 1.10, aeroLen: 0.95, aeroTipW: 0.55, aeroTipH: 0.60, aeroDroop: 0.10,
-  }),
-};
-// the card's own selection, changed where the card's choice does not fit the flown envelope (the Stearman card's
-// 'broad' fin reads vTaper 0.24 against the 0.35 floor - a join ERRS row on the card itself, master's: the Cub's
-// rounded fin is the tile that passes)
-const SEL = { stearman: { finArch: 'rounded' }, tigermoth: {} };
+// ---- THE ROWS ARE THE CARDS' (G3517) -------------------------------------------------------------------------------
+// The shape's rows were tuned here (the coaming under the chin, the prop clearance, the margin) and then MOVED INTO
+// THE ARCHETYPE CARDS themselves (_cage_design.js 'stearman' / 'tigermoth', OPEN_TANDEM): the fixture is the card,
+// born as the design flow births it, with one loading on top - the second person aboard, in the front seat (the
+// pilot flies from the rear), so the proof flies at the type's gross and not solo.
+const FLY = { paxOcc1: 1 };
 const FIX = k => path.join(T, 'fixtures', k + '_2026-10.json');
 
 function birth(key) {
   const BJ = require('./_bake_joined.js');
   const { D } = BJ.loadPanel();
   const a = D.ARCHETYPES.find(x => x.key === key);
-  const spec = D.designBake(Object.assign({}, a.sel, SEL[key]), a.over);
-  spec.cage = Object.assign({}, spec.cage, ROWS[key], JSON.parse(opt('over', '{}')));
+  const spec = D.designBake(a.sel, a.over);
+  spec.cage = Object.assign({}, spec.cage, FLY, JSON.parse(opt('over', '{}')));
   return { v: spec.v, name: a.name.replace('-alike', '') + ' (round body, open cockpits)',
     what: 'NEW-SHAPES-1 G3510-G3519 - ' + REAL[key].name + ' through the garage\'s own path (tools/newshapes_build.js)', spec };
 }
@@ -211,4 +183,4 @@ if (require.main === module) {
   }
   if (opt('json', null)) fs.writeFileSync(opt('json'), JSON.stringify(out, null, 1));
 }
-module.exports = { ROWS, REAL, birth, buildFixture, drawnOpenings, FIX };
+module.exports = { FLY, REAL, birth, buildFixture, drawnOpenings, FIX };

@@ -2892,9 +2892,26 @@ function anchors(spec, P, mesh) {
   // sill, where you step in) — the floor is drawn there and everything
   // that stands on the floor stands on it
   const floorAt = z => keelAt(z) + sillOff + (+P.floorLift || 0);
-  const zBack = (cabB ? cabB.lv.waist.z : 0) * k + 0.05 + (P.seatZ || 0);
-  const zDash = ((wsF ? wsF.lv.waist.z : (win ? win.lv.waist.z : 1) + 0.5)
+  let zBack = (cabB ? cabB.lv.waist.z : 0) * k + 0.05 + (P.seatZ || 0);
+  let zDash = ((wsF ? wsF.lv.waist.z : (win ? win.lv.waist.z : 1) + 0.5)
               - (P.dashBack || 0.05)) * k - 0.02;
+  // G3515 (NEW-SHAPES-1, the user: "have an option in the seat section to
+  // designate back seat as pilot seat ... If the rear is designated as the
+  // pilot, it gets the dashboard. The other gets nothing for now"): THE
+  // PILOT'S STATION MOVES TO BAY 1 - the seat off bay 1's aft ring (the
+  // cockpit's own rule: + 0.05 + the pilot's seatZ), the panel under its fore
+  // coaming when it is open (pax<i>OpenB) or at its forward ring - and every
+  // control that stands off the station (the pedals, the throttle, the stick,
+  // the panel) follows it. The cockpit row keeps its own station
+  // (zBackCockpit) for the second person, with nothing in front of them.
+  const rear = crewPilotRear(P);
+  const zBackCockpit = zBack;
+  if (rear) {
+    const i = rear.i;
+    const rA = rg('pilPaxB' + (i || '')), rF = rg('pax' + i + 'OpenB') || rg(i > 0 ? 'pilPaxM' + (i - 1) : 'pilCabA');
+    if (rA) zBack = rA.lv.waist.z * k + 0.05 + (P.seatZ || 0);
+    if (rF) zDash = (rF.lv.waist.z - (P.dashBack || 0.05)) * k - 0.02;
+  }
   // (overall plane dims now come from the displayed bounding box in the
   // viewer's dimensions pane — the honest measure, canopy included)
   // THE DASH SHELL'S OWN BAND, MEASURED (G94, corrected here). The first cut
@@ -3183,10 +3200,14 @@ function anchors(spec, P, mesh) {
   if (mesh && mesh.F) for (const f of mesh.F) if (f.m === 'firewall') for (const vi of f.v) zFire = Math.max(zFire, mesh.V[vi][2] * k);
   // (flexLayout, G3341: the arch dash is the new builds' — their panel takes
   // the flexible dial layout when the standard one leaves a dial off)
-  return { k, dashLip, dashTop, dashAftZ, flexLayout: !!(mesh && mesh.dashArch), face, dashTopAt, dashBotAt, dashAftAt, floorAt, bellyAt, tubeDist, wallAt, shoulderAt, doorFwdAt, halfW: spec.cabin.halfW * k,
+  // (G3515: the cockpit's dash shell is the FRONT seat's - a rear pilot's panel
+  // stands on its own at the rear station, its height off the floor rule)
+  if (rear) { dashLip = null; dashTop = null; dashAftZ = null; face = null; }
+  return { k, dashLip, dashTop, dashAftZ, flexLayout: !!(mesh && mesh.dashArch) && !rear, face, dashTopAt, dashBotAt, dashAftAt, floorAt, bellyAt, tubeDist, wallAt, shoulderAt, doorFwdAt, halfW: spec.cabin.halfW * k,
            zFire: isFinite(zFire) ? zFire : null,
            roofY: spec.cabin.roofY * k, waistY: spec.waistY * k,
            zBack, zDash, zWin: win ? win.lv.waist.z * k : 0,
+           zBackCockpit, pilotRear: !!rear,
            // G180: the resolved rings, so a passenger bay's seat row can be
            // placed off the bay's own aft ring the way the pilot's is off
            // the cockpit's
@@ -3209,6 +3230,14 @@ function anchors(spec, P, mesh) {
 // inverted below). A filled seat gets a dummy AND a mass; an empty one keeps
 // its chair. Seat order out of here is the order the join and the frame bill
 // in: pilot, the cockpit's other seat, then bay 1's row, bay 2's...
+// G3515: the rear-pilot designation, when it can apply - a tandem cockpit (one
+// seat abreast) with a bay behind it; null otherwise (every build before it)
+function crewPilotRear(P) {
+  if (!P || !(Math.round(+P.pilotRear || 0) > 0)) return null;
+  const bays = Math.max(0, Math.round(+P.paxCount || 0));
+  if (bays < 1 || Math.round(+P.seatLayout || 0) === 1 || +P.mirror) return null;
+  return { i: bays - 1 };                        // bay 1, front to back, is cage bay (bays - 1)
+}
 function seatPlaces(A, P) {
   const lay = Math.round(P.seatLayout);
   const abreast = lay === 1 ? 2 : 1;
@@ -3235,7 +3264,13 @@ function seatPlaces(A, P) {
                  filled: section === 0 && j === 0 ? true : j < filled });
     return out;
   };
-  const seats = row(A.zBack, A.halfW, 0, 1 + (+P.cabOcc ? 1 : 0));
+  // G3515: with the pilot in bay 1 the cockpit row is the second person's
+  // (bay 1's `seated` row says whether they are aboard) and the pilot's seat
+  // leads the list (the order the join and the frame bill in: pilot first)
+  const rear = A.pilotRear;
+  const seats = rear ? [] : row(A.zBack, A.halfW, 0, 1 + (+P.cabOcc ? 1 : 0));
+  const front = rear ? row(A.zBackCockpit, A.halfW, 0, Math.min(1, Math.round(+P.paxOcc1 || 0)))
+                         .map(s => Object.assign(s, { pilot: false })) : null;
   const rings = A.rings || [];
   const rg = n => rings.find(r => r.name === n);
   for (let n = 1; n <= bays; n++) {
@@ -3247,6 +3282,14 @@ function seatPlaces(A, P) {
     const zBack = r.lv.waist.z * A.k + 0.05 + (P.paxSeatZ || 0);
     const halfW = (r.lv.waist.x != null ? r.lv.waist.x * A.k : A.halfW);
     const want = Math.max(0, Math.round(+P['paxOcc' + n] || 0));
+    if (rear && n === 1) {
+      // the pilot's row: the station seat (A.zBack), the pilot in its first
+      // seat, the row's others empty; then the cockpit's second person
+      const r1 = row(A.zBack, halfW, n, 0, paxAb);
+      r1[0].pilot = true; r1[0].filled = true;
+      seats.push(r1[0], ...front, ...r1.slice(1));
+      continue;
+    }
     seats.push(...row(zBack, halfW, n, Math.min(paxAb, want), paxAb));
   }
   return seats;
@@ -3883,7 +3926,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   for (let si = 0; si < seats.length; si++) {
     if (seats[si] === pilot || !seats[si].filled) continue;
     dums.push(seatDummy(seats[si], stn[si], si + 1,
-                        seats[si].section ? POSE_PAX : POSE_PILOT));
+                        (seats[si].section || !stn[si]) ? POSE_PAX : POSE_PILOT));   // (G3515: no station, no stick to hold)
   }
   {
     const aboard = seats.filter(s2 => s2.filled).length;

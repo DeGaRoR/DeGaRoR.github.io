@@ -171,6 +171,7 @@ window.CAGE_PAGE = {
     // design keeps whatever it says. `seatPitch` is gone with the tandem
     // layout — a bay's length is its pitch.
     cabOcc: 0, paxOcc1: 0, paxOcc2: 0, paxOcc3: 0, paxOcc4: 0,
+    pilotRear: 0,                                // G3515: absent from spec.cage at 0 (CAGE_ZERO_ABSENT)
     paxAbreast: 0, flapX: 0, flapZ: 0,                                   // T2.3 (132), (18)
     paxSeatZ: 0, paxSize: 1, paxRecline: 0,
   },
@@ -660,6 +661,12 @@ window.CAGE_PAGE = {
         // passenger bay. Tandem is retired: it is 'single' with a bay
         // (cageFromSpec reads an older file's 2 as 0).
         ['seatLayout','row',            0, 1, 1, ['single', 'side-by-side']],
+        // G3515 (NEW-SHAPES-1, the user: "have an option in the seat section to
+        // designate back seat as pilot seat"): a tandem's PILOT IN BAY 1 - the
+        // stick, the pedals, the throttle and the panel go with them; the front
+        // seat takes bay 1's passenger ('bay 1 seated'), with nothing in front
+        ['pilotRear', 'pilot\'s seat', 0, 1, 1, ['the front (cockpit)', 'the rear (bay 1)'],
+         { when: P => +P.seatLayout !== 1 && +P.paxCount >= 1 }],
         ['seatZ',     'fore / aft', -0.50, 0.50, 0.005],
         ['seatH',     'up / down (squab height)', 0.06, 0.50, 0.005],
         ['seatRake',  'back recline',   5, 45, 0.5],

@@ -448,11 +448,21 @@ function cageJoinSpec(P, M, T) {
   // (a cabin ahead of an open rear seat) keeps the cabin's glazing.
   {
     const r = k => Math.round(+P[k] || 0);
-    if (cabin.glazing === 'glass' && r('cpOpen') > 0) {
-      let all = true;
-      for (let n = 1; n <= Math.min(4, r('paxCount')); n++)
-        if (r('paxOcc' + n) > 0 && !(r('paxOpen' + n) > 0)) all = false;
-      if (all) cabin.glazing = 'none';
+    // G3515: with the pilot in bay 1 (a tandem), bay 1 is the pilot's section
+    // and the cockpit is seated only when bay 1's row says the second person
+    // is aboard
+    const rear = r('pilotRear') > 0 && r('paxCount') >= 1 && r('seatLayout') !== 1 && !r('mirror');
+    const seated = rear ? [['paxOpen1', 1]].concat(r('paxOcc1') > 0 ? [['cpOpen', 1]] : [])
+                        : [['cpOpen', 1]];
+    for (let n = rear ? 2 : 1; n <= Math.min(4, r('paxCount')); n++)
+      if (r('paxOcc' + n) > 0) seated.push(['paxOpen' + n, 1]);
+    if (cabin.glazing === 'glass' && (r('cpOpen') > 0 || r('paxOpen1') > 0)
+        && seated.every(([k]) => r(k) > 0)) {
+      cabin.glazing = 'none';
+      // G3516: the screens are still glass - their area, measured off the sheet (on an all-open aeroplane the glass
+      // the sheet carries is the screens'), billed by the frame
+      const UIo = typeof window !== 'undefined' ? window.CAGE_UI : null;
+      if (UIo && UIo.glazedM2 > 0) cabin.screenM2 = +UIo.glazedM2.toFixed(3);
     }
   }
   // T2.2: the glazing MATERIAL (the cage's one row) and the glazed AREA the
@@ -1753,8 +1763,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     if (drawn) {
       M.seats = drawn.length;
       M.occupied = drawn.map(s => s.filled ? 1 : 0);
-      M.pilots = drawn.filter(s => !s.section && s.filled).length;
-      M.pax = drawn.filter(s => s.section && s.filled).length;
+      // (G3515: a rear pilot sits in bay 1 and is still the pilot)
+      M.pilots = drawn.filter(s => (s.pilot || !s.section) && s.filled).length;
+      M.pax = drawn.filter(s => !s.pilot && s.section && s.filled).length;
     } else {
       M.seats = perRow + perBay * bays;
       const occ = [1];
