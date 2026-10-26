@@ -333,6 +333,9 @@ function editorInit(api) {
   if (sel === 'wingPanel') sel = 'wings';
   if (!PT.partByKey[sel] && !rootFor(sel)) sel = 'craft';
   if (partHidden(PT.partByKey[sel])) sel = 'craft';
+  // G3543: the whole aeroplane wears its silhouette only when the player PICKED it (its tree row, the livery pill) -
+  // the garage opening on the root, or a click into empty space, is no selection and draws nothing (as before)
+  let rootPicked = false;
   // =========================================================================
   // TWO VIEWS OF ONE TREE (G103) — UI-MODEL §2.3
   // =========================================================================
@@ -1135,7 +1138,7 @@ function editorInit(api) {
       const b = document.createElement('button');
       b.className = 'pill';
       b.textContent = 'the aeroplane\'s livery';
-      b.onclick = () => select('craft');
+      b.onclick = () => select('craft', true);
       n.appendChild(b);
       rowsEl.appendChild(n);
     }
@@ -1421,7 +1424,7 @@ function editorInit(api) {
     // every layer's group are thrown away and remade on each build, and the
     // overlay hangs off both — so it has to be remade with them, or the tint
     // silently belongs to a mesh that no longer exists.
-    hiBuild(sel, 'sel');                   // G3543: the root too (its silhouette)
+    hiBuild(sel === 'craft' && !rootPicked ? null : sel, 'sel');   // G3543: the root too, when picked (its silhouette)
     // ...AND SO IS THE PIN, for the same reason and one better: the row it
     // names is the row being DRAGGED, so the dot walks the corner it is
     // moving instead of standing where the corner used to be.
@@ -1575,9 +1578,9 @@ function editorInit(api) {
         b.textContent = badges[i];
         d.appendChild(b);
       }
-      d.onclick = () => select(r.p.key);
+      d.onclick = () => select(r.p.key, true);
       d.onkeydown = e => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(r.p.key); }
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(r.p.key, true); }
       };
       // THE OTHER DIRECTION (G79). Pointing at a row lights the geometry, so
       // the tree can be read against the aeroplane without clicking through
@@ -1631,7 +1634,7 @@ function editorInit(api) {
     return out;
   };
 
-  function select(key) {
+  function select(key, picked) {
     // THE REFERENCE PLANE IS THE ONE ROW THAT IS NOT A PART (G90). It is a
     // second ROOT beside the aeroplane's, and it is deliberately NOT in
     // CAGE_PARTS: the part table is the declared assembly of the aeroplane
@@ -1647,6 +1650,7 @@ function editorInit(api) {
     { const was = rootFor(sel);
       if (was && was !== rdef && was.shown) was.shown(false); }
     sel = key;
+    rootPicked = key === 'craft' && !!picked;
     pref(LS_SEL, key);
     // A ROOT THAT BUILDS ITS OWN PANEL HAS NO TWO VIEWS. The shape/finish
     // split is the aeroplane's — the reference plane is a display, the shed is
