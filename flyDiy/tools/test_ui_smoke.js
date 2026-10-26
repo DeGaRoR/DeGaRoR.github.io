@@ -1262,7 +1262,8 @@ try {
             'taxi graph', 'glide slopes', 'engine', 'lever', 'thrust', 'sync levers', 'the pilot', 'map the controls…',
             // G3324: the personality row moved to DEV (PERSONA_ROWS below - the player's autopilot is the expert)
             ],
-      view: ['field of view', 'level horizon', 'lead the turn', 'free', 'small', 'show', 'large', 'north up', 'the three', 'frame rate', 'fps meter', 'screenshot'],
+      view: ['field of view', 'level horizon', 'lead the turn', 'small',   // G3646: 'free' with DEV on only (below)
+             'show', 'large', 'north up', 'the three', 'frame rate', 'fps meter', 'screenshot'],
       sky: ['outside air', 'density altitude', 'wind', 'gusts', 'time of day', 'world'],
       graphics: ['preset'].concat(G.OPTIONS.map(o => o.label)),
       audio: ['sound', 'master', 'engine', 'airframe', 'environment', 'music', 'interface', 'mute when unfocused', 'headset', 'music in flight'],   // G1600 (audio.js); G1722: the engine apart, 'aircraft' is the airframe
@@ -1295,9 +1296,15 @@ try {
       if (h0.has('personality')) throw new Error('the personality row is in the player FLY with DEV off (G3324: the player flies the expert)');
       const P = sandbox.window.FLYDIY_PERSONA;
       if (P && P.get().profile !== 'expert') throw new Error('DEV off: the autopilot handed is ' + JSON.stringify(P.get().profile) + ', not the expert (G3324)');
+      // G3646 (GAME-MENUS; the user 25 Oct: the eye is chase / interior, the free camera DEV's): VIEW's 'free' pill with DEV on only
+      const v0 = R.census('view');
+      if (v0.pills.includes('free')) throw new Error('the free camera is in the player VIEW with DEV off (G3646: DEV only)');
       R.dev(true);
       const c1 = R.census('fly'), h1 = new Set(c1.rows.concat(c1.pills));
+      const v1 = R.census('view');
       R.dev(false);
+      if (!v1.pills.includes('free')) throw new Error('DEV on: VIEW does not reach the free camera (G3646)');
+      reached.pills.push('free');
       const miss = PERSONA_ROWS.filter(x => !h1.has(x));
       if (miss.length) throw new Error('DEV on: FLY does not reach the persona: ' + miss.join(', '));
       reached.rows.push(...c1.rows); reached.pills.push(...c1.pills);
