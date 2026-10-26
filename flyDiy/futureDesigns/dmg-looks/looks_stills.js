@@ -53,7 +53,12 @@ function stagePage(o) {
     calm = vm < 0.25 ? calm + 1 : 0; if (calm > 60) break; }
   sim.step = () => {};
   const D = sim.damage();
-  return { ms: Math.round(performance.now() - t0), steps: s, atRest: calm > 60, crashed: D.crashed, reason: D.reason, broken: D.broken.length, cg: sim.cgPos().map(x => +x.toFixed(2)) };
+  // THE WRECK'S SPREAD: the 10th-90th percentile box of every node (pieces and all), for the cameras
+  const q = (arr, f) => { const a = arr.slice().sort((x, y) => x - y); return a[Math.floor((a.length - 1) * f)]; };
+  const xs = [], ys = [], zs = []; for (let i = 0; i < n; i++) { xs.push(p[i*3]); ys.push(p[i*3+1]); zs.push(p[i*3+2]); }
+  const lo = [q(xs, 0.1), q(ys, 0.1), q(zs, 0.1)], hi = [q(xs, 0.9), q(ys, 0.9), q(zs, 0.9)];
+  const centre = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2], radius = Math.max(2.5, 0.5 * Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]));
+  return { centre, radius, hdg: strip.hdg, ms: Math.round(performance.now() - t0), steps: s, atRest: calm > 60, crashed: D.crashed, reason: D.reason, broken: D.broken.length, cg: sim.cgPos().map(x => +x.toFixed(2)) };
 }
 
 function stageFor(build, scenes, after, tag) {
@@ -67,7 +72,14 @@ function stageFor(build, scenes, after, tag) {
       await frames(3);                                         // the page's frames carry the wreck (the events, the riding)
       for (let ci = 0; ci < sc.cams.length; ci++) {
         const [az, el, dist] = sc.cams[ci];
-        await page.evaluate(([a, e, d]) => FLIGHT_PROBE.camSet(a * Math.PI / 180, e * Math.PI / 180, d), [az, el, dist]);
+        // a free camera aimed at the wreck's spread: az from the runway heading (comparable across builds), the distance
+        // at least the camera's and enough to fit the spread (~2.2 x its radius for the page's ~50 deg field)
+        await page.evaluate(([a, e, d, st]) => {
+          const C = st.centre, D = Math.max(d, 2.2 * st.radius), A = st.hdg + Math.PI + a * Math.PI / 180, E = e * Math.PI / 180;
+          const eye = [C[0] + D * Math.cos(E) * Math.cos(A), C[1] + D * Math.sin(E), C[2] + D * Math.cos(E) * Math.sin(A)];
+          const dx = C[0] - eye[0], dy = C[1] - eye[1], dz = C[2] - eye[2];
+          return FLIGHT_PROBE.devFree(eye[0], eye[1], eye[2], Math.atan2(dx, -dz), Math.atan2(dy, Math.hypot(dx, dz)));
+        }, [az, el, dist, st]);
         const sets = after ? [[tag, null], ['after', after]] : [[tag, null]];
         for (const [t, js] of sets) {
           if (js) { await page.evaluate(new Function(js)); await frames(3); } else await frames(2);
