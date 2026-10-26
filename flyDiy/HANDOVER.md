@@ -99116,3 +99116,16 @@ worst example, with edges and corners very visible."
   cowl's arc was measured on the squarest probe (the C172's small front ring): now the largest, and the intervals that
   straddle the waist line count. Cost cut 13 -> 8 ms on the C172: normals only for the deck's own vertices (meshFrom
   fills the rest exactly as today).
+- STILLS Mon 26 04:05-04:28 (A0 s26-g3). The rig needed four fixes before it saw the cockpit: the camera pills live in the
+  rail's flyout (open it, press, close it), the #boot overlay ("before you fly") stands over the shed for minutes (wait it
+  out, ?world=none), the 3D canvas is not the first <canvas>, and the head turns through HEAD_CAM (a mouse drag did not
+  move it). The eye is ASSERTED now (camera = CAGE_CREW_EYE, d 0.000). FINDING: from the C172's seated eye the deck and
+  the cowl show only past the windscreen's lower left corner, and there before and after looked the same. Cause found
+  in node: the strip rule (a thin face hands its straight edge across) ran across EVERY C172 deck row (5 cm deep, 32 cm
+  across) and left the centreline ridge at 21 deg - the edge the user describes. Replaced by a per-edge bow fade
+  (w = distance to the nearest fixed edge / taper, capped at 1). The C172's deck is only 23 cm between its two fixed rows
+  (the windscreen-base band aft, the firewall ring's E1 creases forward), so taper 5 cm. Rig: C172 face angle p50/p90
+  0.49/2.8 deg, the centreline ridge gone from the top of the list; max 24.6 deg is now in the 7 mm firewall ring strip at
+  the shoulder (to look at). The 04:27 take of the same corner still reads alike - whether that patch is the deck or the
+  cowl's shoulder is the next still's question (the cowl hidden, the head raised 10 cm, an outside close-up of the arch).
+  NOT READY: the Tue gate slots stand, the ready push waits for a still that shows the arch.

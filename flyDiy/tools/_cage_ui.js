@@ -1967,7 +1967,8 @@ function* buildSteps() {
   const zNose = zones && zones.find(z => z.key === 'nose');
   const eyeOn = G.cageEyeRefine && zNose && !window.CAGE_EYE_OFF && !EYE_URL_OFF()
     && !(window.CAGE_UI && window.CAGE_UI.eyeRefine === false);
-  // edge 0.016 m: the dash's own median facet edge (cowl_res_rig: 1.6 cm on every validated build). Drag ticks never
+  // edge 0.016 m: the dash's own median facet edge (cowl_res_rig: 1.6 cm on every validated build); taper 0.05 m: the
+  // bow's fade-in from the windscreen base and the firewall (THE BOW FADES IN, _cage_gen.js). Drag ticks never
   // come here (G1443 deforms the stand, G1442 restores it); a whole build on the SAME sheet (a dropdown, the release's
   // whole way) takes the last pass's result: one entry, keyed by the sheet object and what decides the displayed faces.
   const diag = surfSel !== 'off' || ($('curv') && $('curv').checked) || ($('wire') && $('wire').checked);
@@ -1975,7 +1976,7 @@ function* buildSteps() {
   if (eyeOn && !diag) {
     const key = [P.skinOn == null || P.skinOn ? 1 : 0, P.glazeOn == null || +P.glazeOn ? 1 : 0, zNose.z0, fieldM()].join('|');
     if (EYE_CACHE && EYE_CACHE.s === s && EYE_CACHE.key === key) sdE = EYE_CACHE.out;
-    else { sdE = G.cageEyeRefine(sd, { zNose: zNose.z0, edge: 0.016 / fieldM() }); EYE_CACHE = { s, key, out: sdE }; }
+    else { sdE = G.cageEyeRefine(sd, { zNose: zNose.z0, edge: 0.016 / fieldM(), taper: 0.05 / fieldM() }); EYE_CACHE = { s, key, out: sdE }; }
   }
   meshObj = (surfSel !== 'off') ? surfMesh(sd, surfSel)
     : ($('curv') && $('curv').checked) ? curvatureMesh(sd)

@@ -8824,12 +8824,13 @@ function cageShoulder(m, S) {
 // An edge leaves a corner along its chord, not its tangent, where that
 // corner's normal is more than 35 deg off the edge's own two faces: a corner
 // on the windscreen base or the shoulder crease averages across the crease,
-// and its tangent plane would fold the patch (measured: 61 deg between
-// neighbours on the C172's shoulder, 21 deg before).
+// and its tangent plane would fold the patch. And the bow fades in over
+// o.taper from the edges that must stay straight (see THE BOW FADES IN).
 //
 // opt: { zNose: the windscreen base (cage units; cageBodyZones' 'nose'.z0),
 //        edge: the target facet edge (cage units): k = the deck's median edge
 //        over it rounded, 2..8 (none when the deck is that fine already),
+//        taper: the fade-in length of the bow from a straight edge (cage units),
 //        k: a fixed split per side instead (default 4) }. Returns m itself when there is
 // no deck to split, else a new mesh with `eyeParent` (Int32Array: each
 // appended vertex's nearest original vertex, for the garage's in-place
@@ -8961,23 +8962,27 @@ function cageEyeRefine(m, opt) {
   const lerpA = (qa, qb, t) => (qa && qb) ? [0, 1, 2, 3].map(i => qa[i] + (qb[i] - qa[i]) * t) : null;
   const nrm = i => [N0[i * 3], N0[i * 3 + 1], N0[i * 3 + 2]];
   for (const [key, e] of deckEdges) e.bend = !e.other && e.skin >= 2 && !(E && (E.get(key) || 0) >= 1);
-  // a STRIP keeps its straight side: a deck face under a third as deep as it
-  // is long (the C172's 7 mm ring at the firewall) with one long edge straight
-  // makes the opposite one straight too, so the bow fades across the next full
-  // row instead of folding the strip (63 deg between neighbours, measured)
-  for (let pass = 0, ch = true; ch && pass < 16; pass++) {
-    ch = false;
-    for (const fi of deck) {
-      const v = F[fi].v;
-      for (let s = 0; s < 2; s++) {
-        const e0 = deckEdges.get(ek(v[s], v[s + 1])), e1 = deckEdges.get(ek(v[s + 3 & 3], v[s + 2]));
-        if (e0.bend === e1.bend) continue;
-        const P = V[v[s]], Q = V[v[s + 1]], R = V[v[s + 2]], S = V[v[s + 3 & 3]];
-        const len = Math.max(Math.hypot(P[0] - Q[0], P[1] - Q[1], P[2] - Q[2]), Math.hypot(S[0] - R[0], S[1] - R[1], S[2] - R[2]));
-        const dep = Math.hypot((P[0] + Q[0] - S[0] - R[0]) / 2, (P[1] + Q[1] - S[1] - R[1]) / 2, (P[2] + Q[2] - S[2] - R[2]) / 2);
-        if (dep < len / 3) { e0.bend = e1.bend = false; ch = true; }
-      }
-    }
+  // THE BOW FADES IN FROM WHAT MUST STAY STRAIGHT. An edge that may not bend (the windscreen base's seal, the
+  // firewall's open border, a crease) sits beside a bending one; on the C172 the deck's rows are strips (5 cm deep,
+  // 32 cm across, and the firewall ring 7 mm) and the whole bow would be taken up inside the first strip - a fold
+  // (63 deg between neighbours, measured). So each edge bows by w = its distance from the nearest straight edge over
+  // o.taper (cage units; 0 = no fade; the page 5 cm: the C172's deck is 23 cm between its two fixed rows), capped at 1 - a function of that edge alone, so two faces still agree on it.
+  // (A first try passed "straight" across thin faces instead: it ran across every C172 row and left the centreline
+  // ridge at 21 deg - the edge the user sees.)
+  const fixedE = [];
+  for (const e of deckEdges.values()) if (!e.bend) fixedE.push(e);
+  const segD = (p, a, b) => {
+    const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], l2 = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
+    const t = l2 > 0 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * d[0] + (p[1] - a[1]) * d[1] + (p[2] - a[2]) * d[2]) / l2)) : 0;
+    return Math.hypot(p[0] - a[0] - t * d[0], p[1] - a[1] - t * d[1], p[2] - a[2] - t * d[2]);
+  };
+  for (const e of deckEdges.values()) {
+    e.w = e.bend ? 1 : 0;
+    if (!e.bend || !(o.taper > 0) || !fixedE.length) continue;
+    const pa = V[e.a], pb = V[e.b], mid = [(pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2, (pa[2] + pb[2]) / 2];
+    let dm = Infinity;
+    for (const f of fixedE) { const dd = segD(mid, V[f.a], V[f.b]); if (dd < dm) dm = dd; }
+    e.w = Math.min(1, dm / o.taper);
   }
   // an edge's k-1 inner points, from a to b (a < b); straight when it may not bend
   for (const [key, e] of deckEdges) {
@@ -9002,7 +9007,8 @@ function cageEyeRefine(m, opt) {
       if (bend) {
         const t2 = t * t, t3 = t2 * t;
         const h00 = 2 * t3 - 3 * t2 + 1, h10 = t3 - 2 * t2 + t, h01 = -2 * t3 + 3 * t2, h11 = t3 - t2;
-        p = [0, 1, 2].map(i => h00 * pa[i] + h10 * ta[i] + h01 * pb[i] + h11 * tb[i]);
+        p = [0, 1, 2].map(i => { const L = pa[i] + (pb[i] - pa[i]) * t;
+          return L + e.w * (h00 * pa[i] + h10 * ta[i] + h01 * pb[i] + h11 * tb[i] - L); });
       } else p = [0, 1, 2].map(i => pa[i] + (pb[i] - pa[i]) * t);
       e.pts.push(addV(p, NAo ? lerpA(A[e.a], A[e.b], t) : null, t < 0.5 ? e.a : e.b));
     }

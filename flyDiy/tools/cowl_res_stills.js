@@ -25,6 +25,8 @@ const BUILDS = opt('builds', 'builds/cessna172_2026-09-20_corrected.json,builds/
 const MODES = opt('modes', 'before,after').split(',');
 const WAIT = +opt('wait', 9000);
 const LOG = argv.includes('--log');
+const NOHIDE = argv.includes('--nohide');
+const LOOKS = [['left', 0.75, -0.45], ['right', -0.75, -0.45], ['down', 0, -0.6]];   // rad: yaw (+ = left), pitch             // the page as it is (a rig check)
 const ROOT = path.join(__dirname, '..', '..');            // the repo root: the page is /flyDiy/dev.html
 const MAIN = 'D:/Dev/DeGaRoR.github.io';
 const PORT = 8700 + (process.pid % 200), DBG = 9700 + (process.pid % 200);
@@ -58,35 +60,63 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   const mouse = (type, x, y) => cmd('Input.dispatchMouseEvent', { type, x, y, button: 'left', buttons: type === 'mouseReleased' ? 0 : 1, clickCount: 1 });
   await cmd('Page.enable'); await cmd('Runtime.enable');
   await cmd('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
-  await cmd('Page.navigate', { url: 'http://127.0.0.1:' + PORT + '/flyDiy/dev.html' });
-  let up = false;
-  for (let i = 0; i < 90 && !up; i++) { await sleep(1000); up = await ev("!!(window.CAGE_UI && window.GARAGE_SPEC && window.GARAGE_SPEC.set && document.querySelector('.edCam'))").catch(() => false); }
-  if (!up) throw new Error('the garage never came up');
+  // ?world=none: the island's first layout is not what this looks at (panel_shot's way)
+  await cmd('Page.navigate', { url: 'http://127.0.0.1:' + PORT + '/flyDiy/dev.html?world=none' });
+  // THE GARAGE BOOT FIRST (panel_shot): the #boot overlay ("before you fly", the loader) stands over the shed until the
+  // editor's own build is done - a still taken under it is the loading screen, not the aeroplane
+  const BOOTUP = '(()=>{const b=document.getElementById("boot");return !!(b&&!b.hidden&&getComputedStyle(b).display!=="none");})()';
+  const READY = "!!(window.CAGE_UI && window.GARAGE_SPEC && window.GARAGE_SPEC.set && document.querySelector('#edRail [data-f=\"camera\"]'))";
+  const settle = async (n, what) => { for (let i = 0; i < n; i++) { await sleep(1000);
+    const up = await ev(BOOTUP).catch(() => true), ok = await ev(READY).catch(() => false);
+    if (!up && ok && i > 3) return true; } throw new Error(what + ': the boot overlay never went (' + n + ' s)'); };
+  await settle(180, 'the garage');
   await sleep(3000);
   await ev("(()=>{[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0).forEach(x=>x.click());return 1})()");
-  const pill = k => "(()=>{const b=[...document.querySelectorAll('.edCam button')].find(x=>x.textContent.trim()==='" + k + "');if(!b)return false;b.click();return !b.disabled})()";
+  if (NOHIDE) { await shot('boot'); console.log('cowl_res_stills: canvases ' + await ev("JSON.stringify([...document.querySelectorAll('canvas')].map(c=>[c.id,c.className,c.clientWidth,c.clientHeight,getComputedStyle(c).display,getComputedStyle(c).visibility]))")); }
+  // the pills live in the rail's camera flyout (editor.js buildCamera): the rail's camera opens it, the pill is pressed
+  // once it has filled, and the rail's camera closes it again (panel_shot's way)
+  const RAILCAM = "(()=>{const r=document.querySelector('#edRail [data-f=\"camera\"]');if(r)r.click();return !!r})()";
+  const pill = async k => {
+    await ev(RAILCAM); await sleep(500);
+    let got = 0;
+    for (let i = 0; i < 20 && !got; i++) {
+      got = await ev("(()=>{const p=[...document.querySelectorAll('#edFlyBody .pill')].find(b=>b.textContent.trim()==='" + k + "');if(!p)return 0;if(p.disabled)return -1;p.click();return 1})()");
+      if (!got) await sleep(300);
+    }
+    await sleep(300); await ev(RAILCAM);
+    return got === 1;
+  };
   const info = [];
   for (const b of BUILDS) {
     const raw = JSON.parse(fs.readFileSync(path.join(__dirname, '..', b), 'utf8'));
     const spec = raw.spec || raw, tag = path.basename(b, '.json');
     for (const mode of MODES) {
-      await ev(pill('3/4 front'));
+      await pill('3/4 front');
       await ev("(()=>{window.CAGE_UI.eyeRefine = " + (mode === 'after') + "; window.GARAGE_SPEC.set(" + JSON.stringify(spec) + "); return 1})()");
       await sleep(WAIT);
+      await settle(120, tag + ' ' + mode);
       await ev("(()=>{[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0).forEach(x=>x.click());return 1})()");
       // the aeroplane alone: everything that is not the canvas's own line hidden (garage_shot --clean)
-      await ev("(()=>{const c=document.querySelector('canvas');document.querySelectorAll('body *').forEach(el=>{el.style.visibility='';});const keep=new Set();let e=c;while(e){keep.add(e);e=e.parentElement;}document.querySelectorAll('body *').forEach(el=>{if(!keep.has(el)&&!el.contains(c))el.style.visibility='hidden';});return 1})()");
+      const HIDE = "(()=>{document.querySelectorAll('body *').forEach(el=>{el.style.visibility='';});const c=[...document.querySelectorAll('canvas')].sort((x,y)=>y.clientWidth*y.clientHeight-x.clientWidth*x.clientHeight)[0];const keep=new Set();let e=c;while(e){keep.add(e);e=e.parentElement;}document.querySelectorAll('body *').forEach(el=>{if(!keep.has(el)&&!el.contains(c))el.style.visibility='hidden';});return 1})()";
+      if (!NOHIDE) await ev(HIDE);
       const drew = await ev("JSON.stringify((()=>{try{let fus=null;const S=window.CAGE_SCENE;const walk=o=>{if(o.userData&&o.userData.bodyZones){fus=o;}(o.children||[]).forEach(walk);};if(S)walk(S);const g=fus&&fus.geometry;return {fuselageVerts:g?g.attributes.position.count:null,deckSplit:!!(fus&&fus.userData.eye),eyeAppended:fus&&fus.userData.eye?fus.userData.eye.parent.length:0,cowl:window.CAGE_COWL?{len:window.CAGE_COWL.len,aps:window.CAGE_COWL.aps}:null,eyeRefine:window.CAGE_UI.eyeRefine};}catch(e){return {err:String(e)};}})())");
-      const ok = await ev(pill('interior'));
+      const ok = await pill('interior');
       if (!ok) { console.log('cowl_res_stills: ' + tag + ' ' + mode + ': no interior view (no pilot?)'); continue; }
       await sleep(3500);
+      if (!NOHIDE) await ev(HIDE);                      // the flyout the pill may have opened
+      // THE EYE ASSERTED (the stills-rig rule): the camera within 0.5 m of the crew layer's eye marker, else no picture
+      const eye = JSON.parse(await ev("JSON.stringify((()=>{const E=window.CAGE_CREW_EYE,F=window.FLIGHT_PROBE,c=F&&F.camera&&F.camera();if(!E||!c)return {ok:false,why:!E?'no crew eye':'no camera'};const p=c.position;const d=Math.hypot(p.x-E.p[0],p.y-E.p[1],p.z-E.p[2]);return {ok:d<0.5,d:+d.toFixed(3),boot:" + BOOTUP + "};})())"));
+      console.log('cowl_res_stills: ' + tag + ' ' + mode + ' eye ' + JSON.stringify(eye));
+      if (!eye.ok || eye.boot) { console.log('cowl_res_stills: ' + tag + ' ' + mode + ': NOT at the pilot\'s eye - no picture'); continue; }
       await shot(tag + '_' + mode + '_ahead');
-      // the same head drag every time: left and a little down
-      await mouse('mouseMoved', 960, 540); await mouse('mousePressed', 960, 540);
-      for (let s = 1; s <= 12; s++) { await mouse('mouseMoved', 960 - s * 22, 540 + s * 5); await sleep(16); }
-      await mouse('mouseReleased', 960 - 12 * 22, 540 + 12 * 5);
-      await sleep(2500);
-      await shot(tag + '_' + mode + '_left');
+      // the head turned the same way every time (HEAD_CAM, panel_shot's handle; the mouse drag did not move it):
+      // over each shoulder of the nose and down - from the seat the deck and the cowl sit under the glareshield line
+      for (const [nm, yaw, pitch] of LOOKS) {
+        await ev("(()=>{if(window.HEAD_CAM){HEAD_CAM.yaw=" + yaw + ";HEAD_CAM.pitch=" + pitch + ";}return 1})()");
+        await sleep(2000);
+        await shot(tag + '_' + mode + '_' + nm);
+      }
+      await ev("(()=>{if(window.HEAD_CAM){HEAD_CAM.yaw=0;HEAD_CAM.pitch=0;}return 1})()");
       const row = Object.assign({ build: tag, mode }, JSON.parse(drew));
       info.push(row); console.log('cowl_res_stills: ' + JSON.stringify(row));
     }

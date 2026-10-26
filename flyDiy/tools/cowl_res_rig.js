@@ -119,7 +119,8 @@ for (const b of BUILDS) {
   const row = { build: path.basename(b), cowlLoops: P.cowlLoops, cowlOn: P.cowlOn, sheetMs: tSheet };
   row.dash = facets(m, f => f.m === 'dash' || f.m === 'dashFace', unit);
   if (!zn) { row.deck = null; report.push(row); continue; }
-  const ro = EDGE ? { zNose: zn.z0, edge: EDGE / unit } : { zNose: zn.z0, k: K };
+  const TAPER = +opt('taper', 0.05);   // m, the page's default
+  const ro = EDGE ? { zNose: zn.z0, edge: EDGE / unit, taper: TAPER / unit } : { zNose: zn.z0, k: K, taper: TAPER / unit };
   const r = G.cageEyeRefine(m, ro);
   // the deck as the pass picks it, before and after: the faces it split (before) and their children (after)
   const nS = r.nSheet || m.V.length;
