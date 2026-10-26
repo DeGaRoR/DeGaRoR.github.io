@@ -9,11 +9,14 @@
 //   cache     bags20p3                                            - casting + feet, the near map cached (redrawn when a caster moves, or 2 s)
 //   hz12      bags20p3 ?posedhz=12                                - the near map redrawn at 12 Hz while one idles
 //   every     bags20p3 ?posedhz=60                                - redrawn every frame while one idles
+//   board     bags20p3 ?posedhz=12 - the plane nearby (A0 / the user 26 Oct): the line released, walking out and boarding
+//             beside the C172, then `Fly the circuit` once all are seated (a press seats everyone at once, so the plane
+//             never moves while one queues) and the roll-off; --boardSecs (30) of frames, split: people shown / the taxi
 // Each row, over --secs (10) of frames: the frame time (rAF: median, p95, frames over 100 ms), the draws and triangles a
 // frame (renderer.info summed over the frame's render calls) and those inside the shadow passes (shadowMap.render wrapped),
 // the near map's draws / holds (SHADOW_NEAR.CACHE.stat), and the crowd's shown / posed / line. -> crowd_cost.json + a table.
 //   cd <worktree> && node flyDiy/tools/_serve.js 8165 . --fallback D:/Dev/DeGaRoR.github.io &
-//   node flyDiy/tools/crowd_cost.js [--port 8165] [--out <dir>] [--people adam,jody,kate] [--page dev.html] [--secs 10] [--rows none,off,nofeet,cache,hz12,every]
+//   node flyDiy/tools/crowd_cost.js [--port 8165] [--out <dir>] [--people adam,jody,kate] [--page dev.html] [--secs 10] [--rows none,off,nofeet,cache,hz12,board,every] [--boardSecs 30]
 // Numbers only (the table is A0's to judge): exits 0 when every row measured, 1 when one did not. Guarded by boxlock (GPU).
 'use strict';
 const fs = require('fs'), path = require('path'), cp = require('child_process'), http = require('http'), os = require('os');
@@ -22,10 +25,11 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i
 const PORT = +opt('port', 8165);
 const OUT = path.resolve(opt('out', path.join(os.tmpdir(), 'crowd_cost')));
 const PEOPLE = (opt('people', '') || '').split(',').filter(Boolean);
-const SECS = +opt('secs', 10);
+const SECS = +opt('secs', 10), BOARD_SECS = +opt('boardSecs', 30);
 const PAGE = 'http://127.0.0.1:' + PORT + '/flyDiy/' + opt('page', 'dev.html') + '?audio=0&freight=1';
-const ROWS = { none: ['parts60', ''], off: ['bags20p3', '&crowdshadow=0&crowdcontact=0'], nofeet: ['bags20p3', '&crowdcontact=0'], cache: ['bags20p3', ''], hz12: ['bags20p3', '&posedhz=12'], every: ['bags20p3', '&posedhz=60'] };
-const WANT = (opt('rows', 'off,none,nofeet,cache,hz12,every')).split(',').filter(k => ROWS[k]);
+const ROWS = { none: ['parts60', ''], off: ['bags20p3', '&crowdshadow=0&crowdcontact=0'], nofeet: ['bags20p3', '&crowdcontact=0'], cache: ['bags20p3', ''], hz12: ['bags20p3', '&posedhz=12'], every: ['bags20p3', '&posedhz=60'],
+  board: ['bags20p3', '&posedhz=12'] };
+const WANT = (opt('rows', 'off,none,nofeet,cache,hz12,board,every')).split(',').filter(k => ROWS[k]);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const CHROME = ['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
   '/usr/bin/google-chrome'].find(p => fs.existsSync(p));
@@ -91,15 +95,19 @@ async function chrome() {
       const to = one.R.P.pts[one.R.P.pts.length - 1]; let dx = to[0] - c[0], dz = to[1] - c[2]; const L = Math.hypot(dx, dz) || 1; dx /= L; dz /= L;
       return { p: [c[0] - dz * 8 - dx * 2, c[1] + 1.7, c[2] + dx * 8 - dz * 2], t: [c[0] + dx * 2, c[1] + 0.9, c[2] + dz * 2] };
     });
+    // (the board row keeps the free eye beside the line: the plane rolls off through it)
     const put = eye ? await P.ev(e => !!window.FLYDIY_PREM_EYE(e.p, e.t), eye) : false;
     await sleep(3000);   // settled: the eye's first frames, the near map's first draw
-    const m = await P.ev(secs => new Promise(res => {
+    const m = await P.ev(([secs, board]) => new Promise(res => {
       const R = window.FLYDIY_RENDERER, info = R.info, SM = R.shadowMap, SN = window.SHADOW_NEAR;
       const st0 = SN && SN.CACHE ? Object.assign({}, SN.CACHE.stat) : null;
       const au = info.autoReset; info.autoReset = false; info.reset();
       const sh = { calls: 0, tris: 0 }, orig = SM.render;
       SM.render = function () { const c = info.render.calls, t = info.render.triangles; const r = orig.apply(this, arguments); sh.calls += info.render.calls - c; sh.tris += info.render.triangles - t; return r; };
-      const dts = [], calls = [], tris = [], scalls = [], stris = [], crowd = [];
+      const dts = [], calls = [], tris = [], scalls = [], stris = [], crowd = [], withP = [];
+      // the board row: released now; `Fly the circuit` pressed once everyone sat (the crowd's seats handed back)
+      let pressed = !board, pressAt = null;
+      if (board) window.CROWD.last.runs[0].R.go();
       let last = performance.now(); const t0 = last;
       const tick = () => {
         const now = performance.now();
@@ -107,21 +115,26 @@ async function chrome() {
         calls.push(info.render.calls); tris.push(info.render.triangles); scalls.push(sh.calls); stris.push(sh.tris);
         info.reset(); sh.calls = 0; sh.tris = 0;
         const c = window.FLYDIY_CROWD ? window.FLYDIY_CROWD() : null; if (c && c.stats) crowd.push(c.stats);
+        withP.push(!!(c && c.stats && c.stats.shown > 0));
+        if (!pressed && c && !c.seats.length && !(c.stats && c.stats.shown)) { pressed = true; pressAt = dts.length; const b = document.getElementById('bGo'); if (b) b.click(); }
         if (now - t0 < secs * 1000) return requestAnimationFrame(tick);
         SM.render = orig; info.autoReset = au;
         const st1 = SN && SN.CACHE ? SN.CACHE.stat : null;
         const q = (a, f) => { const s = a.slice(1).sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(f * s.length))] : null; };
         const last1 = crowd[crowd.length - 1] || {};
-        res({ frames: dts.length - 1, p50: q(dts, 0.5), p95: q(dts, 0.95), over100: dts.slice(1).filter(d => d > 100).length,
+        const part = f => { const a = dts.filter((d, i) => i > 0 && f(i)); return a.length ? { n: a.length, p50: q([0].concat(a), 0.5), p95: q([0].concat(a), 0.95), over100: a.filter(d => d > 100).length } : null; };
+        res({ split: board ? { people: part(i => withP[i]), taxi: pressAt != null ? part(i => i > pressAt + 30) : null, pressedAt: pressAt } : null, frames: dts.length - 1, p50: q(dts, 0.5), p95: q(dts, 0.95), over100: dts.slice(1).filter(d => d > 100).length,
               calls: q(calls, 0.5), tris: q(tris, 0.5), shadowCalls: q(scalls, 0.5), shadowTris: q(stris, 0.5), shadowCallsP95: q(scalls, 0.95),
               nearDrawn: st0 && st1 ? st1.drawn - st0.drawn : null, nearHeld: st0 && st1 ? st1.held - st0.held : null, nearWhys: st1 ? st1.whys : null,
               shown: last1.shown, posed: last1.posed, line: last1.line, feet: last1.feet });
       };
       requestAnimationFrame(tick);
-    }), SECS).catch(e => ({ err: String(e && e.message || e) }));
+    }), [key === 'board' ? BOARD_SECS : SECS, key === 'board']).catch(e => ({ err: String(e && e.message || e) }));
     if (m.err) { bad++; console.log('  FAIL ' + key + ': ' + m.err); } else if (!put) console.log('  note ' + key + ': PREM_EYE refused the eye (the row measured the roll-out view)');
     rows.push(Object.assign({ key, load, qs, eye: put, errors: P.errors.slice(0, 3) }, m));
-    console.log('  ' + key.padEnd(6) + (m.err ? '' : ` p50 ${m.p50.toFixed(2)} p95 ${m.p95.toFixed(2)} ms  over100 ${m.over100}  draws ${m.calls} (shadow ${m.shadowCalls}, p95 ${m.shadowCallsP95})  tris ${(m.tris / 1e3).toFixed(0)}k (shadow ${(m.shadowTris / 1e3).toFixed(0)}k)  near map ${m.nearDrawn} drawn / ${m.nearHeld} held  crowd shown ${m.shown} posed ${m.posed} feet ${m.feet}`));
+    console.log('  ' + key.padEnd(6) + (m.err ? '' : ` p50 ${m.p50.toFixed(2)} p95 ${m.p95.toFixed(2)} ms  over100 ${m.over100}  draws ${m.calls} (shadow ${m.shadowCalls}, p95 ${m.shadowCallsP95})  tris ${(m.tris / 1e3).toFixed(0)}k (shadow ${(m.shadowTris / 1e3).toFixed(0)}k)  near map ${m.nearDrawn} drawn / ${m.nearHeld} held  crowd shown ${m.shown} posed ${m.posed} feet ${m.feet}`) +
+      (m.split ? `
+         people walking/boarding: ${JSON.stringify(m.split.people)}  the taxi after the press: ${JSON.stringify(m.split.taxi)}` : ''));
   }
   P.close();
   fs.writeFileSync(path.join(OUT, 'crowd_cost.json'), JSON.stringify({ page: PAGE, secs: SECS, people: PEOPLE, rows }, null, 1));
