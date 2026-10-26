@@ -442,6 +442,19 @@ function cageJoinSpec(P, M, T) {
   // 'cabin.glazing') - written only when off, an open cockpit stayed open in
   // the file through the garage's merge after the row came back on
   if (P.glazeOn != null) cabin.glazing = +P.glazeOn ? 'glass' : 'none';
+  // G3511: EVERY SEATED SECTION OPEN IS AN OPEN COCKPIT — the drawn holes are
+  // the flown ones: the drag's open-cockpit term (the hole + a head per seat,
+  // genFusCdA) instead of a closed cabin's screen step. A section left closed
+  // (a cabin ahead of an open rear seat) keeps the cabin's glazing.
+  {
+    const r = k => Math.round(+P[k] || 0);
+    if (cabin.glazing === 'glass' && r('cpOpen') > 0) {
+      let all = true;
+      for (let n = 1; n <= Math.min(4, r('paxCount')); n++)
+        if (r('paxOcc' + n) > 0 && !(r('paxOpen' + n) > 0)) all = false;
+      if (all) cabin.glazing = 'none';
+    }
+  }
   // T2.2: the glazing MATERIAL (the cage's one row) and the glazed AREA the
   // editor measured off its built sheet (CAGE_UI.glazedM2, m2 after the scale)
   if (P.glazeMat != null)

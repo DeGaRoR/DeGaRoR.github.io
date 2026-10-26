@@ -270,7 +270,9 @@ const CAGE_PARTS = [
       // G1321; selecting Fuselage still shows them all, part by part)
       ['longerons', ['bandH', 'crSill', 'crKeel', 'crCeil', 'ceilInset',
                      'ringPullIn']],
-      ['roundness', ['topRound', 'botRound']],
+      // G3510: the round body (the aero nose's full rings) is the whole
+      // shell's choice, beside the roundness it is shaped by
+      ['roundness', ['topRound', 'botRound', 'aeroNose']],
       ['section angles', ['topAngCeil', 'topAngRoof'], EXPERT],
       ['creases', ['crPillar', 'crBand', 'crCap', 'crFrame'], EXPERT],
       ['compensation', ['topComp'], EXPERT],
@@ -308,6 +310,9 @@ const CAGE_PARTS = [
       // 2026-09-03, it was the strangest row in the audit: a cage shape control
       // sitting in a layer that can be switched off.
       ['front', ['noseFinish', 'cowlLoops', 'cowlEase', 'cowlEaseBot', 'cowlBulge']],
+      // G3510: the round body's front — its forward section and the cone to
+      // the engine face (or the point), the rows G19 wrote
+      ['round body front', ['aeroWsLen', 'aeroLen', 'aeroTipW', 'aeroTipH', 'aeroDroop']],
       // THE COWL LOOPS' OWN WIDTHS (the nose ring pair's deck lift and bottom
       // became the nose FRAME's rows, T2.1; the loops are not frames)
       ['cowl loops', ['ringCowl1W', 'ringCowl2W']],
@@ -348,6 +353,11 @@ const CAGE_PARTS = [
       // (the window ring and cabin pillar offsets, and the cabin pillar's
       // lean, are the door-post and cabin FRAMES' rows under Fuselage, T2.1)
       ['pillars', ['pillarW', 'cabPillarW'], EXPERT],
+      // G3511: THE PILOT'S SECTION OPEN AT THE TOP, and the rows every
+      // opening shares (the coaming is the window joints' strip, the screens
+      // are glazing: their sections stay those parts')
+      ['opening', ['cpOpen', 'openCut', 'openFore', 'openAft', 'openRim',
+                   'openScreen', 'openScreenH', 'openScreenRake']],
     ] },
 
   // the section leaves the design draws under Cabin. Each is a real material
@@ -474,6 +484,8 @@ const CAGE_PARTS = [
       // G180: who sits in each bay is the BAY's own row — click a bay, seat
       // its passengers (bays counted front to back from the cockpit)
       ['aboard', ['paxOcc1', 'paxOcc2', 'paxOcc3', 'paxOcc4']],
+      // G3511: each bay open at the top on its own row
+      ['opening', ['paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4']],
       // G1321 (the user: "map these sections to their respective parts in
       // the editor's tree"): the frame this part shapes, moved from Fuselage
       ['passenger frame', ['frPaxTopY', 'frPaxWaistW', 'frPaxBotY']],

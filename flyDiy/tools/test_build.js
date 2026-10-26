@@ -585,9 +585,14 @@ function nullPaths(o, pre, out) {
     // ruling: a design must survive a default that moves), so the lean
     // theorem of G140/G189 is inverted — the re-save carries the whole table,
     // whatever vintage it came from
+    // (G3511: the occupant openings' rows are the one stated exception — they
+    // are absent while every section is closed, so a build that never opened
+    // one keeps every key the game hashes it by: CAGE_OPEN_ROWS, cageToSpec)
+    const shutRows = CAGE2.CAGE_OPEN_ROWS && !CAGE2.cageAnyOpen(P1) ? CAGE2.CAGE_OPEN_ROWS : [];
     const thin = Object.keys(slim).length,
           table = Object.keys(P1).filter(k => !(k in CAGE2.CAGE_VIEW_KEYS) &&
-                                              typeof P1[k] !== 'function').length;
+                                              typeof P1[k] !== 'function' &&
+                                              !shutRows.includes(k)).length;
     ok(thin === table, 'and the re-save of ' + f + ' carries every row (' +
        thin + ' of ' + table + ')');
   }
@@ -605,11 +610,20 @@ function nullPaths(o, pre, out) {
   const full = () => Object.assign(CAGE2.cageDefaults(), clone(CAGE_PAGE.defaults));
   const F0 = full();
   const baked = CAGE2.cageToSpec(F0) || {};
+  // (G3511: but the openings' rows while every section is closed — and the
+  // first one opened brings them all into the file)
+  const shut = CAGE2.CAGE_OPEN_ROWS || [];
   const want = Object.keys(F0).filter(k => !(k in CAGE2.CAGE_VIEW_KEYS) &&
-                                            typeof F0[k] !== 'function');
+                                            typeof F0[k] !== 'function' && !shut.includes(k));
   ok(Object.keys(baked).length === want.length && want.every(k => k in baked),
      'the default aeroplane bakes to EVERY row it knows (' +
      Object.keys(baked).length + ' keys) — a default that moves cannot move a saved design');
+  {
+    const opened = CAGE2.cageToSpec(Object.assign(full(), { paxOpen1: 1 })) || {};
+    ok(shut.length > 0 && !shut.some(k => k in baked) && shut.every(k => k in opened),
+       'G3511: the opening rows are absent from a closed build (' + shut.filter(k => k in baked).length +
+       ' present) and ALL written once one section opens (' + shut.filter(k => k in opened).length + ' of ' + shut.length + ')');
+  }
   ok(baked.crKeel === CAGE2.CAGE_PARAMS.crKeel && baked.finThick === F0.finThick &&
      !('explodeD' in baked),
      '...cage rows and layer rows at their values, the view keys out');

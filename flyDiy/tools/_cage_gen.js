@@ -320,6 +320,37 @@ function cageResolve(S) {
     (GL.sky && rank < GL.ext) ? MATS.pilot.roof : 'body';
   const matPilot = { ...MATS.pilot, roof: roofFor(0) };
   const matPax = i => ({ ...MATS.pax, roof: roofFor(S.pax.count - i) });
+  // G3511: AN OPEN SECTION is plain skin (an open cockpit has no side
+  // windows, no skylight, no door) and carries `openAs`, which the post-pass
+  // below (openBays) turns into the two coaming rings and the open sub-bay
+  const OPN = S.open || null;
+  const paxOpen = i => !!(OPN && OPN.pax[i]);
+  const matPaxO = i => paxOpen(i) ? CAGE_MAT.plain : matPax(i);
+  const openBays = () => {
+    if (!OPN) return;
+    for (let i = rings.length - 2; i >= 0; i--) {
+      const b = bays[i];
+      if (!b || !b.openAs) continue;
+      const A = rings[i], B = rings[i + 1];
+      const za = (A.lv.waist || A.lv.keel).z, zb = (B.lv.waist || B.lv.keel).z;
+      const L = Math.max(1e-6, zb - za);
+      // the decking kept at each end; the opening keeps a tenth of the bay
+      const tA = Math.min(0.45, OPN.aft / L);
+      const tB = Math.max(tA + 0.1, 1 - OPN.fore / L);
+      const aOn = tA > 1e-3, bOn = tB < 1 - 1e-3;
+      // the bay's own entry is the decking aft of the opening, or the
+      // opening itself when it starts at the aft ring; the bay's guards are
+      // a step-2 device (the crease step the game draws has none)
+      const tag = b.openAs;
+      delete b.openAs; b.guards = null;
+      const add2 = [], bay2 = [];
+      if (aOn) { add2.push(lerpRing(A, B, tA, tag + 'OpenA')); bay2.push({ mat: b.mat, open: tag }); }
+      else b.open = tag;
+      if (bOn) { add2.push(lerpRing(A, B, tB, tag + 'OpenB')); bay2.push({ mat: b.mat }); }
+      rings.splice(i + 1, 0, ...add2);
+      bays.splice(i + 1, 0, ...bay2);
+    }
+  };
 
   const zPaxB = S.ring.z - S.pilot.len - S.cabinPillarW
               - S.pax.count * S.pax.len - (S.pax.count - 1) * S.paxPillarW;
@@ -577,15 +608,18 @@ function cageResolve(S) {
   const paxLoops = PF ? Math.max(0, Math.min(2, Math.round(PF.loops || 0))) : 0;
   if (!MIR) for (let i = 0; i < S.pax.count; i++) {
     add(fullRing('pilPaxB' + (i || ''), z, i === 0 ? paxAftD : paxD(z)),
-        { mat: matPax(i), guards: [S.pax.guardTA, S.pax.guardTB] });
+        paxOpen(i) ? { mat: CAGE_MAT.plain, openAs: 'pax' + i }     // G3511
+          : { mat: matPax(i), guards: [S.pax.guardTA, S.pax.guardTB] });
     // former loops (the crest idiom): non-structural samples of the profile
     // inside the bay, so a curve reads on a single bay; the sub-bays carry
     // no guards (full-bay ts), the bay's own material
     if (paxLoops) for (let s = 1; s <= paxLoops; s++) {
       const zl = z + S.pax.len * s / (paxLoops + 1);
-      add(fullRing('paxLoop' + i + '_' + s, zl, paxD(zl)), { mat: matPax(i) });
+      add(fullRing('paxLoop' + i + '_' + s, zl, paxD(zl)), { mat: matPaxO(i) });
     }
-    if (paxLoops) bays[bays.length - 1 - paxLoops] = { mat: matPax(i) };
+    // (G3511: an open bay's opening lies in its first sub-bay)
+    if (paxLoops) bays[bays.length - 1 - paxLoops] = paxOpen(i)
+      ? { mat: CAGE_MAT.plain, openAs: 'pax' + i } : { mat: matPax(i) };
     z += S.pax.len;
     if (i < S.pax.count - 1) {
       add(fullRing('pilPaxM' + i, z, paxD(z)),
@@ -599,7 +633,8 @@ function cageResolve(S) {
   if (!MIR) add(fullRing('pilCabA', z, S.pax.count ? cabPilD : dimF(cabPilD, 'pax')),
                 { mat: CAGE_PILLAR('pillarCabin') });
   add(fullRing('pilCabB', z + S.cabinPillarW, cabPilD),
-      { mat: matPilot, guards: [S.pilot.guardT] });
+      OPN && OPN.pilot ? { mat: CAGE_MAT.plain, openAs: 'cp' }        // G3511
+        : { mat: matPilot, guards: [S.pilot.guardT] });
   const mirrorZ = z + S.cabinPillarW / 2;
   // THE DOOR-POST FRAME (T2.1): the quarter-bay post keeps the template's
   // own derivation off the reference section (it never followed the ring
@@ -619,7 +654,18 @@ function cageResolve(S) {
       band: 'waistband', waistG: 'body', door: 'body',
       floorB: 'floorLoop', belly: 'body' };
     const z0 = S.ring.z, zWs = z0 + A.wsLen, zTip = zWs + A.len;
-    const ringAt = (name, zz) => {
+    // G3510: THE FRAMES ACT ON THE ROUND BODY'S FRONT RINGS TOO, as
+    // deviations (the rows' own semantics): the windscreen frame on the
+    // aeroWs pair, the nose frame on the tip ring (its deck is the tip's
+    // top and its width the tip's whole flank). All 0 = G19's cone.
+    const dWin = fdev('win');
+    const dNz = fdev('nose');
+    const dTip = dNz && (dNz.topY || dNz.botY || dNz.topW || dNz.botW)
+      ? { topY: dNz.topY, botY: dNz.botY, topW: dNz.topW, waistW: dNz.topW,
+          botW: dNz.botW, waistY: 0 } : null;
+    const winOn = dWin && (dWin.topY || dWin.botY || dWin.topW || dWin.waistW
+                           || dWin.botW || dWin.waistY);
+    const ringAt = (name, zz, dd) => {
       const f = Math.min(1, (zz - z0) / (zTip - z0));
       // ellipse-quadrant taper: slope 0 at the cabin, steep at the tip —
       // the outline stays CONVEX and merges into a point (the smoothstep it
@@ -628,24 +674,32 @@ function cageResolve(S) {
       const e = 1 - Math.sqrt(Math.max(0, 1 - f * f));
       const dy = -A.droop * f * f;
       const scW = 1 - (1 - A.tipW) * e, scH = 1 - (1 - A.tipH) * e;
-      const R = fullRing(name, zz, {
+      const d0 = {
         Ww: S.ring.waistHalfW * scW, Wk: W * scW, Wr: Wr * scW,
         roofY: S.waistY + (c.roofY - S.waistY) * scH,
         ceilY: S.waistY + (S.ring.ceilY - S.waistY) * scH,
         floorY: S.waistY + (S.ring.floorY - S.waistY) * scH,
         keelY: S.waistY + (S.ring.keelY - S.waistY) * scH,
-      });
+      };
+      const R = fullRing(name, zz, dd ? dimF(d0, null, dd) : d0);
       for (const k in R.lv) { R.lv[k].y += dy;
         if (R.lv[k].yC != null) R.lv[k].yC += dy; }
       return R;
     };
-    add(fullRing('ring', z0, ringD), { mat: wsZone });
-    add(ringAt('aeroWsA', zWs), { mat: CAGE_PILLAR('pillarWindow') });
-    add(ringAt('aeroWsB', zWs + A.pillarW), { mat: CAGE_MAT.plain });
+    // G3511: ahead of an OPEN pilot section the screen zone is the forward
+    // decking (the small screens stand on it, cageOpenings), not glass
+    add(fullRing('ring', z0, ringD), { mat: OPN && OPN.pilot ? CAGE_MAT.plain : wsZone });
+    add(ringAt('aeroWsA', zWs, winOn ? dWin : null), { mat: CAGE_PILLAR('pillarWindow') });
+    add(ringAt('aeroWsB', zWs + A.pillarW, winOn ? dWin : null), { mat: CAGE_MAT.plain });
     add(ringAt('noseMid', zWs + A.pillarW
         + (zTip - zWs - A.pillarW) * 0.55), { mat: CAGE_MAT.plain });
-    add(ringAt('noseTip', zTip), null);
-    return { rings, bays, aero: true,
+    add(ringAt('noseTip', zTip, dTip), null);
+    frameZ(true);
+    openBays();
+    // G3510: a FIREWALL nose (a nose engine) ends in the ENGINE FACE — the
+    // cap the cowl and the engine bolt to (capFace, as the cowl nose's);
+    // an aerodynamic one in G19's domed point
+    return { rings, bays, aero: true, aeroFace: CFG.noseFinish !== 'aero',
              rodSpan: ROD ? { zRoot: zPaxA, zTip: zCap, ring: rodRing }
                           : null };
   }
@@ -816,6 +870,10 @@ function cageResolve(S) {
   // study's measurement): the largest of a frame's three rows is held to
   // half the shorter NON-PILLAR bay beside its rings. The windscreen frame's
   // profile is already on its rings (cageSpec); it is listed for the lerp.
+  // G3510: one function, called by both fronts — the round body's rings
+  // take the cabin / passenger / boom / tail frames' fore-aft rows as the
+  // cowl body's do (its windscreen pair is not a frame of fore/aft rows)
+  function frameZ(aeroM) {
   if (S.frames && !MIR) {
     // (with no passenger bay, pilCabA stands at the passenger frame's
     // station and takes its profile ON TOP of the cabin frame's)
@@ -823,10 +881,10 @@ function cageResolve(S) {
     const NAMES = TAP
       ? { tail: ['tailCap', 'tailMid', 'tailPost'], boom: ['pilTaperA', 'pilTaperB'],
           pax: ['pilPaxA', paxB], cab: ['pilCabA', 'pilCabB'], post: ['ring'],
-          win: ['wsAft', 'wsFront'] }
+          win: aeroM ? [] : ['wsAft', 'wsFront'] }
       : { tail: ['tailCap', 'tailMid', 'tailPost'], boom: ['pilPaxA'],
           pax: [paxB], cab: ['pilCabA', 'pilCabB'], post: ['ring'],
-          win: ['wsAft', 'wsFront'] };
+          win: aeroM ? [] : ['wsAft', 'wsFront'] };
     const prof = (r, f) => {
       const yK = r.lv.keel.y, yW = r.lv.waist.y, yR = r.lv.roof.y;
       return y => {
@@ -900,6 +958,9 @@ function cageResolve(S) {
       }
     });
   }
+  }
+  frameZ(false);
+  openBays();
 
   // (the G16 bubble-canopy repositioning experiment lived here — DELETED
   // at user request 2026-08-18, pending a re-explained design once the
@@ -942,6 +1003,12 @@ function buildCage2(S, step) {
   const cutLv = CNY ? (CNY.ref === 'waist' ? 'waist' : 'band') : null;
   const cutHi = k => k === 'roof' || k === 'ceil'
     || (cutLv === 'waist' && k === 'band') || k === 'bandG';
+  // G3511: the occupant openings' own cut rail — above the ceiling rail
+  // (a turtle deck's cockpit) or above the waistband (the full width)
+  const OPN = S.open || null;
+  const opLv = OPN && OPN.cut === 'band' ? 'band' : 'ceil';
+  const opHi = k => k === 'roof' || (opLv === 'band' && (k === 'ceil' || k === 'bandG'));
+  const openRim = [], openFore = [];
   const R = cageResolve(S);
   const MIR = !!(S.config && S.config.mirror);
   const LV = sv === 0 ? ['roof', 'waist', 'keel']
@@ -961,18 +1028,19 @@ function buildCage2(S, step) {
   const bays = [];
   for (let k = 0; k < kept.length - 1; k++) {
     const i0 = keptBay[k], i1 = keptBay[k + 1];
-    let mat = null, guards = null;
+    let mat = null, guards = null, open = null;
     for (let i = i0; i < i1; i++) {
       const b = R.bays[i] || { mat: CAGE_MAT.plain };
       if (mat === null || !isPillarMat(b.mat)) { mat = b.mat; guards = b.guards; }
+      if (b.open && sv >= 1) open = b.open;         // G3511: an open sub-bay
     }
-    bays.push({ mat, guards: sv >= 2 ? guards : null });
+    bays.push({ mat, guards: sv >= 2 ? guards : null, open });
   }
 
   // stOf: the station coordinate of each seq ring. A KEPT ring is a real
   // former and takes the next integer; a guard ring takes its own bay t and
   // never an integer (see THE SURFACE FIELD).
-  const seq = [], bayOf = [], stOf = [];
+  const seq = [], bayOf = [], stOf = [], openOf = [];
   let stN = 0;
   for (let k = 0; k < kept.length; k++) {
     seq.push(kept[k]); stOf.push(stN);
@@ -984,7 +1052,7 @@ function buildCage2(S, step) {
           stOf.push(stN + t);
         }
       const subs = 1 + (b.guards ? b.guards.length : 0);
-      for (let s = 0; s < subs; s++) bayOf.push(b.mat);
+      for (let s = 0; s < subs; s++) { bayOf.push(b.mat); openOf.push(b.open || null); }
       stN++;
     }
   }
@@ -1319,8 +1387,12 @@ function buildCage2(S, step) {
     // canopy: pilot-area gaps = the pilot + quarter bays (pilot glass,
     // not a pillar); the A-pillar band gap joins the cut in 'open' only
     const cnPilot = CNY && !isPillarMat(mat) && mat.glass === 'pilotWindow';
-    const cut = CNCUT && (cnPilot
-      || (CNCUT.mode === 'open' && bayName === 'wsAft'));
+    // G3511: an OPEN occupant section's opening sub-bay — the faces above
+    // the section's own cut rail are not emitted (whole lattice faces)
+    const op = openOf[i];
+    const cut = (CNCUT && (cnPilot
+      || (CNCUT.mode === 'open' && bayName === 'wsAft'))) || !!op;
+    const cutHere = op ? opHi : cutHi;
     if (!cut) {
       face(a.C.roof, b.C.roof, b.P.roof, a.P.roof, mat.roof);
       face(a.M.roof, b.M.roof, b.C.roof, a.C.roof, mat.roof);
@@ -1336,7 +1408,13 @@ function buildCage2(S, step) {
     // poisoned there (the door hole merges with the cockpit rim once
     // the roof is gone, and interior sheets add their own boundaries) —
     // the emitter KNOWS the seam, so it says so, exactly like wsBase.
-    if (E && cut) {
+    if (E && op) {
+      // G3511: the opening's side edges — the cut rail, a boundary: weight 3
+      // (the crease law), recorded as the coaming's seam
+      tagE(a.P[opLv], b.P[opLv], 3); tagE(a.M[opLv], b.M[opLv], 3);
+      openRim.push([a.P[opLv], b.P[opLv]], [a.M[opLv], b.M[opLv]]);
+    }
+    if (E && cut && !op) {
       // bubble (user): the WHOLE window-pillar section flows smooth —
       // the quarter-bay rim relaxes to 1 and the slope rim below goes
       // free, so the old A-pillar fold melts; the canopy follows the
@@ -1356,7 +1434,7 @@ function buildCage2(S, step) {
     const sh = ordOf(seq[i]).filter(k => seq[i + 1].lv[k] != null);
     for (let k = 0; k < sh.length - 1; k++) {
       const hi = sh[k], lo = sh[k + 1], m = bandMat(mat, hi, lo);
-      if (cut && cutHi(hi)) continue;
+      if (cut && cutHere(hi)) continue;
       face(a.P[hi], b.P[hi], b.P[lo], a.P[lo], m);
       face(a.M[lo], b.M[lo], b.M[hi], a.M[hi], m);
       // zone marks (crease mode only). win = any glass band (side windows,
@@ -1443,6 +1521,32 @@ function buildCage2(S, step) {
         tagLoopLow(ids[i], r, w);
       else tagLoop(ids[i], r, w);
     });
+    // G3511: the openings' aft and fore edges — the coaming rings' (or the
+    // bay's own rings') upper arcs, rail to rail through the crown: weight
+    // 3, recorded with the side edges as the coaming's closed seam; the
+    // FORE arc separately too (the small screen stands ahead of it)
+    if (OPN) {
+      const arcRun = (o, r) => {
+        const upper = LV.slice(0, LV.indexOf(opLv) + 1).filter(k => r.lv[k] != null);
+        const run = [];
+        for (let k = upper.length - 1; k >= 0; k--) run.push(o.P[upper[k]]);
+        run.push(o.C.roof);
+        for (let k = 0; k < upper.length; k++) run.push(o.M[upper[k]]);
+        return run;
+      };
+      for (let i = 0; i + 1 < seq.length; i++) {
+        if (!openOf[i]) continue;
+        for (const [j, fore] of [[i, false], [i + 1, true]]) {
+          if ((fore ? openOf[i + 1] : (i > 0 && openOf[i - 1]))) continue;
+          const run = arcRun(ids[j], seq[j]);
+          for (let k = 0; k + 1 < run.length; k++) {
+            tagE(run[k], run[k + 1], 3);
+            openRim.push([run[k], run[k + 1]]);
+            if (fore) openFore.push([run[k], run[k + 1]]);
+          }
+        }
+      }
+    }
     // bubble: the arch's front-face outline above the cut is the canopy's
     // rear boundary (seamA) — the ordered upper run of the pilCabB loop,
     // foot to foot through the crown
@@ -1466,10 +1570,16 @@ function buildCage2(S, step) {
   // ---- forward end --------------------------------------------------------
   // aero mode: the rings already ran to the tip — close with the front cap
   if (R.aero) {
-    emitCap(ids[seq.length - 1], seq[seq.length - 1], capMat(false));
+    // G3510: with a nose engine the cap is the ENGINE FACE (marked as the
+    // cowl nose marks its own), its edge crisp at the nose cap's weight
+    emitCap(ids[seq.length - 1], seq[seq.length - 1], capMat(false), !!R.aeroFace);
+    if (E && R.aeroFace)
+      tagLoop(ids[seq.length - 1], seq[seq.length - 1], CW.noseCap != null ? CW.noseCap : CW.cap);
     orientCage({ V, F });
     emitRodFree();
-    return E ? { V, F, E, A } : { V, F, A };
+    const outA = E ? { V, F, E, A } : { V, F, A };
+    if (openRim.length) { outA.openRim = openRim; outA.openFore = openFore; outA.seamKeys = ['openRim', 'openFore']; }
+    return outA;
   }
 
   // ---- windshield slope + deck + cowl + nose (cowl mode) ------------------
@@ -2004,6 +2114,8 @@ function buildCage2(S, step) {
   if (seamA.length) out.seamA = seamA;
   if (dashRimA.length) out.dashRimA = dashRimA;
   if (seamSA.length) out.seamSA = seamSA;
+  if (openRim.length) { out.openRim = openRim; out.openFore = openFore;    // G3511
+                        out.seamKeys = ['openRim', 'openFore']; }
   // half-only emission (the S2.5 aft-spec recursion): hand the caller
   // what the reflection needs — the aperture cap range, the pilCabB
   // ring ids, and this build's own pillar-plane z
@@ -2448,10 +2560,13 @@ function cageRims(m, S) {
   // ordered, with the skin's own normals — no zone to trace
   for (const lp of (m.knifeLoops || []))
     jobs.push({ kind: 'win', faceIdxs: [], loop: lp });
+  // G3511: the occupant openings' coaming loops (cageOpenings), own size
+  for (const lp of (m.openLoops || []))
+    jobs.push({ kind: 'win', faceIdxs: [], loop: lp, open: 1 });
 
   m.outlines = [];
   const add = [];
-  for (const { kind, faceIdxs, loop } of jobs) {
+  for (const { kind, faceIdxs, loop, open } of jobs) {
     const zoneFaces = faceIdxs.map(i => F[i]);
     let ring = null;
     if (!loop) {
@@ -2680,9 +2795,9 @@ function cageRims(m, S) {
     // G207: `rimDoor` is "draw the gap" and it draws in every construction
     // now — the wooden frame the interior raises is INSIDE the doorway, the
     // seal strip is outside on the seam; `structDoor` no longer silences it
-    const enabled = kind === 'door' ? W.rimDoor
+    const enabled = open ? 1 : kind === 'door' ? W.rimDoor
       : zMat === 'windshield' ? W.rimWs : W.rimWin;
-    if (!enabled || !(W.rim > 0)) continue;
+    if (!enabled || !(open ? loop.r > 0 : W.rim > 0)) continue;
 
     // sweep an octagon section along the zone boundary of THE MESH AS
     // GIVEN — run this after subdividing and the path IS the displayed
@@ -2699,8 +2814,9 @@ function cageRims(m, S) {
     // — millimetres round a door — and it is claimed by the DOOR in the part
     // table, not by `joints`, which is why the control that already existed
     // was unfindable from the thing it controls.
-    const r = kind === 'door' ? (W.doorRim > 0 ? W.doorRim : W.rim * 0.85)
-                              : W.rim;
+    const r = open ? loop.r
+      : kind === 'door' ? (W.doorRim > 0 ? W.doorRim : W.rim * 0.85)
+                        : W.rim;
     // THE STRIP STANDS ON THE SKIN (G206): the window's outline was traced
     // on the pane, which cageCut has just recessed by paneInset — lift the
     // path back by the same amount along the outline's own normals, or the
@@ -7003,8 +7119,36 @@ const CAGE_PARAMS = {
   botRound: 0,
   noseCrown: 0, noseH: 1, noseDroop: 0, wsBaseLift: 0,
   cowlLoops: 0, cowlEase: 0, cowlBulge: 1.05, noseFinish: 0,
+  // THE ROUND BODY (G19's aero nose; G3510 NEW-SHAPES-1, the user: "the
+  // aeronose shape (ambiguously named) ... already gets rid of the more
+  // complex windshield geometry for a shapable cylinder"). aeroNose 1 runs
+  // the fuselage's FULL RINGS through the windscreen zone and on to the
+  // front — no fold, no chain, no deck: one shapable cylinder, the frames,
+  // topRound / botRound and the section rows acting on every ring of it.
+  // With a firewall nose (noseFinish 0, a nose engine) the front ends in
+  // the ENGINE FACE the cowl and the engine bolt to (G3510); aerodynamic
+  // (noseFinish 1) keeps G19's cone to a point.
   aeroNose: 0, aeroWsLen: 0.9, aeroLen: 1.5, aeroDroop: 0.30,
   aeroTipW: 0.10, aeroTipH: 0.12,
+  // THE OCCUPANT SECTIONS' OPENINGS (G3511, the user: "the sections holding
+  // the pilot and second person should be identified as proper sections,
+  // and the fuselage openings should be clean"). The pilot's section (the
+  // Cabin, pilCabB -> the window ring) and each passenger bay can be OPEN AT
+  // THE TOP: the bay's skin above the cut rail is not emitted between two
+  // COAMING RINGS laid in the bay (decking kept `openAft` ahead of the bay's
+  // aft pillar and `openFore` behind its forward ring) — whole lattice faces,
+  // so there is no sliver and no pane, and the hole's edge is creased like
+  // every boundary the cage has (the crease law). `openCut` 0 cuts above the
+  // ceiling rail (a turtle deck's cockpit, rounded corners), 1 above the
+  // waistband (the full width, square corners). `openRim` the coaming roll's
+  // half-width (the window joints' strip, its own size; 0 = none);
+  // `openScreen` a small windscreen standing on the decking ahead of each
+  // opening, `openScreenH` tall, raked back `openScreenRake` deg. All of
+  // them are ABSENT from spec.cage while every section is closed (cageToSpec,
+  // CAGE_OPEN_ROWS): a build that never opened one is the build it was.
+  cpOpen: 0, paxOpen1: 0, paxOpen2: 0, paxOpen3: 0, paxOpen4: 0,
+  openCut: 0, openFore: 0.10, openAft: 0.10, openRim: 0.018,
+  openScreen: 1, openScreenH: 0.22, openScreenRake: 35,
   rearAperture: 0,
   boomMidOn: 0, boomMidT: 0.35, boomMidPinch: 0.6,
   // THE TAPER + THE ROD (G26, user design + v2 rulings). taperOn is the
@@ -7719,14 +7863,27 @@ function cageFromSpec(spec) {
 // empty set is still null, which is what the spec field means by null.
 // Loading (cageFromSpec) is unchanged: a slim file from before still
 // resolves — what it names it fixes, what it predates takes the default.
+// G3511: THE OPENING ROWS ARE ABSENT WHILE EVERY SECTION IS CLOSED. The file
+// states every row it knows (G377) — so a new row would ride into every saved
+// build the moment the editor saw it, and move every key the game hashes a
+// build by (the def, the certificate store's, the bench's, the parked
+// fleet's, the procurement's: STOL-WING-2's G2827 finding). While no section
+// is open the rows are inert, so they are written only once one is: a build
+// that never opened a cockpit is byte for byte the build it was.
+const CAGE_OPEN_ROWS = ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4',
+  'openCut', 'openFore', 'openAft', 'openRim', 'openScreen', 'openScreenH', 'openScreenRake'];
+const cageAnyOpen = P => !!P && ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4']
+  .some(k => Math.round(+P[k] || 0) > 0);
 function cageToSpec(P) {
   if (!P || typeof P !== 'object') return null;
   const out = {};
   let n = 0;
+  const shut = !cageAnyOpen(P);
   for (const k in P) {
     if (typeof P[k] === 'function') continue;
     if (k in CAGE_VIEW_KEYS) continue;
     if (P[k] === undefined) continue;
+    if (shut && CAGE_OPEN_ROWS.includes(k)) continue;
     out[k] = P[k]; n++;
   }
   return n ? out : null;
@@ -7868,6 +8025,18 @@ function cageSpec(P) {
     } : 0,
   };
   S.ws.baseLift = P.wsBaseLift;
+  // G3511: the occupant sections' openings (see CAGE_PARAMS). 0 = every
+  // section closed: the resolver and the emitter take the path they always did
+  S.open = cageAnyOpen(P) ? {
+    pilot: Math.round(+P.cpOpen || 0) > 0 ? 1 : 0,
+    pax: [1, 2, 3, 4].map(n => Math.round(+P['paxOpen' + n] || 0) > 0 ? 1 : 0),
+    cut: Math.round(+P.openCut || 0) ? 'band' : 'ceil',
+    fore: Math.max(0, +P.openFore || 0), aft: Math.max(0, +P.openAft || 0),
+    rim: Math.max(0, +P.openRim || 0),
+    screen: Math.round(+P.openScreen || 0) ? {
+      h: Math.max(0.03, +P.openScreenH || 0.22),
+      rake: Math.max(0, Math.min(70, +P.openScreenRake || 0)) } : 0,
+  } : 0;
 
   S.cabin = { halfW: P.halfW, roofHalfW: P.roofHalfW, roofY: P.roofY,
               keelY: P.keelY, floorY: P.floorY,
@@ -8098,6 +8267,7 @@ function cageSpec(P) {
   S.config.mirror = P.mirror ? 1 : 0;
   if (S.config.mirror) {
     S.pax.count = 0;
+    S.open = 0;            // G3511: the pod's openings are its canopy's (no occupant opening on a pod yet)
     // the pod keeps its extruded boom — taper/rod are regular-table
     // machinery (the pod chantier comes later, HANDOVER G26 roadmap)
     S.taper = 0;
@@ -8208,6 +8378,130 @@ function cageSpec(P) {
                               len: (P.thrLen != null ? +P.thrLen : 0.16) / ps };
   }
   return S;
+}
+
+// ---------------------------------------------------------------------------
+// THE OPENINGS' COAMING AND SCREENS (G3511, NEW-SHAPES-1). The occupant
+// sections' holes were cut by the emitter (whole lattice faces between the
+// coaming rings and the cut rail) and their edge recorded as the `openRim`
+// seam, which rides the subdivision: on the displayed mesh it IS the hole's
+// boundary. Two things stand on it:
+//   the COAMING  the window joints' own strip (cageJointSweep through
+//                cageRims, the `openLoops` job beside the knife's loops — the
+//                joint vocabulary does not fork), at the opening's own size
+//   the SCREEN   a small pane ahead of each opening (the `openFore` seam: the
+//                fore coaming arc), set forward of the roll, standing up and
+//                raked back, `paneThick` thick with its edge band — glass the
+//                glazing measures (CAGE_GLASS_MATS), win-marked so cageRims
+//                frames it like every other pane
+// Positions are the displayed mesh's own; nothing moves the skin.
+function cageOpenings(m, S) {
+  const OPN = S.open;
+  if (!OPN || !m.openRim || !m.openRim.length) return m;
+  const { V, F } = m;
+  const adj = edges => {
+    const g = new Map();
+    for (const [a, b] of edges) {
+      if (!g.has(a)) g.set(a, []); if (!g.has(b)) g.set(b, []);
+      g.get(a).push(b); g.get(b).push(a);
+    }
+    return g;
+  };
+  // vertex normals off the skin faces touching the seams (Newell)
+  const want = new Set();
+  for (const [a, b] of m.openRim) { want.add(a); want.add(b); }
+  const vN = new Map();
+  for (const f of F) {
+    if (!f.v.some(i => want.has(i))) continue;
+    const n = [0, 0, 0], k = f.v.length;
+    for (let i = 0; i < k; i++) {
+      const a = V[f.v[i]], b = V[f.v[(i + 1) % k]];
+      n[0] += (a[1] - b[1]) * (a[2] + b[2]); n[1] += (a[2] - b[2]) * (a[0] + b[0]);
+      n[2] += (a[0] - b[0]) * (a[1] + b[1]);
+    }
+    for (const vi of f.v) if (want.has(vi)) {
+      const q = vN.get(vi) || [0, 0, 0];
+      vN.set(vi, [q[0] + n[0], q[1] + n[1], q[2] + n[2]]);
+    }
+  }
+  const nrm = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+  const nOf = i => nrm(vN.get(i) || [0, 1, 0]);
+  // walk a seam into ordered chains: closed loops (the rim) or open runs
+  const walk = edges => {
+    const g = adj(edges), seen = new Set(), out = [];
+    const ends = [...g.keys()].filter(v => g.get(v).length === 1);
+    for (const s0 of ends.concat([...g.keys()])) {
+      if (seen.has(s0)) continue;
+      const run = [s0]; seen.add(s0);
+      let prev = -1, cur = s0;
+      for (;;) {
+        const nx = g.get(cur).find(v => v !== prev && !seen.has(v));
+        if (nx == null) break;
+        run.push(nx); seen.add(nx); prev = cur; cur = nx;
+      }
+      out.push(run);
+    }
+    return out;
+  };
+  // the coaming: one closed loop per opening, swept by cageRims
+  if (OPN.rim > 0) {
+    m.openLoops = walk(m.openRim).filter(l => l.length > 3).map(l => ({
+      pts: l.map(i => V[i].slice()), ns: l.map(nOf), mat: 'body', r: OPN.rim }));
+  }
+  // the screens
+  if (OPN.screen && m.openFore && m.openFore.length) {
+    const sc = OPN.screen, rk = sc.rake * Math.PI / 180;
+    const up = [0, Math.cos(rk), -Math.sin(rk)];          // raked back (aft = -z)
+    const out = [0, Math.sin(rk), Math.cos(rk)];          // the pane's forward face
+    const gap = 2.5 * (OPN.rim || 0.012) + 0.015;
+    const T = Math.max(0.002, (S.win && S.win.paneThick) || 0.004);
+    const NR = 3;
+    for (const run of walk(m.openFore)) {
+      if (run.length < 3) continue;
+      // the base on the decking ahead of the roll, a hair into the skin
+      const base = run.map(i => { const p = V[i], n = nOf(i);
+        return [p[0] - 0.003 * n[0], p[1] - 0.003 * n[1], p[2] + gap - 0.003 * n[2]]; });
+      const sheet = off => {
+        const ids = [];
+        for (let r = 0; r <= NR; r++) {
+          const t = r / NR, row = [];
+          for (const b of base) {
+            V.push([b[0] + up[0] * sc.h * t - out[0] * off, b[1] + up[1] * sc.h * t - out[1] * off,
+                    b[2] + up[2] * sc.h * t - out[2] * off]);
+            row.push(V.length - 1);
+          }
+          ids.push(row);
+        }
+        return ids;
+      };
+      const A = sheet(0), B = sheet(T);
+      const quad = (v, mat, face) => {
+        const p = v.map(i => V[i]);
+        const n = [0, 0, 0];
+        for (let i = 0; i < 4; i++) { const a = p[i], b = p[(i + 1) % 4];
+          n[0] += (a[1] - b[1]) * (a[2] + b[2]); n[1] += (a[2] - b[2]) * (a[0] + b[0]);
+          n[2] += (a[0] - b[0]) * (a[1] + b[1]); }
+        if (n[0] * face[0] + n[1] * face[1] + n[2] * face[2] < 0) v = v.slice().reverse();
+        const f = { v, m: mat, att: 1 };
+        if (mat === 'windshield' && face === out) f.win = 1;    // one frame, on the forward face
+        if (mat === 'paneEdge') f.paneEdge = 1;                  // (the liners and the zones skip it, as every pane edge)
+        F.push(f);
+      };
+      const nb = base.length;
+      for (let r = 0; r < NR; r++) for (let i = 0; i + 1 < nb; i++) {
+        quad([A[r][i], A[r][i + 1], A[r + 1][i + 1], A[r + 1][i]], 'windshield', out);
+        quad([B[r][i], B[r][i + 1], B[r + 1][i + 1], B[r + 1][i]], 'windshield', out.map(x => -x));
+      }
+      // the edge band round the pane (G206.2's `paneEdge`): top and both ends
+      for (let i = 0; i + 1 < nb; i++)
+        quad([A[NR][i], A[NR][i + 1], B[NR][i + 1], B[NR][i]], 'paneEdge', up);
+      for (const [i, sg] of [[0, -1], [nb - 1, 1]]) for (let r = 0; r < NR; r++) {
+        const d = [V[A[r][i]][0] - V[A[r][nb === 1 ? 0 : (i === 0 ? 1 : nb - 2)]][0], 0, 0];
+        quad([A[r][i], A[r + 1][i], B[r + 1][i], B[r][i]], 'paneEdge', d[0] ? [Math.sign(d[0]), 0, 0] : [sg, 0, 0]);
+      }
+    }
+  }
+  return m;
 }
 
 // ---------------------------------------------------------------------------
@@ -8912,6 +9206,7 @@ function cageSheetKept(spec, step, L) {
       }
     }
     s = cageCanopy(s, S);
+    s = cageOpenings(s, S);                       // G3511
     return { m, s };
   });
   const R = sheetStage('R', spec, memo, A, '', S => cageRims(sheetShallow(A.s), S));
@@ -8988,6 +9283,7 @@ function cageSheet(P, opts) {
       }
     }
     s = cageCanopy(s, spec);
+    s = cageOpenings(s, spec);                    // G3511: the coaming, the screens
     s = cageRims(s, spec);
     s = cageInterior(s, spec);
     // THE SHOULDER (G325) reads the dash's aft plane off the built dash
@@ -9064,6 +9360,7 @@ function cageFirewallZ(zOf) {
 
 if (typeof module !== 'undefined')
   module.exports = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB, cageJointSweep,
+                     CAGE_OPEN_ROWS, cageAnyOpen, cageOpenings,
                      CAGE_FRAME_KEYS, CAGE_FRAME_ORDER, CAGE_FRAME_NAMES, CAGE_LEGACY_FRAME,
                      cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                      CAGE_UNIT,
@@ -9075,6 +9372,7 @@ if (typeof module !== 'undefined')
                      CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };
 if (typeof window !== 'undefined')
   window.CAGE2 = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB,
+                     CAGE_OPEN_ROWS, cageAnyOpen, cageOpenings,
                    CAGE_FRAME_KEYS, CAGE_FRAME_ORDER, CAGE_FRAME_NAMES, CAGE_LEGACY_FRAME,
                    cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                    CAGE_UNIT,
