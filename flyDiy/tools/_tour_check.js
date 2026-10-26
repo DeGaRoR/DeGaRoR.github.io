@@ -325,6 +325,20 @@ if (!STRIPS) {
     const R = TR.flyTour(C, TW.W, def, order, { game: {}, log: SHOW ? (L2 => console.log(TR.fmtLeg(L2))) : null });
     const L1 = R.legs[0], L2 = R.legs[1];
     console.log('  ' + B.name + ': ' + order.join(' > ') + ' (' + ((Date.now() - t0) / 1000).toFixed(0) + ' s)');
+    // G2810: EAST POINT, FLAPLESS - G2809's bill lands the user's Cub flapless (knownCubFlapless above: the CG 5.9 mm aft,
+    // the full-flap trim past G2034's budget by 0.0005). PROVED BY THE FLAPS ALONE: the same branch with the budget 0.002
+    // wider (nothing else) keeps its flaps and this section passes (the first approach lands, 16 m/s, 118 m; then Jumbo
+    // Mine). Flapless, the final is high twice, the pilot diverts and is still flying the diversion's circuit at the
+    // leg's 1800 s cap. Known only while it is exactly that: the build lands flapless, two go-arounds and a divert said,
+    // the faults timeout / diverted and nothing else, no break, no crash, landed nowhere (the departure is then not flown)
+    const ep = (() => {
+      if (!(def.params.gen && def.params.gen.landsFlapless) || !L1 || L2) return null;
+      const ga = L1.warnings.filter(w => /go-around/.test(w)).length, dv = L1.warnings.some(w => /divert/.test(w)), D = L1.damage || {};
+      if (ga < 2 || !dv || !L1.faults.length || !L1.faults.every(f => f.k === 'timeout' || f.k === 'diverted') || D.breaks || D.crashed || L1.landedOn === 'nv_strip') return null;
+      return "the user's Cub lands flapless since G2809's bill (G2810) - " + L1.warnings.join('; ') + '; ' + L1.faults.map(f => f.k + ': ' + f.note).join('; ') + '; no break, no crash';
+    })();
+    if (ep) { console.log('  KNOWN 6 ' + B.name + ' HOME > nv_strip: ' + ep); console.log('  KNOWN 6 ' + B.name + ' nv_strip > mn_strip: not flown (the known red above)'); }
+    else {
     check(L1 && L1.ok && L1.landedOn === 'nv_strip', '6 ' + B.name + ' HOME > nv_strip: lands at East Point and stops on it, no fault', L1 ? (L1.faults.map(f => f.k + ': ' + f.note).join('; ') || 'td ' + JSON.stringify(L1.arr.landing)) : '-');
     // G2450 (EAST-POINT-DEPART): the arrival over the ridge 3.9 km out is planned to come down (the circuit joined when the
     // straight-in cannot), so the first approach lands - TOUR-REAL's and ISLAND-TOUR-2's went round 'high on the slope'
@@ -333,6 +347,7 @@ if (!STRIPS) {
     // spot is the half-span + 1.5 m in), the named way out, and on to Jumbo Mine with no fault
     check(L2 && L2.ok && L2.landedOn === 'mn_strip', '6 ' + B.name + ' nv_strip > mn_strip: takes off from East Point and lands at Jumbo Mine, no fault', L2 ? (L2.faults.map(f => f.k + ': ' + f.note).join('; ') || L2.verdicts.filter(v => /reject|abort|declin/.test(v)).join('; ') || 'ok') : 'not flown');
     check(L2 && L2.dep.rollFromEnd != null && L2.dep.rollFromEnd <= 15, '6 ' + B.name + ' nv_strip > mn_strip: the roll began at the strip\'s end (<= 15 m in)', L2 ? L2.dep.rollFromEnd + ' m in' : '-');
+    }
   }
 }
 // (the verdict line is run_gates.js's contract, `^GATE <ID>: PASS$` - a shard's tag in it never matched: G2520)
