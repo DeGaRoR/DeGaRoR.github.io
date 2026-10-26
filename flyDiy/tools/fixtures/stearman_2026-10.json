@@ -638,7 +638,7 @@
    "wgThick": 12,
    "wgTip": 2,
    "wgPos": 3,
-   "wgCentre": 0,
+   "wgCentre": 3,
    "wgCentreW": 0,
    "wgBrace": 1,
    "wgCrankAt": 0,
@@ -1091,7 +1091,7 @@
      1.006,
      1.346
     ],
-    "centre": "solid",
+    "centre": "cutout",
     "centreW": null,
     "beam": "on",
     "xLE": 0.7002499999999998,

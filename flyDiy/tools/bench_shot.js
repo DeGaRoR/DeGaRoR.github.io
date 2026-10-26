@@ -22,7 +22,7 @@ const VIEW = {
   f:   [0.0, 0.10, 0.6],           // the front
   top: [Math.PI / 2, 1.30, 0.55],  // from above: the openings in plan
   r:   [2.45, 0.40, 0.55],         // the rear quarter
-  c:   [0.95, 0.55, 1.3],          // the cockpits, close
+  c:   [1.20, 0.10, 1.6],          // the cockpits, close, low under the upper plane
 };
 const VIEWS = opt('views', 'q,s,top,r,c').split(',');
 (async () => {

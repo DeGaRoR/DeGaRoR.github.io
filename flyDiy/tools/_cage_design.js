@@ -1831,6 +1831,9 @@ const PLAN_C172 = { wgCrankAt: 0.42, wgCrankChord: P => +P.wgChord,
 // G3517: the open tandem trainer's rows (the round body, both sections open, the pilot in the rear)
 const OPEN_TANDEM = {
   aeroNose: 1, noseFinish: 0, topRound: 1, botRound: 0,
+  // the upper plane's centre section cut back at the trailing edge over the cockpit (GEN_CENTRE_KEYS 'cutout': the
+  // PT-17's and the DH.82A's, the way a seated occupant gets in and looks up)
+  wgCentre: 3,
   cpOpen: 1, paxOpen1: 1, paxCount: 1, pilotRear: 1, cabOcc: 0, paxSeatZ: 0.12,
   openCut: 0, openFore: 0.12, openAft: 0.12, openRim: 0.022, openScreen: 1, openScreenH: 0.24, openScreenRake: 38,
 };
