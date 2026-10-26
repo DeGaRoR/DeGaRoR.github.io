@@ -436,7 +436,7 @@ function makeSim(def, world) {
   let tkSub = 0;
   const nb = beams.length;
   const DMG = { yields: 0, breaks: 0, work: 0, broken: [], firstBreak: null, firstYield: null,
-                crashed: false, reason: null, at: null, dented: false, propStrike: false, propAt: null,
+                crashed: false, reason: null, at: null, dented: false, propStrike: false, propAt: null, rest: null, restFrom: null, fall: false,
                 gPeak: 0, setMax: 0, orphans: [], members: 0, dents: 0, primary: 0, firstPrimary: null, holed: 0,
                 // DMG-D1a: the groups broken (in order, G1815), the kink floors (G1813), the spruce cracks and their log
                 // [member, stage, t] (G1814), the frames armed (the census GATE DMGMEMBERS reads parked)
@@ -1278,6 +1278,7 @@ function makeSim(def, world) {
     DMG.brokeUp = null; DMG.stripsSplit = 0; DMG.stripsDropped = 0;
     DMG.yields = 0; DMG.breaks = 0; DMG.work = 0; DMG.broken.length = 0; DMG.firstBreak = null; DMG.firstYield = null;
     DMG.crashed = false; DMG.over = false; DMG.reason = null; DMG.at = null; DMG.dented = false; DMG.propStrike = false; DMG.propAt = null;
+    DMG.rest = null; DMG.restFrom = null; DMG.fall = false;
     DMG.gPeak = 0; DMG.setMax = 0; DMG.orphans.length = 0; DMG.members = 0; DMG.dents = 0; DMG.primary = 0; DMG.firstPrimary = null; DMG.holed = 0; gF = 0; cIx = cIy = cIz = 0;
     for (const b of beams) b.yielded = false;
     DMG.wB.fill(0);   // G1802
@@ -1491,11 +1492,23 @@ function makeSim(def, world) {
   // ...and the flight is OVER once the wreck has come to rest (the CG under 1 m/s) or 4 s after the crash: the game
   // ends it there (app.js endFlight('crashed')), so the card shows the aeroplane bent as it lies, not the first
   // millisecond of the impact
+  // DMG-FALL (the user, 25 Oct: "detached parts hang metres high"): ...and the PIECES' rest, for the game's watch
+  // (app.js): DMG.rest = the time every node has been under 0.3 m/s for 0.5 s (null while one moves), DMG.fall = a node
+  // still coming down faster than 3 m/s (a piece in the air: the watch's cap waits for it). The CG's rest
+  // above ends the flight's physics verdict, not the picture: a part flung off, or the halves of a break-up in the air
+  // (over at the parting, 30_solver.js compEvent), still fall when the CG has stopped. Read only after a crash (n nodes)
   function dmgOver() {
-    if (!DMG.crashed || DMG.over) return;
-    let x = 0, y = 0, z = 0;
-    for (let i = 0; i < n; i++) { x += v[i*3] * m[i]; y += v[i*3+1] * m[i]; z += v[i*3+2] * m[i]; }
-    if (simT - DMG.at > 4 || (simT - DMG.at > 0.5 && Math.hypot(x, y, z) / totalM < 1)) DMG.over = true;
+    if (!DMG.crashed) return;
+    if (!DMG.over) {
+      let x = 0, y = 0, z = 0;
+      for (let i = 0; i < n; i++) { x += v[i*3] * m[i]; y += v[i*3+1] * m[i]; z += v[i*3+2] * m[i]; }
+      if (simT - DMG.at > 4 || (simT - DMG.at > 0.5 && Math.hypot(x, y, z) / totalM < 1)) DMG.over = true;
+    }
+    let v2 = 0, vd = 0;
+    for (let i = 0; i < n * 3; i += 3) { const s = v[i] * v[i] + v[i+1] * v[i+1] + v[i+2] * v[i+2]; if (s > v2) v2 = s; if (-v[i+1] > vd) vd = -v[i+1]; }
+    DMG.fall = vd > 3;
+    if (v2 > 0.09) { DMG.restFrom = null; DMG.rest = null; }
+    else { if (DMG.restFrom === null) DMG.restFrom = simT; if (DMG.rest === null && simT - DMG.restFrom >= 0.5) DMG.rest = simT; }
   }
   const _treeScratch = [], _obstScratch = [], _obstRecs = [], _pen = [0, 0, 0];
   // the obstacles this frame can touch (G433): the registry's bins round the CG, kept to the shapes
@@ -3987,6 +4000,8 @@ function makeSim(def, world) {
            // G1470: the damage - yields, breaks (beam indices), plastic work (J), the largest set (strain), the peak
            // filtered g, the prop strike, and the verdict: crashed (with why and when) / dented / neither
            damage: () => DMG, damagePeak: () => PEAK,
+           // DMG-FALL: each node's piece (the root of its part: the unbroken beams and the clusters, as compEvent reads it) - GATE DMGFALL's
+           pieceOf: () => { const fd = pieces(), r = new Int32Array(n); for (let i = 0; i < n; i++) r[i] = fd(i); return r; },
            damageScar: () => SCR,   // G2357 (DMG-SCAR): the ground's record (34_scar.js scarMake), null with the layer off
            // G2373 (DMG-OCCUPANT): the seats and the recorder (null with the layer off) - the gates' reader
            occupants: () => (OCC ? { spec: OCC, state: OCS } : null),

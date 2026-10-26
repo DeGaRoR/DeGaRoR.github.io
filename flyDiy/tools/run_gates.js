@@ -307,6 +307,8 @@ const GATES = [
   // the Cub, the Jodel and the metal Cessna (no mount comes off), one physics with DMG-DRIVE's strike, nothing in the nose's
   // reach in a circuit, the 30 m/s trunks still crash. Three at once
   { id: 'DMGNOSE', file: '_dmg_nose_check.js', tier: 'core', weight: 3, wall: 1500 },
+  // DMG-FALL: every separated piece down before the flight ends - the watch waits for the solver's pieces (DMG.rest / DMG.fall), a break-up in the air
+  { id: 'DMGFALL', file: '_dmg_fall_check.js', tier: 'core', weight: 3, wall: 600 },
   // G1840-G1843 (DMG-D3 CLUSTERS): a shape-matched cluster is one breakable part - the fin, the twin's rod, the floats (and
   // the twin-boom fixture, reported): its root load read off the cut equals the statics; nothing parts in normal
   // operations (the load test, the pull, the drops, a circuit, parked, the ordinary water cases); a scripted pull takes
