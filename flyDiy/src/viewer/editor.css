@@ -35,8 +35,9 @@
    G3350 (STORY-TIM): and Tim's band (#stTim, app.js, body-level).
    G3360 (CAREERS): and the welcome's menu (#welcome, welcome.js, body-level: Continue / New career / the careers list).
    G3370 (TUTO-FLIGHT): and T1's "Skip the flight" (#stSkip, app.js, body-level).
-   G3520 (GAME-MENUS): and the menu (#gmPanel, app.js, body-level: the pause menu in flight, the menu in the shed). */
-:is(#wsUI, #edView, #mapScreen, #hsStore, #stIntro, #stCard, #gDrop, #stTim, #welcome, #stSkip, #gmPanel) {
+   G3520 (GAME-MENUS): and the menu (#gmPanel, app.js, body-level: the pause menu in flight, the menu in the shed).
+   G3722 (PHONE-GARAGE): and the garage top bar's card (#edPopCard, editor.js, body-level: the explode slider). */
+:is(#wsUI, #edView, #mapScreen, #hsStore, #stIntro, #stCard, #gDrop, #stTim, #welcome, #stSkip, #gmPanel, #edPopCard) {
   --ed-panel:#201d1a; --ed-board:#1a1815;
   --ed-plate:rgba(32,29,26,.94);
   --ed-ink:#f4efe6; --ed-dim:#c0b8ac; --ed-faint:#97907f;
@@ -398,22 +399,22 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
    unchecked toggle uses, and the track is left transparent so a scrollbar over
    the parts column and one over the properties column each sit on their own
    ground rather than on a third one. */
-:is(#wsUI, #edView), :is(#wsUI, #edView) * { scrollbar-width:thin;
+:is(#wsUI, #edView), :is(#wsUI, #edView, #gmPage, #edPopCard) * { scrollbar-width:thin;
   scrollbar-color:var(--ed-off) transparent; }
 
-:is(#wsUI, #edView) ::-webkit-scrollbar { width:9px; height:9px; }
+:is(#wsUI, #edView, #gmPage, #edPopCard) ::-webkit-scrollbar { width:9px; height:9px; }
 
-:is(#wsUI, #edView) ::-webkit-scrollbar-track { background:transparent; }
+:is(#wsUI, #edView, #gmPage, #edPopCard) ::-webkit-scrollbar-track { background:transparent; }
 
-:is(#wsUI, #edView) ::-webkit-scrollbar-thumb { background:var(--ed-off);
+:is(#wsUI, #edView, #gmPage, #edPopCard) ::-webkit-scrollbar-thumb { background:var(--ed-off);
   border:2px solid transparent; background-clip:padding-box;
   border-radius:6px; }
 
-:is(#wsUI, #edView) ::-webkit-scrollbar-thumb:hover { background:var(--ed-off-bd);
+:is(#wsUI, #edView, #gmPage, #edPopCard) ::-webkit-scrollbar-thumb:hover { background:var(--ed-off-bd);
   background-clip:padding-box; }
 
 /* the corner where two bars meet, which defaults to the same pale grey */
-:is(#wsUI, #edView) ::-webkit-scrollbar-corner { background:transparent; }
+:is(#wsUI, #edView, #gmPage, #edPopCard) ::-webkit-scrollbar-corner { background:transparent; }
 
 #edRows { flex:1; overflow-y:auto; overflow-x:hidden;
   padding:2px 16px 14px 12px; min-height:0; }
@@ -542,7 +543,7 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 #edWrap .r > span:not(.k):not(.v):not(.lt) { color:var(--ed-faint) !important;
   font:400 10px/1 'IBM Plex Sans' !important; }
 
-:is(#wsUI, #edView) .r input[type=text]:focus-visible { outline:2px solid var(--ed-acc);
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=text]:focus-visible { outline:2px solid var(--ed-acc);
   outline-offset:2px; }
 
 /* THE CHANGED DOT (P8 §6). It sits in the row's own left gutter rather than
@@ -556,7 +557,7 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 /* ---------------------------------------------------------------------------
    THE CONTROLS ARE SCOPED TO THE ROW, NOT TO THE PLACE THE ROW IS STANDING
    ---------------------------------------------------------------------------
-   Every block below read `#edRows .r ...` and now reads `:is(#wsUI, #edView) .r ...`, and
+   Every block below read `#edRows .r ...` and now reads `:is(#wsUI, #edView, #gmPage, #edPopCard) .r ...`, and
    that one prefix is the whole of the styling pass HANDOVER measured and
    handed over unwritten (2026-08-31, "THE STYLING PASS - NOT DONE").
    THE DEFECT, in one sentence: this editor MOVES ITS ROWS. The same element
@@ -590,41 +591,41 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
    --------------------------------------------------------------------------- */
 
 /* the slider: 3 px track, accent fill at .55, an 11 px accent thumb */
-:is(#wsUI, #edView) .r input[type=range] { flex:1; min-width:30px; height:18px;
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range] { flex:1; min-width:30px; height:18px;
   -webkit-appearance:none; appearance:none; background:transparent;
   cursor:pointer; }
 
-:is(#wsUI, #edView) .r input[type=range]::-webkit-slider-runnable-track { height:3px;
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-webkit-slider-runnable-track { height:3px;
   border-radius:2px; background:var(--ed-track); }
 
-:is(#wsUI, #edView) .r input[type=range]::-webkit-slider-thumb { -webkit-appearance:none;
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-webkit-slider-thumb { -webkit-appearance:none;
   appearance:none; width:11px; height:11px; margin-top:-4px; border-radius:50%;
   background:var(--ed-acc); border:none; }
 
-:is(#wsUI, #edView) .r input[type=range]::-moz-range-track { height:3px; border-radius:2px;
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-moz-range-track { height:3px; border-radius:2px;
   background:var(--ed-track); }
 
-:is(#wsUI, #edView) .r input[type=range]::-moz-range-thumb { width:11px; height:11px;
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-moz-range-thumb { width:11px; height:11px;
   border:none; border-radius:50%; background:var(--ed-acc); }
 
-:is(#wsUI, #edView) .r input[type=range]::-moz-range-progress { height:3px;
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-moz-range-progress { height:3px;
   border-radius:2px; background:rgba(230,219,201,.55); }
 
 /* the checkbox, drawn as the design's toggle: 30 x 16 track, 10 px knob in
    the PANEL colour (a white knob reads as a second state) */
-:is(#wsUI, #edView) .r input[type=checkbox] { -webkit-appearance:none; appearance:none;
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=checkbox] { -webkit-appearance:none; appearance:none;
   flex:none; width:30px; height:16px; margin:0; border-radius:9px;
   background:var(--ed-off); border:1px solid var(--ed-off-bd);
   position:relative; cursor:pointer; transition:background .12s ease; }
 
-:is(#wsUI, #edView) .r input[type=checkbox]::after { content:''; position:absolute;
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=checkbox]::after { content:''; position:absolute;
   top:2px; left:2px; width:10px; height:10px; border-radius:50%;
   background:var(--ed-panel); transition:left .12s ease; }
 
-:is(#wsUI, #edView) .r input[type=checkbox]:checked { background:var(--ed-acc);
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=checkbox]:checked { background:var(--ed-acc);
   border-color:var(--ed-acc); }
 
-:is(#wsUI, #edView) .r input[type=checkbox]:checked::after { left:16px; }
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=checkbox]:checked::after { left:16px; }
 
 /* G1322 — THE FOLLOW TOGGLE LIVES IN THE LABEL'S COLUMN (the user: the frame
    rows' on/off "shrinks the slider until unusable"). A frame row (`follow`)
@@ -635,39 +636,39 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
    toggle take exactly the label column and the slider is as wide as on
    every other row. `tog` is the row class _cage_ui.js puts on such rows. */
 #edRows .r.tog > span.k { width:calc(var(--ed-lab) - 28px); }
-:is(#wsUI, #edView) .r.tog > span.k + input[type=checkbox] {
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r.tog > span.k + input[type=checkbox] {
   width:22px; height:12px; margin-left:calc(6px - var(--ed-gap)); }
-:is(#wsUI, #edView) .r.tog > span.k + input[type=checkbox]::after {
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r.tog > span.k + input[type=checkbox]::after {
   top:1px; left:1px; width:8px; height:8px; }
-:is(#wsUI, #edView) .r.tog > span.k + input[type=checkbox]:checked::after { left:11px; }
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r.tog > span.k + input[type=checkbox]:checked::after { left:11px; }
 
-:is(#wsUI, #edView) .r > span.v { color:var(--ed-faint); font:400 11px/1 'IBM Plex Sans';
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r > span.v { color:var(--ed-faint); font:400 11px/1 'IBM Plex Sans';
   text-align:left; }
 
-:is(#wsUI, #edView) .r select { flex:1; min-width:0; padding:5px 8px;
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r select { flex:1; min-width:0; padding:5px 8px;
   font:400 11.5px/1.2 'IBM Plex Sans'; color:var(--ed-ink);
   background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd);
   border-radius:7px; }
 
-:is(#wsUI, #edView) .r select option { background:var(--ed-panel); color:var(--ed-ink); }
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r select option { background:var(--ed-panel); color:var(--ed-ink); }
 
 /* ---- the finish view's own controls ----------------------------------
    The colour well is a native input because a colour well is one of the two
    things the platform does better than we would; it is given the panel's
    own frame so it reads as part of the row and not as an escapee. */
-:is(#wsUI, #edView) .r input[type=color] { flex:none; width:34px; height:20px; padding:0;
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=color] { flex:none; width:34px; height:20px; padding:0;
   border:1px solid var(--ed-border); border-radius:4px; background:none;
   cursor:pointer; }
 
-:is(#wsUI, #edView) .r input[type=color]::-webkit-color-swatch-wrapper { padding:2px; }
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=color]::-webkit-color-swatch-wrapper { padding:2px; }
 
-:is(#wsUI, #edView) .r input[type=color]::-webkit-color-swatch { border:0;
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=color]::-webkit-color-swatch { border:0;
   border-radius:2px; }
 
-:is(#wsUI, #edView) .r input[type=file] { flex:1; min-width:0; font:400 10px/1.4
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=file] { flex:1; min-width:0; font:400 10px/1.4
   'IBM Plex Sans'; color:var(--ed-dim); }
 
-:is(#wsUI, #edView) .r input[type=file]::-webkit-file-upload-button {
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=file]::-webkit-file-upload-button {
   margin-right:8px; padding:4px 9px; border:1px solid var(--ed-border);
   border-radius:4px; background:var(--ed-plate); color:var(--ed-dim);
   cursor:pointer; font:500 10px/1 'IBM Plex Sans'; letter-spacing:.1em;
@@ -676,12 +677,12 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 /* THE THREE DIALS BELONG TO THE SECTION ABOVE THEM. An indent and a lighter
    label is the whole grammar — they multiply the finish's own numbers, so
    they are a detail of the row above and never a row of their own. */
-:is(#wsUI, #edView) .r.dial > .k { padding-left:12px; color:var(--ed-faint);
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r.dial > .k { padding-left:12px; color:var(--ed-faint);
   font-size:10px; }
 
-:is(#wsUI, #edView) .r.dial { min-height:26px; }
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r.dial { min-height:26px; }
 
-:is(#wsUI, #edView) .r.dial + .r:not(.dial) { margin-top:10px; }
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r.dial + .r:not(.dial) { margin-top:10px; }
 
 /* the empty case: a part whose finish is somewhere else, and the way there */
 #edRows > .refNote { margin:22px 0 0; padding:14px 15px;
@@ -690,12 +691,12 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
 
 #edRows > .refNote .pill { display:block; margin-top:11px; }
 
-:is(#wsUI, #edView) .r button { flex:none; padding:5px 9px;
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r button { flex:none; padding:5px 9px;
   font:500 10px/1 'IBM Plex Sans'; letter-spacing:.06em;
   color:var(--ed-dim); background:var(--ed-btn-bg);
   border:1px solid var(--ed-btn-bd); border-radius:7px; cursor:pointer; }
 
-:is(#wsUI, #edView) .r button:hover { border-color:rgba(255,255,255,.3); }
+:is(#wsUI, #edView, #gmPage, #edPopCard) .r button:hover { border-color:rgba(255,255,255,.3); }
 
 /* ---- pills, the one button shape ------------------------------------ */
 #edWrap .pill { font:500 10px/1 'IBM Plex Sans'; letter-spacing:.08em;
@@ -1282,6 +1283,53 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 
 #fbName.unsaved { color:var(--ed-warn); font-weight:500; }
 
+/* G3720-G3725 (PHONE-GARAGE; the user, 25 Oct: "Unsaved becomes a simple disk button and the other icons are on the top
+   row, in line with the button ... left rail goes completely" - and the top bar "for all versions, not just mobile").
+   THE NAME BECOMES A DISK: the same #fbName and its shelf (save, save as, new, load, storage, import, export), drawn as
+   one 34 x 32 icon on the quick bar's own plate; garage.js still writes the name (now in the title, and read by the
+   rigs); unsaved is an amber dot on the disk. The quick actions follow it on the same row, not at the far end. */
+#edFleet #fbName { width:34px; height:32px; max-width:none; padding:0; font-size:0; color:var(--ed-dim);
+  position:relative; text-indent:-999px; }
+#edFleet #fbName::before { content:''; position:absolute; left:8px; top:7px; width:18px; height:18px; background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18' fill='none' stroke='black' stroke-width='1.35' stroke-linejoin='round'%3E%3Cpath d='M3 3.4a.9.9 0 0 1 .9-.9h8.6l2.5 2.5v8.6a.9.9 0 0 1-.9.9H3.9a.9.9 0 0 1-.9-.9Z'/%3E%3Cpath d='M5.6 2.5v3.6h5.8V2.5M5.4 15v-4.6h7.2V15'/%3E%3C/svg%3E") center / 18px 18px no-repeat;
+          mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18' fill='none' stroke='black' stroke-width='1.35' stroke-linejoin='round'%3E%3Cpath d='M3 3.4a.9.9 0 0 1 .9-.9h8.6l2.5 2.5v8.6a.9.9 0 0 1-.9.9H3.9a.9.9 0 0 1-.9-.9Z'/%3E%3Cpath d='M5.6 2.5v3.6h5.8V2.5M5.4 15v-4.6h7.2V15'/%3E%3C/svg%3E") center / 18px 18px no-repeat; }
+#edFleet #fbName::after { content:none; }
+#edFleet #fbName.unsaved { color:var(--ed-dim); }
+#edFleet #fbName.unsaved::after { content:''; position:absolute; right:4px; top:4px; width:7px; height:7px; margin:0;
+  border-radius:50%; background:var(--ed-warn); }
+#edFleet #fbName:hover, #edFleet #fbName.open { color:var(--ed-ink); }
+/* G3728 (the user, 26 Oct: "a burger menu on the top leftmost, before the disk icon"): the menu's own icon, the disk's
+   twin on the same plate; app.js's MENU pill stands down while it shows */
+#edFleet #edMenu { position:relative; display:block; width:34px; height:32px; padding:0; border:0; border-radius:7px;
+  background:transparent; color:var(--ed-dim); cursor:pointer; transition:background .12s ease; }
+#edFleet #edMenu::before { content:''; position:absolute; left:8px; top:7px; width:18px; height:18px; background:currentColor;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M3 4.5h12M3 9h12M3 13.5h12'/%3E%3C/svg%3E") center / 18px 18px no-repeat;
+          mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M3 4.5h12M3 9h12M3 13.5h12'/%3E%3C/svg%3E") center / 18px 18px no-repeat; }
+#edFleet #edMenu:hover { background:rgba(255,255,255,.07); color:var(--ed-ink); }
+#edFleet #edMenu[aria-expanded="true"] { background:rgba(255,255,255,.09); color:var(--ed-ink); }
+/* G3729 (the user, 26 Oct, the tank panel: "get rid of the frame, we use that nowhere else. Keep the warning, but not the
+   container"): a tank (_cage_energy.js details[data-ves], its finish twin [data-veslook]) is a flat group like the
+   instruments' (UI-STYLE G3736) - no box, its summary the group's heading, the picked one in the selection colour; its
+   red line (.r.note.bad, --ed-bad) stays as it is */
+.edRoot details:is([data-ves], [data-veslook]) { border:0; border-radius:0; padding:0; margin:0; outline:0 !important; }
+.edRoot details:is([data-ves], [data-veslook]) > summary { padding:18px 0 6px; }
+.edRoot details:is([data-ves], [data-veslook]).on > summary { color:var(--ed-acc); }
+#edTopBar { flex-wrap:nowrap; gap:6px; }
+#edTopBar #edQuick { margin-left:0; }
+/* the rail is gone from the screen (its items are MENU pages, editor.js gmRows); the table, its flyout host and the
+   element stay for GATE VIEW, the rigs and the gates' stub DOM */
+#edBotBar { display:none !important; }
+/* THE TOP BAR'S CARD (G3722): the explode slider - the rail flyout's plate, fixed under its button, a FLYDIY_DRAG card */
+#edPopCard { position:fixed; z-index:58; width:280px; max-width:calc(100vw - 16px); max-height:calc(100vh - 80px); overflow-y:auto;
+  padding:10px 12px 12px; background:var(--ed-plate); border:1px solid var(--ed-border); border-radius:9px;
+  box-shadow:0 10px 28px rgba(0,0,0,.35); font-style:normal; }
+#edPopCard[hidden] { display:none; }
+#edPopCard .edPopHead { display:flex; align-items:center; justify-content:space-between; cursor:grab;
+  font:600 10px/1 'IBM Plex Sans'; letter-spacing:.2em; text-transform:uppercase; color:var(--ed-faint);
+  padding-bottom:8px; margin-bottom:4px; border-bottom:1px solid var(--ed-hair); }
+#edPopCard .edPopX { border:0; background:transparent; color:var(--ed-faint); font:400 16px/1 'IBM Plex Sans'; padding:0 2px; cursor:pointer; }
+#edPopCard .edPopX:hover { color:var(--ed-ink); }
+
 #gNew { color:var(--ed-acc); }
 
 /* THE LOOK RIBBON, UP THE LEFT EDGE (2026-09-03, the user: "the display
@@ -1345,51 +1393,51 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
   padding-bottom:9px; margin-bottom:4px;
   border-bottom:1px solid var(--ed-hair); }
 
-#edFlyBody .r { display:flex; gap:10px; align-items:center; margin:7px 0;
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .r { display:flex; gap:10px; align-items:center; margin:7px 0;
   min-width:0; font:400 11.5px/1.3 'IBM Plex Sans'; color:var(--ed-dim); }
 
-#edFlyBody .r > span.k { width:104px; flex:none; overflow:hidden;
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .r > span.k { width:104px; flex:none; overflow:hidden;
   text-overflow:ellipsis; white-space:nowrap; }
 
-#edFlyBody .r > .v { width:48px; flex:none; text-align:right; }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .r > .v { width:48px; flex:none; text-align:right; }
 
 /* 2026-09-20: a section head inside the flyout (the clouds panel's decks / veil / look / render) - the flight rail's .fsec */
-#edFlyBody .r.fsec { margin:12px 0 4px; padding-top:8px; border-top:1px solid var(--ed-hair); }
-#edFlyBody .r.fsec > span.k { width:auto; font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em;
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .r.fsec { margin:12px 0 4px; padding-top:8px; border-top:1px solid var(--ed-hair); }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .r.fsec > span.k { width:auto; font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em;
   text-transform:uppercase; color:var(--ed-faint); }
-#edFlyBody .r.fsec:first-child { margin-top:2px; padding-top:0; border-top:0; }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .r.fsec:first-child { margin-top:2px; padding-top:0; border-top:0; }
 
 /* G760: THE FOLDS - the flight rail's (flight.css), in this flyout: a head that is a button, a caret that turns */
-#edFlyBody .rsec { border-top:1px solid var(--ed-hair); }
-#edFlyBody .rsec:first-child { border-top:0; }
-#edFlyBody .rsecHead { display:flex; flex-direction:column; align-items:flex-start; gap:3px;
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .rsec { border-top:1px solid var(--ed-hair); }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .rsec:first-child { border-top:0; }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .rsecHead { display:flex; flex-direction:column; align-items:flex-start; gap:3px;
   width:100%; padding:9px 0 8px 16px; position:relative; border:0; background:transparent;
   cursor:pointer; text-align:left; color:var(--ed-dim); }
-#edFlyBody .rsecHead::before { content:''; position:absolute; left:2px; top:12px;
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .rsecHead::before { content:''; position:absolute; left:2px; top:12px;
   border:4px solid transparent; border-left:5px solid currentColor; border-right:0;
   transition:transform .12s ease; }
-#edFlyBody .rsec.open > .rsecHead::before { transform:rotate(90deg); }
-#edFlyBody .rsecHead:hover { color:var(--ed-ink); }
-#edFlyBody .rsecT { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em; text-transform:uppercase; }
-#edFlyBody .rsec.open > .rsecHead .rsecT { color:var(--ed-ink); }
-#edFlyBody .rsecS { font:400 10px/1.3 'IBM Plex Sans'; color:var(--ed-faint); }
-#edFlyBody .rsecBody { padding:0 0 10px; }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .rsec.open > .rsecHead::before { transform:rotate(90deg); }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .rsecHead:hover { color:var(--ed-ink); }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .rsecT { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em; text-transform:uppercase; }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .rsec.open > .rsecHead .rsecT { color:var(--ed-ink); }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .rsecS { font:400 10px/1.3 'IBM Plex Sans'; color:var(--ed-faint); }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .rsecBody { padding:0 0 10px; }
 /* the notes the shared panels write here (the graphics menu's readout and explanation, the clouds' and the
    day's) had no rule in this flyout and came out at the page's 16 px; the flight flyout's .fnote, in this one */
-#edFlyBody .note { margin-top:10px; padding-top:9px; border-top:1px solid var(--ed-hair);
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .note { margin-top:10px; padding-top:9px; border-top:1px solid var(--ed-hair);
   font:400 10.5px/1.6 'IBM Plex Sans'; color:var(--ed-faint); }
 
-#edFlyBody input[type=range] { flex:1; min-width:30px; }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) input[type=range] { flex:1; min-width:30px; }
 
-#edFlyBody select { flex:1; min-width:0; }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) select { flex:1; min-width:0; }
 
 /* 2026-09-20: the day panel's date field, dressed as the row select */
-#edFlyBody .r input[type=date] { flex:1; min-width:0; padding:4px 8px; font:400 11.5px/1.2 'IBM Plex Sans';
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .r input[type=date] { flex:1; min-width:0; padding:4px 8px; font:400 11.5px/1.2 'IBM Plex Sans';
   color:var(--ed-ink); background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd); border-radius:7px; color-scheme:dark; }
 
-#edFlyBody .lt { display:flex; flex-wrap:wrap; gap:4px; flex:1; min-width:0; }
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .lt { display:flex; flex-wrap:wrap; gap:4px; flex:1; min-width:0; }
 
-#edFlyBody #dims { position:static !important; margin:4px 0 0;
+:is(#edFlyBody, #gmPage, #edPopCard .edPopBody) #dims { position:static !important; margin:4px 0 0;
   padding:0 !important; background:none !important; border:0 !important;
   font:400 10.5px/1.6 'IBM Plex Sans' !important; color:var(--ed-dim); }
 
@@ -1549,22 +1597,22 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 
 .edRoot .lt { display:flex; flex-wrap:wrap; gap:4px; flex:1; min-width:0; }
 
-.edRoot .lt button.tg, #edFlyBody .lt button.tg {
+.edRoot .lt button.tg, :is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .lt button.tg {
   padding:3px 7px; font:400 10px/1.2 'IBM Plex Sans'; flex:none;
   color:var(--ed-acc); background:transparent;
   border:1px solid var(--ed-border); border-radius:5px; cursor:pointer; }
 
-.edRoot .lt button.tg.off, #edFlyBody .lt button.tg.off {
+.edRoot .lt button.tg.off, :is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .lt button.tg.off {
   color:var(--ed-faint); opacity:.55; text-decoration:line-through; }
 
 /* the ALL / NONE masters are VERBS, not states: they never wear the `off`
    look, because they are not a source. They read as a pair set apart from
    the switches they drive. */
-.edRoot .lt button.tg.alt, #edFlyBody .lt button.tg.alt {
+.edRoot .lt button.tg.alt, :is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .lt button.tg.alt {
   color:#c8b48c; border-color:rgba(200,180,140,.34);
   background:rgba(200,180,140,.07); letter-spacing:.04em; }
 
-.edRoot .lt button.tg.alt:hover, #edFlyBody .lt button.tg.alt:hover {
+.edRoot .lt button.tg.alt:hover, :is(#edFlyBody, #gmPage, #edPopCard .edPopBody) .lt button.tg.alt:hover {
   background:rgba(200,180,140,.16); }
 
 /* ---- THE GAME'S BOTTOM BAR is gone in the garage (G78). The two verbs

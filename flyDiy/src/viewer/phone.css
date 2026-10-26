@@ -14,11 +14,13 @@ html.phone {
   /* THE ESTATE: the view (--ph-vw x --ph-vh at the top left), the sheet
      (--ph-sl, --ph-st, --ph-sw) and the tab bar under it (--ph-tab) */
   --ph-tab:54px; --ph-sw:100vw; --ph-sl:0px; --ph-vw:100vw;
-  --ph-vh:40vh; --ph-vh:40dvh; --ph-st:var(--ph-vh);
+  /* G3720 (PHONE-GARAGE; the user, 25 Oct: "much more room for the plane ... two thirds at least ... Only a third of the
+     screen for the sliders"): the view 2/3 of the height, the sheet and its tab bar the last third */
+  --ph-vh:66.6vh; --ph-vh:66.6dvh; --ph-st:var(--ph-vh);
   --ph-tap:48px;
 }
 @media (orientation:landscape) {
-  html.phone { --ph-sw:min(400px, 50vw); --ph-vw:calc(100vw - var(--ph-sw)); --ph-sl:var(--ph-vw);
+  html.phone { --ph-sw:max(280px, 33.4vw); --ph-vw:calc(100vw - var(--ph-sw)); --ph-sl:var(--ph-vw);
     --ph-vh:100vh; --ph-vh:100dvh; --ph-st:0px; }
 }
 html.phone, html.phone body { overscroll-behavior:none; -webkit-text-size-adjust:100%; text-size-adjust:100%;
@@ -32,7 +34,13 @@ html.phone #edView { left:0 !important; top:0; right:auto !important; bottom:aut
 /* the flight's verbs and the route have no world to go to (profile fly 'none') */
 html.phone #edActs, html.phone #edRoute, html.phone #bootSetup, html.phone #bootRoute { display:none !important; }
 html.phone #edTopBar { left:8px !important; right:8px !important; top:8px !important; }
-html.phone #edFleet #fbName { max-width:calc(var(--ph-vw) - 150px); min-height:40px; font-size:14px; padding:10px 12px; }
+/* G3721: the name is a disk (editor.css), at a finger's size */
+html.phone #edFleet :is(#fbName, #edMenu) { width:40px; height:40px; }
+html.phone #edFleet :is(#fbName, #edMenu)::before { left:11px; top:11px; }
+html.phone #edTopBar { gap:6px; }
+html.phone #edQuick { gap:2px; padding:3px; }
+/* the studio has no day (the clock's button) and the reference button only shows with a reference standing - room to spare */
+html.phone .edQuickBtn[data-q="time"], html.phone .edQuickBtn[data-q="ref"]:disabled { display:none; }
 html.phone #edShelf { min-width:180px; }
 html.phone #edShelf button { min-height:var(--ph-tap); font-size:15px !important; padding:0 16px !important; }
 html.phone .edQuickBtn { min-width:40px; min-height:40px; }
@@ -46,7 +54,7 @@ html.phone #edFly { position:fixed !important; left:var(--ph-sl) !important; top
   width:var(--ph-sw) !important; bottom:var(--ph-tab) !important; max-height:none !important; height:auto !important;
   border-radius:0; border-width:1px 0 0; z-index:46; padding:14px 16px 18px; touch-action:pan-y; overscroll-behavior:contain;
   background:#201d1a; }
-html.phone #edFlyBody select { font-size:12px !important; max-width:58%; }
+html.phone :is(#edFlyBody, #gmPage, #edPopCard) select { font-size:12px !important; max-width:58%; }
 
 /* ---- THE SHEET: the properties column, the parts column, the information panel - one at a time ---- */
 html.phone #edWrap, html.phone #edInfo { position:fixed; top:var(--ph-st) !important; left:var(--ph-sl) !important;
@@ -68,7 +76,7 @@ html.phone body.ph-props #edWrap > #edProps { overflow-y:auto; overflow-x:hidden
 html.phone #edProps > #edRows { flex:none; overflow:visible; min-height:auto; }
 /* every scroller of the sheet scrolls by a finger and keeps its scroll to itself */
 html.phone :is(#edProps, #edRows, #edTree, #edInfoBody, #edFly, #edOpts) { touch-action:pan-y; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
-html.phone :is(#wsUI, #edView) ::-webkit-scrollbar { width:3px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) ::-webkit-scrollbar { width:3px; }
 
 /* THE TAB BAR, in the thumb zone */
 #phTabs { display:none; }
@@ -108,12 +116,12 @@ html.phone #edRows .r.phSlider > .phPlus { order:6; }
 html.phone #edRows .r > .rn { order:7; }
 html.phone #edRows .r > button:not(.phStep) { min-height:36px; min-width:36px; }
 /* the scale: drawn larger, and it takes NO touch - a finger on it scrolls the sheet (R4) */
-html.phone :is(#wsUI, #edView) .r input[type=range] { height:var(--ph-tap); pointer-events:none; touch-action:pan-y; }
-html.phone :is(#wsUI, #edView) .r input[type=range]::-webkit-slider-runnable-track { height:4px; }
-html.phone :is(#wsUI, #edView) .r input[type=range]::-webkit-slider-thumb { width:26px; height:26px; margin-top:-11px;
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range] { height:var(--ph-tap); pointer-events:none; touch-action:pan-y; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-webkit-slider-runnable-track { height:4px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-webkit-slider-thumb { width:26px; height:26px; margin-top:-11px;
   box-shadow:0 0 0 1px rgba(0,0,0,.35); }
-html.phone :is(#wsUI, #edView) .r.phFine input[type=range]::-webkit-slider-thumb { background:#e6a15a; }
-html.phone :is(#wsUI, #edView) .r input[type=range]::-moz-range-thumb { width:26px; height:26px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phFine input[type=range]::-webkit-slider-thumb { background:#e6a15a; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-moz-range-thumb { width:26px; height:26px; }
 /* the knob's hit area: 48 px over the thumb, the one place a finger moves a value (R5) */
 .phKnob { display:none; }
 html.phone .r .phKnob { display:block; position:absolute; width:var(--ph-tap); height:var(--ph-tap); z-index:2;
@@ -123,22 +131,22 @@ html.phone .r.phDrag .phKnob { box-shadow:0 0 0 2px rgba(230,219,201,.45); backg
 html.phone .r .phKnob.fine { box-shadow:0 0 0 2px rgba(230,161,90,.8); }
 /* the steppers (R6) */
 .phStep { display:none; }
-html.phone :is(#wsUI, #edView) .r > .phStep { display:block; flex:none; width:var(--ph-tap); height:var(--ph-tap); padding:0; border-radius:8px;
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r > .phStep { display:block; flex:none; width:var(--ph-tap); height:var(--ph-tap); padding:0; border-radius:8px;
   font:500 20px/1 'IBM Plex Sans', sans-serif; color:var(--ed-ink); background:rgba(255,255,255,.05);
   border:1px solid rgba(255,255,255,.12); touch-action:manipulation; -webkit-user-select:none; user-select:none; }
-html.phone :is(#wsUI, #edView) .r > .phStep:active { background:rgba(230,219,201,.18); }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r > .phStep:active { background:rgba(230,219,201,.18); }
 /* toggles, selects and the stepper widgets at a finger's size */
-html.phone :is(#wsUI, #edView) .r input[type=checkbox] { transform:scale(1.35); margin:0 8px; }
-html.phone :is(#wsUI, #edView) .r select { min-height:40px; font-size:13px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=checkbox] { transform:scale(1.35); margin:0 8px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r select { min-height:40px; font-size:13px; }
 html.phone #edRows .r > button { min-height:40px; }
 /* the flyout's rows (the display switches, the alphas) take the same knob */
-html.phone #edFlyBody .r { min-height:var(--ph-tap); flex-wrap:wrap; position:relative; }
-html.phone #edFlyBody .r > span.k { flex:1 1 auto; width:auto; white-space:normal; font-size:13px; }
-html.phone #edFlyBody .r.phSlider::after { content:''; order:3; flex-basis:100%; height:0; }
-html.phone #edFlyBody .r.phSlider > .phMinus { order:4; }
-html.phone #edFlyBody .r.phSlider > input[type=range] { order:5; flex:1 1 0; min-width:60px; }
-html.phone #edFlyBody .r.phSlider > .phPlus { order:6; }
-html.phone #edFlyBody .r > .v { order:1; }
+html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r { min-height:var(--ph-tap); flex-wrap:wrap; position:relative; }
+html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r > span.k { flex:1 1 auto; width:auto; white-space:normal; font-size:13px; }
+html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r.phSlider::after { content:''; order:3; flex-basis:100%; height:0; }
+html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r.phSlider > .phMinus { order:4; }
+html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r.phSlider > input[type=range] { order:5; flex:1 1 0; min-width:60px; }
+html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r.phSlider > .phPlus { order:6; }
+html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r > .v { order:1; }
 
 /* THE BUBBLE (R11): the value over the finger */
 #phBubble { position:fixed; z-index:95; pointer-events:none; padding:7px 12px; border-radius:10px;
