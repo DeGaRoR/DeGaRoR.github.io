@@ -499,6 +499,9 @@ body.mode-ws.info-off #edInfoTab { display:flex; }
    line under its widgets; the note spans the row */
 #edRows .r.noted { height:auto; min-height:30px; flex-wrap:wrap; padding-bottom:3px; }
 #edRows .r > .rn { flex:none; width:100%; font-size:10px; color:#e0a23a; padding-left:6px; line-height:12px; }
+/* G3230 TECH-MASK: the machine shop's reason, written under the row it greys (nothing hover-only) */
+#edRows .r.tech { height:auto; min-height:30px; flex-wrap:wrap; padding-bottom:3px; }
+#edRows .r > .rn.edTech { color:var(--ed-warn); }
 
 /* THE GROUP'S ROWS HANG OFF ITS TITLE rather than sharing its left edge (the
    user: "everything in the menu needs indentation"). One step, the same step
@@ -1701,6 +1704,8 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
    reason in the title — never simply absent (absence hides the backlog) */
 .dfTile:disabled { opacity:.35; cursor:not-allowed; }
 .dfTile:disabled:hover { border-color:var(--ed-btn-bd); }
+.dfTile.tech:disabled { opacity:.6; }
+.dfTile .dfTech { font:400 9px/1.2 'IBM Plex Sans'; color:var(--ed-warn, #d8a07a); text-align:center; }   /* G3230: the reason in the tile */
 
 .dfField, .dfList { background:var(--ed-btn-bg); color:var(--ed-ink);
   border:1px solid var(--ed-btn-bd); border-radius:7px; padding:6px 8px;
@@ -1834,11 +1839,19 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 
 /* G3350 (STORY-TIM): Tim's band at the bottom (never centred, never over the middle) and the editor's story lock */
 #stTim { position: fixed; left: 12px; right: 12px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); max-width: 720px;
-  display: flex; align-items: center; gap: 12px; padding: 10px 12px; z-index: 40;
+  /* G3356 (the user 23 Oct: Tim's lines "should render on top of everything"): over the HUD bar, the rails and the
+     corner cards - every game layer; only the map screen's own menu (2147483000) stays above */
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px; z-index: 2147482500;
   background: var(--ed-plate); color: var(--ed-ink);
   border: 1px solid var(--ed-border); border-radius: 10px;
   font-family: 'IBM Plex Sans', system-ui, sans-serif; font-style: normal; font-size: 14px; line-height: 1.4; }
 #stTim[hidden] { display: none; }
+/* G3357: the beat card is a dev's view (?storycard=1); Tim's band carries the beat, its checklist and a chip when closed */
+body.stNoCard #stCard { display: none !important; }
+#stTim .stTimRows { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 2px; font-size: 13px; color: var(--ed-dim, #8a8d91); }
+#stTim .stTimRows li.ok { color: var(--ed-ink, #e8e4dc); }
+#stTim.min { right: auto; padding: 4px; gap: 0; }
+#stTim .stTimChip { all: unset; cursor: pointer; display: block; line-height: 0; }
 #stTim .stTimFace { width: 48px; height: 48px; flex: none; }
 #stTim .stTimFace circle:first-child { fill: var(--ed-btn-bg, #2a2d31); stroke: var(--ed-acc, #d9a441); stroke-width: 1.5; }
 #stTim .stTimFace .h { fill: var(--ed-dim, #8a8d91); }
@@ -1864,3 +1877,20 @@ body.stSkipOn #stTim { bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
 .edTab.locked { opacity: .45; cursor: not-allowed; }
 #edLockNote { font-size: 12px; color: var(--ed-dim, #8a8d91); padding: 2px 8px 6px; }
 #stNoBench { font-size: 12px; color: var(--ed-dim, #8a8d91); margin-left: 8px; }
+/* G3351: the certification bench (the tool: the left panel's tests) never in the story's small shed */
+body.stNoBench #edBench { display: none !important; }
+#stNoBenchNote { font-size: 12px; color: var(--ed-dim); padding: 6px 10px; }
+
+/* P1 CG-COLOURS: the CG / neutral point tooltip (the garage, never in flight) - the --ed look, the band's colour on its
+   edge and title; on the body, so the tokens are redeclared as #fkCard does */
+#cgTip { position: fixed; z-index: 61; width: min(320px, calc(100vw - 16px)); pointer-events: none;
+  --ed-plate: rgba(32,29,26,.95); --ed-ink: #f4efe6; --ed-dim: #c0b8ac; --ed-faint: #97907f; --ed-border: rgba(255,248,236,.14);
+  background: var(--ed-plate); color: var(--ed-ink); border: 1px solid var(--ed-border); border-left-width: 4px; border-radius: 8px;
+  padding: 10px 12px; font-size: 12.5px; line-height: 1.4; box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+#cgTip[hidden] { display: none; }
+#cgTip.b-red { border-left-color: #ff6b5b; } #cgTip.b-orange { border-left-color: #ffa13d; } #cgTip.b-green { border-left-color: #6fd08a; }
+#cgTip .cgT { font-weight: 600; margin-bottom: 4px; }
+#cgTip.b-red .cgT { color: #ff8d80; } #cgTip.b-orange .cgT { color: #ffb866; } #cgTip.b-green .cgT { color: #8fdca3; }
+#cgTip .cgW { color: var(--ed-dim); }
+#cgTip .cgF { color: var(--ed-ink); margin-top: 6px; }
+#cgTip .cgB { color: var(--ed-faint); margin-top: 6px; font-size: 11px; }

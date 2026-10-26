@@ -1419,8 +1419,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           const dxW = W && W.anchor && typeof W.anchor.dx === 'number' ? W.anchor.dx : (P.wgDx || 0);
           M.wingXLE = (zFw - zRing - dxW)
                     - sparF * (P.wgChord || 1.5);
+          // (G3503: a wing drawn past the envelope's span is held by its `big` one - the core's genWingEnv rule)
+          const EW = typeof GEN_WING_ENVELOPE !== 'undefined' ? GEN_WING_ENVELOPE : null;
           const cut = cageWingStationCut(M.wingXLE,
-            typeof GEN_WING_ENVELOPE !== 'undefined' ? GEN_WING_ENVELOPE : null);
+            EW && EW.big && +P.wgSpan > EW.span[1] ? Object.assign({}, EW, EW.big) : EW);
           if (cut) ERRS.push(cut);                                       // G1283
         }
         // G54: the SHAPE FAMILY — the PATH of the boom between the
@@ -1688,7 +1690,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           // flown envelope cuts is said, never cut in silence. The envelope
           // is the spec's own (GEN_TAIL_ENVELOPE, one home, clampSpec reads
           // the same numbers).
-          const ENV = (typeof GEN_TAIL_ENVELOPE !== 'undefined') ? GEN_TAIL_ENVELOPE : null;
+          // (G3503: a wing drawn past the wing envelope's span is a big aeroplane's, and its tail the big envelope's -
+          // the core's genBig rule)
+          const ENV0 = (typeof GEN_TAIL_ENVELOPE !== 'undefined') ? GEN_TAIL_ENVELOPE : null;
+          const ENV = ENV0 && ENV0.big && typeof GEN_WING_ENVELOPE !== 'undefined' && +P.wgSpan > GEN_WING_ENVELOPE.span[1]
+            ? Object.assign({}, ENV0, ENV0.big) : ENV0;
           if (ENV) for (const [k, key, unit] of [['hSpan', 'hSpan', 'm'], ['hChord', 'hChord', 'm'],
               ['vHeight', 'vHeight', 'm'], ['vChord', 'vChord', 'm'],
               ['elevChord', 'elevChord', ''], ['rudChord', 'rudChord', ''],

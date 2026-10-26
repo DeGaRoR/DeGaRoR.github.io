@@ -311,6 +311,10 @@ function tileGrid(row, cur) {
     if (opt.inactive) { b.disabled = true; b.title = opt.inactive; }
     else if (opt.note) b.title = opt.note;
     b.innerHTML = svgFor(opt.icon) + '<span>' + opt.label + '</span>';
+    // G3230 (TECH-MASK): a tile whose writes are above the career's machine shop is greyed with the reason IN the tile
+    // (nothing hover-only); the one the aeroplane holds stays lit (an occasion's part: flown, not modified)
+    const tech = !opt.inactive && opt.value !== cur && window.TECH_MASK ? window.TECH_MASK.tileWhy(row, opt) : null;
+    if (tech) { b.disabled = true; b.classList.add('tech'); b.insertAdjacentHTML('beforeend', '<small class="dfTech"></small>'); b.lastChild.textContent = tech; }
     b.addEventListener('click', () => pick(row, opt));
     g.appendChild(b);
   }
@@ -420,7 +424,10 @@ function rowBlock(row) {
       b.className = 'dfPill dfSeed';
       b.textContent = 'apply the ' + curOpt.label.toLowerCase() +
         ' starting values';
-      b.addEventListener('click', () => pickSeed(row, curOpt));
+      // G3230 (TECH-MASK): starting values above the machine shop are refused, the reason written on the pill
+      const tech = window.TECH_MASK ? window.TECH_MASK.seedWhy(row, curOpt) : null;
+      if (tech) { b.disabled = true; b.textContent += ' · ' + tech; }
+      else b.addEventListener('click', () => pickSeed(row, curOpt));
       wrap.appendChild(b);
     }
   }
@@ -463,7 +470,7 @@ const hidersOf = r => {
 function sigOf(rows) {
   const P = CU() && CU().P;
   if (!P) return '';
-  let s = (lastUndo ? lastUndo.label : '') + '#';
+  let s = (lastUndo ? lastUndo.label : '') + '#' + (window.TECH_MASK ? window.TECH_MASK.sig() : '');   // G3230: the mask relights
   for (const r of rows) {
     if (typeof r.read === 'function' && r.read.length < 2 && !r.once) {
       try { s += r.key + '=' + r.read(P) + ';'; } catch (e) { s += r.key + '!;'; }

@@ -306,9 +306,13 @@ const STORY_JOBS = ['clients.01', 'survey.01', 'resort.01'];
 // authored, never generated). PLACEHOLDERS until the user authors the two planes the story names (HANDOVER G2742): the
 // fabric 4-seater stands as the validated metal Cessna (meridian), the Jodel-class one as the validated Jodel (pinson);
 // the Cub is the story's own. `price` is the occasion's factor on the maker's catalogue (well under a used listing's).
+// (G3359 ECON-APPLY, the user 23 Oct: "apply the economics table, keep demo time as it is for now"; ECON-SIM G3250 HANDOVER): THE STORY'S MONEY. The story career
+// starts without careerNew's grant (STORY_GRANT 0: the Rufus, not 60 000) and T6 pays a commitment fee beside the route's
+// own down payment - the first real money, enough for any one of T7's occasions.
+const STORY_GRANT = 0, STORY_T6_FEE = 20000;
 const STORY_OCCASIONS = [
   { id: 'occ:fabric4', model: 'meridian', opts: { avionics: 'basic', finish: 'white', reg: 'N4OCC' }, hours: 2400, repair: 'skin',
-    seller: 'used.seller.3', aero: 'HOME', price: 0.30, placeholder: 'the fabric 4-seater (stands as the metal Cessna until authored)' },
+    seller: 'used.seller.3', aero: 'HOME', price: 0.35, placeholder: 'the fabric 4-seater (stands as the metal Cessna until authored)' },   // G3359: 0.30 -> 0.35, the table's
   { id: 'occ:jodel', model: 'pinson', opts: { engine: 'a65', finish: 'red', reg: 'N2OCC' }, hours: 1150, repair: 'none',
     seller: 'used.seller.0', aero: 'HOME', price: 0.35, placeholder: 'the Jodel-class one (stands as the validated Jodel until authored)' },
   { id: 'occ:cub', model: 'scout', opts: { engine: 'a65', avionics: 'minimal', finish: 'green', reg: 'N3OCC' }, hours: 1800, repair: 'gear',
@@ -328,7 +332,10 @@ function storyCabinShed(aero, clock) {
   const P = plot ? O.plots[plot] : null;
   const S = (typeof SHELLS !== 'undefined' && SHELLS.field) ? SHELLS.field.dims : {};
   return { id: plot || aero, shed: { shell: 'field', kits: ((P && P.kits) || STORY_CABIN_SHED.kits).slice(), base: aero, tenure: 'own',
-    dims: Object.assign({}, S, STORY_CABIN_SHED.dims, (P && P.dims && P.dims.field) || {}), since: Math.round(clock || 0), story: 'cabin' } };
+    dims: Object.assign({}, S, STORY_CABIN_SHED.dims, (P && P.dims && P.dims.field) || {}), since: Math.round(clock || 0), story: 'cabin',
+    ...(P && Array.isArray(P.omit) ? { omit: P.omit.slice() } : {}),   // G3353: the props the plot leaves out
+    ...(P && P.workLamp && typeof P.workLamp === 'object' ? { workLamp: Object.assign({}, P.workLamp) } : {}),   // G3354
+    ...(P && Array.isArray(P.lampXZ) ? { lampXZ: P.lampXZ.map(p => p.slice()) } : {}) } };   // G3354: the fittings off the wing line
 }
 // A NEW CAREER WITH THE STORY (the welcome's New career, the player's career 'main' only): storyStart with the starter's
 // slot, then the cabin - the strip that plays the cabin (storySite, never a guess) gets the smallest shed, the garage opens
@@ -342,6 +349,11 @@ function storyNewCareer(doc, o) {
   const r = storyStart(doc, slot);
   if (!r.ok) return r;
   const d = r.doc, s = storyNormalise(d.career.story), cabin = storySite('cabin', o.aeros);
+  // G3359: careerNew's grant is not the story career's - its ledger line goes and the wallet holds STORY_GRANT instead
+  if (d.mode === 'career' && typeof CAREER_GRANT === 'number' && Array.isArray(d.ledger)) {
+    const i = d.ledger.findIndex(e => e && e.k === 'grant' && e.amt === -CAREER_GRANT);
+    if (i >= 0) { d.ledger.splice(i, 1); d.wallet -= CAREER_GRANT; if (STORY_GRANT) playerCharge(d, -STORY_GRANT, 'grant', 'story'); }
+  }
   if (cabin && cabin !== 'HOME') {
     const C = storyCabinShed(cabin, d.clock);
     d.sheds[C.id] = C.shed;
@@ -350,6 +362,8 @@ function storyNewCareer(doc, o) {
     s.cabin = { aero: cabin, hangar: C.id };
   } else { s.cabin = null; s.note = STORY_NO_CABIN; }
   d.career.story = s;
+  // G3230 (TECH-MASK): a new story career opens its machine shop at the first segment, Wood and fabric (79b_tech.js)
+  if (typeof techNew === 'function') d.career.tech = techNew();
   d.career.airframes[slot] = { from: 'story', story: 'starter', factory: false, modified: false, paid: 0, at: Math.round(d.clock || 0) };
   return { ok: true, doc: d, effects: r.effects, cabin: s.cabin, why: null };
 }
@@ -421,6 +435,7 @@ function storyApply(doc, e, o) {
     const D = R.doc;
     Object.assign(offer, { route: R.route.id, down: R.route.down, pay: R.route.pay, tripS: R.route.tripS });
     s.offers = (s.offers || []).filter(x => x.k !== 'route').concat([offer]);
+    if (STORY_T6_FEE > 0) { playerCharge(D, -STORY_T6_FEE, 'story', 'T6:fee'); offer.fee = STORY_T6_FEE; }   // G3359: the commitment fee
     D.career.story = s;
     return { ok: true, doc: D, why: '', route: R.route, line: storyRouteLine(R.route, o.aeros) };
   } else if (e.k === 'occasions') {

@@ -98,8 +98,25 @@ const BASE_OFFERS = {
     words: 'the Cabin Strip · gravel up a lake valley',
     // (G2745) the Field shed only (the smallest shed; its footprint fits the strip's flat top), 18 x 20 m (ED-2 places the plot for it) so a
     // Cub stands inside with its kits (GATE GAMEPREM: "the field as offered takes a cub")
-    plots: { w1: { shells: ['field'], kits: ['park', 'bench', 'comfort'], pf: 0.6,
-                   dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } } },
+    // (G3352, the user 22 Oct: "I liked it messy ... the wing in building, the plane in building, a couple of woodworking
+    // machines and other props") the cabin is the cozy workshop: every kit but the office. The 'bench' KIT is the work
+    // bench (decor); the certification bench (the TOOL) never stands here (app.js storyBenchRule)
+    // (G3352, the user 22 Oct: "If all props do not fit the hangar, you may slightly increase its size") 10 x 11 (20 x 22 m,
+    // the field shell's widest): with every kit the story's ultralight (Rufus, class ul1) stands inside; a Cub does not, and
+    // the story never brings one here (its client Cub lives at HOME) - `takes` names the class the offer is held to
+    plots: { w1: { shells: ['field'], kits: ['park', 'bench', 'wood', 'metal', 'store', 'handling', 'comfort', 'curio', 'wip'], pf: 0.6,
+                   takes: 'ul1', dims: { field: { HW: 10, HD: 11, EAVE: 4.0 } },
+                   // (G3353, the user 22 Oct: "get rid of the large router (the largest of the woodworking machines). Keep
+                   // only the 2 smaller ones (the drill and another)") the two smallest machines stay - the pillar drill and
+                   // the thicknesser; the panel saw (4.4 x 3.6 m), the band saw and the surface planer are left out
+                   omit: ['panelsaw', 'bandsaw', 'jointer'],
+                   // (G3354, the user 22 Oct: "We need light in the cabin, right now it's a dark hole") a work lamp hung
+                   // ahead of the stand, aimed into the ultralight's cockpit (hangar.js opts.workLamp)
+                   workLamp: { cd: 40 },
+                   // (G3354, the user 22 Oct: "Maybe the lamps are too directly on top of the wing") the field cross hung
+                   // one fitting over the stand and two over the 9.8 m wing's tips: those three hang ahead of the leading
+                   // edge instead (the 23 Oct stills' pick, d2), the fore and aft fittings stay. hangar.js LAMP_XZ units
+                   lampXZ: [[-8, 0], [-3.1, 0], [8, 0], [-3.1, 7.6], [-3.1, -7.6]] } },
   },
   HOME: {
     words: 'Jolene AFB · the WWII field',
@@ -111,7 +128,7 @@ const BASE_OFFERS = {
     },
   },
   w3: {
-    words: 'Tamgas Hill · a strip above the trees',
+    words: GAME_NAMES.hill + ' · a strip above the trees',
     plots: { w3: { shells: ['field'], kits: ['park', 'bench'], pf: 0.8,
                    dims: { field: { HW: 8.5, HD: 9, EAVE: 3.6 } } } },
   },
@@ -121,16 +138,16 @@ const BASE_OFFERS = {
                        dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } } },
   },
   mn_strip: {
-    words: 'Jumbo Mine · a derelict shed on the street',
+    words: GAME_NAMES.mine + ' · a derelict shed on the street',
     plots: { mn_strip: { shells: ['field'], kits: ['park', 'bench', 'curio'], pf: 0.5, derelict: true } },
   },
   SEA: {
-    words: 'Annette Dock · a slipway',
+    words: GAME_NAMES.fields.SEA + ' · a slipway',
     plots: { SEA: { shells: ['field', 'club'], kits: ['park', 'store'], pf: 1, water: true,
                     dims: { field: { HW: 9, HD: 10, EAVE: 4.4 } } } },
   },
   mk_sea: {
-    words: 'Metlakatla · the seaplane float',
+    words: GAME_NAMES.town + ' · the seaplane float',
     plots: { mk_sea: { shells: ['field'], kits: ['park'], pf: 0.8, water: true,
                        dims: { field: { HW: 9, HD: 10, EAVE: 4.4 } } } },
   },
@@ -215,7 +232,8 @@ function hangarObstacles(shed, reg) {
   if (typeof hangarFit !== 'function') return [];
   const kits = (shed && Array.isArray(shed.kits) && shed.kits.length) ? shed.kits : ['park'];
   // G2315: the shed's LAYOUT (cozy: the career's works) stands the kits elsewhere - its rows are the floor's obstacles
-  const fit = hangarFit(hangarDims(shed), kits, { shell: (shed && shed.shell) || 'club', reg, layout: shed && shed.layout });
+  const fit = hangarFit(hangarDims(shed), kits, { shell: (shed && shed.shell) || 'club', reg, layout: shed && shed.layout,
+    omit: shed && shed.omit });   // G3353
   const orient = (f, ry) => (Math.round((ry || 0) / (Math.PI / 2)) & 1) ? [f[1], f[0]] : [f[0], f[1]];
   const out = [];
   for (const p of fit.placed) {

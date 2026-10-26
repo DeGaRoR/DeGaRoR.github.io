@@ -437,7 +437,8 @@ function run(mut) {
         ok(['HW', 'HD', 'EAVE'].every(k => dims[k] >= lim[k][0] && dims[k] <= lim[k][1]), pid + ': the ' + s + ' is offered inside its envelope');
         // as BOUGHT: the offer's kits, a bare shed for the starter's other shells (a rebuild keeps
         // the fit-out it has, and playerUpgrade refuses one that would push an aeroplane out)
-        const who = P.water ? 'floatplane' : (P.derelict ? 'jodel' : 'cub');
+        // (G3352) an offer may name the class it is held to (`takes`: the story's cabin, the ultralight) - else as before
+        const who = P.takes || (P.water ? 'floatplane' : (P.derelict ? 'jodel' : 'cub'));
         ok(R.hangarRoomFor({ shell: s, kits: P.kits || ['park'], dims }, FOOT(who), [], opts) >= 1,
            pid + ': the ' + s + ' as offered takes a ' + who);
       }
@@ -590,7 +591,7 @@ function run(mut) {
     ok(eq(Object.keys(B0), ['HOME']) && B0.HOME.name === R.FLIGHT_BASES.HOME.name && B0.HOME.hangar === R.FLIGHT_BASES.HOME.hangar && eq(B0.HOME.hangars, ['HOME']),
        'gp1: the sandbox\'s bases are HOME alone, in today\'s words');
     const B2 = R.flightBasesOf(c);
-    ok(eq(Object.keys(B2), ['HOME', 'w3']) && eq(B2.HOME.hangars, ['HOME', 'HOME.2']) && /Tamgas/.test(B2.w3.name),
+    ok(eq(Object.keys(B2), ['HOME', 'w3']) && eq(B2.HOME.hangars, ['HOME', 'HOME.2']) && B2.w3.name.startsWith(CORE.GAME_NAMES.hill),   // (G3240 NAMES: the table's)
        'gp1: holding Tamgas Hill makes it a base; HOME\'s two hangars are one base (' + J(Object.keys(B2)) + ')');
     const JW = { aerodromes: (JOLENE.layers.runways || []).map(r => ({ id: r.id, kind: r.kind || 'strip' })) };
     ok(R.flightBases(JW, c).map(x => x.id).join() === 'HOME,w3' && R.flightBases(JW).length === 1 && R.flightBase(JW, 'w3', c).aero === 'w3',

@@ -42,7 +42,8 @@ const CONTRACT_OPS = ['>=', '<=', '=='];
 // ---- THE CRITERION KINDS (data: ACCEPT implements each kind, MAP labels each) -----------------------------
 //   k        the key a criterion names            unit   the value's unit ('' for a word, 'strip' for a field id)
 //   when     'static' (judged without flying: the phone may do it, GQ19) | 'flown' (a flight decides it)
-//   how      'spec' | 'ledger' | 'cert' (the structural certificate) | 'bench' (a BENCH_TESTS run) |
+//   how      'spec' | 'ledger' | 'cert' (the structural certificate) | 'design' (the design check's rows, no flight) |
+//            'bench' (a BENCH_TESTS run) |
 //            'leg' (the flown acceptance leg) | 'strip' (flown at that strip: the delivery or a demonstration)
 //   src      where today's number comes from (GAME §6.2)
 //   op       the operators the kind takes; band the sane values [lo, hi] (a criterion outside is invalid)
@@ -67,7 +68,7 @@ const CONTRACT_CRIT_KINDS = {
                   op: ['<='], band: [5000, 300000], follow: { mul: 0.9, round: 500 } },
   ultimateG:    { k: 'ultimateG',    unit: 'g',     when: 'static', how: 'cert',   src: 'the structural certificate (66_gen_cert.js ultimate)',
                   op: ['>='], band: [3, 12], follow: { add: 0.5, round: 0.5 } },
-  xwindKt:      { k: 'xwindKt',      unit: 'kt',    when: 'flown',  how: 'bench',  src: 'BENCH_TESTS xwind (genCrosswindLimit)',
+  xwindKt:      { k: 'xwindKt',      unit: 'kt',    when: 'static', how: 'design', src: 'genDesignCheck ctl.rudder (64b_gen_design: full rudder\'s sideslip at 1.3 Vs; G2735)',
                   op: ['>='], band: [5, 30], follow: { add: 3, round: 1 } },
   hydro:        { k: 'hydro',        unit: '',      when: 'flown',  how: 'bench',  src: 'BENCH_TESTS hydro + the delivery on water',
                   op: ['=='], values: [true], follow: null },
@@ -342,13 +343,14 @@ const ctWet = f => !!f && f.surf === 'water';
 // THE FIELDS OF A WORLD: the same rows off the world's aerodromes (a premises record's runways or
 // world.aerodromes: `c` or x/z, len, the surface through 25_'s stripSurface). GATE CONTRACTS holds
 // CONTRACT_FIELDS equal to this over Jolene's record.
+// (G3240 NAMES) a row's name is fieldName's (01_names.js): the table's name for a field it names, else the record's own
 function contractFieldsOf(aerodromes) {
   const out = {};
   for (const a of (aerodromes || [])) {
     if (!a || !a.id || a.kind === 'meadow') continue;
     const x = Array.isArray(a.c) ? a.c[0] : a.x, z = Array.isArray(a.c) ? a.c[1] : a.z;
     const S = typeof stripSurface === 'function' ? stripSurface(a) : null;
-    const row = { id: a.id, name: a.name || a.id, x: Math.round(x), z: Math.round(z), len: Math.round(a.len || 0),
+    const row = { id: a.id, name: typeof fieldName === 'function' ? fieldName(a.id, a.name) : (a.name || a.id), x: Math.round(x), z: Math.round(z), len: Math.round(a.len || 0),
                   surf: S ? S.key : (+a.surface === 4 ? 'water' : 'grass') };
     if (a.altiport) row.alti = true;
     // (G2665 NIGHT-OPS) lit at night: 25_'s rule (runwayLightStrips - a land strip; a water lane none); the record's

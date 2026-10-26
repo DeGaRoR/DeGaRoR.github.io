@@ -414,8 +414,15 @@ const GATES = [
   // G2357-G2360 (DMG-SCAR): the ground's scar - nothing on an intact aircraft or with the layer off (the page's bytes); the
   // standard crashes scar the ground under their contacts (craters, gouges, the prop's slot, the sweep; at most 64), read
   // never pushed (the same bits), the hop through the worker = inline, reset restores; the grass cull exactly the footprint
-  // and no program linked in a crash (the real cover ring and the decal on the real three over a fake GL). Three builds at once
-  { id: 'DMGSCAR', file: '_dmg_scar_check.js', tier: 'core', weight: 3, wall: 900 },
+  // and no program linked in a crash (the real cover ring and the decal on the real three over a fake GL). Three builds at once.
+  // G2382 (DMG-SCAR2): + the join (a skipping slide one gouge, a crater only where a hard blow stopped), the resting wreck's
+  // hull inside the cull, the runway's scuff readable from the chase camera, the floats' water crash scarless
+  { id: 'DMGSCAR', file: '_dmg_scar_check.js', tier: 'core', weight: 3, wall: 950 },
+  // G2373-G2377 (DMG-OCCUPANT): each occupant's band after a crash (src/core/34_occupant.js) - one of five words, the
+  // criteria behind it in the gate's output only: the bands by case on the validated builds (the taxi and FAR 23.473's
+  // drop Unharmed, the 30 m/s centreline severe), damage off = no record, the recorder only reads, the hop once, the
+  // crash card under the worker scanned for any injury word. Six builds and one page process (~4 GB)
+  { id: 'DMGOCCUPANT', file: '_dmg_occupant_check.js', tier: 'core', weight: 4, wall: 900 },
   // G2353-G2356 (DMG-DETERMINISM): the same crash is the same bits everywhere - node refuses a stale generated core (the
   // "JIT" 154 / 204 was train 37's committed core); the standard crashes (taxi, nose-over, the 30 m/s trunks; damage OFF the
   // trunk and a 20 s flight) one hash under the interpreter, Sparkplug, Maglev, TurboFan; the certificate alike; and in a
@@ -453,6 +460,8 @@ const GATES = [
   // the panels the player opens), the arrival / award / run cards anchored left + bottom; and Chrome (--disable-gpu, a bare
   // page with the real stylesheets) lays them in the lower-left quadrant (flight, workshop) / on the phone's sheet. ~5 s
   { id: 'CARDS', file: '_cards_check.js', tier: 'core', wall: 20 },
+  // G3449 FLOAT-DUP: one pair of floats in the shed along the builder's path (dev.html, headless Chrome, software GL)
+  { id: 'FLOATDUP', file: '_floatdup_check.js', tier: 'full', timeout: 900_000, wall: 300 },
   { id: 'FADES', file: '_fades_check.js', tier: 'core' },   // A2-FADES G670-G673: the prop disc, the grass's grow / pre-grow / lead, the premises' rise
   { id: 'CONTACT', file: '_contact_check.js', tier: 'core' },   // A6-GROUND G1000-G1003: the pavement at terrainH where the wheels roll, the contact shadows, nothing loose on a pavement
   { id: 'SHADOWSKY', file: '_shadowsky_check.js', tier: 'core' },   // A2-SHADOW-SKY G650-G655: the PCF bias under the reversed buffer + a still kernel, the craft's shadow at any height, the mirror's clip, cloud sync, the cover pass, the pause
@@ -624,6 +633,9 @@ const GATES = [
   // fingerprint ignores paint/finish/meta and nothing else) and wears its
   // stickers (one roundel per test, page 6, the seventh decal slot).
   { id: 'BENCH', file: '_bench_check.js', tier: 'core', wall: 90 },
+  // G3450 P1 CG-COLOURS: the garage's CG / neutral-point indicators wear one band (red / orange / green from
+  // genMarginBand, 0 / 5 % / 40 %), '!' on red and orange, a tooltip with the reasons on a hover and a tap.
+  { id: 'CGBAND', file: '_cgband_check.js', tier: 'core', wall: 30 },
   // G810 (ARCH-2026-09-27 §2.4): the solver on its own thread - src/viewer/sim_host.js in a worker_threads Worker
   // (the core only, the trimmed boot) driven through sim_view.js flies the page's inline loop to the bit on Jolene
   // (stock + the metal Cessna, a scripted input list stamped by step), its real-time log replays inline to the bit,
@@ -896,11 +908,23 @@ const GATES = [
   // G2741 STORY-CORE: the tutorial's beats, pure; G2742 STORY-PAGE: + the page half (app.js's story half run headless over
   // the core: a New career at the cabin, the card, an ack, a stop at HOME -> the client's Cub in the hangar; Q1; the occasions)
   { id: 'STORY', file: '_story_check.js', tier: 'core', wall: 20 },
+  // G3240-G3249 NAMES (GAME-PLAN §13, the user 15 Oct: "Everything should have a fictional name"): no real person,
+  // organisation or place it lists is shown - the source's string literals (comments skipped), the island record, the
+  // built page (index.html + its chunks), the evaluated text tables (GAME_NAMES, the contracts, the plots, the story,
+  // the boot cards, MAP_PACK) and a saved record still carrying an old name (it shows the table's); the HOLDS (a painted
+  // sign, a recorded voice line) printed, a stale one red. ~2 s; `--selftest`: eight breaks red, a comment kept green (~10 s)
+  { id: 'NAMES', file: '_names_check.js', argv: ['--selftest'], tier: 'core', wall: 12 },
   // G3260-G3269 ROUTES: a plane + a hired pilot + an A <-> B schedule (78b_routes.js, pure): sign / settle / end on clones,
   // the terms against a hand-computed case, no pay without sim time, the lock (playerMove / playerSendTo refuse it), the
   // save, the sandbox untouched, STORY's T6 signing a real route (app.js's story half headless: the arrival card's line);
   // ~2 s. `--selftest`: four breaks, each red
   { id: 'ROUTES', file: '_routes_check.js', tier: 'core', wall: 5 },
+  // G3230-G3239 TECH-MASK: the machine shop's three segments (79b_tech.js, pure): every GEN option has a segment, the
+  // validated builds' stages (TECH_DESIGNS re-derived from the files), the career's segment, the sandbox unchanged, the
+  // editor's own TECH-MASK block headless over the real cage rows and design table (exactly the above-segment options
+  // greyed, the story's lock first), the makers' and the used market's filter, the story's occasions at T7; ~2 s.
+  // `--selftest`: six breaks, each red
+  { id: 'TECH', file: '_tech_check.js', tier: 'core', wall: 5 },
   // G2260 (ECONOMY): one price book, the career wallet's rules, the calibration bands, az through physical gates (~26 s)
   { id: 'ECON', file: '_econ_check.js', tier: 'core' },
   // PROCUREMENT (G2280 PROCURE, GAME-2026-10-06.md §5, §R GQ2): the makers' catalogues over the validated builds only,

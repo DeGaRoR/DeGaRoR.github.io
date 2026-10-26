@@ -116,7 +116,10 @@ function measureDesigns(DS) {
     out[k] = { gear: CORE.stripGear(def.spec) === 'floats' || s.gearType === 'floats' ? 'floats' : 'wheels',
                seats: s.envelope.seats, bagKg: (def.spec.cabin && def.spec.cabin.baggage) || 0,
                massKg: s.mass, emptyKg: s.empty, toM: s.TORun, cruiseKmh: s.VCruise * 3.6, rangeKm: s.rangeKm,
-               spanM: s.span, cost: s.cost, tankL: s.energyL, power: s.energyKind };
+               spanM: s.span, cost: s.cost, tankL: s.energyL, power: s.energyKind,
+               // (G2735) the crosswind its rudder holds: the design check's row (genDesignCheck ctl.rudder) - what
+               // ACCEPT's xwindKt reads
+               rudderKt: ((s.design && s.design.rows.find(r => r.id === 'ctl.rudder')) || {}).value };
   }
   return out;
 }
@@ -166,7 +169,7 @@ function run(mut) {
     ok(K.k === k && typeof K.unit === 'string' && ['static', 'flown'].includes(K.when) && typeof K.how === 'string' && K.how
        && typeof K.src === 'string' && Array.isArray(K.op) && K.op.every(o => M.CONTRACT_OPS.includes(o)),
        'crit kind ' + k + ' carries k, unit, static|flown, how, src, op');
-    ok(K.when !== 'static' || ['spec', 'ledger', 'cert'].includes(K.how), 'crit kind ' + k + ': a static kind is judged without flying');
+    ok(K.when !== 'static' || ['spec', 'ledger', 'cert', 'design'].includes(K.how), 'crit kind ' + k + ': a static kind is judged without flying');
     ok(K.unit === 'strip' || K.values || (Array.isArray(K.band) && K.band[0] < K.band[1]), 'crit kind ' + k + ' has a sane band or its words');
     ok(M.contractTextOk('crit.' + k), 'crit kind ' + k + ' has a label');
   }
@@ -250,6 +253,27 @@ function run(mut) {
       ok(X && Math.abs(D[n] - X[n]) <= 0.03 * Math.abs(X[n]), k + '.' + n + ' ' + D[n] + ' is the certificate\'s ' + (X && X[n] && X[n].toFixed(1)));
   }
   ok(eq(Object.keys(DS).sort(), ['c172', 'c172f', 'cub', 'jodel', 'twinf']), 'the five validated designs (Cub, Jodel, C172, C172 floats, the twin on floats)');
+  // (G2735 ACCEPT-XWIND) A CROSSWIND CRITERION IS THE DESIGN CHECK'S RUDDER ROW (genDesignCheck ctl.rudder: no flight,
+  // no bench ladder), and every build contract that asks one - authored or a follow-up - is met by a validated design
+  {
+    const K = M.CONTRACT_CRIT_KINDS.xwindKt;
+    ok(K && K.when === 'static' && K.how === 'design' && /genDesignCheck ctl\.rudder/.test(K.src), 'xwindKt is static: the design check\'s rudder row (' + (K && K.src) + ')');
+    ok(Object.keys(DS).every(k => MEASURED[k] && typeof MEASURED[k].rudderKt === 'number' && MEASURED[k].rudderKt > 0),
+       'every validated design\'s rudder measured (' + Object.keys(DS).map(k => k + ' ' + (MEASURED[k] && MEASURED[k].rudderKt) + ' kt').join(', ') + ')');
+    let asked = 0;
+    for (const id of ids) {
+      let r = A[id], n = 0;
+      while (r && n++ < 10) {
+        for (const c of M.contractCrit(r).filter(c => c.k === 'xwindKt')) {
+          asked++;
+          const meet = Object.keys(DS).filter(k => MEASURED[k] && MEASURED[k].rudderKt >= c.v);
+          ok(meet.length > 0, r.id + ': xwindKt >= ' + c.v + ' kt met by a validated design\'s rudder (' + (meet.map(k => k + ' ' + MEASURED[k].rudderKt).join(', ') || 'none') + ')');
+        }
+        r = A[id].kind === 'build' ? M.contractFollowUp(r) : null;
+      }
+    }
+    ok(asked >= 2, 'the crosswind contracts found (' + asked + ' criteria: resort.b2, clients.04 and their follow-ups)');
+  }
 
   // ==== THE PHYSICAL ROWS ====================================================
   for (const id of ids) {
@@ -815,11 +839,11 @@ function run(mut) {
     {
       const e = M.careerNew({ seed: 'words' });
       const L = M.careerNightLine(e, A['field.n1']);
-      ok(L && L.line.startsWith('arrive 00:00-01:00') && /Tamgas Hill Strip lit \(PAPI\)/.test(L.line) && /Jolene AFB lit \(VASI\)/.test(L.line), 'night: the mail\'s line - ' + (L && L.line));
+      ok(L && L.line.startsWith('arrive 00:00-01:00') && L.line.includes(CORE.GAME_NAMES.fields.w3 + ' lit (PAPI)') && /Jolene AFB lit \(VASI\)/.test(L.line), 'night: the mail\'s line - ' + (L && L.line));
       const sea = M.contractNormalise({ id: 'x', provider: 'minedock', kind: 'job', title: 'job.minedock.mail.title', brief: 'job.minedock.mail.brief',
                                        stages: [{ subs: [{ do: 'carry', from: 'SEA', to: 'mk_sea', load: { kg: 20, pax: 0 }, when: { after: 'dusk' } }] }], rep: { provider: 'minedock', gain: 0 } });
       const LS = M.careerNightLine(e, sea);
-      ok(LS && /Annette Dock unlit/.test(LS.line) && /Metlakatla Seaplane Base unlit/.test(LS.line), 'night: water lanes are unlit (' + (LS && LS.line) + ')');
+      ok(LS && LS.line.includes(CORE.GAME_NAMES.fields.SEA + ' unlit') && LS.line.includes(CORE.GAME_NAMES.fields.mk_sea + ' unlit'), 'night: water lanes are unlit (' + (LS && LS.line) + ')');
       ok(M.contractMoonWords({ phase: 'full', up: true }) === 'full moon, up' && M.contractMoonWords({ phase: 'half', up: false }) === 'half moon, down'
          && M.contractMoonWords({ phase: 'new', up: true }) === 'no moon' && M.contractMoonWords({ phase: 'full', up: true, overcast: true }) === 'overcast: no moon light', 'night: the moon in words');
       // the line's moon is the NEXT opening's, at the window's middle
@@ -1121,6 +1145,9 @@ const BREAKS = [
   ['a stop that is not one delivers', { s75: sub("aero: (o.how === 'stopped' || o.how == null) && o.aero ? o.aero : null,", 'aero: o.aero || null,') }],
   ['the hook approves a pending verdict', { s75: sub('    return { ok: null, why: todo.map(', '    return { ok: true, got, why: todo.map(') }],
   ['the overflight ignores the field radius', { s75: sub('if (flightStripGeom(a, x, z).d <= FLIGHT_FIELD_R) out.push(a.id);', 'out.push(a.id);') }],
+  // (G2735) the crosswind is the design check's
+  ['a crosswind no validated rudder holds', { s72: sub("{ k: 'xwindKt', op: '>=', v: 15 },", "{ k: 'xwindKt', op: '>=', v: 28 },") }],
+  ['the crosswind flown on the bench again', { s73: sub("when: 'static', how: 'design', src: 'genDesignCheck ctl.rudder", "when: 'flown',  how: 'bench', src: 'BENCH_TESTS xwind (genCrosswindLimit) ctl.rudder") }],
   // (g1)
   ['a build criterion names a configuration', { s72: sub("'ct.clients.04.brief': CT_('A trainer for the club, cheap and forgiving.')", "'ct.clients.04.brief': CT_('A tricycle trainer for the club, cheap and forgiving.')") }],
   ['the word check is off', { s73: sub("  for (const w of CONTRACT_CONFIG_WORDS) if (t.includes(' ' + w + ' ')) return w;", ''), s72: sub("'ct.clients.04.brief': CT_('A trainer", "'ct.clients.04.brief': CT_('A Rotax trainer") }],
