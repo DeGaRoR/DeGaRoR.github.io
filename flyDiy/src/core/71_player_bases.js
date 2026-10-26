@@ -117,12 +117,14 @@ const BASE_OFFERS = {
                    // the one plank twice: over the door pair, and inside under the eave - on the back wall the stand looks
                    // at or the flank beside it, wherever the room's fit leaves it clear (hangarSignSpot: never behind the
                    // hung wing or its straps, the user 25 Oct), from 3.5 m toward the person door outward
+                   // (G3540 v3, the user 26 Oct: "the shed panel can be 4 times bigger, in and out"): 4 m wide, twice the
+                   // first board each way (four times its face); over the door and inside alike
                    // (G3541/G3542, the user 25 Oct: "the pavement in front: concrete in the garage and dirt in the world -
                    // aligned and the same materials"; "the building is not anchored"): ONE ground for the room and the world
                    // - the site's dirt, 14 m out of the door and a metre past each flank, a metre round the back, dark at the
                    // walls and gone a metre out; the walls' foot dark, gone a metre up
                    takes: 'ul1', dims: { field: { HW: 9, HD: 11, EAVE: 4.0, door: 10, doorClr: 0.1, leaves: 2,
-                                                  sign: { key: 'the_shed', w: 2.0, inside: 3.5 },
+                                                  sign: { key: 'the_shed', w: 4.0, inside: 3.5 },
                                                   ground: { set: 'dirt', apron: 14, side: 1, ring: 1, fade: 2.5, ao: 0.55, foot: 0.5 } } },
                    // (G3353, the user 22 Oct: "get rid of the large router (the largest of the woodworking machines). Keep
                    // only the 2 smaller ones (the drill and another)") the two smallest machines stay - the pillar drill and
