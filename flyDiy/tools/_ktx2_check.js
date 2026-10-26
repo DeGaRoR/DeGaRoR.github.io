@@ -329,6 +329,9 @@ function loadCharTable(over) {
 async function checkCharFiles(T, over) {
   const CB = require('./char_tex_budget.js');
   const TB = CB.budget(), chars = CB.manifests();
+  // G3619: colorCodec 'auto' (the cast's) puts a diffuse in ETC1S where it meets the bar on that map, else UASTC;
+  // a normal is UASTC always
+  const codecOk = (q, kind) => q.codec === 'UASTC' || (kind === 'color' && TB.colorCodec === 'auto' && q.codec === 'ETC1S');
   // G939.1 (train 17): since AS0b (G903) a texs entry may be a flat map's CONSTANT [r, g, b] - no file to decode
   const rels = [...new Set(chars.flatMap(c => Object.values(c.texs).filter(v => typeof v === 'string')))].sort();
   let D;
@@ -369,7 +372,7 @@ async function checkCharFiles(T, over) {
         let q;
         try { q = await CB.measure(bytes, im, kind === 'color'); } catch (e) { bad.push(url + ': ' + e.message); continue; }
         const full = Math.floor(Math.log2(Math.max(im.w, im.h))) + 1;
-        if (q.w !== im.w || q.h !== im.h || q.levels !== full || q.codec !== 'UASTC' || q.srgb !== (kind === 'color')) bad.push(`${url}: ${q.w}x${q.h}, ${q.levels} levels, ${q.codec}, sRGB ${q.srgb}`);
+        if (q.w !== im.w || q.h !== im.h || q.levels !== full || !codecOk(q, kind) || q.srgb !== (kind === 'color')) bad.push(`${url}: ${q.w}x${q.h}, ${q.levels} levels, ${q.codec}, sRGB ${q.srgb}`);
         if (!q.ok) bad.push(`${url}: rgb ${q.rgb} a ${q.a} dB, mean ${q.mean0}, mips ${q.meanM}, tile ${q.tile}`);
         if (Math.max(im.w, im.h) > TB.size) bad.push(url + ': ' + im.w + 'x' + im.h + ' over the budget\'s ' + TB.size);
         if (q.rgb < worst[0]) worst = [q.rgb, path.basename(url)];
@@ -383,7 +386,7 @@ async function checkCharFiles(T, over) {
   const disk = fs.existsSync(abs('media/tex/ktx2/chars')) ? fs.readdirSync(abs('media/tex/ktx2/chars')).map(f => 'media/tex/ktx2/chars/' + f) : [];
   for (const f of disk) if (!on.has(f)) bad.push(f + ': on disk, in no row (an orphan)');
   const MB = x => (x / 1048576).toFixed(1);
-  verdict(!bad.length, `10 the characters' budget: ${chars.length} characters, ${nMats} materials, ${files} files (every plane re-cut from its 2048 maps: ${TB.size}^2, gloss in N.a, the flat specular a constant) = their names, UASTC, within the bar (worst rgb ${worst[0]} dB [${worst[1]}], worst gloss ${worstA[0]} dB [${worstA[1]}], worst skin tile ${worstTile[0]} codes [${worstTile[1]}]); GPU ${MB(gOld)} -> ${MB(gNew)} MiB for the six`, bad.slice(0, 5).join('; '));
+  verdict(!bad.length, `10 the characters' budget: ${chars.length} characters, ${nMats} materials, ${files} files (every plane re-cut from its 2048 maps: ${TB.size}^2, gloss in N.a, the flat specular a constant) = their names, UASTC (a diffuse ETC1S where it meets the bar), within the bar (worst rgb ${worst[0]} dB [${worst[1]}], worst gloss ${worstA[0]} dB [${worstA[1]}], worst skin tile ${worstTile[0]} codes [${worstTile[1]}]); GPU ${MB(gOld)} -> ${MB(gNew)} MiB for the six`, bad.slice(0, 5).join('; '));
 }
 async function checkCharPage(T, over) {
   const THREE = require('../vendor/three.min.js');
