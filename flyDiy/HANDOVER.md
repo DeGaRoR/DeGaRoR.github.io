@@ -97176,6 +97176,24 @@ Strict light gate: 8 RED, none new by cause: over100 x4 = the pre-existing revea
   - The numbers in ROUTES_PAY are a hypothesis. Waits pay (the brief says so): a 12 h wait on the story Cub's route earns
     ~26 000. Tune perKm / downTrips there if that is too rich.
 
+## G3612 - CAREER-OWN: A CAREER'S FLEET IS ITS OWN PLANES; A DESIGN BROUGHT IN IS A KIT - BOUGHT, COPIED, THEN CERTIFIED
+
+The user (25 Oct): "a career starts only with its own plane. Any imported plane in the career costs money" - "old careers
+are reset to only their own planes ... What you import is a design, then making it exist in game requires money and
+freezes the design, until the next edit. At that point, it is its own copy, and will live its life as an individual
+object" - "New copy starts uncertified. Like kitplanes, you can build it, you still need to certify it once built".
+- **Own = a career.airframes row** (74_career.js careerOwnSlots): the story's starter and client, a maker's / used one
+  bought, a build materialised in its garage, an import. Every playerFleetReconcile in app.js goes through
+  fleetSlotNames: a career is handed its own slots only, so an older career's other rows leave at its next lift (the
+  reset, once). The sandbox is handed every slot but a career's copies.
+- **A career's slot is tagged** `'<name> @<career id>'` (CAREER_SLOT_TAG): an import's copy (careerCopyName) and a build
+  saved under a new name in a career garage (careerSaveKey). The sandbox's lift and rack never list one, no other career
+  may import one; the rack shows the name without the tag (api.slotLabel); the plaque keeps the name typed.
+- **An import is a kit** (careerImport): the economy's airframe price over its ledger (econMaterialise, how 'import', `of`
+  the design), refused short of the cash; the page copies the design's envelope to the copy's slot with the plaque and
+  the logbook EMPTY - built, then certified. The sandbox's later edits never reach the copy.
+- Rule for new code: a path that writes a career slot and lifts it writes its airframes row FIRST, or the lift drops it.
+
 ## G3360-G3369 - CAREERS: SEVERAL CAREERS, EACH ITS OWN DOCUMENT; THE INDEX flydiy.careers; CONTINUE = THE LAST PLAYED, NEW CAREER = A NEW ID (NEVER OVER ONE), CAREERS... = THE LIST (CONTINUE / RENAME / DELETE, CONFIRMED IN THE MENU); EVERY PLAYER CAREER ITS OWN STORY (2026-10-20, the GAME COORDINATOR; cloud - node + the gates' vms, no browser; branch claude/careers off origin/master c7c16380; work @ 2024aaaa; G3361-G3369 unused)
 
 - **The index** (welcome.js, read before the core loads): `flydiy.careers = { ids: [...], last: id }`.
@@ -99086,3 +99104,37 @@ WHAT THE GARAGES HAD OF IT (read off the code, 25 Oct): the room (hangar.js) and
 - G3541, one ground: the w1 plot's `dims.field.ground = { set: 'dirt', apron: 14, side: 1, ring: 1, fade: 2.5, ao: 0.55, foot: 0.5 }` (hangarDims passes it, the story migration adds it). `HANGAR_GEN.groundDials` -> the build's `pad` + `footAO`, for the world's shed (polishedShell) and the room's polish alike; `padData` is ONE draped grid in the house frame (1 m cells; the apron 14 m out of the door, 1 m past each flank, 1 m round the back), the site set's maps at metric uv (`padMesh`: vertex RGBA, blended, no depth write, receives shadows, casts none). The room's slab, its kerb, joints, drain and lead line give way to it on such a plot (a premises field: PLAIN), the tufts kept off its inner part.
 - G3542, anchored: (a) the pad's vertex colour is the ground's occlusion - `ao` dark at the walls, (1 - d)^2 to nothing a metre out - and its alpha fades over the ring (sides, back) and `fade` (the front), so the dirt darkens under and round the walls; the old skirt is off on such a shed (`aoGround: 0`; its bag keeps the signs' contact rects). (b) `footDirt`: the house's dirt line taken DARK on every material the finish shades (roofs out) - full at the ground, gone `footH` (1 m) up, FOOT_DARK at `foot` whatever the weather did to the dirt dial; the room's own walls the same (hangar.js ROOM_DIRT, both faces).
 - Cost: one draw per shed for the pad (w1 only: the table is the plot's), nothing for the contact rects or the foot. Stills to take (Mon 02:00 GPU): w1 world front/back/corner, room front/back/default/signin, the sign close-ups.
+
+## G3452 - CG-WARN: A WARNING SIGN IN THE CG READOUT ITSELF ON RED AND ORANGE (2026-10-25, RUFUS-CERT for A0; claude/cg-warn, on top of G3450; for L25c or L26a)
+
+The user on the G3450 stills (25 Oct): "The CG coloring looks good, but I'd put a warning sign straight in the CG text if not good (red or orange)."
+- src/viewer/app.js: when the margin's band carries its mark (red or orange), the centre of gravity's readout opens on a ⚠ ("⚠ 52 % of the wing chord"). A build with no wing chord has no readout, so the band's title stands in ("⚠ unstable in pitch"). A green build is unchanged. The "!" on the margin line and the tooltip stay as G3450 shipped them.
+- The ⚠ is not in IBM Plex Mono; the label canvas draws it from the system's symbol font (Segoe UI Symbol, Apple Symbols, Noto). Its still is the check.
+- GATE CGBAND: one source row for the readout's sign.
+- Gates: CGBAND, UISMOKE, plus one red still to show the glyph.
+## G3540 - WHEELS-SPIN: A DRAWN WHEEL ROLLS ONLY ON THE GROUND, THEN RUNS DOWN (2026-10-25, AIRCRAFT-LOOKS, LOCAL; for T-P1 / L25c; claude/ready/wheels-spin)
+Why: the user's playtest 24 Oct, item 30 ("wheels keep turning the whole flight"). app.js poseModel turned each drawn wheel by its axle node's motion along body-x over R, every frame, with no ground test - in the air it spun at the flying speed.
+What changed (src/viewer/app.js only, drawing only - the solver's contact and every spec key untouched):
+- poseModel's wheel loop asks `wheelOn(w)`: the solver's own sim.wheelContacts() by node (refs.mains in order, refs.tw); on the water (floats are the contacts there) or for a wheel it does not list, the same law in the page - the axle node's height over groundH less R under 6 cm.
+- On the ground: the old roll (rotation.z -= mx / R) and the rate kept, w.om (rad/s, low-passed 0.5, capped at WHEEL_OM_MAX 90 m/s at the rim so a placement's jump is no roll).
+- Lifted: the rate runs down, |om| * exp(-dt / WHEEL_SPIN_TAU 3 s) - WHEEL_SPIN_BRAKE 8 rad/s^2 * dt, to zero (~5 s from a 25 m/s lift-off); a paused world holds it (`running`, as the prop).
+- Generated builds draw their wheels in the skin and never spun (63_gen_wing.js: "nothing spins the wheel"); unchanged. The roll-out shot (rollanim.js) turns the wheels itself; unchanged.
+Gates: SKIN SKINMAT CONTACT DMGSKINGPU LIGHT POSEHIDDEN ROLLANIM SIMWORKER UISMOKE AUDIO (every gate that reads poseModel / the wheel rows; none scans the changed line). Flown check: the Cub rolled out, the drawn wheels' angle sampled after the last contact (rig: the session's scratchpad, steps_wheels.js).
+
+## A0 - landing L25c (as L25c2, 25 Oct 2026, gates 23:00-23:46, pushed ~23:55): CAREER OWNS ITS OWN PLANES, THE CG WARNING SIGN, THE EYE KEEPS ITS PAIR, THE ROUTE COPIED FROM THE WORKER, WHEELS STOP IN THE AIR
+The first L25c (9 readies, gates 21:30-22:42) was RED and did not land. Against L25b it showed:
+- loads +10-14 s on all four legs;
+- FRAMECOST stand/taxi tris.shadow up (Cessna taxi 1.9M -> 3.7M) and taxi texSubImage2D 288K -> 784K;
+- HOME world -> garage 4.23 s.
+Three suspects are HELD in land_hold.txt and each will be measured alone on master on Mon 26 (10:15-11:30):
+- garage-flood 3682f7b61 (Game suspects the lamp's light-count relink on garage entry);
+- jolene-fold 1f32797a6 (ED-2 suspects its WORLD-LOOK defaults: muskeg forest debris 14 -> 131 per 1000, batched and shadow-casting from 0.35 m);
+- hangars-look bc8421977.
+game-menus 80eba5083 is held as well: an editor.css clash; it is re-merged at 00:00 for L26a.
+Rolling set (5): career-own 8edbfb296, cg-warn c727ca713, eye-gpu 9a8d8670b, route-copy dc8fb0b01, wheels-spin cc2138297.
+Battery: master's standing reds only - CLOCK (1 of 777), CLOUD (the lamp-pool row), FRAMECOST (the cessna boot/restore updateMatrixWorld key, identical to master), KTX2 row 10. AUDIOENG, red in the first run, passes here.
+Strict light gate RED (6), all in known classes; the loads are back inside their slack:
+- compile / tasks1s: the boot class.
+- metal fuseWidth busy 393: the bimodal 0 / ~400 ms rep (master's own L24b / L24c show the same).
+- world -> garage: cub round trip 2 at 2.02 s, floats at 5.29 s. The class red since L24c (2.99 / 3.55 there); HWCOV has the cause, the per-trip cacheKey churn of fragment 66e30961, and its Mon 12:45 slot names the owner.
+Pushed by the user's order of 25 Oct: land as soon as possible.
