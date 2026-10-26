@@ -54,14 +54,17 @@ const VIEWS = opt('views', 'q,s,top,r,c').split(',');
   fs.mkdirSync(path.dirname(OUT), { recursive: true });
   for (const v of VIEWS) {
     const p = VIEW[v]; if (!p) continue;
-    await pg.evaluate(a => { window.CAGE_UI.setView(a[0], a[1], a[2]); if (window.CAGE_UI.draw) window.CAGE_UI.draw(); }, p);
-    await pg.waitForTimeout(1500);
     const f = OUT + '_' + v + '.png';
-    // a viewport shot clipped to the view: the bench draws continuously, so an element shot waits for a "stable"
-    // element that never comes
-    const bb = await pg.evaluate(() => { const r = document.getElementById('view').getBoundingClientRect();
-      return { x: r.x, y: r.y, width: r.width, height: r.height }; });
-    await pg.screenshot({ path: f, clip: bb, timeout: 180000 });
+    // THE CANVAS ITSELF: one render with the bench's own renderer and camera, read back in the same task (the drawing
+    // buffer is still whole before it is composited) - a page screenshot waits on a composited frame, and on
+    // SwiftShader with the bench drawing continuously that frame never came inside three minutes
+    const url = await pg.evaluate(a => {
+      const U = window.CAGE_UI; U.setView(a[0], a[1], a[2]); if (U.draw) U.draw();
+      const r = U.renderer, sc = U.scene, cam = U.camera;
+      if (r && sc && cam) r.render(sc, cam);
+      return (r ? r.domElement : document.querySelector('canvas')).toDataURL('image/png');
+    }, p);
+    fs.writeFileSync(f, Buffer.from(url.split(',')[1], 'base64'));
     say('wrote ' + f);
   }
   const stat = await pg.evaluate(() => (document.getElementById('stat') || {}).textContent || '');
