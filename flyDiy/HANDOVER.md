@@ -99396,8 +99396,8 @@ branch touched against master = 205 gates; run three at a time with `--jobs=1`, 
     -5.2): its line-up point moves 0.5 m on the sloped strip with the new CG.
   - TOUR (3 rows, the user's Cub): tw_ski > mn_strip diverts to w7 (3 of 6 legs; master flies 5 of 6 and stops at the known
     water red on 02/20).
-  - ROUTE (1 row): the Jodel (+13.3 kg) climbs 1.7 m/s on WP1, the drawn profile's own limit (master's verdict pending: its run
-    ran out the runner's 1800 s; re-run uncapped).
+  - ROUTE (1 row): the Jodel (+13.3 kg) climbs 1.7 m/s on WP1, the drawn profile's own limit (master, run uncapped:
+    `GATE ROUTE: PASS`).
   - DMGSCAR (2 of 105): the 30 m/s trunk crash's gouge point and the grass cull's footprint move with the heavier aeroplanes;
     master PASSes it.
 
