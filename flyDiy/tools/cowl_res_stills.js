@@ -41,6 +41,9 @@ const ch = spawn(CHROME, ['--headless=new', '--remote-debugging-port=' + DBG, '-
 console.log('cowl_res_stills: serve PID ' + srv.pid + ' port ' + PORT + ', chrome PID ' + ch.pid);
 const done = code => { try { ch.kill(); } catch (e) {} try { srv.kill(); } catch (e) {}
   setTimeout(() => { try { fs.rmSync(udd, { recursive: true, force: true }); } catch (e) {} process.exit(code); }, 1500); };
+// a slot's hard end (timeout's TERM) takes Chrome and the server down with it - nothing left on the box
+process.on('SIGTERM', () => { console.error('cowl_res_stills: stopped (TERM)'); done(5); });
+process.on('SIGINT', () => { console.error('cowl_res_stills: stopped (INT)'); done(5); });
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = ''; r.on('data', d => b += d); r.on('end', () => { try { res(JSON.parse(b)); } catch (e) { rej(e); } }); }).on('error', rej); });
 (async () => {
