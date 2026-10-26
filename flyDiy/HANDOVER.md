@@ -99063,3 +99063,304 @@ Strict light gate RED (6), all in known classes; the loads are back inside their
 - metal fuseWidth busy 393: the bimodal 0 / ~400 ms rep (master's own L24b / L24c show the same).
 - world -> garage: cub round trip 2 at 2.02 s, floats at 5.29 s. The class red since L24c (2.99 / 3.55 there); HWCOV has the cause, the per-trip cacheKey churn of fragment 66e30961, and its Mon 12:45 slot names the owner.
 Pushed by the user's order of 25 Oct: land as soon as possible.
+
+## G3510-G3519 - NEW-SHAPES-1: THE ROUND BODY (THE AERO NOSE'S FULL RINGS, ENDING IN THE ENGINE FACE) AND THE OCCUPANT SECTIONS OPEN AT THE TOP, CLEAN; A STEARMAN AND A TIGER MOTH THROUGH THE LOAD DOOR, FLOWN; THE SIX VALIDATED BUILDS BIT-IDENTICAL (2026-10-26, NEW-SHAPES-1, cloud - node + headless only; branch claude/new-shapes-1 off origin/master d7e181f4e = L25c, origin/master merged (no move since); READY as claude/ready/new-shapes-1 on the user's 26 Oct order; G3514-G3519 unused)
+The user (23 Oct, verbatim): "did we ever start anything from the geometry study, because we'd need some of that for a proper stearman / cylinder type fuselages with openings for individuals" - "It has to draw on our existing systems as much as possible, so fuselage shaping methods just work too, and we generate section with pillars, like the other geometry. It is really important not to reinvent a new system that does not build or integrate well with the current one." - "the proofs would be a stearman and a moth. The round fuselage can probably try and look at the aeronose shape (ambiguously named), that already gets rid of the more complex windshield geometry for a shapable cylinder. The sections holding the pilot and second person should be identified as proper sections, and the fuselage openings should be clean. Yet I'm not sure that you should build on open cockpit. Reading the previous study is important too, yet take it with a grain of salt. Should be in future plans"
+
+**READY for A0** (the user, 26 Oct: "When ready: merge origin/master, run the node gates for every file you touch + GEN
+BUILD PARTS SAVE STARTER DESIGN FRAMES JOIN, push claude/ready/new-shapes-1 with a READY note; A0 runs the GPU gates and
+stills"). Nothing in src/ changed (no flight_core rebuild, FRAMECOST not owed); the editor's layers (tools/_cage_gen.js,
+_cage_join.js, _cage_page5.js, _cage_parts.js, _cage_crew.js) and one gate (tools/test_build.js, a stated exception)
+did. **The six validated builds are bit-identical to master** on every key the game hashes them by (below). The rows
+are OFF by default: no build changes until a builder opens a section or turns the round body on.
+
+### STEP 0 - THE READING AND THE MAP (written before the code)
+
+**Did we start anything from the geometry study?** No. CONFIGURATIONS-2026-09-27 (the study) landed nothing; its C1 (the
+no-pane knife flag), C2 (bandH fractional), C3 (a `tube` ring kind from rodRing) and C4 (generalise noseMode 'aero') were
+never built. WINDOW-KNIFE (G245 / T2.2) is the drawn-window knife, built and gated (KNIFE). NEW-AIRCRAFT §5.3 settled
+canopy vs body (`canopy` x `mirror`, both kept). CANARD-DELTA is superseded by the study where they disagree and is
+about planforms, not this.
+
+**What I keep from the study, and what I do not (the grain of salt):**
+- KEPT - §3.3 / ruling (bl): "the shortcut nobody has taken: noseMode 'aero' already does it" - the full rings running
+  through the screen zone ARE the shapable cylinder the user asks for, and generalising it is the smallest move. This
+  entry is that move, for the round body (the study wanted it for the Aeroprakt glazing; the glazing part is not done).
+- KEPT - §2.1's three measured blockers for a Tiger Moth (the cut keys on ONE material name, `pilotWindow`; the tandem
+  layout retired; `mirror` forces paxCount 0) - all three are true today and all three are avoided, not fought: the
+  opening keys on the BAY, not a material; a tandem stays "one abreast with a bay" (G180's ruling stands); no mirror.
+- NOT KEPT - §2.2 / ruling (bj), "the no-pane knife is the single best hour": a knife hole is a convex outline
+  PROJECTED ALONG x ONE FLANK AT A TIME (WINDOW-KNIFE: "cuts both flanks mirrored, so nothing can cross the
+  centreline" - the study's own §3.5 says so). A cockpit opening is the TOP of the section, across the centreline:
+  the knife cannot cut it in one piece, and two half-holes meeting on the crown chain are a seam, not a clean cut.
+  The study's §2.2 contradicts its §3.5; I take §3.5.
+- NOT KEPT - §1.2 / ruling (bi), the `tube` ring kind from rodRing: a second ring KIND is a new system beside
+  `full` and `nose` (every pass keys on the six level names, §3.1 says so itself). The user's "shapable cylinder" is
+  already there: fullRing + roundTop (topRound / botRound) on the aero path. A circle measured 6.4 % out-of-round at
+  best (§1.1) is not what a Stearman's or a Moth's body is - both are slab sides under a round turtle deck, which is
+  topRound 1 / botRound 0 exactly. A true circle (a Pitts? a racer) stays the study's C3 - owed, below.
+- NOT KEPT - §1.3's bandH-fractional: not needed at these sections (halfW 0.43-0.58), not touched.
+
+**THE AERO NOSE, exactly** (the user: "ambiguously named"). Keys `aeroNose` (0/1), `aeroWsLen`, `aeroLen`, `aeroDroop`,
+`aeroTipW`, `aeroTipH` (CAGE_PARAMS, _cage_gen.js ~127; written by nothing, no panel row since G242.1 - "a deprecated
+one I did not even know existed"); cageSpec writes `S.config.noseMode = P.aeroNose ? 'aero' : 'cowl'` and
+`S.config.aero = { wsLen, len, droop, tipW, tipH, pillarW: 0.05 }`. It is NOT a nose: it is the WHOLE FRONT of the
+fuselage built as ordinary rings. In cageResolve, after the pilot bay (pilCabB), the cowl path builds the window ring,
+the windscreen SLOPE pair (wsAft / wsFront: upper levels on a slanted plane), the centre CHAIN the slope folds onto, the
+flat cowl DECK at waist level and the nose ring pair - a fold. The aero path instead returns early with five more FULL
+rings (fullRing -> roundTop, so topRound / botRound act on every one): `ring` at the window ring station, then
+`aeroWsA` / `aeroWsB` (a pillarWindow ring PAIR) at ring.z + wsLen, `noseMid` at 55 % of the cone, `noseTip` at
+wsLen + len; the cone tapers on an ellipse quadrant (slope 0 at the cabin) to tipW / tipH of the window ring's
+section and droops by droop x f^2. The ring -> aeroWsA bay is the WINDSCREEN AS A MATERIAL ZONE (`wsZone`: ceilB /
+glass / bandG = 'windshield' on the upper bands of one continuous surface). buildCage2 bridges the rings like any
+bays (stations, levels, pillars as tight ring pairs, the surface field sL/sC/st/lv), then `emitCap` closes the tip
+with a cap grid - UNMARKED (no capFace), so before this entry the engine layer's noseFace found no face and no
+engine or cowl could bolt to it, and the frames' fore/aft block was skipped by the early return. Lattice: the join
+measures the firewall at `aeroWsA` (cageFirewallZ: wsFront -> wsAft -> aeroWsA -> ring), so the flown cabin's stations
+come off the same rings.
+
+**Today's fuselage pipeline, mapped.** Sections (_cage_parts.js, the tree): Fuselage (the reference section roofY /
+keelY / waistY / halfW / roofHalfW, the longerons, roundness topRound / botRound) > Nose · deck (noseLen, the nose
+frame) > Cabin (pilotLen; the windscreen, door-post and cabin frames) > Glazing (windscreen, drawn windows, pilot
+window, skylight, joints) > Passenger bay xN (paxCount, paxLen, the passenger frame, paxOcc1..4) > Taper > Boom >
+Tail cone. Rings tail -> nose (cageResolve): tailCap, tailMid / tailPost (the tail pillar), [boomMid], [pilTaperA/B],
+pilPaxA (the passenger pillar's aft ring), per bay pilPaxB_i [+ paxLoop formers] then pilPaxM_i (mid pillar),
+pilCabA / pilCabB (the cabin pillar pair), the pilot bay to `ring` (the door post), then the front (the fold, or the
+aero rings). Every section sits between PILLARS = tight ring pairs in pillar materials (CAGE_PILLAR), the bays between
+them in the bay's materials (CAGE_MAT plain / pax / pilot / taper: the bands named by their upper LEVEL - roof, ceil,
+bandG, band, waist, waistG, floor, keel). The FRAMES (T2.1) are the rings' nine rows (height / half-width / fore-aft
+at top / waist / bottom), applied as DEVIATIONS from the reference section (dimF) per frame name, and the fore/aft
+rows as a z profile through the three levels (the frameZ block). topRound / botRound blend each ring's upper / lower
+levels onto elliptical arcs (roundTop). The windscreen is the fold above (cowl path) or the material zone (aero path);
+the canopy modes (closed / conv / open / bubble) cut the `pilotWindow` bays above the waistband, bubble adds the
+cageCanopy component on the recorded seam. WYSIWYG: the editor's sheet (cageSheet: buildCage2 -> subdivide x L ->
+refit arc -> glass sill -> cut -> knife -> canopy -> rims -> interior -> shoulder) is what is drawn; the join
+(_cage_join.js export) resolves the same cage (cageSpec / cageResolve) and measures the named rings - the firewall,
+the tail post, the cabin box off the drawn sheet - into the flown spec, and 61_gen_frame builds the lattice at those
+stations: one set of stations, drawn and flown.
+
+**Today's 'open' options, assessed** (the user is not sure they should be the base - they are not):
+- `fuselage.covering 'open'` (skinOn 0): a BARE TRUSS - no fuselage skin at all, a drag delta, no covering mass. Not
+  an opening; wrong tool.
+- GEN_CENTRE_KEYS 'open' (60_gen_spec.js:2913): the WING's centre-section construction (a cut-out centre section), not
+  the fuselage. Not this.
+- `cabin.glazing 'none'` (glazeOn 0) - "the windscreen: an open cockpit's coaming and heads" (60_gen_spec.js ~1826,
+  GEN_DRAG.screen open 0.030 + openPerSeat 0.020): display-level - it DROPS every glass face, leaving holes the shape of
+  the windows, not a cockpit; the drag term itself is right and is what an open cockpit should fly. KEPT as the AERO
+  half (the join writes it when every seated section is open), not as the geometry.
+- canopy 'conv' / 'open' (_cage_gen.js CNCUT): cuts the faces above the waistband of every bay whose material is
+  `pilotWindow` (the pilot bay + the quarter-window bay), pillar to pillar; 'open' also drops the windscreen slope.
+  One opening only, by construction (the material key), the full width, no decking between bays, and it sits on the
+  windscreen fold. Its MECHANISM - not emitting whole lattice faces above a rail and creasing the exposed boundary 3 -
+  is the clean one and is what this entry reuses, keyed on the BAY instead of the material.
+
+### WHAT WAS BUILT - the smallest extension of what exists (every function extended is named)
+
+- **G3510 THE ROUND BODY = the aero nose, finished** (tools/_cage_gen.js). No new ring kind, no new emitter:
+  - `cageResolve`'s aero block: with a FIREWALL nose (`noseFinish` 0 - a nose engine) the result carries
+    `aeroFace`, and `buildCage2` closes the tip with `emitCap(..., mark)` - the cap is marked `capFace` exactly as the
+    cowl path's engine cap is, and its ring creased at `crNoseCap` (crisp). The engine layer's `noseFace`, the cowl,
+    the interior's firewall all find it (measured: the interior builds its firewall plate there, 216 faces on the
+    Stearman). Aerodynamic (`noseFinish` 1) is G19's domed point, unchanged.
+  - THE FRAMES ACT ON IT: the windscreen frame's rows deviate the aeroWs pair and the nose frame's the tip (`dimF`,
+    the rows' own deviation semantics), and the frames' fore/aft block - skipped by the aero path's early return -
+    is one function now (`frameZ`), called by both fronts. topRound / botRound / the reference section / the cabin,
+    passenger, boom and tail frames act on every ring as before (all fullRing -> roundTop).
+  - The row: `aeroNose` is on the panel again ('3 · nose': "body front: windscreen fold | full rings (round body)",
+    with its five cone rows), filed under Fuselage > roundness (the whole shell's choice) and Nose > round body front.
+    THE KEY KEEPS ITS G19 NAME (it rides every saved build; the label says what it builds - the `mirror` precedent).
+- **G3511 THE OCCUPANT SECTIONS, OPEN AT THE TOP, CLEAN** (tools/_cage_gen.js, _cage_page5.js, _cage_parts.js).
+  - The sections are the ones the tree already has: the pilot's section is the **Cabin** (pilCabB -> the window ring,
+    `pilotLen`, the cabin frame), the second person's is **Passenger bay 1** (`paxLen`, the passenger frame); a tandem
+    two-seater is those two sections, each with its own length and frame rows, each between its own pillars. New rows:
+    `cpOpen` (Cabin > opening) and `paxOpen1..4` (Passenger bay > opening, one per bay, like `paxOcc1..4`), plus the
+    rows every opening shares on the Cabin: `openCut` (above the ceiling rail - a turtle deck's cockpit, rounded
+    corners - or above the waistband - the full width), `openFore` / `openAft` (the decking kept ahead / behind),
+    `openRim` (the coaming roll), `openScreen` / `openScreenH` / `openScreenRake`.
+  - THE CUT IS THE LATTICE'S OWN (the canopy modes' mechanism, keyed on the BAY instead of the `pilotWindow`
+    material): an open section is emitted with `openAs`, and one post-pass in cageResolve (`openBays`) lays two
+    COAMING RINGS in it (lerpRing of the bay's two rings at the decking fractions - ordinary rings, the pillar /
+    frame logic's own), marking the sub-bay between them `open`. `buildCage2` skips that sub-bay's faces above the
+    cut rail (`opHi`) - whole lattice faces, so no sliver, no partial face, no pane - and creases its boundary 3 (the
+    crease law: the rails along the sides, the two rings' upper arcs rail to rail through the crown), recording it as
+    two seams (`openRim`, `openFore`) that cageSubdivide carries to the displayed level (the dashRim / seamS idiom,
+    via `seamKeys`). An open section is plain skin (no side window, skylight or door: CAGE_MAT.plain); ahead of an
+    open pilot section the aero screen zone is the forward decking.
+  - THE COAMING AND THE SCREENS (`cageOpenings`, after cageCanopy in both sheet paths): the coaming is the window
+    joints' own strip - the `openRim` loop handed to `cageRims` as a recorded-loop job beside the knife's, its own
+    size (`openRim`) - "the joint vocabulary must not fork" (WINDOW-KNIFE). The screen is a pane on the `openFore`
+    arc set forward of the roll, raked back, `paneThick` thick with its `paneEdge` band (G206.2), the forward face
+    win-marked so cageRims frames it like every pane; glass the glazing measures (CAGE_GLASS_MATS).
+  - THE CREW (G3513, tools/_cage_crew.js): an open pilot section's panel stands under its fore coaming (`cpOpenB`) -
+    it hung from the windscreen ring, 0.9 m ahead under the decking. A closed build has no such ring.
+  - THE AERO AND THE MASS AGREE (tools/_cage_join.js): when every SEATED section is open the join states
+    `cabin.glazing 'none'` - the drag's existing open-cockpit term (GEN_DRAG.screen.open 0.030 + openPerSeat 0.020 x
+    seats: 0.07 m2 on both proofs, against the closed cabin's 0.020 screen step) and no glass billed. A section left
+    closed keeps the cabin's glazing. The flown lattice is the cabin box the join measures off the same rings; the
+    structure drawn inside (the truss, the liners, the bulkheads) stays OUT of the openings (measured, below).
+- **THE ROWS ARE ABSENT WHILE EVERY SECTION IS CLOSED** (CAGE_OPEN_ROWS, `cageToSpec`): the file states every row it
+  knows (G377), so a new row would ride into every saved build the moment the editor saw it and move every key the
+  game hashes a build by (STOL-WING-2's G2827). G2827 stripped its rows at each hasher; this strips them at the one
+  door a cage reaches a spec through, so the def, the certificate store's key, the bench's and the parked fleet's
+  fingerprint and the procurement's never see them. The first section opened writes all twelve. GATE BUILD's G377
+  check states the exception and asserts it both ways (absent closed, all twelve written open).
+
+### THE PROOFS - a Stearman and a Tiger Moth, through the game's own load path
+
+`node tools/newshapes_build.js --build` births each from the shed's own archetype card (_cage_design.js ARCHETYPES
+'stearman' - the Continental W-670 from the catalogue, N struts, wires, lower ailerons, oleo mains - and 'tigermoth' -
+the DH Gipsy Major, the swept upper plane), designBake, then writes the new shape's rows into the cage as a builder
+dials them (`ROWS` in the tool, every one a panel row), then THE PAGE'S LOAD DOOR (tools/_load_build.js) ->
+tools/fixtures/stearman_2026-10.json, tools/fixtures/tigermoth_2026-10.json. `node tools/newshapes_build.js` loads
+each fixture through the door again, builds, benches (genShakedown + the design check at the loading corners),
+measures the openings ON THE EDITOR'S OWN SHEET and the crew ON THE CREW LAYER AS DRAWN, certifies and flies the
+game's pilot (43_pilot) from HOME through the circuit (tools/dc3_probe.js fly). Two changes to the cards, both
+stated in the tool: the Stearman takes the Cub's 'rounded' fin (the card's 'broad' fin reads vTaper 0.24 against the
+flown 0.35 floor - a join ERRS row on master's card itself), its wings 0.30 forward instead of 0.60 (the round body's
+CG is further aft); both mains dropped for a prop clearance over FAR 23.925 (see below).
+
+| | Stearman (fixture) | real PT-17 | Tiger Moth (fixture) | real DH.82A |
+|---|---|---|---|---|
+| load chain: join errors | **0** | | **0** | |
+| design check (13 rows, loading corners) | **0 fail, 0 warn** | | **0 fail, 0 warn** | |
+| openings as drawn (L x W) | 0.57 x 0.60 m, 0.64 x 0.61 m; 0.25 m decking between | | 0.53 x 0.44, 0.57 x 0.45; 0.25 between | |
+| skin boundary | 3 loops (the 2 openings, 40 edges each + the engine face), 0 over-shared edges | | the same | |
+| anything inside an opening (truss, liners, bulkheads; >15 mm in, above the rail) | **nothing** | | **nothing** | |
+| seated heads | both inside their own opening, 21-22 cm over the coaming rail, 12-13 cm over the crown | | 21-22 / 13-14 cm | |
+| cabin as flown | glazing 'none' (open), 2 seats, screen drag 0.070 m2 | | the same | |
+| span | 9.80 m | 9.80 m (32 ft 2 in) | 8.94 m | 8.94 m (29 ft 4 in) |
+| wing area (both planes) | 28.8 m2 | ~27.6 m2 (297 sq ft, as recalled) | 23.7 m2 | 22.2 m2 (239 sq ft) |
+| empty | 904 kg | 878 kg (1 936 lb; 876 kg in one source) | 574 kg | 495-506 kg (1 090-1 115 lb) |
+| flown mass | 1 224 kg (2 seats, the card's 174 L) | MTOW 1 232 kg (2 717 lb) | 816 kg (2 seats, 87 L) | MTOW 828 kg (1 825 lb) |
+| Vs clean | 42 kt | 44-48 kt (51 / 55 mph power on / off) | 38 kt | 37 kt (43 mph) |
+| climb | sheet 3.8, flown max 5.3 m/s | 4.1-4.3 m/s (800-840 ft/min) | sheet 2.7, flown max 3.9 | 3.4-4.1 m/s (673-798 ft/min) |
+| take-off | sheet 276 m; flown off at 373 m, 66 kt; 15 m at 528 m | | sheet 294; off at 343 m, 58 kt; 15 m at 497 m | |
+| landing | touchdown 1.72 m/s at 48 kt; from 15 m 574 m, roll 68 m | | 2.06 m/s at 48 kt; 539 m, roll 144 m | |
+| the circuit (pilot) | outcome completed, 0 breaks, no crash, gPeak 1.88, no prop strike | | completed, 0 breaks, gPeak 2.05, no prop strike | |
+| static margin / prop clearance (level) | 0.100 / 0.271 m | | 0.323 / 0.242 m | |
+| price (ledger) | 82 104 | | 57 598 | |
+
+Sources (searched 26 Oct; they disagree where ranges are given): Military Aviation Museum, Planes of Fame, CAF Airbase
+Arizona (azcaf.org), stearmanflyin.com, historyofwar.org (PT-17); de Havilland Aircraft Museum, Shuttleworth,
+aeropedia.com.au, GlobalAir (DH.82A). The sheet's "cruise" (Stearman 83, Moth 70 kt) is the sheet's speed cap, not a
+measured maximum (real 108 / 90-95 kt) - not compared. The Moth is 13-16 % heavy empty (the cause is not measured here); the
+Stearman 3 % heavy and its stall 2-6 kt low (the biplane's 28.8 m2 against ~27.6).
+
+**Found on the way, fixed in the proofs' rows:** (1) the first cut sat both heads 16 cm UNDER the coaming - an open
+section has no door, so the crew stands on the keel + floorboards (_cage_crew.js anchors) and a seated head's top is
+1.07 m over the keel: the keel is set for the coaming to stand ~0.88 m over it. (2) that shallower keel took the
+Stearman's level prop clearance to -0.12 m and it flew a PROP STRIKE (the design check does not test the disc's
+clearance; the plaque's `propClear` does): the mains' drop 0.33 -> 0.72 m (0.271 m), the Moth's 0.33 -> 0.43 (0.242).
+(3) the screens' edge band carried the cloth liner over the opening until it took the `paneEdge` flag every pane
+edge carries. (4) the pilot's instrument panel hung 0.9 m ahead under the decking (G3513).
+
+### THE IDENTITY PROOF - loaded the game's way, master vs branch
+`tools/newshapes_identity.js` (the DC3-BUILD tool's method, with the drawing and the keys added): each validated build
+through the tree's own load door (`--root`: an origin/master d7e181f4e worktree, then this branch), buildGen, and
+- spec   sha1 of the spec the game flies (a new row that leaked into spec.cage shows here first)
+- def    sha1 of the built def (nodes, beams, strips, spec, every field)
+- draw   FNV-1a over every mesh the editor's layers drew (tools/_draw_hash_probe.js via the load chain's probe hook:
+         names, materials, world matrices, positions, normals, indices; the beacon rotor's matrix left out - it turns
+         with the wall clock, and a master-vs-master pair differed on it alone)
+- keys   genCertKey (the certificate store's) and procureFp (the procurement's)
+- ledger the shakedown's mass / cost ledger + price, the sheet's speeds, the design check's rows (at the corners), mass
+- fly20  the game's spawn + the pilot 20 s from the take-off: every node's position and velocity, the phase, damage
+reports/newshapes_identity_master_2026-10-26.json / reports/newshapes_identity_branch_2026-10-26.json, compared:
+**Cub, Jodel, metal Cessna (bugReports/cessnaMetal (1).json), Cessna floats (bugReports/cessnaFloatsWOrks.json), the
+twin floatplane, Rufus: ALL IDENTICAL** - spec, def, draw, certKey, procureFp, ledger, price, sheet, design, mass,
+nodes, beams, fly20 (`IDENTITY: ALL IDENTICAL`, on the final head; also on two earlier heads of the branch).
+Why it holds: every change is gated on a row a validated build does not have (`aeroNose` 0 on all six; no section
+open, so `S.open` is 0 and the opening rows never reach spec.cage), and the frameZ refactor is the same code run
+from one function (CAGEFIT / FRAMES hold the template and the corpus to the bit).
+
+### THE GATES (`node tools/run_gates.js --only=<IDs> --no-build`, this cloud box: 4 cores; every gate whose file reads a
+touched file - grep of tools/ for _cage_gen / _cage_join / _cage_page5 / _cage_parts / the load chain - plus GEN BUILD
+PARTS SAVE STARTER DESIGN FRAMES JOIN, BIPLANE, KNIFE, the glazing readers; FRAMECOST not owed: no core file moved)
+- **On the final head** (after the last editor change, G3513 _cage_crew.js), PASS:
+  `GATE CAGEFIT: PASS`, `GATE FRAMES: PASS`, `GATE KNIFE: PASS`, `GATE SURF: PASS`, `GATE SAVE: PASS`,
+  `GATE SHOULDER: PASS`, `GATE DASH: PASS`, `GATE CLIP: PASS`, `GATE FIT: PASS`, `GATE SKINMAT: PASS`,
+  `GATE LIVERY: PASS`, `GATE LIVERYREACH: PASS`, `GATE EDBUGS: PASS`, `GATE JOIN: PASS`, `GATE DESIGN: PASS`,
+  `GATE DESIGNCHECK: PASS`, `GATE BIPLANE: PASS`, `GATE BUILD: PASS`, `GATE PARTS: PASS`, `GATE SPECFIX: PASS`,
+  `GATE WINGROWS: PASS`, `GATE STARTER: PASS`, `GATE ENGINE: PASS`, `GATE ENGID: PASS`, `GATE GEOPARITY: PASS`,
+  `GATE FIN: PASS`, `GATE NACLAG: PASS`, `GATE HINGE: PASS`.
+- **The core batch** (GEN, PILOT and the remaining readers; run on the head with G3510-G3512, the G3513 crew line inert
+  on every build it reads - the six validated builds' drawing hashes are master's on the final head), PASS:
+  `GATE GEN: PASS` (4 shards), `GATE PILOT: PASS` (3 shards), `GATE SUBSTEP: PASS`, `GATE STRIPSURF: PASS`,
+  `GATE TAKEOFF: PASS`, `GATE LINEUP: PASS`, `GATE DEFAULT: PASS`, `GATE WEIGHT: PASS`, `GATE DRAG: PASS`,
+  `GATE INPUT: PASS`, `GATE ROLLANIM: PASS`, `GATE ROLLSND: PASS`, `GATE MEDIA: PASS`, `GATE WEATHER: PASS`,
+  `GATE SIMWORKER: PASS`, `GATE CGBAND: PASS`, `GATE VIEW: PASS`, `GATE SITE: PASS`, `GATE HONESTY: PASS`,
+  `GATE HYDRODYN: PASS`, `GATE WATER: PASS`, `GATE WATERDAMP: PASS`, `GATE FLOATS: PASS`, `GATE STORESPOT: PASS`,
+  `GATE ACCEPT: PASS`, `GATE TECH: PASS`, `GATE PROCURE: PASS`, `GATE ENERGY: PASS`, `GATE TANKMOUNT: PASS`,
+  `GATE PANEL: PASS`, `GATE AUDIOENG: PASS` (and BUILD, DESIGN, SKINMAT, LIVERY, FRAMES again: PASS).
+  (ACCEPT re-records reports/evidence/ACCEPT/flights.json as it runs - a run artifact, restored, not committed.)
+- **RED, master's** - each controlled on an origin/master d7e181f4e worktree, the same rows:
+  - `GATE JOINPARITY: 1 FAIL` - "no tool flies a validated build raw: _apsmooth_check.js, _engtorque_check.js,
+    _floatdup_check.js, econ_sim.js, engine_torque_seasweep.js, hand_controls_probe.js" - identical on master (DC3-BUILD
+    recorded it with five; master has six). This branch's new tools load through tools/_load_build.js and are not
+    listed.
+  - `GATE DMGDETERMINISM: FAIL` - 19 rows "Chromium <hash> - node <hash>" (the browser's V8 against node's on the
+    damage runs, the broken counts and energies equal): **every hash on both sides identical** between master and this
+    branch (diffed row for row).
+  - `GATE DMGCERTCOST: FAIL` - "the worker's certificate is node's (... worst relative difference 1.4e-8 ...)": the
+    same row on master.
+- **Gate semantics changed (one, stated):** GATE BUILD's G377 "the re-save carries every row" counts the table without
+  CAGE_OPEN_ROWS while every section is closed, and asserts the exception both ways ("absent from a closed build (0
+  present) and ALL written once one section opens (12 of 12)"). Without it the gate was red on 12 rows, exactly the
+  rows the identity needs absent.
+- NOT RUN here (full tier, or the page / GPU): TOUR CESSNAVREF DMGHULL DMGFLOATTO DESIGNSIM ARCHETYPES SEAPLANE SOAR;
+  the GPU / app.js gates are A0's. ARCHETYPES re-bakes the cards, which this branch does not change.
+
+### COORDINATION - COWL-RES (the user, 26 Oct: "it adds a third Catmull-Clark level on the nose at construction (the eye
+sheet, cageSheet, G3713) - don't touch cageSheet's subdivision step without reading claude/cowl-res first")
+`claude/cowl-res` is not on origin (fetched 26 Oct: no such ref; COWL-RES's G3710-G3719 block is reserved per A0's 25 Oct
+renumbering note, 11f3592ab). So it was NOT read, and **cageSheet's subdivision step is untouched**: the only edits to
+the two sheet paths (cageSheet, cageSheetKept) are ONE CALL each, `s = cageOpenings(s, spec)`, after cageCanopy and
+before cageRims - a post-pass on the displayed mesh, like cageCanopy. What COWL-RES must keep for the openings to work
+at a third level: the `openRim` / `openFore` seams ride cageSubdivide through `m.seamKeys` (the dashRim / seamS idiom),
+so a local extra level that calls cageSubdivide carries them; a level that rebuilds the mesh some other way must carry
+`seamKeys` (and, for the nose, nothing of the openings lives there - the openings are on the Cabin / passenger bays).
+A merge conflict, if any, is the one line beside cageCanopy in each path: keep both.
+
+### FOR A0 ON THE BOX (GPU gates and stills; cloud cannot render)
+- Stills of both proofs in the garage. master's tools/garage_shot.js has only `--stock`; the `--file` door is on
+  origin/claude/engine-configs-2 (DC3-BUILD used it the same way):
+  `git show origin/claude/engine-configs-2:flyDiy/tools/garage_shot.js > tools/_gs_file.tmp.js`, then
+  `node tools/_gs_file.tmp.js --file tools/fixtures/stearman_2026-10.json --out screenshots/newshapes_stearman` and
+  `node tools/_gs_file.tmp.js --file tools/fixtures/tigermoth_2026-10.json --out screenshots/newshapes_moth`; delete the
+  tmp copy after. LOOK FOR: the two openings clean (rounded-rectangle outline, no sliver at the decking, nothing of
+  the interior across them), the coaming strip round each, the two small screens standing ahead, the heads above
+  the coaming, the radial / the Gipsy bolted to the engine face, the turtle deck running through to the cowl.
+- The GPU gates of the battery (the app.js readers - nothing in src/ changed, so a red there is a source scan, not a
+  build: every validated build's drawing hash is master's): SKIN DMGSKINGPU LIGHT LOOKS FRAMECOST UISMOKE ...
+  (A0's own list); and `node tools/newshapes_build.js` (~10 min: both sheets, certificates, the pilot's circuits) and
+  `node tools/newshapes_identity.js --root=<master worktree> --out=a.json`, `--out=b.json`, `--cmp=a.json,b.json`.
+- A page check of the editor: Fuselage > roundness shows `body front`; Nose shows the round body's front rows when it
+  is on; Cabin > opening and Passenger bay > opening open each section, live.
+
+### DECISIONS FOR THE USER
+1. **Which cockpit is the pilot's.** The cage seats the pilot in the FRONT section (the Cabin, ahead of the bays, as
+   every build); a PT-17 and a DH.82A are flown solo from the REAR cockpit. Keep (the rear is the "second person"),
+   or let a tandem put the pilot in the rear section (the crew layer's job, and the CG)?
+2. **The archetype cards** ('stearman', 'tigermoth' in _cage_design.js) still birth a closed cabin with a windscreen
+   (and the Stearman card's 'broad' fin reads a join ERRS row on master). Move both cards to the round body + open
+   cockpits (the fixtures' rows; GATE ARCHETYPES re-baselines), or keep them and the fixtures apart?
+3. **The coaming is the window joints' metal strip** (riveted, the joint material) - the vocabulary does not fork. A
+   padded leather roll would be its own section name and look: wanted?
+4. **The screens' glass is not billed** when the cockpit flies open (`cabin.glazing 'none'` bills no glass; ~0.5 kg on
+   these two). Bill the measured screen area when open (a one-line src/core change in 61_gen_frame, a gated one)?
+5. **The rear cockpit has no panel and no controls** (the crew layer draws one panel and one set). Dual controls in the
+   second section: owed, if wanted.
+6. **A mixed cabin** (a closed cockpit ahead of an open rear seat) flies as a closed cabin (the cabin's screen step,
+   glass billed): fine, or a per-seat open term?
+
+### WHAT IS LEFT (said plainly)
+- The study's GLAZED BAND (CONFIGURATIONS §3.4: glazing as a fraction of a ring, the Aeroprakt windshield) - not done;
+  the round body is its natural base (the screen zone is already a material zone on full rings).
+- A TRUE CIRCLE section (the study's C3, rodRing as a ring kind) - not built; the round body is slab sides under a
+  round deck (topRound 1), which is both proofs' shape. A Pitts-round fuselage would want it.
+- The cage's own dash SHELL (cageInterior's `dash`, keyed on the windscreen fold's seam) is not built on the round
+  body; the crew layer's panel is (at the fore coaming, G3513).
+- Openings on the mirrored pod (S.open is 0 there, its canopy is the pod's opening) and a door cut in an open section
+  (none, by design: an open section is plain skin).
+- A 4th passenger bay opened ALONE keeps the shared opening rows hidden (GATE PARTS' one-flip sweep; the rows show for
+  the cockpit and bays 1-3).
