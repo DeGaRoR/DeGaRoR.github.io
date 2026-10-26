@@ -58,7 +58,9 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     if (!r.result || r.result.exceptionDetails) throw new Error('page: ' + JSON.stringify(r.result && r.result.exceptionDetails && r.result.exceptionDetails.text)); return r.result.result.value; };
   const shot = async name => { const s = await cmd('Page.captureScreenshot', { format: 'png' });
     fs.mkdirSync(path.dirname(OUT), { recursive: true });
-    const f = OUT + '_' + name + '.png'; fs.writeFileSync(f, Buffer.from(s.result.data, 'base64')); console.log('garage_shot: wrote ' + f); };
+    const f = OUT + '_' + name + '.png'; const png = Buffer.from(s.result.data, 'base64'); fs.writeFileSync(f, png);
+    // a flat frame (one colour, the canvas not drawn or the camera on nothing) compresses to a few KB: say so
+    console.log('garage_shot: wrote ' + f + (png.length < 30000 ? '  BLANK? (' + png.length + ' bytes)' : '')); };
   await cmd('Page.enable'); await cmd('Runtime.enable');
   await cmd('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
   await cmd('Page.navigate', { url: URL });
@@ -91,6 +93,7 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     await ev("(()=>{const c=document.querySelector('canvas');const keep=new Set();let e=c;while(e){keep.add(e);e=e.parentElement;}document.querySelectorAll('body *').forEach(el=>{if(!keep.has(el)&&!el.contains(c))el.style.visibility='hidden';});if(window.FLIGHT_PROBE&&FLIGHT_PROBE.balanceShow)try{FLIGHT_PROBE.balanceShow(false)}catch(e){}return 1})()");
     await sleep(800);
   }
+  console.log('garage_shot: canvas ' + await ev("JSON.stringify((()=>{const r=FLIGHT_PROBE.renderer().domElement,c=document.querySelector('canvas'),cs=getComputedStyle(r);return {first:c&&c.id,gl:r.id,same:c===r,w:r.width,h:r.height,vis:cs.visibility,disp:cs.display,edSit:!!(FLIGHT_PROBE.camGet)}})())"));
   const info = await ev("JSON.stringify((()=>{const s=window.GARAGE_SPEC&&(window.GARAGE_SPEC.get?window.GARAGE_SPEC.get():null);const R=window.CAGE_ENERGY.results();return {name:s&&s.meta&&s.meta.name,reg:s&&s.meta&&s.meta.reg,engX:s&&s.engines[0].x,tanks:R.map(r=>({on:r.on,ok:r.ok,why:r.why,along:r.along,fOut:r.fOut,spanM:r.spanM,ribs:(r.sides||[]).map(x=>x.ribs&&x.ribs.length),missed:(r.sides||[]).map(x=>x.ribsMissed),x:(r.sides||[]).map(x=>[x.x0,x.x1].map(v=>+v.toFixed(2)))}))}})())");
   console.log('garage_shot: loaded ' + info);
   // the game's garage orbit (app.js az/el/dist, FLIGHT_PROBE.camSet): quarter, side, front, top
@@ -108,6 +111,7 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     const T = Array.isArray(t) ? t : [t.x, t.y, t.z];
     await ev("FLIGHT_PROBE.pan(" + (pt[0] - T[0]) + "," + (pt[1] - T[1]) + "," + (pt[2] - T[2]) + "), 1");
     await cam(a, e, d);
+    console.log('garage_shot: camera ' + JSON.stringify(await ev("(()=>{const g=FLIGHT_PROBE.camGet();return {eye:g.eye.map(v=>+v.toFixed(2)),target:g.target.map(v=>+v.toFixed(2)),dist:g.dist}})()")) + ' aimed at ' + JSON.stringify(pt));
   };
   if (DUMP) {
     const d = await ev("JSON.stringify((()=>{const s=window.GARAGE_SPEC.get();const C=window.CAGE_CREW||{};const E=window.CAGE_CREW_EYE;" +
@@ -118,6 +122,11 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
       "tanks:R.map(r=>({on:r.on,ok:r.ok,why:r.why,section:r.section,shaped:r.shaped,dims:r.dims,capacity:r.capacity,crewHits:r.crewHits||0,c:r.c&&r.c.map(v=>+(+v).toFixed(3))})),cabin:s.cabin&&{pilots:s.cabin.pilots,pax:s.cabin.pax,seats:s.cabin.seats},mass:s.mass,fuel:s.fuel}})())");
     fs.mkdirSync(path.dirname(DUMP), { recursive: true });
     fs.writeFileSync(DUMP, d);
+    // what the fingerprint hashes, in full (bench.js benchStripCosmetic over the join's export and the page defaults)
+    const strip = await ev("JSON.stringify((()=>{const G=window.GARAGE_SPEC;let D=null;try{D=G.cageDefaults?G.cageDefaults():null}catch(e){}" +
+      "if(!D&&window.CAGE_PAGE)D=window.CAGE_PAGE.defaults;const c=benchStripCosmetic(window.CAGE_JOIN.export(),D);" +
+      "const S=o=>Array.isArray(o)?o.map(S):(o&&typeof o==='object')?Object.keys(o).sort().reduce((a,k)=>(a[k]=S(o[k]),a),{}):o;return S(c)})(),null,1)");
+    fs.writeFileSync(DUMP.replace(/\.json$/, '') + '_strip.json', strip);
     console.log('garage_shot: dump ' + DUMP + ' ' + d.slice(0, 400));
   }
   for (const v of VIEWS) {
@@ -126,6 +135,8 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
       const cr = await ev(CREW_JS);
       console.log('garage_shot: crew ' + JSON.stringify(cr));
       if (!cr.hip) { console.error('garage_shot: no pilot figure on the stand'); continue; }
+      // the control: the whole aeroplane from the quarter first, and where the camera is after each framing
+      if (v === 'crew') { await cam(PRESETS.q[0], PRESETS.q[1], PRESETS.q[2]); await shot('control_q'); }
       await ev("(()=>{const c=document.getElementById('xray');if(c&&!c.checked){c.click();}return 1})()");
       if (v === 'crew') {
         await ev("window.EDITOR_SELECT('crew'), 1"); await sleep(1500);
