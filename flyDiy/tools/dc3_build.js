@@ -48,6 +48,9 @@ const DC3_ROWS = {
   // headroom under this section's roof; the doors, the seats and the people stand on it (the user: "pilots and
   // passengers are buried")
   floorUp: 0.40,
+  // G3575 (DC3-2): the full-swivel tailwheel (the gear page's third steering type) - the real DC-3's unlocks for the
+  // taxi and swivels free; the toe brake pivots the aeroplane round it
+  s2Steer: 2,
 };
 function dc3FullRaw(over) {
   const j = PR.dc3Raw(1.0);

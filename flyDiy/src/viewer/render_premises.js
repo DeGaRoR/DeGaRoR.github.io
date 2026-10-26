@@ -1135,6 +1135,11 @@ function make(THREE, scene, world, rec0, opts) {
   }
   function buildLine(rd, pr, railG) {
     if (!PWR || rd.poles === 'off') return null;
+    // G3576 (DC3-2; the user, 26 Oct, an explicit permission: "you may also remove the electrical poles around the taxiways,
+    // they should never have been there for starters"): A TAXIWAY STANDS NO POWER LINE - 27_premises' composed ro.taxiway
+    // (concrete, 10 m wide or more, joined to a strip or an apron: HOME's two arms, nothing else on Jolene). Its poles stood
+    // in a wide aeroplane's sweep; the record's absent `poles` meant 'auto' on every road since the port
+    if (rd.taxiway) return null;
     const VG = window.VILLAGE_GEN, HG = window.HOUSE_GEN, HK = window.HOUSE_KIT, PR = propReg(), pp = typeof propPlace === 'function' ? propPlace : null;
     if (!VG || !HG || !HK || !pp || !PR) return null;
     const F = O.frame, LF = lampFinish();

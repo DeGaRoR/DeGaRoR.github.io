@@ -113,7 +113,10 @@ for (let i = 1; i <= 2; i++)
   for (const k of LEG_KEYS) DEF['s' + i + '_' + k] = DEF[k];
 
 const LEGS = ['beam', 'link', 'oleo', 'tailwheel'];
-const STEERS = ['fixed', 'linked', 'castor'];
+// G3575 (DC3-2, the user 26 Oct: "do the swivelling tailwheel ... if no one uses castor, you may ... replace it with your full
+// swivel mechanics"): 'castor' was the picture's only (every third wheel flew linked); its slot is now the FULL SWIVEL
+// wheel, the one of the three the physics reads (_cage_join gear.twSwivel) - no saved build carried it
+const STEERS = ['fixed', 'linked', 'full swivel'];
 
 // THE WHEEL ROWS, shared (G33 — the cage panel had lost this group
 // entirely; the port-the-full-surface rule again). Lifted verbatim from

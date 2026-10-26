@@ -1067,6 +1067,11 @@ if (plots.length) {
   check(!('rail' in rd('rc')) && !('poles' in rd('rc')) && !('polesSide' in rd('rc')), '30 a road that says nothing composes as before (no new key)');
   const RP30 = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
   check(/if \(!RAIL \|\| rd\.rail === 'off'\) return null;/.test(RP30) && /if \(!PWR \|\| rd\.poles === 'off'\) return null;/.test(RP30) && /mode: rd\.rail \|\| 'auto'/.test(RP30) && /mode: rd\.poles \|\| 'auto'/.test(RP30), '30 the renderer builds both from those fields');
+  // (G3576, the user's explicit permission 26 Oct: a taxiway stands no power line - and the island's taxiways are HOME's two arms)
+  check(/if \(rd\.taxiway\) return null;/.test(RP30), '30 a taxiway stands no power line (render_premises buildLine, G3576)');
+  { const JT = PG.compose(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec, synth, { raster: false });
+    const tw = (JT.roads || JT.rec.layers.roads).filter(r => r.taxiway).map(r => r.id).sort().join(' ');
+    check(tw === 'r_taxi_e r_taxi_ne', '30 ...the island\'s taxiways are HOME\'s two arms', tw); }
   // (and the edit reaches the renderer: a road's own key holds the composed road, so a guardrail row's change draws that road again)
   const K0 = PG.roadBuildKeys(O30), r30b = JSON.parse(JSON.stringify(r30)); r30b.layers.roads[2].rail = 'off';
   const K1 = PG.roadBuildKeys(PG.compose(r30b, synth));

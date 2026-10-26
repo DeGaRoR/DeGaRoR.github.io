@@ -4770,6 +4770,8 @@ function clampSpec(spec) {
   // draws its own shell, so this prices on every leg family — the old
   // tricycle-only condition in genGearCdA is retired.
   if (!['none', 'spat', 'full'].includes(S.gear.twFairing)) S.gear.twFairing = 'none';
+  // G3575: the full-swivel third wheel - true, or no key at all (a build that never chose it carries none)
+  if (S.gear.twSwivel !== true) delete S.gear.twSwivel;
   // G133: the LEG fairings, the droplet lengths and the layup — every one
   // drawn by the gear layer before it is priced anywhere (the G121.2 rule).
   if (!['none', 'fair'].includes(S.gear.legFair)) S.gear.legFair = 'none';

@@ -24,6 +24,7 @@
 //     circuit  the pilot from the line-up, the whole circuit (~300 s of sim: slow)
 //     home     THE WHOLE TRIP (G3574): the pilot from the works stand - the taxi out, the circuit, the landing - then
 //              the taxi back to the stand on the hand (taxiBack); contacts, the least clearance (--track <file>: the plan)
+//     (--cage k=v,..: the build's cage rows set first - G3575 s2Steer=2, the full-swivel tailwheel)
 //     back     the taxi back alone, from where the home case's landing stopped (--from x,z, --hdg rec|own)
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -42,7 +43,9 @@ const FILE = opt('file', 'tools/fixtures/dc3_2026-10.json');
 if (opt('kappa') != null) C.GEN_RULES.shellHoldKappa = +opt('kappa');
 let CERT = null;
 function defOf(lim) {
-  const L = LB.loadBuild(FILE);
+  // --cage k=v,k=v: the build's cage rows set before the load door (G3575: --cage s2Steer=2, the full-swivel tailwheel)
+  const CG = opt('cage') ? Object.fromEntries(opt('cage').split(',').map(q => { const [k, x] = q.split('='); return [k, isNaN(+x) ? x : +x]; })) : null;
+  const L = LB.loadBuild(FILE, CG ? { patch: j => { const sp = j.spec || j; sp.cage = Object.assign({}, sp.cage, CG); return j; } } : undefined);
   const d = C.buildGen(JSON.parse(JSON.stringify(L.spec)));
   d.params = Object.assign({}, d.params, { damage: true });
   if (lim === 'cert') {
@@ -108,6 +111,9 @@ const HANDS = {
   turn:   t => ({ thr: 0.55, brake: 0, dr: 1, de: -0.3, da: 0 }),
   burst:  t => ({ thr: (t % 10) < 4 ? 1 : 0.1, brake: (t % 10) >= 7 ? 1 : 0, dr: ((t / 10) | 0) % 2 ? 1 : -1, de: 0, da: 0 }),
   stick:  t => ({ thr: 0.5, brake: t > 15 ? 1 : 0, dr: 0, de: 1, da: 0 }),
+  // G3575: THE PIVOT a DC-3 crew turns on - the inside (right) toe brake on, power, full rudder, the stick back (a full-swivel
+  // tailwheel breaks out; the steered one holds the tail)
+  pivot:  t => ({ thr: t < 2 ? 0 : 0.45, brake: 0, brakeD: 1, dr: 1, de: -0.4, da: 0 }),
   // the certificate's rough taxi (23.491): straight at ~8 m/s, the throttle held to it (a hand on the lever)
   rough:  (t, sim) => { const v = sim.cgVel(), V = Math.hypot(v[0], v[2]); return { thr: V < 8 ? 0.45 : 0.08, brake: 0, dr: 0, de: -0.3, da: 0 }; },
 };
@@ -122,6 +128,8 @@ function taxi(lim, hand, secs) {
   H.queueCmd({ cmd: 'manual', on: true }); H.queueCmd({ cmd: 'start' });
   if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) H.queueCmd({ cmd: 'setEngine', i, patch: { key: 'both', running: true } });
   let smax = 0, vmax = 0, d = 0, nzMax = 0, last = sim.cgPos(), tEnd = null, obstAt = null;
+  const hdg = () => { const a = sim.axes()[0]; return Math.atan2(-a[2], -a[0]); }, h0 = hdg(), c00 = sim.cgPos();
+  let turned = 0, hPrev = h0, rMax = 0;
   const TK = tracker(sim);
   for (let k = 0; k < 60 * secs; k++) {
     const t = k / 60;
@@ -132,9 +140,10 @@ function taxi(lim, hand, secs) {
     d += Math.hypot(cg[0] - last[0], cg[2] - last[2]); last = cg;
     nzMax = Math.max(nzMax, (sim.out && sim.out.nz) || 0);
     if (sim.out && sim.out.obst > 0 && obstAt == null) obstAt = r2(t);
+    { const h = hdg(); let dh = h - hPrev; while (dh > Math.PI) dh -= 2 * Math.PI; while (dh < -Math.PI) dh += 2 * Math.PI; turned += dh; hPrev = h; rMax = Math.max(rMax, Math.hypot(cg[0] - c00[0], cg[2] - c00[2])); }
     if (H.crashed()) { tEnd = t; break; }
   }
-  return { case: 'taxi:' + hand, lim, t: tEnd, obstAt, dist: r2(d), vmax: r2(vmax), nzMax: r2(nzMax), smaxPct: r2(smax * 100), dmg: dmgSummary(sim, def), worst: worst(sim, def, TK) };
+  return { case: 'taxi:' + hand, lim, t: tEnd, obstAt, dist: r2(d), vmax: r2(vmax), turnedDeg: Math.round(turned * 180 / Math.PI), cgOffMax: r2(rMax), nzMax: r2(nzMax), smaxPct: r2(smax * 100), dmg: dmgSummary(sim, def), worst: worst(sim, def, TK) };
 }
 
 // ---- DROP: the certificate's own drop (66_gen_cert genCertDrop), with the damage live ----------------------------
@@ -275,7 +284,10 @@ function taxiBack(H, sim, def, TK, clearNow, contact, TRACK, t0) {
   const q0 = best.r.pts[best.i], q1 = best.r.pts[Math.max(0, best.i - 20)];
   const along = (q1.x - q0.x) * fx + (q1.z - q0.z) * fz;
   let path = best.r.pts.slice(0, best.i + 1).reverse();
-  if (along < 0) {
+  // G3575: a FULL-SWIVEL tailwheel PIVOTS round on the inside toe brake (below) - no teardrop; the steered one cannot
+  const SW = !!def.params.twSwivel;
+  if (along < 0 && SW) out.turn = { kind: 'pivot' };
+  if (along < 0 && !SW) {
     const off = +opt('tdOff', 12), rad = +opt('tdR', 22), lx = -fz, lz = fx;   // (lx, lz): the left of the heading
     const pre = [];
     for (let s = 2; s <= 40; s += 2) { const o = off * Math.min(1, s / 30); pre.push({ x: c0[0] + fx * s - lx * o, z: c0[2] + fz * s - lz * o }); }
@@ -287,7 +299,7 @@ function taxiBack(H, sim, def, TK, clearNow, contact, TRACK, t0) {
   }
   out.metres = path.length;
   H.queueCmd({ cmd: 'manual', on: true });
-  let ip = 0, I = 0;
+  let ip = 0, I = 0, pivOn = false, dhPrev = 0;
   for (let f = 0; f < 60 * +opt('backSecs', 900); f++) {
     const cg = sim.cgPos(), v = sim.cgVel(), V = Math.hypot(v[0], v[2]);
     // the point steered to: 10 m on - or past any point already BEHIND the aeroplane within 30 m (a corner inside the DC-3's
@@ -302,10 +314,21 @@ function taxiBack(H, sim, def, TK, clearNow, contact, TRACK, t0) {
     //  runway's turn-off and went round it once)
     const pa = path[Math.min(path.length - 1, ip + 20)], pb = path[Math.min(path.length - 1, ip + 40)];
     let turnA = Math.atan2(pb.z - pa.z, pb.x - pa.x) - Math.atan2(pa.z - tg.z, pa.x - tg.x); while (turnA > Math.PI) turnA -= 2 * Math.PI; while (turnA < -Math.PI) turnA += 2 * Math.PI;
-    const Vt = last && dEnd < 25 ? Math.max(0, dEnd / 8) : Math.abs(dh) > 0.35 || Math.abs(turnA) > 0.6 ? 2.5 : 6;
+    // (G3575: on a full swivel the rudder steers the wheel only until it breaks out - the toe brake on the inside does the
+    //  rest, a walk, the way a DC-3 is turned; past 1 rad off, the pivot: power against the inside brake)
+    // (the pivot from 0.8 rad off to 0.3, the toe brake damped on the error's rate - the castoring DC-3 has no tail force to
+    //  stop its swing, so the brake stops it: an undamped pivot overshot into the next one, a slalom up the taxiway)
+    //  ...and it ends only once the swing has stopped too: a castoring DC-3 let go at 0.3 rad swung on into the next pivot)
+    const dhRate = (dh - dhPrev) * 60; dhPrev = dh;
+    if (SW) { if (!pivOn && Math.abs(dh) > 0.8) pivOn = true; else if (pivOn && Math.abs(dh) < 0.3 && Math.abs(dhRate) < 0.05) pivOn = false; }
+    const piv = SW && pivOn;
+    const Vt = piv ? 1.0 : last && dEnd < 25 ? Math.max(0, dEnd / 8) : Math.abs(dh) > 0.35 || Math.abs(turnA) > 0.6 ? 2.5 : 6;
     const e2 = Vt - V; I = Math.max(-2, Math.min(2, I + e2 / 60));
-    const thr = Math.max(0, Math.min(0.6, 0.12 + 0.12 * e2 + 0.05 * I)), brake = e2 < -1.5 || (last && dEnd < 3) ? 0.6 : 0;
-    H.queueCmd({ cmd: 'hand', ctl: { thr, brake, dr: Math.max(-1, Math.min(1, 2.5 * dh)), de: -0.4, da: 0 } });
+    const dr = Math.max(-1, Math.min(1, 2.5 * dh));
+    const thr = piv ? (V < 0.6 ? 0.3 : 0.12) : Math.max(0, Math.min(0.6, 0.12 + 0.12 * e2 + 0.05 * I)), brake = !piv && (e2 < -1.5 || (last && dEnd < 3)) ? 0.6 : 0;
+    // (the toe brake only in the pivot: on every error it broke the wheel out again and again and the DC-3 weaved)
+    const brakeD = piv ? Math.max(-1, Math.min(1, 1.2 * dh + 2.0 * dhRate)) : 0;
+    H.queueCmd({ cmd: 'hand', ctl: SW ? { thr, brake, brakeD, dr, de: -0.4, da: 0 } : { thr, brake, dr, de: -0.4, da: 0 } });
     H.step(); TK.tick();
     if (f % 15 === 0) clearNow('back'); contact('back');
     if (TRACK && f % 15 === 0) { const c = sim.cgPos(); TRACK.push([r2(c[0]), r2(c[2]), r2(t0 + f / 60), 9]); }

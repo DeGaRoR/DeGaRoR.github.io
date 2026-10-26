@@ -409,6 +409,10 @@ function cageJoinSpec(P, M, T) {
     // family (the tricycle-only gate is retired).
     spec.gear.twFairing = ['none', 'spat', 'full'][Math.round(P.s2Fair || 0)]
                           || 'none';
+    // G3575: THE FULL-SWIVEL THIRD WHEEL - the steering row's third type (GEAR_PAGE.STEERS[2]) reaches the physics; the
+    // other two fly as every third wheel always has (steered by the rudder). Written only when chosen: absent, the spec
+    // and the def are what they were, to the bit
+    if (Math.round(+P.s2Steer || 0) === 2) spec.gear.twSwivel = true; else delete spec.gear.twSwivel;
     // G133: the fairing's remaining physics-bearing fields, PARAMS all by
     // s1Fair's own rule (each drawn shell is generated FROM these rows).
     // Skirt, rake and width stay cage-side only — geometry the drag model

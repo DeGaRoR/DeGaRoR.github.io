@@ -99246,3 +99246,57 @@ should keep that rotation. ... did you try modifying the tail wheel for better t
   6. **The DC-3's landing** (master's autopilot, T-P1): it bounces 1.0-1.2 m off a 2.3-2.5 m/s touch at 34 m/s and goes round twice
      before the committed third landing (4.35 m/s on its second touch, held). The trip completes; the pilot's flare for a heavy
      taildragger is the pilot's lot (P1), not this branch's.
+
+### G3575-G3576 - DC3-2 ROUND 3 (2026-10-26, cloud): THE FULL-SWIVEL TAILWHEEL, AND NO POWER LINE ALONG A TAXIWAY (branch claude/dc3-2 on ab6a84914 - queued as claude/ready/dc3-2 for L27a, NOT moved; this round goes out as claude/ready/dc3-3 after origin/master carries ab6a84914)
+The user (26 Oct, verbatim): "yes do the swivelling tailwheel for heavy builds. Maybe just make it a new type? I don't want a limit on
+options for heavy." - "if no one uses castor, you may delete it or replace it with your full swivel mechanics" - and, AN EXPLICIT
+PERMISSION: "you may also remove the electrical poles around the taxiways, they should never have been there for starters. Mention in
+your handover notes that you got explicit permission".
+- **G3575 THE FULL-SWIVEL TAILWHEEL** - a third-wheel type any build may choose (no weight limit):
+  - **the row:** the gear page's tailwheel 'steering' row (`s2Steer`: fixed / linked / castor) was the PICTURE's only - every third
+    wheel flew 'linked' (steered by the rudder to +-28.6 deg, 62_gen_aero twSteer 0.5). 'castor' (index 2) - which no saved build,
+    fixture or preset in the repo carries (searched: every `s2Steer` is 1) - is now **'full swivel'** and is the one type that reaches
+    the physics (tools/_gear_page.js STEERS; tools/_cage_join.js writes `spec.gear.twSwivel: true` only when chosen; clampSpec keeps
+    true or no key; 62_gen_aero params.twSwivel only when set). A player's own local save that had picked 'castor' (draw-only) now
+    flies the swivel - the one behaviour change outside the repo's builds. 'fixed' still flies linked (a question below);
+  - **the law (30_solver twSwivel, null unless chosen - not one line runs otherwise):** it STEERS like the linked wheel - the
+    rudder's, the ground's own stability for every ordinary taxi, take-off and landing - until the TOE BRAKE pushes it out: at taxi
+    pace (under twSwV 5 m/s) a split past twSwB 0.2 (|ctl.brakeD|) breaks it out and it castors along its own ground track (no side
+    force but the tyre's lag); the braked main and the engines turn the aeroplane round it. It re-engages with the brake off once its
+    track swings back within twSwE 0.12 rad of the body's line or the rudder's (the Scott kind's lock near centre). Tried first and
+    rejected, measured: (a) a breakout on the tyre's slip angle - never fired (the DC-3 crawls round the steered wheel's own 24 m
+    circle at 4.6 deg of slip, the brake only drags); (b) on the side-force share of the grip - the tailwheel node's side slip is
+    the lattice's jitter as much as a load (95th percentile 30x on a straight roll, more in S-turns than in a braked turn): the
+    wheel broke out at random and castored the DC-3 into a weave;
+  - **measured (dc3_break `--hands pivot`: the inside brake, 0.45 power, full rudder, on the open runway, 30 s):** linked 9 deg
+    turned (the steered wheel holds the tail); full swivel 1 110 deg, the CG within 6.7 m of where it started - a pivot (held at
+    power it keeps spinning, as a real one does);
+  - **the DC-3 fixture** (tools/dc3_build.js DC3_ROWS s2Steer: 2, `--build`): full swivel - the real DC-3's (the diff: the row
+    and `twSwivel: true`);
+  - **the taxi back (dc3_break taxiBack):** a full-swivel aeroplane PIVOTS round on the inside toe brake where the way back lies
+    behind (no teardrop): the brake from 0.8 rad off, damped on the error's rate, held until the swing has stopped (let go earlier,
+    the castoring DC-3 swung on into the next pivot - a slalom up the taxiway); no toe brake outside the pivot. From the landing's
+    stop: parked 2.5 m off the stand at 181 s (the steered teardrop: 202 s), 0 contacts, least clearance 6.2 m (the club's C172);
+  - the identity: Cub, Jodel, both Cessnas, the twin floatplane, Rufus ALL IDENTICAL to L25b (the law's code is behind TWSW).
+- **G3576 NO POWER LINE ALONG A TAXIWAY (with the user's explicit permission, above):** every road without a `poles` key stood the
+  'auto' power line - HOME's two taxiway arms (r_taxi_ne, r_taxi_e) included. src/viewer/render_premises.js buildLine: a TAXIWAY
+  (27_premises' composed ro.taxiway: concrete, 10 m wide or more, joined to a strip or an apron) stands none. On Jolene that is
+  exactly HOME's two arms (GATE SCENERYED 30 holds both: the rule, and the island's taxiways = those two). The poles were drawn only
+  (not in the cook, not in the obstacle registry): no flight, census or cook changes. THE FIXTURE IS UNTOUCHED this round (a local
+  session edits island_jolene.json: the AFB fold, the fences).
+- **THE WHOLE TRIP AGAIN, the DC-3 on its full-swivel tailwheel** (dc3_break home, the works stand, damage on; physics limits and
+  certificate stamped, identical): taxi out 0 contacts (least clearance 13.6 m), the circuit, the two bounce go-arounds and the
+  committed landing, STOPPED; the taxi back PIVOTED on the runway and parked 2.5 m off the stand in 180 s; 0 contacts, 0 yields,
+  0 breaks. reports/evidence/DC3-2/home_trip_swivel_phys.json / _cert.json.
+- **Gates (this round):** PASS - GEN (4 shards), UISMOKE, SIMWORKER, GEAR, PARTS, BUILD, JOIN, DESIGN, PAVEMENT (alone: its coverAt
+  timing row read 2 137 ms with the box running two trips beside it), ASSETS, GFX, FLOATS, TAKEOFF, LINEUP, SUBSTEP, SAVE, CABIN,
+  STARTER, EDBUGS, FRAMES, PANEL. RED, master's own: `GATE DMGTYRE: FAIL (4)` - the Jodel's and the metal Cessna's taxi-turn radius
+  against the old law, the Cub's crosswind roll-out at 4 / 5 m/s: the same four rows, the same numbers, on an L25b worktree;
+  SCENERYED only its 20b timing row (as before). Identity ALL IDENTICAL.
+- **NOT YET:** origin/master merged (after Tue 08:00, when L27a carries ab6a84914), the gates re-run on the merge, then the READY
+  commit pushed as claude/ready/dc3-3.
+- **Questions:**
+  7. 'fixed' (s2Steer 0) still flies as 'linked' (steered): make it a real fixed wheel (no steering - a skid / a locked wheel), or
+     drop it from the row?
+  8. The autopilot's own taxi uses the toe brake only past the rudder's stop under power (G3077), so it rarely pivots a full-swivel
+     aeroplane: it taxis it as a linked one. Teach it the pivot (the taxi back's law) for the wide builds?

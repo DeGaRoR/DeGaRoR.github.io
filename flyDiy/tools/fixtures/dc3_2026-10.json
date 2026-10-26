@@ -479,7 +479,7 @@
    "s2R": 0.08,
    "s2Drop": 0.27,
    "s2Brake": 0,
-   "s2Steer": 1,
+   "s2Steer": 2,
    "s2Fair": 0,
    "s2FairSkirt": 0,
    "s2FairTail": 1,
@@ -1317,7 +1317,8 @@
     "volDeck": 1.887071424779946,
     "inc": -0.5,
     "x": 1.6374914473618898
-   }
+   },
+   "twSwivel": true
   },
   "paint": {
    "job": "full",

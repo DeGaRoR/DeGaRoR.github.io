@@ -2375,6 +2375,7 @@ function makeSim(def, world) {
 
   function reset(drop = 0) {
     PFO.netF = 0; PFO.mErr = 0;
+    if (TWSW) { TWSW.cast = false; TWSW.ang = 0; }   // G3575: the full swivel steered again, centred
     if (WB) HYDRO.wetReset(WB);                     // G1384.3: a fresh aeroplane is dry and whole
     dmgReset();                    // G1470: every member whole, every set undone (before G610's k restore below)
     // (G610) a reset is the aeroplane as it FLIES: a rig's trueBox() (the load test on the garage's own sim)
@@ -3149,6 +3150,33 @@ function makeSim(def, world) {
   const TYRE_ = P_.tyre || {}, TYRE_OLD = !!P_.tyreCoulomb;
   const iCnM = TYRE_OLD ? 0 : 1 / (TYRE_.main || TYRE_CN.standard),
         iCnT = TYRE_OLD ? 0 : 1 / (TYRE_.tw || (P_.twSteer < 0 ? TYRE_CN.nosewheel : TYRE_CN.tailwheel));
+  // G3575 (DC3-2): THE FULL-SWIVEL THIRD WHEEL (the gear page's 'full swivel', params.twSwivel; the user, 26 Oct: "do the
+  // swivelling tailwheel"). The steered wheel (every build before) turns with the rudder to twSteer and no further, so its
+  // side force holds the tail: the DC-3 turned 3 deg in 10 s on a locked main, the outside engine full and the inside idle.
+  // A full-swivel wheel (the Scott 3200 kind; the DC-3's own, unlocked for the taxi) STEERS the same way - the rudder's,
+  // the ground's stability on every ordinary taxi, take-off and landing - until the TOE BRAKE pushes it out: at taxi pace
+  // (under twSwV) a split past twSwB (|ctl.brakeD|) breaks it out and it castors - its rolling line follows its own ground
+  // track (no side force but the tyre's lag), the braked wheel and the engines turn the aeroplane round it, a pivot. It
+  // re-engages once the brake is off and its track swings back within twSwE of the body's line or the rudder's (the Scott's
+  // own: it locks into the steering near centre - matched to the rudder's line alone, it rarely did and the DC-3 weaved).
+  // The brake, not the tyre's load, is the trigger: the tailwheel node's side slip is the lattice's jitter as much as a
+  // load (its grip ratio read 30x on a straight roll, more in S-turns than in a braked turn), and a wheel that broke out
+  // on it castored the DC-3 into a weave. Absent (null), not one line below runs: every build that never chose it flies to
+  // the bit
+  const TWSW = P_.twSwivel ? { V: P_.twSwV ?? 5.0, B: P_.twSwB ?? 0.2, E: P_.twSwE ?? 0.12, cast: false, ang: 0 } : null;
+  // the wheel's line this substep, as the angle off the body's line: the rudder's (s), or once broken out its own track
+  function twSwivel(i3, hx, hz, s, Fn) {
+    const S = TWSW, vx = v[i3], vz = v[i3+2], V = hyp2(vx, vz), bd = Math.abs(ctl.brakeD || 0);
+    let a = S.ang;
+    if (V > 0.03) {
+      a = Math.atan2(hx * vz - hz * vx, hx * vx + hz * vz);            // the track off the body's line
+      if (a > Math.PI / 2) a -= Math.PI; else if (a < -Math.PI / 2) a += Math.PI;   // rolling back: the same line
+    }
+    if (!S.cast) { if (Fn > 0 && bd > S.B && V < S.V) { S.cast = true; S.ang = a; } }
+    else { S.ang = a; if (bd < 0.05 && (Math.abs(a) < S.E || Math.abs(a - s) < S.E)) S.cast = false; }
+    out.twCast = S.cast ? 1 : 0;   // (read by tools/dc3_break.js)
+    return S.cast ? S.ang : s;
+  }
   // ground stiffness scales with node mass so light aircraft stay stable at the same dt
   const KGn = new Float64Array(n), CGn = new Float64Array(n),
         KTn = new Float64Array(n), CTn = new Float64Array(n);
@@ -3561,7 +3589,7 @@ function makeSim(def, world) {
         // rolling dir = horizontal forward, tailwheel steered by rudder
         let hx = -xAft[0], hz = -xAft[2];
         if (isTW) {
-          const s = P_.twSteer * ctl.dr;   // measured: matches nose-left convention
+          const s = TWSW ? twSwivel(i3, hx, hz, P_.twSteer * ctl.dr, Fn) : P_.twSteer * ctl.dr;   // measured: matches nose-left convention (G3575: a full swivel's own line once broken out)
           const cs = CORE_MATH.cos(s), sn_ = CORE_MATH.sin(s);
           const nx = hx*cs - hz*sn_, nz = hx*sn_ + hz*cs;
           hx = nx; hz = nz;
