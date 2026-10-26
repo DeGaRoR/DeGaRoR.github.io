@@ -2476,6 +2476,24 @@ const GEN_STOL = {
   // (window.MACHINE_SHOP_OWNS, see genStolLocked). Candidates, not rulings.
   packs: { slat: 'stol-kit', vg: 'stol-kit', cuff: 'stol-kit', fences: 'stol-kit',
            droop: 'stol-kit', grow: 'stol-kit', endplate: 'stol-kit', drooped: null },
+  // G2828 (STOL-WING-2, the user 23 Oct: "add weights and prices first"): WHAT EACH DEVICE WEIGHS AND COSTS, billed
+  // into the ledger's own 'stol' row (61_gen_frame, per plane, onto the wing nodes the device hangs on - the mass
+  // flies where it is, and the damage layer takes it with its wing). Kit catalogue and type-data figures as recalled,
+  // +-30 %, in the game's credits (dollar-like: the Cub's A-65 bills ~10 000, the whole Cub ~30 000):
+  //   slot   a fixed aluminium slat on its brackets: ~1.2 kg per metre of span, ~280 / m (the Zenith 701 slat pair
+  //          ~1500 for ~5.5 m)
+  //   auto   the Handley Page slat on tracks and rollers: ~1.8 kg/m, ~420 / m (the tracks are the weight and the money)
+  //   vg     a vortex-generator row: ~80 g per metre of span (the vanes are a few grams each, glued), the kit ~1100
+  //          for an aeroplane (Micro AeroDynamics' Cub / Cessna kits ~1000-1400)
+  //   cuff   a moulded leading-edge glove: ~0.6 kg/m, ~200 / m
+  //   fence  a riveted chordwise plate: ~0.25 kg, ~90 each
+  //   droop  the mixer, its push-pull rods and the bellcranks: ~3 kg for the pair, ~900 (the R/STOL droop kits)
+  //   grow   the Fowler's longer tracks and carriage: ~1.0 kg per metre of flap span, ~250 / m
+  //   plate  an endplate (formed sheet, its doubler): ~1.5 kg, ~350 each
+  //   tipD   a drooped glassfibre tip over a plain one: +0.6 kg, ~300 each (Super Cub drooped tips ~600-800 a pair)
+  cost: { slot: { kgM: 1.2, perM: 280 }, auto: { kgM: 1.8, perM: 420 }, vg: { kgM: 0.08, kit: 1100 },
+          cuff: { kgM: 0.6, perM: 200 }, fence: { kg: 0.25, each: 90 }, droop: { kg: 3.0, kit: 900 },
+          grow: { kgM: 1.0, perM: 250 }, plate: { kg: 1.5, each: 350 }, tipD: { kg: 0.6, each: 300 } },
 };
 // the option a pack gates, against a list of owned packs (null/undefined =
 // no machine shop in play: nothing is locked). Returns the pack's name when

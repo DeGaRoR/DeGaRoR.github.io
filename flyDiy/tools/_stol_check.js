@@ -111,6 +111,15 @@ function tunnel(def, flap) {
   return { CLmax, aSt, Sw, W, Vs: Math.sqrt(2 * W / (RHO * Sw * CLmax)), D2: at(2).D, D12: at(12).D, CL8, CL4, CL12 };
 }
 const build = (key, mod) => { const s = clone(CARDS[key].spec); if (mod) mod(s); return C.buildGen(s); };
+// G2828: a device WEIGHS (GEN_STOL.cost, section 7) - its kilos size the structure and sag the wing, so a check of what
+// a device does to the AIR or to the DRAWING against the plain wing builds it weightless (the price stays, it moves
+// nothing): the shape and the lift are the device's, the mass is section 7's
+const weightless = f => {
+  const K = C.GEN_STOL.cost, save = clone(K);
+  for (const k in K) { if ('kgM' in K[k]) K[k].kgM = 0; if ('kg' in K[k]) K[k].kg = 0; }
+  try { return f(); } finally { for (const k in save) K[k] = save[k]; }
+};
+const buildA = (key, mod) => weightless(() => build(key, mod));
 const W0 = s => s.wings[0];
 
 // =========================================================================
@@ -300,7 +309,7 @@ console.log('3. THE PHYSICS (the Savannah-alike, as baked)');
   ok(sa && !(sa.stol.dAs > 0), 'the automatic slat\'s strips carry its gain as `sa` (deploys), not as a fixed dAs');
   // drooped ailerons and Fowler growth: the flap lever only
   const fl = s => { s.controls.flap.type = 'fowler'; };
-  const F0 = build('savannah', fl), Fd = build('savannah', s => { fl(s); W0(s).stol = { droop: 0.35 }; }), Fg = build('savannah', s => { fl(s); W0(s).stol = { grow: 1 }; });
+  const F0 = build('savannah', fl), Fd = buildA('savannah', s => { fl(s); W0(s).stol = { droop: 0.35 }; }), Fg = buildA('savannah', s => { fl(s); W0(s).stol = { grow: 1 }; });
   const t0c = tunnel(F0, 0), tdc = tunnel(Fd, 0), tgc = tunnel(Fg, 0);
   const t0f = tunnel(F0, 1), tdf = tunnel(Fd, 1), tgf = tunnel(Fg, 1);
   ok(Math.abs(tdc.CLmax - t0c.CLmax) < 1e-9 && Math.abs(tgc.CLmax - t0c.CLmax) < 1e-9 && tdc.D2 === t0c.D2,
@@ -453,7 +462,7 @@ console.log('4. THE DRAWING');
   const xMin = Math.min(...b.P.map(p => p[0])), xMax = Math.max(...b.P.map(p => p[0]));
   const zMax = Math.max(...b.P.map(p => Math.abs(p[2]))), yMax = Math.max(...b.P.map(p => p[1])), yMin = Math.min(...b.P.map(p => p[1]));
   // the model frame's fore/aft sign, read off the drawing (the nose is the end the LE sits nearer)
-  const sl = geo(build('savannah', s => { W0(s).stol = { slat: 'slot', slatSpan: 0.5 }; }));
+  const sl = geo(buildA('savannah', s => { W0(s).stol = { slat: 'slot', slatSpan: 0.5 }; }));
   const ext = added(sl);
   const fore = ext.length ? (Math.abs(Math.min(...ext.map(p => p[0])) - xMin) < Math.abs(Math.max(...ext.map(p => p[0])) - xMax) ? -1 : 1) : 0;
   const leX = fore < 0 ? xMin : xMax;
@@ -461,22 +470,22 @@ console.log('4. THE DRAWING');
      `the fixed slot stands proud of the leading edge (${ext.length} vertices)`);
   const semi = zMax, zIn = Math.min(...ext.map(p => Math.abs(p[2])));
   ok(Math.abs(zIn - 0.5 * semi) < 0.25, `...over its own span: inboard edge at ${zIn.toFixed(2)} m, half the ${semi.toFixed(2)} m semispan`);
-  const v = geo(build('savannah', s => { W0(s).stol = { vg: 1 }; }));
+  const v = geo(buildA('savannah', s => { W0(s).stol = { vg: 1 }; }));
   const vx = added(v);
   ok(vx.length > 60 && vx.length % 6 === 0, `the VG row: ${vx.length / 6} vanes, each a two-faced blade`);
   ok(Math.min(...vx.map(p => p[1])) > yMin + 0.5 * (yMax - yMin) - 0.6, '...standing on the upper skin');
-  const f2 = geo(build('savannah', s => { W0(s).stol = { fences: 2 }; }));
+  const f2 = geo(buildA('savannah', s => { W0(s).stol = { fences: 2 }; }));
   const fz = [...new Set(added(f2).map(p => Math.round(Math.abs(p[2]) * 50) / 50))];
-  const def2 = build('savannah', s => { W0(s).stol = { fences: 2 }; });
+  const def2 = buildA('savannah', s => { W0(s).stol = { fences: 2 }; });
   const want = C.genStolFences(def2.spec.wings[0].stol, def2.spec.geom.semi, def2.parts.zRoot, (1 - def2.spec.controls.aileron.span) * def2.spec.geom.semi, def2.spec.controls.aileron.span);
   ok(want.length === 2 && want.every(z => fz.some(q => Math.abs(q - z) < 0.03)), `two fences a side, drawn at the strips' stations (${want.map(z => z.toFixed(2)).join(', ')} m)`);
-  const e = geo(build('savannah', s => { W0(s).tip = 'endplate'; }));
+  const e = geo(buildA('savannah', s => { W0(s).tip = 'endplate'; }));
   const ex = added(e);
   ok(ex.length && Math.min(...ex.map(p => Math.abs(p[2]))) > semi - 0.01, 'the endplate stands at the tip, outboard of the skin');
   const ey = ex.map(p => p[1]);
   ok(Math.max(...ey) - Math.min(...ey) > 0.6 * 1.45 * 0.5, `...a plate ${(Math.max(...ey) - Math.min(...ey)).toFixed(2)} m tall, above and below the chord`);
-  const dr = geo(build('savannah', s => { W0(s).tip = 'drooped'; }));
-  const rd = geo(build('savannah', s => { W0(s).tip = 'hoerner'; }));
+  const dr = geo(buildA('savannah', s => { W0(s).tip = 'drooped'; }));
+  const rd = geo(buildA('savannah', s => { W0(s).tip = 'hoerner'; }));
   const tipY = G => { let best = null; for (const p of G.P) if (Math.abs(p[2]) > zMax - 0.06 && (best === null || p[1] < best)) best = p[1]; return best; };
   ok(dr.nv === rd.nv && tipY(dr) < tipY(rd) - 0.05, `the drooped tip bends down (${(tipY(rd) - tipY(dr)).toFixed(3)} m below the Hoerner tip at the very end)`);
   const da = build('savannah', s => { W0(s).stol = { droop: 0.35 }; s.controls.flap.type = 'slotted'; });
@@ -619,6 +628,42 @@ if (!BENCH_ONLY || process.argv.includes('--cub')) {
     ok(L.liftRun != null && L.liftRun < LS.liftRun, `a shorter lift-off run (${L.liftRun && L.liftRun.toFixed(1)} vs ${LS.liftRun.toFixed(1)} m)`);
     ok(L.ldgRun != null && L.ldgRun <= 1.25 * LS.ldgRun, `the landing roll held to the stock one's neighbourhood (${L.ldgRun} vs ${LS.ldgRun} m, <= +25 %: the touchdown is the elevator's, not the wing's)`);
   }
+}
+
+// =========================================================================
+// 7. THE WEIGHTS AND PRICES (G2828, the user 23 Oct: "add weights and prices first"): every device bills its mass
+// and its price (60_gen_spec GEN_STOL.cost) into the ledger's own 'stol' row, on the wing nodes it hangs on; a wing
+// without one has no row (section 1 holds the bits). Each device's row against its catalogue line, and the whole
+// kit against the real ones: a Zenith 701-style slat pair + VGs + droop + drooped tips is ~10-35 kg and a fraction
+// of the airframe's price, not a second aeroplane.
+if (!BENCH_ONLY) {
+  console.log('7. THE WEIGHTS AND PRICES (GEN_STOL.cost, the ledger\'s \'stol\' row)');
+  const K = C.GEN_STOL.cost;
+  const row = mod => { const d = build('savannah', mod); return { d, L: d.parts.ledger, r: d.parts.ledger.stol || null }; };
+  const B0 = row(null);
+  ok(!B0.r, 'no device, no row: the plain Savannah-alike\'s ledger has no \'stol\'');
+  const slot = row(s => { W0(s).stol = { slat: 'slot', slatSpan: 0.5 }; });
+  const auto = row(s => { W0(s).stol = { slat: 'auto', slatSpan: 0.5 }; });
+  ok(slot.r && Math.abs(slot.r.mass / slot.r.cost - K.slot.kgM / K.slot.perM) < 1e-9,
+     `a fixed slot bills ${slot.r && slot.r.mass.toFixed(2)} kg and ${slot.r && Math.round(slot.r.cost)} at its catalogue line (${K.slot.kgM} kg / ${K.slot.perM} per metre)`);
+  ok(slot.r && auto.r && Math.abs(auto.r.mass / slot.r.mass - K.auto.kgM / K.slot.kgM) < 1e-9 && Math.abs(auto.r.cost / slot.r.cost - K.auto.perM / K.slot.perM) < 1e-9,
+     `the automatic slat over the same span weighs and costs its tracks: ${auto.r && auto.r.mass.toFixed(2)} kg, ${auto.r && Math.round(auto.r.cost)}`);
+  const vg = row(s => { W0(s).stol = { vg: 1 }; });
+  ok(vg.r && vg.r.cost === K.vg.kit && vg.r.mass > 0 && vg.r.mass < 2, `a VG row is grams and a kit price: ${vg.r && vg.r.mass.toFixed(2)} kg, ${vg.r && vg.r.cost}`);
+  const f2 = row(s => { W0(s).stol = { fences: 2 }; });
+  ok(f2.r && Math.abs(f2.r.mass - 4 * K.fence.kg) < 1e-9 && f2.r.cost === 4 * K.fence.each, `two fences a side: ${f2.r && f2.r.mass} kg, ${f2.r && f2.r.cost}`);
+  const dr = row(s => { W0(s).stol = { droop: 0.1 }; });
+  ok(dr.r && Math.abs(dr.r.mass - K.droop.kg) < 1e-9 && dr.r.cost === K.droop.kit, `the droop's mixer and rods: ${dr.r && dr.r.mass} kg, ${dr.r && dr.r.cost}`);
+  const pl = row(s => { W0(s).tip = 'endplate'; }), td = row(s => { W0(s).tip = 'drooped'; });
+  ok(pl.r && Math.abs(pl.r.mass - 2 * K.plate.kg) < 1e-9 && td.r && Math.abs(td.r.mass - 2 * K.tipD.kg) < 1e-9,
+     `the two tips bill their own: endplates ${pl.r && pl.r.mass} kg, drooped tips ${td.r && td.r.mass} kg`);
+  // where the mass sits: the leading-edge devices ahead of the trailing-edge ones (the ledger's own centroid, mx / mass)
+  ok(slot.r && dr.r && slot.r.mx / slot.r.mass < dr.r.mx / dr.r.mass - 0.3,
+     `the slat's mass on the front spar (x ${slot.r && (slot.r.mx / slot.r.mass).toFixed(2)} m), the droop's on the rear (x ${dr.r && (dr.r.mx / dr.r.mass).toFixed(2)} m)`);
+  const full = row(s => { W0(s).stol = { slat: 'slot', slatSpan: 1, vg: 1, droop: 0.1 }; W0(s).tip = 'drooped'; });
+  let cost0 = 0; for (const k in B0.L) cost0 += B0.L[k].cost;
+  ok(full.r && full.r.mass >= 10 && full.r.mass <= 35 && full.r.cost < 0.3 * cost0,
+     `a full kit (full-span slot, VGs, droop, drooped tips): ${full.r && full.r.mass.toFixed(1)} kg, ${full.r && Math.round(full.r.cost)} on a ${Math.round(cost0)} airframe`);
 }
 
 // =========================================================================
