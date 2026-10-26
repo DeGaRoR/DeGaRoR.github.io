@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 357353ecc9adc2ae
+// body-sha256: f43909908b998906
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -18180,25 +18180,6 @@ function makeBus(cfg) {
 // collapses — which is the hump's far side (§1.3). kWake and dVent are
 // INFERRED constants the tow sweep exposes; H3's calibration against the
 // NACA tank reports pins them.
-// G3440 (HYDRO-TRIM): THE WAKE IS NOW THE MEASURED ONE (P.wakeSM, 1). The
-// streamline above sank the deeper the higher the trim, so the afterbody
-// DRIED as the bow rose and nothing held the trim down: a free float in
-// GATE HYDRODYN's tank ran to 23 deg, the seaplane tow to 20, and the 172R
-// on Wipline 2350s sat at its hump at 10-15 deg and never left the water
-// (G3390). A float's afterbody is what limits its hump trim (Parkinson,
-// NACA TN 563, 1936: the free-to-trim hump trim and resistance follow the
-// afterbody keel angle). Behind the step the surface now stands H over the
-// forebody keel line extended aft, Savitsky & Morabito's tank fit (Marine
-// Technology 47(1), 2010, "Surface wave contours associated with the
-// forebody wake of stepped planing hulls"; deadrise 10-30 deg):
-//   H / b = 0.17 (A + 0.03 L_K tau^1.5) sin((pi / C_V) (X / 3)^1.5)
-// b the chine beam at the step, X = x / b aft of it, L_K the wetted keel
-// length in beams, tau the forebody's trim in degrees, C_V = V / sqrt(g b),
-// A 1.5 on the centreline and 2 at the quarter beam (held to the chine). Held
-// at its crest past the first quarter wave, never above the undisturbed
-// surface, blended in by the step's air as before. It RISES with the trim
-// and the loading: a trimmed-up hull's afterbody meets its own wake. kWake
-// is the H0 law's alone (wakeSM 0).
 //
 // NOT MODELLED (H0 cuts, each named): the spray-root wave rise (Savitsky's
 // lambda is the still-water one here); whisker spray drag; the added-mass
@@ -18313,8 +18294,6 @@ const DEF = {
   xi0: 0.01,       // the leading-edge weight's core, in beams (0.05 integrated to 86 % of lambda^0.5 at lambda 2)
   kTr: 0.15,       // transom fade length = kTr V^2/g (fitted in the check)
   kWake: 0.5,      // wake recovery length = kWake V^2/g (INFERRED)
-  sideShed: 1,     // G3440: no skin friction on a side above a chine that sheds the flow (1); 0 = the H0 clipper's wetted side
-  wakeSM: 1,       // G3440: the wake behind a ventilated step is Savitsky & Morabito's measured profile (1); 0 = the H0 law (kWake)
   dVent: 0.05,     // chine depth at the step over which the step loses its air, m
   Cd: 1.2,         // cross-flow / square-on pressure coefficient
   kw: Math.PI / 2, // Wagner's rise-up on the wetted width (1 = von Karman)
@@ -18832,7 +18811,16 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
   const air = Math.max(airStill, airChine);
   const vent = air * sep;
   const lr = Math.max(0.02, P.kWake * Vflow * Vflow / G);
-  out.sep = sep; out.air = air;
+  // the stern transom's own: its chines are higher, so it usually has air
+  const sK = W[F.stern.K];
+  // (a transom is open to the sky: its air comes over the deck edge)
+  const dSternChine = 0.5 * ((water.h(W[F.stern.Dm][0], W[F.stern.Dm][2], t) - W[F.stern.Dm][1]) +
+                             (water.h(W[F.stern.Dp][0], W[F.stern.Dp][2], t) - W[F.stern.Dp][1]));
+  const dStern = water.h(sK[0], sK[2], t) - sK[1];
+  const sepStern = smooth01(1 - 2 * G * Math.max(0, dStern) / (Vflow * Vflow));
+  const airStern = smooth01(1 - dSternChine / P.dVent);
+  const ventStern = airStern * sepStern;
+  out.sep = sep; out.air = air; out.sepStern = sepStern; out.airStern = airStern; out.ventStern = ventStern;
   out.vent = vent; out.Vflow = Vflow; out.dEdge = dEdge; out.lr = lr;
   // (0) G1807: the hull's own wave (the plough), from the still-water keel and the speed through the water
   const wvA = P.kWave > 0 ? ploughWave(F, W, water, t, -dot(vE, xhat) + dot(water.v(eK[0], eK[2], t), xhat), out.wave) : (out.wave.a = 0);
@@ -18840,26 +18828,6 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
   // the CG's horizontal velocity is the steady motion; what is left of a
   // panel's velocity after it is the UNSTEADY entry the slam is computed on
   const vH = ctx.vH;
-  // (3b) G3440: THE FOREBODY'S WAKE AS MEASURED (Savitsky & Morabito 2010) - see the header's THE STEP WORKS BY
-  // GEOMETRY. The trim, the wetted keel length and the beam Froude number it reads, once per pass
-  const wSM = (P.wakeSM != null ? P.wakeSM : DEF.wakeSM) > 0 && vent > 0;
-  let smB = 1, smCv = 1, smAmp = 0;
-  if (wSM) {
-    smB = 2 * halfBeamAt(F, -1e-6);
-    smCv = Vflow / Math.sqrt(G * smB);
-    const tauD = Math.max(0, -Math.asin(Math.max(-1, Math.min(1, xhat[1]))) / D2R);
-    // the wetted keel length ahead of the step (still water): the forebody's keel stations walked forward from it
-    let LK = 0;
-    for (let i = F.nF; i > 0; i--) {
-      const a = F.sta[i], b = F.sta[i - 1], ka = W[a.K], kb = W[b.K];
-      const da = water.h(ka[0], ka[2], t) - ka[1], db = water.h(kb[0], kb[2], t) - kb[1];
-      if (da <= 0) break;
-      if (db <= 0) { LK = -(a.x + (b.x - a.x) * da / (da - db)); break; }
-      LK = -b.x;
-    }
-    smAmp = 0.03 * (LK / smB) * CORE_MATH.pow(tauD, 1.5);
-    out.smLK = LK; out.smTau = tauD;
-  }
   // 3. signed depth per vertex — with the WAKE under everything aft of the step
   for (let i = 0; i < V.length; i++) {
     const x = V[i][0];
@@ -18867,16 +18835,7 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
     // (0) the plough wave: its crest at the keel's wet entry (and up the stem ahead of it), cos(k s) aft; behind a
     // ventilated step the forebody's wake (below) is the trough, so the wave yields to it there by (1 - vent)
     if (wvA !== 0) h += wvA * (x <= wvX ? 1 : CORE_MATH.cos(wvK * (x - wvX))) * (x > 0 ? wvAft : 1);
-    if (x > 0 && wSM) {
-      // the wake's surface stands H over the forebody keel line extended aft, H/b = 0.17 (A + 0.03 L_K tau^1.5)
-      // sin((pi / C_V)(X / 3)^1.5), A 1.5 on the centreline and 2 at the quarter beam (held to the chine), held at its
-      // crest past the first quarter wave, never above the undisturbed surface; the air that reaches the step blends it in
-      const X = x / smB, z = Math.abs(V[i][2]);
-      const A0 = 1.5 + 0.5 * Math.min(1, 4 * z / smB);
-      const arg = Math.min(0.5 * Math.PI, (Math.PI / smCv) * CORE_MATH.pow(X / 3, 1.5));
-      const yW = eK[1] + x * xhat[1] + 0.17 * smB * (A0 + smAmp) * CORE_MATH.sin(arg);
-      if (yW < h) h -= vent * (h - yW);
-    } else if (x > 0 && vent > 0) {
+    if (x > 0 && vent > 0) {
       const dx = Math.max(0, x);
       const yW = eK[1] + dx * xhat[1] - 0.5 * G * (dx / Vflow) * (dx / Vflow);
       const drop = Math.max(0, h - yW) * Math.exp(-dx / lr);
@@ -18884,21 +18843,6 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
     }
     D[i] = h - W[i][1];
   }
-  // the stern transom's own: its chines are higher, so it usually has air
-  // (a transom is open to the sky: its air comes over the deck edge). G3440: its depths are read against the water it
-  // actually sits in - the forebody's wake (step 3) - as the afterbody bottom around it is; they read the still surface,
-  // and at the hump (the 172 on 2350s, 7.8 m/s, 8 deg) a stern deck under the still level but over the wake kept the
-  // transom unventilated: its base suction 0.03 W of drag and the deck's 0.02 W of download
-  const dSternChine = 0.5 * (D[F.stern.Dm] + D[F.stern.Dp]);
-  const dStern = D[F.stern.K];
-  const sepStern = smooth01(1 - 2 * G * Math.max(0, dStern) / (Vflow * Vflow));
-  // ...and, as at the step (S1, G451.1), the air also comes up a side whose chine sheds the flow (sigma_chine under 1):
-  // a transom whose deck edge is awash in the wake's crest is not sealed when its chines are throwing the water off
-  const dSternC = 0.5 * (D[F.stern.Cm] + D[F.stern.Cp]);
-  const airStern = Math.max(smooth01(1 - dSternChine / P.dVent),
-                            (P.wakeSM != null ? P.wakeSM : DEF.wakeSM) > 0 ? smooth01(1 - 2 * G * Math.max(0, dSternC) / (Vflow * Vflow)) : 0);
-  const ventStern = airStern * sepStern;
-  out.sepStern = sepStern; out.airStern = airStern; out.ventStern = ventStern;
   // 4. clip every panel; the wet leading edge per (body, side) row
   const LE = out.LE;
   LE.F[0][0] = LE.F[0][1] = LE.F[1][0] = LE.F[1][1] = LE.A[0][0] = LE.A[0][1] = LE.A[1][0] = LE.A[1][1] = Infinity;
@@ -19015,17 +18959,7 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
         const Re = Math.max(1e4, Vt * s / NU);
         const lg = Math.log10(Re) - 2;
         const Cf = 0.075 / (lg * lg);
-        // G3440: A SIDE ABOVE A CHINE THAT SHEDS THE FLOW IS NOT WETTED BY IT. The chine sheds by the cavity law the
-        // step's air reads (sigma_chine = 2 g d_chine / V^2 under 1, (2) above), and what the clipper counts on the
-        // side over it is the still level the spray has been thrown off (the spray-root rise is an H0 cut): Savitsky's
-        // planing hull is wetted on its bottom only. Its skin friction alone goes - the side's pressure terms (the
-        // keel's grip in a slip) stay as they were
-        let kWet = 1;
-        if ((pn.kind === 'side' || pn.kind === 'bevel') && (P.sideShed != null ? P.sideShed : DEF.sideShed) > 0) {
-          let dC = 0; for (let j = 0; j < pn.v.length; j++) if (D[pn.v[j]] > dC) dC = D[pn.v[j]];
-          kWet = 1 - smooth01(1 - 2 * G * dC / (Vt * Vt));
-        }
-        scl(ut, 0.5 * rho * Cf * Vt * A * kWet, fv);   // ut is already Vt * direction
+        scl(ut, 0.5 * rho * Cf * Vt * A, fv);   // ut is already Vt * direction
         apply(fv, o.c, T.fric); add(o.Ff, fv, o.Ff);
       }
     }
@@ -24056,7 +23990,6 @@ function makePilot(sim, def, world, opts) {
   // G3077 (TORQUE-RETUNE-66): THE NOSEWHEEL THAT WILL NOT LIFT - past Vr with the stick on the servo's 0.35 top for a second
   // and the nose not up, the pull goes on to the stick's full travel (ROLL, below); rotStuckT the time it has been so
   let rotPull = false, rotStuckT = 0;
-  let humpBack = true, humpThPk = null, humpEase = 0;   // G3444: the back stick through the hump (ROLL, on the water), the nose's peak, the ease to neutral
   const SV = makeServos(sim, def, { pilot: 'pilot', now: () => ap.t, trike, rotateTD, TW, features: {
     trimCalm: true, groundP1D: true, xwBank: true, water: true, porpoise: true,
     // G396.2 / G970: on the step the stick comes all the way back, through LIFTOFF
@@ -26975,7 +26908,7 @@ function makePilot(sim, def, world, opts) {
         }
         if (thRest === null) thRest = th;
         if (rollS0 === null) {
-          rollS0 = sAl; committedTO = false; humpR = humpPk = 0; humpPast = false; wrUp = false; rotPull = false; rotStuckT = 0; humpBack = true; humpThPk = null; humpEase = 0;
+          rollS0 = sAl; committedTO = false; humpR = humpPk = 0; humpPast = false; wrUp = false; rotPull = false; rotStuckT = 0;
           depC = null; toAccelDone = false; toHoldH = null; toLowT = 0; flcI = 0; flcTh = flcVt = null; flcSet = false; flcSetT = 0; flcRelax = 0;   // G2125: a new run, a new climb-out
           // P1.C: THE DEPARTURE PLAN (PILOT-ROADMAP C.3-C.4), the approach
           // plan's twin: 'short' when the strip is under 2 x the sheet's
@@ -27248,24 +27181,7 @@ function makePilot(sim, def, world, opts) {
         // (WATER_LEAD s), is short of the lift-off attitude, and eases to nothing over its last WATER_BAND - the
         // attitude servo (the rotation's integrator) holds it from there. 10.2 deg/s, 28.4 m/s (1.16 Vs); a hull that
         // never reaches the attitude (the twin's) keeps the full stick as before
-        // G3444 (HYDRO-TRIM, the user's ruling 25 Oct): ...AND THROUGH THE HUMP THE STICK IS BACK, as the floatplane
-        // supplement and FAA-H-8083-23 fly it: full power, the stick back to raise the bow and keep the spray off the
-        // propeller, and once the nose stops rising (the hull on its hump) eased to the planing attitude. G396.4's
-        // "never back" was a cure for the H0 wake, under which a raised bow dried the afterbody and nothing held it
-        // (the sterns "buried" because the trim ran away); with the measured wake (32_hydro G3440) the afterbody holds
-        // the bow, and the neutral stick left the float Cessna at 5.4 deg through its hump (DMGPLOUGH's floor 6, the tank
-        // band 8-12) where the stick back gives 8.5-9. The pull (deHump, 0.45: GATE FLOATS' and the G3390 rig's) holds from
-        // the throttle-up until the pitch has come off its peak (from 3 m/s) by half a degree, the hump's resistance has
-        // fallen away (humpPast), or half of Vr; then it eases to neutral over humpEaseS (2 s) and stays off for the run
-        if (sim.hydro && onG > 0) {
-          if (humpBack) {
-            // (the peak is the hump's: tracked from 3 m/s - the throttle's ramp bobs the bow 2 deg at the start)
-            if (V > 3) humpThPk = humpThPk == null ? th : Math.max(humpThPk, th);
-            if ((humpThPk != null && th < humpThPk - 0.5 * Math.PI / 180) || humpPast || V > 0.5 * vr) humpBack = false;
-          } else humpEase = Math.min(1, humpEase + dt / (A.humpEaseS ?? 2));
-          const deHump = (A.deHump ?? 0.45) * (1 - humpEase);
-          SV.deFloor = V > (A.vWaterStick ?? 1.12) * vr ? Math.max(0.02, waterPull(A.thRotate ?? A.liftoffTh)) : Math.max(0.02, deHump);
-        }
+        if (sim.hydro && onG > 0) SV.deFloor = V > (A.vWaterStick ?? 1.12) * vr ? Math.max(0.02, waterPull(A.thRotate ?? A.liftoffTh)) : 0.02;
         c.brake = 0;
         if (onG === 0 && V > vr) {
           go('LIFTOFF'); thLift0 = th; SV.IthMaxT = 0.15; SV.IthGain = null;
@@ -31982,20 +31898,8 @@ function genPropAuto(pr, Vs) {
   return pick;
 }
 
-// G3443 (HYDRO-TRIM): `fm` IS FM^(2/3), NOT THE FIGURE OF MERIT the note above reads it as: momentum theory's
-// T = (FM P sqrt(2 rho A))^(2/3) = FM^(2/3) (2 rho A)^(1/3) P^(2/3), and genPropSynth multiplies by fm. So 'standard'
-// 0.477 is FM 0.33 (the A-65 + Sensenich anchor: a fixed prop that cannot turn its engine to rated rpm standing - it
-// stays the anchor) and 'climb' 0.530 was FM 0.386, under every measured prop absorbing full power standing:
-// Flight Resource's static tests for STC SA02245CH (C170B, O-360-A1A 180 hp, 1000 ft, 75 F; McFarlane's copy of the
-// report): Hartzell 2-blade 76 in 672 lbf (FM 0.49), MT 2-blade 80 in 785 lbf (FM 0.59) - the sim gave the same discs
-// and power 13 % and 23 % less on 'climb'. A fine prop is the one that DOES reach rated rpm standing (the 172R's
-// IO-360-L2A is rated at 2,400 rpm, under the 82 x 43 float prop's static rpm), so 'climb' is now FM 0.50: fm 0.630.
-// The 82 x 43 on 118 kW: 2,587 -> 3,075 N (692 lbf; a McCauley 2-blade float prop on 180 hp, 750 lbf at 2,450 rpm, in
-// the same report as transcribed). Its V0 (propV0K P / Tstatic) falls with it - a fine prop runs out of pitch sooner:
-// the thrust is the old one's at ~40 m/s and 12 % under it at 55. Builds on 'climb': the 3-blade carbon tile (the
-// Caravan-alike), the G3390 STC build; 'auto' tries 'climb' first, and a lower V0 can send it to 'standard'.
 const GEN_PROP_PITCH = {
-  climb:    { name: 'Fine (climb)',    fm: 0.630, pd: 0.55 },
+  climb:    { name: 'Fine (climb)',    fm: 0.530, pd: 0.55 },
   standard: { name: 'Standard',        fm: 0.477, pd: 0.70 },
   cruise:   { name: 'Coarse (cruise)', fm: 0.420, pd: 0.85 },
 };
@@ -49858,6 +49762,56 @@ function careerNew(o) {
   return careerRefresh(d);
 }
 
+// G3612 (the user 25 Oct, item 39: "a career starts only with its own plane. Any imported plane in the career costs
+// money"; then: "old careers are reset to only their own planes, and yes, once a plane is imported into a career, it
+// becomes its own plane. What you import is a design, then making it exist in game requires money and freezes the
+// design, until the next edit. At that point, it is its own copy, and will live its life as an individual object"):
+// THE CAREER'S OWN SLOTS. The saved builds (flydiy.build.*) are one shelf; of them a career holds the ones it has an
+// airframe row for (career.airframes: the story's starter and client, a maker's or a used airframe bought, a build
+// materialised - paid - in its garage, an import bought). The lift (playerFleetReconcile) is handed these, never the whole
+// shelf - so an older career's rows for anything else leave at its next load (the reset, once: the lift drops a row whose
+// slot it was not handed). The sandbox: every slot but a career's copies (careerSlotTag).
+const CAREER_SLOT_TAG = / @(main|dev|c[0-9a-z]{1,16})$/;
+const careerSlotTag = name => typeof name === 'string' && CAREER_SLOT_TAG.test(name);
+function careerOwnSlots(doc, names) {
+  const L = Array.isArray(names) ? names : [];
+  if (!doc || doc.mode !== 'career') return L.filter(n => !careerSlotTag(n));
+  const A = (doc.career && doc.career.airframes) || {}, has = Object.prototype.hasOwnProperty;
+  return L.filter(n => has.call(A, n));
+}
+// the sandbox's designs a career may buy in: the shelf's slots that are neither its own nor any career's copy
+function careerImportable(doc, names) {
+  const own = careerOwnSlots(doc, names);
+  return (Array.isArray(names) ? names : []).filter(n => own.indexOf(n) < 0 && !careerSlotTag(n));
+}
+// THE COPY'S NAME: the design's name, tagged with the career's id (' @<id>' - the sandbox never lists it, no other career
+// holds it); a second copy of the same design numbered before the tag
+function careerCopyName(doc, name, taken) {
+  const id = doc && doc.career && typeof doc.career.id === 'string' && /^(main|dev|c[0-9a-z]{1,16})$/.test(doc.career.id) ? doc.career.id : 'main';
+  const T = new Set(taken || []);
+  let n = name + ' @' + id, i = 2;
+  while (T.has(n) || (doc && doc.fleet && doc.fleet[n])) n = name + ' ' + i++ + ' @' + id;
+  return n;
+}
+// a build SAVED in the career's garage: a name the career holds (its airframe row: the story's slots, a re-save) or a
+// copy's tagged name stays; a new name becomes the career's own slot, tagged as a copy is (the sandbox never edits it)
+function careerSaveKey(doc, name, taken) {
+  if (!doc || doc.mode !== 'career' || careerSlotTag(name)) return name;
+  if (doc.career && doc.career.airframes && doc.career.airframes[name]) return name;
+  return careerCopyName(doc, name, taken);
+}
+// ...and a design BROUGHT IN is a purchase: the economy's airframe price over its ledger (the main hangar's labour, as a
+// build materialised there - 76_economy.js econMaterialise, its row's how 'import', `of` the design it was copied from),
+// on the COPY's slot (the page writes the copy's envelope: the design frozen there); refused short of the cash
+function careerImport(doc, design, copy, cost, wants) {
+  if (!doc || doc.mode !== 'career') return { ok: false, doc, why: 'not a career' };
+  if (careerSlotTag(design)) return { ok: false, doc, why: design + ' is a career\u2019s own airframe, not a design' };
+  if (!careerSlotTag(copy) || (doc.career.airframes && doc.career.airframes[copy])) return { ok: false, doc, why: 'no copy to make' };
+  const r = econMaterialise(doc, copy, cost, wants, { how: 'import' });
+  if (r.ok) r.doc.career.airframes[copy].of = design;
+  return r;
+}
+
 // THE NORMALISER: the player document's own (its walk first), then the career block filled where missing and
 // carried verbatim where present (unknown fields ride along).
 function careerNormalise(r) {
@@ -54577,7 +54531,7 @@ const techOptionOk = (doc, modelId, opts, row, val) => {
   return s != null && s <= careerTechSeg(doc);
 };
 if (typeof module !== 'undefined')
-  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName };
+  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport };
 
 // (DMG-DETERMINISM G2353, standalone): NODE REFUSES A STALE CORE. tools/flight_core.js is generated (tools/build.js) and
 // tracked, so a tree whose generated files were put back from git (`git checkout -- tools/flight_core.js`, a stash, a fresh

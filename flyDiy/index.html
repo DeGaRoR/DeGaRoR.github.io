@@ -4061,7 +4061,7 @@ html.phone #bRun, html.phone #bAward, html.phone body.mode-fly #bAward {
     </div>
   </aside>
 </div>
-<script>window.FLYDIY_BUILD='5596f2b16e7f';window.FLYDIY_BUILD_DATE='2026-10-25T18:16:03.668Z';</script>
+<script>window.FLYDIY_BUILD='1bd647158b91';window.FLYDIY_BUILD_DATE='2026-10-25T21:44:23.194Z';</script>
 <script>
 // ===========================================================================
 // THE NAMES (G3240 NAMES, 2026-10-22; GAME-PLAN-2026-10-15 §R and §13). The user, 15 Oct: "Everything should have a
@@ -10838,7 +10838,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = THREE;
 <script>
 (function () {
   window.FLYDIY_CAREER_WANT = function () { return /[?&](career|map|freight)=1(&|$)/.test(location.search || '') || window.FLYDIY_MODE === 'career'; };
-  var SRC = window.FLYDIY_CAREER_SRC = "career_core.7cd9d7f0.js";
+  var SRC = window.FLYDIY_CAREER_SRC = "career_core.ec46df72.js";
   var mode = window.FLYDIY_WELCOME ? Promise.resolve(window.FLYDIY_WELCOME).then(null, function () {}) : Promise.resolve();
   var load = window.FLYDIY_CAREER_LOAD = mode.then(function () {
     if (!window.FLYDIY_CAREER_WANT()) return false;
@@ -29048,25 +29048,6 @@ function makeBus(cfg) {
 // collapses — which is the hump's far side (§1.3). kWake and dVent are
 // INFERRED constants the tow sweep exposes; H3's calibration against the
 // NACA tank reports pins them.
-// G3440 (HYDRO-TRIM): THE WAKE IS NOW THE MEASURED ONE (P.wakeSM, 1). The
-// streamline above sank the deeper the higher the trim, so the afterbody
-// DRIED as the bow rose and nothing held the trim down: a free float in
-// GATE HYDRODYN's tank ran to 23 deg, the seaplane tow to 20, and the 172R
-// on Wipline 2350s sat at its hump at 10-15 deg and never left the water
-// (G3390). A float's afterbody is what limits its hump trim (Parkinson,
-// NACA TN 563, 1936: the free-to-trim hump trim and resistance follow the
-// afterbody keel angle). Behind the step the surface now stands H over the
-// forebody keel line extended aft, Savitsky & Morabito's tank fit (Marine
-// Technology 47(1), 2010, "Surface wave contours associated with the
-// forebody wake of stepped planing hulls"; deadrise 10-30 deg):
-//   H / b = 0.17 (A + 0.03 L_K tau^1.5) sin((pi / C_V) (X / 3)^1.5)
-// b the chine beam at the step, X = x / b aft of it, L_K the wetted keel
-// length in beams, tau the forebody's trim in degrees, C_V = V / sqrt(g b),
-// A 1.5 on the centreline and 2 at the quarter beam (held to the chine). Held
-// at its crest past the first quarter wave, never above the undisturbed
-// surface, blended in by the step's air as before. It RISES with the trim
-// and the loading: a trimmed-up hull's afterbody meets its own wake. kWake
-// is the H0 law's alone (wakeSM 0).
 //
 // NOT MODELLED (H0 cuts, each named): the spray-root wave rise (Savitsky's
 // lambda is the still-water one here); whisker spray drag; the added-mass
@@ -29181,8 +29162,6 @@ const DEF = {
   xi0: 0.01,       // the leading-edge weight's core, in beams (0.05 integrated to 86 % of lambda^0.5 at lambda 2)
   kTr: 0.15,       // transom fade length = kTr V^2/g (fitted in the check)
   kWake: 0.5,      // wake recovery length = kWake V^2/g (INFERRED)
-  sideShed: 1,     // G3440: no skin friction on a side above a chine that sheds the flow (1); 0 = the H0 clipper's wetted side
-  wakeSM: 1,       // G3440: the wake behind a ventilated step is Savitsky & Morabito's measured profile (1); 0 = the H0 law (kWake)
   dVent: 0.05,     // chine depth at the step over which the step loses its air, m
   Cd: 1.2,         // cross-flow / square-on pressure coefficient
   kw: Math.PI / 2, // Wagner's rise-up on the wetted width (1 = von Karman)
@@ -29700,7 +29679,16 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
   const air = Math.max(airStill, airChine);
   const vent = air * sep;
   const lr = Math.max(0.02, P.kWake * Vflow * Vflow / G);
-  out.sep = sep; out.air = air;
+  // the stern transom's own: its chines are higher, so it usually has air
+  const sK = W[F.stern.K];
+  // (a transom is open to the sky: its air comes over the deck edge)
+  const dSternChine = 0.5 * ((water.h(W[F.stern.Dm][0], W[F.stern.Dm][2], t) - W[F.stern.Dm][1]) +
+                             (water.h(W[F.stern.Dp][0], W[F.stern.Dp][2], t) - W[F.stern.Dp][1]));
+  const dStern = water.h(sK[0], sK[2], t) - sK[1];
+  const sepStern = smooth01(1 - 2 * G * Math.max(0, dStern) / (Vflow * Vflow));
+  const airStern = smooth01(1 - dSternChine / P.dVent);
+  const ventStern = airStern * sepStern;
+  out.sep = sep; out.air = air; out.sepStern = sepStern; out.airStern = airStern; out.ventStern = ventStern;
   out.vent = vent; out.Vflow = Vflow; out.dEdge = dEdge; out.lr = lr;
   // (0) G1807: the hull's own wave (the plough), from the still-water keel and the speed through the water
   const wvA = P.kWave > 0 ? ploughWave(F, W, water, t, -dot(vE, xhat) + dot(water.v(eK[0], eK[2], t), xhat), out.wave) : (out.wave.a = 0);
@@ -29708,26 +29696,6 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
   // the CG's horizontal velocity is the steady motion; what is left of a
   // panel's velocity after it is the UNSTEADY entry the slam is computed on
   const vH = ctx.vH;
-  // (3b) G3440: THE FOREBODY'S WAKE AS MEASURED (Savitsky & Morabito 2010) - see the header's THE STEP WORKS BY
-  // GEOMETRY. The trim, the wetted keel length and the beam Froude number it reads, once per pass
-  const wSM = (P.wakeSM != null ? P.wakeSM : DEF.wakeSM) > 0 && vent > 0;
-  let smB = 1, smCv = 1, smAmp = 0;
-  if (wSM) {
-    smB = 2 * halfBeamAt(F, -1e-6);
-    smCv = Vflow / Math.sqrt(G * smB);
-    const tauD = Math.max(0, -Math.asin(Math.max(-1, Math.min(1, xhat[1]))) / D2R);
-    // the wetted keel length ahead of the step (still water): the forebody's keel stations walked forward from it
-    let LK = 0;
-    for (let i = F.nF; i > 0; i--) {
-      const a = F.sta[i], b = F.sta[i - 1], ka = W[a.K], kb = W[b.K];
-      const da = water.h(ka[0], ka[2], t) - ka[1], db = water.h(kb[0], kb[2], t) - kb[1];
-      if (da <= 0) break;
-      if (db <= 0) { LK = -(a.x + (b.x - a.x) * da / (da - db)); break; }
-      LK = -b.x;
-    }
-    smAmp = 0.03 * (LK / smB) * CORE_MATH.pow(tauD, 1.5);
-    out.smLK = LK; out.smTau = tauD;
-  }
   // 3. signed depth per vertex — with the WAKE under everything aft of the step
   for (let i = 0; i < V.length; i++) {
     const x = V[i][0];
@@ -29735,16 +29703,7 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
     // (0) the plough wave: its crest at the keel's wet entry (and up the stem ahead of it), cos(k s) aft; behind a
     // ventilated step the forebody's wake (below) is the trough, so the wave yields to it there by (1 - vent)
     if (wvA !== 0) h += wvA * (x <= wvX ? 1 : CORE_MATH.cos(wvK * (x - wvX))) * (x > 0 ? wvAft : 1);
-    if (x > 0 && wSM) {
-      // the wake's surface stands H over the forebody keel line extended aft, H/b = 0.17 (A + 0.03 L_K tau^1.5)
-      // sin((pi / C_V)(X / 3)^1.5), A 1.5 on the centreline and 2 at the quarter beam (held to the chine), held at its
-      // crest past the first quarter wave, never above the undisturbed surface; the air that reaches the step blends it in
-      const X = x / smB, z = Math.abs(V[i][2]);
-      const A0 = 1.5 + 0.5 * Math.min(1, 4 * z / smB);
-      const arg = Math.min(0.5 * Math.PI, (Math.PI / smCv) * CORE_MATH.pow(X / 3, 1.5));
-      const yW = eK[1] + x * xhat[1] + 0.17 * smB * (A0 + smAmp) * CORE_MATH.sin(arg);
-      if (yW < h) h -= vent * (h - yW);
-    } else if (x > 0 && vent > 0) {
+    if (x > 0 && vent > 0) {
       const dx = Math.max(0, x);
       const yW = eK[1] + dx * xhat[1] - 0.5 * G * (dx / Vflow) * (dx / Vflow);
       const drop = Math.max(0, h - yW) * Math.exp(-dx / lr);
@@ -29752,21 +29711,6 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
     }
     D[i] = h - W[i][1];
   }
-  // the stern transom's own: its chines are higher, so it usually has air
-  // (a transom is open to the sky: its air comes over the deck edge). G3440: its depths are read against the water it
-  // actually sits in - the forebody's wake (step 3) - as the afterbody bottom around it is; they read the still surface,
-  // and at the hump (the 172 on 2350s, 7.8 m/s, 8 deg) a stern deck under the still level but over the wake kept the
-  // transom unventilated: its base suction 0.03 W of drag and the deck's 0.02 W of download
-  const dSternChine = 0.5 * (D[F.stern.Dm] + D[F.stern.Dp]);
-  const dStern = D[F.stern.K];
-  const sepStern = smooth01(1 - 2 * G * Math.max(0, dStern) / (Vflow * Vflow));
-  // ...and, as at the step (S1, G451.1), the air also comes up a side whose chine sheds the flow (sigma_chine under 1):
-  // a transom whose deck edge is awash in the wake's crest is not sealed when its chines are throwing the water off
-  const dSternC = 0.5 * (D[F.stern.Cm] + D[F.stern.Cp]);
-  const airStern = Math.max(smooth01(1 - dSternChine / P.dVent),
-                            (P.wakeSM != null ? P.wakeSM : DEF.wakeSM) > 0 ? smooth01(1 - 2 * G * Math.max(0, dSternC) / (Vflow * Vflow)) : 0);
-  const ventStern = airStern * sepStern;
-  out.sepStern = sepStern; out.airStern = airStern; out.ventStern = ventStern;
   // 4. clip every panel; the wet leading edge per (body, side) row
   const LE = out.LE;
   LE.F[0][0] = LE.F[0][1] = LE.F[1][0] = LE.F[1][1] = LE.A[0][0] = LE.A[0][1] = LE.A[1][0] = LE.A[1][1] = Infinity;
@@ -29883,17 +29827,7 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
         const Re = Math.max(1e4, Vt * s / NU);
         const lg = Math.log10(Re) - 2;
         const Cf = 0.075 / (lg * lg);
-        // G3440: A SIDE ABOVE A CHINE THAT SHEDS THE FLOW IS NOT WETTED BY IT. The chine sheds by the cavity law the
-        // step's air reads (sigma_chine = 2 g d_chine / V^2 under 1, (2) above), and what the clipper counts on the
-        // side over it is the still level the spray has been thrown off (the spray-root rise is an H0 cut): Savitsky's
-        // planing hull is wetted on its bottom only. Its skin friction alone goes - the side's pressure terms (the
-        // keel's grip in a slip) stay as they were
-        let kWet = 1;
-        if ((pn.kind === 'side' || pn.kind === 'bevel') && (P.sideShed != null ? P.sideShed : DEF.sideShed) > 0) {
-          let dC = 0; for (let j = 0; j < pn.v.length; j++) if (D[pn.v[j]] > dC) dC = D[pn.v[j]];
-          kWet = 1 - smooth01(1 - 2 * G * dC / (Vt * Vt));
-        }
-        scl(ut, 0.5 * rho * Cf * Vt * A * kWet, fv);   // ut is already Vt * direction
+        scl(ut, 0.5 * rho * Cf * Vt * A, fv);   // ut is already Vt * direction
         apply(fv, o.c, T.fric); add(o.Ff, fv, o.Ff);
       }
     }
@@ -34924,7 +34858,6 @@ function makePilot(sim, def, world, opts) {
   // G3077 (TORQUE-RETUNE-66): THE NOSEWHEEL THAT WILL NOT LIFT - past Vr with the stick on the servo's 0.35 top for a second
   // and the nose not up, the pull goes on to the stick's full travel (ROLL, below); rotStuckT the time it has been so
   let rotPull = false, rotStuckT = 0;
-  let humpBack = true, humpThPk = null, humpEase = 0;   // G3444: the back stick through the hump (ROLL, on the water), the nose's peak, the ease to neutral
   const SV = makeServos(sim, def, { pilot: 'pilot', now: () => ap.t, trike, rotateTD, TW, features: {
     trimCalm: true, groundP1D: true, xwBank: true, water: true, porpoise: true,
     // G396.2 / G970: on the step the stick comes all the way back, through LIFTOFF
@@ -37843,7 +37776,7 @@ function makePilot(sim, def, world, opts) {
         }
         if (thRest === null) thRest = th;
         if (rollS0 === null) {
-          rollS0 = sAl; committedTO = false; humpR = humpPk = 0; humpPast = false; wrUp = false; rotPull = false; rotStuckT = 0; humpBack = true; humpThPk = null; humpEase = 0;
+          rollS0 = sAl; committedTO = false; humpR = humpPk = 0; humpPast = false; wrUp = false; rotPull = false; rotStuckT = 0;
           depC = null; toAccelDone = false; toHoldH = null; toLowT = 0; flcI = 0; flcTh = flcVt = null; flcSet = false; flcSetT = 0; flcRelax = 0;   // G2125: a new run, a new climb-out
           // P1.C: THE DEPARTURE PLAN (PILOT-ROADMAP C.3-C.4), the approach
           // plan's twin: 'short' when the strip is under 2 x the sheet's
@@ -38116,24 +38049,7 @@ function makePilot(sim, def, world, opts) {
         // (WATER_LEAD s), is short of the lift-off attitude, and eases to nothing over its last WATER_BAND - the
         // attitude servo (the rotation's integrator) holds it from there. 10.2 deg/s, 28.4 m/s (1.16 Vs); a hull that
         // never reaches the attitude (the twin's) keeps the full stick as before
-        // G3444 (HYDRO-TRIM, the user's ruling 25 Oct): ...AND THROUGH THE HUMP THE STICK IS BACK, as the floatplane
-        // supplement and FAA-H-8083-23 fly it: full power, the stick back to raise the bow and keep the spray off the
-        // propeller, and once the nose stops rising (the hull on its hump) eased to the planing attitude. G396.4's
-        // "never back" was a cure for the H0 wake, under which a raised bow dried the afterbody and nothing held it
-        // (the sterns "buried" because the trim ran away); with the measured wake (32_hydro G3440) the afterbody holds
-        // the bow, and the neutral stick left the float Cessna at 5.4 deg through its hump (DMGPLOUGH's floor 6, the tank
-        // band 8-12) where the stick back gives 8.5-9. The pull (deHump, 0.45: GATE FLOATS' and the G3390 rig's) holds from
-        // the throttle-up until the pitch has come off its peak (from 3 m/s) by half a degree, the hump's resistance has
-        // fallen away (humpPast), or half of Vr; then it eases to neutral over humpEaseS (2 s) and stays off for the run
-        if (sim.hydro && onG > 0) {
-          if (humpBack) {
-            // (the peak is the hump's: tracked from 3 m/s - the throttle's ramp bobs the bow 2 deg at the start)
-            if (V > 3) humpThPk = humpThPk == null ? th : Math.max(humpThPk, th);
-            if ((humpThPk != null && th < humpThPk - 0.5 * Math.PI / 180) || humpPast || V > 0.5 * vr) humpBack = false;
-          } else humpEase = Math.min(1, humpEase + dt / (A.humpEaseS ?? 2));
-          const deHump = (A.deHump ?? 0.45) * (1 - humpEase);
-          SV.deFloor = V > (A.vWaterStick ?? 1.12) * vr ? Math.max(0.02, waterPull(A.thRotate ?? A.liftoffTh)) : Math.max(0.02, deHump);
-        }
+        if (sim.hydro && onG > 0) SV.deFloor = V > (A.vWaterStick ?? 1.12) * vr ? Math.max(0.02, waterPull(A.thRotate ?? A.liftoffTh)) : 0.02;
         c.brake = 0;
         if (onG === 0 && V > vr) {
           go('LIFTOFF'); thLift0 = th; SV.IthMaxT = 0.15; SV.IthGain = null;
@@ -42850,20 +42766,8 @@ function genPropAuto(pr, Vs) {
   return pick;
 }
 
-// G3443 (HYDRO-TRIM): `fm` IS FM^(2/3), NOT THE FIGURE OF MERIT the note above reads it as: momentum theory's
-// T = (FM P sqrt(2 rho A))^(2/3) = FM^(2/3) (2 rho A)^(1/3) P^(2/3), and genPropSynth multiplies by fm. So 'standard'
-// 0.477 is FM 0.33 (the A-65 + Sensenich anchor: a fixed prop that cannot turn its engine to rated rpm standing - it
-// stays the anchor) and 'climb' 0.530 was FM 0.386, under every measured prop absorbing full power standing:
-// Flight Resource's static tests for STC SA02245CH (C170B, O-360-A1A 180 hp, 1000 ft, 75 F; McFarlane's copy of the
-// report): Hartzell 2-blade 76 in 672 lbf (FM 0.49), MT 2-blade 80 in 785 lbf (FM 0.59) - the sim gave the same discs
-// and power 13 % and 23 % less on 'climb'. A fine prop is the one that DOES reach rated rpm standing (the 172R's
-// IO-360-L2A is rated at 2,400 rpm, under the 82 x 43 float prop's static rpm), so 'climb' is now FM 0.50: fm 0.630.
-// The 82 x 43 on 118 kW: 2,587 -> 3,075 N (692 lbf; a McCauley 2-blade float prop on 180 hp, 750 lbf at 2,450 rpm, in
-// the same report as transcribed). Its V0 (propV0K P / Tstatic) falls with it - a fine prop runs out of pitch sooner:
-// the thrust is the old one's at ~40 m/s and 12 % under it at 55. Builds on 'climb': the 3-blade carbon tile (the
-// Caravan-alike), the G3390 STC build; 'auto' tries 'climb' first, and a lower V0 can send it to 'standard'.
 const GEN_PROP_PITCH = {
-  climb:    { name: 'Fine (climb)',    fm: 0.630, pd: 0.55 },
+  climb:    { name: 'Fine (climb)',    fm: 0.530, pd: 0.55 },
   standard: { name: 'Standard',        fm: 0.477, pd: 0.70 },
   cruise:   { name: 'Coarse (cruise)', fm: 0.420, pd: 0.85 },
 };
@@ -59343,7 +59247,7 @@ function freightStrapNext(doc, slot, card) {
   return { doc: r.doc, rec: r.rec, how: 'proposed', why: '' };
 }
 if (typeof module !== 'undefined')
-  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName };
+  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport };
 
 // (DMG-DETERMINISM G2353, standalone): NODE REFUSES A STALE CORE. tools/flight_core.js is generated (tools/build.js) and
 // tracked, so a tree whose generated files were put back from git (`git checkout -- tools/flight_core.js`, a stash, a fresh
@@ -59360,7 +59264,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 })();
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='357353ecc9ad';window.FLYDIY_BUILD='5596f2b16e7f';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=b77b48a0"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='f43909908b99';window.FLYDIY_BUILD='1bd647158b91';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=b77b48a0"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -125978,6 +125882,7 @@ if (typeof module !== 'undefined') module.exports = UI_LAYER;
   // renderer, and this file is not a second one.
   const AA_COMMON = `
     uniform sampler2D tSrc;
+    uniform sampler2D tEyeK;   // EYE-GPU: the auto exposure's factor, a 1x1 texture the post chain keeps on the GPU (1 when off)
     uniform vec2  uTexel;
     uniform float uR;
     uniform float uDither;
@@ -126004,8 +125909,13 @@ if (typeof module !== 'undefined') module.exports = UI_LAYER;
   // renderer's own two chunks run here, once, over background + reflection +
   // cloud summed in radiance - nothing of this file's own (GATE AA reads the
   // includes and no other colour math). In display mode the chunks are absent.
+  // EYE-GPU (A0 24 Oct; HWCOV): THE ONE EXPOSURE READ HERE IS THE EYE'S. The auto exposure's factor lives on the GPU (the post chain
+  // eyes its frame into a 1x1 target - no CPU read: its readback held the user's flights 1.3-1.9 s behind the GPU's links) and
+  // scales the radiance once, here, before the renderer's own chunks - as the renderer's exposure would. Only under AA_LINEAR
+  // (GATE AA: it is the only exposure read this file may make)
   const AA_OUT = `
     #ifdef AA_LINEAR
+      gl_FragColor.rgb *= texture2D(tEyeK, vec2(0.5)).r;
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
     #endif
@@ -126124,6 +126034,7 @@ if (typeof module !== 'undefined') module.exports = UI_LAYER;
       // `off` (a 0-sample target, the blit resolve) and for a depth texture on it
       overlay: null, post: null, pre: null, tap: null, needRT: false,
       linear: false,       // G448.3: the linear split (radiance in the target, ONE tone map in the blit)
+      eyeU: { value: null }, eyeWhite: null,   // EYE-GPU: the eye's factor (the post chain writes .value; white = 1 when off)
     };
 
     try {
@@ -126212,9 +126123,12 @@ if (typeof module !== 'undefined') module.exports = UI_LAYER;
         S.fsScene.add(S.quad);
       }
       if (S.mat) S.mat.dispose();
+      if (!S.eyeWhite) { S.eyeWhite = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); S.eyeWhite.needsUpdate = true; }
+      if (!S.eyeU.value) S.eyeU.value = S.eyeWhite;
       S.mat = new THREE.ShaderMaterial({
         uniforms: {
           tSrc:    { value: S.rt.texture },
+          tEyeK:   S.eyeU,
           uTexel:  { value: new THREE.Vector2(1 / SW, 1 / SH) },
           uR:      { value: R },
           uDither: { value: S.dither },
@@ -126364,6 +126278,8 @@ if (typeof module !== 'undefined') module.exports = UI_LAYER;
       // G586: THE BUDGET IS THE FRAME CAP'S (app.js FLYDIY_PACE): 1000/60 ms at 60, 1000/30 at 30 - held at 30 the
       // scale does not blur a picture trying for a 60 the cap will never show, and may raise it back
       autoTarget: ms => { if (ms > 0 && ms !== AUTO.T) { AUTO.T = ms; AUTO.fr = []; AUTO.gpu = []; AUTO.probe = AUTO.up = null; } return AUTO.T; }, setDither, setLinear, linear: () => S.linear,
+      // EYE-GPU: the eye's factor, shared with the post chain (its .value the adapted 1x1 target, or white)
+      eyeU: S.eyeU, eyeWhite: () => { if (!S.eyeWhite) { S.eyeWhite = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); S.eyeWhite.needsUpdate = true; } return S.eyeWhite; },
       needRT, setOverlay: f => { S.overlay = f || null; }, setPost: f => { S.post = f || null; }, setPre: f => { S.pre = f || null; }, setTap: f => { S.tap = f || null; },
       // the pass's own target (LOADING S2): a program compiled with it bound
       // carries the canvas's tone mapping and colour space, which is what the
@@ -130290,9 +130206,13 @@ const POST_FX = (() => {
   const VERT = `varying vec2 vUv; void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
   // CURVE(c): in linear mode the renderer's tone map + encode over a sampled radiance, so the pass
   // works on the picture the viewer sees; a no-op in display mode (the sample is the picture)
+  // EYE-GPU: in linear mode the curve scales the radiance by the eye's factor first (tEyeK, a 1x1 the GPU keeps - white when off),
+  // as aa_resolve's blit does: the exposure the renderer applies, times the eye
   const CURVE = `
+    uniform sampler2D tEyeK;
     vec3 pfxCurve(vec3 c) {
     #ifdef PFX_LINEAR
+      c *= texture2D(tEyeK, vec2(0.5)).r;
       gl_FragColor = vec4(c, 1.0);
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
@@ -130462,6 +130382,18 @@ const POST_FX = (() => {
       vec3 c = vec3(0.0);
       for (int y = 0; y < 4; y++) for (int x = 0; x < 4; x++) c += texture2D(tSrc, vUv + uTexel * (vec2(float(x), float(y)) - 1.5)).rgb;
       gl_FragColor = vec4(pfxCurve(c / 16.0), 1.0); }`;
+  // EYE-GPU (A0 24 Oct; HWCOV): THE EYE ADAPTS ON THE GPU. The 16x16 means (display values: T.eye is a display target, its
+  // sRGB bytes decoded by the sampler as EYE_DEC did on the CPU) to one luminance, and the loop of G1354 in one pixel: from the
+  // factor the measured frame was drawn with (tPrev - this frame's), the stops to the target (x0.45: display space), held to
+  // +-EYE_STOPS, eased with its own time constant up and down. r: the factor, g: the mean (the on-demand read's)
+  const EYE_ADAPT = `uniform sampler2D tMean; uniform sampler2D tPrev; uniform float uDt; uniform vec4 uLaw; uniform vec2 uTau; varying vec2 vUv;
+    void main() {
+      float s = 0.0;
+      for (int y = 0; y < 16; y++) for (int x = 0; x < 16; x++) s += dot(texture2D(tMean, (vec2(float(x), float(y)) + 0.5) / 16.0).rgb, vec3(0.2126, 0.7152, 0.0722));
+      float lum = s / 256.0, lp = log2(max(1e-3, texture2D(tPrev, vec2(0.5)).r));
+      float k = clamp(lp + log2(uLaw.x / max(0.02, lum)) * uLaw.z, -uLaw.y, uLaw.y);
+      float a = 1.0 - exp(-uDt / (k > lp ? uTau.x : uTau.y));
+      gl_FragColor = vec4(exp2(lp + (k - lp) * a), lum, 0.0, 1.0); }`;
 
   // ---- presets ------------------------------------------------------------------------------
   // the bloom's numbers per compositing: display thresholds sit on the curve (0..1), linear ones are
@@ -130488,6 +130420,7 @@ const POST_FX = (() => {
     // toneMapped only matters in linear mode, where the renderer's chunks are compiled in (PFX_LINEAR)
     // and run on a draw to the canvas or to a display (XR) target; the sky-glare rule (no curve of our
     // own) holds either way - the chunks ARE the renderer's
+    if (!('tEyeK' in uniforms)) uniforms.tEyeK = EYE_U;   // (EYE-GPU: one uniform object, aa_resolve's - every curve reads the same factor)
     return new THREE.ShaderMaterial(Object.assign({ uniforms, vertexShader: VERT, fragmentShader: frag, depthTest: false, depthWrite: false,
       toneMapped: linear, defines: linear ? { PFX_LINEAR: 1 } : {} }, extra || {}));
   }
@@ -130502,6 +130435,7 @@ const POST_FX = (() => {
   }
   function init(T3, R, AA) {
     THREE = T3; renderer = R; aa = AA;
+    if (aa && aa.eyeU) EYE_U = aa.eyeU;   // (EYE-GPU: the blit's own uniform object)
     try {
       gl = renderer.getContext && renderer.getContext();
       ready = !renderer.isWebGPURenderer && !!(gl && THREE.WebGLRenderTarget && THREE.ShaderMaterial && aa && aa.setPost && renderer.capabilities && renderer.capabilities.isWebGL2);
@@ -130528,8 +130462,12 @@ const POST_FX = (() => {
     M.ao = mat(AO, { tDepth: { value: null }, uLogFar: { value: 1 }, uDZ: { value: new THREE.Vector3() }, uTexel: { value: V2() }, uProj: { value: V2() }, uRadius: { value: 1.2 }, uFrame: { value: 0 } });
     M.aoBlur = mat(AO_BLUR, { tSrc: { value: null }, tDepth: { value: null }, uLogFar: { value: 1 }, uDZ: { value: new THREE.Vector3() }, uTexel: { value: V2() }, uDir: { value: V2() } });
     M.aoApply = mat(AO_APPLY, { tSrc: { value: null }, uPow: { value: 1.0 } }, { blending: THREE.CustomBlending, blendSrc: THREE.DstColorFactor, blendDst: THREE.ZeroFactor, blendEquation: THREE.AddEquation, transparent: true });
+    if (!EYE_U.value) EYE_U.value = eyeWhite();
     M.eye = mat(EYE, { tSrc: { value: null }, uTexel: { value: V2() } });
     T.eye = target(16, 16, false, true);
+    // EYE-GPU: the adaptation (1x1, half float, nearest - two, read one and write the other)
+    M.eyeAdapt = mat(EYE_ADAPT, { tMean: { value: null }, tPrev: { value: null }, uDt: { value: 0 }, uLaw: { value: new THREE.Vector4(EYE_TARGET, EYE_STOPS, 0.45, 0) }, uTau: { value: new THREE.Vector2(EYE_TAU_UP, EYE_TAU_DOWN) } });
+    T.eyeS0 = eyeTarget(); T.eyeS1 = eyeTarget(); eyeInit = false;
     // G1357 the catcher (v2): the copy, the one-pixel decision, the read on a catch; RING mip-mapped half-float slots
     M.catCopy = mat(CAT_COPY, { tSrc: { value: null }, uTexel: { value: V2() } });
     M.catDecide = mat(CAT_DECIDE, { tA: { value: null }, tB: { value: null }, tC: { value: null }, uLod: { value: 6 }, uSpike: { value: CAT.spike }, uSky: { value: CAT.sky } });
@@ -130544,7 +130482,7 @@ const POST_FX = (() => {
     const w = rt.width, h = rt.height;
     if (sized.w === w && sized.h === h) return;
     sized = { w, h };
-    for (const k in T) if (k !== 'eye' && k.slice(0, 3) !== 'cat') { T[k].dispose(); delete T[k]; }
+    for (const k in T) if (k.slice(0, 3) !== 'eye' && k.slice(0, 3) !== 'cat') { T[k].dispose(); delete T[k]; }
     // the bloom pyramid: 1/2 .. 1/32
     let bw = w >> 1, bh = h >> 1;
     for (let i = 0; i < 5; i++) { T['b' + i] = target(bw, bh, true); T['u' + i] = target(bw, bh, true); bw = Math.max(1, bw >> 1); bh = Math.max(1, bh >> 1); }
@@ -130629,7 +130567,7 @@ const POST_FX = (() => {
     draw(M.aoApply, null);
     tEnd(h);
   }
-  // THE EYE: a 16x16 mean, read back asynchronously; the loop on the display mean, in stops
+  // THE EYE: a 16x16 mean and the loop on the display mean, in stops (its CPU history below: G1354 / G1356 / G1357 - since EYE-GPU it's all on the GPU)
   // G1354 THE MEASUREMENT KNOWS ITS EXPOSURE (LIGHT-SMOOTH). The mean comes back a few frames late (async), and the loop
   // used to add the error it implies to the eye AS IT IS NOW: every frame the read was in flight (a GPU busy linking, a
   // stall) integrated the same stale error again - the eye overshot past the target and came back, a swing the user saw
@@ -130641,48 +130579,52 @@ const POST_FX = (() => {
   // 0.57 for a frame whose canvas mean was ~0.3, and the loop sat on its -1.5 stop floor (eyeK 0.354: the whole frame x0.35
   // whenever `eye` was on). The bytes are decoded once (the hardware's encode is the standard sRGB curve, exactly
   // inverted by this table), leaving the display values pfxCurve wrote. The display compositing's T.eye is a plain RGBA8.
-  const EYE_DEC = (() => { const t = new Float32Array(256); for (let i = 0; i < 256; i++) { const v = i / 255; t[i] = v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); } return t; })();
-  // G1357 (EVEN-30's long tasks): the eye's read is a call into the GPU process in Chrome (the fence's poll, the buffer's
-  // copy) - one in flight, issued from the frame, and at most every EYE_READ_MS (its loop's time constant is 1.5-2 s:
-  // four reads a second lose nothing; a read a frame paid a wait a frame while the GPU process was busy linking)
-  const EYE_READ_MS = 250;
-  let eyeBusy = false, eyeK = 1, eyeLast = 0, eyeKRead = 1, eyeIssued = -1e9;
-  const eyeBuf = (typeof Uint8Array !== 'undefined') ? new Uint8Array(16 * 16 * 4) : null;
+  // EYE-GPU (A0 24 Oct; HWCOV; the user's flights of 24 Oct): THE EYE NEVER READS BACK. It read its 16x16 mean back to the CPU
+  // four times a second (readRenderTargetPixelsAsync: a fence, then a copy - a call into the GPU process) and, the GPU process
+  // busy linking programs, one read held the page 1.3-1.9 s in cruise (the log: TimerHandler setTimeout r - three's probeAsync).
+  // Now the mean goes into a 1x1 target and the loop runs there (EYE_ADAPT), every frame; the factor is a texture the curves and
+  // aa_resolve's blit read (tEyeK). The CPU's eye stays 1 (GFX.setEye: the exposure contract untouched); stats.eyeK / eyeLum
+  // are what the last ON-DEMAND read found (eyeRead(): the dev panel, a rig - never the frame). Linear compositing only: in
+  // display mode the tone map is every scene material's own, so the eye is off there.
+  let EYE_U = { value: null }, eyeInit = false, eyeCur = 0, eyeLast = 0, eyeK = 1, eyeReading = false;
+  const eyeWhite = () => (aa && aa.eyeWhite) ? aa.eyeWhite() : (() => { const t = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); t.needsUpdate = true; return t; })();
+  function eyeTarget() {
+    return new THREE.WebGLRenderTarget(1, 1, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, generateMipmaps: false, type: THREE.HalfFloatType, format: THREE.RGBAFormat, depthBuffer: false, stencilBuffer: false });
+  }
+  const CLR = { c: null, a: 1 };
+  function eyeClear(t) {   // a target to factor 1 (the loop starts from the schedule)
+    if (!CLR.c) CLR.c = new THREE.Color();
+    renderer.getClearColor(CLR.c); CLR.a = renderer.getClearAlpha();
+    renderer.setRenderTarget(t); renderer.setClearColor(0xffffff, 1); renderer.clear(true, false, false);
+    renderer.setClearColor(CLR.c, CLR.a);
+  }
   function eye(rt) {
-    const tIssue = (typeof performance !== 'undefined') ? performance.now() : Date.now();
-    if (!renderer.readRenderTargetPixelsAsync || eyeBusy || tIssue - eyeIssued < EYE_READ_MS) { tick(); return; }
-    eyeIssued = tIssue;
+    if (!linear) { eyeOff(); return; }
+    const now = (typeof performance !== 'undefined') ? performance.now() : Date.now(), dt = eyeLast ? Math.min(0.1, (now - eyeLast) / 1000) : 0; eyeLast = now;
+    if (!eyeInit) { eyeClear(T.eyeS0); eyeClear(T.eyeS1); eyeInit = true; eyeCur = 0; EYE_U.value = T.eyeS0.texture; }
     const h = tBegin('eye');
     M.eye.uniforms.tSrc.value = rt.texture; M.eye.uniforms.uTexel.value.set(1 / rt.width, 1 / rt.height);
-    draw(M.eye, T.eye);
+    draw(M.eye, T.eye);   // the frame's means, drawn with the factor it had (EYE_U: prev)
+    const prev = eyeCur ? T.eyeS1 : T.eyeS0, next = eyeCur ? T.eyeS0 : T.eyeS1, u = M.eyeAdapt.uniforms;
+    u.tMean.value = T.eye.texture; u.tPrev.value = prev.texture; u.uDt.value = dt;
+    draw(M.eyeAdapt, next);
     tEnd(h);
-    eyeBusy = true;
-    const kAt = eyeK;   // the eye this frame was drawn with
-    const dec = (T.eye.texture.colorSpace === THREE.SRGBColorSpace && T.eye.texture.type === THREE.UnsignedByteType) ? EYE_DEC : null;
-    renderer.readRenderTargetPixelsAsync(T.eye, 0, 0, 16, 16, eyeBuf).then(() => {
-      let s = 0;
-      if (dec) for (let i = 0; i < 256; i++) s += 0.2126 * dec[eyeBuf[i * 4]] + 0.7152 * dec[eyeBuf[i * 4 + 1]] + 0.0722 * dec[eyeBuf[i * 4 + 2]];
-      else for (let i = 0; i < 256; i++) s += (0.2126 * eyeBuf[i * 4] + 0.7152 * eyeBuf[i * 4 + 1] + 0.0722 * eyeBuf[i * 4 + 2]) / 255;
-      stats.eyeLum = s / 256; eyeKRead = kAt; eyeBusy = false;
-    }).catch(() => { eyeBusy = false; });
-    tick();
+    eyeCur ^= 1; EYE_U.value = next.texture;   // the next frame's curves and blit
   }
-  function tick() {
-    const now = performance.now(), dt = eyeLast ? Math.min(0.1, (now - eyeLast) / 1000) : 0; eyeLast = now;
-    if (S.eye === 'off') { eyeK = 1; }
-    else if (stats.eyeLum > 0) {
-      // the mean the eye wants, in stops from the mean it sees (the picture is display-space:
-      // a stop of exposure is ~0.45 of the mean's log2 here, so the loop is scaled to it)
-      const want = Math.log2(EYE_TARGET / Math.max(0.02, stats.eyeLum)) * 0.45;
-      let k = Math.log2(eyeKRead) + want;   // G1354: from the exposure the measured frame had
-      k = Math.max(-EYE_STOPS, Math.min(EYE_STOPS, k));
-      const tau = k > Math.log2(eyeK) ? EYE_TAU_UP : EYE_TAU_DOWN;
-      const a = 1 - Math.exp(-dt / tau);
-      eyeK = Math.pow(2, Math.log2(eyeK) + (k - Math.log2(eyeK)) * a);
-    }
-    stats.eyeK = eyeK;
-    const G = (typeof window !== 'undefined') ? window.GFX : null;
-    if (G && G.setEye) G.setEye(eyeK);
+  function eyeOff() {
+    if (EYE_U.value && THREE) EYE_U.value = eyeWhite();
+    eyeInit = false; eyeLast = 0;
+    if (eyeK !== 1) { eyeK = 1; stats.eyeK = 1; }
+  }
+  // the ON-DEMAND read (the dev panel, a rig): the factor and the mean the GPU holds now - async, one at a time, never the frame
+  function eyeRead() {
+    if (eyeReading || !eyeInit || !renderer || !renderer.readRenderTargetPixelsAsync) return Promise.resolve({ eyeK: stats.eyeK, eyeLum: stats.eyeLum });
+    eyeReading = true;
+    const t = eyeCur ? T.eyeS0 : T.eyeS1, buf = new Uint16Array(4);
+    return renderer.readRenderTargetPixelsAsync(t, 0, 0, 1, 1, buf).then(() => {
+      const H = THREE.DataUtils; stats.eyeK = +H.fromHalfFloat(buf[0]).toFixed(4); stats.eyeLum = +H.fromHalfFloat(buf[1]).toFixed(4);
+      eyeReading = false; return { eyeK: stats.eyeK, eyeLum: stats.eyeLum };
+    }, () => { eyeReading = false; return { eyeK: stats.eyeK, eyeLum: stats.eyeLum }; });
   }
 
   // ---- THE CATCHER (G1357, LIGHT-SMOOTH for A0, 2026-10-03; v2 2026-10-04: NO READBACK A FRAME) ---------------------
@@ -130869,7 +130811,7 @@ const POST_FX = (() => {
     if (S.ao !== 'off') { ao(rt, camera); stats.passes++; }
     if (S.rays !== 'off') { rays(rt, camera); stats.passes++; }
     if (S.bloom !== 'off') { bloom(rt); stats.passes++; }
-    if (S.eye !== 'off') { eye(rt); stats.passes++; } else if (eyeK !== 1) tick();
+    if (S.eye !== 'off' && linear) { eye(rt); stats.passes++; } else if (eyeInit) eyeOff();   // (EYE-GPU)
     renderer.autoClear = ac;
     renderer.setRenderTarget(prevTarget);
   }
@@ -130886,7 +130828,7 @@ const POST_FX = (() => {
     if (S.ao !== 'off') { add(M.ao); add(M.aoBlur); add(M.aoApply, true); }
     if (S.rays !== 'off') { add(M.raysMask); add(M.raysBlur); add(M.add, true); }
     if (S.bloom !== 'off') { add(M.thr); add(M.down); add(M.up); add(M.upOut, true); }
-    if (S.eye !== 'off') add(M.eye);
+    if (S.eye !== 'off' && linear) { add(M.eye); add(M.eyeAdapt); }   // (EYE-GPU: the adaptation's 1x1 pass)
     return out;
   }
   // apply(): the hook installed only while something is on; nothing else touched otherwise
@@ -130896,7 +130838,7 @@ const POST_FX = (() => {
     if (on && !hooked) { aa.setPost(render); hooked = true; }
     if (!on && hooked) { aa.setPost(null); hooked = false; }
     if (aa.needRT) aa.needRT(on, 'post');
-    if (!on && eyeK !== 1) { eyeK = 1; stats.eyeK = 1; const G = (typeof window !== 'undefined') ? window.GFX : null; if (G && G.setEye) G.setEye(1); }
+    if (!on) { eyeOff(); const G = (typeof window !== 'undefined') ? window.GFX : null; if (G && G.setEye && G.eye && G.eye() !== 1) G.setEye(1); }   // (EYE-GPU: eyeK = 1 on the CPU always)
     return on;
   }
   function set(k, v) { if (!(k in S)) return false; S[k] = v; return apply(); }
@@ -130905,9 +130847,10 @@ const POST_FX = (() => {
   function dispose() {
     for (const k in T) { T[k].dispose(); delete T[k]; }
     for (const k in M) { M[k].dispose(); delete M[k]; }
+    if (EYE_U && THREE) EYE_U.value = eyeWhite(); eyeInit = false;   // (EYE-GPU: the factor back to 1 with its targets gone)
     installed = false; sized = { w: 0, h: 0 }; cat.gen++; cat.q.length = 0;   // (G1357: a read or query in flight on a disposed target lands nowhere)
   }
-  const API = { S, KEYS, BLOOM, stats, catcher, init, apply, set, render, active, warmList, dispose, setLinear, get linear() { return linear; }, get hooked() { return hooked; }, get ready() { return ready; } };
+  const API = { S, KEYS, BLOOM, stats, catcher, eyeRead, init, apply, set, render, active, warmList, dispose, setLinear, get linear() { return linear; }, get hooked() { return hooked; }, get ready() { return ready; } };
   if (typeof window !== 'undefined') window.POST_FX = API;
   return API;
 })();
@@ -162679,7 +162622,11 @@ function garageInit(api) {
     const mine = fleetEl.querySelector('.gfMine');
     const stockBox = fleetEl.querySelector('.gfStock');
     if (!mine || !stockBox) return;
-    const names = slotNames();
+    // G3612 (the user 25 Oct, item 39: "a career starts only with its own plane. Any imported plane in the career costs
+    // money"): a career's rack is its own builds (api.ownSlots); the shelf's others are the sandbox's, bought in below
+    const shelf = slotNames(), names = api.ownSlots ? api.ownSlots(shelf) : shelf;
+    const bring = api.importable ? api.importable(shelf) : [];
+    const label = n => (api.slotLabel ? api.slotLabel(n) : n);
     mine.innerHTML = ''; stockBox.innerHTML = '';
     if (!names.length) {
       const d = document.createElement('div');
@@ -162707,7 +162654,7 @@ function garageInit(api) {
       const away = !!(P && P.kind !== 'none' && !P.here);
       row.className = 'gfRow' + (n === slotName ? ' cur' : '') + (away ? ' gfAway' : '');
       const meta = n === slotName ? 'on the stand' : slotMeta(n);
-      const b = rowBtn(n, meta);
+      const b = rowBtn(label(n), meta);   // (G3612: a career's copy shows its design's name)
       if (P && P.text) {
         const pl = document.createElement('i');
         pl.className = 'gfPlace gfPlace-' + P.kind; pl.textContent = P.text;
@@ -162742,6 +162689,28 @@ function garageInit(api) {
       }
       row.appendChild(del);
       mine.appendChild(row);
+    }
+    if (bring.length && api.importSlot) {
+      const hd = document.createElement('div');
+      hd.className = 'gfEmpty gfBringHd'; hd.textContent = 'from the sandbox — bought into this career:';
+      mine.appendChild(hd);
+      for (const n of bring) {
+        const row = document.createElement('div');
+        row.className = 'gfRow gfBring';
+        let p = null; try { p = api.importPrice ? api.importPrice(n) : null; } catch (e) { p = null; }
+        const pw = p == null ? 'the build does not read' : (api.money ? api.money(p) : String(p));
+        const b = rowBtn(n, 'buy in · ' + pw);
+        b.title = 'Bring this sandbox build into the career: a purchase, then it stands in your hangar';
+        b.disabled = p == null;
+        b.addEventListener('click', () => {
+          if (!confirm('Buy “' + n + '” into this career for ' + pw + '?')) return;
+          let r = null; try { r = api.importSlot(n); } catch (e) { r = { ok: false, why: String((e && e.message) || e) }; }
+          if (r && !r.ok) alert(r.why || 'refused');
+          renderFleet();
+        });
+        row.appendChild(b);
+        mine.appendChild(row);
+      }
     }
     for (const s of STOCK) {          // stock is not yours to delete: no ✕
       const row = document.createElement('div');
@@ -162783,6 +162752,10 @@ function garageInit(api) {
   }
   const saveAs = name => {
     if (!name) return;
+    // G3612 (A0 for the user 25 Oct: a career's planes are its own individual objects): in a career a NEW name is the
+    // career's own slot (api.slotKey: tagged ' @<career id>'), the plaque keeping the name typed
+    const typed = name;
+    if (api.slotKey) name = api.slotKey(name);
     commit();                       // save what is ON THE STAND, not what flew
     if (!log.built) log.built = new Date().toISOString().slice(0, 10);
     // NAMING IT IS NAMING IT (G65). The shelf's name and the aeroplane's own
@@ -162790,7 +162763,7 @@ function garageInit(api) {
     // headed a build "Garage Special" while the shelf called it yours. The
     // shelf row wins, because it is the one you typed.
     if (!spec.meta || typeof spec.meta !== 'object') spec.meta = {};
-    spec.meta.name = name;
+    spec.meta.name = typed;
     // PREM-S2: a save over this slot whose FINISH changed is a repaint (it resets the airframe's outside wear)
     let repainted = false;
     try { const prev = JSON.parse(lsGet(SLOT + name) || 'null');
@@ -171714,6 +171687,18 @@ const SIM_LINK = (() => {
     for (const g of Object.keys(GEN_FILES)) if (W[g]) for (const f of GEN_FILES[g]) if (out.indexOf(f) < 0) out.push(f);
     return out.length ? ['vendor/three.min.js'].concat(out) : out;
   }
+  // G3610: the worker's route ({ from, to } ids, sim_host meta) onto the page's pilot F.ap, once per change of the worker's
+  // ids (F.routeSeen); true when the page's route was replaced
+  function routeCopy(F, wr, world) {
+    const wSig = wr ? wr.from + '>' + wr.to : null;
+    if (wSig === F.routeSeen) return false;
+    F.routeSeen = wSig;
+    const cur = F.ap.route, A = (world && world.aerodromes) || [], byId = id => A.find(a => a.id === id) || null;
+    const to = wr && byId(wr.to);
+    if (!to || !cur || (cur.to && cur.to.id === wr.to && cur.from && cur.from.id === wr.from)) return false;
+    F.ap.route = { from: byId(wr.from) || cur.from, to };
+    return true;
+  }
   const copyEng = e => (Array.isArray(e) ? e.map(x => (x && typeof x === 'object' ? Object.assign({}, x) : x)) : e == null ? null : e);
 
   // o: { get() -> the app's state, rig() -> PACE.legacy, premises() -> the record the page's world was made on }
@@ -172139,6 +172124,12 @@ const SIM_LINK = (() => {
       }
       merge(F.ap, V.ap, 3, AP_SKIP.concat(AP_WHOLE));
       for (const k of AP_WHOLE) if (k in V.ap && F.ap[k] !== V.ap[k]) F.ap[k] = V.ap[k];
+      // G3610 (the 24 Oct playtest, item 53): THE WORKER'S ROUTE ON THE PAGE. sim_host sends ap.route as its two ids; the
+      // page's route stayed the one it started with, so a divert (43_pilot 'divert') never reached the page's readers - the
+      // arrival card said 'Short of Jumbo Mine Street' long after the plane had gone elsewhere. When the worker's route
+      // CHANGES (not every snapshot: a destination the page has just asked for, not yet stepped there, stays), the page's
+      // route is the worker's, as the page world's own aerodromes
+      if (routeCopy(F, V.ap.route, world)) st.routeCopies = (st.routeCopies || 0) + 1;
       const step = f[S.STEP];
       F.lastStep = step; st.lastStep = step;
       if (f[S.FLAGS] & S.F_DIVERGED) st.diverged = true;
@@ -172323,7 +172314,7 @@ const SIM_LINK = (() => {
     };
     return api;
   }
-  return { make };
+  return { make, routeCopy };
 })();
 if (typeof window !== 'undefined') window.SIM_LINK = SIM_LINK;
 if (typeof module !== 'undefined' && module.exports) module.exports = { SIM_LINK };
@@ -192802,7 +192793,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // (71_player_bases.js playerFleetReconcile, pure: handed the slot names this page reads): a slot the ledger lacks is
     // lifted to the garage's base - inside while a slot is free and the floor packs it, outside after; a row whose slot
     // went (deleted in another tab) leaves. Idempotent, and it refuses nothing: forty builds keep forty aeroplanes.
-    try { if (typeof playerFleetReconcile === 'function') player = playerFleetReconcile(player, playerSlotNames()).doc; }
+    try { if (typeof playerFleetReconcile === 'function') player = playerFleetReconcile(player, fleetSlotNames(player)).doc; }
     catch (e) { console.warn('flyDiy: the fleet lift failed -', e && e.message); }
     // persist what the first load decided — a lift that is only re-run every
     // boot would keep reading prefs that may go stale under it, and a
@@ -192854,6 +192845,16 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     catch (e) {}
     return out.sort();
   }
+  // G3612 (the user 25 Oct, item 39): THE SLOTS THE LIFT IS HANDED - a career's own (74_career.js careerOwnSlots: its
+  // airframes), plus `extra` (the slot its garage has just saved: a purchase, materialised below); the sandbox: the shelf
+  // but the careers' copies. (`names`: the shelf as a caller read it, else read here)
+  function fleetSlotNames(doc, names, extra) {
+    const all = Array.isArray(names) ? names : playerSlotNames();
+    if (typeof careerOwnSlots !== 'function') return all;
+    const own = careerOwnSlots(CAREER_DEV ? doc : null, all);
+    if (CAREER_DEV && extra && all.indexOf(extra) >= 0 && own.indexOf(extra) < 0) own.push(extra);
+    return own;
+  }
   // PREM-S2: THE SLOTS DOOR (garage.js save / save as / delete / import -> api.slotsChanged). The lift again over the
   // names the shelf now holds; a SAVE measures the aeroplane on the stand (playerFootOfDef: its own nodes - the
   // footprint the hangar packs it by), and a save that REPAINTED it (the finish changed) resets its outside wear (GQ7).
@@ -192863,7 +192864,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       const foots = {};
       if (info.saved && curKey === 'gen' && def && typeof playerFootOfDef === 'function') { const f = playerFootOfDef(def); if (f) foots[info.saved] = f; }
       const isNew = !!(info.saved && !playerLoad().fleet[info.saved]);
-      let d = playerFleetReconcile(playerLoad(), Array.isArray(names) ? names : playerSlotNames(), { foots }).doc;
+      let d = playerFleetReconcile(playerLoad(), fleetSlotNames(playerLoad(), names, info.saved), { foots }).doc;   // (G3612: a career's own + the save)
       if (info.saved && d.fleet[info.saved]) {
         if (foots[info.saved]) d.fleet[info.saved].foot = parkFoot(foots[info.saved]);
         if (info.repainted) d = playerWearReset(d, info.saved).doc;
@@ -196053,6 +196054,9 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // offset), now kept only where the lots are (render_premises patchDrop); on HOME's apron the drop sank the Cub's tail
   // 20 mm into the concrete (tools/ground_drawn.js). The dial stays: a nonzero value is the old rig, for an A/B.
   const TW_DRAW_DROP = 0;
+  // G3540: a lifted wheel's run-down (poseModel) - the rate's drag time (s), a steady bearing brake (rad/s^2), and the
+  // most a rolling wheel is credited with (m/s at the rim: a placement's jump is no roll)
+  const WHEEL_SPIN_TAU = 3, WHEEL_SPIN_BRAKE = 8, WHEEL_OM_MAX = 90;
   const mR = new THREE.Matrix4();
   function poseRigid(o) {
     if (!model || !model.K4 || !o || !o.matrix || !o.matrix.multiplyMatrices || !o.quaternion) return;
@@ -196419,6 +196423,17 @@ window.FLYDIY_WORLD_COMPOSE = function () {
               dx * yU[0] + dy * yU[1] + dz * yU[2] - O[1],
               dx * vZ.x + dy * vZ.y + dz * vZ.z];
     };
+    const WC = model.wheelParts && typeof sim.wheelContacts === 'function' ? sim.wheelContacts() : null;   // G3540
+    const wheelOn = w => {
+      const refs = def && def.refs;
+      if (WC && !WC.water && refs) {
+        const k = (refs.mains || []).indexOf(w.idx);
+        if (k >= 0 && WC.mains && k < WC.mains.length) return !!WC.mains[k];
+        if (refs.tw === w.idx) return !!WC.tw;
+      }
+      const i3 = w.idx * 3;
+      return sim.p[i3 + 1] - groundH(sim.p[i3], sim.p[i3 + 2]) - Math.max(0.05, w.R) < 0.06;
+    };
     if (model.wheelParts) for (const w of model.wheelParts) {
       if (!w.obj.position || !w.obj.position.set) continue;    // smoke stub
       const i3 = w.idx * 3;
@@ -196435,11 +196450,26 @@ window.FLYDIY_WORLD_COMPOSE = function () {
                              w.pivot[2] + L[2] - w.rest0[2]);
         else w.obj.position.set(L[0], L[1], L[2]);
       }
+      // G3540 (WHEELS-SPIN, the user's playtest 24 Oct: "wheels keep turning the whole flight"): IT ROLLS ONLY ON THE
+      // GROUND. The axle's motion spun the wheel in the air at the flying speed. Now a wheel touching (the solver's own
+      // wheelContacts, by its node: the mains in order and the third wheel; on the water, or a wheel it does not list, the
+      // same law here - its rim within 6 cm of the ground) rolls with its node as before and keeps that rate (w.om, rad/s);
+      // lifted, it runs down on its bearing - a drag on the rate and a steady brake, ~5 s from a lift-off at 25 m/s.
+      // A paused world holds it (as the prop). Drawing only: the solver's contact is untouched.
       if (w.prev && w.obj.rotation) {
         const mx = (sim.p[i3] - w.prev[0]) * xA[0] +
                    (sim.p[i3 + 1] - w.prev[1]) * xA[1] +
                    (sim.p[i3 + 2] - w.prev[2]) * xA[2];
-        w.obj.rotation.z -= mx / Math.max(0.05, w.R);
+        const R = Math.max(0.05, w.R), dt = frameDt();
+        if (wheelOn(w)) {
+          w.obj.rotation.z -= mx / R;
+          const om = Math.max(-WHEEL_OM_MAX / R, Math.min(WHEEL_OM_MAX / R, -mx / R / Math.max(1e-3, dt)));
+          w.om = w.om == null ? om : w.om + (om - w.om) * 0.5;
+        } else if (running && w.om) {
+          const a = Math.abs(w.om) * Math.exp(-dt / WHEEL_SPIN_TAU) - WHEEL_SPIN_BRAKE * dt;
+          w.om = a > 0 ? Math.sign(w.om) * a : 0;
+          w.obj.rotation.z += w.om * dt;
+        }
       }
       w.prev = [sim.p[i3], sim.p[i3 + 1], sim.p[i3 + 2]];
       poseRigid(w.obj);                               // G357: in the true frame
@@ -200747,6 +200777,34 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     b.hidden = !(D && D.damaged && !D.writeOff);
     if (!b.hidden) b.textContent = 'Repair · free';
   }
+  // G3612: the garage's rack (inside this half: career + economy calls, CAREER_DEV only) - the sandbox's designs this career may buy in, each with the price (null: the build's file does
+  // not read), and the purchase: the design COPIED to the career's own slot (careerCopyName - frozen there: the sandbox's
+  // later edits never reach it, its own edits in this garage are its life), paid, then lifted like any other
+  function careerImportPrice(name) {
+    let spec = null; try { const env = JSON.parse(prefGet('flydiy.build.' + name, 'null')); spec = env && env.spec; } catch (e) {}
+    const led = spec ? procureLedger(spec) : null;
+    if (!led) return null;
+    let wants = []; try { wants = typeof hangarWants === 'function' ? hangarWants(resolveSpec(genMigrateSpec(JSON.parse(JSON.stringify(spec))))) : []; } catch (e) {}
+    const cost = econLedgerCost(led);
+    return { cost, wants, price: econAirframePrice(cost, playerLoad().sheds[PREM_MAIN], wants) };
+  }
+  function careerImportNow(name) {
+    const P = careerImportPrice(name);
+    if (!P) return { ok: false, why: 'the build ' + name + ' does not read' };
+    const txt = prefGet('flydiy.build.' + name, null);
+    let env = null; try { env = JSON.parse(txt); } catch (e) {}
+    if (!env || !env.spec) return { ok: false, why: 'the build ' + name + ' does not read' };
+    const copy = careerCopyName(playerLoad(), name, playerSlotNames());
+    const r = careerImport(playerLoad(), name, copy, P.cost, P.wants);
+    if (!r.ok) { ecNote = r.why; econWalletSync(); return { ok: false, why: r.why }; }
+    env.meta = Object.assign({}, env.meta || {}, { name: copy, career: r.doc.career.id, of: name });
+    env.plaque = null; env.log = null;   // (a new airframe: its own certificate and logbook to earn)
+    prefSet('flydiy.build.' + copy, JSON.stringify(env));
+    player = playerFleetReconcile(r.doc, fleetSlotNames(r.doc)).doc; playerSave();
+    ecNote = 'bought ' + name + ' into the career: ' + ecFmt(r.cost);
+    try { if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); } catch (e) {}
+    return { ok: true, why: '', cost: r.cost, slot: copy };
+  }
   if (CAREER_DEV) window.FLYDIY_ECON = {
     price: econBuildPrice, saveWhy: econSaveWhy, shed: econShedDoor, repair: econRepairNow,
     wallet: () => playerLoad().wallet, note: () => ecNote, sync: econWalletSync,
@@ -201035,7 +201093,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       stBusy = false;
       if (starter) {
         prefSet('flydiy.build.' + starter, JSON.stringify(stEnvelope(starter, file)));
-        player = playerFleetReconcile(playerLoad(), playerSlotNames()).doc; playerSave();
+        player = playerFleetReconcile(playerLoad(), fleetSlotNames(playerLoad())).doc; playerSave();
         storyEvent({ k: 'bind', role: 'starter', slot: starter, spec: file.spec });
         storyStand(starter);
       } else {
@@ -201045,7 +201103,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
         const spec = storyClientSpec(file.spec);
         prefSet('flydiy.build.' + slot, JSON.stringify(stEnvelope(slot, { v: file.v, spec, plaque: null, log: null })));
         const a = storyApply(playerLoad(), e, { slot });
-        if (a.ok) { player = playerFleetReconcile(a.doc, playerSlotNames()).doc; playerSave(); if (a.line) stLine = a.line; }
+        if (a.ok) { player = playerFleetReconcile(a.doc, fleetSlotNames(a.doc)).doc; playerSave(); if (a.line) stLine = a.line; }
         storyEvent({ k: 'bind', role: 'client', slot, spec });
       }
       try { if (window.GARAGE_SPEC && window.GARAGE_SPEC.syncShelf) window.GARAGE_SPEC.syncShelf(); } catch (err) {}
@@ -201592,7 +201650,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     doc: () => JSON.parse(JSON.stringify(playerLoad())),
     // the gates' and the rigs' door: a whole document in, normalised and lifted like a load (then saved)
     // (with no storage there are no slots to read: the document's own fleet is kept as handed)
-    set: doc => { player = playerNormalise(playerMigrate(JSON.parse(JSON.stringify(doc)))); if (PREF) player = playerFleetReconcile(player, playerSlotNames()).doc; playerSave(); if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); return window.FLYDIY_PLAYER.doc(); },
+    set: doc => { player = playerNormalise(playerMigrate(JSON.parse(JSON.stringify(doc)))); if (PREF) player = playerFleetReconcile(player, fleetSlotNames(player)).doc; playerSave(); if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); return window.FLYDIY_PLAYER.doc(); },
     place: n => (typeof playerPlace === 'function' ? playerPlace(playerLoad(), n, world) : null),
     wear: n => (typeof playerWearNow === 'function' ? playerWearNow(playerLoad(), n) : 0),
     rollFrom: () => rollFromId(), slot: () => flSlot, last: () => flLastEnd,
@@ -201621,7 +201679,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   function procureCommit(r) {
     if (!r || !r.ok) return { ok: false, why: (r && r.why) || 'refused' };
     prefSet('flydiy.build.' + r.slot, JSON.stringify(r.envelope));
-    player = playerFleetReconcile(r.doc, playerSlotNames()).doc;
+    player = playerFleetReconcile(r.doc, fleetSlotNames(r.doc)).doc;
     playerSave();
     try { if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); } catch (e) {}
     if (CAREER_DEV) { try { careerPlateSync(); } catch (e) {} }
@@ -203263,6 +203321,9 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     const BANDC = { red: lin(0xff6b5b), orange: lin(0xffa13d), green: lin(0x6fd08a) };
     const COL = MB ? BANDC[MB.band] : AMBER;
     if (MB && MB.mark && smTxt) smTxt += ' ' + MB.mark;
+    // G3452 (the user 25 Oct: "I'd put a warning sign straight in the CG text if not good (red or orange)"): the CG's own
+    // readout opens on a warning sign; with no readout (no wing chord) the band's title stands in
+    if (MB && MB.mark) cgTxt = '⚠ ' + (cgTxt || MB.title);
     gTipBand = MB ? Object.assign({ sm: smV }, MB) : null;
     // an upright post from the ground to well above the aeroplane, so the two
     // are comparable at a glance from any angle
@@ -208650,6 +208711,17 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     slotsChanged: (names, info) => { playerSlotsChanged(names, info); if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); },
     // G2260 (ECONOMY): a career's first save of a new airframe is a purchase - refused short of the cash (the sandbox: '')
     canSave: (name, isNew) => (CAREER_DEV ? econSaveWhy(name, isNew) : ''),
+    // G3612 (item 39): a career's rack lists its own airframes, the sandbox's designs bought in below; the sandbox's rack
+    // never lists a career's copy
+    ownSlots: names => fleetSlotNames(playerLoad(), names),
+    importable: CAREER_DEV ? (names => careerImportable(playerLoad(), names)) : null,
+    slotLabel: n => (typeof CAREER_SLOT_TAG !== 'undefined' && typeof n === 'string' ? n.replace(CAREER_SLOT_TAG, '') : n),   // (the tag's text, no career call: G2320)
+    // ...and a build saved in a career's garage under a NEW name is the career's own slot (a copy's tag; a name it
+    // already holds - the story's Rufus, a re-save - stays as it is)
+    slotKey: CAREER_DEV ? (n => careerSaveKey(playerLoad(), n, playerSlotNames())) : null,
+    importPrice: CAREER_DEV ? (n => { const P = careerImportPrice(n); return P ? P.price : null; }) : null,
+    importSlot: CAREER_DEV ? (n => careerImportNow(n)) : null,
+    money: CAREER_DEV ? (v => ecFmt(v)) : null,
     // G2280 (PROCURE): a slot the garage has just built (the join settled) - a maker's or a used airframe's factory
     // certificate is signed on THAT aeroplane, once (the build files are not the join's fixpoint: measured on the page)
     loaded: (name, spec) => { if (CAREER_DEV) procureLoaded(name, spec); storeFloorFollows(name); },
@@ -210720,7 +210792,8 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       const R = { el: n, refresh: () => { const P = W.POST_FX; if (!P) { n.textContent = 'no post_fx module'; return; }
         const on = P.KEYS.filter(k => P.S[k] !== 'off');
         n.textContent = !on.length ? 'post fx: all off (no hook, no target)' : 'post fx: ' + on.map(k => k + ' ' + P.S[k] + (P.stats[k + 'Ms'] ? ' ' + P.stats[k + 'Ms'].toFixed(2) + ' ms' : '')).join(' · ')
-          + (P.S.eye !== 'off' ? ' · eye x' + P.stats.eyeK.toFixed(2) + ' (mean ' + P.stats.eyeLum.toFixed(2) + ')' : ''); } };
+          + (P.S.eye !== 'off' ? ' · eye x' + (+P.stats.eyeK || 1).toFixed(2) + ' (mean ' + (+P.stats.eyeLum || 0).toFixed(2) + ', read on demand)' : '');
+        if (P.S.eye !== 'off' && P.eyeRead && !(R.eyeAt > performance.now() - 2000)) { R.eyeAt = performance.now(); P.eyeRead(); } } };   // (EYE-GPU: the panel asks, the frame never does)
       rows.push(R); live.push(R);
       F.appendChild(n);
     }
