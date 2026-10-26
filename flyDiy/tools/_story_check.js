@@ -56,6 +56,11 @@ function run(M) {
   ok(M.storySite('cabin', remote) === 'nv_strip' && M.storySite('cabin', remote.filter(a => a.id !== 'nv_strip')) === 'w3',
      'no strip named Cabin yet: the remote fallback, East Point Clearing then Tamgas Hill (the user: "the middle of nowhere")');
   ok(M.storySite('home', aeros) === 'HOME' && M.storySite('client', aeros) === 'w6' && M.storySite('water', aeros) === 'SEA', 'home, the owner\'s strip and the water by their fallbacks');
+  const twoWater = aeros.concat([{ id: 'mk_sea', name: 'Cedar Harbour Seaplane Base', kind: 'water' }]);
+  ok(M.storySite('harbour', twoWater) === 'mk_sea' && M.storySite('water', twoWater) === 'SEA' && M.storySite('harbour', aeros) === null &&
+     M.storySite('harbour', twoWater.map(a => a.id === 'mk_sea' ? Object.assign({}, a, { role: 'water' }) : a)) === 'SEA',
+     "T6's route ends on the OTHER water field (never the one 'water' picked; one water field only: null - never HOME's tarmac)");
+  ok(M.STORY_BEATS.find(b => b.id === 'T6').done.some(e => e.k === 'routeOffer' && e.a === 'harbour' && e.b === 'water'), "T6's route: water to water (the floats Cub, G3760's gear law)");
   ok(M.storySite('nope', aeros) === null, 'an unknown role: null');
   // ---- the documents
   const cubFile = fs.readdirSync(path.join(ROOT, 'builds')).find(f => /^cub_.*\.json$/.test(f) && !/edits|corrected/.test(f));
@@ -715,6 +720,15 @@ async function tutorRun() {
      "Skip on the final: 3 km out (before the pilot's IAF: straight in) on the runway's extended centreline, on a 6 % slope over the field, flying the landing heading at the approach speed, sinking", JSON.stringify({ x: Math.round(FP.x), y: FP.y, z: FP.z }));
   const FG = M.storyFinalPose(H0, { V: 20, groundH: () => 150 });
   ok(FG.y === 210, 'the final never under 60 m over the ground beneath it (a hill before the field)', FG.y);
+  const H1 = Object.assign({}, H0, { x: -450 }), FR = M.storyFinalPose(H1, { V: 20, way: -1 });
+  ok(Math.abs(FR.x - (-900 - 60 - 3000)) < 1e-6 && Math.abs(FR.hdg - 2 * Math.PI) < 1e-9 && FR.vx > 0 && Math.abs(FR.vz) < 1e-6,
+     "the other end's final (way -1): 3 km out past the take-off end's mirror, flying against a.hdg", JSON.stringify({ x: FR.x, hdg: FR.hdg }));
+  { const Wd = M.makeWorld(0, {}), HW = Wd.aerodromes.find(a => a.id === 'HOME'), wd = v => Object.create(Wd, { wind: { value: () => v } });
+    const hx = Math.cos(HW.hdg), hz = Math.sin(HW.hdg);
+    ok(M.storyFinalWay(HW, wd([0, 0, 0]), 0) === 1 && M.storyFinalWay(HW, wd([-6 * hx, 0, -6 * hz]), 0) === 1 && M.storyFinalWay(HW, wd([6 * hx, 0, 6 * hz]), 0) === -1 &&
+       M.storyFinalWay(null, Wd, 0) === 1,
+       "the skip's way is the pilot's scored way: calm and a headwind along the take-off heading +1, 12 kt down it -1 (the other end); nothing to score: +1"); }
+  ok(/function storyFinalNow\(\)[\s\S]{0,1600}storyFinalWay\(H, world, 0\)[\s\S]{0,200}storyFinalPose\(H, \{ V, way,/.test(app), "the skip poses the final on the way the pilot will land it (storyFinalWay -> storyFinalPose's way)");
   // ---- the page: T0 at the cabin, the lock
   const settle = async () => { for (let i = 0; i < 400; i++) { await new Promise(r => setTimeout(r, 5)); if (!H.window.FLYDIY_STORY || !H.window.FLYDIY_STORY.pending()) { await new Promise(r => setTimeout(r, 5)); if (!H.window.FLYDIY_STORY.pending()) return; } } };
   let d = M.storyNewCareer(M.careerNormalise(M.careerNew({ id: 'main', seed: 'tutor' })), { aeros: P.aerosCabin }).doc;

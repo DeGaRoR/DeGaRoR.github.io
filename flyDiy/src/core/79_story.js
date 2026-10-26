@@ -28,10 +28,14 @@ const STORY_ROLES = {
   home:   { name: null, ids: ['HOME'], words: 'the WWII field' },
   client: { name: /\bowner\b/i, ids: ['w6', 'w7', 'w5'], words: "the owner's strip" },        // long and easy (§3 T3)
   water:  { name: null, kinds: ['water'], ids: ['SEA', 'mk_sea'], words: 'the seaplane base' },
+  // T6's route is water to water (the floats Cub never lands on HOME's tarmac; G3760 pilotCanFly refuses floats into a
+  // land strip): the OTHER water field - never the one 'water' picked; none on the island -> null (the offer refused)
+  harbour: { name: null, kinds: ['water'], ids: ['mk_sea', 'SEA'], not: 'water', words: 'the harbour seaplane base' },
 };
 function storySite(role, aeros) {
-  const R = STORY_ROLES[role], L = Array.isArray(aeros) ? aeros.filter(a => a && typeof a.id === 'string') : [];
+  const R = STORY_ROLES[role], L0 = Array.isArray(aeros) ? aeros.filter(a => a && typeof a.id === 'string') : [];
   if (!R) return null;
+  const other = R.not ? storySite(R.not, L0) : null, L = other ? L0.filter(a => a.id !== other) : L0;
   const tagged = L.find(a => a.role === role || (Array.isArray(a.roles) && a.roles.includes(role)));
   if (tagged) return tagged.id;
   if (R.name) { const n = L.find(a => typeof a.name === 'string' && R.name.test(a.name)); if (n) return n.id; }
@@ -89,7 +93,7 @@ const STORY_BEATS = [
     goal: { k: 'jobs', n: 3 } },
   { id: 'T6', title: 'The water job', brief: 'A job you promised: fit floats to the Cub and land it at the seaplane base.',
     goal: { k: 'stop', at: 'water', plane: 'gift', gear: 'floats' },
-    done: [{ k: 'routeOffer', plane: 'gift', a: 'water', b: 'home' }] },
+    done: [{ k: 'routeOffer', plane: 'gift', a: 'harbour', b: 'water' }] },   // (b: the Cub's home end - where it landed)
   { id: 'T7', title: 'The three occasions', brief: 'Back to the ultralight alone - and three planes on offer, once only.',
     enter: [{ k: 'occasions', n: 3 }], goal: { k: 'ack' },
     done: [{ k: 'open' }] },
@@ -221,17 +225,36 @@ function storyTutorNext(T, how) {
 // 3 km out, not 1.5 (the 25 Oct page run): the pilot takes a lined-up arrival STRAIGHT IN only from 300 m before its IAF
 // (43_pilot planFromHere: the FAF at the circuit height on the slope, the IAF 400 m before it - ~2.3 km out on a 105 m
 // circuit); nearer, it joined the circuit (1.5 km out: a downwind, 227 s to the wheels; 3 km: the final at 40 s, 147 s)
+// o.way -1: the final of the OTHER end (landing against a.hdg; the threshold the take-off end's mirror about the centre)
 function storyFinalPose(a, o) {
   o = o || {};
-  const d = o.d || 3000, gs = o.gs || 0.06, V = o.V || 22, floor = o.floor || 60;
-  const ux = Math.cos(a.hdg), uz = Math.sin(a.hdg);
-  const sp = a.spawn || [a.x || 0, a.z || 0], elev = +a.elev || 0;
-  const ax = sp[0] + 60 * ux, az = sp[1] + 60 * uz;            // the aim point, 60 m in from the take-off end
+  const d = o.d || 3000, gs = o.gs || 0.06, V = o.V || 22, floor = o.floor || 60, sg = o.way === -1 ? -1 : 1;
+  const ux = sg * Math.cos(a.hdg), uz = sg * Math.sin(a.hdg);
+  const sp0 = a.spawn || [a.x || 0, a.z || 0], elev = +a.elev || 0;
+  const sp = sg > 0 ? sp0 : [2 * (a.x || 0) - sp0[0], 2 * (a.z || 0) - sp0[1]];
+  const ax = sp[0] + 60 * ux, az = sp[1] + 60 * uz;            // the aim point, 60 m in from the landing end
   const x = ax - d * ux, z = az - d * uz;
   const g = typeof o.groundH === 'function' ? o.groundH(x, z) : null;
   const y = Math.max(elev + d * gs, (Number.isFinite(g) ? g : elev) + floor);
   const cg = Math.cos(Math.atan(gs));
-  return { x, y, z, hdg: a.hdg, vx: V * cg * ux, vy: -V * Math.sin(Math.atan(gs)), vz: V * cg * uz };
+  return { x, y, z, hdg: sg > 0 ? a.hdg : a.hdg + Math.PI, vx: V * cg * ux, vy: -V * Math.sin(Math.atan(gs)), vz: V * cg * uz };
+}
+// THE WAY THE PILOT WILL LAND IT (the 25 Oct 20:15 page run, 8 kt on the day: posed on a.hdg's final, the pilot given back
+// in the air re-plans the arrival (43_pilot G3473) on the SCORED direction - the wind, the slope, the approach - and flew
+// round to the other end's circuit, 5 min): the skip is posed on that same direction. The runway model's two ways scored
+// as dirAt scores them (25_airfield siteScoreDirections; its default limits - the sheet's only move a steep or short
+// strip's score), the wind at 30 m over the field at the pilot's t; +1 along a.hdg, -1 against it; no model: +1
+function storyFinalWay(a, world, t) {
+  if (!a || !world || typeof siteRunwayModel !== 'function' || typeof siteScoreDirections !== 'function') return 1;
+  try {
+    const M = siteRunwayModel(a, world);
+    if (!M || !Array.isArray(M.dir) || M.dir.length < 2) return 1;
+    const wv = typeof world.wind === 'function' ? world.wind(a.x, (+a.elev || 0) + 30, a.z, t || 0) : null;
+    const u = [Math.cos(a.hdg), Math.sin(a.hdg)];
+    const sc = siteScoreDirections(M, wv ? [wv[0], wv[2]] : [0, 0], { mode: 'land' }, u, typeof a.landHdg === 'number');
+    const D = M.dir[sc.k].u;
+    return D[0] * u[0] + D[1] * u[1] >= 0 ? 1 : -1;
+  } catch (e) { return 1; }
 }
 // (G3260 ROUTES: at T7, with the story's route signed, Tim names it and its down payment first)
 const storyTimLines = (id, doc) => { const L = (STORY_TIM[id] || []).slice(), r = id === 'T7' && doc ? storyRoute(doc) : null;

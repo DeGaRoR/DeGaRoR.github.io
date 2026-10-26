@@ -9436,7 +9436,9 @@
     if (!H || !Number.isFinite(+H.hdg)) return { ok: false, why: 'no WWII field on this island' };
     let SH = null; try { SH = ap.sheet; } catch (e) {}       // (the machine sheet's approach speed: Vref, else 1.3 Vs0)
     const V = Math.max(14, Math.min(40, +ap.VAppr || (SH && (+SH.Vref || (+SH.Vs0 ? 1.3 * SH.Vs0 : 0))) || 22));
-    const P = storyFinalPose(H, { V, groundH: (x, z) => (world && typeof world.terrainH === 'function' ? world.terrainH(x, z) : null) });
+    // (posed on the way the pilot will land it - the wind on the day: 79_story storyFinalWay; a fresh pilot's t is 0)
+    let way = 1; try { way = typeof storyFinalWay === 'function' ? storyFinalWay(H, world, 0) : 1; } catch (e) {}
+    const P = storyFinalPose(H, { V, way, groundH: (x, z) => (world && typeof world.terrainH === 'function' ? world.terrainH(x, z) : null) });
     sim.reset(0);
     placeAtAerodrome(sim, { hdg: P.hdg, spawn: [P.x, P.z], elev: P.y });
     for (let i = 0; i < sim.n; i++) { sim.v[i * 3] = P.vx; sim.v[i * 3 + 1] = P.vy; sim.v[i * 3 + 2] = P.vz; }
@@ -9453,7 +9455,7 @@
     // (the skip hands the aeroplane to the autopilot, as every flight starts: the hand is one toggle away)
     try { if (manual && typeof setManual === 'function') setManual(false, 'skip'); } catch (e) {}
     try { destId = H.id; } catch (e) {}
-    return { ok: true, why: '', final: H.id, pose: P };
+    return { ok: true, why: '', final: H.id, pose: P, way };
   }
   // (the old skip, kept for the garage without a world: T1 done as a stop at HOME, straight into the WWII hangar)
   function storySkipHangar() {

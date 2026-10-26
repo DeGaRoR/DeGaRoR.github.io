@@ -138,7 +138,8 @@ function story(M) {
   const fails = [];
   const ok = (c, what, x) => { if (!c) fails.push(what); if (!SELF) console.log('  ' + (c ? 'ok  ' : 'FAIL') + ' ' + what + (x != null ? '  [' + x + ']' : '')); };
   const aeros = [{ id: 'HOME', name: 'Jolene AFB 13/31', kind: 'strip' }, { id: 'w6', name: 'strip 11', kind: 'strip' },
-                 { id: 'SEA', name: 'Annette Dock', kind: 'water' }, { id: 'w9', name: 'Cabin Strip', kind: 'strip' }];
+                 { id: 'SEA', name: 'Annette Dock', kind: 'water' }, { id: 'w9', name: 'Cabin Strip', kind: 'strip' },
+                 { id: 'mk_sea', name: 'Cedar Harbour Seaplane Base', kind: 'water' }];
   // a story at T6, the gift Cub landed at the seaplane base (playerFlightEnd's order: the arrival first)
   let d = M.careerNormalise(M.careerNew({ id: 'main', seed: 'routes-story' }));
   d = M.storyStart(d, 'Rufus').doc;
@@ -153,8 +154,8 @@ function story(M) {
   ok(st.ok && eff, 'T6 met on floats at the seaplane base: the route effect handed over', st.why);
   const a = M.storyApply(st.doc, eff, { aeros });
   const D = a.doc, R = M.routesActive(D)[0] || {}, O = (M.storyOf(D).offers || []).find(x => x.k === 'route') || {};
-  ok(a.ok && R.plane === 'Client Cub' && R.pilot === M.PILOTS_COMPANION && R.a === 'SEA' && R.b === 'HOME' && R.home === 'HOME',
-     "storyApply's routeOffer signs a REAL route: the gift Cub, the companion, the seaplane base <-> HOME (no stub)", J({ plane: R.plane, pilot: R.pilot, a: R.a, b: R.b }));
+  ok(a.ok && R.plane === 'Client Cub' && R.pilot === M.PILOTS_COMPANION && R.a === 'mk_sea' && R.b === 'SEA' && R.home === 'SEA',
+     "storyApply's routeOffer signs a REAL route: the gift Cub, the companion, water to water - Cedar Harbour <-> the seaplane base, the Cub's home where it landed (no stub)", J({ plane: R.plane, pilot: R.pilot, a: R.a, b: R.b }));
   ok(O.signed === true && !('stub' in O) && O.route === R.id && O.down === R.down && R.down > 0 && D.wallet === w0 + R.down + M.STORY_T6_FEE && O.fee === M.STORY_T6_FEE, 'the story records the route and its down payment; the wallet holds it and T6\'s commitment fee (G3359)', R.down);
   ok(M.playerStoreWhere(D, 'Client Cub').kind === 'route' && !M.playerFlyStart(D, 'Client Cub').ok, '"the Cub disappears": locked on its route, never flown by the player');
   ok(/Route signed/.test(a.line) && a.line.includes(money(R.down)), 'the line (arrival card, beat card) names the down payment', a.line);
@@ -222,7 +223,8 @@ async function page() {
     classList: { toggle(c) { if (e._cls.has(c)) e._cls.delete(c); else e._cls.add(c); }, contains: c => e._cls.has(c) },
     setAttribute(k, v) { e.attrs[k] = v; }, addEventListener(t, f) { e.listeners[t] = f; } }; return e; };
   const document = { body: { appendChild: e => e }, createElement: mkEl, getElementById: () => null };
-  const aeros = [{ id: 'HOME', name: 'Jolene AFB 13/31', kind: 'strip' }, { id: 'SEA', name: 'Annette Dock', kind: 'water' }, { id: 'w9', name: 'Cabin Strip', kind: 'strip' }];
+  const aeros = [{ id: 'HOME', name: 'Jolene AFB 13/31', kind: 'strip' }, { id: 'SEA', name: 'Annette Dock', kind: 'water' }, { id: 'w9', name: 'Cabin Strip', kind: 'strip' },
+                 { id: 'mk_sea', name: 'Cedar Harbour Seaplane Base', kind: 'water' }];
   let player = null;
   const H = Object.assign(Object.create(null), M, {
     STORY_PAGE: true, CAREER_DEV: true, world: { aerodromes: aeros }, document, console: { log() {}, info() {}, warn() {}, error: console.error },
