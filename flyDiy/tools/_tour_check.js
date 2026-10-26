@@ -290,7 +290,9 @@ if (!STRIPS) {
       }
       else check(L2.ok, id + ': stopped at its To with no fault', L2.faults.map(f => f.k + ': ' + f.note).join('; ') || L2.phases.slice(-6).join('>'));
       // G1970: the landing judged on the strip it was made on (_tour_lib: flightWhere under the wheels at the touchdown)
-      check(L2.landedOn === (L2.declined || L2.to), id + ': landed on its To' + (L2.declined ? ' (refused: on the strip diverted to, ' + L2.declined + ')' : '') + ' (the landing judged on ' + L2.landedOn + ')');
+      // (G2810: the known flapless divert lands on the strip it diverted to - judged there, as a refusal is)
+      const flDiv = kn && knownCubFlapless(J.b, L2, R) ? L2.divertedTo : null;
+      check(L2.landedOn === (L2.declined || flDiv || L2.to), id + ': landed on its To' + (L2.declined ? ' (refused: on the strip diverted to, ' + L2.declined + ')' : flDiv ? ' (G2810 known: on the strip diverted to, ' + flDiv + ')' : '') + ' (the landing judged on ' + L2.landedOn + ')');
       const a = TW.W.aerodromes.find(q => q.id === L2.from);
       const oneWay = typeof a.takeoffHdg === 'number' || a.altiport;
       if (oneWay && L2.from !== order[0]) {
