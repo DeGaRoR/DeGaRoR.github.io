@@ -191,9 +191,9 @@ function run(M) {
          'the page hands the work lamp to the room, and the room hangs it with no shadow map (the five fittings\' budget)'); }
     // G3355 (the user 22 Oct: "the cabin flood switched on at the story start; no change to Rufus's file")
     { const BJ = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'bench.js'), 'utf8');
-      ok(/function storyFloodOn\(\)/.test(APP) && /s\.beat !== 'T0' \|\| !sh \|\| sh\.story !== 'cabin'/.test(APP) && /U\.P\.lightOn = 1; U\.P\.li_flood = 1; U\.build\(\);/.test(APP)
+      ok(/function storyFloodOn\(\)/.test(APP) && /if \(s && \(s\.open \|\| s\.beat !== 'T0'\)\) \{ stFloodDone = true; return; \}\s*\n\s*if \(!s \|\| !sh \|\| sh\.story !== 'cabin'\) return;\s*\n\s*stFloodDone = true;/.test(APP) && /U\.P\.lightOn = 1; U\.P\.li_flood = 1; U\.build\(\);/.test(APP)
          && /storySkipSync\(\); storyFloodOn\(\); \} catch \(e\) \{ console\.warn/.test(APP) && /storySkipSync\(\); storyFloodOn\(\); \} catch \(e\) \{\} \}, 1500\)/.test(APP),
-         'at T0 in the cabin the cage\'s flood goes on once (the switch, not the build file), at boot or when the garage arrives');
+         'at T0 in the cabin the cage\'s flood goes on once (the switch, not the build file), at boot or when the garage arrives - once a story is there (a New career after boot: the 26 Oct page run)');
       ok(/li_\(\?:nav\|beacon\|taxi\|land\|flood\|instr\|pedal\|pax\)/.test(BJ), 'the flood switch is bench STATE (G3449), so the T0 flip leaves the certificates standing'); }
     // G3357 (the user 23 Oct: "I see no point in the lines on the top left. Tim feels like he's enough"; "Interior flood
     // light should be ON by default in the garage")

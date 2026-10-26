@@ -9632,10 +9632,13 @@
     if (!STORY_PAGE || stFloodDone) return;
     const U = window.CAGE_UI;
     if (!U || !U.P || typeof U.build !== 'function') return;
-    stFloodDone = true;
     try {
       const d = playerLoad(), sh = d.sheds && d.sheds[d.here], s = stLive();
-      if (!s || s.beat !== 'T0' || !sh || sh.story !== 'cabin') return;
+      // (no story yet, or not yet in the cabin: a New career on this page starts one - the 1.5 s tick tries again;
+      // the 26 Oct page run: the flag was set at the first tick, before the career began, and the flood never came on)
+      if (s && (s.open || s.beat !== 'T0')) { stFloodDone = true; return; }
+      if (!s || !sh || sh.story !== 'cabin') return;
+      stFloodDone = true;
       if (+U.P.lightOn === 1 && +U.P.li_flood === 1) return;
       U.P.lightOn = 1; U.P.li_flood = 1; U.build();
       if (typeof U.syncSliders === 'function') U.syncSliders();
