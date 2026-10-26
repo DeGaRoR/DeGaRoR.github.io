@@ -14028,7 +14028,7 @@
     contract: () => {
       if (!CAREER_DEV) return null;
       const d = playerLoad(), C = d && d.career && d.career.contracts;
-      const rec = C && C.tracked ? careerContract(d, C.tracked) : null;
+      const rec = CAREER_DEV && C && C.tracked ? careerContract(d, C.tracked) : null;
       if (!rec) return null;
       const L = C.live[C.tracked] || { stage: 0, subs: [] }, st = rec.stages[L.stage] || { subs: [] };
       const u = st.subs.find((s, i) => !L.subs[i] && (s.to || s.at)), at = u && (u.to || u.at);
