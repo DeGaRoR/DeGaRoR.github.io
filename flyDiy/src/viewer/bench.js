@@ -419,7 +419,7 @@ const BENCH_TESTS = [
       if (!(w.clear > 0)) { why.push('it strikes ' + w.name + ' (' + benchNum(w.clear, 2) + ' m)');
                             fix.push('a shallower pod, longer gear legs, or the pod further forward'); }
       for (const l of C.legs || []) if (!l.ok) { why.push(l.name); fix.push('the pod clear of the ' + (l.id === 'nose' ? 'nose leg' : 'tailwheel') + ': shorter, or moved'); }
-      if (b.staticMargin != null && b.staticMargin < 0.05) {
+      if (b.staticMargin != null && b.staticMargin < (typeof GEN_MARGIN_BANDS !== 'undefined' ? GEN_MARGIN_BANDS.comfy : 0.05)) {
         why.push('full, its static margin is ' + benchNum(b.staticMargin, 2));
         fix.push('load it lighter, or move the pod forward');
       }
@@ -1229,18 +1229,22 @@ function benchInit(api) {
       try { t.quick(api, fin); } catch (e) { fin({ verdict: 'threw: ' + e.message, ok: false }); }
       return;
     }
-    // an instant test still takes a moment (the tunnel); the card shows
-    // first, then the measurement runs, then the award
-    if (!quiet) freeze(t, true);
+    // an instant test still takes a moment (the tunnel). G3780 (the user 27 Oct: "For the checks taking more than a
+    // second, ensure you handle the freeze elegantly, a proper cursor spinner for example. Avoid an actual freeze at all
+    // costs"): NO FREEZE CARD and no page-thread shakedown - the row spins, the cursor says busy (render: body
+    // .benchWorking), and the sheet (the tunnel's 0.5-3 s) is asked of its own thread first (app.js shakeReady); the
+    // row then reads it from the memo in a moment. Only with no thread at all (file://, the node page) the page computes it.
     results[t.id] = { running: 'measuring', ok: false };
     render();
-    setTimeout(() => {
+    const go = () => {
+      if (!results[t.id] || !results[t.id].running) { if (after) after(); return; }   // overtaken (a new aeroplane)
       let r;
       try { r = t.run(api); }
       catch (e) { r = { verdict: 'threw: ' + e.message, ok: false }; }
-      if (!quiet) unfreeze();
-      settle(t, r, fp, after, quiet);
-    }, quiet ? 0 : 40);
+      settle(t, r, fp, after, true);
+    };
+    const wantsSheet = (t.needs || []).indexOf('shake') >= 0 && typeof api.shakeReady === 'function';
+    setTimeout(() => { if (wantsSheet) api.shakeReady(go); else go(); }, 30);   // (the spinner paints first)
   }
 
   function endLive(t, r) {
@@ -1687,6 +1691,8 @@ function benchInit(api) {
     // major edit made (and that the checks are re-running), suspended after an update (the row and the fix),
     // grounded (the damage, repair it)
     const running = Object.keys(results).some(id => results[id] && results[id].running) || !!recheckT;
+    // G3780: the cursor's spinner while a check computes (the page answers all along: nothing is frozen)
+    try { document.body.classList.toggle('benchWorking', Object.keys(results).some(id => results[id] && results[id].running && id !== 'flight')); } catch (e) {}
     const sh = results.shake, rc = sh && !sh.stale && sh.recheck ? sh.recheck : null;
     const firstWhen = (sh && sh.when) || null;
     const v = live ? '<b class="run">TESTING</b>'

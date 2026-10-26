@@ -529,6 +529,26 @@ function benchSession(store, join, opts) {
   ok(A.first === 0 && A.second === 0 && A.f1 && A.f1.ok, `the first arrival awards the flight quietly and a second changes nothing (${A.first}, then ${A.second} cards)`);
   ok(A.kept && A.f2.when === A.f1.when, 'the reload restores it valid, with its first day' + (A.f2 && A.f2.stale ? ' - withdrawn: ' + A.f2.why : ''));
   ok(B.kept, "R6: even an arrival fingerprinted out in the world (pre-G700) keeps its flight across the reload - the flight is the airframe's" + (B.f2 && B.f2.stale ? ' (' + B.f2.why + ')' : ''));
+  // G3780 (the user 27 Oct: "Rufus is meant at already having had its first flight a long time ago. It should even start
+  // with an existing simple flightlog. It's a used machine."): the starter's file ships its flight awarded (no fingerprint:
+  // the airframe's) and a prior logbook with hours; restored, its flight holds with its old day, and the player's first
+  // landing awards nothing and shows no card
+  {
+    const RF = JSON.parse(rd('builds/rufus_2026-10-18_certified.json')), fl = RF.plaque && RF.plaque.results && RF.plaque.results.flight;
+    const lg = (RF.log && RF.log.flights) || [], hrs = lg.reduce((a, r) => a + (r.t || 0), 0) / 3600;
+    ok(fl && fl.ok && fl.used && fl.when < '2026' && RF.plaque.masterShown === true && RF.log.built && lg.length >= 3 && lg.every(r => r.t > 0 && r.on) && hrs >= 2,
+       "Rufus ships used: its flight awarded " + (fl && fl.when) + ", built " + (RF.log && RF.log.built) + ', ' + lg.length + ' logged flights, ' + hrs.toFixed(1) + ' h');
+    const store = { pq: JSON.parse(JSON.stringify(RF.plaque)) }, join = { up: true, spec: JSON.parse(rd('tools/_bench_fixture_build.json')).spec };
+    const S = benchSession(store, join);
+    S.window.BENCH_RESTORE(store.pq); S.flush();
+    const r0 = S.window.BENCH_STATE().results.flight;
+    if (typeof S.window.BENCH_ROLLOUT === 'function') S.window.BENCH_ROLLOUT();
+    join.up = false;
+    S.window.BENCH_FLIGHT_LOGGED(JSON.parse(JSON.stringify(arrival))); S.flush();
+    const r1 = S.window.BENCH_STATE().results.flight, cards = S.shown();
+    ok(r0 && r0.ok && !r0.stale && r1 && r1.ok && r1.when === fl.when && cards === 0,
+       "...restored, its flight holds (" + (r0 && r0.when) + ") and the player's first landing awards nothing (" + (r1 && r1.when) + ', ' + cards + ' cards)');
+  }
   // G680: the door's body is rollOutStand (rollOut decides the screen; from the shed the build's sync runs under it first)
   const rollAt = APP.indexOf('function rollOutStand(') >= 0 ? APP.indexOf('function rollOutStand(') : APP.indexOf('function rollOut(');
   const rollS = APP.slice(rollAt, rollAt + 800), fpAt = rollS.search(/window\.BENCH_ROLLOUT\(\)/), ceAt = rollS.indexOf('closeEditor()');

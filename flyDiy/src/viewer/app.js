@@ -10990,6 +10990,21 @@
     try { drawPlaque(); } catch (e) {}
     try { if (indStale) buildIndicators(); } catch (e) {}
   }
+  // G3780 (the user 27 Oct: "For the checks taking more than a second ... Avoid an actual freeze at all costs"): THE
+  // BENCH'S CHECKS WAIT FOR THE SHEET OFF THE PAGE - cb() at once when the sheet is known; else the stand's lane on the
+  // sheet thread (the same aeroplane already computing is joined, not asked twice), cb() when it lands, and the check
+  // reads it from the memo. A dead link (file://, the node page) or a thread that fails: cb() a task later, and shakeOf
+  // computes it on the page as it always did - the one path left that blocks, and only where there is no thread at all.
+  function shakeReady(cb) {
+    let fired = false;
+    const go = () => { if (!fired) { fired = true; cb(); } };
+    if (curKey !== 'gen' || !def || shakeKnown()) return go();
+    const d = def, key = shakeKeyOf(d);
+    if (SHEET && !SHEET.dead && key && genSpec && SHEET.request('stand', { key, spec: genSpec, opts: { corners: false },
+        on: (sh, r) => { sheetLand(d, key, sh, r); go(); },
+        fail: () => setTimeout(go, 0) })) return;
+    setTimeout(go, 0);
+  }
   let shakeSoonT = null, shakeSoonI = null;
   function shakeSoon() {
     if (sheetAsk()) return;
@@ -17692,6 +17707,8 @@
   // Guarded, so a core-only build still runs.
   if (typeof benchInit === 'function') benchInit({
     shake: () => shakeOf(),
+    // G3780 (the user 27 Oct: "Avoid an actual freeze at all costs"): cb once the sheet is known - asked of its thread
+    shakeReady: cb => shakeReady(cb),
     densAlt: () => densAltOf(),
     // the plaque is app.js's to draw (it needs `def`); the bench decides WHEN
     plaque: on => { plaqueLive = !!on; drawPlaque(); },

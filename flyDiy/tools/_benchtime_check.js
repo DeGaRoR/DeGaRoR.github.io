@@ -20,13 +20,35 @@ const ok = (c, m) => { checks++; if (!c) fails++; console.log((c ? '  ok     ' :
 const now = () => Number(process.hrtime.bigint() / 1000000n);
 // ms in node on the box (26 Oct: the bench check 1.9-3.5 s with its loading corners, the density altitude 10-90 ms, the
 // wing loading computed 1.5-4.2 s): THE BENCH CHECK IS THE YARDSTICK - the wing loading no slower than two of it
-const CEIL = { shake: 6000, dalt: 3000, load: 8000 };
+// (the user 27 Oct: "For the checks taking more than a second ... Avoid an actual freeze at all costs": the density
+// altitude is the one check the page runs on its own thread - it stays under a second; the rest go off it, below)
+const CEIL = { shake: 6000, dalt: 1000, load: 8000 };
 
 console.log('EVERY TEST IS COMPUTED');
 ok(!BE.BENCH_TESTS.some(t => t.kind === 'live'), 'no watched (live) test on the bench');
 ok(!BE.BENCH_TESTS.some(t => t.id === 'xwind'), 'the crosswind ladder is gone (its number is the design check\'s rudder row)');
 ok(BE.BENCH_TESTS.filter(t => t.kind === 'quick').map(t => t.id).sort().join() === 'hydro,load', 'the wing loading and the hydroplane are quick (computed off the page)');
 ok(BE.BENCH_TESTS.filter(t => t.kind === 'flown').map(t => t.id).join() === 'flight', 'the only flown row is the test flight (awarded by the first arrival)');
+
+console.log('NOTHING FREEZES THE PAGE');
+// G3780 (the user 27 Oct: "a proper cursor spinner for example. Avoid an actual freeze at all costs"): the bench check's
+// sheet (0.5-3 s) is asked of its thread before a row reads it; the wing loading is the worker's; the hydroplane runs in
+// 60 ms slices; no freeze card for a computed row; the cursor and the row spin while it computes
+const BSRC = fs.readFileSync(path.join(FLY, 'src', 'viewer', 'bench.js'), 'utf8');
+const ASRC = fs.readFileSync(path.join(FLY, 'src', 'viewer', 'app.js'), 'utf8');
+const CSS = fs.readFileSync(path.join(FLY, 'src', 'viewer', 'bench.css'), 'utf8');
+const inst = BSRC.slice(BSRC.indexOf('// an instant test still takes a moment'), BSRC.indexOf('function endLive('));
+const has = (src, s) => src.indexOf(s) >= 0;
+ok(has(inst, 'api.shakeReady(go)') && !has(inst, 'freeze(t'), 'a computed row waits for the sheet off the page (api.shakeReady) and shows no freeze card');
+const sr = ASRC.slice(ASRC.indexOf('function shakeReady('), ASRC.indexOf('function shakeReady(') + 900);
+ok(has(sr, "SHEET.request('stand'") && has(sr, 'shakeKnown()'), "app.js shakeReady asks the sheet thread (the stand's lane, joined) unless the sheet is known");
+ok(has(ASRC, 'shakeReady: cb => shakeReady(cb)'), 'the bench api carries shakeReady');
+const lq = ASRC.slice(ASRC.indexOf('function startLoadQuick('), ASRC.indexOf('function startLoadQuick(') + 1600);
+ok(has(lq, "kind: 'loadq'"), 'the wing loading is computed on the worker (loadq)');
+const hq = ASRC.slice(ASRC.indexOf('function htPoll('), ASRC.indexOf('function htPoll(') + 600);
+ok(has(hq, 'performance.now() - t0 < 60') && has(ASRC, 'setTimeout(step, 0)'), 'the hydroplane runs in 60 ms slices, the page answering between');
+ok(has(BSRC, 'benchWorking') && has(CSS, 'body.benchWorking, body.benchWorking * { cursor:progress') && has(CSS, '.bT.run .bT1 > b:before') && has(CSS, 'animation:bSpin'),
+   'the cursor spins (body.benchWorking) and so does the computing row');
 
 console.log('AS FAST AS THE BENCH CHECK');
 const BUILDS = ['builds/cub_2026-09-20_corrected.json', 'builds/jodel_2026-09-20_corrected.json', 'bugReports/cessnaMetal (1).json',
