@@ -1944,7 +1944,8 @@ const ARCHETYPES = [
                     halfW: 0.58, roofHalfW: 0.46, roofY: 0.72, keelY: -0.55, waistY: 0.28, floorY: -0.30,
                     // G3519: the boom frame's top and bottom on the line from the rear cockpit to the tail post (the
                     // class's 0.78 / -0.765 stood the taper ring over the deck and under the keel: a hump top and bottom)
-                    aftRoofY: 0.69, aftKeelY: -0.50,
+                    aftRoofY: 0.71, aftKeelY: -0.52,
+                    boomMidPinch: 1.0,    // (the class's 0.86 pod pinch sagged the deck and lifted the belly mid-boom)
                     pilotLen: 1.00, paxLen: 1.10, s1Drop: 0.80,      // (0.72 flew a prop strike once the wings came forward)
                     // G3517: the mains 0.30 forward - at the cage's 2.00 the CG sat 33 deg AHEAD of the axle and the
                     // rollout braking nosed it over (a prop strike at 314 s); 2.30 gives 17 deg (the Moth's 15)
