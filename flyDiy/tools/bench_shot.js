@@ -17,12 +17,12 @@ const FILE = opt('file', null), OUT = opt('out', 'screenshots/bench');
 const W = +opt('w', 1600), H = +opt('h', 1000);
 // yaw (0 = from the nose; the cage's +z is the nose), pitch, zoom
 const VIEW = {
-  q:   [0.75, 0.35, 1.0],          // the quarter, from ahead and above
-  s:   [Math.PI / 2, 0.02, 1.0],   // the side
-  f:   [0.0, 0.10, 1.1],           // the front
-  top: [Math.PI / 2, 1.30, 1.0],   // from above: the openings in plan
-  r:   [2.45, 0.40, 1.0],          // the rear quarter
-  c:   [0.95, 0.55, 2.1],          // the cockpits, close
+  q:   [0.75, 0.35, 0.55],         // the quarter, from ahead and above
+  s:   [Math.PI / 2, 0.02, 0.55],  // the side
+  f:   [0.0, 0.10, 0.6],           // the front
+  top: [Math.PI / 2, 1.30, 0.55],  // from above: the openings in plan
+  r:   [2.45, 0.40, 0.55],         // the rear quarter
+  c:   [0.95, 0.55, 1.3],          // the cockpits, close
 };
 const VIEWS = opt('views', 'q,s,top,r,c').split(',');
 (async () => {
