@@ -51,6 +51,7 @@
 
 const PAGE = window.CAGE_PAGE || (window.CAGE_PAGE = {});
 const CG2 = window.CAGE2, GG = window.GEAR_GEN, K = window.GEAR_KIT;
+let OPEN_BAND = { P: null, v: null };     // G3519: the open cockpits' crown band, once a build
 const SITE = window.FIT_SITE, FG = window.FIT_GEN;
 if (!SITE || !FG || !K) {
   console.error('cage access layer: fitting modules not loaded');
@@ -670,8 +671,24 @@ PAGE.post = ctx => {
       }
       return isFinite(z0) && z1 > z0 ? { z0, z1 } : null;
     })();
+    // ...AND NOT IN FRONT OF A SEATED FACE (G3519, NEW-SHAPES-1): an open section's coaming rings (cpOpenA/B,
+    // pax<i>OpenA/B) bound a band of the crown, the cockpits and the decking between them, where the comm aerial
+    // stood before the rear occupant's face; a crown fitting goes to the turtle deck aft instead. Only a build
+    // with a section open (S.open) has those rings.
+    const openBand = OPEN_BAND.P === P ? OPEN_BAND.v : (OPEN_BAND = { P, v: (() => {
+      if (!CG2 || !CG2.cageSpec || !CG2.cageResolve || !CG2.cageAnyOpen || !CG2.cageAnyOpen(P)) return null;
+      let R; try { R = CG2.cageResolve(CG2.cageSpec(Object.assign({}, P))); } catch (e) { return null; }
+      let z0 = Infinity, z1 = -Infinity;
+      for (const r of (R && R.rings) || []) {
+        if (!/^(cp|pax\d+)Open[AB]$/.test(r.name)) continue;
+        const l = r.lv && (r.lv.waist || r.lv.keel); if (!l || !isFinite(l.z)) continue;
+        z0 = Math.min(z0, l.z * FS); z1 = Math.max(z1, l.z * FS);
+      }
+      return isFinite(z0) && z1 > z0 ? { z0, z1 } : null;
+    })() }).v;
     const shadowed = pm => {
       if (finBand && pm[2] > finBand.z0 - 0.06 && pm[2] < finBand.z1 + 0.06) return true;
+      if (openBand && pm[2] > openBand.z0 - 0.10 && pm[2] < openBand.z1 + 0.10) return true;
       if (!wingHigh || !WG || !WG.leAt || !WG.teAt) return false;
       const le = WG.leAt(0), te = WG.teAt(0);
       if (!le || !te) return false;

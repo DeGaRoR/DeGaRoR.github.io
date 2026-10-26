@@ -1912,6 +1912,9 @@ const ARCHETYPES = [
                     bpInter: 0, bpWires: 1, bpCabane: 0,
                     ...OPEN_TANDEM,
                     halfW: 0.43, roofHalfW: 0.34, roofY: 0.58, keelY: -0.67, waistY: 0.22, floorY: -0.32,
+                    // G3519: the boom frame's top and bottom on the line from the rear cockpit to the tail post (the
+                    // class's 0.78 / -0.765 stood the taper ring over the deck and under the keel: a hump top and bottom)
+                    aftRoofY: 0.56, aftKeelY: -0.60,
                     pilotLen: 0.95, paxLen: 1.00, s1Drop: 0.46,      // (a prop clearance of 0.25 m: FAR 23.925 0.229)
                     aeroWsLen: 1.45, aeroLen: 0.95, aeroTipW: 0.55, aeroTipH: 0.60, aeroDroop: 0.10 },
             spec: { fuel: { litres: 87 } } } },       // 19 imp gal, the centre-section tank
@@ -1939,6 +1942,9 @@ const ARCHETYPES = [
                     bpInter: 0, bpWires: 1, bpCabane: 0, cw_propD: 2.5,
                     ...OPEN_TANDEM,
                     halfW: 0.58, roofHalfW: 0.46, roofY: 0.72, keelY: -0.55, waistY: 0.28, floorY: -0.30,
+                    // G3519: the boom frame's top and bottom on the line from the rear cockpit to the tail post (the
+                    // class's 0.78 / -0.765 stood the taper ring over the deck and under the keel: a hump top and bottom)
+                    aftRoofY: 0.69, aftKeelY: -0.50,
                     pilotLen: 1.00, paxLen: 1.10, s1Drop: 0.80,      // (0.72 flew a prop strike once the wings came forward)
                     // G3517: the mains 0.30 forward - at the cage's 2.00 the CG sat 33 deg AHEAD of the axle and the
                     // rollout braking nosed it over (a prop strike at 314 s); 2.30 gives 17 deg (the Moth's 15)
