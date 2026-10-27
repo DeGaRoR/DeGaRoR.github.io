@@ -99076,3 +99076,26 @@ Strict light gate RED (6), all in known classes; the loads are back inside their
 - metal fuseWidth busy 393: the bimodal 0 / ~400 ms rep (master's own L24b / L24c show the same).
 - world -> garage: cub round trip 2 at 2.02 s, floats at 5.29 s. The class red since L24c (2.99 / 3.55 there); HWCOV has the cause, the per-trip cacheKey churn of fragment 66e30961, and its Mon 12:45 slot names the owner.
 Pushed by the user's order of 25 Oct: land as soon as possible.
+
+## G3541-G3548 - AIRCRAFT-LOOKS: THE PAINT REACHES THE ROD BOOM AND THE TRUSS, NO REGISTRATION READS MIRRORED, THE WHOLE AEROPLANE PICKED WEARS ONE SILHOUETTE, THE TUNDRA IS A BALLOON ON A SMALL HUB (2026-10-26, AIRCRAFT-LOOKS, LOCAL; for T-P2 / L27a; claude/ready/aircraft-looks)
+Why: the user's playtest of 24 Oct, and the user's rulings of 25 Oct relayed by A0. Registrations: "not having mirrored registration when projecting either on the fuselage ... but also on the wings. The top side and bottom sides should be treated differently, and that should be the same for the stabs and the fins." Tundra: "the bigger tundra wheels are bad ... their flank was protruding, and their proportions were bad."
+What changed (drawing only - no spec key, no certificate):
+- G3541 (_cage_ui.js baseReach): the global paint reaches the rod boom and an open fuselage's truss tubes, like the other skins.
+- G3542 + G3547 (aeroskin.js decal shader):
+  - PLAN box (wings, stabs): flips on a face whose normal points down (vCraftNrm.z < 0), so the bottom reads from below and the top from above.
+  - SIDE box (fins, fuselage flanks): mirrors by the face's own lateral normal (|nx| > 0.25; else the position's side). Both faces of a fin and a twin boom's inner face read forward.
+  - The field box is unchanged.
+- G3543 (editor.js hiBuild): the root picked (its tree row, the livery pill) draws the union silhouette of every drawn mesh. The garage opening on the root, or a click into empty space, draws nothing, as before (select(key, picked) / rootPicked).
+- G3548 (_gear_gen.js TYRE[1], the torus):
+  - hw 0.50 -> 0.44 R, bead 0.34 -> 0.25 R: W/D 0.44, rim 0.26 D, section 0.84 of its width. That is the Alaska Bushwheel family (26x12x6, 35x15x10: 0.43-0.46, 0.23-0.29, ~0.83).
+  - For the torus only, the rim, face style, bolts, cap, valve and brake scale with the bead (Rh); the 0.62 R brake disc had stood proud of the sidewall.
+  - No moulded rings on the torus sidewall.
+  - The standard and slim wheels draw byte for byte (Rh === R). The flight reads s1R; TYRE_CN is untouched.
+- G3545 (retire the old dummy) WITHDRAWN: it moved to DUMMY-RETIRE (the user's call). The commit 35484a7b6's title still names it; its code is not in this branch.
+- NOT DONE: the elevator's visible side shaded and detailed like the cut wing side (item 4) - left for a later round.
+Stills (Mon 26 00:45 s26-g1, before = L25b's files vs after; the session's scratchpad stills/):
+- reg2/ba_*: N1ORF on the Cub and Rufus. Under the wing and the stab it read mirrored and now reads right; the tops and both fin sides are unchanged and right.
+- tundra_wheel_front.jpg: the standard wheel | today's tundra | this.
+- valid/pair_*: Cub, Jodel, Cessna, Cessna floats, twin floats, Rufus, unchanged at load apart from the entry outline that f46685a6e removes.
+Rig trap: since L25b, dev.html's boot runs ~65 s after the garage objects exist. A still taken before BOOT.state 'gone' shows a half-built world.
+Correction to G3540 above: its evidence was the node page check, not steps_wheels.js. That check is tools/_page_node.js with the user's Cub, rolled out and flown for 240 s: worker and inline PASS, master's app.js FAIL.
