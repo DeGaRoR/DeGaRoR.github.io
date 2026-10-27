@@ -1168,6 +1168,32 @@ function aeroBaseReach(map, prev, next, neutral, eq, names, opts) {
   }
   return map;
 }
+// G3549 (the user, 27 Oct: "the global livery does not reach the second wing"): A PLANE'S CLONE FOLLOWS ITS SOURCE.
+// The second wing wears its own copy of the pooled section material (aeroPlane 2: the join buckets it apart, the game
+// binds it apart - _cage_wing.js wingMat). The garage's repaint (_cage_ui.js) swaps the materials the section requests
+// handed out, and the copy was never one of them: the reach was right, the second wing kept the old paint until the
+// next full build. Each copy remembers its source here; a repaint hands the copy of the source's replacement to every
+// mesh wearing the old copy (or the game's understudy of it), as the cowl's twins do (G1301).
+const AERO_PLANE_SRC = new WeakMap();
+function aeroPlaneClone(m, plane) {
+  const m2 = m.clone();
+  m2.userData = Object.assign({}, m.userData, { aeroPlane: plane });
+  AERO_PLANE_SRC.set(m2, m);
+  return m2;
+}
+function aeroPlaneRepaint(swap, scene) {
+  const made = new Map();
+  let n = 0;
+  scene.traverse(o => {
+    if (!o.isMesh || !o.material || Array.isArray(o.material)) return;
+    const m = o.material, om = (m.userData && m.userData.cageUniOf) || m;
+    const src = AERO_PLANE_SRC.get(om), nu = src && swap.get(src);
+    if (!nu) return;
+    if (!made.has(om)) made.set(om, aeroPlaneClone(nu, om.userData.aeroPlane));
+    o.material = made.get(om); n++;
+  });
+  return n;
+}
 
 // ---------------------------------------------------------------------------
 // THE COLOUR TRAP, stated in both directions (63_gen_skin.js:2957 has the
@@ -4883,7 +4909,7 @@ if (typeof window !== 'undefined')
                       AERO_KIT_LDEF, AERO_KIT_FIELDS,
                       aeroKitKnob, aeroKitLayers, aeroKitDraw, aeroKitArgs, AERO_KIT_CLEAR,
                       AERO_HARD, AERO_PROP_FIN, AERO_WEAR_K,
-                      AERO_SEC, aeroSecResolve, aeroBaseReach, aeroFinishLegacy,
+                      AERO_SEC, aeroSecResolve, aeroBaseReach, aeroFinishLegacy, aeroPlaneClone, aeroPlaneRepaint,
                       aeroHardFinish, aeroHardMat, aeroHardOn, aeroSetWear,
                       aeroSharedU,          // G345: uCraftInv for the sources
                       // THE LAB (G206)
@@ -4909,7 +4935,7 @@ if (typeof module !== 'undefined')
                      AERO_KIT, AERO_KIT_LAYERS, AERO_KIT_PAGE0,
                      AERO_KIT_LDEF, AERO_KIT_FIELDS,
                      aeroKitKnob, aeroKitLayers, aeroKitArgs, AERO_KIT_CLEAR,
-                     AERO_SEC, aeroSecResolve, aeroBaseReach, aeroFinishLegacy,
+                     AERO_SEC, aeroSecResolve, aeroBaseReach, aeroFinishLegacy, aeroPlaneClone, aeroPlaneRepaint,
                      AERO_FINISH_DEF, AERO_LAB_FIELDS, AERO_LAB_GRAM,
                      AERO_GAIN_DEF, GLASS_DEF, aeroIsInside, AERO_CABIN_DEF,
                      aeroDecOk, aeroRestBake };
