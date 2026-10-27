@@ -99063,3 +99063,13 @@ Strict light gate RED (6), all in known classes; the loads are back inside their
 - metal fuseWidth busy 393: the bimodal 0 / ~400 ms rep (master's own L24b / L24c show the same).
 - world -> garage: cub round trip 2 at 2.02 s, floats at 5.29 s. The class red since L24c (2.99 / 3.55 there); HWCOV has the cause, the per-trip cacheKey churn of fragment 66e30961, and its Mon 12:45 slot names the owner.
 Pushed by the user's order of 25 Oct: land as soon as possible.
+
+## G3543 - VEHICLE PRINTS: A SOFT DARK RECTANGLE UNDER EVERY CAR ON THE GROUND (2026-10-25..27, HANGARS-LOOK for A0, LOCAL-GPU; claude/ready/vehicle-shadows on master d7e181f4e = L25c, gated 78ea9cd96; READY for L27a)
+The user, 25 Oct via A0: "the vehicles not casting a shadow on the ground ... A simple dark rectangle would suffice, but something, otherwise they float"; 26 Oct: "undo your lifts now, to the minimum where it remains visible" and "you can make the shadows darker".
+- render_premises.js: two InstancedMesh prints (premises:carprints = the yards', lots' and life's parked cars; premises:carprints:traffic = the moving traffic), one board each car, (W + 1.0) x (L + 1.2) m, the alpha ramp 20 % of each side, opacity 0.75, renderOrder 6.5, the MATLIB material (GATE ASSETS AS4a); only the drawn prints' matrices are uploaded (FRAMECOST bytes.bufferSubData ALLOW 544 -> 768, upTo 800, both builds, A0 26 Oct). scenery_life.js feeds its parked cars.
+- PRINT_LIFT { st, tr } = 0.25 / 0.25 m over heightAt, picked by tools/prints_probe.js --pick (node, all Jolene: the drawn ground - ribbons, paved polys, patch, fine tiles - over the print's tilted plane in its core; each class's p99.5 + 0.03, clamped 0.03-0.25). 27 Oct: traffic n 51208 p99.5 0.239; parked n 47068 p99.5 0.993 (the lots' polys over slopes) -> both at the 0.25 cap. Re-run the probe after any road / pave / patch change before moving the lift.
+- Premises re-cooked on L25c (the placement code's hash), GATE PREMCOOK.
+### THE GATES (Tue 27 Oct, s27-c2h 02:15 + s27-c3p 05:31, on 78ea9cd96, parked cook --check (same))
+- PASS: AUDIO ATMO ANIMALS DMGSCAR GFX FADES CONTACT LOOKS ASSETS PREMISES SCENERYED PATCHFAR PREMCOOK TARR KITHOST CITYHOST METKIT PARKED PAVEMENT LIFE.
+- CLOUD FAIL 1/239 = master's own: tools/_cloud_check.js:263 expects `.filter(q => q[0] < r2).sort(`, master's render_premises.js reads `.filter(q => q[0] < r2 && !(q[1].chunk && !q[1].grp.visible))` (no match on master d7e181f4e either).
+- FRAMECOST: GATE FRAMECOST: FAIL (1) = the standing master key only (cessna boot/garage:restore/three.updateMatrixWorld rose 2269 -> 4553; A0: a standing master red). Run s27-c3p 05:31 (the 02:15 run was cut at its stop with no verdict).
