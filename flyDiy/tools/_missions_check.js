@@ -313,6 +313,13 @@ function run(mut) {
     ['an onDone that pays', { do: 'land', place: 'HOME', onDone: { pay: 100 } }, null, /onDone/],
   ];
   for (const [label, st, ex, re] of waits) ok(re.test(one(st, ex)), 'runtime: ' + label + ' still waits (' + one(st, ex) + ')');
+  ok(/do loop/.test(one({ do: 'loop', place: 'HOME' })), 'runtime: a verb nobody knows never runs (' + one({ do: 'loop', place: 'HOME' }) + ')');
+  // the install holds a mission that waits even in a chapter it would run (an any chapter, a seq chapter)
+  const HP = clone(S); HP.campaigns[0].chapters[1].order = 'any';
+  HP.missions[3].legs[0].steps[0].require.plane.push({ k: 'ldgDistM', op: '<=', v: 300 });
+  const HI = M.missionPackInstall(HP);
+  ok(HI.held.some(h => h.id === 's.order' && /ldgDistM/.test(h.why)) && !HI.providers.clients.builds.some(r => r.id === 's.order') && !HI.held.some(h => h.id === 's.bush' && /choose/.test(h.why)),
+     'the install holds an order naming ldgDistM out of an any chapter, with its reason (' + J(HI.held).slice(0, 160) + ')');
   ok(/choose/.test(M.contractRuntimeOk(M.missionToContract({ id: 'x', provider: 'clients', kind: 'contract', title: 't', brief: 'b', legs: [{ order: 'choose:1', steps: [{ do: 'land', place: 'HOME' }] }],
     pay: { base: 1 }, rep: { provider: 'clients', gain: 0 } }, {}))), 'runtime: steps choose:N still wait');
   ok(M.contractRuntimeOk(M.missionToContract({ id: 'x', provider: 'clients', kind: 'contract', title: 't', brief: 'b', legs: [{ order: 'seq', steps: [{ do: 'land', place: 'HOME' }] }],
@@ -518,6 +525,9 @@ function runtimeRows(M, mut) {
   ok(E1.timers.speed && E1.timers.speed.s === 60 && F1.ev.some(e => e.k === 'timer' && e.state === 'stop' && e.s === 60), 'the timer: g1 -> g2 in 60 s');
   ok(!fly(flightLine(-2500, -6500, 50, 300)).T.hits.g1, 'too high (300 m AGL, the band 150): no gate');
   ok(!fly(flightLine(-6500, -2500, 50, 100)).T.hits.g2, 'g2 flown the wrong way (it faces north): no hit');
+  const g2p = sp.stages[0].subs[1].place, segS = [{ t: 0, x: -450, z: -5900, agl: 100 }, { t: 1, x: -450, z: -6100, agl: 100 }];
+  ok(!!N.missionHitTest(g2p, ...segS) && !N.missionHitTest(g2p, segS[1], segS[0]) && !!N.missionHitTest(Object.assign({}, g2p, { dir: undefined }), segS[1], segS[0]),
+     'a gate that faces north: through it north-bound yes, south-bound no; with no facing, either way');
   ok(!fly(flightLine(-5500, -6500, 50, 100)).T.hits.g2, 'seq: g2 is not armed before g1');
   ok(!fly(flightLine(-2500, -6500, 50, 100, -300)).T.hits.g1, 'beside the posts: no gate');
   // a fast sample (one segment over both gates, 4 km in one second): both counted, in order, the lap interpolated
@@ -591,6 +601,8 @@ function runtimeRows(M, mut) {
   // ---- P2: ACCEPT ANSWERS THE NEW CRITERIA ------------------------------------------------------------------------------
   const def = N.buildGen(cubSpec), ev = N.acceptEvidence(def, { shake: { Vs: 15, TORun: 150, climbRate: 3, mass: 476 } });
   const V = c => N.acceptVerdict([c], ev).rows[0];
+  ok(V({ k: 'lengthM', op: '<=', v: 25 }).value === Math.round((ev.foot.fwd + ev.foot.aft) * 10) / 10 && V({ k: 'heightM', op: '<=', v: 8 }).value === ev.foot.h && Math.abs(V({ k: 'lengthM', op: '<=', v: 25 }).value - 2 * ev.foot.half) > 0.5,
+     'the measured plan read right: the length nose to tail (not the span), the height');
   ok(V({ k: 'heightM', op: '<=', v: 8 }).ok && !V({ k: 'heightM', op: '<=', v: 1 }).ok && V({ k: 'lengthM', op: '<=', v: 25 }).ok && !V({ k: 'lengthM', op: '<=', v: 3 }).ok,
      'heightM / lengthM off the measured plan (h ' + ev.foot.h + ' m, ' + (ev.foot.fwd + ev.foot.aft).toFixed(1) + ' m long)');
   ok(V({ k: 'pax', op: '>=', v: 1 }).ok && !V({ k: 'pax', op: '>=', v: 2 }).ok, 'pax: the Cub carries one beside the pilot');
@@ -620,7 +632,7 @@ const MUTS = [
   ['an authored checkpoint is overwritten', { '73b_missions.js': sub('if (was && !was.auto) return was;', '') }],
   ['prefs need no marking', { '73b_missions.js': sub("if (!MISSION_NEED.includes(p.need))", 'if (false)') }],
   ['the pay forgets a place', { '73_contracts.js': sub('skm += s.to || !s.place ? contractKm(s.from, s.to, F) : contractPlaceKm(s.from, s.place, F);', 'skm += contractKm(s.from, s.to, F) || 0;') }],
-  ['the runtime runs the new verbs', { '73_contracts.js': sub("if (!CONTRACT_DO.includes(s.do)) return 'do ' + s.do + ' (no runtime yet)';", '') }],
+  ['the runtime runs a verb nobody knows', { '73_contracts.js': sub("if (!CONTRACT_DO.includes(s.do) && !CONTRACT_DO_NEXT.includes(s.do)) return 'do ' + s.do + ' (no runtime yet)';", '') }],
   ['the new verbs pass without opts.mission', { '73_contracts.js': sub('!(opts.mission && CONTRACT_DO_NEXT.includes(s.do))', '!CONTRACT_DO_NEXT.includes(s.do)') }],
   ['the order with preferences is refused its words', { '73_contracts.js': sub('const prefs = opts.mission && Array.isArray(r.prefs) && r.prefs.length > 0;', 'const prefs = false;') }],
   ['the arc is not offered in order', { '72_contract_data.js': sub("arc: [\n      C_({ id: 'field.01'", "arc: [\n      C_({ id: 'field.01x'") }],
