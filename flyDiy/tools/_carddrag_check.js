@@ -44,6 +44,7 @@ const ALLOW = {
   ecNote: 'a span inside the garage\'s wallet line',
   ctlNote: 'a line inside #ctlPanel (which is a card)',
   gLoad: 'the garage shelf\'s "load" button',
+  fkCard: 'no element: named only in a CSS comment (editor.css, P1 CG-COLOURS #cgTip: "the tokens are redeclared as #fkCard does")',
 };
 const SUFFIX = /^[A-Za-z][A-Za-z0-9]*(Card|Panel|Band|Toast|Box|Sheet|Award|Run|Load|Note|Notice)$/;
 const files = [];
