@@ -255,7 +255,10 @@ function wheel(bags, ctr, axis, R, opt) {
   const face = hw * (prof.faceW || 0.74);    // THE RIM IS INSET (user)
   // the hub's axial stations (barrel, caps, valve) follow the rim face: a torus's narrow rim pulls them in with it
   const hwHub = prof.torus ? hw * prof.faceW / 0.74 : hw;
-  const tread = Math.round(P.whTread == null ? 0 : P.whTread);
+  // G3852 (the user, 27 Oct: "the tread options can go"): EACH CARCASS DRAWS ITS OWN TREAD - the standard and the slim
+  // their ribbed grooves, the tundra its bush lugs. whTread stays in every file exactly as loaded (a hashed cage row:
+  // reading it and ignoring it here keeps every certificate) and is no longer a row on the panel
+  const tread = prof.torus ? 1 : 0;
   const T = bags.tyre, Hb = bags.hub;
   const ax = nrm(axis);
   let e1 = Math.abs(ax[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
@@ -309,31 +312,12 @@ function wheel(bags, ctr, axis, R, opt) {
   let wallAt = () => hw * 0.90;
   if (prof.torus) {
     // G2784: one ellipse, bead to bead; whBulge widens it as it widens the flank
-    const grooves = tread === 0 ? Array.from({ length: ribs }, (_, k) => (-1 + 2 * (k + 0.5) / ribs) * half) : [];
+    const grooves = [];                       // G3852: the bush tyre wears lugs, never circumferential grooves
     const TT = tyreTorus(R, bead * 1.03, beadH, hw * B, grooves);
-    revolve(T, ctr, ax, TT.pts.map(([r, z, ph]) => {
-      if (tread === 0 && Math.cos(ph) > 0) {
-        const t = z / half;
-        for (const gp of grooves) { const d = (t - gp / half) / 0.075; r -= R * 0.052 * Math.exp(-d * d * 3.2) * Math.cos(ph); }
-      }
-      return [r, z];
-    }), 44);
+    revolve(T, ctr, ax, TT.pts.map(([r, z]) => [r, z]), 44);
     wallAt = r => { const u = (r - TT.rc) / TT.a; return Math.abs(u) < 1 ? TT.b * Math.sqrt(1 - u * u) : beadH; };
-    if (tread !== 0) bushLugs(T, TT, R, at);
+    bushLugs(T, TT, R, at);
   } else revolve(T, ctr, ax, flank(-1).concat(crown, flank(1).reverse()), 44);
-  if (tread === 2 && !prof.torus) {
-    const NB = 15;
-    for (let row = -1; row <= 1; row += 2)
-      for (let k = 0; k < NB; k++) {
-        const an = 2 * Math.PI * (k + (row > 0 ? 0.5 : 0)) / NB;
-        const c0 = at(R * 0.985, row * half * 0.46, an);
-        const rad = nrm(sub(c0, add(ctr, mul(ax, row * half * 0.46))));
-        // (ax, rad x ax, rad) is RIGHT-handed; (ax, ax x rad, rad) is not,
-        // and every lug came out inside out
-        boxIn(bags.tyre, off(c0, rad, R * 0.030),
-              [R * 0.085, R * 0.20, R * 0.042], ax, crs(rad, ax), rad);
-      }
-  }
   if (!prof.torus) for (const s of [-1, 1])
     for (const rr of [0.62, 0.70]) {
       // on the sidewall: the straight wall's 0.90 hw, or the torus where it is at that radius

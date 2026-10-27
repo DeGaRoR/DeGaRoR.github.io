@@ -120,7 +120,8 @@ const STEERS = ['fixed', 'linked', 'castor'];
 // the bench's own group + the new sidewall bulge.
 const WHEEL_ROWS = [
   ['whProfile', 'carcass', 0, 2, 1, ['standard', 'tundra balloon', 'slim']],
-  ['whTread', 'tread', 0, 2, 1, ['ribbed', 'smooth', 'blocked']],
+  // G3852: the 'tread' row (ribbed / smooth / blocked) is gone - each carcass draws its own; whTread stays in DEF
+  // and in every file as loaded (a hashed cage row)
   ['whBulge', 'sidewall bulge ×', 0.85, 1.40, 0.01],
   ['whRibs', 'ribs', 1, 5, 1],
   ['whRim', 'rim', 0, 2, 1, ['cast disc', 'spoked', 'lightened']],
