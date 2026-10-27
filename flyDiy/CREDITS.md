@@ -655,6 +655,31 @@ pickups, SUVs, vans, a minibus, box trucks, flatbeds, two semis, a city bus,
 a police 4x4, a rusty saloon); the second, eight-material copy of the police
 4x4 is left out. Imported as-is, selected by node, no scale and no turn.
 
+**The construction machines** (`assets/vehicles/construction/`, ASSETS-OCT,
+the `construction` group of the pier table, baked into
+`src/pier/pier_construction.js`) — **Sketchfab, CC-BY-4.0**, the provenance
+read out of each file's own `asset.extras`; attribution is a condition of the
+licence and must stay visible wherever they are shown. The CAT and JCB marks
+are painted over at the bake (the user, 25 Oct); the delivered files are
+untouched.
+
+- `machine_excavator` — **"Excavator (CAT)"** by sarvesh12
+  (https://sketchfab.com/3d-models/excavator-cat-5f195244108c46e495a1e78040f02f7e)
+- `machine_backhoe` — **"JCB Backhoe Loader 3CX Tractor"** by Kyle Burton
+  (https://sketchfab.com/3d-models/jcb-backhoe-loader-3cx-tractor-5b2d02e1c1c14deba0f9c8d75fff54b6)
+- `machine_bulldozer` — **"Bulldozer"** by RobbyHollister
+  (https://sketchfab.com/3d-models/bulldozer-2137d93b5a804161bc65b44d583aa68e)
+- `machine_crane` — **"Components of Crane"** by Steven Mai
+  (https://sketchfab.com/3d-models/components-of-crane-08b8b4f1bb7a46e9892e08bd9517f992)
+- `machine_excavator_wheeled` — **"Escavadeira Tractor"** by LuizZed36
+  (https://sketchfab.com/3d-models/escavadeira-tractor-7e297dc563d24ae3aa9e95ce899e0f4f)
+- `machine_skidsteer` — **"Skid Steer Loader"** by Adelprince69
+  (https://sketchfab.com/3d-models/skid-steer-loader-09c5ac66e1074d29ae1e7699001555ed)
+- `tractor_farm` — **"Tractor"** by sheldon.bean
+  (https://sketchfab.com/3d-models/tractor-e9e844f2f9364044a181ce8f38a83dc3)
+- `tractor_scan` — **"Tractor"** by selfie 3D scan (bevadek)
+  (https://sketchfab.com/3d-models/tractor-1b258bcc01bf4ed0935ef73e80442c30)
+
 **The clutter** (`assets/propsHouse/`, G293) — **Sketchfab, CC-BY-4.0**,
 attribution required:
 
