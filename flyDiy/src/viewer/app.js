@@ -9828,7 +9828,7 @@
     const has = new Set(cast), out = [], id = (FST.A && FST.A.contract) || null;
     const take = pid => { const k = FP.char(pid); if (k && has.has(k) && !(used && used.has(k)) && !out.includes(k)) out.push(k); };
     let rec = null;
-    try { rec = id && typeof careerContract === 'function' ? careerContract(playerLoad(), id) : null; } catch (e) {}
+    try { rec = id && CAREER_DEV && typeof careerContract === 'function' ? careerContract(playerLoad(), id) : null; } catch (e) {}
     const c = rec && rec.provider && typeof FP.client === 'function' ? FP.client(rec.provider) : null;
     if (c) take(c);
     for (const pid of FP.pool('passenger', 64, id || 'sandbox')) { if (out.length >= n) break; take(pid); }
