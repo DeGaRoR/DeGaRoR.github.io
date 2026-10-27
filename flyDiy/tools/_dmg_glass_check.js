@@ -18,6 +18,11 @@
 //      brightens 1500 px or more and darkens none (the glass only adds light); a mark 5 cm off the pane's plane, or facing
 //      away from it, changes not one pixel; a mark costs no program (renderer.info.programs the same). --png <file> keeps
 //      the marked picture.
+//   N  SMOOTH (the user, 27 Oct: "no flat shading on any deformed or damaged part - it looks bad and looks like a bench"):
+//      the crack block and GLSL_CRACK write no normal (the pane keeps its own smooth, interpolated normals - riding the
+//      wreck too: skin_break / skin_gpu turn each vertex's own rest normal); aeroGlass flatShading false; a curved pane
+//      (12 facets, its own smooth normals) drawn by the real aeroGlass under a light near the eye has no step at a facet
+//      edge, marked or not, while the same pane with flatShading forced shows them (the control: the row can see it).
 //   T  THE TRIGGERS on the user's validated builds (the Cub, the Jodel, the metal Cessna), node only, the page's own path:
 //      the panes are the flown snapshot's glass groups (tools/_dmg_wall_study.js prepare: windshield, the cabin windows,
 //      a drawn pane, the skylights) in the design frame, the members the def's (not gear, not wires) at their rest
@@ -279,12 +284,43 @@ async function rowsGR() {
       DMG_GLASS.pack(U, mk([0.05, 0.02, 0], [0, 0, -1], 1)); const away = shot();
       DMG_GLASS.pack(U, mk([0.05, 0.02, 0], [0, 0, 1], 0.2)); const light = shot();
       DMG_GLASS.pack(U, []); const a2 = shot();
-      return { ok, u0, progA, progC, mark: cmp(a, c), off: cmp(a, off), away: cmp(a, away), light: cmp(a, light), back: cmp(a, a2), img };
+      // N: SMOOTH (the user, 27 Oct: no flat shading on a damaged part). A CURVED pane - a 0.6 m radius cylinder strip, 12
+      // facets over 1 rad, its normals the part's own smooth (radial, shared) ones - under a light near the eye: the
+      // luminance along three rows (outside the mark's reach) has no STEP at the facet edges, with the mark on as with it
+      // off (a step: a jump between neighbouring pixels over 3 x the row's median jump + 2 codes, counted). The control:
+      // the same pane with flatShading forced shows steps at its facet edges - the row sees flat shading when it is there
+      const sc2 = new THREE.Scene(); sc2.add(new THREE.AmbientLight(0xffffff, 0.4));
+      const dl2 = new THREE.PointLight(0xffffff, 6, 0, 0); dl2.position.set(0.15, -0.2, 1.2); sc2.add(dl2);
+      const cg = new THREE.CylinderGeometry(0.6, 0.6, 0.8, 12, 4, true, -0.5, 1.0), CP = cg.attributes.position, cn = CP.count;
+      const st2 = new Float32Array(cn * 4), rs2 = new Float32Array(cn * 4);
+      for (let i = 0; i < cn; i++) { st2[i * 4] = Math.atan2(CP.getX(i), CP.getZ(i)) * 0.6 + 0.5; st2[i * 4 + 1] = CP.getY(i) + 0.4; rs2[i * 4] = CP.getX(i); rs2[i * 4 + 1] = CP.getY(i); rs2[i * 4 + 2] = CP.getZ(i); rs2[i * 4 + 3] = 2; }
+      cg.setAttribute('aStruct', new THREE.BufferAttribute(st2, 4)); cg.setAttribute('aRest', new THREE.BufferAttribute(rs2, 4));
+      const cyl = new THREE.Mesh(cg, m); cyl.position.set(0, 0, -0.6); sc2.add(cyl);
+      const shot2 = () => { Rn.render(sc2, cam); gl.readPixels(0, 0, W, W, gl.RGBA, gl.UNSIGNED_BYTE, px); return Array.from(px); };
+      // (a STEP: a jump between neighbouring pixels over 4 x both its neighbours' jumps + 6 codes - a facet edge; a steep
+      // smooth gradient has neighbours as steep. Rows through the light's highlight, below the mark's reach)
+      const steps = img2 => { let n = 0, rows = 0; for (const yy of [85, 95, 105]) { const Lr = []; for (let x = 0; x < W; x++) { const i = (yy * W + x) * 4; Lr.push(img2[i] + img2[i + 1] + img2[i + 2]); }
+          let any = 0; for (let x = 3; x < W - 3; x++) { if (!(Lr[x - 2] > 0 && Lr[x + 1] > 0)) continue; any++;
+            const d0 = Math.abs(Lr[x] - Lr[x - 1]), dm = Math.abs(Lr[x - 1] - Lr[x - 2]), dp = Math.abs(Lr[x + 1] - Lr[x]); if (d0 > 4 * Math.max(dm, dp) + 6) n++; }
+          if (any > 50) rows++; }
+        return { n, rows }; };
+      DMG_GLASS.pack(U, []); const s0 = shot2();
+      DMG_GLASS.pack(U, mk([0.0, 0.22, 0.0], [0, 0, 1], 0.4)); const s1 = shot2(), imgN = cv.toDataURL('image/png');
+      DMG_GLASS.pack(U, []);
+      const flat0 = m.flatShading; m.flatShading = true; m.needsUpdate = true; const sF = shot2(); m.flatShading = flat0; m.needsUpdate = true;
+      const N = { flatShading: flat0, off: steps(s0), on: steps(s1), flat: steps(sF), markCh: cmp(s0, s1).ch, imgN };
+      return { ok, u0, progA, progC, mark: cmp(a, c), off: cmp(a, off), away: cmp(a, away), light: cmp(a, light), back: cmp(a, a2), img, N };
     });
     if (opt('png')) fs.writeFileSync(opt('png'), Buffer.from(R.img.split(',')[1], 'base64'));
     const ok = R.ok && R.u0 && !errs.length && R.progA === R.progC && R.mark.br >= 1500 && R.mark.dk === 0 && R.off.ch === 0 && R.away.ch === 0 && R.back.ch === 0 && R.light.br > 50 && R.light.br < R.mark.br;
     row('R', ok, 'the page\'s material (the real aeroGlass, three r186): links' + (R.u0 ? '' : ' - the shared block has no uCrack* of MAX') + (errs.length ? ' - ERRORS: ' + errs.slice(0, 2).join(' | ') : '') + '; programs ' + R.progA + ' -> ' + R.progC +
       '; a broken member\'s mark brightens ' + R.mark.br + ' px (>= 1500), darkens ' + R.mark.dk + '; a light one ' + R.light.br + ' px; 5 cm off the plane ' + R.off.ch + ' px changed, facing away ' + R.away.ch + ', cleared ' + R.back.ch);
+    { const N = R.N, src = fs.readFileSync(AS_FILE, 'utf8'), blk = (src.match(/if \(uCrackN > 0\.5\) \{[\s\S]*?roughnessFactor \+= 0\.6 \* aeroCrack\.x[^\n]*/) || [''])[0];
+      const touches = /\bnormal\s*=|geometryNormal|dFdx|dFdy|faceDirection/.test(blk + DG.GLSL_CRACK);
+      if (opt('png')) fs.writeFileSync(opt('png').replace(/\.png$/, '_curved.png'), Buffer.from(N.imgN.split(',')[1], 'base64'));
+      const ok = !!blk && !touches && N.flatShading === false && N.off.rows === 3 && N.on.rows === 3 && N.off.n === 0 && N.on.n === 0 && N.markCh > 200 && N.flat.n >= 6;
+      row('N', ok, 'smooth (no flat shading on a damaged part): the crack block and GLSL_CRACK write no normal (no normal =, geometryNormal, dFdx / dFdy, faceDirection)' + (touches ? ' - THEY DO' : '') + '; aeroGlass flatShading ' + N.flatShading +
+        '; a curved pane (12 facets, its own smooth normals) under a light near the eye: steps at facet edges ' + N.off.n + ' unmarked, ' + N.on.n + ' with a mark (' + N.markCh + ' px marked), against ' + N.flat.n + ' with flatShading forced (the control, >= 6)'); }
   } finally { await br.close(); }
 }
 

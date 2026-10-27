@@ -99105,6 +99105,7 @@ The user, 27 Oct: "never seen an impact mark on glass". Before this, a pane eith
 
     Every mark sits on a glass pane, within 0.35 m of its member, and is drawn at its point. No mark is ever moved or displaced.
     - Reported only: the 4 m/s nose-over, the 6 m/s drop and the 12 m/s runway stump mark nothing on any of the three.
+  - **N** smooth shading (the user, 27 Oct: "no flat shading on any deformed or damaged part"; see below). A curved pane (12 facets, its own smooth normals) drawn by the real `aeroGlass` under a light near the eye shows 0 steps at its facet edges, marked or not. The same pane with `flatShading` forced shows 12: that is the control, proving the row sees flat shading.
   - `--selftest` sabotages the copy by one character and sets the members' reach to 0: S and T go red on every build.
 - **WHAT THE PAGE MUST SHOW (A0 + DEFORM's page check and evidence round).** Use dev.html with damage on.
   1. **By hand, no crash.**
@@ -99118,6 +99119,11 @@ The user, 27 Oct: "never seen an impact mark on glass". Before this, a pane eith
      - The parked aeroplanes' glass shows nothing.
   3. **Nothing on gentle events.** A taxi into a trunk at 3 m/s, a hard landing at the FAR cap, and a circuit all leave `FLYDIY_GLASS` null and the panes clear.
   4. **A reset or new flight** clears the marks (`FLYDIY_GLASS` null). So does another aeroplane.
+- **Smooth shading (the user, 27 Oct: "no flat shading on any deformed or damaged part - it looks bad and looks like a bench").** It holds for the glass marks:
+  - The mark adds no geometry and writes no normal. The crack block and `GLSL_CRACK` use no `normal =`, `geometryNormal`, `dFdx` / `dFdy` or `faceDirection`; GATE DMGGLASS S/N checks this in the source. So a marked pane shades with its own interpolated normals, and the crack's scatter is lit by the irradiance computed with them.
+  - The glazing's own normals are smooth in the flown snapshot: coincident places share them (windshield 303 / 303 pairs, pilotWindow 588 / 588 on the metal Cessna).
+  - Riding the wreck, skin_break / skin_gpu turn each vertex's own rest normal, so it stays per vertex, never per face.
+  - `aeroGlass` has `flatShading` false. Row N proves it on a curved pane against a flat control.
 - **Limits, said plainly.**
   - A pane thrown off as a debris body (wreck_debris) can lose its mark: its craft-space place no longer matches.
   - Marks follow members, not contact points. A trunk that strikes the glass between frame members without bending one leaves no mark.
