@@ -8,7 +8,7 @@
 //   --people a,b,c   the bodies to seat when the page has no FLYDIY_PEOPLE (Game's seam): a stub pool of exactly those
 //                    (the still's caption says so); with the seam on the page it is never replaced
 //   cd <worktree> && node flyDiy/tools/_serve.js 8152 . --fallback D:/Dev/DeGaRoR.github.io &
-//   node flyDiy/tools/crowd_shot.js [--port 8152] [--out <dir>] [--people adam,jody,kate] [--page dev.html] [--diag]   -> "CROWD SHOT: PASS|FAIL"
+//   node flyDiy/tools/crowd_shot.js [--port 8152] [--out <dir>] [--people adam,jody,kate] [--page dev.html] [--diag] [--probe] [--preset noon]   -> "CROWD SHOT: PASS|FAIL"
 // Guarded by boxlock (GPU) - never run beside a lock. No --help.
 'use strict';
 const fs = require('fs'), path = require('path'), cp = require('child_process'), http = require('http'), os = require('os');
@@ -81,6 +81,14 @@ async function chrome() {
       one.R.goT = 1e9; return one.R.people.every(p => p.state === 'line'); }).catch(() => false);
   }
   check(lined, '1 the line is drawn at the embark point, everyone waiting');
+  // --preset noon (G3619, the 10:35 probe: the crowd IS in every shadow pass - the game's 16:00 sun puts the line in the
+  // hangar's own shade): the sandbox's clock set to a named hour before the stills (DAY_CLOCK.preset)
+  const PRESET = opt('preset', '');
+  if (PRESET && lined) {
+    const ok = await P.ev(n => { if (!window.DAY_CLOCK || !window.DAY_CLOCK.preset) return false; window.DAY_CLOCK.preset(n); return true; }, PRESET).catch(() => false);
+    console.log('  note: the clock set to ' + PRESET + (ok ? '' : ' FAILED (no DAY_CLOCK)'));
+    await sleep(3000);
+  }
   // --diag (G3619, the user 26 Oct: "passengers should have shadows"): what the shadow passes see of each person -
   // castShadow, the near/far layer bits, the world sphere render_world's nearTag measures (it tags only r >= 0.75 m),
   // whether the near map's caster list holds the mesh, and the near map's cache counters
@@ -135,11 +143,19 @@ async function chrome() {
         const lay = o => o ? o.layers.mask : null, e = new T.Vector3(), q = new T.Quaternion(), s = new T.Vector3();
         const inst0 = m => { if (!m || !m.count) return null; const M4 = new T.Matrix4().fromArray(m.instanceMatrix.array, 0); M4.decompose(e, q, s); return [e.x, e.y, e.z, s.x, s.y, s.z].map(v => +v.toFixed(3)); };
         const p0 = one.H.find(Boolean);
+        // the sun at each one's shins: the first thing a ray toward the sun meets within 200 m (shade = a named caster)
+        const SN = window.SHADOW_NEAR, L = SN && SN.C1 && SN.C1.dir, rc = new T.Raycaster(), sun = [];
+        if (L && scene) for (const h of one.H) if (h) {
+          rc.set(new T.Vector3(h.g.position.x, h.g.position.y + 0.3, h.g.position.z), L.clone().normalize()); rc.far = 200;
+          let hit = null; try { hit = rc.intersectObjects(scene.children, true).find(x => !x.object.userData.crowdPerson && x.object !== feet); } catch (er) {}
+          sun.push({ who: h.p.key, shade: hit ? (hit.object.name || hit.object.type) + ' @' + hit.distance.toFixed(1) + ' m' : null });
+        }
         res({ mainLayers: mainCam ? mainCam.layers.mask : null, shadowOn: R.shadowMap.enabled, shadowAuto: R.shadowMap.autoUpdate,
           meshLayers: [...new Set([...mine.keys()].filter(o => o !== feet).map(lay))],
           feet: feet && { inScene: true, vis: feet.visible, count: feet.count, layers: lay(feet), order: feet.renderOrder, mat: feet.material.type, prog: !!feet.material.program,
             inst0: inst0(feet), person0: p0 ? [p0.g.position.x, p0.g.position.y, p0.g.position.z].map(v => +v.toFixed(3)) : null },
           wheels: wheels && { vis: wheels.visible, count: wheels.count, layers: lay(wheels), inst0: inst0(wheels), sameMat: !!feet && wheels.material === feet.material },
+          sunDir: L ? [L.x, L.y, L.z].map(v => +v.toFixed(3)) : null, sun,
           SN: window.SHADOW_NEAR ? { hook: window.SHADOW_NEAR.HOOK, C1: (({ pruned, full, boxPruned, boxFull, H, dB }) => ({ pruned, full, boxPruned, boxFull, H, dB }))(window.SHADOW_NEAR.C1) } : null,
           draws });
       };
@@ -149,7 +165,7 @@ async function chrome() {
     fs.writeFileSync(path.join(OUT, 'crowd_probe.json'), JSON.stringify(pr, null, 1));
     const ks = pr.draws ? Object.keys(pr.draws) : [];
     console.log('  probe: ' + (pr.err || ks.length + ' crowd objects drawn; shadow draws ' + ks.filter(k => Object.keys(pr.draws[k]).some(p => p.startsWith('shadow'))).length +
-      ', main draws ' + ks.filter(k => pr.draws[k].main).length + ', feet ' + JSON.stringify(pr.draws && pr.draws.FEET || null)) + ' -> crowd_probe.json');
+      ', main draws ' + ks.filter(k => pr.draws[k].main).length + ', feet ' + JSON.stringify(pr.draws && pr.draws.FEET || null) + '; sun ' + JSON.stringify(pr.sun || null)) + ' -> crowd_probe.json');
   }
   // the eye beside what is shown: the people's centroid, the line's direction toward the door, 8 m out to one side
   const aim = (side, back, up = 1.7) => P.ev(([side, back, up]) => {

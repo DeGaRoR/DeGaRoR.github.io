@@ -70,7 +70,7 @@ const DEF = {
   // the user 26 Oct ("fake contact shadows for passengers like we have for the plane's wheels"): a soft ellipse under
   // EVERY drawn person's feet (contact_shadow.js's blob, one instanced draw for the crowd); ?crowdcontact=0 off (the A/B)
   contact: !(typeof location !== 'undefined' && /[?&]crowdcontact=0(&|$)/.test(location.search || '')),
-  footLen: 0.62, footWid: 0.46, footA: 0.55, footCore: 0.35,   // m along the facing / across; the halo's and the core's darkness
+  footLen: 0.62, footWid: 0.46, footA: 0.8, footCore: 0.6,   // m along the facing / across; the halo's and the core's darkness (27 Oct: 0.55/0.35 barely read in shade)
   contactMax: 32,  // people the one draw holds
 };
 CR.DEF = DEF;
