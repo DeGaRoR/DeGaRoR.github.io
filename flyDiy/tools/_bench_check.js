@@ -248,13 +248,29 @@ else {
     const A = mut(fl), B = mut(c => { fl(c); c.gear.floats.x = 1.2272; c.gear.floats.y = -0.99; }), Cm = mut(c => { fl(c); c.gear.floats.model = 'f2000'; });
     ok(A && B && A.fp === B.fp && Cm.fp !== A.fp, "keeps: the floats' station the join measures off the CG (T3) - and another float model is a change");
   }
+  {  // G3780 CERT-POD (the user 27 Oct: "Belly pod should indeed be excluded from certificates"): a BOLT-ON - fitted,
+     // resized or removed, the fingerprint and every group stay; an old f2 (bench) or p1 (factory) signature taken with
+     // the pod fitted, or before it was, still names this aeroplane
+    const pod = { on: 1, len: 1.6, width: 0.5, depth: 0.35, noseFair: 0.3, tailFair: 0.5, x: 0.9, loadKg: 40, door: 'side' };
+    const P1 = mut(c => { c.pod = Object.assign({}, pod); }), P2 = mut(c => { c.pod = Object.assign({}, pod, { len: 2.1, depth: 0.45, loadKg: 80 }); }),
+          P0 = mut(c => { c.pod = Object.assign({}, pod, { on: 0 }); });
+    ok([P1, P2, P0].every(M => M && M.fp === M0.fp && !CORE.certGroupsChanged(M0.groups, M.groups).length),
+       'keeps: the belly pod fitted, resized and removed (a bolt-on, outside the certificate)');
+    ok(!/pod/.test(CORE.certChangeLine(['wb'])), 'the weight & balance line names no pod (' + CORE.certChangeLine(['wb']) + ')');
+    const wp = Object.assign(JSON.parse(JSON.stringify(fx)), { pod: Object.assign({}, pod) });
+    const oldF2 = BE.benchHash(BE.benchVersionTag(8, 4) + BE.benchCanon(Object.assign(BE.benchStripCosmetic(wp, null), { pod: wp.pod })));
+    ok(BE.benchF2Set(wp).has(oldF2) && BE.benchF2Set(wp).has(BE.benchHash(BE.benchVersionTag(8, 4) + BE.benchCanon(BE.benchStripCosmetic(fx, null)))),
+       'M1 with a pod: an f2 taken with the pod fitted, or before it was, is still this aeroplane');
+    ok(CORE.procureP1Matches(wp, CORE.procureFpP1(fx, 8, 4)) && CORE.procureP1Matches(wp, CORE.procureFpP1(wp, 8, 4)),
+       'M3 with a pod: the factory p1 signature, taken before or after the pod, still names this airframe');
+  }
   // R4: a major change moves its OWN group, and the bench names it
   const moves = [
     [c => { c.wings[0].span = (+c.wings[0].span || 10) + 0.5; }, 'structure', 'the wing or the structure changed'],
     [c => { c.engines = (c.engines || [{}]).map(e => Object.assign({}, e, { type: 'rotax912_warp_x' })); }, 'engine', 'the engine or the propeller changed'],
     [c => { c.gear = Object.assign({}, c.gear, { type: c.gear && c.gear.type === 'tricycle' ? 'taildragger' : 'tricycle' }); }, 'gear', 'the landing gear changed'],
     [c => { c.tail = Object.assign({}, c.tail, { hSpan: ((c.tail && +c.tail.hSpan) || 3) + 0.3 }); }, 'tail', 'the tail or the controls changed'],
-    [c => { c.energy = Object.assign({}, c.energy, { vessels: [{ bay: 'nose', capacity: 60, form: 'box' }] }); }, 'wb', 'the tanks, the seats or the pod changed'],
+    [c => { c.energy = Object.assign({}, c.energy, { vessels: [{ bay: 'nose', capacity: 60, form: 'box' }] }); }, 'wb', 'the tanks or the seats changed'],
   ];
   for (const [f, g, line] of moves) {
     const M = mut(f), ch = M ? CORE.certGroupsChanged(M0.groups, M.groups) : null;
@@ -615,6 +631,26 @@ function benchSession(store, join, opts) {
        "the restore's re-check and the run queue wait for a garage at rest too (bench.js idle)");
     ok(/const cur = r\.fp === F2now;/.test(BENCH_SRC) && /if \(!cur\) recheck = true;/.test(BENCH_SRC),
        'an f2 stamp of THIS game version restores as it is - no re-check (only an older version re-checks)');
+  }
+  // G3780 CERT-POD: IN THE GARAGE, the pod fitted, resized and removed supersedes nothing (the bolt-on is outside the
+  // certificate); and the session is not vacuous - a tank change on the same stand does supersede
+  {
+    const spec0 = JSON.parse(rd('tools/_bench_fixture_build.json')).spec;
+    const pod = { on: 1, len: 1.6, width: 0.5, depth: 0.35, noseFair: 0.3, tailFair: 0.5, x: 0.9, loadKg: 40, door: 'side' };
+    const store = { pq: null }, join = { up: true, spec: JSON.parse(JSON.stringify(spec0)) };
+    const S = benchSession(store, join, { api: { inGarage: () => true } });
+    const fp = S.window.BENCH_FP();
+    const row = () => ({ verdict: 'held', ok: true, fp, fps: 'f3', sv: 0, pv: 0, when: '2026-10-20' });
+    S.window.BENCH_RESTORE({ results: { shake: row(), load: row(), dalt: row() } }); S.flush();
+    const held = () => { const R = S.window.BENCH_STATE().results; return ['shake', 'load', 'dalt'].filter(id => R[id] && R[id].ok && !R[id].stale).length; };
+    const hs = [];
+    for (const p of [pod, Object.assign({}, pod, { len: 2.1, depth: 0.45 }), Object.assign({}, pod, { on: 0 })]) {
+      join.spec = Object.assign(JSON.parse(JSON.stringify(spec0)), { pod: Object.assign({}, p) }); S.window.BENCH_DIRTY(); S.flush(); hs.push(held());
+    }
+    join.spec = Object.assign(JSON.parse(JSON.stringify(spec0)), { energy: Object.assign({}, spec0.energy, { vessels: [{ bay: 'nose', capacity: 60, form: 'box' }] }) });
+    let hn = -1; try { S.window.BENCH_DIRTY(); S.flush(); } catch (e) {} hn = held();
+    ok(/^[0-9a-f]{8}$/.test(fp || '') && hs.every(h => h === 3) && hn === 0,
+       'in the garage the belly pod fitted, resized and removed supersedes nothing (' + hs.join(', ') + ' of 3 held); a tank change does (' + hn + ' held)');
   }
   // G680: the door's body is rollOutStand (rollOut decides the screen; from the shed the build's sync runs under it first)
   const rollAt = APP.indexOf('function rollOutStand(') >= 0 ? APP.indexOf('function rollOutStand(') : APP.indexOf('function rollOut(');

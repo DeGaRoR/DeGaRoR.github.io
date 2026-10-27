@@ -418,7 +418,10 @@ function procureFpP1(spec, sv, pv) {
 function procureP1Matches(spec, h) {
   if (!spec || !h) return false;
   const SV = Math.max(10, typeof GEN_SPEC_V !== 'undefined' ? GEN_SPEC_V : 0), PV = Math.max(6, typeof PHYSICS_V !== 'undefined' ? PHYSICS_V : 0);
-  for (let sv = 0; sv <= SV; sv++) for (let pv = 0; pv <= PV; pv++) if (procureFpP1(spec, sv, pv) === h) return true;
+  // G3780 CERT-POD: the pod is a bolt-on outside the certificate - an airframe signed before its pod was fitted is the same
+  const bodies = [spec];
+  if (spec.pod !== undefined) { const np = prClone(spec); delete np.pod; bodies.push(np); }
+  for (const b of bodies) for (let sv = 0; sv <= SV; sv++) for (let pv = 0; pv <= PV; pv++) if (procureFpP1(b, sv, pv) === h) return true;
   return false;
 }
 // a ledger (buildGen's parts.ledger) as the airframe row keeps it: { key: [mass kg 0.01, cost 1] }

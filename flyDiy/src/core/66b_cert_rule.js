@@ -9,11 +9,12 @@
 //       engine     the engines and the propeller
 //       gear       the landing gear (type, geometry, floats)
 //       tail       the tail and the control surfaces
-//       wb         the tanks (bay, capacity, form, station), the seats' CAPACITY, the belly pod
+//       wb         the tanks (bay, capacity, form, station), the seats' CAPACITY
 //     and nothing else: no version tag (a game update is not a change to the aeroplane - R3), no cosmetics, no
 //     MINOR rows (avionics and instruments, lamps and switches, who sits and whether the crew is shown, the cargo,
 //     the fuel aboard - R2), and no row the join MEASURES off the others (the floats' station follows the CG, the
-//     glazed area follows the windows, the seats' stations and occupancy follow the cabin: CERT-REVIEW T3/T4).
+//     glazed area follows the windows, the seats' stations and occupancy follow the cabin: CERT-REVIEW T3/T4),
+//     and no BOLT-ON: the belly pod (the user 27 Oct: "Belly pod should indeed be excluded from certificates").
 // R2  minor changes and loading never withdraw: they move the weight & balance; a loading outside the certified
 //     envelope is an operating limit (the flight notice), not a withdrawal.
 // R4  a change of a MAJOR group names itself (certGroupsChanged) and the instant checks re-run.
@@ -29,6 +30,10 @@ const CERT_LOOK = { energy: ['finish', 'hue', 'tint'], vessel: ['finish', 'hue',
 // MINOR blocks (R2): the avionics, instruments and electrics (a logbook entry and a W&B update in the real world),
 // the cargo aboard, the fuel aboard (the tanks' DESIGN is energy.vessels)
 const CERT_MINOR_BLOCKS = ['systems', 'cargo', 'fuel'];
+// BOLT-ONS (G3780 CERT-POD, the user 27 Oct): outside the certificate altogether - fitting, resizing or removing the
+// belly pod never withdraws, re-checks or re-stamps it (the pod is billed as its own ledger line; the bench's pod row
+// is advice, not a test). Stripped here, so no group holds it (an unnamed block would count with the structure)
+const CERT_BOLT_ONS = ['pod'];
 // the cage's STATE and MINOR rows - views, the explode, who is aboard and whether the crew is shown, the lamps'
 // switches and dimmers, the lamps FITTED (li_*Fit: minor, a W&B update), the reflector glow, the fastener density
 // (BENCH_STATE_ROWS and PROCURE_STATE_ROWS, now one).
@@ -45,7 +50,7 @@ const CERT_GROUPS = {
   engine:    { label: 'the engine or the propeller', blocks: ['engines', 'prop'] },
   gear:      { label: 'the landing gear', blocks: ['gear'] },
   tail:      { label: 'the tail or the controls', blocks: ['tail', 'controls'] },
-  wb:        { label: 'the tanks, the seats or the pod', blocks: ['energy', 'cabin', 'outfit', 'pod'] },
+  wb:        { label: 'the tanks or the seats', blocks: ['energy', 'cabin', 'outfit'] },
 };
 const CERT_GROUP_KEYS = Object.keys(CERT_GROUPS);
 function certCanon(v) {
@@ -63,7 +68,7 @@ function certHash(str) {
 function certStrip(spec) {
   if (!spec || typeof spec !== 'object') return null;
   const c = JSON.parse(JSON.stringify(spec));
-  for (const k of CERT_COSMETIC.concat(CERT_MINOR_BLOCKS)) delete c[k];
+  for (const k of CERT_COSMETIC.concat(CERT_MINOR_BLOCKS, CERT_BOLT_ONS)) delete c[k];
   if (c.energy && typeof c.energy === 'object') {
     for (const k of CERT_LOOK.energy) delete c.energy[k];
     if (Array.isArray(c.energy.vessels)) for (const v of c.energy.vessels) if (v && typeof v === 'object') for (const k of CERT_LOOK.vessel) delete v[k];

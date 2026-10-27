@@ -555,6 +555,7 @@ function benchStripCosmetic(spec, defaults) {
   if (!spec || typeof spec !== 'object') return null;
   const c = JSON.parse(JSON.stringify(spec));
   for (const k of BENCH_COSMETIC) delete c[k];
+  delete c.pod;                                        // G3780 CERT-POD: a bolt-on, outside the certificate (66b CERT_BOLT_ONS)
   if (c.energy && typeof c.energy === 'object') {
     for (const k of BENCH_LOOK.energy) delete c.energy[k];
     if (Array.isArray(c.energy.vessels))
@@ -737,9 +738,14 @@ function benchF2Set(spec, defaults) {
   const out = new Set();
   if (!c) return out;
   const body = benchCanon(c);
+  // CERT-POD: an f2 taken with a pod fitted hashed the pod in - its body WITH the pod is this aeroplane's too
+  const podBody = (spec.pod && typeof spec.pod === 'object') ? benchCanon(Object.assign({}, c, { pod: spec.pod })) : null;
   const SV = Math.max(10, (typeof GEN_SPEC_V !== 'undefined') ? GEN_SPEC_V : 0);
   const PV = Math.max(6, (typeof PHYSICS_V !== 'undefined') ? PHYSICS_V : 0);
-  for (let sv = 0; sv <= SV; sv++) for (let pv = 0; pv <= PV; pv++) out.add(benchHash(benchVersionTag(sv, pv) + body));
+  for (let sv = 0; sv <= SV; sv++) for (let pv = 0; pv <= PV; pv++) {
+    out.add(benchHash(benchVersionTag(sv, pv) + body));
+    if (podBody) out.add(benchHash(benchVersionTag(sv, pv) + podBody));
+  }
   return out;
 }
 
