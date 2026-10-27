@@ -90,6 +90,7 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   const FG0 = "(()=>{const F=window.__crFG;F.max=0;F.n=0;F.last=performance.now();return 1})()";
   const FG = "(()=>{const F=window.__crFG;return JSON.stringify({maxMs:+F.max.toFixed(1),frames:F.n})})()";
   const FUS = "JSON.stringify((()=>{let fus=null;const S=window.CAGE_SCENE;const walk=o=>{if(o.userData&&o.userData.bodyZones&&o.parent){fus=o;}(o.children||[]).forEach(walk);};if(S)walk(S);const g=fus&&fus.geometry;const U=window.CAGE_UI;return {tris:g?(g.index?g.index.count/3:g.attributes.position.count/3):null,eye:!!(U.eyeStanding&&U.eyeStanding()),stats:U.eyeStats?Object.assign({},U.eyeStats):null};})())";
+  const OUT = "(()=>{const E=window.CAGE_CREW_EYE,F=window.FLIGHT_PROBE,c=F&&F.camera&&F.camera();if(!(E&&E.p&&c&&c.position))return true;return Math.hypot(c.position.x-E.p[0],c.position.y-E.p[1],c.position.z-E.p[2])>2})()";
   const timed = async (k, settleMs) => { await ev(FG0); const ok = await pill(k); await sleep(settleMs); const fg = JSON.parse(await ev(FG)); const f = JSON.parse(await ev(FUS)); return { ok, fg, f }; };
   const rows = [];
   const r1 = x => x == null ? null : +(+x).toFixed(1);
@@ -98,6 +99,9 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     const spec = raw.spec || raw, tag = path.basename(b, '.json');
     for (const v of VARIANTS) {
       await pill('3/4 front');
+      // the toggles end in the seat: the preset's tween must have carried the camera clear of the crew eye before the
+      // build loads, or the watch builds the eye sheet on the way out (13:00: "1st entry build 0" on every row)
+      for (let i = 0; i < 30 && !(await ev(OUT)); i++) await sleep(200);
       await ev("(()=>{window.CAGE_EYE_VARIANT=" + v + ";window.GARAGE_SPEC.set(" + JSON.stringify(spec) + ");return 1})()");
       await sleep(WAIT);
       await settle(120, tag + ' v' + v);
