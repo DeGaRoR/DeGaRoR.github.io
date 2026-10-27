@@ -99086,3 +99086,45 @@ Stills (Mon 26 00:45 s26-g1, before = L25b's files vs after; the session's scrat
 - valid/pair_*: Cub, Jodel, Cessna, Cessna floats, twin floats, Rufus, unchanged at load apart from the entry outline that f46685a6e removes.
 Rig trap: since L25b, dev.html's boot runs ~65 s after the garage objects exist. A still taken before BOOT.state 'gone' shows a half-built world.
 Correction to G3540 above: its evidence was the node page check, not steps_wheels.js. That check is tools/_page_node.js with the user's Cub, rolled out and flown for 240 s: worker and inline PASS, master's app.js FAIL.
+
+## G3851 / G3851b - TYRES PROPOSALS: THE STUDY FINISHED, THE NORMAL AND TINY WHEELS DRAWN AS THE REAL ONES (ACCEPTED), THE SLICK TUNDRA KEPT, A LUGGED BUSH-TYRE VARIANT; RENDERED BEFORE / AFTER IN THE CLOUD (2026-10-27, TYRES cloud session; DISPLAY ONLY, OFF BY DEFAULT; claude/tyres-proposals off claude/aircraft-looks e23fd86a6; NOT a ready push - AIRCRAFT-LOOKS integrates and gates the user's pick, G3852)
+Why: the user, 27 Oct: "fitting huge wheels is really all the rage today, so these need to look good"; "don't wanna wait" (renders today for feedback). The study is futureDesigns/TYRES-2026-10.md (G3850 draft, finished here).
+THE USER'S RULING on the first renders (27 Oct, ~04:10): "normal ok for proposal. Tundra we should keep one without any [tread]. Your proposal can be a new one, but the shading has to be better (smooth on top) and the border need to be beveled, then we can talk for a new type, or a variation. Yet the [slick] one stays as-is. Your tiny wheels are good."
+- ACCEPTED: the normal (standard / slim) and tiny proposal. To integrate.
+- The tundra (whProfile 1) stays G3548's slick balloon: under the proposal tyreLook(R, 1) answers null and the drawing is G3548's (gated).
+- The lugged bush tyre (G3851b, redrawn smooth-topped and bevelled) is a VARIANT, TYRE_LOOK.lugs. Whether it becomes a new carcass (whProfile 3) or a tread variation is the user's next call; not integrated until then.
+Study (futureDesigns/TYRES-2026-10.md):
+- Sources cited per row. The Goodyear data book PDFs and Aircraft Spruce's spec PDF are refused by the cloud's network policy (403); the 6.00-6 and 8.00-6 rows were re-checked through dealer pages that reproduce the data book's rows.
+- Correction to the draft: the 8.00-6 is 19.1 x 7.65" (W/D 0.40, rim/D 0.31), not ~22". The 6.00-6 is 17.15 x 6.1" (0.36 / 0.35).
+- Added: the 4.00-4, the 8.50-6 oversize (Desser), Desser's 10" bush wheels. Section 3 is the target table per type, with the gate's tolerances.
+What changed (tools/_gear_gen.js; drawing only - no spec key, no certificate, no PHYSICS_V):
+- GEAR_GEN.TYRE_LOOK = { on: 0, lugs: 0 }. ?tyres=new on the page, or a rig, turns it on; &lugs=1 (or .lugs = 1) draws the lugged tundra variant. OFF: wheel() draws G3548 byte for byte (positions and indices of every profile x tread x size x brake hashed equal).
+- GEAR_GEN.tyreLook(R, profile, { lugs }) -> { kind, wd, rimD, tread, grooves, lugPairs, lugH, lugShare }, or null for the tundra without lugs (G3548 as is). Pure. ON, wheel() reads hw = wd and bead = rimD from it.
+  - standard / slim: rim radius 0.031 m + 0.20 R (rim/D held 0.26-0.50). W/D 0.36, rising to 0.40 between R 0.22 and 0.245. Slim stays 0.29.
+  - tiny (R <= 0.10): W/D 0.36 on the 0.50 rim, at most 4 bolts.
+  - the lugged tundra variant only: the 6" hub under 26-31", the 10" under 35" (rim radius 0.0762 + max(0, R - 0.40) 1.1). W/D on the Bushwheel table (0.46 / 0.45 / 0.42 / 0.43).
+- Every carcass's hub follows its rim (Rh = R bead / 0.42). The widest point sits half-way up the section. Grooves by size (2 under R 0.12, 3 to 0.235, 4 above), 0.034 R deep. A plain sidewall.
+- tyreLugs() (the variant): low chevron lugs on the torus. G3851b: each bar ONE swept section with shared vertices (crowned top, a bevel each edge, a short wall into the carcass, both ends drawn in to 62 %), caps wound outward, the buried underside open. The first attempt (per-face boxes, crisp edges) is in evidence/TYRES/lugs_v1/: the user turned its shading down. 20 R / 0.394 pairs (16-24), 0.7 % of D high, 40 % lug / 60 % void, slanted 0.42 pitch, the two rows offset half a pitch, running out over the shoulder.
+- Floors and ceilings in metres on the hub's small parts: bolt heads, cap, valve, rim wall, brake disc (1.28 x the rim radius; G3548's was 1.48 x) and caliper.
+- whTread and whRibs: READ AND IGNORED by the proposal (each carcass draws its own tread). Never stripped: whTread is a hashed cage row (bench.js benchStripCosmetic).
+Gate (tools/_gear_check.js section 15, node only; GATE GEAR PASS, --selftest PASS; EDBUGS / STRUT / HINGE PASS):
+- TYRE_LOOK off by default. G3851b: the slick tundra under the proposal draws G3548's digest (R 0.10-0.445), tyreLook(R, 1) is null.
+- tyreLook() against the study's targets: kind, W/D +-0.02, rim/D +-0.03, tread kind, groove count; lugs 0.5-1 % of D, 16-24 pairs, lug 30-50 % of the pitch.
+- tyreLook() against the 12 measured tyres: within the family's spread (W/D 0.05, rim/D 0.09; the 13x5.00-6 and the 4.00-4 are the smooth rim's worst misses).
+- The drawn wheel (switch on), read back through the bags: W/D, the bead, grooves counted on the crown, lugs counted per row, their height and lug / void measured, the disc <= 1.3 x the rim, a tiny wheel's hub inside 0.66 R.
+- Negative-verified by mutating _gear_gen.js: standard W/D 0.40, a fixed 3 grooves, lugs 4 % high, lugs 90 % wide (in tyreLugs and in tyreLook), lugs off the crown, a 1.6 x disc, the switch on by default, the tundra's hub growing with the tyre, a fixed 0.42 rim, the slick tundra changed under the proposal. Every mutation is caught.
+Rig: tools/tyres_shot.js (Playwright from /opt/node-tools, SwiftShader).
+- One boot of dev.html?profile=phone&gfx=laptop. Each build comes in through #gFile; then TYRE_LOOK 0 -> stills, TYRE_LOOK 1 + CAGE_UI.build() -> the same stills.
+- Each camera has an ABSOLUTE target, re-pinned after the rebuild. Asserts: the import, the eye (az / el / dist + target within 2 cm), the frame (the aeroplane in it), the proposal changed the scene.
+- Trap: the orbit's target EASES to a new import's centre; camSettle snaps az / el / dist, not the target. Read it before it settles and every pan aims at the last build.
+- Cost: plane_shot.js (cloud-shots dec8c1d99) stalled at its page step here, so this rig drives Playwright instead. SwiftShader runs ~35 s a frame at this preset, ~3 min a still.
+Evidence (flyDiy/reports/evidence/TYRES/; <build>_<view>_before.png = today's G3548, _after.png = the proposal, _pair.png = both side by side under labels):
+- builds/: render fixtures, not the user's files. cub_normal is the user's builds/cub_2026-09-20_corrected.json as is. cub_tundra26 / 31 / 35 are the same with whProfile 1 and s1R 0.33 / 0.394 / 0.445. ultralight_tiny is builds/chinook_2026-09-21_corrected.json with s1R 0.10, s2R 0.07.
+- views: wheel (the main wheel nearer a 3/4-front eye, ~7 R away, el 0.30), tread (the same tyre's crown, 3.8 R, el 0.50), q (the editor's 3/4 front, scaled to the span), side (level with the axles, ~14 R away), tail (the tail / nose wheel).
+- THE PROPOSAL (accepted): cub_normal_{wheel,q,side,tail}_{before,after,pair}.png; ultralight_tiny_{wheel,q,side,tail}_*.png.
+- THE LUGGED VARIANT (G3851b; before = today's slick tundra, after = the variant): lugs/cub_tundra31_{tread,wheel,side}_*.png, lugs/cub_tundra26_{tread,wheel}_*.png, lugs/cub_tundra35_{tread,wheel,q}_*.png. Rendered with tools/tyres_shot.js --lugs.
+- lugs_v1/cub_tundra31_{wheel,q,side,tail}_*.png: the first lug attempt, turned down (shading). The proposal's 6" hub and Bushwheel proportions on it are the variant's too.
+- The user saw: cub_normal wheel / tail / q, cub_tundra31 (v1) wheel / side / q / tail, ultralight_tiny wheel / side / tail / q, lugs/cub_tundra31 tread / wheel.
+Integration notes for AIRCRAFT-LOOKS (G3852):
+- To adopt: make TYRE_LOOK.on the default, or fold tyreLook() into TYRE. Update the section 15 default-off row. Point the weathering's wheel record (_cage_join.js:2999, _cage_ui.js:4050: hw = R x TYRE[profile].hw) at tyreLook(R, profile).wd. Rebuild dev.html / index.html (not rebuilt here; dev.html's _gear_gen.js stamp is stale on this branch).
+- The tail wheel follows whProfile like the mains: on a tundra build it is a small tundra on a 6" hub (rim/D clamped 0.30).
