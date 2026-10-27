@@ -695,11 +695,21 @@ function frameOn(p, axis, aftIn, faceIn) {
 // on (`wears: 'parent'`, G207 — the rule written for exactly this case).
 const lam = (c, o) => new THREE.MeshLambertMaterial(Object.assign({ color: c }, o || {}));
 let FALLBACK = null;
-const TINT = { metal: 0x9aa2ab, fair: 0xc8ccd2 };
+const TINT = { metal: 0x9aa2ab, fair: 0xc8ccd2, door: 0xb9c2cc };
 const fallbackMats = () => (FALLBACK || (FALLBACK = {
-  metal: lam(TINT.metal), fair: lam(TINT.fair) }));
+  metal: lam(TINT.metal), fair: lam(TINT.fair), door: lam(TINT.door) }));
 
 function matFor(name) {
+  // DOOR-HINGES-2 (A0 and the user: "the same metal material and finish as
+  // the other airframe hardware, not a flat orange box"): a door's hinges
+  // are the door's hardware - the handle's metal (AERO_HARD.access.metal,
+  // the fittings' tint), not the control hardware's livery section, which
+  // follows the fuselage's paint ('as the fuselage', hgFinish 0)
+  if (name === 'door') {
+    const A = window.AEROSKIN;
+    const m = A && A.aeroHardMat && A.aeroHardMat(THREE, 'access', 'metal', TINT.door, {});
+    return m || fallbackMats().door;
+  }
   const sec = name === 'fair' ? 'ctlFair' : 'ctlHinge';
   if (window.CAGE_SECMAT) {
     const ms = window.CAGE_SECMAT(sec, { surf: 0, fieldM: 1, tint0: TINT[name] });
@@ -765,12 +775,12 @@ PAGE.post = ctx => {
   // ONE SET OF AIRFRAME BAGS PER HOST: '' is the static merge (the wing's
   // hardware), 'edFinSkin' / 'edStabSkinR' ... the tail parts the halves
   // are bolted to; each set is meshed on its own and tagged `partOf`
-  const HG_BAGS_F = HG.HINGE_BAGS.concat(['inner']);
+  const HG_BAGS_F = HG.HINGE_BAGS.concat(['inner', 'door']);   // DOOR-HINGES-2: a door's own bag (its metal)
   const bagsFBy = {};
   const bagsFor = host => bagsFBy[host || ''] ||
-    (bagsFBy[host || ''] = { metal: K.Bag(), fair: K.Bag(), inner: K.Bag() });
+    (bagsFBy[host || ''] = { metal: K.Bag(), fair: K.Bag(), inner: K.Bag(), door: K.Bag() });
   const perSurf = {};                  // key -> { metal, fair }
-  const bagM = key => (perSurf[key] || (perSurf[key] = { metal: K.Bag(), fair: K.Bag() }));
+  const bagM = key => (perSurf[key] || (perSurf[key] = { metal: K.Bag(), fair: K.Bag(), door: K.Bag() }));
 
   // the SURFACE's own construction decides how it hangs. genSurfKey is the
   // G213 vocabulary; the cage's per-part rows (wgCons/finCons/stCons) are
@@ -863,7 +873,7 @@ PAGE.post = ctx => {
           // its ends; DOOR-HINGES: each on the shared line, its leaves
           // probing down to the skin) - two whole leaves and a barrel, not
           // the piano's alternating squares (A7: "pixelated")
-          HG.buttHinge(bagsF.metal, bm.metal, F, S,
+          HG.buttHinge(bagsF.door, bm.door, F, S,
                        Math.min(0.10, span * (1 - 2 * inset) / Math.max(1, ts.length)));
         else if (fam === 'piano')
           // a surface's piano runs join into one continuous hinge
@@ -1066,7 +1076,7 @@ PAGE.post = ctx => {
   for (const s of surfs) {
     const b = perSurf[s.key];
     if (!b) continue;
-    for (const k of HG.HINGE_BAGS) {
+    for (const k of HG.HINGE_BAGS.concat(['door'])) {
       if (!b[k].tris) continue;
       tris += b[k].tris;
       const tmp = new THREE.Group();

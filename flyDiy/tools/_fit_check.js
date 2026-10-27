@@ -527,7 +527,7 @@ function checkDoor(name, row, mesh) {
     check(rec.h > 0.5 && rec.w > 0.4, tag + ': a door with no size', rec.key + ' h ' + rec.h.toFixed(2) + ' w ' + rec.w.toFixed(2));
     check(Math.abs(rec.n[0]) > 0.9 && rec.n[0] * rec.sgn > 0, tag + ': the door normal is not the flank\'s, outward', rec.key);
     for (const edge of [0, 1, 2]) {
-      const s = FS_.doorHandleSite(rec, { edge, inset: 0.06 });
+      const s = FS_.doorHandleSite(rec, { edge, inset: 0.06, mesh, FS: 1 });   // DOOR-HINGES-2: on the solid skin (GATE HANDLE holds the glass)
       if (!check(!!s, tag + ': no handle site for hinge edge ' + edge, rec.key)) continue;
       const d = distToSkin(doorMesh, s.p);
       check(d < 0.012, tag + ': handle site is off the door (hinge edge ' + edge + ')', rec.key + ' ' + (d * 1000).toFixed(1) + ' mm');

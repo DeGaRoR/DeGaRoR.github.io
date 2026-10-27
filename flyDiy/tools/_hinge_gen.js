@@ -54,7 +54,7 @@ const K = typeof window !== 'undefined' ? window.GEAR_KIT : null;
 if (!K) { console.error('_hinge_gen: _gear_kit.js first'); return; }
 
 const { sub, add, mul, nrm, dot, crs, off, sweep, tube, taper, revolve,
-        boxIn, lug, bolt, fillet, secBlade, secRound, Bag } = K;
+        boxIn, lug, bolt, fillet, secBlade, secRound, Bag, resample, len: len3 } = K;
 
 // a point in the frame: p + x*a + y*b + z*c
 const at = (F, a, b, c) =>
@@ -280,48 +280,126 @@ function bracketHinge(bF, bM, F, S, second) {
 // ---------------------------------------------------------------------------
 // THE BUTT HINGE — a door's (A7, 2026-09-21, the user: "the door inspection
 // traps are pixelated", of Screenshot 2026-09-18 191558). A door hung on the
-// piano drawing above came out as a stack of alternating square leaves -
-// two knuckle pitches over a 0.10 m run, each leaf its own plate, one
-// forward and one aft, and the pair read as a blocky cross on the flank. A
-// butt hinge is two RECTANGULAR leaves the whole length of the run, one on
-// the frame and one on the door, meeting at a barrel of a few knuckles on
-// one pin: the same read as a real door hinge at any distance. Both leaves
+// piano drawing above came out as a stack of alternating square leaves; a
+// butt hinge is two leaves the whole length of the run, one on the frame and
+// one on the door, meeting at a barrel of knuckles on one pin. Both leaves
 // lie on the fuselage skin (the door is shut; the moving bag is the caller's
 // choice), following the MEASURED skin where the layer offers it.
+//
+// MODELLED, NOT BOXED (DOOR-HINGES-2, 2026-10-27, A0 and the user on the
+// door stills: "the hinges look cheap ... proper bevelling, proper shading,
+// some further detailing"). Drawn after a surface-mounted steel butt hinge
+// (the Cub's door hinge, an MS20001-style leaf and pin), every part its own
+// primitive so the smoothing stops at the part's real edges and nowhere
+// else (GEAR_KIT's Bag smooths shared vertices; a part never shares one
+// with its neighbour):
+//   KNUCKLES  `nk` (odd, ~22 mm each) alternating frame / door, 0.6 mm apart,
+//             each a revolved ring with a radiused shoulder at both ends - a
+//             rolled knuckle's edge is round, never a lathe's square step
+//   PIN       through the stack: a domed head at the upper end, a peened
+//             stub at the other; it shows in the gaps between knuckles
+//   LEAVES    a 2 mm plate rolled off the knuckle's skin side, joggled down
+//             onto the skin in one S-bend and lying on it as measured; its
+//             section is a flat-faced rounded rectangle (the flat faces keep
+//             an inner pair of vertices so their shading stays flat to the
+//             edge radius), its free end rounded in plan
+//   RIVETS    two (three past 120 mm) domed heads a leaf, on the flat
+// The AXIS is the caller's (F.p, F.z) and is never moved: the barrel is
+// sized inside the clearance the layer lifted the axis by.
 // ---------------------------------------------------------------------------
 function buttHinge(bF, bM, F, S, len) {
-  const r = S.r, t = S.t * 1.6;
-  const lie = r + t * 0.5 + 0.0008;
-  const nk = Math.max(3, Math.round(len / 0.028)) | 1;   // odd: the fixed side gets the ends
+  const rA = S.r;                                   // the axis's lift radius (the layer's)
+  const Rk = rA * 0.76;                             // the knuckle's outer radius
+  const rp = Rk * 0.38;                             // the pin
+  const t = Math.max(0.0012, S.t * 0.9);            // the leaf's gauge
+  const g = 0.0006;                                 // between two knuckles
+  const nk = Math.max(3, Math.round(len / 0.022)) | 1;
   const pitch = len / nk;
+  const zDir = (F.z[1] < -0.3) ? -1 : 1;           // the pin's head goes UP (a horizontal run: +z)
+  const sz = Math.max(0.6, S.pinR / 0.0045);        // the hardware size knob, as GEN_HINGE.pinR moved it
+  // ---- the knuckles: frame takes the ends (i even), the door the others ---
   for (let i = 0; i < nk; i++) {
-    const zc = -len * 0.5 + pitch * (i + 0.5);
-    revolve((i % 2) === 0 ? bF : bM, at(F, 0, 0, zc - pitch * 0.46), F.z,
-      [[S.pinR * 1.02, 0], [S.pinR * 2.1, 0], [S.pinR * 2.1, pitch * 0.92],
-       [S.pinR * 1.02, pitch * 0.92]], 8, false);
+    const h0 = -len * 0.5 + pitch * i + g * 0.5, h1 = h0 + pitch - g;
+    const b = Math.min(Rk * 0.28, (h1 - h0) * 0.3);
+    const arc = (c0, c1, a0) => [0.5, 1].map(f => {
+      const a = a0 + f * Math.PI * 0.5;
+      return [c0 + Math.cos(a) * b, c1 + Math.sin(a) * b];
+    });
+    // [radius, along] - the shoulder arcs centred (Rk - b, h0 + b) / (Rk - b, h1 - b)
+    const prof = [[rp * 1.03, h0], [Rk - b, h0],
+                  ...arc(Rk - b, h0 + b, -Math.PI * 0.5),
+                  [Rk, h1 - b],
+                  ...arc(Rk - b, h1 - b, 0),
+                  [rp * 1.03, h1]];
+    revolve((i % 2) === 0 ? bF : bM, F.p, F.z, prof, 12, false);
   }
+  // ---- the pin, its head and its peened end --------------------------------
+  const zE = len * 0.5 + 0.0004;
+  tube(bF, at(F, 0, 0, -zE), at(F, 0, 0, zE), rp, 10);
+  const hH = Rk * 0.55;
+  revolve(bF, at(F, 0, 0, zDir * zE), mul(F.z, zDir),
+    [[rp, 0], [Rk * 0.86, 0], [Rk * 0.86, hH * 0.30], [Rk * 0.66, hH * 0.78], [Rk * 0.30, hH]], 12, true);
+  revolve(bF, at(F, 0, 0, -zDir * zE), mul(F.z, -zDir),
+    [[rp * 1.25, 0], [rp * 1.25, 0.0007], [rp * 0.7, 0.0012]], 8, true);
+  // ---- the leaves -----------------------------------------------------------
+  const lz = len * 0.5 - 0.0003;                   // half its length, inside the pin's ends
   for (const dir of [-1, 1]) {
     const bag = dir < 0 ? bF : bM;
-    const hAt = (a, fb) => {
+    // the skin's height along F.y under the leaf: flat across its length, so
+    // the highest of five samples along the axis (the old hAt's rule)
+    const skinAt = (a, fb) => {
       if (!S.skin) return fb;
       let h = null;
-      for (const dz of [-len * 0.4, 0, len * 0.4]) {
-        const q = S.skin(a, dz, dir);
+      for (const f of [-0.48, -0.24, 0, 0.24, 0.48]) {
+        const q = S.skin(a, f * len, dir);
         if (q != null && (h == null || q > h)) h = q;
       }
-      return h == null ? fb : h + t * 0.5 + 0.0008;
+      return h == null ? fb : h;
     };
-    const a1 = dir * (r * 0.5), a2 = dir * (r * 0.9 + S.reach * 0.7);
-    const h1 = hAt(a1, lie), h2 = hAt(a2, lie * (dir > 0 ? 0.88 : 1));
-    const path = [at(F, 0, S.pinR * 1.2, 0), at(F, a1, h1, 0)];
-    if (S.skin) for (const f of [0.25, 0.5, 0.75]) {
-      const a = a1 + (a2 - a1) * f;
-      path.push(at(F, a, hAt(a, h1 + (h2 - h1) * f), 0));
+    const lieFb = -(rA + 0.002);                    // the layer's lift, where no skin is measured
+    const lie = a => skinAt(a, lieFb) + t * 0.5 + 0.0008;
+    const aOut = Rk * 1.05, aJog = Rk + Math.max(0.004, 2.2 * Math.abs(-Rk + t * 0.5 - lie(dir * (Rk + 0.006))));
+    const aEnd = Rk + (S.reach || 0.035) * 0.75;
+    const pts = [[0, -Rk + t * 0.5], [aOut, -Rk + t * 0.5]];
+    const nF = Math.max(3, Math.round((aEnd - aJog) / 0.004));
+    for (let k = 0; k <= nF; k++) { const a = aJog + (aEnd - aJog) * k / nF; pts.push([a, lie(dir * a)]); }
+    const path = resample(fillet(pts.map(([a, h]) => at(F, dir * a, h, 0)), t * 1.6, 4), 14);
+    // the plan's rounded free end: the half-length shrinks on a quarter
+    // circle over the last `cr` of the leaf
+    let tot = 0; const s = [0];
+    for (let k = 1; k < path.length; k++) { tot += len3(sub(path[k], path[k - 1])); s.push(tot); }
+    const cr = Math.min(0.006 * sz, lz * 0.4, tot * 0.3);
+    const rc = t * 0.45;
+    const sect = (u, k) => {
+      const d = tot - s[k];
+      const hw = d < cr ? lz - cr + Math.sqrt(Math.max(0, cr * cr - (cr - d) * (cr - d))) : lz;
+      const w = Math.max(hw, rc * 2.2), ht = t * 0.5;
+      const out = [];
+      // (u along F.z: the length; v across the gauge) - a rounded rectangle,
+      // two arc points a corner, and an inner pair on each flat face
+      for (const [cx, cy, a0] of [[w - rc, ht - rc, 0], [-(w - rc), ht - rc, Math.PI * 0.5],
+                                  [-(w - rc), -(ht - rc), Math.PI], [w - rc, -(ht - rc), Math.PI * 1.5]]) {
+        for (const f of [0, 1]) { const a = a0 + f * Math.PI * 0.5; out.push([cx + Math.cos(a) * rc, cy + Math.sin(a) * rc]); }
+        if (a0 === 0 || a0 === Math.PI) {
+          const sgn = a0 === 0 ? 1 : -1;
+          out.push([sgn * (w - rc - 0.0004), sgn * ht], [-sgn * (w - rc - 0.0004), sgn * ht]);
+        }
+      }
+      return out;
+    };
+    sweep(bag, path, sect, true, F.z);
+    // the rivets: domed heads on the flat, square to the skin under them
+    const nR = len > 0.12 ? 3 : 2;
+    const aR = aJog + (aEnd - aJog) * 0.5;
+    const R = 0.0026 * sz;
+    for (let j = 0; j < nR; j++) {
+      const zR = nR === 2 ? (j ? 1 : -1) * (lz - Math.max(cr, 0.011 * sz))
+                          : (j - 1) * (lz - Math.max(cr, 0.011 * sz));
+      const top = lie(dir * aR) + t * 0.5;
+      revolve(bag, at(F, dir * aR, top - 0.0003, zR), F.y,
+        [[R, 0], [R * 0.97, R * 0.22], [R * 0.80, R * 0.48], [R * 0.48, R * 0.66], [R * 0.12, R * 0.72]], 8, true);
     }
-    path.push(at(F, a2, h2, 0));
-    sweep(bag, fillet(path, r * 0.3, 2), () => secBlade(len * 0.96, t, 2), true, F.z);
   }
-  tube(bF, at(F, 0, 0, -len * 0.52), at(F, 0, 0, len * 0.52), S.pinR, 10);
 }
 
 // ---------------------------------------------------------------------------
