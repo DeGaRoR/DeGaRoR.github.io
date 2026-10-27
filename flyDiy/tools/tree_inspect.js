@@ -711,8 +711,9 @@ function group(g, bin, folderKind) {
     // count keeps a 63-triangle rock 0.85 m high out of the billboard rail.
     else if (G.tris <= 64 && h > 1.5 && !multiLevel(G) && folderKind !== 'cover') G.kind = 'billboard';
     else if (PROP.test(G.key) && !anyTree) G.kind = 'terrain';    // rocks belong to the ground
-    // a thing with no height is the ground it lies on (realtime_grass's plane)
-    else if (h < 0.05 && G.tris > 100) G.kind = 'terrain';
+    // a thing with no height is the ground it lies on (realtime_grass's plane) - but not a cut-out tuft in the cover
+    // folder: fern_grass_02 is 3 cm tall through its x0.001 wrapper and the tuning's size restores it (G3430)
+    else if (h < 0.05 && G.tris > 100 && !(folderKind === 'cover' && cutout)) G.kind = 'terrain';
     else if (folderKind) G.kind = folderKind;
     // In a SCENE, everything that is not a plant or a rock is the ground —
     // road, litter, grass, backdrop — and it is kept in place to scatter on.
