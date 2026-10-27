@@ -582,7 +582,9 @@ const BENCH_LOOK = { energy: ['finish', 'hue', 'tint'], vessel: ['finish', 'hue'
 // G3449 (RUFUS-CERT, the user 22 Oct: "the cabin flood switched on at the story start; no change to Rufus's file"): a
 // LIGHT SWITCH is a position, not the airframe - the lamps' levels (li_nav .. li_pax, the cockpit's switches and
 // dimmers) are state like lightOn. What is FITTED (li_*Fit) and where (the bay, pod, tip rows) still counts.
-const BENCH_STATE_ROWS = /^_view|^(explodeD|dumOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|li_(?:nav|beacon|taxi|land|flood|instr|pedal|pax))$/;
+// G3852 (the user: "a Tundra tyre with no pattern"): whSlick, a tundra's lugs or smooth, is drawing only (the
+// physics reads the carcass, whProfile) - a look like the paint; whTread stays counted, as every file signed it.
+const BENCH_STATE_ROWS = /^_view|^(explodeD|dumOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|whSlick|li_(?:nav|beacon|taxi|land|flood|instr|pedal|pax))$/;
 function benchStripCosmetic(spec, defaults) {
   if (!spec || typeof spec !== 'object') return null;
   const c = JSON.parse(JSON.stringify(spec));

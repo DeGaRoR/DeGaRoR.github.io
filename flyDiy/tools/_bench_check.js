@@ -153,6 +153,8 @@ console.log('THE WORD');
     v(c => { c.cage.lightOn = 1; c.cage.cabOcc = 1; c.cage.paxOcc2 = 1; c.cage._viewLoops = 1; c.cage.explodeD = 0.4; c.cage.li_reflect = 0; c.cage.accDetail = 0; }, true, 'the lights, who is aboard, a view toggle and a look row keep it');
     v(c => { c.cage.li_flood = 1; c.cage.li_nav = 1; }, true, 'a light switched on (the cabin flood, the nav lights) keeps it (G3449)');
     v(c => { c.cage.li_floodFit = 0; }, false, 'a lamp taken out (li_floodFit) changes it');
+    v(c => { c.cage.whSlick = 1; }, true, 'a smooth tundra tread (whSlick) keeps it (G3852: drawing only)');
+    v(c => { c.cage.whTread = 1; }, false, 'whTread off its default still changes it (G3852: every file signed it)');
     v(c => { c.cage.zzNew = 0.42; }, true, 'a cage row added at its default keeps it');
     v(c => { const o = {}; Object.keys(c.cage).reverse().forEach(k => o[k] = c.cage[k]); c.cage = o; }, true, 'the key order keeps it');
     v(c => { c.cage.waistY = 0.5 + 1e-12; }, true, 'a float printed to the last digit keeps it');
