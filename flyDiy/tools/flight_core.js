@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 6422debd8207e7ca
+// body-sha256: 16f34644521e8696
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -928,7 +928,7 @@ const GEN_ENG_CG = {
   o320_mccauley: 0.24, o540_hartzell: 0.33, io550_hartzell3: 0.34,
   io720_hartzell3: 0.42, rotax915_carbon: 0.24, ranger440_wood: 0.50,
   w670_hs2b: 0.15, r755_hs2b: 0.16, m14p_v530: 0.14, r1340_hs12d40: 0.16,
-  r985_hs2b20: 0.15, r1830_hs23e50: 0.16,
+  r985_hs2b20: 0.15, r1830_hs23e50: 0.16, merlin66_rotol4: 0.63,
   outrunner2212_9x47: 0.02, outrunner6374_18x10: 0.06, eppg_direct_130: 0.13,
   fes_folding_100: 0.12, emrax228_3blade: 0.12, e811_velis: 0.19,
   sp260d_class: 0.31, emrax268_carbon: 0.14,
