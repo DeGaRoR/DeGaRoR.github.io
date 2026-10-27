@@ -199,7 +199,7 @@
   const dense0 = u => 0.5 * u + 0.5 * u * u;
   // the drawn station of vertex (u, piece) on the whole member, as the uv reads it (the hinge hk between tA and tB)
   const stationOf = (u, piece, tA, tB, hk) => piece === 0 ? tA + (hk - tA) * dense1(u) : hk + (tB - hk) * dense0(u);
-  function pose(S, u, k, piece) {
+  function poseAt(S, u, k, piece) {
     const A = [S[0], S[1], S[2]], mat = S[3], B = [S[4], S[5], S[6]];
     let mode = S[7];
     const qA = [S[8], S[9], S[10], S[11]], qB = [S[12], S[13], S[14], S[15]];
@@ -216,8 +216,8 @@
     let p, T, Nn, bare = 0, raw = 0, e = 1e9, x0 = 0, ov = 0, cr = 0, nk = 1, curl = 1;
     // the torn end's own reach per corner: a tube's jag (+-1.2 r, never past the lip), wood's splinter (3-6 x its depth,
     // some short) - the stub's out along its leg, the crack's back from its crease
-    const jag = (h1(k, seed + piece * 77) * 2 - 1) * 1.2 * r;
-    const ext = depth * (3 + 3 * h1(k + piece * 31, seed)) * (h1(k * 7 + piece * 5, seed + 1) < 0.35 ? 0.25 : 1);
+    const jag = (h1(kc, seed + piece * 77) * 2 - 1) * 1.2 * r;   // (by the corner: a ring's spare vertices on corner 0, all of it)
+    const ext = depth * (3 + 3 * h1(kc + piece * 31, seed)) * (h1(kc * 7 + piece * 5, seed + 1) < 0.35 ? 0.25 : 1);
     if (stub) {
       const own = piece === 0 ? A : B, q = piece === 0 ? qA : qB, sg = piece === 0 ? 1 : -1;
       const legL = piece === 0 ? tb * L0 : (1 - tb) * L0, al = dk > 0 && legL > 1e-6 ? Math.atan(dk / legL) : 0;
@@ -266,7 +266,7 @@
     // the torn end: necked, its lips curled out (every other corner), the bare rim; wood: the splinter tapered, raw
     if (e < 1e8) {
       if (wood) { nk = 0.3 + 0.7 * sm(0, 0.45 * ext, e); raw = e < ext + 0.5 * depth ? 1 : raw; }
-      else { nk = 1 - 0.35 * (1 - sm(0.4 * r, 1.5 * r, e)); if (k & 1) curl = 1 + 0.6 * (1 - sm(0, 0.5 * r, e));
+      else { nk = 1 - 0.35 * (1 - sm(0.4 * r, 1.5 * r, e)); if (kc & 1) curl = 1 + 0.6 * (1 - sm(0, 0.5 * r, e));
         bare = e < RIM * r ? 1 : e < 3 * RIM * r && !steel ? 0.5 : 0; }
     }
     const Bv = V.cross(T, Nn);
@@ -275,6 +275,21 @@
     const P = V.add(V.add(p, V.mul(Nn, X + cr)), V.mul(Bv, Y));
     const nn = V.nrm(V.add(V.mul(Nn, cn), V.mul(Bv, cs)));
     return [P[0], P[1], P[2], nn[0], nn[1], nn[2], bare, raw, e, x0];
+  }
+  // THE NORMAL OF THE DEFORMED TUBE (the user, 27 Oct: never flat - "looks like a bench"): the surface's own, from the
+  // vertex's neighbours round its ring and along its piece (central differences: a vertex's normal the mean of its
+  // faces', smooth over the body, the bend, the neck, the curled lip and the crush band alike); the section's own
+  // radial normal where the surface folds to nothing (a lip's clamped rings)
+  function pose(S, u, k, piece) {
+    const o = poseAt(S, u, k, piece), nK = S[28] | 0;
+    if (!(S[3] > 0.5) || nK < 3) return o;
+    const kc = k < nK ? k : 0, kp = kc + 1 >= nK ? 0 : kc + 1, km = kc === 0 ? nK - 1 : kc - 1, du = 1 / (RINGS - 1);
+    const a1 = poseAt(S, u, kp, piece), a0 = poseAt(S, u, km, piece), b1 = poseAt(S, Math.min(u + du, 1), kc, piece), b0 = poseAt(S, Math.max(u - du, 0), kc, piece);
+    const ta = [a1[0] - a0[0], a1[1] - a0[1], a1[2] - a0[2]], tl = [b1[0] - b0[0], b1[1] - b0[1], b1[2] - b0[2]];
+    let n = V.cross(ta, tl); const l = V.len(n);
+    if (!(l > 1e-9)) return o;
+    n = V.mul(n, (n[0] * o[3] + n[1] * o[4] + n[2] * o[5] < 0 ? -1 : 1) / l);
+    o[3] = n[0]; o[4] = n[1]; o[5] = n[2]; return o;
   }
 
   // THE SAME IN GLSL, chained after the bucket's own material hooks: the pose computed at the top of main, written over
@@ -288,8 +303,7 @@
     'float lkS(float a, float b, float x) { float t = clamp((x - a) / (b - a), 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }',
     'float lkD1(float u) { return 0.5 * u + 0.5 * (1.0 - (1.0 - u) * (1.0 - u)); }',
     'float lkD0(float u) { return 0.5 * u + 0.5 * u * u; }',
-    'void lkPose(out vec3 Pp, out vec3 Pn) {',
-    '  int sid = int(position.z + 0.5) / 2; int piece = int(position.z + 0.5) - 2 * sid; float u = position.x; int k = int(position.y + 0.5);',
+    'void lkAt(int sid, int piece, float u, int k, out vec3 Pp, out vec3 Pn) {',
     '  vec4 T0 = lkT(sid, 0), T1 = lkT(sid, 1), qA = lkT(sid, 2), qB = lkT(sid, 3), T4 = lkT(sid, 4), T5 = lkT(sid, 5), T6 = lkT(sid, 6), T7 = lkT(sid, 7);',
     '  float mat = T0.w; float mode = T1.w; int nK = int(T7.x + 0.5); vBare = 0.0; vRaw = 0.0; vMat = mat;',
     '  if (mat < 0.5 || nK < 3) { Pp = vec3(0.0); Pn = vec3(0.0, 1.0, 0.0); return; }',
@@ -303,8 +317,8 @@
     '  bool broken = (mode > 0.5 && mode < 1.5) || (mode > 2.5 && mode < 3.5), crack = broken && c < L0 * 0.999, stub = broken && !crack;',
     '  float depth = 2.0 * r;',
     '  vec3 p, T, Nn; float e = 1e9, ov = 0.0, cr = 0.0, nk = 1.0, curl = 1.0;',
-    '  float jag = (lkH(k, seed + piece * 77) * 2.0 - 1.0) * 1.2 * r;',
-    '  float ext = depth * (3.0 + 3.0 * lkH(k + piece * 31, seed)) * (lkH(k * 7 + piece * 5, seed + 1) < 0.35 ? 0.25 : 1.0);',
+    '  float jag = (lkH(kc, seed + piece * 77) * 2.0 - 1.0) * 1.2 * r;',
+    '  float ext = depth * (3.0 + 3.0 * lkH(kc + piece * 31, seed)) * (lkH(kc * 7 + piece * 5, seed + 1) < 0.35 ? 0.25 : 1.0);',
     '  if (stub) {',
     '    vec3 own = piece == 0 ? A : B; vec4 q = piece == 0 ? qA : qB; float sg = piece == 0 ? 1.0 : -1.0;',
     '    float legL = piece == 0 ? tb * L0 : (1.0 - tb) * L0; float al = dk > 0.0 && legL > 1e-6 ? atan(dk / legL) : 0.0;',
@@ -346,13 +360,24 @@
     '  }',
     '  if (e < 1e8) {',
     '    if (wood) { nk = 0.3 + 0.7 * lkS(0.0, 0.45 * ext, e); vRaw = e < ext + 0.5 * depth ? 1.0 : vRaw; }',
-    '    else { nk = 1.0 - 0.35 * (1.0 - lkS(0.4 * r, 1.5 * r, e)); if ((k - 2 * (k / 2)) == 1) curl = 1.0 + 0.6 * (1.0 - lkS(0.0, 0.5 * r, e));',
+    '    else { nk = 1.0 - 0.35 * (1.0 - lkS(0.4 * r, 1.5 * r, e)); if ((kc - 2 * (kc / 2)) == 1) curl = 1.0 + 0.6 * (1.0 - lkS(0.0, 0.5 * r, e));',
     '      vBare = e < ' + RIM.toFixed(2) + ' * r ? 1.0 : (e < ' + (3 * RIM).toFixed(2) + ' * r && !steel ? 0.5 : 0.0); }',
     '  }',
     '  vec3 Bv = cross(T, Nn);',
     '  float dent = ov > 0.0 && cn < -0.6 ? 1.0 - 0.25 * ov * (-cn - 0.6) / 0.4 : 1.0;',
     '  float X = cx * nk * curl * (1.0 - 0.38 * ov) * dent, Y = cy * nk * curl * (1.0 + 0.2 * ov);',
     '  Pp = p + Nn * (X + cr) + Bv * Y; Pn = normalize(Nn * cn + Bv * cs);',
+    '}',
+    // (the normal from the neighbours, as pose: the four first, the vertex itself last - its varyings are its own)
+    'void lkPose(out vec3 Pp, out vec3 Pn) {',
+    '  int sid = int(position.z + 0.5) / 2; int piece = int(position.z + 0.5) - 2 * sid; float u = position.x; int k = int(position.y + 0.5);',
+    '  int nK = int(lkT(sid, 7).x + 0.5); vec3 Q[4]; vec3 nq;',
+    '  int kc = k < nK ? k : 0, kp = kc + 1 >= nK ? 0 : kc + 1, km = kc == 0 ? nK - 1 : kc - 1; float du = ' + (1 / (RINGS - 1)).toFixed(8) + ';',
+    '  for (int j = 0; j < 4; j++) { Q[j] = vec3(0.0);',
+    '    if (nK >= 3) lkAt(sid, piece, j == 2 ? min(u + du, 1.0) : (j == 3 ? max(u - du, 0.0) : u), j == 0 ? kp : (j == 1 ? km : kc), Q[j], nq); }',
+    '  lkAt(sid, piece, u, k, Pp, Pn);',
+    '  vec3 n = cross(Q[0] - Q[1], Q[2] - Q[3]); float l = length(n);',
+    '  if (nK >= 3 && l > 1e-9) Pn = n * ((dot(n, Pn) < 0.0 ? -1.0 : 1.0) / l);',
     '}'].join('\n');
   const LOOK_FRAG = 'varying float vBare; varying float vRaw; varying float vMat;';
   // the colour at the tear (after the material's own map: the body is the bucket's, untouched), and the open tube's
