@@ -92,7 +92,8 @@ const EM = (() => {
     headFins: 8,       // fin plates on the head barrel
     intake: 1,         // intake risers, sump plenum -> head bottom aft
     exStyle: 1,        // 0 none · 1 short stacks · 2 collector per side
-    exDrop: 1.5,       // stack drop below the sump, / bore
+    exDrop: 1.5,       // stack drop below the sump, / bore (the ejector stubs' reach)
+    exPair: 0,         // ejector stubs (exStyle 4): one stub per pair of cylinders
     // G155: WHERE THE EXHAUST LEAVES. The collector's tailpipe used to end at
     // one hardcoded point — down and aft — which is where it goes on most
     // aeroplanes and nowhere near where it goes on the rest. These four say it
@@ -2535,6 +2536,40 @@ const EM = (() => {
       }
       sweep(ringPath, 0.22 * b, ENGM_MAT.exhaust,
             { capA: true, capB: true, sides: S.pipe });
+    }
+
+    // ---- EJECTOR STUBS (the Spitfire's Merlin, 27 Oct): each head's port runs
+    // straight out through its bank's flank and turns aft - the short stubs a
+    // liquid V12 pushes through the sides of its cowl (they add a little
+    // thrust; nothing hangs below). `exPair` joins neighbouring cylinders into
+    // one stub (the fishtail pairs, three a side on a six-a-bank V). The reach
+    // is the stack row's `exDrop`, in bores out of the port.
+    if (P.exStyle === 4 && !radial && !(inline && P.twoStroke) && cyls.length) {
+      const reach = P.exDrop * b;
+      for (const sx of [-1, 1]) {
+        const side = cyls.filter(c => c.sx === sx).sort((p, q) => p.z - q.z);
+        const step = P.exPair ? 2 : 1;
+        for (let k = 0; k < side.length; k += step) {
+          const gp = side.slice(k, k + step);
+          const root = [0, 1, 2].map(j => gp.reduce((a, c) => a + c.exhaustP[j], 0) / gp.length);
+          const out = nrm([sx, -0.15, 0]);
+          const stubA = add(root, mul(out, 0.12 * b));
+          const knee = add(root, mul(out, 0.60 * reach));
+          const tip = add(add(root, mul(out, reach)), [0, -0.05 * reach, -0.55 * reach]);
+          gp.forEach((c, j) => {
+            part('exhaust' + c.i, 'tube');
+            // the first of a group carries the stub; a pair's second runs into its root
+            const path = j === 0 ? fillet([c.exhaustP, stubA, knee, tip], 0.45 * b)
+                                 : [c.exhaustP, stubA];
+            const rr = path.map((_, q) => (P.exPair ? 0.20 : 0.16) * b *
+                                          (j === 0 && q >= path.length - 2 ? 1.18 : 1));
+            artery('exhaust' + c.i, 'head' + c.i, j === 0 ? 'tip' : 'stub',
+              sweep(path, rr, ENGM_MAT.exhaust,
+                    j === 0 ? { capA: true, lipB: true, sides: S.pipe }
+                            : { capA: true, capB: true, sides: S.pipe }));
+          });
+        }
+      }
     }
 
     // ---- collector exhaust: per side, stacks merge into one pipe aft ------

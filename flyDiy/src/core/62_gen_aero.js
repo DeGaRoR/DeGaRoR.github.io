@@ -176,13 +176,22 @@ function genStrips(S, fr) {
       const zi = zAll[b], zo = zAll[b + 1];
       for (const t of [0.28, 0.78]) {
         const zc = zi + (zo - zi) * t;
-        const ch = PL.chordAt(zc);
         // Each strip is HALF a bay, so it has a real sub-span, and `flap` is a
         // FRACTION rather than a flag: how much of this strip carries a flap.
         // With a bare flag the span slider quantised — 0.50 and 0.62 produced
         // the identical aeroplane because they caught the same strip centres.
         const zLo = t < 0.5 ? zi : 0.5 * (zi + zo);
         const zHi = t < 0.5 ? 0.5 * (zi + zo) : zo;
+        // AN ELLIPTIC WING'S STRIP IS ITS OWN INTEGRAL (genPlanLaw): one chord
+        // sample per half bay reads a curved planform's outer bay 10-20 % off,
+        // so the strip's chord is its mean over its own sub-span (the strips
+        // then sum to the spec's Sw). Every straight-line wing samples as before.
+        let ch = PL.chordAt(zc);
+        if (PL.ell) {
+          let a = 0; const nI = 16, hI = (zHi - zLo) / nI;
+          for (let j = 0; j < nI; j++) a += PL.chordAt(zLo + (j + 0.5) * hI) * hI;
+          ch = a / Math.max(1e-9, zHi - zLo);
+        }
         const fFrac = fEnd <= zLo ? 0
                     : fEnd >= zHi ? 1
                     : (fEnd - zLo) / (zHi - zLo);

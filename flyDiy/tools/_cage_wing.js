@@ -66,6 +66,7 @@ PAGE.defaults = Object.assign({
   // migrator (GEN_MIGRATORS[5]) lifts an old save's angle into the offsets.
   wingOn: 1, wgSpan: 10.0, wgChord: 1.60, wgChordTip: 1.60,
   wgTipX: 0, wgCrankChord: 1.60, wgCrankX: 0,
+  wgPlan: 0, wgPlanAxis: 0.30,     // the elliptic planform (genPlanLaw): off = the straight stations
   wgDihedral: 3.0, wgIncidence: 1.5, wgWashout: 1.5,
   wgCamber: 2, wgThick: 12,
   wgTip: Math.max(0, TIP_KEYS.indexOf('rounded')), wgPos: 0,
@@ -91,6 +92,7 @@ PAGE.defaults = Object.assign({
   // the trunk's fore/aft sign). Off by default: a monoplane.
   w2On: 0, w2Pos: 2, w2ParaH: 0.45, w2Stagger: 0.35, w2Dy: 0,
   w2Span: 10.0, w2Chord: 1.60, w2ChordTip: 1.60, w2TipX: 0,
+  w2Plan: 0, w2PlanAxis: 0.30,
   w2CrankAt: 0, w2CrankChord: 1.60, w2CrankX: 0, w2DihedralOut: 6,
   w2Dihedral: 3.0, w2Incidence: 1.5, w2Washout: 1.5, w2Camber: 2, w2Thick: 12,
   w2Tip: Math.max(0, TIP_KEYS.indexOf('rounded')), w2Centre: 0, w2Panels: 3,
@@ -163,10 +165,15 @@ const WING_ITEMS = [
   // G3503 (DC3-BUILD): to the widened envelope's 30 m and 5 m (a full-size DC-3)
   ['wgSpan',   'span',           6.5, 30, 0.1, { ...on, dim: 'm', note: spanNote }],
   ['wgChord',  'root chord',     0.80, 5.00, 0.05, { ...on, dim: 'm' }],
-  ['wgChordTip', 'tip chord',    0.55, 5.00, 0.05, { ...on, dim: 'm', note: tipNote }],
+  ['wgChordTip', 'tip chord',    0.55, 5.00, 0.05, { when: P => +P.wingOn && !+P.wgPlan, dim: 'm', note: tipNote }],
+  // THE ELLIPTIC PLANFORM (the user, 27 Oct, the Spitfire: "a truly elliptic wing"): the chord follows one
+  // ellipse over the whole semispan from the root chord on the centreline, the line at `straight line at` of
+  // the chord runs straight (swept by `tip aft`); the tip chord, the crank and the tip type stand down
+  ['wgPlan',   'planform',       0, 1, 1, ['straight stations', 'elliptic'], on],
+  ['wgPlanAxis', 'straight line at (chord)', 0.10, 0.50, 0.01, { when: P => +P.wingOn && +P.wgPlan === 1 }],
   ['wgTip',    'tips',           0, TIP_KEYS.length - 1, 1,
-   TIP_KEYS.map(k => GEN_TIPS[k].name), on],
-  ['wgCrankAt', 'crank at',      0, 0.85, 0.05, { ...on, note: heldNote('wgCrankAt') }],
+   TIP_KEYS.map(k => GEN_TIPS[k].name), { when: P => +P.wingOn && !+P.wgPlan }],
+  ['wgCrankAt', 'crank at',      0, 0.85, 0.05, { when: P => +P.wingOn && !+P.wgPlan, note: heldNote('wgCrankAt') }],
   // G140: the crank SECTION — its own chord and fore/aft seat, the same
   // two numbers the root and tip carry. On a strutted wing the crank is
   // where the strut lands (the frame's ruling), so this trio IS the
@@ -357,6 +364,7 @@ const ROWBACK = [
   ['wgSpan', w => w.span],
   ['wgChordTip', w => w.chord * w.taper],
   ['wgTipX', w => w.tipX],
+  ['wgPlanAxis', w => w.planAxis, P => +P.wgPlan === 1],
   ['wgCrankAt', w => w.crankAt, P => +P.wgCrankAt > 0],
   ['wgCrankChord', w => w.crankChord, P => +P.wgCrankAt > 0],
   ['wgCrankX', w => w.crankX, P => +P.wgCrankAt > 0],
@@ -759,6 +767,7 @@ function wingGSpec(P) {
       span: P.w2Span, chord: P.w2Chord,
       taper: Math.max(0.2, Math.min(1.0, P.w2ChordTip / Math.max(0.2, P.w2Chord))),
       tipX: +P.w2TipX || 0,
+      plan: +P.w2Plan === 1 ? 'elliptic' : null, planAxis: +P.w2Plan === 1 ? +P.w2PlanAxis : null,
       dihedral: P.w2Dihedral, incidence: P.w2Incidence, washout: P.w2Washout,
       naca: c2 * 1000 + (c2 > 0 ? 400 : 0) + t2,
       panels: Math.round(P.w2Panels),
@@ -793,6 +802,7 @@ function wingGSpec(P) {
       // sweep is never written; the resolved wing derives sweepEff for
       // the polar from what the stations actually do
       tipX: +P.wgTipX || 0,
+      plan: +P.wgPlan === 1 ? 'elliptic' : null, planAxis: +P.wgPlan === 1 ? +P.wgPlanAxis : null,
       dihedral: P.wgDihedral, incidence: P.wgIncidence,
       washout: P.wgWashout,
       naca: cam * 1000 + (cam > 0 ? 400 : 0) + thk,

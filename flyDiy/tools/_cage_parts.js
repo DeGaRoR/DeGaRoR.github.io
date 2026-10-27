@@ -637,7 +637,7 @@ const CAGE_PARTS = [
     // (T2.3 (48): the carry-through beam's switch rides with the centre section)
     groups: [
       ['planform', ['wgSpan', 'wgChord', 'wgChordTip', 'wgTip',
-                    'wgCrankAt', 'wgCrankChord', 'wgCrankX', 'wgTipX']],
+                    'wgCrankAt', 'wgCrankChord', 'wgCrankX', 'wgTipX', 'wgPlan', 'wgPlanAxis']],
       // wgPos -> `design`
       ['rigging', ['wgDihedral', 'wgDihedralOut', 'wgIncidence',
                    'wgWashout']],
@@ -694,7 +694,7 @@ const CAGE_PARTS = [
     sections: ['wingSkin2', 'wingTip2'],
     groups: [
       ['planform', ['w2Span', 'w2Chord', 'w2ChordTip', 'w2Tip',
-                    'w2CrankAt', 'w2CrankChord', 'w2CrankX', 'w2TipX']],
+                    'w2CrankAt', 'w2CrankChord', 'w2CrankX', 'w2TipX', 'w2Plan', 'w2PlanAxis']],
       ['rigging', ['w2Dihedral', 'w2DihedralOut', 'w2Incidence', 'w2Washout']],
       ['aerofoil', ['w2Camber', 'w2Thick']],
       ['structure', ['w2Centre', 'w2CentreW', 'w2Beam', 'w2Panels', 'w2Cons']],
@@ -905,7 +905,7 @@ const CAGE_PARTS = [
       ['induction + exhaust', ['eng_injected', 'eng_airStyle',
                                'eng_airbox', 'eng_intake', 'eng_exStyle',
                                'eng_exDrop', 'eng_exOut', 'eng_exAim',
-                               'eng_exOutX', 'eng_exOutY', 'eng_exOutZ']],
+                               'eng_exOutX', 'eng_exOutY', 'eng_exOutZ', 'eng_exPair']],
       ['ignition + accessories', ['eng_leads', 'eng_leadR', 'eng_mags',
                                   'eng_genOn', 'eng_oilFill']],
       ['radiator', ['eng_radX', 'eng_radY', 'eng_radZ', 'eng_radW',

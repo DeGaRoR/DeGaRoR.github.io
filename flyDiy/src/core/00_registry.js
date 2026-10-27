@@ -510,6 +510,16 @@ const POWERPLANTS = {
     engine: { name: 'Clerget 9B', mass: 173, powerW: 97000, aspiration: 'na', family: 'four', cooling: 'air', layout: 'radial', rpm: 1250 },
     prop:   { name: '2-blade wood 2.59 m', D: 2.59, Tstatic: 2130, kV2: 0.300 },
   },
+  // THE ROLLS-ROYCE MERLIN 66 (the user, 27 Oct: "I would want a spitfire" - the Mk IX's engine): 1 720 hp
+  // (1 283 kW) at +18 lb boost, rated to 5 790 ft (1 765 m, the low supercharger gear: the armedconflicts.com
+  // data sheet), 1 640 lb dry (744 kg: the Merlin manual, airpages.ru; aarg.com.au), 3 000 rpm through the
+  // 0.477 reduction (2.096), a 60 deg upright V12 of 5.4 x 6.0 in, liquid cooled. The prop is DERIVED as the
+  // catalogue's are (genPropSynth at four blades, 3.27 m - the Mk IX's 10 ft 9 in Rotol, standard pitch).
+  merlin66_rotol4: {
+    price: 180000,
+    engine: { name: 'Rolls-Royce Merlin 66', mass: 744, powerW: 1283000, aspiration: 'super', critAlt: 1765, family: 'four', cooling: 'liquid', rpm: 3000, gear: 2.096 },
+    prop:   { name: 'Rotol 4-blade 3.27 m', D: 3.27, Tstatic: 17131, kV2: 0.8032 },
+  },
   rotec3600_std: {
     price: 30000,
     engine: { name: 'Rotec R3600', mass: 102, powerW: 112000, aspiration: 'na', family: 'four', cooling: 'air', layout: 'radial', rpm: 3600, gear: 2 },

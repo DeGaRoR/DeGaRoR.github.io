@@ -146,6 +146,7 @@ function iconFlap(key) {
   if (key === 'plain') p.push({ d: 'M40 15 L58 24 L40 21 Z' });
   if (key === 'slotted') p.push({ d: 'M43 17 L60 26 L44 23 Z' });
   if (key === 'fowler') p.push({ d: 'M46 20 L63 28 L47 26 Z' });
+  if (key === 'split') p.push({ d: 'M26 24 L40 22 L52 32 Z' });   // the lower skin hinged down
   return { vb: '0 0 64 40', paths: p };
 }
 
@@ -1216,9 +1217,12 @@ const DESIGN_ROWS = [
   { key: 'wgFlapType', label: 'Flaps', kind: 'discriminator',
     group: 'wing', status: 'live', twin: ['wgFlapType'],
     read: P => Math.round(P.wgFlapType),
-    options: () => ['none', 'plain', 'slotted', 'fowler'].map((k, i) => ({
-      value: i, label: ((gFlaps() || {})[k] || { name: k }).name,
-      icon: iconFlap(k), writes: { cage: { wgFlapType: i } } })) },
+    // (the split flap, the Spitfire's, 27 Oct: the physics had it, the tile did not; its value is its own
+    // index in GEN_FLAPS, as the row's)
+    options: () => ['none', 'plain', 'slotted', 'fowler', 'split'].map(k => {
+      const i = Math.max(0, Object.keys(gFlaps() || {}).indexOf(k));
+      return { value: i, label: ((gFlaps() || {})[k] || { name: k }).name,
+               icon: iconFlap(k), writes: { cage: { wgFlapType: i } } }; }) },
 
   // ---- propulsion ---------------------------------------------------------
   { key: 'engFamily', label: 'Powertrain family', kind: 'discriminator',
@@ -2232,6 +2236,25 @@ const ARCHETYPES = [
                     cowl: { halfW: 0.42 },
                     finish: { decals: { m1On: 1, m1Pat: 2, m1A: 0x7c3327,
                                         m1B: 0xc7c9cc, m1D: 0x7c3327 } } } } },
+  { key: 'spitfire', kind: 'recreation', name: 'Spitfire-alike', note: 'elliptic-wing fighter, ' +
+      'Merlin V12 on the nose, radiators under the wings, one seat under a blown hood',
+    // THE SPITFIRE LF Mk IX (the user, 27 Oct: "I would want a spitfire"), built to the user's reference model by
+    // tools/REF_MATCH.md (refs/spitfire.json; Sketchfab 'Spitfire Highpoly' by Renafox, CC-BY-4.0), its span on
+    // the published 36 ft 10 in and its length on the museum's 9.5 m. THE BODY: a lofted alloy monocoque (round
+    // section, the deck falling away behind a blown hood - the turtledeck), the Merlin in a long faired bonnet
+    sel: { class: 'eab', role: 'aerobatic', seatLayout: 0, paxCount: 0,
+           canopy: 'bubble', mirror: 1, intCons: 3, boomStyle: 0, section: 3,
+           wgPos: 2, wgBrace: 1, wgTip: 3, wgFlapType: 4, planes: 'mono',
+           engFamily: 'vee', engModel: 'Rolls-Royce Merlin 66', engMount: 'nose', prop: 'wood2',
+           gearLayout: 'tail', suspension: 'oleo', s1Fair: 0,
+           finArch: 'rounded', empennage: 'conv', scheme: 'trim', base: 0x3d5c40, trim: 0x20211f },
+    over: { cage: { // THE ELLIPTIC WING (genPlanLaw): 2.55 m on the centreline, the 30 % chord line straight, 6 deg
+                    wgPlan: 1, wgPlanAxis: 0.30, wgSpan: 11.23, wgChord: 2.55, wgTipX: 0,
+                    wgDihedral: 6, wgIncidence: 2, wgWashout: 2.5, wgCamber: 2, wgThick: 13,
+                    // the Rotol four-blade on the Merlin's reduction
+                    cw_bladeN: 4, cw_material: 0 },
+            spec: { prop: { blades: 4, material: 'wood', pitch: 'cruise' },
+                    fuel: { litres: 386 } } } },          // 85 imp gal, the two fuselage tanks
   { key: 'savannah', kind: 'recreation', name: 'Savannah-alike', note: 'STOL microlight, high ' +
       'wing, big flaps, bush role',
     sel: { class: 'ulm', role: 'bush', seatLayout: 1, paxCount: 0,
@@ -2763,6 +2786,10 @@ function designBake(sel, over) {
   };
   if (tipKeys[Math.round(full.wgTip)])
     wing.tip = tipKeys[Math.round(full.wgTip)];
+  // THE ELLIPTIC PLANFORM is intent (the join's own two fields, and the tip
+  // offset its straight line is swept by)
+  if (+full.wgPlan === 1)
+    Object.assign(wing, { plan: 'elliptic', planAxis: +full.wgPlanAxis || 0.30, tipX: +full.wgTipX || 0 });
   // PERF STUDY chantier 0 (2026-09-15): THE AIRFOIL AND THE INCIDENCE ARE
   // INTENT. The join's own line verbatim (_cage_join.js: naca from
   // wgCamber/wgThick, incidence, washout); without it every card flew
@@ -2810,6 +2837,8 @@ function designBake(sel, over) {
     };
     if (w2.position === 'parasol') w2.cabaneH = +full.w2ParaH || 0.45;
     if (tipKeys[Math.round(full.w2Tip)]) w2.tip = tipKeys[Math.round(full.w2Tip)];
+    if (+full.w2Plan === 1)
+      Object.assign(w2, { plan: 'elliptic', planAxis: +full.w2PlanAxis || 0.30, tipX: +full.w2TipX || 0 });
     wings.push(w2);
     Object.assign(bracing, {
       interplane: ['N', 'I', 'none'][Math.round(full.bpInter || 0)] || 'N',

@@ -837,7 +837,18 @@ function genWingInto(def, out) {
       const F0 = fw.F[b2], F1 = fw.F[b2 + 1], R0 = fw.R[b2], R1 = fw.R[b2 + 1];
       const lerp = (a3, b3) => [a3[0] + (b3[0]-a3[0])*t, a3[1] + (b3[1]-a3[1])*t,
                                 a3[2] + (b3[2]-a3[2])*t];
-      return { pF: lerp(N[F0].p, N[F1].p), pR: lerp(N[R0].p, N[R1].p),
+      const pF = lerp(N[F0].p, N[F1].p), pR = lerp(N[R0].p, N[R1].p);
+      // AN ELLIPTIC WING'S SPARS WALK A CURVE (genPlanLaw's xoff): between two
+      // spar stations the drawn section rides the law, not the chord between
+      // the nodes, or every outer bay's leading edge kinks (display only: the
+      // influences stay the nodes')
+      if (PP.ell && PP.xFat && PP.xRat) {
+        const zs0 = N[F0].p[2] * side, zs1 = N[F1].p[2] * side;
+        const lin = PP.xFat(zs0) + (PP.xFat(zs1) - PP.xFat(zs0)) * t;
+        const linR = PP.xRat(zs0) + (PP.xRat(zs1) - PP.xRat(zs0)) * t;
+        pF[0] += PP.xFat(z) - lin; pR[0] += PP.xRat(z) - linR;
+      }
+      return { pF, pR,
                wF: [[F0, 1-t], [F1, t]], wR: [[R0, 1-t], [R1, t]],
                chord: PP.chordAt(z) };
     };
@@ -889,6 +900,16 @@ function genWingInto(def, out) {
     for (let i = 0; i < zEnd.length - 1; i++)
       for (let sg = (i === 0 ? 0 : 1); sg <= GEN_WSEG; sg++)
         zs2.push(zEnd[i] + (zEnd[i+1] - zEnd[i]) * sg / GEN_WSEG);
+    // AN ELLIPTIC WING's outer chord falls fastest at the tip: rows stepped in
+    // angle over the outer half, as the bow's are, so the curve is drawn
+    if (PP.ell) {
+      const zE = zAll[zAll.length - 1], zA = zAll[0] + 0.5 * (zE - zAll[0]), nE = 14;
+      for (let i = 1; i < nE; i++) {
+        const ze = zA + (zE - zA) * CORE_MATH.sin((Math.PI / 2) * i / nE);
+        if (!zs2.some(v => Math.abs(v - ze) < 0.02)) zs2.push(ze);   // a band edge keeps its own row
+      }
+      zs2.sort((a2, b2) => a2 - b2);
+    }
     // THE BOW, stepped in angle (see G4.3): all curvature, no control surface
     if (W.tipR > 1e-6) {
       const nA = Math.max(2, TIP.arc | 0), thMax = (Math.PI/2) * 0.965;

@@ -44,6 +44,7 @@ const CAGE_JOIN_ENGINES = {
   // the aero Vs (2026-09-05, the V test)
   'Hirth HM 508D': 'hirth508_wood',
   'Argus As 10C': 'argus10c_wood',
+  'Rolls-Royce Merlin 66': 'merlin66_rotol4',   // the Spitfire's V12 (27 Oct)
   // the coverage fill (2026-09-05)
   'lycoming O-320': 'o320_mccauley',
   'lycoming O-540': 'o540_hartzell',
@@ -177,6 +178,7 @@ function cageJoinPlane2(P, T) {
     span: P.w2Span, chord: P.w2Chord,
     taper: Math.max(0.2, Math.min(1.0, P.w2ChordTip / Math.max(0.2, P.w2Chord))),
     tipX: +P.w2TipX || 0,
+    plan: +P.w2Plan === 1 ? 'elliptic' : null, planAxis: +P.w2Plan === 1 ? +P.w2PlanAxis : null,
     dihedral: P.w2Dihedral, incidence: P.w2Incidence, washout: P.w2Washout,
     naca: c2 * 1000 + (c2 > 0 ? 400 : 0) + t2,
     panels: Math.round(P.w2Panels),
@@ -222,6 +224,8 @@ function cageJoinSpec(P, M, T) {
       // resolved wing derives sweepEff from what the stations do), and
       // tipX 0 is a real value: straight
       tipX: +P.wgTipX || 0,
+      // the elliptic planform (genPlanLaw), the wing layer's own two fields
+      plan: +P.wgPlan === 1 ? 'elliptic' : null, planAxis: +P.wgPlan === 1 ? +P.wgPlanAxis : null,
       dihedral: P.wgDihedral, incidence: P.wgIncidence,
       washout: P.wgWashout,
       naca: cam * 1000 + (cam > 0 ? 400 : 0) + thk,

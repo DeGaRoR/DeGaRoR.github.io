@@ -135,6 +135,12 @@ const PRESETS = {
     bore: 0.105, stroke: 0.115, rpm: 3000, exStyle: 2 },
   'Argus As 10C': { arch: 'vee', cyl: 8, vee: 90, twoStroke: 0, inlineAim: 0,
     bore: 0.120, stroke: 0.140, rpm: 2000, exStyle: 2 },
+  // THE MERLIN 66 (27 Oct, the Spitfire): a 60 deg UPRIGHT V12 of 5.4 x 6.0 in (27.0 L), liquid cooled, the
+  // 0.477 reduction on the nose, the two-speed two-stage blower at +18 lb (2.22 of ambient) to 1 765 m; the
+  // exhaust in ejector stubs out of the bank flanks, paired (the reference's three a side)
+  'Rolls-Royce Merlin 66': { arch: 'vee', cyl: 12, vee: 60, twoStroke: 0, inlineAim: 1,
+    liquid: 1, geared: 1, blower: 2, boost: 2.22, critAlt: 1765,
+    bore: 0.1372, stroke: 0.1524, rpm: 3000, exStyle: 4, exPair: 1, exDrop: 1.2 },
   // THE COVERAGE FILL (2026-09-05). Bore, stroke and rpm are the
   // manufacturers' (O-320 5.125 x 3.875 in, O-540 / IO-720 5.125 x 4.375,
   // IO-550 5.25 x 4.25, Ranger 4.125 x 5.5, W-670 5.125 x 4.625, R-755
@@ -311,7 +317,7 @@ const ENG_GROUPS = [
     // about the aim above — 60 on a Hirth, 90 on an Argus
     ['vee',     'V angle deg', 45, 120, 1, x => x.toFixed(0)],
     ['bore',    'bore mm',   0.05, 0.16, 0.001, mm],
-    ['stroke',  'stroke mm', 0.04, 0.14, 0.001, mm],
+    ['stroke',  'stroke mm', 0.04, 0.16, 0.001, mm],   // (to 0.16: the Merlin's 152.4)
     ['rpm',     'rpm',       1800, 6500, 50],
     ['stagger', 'stagger',   0, 0.5, 0.01],
   ], isPiston],
@@ -350,8 +356,10 @@ const ENG_GROUPS = [
     ['airbox',  'air filter', 'check'],
     ['intake',  'intake risers', 'check'],
     ['exStyle', 'exhaust',    'drop', [[0, 'off'], [1, 'stacks'],
-                                       [2, 'collector'], [3, 'expansion']]],
+                                       [2, 'collector'], [3, 'expansion'],
+                                       [4, 'ejector stubs (side)']]],
     ['exDrop',  'stack drop', 0.6, 2.6, 0.02],
+    ['exPair',  'stubs in pairs', 'check'],     // (ejector stubs: one per two cylinders)
     // G155: the collector's OUTLET. Where the pipe leaves is a real choice on
     // a real aeroplane and was one hardcoded point here.
     ['exOut',   'collectors', 'drop', [[2, 'one under each bank'],
