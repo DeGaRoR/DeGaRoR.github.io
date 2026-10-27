@@ -878,11 +878,11 @@ async function tutorRun() {
      "the skip's fresh pilot starts with the stick neutral before its first update (its default 'DE' mode has no setting: the sim diverged at 0 s, the 25 Oct page run)");
   ok(/function storyFinalNow\(o\)[\s\S]{0,2400}ap\.setRoute\(H, H\);/.test(app),
      "the skip's pilot flies a circuit at the WWII field (a cabin -> HOME route flew to the pattern entry first: 5 min round the circuit, the 25 Oct 20:15 page run)");
-  ok(!/flipped: true/.test(app) && /\n    stSkipLast = \{ way, by: wayBy \};\n    return \{ ok: true, why: '', final: H\.id, pose: P, way \};/.test(app),
+  ok(!/flipped: true/.test(app) && /\n    stSkipLast = \{ way, by: wayBy, again: wayAgain \};\n    return \{ ok: true, why: '', final: H\.id, pose: P, way \};/.test(app),
      "the skip flies the pilot's own plan from the pose, no flip onto the other end (the 27 Oct 11:00 run: the flipped pose flew the circuit too; PILOT's final-cap plans the FINAL, A0 27 Oct)");
-  ok(/typeof ap\.landWayFrom === 'function'\) \{\n      const fits = \[way, -way\]\.filter\(w => \{ const Q = poseOn\(w\), r = ap\.landWayFrom\(H, Q\.x, Q\.z\); return !!\(r && r\.way === w\); \}\);\n      if \(fits\.length\) \{ wayBy = 'pilot'; if \(fits\[0\] !== way\) \{ way = fits\[0\]; P = poseOn\(way\); placeOn\(P\); \} \}/.test(app) &&
-     /placeOn\(P\);\n[\s\S]{0,700}typeof ap\.landWayFrom/.test(app),
-     "the skip is posed on the end the fresh pilot itself plans from the pose (ap.landWayFrom at its t = 0, per end; re-placed and a fresh pilot in the same call, before any frame), the scored way the tie-break and the fallback (A0 27 Oct 12:25: one scorer, never a re-pose the player sees)");
+  ok(/typeof ap\.finalFrom === 'function'\) \{\n      const F = ap\.finalFrom\(H, P\.x, P\.z\), Q = F && storyPoseOnFinal\(F, \{ V, elev: \+H\.elev \|\| 0 \}\);\n      if \(Q\) \{ P = Q; way = F\.way === -1 \? -1 : 1; wayBy = 'pilot'; placeOn\(P\);/.test(app) &&
+     /placeOn\(P\);\n[\s\S]{0,900}typeof ap\.finalFrom/.test(app) && /const x = F\.aim\[0\] - d \* ux, z = F\.aim\[1\] - d \* uz;/.test(app),
+     "the skip is posed on the fresh pilot's OWN final (ap.finalFrom: d before its aim along u, on its slope gs; re-placed with a fresh pilot in the same call, before any frame), the scored pose the fallback (A0 27 Oct: PILOT's node - the spawn pose sat 225 m off the centreline, 1146 m short, on 6 %)");
   ok(/const stUsed = !armed && \(\(\) => \{ try \{ const s = stLive\(\); return !!\(s && !s\.open && s\.planes && s\.planes\.starter && flSlot === s\.planes\.starter\); \}/.test(app) &&
      /if \(typeof window\.BENCH_FLIGHT_LOGGED === 'function' && curKey === 'gen' && !stUsed\) \{/.test(app),
      "Rufus is a used machine: while the story runs, its landings award no flight certificate (the user 27 Oct), a bench-armed test flight still does");

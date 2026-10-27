@@ -9497,6 +9497,19 @@
   // the aeroplane on the final (79_story.js storyFinalPose): a fresh reset onto the pose, its speed along the slope, the
   // engines running, a fresh pilot whose arrival is planned from there (the box's own hand-back: INBOUND with no legs
   // plans from where it is - straight in when lined up)
+  // the aeroplane on the PILOT's final (F = ap.finalFrom: u the landing direction, aim [x, z], gs its slope; F.d the
+  // distance out when the pilot names one, else 3 km): d before the aim along u, at elev + d * gs and 60 m over the ground
+  // at the least, moving along u at V down the slope - storyFinalPose's shape, the pilot's numbers
+  function storyPoseOnFinal(F, o) {
+    if (!F || !Array.isArray(F.u) || !Array.isArray(F.aim) || !(+F.gs > 0)) return null;
+    const L = Math.hypot(F.u[0], F.u[1]); if (!(L > 0.5)) return null;
+    const ux = F.u[0] / L, uz = F.u[1] / L, gs = +F.gs, V = o.V || 22, d = +F.d > 300 ? +F.d : 3000;
+    const x = F.aim[0] - d * ux, z = F.aim[1] - d * uz;
+    let g = null; try { g = world && typeof world.terrainH === 'function' ? world.terrainH(x, z) : null; } catch (e) {}
+    const y = Math.max(o.elev + d * gs, (Number.isFinite(g) ? g : o.elev) + 60), c = Math.cos(Math.atan(gs));
+    if (![x, y, z].every(Number.isFinite)) return null;
+    return { x, y, z, hdg: Math.atan2(uz, ux), vx: V * c * ux, vy: -V * Math.sin(Math.atan(gs)), vz: V * c * uz };
+  }
   let stSkipLast = null;   // (the last skip's way; FLYDIY_STORY.skipLast adds the phases the pilot planned)
   function storyFinalNow(o) {
     const s = stLive();
@@ -9522,14 +9535,16 @@
     };
     let P = poseOn(way);
     placeOn(P);
-    // (A0 27 Oct 12:25: posed on the end the pilot itself plans from the pose - the fresh pilot's own dirAt('land') at its
-    // t = 0, asked from each end's pose (PILOT's ap.landWayFrom, no side effects): both ends answering one way, that end;
-    // each its own (calm, the pref) or no answer, the scored way above. Settled in this call, before any frame: never a
-    // re-pose the player sees)
-    let wayBy = 'scored';
-    try { if (!(o && o.way) && typeof ap.landWayFrom === 'function') {
-      const fits = [way, -way].filter(w => { const Q = poseOn(w), r = ap.landWayFrom(H, Q.x, Q.z); return !!(r && r.way === w); });
-      if (fits.length) { wayBy = 'pilot'; if (fits[0] !== way) { way = fits[0]; P = poseOn(way); placeOn(P); } }
+    // (A0 27 Oct 13:00 - PILOT's node: the pose above is 225 m beside the centreline the pilot lands on, 1146 m short of
+    // its aim, on 6 % against its 10 % (Cub) / 6.5 % (Rufus): from there any pilot joins the circuit. Posed on the pilot's
+    // OWN final instead - the fresh pilot's (its t = 0) planArrival answer from where it is, ap.finalFrom: d m before its
+    // aim along u, on its slope gs, the ground floor as before - master lands straight in, both ends, calm and day.
+    // Settled in this call, before any frame: never a re-pose the player sees. No finalFrom: the pose above stands)
+    let wayBy = 'scored', wayAgain = null;
+    try { if (!(o && o.way) && typeof ap.finalFrom === 'function') {
+      const F = ap.finalFrom(H, P.x, P.z), Q = F && storyPoseOnFinal(F, { V, elev: +H.elev || 0 });
+      if (Q) { P = Q; way = F.way === -1 ? -1 : 1; wayBy = 'pilot'; placeOn(P);
+        const F2 = ap.finalFrom(H, P.x, P.z); wayAgain = F2 ? F2.way : null; }   // (the diag: asked again from the pose, the same way)
     } } catch (e) {}
     // (a fresh pilot's first update applies its DEFAULT modes before the phase's law engages its own: the elevator 'DE'
     // with no setting - ctl.de undefined, a NaN in the first step, 'sim diverged' at 0 s (the 25 Oct page run). Every other
@@ -9539,8 +9554,8 @@
     // (the skip hands the aeroplane to the autopilot, as every flight starts: the hand is one toggle away)
     try { if (manual && typeof setManual === 'function') setManual(false, 'skip'); } catch (e) {}
     try { destId = H.id; } catch (e) {}
-    // (the pilot's own plan from the pose decides the arrival - PILOT's final-cap plans the FINAL from here; no flip, A0 27 Oct)
-    stSkipLast = { way, by: wayBy };
+    // (the pilot flies its own plan from its own final; no flip, A0 27 Oct)
+    stSkipLast = { way, by: wayBy, again: wayAgain };
     return { ok: true, why: '', final: H.id, pose: P, way };
   }
   // (the old skip, kept for the garage without a world: T1 done as a stop at HOME, straight into the WWII hangar)
