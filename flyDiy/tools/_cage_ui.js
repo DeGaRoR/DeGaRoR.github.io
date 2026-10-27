@@ -3595,6 +3595,10 @@ const DEC = (typeof window !== 'undefined' && window.AEROSKIN
   // one thing rather than as two mirrored halves.
   wimOn: 0, wimL: 0.0, wimC: 0.0, wimW: 2.0, wimH: 1.0,
   wimMode: 2, wimRot: 0, wimLock: 1,
+  // G2829: THE REGISTRATION ON THE WING TOP (aeroskin AERO_DEC_DEF's wreg*: the registration's page placed a second
+  // time, in plan - L across the span, C fore / aft, the turn in radians). This file loads BEFORE aeroskin.js on
+  // dev.html, so this literal is the editor's list of decal keys: a key missing here is dropped from a loaded build
+  wregOn: 0, wregH: 0.55, wregL: 2.6, wregC: 0.5, wregRot: 0, wregMode: 2,
 };
 // which surface CLASSES each `target` value means. 0/1/2 are G69's own and
 // keep their meanings exactly; 3 is the one the user asked for and the old

@@ -27,15 +27,16 @@ S.paint=Object.assign({},S.paint,{job:'full',base:WHITE,trim:GRAPH,gloss:0.62});
 const F=S.finish; const sec=F.sections;
 // a warmer off-white with metal flake in it (a pearl), body and flying surfaces alike
 for(const k of ['body','ceilingLoop','pillarFront','pillarCabin','floorLoop','pillarWindow','pillarPassenger','pillarTail','finRud']) sec[k]={tint:WHITE,metal:PEARL};
-for(const k of ['wingSkin','finSkin','stabSkin']) sec[k]=Object.assign({},sec[k]||{},{tint:WHITE,metal:PEARL});
+for(const k of ['wingSkin','finSkin']) sec[k]=Object.assign({},sec[k]||{},{tint:WHITE,metal:PEARL});
+sec.stabSkin={tint:WHITE};   // the stab's surface takes the flake as a grey mirror of the hangar: plain off-white
 sec.gearLeg={tint:GRAPH}; sec.waistband={tint:GRAPH}; sec.spinner={tint:GRAPH};
 sec.strut={fin:'castAlu',tint:GRAPH};
 sec.wingTip={tint:ORANGE}; sec.wingStol={tint:ORANGE};   // the STOL parts in the accent: the slot, the VG row, the drooped tips
 Object.assign(F.decals,{
   // the registration small and black on the white of the boom, just aft of the orange flash; and large on the wing top
   regCol:INK, regOutOn:0, regFont:2, regH:0.16, regL:3.55, regC:0.16,
-  // the wing's: in PLAN, L across the span from the centreline, C fore / aft, the turn in radians
-  wregOn:1, wregH:0.55, wregL:2.6, wregC:0.5, wregRot:0, wregMode:2,
+  // the wing's: in PLAN, L across the span from the centreline, C along the body (+ forward: the wing is -0.3..-2.0), radians
+  wregOn:1, wregH:0.55, wregL:2.6, wregC:-1.1, wregRot:0, wregMode:2,
   // layer 1: graphite below a line that rises aft, under an orange keyline
   m1On:1,m1Pat:2,m1A:GRAPH,m1B:ORANGE,m1L:-1.3,m1C:-0.25,m1W:8.6,m1H:1.1,m1P:0.36,m1Q:0.42,m1Rot:0,m1Tgt:0,m1Mode:1,
   // layer 2: the sweep carried up the tail - graphite below a line rising aft, the orange keyline on it
