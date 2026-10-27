@@ -35,8 +35,8 @@ const CUB = path.join(__dirname, '..', 'builds', 'cub_2026-09-20_corrected.json'
 // two halves, the boarding step low on the fuselage aft of the door
 const ASK = {
   acc_fuelCap_z: -0.45,
-  acc_doorHandle_z: 0.94, acc_doorHandle_h: 52,
-  acc_step_z: 1.12, acc_step_h: 6,
+  acc_doorHandle_z: 0.93, acc_doorHandle_h: 56,
+  acc_step_z: 1.30, acc_step_h: 6,
 };
 const BREAK = {};               // --selftest: which row to break
 
