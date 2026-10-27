@@ -99447,3 +99447,36 @@ PILOTS: PASS.
    runs FRAMECOST in the train (not run here).
 2. LAZY's one row ("default: the door's first demand (ROUTE_DRAW.ready) fetched route_draw ... once and ran it") is red in
    the cloud on every tree tried, the base included: UNVERIFIED here - the local box's LAZY decides it.
+## MISSIONS-P3 - THE BUSH MISSIONS (node logic): WHO GETS ON AND OFF, A TIME LIMIT, A DEPARTURE WINDOW, CHOOSE:N LEGS, EVERY STEP'S LINE, ONDONE PAY / SITE, A SITE SERVED BY ITS STRIP, THE PACK'S CONTAINERS IN THE CAREER (2026-10-27, cloud, node only; branch claude/missions-p3 off claude/missions-p1 287d8e21; for Game's review)
+
+The design's P3 row ("multi-step bush missions: embark/disembark per stop, narrative per step, parking spot") - park
+landed in P1. **Not done here: the full tutorial skip** (start after the route with the floats Cub): it needs the user's
+three validated Cub files (J3, Super-Cub-like, floats - §7) and Game's STORY call; the tutorial stays exactly as it is.
+- **The stop's conditions on a step** (73c missionStopChecks, asked by 74_ contractOnStop in the ordered walk):
+  `require.maxMin` - the flight that ended there (the logbook row's t) took at most that; `require.depart` - it left
+  inside { after: h } | { before: h } | { at: [h0, h1] } local hours (stop.departHour, else the stop's hour less the
+  flight); `embark` / `disembark` - these people (ids, or a count) got on / off there (stop.people { on, off }).
+  "still aboard: David", "the flight took 60 min, 30 allowed", "it left at 4.7 h, outside its departure window".
+- **choose:N legs** (missionLegDone): the leg is done when N of its steps are; markers show every open one as next.
+- **Every step's line**: a step's `say` is an event when it is done (not only a talk's); a mission's onDone.say at the end.
+- **onDone** (a step's or the mission's; careerOnDone): `pay` (a ledger line, the card's "+500"), `site: { id, state }`
+  -> career.sites[id] (kept by the normaliser when present); a site with a `track` (a world construction stage) built ->
+  career.tracks moves like an unlock (the card: "<site>: built"; the event's `unlock`).
+- **A site served by a strip** (`sites[].field`): a step to the site is flown to that strip (sub.to / sub.at), the site
+  rides along for the marker. A site no strip serves still waits (contractRuntimeOk).
+- **The containers** (missionPackInstall): a container is done when all its missions are (a choose:N chapter: N of them);
+  a chapter's / a campaign's `needs.after`, and the chapter before in a seq campaign, become `needs.of: [{ ids, n }]` on
+  every mission behind it; a choose:N chapter's missions carry `closed: { ids, n }` (offered while fewer than n are
+  done). 74_ careerNeedsOk reads both. Held, with the reason: a choose:N CAMPAIGN (N chapters of many).
+- **Still waiting** (contractRuntimeOk): legs in an order other than seq; a site with no strip; ldgDistM, cargoL.
+- The editor: a site's "served by", a step's onDone.pay. The demo pack: `demo.supply` (David and Jody to Ridgeback in 20
+  min after 07:00, David off, +300, the mast building; then strip 10 or 11, the mast built).
+- GATE MISSIONS: the bush pack end to end through a career (the containers offered / closed / opened, the run refused
+  for each condition then done, the line, the pay, the site, the choose leg, the site's stage revealed, a carry to a site
+  by its strip, the stop record's people / departure), 9 more selftest mutations (46 in all).
+
+**THE LOCAL SESSION ADDS** (to the P1/P2 list): the stop record's `people: { on: [ids], off: [ids] }` - who boarded and
+who got off at that stop (the crowd's boarding, G2970 / G3619: the named passengers of the step's load / embark /
+disembark walk on or off; the arrival card lists them); `departHour` (the local hour the flight left: 07b's clock at the
+take-off) - optional, the core derives it otherwise. Draw a site (kind 'site') as a construction marker at its `x, z`,
+its state on the 2-D map; a choose:N leg's open steps all as `next` with "one of" on the map.

@@ -273,7 +273,8 @@ function renderForm() {
     const x = P.sites[s.i];
     f.append(el('h3', {}, 'site · ' + x.id), row('id', inp(x.id, v => x.id = v)), row('asset', inp(x.asset, v => x.asset = v, { ph: 'meteo station' })),
       row('x', inp(x.at.x, v => x.at.x = v, { type: 'number' })), row('z', inp(x.at.z, v => x.at.z = v, { type: 'number' })), row('hdg', inp(x.at.hdg, v => x.at.hdg = v, { type: 'number' })),
-      row('state', sel(x.state, MISSION_SITE_STATES, v => x.state = v)), row('track', sel(x.track || '', trackOpts(), v => x.track = v || undefined, { blank: '—' }), 'the world construction stage it reveals (76_stages)'),
+      row('state', sel(x.state, MISSION_SITE_STATES, v => x.state = v)), row('track', sel(x.track || '', trackOpts(), v => x.track = v || undefined, { blank: '—' }), 'the world construction stage it reveals when built (76_stages)'),
+      row('served by', sel(x.field || '', fieldOpts(), v => x.field = v || undefined, { blank: '— (no strip: a step to it waits)' }), 'the strip a step to this site is flown to'),
       el('div', { cls: 'tools' }, pickBtn('pick on map', { kind: 'siteAt', i: s.i }), el('button', { on: { click: () => { P.sites.splice(s.i, 1); S.sel = { t: 'pack' }; changed(); } } }, '✕ delete')));
     return;
   }
@@ -434,6 +435,7 @@ function stepForm(f, m, li, si) {
     row('auto', sel(s.auto == null ? '' : String(s.auto), ['true', 'place', 'false'], x => s.auto = x === '' ? undefined : x === 'true' ? true : x === 'false' ? false : 'place', { blank: '—' }))));
   f.append(el('fieldset', {}, el('legend', {}, 'narrative'), ...sayRows('say', s.say, v => { if (v) s.say = v; else delete s.say; }),
     ...sayRows('onDone.say', (s.onDone || {}).say, v => { s.onDone = Object.assign({}, s.onDone || {}); if (v) s.onDone.say = v; else delete s.onDone.say; if (!Object.keys(s.onDone).length) delete s.onDone; }),
+    row('onDone.pay', inp(s.onDone && s.onDone.pay, x => { s.onDone = Object.assign({}, s.onDone || {}); if (x == null) delete s.onDone.pay; else s.onDone.pay = +x; if (!Object.keys(s.onDone).length) delete s.onDone; }, { type: 'number', ph: 'credits when this step is done' })),
     row('onDone.site', inp(s.onDone && s.onDone.site ? s.onDone.site.id + ':' + s.onDone.site.state : '', x => { s.onDone = Object.assign({}, s.onDone || {}); const g = /^([^:]+):(\w+)$/.exec(x || ''); if (g) s.onDone.site = { id: g[1], state: g[2] }; else delete s.onDone.site; if (!Object.keys(s.onDone).length) delete s.onDone; }, { ph: 'siteId:building' }))));
   f.append(el('div', { cls: 'tools' }, moveBtns(L.steps, si, i => S.sel = { t: 'step', id: m.id, l: li, s: i }), el('button', { on: { click: () => { L.steps.splice(si + 1, 0, clone(s)); changed(); } } }, 'duplicate'),
     el('button', { on: { click: () => { L.steps.splice(si, 1); S.sel = { t: 'leg', id: m.id, l: li }; changed(); } } }, '✕ delete')));
