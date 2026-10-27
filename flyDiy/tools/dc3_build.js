@@ -32,7 +32,10 @@ const DC3_ROWS = {
   // (G3577, the user 26 Oct: "the cabin shouldn't be longer than the space where pilots sit ... the rest is passengers and
   //  freight"): the cockpit 1.76 m (the pilots' own), four bays of 2.26 m in its place - the same 10.8 m, the first bay the
   //  navigator's / the forward hold's
-  pilotLen: 1.1, paxCount: 4, paxLen: 1.41, boomLen: 2.2,
+  // (G3578, the user 27 Oct: "a short cabin, the length of the pilot bays ... as many passengers sections as they were seat
+  //  rows"): the cockpit the pilots' bay alone (1.60 m), EIGHT bays of 0.96 m - one row of 2 + 1 each (the DC-3's 36 in
+  //  pitch), the first the forward hold, 21 seated behind it (the DC-3's 21) - and the cone 0.72 m longer: the same 19.2 m
+  pilotLen: 1.0, paxCount: 8, paxLen: 0.6, boomLen: 2.65, paxAbreast: 4,
   halfW: 0.78, roofHalfW: 0.68, roofY: 0.85, keelY: -0.8,
   // the wing: 29 m, 4.4 m root, 1.98 m tip (taper 0.45, the envelope's floor and the DC-3's own), 4.6 m aft of the
   // cockpit ring (the fore / aft row, negative is aft): a scan's pick, static margin 0.09 and no design-check row
@@ -57,8 +60,9 @@ const DC3_ROWS = {
   // G3577 (DC3-2, the user 26 Oct): THE PILOTS AT THEIR CONTROLS - the seat backs 3.75 m along (the yokes 0.70 m ahead, the
   // hands 0.2 m off them, the feet on the pedals); the yokes off the panel 0.42 m, the throttles 0.40 m aft
   seatZ: 1.32, yokeGap: 0.42, thrZ: -0.4,
-  // THE AERO NOSE collapsed - the aerodynamic front, its tip collapse at 0.85 (the DC-3's blunt round nose)
-  noseFinish: 1, noseTip: 0.85,
+  // THE AERO NOSE collapsed - the aerodynamic front, its tip collapse at 0.9 (the DC-3's blunt round nose), on three loops
+  // (G3578, the user's: the round worked in three rings, not one)
+  noseFinish: 1, noseTip: 0.9, cowlLoops: 3,
   // THE NACELLES FAIRED - the cowl's 'nacelle tail cone' termination behind each engine, 2.4 m
   cw_aftMode: 1, cw_tailLen: 2.4,
   // THE TAILWHEEL at its size (0.40 m: the DC-3's 16 in tyre), the swivel's drop and the spring's taken down by the wheel's

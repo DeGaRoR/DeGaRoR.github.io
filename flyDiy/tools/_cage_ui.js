@@ -75,7 +75,7 @@ const P = JSON.parse(JSON.stringify(DEFAULTS));
 
 const BASE_GROUPS = [
   ['layout', [
-    ['paxCount',  'pax bays',      0, 4, 1],
+    ['paxCount',  'pax bays',      0, 12, 1],
     ['paxLen',    'pax len',       0.4, 3.0, 0.01],
     ['pilotLen',  'pilot len',     0.3, 2.0, 0.01],
     ['boomLen',   'boom len',      1.0, 6.0, 0.01],

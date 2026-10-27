@@ -901,7 +901,8 @@ window.CAGE_PAGE = {
       ], {}],
     ]],
     ['5 · passengers', [
-      ['paxCount',  'pax bays',        0, 4, 1],
+      // (G3578: up to twelve - a bay a row or two, the user's DC-3; 5-12 absent at 0, every build before to the bit)
+      ['paxCount',  'pax bays',        0, 12, 1],
       ['paxLen',    'bay length',      0.4, 3.0, 0.01,
        { when: P => +P.paxCount > 0, dim: 'len' }],
       // T2.3 (132): the bays' own seating — 'as the cockpit' is every build
@@ -939,6 +940,22 @@ window.CAGE_PAGE = {
        { when: P => +P.crewOn && +P.paxCount >= 3 }],
       ['paxOcc4',   'bay 4 seated',    0, 48, 1,
        { when: P => +P.crewOn && +P.paxCount >= 4 }],
+      ['paxOcc5',   'bay 5 seated',    0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 5, absent: 0 }],
+      ['paxOcc6',   'bay 6 seated',    0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 6, absent: 0 }],
+      ['paxOcc7',   'bay 7 seated',    0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 7, absent: 0 }],
+      ['paxOcc8',   'bay 8 seated',    0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 8, absent: 0 }],
+      ['paxOcc9',   'bay 9 seated',    0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 9, absent: 0 }],
+      ['paxOcc10',  'bay 10 seated',   0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 10, absent: 0 }],
+      ['paxOcc11',  'bay 11 seated',   0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 11, absent: 0 }],
+      ['paxOcc12',  'bay 12 seated',   0, 48, 1,
+       { when: P => +P.crewOn && +P.paxCount >= 12, absent: 0 }],
     ]],
     ['7 · boom', [
       // G26 — the dedicated tightening section + the rod boom. The

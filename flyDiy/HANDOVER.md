@@ -99360,3 +99360,55 @@ builds untouched. Measured off the load chain (tools/dc3_probe.js sheet; the cre
      A new system: go?
   10. **A cone ring** for the conventional fuselage (a station and a section between the boom frame and the tail post, like the
      pod's): wanted, to curve the cone's last 3.5 m too?
+
+### G3578 - DC3-2 ROUND 5 (2026-10-27, cloud): THE DC-3 THE USER'S WAY - THE PILOTS' BAY, EIGHT BAYS OF ONE ROW, THE NOSE ON THREE RINGS; AND A LOOK WITHOUT THE GAME (tools/quick_view.js)
+The user (27 Oct, verbatim): "I would have used a short cabin, the length of the pilot bays. An aeronose with 3 loops, and collapsed
+to make a round nose. Most importantly, I would have put as many passengers sections as they were seat rows, or maybe half of that
+(one over the other). That would have given me the right amount of seats, and a dense structure. I think it is closer to the
+airplane's real design. Would my method work, would the plane fly better or worse, and be more or less on-spec? Can you try building
+this version, while keeping the good work on the smooth curvature over the whole body?" - and, mid-round: "can you build a super
+simple renderer for real quick visualization? I'd like to see what the new one looks like, but without booting the game".
+- **THE EDITOR'S BAY ROW 0-4 -> 0-12** (`paxCount`, '5 · passengers' and the base panel) and **eight more 'bay N seated' rows**
+  (`paxOcc5`-`paxOcc12`, absent at 0, in the parts tree's 'aboard'): the join, the crew layer and the generator already read
+  `paxOcc<n>` for any n and the bay count unclamped - only the editor's stepper stopped at 4 (a saved 8 loaded, a typed 5 clamped
+  to 4). The design tile's 0-4 icons are untouched (a pick there writes 0-4; a build of more reads as itself). Every build before
+  identical (dc3_identity: the six validated planes' def / ledger / sheet / fly20 hashes = master's).
+- **THE DC-3'S ROWS** (tools/dc3_build.js DC3_ROWS, the fixture rebuilt with `--build`): the cockpit the pilots' bay alone (pilotLen
+  1.1 -> 1.0: 1.60 m), EIGHT BAYS of 0.96 m (paxCount 4 -> 8, paxLen 1.41 -> 0.60), each ONE ROW of 2 + 1 across an aisle
+  (paxAbreast 0 -> 4: the DC-3's own; rows 1.12 m apart as drawn), the cone 0.72 m longer (boomLen 2.2 -> 2.65: the fuselage 19.24
+  m, was 18.88; 3.0 put it on an axle instead of the tailwheel); the nose on three rings (cowlLoops 0 -> 3), its tip collapse 0.85
+  -> 0.90. The G3577 frame rows (the passenger frame and the boom frame on the curve) kept as they were. 9 bays (pilotLen 1.0, paxLen
+  0.58) failed the design check at its worst loading corner (pitch.sm -0.005): 8 is the most this wing position carries.
+- **SEATS:** 26 (2 crew + 8 x 3) - was 10 (2 + 4 x 2); the first bay can stand empty as the forward hold (QUESTION 9 still: a bay
+  of cargo, no seats drawn). 21 seated aft of it = the DC-3's 21.
+- **THE CREW** (the crew layer's meshes): seat backs 3.91 m along (3.75), hands ON the yokes (4.25-4.56 vs the yokes' 4.46-4.52;
+  G3577's were 0.2 m short), the feet on the pedals - seatZ needed no change.
+- **THE SHEET, OLD -> NEW** (the same load chain, tools/dc3_probe.js sheet): mass 8 581 -> 8 727 kg (the 16 more seats 105 kg, the
+  four more bays' frames 41), SM 0.106 -> 0.107, deck 11.4 -> 11.5, Vs 58.8 -> 59.3 kt clean, 53.6 -> 54.1 flaps, cruise 132 -> 134
+  kt, climb 8.41 -> 8.28 m/s, TO run 309 -> 321 m, design check 13 rows fail [] both (warn yaw.dutch 0.108 new, under its line).
+  The FLYING LATTICE IS THE SAME SIZE: 132 nodes both, 589 -> 587 beams - the bays are drawn frames (the cage, the seats, the
+  skin), the solver's structure does not get denser with them.
+- **FLOWN** (dc3_build, the pilot's circuit, 600 s): lift-off 471 m at 82 kt (old 462 m at 82), climb max 9.9 m/s (10.1), touch
+  1.5 m/s at 65 kt (old 1.3) - and both builds bounce into the SAME two go-arounds and run out of time (QUESTION 6, the pilot's).
+- **DAMAGE ON** (dc3_break, physics limits): the drops at 2.0 / 3.05 / 3.85 / 4.6 m/s level 0 yields 0 breaks (G3577's 4.6 set the
+  main gear's bracket); taxi idle / sturn / power / stick / pivot / rough 0 / 0; turn and burst crash INTO HOME's buildings off the
+  works stand (obstacle at 11.8 s and 26.3 s) - as G3577 does (11.9 s, 31.6 s; its burst's peak strain 871 %, the new 25 %).
+- **THE HOME TRIP FAILS ON THE NEW BUILD (OPEN):** the taxi out as before (the 61.7 s corner pivot), then LINEUP at 330 s does not
+  settle in its 60 s (G3577's took 10 s and rolled at 348 s), the hold replans, the second taxi touches the left stabiliser tip at
+  451 s (313 yields, no break) and a prop comes 0.82 m inside a parked car at 1 153 s; no take-off. Being traced: dc3_break home
+  --homeSecs N --log (new: the pilot's line-up conditions every second), both builds side by side. NOT READY until it flies.
+- **THE LOOK** (tools/quick_view.js, new - a tool, not a gate): the build through the page's load door, the scene's meshes and the
+  editor's fuselage sheet as one triangle soup, one self-contained HTML (WebGL2, no library: orbit, zoom, pan, side / top / front /
+  3/4 / all four, x-ray), and `--png=` the four views through the pre-installed Chromium. Output in reports/quick_view/ (ignored).
+  Two traps found: the headless scene has NO fuselage skin (the page draws it off the sheet itself, no layer does - the probe
+  draws the sheet), and _load_build's child cuts a large probe result short (it exits straight after writing to a pipe - the
+  tool runs the same child with stdout to a file). reports/evidence/DC3-2/g3578_quick_view.png (new), g3577_quick_view.png (old),
+  g3578_nose.png.
+- **WHAT THE LOOK SHOWS** (and the sheet's numbers did not): the nose is a short blunt wedge, not the DC-3's round nose - three
+  rings and the tip collapsed 0.9 still end in a point at mid-height - and only two cabin windows are drawn (the drawn windows are
+  ABSOLUTE stations, G245: they stayed where the old bays had them).
+- **Questions:**
+  11. **The round nose**: the aero nose's rows (noseLen, noseTip, cowlLoops) give a wedge at this size; a nose profile row (the
+     bulge the passenger run has) for the nose - wanted?
+  12. **The windows**: seven a side, one per row - re-draw the drawn windows at the new rows' stations (rows, no code), or a
+     'window per bay' option on the bays (code)?

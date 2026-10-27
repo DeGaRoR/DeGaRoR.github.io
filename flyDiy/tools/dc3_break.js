@@ -25,6 +25,7 @@
 //     home     THE WHOLE TRIP (G3574): the pilot from the works stand - the taxi out, the circuit, the landing - then
 //              the taxi back to the stand on the hand (taxiBack); contacts, the least clearance (--track <file>: the plan)
 //     (--cage k=v,..: the build's cage rows set first - G3575 s2Steer=2, the full-swivel tailwheel)
+//     (home: --homeSecs N stops the trip at N s of sim; --log prints the pilot's line-up every second)
 //     back     the taxi back alone, from where the home case's landing stopped (--from x,z, --hdg rec|own)
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -247,8 +248,14 @@ function home(lim) {
   };
   const contact = leg => { if (sim.out && sim.out.obst > 0 && R.contacts.length < 20) R.contacts.push({ leg, t: r2(sim.t), nodes: sim.out.obst }); };
   let ph = null, wasAir = false, k = 0;
-  for (; k < 60 * 1300; k++) {
+  for (; k < 60 * +opt('homeSecs', 1300); k++) {
     H.step(); TK.tick();
+    // (G3578: --log, the pilot's status every second on the ground before the take-off - the line-up's conditions)
+    if (LOG && k % 60 === 0 && !wasAir && !R.touchdowns.length && /LINEUP|STOP|HOLD|DEPART/.test(H.ap.phase || '')) {
+      const st = H.ap.status || {}, cg = sim.cgPos(), c = sim.ctl || {};
+      console.error(r2(k / 60) + ' ' + H.ap.phase + ' cg ' + r2(cg[0]) + ',' + r2(cg[2]) + ' V ' + r2(Math.hypot(sim.cgVel()[0], sim.cgVel()[2])) +
+        ' | ' + (st.conds || []).map(q => q.what + ' ' + (typeof q.have === 'number' ? r2(q.have) : q.have) + '/' + q.want + (q.ok ? ' ok' : '')).join(', ') + ' | dr ' + r2(c.dr) + ' brD ' + r2(c.brakeD) + ' thr ' + r2(c.thr));
+    }
     const ap = H.ap; if (ap.phase !== ph) { ph = ap.phase; R.phases.push(ph + '@' + (k / 60).toFixed(0)); if (ph === 'GOAROUND') (R.goArounds = R.goArounds || []).push(ap.gaWhy || null); }
     const onG = sim.wheelsOnGround(), v = sim.cgVel(), cg = sim.cgPos(), h = cg[1] - W.terrainH(cg[0], cg[2]);
     if (onG === 0 && h > 3) wasAir = true;

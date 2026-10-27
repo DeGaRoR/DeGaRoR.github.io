@@ -475,7 +475,8 @@ const CAGE_PARTS = [
       ['seat layout', ['paxRows', 'paxPitch', 'paxAisle', 'paxSeatW']],
       // G180: who sits in each bay is the BAY's own row — click a bay, seat
       // its passengers (bays counted front to back from the cockpit)
-      ['aboard', ['paxOcc1', 'paxOcc2', 'paxOcc3', 'paxOcc4']],
+      ['aboard', ['paxOcc1', 'paxOcc2', 'paxOcc3', 'paxOcc4', 'paxOcc5', 'paxOcc6',
+                  'paxOcc7', 'paxOcc8', 'paxOcc9', 'paxOcc10', 'paxOcc11', 'paxOcc12']],
       // G1321 (the user: "map these sections to their respective parts in
       // the editor's tree"): the frame this part shapes, moved from Fuselage
       ['passenger frame', ['frPaxTopY', 'frPaxWaistW', 'frPaxBotY']],
