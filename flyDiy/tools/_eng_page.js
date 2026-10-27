@@ -114,7 +114,8 @@ const PRESETS = {
   // heads; no carburettor and no airbox (a rotary breathes through its hollow crankshaft), long finned barrels
   'Clerget 9B': { arch: 'radial', cyl: 9, exStyle: 2,
     bore: 0.120, stroke: 0.160, rpm: 1250, finR: 1.25,
-    fwW: 1.00, fwH: 1.00, carbOn: 0, airbox: 0, plumb: 0 },
+    fwW: 1.00, fwH: 1.00, carbOn: 0, airbox: 0, plumb: 0,
+    mountGap: 0.40 },   // a rotary sits close on its bearer plate: the cylinders inside a short cowl, not ahead of it
   // THE AMATEUR IN-LINES (G165). Both INVERTED, which is what an aero
   // in-line almost always is, and both FOUR-STROKE — the coercion that made
   // every in-line a two-stroke is a default now. Bore and stroke are the real

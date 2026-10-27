@@ -438,6 +438,8 @@ window.CAGE_PAGE = {
       ['aeroTipW',  'front width ×',  0.05, 1.20, 0.01, { when: P => +P.aeroNose }],
       ['aeroTipH',  'front height ×', 0.05, 1.20, 0.01, { when: P => +P.aeroNose }],
       ['aeroDroop', 'front droop',   -0.30, 0.60, 0.005, { when: P => +P.aeroNose, dim: 'len' }],
+      // NEW-SHAPES-1: the front's own bottom roundness (no default: a build that never set it keeps the shell's)
+      ['aeroRound', 'front roundness (bottom)', 0, 1, 0.01, { when: P => +P.aeroNose }],
       // THE CAP'S LOFT, moved out of `2 - engine` with it: how many rings the
       // front closes with, how they ease into the last one and how far they
       // bulge on the way. `cowlLoops` runs to 5 now — an aerodynamic nose is

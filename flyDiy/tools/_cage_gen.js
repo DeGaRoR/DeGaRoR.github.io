@@ -228,12 +228,13 @@ function cageResolve(S) {
   // touches nothing. comp is faded in with sin(theta) so the waist stays
   // exactly at Ww and only the dome inflates against CC shrinkage.
   // Round top + round bottom = the full oval tube (sailplane pod, bizjet).
-  function roundTop(lv, Ww, roofY, Wk, keelY, yWr, yBr) {
+  function roundTop(lv, Ww, roofY, Wk, keelY, yWr, yBr, rBo) {
     // yWr/yBr: the ring's OWN waist/band heights (the ride, below) —
     // callers without them get the global line, exactly as before
     const yW = yWr != null ? yWr : S.waistY;
     const yB = yBr != null ? yBr : S.bandY;
-    const rT = TOP.round || 0, rB = TOP.botRound || 0;
+    // rBo: a ring's OWN bottom roundness (the round body's front, aeroRound) - absent = the shell's
+    const rT = TOP.round || 0, rB = rBo != null ? rBo : (TOP.botRound || 0);
     const arcTo = (ww, half, deg) => {
       const th = deg * Math.PI / 180;
       const k = 1 + (TOP.comp - 1) * Math.sin(th);
@@ -296,7 +297,7 @@ function cageResolve(S) {
       keel:  { x: Wk, y: d.keelY, z },
     };
     return { name, kind: 'full',
-             lv: roundTop(lv, d.Ww, d.roofY, Wk, d.keelY, yW, yB) };
+             lv: roundTop(lv, d.Ww, d.roofY, Wk, d.keelY, yW, yB, d.botRound) };
   }
 
   const rings = [], bays = [];
@@ -681,6 +682,14 @@ function cageResolve(S) {
         floorY: S.waistY + (S.ring.floorY - S.waistY) * scH,
         keelY: S.waistY + (S.ring.keelY - S.waistY) * scH,
       };
+      // NEW-SHAPES-1 (the user, 27 Oct, the Camel: "the body also blends from rounded rectangle to more fully
+      // rounded in the nose section"): the round body's front its own BOTTOM roundness, ramped from the shell's
+      // at the cockpit ring to `A.round` at the forward section's first ring and held to the face. Absent = the
+      // shell's on every ring, exactly as before.
+      if (A.round != null) {
+        const rb0 = TOP.botRound || 0, ft = Math.min(1, Math.max(0, (zz - z0) / Math.max(1e-6, zWs - z0)));
+        d0.botRound = rb0 + (Math.max(0, Math.min(1, +A.round)) - rb0) * ft;
+      }
       const R = fullRing(name, zz, dd ? dimF(d0, null, dd) : d0);
       for (const k in R.lv) { R.lv[k].y += dy;
         if (R.lv[k].yC != null) R.lv[k].yC += dy; }
@@ -8007,7 +8016,8 @@ function cageSpec(P) {
             easeBot: (P.cowlEaseBot != null && +P.cowlEaseBot >= 0) ? +P.cowlEaseBot : P.cowlEase },
     noseJoint: P.noseJointOn == null || +P.noseJointOn ? 1 : 0,
     aero: { wsLen: P.aeroWsLen, len: P.aeroLen, droop: P.aeroDroop,
-            tipW: P.aeroTipW, tipH: P.aeroTipH, pillarW: 0.05 },
+            tipW: P.aeroTipW, tipH: P.aeroTipH, pillarW: 0.05,
+            round: P.aeroRound != null ? +P.aeroRound : null },
     boomMid: P.boomMidOn ? { t: P.boomMidT, pinch: P.boomMidPinch } : 0,
     crest: P.crestH > 0 ? { h: P.crestH, at: P.crestAt,
                             loops: Math.max(0, Math.round(P.crestLoops || 0)) }

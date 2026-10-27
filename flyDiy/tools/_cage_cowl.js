@@ -833,7 +833,16 @@ function cowlForEngine(P, face, stat, dec) {
   if (!hit) return { birth, styled: false, dec };
   const got = window.CAGE_COWL_FOR_ENGINE(hit.arch, hit.R.env, face);
   if (!got) return { birth, styled: false, dec };
-  for (const k in got.vals) if (P[k] !== undefined) P[k] = got.vals[k];
+  // NEW-SHAPES-1 (the Camel, 27 Oct, the user: "the cowl fits on top and on the sides, but not at the bottom, where
+  // it hangs lower"): A FREE COWL KEEPS ITS SIZE. A build whose cowl is `free` (fitNose 0 - nothing from the
+  // fuselage) chose its own barrel; the birth gives it the architecture's STYLE (lid, inlet, lip, roundness) and
+  // leaves the fit mode, the size rows (aft half-width / half-height, tapers, length) and the barrel's vertical
+  // placing (top line, bottom line, widest line) where they were. Every other fit
+  // mode is fitted exactly as before.
+  const KEEP = Math.round(P.fitNose) === 0
+    ? new Set(['fitNose', 'cw_aftW', 'cw_aftH', 'cw_taperW', 'cw_taperH', 'cw_cowlLen',
+               'cw_deckH', 'cw_keelH', 'cw_waist']) : null;
+  for (const k in got.vals) if (P[k] !== undefined && !(KEEP && KEEP.has(k))) P[k] = got.vals[k];
   const UI = window.CAGE_UI;
   if (UI && UI.syncSliders) UI.syncSliders();
   if (got.note && stat) stat.textContent += '  ·  ' + got.note;

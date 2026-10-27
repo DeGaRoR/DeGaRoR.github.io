@@ -1,0 +1,18 @@
+{
+  "name": "Sopwith Camel F.1",
+  "glb": "refs/camel.glb",
+  "source": "Sketchfab 'Sopwith' by stealth86 (https://sketchfab.com/3d-models/sopwith-25ecc4a9887a44e79c282078db6f3275), CC-BY-4.0",
+  "scale": { "by": "span", "part": "upper", "metres": 8.53 },
+  "parts": {
+    "cowl": ["/Cylinder/Cylinder_front_0"],
+    "hub": ["/Cylinder.015/"],
+    "fuselage": ["/Cylinder.001/"],
+    "upper": ["/Plane.005/"],
+    "lower": ["/Plane.007/"],
+    "fin": ["/Plane/", "/Plane.001/"],
+    "stab": ["/Plane.002/", "/Plane.003/"],
+    "tyre": ["/BezierCircle/"],
+    "legs": ["/Cylinder.008/"]
+  },
+  "note": "the reference's frame: x span, y up, z forward (the nose +z) - the same as the cage's"
+}

@@ -312,7 +312,7 @@ const CAGE_PARTS = [
       ['front', ['noseFinish', 'cowlLoops', 'cowlEase', 'cowlEaseBot', 'cowlBulge']],
       // G3510: the round body's front — its forward section and the cone to
       // the engine face (or the point), the rows G19 wrote
-      ['round body front', ['aeroWsLen', 'aeroLen', 'aeroTipW', 'aeroTipH', 'aeroDroop']],
+      ['round body front', ['aeroWsLen', 'aeroLen', 'aeroTipW', 'aeroTipH', 'aeroDroop', 'aeroRound']],
       // THE COWL LOOPS' OWN WIDTHS (the nose ring pair's deck lift and bottom
       // became the nose FRAME's rows, T2.1; the loops are not frames)
       ['cowl loops', ['ringCowl1W', 'ringCowl2W']],
@@ -1052,7 +1052,7 @@ const CAGE_PARTS = [
     groups: [
       // `s1R`/`s2R` (the wheel radii) -> `wheels` (2026-09-03, the user: "the
       // wheel radius for example is under the main gear and not the wheel")
-      ['station', ['s1On', 's1Z', 's1X', 's1Leg', 's1Drop', 's1AxZ', 's1Brake',
+      ['station', ['s1On', 's1Z', 's1X', 's1Leg', 's1Drop', 's1AxZ', 's1Root', 's1Brake',
                    's1Steer']],
       ['fairing', ['s1Fair', 's1FairSkirt', 's1FairTail', 's1FairRake',
                    's1FairW', 's1LegFair']],
@@ -1060,7 +1060,7 @@ const CAGE_PARTS = [
                  's1_beamBow', 's1_beamRake']],
       ['linkage', ['s1_linkAng', 's1_linkSwing', 's1_linkArmW',
                    's1_linkVee', 's1_linkSpread', 's1_linkX',
-                   's1_linkPanel', 's1_linkAxle']],
+                   's1_linkPanel', 's1_linkAxle', 's1_linkAxleX']],
       ['shock', ['s1_shockKind', 's1_shockAt', 's1_shockZ', 's1_shockAng',
                  's1_bungeeSpan']],
       ['oleo', ['s1_oleoAng', 's1_oleoDia', 's1_oleoCyl', 's1_oleoScissor',
@@ -1098,7 +1098,7 @@ const CAGE_PARTS = [
              type: ['s2Leg', 's2Steer', 's2Brake', 's2Fair', 's2LegFair'],
              fore: 's2Z', out: 's2X', up: 's2Drop', at: 'station 2' },
     groups: [
-      ['station', ['s2On', 's2Z', 's2X', 's2Leg', 's2Drop', 's2AxZ', 's2Brake',
+      ['station', ['s2On', 's2Z', 's2X', 's2Leg', 's2Drop', 's2AxZ', 's2Root', 's2Brake',
                    's2Steer']],
       ['fairing', ['s2Fair', 's2FairSkirt', 's2FairTail', 's2FairRake',
                    's2FairW', 's2LegFair']],
@@ -1106,7 +1106,7 @@ const CAGE_PARTS = [
                  's2_beamBow', 's2_beamRake']],
       ['linkage', ['s2_linkAng', 's2_linkSwing', 's2_linkArmW',
                    's2_linkVee', 's2_linkSpread', 's2_linkX',
-                   's2_linkPanel', 's2_linkAxle']],
+                   's2_linkPanel', 's2_linkAxle', 's2_linkAxleX']],
       ['shock', ['s2_shockKind', 's2_shockAt', 's2_shockZ', 's2_shockAng',
                  's2_bungeeSpan']],
       ['oleo', ['s2_oleoAng', 's2_oleoDia', 's2_oleoCyl', 's2_oleoScissor',

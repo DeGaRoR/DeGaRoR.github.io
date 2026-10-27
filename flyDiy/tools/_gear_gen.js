@@ -1370,6 +1370,13 @@ function legLink(bags, AF, P, st, sgn) {
       const far = [-axleIn[0], axleIn[1], axleIn[2]];
       sweep(bags.steel, resample([axleIn, far], 12), () => secRound(0.019, 14), true);
     }
+    // THE CROSS-BRACING (the user, 27 Oct, the Camel's reference: "it has some X struts"): two wires in the plane
+    // between the V's, each from an axle end up to the OTHER side's fuselage foot midway along its V - the X seen
+    // from the front. Drawn once per pair (each side its own diagonal: the far foot is this V's mirror).
+    if (P.linkAxleX && vee) {
+      const mid = lerp3(pF, pR, 0.5), farFoot = [-mid[0], mid[1], mid[2]];
+      sweep(bags.steel, resample([off(axleIn, [sgn, 0, 0], -0.02), farFoot], 10), () => secRound(0.0045, 8), true);
+    }
     // the lashing at the apex: a few turns of cord round the axle inside the V
     for (let k = 0; k < 5; k++)
       revolve(bags.dark, off(axleIn, [sgn, 0, 0], -0.040 - k * 0.012), [sgn, 0, 0],

@@ -78,6 +78,7 @@ const LEG_ROWS = {
     ['linkPanel', 'V panel', 0, 1, 1],
     // NEW-SHAPES-1: the old fixed gear's cross axle - one bar wheel to wheel, the bungee at the V's apex, no strut
     ['linkAxle', 'cross axle (one bar)', 0, 1, 1],
+    ['linkAxleX', 'cross-bracing wires (X)', 0, 1, 1],
     ['shockKind', 'shock', 0, 2, 1, ['coil-over', 'bungee', 'rubber stack']],
     ['shockAt', 'shock on arm', 0.15, 0.95, 0.01],
     ['shockZ', 'shock top z', -0.6, 1.0, 0.01],
@@ -190,6 +191,8 @@ const gearStations = P => {
                leg: Math.round(P['s' + i + 'Leg']), R: P['s' + i + 'R'],
                drop: P['s' + i + 'Drop'], brake: P['s' + i + 'Brake'],
                axZ: +P['s' + i + 'AxZ'] || 0,
+               // NEW-SHAPES-1: where the legs root - 0 auto (a wing under the body takes them), 1 the fuselage
+               root: Math.round(+P['s' + i + 'Root'] || 0),
                fair: Math.round(P['s' + i + 'Fair'] || 0),
                fairSkirt: +P['s' + i + 'FairSkirt'] || 0,
                fairTail: +P['s' + i + 'FairTail'] || 1,

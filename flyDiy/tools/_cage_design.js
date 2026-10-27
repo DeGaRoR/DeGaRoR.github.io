@@ -1958,13 +1958,16 @@ const ARCHETYPES = [
             spec: { fuel: { litres: 174 }, prop: { D: 2.5, blades: 2 },
                     finish: { decals: { regL: 4.40, regC: 0.05, regH: 0.26 } } } } },      // 46 US gal in the upper centre section
   // NEW-SHAPES-1 (the user, 27 Oct: "the stearman and the moth are very similar, can you try a sopwith camel as a
-  // third proof? And be careful on matching the actual dimensions as best you could? Don't care about fitting a
-  // cowl"): the Sopwith Camel F.1 - the round body, ONE open cockpit under the upper plane's cut-out, two equal
-  // 8.53 x 1.37 m planes 1.52 m apart, the upper flat, the lower at 5 deg and 0.46 m aft, four ailerons, a rotary up
-  // front (the catalogue's nearest: the 9-cylinder Rotec R3600, 150 hp / 102 kg against the Clerget 9B's 130 hp /
-  // ~173 kg). Dimensions: HANDOVER's NEW-SHAPES-1 Camel table, with its sources.
+  // third proof? And be careful on matching the actual dimensions as best you could?"): the Sopwith Camel F.1 - the
+  // round body, ONE open cockpit under the upper plane's trailing edge, two equal 8.53 x 1.37 m planes, the upper flat,
+  // the lower at 5 deg and 0.46 m aft, four ailerons, the Clerget 9B rotary up front (its own catalogue entry).
+  // THE SHAPE IS MEASURED, NOT GUESSED (the user's reference model, 27 Oct: "here's a reference 3d model ... once
+  // scaled, it should be the source of all the measurements you need" - Sketchfab 'Sopwith' by stealth86, CC-BY-4.0,
+  // scaled to the 8.53 m span): every number below was read off it in its terms - metres AFT OF THE FIREWALL (the
+  // cowl's back face) and ABOVE THE THRUST LINE - and matched on the built aeroplane by tools/ref_match (the method:
+  // tools/REF_MATCH.md). Every row is a garage row; nothing here is out of a hand's reach.
   { key: 'camel', kind: 'recreation', name: 'Camel-alike', note: 'rotary scout biplane, ' +
-      'equal planes, flat upper with a cut-out, lower dihedral, one open cockpit, round body',
+      'equal planes, flat upper, lower dihedral, one open cockpit, round body',
     sel: { class: 'eab', role: 'touring', seatLayout: 0, paxCount: 0,
            canopy: 'screen', mirror: 0, intCons: 2,      // wood: the spruce and ash box girder
            boomStyle: 0, section: 1,
@@ -1972,31 +1975,75 @@ const ARCHETYPES = [
            engFamily: 'radial', engModel: 'Clerget 9B', engMount: 'nose', prop: 'wood2',
            gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
            finArch: 'rounded', empennage: 'conv', scheme: 'trim', base: 0x3d5c40, trim: 0xf4f2ea },   // PC10 khaki over clear-doped linen
-    over: { cage: { wgSpan: 8.53, wgChord: 1.37, wgChordTip: 1.37, wgTipX: 0, wgDihedral: 0,
-                    wgDx: 0.30, wgParaH: 0.70, cw_propD: 2.59,      // the 8 ft 6 in wooden propeller
-                    w2Span: 8.53, w2Chord: 1.37, w2ChordTip: 1.37, w2Dihedral: 5,
-                    w2Pos: 2, w2Stagger: 0.457, wgAilOn: 1, w2AilOn: 1,
+    over: { cage: { wgSpan: 8.53, wgChord: 1.37, wgChordTip: 1.37, wgTipX: 0, wgDihedral: 0, cw_propD: 2.59,   // the 8 ft 6 in wooden propeller
+                    w2Span: 8.53, w2Chord: 1.37, w2ChordTip: 1.37, w2Dihedral: 3,   // the reference measures 2.8 deg; the row steps 0.5 (the F.1 drawings say 5)
+                    w2Pos: 2, w2Stagger: 0.42, wgAilOn: 1, w2AilOn: 1,
                     bpInter: 0, bpWires: 1, bpCabane: 0,
                     ...OPEN_TANDEM, paxCount: 0, paxOpen1: 0, pilotRear: 0,
-                    halfW: 0.50, roofHalfW: 0.40, roofY: 0.62, keelY: -0.55, waistY: 0.22, floorY: -0.30,
-                    aftRoofY: 0.58, aftKeelY: -0.50, taperW: 0.90, boomMidPinch: 1.0,
-                    pilotLen: 1.00, s1Drop: 0.85, s1Z: 2.00, boomLen: 3.05,   // short-coupled: 5.71 m overall
-                    // the user's review of the first cut (27 Oct, with photographs of F6034 and B6313): the cockpit further
-                    // fore (the deck ahead of it shorter, the boom longer by as much: the length holds)
-                    aeroWsLen: 0.50, aeroLen: 0.45, aeroDroop: 0.0,
-                    // the front wider than the body behind it: the Clerget is 1.0 m across its heads, and the radial cowl
-                    // takes the engine face's size (the Camel's cowl bulges past its fuselage)
-                    aeroTipW: 1.20, aeroTipH: 1.20,
-                    // the upper centre section NOT cut
+                    // the upper centre section NOT cut (the user's review)
                     wgCentre: 0,
-                    // the tail: no dorsal running to the rudder, a small fin and a big D rudder, a much smaller tailplane
-                    finDorsal: 0, finChordTip: 0.75, finHinge: 0.30,     // (the sizes: spec.tail below, the seed scales the drawn tail to them)
-                    // the old fixed gear: big thin wheels (700 x 75 mm, covered) on a V each side and one cross axle,
-                    // bungee at the apexes
+                    // THE WINGS (reference: upper LE 0.08 m AHEAD of the firewall at 1.19 m over the thrust line, lower LE
+                    // 0.41 m aft with its root in the fuselage's bottom line, the gap 1.5 m)
+                    wgDx: 0.37, wgParaH: 0.58, w2Dy: 0.15,   // wgDx: the flown envelope's limit (the LE 0.20 m ahead of the
+                    // physics firewall at most); the reference's LE is 6 cm further fore - HANDOVER flags it, the stagger takes
+                    // the lower plane to its own station
+                    // THE BODY (cage units, x 0.745 = m; the reference station by station: 1.02 m deep and 0.68 m wide at
+                    // the cockpit, 1.05 m wide at the cowl, the top 0.61 over the thrust line, the bottom flat 0.41 under it
+                    // to the cockpit, then ONE straight taper top and bottom to the tail post 4.50 m aft - the user, 27 Oct:
+                    // "keep the continuous line front to back")
+                    halfW: 0.67, roofHalfW: 0.55, roofY: 0.945, keelY: -0.425, waistY: 0.22, floorY: -0.25,
+                    pilotLen: 0.94, frCabTopY: 0.945, frCabBotY: -0.425, frCabWaistW: 0.45, frCabTopW: 0.37, frCabBotW: 0.45,
+                    paxLen: 0.54, taperOn: 0,
+                    aftRoofY: 0.88, aftKeelY: -0.37, frBoomWaistW: 0.42, frBoomTopW: 0.34, frBoomBotW: 0.42,
+                    boomLen: 4.08, boomMidPinch: 1.25,
+                    tailRoofY: 0.405, tailKeelY: -0.05, tailHalfW: 0.06,
+                    // THE NOSE: the deck rises behind the cowl into the gun hump (the user's sketch), the front ring meets the
+                    // cowl at the top and the sides, the bottom stays flat above the cowl's lower lip, and the sections round
+                    // off toward the front ("blends from rounded rectangle to more fully rounded in the nose section")
+                    // ONE LINE, FEW EXCEPTIONS (the user, 27 Oct: "the nose part of your fuselage has become a little ugly
+                    // with time ... rework that one with as little exceptions as possible"): the cockpit ring carries the
+                    // body's full width, the front holds it to the cowl (no flare, no windscreen-frame widening), and the
+                    // cockpit and boom frames take the one taper aft
+                    aeroWsLen: 0.50, aeroLen: 0.24, aeroTipW: 1.04, aeroTipH: 0.92, aeroDroop: 0.065, aeroRound: 0.5,
+                    // THE COWL: free of the fuselage (it is bigger than the nose it sits on - "in reality, they don't fit in
+                    // size"), ONE diameter fore to aft ("the cowl does not extend in diameter fore"), 1.10 m across (the
+                    // reference's 1.05, and the Clerget's heads need 1.06 + clearance: 0 vertices through), round about the
+                    // thrust line, so it laps the nose's top and sides and hangs below its bottom ("where it hangs lower");
+                    // the engine 6 cm under the face's centre carries the thrust line there
+                    fitNose: 0, cw_aftW: 0.555, cw_aftH: 0.555, cw_deckH: 0.90, cw_keelH: 1.10, cw_waist: -0.10,
+                    cw_taperW: 1.0, cw_taperH: 1.0, cw_cowlLen: 0.34, engY: -0.06,
+                    // the engine drawn back into the barrel (the stand-off the engine bench calls fore / aft): 0 vertices of
+                    // the Clerget outside the cowl, measured
+                    eng_mountGap: 0.40,
+                    // THE TAIL, fitted to the reference's outline (1 - IoU 0.070 side, 0.063 plan; tools/ref_match/fit_tail.js): a small fin and a big D
+                    // rudder hinged on the tail post, no dorsal; a square-ended tailplane with rounded tips, the elevators
+                    // notched at the root. Drawn areas 0.70 m2 (fin + rudder; the Camel's 0.28 + 0.455) and 2.22 m2 (the
+                    // Camel's 1.30 + 0.98). The card states the macro rows, so the birth's seed keeps them.
+                    finDorsal: 0,
+                    finHeight: 0.5, finChord: 1.11, finChordTip: 1.17, finSweep: 14.5, finHinge: 0.21,
+                    finTipZ: -0.37, finTipY: -0.61, finAftZ: 0.075, finAftY: -0.405, finBaseZ: -0.155, finBaseY: -0.045,
+                    finMidY: -0.8, finUY: -0.1, finLEZ: -0.71, finLEY: -0.055, finShoulderZ: 0.425, finShoulderY: -0.1,
+                    finTopY: 0.07, finTERoot: -0.22, finTEU: -0.23, finTEMid: -0.215, finRootFwd: -0.05,
+                    finSharpTip: 0, finSharpAft: 0.3, finSharpBase: 0, finSharpShoulder: 0.1, finSharpLE: 1.15,
+                    stSpan: 1.08, stChord: 1.08, stChordTip: 0.75, stSweep: 0, stHinge: 0.16,
+                    stTipZ: -0.07, stTipY: -0.65, stAftZ: -0.275, stAftY: -0.595, stBaseZ: -0.03, stBaseY: 0.005,
+                    stMidY: -0.12, stUY: -0.14, stLEZ: -0.8, stLEY: -0.2, stShoulderZ: 0.43, stShoulderY: 0.095,
+                    stTopY: 0.04, stTERoot: 0.315, stTEU: -0.185, stTEMid: -0.155, stRootFwd: 0,
+                    stSharpTip: 1.55, stSharpAft: 0.9, stSharpBase: 0.85, stSharpShoulder: 0, stSharpLE: 0.9,
+                    stY: 0.535,     // the tailplane 0.24 m over the thrust line, on the reference's (x 0.745 = m)
+                    // THE GEAR (reference: the wheels' centre 0.35 m aft of the firewall, their bottom 1.46 m under the
+                    // thrust line): big thin wheels (700 x 75 mm, covered) on a V each side and one cross axle, bungee at
+                    // the apexes
+                    // (the wheel placed by itself - s1X / s1AxZ / s1Drop - and the V's roots by the station and its base: the
+                    // user, 27 Oct: "you can manipulate the suspension anchor point and the wheel separately")
+                    // the V on the FUSELAGE (s1Root 1: its feet on the lower longerons, 0.07 and 0.87 m aft of the firewall
+                    // - the low-wing rule would bolt it to the lower plane), the wheel then put back on its own spot
+                    s1Root: 1, s1Z: 2.01, s1_linkSpread: 0.81, s1_linkAng: 40,
+                    s1X: 0.525, s1AxZ: -0.12, s1Drop: 0.70,
                     s1R: 0.35, whProfile: 2, whBulge: 0.85, whRim: 0, whCap: 2,
-                    s1Leg: 1, s1_linkVee: 1, s1_linkX: 0, s1_linkPanel: 0, s1_linkAxle: 1, s1_shockKind: 1 },
-            // the tail's areas (fin 0.28 + rudder 0.455 m2, tailplane 1.30 + elevators 0.98 m2 - HANDOVER's Camel table): the tail seed sizes the drawn tail to these, not to the class's volume rule
-            spec: { fuel: { litres: 136 }, tail: { Sh: 2.28, Sv: 0.74 } } } },
+                    // the cross axle and the X of bracing wires between the two V's (the reference's)
+                    s1Leg: 1, s1_linkVee: 1, s1_linkX: 0, s1_linkPanel: 0, s1_linkAxle: 1, s1_linkAxleX: 1, s1_shockKind: 1 },
+            spec: { fuel: { litres: 136 } } } },
   { key: 'pittsAlike', kind: 'fiction', name: 'aerobatic biplane', note: 'short-span four-aileron ' +
       'biplane on I struts and wires, spring gear, flat six',
     sel: { class: 'eab', role: 'touring', seatLayout: 0, paxCount: 0,
@@ -2778,8 +2825,18 @@ function designBake(sel, over) {
   // tail on twenty-five cards (the sweep, P0) becomes a tail sized to each
   // card's own wing. A twin-boom card keeps its drawn size (the headless
   // build cannot root its fin on the booms and says so).
-  const seed = (over && over.stock) ? null : designTailSeed(full, out);
-  if (seed) {
+  const seed0 = (over && over.stock) ? null : designTailSeed(full, out);
+  // NEW-SHAPES-1 (the user, 27 Oct, the Camel drawn to a reference model: "I insist on fin/rudder/stabs shapes done
+  // carefully"): A CARD THAT DRAWS A SURFACE ITSELF keeps it. The seed writes the macro height and chord as ONE
+  // number (absolute, not a ratio), which keeps a drawn outline only while the two are equal - a fin fitted to a
+  // reference has height and chord of its own. A card stating a surface's macro rows (finHeight / stSpan in its
+  // cage) keeps its own size for that surface (the seed's cuts still go on); no card stated them before this, so
+  // every other birth is untouched.
+  const oc = (over && over.cage) || {};
+  const seed = seed0 ? Object.fromEntries(Object.entries(seed0).filter(([k]) =>
+    !(/^fin(Height|Chord)$/.test(k) && oc.finHeight != null) &&
+    !(/^st(Span|Chord)$/.test(k) && oc.stSpan != null))) : null;
+  if (seed && Object.keys(seed).length) {
     Object.assign(full, seed);
     out.cage = C2.cageToSpec(full);
   }
