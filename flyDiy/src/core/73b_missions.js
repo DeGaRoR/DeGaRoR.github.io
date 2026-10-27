@@ -352,7 +352,7 @@ function missionWhy(m, ctx) {
   const O = missionOrder(m.order || 'seq');
   if (!O) why.push(id + ': order ' + m.order + ' is not seq | any | choose:N');
   else if (O.kind === 'choose' && O.n > (m.legs || []).length) why.push(id + ': choose:' + O.n + ' of ' + (m.legs || []).length + ' legs');
-  const stepIds = {};
+  const stepIds = {}, stepLeg = {}, stepPos = {};
   (m.legs || []).forEach((L, i) => {
     const lo = missionOrder(L.order || 'any');
     if (!lo) why.push(id + ' leg ' + i + ': order ' + L.order + ' is not seq | any | choose:N');
@@ -360,7 +360,7 @@ function missionWhy(m, ctx) {
     (L.steps || []).forEach((s, j) => {
       const at = id + ' ' + i + '.' + j;
       if (!MISSION_DO.includes(s.do)) { why.push(at + ': do ' + s.do + ' is not one of ' + MISSION_DO.join(' ')); return; }
-      if (s.id != null) { if (typeof s.id !== 'string' || !s.id) why.push(at + ': a step id is a string'); else if (stepIds[s.id]) why.push(at + ': step id ' + s.id + ' twice'); else stepIds[s.id] = 1; }
+      if (s.id != null) { if (typeof s.id !== 'string' || !s.id) why.push(at + ': a step id is a string'); else if (stepIds[s.id]) why.push(at + ': step id ' + s.id + ' twice'); else { stepIds[s.id] = 1; stepLeg[s.id] = i; stepPos[s.id] = j; } }
       const k = missionPlaceKind(s.place), allow = MISSION_PLACES_OF[s.do];
       if (k === null || !allow.includes(k)) why.push(at + ': ' + s.do + ' takes ' + allow.map(x => x || 'no place').join(' | ') + ', got ' + (k === null ? JSON.stringify(s.place) : (k || 'no place')));
       else { const w = missionPlaceWhy(s.place, { fields: F, sites, spots: ctx.spots }); if (w) why.push(at + ': ' + w); }
@@ -423,6 +423,9 @@ function missionWhy(m, ctx) {
         if (!msObj(t) || typeof t.id !== 'string' || !t.id) { why.push(at + ': a timer has an id'); return; }
         if (seen[t.id]) why.push(at + ': timer id twice'); seen[t.id] = 1;
         for (const e of ['start', 'stop']) if (!stepIds[t[e]]) why.push(at + ': ' + e + ' names no step of the mission (' + t[e] + ')');
+        // (MISSIONS-P1) a lap is flown in one flight over one leg (the tracker arms one leg at a time): start and stop
+        // in the same leg, the start first
+        if (stepIds[t.start] && stepIds[t.stop] && (stepLeg[t.start] !== stepLeg[t.stop] || stepPos[t.start] > stepPos[t.stop])) why.push(at + ': starts and stops in one leg, the start first');
         if (t.start === t.stop) why.push(at + ': starts and stops on the same step');
         const tg = t.target;
         if (!((msNum(tg) && tg > 0) || (msObj(tg) && msNum(tg.refKmh) && tg.refKmh > 0))) why.push(at + ': target is seconds or { refKmh }');

@@ -254,6 +254,8 @@ function run(mut) {
     ['a voice aboard', p => { p.missions[2].legs[0].steps[0].load.pax = ['tim']; }, /voice/],
     ['a person the table does not hold', p => { p.missions[2].client = 'zorro'; }, /not in the people table/],
     ['the pack is v2', p => { p.v = 2; }, /v must be 1/],
+    ['a timer from one leg to another', p => { p.missions[0].legs.push({ steps: [{ id: 'g9', do: 'pass', place: { gate: [[0, -9000], [100, -9000]] } }] }); p.missions[0].timers[0].stop = 'g9'; }, /in one leg, the start first/],
+    ['a timer stopping before it starts', p => { p.missions[0].timers[0].start = 'g2'; p.missions[0].timers[0].stop = 'g1'; }, /the start first/],
   ];
   for (const [label, f, re, skip] of broken) {
     if (skip) continue;
@@ -518,6 +520,9 @@ function runtimeRows(M, mut) {
   ok(!fly(flightLine(-6500, -2500, 50, 100)).T.hits.g2, 'g2 flown the wrong way (it faces north): no hit');
   ok(!fly(flightLine(-5500, -6500, 50, 100)).T.hits.g2, 'seq: g2 is not armed before g1');
   ok(!fly(flightLine(-2500, -6500, 50, 100, -300)).T.hits.g1, 'beside the posts: no gate');
+  // a fast sample (one segment over both gates, 4 km in one second): both counted, in order, the lap interpolated
+  const fast = fly([{ t: 0, x: -450, z: -2500, y: 120, agl: 100 }, { t: 1, x: -450, z: -6500, y: 120, agl: 100 }]);
+  ok(fast.T.hits.g1 && fast.T.hits.g2 && fast.T.hits.g1.t < fast.T.hits.g2.t && N.missionTrackEvidence(fast.T).timers.speed.s === 0.8, 'one fast sample across both gates (seq): both hit in order, the lap 0.8 s');
   // a ring facing north, 8 m: through it north-bound at its height; south-bound, or 20 m high, no
   const ring = { ring: [-450, 120, -4000], r: 8, dir: 0 };
   const seg = (z0, z1, y) => [{ t: 0, x: -450, z: z0, y }, { t: 1, x: -450, z: z1, y }];
@@ -624,7 +629,8 @@ const MUTS = [
   ['a point ignores its altitude band', { '73c_mission_run.js': sub('return Math.hypot(q.x - cx, q.z - cz) <= p.r && !msrAltWhy(p.alt, q) ? q : null;', 'return Math.hypot(q.x - cx, q.z - cz) <= p.r ? q : null;') }],
   ['a gate flown backwards counts', { '73c_mission_run.js': sub('if (msrNum(p.dir) && msrDiff(msrDeg(dx, dz), p.dir) > 90) return null;', '') }],
   ['a ring is passed backwards', { '73c_mission_run.js': sub('if (!(sa < 0 && sb >= 0)) return null;', 'if (!(sa > 0 && sb <= 0)) return null;') }],
-  ['a seq leg arms every objective', { '73c_mission_run.js': sub('    if (T.seq) break;\n', '') }],
+  ['a seq leg arms every objective', { '73c_mission_run.js': sub('if (!q) { if (T.seq) break; continue; }', 'if (!q) continue;') }],
+  ['a fast pass counts the first gate only', { '73c_mission_run.js': sub('    if (T.seq) from = q;', '    if (T.seq) break;') }],
   ['a slow lap still wins a medal', { '73c_mission_run.js': sub('const m = t.medals.slice().sort((a, b) => a.le - b.le).find(x => E.s <= x.le);', 'const m = t.medals[0];') }],
   ['a timed group is spent by a slow lap', { '73c_mission_run.js': sub("for (let j = a; j < b; j++) if (res[j] && res[j].st === 'done')", 'for (let j = a; j < a; j++) if (res[j] && res[j].st === \'done\')') }],
   ['a mandatory preference is only a wish', { '73c_mission_run.js': sub("else if (p.need === 'mandatory') miss.push(", 'else if (false) miss.push(') }],

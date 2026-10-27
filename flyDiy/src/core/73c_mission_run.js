@@ -224,16 +224,19 @@ function missionTrackNew(rec, live) {
            hits: {}, laps: {}, last: null };
 }
 // one sample of the flight -> the events it made [{ k: 'hit' | 'photo' | 'split' | 'timer', key, ... }]. Mutates T.
-// In a seq leg only the first objective not yet hit is armed (one hit a sample); else every one.
+// In a seq leg only the first objective not yet hit is armed; after a hit the REST of the segment is tested against the
+// next one (a fast sample across two close gates counts both, in order). Any order: every objective on the segment.
 function missionTrackStep(T, smp) {
   if (!T || !smp || !msrNum(smp.t) || !msrNum(smp.x) || !msrNum(smp.z)) return [];
   const a = T.last, out = [];
   T.last = { t: smp.t, x: smp.x, z: smp.z, y: smp.y, agl: smp.agl };
   if (!a) return out;
+  let from = a;
   for (const o of T.objs) {
     if (T.hits[o.key]) continue;
-    const q = missionHitTest(o.place, a, T.last);
-    if (q) {
+    const q = missionHitTest(o.place, from, T.last);
+    if (!q) { if (T.seq) break; continue; }
+    {
       const t = Math.round(q.t * 100) / 100;
       T.hits[o.key] = { t, x: Math.round(q.x), z: Math.round(q.z), y: msrNum(q.y) ? Math.round(q.y) : null };
       out.push({ k: o.do === 'photo' ? 'photo' : 'hit', key: o.key, do: o.do, t, say: o.say || null });
@@ -244,7 +247,7 @@ function missionTrackStep(T, smp) {
         else if (lap && lap.s == null && o.split != null) { const sp = { key: o.key, s: Math.round((t - lap.t0) * 10) / 10, target: o.split }; lap.splits.push(sp); out.push(Object.assign({ k: 'split', id: tm.id }, sp)); }
       }
     }
-    if (T.seq) break;
+    if (T.seq) from = q;                                       // the rest of the segment, for the next one in order
   }
   return out;
 }
