@@ -54,7 +54,7 @@ function run(M) {
   ok(!M.routeOffer(d, 'A', 'B', 'Ul', { fields }).ok && /not read yet/.test(M.routeOffer(d, 'A', 'B', 'Ul', { fields }).why), 'a plane whose numbers are not known: refused, never guessed');
   // ---- SIGN on a clone
   const t0 = M.dayAbs(M.careerDay(d));
-  ok(!M.routeSign(d, T, 'Cub', 'bryce').ok && !M.routeSign(d, T, 'Ul', 'brian').ok && !M.routeSign(d, null, 'Cub', 'brian').ok,
+  ok(!M.routeSign(d, T, 'Cub', 'rafe').ok && !M.routeSign(d, T, 'Ul', 'brian').ok && !M.routeSign(d, null, 'Cub', 'brian').ok,
      'routeSign refuses a pilot not hired, another plane than the offer\'s, no offer');
   const away = JSON.parse(d0); away.fleet.Cub.aero = 'HOME';
   ok(!M.routeSign(M.careerNormalise(away), T, 'Cub', 'brian').ok, 'routeSign refuses a plane that stands at neither end');
