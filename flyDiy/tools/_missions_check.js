@@ -366,8 +366,10 @@ function run(mut) {
   }
 
   // ==== THE RUNTIME (MISSIONS-P1/P2: 73c_mission_run.js and its seams in 72_accept / 73_ / 74_ / 75_) ====================
-  runtimeRows(M, mut);
-  p3Rows(M, mut);
+  // a block that throws is a failed row with its reason (a doctored model may leave a mission out: never a crash)
+  for (const [name, f] of [['the runtime (P1/P2)', runtimeRows], ['the bush missions (P3)', p3Rows]]) {
+    try { f(M, mut); } catch (e) { ok(false, name + ': threw - ' + (e && e.message)); }
+  }
 
   // ==== PURITY + THE EDITOR'S FILES =================================================
   const s = M.__src['73b_missions.js'].replace(/\/\/.*$/gm, '');
