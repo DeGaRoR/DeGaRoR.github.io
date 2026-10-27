@@ -19877,6 +19877,30 @@
      }
     ],
     "yard": null
+   },
+   {
+    "id": "mt_s_meteo",
+    "name": "Mount Ardent meteo station",
+    "at": {
+     "x": 9112.2,
+     "z": -5881.9,
+     "yaw": 0
+    },
+    "yard": null,
+    "items": [
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "station",
+      "key": "meteo/meteo station",
+      "x": 0,
+      "z": 0,
+      "yaw": 3.141592653589793,
+      "P": {
+       "lot": false
+      }
+     }
+    ]
    }
   ],
   "links": [
