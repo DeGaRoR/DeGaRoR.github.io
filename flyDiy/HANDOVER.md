@@ -99095,5 +99095,12 @@ Study, boards and numbers: `futureDesigns/LODS-2026-10.md`; `reports/evidence/LO
 - **Not done (follow-ups)**: Metlakatla's kit box and city prism (baked in the committed packs; the town is opt-in) -
   a re-bake to put them on the finish; the meteo generator's `LOD_DETAIL` (its branch); THE PERF A/B on the local box
   (A0: frame / draws over HOME and the village at 300 m, `stats.farTris`, boot to reveal).
-- Gates run in the cloud: HOUSE, LODS, TARR, PREMISES, PREMCOOK, MEDIA, TOWNKIT, KITHOST, CITYHOST, CITYCOOK, GAMEPREM,
-  VILLAGE, SITE, PREMRASTER, ROOMMERGE, HWCOV, HOUSEWORKER - all PASS. Not the whole core battery, not --all.
+- Gates run in the cloud (every core gate whose source reads the premises, the house kit or a generator, 38): HOUSE,
+  LODS, TARR, PREMISES, PREMCOOK, MEDIA, TOWNKIT, KITHOST, CITYHOST, CITYCOOK, GAMEPREM, VILLAGE, SITE, PREMRASTER,
+  ROOMMERGE, HWCOV, HOUSEWORKER, AUDIO, ATMO, NAVAID, ANIMALS, DMGSCAR, GFX, STAND, FADES, CONTACT, LOOKS, ASSETS,
+  PATCHFAR, METKIT, PARKED, HITBOX, PAVEMENT, LIFE, OBSTACLE - PASS. CLOUD (row "the pool is re-assigned every 30
+  frames": its regex predates the lamp filter's chunk clause), FRAMECOST (garage:restore updateMatrixWorld 2269 -> 4553)
+  and SCENERYED (20b, 3.3-3.4 s against 2.5 s, a timing) FAIL IDENTICALLY on the untouched tree (90aece7d) - not this
+  branch's. Not the whole core battery, not --all: the train's.
+- In game (dev.html on SwiftShader, `soft_still.js`): no page error; roll-out to the stand 33 s (34 s before); HOME
+  from 420 m before / after in `reports/evidence/LODS/after/` (the club hangar: a washed-out box -> its walls, roof, lights).
