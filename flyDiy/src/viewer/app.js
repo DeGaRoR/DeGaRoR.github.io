@@ -5130,6 +5130,10 @@
   // the snapshot, G1859), the legs one binding each, then inhSteps a budget a frame
   function brkInhStep(groups) {
     const K = model.brk, SB = SKIN_BREAK;
+    // (G3770, DMG-LOOKS: the list below is the records made so far, once - a record made later, REC_BUDGET a frame, is never
+    // bound by inheritance, and no place of it is the member pool's: the Cub's cage was in it or not by the crash, 0 to 30
+    // members. With the switch on, the inheritance starts once every record is made - a few frames later)
+    if (!K.inhIt && BRK.recPending && lookOn()) return;
     if (!K.inhIt) {
       const lay = new Map(); for (const r of (model.data && model.data.layers) || []) { let L = lay.get(r[1]); if (!L) lay.set(r[1], L = []); L.push(r); }
       const surf = new Set(model.surfParts || []), strut = new Set(model.strutRigs || []);
