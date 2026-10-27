@@ -49,9 +49,9 @@
   // ---- the panes: points (xyz), their normals and pane ids, in the caller's frame ----
   // P: { pts: Float32Array 3n, nrm: Float32Array 3n, pane: Int32Array n }; M: [{ bi, mid: [x, y, z] }] the candidate
   // members' rest midpoints (members() below makes them: every member within R_NEAR of a pane, once)
-  function members(P, mids) {
-    const out = [];
-    for (const m of mids) { const h = nearest(P, m.mid); if (h && h.d <= R_NEAR) out.push({ bi: m.bi, mid: m.mid, k: h.k }); }
+  function members(P, mids, rNear) {
+    const out = [], rr = rNear == null ? R_NEAR : rNear;   // (rNear: GATE DMGGLASS's selftest only)
+    for (const m of mids) { const h = nearest(P, m.mid); if (h && h.d <= rr) out.push({ bi: m.bi, mid: m.mid, k: h.k }); }
     return out;
   }
   function nearest(P, x) {
@@ -72,7 +72,7 @@
       const nl = Math.hypot(P.nrm[k * 3], P.nrm[k * 3 + 1], P.nrm[k * 3 + 2]) || 1;
       list.push({ p, n: [P.nrm[k * 3] / nl, P.nrm[k * 3 + 1] / nl, P.nrm[k * 3 + 2] / nl], sev: s, seed: 7919 + m.bi * 131, pane, bi: m.bi });
     }
-    list.sort((a, b) => b.sev - a.sev || a.bi - b.bi);
+    list.sort((a, b) => b.sev - a.sev);   // (stable: of equal ones the earlier stay - a mark drawn is not displaced by a later equal one)
     return list.slice(0, MAX);
   }
   // ---- into the shader's uniforms (aeroSharedU: uCrackN { value }, uCrackP / uCrackQ { value: [Vector4 x MAX] }) ----
@@ -117,7 +117,7 @@
     for (let o = -1; o <= 1; o++) {
       let k = c0 + o; if (k < 0) k += NR; if (k >= NR) k -= NR;   // (no %: GLSL ES leaves it undefined below 0)
       const base = (k + 0.5 + 0.7 * (h1(k, seed + 3) - 0.5)) / NR * TAU;
-      const ang = base + 0.10 * fbm1(r * 9 + k * 7.1, seed + 5) + 0.25 * fbm1(r * 2.3 + k, seed + 6) * Math.min(1, r / 0.1);
+      const ang = base + 0.10 * fbm1(r * 9 + k * 7.1, seed + 5) + 0.12 * fbm1(r * 2.3 + k, seed + 6) * Math.min(1, r / 0.1);
       let d = th - ang; d -= TAU * Math.round(d / TAU);
       const len = reach * (0.45 + 0.55 * h1(k, seed + 9)), dist = Math.abs(d) * r;
       const w = 0.0009 * (1 - Math.min(1, r / len)) + 0.00025;
@@ -160,7 +160,7 @@
     '  for (int o = -1; o <= 1; o++) {',
     '    int k = c0 + o; if (k < 0) k += NR; if (k >= NR) k -= NR;',
     '    float base = (float(k) + 0.5 + 0.7 * (dgU1(k, seed + 3) - 0.5)) / float(NR) * 6.2831853;',
-    '    float ang = base + 0.10 * dgFbm(r * 9.0 + float(k) * 7.1, seed + 5) + 0.25 * dgFbm(r * 2.3 + float(k), seed + 6) * min(1.0, r / 0.1);',
+    '    float ang = base + 0.10 * dgFbm(r * 9.0 + float(k) * 7.1, seed + 5) + 0.12 * dgFbm(r * 2.3 + float(k), seed + 6) * min(1.0, r / 0.1);',
     '    float d = th - ang; d -= 6.2831853 * floor(d / 6.2831853 + 0.5);',
     '    float len = reach * (0.45 + 0.55 * dgU1(k, seed + 9)), dist = abs(d) * r;',
     '    float w = 0.0009 * (1.0 - min(1.0, r / len)) + 0.00025;',

@@ -3834,7 +3834,7 @@ const AERO_GLASS_CRACK_FS = [
   "  for (int o = -1; o <= 1; o++) {",
   "    int k = c0 + o; if (k < 0) k += NR; if (k >= NR) k -= NR;",
   "    float base = (float(k) + 0.5 + 0.7 * (dgU1(k, seed + 3) - 0.5)) / float(NR) * 6.2831853;",
-  "    float ang = base + 0.10 * dgFbm(r * 9.0 + float(k) * 7.1, seed + 5) + 0.25 * dgFbm(r * 2.3 + float(k), seed + 6) * min(1.0, r / 0.1);",
+  "    float ang = base + 0.10 * dgFbm(r * 9.0 + float(k) * 7.1, seed + 5) + 0.12 * dgFbm(r * 2.3 + float(k), seed + 6) * min(1.0, r / 0.1);",
   "    float d = th - ang; d -= 6.2831853 * floor(d / 6.2831853 + 0.5);",
   "    float len = reach * (0.45 + 0.55 * dgU1(k, seed + 9)), dist = abs(d) * r;",
   "    float w = 0.0009 * (1.0 - min(1.0, r / len)) + 0.00025;",
