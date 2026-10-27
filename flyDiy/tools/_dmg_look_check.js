@@ -53,7 +53,8 @@ function child(k, cases, refFile, outFile) {
       Sb.OPT.looks = false;
       return { Sb, recs, E, NF: {} };
     };
-    const SB_make = (Sb, g) => Sb.make({ nv: g.nv, idx: g.idx.slice() }, Sb.INH_K, { fabric: P.fabric && g.cv.indexOf(Sb.INH.cover) >= 0, cage: true, pos: g.bD, rest: P.rest, weld: true, rideAll: true });
+    const SB_make = (Sb, g) => { const R = Sb.make({ nv: g.nv, idx: g.idx.slice() }, Sb.INH_K, { fabric: P.fabric && g.cv.indexOf(Sb.INH.cover) >= 0, cage: true, pos: g.bD, rest: P.rest, weld: true, rideAll: true });
+      R.secName = g.key; return R; };   // (G3770: the bucket - the page's pools are a bucket's)
     let ref = null, off = null, on = null, M = null, Pl = null, lastV = -1;
     const m = { events: 0, offDiff: 0, offFirst: null, relCut: 0, relCutRef: 0, kinkCut: 0, kinkCutRef: 0, slotsMax: 0, slotBad: 0, hideBad: 0,
       planMs: 0, planN: 0, measureMs: 0, pose: [], poseBad: 0, poseWorst: null, modes: {}, parts: null, nonFinite: 0 };
@@ -72,7 +73,7 @@ function child(k, cases, refFile, outFile) {
       const PI = SH.simDmgHop(sim, hop, core, 0); if (PI) SV.simViewDmgApply(D, PI);
       if (!D.br.length) continue;
       if (!ref) { ref = mk(SBR, false); off = mk(SB, false); on = mk(SB, true);
-        const t1 = process.hrtime.bigint(); M = DM.measure(on.recs, P.T, P.rest); m.measureMs = Number(process.hrtime.bigint() - t1) / 1e6; }
+        const t1 = process.hrtime.bigint(); M = DM.measure(on.recs, P.T, P.rest, null); m.measureMs = Number(process.hrtime.bigint() - t1) / 1e6; }
       if (D.vB !== lastV) {
         lastV = D.vB;
         const t1 = process.hrtime.bigint(); Pl = DM.plan(P.T, D, M, P.rest, Pl); const ms = Number(process.hrtime.bigint() - t1) / 1e6;
@@ -102,31 +103,39 @@ function child(k, cases, refFile, outFile) {
       if (Pl && Pl.slots.length && (s === firstSlots || s === mid || s === G.N)) poseCheck(s);
     }
     function poseCheck(s) {
-      const U = { data: null, used: 0, slots: [], beams: null, frames: 0, ms: 0, msMax: 0, events: 0, tex: { needsUpdate: false } };
-      U.data = new Float32Array(DM.SLOTS * DM.TX * 4);
+      // (one pool for every bucket: the page has one a tube bucket's material - the slots' math is the same)
+      const U = { data: new Float32Array(DM.SLOTS * DM.TX * 4), uv: { array: new Float32Array(DM.SLOTS * 2 * DM.RINGS * DM.AROUND * 2), needsUpdate: false, clearUpdateRanges() {}, addUpdateRange() {} },
+        used: 0, slots: [], beams: null, frames: 0, ms: 0, msMax: 0, events: 0, tex: { needsUpdate: false } };
       const mesh = { userData: { look: U }, geometry: { setDrawRange() {} }, visible: false, position: { set() {} }, updateMatrix() {} };
+      const pools = new Map(); for (const k of new Set(M.key)) if (k != null) pools.set(k, mesh);
       const O = [sim.p[0], sim.p[1], sim.p[2]];
-      DM.assign(mesh, Pl, M, P.T, P.rest); DM.frame(mesh, sim.p, on.NF.q, O);
+      DM.assign(pools, Pl, M, P.T, P.rest); DM.frame(pools, sim.p, on.NF.q, O);
       let bad = 0, worst = null;
       const note = (why, q, v) => { bad++; if (!worst || v > worst.v) worst = { why, bi: q.bi, mode: q.mode, v: +(+v).toFixed(4) }; };
       for (let j = 0; j < U.used; j++) {
         const S = DM.slotTexels(mesh, j), q = U.slots[j];
-        const A = [S[0], S[1], S[2]], B = [S[4], S[5], S[6]], L0 = S[19], r = S[24], hh = S[25];
+        const A = [S[0], S[1], S[2]], B = [S[4], S[5], S[6]], L0 = S[19], r = S[24], tb = S[27], nK = S[28] | 0, tA = S[29], tB = S[30];
+        // (the drawn tube may sit off the physics line - the ring's centre off it by `co`, its own: the ends are checked
+        // within it, plus the drawn tube's own span short of the nodes, tA / tB)
+        let ox = 0, oy = 0; for (let k = 0; k < nK; k++) { ox += S[32 + k * 2] / nK; oy += S[33 + k * 2] / nK; } const co = Math.hypot(ox, oy);
         const ctr = (u, pc) => { const c = [0, 0, 0]; for (let k = 0; k < DM.AROUND; k++) { const p = DM.pose(S, u, k, pc); for (let e = 0; e < 3; e++) c[e] += p[e] / DM.AROUND;
-          for (let e = 0; e < 9; e++) if (!Number.isFinite(p[e])) { m.nonFinite++; note('non-finite', q, 1); } } return c; };
+          for (let e = 0; e < 10; e++) if (!Number.isFinite(p[e])) { m.nonFinite++; note('non-finite', q, 1); } } return c; };
         const d = (x, y) => Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]);
         const c = d(A, B), mode = S[7], live = (mode === DM.MODE.kink || mode === DM.MODE.crush) && c > DM.KINK_STRETCH * L0 ? (mode === DM.MODE.kink ? DM.MODE.torn : DM.MODE.sliver) : mode;
-        m.modes[live] = (m.modes[live] || 0) + 1;
-        if (live === DM.MODE.torn || live === DM.MODE.sliver) {
-          for (const pc of [0, 1]) { const st = ctr(0, pc), own = pc ? B : A, e0 = d(st, own); if (e0 > END_MM) note('stub start off its node', q, e0);
-            const tb = S[27], legL = (pc ? 1 - tb : tb) * L0, reach = live === DM.MODE.sliver ? legL + 6 * 2 * Math.max(r, hh) : legL + 0.9 * r;
-            for (let i = 0; i < DM.RINGS; i++) { const u = i / (DM.RINGS - 1); for (let k = 0; k < DM.AROUND; k++) { const p = DM.pose(S, u, k, pc); if (p[8] > reach + 1e-3) note('stub past its reach', q, p[8] - reach); } } }
+        const broken = live === DM.MODE.torn || live === DM.MODE.sliver, crack = broken && c < L0 * 0.999, tag = broken ? (crack ? 'crack' : 'stub') + live : '' + live;
+        m.modes[tag] = (m.modes[tag] || 0) + 1;
+        const wood = S[3] > 2.5;
+        if (broken && !crack) {
+          for (const pc of [0, 1]) { const own = pc ? B : A, s0 = (pc ? 1 - tB : tA) * L0, st = ctr(0, pc), e0 = Math.abs(d(st, own) - s0);
+            if (e0 > END_MM + co + 0.05 * r) note('stub start off its own end', q, e0);
+            const legL = (pc ? 1 - tb : tb) * L0, reach = wood ? legL + 6 * 2 * r : legL + 0.9 * r;
+            for (let i = 0; i < DM.RINGS; i++) { const u = i / (DM.RINGS - 1); for (let k = 0; k < DM.AROUND; k++) { const p = DM.pose(S, u, k, pc); if (p[9] > reach + 1e-3) note('stub past its reach', q, p[9] - reach); } } }
         } else {
           const s0 = ctr(0, 0), s1 = ctr(1, 1), e0 = d(s0, A), e1 = d(s1, B);
-          if (live !== DM.MODE.crush) { if (e0 > END_MM + 0.05 * r) note('whole: piece 0 off end a', q, e0); if (e1 > END_MM + 0.05 * r) note('whole: piece 1 off end b', q, e1); }
-          if (c < L0 * 0.9995 && live !== DM.MODE.crush) {   // bent: the legs keep the rest length
+          if (live !== DM.MODE.crush) { if (e0 > END_MM + co + tA * L0 + 0.05 * r) note('whole: piece 0 off end a', q, e0); if (e1 > END_MM + co + (1 - tB) * L0 + 0.05 * r) note('whole: piece 1 off end b', q, e1); }
+          if (c < L0 * 0.9995 && live !== DM.MODE.crush && !crack) {   // bent: the legs keep the rest length (the drawn span's)
             let Lc = 0, prev = null; for (const pc of [0, 1]) for (let i = 0; i < DM.RINGS; i++) { const cc = ctr(i / (DM.RINGS - 1), pc); if (prev) Lc += d(prev, cc); prev = cc; }
-            const rel = Math.abs(Lc - L0) / L0; if (rel > LEN_TOL) note('bent: centreline length off its rest', q, rel); }
+            const want = (tB - tA) * L0, rel = Math.abs(Lc - want) / want; if (rel > LEN_TOL) note('bent: centreline length off its rest', q, rel); }
         }
       }
       m.pose.push({ step: s, slots: U.used, bad });
