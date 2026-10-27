@@ -99381,3 +99381,49 @@ contracts' map record is unchanged (gated).
 - The editor's link under the Dev section (§7), when Game wants it.
 
 **Gates** (private copy, built there, `run_gates.js --no-build`): see the READY note's verdict lines.
+
+## READY claude/ready/missions-p1 - MISSIONS P1 (logic) + P2 (2026-10-27, cloud, node only; Game reviews before it lands)
+
+**Base: origin/claude/missions-p0 db58b0b5** (Game's merged P0 + the order's size + the CLOCK pin) with **origin/master
+d7e181f4** merged first (already contained: a no-op). Work branch claude/missions-p1; the code as gated = ca288b1ad (this
+note and two comment lines on top). What it does and what the local session must wire and draw: the MISSIONS-P1/P2 entry
+above.
+
+**Running careers - one behaviour change, the user's ruling of 25 Oct:** an aircraft order (every build contract,
+authored ones included) hands its delivered airframe over at completion - it leaves the fleet and career.airframes, the
+done event names its blueprint and the profit. Nothing else changes for today's contracts (no rules, no timers, no new
+verbs: a crash still resets and keeps them live; their map record, stop record and pay are as before - gated).
+
+**Fixes outside the mission code** (each red on the base too, or a list the change extends): 76_pilots.js (G3614,
+claude/people): pilotsImportPack's bio / voice puts sat inside a trailing comment - GATE PILOTS red on db58b0b5, green
+now. tools/_lazy_check.js row 3: MANIFEST.career is fourteen modules (+73b, 73c). tools/_accept_check.js: a sample per
+new ACCEPT kind (its "every kind has a sample" row).
+
+**Gates** (a private copy of the tree, `node tools/build.js` there - build career_core.686ab783 -, `run_gates.js --only=...
+--no-build`; MISSIONS and both selftests re-run on the final gate file):
+```
+GATE MISSIONS: PASS            (836 checks, 2 packs; --selftest: 37 doctored rules, 37 red)
+GATE CONTRACTS: PASS           (--selftest: PASS)
+GATE STAGES: PASS
+GATE ECON: PASS
+GATE CLOCK: PASS
+GATE FREIGHT: PASS
+GATE PROCURE: PASS
+GATE ACCEPT: PASS
+GATE STORY: PASS
+GATE ROUTES: PASS
+GATE SAVE: PASS
+GATE UISMOKE: PASS
+GATE UISMOKE-PHONE: PASS
+GATE DEFAULT: PASS
+GATE NAMES: PASS
+GATE PILOTS: PASS
+GATE TECH: PASS
+GATE GAMEPREM: PASS
+GATE LAZY: FAIL (1)
+```
+**LAZY's one row is not this branch's**: "default: the door's first demand (ROUTE_DRAW.ready) fetched route_draw.<h8>.js
+once and ran it" fails identically on db58b0b5 in this cloud box (a clean worktree, built); probed alone in the same
+Chromium the door works (loaded, ran, one request) - the gate's request recorder / service worker in a headless cloud
+browser, G3070 ROUTE-LAZY's to look at on the box. Every static LAZY row (the career bundle with 73b / 73c, the page's
+split, the vm split run, the workers, sw.js) and every other request row passes. Not run here: the GPU gates (Game's).

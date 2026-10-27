@@ -35,7 +35,7 @@
 //                  idempotent); the live reward.
 //   PURITY         73b_missions.js touches no DOM, storage, THREE, clock or random.
 //   node tools/_missions_check.js             -> "GATE MISSIONS: PASS|FAIL"
-//   node tools/_missions_check.js --selftest  -> the model doctored one rule at a time (36: the pack, the runtime); each must
+//   node tools/_missions_check.js --selftest  -> the model doctored one rule at a time (37: the pack, the runtime); each must
 //                                               turn a check red
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
