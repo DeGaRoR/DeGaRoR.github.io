@@ -492,15 +492,15 @@ function runChecks2(C, D, X, quiet) {
     const Sx = X.scene;
     for (const r of Sx.rows) {
       if (r.pod) {
-        ok(r.groups === 1 && r.meshes === 1 && r.name === 'edPod' && r.matNames === 'pod' && r.tris > 300, r.k + ' with a pod: one group (cageLayer:pod), ONE mesh (edPod, section `pod`), ' + r.tris + ' triangles');
-        ok(r.floorErr < 1e-5 && r.outward && r.topInside >= 0.0199, r.k + ': its floor the physics\' floor (' + n(r.floorErr * 1000, 3) + ' mm), its normals out, its walls ' + n(r.topInside * 100, 1) + ' cm inside the drawn belly');
+        ok(r.groups === 1 && r.meshes === 1 && r.name === 'edPod' && r.matNames === 'pod,ctlHinge' && r.tris > 3000, r.k + ' with a pod: one group (cageLayer:pod), ONE mesh (edPod: the moulding in section `pod`, its hardware in `ctlHinge` - G3468), ' + r.tris + ' triangles');
+        ok(r.floorErr < 1e-4 && r.under <= 1e-4 && r.outward && r.topInside >= 0.0199, r.k + ': along the run its skids on the physics\' floor (' + n(r.floorErr * 1000, 3) + ' mm), nothing under it (' + n(r.under * 1000, 3) + ' mm); its shell\'s normals out, its walls ' + n(r.topInside * 100, 1) + ' cm inside the drawn belly');
         ok(r.datumJoin && near(r.datum.zFw, r.datumJoin.zFw, 1e-9) && near(r.datum.yD, r.datumJoin.yD, 1e-9), r.k + ': its datums are the join\'s (zFw ' + n(r.datum.zFw, 4) + ', yD ' + n(r.datum.yD, 4) + ')');
         ok(r.snapPod && r.snapSec === 'pod', r.k + ': the join\'s snapshot (CAGE_VISUAL) carries it as its own bucket, section `pod` (the flown model, the bake, the parked capture)');
         // (the census re-makes the scene on the fake GL's three with the layers' own material classes - the node rig has no
         // livery, so the pod wears its fallback MeshStandardMaterial: at most ONE program of its own, which a build whose
         // scene already carries that key shares. The page's pod wears AEROSKIN's `trim`, the spats' material: the box's
         // program census before / after is the GPU half's - HANDOVER G2675-G2679)
-        ok(r.dCalls === r.expectCalls && r.dPrograms <= 1, r.k + ': the pod costs ' + r.dCalls + ' draws (its mesh + its shadow) and ' + r.dPrograms + ' program(s) of its own here (the fake-GL census; the node rig\'s fallback material)');
+        ok(r.dCalls === r.expectCalls && r.dPrograms <= 1, r.k + ': the pod costs ' + r.dCalls + ' draws (its two material groups, each + its shadow) and ' + r.dPrograms + ' program(s) of its own here (the fake-GL census; the node rig\'s fallback materials)');
       } else {
         ok(r.groups === 0 && r.meshes === 0 && !r.podMesh && !r.snapPod && r.dCalls === 0 && r.dPrograms === 0 && r.sameKeys,
            r.k + ' without a pod: NOTHING - no group, no mesh, no material, no snapshot bucket, 0 draws, the same programs');
@@ -652,15 +652,23 @@ function sceneAll() {
     if (o.M) {
       const g = o.M.mesh.geometry, pos = g.attributes.position, nrm = g.attributes.normal, R = o.M.R, Dt = o.M.datum;
       r.name = o.M.mesh.name; r.matNames = (o.M.mesh.userData.matNames || []).join(); r.tris = g.index.count / 3;
-      let lo = 1e9; for (let i = 0; i < pos.count; i++) lo = Math.min(lo, pos.getY(i));
-      r.floorErr = Math.abs(lo - (R.yBot + Dt.yD));
-      // outward: every vertex's normal points away from the pod's own axis (the keel line over its middle)
-      let outward = true; const yMid = R.yBot + Dt.yD + 0.5 * R.depth;
-      for (let i = 0; i < pos.count; i++) { const dx = pos.getX(i), dy = pos.getY(i) - yMid; if (dx * nrm.getX(i) + Math.min(0, dy) * nrm.getY(i) < -1e-6 && Math.abs(dx) + Math.max(0, -dy) > 0.02) { outward = false; break; } }
+      // G3468: THE FLOOR FOLLOWS THE BELLY (60d genPodFloorAt) - along the flat run the drawn floor's lowest points (the
+      // wear skids' soles) lie ON the physics' floor, and nowhere is anything drawn under the physics' floor line
+      const gx = v => Dt.zFw - pos.getZ(v), fl = x => C0.genPodFloorAt(R, x) + Dt.yD;
+      let runLo = 1e9, under = -1e9;
+      for (let v = 0; v < pos.count; v++) { const x = gx(v), y = pos.getY(v);
+        if (x < R.xa || x > R.xb) continue;                  // (the run: the fairings are measured at the stations)
+        under = Math.max(under, fl(x) - y); runLo = Math.min(runLo, y - fl(x)); }
+      r.floorErr = Math.abs(runLo); r.under = under;
+      // outward: every SHELL vertex's normal points away from the pod's own axis (the keel line over its middle; the
+      // hardware - a hinge knuckle's back, a latch's edge - faces every way by construction)
+      let outward = true; const yMid = R.yBot + Dt.yD + 0.5 * R.depth, nS = o.M.shellNv || pos.count;
+      for (let i = 0; i < nS; i++) { const dx = pos.getX(i), dy = pos.getY(i) - yMid; if (dx * nrm.getX(i) + Math.min(0, dy) * nrm.getY(i) < -1e-6 && Math.abs(dx) + Math.max(0, -dy) > 0.02) { outward = false; break; } }
       r.outward = outward;
-      // the walls' top edge against the drawn belly (the gear's airframe probe at the pod's own half-width)
-      const AF = W.CAGE_GEAR.AF, Wd = o.M.around; let inside = 1e9;
-      for (let v = 0; v < pos.count; v++) { const jj = v % Wd; if (jj !== 0 && jj !== Wd - 1) continue;
+      // the walls' top edge against the drawn belly (the gear's airframe probe at the pod's own half-width; the layer
+      // publishes the edge's vertices, `top`)
+      const AF = W.CAGE_GEAR.AF, Wd = o.M.around, topSet = o.M.top ? new Set(o.M.top) : null; let inside = 1e9;
+      for (let v = 0; v < pos.count; v++) { if (topSet ? !topSet.has(v) : (v % Wd !== 0 && v % Wd !== Wd - 1)) continue;
         const zc = pos.getZ(v), x = Math.abs(pos.getX(v)); let a0 = 0, a1 = Math.PI / 2, ys;
         if (x >= AF.halfWAt(zc)) ys = AF.surf(zc, a1)[1]; else { for (let q = 0; q < 30; q++) { const m = (a0 + a1) / 2; if (Math.abs(AF.surf(zc, m)[0]) < x) a0 = m; else a1 = m; } ys = AF.surf(zc, (a0 + a1) / 2)[1]; }
         inside = Math.min(inside, pos.getY(v) - ys); }
@@ -675,7 +683,7 @@ function sceneAll() {
   }
   const cubP = rows.find(r => r.pod && r.k === 'cub');
   for (const r of rows) {
-    r.expectCalls = 2;
+    r.expectCalls = 4;            // G3468: two groups (the moulding, the hardware), each drawn + shadowed
     if (r.pod) { const ka = new Set(r.censusHidden.keys); r.dCalls = r.census.calls - r.censusHidden.calls; r.dPrograms = r.census.keys.filter(x => !ka.has(x)).length; }
     else {     // the Cub WITHOUT a pod against the Cub WITH one, hidden: the same draws, the same programs
       r.dCalls = r.census.calls - cubP.censusHidden.calls; r.dPrograms = 0;

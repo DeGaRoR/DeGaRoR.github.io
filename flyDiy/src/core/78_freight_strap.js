@@ -202,7 +202,7 @@ function freightStrapAdds(def, acc, o) {
       const R = def.parts.pod, N = def.parts.podFrame.nodes, wx = fsClamp01((c[0] - R.xa) / Math.max(1e-9, R.xb - R.xa));
       const zl = def.nodes[N[0]].p[2], zr = def.nodes[N[1]].p[2], wz = fsClamp01((c[2] - zl) / ((zr - zl) || 1e-9));
       raw.push([N[0], p.kg * (1 - wx) * (1 - wz)], [N[1], p.kg * (1 - wx) * wz], [N[2], p.kg * wx * (1 - wz)], [N[3], p.kg * wx * wz]);
-      items.push({ id: p.id, kind: p.kind, kg: p.kg, g: [c[0], R.yBot + 0.5 * (R.depth || 0), c[2]], pod: true });
+      items.push({ id: p.id, kind: p.kind, kg: p.kg, g: [c[0], genPodFloorAt(R, c[0]) + 0.5 * (R.depth || 0), c[2]], pod: true });
       continue;
     }
     const g = [c[0], freightStrapGenY(def, card, c[0], c[1], o.yD), c[2]];

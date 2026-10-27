@@ -163,7 +163,11 @@ function run(src, quiet) {
   ok(A.P.state().x === null, 'double-click fore / aft: auto (centred on the quarter chord)');
   render(A);
   fire(A.id('p_pod_x'), 'onchange', 0.9);
-  ok(A.P.state().x === 0.9 && near(A.def.parts.pod.x0, 0.9, 1e-9), 'fore / aft 0.90 m: the pod\'s nose at 0.90 m aft of the firewall');
+  // G3468: the Cub's main gear comes down under the belly (its vee, its fittings): a nose asked for at 0.90 m is held
+  // aft of them - the limit (60d genPodGearKeep), the row's own value kept as written
+  const gk = A.def.parts.pod.gearKeep;
+  ok(A.P.state().x === 0.9 && gk && A.def.parts.pod.gearMoved && near(A.def.parts.pod.x0, gk.x1, 1e-9) && gk.x1 > 0.9,
+     'fore / aft 0.90 m: held aft of the main gear\'s fittings - the nose at ' + (gk ? gk.x1.toFixed(2) : '?') + ' m (the limit)');
   render(A);
   A.id('p_pod_litres').parent.children[0].ondblclick();
   const st = A.P.state();
@@ -171,10 +175,16 @@ function run(src, quiet) {
   render(A);
   const ds = A.id('p_pod_door'); ds.value = 'right'; ds.onchange();
   ok(A.writes[A.writes.length - 1].update.pod.door === 'right' && A.def.parts.pod.door.sideName === 'right', 'door: the right side, written and resolved');
-  // the pod moved aft is closer to the ground tail-down: the section says so, red, with the number
+  // the pod moved aft is closer to the ground tail-down: the section shows the number fall (the floor follows the
+  // belly, which rises aft - so on the Cub it falls short of the advisory)
   render(A);
-  const aft = byCls(A.root, 'podWhy').filter(e => e._cls.has('bad')).map(e => e.textContent);
-  ok(aft.some(t => /three-point, at rest: 0\.0\d m clear, under 0\.08 m/.test(t)), 'the Cub\'s pod moved aft to 0.90 m: RED - "' + aft.join('; ') + '"');
+  const c3 = () => { const r = C.genPodClearance(A.def, null).rows.find(q => /three-point/.test(q.name)); return r ? r.clear : null; };
+  const cFwd = c3();
+  fire(A.id('p_pod_x'), 'onchange', 2.4);
+  render(A);
+  const cAft = c3(), txtA = A.root.innerText.replace(/\s+/g, ' ');
+  ok(cAft != null && cFwd != null && cAft < cFwd - 0.03 && txtA.indexOf('three-point, at rest ' + cAft.toFixed(2) + ' m') >= 0,
+     'the Cub\'s pod moved aft to 2.40 m: three-point ' + (cFwd != null ? cFwd.toFixed(2) : '?') + ' -> ' + (cAft != null ? cAft.toFixed(2) : '?') + ' m clear, shown');
   A.id('p_pod_x').parent.children[0].ondblclick();
   // READOUTS = THE CORE'S NUMBERS (back at auto)
   render(A);
@@ -211,10 +221,10 @@ function run(src, quiet) {
   const Cd = rig(src, 'cub', { on: 1, depth: 0.6 });
   const cr = byCls(Cd.root, 'podWhy').filter(e => e._cls.has('bad')).map(e => e.textContent);
   ok(cr.some(t => /it strikes three-point, at rest \(-0\.\d\d m\)/.test(t)) && byCls(Cd.root, 'podL').some(e => e._cls.has('bad')), 'the Cub\'s 0.60 m pod: RED - "' + cr.join('; ') + '"');
-  const Cw = rig(src, 'cub', { on: 1, depth: 0.37 });
+  const Cw = rig(src, 'cub', { on: 1, depth: 0.45 });
   const wr = byCls(Cw.root, 'podWhy').filter(e => e._cls.has('bad')).map(e => e.textContent);
   ok(wr.some(t => /three-point, at rest: 0\.0\d m clear, under 0\.08 m/.test(t)) && byCls(Cw.root, 'podL').some(e => e._cls.has('bad') && /three-point/.test(e.innerText)),
-     'the Cub\'s 0.37 m pod: RED, its three-point row and the reason - "' + wr.join('; ') + '"');
+     'the Cub\'s 0.45 m pod: RED, its three-point row and the reason - "' + wr.join('; ') + '"');
   const S = rig(src, 'c172', { on: 1 });
   ok(byCls(S.root, 'bad').length === 0 && S.root.innerText.indexOf('rotated to the tail strike') >= 0, 'the C172\'s default pod: no red, its rotation to the tail strike shown');
   // THE PAGE (the wiring's sources)

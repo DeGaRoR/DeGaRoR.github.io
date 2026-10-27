@@ -75,7 +75,19 @@ const GEN_POD = {
   //     fittings to 55 % of their ultimate parked; at x 1, 14 %)
   //   the 6 BRACES are the moulded shell: E-glass (GEN_CRASH.glass), the section two skins of `shellSkin` round the
   //     section's perimeter, shared by the six
-  mountG: 9, mountK: 1, mountShare: 1 / 8, bearG: 10, mountMat: 'tubeFabric', shellMat: 'glass', shellSkin: 0.0015,
+  //   G3468: re-calibrated 10 -> 8.25 on the straight floor (its nodes ~7 mm higher than the old level floor's on the
+  //   metal Cessna, the touch softer): 8 tears the pod off at 1.5 m/s, 8.5 and up hold it at 3 m/s - a narrow band,
+  //   GATE DMGPOD's two anchors either side of it (HANDOVER G3468)
+  mountG: 9, mountK: 1, mountShare: 1 / 8, bearG: 8.25, mountMat: 'tubeFabric', shellMat: 'glass', shellSkin: 0.0015,
+  // G3468 (BELLY-POD-2): THE MAIN GEAR'S FITTINGS ARE NOT THE POD'S (the user, 27 Oct: "yours clips on the front
+  // suspension ... the default cub should stop right before the X component"). The mains are anchored on the two frame
+  // rings that straddle the axle (61_gen_frame genLattice's own rule, iFwd / iAft: 0.10 m either side); where those
+  // anchors - the lower longerons - stand within `gearReach` of the pod's wall, the gear's vee, its fittings and its
+  // bracing come down UNDER the belly where the pod would be (measured on the drawn Cub: the vee and its fittings fill
+  // the pod's box from 0.35 to 1.04 m aft of the firewall, the aft ring at 0.99), and the pod keeps aft of the aft ring
+  // by `gearFit` (the fitting's reach). Mains that leave the body well outboard of it (the Cessnas' spring legs, 0.18 m
+  // outboard of a 0.63 m pod) leave the run free: the pod passes between them, as the 206's and the 185's pods do.
+  gearReach: 0.12, gearFit: 0.08,
 };
 
 const genPodOn = S => !!(S && S.pod && typeof S.pod === 'object' && +S.pod.on);
@@ -91,9 +103,34 @@ function genPodKeel(ST, x) {
   const z = ST[ST.length - 1]; return { yb: z.yb, w: z.w };
 }
 
+// the pod's floor (its bottom) at station x - the resolved stations' own line (R.sta)
+function genPodFloorAt(R, x) {
+  // (the run: its straight floor exactly; the fairings: the stations' line)
+  if (R && R.floorA != null && x >= R.xa && x <= R.xb) return R.floorA + (R.floorB - R.floorA) * (x - R.xa) / Math.max(1e-9, R.xb - R.xa);
+  const S = R && R.sta;
+  if (!S || !S.length) return R ? R.yBot : 0;
+  if (x <= S[0].x) return S[0].bot;
+  for (let i = 0; i < S.length - 1; i++) {
+    const a = S[i], b = S[i + 1];
+    if (x <= b.x) { const t = (x - a.x) / Math.max(1e-9, b.x - a.x); return a.bot + t * (b.bot - a.bot); }
+  }
+  return S[S.length - 1].bot;
+}
+
 // ---- THE SHAPE -------------------------------------------------------------------------------------------------
 // S: the resolved spec (S.wings, S.pod); ST: the frame's station table (x aft of the firewall, w the half-width, yb
 // the keel). Returns null with the pod off.
+// the run under the belly the main gear's fittings take, or null (the mains root clear of a pod `half` wide)
+function genPodGearKeep(S, ST, half) {
+  const g = S && S.gear;
+  if (!g || g.type === 'floats' || g.x == null || !isFinite(+g.x) || !ST || ST.length < 2) return null;
+  const gx = +g.x;
+  let iF = 0; for (let i = 0; i < ST.length; i++) if (ST[i].x < gx - 0.10) iF = i;
+  let iA = Math.min(ST.length - 1, iF + 1); for (let i = 0; i < ST.length; i++) if (ST[i].x > gx + 0.10) { iA = i; break; }
+  const wMin = Math.min(genPodKeel(ST, ST[iF].x).w, genPodKeel(ST, ST[iA].x).w);
+  if (wMin - half >= GEN_POD.gearReach) return null;
+  return { x0: ST[iF].x - GEN_POD.gearFit, x1: ST[iA].x + GEN_POD.gearFit, gap: wMin - half };
+}
 function genPodResolve(S, ST) {
   if (!genPodOn(S) || !ST || ST.length < 2) return null;
   const D = GEN_POD.def, K = GEN_POD.clamp, sp = S.pod;
@@ -107,27 +144,38 @@ function genPodResolve(S, ST) {
   // (never ahead of the firewall's fittings: on a Cub the quarter chord is 0.7 m aft of it and a 2 m pod centred
   // there would hang under the engine)
   x0 = genClamp(x0, ST[0].x + 0.15, Math.max(ST[0].x + 0.15, xEnd - 0.3 - len));
+  // (never through the main gear's fittings: aft of them - G3468, the limit and the default alike)
+  // (the gear's question, not the pod's size: asked at the default pod's half-width, so a pod's place never jumps as it
+  // is resized - the volume row bisects on a continuous pod)
+  const gearKeep = genPodGearKeep(S, ST, 0.5 * GEN_POD.def.width);
+  const gearMoved = !!(gearKeep && x0 < gearKeep.x1 && x0 + len > gearKeep.x0);
+  if (gearMoved) x0 = Math.min(gearKeep.x1, Math.max(ST[0].x + 0.15, xEnd - 0.3 - 0.8));
   const x1 = Math.min(xEnd - 0.3, x0 + len);
   const L = x1 - x0;
   const xa = x0 + nf * L, xb = x1 - tf * L;                    // the flat floor's run
-  // the floor: `depth` under the lowest keel point of the flat run
-  let kMin = 1e9;
-  for (let i = 0; i <= 16; i++) kMin = Math.min(kMin, genPodKeel(ST, xa + (xb - xa) * i / 16).yb);
-  const yBot = kMin - depth;
+  // THE FLOOR FOLLOWS THE BELLY (G3468): a STRAIGHT floor `depth` under the keel at both ends of the run - the chord,
+  // as a moulded belly pod hangs (the Airglas Cub pod, the 206's); a level floor under a belly that rises aft (the
+  // Cub's, 0.15 m over its run) made a wedge 0.28 m deep at its nose and 0.43 m at its tail, closed by a boat-tail as
+  // steep. Straight, so its lowest point is always one of its ends - where the flown pod's nodes are. `yBot` is the
+  // floor's LOWEST point (genPodFloorAt gives it at any station)
   const xm = 0.5 * (x0 + x1);
   const hw = Math.min(0.5 * num('width'), 0.95 * genPodKeel(ST, xm).w);
   // the side-view profile, sampled: top (the keel), bottom, half-width
   const N = GEN_POD.nSta, sta = [];
-  const Da = genPodKeel(ST, xa).yb - yBot, Db = genPodKeel(ST, xb).yb - yBot;
+  let yBot = 1e9;
+  // (the fairings rise from the run's own ends, monotonically - the lowest points stay the run's two ends, where the
+  // flown pod's nodes are, genPodNodesAt)
+  const fa = genPodKeel(ST, xa).yb - depth, fb = genPodKeel(ST, xb).yb - depth;
   for (let i = 0; i <= N; i++) {
     const x = x0 + L * i / N, top = genPodKeel(ST, x).yb;
     let d, h;
     if (x < xa) { const u = (xa - x) / Math.max(1e-9, xa - x0); const s = Math.sqrt(Math.max(0, 1 - u * u));
-                  d = Da * s; h = hw * (0.35 + 0.65 * s); }
-    else if (x > xb) { const v = (x - xb) / Math.max(1e-9, x1 - xb); d = Db * (1 - v); h = hw * (1 - 0.55 * v); }
-    else { d = top - yBot; h = hw; }
-    d = Math.max(0, Math.min(d, top - yBot));
+                  d = (top - fa) * s; h = hw * (0.35 + 0.65 * s); }
+    else if (x > xb) { const v = (x - xb) / Math.max(1e-9, x1 - xb); d = (top - fb) * (1 - v); h = hw * (1 - 0.55 * v); }
+    else { d = top - (fa + (fb - fa) * (x - xa) / Math.max(1e-9, xb - xa)); h = hw; }   // (a straight floor: the chord)
+    d = Math.max(0, d);
     sta.push({ x, top, bot: top - d, d, hw: h });
+    yBot = Math.min(yBot, top - d);
   }
   // areas, volume and the shell's centroid (the corners are rounded: 0.92 of the box section)
   let swet = 0, sx = 0, vol = 0, vx = 0, side = 0, plan = 0, frontal = 0;
@@ -163,16 +211,21 @@ function genPodResolve(S, ST) {
   // THE DOOR: a side hatch over the middle 55 % of the flat run, 80 % of the hold's shallowest depth tall, its sill
   // on the floor (FREIGHT-MODEL's packer passes an item through it in some orientation)
   const dl = 0.55 * (xb - xa), dc = 0.5 * (xa + xb);
+  // (the floor follows the belly, and so does the door: its sill on the floor - y0 / y1 at its middle, `slope` the
+  // floor's rise per metre aft - the packer reads its w x h)
+  const fA = genPodFloorAt({ sta }, dc - 0.5 * dl), fB = genPodFloorAt({ sta }, dc + 0.5 * dl);
   const doorH = Math.max(0, 0.8 * (dMinFlat - 2 * wall));
+  const sill = genPodFloorAt({ sta }, dc) + wall;                // (the box's own floor: the door and the hold share it)
   const door = { side: sp.door === 'right' ? 1 : -1, sideName: sp.door === 'right' ? 'right' : 'left',
-                 x0: dc - 0.5 * dl, x1: dc + 0.5 * dl, y0: yBot + wall, y1: yBot + wall + doorH, w: dl, h: doorH };
+                 x0: dc - 0.5 * dl, x1: dc + 0.5 * dl, y0: sill, y1: sill + doorH, w: dl, h: doorH,
+                 slope: dl > 0 ? (fB - fA) / dl : 0 };
   // THE MOUNTS: the two frame rings that straddle the shell's centroid (61_gen_frame's own `straddle` rule), each a
   // pair of fittings on its lower longerons - the rings the frame bills the pod's mass onto
   const xS = swet > 0 ? sx / swet : xm, xL = litres > 0 ? lx / litres : 0.5 * (xa + xb);
   const mounts = genPodStraddle(ST, xS);
-  return { on: true, len: L, x0, x1, xa, xb, yBot, hw, depth, noseFair: nf, tailFair: tf, sta,
+  return { on: true, len: L, x0, x1, xa, xb, yBot, floorA: fa, floorB: fb, hw, depth, noseFair: nf, tailFair: tf, sta,
            swet, side, plan, frontal, vol, xVol: vol > 0 ? vx / vol : xm, xShell: xS, xLoad: xL,
-           litres, floorM2, maxKg, loadKg, shellKg, price, door, mounts, wall };
+           litres, floorM2, maxKg, loadKg, shellKg, price, door, mounts, wall, gearKeep, gearMoved };
 }
 // 61_gen_frame's straddle(x), over the station table alone
 function genPodStraddle(ST, x) {
@@ -191,10 +244,11 @@ function genPodSpace(S, ST, R) {
   const P = R || genPodResolve(S, ST);
   if (!P) return null;
   const w = P.wall;
-  let top = 1e9;
-  for (const s of P.sta) if (s.x >= P.xa - 1e-9 && s.x <= P.xb + 1e-9) top = Math.min(top, s.top);
+  // the packer's box: the hold's own height (the depth inside the walls), on the floor at the run's middle - the floor
+  // follows the belly, the box is the packer's axis-aligned stand-in for it
+  const y0 = genPodFloorAt(P, 0.5 * (P.xa + P.xb)) + w;
   return { kind: 'pod', id: 'pod', name: 'Belly pod', external: true,
-           box: { x0: P.xa, x1: P.xb, y0: P.yBot + w, y1: top - w, halfW: P.hw - w },
+           box: { x0: P.xa, x1: P.xb, y0, y1: y0 + Math.max(0, P.depth - 2 * w), halfW: P.hw - w },
            litres: P.litres, floorM2: P.floorM2, floorKgM2: GEN_POD.floorLimit, maxKg: P.maxKg,
            station: P.xLoad, door: Object.assign({}, P.door) };
 }
@@ -274,7 +328,9 @@ function genPodClearance(def, mass) {
   // pod's run is a conflict, the pod refused with it (it would have to be cut round the leg)
   const legs = [];
   const zMain = (P.gearAnchors || []).map(i => P.ST[i] ? P.ST[i].w : null).filter(v => v != null);
-  if (zMain.length && !(P.floats && P.floats.length)) legs.push({ id: 'mains', name: 'the main legs, beside it', gap: Math.min(...zMain) - R.hw, ok: true });
+  if (zMain.length && !(P.floats && P.floats.length))
+    legs.push(R.gearKeep ? { id: 'mains', name: 'the main gear\'s fittings, ahead of it', gap: R.x0 - R.gearKeep.x1, ok: R.x0 >= R.gearKeep.x1 - 1e-6 }
+                         : { id: 'mains', name: 'the main legs, beside it', gap: Math.min(...zMain) - R.hw, ok: true });
   if (P.TW >= 0 && P.twX > R.x0 - 0.1 && P.twX < R.x1 + 0.1)
     legs.push({ id: S.gear.type === 'tricycle' ? 'nose' : 'tail', name: S.gear.type === 'tricycle' ? 'the nose leg, under it' : 'the tailwheel, under it',
                 gap: -1, ok: false });
@@ -433,7 +489,7 @@ function genPodNodesAt(R, ST) {
   const ey = Math.sqrt(Math.sqrt(1 - 0.0625));             // |cos t| = 0.25 at |z| = hw / 2 (ex = sqrt|cos t|)
   const out = [];
   for (const x of [R.xa, R.xb]) {
-    const top = genPodKeel(ST, x).yb, d = Math.max(0, top - R.yBot), y = top - d * ey, z = GEN_POD_NODE_Z * R.hw;
+    const top = genPodKeel(ST, x).yb, d = Math.max(0, top - genPodFloorAt(R, x)), y = top - d * ey, z = GEN_POD_NODE_Z * R.hw;
     out.push([x, y, z], [x, y, -z]);
   }
   return out;

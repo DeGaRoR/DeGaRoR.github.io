@@ -158,19 +158,40 @@ function draw(ctx) {
   const THREE = window.THREE;
   const R = resolve(POD), D = R ? datum(ctx.P || {}) : null;
   if (!R || !D || !THREE) { if (ctx.stat) ctx.stat.textContent += '  ·  belly pod: ' + (!R ? 'no frame to hang on' : 'no datum'); return null; }
-  const S = shellCage(R, D, window.CAGE_GEAR && window.CAGE_GEAR.AF);
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(S.pos, 3));
-  g.setIndex(S.nv > 65535 ? new THREE.Uint32BufferAttribute(S.idx, 1) : new THREE.Uint16BufferAttribute(Uint16Array.from(S.idx), 1));
+  const AF = window.CAGE_GEAR && window.CAGE_GEAR.AF, PG = window.POD_GEN;
+  let S, g;
+  if (PG && typeof PG.build === 'function') {
+    // G3468: THE MOULDED POD (tools/_pod_gen.js) - built in its own gen frame (x aft, y up, z port) against the drawn
+    // belly (the gear's airframe probe at each station and half-width), mapped to the cage: (z, y + yD, zFw - x)
+    const topAt = (x, half) => { const y = skinY(AF, D.zFw - x, half); return y == null ? null : y - D.yD; };
+    const halfAt = x => (AF && typeof AF.halfWAt === 'function') ? AF.halfWAt(D.zFw - x) : null;
+    const M = PG.build(R, topAt, { halfAt });
+    const pos = new Float32Array(M.pos.length);
+    for (let v = 0; v < M.nv; v++) { pos[3 * v] = M.pos[3 * v + 2]; pos[3 * v + 1] = M.pos[3 * v + 1] + D.yD; pos[3 * v + 2] = D.zFw - M.pos[3 * v]; }
+    g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.setIndex(M.nv > 65535 ? new THREE.Uint32BufferAttribute(M.idx, 1) : new THREE.Uint16BufferAttribute(Uint16Array.from(M.idx), 1));
+    for (const q of M.groups) g.addGroup(q.start, q.count, q.mat);
+    S = { nv: M.nv, nt: M.nt, stations: M.stations, around: M.around, top: M.top, shellNv: M.shellNv };
+  } else {
+    S = shellCage(R, D, AF);
+    g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(S.pos, 3));
+    g.setIndex(S.nv > 65535 ? new THREE.Uint32BufferAttribute(S.idx, 1) : new THREE.Uint16BufferAttribute(Uint16Array.from(S.idx), 1));
+    S.top = null; S.shellNv = S.nv;
+  }
   g.computeVertexNormals();
   const SM = window.CAGE_SECMAT;
-  // the livery's `pod` section: moulded trim in the body's colour (the spats' rule); the fallback for a page slice
-  // with no livery (the node rigs, the material view off)
+  // the livery's `pod` section: moulded trim in the body's colour (the spats' rule); the hardware the hinges & horns'
+  // steel (`ctlHinge`); the fallbacks for a page slice with no livery (the node rigs, the material view off)
   const mat = (SM && SM('pod', { surf: 0, fieldM: 1, tint0: 0xd8d4c8 }))
     || new THREE.MeshStandardMaterial({ color: 0xd8d4c8, roughness: 0.5, metalness: 0.05 });
-  const mesh = new THREE.Mesh(g, mat);
+  const hwMat = (SM && SM('ctlHinge', { surf: 0, tint0: 0xa9b0b8 }))
+    || new THREE.MeshStandardMaterial({ color: 0xa9b0b8, roughness: 0.35, metalness: 0.85 });
+  const two = g.groups.length > 1;
+  const mesh = new THREE.Mesh(g, two ? [mat, hwMat] : mat);
   mesh.name = 'edPod';
-  mesh.userData.matNames = ['pod'];         // the snapshot's bucket key: section `pod` (_cage_join.js G66)
+  mesh.userData.matNames = two ? ['pod', 'ctlHinge'] : ['pod'];   // the snapshot's bucket keys, one per group (_cage_join.js G66)
   mesh.castShadow = true; mesh.receiveShadow = true;
   group = new THREE.Group();
   group.name = 'cageLayer:pod';
@@ -180,7 +201,7 @@ function draw(ctx) {
   // frame, its station rings (stations x around), and the pod's own flown nodes once the frame is built with it
   const fr = SRC && SRC.def && SRC.def.parts && SRC.def.parts.podFrame;
   window.CAGE_POD_MESH = { mesh, R, datum: D, stations: S.stations, around: S.around, nv: S.nv, nt: S.nt,
-                           nodes: fr ? fr.nodes.slice() : null };
+                           top: S.top, shellNv: S.shellNv, nodes: fr ? fr.nodes.slice() : null };
   return mesh;
 }
 const prevPost = PAGE.post;

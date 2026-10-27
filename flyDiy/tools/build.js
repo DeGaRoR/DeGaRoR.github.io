@@ -742,7 +742,9 @@ const MANIFEST = {
     // a scene with hardware already hanging on the surfaces.
     '_cage_hinge.js',
     // G2675 / G2677 (BELLY-POD-2): THE BELLY POD - its section (CAGE_POD, a panel part) and its mesh, a layer AFTER the
-    // drawing layers (it reads the gear's AF and the wing's anchor for the join's datums) and before the join
+    // drawing layers (it reads the gear's AF and the wing's anchor for the join's datums) and before the join.
+    // G3468: the moulded pod's geometry first (POD_GEN: pure, no THREE - the float's _float_gen.js pattern)
+    '_pod_gen.js',
     '_cage_pod.js',
     '_cage_join.js',        // the physics-bearing table (G45)
     '_cage_ui.js',
