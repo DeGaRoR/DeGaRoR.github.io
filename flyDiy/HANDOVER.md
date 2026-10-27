@@ -98855,13 +98855,52 @@ every look change above; `diff` empty).
    let the kit show on landing too - an autopilot chantier, not this one.
 2. The tailplane is graphite because the tail sweep's side projection covers the whole tail; the drooped tips are
    orange with the slot. Say if you want either white.
-3. The wing-top registration is a new decal placement (wreg*) with no editor row yet - the build carries it; a row in
-   the decals panel is a small follow-up.
+3. The wing-top registration is a new decal placement (wreg*); its rows are in the decals panel (READY UPDATE below).
 4. The automatic slat is still drawn home; the `stol-kit` machine-shop pack is still the GAME coordinator's to wire.
 
 **What to watch for:** the shared wing normals change the SHADING of every wing tip in the editor and the flown model
 (no geometry); GATE STOL's baseline is d7e181f4e's (re-capture on a merge that moves the cards); GATE STOL ~6 min
 (`wall: 480`).
+
+**READY UPDATE (15:33 CET, 27 Oct; the user: "don't we have the wingtop registration yet? ... we need a new option", "add
+some metallic to the white ... 50-70 %"):**
+- **The wing-top registration has its rows** (_cage_ui.js, My Plane -> Finish -> Registration): "on the wing top",
+  "wing letters", "wing across", "wing along", "wing turn" - the wreg* keys the build already carried. Still
+  reports/evidence/STOL-WING-2/showcase_v3_desktop_reg.jpg.
+- **The decal panel shows a loaded build** (a bug this exposed): a load wrote DEC (the drawing followed) but the
+  panel, built once, kept the boot aeroplane's values - the toggles and pickers had no SYNC and nothing called the
+  sliders'. Toggles and pickers now have one, the livery layers' titles a hook (DEC_RELOAD), and the finish load
+  calls them all.
+- **The pearl:** the off-white's flake 0.45 -> 0.60 (body, wing, fin, stab); the fixture only.
+- **The gates** (the files changed: tools/_cage_ui.js, tools/stol_shots.js, the fixture): every gate that reads
+  _cage_ui.js (grep) plus STOL and the seven, plus UISMOKE / UISMOKE-PHONE (they boot the page), on this code:
+
+    GATE STOL: PASS
+    GATE BUILD: PASS
+    GATE JOIN: PASS
+    GATE STARTER: PASS
+    GATE SAVE: PASS
+    GATE PARTS: PASS
+    GATE CLOUD: FAIL (1 of 239)
+    GATE PILOT: PASS
+    GATE SIMWORKER: PASS
+    GATE MEDIA: PASS
+    GATE SKINMAT: PASS
+    GATE LIVERY: PASS
+    GATE WEATHER: PASS
+    GATE EDBUGS: PASS
+    GATE FIT: PASS
+    GATE NACLAG: PASS
+    GATE BENCH: PASS
+    GATE SHEETWORKER: PASS
+    GATE UISMOKE: PASS
+    GATE PARKED: PASS
+    GATE ENERGY: PASS
+    GATE UISMOKE-PHONE: PASS
+
+  CLOUD 1 of 239 is master's own (the lamp pool line, the same as master d7e181f4e); a run with the screenshot
+  Chrome alongside timed one more probe out at 601 s, and the run alone gave the line above. Master still
+  d7e181f4e (re-fetched 15:33 CET).
 
 ## G3353 - CABIN-MACHINES: THE CABIN KEEPS TWO SMALL MACHINES (2026-10-22, GAME coordinator; claude/cabin-machines on game-fri 5c50f4313; gated Fri 23 Oct 09:05 for L23b)
 - The user's request, verbatim (via A0): "get rid of the large router (the largest of the woodworking machines). Keep only the 2 smaller ones (the drill and another)".
