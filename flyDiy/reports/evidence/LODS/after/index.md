@@ -8,6 +8,16 @@ Made by `node tools/lods_sheet.js` (SwiftShader, headless; the numbers: `node to
 
 **light** = the rung's mean luminance over the near mesh's from camera C (1.00 = as bright); **black** = share of the rung's pixels darker than sRGB 38 from camera A; **leak** = share of the view looking INTO the building (25 views); **hole** = share of the near view where the rung shows something more than max(1.5 m, R/10) behind the near mesh's outside (see-through, a missing roof or storey); **roof** = the near mesh's roofed plan still roofed from straight above.
 
+## In game (dev.html on SwiftShader, `tools/soft_still.js --orbit 160,28,420`, the same camera over HOME)
+
+Before (master): the long club hangar's far rung is a washed-out box. After (this branch): its own lod 1 on its finish, the walls, the roof and its lights.
+
+| before | after |
+|---|---|
+| ![before](ingame-HOME-420m-before.jpg) | ![after](ingame-HOME-420m-after.jpg) |
+
+(and from 700 m: ![700 m](ingame-HOME-700m-after.jpg) - no page error either run; roll-out to the stand 33 s vs 34 s before)
+
 ## meteo/meteo station - Mount Ardent (site item)
 
 ![meteo-station](meteo-station.png)
