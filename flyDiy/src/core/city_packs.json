@@ -22,9 +22,9 @@
     "farGain": 0.2
    },
    "inputs": {
-    "fixture": "1bb315e8a1f7852d",
-    "record": "7af338dd2b3aad3f",
-    "places": "1aeaf344023a5964",
+    "fixture": "72c38e37bd6e88a7",
+    "record": "4df010356e4b8a67",
+    "places": "ae717505f75b7fc0",
     "kitPack": "2e8c3968b3e6d9b8e62809e562f6adeb8da454db23fbf0da527b217980288011",
     "kitTable": "5f4c08748fe78d0d",
     "cook": "a1c6aed7a7daa3b2",
@@ -884,7 +884,7 @@
      }
     ]
    },
-   "hash": "b17ab9fee0f3603c",
+   "hash": "de808c0eef631815",
    "counts": {
     "cells": 13,
     "plots": 380,
@@ -902,9 +902,9 @@
       -9,
       -17
      ],
-     "src": "media/city/jolene/metlakatla/c_m9_m17.4ebbf3f8.bin",
-     "raw": 70464,
-     "gz": 34470,
+     "src": "media/city/jolene/metlakatla/c_m9_m17.a4d603c1.bin",
+     "raw": 70484,
+     "gz": 34479,
      "box": [
       -4264.06,
       5.25,
@@ -915,7 +915,7 @@
      ],
      "plots": 20,
      "kitRows": 23,
-     "props": 185,
+     "props": 186,
      "lots": 1685,
      "uniques": 1,
      "objects": 0,
@@ -928,7 +928,7 @@
       -9,
       -16
      ],
-     "src": "media/city/jolene/metlakatla/c_m9_m16.b8bcb3bb.bin",
+     "src": "media/city/jolene/metlakatla/c_m9_m16.36092f34.bin",
      "raw": 2556,
      "gz": 1609,
      "box": [
@@ -954,9 +954,9 @@
       -8,
       -18
      ],
-     "src": "media/city/jolene/metlakatla/c_m8_m18.71cf4c57.bin",
-     "raw": 59564,
-     "gz": 28292,
+     "src": "media/city/jolene/metlakatla/c_m8_m18.96b84da8.bin",
+     "raw": 59544,
+     "gz": 28283,
      "box": [
       -4097.8,
       -5.98,
@@ -967,7 +967,7 @@
      ],
      "plots": 15,
      "kitRows": 16,
-     "props": 184,
+     "props": 183,
      "lots": 1289,
      "uniques": 13,
      "objects": 0,
@@ -980,9 +980,9 @@
       -8,
       -17
      ],
-     "src": "media/city/jolene/metlakatla/c_m8_m17.2bb6d538.bin",
-     "raw": 412704,
-     "gz": 191432,
+     "src": "media/city/jolene/metlakatla/c_m8_m17.4252bcf0.bin",
+     "raw": 412444,
+     "gz": 191245,
      "box": [
       -4099.05,
       -5,
@@ -993,7 +993,7 @@
      ],
      "plots": 101,
      "kitRows": 128,
-     "props": 917,
+     "props": 904,
      "lots": 10167,
      "uniques": 7,
      "objects": 0,
@@ -1006,9 +1006,9 @@
       -7,
       -18
      ],
-     "src": "media/city/jolene/metlakatla/c_m7_m18.3236a9e9.bin",
-     "raw": 287960,
-     "gz": 136295,
+     "src": "media/city/jolene/metlakatla/c_m7_m18.fe5e3723.bin",
+     "raw": 288140,
+     "gz": 136441,
      "box": [
       -3599.28,
       -5.54,
@@ -1019,7 +1019,7 @@
      ],
      "plots": 79,
      "kitRows": 81,
-     "props": 809,
+     "props": 818,
      "lots": 6943,
      "uniques": 16,
      "objects": 0,
@@ -1032,9 +1032,9 @@
       -7,
       -17
      ],
-     "src": "media/city/jolene/metlakatla/c_m7_m17.cb48cd32.bin",
-     "raw": 332340,
-     "gz": 154843,
+     "src": "media/city/jolene/metlakatla/c_m7_m17.dc0c8cb8.bin",
+     "raw": 332280,
+     "gz": 154795,
      "box": [
       -3587.09,
       9.05,
@@ -1045,7 +1045,7 @@
      ],
      "plots": 82,
      "kitRows": 94,
-     "props": 813,
+     "props": 810,
      "lots": 8220,
      "uniques": 9,
      "objects": 3,
@@ -1058,9 +1058,9 @@
       -7,
       -16
      ],
-     "src": "media/city/jolene/metlakatla/c_m7_m16.8b97b5ae.bin",
-     "raw": 32016,
-     "gz": 16564,
+     "src": "media/city/jolene/metlakatla/c_m7_m16.87fbf4c4.bin",
+     "raw": 31996,
+     "gz": 16541,
      "box": [
       -3295.09,
       29.83,
@@ -1071,7 +1071,7 @@
      ],
      "plots": 9,
      "kitRows": 11,
-     "props": 102,
+     "props": 101,
      "lots": 704,
      "uniques": 2,
      "objects": 3,
@@ -1084,9 +1084,9 @@
       -6,
       -18
      ],
-     "src": "media/city/jolene/metlakatla/c_m6_m18.06ed791d.bin",
-     "raw": 56316,
-     "gz": 26535,
+     "src": "media/city/jolene/metlakatla/c_m6_m18.659f1a1f.bin",
+     "raw": 56336,
+     "gz": 26552,
      "box": [
       -3067.59,
       -5.19,
@@ -1097,7 +1097,7 @@
      ],
      "plots": 13,
      "kitRows": 15,
-     "props": 121,
+     "props": 122,
      "lots": 1351,
      "uniques": 6,
      "objects": 4,
@@ -1110,9 +1110,9 @@
       -6,
       -17
      ],
-     "src": "media/city/jolene/metlakatla/c_m6_m17.3bc8908d.bin",
-     "raw": 190732,
-     "gz": 89899,
+     "src": "media/city/jolene/metlakatla/c_m6_m17.ddaaf430.bin",
+     "raw": 190872,
+     "gz": 90022,
      "box": [
       -3078.54,
       10.09,
@@ -1123,7 +1123,7 @@
      ],
      "plots": 52,
      "kitRows": 56,
-     "props": 513,
+     "props": 520,
      "lots": 4661,
      "uniques": 3,
      "objects": 11,
@@ -1136,7 +1136,7 @@
       -6,
       -16
      ],
-     "src": "media/city/jolene/metlakatla/c_m6_m16.cb2cc2a6.bin",
+     "src": "media/city/jolene/metlakatla/c_m6_m16.8dd2303c.bin",
      "raw": 32560,
      "gz": 15820,
      "box": [
