@@ -893,6 +893,7 @@ PAGE.post = ctx => {
       // the skin — the base sits on the skin, the fitting points up (or down
       // under the keel); every other form keeps the surface's own normal.
       const upright = (atLV === 'crown' || atLV === 'keel') && /Aerial|Beacon/.test(String(row.form));
+      let sunk = 0;                         // FITTINGS-MANUAL: how deep an upright fitting stands in the skin
       let F = frameAt(pm, upright ? [0, atLV === 'keel' ? -1 : 1, 0] : s.n);
       // the conforming surface: ask the contract where the skin is a little
       // way off in each direction, so a big plate follows the section instead
@@ -939,13 +940,21 @@ PAGE.post = ctx => {
         // ...and 9 x 9 (was 5 x 5): a venturi's legs land at 0.34 of its
         // 0.19 m length, between the coarse grid's samples, and its foot
         // sat at the gate's 1.5 mm on the cowl profile's flank
-        let lift = 0;
+        let lift = 0, low = 0;
         for (let i = -4; i <= 4; i++) for (let j = -4; j <= 4; j++) {
           const q = surf(i * foot * 0.1625, j * foot * 0.1625);
           const d = (q[0] - pm[0]) * F.n[0] + (q[1] - pm[1]) * F.n[1] + (q[2] - pm[2]) * F.n[2];
           if (d > lift) lift = d;
+          if (d < low) low = d;
         }
-        if (lift > 0.0003) F = frameAt([pm[0] + F.n[0] * (lift + 0.0003), pm[1] + F.n[1] * (lift + 0.0003), pm[2] + F.n[2] * (lift + 0.0003)], F.n);
+        // AN UPRIGHT AERIAL OR BEACON IS SUNK, NEVER FLOATING (FITTINGS-MANUAL, the user on the Cub's comm blade, 27 Oct:
+        // "I'd rather have it sunk than floating"): standing vertical on a sloping deck, the highest rise under its
+        // base lifted the whole blade to the high side and its low side stood in the air. It stands at the LOWEST
+        // skin point under its footprint instead, the high side entering the skin; the depth rides the record
+        // (`sunk`), and GATE CLIP allows exactly that much for this fitting.
+        if (upright) {
+          if (low < -0.0003) { F = frameAt([pm[0] + F.n[0] * low, pm[1] + F.n[1] * low, pm[2] + F.n[2] * low], F.n); sunk = lift - low; }
+        } else if (lift > 0.0003) F = frameAt([pm[0] + F.n[0] * (lift + 0.0003), pm[1] + F.n[1] * (lift + 0.0003), pm[2] + F.n[2] * (lift + 0.0003)], F.n);
       }
       // GATE CLIP reads each fitting's own triangles back out of the
       // merged bags, so the range every form wrote is recorded with the site
@@ -961,7 +970,7 @@ PAGE.post = ctx => {
       // perfectly good fittings as invisible.
       placed.push({ key: row.key, name: row.name, serves: row.serves,
                     on: row.on, side: s.side, p: pm, n: F.n,
-                    st: s.st, lv: s.lv, mat: s.mat, tris, host: s.host || '' });
+                    st: s.st, lv: s.lv, mat: s.mat, tris, host: s.host || '', ...(sunk > 0 ? { sunk } : {}) });
     }
   }
 
