@@ -889,13 +889,23 @@ function benchInit(api) {
   // onto the final) reads the join's export off a closed editor (G700) - not the aeroplane's number - and superseded
   // Rufus's certificate in flight ("the engine or the propeller changed"). Nothing about the design can change out there.
   const away = () => typeof api.inGarage === 'function' && !api.inGarage();
+  // G3780 (A0 T-P1 21:31: the roll-out screen's worst task 1.0 -> 2.8 s): THE BENCH WORKS ONLY ON A GARAGE AT REST. The
+  // page is "in the garage" until the roll-out screen has gone (rollOutStand), and a quiet re-check - an export, a
+  // rebuild (sync), a sheet - started on the boot's or the roll-out's screen ran inside it. The page's own holds
+  // (FLYDIY_HOLDS, parked.js garageIdle's rule): the garage, no screen held, no roll-out, the aeroplane home. No handle
+  // (a gate's vm): at rest
+  const idle = () => {
+    let H = null; try { H = window.FLYDIY_HOLDS ? window.FLYDIY_HOLDS() : null; } catch (e) { H = null; }
+    return !H || !!(H.inGarage && !H.holdRender && !H.rollHold && !H.craftAway);
+  };
   window.BENCH_DIRTY = () => {
     if (busy || live || flown || away()) return;
     if (!anyRun() && !anyStale()) return;
     if (dirtyT) clearTimeout(dirtyT);
-    dirtyT = setTimeout(() => {
+    const fire = () => {
       dirtyT = null;
       if (busy || live || flown || away()) return;
+      if (!idle()) { dirtyT = setTimeout(fire, 400); return; }   // a screen up: after it (the roll-out's own sync ends away)
       const M = majorNow();
       if (!M) return;                               // cannot say: keep
       const back = unsupersede(M.fp);               // the change undone: what was measured on it stands again
@@ -904,7 +914,8 @@ function benchInit(api) {
         supersede(changeLine(results[moved[0]].groups, M.groups), moved);
         scheduleRecheck();
       } else if (back) { api.plaque(plaqueOn()); persist(); stickersChanged(); render(); changed(); }
-    }, 150);
+    };
+    dirtyT = setTimeout(fire, 150);
   };
   // R4: THE INSTANT CHECKS RE-RUN THEMSELVES after a major change, once the edits stop (a slider drag is many
   // changes); quietly - no card, no watch (the user 26 Oct: "Everything should be as fast as the bench check")
@@ -913,9 +924,9 @@ function benchInit(api) {
     if (recheckT) clearTimeout(recheckT);
     recheckT = setTimeout(() => {
       recheckT = null;
-      if (busy || live || flown || dirtyT || away()) { scheduleRecheck(); return; }
+      if (busy || live || flown || dirtyT || !idle()) { scheduleRecheck(); return; }   // (idle: the garage at rest)
       if (!anyStale()) return;
-      runQuiet(null);
+      runQuiet(null, true);
     }, 1200);
   }
   // ...and the other direction: every SETTLED result mirrors the bench into
@@ -960,7 +971,7 @@ function benchInit(api) {
     const SV = (typeof GEN_SPEC_V !== 'undefined') ? GEN_SPEC_V : 0, PV = (typeof PHYSICS_V !== 'undefined') ? PHYSICS_V : 0;
     let L = null; try { L = liveSpec(); } catch (e) { L = null; }
     const M = L ? benchMajor(L.spec, L.D) : null;
-    let F2 = null, recheck = false;
+    let F2 = null, F2now, recheck = false;
     if (M) {
       for (const id in results) {
         const r = results[id];
@@ -978,8 +989,12 @@ function benchInit(api) {
         if (r.fp) {
           if (!F2) F2 = benchF2Set(L.spec, L.D);
           if (F2.has(r.fp)) {
-            results[id] = Object.assign({}, r, { fp: M.fp, groups: M.groups, fps: BENCH_FP_SCHEME, sv: null, pv: null, f2: r.fp });
-            recheck = true;
+            // (G3780, A0 T-P1: an f2 of THIS game version - every shipped stamp until the next bump - is this aeroplane
+            // under this physics: re-stamped as it is, nothing to re-check; only an older version's re-checks)
+            if (F2now === undefined) { const cs = benchStripCosmetic(L.spec, L.D); F2now = cs ? benchHash(benchVersionTag(SV, PV) + benchCanon(cs)) : null; }
+            const cur = r.fp === F2now;
+            results[id] = Object.assign({}, r, { fp: M.fp, groups: M.groups, fps: BENCH_FP_SCHEME, sv: cur ? SV : null, pv: cur ? PV : null, f2: r.fp });
+            if (!cur) recheck = true;
             continue;
           }
         }
@@ -1003,7 +1018,7 @@ function benchInit(api) {
   // the structure did not change, only the model); no card. Holds -> every held row re-stamped with this version and
   // the row says so; fails -> the certificate is SUSPENDED: the row, the number and the fix, until the aeroplane changes.
   function recheckUpdate() {
-    if (live || flown || busy || dirtyT || away()) { setTimeout(recheckUpdate, 800); return; }
+    if (live || flown || busy || dirtyT || !idle()) { setTimeout(recheckUpdate, 800); return; }   // (idle: the garage at rest)
     const SV = (typeof GEN_SPEC_V !== 'undefined') ? GEN_SPEC_V : 0, PV = (typeof PHYSICS_V !== 'undefined') ? PHYSICS_V : 0;
     const stamp = () => { for (const id in results) { const r = results[id]; if (r && !r.stale && r.fps === BENCH_FP_SCHEME) { r.sv = SV; r.pv = PV; } } };
     const t = BENCH_TESTS.filter(x => x.id === 'shake')[0];
@@ -1357,11 +1372,14 @@ function benchInit(api) {
   // G3780 (the user 26 Oct: "No long tests that would need to re-run. Everything should be as fast as the bench check
   // and the altitude check"): RUN THE TESTS = every computed row, quietly, one after the other (no card but the
   // airworthiness one, once). The test flight is not in it: the first arrival awards it (R6).
-  function runQuiet(after) {
+  // G3780 (A0 T-P1): between two rows the garage is asked again - a roll-out started meanwhile stops the queue (the
+  // next row's sync would run under its screen); R4's own re-run (auto) comes back once the garage is at rest
+  function runQuiet(after, auto) {
     const queue = BENCH_TESTS.filter(t => usable(t) && t.kind !== 'flown' && t.kind !== 'live');
     const next = () => {
       const t = queue.shift();
       if (!t) { if (after) after(); return; }
+      if (!idle()) { if (auto) scheduleRecheck(); return; }
       runOne(t, next, { quiet: true });
     };
     next();
