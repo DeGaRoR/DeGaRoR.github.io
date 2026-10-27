@@ -308,6 +308,16 @@ function genTrim(def) {
     if (Math.abs(g.deAppr) > trimBudget(g.deAppr)) g.apprTrimFail = g.deAppr;
     g.W = W;
     g.alphaAppr = aA;
+    // G2811: THE APPROACH POINT ON THE CLEAN WING. The pilot's trim-attitude fit runs through (VCruise, alphaCruise)
+    // and the approach point (VAppr, alphaAppr) - the LANDING configuration's - and flew it in every configuration. A
+    // notch build's take-off read it low (the Jodel on 0.7: its approach 24.2 m/s at 0.032 rad, flapless 27.4 at 0.111):
+    // the ground-effect run-up let the nose down and it hopped off three times. The clean point - the approach speed on
+    // the clean stall (the same instrument: VsMeas over VsFlap) and the clean wing's attitude there - is what the pilot
+    // flies until the flap goes past its take-off setting (43_pilot tAlphaAt). A flapless lander's is its own exactly
+    if (ldg > 0) {
+      g.VApprClean = Va * (g.VsMeas || g.Vs) / Math.max(1e-6, g.VsFlap);
+      sim.ctl.flap = 0; g.alphaApprClean = genAlphaForLift(sim, g.VApprClean, W, aMax); sim.ctl.flap = ldg;
+    } else { g.VApprClean = Va; g.alphaApprClean = aA; }
     g.LDappr = rA.Fy / Math.max(1e-6, rA.drag);
     g.dragAppr = rA.drag;
     g.TavailAppr = Tav(Va);

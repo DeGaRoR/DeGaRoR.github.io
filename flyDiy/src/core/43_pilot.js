@@ -1984,11 +1984,21 @@ function makePilot(sim, def, world, opts) {
     const tThrCruise = A.thrCruise ?? 0.6, tThrFloor = A.thrFloor ?? 0.12;
     const tVs0 = SH && SH.Vs0 != null ? SH.Vs0 : (A.VRot || 18) / 0.99;
     // the trim attitude at speed V: alpha = a0 + k / V^2 through (Vcruise, alphaCruise) and (VAppr, alphaAppr)
+    // G2811: ...IN THE CONFIGURATION FLOWN. (VAppr, alphaAppr) is the landing flap's approach; the clean wing's is
+    // (gen.VApprClean, gen.alphaApprClean). The approach point moves from the clean one to the landing one as the flap
+    // goes past its take-off setting to the landing setting: the take-off and the climb fly the clean point (as every
+    // flapless lander always has), the landing approach the landing point (the fit it always had)
     const tAlphaAt = (() => {
-      const g = def.params.gen || {};
-      const V1 = A.VCruise || 30, V2 = A.VAppr || 22, a1 = g.alphaCruise ?? 0.05, a2 = g.alphaAppr ?? 0.12;
-      const k = (a2 - a1) / (1 / (V2 * V2) - 1 / (V1 * V1) || 1e-9), a0 = a1 - k / (V1 * V1);
-      return Vv => clamp(a0 + k / Math.max(Vv * Vv, 25), -0.05, (A.thMax ?? 0.2) + 0.05);
+      const g = def.params.gen || {}, F = def.params.flaps;
+      const V1 = A.VCruise || 30, a1 = g.alphaCruise ?? 0.05, VL = A.VAppr || 22, aL = g.alphaAppr ?? 0.12;
+      const VC = g.VApprClean ?? VL, aC = g.alphaApprClean ?? aL;
+      const fL = F ? (F.ldg ?? 1) : 0, fT = F ? Math.min(F.to ?? 0, fL) : 0;
+      return Vv => {
+        const w = fL > fT ? clamp(((sim.ctl.flap || 0) - fT) / (fL - fT), 0, 1) : 1;
+        const V2 = VC + (VL - VC) * w, a2 = aC + (aL - aC) * w;
+        const k = (a2 - a1) / (1 / (V2 * V2) - 1 / (V1 * V1) || 1e-9), a0 = a1 - k / (V1 * V1);
+        return clamp(a0 + k / Math.max(Vv * Vv, 25), -0.05, (A.thMax ?? 0.2) + 0.05);
+      };
     })();
     const tecs = (o) => {
       // o: { ias, alt | vs | gs (the slope from the aim), thMax, vsUp, vsDn }
