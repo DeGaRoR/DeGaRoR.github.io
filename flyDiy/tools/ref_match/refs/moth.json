@@ -1,0 +1,92 @@
+{
+  "name": "de Havilland DH.82 Tiger Moth",
+  "glb": "refs/moth.glb",
+  "source": "Sketchfab 'Dh82' by manilov.ap (https://sketchfab.com/3d-models/dh82-ae75c00eff984a0a9f4ef7840a4221f4), CC-BY-4.0",
+  "align": "wing",
+  "scale": {
+    "by": "span",
+    "part": "upper",
+    "metres": 8.94
+  },
+  "parts": {
+    "cowl": [
+      "cowltop-FACES",
+      "cowl01-FACES",
+      "Object01-FACES",
+      "Object02-FACES",
+      "nose-FACES",
+      "blister-FACES",
+      "base-FACES"
+    ],
+    "hub": [
+      "spinner-FACES"
+    ],
+    "fuselage": [
+      "fuselage-FACES",
+      "fuselage_1-FACES",
+      "fuselage01-FACES",
+      "combing-FACES"
+    ],
+    "upper": [
+      "Wingupper-FACES",
+      {
+        "node": "/_1-FACES",
+        "box": {
+          "y": [
+            0.6,
+            3
+          ],
+          "absx": [
+            0.5,
+            9
+          ]
+        }
+      }
+    ],
+    "lower": [
+      "WingLower-FACES",
+      {
+        "node": "/_2-FACES",
+        "box": {
+          "y": [
+            -3,
+            0.2
+          ]
+        }
+      }
+    ],
+    "fin": [
+      "Fin-FACES"
+    ],
+    "stab": [
+      "ltail-FACES",
+      {
+        "node": "/_1-FACES",
+        "box": {
+          "y": [
+            -0.5,
+            0.3
+          ],
+          "z": [
+            -5,
+            -1.5
+          ]
+        }
+      }
+    ],
+    "tyre": [
+      "tyre-FACES",
+      "tyre_1-FACES"
+    ],
+    "legs": [
+      "strut1-FACES",
+      "strut1_1-FACES"
+    ]
+  },
+  "note": "yawed and sitting on three points in its file (align 'wing': the flying attitude off the upper plane); the wing panels split by side ('_1', '_2' hold the far panels and the far tailplane half); the bonnet in panels (cowl-bottom firewall); the forward top deck has no skin of its own in this model - read the profile's top from 1.5 m aft",
+  "firewall": "cowl-bottom",
+  "profile": [
+    "fuselage",
+    "cowl"
+  ]
+}

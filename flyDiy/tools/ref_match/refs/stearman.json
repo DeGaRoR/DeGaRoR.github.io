@@ -1,0 +1,18 @@
+{
+  "name": "Boeing-Stearman PT-17",
+  "glb": "refs/stearman.glb",
+  "source": "Sketchfab 'Boeing Stearman PT.17' by helijah (https://sketchfab.com/3d-models/boeing-stearman-pt17-3ccea297db744ba4aee10ef3f5289bf2), CC-BY-4.0",
+  "axes": "x=z,y=y,z=-x",
+  "scale": { "by": "span", "part": "upper", "metres": 9.80 },
+  "parts": {
+    "hub": [{ "node": "/Object_6" }],
+    "fuselage": [{ "node": "/Object_22", "box": { "absx": [0, 0.6] } }],
+    "upper": [{ "node": "/Object_19", "box": { "y": [0.8, 2] } }],
+    "lower": [{ "node": "/Object_19", "box": { "y": [-1, 0] } }],
+    "fin": [{ "node": "/Object_18", "box": { "absx": [0, 0.07], "z": [-4, -2.2], "y": [0.2, 2] } }],
+    "stab": [{ "node": "/Object_18", "box": { "absx": [0.12, 2.5], "z": [-4, -2.2], "y": [0, 0.9] } }, { "node": "/Object_20" }],
+    "tyre": [{ "node": "/Object_26", "box": { "y": [-2, 0] } }],
+    "legs": [{ "node": "/Object_25" }]
+  },
+  "note": "merged by material: the planes share Object_19 (split by height), the fin and tailplane Object_18 (split by span); no cowl - the PT-17's radial is exposed, so the firewall is the fuselage's front face"
+}

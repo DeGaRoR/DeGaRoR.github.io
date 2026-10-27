@@ -27,15 +27,57 @@ if not os.path.exists(cache) or os.path.getmtime(cache) < os.path.getmtime(glb):
     subprocess.check_call([sys.executable, '-I', os.path.join(HERE, 'glb_tris.py'), glb, cache])
 G = np.load(cache); GT = G['T'].astype(float); GN = G['names']
 
+# ---- the reference's frame: x span, y up, z fore (the cage's) ------------------------------------------------
+# "axes": "x=z,y=y,z=-x" remaps a model laid out another way; "align": "pca" turns a model yawed in its file: fore =
+# the fuselage's long axis (pointed at the hub / cowl), up = the model's y made square to it, x = up x fore
+def remap(T, spec):
+    idx = {'x': 0, 'y': 1, 'z': 2}; out = np.empty_like(T)
+    for p in spec.split(','):
+        k, v = p.split('='); sg = -1 if v.startswith('-') else 1
+        out[..., idx[k]] = sg * T[..., idx[v.lstrip('-')]]
+    return out
+if ref.get('axes'): GT = remap(GT, ref['axes'])
+def match(entry):
+    if isinstance(entry, str): entry = {'node': entry}
+    k = entry['node']
+    return np.array([(k in n + '/') or n.endswith(k) for n in GN]), entry.get('box')
+SCALE = [1.0]       # boxes are written in the file's own units, after "axes" / "align" and before the scale
+def boxed(T, box):
+    if not box or not len(T): return np.ones(len(T), bool)
+    c = T.mean(1) / SCALE[0]; m = np.ones(len(T), bool)
+    for ax_, (lo, hi) in box.items():
+        v = np.abs(c[:, 0]) if ax_ == 'absx' else c[:, {'x': 0, 'y': 1, 'z': 2}[ax_]]
+        m &= (v >= lo) & (v <= hi)
+    return m
 def part(role):
-    keys = ref['parts'].get(role) or []
-    m = np.array([any(k in n + '/' or n.endswith(k) for k in keys) for n in GN])
-    return GT[m]
+    out = []
+    for e in (ref['parts'].get(role) or []):
+        m, box = match(e); T = GT[m]; out.append(T[boxed(T, box)])
+    return np.vstack(out) if out else np.zeros((0, 3, 3))
+if ref.get('align') == 'wing':
+    # the flying attitude off the upper plane: span its long axis, fore its chord (pointed at the hub), up square to both
+    # - for a model sitting in its file on three points (tail down), where the fuselage's axis is pitched
+    Wp = part('upper').reshape(-1, 3); c0 = part('fuselage').reshape(-1, 3).mean(0)
+    u_, s_, vt = np.linalg.svd(Wp - Wp.mean(0), full_matrices=False); span_, fore = vt[0], vt[1]
+    tip = part('hub') if len(part('hub')) else part('cowl')
+    if np.dot(tip.reshape(-1, 3).mean(0) - c0, fore) < 0: fore = -fore
+    up = np.cross(fore, span_)
+    if up[1] < 0: up = -up
+    xs = np.cross(up, fore); Rm = np.stack([xs, up, fore])
+    GT = (GT - c0) @ Rm.T
+if ref.get('align') == 'pca':
+    F_ = part('fuselage').reshape(-1, 3); c0 = F_.mean(0)
+    u_, s_, vt = np.linalg.svd(F_ - c0, full_matrices=False); fore = vt[0]
+    tip = part('hub') if len(part('hub')) else part('cowl')
+    if np.dot(tip.reshape(-1, 3).mean(0) - c0, fore) < 0: fore = -fore
+    up = np.array([0, 1.0, 0]); up = up - np.dot(up, fore) * fore; up /= np.linalg.norm(up)
+    xs = np.cross(up, fore); Rm = np.stack([xs, up, fore])
+    GT = (GT - c0) @ Rm.T
 # the scale: one known dimension of one part
 sc = ref['scale']; P0 = part(sc['part']).reshape(-1, 3)
 ax = {'span': 0, 'height': 1, 'length': 2}[sc['by']]
 s = sc['metres'] / (P0[:, ax].max() - P0[:, ax].min())
-GT = GT * s
+GT = GT * s; SCALE[0] = s
 
 def cut(T, axis, v):
     pts = []
@@ -58,11 +100,36 @@ def lay(*names):
 def frame(cowl, hub):
     c = cowl.reshape(-1, 3); h = hub.reshape(-1, 3) if len(hub) else c
     return c[:, 2].min(), (h[:, 1].min() + h[:, 1].max()) / 2
-rF, rTL = frame(part('cowl'), part('hub'))
+# no cowl on the reference (an exposed radial): the firewall is the fuselage's front face
+if len(part('cowl')):
+    rF, rTL = frame(part('cowl'), part('hub'))
+    if ref.get('firewall') == 'cowl-bottom':
+        # a bonnet whose top panel runs back over the tank to the cockpit (the Moth's): the firewall is the cowl's
+        # back edge on its LOWER third, where the bonnet meets the fuselage
+        c_ = part('cowl').reshape(-1, 3); yl = c_[:, 1].min() + (c_[:, 1].max() - c_[:, 1].min()) / 3
+        rF = c_[c_[:, 1] < yl][:, 2].min()
+else:
+    fz = part('fuselage').reshape(-1, 3)[:, 2].max(); h = part('hub').reshape(-1, 3)
+    rF, rTL = fz, (h[:, 1].min() + h[:, 1].max()) / 2
 oF, oTL = frame(lay('cowl'), lay('eng'))
 R = lambda T: T - np.array([0, rTL, rF]) if len(T) else T          # into (x, up, -aft)
 Ou = lambda T: T - np.array([0, oTL, oF]) if len(T) else T
-REF = {k: R(part(k)) for k in ref['parts']}
+# "fbox": a box in the MATCH's own terms (metres: aft of the firewall, above the thrust line, |x|), applied once the
+# two are known - the easy way to cut a piece out of a node a model merged everything into (never on cowl / hub)
+def partF(role):
+    out = []
+    for e in (ref['parts'].get(role) or []):
+        m, box = match(e); T = GT[m]; T = R(T[boxed(T, box)])
+        fb = e.get('fbox') if isinstance(e, dict) else None
+        if fb and len(T):
+            c = T.mean(1); k_ = np.ones(len(T), bool)
+            if 'aft' in fb: k_ &= (-c[:, 2] >= fb['aft'][0]) & (-c[:, 2] <= fb['aft'][1])
+            if 'up' in fb: k_ &= (c[:, 1] >= fb['up'][0]) & (c[:, 1] <= fb['up'][1])
+            if 'absx' in fb: k_ &= (np.abs(c[:, 0]) >= fb['absx'][0]) & (np.abs(c[:, 0]) <= fb['absx'][1])
+            T = T[k_]
+        out.append(T)
+    return np.vstack(out) if out else np.zeros((0, 3, 3))
+REF = {k: partF(k) for k in ref['parts']}
 OUR = {'cowl': Ou(lay('cowl')), 'fuselage': Ou(lay('sheet')), 'upper': Ou(lay('wing')), 'lower': Ou(lay('wing2')),
        'fin': Ou(lay('fin')), 'stab': Ou(lay('stab')), 'gear': Ou(lay('gear'))}
 
@@ -94,7 +161,10 @@ def heads(side):
             if t == 'fin': out['fin top (TL)'] = t1[1]; out['fin bottom (TL)'] = t0[1]
             else: out['stab span'] = t1[0] - t0[0]; out['stab height (TL)'] = (t0[1] + t1[1]) / 2
     return out
+if 'cowl' not in REF or not len(REF['cowl']): REF['cowl'] = R(part('fuselage'))[:1] * 0 + np.array([0, 0, 0.0])
 hr, ho = heads(REF), heads(OUR)
+if not len(part('cowl')):
+    for k in ('cowl length', 'cowl dia', 'cowl centre (TL)'): hr[k] = np.nan
 print('== %s: headline (m; aft of the firewall, above the thrust line; scale x %.5f)' % (ref['name'], s))
 for k in hr:
     o = ho.get(k, np.nan); print('  %-24s ours %7.3f  ref %7.3f  d %+7.3f' % (k, o, hr[k], o - hr[k]))
@@ -106,7 +176,10 @@ for d in np.round(np.linspace(0.05, tp - 0.05, 16), 2):
     def pr(T):
         q = cut(T, 2, -d)
         return (q[:, 1].max(), q[:, 1].min(), np.abs(q[:, 0]).max()) if len(q) else (np.nan,) * 3
-    print('  %5.2f | %6.3f %6.3f %6.3f | %6.3f %6.3f %6.3f' % ((d,) + pr(REF['fuselage']) + pr(OUR['fuselage'])))
+    # "profile": the roles the outer skin is made of, when the fuselage role is not all of it (a bonnet's tank
+    # fairing running back over the body - the Moth's)
+    RP = np.vstack([REF[r] for r in ref.get('profile', ['fuselage']) if r in REF and len(REF[r])])
+    print('  %5.2f | %6.3f %6.3f %6.3f | %6.3f %6.3f %6.3f' % ((d,) + pr(RP) + pr(OUR['fuselage'])))
 
 print('== wings sliced (station x: chord line above TL, LE / TE aft)')
 for w in ('upper', 'lower'):
@@ -133,9 +206,30 @@ def roots_of(T, bottom):
     return out
 if 'legs' in REF:
     rb = bbox(REF['legs'])[1][1]
-    rr = roots_of(REF['legs'], rb - 0.03); ro = roots_of(OUR['gear'], hr['body bottom (TL)'])
+    rr = roots_of(REF['legs'], rb - 0.03)
+    # ours: the main gear's own top ends (x > 0.1, ahead of 2 m aft - the tail gear and the axle centre left out)
+    g_ = OUR['gear'][((OUR['gear'][..., 0] > 0.1) & (-OUR['gear'][..., 2] < 2.0)).all(1)]
+    ro = roots_of(g_, bbox(g_)[1][1] - 0.03) if len(g_) else []
     for i, r_ in enumerate(rr): print('  leg root %d ref  aft %.3f x %.3f y %.3f' % (i + 1, *r_))
     for i, r_ in enumerate(ro): print('  leg root %d ours aft %.3f x %.3f y %.3f' % (i + 1, *r_))
+
+# ---- --roles: the reference coloured by role (is the config right?) -------------------------------------------
+if opt('--roles'):
+    from PIL import Image, ImageDraw
+    COL = {'cowl': (230, 120, 40), 'hub': (40, 40, 40), 'fuselage': (90, 120, 200), 'upper': (40, 170, 90), 'lower': (120, 200, 80),
+           'fin': (200, 60, 150), 'stab': (150, 60, 200), 'tyre': (30, 30, 30), 'legs': (200, 180, 40)}
+    allT = R(GT)
+    for v, (ua, wa) in {'side': (2, 1), 'top': (2, 0), 'front': (0, 1)}.items():
+        U = allT[..., ua] * (-1 if v != 'front' else 1); Wv = allT[..., wa]
+        u0, u1, w0, w1 = U.min(), U.max(), Wv.min(), Wv.max(); k_ = 900 / (u1 - u0)
+        img = Image.new('RGB', (900, int((w1 - w0) * k_) + 30), (250, 250, 250)); d = ImageDraw.Draw(img)
+        for t in allT: d.polygon([((-t[i, ua] if v != 'front' else t[i, ua]) * k_ - u0 * k_, (w1 - t[i, wa]) * k_) for i in range(3)], fill=(215, 215, 215))
+        for role, c in COL.items():
+            for t in REF.get(role, []): d.polygon([((-t[i, ua] if v != 'front' else t[i, ua]) * k_ - u0 * k_, (w1 - t[i, wa]) * k_) for i in range(3)], fill=c)
+        x = 4
+        for role, c in COL.items():
+            d.rectangle([x, img.height - 20, x + 12, img.height - 8], fill=c); d.text((x + 15, img.height - 21), role, fill=(0, 0, 0)); x += 95
+        img.save(opt('--roles') + '_' + v + '.png'); print('wrote ' + opt('--roles') + '_' + v + '.png')
 
 # ---- the reference's tail in OUR frame (fit_tail.js) ----------------------------------------------------------
 if opt('--tail'):

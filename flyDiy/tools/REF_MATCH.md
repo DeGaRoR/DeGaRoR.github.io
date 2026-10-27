@@ -33,8 +33,23 @@ The listing gives every mesh node's box. Pick the nodes for each role and write 
 | `fin`, `stab` | fin + rudder, tailplane + elevators | fit_tail.js |
 | `tyre`, `legs` | a main tyre, the main legs | wheel centre / track, the legs' roots |
 
-`scale`: `{ "by": "span", "part": "upper", "metres": 8.53 }`. Sanity-check with the listing: x = span, y = up,
-z = nose (+). A model in another orientation needs its axes swapped in `glb_tris.py` first.
+`scale`: `{ "by": "span", "part": "upper", "metres": 8.53 }`. Check the result with
+`refmatch.py ... --roles /tmp/roles`: it draws the reference with each role in its own colour, which shows a wrong
+config at a glance. When a model is not a clean set of one-part nodes:
+
+| config key | for | example |
+|---|---|---|
+| `"axes": "x=z,y=y,z=-x"` | a model laid out another way (x must be span, y up, z the nose) | the PT-17 |
+| `"align": "wing"` | a model yawed in its file and sitting on three points: span along the upper plane, fore along its chord | the DH.82 |
+| `"align": "pca"` | a model yawed in its file in flying attitude: fore along the fuselage's long axis | |
+| a part `{ "node": ..., "box": {"x"/"y"/"z"/"absx": [lo, hi]} }` | one piece of a node merged by material (the file's units, after axes / align) | the PT-17's planes share one node |
+| a part `{ "node": ..., "fbox": {"aft"/"up"/"absx": [lo, hi]} }` | the same, in the match's own metres (aft of the firewall, above the thrust line) | |
+| no `cowl` role | an exposed engine: the firewall is the fuselage's front face | the PT-17 |
+| `"firewall": "cowl-bottom"` | a bonnet whose top panel runs back over the tank: the firewall is the cowl's lower back edge | the DH.82 |
+| `"profile": ["fuselage", "cowl"]` | the outer skin is more than the fuselage role | |
+
+`python3 -I tools/ref_match/glb_views.py <glb> /tmp/v --axes ...` draws a model with every node its own colour (the
+legend numbers them): this is how merged nodes are identified.
 
 ## 2. The loop
 
@@ -112,6 +127,9 @@ design), so set `taperOn: 0` and let the boom frame carry the taper, or the boom
 | the cross axle had no bracing | added: `s1_linkAxleX` ("cross-bracing wires (X)") |
 | the upper wing's LE cannot go more than 0.20 m ahead of the physics firewall | OPEN: the Camel's is 6 cm further fore; an envelope or datum change for the user |
 | the second wing's placement freedom, and selecting each wing on its own in the garage (the user, 27 Oct) | OPEN: a garage UI task |
+| the Moth's upper LE is 0.52 m ahead of the firewall (the envelope's limit is 0.20) | OPEN: same envelope as above |
+| a leg cannot root ahead of the body's face (the Moth's front legs on the engine bearers) | OPEN |
+| the prop check's body test runs past the body's end | OPEN: a check fix |
 
 ## 7. The Camel log (27 Oct 2026), checkpoint by checkpoint
 
@@ -173,3 +191,52 @@ hump, the cowl that does not flare, the engine inside the cowl, the continuous l
 exceptions, the X bracing.
 
 **Livery.** The B6313-style yellow / dark-grey bands the user chose: see the card's `finish` (when done).
+
+## 8. Validation on two more references (27 Oct 2026)
+
+The same procedure, run on the Stearman and Tiger Moth cards with the user's PT-17 and DH.82 models. Both cards
+had been drawn from photographs and type data, not measured, and the method found what that left behind: both bodies
+much too long.
+
+**Stearman** (`refs/stearman.json`; Sketchfab "Boeing Stearman PT.17" by helijah, CC-BY-4.0; merged by material,
+axes remapped). Found:
+- the body 0.87 m too long;
+- the planes 0.6 m aft and the upper one 0.3 m high;
+- the wheels 0.65 m aft and too small;
+- the tail much too big.
+
+Five passes (the card's `MEASURED` block holds every row):
+- `aeroWsLen 1.05 boomLen 3.62` (tail post within 3 mm).
+- `wgParaH 0.48 w2Dy 0.21 w2Stagger 0.66`, dihedral 0.5 / 0.5 (planes within 3 cm).
+- The wider oval body: `halfW 0.74 roofHalfW 0.59 roofY 0.76 keelY -0.63`, the boom and tail frames, `aeroTipW 0.85
+  aeroTipH 0.78`.
+- Wheel: `s1R 0.285 s1X 0.905 s1Drop 0.69 s1AxZ 0.17`, exact.
+- Legs: `s1Root 1 s1Z 2.2 s1_oleoAng 60`, the oleo legs on the fuselage side.
+- Tail: `finDorsal 0 finKeel 0` and the fitted rows (1 - IoU 0.16 / 0.16: the model merges wires and horns into the
+  tail), `stY 0.54`.
+- Open for the user:
+  - the PT-17's radial is uncowled and the card still wears the radial cowl;
+  - the model's body is 1.1 m wide.
+
+**Tiger Moth** (`refs/moth.json`; Sketchfab "Dh82" by manilov.ap, CC-BY-4.0; yawed and on three points, aligned on
+the upper wing; bonnet in panels, `cowl-bottom` firewall). Found:
+- the body 2.3 m too long;
+- the planes 1.6 m aft;
+- a 0.58 m cowl on a 1.8 m nose cone where the type has a 1 m bonnet.
+
+Four passes:
+- The bonnet: `aeroWsLen 1.1 aeroLen 0.24 aeroTipW/H 0.98`, `cw_cowlLen 0.85 cw_taperW 0.85 cw_taperH 1.0
+  cw_keelSweep 0`, `engY 0.04` (the thrust line near its top; 0 engine vertices outside).
+- The body's sections station by station.
+- The tail post exact.
+- The wheel exact (`s1Z 2.6 s1AxZ 0.25 s1Drop 0.58 s1X 0.69 s1R 0.22`).
+- The tail fitted (1 - IoU 0.15 / 0.11).
+
+Still open:
+- The planes sit 0.6 m aft of the reference. The flown envelope holds the upper LE at 0.20 m ahead of the physics
+  firewall, and the DH.82's is 0.52 ahead. Needs the envelope (`GEN_WING_ENVELOPE.xLE`) opened.
+- The nose is 0.45 m short. Our Gipsy model puts the prop 1.03 m ahead of the firewall, the reference 1.45; the
+  engine's stand-off row moves it by centimetres only.
+- The front legs root ahead of the firewall on the type (engine bearers); our legs root on the body.
+- The join's prop check reads "through the body" for a deep bonnet under a high thrust line: it samples the body's
+  front section past the body's end (`_cage_eng.js` inBody). Shape-wise the prop clears.
