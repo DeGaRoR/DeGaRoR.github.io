@@ -199,17 +199,97 @@ function tyreTorus(R, rb, zb, b, grooveAt) {
   const pts = [...phs].sort((p, q) => p - q).map(ph => [rc + a * Math.cos(ph), b * Math.sin(ph), ph]);
   return { pts, rc, a, b };
 }
+// G3851 TYRES PROPOSAL (the user, 27 Oct: "fitting huge wheels is really all the rage today, so these need to look
+// good"). DISPLAY ONLY AND OFF BY DEFAULT: with TYRE_LOOK.on (?tyres=new, or a rig setting it) each carcass is drawn
+// by futureDesigns/TYRES-2026-10.md section 3; off, wheel() draws G3548 byte for byte. No spec key moves (s1R/s2R/twR
+// are what the flight reads, untouched); whTread and whRibs are READ AND IGNORED by the proposal - each carcass draws
+// its own tread - and stay in every file as loaded (whTread is a hashed cage row: never stripped, never rewritten).
+const TYRE_LOOK = { on: 0 };
+try { if (/[?&]tyres=new\b/.test(location.search)) TYRE_LOOK.on = 1; } catch (e) {}
+const lerpTab = (x, xs, ys) => {
+  if (x <= xs[0]) return ys[0];
+  for (let i = 1; i < xs.length; i++)
+    if (x <= xs[i]) return ys[i - 1] + (ys[i] - ys[i - 1]) * (x - xs[i - 1]) / (xs[i] - xs[i - 1]);
+  return ys[ys.length - 1];
+};
+// the proposal's numbers for a wheel of radius R (m): W/D, rim/D (= TYRE's hw, bead), the tread. Pure, so a gate
+// can hold it to the study's table.
+//  - the rim follows a real 4-6" hub, not the tyre: rim radius 0.031 m + 0.20 R (the 8" tailwheel's 4" rim, the
+//    5.00-5's 5", the 6.00-6's and 8.00-6's 6"), rim/D held 0.26-0.50 - so a 14 cm wheel is not a hub with a ring
+//    of rubber and a 50 cm one not a dustbin lid
+//  - W/D 0.36 to the 6.00-6 (R 0.22), 0.40 by the 8.00-6 (Goodyear data book: 17.15 x 6.1", 19.1 x 7.65")
+//  - tundra: the 6" bush wheel under 26-31" (rim radius 0.0762 m), the 10" under the 35"; W/D off the Alaskan
+//    Bushwheel family (26x12, 29x13, 31x13, 35x15); low chevron lugs (3/16-1/4": ~0.7 % of D) on a round crown
+function tyreLook(R, profile) {
+  const p = Math.round(profile || 0);
+  if (p === 1) {
+    const rimR = 0.0762 + Math.max(0, R - 0.40) * 1.1;
+    return { kind: 'tundra', wd: lerpTab(R, [0.33, 0.368, 0.394, 0.445], [0.46, 0.45, 0.42, 0.43]),
+             rimD: clamp(rimR / R, 0.18, 0.30), tread: 'lugs', grooves: 0,
+             lugPairs: Math.round(clamp(20 * R / 0.394, 16, 24)), lugH: R * 0.014, lugShare: 0.40 };
+  }
+  const rimD = clamp((0.031 + 0.20 * R) / R, 0.26, 0.50);
+  const grooves = R < 0.12 ? 2 : R < 0.235 ? 3 : 4;
+  if (p === 2) return { kind: 'slim', wd: 0.29, rimD, tread: 'ribs', grooves: Math.min(grooves, 3) };
+  return { kind: R <= 0.10 ? 'tiny' : 'normal', wd: R <= 0.10 ? 0.36 : lerpTab(R, [0.22, 0.245], [0.36, 0.40]),
+           rimD, tread: 'ribs', grooves };
+}
+// THE TUNDRA'S LUGS: low bars on the torus from just off the centreline onto the shoulder, slanted so the two rows
+// read as a V; the rows are offset half a pitch (the offset-block chevron). Each face its own vertices, so the
+// edges stay crisp under the Lambert light; the foot sinks into the carcass.
+function tyreLugs(bag, at3, TT, L, R) {
+  const N = L.lugPairs, h = L.lugH, pitch = 2 * Math.PI / N;
+  const ph0 = 0.05, ph1 = 1.22, NU = 7;
+  const wArc = L.lugShare * pitch * R;         // the lug's width round the tyre: 40 % lug, 60 % void
+  const slant = 0.42 * pitch;                  // how far round the lug runs from crown to shoulder
+  const S = (ph, th, lift) => {
+    const c = Math.cos(ph), s = Math.sin(ph);
+    let nr = c / TT.a, nz = s / TT.b; const nl = Math.hypot(nr, nz); nr /= nl; nz /= nl;
+    return at3(TT.rc + TT.a * c + nr * lift, TT.b * s + nz * lift, th);
+  };
+  const face = (pts, out) => {                 // a quad, wound to face `out`
+    const n = crs(sub(pts[1], pts[0]), sub(pts[2], pts[0]));
+    const q = pts.map(p => bag.v(p));
+    if (dot(n, out) >= 0) bag.quad(q[0], q[1], q[2], q[3]); else bag.quad(q[3], q[2], q[1], q[0]);
+  };
+  for (const side of [-1, 1])
+    for (let k = 0; k < N; k++) {
+      const th0 = k * pitch + (side > 0 ? 0 : pitch / 2);
+      const rows = [];
+      for (let i = 0; i <= NU; i++) {
+        const u = i / NU, ph = side * (ph0 + (ph1 - ph0) * u);
+        const r = TT.rc + TT.a * Math.cos(ph);
+        const dth = wArc * (1 - 0.25 * u) / (2 * r), th = th0 + slant * u;
+        // the bar's height falls off on the shoulder's last fifth: it runs out, it does not end in a step
+        const hh = h * (u > 0.8 ? 1 - (u - 0.8) * 2.5 : 1);
+        rows.push({ ph, th, dth, top: [S(ph, th - dth, hh), S(ph, th + dth, hh)], foot: [S(ph, th - dth, -h * 0.6), S(ph, th + dth, -h * 0.6)] });
+      }
+      for (let i = 0; i < NU; i++) {
+        const A = rows[i], B = rows[i + 1];
+        const mid = S((A.ph + B.ph) / 2, (A.th + B.th) / 2, 0), up = sub(S((A.ph + B.ph) / 2, (A.th + B.th) / 2, 1), mid);
+        face([A.top[0], A.top[1], B.top[1], B.top[0]], up);                       // the tread face
+        const sideOut = j => sub(lerp3(A.top[j], B.top[j], 0.5), lerp3(A.top[1 - j], B.top[1 - j], 0.5));
+        for (const j of [0, 1]) face([A.foot[j], A.top[j], B.top[j], B.foot[j]], sideOut(j));   // the two walls
+      }
+      for (const [E, F] of [[rows[0], rows[1]], [rows[NU], rows[NU - 1]]])       // the two ends
+        face([E.foot[0], E.top[0], E.top[1], E.foot[1]], sub(lerp3(E.top[0], E.top[1], 0.5), lerp3(F.top[0], F.top[1], 0.5)));
+    }
+}
 function wheel(bags, ctr, axis, R, opt) {
   opt = opt || {};
   const P = opt.P || {};
-  const prof = TYRE[Math.round(P.whProfile || 0)] || TYRE[0];
+  const prof0 = TYRE[Math.round(P.whProfile || 0)] || TYRE[0];
+  // G3851: the proposal's carcass (null = G3548's, untouched)
+  const L = TYRE_LOOK.on ? tyreLook(R, P.whProfile) : null;
+  const prof = L ? Object.assign({}, prof0, { hw: L.wd, bead: L.rimD }) : prof0;
   const hw = R * prof.hw, bead = R * prof.bead;
   const half = hw * 0.70;                    // the crown band
   const beadH = hw * (prof.beadW || 0.90);   // where the tyre meets the rim
   const face = hw * (prof.faceW || 0.74);    // THE RIM IS INSET (user)
   // the hub's axial stations (barrel, caps, valve) follow the rim face: a torus's narrow rim pulls them in with it
   const hwHub = prof.torus ? hw * prof.faceW / 0.74 : hw;
-  const tread = Math.round(P.whTread == null ? 0 : P.whTread);
+  // the proposal draws each carcass's own tread: ribbed grooves, or the tundra's lugs on a smooth torus (whTread unread)
+  const tread = L ? (L.tread === 'ribs' ? 0 : 1) : Math.round(P.whTread == null ? 0 : P.whTread);
   const T = bags.tyre, Hb = bags.hub;
   const ax = nrm(axis);
   let e1 = Math.abs(ax[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
@@ -221,7 +301,9 @@ function wheel(bags, ctr, axis, R, opt) {
   // ---- carcass ----------------------------------------------------------
   // The tread is GEOMETRY: circumferential grooves fall out of a revolve,
   // and being u-invariant they read right on a wheel that never spins.
-  const ribs = Math.max(1, Math.round(P.whRibs == null ? 3 : P.whRibs));
+  const ribs = L ? Math.max(1, L.grooves) : Math.max(1, Math.round(P.whRibs == null ? 3 : P.whRibs));
+  // G3851: a real groove is ~0.2-0.3" deep on a 17" tyre (0.03 R) and narrow; G3548's is 0.052 R
+  const gDeep = L ? 0.034 : 0.052, gWide = L ? 0.06 : 0.075;
   const rEdge = R * (1 - prof.crown);        // crown radius at its edge
   // SIDEWALL INFLATION (G33, user: "a more inflated shape on the
   // sides"): whBulge multiplies the two sidewall widths only — the bead
@@ -229,10 +311,13 @@ function wheel(bags, ctr, axis, R, opt) {
   // without leaving its wheel. 1 = the profile as drawn before (and
   // TYRE's own `bulge` column stays what it always was: unread).
   const B = P.whBulge == null ? 1 : Math.max(0.5, P.whBulge);
+  // G3851: the proposal puts the widest point at the section's middle (a 6.00-6 is widest half-way up its 5.6"
+  // section); G3548's 0.60 R sat it near a 0.42 rim
+  const rWide = L ? bead + 0.45 * (R - bead) : R * 0.60, rBulge = L ? bead + 0.70 * (R - bead) : R * prof.bulgeAt;
   const flank = s => [
     [bead * 1.03, s * beadH * 1.00],
-    [R * 0.60, s * hw * B],                  // widest: the sidewall bulge
-    [R * prof.bulgeAt, s * hw * 0.97 * B],
+    [rWide, s * hw * B],                     // widest: the sidewall bulge
+    [rBulge, s * hw * 0.97 * B],
     [R * 0.945, s * half * 1.16],
     [rEdge, s * half],                       // MEETS THE CROWN EXACTLY
   ];
@@ -245,8 +330,8 @@ function wheel(bags, ctr, axis, R, opt) {
     if (tread === 0)
       for (let k = 0; k < ribs; k++) {
         const gp = -1 + 2 * (k + 0.5) / ribs;
-        const d = (t - gp) / 0.075;
-        r -= R * 0.052 * Math.exp(-d * d * 3.2);
+        const d = (t - gp) / gWide;
+        r -= R * gDeep * Math.exp(-d * d * 3.2);
       }
     return r;
   };
@@ -268,13 +353,15 @@ function wheel(bags, ctr, axis, R, opt) {
     revolve(T, ctr, ax, TT.pts.map(([r, z, ph]) => {
       if (tread === 0 && Math.cos(ph) > 0) {
         const t = z / half;
-        for (const gp of grooves) { const d = (t - gp / half) / 0.075; r -= R * 0.052 * Math.exp(-d * d * 3.2) * Math.cos(ph); }
+        for (const gp of grooves) { const d = (t - gp / half) / gWide; r -= R * gDeep * Math.exp(-d * d * 3.2) * Math.cos(ph); }
       }
       return [r, z];
     }), 44);
     wallAt = r => { const u = (r - TT.rc) / TT.a; return Math.abs(u) < 1 ? TT.b * Math.sqrt(1 - u * u) : beadH; };
+    if (L && L.tread === 'lugs')
+      tyreLugs(T, (r, z, th) => at(r, z, th), TT, L, R);
   } else revolve(T, ctr, ax, flank(-1).concat(crown, flank(1).reverse()), 44);
-  if (tread === 2) {
+  if (tread === 2 && !L) {
     const NB = 15;
     for (let row = -1; row <= 1; row += 2)
       for (let k = 0; k < NB; k++) {
@@ -287,7 +374,8 @@ function wheel(bags, ctr, axis, R, opt) {
               [R * 0.085, R * 0.20, R * 0.042], ax, crs(rad, ax), rad);
       }
   }
-  if (!prof.torus) for (const s of [-1, 1])
+  // (the proposal's sidewall is plain: no moulded rings)
+  if (!prof.torus && !L) for (const s of [-1, 1])
     for (const rr of [0.62, 0.70]) {
       // on the sidewall: the straight wall's 0.90 hw, or the torus where it is at that radius
       const w0 = prof.torus ? wallAt(R * rr) : hw * 0.90, w1 = prof.torus ? wallAt(R * (rr + 0.035)) + hw * 0.03 : hw * 0.93,
@@ -299,9 +387,14 @@ function wheel(bags, ctr, axis, R, opt) {
   // G3548 (the user, 25 Oct: the tundra's "flank was protruding, and their proportions were bad"): a bush tyre sits
   // on a SMALL hub. For the torus the rim, its face, bolts, cap, valve and brake scale with the bead (Rh), not with the
   // tyre; the standard and slim wheels keep R (Rh === R), byte for byte
-  const Rh = prof.torus ? R * prof.bead / 0.42 : R;
+  // G3851: in the proposal EVERY carcass's hub follows its rim (the rim is a real 4-6" wheel), and the small parts
+  // have floors and ceilings in metres, so an 8 cm tailwheel still shows a bolt, a valve and a brake you can read,
+  // and a 35" tundra's hub stays a 10" wheel's
+  const Rh = (prof.torus || L) ? R * prof.bead / 0.42 : R;
+  const q = (v, lo, hi) => L ? clamp(v, lo, hi) : v;
   const rimK = Math.round(P.whRim == null ? 0 : P.whRim);
-  const bolts = Math.max(3, Math.round(P.whBolts == null ? 6 : P.whBolts));
+  const bolts0 = Math.max(3, Math.round(P.whBolts == null ? 6 : P.whBolts));
+  const bolts = L && R <= 0.10 ? Math.min(bolts0, 4) : bolts0;   // a tiny split rim has 3-4 through-bolts
   // bead seats, flange lips and the well between them — the drum the
   // tyre actually mounts on, sitting INSIDE the tyre wall
   // A REAL FLANGE, standing PROUD of the bead: the tyre seats against it
@@ -310,7 +403,7 @@ function wheel(bags, ctr, axis, R, opt) {
   // THE SECTION IS A CLOSED LOOP, so this revolves into a solid with a
   // real wall. As an open shell its inside faces showed through the well
   // and read as inverted normals.
-  const wall = R * 0.028;
+  const wall = L ? clamp(bead * 0.07, 0.0025, 0.007) : R * 0.028;
   const outer = [
     [bead * 1.19, -beadH * 1.16], [bead * 1.21, -beadH * 1.08],
     [bead * 1.16, -beadH * 1.02], [bead * 1.02, -beadH * 0.97],
@@ -359,19 +452,20 @@ function wheel(bags, ctr, axis, R, opt) {
   // bolt heads on the outer face, where a wheel shows them
   for (let k = 0; k < bolts; k++) {
     const an = 2 * Math.PI * k / bolts;
-    bolt(bags.alloy, at(Rh * 0.255, face * 1.02, an), ax, Rh * 0.040, hw * 0.10);
+    bolt(bags.alloy, at(Rh * 0.255, face * 1.02, an), ax, q(Rh * 0.040, 0.0035, 0.007), q(hw * 0.10, 0.004, 0.012));
     bolt(bags.alloy, at(Rh * 0.255, -face * 1.02, an), mul(ax, -1),
-         Rh * 0.034, hw * 0.06);
+         q(Rh * 0.034, 0.003, 0.006), q(hw * 0.06, 0.003, 0.008));
   }
   const cap = Math.round(P.whCap == null ? 1 : P.whCap);
   if (cap) for (const s of [-1, 1]) {
     const dome = [], ND = 8;
     for (let i = 0; i <= ND; i++) {
       const t = i / ND;
+      const cR = q(Rh * 0.165, 0.012, 0.045);
       dome.push(cap === 1
-        ? [Rh * 0.165 * Math.cos(t * Math.PI / 2),
-           s * (hwHub * 0.88 + Rh * 0.090 * Math.sin(t * Math.PI / 2))]
-        : [Rh * 0.165 * (1 - t), s * (hwHub * 0.88 + Rh * 0.020)]);
+        ? [cR * Math.cos(t * Math.PI / 2),
+           s * (hwHub * 0.88 + q(Rh * 0.090, 0.006, 0.024) * Math.sin(t * Math.PI / 2))]
+        : [cR * (1 - t), s * (hwHub * 0.88 + q(Rh * 0.020, 0.002, 0.006))]);
     }
     revolve(bags.alloy, ctr, ax, dome, 26);
   }
@@ -379,9 +473,10 @@ function wheel(bags, ctr, axis, R, opt) {
     const an = Math.PI * 0.28;
     const b0 = at(Rh * 0.345, face * 0.80, an);
     const b1 = at(Rh * 0.405, hwHub * 1.24, an);
-    taper(bags.dark, b0, b1, Rh * 0.030, Rh * 0.022, 8);
-    revolve(bags.alloy, b1, nrm(sub(b1, b0)), [[Rh * 0.023, 0],
-      [Rh * 0.023, Rh * 0.034], [Rh * 0.015, Rh * 0.040]], 10, true);
+    const vs = L ? clamp(Rh, 0.10, 0.17) : Rh;   // a valve stem is a valve stem: ~6 mm across on any wheel
+    taper(bags.dark, b0, b1, vs * 0.030, vs * 0.022, 8);
+    revolve(bags.alloy, b1, nrm(sub(b1, b0)), [[vs * 0.023, 0],
+      [vs * 0.023, vs * 0.034], [vs * 0.015, vs * 0.040]], 10, true);
   }
 
   // ---- brake --------------------------------------------------------------
@@ -398,17 +493,20 @@ function wheel(bags, ctr, axis, R, opt) {
          [Rh * 0.54, -s * hw * 0.52], [Rh * 0.20, -s * hw * 0.52]], 30, true);
     } else {
       const dz = -s * hw * 1.16;
+      // G3851: the proposal's disc is a Cleveland's, ~1.3 x the rim's radius (7.6" on a 6" wheel), the caliper sized
+      // in metres between a floor and a ceiling; G3548's disc is 0.62 Rh (1.48 x the rim)
+      const dR = L ? bead * 1.28 : Rh * 0.62, dI = L ? dR * 0.36 : Rh * 0.22, dRing = L ? dR * 0.74 : Rh * 0.46;
       revolve(bags.brake, off(ctr, ax, dz), ax,
-        [[Rh * 0.22, 0], [Rh * 0.62, 0], [Rh * 0.62, -s * 0.010],
-         [Rh * 0.22, -s * 0.010]], 30, true);
+        [[dI, 0], [dR, 0], [dR, -s * 0.010],
+         [dI, -s * 0.010]], 30, true);
       for (let k = 0; k < 16; k++) {
         const an = 2 * Math.PI * k / 16;
-        revolve(bags.hub, at(Rh * 0.46, dz + s * 0.001, an), ax,
-                [[Rh * 0.032, 0], [Rh * 0.032, -s * 0.012]], 8, true);
+        revolve(bags.hub, at(dRing, dz + s * 0.001, an), ax,
+                [[q(Rh * 0.032, 0.0025, 0.005), 0], [q(Rh * 0.032, 0.0025, 0.005), -s * 0.012]], 8, true);
       }
       const up = [0, 1, 0];
       const rad = nrm(sub(up, mul(ax, dot(up, ax))));
-      const cc = add(off(ctr, ax, dz), mul(rad, Rh * 0.52));
+      const cc = add(off(ctr, ax, dz), mul(rad, L ? dR * 0.84 : Rh * 0.52));
       // G58.3/G148: the CALIPER does not turn with the wheel — it bolts to
       // the leg. When the caller provides a `brakefix` bag (the cage join's
       // per-wheel split routes it into the LEG unit), the caliper goes
@@ -417,11 +515,11 @@ function wheel(bags, ctr, axis, R, opt) {
       // plumbing too and must follow the caliper it feeds — in `dark` it
       // either froze on the fuselage or spun with the wheel, depending on
       // who owned that bag.
-      boxIn(bags.brakefix || bags.brake, cc, [Rh * 0.15, Rh * 0.24, Rh * 0.115],
+      boxIn(bags.brakefix || bags.brake, cc, [q(Rh * 0.15, 0.016, 0.030), q(Rh * 0.24, 0.024, 0.045), q(Rh * 0.115, 0.012, 0.024)],
             nrm(crs(rad, ax)), rad, ax);
-      taper(bags.brakefix || bags.dark, add(cc, mul(rad, Rh * 0.16)),
-            add(cc, add(mul(rad, Rh * 0.40), mul(ax, -s * Rh * 0.10))),
-            Rh * 0.022, Rh * 0.018, 7);
+      taper(bags.brakefix || bags.dark, add(cc, mul(rad, q(Rh * 0.16, 0.018, 0.035))),
+            add(cc, add(mul(rad, q(Rh * 0.40, 0.045, 0.08)), mul(ax, -s * q(Rh * 0.10, 0.011, 0.02)))),
+            q(Rh * 0.022, 0.003, 0.005), q(Rh * 0.018, 0.0025, 0.004), 7);
     }
   }
 }
@@ -1839,7 +1937,7 @@ function legTailwheel(bags, AF, P, st) {
            castor: u };
 }
 
-window.GEAR_GEN = { MAT, TYRE, tyreTorus, gearMat, stubAirframe, drawStub, objAirframe, drawBody,
+window.GEAR_GEN = { MAT, TYRE, tyreTorus, TYRE_LOOK, tyreLook, gearMat, stubAirframe, drawStub, objAirframe, drawBody,
                     meshAirframe, cageAirframe, CAGE_MATS, airframeClose,
                     padOn, exactAirframe, padArc, PAD_ARC,
                     wheel, spat, fitFrame, memberFrame, pivotOn, padFlat,
