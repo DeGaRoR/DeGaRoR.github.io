@@ -214,7 +214,8 @@ function genPodResolve(S, ST) {
   // (the floor follows the belly, and so does the door: its sill on the floor - y0 / y1 at its middle, `slope` the
   // floor's rise per metre aft - the packer reads its w x h)
   const fA = genPodFloorAt({ sta }, dc - 0.5 * dl), fB = genPodFloorAt({ sta }, dc + 0.5 * dl);
-  const doorH = Math.max(0, 0.8 * (dMinFlat - 2 * wall));
+  // (G3470: nearly the hold's full height - the Airglas door drops down from just under the joint to the sill)
+  const doorH = Math.max(0, 0.92 * (dMinFlat - 2 * wall));
   const sill = genPodFloorAt({ sta }, dc) + wall;                // (the box's own floor: the door and the hold share it)
   const door = { side: sp.door === 'right' ? 1 : -1, sideName: sp.door === 'right' ? 'right' : 'left',
                  x0: dc - 0.5 * dl, x1: dc + 0.5 * dl, y0: sill, y1: sill + doorH, w: dl, h: doorH,
@@ -223,7 +224,9 @@ function genPodResolve(S, ST) {
   // pair of fittings on its lower longerons - the rings the frame bills the pod's mass onto
   const xS = swet > 0 ? sx / swet : xm, xL = litres > 0 ? lx / litres : 0.5 * (xa + xb);
   const mounts = genPodStraddle(ST, xS);
-  return { on: true, len: L, x0, x1, xa, xb, yBot, floorA: fa, floorB: fb, hw, depth, noseFair: nf, tailFair: tf, sta,
+  // `strap`: the mounting - bolted through its joint (0) or held by two stainless bands (1, G3470); drawn only, the
+  // fittings' mass and the four mounts stand for either
+  return { on: true, len: L, x0, x1, xa, xb, yBot, floorA: fa, floorB: fb, hw, depth, noseFair: nf, tailFair: tf, sta, strap: +sp.strap ? 1 : 0,
            swet, side, plan, frontal, vol, xVol: vol > 0 ? vx / vol : xm, xShell: xS, xLoad: xL,
            litres, floorM2, maxKg, loadKg, shellKg, price, door, mounts, wall, gearKeep, gearMoved };
 }

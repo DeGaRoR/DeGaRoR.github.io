@@ -587,6 +587,9 @@ const AERO_HARD = {
   // beacon lens really is a moulded polycarbonate, so the honest row is also
   // the working one.
   access: { paint: 'trim', metal: 'bareAlu', lens: 'plastic' },
+  // G3470: the belly pod's hardware (tools/_pod_gen.js group 1 / 2): its stainless - the straps, the piano hinge, the pin
+  // latches, the rivets, the vent - and its black rubber - the joint's seal, the traps' screws, the lock's keyway
+  pod: { steel: 'bareAlu', rubber: 'rubber' },
   // ---- the control hardware (_cage_hinge.js) ------------------------------
   // Hinge straps, pins, horns, bellcranks and rod ends are STEEL — cadmium
   // plated, and the one place on a light aeroplane where nobody uses alloy,
@@ -762,7 +765,9 @@ function aeroHardMat(THREE, layer, name, tint, o) {
 // WHICH SECTIONS TAKE A MARKING (G207): the cage's exterior skin by role,
 // the flying surfaces by role, and the two painted layer parts by name.
 const AERO_DEC_ROLES = new Set(['skin', 'rail', 'pillar']);
-const AERO_DEC_LAYER = new Set(['cowlSkin', 'spat']);
+// G3470 (the user: "ensure this reacts to global livery and can get some decals cast onto it"): the belly pod takes
+// markings like the spats - it was declined (a registration painted across a cargo pod); the user wants the pod's own
+const AERO_DEC_LAYER = new Set(['cowlSkin', 'spat', 'pod']);
 function aeroDecOk(section) {
   const row = AERO_SEC[section];
   // G267.1: a row may decline the marking — the twin booms lie outside the
@@ -905,9 +910,9 @@ const AERO_SEC = {
   // and the tailwheel's castor and spring at last, and a builder who wants
   // bare steel back still has the row.
   // THE BELLY POD (G2677, BELLY-POD-2): a moulded glassfibre pod, painted with the aeroplane - the spats' rule (trim
-  // material, the body's colour); no marking (a registration is not painted across a cargo pod)
+  // material, the body's colour); G3470: it takes markings (the user asked for decals on it - AERO_DEC_LAYER)
   pod:      { parent: 'body', fin: 'trim',      label: 'the belly pod',
-              layer: 'pod', wears: 'parent', noDec: true },
+              layer: 'pod', wears: 'parent' },
   gearLeg:  { parent: 'body', fin: 'steelTube', label: 'the gear legs',
               layer: 'gear', wears: 'parent' },
   // THE FLOATS (H2, G389): a pontoon is skinned like a fuselage and painted

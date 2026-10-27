@@ -56,8 +56,8 @@ for (const p of meta.parts) {
   if (p.nor >= 0) g.setAttribute('normal', new THREE.BufferAttribute(F32(p.nor, p.n * 3), 3));
   if (p.idx >= 0) g.setIndex(new THREE.BufferAttribute(U32(p.idx, p.ni), 1));
   if (p.nor < 0) g.computeVertexNormals();
-  const mats = p.col.map(c => {
-    const pod = p.tag === 'pod';
+  const mats = p.col.map((c, mi) => {
+    const pod = p.tag === 'pod' && mi === 0;          // (the moulding: the hardware keeps its own stainless and rubber)
     const m = new THREE.MeshStandardMaterial({
       color: pod && TINT ? 0x9fb7cf : new THREE.Color(c.c[0], c.c[1], c.c[2]),
       roughness: pod && TINT ? 0.45 : Math.max(0.25, c.r), metalness: pod && TINT ? 0 : c.mt,

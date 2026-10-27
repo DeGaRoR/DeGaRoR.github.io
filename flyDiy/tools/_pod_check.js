@@ -492,7 +492,7 @@ function runChecks2(C, D, X, quiet) {
     const Sx = X.scene;
     for (const r of Sx.rows) {
       if (r.pod) {
-        ok(r.groups === 1 && r.meshes === 1 && r.name === 'edPod' && r.matNames === 'pod,ctlHinge' && r.tris > 3000, r.k + ' with a pod: one group (cageLayer:pod), ONE mesh (edPod: the moulding in section `pod`, its hardware in `ctlHinge` - G3468), ' + r.tris + ' triangles');
+        ok(r.groups === 1 && r.meshes === 1 && r.name === 'edPod' && r.matNames === 'pod,,' && r.tris > 8000, r.k + ' with a pod: one group (cageLayer:pod), ONE mesh (edPod: the moulding in the livery\'s section `pod`, its stainless and its rubber the hardware\'s - G3470), ' + r.tris + ' triangles');
         ok(r.floorErr < 1e-4 && r.under <= 1e-4 && r.outward && r.topInside >= 0.0199, r.k + ': along the run its skids on the physics\' floor (' + n(r.floorErr * 1000, 3) + ' mm), nothing under it (' + n(r.under * 1000, 3) + ' mm); its shell\'s normals out, its walls ' + n(r.topInside * 100, 1) + ' cm inside the drawn belly');
         ok(r.datumJoin && near(r.datum.zFw, r.datumJoin.zFw, 1e-9) && near(r.datum.yD, r.datumJoin.yD, 1e-9), r.k + ': its datums are the join\'s (zFw ' + n(r.datum.zFw, 4) + ', yD ' + n(r.datum.yD, 4) + ')');
         ok(r.snapPod && r.snapSec === 'pod', r.k + ': the join\'s snapshot (CAGE_VISUAL) carries it as its own bucket, section `pod` (the flown model, the bake, the parked capture)');
@@ -500,7 +500,7 @@ function runChecks2(C, D, X, quiet) {
         // livery, so the pod wears its fallback MeshStandardMaterial: at most ONE program of its own, which a build whose
         // scene already carries that key shares. The page's pod wears AEROSKIN's `trim`, the spats' material: the box's
         // program census before / after is the GPU half's - HANDOVER G2675-G2679)
-        ok(r.dCalls === r.expectCalls && r.dPrograms <= 1, r.k + ': the pod costs ' + r.dCalls + ' draws (its two material groups, each + its shadow) and ' + r.dPrograms + ' program(s) of its own here (the fake-GL census; the node rig\'s fallback materials)');
+        ok(r.dCalls === r.expectCalls && r.dPrograms <= 1, r.k + ': the pod costs ' + r.dCalls + ' draws (its three material groups, each + its shadow) and ' + r.dPrograms + ' program(s) of its own here (the fake-GL census; the node rig\'s fallback materials)');
       } else {
         ok(r.groups === 0 && r.meshes === 0 && !r.podMesh && !r.snapPod && r.dCalls === 0 && r.dPrograms === 0 && r.sameKeys,
            r.k + ' without a pod: NOTHING - no group, no mesh, no material, no snapshot bucket, 0 draws, the same programs');
@@ -683,7 +683,7 @@ function sceneAll() {
   }
   const cubP = rows.find(r => r.pod && r.k === 'cub');
   for (const r of rows) {
-    r.expectCalls = 4;            // G3468: two groups (the moulding, the hardware), each drawn + shadowed
+    r.expectCalls = 6;            // G3470: three groups (the moulding, the stainless, the rubber), each drawn + shadowed
     if (r.pod) { const ka = new Set(r.censusHidden.keys); r.dCalls = r.census.calls - r.censusHidden.calls; r.dPrograms = r.census.keys.filter(x => !ka.has(x)).length; }
     else {     // the Cub WITHOUT a pod against the Cub WITH one, hidden: the same draws, the same programs
       r.dCalls = r.census.calls - cubP.censusHidden.calls; r.dPrograms = 0;

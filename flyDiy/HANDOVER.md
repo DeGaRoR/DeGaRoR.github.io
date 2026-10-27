@@ -98740,6 +98740,52 @@ as a hole: none on the Cub or the metal Cessna, from the quarter, the nose (high
 GATE POD PASS (413 checks), GATE PODEDITOR PASS (39); reports/evidence/POD4 re-shot. **On claude/belly-pod-2 only** - it
 missed the 12:45 UTC cut for the 14:00 train (claude/ready/belly-pod-2 stays at the G3468 READY); for the next train.
 
+### G3470 (27 Oct) - THE POD'S HARDWARE: THE RUBBER JOINT, THE RIVETS, THE DROP-DOWN DOOR, ITS PIN LATCHES, LOCK AND HINGE, THE FRONT AND AFT TRAPS, THE VENT, THE STRAPPED MOUNTING; THE LIVERY'S HARDWARE AND MARKINGS
+
+The user, with five references (an Airglas Super Cub pod open - its door hinged at the sill; a black bolted pod - its
+front trap, its screwed door; the Airglas pin latch close up - a pin through two barrels, a hairpin clip; a Super Cub
+on Airglas skis with its pod; a strapped Airglas pod from aft - its rubber joint, its aft panel and louvred vent, its
+bands): "we need more detail still" - a proper rubber joint at the pod / fuselage intersection, rivets in the main lines,
+a wider door (almost the full height), the "clippers", the locks, the opening hinges, a front trap, a trap and aeration
+at the back; reacting to the global livery and taking decals; straps as an option.
+
+**tools/_pod_gen.js** - THREE MATERIAL GROUPS (the Bag keeps its triangles per group; one mesh `edPod` still): 0 the moulding
+(the livery's `pod` section), 1 the stainless, 2 the black rubber. The details (each its own vertices - hard edges; the
+primitives - dome, cylinder, a wire swept with parallel-transported frames, a riveted plate, a panel let into a surface
+with a V-groove shut line - wind outward by construction):
+- THE RUBBER JOINT: a 5.5 mm bead along the whole junction - both walls where they meet the drawn belly, closed across
+  the nose and the tail (it replaces G3468's flange: a moulded pod sits on its seal);
+- THE RIVETS: the main line, a row 2 cm under the joint on each wall every 5 cm (where the wall stands 3 cm or more;
+  clear of the latches' plates);
+- THE DOOR: nearly the wall's full height (from just over the chine's fillet to 4.5 cm under the joint) - the core's door
+  grows with it (60d: 0.80 -> 0.92 of the hold's height; the packer reads it); HINGED AT THE SILL (it drops down, the
+  Airglas way): a piano hinge of knuckles straddling the shut line, its two leaves riveted; TWO PIN LATCHES at its top
+  corners: a riveted plate and a barrel on the door and on the pod over the shut line, a pin down through both with its
+  L-handle, an R-clip (a hairpin, its wavy leg) through the pin's foot; a KEYED LOCK between them (a stainless bezel, a
+  black keyway); all sheared with the floor's slope (its own frame along the sloping sill);
+- THE FRONT TRAP: a panel let into the nose ramp, a screw at each corner (the bolted pods');
+- THE AFT TRAP AND ITS VENT: a panel on the boat-tail with six screws, a round vent in it - a stainless rim, a black
+  throat, five louvres (the strapped Airglas pod's);
+- THE STRAPS (spec.pod.strap = 1 - the editor's new `mounting` row: bolted / strapped; bolted = no key): two stainless
+  bands round the pod's section near the ends of its run, on up the belly 7 cm past the joint to a tensioner each (a
+  block and its bolt), laid 1.5 mm off the drawn skin. Drawn only (60d passes `strap` through; the fittings' mass and
+  the four mounts stand for either).
+~9 800 triangles bolted on the Cub (19 100 on the metal Cessna's longer pod), +1 000 strapped.
+
+**THE LIVERY (src/viewer/aeroskin.js):** the moulding was already the body's (`pod`: parent body, wears parent); it now
+TAKES MARKINGS (AERO_DEC_LAYER gains `pod`; the row's `noDec` - "a registration is not painted across a cargo pod" -
+lifted at the user's ask). The hardware is hardware: AERO_HARD.pod = { steel: 'bareAlu', rubber: 'rubber' } through
+aeroHardMat (never painted, never marked); the snapshot keys those groups on colour + finish (matNames ['pod', '', '']).
+tools/_pod_view.html's test tint now paints the moulding only.
+
+**GATES:** GATE POD H7 - the mesh's groups `pod,,`, 6 draws (three groups, each + its shadow), > 8 000 triangles; the rest
+unchanged and green (@@G70@@).
+
+**THE BOX (A0, GPU):** the markings landing on the pod in the real livery (and whether a registration across it reads
+right - the reason `noDec` was there); the stainless (`bareAlu`) and the rubber under the real lights; FRAMECOST with the
+pod (6 draws now, was 4) after the re-cook.
+
+
 ## A0 - landing L23b (23 Oct 2026, gates 10:00-11:00, pushed ~11:20): THE CABIN AT T0 - LAMPS OFF THE WING, THE WORK LAMP, RUFUS'S FLOOD ON, FEWER MACHINES
 Rolling set (1): cabin-lamp ad3165a48 (GAME G3353-G3355 + RUFUS-CERT G3449 claude/light-switch-state merged in):
 - G3353 cabin-machines: the cabin plot w1 omits the panel saw, the band saw and the surface planer (the user, 22 Oct: "get rid of the large router ... keep only the 2 smaller ones"). The pillar drill and the thicknesser stay; all other clutter stays; no cert bench. hangarFit opts.omit reports the left-out props.

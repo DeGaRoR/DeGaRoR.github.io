@@ -186,12 +186,17 @@ function draw(ctx) {
   // steel (`ctlHinge`); the fallbacks for a page slice with no livery (the node rigs, the material view off)
   const mat = (SM && SM('pod', { surf: 0, fieldM: 1, tint0: 0xd8d4c8 }))
     || new THREE.MeshStandardMaterial({ color: 0xd8d4c8, roughness: 0.5, metalness: 0.05 });
-  const hwMat = (SM && SM('ctlHinge', { surf: 0, tint0: 0xa9b0b8 }))
-    || new THREE.MeshStandardMaterial({ color: 0xa9b0b8, roughness: 0.35, metalness: 0.85 });
-  const two = g.groups.length > 1;
-  const mesh = new THREE.Mesh(g, two ? [mat, hwMat] : mat);
+  // G3470: the hardware is hardware (aeroskin AERO_HARD.pod: the stainless - straps, hinge, latches, rivets, the vent - and
+  // the black rubber - the joint's seal, the traps' screws, the keyway), never paintwork and never marked
+  const A = window.AEROSKIN, hard = (n, tint, fb) => (A && A.aeroHardMat && A.aeroHardMat(THREE, 'pod', n, tint, {})) || fb;
+  const hwMat = hard('steel', 0xc3c8cd, new THREE.MeshStandardMaterial({ color: 0xc3c8cd, roughness: 0.32, metalness: 0.9 }));
+  const rbMat = hard('rubber', 0x1b1c1f, new THREE.MeshStandardMaterial({ color: 0x1b1c1f, roughness: 0.85, metalness: 0 }));
+  const multi = g.groups.length > 1;
+  const mesh = new THREE.Mesh(g, multi ? [mat, hwMat, rbMat] : mat);
   mesh.name = 'edPod';
-  mesh.userData.matNames = two ? ['pod', 'ctlHinge'] : ['pod'];   // the snapshot's bucket keys, one per group (_cage_join.js G66)
+  // the snapshot's bucket keys, one per group (_cage_join.js G66): the moulding is the livery's section `pod`; the
+  // hardware has no section - its buckets key on colour and finish, as every other layer's hardware does
+  mesh.userData.matNames = multi ? ['pod', '', ''] : ['pod'];
   mesh.castShadow = true; mesh.receiveShadow = true;
   group = new THREE.Group();
   group.name = 'cageLayer:pod';
@@ -348,6 +353,16 @@ function render() {
     const s = document.createElement('select'); s.id = 'p_pod_door'; s.style.flex = '1';
     for (const v of ['left', 'right']) { const o = document.createElement('option'); o.value = v; o.textContent = v + ' side'; if ((POD.door || 'left') === v) o.selected = true; s.appendChild(o); }
     s.onchange = () => { POD = Object.assign({}, POD, { door: s.value }); done(); };
+    d.appendChild(ks); d.appendChild(s); body.appendChild(d);
+  }
+  {
+    // G3470: THE MOUNTING - bolted through its rubber joint, or held by two stainless straps round it (the Airglas
+    // strapped pod); drawn only (the fittings' mass and the four mounts stand for either). Bolted = no key in the spec
+    const d = el('div', 'r'); d.dataset.k = 'pod.strap';
+    const ks = el('span', 'k', 'mounting'); ks.title = 'bolted through its rubber joint, or strapped: two stainless bands round the pod and up the fuselage';
+    const s = document.createElement('select'); s.id = 'p_pod_strap'; s.style.flex = '1';
+    for (const [v, t] of [['0', 'bolted'], ['1', 'strapped']]) { const o = document.createElement('option'); o.value = v; o.textContent = t; if (String(+POD.strap ? 1 : 0) === v) o.selected = true; s.appendChild(o); }
+    s.onchange = () => { const P = Object.assign({}, POD); if (s.value === '1') P.strap = 1; else delete P.strap; POD = P; done(); };
     d.appendChild(ks); d.appendChild(s); body.appendChild(d);
   }
   body.appendChild(el('div', 'podG', 'dimensions'));
