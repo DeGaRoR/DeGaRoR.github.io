@@ -4992,8 +4992,7 @@
         brkDetach(pa, geo, base);                          // G1858.2: the snapshot never ridden
         const R = brkRec(own, { nv, idx: geo.index.array }, geo, bD, K.rest, fab, true, inhOn ? SB.INH_K : SB.NEAR_K);
         R.secName = own.name || own.meshName || null;   // (the tear census: which bucket - tools/dmg_wreck_stills.js pageTears)
-        if (lookOn()) { const mt = own.name && model.mats ? model.mats[own.name] : null;   // (G3770: the member pool's paint)
-          if (mt && mt.color != null) { const c = new THREE.Color(mt.color); R.col = [c.r, c.g, c.b]; } }
+        if (lookOn() && geo.attributes.uv && geo.attributes.uv.count === nv) R.uv = geo.attributes.uv.array;   // (G3770: the real tube's uv, for its re-ringed copy)
         R.baseD = bD; R.w = new Float64Array(nv * 3);
         // (G1858.1: its as-built positions - the rig's own rest array, the drawn attribute's content before any pose - and
         // that attribute: a heal puts them back. The cage's pose never rewrites a STATIC bucket (it rides the group matrix),
@@ -5038,7 +5037,7 @@
     if (!inhOn) for (const R of BRK.recs) { if (left <= 0) break; if (R.pending) left -= SB.bindMore(R, K.T, left); }
     const t2 = performance.now();
     SB.nodeFrames(K.NF, K.T, D, K.rest, sim.p, true);
-    if (lookMesh && lookMesh.userData.look.used) DMG_MEMBERS.frame(lookMesh, sim.p, K.NF.q, cg);   // G3770
+    if (LOOK.pools && LOOK.slots) DMG_MEMBERS.frame(LOOK.pools, sim.p, K.NF.q, cg);   // G3770
     const t3 = performance.now();
     const X = { Mi: inv3(xA, yU), B: basis(xA, yU), cg, o, w: null, n: null, nB: null };
     BRK.X = X;
@@ -5192,33 +5191,52 @@
   try { if (/[?&]dmglook=1(&|$)/.test(location.search || '')) window.FLYDIY_DMGLOOK = true; } catch (e) {}
   const lookOn = () => window.FLYDIY_DMGLOOK === true && typeof DMG_MEMBERS !== 'undefined' && !!window.SKIN_BREAK;
   if (lookOn()) SKIN_BREAK.OPT.looks = true;
-  let lookMesh = null;
-  const LOOK = { P: null, vB: -1, M: null, mFor: null, plans: 0, ms: 0, msMax: 0, mMs: 0, slots: 0 };
+  const LOOK = { P: null, vB: -1, M: null, mFor: null, plans: 0, ms: 0, msMax: 0, mMs: 0, slots: 0, pools: null, poolsFor: null, lateLink: 0 };
+  // THE POOLS, one a tube bucket (its section a tube or a wood frame - skin_break.js inhClass), its OWN material cloned
+  // (dmg_members.js make): made with the model and parked in the world before its compile (worldSettle). A model made
+  // after the world's settle gets them at its first look - a late link, counted (LOOK.lateLink)
+  function lookPools(late) {
+    if (!lookOn() || !model || !model.wreckBuild || LOOK.poolsFor === model) return LOOK.pools;
+    if (LOOK.pools) for (const pm of LOOK.pools.values()) { scene.remove(pm); pm.geometry.dispose(); pm.material.dispose(); pm.userData.look.tex.dispose(); }
+    const B = model.wreckBuild, pools = new Map(), byMat = new Map();
+    for (const key in B.meshes0) {
+      const mt = model.mats && model.mats[key], sec = mt && mt.sec, role = sec && typeof AEROSKIN !== 'undefined' ? (AEROSKIN.AERO_ROLE[sec] || '') : '';
+      if (!sec || SKIN_BREAK.inhClass(sec, role, '') !== SKIN_BREAK.INH.tube) continue;
+      const src = B.meshes0[key].material; if (!src || Array.isArray(src)) continue;
+      let pm = byMat.get(src);   // (buckets on one material share its pool)
+      if (!pm) { pm = DMG_MEMBERS.make(THREE, src); scene.add(pm); if (renderer.initTexture) renderer.initTexture(pm.userData.look.tex); byMat.set(src, pm); }
+      pools.set(key, pm);
+    }
+    LOOK.pools = pools; LOOK.poolsFor = model; LOOK.M = null; LOOK.mFor = null; if (late && pools.size) LOOK.lateLink++;
+    return pools;
+  }
   function brkLook(D, K, groups) {
     if (!lookOn()) return;
+    const pools = lookPools(true);
     // the snapshot's members, measured once its binding is done (the records' R.mem: skin_break.js inhSteps)
-    if (K.inhL && K.inhSt && K.inhSt.done && LOOK.mFor !== K.inhL) {
-      const t0 = performance.now(); LOOK.M = DMG_MEMBERS.measure(K.inhL.map(E => E.R), K.T, K.rest); LOOK.mFor = K.inhL; LOOK.vB = -1;
+    if (pools && K.inhL && K.inhSt && K.inhSt.done && LOOK.mFor !== K.inhL) {
+      const t0 = performance.now(); LOOK.M = DMG_MEMBERS.measure(K.inhL.map(E => E.R), K.T, K.rest, new Set(pools.keys())); LOOK.mFor = K.inhL; LOOK.vB = -1;
       LOOK.mMs = performance.now() - t0; }
     if (LOOK.vB === D.vB) return;
     const t0 = performance.now(), M = LOOK.mFor === K.inhL ? LOOK.M : null;
     LOOK.P = DMG_MEMBERS.plan(K.T, D, M, K.rest, LOOK.P); LOOK.vB = D.vB; LOOK.plans++;
     for (const [own] of groups) if (own.brkR) own.brkR.look = LOOK.P;
-    LOOK.slots = lookMesh && M ? DMG_MEMBERS.assign(lookMesh, LOOK.P, M, K.T, K.rest) : 0;
+    LOOK.slots = pools && M ? DMG_MEMBERS.assign(pools, LOOK.P, M, K.T, K.rest) : 0;
     const ms = performance.now() - t0; LOOK.ms += ms; if (ms > LOOK.msMax) LOOK.msMax = ms;
   }
   function brkLookClear() {
-    if (lookMesh) DMG_MEMBERS.clear(lookMesh);
+    if (LOOK.pools && LOOK.slots) { DMG_MEMBERS.clear(LOOK.pools); LOOK.slots = 0; }
     if (!LOOK.P && LOOK.vB === -1) return;
     LOOK.P = null; LOOK.vB = -1;
     const K = model && model.brk; for (const R of (K && K.allRecs) || BRK.recs) R.look = null;
   }
   // the coordinator's read (GATE DMGLOOK's page rows, the stills rig)
-  window.FLYDIY_DMGLOOK_STATS = () => ({ on: lookOn(), parked: !!lookMesh, visible: !!(lookMesh && lookMesh.visible), slots: LOOK.slots, plans: LOOK.plans,
-    planMs: +LOOK.ms.toFixed(2), planMsMax: +LOOK.msMax.toFixed(2), measureMs: +LOOK.mMs.toFixed(2), measured: !!LOOK.M,
-    frames: lookMesh ? lookMesh.userData.look.frames : 0, frameMsMax: lookMesh ? +lookMesh.userData.look.msMax.toFixed(3) : 0,
+  window.FLYDIY_DMGLOOK_STATS = () => { const PL = LOOK.pools ? [...new Set(LOOK.pools.values())] : [];
+    return { on: lookOn(), pools: PL.length, buckets: LOOK.pools ? [...LOOK.pools.keys()] : [], lateLink: LOOK.lateLink, visible: PL.filter(pm => pm.visible).length, slots: LOOK.slots, plans: LOOK.plans,
+    planMs: +LOOK.ms.toFixed(2), planMsMax: +LOOK.msMax.toFixed(2), measureMs: +LOOK.mMs.toFixed(2), measured: !!LOOK.M, drawn: LOOK.M ? LOOK.M.drawn.reduce((a, x) => a + x, 0) : 0,
+    frames: PL.reduce((a, pm) => a + pm.userData.look.frames, 0), frameMsMax: +Math.max(0, ...PL.map(pm => pm.userData.look.msMax)).toFixed(3),
     modes: LOOK.P ? LOOK.P.slots.reduce((o, q) => (o[q.mode] = (o[q.mode] || 0) + 1, o), {}) : null,
-    parts: LOOK.P ? (() => { let w = 0, u = 0, s = 0; for (const x of LOOK.P.part) { if (x !== x) continue; if (x < 0) u++; else if (x === 0 || x === 1) w++; else s++; } return { whole: w, unparted: u, station: s }; })() : null });
+    parts: LOOK.P ? (() => { let w = 0, u = 0, s = 0; for (const x of LOOK.P.part) { if (x !== x) continue; if (x < 0) u++; else if (x === 0 || x === 1) w++; else s++; } return { whole: w, unparted: u, station: s }; })() : null }; };
   const WALL_ROLES = new Set(['liner', 'fire', 'sill', 'doorPad']);
   try { if (/[?&]skinwall=0(&|$)/.test(location.search || '')) window.FLYDIY_SKINWALL = false; } catch (e) {}
   window.FLYDIY_SKINWALL_STATS = () => { const L = BRK.recs.filter(R => R.wallIn), K = model && model.brk;
@@ -12553,9 +12571,8 @@
         contactMesh = CONTACT_SHADOW.make(THREE); scene.add(contactMesh); }
       // G2359 (DMG-SCAR): the scar's decal, parked in the world before its compile (its program linked with the world's)
       if (!scarMesh && typeof GROUND_SCAR !== 'undefined' && scarPageOn()) { scarMesh = GROUND_SCAR.make(THREE); scene.add(scarMesh); }
-      // G3770 (DMG-LOOKS): the member pool, parked likewise (?dmglook=1 only)
-      if (!lookMesh && lookOn() && scarPageOn()) { lookMesh = DMG_MEMBERS.make(THREE); scene.add(lookMesh);
-        if (renderer.initTexture) renderer.initTexture(lookMesh.userData.look.tex); }   // (its slot texture allocated now, not at the crash)
+      // G3770 (DMG-LOOKS): the model's tube pools, parked likewise (?dmglook=1 only; their slot textures allocated now)
+      if (scarPageOn()) lookPools(false);
     } catch (e) { console.warn('world settle:', e && e.message); }
     finally { camera.position.copy(keep); }
   }
