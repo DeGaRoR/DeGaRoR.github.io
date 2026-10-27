@@ -99168,3 +99168,32 @@ is behind the aft bulkhead ... Try all ... and benchmark."
   FRAMECOST per variant (chase + cockpit, FRAMECOST_QUERY=eyelod=N); Tue 13:00-13:45 GPU s27-g7w parked cook + GPU gates
   + GARAGE-LAG per variant. Then the table + stills to A0, the user picks, the shipping wiring, its own gates.
 - STATE: 77da883b8, node --check only - NOTHING RUN YET (no box before 01:55). NOT READY.
+
+## G3714-G3716 - COWL-RES: THE 01:55 STILLS, THE FACIA, THE SWAP, THE PROBE (2026-10-27, COWL-RES for A0)
+- THE STILLS (s27-g1w, 01:55-02:03): THE USER'S VIEW (C172 seated, ahead) - v0 and v1 alike (the kinked arch, a doubled
+  ridge line by the compass: the cowl's detail does nothing there, the arch is the deck); v2 = v3 = v4: one smooth arch
+  (deck facet angle p50 3.3 -> 0.8 deg, edge 14 -> 7 cm). v2 OUT: its region border runs through the Cessna's door (an
+  extra dark line outside; the node rig's open-border length moved on every build for v2 only). Candidates v3 / v4.
+  Tris C172 66.7k -> v4 105.9k / v3 136.8k; eye sheet 270-460 ms (Cub 110-140). A0 02:10: v1 and v2 dropped from the
+  slots, the reps to v0 / v3 / v4.
+- G3714 cageEyeFacia(eye, m2) (_cage_gen.js): the Cub's dial faces and plate vanished in v2-v4 (bezels left). The third
+  level SLIDES the facia toward the pilot (every facia vertex by one amount: Cub 8.7 mm, Cessna 3.8, Jodel / Rufus 0)
+  and the instruments stand on the level-2 facia (the panel layer reads `s`). One shift back along the plate's normal,
+  the median gap of the vertices over the level-2 plate (a per-vertex projection clamped the bowed foot 34 mm wrong).
+- G3715 THE SWAP (_cage_ui.js): every whole build draws the level-2 sheet; the eye sheet (variant 2-4) is a second mesh
+  of the build, made when first wanted - the garage's INTERIOR view (seen, not told: eyeWatch, the camera within 0.5 m
+  of CAGE_CREW_EYE, one distance a frame while a variant is on - app.js untouched, its ~80 gates not owed) swaps it in
+  (the scene slot kept, the slots by section from the mesh that stood, the glass companion again), the exit swaps the
+  level-2 mesh back; the first entry builds behind the `progress` cursor, two frames after the view moved. The flight's
+  capture holds it (_cage_join snapshot / snapshotSteps -> CAGE_UI.eyeHold): cockpit and chase fly the eye sheet. A drag
+  tick swaps back to level 2 (the previews move its own vertices); the settle (whole build, release) brings it back.
+  CAGE_UI.eyeView / eyeHold / eyeStats / eyeStanding. The cowl's detail 2 is variant 1's only now (the cowl is drawn in
+  every view; the user: no smoothing outside). Default variant 0 = master until the user picks.
+- G3716 tools/cowl_res_probe.js (GPU): per build and variant (interleaved, v0 the floor) the exterior tris (level 2
+  always), the first entry (build ms, swap ms, the longest rAF frame of 2.5 s, the cockpit tris), --toggles exits and
+  entries (swap ms, longest frame); NOT CLEAN when a swap is wrong or the exterior has the eye sheet.
+- SLOTS (re-armed 03:2x, one waiter each): 06:30 rebase on origin/master; 07:45 s27-c4c build + 49 CPU gates (+ the
+  _cage_join readers ARCHETYPES ENGID PANEL WATER WINGROWS INPUT); 13:00 s27-g7w real parked cook + --check same, GPU
+  gates, FRAMECOST v0/v3/v4 chase + cockpit; 15:45 s27-g8 build + real cook + --check, master_bench taxi chase/cockpit
+  cub + metal v0/v3/v4 x3 rounds, the probe, garage_lag --cam interior v0/v3/v4.
+- STATE: 0cafb164a (facia) + 21fbdcbc8 (swap + probe), node --check only. NOT READY: the gates, the probe, the table.
