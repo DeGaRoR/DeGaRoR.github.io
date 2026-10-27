@@ -99246,3 +99246,26 @@ should keep that rotation. ... did you try modifying the tail wheel for better t
   6. **The DC-3's landing** (master's autopilot, T-P1): it bounces 1.0-1.2 m off a 2.3-2.5 m/s touch at 34 m/s and goes round twice
      before the committed third landing (4.35 m/s on its second touch, held). The trip completes; the pilot's flare for a heavy
      taildragger is the pilot's lot (P1), not this branch's.
+
+### DC3-2 SPLIT FOR A0 (27 Oct, train check: "claude/ready/dc3-2 ab6a84914 ALONE adds +183 draws.main at HOME's stand and +232 at the taxi")
+claude/ready/dc3-2 is now the CODE (+ HOME's stand heading, -0.8552: island_jolene.json's HOME stand row and its manifest patch);
+the three parked aeroplanes' moves (o3 / af_park1 / af_park2, their premises cook, the fleet-spot pack) are claude/ready/dc3-2-scenery,
+one commit on top of it (the two share the manifest's fieldPatchesWhy line and the generated fleet pack: stacked, they never conflict;
+the scenery's own cost is that one commit's delta). GATE FRAMECOST's census (tools/_framecost_check.js --census cub, the cloud box),
+draws.main stand / taxi, every tree on L25b 61e93cb1 (A0's base read ~1 054 / 907, mine 708 / 760: compare within a column only):
+| tree | stand | taxi | renders (stand) |
+|---|---|---|---|
+| L25b | 708 | 760 | 16 |
+| L25b + the parked moves ONLY (scenery) | 705 (-3) | 760 (0) | 16 |
+| ab6a84914's CODE, L25b's scenery (stand hdg null) | 846 (+138) | 1 077 (+317) | 16 |
+| code + the parked moves (hdg null) | 1 044 | 904 | 16 |
+| code + the stand heading (= this ready) | 1 252 | 1 258 | 22 |
+| ab6a84914 (all) | 1 237 | 1 139 | 22 |
+- **THE PARKED MOVES COST NOTHING** (-3 / 0): the scenery ready is free to go.
+- **THE STAND HEADING** (the view out of the door) adds renders (16 -> 22 at the stand: the LIVE water mirror's capture - the
+  allow list's own G-note: the recording GL answers no occlusion query, so water seen is captured every frame) and draws.
+- **THE CODE ALONE** reads +138 / +317 - but nothing in it draws the world (60_gen_spec, 61_gen_frame, _cage_crew / gen / join /
+  page5 / parts / ui: the garage's editor and the frame; the aeroplane's own draws `craft` 76 in every tree) and the trees do not
+  add up (the taxi pin is the SAME pose in all six, 263.5 / 727.6): the census's virtual clock (performance.now() 10 us a call)
+  moves with the boot's own JS, so how much of the world has STREAMED IN by the measured frames moves with it. A longer warm
+  census (steady state) is the test of whether any of it is per-frame cost; owed next (DC3-2).

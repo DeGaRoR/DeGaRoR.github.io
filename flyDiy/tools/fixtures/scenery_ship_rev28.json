@@ -94,18 +94,18 @@
    ]
   },
   "o3": {
-   "x": -170,
-   "z": 621,
+   "x": -57,
+   "z": 642,
    "yaw": -1.637
   },
   "af_park1": {
-   "x": -166,
-   "z": 593,
+   "x": -75,
+   "z": 644,
    "yaw": -1.637
   },
   "af_park2": {
-   "x": -170,
-   "z": 607,
+   "x": -95,
+   "z": 639,
    "yaw": -1.637
   },
   "w3": {
@@ -146,5 +146,5 @@
    }
   }
  },
- "fieldPatchesWhy": "(t53, 13 Oct: taxiOut1 ends where r_taxi_e's own line meets 13/31's centreline - (175.8, 635.49) - its 16 m dogleg onto the strip was a 1.9 m corner under the 6 m TAXICLEAR 3 holds) SCENERY-ED-1 G2890 (A0 13 Oct ~01:20 'GO'): HOME's main hangar beside the user's long club hangar, its stand, and the two taxi-outs rerouted over rev 28's y_pad and r_taxi_ne / r_taxi_e (r_airport / r_strip are gone); applied after the ship - a re-ship must apply it again; the user's import with the same patch: D:/Dev/flydiy-notes/inbox/jolene_rev28d_home_hangar.json. plots HOME.2 unchanged (pending the user); + plots (ED-1, A0's (a), 13 Oct ~02:15): HOME.2 keeps its shed position and heading and loses its own stand + taxiOut - two of its points ((-130,705), (-138,690)) lay inside the new main hangar; runwaySite serves it the field's new stand / route. The user's import: D:/Dev/flydiy-notes/inbox/jolene_rev28e_home_hangar.json (supersedes rev28d); + the three parked aeroplanes o3 / af_park1 / af_park2 moved onto the pad (t_pad's flatten), keys kept (SCENERY-ED-1, 13 Oct ~15:00: the user's rev 28 note 'the aircraft collection must be redone'; rev 28's y_pad no longer reached them - GATE PARKED 7) - in a row, noses to the eastbound route G3240 NAMES (22 Oct, GAME-PLAN §13, the user: 'Everything should have a fictional name'): w3, SEA, mn_strip, s_strip, mn_s_mine, nv_grounds take their fictional names (src/core/01_names.js; the record renamed without a rev bump) - the save keeps the user's old ones. + mn_y_stand (LOT-CLEAR, the user 22 Oct at the old mine: 'a surface for the starting zone ... the starting zone itself has no pavement'): the mine strip's stand drawn gravel like its lane (band 2) - shipped as the v1 material mn_y_stand_d beside the save's surface; applied after the ship - a re-ship must apply it again + DC3-2 G3574 (the user, 25 Oct: 'Push back obstacles for real so the dc3 fits everywhere ... Only home taxi should been cleaned ... it should be able to complete a circuit including taxi from and to the hangar without hitting anything'): o3 / af_park1 / af_park2 moved again, off the row north of r_taxi_e (the DC-3's 100 deg right turn out of the works stand swept its wing through af_park2) (its swept wings, flown: x -112..0, z 620..690) to the pad's west pocket beyond r_taxi_ne, by the fire bay - a staggered row, noses east at the user's own heading (-1.637), keys kept: the DC-3's wingtip 10.7 m off them on the way out for 13, 58 m on the way out for 31; NOT on af_y_park, whose painted stands are the player's fleet spots (GATE TAXICLEAR 10); applied after the ship - a re-ship must apply it again + DC3-2 G3574 (the user, 25 Oct: 'it does not even line up with the garage ... as it rolls out and should keep that rotation'): HOME's stand heading -0.8552 = the hangar's own (the stand stands on the door's axis, 30.4 m out); null had derived it toward taxiOut's first point (-1.8656), 58 deg left of the door - every aeroplane rolled out straight and was set down turned"
+ "fieldPatchesWhy": "(t53, 13 Oct: taxiOut1 ends where r_taxi_e's own line meets 13/31's centreline - (175.8, 635.49) - its 16 m dogleg onto the strip was a 1.9 m corner under the 6 m TAXICLEAR 3 holds) SCENERY-ED-1 G2890 (A0 13 Oct ~01:20 'GO'): HOME's main hangar beside the user's long club hangar, its stand, and the two taxi-outs rerouted over rev 28's y_pad and r_taxi_ne / r_taxi_e (r_airport / r_strip are gone); applied after the ship - a re-ship must apply it again; the user's import with the same patch: D:/Dev/flydiy-notes/inbox/jolene_rev28d_home_hangar.json. plots HOME.2 unchanged (pending the user); + plots (ED-1, A0's (a), 13 Oct ~02:15): HOME.2 keeps its shed position and heading and loses its own stand + taxiOut - two of its points ((-130,705), (-138,690)) lay inside the new main hangar; runwaySite serves it the field's new stand / route. The user's import: D:/Dev/flydiy-notes/inbox/jolene_rev28e_home_hangar.json (supersedes rev28d); + the three parked aeroplanes o3 / af_park1 / af_park2 moved onto the pad (t_pad's flatten), keys kept (SCENERY-ED-1, 13 Oct ~15:00: the user's rev 28 note 'the aircraft collection must be redone'; rev 28's y_pad no longer reached them - GATE PARKED 7) - in a row, noses to the eastbound route G3240 NAMES (22 Oct, GAME-PLAN §13, the user: 'Everything should have a fictional name'): w3, SEA, mn_strip, s_strip, mn_s_mine, nv_grounds take their fictional names (src/core/01_names.js; the record renamed without a rev bump) - the save keeps the user's old ones. + mn_y_stand (LOT-CLEAR, the user 22 Oct at the old mine: 'a surface for the starting zone ... the starting zone itself has no pavement'): the mine strip's stand drawn gravel like its lane (band 2) - shipped as the v1 material mn_y_stand_d beside the save's surface; applied after the ship - a re-ship must apply it again + DC3-2 G3574 (the user, 25 Oct: 'it does not even line up with the garage ... as it rolls out and should keep that rotation'): HOME's stand heading -0.8552 = the hangar's own (the stand stands on the door's axis, 30.4 m out); null had derived it toward taxiOut's first point (-1.8656), 58 deg left of the door - every aeroplane rolled out straight and was set down turned"
 }
