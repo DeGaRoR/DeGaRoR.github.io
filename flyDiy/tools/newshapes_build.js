@@ -26,6 +26,8 @@ const REAL = {
     span: 9.80, length: 7.54, Sw: 27.6, empty: 878, mtow: 1232, VsKt: [44, 48], VmaxKt: 108, climbMs: [4.1, 4.3] },
   tigermoth: { name: 'de Havilland DH.82A Tiger Moth (DH Gipsy Major I, 130 hp)',
     span: 8.94, length: 7.29, Sw: 22.2, empty: [495, 506], mtow: 828, VsKt: 37, VmaxKt: [90, 95], climbMs: [3.4, 4.1] },
+  camel: { name: 'Sopwith Camel F.1 (Clerget 9B rotary, 130 hp)',
+    span: 8.53, length: 5.71, Sw: 21.46, empty: [403, 434], mtow: 660, VsKt: null, VmaxKt: 98, climbMs: [4.6, 4.9] },
 };
 
 // ---- THE ROWS ARE THE CARDS' (G3517) -------------------------------------------------------------------------------
@@ -42,7 +44,7 @@ function birth(key) {
   const a = D.ARCHETYPES.find(x => x.key === key);
   const spec = D.designBake(a.sel, a.over);
   spec.cage = Object.assign({}, spec.cage, FLY, JSON.parse(opt('over', '{}')));
-  return { v: spec.v, name: a.name.replace('-alike', '') + ' (round body, open cockpits)',
+  return { v: spec.v, birth: 1, name: a.name.replace('-alike', '') + (key === 'camel' ? ' (round body, open cockpit)' : ' (round body, open cockpits)'),
     what: 'NEW-SHAPES-1 G3510-G3519 - ' + REAL[key].name + ' through the garage\'s own path (tools/newshapes_build.js)', spec };
 }
 

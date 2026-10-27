@@ -76,6 +76,8 @@ const LEG_ROWS = {
     ['linkSpread', 'V base', 0.10, 1.00, 0.01],
     ['linkX', 'crossed struts (Cub X)', 0, 1, 1],
     ['linkPanel', 'V panel', 0, 1, 1],
+    // NEW-SHAPES-1: the old fixed gear's cross axle - one bar wheel to wheel, the bungee at the V's apex, no strut
+    ['linkAxle', 'cross axle (one bar)', 0, 1, 1],
     ['shockKind', 'shock', 0, 2, 1, ['coil-over', 'bungee', 'rubber stack']],
     ['shockAt', 'shock on arm', 0.15, 0.95, 0.01],
     ['shockZ', 'shock top z', -0.6, 1.0, 0.01],

@@ -1917,7 +1917,9 @@ const ARCHETYPES = [
                     aftRoofY: 0.56, aftKeelY: -0.60, taperW: 0.92,   // (the class's 0.78 pinched the plan aft of the rear cockpit)
                     pilotLen: 0.95, paxLen: 1.00, s1Drop: 0.46,      // (a prop clearance of 0.25 m: FAR 23.925 0.229)
                     aeroWsLen: 1.45, aeroLen: 0.95, aeroTipW: 0.55, aeroTipH: 0.60, aeroDroop: 0.10 },
-            spec: { fuel: { litres: 87 } } } },       // 19 imp gal, the centre-section tank
+            // the registration on the rear fuselage's side, clear of the cockpits (the user, 27 Oct)
+            spec: { fuel: { litres: 87 },
+                    finish: { decals: { regL: 4.00, regC: 0.04, regH: 0.24 } } } } },       // 19 imp gal, the centre-section tank
   // PERF STUDY chantier 0 (2026-09-15): the PT-17's engine is the 220 hp
   // W-670 (a row since G195), not the 450 hp R-985 the card flew (ROC
   // +156 %, V75 +35 % against the type - the engine, not the airframe)
@@ -1951,7 +1953,47 @@ const ARCHETYPES = [
                     // rollout braking nosed it over (a prop strike at 314 s); 2.30 gives 17 deg (the Moth's 15)
                     s1Z: 2.30,
                     aeroWsLen: 1.85, aeroLen: 0.55, aeroTipW: 0.92, aeroTipH: 0.86, aeroDroop: 0.0 },
-            spec: { fuel: { litres: 174 }, prop: { D: 2.5, blades: 2 } } } },      // 46 US gal in the upper centre section
+            // the registration on the rear fuselage's side, clear of the cockpits (the user, 27 Oct: "get them out
+            // of the cockpit area"): the default 2.10 m aft of the round body's forward datum lands on the cockpits
+            spec: { fuel: { litres: 174 }, prop: { D: 2.5, blades: 2 },
+                    finish: { decals: { regL: 4.40, regC: 0.05, regH: 0.26 } } } } },      // 46 US gal in the upper centre section
+  // NEW-SHAPES-1 (the user, 27 Oct: "the stearman and the moth are very similar, can you try a sopwith camel as a
+  // third proof? And be careful on matching the actual dimensions as best you could? Don't care about fitting a
+  // cowl"): the Sopwith Camel F.1 - the round body, ONE open cockpit under the upper plane's cut-out, two equal
+  // 8.53 x 1.37 m planes 1.52 m apart, the upper flat, the lower at 5 deg and 0.46 m aft, four ailerons, a rotary up
+  // front (the catalogue's nearest: the 9-cylinder Rotec R3600, 150 hp / 102 kg against the Clerget 9B's 130 hp /
+  // ~173 kg). Dimensions: HANDOVER's NEW-SHAPES-1 Camel table, with its sources.
+  { key: 'camel', kind: 'recreation', name: 'Camel-alike', note: 'rotary scout biplane, ' +
+      'equal planes, flat upper with a cut-out, lower dihedral, one open cockpit, round body',
+    sel: { class: 'eab', role: 'touring', seatLayout: 0, paxCount: 0,
+           canopy: 'screen', mirror: 0, intCons: 2,      // wood: the spruce and ash box girder
+           boomStyle: 0, section: 1,
+           wgPos: 3, wgBrace: 1, wgTip: 2, wgFlapType: 0, planes: 'biplane',
+           engFamily: 'radial', engModel: 'Rotec R3600', engMount: 'nose', prop: 'wood2',
+           gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
+           finArch: 'rounded', empennage: 'conv', scheme: 'trim', base: 0x3d5c40, trim: 0xf4f2ea },   // PC10 khaki over clear-doped linen
+    over: { cage: { wgSpan: 8.53, wgChord: 1.37, wgChordTip: 1.37, wgTipX: 0, wgDihedral: 0,
+                    wgDx: 0.30, wgParaH: 0.70, cw_propD: 2.59,      // the 8 ft 6 in wooden propeller
+                    w2Span: 8.53, w2Chord: 1.37, w2ChordTip: 1.37, w2Dihedral: 5,
+                    w2Pos: 2, w2Stagger: 0.457, wgAilOn: 1, w2AilOn: 1,
+                    bpInter: 0, bpWires: 1, bpCabane: 0,
+                    ...OPEN_TANDEM, paxCount: 0, paxOpen1: 0, pilotRear: 0,
+                    halfW: 0.50, roofHalfW: 0.40, roofY: 0.62, keelY: -0.55, waistY: 0.22, floorY: -0.30,
+                    aftRoofY: 0.58, aftKeelY: -0.50, taperW: 0.90, boomMidPinch: 1.0,
+                    pilotLen: 1.00, s1Drop: 0.85, s1Z: 2.00, boomLen: 3.05,   // short-coupled: 5.71 m overall
+                    // the user's review of the first cut (27 Oct, with photographs of F6034 and B6313): the cockpit further
+                    // fore (the deck ahead of it shorter, the boom longer by as much: the length holds)
+                    aeroWsLen: 0.50, aeroLen: 0.45, aeroTipW: 0.90, aeroTipH: 0.86, aeroDroop: 0.0,
+                    // the upper centre section NOT cut
+                    wgCentre: 0,
+                    // the tail: no dorsal running to the rudder, a small fin and a big D rudder, a much smaller tailplane
+                    finDorsal: 0, finChordTip: 0.75, finHinge: 0.30,     // (the sizes: spec.tail below, the seed scales the drawn tail to them)
+                    // the old fixed gear: big thin wheels (700 x 75 mm, covered) on a V each side and one cross axle,
+                    // bungee at the apexes
+                    s1R: 0.35, whProfile: 2, whBulge: 0.85, whRim: 0, whCap: 2,
+                    s1Leg: 1, s1_linkVee: 1, s1_linkX: 0, s1_linkPanel: 0, s1_linkAxle: 1, s1_shockKind: 1 },
+            // the tail's areas (fin 0.28 + rudder 0.455 m2, tailplane 1.30 + elevators 0.98 m2 - HANDOVER's Camel table): the tail seed sizes the drawn tail to these, not to the class's volume rule
+            spec: { fuel: { litres: 136 }, tail: { Sh: 2.28, Sv: 0.74 } } } },
   { key: 'pittsAlike', kind: 'fiction', name: 'aerobatic biplane', note: 'short-span four-aileron ' +
       'biplane on I struts and wires, spring gear, flat six',
     sel: { class: 'eab', role: 'touring', seatLayout: 0, paxCount: 0,

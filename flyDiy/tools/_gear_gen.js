@@ -1361,6 +1361,23 @@ function legLink(bags, AF, P, st, sgn) {
           16, true);
   const pivot = vee ? lerp3(pF, pR, 0.5) : feet[0][0];
   const F = FF;
+  // THE CROSS AXLE (NEW-SHAPES-1, the user, 27 Oct: "old, fixed suspensions ... linked with a bar between the
+  // wheels"): the Camel's, the Tiger Moth's - a V each side to the axle, and ONE straight axle across from wheel to
+  // wheel, its bungee lashed at the V's apex (no separate shock strut). Drawn by the starboard side once; the
+  // physics is the bungee's, as before. `linkAxle` absent = today's split axle and its strut.
+  if (P.linkAxle && !cen) {
+    if (sgn > 0) {
+      const far = [-axleIn[0], axleIn[1], axleIn[2]];
+      sweep(bags.steel, resample([axleIn, far], 12), () => secRound(0.019, 14), true);
+    }
+    // the lashing at the apex: a few turns of cord round the axle inside the V
+    for (let k = 0; k < 5; k++)
+      revolve(bags.dark, off(axleIn, [sgn, 0, 0], -0.040 - k * 0.012), [sgn, 0, 0],
+              [[0.021, 0], [0.027, 0.003], [0.027, 0.009], [0.021, 0.012]], 14, true);
+    const axisX = [sgn, 0, 0];
+    axleStub(bags, axleIn, axisX, hubIn);
+    return { axle, axis: axisX, root: FF.p, travel: nrm(crs(pax, sub(axle, pivot))) };
+  }
   // THE SHOCK: from a second fitting up on the body down to the arm.
   // THE CUB'S CROSSED SHOCK STRUTS (user ask). On a J-3 the two shock
   // struts run up and INBOARD past the centreline, so head-on the gear

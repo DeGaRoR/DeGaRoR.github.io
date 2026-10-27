@@ -1373,6 +1373,13 @@
    "gloss": 0.42,
    "regX": 0.3
   },
+  "finish": {
+   "decals": {
+    "regL": 4,
+    "regC": 0.04,
+    "regH": 0.24
+   }
+  },
   "energy": {
    "vessels": [
     {
@@ -1472,7 +1479,6 @@
    "hInc": 0,
    "finMaterial": null,
    "stabMaterial": null
-  },
-  "finish": null
+  }
  }
 }

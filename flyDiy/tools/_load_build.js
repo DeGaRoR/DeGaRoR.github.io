@@ -75,7 +75,9 @@ function rawOf(x, patch) {
   return j;
 }
 function gameSpecFull(rawIn) {
-  const raw = (rawIn && rawIn.spec && typeof rawIn.spec === 'object') ? rawIn.spec : rawIn;
+  const raw0 = (rawIn && rawIn.spec && typeof rawIn.spec === 'object') ? rawIn.spec : rawIn;
+  // a BIRTH envelope (`birth`) rides to the child as a marker the child strips before anything reads the spec
+  const raw = rawIn && rawIn.birth ? Object.assign({ __birth: 1 }, raw0) : raw0;
   const key = crypto.createHash('sha1').update(chainSig()).update(JSON.stringify(raw)).update(process.env.FLYDIY_JOIN_PROBE || '').digest('hex');
   const cf = path.join(CACHE_DIR, key + '.json');
   if (process.env.FLYDIY_JOIN_NOCACHE !== '1') {
@@ -113,6 +115,7 @@ module.exports = { VALIDATED, loadBuild, loadValidated, gameSpec, gameSpecFull, 
 if (require.main === module && process.argv.includes('--child')) (async () => {
   const vm = require('vm'), zlib = require('zlib');
   const raw = JSON.parse(fs.readFileSync(0, 'utf8'));
+  const BIRTH = !!raw.__birth; delete raw.__birth;
   const SH = require(path.join(T, '_scene_headless.js'));
   // the layers the game draws and the harness leaves out by default: the tanks (and the bay and vessel kits they
   // stand on), the crew (whose feet a nose tank meets) and its characters, the instrument panel (its fit is a row)
@@ -163,6 +166,9 @@ if (require.main === module && process.argv.includes('--child')) (async () => {
   //    seeded from the spec, one build of every layer
   const PAGE = W.CAGE_PAGE || (W.CAGE_PAGE = {});
   if (PAGE.load) try { PAGE.load(); } catch (e) {}
+  // A BIRTH (the design flow's door, src/viewer/design_flow.js): the cowl layer is asked ONCE to fit the engine, as the
+  // game asks for a card just born - a radial or a turbine takes its styled cowl. A saved build is never asked.
+  if (BIRTH && W.CAGE_COWL_FIT_NEXT) W.CAGE_COWL_FIT_NEXT();
   if (W.CAGE_ENERGY && W.CAGE_ENERGY.fromSpec) W.CAGE_ENERGY.fromSpec(spec.energy);
   if (W.CAGE_PANEL && W.CAGE_PANEL.fromSpec) W.CAGE_PANEL.fromSpec(spec.systems);
   // THE FLOWN AEROPLANE'S CG, model frame (app.js publishes it as FLYDIY_CG_MODEL whenever it builds the aeroplane,
