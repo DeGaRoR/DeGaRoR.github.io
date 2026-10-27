@@ -37,7 +37,9 @@ function stagePage(o) {
   // aeroplane hidden; the cover ring is off by ?cover=0). The first runs' wrecks fell into the island's trees.
   if (world.treeHits && world.treeHits.keys) for (const k of world.treeHits.keys()) if (k !== 'fill:looks') world.treeHits.drop(k);
   { const craft = P.craft(), under = o => { for (let q = o; q; q = q.parent) if (q === craft) return true; return false; }; let hid = 0;
-    craft.parent.traverse(m => { if (m.isInstancedMesh && m.visible && !under(m)) { m.visible = false; hid++; } }); window.__lkHid = hid; }
+    craft.parent.traverse(m => { if (m.isInstancedMesh && m.visible && !under(m)) { m.visible = false; hid++; } }); window.__lkHid = hid;
+    // the near trees hang under the 'treeRungs' group, re-parented at every refresh (render_world.js showRung): the group off
+    const R = craft.parent.getObjectByName('treeRungs'); if (R) R.visible = false; window.__lkRungs = !!R; }
   sim.reset(0);
   placeAtAerodrome(sim, strip);
   const n = sim.n, p = sim.p, v = sim.v, fx = Math.cos(strip.hdg), fz = Math.sin(strip.hdg);
@@ -67,7 +69,7 @@ function stagePage(o) {
   const xs = [], ys = [], zs = []; for (let i = 0; i < n; i++) { xs.push(p[i*3]); ys.push(p[i*3+1]); zs.push(p[i*3+2]); }
   const lo = [q(xs, 0.1), q(ys, 0.1), q(zs, 0.1)], hi = [q(xs, 0.9), q(ys, 0.9), q(zs, 0.9)];
   const centre = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2], radius = Math.max(2.5, 0.5 * Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]));
-  return { centre, radius, hdg: strip.hdg, at: AT, stripLen: SL, hiddenVeg: window.__lkHid, ms: Math.round(performance.now() - t0), steps: s, atRest: calm > 60, crashed: D.crashed, reason: D.reason, broken: D.broken.length, cg: sim.cgPos().map(x => +x.toFixed(2)) };
+  return { centre, radius, hdg: strip.hdg, at: AT, stripLen: SL, hiddenVeg: window.__lkHid, rungsOff: window.__lkRungs, ms: Math.round(performance.now() - t0), steps: s, atRest: calm > 60, crashed: D.crashed, reason: D.reason, broken: D.broken.length, cg: sim.cgPos().map(x => +x.toFixed(2)) };
 }
 
 function stageFor(build, scenes, after, tag) {
@@ -92,6 +94,7 @@ function stageFor(build, scenes, after, tag) {
         const sets = after ? [[tag, null], ['after', after]] : [[tag, null]];
         for (const [t, js] of sets) {
           if (js) { await page.evaluate(new Function(js)); await frames(3); } else await frames(2);
+          await page.evaluate(() => { const c = FLIGHT_PROBE.craft(), R = c && c.parent.getObjectByName('treeRungs'); if (R) R.visible = false; });
           const info = await page.evaluate(() => { const r = window.FLIGHT_PROBE && FLIGHT_PROBE.renderer && FLIGHT_PROBE.renderer(); return r && r.info ? { calls: r.info.render.calls, tris: r.info.render.triangles } : null; });
           const file = path.join(OUT, build + '_' + id + '_' + (ci + 1) + '_' + t + '.jpg');
           const A = await shot(file);
