@@ -309,7 +309,7 @@ function simDmgHop(sim, hop, coreNode, win) {
   } else if (sg[1] !== hop.sS && !(sim.t - hop.t < (win == null ? SIM_DMG_SET_S : win))) {
     hop.sS = sg[1]; hop.t = sim.t;
     out = Object.assign(out || {}, { sS: sg[1], st: simDmgSets(sim) });
-    if (D.how) out.bd = simDmgBends(sim);            // G3770: a trunk's dent moves the bends, not the broken list
+    if (sim.damage().how) out.bd = simDmgBends(sim);   // G3770: a trunk's dent moves the bends, not the broken list
   } else if (!out) return null;
   hop.ms = clk.now() - t0;          // the payload's build (the union-find, the sets): GATE DMGSKIN reads it
   return out;
