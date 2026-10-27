@@ -99120,3 +99120,29 @@ Pushed by the user's order of 25 Oct: land as soon as possible.
   - pass 3: GFX, HANGAR, LIGHT, CONTACT, SHEDSHADOW, PROGRAMS, BENCH, STORY, CLOCKBAKE, SHEETWORKER, GAMEPREM
   - pass 4: BOOTLIFT, ROUNDTRIP
 - Files of other sessions touched: card_drag.js (one CARDS line: #edPopCard), boombox.js (openAt + pinned), and GAME-MENUS' hook used as is.
+## G3640-G3649 + G3740-G3746 - GAME-MENUS UI: TELEPORT ON THE MAP, THE FLIGHT LAYOUT (fl2), MENU PAGES, PHOTO MODE, THE GARAGE TOP BAR + DESTINATION, THE SHUTTER EVENT (2026-10-27, GAME-MENUS for A0; claude/ready/game-menus-ui, for L27b behind game-menus 1bafe174a)
+- Carries PHONE-GARAGE 6e7714083 (G3720-G3729, the garage burger G3728: merged in 6cac8e2d6) and game-menus 1bafe174a.
+- G3640-G3649 TELEPORT (map_menu.js, app.js): each owned garage has a hangar marker on the map (here filled, a story-held one dim).
+  - A tap asks first, in a row across the top of the map (never the centre): "Go to <garage>? <the plane there | empty>", Go there / Stay. A story-held garage says why, with no Go.
+  - Go = FLYDIY_PLAYER.gotoGarage (Game's G3613).
+  - Tab = the map screen in every mode (the sandbox too). From a flight on the ground, your own garage is the way back.
+- G3640s THE FLIGHT LAYOUT (body.fl2; ?flui=old for the old one; app.js "the flight layout", flight.css "fl2"):
+  - Top: the shed / Route / Conditions / AP over the readouts.
+  - The corner (II, $, the eye) is top left.
+  - Route and Conditions are flyouts under their buttons.
+  - A tap on the readouts says what they show.
+  - The AP's words (#phWhy) are folded by default (pref flydiy.fl2Ap); a tap on the phase line unfolds them.
+  - The phone shows ONE line of readouts (fl2Fit).
+  - No rail, no Fly and no Pause at the bottom: Restart is in the pause menu, and Camera / Display / Dev are menu pages.
+- GATE UISMOKE G1090 allows `body.fl2:not(.fl2Ap) #ui #phWhy` (the player's fold) beside .small.
+- G3740-G3742 MENU PAGES + PHOTO:
+  - FLYDIY_MENU.add({k, label, sec, when, act | page(body) -> cleanup, before}), page(k), current(), anchor(fn), opener(el).
+  - Photo mode: paused, only the photo bar (the camera's rows, the free camera, the FOV, Done, the shutter: a PNG, the mode stays).
+- G3743 THE GARAGE TOP BAR (the user, 27 Oct):
+  - The burger + disk are at the left, the quick icons at the right.
+  - At the far right, #edDest opens the destination (#edRoute: To + wait until) as the menu's 'dest' page. It is the same element, moved in and back.
+  - It is hidden on the phone, whose profile never flies.
+  - destto_shot.js / persona_shot.js open FLYDIY_MENU.page('dest') first.
+- G3744 THE SHUTTER: photoTake fires window 'flydiy:shutter' {detail:{at}} inside the gesture. Sound's claude/snd-shutter audio.js plays it; with nobody listening, nothing happens.
+- Rig (the scratchpad's gm_tele_stills.js): since G3612 CAREER-OWN a career's fleet holds only planes with a career.airframes row. The rig's Copy builds get the starter's row, as if bought in.
+- Gates + stills: Tue 27 09:45 GPU s27-g5m / 10:45 CPU s27-c6m. Before them: a real parked_cook, then --check (same). The verdicts are in the READY message to A0.
