@@ -9497,16 +9497,17 @@
   // the aeroplane on the final (79_story.js storyFinalPose): a fresh reset onto the pose, its speed along the slope, the
   // engines running, a fresh pilot whose arrival is planned from there (the box's own hand-back: INBOUND with no legs
   // plans from where it is - straight in when lined up)
-  // the aeroplane on the PILOT's final (F = ap.finalFrom: u the landing direction, aim [x, z], gs its slope; F.d the
-  // distance out when the pilot names one, else 3 km): d before the aim along u, at elev + d * gs and 60 m over the ground
-  // at the least, moving along u at V down the slope - storyFinalPose's shape, the pilot's numbers
+  // the aeroplane on the PILOT's final (F = ap.finalFrom: u the landing direction, aim [x, z] and aimY its touchdown aim,
+  // gs its slope, dIaf the aim to its IAF): 3 km out (PILOT's 8/8), never inside dIaf + 300 m - the straight-in is taken
+  // only from 300 m before the IAF - at aimY + d * gs and 60 m over the ground at the least, moving along u at V down the
+  // slope: storyFinalPose's shape, the pilot's numbers
   function storyPoseOnFinal(F, o) {
     if (!F || !Array.isArray(F.u) || !Array.isArray(F.aim) || !(+F.gs > 0)) return null;
     const L = Math.hypot(F.u[0], F.u[1]); if (!(L > 0.5)) return null;
-    const ux = F.u[0] / L, uz = F.u[1] / L, gs = +F.gs, V = o.V || 22, d = +F.d > 300 ? +F.d : 3000;
+    const ux = F.u[0] / L, uz = F.u[1] / L, gs = +F.gs, V = o.V || 22, d = Math.max(3000, Number.isFinite(+F.dIaf) ? +F.dIaf + 400 : 0);
     const x = F.aim[0] - d * ux, z = F.aim[1] - d * uz;
     let g = null; try { g = world && typeof world.terrainH === 'function' ? world.terrainH(x, z) : null; } catch (e) {}
-    const y = Math.max(o.elev + d * gs, (Number.isFinite(g) ? g : o.elev) + 60), c = Math.cos(Math.atan(gs));
+    const y0 = Number.isFinite(+F.aimY) ? +F.aimY : o.elev, y = Math.max(y0 + d * gs, (Number.isFinite(g) ? g : o.elev) + 60), c = Math.cos(Math.atan(gs));
     if (![x, y, z].every(Number.isFinite)) return null;
     return { x, y, z, hdg: Math.atan2(uz, ux), vx: V * c * ux, vy: -V * Math.sin(Math.atan(gs)), vz: V * c * uz };
   }
