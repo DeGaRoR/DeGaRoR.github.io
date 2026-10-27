@@ -196,7 +196,7 @@ function preScript(build, gfx, patch) {
     R.ln = []; var P2 = WebGL2RenderingContext.prototype, lk = P2.linkProgram, pend = [], gl0 = null;
     P2.linkProgram = function (p) { gl0 = this; var e = [performance.now(), -1, p, this]; R.ln.push(e); pend.push(e);   /* G1180: e[3], its own context - a bake renderer links too */ return lk.apply(this, arguments); };
     var poll = function () { if (gl0 && pend.length) { var t = performance.now(), keep = [];
-      for (var i = 0; i < pend.length; i++) { var e = pend[i], ok = true; try { ok = e[3].getProgramParameter(e[2], 0x91B1); } catch (x) {} if (ok) { e[1] = t - e[0]; e[2] = e[3] = null; } else keep.push(e); }
+      for (var i = 0; i < pend.length; i++) { var e = pend[i], ok = true; /* G1998: a program deleted before it linked (INVALID_VALUE each poll: E501) leaves the watch, untimed */ if (!e[3].isProgram(e[2])) { e[2] = e[3] = null; continue; } try { ok = e[3].getProgramParameter(e[2], 0x91B1); } catch (x) {} if (ok) { e[1] = t - e[0]; e[2] = e[3] = null; } else keep.push(e); }
       pend = keep; } setTimeout(poll, 25); };
     poll();
     if (${RECDIR ? 1 : 0}) { R.fc = {}; R.gs = []; var GLP = WebGL2RenderingContext.prototype, fs0 = GLP.fenceSync, cw0 = GLP.clientWaitSync, gb0 = GLP.getBufferSubData, rp0 = GLP.readPixels;

@@ -56,7 +56,7 @@ const HOOK = `(function(){ if (window.__HT) return; var C = window.__HT = { ln: 
   P.getProgramParameter = function (p, n) { if (n === 0x8B82) { var w = waited(gp, p, this, arguments); if (w) return w.r; } return gp.call(this, p, n); };
   var gil = P.getProgramInfoLog;
   P.getProgramInfoLog = function (p) { var w = waited(gil, p, this, arguments); return w ? w.r : gil.apply(this, arguments); };
-  var poll = function () { var t = performance.now(); for (var i = Math.max(0, C.ln.length - 400); i < C.ln.length; i++) { var e = C.ln[i]; if (e.ms >= 0 || !e.p) continue; var ok = true; try { ok = gp.call(e.gl, e.p, 0x91B1); } catch (x) {} if (ok) { e.ms = t - e.t; e.p = e.gl = null; } } setTimeout(poll, 25); };
+  var poll = function () { var t = performance.now(); for (var i = Math.max(0, C.ln.length - 400); i < C.ln.length; i++) { var e = C.ln[i]; if (e.ms >= 0 || !e.p) continue; if (!e.gl.isProgram(e.p)) { e.p = e.gl = null; continue; } /* G1998: deleted before it linked (E501) */ var ok = true; try { ok = gp.call(e.gl, e.p, 0x91B1); } catch (x) {} if (ok) { e.ms = t - e.t; e.p = e.gl = null; } } setTimeout(poll, 25); };
   poll();
   // three's live programs
   C.progs = function () { var R = window.FLYDIY_RENDERER, L = (R && R.info && R.info.programs) || []; return L.map(function (q) { return { id: q.id, name: q.name, ck: h(q.cacheKey || ''), used: q.usedTimes, k: C.keyOf.get(q.program) || '?', ckLen: (q.cacheKey || '').length }; }); };

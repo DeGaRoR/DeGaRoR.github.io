@@ -12381,6 +12381,16 @@
   // update would give them). Under the boot's overlay after the warm draw, and a slice a task during the roll-out shot
   // (every roll-out: a flight that ended far away left the stand's cells dropped). ?revealplant=0: off (the A/B)
   const REVEAL_PLANT_OFF = /[?&]revealplant=0(&|$)/.test((typeof location !== 'undefined' && location.search) || '');   // (the gates' node vm has no location)
+  // G1998 (HWCOV, the cold-profile freeze): THE WORLD'S FIRST DRAWS, ALL OF THEM, UNDER THE SCREEN. A fresh Chrome profile
+  // froze 2.3 s in the main pass ~5 s after the reveal, taxiing (a warm one: 50 ms; the warm one with Chrome's GPU shader
+  // disk cache off froze again: ANGLE's draw-time variants, made on a first draw): the warm draw from the stand only saw
+  // the stand's six views, and the first frame's warm draw only its frustum. This draws one stand-in per (material, kind,
+  // vertex format) of the whole shown world, frustum and vis contract aside (warmDrawSliced's far), a slice a task.
+  // ?farwarm=0: off (the A/B)
+  const FAR_WARM_OFF = /[?&]farwarm=0(&|$)/.test((typeof location !== 'undefined' && location.search) || '');
+  const farWarm = () => FAR_WARM_OFF || !WF ? Promise.resolve(0)
+    : warmDrawSliced(scene, aa && aa.target ? aa.target() : null, 'first light', null, craftInWorldNow, { far: true })
+      .then(k => { window.FLYDIY_FAR_WARM = k; return k; }, e => { console.warn('far warm draw:', e && e.message); return 0; });
   // the roll-out stand's heading (its site's stand.hdg: the nose's - the tail, flRevealStart's hdg, is it + pi; checked on
   // the metal Cessna and the Cub at HOME: -1.8656 / 1.2760), null where there is none (the water, a spawn)
   function standHdg() {
@@ -12693,7 +12703,8 @@
         // every program linked, before the first frame draws them (the boot's warm draw from the stand is a first frame too)
         .then(() => typeof renderer.initTexture === 'function' ? uploadSliced(scene, 'frames', 'first light') : null)
         .then(() => shaderProgress(programsReady(30000), 'world', 60000))
-        .then(() => { if (inGarage) return Promise.resolve(worldWarmDraw()).then(() => revealPlant(120, 0, () => inGarage)); holdRender = false; return framesRendered(2); }));   // (REVEAL-HITCH: the stand's grass)
+        .then(() => { if (inGarage) return Promise.resolve(worldWarmDraw()).then(farWarm).then(() => revealPlant(120, 0, () => inGarage));
+          return farWarm().then(() => { holdRender = false; return framesRendered(2); }); }));   // (REVEAL-HITCH: the stand's grass; G1998: the far warm)
     } },
   ];
   const TRIP_BY = {}; for (const s of TRIP_STEPS) TRIP_BY[s.id] = s;
@@ -17849,7 +17860,9 @@
     const reps = [], seen = new Set(), lights = [];
     // ...and only what the first frame's MAIN pass will draw: the world's visibility contract as the loop applies it
     // (the far quadrants the air hides), the camera's frustum (an object that culls itself in the frame culls here)
-    const vis = (!only && sc === scene && !inGarage && WF && WF.vis) ? WF.vis : null;
+    // FAR (wopt.far, G1998): the whole shown scene, neither the vis contract nor the frustum - what the flight turns to
+    const far = !!(wopt && wopt.far);
+    const vis = (!only && !far && sc === scene && !inGarage && WF && WF.vis) ? WF.vis : null;
     const fr = new THREE.Frustum();
     try {
       if (vis) vis.apply(camera);
@@ -17858,9 +17871,16 @@
     const each = o => {
       if (o.isLight) { lights.push(o); return; }
       if (!(o.isMesh || o.isPoints || o.isLine) || !o.material || !o.geometry || !o.geometry.attributes) return;
-      if (!only && o.frustumCulled && !o.isBatchedMesh) { try { if (!fr.intersectsObject(o)) return; } catch (e) {} }
+      if (!only && !far && o.frustumCulled && !o.isBatchedMesh) { try { if (!fr.intersectsObject(o)) return; } catch (e) {} }
       const g = o.geometry;
-      const gk = Object.keys(g.attributes).join(',') + '|' + Object.keys(g.morphAttributes || {}).join(',') + (g.index ? 'i' : '');
+      // G1998 (HWCOV): THE LAYOUT IS THE FORMAT, NOT THE NAMES. ANGLE (D3D11) builds a draw-time variant per vertex
+      // format - a Float32 normal and an Int8 normalized one are two variants of one program - so the key carries each
+      // attribute's array type, item size and normalized flag (and the index's type): a layout keyed by names alone
+      // warmed one format and left the other to link on the taxi's frame (the cold profile's 2.3 s, Tue 27 Oct)
+      const fmt = a => { const arr = a.isInterleavedBufferAttribute ? a.data.array : a.array;
+        return (arr ? arr.constructor.name.slice(0, 5) : '?') + a.itemSize + (a.normalized ? 'n' : '') + (a.isInterleavedBufferAttribute ? 'x' : ''); };
+      const gk = Object.keys(g.attributes).map(n => n + ':' + fmt(g.attributes[n])).join(',') + '|' + Object.keys(g.morphAttributes || {}).join(',')
+        + (g.index ? 'i' + (g.index.array ? g.index.array.BYTES_PER_ELEMENT : '') : '');
       const ok = (o.isInstancedMesh ? 'I' + (o.instanceColor ? 'c' : '') + (o.morphTexture ? 'm' : '') : '') + (o.isSkinnedMesh ? 'S' : '') + (o.isBatchedMesh ? 'B' : '')
         + (o.isPoints ? 'P' : o.isLine ? 'L' + (o.isLineSegments ? 's' : '') : 'M');
       for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
