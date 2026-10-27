@@ -1,0 +1,395 @@
+{
+ "page": "index.html",
+ "place": "stand",
+ "errors": [],
+ "warnings": [
+  "flyDiy: the loader fetched the town raster cells, the page composes default - those cells bake lazily",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "[.WebGL-0x1c7c0718ae00] GL_INVALID_OPERATION: glDrawArrays: A transform feedback buffer that would be written to is also bound to a non-transform-feedback target, which would cause undefined behavior.",
+  "[.WebGL-0x1c7c0718ae00] GL_INVALID_OPERATION: glDrawArrays: A transform feedback buffer that would be written to is also bound to a non-transform-feedback target, which would cause undefined behavior.",
+  "performance warning: READ-usage buffer was written, then fenced, but written again before being read back. This discarded the shadow copy that was created to accelerate readback."
+ ],
+ "t": {
+  "garage": 300.7,
+  "stand": 335.8,
+  "view": 357,
+  "stage": 732.1,
+  "total": 732.1
+ },
+ "bootDone": true,
+ "bootSteps": 24,
+ "hardTimeout": false,
+ "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+ "soft": {
+  "tier": "software",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "forced": false,
+  "preset": "potato"
+ },
+ "gfx": null,
+ "trip": {
+  "kind": "rollout",
+  "anim": "timeout",
+  "ms": 35147
+ },
+ "stage": {
+  "build": "jodel",
+  "shots": [
+   {
+    "scene": "trunk0",
+    "label": "30 m/s into a trunk, the centreline, 4 m up",
+    "cam": [
+     200,
+     32,
+     14
+    ],
+    "tag": "before",
+    "file": "futureDesigns/dmg-looks/stills/jodel_trunk0_1_before.jpg",
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.00005967881944444444,
+     "topShare": 0.13027886284722223,
+     "colours": 2350,
+     "lowerMean": 85.6,
+     "lowerSd": 21.8
+    },
+    "info": {
+     "calls": 1,
+     "tris": 2
+    },
+    "physics": {
+     "centre": [
+      7.4149601140212384,
+      30.224428151190562,
+      786.662531307923
+     ],
+     "radius": 10.746643378719645,
+     "hdg": 0.7156,
+     "at": 120,
+     "stripLen": 2325,
+     "hiddenVeg": 160,
+     "rungsOff": true,
+     "ms": 14565,
+     "steps": 671,
+     "atRest": true,
+     "crashed": true,
+     "reason": "a fus member broke",
+     "broken": 146,
+     "cg": [
+      4.96,
+      30.06,
+      783.73
+     ]
+    }
+   },
+   {
+    "scene": "trunk0",
+    "label": "30 m/s into a trunk, the centreline, 4 m up",
+    "cam": [
+     120,
+     26,
+     9
+    ],
+    "tag": "before",
+    "file": "futureDesigns/dmg-looks/stills/jodel_trunk0_2_before.jpg",
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.0002734375,
+     "topShare": 0.14577582465277777,
+     "colours": 2263,
+     "lowerMean": 80.6,
+     "lowerSd": 17.5
+    },
+    "info": {
+     "calls": 1,
+     "tris": 2
+    },
+    "physics": {
+     "centre": [
+      7.4149601140212384,
+      30.224428151190562,
+      786.662531307923
+     ],
+     "radius": 10.746643378719645,
+     "hdg": 0.7156,
+     "at": 120,
+     "stripLen": 2325,
+     "hiddenVeg": 160,
+     "rungsOff": true,
+     "ms": 14565,
+     "steps": 671,
+     "atRest": true,
+     "crashed": true,
+     "reason": "a fus member broke",
+     "broken": 146,
+     "cg": [
+      4.96,
+      30.06,
+      783.73
+     ]
+    }
+   },
+   {
+    "scene": "trunk0",
+    "label": "30 m/s into a trunk, the centreline, 4 m up",
+    "cam": [
+     300,
+     60,
+     18
+    ],
+    "tag": "before",
+    "file": "futureDesigns/dmg-looks/stills/jodel_trunk0_3_before.jpg",
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.00011176215277777778,
+     "topShare": 0.25630533854166665,
+     "colours": 2257,
+     "lowerMean": 94.2,
+     "lowerSd": 18.5
+    },
+    "info": {
+     "calls": 1,
+     "tris": 2
+    },
+    "physics": {
+     "centre": [
+      7.4149601140212384,
+      30.224428151190562,
+      786.662531307923
+     ],
+     "radius": 10.746643378719645,
+     "hdg": 0.7156,
+     "at": 120,
+     "stripLen": 2325,
+     "hiddenVeg": 160,
+     "rungsOff": true,
+     "ms": 14565,
+     "steps": 671,
+     "atRest": true,
+     "crashed": true,
+     "reason": "a fus member broke",
+     "broken": 146,
+     "cg": [
+      4.96,
+      30.06,
+      783.73
+     ]
+    }
+   },
+   {
+    "scene": "trunk25",
+    "label": "30 m/s, the trunk 2.5 m out on the left wing",
+    "cam": [
+     200,
+     32,
+     16
+    ],
+    "tag": "before",
+    "file": "futureDesigns/dmg-looks/stills/jodel_trunk25_1_before.jpg",
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.00035047743055555554,
+     "topShare": 0.10730360243055556,
+     "colours": 2145,
+     "lowerMean": 101.4,
+     "lowerSd": 27.7
+    },
+    "info": {
+     "calls": 1,
+     "tris": 2
+    },
+    "physics": {
+     "centre": [
+      30.276298526980796,
+      30.268242571576877,
+      810.0300647437539
+     ],
+     "radius": 8.484821291154155,
+     "hdg": 0.7156,
+     "at": 120,
+     "stripLen": 2325,
+     "hiddenVeg": 159,
+     "rungsOff": true,
+     "ms": 10082,
+     "steps": 513,
+     "atRest": true,
+     "crashed": true,
+     "reason": "a wing member broke",
+     "broken": 87,
+     "cg": [
+      31.98,
+      30.17,
+      815.14
+     ]
+    }
+   },
+   {
+    "scene": "trunk25",
+    "label": "30 m/s, the trunk 2.5 m out on the left wing",
+    "cam": [
+     250,
+     60,
+     26
+    ],
+    "tag": "before",
+    "file": "futureDesigns/dmg-looks/stills/jodel_trunk25_2_before.jpg",
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.00023111979166666666,
+     "topShare": 0.13137044270833334,
+     "colours": 1655,
+     "lowerMean": 105.7,
+     "lowerSd": 16.9
+    },
+    "info": {
+     "calls": 1,
+     "tris": 2
+    },
+    "physics": {
+     "centre": [
+      30.276298526980796,
+      30.268242571576877,
+      810.0300647437539
+     ],
+     "radius": 8.484821291154155,
+     "hdg": 0.7156,
+     "at": 120,
+     "stripLen": 2325,
+     "hiddenVeg": 159,
+     "rungsOff": true,
+     "ms": 10082,
+     "steps": 513,
+     "atRest": true,
+     "crashed": true,
+     "reason": "a wing member broke",
+     "broken": 87,
+     "cg": [
+      31.98,
+      30.17,
+      815.14
+     ]
+    }
+   },
+   {
+    "scene": "noseover",
+    "label": "12 m/s on the ground into a 35 cm stump",
+    "cam": [
+     200,
+     30,
+     9
+    ],
+    "tag": "before",
+    "file": "futureDesigns/dmg-looks/stills/jodel_noseover_1_before.jpg",
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.00134765625,
+     "topShare": 0.18220160590277779,
+     "colours": 2727,
+     "lowerMean": 90.4,
+     "lowerSd": 25.7
+    },
+    "info": {
+     "calls": 1,
+     "tris": 2
+    },
+    "physics": {
+     "centre": [
+      23.257040803610376,
+      30.789361031675046,
+      800.4273092157107
+     ],
+     "radius": 2.999834330200119,
+     "hdg": 0.7156,
+     "at": 120,
+     "stripLen": 2325,
+     "hiddenVeg": 155,
+     "rungsOff": true,
+     "ms": 13544,
+     "steps": 753,
+     "atRest": true,
+     "crashed": true,
+     "reason": "a gear member broke",
+     "broken": 3,
+     "cg": [
+      24.13,
+      30.83,
+      801.03
+     ]
+    }
+   },
+   {
+    "scene": "noseover",
+    "label": "12 m/s on the ground into a 35 cm stump",
+    "cam": [
+     90,
+     26,
+     7
+    ],
+    "tag": "before",
+    "file": "futureDesigns/dmg-looks/stills/jodel_noseover_2_before.jpg",
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.0018446180555555555,
+     "topShare": 0.21004774305555557,
+     "colours": 2395,
+     "lowerMean": 96.1,
+     "lowerSd": 40.2
+    },
+    "info": {
+     "calls": 1,
+     "tris": 2
+    },
+    "physics": {
+     "centre": [
+      23.257040803610376,
+      30.789361031675046,
+      800.4273092157107
+     ],
+     "radius": 2.999834330200119,
+     "hdg": 0.7156,
+     "at": 120,
+     "stripLen": 2325,
+     "hiddenVeg": 155,
+     "rungsOff": true,
+     "ms": 13544,
+     "steps": 753,
+     "atRest": true,
+     "crashed": true,
+     "reason": "a gear member broke",
+     "broken": 3,
+     "cg": [
+      24.13,
+      30.83,
+      801.03
+     ]
+    }
+   }
+  ],
+  "skipMain": true
+ }
+}
