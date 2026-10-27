@@ -1,0 +1,394 @@
+{
+ "page": "index.html",
+ "place": "stand",
+ "errors": [],
+ "warnings": [
+  "flyDiy: the loader fetched the town raster cells, the page composes default - those cells bake lazily",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "[.WebGL-0x1d4404260800] GL_INVALID_OPERATION: glDrawArrays: A transform feedback buffer that would be written to is also bound to a non-transform-feedback target, which would cause undefined behavior.",
+  "performance warning: READ-usage buffer was written, then fenced, but written again before being read back. This discarded the shadow copy that was created to accelerate readback."
+ ],
+ "t": {
+  "garage": 306.6,
+  "stand": 340.8,
+  "view": 367.3,
+  "stage": 795.4,
+  "total": 795.4
+ },
+ "bootDone": true,
+ "bootSteps": 24,
+ "hardTimeout": false,
+ "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+ "soft": {
+  "tier": "software",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "forced": false,
+  "preset": "potato"
+ },
+ "gfx": null,
+ "trip": {
+  "kind": "rollout",
+  "anim": "timeout",
+  "ms": 34165
+ },
+ "stage": {
+  "build": "metal",
+  "shots": [
+   {
+    "scene": "trunk0",
+    "label": "30 m/s into a trunk, the centreline, 4 m up",
+    "cam": [
+     200,
+     32,
+     14
+    ],
+    "tag": "before",
+    "file": "futureDesigns/dmg-looks/stills/metal_trunk0_1_before.jpg",
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.00005750868055555555,
+     "topShare": 0.15789171006944444,
+     "colours": 1514,
+     "lowerMean": 81.5,
+     "lowerSd": 17.7
+    },
+    "info": {
+     "calls": 1,
+     "tris": 2
+    },
+    "physics": {
+     "centre": [
+      7.092789421362881,
+      30.333338560011825,
+      784.0471411097985
+     ],
+     "radius": 8.526747527501367,
+     "hdg": 0.7156,
+     "at": 120,
+     "stripLen": 2325,
+     "hiddenVeg": 159,
+     "rungsOff": true,
+     "ms": 15517,
+     "steps": 783,
+     "atRest": true,
+     "crashed": true,
+     "reason": "a wing member broke",
+     "broken": 139,
+     "cg": [
+      4.24,
+      30,
+      785.06
+     ]
+    }
+   },
+   {
+    "scene": "trunk0",
+    "label": "30 m/s into a trunk, the centreline, 4 m up",
+    "cam": [
+     120,
+     26,
+     9
+    ],
+    "tag": "before",
+    "file": "futureDesigns/dmg-looks/stills/metal_trunk0_2_before.jpg",
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.00035481770833333334,
+     "topShare": 0.17289713541666665,
+     "colours": 2349,
+     "lowerMean": 81.7,
+     "lowerSd": 13.4
+    },
+    "info": {
+     "calls": 1,
+     "tris": 2
+    },
+    "physics": {
+     "centre": [
+      7.092789421362881,
+      30.333338560011825,
+      784.0471411097985
+     ],
+     "radius": 8.526747527501367,
+     "hdg": 0.7156,
+     "at": 120,
+     "stripLen": 2325,
+     "hiddenVeg": 159,
+     "rungsOff": true,
+     "ms": 15517,
+     "steps": 783,
+     "atRest": true,
+     "crashed": true,
+     "reason": "a wing member broke",
+     "broken": 139,
+     "cg": [
+      4.24,
+      30,
+      785.06
+     ]
+    }
+   },
+   {
+    "scene": "trunk0",
+    "label": "30 m/s into a trunk, the centreline, 4 m up",
+    "cam": [
+     300,
+     60,
+     18
+    ],
+    "tag": "before",
+    "file": "futureDesigns/dmg-looks/stills/metal_trunk0_3_before.jpg",
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.00018663194444444445,
+     "topShare": 0.2538530815972222,
+     "colours": 1491,
+     "lowerMean": 86.1,
+     "lowerSd": 14.3
+    },
+    "info": {
+     "calls": 1,
+     "tris": 2
+    },
+    "physics": {
+     "centre": [
+      7.092789421362881,
+      30.333338560011825,
+      784.0471411097985
+     ],
+     "radius": 8.526747527501367,
+     "hdg": 0.7156,
+     "at": 120,
+     "stripLen": 2325,
+     "hiddenVeg": 159,
+     "rungsOff": true,
+     "ms": 15517,
+     "steps": 783,
+     "atRest": true,
+     "crashed": true,
+     "reason": "a wing member broke",
+     "broken": 139,
+     "cg": [
+      4.24,
+      30,
+      785.06
+     ]
+    }
+   },
+   {
+    "scene": "trunk25",
+    "label": "30 m/s, the trunk 2.5 m out on the left wing",
+    "cam": [
+     200,
+     32,
+     16
+    ],
+    "tag": "before",
+    "file": "futureDesigns/dmg-looks/stills/metal_trunk25_1_before.jpg",
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.0005457899305555555,
+     "topShare": 0.127744140625,
+     "colours": 1387,
+     "lowerMean": 101.3,
+     "lowerSd": 19.4
+    },
+    "info": {
+     "calls": 1,
+     "tris": 2
+    },
+    "physics": {
+     "centre": [
+      29.62183427416776,
+      30.680517686924023,
+      810.9204613453719
+     ],
+     "radius": 8.530306457910939,
+     "hdg": 0.7156,
+     "at": 120,
+     "stripLen": 2325,
+     "hiddenVeg": 159,
+     "rungsOff": true,
+     "ms": 11199,
+     "steps": 747,
+     "atRest": true,
+     "crashed": true,
+     "reason": "a wing member broke",
+     "broken": 27,
+     "cg": [
+      36.09,
+      30.47,
+      814.59
+     ]
+    }
+   },
+   {
+    "scene": "trunk25",
+    "label": "30 m/s, the trunk 2.5 m out on the left wing",
+    "cam": [
+     250,
+     60,
+     26
+    ],
+    "tag": "before",
+    "file": "futureDesigns/dmg-looks/stills/metal_trunk25_2_before.jpg",
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.00021484375,
+     "topShare": 0.13471788194444445,
+     "colours": 1097,
+     "lowerMean": 107.4,
+     "lowerSd": 10
+    },
+    "info": {
+     "calls": 1,
+     "tris": 2
+    },
+    "physics": {
+     "centre": [
+      29.62183427416776,
+      30.680517686924023,
+      810.9204613453719
+     ],
+     "radius": 8.530306457910939,
+     "hdg": 0.7156,
+     "at": 120,
+     "stripLen": 2325,
+     "hiddenVeg": 159,
+     "rungsOff": true,
+     "ms": 11199,
+     "steps": 747,
+     "atRest": true,
+     "crashed": true,
+     "reason": "a wing member broke",
+     "broken": 27,
+     "cg": [
+      36.09,
+      30.47,
+      814.59
+     ]
+    }
+   },
+   {
+    "scene": "noseover",
+    "label": "12 m/s on the ground into a 35 cm stump",
+    "cam": [
+     200,
+     30,
+     9
+    ],
+    "tag": "before",
+    "file": "futureDesigns/dmg-looks/stills/metal_noseover_1_before.jpg",
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.001220703125,
+     "topShare": 0.10400933159722223,
+     "colours": 1852,
+     "lowerMean": 128.2,
+     "lowerSd": 28.1
+    },
+    "info": {
+     "calls": 1,
+     "tris": 2
+    },
+    "physics": {
+     "centre": [
+      -16.934826714102932,
+      31.83503183343465,
+      766.0198310116232
+     ],
+     "radius": 3.9833458507729262,
+     "hdg": 0.7156,
+     "at": 120,
+     "stripLen": 2325,
+     "hiddenVeg": 153,
+     "rungsOff": true,
+     "ms": 7733,
+     "steps": 443,
+     "atRest": true,
+     "crashed": true,
+     "reason": "a gear member broke",
+     "broken": 9,
+     "cg": [
+      -15.53,
+      31.12,
+      766.7
+     ]
+    }
+   },
+   {
+    "scene": "noseover",
+    "label": "12 m/s on the ground into a 35 cm stump",
+    "cam": [
+     90,
+     26,
+     7
+    ],
+    "tag": "before",
+    "file": "futureDesigns/dmg-looks/stills/metal_noseover_2_before.jpg",
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.002210286458333333,
+     "topShare": 0.09497504340277778,
+     "colours": 1480,
+     "lowerMean": 129.6,
+     "lowerSd": 25.8
+    },
+    "info": {
+     "calls": 1,
+     "tris": 2
+    },
+    "physics": {
+     "centre": [
+      -16.934826714102932,
+      31.83503183343465,
+      766.0198310116232
+     ],
+     "radius": 3.9833458507729262,
+     "hdg": 0.7156,
+     "at": 120,
+     "stripLen": 2325,
+     "hiddenVeg": 153,
+     "rungsOff": true,
+     "ms": 7733,
+     "steps": 443,
+     "atRest": true,
+     "crashed": true,
+     "reason": "a gear member broke",
+     "broken": 9,
+     "cg": [
+      -15.53,
+      31.12,
+      766.7
+     ]
+    }
+   }
+  ],
+  "skipMain": true
+ }
+}

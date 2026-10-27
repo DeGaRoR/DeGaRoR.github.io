@@ -98246,3 +98246,30 @@ DMG-LOOKS: study at futureDesigns/DMG-LOOKS-STUDY-2026-10.md, for the Deform Coo
 - **A lead for Deform (not investigated further).** On SwiftShader, master logs `GL_INVALID_OPERATION: glDrawArrays: A transform feedback buffer that would be written to is also bound to a non-transform-feedback target` during the crash, which is ANGLE rejecting a DMG-SKINGPU riding draw.
   - The still still shows the wreck posed.
   - ANGLE's validation is the same on Windows, so it is worth a look on the box (`skin_gpu.js` frame(): the transform-feedback buffers `D.posBuf` / `D.nrmBuf` / `D.wBuf` must be bound nowhere else at the draw).
+
+### G3620-G3629 DMG-LOOKS - THE IN-GAME BEFORE SET IS SHOT (2026-10-27, DMG-LOOKS; cloud, software GPU; branch claude/dmg-looks-study)
+**Sheets:** `futureDesigns/dmg-looks/stills/cub_sheet.jpg`, `jodel_sheet.jpg`, `metal_sheet.jpg`. The 21 stills are beside them, with each build's run record (`<build>_before.json`).
+
+**What was shot:** master, the real page on SwiftShader (`?damage=1&simw=0&cover=0`).
+- Crashes: 30 m/s into a trunk on the centreline, 30 m/s with the trunk 2.5 m out on the left wing, and a 12 m/s nose-over on a stump.
+- Each crash is staged 120 m along HOME's heading, stepped until every node is under 0.25 m/s for a second, and frozen.
+- Then it is shot from 2-3 fixed cameras: free cameras aimed at the 10th-90th percentile box of the wreck's nodes, azimuth from the runway heading, distance fitted to the spread.
+- Page errors: none on any build.
+
+**A controlled scene, the same for AFTER:**
+- the world's tree sets are dropped from the physics, so only the staged trunk is hit, as in the gates' flat-world crashes;
+- the vegetation is hidden: instanced meshes outside the aeroplane, plus the `treeRungs` group;
+- the earlier runs' wrecks fell into the island's own trees.
+- Staging is deterministic: the same crash re-staged gave the same wreck.
+
+**What the stills show (master):**
+- the wing comes apart in rectangular panels with straight edges, and the struts lie as straight rods (Cub trunk 0, camera 2, is the clearest);
+- the tail stays at the trunk while the fuselage goes on;
+- **long, straight, thin lines span the metres between the wreck and the part left at the trunk.** They appear on the Cub, the Jodel and the metal Cessna. Most likely wires or cables (the `wire` class) or skin strips still drawn between pieces that parted. A lead for Deform: real cables snap or coil, and these read as "stretched".
+
+**The AFTER set**, once Deform's switch exists, on the same frozen frame and cameras:
+```sh
+node futureDesigns/dmg-looks/looks_stills.js --build <cub|jodel|metal> --after "<the switch, as JS>"
+node futureDesigns/dmg-looks/looks_stills.js --sheet <build>
+```
+For a URL switch, use `--q 'k=v' --tag after`. Each build takes ~13 min on the cloud's software GPU.
