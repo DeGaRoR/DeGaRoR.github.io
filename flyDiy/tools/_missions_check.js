@@ -560,6 +560,50 @@ function runtimeRows(M, mut) {
   const pe = N.missionTrackStep(PT, { t: 1, x: 400, z: -2000, agl: 200 });
   ok(pe.length === 1 && pe[0].k === 'photo' && pe[0].key === 'shot' && pe[0].say.who === 'kate', 'a photo over a point: the photo event (the shutter, the line: the page plays them)');
 
+  // ---- MISSIONS-PROPS: THE STRIKE - A POST OR A RING TOUCHED (fabric: never harms the aeroplane; the rule decides) -------
+  const pyl = { gate: [[0, 0], [100, 0]] }, crossAt = (x, agl) => [{ t: 0, x, z: 10, agl, y: agl + 20 }, { t: 1, x, z: -10, agl, y: agl + 20 }];
+  const sk = (p, x, agl, reach) => N.missionStrikeTest(p, ...crossAt(x, agl), reach);
+  ok(sk(pyl, 3, 10).length === 1 && sk(pyl, 3, 10)[0].post === 0 && sk(pyl, 97, 10)[0].post === 1, 'a pylon (the default prop) clipped 3 m off its axis at 10 m: a strike on that post');
+  ok(!sk(pyl, 3, 30).length && !sk(pyl, 3, null).length, 'over the 25 m pylon, or no height known: no strike');
+  ok(sk(pyl, 7, 0.5).length === 1 && !sk(pyl, 9, 0.5).length && !sk(pyl, 7, 20).length, 'the cone: 7 m off at its foot (2.5 + the 5 m half-span) a strike, 9 m none; 7 m off at 20 m (it is 0.8 m there) none');
+  ok(sk(pyl, 1, 10, 0).length === 1 && !sk(pyl, 2, 10, 0).length, 'the reach is the page\'s half-span: with none, 1 m off at 10 m (the cone 1.65 m there) a strike, 2 m off none');
+  const bal = { gate: [[0, 0], [100, 0]], prop: 'balloons', alt: { max: 150, ref: 'agl' } };
+  ok(sk(bal, 4, 120).length === 1 && !sk(bal, 4, 160).length && !sk(bal, 7, 120).length, 'a balloon column up to the band\'s top (150): 4 m off at 120 m a strike; over its top, or 7 m off, none');
+  const rg = { ring: [0, 120, 0], r: 8, dir: 0 }, rx = (x, y) => N.missionStrikeTest(rg, { t: 0, x, z: 10, y }, { t: 1, x, z: -10, y });
+  ok(!rx(0, 120).length && rx(4, 120).length === 1 && rx(12, 120).length === 1 && !rx(20, 120).length && rx(0, 129).length === 1,
+     'a ring (hole 8, tube 1.2): the centre clean, a wingtip into the tube at 4 m off a strike (a pass and a strike), 12 m off a strike, 20 m none; 9 m high a strike');
+  ok(!!N.missionHitTest(rg, { t: 0, x: 4, z: 10, y: 120 }, { t: 1, x: 4, z: -10, y: 120 }) && rx(4, 120).length === 1, 'the clipped pass still counts as the pass (the air race: a pylon hit is a penalty, not a miss)');
+  ok(!N.missionStrikeTest({ ring: [0, 120, 0], r: 8 }, { t: 0, x: 4, z: 10, y: 120 }, { t: 1, x: 4, z: -10, y: 120 }).length, 'a ring with no facing: no strike judged (it turns to the approach)');
+  // the speed run clipping the left posts (x -497, 3 m off the balloon columns at -500): +3 s each, the lap 66 s, still gold
+  const FK = fly(flightLine(-2500, -6500, 50, 100, -497)), EK = N.missionTrackEvidence(FK.T);
+  ok(FK.T.hits.g1 && FK.T.hits.g2 && EK.strikes && EK.strikes.length === 2 && EK.timers.speed.raw === 60 && EK.timers.speed.pen === 6 && EK.timers.speed.s === 66,
+     'the speed run clipping both left columns: both gates passed, 2 strikes, the lap 60 s + 6 s = 66 s (' + J(EK.timers.speed) + ')');
+  ok(FK.ev.filter(e => e.k === 'strike').every(e => e.pen === 3 && e.prop === 'balloons' && e.until === e.t + 30), 'each strike event: +3 s, the prop torn for 30 s');
+  const okK = N.missionTimerOnSub(sp, sp.stages[0].subs[1], { st: 'done' }, { tracks: { 'r.speed': EK } });
+  ok(okK.st === 'done' && okK.medal === 'gold' && okK.timer.pen === 6 && okK.timer.strikes === 2, 'the medal off the penalised lap (66 s: gold), the timer carries the penalty');
+  // a torn post cannot be hit again until it is re-erected
+  const TT = N.missionTrackNew({ id: 'tt', stages: [{ order: 'any', subs: [{ id: 'gg', do: 'pass', place: pyl }] }] }, { stage: 0, subs: [] });
+  const zz = [[0, 10], [1, -10], [2, 10], [3, -10], [40, 10], [41, -10]];
+  const nS = zz.map(([t, z]) => N.missionTrackStep(TT, { t, x: 3, z, agl: 10, y: 30 }).filter(e => e.k === 'strike').length);
+  ok(J(nS) === J([0, 1, 0, 0, 0, 1]), 'a torn pylon: no second strike while it is down (30 s), again once it stands (' + J(nS) + ')');
+  // the rule: fail, ignore, a penalty of its own
+  const evS = { tracks: { x: { strikes: [{ key: 'g1', post: 0, t: 1 }] } } };
+  ok(/hit/.test(N.missionRulesJudge({ id: 'x', rules: { strike: 'fail' } }, evS).fail) && !N.missionRulesJudge({ id: 'x', rules: { strike: 'penalty' } }, evS).fail && !N.missionRulesJudge({ id: 'x', rules: { strike: 'fail' } }, { tracks: { x: {} } }).fail,
+     'rules.strike fail: a strike fails the mission at the stop; penalty does not; no strike, no failure');
+  const Tig = N.missionTrackNew({ id: 'tg', rules: { strike: 'ignore' }, stages: sp.stages, timers: sp.timers }, { stage: 0, subs: [] });
+  for (const q of flightLine(-2500, -6500, 50, 100, -497)) N.missionTrackStep(Tig, q);
+  const Tp = N.missionTrackNew({ id: 'tp', rules: { strike: { penalty: 10 } }, stages: sp.stages, timers: sp.timers }, { stage: 0, subs: [] });
+  for (const q of flightLine(-2500, -6500, 50, 100, -497)) N.missionTrackStep(Tp, q);
+  ok(N.missionTrackEvidence(Tig).timers.speed.s === 60 && N.missionTrackEvidence(Tig).strikes.length === 2 && N.missionTrackEvidence(Tp).timers.speed.s === 80,
+     'ignore: the strikes recorded, no penalty (60 s); { penalty: 10 }: 80 s');
+  // the format: rules.strike is checked; the new missions' rules carry the penalty
+  const BV = JSON.parse(J(B)), jr = BV.missions.find(m => m.id === 'j.rules');
+  jr.rules.strike = 'bogus'; const w1 = M.missionPackValidate(BV, { spots: SPOTS });
+  jr.rules.strike = { penalty: 5 }; const w2 = M.missionPackValidate(BV, { spots: SPOTS });
+  ok(w1.some(w => /rules\.strike/.test(w)) && !w2.length && N.MISSION_RULES_NEW.strike === 'penalty', 'rules.strike: penalty | fail | ignore | { penalty: s } - a bogus one refused; new missions default to the penalty');
+  ok(N.missionMarkers(sp, { stage: 0, subs: [] }).filter(m => m.kind === 'gate').every(m => m.prop === 'balloons') && N.missionMarkers({ stages: [{ subs: [{ id: 'a', do: 'pass', place: pyl }] }] }, null)[0].prop === 'pylons',
+     'the markers name the prop to draw: the gate\'s own, else the air-race pylon');
+
   // ---- P1: THE SPEED RUN THROUGH THE CAREER - THE MEDAL OFF THE LAP, A RETRY ----------------------------------------------
   const run = (v) => { const F = fly(flightLine(-2500, -6500, v, 100)); return stopAt('HOME', { tracks: { 'r.speed': N.missionTrackEvidence(F.T) } }); };
   d = N.careerAccept(fresh(), 'r.speed').doc;
@@ -756,6 +800,12 @@ const MUTS = [
   ['the take-off ignores the load', { '72_accept.js': sub('const add = (acceptNum(a.pax) || 0) * L.occKg + (acceptNum(a.kg) || 0);', 'const add = 0;') }],
   ['the stop record grows keys', { '75_career_wire.js': sub("if (typeof o.spot === 'string' && o.spot) out.spot = o.spot;", 'out.spot = o.spot || null;') }],
   ['the markers lose the seq order', { '73c_mission_run.js': sub("if (state === 'next' && st.order === 'seq') { if (armed) state = 'later'; armed = true; }", '') }],
+  // (MISSIONS-PROPS) the strike
+  ['a pylon is hit over its top', { '73c_mission_run.js': sub('if (!msrNum(h) || h > D.h || d >', 'if (!msrNum(h) || d >') }],
+  ['the wing reaches nothing', { '73c_mission_run.js': sub("const k = msrKind(p), R = msrNum(reach) ? reach : MISSION_PROP_DIMS.reach, out = [];", 'const k = msrKind(p), R = 0, out = [];') }],
+  ['a strike costs no time', { '73c_mission_run.js': sub("if (T.strike.mode === 'penalty' && T.strike.pen > 0) {", 'if (false) {') }],
+  ['a torn post is hit again', { '73c_mission_run.js': sub('if (T.torn[id] != null && T.torn[id] > t) continue;', '') }],
+  ['a strike never fails', { '73c_mission_run.js': sub("if (n) return { fail: n === 1 ?", 'if (false) return { fail: n === 1 ?') }],
   // (MISSIONS-P3)
   ['a time limit is not checked', { '73c_mission_run.js': sub('if (msrNum(R.maxMin) && msrNum(row.t) && row.t > R.maxMin * 60) return', 'if (false) return') }],
   ['nobody needs to get off', { '73c_mission_run.js': sub("if (miss.length) return { st: 'no', why: (k === 'embark' ? 'waiting for ' : 'still aboard: ') + miss.map(name).join(', ') };", '') }],

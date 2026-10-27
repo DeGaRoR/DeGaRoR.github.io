@@ -900,6 +900,9 @@ const GATES = [
   // preferences, the client's airframe, the failure rules + restart, the in-flight tracker, timers, markers. ~40 s.
   // `--selftest`: 37 doctored rules, each red (~25 min)
   { id: 'MISSIONS', file: '_missions_check.js', tier: 'core', wall: 45 },
+  // THE MISSION PROPS (MISSIONS-PROPS): tools/_mission_gen.js - the air-race pylon, the balloon column, the ring, the marker
+  // flag, the tie-down spot, the site's stages; their strike dimensions are the core's (73c MISSION_PROP_DIMS)
+  { id: 'MISSIONPROPS', file: '_mission_props_check.js', tier: 'core' },
   // THE STAGES (G2300 STAGES, contract v1.33, GAME-2026-10-06.md §11): the sandbox's composed record = the island cook's
   // hash (today's island, byte for byte, both variants); every stage value of every track composes (valid, the village
   // unmoved, the altiport and East Point by their stage); MILL-TAXI's census at every stage with the kits' solids; never

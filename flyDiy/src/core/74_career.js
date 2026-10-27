@@ -569,7 +569,8 @@ function careerOnStop(doc, stop, hooks) {
   if (typeof missionRulesJudge === 'function') for (const id of C.accepted.slice()) {
     const rec = careerContract(d, id), L = d.career.contracts.live[id] || {};
     if (!rec || !rec.rules) continue;
-    const busy = id === d.career.contracts.tracked || (L.picked || []).some(Boolean) || (L.subs || []).some(Boolean) || (L.stage || 0) > 0;
+    const busy = id === d.career.contracts.tracked || (L.picked || []).some(Boolean) || (L.subs || []).some(Boolean) || (L.stage || 0) > 0
+      || !!(stop && stop.tracks && stop.tracks[id]);                         // the flight tracked it (its gates, its strikes)
     const v = busy ? missionRulesJudge(rec, stop) : null;
     if (v && v.fail) { const f = careerFail(d, id, v.fail); if (f.ok) { d = f.doc; moved = true; events.push(...f.events); } }
   }

@@ -395,7 +395,7 @@ function careerEventLines(res, before, after) {
     } else if (e.k === 'pending') out.push({ k: e.k, ok: null, text: T('ev.pending', { t: title(e.id), n: e.why || '' }) });
     // (MISSIONS-P1/P2) a mission failed (and its restart), a lap timed, a line said
     else if (e.k === 'failed') out.push({ k: e.k, ok: false, text: T('ev.failed', { t: title(e.id), n: e.why || '' }) + (e.restart ? ' ' + T('ev.restart') : '') });
-    else if (e.k === 'timer') out.push({ k: e.k, ok: true, text: T('ev.timer', { t: title(e.id), n: e.timer.s + ' s' + (e.timer.target != null ? ' / ' + e.timer.target + ' s' : '') }) + (e.medal ? ' · ' + T('medal.' + e.medal) : '') });
+    else if (e.k === 'timer') out.push({ k: e.k, ok: true, text: T('ev.timer', { t: title(e.id), n: e.timer.s + ' s' + (e.timer.target != null ? ' / ' + e.timer.target + ' s' : '') }) + (e.timer.pen ? ' · ' + T('ev.strikes', { n: e.timer.strikes, s: e.timer.pen }) : '') + (e.medal ? ' · ' + T('medal.' + e.medal) : '') });
     else if (e.k === 'say' && e.say) out.push({ k: e.k, ok: true, text: (typeof peopleName === 'function' ? peopleName(e.say.who) : e.say.who) + ': ' + T(e.say.text) });
     else if (e.k === 'bonus') out.push({ k: e.k, ok: true, text: T('ev.bonus', { t: title(e.id), n: cwMoney(e.pay) }) });
     else if (e.k === 'site') out.push({ k: e.k, ok: true, text: T('ev.site.' + e.state, { n: e.site }) });
