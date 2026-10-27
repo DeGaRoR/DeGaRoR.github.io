@@ -47,7 +47,7 @@ function fakeCanvas(w, h, record) {
     fillText: record ? () => { calls.fillText++; } : noop, stroke: record ? () => { calls.stroke++; } : noop,
     getImageData: () => { if (calls) calls.getImageData++; return null; },
     beginPath: noop, moveTo: noop, lineTo: noop, arc: noop, closePath: noop, fill: noop, rect: noop, clip: noop,
-    save: noop, restore: noop, translate: noop, rotate: noop, setTransform: noop, clearRect: noop,
+    save: noop, restore: noop, translate: noop, rotate: noop, setTransform: noop, clearRect: noop, strokeRect: noop,
   };
   return { width: w, height: h, getContext: () => ctx, calls };
 }
@@ -83,6 +83,13 @@ if (process.argv.includes('--alloc')) {
   out.tickIdle = measure(() => { cg[0] += 0.001; GPS.tick(1e-7, CK); });
   // every call a repaint (dt = the interval): the repaint path itself
   out.tickPaint = measure(() => { cg[0] += 1; cg[2] -= 0.5; GPS.tick(0.25, CK); });
+  // G2812: the softkeys' pages - track-up (the map turned) and the nav page - repaint allocation-free too
+  GPS.key('orient');
+  out.tickPaintTrk = measure(() => { cg[0] += 1; cg[2] -= 0.5; GPS.tick(0.25, CK); });
+  GPS.key('orient'); GPS.key('page');
+  out.tickPaintNav = measure(() => { cg[0] += 1; cg[2] -= 0.5; GPS.tick(0.25, CK); });
+  GPS.key('page');
+  out.key = measure(() => { GPS.key('rngUp'); GPS.key('rngDn'); });
   process.stdout.write(JSON.stringify(out));
   process.exit(0);
 }
@@ -251,6 +258,23 @@ global.THREE = THREE;
   CK.bus.step(1 / 60, 2300, false);
   for (let i = 0; i < CK.cbKeys.length; i++) if (CK.bus.cb[CK.cbKeys[i]] === false) CK.sw[CK.cbSw[i]] = 1;
   check(CK.sw.cb_navLt === 1 && CK.bus.tripped.navLt, 'C an overload trips the breaker and it stands out under the hand');
+  // G2812: A GPS SOFTKEY (the `gpskey` law): a click presses it in (the slide) and hands the key to the GPS - only while
+  // the unit is powered; the press lets go by itself; its own pick pad
+  {
+    const g = mk('edGauge_gpskey_page', { law: 'gpskey', drive: 'gk_page', ax: [0, 0, 1], sgn: 1, k: 0, slide: [0, 0, 0.0012], slideDrive: 'gk_page', padR: 0.008 });
+    const got = [], W0 = global.window; global.window = Object.assign({}, W0 || {}, { FLYDIY_GPS: { key: k => { got.push(k); return true; } } });
+    const on0 = CK.gpsOn;
+    CK.gpsOn = true; const took = CK.click(g); const mP = { gauges: [g], grp }; CK.pose(mP);
+    check(took && got.join() === 'page' && g.obj.position.z > 0.001, 'C a GPS softkey: the click presses it in and hands "page" to the GPS', got.join() + ' ' + g.obj.position.z);
+    CK.gpsOn = false; CK.click(g);
+    check(got.length === 1, 'C ...an unpowered unit is handed nothing (the key still moves)', got.join());
+    CK.gkUntil.gk_page = 0; CK.pose(mP);
+    check(g.obj.position.z === 0, 'C ...and the key lets go by itself', g.obj.position.z);
+    CK.padSwitches({ gauges: [g] });
+    const pad = g.obj.children.find(q => q.userData && q.userData.pickPad);
+    check(pad && pad.geometry.parameters.radius === 0.008, 'C ...its own pick pad', pad && pad.geometry.parameters.radius);
+    CK.gpsOn = on0; global.window = W0;
+  }
   // the pick pad of a breaker is its own size
   CK.padSwitches({ gauges: [mk('edGauge_cb_x', { law: 'switch', drive: 'cb_x', ax: [0, 0, 1], k: 0, slide: [0, 0, -0.004], padR: 0.007 })] });
   {
@@ -316,6 +340,30 @@ function faceSuite(GPS) {
   CK.gpsOn = true; const pb = S.paints;
   for (let i = 0; i < 60; i++) GPS.tick(1 / 60, CK);
   ok(S.paints === pb, 'D power back: the boot page holds before the map', S.paints - pb);
+  // J (G2812) THE SOFTKEYS: four, switching only - the range a step each way (clamped at its ends), north-up / track-up,
+  // the page; the glass repainted at once; a unit dark or booting takes no press; a new flight powers up on 4 nm, north up
+  CK.gpsOn = true; for (let i = 0; i < 200; i++) { cg[0] += 0.8; GPS.tick(1 / 60, CK); }
+  ok(JSON.stringify(GPS.KEYS) === '["rngDn","rngUp","orient","page"]', 'J four softkeys: rngDn, rngUp, orient, page', JSON.stringify(GPS.KEYS));
+  ok(S.rngI === 2 && !S.trkUp && S.page === 'map' && S.keys === 4 && S.keysAt === 'left', 'J bound to a GPS 175: 4 nm, north up, the map; its four keys in a column on the left', JSON.stringify([S.rngI, S.trkUp, S.page, S.keys, S.keysAt]));
+  const u1 = S.uploads, f1 = calls.fillText;
+  ok(GPS.key('rngDn') && S.rngI === 1 && S.uploads === u1 + 1 && calls.fillText > f1, 'J RNG -: 2 nm, repainted at once (the labels and the numbers drawn)', S.rngI);
+  GPS.key('rngDn'); GPS.key('rngDn');
+  ok(S.rngI === 0, 'J ...down to 1 nm and no further', S.rngI);
+  for (let i = 0; i < 8; i++) GPS.key('rngUp');
+  ok(S.rngI === GPS.RANGES.aviation.length - 1, 'J RNG +: up to 16 nm and no further', S.rngI);
+  ok(GPS.key('orient') && S.trkUp && GPS.key('orient') && !S.trkUp, 'J the orientation key: track up, and back to north up');
+  ok(GPS.key('page') && S.page === 'nav' && GPS.key('page') && S.page === 'map', 'J the page key: the nav page, and back to the map');
+  GPS.key('page'); const fN = calls.fillText; GPS.tick(0.25, CK);
+  ok(S.page === 'nav' && calls.fillText > fN, 'J the nav page repaints at 4 Hz like the map', calls.fillText - fN);
+  GPS.key('page');
+  ok(!GPS.key('bogus'), 'J an unknown key is no key');
+  CK.gpsOn = false; for (let i = 0; i < 4; i++) GPS.tick(1 / 60, CK);
+  ok(!GPS.key('rngDn') && S.rngI === GPS.RANGES.aviation.length - 1, 'J a dark unit takes no press');
+  CK.gpsOn = true; GPS.tick(1 / 60, CK);
+  ok(!GPS.key('orient') && !S.trkUp, 'J a booting unit takes no press');
+  GPS.bind({ kind: 'glass', units: 'metric', src });
+  ok(S.rngI === 2 && !S.trkUp && S.page === 'map' && S.keysAt === 'below', 'J a new flight (a glass unit, metric): 8 km, north up, the map, the keys under the glass', JSON.stringify([S.rngI, S.keysAt]));
+  GPS.bind({ kind: 'panel', units: 'aviation', src });
   // a parked aeroplane's capture builds the panel for another build mid-flight: the bound unit is not touched
   CK.gpsOn = true; for (let i = 0; i < 200; i++) GPS.tick(1 / 60, CK);
   const cvB = S.cv, aB = S.aspect, kB = S.kind, onB = S.on;
@@ -350,7 +398,10 @@ function faceSuite(GPS) {
     check(al.busPowered < 4, 'E bus.powered allocates nothing', al.busPowered.toFixed(2) + ' bytes');
     check(al.tickIdle < 4, 'E the GPS\'s tick between repaints allocates nothing', al.tickIdle.toFixed(2) + ' bytes');
     check(al.tickPaint < 4, 'E the GPS\'s tick WITH a repaint allocates nothing (the strings cached, the frame module state)', al.tickPaint.toFixed(2) + ' bytes');
-    say('E bytes a call: bus.step ' + al.busStep.toFixed(2) + ', bus.powered ' + al.busPowered.toFixed(2) + ', GPS tick ' + al.tickIdle.toFixed(2) + ', GPS repaint ' + al.tickPaint.toFixed(2));
+    check(al.tickPaintTrk < 4 && al.tickPaintNav < 4, 'E G2812: the track-up map and the nav page repaint allocating nothing', al.tickPaintTrk.toFixed(2) + ' / ' + al.tickPaintNav.toFixed(2) + ' bytes');
+    check(al.key < 4, 'E G2812: a softkey press (its repaint) allocates nothing', al.key.toFixed(2) + ' bytes');
+    say('E bytes a call: bus.step ' + al.busStep.toFixed(2) + ', bus.powered ' + al.busPowered.toFixed(2) + ', GPS tick ' + al.tickIdle.toFixed(2) + ', GPS repaint ' + al.tickPaint.toFixed(2) +
+        ' (track-up ' + al.tickPaintTrk.toFixed(2) + ', nav ' + al.tickPaintNav.toFixed(2) + '), a key ' + al.key.toFixed(2));
   } else check(false, 'E the allocation child ran', al && al.err);
 }
 
@@ -369,8 +420,9 @@ const PANELS = [
   // glass unit fits only in the middle, and four gauges give way to it
   ['jodel', 'builds/jodel_2026-09-20_corrected.json', 'portable', 'coaming', true, true],
   ['jodel', 'builds/jodel_2026-09-20_corrected.json', 'glass', 'plate', false, false],
-  // Rufus's glass unit in front of the pilot costs the DG and the oil gauges (the tacho stays: it comes first)
-  ['rufus', 'builds/rufus_2026-10-18_certified.json', 'glass', 'plate', true, false],
+  // Rufus's glass unit in front of the pilot: G2812's unit (193 x 115 round its screen, 198 x 159 before) leaves every dial
+  // its place (it cost the DG and the oil gauges)
+  ['rufus', 'builds/rufus_2026-10-18_certified.json', 'glass', 'plate', true, true],
 ];
 function dashOf(file, gps) {
   // one scene context per process is the layers' contract: each case its own child
@@ -409,11 +461,23 @@ if (process.argv.includes('--dash')) {
   const mv = W.CAGE_PANEL.moving.filter(m => /^edGauge_cb_/.test(m.name)).map(m => ({ name: m.name, drive: m.drive, law: m.law, slide: m.slide, padR: m.padR }));
   let gpsMat = null, gpsMesh = 0;
   r.scene.traverse(o => { if (o.name === 'edGauge_gps') { gpsMesh++; gpsMat = o.material && o.material.userData && o.material.userData.panelSet; } });
+  // G2812: the unit in its own frame (the bag meshes' vertices are the group's): the housing (the biggest), the screen,
+  // the keys (their gauges: position, size), the meshes beside them (the knob's three)
+  let unit = null;
+  r.scene.traverse(o => { if (o.name === 'edGps' && !unit) {
+    const bb = m => { m.geometry.computeBoundingBox(); const b = m.geometry.boundingBox; return [b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z].map(v => +v.toFixed(5)); };
+    const meshes = o.children.filter(q => q.isMesh), area = b => (b[3] - b[0]) * (b[4] - b[1]);
+    const boxes = meshes.map(m => ({ name: m.name, b: bb(m) })).sort((a, c) => area(c.b) - area(a.b));
+    const keys = o.children.filter(q => /^edGauge_gpskey_/.test(q.name)).map(g => { const m = g.children.find(q => q.isMesh); const b = m ? bb(m) : null;
+      return { name: g.name, x: +g.position.x.toFixed(5), y: +g.position.y.toFixed(5), b }; });
+    unit = { housing: boxes[0] && boxes[0].b, screen: (boxes.find(q => q.name === 'edGauge_gps') || {}).b, meshes: meshes.length, keys };
+  } });
+  const gk = W.CAGE_PANEL.moving.filter(m => /^edGauge_gpskey_/.test(m.name)).map(m => ({ name: m.name, drive: m.drive, law: m.law, slide: m.slide, padR: m.padR }));
   process.stdout.write(JSON.stringify({ L: { dials: L.dials, switches: L.switches, screens: L.screens, breakers: L.breakers, extraOverflow: L.extraOverflow,
     overflow: L.overflow, yTop: L.yTop, yBot: L.yBot, xLim: L.xLim }, pilotX: args && args.o.side === 'centre' ? 0 : (args && args.o.pilotX) || 0,
     noRoom: sys.noRoom || [], billed: { items: RB.items, avionics: RB.avionics, breakers: RB.breakers.map(b => b.key), dropped: RB.dropped },
     joined: { rows: RJ.rows.map(q => q.key), avionics: RJ.avionics, items: RJ.items },
-    moving: mv, gpsMesh, gpsMat, errors: r.errors.length }) + '\n');
+    moving: mv, gpsMesh, gpsMat, unit, gk, errors: r.errors.length }) + '\n');
   process.exit(0);
 }
 for (const [name, file, gps, want, onLine, allDials] of PANELS) {
@@ -428,6 +492,22 @@ for (const [name, file, gps, want, onLine, allDials] of PANELS) {
   if (want === 'none') check(L.extraOverflow.includes('gps') && D.gpsMesh === 0, tag + ': named in extraOverflow, nothing drawn');
   else check(D.gpsMesh === 1 && D.gpsMat === 'gps', tag + ': one screen, on the GPS\'s own material (the join\'s `gps` bucket)', D.gpsMesh + ' ' + D.gpsMat);
   if (S && onLine) check(Math.abs(S.cx - D.pilotX) <= 0.0026, tag + ': the screen in front of the pilot (on the pilot\'s line)', S.cx.toFixed(3) + ' / ' + D.pilotX.toFixed(3));
+  // G2812: THE UNIT AS ITS FACE - the housing w along x and h along y (it was drawn on its side), the screen inside it
+  // at its size, four softkeys on the face and off the glass (each a `gpskey` gauge: a press slide, its own pad), the
+  // dual knob only where the catalogue fits one
+  if (S && D.unit && D.unit.housing) {
+    const f = C.GEN_AVIONICS.gps[gps].face, U = D.unit, h = U.housing, sc = U.screen;
+    check(near(h[3] - h[0], f.w, 0.0006) && near(h[4] - h[1], f.h, 0.0006), tag + ': the housing is the face, ' + (f.w * 1000).toFixed(0) + ' x ' + (f.h * 1000).toFixed(0) + ' mm, landscape',
+          ((h[3] - h[0]) * 1000).toFixed(1) + ' x ' + ((h[4] - h[1]) * 1000).toFixed(1));
+    check(sc && near(sc[3] - sc[0], f.sw, 1e-4) && near(sc[4] - sc[1], f.sh, 1e-4) && sc[0] >= h[0] && sc[3] <= h[3] && sc[1] >= h[1] && sc[4] <= h[4] && sc[2] < h[2],
+          tag + ': the screen at its size, inside the housing, in front of it', JSON.stringify(sc));
+    const inFace = k => k.x + k.b[3] <= h[3] + 1e-6 && k.x + k.b[0] >= h[0] - 1e-6 && k.y + k.b[1] >= h[1] - 1e-6 && k.y + k.b[4] <= h[4] + 1e-6;
+    const offGlass = k => k.x + k.b[3] <= sc[0] || k.x + k.b[0] >= sc[3] || k.y + k.b[4] <= sc[1] || k.y + k.b[1] >= sc[4];
+    check(U.keys.length === 4 && U.keys.every(k => k.b && inFace(k) && offGlass(k)), tag + ': four softkeys on the face, off the glass', U.keys.length);
+    check(D.gk.length === 4 && D.gk.every(m => m.law === 'gpskey' && /^gk_(rngDn|rngUp|orient|page)$/.test(m.drive) && m.slide && m.slide[2] > 0 && m.padR > 0),
+          tag + ': each softkey a gauge on the gpskey law (gk_<key>, a press slide, its own pad)', JSON.stringify(D.gk.map(m => m.drive)));
+    check((U.meshes > 3) === !!f.knob, tag + ': ' + (f.knob ? 'the dual knob fitted' : 'no knob (a portable)'), U.meshes + ' meshes');
+  }
   if (S && !S.coaming) {
     const x0 = S.cx - S.w / 2, x1 = S.cx + S.w / 2, y0 = S.cy - S.h / 2, y1 = S.cy + S.h / 2;
     const hitDial = Dp.find(d => { const nx = Math.max(x0, Math.min(d.cx, x1)), ny = Math.max(y0, Math.min(d.cy, y1)); return Math.hypot(nx - d.cx, ny - d.cy) < d.r; });

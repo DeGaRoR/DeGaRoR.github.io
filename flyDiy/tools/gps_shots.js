@@ -7,7 +7,8 @@
 // - the game bakes its own minimap underlay at boot; this is the island's printed map standing in for it), the island's
 // strips, a plan out of Jolene HOME, the aeroplane flown along it at 45 m/s so the track, GS / DTK / DIS / ETE are live.
 // Writes <out>/gps_<state>.png for: boot (the splash after power), map (40 s into the first leg), map_leg2 (70 s down
-// the second), off (the avionics master off: dark), standby (the shed), and gps_sheet.png (boot, map, map_leg2, standby), plus the screen's raw size. The kind
+// the second), map_2nm / map_trkup / nav (G2812's softkeys: the range a step in, track-up, the nav page), off (the
+// avionics master off: dark), standby (the shed), and gps_sheet.png (boot, map, 2 nm, track-up, nav, standby), plus the screen's raw size. The kind
 // (portable / panel / glass) picks the face's aspect and its standby, as GEN_AVIONICS.gps[kind].face says.
 //   node tools/gps_shots.js <outDir> [glass|panel|portable]
 'use strict';
@@ -63,6 +64,11 @@ const aspect = face && face.w && face.h ? face.w / face.h : 1.6;
     // ...over Ridgeback and 70 s down the second leg
     fly({ x: cg[0], z: cg[2] }, w3, 25); plan.legI = 1; fly(w3, tw, 70);
     out.map_leg2 = snap();
+    // G2812: the softkeys - the range a step in (2 nm), track-up, the nav page; then back to the map, north up, 4 nm
+    GPS.key('rngDn'); out.map_2nm = snap();
+    GPS.key('orient'); fly(w3, tw, 4); out.map_trkup = snap();
+    GPS.key('page'); out.nav = snap();
+    GPS.key('page'); GPS.key('orient'); GPS.key('rngUp');
     // the avionics master off: the screen dark (cockpit.js CK.gpsOn from the bus)
     CK.gpsOn = false; for (let i = 0; i < 30; i++) GPS.tick(1 / 60, CK);
     out.off = snap();
@@ -73,18 +79,18 @@ const aspect = face && face.w && face.h ? face.w / face.h : 1.6;
     return out;
   }, { mapURL, proj, KIND, aspect });
   const save = (k, url) => { const f = path.join(OUT, 'gps_' + k + '.png'); fs.writeFileSync(f, Buffer.from(url.split(',')[1], 'base64')); return f; };
-  for (const k of ['boot', 'map', 'map_leg2', 'off', 'standby']) save(k, shots[k]);
+  for (const k of ['boot', 'map', 'map_leg2', 'map_2nm', 'map_trkup', 'nav', 'off', 'standby']) save(k, shots[k]);
   // the four, 2 x 2, labelled
   const sheet = await page.evaluate(async ({ shots }) => {
-    const im = await Promise.all(['boot', 'map', 'map_leg2', 'standby'].map(async k => { const i = new Image(); i.src = shots[k]; await i.decode(); return [k, i]; }));
+    const im = await Promise.all(['boot', 'map', 'map_2nm', 'map_trkup', 'nav', 'standby'].map(async k => { const i = new Image(); i.src = shots[k]; await i.decode(); return [k, i]; }));
     const w = im[0][1].width, h = im[0][1].height, pad = 28;
-    const c = document.createElement('canvas'); c.width = 2 * w + 3 * 12; c.height = 2 * (h + pad) + 12;
+    const c = document.createElement('canvas'); c.width = 2 * w + 3 * 12; c.height = 3 * (h + pad) + 12;
     const g = c.getContext('2d'); g.fillStyle = '#2b2b2b'; g.fillRect(0, 0, c.width, c.height);
     im.forEach(([k, i], q) => { const x = 12 + (q % 2) * (w + 12), y = (q >> 1) * (h + pad) + pad;
       g.fillStyle = '#ddd'; g.font = '16px sans-serif'; g.fillText(k.replace('_', ' '), x, y - 8); g.drawImage(i, x, y); });
     return c.toDataURL('image/png');
   }, { shots });
   save('sheet', sheet);
-  console.log('the ' + KIND + ' GPS screen, ' + shots.size.join(' x ') + ' px: ' + ['boot', 'map', 'map_leg2', 'off', 'standby', 'sheet'].map(k => 'gps_' + k + '.png').join(', ') + ' -> ' + OUT);
+  console.log('the ' + KIND + ' GPS screen, ' + shots.size.join(' x ') + ' px: ' + ['boot', 'map', 'map_leg2', 'map_2nm', 'map_trkup', 'nav', 'off', 'standby', 'sheet'].map(k => 'gps_' + k + '.png').join(', ') + ' -> ' + OUT);
   await browser.close();
 })().catch(e => { console.error(e); process.exit(1); });

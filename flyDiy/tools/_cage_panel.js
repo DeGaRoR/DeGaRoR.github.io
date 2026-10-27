@@ -1555,27 +1555,102 @@ function gpsMaterial(aspect, kind) {
 }
 // the unit: a bevelled block 10 mm proud of the plate, its screen one quad 0.3 mm proud of that, and two knobs
 // where the face leaves a margin beside the screen (the pilot's right, -x)
+// G2812 (the user, 27 Oct: "fix the bezel so the screen fills it ... a few generic buttons straight on the GPS ...
+// accurately modelled in 3D, with a professional look"). THE UNIT, round its screen: a housing with rounded corners and
+// a chamfered front edge (bevelBlockInto drew it on its side: its sweep runs the first half-size along y - the 198 mm
+// glass unit stood 198 tall round a 93 mm screen), the screen behind a gloss lip, four SOFTKEYS - generic, their
+// labels painted on the screen at each key (gps_face.js, the same KEYS order) - and on a face with the room, the dual
+// concentric knob on the pilot's right. Cage frame: +x is the pilot's LEFT (the mirror rule), the front is -z.
+// A softkey is a gauge on the `gpskey` law (cockpit.js: a click presses it 1.2 mm in and calls FLYDIY_GPS.key).
+const GPS_KEYS = ['rngDn', 'rngUp', 'orient', 'page'];      // (gps_face.js KEYS: the left-to-right order on the glass)
+// a rounded rectangle, half-sizes hx (x) by hy (y), corner radius rad, in the kit sweep's (u, v) = (y, x) plane
+const roundSect = (hx, hy, rad) => {
+  const o = [], n = 5, r = Math.max(0, Math.min(rad, hx, hy));
+  for (const [cx, cy, a0] of [[hx - r, hy - r, 0], [-hx + r, hy - r, 90], [-hx + r, -hy + r, 180], [hx - r, -hy + r, 270]])
+    for (let i = 0; i <= n; i++) { const a = (a0 + 90 * i / n) * Math.PI / 180; o.push([cy + r * Math.sin(a), cx + r * Math.cos(a)]); }
+  return o;
+};
+// a rounded block standing OUT of its plane (-z) from z0 to z1, its front edge chamfered by ch
+function roundBlockInto(bag, x, y, z0, z1, hx, hy, rad, ch) {
+  KIT().sweep(bag, [[x, y, z0], [x, y, z1 + ch], [x, y, z1]],
+    t => (t > 0.99 ? roundSect(hx - ch, hy - ch, rad - ch * 0.6) : roundSect(hx, hy, rad)), true, [0, 1, 0]);
+}
+// the unit's plan: where the screen, the keys and the knob sit on a face (shared with GATE GPSFACE)
+function gpsPlan(S, keysAt, knob) {
+  const W = S.w, H = S.h, sw = S.sw, sh = S.sh;
+  const m = Math.min(0.007, Math.max(0.003, (H - sh) / 2 - 0.0005));          // the frame round the glass
+  const P = { W, H, sw, sh, m, keys: [], knob: null };
+  if (keysAt === 'left') {
+    const kw = 0.011, colX = W / 2 - m - kw / 2;                                   // a column on the pilot's left
+    P.xs = colX - kw / 2 - 0.004 - sw / 2; P.ys = 0;
+    for (let i = 0; i < GPS_KEYS.length; i++)
+      P.keys.push({ k: GPS_KEYS[i], x: colX, y: sh / 2 - (i + 0.5) * sh / GPS_KEYS.length, hx: kw / 2, hy: Math.min(0.0032, sh / GPS_KEYS.length / 2 - 0.0012) });
+  } else {
+    P.xs = knob ? W / 2 - m - sw / 2 : 0; P.ys = H / 2 - m - sh / 2;            // the screen at the top (left of the knob)
+    const band = (P.ys - sh / 2) + H / 2, yk = -H / 2 + band / 2;               // the band under it
+    const kx = Math.min(0.0062, sw / GPS_KEYS.length / 2 - 0.003), ky = Math.min(0.0034, band / 2 - 0.0022);
+    if (ky > 0.0015)
+      for (let i = 0; i < GPS_KEYS.length; i++)
+        P.keys.push({ k: GPS_KEYS[i], x: P.xs + sw / 2 - (i + 0.5) * sw / GPS_KEYS.length, y: yk, hx: kx, hy: ky });
+  }
+  // the knob: in the margin on the pilot's right (-x) when it is wide enough
+  const right = (P.xs - sw / 2) + W / 2;
+  if (knob && right >= 0.016) P.knob = { x: -W / 2 + right / 2, y: keysAt === 'left' ? 0 : P.ys, r: Math.min(0.0075, right / 2 - 0.003) };
+  return P;
+}
 function gpsUnitAt(parent, S, kind) {
   const K = KIT();
+  const AV = typeof GEN_AVIONICS !== 'undefined' ? GEN_AVIONICS : null;
+  const face = (AV && AV.gps[kind] && AV.gps[kind].face) || {};
+  const keysAt = S.keys || face.keys || 'below';
+  const P = gpsPlan(S, keysAt, S.knob != null ? !!S.knob : !!face.knob);
+  const zF = -0.010;                                                              // the housing's front
+  // the housing: 10 mm proud, 4 mm corners, a 1.2 mm chamfer round its front
   const bez = K.Bag();
-  bevelBlockInto(bez, 0, 0, 0.0005, -0.010, S.w / 2, S.h / 2, 0.002);
-  bez.mesh(parent, matFor('plate'));
-  // the screen leans to the pilot's left (+x) when the face leaves a margin wide enough for the knobs on the right
-  const side = (S.w - S.sw) / 2;
-  const knobs = side >= 0.016;
-  const xs = knobs ? side * 0.35 : 0;
-  const sb = UVBag(gpsMaterial(S.sw / S.sh, kind));
-  const hw = S.sw / 2, hh = S.sh / 2, z = -0.0103;
-  sb.v([xs + hw, -hh, z], [0, 0]); sb.v([xs - hw, -hh, z], [1, 0]);   // u runs against x (the mirror rule)
-  sb.v([xs - hw, hh, z], [1, 1]); sb.v([xs + hw, hh, z], [0, 1]);
+  roundBlockInto(bez, 0, 0, 0.0005, zF, P.W / 2, P.H / 2, 0.004, 0.0012);
+  bez.mesh(parent, matFor('hub'));                  // (near-black: the keys and the knob read against it)
+  // the glass's lip: a gloss frame 0.8 mm proud of the housing round the screen
+  const lip = K.Bag(), lw = 0.0016, zl = zF - 0.0004, ez = 0.0004;
+  const hw = P.sw / 2, hh = P.sh / 2;
+  K.boxIn(lip, [P.xs, P.ys + hh + lw / 2, zl], [hw + lw, lw / 2, ez], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+  K.boxIn(lip, [P.xs, P.ys - hh - lw / 2, zl], [hw + lw, lw / 2, ez], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+  K.boxIn(lip, [P.xs + hw + lw / 2, P.ys, zl], [lw / 2, hh, ez], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+  K.boxIn(lip, [P.xs - hw - lw / 2, P.ys, zl], [lw / 2, hh, ez], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
+  lip.mesh(parent, matFor('ball'));
+  // the screen: one quad, flush with the lip's inner edge (u runs against x: the mirror rule)
+  const sb = UVBag(gpsMaterial(P.sw / P.sh, kind)), z = zF - 0.0003;
+  sb.v([P.xs + hw, P.ys - hh, z], [0, 0]); sb.v([P.xs - hw, P.ys - hh, z], [1, 0]);
+  sb.v([P.xs - hw, P.ys + hh, z], [1, 1]); sb.v([P.xs + hw, P.ys + hh, z], [0, 1]);
   sb.quad(0, 1, 2, 3);
   sb.mesh(parent, 'edGauge_gps');
-  if (knobs) {
-    // the margin on the pilot's right runs from the face's -x edge to the screen's: the knobs in its middle
-    const kn = K.Bag(), xK = (-(S.w / 2) + (xs - hw)) / 2;
-    for (const [yk, r] of [[-S.h * 0.22, 0.0068], [S.h * 0.22, 0.0045]])
-      K.revolve(kn, [xK, yk, -0.010], [0, 0, -1], [[r, 0], [r, 0.008], [r * 0.85, 0.009], [0, 0.009]], 24, false);
-    kn.mesh(parent, matFor('knob'));
+  // THE SOFTKEYS: a rounded cap 2.2 mm proud, its front chamfered, on its own gauge (press: 1.2 mm in, gk_<key>)
+  for (const q of P.keys) {
+    const g = gaugeAt(parent, 'edGauge_gpskey_' + q.k, [q.x, q.y, zF], [0, 0, 1], 'gk_' + q.k, 'gpskey',
+      { k: 0, sgn: 1, slide: [0, 0, 0.0012], slideDrive: 'gk_' + q.k, padR: Math.min(0.008, Math.max(q.hx, q.hy) + 0.002) });
+    const cap = K.Bag();
+    roundBlockInto(cap, 0, 0, 0.0004, -0.0022, q.hx, q.hy, Math.min(q.hx, q.hy) * 0.55, 0.0006);
+    cap.mesh(g, matFor('grip'));
+    // its legend, inlaid white on the cap: - (range down), + (range up), a chevron (north / track up), stacked bars (page)
+    const lg = K.Bag(), zt = -0.0022 - 0.0001, t = 0.00045, s2 = Math.min(q.hx, q.hy) * 0.55;
+    const bar = (cx, cy, hl, a) => { const c = Math.cos(a), sn = Math.sin(a);
+      K.boxIn(lg, [cx, cy, zt], [hl, t, 0.00012], [c, sn, 0], [-sn, c, 0], [0, 0, 1]); };
+    if (q.k === 'rngDn') bar(0, 0, s2, 0);
+    else if (q.k === 'rngUp') { bar(0, 0, s2, 0); bar(0, 0, s2, Math.PI / 2); }
+    else if (q.k === 'orient') { bar(s2 * 0.42, s2 * 0.05, s2 * 0.62, -0.85); bar(-s2 * 0.42, s2 * 0.05, s2 * 0.62, 0.85); }   // a chevron, point up
+    else if (q.k === 'page') { bar(0, s2 * 0.42, s2 * 0.85, 0); bar(0, -s2 * 0.42, s2 * 0.85, 0); }
+    lg.mesh(g, matFor('needle'));
+  }
+  // THE DUAL KNOB: an outer ring with a ridged grip and an inner knob standing out of it, on a collar
+  if (P.knob) {
+    const kb = K.Bag(), r = P.knob.r, x = P.knob.x, y = P.knob.y;
+    K.revolve(kb, [x, y, zF], [0, 0, -1], [[r * 1.12, 0], [r * 1.12, 0.0012], [0, 0.0012]], 28, false);   // the collar
+    kb.mesh(parent, matFor('barrel'));
+    const ko = K.Bag();
+    K.sweep(ko, [[x, y, zF - 0.0012], [x, y, zF - 0.0072]], () => ridgedSect(r, 18, 0.06, 54), true, [0, 1, 0]);
+    ko.mesh(parent, matFor('grip'));                    // the outer ring
+    const ki = K.Bag();
+    K.revolve(ki, [x, y, zF - 0.0072], [0, 0, -1], [[r * 0.62, 0], [r * 0.62, 0.0062], [r * 0.55, 0.0070], [0, 0.0070]], 28, false);
+    ki.mesh(parent, matFor('knob'));                    // the inner knob
   }
 }
 

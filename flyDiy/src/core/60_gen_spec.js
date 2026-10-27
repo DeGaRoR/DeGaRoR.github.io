@@ -2094,15 +2094,20 @@ const GEN_AVIONICS = {
   // in a panel cradle (the plate is where the layout has room; a yoke mount is the crew layer's, not this one's).
   gps: {
     none:     { name: 'no GPS',             kg: 0,   price: 0,    amps: 0 },
+    // G2812 (the user, 27 Oct: "fix the bezel so the screen fills it ... a few generic buttons straight on the GPS"):
+    // the face is the unit's housing ROUND its screen - a frame, a band of four softkeys (`keys`: under the screen, or a
+    // column on its left for a slim navigator) and, where the face leaves the room, the dual knob on the pilot's right.
+    // The glass unit's was 198 x 159 mm round a 155 x 93 screen, drawn on its side (159 wide): half of it blank housing.
+    // `knob`: the unit has the dual knob (a portable has none: its screen is centred)
     portable: { name: 'portable GPS',       kg: 0.7, price: 900,  amps: 0.5,
-                face: { w: 0.135, h: 0.086, sw: 0.111, sh: 0.067 },
-                note: 'aera 660 class (135 x 86 mm, a 5 in 800 x 480 screen) in a panel cradle' },
+                face: { w: 0.135, h: 0.087, sw: 0.111, sh: 0.067, keys: 'below' },
+                note: 'aera 660 class (135 x 87 mm, a 5 in 800 x 480 screen) in a panel cradle' },
     panel:    { name: 'panel GPS navigator', kg: 1.5, price: 4500, amps: 1.0,
-                face: { w: 0.159, h: 0.051, sw: 0.112, sh: 0.040 },
+                face: { w: 0.159, h: 0.051, sw: 0.112, sh: 0.040, keys: 'left', knob: true },
                 note: 'GPS 175 class (6.25 x 2 in, a 4.8 in screen)' },
     glass:    { name: 'glass PFD/MFD',       kg: 3.5, price: 6500, amps: 2.5,
-                face: { w: 0.198, h: 0.159, sw: 0.155, sh: 0.093 },
-                note: 'G3X Touch / HDX class with ADAHRS and magnetometer (a 7 in screen); drawn as its map page' },
+                face: { w: 0.193, h: 0.115, sw: 0.155, sh: 0.093, keys: 'below', knob: true },
+                note: 'G3X Touch / HDX class with ADAHRS and magnetometer (a 7 in screen, 193 x 115 mm with its softkeys and dual knob); drawn as its map page' },
   },
 };
 // THE TIERS: what each fit buys. Day VFR is what an engine and an airframe

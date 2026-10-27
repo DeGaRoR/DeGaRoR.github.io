@@ -151,7 +151,7 @@ function make(THREE) {
     if (!model || !model.gauges || !THREE.SphereGeometry) return;
     const padMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false });
     for (const g of model.gauges) {
-      if (!/^(switch|knob|key|flap)$/.test(g.c.law) || !g.obj.add) continue;
+      if (!/^(switch|knob|key|flap|gpskey)$/.test(g.c.law) || !g.obj.add) continue;
       const pad = new THREE.Mesh(new THREE.SphereGeometry(g.c.padR || (g.c.law === 'key' ? 0.022 : g.c.law === 'flap' ? 0.024 : 0.016), 8, 6), padMat);
       if (g.c.law === 'flap') pad.position.set(0, -0.012, -0.030);   // G335: on the knob, not the buried pivot
       if (g.c.slide) pad.position.set(0, 0, g.c.padR ? -0.004 : -0.012);   // G371: a push-pull's knob (G2802: a breaker's button)
@@ -203,6 +203,7 @@ function make(THREE) {
 
   // ---- the lights a pilot flies with ------------------------------------------
   CK.handSw = {};                 // the switches a hand set since the last sunset / sunrise
+  CK.gkUntil = {};                // G2812: a GPS softkey pressed - held in until this performance.now()
   CK.lightsNight = null;          // the rule's last night state (the edge clears handSw)
   CK.lightsFor = (day, ias, hAboveField) => {
     const night = !day.sunUp, low = hAboveField < 150, slow = ias < 15;
@@ -398,6 +399,7 @@ function make(THREE) {
   // gauges: [{obj, c}] from app.js's build; c = the join's ctl record
   CK.pose = model => {
     const G = model && model.gauges; if (!G) return;
+    const tNow = typeof performance !== 'undefined' ? performance.now() : 0;   // (G2812: a softkey's press)
     const R = CK.readings;
     for (const g of G) {
       const c = g.c, o = g.obj;
@@ -442,7 +444,7 @@ function make(THREE) {
       // G371: a push-pull stands out when on — the slide the join carried,
       // from the group's home (its pivot)
       if (c.slide && g.home && o.position && o.position.set) {
-        const s = c.law === 'switch' ? (+CK.sw[drv] > 0.5 ? 1 : 0) : 0;
+        const s = c.law === 'switch' ? (+CK.sw[drv] > 0.5 ? 1 : 0) : c.law === 'gpskey' ? ((CK.gkUntil[drv] || 0) > tNow ? 1 : 0) : 0;
         o.position.set(g.home[0] + c.slide[0] * s, g.home[1] + c.slide[1] * s, g.home[2] + c.slide[2] * s);
       }
       // THE HAND IS LIT BY THE POSTS WHERE IT POINTS (G305): the same law
@@ -537,6 +539,14 @@ function make(THREE) {
       return did;
     }
     if (c.law === 'switch') { CK.sw[drv] = +CK.sw[drv] > 0.5 ? 0 : 1; CK.handSw[drv] = true; did = true; }   // the hand's now (lightsRule)
+    else if (c.law === 'gpskey') {
+      // G2812: a GPS softkey - it presses in for 140 ms whatever the unit does; a unit on and past its boot switches
+      // (gps_face.js key: the range, north-up / track-up, the page)
+      CK.gkUntil[drv] = (typeof performance !== 'undefined' ? performance.now() : 0) + 140;
+      const GP = typeof window !== 'undefined' ? window.FLYDIY_GPS : null;
+      if (GP && GP.key && CK.gpsOn) GP.key(String(drv).slice(3));
+      did = true;
+    }
     else if (c.law === 'knob') { const v = +CK.sw[drv] || 0; CK.sw[drv] = button === 2 ? (v <= 0 ? 1 : Math.max(0, v - 0.25)) : (v >= 1 ? 0 : Math.min(1, v + 0.25)); CK.handSw[drv] = true; did = true; }
     else if (c.law === 'key') {
       let i = clamp(Math.round(+CK.sw.key || 0), 0, 4);

@@ -9,7 +9,7 @@
 // A geometry check, not a beauty shot: no textures (but the GPS screen's, below), no transparency (a mesh under 0.15
 // opacity is left out), no shadows, no sky.
 //
-//   node tools/box_render.js [what] [out.png] [view] [px] [--fit portable|panel|glass] [--gps screen.png]
+//   node tools/box_render.js [what] [out.png] [view] [px] [--fit portable|panel|glass] [--gps screen.png] [--fov deg]
 //     what   a saved build (builds/cub_2026-09-20_corrected.json), card:<archetype key> (card:c172), or nothing for the
 //            page's default aeroplane
 //     view   iso (default), side, top, front, sheet (the four in a 2 x 2) - orthographic, fitted to the aeroplane; or
@@ -26,7 +26,7 @@ const T = __dirname;
 
 const argv = process.argv.slice(2);
 const opt = k => { const i = argv.indexOf(k); if (i < 0) return null; const v = argv[i + 1]; argv.splice(i, 2); return v; };
-const GPS_PNG = (v => v && path.resolve(v))(opt('--gps')), FIT = opt('--fit');
+const GPS_PNG = (v => v && path.resolve(v))(opt('--gps')), FIT = opt('--fit'), FOV = +(opt('--fov') || 66);
 const what = argv[0] || '', OUT = path.resolve(argv[1] || 'box_render.png');
 const VIEW = argv[2] || 'iso', PX = +(argv[3] || (VIEW === 'sheet' ? 800 : 1200));
 const COCKPIT = VIEW === 'cockpit';
@@ -150,7 +150,9 @@ function render(tris, cam, W, H) {
   const Fp = (cam.F || 1) * S, E = cam.eye || [0, 0, 0], NEAR = 0.04;
   const Z = new Float32Array(w * h).fill(-Infinity), C = new Uint8Array(w * h * 3);
   for (let i = 0; i < w * h; i++) { const g = persp ? 205 - 40 * Math.floor(i / w) / h : 236 - 28 * Math.floor(i / w) / h; C[i * 3] = g - (persp ? 30 : 0); C[i * 3 + 1] = g - (persp ? 10 : -2); C[i * 3 + 2] = g + (persp ? 25 : 8); }
-  const L = [0.35, 0.8, 0.5], ll = Math.hypot(...L); L[0] /= ll; L[1] /= ll; L[2] /= ll;   // the light, in the view's frame
+  // the light, in the view's frame: over the left shoulder outside; inside, from behind the eye (a cabin's light falls
+  // on the faces that look at the pilot)
+  const L = persp ? [0.22, 0.5, 0.84] : [0.35, 0.8, 0.5], ll = Math.hypot(...L); L[0] /= ll; L[1] /= ll; L[2] /= ll;
   const sx = new Float64Array(3), sy = new Float64Array(3), sz = new Float64Array(3), iz = new Float64Array(3);
   for (const t of tris) {
     let behind = false;
@@ -209,7 +211,7 @@ function cockpitCam(eyeP, gps, W) {
   let eye, look;
   if (eyeP && eyeP.p) {
     eye = eyeP.p;
-    if (gps) { const c = [0, 1, 2].map(i => (gps.min[i] + gps.max[i]) / 2); look = unit([c[0] - eye[0], c[1] + 0.06 - eye[1], c[2] - eye[2]]); }   // (at the GPS)
+    if (gps) { const c = [0, 1, 2].map(i => (gps.min[i] + gps.max[i]) / 2); look = unit([c[0] - eye[0], c[1] + 0.06 * FOV / 66 - 0.03 * (1 - FOV / 66) - eye[1], c[2] - eye[2]]); }   // (at the GPS: over it wide, its keys close)
     else { const fw = unit(eyeP.fwd || [0, 0, 1]); look = unit([fw[0], fw[1] - 0.25, fw[2]]); }
   }
   else {
@@ -218,7 +220,7 @@ function cockpitCam(eyeP, gps, W) {
     eye = [c[0], c[1] + 0.3, c[2] - 0.68]; look = unit([c[0] - eye[0], c[1] - eye[1], c[2] - eye[2]]);
   }
   const f = [-look[0], -look[1], -look[2]], r = unit(cross([0, 1, 0], f));
-  return { r, u: cross(f, r), f, eye, F: (W / 2) / Math.tan(33 * Math.PI / 180) };
+  return { r, u: cross(f, r), f, eye, F: (W / 2) / Math.tan(FOV / 2 * Math.PI / 180) };
 }
 // the pilot's head (or the whole skinned body of a character pilot): hidden while looking out of it, as the game's
 // interior view hides it
