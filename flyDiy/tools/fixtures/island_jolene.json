@@ -20673,8 +20673,8 @@
     "id": "o3",
     "kind": "aircraft",
     "key": "arch:jodel",
-    "x": -57,
-    "z": 642,
+    "x": -170,
+    "z": 621,
     "yaw": -1.637
    },
    {
@@ -20769,16 +20769,16 @@
     "id": "af_park1",
     "kind": "aircraft",
     "key": "arch:cub",
-    "x": -75,
-    "z": 644,
+    "x": -166,
+    "z": 593,
     "yaw": -1.637
    },
    {
     "id": "af_park2",
     "kind": "aircraft",
     "key": "arch:c172",
-    "x": -95,
-    "z": 639,
+    "x": -170,
+    "z": 607,
     "yaw": -1.637
    },
    {
