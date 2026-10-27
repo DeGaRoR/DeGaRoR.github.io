@@ -253,7 +253,7 @@ function acceptStatic(c, ev) {
       const a = c.at && typeof c.at === 'object' ? c.at : {}, W0 = acceptNum(SH.mass);
       const add = (acceptNum(a.pax) || 0) * L.occKg + (acceptNum(a.kg) || 0);
       const r = W0 > 0 && add > 0 ? Math.pow((W0 + add) / W0, c.k === 'stallKmh' ? L.stall : c.k === 'toDistM' ? L.toRun : L.climb) : 1;
-      return out(Math.round(raw * r * 10) / 10, 'the shakedown (genShakedown ' + (c.k === 'stallKmh' ? 'Vs' : c.k === 'toDistM' ? 'TORun' : 'climbRate') + ')' + (r !== 1 ? ', scaled to ' + Math.round(W0 + add) + ' kg' : ''));
+      return out(Math.round(raw * r * 10) / 10, 'the bench\'s shakedown (' + (c.k === 'stallKmh' ? 'Vs' : c.k === 'toDistM' ? 'TORun' : 'climbRate') + ')' + (r !== 1 ? ', scaled to ' + Math.round(W0 + add) + ' kg' : ''));
     }
   }
   return { k: c.k, ok: false, value: null, need: String(c.v), source: 'not a static kind' };
