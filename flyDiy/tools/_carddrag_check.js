@@ -67,8 +67,9 @@ const build = fs.readFileSync(path.join(ROOT, 'tools', 'build.js'), 'utf8');
 const sl = /scripts: \[([\s\S]*?)\]/.exec(build.slice(build.indexOf("'ui_layer.js'") - 200));
 const order = sl ? [...sl[1].matchAll(/'([a-z_0-9]+\.js)'/g)].map(m => m[1]) : [];
 need(order.indexOf('card_drag.js') >= 0 && order.indexOf('card_drag.js') < order.indexOf('app.js'), 'M build.js loads card_drag.js before app.js');
-// index.html inlines the viewer (card_drag.js's header, then app.js's FLYDIY_MENU); dev.html refers to the files
-{ const h = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'), a = h.indexOf('// card_drag.js - EVERY CARD'), b = h.indexOf('window.FLYDIY_MENU =');
+// index.html inlines the viewer (card_drag.js's header, then app.js's FLIGHT_PROBE - app.js's own with or without the menu:
+// card-drag lands alone, A0 27 Oct); dev.html refers to the files
+{ const h = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'), a = h.indexOf('// card_drag.js - EVERY CARD'), b = h.indexOf('window.FLIGHT_PROBE =');
   need(a >= 0 && b > a, 'M the built index.html carries card_drag.js before app.js'); }
 { const h = fs.readFileSync(path.join(ROOT, 'dev.html'), 'utf8'), a = h.indexOf('src/viewer/card_drag.js'), b = h.indexOf('src/viewer/app.js');
   need(a >= 0 && b > a, 'M the built dev.html carries card_drag.js before app.js'); }
