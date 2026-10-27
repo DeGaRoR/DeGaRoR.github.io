@@ -172,9 +172,13 @@ function drawStub(parent, AF, P) {
 // half-width comes down from 0.58 R (a section 1.76 x wider than tall) to
 // 0.50 R (1.38: fat, and round). Drawing only: the flight reads R (s1R), and
 // the weathering's wheel record reads hw from this table, as before.
+// G3548: the Alaska Bushwheel family (26x12x6, 35x15x10) is W/D 0.43-0.46 on a rim
+// 0.23-0.29 of the diameter, section height ~0.83 of its width; the torus was
+// W/D 0.50 on a 0.35 rim (0.65 tall) - fat, on a standard tyre's hub. Now hw
+// 0.44 R, bead 0.25 R (W/D 0.44, rim 0.26, 0.84 tall); no moulded rings on it.
 const TYRE = {
   0: { hw: 0.40, bead: 0.42, bulge: 1.02, bulgeAt: 0.80, crown: 0.035 },
-  1: { hw: 0.50, bead: 0.34, bulge: 1.04, bulgeAt: 0.72, crown: 0.10,
+  1: { hw: 0.44, bead: 0.25, bulge: 1.04, bulgeAt: 0.72, crown: 0.10,
        torus: 1, beadW: 0.60, faceW: 0.50 },
   2: { hw: 0.29, bead: 0.46, bulge: 1.00, bulgeAt: 0.84, crown: 0.02 },
 };
@@ -283,7 +287,7 @@ function wheel(bags, ctr, axis, R, opt) {
               [R * 0.085, R * 0.20, R * 0.042], ax, crs(rad, ax), rad);
       }
   }
-  for (const s of [-1, 1])
+  if (!prof.torus) for (const s of [-1, 1])
     for (const rr of [0.62, 0.70]) {
       // on the sidewall: the straight wall's 0.90 hw, or the torus where it is at that radius
       const w0 = prof.torus ? wallAt(R * rr) : hw * 0.90, w1 = prof.torus ? wallAt(R * (rr + 0.035)) + hw * 0.03 : hw * 0.93,
@@ -292,6 +296,10 @@ function wheel(bags, ctr, axis, R, opt) {
     }
 
   // ---- the rim ----------------------------------------------------------
+  // G3548 (the user, 25 Oct: the tundra's "flank was protruding, and their proportions were bad"): a bush tyre sits
+  // on a SMALL hub. For the torus the rim, its face, bolts, cap, valve and brake scale with the bead (Rh), not with the
+  // tyre; the standard and slim wheels keep R (Rh === R), byte for byte
+  const Rh = prof.torus ? R * prof.bead / 0.42 : R;
   const rimK = Math.round(P.whRim == null ? 0 : P.whRim);
   const bolts = Math.max(3, Math.round(P.whBolts == null ? 6 : P.whBolts));
   // bead seats, flange lips and the well between them — the drum the
@@ -306,7 +314,7 @@ function wheel(bags, ctr, axis, R, opt) {
   const outer = [
     [bead * 1.19, -beadH * 1.16], [bead * 1.21, -beadH * 1.08],
     [bead * 1.16, -beadH * 1.02], [bead * 1.02, -beadH * 0.97],
-    [R * 0.335, -beadH * 0.52], [R * 0.335, beadH * 0.52],
+    [Rh * 0.335, -beadH * 0.52], [Rh * 0.335, beadH * 0.52],
     [bead * 1.02, beadH * 0.97], [bead * 1.16, beadH * 1.02],
     [bead * 1.21, beadH * 1.08], [bead * 1.19, beadH * 1.16],
   ];
@@ -318,8 +326,8 @@ function wheel(bags, ctr, axis, R, opt) {
   loop.push(loop[0].slice());                 // close the section
   revolve(Hb, ctr, ax, loop, 40);
   // hub barrel
-  revolve(Hb, ctr, ax, [[R * 0.11, -hwHub * 0.92], [R * 0.17, -hwHub * 0.86],
-    [R * 0.17, hwHub * 0.86], [R * 0.11, hwHub * 0.92]], 26);
+  revolve(Hb, ctr, ax, [[Rh * 0.11, -hwHub * 0.92], [Rh * 0.17, -hwHub * 0.86],
+    [Rh * 0.17, hwHub * 0.86], [Rh * 0.11, hwHub * 0.92]], 26);
   // THE OUTER FACE IS THE RIM STYLE — drawn on both faces, inset
   for (const s of [-1, 1]) {
     const hf = s * face;
@@ -327,33 +335,33 @@ function wheel(bags, ctr, axis, R, opt) {
       const NS = Math.max(6, bolts * 2);
       for (let k = 0; k < NS; k++) {
         const an = 2 * Math.PI * k / NS;
-        taper(Hb, at(R * 0.165, hf * 0.80, an), at(R * 0.33, hf * 1.02, an),
-              R * 0.026, R * 0.017, 7);
+        taper(Hb, at(Rh * 0.165, hf * 0.80, an), at(Rh * 0.33, hf * 1.02, an),
+              Rh * 0.026, Rh * 0.017, 7);
       }
-      revolve(Hb, ctr, ax, [[R * 0.31, hf * 1.02], [R * 0.345, hf * 1.02],
-        [R * 0.345, hf * 0.86], [R * 0.31, hf * 0.86]], 34, true);
+      revolve(Hb, ctr, ax, [[Rh * 0.31, hf * 1.02], [Rh * 0.345, hf * 1.02],
+        [Rh * 0.345, hf * 0.86], [Rh * 0.31, hf * 0.86]], 34, true);
     } else if (rimK === 2) {                 // LIGHTENED: ring + webs
-      revolve(Hb, ctr, ax, [[R * 0.155, hf * 0.84], [R * 0.225, hf * 0.96],
-        [R * 0.225, hf * 0.84], [R * 0.155, hf * 0.72]], 34, true);
-      revolve(Hb, ctr, ax, [[R * 0.305, hf * 1.00], [R * 0.35, hf * 1.00],
-        [R * 0.35, hf * 0.86], [R * 0.305, hf * 0.86]], 34, true);
+      revolve(Hb, ctr, ax, [[Rh * 0.155, hf * 0.84], [Rh * 0.225, hf * 0.96],
+        [Rh * 0.225, hf * 0.84], [Rh * 0.155, hf * 0.72]], 34, true);
+      revolve(Hb, ctr, ax, [[Rh * 0.305, hf * 1.00], [Rh * 0.35, hf * 1.00],
+        [Rh * 0.35, hf * 0.86], [Rh * 0.305, hf * 0.86]], 34, true);
       for (let k = 0; k < bolts; k++) {
         const an = 2 * Math.PI * k / bolts;
-        const a0 = at(R * 0.20, hf * 0.92, an), a1 = at(R * 0.33, hf * 0.96, an);
+        const a0 = at(Rh * 0.20, hf * 0.92, an), a1 = at(Rh * 0.33, hf * 0.96, an);
         sweep(Hb, resample([a0, a1], 4),
-              () => secBlade(R * 0.10, R * 0.030), true, ax);
+              () => secBlade(Rh * 0.10, Rh * 0.030), true, ax);
       }
     } else {                                 // CAST DISC: solid, dished
-      revolve(Hb, ctr, ax, [[R * 0.16, hf * 0.80], [R * 0.24, hf * 1.00],
-        [R * 0.32, hf * 0.96], [bead * 0.99, hf * 0.72]], 38);
+      revolve(Hb, ctr, ax, [[Rh * 0.16, hf * 0.80], [Rh * 0.24, hf * 1.00],
+        [Rh * 0.32, hf * 0.96], [bead * 0.99, hf * 0.72]], 38);
     }
   }
   // bolt heads on the outer face, where a wheel shows them
   for (let k = 0; k < bolts; k++) {
     const an = 2 * Math.PI * k / bolts;
-    bolt(bags.alloy, at(R * 0.255, face * 1.02, an), ax, R * 0.040, hw * 0.10);
-    bolt(bags.alloy, at(R * 0.255, -face * 1.02, an), mul(ax, -1),
-         R * 0.034, hw * 0.06);
+    bolt(bags.alloy, at(Rh * 0.255, face * 1.02, an), ax, Rh * 0.040, hw * 0.10);
+    bolt(bags.alloy, at(Rh * 0.255, -face * 1.02, an), mul(ax, -1),
+         Rh * 0.034, hw * 0.06);
   }
   const cap = Math.round(P.whCap == null ? 1 : P.whCap);
   if (cap) for (const s of [-1, 1]) {
@@ -361,19 +369,19 @@ function wheel(bags, ctr, axis, R, opt) {
     for (let i = 0; i <= ND; i++) {
       const t = i / ND;
       dome.push(cap === 1
-        ? [R * 0.165 * Math.cos(t * Math.PI / 2),
-           s * (hwHub * 0.88 + R * 0.090 * Math.sin(t * Math.PI / 2))]
-        : [R * 0.165 * (1 - t), s * (hwHub * 0.88 + R * 0.020)]);
+        ? [Rh * 0.165 * Math.cos(t * Math.PI / 2),
+           s * (hwHub * 0.88 + Rh * 0.090 * Math.sin(t * Math.PI / 2))]
+        : [Rh * 0.165 * (1 - t), s * (hwHub * 0.88 + Rh * 0.020)]);
     }
     revolve(bags.alloy, ctr, ax, dome, 26);
   }
   if (P.whValve == null || P.whValve) {
     const an = Math.PI * 0.28;
-    const b0 = at(R * 0.345, face * 0.80, an);
-    const b1 = at(R * 0.405, hwHub * 1.24, an);
-    taper(bags.dark, b0, b1, R * 0.030, R * 0.022, 8);
-    revolve(bags.alloy, b1, nrm(sub(b1, b0)), [[R * 0.023, 0],
-      [R * 0.023, R * 0.034], [R * 0.015, R * 0.040]], 10, true);
+    const b0 = at(Rh * 0.345, face * 0.80, an);
+    const b1 = at(Rh * 0.405, hwHub * 1.24, an);
+    taper(bags.dark, b0, b1, Rh * 0.030, Rh * 0.022, 8);
+    revolve(bags.alloy, b1, nrm(sub(b1, b0)), [[Rh * 0.023, 0],
+      [Rh * 0.023, Rh * 0.034], [Rh * 0.015, Rh * 0.040]], 10, true);
   }
 
   // ---- brake --------------------------------------------------------------
@@ -386,21 +394,21 @@ function wheel(bags, ctr, axis, R, opt) {
     const kind = Math.round(P.whBrake == null ? 0 : P.whBrake);
     if (kind === 1) {
       revolve(bags.brake, off(ctr, ax, -s * hw * 1.02), ax,
-        [[R * 0.20, 0], [R * 0.60, 0], [R * 0.60, -s * hw * 0.44],
-         [R * 0.54, -s * hw * 0.52], [R * 0.20, -s * hw * 0.52]], 30, true);
+        [[Rh * 0.20, 0], [Rh * 0.60, 0], [Rh * 0.60, -s * hw * 0.44],
+         [Rh * 0.54, -s * hw * 0.52], [Rh * 0.20, -s * hw * 0.52]], 30, true);
     } else {
       const dz = -s * hw * 1.16;
       revolve(bags.brake, off(ctr, ax, dz), ax,
-        [[R * 0.22, 0], [R * 0.62, 0], [R * 0.62, -s * 0.010],
-         [R * 0.22, -s * 0.010]], 30, true);
+        [[Rh * 0.22, 0], [Rh * 0.62, 0], [Rh * 0.62, -s * 0.010],
+         [Rh * 0.22, -s * 0.010]], 30, true);
       for (let k = 0; k < 16; k++) {
         const an = 2 * Math.PI * k / 16;
-        revolve(bags.hub, at(R * 0.46, dz + s * 0.001, an), ax,
-                [[R * 0.032, 0], [R * 0.032, -s * 0.012]], 8, true);
+        revolve(bags.hub, at(Rh * 0.46, dz + s * 0.001, an), ax,
+                [[Rh * 0.032, 0], [Rh * 0.032, -s * 0.012]], 8, true);
       }
       const up = [0, 1, 0];
       const rad = nrm(sub(up, mul(ax, dot(up, ax))));
-      const cc = add(off(ctr, ax, dz), mul(rad, R * 0.52));
+      const cc = add(off(ctr, ax, dz), mul(rad, Rh * 0.52));
       // G58.3/G148: the CALIPER does not turn with the wheel — it bolts to
       // the leg. When the caller provides a `brakefix` bag (the cage join's
       // per-wheel split routes it into the LEG unit), the caliper goes
@@ -409,11 +417,11 @@ function wheel(bags, ctr, axis, R, opt) {
       // plumbing too and must follow the caliper it feeds — in `dark` it
       // either froze on the fuselage or spun with the wheel, depending on
       // who owned that bag.
-      boxIn(bags.brakefix || bags.brake, cc, [R * 0.15, R * 0.24, R * 0.115],
+      boxIn(bags.brakefix || bags.brake, cc, [Rh * 0.15, Rh * 0.24, Rh * 0.115],
             nrm(crs(rad, ax)), rad, ax);
-      taper(bags.brakefix || bags.dark, add(cc, mul(rad, R * 0.16)),
-            add(cc, add(mul(rad, R * 0.40), mul(ax, -s * R * 0.10))),
-            R * 0.022, R * 0.018, 7);
+      taper(bags.brakefix || bags.dark, add(cc, mul(rad, Rh * 0.16)),
+            add(cc, add(mul(rad, Rh * 0.40), mul(ax, -s * Rh * 0.10))),
+            Rh * 0.022, Rh * 0.018, 7);
     }
   }
 }

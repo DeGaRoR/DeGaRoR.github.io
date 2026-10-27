@@ -97176,6 +97176,24 @@ Strict light gate: 8 RED, none new by cause: over100 x4 = the pre-existing revea
   - The numbers in ROUTES_PAY are a hypothesis. Waits pay (the brief says so): a 12 h wait on the story Cub's route earns
     ~26 000. Tune perKm / downTrips there if that is too rich.
 
+## G3612 - CAREER-OWN: A CAREER'S FLEET IS ITS OWN PLANES; A DESIGN BROUGHT IN IS A KIT - BOUGHT, COPIED, THEN CERTIFIED
+
+The user (25 Oct): "a career starts only with its own plane. Any imported plane in the career costs money" - "old careers
+are reset to only their own planes ... What you import is a design, then making it exist in game requires money and
+freezes the design, until the next edit. At that point, it is its own copy, and will live its life as an individual
+object" - "New copy starts uncertified. Like kitplanes, you can build it, you still need to certify it once built".
+- **Own = a career.airframes row** (74_career.js careerOwnSlots): the story's starter and client, a maker's / used one
+  bought, a build materialised in its garage, an import. Every playerFleetReconcile in app.js goes through
+  fleetSlotNames: a career is handed its own slots only, so an older career's other rows leave at its next lift (the
+  reset, once). The sandbox is handed every slot but a career's copies.
+- **A career's slot is tagged** `'<name> @<career id>'` (CAREER_SLOT_TAG): an import's copy (careerCopyName) and a build
+  saved under a new name in a career garage (careerSaveKey). The sandbox's lift and rack never list one, no other career
+  may import one; the rack shows the name without the tag (api.slotLabel); the plaque keeps the name typed.
+- **An import is a kit** (careerImport): the economy's airframe price over its ledger (econMaterialise, how 'import', `of`
+  the design), refused short of the cash; the page copies the design's envelope to the copy's slot with the plaque and
+  the logbook EMPTY - built, then certified. The sandbox's later edits never reach the copy.
+- Rule for new code: a path that writes a career slot and lifts it writes its airframes row FIRST, or the lift drops it.
+
 ## G3360-G3369 - CAREERS: SEVERAL CAREERS, EACH ITS OWN DOCUMENT; THE INDEX flydiy.careers; CONTINUE = THE LAST PLAYED, NEW CAREER = A NEW ID (NEVER OVER ONE), CAREERS... = THE LIST (CONTINUE / RENAME / DELETE, CONFIRMED IN THE MENU); EVERY PLAYER CAREER ITS OWN STORY (2026-10-20, the GAME COORDINATOR; cloud - node + the gates' vms, no browser; branch claude/careers off origin/master c7c16380; work @ 2024aaaa; G3361-G3369 unused)
 
 - **The index** (welcome.js, read before the core loads): `flydiy.careers = { ids: [...], last: id }`.
@@ -99025,3 +99043,86 @@ The user, 25 Oct: retire the old crash-test figure completely (mesh, references,
 - THE STILLS RIG (garage_shot.js, G3701): headless, the garage's BOOT.state stays 'loading', so placeCamera never runs (eye [0,0,0]) and every frame was flat. The rig now asserts the loop and draws each framing by hand (placeCamera's orbit, one render: dark, no exposure pass). It also has --dump (+ _strip.json, the fingerprint's input), --cglog (the CG trail), --build, the crew/hands views and a 60 s limit per page call.
 - THE CESSNA FLOATS FILE RE-SAVED ONCE (A0 ruling (b), 27 Oct): bugReports/cessnaFloatsWOrks.json saved gear.floats.x = 1.630878549124896, but every load on master re-stood it (the CG handshake) to 1.2272033007786634 - the station the game has flown since. With the hold the file would have flown as saved, 40 cm away; so the file now SAVES the flown station (data edit, that one number; y unchanged). JOINPARITY's page capture re-taken for cub (the 28 L tank) and floats (join_parity_page.js --only cub,floats).
 - STATUS: s27-c1d/s27-g2c (26f20184c): reds PILOTS (master's stale regex), FRAMECOST (master's standing cessna boot/restore updateMatrixWorld key), SIMWORKER (the freeze-timing row, load), STARTER (its regex wanted `loaded();` - now accepts `loaded(spec);`), JOINPARITY (the raw-tools row is master's; the Cub mass and the floats station above). Re-gated in s27-c2d (Tue 03:42). Hands: the user (27 Oct) wants the fist closed ON each grip - superseded Option A/B; measured Tue 03:16, fix in s27-c6.
+## G3452 - CG-WARN: A WARNING SIGN IN THE CG READOUT ITSELF ON RED AND ORANGE (2026-10-25, RUFUS-CERT for A0; claude/cg-warn, on top of G3450; for L25c or L26a)
+
+The user on the G3450 stills (25 Oct): "The CG coloring looks good, but I'd put a warning sign straight in the CG text if not good (red or orange)."
+- src/viewer/app.js: when the margin's band carries its mark (red or orange), the centre of gravity's readout opens on a ⚠ ("⚠ 52 % of the wing chord"). A build with no wing chord has no readout, so the band's title stands in ("⚠ unstable in pitch"). A green build is unchanged. The "!" on the margin line and the tooltip stay as G3450 shipped them.
+- The ⚠ is not in IBM Plex Mono; the label canvas draws it from the system's symbol font (Segoe UI Symbol, Apple Symbols, Noto). Its still is the check.
+- GATE CGBAND: one source row for the readout's sign.
+- Gates: CGBAND, UISMOKE, plus one red still to show the glyph.
+## G3540 - WHEELS-SPIN: A DRAWN WHEEL ROLLS ONLY ON THE GROUND, THEN RUNS DOWN (2026-10-25, AIRCRAFT-LOOKS, LOCAL; for T-P1 / L25c; claude/ready/wheels-spin)
+Why: the user's playtest 24 Oct, item 30 ("wheels keep turning the whole flight"). app.js poseModel turned each drawn wheel by its axle node's motion along body-x over R, every frame, with no ground test - in the air it spun at the flying speed.
+What changed (src/viewer/app.js only, drawing only - the solver's contact and every spec key untouched):
+- poseModel's wheel loop asks `wheelOn(w)`: the solver's own sim.wheelContacts() by node (refs.mains in order, refs.tw); on the water (floats are the contacts there) or for a wheel it does not list, the same law in the page - the axle node's height over groundH less R under 6 cm.
+- On the ground: the old roll (rotation.z -= mx / R) and the rate kept, w.om (rad/s, low-passed 0.5, capped at WHEEL_OM_MAX 90 m/s at the rim so a placement's jump is no roll).
+- Lifted: the rate runs down, |om| * exp(-dt / WHEEL_SPIN_TAU 3 s) - WHEEL_SPIN_BRAKE 8 rad/s^2 * dt, to zero (~5 s from a 25 m/s lift-off); a paused world holds it (`running`, as the prop).
+- Generated builds draw their wheels in the skin and never spun (63_gen_wing.js: "nothing spins the wheel"); unchanged. The roll-out shot (rollanim.js) turns the wheels itself; unchanged.
+Gates: SKIN SKINMAT CONTACT DMGSKINGPU LIGHT POSEHIDDEN ROLLANIM SIMWORKER UISMOKE AUDIO (every gate that reads poseModel / the wheel rows; none scans the changed line). Flown check: the Cub rolled out, the drawn wheels' angle sampled after the last contact (rig: the session's scratchpad, steps_wheels.js).
+
+## A0 - landing L25c (as L25c2, 25 Oct 2026, gates 23:00-23:46, pushed ~23:55): CAREER OWNS ITS OWN PLANES, THE CG WARNING SIGN, THE EYE KEEPS ITS PAIR, THE ROUTE COPIED FROM THE WORKER, WHEELS STOP IN THE AIR
+The first L25c (9 readies, gates 21:30-22:42) was RED and did not land. Against L25b it showed:
+- loads +10-14 s on all four legs;
+- FRAMECOST stand/taxi tris.shadow up (Cessna taxi 1.9M -> 3.7M) and taxi texSubImage2D 288K -> 784K;
+- HOME world -> garage 4.23 s.
+Three suspects are HELD in land_hold.txt and each will be measured alone on master on Mon 26 (10:15-11:30):
+- garage-flood 3682f7b61 (Game suspects the lamp's light-count relink on garage entry);
+- jolene-fold 1f32797a6 (ED-2 suspects its WORLD-LOOK defaults: muskeg forest debris 14 -> 131 per 1000, batched and shadow-casting from 0.35 m);
+- hangars-look bc8421977.
+game-menus 80eba5083 is held as well: an editor.css clash; it is re-merged at 00:00 for L26a.
+Rolling set (5): career-own 8edbfb296, cg-warn c727ca713, eye-gpu 9a8d8670b, route-copy dc8fb0b01, wheels-spin cc2138297.
+Battery: master's standing reds only - CLOCK (1 of 777), CLOUD (the lamp-pool row), FRAMECOST (the cessna boot/restore updateMatrixWorld key, identical to master), KTX2 row 10. AUDIOENG, red in the first run, passes here.
+Strict light gate RED (6), all in known classes; the loads are back inside their slack:
+- compile / tasks1s: the boot class.
+- metal fuseWidth busy 393: the bimodal 0 / ~400 ms rep (master's own L24b / L24c show the same).
+- world -> garage: cub round trip 2 at 2.02 s, floats at 5.29 s. The class red since L24c (2.99 / 3.55 there); HWCOV has the cause, the per-trip cacheKey churn of fragment 66e30961, and its Mon 12:45 slot names the owner.
+Pushed by the user's order of 25 Oct: land as soon as possible.
+
+## G3541-G3548 - AIRCRAFT-LOOKS: THE PAINT REACHES THE ROD BOOM AND THE TRUSS, NO REGISTRATION READS MIRRORED, THE WHOLE AEROPLANE PICKED WEARS ONE SILHOUETTE, THE TUNDRA IS A BALLOON ON A SMALL HUB (2026-10-26, AIRCRAFT-LOOKS, LOCAL; for T-P2 / L27a; claude/ready/aircraft-looks)
+Why: the user's playtest of 24 Oct, and the user's rulings of 25 Oct relayed by A0. Registrations: "not having mirrored registration when projecting either on the fuselage ... but also on the wings. The top side and bottom sides should be treated differently, and that should be the same for the stabs and the fins." Tundra: "the bigger tundra wheels are bad ... their flank was protruding, and their proportions were bad."
+What changed (drawing only - no spec key, no certificate):
+- G3541 (_cage_ui.js baseReach): the global paint reaches the rod boom and an open fuselage's truss tubes, like the other skins.
+- G3542 + G3547 (aeroskin.js decal shader):
+  - PLAN box (wings, stabs): flips on a face whose normal points down (vCraftNrm.z < 0), so the bottom reads from below and the top from above.
+  - SIDE box (fins, fuselage flanks): mirrors by the face's own lateral normal (|nx| > 0.25; else the position's side). Both faces of a fin and a twin boom's inner face read forward.
+  - The field box is unchanged.
+- G3543 (editor.js hiBuild): the root picked (its tree row, the livery pill) draws the union silhouette of every drawn mesh. The garage opening on the root, or a click into empty space, draws nothing, as before (select(key, picked) / rootPicked).
+- G3548 (_gear_gen.js TYRE[1], the torus):
+  - hw 0.50 -> 0.44 R, bead 0.34 -> 0.25 R: W/D 0.44, rim 0.26 D, section 0.84 of its width. That is the Alaska Bushwheel family (26x12x6, 35x15x10: 0.43-0.46, 0.23-0.29, ~0.83).
+  - For the torus only, the rim, face style, bolts, cap, valve and brake scale with the bead (Rh); the 0.62 R brake disc had stood proud of the sidewall.
+  - No moulded rings on the torus sidewall.
+  - The standard and slim wheels draw byte for byte (Rh === R). The flight reads s1R; TYRE_CN is untouched.
+- G3545 (retire the old dummy) WITHDRAWN: it moved to DUMMY-RETIRE (the user's call). The commit 35484a7b6's title still names it; its code is not in this branch.
+- NOT DONE: the elevator's visible side shaded and detailed like the cut wing side (item 4) - left for a later round.
+Stills (Mon 26 00:45 s26-g1, before = L25b's files vs after; the session's scratchpad stills/):
+- reg2/ba_*: N1ORF on the Cub and Rufus. Under the wing and the stab it read mirrored and now reads right; the tops and both fin sides are unchanged and right.
+- tundra_wheel_front.jpg: the standard wheel | today's tundra | this.
+- valid/pair_*: Cub, Jodel, Cessna, Cessna floats, twin floats, Rufus, unchanged at load apart from the entry outline that f46685a6e removes.
+Rig trap: since L25b, dev.html's boot runs ~65 s after the garage objects exist. A still taken before BOOT.state 'gone' shows a half-built world.
+Correction to G3540 above: its evidence was the node page check, not steps_wheels.js. That check is tools/_page_node.js with the user's Cub, rolled out and flown for 240 s: worker and inline PASS, master's app.js FAIL.
+## G3451 - DASH-ARCH-SAVED: EVERY SAVED BUILD TAKES THE ARCH DASHBOARD; A CERTIFICATION-RULE CHANGE (THE DASH IS A LOOK ROW, HASHED AS IT WAS CERTIFIED) (2026-10-25, RUFUS-CERT for A0; claude/dash-arch off L24c 2b381015d; gates Mon 26 17:15 CPU, cockpit stills Tue 27 12:15 GPU; for L26a/b)
+
+The user, 25 Oct: "Yes, we should switch the saved planes to the new dashboard." G3340 (L19c) had made the arch (`dashStyle 1`) the default for NEW builds only; every file saved before it loaded on the box.
+
+**The migration** (`tools/_cage_gen.js` cageFromSpec (5), the one door). A cage without the new row `dashV` takes the arch once: `dashStyle 1`, `dashV 1`, and the box's never-shown legs row goes to its default (1). Two things made this the rule, ruled by A0 on 25 Oct:
+- "no dashStyle" was not enough: cageSpec has written every row since G377, so every build saved since L19c carries an explicit `dashStyle 0`. That covers the user's browser saves, Rufus and the PA-18.
+- A box picked deliberately between L19c and today flips once too. The user can pick it again, and from now on it stands (`dashV 1`).
+
+The dash the file was drawn with stays on it as `dashWas` / `dashLegsWas`. The template carries `dashV 1`. Rufus and the PA-18 are rewritten the same way in their files: `dashStyle 1, dashV 1, dashWas 0, dashLegsWas 1`.
+
+**CERT-RULE CHANGE - for CERT-REVIEW.** The dash is now a LOOK row for the fingerprint (`src/viewer/bench.js` benchStripCosmetic):
+- **Why it can be a look row:** the arch and the box weigh the same and sit at the same CG (GATE DASH's physics rows).
+- **What it hashes:** a cage saved after the switch hashes the dash it was CERTIFIED with. That is `dashWas` / `dashLegsWas` when the switch moved the file, else the arch (1 / 1). It is never the dash shown now.
+- **What that gives:**
+  - Every stamp taken on the box keeps matching: the bench plaque, the acceptance legs signed into the logbook (72_accept), and a career airframe's fp (76_procure). Nothing loads WITHDRAWN, no re-stamp is needed, and no fingerprint or scheme bump is made.
+  - A dash picked later keeps the certificate.
+- **Unchanged:** a cage from before the switch that was never reopened (no `dashV`: a parked slot's raw spec) still hashes exactly as it is.
+- **Matches A0's ruling, narrower than first proposed:** A0 OK'd look rows outside the fp plus an old-key equivalence on restore. But the fp is also stored by the signed legs, the flights and the career's airframes, so an equivalence would have been needed at every one of those comparisons. Hashing the certified dash keeps one hash everywhere.
+- **Precedent:** the frame rows' retired keys (T2.1) were hashed the same way.
+
+**The parked fleet** (`parked.js` fleetSig): the dash rows ride in the look part of the signature, since the fp holds them still. Every parked bake re-bakes once (the arch is a new look anyway).
+
+**Gates:**
+- DASH's load rows follow the switch: an old file takes the arch with dashWas 0; a file carrying the box takes the arch; a box picked after the switch stands; the switch happens once.
+- BENCH gets 6 rows, each with defaults and without: a box build through the switch hashes as certified; so does an arch build; after the switch the dash is a look; a build born after hashes as an arch build did; a cage from before still hashes as it is; a real cage row still counts. They were shown red on master's bench.js (4 of the 6).
+- KNIFE: the corpus is re-recorded in the Mon slot for the dash change only.
+- PANEL, CAGEFIT, CABIN, FRAMECOST, STORY (Rufus's certificate) and BENCH run in the Mon 17:15 CPU slot.
