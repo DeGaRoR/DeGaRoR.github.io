@@ -99615,3 +99615,15 @@ presentation, same model calls (the LEAN core list and every verdict unchanged; 
 - THE PREVIEW: map_menu.js's contract row and opened paragraph reproduced (type dot, round face, title, pay, ✓ / ⏳ / ✗;
   the 120 px portrait with the client and contractor, "Contractor: brief. Pays N.", the stops and km, TRACK); a campaign
   or chapter shows its missions as the list's rows.
+
+## READY claude/ready/missions-props - THE MISSION PROPS, THE STRIKE RULE, THE EDITOR'S UI PASS (2026-10-27, cloud, node + a headless page check; Game reviews before it lands)
+
+**Base: claude/missions-p3 afa3e83ce** (= claude/ready/missions-p3; land p1, then p3, then this). What it does: the
+MISSIONS-PROPS entry above (meshes, what a hit does, the editor). Running careers: unchanged except that a NEW mission
+(MISSION_RULES_NEW) now carries `strike: 'penalty'`, and a mission's laps take +3 s per gate post / ring touched when the
+page feeds the tracker (nothing feeds it yet); today's contracts state no rules - nothing changes for them.
+**Gates** (private copy built there, `run_gates.js --no-build`, 27 Oct): CLOCK, DEFAULT, UISMOKE, UISMOKE-PHONE, NAVAID,
+SAVE, ACCEPT, CONTRACTS, MISSIONS (873 checks; selftest 51/51 red), MISSIONPROPS (new, 84 checks), STAGES, STORY, ROUTES,
+ECON, PROCURE, FREIGHT, PILOTS: PASS. LAZY: FAIL (1) - the same row as p1's, p3's and db58b0b5's (route_draw's lazy door
+in this cloud browser; passes probed alone). MISSIONS + MISSIONPROPS re-run after the editor's last commit: PASS.
+Not run here (GPU / local): the visuals in the game - nothing draws the props yet (the local session's list above).
