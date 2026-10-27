@@ -59,8 +59,19 @@ if (argv[0] === '--part') {
     // the Cub and the Jodel hold their wing through the pull (nz 6.5 / 5.7): then the nose goes down under power, into
     // the ground from 400 m - the high-speed break-up that throws pieces up (the metal Cessna's, 20:05 Mon 26 Oct: a
     // 17.7 kg piece 0.4-2 m up at 13 m/s at the old freeze); a nose-down input is the pull's sense reversed (pull()'s sgn -1)
-    sim = L.lastRun.sim; out.nz = +r.nzMax.toFixed(2); sim.ctl.de = sim.damage().crashed ? 0 : 0.5; sim.ctl.thr = sim.damage().crashed ? 0 : 1;
-    for (let f = 0; f < 60 * (WATCH_FALL + WATCH_HOLD + 30) && !done && Number.isFinite(sim.p[1]); f++) { if (sim.damage().crashed) { sim.ctl.de = 0; sim.ctl.thr = 0; } sim.step(1 / 60); onFrame(sim); }
+    sim = L.lastRun.sim; out.nz = +r.nzMax.toFixed(2);
+    // (Tue 27 Oct 07:45: the elevator's nose-down left the Cub and the metal Cessna flying, 73 s and no crash - so a pull
+    // that did not break it PUTS it in the stills' dive (tools/dmg_wreck_stills.js fall-dive): turned 45 deg nose down
+    // about its CG where it is, 65 m/s ahead and 30 m/s down, the throttle shut - into the ground from ~400 m)
+    if (!sim.damage().crashed) {
+      const p = sim.p, v = sim.v, [xA, , zR] = sim.axes(), c = sim.cgPos(), th = -45 * Math.PI / 180, cs = Math.cos(th), sn = Math.sin(th), hl = Math.hypot(xA[0], xA[2]);
+      for (let i = 0; i < sim.n; i++) { const d = [p[i*3] - c[0], p[i*3+1] - c[1], p[i*3+2] - c[2]], kd = zR[0]*d[0] + zR[1]*d[1] + zR[2]*d[2];
+        const cr = [zR[1]*d[2] - zR[2]*d[1], zR[2]*d[0] - zR[0]*d[2], zR[0]*d[1] - zR[1]*d[0]];
+        for (let j = 0; j < 3; j++) p[i*3+j] = c[j] + d[j] * cs + cr[j] * sn + zR[j] * kd * (1 - cs);
+        v[i*3] = -65 * xA[0] / hl; v[i*3+1] = -30; v[i*3+2] = -65 * xA[2] / hl; }
+      out.dive = true; }
+    sim.ctl.de = 0; sim.ctl.thr = 0;
+    for (let f = 0; f < 60 * (WATCH_FALL + WATCH_HOLD + 30) && !done && Number.isFinite(sim.p[1]); f++) { sim.step(1 / 60); onFrame(sim); }
   } else {
     const secs = WATCH_PIECES + WATCH_HOLD + 12;
     const c = Object.assign({}, c0, { run: (k, o) => c0.run(k, Object.assign(o, { secs })) });
