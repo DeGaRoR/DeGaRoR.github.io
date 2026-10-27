@@ -1,7 +1,8 @@
 # STOL-PILOT — the autopilot's short-field technique for a STOL wing
 ### (27 Oct 2026, cloud session STOL-PILOT; coordinator A0, the autopilot's owner PILOT reviews every line of 43_pilot.js)
 
-STATUS: **v1 — plan + law + legs on `claude/stol-pilot`, NOT on a ready branch: PILOT reviews first** (HANDOVER, STOL-PILOT).
+STATUS: **v2 — the law + A0 / PILOT's review (five fixes) + the user's STOL QUALIFICATION, on `claude/stol-pilot`; READY,
+to land after `claude/ready/stol-wing`** (HANDOVER: STOL-PILOT, then STOL-PILOT-2). v1 was 44f44f0ea.
 
 THE BRIEF (the user, 27 Oct): the stol-wing-2 session built a STOL Cub (`tools/fixtures/stol_cub_showcase.json`: full-span
 fixed slot, VGs, drooped tips and ailerons, Rotax 915 iS 141 hp, a bigger tail, 31-inch tundras). Flown on the autopilot's
@@ -48,11 +49,29 @@ ground at 2.8 m/s, 14 m short of the threshold. The 141 hp Rotax blows that tail
 
 ## 3. The law (43_pilot.js; every part behind `ap.stolFld` / `ap.dep.stol`)
 
+**3.00 THE PILOT'S STOL QUALIFICATION** (v2, the user 27 Oct: *"this set of technique should be reserved to pilots with the
+STOL qualification. That includes the bush pilot, and the expert autopilot, the one that engages instead of the player
+(this one is always the most competent)"*). The law engages only when the SHEET qualifies (3.0) AND the PILOT does:
+`stolQual = !PRA || PRF.stol` (published `ap.stolQual`, not enumerable). A new technique knob `stol` (PILOT_PROFILE_KNOBS,
+bool, `d` true = the expert's, as every knob's default is): the expert (the autopilot in the player's place, `personaProfile`
+'expert' outside DEV and for "I fly") and the **bush** pilot are qualified; **club, student, ham-fist** carry `stol: false`; a
+custom person is the expert's unless the knob says otherwise. Hired pilots (76_pilots): the knob rides PILOTS_KNOB_SEC;
+sky (bush) is qualified; kit (club -> ceiling bush) and remy (student -> ceiling expert) EARN it half way to their ceiling
+(a bool takes the ceiling's at f >= 1/2, pilotsGrowth's own rule); rafe (ham-fist, no growth) never; the card's "flies like"
+says "STOL-qualified". An unqualified pilot flies a STOL build exactly as before (legs: the club pilot and the ham-fist on
+the showcase identical to the base core).
+
 **3.0 THE SHEET THAT SAYS THE WING CAN** (`stolSheet()`, published `ap.stol`): a build whose wing carries a stall-angle
 device (`def.strips[].stol` with `dAs` / `sa` - genStolHeld's own test) AND whose machine-sheet Vs0 (the elevator-held one
 when the tail cannot fly the slatted stall, G2826 - never the bare `gen.VsFlap`) is under **0.92 x the stall the same wing
 would have without its devices** (`genStolGain`, 64_gen_build: the highest lift over an attitude sweep, prop off, the landing
-flap, with and without the strips' `stol` keys). Never on the water.
+flap, with and without the strips' `stol` keys). The landing and the departure that read it are never planned on the water nor
+for a float build (planArrival's `water`, the roll's `onWaterNow`), so the record is the wing's alone (v2, the review's fix 4:
+v1 cached `null` when first read on a float build). **THE GAIN RIDES THE SHAKEDOWN** (v2, the review's fix 1 - v1 probed
+lazily at the first `stolOn()`, the roll's start, ~0.1 s on the main thread): `genShakedown` computes it (`out.stolGain`,
+a STOL-device wing only - every other shakedown the same object) and `machineSheet` publishes it (`S.stolGain`); the page
+builds the shakedown post-idle or in the sheet worker, never inside the roll. The pilot probes only when the sheet has none (no
+shakedown handed, a stored shakedown older than this): GATE PILOT measures the first `ap.stol` read with the shakedown at 1 ms.
 
 | build | device | sheet Vs0 km/h | the wing without devices | ratio | the law |
 |---|---|---|---|---|---|
@@ -60,28 +79,36 @@ flap, with and without the strips' `stol` keys). Never on the water.
 | kit Cub (stol_cub_kit) | slot + VG | **48.6 held** (stall 41.8) | 49.0 | 0.992 | off - its tail cannot use the slot |
 | stock Cub, Jodel, C172, metal Cessna, Cessna floats, twin floats, Rufus | none | - | - | - | `ap.stol === null`, never probed |
 
-**3.1 THE APPROACH** (planArrival): technique `'short'` on every land strip that is not soft (a soft strip keeps its soft
-technique; a profile's own field technique still wins - **the Student flies a normal approach everywhere, the STOL Cub
-included**). `ap.appr.stol` records the sheet. The short technique's 1.20 x sheet Vs0 (+ half the gust); the aim **10 m in**
+**3.1 THE APPROACH** (planArrival): technique `'short'` on every land strip that is not soft, for a qualified pilot (a soft
+strip keeps its soft technique; a profile's own field technique still wins; **the Student is not qualified and flies a normal
+approach everywhere, the STOL Cub included**). `ap.appr.stol` records the sheet. The short technique's 1.20 x sheet Vs0 (+ half the gust); the aim **10 m in**
 on any strip (the ACS's 0..+100 ft, and the touch arrives ~10-20 m past it); the slope **at least gsStol 0.12 (6.8 deg)**,
-never past the sheet's own gsMax, an obstacle's steeper slope standing. The short final's 900 m / 30 s of straight-in,
+never past the sheet's own gsMax, an obstacle's steeper slope standing. THE SLOPE MEANT IS 0.12 / 6.8 deg (the review's fix 2):
+gsMax is 1.4 / LDbest off the shakedown (0.16 here); a sheet WITHOUT its shakedown has no LDbest and gsMax falls back to
+0.105 (6.0 deg) - v1's GATE PILOT flew that (its `fly()` handed no shakedown). The page and pilot_trace hand the shakedown,
+and v2's gate does too: 6.8 deg, asserted. The short final's 900 m / 30 s of straight-in,
 the base flap, the float go-around (G1936/G1949) are the short technique's as before.
 
-**3.2 THE FLARE** (FLARE): the hold-off's sink law unchanged, and three STOL parts:
+**3.2 THE FLARE** (FLARE): the hold-off's sink law unchanged, and four STOL parts:
 - the attitude is brought to the **three-point attitude** (flCap, the rest attitude + 2 deg) as the height goes, reached at
   half the entry height (`flareStolK` 0.5) - the hold-off's own pitch law alone left it at +2 deg, 1.10 Vs0;
 - the elevator gets the **stick's whole travel** (`deStol` 0.70, the deTop of the rotate-pull and the water) in FLARE and
   ROLLOUT, and the flare integrator's saturation reads that stop;
 - the throttle is **kept from the approach and trimmed on the sink** (the water flare's PI, G3079: `flareStolP` 0.25,
   `flareStolI` 0.10, at most +0.4 over the approach's) - so G970's slow-arrival cushion, an idle flare's (thr mode IDLE),
-  never runs. The throttle closes at the touch (ROLLOUT's thr 0).
+  never runs. The throttle closes at the touch (ROLLOUT's thr 0);
+- (v2, the review's fix 3) **the stick comes all the way back**: the flare integrator's authority is the stick's whole travel
+  (`deStol`) and its wind `flareStolIth` 1.5 /rad/s (the hold-off's 0.30 at 0.4 held the nose at +6.7 deg on 0.25-0.34 of
+  stick - the proportional term against 5 deg of error; the mains first at 12.0 m/s). Tried: 1.0 -> three-point at 11.6 m/s,
+  30 m; **1.5 -> three-point at 11.3 m/s (0.93 Vs0), 1.38 m/s, 27 m**; 3.0 bounced at 2.1 m/s. (The ramp's end, flareStolK
+  0.25 / 0.35 / 0.5, changed nothing: the loop, not the target, was the limit.)
 
 DECK ANGLE vs STALL (stol-wing-2's warning): the three-point deck angle of the 31-inch-tundra Cub is 9.9 deg; the slatted
-wing stalls at 26.9 deg of alpha. The law never asks "the stall": it asks the three-point attitude and lets the wing find its
-speed there. Measured: the nose reaches +6.5 deg (the power then holds the sink, the speed already AT Vs0) and the touch
-is tail-low - the mains at +5.8 deg, the stick to 0.70, the tailwheel down within a second - at **12.0 m/s = 0.99 Vs0**,
-1.35 m/s of sink (the report's `three: false`: the deck angle was not reached in the air). Where the deck angle is the wing's limit,
-the touch is that attitude's speed, above Vs0; where it is not (here), the wing stops flying first.
+wing stalls at 26.9 deg of section alpha. The law never asks "the stall": it asks the three-point attitude and lets the wing
+find its speed there. v1 measured: +6.5 deg, mains first at 12.0 m/s (0.99 Vs0), `three: false` - the flare's pitch loop,
+not the geometry. **v2 measured: the three-point attitude reached in the air, `three: true` at 11.3 m/s = 0.93 Vs0** (the
+sheet's Vs0 is the power-off flapped stall; the 915's slipstream on the tail and the inboard wing carries it a little
+under). Where the deck angle is the wing's limit, the touch is that attitude's speed, above Vs0.
 
 **3.3 THE ROLL-OUT**: the flaps come up at the touch (the roll-out's flapTgt 0, at the build's own flap rate - unchanged);
 **the stick fully back** (0.70) from the touch on a three-point arrival and from 1.15 VRot otherwise; the short technique's
@@ -123,6 +150,55 @@ brake friction is the wheel's).
   FINGERPRINT: `tools/_stol_samebits.js` on the merged base and on this branch (§6).
 
 ## 5. The legs
+
+### v2 (the final core: the qualification, the three-point flare, the gain on the shakedown) - all five persons
+
+`reports/evidence/STOL-PILOT/legs_table_v2.md` (legs_base_v2.json / legs_branch_v2.json; base = the merged base 49387ca8):
+
+| build / field / pilot | base (merged, no law) | this branch | same? |
+|---|---|---|---|
+| kit / A4 340 m / bush | lift 95 / roll **61** / td 13.9 m/s 1.16 sink | lift 95 / roll **61** / td 13.9 m/s 1.16 sink | identical |
+| kit / A4 340 m / club | lift 94 / roll **64** / td 14.6 m/s 1.42 sink | lift 94 / roll **64** / td 14.6 m/s 1.42 sink | identical |
+| kit / A4 340 m / expert | lift 94 / roll **59** / td 13.7 m/s 1.22 sink | lift 94 / roll **59** / td 13.7 m/s 1.22 sink | identical |
+| kit / A4 340 m / hamfist | lift 92 / roll **57** / td 14.1 m/s 0.8 sink | lift 92 / roll **57** / td 14.1 m/s 0.8 sink | identical |
+| kit / A4 340 m / student | lift 90 / roll **92** / td 15 m/s 1.98 sink | lift 90 / roll **92** / td 15 m/s 1.98 sink | identical |
+| kit / HOME 1100 m / bush | lift 93 / roll **60** / td 14.1 m/s 0.85 sink | lift 93 / roll **60** / td 14.1 m/s 0.85 sink | identical |
+| kit / HOME 1100 m / club | lift 93 / roll **89** / td 15.3 m/s 1.63 sink | lift 93 / roll **89** / td 15.3 m/s 1.63 sink | identical |
+| kit / HOME 1100 m / expert | lift 93 / roll **71** / td 14 m/s 1.47 sink | lift 93 / roll **71** / td 14 m/s 1.47 sink | identical |
+| kit / HOME 1100 m / hamfist | lift 91 / roll **77** / td 14.3 m/s 1.66 sink | lift 91 / roll **77** / td 14.3 m/s 1.66 sink | identical |
+| kit / HOME 1100 m / student | lift 88 / roll **83** / td 14.9 m/s 2.37 sink | lift 88 / roll **83** / td 14.9 m/s 2.37 sink | identical |
+| stock / A4 340 m / bush | lift 97 / roll **58** / td 13.8 m/s 1.4 sink | lift 97 / roll **58** / td 13.8 m/s 1.4 sink | identical |
+| stock / A4 340 m / club | lift 97 / roll **63** / td 13.9 m/s 1.01 sink | lift 97 / roll **63** / td 13.9 m/s 1.01 sink | identical |
+| stock / A4 340 m / expert | lift 98 / roll **58** / td 13.7 m/s 1.18 sink | lift 98 / roll **58** / td 13.7 m/s 1.18 sink | identical |
+| stock / A4 340 m / hamfist | lift 96 / roll **59** / td 14.4 m/s 1.55 sink | lift 96 / roll **59** / td 14.4 m/s 1.55 sink | identical |
+| stock / A4 340 m / student | lift 95 / roll **72** / td 14.1 m/s 1.33 sink | lift 95 / roll **72** / td 14.1 m/s 1.33 sink | identical |
+| stock / HOME 1100 m / bush | lift 96 / roll **56** / td 13.9 m/s 1.27 sink | lift 96 / roll **56** / td 13.9 m/s 1.27 sink | identical |
+| stock / HOME 1100 m / club | lift 96 / roll **71** / td 14.4 m/s 1.27 sink | lift 96 / roll **71** / td 14.4 m/s 1.27 sink | identical |
+| stock / HOME 1100 m / expert | lift 96 / roll **62** / td 13.9 m/s 1.4 sink | lift 96 / roll **62** / td 13.9 m/s 1.4 sink | identical |
+| stock / HOME 1100 m / hamfist | lift 96 / roll **66** / td 14.2 m/s 1.53 sink | lift 96 / roll **66** / td 14.2 m/s 1.53 sink | identical |
+| stock / HOME 1100 m / student | lift 94 / roll **61** / td 13.9 m/s 0.79 sink | lift 94 / roll **61** / td 13.9 m/s 0.79 sink | identical |
+| stol / A4 340 m / bush | lift 47 / roll **55** / td 13.9 m/s 1.26 sink | lift 44 / roll **30** / td 11.3 m/s 1.38 sink [STOL] | moved |
+| stol / A4 340 m / club | lift 47 / roll **54** / td 13.8 m/s 1.04 sink | lift 47 / roll **54** / td 13.8 m/s 1.04 sink | identical |
+| stol / A4 340 m / expert | lift 47 / roll **55** / td 13.9 m/s 1.17 sink | lift 44 / roll **30** / td 11.3 m/s 1.38 sink [STOL] | moved |
+| stol / A4 340 m / hamfist | lift 49 / roll **58** / td 13.7 m/s 0.71 sink | lift 49 / roll **58** / td 13.7 m/s 0.71 sink | identical |
+| stol / A4 340 m / student | lift 48 / roll **73** / td 13.9 m/s 1.53 sink | lift 48 / roll **73** / td 13.9 m/s 1.53 sink | identical |
+| stol / HOME 1100 m / bush | lift 46 / roll **52** / td 13.8 m/s 1.03 sink | lift 43 / roll **28** / td 11.3 m/s 1.38 sink [STOL] | moved |
+| stol / HOME 1100 m / club | lift 47 / roll **67** / td 13.7 m/s 1.04 sink | lift 47 / roll **67** / td 13.7 m/s 1.04 sink | identical |
+| stol / HOME 1100 m / expert | lift 47 / roll **61** / td 13.8 m/s 1.09 sink | lift 43 / roll **27** / td 11.3 m/s 1.38 sink [STOL] | moved |
+| stol / HOME 1100 m / hamfist | lift 49 / roll **68** / td 14.2 m/s 1.41 sink | lift 49 / roll **68** / td 14.2 m/s 1.41 sink | identical |
+| stol / HOME 1100 m / student | lift 48 / roll **67** / td 14 m/s 1.72 sink | lift 48 / roll **67** / td 14 m/s 1.72 sink | identical |
+| stol / w8 392 m soft / expert | lift 49 / roll **51** / td 13.9 m/s 1.02 sink | lift 49 / roll **51** / td 13.9 m/s 1.02 sink | identical |
+| stol / w8 392 m soft / student | lift 46 / roll **60** / td 13.9 m/s 1.43 sink | lift 46 / roll **60** / td 13.9 m/s 1.43 sink | identical |
+
+READ IT: only the QUALIFIED pilots on the STOL sheet move - the expert **61 -> 27 m** on HOME and **55 -> 30 m** on A4, the bush
+pilot 52 -> 28 m and 55 -> 30 m; three-point at 11.3 m/s (0.93 Vs0), 1.38 m/s; lift-off 47 -> 43-44 m. The club pilot, the
+student, the ham-fist on the showcase, every person on the stock and kit Cubs, and w8 (soft): the same bits.
+Also flown (core_r, the same law; scratch): the expert in 2 m/s across - three-point at 11.2 m/s, 19 m; in 1,4 m/s gust 0.6 -
+three-point at 11.7 m/s, 25 m, **one 16 cm hop** (the left wing dropped to -8.6 deg in the last metre at 0.97 Vs0, a main
+wheel first, 1.8 m/s; the base flew that leg without a hop at 1.36 m/s, 44 m) - for PILOT.
+
+### v1 (44f44f0ea, before the review)
+
 
 node `tools/pilot_trace.js`, calm, one circuit per leg (HOME and A4: the circuit at that strip; "HOME->mine": Jolene AFB to
 the mine strip), the merged base's core (49387ca8) against this branch's (`reports/evidence/STOL-PILOT/legs.js`, the jsons
@@ -174,3 +250,4 @@ the island has to be judged on the page (HANDOVER: what A0 runs).
 `tools/_stol_samebits.js --root=<the merged base, 49387ca8, built>` and on this branch: the six validated builds (Cub, Jodel,
 metal Cessna, Cessna floats, twin floats, Rufus - the game's load door) - def, 4 s of flight, drawing, design check + sheet,
 the pilot's whole circuit - **identical, character for character** (`reports/evidence/STOL-PILOT/samebits_*.log`).
+v2: the same six lines again on the final core (`samebits_branch_v2.log`): identical to the base's, character for character.

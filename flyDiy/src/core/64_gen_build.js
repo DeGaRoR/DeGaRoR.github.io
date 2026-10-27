@@ -898,6 +898,10 @@ function genShakedown(def, opts) {
   if (!(opts && opts.slim) && typeof genDesignCheck === 'function') {
     try { out.design = genDesignCheck(def, out, sim); } catch (e) { out.design = null; }
   }
+  // STOL-PILOT: WHAT THE STOL DEVICES BUY (genStolGain, below) rides the sheet the page builds post-idle or in its worker -
+  // the autopilot reads it from there, never probing at the roll's start (~0.1 s). Only a wing with a stall-angle device
+  // gets the key; every other shakedown is the same object as before
+  if (!(opts && opts.slim)) { const sg = genStolGain(def); if (sg) out.stolGain = sg; }
   return out;
 }
 
@@ -1103,7 +1107,8 @@ function genStolHeld(def) {
 // landing flap, 0.5 deg steps to 35 deg), the device-less one off the same def with every strip's `stol` key taken off.
 // Returns { gain, VsPlain0 } - gain = sqrt(Lmax plain / Lmax with the devices) (the slot + VGs of the showcase Cub
 // 0.85), VsPlain0 = the measured flapped stall / gain - or null on a wing without a stall-angle device (genStolHeld's
-// own test). Read by the autopilot only (43_pilot stolSheet): it builds no key, writes nothing on the def
+// own test). Carried on the shakedown (`stolGain`, genShakedown) for the autopilot (43_pilot stolSheet); writes nothing on
+// the def
 function genStolGain(def) {
   if (!def.strips || !def.strips.some(st => st.stol && (st.stol.dAs > 0 || st.stol.sa > 0))) return null;
   const P = def.params, g = P.gen || {};

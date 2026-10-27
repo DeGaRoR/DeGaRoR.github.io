@@ -184,13 +184,13 @@ const PILOT_PROFILES = {
   expert:  { name: 'expert', label: 'Expert', desc: 'the pilot as tuned: no delay, steady hands, the technique each strip asks',
              active: false },
   club:    { name: 'club pilot', label: 'Club', desc: 'a weekend pilot: a beat late, gentle hands, shallow turns, a slightly late flare',
-             active: true, skill: { reaction: 0.25, smooth: 0.8, hamFist: 0.005 }, quirks: { flareK: 0.95 }, limits: { bankK: 0.9, comfortG: 1.3 } },
+             active: true, skill: { reaction: 0.25, smooth: 0.8, hamFist: 0.005 }, quirks: { flareK: 0.95 }, limits: { bankK: 0.9, comfortG: 1.3 }, technique: { stol: false } },
   student: { name: 'student', label: 'Student', desc: 'twenty hours in: slow to react, gentle turns, over-rotates, flares late, a normal approach everywhere',
-             active: true, skill: { reaction: 0.35, smooth: 0.7, hamFist: 0.015 }, quirks: { overRotate: 0.035, flareK: 0.8, decisionK: 0.5 }, limits: { bankK: 0.7, comfortG: 1.15 }, technique: { field: 'normal' } },
+             active: true, skill: { reaction: 0.35, smooth: 0.7, hamFist: 0.015 }, quirks: { overRotate: 0.035, flareK: 0.8, decisionK: 0.5 }, limits: { bankK: 0.7, comfortG: 1.15 }, technique: { field: 'normal', stol: false } },
   bush:    { name: 'bush pilot', label: 'Bush', desc: 'lands in clearings: quick, steeper turns, the short-field technique and a slip on every final',
              active: true, skill: { reaction: 0.15, smooth: 1.1, hamFist: 0.003 }, limits: { bankK: 1.15, comfortG: 1.6 }, technique: { field: 'short', slip: true } },
   hamfist: { name: 'ham-fist', label: 'Ham-fist', desc: 'big snatchy inputs: the stick never still, a little over-rotation - safe, never smooth',
-             active: true, skill: { reaction: 0.2, smooth: 1.6, hamFist: 0.05 }, quirks: { overRotate: 0.02, decisionK: 2 } },
+             active: true, skill: { reaction: 0.2, smooth: 1.6, hamFist: 0.05 }, quirks: { overRotate: 0.02, decisionK: 2 }, technique: { stol: false } },
 };
 // G2085 (PILOT-PERSONA): THE CUSTOM PERSON'S KNOBS - every hook as a slider (the menu's advanced fold, a saved player's
 // `pilot.custom`), with the range a person can be set to. pilotProfile CLAMPS an object profile to these, so a saved
@@ -210,6 +210,11 @@ const PILOT_PROFILE_KNOBS = [
   { sec: 'technique', k: 'field', label: 'field technique', kind: 'pick', opts: [null, 'normal', 'short'], d: null, desc: 'the approach flown everywhere (own: the strip decides)' },
   { sec: 'technique', k: 'slip', label: 'slips', kind: 'bool', d: false, desc: 'the forward slip on any final high at idle' },
   { sec: 'technique', k: 'stepHold', label: 'step hold', kind: 'bool', d: false, desc: 'holds the step attitude on the water' },
+  // STOL-PILOT (the user, 27 Oct: "this set of technique should be reserved to pilots with the STOL qualification - the bush
+  // pilot, and the expert autopilot, the one that engages instead of the player"): the qualification. `d` is the expert's
+  // (every knob's default is the expert's value); the club pilot, the student and the ham-fist are not qualified, the bush
+  // pilot is; a hired pilot earns it growing toward a qualified ceiling (76_pilots: a bool takes the ceiling's at half way)
+  { sec: 'technique', k: 'stol', label: 'STOL qualified', kind: 'bool', d: true, desc: 'flies a STOL wing\'s own technique (the slow steep approach, the flare on power, the brakes at once)' },
 ];
 function pilotProfile(p) {
   const base = PILOT_PROFILES.expert;
@@ -220,7 +225,8 @@ function pilotProfile(p) {
            reaction: g('skill', 'reaction', 0), smooth: g('skill', 'smooth', 1), hamFist: g('skill', 'hamFist', 0), gain: g('skill', 'gain', null),
            overRotate: g('quirks', 'overRotate', 0), flareK: g('quirks', 'flareK', 1), decisionK: g('quirks', 'decisionK', 1),
            bankK: g('limits', 'bankK', 1), comfortG: g('limits', 'comfortG', null),
-           field: g('technique', 'field', null), slip: !!g('technique', 'slip', false), stepHold: !!g('technique', 'stepHold', false) };
+           field: g('technique', 'field', null), slip: !!g('technique', 'slip', false), stepHold: !!g('technique', 'stepHold', false),
+           stol: !!g('technique', 'stol', true) };
   // G2085: an OBJECT profile (the custom person, a saved player, a link) is clamped to the knobs' ranges - a named
   // profile is the table's own and passes as written (the expert's bypass is untouched)
   if (typeof p !== 'string') {
@@ -425,21 +431,30 @@ function makePilot(sim, def, world, opts) {
   // elevator-held one when the tail cannot fly the slatted stall (G2826) - is under stolRatio (0.92) x the stall the SAME
   // wing would have without its devices (64_gen_build genStolGain). The showcase STOL Cub 0.85 (on); the kit Cub, whose
   // elevator holds 48.6 km/h for a 41.8 stall, 0.99 (off: its tail cannot use the slot, a short-field technique would ask
-  // a flare it cannot fly); no device - every validated build - null, never probed. On the water: never (H4's laws).
-  // Read lazily, once (two probe sims, ~0.1 s), only for a build with a device
+  // a flare it cannot fly); no device - every validated build - null, never probed. The water is not judged here: the
+  // landing and the departure that read it are never planned on the water nor for a float build (planArrival's `water`,
+  // the roll's `onWaterNow`: an amphibian flies the water's laws everywhere today), so the record is the wing's alone.
+  // THE GAIN RIDES THE SHAKEDOWN (64_gen_build genShakedown -> the sheet's `stolGain`): the page builds that post-idle or
+  // in the sheet worker, never at the roll's start; a sheet without it (no shakedown handed: the gates' fly(), a stored
+  // shakedown older than this) probes it here once (two probe sims, ~0.1 s)
   let stolV;
+  const stolDevice = () => !!(def.strips && def.strips.some(st => st.stol && (st.stol.dAs > 0 || st.stol.sa > 0)));
   const stolSheet = () => {
     if (stolV !== undefined) return stolV;
     stolV = null;
-    if (sim.hydro || typeof genStolGain !== 'function') return stolV;
-    const G = genStolGain(def);
-    const S = G && sheetOf();
-    if (!S || S.src.Vs0 !== 'measured' || !(S.Vs0 > 0)) return stolV;
+    if (!stolDevice() || typeof genStolGain !== 'function') return stolV;
+    const S = sheetOf();
+    const G = S && (S.stolGain || genStolGain(def));
+    if (!G || !S || S.src.Vs0 !== 'measured' || !(S.Vs0 > 0)) return stolV;
     const ratio = S.Vs0 / G.VsPlain0;
     stolV = { on: ratio <= (A.stolRatio ?? 0.92), ratio: Math.round(ratio * 1000) / 1000, Vs0: Math.round(S.Vs0 * 100) / 100, VsPlain0: Math.round(G.VsPlain0 * 100) / 100 };
     return stolV;
   };
-  const stolOn = () => !!(stolSheet() && stolSheet().on);
+  // STOL-PILOT (the user, 27 Oct): ...AND FLOWN ONLY BY A PILOT WITH THE STOL QUALIFICATION - the expert (the autopilot that
+  // flies in the player's place: always the most competent) and a profile carrying it (PILOT_PROFILE_KNOBS `stol`: the bush
+  // pilot; not the club pilot, the student, the ham-fist). An unqualified pilot flies a STOL build as any other
+  const stolQual = !PRA || !!PRF.stol;
+  const stolOn = () => stolQual && !!(stolSheet() && stolSheet().on);
   let vAppr;                                  // G1302: the approach speed, the sheet's once first read
   const ap = {
     phase: 'ROLL', t: 0, hCruise: A.hCruise, VClimb: A.VClimb,
@@ -462,7 +477,7 @@ function makePilot(sim, def, world, opts) {
     // never was - the panel came (the netto variometer reads its polar), so it
     // is published now, lazily, through the same memo the pilot uses.
     get sheet() { return sheetOf(); },
-    get stol() { return stolSheet(); },   // STOL-PILOT: the qualification (null: no STOL device)
+    get stol() { return stolSheet(); },   // STOL-PILOT: the sheet's STOL record (null: no STOL device)
     // G710: THE PLAN, PUBLISHED (the Jolene playtest: "it's unclear to what altitude the autopilot
     // intends to go ... no waypoints on the map"). Written at the end of every update, one object
     // mutated in place (no garbage at 60 Hz): the phase, the legs and the active one, the point flown
@@ -477,6 +492,7 @@ function makePilot(sim, def, world, opts) {
   // G1882: the water take-off law's throttle ceiling, readable (GATE DMGFLOATTO): a getter, never a store per frame -
   // measured, writing a double onto `ap` every update cost the pilot's update 4-8 % on the water
   Object.defineProperty(ap, 'thrCap', { get: () => SV.thrCap });   // (not enumerable: nothing that copies `ap` sees it)
+  Object.defineProperty(ap, 'stolQual', { get: () => stolQual });   // STOL-PILOT: the pilot's STOL qualification (not enumerable, as thrCap)
   const say = (code, note) => {
     ap.report.verdicts.push({ t: Math.round(ap.t * 10) / 10, code, note });
   };
@@ -1231,7 +1247,7 @@ function makePilot(sim, def, world, opts) {
       // technique below and its STOL parts (the steeper power-on slope, the aim at the threshold, the three-point touchdown on
       // the stick's whole travel, the brakes at once): the landing the devices were bought for. A profile's own field
       // technique still wins (the Student flies a normal approach everywhere, the STOL Cub included)
-      const stolL = !water && !soft && stolOn();
+      const stolL = !water && !soft && stolOn();   // (the sheet's AND the pilot's qualification)
       let technique = (short || stolL) ? 'short' : soft ? 'soft' : 'normal';
       if (PRA && PRF.field && !water) technique = PRF.field;   // G1943: a profile's own field technique
       const shortT = technique === 'short';
@@ -3370,7 +3386,7 @@ function makePilot(sim, def, world, opts) {
           const short = !onWaterNow && runNeed != null && (from0.len || 1100) < 2.0 * runNeed;   // an accelerate-stop wants about two runs
           // STOL-PILOT: a STOL sheet departs short from every land strip that is not soft (the brakes held to full power, the
           // climb at Vx over the 15 m screen - CLIMB); a profile with its own field technique flies that one's departure
-          const stolD = !onWaterNow && !soft && stolOn() && !(PRA && PRF.field && PRF.field !== 'short');
+          const stolD = !onWaterNow && !soft && stolOn() && !(PRA && PRF.field && PRF.field !== 'short');   // (a qualified person's 'normal everywhere' departs normal)
           ap.dep = { technique: (short || stolD) ? 'short' : soft ? 'soft' : 'normal', Vx: sheetOf() && sheetOf().Vx ? Math.round(sheetOf().Vx * 10) / 10 : null,
                      runNeed: runNeed != null ? Math.round(runNeed) : null, len: from0.len || null, surface: from0.surface };
           if (stolD) ap.dep.stol = true;
@@ -4418,6 +4434,12 @@ function makePilot(sim, def, world, opts) {
           // the pull: a firmer inner loop and the rotation's integrator authority
           SV.pitchK = A.flarePK ?? 2.0; SV.pitchDK = A.flareDK ?? 1.0;
           SV.IthMaxT = A.rotateIMax ?? 0.30; SV.IthGain = A.flareIth ?? 0.4;
+          // STOL-PILOT (G3862's review: "reach a three-point touch or drop the claim"): ON A STOL FLARE THE STICK COMES ALL THE
+          // WAY BACK - the integrator's authority the stick's whole travel (deStol) and its wind flareStolIth 1.5 /rad/s. The
+          // hold-off's 0.30 at 0.4 held the showcase Cub at +6.7 deg on 0.25-0.34 of stick (P x 5 deg of error), the mains first
+          // at 12.0 m/s; at 1.5 the nose reaches the three-point attitude: three-point at 11.3 m/s (0.93 Vs0), 1.38 m/s, 27 m
+          // (1.0: 11.6, 30 m; 3.0 bounced at 2.1 m/s)
+          if (ap.stolFld) { SV.IthMaxT = A.deStol ?? 0.70; SV.IthGain = A.flareStolIth ?? 1.5; }
           if (altG > 0) engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'SPD', { pitch: thC, bank: 0.10, ias: 0.95 * ap.VAppr });   // GTRAM: the round-out onto the slope is flown on power
           else if (sim.hydro) {
             // G3079 (FLOATS-FIX; PERSONA-2 G2462's law, alone): ON THE WATER THE FLARE IS FLOWN ON POWER (FAA-H-8083-23, the

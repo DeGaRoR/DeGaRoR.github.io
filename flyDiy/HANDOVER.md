@@ -99798,3 +99798,70 @@ LDbest and gsMax falls back to 0.105 - the gate's STOL Cub flew 6.0 deg, pilot_t
 2. the same to Copperhead Mine Street (mn_strip) and to strip 13 (w8) on the island - node cannot take off there;
 3. the user's own persona (user_replay) on the showcase, HOME;
 4. `node tools/run_gates.js --only=PILOT,STOL` and the --all verdict before any ready push.
+
+## STOL-PILOT-2 - THE REVIEW'S FIVE FIXES + THE STOL QUALIFICATION (27 Oct 2026, cloud, node only; claude/stol-pilot on 44f44f0ea) - READY, to land AFTER claude/ready/stol-wing
+
+A0 + PILOT's review of 44f44f0ea ("the law is right and fenced"; five fixes before ready) and the user's call (27 Oct): *"this
+set of technique should be reserved to pilots with the STOL qualification. That includes the bush pilot, and the expert
+autopilot, the one that engages instead of the player (this one is always the most competent). Put this behind a STOL
+qualification."* Plan v2: futureDesigns/STOL-PILOT-2026-10.md; evidence: reports/evidence/STOL-PILOT/ (*_v2).
+
+**THE STOL QUALIFICATION** (43_pilot.js, 76_pilots.js): the law engages only on a STOL SHEET (unchanged) flown by a QUALIFIED
+pilot: `stolQual = !PRA || PRF.stol` (`ap.stolQual`, a non-enumerable getter as thrCap). A new technique knob `stol`
+(PILOT_PROFILE_KNOBS, bool, d = true: the expert's, as every knob's default): the EXPERT (the autopilot in the player's place -
+personaProfile 'expert' outside DEV and for "I fly") and the BUSH pilot qualified; CLUB, STUDENT, HAM-FIST carry `stol: false`;
+a custom person is the expert's unless the knob is off (the persona menu's custom fold gains the row "STOL qualified"). Hired
+pilots: PILOTS_KNOB_SEC carries it; sky (bush) qualified; kit (club -> ceiling bush) and remy (student -> ceiling expert) EARN
+it half way to their ceiling (pilotsGrowth's own bool rule); rafe never; the card's "flies like" says "STOL-qualified".
+
+**THE FIVE FIXES:**
+1. MAIN-THREAD HITCH: `genShakedown` computes the gain (`out.stolGain`, a STOL-device wing only - every other shakedown the same
+   object) and `machineSheet` publishes it (`S.stolGain`); the page builds the shakedown post-idle or in the sheet worker. The
+   pilot probes only when the sheet carries none (no shakedown handed; a STORED shakedown from before this branch - the page's
+   prefSet store is keyed by the spec, not the core: one ~0.1 s probe on that build's first flight, once). GATE PILOT: the
+   first `ap.stol` read with the shakedown 0-1 ms. **A0: the frame time at the roll's start in a page leg** -
+   tools/pilotpage_legs.json gains two INFO legs (never red): `stol_expert`, `stol_student` (the showcase, HOME -> mn_strip).
+2. GLIDE SLOPE: 0.12 / 6.8 deg is the one meant. 0.105 was gsMax's fallback for a sheet WITHOUT its shakedown (no LDbest) -
+   v1's gate fly() handed none; the page and pilot_trace hand it. v2's gate flies the showcase with its shakedown and asserts
+   >= 0.119 (flown: 0.12).
+3. THREE-POINT TOUCH (G3862): REACHED. The flare's pitch loop was the limit, not the geometry (the ramp's end 0.25-0.5 changed
+   nothing): on a STOL flare the integrator's authority is deStol (0.70) and its wind flareStolIth 1.5 /rad/s (the hold-off's
+   0.30 at 0.4 held +6.7 deg on 0.25-0.34 of stick). Tried 1.0 (three-point 11.6 m/s, 30 m), **1.5 (three-point 11.3 m/s =
+   0.93 Vs0, 1.38 m/s, 27 m)**, 3.0 (bounced, 2.1 m/s). The report says `three: true`; the gate asserts it.
+4. WATER: stolSheet no longer reads sim.hydro (no null cached on a float build): the record is the wing's; the landing and the
+   departure that use it are never planned on the water nor for a float build (planArrival's `water`, the roll's `onWaterNow`
+   - an amphibian flies the water's laws everywhere today). Said in the comment.
+5. GATE WALL: the stock Cub is no longer flown in GATE PILOT (its lap is read from GATE STOL's baseline,
+   tools/fixtures/stol_baseline.json.gz: lift-off 96.1 m, landing 62 m - GATE STOL section 1 flies and holds it); the part is
+   TWO parts in two shards: STOL (the showcase's one circuit, 91-95 s wall, shard 2) and STOL-QUAL (no flight, 27-31 s, shard
+   0); the showcase's def + shakedown built once per process. Measured (run_gates --only=PILOT, cloud, 4 jobs): shards
+   420 / 359 / 448 s -> **GATE PILOT 448 s** (v1: 513 s with its two circuits in one shard). Without the two STOL parts the
+   longest shard would be ~389 s: **+~60 s of gate wall, +~125 s of CPU**.
+
+**THE LEGS** (node pilot_trace, all five persons, the final core vs the merged base 49387ca8; legs_table_v2.md):
+| showcase STOL Cub | base: lift / roll / touch | v2: lift / roll / touch |
+|---|---|---|
+| HOME, expert | 47 / 61 m / 13.8 m/s | **43 / 27 m / 11.3 m/s three-point** |
+| HOME, bush | 46 / 52 / 13.8 | **43 / 28 / 11.3 three-point** |
+| A4 340 m, expert / bush | 47 / 55, 47 / 55 | **44 / 30, 44 / 30** |
+| club, student, ham-fist (HOME, A4) | 47-49 / 54-73 | identical (not qualified) |
+| w8 (soft), expert / student | 49 / 51, 46 / 60 | identical (soft technique) |
+Stock and kit Cubs, all five persons, HOME and A4: every leg identical. Also flown (scratch): 2 m/s across 19 m three-point;
+1,4 m/s gust 0.6: 25 m three-point with **one 16 cm hop** (the left wing to -8.6 deg in the last metre at 0.97 Vs0, a main
+first, 1.8 m/s; the base flew it without a hop at 1.36 m/s, 44 m) - **for PILOT: low-speed roll authority near the stall in
+gusts; not tuned blind.**
+
+**IDENTITY:** tools/_stol_samebits.js on the final core - the six validated builds (def / 4 s / drawing / check + sheet /
+whole circuit) identical to the merged base, character for character (samebits_branch_v2.log vs samebits_base_49387ca8.log).
+
+**GATES (final code):** GATE PILOT PASS (3 shards, 448 s; STOL 6/6, STOL-QUAL 4/4: gate_pilot_stol_v2.log), GATE STOL PASS
+(124), GATE PILOTACT PASS. **GATE PILOTS FAIL - NOT THIS BRANCH:** "kit is not where the aeroplane is: refused (Kit is at
+Ridgeback Strip ...)" - the check's regex wants /w3|Tamgas/ and w3 is named "Ridgeback Strip" now; the SAME line fails on the
+base (49387ca8 / 44f44f0ea, stash-built and run here); every one of the branch's 4975 checks but that one passes (base 4927).
+The --all battery not run here.
+
+**READY** (27 Oct, claude/stol-pilot at the tip of this entry): READY for a train **after claude/ready/stol-wing** (it carries
+the STOL wing it reads; land-way and final-cap are merged in too - land them first or with it). A0 on the local box before the
+ready push: (1) the PILOTPAGE info legs `--only=stol_expert,stol_student` with the frame time at the roll's start; (2) the
+user's persona on the showcase; (3) the --all verdict. PILOT: the qualification knob's semantics (d = true: a custom person
+is qualified unless switched off), flareStolIth 1.5, the gust hop above.

@@ -154,10 +154,10 @@ const plHome = doc => (doc && doc.sheds && doc.sheds[PREM_MAIN] && doc.sheds[PRE
 // The knob -> section map is PILOT_PROFILE_KNOBS' own when PILOT-PERSONA is in the core (train 40); before it, the
 // same eleven names in PILOT-ONE's sections (43's pilotProfile reads both shapes).
 const PILOTS_KNOB_SEC = { reaction: 'skill', smooth: 'skill', hamFist: 'skill', gain: 'skill', overRotate: 'quirks', flareK: 'quirks',
-                          bankK: 'limits', comfortG: 'limits', field: 'technique', slip: 'technique', stepHold: 'technique' };
+                          bankK: 'limits', comfortG: 'limits', field: 'technique', slip: 'technique', stepHold: 'technique', stol: 'technique' };
 function pilotsKnobs() {
   if (typeof PILOT_PROFILE_KNOBS !== 'undefined') return PILOT_PROFILE_KNOBS.map(K => ({ k: K.k, sec: K.sec, kind: K.kind, lo: K.lo, hi: K.hi, d: K.d }));
-  return Object.keys(PILOTS_KNOB_SEC).map(k => ({ k, sec: PILOTS_KNOB_SEC[k], kind: k === 'field' ? 'pick' : (k === 'slip' || k === 'stepHold') ? 'bool' : 'range',
+  return Object.keys(PILOTS_KNOB_SEC).map(k => ({ k, sec: PILOTS_KNOB_SEC[k], kind: k === 'field' ? 'pick' : (k === 'slip' || k === 'stepHold' || k === 'stol') ? 'bool' : 'range',
                                                   d: pilotProfile('expert')[k] }));
 }
 // the flat knobs (pilotProfile's shape) of the pilot as signed on: the base person, the pack's knobs over it
@@ -243,6 +243,7 @@ function pilotsFliesLike(F) {
   if (F.field === 'short') t.push('short fields');
   if (F.field === 'normal') t.push('a normal approach everywhere');
   if (F.slip) t.push('slips every final');
+  if (F.stol === true) t.push('STOL-qualified');   // STOL-PILOT: the qualification (the bush pilot's; earned growing toward a qualified ceiling)
   const l = [];
   l.push(F.bankK >= 1.1 ? 'steep turns' : F.bankK <= 0.9 ? 'shallow turns' : 'normal turns');
   if (F.comfortG != null) l.push('pulls ' + F.comfortG.toFixed(2).replace(/0$/, '') + ' g at most');

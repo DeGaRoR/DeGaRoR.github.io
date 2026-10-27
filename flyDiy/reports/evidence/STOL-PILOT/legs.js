@@ -6,6 +6,7 @@ const T=path.join(__dirname,'..','..','..','tools');
 const [core,out]=process.argv.slice(2);
 const BUILDS={stock:'../builds/cub_2026-09-20_corrected.json',kit:'fixtures/stol_cub_kit.json',stol:'fixtures/stol_cub_showcase.json'};
 const FIELDS={HOME:[],A4:['--from','A4'],mineL:['--world','jolene','--to','mn_strip'],mine:['--world','jolene','--from','mn_strip'],w8:['--world','jolene','--from','w8']};
+if(process.env.FIELDS)for(const k of Object.keys(FIELDS))if(!process.env.FIELDS.split(',').includes(k))delete FIELDS[k];
 const PROFS=(process.env.PROFS||'expert,student').split(',');
 const only=process.env.ONLY?process.env.ONLY.split(','):null;
 const cells=[];

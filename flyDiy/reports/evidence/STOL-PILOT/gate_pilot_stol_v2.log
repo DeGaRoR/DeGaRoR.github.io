@@ -1,0 +1,22 @@
+-- STOL: the short-field law flown - the showcase STOL Cub's circuit off HOME --
+   stock Cub (GATE STOL's baseline lap): lift-off run 96.1 m, landing 62 m
+   STOL Cub:   completed, lift-off run 42.9 m, landing {"run":27,"sink":1.38,"V":11.3,"offCentre":0,"pastAim":11,"k":1,"three":true,"onStrip":true,"tdIn":21,"stopLeft":1052}, appr {"tq":"short","Vref":14.5,"aimIn":10,"gs":0.12,"stol":true}, dep {"technique":"short","Vx":16.9,"runNeed":58,"len":1100,"surface":0,"stol":true}
+  ok     STOL: the showcase flies the STOL law - the plan says so, landed first time
+  ok     STOL: the approach slope 6.8 deg (gsStol 0.12 = 6.8 deg)
+  ok     STOL: a three-point touch at the stall (11.3 m/s for a Vs0 of 12.089634600183322, three true) and not hard (1.38 m/s, 1.6 at most)
+  ok     STOL: the landing roll 27 m, at most 0.60 x the stock Cub's 62 m
+  ok     STOL: on the aim (11 m past it, 30 m at most)
+  ok     STOL: the lift-off run 42.9 m under 0.6 x the stock Cub's 96.1
+   [STOL part: 91 s wall]
+-- STOL-QUAL: who flies the STOL law - a STOL sheet and a STOL-qualified pilot --
+   showcase {"on":true,"ratio":0.848,"Vs0":12.09,"VsPlain0":14.26} | kit {"on":false,"ratio":0.992,"Vs0":13.5,"VsPlain0":13.61}
+  ok     STOL: the showcase STOL Cub qualifies (its Vs0 0.848 x its wing without the devices)
+  ok     STOL: the kit Cub does not (the elevator-held Vs0, 0.992 x - its tail cannot use the slot)
+   validated: cub null, jodel null, metal null, floats null, twinFloats null, rufus null, c172 null
+  ok     STOL: no validated build (cub, jodel, metal, floats, twinFloats, rufus, c172) carries a STOL device - the law is never even probed
+   qualified: expert true, bush true, club false, student false, hamfist false | custom true, custom with the knob off false
+  ok     STOL: the qualification - the expert and the bush pilot fly the law; the club pilot, the student, the ham-fist do not; the knob decides a custom person
+   the shakedown's stolGain {"gain":0.847682384739376,"VsPlain0":14.261986349876008}, the first ap.stol read with it 0 ms
+  ok     STOL: the gain rides the shakedown and the sheet (the first read 0 ms: no probe sims at the roll's start)
+   [STOL-QUAL part: 27 s wall]
+GATE PILOT: PASS
