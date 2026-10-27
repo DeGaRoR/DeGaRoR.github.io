@@ -31,9 +31,14 @@
 // it was given, untouched (74_career.js's contract). No DOM, no storage, no clock, no random.
 // ===========================================================================
 const PILOTS_V = 1;
-const PILOTS_ORDER = ['kit', 'rafe', 'remy', 'sky'];
-const PILOTS_COMPANION = 'kit';                       // arrives with the player (§9.2, the pack's COMPANION)
-const PILOTS_RESERVED = { ch20: 'the test pilot', ch02: 'kept for the user\'s own purposes' };   // GQ13: not recruits
+// G3614 (PEOPLE, the user 25 Oct): the pilots are PEOPLE (72_people.js GAME_PEOPLE, role 'pilot'): the pack's four
+// tuned persons on the bodies they always wore - kit -> Brian (ch01), rafe -> Bryce (ch42), remy -> Remy, sky -> Megan
+// (ch22); the names and the portraits are the official ones. The companion stays Brian until HIRE (G3618) retires it
+// with the tutorial's first hire ("we were always flying solo").
+const PILOTS_ORDER = peopleOf('pilot');
+const PILOTS_COMPANION = PEOPLE_FROM_PACK.kit;        // arrives with the player (§9.2, the pack's COMPANION) - until G3618
+const PILOTS_RESERVED = peopleOf('reserved').filter(id => GAME_PEOPLE[id].char)
+  .reduce((o, id) => (o[GAME_PEOPLE[id].char] = GAME_PEOPLE[id].why, o), {});   // GQ13: not recruits (ch20 Stig, ch02 Sophie)
 const PILOTS_MARKET = { min: 2, max: 3 };             // recruitables shown at a time, refreshed with the market
 const PILOTS_GROW = { fast: 30, steady: 60 };         // logged landings to reach the ceiling (§9.4)
 const PILOTS_WEATHER = { windKt: 18 };                // a cautious pilot's limit: the surface wind at the decision
@@ -41,7 +46,7 @@ const PILOTS_SHORT_M = 300;                           // short-strip nerves: ref
 const PILOTS_PAVED = ['concrete', 'asphalt'];         // paved-only: the surfaces it will use
 // G-COST: the one-time sign-on fee. ECONOMY (G2260) owns the price book (econPrice('signon', id)); until it lands,
 // this stub - the order is the pack's (remy the cheapest, sky the priciest; the companion comes with the opening).
-const PILOTS_SIGNON_STUB = { kit: 0, remy: 1500, rafe: 4000, sky: 7000 };
+const PILOTS_SIGNON_STUB = { brian: 0, remy: 1500, bryce: 4000, megan: 7000 };
 
 // ---- THE TRAITS: hooks, never prose (§9.3). Each names what it does; the pack's phrase is its label key. --------------
 //   refuse     a refusal kind (pilotsRefusal): 'weather' | 'night' | 'short' | 'unpaved' | 'water' | 'snow'
@@ -76,41 +81,31 @@ const PILOTS_REFUSALS = ['weather', 'night', 'short', 'unpaved', 'water', 'snow'
 //   grow      { rate: PILOTS_GROW key, ceiling: a PILOT_PROFILES name } | null (the pack: "grows ... (ceiling: X)")
 //   signOn    'stub' (the price book's, pilotsSignOn) - the companion's is 0
 //   pack      what the pack left unsaid that this table decided (HANDOVER G2290 lists them)
-const PILOTS_ROSTER = {
-  kit:  { id: 'kit', who: 'ch01', companion: true,
-          profile: { base: 'club', knobs: { reaction: 0.25, smooth: 0.8, bankK: 0.85, comfortG: 1.25 } },
-          style: 'cautious', traits: ['mechanic', 'cautious', 'night-shy'], grow: { rate: 'steady', ceiling: 'bush' },
-          portrait: null },
-  rafe: { id: 'rafe', who: 'ch42',
-          profile: { base: 'hamfist', knobs: { hamFist: 0.04, comfortG: 1.9, bankK: 1.25 } },
-          style: 'normal', traits: ['fearless', 'hard-on-airframes'], grow: null,
-          portrait: null, pack: { style: 'not given: normal', grow: 'not given: none (the rough hands stay)' } },
-  remy: { id: 'remy', who: 'remy',
-          profile: { base: 'student', knobs: { reaction: 0.40, overRotate: 0.03, flareK: 0.85 } },
-          style: 'normal', traits: ['eager'], grow: { rate: 'fast', ceiling: 'expert' },
-          portrait: null, pack: { style: 'not given: normal' } },
-  sky:  { id: 'sky', who: 'ch22',
-          profile: { base: 'bush', knobs: { reaction: 0.12, smooth: 1.0, slip: true, field: 'short', bankK: 1.2, comfortG: 1.7 } },
-          style: 'normal', traits: ['short-field', 'loves-taildraggers', 'refuses-nothing'], grow: { rate: 'steady', ceiling: 'expert' },
-          portrait: null, pack: { style: 'not given: normal', grow: 'not given: steady to the expert, on tailwheel types only (loves taildraggers)' } },
-};
+const PILOTS_ROSTER = PILOTS_ORDER.reduce((o, id) => {
+  const P = GAME_PEOPLE[id], F = P.fly;
+  o[id] = Object.assign({ id, who: P.char }, id === PILOTS_COMPANION ? { companion: true } : {},
+    { profile: { base: F.profile.base, knobs: Object.assign({}, F.profile.knobs) }, style: F.style, traits: F.traits.slice(),
+      grow: F.grow ? Object.assign({}, F.grow) : null, portrait: peopleFace(id, 256), from: P.from },
+    F.pack ? { pack: Object.assign({}, F.pack) } : {});
+  return o;
+}, {});
 
 // ---- THE TEXT: draft keys until the user's AI run (GQ21); the same { t, draft } shape as CONTRACT_TEXT ------------
 const PLT_ = t => ({ t, draft: true });
 const PILOTS_TEXT = {
-  'pilot.kit.name': PLT_('Kit'), 'pilot.rafe.name': PLT_('Rafe'), 'pilot.remy.name': PLT_('Remy'), 'pilot.sky.name': PLT_('Sky'),
-  'pilot.kit.tagline': PLT_('Fixes engines, flies a little, came with you.'),
-  'pilot.rafe.tagline': PLT_('Loud, brave, rough on the stick.'),
+  // (G3614) the names are the people's, official (not drafts, set below); the lines stay drafts, keyed by person
+  'pilot.brian.tagline': PLT_('Fixes engines, flies a little.'),
+  'pilot.bryce.tagline': PLT_('Loud, brave, rough on the stick.'),
   'pilot.remy.tagline': PLT_('A brand-new licence and no hours.'),
-  'pilot.sky.tagline': PLT_('Grew up landing on gravel bars.'),
-  'pilot.kit.bio': PLT_('[draft] The one who came with you. The text comes from the narrative run.'),
-  'pilot.rafe.bio': PLT_('[draft] Ex-crop-duster and airshow ground crew turned pilot.'),
+  'pilot.megan.tagline': PLT_('Grew up landing on gravel bars.'),
+  'pilot.brian.bio': PLT_('[draft] A mechanic first, a pilot second. The text comes from the narrative run.'),
+  'pilot.bryce.bio': PLT_('[draft] Ex-crop-duster and airshow ground crew turned pilot.'),
   'pilot.remy.bio': PLT_('[draft] Just finished the commercial licence. Wants hours.'),
-  'pilot.sky.bio': PLT_('[draft] A bush pilot from the gravel bars.'),
-  'pilot.kit.pitch': PLT_('[draft] I believed in this before you did.'),
-  'pilot.rafe.pitch': PLT_('[draft] Weather? I fly in it.'),
+  'pilot.megan.bio': PLT_('[draft] A bush pilot from the gravel bars.'),
+  'pilot.brian.pitch': PLT_('[draft] I believed in this before you did.'),
+  'pilot.bryce.pitch': PLT_('[draft] Weather? I fly in it.'),
   'pilot.remy.pitch': PLT_('[draft] Give me the hours, I\'ll give you the landings.'),
-  'pilot.sky.pitch': PLT_('[draft] Show me the strip. Any strip.'),
+  'pilot.megan.pitch': PLT_('[draft] Show me the strip. Any strip.'),
   // the eight barks (Block 3), one draft line per moment, shared until the pack writes each pilot's own
   'pilot.bark.hired': PLT_('{name} is on the roster.'),
   'pilot.bark.takeoff': PLT_('{name}: rolling.'),
@@ -143,8 +138,11 @@ const PILOTS_TEXT = {
   'pilot.me': PLT_('I fly'), 'pilot.me.how': PLT_('by hand, or the expert autopilot'),
   'pilot.boat': PLT_('takes the boat home'),
 };
+for (const id of PILOTS_ORDER) PILOTS_TEXT['pilot.' + id + '.name'] = { t: peopleName(id), draft: false };
 const pilotsText = (key, vars, text) => contractText(key, vars, Object.assign({}, PILOTS_TEXT, text || {}));
 const pilotsName = id => pilotsText('pilot.' + id + '.name');
+// an older save's pilot id (the pack's: kit / rafe / remy / sky) -> the person wearing it today
+const pilotsId = id => (PILOTS_ROSTER[id] ? id : (PEOPLE_FROM_PACK[id] || id));
 
 const plClone = o => JSON.parse(JSON.stringify(o));
 const plNo = (doc, why, extra) => Object.assign({ ok: false, doc, why }, extra || {});
@@ -261,6 +259,12 @@ function pilotsBlock(doc) {
   const c = doc.career;
   if (!c.pilots || typeof c.pilots !== 'object' || Array.isArray(c.pilots)) c.pilots = {};
   if (!Array.isArray(c.roster)) c.roster = [];
+  // G3614: an older career's pack ids (kit / rafe / sky) become the people wearing them - the roster, the rows, the
+  // pick and the routes' pilots (their logbooks and routes carry on)
+  c.roster = c.roster.map(pilotsId);
+  for (const id of Object.keys(c.pilots)) { const n = pilotsId(id); if (n !== id && !c.pilots[n]) { c.pilots[n] = c.pilots[id]; delete c.pilots[id]; } }
+  if (typeof c.pilotPick === 'string' && c.pilotPick !== 'me') c.pilotPick = pilotsId(c.pilotPick);
+  if (Array.isArray(c.routes)) for (const r of c.routes) if (r && typeof r.pilot === 'string') r.pilot = pilotsId(r.pilot);
   c.roster = c.roster.filter((id, i, a) => PILOTS_ROSTER[id] && a.indexOf(id) === i);
   for (const id of Object.keys(c.pilots)) {
     const P = c.pilots[id];
@@ -503,9 +507,11 @@ function pilotsImportPack(pack, text) {
   const T = plClone(text || PILOTS_TEXT), why = [];
   const put = (k, s) => { if (typeof s === 'string' && s) T[k] = { t: s, draft: false }; };
   for (const p of ((pack && pack.pilots) || [])) {
-    if (!p || !PILOTS_ROSTER[p.id]) { why.push('no pilot ' + (p && p.id)); continue; }
-    const b = 'pilot.' + p.id + '.';
-    put(b + 'name', p.name); put(b + 'tagline', p.tagline); put(b + 'bio', p.backstory); put(b + 'voice', p.voice);
+    const id = p && pilotsId(p.id);
+    if (!p || !PILOTS_ROSTER[id]) { why.push('no pilot ' + (p && p.id)); continue; }
+    const b = 'pilot.' + id + '.';
+    // (G3614: the name is the person's own, never the pack's)
+    put(b + 'tagline', p.tagline); put(b + 'bio', p.backstory); put(b + 'voice', p.voice);
     put(b + 'flies', p.fliesLike); put(b + 'pitch', p.pitch);
     for (const k of Object.keys(p.barks || {})) put(b + 'bark.' + k, p.barks[k]);
   }
