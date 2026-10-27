@@ -99095,7 +99095,7 @@ Study, boards and numbers: `futureDesigns/LODS-2026-10.md`; `reports/evidence/LO
 - **Not done (follow-ups)**: Metlakatla's kit box and city prism (baked in the committed packs; the town is opt-in) -
   a re-bake to put them on the finish; the meteo generator's `LOD_DETAIL` (its branch); THE PERF A/B on the local box
   (A0: frame / draws over HOME and the village at 300 m, `stats.farTris`, boot to reveal).
-- Gates run in the cloud (every core gate whose source reads the premises, the house kit or a generator, 38): HOUSE,
+- Gates run in the cloud (every core gate whose source reads the premises, the house kit or a generator: 38 run, 35 pass): HOUSE,
   LODS, TARR, PREMISES, PREMCOOK, MEDIA, TOWNKIT, KITHOST, CITYHOST, CITYCOOK, GAMEPREM, VILLAGE, SITE, PREMRASTER,
   ROOMMERGE, HWCOV, HOUSEWORKER, AUDIO, ATMO, NAVAID, ANIMALS, DMGSCAR, GFX, STAND, FADES, CONTACT, LOOKS, ASSETS,
   PATCHFAR, METKIT, PARKED, HITBOX, PAVEMENT, LIFE, OBSTACLE - PASS. CLOUD (row "the pool is re-assigned every 30
