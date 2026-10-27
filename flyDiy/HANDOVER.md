@@ -99627,3 +99627,17 @@ SAVE, ACCEPT, CONTRACTS, MISSIONS (873 checks; selftest 51/51 red), MISSIONPROPS
 ECON, PROCURE, FREIGHT, PILOTS: PASS. LAZY: FAIL (1) - the same row as p1's, p3's and db58b0b5's (route_draw's lazy door
 in this cloud browser; passes probed alone). MISSIONS + MISSIONPROPS re-run after the editor's last commit: PASS.
 Not run here (GPU / local): the visuals in the game - nothing draws the props yet (the local session's list above).
+
+## READY claude/ready/missions-props (review round, 2026-10-27 evening) - THE MISSION PROPS, THE STRIKE RULE, THE EDITOR'S UI PASS, REBASED ON THE NEW missions-p3
+
+**Base: ready/missions-p0 17f331783**, through claude/ready/missions-p1 and claude/ready/missions-p3 (the review round's,
+above; this replaces the READY note just above, whose base afa3e83ce is gone). The 4 commits rebased: one conflict,
+90_node_exports.js, resolved as the union (the strike names + p1's missionHandoverWired); HANDOVER kept both sides. Not
+for T-P1, not for L28a: it waits for a local page check and the user's look at the props.
+**Gates** (a private copy of the gated code - the notes are HANDOVER only - built there, `run_gates.js --no-build`; no
+local box): MISSIONS (875 checks; selftest 52/52 red), MISSIONPROPS (84 checks), CONTRACTS, STAGES, ECON, CLOCK, FREIGHT,
+PROCURE, ACCEPT, STORY, ROUTES, SAVE, PILOTS, NAVAID, UISMOKE, UISMOKE-PHONE, DEFAULT: PASS. LAZY: FAIL (1) - the
+route_draw row, red in the cloud on every tree tried (the base included): UNVERIFIED here.
+**The parked cook**: the same 9 core files change against the base (73b + 73c in MANIFEST.core; props adds to 72_ / 73b /
+73c / 74_ / 75_ / 90_ within that list): the parked cook of 17f331783 goes stale - the local box cooks it and runs
+FRAMECOST in the train. tools/_mission_gen.js is NOT in MANIFEST.lazy (nothing loads it in the game yet).
