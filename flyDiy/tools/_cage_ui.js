@@ -2312,6 +2312,8 @@ const fmtV = v => (+v).toFixed(3);
 // val, d, own } per frame; the build copies it onto CAGE_UI.frames, and a
 // follow row reads its number from there
 const frameVal = path => {
+  // FITTINGS-MANUAL: a layer that derives the value itself (the access layer's auto site) hands a function
+  if (typeof path === 'function') { try { const v = path(); return v != null && isFinite(+v) ? +v : null; } catch (e) { return null; } }
   const F = window.CAGE_UI && window.CAGE_UI.frames;
   if (!F || !path) return null;
   const [fk, q] = path.split('.');
@@ -2469,7 +2471,7 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
   if (opts.follow) {                     // THE FRAMES' "follows" checkbox
     const fc = document.createElement('input');
     fc.type = 'checkbox'; fc.id = 'f_' + k; fc.style.flex = 'none';
-    fc.title = 'follows — the frame takes the derived value; untick to set your own';
+    fc.title = opts.followTitle || 'follows — the frame takes the derived value; untick to set your own';
     d.insertBefore(fc, kSpan.nextSibling);
     d.classList.add('tog');              // G1322: the editor sits it in the label's column
     meta.followEl = fc;
