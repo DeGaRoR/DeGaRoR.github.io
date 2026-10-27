@@ -495,7 +495,7 @@ function benchSession(store, join, opts) {
   Object.assign(ctx, RULE);                                      // G3780: the certificate's rule, as the page has it
   ctx.exports = ctx.module.exports;
   vm.runInNewContext(rd('src/viewer/bench.js'), ctx);
-  const api = { plaque() {}, sheets: () => null, restoreSheets() {}, testFlight: () => true };
+  const api = Object.assign({ plaque() {}, sheets: () => null, restoreSheets() {}, testFlight: () => true }, (opts && opts.api) || {});
   ctx.benchInit(api);
   if (opts && opts.preG700) window.BENCH_ROLLOUT = null;          // the negative: no roll-out fingerprint
   // the award card is shown by stamping its dataset.test with the row's id - counted as it happens
@@ -548,6 +548,34 @@ function benchSession(store, join, opts) {
     const r1 = S.window.BENCH_STATE().results.flight, cards = S.shown();
     ok(r0 && r0.ok && !r0.stale && r1 && r1.ok && r1.when === fl.when && cards === 0,
        "...restored, its flight holds (" + (r0 && r0.when) + ") and the player's first landing awards nothing (" + (r1 && r1.when) + ', ' + cards + ' cards)');
+  }
+  // G3780 (STORY g3 27 Oct): OUT IN THE WORLD NOTHING IS FINGERPRINTED. The story's skip onto the final rebuilt the
+  // aeroplane in flight, and BENCH_DIRTY hashed the join's export off a closed editor (G700): Rufus's bench check, wing
+  // loading and density altitude read "the engine or the propeller changed" mid-tutorial. A rebuild away from the
+  // garage changes nothing; back in the garage the same aeroplane holds; and the guard is not vacuous - the same
+  // world export, hashed in the garage, would have superseded them
+  {
+    const G = { on: true }, spec0 = JSON.parse(rd('tools/_bench_fixture_build.json')).spec;
+    const worldSpec = Object.assign(JSON.parse(JSON.stringify(spec0)), { engines: [{ type: 'a65_sensenich74', mount: 'nose', place: { dx: 0, dy: 0 }, sense: 1 }] });
+    const store = { pq: null }, join = { up: true, spec: JSON.parse(JSON.stringify(spec0)) };
+    const S = benchSession(store, join, { api: { inGarage: () => G.on } });
+    const fp = S.window.BENCH_FP();
+    const row = () => ({ verdict: 'held', ok: true, fp, fps: 'f3', sv: 0, pv: 0, when: '2026-10-20' });
+    S.window.BENCH_RESTORE({ results: { shake: row(), load: row(), dalt: row() } }); S.flush();
+    const held = () => { const R = S.window.BENCH_STATE().results; return ['shake', 'load', 'dalt'].filter(id => R[id] && R[id].ok && !R[id].stale).length; };
+    const h0 = held();
+    G.on = false; join.spec = JSON.parse(JSON.stringify(worldSpec));          // out in the world: the export is not the aeroplane
+    S.window.BENCH_DIRTY(); S.flush();
+    const h1 = held();
+    G.on = true; join.spec = JSON.parse(JSON.stringify(spec0));               // back on the stand, the same aeroplane
+    S.window.BENCH_DIRTY(); S.flush();
+    const h2 = held();
+    ok(/^[0-9a-f]{8}$/.test(fp || '') && h0 === 3 && h1 === 3 && h2 === 3,
+       'a rebuild out in the world (the story\'s skip onto the final) supersedes nothing, and back in the garage the aeroplane holds (' + h0 + ', ' + h1 + ', ' + h2 + ' of 3 held)');
+    join.spec = JSON.parse(JSON.stringify(worldSpec));                         // the negative: that export, in the garage
+    let h3 = -1; try { S.window.BENCH_DIRTY(); S.flush(); } catch (e) {} h3 = held();
+    ok(h3 === 0, 'the guard is not vacuous: the same engine row hashed in the garage supersedes all three (' + h3 + ' held)');
+    ok(/inGarage: \(\) => !!inGarage/.test(APP), 'app.js hands the bench whether the page is in the garage');
   }
   // G680: the door's body is rollOutStand (rollOut decides the screen; from the shed the build's sync runs under it first)
   const rollAt = APP.indexOf('function rollOutStand(') >= 0 ? APP.indexOf('function rollOutStand(') : APP.indexOf('function rollOut(');

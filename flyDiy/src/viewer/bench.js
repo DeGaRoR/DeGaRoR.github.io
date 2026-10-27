@@ -885,13 +885,17 @@ function benchInit(api) {
   // ...under R1 only a MAJOR change gets here (a passenger, a GPS, the crew, the cargo, a game update move nothing)
   // and R4 re-runs the instant checks itself once the hand has let go (scheduleRecheck): the player is never asked
   let dirtyT = null;
+  // G3780 (STORY g3 27 Oct): OUT OF THE GARAGE NOTHING IS FINGERPRINTED. A rebuild out in the world (the story's skip
+  // onto the final) reads the join's export off a closed editor (G700) - not the aeroplane's number - and superseded
+  // Rufus's certificate in flight ("the engine or the propeller changed"). Nothing about the design can change out there.
+  const away = () => typeof api.inGarage === 'function' && !api.inGarage();
   window.BENCH_DIRTY = () => {
-    if (busy || live || flown) return;
+    if (busy || live || flown || away()) return;
     if (!anyRun() && !anyStale()) return;
     if (dirtyT) clearTimeout(dirtyT);
     dirtyT = setTimeout(() => {
       dirtyT = null;
-      if (busy || live || flown) return;
+      if (busy || live || flown || away()) return;
       const M = majorNow();
       if (!M) return;                               // cannot say: keep
       const back = unsupersede(M.fp);               // the change undone: what was measured on it stands again
@@ -909,7 +913,7 @@ function benchInit(api) {
     if (recheckT) clearTimeout(recheckT);
     recheckT = setTimeout(() => {
       recheckT = null;
-      if (busy || live || flown || dirtyT) { scheduleRecheck(); return; }
+      if (busy || live || flown || dirtyT || away()) { scheduleRecheck(); return; }
       if (!anyStale()) return;
       runQuiet(null);
     }, 1200);
@@ -999,7 +1003,7 @@ function benchInit(api) {
   // the structure did not change, only the model); no card. Holds -> every held row re-stamped with this version and
   // the row says so; fails -> the certificate is SUSPENDED: the row, the number and the fix, until the aeroplane changes.
   function recheckUpdate() {
-    if (live || flown || busy || dirtyT) { setTimeout(recheckUpdate, 800); return; }
+    if (live || flown || busy || dirtyT || away()) { setTimeout(recheckUpdate, 800); return; }
     const SV = (typeof GEN_SPEC_V !== 'undefined') ? GEN_SPEC_V : 0, PV = (typeof PHYSICS_V !== 'undefined') ? PHYSICS_V : 0;
     const stamp = () => { for (const id in results) { const r = results[id]; if (r && !r.stale && r.fps === BENCH_FP_SCHEME) { r.sv = SV; r.pv = PV; } } };
     const t = BENCH_TESTS.filter(x => x.id === 'shake')[0];
