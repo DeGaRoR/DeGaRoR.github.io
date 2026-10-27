@@ -878,7 +878,7 @@ async function tutorRun() {
      "the skip's fresh pilot starts with the stick neutral before its first update (its default 'DE' mode has no setting: the sim diverged at 0 s, the 25 Oct page run)");
   ok(/function storyFinalNow\(o\)[\s\S]{0,2400}ap\.setRoute\(H, H\);/.test(app),
      "the skip's pilot flies a circuit at the WWII field (a cabin -> HOME route flew to the pattern entry first: 5 min round the circuit, the 25 Oct 20:15 page run)");
-  ok(/if \(ap\.phase !== 'INBOUND' && ap\.phase !== 'FINAL'\) \{ const r2 = storyFinalNow\(\{ way: -way, flipped: true \}\);/.test(app) && /if \(!\(o && o\.flipped\)\) setTimeout\(/.test(app),
+  ok(/if \(ap\.phase !== 'INBOUND' && ap\.phase !== 'FINAL'\) \{ const ph = ap\.phase, r2 = storyFinalNow\(\{ way: -way, flipped: true \}\);/.test(app) && /if \(!\(o && o\.flipped\)\) setTimeout\(/.test(app),
      "the skip's pilot planned a circuit from the pose (the 27 Oct 04:35 page run: DOWNWIND, no landing in 5 min): the pose flips to the other end's final, once");
   ok(/const stUsed = !armed && \(\(\) => \{ try \{ const s = stLive\(\); return !!\(s && !s\.open && s\.planes && s\.planes\.starter && flSlot === s\.planes\.starter\); \}/.test(app) &&
      /if \(typeof window\.BENCH_FLIGHT_LOGGED === 'function' && curKey === 'gen' && !stUsed\) \{/.test(app),

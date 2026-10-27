@@ -9532,7 +9532,7 @@
     if (!(o && o.flipped)) setTimeout(() => { try {
       const s2 = stLive();
       if (!s2 || s2.open || s2.beat !== 'T1' || inGarage || manual || !ap) return;
-      if (ap.phase !== 'INBOUND' && ap.phase !== 'FINAL') { const r2 = storyFinalNow({ way: -way, flipped: true }); stSkipLast = { way, phase: ap.phase, flip: r2 && r2.ok ? -way : null }; }
+      if (ap.phase !== 'INBOUND' && ap.phase !== 'FINAL') { const ph = ap.phase, r2 = storyFinalNow({ way: -way, flipped: true }); stSkipLast = { way, phase: ph, flip: r2 && r2.ok ? -way : null }; }
     } catch (e) {} }, 1500);
     stSkipLast = { way, phase: 'INBOUND', flip: null, flipped: !!(o && o.flipped) };
     return { ok: true, why: '', final: H.id, pose: P, way };
