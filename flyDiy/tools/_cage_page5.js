@@ -433,6 +433,10 @@ window.CAGE_PAGE = {
       // T2.3 (84): the bottom's own ease (-1 = the deck's)
       ['cowlEaseBot', 'ring ease · bottom (-1 = same)', -1, 1.00, 0.01],
       ['cowlBulge', 'ring bulge',     0.85, 1.30, 0.005],
+      // G3579 (DC3-2, the user 28 Oct): THE NOSE'S ROUNDNESS, one dial from a cone (0, the loft as it always was) to a
+      // soft dome (1: the rings on a quarter-ellipse, spaced along the arc); with the tip collapsed and 'tip sharpness' 0
+      // the tip has no point and no crease. Absent 0: every build before, ring for ring
+      ['noseDome',  'nose roundness (cone → dome)', 0, 1, 0.01, { when: P => +P.noseFinish, absent: 0 }],
     ]],
     ['4 · cabin', [
       ['dimensions', [
@@ -449,7 +453,10 @@ window.CAGE_PAGE = {
         // G2770 (the user: "the bubble glass option is misleading. It's more
         // like an additional adjourning, that should be hidden in real canopy
         // bubble mode"): the row hides under a bubble canopy (its value kept)
-        ['bubble',    'bubble glass',   0, 1, 1,
+        // G3579 (DC3-2, the user 28 Oct: "the not so well-named 'bubble canopy' ... rename that option ... into 'glass
+        // ceiling'"): the label only - the key stays `bubble` (it rides every saved build), and the canopy's own
+        // 'bubble' (canopy 3) is the one that builds a bubble canopy
+        ['bubble',    'glass ceiling',  0, 1, 1,
          { when: P => Math.round(+P.canopy || 0) !== 3 }],
         // T2.2: the glazing MATERIAL, one for the whole aeroplane (the look
         // and the ledger read it; the join carries it as cabin.glazingMat)

@@ -115,6 +115,27 @@ const DC3_FIT_TAIL = {
   stChord: 1.09,
 };
 Object.assign(DC3_FIT, DC3_FIT_TAIL);
+// THE USER'S LAST BATCH (28 Oct): "the cabin is far too long ... only span half of the current length, and you'll compensate by
+// adding an extra passenger section" - the cockpit 1.0 -> 0.5 (0.80 m), a ninth bay (the first one aft of the cockpit stands
+// empty: a bay's seats cannot be switched off - QUESTION 9's cargo bay), the cone 0.21 shorter: the tail post where it was; the
+// pilots back at their controls (seatZ 1.32 -> 0.50: with half the cockpit they sat in the nose, ahead of the yokes, and the
+// design check's worst corner read pitch.sm -0.27); "disable the option skylight, and ... 'bubble canopy' as an on/off slider"
+// (the row the editor now calls 'glass ceiling'); "accurate prop positioning" - the whole nacelle 1.0 m forward (engBlockZ: the
+// spinner's front 2.45 m aft of the nose, the reference's), 0.43 m inboard (engNacAt 0.18: 2.61 m out, the reference's 2.62),
+// the axis on the reference's (engY -0.03: -0.97 under the body's centre), the nacelle's tail cone to the reference's end -
+// and with the engines' mass forward the static margin 0.18 (the worst loading corner passes); "your tailwheel should be
+// bigger and drop further" - the reference's 0.52 m wheel (s2R 0.26), its centre 1.13 m under the body's (s2_twLegDrop 0.42:
+// a 10 deg deck, the model's); "is there any option for the nose to be more softly rounded?" - the new row noseDome (nose
+// roundness, cone -> dome: _cage_gen.js) at 0.3 (the reference's nose within 3-6 cm over its first 0.75 m; 1 is 25 cm too blunt), the tip collapsed and uncreased, the joint band off: one smooth tip
+Object.assign(DC3_FIT, {
+  pilotLen: 0.5, paxCount: 9, boomLen: 2.25, seatZ: 0.5, bubble: 0, skylight: 0,
+  engNacAt: 0.18, engBlockZ: 1.0, cw_noseOff: 0.12, cw_tailLen: 3.35, engY: -0.03,
+  s2R: 0.26, s2_twLegDrop: 0.42,
+  noseDome: 0.3, noseTip: 0.98, crNoseCap: 0, crFrontCap: 0, noseJointOn: 0,
+  // the outer dihedral 7.5 -> 6.5 deg: at 7.5 the Dutch roll diverged (yaw.dutch damping -0.021, the design check's fix: less
+  // dihedral); 6.5 passes every row - the reference's chord-line slope 7.5, its headline dihedral 5.95
+  wgDihedralOut: 6.5,
+});
 const FIT_FIX = path.join(T, 'fixtures', 'dc3_fit_wip.json');
 function dc3FullRaw(over) {
   const j = PR.dc3Raw(1.0);
