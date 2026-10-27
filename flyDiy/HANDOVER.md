@@ -99445,8 +99445,8 @@ starting point and round only the elevator's ends", the dorsal fillet option; sc
   chord that holds it under (19.4 m on 0.89 m) took the big envelope's crank chord once and the small one on the next resolve -
   now read again off the clamped span and clamped again by it. dc3_identity ALL IDENTICAL; the flown DC-3 fixture
   byte-identical; gates WINGROWS SPECFIX GEN DESIGN JOIN BUILD SAVE PARTS PANEL PASS.
-- **STAGED, NOT THE FLOWN DC-3:** tools/dc3_build.js `DC3_FIT` (106 rows) over DC3_ROWS, `--fit` ->
-  tools/fixtures/dc3_fit_wip.json (join errors 0, on its wheels, deck 12.3 deg). The flown fixture and the HOME trip are
+- **STAGED, NOT THE FLOWN DC-3 (until v1, below):** tools/dc3_build.js `DC3_FIT` (106 rows) over DC3_ROWS, `--fit` ->
+  tools/fixtures/dc3_fit_wip.json (gone at v1) (join errors 0, on its wheels, deck 12.3 deg). The flown fixture and the HOME trip are
   G3578's, unchanged. What holds the fit back from the flown DC-3: the design check (`pitch.sm` -0.017 at the worst loading
   corner, `yaw.dutch`), the nacelles / props (step 3), then the HOME trip again.
 - **Measured (ours / ref, m aft of the nose, above the body's centre):** tail post 19.203 / 19.195; wing plan 1 - IoU 0.065
@@ -99456,3 +99456,44 @@ starting point and round only the elevator's ends", the dorsal fillet option; sc
   13. **The fin station:** a row placing the fin's hinge ahead of the tail post (the DC-3's rudder overhangs the cone by 0.5 m)?
   14. **A concave dorsal fillet** (the DC-3's LE curving into the spine): ours is convex, so it is off - wanted?
   15. **The tailwheel's height:** the model's sets a 10 deg deck, the drawing ~14 deg, ours 12.3 - which?
+
+### G3579b - DC3-2 v1 (2026-10-28, cloud): THE USER'S LAST BATCH, FLOWN - THE REFERENCE FIT IS THE DC-3
+The user (28 Oct): "the cabin is far too long ... half of the current length, and you'll compensate by adding an extra passenger
+section. If there is the option, disable the seats for that one. In the cabin, you'll disable the option skylight, and the not so
+well-named 'bubble canopy' ... rename that option ... into 'glass ceiling'. You should also get accurate prop positioning ... Our
+engines also seem to sit too high. And finally, is there any option for the nose to be more softly rounded? ... If there's nothing,
+we need a control, going from a cone to a soft rounded shape ... Once you'll have done all that, give it another test flight,
+report, and if it flies well, we'll call it v1" - and "your tailwheel should be bigger and drop further ... look at the reference".
+- **The cockpit halved** (pilotLen 1.0 -> 0.5: 0.80 m) and a NINTH BAY (paxCount 9; the cone 0.21 shorter: the tail post 19.19
+  m, the reference's 19.20). The first bay stands empty - its seats are drawn: no row turns a bay's seats off (QUESTION 9's
+  cargo bay). The pilots had been pushed through their yokes into the nose (the design check's worst corner: pitch.sm -0.27):
+  seatZ 1.32 -> 0.50, the hands on the yokes again.
+- **'bubble glass' -> 'glass ceiling'** (tools/_cage_page5.js: the label only; the key `bubble` rides every saved build; the
+  canopy's own 'bubble', canopy 3, is the real bubble canopy) - OFF on the DC-3. The skylight was already off.
+- **The props:** ours 1.05 m aft and 0.43 m outboard of the reference's (the axis within 3 cm). engBlockZ 1.0 (the WHOLE nacelle
+  forward), engNacAt 0.21 -> 0.18, cw_noseOff 0.12, engY -0.03, the nacelle's tail cone 2.4 -> 3.35 m: the spinner's front 2.45 m
+  aft of the nose (2.45), 2.61 m out (2.62), the axis -0.97 (-0.97), the nacelle's end within 5 cm. "Too high": the axis was not
+  - our nacelle is 1.0 m deep against the reference's 1.75 (its houses the retracted wheel), which may be what reads high.
+  With the engines' mass a metre forward the static margin rose to 0.18 and the worst loading corner passes.
+- **The tailwheel** the reference's: 0.52 m (s2R 0.26), its centre 1.13 m under the body's (s2_twLegDrop 0.42 - s2Drop does
+  nothing on a tailwheel leg): a 10.0 deg deck (the model's).
+- **THE NOSE'S ROUNDNESS, a new row** (tools/_cage_gen.js cageSpec + the cowl-loop loft; tools/_cage_page5.js, _cage_parts.js):
+  `noseDome` 0-1, 'nose roundness (cone -> dome)', absent 0 = every build ring for ring (dc3_identity ALL IDENTICAL). The front
+  rings' dims ease toward the true quarter-ellipse and the rings are spaced along the arc (they crowd in where the nose turns);
+  with the tip collapsed (noseTip 0.98), uncreased (crNoseCap 0, crFrontCap 0) and the nose joint band off (its crease drew a
+  polygon at the tip) the tip has no point and no facet. The DC-3 at 0.3: the reference's nose within 3-6 cm over its first
+  0.75 m (1.0 reads 25 cm too blunt). reports/evidence/DC3-2/v1_nose_dome_0_03_1.png (0, 0.3, 1).
+- **The outer dihedral 7.5 -> 6.5 deg:** at the reference's chord-line slope the Dutch roll diverged (yaw.dutch damping -0.021);
+  at 6.5 the design check passes every row (yaw.dutch 0.089, a warn).
+- **FLOWN (v1):** the sheet 8 880 kg, SM 0.177, Vs 59.5 kt clean / 53.6 flaps, cruise 133 kt, climb 8.1 m/s, TO run 328 m; the
+  pilot's circuit: lift-off at 371 m, 73 kt, climb 9.7 m/s, the FIRST approach landed (0.35 m/s), landing roll 291 m (real 245),
+  STOPPED - no go-around, no damage. The drops 2.0 / 3.05 / 3.85 / 4.6 m/s: 0 yields; taxi idle / sturn / stick / pivot / rough
+  0 / 0; `power` (full throttle 14 s on the ground to 62 kt, then full brakes) sets tailplane members (554 yields, no break, 3.4
+  g as the tail comes down) - an abuse hand (G3578's reached 51 kt and set nothing). THE HOME TRIP: the corner pivot, lined up
+  straight, the circuit, two bounce go-arounds (QUESTION 6, the pilot's), the landing STOPPED, the taxi back parked 2.47 m off
+  the stand: 0 CONTACTS, 0 YIELDS, 0 BREAKS. reports/evidence/DC3-2/home_trip_v1_phys.json, v1_overlay_{side,top,front}.png,
+  v1_3d.png.
+- **v1:** DC3_FIT is laid over DC3_ROWS in every build (tools/dc3_build.js dc3FullRaw); tools/fixtures/dc3_2026-10.json IS it
+  (its spec = the flown one, checked); the staged fixture and `--fit` are gone.
+- **Gates:** GEN (4 shards) CABIN BUILD EDBUGS FRAMES JOIN WINGROWS STARTER SAVE PARTS DESIGN PANEL PASS (PARTS after noseDome
+  joined the nose's 'front' part); dc3_identity ALL IDENTICAL. Not READY: origin/master to merge (claude/ready/dc3-3).

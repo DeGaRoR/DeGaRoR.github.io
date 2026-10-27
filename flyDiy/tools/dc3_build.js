@@ -9,7 +9,6 @@
 // is what the widened envelope (G3503) and the structure rules (G3501, G3504, G3505) make of the drawing.
 //
 //   node tools/dc3_build.js --build      (re)write tools/fixtures/dc3_2026-10.json through the load chain
-//   node tools/dc3_build.js --fit        the reference fit's staged rows (DC3_FIT) over it: tools/fixtures/dc3_fit_wip.json
 //   node tools/dc3_build.js              the fixture's sheet, design check, cost, and the pilot's flight (take-off,
 //                                        circuit, landing) against the real DC-3 [--no-fly] [--no-cert] [--maxS=600]
 //                                        [--json=<file>]
@@ -76,11 +75,10 @@ const DC3_ROWS = {
   frPaxProfile: 1, frPaxEase: 0, frPaxBias: -0.6,
   aftRoofY: 0.64, aftKeelY: -0.48, frBoomWaistY: 0.12, frBoomWaistW: 0.49, frBoomTopW: 0.42, frBoomBotW: 0.4,
 };
-// G3579 (DC3-2, 27 Oct): THE FIT TO THE USER'S REFERENCE MODEL (tools/ref_match/refs/dc3.json: Sketchfab 'Dc3' by manilov.ap,
-// CC-BY-4.0, scaled to the published 28.96 m span, length anchored at 19.66 m; tools/REF_MATCH.md's procedure), STEP 1 - the
-// side view's proportions and the wing. Staged here, over DC3_ROWS, until step 3 puts the aeroplane back on its wheels (the
-// aft body came down and the wing forward: as drawn it rests on the belly, the gear and the tailwheel are step 3's, from the
-// user's drawing - the model's wheels are retracted). `--fit` builds with them (tools/fixtures/dc3_fit_wip.json).
+// G3579 (DC3-2, 27-28 Oct): THE DC-3 v1 - FITTED TO THE USER'S REFERENCE MODEL (tools/ref_match/refs/dc3.json: Sketchfab 'Dc3'
+// by manilov.ap, CC-BY-4.0, scaled to the published 28.96 m span, length anchored at 19.66 m; tools/REF_MATCH.md's procedure)
+// and steered by the user round by round. Laid over DC3_ROWS in every build (dc3FullRaw): the flown DC-3 is these rows. Flown
+// (G3579 v1): the circuit and a first-time landing, the drops to 4.6 m/s and the HOME trip with 0 contacts and 0 breaks.
 const DC3_FIT = {
   // STEP 1 (the side view's proportions and the wing) - the wing the DC-3's own planform: a constant-chord centre section
   // (4.63 m, flat) to the crank, the outer panel's LE swept to a straight TE, 1.40 m at the tip, 7.5 deg outboard (plan
@@ -136,10 +134,9 @@ Object.assign(DC3_FIT, {
   // dihedral); 6.5 passes every row - the reference's chord-line slope 7.5, its headline dihedral 5.95
   wgDihedralOut: 6.5,
 });
-const FIT_FIX = path.join(T, 'fixtures', 'dc3_fit_wip.json');
 function dc3FullRaw(over) {
   const j = PR.dc3Raw(1.0);
-  Object.assign(j.spec.cage, DC3_ROWS, over || {});
+  Object.assign(j.spec.cage, DC3_ROWS, DC3_FIT, over || {});   // G3579: v1 - the reference fit over the study's rows
   // the DC-3's 822 US gal in two centre-section tanks (the widened 2 000 L a vessel)
   j.spec.energy.vessels = [{ bay: 'wingRoot', capacity: 1555 }, { bay: 'wingRoot', capacity: 1555 }];
   j.spec.fuel.litres = 3110;
@@ -173,13 +170,6 @@ function compare(s, R) {
 
 if (require.main === module) {
   const C = require('./flight_core.js');
-  if (flag('fit')) {
-    const r = buildFixture(DC3_FIT);
-    fs.writeFileSync(FIT_FIX, JSON.stringify(r.env, null, 1) + '\n');
-    console.log('wrote ' + path.relative(ROOT, FIT_FIX) + ' (join errors: ' + r.errors.length + ')');
-    for (const e of r.errors) console.log('  ERRS ' + e);
-    process.exit(r.errors.length ? 1 : 0);
-  }
   if (flag('build') || !fs.existsSync(FIX)) {
     const r = buildFixture();
     fs.writeFileSync(FIX, JSON.stringify(r.env, null, 1) + '\n');
@@ -221,4 +211,4 @@ function printSheetFull(s) {
   if (pr.printSheet) pr.printSheet(s); else console.log(JSON.stringify(s));
 }
 function printFlight(R) { const pr = require('./dc3_probe.js'); if (pr.printFlight) pr.printFlight(R); else console.log(JSON.stringify(R)); }
-module.exports = { DC3_ROWS, DC3_FIT, dc3FullRaw, buildFixture, FIX, FIT_FIX };
+module.exports = { DC3_ROWS, DC3_FIT, dc3FullRaw, buildFixture, FIX };

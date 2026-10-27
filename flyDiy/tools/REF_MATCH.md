@@ -376,7 +376,7 @@ copy), then the order of section 3; the gaps it met are section 7's last six row
 ## 11. The DC-3 (27 Oct 2026): STEP 1 and the surfaces, the user steering
 
 Reference: `refs/dc3.glb`, Sketchfab "Dc3" by manilov.ap, CC-BY-4.0. Not a card: the sandbox DC-3 is `tools/dc3_build.js`'s
-rows, and the fit is staged in its `DC3_FIT` (`--fit` writes `tools/fixtures/dc3_fit_wip.json`; `dump_build.js` takes it).
+rows, and the fit is its `DC3_FIT` (v1 since 28 Oct: laid over the study's rows in every build, `tools/fixtures/dc3_2026-10.json`).
 - **Scale:** span 28.96 m (95 ft, NASM), length anchored at 19.66 m (64 ft 6 in, NASM; factor 1.031). Height not anchored
   (NASM's 5.16 m is three-point).
 - **Align: `pca`, not `wing`.** The model is yawed ~25 deg but flies level in its file; `align: wing` took the wing's second
@@ -395,3 +395,10 @@ rows, and the fit is staged in its `DC3_FIT` (`--fit` writes `tools/fixtures/dc3
   set by hand, its macro rows from the measured offsets.
 - Open: the flight sheet's design check (`pitch.sm` -0.017 at the worst loading corner, `yaw.dutch`), the nacelles and
   props (step 3), the cockpit glazing, the concave dorsal (section 7).
+- **v1 (28 Oct), the user's last batch:** the cockpit halved and a ninth bay; the nacelles placed by `engBlockZ` (the whole
+  nacelle, engine and cowl and propeller, metre for metre - `cw_noseOff` moves the prop alone, `eng_mountGap` is case radii)
+  and `engNacAt`: the spinner, its axis and its span station on the reference's; the tailwheel the reference's (its drop is
+  `s2_twLegDrop`: `s2Drop` does nothing on a tailwheel leg); a NEW ROW `noseDome` (nose roundness, cone -> dome: the front
+  rings on a quarter-ellipse spaced along the arc) at 0.3 - with the tip collapsed (noseTip 0.98), uncreased (crNoseCap 0,
+  crFrontCap 0) and the nose joint band off, one smooth tip; the outer dihedral 6.5 (at the reference's 7.5 the Dutch roll
+  diverged). Flown: the circuit and a first-time landing; the HOME trip 0 contacts, 0 breaks.
