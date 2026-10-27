@@ -32,12 +32,18 @@ function stagePage(o) {
   if (window.__lkStep) sim.step = window.__lkStep; else window.__lkStep = sim.step;
   const step = window.__lkStep;
   const strip = world.aerodromes.find(a => a.id === 'HOME') || world.aerodromes[0];
+  // A CONTROLLED SCENE, the same for BEFORE and AFTER: the world's own trees out of the physics (only the staged trunk
+  // is hit - the gates' flat-world crashes) and out of the picture (every instanced vegetation mesh outside the
+  // aeroplane hidden; the cover ring is off by ?cover=0). The first runs' wrecks fell into the island's trees.
+  if (world.treeHits && world.treeHits.keys) for (const k of world.treeHits.keys()) if (k !== 'fill:looks') world.treeHits.drop(k);
+  { const craft = P.craft(), under = o => { for (let q = o; q; q = q.parent) if (q === craft) return true; return false; }; let hid = 0;
+    craft.parent.traverse(m => { if (m.isInstancedMesh && m.visible && !under(m)) { m.visible = false; hid++; } }); window.__lkHid = hid; }
   sim.reset(0);
   placeAtAerodrome(sim, strip);
   const n = sim.n, p = sim.p, v = sim.v, fx = Math.cos(strip.hdg), fz = Math.sin(strip.hdg);
   // 250 m down the runway: the paved strip is clear of trees and the pylon (the first runs' wrecks ended under the
   // world's own trees, 60 m in, where no camera could see them)
-  const SL = strip.len || strip.length || strip.L || 600, AT = o.at != null ? o.at : Math.min(250, 0.45 * SL);
+  const SL = strip.len || strip.length || strip.L || 600, AT = o.at != null ? o.at : Math.min(120, 0.45 * SL);
   for (let i = 0; i < n; i++) { p[i*3] += AT * fx; p[i*3+2] += AT * fz; }
   const c0 = sim.cgPos(), ground = world.terrainH(c0[0], c0[2]);
   let yMin = Infinity; for (let i = 0; i < n; i++) yMin = Math.min(yMin, p[i*3+1] - (sim.r[i] || 0));
@@ -61,7 +67,7 @@ function stagePage(o) {
   const xs = [], ys = [], zs = []; for (let i = 0; i < n; i++) { xs.push(p[i*3]); ys.push(p[i*3+1]); zs.push(p[i*3+2]); }
   const lo = [q(xs, 0.1), q(ys, 0.1), q(zs, 0.1)], hi = [q(xs, 0.9), q(ys, 0.9), q(zs, 0.9)];
   const centre = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2], radius = Math.max(2.5, 0.5 * Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]));
-  return { centre, radius, hdg: strip.hdg, at: AT, stripLen: SL, ms: Math.round(performance.now() - t0), steps: s, atRest: calm > 60, crashed: D.crashed, reason: D.reason, broken: D.broken.length, cg: sim.cgPos().map(x => +x.toFixed(2)) };
+  return { centre, radius, hdg: strip.hdg, at: AT, stripLen: SL, hiddenVeg: window.__lkHid, ms: Math.round(performance.now() - t0), steps: s, atRest: calm > 60, crashed: D.crashed, reason: D.reason, broken: D.broken.length, cg: sim.cgPos().map(x => +x.toFixed(2)) };
 }
 
 function stageFor(build, scenes, after, tag) {
@@ -126,7 +132,7 @@ if (require.main === module) {
   const stageFile = path.join(require('os').tmpdir(), 'looks_stage_' + process.pid + '.js');
   // soft_still requires the stage by path: a tiny module that hands back this file's stage
   fs.writeFileSync(stageFile, `module.exports = require(${JSON.stringify(__filename)}).stageFor(${JSON.stringify(build)}, ${JSON.stringify(scenes)}, ${JSON.stringify(after)}, ${JSON.stringify(tag)});\n`);
-  const q = 'damage=1&simw=0&fog=0' + (opt('q', null) ? '&' + opt('q') : '');
+  const q = 'damage=1&simw=0&fog=0&cover=0' + (opt('q', null) ? '&' + opt('q') : '');
   const o = Object.assign(S.parse(), { build: path.join(ROOT, BUILDS[build]), q, size, stage: stageFile, out: path.join(OUT, '_stand_' + build + '.jpg'), secs: +opt('secs', 7200), day: 'noon' });
   S.still(o).then(R => {
     try { fs.unlinkSync(stageFile); } catch (e) {}
