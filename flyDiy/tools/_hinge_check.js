@@ -487,6 +487,182 @@ let STOCK_SCENE = null;   // the stock headless scene, built once for TWSTEER an
   }
 }
 
+// ---- 4f2 A DOOR TURNS ABOUT ONE LINE (DOOR-HINGES, 2026-10-27) -------------
+// The user on the STOL Cub's still: "the door would not open as both hinges
+// are not on the same rotation axis ... place that better by default, on the
+// straight vertical part of the door? And allow some manual tweaking". The
+// stations rode the run's polyline on its local tangents (the belly corner,
+// the post, the slant up to the sill); the layer now fits ONE straight line
+// a run - the longest stretch of the edge within 5 mm of its chord - and
+// every hinge sits on it, its barrel along it, the whole line lifted off the
+// drawn sheet as one. Held on the stock Cub (its clamshell: one line a half),
+// the STOL Cub showcase, the Jodel and both Cessnas, read off the layer's
+// own `stations` (each barrel's centre and axis) and measured against the
+// cage sheet here (MQ, not the layer's ray):
+//   CO-AXIAL   every barrel centre within 1 mm of the line through the first
+//              along its own barrel axis, and every barrel within 0.5 deg of it
+//   ON THE SKIN  every barrel centre r + 0.5 .. r + 8 mm off the sheet
+//   ON THE EDGE  at the defaults, every barrel within r + 8 mm of the chosen
+//              run (the straight part of THAT edge, below the sill), and the
+//              hinges spread (the end barrels 0.15 m apart or more)
+//   THE TWEAKS  the four rows at 0 reproduce the auto line to the nanometre;
+//              a tilt turns the line by its angle, an offset moves it into the
+//              door, an inset draws the hinges in - each still co-axial and
+//              clear of the skin
+//   CERT-SAFE  a spec carrying the rows (at 0 or moved) hashes as the spec
+//              without them - bench.js with and without page defaults, and
+//              76_procure.js; every shipped build file hashes the same under
+//              bench.js as under bench.js without the `hgDr` alternation
+const doorAxisErr = q => {
+  const st = q.stations || [];
+  if (!st.length) return { perp: Infinity, ang: Infinity, n: 0, spread: 0 };
+  const u = nrm(st[0].ax);
+  let perp = 0, ang = 0, spread = 0;
+  for (const s of st) {
+    const w = sub(s.p, st[0].p), d = dot(w, u);
+    perp = Math.max(perp, Math.hypot(w[0] - d * u[0], w[1] - d * u[1], w[2] - d * u[2]));
+    ang = Math.max(ang, Math.acos(Math.min(1, Math.abs(dot(nrm(s.ax), u)))) * 180 / Math.PI);
+    spread = Math.max(spread, Math.abs(d));
+  }
+  return { perp, ang, n: st.length, spread };
+};
+{
+  let SH = null, MQ = null;
+  try { SH = require(path.join(T, '_scene_headless.js')); MQ = require(path.join(T, '_mesh_query.js')); }
+  catch (e) { console.log('  (harness) ' + e.message); }
+  if (SH && MQ) {
+    const W0 = SH.context().ctx;
+    const PR = (W0.CAGE_PAGE && W0.CAGE_PAGE.presets) || {};
+    const preset = (name, over) => { const o = Object.assign({}, W0.CAGE2.CAGE_PARAMS); const pre = PR[name] || {};
+      for (const k in pre) if (k !== '_base') o[k] = pre[k]; return Object.assign(o, over || {}); };
+    const STOL = path.join(T, 'fixtures/stol_cub_showcase.json');
+    const METAL = path.join(T, 'fixtures/build_v10_cessnaMetal_2026-09-26.json');
+    const fs = require('fs');
+    const PLANES = [
+      ['stock Cub (clamshell)', over => SH.sceneBuild(null, { over: preset('piper cub', over) })],
+      ['STOL Cub showcase', over => SH.sceneBuild(SH.loadFixture(STOL).spec, { over })],
+      ['Jodel', over => SH.sceneBuild(null, { over: Object.assign({}, over) })],
+      ['Cessna 172', over => SH.sceneBuild(null, { over: preset('cessna 172', over) })],
+      ['Cessna metal', over => SH.sceneBuild(SH.loadFixture(METAL).spec, { over })],
+    ];
+    check(fs.existsSync(STOL), 'DOOR AXIS: the STOL Cub showcase fixture is in tools/fixtures');
+    const CMs = new Set([...W0.GEAR_GEN.CAGE_MATS]);
+    const doors = S => ((S.W.CAGE_HINGE && S.W.CAGE_HINGE.placed) || []).filter(q => q.kind === 'door');
+    const sheetOf = S => { const t = MQ.triSet(S.built.sheet, { scale: S.FS, faces: f => CMs.has(f.m) }); t.orient(); return t; };
+    // the run the layer was asked for, in scene metres (edge 0 forward, 2 aft
+    // - both cut at the sill - 1 top, 3 bottom, 4 '_top' / '_bot')
+    const runOf = (S, q) => {
+      const r = S.W.CAGE2.cageDoorEdges(S.built.sheet).find(x => q.key.indexOf('door_' + x.key.replace(':', '_')) === 0);
+      if (!r) return null;
+      const e = Math.round(+S.P.hgDoorEdge || 0), lo = r.winLo;
+      const cut = run => run.pts.filter(p => lo == null || p[1] <= lo + 1e-9);
+      const pts = e === 4 ? (/_top$/.test(q.key) ? r.top.pts : r.bot.pts) : e === 3 ? r.bot.pts : e === 1 ? r.top.pts
+        : e === 2 ? cut(r.aft) : cut(r.fwd);
+      return pts.map(p => [p[0] * S.FS, p[1] * S.FS, p[2] * S.FS]);
+    };
+    const segDist = (p, pts) => { let best = Infinity;
+      for (let i = 0; i + 1 < pts.length; i++) { const a = pts[i], d = sub(pts[i + 1], a), L2 = dot(d, d) || 1e-12;
+        const t = Math.max(0, Math.min(1, dot(sub(p, a), d) / L2));
+        best = Math.min(best, Math.hypot(p[0] - a[0] - d[0] * t, p[1] - a[1] - d[1] * t, p[2] - a[2] - d[2] * t)); }
+      return best; };
+    const holds = (name, S, opts) => {
+      const P = doors(S);
+      check(P.length > 0, 'DOOR AXIS: ' + name + ': no door hinge lines');
+      const sh = sheetOf(S);
+      for (const q of P) {
+        const E = doorAxisErr(q), tag = 'DOOR AXIS: ' + name + ': ' + q.key;
+        check(E.n >= 2, tag + ' hangs on fewer than two hinges', E.n);
+        check(E.perp < 0.001, tag + ' hinges are not co-axial', (E.perp * 1000).toFixed(3) + ' mm off the first barrel\'s axis');
+        check(E.ang < 0.5, tag + ' barrels are not along one axis', E.ang.toFixed(2) + ' deg');
+        for (const s of q.stations || []) {
+          const d = sh.signedDist(s.p, 0.2);
+          check(!!d && d.d > q.r + 0.0005 && d.d < q.r + (opts.float || 0.008), tag + ' barrel does not sit on the skin',
+                d ? ((d.d - q.r) * 1000).toFixed(1) + ' mm clear (r ' + (q.r * 1000).toFixed(1) + ' mm)' : 'no skin within 0.2 m');
+        }
+        if (opts.edge) {
+          const run = runOf(S, q);
+          check(!!run && run.length >= 2, tag + ' has no run to sit on');
+          if (run) for (const s of q.stations || []) {
+            const d = segDist(s.p, run);
+            check(d < q.r + 0.008, tag + ' barrel is off its edge', (d * 1000).toFixed(1) + ' mm');
+          }
+          check(E.spread > 0.15, tag + ' hinges bunched', (E.spread * 1000).toFixed(0) + ' mm end to end');
+        }
+      }
+      return P;
+    };
+    let stolBase = null;
+    for (const [name, build] of PLANES) {
+      const S = build({});
+      const P = holds(name, S, { edge: true });
+      if (/STOL/.test(name)) stolBase = P;
+      if (/clamshell/.test(name)) check(P.length >= 2 && P.every(q => /_(top|bot)$/.test(q.key)), 'DOOR AXIS: the stock Cub keeps one line a clamshell half', P.map(q => q.key).join());
+      if (VERBOSE) for (const q of P) { const E = doorAxisErr(q); console.log('    ' + name + ' ' + q.key + ': n ' + E.n + ', span ' + q.span.toFixed(3) + ' m, ' + (E.perp * 1000).toFixed(3) + ' mm, ' + E.ang.toFixed(3) + ' deg'); }
+    }
+    console.log('  DOOR AXIS: ' + PLANES.length + ' aeroplanes, every door on one hinge line a run (co-axial < 1 mm, on the skin, on its edge)');
+    // THE TWEAKS, on the STOL Cub (the user's aeroplane)
+    if (stolBase && stolBase.length) {
+      const build = PLANES[1][1];
+      const byKey = P => { const o = {}; for (const q of P) o[q.key] = q; return o; };
+      const B0 = byKey(stolBase);
+      const Z = byKey(doors(build({ hgDrOff: 0, hgDrTilt: 0, hgDrSlide: 0, hgDrInset: 0 })));
+      let worst = 0;
+      for (const k in B0) for (let i = 0; i < B0[k].stations.length; i++)
+        worst = Math.max(worst, Z[k] ? Math.hypot(...sub(Z[k].stations[i].p, B0[k].stations[i].p)) : Infinity);
+      check(worst < 1e-9, 'DOOR AXIS: the tweak rows at 0 move the auto line', worst);
+      const axisOf = q => nrm(sub(q.B, q.A)), midOf = q => [(q.A[0] + q.B[0]) / 2, (q.A[1] + q.B[1]) / 2, (q.A[2] + q.B[2]) / 2];
+      const St = build({ hgDrTilt: 10 }), Ti = byKey(holds('STOL Cub, tilt 10', St, { float: 0.025 }));
+      for (const k in B0) if (Ti[k]) {
+        const a = Math.acos(Math.min(1, Math.abs(dot(axisOf(Ti[k]), axisOf(B0[k]))))) * 180 / Math.PI;
+        check(Math.abs(a - 10) < 0.5, 'DOOR AXIS: a 10 deg tilt does not turn ' + k + ' by 10 deg', a.toFixed(2));
+      }
+      const Of = byKey(holds('STOL Cub, offset 50 mm', build({ hgDrOff: 0.05 }), { float: 0.025 }));
+      for (const k in B0) if (Of[k]) {
+        const d = sub(midOf(Of[k]), midOf(B0[k]));          // the door is aft of its forward edge: -z
+        check(Math.abs(Math.hypot(...d) - 0.05) < 0.01 && d[2] < -0.03, 'DOOR AXIS: a 50 mm offset does not move ' + k + ' 50 mm into the door', d.map(v => v.toFixed(3)).join());
+      }
+      const In = byKey(holds('STOL Cub, inset 0.3', build({ hgDrInset: 0.3 }), {}));
+      for (const k in B0) if (In[k])
+        check(doorAxisErr(In[k]).spread < doorAxisErr(B0[k]).spread - 0.05, 'DOOR AXIS: a 0.3 inset does not draw ' + k + "'s hinges in");
+      holds('STOL Cub, slide -60 mm', build({ hgDrSlide: -0.06 }), { float: 0.025 });
+    }
+    // CERT-SAFE
+    {
+      const vm = require('vm'), rd = f => fs.readFileSync(path.join(T, '..', f), 'utf8');
+      const loadSrc = src => { const m = { exports: {} };
+        vm.runInNewContext(src, { module: m, exports: m.exports, console, Math, JSON, parseFloat, isFinite, Number, String,
+          Array, Object, Uint8ClampedArray, Infinity, setTimeout, clearTimeout, setInterval, clearInterval, performance: { now: () => 0 }, Date, Symbol });
+        return m.exports; };
+      const bsrc = rd('src/viewer/bench.js');
+      const BE = loadSrc(bsrc);
+      const BEold = loadSrc(bsrc.replace('|^hgDr[A-Z]/;', '/;'));
+      check(bsrc.indexOf('|^hgDr[A-Z]/;') > 0 && /hgDr\[A-Z\]/.test(rd('src/core/76_procure.js')), 'DOOR AXIS: bench.js / 76_procure.js do not name the hgDr rows as state');
+      const D = Object.assign({}, W0.CAGE2.CAGE_PARAMS, W0.CAGE_PAGE.defaults || {});
+      check(['hgDrOff', 'hgDrTilt', 'hgDrSlide', 'hgDrInset'].every(k => D[k] === 0), 'DOOR AXIS: the page defaults do not carry the four rows at 0');
+      const spec = SH.loadFixture(STOL).spec;
+      const withRows = v => { const c = JSON.parse(JSON.stringify(spec)); Object.assign(c.cage, { hgDrOff: v, hgDrTilt: v * 100, hgDrSlide: -v, hgDrInset: v * 4 }); return c; };
+      for (const [lab, Dx] of [['with the page defaults', D], ['without defaults', null]]) {
+        const f0 = BE.benchFingerprint(spec, Dx);
+        check(BE.benchFingerprint(withRows(0), Dx) === f0 && BE.benchFingerprint(withRows(0.05), Dx) === f0,
+              'DOOR AXIS: the hgDr rows move the bench fingerprint (' + lab + ')');
+      }
+      const pf = CORE.procureFp;
+      check(typeof pf === 'function' && pf(withRows(0)) === pf(spec) && pf(withRows(0.05)) === pf(spec), 'DOOR AXIS: the hgDr rows move the procure fingerprint');
+      let nF = 0;
+      for (const f of fs.readdirSync(path.join(T, 'fixtures'))) {
+        if (!/^(build_|stol_cub|player_)/.test(f) || !/\.json$/.test(f)) continue;
+        let j; try { j = JSON.parse(fs.readFileSync(path.join(T, 'fixtures', f), 'utf8')); } catch (e) { continue; }
+        const sp = j && (j.spec || j);
+        if (!sp || !sp.cage) continue;
+        nF++;
+        check(BE.benchFingerprint(sp, D) === BEold.benchFingerprint(sp, D) && BE.benchFingerprint(sp) === BEold.benchFingerprint(sp),
+              'DOOR AXIS: ' + f + ' hashes differently under the new state rows');
+      }
+      check(nF >= 8, 'DOOR AXIS: too few build files to hold the old hashes on', nF);
+    }
+  }
+}
+
 // ---- 4e A HORN-BALANCED SURFACE HINGES BELOW ITS HORN (2026-09-13) --------
 // The user: "hinges should be removed from the fin on the horn part when
 // horn is selected, since this part really does not move anymore." Under
@@ -823,6 +999,17 @@ if (SELF) {
     say(draw(false) > 0, 'two whole hinges on a two-faced station are caught by ONE FITTING');
     say(draw(true) === 0, 'the one fitting (the second face\'s legs only) passes ONE FITTING');
   } catch (e) { say(false, 'the ONE FITTING probe ran: ' + e.message); }
+  // (g) DOOR-HINGES: the old placement - each station on the run's polyline,
+  // its barrel on the local tangent - must be caught by DOOR AXIS; a line
+  // must pass it
+  {
+    const line = { stations: [{ p: [0.37, -0.31, 2.27], ax: [0, 1, 0] }, { p: [0.37, 0.01, 2.27], ax: [0, 1, 0] }] };
+    const old = { stations: [{ p: [0.355, -0.47, 2.266], ax: [0.3, 0.95, 0] }, { p: [0.35, 0.12, 2.22], ax: [-0.03, 0.62, -0.78] }] };
+    const one = { stations: [line.stations[0], { p: [0.3712, 0.01, 2.27], ax: [0, 1, 0] }] };
+    say(doorAxisErr(line).perp < 0.001 && doorAxisErr(line).ang < 0.5, 'two barrels on one line pass DOOR AXIS');
+    say(doorAxisErr(old).perp >= 0.001 && doorAxisErr(old).ang >= 0.5, 'the polyline placement (the corner and the slant) is caught by DOOR AXIS');
+    say(doorAxisErr(one).perp >= 0.001, 'a barrel 1.2 mm off the line is caught by DOOR AXIS');
+  }
   console.log(probes.join('\n'));
   if (probes.some(p => p.indexOf('MISS') >= 0)) fails.push('selftest: a probe missed');
 }

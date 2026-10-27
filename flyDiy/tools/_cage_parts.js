@@ -832,7 +832,7 @@ const CAGE_PARTS = [
       ['size', ['hgHornLen', 'hgSize']],
       ['linkage', ['hgHorn', 'hgLink']],
       ['fairings', ['hgFair']],
-      ['doors', ['hgDoor', 'hgDoorEdge']],       // G310
+      ['doors', ['hgDoor', 'hgDoorEdge', 'hgDrOff', 'hgDrTilt', 'hgDrSlide', 'hgDrInset']],   // G310; DOOR-HINGES
       ['finish', ['hgFinish']],                  // T2.3 (51)
       ['detail', ['hgDetail']],
     ] },
