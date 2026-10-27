@@ -110,6 +110,11 @@ const PRESETS = {
   'Rotec R3600': { arch: 'radial', cyl: 9, exStyle: 2,
     bore: 0.088, stroke: 0.066, rpm: 2500, finR: 1.3,
     fwW: 0.72, fwH: 0.72, carbOn: 0, airbox: 0, plumb: 0 },
+  // NEW-SHAPES-1: THE CLERGET 9B, the Camel's rotary - nine cylinders of 120 x 160 mm (16.3 L), ~1.0 m across the
+  // heads; no carburettor and no airbox (a rotary breathes through its hollow crankshaft), long finned barrels
+  'Clerget 9B': { arch: 'radial', cyl: 9, exStyle: 2,
+    bore: 0.120, stroke: 0.160, rpm: 1250, finR: 1.25,
+    fwW: 1.00, fwH: 1.00, carbOn: 0, airbox: 0, plumb: 0 },
   // THE AMATEUR IN-LINES (G165). Both INVERTED, which is what an aero
   // in-line almost always is, and both FOUR-STROKE — the coercion that made
   // every in-line a two-stroke is a default now. Bore and stroke are the real

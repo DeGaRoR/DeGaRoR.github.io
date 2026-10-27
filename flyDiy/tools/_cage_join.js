@@ -32,6 +32,7 @@ const CAGE_JOIN_ENGINES = {
   'rotax 582': 'rotax582_ivo',
   'Verner Scarlett 7U': 'verner7u_wood',
   'Rotec R3600': 'rotec3600_std',
+  'Clerget 9B': 'clerget9b_wood',          // NEW-SHAPES-1: the Camel's rotary
   'P&W R-985': 'r985_hs2b20',
   'P&W R-1830': 'r1830_hs23e50',
   // THE TWO G165 IN-LINES WERE ORPHANS until 2026-09-05: neither had a row

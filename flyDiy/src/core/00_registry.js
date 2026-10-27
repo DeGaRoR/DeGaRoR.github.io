@@ -500,6 +500,16 @@ const POWERPLANTS = {
     engine: { name: 'Verner Scarlett 7U', mass: 78, powerW: 78000, aspiration: 'na', family: 'four', cooling: 'air', layout: 'radial', rpm: 2400 },
     prop:   { name: '2-pale bois 1.80 m', D: 1.80, Tstatic: 1400, kV2: 0.250 },
   },
+  // NEW-SHAPES-1 (the user, 27 Oct: "you may build a new engine ... DO a new model yourself"): THE CLERGET 9B, the
+  // Sopwith Camel's rotary - 130 hp (97 kW) at 1 250 rpm, direct drive, 173 kg, nine cylinders of 120 x 160 mm
+  // (16.3 L); flown as a radial (the case does not turn here, the power, the mass and the prop do). The prop is
+  // DERIVED as the catalogue's are: its static thrust 0.43 of the momentum ideal for 97 kW on a 2.59 m disc, the
+  // Camel's 8 ft 6 in wooden two-blade.
+  clerget9b_wood: {
+    price: 26000,
+    engine: { name: 'Clerget 9B', mass: 173, powerW: 97000, aspiration: 'na', family: 'four', cooling: 'air', layout: 'radial', rpm: 1250 },
+    prop:   { name: '2-blade wood 2.59 m', D: 2.59, Tstatic: 2130, kV2: 0.300 },
+  },
   rotec3600_std: {
     price: 30000,
     engine: { name: 'Rotec R3600', mass: 102, powerW: 112000, aspiration: 'na', family: 'four', cooling: 'air', layout: 'radial', rpm: 3600, gear: 2 },
@@ -900,7 +910,7 @@ const GEN_ENG_CG = {
   a65_sensenich74: 0.20, o200_eprops: 0.21, io360_mccauley: 0.24,
   jabiru2200_std: 0.20, vw2180_wood: 0.19, rotax912_warp: 0.23,
   rotax277_pusher: 0.11, rotax582_ivo: 0.17, rotax503_wood: 0.16,
-  verner7u_wood: 0.12, rotec3600_std: 0.12,
+  verner7u_wood: 0.12, rotec3600_std: 0.12, clerget9b_wood: 0.14,
   mikron3_wood: 0.31, gipsymajor1_wood: 0.39,
   hirth508_wood: 0.35, argus10c_wood: 0.39,
   o320_mccauley: 0.24, o540_hartzell: 0.33, io550_hartzell3: 0.34,

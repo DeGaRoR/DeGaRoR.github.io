@@ -1969,7 +1969,7 @@ const ARCHETYPES = [
            canopy: 'screen', mirror: 0, intCons: 2,      // wood: the spruce and ash box girder
            boomStyle: 0, section: 1,
            wgPos: 3, wgBrace: 1, wgTip: 2, wgFlapType: 0, planes: 'biplane',
-           engFamily: 'radial', engModel: 'Rotec R3600', engMount: 'nose', prop: 'wood2',
+           engFamily: 'radial', engModel: 'Clerget 9B', engMount: 'nose', prop: 'wood2',
            gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
            finArch: 'rounded', empennage: 'conv', scheme: 'trim', base: 0x3d5c40, trim: 0xf4f2ea },   // PC10 khaki over clear-doped linen
     over: { cage: { wgSpan: 8.53, wgChord: 1.37, wgChordTip: 1.37, wgTipX: 0, wgDihedral: 0,
@@ -1983,7 +1983,10 @@ const ARCHETYPES = [
                     pilotLen: 1.00, s1Drop: 0.85, s1Z: 2.00, boomLen: 3.05,   // short-coupled: 5.71 m overall
                     // the user's review of the first cut (27 Oct, with photographs of F6034 and B6313): the cockpit further
                     // fore (the deck ahead of it shorter, the boom longer by as much: the length holds)
-                    aeroWsLen: 0.50, aeroLen: 0.45, aeroTipW: 0.90, aeroTipH: 0.86, aeroDroop: 0.0,
+                    aeroWsLen: 0.50, aeroLen: 0.45, aeroDroop: 0.0,
+                    // the front wider than the body behind it: the Clerget is 1.0 m across its heads, and the radial cowl
+                    // takes the engine face's size (the Camel's cowl bulges past its fuselage)
+                    aeroTipW: 1.20, aeroTipH: 1.20,
                     // the upper centre section NOT cut
                     wgCentre: 0,
                     // the tail: no dorsal running to the rudder, a small fin and a big D rudder, a much smaller tailplane
