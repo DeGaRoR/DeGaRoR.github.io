@@ -5,7 +5,9 @@
 // merge). Each is balanced to pass the bench's design check at its worst loading corner:
 //   pushpull  the Engines row's Push-pull (the Skymaster's layout): two IO-360s, the tail on twin booms outboard of the
 //             rear disc; the wing 0.45 m aft and the stab 1.40 x span / 1.25 x chord (the pusher's 144 kg behind the
-//             cabin: the card's own wing station left a static margin of -0.16 as drawn)
+//             cabin: the card's own wing station left a static margin of -0.16 as drawn); the booms the Skymaster's
+//             (0.24 x 0.34 m at the wing, a 0.7 m fairing forward), the straight fin (the swept fin's ventral strake
+//             draws detached under a twin boom's fins); the wing stays strut-braced (a cantilever one broke up at 5.7 g)
 //   trimotor  Three (nose + wings): three Rotax 912s, a MID strut-braced wing (on the card's high wing the nacelles'
 //             thrust line stands 1.5 m up and full power tips the aeroplane over its nosewheel; on a low wing the
 //             nacelle discs clear the grass by 2 cm; a cantilever mid wing let go at its root on the bench's 5.7 g),
@@ -21,8 +23,10 @@ const LB = require('./_load_build.js');
 const { D } = BJ.loadPanel();
 const C172 = D.ARCHETYPES.find(a => a.key === 'c172');
 const FIX = {
-  pushpull: { name: 'Push-pull (Skymaster layout)', sel: { engCount: 'pushPull', engModel: 'lycoming IO-360' },
-              cage: { wgDx: -0.45, stSpan: 1.4, stChord: 1.25 } },
+  pushpull: { name: 'Push-pull (Skymaster layout)', sel: { engCount: 'pushPull', engModel: 'lycoming IO-360', finArch: 'straight' },
+              cage: { wgDx: -0.45, stSpan: 1.4, stChord: 1.25,
+                      // (the user, 27 Oct: "give the push-pull a twin boom" - the Skymaster's booms, not rods)
+                      boomWf: 0.24, boomHf: 0.34, boomWa: 0.16, boomHa: 0.22, boomNoseLen: 0.7 } },
   trimotor: { name: 'Trimotor (three Rotax 912)', sel: { engCount: 3, engModel: 'rotax 912 (flat)', finArch: 'straight', section: 3, wgPos: 1, wgBrace: 0 },
               cage: { wgDx: -0.15 } },
   four:     { name: 'Four (wing nacelles, four Rotax 912)', sel: { engCount: 4, engModel: 'rotax 912 (flat)', finArch: 'straight', wgPos: 1, wgBrace: 0 },
