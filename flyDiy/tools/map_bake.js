@@ -302,9 +302,11 @@ function bake() {
   const wx = i => X0 + (i + 0.5) * MPP, wz = j => Z0 + (j + 0.5) * MPP;
   const { P, idx } = palette();
   // sanity of the frame: the home strip is land, the seaplane lanes are water
+  // (CABIN-LAKE 26 Oct: a seaplane lane on a LAKE - cb_sea, Cabin Lake - is land on the coast grid and wet on the lake grid)
+  const inLake = (x, z) => { const g = gi(x, z); return g >= 0 && !!grid.lake && grid.lake[g] > 128; };
   for (const a of W.aerodromes) {
     const wet = a.kind === 'water';
-    if (wet === land(a.x, a.z)) throw new Error('map_bake: ' + a.id + ' reads ' + (wet ? 'land' : 'water') + ' on the coast grid - the frame is wrong');
+    if (wet ? (land(a.x, a.z) && !inLake(a.x, a.z)) : !land(a.x, a.z)) throw new Error('map_bake: ' + a.id + ' reads ' + (wet ? 'land' : 'water') + ' on the coast and lake grids - the frame is wrong');
   }
 
   // 1. heights (land only) and the class of every pixel
