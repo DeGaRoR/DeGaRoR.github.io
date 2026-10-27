@@ -539,7 +539,8 @@ function benchSession(store, join, opts) {
   // world export, hashed in the garage, would have superseded them
   {
     const G = { on: true }, spec0 = JSON.parse(rd('tools/_bench_fixture_build.json')).spec;
-    const worldSpec = Object.assign(JSON.parse(JSON.stringify(spec0)), { engines: [{ type: 'a65_sensenich74', mount: 'nose', place: { dx: 0, dy: 0 }, sense: 1 }] });
+    const worldSpec = Object.assign(JSON.parse(JSON.stringify(spec0)), { engines: [{ type: 'rotax912_warp', mount: 'nose', place: { dx: 0, dy: 0 }, sense: 1 }],
+      prop: Object.assign({}, spec0.prop, { D: 2.2 }) });                       // (the fixture flies the a65 on a 1.91 m prop)
     const store = { pq: null }, join = { up: true, spec: JSON.parse(JSON.stringify(spec0)) };
     const S = benchSession(store, join, { api: { inGarage: () => G.on } });
     const fp = S.window.BENCH_FP();
@@ -557,7 +558,7 @@ function benchSession(store, join, opts) {
        'a rebuild out in the world (the story\'s skip onto the final) supersedes nothing, and back in the garage the aeroplane holds (' + h0 + ', ' + h1 + ', ' + h2 + ' of 3 held)');
     join.spec = JSON.parse(JSON.stringify(worldSpec));                         // the negative: that export, in the garage
     let h3 = -1; try { S.window.BENCH_DIRTY(); S.flush(); } catch (e) {} h3 = held();
-    ok(h3 === 0, 'the guard is not vacuous: the same engine row hashed in the garage supersedes all three (' + h3 + ' held)');
+    ok(h3 === 0, 'the guard is not vacuous: the same engine and propeller rows hashed in the garage supersede all three (' + h3 + ' held)');
     ok(/inGarage: \(\) => !!inGarage/.test(APP), 'app.js hands the bench whether the page is in the garage');
   }
   // G680: the door's body is rollOutStand (rollOut decides the screen; from the shed the build's sync runs under it first)
