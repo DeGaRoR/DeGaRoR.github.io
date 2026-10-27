@@ -2870,10 +2870,11 @@ function makePilot(sim, def, world, opts) {
       // on the heading within ~9 deg and not swinging fast: the taxi's own steering takes the rest rolling
       // (a TRICYCLE walks round its turn at ~1-1.5 m/s on the nosewheel - G1949: holding it to 1.0 m/s here kept the
       // C172's pivot 'not done' while its own power rolled it 20 m along East Point, 8 m off the centreline, for 40 s)
-      // G3578: ...A FULL SWIVEL ONLY ONCE ITS SWING HAS STOPPED (under 3 deg/s, the brakes holding it there, below): its
-      // wheel castors after the pivot and re-locks only on a straight track, so the 11 deg/s it was let go at carried the
-      // 8-bay DC-3 on round past the take-off heading at HOME's hold and circled it 37 m off the centreline
-      if (Math.abs(err) < 0.15 && r < (SWIV ? 0.05 : 0.20) && Vg < (trike ? 1.8 : 1.0)) { c.brakeD = 0; return true; }
+      // G3578: ...A FULL SWIVEL'S LINE-UP ONLY ONCE ITS SWING HAS STOPPED (under 3 deg/s, the brakes holding it there,
+      // below): its wheel castors after the pivot and re-locks only on a straight track, so the 11 deg/s it was let go at
+      // carried the 8-bay DC-3 on round past the take-off heading at HOME's hold and circled it 37 m off the centreline.
+      // (Not the taxi's pivots: held there, the swing's end moved HOME's 49 deg corner exit and the tail met a billboard)
+      if (Math.abs(err) < 0.15 && r < (SWIV && ap.phase === 'LINEUP' ? 0.05 : 0.20) && Vg < (trike ? 1.8 : 1.0)) { c.brakeD = 0; return true; }
       const slow = Vg < (A.pivotVg ?? 1.2);
       const near = Math.abs(err) < 0.45;                           // ~25 deg: the power off, the turn coasts in
       // the throttle walks up until the nose turns at ~20 deg/s, back down if the aeroplane starts to roll away
