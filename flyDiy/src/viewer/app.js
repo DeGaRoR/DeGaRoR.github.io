@@ -9843,7 +9843,8 @@
   // rows of the strict gates roll the stock builds out (the C172 seats a co-pilot) and stay as they were. The flight waits
   // for the last of them (`started` held, so the stand's brake stays on); Go seats everyone at once. ?crowd=0 or
   // localStorage flydiy.crowd = '0' turns it off. The pilot does not walk (the user: out of scope).
-  const CRW = { on: true, all: false, M: null, gen: 0, seats: new Map(), pending: false, after: null, prep: null, queued: null };
+  const CRW = { on: true, all: false, M: null, gen: 0, seats: new Map(), pending: false, after: null, prep: null, queued: null,
+                fadeMs: 0, warmMs: 0 };
   try {
     const q = /[?&]crowd=([01])(&|$)/.exec(window.location.search || '');
     CRW.on = q ? q[1] === '1' : window.localStorage.getItem('flydiy.crowd') !== '0';
@@ -9905,8 +9906,27 @@
     const e = CRW.seats.get(seat);
     if (!e || !window.CROWD) return;
     e.w = w;
+    const t0 = performance.now();
     window.CROWD.fadeObjects(THREE, e.meshes(), w);
+    CRW.fadeMs += performance.now() - t0;
     if (w >= 1) CRW.seats.delete(seat);
+  }
+  // G3619 (the 17:58 split, 27 Oct: 130-190 ms at each passenger's turn -> board, +0 programs - the seated figure's FIRST
+  // SHOW, on fade twins built that frame): a seat's twins built and its figure compiled on them and on its own materials
+  // while the roll-out's screen covers it - shown for the call, hidden after (three's compile walks VISIBLE objects,
+  // synchronously, before its promise: as the walkers' in crowd.js). A live passenger's character landing late is warmed
+  // by crowdTick once its meshes are there.
+  function crowdWarmSeat(e) {
+    const ms = e.meshes().filter(m => m && m.material);
+    if (!ms.length || typeof renderer.compileAsync !== 'function') return;
+    e.warm = true;
+    const t0 = performance.now();
+    for (const w of [0.5, 1]) {
+      window.CROWD.fadeObjects(THREE, ms, w);
+      for (const m of ms) try { renderer.compileAsync(m, camera, scene).catch(() => {}); } catch (err) {}
+    }
+    window.CROWD.fadeObjects(THREE, ms, e.w);
+    CRW.warmMs += performance.now() - t0;
   }
   // the roll-out (under its screen): who is aboard, then the walk
   function crowdStart() {
@@ -9928,7 +9948,8 @@
         compile: gs => Promise.all(gs.map(g => (typeof renderer.compileAsync === 'function' ? renderer.compileAsync(g, camera, scene) : null))),
       });
       // hidden from now (crowdTick keeps them so); their characters and the clips fetched under the screen
-      for (const q of seats) CRW.seats.set(q.seat, { meshes: q.meshes, w: 0 });
+      for (const q of seats) CRW.seats.set(q.seat, { meshes: q.meshes, w: 0, warm: false });
+      for (const [, e] of CRW.seats) crowdWarmSeat(e);
       const CC = window.CAGE_CHAR;
       if (CC) for (const k of new Set(seats.map(q => q.key))) CC.load(k);
       // THE WALK BEGINS WHEN THE SCREEN LIFTS: the aeroplane is on its stand and drawn by then (under the roll-out's
@@ -9952,7 +9973,7 @@
   function crowdTick(dt) {
     if (!CRW.M || !window.CROWD) return;
     if (CRW.queued && !rollHold && crowdPlaced()) { const q = CRW.queued; CRW.queued = null; q(); }
-    for (const [, e] of CRW.seats) if (e.w < 1) window.CROWD.fadeObjects(THREE, e.meshes(), e.w);
+    for (const [, e] of CRW.seats) if (e.w < 1) { if (!e.warm) crowdWarmSeat(e); window.CROWD.fadeObjects(THREE, e.meshes(), e.w); }
     CRW.M.tick(dt);
     if (CRW.after && !CRW.pending && !CRW.M.busy()) crowdDone(true);
   }
@@ -9979,7 +10000,7 @@
   // the start (the roll-out screen's done): now, or when the last passenger is seated
   function crowdThen(fn) { if (CRW.on && (CRW.pending || (CRW.M && CRW.M.busy()))) CRW.after = fn; else fn(); }
   if (typeof window !== 'undefined') window.FLYDIY_CROWD = () => ({ on: CRW.on, pending: CRW.pending, waiting: !!CRW.after,
-    seats: [...CRW.seats.keys()], stats: CRW.M ? Object.assign({}, CRW.M.stats) : null });
+    seats: [...CRW.seats.keys()], stats: CRW.M ? Object.assign({}, CRW.M.stats) : null, fadeMs: CRW.fadeMs, warmMs: CRW.warmMs });
   // THE DRAWING'S SYNC (the 700 ms entry tick, an accept, a roll-out, a stop): build the group when the load changes,
   // hang it where it is seen
   function fsSync() {

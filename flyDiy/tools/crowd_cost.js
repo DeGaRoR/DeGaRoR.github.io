@@ -107,7 +107,12 @@ async function chrome() {
       const dts = [], calls = [], tris = [], scalls = [], stris = [], crowd = [], withP = [];
       // A0 27 Oct: each frame over 100 ms told apart - what the crowd did across it (each one's state before / after),
       // programs compiled and textures / geometries uploaded across it, and whether `Fly the circuit` was pressed yet
-      const hitches = [], mem = () => [info.programs ? info.programs.length : 0, info.memory.textures, info.memory.geometries];
+      // + the ms inside the seats' fades (app.js crowdSeatFade) and inside the renderer's render across it: the CPU of a
+      // first show (twins, a material's init) told from the draw (the 17:58 split: +0 programs at each turn -> board)
+      const rt = { ms: 0 }, rorig = R.render;
+      R.render = function () { const t = performance.now(); const r = rorig.apply(this, arguments); rt.ms += performance.now() - t; return r; };
+      const fade = () => { const f = window.FLYDIY_CROWD && window.FLYDIY_CROWD(); return f && f.fadeMs || 0; };
+      const hitches = [], mem = () => [info.programs ? info.programs.length : 0, info.memory.textures, info.memory.geometries, fade(), rt.ms];
       const states = () => { const r = window.CROWD && window.CROWD.last && window.CROWD.last.runs[0]; return r && r.R ? r.R.people.map(p => p.state).join(',') : '-'; };
       let stB = states(), st = stB, mm = mem();   // stB: two frames back (the work of a frame lands in the next tick's dt)
       // the board row: released now; `Fly the circuit` pressed once everyone sat (the crowd's seats handed back)
@@ -119,7 +124,8 @@ async function chrome() {
         dts.push(now - last); last = now;
         const st2 = states(), mm2 = mem();
         if (dts[dts.length - 1] > 100 && dts.length > 1) hitches.push({ i: dts.length - 1, ms: +dts[dts.length - 1].toFixed(1), at: +((now - t0) / 1000).toFixed(2), was: stB, now: st2,
-          programs: mm2[0] - mm[0], textures: mm2[1] - mm[1], geometries: mm2[2] - mm[2], pressed: pressAt != null, calls: info.render.calls });
+          programs: mm2[0] - mm[0], textures: mm2[1] - mm[1], geometries: mm2[2] - mm[2], pressed: pressAt != null, calls: info.render.calls,
+          fadeMs: +(mm2[3] - mm[3]).toFixed(1), renderMs: +(mm2[4] - mm[4]).toFixed(1) });
         stB = st; st = st2; mm = mm2;
         calls.push(info.render.calls); tris.push(info.render.triangles); scalls.push(sh.calls); stris.push(sh.tris);
         info.reset(); sh.calls = 0; sh.tris = 0;
@@ -127,12 +133,12 @@ async function chrome() {
         withP.push(!!(c && c.stats && c.stats.shown > 0));
         if (!pressed && c && !c.seats.length && !(c.stats && c.stats.shown)) { pressed = true; pressAt = dts.length; const b = document.getElementById('bGo'); if (b) b.click(); }
         if (now - t0 < secs * 1000) return requestAnimationFrame(tick);
-        SM.render = orig; info.autoReset = au;
+        SM.render = orig; R.render = rorig; info.autoReset = au;
         const st1 = SN && SN.CACHE ? SN.CACHE.stat : null;
         const q = (a, f) => { const s = a.slice(1).sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(f * s.length))] : null; };
         const last1 = crowd[crowd.length - 1] || {};
         const part = f => { const a = dts.filter((d, i) => i > 0 && f(i)); return a.length ? { n: a.length, p50: q([0].concat(a), 0.5), p95: q([0].concat(a), 0.95), over100: a.filter(d => d > 100).length } : null; };
-        res({ hitches, split: board ? { people: part(i => withP[i]), taxi: pressAt != null ? part(i => i > pressAt + 30) : null, pressedAt: pressAt } : null, frames: dts.length - 1, p50: q(dts, 0.5), p95: q(dts, 0.95), over100: dts.slice(1).filter(d => d > 100).length,
+        res({ hitches, warmMs: (() => { const f = window.FLYDIY_CROWD && window.FLYDIY_CROWD(); return f ? +(+f.warmMs || 0).toFixed(1) : null; })(), split: board ? { people: part(i => withP[i]), taxi: pressAt != null ? part(i => i > pressAt + 30) : null, pressedAt: pressAt } : null, frames: dts.length - 1, p50: q(dts, 0.5), p95: q(dts, 0.95), over100: dts.slice(1).filter(d => d > 100).length,
               calls: q(calls, 0.5), tris: q(tris, 0.5), shadowCalls: q(scalls, 0.5), shadowTris: q(stris, 0.5), shadowCallsP95: q(scalls, 0.95),
               nearDrawn: st0 && st1 ? st1.drawn - st0.drawn : null, nearHeld: st0 && st1 ? st1.held - st0.held : null, nearWhys: st1 ? st1.whys : null,
               shown: last1.shown, posed: last1.posed, line: last1.line, feet: last1.feet });
@@ -142,7 +148,7 @@ async function chrome() {
     if (m.err) { bad++; console.log('  FAIL ' + key + ': ' + m.err); } else if (!put) console.log('  note ' + key + ': PREM_EYE refused the eye (the row measured the roll-out view)');
     rows.push(Object.assign({ key, load, qs, eye: put, errors: P.errors.slice(0, 3) }, m));
     console.log('  ' + key.padEnd(6) + (m.err ? '' : ` p50 ${m.p50.toFixed(2)} p95 ${m.p95.toFixed(2)} ms  over100 ${m.over100}  draws ${m.calls} (shadow ${m.shadowCalls}, p95 ${m.shadowCallsP95})  tris ${(m.tris / 1e3).toFixed(0)}k (shadow ${(m.shadowTris / 1e3).toFixed(0)}k)  near map ${m.nearDrawn} drawn / ${m.nearHeld} held  crowd shown ${m.shown} posed ${m.posed} feet ${m.feet}`) +
-      (m.hitches && m.hitches.length ? '\n         over 100 ms: ' + m.hitches.map(h => `#${h.i} ${h.ms} ms @${h.at} s [${h.was}] -> [${h.now}] +${h.programs} prog +${h.textures} tex +${h.geometries} geo${h.pressed ? ' (after the press)' : ''}`).join('\n                      ') : '') +
+      (m.hitches && m.hitches.length ? '\n         over 100 ms: ' + m.hitches.map(h => `#${h.i} ${h.ms} ms @${h.at} s [${h.was}] -> [${h.now}] +${h.programs} prog +${h.textures} tex +${h.geometries} geo, fade ${h.fadeMs} ms render ${h.renderMs} ms${h.pressed ? ' (after the press)' : ''}`).join('\n                      ') : '') +
       (m.split ? `
          people walking/boarding: ${JSON.stringify(m.split.people)}  the taxi after the press: ${JSON.stringify(m.split.taxi)}` : ''));
   }
