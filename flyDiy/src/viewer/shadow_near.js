@@ -317,7 +317,7 @@ var SHADOW_NEAR = (function () {
   // ?parkshadow=0 (or S.parkShadow = false): every rung casts itself, as before - the A/B.
   const PARKSH = { live: new Set(), swapped: [], passes: 0, swaps: 0 };
   const POSED = { at: -1e9 };   // G3619: the last frame a queued passenger casting into the near map was posed (crowd.js)
-  S.posedHz = (m => (m ? +m[1] : 0))(typeof location !== 'undefined' && /[?&]posedhz=(\d+)(?:&|$)/.exec(location.search || ''));
+  S.posedHz = (m => (m ? +m[1] : 60))(typeof location !== 'undefined' && /[?&]posedhz=(\d+)(?:&|$)/.exec(location.search || ''));
   const posed = () => { POSED.at = typeof performance !== 'undefined' ? performance.now() : 0; };
   S.parkShadow = !(typeof location !== 'undefined' && /[?&]parkshadow=0(?:&|$)/.test(location.search || ''));
   (function lodWatch() {
@@ -561,7 +561,8 @@ var SHADOW_NEAR = (function () {
     if (!why && partMoved(CACHE.near, false) > eps) why = 'nearMoved';
     // G3619 (the user 26 Oct: "make the idle shadows smooth if cheap"): a queue's people idle in place - their bones move,
     // no matrix does - so their shadows wait for the age redraw; while one is posed (crowd.js posed()) the map is redrawn
-    // at S.posedHz (0 = the cache as it was; ?posedhz=N, the A/B)
+    // at S.posedHz (0 = the cache as it was; ?posedhz=N, the A/B). 60 by default since the 27 Oct table: at the stand the
+    // near map was redrawn every frame in every row already (nearDrawn = frames), so smooth idles added no pass
     if (!why && S.posedHz > 0 && now - POSED.at < 250 && now - CACHE.at >= 1000 / S.posedHz - 2) why = 'posed';
     if (why) {
       CACHE.key.set(CACHE.cur); CACHE.at = now;

@@ -5,8 +5,8 @@
 // line HELD (the run's goT pushed out) so every row measures the same scene; one fresh page per row:
 //   none      parts60 (no passenger: no crowd fetched)            - the stand's own cost, the eye where the line stood
 //   off       bags20p3 ?crowdshadow=0&crowdcontact=0              - three waiting, casting nothing, no feet blobs
-//   nofeet    bags20p3 ?crowdcontact=0                            - casting (cached), no feet blobs (the contact A/B: cache - nofeet)
-//   cache     bags20p3                                            - casting + feet, the near map cached (redrawn when a caster moves, or 2 s)
+//   nofeet    bags20p3 ?crowdcontact=0&posedhz=0                  - casting (cached), no feet blobs (the contact A/B: cache - nofeet)
+//   cache     bags20p3 ?posedhz=0                                 - casting + feet, the near map cached (redrawn when a caster moves, or 2 s)
 //   hz12      bags20p3 ?posedhz=12                                - the near map redrawn at 12 Hz while one idles
 //   every     bags20p3 ?posedhz=60                                - redrawn every frame while one idles
 //   board     bags20p3 ?posedhz=12 - the plane nearby (A0 / the user 26 Oct): the line released, walking out and boarding
@@ -27,7 +27,7 @@ const OUT = path.resolve(opt('out', path.join(os.tmpdir(), 'crowd_cost')));
 const PEOPLE = (opt('people', '') || '').split(',').filter(Boolean);
 const SECS = +opt('secs', 10), BOARD_SECS = +opt('boardSecs', 30);
 const PAGE = 'http://127.0.0.1:' + PORT + '/flyDiy/' + opt('page', 'dev.html') + '?audio=0&freight=1';
-const ROWS = { none: ['parts60', ''], off: ['bags20p3', '&crowdshadow=0&crowdcontact=0'], nofeet: ['bags20p3', '&crowdcontact=0'], cache: ['bags20p3', ''], hz12: ['bags20p3', '&posedhz=12'], every: ['bags20p3', '&posedhz=60'],
+const ROWS = { none: ['parts60', ''], off: ['bags20p3', '&crowdshadow=0&crowdcontact=0'], nofeet: ['bags20p3', '&crowdcontact=0&posedhz=0'], cache: ['bags20p3', '&posedhz=0'], hz12: ['bags20p3', '&posedhz=12'], every: ['bags20p3', '&posedhz=60'],
   board: ['bags20p3', '&posedhz=12'] };
 const WANT = (opt('rows', 'off,none,nofeet,cache,hz12,board,every')).split(',').filter(k => ROWS[k]);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
