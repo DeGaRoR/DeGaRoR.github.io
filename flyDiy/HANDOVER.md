@@ -99197,3 +99197,19 @@ is behind the aft bulkhead ... Try all ... and benchmark."
   gates, FRAMECOST v0/v3/v4 chase + cockpit; 15:45 s27-g8 build + real cook + --check, master_bench taxi chase/cockpit
   cub + metal v0/v3/v4 x3 rounds, the probe, garage_lag --cam interior v0/v3/v4.
 - STATE: 0cafb164a (facia) + 21fbdcbc8 (swap + probe), node --check only. NOT READY: the gates, the probe, the table.
+
+## G3717-G3719 - COWL-RES: THE GATES' FIXES, THE TABLE, THE USER'S PICK = v3, THE DEFERRED REBUILD (2026-10-27, COWL-RES for A0)
+- G3717: _cage_join's capture lets the eye-sheet hold go inside viewRestore (first, before its build), so the finally is
+  viewRestore() again (GATE VIEW's shape); cowl_res_stills + cowl_res_probe declared on JOINPARITY's page door.
+- G3718: cowl_res_probe waits for the camera to clear the crew eye before the next build loads.
+- THE TABLE (s27-g8, 15:52-16:52, real cook --check same, packs restored; evidence-2026-10-18/2026-10-27/1_cockpit_nose/
+  6_table_v0_v3/): metal Cessna 4 clean v0/v3 pairs, HOME taxi chase + cockpit 30 fps both, cockpit p99 33.5 both;
+  plane tris 66.9k -> 136.9k (scene +0.6 %); swaps 0.1 ms; the eye sheet is built on the LOAD (the flight capture's
+  hold in BUILD_SYNC's snapshotSteps): C172 336 / metal 283 / Cub 126 ms. Garage cockpit view, a fuselage row's
+  release: busy 469 -> 790, settle 805 -> 1154 ms (metal) - the eye sheet rebuilt in the release's task.
+- THE USER (19:3x, via A0): "let's go v3 on the fuselage then ... land the fix still". EYE_DEFAULT = 3.
+- G3719 eyeAfterBuild: a capture's hold builds the eye sheet at once (the snapshot reads it next); the interior view's
+  goes through eyeView(true) - the level-2 sheet the build drew stands, the eye sheet two frames later behind the
+  `progress` cursor, a later release or an exit cancels it (the ticket).
+- OPEN (A0's, code only): the cockpit view's release costs more than the outside's at v0 already (469 / 805 against
+  ~300) - where it goes is the next study.
