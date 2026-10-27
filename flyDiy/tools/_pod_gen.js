@@ -205,6 +205,29 @@ function build(R, topAt, opts) {
   const top = [];
   for (const r of rings) { top.push(r[0], r[r.length - 1]); }
   const shellNv = B.nv;
+  // ---- THE SHELL CLOSED (the user, 27 Oct: "the opening at the front looks quite bad ... close it"): the loft is an
+  // open U - its end sections reach up into the belly with no depth under them, its top edge is open the whole run -
+  // so it is closed into a solid: a CAP on each end section (a fan over the U closed across its top) and a LID along the
+  // top edges, 2 cm inside the drawn belly where nothing sees it, and where the belly does not cover (a gap at a curve)
+  // a closed surface, never the hollow. Each its own vertices: hard edges, the walls' shading untouched.
+  {
+    const P = i => B.pos.slice(3 * i, 3 * i + 3);
+    const cap = (ring, out) => {                       // out: -1 the nose (faces forward, -x), +1 the tail (aft, +x)
+      const pts = ring.map(P), n = pts.length;
+      const c = pts.reduce((a, p) => [a[0] + p[0] / n, a[1] + p[1] / n, a[2] + p[2] / n], [0, 0, 0]);
+      const ci = B.v(c), vi = pts.map(p => B.v(p));
+      // the U runs port-top -> keel -> starboard-top, then the top closes it back (k = n - 1 -> 0)
+      for (let k = 0; k < n; k++) { const k1 = (k + 1) % n; out < 0 ? B.t(ci, vi[k], vi[k1]) : B.t(ci, vi[k1], vi[k]); }
+    };
+    cap(rings[0], -1); cap(rings[rings.length - 1], 1);
+    // the lid: the top edges' strip, port top to starboard top, station to station (faces up, into the body)
+    let pA = B.v(P(rings[0][0])), sA = B.v(P(rings[0][around - 1]));
+    for (let i = 1; i < rings.length; i++) {
+      const pB = B.v(P(rings[i][0])), sB = B.v(P(rings[i][around - 1]));
+      B.q(pA, pB, sB, sA);
+      pA = pB; sA = sB;
+    }
+  }
   // ---- THE FLANGE (group 0): a band on the skin along each wall's top, its outer edge rounded ----
   const flange = side => {
     const out = [];

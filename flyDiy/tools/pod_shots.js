@@ -14,7 +14,8 @@
 //        [--size 1400x800] [--pod '{"on":1,...}'] [--litres 160 --shape 0.5] [--tint 1] [--nopod 1] [--tag x]
 //   builds: a key of tools/_load_build.js VALIDATED (cub, jodel, metal, floats ...) or 'metalFix' (the fixture
 //   tools/fixtures/cessnaMetal_pod_2026-10-22.json, its pod as written). With no --pod / --litres a build gets the
-//   default pod ({ on: 1 }). --tint 1 draws the pod in a flat test colour (the shape alone, not the livery).
+//   default pod ({ on: 1 }). --tint 1 draws the pod in a flat test colour (the shape alone, not the livery); --single 1
+//   draws it one-sided (an opening, a missing face, shows as a hole).
 'use strict';
 const fs = require('fs'), path = require('path'), net = require('net'), { spawn } = require('child_process');
 const T = __dirname, ROOT = path.join(T, '..'), REPO = path.join(ROOT, '..');
@@ -24,7 +25,7 @@ const BUILDS = opt('builds', 'cub,metal').split(',').filter(Boolean);
 const OUT = path.resolve(ROOT, opt('out', 'reports/evidence/POD4'));
 const CAMS = opt('cams', 'quarter,side,below,aft').split(',').filter(Boolean);
 const [W, H] = opt('size', '1400x800').split('x').map(Number);
-const TINT = opt('tint', '0') === '1', NOPOD = opt('nopod', '0') === '1', TAG = opt('tag', '');
+const TINT = opt('tint', '0') === '1', SINGLE = opt('single', '0') === '1', NOPOD = opt('nopod', '0') === '1', TAG = opt('tag', '');
 const DUMP = path.join(T, '.joincache', 'podview');
 
 // ---- (1) the drawn aeroplane, dumped --------------------------------------------------------------------------------
@@ -148,7 +149,7 @@ function findPlaywright() {
     const errs = []; pg.on('pageerror', e => errs.push(String(e)));
     const cdp = await pg.context().newCDPSession(pg);
     for (const d of done) {
-      await pg.goto('http://127.0.0.1:' + port + '/flyDiy/tools/_pod_view.html?scene=.joincache/podview/' + d.base + (TINT ? '&tint=1' : ''));
+      await pg.goto('http://127.0.0.1:' + port + '/flyDiy/tools/_pod_view.html?scene=.joincache/podview/' + d.base + (TINT ? '&tint=1' : '') + (SINGLE ? '&single=1' : ''));
       await pg.waitForFunction(() => window.POD_VIEW && window.POD_VIEW.ready, null, { timeout: 120000 });
       for (const c of CAMS) {
         const t0 = Date.now();

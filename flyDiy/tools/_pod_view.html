@@ -49,7 +49,7 @@ scene.background = new THREE.Color(0xd9dde2);
 const cam = new THREE.PerspectiveCamera(30, innerWidth / innerHeight, 0.02, 200);
 const F32 = (o, n) => new Float32Array(bin, o, n), U32 = (o, n) => new Uint32Array(bin, o, n);
 const box = new THREE.Box3(), podBox = new THREE.Box3();
-const TINT = Q.get('tint') === '1';
+const TINT = Q.get('tint') === '1', SINGLE = Q.get('single') === '1';   // single: the pod one-sided - an opening shows as a hole
 for (const p of meta.parts) {
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(F32(p.pos, p.n * 3), 3));
@@ -61,7 +61,7 @@ for (const p of meta.parts) {
     const m = new THREE.MeshStandardMaterial({
       color: pod && TINT ? 0x9fb7cf : new THREE.Color(c.c[0], c.c[1], c.c[2]),
       roughness: pod && TINT ? 0.45 : Math.max(0.25, c.r), metalness: pod && TINT ? 0 : c.mt,
-      transparent: c.o < 1, opacity: c.o, side: c.side === 2 ? THREE.DoubleSide : THREE.FrontSide });
+      transparent: c.o < 1, opacity: c.o, side: pod && SINGLE ? THREE.FrontSide : c.side === 2 ? THREE.DoubleSide : THREE.FrontSide });
     return m;
   });
   for (const q of p.groups) g.addGroup(q.s, q.n, q.m);
@@ -97,6 +97,7 @@ const CAMS = {
   front:   { yaw: 0.18, pitch: -0.10, dist: 2.2 * S },
   nose:    { yaw: 0.55, pitch: -0.22, dist: 1.0 * S, atF: -0.42 },
   noseLow: { yaw: 0.25, pitch: -0.45, dist: 0.8 * S, atF: -0.40 },
+  noseTop: { yaw: 0.9, pitch: 0.12, dist: 0.55 * S, atF: -0.45 },
   profile: { yaw: Math.PI / 2, pitch: 0, dist: 1.9 * S, ortho: 1 },
   tail:    { yaw: 2.45, pitch: -0.18, dist: 1.0 * S, atF: 0.42 },
   door:    { yaw: Math.PI / 2 - 0.25, pitch: -0.12, dist: 0.95 * S, atF: 0 },

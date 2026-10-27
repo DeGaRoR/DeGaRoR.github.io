@@ -98726,6 +98726,20 @@ the strict per-frame gate with a pod fitted.
 
 **NOT RUN on this head (8, the full tier's tail, out of time before 12:45): TOUR BOOTLIFT FLOATDUP SIMWORKER-PAGE SIMWORKER-EDGES SIMWORKER-PLACE ARCHETYPES SEAPLANE** - on the L25c merge head (ccb566b29, the pod before G3468): TOUR FAIL, BOOTLIFT FAIL, FLOATDUP FAIL, SIMWORKER-PAGE PASS, SIMWORKER-EDGES FAIL, SIMWORKER-PLACE PASS, ARCHETYPES FAIL, SEAPLANE PASS; every FAIL among them red on master L25c with the same lines.
 
+### G3469 (27 Oct, after the READY push) - THE SHELL CLOSED
+
+The user, on the stills: "the opening at the front looks quite bad. As a real opening, things should be dark inside, and
+the pod's envelope should have some thickness. I suggest we close it." The loft was an open U: its end sections reach up
+into the belly with no depth under them (on the Cub's round belly a few centimetres of open mouth at the nose), its top
+edge open the whole run - and the livery's materials are two-sided, so the inside showed lit, with no thickness.
+tools/_pod_gen.js now closes it into a solid: a CAP on each end section (a fan over the U, closed across its top; the
+nose's faces forward, the tail's aft) and a LID along the top edges, 2 cm inside the drawn belly (where nothing sees it,
+and where a belly curve leaves a gap, a closed surface rather than the hollow); each with its own vertices (hard edges,
+the walls' shading untouched). +254 triangles. tools/pod_shots.js `--single 1` draws the pod one-sided - an opening shows
+as a hole: none on the Cub or the metal Cessna, from the quarter, the nose (high and low), the tail, aft, below.
+GATE POD PASS (413 checks), GATE PODEDITOR PASS (39); reports/evidence/POD4 re-shot. **On claude/belly-pod-2 only** - it
+missed the 12:45 UTC cut for the 14:00 train (claude/ready/belly-pod-2 stays at the G3468 READY); for the next train.
+
 ## A0 - landing L23b (23 Oct 2026, gates 10:00-11:00, pushed ~11:20): THE CABIN AT T0 - LAMPS OFF THE WING, THE WORK LAMP, RUFUS'S FLOOD ON, FEWER MACHINES
 Rolling set (1): cabin-lamp ad3165a48 (GAME G3353-G3355 + RUFUS-CERT G3449 claude/light-switch-state merged in):
 - G3353 cabin-machines: the cabin plot w1 omits the panel saw, the band saw and the surface planer (the user, 22 Oct: "get rid of the large router ... keep only the 2 smaller ones"). The pillar drill and the thicknesser stay; all other clutter stays; no cert bench. hangarFit opts.omit reports the left-out props.
