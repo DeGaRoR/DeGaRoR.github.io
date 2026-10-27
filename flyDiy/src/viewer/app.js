@@ -12386,11 +12386,32 @@
   // disk cache off froze again: ANGLE's draw-time variants, made on a first draw): the warm draw from the stand only saw
   // the stand's six views, and the first frame's warm draw only its frustum. This draws one stand-in per (material, kind,
   // vertex format) of the whole shown world, frustum and vis contract aside (warmDrawSliced's far), a slice a task.
-  // ?farwarm=0: off (the A/B)
+  // THEN EVERY PROGRAM'S FIRST USE (G1998b, GAME-MENUS' hand-over profiles, A0 Tue): the shot -> flight hand-over's 2.0-2.4 s
+  // is ONE call, getProgramInfoLog under three's getUniforms - a program linked under the screen (compiled, COMPLETION_STATUS
+  // ready) and never used, its first use paid on the hand-over's frame (flight_recorder's 'linkwait' holds only such a one).
+  // Its object was hidden or in no scene the warm draws walk (the flight's own parts), so no stand-in reached it. getUniforms
+  // is three's first use (onFirstUse: the logs, the uniforms' locations) and a no-op once used: every program the renderer
+  // holds, a call a task while the screen is up. ?farwarm=0: off (the A/B), both passes
   const FAR_WARM_OFF = /[?&]farwarm=0(&|$)/.test((typeof location !== 'undefined' && location.search) || '');
+  const firstUseSliced = () => new Promise(res => {
+    const progs = (renderer.info && renderer.info.programs ? renderer.info.programs.slice() : []).filter(p => p && typeof p.getUniforms === 'function');
+    let i = 0, paid = 0, ms = 0;
+    const tick = () => {
+      const t0 = performance.now();
+      while (i < progs.length && performance.now() - t0 < 30) {
+        const p = progs[i++], t1 = performance.now();
+        if (p.isReady && !p.isReady()) continue;   // (still linking: programsReady's, not ours - its frame waits as before)
+        try { p.getUniforms(); } catch (e) {}
+        const d = performance.now() - t1; if (d > 1) { paid++; ms += d; }
+      }
+      if (i < progs.length) setTimeout(tick, 0); else res({ n: progs.length, paid, ms: Math.round(ms) });
+    };
+    tick();
+  });
   const farWarm = () => FAR_WARM_OFF || !WF ? Promise.resolve(0)
     : warmDrawSliced(scene, aa && aa.target ? aa.target() : null, 'first light', null, craftInWorldNow, { far: true })
-      .then(k => { window.FLYDIY_FAR_WARM = k; return k; }, e => { console.warn('far warm draw:', e && e.message); return 0; });
+      .then(k => firstUseSliced().then(u => { window.FLYDIY_FAR_WARM = { drawn: k, firstUse: u }; return k; }),
+        e => { console.warn('far warm draw:', e && e.message); return 0; });
   // the roll-out stand's heading (its site's stand.hdg: the nose's - the tail, flRevealStart's hdg, is it + pi; checked on
   // the metal Cessna and the Cub at HOME: -1.8656 / 1.2760), null where there is none (the water, a spawn)
   function standHdg() {
