@@ -3019,16 +3019,19 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
              poseK: BK.slice() };
   };
   // ...and the view comes back, on the way out or on the way to a throw.
+  // G3715 (COWL-RES): the flown visual is the EYE SHEET when a variant is on (_cage_ui.js eyeHold: the level-2 mesh
+  // stashed for the capture, back before the view is) - the cockpit and the chase both fly it, the user's one visual
+  const eyeHold = on => { try { const U = window.CAGE_UI; return !!(U && U.eyeHold && U.eyeHold(on)); } catch (e) { console.error('eye hold:', e); return false; } };
   const snapshot = spec => {
-    try { return snapshotAt(spec); }
-    finally { viewRestore(); }
+    try { eyeHold(true); return snapshotAt(spec); }
+    finally { eyeHold(false); viewRestore(); }
   };
   // G680: THE SAME CAPTURE IN THREE TASKS (app.js syncBuildSteps, under the roll-out screen): the view neutralised
   // (a build), the snapshot, the view back (a build) - 1.2-1.9 s in one task on the click of "roll out". Its
   // caller drives it to the end (the finally is the view's way back, as above).
   function* snapshotSteps(spec) {
-    try { if (viewNeutral()) yield 'view'; const r = snapshotAt(spec); yield 'snapshot'; return r; }
-    finally { viewRestore(); }
+    try { if (viewNeutral()) yield 'view'; if (eyeHold(true)) yield 'eye'; const r = snapshotAt(spec); yield 'snapshot'; return r; }
+    finally { eyeHold(false); viewRestore(); }
   }
   // THE FIT REPORT (G52, user: "the visual fit remains very approximate").
   // Frame vs visual, in numbers, in the model frame the pose shares (the

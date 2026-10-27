@@ -1138,7 +1138,9 @@ function cowlPlace(ctx, again) {
   // (restored there, and at the top of the next call should a build have thrown). Held off in a parked aeroplane's
   // capture and by ?eye=off (CAGE_EYE_VARIANT_OF says 0 there).
   const eyeV = window.CAGE_EYE_VARIANT_OF ? window.CAGE_EYE_VARIANT_OF() : 0;
-  if (eyeV >= 1) { CW.__eyeDet0 = CW.P.detail; CW.P.detail = Math.max(2, +CW.P.detail || 1); }
+  // G3715: variant 1 only - the cowl is drawn in every view, and the user wants no smoothing outside (27 Oct); the
+  // 01:55 stills showed detail 2 changes nothing in the seat's view (v0 = v1): variants 2-4 keep the cowl's own dial
+  if (eyeV === 1) { CW.__eyeDet0 = CW.P.detail; CW.P.detail = Math.max(2, +CW.P.detail || 1); }
   CW.prepareMesh();
   // COWL ALPHA (G29, user): see the engine through the shell. The view panel
   // owns the dial (viewer state, never spec) and the materials are built to
