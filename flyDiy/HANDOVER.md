@@ -99427,3 +99427,23 @@ once and ran it" fails identically on db58b0b5 in this cloud box (a clean worktr
 Chromium the door works (loaded, ran, one request) - the gate's request recorder / service worker in a headless cloud
 browser, G3070 ROUTE-LAZY's to look at on the box. Every static LAZY row (the career bundle with 73b / 73c, the page's
 split, the vm split run, the workers, sw.js) and every other request row passes. Not run here: the GPU gates (Game's).
+
+## READY claude/ready/missions-p1 (review round, 2026-10-27 evening) - P1 + P2 + FIX (a), REBASED ON ready/missions-p0 17f331783
+
+**Base: ready/missions-p0 17f331783** (= claude/missions-p0 5d52254d0 + the parked-cook commit; p0 rides T-P1). The 9
+commits of p1 rebased on it clean (A0's test merge agreed); nothing of master, people or hire merged. Not for T-P1: the
+train after p0 is on master (L28a).
+**Fix (a)** (Game + A0's review): `contractDelivery` sells nothing until the page wires the hand-over - an order is
+delivered, paid and completed, the airframe stays in the save (and the world), no blueprint is claimed; the page calls
+`missionHandoverWired(true)` once it takes the airframe out of the world and saves the blueprint (MUST-WIRE 5, Game's,
+after T-P1). GATE MISSIONS: the unwired default rows, the wired hand-over rows, one more selftest mutation.
+**Gates** (a private copy of this commit's tree built there, `run_gates.js --no-build`; node gates only, no local box):
+MISSIONS (838 checks; selftest 38/38 red), CONTRACTS, STAGES, ECON, CLOCK, FREIGHT, PROCURE, ACCEPT, STORY, ROUTES, SAVE,
+PILOTS: PASS.
+**Two notes for the train:**
+1. 73b_missions.js + 73c_mission_run.js join MANIFEST.core and 9 core files change against the base (72_accept,
+   72_contract_data, 73_contracts, 73b_missions, 73c_mission_run, 74_career, 75_career_wire, 76_pilots,
+   90_node_exports): the parked cook committed in 17f331783 (parked_cook.js) goes STALE - the local box cooks it again and
+   runs FRAMECOST in the train (not run here).
+2. LAZY's one row ("default: the door's first demand (ROUTE_DRAW.ready) fetched route_draw ... once and ran it") is red in
+   the cloud on every tree tried, the base included: UNVERIFIED here - the local box's LAZY decides it.
