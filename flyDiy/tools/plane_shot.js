@@ -14,7 +14,7 @@
 //        [--views q,s,t,f]        the editor's own framing presets: q 3/4 front, s side, t plan, f nose, i interior
 //                                 (with a pilot), part:<key or name> a close-up of one part (the tree's key, e.g. wing,
 //                                 or its name), orbit:<az>/<el>/<dist> (deg, deg, m) - default q,s,t,f
-//        [--size 1280x960]        the viewport (CSS px, DPR 1); the still is the 3D canvas only
+//        [--size 1920x1080]       the viewport (CSS px, DPR 1); the still is the 3D canvas only (the phone's sheet takes a third)
 //        [--gpu]                  the machine's graphics card instead of SwiftShader (the box's A/B; a visible window)
 //        [--page index.html]      index.html (built) or dev.html (the loose src/)
 //        [--secs 1500]            the whole run's budget
@@ -166,7 +166,8 @@ async function shoot(o) {
       'window.__shotFrames=0;(function t(){window.__shotFrames++;requestAnimationFrame(t)})();' +
       'document.addEventListener("DOMContentLoaded",()=>{const s=document.createElement("style");s.textContent="*{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}";document.head.appendChild(s);});' });
     await C.cmd('Emulation.setDeviceMetricsOverride', { width: o.size[0], height: o.size[1], deviceScaleFactor: 1, mobile: false });
-    const J = async (e, ms) => JSON.parse(await C.ev('JSON.stringify(' + e + ')', ms));
+    // (awaited in the page: an async expression's value, not its promise - JSON.stringify(a promise) is {})
+    const J = async (e, ms) => JSON.parse(await C.ev('(async () => JSON.stringify(await (' + e + ')))()', ms));
     const until = async (what, expr, every = 1000) => {
       for (;;) {
         let v = null; try { v = await C.ev(expr, 60000); } catch (e) { v = null; }
@@ -265,7 +266,7 @@ async function shoot(o) {
               ' if (b.isEmpty()) return { err: "part " + part.key + " drew nothing in this build" };' +
               ' FLIGHT_PROBE.pan(0, 0, 0); FLIGHT_PROBE.camSettle(); await new Promise(r => requestAnimationFrame(r));' +
               ' const g = FLIGHT_PROBE.camGet(), c = b.getCenter(new THREE.Vector3()), r = b.getSize(new THREE.Vector3()).length() / 2;' +
-              ' const fov = (g.fov || 40) * Math.PI / 180, d = Math.max(0.6, r / (0.6 * Math.tan(fov / 2)));' +   // the part ~60 % of the height
+              ' const vf = (g.fov || 40) * Math.PI / 180, hf = 2 * Math.atan(Math.tan(vf / 2) * innerWidth / innerHeight), d = Math.max(0.6, r / (0.8 * Math.tan(Math.min(vf, hf) / 2)));' +   // the part ~80 % of the narrower side
               ' FLIGHT_PROBE.pan(c.x - g.target[0], c.y - g.target[1], c.z - g.target[2]); FLIGHT_PROBE.camSet(-2.5, 0.3, d);' +
               ' return { key: part.key, centre: c.toArray().map(x => +x.toFixed(3)), radius: +r.toFixed(3), asked: [-2.5, 0.3, d] }; })()');
             if (pr.err) throw Object.assign(new Error(pr.err), { code: EXIT.eye });
@@ -283,7 +284,9 @@ async function shoot(o) {
             if (off[0] > 0.01 || off[1] > 0.01 || off[2] > 0.05)
               throw Object.assign(new Error('eye not where asked: az/el/dist ' + VR.asked.join('/') + ', got ' + [VR.eye.az, VR.eye.el, VR.eye.dist].join('/') + ' (a clamp?)'), { code: EXIT.eye });
           }
-          // THE STILL: the 3D canvas alone (its own box - the phone's sheet beside it is not the picture), the UI hidden
+          // THE STILL: THE GAME'S OWN SCREENSHOT MODE (G255 / G317, SHOT_MODE: the panels away, the CG and neutral-point
+          // posts, the canopy's loops and the selection's highlight dark), then the 3D canvas alone, whatever is left over it hidden
+          if (!o.keepUi) { await C.ev('(() => { if (window.SHOT_MODE) SHOT_MODE.enter(); return 1; })()'); await frames(3); }
           const clip = await J('(() => { const c = document.getElementById("c"); const r = c.getBoundingClientRect(); return { x: Math.round(r.left), y: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height), scale: 1 }; })()');
           if (!o.keepUi) await C.ev('(() => { const c = document.getElementById("c"); window.__shotHid = []; for (const e of document.body.querySelectorAll("*")) { if (e === c || e.contains(c) || e.closest("svg") && e.tagName !== "svg") continue; if (getComputedStyle(e).visibility !== "hidden") { window.__shotHid.push([e, e.style.visibility]); e.style.setProperty("visibility", "hidden", "important"); } } return window.__shotHid.length; })()');
           await frames(2);
@@ -291,12 +294,14 @@ async function shoot(o) {
           await C.ev('(() => { window.CAGE_UI_SCENE.visible = false; return 1; })()');
           await frames(3);
           const shotB = (await C.cmd('Page.captureScreenshot', { format: 'png', clip })).result.data;
-          await C.ev('(() => { window.CAGE_UI_SCENE.visible = true; for (const [e, v] of (window.__shotHid || [])) { e.style.removeProperty("visibility"); if (v) e.style.visibility = v; } window.__shotHid = []; return 1; })()');
+          await C.ev('(() => { window.CAGE_UI_SCENE.visible = true; for (const [e, v] of (window.__shotHid || [])) { e.style.removeProperty("visibility"); if (v) e.style.visibility = v; } window.__shotHid = []; if (window.SHOT_MODE && SHOT_MODE.on) SHOT_MODE.exit(); return 1; })()');
           const P = await J('(' + ANALYSE + ')(' + JSON.stringify(shotA) + ', ' + JSON.stringify(shotB) + ')', 180000);
           VR.picture = P;
-          if (P.topShare > 0.97) throw Object.assign(new Error('the still is one flat colour (' + (100 * P.topShare).toFixed(1) + ' %)'), { code: EXIT.frame });
-          if (!(P.craftShare > 0.02)) throw Object.assign(new Error('the aeroplane is not in the frame (hiding it changes ' + (100 * (P.craftShare || 0)).toFixed(2) + ' % of the pixels)'), { code: EXIT.frame });
-          if (P.cut && P.cut.length && !VR.part && v !== 'i') throw Object.assign(new Error('the aeroplane is cut off at the ' + P.cut.join(' and ') + ' edge'), { code: EXIT.frame });
+          // a frame that fails its check is kept beside the good ones as <name>_FAIL.png - a failure you can look at
+          const bad = why => { const f = path.join(o.out, base + '_' + name + '_FAIL.png'); fs.writeFileSync(f, Buffer.from(shotA, 'base64')); VR.failPng = f; return why; };
+          if (P.topShare > 0.97) throw Object.assign(new Error(bad('the still is one flat colour (' + (100 * P.topShare).toFixed(1) + ' %)')), { code: EXIT.frame });
+          if (!(P.craftShare > 0.02)) throw Object.assign(new Error(bad('the aeroplane is not in the frame (hiding it changes ' + (100 * (P.craftShare || 0)).toFixed(2) + ' % of the pixels)')), { code: EXIT.frame });
+          if (P.cut && P.cut.length && !VR.part && v !== 'i') throw Object.assign(new Error(bad('the aeroplane is cut off at the ' + P.cut.join(' and ') + ' edge')), { code: EXIT.frame });
           const out = path.join(o.out, base + '_' + name + '.png');
           fs.writeFileSync(out, Buffer.from(shotA, 'base64'));
           VR.png = out; VR.t = +((Date.now() - tv) / 1000).toFixed(1);
@@ -304,7 +309,7 @@ async function shoot(o) {
         } catch (e) {
           VR.t = +((Date.now() - tv) / 1000).toFixed(1); VR.fail = e.message;
           fail(e.code || EXIT.run, base + ' ' + v + ': ' + e.message);
-          try { await C.ev('(() => { if (window.CAGE_UI_SCENE) CAGE_UI_SCENE.visible = true; for (const [e, v] of (window.__shotHid || [])) { e.style.removeProperty("visibility"); if (v) e.style.visibility = v; } window.__shotHid = []; return 1; })()'); } catch (x) {}
+          try { await C.ev('(() => { if (window.SHOT_MODE && SHOT_MODE.on) SHOT_MODE.exit(); if (window.CAGE_UI_SCENE) CAGE_UI_SCENE.visible = true; for (const [e, v] of (window.__shotHid || [])) { e.style.removeProperty("visibility"); if (v) e.style.visibility = v; } window.__shotHid = []; return 1; })()'); } catch (x) {}
         }
       }
     }
@@ -362,7 +367,7 @@ async function pair(dirA, dirB, out, labels, chrome) {
     catch (e) { bail(e.code || EXIT.run, e.message); }
   }
   const builds = (opt('build', '') || '').split(',').filter(Boolean);
-  const size = (opt('size', '1280x960')).split('x').map(Number);
+  const size = (opt('size', '1920x1080')).split('x').map(Number);
   const o = {
     builds, out, size, chrome, gpu: flag('gpu'), page: opt('page', 'index.html'), secs: +opt('secs', 1500),
     views: (opt('views', 'q,s,t,f')).split(',').filter(Boolean), keepUi: flag('keep-ui'), fallback: opt('fallback', null),
