@@ -11,7 +11,8 @@
 //        [--size 1280x960] [--secs 2400]
 //   views: q 3/4 front, s side (the editor's presets, the distance scaled to the build's box), wheel a close-up of
 //   the main wheel nearer the 3/4 eye, tail the tail/nose wheel's (the station on the centreline), side the
-//   undercarriage from the side (level with the axles, ~14 R away)
+//   undercarriage from the side (level with the axles, ~14 R away), tread the main tyre's crown close (3.8 R, from
+//   above); --lugs: the after drawing is the lugged tundra variant (TYRE_LOOK.lugs), labelled so
 //   -> <dir>/<build>_<view>_before.png, _after.png, _pair.png (before | after, labelled), and TYRES_SHOT {json}
 //
 // THE ASSERTS (each failure a `FAIL` line and exit 1; a failed view writes nothing): the import raised no alert and
@@ -45,6 +46,7 @@ const PRESET = { q: [-2.5, 0.25, 12], s: [-Math.PI / 2, 0.06, 13] };
   const views = (opt('views', 'q,s,wheel')).split(',').filter(Boolean);
   const size = (opt('size', '1280x960')).split('x').map(Number);
   const secs = +opt('secs', 2400);
+  const lugs = argv.includes('--lugs') ? 1 : 0;   // the after drawing is the lugged tundra variant (TYRE_LOOK.lugs)
   if (!builds.length) { console.log('FAIL --build <file.json>[,...]'); process.exit(1); }
   // <file.json>@v1+v2 draws that build with its own views
   const bviews = {};
@@ -126,14 +128,14 @@ const PRESET = { q: [-2.5, 0.25, 12], s: [-Math.PI / 2, 0.06, 13] };
       const cams = {};
       for (const v of bviews[file] || views) {
         if (PRESET[v]) cams[v] = { az: PRESET[v][0], el: PRESET[v][1], dist: PRESET[v][2] * k, pan: [0, 0, 0] };
-        else if (v === 'wheel' || v === 'tail') {
+        else if (v === 'wheel' || v === 'tail' || v === 'tread') {
           const mains = geo.wh.filter(w => Math.abs(w.x) > 0.05), tails = geo.wh.filter(w => Math.abs(w.x) <= 0.05);
-          const az = v === 'wheel' ? -2.2 : -2.0, el = 0.30;   // high enough to see the crown's tread
+          const az = v === 'tail' ? -2.0 : -2.2, el = v === 'tread' ? 0.50 : 0.30;   // high enough to see the crown's tread
           // the main nearer the eye at this azimuth (the eye sits at target + dist (sin az cos el, ., cos az cos el))
           const eyeDir = [Math.sin(az), 0, Math.cos(az)];
-          const pick = v === 'wheel' ? mains.sort((a, b) => (b.w[0] * eyeDir[0] + b.w[2] * eyeDir[2]) - (a.w[0] * eyeDir[0] + a.w[2] * eyeDir[2]))[0] : tails[0];
+          const pick = v !== 'tail' ? mains.sort((a, b) => (b.w[0] * eyeDir[0] + b.w[2] * eyeDir[2]) - (a.w[0] * eyeDir[0] + a.w[2] * eyeDir[2]))[0] : tails[0];
           if (!pick) { fail(base + ' ' + v + ': no such wheel on this build'); continue; }
-          cams[v] = { az, el, dist: Math.max(0.55, pick.R * 7.0), pan: pick.w.map((x, i) => x - geo.target[i]), R: pick.R };
+          cams[v] = { az, el, dist: Math.max(0.55, pick.R * (v === 'tread' ? 3.8 : 7.0)), pan: pick.w.map((x, i) => x - geo.target[i]), R: pick.R };
         } else if (v === 'side') {
           // THE UNDERCARRIAGE FROM THE SIDE: the eye level with the main axles, on the centreline between them, close
           // enough that a garage prop between the eye and the aeroplane (the side preset's ladder) is behind it
@@ -147,7 +149,7 @@ const PRESET = { q: [-2.5, 0.25, 12], s: [-Math.PI / 2, 0.06, 13] };
       BR.cams = cams;
       for (const variant of ['before', 'after']) {
         if (variant === 'after') {
-          await page.evaluate(() => { GEAR_GEN.TYRE_LOOK.on = 1; CAGE_UI.build(); });
+          await page.evaluate(l => { GEAR_GEN.TYRE_LOOK.on = 1; GEAR_GEN.TYRE_LOOK.lugs = l; CAGE_UI.build(); }, lugs);
           BR.trisAfter = await settle();
           if (BR.trisAfter === BR.trisBefore) fail(base + ': the proposal changed nothing in the scene (' + BR.trisAfter + ' triangles both ways)');
         }
@@ -197,12 +199,12 @@ const PRESET = { q: [-2.5, 0.25, 12], s: [-Math.PI / 2, 0.06, 13] };
           log(base, v, variant, 'ok' + (P.craftShare != null ? ' - aeroplane ' + (100 * P.craftShare).toFixed(1) + ' % of the frame' : ''), '->', path.relative(process.cwd(), to));
         }
       }
-      await page.evaluate(() => { GEAR_GEN.TYRE_LOOK.on = 0; CAGE_UI.build(); });
+      await page.evaluate(() => { GEAR_GEN.TYRE_LOOK.on = 0; GEAR_GEN.TYRE_LOOK.lugs = 0; CAGE_UI.build(); });
       // THE COMPOSITES: before | after, the same eye, labelled
       for (const v of Object.keys(cams)) {
         const fa = path.join(out, base + '_' + v + '_before.png'), fb = path.join(out, base + '_' + v + '_after.png');
         if (!fs.existsSync(fa) || !fs.existsSync(fb)) continue;
-        const lab = [base + ' - ' + v + ' - TODAY (G3548)', 'PROPOSAL (G3851)'];
+        const lab = [base + ' - ' + v + ' - TODAY (G3548)', lugs ? 'LUGGED VARIANT (G3851b)' : 'PROPOSAL (G3851)'];
         const png = await page.evaluate(async ([a, b, lab]) => {
           const img = s => new Promise((r, j) => { const i = new Image(); i.onload = () => r(i); i.onerror = j; i.src = 'data:image/png;base64,' + s; });
           const A = await img(a), Bi = await img(b), H = 30, G = 8;

@@ -951,10 +951,18 @@ const TYRE_MEASURED = [
 {
   const TL = GG.tyreLook, LOOK = GG.TYRE_LOOK;
   if (check(typeof TL === 'function' && !!LOOK, 'G3851: GEAR_GEN.tyreLook / TYRE_LOOK not published')) {
-    check(!LOOK.on, 'G3851: the tyres proposal is on by default (it is display-only, switched on by ?tyres=new)');
+    check(!LOOK.on && !LOOK.lugs, 'G3851: the tyres proposal is on by default (it is display-only, switched on by ?tyres=new)');
+    // G3851b (the user: "the [slick] one stays as-is"): under the proposal the tundra is G3548's balloon, the same
+    // drawing to the micrometre; the lugged bush tyre is a variant (TYRE_LOOK.lugs) only
+    for (const R of [0.10, 0.33, 0.394, 0.445]) {
+      check(TL(R, 1) === null, `G3851b R ${R}: tyreLook answers a tundra without the lugged variant asked`);
+      const draw = () => { const b = freshBags(); GG.wheel(b, [0, 0, 0], [1, 0, 0], R, { brake: true, P: { whProfile: 1, whTread: 1 } }); const g = readBags(b); return Object.keys(g).map(n => n + digest(g[n])).join(); };
+      const off = draw(); LOOK.on = 1; let on; try { on = draw(); } finally { LOOK.on = 0; }
+      check(on === off, `G3851b R ${R}: the slick tundra is not G3548's under the proposal`);
+    }
     // (a) the study's targets
     for (const [lab, R, kind, wd, rimD, tread, grooves] of TYRE_TARGETS) {
-      const L = TL(R, kind === 'tundra' ? 1 : 0);
+      const L = TL(R, kind === 'tundra' ? 1 : 0, { lugs: 1 });
       check(L.kind === kind, `G3851 ${lab}: carcass kind`, L.kind + ' vs ' + kind);
       check(Math.abs(L.wd - wd) <= 0.02, `G3851 ${lab}: W/D off the table`, L.wd.toFixed(3) + ' vs ' + wd);
       check(Math.abs(L.rimD - rimD) <= 0.03, `G3851 ${lab}: rim/D off the table`, L.rimD.toFixed(3) + ' vs ' + rimD);
@@ -967,17 +975,17 @@ const TYRE_MEASURED = [
     // (b) the real tyres: the targets inside each family's spread (W/D 0.05, rim/D 0.09 - the 13x5.00-6 on its 6"
     // rim and the 4.00-4 on its 4" are the smooth rim's worst misses)
     for (const [lab, R, prof, wd, rimD] of TYRE_MEASURED) {
-      const L = TL(R, prof);
+      const L = TL(R, prof, { lugs: 1 });
       check(Math.abs(L.wd - wd) <= 0.05 && Math.abs(L.rimD - rimD) <= 0.09,
         `G3851 ${lab}: the proposal left the real tyre's shape`, 'W/D ' + L.wd.toFixed(3) + ' vs ' + wd + ', rim/D ' + L.rimD.toFixed(3) + ' vs ' + rimD);
     }
     // (c) THE DRAWN WHEEL, switch on, measured through the bags: W/D and rim/D as tyreLook says, the grooves counted
     // on the crown's profile, the tundra's lugs counted round the tyre and their height measured; the brake disc no
     // bigger than 1.3 x the rim, the hub inside the tyre's bead on a tiny wheel
-    LOOK.on = 1;
+    LOOK.on = 1; LOOK.lugs = 1;
     try {
       for (const [lab, R, kind] of TYRE_TARGETS) {
-        const prof = kind === 'tundra' ? 1 : 0, L = TL(R, prof);
+        const prof = kind === 'tundra' ? 1 : 0, L = TL(R, prof, LOOK);
         const bags = freshBags();
         GG.wheel(bags, [0, 0, 0], [1, 0, 0], R, { brake: true, P: { whProfile: prof, whTread: 1, whRibs: 5 } });
         const g = readBags(bags);
@@ -1009,7 +1017,7 @@ const TYRE_MEASURED = [
             const th = [];
             // the lugs' crown ends only (|x| under a tenth of the half-width: the bars slant, so further out their angles
             // overlap the next bar's); each end is two corners 0.40 pitch apart, the voids 0.60 pitch
-            for (let i = 0; i < T.length; i += 3) if (Math.sign(T[i]) === side && Math.abs(T[i]) < 0.1 * L.wd * R && Math.hypot(T[i + 1], T[i + 2]) > R + 0.5 * L.lugH) th.push(Math.atan2(T[i + 2], T[i + 1]));
+            for (let i = 0; i < T.length; i += 3) if (Math.sign(T[i]) === side && Math.abs(T[i]) < 0.1 * L.wd * R && Math.hypot(T[i + 1], T[i + 2]) > R + 0.2 * L.lugH) th.push(Math.atan2(T[i + 2], T[i + 1]));
             th.sort((a, b) => a - b);
             for (let i = th.length - 1; i > 0; i--) if (th[i] - th[i - 1] < 1e-6) th.splice(i, 1);   // a corner is in three faces
             const gap = 0.5 * 2 * Math.PI / L.lugPairs;
@@ -1017,11 +1025,15 @@ const TYRE_MEASURED = [
             for (let i = 1; i < th.length; i++) if (th[i] - th[i - 1] > gap) n++;
             if (th.length > 1 && th[0] + 2 * Math.PI - th[th.length - 1] < gap) n--;   // one lug across +-pi
             check(n === L.lugPairs, `G3851 ${lab}: lugs counted round the ${side < 0 ? 'left' : 'right'} row`, n + ' vs ' + L.lugPairs);
-            // the lug's width and the void's, as drawn: the corner-to-corner gaps alternate lug / void
-            const gaps = th.slice(1).map((t, i) => t - th[i]).concat(th.length ? [th[0] + 2 * Math.PI - th[th.length - 1]] : []);
-            const pitch = 2 * Math.PI / L.lugPairs, gMin = Math.min(...gaps) / pitch, gMax = Math.max(...gaps) / pitch;
-            check(Math.abs(gMin - Math.min(L.lugShare, 1 - L.lugShare)) < 0.06 && Math.abs(gMax - Math.max(L.lugShare, 1 - L.lugShare)) < 0.06,
-              `G3851 ${lab}: the drawn lug / void is not tyreLook's ${L.lugShare} / ${(1 - L.lugShare).toFixed(2)}`, gMin.toFixed(2) + ' / ' + gMax.toFixed(2) + ' of the pitch');
+            // the lug's width and the void's, as drawn: each lug's crown end is a run of points (its section) closer than
+            // half a pitch; its extent is the lug, the rest of the pitch the void
+            const pitch = 2 * Math.PI / L.lugPairs, ext = [];
+            let lo = th[0];
+            for (let i = 1; i <= th.length; i++)
+              if (i === th.length || th[i] - th[i - 1] > gap) { ext.push((th[i - 1] - lo) / pitch); lo = th[i]; }
+            const wMean = ext.reduce((a, b) => a + b, 0) / Math.max(1, ext.length);
+            check(Math.abs(wMean - L.lugShare) < 0.06,
+              `G3851 ${lab}: the drawn lug / void is not tyreLook's ${L.lugShare} / ${(1 - L.lugShare).toFixed(2)}`, wMean.toFixed(2) + ' / ' + (1 - wMean).toFixed(2) + ' of the pitch');
           }
         }
         if (g.brake) {
@@ -1035,7 +1047,7 @@ const TYRE_MEASURED = [
           check(hMax <= 0.66 * R, `G3851 ${lab}: a hub with a ring of rubber (the hub reaches ${(hMax / R).toFixed(2)} R)`);
         }
       }
-    } finally { LOOK.on = 0; }
+    } finally { LOOK.on = 0; LOOK.lugs = 0; }
   }
 }
 
