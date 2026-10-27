@@ -291,7 +291,8 @@ function cageJoinSpec(P, M, T) {
       // as a node module in GATE JOIN, where the core's globals are not)
       const LAYM = { pushPull: ['nose', 'pusher'], tri: ['nose', 'wing', 'wing'],
                      quad: ['wing', 'wing', 'wing', 'wing'] }[LAY];
-      const mk = LAY ? null : (['nose', 'pusher', 'wingTop', 'wing'][mK] || 'nose');
+      // (the single mounts' and the pair's list, as GATE TECH reads it; a layout returns before it is used)
+      const mk = ['nose', 'pusher', 'wingTop', 'wing'][Math.round(P.engMount || 0)] || 'nose';
       const type = CAGE_JOIN_ENGINES[(T.PRESET_NAMES || [])[Math.round(P.engPreset)]]
                 || 'a65_sensenich74';
       const EU = Array.isArray(M.engUnits) ? M.engUnits : [];
