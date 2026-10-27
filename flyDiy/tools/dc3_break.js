@@ -26,6 +26,7 @@
 //              the taxi back to the stand on the hand (taxiBack); contacts, the least clearance (--track <file>: the plan)
 //     (--cage k=v,..: the build's cage rows set first - G3575 s2Steer=2, the full-swivel tailwheel)
 //     (home: --homeSecs N stops the trip at N s of sim; --log prints the pilot's line-up every second)
+//     lineup   the line-up alone from HOME's hold (G3578: --from x,z --noseDeg d --secs s; --log)
 //     back     the taxi back alone, from where the home case's landing stopped (--from x,z, --hdg rec|own)
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -377,6 +378,40 @@ function back(lim) {
   return R;
 }
 
+// G3578: THE LINE-UP ALONE - the aeroplane stood at --from x,z (default HOME's hold, where the trip's taxi stops) with its
+// nose --noseDeg (atan2(z, x), degrees; default the trip's 71 deg off the take-off heading), the pilot from there for
+// --secs: its phases, its pivots, the line-up's conditions every second (--log) - the trip's 20 minutes of taxi skipped
+function lineup(lim) {
+  const def = defOf(lim);
+  const H = TR.gameHost(C, W, def, HOME, HOME, { damage: true });
+  const sim = H.sim, TK = tracker(sim);
+  const [x, z] = opt('from', '152.77,638.36').split(',').map(Number), want = +opt('noseDeg', -67) * Math.PI / 180;
+  const noseOf = () => { const a = sim.axes()[0]; return Math.atan2(-a[2], -a[0]); };
+  const place = h => { sim.reset(0); if (sim.stance) sim.stance(); C.placeAtAerodrome(sim, { hdg: h, spawn: [x, z], elev: W.terrainH(x, z) });
+    if (C.seatOnGround) C.seatOnGround(sim, (px, pz) => W.terrainH(px, pz), def.refs); return noseOf(); };
+  // the placement's heading convention measured, not assumed: two placements, the nose read back
+  const n0 = place(0), n1 = place(0.5), sg = Math.sign(Math.atan2(Math.sin(n1 - n0), Math.cos(n1 - n0))) || 1;
+  place(sg * Math.atan2(Math.sin(want - n0), Math.cos(want - n0)));
+  H.ap.setRoute(HOME, HOME); H.queueCmd({ cmd: 'start' });
+  const R = { case: 'lineup', lim, from: [x, z], noseDeg: Math.round(noseOf() * 180 / Math.PI), phases: [], contacts: [] };
+  let ph = null;
+  for (let k = 0; k < 60 * +opt('secs', 120); k++) {
+    H.step(); TK.tick();
+    const ap = H.ap;
+    if (ap.phase !== ph) { ph = ap.phase; R.phases.push(ph + '@' + (k / 60).toFixed(0)); }
+    if (sim.out && sim.out.obst > 0 && R.contacts.length < 20) R.contacts.push({ t: r2(sim.t), nodes: sim.out.obst });
+    if (LOG && k % 60 === 0) {
+      const st = ap.status || {}, cg = sim.cgPos(), c = sim.ctl || {};
+      console.error(r2(k / 60) + ' ' + ap.phase + ' cg ' + r2(cg[0]) + ',' + r2(cg[2]) + ' V ' + r2(Math.hypot(sim.cgVel()[0], sim.cgVel()[2])) +
+        ' | ' + (st.conds || []).map(q => q.what + ' ' + (typeof q.have === 'number' ? r2(q.have) : q.have) + '/' + q.want + (q.ok ? ' ok' : '')).join(', ') + ' | dr ' + r2(c.dr) + ' brD ' + r2(c.brakeD) + ' thr ' + r2(c.thr));
+    }
+    if (H.crashed() || ap.phase === 'STOPPED' || ap.phase === 'CLIMB') break;
+  }
+  R.pivots = ((H.ap.report && H.ap.report.verdicts) || []).filter(q => q.code === 'pivot').map(q => q.t + ' s: ' + q.note);
+  R.dmg = dmgSummary(sim, def);
+  return R;
+}
+
 const LOG = argv.includes('--log');
 const cases = opt('cases', 'taxi,drop').split(','), lims = opt('lim', 'phys,cert').split(',');
 const hands = opt('hands', Object.keys(HANDS).join(',')).split(','), sinks = opt('sinks', '2.0,3.05,3.85,4.6').split(',').map(Number);
@@ -389,6 +424,7 @@ for (const lim of lims) {
   if (cases.includes('circuit')) say(circuit(lim));
   if (cases.includes('home')) say(home(lim));
   if (cases.includes('back')) say(back(lim));
+  if (cases.includes('lineup')) say(lineup(lim));
 }
 if (CERT) console.log('certificate: ' + CERT._s.toFixed(1) + ' s');
 if (opt('json')) fs.writeFileSync(opt('json'), JSON.stringify(all, null, 1));
