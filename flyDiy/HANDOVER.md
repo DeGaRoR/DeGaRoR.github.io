@@ -99480,3 +99480,35 @@ who got off at that stop (the crowd's boarding, G2970 / G3619: the named passeng
 disembark walk on or off; the arrival card lists them); `departHour` (the local hour the flight left: 07b's clock at the
 take-off) - optional, the core derives it otherwise. Draw a site (kind 'site') as a construction marker at its `x, z`,
 its state on the 2-D map; a choose:N leg's open steps all as `next` with "one of" on the map.
+
+## READY claude/ready/missions-p3 - MISSIONS P3 (the bush missions, logic) (2026-10-27, cloud, node only; Game reviews before it lands)
+
+**Base: claude/missions-p1 287d8e21** = claude/ready/missions-p1 4c557cc16 + the editor's cosmetics (examples marked
+"e.g.", compact rows, "engines: N"). **Land missions-p1 first**; this is on top of it (its base in turn: claude/missions-p0
+db58b0b5 + origin/master d7e181f4). The gated code = 22cde5516 (this note on top). What it does, and what the local
+session adds: the MISSIONS-P3 entry above. No change to running careers beyond p1's (today's contracts have no
+embark / disembark, no time limits, no choose legs, no onDone, no containers: gated).
+
+**Gates** (the private copy, built there - career_core.3d115c60 -, `run_gates.js --only=... --no-build`; MISSIONS and its
+selftest re-run on the final gate file):
+```
+GATE MISSIONS: PASS            (857 checks, 2 packs; --selftest: 46 doctored rules, 46 red)
+GATE CONTRACTS: PASS           (--selftest: PASS)
+GATE STAGES: PASS
+GATE ECON: PASS
+GATE CLOCK: PASS
+GATE FREIGHT: PASS
+GATE PROCURE: PASS
+GATE ACCEPT: PASS
+GATE STORY: PASS
+GATE ROUTES: PASS
+GATE SAVE: PASS
+GATE UISMOKE: PASS
+GATE UISMOKE-PHONE: PASS
+GATE DEFAULT: PASS
+GATE NAMES: PASS
+GATE PILOTS: PASS
+GATE TECH: PASS
+GATE GAMEPREM: PASS
+GATE LAZY: FAIL (1)            (the same row as p1's and db58b0b5's: route_draw's lazy door in this cloud browser)
+```
