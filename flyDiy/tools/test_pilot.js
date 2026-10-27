@@ -600,8 +600,12 @@ part('-- LAND-WAY: the landing way the pilot would plan from here --', () => {
     ap.setRoute(a, a);
     const hx = Math.cos(a.hdg), hz = Math.sin(a.hdg), at = sg => [a.x - sg * 3000 * hx, a.z - sg * 3000 * hz];
     const why0 = ap.dirWhy, ph0 = ap.phase, n0 = ap.report.verdicts.length;
+    const KEYS = ['frame', 'dirX', 'altRef', 'refAlt', 'appr', 'xAim', 'shortFld', 'VAppr', 'gs', 'siteDir', 'patGround', 'plan'];
+    const snap = () => KEYS.map(k => [Object.prototype.hasOwnProperty.call(ap, k), ap[k]]), s0 = snap();
     const r = [1, -1].map(sg => ap.landWayFrom(a, ...at(sg)));
-    return { a, r, clean: ap.dirWhy === why0 && ap.phase === ph0 && ap.report.verdicts.length === n0, hx, hz };
+    const f = [1, -1].map(sg => ap.finalFrom(a, ...at(sg))), s1 = snap();
+    return { a, r, f, clean: ap.dirWhy === why0 && ap.phase === ph0 && ap.report.verdicts.length === n0,
+             planClean: s0.every((q, i) => q[0] === s1[i][0] && q[1] === s1[i][1]), hx, hz };
   };
   const calm = lw(null), tail = lw([8 * Math.cos(calm.a.hdg), 8 * Math.sin(calm.a.hdg)]), head = lw([-8 * Math.cos(calm.a.hdg), -8 * Math.sin(calm.a.hdg)]);
   for (const [k, L] of [['calm', calm], ['wind along hdg', tail], ['wind against hdg', head]])
@@ -612,7 +616,16 @@ part('-- LAND-WAY: the landing way the pilot would plan from here --', () => {
   check([calm, tail, head].every(L => L.clean), 'LAND-WAY: asking changes nothing (dirWhy, phase, verdicts as they were)');
   check(tail.r.every(q => q.way === -1) && head.r.every(q => q.way === 1), 'LAND-WAY: 8 m/s down the runway - both ends answer into the wind');
   { const w = makeWorld(), d = buildGen(), s = makeSim(d, w); s.reset(0); const p = makePilot(s, d, w);
-    check(p.landWayFrom(null, 0, 0) === null && p.landWayFrom(calm.a, NaN, 0) === null, 'LAND-WAY: no aerodrome or no point - null'); }
+    check(p.landWayFrom(null, 0, 0) === null && p.landWayFrom(calm.a, NaN, 0) === null && p.finalFrom(null, 0, 0) === null, 'LAND-WAY: no aerodrome or no point - null'); }
+  // ap.finalFrom - the final the pilot would fly (planArrival's answer): the story's skip poses d m before aim along u on gs
+  const all = [calm, tail, head];
+  for (const [k, L] of [['calm', calm], ['wind along hdg', tail]])
+    console.log('   finalFrom ' + k + ': ' + L.f.map(q => q ? 'way ' + q.way + ' aim ' + q.aim.map(v => Math.round(v)).join(',') + ' (' + Math.round((q.aim[0] - L.a.x) * q.u[0] + (q.aim[1] - L.a.z) * q.u[1]) + ' m along from the centre) aimY ' + Math.round(q.aimY) + ' gs ' + (q.gs * 100).toFixed(1) + ' %' : 'null').join(' | '));
+  check(all.every(L => L.f.every((q, i) => q && Number.isFinite(q.aim[0]) && Number.isFinite(q.aim[1]) && Number.isFinite(q.aimY) && q.dIaf > 0 && q.gs >= 0.02 && q.gs <= 0.3 &&
+    q.way === L.r[i].way && q.u[0] === L.r[i].u[0] && q.u[1] === L.r[i].u[1])), 'FINAL-FROM: { u, way, why, aim, aimY, gs, dIaf } - the way landWayFrom gives, a finite aim, a slope in 2-30 %, the IAF out');
+  check(all.every(L => L.f.every(q => { const dx = q.aim[0] - L.a.x, dz = q.aim[1] - L.a.z, along = dx * q.u[0] + dz * q.u[1], off = -dx * q.u[1] + dz * q.u[0];
+    return Math.abs(off) < 1 && Math.abs(along) <= L.a.len / 2; })), 'FINAL-FROM: the aim is on the centreline through the field, inside the strip');
+  check(all.every(L => L.clean && L.planClean), 'FINAL-FROM: asking plans nothing (frame, aim, slope, plan, approach as they were; nothing said)');
 });
 
 if (fails.length) console.log('FAILED CHECKS: ' + fails.join(', '));

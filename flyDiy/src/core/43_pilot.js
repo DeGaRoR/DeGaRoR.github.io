@@ -1066,6 +1066,28 @@ function makePilot(sim, def, world, opts) {
       return { u: [u[0], u[1]], way: u[0] * CORE_MATH.cos(a.hdg) + u[1] * CORE_MATH.sin(a.hdg) >= 0 ? 1 : -1, why: why == null ? null : why };
     } finally { ap.dirWhy = why0; }
   };
+  // ...AND THE FINAL IT WOULD FLY (A0 27 Oct, slot A: the story's skip was posed off a.spawn - 225 m beside the line the
+  // pilot lands on, 1.1 km short of its aim, on 6 % where the Cub flies 10 % - and every pilot rightly joined the circuit;
+  // posed on the pilot's own final, master lands straight in 8/8): planArrival's own answer for that way, the line, the
+  // aim and the slope - { u, way, why, aim: [x, z], aimY, gs, dIaf: the IAF's distance out } - with everything
+  // planArrival writes on `ap` put back and anything it said taken back (it plans, it does not fly). The caller poses d m
+  // before `aim` along u, d * gs over aimY
+  // (the straight-in is taken from 300 m before the IAF: d >= dIaf + 300; slot A's 8/8 flew d = 3000)
+  const PLAN_KEYS = ['frame', 'dirX', 'altRef', 'refAlt', 'appr', 'xAim', 'shortFld', 'VAppr', 'stripShortSaid', 'gs', 'siteDir', 'patGround', 'protocolSaid', 'plan'];
+  ap.finalFrom = (a, x, z) => {
+    const L = ap.landWayFrom(a, x, z);
+    if (!L) return null;
+    const S = {}, had = {}, nV = ap.report.verdicts.length;
+    for (const k of PLAN_KEYS) { had[k] = Object.prototype.hasOwnProperty.call(ap, k); S[k] = ap[k]; }
+    try {
+      const P = planArrival(a, L.u, (ap.route && ap.route.from) || a);
+      const aim = wp(P.F, P.sAim, 0);
+      return { u: L.u, way: L.way, why: L.why, aim: [aim[0], aim[1]], aimY: aimAlt(), gs: ap.gs, dIaf: P.sAim - P.sIaf };
+    } finally {
+      for (const k of PLAN_KEYS) { if (had[k]) ap[k] = S[k]; else delete ap[k]; }
+      ap.report.verdicts.length = nV;
+    }
+  };
   // P1.B: THE GUST, READ OFF THE DAY — the wind at the aerodrome sampled
   // over the next 30 s (the field is deterministic in t): the spread of
   // its speed. Half of it goes on Vref (the POH's rule); nothing asks the
