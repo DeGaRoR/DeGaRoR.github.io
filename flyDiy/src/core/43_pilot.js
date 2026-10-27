@@ -1792,6 +1792,7 @@ function makePilot(sim, def, world, opts) {
       const L = ap.phase === 'ROLL' || ap.phase === 'ROLLOUT' || ap.phase === 'ABORT' ? (A.lookRoll ?? 25)
               : ap.phase === 'FINAL' || ap.phase === 'FLARE' ? lookA
               : (ap.phase === 'LINEUP' && trike && ap.route && ap.route.from && (ap.route.from.len || 1100) < 300) ? 20   // G1949: a tricycle's line-up after its turn on a short strip merges in metres (150 m of look: 2 deg toward a centreline 6 m away)
+              : (ap.phase === 'LINEUP' && SWIV) ? 60   // G3578: a full swivel's line-up merges on its own circle (the DC-3's 58 m at the line-up's rudder; 150 m crawled 5 m in 30 s)
               : lookC;
       const fx = ap.dirX * L, fz = -sCr;
       tx = fx * F.ux - fz * F.uz; tz = fx * F.uz + fz * F.ux;
@@ -3150,6 +3151,19 @@ function makePilot(sim, def, world, opts) {
             break;
           }
           ap.pivSpot = null; ap.pivSpotT = null;
+        }
+        // G3578 (DC3-2): A FULL SWIVEL LINES UP ON THE SPOT. Stopped at the hold more than 40 deg off the take-off heading,
+        // it turns on the toe brake (the pivot below) to an intercept of the centreline - the take-off heading turned toward
+        // it by atan(off / 60 m), 45 deg at most - and merges on its 60 m look (above). Steered on the wheel, the 8-bay DC-3
+        // (a 58 m circle at the line-up's rudder) arced from HOME's hold 71 deg off across the centreline to 30 m beyond it,
+        // crawled back for the rest of the 60 s, and the hold replanned the departure (G3577's, 23 deg off, lined up in 10 s)
+        if (SWIV && !piv && phaseT < 0.5 && alig < 0.766 && Vg < 1.5 && isFinite(sCr)) {
+          // the centreline lies at -sCr (-uz, ux) (G1949, above); the take-off heading is -u
+          const a = Math.min(0.785, Math.atan(Math.abs(sCr) / 60)), s = -Math.sign(sCr) || 0;
+          const dx = -F.ux * CORE_MATH.cos(a) + s * -F.uz * CORE_MATH.sin(a), dz = -F.uz * CORE_MATH.cos(a) + s * F.ux * CORE_MATH.sin(a);
+          piv = { hdg: Math.atan2(dz, dx), j: 0, t0: ap.t, thr: 0 };
+          say('pivot', 'lined up ' + Math.round(Math.acos(clamp(alig, -1, 1)) * 57.3) + ' deg off the take-off heading, ' + Math.abs(sCr).toFixed(1) +
+              ' m off the centreline - turning on the spot onto a ' + Math.round(a * 57.3) + ' deg intercept (the tailwheel swivels)');
         }
         if ((!trike || trikePiv) && isFinite(RgMin) && (piv || (alig < -0.2 && Vg < 3 && (trikePiv || RgMin > 0.5 * (ap.route.from.wid || 30) - Math.abs(sCr))))) {
           // G1949: A TRICYCLE SETS ITS TURN UP FIRST. Its turn swings the CG ~6.5 m to the inside (above), so turned on the
