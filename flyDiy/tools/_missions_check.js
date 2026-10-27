@@ -35,7 +35,7 @@
 //                  idempotent); the live reward.
 //   PURITY         73b_missions.js touches no DOM, storage, THREE, clock or random.
 //   node tools/_missions_check.js             -> "GATE MISSIONS: PASS|FAIL"
-//   node tools/_missions_check.js --selftest  -> the model doctored one rule at a time (37: the pack, the runtime); each must
+//   node tools/_missions_check.js --selftest  -> the model doctored one rule at a time (46: the pack, the runtime); each must
 //                                               turn a check red
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
@@ -281,9 +281,11 @@ function run(mut) {
   ok(M.contractValidate(M.contractNormalise(Object.assign(clone(ord), { prefs: undefined })), { text: M.missionText(S), mission: true }).some(x => /names a configuration/.test(x)), 'without preferences, g1 still refuses "two engines"');
   // the install: what the runtime runs reaches the career (P1/P2), what it cannot is held with the reason
   const SI = M.missionPackInstall(S);
-  ok(J(SI.held.map(h => h.id).sort()) === J(['s.bush', 's.order']) && SI.held.every(h => /choose:1/.test(h.why)), 'the install holds the choose:1 chapter out, with its reason (' + J(SI.held).slice(0, 200) + ')');
+  ok(J(SI.held.map(h => h.id)) === J(['s.bush']) && /site no strip serves/.test(SI.held[0].why), 'the install holds the bush mission out (its mast has no strip to serve it), with the reason (' + J(SI.held).slice(0, 200) + ')');
+  const so = SI.providers.clients.builds.find(r => r.id === 's.order');
+  ok(so && J(so.closed) === J({ ids: ['s.bush', 's.order'], n: 1 }), '(P3) the choose:1 chapter installs: the order closes once one of the two is done');
   ok(J(SI.providers.clients.arc.map(r => r.id)) === J(['s.gate', 's.rally']), 'the speed chapter (seq) is the clients\' arc: the gate run, then the rally');
-  const RW = { 's.gate': '', 's.rally': '', 's.order': '' };
+  const RW = { 's.gate': '', 's.rally': '', 's.order': '' };   // s.bush waits: its site has no strip
   for (const m of S.missions) { const w = M.contractRuntimeOk(M.missionToContract(m, { pack: S })); ok(m.id in RW ? w === RW[m.id] : w !== '', m.id + ': contractRuntimeOk ' + (m.id in RW ? 'runs it' : 'says why it waits') + ' (' + w + ')'); }
   // what runs now, alone; what still waits, alone (each with its reason)
   const one = (step, extra) => M.contractRuntimeOk(M.missionToContract(Object.assign({ id: 'x', provider: 'clients', kind: 'contract', title: 't', brief: 'b',
@@ -298,6 +300,10 @@ function run(mut) {
     ['a park on a spot', { do: 'park', place: { spot: 'HOME:' + SPOTS.HOME[0][3] } }],
     ['a wait at a field', { do: 'wait', place: 'HOME', require: { waitMin: 30 } }],
     ['a rule', { do: 'land', place: 'HOME' }, { rules: { crash: 'fail' } }],
+    ['(P3) a disembark', { do: 'land', place: 'HOME', disembark: ['david'] }],
+    ['(P3) a max duration', { do: 'carry', from: 'HOME', place: 'w3', load: { kg: 5, pax: 0 }, require: { maxMin: 60 } }],
+    ['(P3) a departure window', { do: 'carry', from: 'HOME', place: 'w3', load: { kg: 5, pax: 0 }, require: { depart: { after: 8 } } }],
+    ['(P3) an onDone that pays', { do: 'land', place: 'HOME', onDone: { pay: 100 } }],
   ];
   for (const [label, st, ex] of runs) ok(one(st, ex) === '', 'runtime: ' + label + ' runs (' + one(st, ex) + ')');
   for (const k of ['climbMs', 'stallKmh', 'toDistM', 'fuelLph', 'pax', 'heightM', 'lengthM', 'fitsShed', 'spanM'])
@@ -306,11 +312,8 @@ function run(mut) {
     ['ldgDistM (no landing distance measured)', { do: 'deliver', place: 'HOME', require: { plane: [{ k: 'ldgDistM', op: '<=', v: 300 }] } }, { kind: 'build' }, /ldgDistM/],
     ['cargoL (no hold volume measured)', { do: 'deliver', place: 'HOME', require: { plane: [{ k: 'cargoL', op: '>=', v: 100 }] } }, { kind: 'build' }, /cargoL/],
     ['a carry to a site', { do: 'carry', from: 'HOME', place: { site: 'x' }, load: { kg: 5, pax: 0 } }, null, /site/],
-    ['a disembark', { do: 'land', place: 'HOME', disembark: ['david'] }, null, /disembark/],
-    ['a max duration', { do: 'carry', from: 'HOME', place: 'w3', load: { kg: 5, pax: 0 }, require: { maxMin: 60 } }, null, /maxMin/],
-    ['a departure window', { do: 'carry', from: 'HOME', place: 'w3', load: { kg: 5, pax: 0 }, require: { depart: { after: 8 } } }, null, /depart/],
     ['legs in any order', { do: 'land', place: 'HOME' }, { order: 'any' }, /legs in order any/],
-    ['an onDone that pays', { do: 'land', place: 'HOME', onDone: { pay: 100 } }, null, /onDone/],
+    ['an onDone that unlocks', { do: 'land', place: 'HOME', onDone: { unlock: 'x' } }, null, /onDone\.unlock/],
   ];
   for (const [label, st, ex, re] of waits) ok(re.test(one(st, ex)), 'runtime: ' + label + ' still waits (' + one(st, ex) + ')');
   ok(/do loop/.test(one({ do: 'loop', place: 'HOME' })), 'runtime: a verb nobody knows never runs (' + one({ do: 'loop', place: 'HOME' }) + ')');
@@ -320,8 +323,8 @@ function run(mut) {
   const HI = M.missionPackInstall(HP);
   ok(HI.held.some(h => h.id === 's.order' && /ldgDistM/.test(h.why)) && !HI.providers.clients.builds.some(r => r.id === 's.order') && !HI.held.some(h => h.id === 's.bush' && /choose/.test(h.why)),
      'the install holds an order naming ldgDistM out of an any chapter, with its reason (' + J(HI.held).slice(0, 160) + ')');
-  ok(/choose/.test(M.contractRuntimeOk(M.missionToContract({ id: 'x', provider: 'clients', kind: 'contract', title: 't', brief: 'b', legs: [{ order: 'choose:1', steps: [{ do: 'land', place: 'HOME' }] }],
-    pay: { base: 1 }, rep: { provider: 'clients', gain: 0 } }, {}))), 'runtime: steps choose:N still wait');
+  ok(M.contractRuntimeOk(M.missionToContract({ id: 'x', provider: 'clients', kind: 'contract', title: 't', brief: 'b', legs: [{ order: 'choose:1', steps: [{ do: 'land', place: 'HOME' }] }],
+    pay: { base: 1 }, rep: { provider: 'clients', gain: 0 } }, {})) === '', 'runtime: (P3) steps choose:N run');
   ok(M.contractRuntimeOk(M.missionToContract({ id: 'x', provider: 'clients', kind: 'contract', title: 't', brief: 'b', legs: [{ order: 'seq', steps: [{ do: 'land', place: 'HOME' }] }],
     pay: { base: 1 }, rep: { provider: 'clients', gain: 0 } }, {})) === '', 'runtime: steps in order seq run');
   // the size in words (the card): the shed by its name, the client's own dims
@@ -364,6 +367,7 @@ function run(mut) {
 
   // ==== THE RUNTIME (MISSIONS-P1/P2: 73c_mission_run.js and its seams in 72_accept / 73_ / 74_ / 75_) ====================
   runtimeRows(M, mut);
+  p3Rows(M, mut);
 
   // ==== PURITY + THE EDITOR'S FILES =================================================
   const s = M.__src['73b_missions.js'].replace(/\/\/.*$/gm, '');
@@ -623,6 +627,91 @@ function runtimeRows(M, mut) {
   ok(N.acceptVerdict([{ k: 'fuelLph', op: '<=', v: 20 }], Object.assign({}, ev, { legs: [] })).rows[0].status === 'needs-flight', 'fuelLph with no leg: needs a flight');
 }
 
+// (MISSIONS-P3) THE BUSH PACK: a supply run with named passengers, a time limit and a departure window, a step that pays
+// and starts the mast, a choose:1 leg, the mast built at the end (a construction stage); a carry to the mast by its strip;
+// and THE CONTAINERS: a seq campaign (an any chapter, then a choose:1 chapter), a campaign behind it
+function bushPack() {
+  const t = x => ({ t: x, draft: true }), base = { provider: 'clients', kind: 'contract', title: 'ms.p3', brief: 'ms.p3', client: 'adam', pay: { base: 1000 }, rep: { provider: 'clients', gain: 0.5 } };
+  const land = (id, f) => Object.assign({ id, legs: [{ steps: [{ do: 'land', place: f }] }] }, base);
+  return {
+    what: 'flydiy-missions', v: 1, id: 'p3', title: 'ms.p3',
+    campaigns: [
+      { id: 'b.c', title: 'ms.p3', provider: 'clients', order: 'any', chapters: [{ id: 'b.ch', title: 'ms.p3', order: 'any', missions: ['b.bush', 'b.site'] }] },
+      { id: 'cn.c', title: 'ms.p3', provider: 'clients', order: 'seq', chapters: [
+        { id: 'cn.a', title: 'ms.p3', order: 'any', missions: ['a1', 'a2'] }, { id: 'cn.b', title: 'ms.p3', order: 'choose:1', missions: ['b1', 'b2'] }] },
+      { id: 'cn.d', title: 'ms.p3', provider: 'clients', order: 'any', needs: { after: ['cn.c'] }, chapters: [{ id: 'cn.dd', title: 'ms.p3', order: 'any', missions: ['d1'] }] }],
+    missions: [
+      Object.assign({ id: 'b.bush', legs: [
+        { steps: [{ do: 'carry', from: 'HOME', place: 'w3', load: { kg: 20, pax: ['david', 'jody'] }, require: { maxMin: 30, depart: { after: 6 } }, disembark: ['david'],
+                    say: { who: 'adam', text: 'ms.p3' }, onDone: { pay: 500, site: { id: 'mast', state: 'building' } } }] },
+        { order: 'choose:1', steps: [{ do: 'land', place: 'w5' }, { do: 'land', place: 'w6' }] }],
+        onDone: { site: { id: 'mast', state: 'built' }, say: { who: 'adam', text: 'ms.p3' } } }, base),
+      Object.assign({ id: 'b.site', legs: [{ steps: [{ do: 'carry', from: 'HOME', place: { site: 'mast' }, load: { kg: 30, pax: 0 } }] }] }, base),
+      land('a1', 'w3'), land('a2', 'w5'), land('b1', 'w6'), land('b2', 'w7'), land('d1', 'HOME'),
+    ],
+    sites: [{ id: 'mast', asset: 'weather mast', at: { x: -900, z: -2500, hdg: 0 }, state: 'planned', field: 'w3', track: 'survey:3' }],
+    text: { 'ms.p3': t('A bush test') },
+  };
+}
+function p3Rows(M, mut) {
+  const B = bushPack();
+  ok(!M.missionPackValidate(B, { spots: SPOTS }).length, '(P3) the bush pack validates (' + M.missionPackValidate(B, { spots: SPOTS }).slice(0, 4).join('; ') + ')');
+  const N = loadMissions({ core: true, mut }), I = N.missionPackInstall(B);
+  ok(!I.held.length, '(P3) the bush pack installs whole (' + J(I.held) + ')');
+  const all = [].concat(I.providers.clients.arc, I.providers.clients.night), R = id => all.find(r => r.id === id);
+  ok(R('b.site').stages[0].subs[0].to === 'w3' && R('b.site').stages[0].subs[0].place.site === 'mast', 'a carry to the mast is flown to its strip (w3), the site rides along');
+  ok(J(R('b1').needs.of) === J([{ ids: ['a1', 'a2'], n: 2 }]) && J(R('b1').closed) === J({ ids: ['b1', 'b2'], n: 1 }) && !((R('a1').needs || {}).of || []).length,
+     'containers: the choose:1 chapter waits for the any chapter before it (seq campaign), and closes after one');
+  ok(J(R('d1').needs.of) === J([{ ids: ['a1', 'a2'], n: 2 }, { ids: ['b1', 'b2'], n: 1 }]), 'containers: a campaign behind another waits for every chapter of it (the choose chapter: one)');
+  ok(R('b.bush').onDone.site.track === 'survey:3' && R('b.bush').stages[0].subs[0].onDone.site.track === 'survey:3', 'an onDone\'s site carries its construction stage');
+  for (const k of ['arc', 'builds', 'night']) N.CONTRACT_PROVIDERS.clients[k] = I.providers.clients[k];
+  Object.assign(N.CONTRACT_TEXT, I.text);
+  const hooks = { acceptVerdict: () => ({ ok: true, got: {} }) };
+  const fresh = () => { const d = N.careerNew({ seed: 'p3' }); N.careerRefresh(d); return d; };
+  const stopAt = (aero, o) => N.careerStopRecord(Object.assign({ how: 'stopped', aero, occupants: 1, cargoKg: 0, row: { from: 'HOME', to: aero, t: 1200 }, hour: 9 }, o || {}));
+  // the containers in a career
+  let d = fresh(), O = () => d.career.contracts.offered;
+  ok(O().includes('a1') && O().includes('a2') && !O().includes('b1') && !O().includes('d1'), 'career: a1, a2 offered; b1 (the next chapter) and d1 (the next campaign) not yet');
+  const doneIds = ids => { const x = JSON.parse(J(d)); for (const id of ids) x.career.contracts.done.push({ id, at: 0, pay: 0 }); N.careerRefresh(x); return x; };
+  d = doneIds(['a1', 'a2']);
+  ok(O().includes('b1') && O().includes('b2') && !O().includes('d1'), 'career: a1 + a2 done -> b1 and b2 offered (choose one), d1 still waits');
+  d = doneIds(['b1']);
+  ok(!O().includes('b2') && O().includes('d1'), 'career: b1 done -> b2 closes, d1 opens');
+  // the bush run
+  d = N.careerAccept(fresh(), 'b.bush').doc;
+  let r = N.careerOnStop(d, stopAt('HOME', { cargoKg: 20, occupants: 3 }), hooks);
+  ok(r.ok && r.events.some(e => e.k === 'picked'), 'the bush run: loaded at HOME (20 kg, David and Jody)');
+  d = r.doc;
+  for (const [label, o, re] of [
+    ['David still aboard', { people: { on: [], off: [] } }, /still aboard: David/],
+    ['an hour\'s flight on a 30 min limit', { people: { off: ['david'] }, row: { from: 'HOME', to: 'w3', t: 3600 } }, /took 60 min, 30 allowed/],
+    ['left before 06:00', { people: { off: ['david'] }, hour: 5 }, /outside its departure window/]]) {
+    const x = N.careerOnStop(d, stopAt('w3', Object.assign({ cargoKg: 20, occupants: 3 }, o)), hooks);
+    ok(!x.ok && re.test(x.untouched['b.bush'] || ''), 'the bush run refused: ' + label + ' (' + (x.untouched['b.bush'] || '') + ')');
+  }
+  const w0 = d.wallet;
+  r = N.careerOnStop(d, stopAt('w3', { cargoKg: 20, occupants: 3, people: { on: [], off: ['david'] } }), hooks);
+  ok(r.ok && r.events.some(e => e.k === 'say' && e.say.who === 'adam') && r.events.some(e => e.k === 'bonus' && e.pay === 500) && r.doc.wallet - w0 === 500
+     && r.doc.career.sites.mast === 'building', 'at w3, David off: the leg done, Adam\'s line, +500, the mast building');
+  const ln = N.careerEventLines(r, d, r.doc).map(l => l.text).join(' | ');
+  ok(/Adam: A bush test/.test(ln) && /mast: building has started/.test(ln) && /\+500/.test(ln), 'the card says the line, the step\'s pay, the site (' + ln.slice(0, 200) + ')');
+  d = r.doc;
+  const MK = N.missionMarkers(N.careerContract(d, 'b.bush'), d.career.contracts.live['b.bush']);
+  ok(MK.filter(m => m.state === 'next').map(m => m.field).join() === 'w5,w6', 'markers: the choose:1 leg - both strips next');
+  const tr0 = d.career.tracks.survey;
+  r = N.careerOnStop(d, stopAt('w6'), hooks);
+  const dn = r.ok && r.events.find(e => e.k === 'done');
+  ok(dn && r.doc.career.sites.mast === 'built' && r.doc.career.tracks.survey === Math.max(tr0, 3) && r.events.some(e => e.k === 'site' && e.unlock === 'survey:3'),
+     'w6 (one of the two) completes the choose leg and the mission: the mast built, its construction stage revealed (survey:3)');
+  // the site run, by its strip
+  d = N.careerAccept(fresh(), 'b.site').doc;
+  d = N.careerOnStop(d, stopAt('HOME', { cargoKg: 30 }), hooks).doc;
+  ok(N.careerOnStop(d, stopAt('w3', { cargoKg: 30 }), hooks).events.some(e => e.k === 'done' && e.id === 'b.site'), 'the steel to the mast: delivered at its strip');
+  // the stop record carries the people and the departure only when handed them
+  const s0 = N.careerStopRecord({ aero: 'w3' }), s1 = N.careerStopRecord({ aero: 'w3', people: { on: ['jody', 3], off: ['david'] }, departHour: 25.5 });
+  ok(!('people' in s0) && !('departHour' in s0) && J(s1.people) === J({ on: ['jody'], off: ['david'] }) && s1.departHour === 1.5, 'the stop record: people (ids only) and the departure hour (0-24), only when handed them');
+}
+
 // THE SELFTEST: the model doctored one rule at a time; each must turn the gate red
 const sub = (a, b) => s => { if (!s.includes(a)) throw new Error('selftest: anchor not found: ' + a.slice(0, 60)); return s.replace(a, b); };
 const MUTS = [
@@ -665,6 +754,16 @@ const MUTS = [
   ['the take-off ignores the load', { '72_accept.js': sub('const add = (acceptNum(a.pax) || 0) * L.occKg + (acceptNum(a.kg) || 0);', 'const add = 0;') }],
   ['the stop record grows keys', { '75_career_wire.js': sub("if (typeof o.spot === 'string' && o.spot) out.spot = o.spot;", 'out.spot = o.spot || null;') }],
   ['the markers lose the seq order', { '73c_mission_run.js': sub("if (state === 'next' && st.order === 'seq') { if (armed) state = 'later'; armed = true; }", '') }],
+  // (MISSIONS-P3)
+  ['a time limit is not checked', { '73c_mission_run.js': sub('if (msrNum(R.maxMin) && msrNum(row.t) && row.t > R.maxMin * 60) return', 'if (false) return') }],
+  ['nobody needs to get off', { '73c_mission_run.js': sub("if (miss.length) return { st: 'no', why: (k === 'embark' ? 'waiting for ' : 'still aboard: ') + miss.map(name).join(', ') };", '') }],
+  ['a departure window is not checked', { '73c_mission_run.js': sub("if (h != null && !msrHourIn(h, R.depart)) return", 'if (false) return') }],
+  ['a choose:N leg needs every step', { '73c_mission_run.js': sub('return m ? n >= +m[1] :', 'return m ? n >= (st.subs || []).length :') }],
+  ['a choose:N chapter never closes', { '74_career.js': sub('if (rec.closed && nOf(rec.closed) >= rec.closed.n) return false;', '') }],
+  ['the containers are not waited for', { '74_career.js': sub('if ((N.of || []).some(c => nOf(c) < c.n)) return false;', '') }],
+  ['a step\'s onDone pays nothing', { '74_career.js': sub("{ playerCharge(d, -od.pay, 'contract', rec.id); events.push", '{ events.push') }],
+  ['a built site reveals nothing', { '74_career.js': sub("if (m && S.state === 'built') c.tracks[m[1]] = Math.max(c.tracks[m[1]] || 0, +m[2]);", '') }],
+  ['a site is flown to nowhere', { '73b_missions.js': sub('if (s.do === \'carry\') { if (from) sub.from = from; if (f) sub.to = f; else if (P) { put(); if (served) sub.to = served; } }', 'if (s.do === \'carry\') { if (from) sub.from = from; if (f) sub.to = f; else if (P) put(); }') }],
 ];
 
 if (!SELF) {

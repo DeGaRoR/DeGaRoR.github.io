@@ -297,6 +297,10 @@ function careerStopRecord(o) {
   if (o.spec && typeof o.spec === 'object') out.spec = o.spec;
   if (Array.isArray(o.occ)) out.occ = o.occ.filter(x => x && typeof x === 'object').map(x => ({ name: x.name || null, band: Math.max(0, Math.min(4, Math.round(+x.band || 0))) }));
   if (o.freight && typeof o.freight === 'object') out.freight = { harmed: !!o.freight.harmed };
+  // (MISSIONS-P3) who got on and off here ({ on: [person ids], off: [...] } - the crowd's boarding), the flight's local
+  // departure hour (else the stop's hour less the flight)
+  if (o.people && typeof o.people === 'object') out.people = { on: (Array.isArray(o.people.on) ? o.people.on : []).filter(x => typeof x === 'string'), off: (Array.isArray(o.people.off) ? o.people.off : []).filter(x => typeof x === 'string') };
+  if (typeof o.departHour === 'number' && isFinite(o.departHour)) out.departHour = Math.round((((o.departHour % 24) + 24) % 24) * 100) / 100;
   return out;
 }
 // (G2705 CAREER-DAMAGE, §R.4: "free repair everywhere, but after a crash you reset to your STARTING PLACE") A CRASH
@@ -393,6 +397,8 @@ function careerEventLines(res, before, after) {
     else if (e.k === 'failed') out.push({ k: e.k, ok: false, text: T('ev.failed', { t: title(e.id), n: e.why || '' }) + (e.restart ? ' ' + T('ev.restart') : '') });
     else if (e.k === 'timer') out.push({ k: e.k, ok: true, text: T('ev.timer', { t: title(e.id), n: e.timer.s + ' s' + (e.timer.target != null ? ' / ' + e.timer.target + ' s' : '') }) + (e.medal ? ' · ' + T('medal.' + e.medal) : '') });
     else if (e.k === 'say' && e.say) out.push({ k: e.k, ok: true, text: (typeof peopleName === 'function' ? peopleName(e.say.who) : e.say.who) + ': ' + T(e.say.text) });
+    else if (e.k === 'bonus') out.push({ k: e.k, ok: true, text: T('ev.bonus', { t: title(e.id), n: cwMoney(e.pay) }) });
+    else if (e.k === 'site') out.push({ k: e.k, ok: true, text: T('ev.site.' + e.state, { n: e.site }) });
     if (e.k === 'done' && e.handover) {
       const H = e.handover, n = H.profit != null ? T('ev.profit', { n: cwMoney(e.pay), c: cwMoney(H.cost), p: (H.profit < 0 ? '−' : '') + cwMoney(Math.abs(H.profit)) }) : '';
       out.push({ k: 'handover', ok: true, text: T(H.client ? 'ev.handback' : 'ev.handover', { n: H.blueprint || H.slot }) + (n ? ' · ' + n : '') });
