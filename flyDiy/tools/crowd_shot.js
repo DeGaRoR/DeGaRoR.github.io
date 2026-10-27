@@ -104,6 +104,53 @@ async function chrome() {
     console.log('  diag: ' + (dg.ms ? dg.ms.length + ' meshes, cast ' + dg.ms.filter(m => m.cast).length + ', near-layer ' + dg.ms.filter(m => m.near).length +
       ', listed ' + dg.ms.filter(m => m.listed).length + ', r >= 0.75 ' + dg.ms.filter(m => m.r >= 0.75).length : dg.err || 'no SHADOW_NEAR') + ' -> crowd_shadow_diag.json');
   }
+  // --probe (G3619, the 08:00 diag: every piece cast, near-layered, listed - and no shadow nor foot blob in a still): what
+  // the renderer actually DRAWS of the crowd over two frames - each draw call of a passenger's mesh or the feet's blobs,
+  // by pass (a shadow camera or the main one) and viewport; and the feet mesh beside the wheels' (its parent, layers,
+  // count, first instance's place) - against the main camera's layers
+  if (argv.includes('--probe') && lined) {
+    await sleep(1500);
+    const pr = await P.ev(() => new Promise(res => {
+      const R = window.FLYDIY_RENDERER, one = window.CROWD.last.runs[0], T = window.THREE || (typeof THREE !== 'undefined' ? THREE : null);
+      const mine = new Map();
+      for (const h of one.H) if (h) for (const sm of h.inst.meshes) mine.set(sm, h.p.key + ':' + sm.name.replace(/^char:[^:]+:/, ''));
+      let feet = null, wheels = null, scene = null;
+      for (const h of one.H) if (h) { scene = h.g.parent; break; }
+      if (scene) for (const c of scene.children) { if (c.name === 'crowd:feet') feet = c; if (c.name === 'contact:blobs') wheels = c; }
+      if (feet) mine.set(feet, 'FEET');
+      const draws = {}, vp = new T.Vector4();
+      let mainCam = null;
+      const rd = R.render, rbd = R.renderBufferDirect;
+      R.render = function (s, c) { if (s === scene) mainCam = c; return rd.apply(this, arguments); };
+      R.renderBufferDirect = function (cam, sc, geo, mat, obj) {
+        const k = mine.get(obj);
+        if (k) { R.getCurrentViewport(vp);
+          const pass = sc === null ? 'shadow@' + vp.x + ',' + vp.y + ' ' + vp.z + 'x' + vp.w : (cam === mainCam ? 'main' : 'other:' + (cam && cam.type));
+          const d = draws[k] || (draws[k] = {}); d[pass] = (d[pass] || 0) + 1; d.mat = mat && mat.type; }
+        return rbd.apply(this, arguments);
+      };
+      let n = 0;
+      const done = () => {
+        R.render = rd; R.renderBufferDirect = rbd;
+        const lay = o => o ? o.layers.mask : null, e = new T.Vector3(), q = new T.Quaternion(), s = new T.Vector3();
+        const inst0 = m => { if (!m || !m.count) return null; const M4 = new T.Matrix4().fromArray(m.instanceMatrix.array, 0); M4.decompose(e, q, s); return [e.x, e.y, e.z, s.x, s.y, s.z].map(v => +v.toFixed(3)); };
+        const p0 = one.H.find(Boolean);
+        res({ mainLayers: mainCam ? mainCam.layers.mask : null, shadowOn: R.shadowMap.enabled, shadowAuto: R.shadowMap.autoUpdate,
+          meshLayers: [...new Set([...mine.keys()].filter(o => o !== feet).map(lay))],
+          feet: feet && { inScene: true, vis: feet.visible, count: feet.count, layers: lay(feet), order: feet.renderOrder, mat: feet.material.type, prog: !!feet.material.program,
+            inst0: inst0(feet), person0: p0 ? [p0.g.position.x, p0.g.position.y, p0.g.position.z].map(v => +v.toFixed(3)) : null },
+          wheels: wheels && { vis: wheels.visible, count: wheels.count, layers: lay(wheels), inst0: inst0(wheels), sameMat: !!feet && wheels.material === feet.material },
+          SN: window.SHADOW_NEAR ? { hook: window.SHADOW_NEAR.HOOK, C1: (({ pruned, full, boxPruned, boxFull, H, dB }) => ({ pruned, full, boxPruned, boxFull, H, dB }))(window.SHADOW_NEAR.C1) } : null,
+          draws });
+      };
+      const step = () => { if (++n > 2) return done(); requestAnimationFrame(step); };
+      requestAnimationFrame(step);
+    })).catch(e => ({ err: String(e && e.message || e) }));
+    fs.writeFileSync(path.join(OUT, 'crowd_probe.json'), JSON.stringify(pr, null, 1));
+    const ks = pr.draws ? Object.keys(pr.draws) : [];
+    console.log('  probe: ' + (pr.err || ks.length + ' crowd objects drawn; shadow draws ' + ks.filter(k => Object.keys(pr.draws[k]).some(p => p.startsWith('shadow'))).length +
+      ', main draws ' + ks.filter(k => pr.draws[k].main).length + ', feet ' + JSON.stringify(pr.draws && pr.draws.FEET || null)) + ' -> crowd_probe.json');
+  }
   // the eye beside what is shown: the people's centroid, the line's direction toward the door, 8 m out to one side
   const aim = (side, back, up = 1.7) => P.ev(([side, back, up]) => {
     const M = window.CROWD.last, one = M.runs[0], hs = one.H.filter(h => h && h.g.visible);
