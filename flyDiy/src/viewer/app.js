@@ -8713,7 +8713,9 @@
   function hireCss() {
     if (document.getElementById('hireCss')) return;
     const st = document.createElement('style'); st.id = 'hireCss';
-    st.textContent = '#hireScreen{position:fixed;inset:0;z-index:2147481000;display:flex;flex-direction:column;background:rgba(23,21,18,.97);color:var(--ed-ink,#f4efe6);font-family:"IBM Plex Sans",system-ui,sans-serif;overflow:auto}' +
+    // the stack (the 10:30 stills): over the MAP / LOAD pills (2147482000), under Tim's band (2147482500, the story opens
+    // this screen while he talks) and the map screen (2147483000); opaque, as the map screen is - the garage behind showed through
+    st.textContent = '#hireScreen{position:fixed;inset:0;z-index:2147482200;display:flex;flex-direction:column;background:var(--ed-board,#1a1815);color:var(--ed-ink,#f4efe6);font-family:"IBM Plex Sans",system-ui,sans-serif;overflow:auto}' +
       '#hireScreen .hrTop{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:24px 32px 16px;border-bottom:1px solid var(--ed-hair,rgba(255,248,236,.09));flex-wrap:wrap}' +
       '#hireScreen h2{margin:0;font-size:24px;font-weight:600}#hireScreen .hrSub{margin:4px 0 0;font-size:14px;color:var(--ed-dim,#c0b8ac)}' +
       '#hireScreen .hrRight{display:flex;align-items:center;gap:18px}#hireScreen .hrWal{display:grid;justify-items:end;gap:2px}' +
