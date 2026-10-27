@@ -122,7 +122,18 @@ const store = { get() { try { return localStorage.getItem(DRAFT); } catch (e) { 
 const emptyPack = () => ({ what: MISSION_PACK_WHAT, v: MISSION_PACK_V, id: 'new', title: '', campaigns: [], missions: [], sites: [], text: {} });
 function setPack(p, name) { S.pack = missionPackNormalise(p); S.sel = { t: 'pack' }; if (name) S.file = name; status('loaded ' + (name || '') + ': ' + S.pack.missions.length + ' missions'); renderAll(); }
 function status(s) { $('status').textContent = s; }
-function changed() { store.set(JSON.stringify({ file: S.file, pack: S.pack })); renderAll(); }
+// (MISSIONS-P1) an in-flight step (a pass, a photo or a fly to a point / gate / ring) is judged by its id: give one to
+// any that has none (p1, p2, ... unique in its mission)
+function autoIds() {
+  for (const m of S.pack.missions) {
+    if (isTut(m) || !Array.isArray(m.legs)) continue;
+    const used = new Set([].concat(...m.legs.map(L => (L.steps || []).map(s => s.id).filter(Boolean))));
+    let n = 1;
+    for (const L of m.legs) for (const st of L.steps || [])
+      if (!st.id && missionInFlight({ do: st.do, place: missionPlaceNorm(st.place) })) { while (used.has('p' + n)) n++; st.id = 'p' + n; used.add(st.id); }
+  }
+}
+function changed() { autoIds(); store.set(JSON.stringify({ file: S.file, pack: S.pack })); renderAll(); }
 const T = () => missionText(S.pack);
 const words = k => { const e = T()[k]; return e ? e.t : ''; };
 const setWords = (k, s) => { S.pack.text[k] = { t: s, draft: true }; };
