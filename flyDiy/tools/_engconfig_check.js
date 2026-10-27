@@ -28,7 +28,8 @@
 //   8 PHYSICS    (ENGINE-CONFIGS-2, 22 Oct, on master's propeller moments, wash and damage) the push-pull's torques and
 //                angular momenta cancel, the three's and the four's add; every strip names the disc whose wake it flies
 //                in and the solver gives it that disc's (a dead disc's wake is gone); a break group per engine mount
-//   9 FIXTURES   the three example builds (tools/engconfig_fixtures.js): loaded as the game loads them they are the
+//   9 FIXTURES   the three example builds (tools/engconfig_fixtures.js), the bakes of the three layout-starter cards
+//                to the byte; loaded as the game loads them they are the
 //                saved aeroplane, no join error, the design check without a FAIL row at the worst corner, a circuit
 //                flown with one engine cut, the certificate and the bench HELD
 //   (5 FLIGHT also flies the stock single's own power cut: the Trimotor's nose cut is held under it)
@@ -460,6 +461,14 @@ kidsDone.then(() => {
             (fails.length ? ' FAIL ' + fails.map(r => r.id).join(',') : '');
     } catch (e) { msg = `${f}: ${e.message}`; }
     chk(ok9, msg);
+  }
+  // the files ARE the archetype cards (the user, 27 Oct: the starters in the New aeroplane dialog): rebaked from the
+  // Push-pull starter / Trimotor / Four-engine starter cards, each file is the bake to the byte
+  {
+    const rb = cp.spawnSync(process.execPath, [path.join(T, 'engconfig_fixtures.js')], { encoding: 'utf8' });
+    const outs = (rb.stdout || '').trim().split('\n').filter(Boolean);
+    chk(rb.status === 0 && outs.length === 3 && outs.every(s => /the saved file is the bake/.test(s)),
+        'the cards: ' + (outs.join('; ') || (rb.stderr || '').trim().slice(0, 200)));
   }
   for (const [k, f, , c] of FIXES) {
     const r = F(k, c);

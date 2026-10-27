@@ -1,18 +1,12 @@
 #!/usr/bin/env node
 // engconfig_fixtures.js (ENGINE-CONFIGS-2, G3493, 2026-10-22) - THE THREE EXAMPLE LAYOUTS as saved builds, baked the
-// way the garage makes them: the design tiles over the C172-alike card's choices (without its stock 172 cage, so the
-// tiles' own airframe), then the page's chain under node (tools/_bake_joined.js: the drawing layers, the join, the
-// merge). Each is balanced to pass the bench's design check at its worst loading corner:
-//   pushpull  the Engines row's Push-pull (the Skymaster's layout): two IO-360s, the tail on twin booms outboard of the
-//             rear disc; the wing 0.45 m aft and the stab 1.40 x span / 1.25 x chord (the pusher's 144 kg behind the
-//             cabin: the card's own wing station left a static margin of -0.16 as drawn); the booms the Skymaster's
-//             (0.24 x 0.34 m at the wing, a 0.7 m fairing forward), the straight fin (the swept fin's ventral strake
-//             draws detached under a twin boom's fins); the wing stays strut-braced (a cantilever one broke up at 5.7 g)
-//   trimotor  Three (nose + wings): three Rotax 912s, a MID strut-braced wing (on the card's high wing the nacelles'
-//             thrust line stands 1.5 m up and full power tips the aeroplane over its nosewheel; on a low wing the
-//             nacelle discs clear the grass by 2 cm; a cantilever mid wing let go at its root on the bench's 5.7 g),
-//             the round section, the wing 0.15 m aft
-//   four      Four (wings): four Rotax 912s, inner and outer nacelles, the mid strut-braced wing, 0.2 m aft
+// way the garage makes them: the archetype card (tools/_cage_design.js ARCHETYPES - the user, 27 Oct: the layout
+// starters are cards in the New aeroplane dialog, and the files are those cards), then the page's chain under node
+// (tools/_bake_joined.js: the drawing layers, the join, the merge). Each card says why it is balanced as it is; each
+// passes the bench's design check at its worst loading corner:
+//   pushpull  the Push-pull starter: two IO-360s, the tail on twin booms outboard of the rear disc
+//   trimotor  the Trimotor: nose + wing nacelles, three Rotax 912s, a mid strut-braced wing
+//   four      the Four-engine starter: four Rotax 912s, inner and outer nacelles, a mid strut-braced wing
 //   node tools/engconfig_fixtures.js            rebake and compare with the saved files (exit 1 on a difference)
 //   node tools/engconfig_fixtures.js --write    rebake and write tools/fixtures/build_v10_engcfg_*_2026-10-22.json
 'use strict';
@@ -21,23 +15,15 @@ const T = __dirname;
 const BJ = require('./_bake_joined.js');
 const LB = require('./_load_build.js');
 const { D } = BJ.loadPanel();
-const C172 = D.ARCHETYPES.find(a => a.key === 'c172');
 const FIX = {
-  pushpull: { name: 'Push-pull (Skymaster layout)', sel: { engCount: 'pushPull', engModel: 'lycoming IO-360', finArch: 'straight' },
-              cage: { wgDx: -0.45, stSpan: 1.4, stChord: 1.25,
-                      // (the user, 27 Oct: "give the push-pull a twin boom" - the Skymaster's booms, not rods)
-                      boomWf: 0.24, boomHf: 0.34, boomWa: 0.16, boomHa: 0.22, boomNoseLen: 0.7 } },
-  trimotor: { name: 'Trimotor (three Rotax 912)', sel: { engCount: 3, engModel: 'rotax 912 (flat)', finArch: 'straight', section: 3, wgPos: 1, wgBrace: 0 },
-              cage: { wgDx: -0.15 } },
-  four:     { name: 'Four (wing nacelles, four Rotax 912)', sel: { engCount: 4, engModel: 'rotax 912 (flat)', finArch: 'straight', wgPos: 1, wgBrace: 0 },
-              cage: { wgDx: -0.2 } },
+  pushpull: { card: 'pushPull', name: 'Push-pull (Skymaster layout)' },
+  trimotor: { card: 'trimotor', name: 'Trimotor (three Rotax 912)' },
+  four:     { card: 'fourEngine', name: 'Four (wing nacelles, four Rotax 912)' },
 };
 const fileOf = k => path.join(T, 'fixtures', `build_v10_engcfg_${k}_2026-10-22.json`);
 function bake(k) {
-  const F = FIX[k];
-  const sel = Object.assign({}, C172.sel, F.sel);
-  const over = { cage: Object.assign({}, C172.over && C172.over.cage, F.cage), spec: C172.over && C172.over.spec };
-  const r = BJ.bakeJoined(D.designBake(sel, over));
+  const F = FIX[k], a = D.ARCHETYPES.find(q => q.key === F.card);
+  const r = BJ.bakeJoined(D.designBake(a.sel, a.over));
   // ...and then what the GAME holds once it has loaded that (tools/_load_build.js: the load door, the join, the
   // energy layer's tank write-back), until it no longer moves: the file is the game's own fixpoint, so opening it in
   // the garage changes nothing (GATE ENGCONFIG 9 checks it)

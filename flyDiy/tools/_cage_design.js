@@ -2322,18 +2322,27 @@ const ARCHETYPES = [
   // of an aeroplane whose 144 kg pusher hangs off the aft bulkhead. Now the note's four seats (paxCount 1, the C172's
   // 2 + 2) and the wing 0.5 m aft: CG 23-32 % MAC over the four corners, the neutral point 37-38 %, the design check
   // PASS, the rear disc clear of the wing (0.7 m aft puts the wing into it)
+  // ENGINE-CONFIGS-2 (the user, 27 Oct: "updated archetypes for the push-pull (your twin boom)"): THE SKYMASTER'S
+  // BOOMS, 0.24 x 0.34 m at the wing and 0.16 x 0.22 at the tail (they were 0.18 x 0.27 and 0.126 x 0.189, rods
+  // beside the cabin), a 0.7 m fairing forward. The wing takes LIFT STRUTS: its cantilever already held the bench's
+  // 5.7 g only past yield, and with the real booms' 6 kg more it BROKE UP at 4.9 g at the root fitting (0.21 x 0.30
+  // booms: 5.1 g); strut-braced it holds with no yield, 23 kg lighter. And the stab 1.2 x span / 1.1 x chord: on
+  // the strut wing the rule's stab between the heavier booms yielded from the downwind's 61 m/s on (damage on, 1.1 g
+  // level) until a member kinked at 70 s; this one flies the circuit with no yield (the Push-pull starter's 1.4 /
+  // 1.25 too). Design check PASS, the bench's 5.7 g HELD with no yield
   { key: 'skymaster', kind: 'recreation', name: 'Skymaster-alike', note: 'twin ' +
-      'booms off a high wing, four seats, an engine in the nose and one pushing behind the cabin',
+      'booms off a strut-braced high wing, four seats, an engine in the nose and one pushing behind the cabin',
     sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, booms: 'twin',
            section: 3,
-           wgPos: 0, wgBrace: 1, wgTip: 1, wgFlapType: 1,
+           wgPos: 0, wgBrace: 0, wgTip: 1, wgFlapType: 1,
            engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose', engCount: 'pushPull',
            gearLayout: 'trike', suspension: 'oleo', s1Fair: 0,
            finArch: 'straight', empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0x1b3a5c },
     over: { cage: Object.assign({}, PLAN_TAPER, { boomX: 1.25, boomLen: 3.2,
-                                                   boomWf: 0.18, boomHf: 0.27,
-                                                   boomWa: 0.126, boomHa: 0.189, wgDx: -0.5 }),
+                                                   boomWf: 0.24, boomHf: 0.34,
+                                                   boomWa: 0.16, boomHa: 0.22, boomNoseLen: 0.7,
+                                                   stSpan: 1.2, stChord: 1.1, wgDx: -0.5 }),
             spec: { finish: { decals: { m1On: 1, m1Pat: 0, m1A: 0x1b3a5c,
                                         m1B: 0xefe6cf, m1D: 0x1b3a5c } } } } },
   { key: 'p38', kind: 'recreation', name: 'P-38-alike', note: 'a puller a boom, ' +
@@ -2352,6 +2361,47 @@ const ARCHETYPES = [
                                                    boomWf: 0.22, boomHf: 0.33,
                                                    boomWa: 0.154, boomHa: 0.231,
                                                    engNacAt: 0.245 }) } },
+  // THE LAYOUT STARTERS (ENGINE-CONFIGS-2, the user, 27 Oct: "updated archetypes for the push-pull ... and starting
+  // points for 3- and 4-engine layouts"): the Engines row's Push-pull, Three and Four over the C172-alike's own
+  // choices (its tiles, not its stock cage), the straight fin (the swept fin's ventral strake draws detached under a
+  // twin boom's fins). These three cards ARE tools/fixtures/build_v10_engcfg_{pushpull,trimotor,four}_2026-10-22.json
+  // (tools/engconfig_fixtures.js bakes the files from them; GATE ENGCONFIG 9 holds the files to the game's load, the
+  // design check, a circuit with an engine cut and the bench's 5.7 g).
+  // Push-pull: two IO-360s on the Skymaster's booms (0.24 x 0.34 m at the wing, a 0.7 m fairing forward); the wing
+  // 0.45 m aft and the stab 1.40 x span / 1.25 x chord for the pusher's 144 kg behind the cabin (the C172's wing
+  // station left a static margin of -0.16); the wing keeps its struts (a cantilever one broke up at 5.7 g)
+  { key: 'pushPull', kind: 'fiction', name: 'Push-pull starter', note: 'an IO-360 in the ' +
+      'nose and one pushing between twin booms; strut-braced high wing, four seats',
+    sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 1,
+           canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 1,
+           wgPos: 0, wgBrace: 0, wgTip: 1, wgFlapType: 2,
+           engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose', engCount: 'pushPull',
+           gearLayout: 'trike', suspension: 'spring', s1Fair: 1,
+           finArch: 'straight', empennage: 'conv', scheme: 'sweep', base: 0xefe6cf, trim: 0x2c4a31 },
+    over: { cage: { wgDx: -0.45, stSpan: 1.4, stChord: 1.25,
+                    boomWf: 0.24, boomHf: 0.34, boomWa: 0.16, boomHa: 0.22, boomNoseLen: 0.7 } } },
+  // Three and Four: Rotax 912s, the wing MID and strut-braced: on the C172's high wing the nacelles' thrust line
+  // stands 1.5 m up and full power tips the aeroplane onto its nosewheel; on a low wing the nacelle discs clear the
+  // grass by 2 cm; a cantilever mid wing lets go at its root on the bench's 5.7 g. Each wing a little aft for its
+  // nacelles' mass
+  { key: 'trimotor', kind: 'fiction', name: 'Trimotor', note: 'three Rotax 912s, ' +
+      'one in the nose and one on each wing; mid strut-braced wing, four seats',
+    sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 1,
+           canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 3,
+           wgPos: 1, wgBrace: 0, wgTip: 1, wgFlapType: 2,
+           engFamily: 'flat', engModel: 'rotax 912 (flat)', engMount: 'nose', engCount: 3,
+           gearLayout: 'trike', suspension: 'spring', s1Fair: 1,
+           finArch: 'straight', empennage: 'conv', scheme: 'sweep', base: 0xefe6cf, trim: 0x2c4a31 },
+    over: { cage: { wgDx: -0.15 } } },
+  { key: 'fourEngine', kind: 'fiction', name: 'Four-engine starter', note: 'four ' +
+      'Rotax 912s in wing nacelles, two a side; mid strut-braced wing, four seats',
+    sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 1,
+           canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 1,
+           wgPos: 1, wgBrace: 0, wgTip: 1, wgFlapType: 2,
+           engFamily: 'flat', engModel: 'rotax 912 (flat)', engMount: 'nose', engCount: 4,
+           gearLayout: 'trike', suspension: 'spring', s1Fair: 1,
+           finArch: 'straight', empennage: 'conv', scheme: 'sweep', base: 0xefe6cf, trim: 0x2c4a31 },
+    over: { cage: { wgDx: -0.2 } } },
   // "a mono engine larger aircraft ... something like the Beaver now that we
   // have large radial engines": the R-985 Wasp Junior (this batch's registry
   // row) on a strut-braced high wing, four bays, a taildragger on oleos.
