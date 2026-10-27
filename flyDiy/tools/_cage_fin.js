@@ -260,13 +260,14 @@ function tailMat(k, sec, boxPlane) {
       // fin without landing on the wing, which is the grouping the user
       // asked for: "the fuselage projection and the fin projection should
       // be one".
-      cons, struct: 1, wing: 2, ribM: TAIL_RIB,
+      // ...and THE STABILISER IS ITS OWN, 3 (27 Oct): a fin flash or a rudder's stripes aimed at the fin alone
+      cons, struct: 1, wing: sec && sec.indexOf('stab') === 0 ? 3 : 2, ribM: TAIL_RIB,
       surf: 1, fieldM: tailFS(), side: THREE.DoubleSide });
     if (m) return m;
   }
   return A.aeroMaterial(THREE, {
     finish: A.aeroFinishFor('body', cons),
-    grm: cons, struct: 1, wing: 2,     // a flying surface, and class 2
+    grm: cons, struct: 1, wing: sec && sec.indexOf('stab') === 0 ? 3 : 2,   // a flying surface: 2 the fin, 3 the stab
     // BOX-MAPPED MICROSURFACE (G113.3): the sheet comes off a craft-space
     // plane instead of the field. The structure and the wash-out keep the
     // field - they are different consumers of the same attribute.

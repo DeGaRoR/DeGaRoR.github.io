@@ -103,6 +103,7 @@ The tools (each prints its own usage at the top of the file):
 | `leg_line.py <ref.json> <prefix>` | the main legs seen from the front: root, foot and angle from vertical, for each | 3 |
 | `cowl_clip.js <born.json> [over]` | the engine against its cowl: `0` vertices outside = fits | 3 |
 | `rings.js <born.json> [over]` | the cage's control rings nose to tail: which ring a frame row moved | 1 |
+| `fit_body.py <ref.json> --key K <prefix> '{"row":[lo,hi,step]}' [--range a0,a1] [--skipbot b0,b1] [--cut y] [--w top,bot,hw,post]` | searches ONE body step's rows against the reference's centreline top / bottom, half-width above `cut` and the tail post, station by station; the glazing markers join the top line (the hood); `skipbot` leaves out a low wing's centre section that IS the belly | 1 |
 | `dump_build.js <build\|--key K> <prefix> [--over] [--save born.json]` | the birth and the triangle dump everything above reads | all |
 
 **Round each fitted value to its row's step** before the card takes it (0.005 the corner rows, 0.01 macro, 0.5 deg
@@ -236,6 +237,18 @@ the body aft for exactly this reason.
 | an inverted in-line's induction is drawn on top of the crankcase only (the DH.82's bonnet has no room for it) | OPEN: an induction-side row on the engine page |
 | the cowl's front section has no waist of its own (the DH.82's tombstone face, widest at the thrust line) | OPEN: a nose-ring waist row |
 | the prop check's body test samples past the body's end ("through the body" on a deep bonnet) | OPEN: a check fix |
+| a truly elliptic planform (the Spitfire's): the tip types only rounded the last metre | added: `wgPlan` / `w2Plan` ("planform": elliptic) and `wgPlanAxis` (the straight chord line, 0.10-0.50 of the chord) - the chord c0 sqrt(1 - (z/s)^2), area, MAC and xAC integrated |
+| cooling radiators under the wing (the Spitfire's coolant and oil radiators) | added: the `radiators` part (`radMode` none / one / a pair, `radX` `radAt` `radLen` `radW` `radH` `radFlap` `radOilK`; section `radSkin`) |
+| the propeller held on the engine's face: no shaft extension (a long nose, an extension shaft) | added: `cw_noseOff` ("shaft length (prop off the engine)", 0-1.5 m) |
+| side ejector exhausts (the Merlin's) | added: exhaust style 4 "ejector stubs" (`eng_exStyle 4`, `eng_exPair` in pairs) |
+| the split flap on the design tile | added |
+| a liquid-cooled V-12's long stand-off from the firewall | `eng_mountGap` opened to 8 case radii |
+| retractable gear (the Spitfire's outward-retracting legs) | OPEN |
+| a wing-root fillet (the low wing's fairing into the body) | OPEN |
+| a sliding hood on rails (a canopy that slides aft) | OPEN: the cabin's skylight + bubble glass is the closest |
+| the supercharger casing and the long intake under the nose | OPEN |
+| a waist row along the body (the line where a fighter's sides turn under) | OPEN |
+| the induction's side (as for the DH.82, above) | OPEN |
 
 ## 8. The Camel log (27 Oct 2026)
 
@@ -333,3 +346,21 @@ markers, the exhaust to port).
 - OPEN: the front's widest line. The type's face is widest at the thrust line (the tombstone's spring line); ours
   0.3 m lower: the firewall's `cw_waist` is refitted to the body by `fitNose`, and `cw_waistSweep` only bends it
   8 cm before the bottom pinches. Wanted: the nose ring's own waist row.
+
+## 10. The Spitfire (27 Oct 2026): WORK IN PROGRESS, stopped
+
+The user's reference: a detailed Spitfire Mk IX (`refs/spitfire.json`, `refs/spitfire.glb`, the 'hood glass' marker).
+The user stopped the match ("we're starting from too far"): the card `spitfire` is in `_cage_design.js` as
+**Spitfire-alike (WIP)**, `blocked` (the chooser shows it greyed with its reason, the gates skip it), and was never flown.
+
+What it has: the elliptic planform (11.23 m span, 2.55 m root chord: Sw 22.49 m2 against the published 22.48, AR 5.61),
+the Merlin 66 on a 4-blade Rotol (a registry row: 744 kg, 1283 kW, two-stage blower), side ejector stubs in pairs,
+the coolant and oil radiators under the wings, the split flap, the faired V cowl (`cowlPreset` "Faired V (Spitfire)").
+
+The body type (the user: "be careful what kind of fuselage type you select"): the CABIN body with no mirror, its
+skylight and bubble glass for the hood - the turtle-deck pod was drawn too and loses the spine aft of the hood.
+
+Where it stopped: step 1 (the lengths) half-done - `fit_body.py` from 0.173 to 0.164 on the nose and openings; the body
+sections, the plan, the tail and the gear not started. To resume: `match.sh spitfire` (unblock the card in a scratch
+copy), then the order of section 3; the gaps it met are section 7's last six rows.
+

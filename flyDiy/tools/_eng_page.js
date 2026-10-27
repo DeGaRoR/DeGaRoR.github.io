@@ -140,7 +140,8 @@ const PRESETS = {
   // exhaust in ejector stubs out of the bank flanks, paired (the reference's three a side)
   'Rolls-Royce Merlin 66': { arch: 'vee', cyl: 12, vee: 60, twoStroke: 0, inlineAim: 1,
     liquid: 1, geared: 1, blower: 2, boost: 2.22, critAlt: 1765,
-    bore: 0.1372, stroke: 0.1524, rpm: 3000, exStyle: 4, exPair: 1, exDrop: 1.2 },
+    bore: 0.1372, stroke: 0.1524, rpm: 3000, exStyle: 4, exPair: 1, exDrop: 1.2,
+    mountGap: 6.9 },    // the bay behind the banks (blower, header tank): the firewall 2.35 m aft of the prop
   // THE COVERAGE FILL (2026-09-05). Bore, stroke and rpm are the
   // manufacturers' (O-320 5.125 x 3.875 in, O-540 / IO-720 5.125 x 4.375,
   // IO-550 5.25 x 4.25, Ranger 4.125 x 5.5, W-670 5.125 x 4.625, R-755
@@ -400,7 +401,9 @@ const ENG_GROUPS = [
   ['mount + firewall', [
     ['mount',    'mount',      'check'],
     ['mountX',   'diagonals',  'check'],
-    ['mountGap', 'fore / aft (stand-off)', 0.4, 2.0, 0.01],
+    // (to 8 case radii, 27 Oct: a Merlin's bay behind its banks - the two-stage blower, the header tank - runs
+    // 0.9 m to the firewall, and the bench draws no blower casing to fill it)
+    ['mountGap', 'fore / aft (stand-off)', 0.4, 8.0, 0.01],
     ['mountR',   'tube radius ×', 0.5, 2.2, 0.02],
     ['fwOn',     'firewall',   'check'],
     ['fwW',      'fw width m', 0.4, 1.4, 0.01, x => x.toFixed(2)],

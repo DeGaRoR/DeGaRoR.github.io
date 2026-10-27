@@ -839,6 +839,8 @@ function iconExhaust(mode) {
   if (mode === 3) paths.push({ d: 'M24 20 Q24 28 30 29', w: 2 },
                              { d: 'M30 26 Q42 23 52 28 Q42 35 30 32 Z' },
                              { d: 'M52 30 L62 30', w: 1.6 });
+  // the ejector stubs: short pipes swept back off the side, in pairs
+  if (mode === 4) for (const x of [16, 22, 32, 38]) paths.push({ d: 'M' + x + ' 20 L' + (x + 5) + ' 27', w: 2.4 });
   return { vb: '0 0 64 40', paths };
 }
 // THE LEG, bare or under its streamline shroud
@@ -1706,6 +1708,8 @@ const DESIGN_ROWS = [
         note: 'the ports gathered into one pipe a bank', writes: { cage: { eng_exStyle: 2 } } },
       { value: 3, label: 'Expansion', icon: iconExhaust(3),
         note: 'the two-stroke\'s tuned chamber', writes: { cage: { eng_exStyle: 3 } } },
+      { value: 4, label: 'Ejector stubs', icon: iconExhaust(4),
+        note: 'short stubs swept back off the cowl\'s side (the Merlin\'s)', writes: { cage: { eng_exStyle: 4 } } },
     ] },
   ...[1, 2].map(i => ({ key: (i === 1 ? 'mains' : 'third') + 'FairT',
     label: 'Fairing', kind: 'discriminator',
@@ -1762,7 +1766,8 @@ const DESIGN_ROWS = [
     help: 'the shape for that kind of engine, sized to the one fitted',
     read: P => null,
     options: [['flat', 'Boxer', 'engFlat'], ['inline', 'In-line', 'engInline'],
-              ['vee', 'V engine', 'engVee'], ['radial', 'Radial', 'engRadial'],
+              ['vee', 'V engine', 'engVee'], ['faired', 'Faired V (Spitfire)', 'engVee'],
+              ['radial', 'Radial', 'engRadial'],
               ['electric', 'Electric', 'engElectric'], ['turbine', 'Turboprop', 'engTurbine']]
       .map(([v, label, ic]) => ({ value: v, label, icon: ICON[ic],
         writes: { cage: { fitNose: 2 } },
@@ -1833,6 +1838,11 @@ const PLAN_C172 = { wgCrankAt: 0.42, wgCrankChord: P => +P.wgChord,
                     wgTipX: 0.30 };
 
 // G3517: the open tandem trainer's rows (the round body, both sections open, the pilot in the rear)
+// THE BODY'S COLOUR AS THE GLOBAL PAINT PICK WRITES IT (aeroskin.js aeroBaseReach, G2750): every exterior cage section
+// - the skin, the rail bands, the pillars - not `body` alone (a tint on `body` left the round body's rails in the
+// fabric's own colour on the bench). The liveries' cards spread it into finish.sections beside spec.paint.base.
+const BODY_PAINT = hex => Object.fromEntries(['body', 'taper', 'taperPanel', 'waistband', 'ceilingLoop', 'floorLoop',
+  'pillarWindow', 'pillarCabin', 'pillarPassenger', 'pillarTail', 'pillarFront', 'pillarTaper'].map(k => [k, { tint: hex }]));
 const OPEN_TANDEM = {
   aeroNose: 1, noseFinish: 0, topRound: 1, botRound: 0,
   // the upper plane's centre section cut back at the trailing edge over the cockpit (GEN_CENTRE_KEYS 'cutout': the
@@ -1958,8 +1968,26 @@ const ARCHETYPES = [
                     // the face by eye against the reference's head-on view: a tombstone - round on top, straight sides, flat bottom
                     cw_lidSqTop: 0.62, cw_lidSqBot: 0.8 },
             // the registration on the rear fuselage's side, clear of the cockpits (the user, 27 Oct)
-            spec: { fuel: { litres: 87 },
-                    finish: { decals: { regL: 4.00, regC: 0.04, regH: 0.24 } } } } },       // 19 imp gal, the centre-section tank
+            // THE LIVERY (27 Oct, the user: "a proper livery for each"): an RAF elementary trainer - trainer yellow
+            // overall, the type A roundel (blue / white / red) on the fuselage and on all four wing panels, the fin
+            // flash (red leading, white, blue), the serial in black on the rear fuselage. No trim line.
+            spec: { fuel: { litres: 87 },                                              // 19 imp gal, the centre-section tank
+                    paint: { job: 'full', sweep: 0, base: 0xf2c437, trim: 0xf2c437 },
+                    finish: { decals: {
+                      regL: 4.00, regC: 0.04, regH: 0.24, regCol: 0x20211f, regOutOn: 0,
+                      // the fuselage roundel, between the rear cockpit and the serial
+                      m1On: 1, m1Pat: 8, m1A: 0x23306b, m1B: 0xf4f2ea, m1D: 0xb5342a, m1P: 1, m1Q: 0.667, m1R: 0.333,
+                      m1Tgt: 0, m1Mode: 0, m1L: 2.70, m1C: 0.0, m1W: 0.62, m1H: 0.62,
+                      // the wing roundels, one on each panel (field: root to tip, leading to trailing edge)
+                      m2On: 1, m2Pat: 8, m2A: 0x23306b, m2B: 0xf4f2ea, m2D: 0xb5342a, m2P: 1, m2Q: 0.667, m2R: 0.333,
+                      m2Tgt: 4, m2Mode: 0, m2L: 3.10, m2C: 0.68, m2W: 1.00, m2H: 1.00,
+                      // the fin flash: three upright bands (red leading, white, blue) on the fin alone (the fin target),
+                      // stood in the side view on the fixed fin ahead of the rudder post
+                      m3On: 1, m3Pat: 9, m3A: 0xb5342a, m3B: 0xf4f2ea, m3D: 0x23306b, m3P: 3, m3Q: 3, m3R: 0,
+                      m3Tgt: 6, m3Mode: 1, m3L: 2.50, m3C: 0.70, m3W: 0.50, m3H: 0.60 },
+                      // trainer yellow on the planes and the tail (the fabric's own cream otherwise)
+                      sections: { ...BODY_PAINT(0xf2c437), wingSkin: { tint: 0xf2c437 }, finSkin: { tint: 0xf2c437 }, stabSkin: { tint: 0xf2c437 } } },
+                    meta: { reg: 'T7230' } } } },
   // PERF STUDY chantier 0 (2026-09-15): the PT-17's engine is the 220 hp
   // W-670 (a row since G195), not the 450 hp R-985 the card flew (ROC
   // +156 %, V75 +35 % against the type - the engine, not the airframe)
@@ -2021,8 +2049,26 @@ const ARCHETYPES = [
                     wgTip: 4 },     // the tailplane 0.16 m over the thrust line, on the reference's
             // the registration on the rear fuselage's side, clear of the cockpits (the user, 27 Oct: "get them out
             // of the cockpit area"): the default 2.10 m aft of the round body's forward datum lands on the cockpits
-            spec: { fuel: { litres: 174 }, prop: { D: 2.5, blades: 2 },
-                    finish: { decals: { regL: 4.40, regC: 0.05, regH: 0.26 } } } } },      // 46 US gal in the upper centre section
+            // THE LIVERY (27 Oct, the user: "a proper livery for each"): a US Army PT-17 of 1940 - true blue fuselage,
+            // chrome yellow planes and tail, the rudder's blue upright band at the hinge and the thirteen red and white
+            // stripes aft of it, the white star with its red centre in the blue disc on the wings, the serial in black
+            spec: { fuel: { litres: 174 }, prop: { D: 2.5, blades: 2 },    // 46 US gal in the upper centre section
+                    // the body's blue: the paint's base, and BODY_PAINT's sections (the global pick's reach)
+                    paint: { job: 'full', sweep: 0, base: 0x23306b, trim: 0x23306b },
+                    finish: { decals: {
+                      regL: 4.40, regC: 0.05, regH: 0.26, regCol: 0x20211f, regOutOn: 0,
+                      // the rudder's stripes, lying (across the layer), on the fin alone, in the side view
+                      m1On: 1, m1Pat: 9, m1A: 0xb5342a, m1B: 0xf4f2ea, m1D: 0xf4f2ea, m1P: 13, m1Q: 2, m1R: 1,
+                      m1Tgt: 6, m1Mode: 1, m1L: 3.60, m1C: 0.62, m1W: 0.44, m1H: 1.56,
+                      // the blue band at the rudder's hinge
+                      m2On: 1, m2Pat: 9, m2A: 0x23306b, m2B: 0x23306b, m2D: 0x23306b, m2P: 1, m2Q: 1, m2R: 0,
+                      m2Tgt: 6, m2Mode: 1, m2L: 3.29, m2C: 0.62, m2W: 0.16, m2H: 1.56,
+                      // the wing stars (field: root to tip, leading to trailing edge)
+                      m3On: 1, m3Pat: 8, m3A: 0x23306b, m3B: 0xf4f2ea, m3D: 0xb5342a, m3P: 1, m3Q: 0.667, m3R: 0.22, m3S: 1,
+                      m3Tgt: 4, m3Mode: 0, m3L: 3.55, m3C: 0.76, m3W: 1.20, m3H: 1.20 },
+                      sections: { ...BODY_PAINT(0x23306b), wingSkin: { tint: 0xf2c437 }, finSkin: { tint: 0xf2c437 },
+                                  stabSkin: { tint: 0xf2c437 } } },
+                    meta: { reg: '40-1749' } } } },
   // NEW-SHAPES-1 (the user, 27 Oct: "the stearman and the moth are very similar, can you try a sopwith camel as a
   // third proof? And be careful on matching the actual dimensions as best you could?"): the Sopwith Camel F.1 - the
   // round body, ONE open cockpit under the upper plane's trailing edge, two equal 8.53 x 1.37 m planes, the upper flat,
@@ -2110,7 +2156,25 @@ const ARCHETYPES = [
                     s1Leg: 1, s1_linkVee: 1, s1_linkX: 0, s1_linkPanel: 0, s1_linkAxle: 1, s1_linkAxleX: 1, s1_shockKind: 1,
                     // the tips chosen by tools/ref_match/fit_tips.py (elliptic: the closest the garage has, both planes)
                     wgTip: 3, w2Tip: 3 },
-            spec: { fuel: { litres: 136 } } } },
+            // THE LIVERY (27 Oct, the user: "a proper livery for each" - the bands chosen by the user): the PC10 khaki
+            // planes and tail, the fuselage aft of the cockpit in yellow and dark grey bands, the cowl and the front panels
+            // grey, the rudder's RFC tricolour (blue leading, white, red), the type A roundels on the planes
+            spec: { fuel: { litres: 136 },
+                    paint: { job: 'full', sweep: 0, base: 0x8a8d8f, trim: 0x8a8d8f },
+                    finish: { decals: {
+                      regL: 3.95, regC: 0.10, regH: 0.18, regCol: 0xf4f2ea, regOutOn: 0,
+                      // the bands, upright, wrapped round the rear fuselage (field: metres aft of the firewall)
+                      m1On: 1, m1Pat: 9, m1A: 0xf2c437, m1B: 0x3a3d40, m1D: 0x3a3d40, m1P: 8, m1Q: 2, m1R: 0,
+                      m1Tgt: 0, m1Mode: 0, m1L: 2.35, m1C: 0.0, m1W: 1.90, m1H: 3.00,
+                      // the rudder's tricolour on the fin alone, aft of the post, in the side view
+                      m2On: 1, m2Pat: 9, m2A: 0x23306b, m2B: 0xf4f2ea, m2D: 0xb5342a, m2P: 3, m2Q: 3, m2R: 0,
+                      m2Tgt: 6, m2Mode: 1, m2L: 2.33, m2C: 0.40, m2W: 0.62, m2H: 1.10,
+                      // the wing roundels
+                      m3On: 1, m3Pat: 8, m3A: 0x23306b, m3B: 0xf4f2ea, m3D: 0xb5342a, m3P: 1, m3Q: 0.667, m3R: 0.333,
+                      m3Tgt: 4, m3Mode: 0, m3L: 3.20, m3C: 0.68, m3W: 1.05, m3H: 1.05 },
+                      sections: { ...BODY_PAINT(0x8a8d8f), cowlSkin: { tint: 0x8a8d8f }, wingSkin: { tint: 0x3d5c40 },
+                                  finSkin: { tint: 0x3d5c40 }, finRud: { tint: 0xf4f2ea }, stabSkin: { tint: 0x3d5c40 } } },
+                    meta: { reg: 'B6313' } } } },
   { key: 'pittsAlike', kind: 'fiction', name: 'aerobatic biplane', note: 'short-span four-aileron ' +
       'biplane on I struts and wires, spring gear, flat six',
     sel: { class: 'eab', role: 'touring', seatLayout: 0, paxCount: 0,
@@ -2236,14 +2300,21 @@ const ARCHETYPES = [
                     cowl: { halfW: 0.42 },
                     finish: { decals: { m1On: 1, m1Pat: 2, m1A: 0x7c3327,
                                         m1B: 0xc7c9cc, m1D: 0x7c3327 } } } } },
-  { key: 'spitfire', kind: 'recreation', name: 'Spitfire-alike', note: 'elliptic-wing fighter, ' +
+  { key: 'spitfire', kind: 'recreation', name: 'Spitfire-alike (WIP)', note: 'elliptic-wing fighter, ' +
       'Merlin V12 on the nose, radiators under the wings, one seat under a blown hood',
     // THE SPITFIRE LF Mk IX (the user, 27 Oct: "I would want a spitfire"), built to the user's reference model by
     // tools/REF_MATCH.md (refs/spitfire.json; Sketchfab 'Spitfire Highpoly' by Renafox, CC-BY-4.0), its span on
-    // the published 36 ft 10 in and its length on the museum's 9.5 m. THE BODY: a lofted alloy monocoque (round
-    // section, the deck falling away behind a blown hood - the turtledeck), the Merlin in a long faired bonnet
+    // the published 36 ft 10 in and its length on the museum's 9.5 m. THE BODY: a lofted alloy monocoque, round in
+    // section, its ROOF RUNNING AFT as the high spine to the fin (the cabin body: a turtledeck pod falls away behind
+    // its hood and thins to a boom - the RV's line, not this one's: drawn both, 27 Oct); the windscreen and the blown
+    // hood are the cabin's own glazing (a skylight with the bubble glass over it); the Merlin in a long faired bonnet
+    // WORK IN PROGRESS (the user, 27 Oct: "drop your efforts on the spitfire, we're starting from too far ... deliver
+    // the spitfire as a WIP"): step 1 half done - the firewall, the wing's station and height, the windscreen and
+    // the tail post placed; the sections, the cowl, the tail and the gear are not matched, and it has not been
+    // flown. Blocked from the birth list and the gates until it is.
+    blocked: 'WIP: the Spitfire is half-matched (tools/REF_MATCH.md section 10) and not flown',
     sel: { class: 'eab', role: 'aerobatic', seatLayout: 0, paxCount: 0,
-           canopy: 'bubble', mirror: 1, intCons: 3, boomStyle: 0, section: 3,
+           canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 3,
            wgPos: 2, wgBrace: 1, wgTip: 3, wgFlapType: 4, planes: 'mono',
            engFamily: 'vee', engModel: 'Rolls-Royce Merlin 66', engMount: 'nose', prop: 'wood2',
            gearLayout: 'tail', suspension: 'oleo', s1Fair: 0,
@@ -2251,6 +2322,16 @@ const ARCHETYPES = [
     over: { cage: { // THE ELLIPTIC WING (genPlanLaw): 2.55 m on the centreline, the 30 % chord line straight, 6 deg
                     wgPlan: 1, wgPlanAxis: 0.30, wgSpan: 11.23, wgChord: 2.55, wgTipX: 0,
                     wgDihedral: 6, wgIncidence: 2, wgWashout: 2.5, wgCamber: 2, wgThick: 13,
+                    // the windscreen and the hood: the cabin's skylight, bulged
+                    skylight: 1, skyExt: 2, bubble: 1,
+                    // STEP 1 so far (prop datum, refs/spitfire.json): the firewall 2.35 m aft of the prop (the bonnet
+                    // 1.8 m over the Merlin and its bay), the wing's LE 2.0 aft and its chord line 0.60 under the
+                    // thrust line (exact), the windscreen at 3.4, the hood to 4.7, the tail post at 9.24
+                    cw_cowlLen: 1.30, cw_lidLen: 0.50, wgDx: 1.05, wgDy: -0.5, boomLen: 5.22,
+                    halfW: 0.62, roofHalfW: 0.52, roofY: 0.85, keelY: -1.15,
+                    noseLen: 1.40, wsRun: 0.60, pilotLen: 1.10, paxLen: 0.30,
+                    // the radiators under the wings, the Mk IX's pair (the reference's: 0.55 - 0.95 m out)
+                    radMode: 1, radX: 0.75, radAt: 0.35, radLen: 1.30, radW: 0.42, radH: 0.24,
                     // the Rotol four-blade on the Merlin's reduction
                     cw_bladeN: 4, cw_material: 0 },
             spec: { prop: { blades: 4, material: 'wood', pitch: 'cruise' },

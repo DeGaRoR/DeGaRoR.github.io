@@ -927,7 +927,7 @@ try {
   ok(!!E && Array.isArray(E.xLE), 'G1283: the wing envelope has its one home (GEN_WING_ENVELOPE.xLE)');
   const flownXLE = x => resolveSpec(cageJoinSpec(P, Object.assign({}, M, { wingXLE: x }), T)).spec.wings[0].xLE;
   let agree = 0;
-  const probes = [-0.6, -0.35, -0.2, -0.19, 0, 0.55, 1.5, 3.0, 3.01, 3.4];
+  const probes = [-1.5, -1.35, -1.21, -0.6, -0.35, -0.2, 0, 0.55, 1.5, 3.0, 3.01, 3.4];
   for (const x of probes) {
     const said = cageWingStationCut(x, E) !== null;
     const cut = Math.abs(flownXLE(x) - x) > 1e-9;
@@ -936,12 +936,13 @@ try {
   }
   ok(agree === probes.length,
      `G1283: the station-cut row speaks exactly where the resolver cuts xLE (${agree}/${probes.length} probes)`);
-  const msg = cageWingStationCut(-0.35, E) || '';
-  ok(/-0\.350 m/.test(msg) && /flies clamped/.test(msg) && flownXLE(-0.35) === E.xLE[0],
-     'G1283: a wing drawn 0.35 m ahead of the firewall flies at the envelope\'s ' + (E && E.xLE[0]) + ' m and says so');
+  // (the envelope opened to -1.2 m with the prop datum, 75b2b0ec7: the probe stands beyond it)
+  const msg = cageWingStationCut(-1.35, E) || '';
+  ok(/-1\.350 m/.test(msg) && /flies clamped/.test(msg) && flownXLE(-1.35) === E.xLE[0],
+     'G1283: a wing drawn 1.35 m ahead of the firewall flies at the envelope\'s ' + (E && E.xLE[0]) + ' m and says so');
   ok(cageWingStationCut(0.55, E) === null && Math.abs(flownXLE(0.55) - 0.55) < 1e-12,
      'G1283: a station inside the envelope flies as measured, in silence');
-  ok(cageWingStationCut(-0.35, null) === null, 'G1283: no core loaded, no claim');
+  ok(cageWingStationCut(-1.35, null) === null, 'G1283: no core loaded, no claim');
 } catch (e) {
   ok(false, 'G1283 block threw: ' + e.message);
 }

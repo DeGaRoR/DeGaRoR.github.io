@@ -174,13 +174,13 @@ def heads(side):
         for k in ('cowl length', 'cowl dia', 'cowl centre (TL)'): out[k] = np.nan
     f0, f1 = bbox(side['fuselage']); out['body bottom (TL)'] = f0[1]; out['body half-width'] = max(-f0[0], f1[0])
     out['tail post aft'] = -f0[2]
-    for w in ('upper', 'lower'):
-        if len(side[w]):
+    for w in ('upper', 'lower'):            # a monoplane's reference has no 'lower' role
+        if len(side.get(w, [])):
             w0, w1 = bbox(side[w]); sl = wing_slices(side[w], w1[0])
             out[w + ' LE aft'] = sl[1][2]; out[w + ' TE aft'] = sl[1][3]; out[w + ' chord line (TL)'] = sl[1][1]
             out[w + ' dihedral'] = dihedral(sl); out[w + ' span'] = w1[0] - w0[0]
     for t in ('fin', 'stab'):
-        if len(side[t]):
+        if len(side.get(t, [])):
             t0, t1 = bbox(side[t]); out[t + ' LE aft'] = -t1[2]; out[t + ' TE aft'] = -t0[2]
             if t == 'fin': out['fin top (TL)'] = t1[1]; out['fin bottom (TL)'] = t0[1]
             else: out['stab span'] = t1[0] - t0[0]; out['stab height (TL)'] = (t0[1] + t1[1]) / 2

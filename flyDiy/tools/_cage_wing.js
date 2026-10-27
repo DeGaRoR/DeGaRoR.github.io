@@ -67,6 +67,8 @@ PAGE.defaults = Object.assign({
   wingOn: 1, wgSpan: 10.0, wgChord: 1.60, wgChordTip: 1.60,
   wgTipX: 0, wgCrankChord: 1.60, wgCrankX: 0,
   wgPlan: 0, wgPlanAxis: 0.30,     // the elliptic planform (genPlanLaw): off = the straight stations
+  // the wing radiators (off): a Spitfire's pair sits 0.75 m out, a third of the chord back
+  radMode: 0, radX: 0.75, radAt: 0.35, radLen: 1.30, radW: 0.42, radH: 0.24, radFlap: 8, radOilK: 0.55,
   wgDihedral: 3.0, wgIncidence: 1.5, wgWashout: 1.5,
   wgCamber: 2, wgThick: 12,
   wgTip: Math.max(0, TIP_KEYS.indexOf('rounded')), wgPos: 0,
@@ -268,6 +270,21 @@ const WING_ITEMS = [
     ['wgAilSpan', 'ail. span',   0.15, 0.55, 0.01, { when: P => +P.wgAilOn }],
     ['wgAilChord', 'ail. chord', 0.10, 0.35, 0.01, { when: P => +P.wgAilOn }],
   ], 'open', on],
+  // THE WING RADIATORS (the user, 27 Oct, the Spitfire: "separate cooling devices, placed at the bottom of the
+  // wings"): a ducted radiator under each wing (a Mk IX's pair), or one radiator under the starboard wing and a
+  // smaller oil cooler under the port (a Mk I - V's). Each is a rounded duct lofted on the wing's own lower skin:
+  // an open inlet with its lip and the matrix behind it, the body deepest a third of the way back, the exit
+  // flap at the back. Its cost is the liquid engine's cooling drag (GEN_DRAG.kCool) - drawn here, billed once.
+  ['radiators', [
+    ['radMode', 'wing radiators', 0, 2, 1, ['none', 'a pair', 'starboard + oil cooler']],
+    ['radX',    'out from the centreline', 0.30, 3.00, 0.01, { when: P => +P.radMode > 0, dim: 'm' }],
+    ['radAt',   'inlet station (chord)',   0.00, 0.70, 0.01, { when: P => +P.radMode > 0 }],
+    ['radLen',  'length',                  0.30, 2.50, 0.01, { when: P => +P.radMode > 0, dim: 'm' }],
+    ['radW',    'width',                   0.10, 0.90, 0.01, { when: P => +P.radMode > 0, dim: 'm' }],
+    ['radH',    'depth under the skin',    0.05, 0.60, 0.005, { when: P => +P.radMode > 0, dim: 'm' }],
+    ['radFlap', 'exit flap',               0, 30, 1, { when: P => +P.radMode > 0, dim: 'deg' }],
+    ['radOilK', 'oil cooler size',         0.30, 1.00, 0.01, { when: P => +P.radMode === 2 }],
+  ], on],
 ];
 // G185: THE SECOND PLANE'S ROWS, GENERATED from the first's — the same
 // labels, ranges and steps, the keys re-prefixed, every `when` ANDed with
@@ -279,7 +296,9 @@ const WING_ITEMS = [
 // `up / down` is the explicit row below, in the spec's own metres; the
 // generated twin was a second row of the same key that moved nothing)
 const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStruts', 'wgStrutZ', 'wgStrutX',   // T2.3: the strut count is the fuselage fan's
-                         'wgDx', 'wgDy', 'wgParaH']);
+                         'wgDx', 'wgDy', 'wgParaH',
+                         // the wing radiators are the lower wing's, one set (the first plane's rows)
+                         'radMode', 'radX', 'radAt', 'radLen', 'radW', 'radH', 'radFlap', 'radOilK']);
 const w2Key = k => 'w2' + k.slice(2);
 const W2_LO = { w2Span: 2.0, w2Chord: 0.40, w2ChordTip: 0.30 };
 const w2On = P => +P.wingOn && +P.w2On;
@@ -877,6 +896,7 @@ const wingYRootEnv = () => {
 
 const prevPost = PAGE.post;
 let boomGroup = null;                        // the twin booms (2026-09-04)
+let radGroup = null;                         // the wing radiators (27 Oct)
 // G2880: the build below, then its early readers (above) - after every exit
 PAGE.post = ctx => {
   wingPost(ctx);
@@ -2369,6 +2389,101 @@ const wingPost = ctx => {
   // cage section the layer factory does not know, and fell back to a bare
   // white MeshStandardMaterial — "the twin booms do not get the colour of
   // the rest of the chassis").
+  // THE WING RADIATORS (27 Oct): their own layer and section, as the twin booms below are (`cageLayer:rad`,
+  // `radSkin` - the wing's paint until repainted); lofted on the drawn lower skin (underAt), cage metres
+  if (radGroup) { radGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+                  if (radGroup.parent) radGroup.parent.remove(radGroup); radGroup = null; }
+  if (+P.radMode > 0 && underAt && leAt && teAt) {
+    radGroup = new THREE.Group();
+    radGroup.name = 'cageLayer:rad';
+    let rm = null;
+    try {
+      if (window.CAGE_SECMAT) rm = window.CAGE_SECMAT('radSkin', { surf: 0, fieldM: 1, struct: 1, side: THREE.DoubleSide });
+    } catch (e) {}
+    if (!rm) rm = new THREE.MeshStandardMaterial({ color: 0x8a8f96, metalness: 0.3, roughness: 0.5, side: THREE.DoubleSide });
+    const coreM = new THREE.MeshStandardMaterial({ color: 0x1b1d1f, metalness: 0.4, roughness: 0.8, side: THREE.DoubleSide });
+    // a rounded rectangle, top edge at yT, depth d, half-width hw, corner r; NP points, clockwise from top left
+    const NP = 28;
+    const ring = (xc, yT, d, hw, z) => {
+      const r = Math.max(0.005, Math.min(0.42 * d, 0.45 * hw)), pts = [];
+      const per = [];   // the perimeter, as (x, y) offsets
+      const arc = (cx, cy, a0, a1, n) => { for (let i = 0; i <= n; i++) {
+        const a = a0 + (a1 - a0) * i / n; per.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); } };
+      per.push([-hw, 0]); per.push([hw, 0]);
+      arc(hw - r, -d + r, 0, -Math.PI / 2, 6);
+      arc(-hw + r, -d + r, -Math.PI / 2, -Math.PI, 6);
+      // resample to NP evenly by index (the perimeter is short; the arcs carry the shape)
+      for (let i = 0; i < NP; i++) {
+        const t = i / NP * per.length, j = Math.floor(t) % per.length, k2 = (j + 1) % per.length, f = t - Math.floor(t);
+        pts.push([xc + per[j][0] + (per[k2][0] - per[j][0]) * f, yT + per[j][1] + (per[k2][1] - per[j][1]) * f, z]);
+      }
+      return pts;
+    };
+    const loft = (rings, mat, name) => {
+      const pos = [], idx = [];
+      for (const rg of rings) for (const p of rg) pos.push(p[0], p[1], p[2]);
+      for (let a = 0; a + 1 < rings.length; a++)
+        for (let i = 0; i < NP; i++) {
+          const i2 = (i + 1) % NP, A = a * NP + i, B = a * NP + i2, C = (a + 1) * NP + i, D = (a + 1) * NP + i2;
+          idx.push(A, C, B, B, C, D);
+        }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.setIndex(idx); g.computeVertexNormals();
+      const m = new THREE.Mesh(g, mat); m.name = name; radGroup.add(m);
+    };
+    const cap = (rg, mat, name) => {           // a flat fill of one ring (the matrix behind a lip)
+      const pos = [], idx = [], c = [0, 0, 0];
+      for (const p of rg) { pos.push(p[0], p[1], p[2]); c[0] += p[0] / NP; c[1] += p[1] / NP; c[2] += p[2] / NP; }
+      pos.push(c[0], c[1], c[2]);
+      for (let i = 0; i < NP; i++) idx.push(NP, i, (i + 1) % NP);
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.setIndex(idx); g.computeVertexNormals();
+      const m = new THREE.Mesh(g, mat); m.name = name; radGroup.add(m);
+    };
+    const one = (s, k, tag) => {
+      const xc = s * (+P.radX), le = leAt(xc), te = teAt(xc);
+      if (!le || !te) return;
+      const chord = le.z - te.z, L = (+P.radLen) * k, W2 = 0.5 * (+P.radW) * k, H = (+P.radH) * k;
+      const z0 = le.z - (+P.radAt) * chord;
+      const NZ = 22, outer = [], inner = [];
+      for (let i = 0; i <= NZ; i++) {
+        const u = i / NZ, z = z0 - u * L;
+        const sk = underAt(xc, z) || underAt(xc, Math.max(te.z + 0.01, Math.min(le.z - 0.01, z)));
+        const yT = (sk ? sk.y : le.yBot) + 0.02;          // the duct's top runs just inside the skin
+        // the side view: the inlet lip at 0.82, the deepest a third back, the exit at 0.72
+        const d = H * (u < 0.33 ? 0.82 + 0.18 * Math.sin(u / 0.33 * Math.PI / 2)
+                                : 1 - 0.28 * Math.pow((u - 0.33) / 0.67, 1.6));
+        const hw = W2 * (0.94 + 0.06 * Math.sin(Math.PI * u));
+        outer.push(ring(xc, yT, d + 0.02, hw, z));
+        if (i === 0 || i === NZ) inner.push(ring(xc, yT, (d + 0.02) * 0.84 - 0.005, hw * 0.86, z + (i ? 0.03 : -0.05) * L));
+      }
+      loft(outer, rm, 'edRad' + tag);
+      loft([outer[0], inner[0]], rm, 'edRadLip' + tag);              // the inlet lip, rolled in
+      loft([inner[1], outer[NZ]], rm, 'edRadExit' + tag);            // the exit's wall
+      cap(inner[0], coreM, 'edRadCore' + tag);                       // the matrix behind the inlet
+      cap(inner[1], coreM, 'edRadCoreAft' + tag);
+      // the exit flap: the duct's lower wall carried on, hinged down by radFlap
+      const fl = (+P.radFlap) * Math.PI / 180, fL = 0.22 * L;
+      const last = outer[NZ], zE = last[0][2];
+      const fp = [], fi = [];
+      for (const p of last) if (p[1] < last[0][1] - 0.45 * (+P.radH) * k) fp.push(p);
+      if (fp.length >= 2) {
+        const pos = [];
+        for (const p of fp) pos.push(p[0], p[1], p[2], p[0], p[1] - fL * Math.sin(fl), zE - fL * Math.cos(fl));
+        for (let i = 0; i + 1 < fp.length; i++) fi.push(2 * i, 2 * i + 1, 2 * i + 2, 2 * i + 2, 2 * i + 1, 2 * i + 3);
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        g.setIndex(fi); g.computeVertexNormals();
+        const m = new THREE.Mesh(g, rm); m.name = 'edRadFlap' + tag; radGroup.add(m);
+      }
+    };
+    // cage x: + is the aeroplane's starboard (the Mk V's radiator side), - its port
+    if (Math.round(P.radMode) === 1) { one(1, 1, 'R'); one(-1, 1, 'L'); }
+    else { one(1, 1, 'R'); one(-1, +P.radOilK || 0.55, 'L'); }
+    scene.add(radGroup);
+  }
   if (boomGroup) { boomGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); });
                    if (boomGroup.parent) boomGroup.parent.remove(boomGroup); boomGroup = null; }
   window.CAGE_BOOMS = null;

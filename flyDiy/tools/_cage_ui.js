@@ -3606,6 +3606,8 @@ const DEC_ON = [
   { body: 1, tail: 1 },               // 3 the body and the tail
   { wing: 1 },                        // 4 the wings (G2870)
   { tail: 1 },                        // 5 the tail (G2870)
+  { tail: 1, stab: 0 },               // 6 the fin (27 Oct: the stabiliser is its own class, 3)
+  { stab: 1 },                        // 7 the stabiliser
 ];
 const DEC_MODE = ['field', 'side', 'plan'];
 const MODE_NAMES = ['round the body (field)', 'from the side (box)',
@@ -4725,7 +4727,7 @@ function buildDecPanel() {
       num('turn', q + 'Rot', -0.6, 0.6, 0.01, 'radians', null, det);
       pick('goes on', q + 'Tgt',
            ['the fuselage', 'the flying surfaces', 'both', 'the body & the tail',
-            'the wings', 'the tail'],
+            'the wings', 'the tail', 'the fin', 'the stabiliser'],
            'a kit layer lands on BOTH flanks by construction, like every ' +
            'decal in this panel', null, det);
       pick('projected as', q + 'Mode', MODE_NAMES, MODE_HELP,

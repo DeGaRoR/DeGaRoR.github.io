@@ -660,6 +660,16 @@ const CAGE_PARTS = [
       ['foot', ['wgStruts', 'wgStrutZ', 'wgStrutX']],
     ] },
 
+  // THE WING RADIATORS (27 Oct): a ducted radiator under each wing, or one and an oil cooler - their own layer
+  // (`cageLayer:rad`, drawn by the wing layer on its lower skin) and their own livery section
+  { key: 'radiators', name: 'Wing radiators', parent: 'wings', layer: 'rad',
+    when: P => +P.wingOn,
+    sections: ['radSkin'],
+    place: { on: 'radMode', out: 'radX', at: 'under the wing, on its lower skin' },
+    groups: [
+      ['radiators', ['radMode', 'radX', 'radAt', 'radLen', 'radW', 'radH', 'radFlap', 'radOilK']],
+    ] },
+
   { key: 'wingCtl', name: 'Control surfaces', parent: 'wings', layer: 'wing',
     when: P => +P.wingOn,
     sections: ['wingAil', 'wingFlap'],

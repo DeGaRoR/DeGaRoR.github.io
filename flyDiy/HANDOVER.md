@@ -99436,3 +99436,53 @@ A merge conflict, if any, is the one line beside cageCanopy in each path: keep b
   (none, by design: an open section is plain skin).
 - A 4th passenger bay opened ALONE keeps the shared opening rows hidden (GATE PARTS' one-flip sweep; the rows show for
   the cockpit and bays 1-3).
+
+## NEW-SHAPES-1, cont. (cloud, 27 Oct 2026): the liveries, the Spitfire groundwork (WIP), radiators, the shaft
+
+The user (27 Oct): "just deliver the new functionality for fitting the radiators and drop your efforts on the spitfire
+... ensure the propeller can be offset from the engine using a slider for length of shaft ... finish the 3 other planes,
+including a proper livery for each ... and commit. Ask a local session in your handover to provide actual screenshots".
+
+### WHAT LANDED
+- **The elliptic planform** (core, 60/61/62/63): `wgPlan` / `w2Plan` "planform" (straight stations | elliptic) and
+  `wgPlanAxis` (the straight chord line). Before it the garage had only an elliptic TIP cap. Area, MAC and xAC are
+  integrated; on the Spitfire card Sw 22.489 m2 against the published 22.48.
+- **The radiators** (`tools/_cage_parts.js` part `radiators`, loft in `_cage_wing.js`, section `radSkin` under the
+  wing's paint): none / one (starboard coolant + port oil, the Spitfire's) / a pair; station, span position, length,
+  width, depth, exit flap, the oil one's scale. The rows: radMode radX radAt radLen radW radH radFlap radOilK.
+- **The shaft**: `cw_noseOff`, labelled "shaft length (prop off the engine)", 0-1.5 m (was 0.6).
+- **The Merlin 66** on a Rotol 4-blade (registry `merlin66_rotol4`, drive, tech, join map, the engine bench preset;
+  GEN_ENG_CG 0.63 from the bench); the exhaust style 4 "ejector stubs" (+ `eng_exPair`) on the engine page and on
+  the design tile; `eng_mountGap` to 8 case radii; the split flap on the flap tile; the cowl preset "Faired V (Spitfire)".
+- **The liveries**, on the cards (`spec.paint`, `spec.finish.decals`, `spec.finish.sections` tints, `spec.meta.reg`):
+  - Tiger Moth: RAF trainer yellow overall, type A roundels (fuselage + wings), the fin flash on the fin, serial T7230.
+  - Stearman: US Army 1940 - blue fuselage, yellow planes and tail, the rudder's blue band and 13 red / white
+    stripes, the star-in-disc with red centre on the wings, serial 40-1749.
+  - Camel: PC10 khaki planes and tail, grey cowl and front, yellow / dark grey bands round the rear fuselage (the
+    user's pick), the RFC rudder tricolour, roundels on the planes, serial B6313.
+  New in the marking kit for them: pattern 8 **roundel** (concentric discs or the US star, one or a pair) and
+  pattern 9 **bands** (1-16 bands in 1-3 colours, upright or lying); two new targets, **the fin** (6) and **the
+  stabiliser** (7) - the tailplane is its own surface class (3) in the decal shader (`uDecE.w`); `tail` still
+  covers both.
+- **The Spitfire card**: `spitfire`, "Spitfire-alike (WIP)", `blocked` (greyed in the chooser, skipped by the gates):
+  see tools/REF_MATCH.md section 10. The matching was stopped by the user.
+- Gates moved with it: _join_check's G1283 probe stood inside the wing envelope since the Moth commit opened it to
+  -1.2 m (now -1.35); _design_check accepts the registration's fields, `meta.reg` and section tints on a known section;
+  test_skinmat reads the new target list.
+
+### FOR A LOCAL SESSION (the user asks for ACTUAL SCREENSHOTS - the cloud only has SwiftShader bench pictures)
+Take real garage screenshots (the GPU path, `tools/garage_shot.js`, or by hand in the app) of:
+1. the **Camel**, **Stearman** and **Tiger Moth** cards as the shed births them, three-quarter front and side, the
+   livery visible: roundels round and centred on each wing panel, the fin flash / rudder stripes ON THE FIN ONLY
+   (not on the stabiliser, not on the fuselage), the Camel's bands wrapping the rear fuselage, the serials readable;
+2. the **Spitfire-alike (WIP)** (the card is blocked in the chooser: bake it in a script as tools/newshapes_build.js's
+   `birth()` does - `designBake(a.sel, a.over)` then `_load_build.js gameSpecFull` - and load the file): the elliptic wing from above, the radiators from below, the ejector stubs;
+3. the **shaft slider**: any nose-engine build with Nose > "shaft length (prop off the engine)" at 0 and at 0.8 m;
+4. the **radiator rows** on any low-wing build (Wing > radiators: one / a pair).
+Two things the cloud's bench (the cage page, tools/bench_shot.js) CANNOT show and the screenshots must: the serials
+(the page has no GARAGE_SPEC, so its registration is the page default F-PGAR; the game reads `meta.reg`) and
+`spec.paint` (the page takes the finish only - which is why the cards also carry the body colour as section tints,
+`BODY_PAINT` in _cage_design.js, the global pick's reach).
+Put them under `screenshots/newshapes/` and say in this file what looked wrong. The cloud's bench pictures are in the
+session (not committed); the decal placement in side view was set by measurement in the scene frame, so a stripe that
+lands off its surface is a number on the card, not code.

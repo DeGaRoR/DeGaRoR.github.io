@@ -10,6 +10,7 @@
 // tanks) -> buildGen. Nothing is patched in memory.
 //
 //   node tools/newshapes_build.js --build          (re)write tools/fixtures/{stearman,tigermoth}_2026-10.json
+//   node tools/newshapes_build.js --build --only=camel,spitfire   the Camel's, and the Spitfire's WIP file (spitfire_wip_2026-10.json)
 //   node tools/newshapes_build.js [--only=stearman|tigermoth] [--no-fly] [--maxS=420] [--json=<file>]
 //                                                   the fixture's join, sheet, design check, the openings as drawn,
 //                                                   the pilot's circuit, against the real aeroplane
@@ -28,6 +29,9 @@ const REAL = {
     span: 8.94, length: 7.29, Sw: 22.2, empty: [495, 506], mtow: 828, VsKt: 37, VmaxKt: [90, 95], climbMs: [3.4, 4.1] },
   camel: { name: 'Sopwith Camel F.1 (Clerget 9B rotary, 130 hp)',
     span: 8.53, length: 5.71, Sw: 21.46, empty: [403, 434], mtow: 660, VsKt: null, VmaxKt: 98, climbMs: [4.6, 4.9] },
+  // WIP (the card is blocked, never flown): the build file is written for the user to tweak by hand (27 Oct)
+  spitfire: { name: 'Supermarine Spitfire LF Mk IX (Merlin 66, 1720 hp)', wip: true,
+    span: 11.23, length: 9.47, Sw: 22.48, empty: [2545, 2613], mtow: 3400, VsKt: [74, 86], VmaxKt: [350, 356], climbMs: [20, 22] },
 };
 
 // ---- THE ROWS ARE THE CARDS' (G3517) -------------------------------------------------------------------------------
@@ -36,15 +40,15 @@ const REAL = {
 // born as the design flow births it, with one loading on top - the second person aboard, in the front seat (the
 // pilot flies from the rear), so the proof flies at the type's gross and not solo.
 const FLY = { paxOcc1: 1 };
-const FIX = k => path.join(T, 'fixtures', k + '_2026-10.json');
+const FIX = k => path.join(T, 'fixtures', k + (REAL[k] && REAL[k].wip ? '_wip' : '') + '_2026-10.json');
 
 function birth(key) {
   const BJ = require('./_bake_joined.js');
   const { D } = BJ.loadPanel();
   const a = D.ARCHETYPES.find(x => x.key === key);
   const spec = D.designBake(a.sel, a.over);
-  spec.cage = Object.assign({}, spec.cage, FLY, JSON.parse(opt('over', '{}')));
-  return { v: spec.v, birth: 1, name: a.name.replace('-alike', '') + (key === 'camel' ? ' (round body, open cockpit)' : ' (round body, open cockpits)'),
+  spec.cage = Object.assign({}, spec.cage, REAL[key].wip ? {} : FLY, JSON.parse(opt('over', '{}')));   // (the WIP single-seater: nobody aboard to add)
+  return { v: spec.v, birth: 1, name: a.name.replace('-alike', '') + (key === 'spitfire' ? '' : key === 'camel' ? ' (round body, open cockpit)' : ' (round body, open cockpits)'),
     what: 'NEW-SHAPES-1 G3510-G3519 - ' + REAL[key].name + ' through the garage\'s own path (tools/newshapes_build.js)', spec };
 }
 

@@ -825,6 +825,9 @@ const AERO_SEC = {
   // cage section this table never had, and fell back to bare white)
   boomSkin: { parent: 'body',     role: 'skin', label: 'the twin booms',
               layer: 'boom', noDec: true },
+  // the wing radiators (27 Oct, the Spitfire's): the wing's paint until repainted
+  radSkin:  { parent: 'wingSkin', role: 'skin', label: 'the wing radiators',
+              layer: 'rad', noDec: true },
   // ---- the hardware the builder paints (phase C) --------------------------
   // A PINNED `fin` says what the part IS unless the builder repaints THAT
   // part: the fin channel stops at the section's own name (see the resolver),
@@ -1999,6 +2002,10 @@ const AERO_DEC_ON = [
   // would size itself to the wing and leave the fin a corner of it
   { wing: 1 },                        // 4 the wings
   { tail: 1 },                        // 5 the tail
+  // 27 Oct (the liveries: a rudder's tricolour, the fin flash): the fin alone, the stabiliser alone - the
+  // tailplane is its own surface CLASS (3) since, and `tail` still means both (stab follows tail when unset)
+  { tail: 1, stab: 0 },               // 6 the fin
+  { stab: 1 },                        // 7 the stabiliser
 ];
 const AERO_DEC_MODES = ['field', 'side', 'plan'];
 
@@ -2295,6 +2302,68 @@ const AERO_KIT = [
       }
       g.fill();
     } },
+  // ---- THE ROUNDEL (27 Oct, the liveries of the Camel, the Tiger Moth and the Stearman): concentric discs - the
+  // RFC's and the RAF's blue / white / red - or the US star (`star` 1: a white five-point star in the blue disc,
+  // the red centre on it, the Army Air Corps' 1919-42 insignia). ONE in the middle of the layer (a fuselage side)
+  // or TWO at the layer's two ends across (a pair of wings seen in plan: one layer, a roundel on each). Circles in
+  // METRES (`asp`): the page is a square stretched over W x H, so each disc is drawn pre-squashed. Polygons, not
+  // arcs: GATE SKINMAT's recording context draws paths.
+  { name: 'roundel', cn: ['outer', 'ring', 'centre'], asp: 1,
+    help: 'national markings: concentric discs, or the US star in its disc. Count 2 puts one at each end of the ' +
+          'layer across - set the layer in plan over both wings and each wing gets its own',
+    k: [{ n: 'count', lo: 1, hi: 2, st: 1, def: 1 },
+        { n: 'ring (of the disc)', lo: 0.3, hi: 0.95, st: 0.01, def: 0.667 },
+        { n: 'centre (of the disc)', lo: 0, hi: 0.9, st: 0.01, def: 0.333 },
+        { n: 'star', lo: 0, hi: 1, st: 1, def: 0 }],
+    draw(g, P, o) {
+      const a = o.asp || 1, two = Math.round(o.p) >= 2;
+      // the disc's radius in units of the layer's HEIGHT, then in pixels along x and y
+      const rh = 0.5 * Math.min(a, two ? 0.5 : 1);
+      const rx = rh / a * P, ry = rh * P;
+      const disc = (cx, cy, k) => {
+        g.beginPath();
+        for (let i = 0; i <= 64; i++) {
+          const t = i / 64 * 2 * Math.PI, x = cx + Math.cos(t) * rx * k, y = cy + Math.sin(t) * ry * k;
+          if (i) g.lineTo(x, y); else g.moveTo(x, y);
+        }
+        g.closePath(); g.fill();
+      };
+      const star = (cx, cy, k) => {
+        g.beginPath();
+        for (let i = 0; i <= 10; i++) {
+          const t = -Math.PI / 2 + i * Math.PI / 5, rr = (i & 1) ? 0.382 * k : k;
+          const x = cx + Math.cos(t) * rx * rr, y = cy + Math.sin(t) * ry * rr;
+          if (i) g.lineTo(x, y); else g.moveTo(x, y);
+        }
+        g.closePath(); g.fill();
+      };
+      const at = two ? [[P / 2, ry], [P / 2, P - ry]] : [[P / 2, P / 2]];
+      for (const [cx, cy] of at) {
+        aeroKitInk(g, o.a); disc(cx, cy, 1);
+        aeroKitInk(g, o.b);
+        if (Math.round(o.s) >= 1) star(cx, cy, 0.98); else disc(cx, cy, o.q);
+        if (o.r > 0.001) { aeroKitInk(g, o.d); disc(cx, cy, o.r); }
+      }
+    } },
+  // ---- THE BANDS (27 Oct): equal bands in one, two or three colours, cycling A, B, D - upright (along the
+  // layer: the RFC's blue / white / red rudder, the RAF's fin flash, a banded fuselage) or lying (across: a US
+  // Army rudder's red and white). A layer's turn is a small trim (+-0.6 rad): an upright stripe is the pattern's
+  // own, as here, not a quarter turn.
+  { name: 'bands', cn: ['first', 'second', 'third'],
+    help: 'equal bands cycling through one, two or three colours - a tricolour rudder or fin flash (3 colours, 3 ' +
+          'bands, upright), striped rudders and banded bodies (2 colours, many bands). Upright bands run fore to aft',
+    k: [{ n: 'bands', lo: 1, hi: 16, st: 1, def: 3 },
+        { n: 'colours', lo: 1, hi: 3, st: 1, def: 3 },
+        { n: 'lying (across)', lo: 0, hi: 1, st: 1, def: 0 }],
+    draw(g, P, o) {
+      const n = Math.max(1, Math.round(o.p)), nc = Math.max(1, Math.min(3, Math.round(o.q)));
+      const lying = Math.round(o.r) >= 1, w = P / n, cols = [o.a, o.b, o.d];
+      for (let i = 0; i < n; i++) {
+        aeroKitInk(g, cols[i % nc]);
+        if (lying) g.fillRect(-2, i * w - 0.5, P + 4, w + 1);
+        else g.fillRect(i * w - 0.5, -2, w + 1, P + 4);
+      }
+    } },
 ];
 
 // A KNOB IS CLAMPED TO ITS OWN PATTERN'S RANGE, and an unset one takes that
@@ -2524,7 +2593,8 @@ function aeroSetDecals(THREE, list) {
       on.body ? 1 : 0, on.wing ? 1 : 0, on.tail ? 1 : 0);
     U.uDecE.value[i].set(d.sdf ? 1 : 0,
       Math.max(0, Math.min(1, +d.metal || 0)),
-      d.one ? 1 : 0, 0);      // y: metallic (G215)  z: one side only
+      d.one ? 1 : 0,
+      (on.stab != null ? on.stab : on.tail) ? 1 : 0);   // y: metallic (G215)  z: one side only  w: the stabiliser (class 3)
   }
 }
 
@@ -2741,7 +2811,7 @@ uniform float uHoleOk;   // 1 on the instrument facia only
 uniform float uDecOk;
 uniform vec4 uG4;   // x realRise  y realHalfW(m)  z lePolish(chord frac)  w realFast
 // uG5.w was a wing? FLAG and is a surface CLASS now (G108): 0 the body,
-// 1 the wing, 2 the tail. Everything that tested > 0.5 for "is this a
+// 1 the wing, 2 the tail (the fin), 3 the stabiliser (27 Oct). Everything that tested > 0.5 for "is this a
 // flying surface" still reads true for both 1 and 2, which is why the widening
 // cost nothing — and the decal loop can finally tell a fin from a wing.
 uniform vec4 uG5;   // x sparFront(chord frac)  y sparSpan  z tipStart  w class
@@ -3312,7 +3382,8 @@ const AERO_ALBEDO_FS = `
     // wing does not, and the old scalar could not say so.
     float cls = uG5.w;
     float onMe = (cls < 0.5) ? uDecD[di].y
-               : (cls < 1.5) ? uDecD[di].z : uDecD[di].w;
+               : (cls < 1.5) ? uDecD[di].z
+               : (cls < 2.5) ? uDecD[di].w : uDecE[di].w;   // 2 the fin, 3 the stabiliser
     // THE FAR FLANK READS BACKWARDS unless its along-body axis is negated —
     // G4.5's trap, arriving by a new route. sL runs aft and is NOT mirrored,
     // so the glyph is laid out in the same physical direction on both sides;

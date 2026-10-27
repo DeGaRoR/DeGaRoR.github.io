@@ -434,7 +434,11 @@ if (typeof window !== 'undefined') {
 }
 const rowNames = r => r.k === 'material' && CW.MATERIALS
   ? CW.MATERIALS.map(mm => mm.name) : r.names;
-const LBL = { noseOff: 'fore / aft (base off the flange)' };
+// THE PROPELLER'S SHAFT (the user, 27 Oct: "ensure the propeller can be offset from the engine using a slider for
+// length of shaft"): the cone's base off the flange IS the extension shaft - the cone grows its own hub back to the
+// engine (G244), and the blades ride the cone - so the row says so, and reaches 1.5 m (an extension-shaft nose, a
+// long-nosed inline); negative tucks the cone back over the flange as before
+const LBL = { noseOff: 'shaft length (prop off the engine)' };
 const grpItems = id => ((window.COWL_ROWS || []).find(g => g.id === id) ||
   { rows: [] }).rows
   .filter(r => CW.P[r.k] !== undefined && !DEAD_SPIN.has(r.k))

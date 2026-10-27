@@ -1861,7 +1861,7 @@ function patternGate() {
   check(!!tl.tail && !tl.wing && !tl.body && !!wg.wing && !wg.tail && !wg.body,
     'patterns: "the tail" / "the wings" do not aim at one surface class alone',
     JSON.stringify([tl, wg]));
-  check(UI.indexOf("'the wings', 'the tail'],") >= 0,
+  check(UI.indexOf("'the wings', 'the tail', 'the fin', 'the stabiliser'],") >= 0,
     'patterns: the panel does not offer the one-surface targets');
   check(A.AERO_KIT_FIELDS.indexOf('Clr') >= 0 && A.AERO_KIT_FIELDS.indexOf('Fit') >= 0
         && 'm3S' in A.AERO_DEC_DEF && 'm2Clr' in A.AERO_DEC_DEF,

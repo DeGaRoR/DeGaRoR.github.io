@@ -187,6 +187,7 @@
   ],
   "markers": {
     "canopy": "Object005_Material #116_0",
-    "exhaust stubs": "Object005_Material #64_0"
+    "exhaust stubs": "Object005_Material #64_0",
+    "hood glass": "Object005_Material #103_0"
   }
 }

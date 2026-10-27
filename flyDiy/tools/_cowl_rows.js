@@ -205,7 +205,7 @@ const COWL_ROWS = [
   ] },
   // ---- Nose cone & shaft ----
   { id: 'g_spin', name: 'Nose cone & shaft', rows: [
-    { k: 'noseOff', label: 'Base from cowl end', lo: -0.35, hi: 0.4, step: 0.005 },
+    { k: 'noseOff', label: 'Base from cowl end', lo: -0.35, hi: 1.5, step: 0.005 },   // (to 1.5: the cage's prop shaft)
     { k: 'spinR', label: 'Base radius', lo: 0.04, hi: 0.35, step: 0.001 },
     { k: 'spinLen', label: 'Length', lo: 0.05, hi: 0.8, step: 0.005 },
     { k: 'spinRound', label: 'Roundness  (cone → ogive)', lo: 0, hi: 1, step: 0.01 },

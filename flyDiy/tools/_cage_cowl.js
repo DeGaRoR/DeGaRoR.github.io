@@ -961,6 +961,31 @@ const COWL_PRESETS = {
       cw_lidR: 0.17 },
     lenScaled: { cw_lidLen: 0.15 },
   },
+  // THE FAIRED V (27 Oct, the user: "we always have built the cowl generator so it could do spitfires, so we
+  // should have default settings"): the bench's own "Faired inline (Spitfire type)" preset (_cowl_gen.js), brought
+  // to the cage - no aperture, the lid running straight onto a long ogival spinner, cheeks over the two banks, a
+  // chin scoop; the cooling in the wing radiators (the wing's `radiators` part). Its sizes are the bench preset's,
+  // stated at ITS front (min(0.46 x 0.82, 0.42 x 0.84) = 0.353) and length (1.02), so they scale to the fitted engine
+  faired: {
+    shape: { fitNose: 2,
+      cw_lidRise: 0.015, cw_lidShoulder: 0.62, cw_lidRound: 0.3, cw_faceRise: 0.01,
+      cw_deckSweep: 0, cw_keelSweep: 0.3, cw_waistSweep: 0,
+      cw_lidMode: 1, cw_lidGap: 0.004,
+      cw_deckH: 1, cw_keelH: 1, cw_waist: 0,
+      cw_sqAftTop: 0.55, cw_sqAftBot: 0.55, cw_sqFrontTop: 0.525, cw_sqFrontBot: 0.525,
+      cw_lidSqTop: 0.5, cw_lidSqBot: 0.5,
+      cw_lobeN: 2, cw_lobeT: 0.55, cw_lobeAz: 52, cw_lobeSig: 26, cw_lobeTSig: 0.26,
+      cw_cutSpan: 0,
+      cw_apMode: 0, cw_apSq: 0.5, cw_apOffX: 0, cw_apOffY: 0, cw_pairSq: 0.8,
+      cw_lipMode: 1, cw_lipRound: 0.55, cw_lipProtrude: 0.5, cw_ductFlare: 0,
+      cw_scoopOn: 1, cw_scoopZ: 0.3, cw_scoopSq: 0.7, cw_scoopDrop: 0.8,
+      cw_scoopRake: 0.4, cw_scoopAp: 0.75, cw_spinRound: 0.32, cw_noseOff: 0 },
+    ref: { front: 0.353, len: 1.02 },
+    scaled: { cw_lobeAmp: 0.045, cw_scoopW: 0.13, cw_scoopH: 0.09, cw_scoopLipH: 0.014,
+      cw_lipThick: 0.009, cw_lipDepth: 0.055, cw_lipInset: 0.028, cw_ductLen: 0.12,
+      cw_scoopLipDepth: 0.032, cw_scoopDuct: 0.125, cw_spinR: 0.22 },
+    lenScaled: { cw_lidLen: 0.55, cw_scoopLen: 0.5, cw_spinLen: 0.60 },
+  },
   // the approved two: COWL_BY_ARCH's shape and COWL_PROPS' proportions
   radial: { arch: true },
   turbine: { arch: true },
