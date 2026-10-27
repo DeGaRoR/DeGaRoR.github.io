@@ -2690,6 +2690,11 @@
     "id": "s34/i1",
     "key": "big/workshop",
     "r": "695,1602,12,9,134"
+   },
+   {
+    "id": "mt_s_meteo/station",
+    "key": "meteo/meteo station",
+    "r": "1676,1759,55,38,0"
    }
   ],
   "links": [
