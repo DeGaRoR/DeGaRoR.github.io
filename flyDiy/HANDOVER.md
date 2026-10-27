@@ -99064,7 +99064,7 @@ Strict light gate RED (6), all in known classes; the loads are back inside their
 - world -> garage: cub round trip 2 at 2.02 s, floats at 5.29 s. The class red since L24c (2.99 / 3.55 there); HWCOV has the cause, the per-trip cacheKey churn of fragment 66e30961, and its Mon 12:45 slot names the owner.
 Pushed by the user's order of 25 Oct: land as soon as possible.
 
-## G3510-G3519 - NEW-SHAPES-1: THE ROUND BODY (THE AERO NOSE'S FULL RINGS, ENDING IN THE ENGINE FACE) AND THE OCCUPANT SECTIONS OPEN AT THE TOP, CLEAN; A STEARMAN AND A TIGER MOTH THROUGH THE LOAD DOOR, FLOWN; THE SIX VALIDATED BUILDS BIT-IDENTICAL (2026-10-26, NEW-SHAPES-1, cloud - node + headless only; branch claude/new-shapes-1 off origin/master d7e181f4e = L25c, origin/master merged (no move since); READY as claude/ready/new-shapes-1 on the user's 26 Oct order; G3514-G3517 the user's second round of 26 Oct (rear pilot, the cards moved, the screen glass billed, the bench pictures); G3518 the energy layer's datum on the round body; G3519 unused)
+## G3510-G3519 - NEW-SHAPES-1: THE ROUND BODY (THE AERO NOSE'S FULL RINGS, ENDING IN THE ENGINE FACE) AND THE OCCUPANT SECTIONS OPEN AT THE TOP, CLEAN; A STEARMAN AND A TIGER MOTH THROUGH THE LOAD DOOR, FLOWN; THE SIX VALIDATED BUILDS BIT-IDENTICAL (2026-10-26, NEW-SHAPES-1, cloud - node + headless only; branch claude/new-shapes-1 off origin/master d7e181f4e = L25c, origin/master merged (no move since); READY as claude/ready/new-shapes-1 on the user's 26 Oct order; G3514-G3517 the user's second round of 26 Oct (rear pilot, the cards moved, the screen glass billed, the bench pictures); G3518 the energy layer's datum on the round body; G3519 the user's third round of 27 Oct: the fuselage continuous aft of the rear cockpit, the aerial off the decking)
 The user (23 Oct, verbatim): "did we ever start anything from the geometry study, because we'd need some of that for a proper stearman / cylinder type fuselages with openings for individuals" - "It has to draw on our existing systems as much as possible, so fuselage shaping methods just work too, and we generate section with pillars, like the other geometry. It is really important not to reinvent a new system that does not build or integrate well with the current one." - "the proofs would be a stearman and a moth. The round fuselage can probably try and look at the aeronose shape (ambiguously named), that already gets rid of the more complex windshield geometry for a shapable cylinder. The sections holding the pilot and second person should be identified as proper sections, and the fuselage openings should be clean. Yet I'm not sure that you should build on open cockpit. Reading the previous study is important too, yet take it with a grain of salt. Should be in future plans"
 
 **READY for A0** (the user, 26 Oct: "When ready: merge origin/master, run the node gates for every file you touch + GEN
@@ -99284,6 +99284,35 @@ dashboard. The other gets nothing for now. ... maybe you can do the plane bench?
   drew no wings without it. Pictures (gitignored): flyDiy/screenshots/newshapes/{stearman,tigermoth}_{quarter,side,top,cockpits}.png.
 - **Leather:** left as is (the coaming is the window joints' riveted metal strip) - the user was "not sure".
 
+### G3519 - THE USER'S THIRD ROUND (27 Oct, on a bench picture of the Moth's rear cockpit: "do something for the hump
+on top and at the bottom. You should find a control with the frame controls I think. If not, report and propose
+something. The fuselage should be continuous." - "Don't sweat it with the cowls, I'll do something manually with the
+archetypes" - "radio aerial decide" - "Leather coaming, I'm not sure what it is" - "Nothing in the front cockpit for
+now, if the option of rear cockpit pilot is enabled.")
+- **The hump was the BOOM FRAME** (T2.1's frame rows - no new control): with the taper on, the boom frame's top and
+  bottom are absolute heights (`aftRoofY` / `aftKeelY`), and both cards inherited the class's 0.78 / -0.765 - the
+  taper ring stood 0.06 (Stearman) / 0.20 (Moth) OVER the deck and 0.2 / 0.1 UNDER the keel: the hump top and bottom.
+  The cards now set them on the line from the rear cockpit to the tail post (Stearman 0.71 / -0.52, Moth 0.56 /
+  -0.60); the plan's step at the same ring was the retired `taperW` (0.78, lifted into the boom frame's widths at
+  load) - 0.92 on both; and the Stearman's mid-boom ring carried the class's 0.86 pod pinch (`boomMidPinch`, a
+  sag mid-boom) - 1.0. Ring tables, Stearman deck / belly / half-width: 0.723 -> 0.713 -> 0.457 -> 0.300,
+  -0.550 -> -0.510 -> -0.242 -> -0.078, 0.580 -> 0.534 -> 0.236 -> 0.053 (cage units, rear cockpit -> taper ring ->
+  mid-boom -> post). The bench pictures (screenshots/newshapes/final_{stearman,tigermoth}_{s,top,q,r}.png) show both
+  continuous; what remains is a gentle shoulder at the rear cockpit's aft pillar (the cockpit section keeps its full
+  section to its pillar, then the taper begins) - not a step. A longer taper (`taperLen`) softens it but moves the
+  tail aft (0.35 m at 0.90 - tried, not kept).
+- **The radio aerial (decided):** a crown fitting no longer stands in front of a seated face. _cage_access.js: the
+  open sections' coaming band (cpOpenA/B, pax<i>OpenA/B, +-0.10) joins the wing and fin shadows a crown fitting may
+  not stand in - so the comm aerial moved off the decking between the two cockpits (z 1.27, at the rear occupant's
+  face) to the turtle deck aft of the rear cockpit (Stearman z 0.21, Moth 0.32). Only a build with a section open
+  has those rings: every validated build places as before (identity below).
+- **Leather coaming:** left as the metal strip - see the decisions.
+- **The front cockpit with the pilot in the rear:** nothing (no panel, no controls) - as G3515 built it.
+- Both proofs re-flown on the final cards: Stearman 0 breaks, no prop strike, gPeak 1.68, lift-off 386 m at 66 kt,
+  touchdown 1.49 m/s, nose-over 17 deg, SM 0.202, empty 916 kg; Tiger Moth 0 breaks, no prop strike, gPeak 2.07,
+  lift-off 347 m at 59 kt, touchdown 2.18 m/s, nose-over 14.5 deg, SM 0.310, empty 577 kg; both 0 join errors and
+  the design check clean (the table above: the G3517 head; these rows move by 1-3 %).
+
 ### THE IDENTITY PROOF - loaded the game's way, master vs branch
 `tools/newshapes_identity.js` (the DC3-BUILD tool's method, with the drawing and the keys added): each validated build
 through the tree's own load door (`--root`: an origin/master d7e181f4e worktree, then this branch), buildGen, and
@@ -99311,6 +99340,11 @@ touched file - grep of tools/ for _cage_gen / _cage_join / _cage_page5 / _cage_p
 _vessel_gen / the load chain - plus GEN BUILD PARTS SAVE STARTER DESIGN FRAMES JOIN, BIPLANE, KNIFE, the glazing
 readers, and ARCHETYPES (full tier: the cards moved). src/core moved (60_gen_spec, 61_gen_frame: the screen glass), so
 the core battery was re-run on the final cards.)
+- **G3519 round** (the cards' boom frame and _cage_access.js's crown band), on the final head, PASS: `BATTERY: PASS`
+  over CAGEFIT FRAMES KNIFE SURF SAVE SHOULDER DASH CLIP FIT SKINMAT LIVERY LIVERYREACH EDBUGS JOIN DESIGN DESIGNCHECK
+  BUILD PARTS SPECFIX WINGROWS STARTER ENGINE ENGID GEOPARITY FIN NACLAG HINGE ENERGY TANKMOUNT ROLLANIM SIMWORKER
+  SUBSTEP GEN PANEL; `GATE BIPLANE: PASS` (alone); `_arch_check.js --only=stearman` / `--only=tigermoth`: PASS; FRAMES'
+  corpus: the two card items re-recorded again (only those two move in a fresh record); `IDENTITY: ALL IDENTICAL`.
 - **Final round** (after the G3517 cards and the G3516 core line; the energy-layer readers again after G3518), PASS:
   `GATE CAGEFIT`, `FRAMES` (after the corpus line below), `KNIFE`, `SURF`, `SAVE`, `SHOULDER`, `DASH`, `CLIP`, `FIT`,
   `SKINMAT`, `LIVERY`, `LIVERYREACH`, `EDBUGS` (40 rows, 0 red), `JOIN`, `DESIGN`, `DESIGNCHECK`, `BIPLANE`, `BUILD`,
@@ -99377,17 +99411,15 @@ A merge conflict, if any, is the one line beside cageCanopy in each path: keep b
 - A page check of the editor: Fuselage > roundness shows `body front`; Nose shows the round body's front rows when it
   is on; Cabin > opening and Passenger bay > opening open each section, live.
 
-### DECISIONS FOR THE USER
-1. **The taper aft of the rear cockpit.** The round body steps down to the tail cone behind the rear opening (the
-   cage's taper starts at the bays' end); the real types run the turtle deck smoothly to the fin. A longer deck is the
-   frames' job (boomLen re-trips the fin's vTaper on the Stearman): wanted?
-2. **The Moth's Gipsy and cowl.** The inline Gipsy Major sits bare on the engine face (no long DH cowl); the round body's
-   front rows (aeroLen, aeroTipW/H, aeroDroop) shape the nose ahead of the face, not a cowl over the engine. A cowl
-   over an inline is COWL work, not this branch's.
-3. **The COM blade aerial** stands on the decking between the cockpits (the cage's antenna on the crown). Move it aft, or
-   leave it?
-4. **Leather coaming** (a padded roll, its own section name and look): still open - left as the metal strip for now.
-5. **Dual controls / a panel in the front cockpit** when the pilot is in the rear: "nothing for now" - owed if wanted.
+### DECISIONS FOR THE USER (the user's answers of 27 Oct folded in)
+1. **The taper aft of the rear cockpit** - answered ("the fuselage should be continuous"): done, G3519, on the frame rows.
+2. **The Moth's Gipsy and cowl** - answered: the user does the archetypes' cowls by hand.
+3. **The COM aerial** - answered ("decide"): off the decking, onto the turtle deck aft (G3519).
+4. **Leather coaming** - the user: "not sure what it is". On a real open cockpit the opening's rim is a padded leather
+   (or leatherette) roll stitched over the coaming's metal edge - a cushion a face meets in turbulence, brown on a
+   PT-17, black on a Tiger Moth. Today the rim is the window joints' riveted metal strip. If wanted: the coaming strip
+   gets a padded section (a round tube over the rim, its own name and look in the covering vocabulary) - say so.
+5. **Dual controls / a panel in the front cockpit** with the pilot in the rear - answered: nothing for now.
 6. **A mixed cabin** (a closed cockpit ahead of an open rear seat) flies as a closed cabin (the cabin's screen step,
    glass billed): fine, or a per-seat open term?
 7. **The built files** (index.html, dev.html, sw.js, version.json; flight_core.js when the core moves) are committed on
