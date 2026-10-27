@@ -16626,6 +16626,9 @@
     shake: () => shakeOf(),
     // G3780 (the user 27 Oct: "Avoid an actual freeze at all costs"): cb once the sheet is known - asked of its thread
     shakeReady: cb => shakeReady(cb),
+    // G3780 (STORY g3 27 Oct): the bench fingerprints only in the garage - out in the world the join's export reads a
+    // closed editor (G700), and a rebuild there (the story's skip onto the final) superseded Rufus's certificate
+    inGarage: () => !!inGarage,
     densAlt: () => densAltOf(),
     // the plaque is app.js's to draw (it needs `def`); the bench decides WHEN
     plaque: on => { plaqueLive = !!on; drawPlaque(); },
