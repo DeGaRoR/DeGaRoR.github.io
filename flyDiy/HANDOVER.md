@@ -99486,3 +99486,22 @@ Two things the cloud's bench (the cage page, tools/bench_shot.js) CANNOT show an
 Put them under `screenshots/newshapes/` and say in this file what looked wrong. The cloud's bench pictures are in the
 session (not committed); the decal placement in side view was set by measurement in the scene frame, so a stripe that
 lands off its surface is a number on the card, not code.
+
+### A0'S FOUR REDS AFTER T-P1 (fixed on claude/new-shapes-1)
+T-P1 did not land: new-shapes-1 turned four battery gates red that the cloud's own set had not run.
+- **AUDIOENG** - the declared sound table (src/viewer/audio/engine_config.js ENGINE_SOUND_TABLE) had no rows for the
+  two new presets: `clerget9b_wood` (9 cyl radial, 16.29 L) and `merlin66_rotol4` (12 cyl vee, 27.04 L), the
+  displacement pi/4 bore^2 stroke cyl off their _eng_page.js presets, as the table's own rule says.
+- **FRAMES** - `arch:Stearman-alike` and `arch:Tiger Moth-alike` moved (tailCap.band): INTENDED - both cards were
+  re-matched to the user's reference models in this train (the tail post, the tail rows, the boom frame's top and
+  bottom; REF_MATCH.md section 9). Only those two items re-recorded in tools/fixtures/frames_corpus.json, the head and
+  the date left as recorded (G3516's practice: a fresh --record would also add the Camel, the Spitfire WIP and eight
+  saved builds the corpus never held - not this train's to add).
+- **WINGROWS** - the probe "the second plane: span 6.5 on a 2.10 chord, held at 8.4" stood on the old floor (4 x the
+  chord); the Moth commit gave the second plane its own (GEN_WING_ENVELOPE.second: 2 x, the user's "both wings freely
+  sized"). The probe now asks 3.5 on a 2.10 chord under a 9 m upper plane (held at 4.2, the 0.45 x upper rule clear
+  under it). And a real bug under it: the second plane's notes quoted the FIRST plane's envelope ("6.5-18 m, 4-20 x");
+  `ENVW(P, plane)` in _cage_wing.js now gives the second plane its own, as clampWing does.
+- **TAXICLEAR** - the Camel had no parked footprint (src/core/25_airfield.js GP_PARKED_FOOT): `camel: [4.3, 0.9, 5.1]`
+  off its designBake nodes (half 4.27, nose 0.89, tail 5.07, rounded up). The re-matched Stearman's tail reaches 5.45 m
+  (was 5.4): its row to 5.5.

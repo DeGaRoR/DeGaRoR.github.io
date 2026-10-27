@@ -121,7 +121,13 @@ const flownOf = (P, plane) => {
 };
 // (G3503: the envelope the drawn span is held by - its `big` one past span[1], the core's genWingEnv rule)
 const envFor = (E, span) => (E && E.big && +span > E.span[1]) ? Object.assign({}, E, E.big) : E;
-const ENVW = P => envFor(typeof GEN_WING_ENVELOPE !== 'undefined' ? GEN_WING_ENVELOPE : null, P && P.wgSpan);
+// the second plane holds to its own floor (GEN_WING_ENVELOPE.second, NEW-SHAPES-1), as clampWing does: its notes say so
+const ENVW = (P, plane) => {
+  const E = envFor(typeof GEN_WING_ENVELOPE !== 'undefined' ? GEN_WING_ENVELOPE : null, P && (plane ? P.w2Span : P.wgSpan));
+  if (!E || !plane || !E.second) return E;
+  return Object.assign({}, E, { chord: [E.second.chord, E.chord[1]], span: [E.second.span, E.span[1]],
+                                spanPerChord: [E.second.spanPerChord, E.spanPerChord[1]] });
+};
 // G3050: and since the rows are WRITTEN BACK to the flown wing (the coerce
 // below), a row the resolver held says where and why until it is moved again
 // (HELD: what was asked, what was written). (P, plane) as the notes above.
@@ -136,19 +142,19 @@ const WHY = {
   wgDx: E => `the leading edge is held ${E.xLE[0]}–${E.xLE[1]} m aft of the firewall (the flown envelope)`,
 };
 const heldNote = k0 => (P, plane) => {
-  const k = plane ? 'w2' + k0.slice(2) : k0, h = HELD[k], E = ENVW(P);
+  const k = plane ? 'w2' + k0.slice(2) : k0, h = HELD[k], E = ENVW(P, plane);
   if (!h || +P[k0] !== h.wrote || !E) return '';
   const f2 = v => (Math.round(v * 1000) / 1000).toString();
   return `held at ${f2(h.wrote)} (asked ${f2(h.asked)}) — ` + (WHY[k0] ? WHY[k0](E) : 'the flown envelope');
 };
 const spanNote = (P, plane) => {
-  const f = flownOf(P, plane), E = ENVW(P);
+  const f = flownOf(P, plane), E = ENVW(P, plane);
   if (!f || !E || !(Math.abs(f.span - f.of.span) > 0.005)) return heldNote('wgSpan')(P, plane);
   return `flies ${f.span.toFixed(2)} m — the span is held to ` +
          `${E.spanPerChord[0]}–${E.spanPerChord[1]} × the root chord`;
 };
 const tipNote = (P, plane) => {
-  const f = flownOf(P, plane), E = ENVW(P);
+  const f = flownOf(P, plane), E = ENVW(P, plane);
   if (!f || !E) return heldNote('wgChordTip')(P, plane);
   const tip = f.chord * f.taper;
   if (!(Math.abs(tip - f.of.tip) > 0.005)) return heldNote('wgChordTip')(P, plane);
