@@ -1520,13 +1520,15 @@ if (typeof window !== 'undefined') window.CAGE_EYE_URL_OFF = EYE_URL_OFF;
 let EYE_CACHE = null;                   // G3713: the last eye sheet { s: the level-2 sheet, v: the variant, out }
 // THE EYE VARIANT (G3713): 0 off, 1 the cowl at detail 2, 2 + the nose section at level 3, 3 the whole fuselage at
 // level 3, 4 the whole fuselage but aft of the aft bulkhead. ?eyelod=N or CAGE_EYE_VARIANT (a rig's); held at 0 by
-// ?eye=off and in a parked aeroplane's capture (CAGE_EYE_OFF).
+// ?eye=off and in a parked aeroplane's capture (CAGE_EYE_OFF). G3719: THE DEFAULT IS 3 (the user, 27 Oct, from the
+// 16:52 table: "let's go v3 on the fuselage")
+const EYE_DEFAULT = 3;
 const EYE_VARIANT = () => {
   if ((typeof window !== 'undefined' && window.CAGE_EYE_OFF) || EYE_URL_OFF()) return 0;
   const w = typeof window !== 'undefined' ? window.CAGE_EYE_VARIANT : null;
   if (w != null) return Math.max(0, Math.min(4, Math.round(+w) || 0));
   const q = /(^|[?&])eyelod=([0-4])(&|$)/.exec((typeof location !== 'undefined' && location.search) || '');
-  return q ? +q[2] : 0;
+  return q ? +q[2] : EYE_DEFAULT;
 };
 if (typeof window !== 'undefined') window.CAGE_EYE_VARIANT_OF = EYE_VARIANT;
 // G3715 (COWL-RES): THE EYE SHEET IS THE COCKPIT'S, SWAPPED IN (the user, 27 Oct: "No, no smoothing in outside garage
