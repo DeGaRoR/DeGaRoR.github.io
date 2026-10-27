@@ -98652,6 +98652,80 @@ belly); the red deep pod is 0.45 m (0.02 m clear) - the 0.60 m strike unchanged.
 **THE BOX (A0, GPU):** the pod's two groups in the real livery (aeroskin `trim` for `pod`, `steelTube` for `ctlHinge`) on
 the Cub and the metal Cessna - tools/pod_box_evidence.js (garage stills + the belly landing, its expectation now "crushed"
 at +1.5 m/s); FRAMECOST pod on / off after the train's re-cook (the pod is 4 draws now, was 2).
+
+**READY (27 Oct, for the 14:00 train): claude/ready/belly-pod-2** = claude/belly-pod-2 @ the commit carrying this note (G3468 on 282449fdd; source + tools + evidence only - every generated file is master's, the train builds them). **Master merged: origin/master d7e181f4e (train L25c), re-fetched before the push - unchanged.**
+
+THE BATTERY on this head (afd91ebaa + its own generated build; `node --max-old-space-size=4096 tools/run_gates.js --only=<8> --no-build --jobs=4`, chunk after chunk; the grep rule's gates for every file changed + BUILD JOIN PARTS SAVE STARTER SIMWORKER PILOT + the full tier; the cloud box, 4 cores): **124 PASS, 17 FAIL, 8 not run**.
+
+The pod's own and the asked ones:
+```
+GATE POD: PASS
+GATE PODEDITOR: PASS
+GATE DMGPOD: PASS
+GATE FREIGHT: PASS
+GATE PROCURE: PASS
+GATE ACCEPT: PASS
+GATE BUILD: PASS
+GATE BUILT: PASS
+GATE JOIN: PASS
+GATE PARTS: PASS
+GATE SAVE: PASS
+GATE STARTER: PASS
+GATE SIMWORKER: PASS
+GATE PILOT: PASS
+GATE ECON: PASS
+GATE CONTRACTS: PASS
+GATE UISMOKE: PASS
+```
+**PASS (124)**: POD PODEDITOR DMGPOD FREIGHT PROCURE ACCEPT BUILD BUILT JOIN PARTS SAVE STARTER SIMWORKER ECON CONTRACTS PARKED LAZY HANGAR TECH STORAGE STORESPOT STOREDRAW DMGWRECK DMGSCAR DMGSETTLE DMGDETERMINISM DMGOCCUPANT SHEETWORKER POSEBACK DESIGN REF HONESTY ENERGY PANEL FIT KNIFE HINGE FRAMES KITHOST FLOWNBAKE HITBOX FLOATS PLAYER GAMEPREM STAGES STORY ROUTES EDBUGS POSEHIDDEN NACLAG SKINMAT LIVERYREACH LIVERY AA POSTFX INPUT SUBSTEP PACE FLIGHTREC AUDIO BOOMBOX MIXLEAD CLIMATE ATMO GE GEN PILOT STRIPSURF TAKEOFF ALTIPORT LINEUP PROFILE DESTTO ROUTE DEFAULT SKIN UISMOKE BOOT HWCOV SCENERY NAVAID ASSETBUDGET ANIMALS CHARS DMGCERTCOST DMGNOSE DMGFPS DMGSKIN DMGDRIVE DMGSKINGPU DMGPAGEW DMGWALL DMGHEAL GFX PROGRAMS HOUSEWORKER ROLLSND UPDATE UILAYER CARDS FADES CONTACT SHADOWSKY MEDIA ASSETS WEATHER LIGHT BENCH CGBAND VILLAGE SITE PREMISES PREMCOOK TARR CITYHOST METKIT HYDRODYN WATER WATERDAMP RWYTREES LIFE CESSNAVREF DMGHULL DMGFLOATTO.
+
+**RED (17) - EVERY ONE RED ON MASTER L25c TOO** (run there in a worktree on the same box, the FAIL lines diffed with the numbers masked):
+- GATE PILOTS: FAIL  [master L25c: FAIL]
+- GATE ROUNDTRIP: FAIL (1)  [master L25c: FAIL]
+- GATE JOINPARITY: 1 FAIL  [master L25c: FAIL]
+- GATE CLOCK: FAIL (1 of 777)  [master L25c: FAIL]
+- GATE FOG: FAIL (2 of 22)  [master L25c: FAIL]
+- GATE CLOUD: FAIL (1 of 239)  [master L25c: FAIL]
+- GATE VEHICLE: FAIL (2 rows)  [master L25c: FAIL]
+- GATE TREEHIT: FAIL  [master L25c: FAIL]
+- GATE TREECRASH: FAIL  [master L25c: FAIL]
+- GATE DMGCERT: FAIL  [master L25c: FAIL]
+- GATE DMGGEAR: FAIL  [master L25c: FAIL]
+- GATE DMGINST: FAIL  [master L25c: FAIL]
+- GATE DMGCOMPOSITE: FAIL  [master L25c: FAIL]
+- GATE FRAMECOST: FAIL (22)  [master L25c: FAIL]
+- GATE ROLLANIM: FAIL (1 of 806: G1115 no allocation a frame, THE FIXED ROLL: 64.1 bytes / frame (bound 64))  [master L25c: FAIL in one of two direct runs - see below]
+- GATE KTX2: FAIL  [master L25c: FAIL]
+- GATE SCENERYED: FAIL (1)  [master L25c: FAIL]
+
+Two of those need their word:
+- **ROLLANIM** (1 of 806: "G1115 no allocation a frame, THE FIXED ROLL: 64.1 bytes / frame (bound 64)") - it PASSED on the
+  L25c merge head and on master in the battery, so it was run again, alone, on both trees (`node --expose-gc
+  tools/_rollanim_check.js --verbose`, twice each): the reading is BIMODAL - ~32 or ~64 bytes a frame (a GC quantum) - on
+  BOTH: **master L25c read 64.1 (FAIL) then 32.1**, this head 32.1 then 29.2 (and 64.1 twice under run_gates). The DA62-alike
+  it drives carries no pod; nothing G3468 changed runs per step. Master's flake: the bound sits on the second mode.
+- **FRAMECOST** (22 rows here, master 2): master's known row + the stand / taxi draw and uniform rows of the STALE PARKED
+  COOK - any core or viewer edit moves FLYDIY_BUILD and `node tools/parked_cook.js --check` reads stale, so the parked
+  aeroplanes are captured live (proved on the 23 Oct addendum: master + this branch's core alone fails the identical rows).
+  The aeroplanes it measures carry no pod. The train's re-cook settles it.
+
+THE VALIDATED BUILDS (no pod), `node tools/_pod_bytes.js <build>` on this head - **byte-identical to master L25c's** (def /
+sheet / cert / 300 steps; certS is wall time, masked):
+```
+{"file":"builds/cub_2026-09-20_corrected.json","def":"95be854c:143346","sh":"9b39d58a:10012","cert":"abcbbacb:378922","sim":"3a1b6aa7","steps":300,"nodes":97}
+{"file":"builds/jodel_2026-09-20_corrected.json","def":"7289f109:170653","sh":"db4630f0:9896","cert":"ce563430:472860","sim":"e0e66628","steps":300,"nodes":115}
+{"file":"builds/cessna172_2026-09-20_corrected.json","def":"499ba90c:163005","sh":"201976b5:9928","cert":"36728cc5:450819","sim":"a08a99e5","steps":300,"nodes":111}
+{"file":"bugReports/cessnaMetal (1).json","def":"6842b9a0:155129","sh":"83b2f1e9:9805","cert":"51775781:422608","sim":"7385f304","steps":300,"nodes":103}
+{"file":"bugReports/cessnaFloatsWOrks.json","def":"6b60ab9f:180528","sh":"f1fe81d3:9752","cert":"45632c1b:503057","sim":"3776c533","steps":300,"nodes":130}
+{"file":"builds/rufus_2026-10-18_certified.json","def":"69d562b8:140569","sh":"22cf258c:9731","cert":"45d302f5:373818","sim":"3b0d9c6","steps":300,"nodes":95}
+```
+**GPU (A0 runs these):** tools/pod_box_evidence.js on the box (the pod's two groups in the real livery - aeroskin `trim` for
+`pod`, `steelTube` for `ctlHinge` - on the Cub and the metal Cessna; the belly landing, now expected "crushed" at +1.5
+m/s); FRAMECOST after the train's re-cook, with the pod on / off (the pod is 4 draws now: two groups, each + its shadow);
+the strict per-frame gate with a pod fitted.
+
+**NOT RUN on this head (8, the full tier's tail, out of time before 12:45): TOUR BOOTLIFT FLOATDUP SIMWORKER-PAGE SIMWORKER-EDGES SIMWORKER-PLACE ARCHETYPES SEAPLANE** - on the L25c merge head (ccb566b29, the pod before G3468): TOUR FAIL, BOOTLIFT FAIL, FLOATDUP FAIL, SIMWORKER-PAGE PASS, SIMWORKER-EDGES FAIL, SIMWORKER-PLACE PASS, ARCHETYPES FAIL, SEAPLANE PASS; every FAIL among them red on master L25c with the same lines.
+
 ## A0 - landing L23b (23 Oct 2026, gates 10:00-11:00, pushed ~11:20): THE CABIN AT T0 - LAMPS OFF THE WING, THE WORK LAMP, RUFUS'S FLOOD ON, FEWER MACHINES
 Rolling set (1): cabin-lamp ad3165a48 (GAME G3353-G3355 + RUFUS-CERT G3449 claude/light-switch-state merged in):
 - G3353 cabin-machines: the cabin plot w1 omits the panel saw, the band saw and the surface planer (the user, 22 Oct: "get rid of the large router ... keep only the 2 smaller ones"). The pillar drill and the thicknesser stay; all other clutter stays; no cert bench. hangarFit opts.omit reports the left-out props.
