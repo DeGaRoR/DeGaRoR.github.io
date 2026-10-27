@@ -450,6 +450,12 @@ function runtimeRows(M, mut) {
   const two = JSON.parse(J(cubSpec)); two.engines = [two.engines[0], two.engines[0]];
   r = N.careerOnStop(d, stopAt('HOME', { slot: mine, spec: two }), hooks);
   ok(!r.ok && /a must: engines 1/.test(r.untouched['o.sold'] || ''), 'two engines where the client said one: refused (' + (r.untouched['o.sold'] || '') + ')');
+  // (Game + A0, 27 Oct) THE HAND-OVER WAITS FOR THE PAGE: unwired (the default) an order is delivered, paid and done, and
+  // the airframe stays ours - nothing leaves the save while it still stands in the world with no blueprint saved
+  ok(N.missionHandoverWired() === false && N.contractDelivery(N.missionToContract(B.missions[1], { pack: B })).sold === false, 'the hand-over is off until the page says it is wired');
+  const ru = N.careerOnStop(JSON.parse(J(d)), stopAt('HOME', { slot: mine, spec: cubSpec }), hooks), du = ru.ok && ru.events.find(e => e.k === 'done' && e.id === 'o.sold');
+  ok(du && !du.handover && ru.doc.fleet[mine] && ru.doc.career.airframes[mine] && !(ru.doc.career.sold || []).length, 'unwired: delivered and paid, the airframe stays in the fleet and the airframes, no sale, no hand-over line');
+  N.missionHandoverWired(true);
   const w0 = d.wallet;
   r = N.careerOnStop(d, stopAt('HOME', { slot: mine, spec: cubSpec }), hooks);
   const dn = r.ok && r.events.find(e => e.k === 'done' && e.id === 'o.sold');
@@ -463,7 +469,8 @@ function runtimeRows(M, mut) {
   // delivery kept (written): the airframe stays
   const keep = runtimePack(); keep.missions[1].delivery = { sold: false, blueprint: true };
   ok(N.contractDelivery(N.missionToContract(keep.missions[1], { pack: keep })).sold === false && N.contractDelivery(N.missionToContract(B.missions[1], { pack: B })).sold === true, 'contractDelivery: sold by default, kept when the order says so');
-  ok(M.contractDelivery(M.contractAuthored()['clients.02']).sold === true && M.contractDelivery(M.contractAuthored()['field.01']) === null, 'the authored orders are sold too (the user\'s rule for every order); a transport job has no delivery');
+  ok(M.contractDelivery(M.contractAuthored()['clients.02'], { wired: true }).sold === true && M.contractDelivery(M.contractAuthored()['clients.02']).sold === false && M.contractDelivery(M.contractAuthored()['field.01']) === null,
+     'the authored orders are sold too once wired (the user\'s rule for every order), kept until then; a transport job has no delivery');
 
   // ---- P2: THE CLIENT'S OWN AIRFRAME (startFrom) ------------------------------------------------------------------------
   d = fresh();
@@ -650,6 +657,7 @@ const MUTS = [
   ['someone hurt is nothing', { '73c_mission_run.js': sub('if (thr >= 1 && worst >= thr) return', 'if (false) return') }],
   ['the bonus preference is not paid', { '73_contracts.js': sub("for (const p of rec.prefs || []) if (p && p.need === 'bonus' && got && got['pref.' + p.k]) pct += p.pct || 0;", '') }],
   ['any airframe delivers the client\'s order', { '73_contracts.js': sub("if (own && stop.slot !== own.slot) return", 'if (false) return') }],
+  ['the hand-over runs before the page is wired', { '73c_mission_run.js': sub('let MISSION_HANDOVER_WIRED = false;', 'let MISSION_HANDOVER_WIRED = true;') }],
   ['the delivered airframe stays ours', { '74_career.js': sub('const handover = dl && dl.sold && live.slot', 'const handover = false && dl && dl.sold && live.slot') }],
   ['a failed mission stays accepted', { '74_career.js': sub("  D.accepted = D.accepted.filter(x => x !== id);\n  delete D.live[id];\n  if (D.tracked === id) D.tracked = D.accepted[0] || null;\n  D.failed", '  D.failed') }],
   ['a failure fails every accepted mission', { '74_career.js': sub('const v = busy ? missionRulesJudge(rec, stop) : null;', 'const v = missionRulesJudge(rec, stop);') }],

@@ -63,10 +63,17 @@ function missionPrefsJudge(prefs, spec) {
 // ---- THE DELIVERY AND THE PROFIT (§7: "we paid to manufacture the plane; it is sold to the client at a higher price
 // and is no longer ours"; "the BLUEPRINT is saved automatically") -----------------------------------------------------------
 // an order's delivery: the record's, else the build kind's default (sold, the blueprint kept); null for anything else
-function contractDelivery(rec) {
+// THE HAND-OVER WAITS FOR THE PAGE (Game + A0, 27 Oct): selling the airframe takes it out of the save, so until the page
+// also takes it out of the world and saves its blueprint (MUST-WIRE 5) nothing is sold - an order is delivered, paid
+// and completed, and the airframe stays ours. The page calls missionHandoverWired(true) once it does both; opts.wired
+// overrides it for one call (the gate, the editor's card).
+let MISSION_HANDOVER_WIRED = false;
+function missionHandoverWired(on) { if (on !== undefined) MISSION_HANDOVER_WIRED = !!on; return MISSION_HANDOVER_WIRED; }
+function contractDelivery(rec, opts) {
   if (!rec || rec.kind !== 'build') return null;
   const D = rec.delivery && typeof rec.delivery === 'object' ? rec.delivery : {};
-  return { sold: D.sold !== false, blueprint: D.blueprint !== false };
+  const wired = opts && opts.wired != null ? !!opts.wired : MISSION_HANDOVER_WIRED;
+  return { sold: wired && D.sold !== false, blueprint: wired && D.blueprint !== false, wired };
 }
 // the profit line: what the client pays less what the airframe cost us (the economy's price when it was made: 76_
 // econMaterialise's `paid`); cost unknown -> profit null
