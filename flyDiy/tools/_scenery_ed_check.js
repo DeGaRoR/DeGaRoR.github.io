@@ -621,8 +621,10 @@ if (plots.length) {
 //    and the record settings. The shipped fixture, migrated, the town cut as a save has it, IS the save entry by entry
 //    (normalised) - but for a `stage`, which a save (the sandbox's view, every track at its max) never carries and the
 //    shipped record keeps, and the entries only a stage stands (`sg_`) or a removal not yet confirmed keeps.
+//    (JOLENE-FOLD 25 Oct, the user: "my new scenery gets folded in right away": the manifest is scenery_ship_afb19.json, the
+//    Jolene AFB (19) save; rev 28's stays beside it as the record of that ship - row 13's r1 still reads it)
 {
-  const M = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_ship_rev28.json'), 'utf8'));
+  const M = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_ship_afb19.json'), 'utf8'));
   const stxt = fs.readFileSync(path.join(TOOLS, 'fixtures', M.save), 'utf8');
   check(require('crypto').createHash('sha256').update(stxt).digest('hex') === M.sha256, '15 the save beside the manifest is the user\'s, byte for byte (' + M.sha256.slice(0, 16) + ')');
   const A = PG.dropPlaces(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec, ['mk_']).rec, B = PG.unwrap(stxt).rec;
@@ -650,11 +652,32 @@ if (plots.length) {
   //  fold's order and its marks inside its draw - the same ground, another spelling
   const sk = v => Array.isArray(v) ? v.map(sk) : v && typeof v === 'object' ? Object.keys(v).sort().reduce((o, k) => (o[k] = sk(v[k]), o), {}) : v;
   const canA = s => { const c = JSON.parse(s); if (c.props) c.props = PG.areaEntries(Object.assign({}, c, { src: null })).map(q => { const x = Object.assign({}, q.entry); delete x.id; delete x.poly; return [q.layer, sk(x)]; }).sort((p, q) => p[0] < q[0] ? -1 : 1); return JSON.stringify(c); };
-  const same = (L, x, y) => L === 'areas' ? canA(unC(x)) === canA(unC(y)) : unC(x) === unC(y);
+  // (JOLENE-FOLD) a staged item the save has not at all - shown only below its track's max, so not in the sandbox's view - is
+  //  the shipped entry's own (the old club hangar, the mine's mill)
+  const svItems = (x, y) => { if (!Array.isArray(x.items) || !Array.isArray(y.items)) return x; const ids = new Set(y.items.map(q => q && q.id));
+    return Object.assign({}, x, { items: x.items.filter(it => !(it && it.stage) || ids.has(it.id)) }); };
+  // (JOLENE-FOLD) a save made below a track's max carries a staged entry at its `stage.vary` variant (AFB (19): tw_ski at
+  //  resort<3, nv_strip at survey<1): a field equal to a variant is the stage's - the shipped entry's own value, as the ship
+  //  tool's devary and stageRestore put it back
+  //  (and the view's own `stageSown` mark never ships: the ship tool drops it)
+  const devary = (y0, x) => { const y = y0 && y0.stageSown !== undefined ? Object.assign({}, y0) : y0; if (y !== y0) delete y.stageSown;
+    const vs = x && x.stage && Array.isArray(x.stage.vary) ? x.stage.vary : []; if (!vs.length) return y;
+    const c = JSON.parse(JSON.stringify(y)), eq = (p, q) => JSON.stringify(p) === JSON.stringify(q);
+    for (const q of vs) for (const k of Object.keys(q)) { if (k === 'show') continue;
+      if (k === 'P') { if (c.P) for (const pk of Object.keys(q.P || {})) if (eq(c.P[pk], q.P[pk])) { if (x.P && pk in x.P) c.P[pk] = x.P[pk]; else delete c.P[pk]; } continue; }
+      if (eq(c[k], q[k])) { if (x[k] === undefined) delete c[k]; else c[k] = JSON.parse(JSON.stringify(x[k])); } }
+    return c; };
+  const same = (L, x, y) => L === 'areas' ? canA(unC(x)) === canA(unC(y)) : unC(svItems(x, y)) === unC(devary(y, x));
+  // (JOLENE-FOLD) an area the save folded from STAGED v1 entries (the sandbox's view carries no stage, so they fold; the shipped
+  //  record's staged entries do not - sg_x_mill, sg_x_lodge): its entries against those sources, stage aside
+  const fromStaged = e => !!(e.src && Object.keys(e.src).length) && Object.entries(e.src).every(([k, s]) => (A.layers[k] || []).some(q => q.id === s[0] && q.stage));
+  const srcSame = e => PG.areaEntries(e).every(q => { const f = (A.layers[q.layer] || []).find(z => z.id === q.entry.id); return !!f && JSON.stringify(sk(JSON.parse(un(f)))) === JSON.stringify(sk(JSON.parse(un(q.entry)))); });
   const bad = [], pending = [];
   for (const L of PG.LAYERS) {
     const a = new Map((A.layers[L] || []).map(e => [e.id, e])), b = new Map((B.layers[L] || []).map(e => [e.id, e]));
-    for (const [id, e] of b) { if (EX.has(id)) { if (a.has(id)) bad.push(L + ' ' + id + ' held back, but shipped'); continue; } if (!a.has(id)) bad.push(L + ' ' + id + ' not shipped'); else if (!same(L, a.get(id), e)) bad.push(L + ' ' + id + ' differs'); }
+    for (const [id, e] of b) { if (EX.has(id)) { if (a.has(id)) bad.push(L + ' ' + id + ' held back, but shipped'); continue; }
+      if (!a.has(id)) { if (L === 'areas' && fromStaged(e)) { if (!srcSame(e)) bad.push(L + ' ' + id + ' differs from its staged sources'); } else bad.push(L + ' ' + id + ' not shipped'); }
+      else if (!same(L, a.get(id), e)) bad.push(L + ' ' + id + ' differs'); }
     for (const [id, e] of a) if (!b.has(id)) { if (RM.has(id)) bad.push(L + ' ' + id + ' removal confirmed, still shipped'); else if (!staged(e)) pending.push(id); }
   }
   check(!bad.length, '15 the shipped record is the save entry by entry (held back: ' + (M.except.join(', ') || 'none') + ')', bad.slice(0, 6).join('; '));

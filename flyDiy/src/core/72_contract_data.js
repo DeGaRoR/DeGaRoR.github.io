@@ -49,6 +49,7 @@ const CONTRACT_FIELDS = {
   w8:       { id: 'w8',       name: 'strip 13',                 x: 4361,  z: -16251, len: 392,  surf: 'sand', lit: true },
   // (G2745, the user's save 17, 18 Oct: the Cabin Strip - the story's start, an S of gravel up a lake valley)
   w1:       { id: 'w1',       name: 'Cabin Strip',              x: 2646,  z: -16040, len: 383,  surf: 'gravel', lit: true },   // (22 Oct, the user: no PAPI at the Cabin Strip - a bush strip, no glideslope lights)
+  cb_sea:   { id: 'cb_sea',   name: GAME_NAMES.fields.cb_sea,          x: 1890,  z: -17804, len: 1400, surf: 'water', lit: false },   // (CABIN-LAKE 26 Oct: the lake below the Cabin Strip; no job flies there yet - CABIN-LAKE-JOBS)
 };
 
 // ---- THE VALIDATED DESIGNS (the user's five; HANDOVER G1985's LB.VALIDATED, _treecrash_lib's BUILDS) -------
