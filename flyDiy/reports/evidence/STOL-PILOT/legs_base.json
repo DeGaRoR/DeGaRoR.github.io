@@ -1,0 +1,1043 @@
+{
+ "stock/HOME/expert": {
+  "outcome": "completed",
+  "t": 248.1,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 96,
+   "Vlo": 17.1,
+   "lifts": 1,
+   "qMax": 2.1
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.4,
+   "V": 13.9,
+   "VoverVs": 1.03,
+   "pastAim": 1,
+   "off": -0.1,
+   "run": 62,
+   "three": false,
+   "drift": -0.27
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 17.5,
+   "aimIn": 155,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 8.1,
+   "entryVs": -1.75,
+   "t0": 231.96666666666667,
+   "dur": 5.6
+  },
+  "verdicts": []
+ },
+ "stock/A4/expert": {
+  "outcome": "completed",
+  "t": 264.7,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 98,
+   "Vlo": 17.1,
+   "lifts": 1,
+   "qMax": 2.1
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.18,
+   "V": 13.7,
+   "VoverVs": 1.02,
+   "pastAim": 3,
+   "off": -0.1,
+   "run": 58,
+   "three": false,
+   "drift": -0.12
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 16.1,
+   "aimIn": 20,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 8.46,
+   "entryVs": -1.62,
+   "t0": 249.51666666666668,
+   "dur": 6
+  },
+  "verdicts": [
+   "10.9s committed-takeoff: past the point of stopping at V=16.9 with 211 m left — continuing",
+   "24.7s vx-climb: ground ahead above the aeroplane — climbing at Vx 21.1 m/s until clear"
+  ]
+ },
+ "stock/HOME/student": {
+  "outcome": "completed",
+  "t": 268.4,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 94,
+   "Vlo": 17,
+   "lifts": 1,
+   "qMax": 3.6
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 0.79,
+   "V": 13.9,
+   "VoverVs": 1.03,
+   "pastAim": 4,
+   "off": -0.6,
+   "run": 61,
+   "three": false,
+   "drift": -0.03
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 17.5,
+   "aimIn": 155,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 6.48,
+   "entryVs": -1.65,
+   "t0": 253.1,
+   "dur": 4.7
+  },
+  "verdicts": [
+   "19.5s vx-climb: ground ahead above the aeroplane — climbing at Vx 21.1 m/s until clear"
+  ]
+ },
+ "stock/mine/student": {
+  "outcome": "rejected-takeoff",
+  "t": 14.3,
+  "ga": 0,
+  "bounces": 0,
+  "to": null,
+  "dep": "short",
+  "depStol": false,
+  "ldg": null,
+  "appr": null,
+  "flare": null,
+  "verdicts": [
+   "9.4s rejected-takeoff: will not reach Vr: 0.56 m/s^2 needs 143 m more, 197 m left"
+  ]
+ },
+ "stock/A4/student": {
+  "outcome": "completed",
+  "t": 222.9,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 95,
+   "Vlo": 16.9,
+   "lifts": 1,
+   "qMax": 4.3
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.33,
+   "V": 14.1,
+   "VoverVs": 1.05,
+   "pastAim": 9,
+   "off": 0.3,
+   "run": 72,
+   "three": false,
+   "drift": -0.06
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 17.5,
+   "aimIn": 60,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 6.47,
+   "entryVs": -1.64,
+   "t0": 206.08333333333334,
+   "dur": 4.7
+  },
+  "verdicts": [
+   "10.9s committed-takeoff: past the point of stopping at V=16.9 with 211 m left — continuing",
+   "19.8s vx-climb: ground ahead above the aeroplane — climbing at Vx 21.1 m/s until clear"
+  ]
+ },
+ "stock/mine/expert": {
+  "outcome": "completed",
+  "t": 227.8,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 102,
+   "Vlo": 17.1,
+   "lifts": 1,
+   "qMax": 2.1
+  },
+  "dep": "short",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.07,
+   "V": 14.1,
+   "VoverVs": 1.05,
+   "pastAim": 16,
+   "off": 0,
+   "run": 61,
+   "three": false,
+   "drift": -0.1
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 16.1,
+   "aimIn": 122,
+   "gs": 0.148,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 8.1,
+   "entryVs": -2.4,
+   "t0": 213.86666666666667,
+   "dur": 4.6
+  },
+  "verdicts": [
+   "11.1s committed-takeoff: past the point of stopping at V=15.2 with 163 m left — Vr in 8 m, continuing",
+   "41.7s aim-displaced: the approach to Copperhead Mine Street needs 15.2 deg over the obstacle 25 m out (7 m); flying 8.4 deg to an aim 122 m in"
+  ]
+ },
+ "stock/w8/expert": {
+  "outcome": "gave-up",
+  "t": 638,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 108,
+   "Vlo": 16.8,
+   "lifts": 1,
+   "qMax": 2.4
+  },
+  "dep": "soft",
+  "depStol": false,
+  "ldg": {
+   "sink": 0.99,
+   "V": 14,
+   "VoverVs": 1.04,
+   "pastAim": 2,
+   "off": 0,
+   "run": 55,
+   "three": false,
+   "drift": -0.14
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 16.1,
+   "aimIn": 24,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 7,
+   "entryVs": -1.63,
+   "t0": 625.65,
+   "dur": 4.8
+  },
+  "verdicts": [
+   "28.6s vx-climb: ground ahead above the aeroplane — climbing at Vx 21.1 m/s until clear",
+   "28.6s terrain-turn: the ground ahead climbs faster than the aeroplane — turning at 33 m",
+   "600s gave-up: still in FINAL at t=600 s — out of patience, not out of sky"
+  ]
+ },
+ "stock/w8/student": {
+  "outcome": "gave-up",
+  "t": 651.1,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 104,
+   "Vlo": 16.5,
+   "lifts": 1,
+   "qMax": 3.6
+  },
+  "dep": "soft",
+  "depStol": false,
+  "ldg": {
+   "sink": 0.74,
+   "V": 14.3,
+   "VoverVs": 1.06,
+   "pastAim": -1,
+   "off": -0.2,
+   "run": 66,
+   "three": false,
+   "drift": 0.12
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 17.5,
+   "aimIn": 60,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 6.49,
+   "entryVs": -1.89,
+   "t0": 637.4333333333333,
+   "dur": 4.3
+  },
+  "verdicts": [
+   "27.7s vx-climb: ground ahead above the aeroplane — climbing at Vx 21.1 m/s until clear",
+   "27.7s terrain-turn: the ground ahead climbs faster than the aeroplane — turning at 30 m",
+   "600s gave-up: still in FINAL at t=600 s — out of patience, not out of sky"
+  ]
+ },
+ "kit/A4/student": {
+  "outcome": "completed",
+  "t": 212.9,
+  "ga": 0,
+  "bounces": 1,
+  "to": {
+   "run": 90,
+   "Vlo": 15.6,
+   "lifts": 1,
+   "qMax": 3
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.98,
+   "V": 15,
+   "VoverVs": 1.29,
+   "pastAim": -10,
+   "off": -0.4,
+   "run": 92,
+   "three": false,
+   "drift": 0.27
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 17.6,
+   "aimIn": 60,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 6.49,
+   "entryVs": -1.79,
+   "t0": 195.33333333333334,
+   "dur": 3.8
+  },
+  "verdicts": [
+   "20.3s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.4 m/s until clear"
+  ]
+ },
+ "kit/HOME/expert": {
+  "outcome": "completed",
+  "t": 236.7,
+  "ga": 0,
+  "bounces": 1,
+  "to": {
+   "run": 93,
+   "Vlo": 16,
+   "lifts": 1,
+   "qMax": 2.4
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.47,
+   "V": 14,
+   "VoverVs": 1.21,
+   "pastAim": 1,
+   "off": 0,
+   "run": 71,
+   "three": false,
+   "drift": -0.25
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 17.6,
+   "aimIn": 155,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 8.11,
+   "entryVs": -1.79,
+   "t0": 219.66666666666666,
+   "dur": 5.5
+  },
+  "verdicts": [
+   "19.9s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.4 m/s until clear"
+  ]
+ },
+ "kit/HOME/student": {
+  "outcome": "completed",
+  "t": 253.3,
+  "ga": 0,
+  "bounces": 2,
+  "to": {
+   "run": 88,
+   "Vlo": 15.6,
+   "lifts": 1,
+   "qMax": 2.7
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 2.37,
+   "V": 14.9,
+   "VoverVs": 1.28,
+   "pastAim": -7,
+   "off": -0.3,
+   "run": 83,
+   "three": false,
+   "drift": 0.08
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 17.6,
+   "aimIn": 155,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 6.49,
+   "entryVs": -1.99,
+   "t0": 237.16666666666666,
+   "dur": 3.7
+  },
+  "verdicts": [
+   "20s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.4 m/s until clear"
+  ]
+ },
+ "kit/A4/expert": {
+  "outcome": "completed",
+  "t": 253.3,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 94,
+   "Vlo": 16,
+   "lifts": 1,
+   "qMax": 2.5
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.22,
+   "V": 13.7,
+   "VoverVs": 1.18,
+   "pastAim": 4,
+   "off": -0.1,
+   "run": 59,
+   "three": false,
+   "drift": -0.16
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 16.2,
+   "aimIn": 20,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 8.48,
+   "entryVs": -1.63,
+   "t0": 237.96666666666667,
+   "dur": 5.9
+  },
+  "verdicts": [
+   "20.1s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.4 m/s until clear"
+  ]
+ },
+ "kit/mine/student": {
+  "outcome": "completed",
+  "t": 200.1,
+  "ga": 0,
+  "bounces": 1,
+  "to": {
+   "run": 95,
+   "Vlo": 15.6,
+   "lifts": 2,
+   "qMax": 3.5
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.88,
+   "V": 15.2,
+   "VoverVs": 1.31,
+   "pastAim": 14,
+   "off": 0.5,
+   "run": 97,
+   "three": false,
+   "drift": -0.05
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 17.6,
+   "aimIn": 115,
+   "gs": 0.156,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 6.49,
+   "entryVs": -2.77,
+   "t0": 182.53333333333333,
+   "dur": 3.3
+  },
+  "verdicts": [
+   "12.2s committed-takeoff: past the point of stopping at V=14.8 with 158 m left — continuing",
+   "23s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.4 m/s until clear",
+   "42.6s aim-displaced: the approach to Copperhead Mine Street needs 15.2 deg over the obstacle 25 m out (7 m); flying 8.8 deg to an aim 115 m in"
+  ]
+ },
+ "kit/mine/expert": {
+  "outcome": "completed",
+  "t": 218.1,
+  "ga": 0,
+  "bounces": 1,
+  "to": {
+   "run": 98,
+   "Vlo": 15.9,
+   "lifts": 2,
+   "qMax": 2.4
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.25,
+   "V": 14.3,
+   "VoverVs": 1.23,
+   "pastAim": 16,
+   "off": 0,
+   "run": 63,
+   "three": false,
+   "drift": -0.07
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 16.2,
+   "aimIn": 115,
+   "gs": 0.156,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 8.12,
+   "entryVs": -2.52,
+   "t0": 204.26666666666668,
+   "dur": 4.3
+  },
+  "verdicts": [
+   "11.7s committed-takeoff: past the point of stopping at V=14.9 with 158 m left — continuing",
+   "22.1s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.4 m/s until clear",
+   "41.9s aim-displaced: the approach to Copperhead Mine Street needs 15.2 deg over the obstacle 25 m out (7 m); flying 8.8 deg to an aim 115 m in"
+  ]
+ },
+ "stol/HOME/expert": {
+  "outcome": "completed",
+  "t": 216.7,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 47,
+   "Vlo": 15.6,
+   "lifts": 1,
+   "qMax": 2.2
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.09,
+   "V": 13.8,
+   "VoverVs": 1.14,
+   "pastAim": -5,
+   "off": 0.2,
+   "run": 61,
+   "three": false,
+   "drift": -0.4
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 15.7,
+   "aimIn": 155,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 7.32,
+   "entryVs": -1.57,
+   "t0": 201.18333333333334,
+   "dur": 4.9
+  },
+  "verdicts": [
+   "11.4s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.5 m/s until clear"
+  ]
+ },
+ "stol/HOME/student": {
+  "outcome": "completed",
+  "t": 242,
+  "ga": 0,
+  "bounces": 1,
+  "to": {
+   "run": 48,
+   "Vlo": 15.6,
+   "lifts": 1,
+   "qMax": 20
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.72,
+   "V": 14,
+   "VoverVs": 1.16,
+   "pastAim": -8,
+   "off": -0.3,
+   "run": 67,
+   "three": false,
+   "drift": 0.49
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 15.7,
+   "aimIn": 155,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 5.86,
+   "entryVs": -1.72,
+   "t0": 227.56666666666666,
+   "dur": 3.3
+  },
+  "verdicts": [
+   "11.5s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.5 m/s until clear"
+  ]
+ },
+ "kit/w8/expert": {
+  "outcome": "gave-up",
+  "t": 646.7,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 107,
+   "Vlo": 15.7,
+   "lifts": 2,
+   "qMax": 2.4
+  },
+  "dep": "soft",
+  "depStol": false,
+  "ldg": {
+   "sink": 0.93,
+   "V": 14.2,
+   "VoverVs": 1.22,
+   "pastAim": -1,
+   "off": 0.1,
+   "run": 57,
+   "three": false,
+   "drift": -0.11
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 16.2,
+   "aimIn": 24,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 7.02,
+   "entryVs": -1.64,
+   "t0": 634.3333333333334,
+   "dur": 4.6
+  },
+  "verdicts": [
+   "22.4s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.4 m/s until clear",
+   "25.9s terrain-turn: the ground ahead climbs faster than the aeroplane — turning at 22 m",
+   "600s gave-up: still in FINAL at t=600 s — out of patience, not out of sky"
+  ]
+ },
+ "stol/mine/expert": {
+  "outcome": "rejected-takeoff",
+  "t": 12.2,
+  "ga": 0,
+  "bounces": 0,
+  "to": null,
+  "dep": "normal",
+  "depStol": false,
+  "ldg": null,
+  "appr": null,
+  "flare": null,
+  "verdicts": [
+   "7s rejected-takeoff: will not reach Vr: 0.28 m/s^2 needs 282 m more, 221 m left"
+  ]
+ },
+ "kit/w8/student": {
+  "outcome": "gave-up",
+  "t": 695.6,
+  "ga": 0,
+  "bounces": 1,
+  "to": {
+   "run": 103,
+   "Vlo": 15.4,
+   "lifts": 1,
+   "qMax": 4
+  },
+  "dep": "soft",
+  "depStol": false,
+  "ldg": {
+   "sink": 2.07,
+   "V": 15.1,
+   "VoverVs": 1.3,
+   "pastAim": -9,
+   "off": -0.5,
+   "run": 76,
+   "three": false,
+   "drift": -0.1
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 17.6,
+   "aimIn": 60,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 6.5,
+   "entryVs": -2.08,
+   "t0": 681.7166666666667,
+   "dur": 3.6
+  },
+  "verdicts": [
+   "22.6s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.4 m/s until clear",
+   "26.3s terrain-turn: the ground ahead climbs faster than the aeroplane — turning at 22 m",
+   "600s gave-up: still in FINAL at t=600 s — out of patience, not out of sky"
+  ]
+ },
+ "stol/A4/student": {
+  "outcome": "completed",
+  "t": 245.7,
+  "ga": 0,
+  "bounces": 1,
+  "to": {
+   "run": 48,
+   "Vlo": 15.5,
+   "lifts": 1,
+   "qMax": 20.3
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.53,
+   "V": 13.9,
+   "VoverVs": 1.15,
+   "pastAim": -9,
+   "off": 0.5,
+   "run": 73,
+   "three": false,
+   "drift": -0.05
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 15.7,
+   "aimIn": 60,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 5.84,
+   "entryVs": -1.68,
+   "t0": 230.06666666666666,
+   "dur": 3.4
+  },
+  "verdicts": [
+   "11.6s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.5 m/s until clear"
+  ]
+ },
+ "stol/A4/expert": {
+  "outcome": "completed",
+  "t": 284.8,
+  "ga": 0,
+  "bounces": 1,
+  "to": {
+   "run": 47,
+   "Vlo": 15.6,
+   "lifts": 1,
+   "qMax": 2.2
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.17,
+   "V": 13.9,
+   "VoverVs": 1.15,
+   "pastAim": 4,
+   "off": -0.5,
+   "run": 55,
+   "three": false,
+   "drift": -0.47
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 14.5,
+   "aimIn": 20,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 7.75,
+   "entryVs": -1.46,
+   "t0": 269.8,
+   "dur": 5.9
+  },
+  "verdicts": [
+   "11.4s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.5 m/s until clear"
+  ]
+ },
+ "stol/mine/student": {
+  "outcome": "rejected-takeoff",
+  "t": 10,
+  "ga": 0,
+  "bounces": 0,
+  "to": null,
+  "dep": "normal",
+  "depStol": false,
+  "ldg": null,
+  "appr": null,
+  "flare": null,
+  "verdicts": [
+   "8s rejected-takeoff: not accelerating (0.02 m/s^2 at V=3.4) — thrust is going nowhere"
+  ]
+ },
+ "stol/w8/expert": {
+  "outcome": "completed",
+  "t": 532.6,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 49,
+   "Vlo": 15.4,
+   "lifts": 1,
+   "qMax": 2.1
+  },
+  "dep": "soft",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.02,
+   "V": 13.9,
+   "VoverVs": 1.15,
+   "pastAim": 4,
+   "off": -0.2,
+   "run": 51,
+   "three": false,
+   "drift": -0.44
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 14.5,
+   "aimIn": 24,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 6.57,
+   "entryVs": -1.47,
+   "t0": 520.3333333333334,
+   "dur": 5
+  },
+  "verdicts": [
+   "11.9s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.5 m/s until clear"
+  ]
+ },
+ "stol/w8/student": {
+  "outcome": "completed",
+  "t": 597.8,
+  "ga": 0,
+  "bounces": 1,
+  "to": {
+   "run": 46,
+   "Vlo": 14.7,
+   "lifts": 1,
+   "qMax": 22.3
+  },
+  "dep": "soft",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.43,
+   "V": 13.9,
+   "VoverVs": 1.15,
+   "pastAim": -12,
+   "off": -0.3,
+   "run": 60,
+   "three": false,
+   "drift": 0.18
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 15.7,
+   "aimIn": 60,
+   "gs": 0.1,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 5.85,
+   "entryVs": -1.79,
+   "t0": 585.4166666666666,
+   "dur": 3.4
+  },
+  "verdicts": [
+   "12.1s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.5 m/s until clear"
+  ]
+ },
+ "stock/mineL/student": {
+  "outcome": "rejected-takeoff",
+  "t": 16.3,
+  "ga": 0,
+  "bounces": 0,
+  "to": null,
+  "dep": "normal",
+  "depStol": false,
+  "ldg": null,
+  "appr": null,
+  "flare": null,
+  "verdicts": [
+   "9.3s rejected-takeoff: will not reach Vr: 0.18 m/s^2 needs 572 m more, 725 m left"
+  ]
+ },
+ "stock/mineL/expert": {
+  "outcome": "completed",
+  "t": 811.1,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 5,
+   "Vlo": 17.2,
+   "lifts": 1,
+   "qMax": 5.5
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.08,
+   "V": 14.1,
+   "VoverVs": 1.05,
+   "pastAim": 16,
+   "off": 0,
+   "run": 60,
+   "three": false,
+   "drift": -0.1
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 16.1,
+   "aimIn": 122,
+   "gs": 0.148,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 9.17,
+   "entryVs": -2.41,
+   "t0": 797.1833333333333,
+   "dur": 4.6
+  },
+  "verdicts": [
+   "21.2s vx-climb: ground ahead above the aeroplane — climbing at Vx 21.1 m/s until clear",
+   "52.3s aim-displaced: the approach to Copperhead Mine Street needs 15.2 deg over the obstacle 25 m out (7 m); flying 8.4 deg to an aim 122 m in"
+  ]
+ },
+ "kit/mineL/student": {
+  "outcome": "rejected-takeoff",
+  "t": 16.3,
+  "ga": 0,
+  "bounces": 0,
+  "to": null,
+  "dep": "normal",
+  "depStol": false,
+  "ldg": null,
+  "appr": null,
+  "flare": null,
+  "verdicts": [
+   "9.8s rejected-takeoff: will not reach Vr: 0.11 m/s^2 needs 582 m more, 722 m left"
+  ]
+ },
+ "stol/mineL/expert": {
+  "outcome": "rejected-takeoff",
+  "t": 15.9,
+  "ga": 0,
+  "bounces": 0,
+  "to": null,
+  "dep": "normal",
+  "depStol": false,
+  "ldg": null,
+  "appr": null,
+  "flare": null,
+  "verdicts": [
+   "7.7s rejected-takeoff: will not reach Vr: 0.02 m/s^2 needs 4029 m more, 738 m left"
+  ]
+ },
+ "stol/mineL/student": {
+  "outcome": "rejected-takeoff",
+  "t": 15.6,
+  "ga": 0,
+  "bounces": 0,
+  "to": null,
+  "dep": "normal",
+  "depStol": false,
+  "ldg": null,
+  "appr": null,
+  "flare": null,
+  "verdicts": [
+   "8s rejected-takeoff: not accelerating (-0.78 m/s^2 at V=2.1) — thrust is going nowhere"
+  ]
+ },
+ "kit/mineL/expert": {
+  "outcome": "completed",
+  "t": 880,
+  "ga": 0,
+  "bounces": 1,
+  "to": {
+   "run": 7,
+   "Vlo": 16.1,
+   "lifts": 1,
+   "qMax": 4.9
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.2,
+   "V": 14.3,
+   "VoverVs": 1.23,
+   "pastAim": 15,
+   "off": 0,
+   "run": 62,
+   "three": false,
+   "drift": -0.06
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 16.2,
+   "aimIn": 115,
+   "gs": 0.156,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 9.21,
+   "entryVs": -2.52,
+   "t0": 866.2,
+   "dur": 4.3
+  },
+  "verdicts": [
+   "21.4s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.4 m/s until clear",
+   "52.4s aim-displaced: the approach to Copperhead Mine Street needs 15.2 deg over the obstacle 25 m out (7 m); flying 8.8 deg to an aim 115 m in",
+   "309.3s terrain-react: the ground ahead stands within 40 m of the plan on ENROUTE - climbing to 670 m (planned 669)"
+  ]
+ }
+}

@@ -99721,3 +99721,80 @@ Strict light gate RED (6), all in known classes; the loads are back inside their
 - metal fuseWidth busy 393: the bimodal 0 / ~400 ms rep (master's own L24b / L24c show the same).
 - world -> garage: cub round trip 2 at 2.02 s, floats at 5.29 s. The class red since L24c (2.99 / 3.55 there); HWCOV has the cause, the per-trip cacheKey churn of fragment 66e30961, and its Mon 12:45 slot names the owner.
 Pushed by the user's order of 25 Oct: land as soon as possible.
+
+## STOL-PILOT - THE AUTOPILOT'S SHORT-FIELD TECHNIQUE FOR A STOL WING (27 Oct 2026, cloud, node only; branch claude/stol-pilot = master d7e181f4e + claude/ready/stol-wing f35d77353 + claude/land-way 302008a7 + claude/ready/final-cap 5206f6c5e; NOT on claude/ready/ - PILOT reviews 43_pilot.js first)
+
+Plan, law and the real technique: **futureDesigns/STOL-PILOT-2026-10.md** (+ the sourced notes `STOL-PILOT-2026-10-research.md`:
+the FAA AFH / ACS, the PA-18 Information Manual, AOPA, POHs). Evidence: `reports/evidence/STOL-PILOT/` (legs.js, table.js,
+legs_base.json / legs_branch.json, legs_table.md, samebits_*.log).
+
+**WHY** (the user): the showcase STOL Cub lifted off in 46.7 m against the stock Cub's 96.1 but its landing roll was 61 m against
+62 - "the autopilot touches down at about 14 m/s whatever the wing can do". Measured: the flare ran out of the AP's 0.35
+elevator stop at +1 deg, the slow-arrival cushion (G970) added 0.40 of throttle under 1.15 Vs0 and held the speed - a
+wheels-first touch at 13.8 m/s = 1.14 Vs0, then brakes at 0.30 from 0.75 Vs. AND: at idle that tail has no authority without
+the 915's slipstream (0.65 of stick held -3 deg) - the STOL flare has to be flown on power.
+
+**THE LAW** (43_pilot.js; every branch behind `ap.stolFld` (the approach) / `ap.dep.stol` (the departure)):
+- `stolSheet()` / `ap.stol`: ON when the wing has a stall-angle device (def.strips[].stol dAs/sa) AND the machine sheet's Vs0
+  (the elevator-held one, G2826) < 0.92 x the same wing's without its devices (`genStolGain`, 64_gen_build, new: two probe
+  sims, the lift's maximum over an attitude sweep at the landing flap). Showcase 0.848 ON; kit Cub 0.992 OFF (held 48.6 for a
+  41.8 stall); no device: null, never probed. Never on the water.
+- approach: 'short' on every land strip that is not soft (a profile's own field technique wins - the Student stays 'normal'),
+  1.20 Vs0, aim 10 m in, slope >= gsStol 0.12 (6.8 deg) within gsMax; `ap.appr.stol` records the sheet.
+- flare: the attitude ramped to the three-point one by half the entry height; deTop the stick's full travel (deStol 0.70) in
+  FLARE / ROLLOUT; the approach throttle kept and trimmed on the sink (the water flare's PI); the slow cushion off.
+- roll-out: stick fully back (0.70) from the touch (three-point) / from 1.15 VRot; the short brakes at 1.0 /s (brakeStolRate)
+  to brakeShort, the tail-rising guard unchanged; the flaps up at the touch as every roll-out.
+- take-off: 'short' (brakes held to full power), half the landing flap (flapStolK 0.5, over the sheet's 0.25 - A CHOICE FOR
+  PILOT), the lift-off accelerating to Vx only, a Vx climb to 15 m whatever stands ahead.
+
+**THE LEGS** (node pilot_trace, the merged base's core vs this branch's; Expert + Student; full table: legs_table.md):
+
+| STOL Cub (showcase) | base: lift-off / roll / touch | branch: lift-off / roll / touch |
+|---|---|---|
+| HOME 1100 m, Expert | 47 / **61 m** / 13.8 m/s (1.14 Vs0) | **43 / 33 m / 12.0 m/s (0.99 Vs0)**, sink 1.35, 12 m past the aim |
+| A4 340 m, Expert | 47 / **55 m** / 13.9 | **44 / 36 m / 12.0** |
+| HOME / A4, Student | 48 / 67, 48 / 73 | identical (the Student flies a normal approach everywhere) |
+| w8 392 m (SOFT, s7), both | 49 / 51, 46 / 60 | identical (soft: the soft technique, the law stays off) |
+| the Jolene mine strip 250 m | rejected-takeoff (Expert and Student) | rejected-takeoff - the SAME in the base (below) |
+
+To the 15 m screen off HOME: 155 m -> 134 m. Stock Cub (62 / 58 m rolls) and kit Cub (71 / 59): every leg identical.
+The real numbers for scale: PA-18-150 book roll 107 m; a Carbon Cub ~75 m; competition Cubs 17 m.
+
+**NO VALIDATED PLANE MOVES:** `tools/_stol_samebits.js` on the merged base tree and on this branch - the six lines (Cub, Jodel,
+metal Cessna, Cessna floats, twin floats, Rufus: def / 4 s / drawing / design check / sheet / whole circuit) identical
+(samebits_base.log / samebits_branch.log). By construction too: no validated build has a STOL device (GATE PILOT asserts
+`ap.stol === null` on all seven incl. the corrected C172).
+
+**GATES:** GATE PILOT gains part **STOL** (tools/test_pilot.js, 9 checks: the showcase qualifies, the kit does not, no
+validated build has ap.stol, the stock Cub flies 'normal' with no STOL key, the showcase flies the law and lands first time,
+the touch <= 1.05 Vs0 and <= 1.6 m/s, the roll <= 0.70 x the stock Cub's, within 30 m of the aim, the lift-off shorter).
+GATE STOL sections 6 / 8 do not move: the kit does not qualify (its lap is the same bits) and section 8 reads design numbers.
+Verdicts here (cloud, `run_gates.js --only=...`): **GATE PILOT PASS** (3 shards, 513 s; the STOL part: the showcase on the
+aim 8 m past it, lift-off 42.9 m against 96.1 - the full lines in gate_pilot_shard2.log), **GATE STOL PASS** (124 checks;
+flown on the build before a dead-code revert in the flare's cushion test that changes no branch taken - the STOL flare's
+throttle is SET, the cushion an IDLE mode's). The --all battery is NOT run here (A0's, below).
+
+**FOUND, NOT MINE (for A0 / PILOT):**
+- On the Jolene island in node (`pilot_trace --world jolene`) the STOL Cub REJECTS every take-off from the mine strip
+  (mn_strip, Expert and Student) and from Jolene AFB; the stock Cub's Student rejects there too; `--stand` taxi-times-out.
+  The base core does the same (legs_base.json): a node-rig / island-placement fact, not the law. The mine strip has to be
+  judged on the page.
+- w8 (strip 13) is surface 7 (rolling 0.10 = soft): the stock and kit Cubs 'gave-up' in FINAL at 600 s there in BOTH cores.
+- climbKit's Vx climb overshoots on a 141 hp Cub (21.6 m/s at 15 m on the sheet's flap, Vx 16.9) - PILOT's law, untouched.
+
+**PILOT MUST REVIEW** (every 43_pilot.js hunk is tagged STOL-PILOT): the qualification (0.92; genStolGain's sweep); the flare on
+power (flareStolP/I, the +0.4 ceiling) and the attitude ramp (flareStolK 0.5); deStol 0.70 in FLARE/ROLLOUT (the rotate-pull's
+number); the slow cushion off for STOL; brakeStolRate 1.0; flapStolK 0.5 (vs "flaps per the sheet"); the STOL plan on EVERY
+land strip (not only short ones) - the user's brief asked the gain on HOME too; `stolFld` added to finalFrom's PLAN_KEYS.
+(A note for the review: gsStol is clamped to the sheet's gsMax; a sheet without its shakedown (GATE PILOT's `fly()`) has no
+LDbest and gsMax falls back to 0.105 - the gate's STOL Cub flew 6.0 deg, pilot_trace's (with the shakedown) 6.8; the same
+33 m either way.)
+
+**A0 RUNS ON THE LOCAL BOX** (the pilot browser-flown rule - a page leg against node):
+1. the branch built, the showcase loaded through the game's load door (tools/fixtures/stol_cub_showcase.json), the circuit
+   off HOME on the page with the Expert and with the Student: the landing report (run, V, three) against the node lines above
+   (Expert 33 m / 12.0 m/s; Student 67 m / 14.0);
+2. the same to Copperhead Mine Street (mn_strip) and to strip 13 (w8) on the island - node cannot take off there;
+3. the user's own persona (user_replay) on the showcase, HOME;
+4. `node tools/run_gates.js --only=PILOT,STOL` and the --all verdict before any ready push.
