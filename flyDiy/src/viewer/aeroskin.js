@@ -1969,6 +1969,10 @@ const AERO_DEC_DEF = {
   regMetal: 0, imgMetal: 0, wimMetal: 0,   // G215: metal flake in the marking
   regW: 0.96, regLock: 1,         // locked: width follows height at the aspect
   regFont: 0,                     // an index into AERO_DEC_FONTS
+  // G2829 (STOL-WING-2, the user 27 Oct: "put a large registration on the wing top as well"): THE SAME MARKING A
+  // SECOND TIME, on the wing - the registration's own page (its text, colour, font), its own height and place, read
+  // in the plan view; off unless a build asks
+  wregOn: 0, wregH: 0.55, wregL: 2.6, wregC: 0.5, wregRot: 0, wregMode: 2,   // plan: L across the span, C fore / aft, radians
   imgOn: 0, imgL: 1.2, imgC: 0.0, imgW: 1.2, imgH: 0.6, imgTarget: 0,
   imgMode: 0, imgRot: 0, imgLock: 1,
   wimOn: 0, wimL: 0.0, wimC: 0.0, wimW: 2.0, wimH: 1.0,
@@ -2445,6 +2449,11 @@ function aeroDecalsFor(THREE, D, opts) {
   list.push({ page: 0, sL: D.regL, sC: D.regC, w: pw, h: ph,
                   rot: D.regRot, rough: -0.06, sdf: 1, metal: +D.regMetal || 0,
                   on: onOf(D.regTarget), mode: modeOf(D.regMode) });
+  if (D.wregOn) {
+    const ww = D.wregH * Math.max(1.2, aspect);
+    list.push({ page: 0, sL: D.wregL, sC: D.wregC, w: ww / Math.max(0.05, fit.w), h: D.wregH / Math.max(0.05, fit.h),
+                rot: D.wregRot, rough: -0.06, sdf: 1, metal: +D.regMetal || 0, on: { wing: 1 }, mode: modeOf(D.wregMode) });
+  }
   if (D.imgOn) list.push({ page: 1, sL: D.imgL, sC: D.imgC, w: D.imgW,
     h: D.imgH, rot: D.imgRot, rough: -0.04, metal: +D.imgMetal || 0,
     on: onOf(D.imgTarget), mode: modeOf(D.imgMode) });
