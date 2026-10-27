@@ -74,7 +74,7 @@ const optionRows = KEYS.every(k => new RegExp("\\{ k: '" + k + "', label: '[^']+
 // DEPART-HITCH (21 Oct): the picture is read only when asked (localStorage flydiy.rec.catch = 'shots'): the rows below run the
 // catcher twice - with 'shots' (the read, the picture, the means, as before) and by default (the event and its state, NO read)
 const catchRun = async shots => {
-  const out = { ok: false, events: [], reads: 0, eyeReads: 0, queries: 0, threw: null };
+  const out = { ok: false, events: [], reads: 0, eyeReads: 0, eyeAdapts: 0, queries: 0, threw: null };
   try {
     const win = {};
     const LS0 = globalThis.localStorage;
@@ -90,7 +90,7 @@ const catchRun = async shots => {
     class Mesh { constructor(g, m) { this.material = m; } }
     class Scene { add(m) { this.quad = m; } }
     const THREE = { WebGLRenderTarget: Tgt, ShaderMaterial: Mat, Mesh, Scene, OrthographicCamera: function () {}, PlaneGeometry: function () {},
-      Vector2: V2, Vector3: V3, Color: Col, LinearFilter: 1, LinearMipmapLinearFilter: 12, HalfFloatType: 2, UnsignedByteType: 3, RGBAFormat: 4, SRGBColorSpace: 'srgb',
+      Vector2: V2, Vector3: V3, Vector4: function () {}, Color: Col, NearestFilter: 13, DataTexture: function (d, w, h) { this.image = { data: d, width: w, height: h }; this.level = 1; }, LinearFilter: 1, LinearMipmapLinearFilter: 12, HalfFloatType: 2, UnsignedByteType: 3, RGBAFormat: 4, SRGBColorSpace: 'srgb',
       AdditiveBlending: 5, CustomBlending: 6, AddEquation: 7, OneFactor: 8, OneMinusSrcColorFactor: 9, DstColorFactor: 10, ZeroFactor: 11 };
     let target = null, openQ = null;
     const Q = new Map();   // query -> samples passed
@@ -101,9 +101,11 @@ const catchRun = async shots => {
     const renderer = {
       autoClear: true, capabilities: { isWebGL2: true }, getContext: () => gl,
       getRenderTarget: () => target, setRenderTarget: t => { target = t; },
+      getClearColor: c => c, getClearAlpha: () => 1, setClearColor: () => {}, clear: () => {},
       render: (scene) => {
         const m = scene.quad && scene.quad.material, u = m && m.uniforms; if (!u || !target) return;
         if (u.tSrc && u.uTexel && !u.tA) target.texture.level = u.tSrc.value.level;   // a copy pass (the eye's or the catcher's)
+        if (u.tPrev && u.tMean) out.eyeAdapts++;   // EYE-GPU: the 1x1 adaptation
         if (u.uSpike) {   // the decision, as CAT_DECIDE
           const a = lum(u.tA.value), b = lum(u.tB.value), c = lum(u.tC.value), d1 = b - a, d2 = b - c;
           const yes = Math.abs(d1) > u.uSpike.value && Math.abs(d2) > u.uSpike.value && (d1 > 0) === (d2 > 0);
@@ -130,8 +132,9 @@ const catchRun = async shots => {
     out.bootTaps = P.catcher.summary().taps - tapsBefore; delete win.BOOT;
     const sm = P.catcher.summary();
     out.events = sent.filter(e => e[0] === 'catch').map(e => e[1]); out.queries = sm.queries; out.trips = sm.trips;
-    // the eye: on, rendered 40 frames back to back - its reads are throttled to EYE_READ_MS
-    P.set('eye', 'on'); const te0 = Date.now(); for (let i = 0; i < 40; i++) { P.render(renderer, null, rt); await tick(); } out.eyeMs = Date.now() - te0;
+    // the eye: on (linear compositing, the default - EYE-GPU's), rendered 40 frames back to back: it adapts every frame on the
+    // GPU and reads NOTHING back
+    P.setLinear(true); P.set('eye', 'on'); const te0 = Date.now(); for (let i = 0; i < 40; i++) { P.render(renderer, null, rt); await tick(); } out.eyeMs = Date.now() - te0;
     out.ok = true;
   } catch (e) { out.threw = String(e && e.stack || e); }
   return out;
@@ -164,7 +167,11 @@ const checks = {
              const outside = code.replace(/#ifdef PFX_LINEAR[\s\S]*?#endif/g, '');
              return /tonemapping_fragment/.test(inside) && /colorspace_fragment/.test(inside) && !/tonemapping_fragment|colorspace_fragment/.test(outside); })(),
   'a material is toneMapped only in linear mode (the chunks compiled in)': /toneMapped: linear/.test(code),
-  'the eye reads back asynchronously, never a blocking readPixels': /readRenderTargetPixelsAsync/.test(code) && !/\breadPixels\(/.test(code),
+  // EYE-GPU (A0 24 Oct; the user's 1.3-1.9 s cruise holds: the eye's readback behind the GPU's links)
+  'EYE-GPU: the eye never reads back in the frame - its loop on the GPU (EYE_ADAPT, a 1x1 pair), the factor a texture every curve reads (tEyeK); the only read is eyeRead(), on demand':
+    (() => { const ey = (code.match(/function eye\(rt\) \{[\s\S]*?\n  \}\n/) || [''])[0];
+             return ey.length > 0 && !/readRenderTargetPixels/.test(ey) && /draw\(M\.eyeAdapt, next\)/.test(ey) && /EYE_U\.value = next\.texture/.test(ey)
+               && /const EYE_ADAPT = /.test(code) && /c \*= texture2D\(tEyeK, vec2\(0\.5\)\)\.r;/.test(code) && /function eyeRead\(\)/.test(code) && !/\breadPixels\(/.test(code) && !/EYE_READ_MS/.test(code); })(),
   'the eye is bounded to a stop and a half round the schedule': /EYE_STOPS = 1\.5/.test(src),
 
   // --- the wiring ------------------------------------------------------------
@@ -197,7 +204,7 @@ const checks = {
   "the boot's offscreen draws are not frames: no tap while BOOT is up (REVEAL-FLASH)": C.bootTaps === 0 && C.def.bootTaps === 0,
   'a catch carries the state it was drawn with (far, eye, the cloud flag, the post rows) (G1357)':
     C.events.length === 1 && C.events[0].far === 9000 && 'eyeK' in C.events[0] && 'cloudShadow' in C.events[0] && !!C.events[0].post && 'jpeg' in C.events[0],
-  "the eye reads at most every EYE_READ_MS, one in flight, issued from the frame (G1357, EVEN-30's long tasks)": C.eyeReads >= 1 && C.eyeReads <= Math.ceil(C.eyeMs / 250) + 1 && C.eyeReads < 10 && /EYE_READ_MS = 250/.test(code),
+  'EYE-GPU: the eye on for 40 frames reads nothing back and adapts every frame on the GPU': C.eyeReads === 0 && C.eyeAdapts >= 39 && C.def.eyeReads === 0,
   'the decision is an occlusion query, the shots capped and spaced, the cost measured, the switch read (G1357)':
     /ANY_SAMPLES_PASSED_CONSERVATIVE/.test(code) && /MAX_SHOTS: CAT_SHOTS \? 6 : 0, GAP_MS: 5000/.test(code) && /=== 'shots'/.test(code) && /tapUs/.test(code) && /flydiy\.rec\.catch/.test(code),
   'app.js taps the catcher only with the recorder on; aa_resolve taps after the post chain (G1357)':
@@ -211,6 +218,6 @@ if (threw) console.log(`module threw: ${threw}`);
 const pass = failed.length === 0;
 console.log(pass ? 'GATE POSTFX: PASS' : 'GATE POSTFX: FAIL');
 if (C.threw) console.log('catcher threw: ' + C.threw);
-console.log('catcher run: ' + JSON.stringify({ reads: C.reads, eyeReads: C.eyeReads, queries: C.queries, trips: C.trips, events: C.events.length, eyeMs: C.eyeMs }));
+console.log('catcher run: ' + JSON.stringify({ reads: C.reads, eyeReads: C.eyeReads, eyeAdapts: C.eyeAdapts, queries: C.queries, trips: C.trips, events: C.events.length, eyeMs: C.eyeMs }));
 process.exitCode = pass ? 0 : 1;
 });
