@@ -100,11 +100,14 @@
       PREM.host = PREM.host || window.PREMISES_HOST.make({ THREE, world, size: 900, view: PREM.view, canvas: renderer.domElement, R: () => PREM.R, persp: camera, map: 'persp', storageKey: 'flydiy.premises.gameview', onDraw: dirtyDraw,
         fly: window.DEV_CAM || null,   // G2915: the world editor's free camera (WASD / ZQSD, R / F, Shift x5, its speed)
         onMode: m => { const l = document.getElementById('premCam'); if (l) l.textContent = m === 'map' ? 'MAP · wheel zooms · middle-drag pans · Tab: fly' : m === 'fly' ? 'FLY ' + Math.round((window.DEV_CAM && window.DEV_CAM.speed) || 0) + ' m/s · WASD / ZQSD · R F up down · Shift x5 · right-drag looks · wheel = speed · Tab: orbit' : 'ORBIT · right-drag turns · middle-drag pans · wheel zooms · Tab: map'; } });
+      // THE CAMERA WHERE THE WORLD WAS, WASD BY DEFAULT (the user, 24 Oct: "WASD by default; open the world editor with the camera
+      // where the world was, not miles away"): the flight's eye kept before the host takes the camera; the orbit's centre on the
+      // aeroplane (not the island-wide extent), and the editor opens in FLY seeded from that eye - Tab for the orbit or the map
+      const eye0 = camera.position.clone(), q0 = camera.quaternion.clone();
       PREM.host.attach();
-      // the camera starts over the premises (its extent), or over the aeroplane
-      const ov = world.premises.overlay;
-      if (ov && ov.n) PREM.host.cameras.frame(ov.extent); else { const cg = sim.cgPos(); PREM.host.cameras.centreOn(cg[0], cg[2]); }
-      PREM.host.cameras.set(PREM.host.cameras.mode());
+      { const cg = sim.cgPos(); PREM.host.cameras.centreOn(cg[0], cg[2]); }
+      if (PREM.host.cameras.flyOk()) { camera.position.copy(eye0); camera.quaternion.copy(q0); PREM.host.cameras.set('fly'); }
+      else PREM.host.cameras.set(PREM.host.cameras.mode());
       const els = { chk: document.getElementById('premChk'), plaque: document.getElementById('premPlaque'), strip: document.getElementById('premStrip'), rail: document.getElementById('premRail') };
       const rec0 = world.premises.rec ? PREMISES_GEN.envelope(world.premises.rec.name || null, world.premises.rec) : null;   // BEFORE the mount: the mount's first rebuild recomposes the world with what the editor holds
       PREM.ed = window.PREMISES_UI.mount(PREM.body, {

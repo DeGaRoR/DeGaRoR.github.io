@@ -1372,7 +1372,44 @@ if (plots.length) {
   const J40 = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')), r45 = PG.normalise(J40.layers ? J40 : (J40.rec || J40.premises)).layers.roads.find(q => q.id === 'r45');
   check(r45 && !('band' in r45), '40 Jolene\'s r45 (band 0 in the file) draws its own side again');
 }
-// 41 SCENERY VERSIONS (ED-2; the user, 24 Oct: "the fact that the game and the player edits can diverge is problematic ... keep some sort
+// 41 THE USER'S EDITOR ITEMS (24 Oct playtest 40-42): the checks panel says only what is wrong (the long list gone); the editor
+//    opens in FLY (WASD) seeded from the flight's eye, the orbit's centre on the aeroplane (not the island-wide extent); a zone's
+//    plot cars: rules.cars false flags every plot it sows noCar, rules.noCar [ids] those alone, none set - every plot record as
+//    before; the village generator parks no car on a noCar plot (after its draws); the renderer builds a switched plot again
+{
+  const flat = { id: 'flat', terrainH: () => 0, waterH: () => -100 };
+  const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec;
+  const key = O => JSON.stringify(O.records.plots);
+  const O0 = PG.compose(J, flat, { raster: false }), z = J.layers.zones.find(q => O0.records.plots.some(p => p.zone === q.id && p.kind !== 'park'));
+  check(z && !O0.records.plots.some(p => 'noCar' in p), '41 no zone saying so: no plot carries noCar (' + O0.records.plots.length + ' plots)');
+  const mine = O0.records.plots.filter(p => p.zone === z.id), one = mine[0];
+  const J1 = JSON.parse(JSON.stringify(J)); J1.layers.zones.find(q => q.id === z.id).rules = Object.assign({}, z.rules, { noCar: [one.id] });
+  const O1 = PG.compose(J1, flat, { raster: false });
+  check(O1.records.plots.filter(p => p.noCar).map(p => p.id).join() === one.id, '41 a plot\'s cars switched off: it alone carries noCar (' + one.id + ')');
+  check(JSON.stringify(O1.records.plots.map(p => { const c = Object.assign({}, p); delete c.noCar; return c; })) === key(O0), '41 ...and every plot otherwise the same, its boundary and seed too');
+  const J2 = JSON.parse(JSON.stringify(J)); J2.layers.zones.find(q => q.id === z.id).rules = Object.assign({}, z.rules, { cars: false });
+  const O2 = PG.compose(J2, flat, { raster: false });
+  check(O2.records.plots.filter(p => p.zone === z.id).every(p => p.noCar) && O2.records.plots.filter(p => p.zone !== z.id).every(p => !p.noCar), '41 the zone\'s cars off: its ' + mine.length + ' plots, and no other');
+  const VGs = fs.readFileSync(path.join(TOOLS, '_village_gen.js'), 'utf8'), RPs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8'), APs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+  check(/if \(plot\.noCar\) \{ plot\.car = null; if \(plot\.drive\) plot\.drive\.car = null; \}/.test(VGs) && /if \(plot\.lot && plot\.noCar\) plot\.lot\.cars = \[\];/.test(VGs), '41 the village generator parks no car on a noCar plot (a house\'s, its drive\'s, a lot\'s bays)');
+  check(/!!p\.noCar !== !!\(h\.plot && h\.plot\.noCar\)/.test(RPs), '41 the renderer builds a plot again when its cars switch');
+  check(/'plot cars'/.test(UI_SRC) && /pick plots: a click switches one plot\\'s cars/.test(UI_SRC) && /name === 'plotCar'/.test(UI_SRC), '41 the zone\'s inspector: the cars switch and the plot pick');
+  // the pick, end to end: a click in the plot puts it in noCar, a second takes it out
+  let zid = null;
+  const ed41 = UI.mount(new El('div'), { THREE: null, world: synth, R: Object.assign(makeR(), { plots: () => [{ zone: zid, id: zid + '.1', poly: [[0, 0], [30, 0], [30, 30], [0, 30]] }] }), rows, els: { chk: new El('div'), plaque: null, strip: new El('div') }, viewEl: new El('div'), storage: null, fresh: true, camera: () => null, redraw: noop });
+  zid = ed41.cmd('add', { layer: 'zones', entry: { id: 'zc41', kind: 'residential', poly: [[-10, -10], [40, -10], [40, 40], [-10, 40]] } });
+  ed41.cmd('plotCar', { zone: zid, x: 15, z: 15 });
+  const nc1 = ((PG.findById(ed41.record(), zid).entry.rules || {}).noCar || []).join();
+  ed41.cmd('plotCar', { zone: zid, x: 15, z: 15 });
+  const nc2 = (PG.findById(ed41.record(), zid).entry.rules || {}).noCar;
+  check(nc1 === zid + '.1' && nc2 === undefined, '41 a plot picked: its cars off (noCar ' + nc1 + '), picked again: back (' + JSON.stringify(nc2) + ')');
+  // the checks panel: what is wrong, never the list of what is right
+  check(!/✓/.test(String(UI_SRC.match(/function checks\(\) \{[\s\S]*?\n  \}/)[0].split('els.chk.innerHTML')[1] || '')), '41 the checks panel lists no passed check (the long list gone): a failed check, the first issue, the warnings\' count');
+  ed41.close();
+  check(/const eye0 = camera\.position\.clone\(\), q0 = camera\.quaternion\.clone\(\);/.test(APs) && /camera\.position\.copy\(eye0\); camera\.quaternion\.copy\(q0\); PREM\.host\.cameras\.set\('fly'\);/.test(APs) && !/cameras\.frame\(ov\.extent\)/.test(APs),
+        '41 the editor opens in FLY (WASD) from the flight\'s eye, the orbit centred on the aeroplane - not framed on the island-wide extent');
+}
+// 42 SCENERY VERSIONS (41 is EDITOR-ITEMS, ED-1) (ED-2; the user, 24 Oct: "the fact that the game and the player edits can diverge is problematic ... keep some sort
 //    of master, so there is no confusion" - and 25 Oct: "the game always loads master. When getting into the scenery editor, there is an
 //    option to load a version, and that's the only place where scenery can be loaded"): every named version listed in
 //    media/scenery/<island>/index.json is a file of the repo that unwraps and composes (an id once); the boot composes master and never
@@ -1394,13 +1431,13 @@ if (plots.length) {
       try { const R = PG.unwrap(fs.readFileSync(f, 'utf8')).rec; PG.compose(PG.expandAreas ? PG.expandAreas(R) : R, synth); } catch (e) { bad.push(isl + '/' + v.id + ': does not compose (' + e.message.slice(0, 60) + ')'); }
     }
   }
-  check(!bad.length, '41 the named scenery versions (' + n + ') are repo files that compose, one id each', bad.slice(0, 4).join('; '));
+  check(!bad.length, '42 the named scenery versions (' + n + ') are repo files that compose, one id each', bad.slice(0, 4).join('; '));
   const WBsrc = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'world_boot.js'), 'utf8'), APsrc = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'app.js'), 'utf8');
   const has = (s, t) => s.indexOf(t) >= 0, wipReads = WBsrc.split('getItem(WIP_KEY)').length - 1;
   check(wipReads === 1 && has(WBsrc, 'if (rig) { let t = null; try { t = localStorage.getItem(WIP_KEY)') && has(WBsrc, "getItem('flydiy.premises.bootWip') === '1'") && !has(WBsrc, 'removeItem(WIP_KEY)') && !has(WBsrc, "get('scenery')") && has(WBsrc, '      return fixture;'),
-    '41 the game boots master: the editor\'s copy is read only behind the rigs\' door, never deleted; no ?scenery= in the game', 'getItem(WIP_KEY) x' + wipReads);
+    '42 the game boots master: the editor\'s copy is read only behind the rigs\' door, never deleted; no ?scenery= in the game', 'getItem(WIP_KEY) x' + wipReads);
   check(has(APsrc, 'scenery: WB.SCN ? { island: WB.SCN.island, master: rec0,') && !has(APsrc, 'clear the saved premises (the map') && !has(APsrc, "flSelect(body, 'scenery'"),
-    '41 the scenery editor gets the versions (master = what the page composed); the WORLD panel neither picks a scenery nor deletes the editor\'s copy');
+    '42 the scenery editor gets the versions (master = what the page composed); the WORLD panel neither picks a scenery nor deletes the editor\'s copy');
   { const M = new Map(), S = { getItem: k => (M.has(k) ? M.get(k) : null), setItem: (k, v) => { M.set(k, String(v)); }, removeItem: k => { M.delete(k); }, key: i => Array.from(M.keys())[i] || null, get length() { return M.size; } };
     const base = fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_user_jolene_rev23.json'), 'utf8');
     const named = nm => { const o = JSON.parse(base); o.name = nm; (o.premises || o).name = nm; return JSON.stringify(o); };
@@ -1410,16 +1447,15 @@ if (plots.length) {
     const ed38 = UI.mount(new El('div'), { THREE: null, world: synth, R: makeR(), rows: rows38, els: { chk: null, plaque: null, strip: new El('div') }, viewEl: new El('div'), storage: S, wipKey: 'K38', fresh: true, record: base, camera: () => null, redraw: noop,
       scenery: { island: 'jolene', master: base, versions: () => VS, versionText: v => (v.id === 'v38' ? verT : null), prep: t => t } });
     ed38.setSection('file');
-    check(sel && ['master', 'wip', 'v:v38'].every(k => sel.opts.indexOf(k) >= 0), '41 FILE > load a version: master, my edits (the last autosave), the named versions', JSON.stringify(sel && sel.opts));
+    check(sel && ['master', 'wip', 'v:v38'].every(k => sel.opts.indexOf(k) >= 0), '42 FILE > load a version: master, my edits (the last autosave), the named versions', JSON.stringify(sel && sel.opts));
     const kept = () => Array.from(M.keys()).filter(k => k.indexOf('flydiy.premises.slot.my edits before ') === 0);
     ed38.cmd('saveNow'); ed38.cmd('saveNow');
-    check(kept().length === 1 && S.getItem(kept()[0]) === mineT && S.getItem('K38') !== mineT, '41 opened on master, the first autosave keeps the last edits as a slot (once) before it writes', JSON.stringify(kept()));
+    check(kept().length === 1 && S.getItem(kept()[0]) === mineT && S.getItem('K38') !== mineT, '42 opened on master, the first autosave keeps the last edits as a slot (once) before it writes', JSON.stringify(kept()));
     const nameOf = () => { const r = ed38.record(); return r && r.name; };
     if (sel) { sel.set('v:v38'); const v1 = nameOf(); sel.set('master'); const m1 = nameOf(); sel.set('wip'); const w1 = PG.unwrap(S.getItem('K38')).rec.name;
-      check(v1 === 'version 38' && m1 !== 'version 38' && nameOf() === w1, '41 each loads: the version, master, the last autosave', [v1, m1, nameOf(), w1].join(' / ')); }
+      check(v1 === 'version 38' && m1 !== 'version 38' && nameOf() === w1, '42 each loads: the version, master, the last autosave', [v1, m1, nameOf(), w1].join(' / ')); }
     ed38.close(); }
 }
-
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');

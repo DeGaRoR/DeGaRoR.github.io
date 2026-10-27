@@ -406,9 +406,12 @@ function mount(host, ctx) {
     const lines = PG.checks(rec, world, { overlay: R.overlay, site: ctx.site || null });
     const iss = PG.issues(rec), wrn = PG.warnings ? PG.warnings(rec) : [];   // (18 Oct: a strip's slope past the limits warns, it ships)
     if (PERF.now() - t0 >= 8) logEdit(PERF.now() - t0, 'checks');
-    if (els.chk) els.chk.innerHTML = lines.map(l => '<span class="' + (l.ok ? 'ok' : 'bad') + '">' + (l.ok ? '✓ ' : '✗ ') + l.label + '</span>').join('<br>') +
-      (iss.length ? '<br><span class="warn">' + iss.length + ' issue' + (iss.length > 1 ? 's' : '') + ': ' + iss[0] + '</span>' : '') +
-      (wrn.length ? '<br><span class="warn">⚠ ' + wrn.length + ' warning' + (wrn.length > 1 ? 's' : '') + ' (it ships): ' + wrn.join(' · ') + '</span>' : '');
+    // (the user, 24 Oct: "remove the long log list at the bottom left") - the panel says only what is wrong: a failed check,
+    // the first issue, the warnings' count; all well, it is empty (and hidden, flight.css #premChk:empty)
+    const bad = lines.filter(l => !l.ok);
+    if (els.chk) els.chk.innerHTML = [bad.length ? '<span class="bad">✗ ' + bad[0].label + (bad.length > 1 ? ' (+' + (bad.length - 1) + ')' : '') + '</span>' : '',
+      iss.length ? '<span class="warn">' + iss.length + ' issue' + (iss.length > 1 ? 's' : '') + ': ' + iss[0] + '</span>' : '',
+      wrn.length ? '<span class="warn">⚠ ' + wrn.length + ' warning' + (wrn.length > 1 ? 's' : '') + ' (it ships)</span>' : ''].filter(Boolean).join('<br>');
     return lines;
   }
   function plaque() {
@@ -715,6 +718,15 @@ function mount(host, ctx) {
     edit(zid, 'zones', x => { const r2 = Object.assign({}, x.rules); const l = Array.isArray(r2.noFence) ? r2.noFence.slice() : []; const k = l.indexOf(p.id); if (k >= 0) l.splice(k, 1); else l.push(p.id); if (l.length) r2.noFence = l; else delete r2.noFence; x.rules = r2; }, 'fence of plot ' + p.id);
     const off = ((PG.findById(rec, zid).entry.rules || {}).noFence || []).indexOf(p.id) >= 0;
     strip.status('plot ' + p.id + ': fence ' + (off ? 'off' : 'as built') + ' - click another, Esc ends');
+    return true;
+  }
+  // a plot's CARS switched (the user, 24 Oct): its id in the zone's noCar - the fence's twin
+  function togglePlotCar(zid, L) {
+    const p = (R.plots ? R.plots() : []).find(q => q.zone === zid && q.poly && PG.inPoly(q.poly, L[0], L[1]));
+    if (!p) { strip.status('no plot of ' + zid + ' there - click inside one of its plots (Esc ends)'); return true; }
+    edit(zid, 'zones', x => { const r2 = Object.assign({}, x.rules); const l = Array.isArray(r2.noCar) ? r2.noCar.slice() : []; const k = l.indexOf(p.id); if (k >= 0) l.splice(k, 1); else l.push(p.id); if (l.length) r2.noCar = l; else delete r2.noCar; x.rules = r2; }, 'cars of plot ' + p.id);
+    const off = ((PG.findById(rec, zid).entry.rules || {}).noCar || []).indexOf(p.id) >= 0;
+    strip.status('plot ' + p.id + ': cars ' + (off ? 'off' : 'as built') + ' - click another, Esc ends');
     return true;
   }
   function ghostFeature() {
@@ -1109,7 +1121,7 @@ function mount(host, ctx) {
   function clickAt(g) {
     const F = R.overlay.frame, L = F.toLocal(g[0], g[2]);
     if (T.state === 'drawing' && T.resume) { addPoint(+L[0].toFixed(2), +L[1].toFixed(2), snapTol(g)); return; }
-    if (T.plotPick) { if (PG.findById(rec, T.plotPick)) (T.pickWhat === 'fence' ? togglePlotFence : togglePlotGround)(T.plotPick, L); else T.plotPick = null; return; }
+    if (T.plotPick) { if (PG.findById(rec, T.plotPick)) (T.pickWhat === 'fence' ? togglePlotFence : T.pickWhat === 'car' ? togglePlotCar : togglePlotGround)(T.plotPick, L); else T.plotPick = null; return; }
     if (tool === 'select') {
       // (G2890) a click on the selected shape's edge adds a corner there; elsewhere it selects what is under it
       // THE PICK CYCLE (G3006; the user: "issue with overlapping assets, since I can select only one ... cycle through
@@ -1504,7 +1516,7 @@ function mount(host, ctx) {
           rows.pills(insp, 'plot ground', [['on', 'drawn', 'each plot\'s ground: the lawn, the paths, the dry ground under the house (never under the water line)'], ['off', 'none', 'no plot draws its ground or its lawn: the island\'s own ground runs to the houses']],
             () => (RU0.ground === false ? 'off' : 'on'), v => ed(x => { const r2 = Object.assign({}, x.rules); if (v === 'off') r2.ground = false; else delete r2.ground; x.rules = r2; }, 'plot ground of ' + id));
           if (RU0.ground !== false) {
-            rows.button(insp, T.plotPick === id && T.pickWhat !== 'fence' ? 'done picking plots (Esc)' : 'pick plots: a click switches one plot\'s ground', () => { T.plotPick = T.plotPick === id && T.pickWhat !== 'fence' ? null : id; T.pickWhat = 'ground'; strip.status(T.plotPick ? 'click a plot of ' + id + ' to switch its ground off or on - Esc ends' : 'plot pick ended'); inspector.refresh(); });
+            rows.button(insp, T.plotPick === id && T.pickWhat === 'ground' ? 'done picking plots (Esc)' : 'pick plots: a click switches one plot\'s ground', () => { T.plotPick = T.plotPick === id && T.pickWhat === 'ground' ? null : id; T.pickWhat = 'ground'; strip.status(T.plotPick ? 'click a plot of ' + id + ' to switch its ground off or on - Esc ends' : 'plot pick ended'); inspector.refresh(); });
             if (offN) { rows.note(insp, offN + ' plot' + (offN === 1 ? '' : 's') + ' with the ground off'); rows.button(insp, 'every plot\'s ground back', () => ed(x => { const r2 = Object.assign({}, x.rules); delete r2.noGround; x.rules = r2; }, 'plot ground of ' + id)); }
           } }
         // THE PLOTS' FENCES (G3007; the user: "we need an option to turn off the fencing around the plots too"): every plot's
@@ -1515,6 +1527,15 @@ function mount(host, ctx) {
           if (RU1.fences !== false) {
             rows.button(insp, T.plotPick === id && T.pickWhat === 'fence' ? 'done picking plots (Esc)' : 'pick plots: a click switches one plot\'s fence', () => { const on = !(T.plotPick === id && T.pickWhat === 'fence'); T.plotPick = on ? id : null; T.pickWhat = on ? 'fence' : null; strip.status(on ? 'click a plot of ' + id + ' to take its fence off or put it back - Esc ends' : 'plot pick ended'); inspector.refresh(); });
             if (offF) { rows.note(insp, offF + ' plot' + (offF === 1 ? '' : 's') + ' without a fence'); rows.button(insp, 'every plot\'s fence back', () => ed(x => { const r2 = Object.assign({}, x.rules); delete r2.noFence; x.rules = r2; }, 'plot fences of ' + id)); }
+          } }
+        // THE PLOTS' CARS (the user, 24 Oct: "options to remove the fences and the cars from the assets, especially the residential
+        // ones"): every plot's parked cars as built, or none - for the whole zone, or plot by plot (the fence switch's twin)
+        { const RU2 = e.rules || {}, offC = Array.isArray(RU2.noCar) ? RU2.noCar.length : 0;
+          rows.pills(insp, 'plot cars', [['auto', 'as built', 'each plot\'s parked cars as the village plans them'], ['off', 'none', 'no car parked on any plot of this zone']],
+            () => (RU2.cars === false ? 'off' : 'auto'), v => ed(x => { const r2 = Object.assign({}, x.rules); if (v === 'off') r2.cars = false; else delete r2.cars; x.rules = r2; }, 'plot cars of ' + id));
+          if (RU2.cars !== false) {
+            rows.button(insp, T.plotPick === id && T.pickWhat === 'car' ? 'done picking plots (Esc)' : 'pick plots: a click switches one plot\'s cars', () => { const on = !(T.plotPick === id && T.pickWhat === 'car'); T.plotPick = on ? id : null; T.pickWhat = on ? 'car' : null; strip.status(on ? 'click a plot of ' + id + ' to take its cars off or put them back - Esc ends' : 'plot pick ended'); inspector.refresh(); });
+            if (offC) { rows.note(insp, offC + ' plot' + (offC === 1 ? '' : 's') + ' without cars'); rows.button(insp, 'every plot\'s cars back', () => ed(x => { const r2 = Object.assign({}, x.rules); delete r2.noCar; x.rules = r2; }, 'plot cars of ' + id)); }
           } }
         const RU = Object.assign({}, PG.ZONE_RULES, e.rules || {});
         rows.slider(insp, 'plot min (m)', 12, 40, 1, () => RU.plotMin, v => ed(x => { x.rules = Object.assign({}, x.rules, { plotMin: v }); }, 'plots of ' + id, 'plotMin'), v => v.toFixed(0) + ' m');
@@ -2631,6 +2652,7 @@ function mount(host, ctx) {
       if (name === 'subdivide') { return subdivide(args.id || selected); }
       if (name === 'plotGround') { return togglePlotGround(args.zone, [args.x, args.z]); }
       if (name === 'plotFence') { return togglePlotFence(args.zone, [args.x, args.z]); }   // (G3007)
+      if (name === 'plotCar') { return togglePlotCar(args.zone, [args.x, args.z]); }
       // G2910-G2914: an area's properties, the placer, the fold - scriptable (GATE SCENERYED)
       if (name === 'addProp') { return addProp(args.id || selected, args.prop); }
       if (name === 'importText') { return importText(String(args.text || ''), args.name || 'the drop'); }   // (DROP-JSON: a dropped file's text, headless)
