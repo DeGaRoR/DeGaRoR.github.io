@@ -9497,7 +9497,7 @@
   // the aeroplane on the final (79_story.js storyFinalPose): a fresh reset onto the pose, its speed along the slope, the
   // engines running, a fresh pilot whose arrival is planned from there (the box's own hand-back: INBOUND with no legs
   // plans from where it is - straight in when lined up)
-  let stSkipLast = null;   // (the last skip's way, the phase the pilot planned, the flip if any: FLYDIY_STORY.skipLast)
+  let stSkipLast = null;   // (the last skip's way; FLYDIY_STORY.skipLast adds the phases the pilot planned)
   function storyFinalNow(o) {
     const s = stLive();
     if (!s || s.open || s.beat !== 'T1') return { ok: false, why: 'not on the move (T1)' };
@@ -9526,15 +9526,8 @@
     // (the skip hands the aeroplane to the autopilot, as every flight starts: the hand is one toggle away)
     try { if (manual && typeof setManual === 'function') setManual(false, 'skip'); } catch (e) {}
     try { destId = H.id; } catch (e) {}
-    // (the 27 Oct 04:35 page run: posed on the scored way, the pilot still planned the circuit - DOWNWIND, no landing in
-    // 5 min - and the evening's landed at 4:59. The pilot's own plan decides: when the arrival it planned from the pose is
-    // not the straight-in (its first leg INBOUND, or the FINAL), the pose is flipped onto the other end's final, once)
-    if (!(o && o.flipped)) setTimeout(() => { try {
-      const s2 = stLive();
-      if (!s2 || s2.open || s2.beat !== 'T1' || inGarage || manual || !ap) return;
-      if (ap.phase !== 'INBOUND' && ap.phase !== 'FINAL') { const ph = ap.phase, r2 = storyFinalNow({ way: -way, flipped: true }); stSkipLast = { way, phase: ph, flip: r2 && r2.ok ? -way : null }; }
-    } catch (e) {} }, 1500);
-    stSkipLast = { way, phase: 'INBOUND', flip: null, flipped: !!(o && o.flipped) };
+    // (the pilot's own plan from the pose decides the arrival - PILOT's final-cap plans the FINAL from here; no flip, A0 27 Oct)
+    stSkipLast = { way };
     return { ok: true, why: '', final: H.id, pose: P, way };
   }
   // (the old skip, kept for the garage without a world: T1 done as a stop at HOME, straight into the WWII hangar)
