@@ -189,7 +189,7 @@ async function page() {
   ok(outside.length >= 2 && !loose.length, 'every call into the routes outside the career\'s half is behind CAREER_DEV', outside.length + ' calls' + (loose.length ? '; loose: ' + loose.map(l => l.trim().slice(0, 70)).join(' | ') : ''));
   const half = app.slice(r0, r1);
   ok(/  if \(CAREER_DEV\) \{\n[\s\S]*Object\.assign\(window\.FLYDIY_STORE, \{\n\s*routeTargets/.test(half), "the storage's route doors are published under CAREER_DEV only");
-  ok(/routesSettleNow\(d\) : null; if \(CAREER_DEV && rtSettled\) d = rtSettled\.doc;\n\s*\/\/ G2320 \(CAREER-WIRE\): \.\.\.and the career meets the stop/.test(app) &&
+  ok(/routesSettleNow\(d\) : null; if \(CAREER_DEV && rtSettled\) d = rtSettled\.doc;\n(?:\s*\/\/ G3618 \(HIRE\)[^\n]*\n\s*const pyPaid = [^\n]*\n)?\s*\/\/ G2320 \(CAREER-WIRE\): \.\.\.and the career meets the stop/.test(app) &&
      /if \(CAREER_DEV && out\.career && rtSettled && rtSettled\.lines\.length\) out\.career\.lines\.unshift/.test(app), 'the landing settles the routes (before the stop\'s wallet line), its line on the arrival card');
   ok(/'flydiy:dayjump'[\s\S]{0,80}routesOnWait/.test(half) && /\/\^\(wait\|fullmoon\)\/\.test/.test(half), 'a wait settles them (the clock\'s jump of a wait only: never the 30 s save)');
   ok(/if \(CAREER_DEV && routesRollRefused\(\)\) return;/.test(app), 'a plane on a route never rolls out');

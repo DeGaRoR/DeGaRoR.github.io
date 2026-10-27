@@ -463,7 +463,7 @@ function run(mut) {
     ok(eq(a, b) && eq(a, M.pilotsGrowth('brian', 23).flat), 'growth replays from the logbook (order-free)'); }
   { const r = M.pilotsOnFlightEnd(withLog('brian', logOf(4, true)), { pilot: 'brian', slot: null, from: 'HOME', to: 'w3', landed: true, tw: false, t: 30 });
     ok(r.ok && r.doc.career.pilots.brian.log.length === 5 && r.logged.n === 1 && r.doc.career.pilotN === 1 && M.pilotsPlace(r.doc, 'brian') === 'w3', 'a logged flight of an unsaved build: the row, the pilot left at the stop'); }
-  lines.push('the career: the companion with careerNew, 2-3 offers refreshed with the market (' + seen.size + ' sets), hire / fire / the boat, the place follows the aeroplane, growth capped and monotone');
+  lines.push('the career: the companion with careerNew, every unhired pilot on offer (G3618), the wage at the end of each day, hire / fire / the boat, the place follows the aeroplane, growth capped and monotone');
 
   // ==== THE TEXT ==================================================================
   const T = M.PILOTS_TEXT;
