@@ -114,7 +114,7 @@ function make(THREE, scene, world, rec0, opts) {
   // G3543 VEHICLE PRINTS' state (the prints themselves: by the traffic, below)
   const PRINT = { on: !(typeof location !== 'undefined' && /[?&]carprints=0\b/.test(location.search || '')),
                   geo: null, mat: null, st: null, tr: null, cars: [], frame: 0, life: -1, lifeList: [], trN: -1, tick: 0, n: 0, nTr: 0 };
-  const PRINT_LIFT = { st: 0.2, tr: 0.2 };   // (G3543: the parked cars' and the traffic's, prints_probe.js)
+  const PRINT_LIFT = { st: 0.25, tr: 0.25 };   // (G3543: the parked cars' and the traffic's, prints_probe.js)
   const PRINT_REACH = 800;   // a 4.5 m car's print is ~3 px there (the standing ones; a car's own cull distance is ~3.5 km)
   const PRINT_TMP = { m: new THREE.Matrix4(), ri: new THREE.Matrix4(), s: new THREE.Matrix4(), o: new THREE.Object3D() };
   // THE STATIC SUBTREES LEAVE THE MATRIX WALK (PERF 2026-09-23). The frame is CPU-bound on Jolene (three's render()
