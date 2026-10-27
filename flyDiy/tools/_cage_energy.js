@@ -555,10 +555,11 @@ function placeAll(ctx, inv) {
             const half = { x: bf.W / 2 + 0.02, z: bf.L / 2 + 0.02 };
             const zMid = (zFw != null ? (zFw - mid / FS) * FS : 0);
             let crewTop = -Infinity;
-            for (let i = 0, P3 = CREW_PTS.buf; i < CREW_PTS.n; i++) {
+            const P3 = CREW_PTS.buf;
+            crewEach(CREW_PTS, [-half.x - 1e-6, -Infinity, zMid - half.z - 1e-6], [half.x + 1e-6, Infinity, zMid + half.z + 1e-6], i => {
               const x = P3[i * 3], y = P3[i * 3 + 1], z = P3[i * 3 + 2];
               if (Math.abs(x) <= half.x && Math.abs(z - zMid) <= half.z && y > crewTop) crewTop = y;
-            }
+            });
             const lvB = bay.lv || [0, 1];
             const bandTop = ext.yLo + lvB[1] * (ext.yHi - ext.yLo);
             if (isFinite(crewTop)) {
@@ -671,7 +672,55 @@ function crewPoints(scene, inv) {
       buf[k++] = V.x; buf[k++] = V.y; buf[k++] = V.z;
     }
   }
-  return { buf, n };
+  return { buf, n, grid: crewGrid(buf, n) };
+}
+// THE CREW'S POINTS BY CELL (GARAGE-LAG, 27 Oct). Since G3700 the crew is the
+// racer's POSED body - some 27 000 vertices a seat, sitting right beside the
+// cabin's tanks - and the fit's search (settleLv's clearOfCrew, fitOf) asks
+// crewHits per candidate: every point against every box, a hundred times a
+// drag tick. The points go into 5 cm cells once per layout (a CSR list), and
+// a query walks only the cells a box's axis-aligned extent covers. Exact: a
+// point inside the box is inside that extent, so it is in a walked cell, and
+// each walked point still takes pointInBox - the counts are the same numbers.
+const CREW_CELL = 0.05;
+function crewGrid(buf, n) {
+  if (!n) return null;
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < n; i++)
+    for (let a = 0; a < 3; a++) { const v = buf[i * 3 + a]; if (v < lo[a]) lo[a] = v; if (v > hi[a]) hi[a] = v; }
+  if (![0, 1, 2].every(a => isFinite(lo[a]) && isFinite(hi[a]))) return null;
+  const N = [0, 1, 2].map(a => Math.max(1, Math.floor((hi[a] - lo[a]) / CREW_CELL) + 1));
+  if (N[0] * N[1] * N[2] > 4e6) return null;          // a crew strewn kilometres apart: walk them all
+  const cellOf = i => {
+    let c = 0;
+    for (let a = 0; a < 3; a++) c = c * N[a] + Math.min(N[a] - 1, Math.floor((buf[i * 3 + a] - lo[a]) / CREW_CELL));
+    return c;
+  };
+  const nc = N[0] * N[1] * N[2], start = new Int32Array(nc + 1), cell = new Int32Array(n);
+  for (let i = 0; i < n; i++) start[(cell[i] = cellOf(i)) + 1]++;
+  for (let c = 0; c < nc; c++) start[c + 1] += start[c];
+  const at = start.slice(0, nc), idx = new Int32Array(n);
+  for (let i = 0; i < n; i++) idx[at[cell[i]]++] = i;
+  return { lo, N, start, idx };
+}
+// every crew point whose cell meets [qlo, qhi] (layer metres; a bound may be
+// infinite), handed to fn(i) - and every point when there is no grid
+function crewEach(P, qlo, qhi, fn) {
+  const G = P.grid;
+  if (!G) { for (let i = 0; i < P.n; i++) fn(i); return; }
+  const r = [];
+  for (let a = 0; a < 3; a++) {
+    const c0 = Math.max(0, Math.floor((qlo[a] - G.lo[a]) / CREW_CELL));
+    const c1 = Math.min(G.N[a] - 1, Math.floor((qhi[a] - G.lo[a]) / CREW_CELL));
+    if (!(c0 <= c1)) return;
+    r.push(c0, c1);
+  }
+  for (let x = r[0]; x <= r[1]; x++)
+    for (let y = r[2]; y <= r[3]; y++) {
+      // the z cells of one (x, y) row are contiguous in the list
+      const row = (x * G.N[1] + y) * G.N[2];
+      for (let k = G.start[row + r[4]], k1 = G.start[row + r[5] + 1]; k < k1; k++) fn(G.idx[k]);
+    }
 }
 function crewHits(scene, inv, results) {
   const G = VG();
@@ -680,9 +729,14 @@ function crewHits(scene, inv, results) {
   if (!bodies.length) return;
   if (!CREW_PTS) CREW_PTS = crewPoints(scene, inv);
   const q = [0, 0, 0], B3 = CREW_PTS.buf;
-  for (let i = 0; i < CREW_PTS.n; i++) {
-    q[0] = B3[i * 3]; q[1] = B3[i * 3 + 1]; q[2] = B3[i * 3 + 2];
-    for (const r of bodies) if (G.pointInBox(q, r, 0.01)) r.crewHits++;
+  // per body, the cells its box (as pointInBox reads it, margin 0.01) covers
+  for (const r of bodies) {
+    const c = r.c, e = r.e, cs = Math.abs(Math.cos(r.rot)), sn = Math.abs(Math.sin(r.rot)), m = 0.01;
+    const ex = [cs * (e[0] + m) + sn * (e[2] + m) + 1e-6, e[1] + m + 1e-6, sn * (e[0] + m) + cs * (e[2] + m) + 1e-6];
+    crewEach(CREW_PTS, [c[0] - ex[0], c[1] - ex[1], c[2] - ex[2]], [c[0] + ex[0], c[1] + ex[1], c[2] + ex[2]], i => {
+      q[0] = B3[i * 3]; q[1] = B3[i * 3 + 1]; q[2] = B3[i * 3 + 2];
+      if (G.pointInBox(q, r, 0.01)) r.crewHits++;
+    });
   }
   for (const r of bodies) if (r.crewHits) {
     r.ok = false;
