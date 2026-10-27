@@ -13,14 +13,17 @@
 //   node flyDiy/tools/plane_shot.js --build <file.json>[,<file2.json>...] --out <dir>
 //        [--views q,s,t,f]        the editor's own framing presets: q 3/4 front, s side, t plan, f nose, i interior
 //                                 (with a pilot), part:<key or name> a close-up of one part (the tree's key, e.g. wing,
-//                                 or its name), orbit:<az>/<el>/<dist> (deg, deg, m) - default q,s,t,f
+//                                 or its name), orbit:<az>/<el>/<dist> (deg, deg, m), close:<az>/<el>/<dist> the same
+//                                 meant close (no cut-off check: a detail - the slot, the VG row - is cut by design) -
+//                                 default q,s,t,f
 //        [--size 1920x1080]       the viewport (CSS px, DPR 1); the still is the 3D canvas only (the phone's sheet takes a third)
 //        [--gpu]                  the machine's graphics card instead of SwiftShader (the box's A/B; a visible window)
 //        [--page index.html]      index.html (built) or dev.html (the loose src/)
 //        [--secs 1500]            the whole run's budget
 //        [--chrome <path>]        the browser (default: Playwright's Chromium, then Chrome, then /usr/bin/chromium*)
 //        [--keep-ui]              the still with the page's UI over it
-//        [--fallback <dir>]       _serve.js's fallback root (a worktree over the main checkout's gitignored data)
+//        [--root <dir>]           the repo served (default: the one this file is in) - e.g. a throwaway archive of a branch
+//        [--fallback <dir>[;<dir>]]  _serve.js's fallback roots, in order (a tree over the main checkout's gitignored data)
 //        [--dry]                  everything up to the browser: the arguments, the files, the browser found - no launch
 //   node flyDiy/tools/plane_shot.js --pair <dirA> <dirB> --out <dir> [--labels A,B]
 //                                 side-by-side composites of the PNGs both directories hold (SwiftShader | RTX)
@@ -154,7 +157,7 @@ async function shoot(o) {
   const R = { builds: [], errors: [], fails: [], t: {} };
   const fail = (code, why) => { R.fails.push({ code, why }); log('FAIL ' + why); };
   const stop = T0 + o.secs * 1000, left = () => stop - Date.now();
-  const serve = spawn(process.execPath, [path.join(FLY, 'tools', '_serve.js'), String(o.servePort), REPO].concat(o.fallback ? ['--fallback', o.fallback] : []), { stdio: 'ignore' });
+  const serve = spawn(process.execPath, [path.join(FLY, 'tools', '_serve.js'), String(o.servePort), o.root].concat(o.fallback ? ['--fallback', o.fallback] : []), { stdio: 'ignore' });
   let B = null, C = null;
   try {
     B = await launch(o.chrome, o.gpu, o.size);
@@ -247,12 +250,12 @@ async function shoot(o) {
               VR.door = 'probe';
             }
             if (v !== 'i') asked = PRESET[v].slice(1);
-          } else if (/^orbit:/.test(v)) {
-            const [a, e, d] = v.slice(6).split('/').map(Number);
+          } else if (/^(orbit|close):/.test(v)) {
+            const [a, e, d] = v.replace(/^\w+:/, '').split('/').map(Number);
             if (![a, e, d].every(isFinite)) throw Object.assign(new Error('orbit:<az>/<el>/<dist> wants three numbers: ' + v), { code: EXIT.run });
             asked = [a * Math.PI / 180, e * Math.PI / 180, d];
             await C.ev('(() => { FLIGHT_PROBE.pan(0, 0, 0); FLIGHT_PROBE.camSet(' + asked.join(', ') + '); return 1; })()');
-            VR.door = 'orbit';
+            VR.door = v.slice(0, v.indexOf(':')); if (VR.door === 'close') VR.close = true;
           } else if (/^part:/.test(v)) {
             // THE PART: the editor's own selection names its meshes (hiBuild's overlays, userData.edHi) - their box is
             // the part's; the selection goes back to the whole aeroplane before the still, so no highlight is in it
@@ -272,7 +275,7 @@ async function shoot(o) {
             if (pr.err) throw Object.assign(new Error(pr.err), { code: EXIT.eye });
             Object.assign(VR, { part: pr.key, centre: pr.centre, radius: pr.radius });
             asked = pr.asked; VR.door = 'part';
-          } else throw Object.assign(new Error('unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>)'), { code: EXIT.run });
+          } else throw Object.assign(new Error('unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>, close:<az>/<el>/<dist>)'), { code: EXIT.run });
           await C.ev('(() => { FLIGHT_PROBE.camSettle(); return 1; })()');
           await frames(4);
           // THE EYE: where it is, against where it was told to be
@@ -301,7 +304,7 @@ async function shoot(o) {
           const bad = why => { const f = path.join(o.out, base + '_' + name + '_FAIL.png'); fs.writeFileSync(f, Buffer.from(shotA, 'base64')); VR.failPng = f; return why; };
           if (P.topShare > 0.97) throw Object.assign(new Error(bad('the still is one flat colour (' + (100 * P.topShare).toFixed(1) + ' %)')), { code: EXIT.frame });
           if (!(P.craftShare > 0.02)) throw Object.assign(new Error(bad('the aeroplane is not in the frame (hiding it changes ' + (100 * (P.craftShare || 0)).toFixed(2) + ' % of the pixels)')), { code: EXIT.frame });
-          if (P.cut && P.cut.length && !VR.part && v !== 'i') throw Object.assign(new Error(bad('the aeroplane is cut off at the ' + P.cut.join(' and ') + ' edge')), { code: EXIT.frame });
+          if (P.cut && P.cut.length && !VR.part && !VR.close && v !== 'i') throw Object.assign(new Error(bad('the aeroplane is cut off at the ' + P.cut.join(' and ') + ' edge')), { code: EXIT.frame });
           const out = path.join(o.out, base + '_' + name + '.png');
           fs.writeFileSync(out, Buffer.from(shotA, 'base64'));
           VR.png = out; VR.t = +((Date.now() - tv) / 1000).toFixed(1);
@@ -371,6 +374,7 @@ async function pair(dirA, dirB, out, labels, chrome) {
   const o = {
     builds, out, size, chrome, gpu: flag('gpu'), page: opt('page', 'index.html'), secs: +opt('secs', 1500),
     views: (opt('views', 'q,s,t,f')).split(',').filter(Boolean), keepUi: flag('keep-ui'), fallback: opt('fallback', null),
+    root: path.resolve(opt('root', REPO)),
   };
   // the arguments, before anything is launched (--dry stops here)
   if (!builds.length) bail(EXIT.run, '--build <file.json>[,<file2.json>]: which aeroplane(s)');
@@ -379,9 +383,9 @@ async function pair(dirA, dirB, out, labels, chrome) {
     let j = null; try { j = JSON.parse(fs.readFileSync(b, 'utf8')); } catch (e) { bail(EXIT.build, b + ' is not JSON: ' + e.message); }
     if (!j || j.what !== 'flydiy-build' || !j.spec || !j.spec.cage) bail(EXIT.build, b + ' is not a flyDiy build (what: ' + (j && j.what) + ')');
   }
-  for (const v of o.views) if (!PRESET[v] && !/^part:./.test(v) && !/^orbit:[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v)) bail(EXIT.run, 'unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>)');
+  for (const v of o.views) if (!PRESET[v] && !/^part:./.test(v) && !/^(orbit|close):[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v)) bail(EXIT.run, 'unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>, close:<az>/<el>/<dist>)');
   if (!(size.length === 2 && size.every(n => n >= 200 && n <= 4096))) bail(EXIT.run, '--size WxH (200-4096)');
-  if (!fs.existsSync(path.join(FLY, o.page))) bail(EXIT.run, 'no page ' + o.page + ' in ' + FLY + (o.page === 'index.html' ? ' (not built? --page dev.html)' : ''));
+  if (!fs.existsSync(path.join(o.root, 'flyDiy', o.page))) bail(EXIT.run, 'no page ' + o.page + ' in ' + path.join(o.root, 'flyDiy') + (o.page === 'index.html' ? ' (not built? --page dev.html)' : ''));
   if (!chrome) bail(EXIT.browser, 'no Chromium here (--chrome <path>, or the cloud image\'s /opt/node-tools playwright)');
   log('plane_shot:', builds.length, 'build(s) x', o.views.join(','), 'at', size.join('x'), o.gpu ? 'on the graphics card' : 'on SwiftShader', 'with', chrome);
   if (flag('dry')) { console.log('PLANE_SHOT ' + JSON.stringify({ ok: true, dry: true, chrome, builds, views: o.views, size, page: o.page })); process.exit(0); }
