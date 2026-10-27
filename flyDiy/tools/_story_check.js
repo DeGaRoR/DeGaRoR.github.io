@@ -764,7 +764,7 @@ async function tutorRun() {
     ok(M.storyFinalWay(HW, wd([0, 0, 0]), 0) === 1 && M.storyFinalWay(HW, wd([-6 * hx, 0, -6 * hz]), 0) === 1 && M.storyFinalWay(HW, wd([6 * hx, 0, 6 * hz]), 0) === -1 &&
        M.storyFinalWay(null, Wd, 0) === 1,
        "the skip's way is the pilot's scored way: calm and a headwind along the take-off heading +1, 12 kt down it -1 (the other end); nothing to score: +1"); }
-  ok(/function storyFinalNow\(o\)[\s\S]{0,1600}storyFinalWay\(H, world, 0\)[\s\S]{0,200}storyFinalPose\(H, \{ V, way,/.test(app), "the skip poses the final on the way the pilot will land it (storyFinalWay -> storyFinalPose's way)");
+  ok(/function storyFinalNow\(o\)[\s\S]{0,1600}storyFinalWay\(H, world, 0\)[\s\S]{0,1000}storyFinalPose\(H, \{ V, way,/.test(app), "the skip poses the final on the way the pilot will land it (storyFinalWay -> storyFinalPose's way)");
   // ---- the page: T0 at the cabin, the lock
   const settle = async () => { for (let i = 0; i < 400; i++) { await new Promise(r => setTimeout(r, 5)); if (!H.window.FLYDIY_STORY || !H.window.FLYDIY_STORY.pending()) { await new Promise(r => setTimeout(r, 5)); if (!H.window.FLYDIY_STORY.pending()) return; } } };
   let d = M.storyNewCareer(M.careerNormalise(M.careerNew({ id: 'main', seed: 'tutor' })), { aeros: P.aerosCabin }).doc;
@@ -878,8 +878,10 @@ async function tutorRun() {
      "the skip's fresh pilot starts with the stick neutral before its first update (its default 'DE' mode has no setting: the sim diverged at 0 s, the 25 Oct page run)");
   ok(/function storyFinalNow\(o\)[\s\S]{0,2400}ap\.setRoute\(H, H\);/.test(app),
      "the skip's pilot flies a circuit at the WWII field (a cabin -> HOME route flew to the pattern entry first: 5 min round the circuit, the 25 Oct 20:15 page run)");
-  ok(!/flipped: true/.test(app) && /\n    stSkipLast = \{ way \};\n    return \{ ok: true, why: '', final: H\.id, pose: P, way \};/.test(app),
+  ok(!/flipped: true/.test(app) && /\n    stSkipLast = \{ way, by: wayBy \};\n    return \{ ok: true, why: '', final: H\.id, pose: P, way \};/.test(app),
      "the skip flies the pilot's own plan from the pose, no flip onto the other end (the 27 Oct 11:00 run: the flipped pose flew the circuit too; PILOT's final-cap plans the FINAL, A0 27 Oct)");
+  ok(/typeof ap\.landWayFrom === 'function'\) \{\n      const fits = \[way, -way\]\.filter\(w => \{ const Q = storyFinalPose\(H, \{ V, way: w \}\), r = ap\.landWayFrom\(H, Q\.x, Q\.z\); return !!\(r && r\.way === w\); \}\);/.test(app),
+     "the skip is posed on the end the pilot itself plans from the pose (ap.landWayFrom, its own dirAt 'land', per end), the scored way the tie-break and the fallback (A0 27 Oct 12:25: one scorer, never a re-pose)");
   ok(/const stUsed = !armed && \(\(\) => \{ try \{ const s = stLive\(\); return !!\(s && !s\.open && s\.planes && s\.planes\.starter && flSlot === s\.planes\.starter\); \}/.test(app) &&
      /if \(typeof window\.BENCH_FLIGHT_LOGGED === 'function' && curKey === 'gen' && !stUsed\) \{/.test(app),
      "Rufus is a used machine: while the story runs, its landings award no flight certificate (the user 27 Oct), a bench-armed test flight still does");

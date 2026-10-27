@@ -9509,6 +9509,13 @@
     const V = Math.max(14, Math.min(40, +ap.VAppr || (SH && (+SH.Vref || (+SH.Vs0 ? 1.3 * SH.Vs0 : 0))) || 22));
     // (posed on the way the pilot will land it - the wind on the day: 79_story storyFinalWay; a fresh pilot's t is 0)
     let way = 1; try { way = o && (o.way === 1 || o.way === -1) ? o.way : typeof storyFinalWay === 'function' ? storyFinalWay(H, world, 0) : 1; } catch (e) {}
+    // (A0 27 Oct 12:25: posed on the end the pilot itself plans from the pose - its own dirAt('land'), asked from each end's
+    // pose (PILOT's ap.landWayFrom); the scored way above breaks a tie, and stands alone without it. Never a re-pose after)
+    let wayBy = 'scored';
+    try { if (!(o && o.way) && typeof ap.landWayFrom === 'function') {
+      const fits = [way, -way].filter(w => { const Q = storyFinalPose(H, { V, way: w }), r = ap.landWayFrom(H, Q.x, Q.z); return !!(r && r.way === w); });
+      if (fits.length) { way = fits[0]; wayBy = 'pilot'; }
+    } } catch (e) {}
     const P = storyFinalPose(H, { V, way, groundH: (x, z) => (world && typeof world.terrainH === 'function' ? world.terrainH(x, z) : null) });
     sim.reset(0);
     placeAtAerodrome(sim, { hdg: P.hdg, spawn: [P.x, P.z], elev: P.y });
@@ -9527,7 +9534,7 @@
     try { if (manual && typeof setManual === 'function') setManual(false, 'skip'); } catch (e) {}
     try { destId = H.id; } catch (e) {}
     // (the pilot's own plan from the pose decides the arrival - PILOT's final-cap plans the FINAL from here; no flip, A0 27 Oct)
-    stSkipLast = { way };
+    stSkipLast = { way, by: wayBy };
     return { ok: true, why: '', final: H.id, pose: P, way };
   }
   // (the old skip, kept for the garage without a world: T1 done as a stop at HOME, straight into the WWII hangar)
