@@ -233,7 +233,11 @@ function run(src, quiet) {
   ok(/\{ key: 'pod', name: 'Belly pod', parent: 'fuselage', layer: 'pod',\s+panel: 'CAGE_POD', sections: \['pod'\] \}/.test(parts), '_cage_parts.js: the "Belly pod" part, a panel part under the fuselage');
   ok(/'_cage_hinge\.js',[\s\S]{0,400}'_cage_pod\.js',[\s\S]{0,80}'_cage_join\.js'/.test(build) && /'hinge', 'pod', 'ext'\]/.test(chain) && /pod: '_cage_pod'/.test(chain),
      'build.js / _cage_chain.js: the layer after the hinges, registered in the chain\'s order');
-  ok(/pod:\s+\{ parent: 'body', fin: 'trim',\s+label: 'the belly pod',\s+layer: 'pod', wears: 'parent', noDec: true \}/.test(skin), 'aeroskin.js: the livery\'s `pod` section (the body\'s colour, moulded trim, no marking)');
+  // (G3470, the user: "ensure this reacts to global livery and can get some decals cast onto it" - the row's noDec lifted,
+  // the section in the markings' layer list; its hardware the hardware table's - stainless and rubber, never marked)
+  ok(/pod:\s+\{ parent: 'body', fin: 'trim',\s+label: 'the belly pod',\s+layer: 'pod', wears: 'parent' \}/.test(skin)
+     && /const AERO_DEC_LAYER = new Set\(\[[^\]]*'pod'[^\]]*\]\)/.test(skin) && /\n  pod: \{ steel: 'bareAlu', rubber: 'rubber' \},/.test(skin),
+     'aeroskin.js: the livery\'s `pod` section (the body\'s colour, moulded trim, TAKES MARKINGS - AERO_DEC_LAYER), its hardware AERO_HARD.pod (stainless, rubber)');
   ok(/remove: k => \{ if \(!spec \|\| !\(k in spec\)\) return;/.test(garage), 'garage.js: GARAGE_SPEC.remove (a section taken off: the key gone)');
   ok(/window\.CAGE_POD\.frame\(def\)/.test(app) && /window\.CAGE_POD\.refresh\(\)/.test(app) && /window\.FLYDIY_POD = \{\s+shake:[^\n]+\n\s+need: \(\) => \{ if \(curKey === .gen. && inGarage && !shakeKnown\(\)\) shakeSoon\(\); \}/.test(app) && /window\.CAGE_POD\.setOn\(!!on\)/.test(app),
      'app.js: the garage\'s def handed over, the readouts refreshed when the sheet lands, the bench\'s toggle through the section');

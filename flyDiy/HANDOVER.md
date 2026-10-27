@@ -98779,7 +98779,23 @@ aeroHardMat (never painted, never marked); the snapshot keys those groups on col
 tools/_pod_view.html's test tint now paints the moulding only.
 
 **GATES:** GATE POD H7 - the mesh's groups `pod,,`, 6 draws (three groups, each + its shadow), > 8 000 triangles; the rest
-unchanged and green (@@G70@@).
+unchanged and green. GATE PODEDITOR's livery source row now asserts the markings (the `pod` row without `noDec`, the
+section in AERO_DEC_LAYER) and AERO_HARD.pod.
+
+**READY UPDATE (27 Oct, for tonight's check): claude/ready/belly-pod-2 moved to the latest head** (G3469 + G3470 on the
+G3468 READY above; master **d7e181f4e (L25c)** re-fetched - unchanged, nothing to merge). Every gate that reads a file
+these two changed (grep rule: aeroskin.js -> ASSETS ATMO BENCH BUILD EDBUGS FLOWNBAKE LIVERY LIVERYREACH PANEL PARTS
+PODEDITOR SKINMAT WEATHER; _cage_pod.js -> PODEDITOR; 60d_gen_pod.js -> DMGPOD POD; the door's height -> FREIGHT) + the
+standing set, `node --max-old-space-size=4096 tools/run_gates.js --only=<22> --no-build --jobs=4` on this head:
+```
+POD PASS · PODEDITOR PASS (39) · DMGPOD PASS · FREIGHT PASS · PROCURE PASS · LIVERY PASS · LIVERYREACH PASS · SKINMAT PASS
+BUILD PASS · PARTS PASS · EDBUGS PASS · FLOWNBAKE PASS · PANEL PASS · ASSETS PASS · ATMO PASS · BENCH PASS · WEATHER PASS
+JOIN PASS · SAVE PASS · STARTER PASS · SIMWORKER PASS · PILOT PASS
+```
+22 of 22 (PODEDITOR after its livery row was moved to the user's markings rule). The validated builds carry no pod: the
+G3468 identity lines above stand (the core change is the pod's door height and a drawn-only `strap` flag). Not re-run on
+this head: the rest of the G3468 battery (none of them reads a file G3469 / G3470 touched). GPU for A0: the G3468 list +
+the G3470 box list above (the markings on the pod, the stainless and rubber under real light, FRAMECOST at 6 draws).
 
 **THE BOX (A0, GPU):** the markings landing on the pod in the real livery (and whether a registration across it reads
 right - the reason `noDec` was there); the stainless (`bareAlu`) and the rubber under the real lights; FRAMECOST with the
