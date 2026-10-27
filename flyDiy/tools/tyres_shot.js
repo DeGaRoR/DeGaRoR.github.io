@@ -7,10 +7,11 @@
 // through the fleet's own Import (#gFile), then is drawn TWICE with the same camera: GEAR_GEN.TYRE_LOOK.on = 0
 // (today's G3548 wheel) and = 1 (the proposal, futureDesigns/TYRES-2026-10.md), CAGE_UI.build() between them.
 //
-//   node flyDiy/tools/tyres_shot.js --out <dir> --build <a.json>[,<b.json>...] [--views q,s,wheel,tail]
+//   node flyDiy/tools/tyres_shot.js --out <dir> --build <a.json>[@v1+v2][,<b.json>...] [--views q,s,wheel,tail,side]
 //        [--size 1280x960] [--secs 2400]
 //   views: q 3/4 front, s side (the editor's presets, the distance scaled to the build's box), wheel a close-up of
-//   the main wheel nearer the 3/4 eye, tail the tail/nose wheel's (the station on the centreline)
+//   the main wheel nearer the 3/4 eye, tail the tail/nose wheel's (the station on the centreline), side the
+//   undercarriage from the side (level with the axles, ~14 R away)
 //   -> <dir>/<build>_<view>_before.png, _after.png, _pair.png (before | after, labelled), and TYRES_SHOT {json}
 //
 // THE ASSERTS (each failure a `FAIL` line and exit 1; a failed view writes nothing): the import raised no alert and
@@ -45,6 +46,9 @@ const PRESET = { q: [-2.5, 0.25, 12], s: [-Math.PI / 2, 0.06, 13] };
   const size = (opt('size', '1280x960')).split('x').map(Number);
   const secs = +opt('secs', 2400);
   if (!builds.length) { console.log('FAIL --build <file.json>[,...]'); process.exit(1); }
+  // <file.json>@v1+v2 draws that build with its own views
+  const bviews = {};
+  for (let i = 0; i < builds.length; i++) { const [f, vv] = builds[i].split('@'); builds[i] = f; if (vv) bviews[f] = vv.split('+'); }
   for (const b of builds) if (!fs.existsSync(b)) { console.log('FAIL no such build ' + b); process.exit(1); }
   const PW = findPlaywright();
   if (!PW) { console.log('FAIL no playwright here'); process.exit(2); }
@@ -97,8 +101,21 @@ const PRESET = { q: [-2.5, 0.25, 12], s: [-Math.PI / 2, 0.06, 13] };
       BR.trisBefore = await settle();
       // THE CAMERAS, measured once on the BEFORE drawing and used verbatim for both: the build's box scales the
       // presets; the wheels' centres are the gear's contacts in the scene's frame
+      // the orbit's target EASES to a new build's centre over frames (camSettle snaps az / el / dist, not the target):
+      // read it only once two looks a few frames apart agree, or the pans below aim at the last build's wheels
+      const baseTarget = async () => {
+        await page.evaluate(() => { FLIGHT_PROBE.pan(0, 0, 0); FLIGHT_PROBE.camSettle(); });
+        let prev = null;
+        for (let i = 0; i < 30; i++) {
+          await frames(3);
+          const t = await page.evaluate(() => FLIGHT_PROBE.camGet().target);
+          if (prev && t.every((x, k) => Math.abs(x - prev[k]) < 5e-4)) return t;
+          prev = t;
+        }
+        return prev;
+      };
+      await baseTarget();
       const geo = await page.evaluate(() => {
-        FLIGHT_PROBE.pan(0, 0, 0); FLIGHT_PROBE.camSettle();
         const g = FLIGHT_PROBE.camGet(), b = new THREE.Box3().setFromObject(CAGE_UI_SCENE), sz = b.getSize(new THREE.Vector3());
         CAGE_UI_SCENE.updateMatrixWorld(true);
         const wh = (CAGE_GEAR.contacts || []).filter(c => c.p).map(c => ({ R: c.R || (c.st && c.st.R), w: CAGE_UI_SCENE.localToWorld(new THREE.Vector3(...c.p)).toArray(), x: c.p[0] }));
@@ -107,7 +124,7 @@ const PRESET = { q: [-2.5, 0.25, 12], s: [-Math.PI / 2, 0.06, 13] };
       BR.span = +geo.span.toFixed(2); BR.wheels = geo.wh.map(w => ({ R: w.R, at: w.w.map(v => +v.toFixed(3)) }));
       const k = Math.max(0.55, geo.span / 10.5);   // the presets frame a ~10 m span
       const cams = {};
-      for (const v of views) {
+      for (const v of bviews[file] || views) {
         if (PRESET[v]) cams[v] = { az: PRESET[v][0], el: PRESET[v][1], dist: PRESET[v][2] * k, pan: [0, 0, 0] };
         else if (v === 'wheel' || v === 'tail') {
           const mains = geo.wh.filter(w => Math.abs(w.x) > 0.05), tails = geo.wh.filter(w => Math.abs(w.x) <= 0.05);
@@ -117,8 +134,16 @@ const PRESET = { q: [-2.5, 0.25, 12], s: [-Math.PI / 2, 0.06, 13] };
           const pick = v === 'wheel' ? mains.sort((a, b) => (b.w[0] * eyeDir[0] + b.w[2] * eyeDir[2]) - (a.w[0] * eyeDir[0] + a.w[2] * eyeDir[2]))[0] : tails[0];
           if (!pick) { fail(base + ' ' + v + ': no such wheel on this build'); continue; }
           cams[v] = { az, el, dist: Math.max(0.55, pick.R * 7.0), pan: pick.w.map((x, i) => x - geo.target[i]), R: pick.R };
+        } else if (v === 'side') {
+          // THE UNDERCARRIAGE FROM THE SIDE: the eye level with the main axles, on the centreline between them, close
+          // enough that a garage prop between the eye and the aeroplane (the side preset's ladder) is behind it
+          const mains = geo.wh.filter(w => Math.abs(w.x) > 0.05);
+          if (!mains.length) { fail(base + ' side: no main wheels'); continue; }
+          const c = [0, 1, 2].map(i => mains.reduce((s, w) => s + w.w[i], 0) / mains.length), Rm = mains[0].R;
+          cams[v] = { az: -Math.PI / 2, el: 0.08, dist: Math.min(6, Math.max(2.6, Rm * 14)), pan: [c[0] - geo.target[0], c[1] + Rm * 1.6 - geo.target[1], c[2] - geo.target[2]], R: Rm };
         } else fail('unknown view ' + v);
       }
+      for (const c of Object.values(cams)) c.tgt = geo.target.map((x, i) => x + c.pan[i]);   // the eye's ABSOLUTE target
       BR.cams = cams;
       for (const variant of ['before', 'after']) {
         if (variant === 'after') {
@@ -126,6 +151,9 @@ const PRESET = { q: [-2.5, 0.25, 12], s: [-Math.PI / 2, 0.06, 13] };
           BR.trisAfter = await settle();
           if (BR.trisAfter === BR.trisBefore) fail(base + ': the proposal changed nothing in the scene (' + BR.trisAfter + ' triangles both ways)');
         }
+        // the base target again (a rebuild may move the build's centre): each camera's pan keeps its ABSOLUTE target
+        const bt = await baseTarget();
+        for (const c of Object.values(cams)) c.pan = c.tgt.map((x, i) => x - bt[i]);
         for (const [v, c] of Object.entries(cams)) {
           const VR = BR.views[v] = BR.views[v] || {};
           await page.evaluate(c => { FLIGHT_PROBE.pan(0, 0, 0); FLIGHT_PROBE.pan(c.pan[0], c.pan[1], c.pan[2]); FLIGHT_PROBE.camSet(c.az, c.el, c.dist); FLIGHT_PROBE.camSettle(); }, c);
@@ -136,7 +164,8 @@ const PRESET = { q: [-2.5, 0.25, 12], s: [-Math.PI / 2, 0.06, 13] };
             for (const o of hide) o.visible = false; });
           await frames(2);
           const g = await page.evaluate(() => FLIGHT_PROBE.camGet());
-          if (Math.abs(g.az - c.az) > 0.01 || Math.abs(g.el - c.el) > 0.01 || Math.abs(g.dist - c.dist) / c.dist > 0.05) { fail(base + ' ' + v + ' ' + variant + ': the eye is not where it was set (' + [g.az, g.el, g.dist].map(x => x.toFixed(3)) + ')'); continue; }
+          const tWant = c.tgt, tOff = Math.hypot(...g.target.map((x, i) => x - tWant[i]));
+          if (Math.abs(g.az - c.az) > 0.01 || Math.abs(g.el - c.el) > 0.01 || Math.abs(g.dist - c.dist) / c.dist > 0.05 || tOff > 0.02) { fail(base + ' ' + v + ' ' + variant + ': the eye is not where it was set (az/el/dist ' + [g.az, g.el, g.dist].map(x => x.toFixed(3)) + ', target ' + (tOff * 100).toFixed(1) + ' cm off)'); continue; }
           VR.eye = { az: +g.az.toFixed(4), el: +g.el.toFixed(4), dist: +g.dist.toFixed(3), target: g.target.map(x => +x.toFixed(3)) };
           const clip = await page.evaluate(() => { const c = document.getElementById('c'); const r = c.getBoundingClientRect(); return { x: Math.round(r.left), y: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height) }; });
           await page.evaluate(() => { const c = document.getElementById('c'); window.__shotHid = []; for (const e of document.body.querySelectorAll('*')) { if (e === c || e.contains(c) || (e.closest('svg') && e.tagName !== 'svg')) continue; if (getComputedStyle(e).visibility !== 'hidden') { window.__shotHid.push([e, e.style.visibility]); e.style.setProperty('visibility', 'hidden', 'important'); } } });
