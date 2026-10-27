@@ -438,12 +438,16 @@
     for (let q = 0; q < TX * 4; q++) d[o + q] = 0;
     d[o + 3] = MAT[b.mat] || 0; d[o + 7] = s.mode; d[o + 11] = 1; d[o + 15] = 1;   // (the turns: identity until the first posed frame)
     d[o + 16] = du[0]; d[o + 17] = du[1]; d[o + 18] = du[2]; d[o + 19] = L;
-    d[o + 20] = bR[0]; d[o + 21] = bR[1]; d[o + 22] = bR[2]; d[o + 23] = s.kt1;
-    d[o + 24] = M.r[bi]; d[o + 26] = (bi * 2654435761 >>> 8) & 0xffff; d[o + 27] = s.tb;
+    // (a break inside the drawn tube: the drawn span may stop short of the nodes - tA / tB - and a break the plan put
+    // past it drew a stub of no length; the station kept 15 % of the span in from its ends, the kink's hinge alike)
+    const tA0 = M.tA[bi], tB0 = M.tB[bi], mg = 0.15 * (tB0 - tA0), inS = t => Math.min(Math.max(t, tA0 + mg), tB0 - mg);
+    const parts = s.mode === MODE.torn || s.mode === MODE.sliver || s.mode === MODE.kink || s.mode === MODE.crush;
+    d[o + 20] = bR[0]; d[o + 21] = bR[1]; d[o + 22] = bR[2]; d[o + 23] = parts ? inS(s.kt1) : s.kt1;
+    d[o + 24] = M.r[bi]; d[o + 26] = (bi * 2654435761 >>> 8) & 0xffff; d[o + 27] = inS(s.tb);
     const nK = M.K[bi]; d[o + 28] = nK; d[o + 29] = M.tA[bi]; d[o + 30] = M.tB[bi]; d[o + 31] = s.dk;
     for (let k = 0; k < nK; k++) { const q = (bi * AROUND + k) * 3, x = M.off[q], y = M.off[q + 1], z = M.off[q + 2];
       d[o + 32 + k * 2] = x * bR[0] + y * bR[1] + z * bR[2]; d[o + 33 + k * 2] = x * wv[0] + y * wv[1] + z * wv[2]; }
-    if (uvOut) { const hk = s.mode === MODE.crush ? s.tb : s.kt1, tA = M.tA[bi], tB = M.tB[bi], span = Math.max(tB - tA, 1e-6); let w = 0;
+    if (uvOut) { const hk = s.mode === MODE.crush ? d[o + 27] : d[o + 23], tA = M.tA[bi], tB = M.tB[bi], span = Math.max(tB - tA, 1e-6); let w = 0;
       for (let pc = 0; pc < 2; pc++) for (let i = 0; i < RINGS; i++) { const f = Math.max(0, Math.min(1, (stationOf(i / (RINGS - 1), pc, tA, tB, hk) - tA) / span));
         for (let k = 0; k < AROUND; k++) { const kc = k < nK ? k : 0, q = (bi * AROUND + kc) * 4;
           uvOut[w++] = M.uv[q] + (M.uv[q + 2] - M.uv[q]) * f; uvOut[w++] = M.uv[q + 1] + (M.uv[q + 3] - M.uv[q + 1]) * f; } } }
