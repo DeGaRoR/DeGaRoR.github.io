@@ -99113,4 +99113,8 @@ Not done / for A0:
 - the in-page check of the four rows (A0's local page check);
 - the full `--all` battery: in this 4-core container it did 12 of 280 jobs in 2 h and was stopped. Verdicts below are every gate that reads the hinge layer, the door edges, the parts tree or a certificate fingerprint.
 - _cage_access.js (the door handle, "the edge opposite the hinges") reads hgDoorEdge only and is unchanged; GATE FIT holds it.
-Gate verdicts: PASS - HINGE (incl. --selftest), CLIP, FIT, BENCH, PARTS, DESIGN, DEFAULT, PROCURE, SAVE, JOIN (run_gates --only, 689 s). The second set (ACCEPT ENERGY FRAMES FREIGHT KNIFE MEDIA PANEL ROLLANIM STARTER SUBSTEP TECH SKINMAT UISMOKE CAGEFIT JOINPARITY) is running; its verdicts follow in the next entry line.
+Gate verdicts (run_gates --only, logs in reports/evidence/DOOR-HINGES/gates/):
+- PASS (25): HINGE (and --selftest), CLIP, FIT, BENCH, PARTS, DESIGN, DEFAULT, PROCURE, SAVE, JOIN, ACCEPT, ENERGY, FRAMES, FREIGHT, KNIFE, MEDIA, PANEL, ROLLANIM, STARTER, SUBSTEP, TECH, SKINMAT, UISMOKE, CAGEFIT.
+- RED, master's own: JOINPARITY. Its one FAIL is the source scan "no tool flies a validated build raw" (_apsmooth_check.js, _engtorque_check.js, _floatdup_check.js, econ_sim.js, engine_torque_seasweep.js, hand_controls_probe.js; none touched here), identical on origin/master d7e181f4e (joinparity_master.log).
+- Not run: the rest of the core and the full tier (ARCHETYPES and the other sweeps), for the container reason above. A0's battery is the verdict.
+Pushed claude/door-hinges and claude/ready/door-hinges.
