@@ -48,6 +48,7 @@ function fakeCanvas(w, h, record) {
     getImageData: () => { if (calls) calls.getImageData++; return null; },
     beginPath: noop, moveTo: noop, lineTo: noop, arc: noop, closePath: noop, fill: noop, rect: noop, clip: noop,
     save: noop, restore: noop, translate: noop, rotate: noop, setTransform: noop, clearRect: noop, strokeRect: noop,
+    createLinearGradient: () => ({ addColorStop: noop }),                    // G2813: the PFD's sky and ground
   };
   return { width: w, height: h, getContext: () => ctx, calls };
 }
@@ -90,6 +91,23 @@ if (process.argv.includes('--alloc')) {
   out.tickPaintNav = measure(() => { cg[0] += 1; cg[2] -= 0.5; GPS.tick(0.25, CK); });
   GPS.key('page');
   out.key = measure(() => { GPS.key('rngUp'); GPS.key('rngDn'); });
+  // G2813: THE PFD - the grid baked off the ground door, then a 20 Hz repaint every call (the attitude, the speed and the
+  // position moving), the plain attitude (synthetic vision off), its keys, a tap; and the ground never read again
+  let nG = 0;
+  const srcG = Object.assign({}, src, { ground: (x, z) => { nG++; return 40 + 300 * Math.sin(x / 1700) * Math.cos(z / 2300); } });
+  const o = { Veas: 45, vs: 1.2, roll: 0.1, pitch: 0.05, hdg: 0.3, beta: 0.01 };
+  const CKg = { gpsOn: true, cg, nightK: () => 1, sim: { out: o } };
+  GPS.bind({ kind: 'glass', units: 'aviation', src: srcG, speeds: { Vs0: 13, Vs1: 15, Vfe: 24, Vh: 50, Vne: 62 } });
+  for (let i = 0; i < 400; i++) { cg[0] += 0.8; GPS.tick(1 / 60, CKg); }
+  out.svReady = GPS.sv().ready; out.page = GPS.state().page;
+  const n0 = nG;
+  const measureP = fn => { for (let i = 0; i < 20000; i++) fn(); const M = 3000, per = []; for (let rep = 0; rep < 5; rep++) { global.gc(); const a = newUsed(); for (let i = 0; i < M; i++) fn(); per.push((newUsed() - a) / M); } return Math.min(...per); };
+  const fly = () => { cg[0] += 1; cg[2] -= 0.5; cg[1] += 0.05; o.roll = o.roll > 0.6 ? -0.6 : o.roll + 0.002; o.pitch = -o.pitch; o.Veas = 40 + (o.roll + 0.6) * 10; GPS.tick(1 / 20, CKg); };
+  out.tickPaintPfd = measureP(fly);
+  GPS.key('rngDn'); out.tickPaintPfdPlain = measureP(fly); GPS.key('rngDn');
+  out.keyPfd = measureP(() => { GPS.key('rngUp'); GPS.key('rngUp'); });
+  out.touch = measureP(() => { GPS.touch(0.5, 0.55); });
+  out.groundReads = nG - n0;
   process.stdout.write(JSON.stringify(out));
   process.exit(0);
 }
@@ -275,6 +293,23 @@ global.THREE = THREE;
     check(pad && pad.geometry.parameters.radius === 0.008, 'C ...its own pick pad', pad && pad.geometry.parameters.radius);
     CK.gpsOn = on0; global.window = W0;
   }
+  // G2813: THE GLASS IS A TOUCH SCREEN - a ray onto the GPS's screen (its material the join's 'gps' bucket) picks it with
+  // where it landed (the uv), and the click hands that to the GPS while the unit is powered
+  {
+    const mat = new THREE.MeshBasicMaterial(); mat.userData.panelSet = 'gps';
+    const scr = new THREE.Mesh(new THREE.PlaneGeometry(0.155, 0.093), mat); scr.position.set(0, 0, -1);
+    const gS = new THREE.Group(); gS.add(scr); gS.updateMatrixWorld(true);
+    const cam = new THREE.PerspectiveCamera(30, 1, 0.01, 10); cam.position.set(0, 0, 0); cam.lookAt(0, 0, -1); cam.updateMatrixWorld(true);
+    const hit = CK.pick(cam, 0.03, 0.02, { gauges: [], grp: gS });
+    check(hit && hit.pick === 'gps' && hit.u > 0.53 && hit.u < 0.6 && hit.v > 0.53 && hit.v < 0.6, 'C G2813: a ray onto the GPS screen picks it with its uv (right of centre and up)', hit && [hit.pick, hit.u, hit.v].join(' '));
+    const got = [], W0 = global.window; global.window = Object.assign({}, W0 || {}, { FLYDIY_GPS: { touch: (u, v) => { got.push([u, v]); return true; } } });
+    const on0 = CK.gpsOn;
+    CK.gpsOn = true;
+    check(hit && CK.click(hit) && got.length === 1 && got[0][0] === hit.u, 'C ...the click hands the tap to the GPS', JSON.stringify(got));
+    CK.gpsOn = false;
+    check(hit && !CK.click(hit) && got.length === 1, 'C ...an unpowered unit is handed nothing');
+    CK.gpsOn = on0; global.window = W0;
+  }
   // the pick pad of a breaker is its own size
   CK.padSwitches({ gauges: [mk('edGauge_cb_x', { law: 'switch', drive: 'cb_x', ax: [0, 0, 1], k: 0, slide: [0, 0, -0.004], padR: 0.007 })] });
   {
@@ -362,7 +397,49 @@ function faceSuite(GPS) {
   CK.gpsOn = true; GPS.tick(1 / 60, CK);
   ok(!GPS.key('orient') && !S.trkUp, 'J a booting unit takes no press');
   GPS.bind({ kind: 'glass', units: 'metric', src });
-  ok(S.rngI === 2 && !S.trkUp && S.page === 'map' && S.keysAt === 'below', 'J a new flight (a glass unit, metric): 8 km, north up, the map, the keys under the glass', JSON.stringify([S.rngI, S.keysAt]));
+  ok(S.rngI === 2 && !S.trkUp && S.page === 'pfd' && S.keysAt === 'below', 'J a new flight (a glass unit, metric): 8 km, north up, the PFD (G2813), the keys under the glass', JSON.stringify([S.rngI, S.page, S.keysAt]));
+  // P (G2813) THE PFD: the grid baked off the ground door a slice a frame, then never read again; 20 Hz on the PFD and 4 on
+  // the map; its keys (the synthetic vision, its terrain colours, the page round PFD -> MAP -> NAV); the taps
+  {
+    let nG = 0;
+    const srcG = Object.assign({}, src, { ground: (x, z) => { nG++; return 100 + 200 * Math.sin(x / 1500); } });
+    const o = { Veas: 40, vs: 0, roll: 0.2, pitch: 0.05, hdg: 0, beta: 0 };
+    const CKp = { gpsOn: true, cg, nightK: () => 1, sim: { out: o } };
+    GPS.bind({ kind: 'glass', units: 'aviation', src: srcG, speeds: { Vs0: 13, Vs1: 15, Vfe: 24, Vh: 50, Vne: 62 } });
+    ok(S.pfd && S.page === 'pfd' && S.svt && S.terr && S.vsp && S.vsp.Vne === 62, 'P a glass unit: its PFD, the synthetic vision and its terrain colours on, the build\'s speeds');
+    let i = 0; for (; i < 1000 && !GPS.sv().ready; i++) { cg[0] += 0.5; GPS.tick(1 / 60, CKp); }
+    const HN = Math.sqrt(GPS.sv().hf.length);
+    ok(GPS.sv().ready && nG === HN * HN, 'P the synthetic vision\'s grid: ' + HN + ' x ' + HN + ' ground reads, a slice a frame (' + i + ' frames)', nG);
+    for (let k = 0; k < 600 && S.boot < GPS.BOOT_S + 0.1; k++) GPS.tick(1 / 60, CKp);      // (past the splash: the grid bakes under it)
+    const n1 = nG, p1 = S.paints;
+    for (let k = 0; k < 120; k++) { cg[0] += 0.5; GPS.tick(1 / 60, CKp); }
+    ok(nG === n1, 'P ...and the PFD reads the ground no more', nG - n1);
+    ok(Math.abs(S.paints - p1 - 40) <= 2, 'P the PFD repaints at 20 Hz (' + (S.paints - p1) + ' in 2 s)', S.paints - p1);
+    const PF = GPS.pf();
+    ok(near(PF.hdg, 90, 1e-6) && near(PF.ias, 40, 1e-9) && near(PF.alt, cg[1], 1e-9), 'P it reads the ADAHRS: sim.out\'s heading 0 (+x, 38_nav.js) is 090 on the north-up compass; the speed; the height', PF.hdg + ' ' + PF.ias);
+    ok(GPS.key('rngDn') && !S.svt && GPS.key('rngDn') && S.svt, 'P SVT: the synthetic vision off, and on');
+    ok(GPS.key('rngUp') && !S.terr && GPS.key('rngUp') && S.terr, 'P TERR: its terrain colours off, and on');
+    ok(!GPS.key('orient'), 'P the third key has nothing to do on the PFD');
+    ok(GPS.key('page') && S.page === 'map' && GPS.key('page') && S.page === 'nav' && GPS.key('page') && S.page === 'pfd', 'P the page key: PFD -> MAP -> NAV -> PFD');
+    GPS.key('page'); const p2 = S.paints;
+    for (let k = 0; k < 120; k++) { cg[0] += 0.5; GPS.tick(1 / 60, CKp); }
+    ok(Math.abs(S.paints - p2 - 8) <= 1, 'P on the map: back to 4 Hz', S.paints - p2);
+    // the taps (u across from the pilot's left, v up)
+    const kL = Math.max(18, Math.round(S.H * 0.085)), r0 = S.rngI;
+    ok(GPS.touch(1 - 19 / 512, 1 - (Math.round(S.H * 0.15) + 55) / S.H) && S.rngI === r0 - 1, 'P a tap on the map\'s + : the range a step in', S.rngI);
+    ok(GPS.touch(1 - 19 / 512, 1 - (Math.round(S.H * 0.15) + 89) / S.H) && S.rngI === r0, 'P ...on its - : back out', S.rngI);
+    ok(GPS.touch(0.1, (kL / 2) / S.H) && S.rngI === r0 - 1, 'P a tap on the first key\'s label is that key (RNG -)', S.rngI);
+    ok(!GPS.touch(0.3, 0.6), 'P a tap elsewhere on the map does nothing');
+    GPS.key('page'); GPS.key('page');
+    ok(S.page === 'pfd' && GPS.touch(0.5, 1 - 8 / S.H) && S.page === 'nav', 'P on the PFD a tap on the waypoint bar opens the nav page', S.page);
+    ok(GPS.touch(0.5, 0.5) && S.page === 'pfd', 'P ...a tap on the nav page goes back to the PFD', S.page);
+    ok(GPS.touch(0.5, (kL + 20) / S.H) && S.page === 'map', 'P ...a tap on the heading arc opens the map', S.page);
+    GPS.key('page'); GPS.key('page');
+    ok(!GPS.touch(0.5, 0.6) && S.page === 'pfd', 'P a tap on the attitude does nothing');
+    CKp.gpsOn = false; for (let k = 0; k < 4; k++) GPS.tick(1 / 60, CKp);
+    ok(!GPS.touch(0.5, 1 - 8 / S.H) && !GPS.key('rngDn'), 'P a dark unit takes no tap and no press');
+  }
+  GPS.bind({ kind: 'glass', units: 'metric', src });
   GPS.bind({ kind: 'panel', units: 'aviation', src });
   // a parked aeroplane's capture builds the panel for another build mid-flight: the bound unit is not touched
   CK.gpsOn = true; for (let i = 0; i < 200; i++) GPS.tick(1 / 60, CK);
@@ -400,6 +477,12 @@ function faceSuite(GPS) {
     check(al.tickPaint < 4, 'E the GPS\'s tick WITH a repaint allocates nothing (the strings cached, the frame module state)', al.tickPaint.toFixed(2) + ' bytes');
     check(al.tickPaintTrk < 4 && al.tickPaintNav < 4, 'E G2812: the track-up map and the nav page repaint allocating nothing', al.tickPaintTrk.toFixed(2) + ' / ' + al.tickPaintNav.toFixed(2) + ' bytes');
     check(al.key < 4, 'E G2812: a softkey press (its repaint) allocates nothing', al.key.toFixed(2) + ' bytes');
+    // G2813: the PFD
+    check(al.svReady && al.page === 'pfd', 'E G2813: a glass unit powers up on its PFD and its synthetic vision\'s grid is baked', al.svReady + ' ' + al.page);
+    check(al.tickPaintPfd < 4 && al.tickPaintPfdPlain < 4, 'E G2813: a PFD repaint (the synthetic vision, the tapes, the arc) allocates nothing - and with the synthetic vision off', al.tickPaintPfd.toFixed(2) + ' / ' + al.tickPaintPfdPlain.toFixed(2) + ' bytes');
+    check(al.keyPfd < 4 && al.touch < 4, 'E G2813: a PFD key and a tap on the glass allocate nothing', al.keyPfd.toFixed(2) + ' / ' + al.touch.toFixed(2) + ' bytes');
+    check(al.groundReads === 0, 'E G2813: the PFD never reads the ground once its grid is baked (terrainH can bake a raster tile on a far read)', al.groundReads);
+    say('E G2813 bytes a call: the PFD ' + al.tickPaintPfd.toFixed(2) + ' (plain ' + al.tickPaintPfdPlain.toFixed(2) + '), a PFD key ' + al.keyPfd.toFixed(2) + ', a tap ' + al.touch.toFixed(2));
     say('E bytes a call: bus.step ' + al.busStep.toFixed(2) + ', bus.powered ' + al.busPowered.toFixed(2) + ', GPS tick ' + al.tickIdle.toFixed(2) + ', GPS repaint ' + al.tickPaint.toFixed(2) +
         ' (track-up ' + al.tickPaintTrk.toFixed(2) + ', nav ' + al.tickPaintNav.toFixed(2) + '), a key ' + al.key.toFixed(2));
   } else check(false, 'E the allocation child ran', al && al.err);
@@ -598,7 +681,8 @@ for (const [name, file, gps, want, onLine, allDials] of PANELS) {
   const app = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
   const iF = app.indexOf('if (CK) CK.frame(simDt, sim, ap,'), iT = app.indexOf('window.FLYDIY_GPS.tick(simDt, CK)');
   check(iF > 0 && iT > iF && iT - iF < 400, 'H app.js ticks the GPS right after CK.frame');
-  check(/window\.FLYDIY_GPS\.bind\(\{ kind: CK\.fit\.avionics\.gps, units: CK\.fit\.units, src: gpsSource\(\) \}\)/.test(app), 'H app.js binds the GPS with the cockpit');
+  check(/window\.FLYDIY_GPS\.bind\(\{ kind: CK\.fit\.avionics\.gps, units: CK\.fit\.units, src: gpsSource\(\), speeds: gpsSpeeds\(def\) \}\)/.test(app), 'H app.js binds the GPS with the cockpit (G2813: and the build\'s speeds)');
+  check(/ground: \(x, z\) => \(world \? \(world\.terrainHBuild \?/.test(app), 'H G2813: the GPS\'s ground door is the world\'s build read (never a lazy raster bake)');
   check(/m\.panel === 'gps' && window\.FLYDIY_GPS/.test(app), 'H app.js builds the screen on the GPS\'s own material (the editor block need not be loaded)');
   check(/avionics: 'swAvionics'/.test(app), 'H W2: the shed\'s avionics click is the shed\'s swAvionics');
   {

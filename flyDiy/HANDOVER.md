@@ -99554,3 +99554,65 @@ KNOWN (G2810): WP1 climbs 1.7 m/s, plan limit +1.7 | the plan limit 1.691 m/s, W
 TOUR's verdict comes from the merge run (its four shards need the machine to themselves; see the READY note).
 The probes: `tools/avionics_bill_table.js` for the bill; the pilot sheet (`machineSheet` on `_tour_lib.defOf(cub)`) and
 `def.params.gen.landsFlapless` for the flaps, on both trees.
+
+## G2813 - THE GLASS UNIT'S PFD: SYNTHETIC VISION, TAPES, A HEADING ARC, A TOUCH SCREEN (2026-10-27, AVIONICS-GPS for the user, cloud - node + headless Chromium 2D only; branch claude/avionics-gps-pfd off claude/avionics-gps-2 774e81459; NOT in claude/ready/avionics-gps)
+
+The user, 27 Oct: "Do you think you could try an easy version of a PFD, the typical garmin glass cockpit with the
+attitude, possibly even a virtual ground, and everything? Taking inspiration from the actual small devices and their
+current software? Touch enabled if possible".
+
+**What it is (src/viewer/gps_face.js, THE PFD).** The glass unit (GEN_AVIONICS.gps.glass: G3X Touch class, with its
+ADAHRS) powers up on a PFD page, repainted at 20 Hz (PFD_HZ; the map and the nav page keep 4 Hz):
+- **Synthetic vision:** a fan of 33 columns over +-54 deg by 22 rings (120 m to 11 km) ahead of the nose, its heights read
+  off a 160 x 160 grid (150 m cells over the map's box) baked from the page's ground door a slice of 320 points a frame
+  after the bind (under the boot splash: 80 frames). Each quad is shaded by its slope against a north-west sun, coloured
+  by elevation band, hazed by distance; the sea blue; the strips drawn as their four corners at their elevation (cut 30 m
+  ahead when lined up on one); in flight more than 60 m up, ground within 150 m below the aeroplane is yellow and within
+  30 m (or above) red (TERR). Heading marks along the horizon; the flight path marker (the climb angle off GS and VS,
+  the drift off the ground track). SVT off: blue over brown.
+- **The ground is never read per frame.** `terrainH` can bake a raster tile on a far read (G1436); the door is the
+  world's `terrainHBuild` (app.js gpsSource().ground), read only for the bake.
+- The pitch ladder (2.5 deg steps, tens numbered), the roll scale turning with the horizon (sky pointer) with the fixed
+  pointer and the slip / skid wedge (sim.out.beta), the yellow aircraft symbol.
+- The airspeed tape (kt or km/h) with the build's bands (red under Vs0 in the air, white Vs0-Vfe, green Vs1-Vh, yellow
+  Vh-Vne, red over Vne: app.js gpsSpeeds - the dials' own facts, CAGE_PANEL.facts, with the build's measured stalls),
+  the 6 s trend, the ground speed; the altitude tape (ft or m, MSL) with its 6 s trend, the vertical speed (2000 fpm /
+  10 m/s full scale) with its value, the baro box (standard).
+- A heading arc: the compass turning under the heading box, the desired track's bug and the ground track's diamond
+  (magenta), the deviation off the active leg (1 nm / 2 km full scale). The waypoint bar along the top: the waypoint,
+  DIS, DTK, TRK, ETE.
+- **The compass is the map's and the strips'** (north -z): sim.out.hdg is 38_nav.js's angle (0 = +x), so the PFD's
+  heading is it + 90 (HOME's 13/31 reads 131 lined up). **Not fixed here, a finding:** the panel's DG card reads
+  navDeg(o.hdg) directly (cockpit.js raw.hdg) - 90 deg off the strips' numbers and the GPS's DTK / TRK.
+
+**The keys (switching only).** On the PFD the four softkeys are SVT (on / off), TERR (the terrain colours), (none), and
+the page; the page key goes PFD -> MAP -> NAV -> PFD on the glass unit (map <-> nav on the others, as before). A key whose
+switch is on has its label lit. The glass unit's caps are now blank (tools/_cage_panel.js): its keys are the page's,
+their labels painted on the glass over each; the portable and the navigator keep their inlaid legends.
+
+**Touch.** cockpit.js CK.pick: a ray onto the GPS's screen (its material, the join's 'gps' bucket) returns
+`{ pick: 'gps', u, v }`; CK.click hands it to `FLYDIY_GPS.touch(u, v)` while the unit is powered (the hover shows the
+hand). On the glass: a key's label is that key; the map has + and - zoom buttons under north's arrow (every unit - all
+three are touch screens); on the PFD the waypoint bar opens the nav page and the heading arc the map; on the nav page
+a tap goes back.
+
+**Cost.** Allocation: a PFD repaint 1.45 bytes a call (SVT on or off: the measuring noise, as the map's 0.31), a PFD key
+0.50, a tap 0.54 (GATE GPSFACE E). The paint in headless Chromium's software 2D canvas on this (loaded) box: 2.4-6 ms
+with the synthetic vision, 0.1 ms without (tools/pfd_shots.js prints it); a GPU-backed page canvas should be well under
+that, **still to be measured on A0's GPU** in the game (FRAMECOST / the cockpit's frame).
+
+**GATE GPSFACE** (tools/_gpsface_check.js, `GATE GPSFACE: PASS`, 307 checks): P (the grid's ground reads exactly
+160 x 160 then none; 20 Hz on the PFD, 4 on the map; the ADAHRS read and the compass's +90; SVT, TERR, the dead third
+key, the page round; the taps: + / -, a key's label, the bar, the nav page, the arc, the attitude does nothing, a dark
+unit takes none), E (the PFD repaint, plain and SVT, a key, a tap allocate nothing; no ground read after the bake),
+C (a ray onto the GPS screen picks it with its uv; the click hands it over, not to a dark unit), H (app.js binds with
+the speeds; the ground door is the build read). J's glass row: a glass unit powers up on the PFD.
+
+**Pictures:** `node tools/pfd_shots.js <out> [aviation|metric]` - the painter unchanged in headless Chromium over
+Jolene's own ground (island_node.js): cruise, a 25 deg climbing turn, low over the highest ground (the terrain colours),
+lined up on HOME 13, SVT off, the map with its zoom buttons; then `tools/box_render.js ... cockpit --fit glass --gps
+<out>/pfd_turn.png` for the unit on the metal Cessna's panel.
+
+**Gates owed before it lands:** by the grep rule over its files (gps_face.js, cockpit.js, app.js, _cage_panel.js) - a
+long set, app.js being read by most; it runs after the avionics landing battery frees the box. GPU (A0): the cockpit in
+the game's renderer, FRAMECOST with the PFD on.

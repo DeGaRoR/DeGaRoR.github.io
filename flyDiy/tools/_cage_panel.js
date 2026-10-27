@@ -1630,7 +1630,10 @@ function gpsUnitAt(parent, S, kind) {
     const cap = K.Bag();
     roundBlockInto(cap, 0, 0, 0.0004, -0.0022, q.hx, q.hy, Math.min(q.hx, q.hy) * 0.55, 0.0006);
     cap.mesh(g, matFor('grip'));
-    // its legend, inlaid white on the cap: - (range down), + (range up), a chevron (north / track up), stacked bars (page)
+    // its legend, inlaid white on the cap: - (range down), + (range up), a chevron (north / track up), stacked bars (page).
+    // G2813: not on the glass unit - its keys are the page's (the PFD's SVT and TERR, the map's range), so its caps are
+    // blank and their labels are painted on the glass over each, as a Garmin's softkeys
+    if (kind === 'glass') continue;
     const lg = K.Bag(), zt = -0.0022 - 0.0001, t = 0.00045, s2 = Math.min(q.hx, q.hy) * 0.55;
     const bar = (cx, cy, hl, a) => { const c = Math.cos(a), sn = Math.sin(a);
       K.boxIn(lg, [cx, cy, zt], [hl, t, 0.00012], [c, sn, 0], [-sn, c, 0], [0, 0, 1]); };
@@ -2163,6 +2166,7 @@ window.CAGE_PANEL = {
   holes: holesIn,                              // G279: the plate's cut-outs, in a parent's frame
   tape, setReg,                                // G318: a tape for any surface; the registration
   atlas: () => atlasCv, last: () => LAST, faceDim,
+  facts: scaleFacts,                           // G2813: the build's speeds (the dials' arcs; the PFD's tape bands)
   switches: true,                // the light layer leaves the switch row to us
 };
 

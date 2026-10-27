@@ -496,6 +496,11 @@ function make(THREE) {
     let hits;
     try { hits = ray.intersectObject(model.grp, true); } catch (e) { return null; }
     for (const h of hits) {
+      // G2813: the GPS's glass is a touch screen - a hit on it (its material: gps_face.js's, the join's 'gps' bucket)
+      // carries where it landed, its uv, to the click
+      const mg = h.object.material;
+      if (mg && mg.userData && mg.userData.panelSet === 'gps' && h.uv && h.object.visible)
+        return { pick: 'gps', obj: h.object, u: h.uv.x, v: h.uv.y, c: { law: 'pick:gps', drive: 'gps' } };
       // C4b (G875): a hit on the baked model's fold names the part its triangle rides (flown_bake.js mergeModel)
       let a = h.part || h.object;
       while (a && a !== model.grp) {
@@ -536,6 +541,10 @@ function make(THREE) {
       else if (g.pick === 'fuel') { const i = clamp(Math.round(+CK.sw.fuel || 0), 0, 3); CK.sw.fuel = (i + 1) % 4; did = true; }
       else if (g.pick === 'trim' && INP3 && INP3.setTrim) { INP3.setTrim((INP3.trim() || 0) + 0.05); did = true; }
       else if (g.pick === 'thr') did = true;               // G364: a click holds it; the drag moves it
+      else if (g.pick === 'gps') {                         // G2813: a tap on the GPS's glass (gps_face.js touch)
+        const GP = typeof window !== 'undefined' ? window.FLYDIY_GPS : null;
+        did = !!(GP && GP.touch && CK.gpsOn && GP.touch(g.u, g.v));
+      }
       return did;
     }
     if (c.law === 'switch') { CK.sw[drv] = +CK.sw[drv] > 0.5 ? 0 : 1; CK.handSw[drv] = true; did = true; }   // the hand's now (lightsRule)

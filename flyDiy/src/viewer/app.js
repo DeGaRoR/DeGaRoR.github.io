@@ -6789,7 +6789,7 @@
         // G2803 (AVIONICS-GPS phase 2): the GPS on the panel, when one is fitted - its screen is the map's own
         // picture, the plan the pilot published and the field it is going to (gpsSource(): references, no copies)
         if (window.FLYDIY_GPS && CK.gpsFit)
-          window.FLYDIY_GPS.bind({ kind: CK.fit.avionics.gps, units: CK.fit.units, src: gpsSource() });
+          window.FLYDIY_GPS.bind({ kind: CK.fit.avionics.gps, units: CK.fit.units, src: gpsSource(), speeds: gpsSpeeds(def) });
       } catch (e) { console.warn('cockpit bind:', e); }
     }
     // THE MARKINGS REACH THE FLOWN AEROPLANE (G160). The user's report was
@@ -13921,12 +13921,25 @@
       box: () => (WF && WF.minimapBox) || box0,
       fields: () => (world && world.aerodromes) || null,
       plan: () => (ap && ap.intent) || null,
+      // G2813: the ground under a point, for the glass unit's synthetic vision (read only to bake its coarse grid once a
+      // flight: the build read - never a lazy raster bake for a far point)
+      ground: (x, z) => (world ? (world.terrainHBuild ? world.terrainHBuild(x, z) : world.terrainH(x, z)) : 0),
       dest: () => {
         const id = destId === 'CIRCUIT' ? null : destId;
         if (id !== destFor) { destFor = id; destRec = id && typeof aeroById === 'function' ? aeroById(id) : null; }
         return destRec;
       },
     });
+  }
+  // G2813: the PFD's speed bands - the dials' own facts (the plaque, the declared limits), the stalls the flight's build
+  // measured over them (Vs1 clean, Vs0 on the landing flap; Vfe 1.8 Vs0 as the dials print it)
+  function gpsSpeeds(def) {
+    let o = null;
+    try { o = window.CAGE_PANEL && CAGE_PANEL.facts ? Object.assign({}, CAGE_PANEL.facts()) : {}; } catch (e) { o = {}; }
+    const gen = def && def.params && def.params.gen;
+    if (gen && gen.Vs > 0) { o.Vs1 = gen.VsMeas > 0 ? gen.VsMeas : gen.Vs; o.Vs0 = gen.VsFlap > 0 ? gen.VsFlap : o.Vs1;
+      o.Vfe = ((typeof GEN_RULES !== 'undefined' && GEN_RULES.flapVfeK) || 1.8) * o.Vs0; }
+    return o.Vs1 || o.Vh ? o : null;
   }
   let mapBig = false, mapNoseUp = false;
   let mapBaseCv = null, mapBaseFor = null;   // G130: cached north-up underlay
