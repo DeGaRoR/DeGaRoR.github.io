@@ -34,7 +34,11 @@ function readDetail() {
   const sh = /const LOD1_SHELL = \/(.*)\/;/.exec(src);
   const e = /const LOD_E = \[(\d+), (\d+)\]/.exec(src);
   return { area: +m[2], keep2: +m[5], keepShare: +m[6], near: +h[1], far2: +h[2], swapPx: +h[3], detailPx: +h[4],
-           shell: new RegExp(sh[1]), box: /^(siding|roof)/, LOD_E: [+e[1], +e[2]] };
+           shell: sh ? new RegExp(sh[1]) : null, box: /^(siding|roof)/, LOD_E: [+e[1], +e[2]],
+           // WHAT THE GAME DOES TODAY, read off its code (LODS-2026-10 lands in steps; the ratchet measures each step's game)
+           itemBanded: /grp\.userData\.lod1 = lod1Bags\(GEN, it\.P/.test(src),       // step 1: a site item on its lod 1
+           outBanded: /og\.userData\.lod1 = lod1Bags\(HG, plot\.out\.P/.test(src),   // step 1: an outbuilding banded on its own mesh
+           boxes: /function hlodBoxes\(/.test(src) };                                  // (gone at step 2)
 }
 const RULE = readDetail();
 // the switch distances at the game's camera (46 deg vertical, 1080 rows: F = 540 / tan 23 deg)
@@ -270,6 +274,13 @@ const shellFor = (GEN, bags) => { const re = DETAIL_OF[genName(GEN)]; return re 
 // path 'plot'  a sampled plot's house (genHouse: lod 0 + lod 1, banded): far = lod 1 on the town shader, its detail
 //              leaving at the second band (the shells stay); no box (hlodFarTarr takes every bag)
 // path 'out'   an outbuilding (genDress: lod 1 only, no userData.lod1): far = detailOf's keep of ITS lod 1, box
+// what the game keeps past the detail band of a lod 1: every bag but its generator's LOD_DETAIL roles (since LODS-2026-10
+// step 1; before, the house's LOD1_SHELL list - read off the page while it stands)
+const gameShells = (GEN, L1) => (RULE.shell ? L1.filter(b => RULE.shell.test(b.name)) : GEN.LOD_DETAIL ? L1.filter(b => !GEN.LOD_DETAIL.test(b.name)) : L1);
+// THE GAME'S RUNGS, as its code stands (the ratchet's ids are stable across the steps: `far`, `coarsest`):
+//   banded (a plot's house; a site item and an outbuilding from step 1): far = its lod 1, coarsest = what stays past the
+//   detail band; not banded (an item before step 1, an outbuilding's old keep): far = detailOf's keep, coarsest = the box
+// plus the FIX rungs (the plan's target, --fix): its own lod 1, and that less the plan's detail roles
 function rungsOf(GEN, P, pathKind) {
   const F = GEN.makeFinish(); GEN.applyFinish(P, F);
   const shellMats = new Set(); const HL = GENS.win.HANGAR_GEN && GENS.win.HANGAR_GEN.LIB;
@@ -277,12 +288,19 @@ function rungsOf(GEN, P, pathKind) {
   const b0 = bagsOf(GEN, GEN.build(P, 0, F), F);
   if (pathKind === 'plot') {
     const b1 = bagsOf(GEN, GEN.build(P, 1, F), F), L1 = lod1Of(b1);
-    return { near: b0, rungs: [['lod 1 (far town)', L1, 'edge', 'both'], ['lod 1 shells (past the detail band)', shellOfL1(L1), 'detail'], ['FIX R2: its lod 1 shells', shellFor(GEN, L1), 'detail', 'fix']] };   // (a plot is on the fix's path already; its R2 takes the declared detail roles)
+    return { near: b0, rungs: [['far (lod 1)', L1, 'edge', 'both'], ['coarsest (lod 1 past the detail band)', gameShells(GEN, L1), 'detail'], ['FIX R2: its lod 1 shells', shellFor(GEN, L1), 'detail', 'fix']] };   // (a plot is on the fix's path already; its R2 takes the declared detail roles)
   }
   const src = pathKind === 'out' ? bagsOf(GEN, GEN.build(P, 1, F), F) : b0;
   const keep = keepOf(src, shellMats);
-  const r = [[(pathKind === 'out' ? 'lod 1' : 'lod 0') + ' keep (' + keep.map(b => b.name).join('+') + ')', keep, 'near']];
-  const bx = boxOf(keep); if (bx) r.push(['box (past far2)', bx, 'far2']);
+  const banded = pathKind === 'out' ? RULE.outBanded : RULE.itemBanded;
+  const r = [];
+  if (banded) {
+    const L1 = pathKind === 'out' ? lod1Of(src) : lod1Of(bagsOf(GEN, GEN.build(P, 1, F), F));
+    r.push(['far (lod 1)', L1, 'edge'], ['coarsest (lod 1 past the detail band)', gameShells(GEN, L1), 'detail']);
+  } else {
+    r.push(['far (' + (pathKind === 'out' ? 'lod 1' : 'lod 0') + ' keep ' + keep.map(b => b.name).join('+') + ')', keep, 'near']);
+    const bx = RULE.boxes ? boxOf(keep) : null; if (bx) r.push(['coarsest (box past far2)', bx, 'far2']);
+  }
   // THE FIX (LODS-2026-10 S2-S4): its own lod 1 whole on its finish, then its shells (an outbuilding: its near IS lod 1)
   const l1 = pathKind === 'out' ? lod1Of(src) : lod1Of(bagsOf(GEN, GEN.build(P, 1, F), F));
   r.push(['FIX R1: its lod 1', l1, 'edge', 'fix'], ['FIX R2: its lod 1 shells', shellFor(GEN, l1), 'detail', 'fix']);

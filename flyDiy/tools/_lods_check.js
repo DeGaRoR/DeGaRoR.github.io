@@ -13,7 +13,7 @@
 //   roof    seen from straight above, >= ROOF_MIN of the near mesh's roofed plan is still roofed at roof height
 //   leak    <= LEAK_MAX of the covered view (25 views) looks INTO the building (a back face nearest: an unglazed
 //           opening, an open wall top, a missing storey - what draws black or see-through behind the far material's
-//           back-face culling)
+//           back-face culling); an open structure near (a lattice tower: its near's own leak) is held to that + LEAK_MAX / 3
 //   hole    <= HOLE_MAX of the near mesh's covered view shows, in the rung, something more than max(1.5 m, R / 10)
 //           BEHIND the near mesh's outside: the far wall's inner face through an opening, the floor of a roofless box,
 //           the sky through a missing storey (a see-through hole shows front faces: `leak` alone cannot see it)
@@ -54,13 +54,14 @@ function buildings() {
   return out;
 }
 // one rung's rows: [id, value, ok]
-function rowsOf(b, rungs, near) {
-  const out = [];
+// (nearLeak: the near mesh's own leak - an open structure near, a lattice tower, is held to its own + LEAK_MAX / 3)
+function rowsOf(b, rungs, near, nearLeak) {
+  const out = [], leakMax = Math.max(LEAK_MAX, (nearLeak || 0) + LEAK_MAX / 3);
   rungs.filter(r => (FIX ? r[3] === 'fix' || r[3] === 'both' : r[3] !== 'fix')).forEach(([name, bags], i) => {
     const m = L.measure(near, bags, { res: RES });
     const id = b.label + ' | ' + name.replace(/ \(.*$/, '');
     out.push([id + ' | roof', +m.roof.toFixed(3), m.roof >= ROOF_MIN, 'min']);
-    out.push([id + ' | leak', +m.leak.toFixed(4), m.leak <= LEAK_MAX, 'max']);
+    out.push([id + ' | leak', +m.leak.toFixed(4), m.leak <= leakMax, 'max']);
     out.push([id + ' | hole', +m.hole.toFixed(4), m.hole <= HOLE_MAX, 'max']);
   });
   return out;
@@ -78,7 +79,7 @@ function runAll() {
     let R;
     try { R = L.rungsOf(W[b.gen], b.P, b.path); } catch (e) { rows.push([b.label + ' | build', 0, false, 'min']); continue; }
     if (L.OPEN.has(b.gen)) { open.push(b.label); continue; }   // a pier, a breakwater, a pitch: not a closed volume
-    rows.push(...rowsOf(b, R.rungs, R.near));
+    rows.push(...rowsOf(b, R.rungs, R.near, L.measure(R.near, R.near, { res: RES }).leak));
   }
   if (!FIX) rows.push(...gainRows());   // (the fix has no plain colour path: every far rung wears its finish)
   return rows;
