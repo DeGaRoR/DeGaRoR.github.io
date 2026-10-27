@@ -60,7 +60,7 @@
    },
    {
     "key": "prop",
-    "name": "PROPOSED: ITS OWN LOD 1",
+    "name": "FIX R1: ITS OWN LOD 1 (on its finish)",
     "tris": 6120,
     "draws": 13,
     "at": 150,
@@ -75,6 +75,24 @@
     "L2": 0.0492,
     "black2": 0.278,
     "ratio2": 1.01
+   },
+   {
+    "key": "prop2",
+    "name": "FIX R2: LOD 1 LESS ITS DETAIL ROLES (on its finish)",
+    "tris": 4548,
+    "draws": 9,
+    "at": 4593.642738679883,
+    "L0": 0.0474,
+    "black0": 0.277,
+    "ratio0": 0.97,
+    "L1": 0.0492,
+    "black1": 0.194,
+    "ratio1": 0.98,
+    "px": 21,
+    "dist": 4594,
+    "L2": 0.0341,
+    "black2": 0.352,
+    "ratio2": 0.7
    }
   ],
   "audit": {
@@ -99,10 +117,17 @@
     "roof": 0.995,
     "iou": 0.993
    },
+   "prop2": {
+    "tris": 4548,
+    "leak": 0.0013,
+    "hole": 0.0056,
+    "roof": 0.995,
+    "iou": 0.989
+   },
    "R": 32.49809428722881,
    "nearTris": 36298
   },
-  "secs": 6.951
+  "secs": 8.046
  },
  {
   "slug": "school",
@@ -165,7 +190,7 @@
    },
    {
     "key": "prop",
-    "name": "PROPOSED: ITS OWN LOD 1",
+    "name": "FIX R1: ITS OWN LOD 1 (on its finish)",
     "tris": 1520,
     "draws": 13,
     "at": 150,
@@ -180,6 +205,24 @@
     "L2": 0.0763,
     "black2": 0.36,
     "ratio2": 0.84
+   },
+   {
+    "key": "prop2",
+    "name": "FIX R2: LOD 1 LESS ITS DETAIL ROLES (on its finish)",
+    "tris": 804,
+    "draws": 8,
+    "at": 3440.441617486613,
+    "L0": 0.0776,
+    "black0": 0.345,
+    "ratio0": 0.85,
+    "L1": 0.0164,
+    "black1": 0.767,
+    "ratio1": 0.65,
+    "px": 21,
+    "dist": 3440,
+    "L2": 0.0475,
+    "black2": 0.288,
+    "ratio2": 0.52
    }
   ],
   "audit": {
@@ -204,10 +247,17 @@
     "roof": 0.973,
     "iou": 0.994
    },
+   "prop2": {
+    "tris": 804,
+    "leak": 0.0077,
+    "hole": 0.0074,
+    "roof": 0.973,
+    "iou": 0.986
+   },
    "R": 24.33968038770842,
    "nearTris": 20664
   },
-  "secs": 2.16
+  "secs": 2.802
  },
  {
   "slug": "clinic",
@@ -270,7 +320,7 @@
    },
    {
     "key": "prop",
-    "name": "PROPOSED: ITS OWN LOD 1",
+    "name": "FIX R1: ITS OWN LOD 1 (on its finish)",
     "tris": 1372,
     "draws": 9,
     "at": 150,
@@ -285,6 +335,24 @@
     "L2": 0.2118,
     "black2": 0.039,
     "ratio2": 0.93
+   },
+   {
+    "key": "prop2",
+    "name": "FIX R2: LOD 1 LESS ITS DETAIL ROLES (on its finish)",
+    "tris": 856,
+    "draws": 6,
+    "at": 2069.5301358028046,
+    "L0": 0.2204,
+    "black0": 0.034,
+    "ratio0": 0.99,
+    "L1": 0.2201,
+    "black1": 0.017,
+    "ratio1": 1.01,
+    "px": 21,
+    "dist": 2070,
+    "L2": 0.1909,
+    "black2": 0.017,
+    "ratio2": 0.84
    }
   ],
   "audit": {
@@ -309,10 +377,17 @@
     "roof": 1,
     "iou": 0.995
    },
+   "prop2": {
+    "tris": 856,
+    "leak": 0.0148,
+    "hole": 0.0095,
+    "roof": 0.997,
+    "iou": 0.987
+   },
    "R": 14.64105706725223,
    "nearTris": 13176
   },
-  "secs": 1.408
+  "secs": 1.65
  },
  {
   "slug": "log-cabin",
@@ -375,7 +450,7 @@
    },
    {
     "key": "prop",
-    "name": "PROPOSED: ITS OWN LOD 1",
+    "name": "FIX R1: ITS OWN LOD 1 (on its finish)",
     "tris": 848,
     "draws": 9,
     "at": 150,
@@ -390,6 +465,24 @@
     "L2": 0.1611,
     "black2": 0.023,
     "ratio2": 0.98
+   },
+   {
+    "key": "prop2",
+    "name": "FIX R2: LOD 1 LESS ITS DETAIL ROLES (on its finish)",
+    "tris": 444,
+    "draws": 6,
+    "at": 966.2893390720833,
+    "L0": 0.168,
+    "black0": 0.025,
+    "ratio0": 1.02,
+    "L1": 0.1651,
+    "black1": 0,
+    "ratio1": 1.01,
+    "px": 21,
+    "dist": 966,
+    "L2": 0.1481,
+    "black2": 0.007,
+    "ratio2": 0.91
    }
   ],
   "audit": {
@@ -414,10 +507,17 @@
     "roof": 0.977,
     "iou": 0.964
    },
+   "prop2": {
+    "tris": 444,
+    "leak": 0.0191,
+    "hole": 0.0201,
+    "roof": 0.977,
+    "iou": 0.942
+   },
    "R": 6.836091493465384,
    "nearTris": 9580
   },
-  "secs": 1.213
+  "secs": 1.362
  },
  {
   "slug": "church",
@@ -480,7 +580,7 @@
    },
    {
     "key": "prop",
-    "name": "PROPOSED: ITS OWN LOD 1",
+    "name": "FIX R1: ITS OWN LOD 1 (on its finish)",
     "tris": 879,
     "draws": 8,
     "at": 150,
@@ -495,6 +595,24 @@
     "L2": 0.1714,
     "black2": 0.029,
     "ratio2": 0.92
+   },
+   {
+    "key": "prop2",
+    "name": "FIX R2: LOD 1 LESS ITS DETAIL ROLES (on its finish)",
+    "tris": 231,
+    "draws": 5,
+    "at": 1665.1571512205007,
+    "L0": 0.1661,
+    "black0": 0.006,
+    "ratio0": 0.95,
+    "L1": 0.0515,
+    "black1": 0.11,
+    "ratio1": 0.91,
+    "px": 21,
+    "dist": 1665,
+    "L2": 0.1312,
+    "black2": 0.008,
+    "ratio2": 0.71
    }
   ],
   "audit": {
@@ -519,10 +637,17 @@
     "roof": 0.995,
     "iou": 0.983
    },
+   "prop2": {
+    "tris": 231,
+    "leak": 0.0142,
+    "hole": 0.0044,
+    "roof": 0.994,
+    "iou": 0.948
+   },
    "R": 11.780287928740517,
    "nearTris": 7500
   },
-  "secs": 0.998
+  "secs": 1.183
  },
  {
   "slug": "net-store",
@@ -585,7 +710,7 @@
    },
    {
     "key": "prop",
-    "name": "PROPOSED: ITS OWN LOD 1",
+    "name": "FIX R1: ITS OWN LOD 1 (on its finish)",
     "tris": 298,
     "draws": 6,
     "at": 150,
@@ -600,6 +725,24 @@
     "L2": 0.1488,
     "black2": 0.003,
     "ratio2": 1.06
+   },
+   {
+    "key": "prop2",
+    "name": "FIX R2: LOD 1 LESS ITS DETAIL ROLES (on its finish)",
+    "tris": 154,
+    "draws": 4,
+    "at": 577.708040387859,
+    "L0": 0.1276,
+    "black0": 0.003,
+    "ratio0": 1.04,
+    "L1": 0.2099,
+    "black1": 0.002,
+    "ratio1": 0.93,
+    "px": 21,
+    "dist": 578,
+    "L2": 0.146,
+    "black2": 0,
+    "ratio2": 1.04
    }
   ],
   "audit": {
@@ -624,10 +767,17 @@
     "roof": 0.995,
     "iou": 0.991
    },
+   "prop2": {
+    "tris": 154,
+    "leak": 0,
+    "hole": 0.0003,
+    "roof": 0.995,
+    "iou": 0.985
+   },
    "R": 4.087041904440789,
    "nearTris": 2054
   },
-  "secs": 0.939
+  "secs": 1.039
  },
  {
   "slug": "club-hangar-long",
@@ -690,7 +840,7 @@
    },
    {
     "key": "prop",
-    "name": "PROPOSED: ITS OWN LOD 1",
+    "name": "FIX R1: ITS OWN LOD 1 (on its finish)",
     "tris": 564,
     "draws": 7,
     "at": 150,
@@ -705,6 +855,24 @@
     "L2": 0.196,
     "black2": 0.058,
     "ratio2": 1
+   },
+   {
+    "key": "prop2",
+    "name": "FIX R2: LOD 1 LESS ITS DETAIL ROLES (on its finish)",
+    "tris": 384,
+    "draws": 5,
+    "at": 3021.5984676415997,
+    "L0": 0.1897,
+    "black0": 0.048,
+    "ratio0": 0.99,
+    "L1": 0.288,
+    "black1": 0.002,
+    "ratio1": 1.01,
+    "px": 21,
+    "dist": 3022,
+    "L2": 0.2261,
+    "black2": 0.035,
+    "ratio2": 1.15
    }
   ],
   "audit": {
@@ -729,10 +897,17 @@
     "roof": 1,
     "iou": 0.998
    },
+   "prop2": {
+    "tris": 384,
+    "leak": 0.0022,
+    "hole": 0.0014,
+    "roof": 0.969,
+    "iou": 0.99
+   },
    "R": 21.37654090352319,
    "nearTris": 3382
   },
-  "secs": 1.165
+  "secs": 1.514
  },
  {
   "slug": "field-shed",
@@ -795,7 +970,7 @@
    },
    {
     "key": "prop",
-    "name": "PROPOSED: ITS OWN LOD 1",
+    "name": "FIX R1: ITS OWN LOD 1 (on its finish)",
     "tris": 430,
     "draws": 7,
     "at": 150,
@@ -810,6 +985,24 @@
     "L2": 0.1313,
     "black2": 0.018,
     "ratio2": 0.93
+   },
+   {
+    "key": "prop2",
+    "name": "FIX R2: LOD 1 LESS ITS DETAIL ROLES (on its finish)",
+    "tris": 238,
+    "draws": 5,
+    "at": 1799.4810983491348,
+    "L0": 0.1401,
+    "black0": 0.012,
+    "ratio0": 0.92,
+    "L1": 0.1207,
+    "black1": 0.003,
+    "ratio1": 0.95,
+    "px": 21,
+    "dist": 1799,
+    "L2": 0.129,
+    "black2": 0.018,
+    "ratio2": 0.91
    }
   ],
   "audit": {
@@ -834,10 +1027,17 @@
     "roof": 1,
     "iou": 0.997
    },
+   "prop2": {
+    "tris": 238,
+    "leak": 0.0035,
+    "hole": 0.0046,
+    "roof": 0.969,
+    "iou": 0.987
+   },
    "R": 12.730573474906777,
    "nearTris": 1494
   },
-  "secs": 1.115
+  "secs": 1.334
  },
  {
   "slug": "warehouse",
@@ -900,7 +1100,7 @@
    },
    {
     "key": "prop",
-    "name": "PROPOSED: ITS OWN LOD 1",
+    "name": "FIX R1: ITS OWN LOD 1 (on its finish)",
     "tris": 538,
     "draws": 9,
     "at": 150,
@@ -915,6 +1115,24 @@
     "L2": 0.2794,
     "black2": 0.01,
     "ratio2": 0.99
+   },
+   {
+    "key": "prop2",
+    "name": "FIX R2: LOD 1 LESS ITS DETAIL ROLES (on its finish)",
+    "tris": 350,
+    "draws": 6,
+    "at": 2180.7033005013163,
+    "L0": 0.2826,
+    "black0": 0.013,
+    "ratio0": 1,
+    "L1": 0.3188,
+    "black1": 0.02,
+    "ratio1": 1.03,
+    "px": 21,
+    "dist": 2181,
+    "L2": 0.2741,
+    "black2": 0.013,
+    "ratio2": 0.97
    }
   ],
   "audit": {
@@ -939,10 +1157,17 @@
     "roof": 1,
     "iou": 0.997
    },
+   "prop2": {
+    "tris": 350,
+    "leak": 0.0032,
+    "hole": 0.0129,
+    "roof": 1,
+    "iou": 0.991
+   },
    "R": 15.427560544799578,
    "nearTris": 2626
   },
-  "secs": 21.239
+  "secs": 21.28
  },
  {
   "slug": "wwii-tower",
@@ -1005,7 +1230,7 @@
    },
    {
     "key": "prop",
-    "name": "PROPOSED: ITS OWN LOD 1",
+    "name": "FIX R1: ITS OWN LOD 1 (on its finish)",
     "tris": 1268,
     "draws": 6,
     "at": 150,
@@ -1020,6 +1245,24 @@
     "L2": 0.05,
     "black2": 0.198,
     "ratio2": 1.12
+   },
+   {
+    "key": "prop2",
+    "name": "FIX R2: LOD 1 LESS ITS DETAIL ROLES (on its finish)",
+    "tris": 1268,
+    "draws": 6,
+    "at": 1252.3332349530729,
+    "L0": 0.0495,
+    "black0": 0.208,
+    "ratio0": 1.13,
+    "L1": 0.0595,
+    "black1": 0.128,
+    "ratio1": 1.14,
+    "px": 21,
+    "dist": 1252,
+    "L2": 0.0448,
+    "black2": 0.053,
+    "ratio2": 1.01
    }
   ],
   "audit": {
@@ -1044,10 +1287,17 @@
     "roof": 0.987,
     "iou": 0.918
    },
+   "prop2": {
+    "tris": 1268,
+    "leak": 0.0745,
+    "hole": 0.0347,
+    "roof": 0.987,
+    "iou": 0.918
+   },
    "R": 8.859731995664756,
    "nearTris": 2108
   },
-  "secs": 0.734
+  "secs": 0.797
  },
  {
   "slug": "plot-shore-cabin",
@@ -1109,8 +1359,26 @@
     "ratio2": 0.75
    },
    {
+    "key": "fix2",
+    "name": "FIX R2: LOD 1 LESS ITS DETAIL ROLES (on its finish)",
+    "tris": 412,
+    "draws": 6,
+    "at": 1375.4146011682749,
+    "L0": 0.0509,
+    "black0": 0.019,
+    "ratio0": 0.7,
+    "L1": 0.0412,
+    "black1": 0.006,
+    "ratio1": 0.8,
+    "px": 21,
+    "dist": 1375,
+    "L2": 0.0493,
+    "black2": 0.032,
+    "ratio2": 0.74
+   },
+   {
     "key": "l1p",
-    "name": "LOD 1 PLAIN (no-stack fallback)",
+    "name": "GAME TODAY: PLAIN FALLBACK (stack not ready) - the fix removes it",
     "tris": 1004,
     "draws": 1,
     "at": 257.8902377190515,
@@ -1142,10 +1410,17 @@
     "roof": 0.838,
     "iou": 0.824
    },
+   "fix2": {
+    "tris": 412,
+    "leak": 0.0149,
+    "hole": 0.0093,
+    "roof": 0.978,
+    "iou": 0.933
+   },
    "R": 9.730481000715171,
    "nearTris": 12896
   },
-  "secs": 1.164
+  "secs": 1.105
  },
  {
   "slug": "plot-saltbox",
@@ -1207,8 +1482,26 @@
     "ratio2": 0.84
    },
    {
+    "key": "fix2",
+    "name": "FIX R2: LOD 1 LESS ITS DETAIL ROLES (on its finish)",
+    "tris": 572,
+    "draws": 7,
+    "at": 1344.7667939248443,
+    "L0": 0.1295,
+    "black0": 0.031,
+    "ratio0": 0.77,
+    "L1": 0.1302,
+    "black1": 0.002,
+    "ratio1": 0.94,
+    "px": 21,
+    "dist": 1345,
+    "L2": 0.1199,
+    "black2": 0.018,
+    "ratio2": 0.76
+   },
+   {
     "key": "l1p",
-    "name": "LOD 1 PLAIN (no-stack fallback)",
+    "name": "GAME TODAY: PLAIN FALLBACK (stack not ready) - the fix removes it",
     "tris": 1286,
     "draws": 1,
     "at": 252.14377386090828,
@@ -1240,10 +1533,17 @@
     "roof": 0.95,
     "iou": 0.899
    },
+   "fix2": {
+    "tris": 572,
+    "leak": 0.0162,
+    "hole": 0.0094,
+    "roof": 0.997,
+    "iou": 0.973
+   },
    "R": 9.513660628267127,
    "nearTris": 15448
   },
-  "secs": 1.366
+  "secs": 1.275
  },
  {
   "slug": "plot-gambrel",
@@ -1305,8 +1605,26 @@
     "ratio2": 0.91
    },
    {
+    "key": "fix2",
+    "name": "FIX R2: LOD 1 LESS ITS DETAIL ROLES (on its finish)",
+    "tris": 412,
+    "draws": 7,
+    "at": 1562.549946060767,
+    "L0": 0.1873,
+    "black0": 0.055,
+    "ratio0": 0.92,
+    "L1": 0.175,
+    "black1": 0.001,
+    "ratio1": 0.97,
+    "px": 21,
+    "dist": 1563,
+    "L2": 0.1804,
+    "black2": 0.12,
+    "ratio2": 0.91
+   },
+   {
     "key": "l1p",
-    "name": "LOD 1 PLAIN (no-stack fallback)",
+    "name": "GAME TODAY: PLAIN FALLBACK (stack not ready) - the fix removes it",
     "tris": 1038,
     "draws": 1,
     "at": 292.9781148863938,
@@ -1338,10 +1656,17 @@
     "roof": 0.959,
     "iou": 0.97
    },
+   "fix2": {
+    "tris": 412,
+    "leak": 0.0129,
+    "hole": 0.0038,
+    "roof": 1,
+    "iou": 0.987
+   },
    "R": 11.054385019541199,
    "nearTris": 13326
   },
-  "secs": 1.197
+  "secs": 1.233
  },
  {
   "slug": "out-storage-shed",
@@ -1401,6 +1726,42 @@
     "L2": 0.0217,
     "black2": 0.226,
     "ratio2": 0.15
+   },
+   {
+    "key": "prop",
+    "name": "FIX R1: ITS LOD 1 BANDED, ON ITS FINISH (= its near)",
+    "tris": 318,
+    "draws": 8,
+    "at": 150,
+    "L0": 0.15,
+    "black0": 0.003,
+    "ratio0": 1,
+    "L1": 0.154,
+    "black1": 0,
+    "ratio1": 1,
+    "px": 72,
+    "dist": 150,
+    "L2": 0.1405,
+    "black2": 0.004,
+    "ratio2": 1
+   },
+   {
+    "key": "prop2",
+    "name": "FIX R2: LOD 1 LESS ITS DETAIL ROLES (on its finish)",
+    "tris": 124,
+    "draws": 6,
+    "at": 518.5520131340204,
+    "L0": 0.1295,
+    "black0": 0.002,
+    "ratio0": 0.86,
+    "L1": 0.1533,
+    "black1": 0,
+    "ratio1": 1,
+    "px": 21,
+    "dist": 519,
+    "L2": 0.1142,
+    "black2": 0,
+    "ratio2": 0.81
    }
   ],
   "audit": {
@@ -1418,10 +1779,24 @@
     "roof": 0.946,
     "iou": 0.815
    },
+   "prop": {
+    "tris": 318,
+    "leak": 0.0282,
+    "hole": 0,
+    "roof": 1,
+    "iou": 1
+   },
+   "prop2": {
+    "tris": 124,
+    "leak": 0.0293,
+    "hole": 0.0005,
+    "roof": 1,
+    "iou": 0.963
+   },
    "R": 3.6685378411697305,
    "nearTris": 318
   },
-  "secs": 0.54
+  "secs": 0.651
  },
  {
   "slug": "kit-metlakatla-1",
@@ -1499,6 +1874,24 @@
     "L2": 0.0436,
     "black2": 0,
     "ratio2": 0.37
+   },
+   {
+    "key": "cityfin",
+    "name": "FIX: THE CITY PRISM ON ITS FINISH",
+    "tris": 14,
+    "draws": 8,
+    "at": 1000,
+    "L0": 0.0408,
+    "black0": 0.002,
+    "ratio0": 0.34,
+    "L1": 0.0336,
+    "black1": 0.048,
+    "ratio1": 0.54,
+    "px": 20,
+    "dist": 1000,
+    "L2": 0.0384,
+    "black2": 0,
+    "ratio2": 0.32
    }
   ],
   "audit": {
@@ -1524,7 +1917,7 @@
     "iou": 0.747
    }
   },
-  "secs": 0.821
+  "secs": 0.785
  },
  {
   "slug": "kit-metlakatla-2",
@@ -1602,6 +1995,24 @@
     "L2": 0.0775,
     "black2": 0,
     "ratio2": 0.54
+   },
+   {
+    "key": "cityfin",
+    "name": "FIX: THE CITY PRISM ON ITS FINISH",
+    "tris": 10,
+    "draws": 5,
+    "at": 1000,
+    "L0": 0.1186,
+    "black0": 0,
+    "ratio0": 0.84,
+    "L1": 0.1678,
+    "black1": 0,
+    "ratio1": 1.03,
+    "px": 20,
+    "dist": 1000,
+    "L2": 0.1219,
+    "black2": 0,
+    "ratio2": 0.85
    }
   ],
   "audit": {
@@ -1627,6 +2038,6 @@
     "iou": 0.832
    }
   },
-  "secs": 0.9
+  "secs": 0.925
  }
 ]

@@ -4,10 +4,11 @@
 //
 //   node tools/_lods_check.js              -> "GATE LODS: PASS|FAIL" (the ratchet: a failure not in the ledger is red)
 //   node tools/_lods_check.js --strict     -> every failure red, the ledger ignored (the fix's own verdict)
+//   node tools/_lods_check.js --fix        -> the PROPOSED ladder (each item's own lod 1 and its shells), strict: what S2-S4 must pass
 //   node tools/_lods_check.js --selftest   -> negative verification (a roof taken off, a wall opened, the gain dimmed)
 //   node tools/_lods_check.js --write      -> rewrite the ledger to today's failures (ASK FIRST: it forgives them)
 //
-// THE ROWS, per far rung of every building the island places (tools/_lods_lib.js: the rungs by the game's own rules -
+// THE ROWS, per far rung of every generated asset of the editor's catalogue (tools/_lods_lib.js: the rungs by the game's own rules -
 // a site item's detailOf keep and its box, a plot's lod 1 and its shells past the detail band, an outbuilding's keep):
 //   roof    seen from straight above, >= ROOF_MIN of the near mesh's roofed plan is still roofed at roof height
 //   leak    <= LEAK_MAX of the covered view (25 views) looks INTO the building (a back face nearest: an unglazed
@@ -28,7 +29,7 @@ const path = require('path');
 const L = require('./_lods_lib.js');
 
 const argv = process.argv.slice(2);
-const STRICT = argv.includes('--strict'), SELF = argv.includes('--selftest'), WRITE = argv.includes('--write');
+const FIX = argv.includes('--fix'), STRICT = argv.includes('--strict') || FIX, SELF = argv.includes('--selftest'), WRITE = argv.includes('--write');
 const ROOF_MIN = 0.90, LEAK_MAX = 0.03, HOLE_MAX = 0.03, GAIN_MIN = 0.5, RES = 80;
 const KNOWN_F = path.join(__dirname, '_lods_known.json');
 
@@ -39,17 +40,15 @@ const CAT = PG.collect(W);
 // the buildings: every keyed building the island places (as a site item), the house generator's presets as plots,
 // the outbuildings, and the meteo station when its generator is here (or on its branch)
 function buildings() {
-  const J = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8'));
-  const keys = new Set();
-  for (const st of (J.layers.sites || [])) for (const it of (st.items || [])) if (/^(house|big|hangar|shed|tower|navaid|meteo)\//.test(it.key)) keys.add(it.key);
+  // THE WHOLE CATALOGUE - what the editor's site palette lists (premises_ui.js sitesPalette: PREMISES_GEN.collect(window))
   const out = [];
-  for (const key of [...keys].sort()) {
-    const e = CAT.entries.get(key);
-    if (e) out.push({ label: key, gen: e.gen, P: e.params ? e.params({}) : Object.assign({}, W[e.gen].DEF, e.P), path: 'item' });
+  for (const [key, e] of [...CAT.entries].sort((x, y) => (x[0] < y[0] ? -1 : 1))) {
+    const GEN = W[e.gen]; if (!GEN || !GEN.build) continue;
+    out.push({ label: key, gen: e.gen, P: e.params ? e.params({}) : Object.assign({}, GEN.DEF, e.P), path: 'item' });
   }
-  if (W.METEO_GEN && !keys.has('meteo/meteo station')) for (const n of Object.keys(W.METEO_GEN.PRESETS)) out.push({ label: 'meteo/' + n, gen: 'METEO_GEN', P: Object.assign({}, W.METEO_GEN.DEF, W.METEO_GEN.PRESETS[n]), path: 'item' });
-  for (const n of ['shore cabin', 'village house', 'saltbox farmhouse', 'gambrel barn', 'hip cottage', 'log cabin', 'church', 'general store', 'school'])
-    if (W.HOUSE_GEN.PRESETS[n]) out.push({ label: 'house/' + n + ' [plot]', gen: 'HOUSE_GEN', P: Object.assign({}, W.HOUSE_GEN.DEF, W.HOUSE_GEN.PRESETS[n]), path: 'plot' });
+  if (W.METEO_GEN && !CAT.entries.has('meteo/meteo station')) for (const n of Object.keys(W.METEO_GEN.PRESETS)) out.push({ label: 'meteo/' + n, gen: 'METEO_GEN', P: Object.assign({}, W.METEO_GEN.DEF, W.METEO_GEN.PRESETS[n]), path: 'item' });
+  // a zone's pick may stand any house preset on a sampled plot (lod 1, banded); the outbuildings
+  for (const n of Object.keys(W.HOUSE_GEN.PRESETS)) if (!W.HOUSE_GEN.PRESETS[n].mill && !W.HOUSE_GEN.PRESETS[n].station) out.push({ label: 'house/' + n + ' [plot]', gen: 'HOUSE_GEN', P: Object.assign({}, W.HOUSE_GEN.DEF, W.HOUSE_GEN.PRESETS[n]), path: 'plot' });
   for (const n of ['storage shed', 'outhouse', 'garage', 'woodshed'])
     if (W.HOUSE_GEN.PRESETS[n]) out.push({ label: 'house/' + n + ' [out]', gen: 'HOUSE_GEN', P: Object.assign({}, W.HOUSE_GEN.DEF, W.HOUSE_GEN.PRESETS[n]), path: 'out' });
   return out;
@@ -57,7 +56,7 @@ function buildings() {
 // one rung's rows: [id, value, ok]
 function rowsOf(b, rungs, near) {
   const out = [];
-  rungs.forEach(([name, bags], i) => {
+  rungs.filter(r => (FIX ? r[3] === 'fix' || r[3] === 'both' : r[3] !== 'fix')).forEach(([name, bags], i) => {
     const m = L.measure(near, bags, { res: RES });
     const id = b.label + ' | ' + name.replace(/ \(.*$/, '');
     out.push([id + ' | roof', +m.roof.toFixed(3), m.roof >= ROOF_MIN, 'min']);
@@ -72,14 +71,16 @@ function gainRows() {
   const g = +(/const HLOD = \{[^}]*?\bgain: ([\d.]+)/.exec(rp) || [0, 0])[1], f = +(/farGain: ([\d.]+)/.exec(cc) || [0, 0])[1];
   return [['far town | HLOD.gain', g, g >= GAIN_MIN, 'min'], ['city pack | farGain', f, f >= GAIN_MIN, 'min']];
 }
+const open = [];
 function runAll() {
   const rows = [];
   for (const b of buildings()) {
     let R;
     try { R = L.rungsOf(W[b.gen], b.P, b.path); } catch (e) { rows.push([b.label + ' | build', 0, false, 'min']); continue; }
+    if (L.OPEN.has(b.gen)) { open.push(b.label); continue; }   // a pier, a breakwater, a pitch: not a closed volume
     rows.push(...rowsOf(b, R.rungs, R.near));
   }
-  rows.push(...gainRows());
+  if (!FIX) rows.push(...gainRows());   // (the fix has no plain colour path: every far rung wears its finish)
   return rows;
 }
 
@@ -123,6 +124,7 @@ for (const [id, v, ok, dir] of rows) {
   bad.push(id + ' = ' + v + (id in known ? ' (ledger ' + known[id] + ')' : ''));
 }
 console.log('GATE LODS: ' + rows.length + ' rows over ' + new Set(rows.map(r => r[0].split(' | ')[0])).size + ' buildings; roof >= ' + ROOF_MIN + ', leak <= ' + LEAK_MAX + ', gain >= ' + GAIN_MIN);
+if (open.length) console.log('  open structures, no closure rows: ' + open.length + ' (' + open.join(', ') + ')');
 if (held.length) console.log('  ledger (shipped today, held at its number): ' + held.length + '\n    ' + held.join('\n    '));
 if (healed.length) console.log('  ledger rows that pass now (take them out): ' + healed.join(', '));
 for (const b of bad) console.log('  FAIL ' + b);

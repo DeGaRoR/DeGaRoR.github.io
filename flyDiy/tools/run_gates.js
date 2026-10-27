@@ -693,7 +693,7 @@ const GATES = [
   // houses show without roof and black"): every far rung of every building the island places, made by the game's own
   // rules (tools/_lods_lib.js), roofed from above (>= 90 %), not looked INTO (leak, hole <= 3 %), the far colour's gain
   // unity-calibrated. A RATCHET until the fix lands: tools/_lods_known.json holds today's failures at their numbers,
-  // anything new or worse is red; --strict is the fix's verdict, --selftest the negative verification (~25 s)
+  // anything new or worse is red; --strict is the fix's verdict, --selftest the negative verification, --fix the proposed ladder (~45 s, the whole catalogue)
   { id: 'LODS', file: '_lods_check.js', tier: 'core' },
   // THE VILLAGE (G275): the terrain, the road, the plots off it, a house on
   // every plot built by the house generator on the terrain under it, the

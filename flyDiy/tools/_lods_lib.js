@@ -255,6 +255,17 @@ function openEdges(bags) {
 }
 
 // ---- one building: its rungs as the game draws them -------------------------------------------------------------
+// THE DETAIL ROLES (the plan's S4): each generator says what LEAVES at the detail band - the trims, rails, posts, signs:
+// what is sub-pixel there - and everything else of its lod 1 stays (so a lighthouse keeps its lantern, an over-the-water
+// house its deck). OPEN: not a closed volume (a pier, a breakwater, a pitch, a park): no closure rows, its lod 1 whole.
+const DETAIL_OF = {
+  HOUSE_GEN: /^(trim|rib|post|pile|logend|flag|star|awning|pane)/, SHED_GEN: /^(trim|rib|post|pile|logend|pane)/,
+  BIG_GEN: /^(sign|awning|trim|beam|metal)$/, HANGAR_GEN: /^(metal|beam|trim)$/,
+  METEO_GEN: /^(steel|rail|flue|paint|trim|post|metal)$/, TOWER_GEN: /^(trim|sock)$/, NAVAID_GEN: /^(trim|sock)$/,
+};
+const OPEN = new Set(['MARINE_GEN', 'SPORT_GEN', 'TOTEM_GEN']);
+const genName = GEN => Object.keys(GENS.win).find(k => GENS.win[k] === GEN) || '';
+const shellFor = (GEN, bags) => { const re = DETAIL_OF[genName(GEN)]; return re ? bags.filter(b => !re.test(b.name)) : bags; };
 // path 'item'  a site's item (premises_build genItem: lod 0 only): far = detailOf's keep of lod 0, box past far2
 // path 'plot'  a sampled plot's house (genHouse: lod 0 + lod 1, banded): far = lod 1 on the town shader, its detail
 //              leaving at the second band (the shells stay); no box (hlodFarTarr takes every bag)
@@ -266,12 +277,15 @@ function rungsOf(GEN, P, pathKind) {
   const b0 = bagsOf(GEN, GEN.build(P, 0, F), F);
   if (pathKind === 'plot') {
     const b1 = bagsOf(GEN, GEN.build(P, 1, F), F), L1 = lod1Of(b1);
-    return { near: b0, rungs: [['lod 1 (far town)', L1, 'edge'], ['lod 1 shells (past the detail band)', shellOfL1(L1), 'detail']] };
+    return { near: b0, rungs: [['lod 1 (far town)', L1, 'edge', 'both'], ['lod 1 shells (past the detail band)', shellOfL1(L1), 'detail'], ['FIX R2: its lod 1 shells', shellFor(GEN, L1), 'detail', 'fix']] };   // (a plot is on the fix's path already; its R2 takes the declared detail roles)
   }
   const src = pathKind === 'out' ? bagsOf(GEN, GEN.build(P, 1, F), F) : b0;
   const keep = keepOf(src, shellMats);
   const r = [[(pathKind === 'out' ? 'lod 1' : 'lod 0') + ' keep (' + keep.map(b => b.name).join('+') + ')', keep, 'near']];
   const bx = boxOf(keep); if (bx) r.push(['box (past far2)', bx, 'far2']);
+  // THE FIX (LODS-2026-10 S2-S4): its own lod 1 whole on its finish, then its shells (an outbuilding: its near IS lod 1)
+  const l1 = pathKind === 'out' ? lod1Of(src) : lod1Of(bagsOf(GEN, GEN.build(P, 1, F), F));
+  r.push(['FIX R1: its lod 1', l1, 'edge', 'fix'], ['FIX R2: its lod 1 shells', shellFor(GEN, l1), 'detail', 'fix']);
   return { near: pathKind === 'out' ? src : b0, rungs: r, keep: keep.map(b => b.name), plainBags: src.filter(b => isPlain(b.mat)).map(b => b.name) };
 }
 function audit(GEN, P, pathKind, opt) {
@@ -279,13 +293,13 @@ function audit(GEN, P, pathKind, opt) {
   const nearTris = R.near.reduce((t, b) => t + b.idx.length / 3, 0);
   const n0 = measure(R.near, R.near, opt);
   const out = { path: pathKind, nearTris, R: n0.R, nearLeak: n0.leak, nearRoof: n0.roof, keep: R.keep || null, rungs: [] };
-  for (const [name, bags, at] of R.rungs) {
+  for (const [name, bags, at, fix] of R.rungs) {
     const m = measure(R.near, bags, opt), oe = openEdges(bags);
     const dist = at === 'edge' ? edgeOf(n0.R) : at === 'detail' ? detailEdgeOf(n0.R) : at === 'far2' ? RULE.far2 : RULE.near;
-    out.rungs.push({ name, dist: Math.round(dist), tris: m.tris, leak: m.leak, hole: m.hole, leakBy: m.leakBy, worst: m.worst, roof: m.roof, iou: m.iou, open: oe.len, openPer: oe.per,
+    out.rungs.push({ name, fix: !!fix, dist: Math.round(dist), tris: m.tris, leak: m.leak, hole: m.hole, leakBy: m.leakBy, worst: m.worst, roof: m.roof, iou: m.iou, open: oe.len, openPer: oe.per,
                      hasRoofBag: bags.some(b => /roof/.test(b.name) || b.name === 'box' || b.name === 'shell'), bags: bags.map(b => b.name) });
   }
   return out;
 }
 
-module.exports = { RULE, F1080, edgeOf, detailEdgeOf, loadGens, bagsOf, keepOf, lod1Of, shellOfL1, boxOf, polyBag, soup, measure, openEdges, rungsOf, audit, VIEWS, isPlain };
+module.exports = { DETAIL_OF, OPEN, shellFor, genName, RULE, F1080, edgeOf, detailEdgeOf, loadGens, bagsOf, keepOf, lod1Of, shellOfL1, boxOf, polyBag, soup, measure, openEdges, rungsOf, audit, VIEWS, isPlain };
