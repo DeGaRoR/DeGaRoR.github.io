@@ -99099,3 +99099,30 @@ Stills (Mon 26 00:45 s26-g1, before = L25b's files vs after; the session's scrat
 - valid/pair_*: Cub, Jodel, Cessna, Cessna floats, twin floats, Rufus, unchanged at load apart from the entry outline that f46685a6e removes.
 Rig trap: since L25b, dev.html's boot runs ~65 s after the garage objects exist. A still taken before BOOT.state 'gone' shows a half-built world.
 Correction to G3540 above: its evidence was the node page check, not steps_wheels.js. That check is tools/_page_node.js with the user's Cub, rolled out and flown for 240 s: worker and inline PASS, master's app.js FAIL.
+## G3451 - DASH-ARCH-SAVED: EVERY SAVED BUILD TAKES THE ARCH DASHBOARD; A CERTIFICATION-RULE CHANGE (THE DASH IS A LOOK ROW, HASHED AS IT WAS CERTIFIED) (2026-10-25, RUFUS-CERT for A0; claude/dash-arch off L24c 2b381015d; gates Mon 26 17:15 CPU, cockpit stills Tue 27 12:15 GPU; for L26a/b)
+
+The user, 25 Oct: "Yes, we should switch the saved planes to the new dashboard." G3340 (L19c) had made the arch (`dashStyle 1`) the default for NEW builds only; every file saved before it loaded on the box.
+
+**The migration** (`tools/_cage_gen.js` cageFromSpec (5), the one door). A cage without the new row `dashV` takes the arch once: `dashStyle 1`, `dashV 1`, and the box's never-shown legs row goes to its default (1). Two things made this the rule, ruled by A0 on 25 Oct:
+- "no dashStyle" was not enough: cageSpec has written every row since G377, so every build saved since L19c carries an explicit `dashStyle 0`. That covers the user's browser saves, Rufus and the PA-18.
+- A box picked deliberately between L19c and today flips once too. The user can pick it again, and from now on it stands (`dashV 1`).
+
+The dash the file was drawn with stays on it as `dashWas` / `dashLegsWas`. The template carries `dashV 1`. Rufus and the PA-18 are rewritten the same way in their files: `dashStyle 1, dashV 1, dashWas 0, dashLegsWas 1`.
+
+**CERT-RULE CHANGE - for CERT-REVIEW.** The dash is now a LOOK row for the fingerprint (`src/viewer/bench.js` benchStripCosmetic):
+- **Why it can be a look row:** the arch and the box weigh the same and sit at the same CG (GATE DASH's physics rows).
+- **What it hashes:** a cage saved after the switch hashes the dash it was CERTIFIED with. That is `dashWas` / `dashLegsWas` when the switch moved the file, else the arch (1 / 1). It is never the dash shown now.
+- **What that gives:**
+  - Every stamp taken on the box keeps matching: the bench plaque, the acceptance legs signed into the logbook (72_accept), and a career airframe's fp (76_procure). Nothing loads WITHDRAWN, no re-stamp is needed, and no fingerprint or scheme bump is made.
+  - A dash picked later keeps the certificate.
+- **Unchanged:** a cage from before the switch that was never reopened (no `dashV`: a parked slot's raw spec) still hashes exactly as it is.
+- **Matches A0's ruling, narrower than first proposed:** A0 OK'd look rows outside the fp plus an old-key equivalence on restore. But the fp is also stored by the signed legs, the flights and the career's airframes, so an equivalence would have been needed at every one of those comparisons. Hashing the certified dash keeps one hash everywhere.
+- **Precedent:** the frame rows' retired keys (T2.1) were hashed the same way.
+
+**The parked fleet** (`parked.js` fleetSig): the dash rows ride in the look part of the signature, since the fp holds them still. Every parked bake re-bakes once (the arch is a new look anyway).
+
+**Gates:**
+- DASH's load rows follow the switch: an old file takes the arch with dashWas 0; a file carrying the box takes the arch; a box picked after the switch stands; the switch happens once.
+- BENCH gets 6 rows, each with defaults and without: a box build through the switch hashes as certified; so does an arch build; after the switch the dash is a look; a build born after hashes as an arch build did; a cage from before still hashes as it is; a real cage row still counts. They were shown red on master's bench.js (4 of the 6).
+- KNIFE: the corpus is re-recorded in the Mon slot for the dash change only.
+- PANEL, CAGEFIT, CABIN, FRAMECOST, STORY (Rufus's certificate) and BENCH run in the Mon 17:15 CPU slot.

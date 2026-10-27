@@ -7296,7 +7296,11 @@ const CAGE_PARAMS = {
   // default); 0 = the closed box with the slanted bottom, which every build
   // saved before the row exists keeps (cageFromSpec). `dashLegs`: where the
   // arch's legs end — 0 the plate's bottom, 1 a side rail, 2 the floor.
-  dashStyle: 1, dashLegs: 1,
+  // G3451 (DASH-ARCH-SAVED, the user 25 Oct: "Yes, we should switch the saved planes to the new dashboard"):
+  // `dashV` 1 marks a file saved after the switch - its dashStyle is a choice and stands. A file without it
+  // takes the arch once at cageFromSpec, the box included (cageSpec wrote every row since G377, so a saved 0 was
+  // the old default as often as a pick).
+  dashStyle: 1, dashLegs: 1, dashV: 1,
   // THE SHOULDER (G325): the sill trim — an L-section sheet swept along the
   // window transition of each flank, W inboard then H down, from the dash
   // aft to the cabin pillar (run 0) or through the passenger bays (run 1).
@@ -7706,10 +7710,21 @@ function cageFromSpec(spec) {
   // ring editor's offsets, the lean and the taper width — lifted here into
   // the frames' absolute rows, and the retired keys dropped, so a save
   // never carries two homes (cageSpec lifts too, for any other door)
-  // (5) THE DASH (G3340): a file saved before the arch existed keeps the
-  // box it was drawn with — the arch is the default for NEW builds only
-  // (the user, item 11: "the new default only"). A null cage is the template.
-  if (c && typeof c === 'object' && !Array.isArray(c) && c.dashStyle == null) P.dashStyle = 0;
+  // (5) THE DASH (G3340 -> G3451): every file saved before the switch (no
+  // `dashV`) takes the arch ONCE - the user, 25 Oct: "Yes, we should switch
+  // the saved planes to the new dashboard" (G3340 had kept them on the box,
+  // item 11). The dash it was drawn with stays on the file as `dashWas` /
+  // `dashLegsWas` (a file without the row had loaded as the box, 0): the
+  // bench's fingerprint hashes THOSE, so every certificate, signed leg and
+  // career airframe stamped on the box still matches (bench.js
+  // benchStripCosmetic). A box picked after the switch stands (dashV 1).
+  // A null cage is the template (the arch, dashV 1, nothing was).
+  if (c && typeof c === 'object' && !Array.isArray(c) && c.dashV == null) {
+    P.dashWas = c.dashStyle == null ? 0 : Math.round(+c.dashStyle || 0);
+    P.dashLegsWas = c.dashLegs == null ? 1 : Math.round(+c.dashLegs);
+    if (P.dashWas !== 1) P.dashLegs = 1;           // the box's legs row was never shown: the arch's default
+    P.dashStyle = 1; P.dashV = 1;
+  }
   // (6) THE PILOT'S OWN ROWS (G3700, DUMMY-RETIRE; the user, 25 Oct: "retire
   // everything related to the dummy"). THE ONE ALIAS: the pilot's rows were
   // named for the crash-test figure the cage seated before the characters -
