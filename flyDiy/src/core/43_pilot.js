@@ -1634,6 +1634,22 @@ function makePilot(sim, def, world, opts) {
       }
       return 'LINEUP';
     }
+    // G2811: ...AND FACING THE TAKE-OFF WAY WITH TOO LITTLE AHEAD: BACK ALONG THE CENTRELINE. A one-way short strip
+    // landed and left the same way (Jumbo Mine, 250 m: in and out the same direction) leaves the aeroplane facing its
+    // take-off with the start end behind it. Under 3/4 of the strip ahead, the pattern's route back begins with a lane
+    // U-turn at the pose - the user's Cub on its 0.95 notch, stopped 161.7 m from the far end (88 m behind it), ran into
+    // an obstacle beside the strip 7.5 s into it (10 g; master's, 189 m ahead, went from where it stood). A taildragger
+    // turns on the spot instead (TAXI's G1938 pivot toward a point behind), taxis back along the centreline to the turn's
+    // spot at the start end (its half-span + 1.5 m in) and turns there (LINEUP's roll on, then its pivot): the whole strip
+    if (!trike && onStrip && isFinite(RgMin) && (from.len || 1100) < 300 && Math.abs(cross) <= 4 && (nose[0] * t[0] + nose[1] * t[1]) > 0.2) {
+      const spot = pivRoom(), sEnd = -(from.len / 2) + spot;
+      if (sPos - sEnd > spot + 3) {
+        ap.path = null; ap.taxiPath = null; ap.stopAfterLineup = true;
+        ap.taxiTgt = [from.x + t[0] * sEnd, from.z + t[1] * sEnd];
+        ap.pivSpot = { x: ap.taxiTgt[0], z: ap.taxiTgt[1], spot, from: Math.round(sPos - sEnd + spot) };
+        return 'TAXI';
+      }
+    }
     if (PAT && PAT.routes && typeof patternPath === 'function') {
       let ids = null, nodes = PAT.nodes;
       if (!onStrip) ids = PAT.routes.out[T];
