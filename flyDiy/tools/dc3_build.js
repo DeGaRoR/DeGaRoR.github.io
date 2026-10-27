@@ -29,7 +29,10 @@ const flag = k => argv.includes('--' + k);
 // the 5.64 m track on 0.57 m tyres, two R-1830s 3.05 m off the centreline.
 const DC3_ROWS = {
   // the fuselage: cockpit 2.4 m, three cabin bays 9.0 m, a 3.5 m cone; a 2.5 m wide, 2.6 m deep section
-  pilotLen: 1.5, paxCount: 3, paxLen: 1.75, boomLen: 2.2,
+  // (G3577, the user 26 Oct: "the cabin shouldn't be longer than the space where pilots sit ... the rest is passengers and
+  //  freight"): the cockpit 1.76 m (the pilots' own), four bays of 2.26 m in its place - the same 10.8 m, the first bay the
+  //  navigator's / the forward hold's
+  pilotLen: 1.1, paxCount: 4, paxLen: 1.41, boomLen: 2.2,
   halfW: 0.78, roofHalfW: 0.68, roofY: 0.85, keelY: -0.8,
   // the wing: 29 m, 4.4 m root, 1.98 m tip (taper 0.45, the envelope's floor and the DC-3's own), 4.6 m aft of the
   // cockpit ring (the fore / aft row, negative is aft): a scan's pick, static margin 0.09 and no design-check row
@@ -51,6 +54,22 @@ const DC3_ROWS = {
   // G3575 (DC3-2): the full-swivel tailwheel (the gear page's third steering type) - the real DC-3's unlocks for the
   // taxi and swivels free; the toe brake pivots the aeroplane round it
   s2Steer: 2,
+  // G3577 (DC3-2, the user 26 Oct): THE PILOTS AT THEIR CONTROLS - the seat backs 3.75 m along (the yokes 0.70 m ahead, the
+  // hands 0.2 m off them, the feet on the pedals); the yokes off the panel 0.42 m, the throttles 0.40 m aft
+  seatZ: 1.32, yokeGap: 0.42, thrZ: -0.4,
+  // THE AERO NOSE collapsed - the aerodynamic front, its tip collapse at 0.85 (the DC-3's blunt round nose)
+  noseFinish: 1, noseTip: 0.85,
+  // THE NACELLES FAIRED - the cowl's 'nacelle tail cone' termination behind each engine, 2.4 m
+  cw_aftMode: 1, cw_tailLen: 2.4,
+  // THE TAILWHEEL at its size (0.40 m: the DC-3's 16 in tyre), the swivel's drop and the spring's taken down by the wheel's
+  // growth (the deck stays 11.4 deg), its trail to the wheel
+  s2R: 0.2, s2_twLegDrop: 0.03, s2_twSpringDrop: -0.025, s2_twTrail: 0.14,
+  // THE LINE: the passenger frame (the last bay's aft ring) on the DC-3's upswept curve - the belly rising behind the wing,
+  // the roof falling to the fin, the plan tapering - and the run to it curved (held at the cabin, steepest at its end), the
+  // boom frame on the same curve: the old straight tube to z -7 and its two-piece cone (a kink at the boom frame) gone
+  frPaxTopY: 0.75, frPaxBotY: -0.64, frPaxWaistY: 0.13, frPaxWaistW: 0.63, frPaxTopW: 0.55, frPaxBotW: 0.53,
+  frPaxProfile: 1, frPaxEase: 0, frPaxBias: -0.6,
+  aftRoofY: 0.64, aftKeelY: -0.48, frBoomWaistY: 0.12, frBoomWaistW: 0.49, frBoomTopW: 0.42, frBoomBotW: 0.4,
 };
 function dc3FullRaw(over) {
   const j = PR.dc3Raw(1.0);

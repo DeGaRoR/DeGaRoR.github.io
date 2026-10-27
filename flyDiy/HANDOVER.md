@@ -99307,3 +99307,56 @@ your handover notes that you got explicit permission".
     than the wheels steer (29.2 m) - turning on the spot (the tailwheel swivels)" at 61.6 s; the trip complete (0 contacts, 0 yields,
     STOPPED, parked 2.5 m off the stand) - home_trip_swivel_phys.json; GATE PILOT (3 shards), PILOTACT, LINEUP, TAKEOFF, UISMOKE,
     GEAR, PARTS, BUILD, SAVE, ENGINE, ENGID, EDBUGS, STARTER, DESIGN PASS; identity ALL IDENTICAL.
+
+### G3577 - DC3-2 ROUND 4 (2026-10-27, cloud): THE DC-3 REDRAWN - THE PILOTS AT THEIR CONTROLS, THE NOSE COLLAPSED, THE NACELLES FAIRED, THE TAILWHEEL AT SIZE, ONE SMOOTH LINE, A SHORT COCKPIT AND FOUR BAYS
+The user (26 Oct, verbatim): "put the pilots close to their controls / ensure you collapse the aero nose. It has a control, use it /
+put the "carenage" around the engines. The option exists, the wing mounted engines get fairings / Give the tail wheel a decent size if
+not already done / try and have a smoother overall shape, by modifying the pillar dimensions of the passenger section, that should
+allow you to get rid of the breaking point you have / Do we have anything allowing for the tail to be curved in it profile, like the
+real plane, or are we stuck with straight fuselage pieces?" - and: "I question your choice of a super long cabin compared to more
+passenger sections. The first passenger section could be considered cargo for example. The ability of designating a section as either
+passenger or cargo is interesting. To me, the cabin shouldn't be longer than the space where pilots sit, or maybe including navigator."
+All of it is the DC-3's own rows (tools/dc3_build.js DC3_ROWS, the fixture rebuilt with `--build`): no code changes, the validated
+builds untouched. Measured off the load chain (tools/dc3_probe.js sheet; the crew layer's meshes; the editor's own fuselage sheet):
+- **THE COCKPIT IS THE PILOTS'** (pilotLen 1.5 -> 1.1: 2.4 -> 1.76 m) and **FOUR BAYS** of 2.26 m in its place (paxCount 3 -> 4,
+  paxLen 1.75 -> 1.41): the same 10.8 m, the fuselage 18.68 -> 18.88 m. The first bay stands where the DC-3's navigator / radio /
+  forward hold are - but its seats are drawn (QUESTION 9).
+- **THE PILOTS AT THEIR CONTROLS:** the seat backs 1.99 -> 3.75 m along (the shorter cockpit 0.64 m, seatZ 0.205 -> 1.32), the
+  yokes off the panel 0.16 -> 0.42 m, the throttles 0.40 m aft (thrZ): the hands 0.2 m off the yokes (they were 2.4 m behind them),
+  the feet on the pedals (the pedals follow the seat).
+- **THE AERO NOSE COLLAPSED:** the nose's front 'firewall' -> 'aerodynamic' (noseFinish 1), its tip collapse 0.25 -> 0.85 (noseTip).
+- **THE NACELLES FAIRED:** the cowl's termination 'nacelle tail cone' (cw_aftMode 1 - the wing-mounted engine's own fairing aft of
+  the cowl), 2.4 m long (cw_tailLen).
+- **THE TAILWHEEL AT SIZE:** s2R 0.08 -> 0.20 m (the DC-3's 16 in tyre), its trail 0.08 -> 0.14, the swivel's drop 0.105 -> 0.03 and
+  the spring's 0.05 -> -0.025 (the tail would rise 0.12 m on the bigger wheel: the deck stays 11.4 deg, was 11.6). (s2Drop does
+  nothing on a tailwheel leg: its spring rows are its length.)
+- **ONE SMOOTH LINE** - the old drawing, as the editor's own sheet measures it: a constant tube from the cockpit to z -7.4 m, then a
+  cone in two straight pieces (the aft shoulder to the boom frame at -9.0, the boom to the tail post at -12.4) - THE BREAK at the
+  boom frame (the roof's slope -0.26 then -0.14, the belly's 0.11 then 0.27). Now: the PASSENGER FRAME (the last bay's aft ring)
+  stands on the DC-3's upswept curve - roof 0.75, bottom -0.64, waist 0.13 x 0.63, top / bottom half-widths 0.55 / 0.53 (cage units
+  x 1.6 m) - the RUN to it curved (frPaxProfile 'curve', ease 0, bias -0.6: held at the cabin, steepest at its end, so it flows
+  into the cone), and the BOOM FRAME moved onto the same curve (aftRoofY 0.64, aftKeelY -0.48, waist 0.12 x 0.49, top / bottom
+  0.42 / 0.40): the belly rises from under the wing in one sweep to the tail post, the roof falls in one to the fin, the plan tapers
+  the same way. (Measured: the sheet's top / bottom / half-width in 0.2 m stations, before and after.)
+- **"IS THE TAIL CURVED, OR STRAIGHT PIECES?"** - the fuselage is lofted ring to ring and subdivided twice, so a curve is drawn by
+  standing the rings on it: the passenger run's own profile ('curve': ease, bias, bulge) curves every ring between the cabin frame
+  and the passenger frame; the cone is ONE span, boom frame to tail ring (straight between them, rounded by the subdivision); a
+  conventional fuselage has no extra cone ring (the boom's 'pod ring' - boomMidOn / boomMidT / boomMidPinch - is the pod style's).
+  So: the upsweep is a curve through the bays, and the cone's last 3.5 m one straight span continuing it. A cone ring of its own
+  for the conventional fuselage would be a new row (QUESTION 10).
+- **THE AIRFRAME AFTER** (dc3_build's sheet): 8 581 kg (8 527), SM 0.106 (0.090), deck 11.4, prop clear 1.02 m, Vs 59 kt, TO run
+  309 m, design check 13 rows fail [] warn []; the drops (dc3_break, damage on, both limits): 3.05 m/s level and three-point
+  0 yields 0 breaks, 4.6 m/s three-point 0 / 0, 4.6 m/s level the main gear's bracket yields (no break) as before; the crew layer:
+  every seat's pan 15 cm over the floor, the bays tapered aft included (tools/evidence/DC3-2.js --parts garage, ROW OK x10).
+- **THE WHOLE HOME TRIP on the redrawn DC-3** (dc3_break home, physics limits): taxi out 0 contacts (the corner pivot at 61.7 s),
+  the circuit, the two bounce go-arounds, the committed landing STOPPED; the taxi back pivoted and parked 2.5 m off the stand; 0
+  contacts, 0 BREAKS - and 255 YIELDS: at 1 158 s, the committed landing's second touch at 4.50 m/s (the certificate's limit sink is
+  3.05) set the inboard wing member by the nacelle (WB-WF, ratio 1.00; on the old drawing the same member reached 0.96 on the same
+  landing's 4.35 m/s). A set, no break - the autopilot's bounce (QUESTION 6), not the drawing. reports/evidence/DC3-2/
+  home_trip_redrawn_phys.json; profile_before_after.png (the editor's sheet, old grey / new red: side and plan).
+- **Questions:**
+  9. **A bay of CARGO** (the user's: "the first passenger section could be considered cargo"): a bay's use, passengers or freight -
+     no seats drawn, no one aboard, its volume and floor a hold (FREIGHT's cards are the validated builds' own measured spaces).
+     A new system: go?
+  10. **A cone ring** for the conventional fuselage (a station and a section between the boom frame and the tail post, like the
+     pod's): wanted, to curve the cone's last 3.5 m too?
