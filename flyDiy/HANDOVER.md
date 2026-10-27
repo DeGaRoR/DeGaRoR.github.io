@@ -99063,3 +99063,37 @@ Strict light gate RED (6), all in known classes; the loads are back inside their
 - metal fuseWidth busy 393: the bimodal 0 / ~400 ms rep (master's own L24b / L24c show the same).
 - world -> garage: cub round trip 2 at 2.02 s, floats at 5.29 s. The class red since L24c (2.99 / 3.55 there); HWCOV has the cause, the per-trip cacheKey churn of fragment 66e30961, and its Mon 12:45 slot names the owner.
 Pushed by the user's order of 25 Oct: land as soon as possible.
+
+## LODS-2026-10 - THE FAR TOWN IS THE BUILDING ITSELF: EVERY BUILDING ON ITS OWN LOD 1, ON ITS FINISH, CLOSED (2026-10-27, cloud; claude/lods-fix)
+
+The user (27 Oct, the meteo station from the air): "the LODs are not great, they don't even represent closed volumes
+... Some houses show without roof and black". Then, of the boards: "the LOD1 PLAIN FALLBACK is consistently too dark",
+"your proposal for the outbuilding is not acceptable, not the same color at all", the audit's scope "everything
+accessible from the site section of the editor", and "do the full work for getting these in game".
+Study, boards and numbers: `futureDesigns/LODS-2026-10.md`; `reports/evidence/LODS/` (before) and `.../after/`.
+
+- **Site items and outbuildings take their lod 1** (`premises_build.js genItem` + the worker's pack / unpack;
+  `render_premises.js buildItem`, `placeDress`): every named building was `detailOf`'s 3 largest bags of lod 0, plain,
+  at 150 m - the school's roof was not among them (2 % roofed), the meteo station kept three floating lids. Now banded
+  on its own lod 1, its edge by its projected size. The in-flight stream's builds too (`HLOD.streamLod1`,
+  `?streamlod1=0` the A/B's before).
+- **No plain far town**: G559's `hlodMerge` (map mean x colour x a fifth: 0.15-0.5x the near light), `meanOf`,
+  G2319.2's `farGain` and G594's `hlodBoxes` are gone. What `house_tarr` cannot take merges per finish on the finish
+  (`hlodFarOwn`, `bandOf(cm, true)`: the far band's clone). The city pack's opt-in shell keeps `lodMat`.
+- **Detail roles per generator** (`LOD_DETAIL` on HOUSE / SHED / BIG / HANGAR / TOWER / NAVAID_GEN, read by
+  `lod1Bags`): what leaves at the detail band; replaces the house-only `LOD1_SHELL` (which took a lighthouse's lantern
+  and a store's front).
+- **Closure**: `_house_kit.js plate` wound every slab's edges INWARD (the fascia hid it near; far, the eave line was
+  see-through) - fixed; lod-1 walls capped; the shed's lod-1 panels two-skinned, its open front's plate kept. The fix
+  moves a few obstacle-raster cells by a slab's thickness: the premises cook re-run (31 place cells), the city
+  manifest's input hash with it (no city media).
+- **Gates**: GATE LODS (new, core): every far rung of the whole catalogue roofed >= 90 %, leak and hole <= 3 % (a
+  lattice held to its own near), no plain path - 137 buildings PASS, --selftest red on a doctored roof / wall / winding.
+  GATE TARR 5z / 5b2 / 5c / 5i-5k / 5q and GATE PREMISES 22 hold the new structure.
+- **Numbers** (node, `tools/lods_audit.js`): closed buildings passing 21 / 86 -> 85 / 86 (+ the lattice by its rule);
+  Jolene's 105 placed buildings' far triangles 319 382 -> 117 076.
+- **Not done (follow-ups)**: Metlakatla's kit box and city prism (baked in the committed packs; the town is opt-in) -
+  a re-bake to put them on the finish; the meteo generator's `LOD_DETAIL` (its branch); THE PERF A/B on the local box
+  (A0: frame / draws over HOME and the village at 300 m, `stats.farTris`, boot to reveal).
+- Gates run in the cloud: HOUSE, LODS, TARR, PREMISES, PREMCOOK, MEDIA, TOWNKIT, KITHOST, CITYHOST, CITYCOOK, GAMEPREM,
+  VILLAGE, SITE, PREMRASTER, ROOMMERGE, HWCOV, HOUSEWORKER - all PASS. Not the whole core battery, not --all.

@@ -1669,13 +1669,15 @@ if (SELFTEST) {
   }
 }
 
-// 22 HLOD-MEANS (A0 22 Oct; HWCOV): THE FAR TOWN'S MEAN COLOURS ARE READ, NEVER MEASURED IN A FRAME. render_premises meanOf drew
+// 22 HLOD-MEANS (A0 22 Oct; HWCOV): THE FAR TOWN'S MEAN COLOURS ARE READ, NEVER MEASURED IN A FRAME (LODS-2026-10: no
+// longer read at all - the far town wears the finish). render_premises meanOf drew
 // each map onto a 4 x 4 canvas and read it back on first touch (217-287 ms in a boot settle slice and the reveal's first world
 // frame); the shipped maps' means now come with the page (src/viewer/tex_means.js, tools/tex_means.py)
 {
   const RP = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'render_premises.js'), 'utf8');
-  const i0 = RP.indexOf('  function meanOf(tex) {'), i1 = i0 >= 0 ? RP.indexOf('\n  }\n', i0) : -1, body = i1 > i0 ? RP.slice(i0, i1) : '';
-  check(!!body && !/drawImage|getImageData/.test(body) && /TEX_MEANS/.test(body), '22 meanOf reads TEX_MEANS and draws / reads back no canvas (a map with none is measured off the frame)');
+  // (LODS-2026-10: the far town wears the finish - meanOf went with G559's plain far town; the means stay for the
+  // scenery's and the cover ring's far colours, scenery_life.js / cover_ring.js)
+  check(!/function meanOf\(/.test(RP) && !/getImageData/.test(RP.slice(RP.indexOf('  const HLOD = {'), RP.indexOf('  // THE NEAR TOWN, BAKED (G566'))), '22 the far town reads no map mean and draws / reads back no canvas (LODS-2026-10: it wears the finish)');
   let TM = null;
   try { TM = new Function(fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'tex_means.js'), 'utf8') + '\nreturn TEX_MEANS;')(); } catch (e) {}
   const want = new Set();

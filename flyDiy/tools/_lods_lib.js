@@ -31,10 +31,10 @@ function readDetail() {
   const src = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
   const m = /const DETAIL = \{ px: ([\d.]+), area: ([\d.]+), hyst: ([\d.]+), px2: ([\d.]+), keep2: (\d+), keepShare: ([\d.]+)/.exec(src);
   const h = /const HLOD = \{[^}]*near: ([\d.]+), far2: ([\d.]+)[\s\S]*?swapPx: ([\d.]+), detailPx: ([\d.]+)/.exec(src);
-  const sh = /const LOD1_SHELL = \/(.*)\/;/.exec(src);
+  const sh = /const LOD1_SHELL = \/(.*)\/;/.exec(src);   // (gone with LODS-2026-10: each generator's LOD_DETAIL instead)
   const e = /const LOD_E = \[(\d+), (\d+)\]/.exec(src);
   return { area: +m[2], keep2: +m[5], keepShare: +m[6], near: +h[1], far2: +h[2], swapPx: +h[3], detailPx: +h[4],
-           shell: new RegExp(sh[1]), box: /^(siding|roof)/, LOD_E: [+e[1], +e[2]] };
+           shell: sh ? new RegExp(sh[1]) : null, LOD_E: [+e[1], +e[2]] };
 }
 const RULE = readDetail();
 // the switch distances at the game's camera (46 deg vertical, 1080 rows: F = 540 / tan 23 deg)
@@ -255,38 +255,26 @@ function openEdges(bags) {
 }
 
 // ---- one building: its rungs as the game draws them -------------------------------------------------------------
-// THE DETAIL ROLES (the plan's S4): each generator says what LEAVES at the detail band - the trims, rails, posts, signs:
-// what is sub-pixel there - and everything else of its lod 1 stays (so a lighthouse keeps its lantern, an over-the-water
-// house its deck). OPEN: not a closed volume (a pier, a breakwater, a pitch, a park): no closure rows, its lod 1 whole.
-const DETAIL_OF = {
-  HOUSE_GEN: /^(trim|rib|post|pile|logend|flag|star|awning|pane)/, SHED_GEN: /^(trim|rib|post|pile|logend|pane)/,
-  BIG_GEN: /^(sign|awning|trim|beam|metal)$/, HANGAR_GEN: /^(metal|beam|trim)$/,
-  METEO_GEN: /^(steel|rail|flue|paint|trim|post|metal)$/, TOWER_GEN: /^(trim|sock)$/, NAVAID_GEN: /^(trim|sock)$/,
-};
+// THE DETAIL ROLES: each generator's own LOD_DETAIL export (LODS-2026-10, read by render_premises lod1Bags) - what LEAVES
+// at the far town's detail band; everything else of lod 1 stays. A generator with none keeps its lod 1 whole. (The meteo
+// station's generator lives on its branch and declares none yet: the game keeps its lod 1 whole, and so does this.)
+const DETAIL_FALLBACK = {};
+// OPEN: not a closed volume (a pier, a breakwater, a pitch, a park) - no closure rows
 const OPEN = new Set(['MARINE_GEN', 'SPORT_GEN', 'TOTEM_GEN']);
 const genName = GEN => Object.keys(GENS.win).find(k => GENS.win[k] === GEN) || '';
-const shellFor = (GEN, bags) => { const re = DETAIL_OF[genName(GEN)]; return re ? bags.filter(b => !re.test(b.name)) : bags; };
-// path 'item'  a site's item (premises_build genItem: lod 0 only): far = detailOf's keep of lod 0, box past far2
-// path 'plot'  a sampled plot's house (genHouse: lod 0 + lod 1, banded): far = lod 1 on the town shader, its detail
-//              leaving at the second band (the shells stay); no box (hlodFarTarr takes every bag)
-// path 'out'   an outbuilding (genDress: lod 1 only, no userData.lod1): far = detailOf's keep of ITS lod 1, box
+const detailOf = GEN => GEN.LOD_DETAIL || DETAIL_FALLBACK[genName(GEN)] || null;
+const shellFor = (GEN, bags) => { const re = detailOf(GEN); return re ? bags.filter(b => !re.test(b.name)) : bags; };
+const DETAIL_OF = new Proxy({}, { get: (t, g) => (GENS && GENS.win[g] ? detailOf(GENS.win[g]) : DETAIL_FALLBACK[g] || null) });
+// THE GAME'S RUNGS (since LODS-2026-10 every building takes the same ladder - render_premises.js hlodCell):
+//   R1  its lod 1 (lod1Bags: the opaque standard bags), banded, on its finish, from R x F / swapPx
+//   R2  R1 less its generator's LOD_DETAIL roles, past R x F / detailPx - the coarsest rung (no box)
+// path: 'item' a site's item (genItem builds lod 1 now), 'plot' a sampled plot's house, 'out' an outbuilding (built at
+// lod 1: its near IS its lod 1)
 function rungsOf(GEN, P, pathKind) {
   const F = GEN.makeFinish(); GEN.applyFinish(P, F);
-  const shellMats = new Set(); const HL = GENS.win.HANGAR_GEN && GENS.win.HANGAR_GEN.LIB;
-  if (HL) for (const s of Object.keys(HL)) for (const k of Object.keys(HL[s])) shellMats.add(HL[s][k]);
-  const b0 = bagsOf(GEN, GEN.build(P, 0, F), F);
-  if (pathKind === 'plot') {
-    const b1 = bagsOf(GEN, GEN.build(P, 1, F), F), L1 = lod1Of(b1);
-    return { near: b0, rungs: [['lod 1 (far town)', L1, 'edge', 'both'], ['lod 1 shells (past the detail band)', shellOfL1(L1), 'detail'], ['FIX R2: its lod 1 shells', shellFor(GEN, L1), 'detail', 'fix']] };   // (a plot is on the fix's path already; its R2 takes the declared detail roles)
-  }
-  const src = pathKind === 'out' ? bagsOf(GEN, GEN.build(P, 1, F), F) : b0;
-  const keep = keepOf(src, shellMats);
-  const r = [[(pathKind === 'out' ? 'lod 1' : 'lod 0') + ' keep (' + keep.map(b => b.name).join('+') + ')', keep, 'near']];
-  const bx = boxOf(keep); if (bx) r.push(['box (past far2)', bx, 'far2']);
-  // THE FIX (LODS-2026-10 S2-S4): its own lod 1 whole on its finish, then its shells (an outbuilding: its near IS lod 1)
-  const l1 = pathKind === 'out' ? lod1Of(src) : lod1Of(bagsOf(GEN, GEN.build(P, 1, F), F));
-  r.push(['FIX R1: its lod 1', l1, 'edge', 'fix'], ['FIX R2: its lod 1 shells', shellFor(GEN, l1), 'detail', 'fix']);
-  return { near: pathKind === 'out' ? src : b0, rungs: r, keep: keep.map(b => b.name), plainBags: src.filter(b => isPlain(b.mat)).map(b => b.name) };
+  const b0 = bagsOf(GEN, GEN.build(P, pathKind === 'out' ? 1 : 0, F), F);
+  const l1 = pathKind === 'out' ? lod1Of(b0) : lod1Of(bagsOf(GEN, GEN.build(P, 1, F), F));
+  return { near: b0, rungs: [['R1: its lod 1', l1, 'edge', 'both'], ['R2: lod 1 less its detail roles', shellFor(GEN, l1), 'detail', 'both']] };
 }
 function audit(GEN, P, pathKind, opt) {
   const R = rungsOf(GEN, P, pathKind);
@@ -302,4 +290,4 @@ function audit(GEN, P, pathKind, opt) {
   return out;
 }
 
-module.exports = { DETAIL_OF, OPEN, shellFor, genName, RULE, F1080, edgeOf, detailEdgeOf, loadGens, bagsOf, keepOf, lod1Of, shellOfL1, boxOf, polyBag, soup, measure, openEdges, rungsOf, audit, VIEWS, isPlain };
+module.exports = { DETAIL_OF, OPEN, shellFor, detailOf, genName, RULE, F1080, edgeOf, detailEdgeOf, loadGens, bagsOf, keepOf, lod1Of, shellOfL1, boxOf, polyBag, soup, measure, openEdges, rungsOf, audit, VIEWS, isPlain };

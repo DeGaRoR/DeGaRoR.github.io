@@ -44,14 +44,14 @@ const CASES = [
   ['field-shed', 'hangar/field shed - HOME (site item)', 'HANGAR_GEN', () => itemP('hangar/field shed'), 'item'],
   ['warehouse', 'big/warehouse - x3 (site item)', 'BIG_GEN', () => itemP('big/warehouse'), 'item'],
   ['wwii-tower', 'tower/WWII tower (site item)', 'TOWER_GEN', () => itemP('tower/WWII tower'), 'item'],
-  ['plot-shore-cabin', 'village plot: shore cabin (sampled plot, lod 1 banded)', 'HOUSE_GEN', () => presetP('HOUSE_GEN', 'shore cabin'), 'plot'],
-  ['plot-saltbox', 'village plot: saltbox farmhouse (sampled plot, lod 1 banded)', 'HOUSE_GEN', () => presetP('HOUSE_GEN', 'saltbox farmhouse'), 'plot'],
-  ['plot-gambrel', 'village plot: gambrel barn (sampled plot, lod 1 banded)', 'HOUSE_GEN', () => presetP('HOUSE_GEN', 'gambrel barn'), 'plot'],
-  ['out-storage-shed', 'outbuilding: storage shed (lod 1 only, no band)', 'HOUSE_GEN', () => presetP('HOUSE_GEN', 'storage shed'), 'out'],
+  ['plot-shore-cabin', 'village plot: shore cabin (sampled plot)', 'HOUSE_GEN', () => presetP('HOUSE_GEN', 'shore cabin'), 'plot'],
+  ['plot-saltbox', 'village plot: saltbox farmhouse (sampled plot)', 'HOUSE_GEN', () => presetP('HOUSE_GEN', 'saltbox farmhouse'), 'plot'],
+  ['plot-gambrel', 'village plot: gambrel barn (sampled plot)', 'HOUSE_GEN', () => presetP('HOUSE_GEN', 'gambrel barn'), 'plot'],
+  ['out-storage-shed', 'outbuilding: storage shed (built at lod 1, banded on it since LODS-2026-10)', 'HOUSE_GEN', () => presetP('HOUSE_GEN', 'storage shed'), 'out'],
 ];
-const KEYS = { item: ['far', 'box', 'prop', 'prop2'], plot: ['l1', 'l1s', 'fix2'], out: ['far', 'box', 'prop', 'prop2'], kit: ['l1', 'kbox', 'city'] };
+const KEYS = { item: ['l1', 'l1s'], plot: ['l1', 'l1s'], out: ['l1', 'l1s'], kit: ['l1', 'kbox', 'city'] };
 // the overview's four columns per path: near | what the game shows today | the fix R1 | the fix R2
-const OVER = { item: ['near', 'far', 'prop', 'prop2'], out: ['near', 'far', 'prop', 'prop2'], plot: ['near', 'l1p', 'l1', 'fix2'], kit: ['near', 'city', 'l1', 'cityfin'] };
+const OVER = { item: ['near', 'l1', 'l1s'], out: ['near', 'l1', 'l1s'], plot: ['near', 'l1', 'l1s'], kit: ['near', 'l1', 'city', 'cityfin'] };
 // THE WHOLE CATALOGUE (--all): what the editor's site palette lists (premises_ui.js sitesPalette: PREMISES_GEN.collect)
 function catalogueCases() {
   const J = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8')), n = {};
@@ -109,8 +109,8 @@ function auditOf(c) {
     { const re = L.DETAIL_OF[c.gen]; c.detailRe = re ? re.source : null; }
     const R = c.audit.R || 10;
     c.near = L.RULE.near; c.edge = L.edgeOf(R); c.detail = L.detailEdgeOf(R); c.farGain = GAIN != null ? +GAIN : 0.2; c.gain = GAIN != null ? +GAIN : null;
-    c.sub = 'path: ' + c.path + '  -  near ' + (c.audit.nearTris || '') + ' tris, radius ' + R.toFixed(1) + ' m  -  ' + ({ item: 'genItem: lod 0 only; far = detailOf keep (3 largest plain bags), hard switch ~150 m; box past 1.2 km',
-      plot: 'genHouse: lod 0 + lod 1; far = lod 1 on the town shader from R x F / 48 px, its detail leaving at R x F / 9 px', out: 'an outbuilding: built at lod 1 only, no userData.lod1 - so detailOf keep of its lod 1, box past 1.2 km',
+    c.sub = 'path: ' + c.path + '  -  near ' + (c.audit.nearTris || '') + ' tris, radius ' + R.toFixed(1) + ' m  -  ' + ({ item: 'genItem: lod 0 + lod 1 (LODS-2026-10); far = its lod 1 on its finish from R x F / 48 px, its LOD_DETAIL roles leaving at R x F / 9 px',
+      plot: 'genHouse: lod 0 + lod 1; far = lod 1 on its finish from R x F / 48 px, its LOD_DETAIL roles leaving at R x F / 9 px', out: 'an outbuilding: built at lod 1, banded on it (LODS-2026-10): far = its own mesh, its detail leaving at R x F / 9 px',
       kit: 'townkit.js: lod 0 < 150 m < lod 1 < 1.2 km < box; the city pack: one merged far shell a cell from 1 km' })[c.path];
   }
   fs.mkdirSync(DIR, { recursive: true });
@@ -151,7 +151,7 @@ function auditOf(c) {
       const ov = list.map(r => { const st = r.stats, by = k => st.findIndex(s => s.key === k);
         const cols = OVER[r.path].map(by).map(i => (i < 0 ? 0 : i));
         return { title: r.title, tile: ALL ? 220 : 300, png: 'data:image/' + (ALL ? 'jpeg' : 'png') + ';base64,' + fs.readFileSync(path.join(DIR, r.slug + EXT)).toString('base64'), cols,
-                 labels: cols.map((i, k) => (k === 0 ? 'near, ' + st[i].tris + ' tris' : (k === 1 ? 'today: ' : '') + st[i].name.replace(/^(GAME |FIX |FAR TOWN: )/, '').slice(0, 26) + ', ' + st[i].tris + ' tris, light x' + st[i].ratio2)) }; });
+                 labels: cols.map((i, k) => (k === 0 ? 'near, ' + st[i].tris + ' tris' : st[i].name.replace(/^(GAME FAR(, PAST THE DETAIL BAND)?: |FOLLOW-UP: )/, '').slice(0, 24) + ', ' + st[i].tris + ' tris, light x' + st[i].ratio2)) }; });
       const op = await page.evaluate(([l, j]) => window.LODS.overview(l, j), [ov, ALL]);
       fs.writeFileSync(path.join(DIR, (ALL ? 'overview-' + g.replace(/[^a-z0-9]+/gi, '-') : 'index') + (ALL ? '.jpg' : '.png')), Buffer.from(op.split(',')[1], 'base64'));
     }
@@ -162,7 +162,7 @@ function auditOf(c) {
   // the index: every sheet, and under it its rungs' numbers
   const pc = v => (v == null ? '' : (v * 100).toFixed(v < 0.1 ? 1 : 0) + '%');
   const md = ['# LODS - the comparison sheets (' + new Date().toISOString().slice(0, 10) + ')', '',
-    'Each sheet: one building, its NEAR mesh and every far rung the game draws of it (render_premises.js\'s own detailOf / lod1Bags / hlodMerge / hlodBoxes, lifted from the file by tools/_lods_rig.js), from the same cameras: **A** close from the air, **B** the far side steeper, **C** at the rung\'s switch distance through the game\'s lens (46 deg, 1080 rows) - true pixels, blown up. Green column = what the same generator\'s own lod 1 gives (the plan\'s fix, not the game today).', '',
+    'Each sheet: one building, its NEAR mesh and every far rung the game draws of it (render_premises.js\'s own detailOf / lod1Bags / hlodMerge / hlodBoxes, lifted from the file by tools/_lods_rig.js), from the same cameras: **A** close from the air, **B** the far side steeper, **C** at the rung\'s switch distance through the game\'s lens (46 deg, 1080 rows) - true pixels, blown up. Since LODS-2026-10 the far columns ARE the game: every building\'s own lod 1 on its finish, then less its LOD_DETAIL roles past the detail band (the boards before the fix: git history of this folder, commit 90aece7d).', '',
     '![overview](index.png)', '', 'Made by `node tools/lods_sheet.js` (SwiftShader, headless; the numbers: `node tools/lods_audit.js`). Plan: [futureDesigns/LODS-2026-10.md](../../../futureDesigns/LODS-2026-10.md). The whole island\'s table: [audit.md](audit.md).', '',
     '**light** = the rung\'s mean luminance over the near mesh\'s from camera C (1.00 = as bright); **black** = share of the rung\'s pixels darker than sRGB 38 from camera A; **leak** = share of the view looking INTO the building (25 views); **hole** = share of the near view where the rung shows something more than max(1.5 m, R/10) behind the near mesh\'s outside (see-through, a missing roof or storey); **roof** = the near mesh\'s roofed plan still roofed from straight above.', ''];
   if (ALL) { md[0] = '# LODS - the whole catalogue (' + new Date().toISOString().slice(0, 10) + '): every generated asset of the editor\'s site palette'; md.splice(4, 1, ...[...new Set(clean.map(r => r.cat))].map(g => '![' + g + '](overview-' + String(g).replace(/[^a-z0-9]+/gi, '-') + '.jpg)\n')); }

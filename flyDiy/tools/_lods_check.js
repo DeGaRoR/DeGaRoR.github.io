@@ -2,36 +2,31 @@
 // GATE LODS - every far rung is a CLOSED, ROOFED building (LODS-2026-10; the user, 27 Oct: "the LODs are not great,
 // they don't even represent closed volumes ... Some houses show without roof and black").
 //
-//   node tools/_lods_check.js              -> "GATE LODS: PASS|FAIL" (the ratchet: a failure not in the ledger is red)
-//   node tools/_lods_check.js --strict     -> every failure red, the ledger ignored (the fix's own verdict)
-//   node tools/_lods_check.js --fix        -> the PROPOSED ladder (each item's own lod 1 and its shells), strict: what S2-S4 must pass
-//   node tools/_lods_check.js --selftest   -> negative verification (a roof taken off, a wall opened, the gain dimmed)
-//   node tools/_lods_check.js --write      -> rewrite the ledger to today's failures (ASK FIRST: it forgives them)
+//   node tools/_lods_check.js              -> "GATE LODS: PASS|FAIL"
+//   node tools/_lods_check.js --selftest   -> negative verification (a roof taken off, a wall opened, a lod 1 inside out)
 //
-// THE ROWS, per far rung of every generated asset of the editor's catalogue (tools/_lods_lib.js: the rungs by the game's own rules -
-// a site item's detailOf keep and its box, a plot's lod 1 and its shells past the detail band, an outbuilding's keep):
+// THE ROWS, per far rung of every generated asset of the editor's catalogue (premises_ui.js sitesPalette:
+// PREMISES_GEN.collect) as a site item, every house preset as a sampled plot, the outbuildings - the rungs the game draws
+// since LODS-2026-10 (tools/_lods_lib.js rungsOf: R1 its own lod 1, R2 that less its generator's LOD_DETAIL roles):
 //   roof    seen from straight above, >= ROOF_MIN of the near mesh's roofed plan is still roofed at roof height
 //   leak    <= LEAK_MAX of the covered view (25 views) looks INTO the building (a back face nearest: an unglazed
-//           opening, an open wall top, a missing storey - what draws black or see-through behind the far material's
-//           back-face culling)
+//           opening, an open wall top, a slab's edge wound inward - what draws black or see-through behind the far
+//           material's back-face culling). An open structure near (a lattice tower: its near leak) is held to its own
+//           near's leak + LEAK_MAX / 3
 //   hole    <= HOLE_MAX of the near mesh's covered view shows, in the rung, something more than max(1.5 m, R / 10)
 //           BEHIND the near mesh's outside: the far wall's inner face through an opening, the floor of a roofless box,
 //           the sky through a missing storey (a see-through hole shows front faces: `leak` alone cannot see it)
-//   gain    the far town's plain colour is unity-calibrated: HLOD.gain (render_premises.js) and the city cook's farGain
-//           (tools/city_cook.js LOD) >= GAIN_MIN. The sheet measured 0.2 at 0.15-0.5x the near mesh's light, 1.0 at
-//           0.85-1.1x (reports/evidence/LODS/index.md)
-// THE LEDGER (tools/_lods_known.json) holds the failures the game ships today, each with its number: the ratchet
-// passes them and fails anything new or WORSE; a ledger row that now passes is reported (take it out: the fix holds).
-// When the fix lands the ledger is empty and --strict is the gate.
+// and two of the page: the far town has no plain colour path (no gain, no map means, no box - the user: "consistently
+// too dark"), and every closed-building generator declares its LOD_DETAIL roles. OPEN structures (marine, sports, the
+// parks) get no closure rows. Before LODS-2026-10 it was a ratchet over 170 shipped failures (reports/evidence/LODS).
 'use strict';
 const fs = require('fs');
 const path = require('path');
 const L = require('./_lods_lib.js');
 
 const argv = process.argv.slice(2);
-const FIX = argv.includes('--fix'), STRICT = argv.includes('--strict') || FIX, SELF = argv.includes('--selftest'), WRITE = argv.includes('--write');
+const SELF = argv.includes('--selftest');
 const ROOF_MIN = 0.90, LEAK_MAX = 0.03, HOLE_MAX = 0.03, GAIN_MIN = 0.5, RES = 80;
-const KNOWN_F = path.join(__dirname, '_lods_known.json');
 
 const G = L.loadGens(), W = G.win;
 const PG = require(path.join(__dirname, '..', 'src', 'core', '27_premises.js'));
@@ -53,34 +48,38 @@ function buildings() {
     if (W.HOUSE_GEN.PRESETS[n]) out.push({ label: 'house/' + n + ' [out]', gen: 'HOUSE_GEN', P: Object.assign({}, W.HOUSE_GEN.DEF, W.HOUSE_GEN.PRESETS[n]), path: 'out' });
   return out;
 }
-// one rung's rows: [id, value, ok]
-function rowsOf(b, rungs, near) {
-  const out = [];
-  rungs.filter(r => (FIX ? r[3] === 'fix' || r[3] === 'both' : r[3] !== 'fix')).forEach(([name, bags], i) => {
+// one rung's rows: [id, value, ok]; nearLeak the near mesh's own (an open structure's allowance)
+function rowsOf(b, rungs, near, nearLeak) {
+  const out = [], leakMax = Math.max(LEAK_MAX, (nearLeak || 0) + LEAK_MAX / 3);
+  rungs.forEach(([name, bags]) => {
     const m = L.measure(near, bags, { res: RES });
-    const id = b.label + ' | ' + name.replace(/ \(.*$/, '');
-    out.push([id + ' | roof', +m.roof.toFixed(3), m.roof >= ROOF_MIN, 'min']);
-    out.push([id + ' | leak', +m.leak.toFixed(4), m.leak <= LEAK_MAX, 'max']);
-    out.push([id + ' | hole', +m.hole.toFixed(4), m.hole <= HOLE_MAX, 'max']);
+    const id = b.label + ' | ' + name.replace(/:.*$/, '');
+    out.push([id + ' | roof', +m.roof.toFixed(3), m.roof >= ROOF_MIN]);
+    out.push([id + ' | leak', +m.leak.toFixed(4), m.leak <= leakMax]);
+    out.push([id + ' | hole', +m.hole.toFixed(4), m.hole <= HOLE_MAX]);
   });
   return out;
 }
-function gainRows() {
+function pageRows() {
   const rp = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'render_premises.js'), 'utf8');
-  const cc = fs.readFileSync(path.join(__dirname, 'city_cook.js'), 'utf8');
-  const g = +(/const HLOD = \{[^}]*?\bgain: ([\d.]+)/.exec(rp) || [0, 0])[1], f = +(/farGain: ([\d.]+)/.exec(cc) || [0, 0])[1];
-  return [['far town | HLOD.gain', g, g >= GAIN_MIN, 'min'], ['city pack | farGain', f, f >= GAIN_MIN, 'min']];
+  const blk = rp.slice(rp.indexOf('  const HLOD = {'), rp.indexOf('  // THE NEAR TOWN, BAKED (G566'));
+  const plain = /\bgain(Item)?: [\d.]+/.test(blk.slice(0, blk.indexOf('};'))) || /function (hlodMerge|hlodBoxes|meanOf|farGain)\(/.test(rp) || /houses:boxes/.test(rp);
+  const gens = [...new Set([...CAT.entries.values()].map(e => e.gen))].filter(g => W[g] && W[g].build && !L.OPEN.has(g));
+  const undeclared = gens.filter(g => !W[g].LOD_DETAIL);
+  return [['page | the far town has no plain colour path (no gain, no map means, no box)', plain ? 0 : 1, !plain],
+          ['page | every closed-building generator declares LOD_DETAIL', undeclared.join(',') || 'all', !undeclared.length]];
 }
 const open = [];
 function runAll() {
   const rows = [];
   for (const b of buildings()) {
     let R;
-    try { R = L.rungsOf(W[b.gen], b.P, b.path); } catch (e) { rows.push([b.label + ' | build', 0, false, 'min']); continue; }
+    try { R = L.rungsOf(W[b.gen], b.P, b.path); } catch (e) { rows.push([b.label + ' | build', String(e && e.message || e).slice(0, 60), false]); continue; }
     if (L.OPEN.has(b.gen)) { open.push(b.label); continue; }   // a pier, a breakwater, a pitch: not a closed volume
-    rows.push(...rowsOf(b, R.rungs, R.near));
+    const nl = L.measure(R.near, R.near, { res: RES }).leak;
+    rows.push(...rowsOf(b, R.rungs, R.near, nl));
   }
-  if (!FIX) rows.push(...gainRows());   // (the fix has no plain colour path: every far rung wears its finish)
+  rows.push(...pageRows());
   return rows;
 }
 
@@ -102,31 +101,16 @@ if (SELF) {
   if (noRoof[2]) fail.push('a lod 1 without its roof passed the roof row (' + noRoof[1] + ')');
   if (open[2]) fail.push('a lod 1 with a third of its wall gone passed the hole row (' + open[1] + ')');
   if (inside[2]) fail.push('a lod 1 wound inside out passed the leak row (' + inside[1] + ')');
-  const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'viewer', 'render_premises.js'), 'utf8');
-  if (!/const HLOD = \{[^}]*?\bgain: ([\d.]+)/.test(src)) fail.push('the gain row cannot read HLOD.gain');
+  if (!pageRows().every(r => typeof r[2] === 'boolean')) fail.push('the page rows cannot read render_premises.js');
   for (const f of fail) console.log('  ' + f);
   console.log('GATE LODS SELFTEST: ' + (fail.length ? 'FAIL' : 'PASS') + ' (roof ' + noRoof[1] + ', holed hole ' + open[1] + ', flipped leak ' + inside[1] + ')');
   process.exit(fail.length ? 1 : 0);
 }
 
 const rows = runAll();
-const known = fs.existsSync(KNOWN_F) ? JSON.parse(fs.readFileSync(KNOWN_F, 'utf8')).known || {} : {};
-if (WRITE) {
-  const k = {}; for (const [id, v, ok] of rows) if (!ok) k[id] = v;
-  fs.writeFileSync(KNOWN_F, JSON.stringify({ note: 'GATE LODS ledger (tools/_lods_check.js): the far-rung failures the game ships today, each at its number - the ratchet passes them, fails anything new or worse. LODS-2026-10 empties it.', known: k }, null, 1) + '\n');
-  console.log('GATE LODS: ledger written, ' + Object.keys(k).length + ' rows');
-  process.exit(0);
-}
-const bad = [], held = [], healed = [];
-for (const [id, v, ok, dir] of rows) {
-  if (ok) { if (id in known) healed.push(id); continue; }
-  if (!STRICT && id in known && (dir === 'min' ? v >= known[id] - 0.01 : v <= known[id] + 0.005)) { held.push(id + ' = ' + v); continue; }
-  bad.push(id + ' = ' + v + (id in known ? ' (ledger ' + known[id] + ')' : ''));
-}
-console.log('GATE LODS: ' + rows.length + ' rows over ' + new Set(rows.map(r => r[0].split(' | ')[0])).size + ' buildings; roof >= ' + ROOF_MIN + ', leak <= ' + LEAK_MAX + ', gain >= ' + GAIN_MIN);
+const bad = rows.filter(r => !r[2]);
+console.log('GATE LODS: ' + rows.length + ' rows over ' + new Set(rows.map(r => r[0].split(' | ')[0])).size + ' buildings; roof >= ' + ROOF_MIN + ', leak <= ' + LEAK_MAX + ' (an open near: its own + ' + (LEAK_MAX / 3).toFixed(3) + '), hole <= ' + HOLE_MAX);
 if (open.length) console.log('  open structures, no closure rows: ' + open.length + ' (' + open.join(', ') + ')');
-if (held.length) console.log('  ledger (shipped today, held at its number): ' + held.length + '\n    ' + held.join('\n    '));
-if (healed.length) console.log('  ledger rows that pass now (take them out): ' + healed.join(', '));
-for (const b of bad) console.log('  FAIL ' + b);
-console.log('GATE LODS: ' + (bad.length ? 'FAIL (' + bad.length + (STRICT ? ' rows, strict' : ' new or worse') + ')' : 'PASS'));
+for (const r of bad) console.log('  FAIL ' + r[0] + ' = ' + r[1]);
+console.log('GATE LODS: ' + (bad.length ? 'FAIL (' + bad.length + ')' : 'PASS'));
 process.exit(bad.length ? 1 : 0);

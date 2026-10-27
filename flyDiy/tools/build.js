@@ -334,7 +334,7 @@ const MANIFEST = {
     // landing after the inlined viewer is soon enough.
     ['src/viewer', 'plume.js'], ['src/viewer', 'animals.js'], ['src/viewer', 'animal_run.js'],
     ['src/viewer', 'house_tex.js'], ['src/viewer', 'lot_tex.js'], ['src/viewer', 'sign_tex.js'],
-    ['src/viewer', 'tex_means.js'],   // HLOD-MEANS: the shipped albedo maps' means (tools/tex_means.py) - render_premises meanOf reads them
+    ['src/viewer', 'tex_means.js'],   // HLOD-MEANS: the shipped albedo maps' means (tools/tex_means.py) - scenery_life / cover_ring read them (render_premises' far town no longer: LODS-2026-10)
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'pier', 'pier_packs.json'), 'utf8')).map(f => ['src/pier', f]); } catch (e) { return []; } })(),
     // THE FREIGHT LOADS (G2405, tools/load_table.py): the loads + the camp dressing, slim manifests (bins on demand)
     ...(() => { try { return JSON.parse(fs.readFileSync(path.join(ROOT, 'src', 'loads', 'loads_packs.json'), 'utf8')).map(f => ['src/loads', f]); } catch (e) { return []; } })(),

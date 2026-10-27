@@ -217,21 +217,20 @@ const C = house(1234, 5, 80, 0.2, P => { P.sag = 0.12; P.dirtH = 1.7; });
 // lod1Bags) and run here on the vendor three and the real generator; the band's GLSL TRANSPILED to JS and swept
 {
   const RP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
-  const i0 = RP.indexOf('  const HLOD = { on: true,'), i1 = RP.indexOf('  const texMean = new Map();');
-  check(i0 > 0 && i1 > i0, '5 the HLOD block found (HLOD .. texMean)');
+  const i0 = RP.indexOf('  const HLOD = { on: true,'), i1 = RP.indexOf("  // THE FAR TOWN'S LAST PLAIN COLOUR WENT");
+  check(i0 > 0 && i1 > i0, '5 the HLOD block found (HLOD .. the far town\'s last plain colour)');
   const block = RP.slice(i0, i1);
   const run = search => { const c = vm.createContext({ THREE, Math, Object, Map, console, location: search === undefined ? undefined : { search } });
-    vm.runInContext((search === undefined ? 'var location = undefined;\n' : '') + block + '\nthis.X = { HLOD, LOD_U, LOD_DECL, LOD_VDECL, LOD_VDECL_FAR, LOD_VNEAR, LOD_VMID, LOD_E, lodDither, lodMat, bandOf, lod1Bags, farGain: typeof farGain === "function" ? farGain : null };', c); return c.X; };
+    vm.runInContext((search === undefined ? 'var location = undefined;\n' : '') + block + '\nthis.X = { HLOD, LOD_U, LOD_DECL, LOD_VDECL, LOD_VDECL_FAR, LOD_VNEAR, LOD_VMID, LOD_E, lodDither, lodMat, bandOf, lod1Bags };', c); return c.X; };
   const X = run();
-  // 5z G2319.2 THE FAR FIFTH IS THE HOUSES' (the auxiliary hangars' black far walls): a real house finish takes HLOD.gain,
-  // a plain finish (a hangar shell's steel, HANGAR_LIB) HLOD.gainItem, and hlodMerge's colour goes through the rule
-  { const P = HG.randomHouse(4321), F = HG.makeFinish(); HG.applyFinish(P, F);
-    const houseMat = Object.values(F.MAT).find(m => m && m.userData && (m.userData.houseShaded || m.userData.paint));
-    const steel = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7, metalness: 0.14 });
-    check(!!X.farGain && X.HLOD.gain === 0.2 && X.HLOD.gainItem >= 0.5, '5z the far town has the houses\' fifth and an item gain (G2319.2)', X.HLOD && (X.HLOD.gain + ' / ' + X.HLOD.gainItem));
-    check(!!X.farGain && !!houseMat && X.farGain(houseMat) === X.HLOD.gain, '5z ... a house finish takes the fifth (G559\'s calibration)', houseMat ? Object.keys(houseMat.userData).join(',') : 'no house finish');
-    check(!!X.farGain && X.farGain(steel) === X.HLOD.gainItem && X.farGain(null) === X.HLOD.gainItem, '5z ... a plain finish (a hangar shell\'s steel) takes the item gain - not the fifth that drew it black');
-    check(/col\.multiplyScalar\(farGain\(m\.material\)\)/.test(RP) && !/col\.multiplyScalar\(HLOD\.gain\)/.test(RP), '5z ... and hlodMerge\'s colour goes through it'); }
+  // 5z LODS-2026-10 THE FAR TOWN WEARS THE FINISH (the user, 27 Oct: "houses without roof and black"; the plain fallback
+  // "consistently too dark"): no plain vertex colour, no fifth, no box - G559's hlodMerge / meanOf, G2319.2's farGain and
+  // G594's hlodBoxes are gone; what the town's arrays cannot take merges per finish on the finish (hlodFarOwn: bandOf's
+  // far variant, banded; the canonical material at the hard switch); a site item and an outbuilding take their lod 1
+  check(X.HLOD.gain === undefined && X.HLOD.gainItem === undefined && X.HLOD.streamLod1 === true && !/function (hlodMerge|hlodBoxes|meanOf|farGain)\(/.test(RP) && !/houses:boxes/.test(RP),
+        '5z the far town has no plain colour path: no gain, no map means, no box (LODS-2026-10)');
+  check(/const B = hlodFarOwn\(cl, bagsP, true\), H = hlodFarOwn\(cl, bagsH, false\);/.test(RP) && /const mesh = new THREE\.Mesh\(geo, band \? bandOf\(q\.cm, true\) : q\.cm\);/.test(RP) && /hcOf\(geo, q\.list, m => \{ const b = q\.of\.get\(m\); return \[b\.D, m\.userData\.shell === false \? -1 : 1\]; \}, false, false\)/.test(RP),
+        '5z ... the leftovers merge per finish on the finish: banded with the house\'s centre and radius (aHC), the items\' kept bags at the hard switch');
   // 5a lod 1 as the far town's source: opaque standard bags, the merge's channels only, walls and roof the box
   { const P = HG.randomHouse(4321), F = HG.makeFinish(); HG.applyFinish(P, F);
     const b0 = HG.build(P, 0, F), L = X.lod1Bags(HG, P, F), TL0 = TARR.make(THREE, { HG });
@@ -239,8 +238,9 @@ const C = house(1234, 5, 80, 0.2, P => { P.sag = 0.12; P.dirtH = 1.7; });
     check(L.length > 0 && L.every(m => m.material.isMeshStandardMaterial && !m.material.transparent && !m.parent.parent), '5a lod 1: opaque standard bags, never in a scene', L.map(m => m.name).join(' '));
     check(L.every(m => ['position', 'normal', 'uv', 'aHouseAO'].every(k => m.geometry.attributes[k])) && L.every(m => TL0.classify(m)) && L.root && L.every(m => m.parent === L.root),
           '5b ... carrying the town shader\'s channels: every bag rides house_tarr (G1395: the far town on the town\'s shader)', L.filter(m => !TL0.classify(m)).map(m => m.name).join(' '));
-    check(L.filter(m => m.userData.shell).map(m => m.name).every(k => /^(siding|roof|stone|log|floor)/.test(k)) && L.some(m => m.userData.shell) && L.some(m => !m.userData.shell), '5b2 ... the shells (walls, roof, chimney, logs, floor) stay past the detail band; the rest is detail', L.map(m => m.name + (m.userData.shell ? '' : '*')).join(' '));
-    check(L.filter(m => m.userData.box).map(m => m.name).every(k => /^(siding|roof)/.test(k)) && L.some(m => m.userData.box), '5c ... the walls and the roof make the box');
+    check(!!HG.LOD_DETAIL && L.every(m => m.userData.shell === !HG.LOD_DETAIL.test(m.name)) && L.some(m => m.userData.shell) && L.some(m => !m.userData.shell) && L.filter(m => m.userData.shell).some(m => /^roof/.test(m.name)) && L.filter(m => m.userData.shell).some(m => /^siding/.test(m.name)),
+          '5b2 ... everything but the generator\'s LOD_DETAIL roles stays past the detail band, the walls and the roof among it (LODS-2026-10)', L.map(m => m.name + (m.userData.shell ? '' : '*')).join(' '));
+    check(L.every(m => m.userData.box === undefined), '5c ... and no box (G594\'s went with LODS-2026-10)');
     check(tris > 0 && tris < 0.25 * b0.stats.tris, '5d ... a fraction of lod 0\'s triangles', tris + ' vs ' + b0.stats.tris); }
   // 5e the band, transpiled: three rungs, one draws each pixel at every distance
   const fns = 'const fract = x => x - Math.floor(x), dot = (a, b) => a[0] * b[0] + a[1] * b[1], length = v => Math.hypot(v[0], v[1], v[2]), max = Math.max, abs = Math.abs, clamp = (x, a, b) => Math.min(b, Math.max(a, x));';
@@ -285,7 +285,7 @@ const C = house(1234, 5, 80, 0.2, P => { P.sag = 0.12; P.dirtH = 1.7; });
   // 5i the far rung's program: lod 1 culls a house wholly on the band's near side in the vertex stage (its fragments would
   // all be discarded) and arrives at near; the boxes and the items' far town keep G559's plain program
   { const SHs = () => ({ uniforms: {}, vertexShader: THREE.ShaderLib.standard.vertexShader, fragmentShader: THREE.ShaderLib.standard.fragmentShader });
-    const mM = X.lodMat('mid'), sM = SHs(); mM.onBeforeCompile(sM);
+    const hm = house(77, 0, 0, 0).bags.siding.material, mM = X.bandOf(hm, true), sM = SHs(); mM.onBeforeCompile(sM);   // (LODS-2026-10: the far rung on its finish)
     check(/attribute vec4 aHC;/.test(sM.vertexShader) && sM.vertexShader.includes(X.LOD_VMID) && sM.vertexShader.indexOf('_hd') > sM.vertexShader.indexOf('#include <project_vertex>'), '5i lod 1: the house centre and radius per vertex, the cull after project_vertex');
     // the cull, transpiled: safe - a culled house's every fragment (centre +- radius) is one the band discards (the near
     // side of its edge; past its b band for the detail), fixed and projected
@@ -296,8 +296,10 @@ const C = house(1234, 5, 80, 0.2, P => { P.sag = 0.12; P.dirtH = 1.7; });
         n++; for (let f = Math.max(0, hd - R); f <= hd + R; f += 0.5) for (let px = 0; px < 8; px++) if (mid([px * 3.5 + 0.5, 9.5], [0, 0, f], 150, 1200, 40, 1, sg * R, S, SB)) ok = false; }
       check(ok && n > 100, '5i2 ... a culled house (or its culled detail) has no fragment the band would draw', n + ' culls tried'); }
     check(sM.fragmentShader.includes(X.lodDither(['in:A', 'out:B'])) && sM.uniforms.uLodA === X.LOD_U.uLodA && sM.uniforms.uLodS === X.LOD_U.uLodS && sM.uniforms.uLodW === X.LOD_U.uLodW, '5j ... its fragment arrives at the house\'s edge, its detail leaves at b, on the host\'s shared uniforms');
-    const mH = X.lodMat('hard');
-    check(!Object.prototype.hasOwnProperty.call(mH, 'onBeforeCompile') && mH.vertexColors && mH !== mM && X.lodMat('hard') === mH, '5k the boxes and the items\' far town: G559\'s plain material, no band (their program as before)'); }
+    check(mM !== hm && mM.userData === hm.userData && X.bandOf(hm, true) === mM && X.bandOf(hm) !== mM && mM.customProgramCacheKey() === hm.customProgramCacheKey() + '|hlod:far',
+          '5k the far rung\'s finish: one far clone per canonical finish, its userData shared, a key of its own (not the near clone)');
+    const mH = X.lodMat();
+    check(!Object.prototype.hasOwnProperty.call(mH, 'onBeforeCompile') && mH.vertexColors && X.lodMat() === mH, '5k2 the city pack\'s far shell (opt-in) keeps G559\'s plain material'); }
   // 5l the near rung: the town material and G566's clones leave at near, after their own hooks
   { const TL = TARR.make(THREE, { HG, lod: { U: X.LOD_U, decl: X.LOD_DECL, glsl: X.lodDither(['out:A']), vdecl: X.LOD_VDECL, vert: X.LOD_VNEAR, far: { glsl: X.lodDither(['in:A', 'out:B']), vdecl: X.LOD_VDECL_FAR, vert: X.LOD_VMID } } }), m = TL.material('plain', 0, 0), sh = SH(); m.onBeforeCompile(sh);
     const f = sh.fragmentShader, i = f.indexOf(X.lodDither(['out:A']));
@@ -326,11 +328,12 @@ const C = house(1234, 5, 80, 0.2, P => { P.sag = 0.12; P.dirtH = 1.7; });
   // (G830: the generation moved to src/viewer/premises_build.js - the lod 1 built with the lod 0 there, kept here unless
   // the stream placed it, inline or from the house worker; the outbuilding's build at outLod there)
   const PBS = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'premises_build.js'), 'utf8');
-  check(/if \(HLOD\.lod1 && o\.game && !IN_STREAM && R\.lod1\) \{ try \{ grp\.userData\.lod1 = lod1Bags\(HG, house\.P, F, R\.lod1\)/.test(RP) && /IN_STREAM = true; try \{ buildOne\(p\); \} finally \{ IN_STREAM = false; \}/.test(RP) && /IN_STREAM = true;\n\s*let k; try \{ k = hwPlace\(/.test(RP) &&
+  check(/if \(HLOD\.lod1 && o\.game && \(HLOD\.streamLod1 \|\| !IN_STREAM\) && R\.lod1\) \{ try \{ grp\.userData\.lod1 = lod1Bags\(HG, house\.P, F, R\.lod1\)/.test(RP) && /IN_STREAM = true; try \{ buildOne\(p\); \} finally \{ IN_STREAM = false; \}/.test(RP) && /IN_STREAM = true;\n\s*let k; try \{ k = hwPlace\(/.test(RP) &&
         /if \(C\.lod1 && C\.game\) \{ try \{ lod1 = HG\.build\(house\.P, 1, F\)/.test(PBS) && /get lod1\(\) \{ return HLOD\.lod1; \}, get outLod\(\) \{ return HLOD\.outLod; \}/.test(RP) && /HG\.build\(plot\.out\.P, \(C\.outLod && C\.game\) \? 1 : 0, F2\)/.test(PBS) && /const banded = g => !!\(HLOD\.lod1 && g\.userData\.lod1 && g\.userData\.lod1\.length\)/.test(RP) &&
-        /const bagsP = TA && bagsB\.length \? hlodFarTarr\(cl, TA, bagsB\) : bagsB;\n\s*const B = hlodMerge\(bagsP, lodMat\('mid'\), true\), H = hlodMerge\(bagsH, lodMat\('hard'\), false\);/.test(RP) && /TA\.material\(G\.c\.kind, G\.c\.side, G\.dith, false, true\)/.test(RP) && /cl\.box = hlodBoxes\(B\.HB, lodMat\('hard'\)\)/.test(RP) && /cl\.boxH = hlodBoxes\(H\.HB, lodMat\('hard'\)\)/.test(RP) &&
+        /const bagsP = TA && bagsB\.length \? hlodFarTarr\(cl, TA, bagsB\) : bagsB;\n\s*const B = hlodFarOwn\(cl, bagsP, true\), H = hlodFarOwn\(cl, bagsH, false\);/.test(RP) && /TA\.material\(G\.c\.kind, G\.c\.side, G\.dith, false, true\)/.test(RP) &&
+        /if \(HLOD\.lod1 && o\.game && \(HLOD\.streamLod1 \|\| !IN_STREAM\) && R\.lod1\) \{ try \{ grp\.userData\.lod1 = lod1Bags\(GEN, it\.P, F, R\.lod1\)/.test(RP) && /og\.userData\.lod1 = lod1Bags\(HG, plot\.out\.P, F2, b2\)/.test(RP) && /lod1 = GEN\.build\(it\.P, 1, F\)/.test(PBS) &&
         /lod: \{ U: LOD_U, decl: LOD_DECL, glsl: lodDither\(\['out:A'\]\), vdecl: LOD_VDECL, vert: LOD_VNEAR,/.test(RP) && /if \(b\.band\) hcOf\(r\.geo, r\.used, m => \[detailOf\(m\.parent\), 1\], true, true\);/.test(RP) && /if \(b\.band\) hcOf\(geo, b\.list, m => \[detailOf\(m\.parent\), 1\], true, false\);/.test(RP) && /TA\.material\(b\.c\.kind, b\.c\.side, m0\.material\.dithering, !b\.band\)/.test(RP) && /b\.band \? bandOf\(b\.mat\) : b\.mat/.test(RP),
-        '5q the host: a house builds its lod 1 with its lod 0 (not in the in-flight stream), the outbuilding at outLod; the banded far town merges lod 1, its near rung (TARR, G566) and boxes wear the band; an item keeps G559\'s rungs');
+        '5q the host: a house, a site item and an outbuilding take their lod 1 (the in-flight stream too, LODS-2026-10); the banded far town merges lod 1, on the town\'s arrays or its own finish; its near rung (TARR, G566) wears the band');
 }
 
 // ---- 6 THE PASS OFF THE MAIN THREAD (G845) ----------------------------------------------------------------------------

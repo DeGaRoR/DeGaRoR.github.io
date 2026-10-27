@@ -78,7 +78,7 @@ if (argv.includes('--kit')) {
 fs.mkdirSync(OUT, { recursive: true });
 fs.writeFileSync(path.join(OUT, 'audit.json'), JSON.stringify({ rule: Object.assign({}, L.RULE, { shell: String(L.RULE.shell), box: String(L.RULE.box) }), rows }, null, 1));
 const pc = x => (x * 100).toFixed(x < 0.1 ? 1 : 0) + '%';
-const md = ['# LODS audit - every far rung of every generated asset of the editor\'s catalogue (tools/lods_audit.js)', '', 'n = how many Jolene places. FIX rows = the proposed ladder (its own lod 1, then less its declared detail roles; all on the real finish). Open structures (marine, sports) are listed but not closed volumes.', '',
+const md = ['# LODS audit - every far rung of every generated asset of the editor\'s catalogue (tools/lods_audit.js)', '', 'n = how many Jolene places. The rungs are the game\'s since LODS-2026-10: R1 its own lod 1, R2 that less its generator\'s LOD_DETAIL roles, both on the real finish (the BEFORE table: ../audit.md). Open structures (marine, sports) are listed but are not closed volumes.', '',
   'leak = share of the covered view whose nearest surface is a back face (the eye looks INTO the building: black); hole = share of the near view where the rung shows something > max(1.5 m, R/10) behind the near outside (see-through, a missing roof or storey); roof = share of the near roofed plan still roofed from above; iou = silhouette against the near mesh (25 views); open = welded edges used once (m).', '',
   '| building | n | path | near tris | rung | at m | tris | leak | hole | worst view | roof | iou | open m | bags |', '|---|---|---|---|---|---|---|---|---|---|---|---|---|---|'];
 for (const r of rows) {

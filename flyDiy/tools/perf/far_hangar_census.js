@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// (OBSOLETE since LODS-2026-10: the far town has no gain - it wears the finish; kept for the record of G2319.2)
 // far_hangar_census.js - G2319.2 (A0's bug, 12 Oct: "the LODs for the auxiliary hangars in the starting area are black
 // instead of the mesh colour"): THE NUMBERS that set HLOD.gainItem - no image kept (the user: no evidence screenshots).
 //

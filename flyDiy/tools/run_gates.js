@@ -690,10 +690,9 @@ const GATES = [
   // is where the buried-in-the-hillside sampler bugs came from.
   { id: 'HOUSE', file: '_house_check.js', tier: 'core' },
   // THE FAR RUNGS ARE BUILDINGS (LODS-2026-10, the user 27 Oct: "they don't even represent closed volumes ... Some
-  // houses show without roof and black"): every far rung of every building the island places, made by the game's own
-  // rules (tools/_lods_lib.js), roofed from above (>= 90 %), not looked INTO (leak, hole <= 3 %), the far colour's gain
-  // unity-calibrated. A RATCHET until the fix lands: tools/_lods_known.json holds today's failures at their numbers,
-  // anything new or worse is red; --strict is the fix's verdict, --selftest the negative verification, --fix the proposed ladder (~45 s, the whole catalogue)
+  // houses show without roof and black"): every far rung of every generated asset of the editor's catalogue (its own
+  // lod 1, then less its LOD_DETAIL roles - tools/_lods_lib.js), roofed from above (>= 90 %), not looked INTO (leak,
+  // hole <= 3 %); the far town has no plain colour path; --selftest the negative verification (~45 s)
   { id: 'LODS', file: '_lods_check.js', tier: 'core' },
   // THE VILLAGE (G275): the terrain, the road, the plots off it, a house on
   // every plot built by the house generator on the terrain under it, the

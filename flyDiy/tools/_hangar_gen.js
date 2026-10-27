@@ -559,7 +559,9 @@ function randomHangar(seed) {
   return P;
 }
 
-window.HANGAR_GEN = { DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, SHELLS, ROLE_SETS, SET_IDX, CATS, catOf, shellOf, build, applyFinish, makeFinish, finishReport, randomHangar, LIB, library: shell => LIB[shell] || null };
+// THE FAR TOWN'S DETAIL ROLES (LODS-2026-10): the bags of lod 1 that LEAVE at the far town's detail band (render_premises
+// lod1Bags; GATE LODS --fix holds the rest closed and roofed) - what is sub-pixel there; everything else of lod 1 stays.
+window.HANGAR_GEN = { LOD_DETAIL: /^(metal|beam|trim)$/, DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, SHELLS, ROLE_SETS, SET_IDX, CATS, catOf, shellOf, build, applyFinish, makeFinish, finishReport, randomHangar, LIB, library: shell => LIB[shell] || null };
 window.HANGAR_LIB = LIB;
 // THE CATALOGUE: a building with its door hook toward the road side
 window.HANGAR_GEN.CATALOGUE_V = 1;

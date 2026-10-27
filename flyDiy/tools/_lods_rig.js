@@ -28,12 +28,14 @@ function liftFrom(src, name) {
   }
   throw new Error('lods rig: ' + name + ' never closes');
 }
-const LIFTED = ['areaOf', 'DETAIL', 'detailOf', 'HLOD', 'lodMat', 'farGain', 'LOD1_SHELL', 'lod1Bags', 'texMean', 'meanKey', 'meanMiss', 'meanLater', 'meanOf', 'hlodMerge', 'BOX_F', 'hlodBoxes'];
+// (LODS-2026-10: the far town is the generator's lod 1 on its finish - lod1Bags marks what leaves at the detail band;
+// G559's plain merge and G594's boxes are gone from the game, so from the rig: the "before" boards are committed evidence)
+const LIFTED = ['areaOf', 'DETAIL', 'detailOf', 'HLOD', 'lodMat', 'lod1Bags'];
 let G = null;
 async function game() {
   if (G) return G;
   const src = await (await fetch('../src/viewer/render_premises.js', { cache: 'no-store' })).text();
-  const code = LIFTED.map(n => liftFrom(src, n)).join('\n') + '\nlet texCv = null;\nreturn { DETAIL, detailOf, HLOD, lodMat, farGain, lod1Bags, meanOf, hlodMerge, hlodBoxes, LOD1_SHELL };';
+  const code = LIFTED.map(n => liftFrom(src, n)).join('\n') + '\nreturn { DETAIL, detailOf, HLOD, lodMat, lod1Bags };';
   G = new Function('THREE', code)(T);
   G.HLOD.group = new T.Group();
   return G;
@@ -71,18 +73,6 @@ async function mapsReady(F, ms) {
 const bagsGroup = (GEN, built, F) => { const g = new T.Group(); for (const k of (built.BAGS || GEN.BAGS)) if (built.bags[k] && F.MAT[k]) built.bags[k].mesh(g, F.MAT[k]); g.updateMatrixWorld(true); return g; };
 const triCount = o => { let t = 0; o.traverse(m => { if (m.isMesh && m.geometry && m.geometry.index) t += m.geometry.index.count / 3; }); return t; };
 const drawCount = o => { let d = 0; o.traverse(m => { if (m.isMesh) d++; }); return d; };
-// a building without a lod 1 (an item; an outbuilding on its lod 1): detailOf's keep merged plain (hlodCell's bagsH), and its box
-function farOfItem(grp) {
-  const D = G.detailOf(grp);
-  const bags = D.keep.filter(m => m.geometry.index).map(m => ({ m, M: m.matrixWorld, h: m.parent, box: true, D }));
-  const H = G.hlodMerge(bags, G.lodMat('hard'), false);
-  const box = H ? G.hlodBoxes(H.HB, G.lodMat('hard')) : null;
-  if (H) H.mesh.visible = true; if (box) box.visible = true;
-  return { mesh: H && H.mesh, box, keep: D.keep.map(m => nameOf(grp, m)) };
-}
-let NAMES = new Map();
-const nameOf = (grp, m) => NAMES.get(m) || '?';
-function named(GEN, built, F, g) { let i = 0; for (const k of (built.BAGS || GEN.BAGS)) if (built.bags[k] && F.MAT[k] && built.bags[k].raw().idx.length) { const m = g.children[i++]; if (m) NAMES.set(m, k); } }
 
 async function rungsOf(spec) {
   const GEN = window[spec.gen];
@@ -91,75 +81,53 @@ async function rungsOf(spec) {
   const F = GEN.makeFinish(); GEN.applyFinish(P, F);
   await mapsReady(F, 20000);
   const out = [];
-  const b0 = GEN.build(P, 0, F); b0.BAGS = b0.BAGS || GEN.BAGS;
-  if (spec.path === 'plot' || spec.path === 'kit') {
-    const g0 = bagsGroup(GEN, b0, F);
-    out.push({ key: 'near', name: 'NEAR (lod 0)', obj: g0, at: 0 });
-    const L1 = G.lod1Bags(GEN, P, F); const root = L1.root; root.updateMatrixWorld(true);
-    out.push({ key: 'l1', name: spec.path === 'kit' ? 'KIT LOD 1 (150 m)' : 'FAR TOWN: LOD 1 (its finish)', obj: root, at: spec.edge });
-    if (spec.path === 'plot') {
-      const sh = new T.Group(); for (const m of L1) if (m.userData.shell) sh.add(new T.Mesh(m.geometry, m.material)); sh.updateMatrixWorld(true);
-      out.push({ key: 'l1s', name: 'LOD 1 SHELLS (detail band)', obj: sh, at: spec.detail });
-      const bags = L1.filter(m => m.geometry.index).map(m => ({ m, M: root.matrixWorld, h: root, box: m.userData.box, D: { c: new T.Vector3(), R: 1 } }));
-      const H = G.hlodMerge(bags, G.lodMat('hard'), false); H.mesh.visible = true;
-      const re = spec.detailRe ? new RegExp(spec.detailRe) : null, f2 = new T.Group();
-      for (const m of L1) if (!re || !re.test(m.name)) f2.add(new T.Mesh(m.geometry, m.material)); f2.updateMatrixWorld(true);
-      out.push({ key: 'fix2', name: 'FIX R2: LOD 1 LESS ITS DETAIL ROLES (on its finish)', obj: f2, at: spec.detail, proposed: true });
-      out.push({ key: 'l1p', name: 'GAME TODAY: PLAIN FALLBACK (stack not ready) - the fix removes it', obj: H.mesh, at: spec.edge });
-    } else {
-      // the kit's box (town_kit.js boxLod: the shell roles' extent, 85 %, the walls siding, the top roof) and the city
-      // pack's far shell (city_cook.js shellFaces, its vertex colour x the cook's farGain)
-      const bx = new T.Group(), lo = [1e9, 0, 1e9], hi = [-1e9, -1e9, -1e9];
-      for (const m of root.children) if (/^(siding|roof|rib|trim|stone)$/.test(m.name)) { m.geometry.computeBoundingBox(); const b = m.geometry.boundingBox; lo[0] = Math.min(lo[0], b.min.x); lo[2] = Math.min(lo[2], b.min.z); hi[0] = Math.max(hi[0], b.max.x); hi[1] = Math.max(hi[1], b.max.y); hi[2] = Math.max(hi[2], b.max.z); }
-      const top = lo[1] + 0.85 * (hi[1] - lo[1]);
-      const quad = (pts, mat) => { const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pts.flat(), 3)); g.setAttribute('uv', new T.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1].map((v, i) => v * (i % 2 ? top : hi[0] - lo[0])), 2)); g.setAttribute('aHouseAO', new T.Float32BufferAttribute([1, 1, 1, 1], 1)); g.setAttribute('aHouseLit', new T.Float32BufferAttribute([0, 0, 0, 0], 1)); g.setAttribute('aHouseWin', new T.Float32BufferAttribute(new Array(12).fill(0), 3));   // (the kit's box: ao 1, as town_kit.js boxLod)
-        g.setIndex([0, 1, 2, 0, 2, 3]); g.computeVertexNormals(); bx.add(new T.Mesh(g, mat)); };
-      const [x0, , z0] = lo, [x1, , z1] = hi, W = F.MAT.siding, RF = F.MAT.roof;
-      quad([[x0, 0, z1], [x1, 0, z1], [x1, top, z1], [x0, top, z1]], W); quad([[x1, 0, z0], [x0, 0, z0], [x0, top, z0], [x1, top, z0]], W);
-      quad([[x1, 0, z1], [x1, 0, z0], [x1, top, z0], [x1, top, z1]], W); quad([[x0, 0, z0], [x0, 0, z1], [x0, top, z1], [x0, top, z0]], W);
-      quad([[x0, top, z1], [x1, top, z1], [x1, top, z0], [x0, top, z0]], RF);
-      out.push({ key: 'kbox', name: 'KIT BOX (1.2 km)', obj: bx, at: 1200 });
-      if (spec.shell) {
-        const pos = [], col = [], idx = [];
-        for (const f of spec.shell) { const b = pos.length / 3; for (const p of f.pts) { pos.push(p[0], p[1], p[2]); col.push(f.rgb[0] / 255, f.rgb[1] / 255, f.rgb[2] / 255); } for (let k = 1; k + 1 < f.pts.length; k++) idx.push(b, b + k, b + k + 1); }
-        const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new T.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
-        const m = G.lodMat('hard').clone(); m.color.setScalar(spec.farGain);   // render_premises.js: shell.color.setScalar(CITY.city.lod.farGain)
-        out.push({ key: 'city', name: 'CITY FAR SHELL (1 km)', obj: new T.Mesh(g, m), at: 1000 });
-        // THE FIX: the same prism wearing the finish (walls the siding slot, the roof the roof slot; uv in metres, ao 1)
-        const fin = new T.Group();
-        for (const f of spec.shell) {
-          const p = f.pts, mat = f.b === 0 ? F.MAT.siding : F.MAT.roof;
-          const e = new T.Vector3(p[1][0] - p[0][0], 0, p[1][2] - p[0][2]); if (e.lengthSq() < 1e-6) e.set(p[2][0] - p[1][0], 0, p[2][2] - p[1][2]); e.normalize();
-          const n = new T.Vector3().subVectors(new T.Vector3(...p[1]), new T.Vector3(...p[0])).cross(new T.Vector3().subVectors(new T.Vector3(...p[2]), new T.Vector3(...p[0]))).normalize();
-          const up = new T.Vector3().crossVectors(n, e).normalize();
-          const g = new T.BufferGeometry(), pos = [], uv = [], ix = [];
-          for (const q of p) { pos.push(q[0], q[1], q[2]); uv.push(q[0] * e.x + q[2] * e.z, q[0] * up.x + q[1] * up.y + q[2] * up.z); }
-          for (let k = 1; k + 1 < p.length; k++) ix.push(0, k, k + 1);
-          g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new T.Float32BufferAttribute(uv, 2));
-          g.setAttribute('aHouseAO', new T.Float32BufferAttribute(new Array(p.length).fill(1), 1)); g.setAttribute('aHouseLit', new T.Float32BufferAttribute(new Array(p.length).fill(0), 1)); g.setAttribute('aHouseWin', new T.Float32BufferAttribute(new Array(p.length * 3).fill(0), 3));
-          g.setIndex(ix); g.computeVertexNormals(); fin.add(new T.Mesh(g, mat));
-        }
-        fin.updateMatrixWorld(true);
-        out.push({ key: 'cityfin', name: 'FIX: THE CITY PRISM ON ITS FINISH', obj: fin, at: 1000, proposed: true });
-      }
-    }
+  // the near mesh: lod 0 (an outbuilding: its lod 1 - it is built at lod 1 only)
+  const b0 = GEN.build(P, spec.path === 'out' ? 1 : 0, F); b0.BAGS = b0.BAGS || GEN.BAGS;
+  const g0 = bagsGroup(GEN, b0, F);
+  out.push({ key: 'near', name: spec.path === 'out' ? 'NEAR (its lod 1: outbuildings are built at lod 1)' : 'NEAR (lod 0)', obj: g0, at: 0 });
+  // THE GAME'S FAR TOWN (render_premises.js lod1Bags, lifted): R1 its lod 1 on its finish, R2 that less its LOD_DETAIL roles
+  const L1 = G.lod1Bags(GEN, P, F, spec.path === 'out' ? b0 : undefined), root = L1.root; root.updateMatrixWorld(true);
+  out.push({ key: 'l1', name: spec.path === 'kit' ? 'KIT LOD 1 (150 m)' : 'GAME FAR: ITS LOD 1, ON ITS FINISH', obj: root, at: spec.edge });
+  if (spec.path !== 'kit') {
+    const sh = new T.Group(); for (const m of L1) if (m.userData.shell) sh.add(new T.Mesh(m.geometry, m.material)); sh.updateMatrixWorld(true);
+    out.push({ key: 'l1s', name: 'GAME FAR, PAST THE DETAIL BAND: LESS ITS DETAIL ROLES', obj: sh, at: spec.detail });
     return { out, F, P, GEN };
   }
-  // an item (lod 0 near) / an outbuilding (lod 1 near too: it is built at lod 1 only)
-  const nearB = spec.path === 'out' ? GEN.build(P, 1, F) : b0; nearB.BAGS = nearB.BAGS || GEN.BAGS;
-  const g0 = bagsGroup(GEN, nearB, F); NAMES = new Map(); named(GEN, nearB, F, g0);
-  out.push({ key: 'near', name: spec.path === 'out' ? 'NEAR (its lod 1: outbuildings are built at lod 1)' : 'NEAR (lod 0)', obj: g0, at: 0 });
-  const far = farOfItem(g0);
-  out.push({ key: 'far', name: 'GAME FAR: KEEP ' + far.keep.join('+'), obj: far.mesh, at: spec.near });
-  if (far.box) out.push({ key: 'box', name: 'GAME BOX (1.2 km)', obj: far.box, at: 1200 });
-  { // THE FIX: its own lod 1 on its finish (an outbuilding's near IS its lod 1), then less its declared detail roles
-    let g1 = g0;
-    if (spec.path === 'item') { const b1 = GEN.build(P, 1, F); b1.BAGS = b1.BAGS || GEN.BAGS; g1 = new T.Group(); for (const k of b1.BAGS) { const mt = F.MAT[k]; if (b1.bags[k] && mt && mt.isMeshStandardMaterial && !mt.transparent && b1.bags[k].mesh(g1, mt)) g1.children[g1.children.length - 1].name = k; } g1.updateMatrixWorld(true); }
-    else { const c = new T.Group(); for (const m of g0.children) if (m.material.isMeshStandardMaterial && !m.material.transparent) { const q = new T.Mesh(m.geometry, m.material); q.name = NAMES.get(m) || ''; c.add(q); } g1 = c; g1.updateMatrixWorld(true); }
-    out.push({ key: 'prop', name: spec.path === 'out' ? 'FIX R1: ITS LOD 1 BANDED, ON ITS FINISH (= its near)' : 'FIX R1: ITS OWN LOD 1 (on its finish)', obj: g1, at: spec.near, proposed: true });
-    const re = spec.detailRe ? new RegExp(spec.detailRe) : null, g2 = new T.Group();
-    for (const m of g1.children) if (!re || !re.test(m.name)) g2.add(new T.Mesh(m.geometry, m.material)); g2.updateMatrixWorld(true);
-    out.push({ key: 'prop2', name: 'FIX R2: LOD 1 LESS ITS DETAIL ROLES (on its finish)', obj: g2, at: spec.detail, proposed: true });
+  { // the kit (Metlakatla, opt-in town): its box (town_kit.js boxLod: the shell roles' extent, 85 %, walls siding, top roof)
+    // and the city pack's far shell (city_cook.js shellFaces, its vertex colour x the cook's farGain) - unchanged by
+    // LODS-2026-10 (a re-bake of the committed kit and city packs: the follow-up), with the proposal beside them
+    const bx = new T.Group(), lo = [1e9, 0, 1e9], hi = [-1e9, -1e9, -1e9];
+    for (const m of root.children) if (/^(siding|roof|rib|trim|stone)$/.test(m.name)) { m.geometry.computeBoundingBox(); const b = m.geometry.boundingBox; lo[0] = Math.min(lo[0], b.min.x); lo[2] = Math.min(lo[2], b.min.z); hi[0] = Math.max(hi[0], b.max.x); hi[1] = Math.max(hi[1], b.max.y); hi[2] = Math.max(hi[2], b.max.z); }
+    const top = lo[1] + 0.85 * (hi[1] - lo[1]);
+    const quad = (pts, mat) => { const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pts.flat(), 3)); g.setAttribute('uv', new T.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1].map((v, i) => v * (i % 2 ? top : hi[0] - lo[0])), 2)); g.setAttribute('aHouseAO', new T.Float32BufferAttribute([1, 1, 1, 1], 1)); g.setAttribute('aHouseLit', new T.Float32BufferAttribute([0, 0, 0, 0], 1)); g.setAttribute('aHouseWin', new T.Float32BufferAttribute(new Array(12).fill(0), 3));
+      g.setIndex([0, 1, 2, 0, 2, 3]); g.computeVertexNormals(); bx.add(new T.Mesh(g, mat)); };
+    const [x0, , z0] = lo, [x1, , z1] = hi, W = F.MAT.siding, RF = F.MAT.roof;
+    quad([[x0, 0, z1], [x1, 0, z1], [x1, top, z1], [x0, top, z1]], W); quad([[x1, 0, z0], [x0, 0, z0], [x0, top, z0], [x1, top, z0]], W);
+    quad([[x1, 0, z1], [x1, 0, z0], [x1, top, z0], [x1, top, z1]], W); quad([[x0, 0, z0], [x0, 0, z1], [x0, top, z1], [x0, top, z0]], W);
+    quad([[x0, top, z1], [x1, top, z1], [x1, top, z0], [x0, top, z0]], RF);
+    out.push({ key: 'kbox', name: 'KIT BOX (1.2 km)', obj: bx, at: 1200 });
+  }
+  if (spec.shell) {
+    const pos = [], col = [], idx = [];
+    for (const f of spec.shell) { const b = pos.length / 3; for (const p of f.pts) { pos.push(p[0], p[1], p[2]); col.push(f.rgb[0] / 255, f.rgb[1] / 255, f.rgb[2] / 255); } for (let k = 1; k + 1 < f.pts.length; k++) idx.push(b, b + k, b + k + 1); }
+    const g = new T.BufferGeometry(); g.setAttribute('position', new T.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new T.Float32BufferAttribute(col, 3)); g.setIndex(idx); g.computeVertexNormals();
+    const m = G.lodMat().clone(); m.color.setScalar(spec.farGain);   // render_premises.js: shell.color.setScalar(CITY.city.lod.farGain)
+    out.push({ key: 'city', name: 'CITY FAR SHELL (1 km, opt-in)', obj: new T.Mesh(g, m), at: 1000 });
+    const fin = new T.Group();   // the follow-up's proposal: the same prism wearing the finish
+    for (const f of spec.shell) {
+      const p = f.pts, mat = f.b === 0 ? F.MAT.siding : F.MAT.roof;
+      const e = new T.Vector3(p[1][0] - p[0][0], 0, p[1][2] - p[0][2]); if (e.lengthSq() < 1e-6) e.set(p[2][0] - p[1][0], 0, p[2][2] - p[1][2]); e.normalize();
+      const n = new T.Vector3().subVectors(new T.Vector3(...p[1]), new T.Vector3(...p[0])).cross(new T.Vector3().subVectors(new T.Vector3(...p[2]), new T.Vector3(...p[0]))).normalize();
+      const up = new T.Vector3().crossVectors(n, e).normalize();
+      const gg = new T.BufferGeometry(), ps = [], uv = [], ix = [];
+      for (const q of p) { ps.push(q[0], q[1], q[2]); uv.push(q[0] * e.x + q[2] * e.z, q[0] * up.x + q[1] * up.y + q[2] * up.z); }
+      for (let k = 1; k + 1 < p.length; k++) ix.push(0, k, k + 1);
+      gg.setAttribute('position', new T.Float32BufferAttribute(ps, 3)); gg.setAttribute('uv', new T.Float32BufferAttribute(uv, 2));
+      gg.setAttribute('aHouseAO', new T.Float32BufferAttribute(new Array(p.length).fill(1), 1)); gg.setAttribute('aHouseLit', new T.Float32BufferAttribute(new Array(p.length).fill(0), 1)); gg.setAttribute('aHouseWin', new T.Float32BufferAttribute(new Array(p.length * 3).fill(0), 3));
+      gg.setIndex(ix); gg.computeVertexNormals(); fin.add(new T.Mesh(gg, mat));
+    }
+    fin.updateMatrixWorld(true);
+    out.push({ key: 'cityfin', name: 'FOLLOW-UP: THE CITY PRISM ON ITS FINISH', obj: fin, at: 1000, proposed: true });
   }
   return { out, F, P, GEN };
 }
@@ -245,15 +213,15 @@ async function sheet(spec) {
 }
 // the overview: from each sheet, row A of the near column, the game's first far rung and the green (or last) one
 async function overview(list, jpeg) {
-  const T2 = jpeg ? 180 : 200, NC = 4, LB = 20, PER = 2, n = list.length, rows = Math.ceil(n / PER), Wd = PER * (NC * T2 + 12), Ht = 40 + rows * (T2 + LB + 10);
+  const T2 = jpeg ? 180 : 200, NC = Math.max(...list.map(it => it.cols.length)), LB = 20, PER = 2, n = list.length, rows = Math.ceil(n / PER), Wd = PER * (NC * T2 + 12), Ht = 40 + rows * (T2 + LB + 10);
   const C = document.createElement('canvas'); C.width = Wd; C.height = Ht; const x = C.getContext('2d');
   x.fillStyle = '#1c1f24'; x.fillRect(0, 0, Wd, Ht);
-  x.fillStyle = '#fff'; x.font = 'bold 16px sans-serif'; x.fillText('LODS - near | what the game shows far today | the fix R1: its own lod 1 | the fix R2: less its detail (all on the real finish)', 8, 24);
+  x.fillStyle = '#fff'; x.font = 'bold 16px sans-serif'; x.fillText('LODS, the game now - near | its far rung: its own lod 1 | past the detail band: less its detail roles (all on the real finish)', 8, 24);
   for (let i = 0; i < n; i++) {
     const it = list[i], im = new Image(); im.src = it.png; await im.decode();
     const X = (i % PER) * (NC * T2 + 12), Y = 40 + Math.floor(i / PER) * (T2 + LB + 10), t = it.tile || 300;
     x.fillStyle = '#cfd6df'; x.font = '12px sans-serif'; x.fillText(it.title.slice(0, 90), X + 4, Y + 14);
-    it.cols.forEach((c, k) => { x.drawImage(im, c * t, 92 + 22, t, t, X + k * T2, Y + LB, T2, T2); x.fillStyle = 'rgba(0,0,0,0.6)'; x.fillRect(X + k * T2, Y + LB + T2 - 16, T2, 16); x.fillStyle = k >= 2 ? '#9fe0a0' : (k ? '#ffd27a' : '#fff'); x.font = '10px sans-serif'; x.fillText(it.labels[k].slice(0, 40), X + k * T2 + 3, Y + LB + T2 - 4); });
+    it.cols.forEach((c, k) => { x.drawImage(im, c * t, 92 + 22, t, t, X + k * T2, Y + LB, T2, T2); x.fillStyle = 'rgba(0,0,0,0.6)'; x.fillRect(X + k * T2, Y + LB + T2 - 16, T2, 16); x.fillStyle = k ? '#9fe0a0' : '#fff'; x.font = '10px sans-serif'; x.fillText(it.labels[k].slice(0, 40), X + k * T2 + 3, Y + LB + T2 - 4); });
   }
   return jpeg ? C.toDataURL('image/jpeg', 0.85) : C.toDataURL('image/png');
 }
