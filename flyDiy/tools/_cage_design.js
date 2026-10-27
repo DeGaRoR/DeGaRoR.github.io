@@ -2056,7 +2056,7 @@ const ARCHETYPES = [
                     // the body's blue: the paint's base, and BODY_PAINT's sections (the global pick's reach)
                     paint: { job: 'full', sweep: 0, base: 0x23306b, trim: 0x23306b },
                     finish: { decals: {
-                      regL: 4.40, regC: 0.05, regH: 0.26, regCol: 0x20211f, regOutOn: 0,
+                      regL: 4.40, regC: 0.05, regH: 0.26, regCol: 0xf4f2ea, regOutOn: 0,   // white on the blue
                       // the rudder's stripes, lying (across the layer), on the fin alone, in the side view
                       m1On: 1, m1Pat: 9, m1A: 0xb5342a, m1B: 0xf4f2ea, m1D: 0xf4f2ea, m1P: 13, m1Q: 2, m1R: 1,
                       m1Tgt: 6, m1Mode: 1, m1L: 3.60, m1C: 0.62, m1W: 0.44, m1H: 1.56,
@@ -2162,7 +2162,7 @@ const ARCHETYPES = [
             spec: { fuel: { litres: 136 },
                     paint: { job: 'full', sweep: 0, base: 0x8a8d8f, trim: 0x8a8d8f },
                     finish: { decals: {
-                      regL: 3.95, regC: 0.10, regH: 0.18, regCol: 0xf4f2ea, regOutOn: 0,
+                      regL: 3.75, regC: 0.10, regH: 0.16, regCol: 0xf4f2ea, regOutOn: 0,
                       // the bands, upright, wrapped round the rear fuselage (field: metres aft of the firewall)
                       m1On: 1, m1Pat: 9, m1A: 0xf2c437, m1B: 0x3a3d40, m1D: 0x3a3d40, m1P: 8, m1Q: 2, m1R: 0,
                       m1Tgt: 0, m1Mode: 0, m1L: 2.35, m1C: 0.0, m1W: 1.90, m1H: 3.00,
