@@ -99512,3 +99512,15 @@ GATE TECH: PASS
 GATE GAMEPREM: PASS
 GATE LAZY: FAIL (1)            (the same row as p1's and db58b0b5's: route_draw's lazy door in this cloud browser)
 ```
+
+## READY claude/ready/missions-p3 (review round, 2026-10-27 evening) - THE BUSH MISSIONS (logic), REBASED ON THE NEW missions-p1
+
+**Base: ready/missions-p0 17f331783**, through claude/ready/missions-p1 (the review round's, above - land p1 first). p3's
+4 commits rebased on it: one conflict, 90_node_exports.js, resolved as the union of both lists (every name of both sides,
+no duplicate); HANDOVER kept both sides. Fix (a) comes from p1 (the bush missions sell nothing). Not for T-P1: L28a with p1.
+**Gates** (a private copy of the gated code - this note is HANDOVER only - built there, `run_gates.js --no-build`; node
+gates only, no local box): MISSIONS (859 checks), CONTRACTS, STAGES, ECON, CLOCK, FREIGHT, PROCURE, ACCEPT, STORY, ROUTES,
+SAVE, PILOTS: PASS.
+**The same two notes as p1's:** the 9 core files change against the base (73b + 73c in MANIFEST.core), so the parked cook
+of 17f331783 goes stale - the local box cooks it and runs FRAMECOST in the train; LAZY's route_draw row is red in the
+cloud too - UNVERIFIED here.
