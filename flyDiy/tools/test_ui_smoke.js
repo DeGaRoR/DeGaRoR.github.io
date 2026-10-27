@@ -1626,10 +1626,11 @@ try {
     need('#phNext\'s two lines do not fill its height exactly', fN && Math.abs(2 * fN[1] - px(NX.height)) < 0.01);
     need('#phPlan is not one clipped line', PL['white-space'] === 'nowrap' && PL.overflow === 'hidden' && PL['text-overflow'] === 'ellipsis' && fP && Math.abs(fP[1] - px(PL.height)) < 0.01);
     need('#phWhy does not hold its two lines + the plan line', px(WY.height) >= px(NX.height) + px(PL.height) + (px(PL['margin-top']) || 0));
-    // 6. no text-driven state takes a line out: only the small PFD (the player's choice) may hide the area
+    // 6. no text-driven state takes a line out: only the player's choices may hide the area - the small PFD, and in the
+    // fl2 layout the autopilot's words folded (G3640s, the user: collapsed by default, a tap on the phase line unfolds them)
     for (const r of rules) for (const sl of r.sels) {
       if (!/#phNext|#phPlan|#phWhy|#phName|#rail\b|\.rd b|\.rd i/.test(sl)) continue;
-      if (r.decl.display === 'none' && !/\.small|\[hidden\]/.test(sl)) throw new Error('G1090 the top bar can resize: `' + sl + '` sets display:none on a text-driven state (use visibility)');
+      if (r.decl.display === 'none' && !/\.small|\[hidden\]|^body\.fl2:not\(\.fl2Ap\) #ui #phWhy$/.test(sl)) throw new Error('G1090 the top bar can resize: `' + sl + '` sets display:none on a text-driven state (use visibility)');
       if (/:empty/.test(sl)) throw new Error('G1090 the top bar can resize: `' + sl + '` styles a line by its emptiness');
     }
     need('the held status line must hide by visibility', D('#rail.held + #phWhy #phNext').visibility === 'hidden');

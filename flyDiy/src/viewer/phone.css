@@ -32,7 +32,7 @@ html.phone body.mode-ws #c { position:fixed; left:0; top:0; margin:0 !important;
 html.phone #edView { left:0 !important; top:0; right:auto !important; bottom:auto;
   width:var(--ph-vw); height:var(--ph-vh); }
 /* the flight's verbs and the route have no world to go to (profile fly 'none') */
-html.phone #edActs, html.phone #edRoute, html.phone #bootSetup, html.phone #bootRoute { display:none !important; }
+html.phone #edActs, html.phone #edRoute, html.phone #edDest, html.phone #bootSetup, html.phone #bootRoute { display:none !important; }
 html.phone #edTopBar { left:8px !important; right:8px !important; top:8px !important; }
 /* G3721: the name is a disk (editor.css), at a finger's size */
 html.phone #edFleet :is(#fbName, #edMenu) { width:40px; height:40px; }

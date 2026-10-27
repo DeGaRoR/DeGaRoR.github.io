@@ -16776,6 +16776,25 @@
     anchor(fn) { gmAnchor = typeof fn === 'function' ? fn : null; gmLayout(); },
     opener(el) { gmOpener = el || null; gmLayout(); },   // G3728: the page's own menu icon (null: the pill again)
   };
+  // G3743 (the user, 27 Oct, the garage's top bar: "the 2 buttons group on the left, and the rest on the right ... a new
+  // button, full right, which will take the destination UI (To and wait until), so they too can get out of the main
+  // screen"): #edRoute leaves the verbs' corner for a MENU page, opened from its own button at the bar's right end - the
+  // same element and its handlers, carried into the page and put back (hidden there: editor.css) when the page closes
+  if (gmPanel && $('edTopBar') && $('edRoute') && !$('edDest')) try {
+    const route = $('edRoute'), home = route.parentNode;
+    const canFly = () => { try { return !(window.PROFILE && window.PROFILE.is && window.PROFILE.is('fly', 'none')); } catch (e) { return true; } };
+    const plate = document.createElement('div'); plate.id = 'edDest';
+    const b = document.createElement('button'); b.id = 'edDestB'; b.type = 'button'; b.className = 'edQuickBtn';
+    b.title = 'Destination: where the roll-out goes, and wait until'; b.setAttribute('aria-label', b.title);
+    b.innerHTML = '<svg viewBox="0 0 18 18" aria-hidden="true"><path d="M9 16.2s-5-4.6-5-8.6a5 5 0 0 1 10 0c0 4-5 8.6-5 8.6Z"/><circle cx="9" cy="7.6" r="1.8"/></svg>';
+    b.onclick = () => { if (gmPageK === 'dest' && !gmPanel.hidden) gmOpen(false); else gmPageSet('dest'); };
+    plate.appendChild(b); $('edTopBar').appendChild(plate);
+    window.FLYDIY_MENU.add({ k: 'dest', label: 'Destination', sec: 'Flight', before: 'controls', when: () => inGarage && canFly(),
+      page: body => {
+        body.appendChild(route);
+        return () => { if (home && route.parentNode !== home) home.insertBefore(route, home.firstChild); };
+      } });
+  } catch (e) { console.warn('flyDiy: the destination button -', e && e.message); }
 
   // ---- G3643-G3649 THE FLIGHT LAYOUT (the user's 25 Oct mockup and answers) ---------------------------------------------
   // "a simplified interface ... all the current options, but in a clearer, and more mobile friendly interface". The same
@@ -16847,6 +16866,7 @@
     const flash = mk('div', 'photoFlash');
     document.body.appendChild(flash);
     const photoTake = () => { if (photoGrab) return;
+      try { window.dispatchEvent(new CustomEvent('flydiy:shutter', { detail: { at: Date.now() } })); } catch (e) {}   // G3744: the shutter's sound (audio.js listens)
       photoGrab = cv => {   // (toBlob copies the frame now, encodes after); the flash is the page's, not the picture's
         cv.toBlob(photoSave, 'image/png');
         flash.classList.remove('on'); void flash.offsetWidth; flash.classList.add('on');

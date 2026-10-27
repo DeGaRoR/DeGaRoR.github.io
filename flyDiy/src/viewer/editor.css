@@ -1315,7 +1315,15 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 .edRoot details:is([data-ves], [data-veslook]) > summary { padding:18px 0 6px; }
 .edRoot details:is([data-ves], [data-veslook]).on > summary { color:var(--ed-acc); }
 #edTopBar { flex-wrap:nowrap; gap:6px; }
-#edTopBar #edQuick { margin-left:0; }
+/* G3743 (the user, 27 Oct: "the 2 buttons group on the left, and the rest on the right"): the burger + disk at the left,
+   the quick icons at the right, and at the far right the destination (app.js #edDest: the To + wait until, a MENU page -
+   off the main screen, so #edRoute does not stand beside ROLL OUT any more) */
+#edTopBar #edQuick { margin-left:auto; }
+#edDest { display:flex; align-items:center; padding:5px; background:var(--ed-plate); border:1px solid var(--ed-border); border-radius:9px; }
+#edActs > #edRoute { display:none; }
+#gmPage #edRoute { flex-direction:column; align-items:stretch; gap:10px; padding:4px 2px 2px; }
+#gmPage #edRoute label { justify-content:space-between; gap:10px; min-height:36px; }
+#gmPage #edRoute select { max-width:62%; }
 /* the rail is gone from the screen (its items are MENU pages, editor.js gmRows); the table, its flyout host and the
    element stay for GATE VIEW, the rigs and the gates' stub DOM */
 #edBotBar { display:none !important; }
