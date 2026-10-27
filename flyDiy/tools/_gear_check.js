@@ -941,7 +941,20 @@ for (const f of fail) console.log('  FAIL ' + f);
         'G3852: whTread changed the drawn tyre (' + what + ': the carcass decides, not the hashed row)', a.nt + ' vs ' + b.nt + ' tris');
     check(rMaxOf(s0) <= R * 1.001, 'G3852 NEGATIVE: the standard carcass stands something proud - the instrument cannot tell lugs',
       ((rMaxOf(s0) / R - 1) * 100).toFixed(2) + ' % R');
-    console.log('  tundra 31": lugs ' + (h * 100).toFixed(2) + ' % R proud, ' + t1.nt + ' tris (standard ' + s0.nt + ')');
+    // G3852 THE SMOOTH TUNDRA (the user: "I also want a Tundra tyre with no pattern"): whSlick 1 draws the plain
+    // balloon - nothing proud of the radius, fewer tris than the lugged one; absent or 0 = the lugs (every file on
+    // record); a standard carcass ignores it
+    const k1 = tyreOf({ whProfile: 1, whTread: 1, whSlick: 1 }), k0 = tyreOf({ whProfile: 1, whTread: 1, whSlick: 0 });
+    const ks = tyreOf({ whProfile: 0, whTread: 1, whSlick: 1 });
+    if (check(!!(k1 && k0 && ks), 'G3852: a whSlick tyre was not drawn')) {
+      check(rMaxOf(k1) <= R * 1.001 && k1.nt < t1.nt, 'G3852: the smooth tundra (whSlick 1) still wears lugs',
+        ((rMaxOf(k1) / R - 1) * 100).toFixed(2) + ' % R, ' + k1.nt + ' vs ' + t1.nt + ' tris');
+      check(k0.nt === t1.nt && Math.abs(rMaxOf(k0) - rMaxOf(t1)) < 1e-9, 'G3852: whSlick 0 is not the tundra on file (the lugs)',
+        k0.nt + ' vs ' + t1.nt + ' tris');
+      check(ks.nt === s1.nt, 'G3852: whSlick changed a standard tyre (it is the tundra\'s row)', ks.nt + ' vs ' + s1.nt + ' tris');
+    }
+    console.log('  tundra 31": lugs ' + (h * 100).toFixed(2) + ' % R proud, ' + t1.nt + ' tris (standard ' + s0.nt +
+      ', smooth tundra ' + (k1 ? k1.nt : '-') + ')');
   }
 }
 

@@ -257,7 +257,10 @@ function wheel(bags, ctr, axis, R, opt) {
   const hwHub = prof.torus ? hw * prof.faceW / 0.74 : hw;
   // G3852 (the user, 27 Oct: "the tread options can go"): EACH CARCASS DRAWS ITS OWN TREAD - the standard and the slim
   // their ribbed grooves, the tundra its bush lugs. whTread stays in every file exactly as loaded (a hashed cage row:
-  // reading it and ignoring it here keeps every certificate) and is no longer a row on the panel
+  // reading it and ignoring it here keeps every certificate) and is no longer a row on the panel. The tundra ALSO
+  // comes smooth (the user, 27 Oct: "I also want a Tundra tyre with no pattern"): whSlick 1, the plain balloon - a
+  // look row the fingerprints skip (bench.js BENCH_STATE_ROWS, 76_procure PROCURE_STATE_ROWS); absent or 0 = the
+  // lugs, so every tundra on file (procure writes whTread 1, no whSlick) keeps the lugs it draws today
   const tread = prof.torus ? 1 : 0;
   const T = bags.tyre, Hb = bags.hub;
   const ax = nrm(axis);
@@ -316,7 +319,7 @@ function wheel(bags, ctr, axis, R, opt) {
     const TT = tyreTorus(R, bead * 1.03, beadH, hw * B, grooves);
     revolve(T, ctr, ax, TT.pts.map(([r, z]) => [r, z]), 44);
     wallAt = r => { const u = (r - TT.rc) / TT.a; return Math.abs(u) < 1 ? TT.b * Math.sqrt(1 - u * u) : beadH; };
-    bushLugs(T, TT, R, at);
+    if (!Math.round(+P.whSlick || 0)) bushLugs(T, TT, R, at);
   } else revolve(T, ctr, ax, flank(-1).concat(crown, flank(1).reverse()), 44);
   if (!prof.torus) for (const s of [-1, 1])
     for (const rr of [0.62, 0.70]) {

@@ -237,6 +237,9 @@ function run(mut, extra) {
         ok(M.procureFp(s) === fp0, mid + '@' + design + ' finish ' + v + ': the fingerprint is unmoved (cosmetic)');
         ok(M.procurePrice(mid, Object.assign({}, base.opts, { finish: v })).total === M.procurePrice(mid, base.opts).total, mid + ' finish ' + v + ': free');
       }
+      // G3852: a tundra's lugs or smooth (whSlick) is drawing only - the fingerprint is unmoved
+      ok(M.procureFp(Object.assign({}, s0, { cage: Object.assign({}, s0.cage || {}, { whSlick: 1 }) })) === fp0,
+        mid + '@' + design + ' whSlick 1: the fingerprint is unmoved (cosmetic)');
     }
     // the sheet a screen draws: every row a value chosen, words resolved
     const S = M.procureSheet(mid, {});
