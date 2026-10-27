@@ -10,8 +10,9 @@
 // ===========================================================================
 // THE RECORD THE MAP READS (map_menu.js mapAdapt; the shape of tools/fixtures/contracts_sample.json, §7.3):
 //   { what: 'flydiy-career-map', v, source: 'career',
-//     providers: [ { id, name, short, colour, home, line, rep, track, client: { id, name, face, faceBig } | null } ],
-//                  (G3616 PEOPLE: the provider's face - 72_people.js peopleClientOf; face 128 / faceBig 256 px cuts)
+//     providers: [ { id, name, short, colour, home, line, rep, track, client: { id, name, face, faceBig, bg } | null } ],
+//                  (G3616 PEOPLE: the provider's face - 72_people.js peopleClientOf; face 128 / faceBig 256 px cuts; G3620 bg: the
+//                  background the big portrait alone layers behind the head - the small face stays transparent)
 //     contracts: [ the accepted (in order) then the offers: { id, provider, kind, title, brief (RESOLVED words),
 //                  stages: [ { subs: [ {do, from?, to?, at?, load?, when?, crit?: [ {k, op, v, at?, words} ]} ] } ],
 //                  pay: contractPay(rec) + { bonus }, rep, unlock?, followLine?, classes,
@@ -191,7 +192,7 @@ function careerMapRecord(doc, world, opts) {
              home: (P.fields && P.fields[0]) || null, line: contractText(P.desc),
              rep: (c.providers[id] || {}).rep || 0, track: (c.tracks || {})[P.track] || 0,
              client: typeof peopleClientOf === 'function' && peopleClientOf(id)
-               ? { id: peopleClientOf(id), name: peopleName(peopleClientOf(id)), face: peopleFace(peopleClientOf(id), 128), faceBig: peopleFace(peopleClientOf(id), 256) } : null };
+               ? { id: peopleClientOf(id), name: peopleName(peopleClientOf(id)), face: peopleFace(peopleClientOf(id), 128), faceBig: peopleFace(peopleClientOf(id), 256), bg: peopleBg(peopleClientOf(id)) } : null };
   });
   const offered = careerOfferIds(doc).filter(id => !C.accepted.includes(id));
   const nightOpts = { day: opts.day || (world && world.day) || null, cover: typeof opts.cover === 'number' ? opts.cover : (world && world.day && typeof world.day.cloudCover === 'number' ? world.day.cloudCover : undefined) };

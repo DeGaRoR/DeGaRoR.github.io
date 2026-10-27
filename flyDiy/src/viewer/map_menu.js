@@ -121,7 +121,7 @@
     const text = raw.text || {};
     const say = k => (k && text[k]) || k || '';
     const providers = (raw.providers || []).map(p => ({ id: p.id, name: p.name, short: p.short || p.name, home: p.home || null,
-      client: p.client && p.client.face ? { id: p.client.id, name: p.client.name, face: p.client.face, faceBig: p.client.faceBig || p.client.face } : null }));
+      client: p.client && p.client.face ? { id: p.client.id, name: p.client.name, face: p.client.face, faceBig: p.client.faceBig || p.client.face, bg: p.client.bg || null } : null }));
     const prov = {}; for (const p of providers) prov[p.id] = p;
     const car = raw.career || {};
     const career = { accepted: (car.accepted || []).slice(), tracked: car.tracked || null, stage: Object.assign({}, car.stage || {}), wallet: car.wallet, clock: car.clock,
@@ -352,7 +352,10 @@
   // portraits in a generous format"): the provider's face - a round one on the row, a big one over the opened paragraph
   // with the client's name. Lazy: an <img> asks for the cut only when its row is drawn.
   const faceHTML = p => (p && p.client ? '<img class="mmFace" src="' + esc(p.client.face) + '" alt="" width="40" height="40" loading="lazy" decoding="async">' : '');
-  const whoHTML = p => (p && p.client ? '<div class="mmWho"><img class="mmFaceBig" src="' + esc(p.client.faceBig) + '" alt="' + esc(p.client.name) +
+  // G3620: a LARGE portrait's background - the <img>'s own CSS background, drawn through the head's transparent pixels
+  // (the head file untouched: every small face stays transparent)
+  const bgCss = u => (u ? ' style="background:url(' + esc(u) + ') center/cover"' : '');   // (a media/people path: no space, no paren)
+  const whoHTML = p => (p && p.client ? '<div class="mmWho"><img class="mmFaceBig" src="' + esc(p.client.faceBig) + '"' + bgCss(p.client.bg) + ' alt="' + esc(p.client.name) +
     '" width="120" height="120" loading="lazy" decoding="async"><span><b>' + esc(p.client.name) + '</b>' + esc(p.name) + '</span></div>' : '');
   function paraHTML(M, c) {
     const p = M.prov[c.provider], P = payOf(M, c), K = markOf(M, c), tr = M.career.tracked === c.id;
@@ -547,7 +550,7 @@
       b.push(btn('fire', 'Fire', true));
     }
     return '<p>' + esc(p.tagline) + '<span class="mmRw">Flies like: ' + esc(p.fliesLike) + '</span>' +
-      '<span class="mmRw">' + esc(p.traits.map(t => t.label).join(', ')) + ' · ' + esc(pilotWhere(M, p)) + (p.hired ? '' : ' · a one-time sign-on, no wages') + '</span></p>' +
+      '<span class="mmRw">' + esc(p.traits.map(t => t.label).join(', ')) + ' · ' + esc(pilotWhere(M, p)) + (p.hired ? '' : ' · sign-on ' + fmt(p.signOn)) + (p.wage ? ' · wage ' + fmt(p.wage) + ' a day' : '')   /* G3618: the paycheck at each day's end */ + '</span></p>' +
       '<div class="mmActs">' + b.join('') + '</div>' + (live ? '' : '<p class="mmFine">Hiring and firing come with the career (?career=1).</p>');
   }
   function pilotsListHTML(M, st) {

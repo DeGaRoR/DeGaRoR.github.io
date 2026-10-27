@@ -8093,6 +8093,8 @@
       if (CAREER_DEV && d.career && world && world.day && typeof careerDaySet === 'function') { const r = careerDaySet(d, { date: world.day.date, utc: world.day.utc }); if (r.ok) d = careerCoverNote(r.doc); }
       // G3260 (ROUTES): the routes' round trips flown up to this landing, paid now (before the stop's wallet line)
       const rtSettled = CAREER_DEV && d.career ? routesSettleNow(d) : null; if (CAREER_DEV && rtSettled) d = rtSettled.doc;
+      // G3618 (HIRE): the hired pilots' wages for every day ended up to this landing (the paycheck at each day's end)
+      const pyPaid = CAREER_DEV && d.career && typeof pilotsPayroll === 'function' ? pilotsPayroll(d) : null; if (CAREER_DEV && pyPaid && pyPaid.ok) d = pyPaid.doc;
       // G2320 (CAREER-WIRE): ...and the career meets the stop (careerOnStop: every accepted contract, the tracked first)
       if (CAREER_DEV && d.career) { const c = careerStopApply(d, how, W, wrecked); d = c.doc; out.career = c; }
       // G2742 (STORY-PAGE): ...and the story meets it (the stop, each contract it delivered), its effects applied
@@ -8698,6 +8700,93 @@
     act: careerCrewAct, check: id => careerCrewCheck(id), flyer: () => crFlyer,
     card: id => pilotsCard(playerLoad(), id, world), offers: () => pilotsOffers(playerLoad()), hired: () => pilotsHired(playerLoad()),
   };
+  // ---- G3618 (HIRE, the user 25 Oct): THE HIRE SCREEN --------------------------------------------------------------------
+  // Every pilot not on the roster (all four), each a card: the portrait, the tagline, the EXPERIENCE LEVEL and the SKILL
+  // chips ("We'll state their experience level, and their skills ... and we'll let the player discover" - no "can fly"
+  // verdict), the sign-on and the daily wage. Hire pays the SIGN-ON only; the wage is paid at the end of each day
+  // (pilotsPayroll: "like classic paycheck"). A wallet short of the sign-on: the button says by how much.
+  // FROZEN HOOKS (STORY-TUTOR's T6b): window.FLYDIY_HIRE.open({ from }) / close() / isOpen(); events 'flydiy:hireOpen'
+  // { from }, 'flydiy:hireClose' { hired: [ids] }, 'flydiy:hired' { id, fee, wage } (after the save, the sign-on charged;
+  // `id` is the roster's own, pilotsHired's). Opened from the story, it cannot close before a first hire.
+  const HIRE = { el: null, from: null, hired: [] };
+  const hireEsc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  function hireCss() {
+    if (document.getElementById('hireCss')) return;
+    const st = document.createElement('style'); st.id = 'hireCss';
+    st.textContent = '#hireScreen{position:fixed;inset:0;z-index:2147481000;display:flex;flex-direction:column;background:rgba(23,21,18,.97);color:var(--ed-ink,#f4efe6);font-family:"IBM Plex Sans",system-ui,sans-serif;overflow:auto}' +
+      '#hireScreen .hrTop{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:24px 32px 16px;border-bottom:1px solid var(--ed-hair,rgba(255,248,236,.09));flex-wrap:wrap}' +
+      '#hireScreen h2{margin:0;font-size:24px;font-weight:600}#hireScreen .hrSub{margin:4px 0 0;font-size:14px;color:var(--ed-dim,#c0b8ac)}' +
+      '#hireScreen .hrRight{display:flex;align-items:center;gap:18px}#hireScreen .hrWal{display:grid;justify-items:end;gap:2px}' +
+      '#hireScreen .hrWal small{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ed-dim,#c0b8ac)}#hireScreen .hrWal b{font-size:20px;font-variant-numeric:tabular-nums}' +
+      '#hireScreen .hrX{width:48px;height:48px;border-radius:10px;background:var(--ed-btn-bg,rgba(255,255,255,.06));border:1px solid var(--ed-btn-bd,rgba(255,255,255,.18));color:var(--ed-ink,#f4efe6);font-size:20px;cursor:pointer}' +
+      '#hireScreen .hrX:disabled{opacity:.4;cursor:default}' +
+      '#hireScreen .hrGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:18px;padding:22px 32px 120px}' +
+      '#hireScreen .hrCard{background:var(--ed-panel,#201d1a);border:1px solid var(--ed-hair,rgba(255,248,236,.09));border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px}' +
+      '#hireScreen .hrCard img{width:100%;aspect-ratio:1/1;object-fit:cover;object-position:50% 25%;border-radius:10px;background:rgba(255,248,236,.06)}' +
+      '#hireScreen .hrNm{font-size:19px;font-weight:600}#hireScreen .hrTag,#hireScreen .hrLvl{font-size:13px;color:var(--ed-dim,#c0b8ac);line-height:1.45}#hireScreen .hrLvl{color:var(--ed-acc,#e6dbc9)}' +
+      '#hireScreen .hrChips{display:flex;flex-wrap:wrap;gap:6px}#hireScreen .hrChips span{font-size:12px;padding:4px 9px;border-radius:999px;border:1px solid var(--ed-btn-bd,rgba(255,255,255,.18));color:var(--ed-acc,#e6dbc9)}' +
+      '#hireScreen .hrMoney{margin-top:auto;display:grid;gap:6px;padding-top:10px;border-top:1px solid var(--ed-hair,rgba(255,248,236,.09));font-size:13px;font-variant-numeric:tabular-nums}' +
+      '#hireScreen .hrMoney div{display:flex;justify-content:space-between}#hireScreen .hrMoney span{color:var(--ed-dim,#c0b8ac)}' +
+      '#hireScreen .hrGo{min-height:48px;border-radius:8px;border:1px solid var(--ed-acc,#e6dbc9);background:var(--ed-acc,#e6dbc9);color:var(--ed-acc-ink,#221f1b);font:600 12.5px/1.2 "IBM Plex Sans",sans-serif;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}' +
+      '#hireScreen .hrGo:disabled{background:var(--ed-btn-bg,rgba(255,255,255,.06));border-color:var(--ed-btn-bd,rgba(255,255,255,.18));color:var(--ed-bad,#e08a5a);text-transform:none;letter-spacing:0;font-weight:500;cursor:default}' +
+      '#hireScreen .hrNone{padding:22px 32px;color:var(--ed-dim,#c0b8ac)}' +
+      '@media (max-width:600px){#hireScreen .hrTop,#hireScreen .hrGrid{padding-left:16px;padding-right:16px}}';
+    document.head.appendChild(st);
+  }
+  function hireDraw() {
+    if (!HIRE.el) return;
+    const d = playerLoad(), wallet = Math.round(d.wallet || 0), ids = pilotsOffers(d);
+    const lock = HIRE.from === 'story' && !HIRE.hired.length;
+    const card = id => {
+      const c = pilotsCard(d, id, world);
+      const short = d.mode === 'career' ? c.signOn - wallet : -1;
+      // G3620: the head over its background (the user 26 Oct: "only when displayed in large format do they get their
+      // background") - the <img>'s CSS background, behind the transparent head; the head file is never touched
+      const bg = c.bg ? ' style="background:url(' + hireEsc(c.bg) + ') center/cover"' : '';   // (a media/people path: no space, no paren)
+      return '<div class="hrCard">' + (c.portrait ? '<img src="' + hireEsc(c.portrait) + '"' + bg + ' alt="' + hireEsc(c.name) + '" loading="lazy" decoding="async">' : '') +
+        '<div><div class="hrNm">' + hireEsc(c.name) + '</div><div class="hrTag">' + hireEsc(c.tagline) + '</div></div>' +
+        '<div class="hrLvl">' + hireEsc(c.level) + '</div>' +
+        '<div class="hrChips">' + c.skills.map(k => '<span>' + hireEsc(k) + '</span>').join('') + '</div>' +
+        '<div class="hrMoney"><div><span>Sign-on</span>' + ecFmt(c.signOn) + '</div><div><span>Wage, at each day\'s end</span>' + ecFmt(c.wage) + ' / day</div>' +
+        (short > 0 ? '<button type="button" class="hrGo" disabled>Short by ' + ecFmt(short) + ' for the sign-on</button>'
+                   : '<button type="button" class="hrGo" data-hire="' + hireEsc(id) + '">Hire · pay ' + ecFmt(c.signOn) + ' now</button>') + '</div></div>';
+    };
+    HIRE.el.innerHTML = '<div class="hrTop"><div><h2>Hire a pilot</h2><p class="hrSub">They fly your routes and your flights. The sign-on is paid now, the wage at the end of each day.</p></div>' +
+      '<div class="hrRight"><div class="hrWal"><small>Wallet</small><b>' + ecFmt(wallet) + '</b></div>' +
+      '<button type="button" class="hrX" aria-label="' + (lock ? 'Close (after your first hire)' : 'Close') + '"' + (lock ? ' disabled' : '') + '>×</button></div></div>' +
+      (ids.length ? '<div class="hrGrid">' + ids.map(card).join('') + '</div>' : '<p class="hrNone">Everyone is on your roster.</p>');
+    HIRE.el.querySelector('.hrX').onclick = () => hireClose();
+    for (const b of HIRE.el.querySelectorAll('[data-hire]')) b.onclick = () => hireNow(b.getAttribute('data-hire'));
+  }
+  function hireNow(id) {
+    const fee = pilotsSignOn(id), wage = pilotsWage(id);
+    const r = careerCrewAct('hire', id);
+    if (r && r.ok) {
+      HIRE.hired.push(id);
+      econWalletSync();
+      try { window.dispatchEvent(new CustomEvent('flydiy:hired', { detail: { id, fee, wage } })); } catch (e) {}
+    }
+    hireDraw();
+    return r;
+  }
+  function hireOpen(o) {
+    if (!CAREER_DEV) return false;
+    hireCss();
+    HIRE.from = (o && o.from) || null; HIRE.hired = [];
+    if (!HIRE.el) { HIRE.el = document.createElement('div'); HIRE.el.id = 'hireScreen'; HIRE.el.setAttribute('role', 'dialog'); HIRE.el.setAttribute('aria-label', 'Hire a pilot'); document.body.appendChild(HIRE.el); }
+    HIRE.el.hidden = false;
+    hireDraw();
+    try { window.dispatchEvent(new CustomEvent('flydiy:hireOpen', { detail: { from: HIRE.from } })); } catch (e) {}
+    return true;
+  }
+  function hireClose() {
+    if (!HIRE.el || HIRE.el.hidden) return false;
+    if (HIRE.from === 'story' && !HIRE.hired.length) return false;
+    HIRE.el.hidden = true;
+    try { window.dispatchEvent(new CustomEvent('flydiy:hireClose', { detail: { hired: HIRE.hired.slice() } })); } catch (e) {}
+    return true;
+  }
+  if (CAREER_DEV) window.FLYDIY_HIRE = { open: hireOpen, close: hireClose, isOpen: () => !!(HIRE.el && !HIRE.el.hidden), hire: id => hireNow(id) };
   // ---- G3260-G3269 (ROUTES): THE ROUTES' PAGE HALF (every function below runs only under CAREER_DEV; 78b_routes.js is the
   // model, pure) ---------------------------------------------------------------------------------------------------------
   // The settle at every landing (playerFlightEnd: the round trips flown since, paid, a line on the arrival card) and every
@@ -8720,6 +8809,15 @@
     player = r.doc; playerSave();
     ecNote = 'routes +' + ecFmt(r.paid); econWalletSync();
     storeChanged();
+  }
+  // G3618 (HIRE): the wages on a day jump (a wait, the full moon): every day ended paid now, said on the wallet line
+  function pilotsPayNow(now) {
+    if (!CAREER_DEV || typeof pilotsPayroll !== 'function') return 0;
+    const r = pilotsPayroll(playerLoad(), now);
+    if (!r || !r.ok || r.doc === playerLoad()) return 0;
+    player = r.doc; playerSave();
+    if (r.paid) { ecNote = 'wages -' + ecFmt(r.paid); econWalletSync(); }
+    return r.paid;
   }
   // the plane's gear and seats off its saved envelope (the storage card's)
   const routesGear = n => { try { return storeCard(n).gear || null; } catch (e) { return null; } };
@@ -8759,6 +8857,8 @@
       player = r.doc; playerSave();
       ecNote = 'route signed +' + ecFmt(r.route.down); econWalletSync();
       storeChanged(); routesStandRule();
+      // G3618: the frozen hook STORY-TUTOR's T6b moves Tim on with
+      try { window.dispatchEvent(new CustomEvent('flydiy:routeSigned', { detail: { id: r.route.id, pilot, plane: name } })); } catch (e) {}
       return { ok: true, why: '', route: r.route };
     } catch (e) { return { ok: false, why: String((e && e.message) || e) }; }
   }
@@ -8800,7 +8900,7 @@
     return true;
   }
   if (CAREER_DEV) {
-    try { window.addEventListener('flydiy:dayjump', ev => { try { routesOnWait(ev && ev.detail); } catch (e) {} }); } catch (e) {}
+    try { window.addEventListener('flydiy:dayjump', ev => { try { routesOnWait(ev && ev.detail); pilotsPayNow(ev && ev.detail && ev.detail.to); } catch (e) {} }); } catch (e) {}
     setInterval(() => { try { routesStandRule(); } catch (e) {} }, 1500);
     Object.assign(window.FLYDIY_STORE, {
       routeTargets: n => routesTargets(n), routeAsk: (n, b, p) => routesAsk(n, b, p), routeSign: (n, b, p) => routesSignNow(n, b, p),
