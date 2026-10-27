@@ -99330,3 +99330,32 @@ Strict light gate RED (6), all in known classes; the loads are back inside their
 - metal fuseWidth busy 393: the bimodal 0 / ~400 ms rep (master's own L24b / L24c show the same).
 - world -> garage: cub round trip 2 at 2.02 s, floats at 5.29 s. The class red since L24c (2.99 / 3.55 there); HWCOV has the cause, the per-trip cacheKey churn of fragment 66e30961, and its Mon 12:45 slot names the owner.
 Pushed by the user's order of 25 Oct: land as soon as possible.
+
+## DC3-2 FOR A0 - THE CODE PART'S DRAWS AT HOME, MEASURED (2026-10-27, cloud; claude/ready/dc3-2 re-pushed CODE ONLY on origin/master d7e181f4e = L25c)
+A0 (27 Oct): "In the L27a train, FRAMECOST rose by about +200 draws at HOME, and it came from dc3-2 ... your CODE part alone also
+adds draws. Do: find which code adds draws at HOME with no DC-3 on screen ... name the objects or passes that are new."
+- **THE ANSWER: THE CODE ADDS NO DRAW.** Five censuses (tools/_framecost_check.js --census cub, FRAMECOST_WHAT=1: the drawn
+  objects by name; the trees: origin/master d7e181f4e, and the code part alone - claude/dc3-2-split-code + origin/master merged,
+  HOME's stand row reset to master's):
+  | census (cub, HOME)                                   | stand draws.main | taxi draws.main | shadow s/t   | uniform2f s/t |
+  | A master, its parked cook valid                      | 708              | 760             | 104.5 / 100  | 18 / 14       |
+  | B the code, master's cook accepted (its build id)    | 708              | 760             | 104.5 / 100  | 18 / 14       |
+  | C master, the cook off (?parkcook=0)                 | 846              | 1 077           | 247 / 146.5  | 135 / 271     |
+  | C' the code, the cook off                            | 846              | 1 077           | 247 / 146.5  | 135 / 271     |
+  | D the code, its own build id (the cook STALE)        | 846              | 1 077           | 247 / 146.5  | 135 / 271     |
+  A vs B, C vs C', C vs D: 0 objects differ (every drawn object's name and material, both views), 0 counters moved (--compare).
+  The rise D - A is THE PARKED AEROPLANES CAPTURED LIVE: stand +129 net (parked:arch:c172 +56, parked:arch:cub +51,
+  parked:merged +25, their ShaderMaterials +6, parked:baked -2; 7 guardrail spans fewer), taxi +304 net (c172 +120, cub +106,
+  jodel +55, merged +25, shaders +14, parked:baked -5; 11 rail / pole spans fewer) - the editor's meshes in place of the
+  cook's one baked mesh each. The cook's signature (parked.js cookSig) carries FLYDIY_BUILD, so ANY code change leaves it
+  stale until the train re-cooks (parked_cook.js: a GPU box - it refuses SwiftShader, so not cookable here); master with its
+  cook off draws exactly the same. (The few guardrail / power-line spans fewer in D and C are the streaming the slower live
+  capture delays on the virtual clock - identical in C and D, so not the code's.)
+- **WHAT WAS IN THE OLD claude/ready/dc3-2 (879ecf70d) BESIDES THE CODE:** HOME's STAND HEADING (tools/fixtures/
+  island_jolene.json's stand row, scenery_ship_rev28.json's) - the view change (the plane facing the door: the water mirror's
+  capture in the stand camera; measured on L25b with the cook valid, stand 708 -> 1 101, renders 16 -> 22, uniform2f 18 -> 111).
+  It is scenery by A0's rule and is OUT of the code ref now: claude/ready/dc3-2 = the code only (reports/evidence/DC3-2/
+  framecost_codeonly/: the five censuses). claude/ready/dc3-2-scenery (43bce3a68, not moved) still carries the stand heading
+  and the parked moves on top of the old ref - over the new code ref it adds exactly those two, for the scenery train's own A/B.
+- **The DC-3's HOME trip needs the stand heading** (the plane rolls out of the door on it): sandbox-only, it waits with the
+  scenery. Nothing else in the code reads it.
