@@ -11997,6 +11997,7 @@
     crowdStart();                      // G2970 (CHARACTERS): whoever is aboard walks out to the door first
     certKick();                        // G1831: stamped now if the roll-out's request has landed (or the build was flown before)
     envAway = true;                    // C0c: the room's probe waits for the way back (bakeHangarEnv)
+    if (hangar && hangar.polishHide) hangar.polishHide();   // G3534c: the next entry's passes draw no outside polish
     if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = null;   // F3: the room's air stays in the room
     showCage = false; applySkinVis();  // the MESH flies, not the editor's cage
     scene.add(craft);                  // out of the room, onto the strip

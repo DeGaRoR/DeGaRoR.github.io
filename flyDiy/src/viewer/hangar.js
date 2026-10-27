@@ -3405,8 +3405,11 @@ const faceShafts = cam => {
 // the door at -x, x to +-HD, z to +-HW; over the ridge counts as outside), the host calling this every garage frame as it
 // calls faceShafts. Its programs are compiled async once the room has stood a second, so the roll-out's first frame
 // outside does not stop to build them.
+// G3534c (s27-g7x 13:45: the first roll-out paid a 1.28 s task, round trip 2's entry 0.77 s): once the programs are
+// built, its meshes go up ONE A FRAME from inside, behind the walls (the depth hides them), so the first frame outside
+// uploads nothing; and the room is left with it hidden (polishHide at the roll-out), so the next entry's passes skip it.
 const _pInv = new THREE.Matrix4(), _pEye = new THREE.Vector3();
-let polishFrames = 0;
+let polishFrames = 0, polishWarm = -1;
 const polishFollow = (cam, renderer, scene) => {
   const O = POLISH_OUT;
   if (!O || !cam) return false;
@@ -3414,13 +3417,25 @@ const polishFollow = (cam, renderer, scene) => {
   const out = Math.abs(_pEye.x) > HD - 0.15 || Math.abs(_pEye.z) > HW - 0.15 || _pEye.y > RIDGE + 0.3 || _pEye.y < -0.5;
   if (!ROOM_POLISH.compiled && !out && ++polishFrames > 60 && renderer && typeof renderer.compileAsync === 'function' && scene) {
     ROOM_POLISH.compiled = true;
+    const R = ROOM_POLISH, go = () => { if (ROOM_POLISH === R && polishWarm < 0 && !R.warmed) polishWarm = 0; };
     O.visible = true;
-    try { renderer.compileAsync(O, cam, scene).catch(() => {}); } catch (e) {}
+    try { renderer.compileAsync(O, cam, scene).then(go, go); } catch (e) { go(); }
     O.visible = false;
+  }
+  if (polishWarm >= 0) {
+    const K = O.children;
+    if (!out && polishWarm < K.length) {
+      if (polishWarm === 0) { for (const k of K) k.visible = false; O.visible = true; }
+      K[polishWarm++].visible = true;
+      return false;
+    }
+    for (const k of K) k.visible = true;   // all up, or the eye went out mid-way (the rest uploads now)
+    polishWarm = -1; ROOM_POLISH.warmed = true;
   }
   if (O.visible !== out) { O.visible = out; if (out) ROOM_POLISH.shown++; }
   return out;
 };
+const polishHide = () => { if (POLISH_OUT) POLISH_OUT.visible = false; };
 
 // THE SHAFT HAS TO REACH THE FLOOR, and how far that is depends on how high
 // the roof is — which has been a parameter since G53 (user: "do the light
@@ -4157,7 +4172,7 @@ return {
   census: census,              // dev: meshes and triangles, which ARE draw calls here
   mats: M, shafts: shafts, faceShafts: faceShafts,
   get polish() { return ROOM_POLISH; }, dirt: ROOM_DIRT,   // G3534 / G3535 (G3534b: read live - shown, compiled)
-  polishFollow: polishFollow, polishOut: () => POLISH_OUT,   // G3534b: the polish's outside, drawn only from outside
+  polishFollow: polishFollow, polishOut: () => POLISH_OUT, polishHide: polishHide,   // G3534b/c: the polish's outside, drawn only from outside
   // the kit that follows the aeroplane, and the equirect the caller may bake
   // an environment from instead of the room's own cube pass
   placeMobile: placeMobile, mobile: mobileList, mobileShow: mobileShow, mobileProp: mobileProp,
