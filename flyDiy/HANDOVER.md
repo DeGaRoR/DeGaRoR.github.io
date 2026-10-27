@@ -99063,3 +99063,54 @@ Strict light gate RED (6), all in known classes; the loads are back inside their
 - metal fuseWidth busy 393: the bimodal 0 / ~400 ms rep (master's own L24b / L24c show the same).
 - world -> garage: cub round trip 2 at 2.02 s, floats at 5.29 s. The class red since L24c (2.99 / 3.55 there); HWCOV has the cause, the per-trip cacheKey churn of fragment 66e30961, and its Mon 12:45 slot names the owner.
 Pushed by the user's order of 25 Oct: land as soon as possible.
+
+## G3871 - DOOR-HINGES: A DOOR'S HINGES ON ONE STRAIGHT AXIS, FITTED TO THE STRAIGHT PART OF ITS EDGE; FOUR TWEAK ROWS; CERT-SAFE (2026-10-27, cloud, for A0 / the Performance Coordinator; claude/door-hinges off origin/master d7e181f4e = L25c)
+
+Why: the user, 27 Oct, on the STOL Cub's garage still: "the door hinges are placed at a ridiculous place here, the door would not open as both hinges are not on the same rotation axis. Could we place that better by default, on the straight vertical part of the door? And allow some manual tweaking?"
+Measured cause: `surfaceList` handed a door's hinge run over as its POLYLINE (the sheet's edge, `cageDoorEdges`), and the stations rode the arc, each barrel on its local tangent and lifted along its own local normal. On the Cub's forward edge (the belly corner's curve, the vertical post, the slant up to the window sill) the lower hinge sat on the corner and the upper one on the slant: 147.8 mm off each other's axis and 45 deg apart on the STOL Cub, 57-124 mm on the Jodel and both Cessnas, 31 mm and 4.4 deg on the clamshell's lower half. Several master barrels also dipped 0.2-1.0 mm into the skin (`reports/evidence/DOOR-HINGES/gate_on_master_placement.log`: this branch's gate run on master's placement).
+
+What changed:
+- tools/_cage_hinge.js (surfaceList, the doors): each run (forward/aft cut at the sill as G1105 did, top, bottom, and each half of the clamshell) is fitted with ONE line. It is the longest stretch of the run whose vertices all lie within 5 mm of the chord between its ends: the vertical post on a standing edge, the straight part of a roof or belly edge. Every hinge sits ON that chord with its barrel along it. The lift direction is the mean skin normal over the stretch, made square to the axis (frameOn keeps z on the axis only then). The whole line is lifted as one: the drawn sheet is ray-cast along that normal every 4 cm and across the barrel's width (`sheetRay`), and the line rises by the most any sample needs plus 2 mm. Every barrel clears the skin and none leaves the line. The butt hinges' leaves still probe down to the skin (skinProbe), so a barrel standing a few mm proud keeps its leaves on the skin. `placed[]` now publishes each station's barrel centre and axis (`stations`).
+- THE TWEAK ROWS (in the existing '13 · control hardware' > doors group and in the parts tree, _cage_parts.js; no parallel system). Each applies to every run of every door:
+  - `hgDrOff`: axis offset into the door, m, -0.03..0.12.
+  - `hgDrTilt`: axis tilt about the skin normal, deg, -25..25. + leans the run's far end into the door; the sign is the same on both sides and every edge.
+  - `hgDrSlide`: the hinges slid along the axis, m, ±0.20.
+  - `hgDrInset`: the ends' inset as a fraction of the axis, 0..0.45, where 0 = the old rule max(0.12, hgOut).
+  - All four at 0 give the fitted line, to the nanometre (gated).
+- CERT-SAFE (how): the four rows are named as STATE rows. `^hgDr[A-Z]` is appended to bench.js BENCH_STATE_ROWS and to 76_procure.js PROCURE_STATE_ROWS, so they never reach either fingerprint, at their default or moved, with or without the page defaults. Every file saved before this change lacks the keys, so its stripped spec, and therefore its hash, is byte-identical. Proved two ways:
+  - GATE HINGE hashes every build fixture under bench.js and under the same source with the `hgDr` alternation removed.
+  - `reports/evidence/DOOR-HINGES/fp_master_vs_branch.js` hashes every file in builds/ and tools/fixtures/ under master's bench.js / flight_core.js and this branch's: 27 of 27 the same, bench and procure (`fp_master_vs_branch.log`).
+- tools/fixtures/stol_cub_showcase.json: copied BYTE-IDENTICAL from claude/ready/stol-wing (blob b9b3e4b9). The two branches add the same blob, so they merge clean in either order.
+
+GATE HINGE, a new block "4f2 A DOOR TURNS ABOUT ONE LINE" (DOOR AXIS), run on five aeroplanes: the stock 'piper cub' preset (its clamshell, edge 4, one line a half), the STOL Cub showcase, the Jodel (page default), the 'cessna 172' preset and the Cessna metal fixture.
+- CO-AXIAL: every barrel centre within 1 mm of the line through the first barrel along its own axis, and every barrel within 0.5 deg. Measured 0.000 mm / 0.000 deg on all 12 lines.
+- ON THE SKIN: every barrel centre r + 0.5 .. r + 8 mm off the cage sheet (MQ.triSet signedDist, CAGE_MATS, not the layer's own ray). Measured r + 1.0 .. 2.5 mm.
+- ON ITS EDGE: at the defaults every barrel is within r + 8 mm of the chosen run, and the end barrels are at least 0.15 m apart. Spans: Cub top 0.56 / bottom 0.62, STOL Cub 0.43, Jodel 0.61, both Cessnas 0.33 m.
+- THE TWEAKS, on the STOL Cub:
+  - the rows at 0 reproduce the auto line;
+  - tilt 10 turns each line 10 ± 0.5 deg;
+  - offset 50 mm moves it 50 ± 10 mm aft into the door;
+  - inset 0.3 draws the hinges in;
+  - slide -60 mm stays co-axial;
+  - each tweaked line stays co-axial and clear of the skin (≤ 25 mm proud: a tweaked line crosses a curved panel).
+- CERT-SAFE as above; procureFp too.
+- --selftest probe (g): the master polyline placement (corner + slant) and a barrel 1.2 mm off the line are both caught, and two barrels on a line pass.
+The tolerance 5 mm was measured, not guessed:
+- at 3 mm the Cessnas' curved forward edge leaves only 0.22 m of straight post, and the hinges bunch;
+- at 6 mm and above the STOL Cub's line reaches into the belly corner, and the upper barrel floats 5 mm off the skin;
+- at 4.5 and 5 mm the result is identical on all five aeroplanes.
+
+Stills (cloud, SwiftShader, CLOUD-SHOTS' tools/plane_shot.js from origin/claude/cloud-shots, run from a scratch copy NOT committed here). The copy has one extra view, `mesh:<prefix>/<az>/<el>/<dist>`: the box of the scene meshes named `<prefix>` (the door's moving-leaf mesh `edHinge_door_pilot_P_metal`) and an orbit about it. If CLOUD-SHOTS wants it, it is 15 lines in the view switch. `reports/evidence/DOOR-HINGES/`:
+- `*_close_before_after.jpg` and `*_wide_before_after.jpg`, master d7e181f4e | this branch, for:
+  - the STOL Cub showcase;
+  - the user's Cub (builds/cub_2026-09-20_corrected.json, forward edge);
+  - the same Cub on the clamshell (edge 4).
+- On the STOL Cub and the user's Cub: before, one barrel tilted on the slant up to the sill and one down on the belly corner; after, both on the vertical post, one line.
+- The clamshell's close-up frames the middle of the box spanning its two lines and shows neither. Its wide view shows the two top hinges under the wing root on one line; GATE HINGE measures both halves.
+- `after/stol_cub_showcase_s.jpg`: the side view. `*_plane_shot.log`: the runs. The garage was up in 180 s; each close view took 6-10 min on SwiftShader.
+
+Not done / for A0:
+- the in-page check of the four rows (A0's local page check);
+- the full `--all` battery: in this 4-core container it did 12 of 280 jobs in 2 h and was stopped. Verdicts below are every gate that reads the hinge layer, the door edges, the parts tree or a certificate fingerprint.
+- _cage_access.js (the door handle, "the edge opposite the hinges") reads hgDoorEdge only and is unchanged; GATE FIT holds it.
+Gate verdicts: PASS - HINGE (incl. --selftest), CLIP, FIT, BENCH, PARTS, DESIGN, DEFAULT, PROCURE, SAVE, JOIN (run_gates --only, 689 s). The second set (ACCEPT ENERGY FRAMES FREIGHT KNIFE MEDIA PANEL ROLLANIM STARTER SUBSTEP TECH SKINMAT UISMOKE CAGEFIT JOINPARITY) is running; its verdicts follow in the next entry line.
