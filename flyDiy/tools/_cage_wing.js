@@ -274,6 +274,7 @@ const WING_ITEMS = [
 const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStruts', 'wgStrutZ', 'wgStrutX',   // T2.3: the strut count is the fuselage fan's
                          'wgDx', 'wgDy', 'wgParaH']);
 const w2Key = k => 'w2' + k.slice(2);
+const W2_LO = { w2Span: 2.0, w2Chord: 0.40, w2ChordTip: 0.30 };
 const w2On = P => +P.wingOn && +P.w2On;
 // the first plane's `when`s read wg* keys; the second plane's rows answer
 // with their own values under those names
@@ -291,6 +292,8 @@ const w2Row = it => {
   if (W2_DROP.has(it[0])) return null;
   const out = it.slice();
   out[0] = w2Key(it[0]);
+  // NEW-SHAPES-1: the second plane's size rows reach its own floor (GEN_WING_ENVELOPE.second)
+  if (W2_LO[out[0]] != null) out[2] = W2_LO[out[0]];
   const last = out[out.length - 1];
   const opts = (last && typeof last === 'object' && !Array.isArray(last)) ? last : null;
   const o2 = Object.assign({}, opts || {}, { when: w2When(opts && opts.when) });
@@ -313,10 +316,10 @@ const W2_ITEMS = [
   ['w2Pos', 'position', 0, 3, 1, ['parasol', 'mid wing', 'low wing', 'high wing'], { when: w2On }],
   ['w2ParaH', 'height (cabane)', 0.25, 1.20, 0.01,
    { when: P => w2On(P) && Math.round(P.w2Pos) === 0, dim: 'm' }],
-  ['w2Stagger', 'fore / aft (stagger)', -1.00, 1.00, 0.02, { when: w2On, dim: 'm' }],
-  // the spec's own place.dy (metres, clamped -0.25..0.60 in clampWing —
+  ['w2Stagger', 'fore / aft (stagger)', -2.50, 2.50, 0.02, { when: w2On, dim: 'm' }],
+  // the spec's own place.dy (metres, clamped -1.0..1.5 in clampWing since NEW-SHAPES-1 -
   // the row stops where the physics stops)
-  ['w2Dy', 'up / down', -0.25, 0.60, 0.01, { when: w2On, dim: 'm' }],
+  ['w2Dy', 'up / down', -1.00, 1.50, 0.01, { when: w2On, dim: 'm' }],
   ...WING_ITEMS.map(w2Row).filter(Boolean),
 ];
 // the pair rule on the rows: what the spec would coerce, written back so the

@@ -468,13 +468,14 @@ function cageResolve(S) {
   // boom is a single CC span otherwise, which cannot waist.
   if (CFG.boomMid) {
     const t = CFG.boomMid.t, p = CFG.boomMid.pinch;
+    const pw = CFG.boomMid.pinchW != null ? CFG.boomMid.pinchW : p;   // the plan's own pinch (boomMidPinchW)
     const lp = (a, b) => a + (b - a) * (1 - t);      // 1-t: from aft toward tail
     const sq = y => S.waistY + (y - S.waistY) * p;
     const tWk = taperD.Wk != null ? taperD.Wk : taperD.Ww;
     const lWk = tailDF.Wk != null ? tailDF.Wk : tailDF.Ww;
     add(fullRing('boomMid', zPost + t * S.boom.len, {
-      Ww: lp(taperD.Ww, tailDF.Ww) * p, Wr: lp(taperD.Wr, tailDF.Wr) * p,
-      Wk: lp(tWk, lWk) * p,
+      Ww: lp(taperD.Ww, tailDF.Ww) * pw, Wr: lp(taperD.Wr, tailDF.Wr) * pw,
+      Wk: lp(tWk, lWk) * pw,
       roofY: sq(lp(taperD.roofY, tailDF.roofY)),
       ceilY: sq(lp(taperD.ceilY, tailDF.ceilY)),
       floorY: sq(lp(taperD.floorY, tailDF.floorY)),
@@ -8018,7 +8019,8 @@ function cageSpec(P) {
     aero: { wsLen: P.aeroWsLen, len: P.aeroLen, droop: P.aeroDroop,
             tipW: P.aeroTipW, tipH: P.aeroTipH, pillarW: 0.05,
             round: P.aeroRound != null ? +P.aeroRound : null },
-    boomMid: P.boomMidOn ? { t: P.boomMidT, pinch: P.boomMidPinch } : 0,
+    boomMid: P.boomMidOn ? { t: P.boomMidT, pinch: P.boomMidPinch,
+                             pinchW: P.boomMidPinchW != null ? +P.boomMidPinchW : null } : 0,
     crest: P.crestH > 0 ? { h: P.crestH, at: P.crestAt,
                             loops: Math.max(0, Math.round(P.crestLoops || 0)) }
                         : 0,

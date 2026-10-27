@@ -1904,29 +1904,29 @@ const ARCHETYPES = [
            engFamily: 'inline', engModel: 'DH Gipsy Major', engMount: 'nose',
            gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
            finArch: 'rounded', empennage: 'conv', scheme: 'trim', base: 0xf2c437, trim: 0x1b3a5c },
-    over: { cage: { wgSpan: 8.94, wgChord: 1.37, wgChordTip: 1.37, wgTipX: 0.30,
+    over: { cage: { wgSpan: 8.94, wgChord: 1.37, wgChordTip: 1.37, wgTipX: 0.37,
                     // G3517: the front cockpit under the centre section, the rear one clear of the trailing edge (the
-                    // DH.82A's), the upper plane higher; the wings 0.25 forward hold the margin at 0.30
-                    wgParaH: 0.58, wgDx: 0.8, w2Span: 8.94, w2Chord: 1.37, w2ChordTip: 1.37,
+                    // DH.82A's), the upper plane higher; the planes' station: measured (STEP 1 below)
+                    wgParaH: 0.58, wgDx: 0.35, w2Span: 8.94, w2Chord: 1.37, w2ChordTip: 1.37,
                     w2Pos: 2, w2Stagger: 0.56, wgAilOn: 0, w2AilOn: 1,
                     bpInter: 0, bpWires: 1, bpCabane: 0,
                     ...OPEN_TANDEM,
-                    halfW: 0.52, roofHalfW: 0.42, roofY: 0.72, keelY: -0.58, waistY: 0.22, floorY: -0.32,
+                    halfW: 0.54, roofHalfW: 0.42, roofY: 0.68, keelY: -0.58, waistY: 0.22, floorY: -0.32,
                     // G3519: the boom frame's top and bottom on the line from the rear cockpit to the tail post (the
                     // class's 0.78 / -0.765 stood the taper ring over the deck and under the keel: a hump top and bottom)
-                    aftRoofY: 0.58, aftKeelY: -0.24, taperW: 0.92,   // (the class's 0.78 pinched the plan aft of the rear cockpit)
-                    pilotLen: 0.85, paxLen: 0.85, s1Drop: 0.58,      // (a prop clearance of 0.25 m: FAR 23.925 0.229)
-                    aeroWsLen: 1.1, aeroLen: 0.24, aeroTipW: 0.98, aeroTipH: 0.98, aeroDroop: 0,
+                    aftRoofY: 0.63, aftKeelY: -0.42, taperW: 0.92,   // (the class's 0.78 pinched the plan aft of the rear cockpit)
+                    pilotLen: 1.04, paxLen: 1.06, s1Drop: 0.6,      // (a prop clearance of 0.25 m: FAR 23.925 0.229)
+                    aeroWsLen: 0.59, aeroLen: 0.24, aeroTipW: 0.91, aeroTipH: 0.95, aeroDroop: 0.025,
                     // MEASURED (tools/REF_MATCH.md; the user's DH.82 model, Sketchfab 'Dh82' by manilov.ap, CC-BY-4.0, its
-                    // 8.94 m span x 0.98): a 1.0 m bonnet from the firewall to the prop, the thrust line near its top (the inverted Gipsy),
-                    // the body 2.3 m shorter, its sections station by station; wgDx at the flown envelope's limit (HANDOVER flags it)
-                    boomLen: 2.14, cw_cowlLen: 0.85, cw_taperW: 0.85, cw_taperH: 1, engY: 0.04, frCabTopY: 0.7,
-                    frCabBotY: -0.46, frCabWaistW: 0.5, frCabBotW: 0.48, frPaxTopY: 0.63, frPaxBotY: -0.33,
-                    frPaxWaistW: 0.465, frPaxBotW: 0.44, frBoomWaistW: 0.43, frBoomTopW: 0.34, frBoomBotW: 0.4,
-                    tailRoofY: 0.415, tailKeelY: 0.05, tailHalfW: 0.1, boomMidPinch: 1.25, w2Dy: 0.07,
-                    cw_keelSweep: 0, s1X: 0.69, s1R: 0.22, wgDihedral: 3, w2Dihedral: 4,
-                    // the mains under the bonnet's back, the tail outlines fitted (1 - IoU 0.15 / 0.11)
-                    s1Z: 2.6, s1AxZ: 0.25, finDorsal: 0, finHeight: 0.8, finChord: 0.85, finChordTip: 1.48,
+                    // 8.94 m span x 0.98, its length anchored at the type's 7.29 m; every station aft of the prop's plane): the body 2.3 m
+                    // shorter, its sections station by station
+                    boomLen: 3.36, cw_cowlLen: 0.85, cw_taperW: 0.45, cw_taperH: 0.84, engY: 0.21, frCabTopY: 0.64,
+                    frCabBotY: -0.6, frCabWaistW: 0.525, frCabBotW: 0.5, frPaxTopY: 0.66, frPaxBotY: -0.52,
+                    frPaxWaistW: 0.495, frPaxBotW: 0.47, frBoomWaistW: 0.485, frBoomTopW: 0.38, frBoomBotW: 0.45,
+                    tailRoofY: 0.38, tailKeelY: 0.03, tailHalfW: 0.12, boomMidPinch: 1, w2Dy: 0.07,
+                    cw_keelSweep: 0.04, s1X: 0.69, s1R: 0.22, wgDihedral: 3, w2Dihedral: 4,
+                    // the tail outlines fitted (1 - IoU 0.15 / 0.11); the mains: STEP 3 below
+                    s1Z: 2.08, s1AxZ: -0.29, finDorsal: 0, finHeight: 0.8, finChord: 0.85, finChordTip: 1.48,
                     finSweep: 27.5, finHinge: 0.255, finTipZ: -0.37, finTipY: -0.225, finAftZ: 0.125, finAftY: -0.78,
                     finBaseZ: -0.5, finBaseY: 0.345, finMidY: -0.155, finUY: -0.19, finLEZ: -0.315, finLEY: -0.02,
                     finShoulderZ: 0.285, finShoulderY: -0.03, finTopY: 0.085, finTERoot: 0.17, finTEU: -0.175,
@@ -1936,7 +1936,23 @@ const ARCHETYPES = [
                     stLEY: -0.15, stShoulderZ: 0.445, stShoulderY: -0.08, stTopY: 0.175, stTERoot: 0.005,
                     stTEU: -0.195, stTEMid: -0.2, stSharpTip: 0, stSharpAft: 2.25, stSharpBase: 0,
                     stSharpShoulder: 0.85, stSharpLE: 1.75, stSpan: 1.36, stChord: 1.36, stChordTip: 0.75,
-                    stSweep: 0, stHinge: 0.08 },
+                    stSweep: 0, stHinge: 0.08,
+                    // STEP 1/2 (prop datum, 27 Oct): the wings 0.44 aft and both swept as measured (LE within 1 cm), the keel
+                    // and deck lines straight to the post, the boom full in plan and closing late (its own plan pinch)
+                    w2TipX: 0.415, boomMidPinchW: 1.55,
+                    // the tips by measurement (fit_tips: clipped 0.093 / 0.108 against rounded 0.135 / 0.147; the type's tip rounds
+                    // its trailing corner, a shape the garage does not offer - the closest taken)
+                    wgTip: 1, w2Tip: 1,
+                    // STEP 3, the gear (prop datum): the V from the lower longeron 1.02 aft (the type's front strut) back to its rear
+                    // leg, the wheel exact (1 mm / 4 mm); the split axle, as the type's hinges on a bracket under the belly
+                    s1Root: 1, s1_linkSpread: 1,
+                    // STEP 3, the cowl, in the user's order (27 Oct): waist and sizes fitted to the nose (fitNose); the top squarer,
+                    // the bottom rounder; the barrel narrowed to the type's tapering nose and DROOPED to it (the face 0.21 under the thrust
+                    // line, the inverted Gipsy's); no front inlet (the type's nose cap is closed); engY puts the thrust line back
+                    cw_lidRise: -0.056, cw_faceRise: 0.006, cw_lidMode: 0, cw_sqFrontTop: 0.62, cw_sqFrontBot: 0.8,
+                    cw_apMode: 0,
+                    // the face by eye against the reference's head-on view: a tombstone - round on top, straight sides, flat bottom
+                    cw_lidSqTop: 0.62, cw_lidSqBot: 0.8 },
             // the registration on the rear fuselage's side, clear of the cockpits (the user, 27 Oct)
             spec: { fuel: { litres: 87 },
                     finish: { decals: { regL: 4.00, regC: 0.04, regH: 0.24 } } } } },       // 19 imp gal, the centre-section tank
@@ -1958,40 +1974,47 @@ const ARCHETYPES = [
                     // G3517: the cockpits stand AFT of the upper wing as on the PT-17 (the front opening under its trailing
                     // edge, the rear clear of it - the bench's first picture had the wing over both and the screens
                     // through its skin): a long forward deck (aeroWsLen), the wings 0.15 forward, the upper plane higher
-                    wgDx: 0.45,      // (the planes' station now follows the shorter forward deck: measured below)
-                    wgParaH: 0.48, w2Span: 9.80, w2Chord: 1.52, w2ChordTip: 1.52,
+                    wgDx: 0.55,      // (the planes' station now follows the shorter forward deck: measured below)
+                    wgParaH: 0.44, w2Span: 9.5, w2Chord: 1.52, w2ChordTip: 1.52,
                     w2Pos: 2, w2Stagger: 0.66, wgAilOn: 0, w2AilOn: 1,
                     bpInter: 0, bpWires: 1, bpCabane: 0, cw_propD: 2.5,
+                    // the PT-17's Continental radial runs UNCOWLED (the user, 27 Oct: "remove the cowl, there's a proper
+                    // option for that" - the cowl part's own switch)
+                    cowlOn: 0,
                     ...OPEN_TANDEM,
                     halfW: 0.74, roofHalfW: 0.59, roofY: 0.76, keelY: -0.63, waistY: 0.28, floorY: -0.30,
                     // G3519: the boom frame's top and bottom on the line from the rear cockpit to the tail post (the
                     // class's 0.78 / -0.765 stood the taper ring over the deck and under the keel: a hump top and bottom)
                     aftRoofY: 0.76, aftKeelY: -0.5, taperW: 0.92,   // (the class's 0.78 pinched the plan aft of the rear cockpit)
                     boomMidPinch: 1.2,    // (the class's 0.86 pod pinch sagged the deck and lifted the belly mid-boom)
-                    pilotLen: 1.00, paxLen: 1.10,
+                    pilotLen: 1.19, paxLen: 1.23,
                     // the mains measured (below): the wheel's centre 0.75 m aft of the firewall and 1.24 under the thrust
                     // line on R 0.285 (G3517's 0.80 drop / 2.30 station stood a 0.20 wheel 0.67 m further aft - the
                     // prop strike it cured is re-checked by the flown fixture)
                     s1Drop: 0.69, s1Z: 2.2,
-                    aeroWsLen: 1.05, aeroLen: 0.55, aeroTipW: 0.85, aeroTipH: 0.78, aeroDroop: 0.0,
+                    aeroWsLen: 1.18, aeroLen: 0.55, aeroTipW: 0.78, aeroTipH: 0.72, aeroDroop: 0.0,
                     // MEASURED (tools/REF_MATCH.md; the user's PT-17 model, Sketchfab 'Boeing Stearman PT.17' by helijah,
                     // CC-BY-4.0, its 9.80 m span x 1.002): the body 0.87 m shorter, the planes 0.6 m forward and the upper
                     // 0.3 m lower, the wider oval body, bigger wheels (R 0.285) further out, the oleo legs on the fuselage
                     // side, and the tail outlines fitted (1 - IoU 0.16 / 0.16 against a reference merged by material)
-                    boomLen: 3.62, w2Dy: 0.21, wgDihedral: 0.5, w2Dihedral: 0.5, s1R: 0.285, s1X: 0.905, s1AxZ: 0.17,
+                    boomLen: 3.5, w2Dy: 0.21, wgDihedral: 0.5, w2Dihedral: 0.5, s1R: 0.285, s1X: 0.87, s1AxZ: 0.23,
                     s1Root: 1, frBoomWaistW: 0.65, frBoomTopW: 0.52, frBoomBotW: 0.6, tailRoofY: 0.5,
-                    tailKeelY: -0.15, tailHalfW: 0.04, s1_oleoAng: 60, finDorsal: 0, finKeel: 0, finHeight: 0.97,
+                    tailKeelY: -0.15, tailHalfW: 0.04, s1_oleoAng: 60, finDorsal: 0, finKeel: 1, finHeight: 0.97,
                     finChord: 1.04, finChordTip: 0.57, finSweep: -10, finHinge: 0.205, finTipZ: -0.41,
-                    finTipY: -0.645, finAftZ: -0.1, finAftY: -0.855, finBaseZ: -0.16, finBaseY: -0.15,
-                    finMidY: -0.425, finUY: 0.29, finLEZ: -0.07, finLEY: -0.17, finShoulderZ: 0.5,
-                    finShoulderY: -0.095, finTopY: 0.02, finTERoot: -0.175, finTEU: -0.37, finTEMid: -0.125,
-                    finSharpTip: 0, finSharpAft: 1.5, finSharpBase: 0, finSharpShoulder: 0, finSharpLE: 2.25,
-                    finRootFwd: -0.25, stTipZ: 0.23, stTipY: -0.215, stAftZ: 0.3, stAftY: -0.875, stBaseZ: 0.3,
-                    stBaseY: 0.08, stMidY: -0.8, stUY: -0.14, stRootFwd: 0, stLEZ: -0.635, stLEY: -0.2,
-                    stShoulderZ: 0.29, stShoulderY: 0.28, stTopY: 0.26, stTERoot: 0.055, stTEU: 0.125,
-                    stTEMid: -0.005, stSharpTip: 0, stSharpAft: 0, stSharpBase: 0, stSharpShoulder: 0, stSharpLE: 0,
-                    stSpan: 1.51, stChord: 1.51, stChordTip: 0.73, stSweep: -1, stHinge: 0.205,
-                    stY: 0.54 },     // the tailplane 0.16 m over the thrust line, on the reference's
+                    finTipY: -0.645, finAftZ: -0.1, finAftY: -0.85, finBaseZ: -0.11, finBaseY: 0.41,
+                    finMidY: -0.42, finUY: 0.2, finLEZ: -0.03, finLEY: -0.2, finShoulderZ: 0.5,
+                    finShoulderY: -0.055, finTopY: 0.015, finTERoot: -0.25, finTEU: -0.4, finTEMid: -0.195,
+                    finSharpTip: 0, finSharpAft: 1.05, finSharpBase: 0.2, finSharpShoulder: 0.85, finSharpLE: 1.9,
+                    finRootFwd: -0.2, stTipZ: 0.23, stTipY: -0.495, stAftZ: 0.05, stAftY: -0.66, stBaseZ: 0.29,
+                    stBaseY: 0.19, stMidY: -0.8, stUY: -0.115, stRootFwd: 0, stLEZ: -0.69, stLEY: 0.125,
+                    stShoulderZ: 0.265, stShoulderY: -0.095, stTopY: 0.26, stTERoot: 0.055, stTEU: 0.125,
+                    stTEMid: 0.05, stSharpTip: 0, stSharpAft: 0, stSharpBase: 0.55, stSharpShoulder: 1.6, stSharpLE: 0,
+                    stSpan: 1.51, stChord: 1.57, stChordTip: 0.69, stSweep: -10, stHinge: 0.25,
+                    stY: 0.54,
+                    // re-anchored on the published PT-17 (the user: 'sources prevail'): 7.54 m long, the lower plane 31 ft 2 in
+                    engY: -0.08,
+                    s2Z: 0.5, s2Drop: 0.16,
+                    wgTip: 4 },     // the tailplane 0.16 m over the thrust line, on the reference's
             // the registration on the rear fuselage's side, clear of the cockpits (the user, 27 Oct: "get them out
             // of the cockpit area"): the default 2.10 m aft of the round body's forward datum lands on the cockpits
             spec: { fuel: { litres: 174 }, prop: { D: 2.5, blades: 2 },
@@ -2016,25 +2039,24 @@ const ARCHETYPES = [
            finArch: 'rounded', empennage: 'conv', scheme: 'trim', base: 0x3d5c40, trim: 0xf4f2ea },   // PC10 khaki over clear-doped linen
     over: { cage: { wgSpan: 8.53, wgChord: 1.37, wgChordTip: 1.37, wgTipX: 0, wgDihedral: 0, cw_propD: 2.59,   // the 8 ft 6 in wooden propeller
                     w2Span: 8.53, w2Chord: 1.37, w2ChordTip: 1.37, w2Dihedral: 3,   // the reference measures 2.8 deg; the row steps 0.5 (the F.1 drawings say 5)
-                    w2Pos: 2, w2Stagger: 0.42, wgAilOn: 1, w2AilOn: 1,
+                    w2Pos: 2, w2Stagger: 0.48, wgAilOn: 1, w2AilOn: 1,
                     bpInter: 0, bpWires: 1, bpCabane: 0,
                     ...OPEN_TANDEM, paxCount: 0, paxOpen1: 0, pilotRear: 0,
                     // the upper centre section NOT cut (the user's review)
                     wgCentre: 0,
                     // THE WINGS (reference: upper LE 0.08 m AHEAD of the firewall at 1.19 m over the thrust line, lower LE
                     // 0.41 m aft with its root in the fuselage's bottom line, the gap 1.5 m)
-                    wgDx: 0.37, wgParaH: 0.58, w2Dy: 0.15,   // wgDx: the flown envelope's limit (the LE 0.20 m ahead of the
-                    // physics firewall at most); the reference's LE is 6 cm further fore - HANDOVER flags it, the stagger takes
-                    // the lower plane to its own station
+                    wgDx: 0.4, wgParaH: 0.58, w2Dy: 0.15,   // wgDx: the row's step nearest the reference (the LE 2.6 cm
+                    // aft; the envelope opened 27 Oct no longer holds it); the stagger takes the lower plane to its own station
                     // THE BODY (cage units, x 0.745 = m; the reference station by station: 1.02 m deep and 0.68 m wide at
                     // the cockpit, 1.05 m wide at the cowl, the top 0.61 over the thrust line, the bottom flat 0.41 under it
                     // to the cockpit, then ONE straight taper top and bottom to the tail post 4.50 m aft - the user, 27 Oct:
                     // "keep the continuous line front to back")
                     halfW: 0.67, roofHalfW: 0.55, roofY: 0.945, keelY: -0.425, waistY: 0.22, floorY: -0.25,
-                    pilotLen: 0.94, frCabTopY: 0.945, frCabBotY: -0.425, frCabWaistW: 0.45, frCabTopW: 0.37, frCabBotW: 0.45,
+                    pilotLen: 1.15, frCabTopY: 0.945, frCabBotY: -0.425, frCabWaistW: 0.45, frCabTopW: 0.37, frCabBotW: 0.45,
                     paxLen: 0.54, taperOn: 0,
                     aftRoofY: 0.88, aftKeelY: -0.37, frBoomWaistW: 0.42, frBoomTopW: 0.34, frBoomBotW: 0.42,
-                    boomLen: 4.08, boomMidPinch: 1.25,
+                    boomLen: 3.87, boomMidPinch: 1.25,
                     tailRoofY: 0.405, tailKeelY: -0.05, tailHalfW: 0.06,
                     // THE NOSE: the deck rises behind the cowl into the gun hump (the user's sketch), the front ring meets the
                     // cowl at the top and the sides, the bottom stays flat above the cowl's lower lip, and the sections round
@@ -2077,11 +2099,13 @@ const ARCHETYPES = [
                     // user, 27 Oct: "you can manipulate the suspension anchor point and the wheel separately")
                     // the V on the FUSELAGE (s1Root 1: its feet on the lower longerons, 0.07 and 0.87 m aft of the firewall
                     // - the low-wing rule would bolt it to the lower plane), the wheel then put back on its own spot
-                    s1Root: 1, s1Z: 2.01, s1_linkSpread: 0.81, s1_linkAng: 40,
+                    s1Root: 1, s1Z: 2.01, s1_linkSpread: 0.81, s1_linkAng: 43,
                     s1X: 0.525, s1AxZ: -0.12, s1Drop: 0.70,
                     s1R: 0.35, whProfile: 2, whBulge: 0.85, whRim: 0, whCap: 2,
                     // the cross axle and the X of bracing wires between the two V's (the reference's)
-                    s1Leg: 1, s1_linkVee: 1, s1_linkX: 0, s1_linkPanel: 0, s1_linkAxle: 1, s1_linkAxleX: 1, s1_shockKind: 1 },
+                    s1Leg: 1, s1_linkVee: 1, s1_linkX: 0, s1_linkPanel: 0, s1_linkAxle: 1, s1_linkAxleX: 1, s1_shockKind: 1,
+                    // the tips chosen by tools/ref_match/fit_tips.py (elliptic: the closest the garage has, both planes)
+                    wgTip: 3, w2Tip: 3 },
             spec: { fuel: { litres: 136 } } } },
   { key: 'pittsAlike', kind: 'fiction', name: 'aerobatic biplane', note: 'short-span four-aileron ' +
       'biplane on I struts and wires, spring gear, flat six',

@@ -22,6 +22,10 @@ for(let z=cz0+0.01; z<cz1; z+=0.02){ const pts=segs(z); if(pts.length<20) contin
   for(const e of eng){ if(Math.abs(e[2]-z)>0.01) continue; const a=Math.atan2(e[1]-cy,e[0]-cx), r=Math.hypot(e[0]-cx,e[1]-cy); const k=((Math.floor((a+Math.PI)/(2*Math.PI)*72))%72+72)%72;
     if(bins[k]>1e8) continue; const d=r-bins[k]; if(d>0){ over0++; worst.push([d,z,a*180/Math.PI,e[3],r,bins[k],e[0],e[1],cx,cy]); const nk=e[3]; byName[nk]=Math.max(byName[nk]||0,d);} } }
 worst.sort((a,b)=>b[0]-a[0]);
+// where along the cowl: the worst overshoot per 10 cm of station, with its bearing (90 = the top, -90 the bottom)
+const bySt={}; for(const w of worst){ const k=Math.floor(w[1]*10); if(!bySt[k]||bySt[k][0]<w[0]) bySt[k]=w; }
 console.log('cowl z', cz0.toFixed(3), cz1.toFixed(3), ' engine z', ez0.toFixed(3), ez1.toFixed(3), ' engine ahead of cowl front', (ez1-cz1).toFixed(3));
 console.log('engine verts outside the cowl:', over0, ' worst mm:', worst.slice(0,3).map(w=>(w[0]*1000).toFixed(0)+' @z'+w[1].toFixed(2)+' '+w[2].toFixed(0)+'deg r'+w[4].toFixed(3)+' skin'+w[5].toFixed(3)+' p('+w[6].toFixed(2)+','+w[7].toFixed(2)+') c('+w[8].toFixed(2)+','+w[9].toFixed(2)+')').join(', '));
+if(worst.length) console.log('by station (z, worst mm, bearing):', Object.keys(bySt).sort((a,b)=>a-b).map(k=>
+  (k/10).toFixed(1)+' '+(bySt[k][0]*1000).toFixed(0)+'mm@'+bySt[k][2].toFixed(0)).join(' | '));
 console.log('by part:', Object.entries(byName).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([k,d])=>k+' '+(d*1000).toFixed(0)+'mm').join(', '));

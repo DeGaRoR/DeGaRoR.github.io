@@ -30,7 +30,13 @@ function oursTris(over){ const P=Object.assign({}, S.P, over); let tb; try{ tb=T
 let bx=[Infinity,-Infinity,Infinity,-Infinity]; for(const t of refTris) for(const p of t){bx[0]=Math.min(bx[0],p[0]);bx[1]=Math.max(bx[1],p[0]);bx[2]=Math.min(bx[2],p[1]);bx[3]=Math.max(bx[3],p[1]);}
 const BOX=[bx[0]-0.8, bx[2]-0.6, Math.ceil((bx[1]-bx[0]+1.6)/H), Math.ceil((bx[3]-bx[2]+1.2)/H)];
 const RG=raster(refTris,BOX); let nRef=0; for(const v of RG) nRef+=v;
-function score(over){ const o=oursTris(over); if(!o) return 9; const g=raster(o.tris,BOX); let I=0,U=0; for(let k=0;k<g.length;k++){ if(g[k]&&RG[k]) I++; if(g[k]||RG[k]) U++; } return 1-I/U; }
+// the control surface stays a control surface: the layer's own ctlFrac (the cut's share of the area - what the join
+// flies as elevChord / rudChord) is held inside the flown envelope's 0.15 - 0.65, else an outline can win the IoU by
+// shrinking the elevator to a sliver behind the hinge (the PT-17's first fit: 0.04)
+const CTL=[0.18, 0.62];
+function score(over){ const o=oursTris(over); if(!o) return 9; const g=raster(o.tris,BOX); let I=0,U=0; for(let k=0;k<g.length;k++){ if(g[k]&&RG[k]) I++; if(g[k]||RG[k]) U++; }
+  const c=o.measure&&o.measure.ctlFrac; const pen = c==null ? 0 : (c<CTL[0] ? (CTL[0]-c)*3 : c>CTL[1] ? (c-CTL[1])*3 : 0);
+  return 1-I/U+pen; }
 const pre = PART==='fin' ? 'fin' : 'st';
 const ROWS = PART==='fin' ? [['finHeight',0.5,1.8],['finChord',0.5,1.6],['finChordTip',0.3,1.5],['finSweep',-10,45],['finHinge',0.08,0.45],
   ['finTipZ',-0.6,0.6],['finTipY',-0.8,0.8],['finAftZ',-0.5,0.3],['finAftY',-0.9,0.6],['finBaseZ',-0.5,0.3],['finBaseY',-0.15,0.5],

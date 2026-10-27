@@ -1,16 +1,26 @@
 # REF_MATCH — building an aeroplane card to a reference 3D model
 
-The method the Sopwith Camel card was built with on 27 Oct 2026, written so a new starter aeroplane (an archetype
-card) can be matched to a reference the same way, faster, and through the garage only. The tools are in
-`tools/ref_match/`; the fast picture is `tools/quickshot.js` (`tools/QUICKSHOT.md`).
+The method the Sopwith Camel card was built with on 27 Oct 2026, then run again on the Stearman and the Tiger Moth
+and corrected by the user at every step. It is written so the next starter aeroplane (an archetype card) can be
+matched to a reference the same way, faster, and through the garage only.
+
+**It is a procedure and a tool.** The procedure is this page: what to match, in which order, with which rows. The tool
+is `tools/ref_match/`: one command births a card and prints every number below against the reference
+(`match.sh`), and fitters search the rows of one step at a time (tail outlines, wing tips, the cowl). The fast
+picture is `tools/quickshot.js` (`tools/QUICKSHOT.md`). The tools measure; the order and the judgement are the
+procedure's: a fitter is only ever run on the rows of the step in hand.
 
 **The rule above all: every change is a garage row.** A card is a list of the rows a builder could set by hand. If a
-shape needs something no row offers, stop and flag it (section 6): the garage gets the control, then the card uses it.
+shape needs something no row offers, stop and flag it (section 7): the garage gets the control, then the card uses it.
+
+**Sources prevail over the model.** A Sketchfab model is someone's drawing. Its scale and its proportions come from
+published figures (museum and type data, cited in the reference config), never from the model alone (section 1).
 
 ## 0. What you need
 
 - A reference GLB (Sketchfab exports work; check the licence in the file's `asset.extras` and credit it in the
-  reference config). It is rarely to scale: one known dimension scales it (the span is the safest).
+  reference config).
+- Published dimensions of the type: span (each plane), length, height, chord, track. Two or three sources each.
 - The card to match, in `tools/_cage_design.js` `ARCHETYPES` (start from the nearest existing card).
 - node + python3 with numpy and PIL (both present in the cloud box). No browser.
 
@@ -19,10 +29,11 @@ shape needs something no row offers, stop and flag it (section 6): the garage ge
 ```
 cp <model>.glb tools/ref_match/refs/<key>.glb
 python3 -I tools/ref_match/glb_tris.py tools/ref_match/refs/<key>.glb /tmp/x.npz --list
+python3 -I tools/ref_match/glb_views.py tools/ref_match/refs/<key>.glb /tmp/v      # every node its own colour
 ```
 
-The listing gives every mesh node's box. Pick the nodes for each role and write `tools/ref_match/refs/<key>.json`
-(copy `refs/camel.json`):
+The listing gives every mesh node's box; the views number them. Pick the nodes for each role and write
+`tools/ref_match/refs/<key>.json` (copy `refs/camel.json`):
 
 | role | what it must be | used for |
 |---|---|---|
@@ -31,11 +42,18 @@ The listing gives every mesh node's box. Pick the nodes for each role and write 
 | `fuselage` | the body skin | the profile, station by station |
 | `upper`, `lower` | the planes (a monoplane: `upper` only) | stations, heights, dihedral (sliced) |
 | `fin`, `stab` | fin + rudder, tailplane + elevators | fit_tail.js |
-| `tyre`, `legs` | a main tyre, the main legs | wheel centre / track, the legs' roots |
+| `tyre`, `legs` | a main tyre, the main legs | wheel centre / track, the legs' roots and line |
 
-`scale`: `{ "by": "span", "part": "upper", "metres": 8.53 }`. Check the result with
-`refmatch.py ... --roles /tmp/roles`: it draws the reference with each role in its own colour, which shows a wrong
-config at a glance. When a model is not a clean set of one-part nodes:
+**Scale and anchors (sources prevail).** `scale` sets the whole model by one published dimension, the span:
+`{ "by": "span", "part": "upper", "metres": 8.53 }`. `anchors` then sets each other axis by its own published
+figure, so a model drawn too long or too tall is corrected per axis:
+`"anchors": { "length": { "metres": 7.54, "source": "24 ft 9 in: American Heritage Museum, GlobalAir" } }`
+(`length` = fore/aft extent, `height` = vertical extent; only an attitude-free figure: a three-point height is not a
+flying-attitude height). `sources` lists every figure used and where it came from. refmatch.py prints each anchor's
+factor: a factor far from 1 means the model is out of proportion, and the source wins.
+
+Check the roles with `refmatch.py ... --roles /tmp/roles` (each role its own colour). When a model is not a clean
+set of one-part nodes:
 
 | config key | for | example |
 |---|---|---|
@@ -43,200 +61,275 @@ config at a glance. When a model is not a clean set of one-part nodes:
 | `"align": "wing"` | a model yawed in its file and sitting on three points: span along the upper plane, fore along its chord | the DH.82 |
 | `"align": "pca"` | a model yawed in its file in flying attitude: fore along the fuselage's long axis | |
 | a part `{ "node": ..., "box": {"x"/"y"/"z"/"absx": [lo, hi]} }` | one piece of a node merged by material (the file's units, after axes / align) | the PT-17's planes share one node |
-| a part `{ "node": ..., "fbox": {"aft"/"up"/"absx": [lo, hi]} }` | the same, in the match's own metres (aft of the firewall, above the thrust line) | |
+| a part `{ "node": ..., "fbox": {"aft"/"up"/"absx": [lo, hi]} }` | the same, in the match's own metres | |
 | no `cowl` role | an exposed engine: the firewall is the fuselage's front face | the PT-17 |
 | `"firewall": "cowl-bottom"` | a bonnet whose top panel runs back over the tank: the firewall is the cowl's lower back edge | the DH.82 |
-| `"profile": ["fuselage", "cowl"]` | the outer skin is more than the fuselage role | |
+| `"datum": "prop"` | every station aft of the PROPELLER'S PLANE instead of the firewall, both sides: when the firewall is ambiguous | the DH.82 |
+| `"profile": ["fuselage", "cowl"]` | the outer skin is more than the fuselage role | the DH.82 |
+| `"markers": { "front windscreen": "<node>", ... }` | nodes whose fore/aft extent is printed beside the openings (screens, coaming pads, the deck's start): step 1's landmarks | the DH.82 |
+| `"exhaust": "port"` | an exhaust pipe down one side: the cowl tables read the starboard half | the DH.82 |
 
-`python3 -I tools/ref_match/glb_views.py <glb> /tmp/v --axes ...` draws a model with every node its own colour (the
-legend numbers them): this is how merged nodes are identified.
+**The datum matters more than anything else.** Every station is measured from it; a wrong one shifts or compresses
+the whole body. The DH.82's first pass took the bonnet's back as the firewall, read a body 0.8 m short, and was
+rebuilt wrong from the start (the user: "you failed at the first step"). When the cowl's back edge is not a clean
+plane, use `"datum": "prop"` and check it against two markers (the windscreens).
 
 ## 2. The loop
 
 ```
-node tools/ref_match/dump_build.js --key <key> /tmp/o --save /tmp/born.json   # birth the card as the shed does
-python3 -I tools/ref_match/refmatch.py tools/ref_match/refs/<key>.json /tmp/o --png /tmp/cmp --tail /tmp/tail.json
+tools/ref_match/match.sh <key>                         # the card as the shed births it, everything measured
+tools/ref_match/match.sh <key> '{"row": value}'        # a row tried without editing the card
 ```
 
-`refmatch.py` prints the headline table (ours / ref / difference), the fuselage profile at 16 stations, the wings
-sliced across the span and the gear, and writes `/tmp/cmp_{side,top,front}.png` (ours grey/red, the reference green,
-aligned on the firewall and the thrust line). Change rows in the card, run again. A row can be tried without editing
-the card: `dump_build.js /tmp/born.json /tmp/o --over '{"row": value}'` (and the same `--over` on quickshot.js for a
-shaded picture). Each loop is ~10 s.
+`match.sh` births the card (`dump_build.js`, the shed's own path), runs `refmatch.py` and `cowl_sections.py` and
+writes `/tmp/rm_<key>_{side,top,front}.png` (ours grey/red, the reference green, aligned on the datum and the thrust
+line) and the born spec `/tmp/rm_<key>_born.json` for the fitters. Change rows in the card
+(`tools/_cage_design.js`), run again; ~15 s a loop. refmatch.py prints:
+- the headline: cowl, body, tail post, wings, gear, fin, stab, ours / ref / difference;
+- the fuselage profile at 16 stations (top, bottom, half-width);
+- STEP 1: the cockpit openings (holes in the top skin, fore and aft edges) beside the markers, and the nose, fine;
+- STEP 2: each plane's planform, 1 - IoU from above;
+- the wings sliced across the span (chord-line height, LE, TE), the dihedral;
+- the main gear: the wheel's centre, track and radius, the legs' roots.
 
-Helpers:
-- `node tools/ref_match/rings.js /tmp/born.json [over]`: the cage's control rings, nose to tail, which ring a frame
-  row moved (cage units).
-- `node tools/ref_match/cowl_clip.js /tmp/born.json [over]`: the engine against the cowl; `0` vertices outside = fits.
-- `node tools/ref_match/fit_tail.js /tmp/born.json /tmp/tail.json fin|stab /tmp/fit.json [startJSON]`: fits the
-  fin / stab outline rows to the reference (1 - IoU, ~7 s) and writes `/tmp/fit.png`. **Round each value to its row's
-  step** before the card takes it (0.005 for the corner rows, 0.01 macro, 0.5 deg sweep, 0.05 sharpness), then re-run
-  the fit from the card to confirm.
+The tools (each prints its own usage at the top of the file):
 
-## 3. The checkpoints, in order (each one before the next)
+| tool | does | step |
+|---|---|---|
+| `cowl_sections.py <ref.json> <prefix> [a0 a1 step] [--starboard]` | the cowl fitting table: waist, top, bottom, half-width, roundness top and bottom, station by station; flags an INVERTED CONE | 3, section 4 |
+| `fit_cowl.py <ref.json> --key K <prefix> '{"row":[lo,hi,step]}' --over '{...}'` | searches the rows of ONE cowl step (coordinate search) against that table and the body aft (which pins the thrust line) | 3, section 4 |
+| `fit_tips.py <ref.json> <born.json> <prefix> [upper\|lower\|both]` | builds every tip type the garage offers and scores each against the reference's outer 35 % planform: the tip is chosen by measurement | 2 |
+| `fit_tail.js <born.json> <tail.json> fin\|stab <out.json>` | fits the fin / stab outline rows (1 - IoU at 1 cm), the control surface held at 18-62 % of the area | 3 |
+| `leg_line.py <ref.json> <prefix>` | the main legs seen from the front: root, foot and angle from vertical, for each | 3 |
+| `cowl_clip.js <born.json> [over]` | the engine against its cowl: `0` vertices outside = fits | 3 |
+| `rings.js <born.json> [over]` | the cage's control rings nose to tail: which ring a frame row moved | 1 |
+| `dump_build.js <build\|--key K> <prefix> [--over] [--save born.json]` | the birth and the triangle dump everything above reads | all |
 
-Work front to back. A later checkpoint never moves an earlier one's rows without re-checking it.
+**Round each fitted value to its row's step** before the card takes it (0.005 the corner rows, 0.01 macro, 0.5 deg
+sweep, 0.05 sharpness, 0.05 `wgDx`, 0.02 `w2Stagger`), then measure again from the card.
 
-| # | checkpoint | done when | the rows |
-|---|---|---|---|
-| C0 | scale and frames | the span matches; the cowl back and hub found | ref config |
-| C1 | cowl and engine | cowl diameter / length / hang within ~5 cm; `cowl_clip` 0 outside | `fitNose` (0 free when the cowl is bigger than the nose), `cw_aftW/H`, `cw_deckH/keelH/waist` (hang it), `cw_taperW/H` 1 (one diameter), `cw_cowlLen`; the engine's `eng_mountGap` **in the engine preset** (a birth re-applies the preset), `engY` |
-| C2 | body sections | profile table within ~3 cm, top, bottom and half-width | reference section (`roofY keelY halfW roofHalfW waistY floorY`), the front (`aeroWsLen aeroLen aeroTipW aeroTipH aeroDroop aeroRound`), the frames (`frCab*`, `frPax*`, `aftRoofY aftKeelY frBoom*`, `tail*`), `boomMidPinch`, `taperOn` |
-| C3 | length | tail post within 1 cm | `pilotLen paxLen boomLen` |
-| C4 | wings | each plane's LE / TE / chord line within ~2 cm, dihedral to the row's step | `wgDx wgParaH`, `w2Stagger w2Dy`, `wgDihedral w2Dihedral`; the two planes' planform rows identical unless the type differs |
-| C5 | gear | the wheel's centre exact, then the legs' roots | the wheel: `s1X s1AxZ s1Drop s1R`; the roots: `s1Root s1Z s1_linkSpread s1_linkAng` (the anchor and the wheel are separate) |
-| C6 | tail | fin and stab 1 - IoU < 0.08 each; stab height | fit_tail rows; the card states `finHeight` / `stSpan`, so the birth's area seed keeps them; `stY` |
-| C7 | look | the user's eye on quickshot `q`, `side`, `front` | whatever the picture says; then back to the checkpoint that owns the row |
-| C8 | garage-only audit | every changed key is a panel row; every gap flagged | section 6 |
+## 3. The order (the user's): proportions, then the plan, then the details
 
-**Continuity** (the user, 27 Oct: "keep the continuous line front to back", "as little exceptions as possible"):
-prefer the reference section and the frames to carry the shape; avoid a frame deviation that only one ring takes.
-A cockpit with no passenger bay: its rear ring takes BOTH the cabin's and the passenger frame's deviations (by
-design), so set `taperOn: 0` and let the boom frame carry the taper, or the boom's front pinches.
+Each step is finished before the next one starts; a later step never moves an earlier step's rows without
+re-measuring it.
 
-## 4. Units and frames
+**Step 1 - the side view's proportions.** The sections' lengths and the big lines, before any part:
+- the cockpit openings (fore and aft edges) against the markers;
+- the nose: where the body's front is, and its section ring by ring (the fuselage nose, NOT the cowl);
+- the body sections' lengths: nose, cabin, passenger bay, boom; the tail post;
+- the deck line and the keel line, straight where the type's are straight;
+- the wings' stations and heights (each plane's LE, TE, chord line), their sweep.
 
-- Cage rows are CAGE UNITS: metres = value x `planeScale` (the class sets it; the Camel's 0.745). Lengths
-  (`pilotLen`, `boomLen`, `aeroWsLen`) are cage units too. Rows with `dim: 'm'` in their page definition
-  (`w2Stagger`, `w2Dy`, `engY`, `s1AxZ`, ...) are metres.
+| what | done when | the rows |
+|---|---|---|
+| scale, datum | span and anchors match the sources; the datum checked on two markers | ref config |
+| openings | each cockpit's fore and aft edge within ~3 cm | `aeroWsLen pilotLen paxLen` |
+| tail post | within 1 cm | `boomLen` |
+| deck and keel | profile top and bottom within ~2 cm, station by station | the reference section (`roofY keelY waistY floorY`), frames (`frCab* frPax* aftRoofY aftKeelY tail*`), `boomMidPinch` |
+| fuselage nose | the body's front sections within ~2 cm | `aeroTipW aeroTipH aeroDroop aeroRound`, `aeroLen` |
+| wings | each LE / TE within ~2 cm, chord line within ~3 cm | `wgDx wgParaH wgTipX`, `w2Stagger w2Dy w2TipX`, dihedral |
+
+**Step 2 - the same, seen from above.** Plan widths of the body station by station; the planforms (1 - IoU); the tips
+(`fit_tips.py`, `wgTip` / `w2Tip`: the user, "pick closest" when no type matches exactly); the tailplane's span.
+Rows: the frames' half-widths (`halfW roofHalfW frCab*W frPax*W frBoom*W tailHalfW`), `boomMidPinchW` (the plan's own
+pinch), the planform rows.
+
+**Step 3 - only then the parts.** The cowl (section 4), the gear (the wheel exact first: `s1X s1AxZ s1Drop s1R`;
+then the legs' roots, separately: `s1Root s1Z s1_linkSpread s1_linkAng`; the legs' angle from the front by the
+anchors, not by eye: `leg_line.py`), the tailwheel's station, the keel extension under the tail (`finKeel`), the
+tail outlines (`fit_tail.js`, the card states `finHeight` / `stSpan`), `stY`, the engine against the cowl
+(`cowl_clip.js`).
+
+**Then the user's eye.** quickshot `q`, `side`, `front`; each remark is answered in the step that owns the row.
+**Then the garage-only audit**: every changed key is a panel row; every gap flagged (section 7).
+
+**Continuity** (the user: "keep the continuous line front to back", "as little exceptions as possible"): prefer the
+reference section and the frames to carry the shape; avoid a frame deviation that only one ring takes. A cockpit
+with no passenger bay: its rear ring takes BOTH the cabin's and the passenger frame's deviations (by design), so set
+`taperOn: 0` and let the boom frame carry the taper, or the boom's front pinches.
+
+## 4. Fitting a cowl (the user's rule)
+
+A cowl is fitted to the fuselage's nose, so **the fuselage's nose is right first** (step 1): a cowl fitted to a
+wrong nose is wrong twice. Then, in this order, each step measured with `cowl_sections.py` (and searched, when it
+helps, with `fit_cowl.py` on that step's rows only):
+
+1. **The waist line first.** The cowl's widest line meets the body's widest line at the firewall.
+   `cw_waist` (`fitNose 1` fits it to the body's front ring; a free cowl, `fitNose 0`, sets it).
+2. **The top and bottom global sizes** against the fuselage's nose: matched, or different on purpose. A cowl usually
+   matches the body on top and on the sides and is bigger at the bottom (the exhaust goes there), so its bottom hangs
+   lower than the body's. `cw_aftW cw_aftH cw_deckH cw_keelH` (`fitNose 1` = the body's own; `fitNose 0` to let the
+   cowl be bigger than the nose: the Camel's, "in reality, they don't fit in size").
+3. **The roundness of everything**: the section at the firewall, at the barrel end, at the nose ring, top and bottom
+   apart. `cw_sqAftTop cw_sqAftBot cw_sqFrontTop cw_sqFrontBot cw_lidSqTop cw_lidSqBot` (0 diamond, 0.5 round, 1
+   square); the table's `rT` / `rB` (a box reads 1.00, an ellipse 0.62).
+4. **The front faces and the slope**: how the cowl narrows to its face, and whether it goes up or down to the prop.
+   `cw_taperW cw_taperH` (the barrel end's size), `cw_lidLen cw_lidRound cw_lidShoulder cw_lidMode cw_lidR` (the nose
+   bowl and ring), and THE DROOP: `cw_lidRise` (the axis, firewall to barrel end) and `cw_faceRise` (barrel end to
+   nose ring); `cw_deckSweep cw_keelSweep cw_waistSweep` (where the lines bend). A nose that falls to the prop (the
+   DH.82's, the inverted engine) takes a lot of droop.
+5. **Never the inverted cone.** A cowl is never wider or taller at its front than at its back: that means the nose
+   section is the wrong size, or the cowl is bigger than the body where it should not be. `cowl_sections.py` flags
+   it. (The Stearman's first cowl was one: the user's red flag.)
+6. **Then the apertures**, matched to the reference's face: `cw_apMode cw_apW cw_apH cw_apSq cw_apOffX cw_apOffY`
+   (and the pair, the scoop).
+7. **Then, slightly, the engine or the cowl alone**: `engY` moves the engine (the thrust line) and not the cowl;
+   `eng_mountGap` its stand-off (in the engine's preset: a birth re-applies it). The droop moves both.
+
+**The coupling to know.** The engine sits on the cowl's nose axis, plus `engY`. Every row that moves the nose ring
+(the droop, `aeroDroop`, `roofY` through the body's front) moves the thrust line with it, and since every height is
+measured from the thrust line the whole aeroplane then reads as moved. So the body aft of the cockpits is the check
+of every cowl step: if it moved, put the thrust line back with `engY`, not with the body's rows. `fit_cowl.py` scores
+the body aft for exactly this reason.
+
+**No cowl** (an exposed engine, the PT-17's radial): `cowlOn 0`, the proper option; never a cowl shrunk to nothing.
+
+## 5. Units and frames
+
+- Cage rows are CAGE UNITS: metres = value x `planeScale` (the class sets it: 0.745 for these three). Lengths
+  (`pilotLen`, `boomLen`), the frames, `s1Z`, `s1_linkSpread` are cage units. Rows with `dim: 'm'` in their page
+  definition (`w2Stagger`, `w2Dy`, `engY`, `s1AxZ`, `wgTipX`, ...) are metres; `aeroWsLen` reads as metres too.
+- Signs: `wgDx` + = the wings FORE (0.05 a step); `s1AxZ` + = the axle fore; `s1Z` + = the legs' station fore.
 - The physics FIREWALL datum (where the flown engine and the wing's `xLE` are measured from) is NOT the cowl's back
-  face on a round body: it is the forward section's first ring (0.18 m aft of the face on the Camel).
-- The flown envelope clamps the upper wing's LE to 0.20 m ahead of that datum (`GEN_WING_ENVELOPE.xLE`): the wing
-  layer writes the clamped value back into `wgDx` ("held at"). Read the row back after a birth.
+  face on a round body: it is the forward section's first ring.
+- The flown envelope (`GEN_WING_ENVELOPE`, `src/core/60_gen_spec.js`) clamps what the join flies and writes clamped
+  values back into the rows ("held at"). Opened on 27 Oct (the user: "we should freely set both wings sizes"): the LE
+  up to 3.0 m ahead of the datum, stagger +-2.5 m, the second plane from 2 m span / 0.40 m chord. Still read a row
+  back after a birth.
+- `roofY` (the reference section) scales the rings fore and aft and moves the nose ring, so it moves the thrust line
+  too (section 4): after it, re-check the bottom line aft and correct with `engY` if the whole body moved.
 
-## 5. Pitfalls met (each cost an iteration)
+## 6. Pitfalls met (each cost an iteration)
 
 1. Vertex-binned profiles miss long faces: slice triangles (refmatch.py does).
 2. Mean vertex height of a wing is biased by the aerofoil: slice at stations.
-3. Align overlays on the FIREWALL, not the cowl front: cowls differ in length.
-4. A birth's engine preset overwrites the engine rows a card sets: put the engine's own geometry in its preset.
-5. A birth's cowl fit (radial style) overwrites the cowl section: a free cowl (`fitNose 0`) keeps its size and
-   vertical section rows (since 27 Oct).
-6. The birth's tail seed writes `finHeight = finChord` (one number): a card stating `finHeight` / `stSpan` keeps
-   its own (since 27 Oct).
-7. Low-wing rule: a gear leg roots on any wing under the body within 0.6 m of its station. A biplane's V on the
-   fuselage needs `s1Root: 1` (since 27 Oct).
-8. A row change that "does nothing" is usually held or overwritten: dump the born spec (`--save`) and read it.
+3. Align overlays on the datum, not the cowl front: cowls differ in length.
+4. A wrong datum compresses or stretches the whole body (the DH.82's first pass): `"datum": "prop"` + markers.
+5. A birth's engine preset overwrites the engine rows a card sets: put the engine's own geometry in its preset.
+6. A birth's cowl fit (radial style) overwrites the cowl section: a free cowl (`fitNose 0`) keeps its size and
+   vertical section rows.
+7. The birth's tail seed writes `finHeight = finChord` (one number): a card stating `finHeight` / `stSpan` keeps
+   its own.
+8. Low-wing rule: a gear leg roots on any wing under the body within 0.6 m of its station. A biplane's V on the
+   fuselage needs `s1Root: 1`.
+9. A row change that "does nothing" is usually held or overwritten: dump the born spec (`--save`) and read it.
+10. A tail outline fit can win its IoU by shrinking the control surface to a sliver (the PT-17's elevator, 4 %):
+    `fit_tail.js` holds the control fraction at 18-62 %.
+11. A model with no deck skin over the cockpits (the DH.82's) reads its top as the floor there: read the deck either
+    side of the openings.
+12. An exhaust pipe down one side reads as the cowl's width: `"exhaust": "port"`.
+13. A row's effect elsewhere (section 4's coupling): after any front row, check the body aft.
 
-## 6. Garage gaps found (flag them; the garage gets the control)
+## 7. Garage gaps found (flag them; the garage gets the control)
 
 | gap | status |
 |---|---|
 | the round body's front had no bottom roundness of its own | added: `aeroRound` ("front roundness (bottom)") |
 | a gear leg could not root on the fuselage under a low plane | added: `s1Root` / `s2Root` ("legs root on") |
 | the cross axle had no bracing | added: `s1_linkAxleX` ("cross-bracing wires (X)") |
-| the upper wing's LE cannot go more than 0.20 m ahead of the physics firewall | OPEN: the Camel's is 6 cm further fore; an envelope or datum change for the user |
-| the second wing's placement freedom, and selecting each wing on its own in the garage (the user, 27 Oct) | OPEN: a garage UI task |
-| the Moth's upper LE is 0.52 m ahead of the firewall (the envelope's limit is 0.20) | OPEN: same envelope as above |
-| a leg cannot root ahead of the body's face (the Moth's front legs on the engine bearers) | OPEN |
-| the prop check's body test runs past the body's end | OPEN: a check fix |
+| the boom's pinch could not differ in plan and in side view | added: `boomMidPinchW` ("pod pinch (plan)") |
+| the wing envelope: the upper LE held 0.20 m ahead of the datum, the second plane's size and placement bound | opened (the user, 27 Oct) |
+| selecting each wing on its own in the garage (the user, 27 Oct) | OPEN: a garage UI task |
+| no tip rounded on its trailing corner only (the DH.82's, the PT-17's): the tip types round the leading corner or both | OPEN: the closest taken by measurement |
+| a leg cannot root ahead of the body's face (the DH.82's front legs on the engine bearers) | OPEN |
+| the DH.82's split axle hinges on a bracket under the belly centreline: ours is the split axle with its shock strut, or one straight bar | OPEN: the closest taken |
+| an inverted in-line's induction is drawn on top of the crankcase only (the DH.82's bonnet has no room for it) | OPEN: an induction-side row on the engine page |
+| the cowl's front section has no waist of its own (the DH.82's tombstone face, widest at the thrust line) | OPEN: a nose-ring waist row |
+| the prop check's body test samples past the body's end ("through the body" on a deep bonnet) | OPEN: a check fix |
 
-## 7. The Camel log (27 Oct 2026), checkpoint by checkpoint
+## 8. The Camel log (27 Oct 2026)
 
 Reference: `refs/camel.glb`, Sketchfab "Sopwith" by stealth86, CC-BY-4.0, scaled to the 8.53 m span (x 0.01325).
-Final numbers: `refmatch.py` on `--key camel` (section 2). Every key below is in the card.
+Final numbers: `match.sh camel`. Every key below is in the card.
 
 **Before the model (the user's photographs, sketches and blueprints).**
 - `aeroNose` round body (OPEN_TANDEM), one open cockpit (`paxCount 0`, `pilotRear 0`), `wgCentre 0` (the user: not
   cut).
 - The Clerget 9B engine added to the catalogue (registry, drive, tech, join, the engine bench's preset).
-- `finDorsal 0`, the tail areas from the F.1's data, later replaced by the outline fit (C6).
-- Old wheels: `s1R 0.35 whProfile 2 whBulge 0.85 whRim 0 whCap 2`; the cross axle `s1_linkAxle 1`, bungee.
+- `finDorsal 0`; old wheels: `s1R 0.35 whProfile 2 whBulge 0.85 whRim 0 whCap 2`; the cross axle `s1_linkAxle 1`.
 
-**C1 cowl and engine.** The reference cowl is 1.06 m across and 0.38 m long, round about the thrust line; it laps the
-nose's top and sides and hangs below its bottom.
-- `fitNose 0` (free: bigger than the nose, the user: "in reality, they don't fit in size").
-- `cw_aftW/aftH 0.555` (1.11 m: the Clerget's heads need 1.06 + clearance).
-- `cw_deckH 0.90 cw_keelH 1.10 cw_waist -0.10` (round about the thrust line, 6 cm under the face's centre).
-- `cw_taperW/H 1.0` (the user: "the cowl does not extend in diameter fore"), `cw_cowlLen 0.34`.
-- `engY -0.06`; the Clerget preset `mountGap 0.40` (the engine was ahead of the cowl: the user caught it).
-- `cowl_clip`: 0 vertices outside.
+**Step 1.**
+- Cockpit opening 0.72-1.24 aft, exact. `pilotLen 1.15 paxLen 0.54 taperOn 0`; tail post 4.50 (ref 4.50).
+- Reference section `halfW 0.67 roofHalfW 0.55 roofY 0.945 keelY -0.425 waistY 0.22 floorY -0.25`; boom
+  `aftRoofY 0.88 aftKeelY -0.37 frBoom* boomMidPinch 1.25 boomLen 3.87`; tail `tailRoofY 0.405 tailKeelY -0.05
+  tailHalfW 0.06`. Profile within 3 cm at every station.
+- Front: `aeroWsLen 0.50 aeroLen 0.24 aeroTipW 1.04 aeroTipH 0.92 aeroDroop 0.065 aeroRound 0.5`. An earlier
+  `aeroTipW 1.20` plus windscreen-frame widening read as a trumpet; the user: "a little ugly ... as little
+  exceptions as possible". Removed.
+- Wings: `wgDx 0.42 wgParaH 0.58 w2Stagger 0.48 w2Dy 0.15 w2Dihedral 3`: both planes within 3 cm. The two planes'
+  planform rows identical (the user: "both wings should perfectly match").
 
-**C2 body.** Reference: 1.02 m deep and 0.68 m wide at the cockpit, 1.05 m wide at the cowl, the top 0.61 over the
-thrust line, the bottom flat 0.41 under it to the cockpit, then one straight taper to the tail post.
-- Reference section: `halfW 0.67 roofHalfW 0.55 roofY 0.945 keelY -0.425 waistY 0.22 floorY -0.25`.
-- Front: `aeroWsLen 0.50 aeroLen 0.24 aeroTipW 1.04 aeroTipH 0.92 aeroDroop 0.065 aeroRound 0.5`. The deck rises
-  behind the cowl into the hump; the front rounds off. An earlier `aeroTipW 1.20` plus windscreen-frame widening read
-  as a trumpet; the user: "a little ugly ... as little exceptions as possible". Removed.
-- Cockpit: `pilotLen 0.94 frCabTopY 0.945 frCabBotY -0.425 frCabWaistW 0.45 frCabTopW 0.37 frCabBotW 0.45`.
-- `paxLen 0.54 taperOn 0` (the pinch behind the cockpit, section 3).
-- Boom: `aftRoofY 0.88 aftKeelY -0.37 frBoomWaistW 0.42 frBoomTopW 0.34 frBoomBotW 0.42 boomMidPinch 1.25`.
-- Tail: `tailRoofY 0.405 tailKeelY -0.05 tailHalfW 0.06`.
-- Profile: within 3 cm at every station.
+**Step 2.** Tips by `fit_tips.py`: elliptic (`wgTip 3 w2Tip 3`) - the user: "choose other wingtip types".
 
-**C3 length.** `boomLen 4.08`: tail post 4.50 aft (ref 4.50).
-
-**C4 wings.** Reference: upper LE 0.08 ahead of the firewall at 1.18 over the thrust line; lower LE 0.41 aft at
--0.27; dihedral 0 / 2.8 deg.
-- `wgParaH 0.58` (upper chord line +0.003).
-- `wgDx 0.37`: held by the envelope (section 4); the upper LE sits 6 cm aft of the reference (flagged).
-- `w2Stagger 0.42`: the lower plane on its own station (-0.009). `w2Dy 0.15` (+0.006).
-- `w2Dihedral 3` (the reference's 2.8; the row steps 0.5). The two planes' planform rows identical (the user: "both
-  wings should perfectly match").
-
-**C5 gear.** Reference: the wheel's centre 0.348 aft, 1.107 under the thrust line, track 2 x 0.61; the V's feet on
-the lower longerons 0.07 and 0.87 aft.
-- Wheel: `s1X 0.525 s1AxZ -0.12 s1Drop 0.70` (within 2 cm; the height exact).
-- Roots: `s1Root 1 s1Z 2.01 s1_linkSpread 0.81 s1_linkAng 40` (0.07 / 0.88 aft).
-- `s1_linkAxleX 1`: the reference's X of bracing wires between the V's.
-
-**C6 tail.** `fit_tail.js`, rounded to the steps:
-- fin 1 - IoU 0.070, stab 0.063.
-- Drawn areas: fin + rudder 0.70 m2 (the F.1's 0.74), tailplane + elevators 2.22 m2 (2.28).
-- `stY 0.535`: the stab 0.236 over the thrust line (ref 0.236).
-- The rows: the card's `fin*` and `st*` blocks.
-
-**C7 the user's eye.** Rounds of review on quickshot pictures, each answered in the checkpoint that owns the row: the
-hump, the cowl that does not flare, the engine inside the cowl, the continuous line front to back, the nose without
-exceptions, the X bracing.
+**Step 3.**
+- Cowl: 1.06 m across, 0.38 m long, round about the thrust line, lapping the nose's top and sides and hanging below
+  its bottom. `fitNose 0`, `cw_aftW/aftH 0.555`, `cw_deckH 0.90 cw_keelH 1.10 cw_waist -0.10`, `cw_taperW/H 1.0`
+  (the user: "the cowl does not extend in diameter fore"), `cw_cowlLen 0.34`; `engY -0.06`, the Clerget preset
+  `mountGap 0.40` (the engine was ahead of the cowl: the user caught it); `cowl_clip` 0 outside.
+- Gear: the wheel first, `s1X 0.525 s1AxZ -0.12 s1Drop 0.70`; then the roots, `s1Root 1 s1Z 2.01 s1_linkSpread
+  0.81`; the legs' angle from the front set by the anchor (the user: "get the angle by tuning the anchors"):
+  `s1_linkAng 43` - 17.8 deg against the reference's 18.7, the root 0.312 out (0.311). `s1_linkAxleX 1`: the X of
+  bracing wires.
+- Tail: fin 1 - IoU 0.070, stab 0.063; `stY 0.535`.
 
 **Livery.** The B6313-style yellow / dark-grey bands the user chose: see the card's `finish` (when done).
 
-## 8. Validation on two more references (27 Oct 2026)
+## 9. The Stearman and the Tiger Moth (27 Oct 2026)
 
-The same procedure, run on the Stearman and Tiger Moth cards with the user's PT-17 and DH.82 models. Both cards
-had been drawn from photographs and type data, not measured, and the method found what that left behind: both bodies
-much too long.
+The same procedure on the Stearman and Tiger Moth cards with the user's PT-17 and DH.82 models. Both cards had been
+drawn from photographs and type data, not measured, and the method found what that left behind: both bodies much too
+long, the planes far aft.
 
 **Stearman** (`refs/stearman.json`; Sketchfab "Boeing Stearman PT.17" by helijah, CC-BY-4.0; merged by material,
-axes remapped). Found:
-- the body 0.87 m too long;
-- the planes 0.6 m aft and the upper one 0.3 m high;
-- the wheels 0.65 m aft and too small;
-- the tail much too big.
-
-Five passes (the card's `MEASURED` block holds every row):
-- `aeroWsLen 1.05 boomLen 3.62` (tail post within 3 mm).
-- `wgParaH 0.48 w2Dy 0.21 w2Stagger 0.66`, dihedral 0.5 / 0.5 (planes within 3 cm).
-- The wider oval body: `halfW 0.74 roofHalfW 0.59 roofY 0.76 keelY -0.63`, the boom and tail frames, `aeroTipW 0.85
-  aeroTipH 0.78`.
-- Wheel: `s1R 0.285 s1X 0.905 s1Drop 0.69 s1AxZ 0.17`, exact.
-- Legs: `s1Root 1 s1Z 2.2 s1_oleoAng 60`, the oleo legs on the fuselage side.
-- Tail: `finDorsal 0 finKeel 0` and the fitted rows (1 - IoU 0.16 / 0.16: the model merges wires and horns into the
-  tail), `stY 0.54`.
-- Open for the user:
-  - the PT-17's radial is uncowled and the card still wears the radial cowl;
-  - the model's body is 1.1 m wide.
+axes remapped). Re-anchored on the sources (the user: "I don't trust the model more than that, so sources
+prevail"): span 9.80 / 9.50, chord 1.524, length 7.54, height 2.79, tread 1.937 (American Heritage Museum,
+GlobalAir, Planes of Fame, Pima, the National Stearman Fly-In, Dave's Warbirds, skytamer).
+- The cowl removed (`cowlOn 0`, "there's a proper option for that"): the PT-17's radial is exposed. Its first cowl
+  was an INVERTED CONE (the user's red flag, section 4).
+- Step 1: openings 1.46-2.08 (exact) and 2.42-3.06 (ref 2.38-3.02); `aeroWsLen 1.18 pilotLen 1.19 paxLen 1.23
+  boomLen 3.50`; `wgDx 0.55 wgParaH 0.44 w2Span 9.50`; the nose ring `aeroTipW 0.78 aeroTipH 0.72`.
+- Step 2: tip `wgTip 4` (hoerner, the closest; the user: "easy on the stearman tip ... pick closest").
+- Step 3: the wheel exact (`s1X 0.87 s1AxZ 0.23`); the tailwheel at 6.334 aft (`s2Z 0.50 s2Drop 0.16`); the keel
+  extension under the tail (`finKeel 1`, "the game can model that"); the fin refitted (1 - IoU 0.147) and the stab
+  with the control-fraction hold; `stY 0.54`.
+- Open: no published fuselage width; the model's 1.1 m is kept and flagged.
 
 **Tiger Moth** (`refs/moth.json`; Sketchfab "Dh82" by manilov.ap, CC-BY-4.0; yawed and on three points, aligned on
-the upper wing; bonnet in panels, `cowl-bottom` firewall). Found:
-- the body 2.3 m too long;
-- the planes 1.6 m aft;
-- a 0.58 m cowl on a 1.8 m nose cone where the type has a 1 m bonnet.
-
-Four passes:
-- The bonnet: `aeroWsLen 1.1 aeroLen 0.24 aeroTipW/H 0.98`, `cw_cowlLen 0.85 cw_taperW 0.85 cw_taperH 1.0
-  cw_keelSweep 0`, `engY 0.04` (the thrust line near its top; 0 engine vertices outside).
-- The body's sections station by station.
-- The tail post exact.
-- The wheel exact (`s1Z 2.6 s1AxZ 0.25 s1Drop 0.58 s1X 0.69 s1R 0.22`).
-- The tail fitted (1 - IoU 0.15 / 0.11).
-
-Still open:
-- The planes sit 0.6 m aft of the reference. The flown envelope holds the upper LE at 0.20 m ahead of the physics
-  firewall, and the DH.82's is 0.52 ahead. Needs the envelope (`GEN_WING_ENVELOPE.xLE`) opened.
-- The nose is 0.45 m short. Our Gipsy model puts the prop 1.03 m ahead of the firewall, the reference 1.45; the
-  engine's stand-off row moves it by centimetres only.
-- The front legs root ahead of the firewall on the type (engine bearers); our legs root on the body.
-- The join's prop check reads "through the body" for a deep bonnet under a high thrust line: it samples the body's
-  front section past the body's end (`_cage_eng.js` inBody). Shape-wise the prop clears.
+the upper wing; bonnet in panels; `"datum": "prop"`, length anchored at 7.29 m, the screens and coaming pads as
+markers, the exhaust to port).
+- Step 1, first: the datum. The bonnet-back firewall had compressed the body by 0.8 m. On the propeller's plane:
+  openings 1.80-2.30 and 2.64-3.16 against the markers' 1.80-2.30 and 2.60-3.08; tail post 6.456 (6.415).
+  `aeroWsLen 0.59 pilotLen 1.04 paxLen 1.06 boomLen 3.36`.
+- Step 1, the wings: 0.44 m aft (`wgDx 0.35`), both swept as measured (`wgTipX 0.37 w2TipX 0.415`, `w2Stagger
+  0.56`): LE within 1 cm, plan 1 - IoU 0.10 / 0.22 from 0.53 / 0.70.
+- Step 1, the deck and keel lines straight to the post (`frCabBotY -0.60 frPaxBotY -0.52 aftKeelY -0.42 tailKeelY
+  0.03`, `aftRoofY 0.63 tailRoofY 0.38 frCabTopY 0.64 frPaxTopY 0.66 roofY 0.68`, `boomMidPinch 1.0`): within ~1 cm
+  aft of the cockpits.
+- Step 1, the fuselage nose (before the cowl, the user: "don't touch the cowl before you get the nose of the fuselage
+  right"): the round front narrowed to the type's tapering nose and lowered, `halfW 0.54 aeroTipW 0.91 aeroTipH 0.95
+  aeroDroop 0.025`: within ~2 cm from 1.0 to 1.6 m.
+- Step 2: the boom full in plan and closing late (`frBoom*W`, `boomMidPinchW 1.55`): within 1 cm. Tips clipped
+  (`wgTip 1 w2Tip 1`, `fit_tips` 0.093 / 0.108; the type rounds its trailing corner, which no tip type does).
+- Step 3, the gear: the V from the lower longeron at 1.02 (the type's front strut) to its rear leg, the wheel exact
+  (1 mm / 4 mm): `s1Root 1 s1Z 2.08 s1_linkSpread 1.0 s1AxZ -0.29 s1Drop 0.60`; the split axle.
+- Step 3, the cowl, in the user's order (the user: "you need to use the droop parameter of the cowl, a lot"):
+  - 1-2, waist and sizes: `fitNose 1` (the bonnet meets the body's nose ring on top, sides and bottom).
+  - 3, roundness: `fit_cowl.py` took the top squarer and the bottom to a diamond; the head-on picture overruled the
+    bottom (the type's face is a tombstone: round on top, straight sides, flat bottom): `cw_sqFrontTop 0.62
+    cw_lidSqTop 0.62 cw_sqFrontBot 0.8 cw_lidSqBot 0.8`.
+  - 4, faces and slope: the barrel narrowed to the type's tapering nose (`cw_taperW 0.45 cw_taperH 0.84`, a free
+    nose ring `cw_lidMode 0`) and DROOPED to it (`cw_lidRise -0.056 cw_faceRise 0.006 cw_keelSweep 0.04`): the face
+    centred 0.21 under the thrust line, the inverted Gipsy's. Before it, the axis ROSE 8.5 cm to the prop.
+  - 5: no inverted cone.
+  - 6, apertures: none (`cw_apMode 0`): the type's nose cap is closed.
+  - 7, the engine: `engY 0.21` puts the thrust line back where the reference has it (the droop carries it down).
+  - Result, from the face to the cockpit: top within 2 cm, bottom within 4 cm, half-width within 2 cm.
+- OPEN for the user, the engine against the bonnet (`cowl_clip`: up to 0.11 m outside, on top). Our inverted
+  Gipsy carries its carburettor and airbox ON TOP of the crankcase (the engine generator's rule for an inverted
+  in-line, G164) and its crankcase is a box flat-topped 0.20 m over the crank from its very front; the type's bonnet
+  top runs 0.13 over the thrust line at the face to 0.27 at the firewall. Lowering the engine clears it only at
+  ~0.11 m of thrust line (every 0.03 of `engY` slides the whole aeroplane 3 cm against it); raising the bonnet's top
+  departs from the type. Wanted: the induction placeable (side / rear) in the engine page, then `cowl_clip` 0.
+- OPEN: the front's widest line. The type's face is widest at the thrust line (the tombstone's spring line); ours
+  0.3 m lower: the firewall's `cw_waist` is refitted to the body by `fitNose`, and `cw_waistSweep` only bends it
+  8 cm before the bottom pinches. Wanted: the nose ring's own waist row.

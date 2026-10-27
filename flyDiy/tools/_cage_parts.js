@@ -550,7 +550,7 @@ const CAGE_PARTS = [
       ['boom frame', ['aftRoofY', 'frBoomWaistW', 'aftKeelY']],
       ['boom frame, detail', ['frBoomWaistY', 'frBoomTopW', 'frBoomBotW',
                               'frBoomTopZ', 'frBoomWaistZ', 'frBoomBotZ'], EXPERT],
-      ['pod ring', ['boomMidOn', 'boomMidT', 'boomMidPinch']],
+      ['pod ring', ['boomMidOn', 'boomMidT', 'boomMidPinch', 'boomMidPinchW']],
     ] },
 
   // G2770 (the user: "The tail cone ... I think it should be a section of

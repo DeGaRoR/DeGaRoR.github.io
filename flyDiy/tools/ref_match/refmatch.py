@@ -78,6 +78,16 @@ sc = ref['scale']; P0 = part(sc['part']).reshape(-1, 3)
 ax = {'span': 0, 'height': 1, 'length': 2}[sc['by']]
 s = sc['metres'] / (P0[:, ax].max() - P0[:, ax].min())
 GT = GT * s; SCALE[0] = s
+# "anchors": the model re-anchored on PUBLISHED dimensions, one axis each (the user, 27 Oct: "re-anchor the model in
+# real dimensions, check it ... sources prevail"): {"length": {"metres": 7.54, "source": ...}, "height": {...}} -
+# the overall extent along that axis is scaled to the source (after the span scale above); each factor is printed
+AXF = [1.0, 1.0, 1.0]
+for name, an in (ref.get('anchors') or {}).items():
+    a_ = {'span': 0, 'height': 1, 'length': 2}[name]
+    Pa = (part(an['part']) if an.get('part') else GT).reshape(-1, 3)
+    f_ = an['metres'] / (Pa[:, a_].max() - Pa[:, a_].min()); AXF[a_] *= f_
+    GT[..., a_] *= f_
+    print('anchor %-6s x %.4f  (%s)' % (name, f_, an.get('source', '')))
 
 def cut(T, axis, v):
     pts = []
@@ -111,7 +121,18 @@ if len(part('cowl')):
 else:
     fz = part('fuselage').reshape(-1, 3)[:, 2].max(); h = part('hub').reshape(-1, 3)
     rF, rTL = fz, (h[:, 1].min() + h[:, 1].max()) / 2
-oF, oTL = frame(lay('cowl'), lay('eng'))
+# "datum": "prop" - every station measured aft of the PROPELLER'S PLANE instead of the firewall, on both sides: for a
+# reference whose firewall is ambiguous (the DH.82's bonnet panels run back over the cockpit). Ours: the plane of the
+# blade tips (the engine layer's points far off the thrust line); the reference: the hub part's mean
+def prop_plane(T, TL):
+    P = T.reshape(-1, 3); far = P[np.abs(P[:, 1] - TL) > 0.6]
+    return far[:, 2].mean() if len(far) else P[:, 2].max()
+if len(lay('cowl')): oF, oTL = frame(lay('cowl'), lay('eng'))
+else:
+    # no cowl on ours either (an exposed engine): the firewall is the body's front face
+    e_ = lay('eng').reshape(-1, 3); oF = lay('sheet').reshape(-1, 3)[:, 2].max(); oTL = (e_[:, 1].min() + e_[:, 1].max()) / 2
+if ref.get('datum') == 'prop':
+    rF = part('hub').reshape(-1, 3)[:, 2].mean(); oF = prop_plane(lay('eng'), oTL)
 R = lambda T: T - np.array([0, rTL, rF]) if len(T) else T          # into (x, up, -aft)
 Ou = lambda T: T - np.array([0, oTL, oF]) if len(T) else T
 # "fbox": a box in the MATCH's own terms (metres: aft of the firewall, above the thrust line, |x|), applied once the
@@ -130,7 +151,7 @@ def partF(role):
         out.append(T)
     return np.vstack(out) if out else np.zeros((0, 3, 3))
 REF = {k: partF(k) for k in ref['parts']}
-OUR = {'cowl': Ou(lay('cowl')), 'fuselage': Ou(lay('sheet')), 'upper': Ou(lay('wing')), 'lower': Ou(lay('wing2')),
+OUR = {'cowl': Ou(lay('cowl')) if len(lay('cowl')) else np.zeros((0, 3, 3)), 'fuselage': Ou(lay('sheet')), 'upper': Ou(lay('wing')), 'lower': Ou(lay('wing2')),
        'fin': Ou(lay('fin')), 'stab': Ou(lay('stab')), 'gear': Ou(lay('gear'))}
 
 def bbox(T):
@@ -146,8 +167,11 @@ def dihedral(sl):
     return np.degrees(np.arctan2(ok[-1][1] - ok[0][1], ok[-1][0] - ok[0][0])) if len(ok) > 1 else np.nan
 def heads(side):
     out = {}
-    c0, c1 = bbox(side['cowl']); out['cowl length'] = c1[2] - c0[2]; out['cowl dia'] = c1[1] - c0[1]
-    out['cowl centre (TL)'] = (c1[1] + c0[1]) / 2
+    if len(side.get('cowl', [])):
+        c0, c1 = bbox(side['cowl']); out['cowl length'] = c1[2] - c0[2]; out['cowl dia'] = c1[1] - c0[1]
+        out['cowl centre (TL)'] = (c1[1] + c0[1]) / 2
+    else:
+        for k in ('cowl length', 'cowl dia', 'cowl centre (TL)'): out[k] = np.nan
     f0, f1 = bbox(side['fuselage']); out['body bottom (TL)'] = f0[1]; out['body half-width'] = max(-f0[0], f1[0])
     out['tail post aft'] = -f0[2]
     for w in ('upper', 'lower'):
@@ -161,10 +185,8 @@ def heads(side):
             if t == 'fin': out['fin top (TL)'] = t1[1]; out['fin bottom (TL)'] = t0[1]
             else: out['stab span'] = t1[0] - t0[0]; out['stab height (TL)'] = (t0[1] + t1[1]) / 2
     return out
-if 'cowl' not in REF or not len(REF['cowl']): REF['cowl'] = R(part('fuselage'))[:1] * 0 + np.array([0, 0, 0.0])
 hr, ho = heads(REF), heads(OUR)
-if not len(part('cowl')):
-    for k in ('cowl length', 'cowl dia', 'cowl centre (TL)'): hr[k] = np.nan
+
 print('== %s: headline (m; aft of the firewall, above the thrust line; scale x %.5f)' % (ref['name'], s))
 for k in hr:
     o = ho.get(k, np.nan); print('  %-24s ours %7.3f  ref %7.3f  d %+7.3f' % (k, o, hr[k], o - hr[k]))
@@ -179,7 +201,65 @@ for d in np.round(np.linspace(0.05, tp - 0.05, 16), 2):
     # "profile": the roles the outer skin is made of, when the fuselage role is not all of it (a bonnet's tank
     # fairing running back over the body - the Moth's)
     RP = np.vstack([REF[r] for r in ref.get('profile', ['fuselage']) if r in REF and len(REF[r])])
-    print('  %5.2f | %6.3f %6.3f %6.3f | %6.3f %6.3f %6.3f' % ((d,) + pr(RP) + pr(OUR['fuselage'])))
+    OP = np.vstack([OUR[r] for r in (['fuselage', 'cowl'] if 'cowl' in ref.get('profile', []) else ['fuselage']) if len(OUR.get(r, []))])
+    print('  %5.2f | %6.3f %6.3f %6.3f | %6.3f %6.3f %6.3f' % ((d,) + pr(RP) + pr(OP)))
+
+# ---- STEP 1's own numbers: the cockpit openings and the nose cone, off the centreline -----------------------------
+# the body sliced by the x = 0 plane (wing roots never cross it): the top line every 2 cm; an OPENING is where the top
+# drops more than 0.10 m under the deck line round it (the highest top within 0.6 m) for over 0.20 m
+def openings(T, aft_max, TLup=0.0):
+    # the cockpit openings as HOLES in the top skin seen from above: the up-facing triangles (normal y > 0.3) in a
+    # strip |x| < 0.10, above the thrust line - a cockpit is where that strip has no skin over 0.20 m (the floor and
+    # seats sit below the thrust line and do not close it)
+    if not len(T): return []
+    n = np.cross(T[:, 1] - T[:, 0], T[:, 2] - T[:, 0]); nl = np.linalg.norm(n, axis=1) + 1e-12
+    c = T.mean(1); up = np.abs(n[:, 1] / nl) > 0.3
+    keep = up & (c[:, 1] > TLup) & (np.min(np.abs(T[..., 0]), 1) < 0.10)
+    U = T[keep]; zs = np.arange(0.0, aft_max, 0.02); cov = np.zeros(len(zs), bool)
+    for t in U:
+        a0, a1 = -t[:, 2].max(), -t[:, 2].min()
+        cov[(zs >= a0 - 0.01) & (zs <= a1 + 0.01)] = True
+    out = []; run = None
+    for i, z in enumerate(zs):
+        if not cov[i] and run is None: run = z
+        if cov[i] and run is not None:
+            if z - run >= 0.20: out.append((run, z))
+            run = None
+    return out
+RPf = np.vstack([REF[r] for r in ref.get('profile', ['fuselage']) if r in REF and len(REF[r])])
+print('== STEP 1 - cockpit openings (fore edge .. aft edge, m aft of the firewall)')
+oo, orf = openings(OUR['fuselage'], hr['tail post aft']), openings(RPf, hr['tail post aft'])
+for i in range(max(len(oo), len(orf))):
+    a1 = '%5.2f .. %5.2f' % oo[i] if i < len(oo) else '      -      '
+    b1 = '%5.2f .. %5.2f' % orf[i] if i < len(orf) else '      -      '
+    print('  opening %d  ours %s | ref %s' % (i + 1, a1, b1))
+# "markers": named reference nodes (windscreens, coaming pads) that place a cockpit when the model's skin cannot
+for mk, node in (ref.get('markers') or {}).items():
+    m_, _ = match(node); T_ = R(GT[m_])
+    if len(T_): a_ = -T_.reshape(-1, 3)[:, 2]; print('  marker %-18s ref %5.2f .. %5.2f' % (mk, a_.min(), a_.max()))
+print('== STEP 1 - the nose: the body front, fine (top / bottom above TL, half-width)')
+for d in ((0.02, 0.15, 0.30, 0.50, 0.75, 1.0) if ref.get('datum') != 'prop' else (0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8)):
+    def pr2(T):
+        q = cut(T, 2, -d)
+        return (q[:, 1].max(), q[:, 1].min(), np.abs(q[:, 0]).max()) if len(q) else (np.nan,) * 3
+    OPf = np.vstack([OUR[r] for r in (['fuselage', 'cowl'] if 'cowl' in ref.get('profile', []) else ['fuselage']) if len(OUR.get(r, []))])
+    print('  %5.2f | %6.3f %6.3f %6.3f | %6.3f %6.3f %6.3f' % ((d,) + pr2(RPf) + pr2(OPf)))
+
+# ---- STEP 2: the planforms from above (each plane's starboard half; 1 - IoU at 2 cm) -----------------------------
+def plan_iou(A, B):
+    from PIL import Image, ImageDraw
+    if not len(A) or not len(B): return np.nan
+    A = A[(A[..., 0] > 0.45).all(1)]; B = B[(B[..., 0] > 0.45).all(1)]
+    P_ = np.vstack([A.reshape(-1, 3), B.reshape(-1, 3)]); lo = P_.min(0); hi = P_.max(0); K_ = 50
+    W_, H_ = int((hi[0] - lo[0]) * K_) + 2, int((hi[2] - lo[2]) * K_) + 2
+    def m_(T):
+        im = Image.new('1', (W_, H_), 0); d = ImageDraw.Draw(im)
+        for t in T: d.polygon([((p[0] - lo[0]) * K_, (p[2] - lo[2]) * K_) for p in t], fill=1)
+        return np.asarray(im)
+    a_, b_ = m_(A), m_(B); return 1 - (a_ & b_).sum() / max(1, (a_ | b_).sum())
+print('== STEP 2 - planforms from above (1 - IoU, outboard of 0.45 m)')
+for w in ('upper', 'lower'):
+    if len(REF.get(w, [])) and len(OUR[w]): print('  %-6s %.3f' % (w, plan_iou(OUR[w], REF[w])))
 
 print('== wings sliced (station x: chord line above TL, LE / TE aft)')
 for w in ('upper', 'lower'):

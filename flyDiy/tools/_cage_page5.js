@@ -1072,6 +1072,10 @@ window.CAGE_PAGE = {
        { when: P => !+P.boomStyle && +P.boomMidOn }],
       ['boomMidPinch','pod pinch',     0.2, 1.4, 0.01,
        { when: P => !+P.boomStyle && +P.boomMidOn }],
+      // the pinch in plan alone (unset = the pod pinch): a boom whose side lines run straight to the post while its
+      // sides stay full and close late (the DH.82's, measured against its reference model)
+      ['boomMidPinchW','pod pinch (plan)', 0.2, 1.6, 0.01,
+       { when: P => !+P.boomStyle && +P.boomMidOn }],
     ]],
     // POLYCOUNT (user, G28): every density dial in one place — grouped,
     // not merged. The subsurf selector joins this folder at runtime

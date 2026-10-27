@@ -4001,11 +4001,18 @@ function genPlanePair(pos0, pos1) {
 // A build that asks 18 m or less is clamped by exactly the numbers above, so
 // nothing it draws moves (the metal Cessna's drawn 1.51 m cabin is held to
 // its 1.45, as ever). The editor's rows reach the big envelope.
+// NEW-SHAPES-1 (the user, 27 Oct, matching a Camel and a Tiger Moth to reference models: "our settings for the
+// biplanes are too restrictive, and the sliders too. We should freely set both wings sizes"): the leading edge to
+// 1.2 m AHEAD of the firewall (an upper plane overhanging its engine - the DH.82's 0.52 m, the Camel's 0.26 off the
+// physics datum - was held at 0.20), the second plane's up / down to -1.0 .. +1.5 m, and `second`: the second
+// plane's own size floor (a short lower plane - a sesquiplane's - was held to the first plane's 6.5 m and 0.80 m).
+// Only a wing the old numbers clamped moves.
 const GEN_WING_ENVELOPE = {
   chord: [0.80, 2.10], span: [6.5, 18.0], spanPerChord: [4.0, 20.0],
-  taper: [0.45, 1.0], xLE: [-0.20, 3.00],
-  placeDx: [-1.2, 1.8], placeDy: [-0.25, 0.60],
-  big: { chord: [0.80, 5.00], span: [6.5, 30.0], xLE: [-0.20, 9.00] },
+  taper: [0.45, 1.0], xLE: [-1.20, 3.00],
+  placeDx: [-1.2, 1.8], placeDy: [-1.0, 1.5],
+  big: { chord: [0.80, 5.00], span: [6.5, 30.0], xLE: [-1.20, 9.00] },
+  second: { chord: 0.40, span: 2.0, spanPerChord: 2.0 },
 };
 // is a wing of this span a big aeroplane's? / the envelope it is clamped by / is this spec a big aeroplane?
 function genEnvBig(span) { return +span > GEN_WING_ENVELOPE.span[1]; }
@@ -4024,7 +4031,7 @@ function clampWing(w, S, k) {
   // positive stagger, upper forward, is a lower plane aft). Its controls,
   // when it carries any, are clamped as the aeroplane's are.
   if (k > 0) {
-    w.stagger = genClamp(w.stagger == null ? 0.35 : w.stagger, -1.0, 1.0);
+    w.stagger = genClamp(w.stagger == null ? 0.35 : w.stagger, -2.5, 2.5);
     if (w.controls && typeof w.controls === 'object') clampControls(w.controls);
     else w.controls = null;
   }
@@ -4033,7 +4040,10 @@ function clampWing(w, S, k) {
   // aspect ratio to 20. Every build inside the old 1.15-2.10 / 6.5-14 box is
   // untouched; GATE GEN's wild spec still clamps, and the sail archetype's
   // circuit is the new corner's flight test.
-  const E = genWingEnv(w.span);                          // G3503: the big envelope past 18 m asked
+  const E0 = genWingEnv(w.span);                         // G3503: the big envelope past 18 m asked
+  // NEW-SHAPES-1: the second plane sized freely below the first plane's floor (GEN_WING_ENVELOPE.second)
+  const E = k > 0 ? Object.assign({}, E0, { chord: [GEN_WING_ENVELOPE.second.chord, E0.chord[1]],
+    span: [GEN_WING_ENVELOPE.second.span, E0.span[1]], spanPerChord: [GEN_WING_ENVELOPE.second.spanPerChord, E0.spanPerChord[1]] }) : E0;
   w.chord = genClamp(w.chord, ...E.chord);
   w.span = genClamp(w.span, Math.max(E.span[0], E.spanPerChord[0] * w.chord),
                             Math.min(E.span[1], E.spanPerChord[1] * w.chord));
