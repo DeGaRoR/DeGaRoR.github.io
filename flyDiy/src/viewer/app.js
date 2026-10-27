@@ -9497,7 +9497,8 @@
   // the aeroplane on the final (79_story.js storyFinalPose): a fresh reset onto the pose, its speed along the slope, the
   // engines running, a fresh pilot whose arrival is planned from there (the box's own hand-back: INBOUND with no legs
   // plans from where it is - straight in when lined up)
-  function storyFinalNow() {
+  let stSkipLast = null;   // (the last skip's way, the phase the pilot planned, the flip if any: FLYDIY_STORY.skipLast)
+  function storyFinalNow(o) {
     const s = stLive();
     if (!s || s.open || s.beat !== 'T1') return { ok: false, why: 'not on the move (T1)' };
     if (inGarage || !sim || !ap || typeof placeAtAerodrome !== 'function') return { ok: false, why: 'no flight to place' };
@@ -9507,7 +9508,7 @@
     let SH = null; try { SH = ap.sheet; } catch (e) {}       // (the machine sheet's approach speed: Vref, else 1.3 Vs0)
     const V = Math.max(14, Math.min(40, +ap.VAppr || (SH && (+SH.Vref || (+SH.Vs0 ? 1.3 * SH.Vs0 : 0))) || 22));
     // (posed on the way the pilot will land it - the wind on the day: 79_story storyFinalWay; a fresh pilot's t is 0)
-    let way = 1; try { way = typeof storyFinalWay === 'function' ? storyFinalWay(H, world, 0) : 1; } catch (e) {}
+    let way = 1; try { way = o && (o.way === 1 || o.way === -1) ? o.way : typeof storyFinalWay === 'function' ? storyFinalWay(H, world, 0) : 1; } catch (e) {}
     const P = storyFinalPose(H, { V, way, groundH: (x, z) => (world && typeof world.terrainH === 'function' ? world.terrainH(x, z) : null) });
     sim.reset(0);
     placeAtAerodrome(sim, { hdg: P.hdg, spawn: [P.x, P.z], elev: P.y });
@@ -9525,6 +9526,15 @@
     // (the skip hands the aeroplane to the autopilot, as every flight starts: the hand is one toggle away)
     try { if (manual && typeof setManual === 'function') setManual(false, 'skip'); } catch (e) {}
     try { destId = H.id; } catch (e) {}
+    // (the 27 Oct 04:35 page run: posed on the scored way, the pilot still planned the circuit - DOWNWIND, no landing in
+    // 5 min - and the evening's landed at 4:59. The pilot's own plan decides: when the arrival it planned from the pose is
+    // not the straight-in (its first leg INBOUND, or the FINAL), the pose is flipped onto the other end's final, once)
+    if (!(o && o.flipped)) setTimeout(() => { try {
+      const s2 = stLive();
+      if (!s2 || s2.open || s2.beat !== 'T1' || inGarage || manual || !ap) return;
+      if (ap.phase !== 'INBOUND' && ap.phase !== 'FINAL') { const r2 = storyFinalNow({ way: -way, flipped: true }); stSkipLast = { way, phase: ap.phase, flip: r2 && r2.ok ? -way : null }; }
+    } catch (e) {} }, 1500);
+    stSkipLast = { way, phase: 'INBOUND', flip: null, flipped: !!(o && o.flipped) };
     return { ok: true, why: '', final: H.id, pose: P, way };
   }
   // (the old skip, kept for the garage without a world: T1 done as a stop at HOME, straight into the WWII hangar)
@@ -9627,18 +9637,31 @@
   // change to Rufus's file"): at T0 in the cabin shed, the cage's light switches go on once per page - the master switch
   // and the cabin flood. A switch is a position, not the airframe (G3449: bench.js counts the levels as STATE, so the
   // certificates hold); no build file is touched. Waits for the garage's CAGE_UI, then never again on this page.
-  let stFloodDone = false;
+  let stFloodDone = false, stFloodLoads = 0, stFloodAt = -1;
+  // (the 27 Oct 04:35 page run: the switches set, then Rufus's file loaded onto the stand wrote its own back - every
+  // build carries lightOn 1 / li_flood 0 in its P. A load is counted at the editor's door (applySpec, its sliced twin);
+  // the flood goes on once per load while the story is at T0 in the cabin. The file is not touched)
+  function storyFloodWrap(U) {
+    if (U.__stFloodWrap) return;
+    U.__stFloodWrap = true;
+    if (typeof U.applySpec === 'function') { const f = U.applySpec; U.applySpec = function () { const r = f.apply(this, arguments); stFloodLoads++; return r; }; }
+    if (typeof U.applySpecSteps === 'function') { const g = U.applySpecSteps; U.applySpecSteps = function* () { const r = yield* g.apply(this, arguments); stFloodLoads++; return r; }; }
+  }
   function storyFloodOn() {
     if (!STORY_PAGE || stFloodDone) return;
     const U = window.CAGE_UI;
     if (!U || !U.P || typeof U.build !== 'function') return;
     try {
+      storyFloodWrap(U);
       const d = playerLoad(), sh = d.sheds && d.sheds[d.here], s = stLive();
       // (no story yet, or not yet in the cabin: a New career on this page starts one - the 1.5 s tick tries again;
       // the 26 Oct page run: the flag was set at the first tick, before the career began, and the flood never came on)
       if (s && (s.open || s.beat !== 'T0')) { stFloodDone = true; return; }
       if (!s || !sh || sh.story !== 'cabin') return;
-      stFloodDone = true;
+      if (stFloodAt === stFloodLoads) return;
+      // (a parked aeroplane's bake applies ITS spec through the same door, a slice a task: never switched under it)
+      try { const F = window.FLEET_STAND; if (F && F.state && F.state.busy) return; } catch (e) {}
+      stFloodAt = stFloodLoads;
       if (+U.P.lightOn === 1 && +U.P.li_flood === 1) return;
       U.P.lightOn = 1; U.P.li_flood = 1; U.build();
       if (typeof U.syncSliders === 'function') U.syncSliders();
@@ -9662,6 +9685,8 @@
       event: ev => { const r = storyEvent(ev); return { ok: r.ok, why: r.why, advanced: r.advanced, effects: r.effects }; },
       certified: storyCertified, flush: storyFlush, pending: () => stBusy || stQueue.length > 0, line: () => stLine,
       ladder: () => ({ i: stLad.i, off: stLad.off, card: stLad.i >= 0 && !stLad.off ? STORY_LADDER[stLad.i].id : null }), skip: storySkipFlight,   // G3370
+      // (the skip as the rig reads it: the way posed, the pilot's planned phase, the flip; its phases and words since)
+      skipLast: () => stSkipLast ? Object.assign({}, stSkipLast, { ap: ap && ap.report ? { phase: ap.phase, phases: ap.report.phases.slice(-12), said: ap.report.verdicts.slice(-12) } : null }) : null,
       // G3580 (STORY-TUTOR): the tutor as the rigs read it - the beat, the step, what it waits for, the lock (its control)
       tutor: () => { const L = stTut ? storyTutorSteps(stTut.beat) || [] : [], s = stTut ? L[stTut.i] : null;
         return { beat: stTut ? stTut.beat : null, i: stTut ? stTut.i : -1, step: s ? s.id : null, wait: s ? s.wait || null : null, lock: stTutLockV ? Object.assign({}, stTutLockV) : null }; },

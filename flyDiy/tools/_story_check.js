@@ -191,9 +191,10 @@ function run(M) {
          'the page hands the work lamp to the room, and the room hangs it with no shadow map (the five fittings\' budget)'); }
     // G3355 (the user 22 Oct: "the cabin flood switched on at the story start; no change to Rufus's file")
     { const BJ = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'bench.js'), 'utf8');
-      ok(/function storyFloodOn\(\)/.test(APP) && /if \(s && \(s\.open \|\| s\.beat !== 'T0'\)\) \{ stFloodDone = true; return; \}\s*\n\s*if \(!s \|\| !sh \|\| sh\.story !== 'cabin'\) return;\s*\n\s*stFloodDone = true;/.test(APP) && /U\.P\.lightOn = 1; U\.P\.li_flood = 1; U\.build\(\);/.test(APP)
+      ok(/function storyFloodOn\(\)/.test(APP) && /if \(s && \(s\.open \|\| s\.beat !== 'T0'\)\) \{ stFloodDone = true; return; \}\s*\n\s*if \(!s \|\| !sh \|\| sh\.story !== 'cabin'\) return;\s*\n\s*if \(stFloodAt === stFloodLoads\) return;/.test(APP)
+         && /U\.applySpec = function \(\) \{ const r = f\.apply\(this, arguments\); stFloodLoads\+\+; return r; \};/.test(APP) && /stFloodAt = stFloodLoads;/.test(APP) && /U\.P\.lightOn = 1; U\.P\.li_flood = 1; U\.build\(\);/.test(APP)
          && /storySkipSync\(\); storyFloodOn\(\); \} catch \(e\) \{ console\.warn/.test(APP) && /storySkipSync\(\); storyFloodOn\(\); \} catch \(e\) \{\} \}, 1500\)/.test(APP),
-         'at T0 in the cabin the cage\'s flood goes on once (the switch, not the build file), at boot or when the garage arrives - once a story is there (a New career after boot: the 26 Oct page run)');
+         'at T0 in the cabin the cage\'s flood goes on once (the switch, not the build file), at boot or when the garage arrives - once a story is there (a New career after boot: the 26 Oct page run) - and again once after each build load at T0 (the starter file writes its li_flood 0 back: the 27 Oct page run)');
       ok(/li_\(\?:nav\|beacon\|taxi\|land\|flood\|instr\|pedal\|pax\)/.test(BJ), 'the flood switch is bench STATE (G3449), so the T0 flip leaves the certificates standing'); }
     // G3357 (the user 23 Oct: "I see no point in the lines on the top left. Tim feels like he's enough"; "Interior flood
     // light should be ON by default in the garage")
@@ -764,7 +765,7 @@ async function tutorRun() {
     ok(M.storyFinalWay(HW, wd([0, 0, 0]), 0) === 1 && M.storyFinalWay(HW, wd([-6 * hx, 0, -6 * hz]), 0) === 1 && M.storyFinalWay(HW, wd([6 * hx, 0, 6 * hz]), 0) === -1 &&
        M.storyFinalWay(null, Wd, 0) === 1,
        "the skip's way is the pilot's scored way: calm and a headwind along the take-off heading +1, 12 kt down it -1 (the other end); nothing to score: +1"); }
-  ok(/function storyFinalNow\(\)[\s\S]{0,1600}storyFinalWay\(H, world, 0\)[\s\S]{0,200}storyFinalPose\(H, \{ V, way,/.test(app), "the skip poses the final on the way the pilot will land it (storyFinalWay -> storyFinalPose's way)");
+  ok(/function storyFinalNow\(o\)[\s\S]{0,1600}storyFinalWay\(H, world, 0\)[\s\S]{0,200}storyFinalPose\(H, \{ V, way,/.test(app), "the skip poses the final on the way the pilot will land it (storyFinalWay -> storyFinalPose's way)");
   // ---- the page: T0 at the cabin, the lock
   const settle = async () => { for (let i = 0; i < 400; i++) { await new Promise(r => setTimeout(r, 5)); if (!H.window.FLYDIY_STORY || !H.window.FLYDIY_STORY.pending()) { await new Promise(r => setTimeout(r, 5)); if (!H.window.FLYDIY_STORY.pending()) return; } } };
   let d = M.storyNewCareer(M.careerNormalise(M.careerNew({ id: 'main', seed: 'tutor' })), { aeros: P.aerosCabin }).doc;
@@ -876,8 +877,10 @@ async function tutorRun() {
      'Skip the flight: rolled out, then on the final at the WWII field, a fresh pilot planning its arrival from there (G3584); the garage alone keeps the hangar skip');
   ok(/ap\.afcs\.sel\.de = 0; \} catch \(e\) \{\}\n\s*ap\.reEngage\(\{ phase: 'INBOUND' \}\);/.test(app),
      "the skip's fresh pilot starts with the stick neutral before its first update (its default 'DE' mode has no setting: the sim diverged at 0 s, the 25 Oct page run)");
-  ok(/function storyFinalNow\(\)[\s\S]{0,2400}ap\.setRoute\(H, H\);/.test(app),
+  ok(/function storyFinalNow\(o\)[\s\S]{0,2400}ap\.setRoute\(H, H\);/.test(app),
      "the skip's pilot flies a circuit at the WWII field (a cabin -> HOME route flew to the pattern entry first: 5 min round the circuit, the 25 Oct 20:15 page run)");
+  ok(/if \(ap\.phase !== 'INBOUND' && ap\.phase !== 'FINAL'\) \{ const r2 = storyFinalNow\(\{ way: -way, flipped: true \}\);/.test(app) && /if \(!\(o && o\.flipped\)\) setTimeout\(/.test(app),
+     "the skip's pilot planned a circuit from the pose (the 27 Oct 04:35 page run: DOWNWIND, no landing in 5 min): the pose flips to the other end's final, once");
   ok(/const stUsed = !armed && \(\(\) => \{ try \{ const s = stLive\(\); return !!\(s && !s\.open && s\.planes && s\.planes\.starter && flSlot === s\.planes\.starter\); \}/.test(app) &&
      /if \(typeof window\.BENCH_FLIGHT_LOGGED === 'function' && curKey === 'gen' && !stUsed\) \{/.test(app),
      "Rufus is a used machine: while the story runs, its landings award no flight certificate (the user 27 Oct), a bench-armed test flight still does");
