@@ -98571,6 +98571,87 @@ Not run (the full tier): TOUR, CESSNAVREF, BOOTLIFT, DMGHULL, DMGPLOUGH, DMGFLOA
 ARCHETYPES, SOAR. The generated files are not committed (built for the gates, put back).
 
 READY for A0: claude/belly-pod-2 ac765b8c1 (+ this docs commit)
+
+### G3468 (27 Oct) - THE POD REMODELLED (A MOULDED POD, THE FLOATS' WAY), CLEAR OF THE GEAR, ITS FLOOR FOLLOWING THE BELLY; A FAST VIEWER
+
+The user, on the cage8 render of the Cub's pod: "it's functional, but it's terribly ugly. Do a focused effort on proper,
+professional and detailed modeling. Take example on the floats modeling ... a beautiful pod, that remains possible to
+procedurally fit. Stop using the cage8 for rendering, find something simpler and faster ... inspiration from Airglas Inc
+and AFC (for Cessna). Fit one to the cessna too. If you keep the very rounded look, increase the poly count." And:
+"yours clips on the front suspension. It might be a check and limit to implement? At least the default cub should stop
+right before the X component of the suspension." (airglas.com and the pod forums were unreachable from the cloud box -
+DNS - so the anatomy is the moulded back-country pods' as known: a flange screwed to the belly, a ramp nose, a hinged
+side door with flush latches, stainless wear strips; "AFC" was not found as a pod maker.)
+
+**THE MODEL - tools/_pod_gen.js (new, POD_GEN; pure, no THREE, node-runnable - _float_gen.js's pattern).** The shell is
+ONE welded loft, ~90 stations (cosine-spaced in the fairings) x 38 points: a rounded-rectangle section with a filleted
+CHINE (8 segments) and SUPPORT LOOPS on the floor and the wall beside it (the float's rule: the highlight stays in the
+radius), walls flaring 10 % of the depth outward as they rise into the drawn belly (2 cm inside it), a raked RAMP nose
+(a quarter cosine: level off the floor, ~40 deg into the belly, the 206's / the Airglas pods'), a cosine BOAT-TAIL
+closing in plan with its depth (a teardrop - the walls never climb the body's curve). The walls are held inside the
+DRAWN body (85 % of its half-width along the run, eased to 62 % in the fairings) and the fairings hang from the DRAWN
+belly - by the firewall and the tail cone the drawn belly and the frame's keel part by centimetres, and a nose hung
+from the keel showed that gap as a vertical face. The details: the ATTACH FLANGE (22 mm on the skin, 2.5 mm proud,
+rounded) with a domed screw every 9 cm; the DOOR (the freight packer's hatch, R.door) a panel 1.6 mm proud with 30 mm
+corner radii inside a V-groove SHUT LINE (hard-edged: each face its own vertices), a PIANO HINGE along its top and two
+FLUSH LATCHES with their paddles, all sheared with the floor's slope; two half-round WEAR SKIDS ramped at both ends, whose
+SOLES ARE THE PHYSICS' FLOOR (the shell's floor is one skid height above it). ~9 550 triangles a pod. ONE mesh `edPod`,
+two groups: the moulding in the livery's `pod` section, the hardware in `ctlHinge` (the hinges & horns' steel) - the
+join's snapshot carries both (GATE POD). tools/_cage_pod.js draws it (build.js MANIFEST.editor: _pod_gen.js before it).
+
+**THE GEAR'S FITTINGS ARE NOT THE POD'S - src/core/60d_gen_pod.js genPodGearKeep.** The mains are anchored on the two frame
+rings that straddle the axle (genLattice's own iFwd / iAft rule); where those anchors (the lower longerons) stand within
+0.12 m of a default pod's wall, the gear's vee and its fittings come down UNDER the belly, and the pod keeps aft of the
+aft ring + 0.08 m - the default AND the limit (the fore / aft row's value is kept as written; the resolver holds the
+nose). Measured on the drawn Cub (tools/pod_shots.js's dump): the vee and its fittings fill the old pod's box from 0.35
+to 1.04 m aft of the firewall; the aft ring is at 0.99 - **the Cub's default pod now starts at 1.07 m, right behind the
+vee**. Asked at the default pod's half-width, not the pod's own (a pod's place never jumps as the volume row bisects -
+GATE POD's 60 L row caught the jump). The Cessnas' spring legs root 0.18 m outboard of a 0.63 m pod: untouched (their
+pods pass between the legs, as the 206's do); the Jodel's oleo legs hang from its low wing: untouched (checked on the
+dump - no gear vertex in the pod's box). The readout's mains row says which: "the main gear's fittings, ahead of it".
+
+**THE FLOOR FOLLOWS THE BELLY (60d genPodResolve / genPodFloorAt).** The floor was level at `depth` under the run's lowest
+keel point: under the Cub's belly, which rises 0.15 m over the run, that is a wedge 0.28 m deep at its nose and 0.43 m at
+its tail, closed by a boat-tail as steep (the bathtub of the first stills). Now a STRAIGHT floor, `depth` under the keel
+at both ends of the run (the chord - straight, so its lowest point is always one of its ends, where the flown pod's four
+nodes are: GATE POD's "lowest node on the shell, within 6 mm" holds); the fairings rise from those ends monotonically.
+The door's sill sits on the hold box's floor (its middle) and carries the floor's `slope`; the packer's box is the
+hold's own height on the floor at the run's middle; the strap's pod item rides the floor at its station
+(78_freight_strap). Exports: genPodFloorAt, genPodGearKeep. **The Cub's default pod: 2.00 x 0.56 x 0.28 m, 120 L (was
+157 L on the wedge), clear 0.46 m level / 0.19 m three-point; the Jodel 114 L, the C172 / metal Cessna 118 L.**
+
+**DMGPOD's calibration moved (GEN_POD.bearG 10 -> 8.25).** On the straight floor the metal Cessna's pod nodes sit ~7 mm
+higher than on the old level floor (hung from the run's lowest keel point), the gear-up touch is softer, and at 10 the
+3 m/s arrival only crushed the pod. Swept: 8 tears it off already at 1.5 m/s, 8.5 / 9 / 10 hold it at 3 m/s, 8.25 gives
+DMGPOD's two anchors (1.5 m/s crushed, freight at risk; 3 m/s torn off, freight lost). **A narrow band** - a
+geometry change to the pod or the Cessna's belly may move it again; DMGPOD is the alarm.
+
+**THE FIXTURE, RE-WRITTEN (tools/pod_fixture.js --write)** - the user's metal Cessna + 200 L at shape 0.5, sized by the
+editor's rule on this core: **2.554 x 0.639 x 0.319 m, rated 107 kg, shell 12.6 kg, 3 532 cr; clear 0.19 m level / 0.11 m
+at the tail strike; take-off 151 -> 154 m (+3), climb 1369 -> 1328 ft/min (-41), cruise 110.5 -> 108.5 KTAS (-2.0 kt,
+-1.8 %)** (G3462's 2.52 x 0.63 x 0.32: +3 / -40 / -2.0 - the same costs).
+
+**THE FAST VIEWER - tools/pod_shots.js + tools/_pod_view.html (new).** Node draws the aeroplane the way the garage does (the
+build through tools/_load_build.js, then the editor's layers on that spec via tools/_bake_joined.js - the real three.js,
+the pod fitted through CAGE_POD.fromSpec, exactly what GATE POD draws, the fuselage sheet from CAGE2.cageSheet) and dumps
+every visible mesh in the cage frame to tools/.joincache/podview/ (gitignored); the page draws the dump with three.js alone
+in a studio light (a PMREM room, a key light with soft shadows) and headless Chromium takes each still over CDP: **~0.5 s a
+still, ~6 s a build** (cage8 under the battery's load: minutes, and its own script list lacks src/viewer/assets.js -
+`TEX_FLAT is not defined` in the energy layer stops every layer after it, the pod's included; the bench is untouched).
+The livery is a flat stand-in (each section's finish tint / its parent's / the paint's base, metal where the finish
+says so) - shape, not paint. `--tint 1` paints the pod a flat test blue (the shape alone), `--nopod 1` the aeroplane bare.
+  node tools/pod_shots.js --builds cub,metalFix --out reports/evidence/POD4 --cams quarter,side,below,aft,nose,tail,door
+**reports/evidence/POD4/** (committed): cub_* (default pod), metalFix_* (the fixture's 200 L), cub_nopod_*, metal_nopod_*.
+
+**GATES CHANGED:** GATE POD H7 - the mesh is `pod,ctlHinge` (4 draws: two groups, each + its shadow), its skids' soles on
+the physics' floor along the run (< 0.1 mm) and nothing drawn under it, the shell's normals out (the hardware faces every
+way by construction), the walls' top edge read from the layer's `top` list. GATE PODEDITOR - 0.90 m held at the gear's
+limit (1.07 m); "moved aft" is now 2.40 m (three-point 0.19 -> 0.12 m, shown; no longer red - the floor rises with the
+belly); the red deep pod is 0.45 m (0.02 m clear) - the 0.60 m strike unchanged.
+
+**THE BOX (A0, GPU):** the pod's two groups in the real livery (aeroskin `trim` for `pod`, `steelTube` for `ctlHinge`) on
+the Cub and the metal Cessna - tools/pod_box_evidence.js (garage stills + the belly landing, its expectation now "crushed"
+at +1.5 m/s); FRAMECOST pod on / off after the train's re-cook (the pod is 4 draws now, was 2).
 ## A0 - landing L23b (23 Oct 2026, gates 10:00-11:00, pushed ~11:20): THE CABIN AT T0 - LAMPS OFF THE WING, THE WORK LAMP, RUFUS'S FLOOD ON, FEWER MACHINES
 Rolling set (1): cabin-lamp ad3165a48 (GAME G3353-G3355 + RUFUS-CERT G3449 claude/light-switch-state merged in):
 - G3353 cabin-machines: the cabin plot w1 omits the panel saw, the band saw and the surface planer (the user, 22 Oct: "get rid of the large router ... keep only the 2 smaller ones"). The pillar drill and the thicknesser stay; all other clutter stays; no cert bench. hangarFit opts.omit reports the left-out props.
