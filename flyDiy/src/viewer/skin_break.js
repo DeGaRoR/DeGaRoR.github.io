@@ -1055,6 +1055,65 @@
   // the tube pieces of a record: its tube places joined by its triangles (welded: the record's rep), each piece's member or
   // node -> Map(place -> { seg, node })
   const JOINT_D = 0.06;       // m: a tube piece no wider than this is a knuckle at a node
+  // ---- G3770 (OPT.looks): THE MEMBERS' OWN PLACES - the drawn tube found in the mesh itself. A corner of a drawn tube
+  // (the generator's prism: tubeSeg's six, tubePath's eight, a beam's four) has two neighbours round its ring - the three
+  // on a circle no wider than LOOK_R, its centre the tube's axis - and one neighbour along it (square to that circle's
+  // plane). The drawn tube's axis is matched to the member it draws: the nearest member parallel to it (|cos| past
+  // LOOK_COS, its line within LOOK_OFF of the axis - the drawings run 2-6 cm off the physics lines). Each such place gets
+  // that member and its station on it (R.mem, R.mt). Anything else the bucket draws - a panel, a seat, a fitting, a tube
+  // crossing a member - is no member's: never hidden with it, never in its re-ringed copy (dmg_members.js)
+  const LOOK_R = 0.035, LOOK_COS = 0.94, LOOK_OFF = 0.09;
+  function* lookTag(E, Sall, st) {
+    const R = E.R, P = R.g.pos, cv = E.cv, rp = R.rep, ix = R.idx0 || R.idx, nt = (ix.length / 3) | 0, nv = R.nv;
+    const pl = v => rp ? rp[v] : v;
+    // the tube triangles' neighbours, by place (welded: the rep)
+    const deg = new Int32Array(nv + 1);
+    const tri = t => { const a = pl(ix[t * 3]), b = pl(ix[t * 3 + 1]), c = pl(ix[t * 3 + 2]); return cv[a] === INH.tube && cv[b] === INH.tube && cv[c] === INH.tube ? [a, b, c] : null; };
+    for (let t = 0; t < nt; t++) { const q = tri(t); if (q) { deg[q[0]] += 2; deg[q[1]] += 2; deg[q[2]] += 2; } }
+    const at = new Int32Array(nv + 1); for (let v = 0; v < nv; v++) at[v + 1] = at[v] + deg[v];
+    const nb = new Int32Array(at[nv]), fill = at.slice(0, nv);
+    for (let t = 0; t < nt; t++) { const q = tri(t); if (!q) continue;
+      for (let e = 0; e < 3; e++) { const v = q[e]; nb[fill[v]++] = q[(e + 1) % 3]; nb[fill[v]++] = q[(e + 2) % 3]; } }
+    const d3 = (u, v) => [P[u * 3] - P[v * 3], P[u * 3 + 1] - P[v * 3 + 1], P[u * 3 + 2] - P[v * 3 + 2]];
+    const ln = a => Math.hypot(a[0], a[1], a[2]);
+    let _n = 0;
+    for (let v = 0; v < nv; v++) { R.mem[v] = -1; R.mt[v] = 0;
+      if (cv[v] !== INH.tube || (rp && rp[v] !== v) || at[v + 1] === at[v]) continue;
+      if (++_n >= 100) { _n = 0; yield st.places; }   // (a welded joint has many neighbours: small chunks)
+      let hit = null;
+      for (let i = at[v]; i < at[v + 1] && !hit; i++) for (let j = i + 1; j < at[v + 1] && !hit; j++) {
+        const a = nb[i], b = nb[j]; if (a === b) continue;
+        const A = d3(a, v), B = d3(b, v), la = ln(A), lb = ln(B);
+        // (a ring's two sides: equal (the tubes' six and eight), or square to each other (a beam's four, w x h))
+        if (!(la > 1e-4 && lb > 1e-4) || la > 2 * LOOK_R || lb > 2 * LOOK_R) continue;
+        if (Math.abs(la - lb) > 0.12 * Math.max(la, lb) && Math.abs(A[0] * B[0] + A[1] * B[1] + A[2] * B[2]) > 0.08 * la * lb) continue;
+        // the circle through a, v, b: its plane's normal, its centre (v + the circumcentre's offset), its radius
+        const n = [A[1] * B[2] - A[2] * B[1], A[2] * B[0] - A[0] * B[2], A[0] * B[1] - A[1] * B[0]], nn = ln(n);
+        if (!(nn > 1e-3 * la * lb)) continue;   // (in line: no circle)
+        const a2 = la * la, b2 = lb * lb, k = 1 / (2 * nn * nn);
+        // circumcentre offset = (|A|^2 (B x n) + |B|^2 (n x A)) / (2 |n|^2)
+        const Bxn = [B[1] * n[2] - B[2] * n[1], B[2] * n[0] - B[0] * n[2], B[0] * n[1] - B[1] * n[0]];
+        const nxA = [n[1] * A[2] - n[2] * A[1], n[2] * A[0] - n[0] * A[2], n[0] * A[1] - n[1] * A[0]];
+        const o = [(a2 * Bxn[0] + b2 * nxA[0]) * k, (a2 * Bxn[1] + b2 * nxA[1]) * k, (a2 * Bxn[2] + b2 * nxA[2]) * k], r = ln(o);
+        if (!(r > 0.002 && r <= LOOK_R)) continue;
+        const N = [n[0] / nn, n[1] / nn, n[2] / nn];
+        // ...and a neighbour along the axis: square to the circle's plane
+        for (let q = at[v]; q < at[v + 1]; q++) { const u = nb[q]; if (u === a || u === b) continue;
+          const U = d3(u, v), lu = ln(U); if (!(lu > r)) continue;
+          if (Math.abs(U[0] * N[0] + U[1] * N[1] + U[2] * N[2]) > 0.97 * lu) { hit = { c: [P[v * 3] + o[0], P[v * 3 + 1] + o[1], P[v * 3 + 2] + o[2]], N }; break; } }
+      }
+      if (!hit) continue;
+      // the member this tube draws: the nearest parallel one
+      const m = nearSegs(Sall, hit.c[0], hit.c[1], hit.c[2], 6); let best = -1, bd = LOOK_OFF * LOOK_OFF;
+      for (let j = 0; j < m; j++) { const g = Sall[_mi[j]], L = Math.sqrt(g.L2) || 1e-9;
+        if (Math.abs(hit.N[0] * g.ex + hit.N[1] * g.ey + hit.N[2] * g.ez) / L < LOOK_COS) continue;
+        if (_md[j] < bd) { bd = _md[j]; best = _mi[j]; } }
+      if (best < 0) continue;
+      const g = Sall[best]; let t = ((P[v * 3] - g.ax) * g.ex + (P[v * 3 + 1] - g.ay) * g.ey + (P[v * 3 + 2] - g.az) * g.ez) / g.L2;
+      if (t < -0.15 || t > 1.15) continue;
+      R.mem[v] = g.bi; R.mt[v] = t < 0 ? 0 : t > 1 ? 1 : t; st.lookPl = (st.lookPl || 0) + 1;
+    }
+  }
   const TUBE_SEG = 0.10;      // m: ...and a piece farther than this from every member along its length is no member's tube
   function tubePieces(E, Sall, st) {
     const R = E.R, cv = E.cv, P = R.g.pos, rp = R.rep, ix = R.idx0 || R.idx, nt = (ix.length / 3) | 0;
@@ -1158,16 +1217,16 @@
         if (c === INH.tube && tubeOf && tubeOf.has(v)) { const u = tubeOf.get(v);
           if (u.node >= 0) _acc.add(u.node, 1);
           else { const g = Sall[u.seg]; let t = ((x - g.ax) * g.ex + (y - g.ay) * g.ey + (z - g.az) * g.ez) / g.L2; t = t < 0 ? 0 : t > 1 ? 1 : t;
-            _acc.add(g.a, 1 - t); _acc.add(g.b, t); if (R.mem) { R.mem[v] = g.bi; R.mt[v] = t; } }
+            _acc.add(g.a, 1 - t); _acc.add(g.b, t); }
           st.tube++; }
         else if (c === INH.tube) { const m = nearSegs(Sall, x, y, z, 1);
           // (always its nearest member, however far: a drawn tube off the physics line - a lift strut drawn beside its member -
           // blended over the covering's frame was stretched metres when its piece went; counted past TUBE_R)
-          if (m) { const g = Sall[_mi[0]]; _acc.add(g.a, 1 - _mt[0]); _acc.add(g.b, _mt[0]); if (_md[0] < TUBE_R * TUBE_R) st.tube++; else st.tubeFar++;
-            if (R.mem && _md[0] < TUBE_R * TUBE_R) { R.mem[v] = g.bi; R.mt[v] = _mt[0]; } } }
+          if (m) { const g = Sall[_mi[0]]; _acc.add(g.a, 1 - _mt[0]); _acc.add(g.b, _mt[0]); if (_md[0] < TUBE_R * TUBE_R) st.tube++; else st.tubeFar++; } }
         else { coverInto(_acc, S, x, y, z); st.cover++; }
         if (_acc.n && _acc.put(R.wi, R.ww, v * K, K)) st.over8++;
       }
+      if (R.mem) yield* lookTag(E, Sall, st);
     }
     // 2. the compact parts: one binding an object (its centroid's covering binding)
     for (const E of L) {
