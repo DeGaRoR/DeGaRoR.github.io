@@ -99393,10 +99393,26 @@ simple renderer for real quick visualization? I'd like to see what the new one l
 - **DAMAGE ON** (dc3_break, physics limits): the drops at 2.0 / 3.05 / 3.85 / 4.6 m/s level 0 yields 0 breaks (G3577's 4.6 set the
   main gear's bracket); taxi idle / sturn / power / stick / pivot / rough 0 / 0; turn and burst crash INTO HOME's buildings off the
   works stand (obstacle at 11.8 s and 26.3 s) - as G3577 does (11.9 s, 31.6 s; its burst's peak strain 871 %, the new 25 %).
-- **THE HOME TRIP FAILS ON THE NEW BUILD (OPEN):** the taxi out as before (the 61.7 s corner pivot), then LINEUP at 330 s does not
-  settle in its 60 s (G3577's took 10 s and rolled at 348 s), the hold replans, the second taxi touches the left stabiliser tip at
-  451 s (313 yields, no break) and a prop comes 0.82 m inside a parked car at 1 153 s; no take-off. Being traced: dc3_break home
-  --homeSecs N --log (new: the pilot's line-up conditions every second), both builds side by side. NOT READY until it flies.
+- **THE HOME TRIP, AND THE LINE-UP A FULL SWIVEL WAS MISSING (src/core/43_pilot.js, twSwivel builds only):** on the new build
+  the taxi out was G3577's to the hold (the 61.7 s corner pivot, the same stop 17 m off the centreline) - but stopped 71 deg off
+  the take-off heading (G3577's 23), and from there LINEUP's steered turn (a 58 m circle at its 0.45 rudder) crossed the
+  centreline 52 deg off, ran to 30 m beyond it and crawled back on the 150 m look until its 60 s ran out; the hold replanned,
+  the second taxi set the left stab tip on an obstacle (313 yields) and a prop came 0.82 m inside a parked car, no take-off.
+  Measured on the open runway (fixed hands): the rudder's sense is the same steered or castoring, and the wheel re-locks on its
+  own (1-4 s) - but a castoring DC-3 keeps its swing, and the pivot let it go at 0.20 rad/s. Now, for a full swivel only:
+  (1) more than 40 deg off at the line-up's start (walking pace), a turn on the spot onto an intercept of the centreline (the
+  take-off heading turned toward it by atan(off / 60 m), 45 deg at most); (2) that pivot ends only once the swing is under 0.05
+  rad/s (the brakes hold it - the taxi's own pivots keep 0.20: held there too, HOME's corner exit moved and the tail met a
+  billboard at 78.7 s); (3) the line-up merges on a 60 m look (its circle), not 150. The trip now: the pivot onto a 16 deg
+  intercept at 330.5 s, merged 17 -> 3 m, ROLL at 356 s, three circuits (two bounce go-arounds, QUESTION 6), the committed
+  landing STOPPED at 1 214 s, the taxi back pivoted and parked 2.49 m off the stand: 0 CONTACTS, 0 YIELDS, 0 BREAKS (the 4.7 m/s
+  touch sets nothing - G3577's 4.5 set an inboard wing member); the least clearance 9.0 m out (billboard reg232), 6.2 m back
+  (aircraft reg43). reports/evidence/DC3-2/home_trip_8bay_phys.json. dc3_break: `home --homeSecs N --log` (the line-up's
+  conditions every second), `lineup` (the line-up alone from a placed pose - placed at HOME's hold the pilot plans another
+  hold 705 m on, so it does not reproduce the trip's; kept for the open-runway checks).
+- **Gates (`--only=... --no-build`):** PASS - BUILD, PARTS, SAVE, JOIN, CABIN, DESIGN, PANEL (the editor rows), PILOT (3 shards),
+  TAKEOFF (the pilot change, on the final code); dc3_identity ALL IDENTICAL (the six validated planes = master's, fly20 included).
+  Not READY: origin/master still to merge (task 7, claude/ready/dc3-3).
 - **THE LOOK** (tools/quick_view.js, new - a tool, not a gate): the build through the page's load door, the scene's meshes and the
   editor's fuselage sheet as one triangle soup, one self-contained HTML (WebGL2, no library: orbit, zoom, pan, side / top / front /
   3/4 / all four, x-ray), and `--png=` the four views through the pre-installed Chromium. Output in reports/quick_view/ (ignored).
