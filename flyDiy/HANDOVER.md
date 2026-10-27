@@ -99264,8 +99264,17 @@ draws.main stand / taxi, every tree on L25b 61e93cb1 (A0's base read ~1 054 / 90
 - **THE PARKED MOVES COST NOTHING** (-3 / 0): the scenery ready is free to go.
 - **THE STAND HEADING** (the view out of the door) adds renders (16 -> 22 at the stand: the LIVE water mirror's capture - the
   allow list's own G-note: the recording GL answers no occlusion query, so water seen is captured every frame) and draws.
-- **THE CODE ALONE** reads +138 / +317 - but nothing in it draws the world (60_gen_spec, 61_gen_frame, _cage_crew / gen / join /
-  page5 / parts / ui: the garage's editor and the frame; the aeroplane's own draws `craft` 76 in every tree) and the trees do not
-  add up (the taxi pin is the SAME pose in all six, 263.5 / 727.6): the census's virtual clock (performance.now() 10 us a call)
-  moves with the boot's own JS, so how much of the world has STREAMED IN by the measured frames moves with it. A longer warm
-  census (steady state) is the test of whether any of it is per-frame cost; owed next (DC3-2).
+- **CORRECTED (13:35): THE CODE COSTS NOTHING EITHER - the "code alone" row is a STALE PARKED COOK.** The parked aeroplanes' shipped
+  bakes (src/core/parked_packs.json, media/parked) carry the game's build id in their signature (parked.js cookSig): any change to
+  the hashed sources (the core, the editor) leaves them stale and the page captures every parked aeroplane LIVE - the census's
+  detail: `parked` 2 -> 139 draws at the stand, 5 -> 320 at the taxi, the parking step's fetches 5 (14.5 MB) -> 1 (1 KB);
+  `node tools/parked_cook.js --check`: L25b 'same', this code 'STALE'. A train's own parked cook after its build ends it (the tool's
+  WHEN TO COOK). The steady state proves it is not warm-up: --warm 300 gives the same 708 / 760 and 846 / 1077.
+- **THE STAND HEADING, measured alone** (L25b + the HOME stand row only - the fixtures are not in the build id: the parked cook stays
+  valid, 'same'): stand 708 -> **1 101** (+393 draws.main), renders 16 -> 22, gl.uniform2f 18 -> **111**; taxi 760 -> **1 076**
+  (+316), renders 16 -> 17, uniform2f 14 -> 111 (A0's own reading: uniform2f 45 -> 111). THE VIEW IS THE COST: the plane facing out
+  of the door puts water in the stand camera's view, the LIVE WATER MIRROR switches on (its capture: a second scene draw every
+  frame, +6 renders at the stand) and keeps capturing at the taxi pin (renders 17). GATE FRAMECOST's allow list says it: "the
+  recording GL answers no occlusion query, so THE WATER SEEN never skips it" - in a browser the capture may skip when the water is
+  occluded; the harness is the worst case. For the user (they asked for the plane to face out of the garage): the heading costs
+  the water mirror at the stand. (Measured on the cloud box; the cessna not re-run.)
