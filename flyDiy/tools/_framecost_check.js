@@ -451,7 +451,12 @@ const ALLOW = [
   { key: 'taxi/gl.bindBuffer', build: 'cub', upTo: 10, why: 'rwyTrees \'mapx\' (G3023): the trees reach the strip, the user\'s trees-on-the-strip ruling (train 56) (2 -> 7)', g: 'G3023' },
   // G3097 (CABIN STRIP, L19b): the fixture's new plots shift the stream queue's virtual-clock schedule - at --warm 6 other HOME
   // objects are built by the taxi frame; at --warm 300 before and after are identical (HWCOV's bisect, 19 Oct: 3 564 622 at the gate)
-  { key: 'taxi/tris.shadow', build: 'cessna', upTo: 3600000, why: 'G3097 fixture shifts the stream schedule; equal at --warm 300 (HWCOV 19 Oct)', g: 'G3097' }
+  { key: 'taxi/tris.shadow', build: 'cessna', upTo: 3600000, why: 'G3097 fixture shifts the stream schedule; equal at --warm 300 (HWCOV 19 Oct)', g: 'G3097' },
+  // G2991 (WORLD-LOOK debris, the user 26 Oct "keep the 131 debris"): the cover ring's debris are BatchedMeshes with
+  // perObjectFrustumCulled (G585) - each uploads its visible-instance list at every draw, per camera (main + cascades):
+  // taxi ~588 K -> ~779 K bytes a frame (Cub, 23:55 fold measure); upTo = measured + 5 %. The fix is ticket debris-batch-uploads
+  { key: 'taxi/bytes.texSubImage2D', build: 'cub', upTo: 818000, why: 'the 131 debris (the user 26 Oct): G585 BatchedMesh visible-list uploads per draw (ticket debris-batch-uploads)', g: 'G2991' },
+  { key: 'taxi/bytes.texSubImage2D', build: 'cessna', upTo: 825000, why: 'the 131 debris (the user 26 Oct): G585 BatchedMesh visible-list uploads per draw (ticket debris-batch-uploads)', g: 'G2991' }
 ];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------
