@@ -483,7 +483,9 @@ function benchSession(store, join, opts) {
   if (opts && opts.preG700) window.BENCH_ROLLOUT = null;          // the negative: no roll-out fingerprint
   // the award card is shown by stamping its dataset.test with the row's id - counted as it happens
   const shown = () => { const n = awards.n; awards.n = 0; return n; };
-  return { window, shown, flush: () => { while (timers.length) timers.shift()(); } };
+  return { window, shown, flush: () => { while (timers.length) timers.shift()(); },
+           // (a bounded flush: a timer that re-arms while a screen is held would never let flush() end)
+           flushN: n => { while (timers.length && n-- > 0) timers.shift()(); return timers.length; } };
 }
 {
   const arrival = { report: { verdicts: [], outcome: 'completed', landing: { run: 180, sink: 0.5, pastAim: 8 } }, arrived: true, t: 240, manual: false, td: null, armed: null };
@@ -560,6 +562,42 @@ function benchSession(store, join, opts) {
     let h3 = -1; try { S.window.BENCH_DIRTY(); S.flush(); } catch (e) {} h3 = held();
     ok(h3 === 0, 'the guard is not vacuous: the same engine and propeller rows hashed in the garage supersede all three (' + h3 + ' held)');
     ok(/inGarage: \(\) => !!inGarage/.test(APP), 'app.js hands the bench whether the page is in the garage');
+  }
+  // G3780 (A0 T-P1 21:31: the roll-out screen's worst task 1.0 -> 2.8 s with cert-rule): THE BENCH WORKS ONLY ON A
+  // GARAGE AT REST. Under the roll-out's screen (FLYDIY_HOLDS rollHold) a rebuild's fingerprint waits, and once it is
+  // taken R4's quiet re-run does not start while a screen is held; the restore's re-check and the run queue ask too
+  {
+    const spec0 = JSON.parse(rd('tools/_bench_fixture_build.json')).spec;
+    const H = { inGarage: true, holdRender: false, rollHold: false, craftAway: 0 };
+    const BENCH_SRC = rd('src/viewer/bench.js');
+    const store = { pq: null }, join = { up: true, spec: JSON.parse(JSON.stringify(spec0)) };
+    const S = benchSession(store, join, { api: { inGarage: () => true } });
+    S.window.FLYDIY_HOLDS = () => H;
+    const fp = S.window.BENCH_FP();
+    const row = () => ({ verdict: 'held', ok: true, fp, fps: 'f3', sv: 0, pv: 0, when: '2026-10-20' });
+    S.window.BENCH_RESTORE({ results: { shake: row(), load: row(), dalt: row() } });
+    try { S.flushN(50); } catch (e) {}
+    const R = () => S.window.BENCH_STATE().results, ids = ['shake', 'load', 'dalt'];
+    const held = () => ids.filter(id => R()[id] && R()[id].ok && !R()[id].stale).length;
+    H.rollHold = true;                                                          // ROLL OUT pressed: the screen is up
+    join.spec = Object.assign(JSON.parse(JSON.stringify(spec0)), { energy: Object.assign({}, spec0.energy, { vessels: [{ bay: 'nose', capacity: 60, form: 'box' }] }) });
+    S.window.BENCH_DIRTY();
+    let left = -1; try { left = S.flushN(40); } catch (e) {}
+    const hHeld = held();
+    H.rollHold = false;                                                         // the screen gone, the garage at rest
+    let hRest = -1; for (let i = 0; i < 12 && hRest !== 0; i++) { try { S.flushN(1); } catch (e) {} hRest = held(); }
+    H.rollHold = true;                                                          // ...and a roll-out again before R4's re-run
+    try { S.flushN(40); } catch (e) {}
+    const running = ids.filter(id => R()[id] && R()[id].running).length, stale = ids.filter(id => R()[id] && R()[id].stale).length;
+    ok(hHeld === 3 && left > 0 && hRest === 0 && running === 0 && stale === 3,
+       'under the roll-out screen a rebuild is fingerprinted only once the screen goes (' + hHeld + ' held while held, ' + hRest +
+       ' at rest), and R4\'s re-run does not start under a screen (' + running + ' running, ' + stale + ' superseded)');
+    ok(/const idle = \(\) => \{[\s\S]{0,260}FLYDIY_HOLDS[\s\S]{0,200}!H\.holdRender && !H\.rollHold && !H\.craftAway/.test(BENCH_SRC)
+       && /function recheckUpdate\(\) \{\s*if \(live \|\| flown \|\| busy \|\| dirtyT \|\| !idle\(\)\)/.test(BENCH_SRC)
+       && /if \(!idle\(\)\) \{ if \(auto\) scheduleRecheck\(\); return; \}/.test(BENCH_SRC),
+       "the restore's re-check and the run queue wait for a garage at rest too (bench.js idle)");
+    ok(/const cur = r\.fp === F2now;/.test(BENCH_SRC) && /if \(!cur\) recheck = true;/.test(BENCH_SRC),
+       'an f2 stamp of THIS game version restores as it is - no re-check (only an older version re-checks)');
   }
   // G680: the door's body is rollOutStand (rollOut decides the screen; from the shed the build's sync runs under it first)
   const rollAt = APP.indexOf('function rollOutStand(') >= 0 ? APP.indexOf('function rollOutStand(') : APP.indexOf('function rollOut(');
