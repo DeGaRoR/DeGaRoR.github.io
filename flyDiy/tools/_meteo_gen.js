@@ -86,7 +86,7 @@ const SETS = {
 const SET_IDX = (role, key) => Math.max(0, SETS[role].indexOf(key));
 const setNames = role => SETS[role].slice();
 const COL = name => Math.max(0, HG.COL_NAMES.indexOf(name));
-const std = (c, o) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.92, metalness: 0 }, o || {}));
+const std = (c, o) => HG.std(c, o);   // the house generator's factory (same defaults): GATE ASSETS allows no new material site here
 const OWN = ['roof', 'copper', 'dark', 'shaft', 'stone', 'steel', 'rail', 'flue', 'paint', 'conc', 'deck', 'patch'];
 function makeMats() {
   if (typeof THREE === 'undefined') { const M = {}; for (const k of OWN) M[k] = { color: { setHex() {} }, userData: {} }; return M; }
