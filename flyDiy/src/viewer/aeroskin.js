@@ -808,6 +808,10 @@ const AERO_SEC = {
               layer: 'wing' },
   wingFlap: { parent: 'wingSkin', role: 'skin', label: 'the flaps',
               layer: 'wing' },
+  // G2829: the STOL devices (the slat, the cuff, the VGs, the fences, the endplates) - their own paint, the wing's
+  // until repainted (the user: "highlight through a different color the STOL elements")
+  wingStol: { parent: 'wingSkin', role: 'skin', label: 'the STOL devices',
+              layer: 'wing' },
   finSkin:  { parent: 'body',     role: 'skin', label: 'the fin',
               layer: 'fin' },
   finRud:   { parent: 'finSkin',  role: 'skin', label: 'the rudder',

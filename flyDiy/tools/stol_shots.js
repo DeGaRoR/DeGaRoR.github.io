@@ -113,12 +113,17 @@ async function one(file) {
       say(name + ' the Leading edge row ' + (found ? 'found' : 'NOT FOUND'));
       await sleep(800); await shot('panel_stol');
     }
+    // the archetype picker away if it came up (the phone profile's garage can raise it after the load): the build stays
+    await ev("(()=>{[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0).forEach(x=>x.click());return 1})()");
+    await sleep(800);
     // the panels away, the aeroplane alone
     await ev("(()=>{for(const id of ['edWrap']){const e=document.getElementById(id);if(e)e.style.visibility='hidden';}for(const b of document.querySelectorAll('button')){if(/^‹(Properties|Parts)$/.test(b.textContent.trim()))b.click();}return 1})()");
     await sleep(1200);
     // FLIGHT_PROBE.camSet(az, el, dist): az 0 looks from BEHIND (seen in the cloud run, 22 Oct), so the front views
     // sit near az PI; le is a low front quarter close to the wing's leading edge, tip the front view on one tip
-    const PRESETS = { q: [0.85, 0.22, 11], s: [Math.PI / 2, 0.05, 12], f: [Math.PI, 0.08, 11], le: [Math.PI - 0.55, 0.04, 5.5], tip: [Math.PI - 0.12, 0.02, 7.5] };
+    const PRESETS = { q: [0.85, 0.22, 11], s: [Math.PI / 2, 0.05, 12], f: [Math.PI, 0.08, 11], le: [Math.PI - 0.55, 0.04, 5.5], tip: [Math.PI - 0.12, 0.02, 7.5],
+      // G2829: the near tip in the foreground (a front quarter, low), and the plan from above-front (the slot, the VG row)
+      tq: [Math.PI - 1.15, 0.12, 7], top: [Math.PI - 0.35, 0.95, 12] };
     for (const v of VIEWS) {
       const p = PRESETS[v]; if (!p) continue;
       await ev('FLIGHT_PROBE.camSet(' + p.join(',') + '),1'); await sleep(1500);

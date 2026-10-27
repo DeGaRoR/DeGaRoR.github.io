@@ -621,7 +621,7 @@ const CAGE_PARTS = [
              at: 'on the cabin carry-through' },
     // LAYER sections (AEROSKIN's AERO_SEC), not cage mesh names: the wing's
     // own livery rows, following the fuselage until overridden
-    sections: ['wingSkin', 'wingTip', 'wingLongeron'],
+    sections: ['wingSkin', 'wingTip', 'wingLongeron', 'wingStol'],   // G2829: the STOL devices' own paint
     // (T2.3 (48): the carry-through beam's switch rides with the centre section)
     groups: [
       ['planform', ['wgSpan', 'wgChord', 'wgChordTip', 'wgTip',

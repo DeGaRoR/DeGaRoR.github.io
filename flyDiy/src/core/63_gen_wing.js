@@ -1088,6 +1088,9 @@ function genWingInto(def, out) {
     // runs on a wing without them: the emission is the bytes it was.
     const ST = W.stol || null;
     if (ST || TIP.plate) {
+      // G2829: the skin vertices this block emits, reported (genWing's `stol`) so the wing layer can paint the
+      // devices as their own livery section (aeroskin wingStol) - nothing is reported on a wing without them
+      const stolV0 = skin.pos.length / 3;
       const E = genAfEval(W.naca);
       const zIn = PP.zRoot + 0.04, zOut = zStraight - 0.03;
       // rows over [z0, z1] at the loft's own stations plus the two ends
@@ -1215,6 +1218,7 @@ function genWingInto(def, out) {
           if (flip) skin.quad(oF.ids[i], oF.ids[j], iF.ids[j], iF.ids[i]); else skin.quad(oF.ids[i], iF.ids[i], iF.ids[j], oF.ids[j]);
         }
       }
+      if (out.stolV && skin.pos.length / 3 > stolV0) out.stolV.push([stolV0, skin.pos.length / 3]);
     }
   }
   // ---- centre section: the wing carries through above the cabin ----------
@@ -1360,8 +1364,8 @@ function genWing(def) {
   const skin = genMesh(), canopy = genMesh(), pitot = genMesh(),
         liftstrut = genMesh(), cabane = genMesh(), interplane = genMesh(),
         wire = genMesh(), longeron = genMesh();               // G274
-  const CTRL_MESH = [];
-  genWingInto(def, { B, skin, pitot, canopy, ctrl: CTRL_MESH, plane: 0, longeron });
+  const CTRL_MESH = [], stolV = [];
+  genWingInto(def, { B, skin, pitot, canopy, ctrl: CTRL_MESH, plane: 0, longeron, stolV });
   // G185: THE SECOND PLANE, into its own meshes — plane 0's groups are the
   // groups they always were, so a monoplane's payload is byte-identical
   const skin2 = genMesh(), canopy2 = genMesh();
@@ -1400,6 +1404,9 @@ function genWing(def) {
   }
   return {
     v: 5, generated: true, wingOnly: true,
+    // G2829: the first plane's skin vertex ranges [from, to) that are STOL devices (the slat, the cuff, the VGs, the
+    // fences, the endplates) - the wing layer's own livery section; absent on a wing without them
+    ...(stolV.length ? { stol: { skin: stolV } } : {}),
     linTex: ['bump', 'mr'],
     cover: ['skin', 'canopy'].concat(groups.skin2 ? ['skin2', 'canopy2'] : [], moving.map(m => m.group)),
     groups, moving,
