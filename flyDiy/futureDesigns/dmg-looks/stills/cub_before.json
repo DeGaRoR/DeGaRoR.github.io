@@ -1,0 +1,394 @@
+{
+ "page": "index.html",
+ "place": "stand",
+ "errors": [],
+ "warnings": [
+  "flyDiy: the loader fetched the town raster cells, the page composes default - those cells bake lazily",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "THREE.DataUtils.toHalfFloat(): Value out of range.",
+  "[.WebGL-0x934001a1800] GL_INVALID_OPERATION: glDrawArrays: A transform feedback buffer that would be written to is also bound to a non-transform-feedback target, which would cause undefined behavior.",
+  "performance warning: READ-usage buffer was written, then fenced, but written again before being read back. This discarded the shadow copy that was created to accelerate readback."
+ ],
+ "t": {
+  "garage": 313.4,
+  "stand": 363.2,
+  "view": 378.8,
+  "stage": 734.5,
+  "total": 734.5
+ },
+ "bootDone": true,
+ "bootSteps": 24,
+ "hardTimeout": false,
+ "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+ "soft": {
+  "tier": "software",
+  "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "forced": false,
+  "preset": "potato"
+ },
+ "gfx": null,
+ "trip": {
+  "kind": "rollout",
+  "anim": "timeout",
+  "ms": 33082
+ },
+ "stage": {
+  "build": "cub",
+  "shots": [
+   {
+    "scene": "trunk0",
+    "label": "30 m/s into a trunk, the centreline, 4 m up",
+    "cam": [
+     200,
+     32,
+     14
+    ],
+    "tag": "before",
+    "file": "futureDesigns/dmg-looks/stills/cub_trunk0_1_before.jpg",
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.000020616319444444445,
+     "topShare": 0.21519965277777778,
+     "colours": 2422,
+     "lowerMean": 85.7,
+     "lowerSd": 25.2
+    },
+    "info": {
+     "calls": 1,
+     "tris": 2
+    },
+    "physics": {
+     "centre": [
+      5.966920979147669,
+      30.26382083572463,
+      783.7165968299721
+     ],
+     "radius": 5.370746425284469,
+     "hdg": 0.7156,
+     "at": 120,
+     "stripLen": 2325,
+     "hiddenVeg": 159,
+     "rungsOff": true,
+     "ms": 4944,
+     "steps": 421,
+     "atRest": true,
+     "crashed": true,
+     "reason": "broke up: the fuselage parted (S0TL off the core)",
+     "broken": 126,
+     "cg": [
+      8.95,
+      29.95,
+      786.7
+     ]
+    }
+   },
+   {
+    "scene": "trunk0",
+    "label": "30 m/s into a trunk, the centreline, 4 m up",
+    "cam": [
+     120,
+     26,
+     9
+    ],
+    "tag": "before",
+    "file": "futureDesigns/dmg-looks/stills/cub_trunk0_2_before.jpg",
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.000537109375,
+     "topShare": 0.27824652777777775,
+     "colours": 3441,
+     "lowerMean": 87.4,
+     "lowerSd": 23.8
+    },
+    "info": {
+     "calls": 1,
+     "tris": 2
+    },
+    "physics": {
+     "centre": [
+      5.966920979147669,
+      30.26382083572463,
+      783.7165968299721
+     ],
+     "radius": 5.370746425284469,
+     "hdg": 0.7156,
+     "at": 120,
+     "stripLen": 2325,
+     "hiddenVeg": 159,
+     "rungsOff": true,
+     "ms": 4944,
+     "steps": 421,
+     "atRest": true,
+     "crashed": true,
+     "reason": "broke up: the fuselage parted (S0TL off the core)",
+     "broken": 126,
+     "cg": [
+      8.95,
+      29.95,
+      786.7
+     ]
+    }
+   },
+   {
+    "scene": "trunk0",
+    "label": "30 m/s into a trunk, the centreline, 4 m up",
+    "cam": [
+     300,
+     60,
+     18
+    ],
+    "tag": "before",
+    "file": "futureDesigns/dmg-looks/stills/cub_trunk0_3_before.jpg",
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.00006293402777777778,
+     "topShare": 0.32479166666666665,
+     "colours": 2043,
+     "lowerMean": 89.8,
+     "lowerSd": 18
+    },
+    "info": {
+     "calls": 1,
+     "tris": 2
+    },
+    "physics": {
+     "centre": [
+      5.966920979147669,
+      30.26382083572463,
+      783.7165968299721
+     ],
+     "radius": 5.370746425284469,
+     "hdg": 0.7156,
+     "at": 120,
+     "stripLen": 2325,
+     "hiddenVeg": 159,
+     "rungsOff": true,
+     "ms": 4944,
+     "steps": 421,
+     "atRest": true,
+     "crashed": true,
+     "reason": "broke up: the fuselage parted (S0TL off the core)",
+     "broken": 126,
+     "cg": [
+      8.95,
+      29.95,
+      786.7
+     ]
+    }
+   },
+   {
+    "scene": "trunk25",
+    "label": "30 m/s, the trunk 2.5 m out on the left wing",
+    "cam": [
+     200,
+     32,
+     16
+    ],
+    "tag": "before",
+    "file": "futureDesigns/dmg-looks/stills/cub_trunk25_1_before.jpg",
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.00009440104166666666,
+     "topShare": 0.21921549479166666,
+     "colours": 2144,
+     "lowerMean": 107.9,
+     "lowerSd": 18.4
+    },
+    "info": {
+     "calls": 1,
+     "tris": 2
+    },
+    "physics": {
+     "centre": [
+      32.83507565871196,
+      30.460567249050733,
+      816.6202411372478
+     ],
+     "radius": 3.280974876617837,
+     "hdg": 0.7156,
+     "at": 120,
+     "stripLen": 2325,
+     "hiddenVeg": 161,
+     "rungsOff": true,
+     "ms": 6965,
+     "steps": 856,
+     "atRest": true,
+     "crashed": true,
+     "reason": "a wing member broke",
+     "broken": 43,
+     "cg": [
+      34.36,
+      30.23,
+      817.93
+     ]
+    }
+   },
+   {
+    "scene": "trunk25",
+    "label": "30 m/s, the trunk 2.5 m out on the left wing",
+    "cam": [
+     250,
+     60,
+     26
+    ],
+    "tag": "before",
+    "file": "futureDesigns/dmg-looks/stills/cub_trunk25_2_before.jpg",
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.000042317708333333335,
+     "topShare": 0.21615885416666666,
+     "colours": 1867,
+     "lowerMean": 110.6,
+     "lowerSd": 10.8
+    },
+    "info": {
+     "calls": 1,
+     "tris": 2
+    },
+    "physics": {
+     "centre": [
+      32.83507565871196,
+      30.460567249050733,
+      816.6202411372478
+     ],
+     "radius": 3.280974876617837,
+     "hdg": 0.7156,
+     "at": 120,
+     "stripLen": 2325,
+     "hiddenVeg": 161,
+     "rungsOff": true,
+     "ms": 6965,
+     "steps": 856,
+     "atRest": true,
+     "crashed": true,
+     "reason": "a wing member broke",
+     "broken": 43,
+     "cg": [
+      34.36,
+      30.23,
+      817.93
+     ]
+    }
+   },
+   {
+    "scene": "noseover",
+    "label": "12 m/s on the ground into a 35 cm stump",
+    "cam": [
+     200,
+     30,
+     9
+    ],
+    "tag": "before",
+    "file": "futureDesigns/dmg-looks/stills/cub_noseover_1_before.jpg",
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.0006955295138888889,
+     "topShare": 0.2108355034722222,
+     "colours": 2429,
+     "lowerMean": 110.1,
+     "lowerSd": 32.9
+    },
+    "info": {
+     "calls": 1,
+     "tris": 2
+    },
+    "physics": {
+     "centre": [
+      11.23127883252562,
+      30.772317874280557,
+      802.0162306856494
+     ],
+     "radius": 3.0762943213011993,
+     "hdg": 0.7156,
+     "at": 120,
+     "stripLen": 2325,
+     "hiddenVeg": 154,
+     "rungsOff": true,
+     "ms": 6428,
+     "steps": 662,
+     "atRest": true,
+     "crashed": true,
+     "reason": "a gear member broke",
+     "broken": 7,
+     "cg": [
+      11.99,
+      30.92,
+      803.52
+     ]
+    }
+   },
+   {
+    "scene": "noseover",
+    "label": "12 m/s on the ground into a 35 cm stump",
+    "cam": [
+     90,
+     26,
+     7
+    ],
+    "tag": "before",
+    "file": "futureDesigns/dmg-looks/stills/cub_noseover_2_before.jpg",
+    "picture": {
+     "w": 1280,
+     "h": 720,
+     "clearShare": 0.000927734375,
+     "topShare": 0.24200303819444444,
+     "colours": 2204,
+     "lowerMean": 117.7,
+     "lowerSd": 43.4
+    },
+    "info": {
+     "calls": 1,
+     "tris": 2
+    },
+    "physics": {
+     "centre": [
+      11.23127883252562,
+      30.772317874280557,
+      802.0162306856494
+     ],
+     "radius": 3.0762943213011993,
+     "hdg": 0.7156,
+     "at": 120,
+     "stripLen": 2325,
+     "hiddenVeg": 154,
+     "rungsOff": true,
+     "ms": 6428,
+     "steps": 662,
+     "atRest": true,
+     "crashed": true,
+     "reason": "a gear member broke",
+     "broken": 7,
+     "cg": [
+      11.99,
+      30.92,
+      803.52
+     ]
+    }
+   }
+  ],
+  "skipMain": true
+ }
+}
