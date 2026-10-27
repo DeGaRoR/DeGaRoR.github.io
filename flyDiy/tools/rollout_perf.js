@@ -173,6 +173,12 @@ const SHOT_EVAL = opt('shot-eval', null);
 // --profile-live <at>,<secs>: a CPU profile window of the live game (below); --eval '<js>': an expression evaluated in the page at the end of the
 // recording (a census: renderer.info, a module's stats), its value printed and kept in the JSON
 const PROFILE_LIVE = opt('profile-live', null);
+// --trace <secs> (G1998, HWCOV): a Chrome trace of every process (the GPU process's ANGLE work, the compositor, the main
+// thread's tasks) from just before the roll-out click for <secs> s, written beside the JSON as <label>.trace.json (open
+// it in chrome://tracing or Perfetto). For the cold freeze that sits off the main thread (the frames stop, no long task)
+const TRACE = opt('trace', null);
+const TRACE_CATS = 'toplevel,disabled-by-default-devtools.timeline,devtools.timeline,v8.execute,blink,cc,viz,gpu,gpu.service,gpu.angle,'
+  + 'disabled-by-default-gpu.service,disabled-by-default-gpu.angle,disabled-by-default-gpu.decoder,gpu.capture,__metadata';
 // --pre <js | @file> (C4b, G879): a script the page runs before its first own script (after the rig's own pre-lines) - a
 // debugging hook, e.g. tools/perf/progwait_hook.js, which names every GL call that waited on a program link
 const PRE = (e => e && e[0] === '@' ? fs.readFileSync(path.resolve(e.slice(1)), 'utf8') : e)(opt('pre', null));
@@ -399,8 +405,9 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   if (!tgt) throw new Error('no page target');
   const ws = new WebSocket(tgt.webSocketDebuggerUrl);
   await new Promise(r => ws.onopen = r);
-  let id = 0; const waits = new Map(); const exc = [];
+  let id = 0; const waits = new Map(); const exc = []; const traceEv = []; let traceEnd = null;
   ws.onmessage = ev => { const m = JSON.parse(ev.data); if (m.id && waits.has(m.id)) { waits.get(m.id)(m); waits.delete(m.id); }
+    if (m.method === 'Tracing.dataCollected') traceEv.push(...m.params.value); if (m.method === 'Tracing.tracingComplete' && traceEnd) traceEnd();
     if (m.method === 'Runtime.exceptionThrown') exc.push((m.params.exceptionDetails.exception && m.params.exceptionDetails.exception.description || m.params.exceptionDetails.text || '').split('\n')[0]); };
   const cmd = (method, params) => new Promise(r => { const i = ++id; waits.set(i, r); ws.send(JSON.stringify({ id: i, method, params: params || {} })); });
   const ev = async (expr, timeoutMs) => {
@@ -450,6 +457,13 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   // by self and inclusive time per function (G591: where the roll-out's long tasks go)
   const PROFILE = flag('profile');
   if (PROFILE) { await cmd('Profiler.enable'); await cmd('Profiler.setSamplingInterval', { interval: 1000 }); await cmd('Profiler.start'); }
+  let traceDone = Promise.resolve(0);
+  if (TRACE) {
+    const r = await cmd('Tracing.start', { transferMode: 'ReportEvents', traceConfig: { recordMode: 'recordContinuously', includedCategories: TRACE_CATS.split(',') } });
+    if (r.error) console.log('  trace: ' + JSON.stringify(r.error));
+    else { console.log('  trace on (' + TRACE + ' s from the click)');
+      traceDone = sleep(+TRACE * 1000).then(() => new Promise(res => { traceEnd = () => res(traceEv.length); cmd('Tracing.end'); })); }
+  }
   // G833 (C2a): THE LOADING'S TOWN STEP - its own time (BOOT.log), the long tasks inside it (the main thread's share),
   // and the house worker's account (src/viewer/house_worker.js: its world's init, the recompose, what it generated and
   // what came from its IndexedDB cache). Cold (--cold: an empty cache) vs warm (a second run on the same profile: the
@@ -695,6 +709,9 @@ const pct = (a, p) => { if (!a.length) return 0; const f = a.slice().sort((x, y)
   const evalOut = EVAL ? await ev('(async () => JSON.stringify(await (' + EVAL + '\n)))()', +opt('eval-ms', 60000)).catch(e => 'error: ' + e.message) : null;   // --eval-ms: a longer census (tools/pave_ab.js, G928)
   if (EVAL) console.log('  eval: ' + evalOut);
   const prof = await profDone;
+  if (TRACE) { const n = await Promise.race([traceDone, sleep(60000).then(() => -1)]);
+    const f = OUT.replace(/.json$/, '.trace.json'); fs.mkdirSync(path.dirname(f), { recursive: true });
+    fs.writeFileSync(f, JSON.stringify({ traceEvents: traceEv })); console.log('  trace: ' + traceEv.length + ' events' + (n < 0 ? ' (no tracingComplete in 60 s)' : '') + ' -> ' + f); }
   let profTop = null;
   if (prof) {
     // self time per node = its samples x the mean interval; aggregated by function (name + script + line) and by script
