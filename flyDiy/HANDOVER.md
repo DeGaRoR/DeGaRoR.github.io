@@ -99269,3 +99269,115 @@ height and length" - and "fix the CLOCK pin to PLAYER_V 3".
   the words.
 - **GATE CLOCK**: its sandbox row now pins `PLAYER_V === 3` (70_player.js's; was 2 - red on master d7e181f4 too).
 - Gates (private build): MISSIONS, CONTRACTS, CLOCK, NAMES PASS.
+
+## MISSIONS-P1/P2 - THE MISSION RUNTIME (node logic): ORDERS SOLD + PROFIT, PREFERENCES, THE CLIENT'S AIRFRAME, FAILURE RULES + RESTART, THE IN-FLIGHT TRACKER (POINTS, GATES, RINGS), TIMERS, MARKER DATA (2026-10-26, cloud, node only; branch claude/missions-p1 off claude/missions-p0 db58b0b5 + origin/master d7e181f4 = no-op; for Game's review; the visuals are a LOCAL session's - the list below)
+
+The user (26 Oct): "P2: aircraft-order extensions (criteria, preferences, startFrom, handover + selling, profit line) +
+failure rules and restart. P1 logic only: point places, gates/rings as objectives, timers on step groups, map-marker data.
+Leave the visuals (props, photo shutter, markers drawn) to a local session." People are GAME_PEOPLE ids; the tutorial is
+untouched (STORY green; the T5 jobs stay retrofitted, runnable).
+
+**Files.** NEW `src/core/73c_mission_run.js` (pure). `73b_missions.js` + `73c` now in build.js MANIFEST.core AND
+MANIFEST.career, after 73_contracts.js (career-only modules: index.html's sandbox never runs them). Edited (additive):
+72_accept.js (ACCEPT answers 8 new kinds), 72_contract_data.js (the ev.* words), 73_contracts.js, 74_career.js,
+75_career_wire.js, 90_node_exports.js. tools: _missions_check.js (the runtime block + 18 more selftest mutations, 36 in
+all), _accept_check.js (a sample per new kind), _missions_demo.js -> `src/missions/demo_p1.json` (one mission per piece,
+HOME <-> Ridgeback Strip), mission_editor.html (loads 72_accept + 73c: LEAN = the game's verdicts; waitMin).
+
+**P2 - THE AIRCRAFT ORDER.**
+- *Criteria* (72_accept.js ACCEPT_KINDS; 73_ CONTRACT_CRIT_NEXT keeps them apart from the 15 ruled kinds): heightM,
+  lengthM (the measured plan: playerFootOfDef h, fwd + aft), fitsShed (hangarDoorWhy + hangarPark on the SHELLS row,
+  `at.dims` the client's own shed), pax (seats - 1), stallKmh / toDistM / climbMs (genShakedown's Vs / TORun / climbRate
+  READ from `ev.shake`, never computed in acceptStatic - GQ19; at a load scaled by ACCEPT_LOAD_LAWS: stall x (W/W0)^0.5,
+  take-off x (W/W0)^2, climb x (W0/W)^2, W0 the shakedown's mass, 80 kg an occupant), fuelLph (the leg's flowLh). NOT
+  answered yet, so an order naming one is held out (contractRuntimeOk): ldgDistM (no landing distance is measured
+  anywhere), cargoL (the hold's volume exists for the five validated designs only).
+- *Preferences* (missionPrefsJudge off the delivered spec, `stop.spec`): engines (count), thrust (tractor | pusher off
+  engines[0].mount / aim), wing (position), tail (type), gear (type; floats by stripGear), canopy (style), suspension.
+  A mandatory one unmet refuses the delivery ("a must: engines 2 (built: 1)"); a bonus one met pays its pct
+  (contractPayTotal reads got['pref.<k>']). No spec on the stop -> pending.
+- *startFrom* (the client's airframe): careerAccept returns `effects: [{ k: 'clientPlane', id, from }]`; the page brings
+  it into the fleet and calls `careerOrderBind(doc, id, slot)` (career.airframes[slot] = { client: id, paid: 0 }); before
+  that the delivery is pending; only that slot delivers.
+- *Handover + selling* (§7: "sold to the client ... no longer ours"; "the BLUEPRINT is saved automatically"):
+  `contractDelivery(rec)` = sold + blueprint by default for EVERY build (records may say `delivery: { sold: false }`).
+  careerComplete -> `careerHandover`: the airframe leaves the fleet (playerFleetReconcile) and career.airframes, a pilot
+  on it is freed, a route on it ended (routesBlock), `career.sold` gets { slot, id, at, pay, cost }; the done event
+  carries `handover: { slot, blueprint (the slot's name without its ' @<career>' tag; null for a client's airframe), cost
+  (airframes[slot].paid: econMaterialise's price), profit (pay - cost), client }`. **THIS CHANGES RUNNING CAREERS: an
+  authored build contract delivered from now on hands its airframe over** (minedock.04, resort.04, survey.04,
+  clients.02/04/05, the b-orders) - the user's ruling of 25 Oct, flagged for Game.
+- *The profit line*: contractProfit(pay, cost); the card: "handed over to the client; the blueprint is saved as <name> ·
+  paid X, it cost Y to build: Z profit" (ev.handover / ev.profit / ev.handback).
+
+**P2 - FAILURE RULES AND RESTART** (§3.4). `missionRulesJudge(rec, stop)`: crash 'fail' (stop.wrecked / how 'crashed');
+injury 'fail' (any band >= 1) or { fail: <band 1-4 | its GEN_OCC word> } off `stop.occ` (genOccWire's bands); freight
+'fail' (`stop.freight.harmed`, or a crash with a load aboard - there is no freight-damage model yet); damage 'fail'
+(structural.damaged) or 'assess' (the done event's `assess`, the card's "the client noted the damage"). careerOnStop
+judges the rules FIRST, for the missions on that flight (the tracked one, or one with a step done / a load aboard):
+broken -> `careerFail(doc, id, why)` (out of accepted, `contracts.failed` [{ id, at, why }], a client's airframe back,
+offered again) -> event { k: 'failed', id, why, restart }. `careerRestart(doc, id)` = accept it again from step 1.
+Contracts without rules (today's) are untouched: a crash still resets and keeps them live.
+
+**P1 - THE IN-FLIGHT OBJECTIVES** (logic). An in-flight step = pass / photo / fly whose place is a pt, a gate or a ring;
+it needs an `id` (the validator says so). `missionTrackNew(rec, live)` arms the current leg's objectives (a seq leg:
+only the next one); `missionTrackStep(T, { t, x, z, y (m MSL), agl })` tests the segment between two samples:
+- pt: the closest approach of the segment within r, the alt band at that point (agl / msl; a sample without the
+  height asked refuses nothing);
+- gate: the segment crosses the posts' segment, the band at the crossing, and (dir set) the motion within 90 deg of dir;
+- ring: dir set - crossing its plane the way it faces (normal (sin dir, -cos dir)), within r of the centre (lateral +
+  vertical); no dir - a sphere of radius r;
+- headings: compass degrees, 0 = north = -z, 90 = east = +x.
+Events: { k: 'hit' | 'photo' (with its say) | 'split' { id, key, s, target } | 'timer' { id, state: start | stop, s } }.
+`missionTrackEvidence(T)` -> the stop record's `tracks[<contract id>]` = { hits: { <step id>: { t, x, z, y } }, timers:
+{ <id>: { t0, s, splits } } }; contractSubOnStop -> missionStepOnStop judges the step off it at the next stop (any
+aerodrome stop). park: `stop.spot` = '<field>:<spot id>'; wait: a stop at its field with `stop.waitedMin` >=
+require.waitMin; talk: a stop at its field (its line as an event).
+**Timers**: missionTimerOnSub on the stop step: medals -> the best band (no band reached: NOT done, fly it again); no
+medals -> the target (seconds or { refKmh } over the steps' places) must be beaten; **a timed group is flown whole**
+(missionTimerGroups: a slow lap un-does its start step too, so the next flight can time it again). A seq leg is judged
+in order at the stop. Splits are reported (events, the done event's `timers`), never required.
+**Markers**: `missionMarkers(rec, live, { spots, fields })` -> [{ key, n, do, kind: pt | gate | ring | spot | site |
+field, x, z, y?, r?, posts?, dir?, prop?, alt?, split?, label, state: done | next | later }] (a seq leg: one `next`);
+careerMapContract's record carries `markers` (and prefs / client / rules) for a mission with places only - today's
+contracts' map record is unchanged (gated).
+
+**THE LOCAL SESSION MUST WIRE (app.js / the flight page; node can't run these):**
+1. A dev flag (e.g. `?missions=demo_p1`): fetch `src/missions/<name>.json`, `I = missionPackInstall(pack)`, put
+   `I.providers[p].arc / builds / night` into CONTRACT_PROVIDERS[p] and `Object.assign(CONTRACT_TEXT, I.text)` before the
+   career's first careerRefresh (the demo pack is the clients' campaign: two speed runs on the arc, the rest offered).
+2. Each flight: for each accepted contract with `missionObjectives(rec, live).objs.length`, `missionTrackNew` at the
+   departure; `missionTrackStep(T, { t: sim s, x, z, y: MSL m, agl: m })` at the recorder's rate (>= 2 Hz; gates are
+   segment-tested, so a low rate still catches them); show its events (below).
+3. The stop record (careerStopRecord): `tracks: { <id>: missionTrackEvidence(T) }`, `spot` (the FLEET_SPOTS_PACK spot
+   whose box holds the stopped aeroplane: 25_ fleetSpotDist <= 0), `waitedMin` (after the Wait button: call careerOnStop
+   again at the same field with the minutes waited), `spec` (the stopped airframe's spec: an order's preferences),
+   `occ` (sim_host meta.occ: genOccWire) and the load at a crash.
+4. A crash: `careerOnStop(doc, careerStopRecord({ how: 'crashed', wrecked: true, occ, cargoKg / items, ... }))` BEFORE
+   careerCrashReset (the rules fail the missions on that flight); the card's "failed - <why>. You can start it again."
+   + a Restart button -> `careerRestart(doc, id)`.
+5. An order: careerAccept's `effects` clientPlane -> materialise CONTRACT_DESIGNS[from].build (or { build }) into the
+   fleet as a new tagged slot, then careerOrderBind. The done event's `handover`: the fleet row is already gone from the
+   document - remove the airframe from the world, and SAVE THE BLUEPRINT: the slot's design to the sandbox library under
+   `handover.blueprint` (null: a client's airframe, nothing saved); show the profit line (careerEventLines has it).
+6. ACCEPT's evidence (accept_rec.js ACCEPT_REC.verdict): hand `ev.shake` = the bench's genShakedown result ({ Vs, TORun,
+   climbRate, mass }) for stallKmh / toDistM / climbMs (else "needs a test"); the leg's acceptLegMeasure needs `kgL`
+   (the fuel's density) for fuelLph.
+**... AND DRAW (the visuals left to it):**
+- GATE (kind 'gate', posts [[x1,z1],[x2,z2]]): two posts - prop 'balloons' a column of tethered balloons from the ground
+  to the band's top (alt.max, AGL or MSL as `alt.ref`; none: 60 m), 'pylons' an air-race pylon (~25 m); a faint line
+  between them at the band; with `dir` an arrow showing the way through.
+- RING (kind 'ring', [x, y MSL, z], r, dir): a donut of radius r, its axis horizontal along heading dir (normal (sin dir,
+  -cos dir)); no dir: a ring facing the approach (any way counts).
+- POINT (kind 'pt', r, alt): a translucent column of radius r between alt.min and alt.max (a ground circle when no band);
+  a camera glyph for a photo, a flag for a fly-to.
+- SPOT (kind 'spot', x, z, dir = the spot's ry): the tie-down box highlighted (FLEET_SPOT_FOOT's size).
+- STATES: next = bright and pulsing, later = dim, done = grey (or hidden in 3-D); the 2-D map numbers them (m.n) and
+  labels a rally checkpoint's split ("cp2 · 41 s"); a rally shows ONLY its checkpoints and split targets (the user: the
+  route stays hidden - never draw `route`).
+- EVENTS: 'photo' -> the SHUTTER SOUND + a white flash frame + the step's `say` line (the speaker's portrait, peopleFace)
+  - the user: "sound only, plus the message"; 'hit' -> a short chime + "Gate 1"; 'split' -> "cp2: 41 s (target 45)";
+  'timer' start -> a HUD stopwatch running, stop -> the lap held on it; a done event's `timers` on the arrival card.
+- The editor's link under the Dev section (§7), when Game wants it.
+
+**Gates** (private copy, built there, `run_gates.js --no-build`): see the READY note's verdict lines.

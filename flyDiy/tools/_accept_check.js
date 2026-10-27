@@ -301,6 +301,14 @@ function runChecks(C, F, D, src, quiet) {
     [{ k: 'rangeKm', v: 100 }, 'ok'], [{ k: 'rangeKm', v: 5000 }, 'fail'],
     [{ k: 'takeoffAt', at: 'HOME' }, 'ok'], [{ k: 'takeoffAt', at: 'A4' }, 'needs-flight'],
     [{ k: 'landAt', at: 'HOME' }, 'ok'], [{ k: 'landAt', at: 'A4' }, 'needs-flight'],
+    // (MISSIONS-P2) the order's new criteria: the size off the Cub's measured plan, the seats beside the pilot, the shed;
+    // the shakedown's numbers need it handed in (ev.shake - none here: a test to run); the flow needs a leg with litres
+    [{ k: 'heightM', v: 8 }, 'ok'], [{ k: 'heightM', v: 1 }, 'fail'],
+    [{ k: 'lengthM', v: 25 }, 'ok'], [{ k: 'lengthM', v: 3 }, 'fail'],
+    [{ k: 'pax', v: 1 }, 'ok'], [{ k: 'pax', v: 3 }, 'fail'],
+    [{ k: 'fitsShed', v: 'works' }, 'ok'], [{ k: 'fitsShed', v: 'field', at: { dims: { HW: 3, HD: 3, EAVE: 2 } } }, 'fail'],
+    [{ k: 'stallKmh', v: 60 }, 'needs-test'], [{ k: 'toDistM', v: 300 }, 'needs-test'], [{ k: 'climbMs', v: 2 }, 'needs-test'],
+    [{ k: 'fuelLph', v: 100 }, legCub && legCub.flowLh != null ? 'ok' : 'needs-flight'],
     [{ k: 'warpDrive', v: 1 }, 'fail'],
   ];
   for (const [c, want] of per) { const r = one(c); ok(r.status === want, 'verdict ' + c.k + ' ' + (c.op || '') + JSON.stringify(c.v != null ? c.v : c.at) + ' -> ' + r.status + (r.value != null ? ' (' + r.value + ')' : '') + (r.status !== want ? ' WANTED ' + want : '')); }

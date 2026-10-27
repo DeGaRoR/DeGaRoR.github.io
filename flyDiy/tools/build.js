@@ -201,10 +201,11 @@ const MANIFEST = {
     // THE CONTRACTS (G2240 CONTRACT-MODEL): the providers' data (text keys), the record, the job generator, a
     // stage's acceptance and the career document; pure, GATE CONTRACTS. GAME-2026-10-06.md §6, §7, §13.2.
     '72_contract_data.js', '73_contracts.js',
-    // THE MISSION RUNTIME (MISSIONS-P1/P2): the in-flight tracker (points, gates, rings), the timers, the failure rules,
-    // an order's preferences / delivery / profit, the new verbs at a stop, the map's marker data. Pure; GATE MISSIONS.
-    // (73b_missions.js, the pack's format and loader, joins when the career reads packs: futureDesigns/MISSIONS-2026-10-25.md)
-    '73c_mission_run.js',
+    // THE MISSION PACKS (MISSIONS-P0): src/missions/*.json's format, validator, the conversion into 73_'s record, the
+    // install over CONTRACT_PROVIDERS (a page calls it; nothing at boot yet). THE MISSION RUNTIME (MISSIONS-P1/P2): the
+    // in-flight tracker (points, gates, rings), the timers, the failure rules, an order's preferences / delivery / profit,
+    // the new verbs at a stop, the map's marker data. Pure; GATE MISSIONS. futureDesigns/MISSIONS-2026-10-25.md
+    '73b_missions.js', '73c_mission_run.js',
     '74_career.js', '75_career_wire.js',
     // THE STAGES (G2300 STAGES): the career's tracks -> the premises' `stage` (27_premises.js stageView), the unlock ->
     // reveal map, the queue that never applies in flight. Pure; GATE STAGES. GAME-2026-10-06.md §11.
@@ -259,7 +260,7 @@ const MANIFEST = {
   // stored (flydiy.routeDraw { fly: true } - ROUTE_LOADER). The pilot's half is core (38c_route.js, 44_vprofile.js: the
   // page's pilot and the worker's fly them) and stays inline.
   routeDraw: 'route_draw.js',
-  career: ['72_contract_data.js', '73_contracts.js', '73c_mission_run.js', '74_career.js', '75_career_wire.js', '76_economy.js',
+  career: ['72_contract_data.js', '73_contracts.js', '73b_missions.js', '73c_mission_run.js', '74_career.js', '75_career_wire.js', '76_economy.js',
     '76_procure.js', '76_pilots.js', '76_freight.js', '77_freight_load.js', '78b_routes.js', '79_story.js', '79b_tech.js'],
   // baked 3D model payloads (tools/model_prep.py baked the PA-18 and C172
   // when they were flyable, tools/ref_prep.py the rest — all REFERENCE

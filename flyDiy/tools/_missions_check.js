@@ -35,7 +35,8 @@
 //                  idempotent); the live reward.
 //   PURITY         73b_missions.js touches no DOM, storage, THREE, clock or random.
 //   node tools/_missions_check.js             -> "GATE MISSIONS: PASS|FAIL"
-//   node tools/_missions_check.js --selftest  -> the model doctored one rule at a time; each must turn a check red
+//   node tools/_missions_check.js --selftest  -> the model doctored one rule at a time (36: the pack, the runtime); each must
+//                                               turn a check red
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.join(__dirname, '..');
@@ -128,6 +129,13 @@ function run(mut) {
     ok(M.missionCanon(L.missionPackContracts(p)) === M.missionCanon(M.missionPackContracts(p)) || hasItems(p), f + ': LEAN reads the same records');
   }
   function hasItems(p) { return p.missions.some(m => (m.legs || []).some(l => (l.steps || []).some(s => s.load && s.load.items))); }
+
+  // the demo pack (tools/_missions_demo.js: one mission per runtime piece, for the local session): installs whole, runs
+  const DP = packs['demo_p1.json'];
+  if (ok(!!DP, 'src/missions/demo_p1.json exists')) {
+    const DI = M.missionPackInstall(DP);
+    ok(!DI.held.length && DP.missions.every(m => M.contractRuntimeOk(M.missionToContract(m, { pack: DP })) === ''), 'demo_p1.json: installs whole, every mission runs today (' + J(DI.held) + ')');
+  }
 
   // ==== THE BUILT-IN PACK = TODAY'S CONTRACTS ======================================
   const B = packs['builtin.json'];
@@ -346,7 +354,7 @@ function run(mut) {
   }
 
   // ==== THE RUNTIME (MISSIONS-P1/P2: 73c_mission_run.js and its seams in 72_accept / 73_ / 74_ / 75_) ====================
-  runtimeRows(M);
+  runtimeRows(M, mut);
 
   // ==== PURITY + THE EDITOR'S FILES =================================================
   const s = M.__src['73b_missions.js'].replace(/\/\/.*$/gm, '');
@@ -397,11 +405,11 @@ function flightLine(z0, z1, v, agl, x) {
   for (let i = 0; i <= n; i++) { const z = z0 + Math.sign(z1 - z0) * Math.min(Math.abs(z1 - z0), i * v); out.push({ t: i, x: x != null ? x : -450, z, y: agl + 20, agl }); }
   return out;
 }
-function runtimeRows(M) {
+function runtimeRows(M, mut) {
   const B = runtimePack();
   ok(!M.missionPackValidate(B, { spots: SPOTS }).length, 'the runtime pack validates (' + M.missionPackValidate(B, { spots: SPOTS }).slice(0, 4).join('; ') + ')');
   // a model with the runtime pack installed over the clients (the career reads CONTRACT_PROVIDERS)
-  const N = loadMissions({ core: true });
+  const N = loadMissions({ core: true, mut });
   const NI = N.missionPackInstall(B);
   ok(!NI.held.length, 'the runtime pack installs whole (' + J(NI.held) + ')');
   for (const k of ['arc', 'builds', 'night']) N.CONTRACT_PROVIDERS.clients[k] = NI.providers.clients[k];
@@ -612,6 +620,25 @@ const MUTS = [
   ['the order with preferences is refused its words', { '73_contracts.js': sub('const prefs = opts.mission && Array.isArray(r.prefs) && r.prefs.length > 0;', 'const prefs = false;') }],
   ['the arc is not offered in order', { '72_contract_data.js': sub("arc: [\n      C_({ id: 'field.01'", "arc: [\n      C_({ id: 'field.01x'") }],
   ['73b reads the clock', { '73b_missions.js': sub('const msClone = o => JSON.parse(JSON.stringify(o));', 'const msClone = o => (Date.now(), JSON.parse(JSON.stringify(o)));') }],
+  // (MISSIONS-P1/P2) the runtime
+  ['a point ignores its altitude band', { '73c_mission_run.js': sub('return Math.hypot(q.x - cx, q.z - cz) <= p.r && !msrAltWhy(p.alt, q) ? q : null;', 'return Math.hypot(q.x - cx, q.z - cz) <= p.r ? q : null;') }],
+  ['a gate flown backwards counts', { '73c_mission_run.js': sub('if (msrNum(p.dir) && msrDiff(msrDeg(dx, dz), p.dir) > 90) return null;', '') }],
+  ['a ring is passed backwards', { '73c_mission_run.js': sub('if (!(sa < 0 && sb >= 0)) return null;', 'if (!(sa > 0 && sb <= 0)) return null;') }],
+  ['a seq leg arms every objective', { '73c_mission_run.js': sub('    if (T.seq) break;\n', '') }],
+  ['a slow lap still wins a medal', { '73c_mission_run.js': sub('const m = t.medals.slice().sort((a, b) => a.le - b.le).find(x => E.s <= x.le);', 'const m = t.medals[0];') }],
+  ['a timed group is spent by a slow lap', { '73c_mission_run.js': sub("for (let j = a; j < b; j++) if (res[j] && res[j].st === 'done')", 'for (let j = a; j < a; j++) if (res[j] && res[j].st === \'done\')') }],
+  ['a mandatory preference is only a wish', { '73c_mission_run.js': sub("else if (p.need === 'mandatory') miss.push(", 'else if (false) miss.push(') }],
+  ['a crash fails nothing', { '73c_mission_run.js': sub("if (R.crash === 'fail' && crashed) return", 'if (false) return') }],
+  ['someone hurt is nothing', { '73c_mission_run.js': sub('if (thr >= 1 && worst >= thr) return', 'if (false) return') }],
+  ['the bonus preference is not paid', { '73_contracts.js': sub("for (const p of rec.prefs || []) if (p && p.need === 'bonus' && got && got['pref.' + p.k]) pct += p.pct || 0;", '') }],
+  ['any airframe delivers the client\'s order', { '73_contracts.js': sub("if (own && stop.slot !== own.slot) return", 'if (false) return') }],
+  ['the delivered airframe stays ours', { '74_career.js': sub('const handover = dl && dl.sold && live.slot', 'const handover = false && dl && dl.sold && live.slot') }],
+  ['a failed mission stays accepted', { '74_career.js': sub("  D.accepted = D.accepted.filter(x => x !== id);\n  delete D.live[id];\n  if (D.tracked === id) D.tracked = D.accepted[0] || null;\n  D.failed", '  D.failed') }],
+  ['a failure fails every accepted mission', { '74_career.js': sub('const v = busy ? missionRulesJudge(rec, stop) : null;', 'const v = missionRulesJudge(rec, stop);') }],
+  ['the length is the span', { '72_accept.js': sub("case 'lengthM': return out(ev.foot ? Math.round((ev.foot.fwd + ev.foot.aft) * 10) / 10 : null,", "case 'lengthM': return out(ev.foot ? 2 * ev.foot.half : null,") }],
+  ['the take-off ignores the load', { '72_accept.js': sub('const add = (acceptNum(a.pax) || 0) * L.occKg + (acceptNum(a.kg) || 0);', 'const add = 0;') }],
+  ['the stop record grows keys', { '75_career_wire.js': sub("if (typeof o.spot === 'string' && o.spot) out.spot = o.spot;", 'out.spot = o.spot || null;') }],
+  ['the markers lose the seq order', { '73c_mission_run.js': sub("if (state === 'next' && st.order === 'seq') { if (armed) state = 'later'; armed = true; }", '') }],
 ];
 
 if (!SELF) {

@@ -414,6 +414,7 @@ function stepForm(f, m, li, si) {
   f.append(el('fieldset', {}, el('legend', {}, 'require'),
     row('when', sel(R.when ? JSON.stringify(R.when) : '', [['{"before":"dusk"}', 'arrive before dusk'], ['{"after":"dusk"}', 'arrive after dusk'], ['{"before":"dawn"}', 'arrive before dawn']], x => setR('when', x ? JSON.parse(x) : undefined), { blank: '—' }), 'or {arrive:[h0,h1]} in the raw JSON'),
     row('maxMin', inp(R.maxMin, x => setR('maxMin', x), { type: 'number', ph: 'minutes (the user\'s spec: allowed)' })),
+    s.do === 'wait' ? row('waitMin', inp(R.waitMin, x => setR('waitMin', x), { type: 'number', ph: 'minutes to wait there' })) : null,
     row('depart', json(R.depart, v => setR('depart', v), { ph: '{"after":8} | {"at":[8,10]}' })),
     s.do === 'deliver' || s.do === 'accept' ? row('plane (criteria)', json(R.plane, v => setR('plane', v), { ph: '[{"k":"seats","op":">=","v":4}] - kinds: ' + Object.keys(CONTRACT_CRIT_KINDS).concat(Object.keys(CONTRACT_CRIT_NEXT)).join(' ') })) : null,
     s.do === 'fly' ? row('medals', json(s.medals, v => s.medals = v, { ph: '[{"medal":"gold","le":300}] (a challenge, the logbook time)' })) : null,

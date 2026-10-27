@@ -1,0 +1,694 @@
+{
+ "what": "flydiy-missions",
+ "v": 1,
+ "id": "demo_p1",
+ "title": "ms.demo.title",
+ "campaigns": [
+  {
+   "id": "demo",
+   "title": "ms.demo.title",
+   "provider": "clients",
+   "order": "any",
+   "chapters": [
+    {
+     "id": "demo.speed",
+     "title": "ms.demo.speed",
+     "order": "seq",
+     "missions": [
+      "demo.gates",
+      "demo.rally"
+     ]
+    },
+    {
+     "id": "demo.misc",
+     "title": "ms.demo.misc",
+     "order": "any",
+     "missions": [
+      "demo.photo",
+      "demo.order",
+      "demo.client",
+      "demo.rules",
+      "demo.bush"
+     ]
+    }
+   ]
+  }
+ ],
+ "missions": [
+  {
+   "id": "demo.gates",
+   "kind": "challenge",
+   "title": "ms.demo.gates.title",
+   "brief": "ms.demo.gates.brief",
+   "client": "adam",
+   "legs": [
+    {
+     "order": "seq",
+     "steps": [
+      {
+       "id": "g1",
+       "do": "pass",
+       "place": {
+        "gate": [
+         [
+          -501,
+          -500
+         ],
+         [
+          -381,
+          -500
+         ]
+        ],
+        "alt": {
+         "max": 150,
+         "ref": "agl"
+        },
+        "prop": "balloons",
+        "dir": 349
+       }
+      },
+      {
+       "id": "g2",
+       "do": "pass",
+       "place": {
+        "gate": [
+         [
+          -696,
+          -1500
+         ],
+         [
+          -576,
+          -1500
+         ]
+        ],
+        "alt": {
+         "max": 150,
+         "ref": "agl"
+        },
+        "prop": "balloons",
+        "dir": 349
+       }
+      },
+      {
+       "id": "r1",
+       "do": "pass",
+       "place": {
+        "ring": [
+         -734,
+         120,
+         -2000
+        ],
+        "r": 10,
+        "dir": 349,
+        "prop": "donut"
+       }
+      },
+      {
+       "do": "land",
+       "place": "w3",
+       "say": {
+        "who": "adam",
+        "text": "ms.demo.gates.say"
+       }
+      }
+     ]
+    }
+   ],
+   "timers": [
+    {
+     "id": "speed",
+     "start": "g1",
+     "stop": "g2",
+     "target": {
+      "refKmh": 160
+     },
+     "medals": [
+      {
+       "medal": "gold",
+       "le": 25
+      },
+      {
+       "medal": "silver",
+       "le": 32
+      },
+      {
+       "medal": "bronze",
+       "le": 40
+      }
+     ]
+    }
+   ],
+   "rules": {
+    "crash": "fail",
+    "injury": "fail",
+    "damage": "assess"
+   },
+   "pay": {
+    "base": 2200,
+    "bonus": [
+     {
+      "crit": "medal",
+      "by": "gold",
+      "pct": 100
+     },
+     {
+      "crit": "medal",
+      "by": "silver",
+      "pct": 50
+     }
+    ]
+   },
+   "provider": "clients",
+   "rep": {
+    "provider": "clients",
+    "gain": 0.5
+   }
+  },
+  {
+   "id": "demo.rally",
+   "kind": "challenge",
+   "title": "ms.demo.rally.title",
+   "brief": "ms.demo.rally.brief",
+   "client": "adam",
+   "legs": [
+    {
+     "rally": true,
+     "order": "seq",
+     "steps": [
+      {
+       "id": "cp1",
+       "do": "pass",
+       "place": {
+        "pt": [
+         -300,
+         -900
+        ],
+        "r": 300,
+        "alt": {
+         "min": 150,
+         "max": 450,
+         "ref": "msl"
+        }
+       },
+       "split": 0,
+       "auto": true
+      },
+      {
+       "id": "cp2",
+       "do": "pass",
+       "place": {
+        "pt": [
+         900,
+         -1700
+        ],
+        "r": 300,
+        "alt": {
+         "min": 200,
+         "max": 500,
+         "ref": "msl"
+        }
+       },
+       "split": 32,
+       "auto": true
+      },
+      {
+       "id": "cp3",
+       "do": "pass",
+       "place": {
+        "pt": [
+         1500,
+         -3200
+        ],
+        "r": 300,
+        "alt": {
+         "min": 200,
+         "max": 500,
+         "ref": "msl"
+        }
+       },
+       "split": 69,
+       "auto": true
+      },
+      {
+       "id": "cp4",
+       "do": "pass",
+       "place": {
+        "pt": [
+         300,
+         -3600
+        ],
+        "r": 300,
+        "alt": {
+         "min": 100,
+         "max": 400,
+         "ref": "msl"
+        }
+       },
+       "split": 97,
+       "auto": true
+      }
+     ]
+    },
+    {
+     "steps": [
+      {
+       "do": "land",
+       "place": "HOME"
+      }
+     ]
+    }
+   ],
+   "route": {
+    "v": 1,
+    "id": "demo-rally",
+    "name": "Demo rally",
+    "end": "home",
+    "margin": 60,
+    "pts": [
+     {
+      "x": -300,
+      "z": -900,
+      "alt": 300,
+      "ref": "msl",
+      "V": null
+     },
+     {
+      "x": 900,
+      "z": -1700,
+      "alt": 350,
+      "ref": "msl",
+      "V": null
+     },
+     {
+      "x": 1500,
+      "z": -3200,
+      "alt": 350,
+      "ref": "msl",
+      "V": null
+     },
+     {
+      "x": 300,
+      "z": -3600,
+      "alt": 250,
+      "ref": "msl",
+      "V": null
+     }
+    ]
+   },
+   "rally": {
+    "refKmh": 160,
+    "r": 300
+   },
+   "pay": {
+    "base": 2600,
+    "bonus": [
+     {
+      "crit": "medal",
+      "by": "gold",
+      "pct": 50
+     }
+    ]
+   },
+   "provider": "clients",
+   "rep": {
+    "provider": "clients",
+    "gain": 0.5
+   },
+   "timers": [
+    {
+     "id": "rally",
+     "start": "cp1",
+     "stop": "cp4",
+     "target": 97,
+     "splits": true,
+     "medals": [
+      {
+       "medal": "gold",
+       "le": 97
+      },
+      {
+       "medal": "silver",
+       "le": 116
+      }
+     ]
+    }
+   ],
+   "needs": {
+    "after": [
+     "demo.gates"
+    ]
+   }
+  },
+  {
+   "id": "demo.photo",
+   "kind": "contract",
+   "title": "ms.demo.photo.title",
+   "brief": "ms.demo.photo.brief",
+   "client": "kate",
+   "legs": [
+    {
+     "steps": [
+      {
+       "id": "shot",
+       "do": "photo",
+       "place": {
+        "pt": [
+         200,
+         -1200
+        ],
+        "r": 250,
+        "alt": {
+         "min": 100,
+         "max": 500,
+         "ref": "agl"
+        }
+       },
+       "say": {
+        "who": "kate",
+        "text": "ms.demo.photo.say"
+       }
+      },
+      {
+       "do": "land",
+       "place": "HOME"
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 1400
+   },
+   "provider": "clients",
+   "rep": {
+    "provider": "clients",
+    "gain": 0.5
+   }
+  },
+  {
+   "id": "demo.order",
+   "kind": "build",
+   "title": "ms.demo.order.title",
+   "brief": "ms.demo.order.brief",
+   "client": "adam",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "deliver",
+       "place": "HOME",
+       "require": {
+        "plane": [
+         {
+          "k": "seats",
+          "op": ">=",
+          "v": 2
+         },
+         {
+          "k": "spanM",
+          "op": "<=",
+          "v": 10.5
+         },
+         {
+          "k": "heightM",
+          "op": "<=",
+          "v": 2.6
+         },
+         {
+          "k": "lengthM",
+          "op": "<=",
+          "v": 7.5
+         },
+         {
+          "k": "fitsShed",
+          "op": "==",
+          "v": "field"
+         },
+         {
+          "k": "toDistM",
+          "op": "<=",
+          "v": 250,
+          "at": {
+           "pax": 1
+          }
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "prefs": [
+    {
+     "k": "engines",
+     "v": 1,
+     "need": "mandatory"
+    },
+    {
+     "k": "gear",
+     "v": "taildragger",
+     "need": "bonus",
+     "pct": 10
+    }
+   ],
+   "pay": {
+    "base": 42000
+   },
+   "followUp": {
+    "prefer": [
+     "heightM"
+    ]
+   },
+   "provider": "clients",
+   "rep": {
+    "provider": "clients",
+    "gain": 0.5
+   }
+  },
+  {
+   "id": "demo.client",
+   "kind": "build",
+   "title": "ms.demo.client.title",
+   "brief": "ms.demo.client.brief",
+   "client": "adam",
+   "startFrom": "cub",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "deliver",
+       "place": "HOME",
+       "require": {
+        "plane": [
+         {
+          "k": "seats",
+          "op": ">=",
+          "v": 2
+         },
+         {
+          "k": "tasKmh",
+          "op": ">=",
+          "v": 120,
+          "at": {
+           "pax": 1,
+           "kg": 0
+          }
+         }
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 18000
+   },
+   "provider": "clients",
+   "rep": {
+    "provider": "clients",
+    "gain": 0.5
+   }
+  },
+  {
+   "id": "demo.rules",
+   "kind": "contract",
+   "title": "ms.demo.rules.title",
+   "brief": "ms.demo.rules.brief",
+   "client": "adam",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": "HOME",
+       "place": "w3",
+       "load": {
+        "kg": 25,
+        "pax": [
+         "david"
+        ]
+       }
+      }
+     ]
+    }
+   ],
+   "rules": {
+    "crash": "fail",
+    "injury": {
+     "fail": "Light injuries"
+    },
+    "freight": "fail",
+    "damage": "assess"
+   },
+   "pay": {
+    "base": 1800
+   },
+   "provider": "clients",
+   "rep": {
+    "provider": "clients",
+    "gain": 0.5
+   }
+  },
+  {
+   "id": "demo.bush",
+   "kind": "contract",
+   "title": "ms.demo.bush.title",
+   "brief": "ms.demo.bush.brief",
+   "client": "adam",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "land",
+       "place": "w3"
+      }
+     ]
+    },
+    {
+     "order": "seq",
+     "steps": [
+      {
+       "do": "park",
+       "place": {
+        "spot": "w3:apron:22:0"
+       }
+      },
+      {
+       "do": "wait",
+       "place": "w3",
+       "require": {
+        "waitMin": 30
+       }
+      },
+      {
+       "do": "talk",
+       "place": "w3",
+       "say": {
+        "who": "adam",
+        "text": "ms.demo.bush.say"
+       }
+      }
+     ]
+    }
+   ],
+   "pay": {
+    "base": 1200
+   },
+   "provider": "clients",
+   "rep": {
+    "provider": "clients",
+    "gain": 0.5
+   }
+  }
+ ],
+ "sites": [],
+ "text": {
+  "ms.demo.title": {
+   "t": "Demo missions (P1/P2)",
+   "draft": true
+  },
+  "ms.demo.speed": {
+   "t": "Speed",
+   "draft": true
+  },
+  "ms.demo.misc": {
+   "t": "The rest",
+   "draft": true
+  },
+  "ms.demo.gates.title": {
+   "t": "Between the balloons",
+   "draft": true
+  },
+  "ms.demo.gates.brief": {
+   "t": "Two gates on the way to Ridgeback Strip, timed, then the ring. Low: 150 m at most.",
+   "draft": true
+  },
+  "ms.demo.gates.say": {
+   "t": "That was quick. Again?",
+   "draft": true
+  },
+  "ms.demo.rally.title": {
+   "t": "The demo rally",
+   "draft": true
+  },
+  "ms.demo.rally.brief": {
+   "t": "Coordinates and split times only. Back home after the last.",
+   "draft": true
+  },
+  "ms.demo.photo.title": {
+   "t": "A picture of the hill",
+   "draft": true
+  },
+  "ms.demo.photo.brief": {
+   "t": "Over the hill, between 100 and 500 m above it: the shutter does the rest.",
+   "draft": true
+  },
+  "ms.demo.photo.say": {
+   "t": "Got it - that one goes on the wall.",
+   "draft": true
+  },
+  "ms.demo.order.title": {
+   "t": "One for the field shed",
+   "draft": true
+  },
+  "ms.demo.order.brief": {
+   "t": "Two seats, short take-off, and it has to fit my shed: 14 x 18 m, a 3.6 m eave.",
+   "draft": true
+  },
+  "ct.demo.order.follow": {
+   "t": "It fits. Could the next one be lower?",
+   "draft": true
+  },
+  "ms.demo.client.title": {
+   "t": "Make my old plane faster",
+   "draft": true
+  },
+  "ms.demo.client.brief": {
+   "t": "Here is my old plane. 120 km/h with a passenger, then bring it back.",
+   "draft": true
+  },
+  "ct.demo.client.follow": {
+   "t": "Faster still?",
+   "draft": true
+  },
+  "ms.demo.rules.title": {
+   "t": "Careful with David",
+   "draft": true
+  },
+  "ms.demo.rules.brief": {
+   "t": "David and his gear to Ridgeback Strip. Not a scratch on either.",
+   "draft": true
+  },
+  "ms.demo.bush.title": {
+   "t": "Wait for me",
+   "draft": true
+  },
+  "ms.demo.bush.brief": {
+   "t": "Land at Ridgeback, tie down on the first spot, wait half an hour.",
+   "draft": true
+  },
+  "ms.demo.bush.say": {
+   "t": "Thanks for waiting. Let us go.",
+   "draft": true
+  }
+ }
+}
