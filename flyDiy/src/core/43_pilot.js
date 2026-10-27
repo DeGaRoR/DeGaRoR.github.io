@@ -2533,6 +2533,25 @@ function makePilot(sim, def, world, opts) {
       const P = planArrival(to, u, from);
       const FL = P.F;
       const sNow = alongOf(FL, cg), cNow = leftOf(FL, cg);
+      // STORY-SKIP (A0 27 Oct; STORY-TUTOR's "skip onto the final": a fresh pilot handed the aeroplane 3 km out on the
+      // circuit's final, on the slope, sinking, flew the whole circuit - downwind at 115 m, no landing in 5 min): AN
+      // AEROPLANE ALREADY ON THE FINAL FLIES IT, whichever way it was handed over (the climb's hand-over took it for the
+      // climb-out's crosswind; a re-plan short of the straight-in's IAF joined the circuit). Before the aim, flying towards
+      // it along the landing frame, near the centreline, not climbing, on or over the slope (an arrival under it, at the
+      // circuit height before the FAF, is joined as before) - the final from here. A climb-out is past the aim (the landing
+      // way) or flies away from it (the other way): neither passes
+      const tlF = Math.hypot(vcg[0], vcg[2]), dA = P.sAim - sNow, slopeH = dA * ap.gs, hA = cg[1] - aimAlt();
+      if (tlF > 8 && (vcg[0] * FL.ux + vcg[2] * FL.uz) / tlF > 0.966 && Math.abs(cNow) < 100 && vcg[1] < 3 &&
+          dA > 300 && dA < Math.max(6000, 1.5 * (P.sAim - P.sIaf)) && hA > 0.8 * slopeH - 10 && hA < slopeH + Math.max(40, 0.3 * slopeH)) {
+        startLegs([{ name: 'FINAL', A: wp(FL, sNow, 0), B: wp(FL, P.sAim, 0) }]);
+        // (the leg follower's FINAL entry, below: the frame held, a new final judged afresh)
+        ap.trackHold = true; ap.dirX = 1;
+        slopeCaptured = false; finalT0 = ap.t; SV.thrC = A.thrAppr; deF = SV.aDe;
+        stabT = 0; stabVf = null; stabIn = false; stabPk = 0; stabWhy = null; finalLevel = null;
+        ap.holdDir = climbDir;
+        say('on-final', 'on the final to ' + (to.name || to.id) + ', ' + Math.round(dA) + ' m out at ' + Math.round(hA) + ' m - landing straight in');
+        return 'FINAL';
+      }
       // G3326 (CABIN-ARRIVAL, 20 Oct - the cabin probe: Rufus off the Cabin Strip planned a 512 m circuit on the side the
       // terrain chose, over the valley's ridges, and an 8.7 km final the 240 s rule went round from twice, then diverted):
       // A DESIGNED APPROACH IS FLOWN AS DESIGNED. A strip whose record draws its approach (fly.appr, ED-2's format: world
