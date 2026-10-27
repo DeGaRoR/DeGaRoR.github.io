@@ -758,8 +758,8 @@ function designEngineModels() {
 function designPresetNames() {
   const EP = gEngPage();
   if (!EP || !EP.PRESETS) return [];
-  return Object.keys(EP.PRESETS).filter(n => n !== 'bare engine')
-    .concat([EP.CUSTOM_ENGINE || 'custom engine']);
+  return EP.presetNames ? EP.presetNames()          // NEW-SHAPES-1: the saved order's one keeper (_eng_page.js)
+    : Object.keys(EP.PRESETS).filter(n => n !== 'bare engine').concat([EP.CUSTOM_ENGINE || 'custom engine']);
 }
 function designPresetIndex(name) {
   const i = designPresetNames().indexOf(name);

@@ -1833,7 +1833,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
   const tables = () => ({
     TIP_KEYS: typeof GEN_TIPS !== 'undefined' ? Object.keys(GEN_TIPS) : [],
     FLAP_KEYS: typeof GEN_FLAPS !== 'undefined' ? Object.keys(GEN_FLAPS) : [],
-    PRESET_NAMES: (window.ENG_PAGE && window.ENG_PAGE.PRESETS)
+    // the saved order (ENG_PAGE.presetNames, NEW-SHAPES-1): the custom engine's slot maps to no registry row, as before
+    PRESET_NAMES: (window.ENG_PAGE && window.ENG_PAGE.presetNames) ? window.ENG_PAGE.presetNames()
+      : (window.ENG_PAGE && window.ENG_PAGE.PRESETS)
       ? Object.keys(window.ENG_PAGE.PRESETS).filter(n => n !== 'bare engine')
       : [],
   });

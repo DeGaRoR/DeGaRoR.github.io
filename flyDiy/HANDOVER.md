@@ -99505,3 +99505,21 @@ T-P1 did not land: new-shapes-1 turned four battery gates red that the cloud's o
 - **TAXICLEAR** - the Camel had no parked footprint (src/core/25_airfield.js GP_PARKED_FOOT): `camel: [4.3, 0.9, 5.1]`
   off its designBake nodes (half 4.27, nose 0.89, tail 5.07, rounded up). The re-matched Stearman's tail reaches 5.45 m
   (was 5.4): its row to 5.5.
+- **AND A FIFTH, UNDER TAXICLEAR (found by its section 9 / 11c, red at 07f979701 and NOT on master): SAVED BUILDS LOST
+  THEIR ENGINES.** `cage.engPreset` is a saved INDEX into the preset names; the Clerget 9B (at 13) and the Merlin 66 (at
+  18) had been inserted mid-list, so every later engine moved: the metal C172's 18 (the O-540) read the Merlin, the load
+  audit saw dials that were not the Merlin's and flipped it to the custom engine - it flew the A-65 fallback and aborted
+  its take-off at Jumbo Mine. Measured over the repo's 34 saved builds (builds/, bugReports/, tools/fixtures build_* and
+  player_*): **9 had lost their engine at 07f979701** (both C172s, the C172 floats, the PA-18 floats, the twin-boom
+  E-811s ...); **0 now** - engines, node hashes and masses identical to master's. The stock C172 page design's custom
+  engine (`engPreset: 41`) read a PT6A-42 the same way.
+  FIX: the two presets moved to the end of the table and listed AFTER the custom engine, whose slot 41 is fixed by every
+  file saved before them - `ENG_PAGE.presetNames()` (tools/_eng_page.js), the one keeper of the saved order, with
+  `PRESETS_AFTER_CUSTOM`; every index list reads it (the engine layer, the design flow, the join, the AUDIOENG, ENGID,
+  PROCURE and TECH checks). The menu still lists the custom engine last (by power). GATE ENGID now pins the slots files
+  and procure's table hold (17 the O-320, 18 the O-540, 40 the PT6A-60A, 41 custom, 42 the Clerget, 43 the Merlin).
+  **A new preset goes at the end of PRESETS and into PRESETS_AFTER_CUSTOM.** The four card fixtures re-written (their
+  engPreset now the true slot: Camel 42, Spitfire 43, Stearman 23, Tiger Moth 14).
+- Two more reds the same change carried, found on the way (both red at 07f979701 already): **TECH** read the custom
+  engine as the LAST option (now: at its slot); **PROCURE**'s frozen dial base (src/core/76_procure.js
+  PROCURE_ENG_BASE) lacked the Merlin's `eng_exPair` (0, the default: a procured build's dials unchanged).

@@ -58,7 +58,7 @@ function panelEngines() {
     '_cowl_gen.js', '_cowl_rows.js', '_cage_cowl.js', '_cage_eng.js'])
     require(path.join(__dirname, f));
   const EP = global.window.ENG_PAGE;
-  const names = Object.keys(EP.PRESETS).filter(n => n !== 'bare engine').concat([EP.CUSTOM_ENGINE || 'custom engine']);
+  const names = EP.presetNames();     // the saved order (NEW-SHAPES-1): procure's idx are slots in it
   const J = require(path.join(__dirname, '_cage_join.js')).CAGE_JOIN_ENGINES;
   const apply = global.window.CAGE_ENG_APPLY_PRESET;
   delete global.window; delete global.THREE;

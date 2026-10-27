@@ -26,7 +26,10 @@ it is the procedure, and flyDiy/tools/ref_match/ is the tool. Follow it exactly:
 2. Start the card from the nearest existing ARCHETYPES entry in flyDiy/tools/_cage_design.js (<nearest card, e.g.
    "cub">), as a new key <key>, kind 'recreation'. Pick the fuselage type carefully and say why.
    If the type's engine is not in the catalogue, add it the way the Clerget 9B and the Merlin 66 were added
-   (registry, drive, tech, the join map, the engine bench preset, _eng_check, GEN_ENG_CG).
+   (registry, drive, tech, the join map, the engine bench preset, _eng_check, GEN_ENG_CG, the sound table in
+   src/viewer/audio/engine_config.js). The preset goes at the END of PRESETS in flyDiy/tools/_eng_page.js and into
+   PRESETS_AFTER_CUSTOM: engPreset is a saved index, and a preset inserted mid-list changes every saved build's engine
+   (GATE ENGID pins the slots).
 3. Run the loop: flyDiy/tools/ref_match/match.sh <key> (about 15 s; overlays in /tmp/rm_<key>_*.png). Match in the
    order of section 3: step 1 (side proportions: openings, nose, body lengths, deck and keel, wings), step 2 (plan),
    step 3 (cowl per section 4, gear, tail with fit_tail.js, tips with fit_tips.py). Finish each step before the

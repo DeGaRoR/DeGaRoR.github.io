@@ -40,12 +40,14 @@ const ok = (c, l) => { console.log((c ? '  ok     ' : '  FAIL   ') + l);
                        if (!c) fails++; };
 const FACTS = window.CAGE_ENG_FACTS, APPLY = window.CAGE_ENG_APPLY_PRESET;
 ok(typeof FACTS === 'function', 'CAGE_ENG_FACTS exported');
-const PRESET_NAMES = Object.keys(window.ENG_PAGE.PRESETS)
-  .filter(n => n !== 'bare engine');
+// THE SAVED ORDER (NEW-SHAPES-1): engPreset indexes ENG_PAGE.presetNames() - the catalogue, the custom engine at its
+// slot, then the presets added since; PRESET_NAMES is the catalogue alone, every index read off NAMES
+const NAMES = window.ENG_PAGE.presetNames();
+const PRESET_NAMES = NAMES.filter(n => n !== 'custom engine');
 const fresh = (name) => {
   const P = Object.assign({}, window.CAGE_PAGE.defaults);
   P.engOn = 1;
-  P.engPreset = PRESET_NAMES.indexOf(name);
+  P.engPreset = NAMES.indexOf(name);
   APPLY(P, name);
   return P;
 };
@@ -66,7 +68,7 @@ const fresh = (name) => {
      (missing.length ? ' — MISSING: ' + missing.join(', ') : ''));
   // and the behaviour: a 915 iS then a 582 leaves an untouched 582
   const P = fresh('rotax 915 iS');
-  P.engPreset = PRESET_NAMES.indexOf('rotax 582'); APPLY(P, 'rotax 582');
+  P.engPreset = NAMES.indexOf('rotax 582'); APPLY(P, 'rotax 582');
   ok(window.CAGE_ENG_AUDIT(P) === false && +P.eng_blower === 0,
      'a preset applied after a turbo preset carries no turbo (the audit leaves it alone)');
 }
@@ -81,8 +83,13 @@ const fresh = (name) => {
 //    912 flew as "modified Rotax 912 UL" — see 2b for how such a file is
 //    kept honest.)
 const CUSTOM = window.CAGE_ENG_CUSTOM;
-ok(Number.isInteger(CUSTOM) && CUSTOM === PRESET_NAMES.length,
-   'the custom engine is the option after the whole catalogue');
+ok(Number.isInteger(CUSTOM) && CUSTOM === NAMES.indexOf('custom engine') && CUSTOM === 41,
+   'the custom engine keeps its saved slot (41): the catalogue before it, the presets added since after it');
+// A SAVED INDEX NAMES THE ENGINE IT NAMED (A0, T-P1: the Clerget and the Merlin went in mid-list and the metal C172's
+// 18 read the Merlin, the stock C172's custom 41 a PT6A): the slots files and procure's table hold
+ok(NAMES[0] === 'continental A-65' && NAMES[17] === 'lycoming O-320' && NAMES[18] === 'lycoming O-540'
+   && NAMES[40] === 'P&W PT6A-60A' && NAMES[42] === 'Clerget 9B' && NAMES[43] === 'Rolls-Royce Merlin 66',
+   'the saved indices hold: 17 the O-320, 18 the O-540, 40 the PT6A-60A, 41 custom, 42 the Clerget, 43 the Merlin');
 {
   const P = fresh('rotax 912 (flat)');
   P.eng_bore += 5;
@@ -103,7 +110,7 @@ ok(Number.isInteger(CUSTOM) && CUSTOM === PRESET_NAMES.length,
   ok(window.CAGE_ENG_AUDIT(P) === true && Math.round(P.engPreset) === CUSTOM,
      'a deviating catalogue build is flipped to the custom engine on load');
   const P2 = fresh('rotax 912 (flat)');
-  ok(window.CAGE_ENG_AUDIT(P2) === false && PRESET_NAMES[P2.engPreset] === 'rotax 912 (flat)',
+  ok(window.CAGE_ENG_AUDIT(P2) === false && NAMES[P2.engPreset] === 'rotax 912 (flat)',
      'an untouched catalogue build is left alone');
   const P3 = fresh('rotax 912 (flat)'); P3.eng_finN = (P3.eng_finN || 9) + 4;
   ok(window.CAGE_ENG_AUDIT(P3) === false, 'a dress dial does not flip it');
@@ -120,7 +127,7 @@ ok(Number.isInteger(CUSTOM) && CUSTOM === PRESET_NAMES.length,
   const P = fresh('continental A-65');
   P.eng_arch = 2;                       // -> radial (VALS order flat/inline/radial/vee)
   const first = window.CAGE_ENG_FOLLOW(P);
-  ok(first === 'Verner Scarlett 7U' && PRESET_NAMES[P.engPreset] === first,
+  ok(first === 'Verner Scarlett 7U' && NAMES[P.engPreset] === first,
      `layout -> radial leads the list to the first radial (${first})`);
   APPLY(P, first);
   ok(FACTS(P) === null, 'and that catalogue radial flies its own row');
@@ -167,17 +174,17 @@ ok(Number.isInteger(CUSTOM) && CUSTOM === PRESET_NAMES.length,
 {
   const order = window.CAGE_ENG_PRESET_ORDER ? window.CAGE_ENG_PRESET_ORDER() : null;
   const pw = window.CAGE_ENG_PRESET_POWER;
-  ok(Array.isArray(order) && order.length === PRESET_NAMES.length + 1
+  ok(Array.isArray(order) && order.length === NAMES.length
      && new Set(order).size === order.length,
      'the display order is a permutation of every option, the custom engine included');
-  const full = PRESET_NAMES.concat(['custom engine']);
-  let sorted = !!order, seenCustomLast = !!order && order[order.length - 1] === PRESET_NAMES.length;
+  const full = NAMES;
+  let sorted = !!order, seenCustomLast = !!order && order[order.length - 1] === CUSTOM;
   if (order) for (let k = 1; k < order.length; k++)
     if (pw(full[order[k - 1]]) > pw(full[order[k]])) sorted = false;
   ok(sorted, 'the options read by non-decreasing power');
   ok(seenCustomLast, 'and the custom engine is the last option');
-  const i277 = order ? order.indexOf(PRESET_NAMES.indexOf('rotax 277')) : -1;
-  const i1830 = order ? order.indexOf(PRESET_NAMES.indexOf('P&W R-1830')) : -1;
+  const i277 = order ? order.indexOf(NAMES.indexOf('rotax 277')) : -1;
+  const i1830 = order ? order.indexOf(NAMES.indexOf('P&W R-1830')) : -1;
   ok(i277 >= 0 && i1830 > i277, 'a Rotax 277 reads before a Twin Wasp');
 }
 // 7b. NO ORPHAN PRESET (2026-09-05): every preset that is not a fantasy maps
@@ -196,18 +203,18 @@ ok(Number.isInteger(CUSTOM) && CUSTOM === PRESET_NAMES.length,
   const L = window.CAGE_ENG_PRESET_LABELS;
   ok(typeof L === 'function', 'CAGE_ENG_PRESET_LABELS exported');
   const labels = L ? L() : [];
-  const i582 = PRESET_NAMES.findIndex(n => /582/.test(n));
+  const i582 = NAMES.findIndex(n => /582/.test(n));
   const l582 = labels[i582] || '';
-  const row = POWERPLANTS[CAGE_JOIN_ENGINES[PRESET_NAMES[i582]]];
+  const row = POWERPLANTS[CAGE_JOIN_ENGINES[NAMES[i582]]];
   const kg = row.engine.mass.toFixed(0), kW = (row.engine.powerW / 1000).toFixed(0);
   ok(l582.includes(kg + ' kg') && l582.includes(kW + ' kW') && !/≈/.test(l582),
      `rotax 582 option quotes its registry row: "${l582}"`);
-  const iFT = PRESET_NAMES.indexOf('flat twin');
+  const iFT = NAMES.indexOf('flat twin');
   ok(/≈\d+ kg · ≈[\d.]+ kW$/.test(labels[iFT] || ''),
      `flat twin option quotes its own resolve, marked ≈: "${labels[iFT]}"`);
-  // the custom engine is the label after the catalogue (2026-09-05)
-  ok(labels.length === PRESET_NAMES.length + 1 && /^custom engine/.test(labels[labels.length - 1]),
-     'one label per preset, same order, then the custom engine');
+  // one label per option in the saved order, the custom engine's at its slot (2026-09-05; NEW-SHAPES-1)
+  ok(labels.length === NAMES.length && /^custom engine/.test(labels[CUSTOM]),
+     'one label per option, the saved order, the custom engine at its slot');
 }
 
 // 9. THE TURBOPROP (2026-09-05, TURBOPROP §9): an untouched PT6A preset IS

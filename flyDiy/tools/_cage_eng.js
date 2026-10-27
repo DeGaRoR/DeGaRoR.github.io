@@ -343,9 +343,11 @@ window.CAGE_ENG_SOUND = (P) => {
 // the installation rows (mount, firewall, services, radiator) stay the
 // builder's. Appended, so every saved index still names the same engine.
 const CUSTOM_ENGINE = EP.CUSTOM_ENGINE || 'custom engine';
-const PRESET_NAMES = Object.keys(EP.PRESETS).filter(n => n !== 'bare engine')
-  .concat([CUSTOM_ENGINE]);
-const CUSTOM_IDX = PRESET_NAMES.length - 1;
+// (NEW-SHAPES-1: the saved order is ENG_PAGE.presetNames() - the custom engine keeps slot 41, the presets added since
+// it took that slot follow it, so no saved index moves; the menu still lists it last, by power, PRESET_ORDER)
+const PRESET_NAMES = EP.presetNames ? EP.presetNames()
+  : Object.keys(EP.PRESETS).filter(n => n !== 'bare engine').concat([CUSTOM_ENGINE]);
+const CUSTOM_IDX = PRESET_NAMES.indexOf(CUSTOM_ENGINE);
 const isCustomEng = P => Math.round(P.engPreset) === CUSTOM_IDX;
 // the type a preset belongs to, from its own table row (null for custom)
 const presetArch = name => {
