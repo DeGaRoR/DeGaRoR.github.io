@@ -60,15 +60,46 @@ Crossings whose cut finds no outline (fewer than 3 corners: 8 and 5 above) get n
 
 `alloy_sec_proto.png`:
 
-- **Top left:** a punched former torn across, today against with the stubs.
+- **Top left:** a punched former torn across. Today (the page's per-face normals) against the stubs (carried normals) on the former with its creased normals.
 - **Top right:** a stringer, the same.
-- **Bottom:** the slot alone (unposed, cracked, parted).
+- **Bottom:** the slot alone. First parted with `pose()`'s own normals (rounded all round), then with the carried normals: unposed, cracked, parted.
 
 The paint is a stand-in colour, chosen so the bands read.
 
+## Smooth normals (the user, 27 Oct: "no flat shading on any deformed or damaged part - it looks bad and looks like a bench")
+
+The ruling: smooth normals on the deformed geometry, per ring and vertex, carried from the part's own smooth normals,
+with hard edges only at a real crease or a tear. Three findings and what the prototype does about each:
+
+1. **The formers are flat on the page today, even intact.** The flown snapshot gives the `aluminium` bucket per-face
+   normals: on the metal Cessna, all 33,166 coincident pairs of places carry different normals. The generator's quads
+   share no vertex.
+   - The glazing, by contrast, is smooth: windshield 303 / 303 pairs share their normals.
+   - **The part's own smooth normals** are therefore made here the standard way (`creased()`). Places are welded at
+     rest. Each corner takes the area-weighted sum of the welded faces within 60° of its own face. A box's 90° corner
+     stays a real crease; everything else is smoothed.
+   - **Proposed for whoever owns the join's snapshot (A0):** bake the same creased normals into the `aluminium` bucket
+     once, at the snapshot. The picture's top-right panels draw the former that way.
+2. **DEFORM's pool derives a vertex's normal from its corner's direction** (`pose()`: normalize(N cn + B cs)). That is
+   smooth all round and carries nothing of the part, so a box section shades as a rounded bar (picture, bottom left).
+   - **What the prototype carries instead:** each ring entry's normal from the part's creased normals at the cut.
+   - A hull corner whose cut normals fall in two families 60° apart (a real crease) is entered twice, at one place, once
+     per face. The stub keeps that edge hard along its length; everything else is shared and smooth.
+   - Metal Cessna, centreline crash: 110 crease corners over 39 sections; no corner without a carried normal.
+   - Ring to ring, 3 cm or more off the torn lip, the largest turn of a vertex normal is 0.0°: the stubs are straight
+     legs.
+   - `poseN()` mirrors this without editing `dmg_members.js`. It recovers `pose()`'s ring frame (N, B) from two corners'
+     normals, which are exactly N cn + B cs, and puts the carried normal through it. The place is `pose()`'s.
+   - **Proposed `dmg_members.js` change, for DEFORM's review:** per-corner normals in the slot, texels 12-15 holding
+     8 × (nx, ny), so `TX` goes 12 → 16. `pose()` and `LOOK_GLSL` would use them when present, and the corner direction
+     otherwise. Creased entries are doubled, so a box takes 8 entries, which fits `AROUND` 8.
+3. **The node pictures were flat because the raster shaded per face.** `../raster3d.js` now interpolates vertex
+   normals per pixel when a triangle carries them (`t.n`).
+
 ## Hooks for the branch off DEFORM's commit (any `dmg_members.js` change goes through DEFORM's review)
 
-- **`dmg_members.js`:** none needed (virtual beams carry `mat: 'aluTube'`).
+- **`dmg_members.js`:** none needed for the slots themselves (virtual beams carry `mat: 'aluTube'`). The ruling of 27 Oct
+  needs the carried normals above, texels 12-15 (DEFORM's review).
   - Two things DEFORM may prefer instead:
     - `MAT.alloySec`, with its own band widths. Today the bands are DEFORM's: `RIM` 0.3·r, so bare ≈ 5 mm and primer to ≈ 16 mm for these sections, close to the stretch's 0-3 / 3-12 mm.
     - A 12-corner `AROUND` for the I-webs.

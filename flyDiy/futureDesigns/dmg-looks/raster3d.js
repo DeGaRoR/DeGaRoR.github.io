@@ -1,5 +1,7 @@
 // A tiny z-buffered triangle rasteriser for the DMG-LOOKS structure pictures (node only, no dependency).
 // Orthographic camera (yaw, pitch), lambert + a little specular, per-triangle colour, optional double-sided back colour.
+// Shading: per face by default; a triangle with t.n (its three vertex normals) is shaded SMOOTH - the normal interpolated
+// and renormalised per pixel (the user, 27 Oct: no flat shading on a deformed or damaged part).
 'use strict';
 const PNG = require('./png.js');
 function Canvas(w, h, bg) {
@@ -16,7 +18,7 @@ function project(V, p) {
   return [V.ox + x1 * V.scale, V.oy - y2 * V.scale, -z2];   // depth: the viewer is at +z2 (x right, y up), smaller = nearer
 }
 const LIGHT = (() => { const l = [-0.35, 0.75, 0.55], n = Math.hypot(...l); return l.map(c => c / n); })();
-// tri: { p: [[x,y,z]x3], col: [r,g,b], back: [r,g,b] | null (null: back faces drawn with col), spec }
+// tri: { p: [[x,y,z]x3], col: [r,g,b], back: [r,g,b] | null (null: back faces drawn with col), spec, n: [[nx,ny,nz]x3] | absent }
 function draw(C, V, tris) {
   const cy = Math.cos(V.yaw), sy = Math.sin(V.yaw), cp = Math.cos(V.pitch), sp = Math.sin(V.pitch);
   const viewDir = [-sy * cp, sp, cy * cp];                     // towards the viewer, world space
@@ -41,12 +43,19 @@ function draw(C, V, tris) {
       if (l1 < -1e-6 || l2 < -1e-6 || l3 < -1e-6) continue;
       const zz = l1 * A[2] + l2 * B[2] + l3 * Cc[2], o = y * C.w + x;
       if (zz >= C.z[o]) continue;
-      let cc = c;
+      let cc = c, nP = n, lP = lam;
+      if (t.n) {                                                 // smooth: the vertex normals interpolated, the side seen lit
+        let m = [0, 1, 2].map(i => l1 * t.n[0][i] + l2 * t.n[1][i] + l3 * t.n[2][i]); const ml = Math.hypot(...m) || 1; m = m.map(q => q / ml);
+        if (!front) m = m.map(q => -q);
+        nP = m; lP = 0.32 + 0.68 * Math.max(0, m[0] * LIGHT[0] + m[1] * LIGHT[1] + m[2] * LIGHT[2]);
+        const sm2 = (t.spec || 0) * Math.pow(Math.max(0, (m[0] * h[0] + m[1] * h[1] + m[2] * h[2]) / hl), 24);
+        cc = col.map(q => Math.min(1, q * lP + sm2));
+      }
       if (t.frag) {                                              // a fragment pass: interpolated attributes -> colour, or discard
         const at = t.attr[0].map((_, i) => l1 * t.attr[0][i] + l2 * t.attr[1][i] + l3 * t.attr[2][i]);
         const f = t.frag(at, front); if (!f) continue;
-        const sp2 = (f.spec || 0) * Math.pow(Math.max(0, (n[0] * h[0] + n[1] * h[1] + n[2] * h[2]) / hl), 24);
-        cc = f.col.map(q => Math.min(1, q * lam + sp2));
+        const sp2 = (f.spec || 0) * Math.pow(Math.max(0, (nP[0] * h[0] + nP[1] * h[1] + nP[2] * h[2]) / hl), 24);
+        cc = f.col.map(q => Math.min(1, q * lP + sp2));
       }
       C.z[o] = zz;
       C.img[o * 4] = cc[0] * 255; C.img[o * 4 + 1] = cc[1] * 255; C.img[o * 4 + 2] = cc[2] * 255;

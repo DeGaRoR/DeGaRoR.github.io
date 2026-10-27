@@ -1,15 +1,18 @@
 ALLOY SECTIONS prototype - the metal Cessna, 2026-10-27; root ../../wt-master/flyDiy; pool origin/claude/dmg-looks dmg_members.js
 the aluminium bucket: 39 drawn pieces (17 runs / stringers, 22 rings / formers), 13608 triangles
-trunk-0: broken 56, binding events 10 (flown 17.0 s); the aluminium record: 1165 removed, 821 torn
+trunk-0: broken 56, binding events 10 (flown 15.1 s); the aluminium record: 1165 removed, 821 torn
   crossings 47 (8 on stringers, 39 on formers), gaps 0.135 m worst, 0.088 median; outlines (median, mm) formers 35 x 16, stringers 41 x 27; slots 39 (of 128; 8 crossings without an outline: none) - 6 cracked, 33 parted; 16224 triangles (416 a slot, DEFORM's pool as it stands)
-  costs: the crossings and their virtual members at the event 81.4 ms; the virtual nodes a posed frame 1.16 ms (78 nodes, 16 floats a slot as frame() writes)
-trunk-2.5: broken 22, binding events 5 (flown 17.3 s); the aluminium record: 703 removed, 575 torn
+  normals (the user, 27 Oct: smooth, hard only at a real crease or the tear): carried from the part's own creased normals - 110 crease corners over 39 sections (doubled entries: hard along the stub), 0 corners with no normal carried (their edges' bisector); the largest turn of a vertex normal ring to ring 3 cm or more off the lip 0.0 deg; at a crease 110 deg
+  costs: the crossings and their virtual members at the event 145.6 ms; the virtual nodes a posed frame 0.81 ms (78 nodes, 16 floats a slot as frame() writes)
+trunk-2.5: broken 22, binding events 5 (flown 15.8 s); the aluminium record: 703 removed, 575 torn
   crossings 21 (0 on stringers, 21 on formers), gaps 0.176 m worst, 0.082 median; outlines (median, mm) formers 35 x 16, stringers - x -; slots 16 (of 128; 5 crossings without an outline: none) - 4 cracked, 12 parted; 6656 triangles (416 a slot, DEFORM's pool as it stands)
-  costs: the crossings and their virtual members at the event 60.9 ms; the virtual nodes a posed frame 0.35 ms (32 nodes, 16 floats a slot as frame() writes)
-noseover: broken 1, binding events 1 (flown 24.9 s); the aluminium record: 0 removed, 0 torn
+  normals (the user, 27 Oct: smooth, hard only at a real crease or the tear): carried from the part's own creased normals - 54 crease corners over 16 sections (doubled entries: hard along the stub), 0 corners with no normal carried (their edges' bisector); the largest turn of a vertex normal ring to ring 3 cm or more off the lip 0.0 deg; at a crease 97 deg
+  costs: the crossings and their virtual members at the event 176.6 ms; the virtual nodes a posed frame 0.42 ms (32 nodes, 16 floats a slot as frame() writes)
+noseover: broken 1, binding events 1 (flown 23.1 s); the aluminium record: 0 removed, 0 torn
   crossings 0 (0 on stringers, 0 on formers), gaps -; outlines (median, mm) formers - x -, stringers - x -; slots 0 (of 128; 0 crossings without an outline: none) - 0 cracked, 0 parted; 0 triangles (416 a slot, DEFORM's pool as it stands)
-  costs: the crossings and their virtual members at the event 17.0 ms; the virtual nodes a posed frame 0.05 ms (0 nodes, 16 floats a slot as frame() writes)
+  normals (the user, 27 Oct: smooth, hard only at a real crease or the tear): carried from the part's own creased normals - 0 crease corners over 0 sections (doubled entries: hard along the stub), 0 corners with no normal carried (their edges' bisector); the largest turn of a vertex normal ring to ring 3 cm or more off the lip 0.0 deg; at a crease 0 deg
+  costs: the crossings and their virtual members at the event 83.4 ms; the virtual nodes a posed frame 0.04 ms (0 nodes, 16 floats a slot as frame() writes)
 picture alloy_sec_proto.png:
-  top left pair: crossing 38 on a former, gap 0.135 m, outline 6 -> 6 corners, r 0.0178 m - today | with the stubs
-  top right pair: crossing 45 on a stringer, gap 0.110 m, outline 8 -> 8 corners, r 0.0196 m - today | with the stubs
-  bottom: crossing 38's slot alone (L0 0.175 m): unposed | cracked at 0.985 L0 | parted at 1.3 L0; colours: the paint (stand-in), the GREY PRIMER band, the BARE ALLOY rim, the open inside dark
+  top left pair: crossing 38 on a former, gap 0.135 m, outline 6 -> 8 corners, r 0.0189 m - today (the page's per-face normals) | the stubs (carried normals) on the former with its creased normals
+  top right pair: crossing 45 on a stringer, gap 0.110 m, outline 8 -> 8 corners, r 0.0209 m - today (the page's per-face normals) | the stubs (carried normals) on the former with its creased normals
+  bottom: crossing 38's slot alone (L0 0.175 m): parted with pose()'s own normals (the pool as it stands: rounded all round) | carried normals: unposed | cracked at 0.985 L0 | parted at 1.3 L0; colours: the paint (stand-in), the GREY PRIMER band, the BARE ALLOY rim, the open inside dark

@@ -53,6 +53,7 @@ const V = { sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], add: (a, b) 
 const qrot = (q, v) => { const t = V.mul(V.cross([q[0], q[1], q[2]], v), 2); return V.add(V.add(v, V.mul(t, q[3])), V.cross([q[0], q[1], q[2]], t)); };
 
 const K = 'metal', INSET = 0.02, GAPJOIN = 0.03;
+const CREASE = 60 * Math.PI / 180;   // (the user, 27 Oct: smooth normals, hard edges only at a real crease or a tear - a crease: faces meeting at over 60 deg)
 const PAINT = [0.50, 0.56, 0.64];   // (the picture's paint on the formers - a stand-in for the bucket's own colour, chosen so the bands read)
 const P = WS.prepare(K), def = P.def, n = def.nodes.length, nb = def.beams.length;
 const gi = P.groups.findIndex(g => g.sec === 'aluminium'), G = P.groups[gi];
@@ -186,13 +187,34 @@ function crossings(R) {
   return out;
 }
 
+// ---- THE PART'S OWN SMOOTH NORMALS. The flown snapshot gives the 'aluminium' bucket PER-FACE normals (every coincident
+// pair of places differs - the generator's quads share no vertex), so its smooth normals are made here the standard way:
+// the places welded at rest (0.5 mm), each corner's normal the area-weighted sum of the welded faces within CREASE of its
+// own face (a box's 90 deg corner stays a hard edge - a real crease; a shallow turn is smoothed). pos: the positions the
+// faces are taken from (rest: G.bD; posed: R.w), welded by REST place either way. Returns Float32Array 3 x nv ----
+function creased(pos, I, alive) {
+  const B = G.bD, nv = G.nv, nt = I.length / 3, key = new Map(), wid = new Int32Array(nv);
+  for (let v = 0; v < nv; v++) { const q = Math.round(B[v * 3] / 5e-4) + ',' + Math.round(B[v * 3 + 1] / 5e-4) + ',' + Math.round(B[v * 3 + 2] / 5e-4); let w = key.get(q); if (w == null) key.set(q, w = key.size); wid[v] = w; }
+  const fn = new Float64Array(nt * 3), own = new Int32Array(nv).fill(-1), byW = Array.from({ length: key.size }, () => []);
+  for (let t = 0; t < nt; t++) { if (alive && !alive(t)) continue; const a = I[t * 3], b = I[t * 3 + 1], c = I[t * 3 + 2];
+    const u = [pos[b * 3] - pos[a * 3], pos[b * 3 + 1] - pos[a * 3 + 1], pos[b * 3 + 2] - pos[a * 3 + 2]], w = [pos[c * 3] - pos[a * 3], pos[c * 3 + 1] - pos[a * 3 + 1], pos[c * 3 + 2] - pos[a * 3 + 2]];
+    const nn = V.cross(u, w); fn[t * 3] = nn[0]; fn[t * 3 + 1] = nn[1]; fn[t * 3 + 2] = nn[2];   // (area-weighted: |nn| = 2 area)
+    for (const v of [a, b, c]) { if (own[v] < 0) own[v] = t; byW[wid[v]].push(t); } }
+  const out = new Float32Array(nv * 3), cc = Math.cos(CREASE);
+  for (let v = 0; v < nv; v++) { const t0 = own[v]; if (t0 < 0) continue; const f0 = V.nrm([fn[t0 * 3], fn[t0 * 3 + 1], fn[t0 * 3 + 2]]); let sm = [0, 0, 0];
+    for (const t of new Set(byW[wid[v]])) { const f = [fn[t * 3], fn[t * 3 + 1], fn[t * 3 + 2]]; if (V.dot(V.nrm(f), f0) >= cc) sm = V.add(sm, f); }
+    const r = V.nrm(sm); out[v * 3] = r[0]; out[v * 3 + 1] = r[1]; out[v * 3 + 2] = r[2]; }
+  return out;
+}
+
 // ---- A CROSSING AS A VIRTUAL MEMBER, fed through DEFORM's pool API unchanged ----
 function virtualise(X, R) {
   const B = G.bD, I = R.idx0 || G.idx, TG = 0.25, tg = new Map();   // (the live triangles on a 25 cm grid by their first place)
   for (let t = 0; t < I.length / 3; t++) { if (R.dead[t]) continue; const v = I[t * 3], k = Math.floor(B[v * 3] / TG) + ',' + Math.floor(B[v * 3 + 1] / TG) + ',' + Math.floor(B[v * 3 + 2] / TG); let q = tg.get(k); if (!q) tg.set(k, q = []); q.push(t); }
   const trisNear = c => { const out = [], gx = Math.floor(c[0] / TG), gy = Math.floor(c[1] / TG), gz = Math.floor(c[2] / TG);
     for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (let d = -1; d <= 1; d++) for (const t of (tg.get((gx + a) + ',' + (gy + b) + ',' + (gz + d)) || [])) out.push(t); return out; };
-  const ext = { beams: def.beams.slice(), rest: Array.from(P.rest), ride: [], slots: [], slotOf: [], M: null };
+  const ext = { beams: def.beams.slice(), rest: Array.from(P.rest), ride: [], slots: [], slotOf: [], M: null, N2: [] };
+  const NR = creased(B, I, t => !R.dead[t]);   // (the live part's own smooth normals at rest)
   const nbX = nb + X.length;
   const M = { drawn: new Uint8Array(nbX), K: new Uint8Array(nbX), off: new Float32Array(nbX * DM.AROUND * 3), uv: new Float32Array(nbX * DM.AROUND * 4),
     r: new Float32Array(nbX), tA: new Float32Array(nbX), tB: new Float32Array(nbX), up: new Float32Array(nbX * 3), key: new Array(nbX).fill(null) };
@@ -215,16 +237,38 @@ function virtualise(X, R) {
         for (let j = 0; j < 3; j++) { const k2 = (j + 1) % 3; if ((dd[j] < 0) === (dd[k2] < 0)) continue;
           const ed = V.sub(q[k2], q[j]); if (Math.abs(V.dot(ed, u)) < 0.5 * V.len(ed)) continue;
           const f = dd[j] / (dd[j] - dd[k2]), z = V.add(q[j], V.mul(ed, f)), w = V.sub(z, P0);
-          if (V.len(V.sub(w, V.mul(u, V.dot(w, u)))) < 0.04) pts.push([V.dot(w, e1), V.dot(w, e2)]); } }
+          if (V.len(V.sub(w, V.mul(u, V.dot(w, u)))) >= 0.04) continue;
+          // (the part's own smooth normal there: its edge's two places' creased normals, lerped, in the section's plane)
+          const va = I[t * 3 + j], vb = I[t * 3 + k2], nl = [0, 1, 2].map(c => NR[va * 3 + c] * (1 - f) + NR[vb * 3 + c] * f);
+          const n2 = [V.dot(nl, e1), V.dot(nl, e2)], l2 = Math.hypot(n2[0], n2[1]);
+          const pt = [V.dot(w, e1), V.dot(w, e2)]; pt.n = l2 > 1e-6 ? [n2[0] / l2, n2[1] / l2] : null; pts.push(pt); } }
       const hull = hull2(pts); let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity; for (const h of hull) { a0 = Math.min(a0, h[0]); a1 = Math.max(a1, h[0]); b0 = Math.min(b0, h[1]); b1 = Math.max(b1, h[1]); }
       const hc = hull.length ? [(a0 + a1) / 2, (b0 + b1) / 2] : [0, 0];
-      return { P0, hull, hc, ctr: V.add(P0, V.add(V.mul(e1, hc[0]), V.mul(e2, hc[1]))), dims: hull.length ? [Math.max(a1 - a0, b1 - b0), Math.min(a1 - a0, b1 - b0)] : null, n: pts.length }; };
+      return { P0, pts, hull, hc, ctr: V.add(P0, V.add(V.mul(e1, hc[0]), V.mul(e2, hc[1]))), dims: hull.length ? [Math.max(a1 - a0, b1 - b0), Math.min(a1 - a0, b1 - b0)] : null, n: pts.length }; };
     const cA = cutAt(x.A), cB = cutAt(x.B), hull = cA.hull.slice(); x.secN = cA.n; x.hullN = hull.length; x.dims = cA.dims;
     let A = cA.hull.length >= 3 ? cA.ctr : cA.P0, Bp = cB.hull.length >= 3 ? cB.ctr : cB.P0;
-    while (hull.length > DM.AROUND) { let bk = 0, ba = Infinity; for (let k = 0; k < hull.length; k++) { const p0 = hull[(k + hull.length - 1) % hull.length], p1 = hull[k], p2 = hull[(k + 1) % hull.length];
-      const ar = Math.abs((p1[0] - p0[0]) * (p2[1] - p0[1]) - (p2[0] - p0[0]) * (p1[1] - p0[1])); if (ar < ba) { ba = ar; bk = k; } } hull.splice(bk, 1); }
-    let CA = hull.map(h => { const q = V.add(V.mul(e1, h[0] - cA.hc[0]), V.mul(e2, h[1] - cA.hc[1])); return { q, rr: V.len(q) }; });
-    if (CA.length < 3) { const r0 = 0.004; CA = [0, 1, 2, 3].map(k => { const a = (k + 0.5) / 4 * Math.PI * 2; return { q: V.add(V.mul(e1, r0 * Math.cos(a)), V.mul(e2, r0 * Math.sin(a))), rr: r0 }; }); x.hullN = 0; }
+    // THE RING'S ENTRIES, each with the part's own normal: at a hull corner the cut's normals within 1 mm of it, in families
+    // CREASE apart - one family: one entry (smooth); two (the section's real crease, a box's corner): the corner TWICE, the
+    // incoming face's normal then the outgoing one's - a hard edge along the stub; none carried: the bisector of its edges.
+    // The hull is cut by least area until the entries fit AROUND
+    const entriesOf = H => { const out = [], m = H.length;
+      for (let k = 0; k < m; k++) { const p0 = H[(k + m - 1) % m], p1 = H[k], p2 = H[(k + 1) % m];
+        const eIn = V.nrm([p1[1] - p0[1], -(p1[0] - p0[0]), 0]), eOut = V.nrm([p2[1] - p1[1], -(p2[0] - p1[0]), 0]);   // (outward on a CCW hull)
+        const fam = []; for (const q of cA.pts) { if (!q.n || Math.hypot(q[0] - p1[0], q[1] - p1[1]) > 0.001) continue;
+          const f = fam.find(F => F.n[0] * q.n[0] + F.n[1] * q.n[1] >= Math.cos(CREASE)); if (f) { f.s[0] += q.n[0]; f.s[1] += q.n[1]; } else fam.push({ n: q.n.slice(), s: q.n.slice() }); }
+        const nr = F => { const l = Math.hypot(F.s[0], F.s[1]) || 1; return [F.s[0] / l, F.s[1] / l]; };
+        if (fam.length >= 2) { fam.sort((F1, F2) => (F2.n[0] * eIn[0] + F2.n[1] * eIn[1]) - (F1.n[0] * eIn[0] + F1.n[1] * eIn[1]));
+          out.push({ p: p1, n: nr(fam[0]), crease: 1 }, { p: p1, n: nr(fam[fam.length - 1]), crease: 2 }); }
+        else if (fam.length === 1) out.push({ p: p1, n: nr(fam[0]) });
+        else { const bs = V.nrm(V.add(eIn, eOut)); out.push({ p: p1, n: [bs[0], bs[1]], bis: 1 }); } }
+      return out; };
+    let ent = entriesOf(hull);
+    while (ent.length > DM.AROUND && hull.length > 3) { let bk = 0, ba = Infinity; for (let k = 0; k < hull.length; k++) { const p0 = hull[(k + hull.length - 1) % hull.length], p1 = hull[k], p2 = hull[(k + 1) % hull.length];
+      const ar = Math.abs((p1[0] - p0[0]) * (p2[1] - p0[1]) - (p2[0] - p0[0]) * (p1[1] - p0[1])); if (ar < ba) { ba = ar; bk = k; } } hull.splice(bk, 1); ent = entriesOf(hull); }
+    if (ent.length > DM.AROUND) ent = ent.filter(e => e.crease !== 2).slice(0, DM.AROUND);
+    x.creases = ent.filter(e => e.crease === 1).length; x.bis = ent.filter(e => e.bis).length;
+    let CA = ent.map(e => { const q = V.add(V.mul(e1, e.p[0] - cA.hc[0]), V.mul(e2, e.p[1] - cA.hc[1])); return { q, rr: V.len(q), n3: V.add(V.mul(e1, e.n[0]), V.mul(e2, e.n[1])) }; });
+    if (hull.length < 3) { const r0 = 0.004; CA = [0, 1, 2, 3].map(k => { const a = (k + 0.5) / 4 * Math.PI * 2, q = V.add(V.mul(e1, r0 * Math.cos(a)), V.mul(e2, r0 * Math.sin(a))); return { q, rr: r0, n3: V.nrm(q) }; }); x.hullN = 0; }
     ext.rest.push(...A, ...Bp);
     ext.beams.push({ a: ia, b: ib, mat: 'aluTube', cls: 'fus', virtual: true });
     // each end rides as the place it sits on: the kept weights (w2) of the slab's first vertex - skin_break onNodes' blend
@@ -235,8 +279,12 @@ function virtualise(X, R) {
       return { ws, x: P0 }; };
     ext.ride.push(rideOf(x.A, A), rideOf(x.B, Bp));
     M.K[bi] = CA.length; let rs = 0; CA.forEach((q, k) => { const o = (bi * DM.AROUND + k) * 3; M.off[o] = q.q[0]; M.off[o + 1] = q.q[1]; M.off[o + 2] = q.q[2]; rs += q.rr; });
-    M.r[bi] = rs / CA.length; M.tA[bi] = 0; M.tB[bi] = 1; M.drawn[bi] = 1; M.key[bi] = 'aluminium';
+    { const seen = new Set(); let rr = 0, nn = 0; for (const q of CA) { const kk = q.q.map(z => z.toFixed(6)).join(); if (seen.has(kk)) continue; seen.add(kk); rr += q.rr; nn++; } M.r[bi] = rr / nn; }
+    M.tA[bi] = 0; M.tB[bi] = 1; M.drawn[bi] = 1; M.key[bi] = 'aluminium';
     const up = V.nrm(CA[0].q); M.up.set(up, bi * 3);
+    // (the carried normals, as DEFORM's slotState writes a corner: x along the slot's bR (= up), y along du x bR - the texels
+    // 12-15 proposed for dmg_members.js; here beside it)
+    { const du = V.nrm(V.sub(Bp, A)), wv = V.cross(du, up); ext.N2[i] = CA.map(q => { const a2 = V.dot(q.n3, up), b2 = V.dot(q.n3, wv), l = Math.hypot(a2, b2) || 1; return [a2 / l, b2 / l]; }); }
     // (no outline - the cut found under three corners: no slot; the gap stays as today)
     if (x.hullN >= 3) { ext.slotOf[i] = ext.slots.length; ext.slots.push({ bi, mode: DM.MODE.torn, kt1: 0.5, tb: 0.5, dk: 0, axis: up }); } else ext.slotOf[i] = -1;
   });
@@ -256,15 +304,39 @@ function liveOf(ext, simP, NF) {
     const o = qrot(q, V.sub(r.x, rs)); live.set(V.add(l, o), (n + j) * 3); Q.set(q, (n + j) * 4); });
   return { live, Q };
 }
-// a slot's triangles from DEFORM's pose() over its texels (both pieces, RINGS x AROUND, the pool's own index)
-function slotTris(S, nK) {
+// THE NORMAL CARRIED (the proposed change, mirrored): DEFORM's pose() gives a vertex's normal from its corner's DIRECTION
+// (normalize(N cn + B cs), N and B its ring's frame) - smooth all round, a box drawn as a rounded bar, nothing of the
+// part's own. Here the ring's frame (N, B) is recovered from two corners' pose() normals (they are exactly N cn + B cs) and
+// the corner's CARRIED normal (n2: x along bR, y along du x bR - texels 12-15 proposed) is put through it. The place is
+// pose()'s, untouched. n2 null: pose()'s own normal (DEFORM's pool as it stands)
+function poseN(S, u, k, pc, n2) {
+  const r = DM.pose(S, u, k, pc); if (!n2) return r;
+  const nK = S[28] | 0, kc = k < nK ? k : 0, c = j => { const x = S[32 + j * 2], y = S[33 + j * 2], l = Math.hypot(x, y) || 1; return [x / l, y / l]; };
+  const ck = c(kc); let j = -1, best = 0;
+  for (let q = 0; q < nK; q++) { const cq = c(q), dt = Math.abs(ck[0] * cq[1] - ck[1] * cq[0]); if (dt > best) { best = dt; j = q; } }
+  if (j < 0 || best < 0.2) return r;
+  const rj = DM.pose(S, u, j, pc), cj = c(j), det = ck[0] * cj[1] - cj[0] * ck[1];
+  // [nk nj] = [N B] [[ck0 cj0], [ck1 cj1]]  ->  N = (nk cj1 - nj ck1) / det, B = (nj ck0 - nk cj0) / det
+  const nk = [r[3], r[4], r[5]], nj = [rj[3], rj[4], rj[5]];
+  const N = V.mul(V.sub(V.mul(nk, cj[1]), V.mul(nj, ck[1])), 1 / det), Bv = V.mul(V.sub(V.mul(nj, ck[0]), V.mul(nk, cj[0])), 1 / det);
+  const m = n2[kc], nn = V.nrm(V.add(V.mul(N, m[0]), V.mul(Bv, m[1])));
+  const out = r.slice(); out[3] = nn[0]; out[4] = nn[1]; out[5] = nn[2]; return out;
+}
+// a slot's triangles from DEFORM's pose() over its texels (both pieces, RINGS x AROUND, the pool's own index), each
+// with its three VERTEX normals (drawn smooth); n2: the carried normals (null: pose()'s own). Also the smoothness read:
+// the largest turn of a vertex normal ring to ring (along), and between neighbouring entries that are not a crease pair
+function slotTris(S, nK, n2, st) {
   const tris = [], R = DM.RINGS, A = DM.AROUND;
   for (let pc = 0; pc < 2; pc++) { const vx = [];
-    for (let i = 0; i < R; i++) for (let k = 0; k < A; k++) vx.push(DM.pose(S, i / (R - 1), k, pc));
+    for (let i = 0; i < R; i++) for (let k = 0; k < A; k++) vx.push(poseN(S, i / (R - 1), k, pc, n2));
+    if (st) for (let i = 0; i < R; i++) for (let k = 0; k < Math.min(nK, A); k++) { const a = vx[i * A + k], ang = (p, q) => Math.acos(Math.max(-1, Math.min(1, p[3] * q[3] + p[4] * q[4] + p[5] * q[5]))) * 180 / Math.PI;
+      if (i + 1 < R && a[8] > 0.03 && vx[(i + 1) * A + k][8] > 0.03) st.along = Math.max(st.along, ang(a, vx[(i + 1) * A + k]));   // (3 cm or more off the torn lip: the tear is a hard edge)
+      const k2 = (k + 1) % nK, b = vx[i * A + k2], same = Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]) < 1e-7;
+      if (same) st.crease = Math.max(st.crease, ang(a, b)); }
     for (let i = 0; i + 1 < R; i++) for (let k = 0; k < A; k++) { const k2 = (k + 1) % A, a = vx[i * A + k], b = vx[i * A + k2], c = vx[(i + 1) * A + k2], d = vx[(i + 1) * A + k];
       for (const tr of [[a, b, c], [a, c, d]]) { const bare = (tr[0][6] + tr[1][6] + tr[2][6]) / 3;
         const col = bare > 0.75 ? DM.COL.alloy.map(x => Math.min(1, x * 1.35)) : bare > 0.2 ? DM.COL.primer : PAINT;   // (alloy lifted for the print: the page lights it)
-        tris.push({ p: tr.map(q => [q[0], q[1], q[2]]), col, back: col.map(x => x * DM.COL.bore), bare }); } } }
+        tris.push({ p: tr.map(q => [q[0], q[1], q[2]]), n: tr.map(q => [q[3], q[4], q[5]]), col, back: col.map(x => x * DM.COL.bore), bare, spec: 0.25 }); } } }
   return tris;
 }
 
@@ -282,7 +354,7 @@ for (const cid of (opt('cases', 'trunk-0,trunk-2.5,noseover')).split(',')) {
   // DEFORM's slotState for each slot (its static texels), then the posed frame's texels by hand (frame()'s writes)
   const d = new Float32Array(DM.SLOTS * DM.TX * 4), used = Math.min(ext.slots.length, DM.SLOTS);
   const t2 = process.hrtime.bigint(), LQ = liveOf(ext, F.sim.p, F.NF), tFr = Number(process.hrtime.bigint() - t2) / 1e6;
-  const tris = []; let cracked = 0, parted = 0;
+  const tris = [], st = { along: 0, crease: 0 }; let cracked = 0, parted = 0;
   for (let j = 0; j < used; j++) {
     const s = ext.slots[j], o = j * DM.TX * 4; DM.slotState(d, j, s, ext.M, ext.T, ext.rest, null);
     const b = ext.beams[s.bi]; d[o] = LQ.live[b.a * 3]; d[o + 1] = LQ.live[b.a * 3 + 1]; d[o + 2] = LQ.live[b.a * 3 + 2];
@@ -290,13 +362,15 @@ for (const cid of (opt('cases', 'trunk-0,trunk-2.5,noseover')).split(',')) {
     d.set(LQ.Q.subarray(b.a * 4, b.a * 4 + 4), o + 8); d.set(LQ.Q.subarray(b.b * 4, b.b * 4 + 4), o + 12);
     const S = d.subarray(o, o + DM.TX * 4), c = Math.hypot(d[o + 4] - d[o], d[o + 5] - d[o + 1], d[o + 6] - d[o + 2]);
     if (c < d[o + 19] * 0.999) cracked++; else parted++;
-    tris.push(slotTris(S, ext.M.K[s.bi]));
+    tris.push(slotTris(S, ext.M.K[s.bi], ext.N2[s.bi - nb], st));
   }
   const gaps = X.map(x => x.gap).sort((a, b) => b - a);
   log(cid + ': broken ' + F.D.br.length + ', binding events ' + F.events + ' (flown ' + (tFly / 1000).toFixed(1) + ' s); the aluminium record: ' + (F.R.removed || 0) + ' removed, ' + (F.R.torn || 0) + ' torn');
   const dimsF = X.filter(x => !x.run && x.hullN >= 3).map(x => x.dims), dimsS = X.filter(x => x.run && x.hullN >= 3).map(x => x.dims), med = (A, k) => A.length ? (A.map(q => q[k]).sort((a, b) => a - b)[A.length >> 1] * 1000).toFixed(0) : '-';
   log('  crossings ' + X.length + ' (' + X.filter(x => x.run).length + ' on stringers, ' + X.filter(x => !x.run).length + ' on formers), gaps ' + (gaps.length ? gaps[0].toFixed(3) + ' m worst, ' + gaps[gaps.length >> 1].toFixed(3) + ' median' : '-') +
     '; outlines (median, mm) formers ' + med(dimsF, 0) + ' x ' + med(dimsF, 1) + ', stringers ' + med(dimsS, 0) + ' x ' + med(dimsS, 1) + '; slots ' + used + ' (of ' + DM.SLOTS + '; ' + X.filter(x => !(x.hullN >= 3)).length + ' crossings without an outline: none) - ' + cracked + ' cracked, ' + parted + ' parted; ' + (used * perSlot) + ' triangles (' + perSlot + ' a slot, DEFORM\'s pool as it stands)');
+  const cr = X.filter(x => x.hullN >= 3), nCr = cr.reduce((a, x) => a + (x.creases || 0), 0), nBis = cr.reduce((a, x) => a + (x.bis || 0), 0);
+  log('  normals (the user, 27 Oct: smooth, hard only at a real crease or the tear): carried from the part\'s own creased normals - ' + nCr + ' crease corners over ' + cr.length + ' sections (doubled entries: hard along the stub), ' + nBis + ' corners with no normal carried (their edges\' bisector); the largest turn of a vertex normal ring to ring 3 cm or more off the lip ' + st.along.toFixed(1) + ' deg; at a crease ' + st.crease.toFixed(0) + ' deg');
   log('  costs: the crossings and their virtual members at the event ' + tEv.toFixed(1) + ' ms; the virtual nodes a posed frame ' + tFr.toFixed(2) + ' ms (' + (2 * used) + ' nodes, 16 floats a slot as frame() writes)');
   if (cid === 'trunk-0' && X.length) pic = { F, X, ext, tris, d };
 }
@@ -306,28 +380,33 @@ fs.writeFileSync(path.join(HERE, 'alloy_sec_proto.txt'), lines.join('\n') + '\n'
 // live 'aluminium' triangles round it, as posed) and with the stubs; then the widest one's slot alone, on a straight bar:
 // unposed, cracked (its ends at 0.985 L0), parted (1.3 L0) ----
 if (pic) {
-  const { F, X, ext, tris, d } = pic, R = F.R, I = R.idx0 || G.idx, W = R.w;
+  const { F, X, ext, tris, d } = pic, R = F.R, I = R.idx0 || G.idx, W = R.w, NW = creased(W, I, t => !R.dead[t]);
   const pick = run => { let j = -1; for (let i = 0; i < X.length; i++) if (X[i].run === run && X[i].hullN >= 4 && (j < 0 || X[i].gap > X[j].gap)) j = i; return j; };
   const chosen = [pick(false), pick(true)].filter(j => j >= 0 && ext.slotOf[j] >= 0);
   const Wd = 1600, H = 900, C = R3.Canvas(Wd, H, [0.95, 0.95, 0.94]);
   const notes = [];
   chosen.forEach((j, ci) => {
     const js = ext.slotOf[j], o = js * DM.TX * 4, cen = [(d[o] + d[o + 4]) / 2, (d[o + 1] + d[o + 5]) / 2, (d[o + 2] + d[o + 6]) / 2];
-    const near = [];
+    // the live former round it: TODAY as the page draws it (the snapshot's per-face normals: flat), and with the part's own
+    // CREASED normals taken on its posed shape (the bake proposed for the join's snapshot: smooth, hard at 60 deg+)
+    const near = [], nearS = [];
     for (let t = 0; t < I.length / 3; t++) { if (R.dead && R.dead[t]) continue; const p = [0, 1, 2].map(q => [W[I[t * 3 + q] * 3], W[I[t * 3 + q] * 3 + 1], W[I[t * 3 + q] * 3 + 2]]);
-      if (p.some(q => !Number.isFinite(q[0])) || Math.hypot(...V.sub(p[0], cen)) > 0.22) continue; near.push({ p, col: PAINT, back: PAINT.map(x => x * 0.5) }); }
+      if (p.some(q => !Number.isFinite(q[0])) || Math.hypot(...V.sub(p[0], cen)) > 0.22) continue;
+      near.push({ p, col: PAINT, back: PAINT.map(x => x * 0.5), spec: 0.25 });
+      nearS.push({ p, n: [0, 1, 2].map(q => [NW[I[t * 3 + q] * 3], NW[I[t * 3 + q] * 3 + 1], NW[I[t * 3 + q] * 3 + 2]]), col: PAINT, back: PAINT.map(x => x * 0.5), spec: 0.25 }); }
     const T0 = V.nrm([d[o + 4] - d[o], d[o + 5] - d[o + 1], d[o + 6] - d[o + 2]]), yaw = Math.atan2(T0[2], T0[0]) + Math.PI / 2 + 0.5;
     const view = ox => ({ yaw, pitch: 0.55, scale: 1500, ox, oy: 250, cx: cen[0], cy: cen[1], cz: cen[2] });
-    R3.draw(C, view(200 + ci * 800), near); R3.draw(C, view(600 + ci * 800), near.concat(tris[js]));
-    notes.push('top ' + (ci ? 'right' : 'left') + ' pair: crossing ' + j + ' on a ' + (X[j].run ? 'stringer' : 'former') + ', gap ' + X[j].gap.toFixed(3) + ' m, outline ' + X[j].hullN + ' -> ' + ext.M.K[ext.slots[js].bi] + ' corners, r ' + ext.M.r[ext.slots[js].bi].toFixed(4) + ' m - today | with the stubs');
+    R3.draw(C, view(200 + ci * 800), near); R3.draw(C, view(600 + ci * 800), nearS.concat(tris[js]));
+    notes.push('top ' + (ci ? 'right' : 'left') + ' pair: crossing ' + j + ' on a ' + (X[j].run ? 'stringer' : 'former') + ', gap ' + X[j].gap.toFixed(3) + ' m, outline ' + X[j].hullN + ' -> ' + ext.M.K[ext.slots[js].bi] + ' corners, r ' + ext.M.r[ext.slots[js].bi].toFixed(4) + ' m - today (the page\'s per-face normals) | the stubs (carried normals) on the former with its creased normals');
   });
   const j = chosen[0], o = ext.slotOf[j] * DM.TX * 4, Ssrc = d.subarray(o, o + DM.TX * 4), L0 = Ssrc[19], du = [Ssrc[16], Ssrc[17], Ssrc[18]], sl = ext.slots[ext.slotOf[j]];
-  const mk = (sep, mode) => { const S = Float32Array.from(Ssrc); S[0] = 0; S[1] = 0; S[2] = 0; S[4] = du[0] * L0 * sep; S[5] = du[1] * L0 * sep; S[6] = du[2] * L0 * sep;
-    S[7] = mode; S[8] = S[9] = S[10] = 0; S[11] = 1; S[12] = S[13] = S[14] = 0; S[15] = 1; return slotTris(S, ext.M.K[sl.bi]); };
-  const bar = (tr, ox, sep) => { const c0 = V.mul(du, L0 * sep / 2); R3.draw(C, { yaw: Math.atan2(du[2], du[0]) + Math.PI / 2 + 0.6, pitch: 0.5, scale: 1900, ox, oy: 690, cx: c0[0], cy: c0[1], cz: c0[2] }, tr); };
-  bar(mk(1, DM.MODE.whole), 300, 1); bar(mk(0.985, DM.MODE.torn), 800, 0.985); bar(mk(1.3, DM.MODE.torn), 1300, 1.3);
+  const n2 = ext.N2[sl.bi - nb];
+  const mk = (sep, mode, carried) => { const S = Float32Array.from(Ssrc); S[0] = 0; S[1] = 0; S[2] = 0; S[4] = du[0] * L0 * sep; S[5] = du[1] * L0 * sep; S[6] = du[2] * L0 * sep;
+    S[7] = mode; S[8] = S[9] = S[10] = 0; S[11] = 1; S[12] = S[13] = S[14] = 0; S[15] = 1; return slotTris(S, ext.M.K[sl.bi], carried ? n2 : null, null); };
+  const bar = (tr, ox, sep) => { const c0 = V.mul(du, L0 * sep / 2); R3.draw(C, { yaw: Math.atan2(du[2], du[0]) + Math.PI / 2 + 0.6, pitch: 0.5, scale: 1700, ox, oy: 690, cx: c0[0], cy: c0[1], cz: c0[2] }, tr); };
+  bar(mk(1.3, DM.MODE.torn, false), 200, 1.3); bar(mk(1, DM.MODE.whole, true), 600, 1); bar(mk(0.985, DM.MODE.torn, true), 1000, 0.985); bar(mk(1.3, DM.MODE.torn, true), 1400, 1.3);
   R3.save(C, path.join(HERE, 'alloy_sec_proto.png'));
-  notes.push('bottom: crossing ' + j + '\'s slot alone (L0 ' + L0.toFixed(3) + ' m): unposed | cracked at 0.985 L0 | parted at 1.3 L0; colours: the paint (stand-in), the GREY PRIMER band, the BARE ALLOY rim, the open inside dark');
+  notes.push('bottom: crossing ' + j + '\'s slot alone (L0 ' + L0.toFixed(3) + ' m): parted with pose()\'s own normals (the pool as it stands: rounded all round) | carried normals: unposed | cracked at 0.985 L0 | parted at 1.3 L0; colours: the paint (stand-in), the GREY PRIMER band, the BARE ALLOY rim, the open inside dark');
   fs.appendFileSync(path.join(HERE, 'alloy_sec_proto.txt'), 'picture alloy_sec_proto.png:\n  ' + notes.join('\n  ') + '\n');
   if (argv.includes('--debug')) { const x = X[j];
     console.log('DEBUG crossing', j, 'gap', x.gap.toFixed(3), 'slab', x.A.slab.length, 'hull', x.hullN, 'K', ext.M.K[sl.bi], 'r', ext.M.r[sl.bi].toFixed(4), 'sep', Math.hypot(d[o + 4] - d[o], d[o + 5] - d[o + 1], d[o + 6] - d[o + 2]).toFixed(4), 'L0', L0.toFixed(4));

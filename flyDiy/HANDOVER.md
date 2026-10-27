@@ -98296,3 +98296,21 @@ The ask (the user via A0, 27 Oct): the metal Cessna's formers and stringers torn
   - in `app.js`, an `aluminium` pool, `assign()` with the extended topology at an event, and `frame()` with the virtual nodes appended;
   - nothing in skin_break.
   - Options for DEFORM's review: `MAT.alloySec` with its own band widths, and a 12-corner AROUND for the I-webs.
+
+### G3620-G3629 DMG-LOOKS - NO FLAT SHADING ON A DAMAGED PART (the user, 27 Oct): THE ALLOY SECTIONS AND THE PORT KIT (DMG-LOOKS; cloud, node + headless WebGL2; branch claude/dmg-looks-study)
+The user, 27 Oct: "no flat shading on any deformed or damaged part - it looks bad and looks like a bench". Smooth normals on the deformed geometry, per ring and vertex, carried from the part's own smooth normals; hard edges only at a real crease or a tear. (The glass marks: claude/dmg-glass G3623, row N.)
+- **Alloy sections** (`alloy_sections/`, README "Smooth normals"):
+  - The flown snapshot's `aluminium` formers are per-face (flat) on the page even intact: on the metal Cessna, 33,166 / 33,166 coincident pairs differ.
+    - Their own smooth normals are made by a 60° crease rule (`creased()`).
+    - **Proposed to A0:** bake them into the snapshot once.
+  - DEFORM's `pose()` derives normals from each corner's direction, which shades a box as a rounded bar. The stubs carry the part's creased normals per ring entry instead, with a real crease's corner doubled to keep it hard: 110 crease corners over 39 sections in the centreline crash.
+    - Mirrored without editing `dmg_members.js` (`poseN()`).
+    - **Proposed to DEFORM:** per-corner normal texels 12-15, `TX` 12 → 16.
+- **Port kit** (`port/dmg_looks_alloy.js`): the slot had no normals.
+  - Each canonical vertex now carries its face normal (plate corners doubled; 420 vertices, still 480 triangles), and its index winds outward (the 26 Oct one wound inward).
+  - `poseJS().nrm` / GLSL `dlAlloyNormal` give the normal on the deformed shape: the face normal less its part along the length tangent over the neighbouring rings.
+  - `check_port.js` PASS:
+    - GLSL normal = JS within 0.03°.
+    - Against the posed mesh: median 0.00°, 95 % 0.81°, worst 9.4° over 1,899 vertices.
+    - Skipped: 1,401 on a crimp's closed fold or the kink's crease, real creases where the mesh itself breaks; even there the median is 4.2°.
+- `raster3d.js` shades smooth when given vertex normals. Re-rendered: `port/port_alloy.png` and `alloy_sections/alloy_sec_proto.png`.

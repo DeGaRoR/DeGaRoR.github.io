@@ -22,10 +22,12 @@ the modules into `src/viewer/` (or load them as they are) and wire them as below
 
 **The canonical mesh.** `canon()` builds it once at roll-out:
 
-- 252 vertices, **480 triangles** a slot, 21 rings (4 / 12 / 4, clustered round the slot's event).
-- Per vertex, 6 floats: `k` (the ring's place, −1..1), `sx`, `sy` (the cage's metalAngle section: two prisms, w 30 mm,
-  T 5 mm), `leg` (0 riveted, 1 outstanding), `d` (from the heel), `u` (developed: −d riveted, +d outstanding).
-- A `Uint16` index.
+- 420 vertices, **480 triangles** a slot, 21 rings (4 / 12 / 4, clustered round the slot's event).
+- Per vertex, 8 floats: `k` (the ring's place, −1..1), `sx`, `sy` (the cage's metalAngle section: two prisms, w 30 mm,
+  T 5 mm), `leg` (0 riveted, 1 outstanding), `d` (from the heel), `u` (developed: −d riveted, +d outstanding), `nx`,
+  `ny` (its face's normal in the section).
+- Each plate's four corners are carried twice, once per face, so the sheet's real edges are hard. Nothing else is.
+- A `Uint16` index over the faces only, wound **outward**. The 26 Oct index wound inward; it is fixed (27 Oct).
 
 **The slot state.** `slotState(o)` at the event returns a `Float32Array(16)`:
 
@@ -38,9 +40,17 @@ the modules into `src/viewer/` (or load them as they are) and wire them as below
 ```glsl
 float xo;
 vec3 p = dlAlloyPose(a, S, A, B, up, xo);   // A, B: the slot's two live nodes; up: the section's up
+vec3 n = dlAlloyNormal(a, vec2(nx, ny), S, A, B, up);   // the SMOOTH normal on the deformed shape
 ```
 
-- `a` is the 6 attributes; `S` is the slot's 16 floats.
+- `a` is the first 6 attributes, `(nx, ny)` the last two; `S` is the slot's 16 floats.
+- **Smooth normals (the user, 27 Oct: "no flat shading on any deformed or damaged part - it looks bad and looks like a
+  bench").** `dlAlloyNormal` / `poseJS().nrm` is the face normal with its component along the deformed shape's length
+  tangent removed. The tangent is taken over the neighbouring rings, which is what the drawn mesh can show.
+  - The crimps' lobes, the kink and the curled lips shade as they bend.
+  - The rings share their vertices, so the only hard edges are the plates' real edges, a crimp's closed fold, the
+    kink's apex and the tear.
+  - Write `n` to `objectNormal`. Never use derivative normals or `flatShading` in the pool's program.
 - A and B come from the node texture DMG-SKINGPU already uploads.
 - Pass `xo`, `u` and a "wide face of the riveted leg" flag to the fragment shader.
 
@@ -62,8 +72,12 @@ if (c.a < 0.5) discard;
 
 **Gate.** `check_port.js` ALLOY:
 
-- the GLSL pose against `poseJS` over 3,024 vertices and 12 slots (crushed 0-90 mm, torn A / B, random
+- the GLSL pose against `poseJS` over 5,040 vertices and 12 slots (crushed 0-90 mm, torn A / B, random
   orientations): worst 0.001 mm;
+- the GLSL normal against `poseJS`: worst 0.03°;
+- the normals against the posed mesh round each vertex: median 0.00°, 95 % 0.81°, worst 9.4° over 1,899 vertices.
+  - Skipped: 1,401 on a crimp's closed fold or the kink's crease (real creases where the mesh itself breaks). Even
+    there the median is 4.2° and 90 % are within 20.6°;
 - fragments: 7,200 / 7,200 the same.
 
 ## 2. The rim overlay, B3, outer skin only

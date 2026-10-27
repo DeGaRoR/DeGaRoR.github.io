@@ -1,9 +1,18 @@
 // DMG-LOOKS PORT KIT: THE ALLOY FRAME SLOT FOR THE MEMBER POOL - crimps, then a kink; the tear through the rivet line.
 // The prototype is futureDesigns/dmg-looks/alloy_proto.js (pictures: alloy_slot.png); this is it as the pool will run it:
-//   - a CANONICAL slot mesh (made once, at roll-out): every vertex carries (k, sx, sy, leg, d, u) - k in [-1, 1] the
-//     ring's place in the clustered layout (the VS maps it to a station round the slot's event), sx / sy the section
+//   - a CANONICAL slot mesh (made once, at roll-out): every vertex carries (k, sx, sy, leg, d, u, nx, ny) - k in [-1, 1]
+//     the ring's place in the clustered layout (the VS maps it to a station round the slot's event), sx / sy the section
 //     point (the cage's metalAngle: two prisms, w x T), leg 0 riveted / 1 outstanding, d its distance from the heel,
-//     u the developed coordinate (-d on the riveted leg, +d on the outstanding one);
+//     u the developed coordinate (-d on the riveted leg, +d on the outstanding one), nx / ny its face's normal in the
+//     section (each plate's four corners are real edges - a sheet's cut edge, its faces: a corner is carried TWICE, once
+//     a face, so the edge is hard; nothing else is);
+//   - SMOOTH NORMALS (the user, 27 Oct: "no flat shading on any deformed or damaged part - it looks bad and looks like a
+//     bench"): the pose returns each vertex's normal ON THE DEFORMED SHAPE - its section normal with the component along
+//     the shape's local length tangent taken out, the tangent over its NEIGHBOURING RINGS (the same vertex posed at the
+//     rings either side: what the drawn mesh itself can show - a tangent over a millimetre found the lobes' true slope,
+//     which 6 mm rings cannot draw, and lit them against their silhouette), so the crimps' lobes, the kink and the curled
+//     lips shade as they bend; rings share their vertices along the slot, so the only hard edges are the plates' real
+//     corners and the tear;
 //   - a SLOT STATE (made at the event, a few floats): slotState(o) -> Float32Array(STATE_N);
 //   - the VERTEX POSE and the FRAGMENT colour, as JS (the mirror: poseJS / fragJS) and as GLSL (GLSL_POSE / GLSL_FRAG,
 //     functions only - the pool's own shader calls them), the same recipe line for line. GATE: port/check_port.js runs the
@@ -17,23 +26,30 @@
   const NZ = typeof DMG_LOOKS_NOISE !== 'undefined' ? DMG_LOOKS_NOISE : require('./dmg_looks_noise.js');
   const DEF = { w: 0.030, T: 0.005, t: 0.0012, rivetD: 0.0032, pitch: 0.022, rivetAt: 0.55, H_K: 1.0, EFF: 0.73 };
   const RINGS = [4, 12, 4];                  // rings: before the zone, in it, after it (k -1..-0.5, -0.5..0.5, 0.5..1)
-  // ---- the canonical mesh: 2 prisms x 6-point loops, RINGS rings; Float32 attributes + a Uint16 index ----
+  // ---- the canonical mesh: 2 prisms x 10-point loops (each face's own points: a corner twice), RINGS rings; Float32
+  // attributes (stride 8) + a Uint16 index over the faces only (no quad across a corner: 6 a loop, as before) ----
+  // the canonical k step between a ring and the next round k (the layout's: 4 rings over k -1..-0.5, 12 over -0.5..0.5, 4 over 0.5..1)
+  const ringDk = k => (k < -0.5 || k > 0.5 ? 0.5 / RINGS[0] : 1 / RINGS[1]);
   function canon(o) {
     o = Object.assign({}, DEF, o);
-    const { w, T } = o, loops = [[[0, 0], [w / 2, 0], [w, 0], [w, T], [w / 2, T], [0, T]].map(([x, y]) => [x, y, 0, x, -x]),
-      [[0, 0], [T, 0], [T, w / 2], [T, w], [0, w], [0, w / 2]].map(([x, y]) => [x, y, 1, y, y])];
+    const { w, T } = o;
+    // a face: its points and its normal; a loop: its faces in turn (counter-clockwise in (X, Y))
+    const face = (pts, n, leg) => pts.map(([x, y]) => [x, y, leg, leg ? y : x, leg ? y : -x, n[0], n[1]]);
+    const loops = [
+      [face([[0, 0], [w / 2, 0], [w, 0]], [0, -1], 0), face([[w, 0], [w, T]], [1, 0], 0), face([[w, T], [w / 2, T], [0, T]], [0, 1], 0), face([[0, T], [0, 0]], [-1, 0], 0)],
+      [face([[0, 0], [T, 0]], [0, -1], 1), face([[T, 0], [T, w / 2], [T, w]], [1, 0], 1), face([[T, w], [0, w]], [0, 1], 1), face([[0, w], [0, w / 2], [0, 0]], [-1, 0], 1)]];
     const ks = []; const [n0, n1, n2] = RINGS;
     for (let i = 0; i < n0; i++) ks.push(-1 + 0.5 * i / n0);
     for (let i = 0; i < n1; i++) ks.push(-0.5 + i / n1);
     for (let i = 0; i <= n2; i++) ks.push(0.5 + 0.5 * i / n2);
-    const nv = ks.length * 12, A = new Float32Array(nv * 6), idx = [];
+    const per = loops.reduce((a, L) => a + L.reduce((b2, F) => b2 + F.length, 0), 0);   // (20 a ring)
+    const nv = ks.length * per, A = new Float32Array(nv * 8), idx = [];
     let v = 0;
-    for (const k of ks) for (const L of loops) for (const p of L) { A.set([k, p[0], p[1], p[2], p[3], p[4]], v * 6); v++; }
-    for (let r = 0; r + 1 < ks.length; r++) for (let l = 0; l < 2; l++) for (let j = 0; j < 6; j++) {
-      const a = r * 12 + l * 6 + j, b = r * 12 + l * 6 + (j + 1) % 6, c = a + 12, d = b + 12;
-      idx.push(a, b, d, a, d, c);
-    }
-    return { attr: A, stride: 6, nv, index: Uint16Array.from(idx), ntri: idx.length / 3, rings: ks.length };
+    for (const k of ks) for (const L of loops) for (const F of L) for (const p of F) { A.set([k, p[0], p[1], p[2], p[3], p[4], p[5], p[6]], v * 8); v++; }
+    for (let r = 0; r + 1 < ks.length; r++) { let o2 = 0;
+      for (const L of loops) for (const F of L) { for (let j = 0; j + 1 < F.length; j++) {
+        const a = r * per + o2 + j, b = a + 1, c = a + per, d = b + per; idx.push(a, d, b, a, c, d); } o2 += F.length; } }   // (OUTWARD: the face's normal; the 26 Oct index wound inward)
+    return { attr: A, stride: 8, nv, index: Uint16Array.from(idx), ntri: idx.length / 3, rings: ks.length, perRing: per };
   }
   // ---- the slot state: mode 0 crushed, 1 torn piece A, 2 torn piece B ----
   // o: { mode, L0, kt1 (crush) | tb (tear, 0..1), seed, w, t }
@@ -72,15 +88,15 @@
     if (k <= 0.5) return z - zh + (k + 0.5) * 2 * zh;
     return z + zh + (k - 0.5) * 2 * (L0 - z - zh);
   }
-  // ---- THE POSE (the VS): returns [x, y, z] world and the station used (for the fragment's attribute) ----
-  // a: [k, sx, sy, leg, d, u]; A, B: the live nodes; up: the section's up (unit); S: the slot state
-  function poseJS(a, S, A, B, up) {
-    const [k, sx, sy, leg, d, u] = a, L0 = S[1], H = S[2], df = S[3], w = S[4], mode = S[0];
+  // ---- THE POSE (the VS): the vertex a at station xs - [x, y, z] world, the station used, the frame's U / X / Y ----
+  // a: [k, sx, sy, leg, d, u, nx, ny]; A, B: the live nodes; up: the section's up (unit); S: the slot state
+  function atJS(a, S, A, B, up, xs) {
+    const [, sx, sy, leg, d, u] = a, L0 = S[1], H = S[2], df = S[3], w = S[4], mode = S[0];
     const BA = [B[0] - A[0], B[1] - A[1], B[2] - A[2]], c = Math.hypot(...BA), U = BA.map(q => q / c);
     let Y = [up[0] - U[0] * (up[0] * U[0] + up[1] * U[1] + up[2] * U[2]), up[1] - U[1] * (up[0] * U[0] + up[1] * U[1] + up[2] * U[2]), up[2] - U[2] * (up[0] * U[0] + up[1] * U[1] + up[2] * U[2])];
     const yl = Math.hypot(...Y); Y = Y.map(q => q / yl);
     const X = [U[1] * Y[2] - U[2] * Y[1], U[2] * Y[0] - U[0] * Y[2], U[0] * Y[1] - U[1] * Y[0]];
-    let x = stationJS(S, k), lx = 0, ly = 0, along, P;
+    let x = xs, lx = 0, ly = 0, along, P;
     if (mode < 0.5) {
       const delta = Math.max(0, L0 - c), nF = Math.min(3, Math.ceil(delta / df - 1e-6)), dg = Math.max(0, delta - 3 * df);
       along = x;
@@ -100,7 +116,22 @@
       if (leg < 0.5) ly += lip; else lx += lip;
       P = [0, 1, 2].map(j => A[j] + U[j] * x * c / L0);
     }
-    return { pos: [0, 1, 2].map(j => P[j] + X[j] * (sx + lx) + Y[j] * (sy + ly)), x };
+    return { pos: [0, 1, 2].map(j => P[j] + X[j] * (sx + lx) + Y[j] * (sy + ly)), x, U, X, Y };
+  }
+  // the vertex posed (its station from its ring) and its SMOOTH normal on the deformed shape: n0 = X nx + Y ny less its
+  // component along the length tangent t = at(the next ring's station) - at(the last one's) (k clamped to [-1, 1]; a slot
+  // collapsed there: n0 as is)
+  function poseJS(a, S, A, B, up) {
+    const x0 = stationJS(S, a[0]), r = atJS(a, S, A, B, up, x0), dk = ringDk(a[0]);
+    const p1 = atJS(a, S, A, B, up, stationJS(S, Math.min(1, a[0] + dk))).pos, p0 = atJS(a, S, A, B, up, stationJS(S, Math.max(-1, a[0] - dk))).pos, t = [p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]];
+    const n0 = [0, 1, 2].map(j => r.X[j] * (a[6] || 0) + r.Y[j] * (a[7] || 0)), tl2 = t[0] * t[0] + t[1] * t[1] + t[2] * t[2];
+    let n = n0; if (tl2 > 1e-14) { const dt = (n0[0] * t[0] + n0[1] * t[1] + n0[2] * t[2]) / tl2; n = [n0[0] - t[0] * dt, n0[1] - t[1] * dt, n0[2] - t[2] * dt]; }
+    const nl = Math.hypot(n[0], n[1], n[2]) || 1;
+    // (fold: the shape runs BACK along the slot there - a crimp's fold closed over itself; crease: the shape turns over 30 deg
+    // between the ring before and the ring after (the kink's apex). Both real creases: the mesh's own normals break there)
+    const tb = [r.pos[0] - p0[0], r.pos[1] - p0[1], r.pos[2] - p0[2]], tf = [p1[0] - r.pos[0], p1[1] - r.pos[1], p1[2] - r.pos[2]], lb = Math.hypot(...tb), lf = Math.hypot(...tf);
+    const crease = lb > 1e-9 && lf > 1e-9 && (tb[0] * tf[0] + tb[1] * tf[1] + tb[2] * tf[2]) / (lb * lf) < Math.cos(30 * Math.PI / 180);
+    return { pos: r.pos, x: r.x, nrm: [n[0] / nl, n[1] / nl, n[2] / nl], fold: t[0] * r.U[0] + t[1] * r.U[1] + t[2] * r.U[2] <= 0, crease };
   }
   // ---- THE FRAGMENT: [r, g, b, keep] (keep 0 = discard). x the station attribute, u, flatR (1 on a wide face of the
   // riveted leg), front (the face's side). Grey primer (the user, 25 Oct), bare alloy at the crack / round torn holes ----
@@ -136,13 +167,13 @@
     '}',
   ].join('\n');
   const GLSL_POSE = [
-    '// a = (k, sx, sy, leg, d, u); returns the world position; xOut the station (the fragment attribute)',
-    'vec3 dlAlloyPose(float a[6], float S[16], vec3 A, vec3 B, vec3 up, out float xOut) {',
-    '  float k = a[0], sx = a[1], sy = a[2], leg = a[3], d = a[4], u = a[5];',
+    '// a = (k, sx, sy, leg, d, u); the vertex at station x0: returns the world position; xOut the station (the fragment attribute)',
+    'vec3 dlAlloyAt(float a[6], float S[16], vec3 A, vec3 B, vec3 up, float x0, out float xOut) {',
+    '  float sx = a[1], sy = a[2], leg = a[3], d = a[4], u = a[5];',
     '  float L0 = S[1], H = S[2], df = S[3], w = S[4], mode = S[0];',
     '  vec3 BA = B - A; float c = length(BA); vec3 U = BA / c;',
     '  vec3 Y = normalize(up - U * dot(up, U)); vec3 X = cross(U, Y);',
-    '  float x = dlStation(S, k), lx = 0.0, ly = 0.0; vec3 P;',
+    '  float x = x0, lx = 0.0, ly = 0.0; vec3 P;',
     '  if (mode < 0.5) {',
     '    float delta = max(0.0, L0 - c); int nF = int(min(3.0, ceil(delta / df - 1e-6))); float dg = max(0.0, delta - 3.0 * df);',
     '    float along = x;',
@@ -165,6 +196,15 @@
     '  xOut = x;',
     '  return P + X * (sx + lx) + Y * (sy + ly);',
     '}',
+    'vec3 dlAlloyPose(float a[6], float S[16], vec3 A, vec3 B, vec3 up, out float xOut) { return dlAlloyAt(a, S, A, B, up, dlStation(S, a[0]), xOut); }',
+    '// the SMOOTH normal on the deformed shape (poseJS\'s): n2 the face normal in the section (nx, ny)',
+    'vec3 dlAlloyNormal(float a[6], vec2 n2, float S[16], vec3 A, vec3 B, vec3 up) {',
+    '  float x0 = dlStation(S, a[0]), xq; vec3 U = normalize(B - A); vec3 Y = normalize(up - U * dot(up, U)); vec3 X = cross(U, Y);',
+    '  float dk = (a[0] < -0.5 || a[0] > 0.5) ? ' + (0.5 / RINGS[0]).toFixed(6) + ' : ' + (1 / RINGS[1]).toFixed(6) + ';',
+    '  vec3 t = dlAlloyAt(a, S, A, B, up, dlStation(S, min(1.0, a[0] + dk)), xq) - dlAlloyAt(a, S, A, B, up, dlStation(S, max(-1.0, a[0] - dk)), xq);',
+    '  vec3 n = X * n2.x + Y * n2.y; float tl2 = dot(t, t); if (tl2 > 1e-14) n -= t * (dot(n, t) / tl2);',
+    '  return normalize(n);',
+    '}',
   ].join('\n');
   const GLSL_FRAG = [
     '// returns (rgb, keep): keep 0.0 = discard',
@@ -183,7 +223,7 @@
     '  return abs(x - c) < 0.0025 ? vec4(bare, 1.0) : vec4(primer, 1.0);',
     '}',
   ].join('\n');
-  const API = { DEF, RINGS, STATE_N, canon, slotState, cutJS, stationJS, poseJS, fragJS, GLSL: NZ.GLSL + '\n' + GLSL_COMMON + '\n' + GLSL_POSE + '\n' + GLSL_FRAG };
+  const API = { DEF, RINGS, STATE_N, ringDk, canon, slotState, cutJS, stationJS, atJS, poseJS, fragJS, GLSL: NZ.GLSL + '\n' + GLSL_COMMON + '\n' + GLSL_POSE + '\n' + GLSL_FRAG };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (typeof window !== 'undefined') window.DMG_LOOKS_ALLOY = API;
 })();
