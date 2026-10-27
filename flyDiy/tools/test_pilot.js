@@ -587,6 +587,34 @@ part('-- BOX: the modes as a device, over the pilot and over a hand --', () => {
   checkBox(bx);
 });
 
+// LAND-WAY (A0 27 Oct): ap.landWayFrom - the landing way the pilot would plan from a point (the story's skip poses on it);
+// no flight, a question: its shape, no side effect, and the wind deciding it (8 m/s down the runway either way: both
+// ends' 3 km points answer into the wind). Calm: printed (the pref - the end it is lined up on - and the site decide)
+part('-- LAND-WAY: the landing way the pilot would plan from here --', () => {
+  const lw = (wind) => {
+    const world = makeWorld();
+    if (wind && world.setWind) world.setWind({ base: [wind[0], 0, wind[1]], gust: 0 });
+    const def = buildGen(), sim = makeSim(def, world);
+    sim.reset(0);
+    const ap = makePilot(sim, def, world), a = world.aerodromes[0];
+    ap.setRoute(a, a);
+    const hx = Math.cos(a.hdg), hz = Math.sin(a.hdg), at = sg => [a.x - sg * 3000 * hx, a.z - sg * 3000 * hz];
+    const why0 = ap.dirWhy, ph0 = ap.phase, n0 = ap.report.verdicts.length;
+    const r = [1, -1].map(sg => ap.landWayFrom(a, ...at(sg)));
+    return { a, r, clean: ap.dirWhy === why0 && ap.phase === ph0 && ap.report.verdicts.length === n0, hx, hz };
+  };
+  const calm = lw(null), tail = lw([8 * Math.cos(calm.a.hdg), 8 * Math.sin(calm.a.hdg)]), head = lw([-8 * Math.cos(calm.a.hdg), -8 * Math.sin(calm.a.hdg)]);
+  for (const [k, L] of [['calm', calm], ['wind along hdg', tail], ['wind against hdg', head]])
+    console.log('   ' + k + ': from the +hdg end ' + (L.r[0] ? L.r[0].way + ' (' + L.r[0].why + ')' : 'null') + ', from the -hdg end ' + (L.r[1] ? L.r[1].way + ' (' + L.r[1].why + ')' : 'null'));
+  const shapeOk = [calm, tail, head].every(L => L.r.every(q => q && q.u.length === 2 && Math.abs(Math.hypot(q.u[0], q.u[1]) - 1) < 1e-6 &&
+    (q.way === 1 || q.way === -1) && q.way === (q.u[0] * L.hx + q.u[1] * L.hz >= 0 ? 1 : -1)));
+  check(shapeOk, 'LAND-WAY: landWayFrom answers { u (unit), way +-1 along the runway heading, why } from both ends');
+  check([calm, tail, head].every(L => L.clean), 'LAND-WAY: asking changes nothing (dirWhy, phase, verdicts as they were)');
+  check(tail.r.every(q => q.way === -1) && head.r.every(q => q.way === 1), 'LAND-WAY: 8 m/s down the runway - both ends answer into the wind');
+  { const w = makeWorld(), d = buildGen(), s = makeSim(d, w); s.reset(0); const p = makePilot(s, d, w);
+    check(p.landWayFrom(null, 0, 0) === null && p.landWayFrom(calm.a, NaN, 0) === null, 'LAND-WAY: no aerodrome or no point - null'); }
+});
+
 if (fails.length) console.log('FAILED CHECKS: ' + fails.join(', '));
 console.log('GATE PILOT: ' + (fails.length ? 'FAIL' : 'PASS'));
 process.exit(fails.length ? 1 : 0);

@@ -1054,6 +1054,18 @@ function makePilot(sim, def, world, opts) {
     const sg = (dx * axx + dz * axz) >= 0 ? 1 : -1;
     return [axx * sg, axz * sg];
   };
+  // LAND-WAY (A0 27 Oct, STORY-SKIP consistency): THE LANDING WAY THIS PILOT WOULD PLAN arriving at `a` from (x, z), in
+  // the wind of its own clock - the very call planFromHere's re-plan makes (dirAt, pref from there to the field, the
+  // sheet's limits), for a caller that poses the aeroplane (the story's skip onto the final poses on the end returned):
+  // { u: [ux, uz], way: +1 along a.hdg / -1 against it, why }. No side effect: ap.dirWhy is the pilot's and is put back
+  ap.landWayFrom = (a, x, z) => {
+    if (!a || !Number.isFinite(x) || !Number.isFinite(z)) return null;
+    const why0 = ap.dirWhy;
+    try {
+      const u = dirAt(a, a.x - x, a.z - z), why = ap.dirWhy;
+      return { u: [u[0], u[1]], way: u[0] * CORE_MATH.cos(a.hdg) + u[1] * CORE_MATH.sin(a.hdg) >= 0 ? 1 : -1, why: why == null ? null : why };
+    } finally { ap.dirWhy = why0; }
+  };
   // P1.B: THE GUST, READ OFF THE DAY — the wind at the aerodrome sampled
   // over the next 30 s (the field is deterministic in t): the spread of
   // its speed. Half of it goes on Vref (the POH's rule); nothing asks the
