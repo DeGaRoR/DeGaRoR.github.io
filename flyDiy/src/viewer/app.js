@@ -9369,7 +9369,8 @@
     reg: () => ({ allow: '[data-dec="reg"]' }),
     rollout: () => ({ allow: '#bGo, #edRoll, #stSkip' }),
     shed: () => ({ allow: '#bHangar2' }),
-    store: () => ({ allow: '#gStore' }),
+    // (Storage lives in the name menu: its opener #fbName and the button - #gStore alone was out of reach, g10 27 Oct)
+    store: () => ({ allow: '#fbName, #gStore' }),
     storeClient: s => ({ allow: stTutCard(s.planes.client) + ', #hsStore .hsFloor', deny: '#hsStore .hsFly, #hsStore .hsRoute, #hsStore .hsSend' }),
     storeStarter: s => ({ allow: stTutCard(s.planes.starter) + ', #hsStore .hsCol[data-col="inside"]', deny: '#hsStore .hsFly, #hsStore .hsRoute, #hsStore .hsSend, #hsStore .hsWork' }),
   };

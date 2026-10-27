@@ -193,7 +193,7 @@ const STORY_TUTOR = {
       say: 'We’re down - welcome to the WWII field! Taxi over to the hangar if you like, or go straight in with The shed.' },
     { id: 'hangar', say: 'There it is, in our own hangar. Not bad for an old army field.' },
     { id: 'contract', say: 'And our first contract is here already: a client brought us an unfinished Cub. It’s parked outside.' },
-    { id: 'store', wait: 'storeOpen', allow: 'store', say: 'Let’s swap it with the ultralight. Open Storage.' },
+    { id: 'store', wait: 'storeOpen', allow: 'store', say: 'Let’s swap it with the ultralight. Open Storage: tap the aeroplane’s name at the top, then Storage.' },
     { id: 'swap', wait: 'clientOnStand', allow: 'storeClient',
       say: 'Drag the Cub onto the floor, or tap its "work on". The ultralight steps off the stand to make room.' },
     { id: 'park', wait: 'starterInside', allow: 'storeStarter',

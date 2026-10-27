@@ -837,7 +837,8 @@ async function tutorRun() {
   press('tnext'); e = tim();
   ok(/parked outside/.test(e.innerHTML), 'the new contract: the Cub parked outside');
   press('tnext'); e = tim();
-  ok(/Open Storage/.test(e.innerHTML) && X.lock().allow === '#gStore' && !held(tgt('#gStore')) && held(tgt('#bGo')), 'Storage: its button the only control');
+  ok(/Open Storage/.test(e.innerHTML) && /the aeroplane’s name/.test(e.innerHTML) && X.lock().allow === '#fbName, #gStore' && !held(tgt('#fbName')) && !held(tgt('#gStore')) && held(tgt('#gSave')) && held(tgt('#bGo')),
+    'Storage: the name menu and its Storage button the only controls (#gStore sits in the hidden #edShelf)');
   const store = P.mkEl('div'); store.id = 'hsStore'; store.hidden = false;
   e = tim();
   ok(/Drag the Cub onto the floor/.test(e.innerHTML) && /hsCard\[data-name="Client Cub"\]/.test(X.lock().allow) && /\.hsFly/.test(X.lock().deny),
