@@ -318,6 +318,15 @@ function makePilot(sim, def, world, opts) {
     for (const nd of def.nodes) M += nd.m;
     return PR && M > 0 ? THRUST_ARM * PR.Tstatic * (def.params.nEngines || 1) / (M * 9.81) : 0;
   })();
+  // G2829 (STOL-WING-2, for PILOT's review): THE STATIC THRUST OVER THE WEIGHT - the ROLL's line-up rule below arms on
+  // it. The user's Cub 0.27, the Jodel 0.23 (taildraggers under the rule's 0.30); the Cessnas 0.35 / 0.32 are tricycles,
+  // the float builds on the water: no validated aeroplane arms it
+  const STATIC_TW = (() => {
+    const PP = POWERPLANTS[def.params.powerplant], PR = def.params.prop || (PP && PP.prop);
+    let M = 0;
+    for (const nd of def.nodes) M += nd.m;
+    return PR && M > 0 ? PR.Tstatic * (def.params.nEngines || 1) / (M * 9.81) : 0;
+  })();
   const TW = (() => {
     const N = def.nodes, R = def.refs;
     let Lwb = 4.0;
@@ -649,6 +658,7 @@ function makePilot(sim, def, world, opts) {
   // back to the air's numbers. (SV.IthMax / SV.IthMaxT / SV.IthGain)
   // G381: the flare's own inner-loop gains (P up, rate damping down) — the
   // cruise loop moved 1 deg in 3 s at idle, which is no flare at all (SV.pitchK / SV.pitchDK)
+  let lineHold = false, lineOkT = 0;   // G2829: the ROLL's line-up hold (a high-thrust taildragger)
   let thRest = null, thrRoll = 0, taxiXT = 0, taxiSRem = 0, tailUpNow = false;
   // G630: AN ANGLE'S RATE IS THE RATE OF A WRAPPED DIFFERENCE. The heading
   // errors live in (-pi, pi]; differenced raw, an error that crosses +-pi
@@ -3253,7 +3263,28 @@ function makePilot(sim, def, world, opts) {
 
       case 'ROLL': {
         {
-          const capT = V < (A.VTailUp ?? 0) ? GP.cap : 1;
+          let capT = V < (A.VTailUp ?? 0) ? GP.cap : 1;
+          // G2829 (STOL-WING-2, for PILOT's review): ON A HIGH-THRUST TAILDRAGGER THE POWER COMES IN LINED UP. A roll can
+          // begin off its line: the mine strip's (Copperhead, 250 m) spawn stands 18.5 m off the centreline, a 43 deg
+          // intercept for the 25 m look of the track hold; Jolene's HOME spawn faces 85 deg off the run. The user's Cub
+          // (static T/W 0.27) swings onto the line at full power and leaves; the same Cub with a 141 hp Rotax 915 (0.40)
+          // or a 150 hp O-320 accelerates through the swing into a ground loop (heading error -43 -> +87 deg in 3.5 s
+          // against full rudder, V back to 2 m/s, the take-off rejected) - the STOL Cub showcase's failure there (PILOT's
+          // legs). A capped throttle (T/W 0.30) only moved the loop: the swing still overshot +58 / -52 deg. A pilot
+          // taxis onto the line and opens the throttle there: while the tail is down and the line is more than 15 deg
+          // off, the power is held to taxi thrust (T/W lineTaxiTW) until the nose has stayed within 5 deg of it for
+          // 1 s, and the roll's clock (the accelerate-stop's filter and its rules) starts there. Only a taildragger on
+          // wheels over static T/W lineupTW (0.30) arms it: the user's Cub 0.27, the Jodel 0.23; the Cessnas are
+          // tricycles, the float builds on the water - no validated aeroplane
+          if (rollS0 === null) { lineHold = false; lineOkT = 0; }
+          if (!trike && !sim.hydro && STATIC_TW > (A.lineupTW ?? 0.30) && V < (A.VTailUp ?? 0)) {
+            if (!lineHold && Math.abs(e) > 0.26) { lineHold = true; lineOkT = 0; }
+            if (lineHold) {
+              lineOkT = Math.abs(e) < 0.09 ? lineOkT + dt : 0;
+              if (lineOkT > 1) lineHold = false;
+            }
+          } else lineHold = false;
+          if (lineHold) { capT = Math.min(capT, Math.max(0.2, (A.lineTaxiTW ?? 0.15) / STATIC_TW)); phaseT = 0; }
           thrRoll = GP.cap < 1
             ? Math.min(capT, Math.max(thrRoll, GP.cap) + (1 - GP.cap) / (A.thrRampS ?? 2) * dt)
             : capT;
