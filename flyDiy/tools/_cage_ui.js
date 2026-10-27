@@ -1986,6 +1986,7 @@ function* buildSteps() {
     else {
       const t0 = performance.now();
       sEye = G.cageSheet(P, { step, level: L, eye: { variant: eyeV } }).mesh;
+      if (G.cageEyeFacia) G.cageEyeFacia(sEye, s);      // G3714: the facia back where the instruments stand
       if (window.CAGE_UI) window.CAGE_UI.eyeMs = performance.now() - t0;
       EYE_CACHE = { s, v: eyeV, out: sEye };
     }

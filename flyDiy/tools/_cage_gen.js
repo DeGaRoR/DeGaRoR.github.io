@@ -8946,6 +8946,63 @@ function cageEyeLevel(m, spec, eye) {
   return cageSubdivideRegion(m, f => cz(f) >= zCut - 1e-6);
 }
 
+// cageEyeFacia(eye, m2): THE FACIA STAYS WHERE THE INSTRUMENTS ARE (G3714). The instruments stand on the level-2
+// sheet's facia (the panel layer reads `s`), and the third level relaxes the facia's bow: the Cub's plate came 8 mm
+// toward the pilot and covered every dial face (the 01:55 stills: bezels, no faces, no plate). Each eye-sheet facia
+// vertex is moved back along the plate's normal by the median gap to the level-2 facia (the plate slid; see below);
+// the dash faces round it share the rim vertices and follow by those few mm. In place; returns the shift in cage
+// units. Both sheets final, the same build.
+function cageEyeFacia(eye, m2) {
+  const n = [0, 0, 0], tri = [];
+  for (const f of m2.F) {
+    if (f.m !== 'dashFace') continue;
+    const q = f.v.length;
+    for (let i = 0; i < q; i++) {
+      const a = m2.V[f.v[i]], b = m2.V[f.v[(i + 1) % q]];
+      n[0] += (a[1] - b[1]) * (a[2] + b[2]); n[1] += (a[2] - b[2]) * (a[0] + b[0]); n[2] += (a[0] - b[0]) * (a[1] + b[1]);
+    }
+    for (let i = 1; i + 1 < q; i++) tri.push([m2.V[f.v[0]], m2.V[f.v[i]], m2.V[f.v[i + 1]]]);
+  }
+  const ln = Math.hypot(n[0], n[1], n[2]);
+  if (!tri.length || !(ln > 0)) return 0;
+  n[0] /= ln; n[1] /= ln; n[2] /= ln;
+  // the plate's own frame: e1 lateral (x off the normal), e2 = n x e1, h along n
+  const dx = n[0], e1 = [1 - dx * n[0], -dx * n[1], -dx * n[2]], l1 = Math.hypot(e1[0], e1[1], e1[2]) || 1;
+  e1[0] /= l1; e1[1] /= l1; e1[2] /= l1;
+  const e2 = [n[1] * e1[2] - n[2] * e1[1], n[2] * e1[0] - n[0] * e1[2], n[0] * e1[1] - n[1] * e1[0]];
+  const uvh = p => [p[0] * e1[0] + p[1] * e1[1] + p[2] * e1[2], p[0] * e2[0] + p[1] * e2[1] + p[2] * e2[2],
+    p[0] * n[0] + p[1] * n[1] + p[2] * n[2]];
+  const T = tri.map(t => t.map(uvh));
+  // the level-2 facia's height under (u, v): null outside its outline (the bowed foot of the plate sits outside it
+  // once the third level has moved the plate, and a clamped height there is a wrong one)
+  const heightAt = (u, v) => {
+    for (const [A, B, C] of T) {
+      const d = (B[1] - C[1]) * (A[0] - C[0]) + (C[0] - B[0]) * (A[1] - C[1]);
+      if (Math.abs(d) < 1e-14) continue;
+      const w0 = ((B[1] - C[1]) * (u - C[0]) + (C[0] - B[0]) * (v - C[1])) / d;
+      const w1 = ((C[1] - A[1]) * (u - C[0]) + (A[0] - C[0]) * (v - C[1])) / d;
+      const w2 = 1 - w0 - w1;
+      if (w0 >= -1e-9 && w1 >= -1e-9 && w2 >= -1e-9) return w0 * A[2] + w1 * B[2] + w2 * C[2];
+    }
+    return null;
+  };
+  // THE PLATE SLID, IT DID NOT BEND (the probe, 27 Oct: the Cub's inner vertices all 8.7 mm, the Cessna's 3.8, the
+  // Jodel's 0): ONE shift along the normal, the median of the vertices over the level-2 plate, for every facia
+  // vertex - the plate keeps its own (level-3) shape and stands where the instruments were placed.
+  const ids = [];
+  for (const f of eye.F) if (f.m === 'dashFace') for (const i of f.v) ids.push(i);
+  const uniq = [...new Set(ids)], dh = [];
+  for (const i of uniq) {
+    const c = uvh(eye.V[i]), h = heightAt(c[0], c[1]);
+    if (h != null) dh.push(h - c[2]);
+  }
+  if (!dh.length) return 0;
+  dh.sort((a, b) => a - b);
+  const k = dh[dh.length >> 1];
+  for (const i of uniq) { const p = eye.V[i]; p[0] += k * n[0]; p[1] += k * n[1]; p[2] += k * n[2]; }
+  return Math.abs(k);
+}
+
 // THE FIELD RE-MEASURED ON THE SMOOTH SKIN (G476, playtest item 149, the
 // user's Screenshot 2026-09-19 162154: "mapping issue on the centre section,
 // back and belly - stretched rivets"). sC is the arc round the CONTROL ring's
@@ -9224,7 +9281,7 @@ if (typeof module !== 'undefined')
                      CAGE_FRAME_KEYS, CAGE_FRAME_ORDER, CAGE_FRAME_NAMES, CAGE_LEGACY_FRAME,
                      cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                      CAGE_UNIT,
-                     buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel,
+                     buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
                      cageRims, cageInterior, cageCut, cageGlassSill,
                      cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                      cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,
@@ -9235,7 +9292,7 @@ if (typeof window !== 'undefined')
                    CAGE_FRAME_KEYS, CAGE_FRAME_ORDER, CAGE_FRAME_NAMES, CAGE_LEGACY_FRAME,
                    cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                    CAGE_UNIT,
-                   buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel,
+                   buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
                    cageRims, cageInterior, cageCut, cageGlassSill,
                    cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                    cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,
