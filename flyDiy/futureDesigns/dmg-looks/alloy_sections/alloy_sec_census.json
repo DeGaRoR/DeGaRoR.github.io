@@ -1,0 +1,132 @@
+{
+ "build": "metal",
+ "prepMs": 7058,
+ "aluminiumGroups": 1,
+ "pieces": 39,
+ "kinds": {
+  "curved/punched": {
+   "n": 38,
+   "tris": 13584,
+   "len": 60.1,
+   "endCorners": {
+    "1": 2,
+    "2": 1,
+    "3": 7,
+    "4": 13,
+    "5": 2,
+    "6": 13
+   },
+   "wSample": [
+    [
+     0.0038,
+     0.0037
+    ],
+    [
+     0.0038,
+     0.0037
+    ],
+    [
+     0.0104,
+     0.0067
+    ],
+    [
+     0.0104,
+     0.0063
+    ],
+    [
+     0.0066,
+     0.0044
+    ],
+    [
+     0.2212,
+     0.0104
+    ],
+    [
+     0.2128,
+     0.0104
+    ],
+    [
+     0.2204,
+     0.0044
+    ],
+    [
+     0.2212,
+     0.0001
+    ],
+    [
+     0.2122,
+     0.0001
+    ],
+    [
+     0.2202,
+     0
+    ],
+    [
+     0.1029,
+     0.0108
+    ]
+   ]
+  },
+  "angle": {
+   "n": 1,
+   "tris": 24,
+   "len": 1.1,
+   "endCorners": {
+    "7": 1
+   },
+   "wSample": [
+    [
+     0.0223,
+     0.0223
+    ]
+   ]
+  }
+ },
+ "members": {
+  "alloy": 401,
+  "byCls": {
+   "fus": {
+    "members": 109,
+    "drawn": 5
+   },
+   "wing": {
+    "members": 136,
+    "drawn": 0
+   },
+   "tail": {
+    "members": 156,
+    "drawn": 0
+   }
+  },
+  "drawnFus": 5
+ },
+ "crashes": {
+  "fly0": {
+   "broken": 94,
+   "buckled": 11,
+   "drawnBroken": 4,
+   "drawnBuckled": 0,
+   "fusBroken": 24,
+   "fusDrawnBroken": 4,
+   "slots": 4
+  },
+  "fly25": {
+   "broken": 13,
+   "buckled": 3,
+   "drawnBroken": 0,
+   "drawnBuckled": 0,
+   "fusBroken": 0,
+   "fusDrawnBroken": 0,
+   "slots": 0
+  },
+  "noseover": {
+   "broken": 0,
+   "buckled": 0,
+   "drawnBroken": 0,
+   "drawnBuckled": 0,
+   "fusBroken": 0,
+   "fusDrawnBroken": 0,
+   "slots": 0
+  }
+ }
+}

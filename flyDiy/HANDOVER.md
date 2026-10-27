@@ -98273,3 +98273,26 @@ node futureDesigns/dmg-looks/looks_stills.js --build <cub|jodel|metal> --after "
 node futureDesigns/dmg-looks/looks_stills.js --sheet <build>
 ```
 For a URL switch, use `--q 'k=v' --tag after`. Each build takes ~13 min on the cloud's software GPU.
+
+### G3620-G3629 DMG-LOOKS - ALLOY SECTIONS, PROTOTYPE ONLY (2026-10-27, DMG-LOOKS for A0 + DEFORM; cloud, node only; branch claude/dmg-looks-study, `futureDesigns/dmg-looks/alloy_sections/`)
+The ask (the user via A0, 27 Oct): the metal Cessna's formers and stringers torn as alloy sections, with bare alloy then grey primer at the tear. It stays a prototype until DEFORM pushes the reworked pool. DEFORM's `dmg_members.js` (v2, `origin/claude/dmg-looks` 8529a6dc4) is read and called, never edited. The full write-up is `alloy_sections/README.md`.
+- **The census.**
+  - The formers and stringers (the cage's `aluminium` bucket) are bound as covering, not as tubes, so `measure()` never sees them.
+  - They are not drawn on the physics members: the rings stand every ~0.97 m, the drawn formers elsewhere. Only 5 of 109 fuselage `alloy` members carry one.
+  - `mat 'alloy'` is not in `MAT`.
+  - So a slot per member cannot carry them.
+- **The design: a slot per tear crossing.**
+  - The covering's dead triangles on the `aluminium` record are clustered.
+  - At each end, the section is the cut of the live strips 2 cm in: hull, ≤ 8 corners. Medians: formers 35 × 16 mm, stringers 41 × 27 mm.
+  - It becomes a virtual member whose ends ride as their places do (skin_break's blend), with `mat: 'aluTube'` (DEFORM's bare-alloy then grey-primer look as it stands) and `MODE.torn`.
+  - `pose()` and `slotState()` run unchanged, and `dmg_members.js` needs no change.
+- **Numbers (metal Cessna):**
+  - 30 m/s trunk, centreline: 47 crossings, 39 slots (6 cracked, 33 parted), 16 224 triangles.
+  - 2.5 m out: 21 crossings, 16 slots, 6 656 triangles.
+  - Nose-over: none.
+  - Cost: the event 60-81 ms for the whole crash at once. Per event over the new dead triangles only is not measured. The virtual nodes cost ≤ 1.2 ms a frame (78 nodes).
+- **For the branch off DEFORM's commit:**
+  - a pure `dmg_alloy_sec.js` (`crossings` / `virtualise` / `liveOf`);
+  - in `app.js`, an `aluminium` pool, `assign()` with the extended topology at an event, and `frame()` with the virtual nodes appended;
+  - nothing in skin_break.
+  - Options for DEFORM's review: `MAT.alloySec` with its own band widths, and a 12-corner AROUND for the I-webs.
