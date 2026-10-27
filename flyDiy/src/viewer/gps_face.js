@@ -40,10 +40,15 @@ const RANGES = { aviation: [1852, 3704, 7408, 14816, 29632], metric: [2000, 4000
 const RNG_TXT = { aviation: ['RNG 1 nm', 'RNG 2 nm', 'RNG 4 nm', 'RNG 8 nm', 'RNG 16 nm'], metric: ['RNG 2 km', 'RNG 4 km', 'RNG 8 km', 'RNG 16 km', 'RNG 32 km'] };
 const RNG0 = 2;                                  // 4 nm / 8 km at power-on
 const BOOT_S = 1.6;                              // the splash after power comes on
-const CW = 512;                                  // the canvas's width, px
 const SEA = '#20465a', BG = '#000000';
-
-const S = {
+// G2815: TWO UNITS AT MOST (a pair of 10 in displays: the PFD and the MFD) - each its own canvas, texture, material
+// (the join's bucket 'gps' and 'gps2'), pages, keys, power button and repaint clock; the painters below draw the unit
+// in hand (`S`, its canvas `CW` wide: 512 px, 768 on a 10 in display - the same pixels to the millimetre)
+const CW_BIG = 768, PFD_KINDS = { glass: 1, flat: 1, flatPair: 1 };
+const PWR = ['sw_gps', 'sw_gps2'];               // G2814: each unit's power button (cockpit.js CK.sw, 1 in flight)
+const mkUnit = i => ({
+  i, cw: 512, gr: { g: null, sky: null, skyS: null, gnd: null }, zb: { x: 478, y1: 0, y2: 0, s: 30 },
+  eis: false, keysN: 0, keySlots: null,
   cv: null, g: null, tex: null, mat: null, aspect: 1.6, H: 320,
   kind: 'portable', units: 'aviation', src: null,
   on: false, dark: true, boot: 0, acc: 0, trackAcc: 0,
@@ -56,7 +61,12 @@ const S = {
   rngI: RNG0, trkUp: false, page: 'map', keysAt: 'below', keys: 0,
   // G2813: the glass unit's PFD - its page, the synthetic vision and its terrain colours (switches), the V speeds
   pfd: false, svt: true, terr: true, vsp: null,
-};
+});
+const UNITS = [mkUnit(0), mkUnit(1)];
+let S = UNITS[0], CW = 512, NU = 1;
+function use(i) { S = UNITS[i > 0 ? 1 : 0]; CW = S.cw; }
+const cwFor = kind => { const AV = typeof GEN_AVIONICS !== 'undefined' ? GEN_AVIONICS : null, f = AV && AV.gps[kind] && AV.gps[kind].face;
+  return f && f.sw >= 0.2 ? CW_BIG : 512; };
 let canvasMaker = null;
 const W0 = typeof window !== 'undefined' ? window : null;
 const T3 = () => (typeof THREE !== 'undefined' ? THREE : (W0 && W0.THREE) || null);
@@ -76,24 +86,30 @@ const sDeg = i => { i = i % 360; if (i <= 0) i += 360; return DEG[i] || (DEG[i] 
 const sTwo = i => { i = i < 0 ? 0 : i > 99 ? 99 : i; return TWO[i] || (TWO[i] = (i < 10 ? '0' : '') + i); };
 
 // ---- THE MATERIAL ---------------------------------------------------------------------------------------------------
-function material(aspect, kind) {
+function material(aspect, kind, ui) {
   const THREE3 = T3();
   if (!THREE3) return null;
+  use(ui || 0);
   const a = aspect > 0.2 ? aspect : S.aspect;
   // WHILE A FLIGHT HOLDS THE UNIT the panel layer's calls change nothing: a parked aeroplane's capture builds the
   // editor's panel for ANOTHER build (parked.js) and asks this material for its own screen - it gets this one as it
   // stands, never resized or renamed under the flight
   if (S.mat && S.bound) return S.mat;
   // the shed names the unit it drew (its standby page says which); a flight's bind names its own
-  if (kind && kind !== S.kind && NAME[kind]) { S.kind = kind; if (S.mat && !S.on) paintStandby(); }
+  if (kind && kind !== S.kind && NAME[kind]) {
+    S.kind = kind;
+    if (S.mat && !S.on && cwFor(kind) === S.cw) paintStandby();
+  }
   if (!S.mat) {
+    S.cw = CW = cwFor(S.kind);
     S.mat = new THREE3.MeshStandardMaterial({ color: 0x1a1d22, roughness: 0.18, metalness: 0,
       emissive: new THREE3.Color(0xffffff), emissiveIntensity: 0, side: THREE3.FrontSide });
     S.mat.userData.aeroskin = 1;          // never the grey understudy
-    S.mat.userData.panelSet = 'gps';      // the join's bucket key
+    S.mat.userData.panelSet = S.i ? 'gps2' : 'gps';   // the join's bucket key (G2815: the second display's own)
     S.mat.userData.inside = 1;
     sizeTo(a);
-  } else if (Math.abs(a - S.aspect) / S.aspect > 0.02) sizeTo(a);
+  } else if (cwFor(S.kind) !== S.cw) { S.cw = CW = cwFor(S.kind); sizeTo(a); }   // (G2815: a 10 in display's canvas)
+  else if (Math.abs(a - S.aspect) / S.aspect > 0.02) sizeTo(a);
   return S.mat;
 }
 // a canvas at the screen's own aspect (the quad spans it whole): made at bind, never per frame - a texture's size
@@ -112,14 +128,15 @@ function sizeTo(a) {
 function upload() { if (S.tex) { S.tex.needsUpdate = true; S.uploads++; } }
 
 // ---- THE PAGES ------------------------------------------------------------------------------------------------------
-const NAME = { portable: 'PORTABLE GPS', panel: 'GPS NAVIGATOR', glass: 'PFD · MFD' };
+const NAME = { portable: 'PORTABLE GPS', panel: 'GPS NAVIGATOR', glass: 'PFD · MFD', flat: 'PFD', flatPair: 'PFD' };
+const nameOf = () => (S.kind === 'flatPair' && S.i ? 'MFD' : NAME[S.kind] || 'GPS');
 // in the shed: the unit off, its name on the glass (what you see on a parked aeroplane's panel)
 function paintStandby() {
   const g = S.g; if (!g) return;
   g.fillStyle = '#0b0d10'; g.fillRect(0, 0, CW, S.H);
   g.fillStyle = 'rgba(255,255,255,0.10)';
   g.font = '600 26px "IBM Plex Mono", monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText(NAME[S.kind] || 'GPS', CW / 2, S.H / 2);
+  g.fillText(nameOf(), CW / 2, S.H / 2);
   g.textAlign = 'left'; g.textBaseline = 'alphabetic';
   upload();
 }
@@ -132,7 +149,7 @@ function paintBoot() {
   const g = S.g; if (!g) return;
   g.fillStyle = '#06121c'; g.fillRect(0, 0, CW, S.H);
   g.fillStyle = '#8fd7ff'; g.font = '600 30px "IBM Plex Mono", monospace'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText(NAME[S.kind] || 'GPS', CW / 2, S.H / 2 - 16);
+  g.fillText(nameOf(), CW / 2, S.H / 2 - 16);
   g.fillStyle = '#5f8ea6'; g.font = '500 18px "IBM Plex Mono", monospace';
   g.fillText('ACQUIRING SATELLITES', CW / 2, S.H / 2 + 18);
   g.textAlign = 'left'; g.textBaseline = 'alphabetic';
@@ -146,7 +163,8 @@ function paintMap() {
   const x = FR.x, z = FR.z;
   const H = S.H, bar = Math.max(30, Math.round(H * 0.15)), foot = Math.max(22, Math.round(H * 0.11));
   const kL = keyStrip(), kB = S.keysAt === 'left' ? 0 : kL, kX = S.keysAt === 'left' ? kL : 0;   // the softkeys' labels
-  const mTop = bar, mH = H - bar - foot - kB, mX = kX, mW = CW - kX;
+  const eW = S.eis ? Math.round(CW * 0.19) : 0;   // G2815: the MFD's engine strip down the left
+  const mTop = bar, mH = H - bar - foot - kB, mX = kX + eW, mW = CW - kX - eW;
   const R = (RANGES[S.units] || RANGES.aviation)[S.rngI] || RANGE.aviation, k = mW / R;
   const src = S.src;
   // the map: the baked island under the aeroplane, the aeroplane in the middle - north up, or turned to the track
@@ -239,6 +257,7 @@ function paintMap() {
   g.fillStyle = '#8fd7ff'; g.fillText(S.trkUp ? 'TRK UP' : 'N UP', CW - 58, mTop + mH - 9);
   // G2813: the zoom, to the finger (the units are touch screens): + and - under north's arrow
   zoomBtns(mTop);
+  if (eW) paintEis(kX, eW, H - kB);
   // THE DATA BAR: GS, DTK, DIS, ETE (the units the build's panel is painted in), right of a key column
   g.fillStyle = '#0a0c0f'; g.fillRect(mX, 0, mW, bar);
   const metric = S.units === 'metric';
@@ -247,7 +266,7 @@ function paintMap() {
   const disM = W.on ? Math.sqrt(ddx * ddx + ddz * ddz) : 0;     // (not Math.hypot: a varargs builtin boxes its doubles)
   const ete = W.on && S.gs > 1 ? disM / S.gs : -1;
   const lab = Math.min(80, Math.round(bar * 0.30)), val = Math.min(80, Math.round(bar * 0.52));
-  const cell = mW / 4;
+  const cell = Math.floor(mW / 4);                // (whole pixels: G2815's MFD leaves 622 px - a double handed to field() is boxed)
   field(mX + 0 * cell, bar, lab, val, 'GS', sInt(Math.round(gsD)), metric ? 'km/h' : 'kt');
   field(mX + 1 * cell, bar, lab, val, 'DTK', W.on ? sDeg(Math.round(W.dtk)) : '---', '°');
   field(mX + 2 * cell, bar, lab, val, 'DIS', W.on ? sTenth(Math.round(metric ? disM / 100 : disM / 185.2)) : '--.-', metric ? 'km' : 'nm');
@@ -330,7 +349,7 @@ const NAV_LAB = ['GS', 'TRK', 'DTK', 'DIS', 'ETE', 'BRG'];
 const NAV_UNIT = [['kt', '°', '°', 'nm', '', '°'], ['km/h', '°', '°', 'km', '', '°']];
 // the softkeys' labels, over their keys: a strip of four cells along the bottom (keys under the screen), or a column
 // of four on the left (a slim navigator's keys beside it). Returns the strip's size, px (0: no keys on this unit)
-function keyStrip() { return S.keys ? (S.keysAt === 'left' ? Math.round(CW * 0.13) : Math.max(18, Math.round(S.H * 0.085))) : 0; }
+function keyStrip() { return S.keys ? (S.keysAt === 'left' ? Math.round(CW * 0.13) : Math.min(32, Math.max(18, Math.round(S.H * 0.085)))) : 0; }
 const KEY_TXT = { rngDn: 'RNG -', rngUp: 'RNG +', orient: ['N UP', 'TRK UP'], page: ['NAV', 'MAP'] };
 // G2813: on the PFD the same four keys switch its own things: the synthetic vision, its terrain colours, (none), the page
 const KEY_PFD = ['SVT', 'TERR', '', 'MAP'];
@@ -346,15 +365,17 @@ function keyText(i) {
 function keyLit(i) { return S.page === 'pfd' && ((i === 0 && S.svt) || (i === 1 && S.terr && S.svt)); }
 function paintKeys(kL) {
   const g = S.g; if (!g || !kL) return;
-  const n = KEYS.length, left = S.keysAt === 'left';
+  // (G2815: a 10 in display's row of twelve cells, a label over each of the four caps that switch)
+  const n = S.keysN || KEYS.length, left = S.keysAt === 'left';
   g.fillStyle = '#0a0c0f';
   if (left) g.fillRect(0, 0, kL, S.H); else g.fillRect(0, S.H - kL, CW, kL);
-  g.font = FONT_LAB[Math.min(80, Math.round(left ? S.H / n * 0.30 : kL * 0.56))]; g.textAlign = 'center'; g.textBaseline = 'middle';
-  for (let i = 0; i < n; i++) {
-    const x0 = left ? 0 : i * CW / n, y0 = left ? i * S.H / n : S.H - kL, w = left ? kL : CW / n, h = left ? S.H / n : kL;
-    if (keyLit(i)) { g.fillStyle = '#1d4f6e'; g.fillRect(Math.round(x0) + 3, Math.round(y0) + 3, Math.round(w) - 6, Math.round(h) - 6); }
+  g.font = FONT_LAB[Math.min(80, Math.round(left ? S.H / n * 0.30 : Math.min(kL * 0.56, CW / n * 0.2)))]; g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (let c = 0; c < n; c++) {
+    const i = S.keysN ? S.keySlots.indexOf(c) : c;
+    const x0 = left ? 0 : c * CW / n, y0 = left ? c * S.H / n : S.H - kL, w = left ? kL : CW / n, h = left ? S.H / n : kL;
+    if (i >= 0 && keyLit(i)) { g.fillStyle = '#1d4f6e'; g.fillRect(Math.round(x0) + 3, Math.round(y0) + 3, Math.round(w) - 6, Math.round(h) - 6); }
     g.strokeStyle = '#2c3540'; g.lineWidth = 1; g.strokeRect(Math.round(x0) + 2.5, Math.round(y0) + 2.5, Math.round(w) - 5, Math.round(h) - 5);
-    g.fillStyle = '#cfe6f5'; g.fillText(keyText(i), Math.round(x0 + w / 2), Math.round(y0 + h / 2) + 1);
+    if (i >= 0) { g.fillStyle = '#cfe6f5'; g.fillText(keyText(i), Math.round(x0 + w / 2), Math.round(y0 + h / 2) + 1); }
   }
   g.textAlign = 'left'; g.textBaseline = 'alphabetic';
 }
@@ -437,17 +458,18 @@ function waypoint() {
 const PFD_HZ = 20;
 const PK = 6, PKR = PK * 57.29578;               // px a degree (pitch and azimuth alike: conformal), px a radian
 const PFD_TOP = 20;                              // the waypoint bar's height, px
-// the fan: SV_NA columns over +-SV_AZ of the nose, SV_NR rings from SV_D0 out, each SV_DK further (120 m to 11 km)
-const SV_NA = 33, SV_NR = 22, SV_AZ = 54 / 57.29578, SV_D0 = 120, SV_DK = 1.24;
+const HSI_FULL = 420, HSI_R = 104;               // G2815: a PFD taller than this draws the whole HSI rose, this big
+// the fan: SV_NA columns over +-SV_AZ of the nose, SV_NR rings from SV_D0 out, each SV_DK further (120 m to 11.4 km;
+// G2814, the user: "the virtual terrain is a little too blocky" - 49 x 30, was 33 x 22)
+const SV_NA = 49, SV_NR = 30, SV_AZ = 54 / 57.29578, SV_D0 = 120, SV_DK = 1.17;
 const SV_A = new Float32Array(SV_NA), SV_D = new Float32Array(SV_NR);
 for (let a = 0; a < SV_NA; a++) SV_A[a] = -SV_AZ + 2 * SV_AZ * a / (SV_NA - 1);
 for (let r = 0; r < SV_NR; r++) SV_D[r] = SV_D0 * Math.pow(SV_DK, r);
-// the grid: HF_N x HF_N over the map's box (24 km: 150 m cells), HF_STEP samples a frame
-const HF_N = 160, HF_STEP = 320;
+// the grid: HF_N x HF_N over the map's box (24 km: 94 m cells; G2814, was 160: 150 m), HF_STEP samples a frame
+const HF_N = 256, HF_STEP = 640;
 const SVG = { hf: new Float32Array(HF_N * HF_N), i: 0, ready: false, x0: 0.5, z0: 0.5, cell: 1.5,
   sy: new Int16Array(SV_NA * SV_NR), h: new Float32Array(SV_NA * SV_NR),
   sx: new Int16Array(SV_NA), sb: new Float32Array(SV_NA), cb: new Float32Array(SV_NA) };
-for (let a = 0; a < SV_NA; a++) SVG.sx[a] = Math.round(SV_A[a] * PKR);
 // the ground's colours, made once: an elevation band (green low, tan, rock, snow) x a light level x a haze level
 const SV_BANDS = [[46, 92, 40], [62, 104, 44], [90, 112, 52], [122, 116, 62], [132, 106, 72], [122, 104, 92], [150, 144, 138], [216, 216, 220]];
 const SV_BAND_H = [15, 80, 180, 320, 520, 800, 1200];          // the bands' tops, m
@@ -472,8 +494,9 @@ const C_MAG = '#ff4fd8', C_CY = '#30d8ff', C_TAPE = 'rgba(16,22,30,0.62)', C_BOX
 const PF = { x: 0.5, z: 0.5, alt: 0.5, hLoc: 0.5, ias: 0.5, iasP: 0.5, acc: 0.5, vs: 0.5, roll: 0.5, pitch: 0.5, hdg: 0.5,
   beta: 0.5, gam: 0.5, drift: 0.5, rr: 0.5, dt: 0.5, have: false };
 // the gradients (made with the canvas; a gradient is the context's, so a new canvas makes its own)
-const GR = { g: null, sky: null, skyS: null, gnd: null };
+// (each unit's own: a gradient is its canvas's)
 function grads(g) {
+  const GR = S.gr;
   if (GR.g === g || !g.createLinearGradient) return;
   GR.g = g;
   GR.sky = g.createLinearGradient(0, -600, 0, 0); GR.sky.addColorStop(0, '#0b3f99'); GR.sky.addColorStop(1, '#3c86e0');
@@ -528,15 +551,16 @@ function paintPfd() {
   const g = S.g; if (!g) return;
   grads(g);
   const kL = keyStrip(), X0 = S.keysAt === 'left' ? kL : 0, PW = CW - X0, PH = S.H - (S.keysAt === 'left' ? 0 : kL);
-  const cx = Math.round(X0 + PW / 2), cy = Math.round(PFD_TOP + (PH - PFD_TOP) * 0.40);
+  // (G2815: a 10 in display's PFD is tall enough for the whole HSI rose under the attitude; the attitude rides higher)
+  const full = PH > HSI_FULL, cx = Math.round(X0 + PW / 2), cy = Math.round(PFD_TOP + (PH - PFD_TOP) * (full ? 0.33 : 0.40));
   const pp = Math.round(PF.pitch * PKR);
   const svt = S.svt && SVG.ready;
   // THE ATTITUDE: the sky and the ground (or the synthetic vision), turned with the roll, moved with the pitch
   g.save();
   g.beginPath(); g.rect(X0, PFD_TOP, PW, PH - PFD_TOP); g.clip();
   g.translate(cx, cy); g.rotate(PF.rr); g.translate(0, pp);
-  g.fillStyle = svt ? GR.skyS || '#3c86e0' : GR.sky || '#2a6fd6'; g.fillRect(-700, -1200, 1400, 1200);
-  if (svt) paintSvt(g); else { g.fillStyle = GR.gnd || '#7a4a1c'; g.fillRect(-700, 0, 1400, 1200); }
+  g.fillStyle = svt ? S.gr.skyS || '#3c86e0' : S.gr.sky || '#2a6fd6'; g.fillRect(-900, -1500, 1800, 1500);
+  if (svt) paintSvt(g); else { g.fillStyle = S.gr.gnd || '#7a4a1c'; g.fillRect(-900, 0, 1800, 1500); }
   g.fillStyle = '#ffffff'; g.fillRect(-700, -1, 1400, 2);
   if (svt) {
     // the heading marks along the horizon, every 10 deg, the 30s numbered
@@ -558,7 +582,7 @@ function paintPfd() {
   g.restore();
   // THE PITCH LADDER: every 2.5 deg, the tens numbered, inside the attitude's middle
   g.save();
-  g.beginPath(); g.rect(cx - 90, PFD_TOP + 30, 180, PH - PFD_TOP - 96); g.clip();
+  g.beginPath(); g.rect(cx - 90, PFD_TOP + 30, 180, full ? PH - HSI_R - 56 - PFD_TOP - 30 - 26 : PH - PFD_TOP - 96); g.clip();
   g.translate(cx, cy); g.rotate(PF.rr); g.translate(0, pp);
   g.fillStyle = '#ffffff'; g.font = F_PFD_S; g.textBaseline = 'middle';
   const pd = PF.pitch * 57.29578, q0 = Math.ceil((pd - 22) / 2.5), q1 = Math.floor((pd + 22) / 2.5);
@@ -602,7 +626,9 @@ function paintPfd() {
 // the synthetic vision, in the horizon's frame (y down from the horizon line, x across from the nose; px)
 function paintSvt(g) {
   const alt = PF.alt, hd = PF.hdg / 57.29578, H = SVG.h, SY = SVG.sy, SX = SVG.sx, SB = SVG.sb, CB = SVG.cb;
-  for (let a = 0; a < SV_NA; a++) { const b = hd + SV_A[a]; SB[a] = Math.sin(b); CB[a] = Math.cos(b); }
+  // (G2815: the fan as wide as the canvas - +-54 deg on the 512 px glass, +-72 on a 10 in display's 768)
+  const azK = CW > 600 ? 72 / 54 : 1;
+  for (let a = 0; a < SV_NA; a++) { const b = hd + SV_A[a] * azK; SB[a] = Math.sin(b); CB[a] = Math.cos(b); SX[a] = Math.round(SV_A[a] * azK * PKR); }
   for (let r = 0; r < SV_NR; r++) {
     const D = SV_D[r];
     for (let a = 0; a < SV_NA; a++) {
@@ -615,10 +641,10 @@ function paintSvt(g) {
   }
   // past the fan to the horizon: the haze; then the fan far to near, each quad shaded by its slope against the sun
   g.fillStyle = SV_PAL[(1 * SV_L + 4) * SV_Z + 3]; g.fillRect(-700, 0, 1400, 1200);
-  const alerts = S.terr && S.gs > 15 && alt - PF.hLoc > 60, dA = SV_A[1] - SV_A[0];
+  const alerts = S.terr && S.gs > 15 && alt - PF.hLoc > 60, dA = (SV_A[1] - SV_A[0]) * azK;
   g.lineWidth = 1; g.lineJoin = 'round';
   for (let r = SV_NR - 2; r >= 0; r--) {
-    const zi = r < 8 ? 0 : r < 13 ? 1 : r < 17 ? 2 : 3, dR = SV_D[r + 1] - SV_D[r], dL = (SV_D[r] + SV_D[r + 1]) * 0.5 * dA;
+    const zi = r < 11 ? 0 : r < 18 ? 1 : r < 23 ? 2 : 3, dR = SV_D[r + 1] - SV_D[r], dL = (SV_D[r] + SV_D[r + 1]) * 0.5 * dA;
     for (let a = 0; a < SV_NA - 1; a++) {
       const i0 = r * SV_NA + a, i1 = i0 + 1, i2 = i0 + SV_NA + 1, i3 = i0 + SV_NA;
       const h0 = H[i0], h1 = H[i1], h2 = H[i2], h3 = H[i3];
@@ -696,14 +722,22 @@ function paintSpeedTape(g, x0, cy, PH) {
   const v = PF.ias * k, live = PF.ias > 10;
   g.fillStyle = C_TAPE; g.fillRect(x0, top, w, bot - top);
   g.save(); g.beginPath(); g.rect(x0, top, w + 4, bot - top); g.clip();
-  // the bands, along the tape's right edge
-  const V = S.vsp;
-  if (V) {
-    if (live) band(g, x0 + w - 6, cy, v, ppu, 0, V.Vs0 ? V.Vs0 * k : 0, '#e8332a', 6);   // (the low band in the air)
-    if (V.Vs0 && V.Vfe) band(g, x0 + w - 6, cy, v, ppu, V.Vs0 * k, V.Vfe * k, '#f2f2f0', 3);
-    if (V.Vs1 && V.Vh) band(g, x0 + w - 3, cy, v, ppu, V.Vs1 * k, V.Vh * k, '#3dbb5e', 3);
-    if (V.Vh && V.Vne) band(g, x0 + w - 6, cy, v, ppu, V.Vh * k, V.Vne * k, '#f0c23a', 6);
-    if (V.Vne) band(g, x0 + w - 6, cy, v, ppu, V.Vne * k, V.Vne * k + 400, '#e8332a', 6);
+  // THE BANDS (G2814, the user: "the colors of the scale adjusting to the actual plane ... none of these color scales
+  // should be shown if the data is unknown"): ONLY off the build's certificate (66_gen_cert.js: the design speeds it
+  // sized every member to - V_F the flaps', V_C the structural cruise, V_D the dive; Vne 0.9 V_D) and its measured stalls
+  // (the machine sheet's Vs0 / Vs). No certificate (a flight without damage has none): no colour at all
+  const V = S.vsp ? (typeof S.vsp === 'function' ? S.vsp() : S.vsp) : null;
+  // (each speed to its row on the tape here, a whole pixel: the helpers take integers - a double handed to a call that
+  // is not inlined is boxed)
+  if (V && V.cert) {
+    const yS0 = Math.round(cy + (v - (V.Vs0 || 0) * k) * ppu), yS1 = Math.round(cy + (v - (V.Vs1 || 0) * k) * ppu);
+    const yFe = Math.round(cy + (v - (V.Vfe || 0) * k) * ppu), yNo = Math.round(cy + (v - (V.Vno || 0) * k) * ppu);
+    const yNe = Math.round(cy + (v - (V.Vne || 0) * k) * ppu), y0 = Math.round(cy + v * ppu);
+    if (live && V.Vs0) band(g, x0 + w - 6, yS0, y0, '#e8332a', 6);    // (the low band in the air)
+    if (V.Vs0 && V.Vfe) band(g, x0 + w - 6, yFe, yS0, '#f2f2f0', 3);
+    if (V.Vs1 && V.Vno) band(g, x0 + w - 3, yNo, yS1, '#3dbb5e', 3);
+    if (V.Vno && V.Vne) band(g, x0 + w - 6, yNe, yNo, '#f0c23a', 6);
+    if (V.Vne) band(g, x0 + w - 6, yNe - 1200, yNe, '#e8332a', 6);
   }
   // the ticks, every 5 (10 km/h), the tens (20s) numbered
   const st = metric ? 10 : 5, lab = metric ? 20 : 10;
@@ -714,6 +748,15 @@ function paintSpeedTape(g, x0, cy, PH) {
     if (s % lab === 0 && s > 0) g.fillText(sInt(s), x0 + w - 19, y);
   }
   g.restore();
+  // THE REFERENCE SPEEDS (G2814): R (rotation), X, Y (best angle and rate of climb), G (best glide) - the pilot's own
+  // numbers off the machine sheet, cyan tags beside the tape, each only when the sheet has it
+  if (V) {
+    g.font = F_PFD_S; g.textAlign = 'left'; g.textBaseline = 'middle';
+    if (V.Vr > 0) vbug(g, x0 + w + 1, cy, half, Math.round(cy + (v - V.Vr * k) * ppu), 'R');
+    if (V.Vx > 0) vbug(g, x0 + w + 1, cy, half, Math.round(cy + (v - V.Vx * k) * ppu), 'X');
+    if (V.Vy > 0) vbug(g, x0 + w + 1, cy, half, Math.round(cy + (v - V.Vy * k) * ppu), 'Y');
+    if (V.Vg > 0) vbug(g, x0 + w + 1, cy, half, Math.round(cy + (v - V.Vg * k) * ppu), 'G');
+  }
   // the trend: where the speed will be in 6 s, magenta from the pointer
   if (live) {
     const tr = Math.max(-half, Math.min(half, Math.round(PF.acc * 6 * k * ppu)));
@@ -731,8 +774,12 @@ function paintSpeedTape(g, x0, cy, PH) {
   g.fillStyle = '#9fb0bc'; g.fillText('GS', x0 + 4, bot + 14);
   g.fillStyle = '#ffffff'; g.font = F_PFD_M; g.fillText(sInt(Math.round(S.gs * k)), x0 + 24, bot + 15);
 }
-function band(g, x, cy, v, ppu, lo, hi, col, bw) {
-  const yA = Math.round(cy + (v - hi) * ppu), yB = Math.round(cy + (v - lo) * ppu);
+function vbug(g, x, cy, half, y, t) {
+  if (y < cy - half + 6 || y > cy + half - 6 || (y > cy - 16 && y < cy + 16)) return;   // (off the tape, or under the box)
+  g.fillStyle = '#000000'; g.fillRect(x, y - 7, 12, 14);
+  g.fillStyle = C_CY; g.fillText(t, x + 2, y + 1);
+}
+function band(g, x, yA, yB, col, bw) {
   if (yB <= yA) return;
   g.fillStyle = col; g.fillRect(x, yA, bw, yB - yA);
 }
@@ -783,14 +830,15 @@ function paintAltTape(g, x0, cy, PH) {
 // THE HEADING ARC: the compass turning under the heading box, the desired track (magenta bug), the ground track
 // (magenta diamond), the deviation off the active leg (1 nm / 2 km to the scale's end)
 function paintHsi(g, cx, PH) {
-  const R = 112, hy = PH + 70, hd = PF.hdg;
+  // an arc on a short screen; the whole rose (its course pointer and deviation bar through the middle) on a tall one
+  const full = PH > HSI_FULL, R = full ? HSI_R : 112, hy = full ? PH - R - 30 : PH + 70, hd = PF.hdg;
   g.save();
   g.beginPath(); g.rect(0, 0, CW, PH); g.clip();
   g.fillStyle = 'rgba(8,12,16,0.80)'; g.beginPath(); g.arc(cx, hy, R + 2, 0, 6.283); g.fill();
   g.strokeStyle = '#ffffff'; g.fillStyle = '#ffffff'; g.lineWidth = 1.5; g.font = F_PFD_M; g.textAlign = 'center'; g.textBaseline = 'middle';
   for (let d = 0; d < 360; d += 5) {
     let rel = d - hd; while (rel > 180) rel -= 360; while (rel < -180) rel += 360;
-    if (rel > 62 || rel < -62) continue;
+    if (!full && (rel > 62 || rel < -62)) continue;
     const t = rel / 57.29578, sn = Math.sin(t), cs = Math.cos(t), L = d % 10 === 0 ? 10 : 5;
     g.beginPath(); g.moveTo(Math.round(cx + sn * R), Math.round(hy - cs * R)); g.lineTo(Math.round(cx + sn * (R - L)), Math.round(hy - cs * (R - L))); g.stroke();
     if (d % 30 === 0) g.fillText(HSI_TXT[d / 30], Math.round(cx + sn * (R - 21)), Math.round(hy - cs * (R - 21)));
@@ -811,13 +859,32 @@ function paintHsi(g, cx, PH) {
     g.fillStyle = C_MAG; g.beginPath(); g.moveTo(px, py - 5); g.lineTo(px + 4, py); g.lineTo(px, py + 5); g.lineTo(px - 4, py); g.closePath(); g.fill();
   }
   // the deviation: four dots and the needle, the leg's cross-track (right of course: the needle left)
-  const yd = PH - 12;
-  g.fillStyle = '#ffffff';
-  for (let q = -2; q <= 2; q++) if (q) { g.beginPath(); g.arc(cx + q * 20, yd, 2.5, 0, 6.283); g.fill(); }
-  if (W.on) {
-    const c = W.dtk / 57.29578, ex = PF.x - W.ax, en = -(PF.z - W.az), xt = ex * Math.cos(c) - en * Math.sin(c);
-    const fs = S.units === 'metric' ? 2000 : 1852, dv = Math.max(-46, Math.min(46, Math.round(-xt / fs * 40)));
-    g.fillStyle = C_MAG; g.fillRect(cx + dv - 2, yd - 9, 4, 18);
+  const fs = S.units === 'metric' ? 2000 : 1852;
+  let xt = 0;
+  if (W.on) { const c = W.dtk / 57.29578, ex = PF.x - W.ax, en = -(PF.z - W.az); xt = ex * Math.cos(c) - en * Math.sin(c); }
+  if (full) {
+    // THE ROSE'S MIDDLE (G2815): the course pointer turned to the desired track, its deviation bar off the dots
+    g.save(); g.translate(cx, hy);
+    if (W.on) { let rel = W.dtk - hd; while (rel > 180) rel -= 360; while (rel < -180) rel += 360; FR.rot = rel / 57.29578; g.rotate(FR.rot); }
+    const r1 = Math.round(R * 0.42), dw = Math.round(R * 0.2);
+    g.fillStyle = '#ffffff';
+    for (let q = -2; q <= 2; q++) if (q) { g.beginPath(); g.arc(q * dw, 0, 3, 0, 6.283); g.fill(); }
+    if (W.on) {
+      const dv = Math.max(-2 * dw - 6, Math.min(2 * dw + 6, Math.round(-xt / fs * 2 * dw)));
+      g.fillStyle = C_MAG;
+      g.beginPath(); g.moveTo(0, -R + 26); g.lineTo(-8, -R + 42); g.lineTo(8, -R + 42); g.closePath(); g.fill();
+      g.fillRect(-2, -R + 42, 4, R - 42 - r1 - 4); g.fillRect(-2, r1 + 4, 4, R - 30 - r1 - 4);
+      g.fillRect(dv - 2, -r1, 4, 2 * r1);
+    }
+    g.restore();
+    // the aeroplane in the middle
+    g.fillStyle = '#ffffff';
+    g.fillRect(cx - 1, hy - 11, 3, 22); g.fillRect(cx - 11, hy - 3, 23, 3); g.fillRect(cx - 5, hy + 8, 11, 2);
+  } else {
+    const yd = PH - 12;
+    g.fillStyle = '#ffffff';
+    for (let q = -2; q <= 2; q++) if (q) { g.beginPath(); g.arc(cx + q * 20, yd, 2.5, 0, 6.283); g.fill(); }
+    if (W.on) { const dv = Math.max(-46, Math.min(46, Math.round(-xt / fs * 40))); g.fillStyle = C_MAG; g.fillRect(cx + dv - 2, yd - 9, 4, 18); }
   }
   g.restore();
   // the lubber line and the heading box over the arc's top
@@ -849,10 +916,72 @@ function paintPfdBar(g, X0, PW) {
     g.fillText(sTwo(mm), X0 + 5 * c + 26, yb); g.fillText(':', X0 + 5 * c + 42, yb); g.fillText(sTwo(ss), X0 + 5 * c + 50, yb); }
   else g.fillText('--:--', X0 + 5 * c + 26, yb);
 }
+// ---- G2815: THE MFD'S ENGINE STRIP (a pair's second display: G1000's EIS) --------------------------------------------------
+// The engine's numbers off the cockpit's own readings (cockpit.js CK.readings: the tacho's, the oil's, the fuel's, the
+// bus's - the dials the dash may have had no room for), each a value with a pointer on its scale. A green arc and a red
+// line only where the build says them (the rpm's: its engine's rated speed); no limit is invented
+const EI = { rpm: 0.5, rated: 0.5, oilP: 0.5, oilT: 0.5, fuel: 0.5, cap: 0.5, volts: 0.5, amps: 0.5, batt: false, have: false };
+function eisRead(CK) {
+  const R = CK.readings;
+  if (!R) { EI.have = false; return; }
+  EI.rpm = +R.rpmEng || 0; EI.oilP = (+R.oilP || 0) / 6894.757; EI.oilT = +R.oilT || 0;
+  EI.fuel = +R.fuelFrac || 0; EI.volts = +R.volts || 0; EI.amps = +R.ampsOut || 0;
+  const E = CK.energy; EI.cap = E && E.capacity > 0 ? E.capacity : 0; EI.batt = !!(E && E.kind === 'battery');
+  const V = S.vsp ? (typeof S.vsp === 'function' ? S.vsp() : S.vsp) : null;
+  EI.rated = V && V.rpm > 0 ? V.rpm : 0;
+  EI.have = true;
+}
+const EIS_LAB = { aviation: ['OIL PRES', 'PSI', 'OIL TEMP', '°F', 'FUEL QTY', 'GAL'], metric: ['OIL PRES', 'BAR', 'OIL TEMP', '°C', 'FUEL QTY', 'L'] };
+function paintEis(x0, w, h) {
+  const g = S.g, metric = S.units === 'metric', L = EIS_LAB[metric ? 'metric' : 'aviation'];
+  g.fillStyle = '#05080b'; g.fillRect(x0, 0, w, h);
+  g.fillStyle = '#2c3540'; g.fillRect(x0 + w - 2, 0, 2, h);
+  g.textBaseline = 'alphabetic'; g.textAlign = 'center'; g.font = F_PFD_M; g.fillStyle = '#9fb0bc';
+  g.fillText('ENGINE', x0 + (w >> 1), 18);
+  if (!EI.have) return;
+  // RPM: a dial over 270 deg, its green arc 60-100 % of the rated speed and the red line at it (a rated engine only)
+  const cx = x0 + (w >> 1), cy = 92, r = Math.round(w * 0.30), full = EI.rated > 0 ? EI.rated * 1.15 : 3000;
+  g.lineWidth = 7;
+  if (EI.rated > 0) {
+    g.strokeStyle = '#3dbb5e'; g.beginPath(); g.arc(cx, cy, r, 2.356 + 4.712 * 0.6 * EI.rated / full, 2.356 + 4.712 * EI.rated / full); g.stroke();
+    g.strokeStyle = '#e8332a'; g.beginPath(); g.arc(cx, cy, r, 2.356 + 4.712 * EI.rated / full - 0.02, 2.356 + 4.712 * EI.rated / full + 0.02); g.stroke();
+  }
+  g.lineWidth = 1.5; g.strokeStyle = '#cfd6dc'; g.beginPath(); g.arc(cx, cy, r + 5, 2.356, 7.069); g.stroke();
+  const an = 2.356 + 4.712 * Math.max(0, Math.min(1, EI.rpm / full));
+  g.strokeStyle = '#ffffff'; g.lineWidth = 3;
+  g.beginPath(); g.moveTo(cx, cy); g.lineTo(Math.round(cx + Math.cos(an) * (r - 2)), Math.round(cy + Math.sin(an) * (r - 2))); g.stroke();
+  g.fillStyle = '#ffffff'; g.font = F_PFD_L; g.fillText(sInt(Math.round(EI.rpm / 10) * 10), cx, cy + r + 4);
+  g.font = F_PFD_S; g.fillStyle = '#9fb0bc'; g.fillText('RPM', cx, cy + r + 18);
+  // the bars: oil pressure (0-115 psi), oil temperature (100-250 F), the fuel aboard (or the pack's charge)
+  let y = cy + r + 44;
+  const psi = EI.oilP, tF = EI.oilT * 1.8 + 32;
+  eisBar(x0, w, y, L[0], metric ? sTenth(Math.round(psi / 1.4504)) : sInt(Math.round(psi)), L[1], Math.round(psi / 115 * 1000)); y += 46;
+  eisBar(x0, w, y, L[2], metric ? sInt(Math.round(EI.oilT)) : sInt(Math.round(tF)), L[3], Math.round((tF - 100) / 150 * 1000)); y += 46;
+  if (EI.batt) eisBar(x0, w, y, 'CHARGE', sInt(Math.round(EI.fuel * 100)), '%', Math.round(EI.fuel * 1000));
+  else eisBar(x0, w, y, L[4], EI.cap > 0 ? sInt(Math.round(EI.fuel * EI.cap / (metric ? 1 : 3.785))) : '--', L[5], Math.round(EI.fuel * 1000));
+  y += 52;
+  // the bus
+  g.textAlign = 'left'; g.font = F_PFD_S; g.fillStyle = '#9fb0bc';
+  g.fillText('VOLTS', x0 + 8, y); g.fillText('AMPS', x0 + 8, y + 22);
+  g.textAlign = 'right'; g.font = F_PFD_M; g.fillStyle = '#ffffff';
+  g.fillText(sTenth(Math.round(EI.volts * 10)), x0 + w - 10, y);
+  g.fillText(sTenth(Math.round(Math.abs(EI.amps) * 10)), x0 + w - 10, y + 22);
+  if (EI.amps > 0.05) g.fillText('-', x0 + w - 44, y + 22);    // (the battery discharging: Garmin's minus)
+  g.textAlign = 'left';
+}
+// one engine bar: its label and value over a scale with a pointer (at fr permille of the scale; an integer: no box)
+function eisBar(x0, w, y, lab, val, unit, fr) {
+  const g = S.g, bx = x0 + 10, bw = w - 22, p = fr < 0 ? 0 : fr > 1000 ? 1000 : fr;
+  g.textAlign = 'left'; g.font = F_PFD_S; g.fillStyle = '#9fb0bc'; g.fillText(lab, bx, y);
+  g.textAlign = 'right'; g.font = F_PFD_M; g.fillStyle = '#ffffff'; g.fillText(val, x0 + w - 34, y);
+  g.font = F_PFD_S; g.fillStyle = '#9fb0bc'; g.fillText(unit, x0 + w - 10, y);
+  g.fillStyle = '#3a4550'; g.fillRect(bx, y + 10, bw, 4);
+  const px = bx + Math.round(bw * p / 1000);
+  g.fillStyle = '#ffffff'; g.beginPath(); g.moveTo(px, y + 8); g.lineTo(px - 5, y + 20); g.lineTo(px + 5, y + 20); g.closePath(); g.fill();
+}
 // G2813: the map's zoom buttons, for the finger: + (the range a step in) and - (out), under north's arrow
-const ZB = { x: CW - 34, y1: 0, y2: 0, s: 30 };
 function zoomBtns(mTop) {
-  const g = S.g; ZB.y1 = mTop + 40; ZB.y2 = mTop + 74;
+  const g = S.g, ZB = S.zb; ZB.x = CW - 34; ZB.y1 = mTop + 40; ZB.y2 = mTop + 74;
   g.fillStyle = 'rgba(0,0,0,0.55)'; g.fillRect(ZB.x, ZB.y1, ZB.s, ZB.s); g.fillRect(ZB.x, ZB.y2, ZB.s, ZB.s);
   g.fillStyle = '#ffffff';
   g.fillRect(ZB.x + 8, ZB.y1 + 14, 14, 2); g.fillRect(ZB.x + 14, ZB.y1 + 8, 2, 14);
@@ -860,31 +989,49 @@ function zoomBtns(mTop) {
 }
 
 // ---- THE FLIGHT -------------------------------------------------------------------------------------------------------
+// bind(o): a new flight - o.kind the fitted unit (GEN_AVIONICS.gps: a pair, `n: 2`, binds two), o.units, o.src (the
+// page's doors), o.speeds (the PFD's speeds: a record, or a door returning one - G2814)
 function bind(o) {
   o = o || {};
-  S.kind = o.kind || 'portable'; S.units = o.units === 'metric' ? 'metric' : 'aviation';
+  const AV = typeof GEN_AVIONICS !== 'undefined' ? GEN_AVIONICS : null, kind = o.kind || 'portable';
+  const face = AV && AV.gps[kind] && AV.gps[kind].face;
+  NU = face && face.n === 2 ? 2 : 1;
+  SVG.i = 0; SVG.ready = false; PF.have = false; PF.acc = 0;   // G2813: the synthetic vision's grid, anew for this flight
+  for (let i = NU - 1; i >= 0; i--) { use(i); bindOne(o, kind, face); }
+  use(0);
+}
+function bindOne(o, kind, face) {
+  S.kind = kind; S.units = o.units === 'metric' ? 'metric' : 'aviation';
   S.src = o.src || null;
   S.bound = false;                               // (sized below as the flight's unit, then held)
-  const AV = typeof GEN_AVIONICS !== 'undefined' ? GEN_AVIONICS : null;
-  const face = AV && AV.gps[S.kind] && AV.gps[S.kind].face;
-  if (face && face.sw > 0 && face.sh > 0) material(face.sw / face.sh); else material();
+  if (face && face.sw > 0 && face.sh > 0) material(face.sw / face.sh, kind, S.i); else material(0, kind, S.i);
   S.bound = true;
   // G2812: the softkeys this unit has, and where their labels go; a new flight powers up on 4 nm, north up, the map
   S.keysAt = face && face.keys === 'left' ? 'left' : 'below'; S.keys = face && face.keys ? KEYS.length : 0;
+  // G2815: a 10 in display's row of caps (keysN), the four that switch at their slots
+  S.keysN = face && face.keysN > KEYS.length && Array.isArray(face.keySlots) ? face.keysN : 0;
+  S.keySlots = S.keysN ? face.keySlots : null;
   S.rngI = RNG0; S.trkUp = false; S.page = 'map';
-  // G2813: the glass unit powers up on its PFD, the synthetic vision on; its grid is baked anew for this flight
-  S.pfd = S.kind === 'glass'; S.svt = true; S.terr = true; S.vsp = o.speeds || null;
-  if (S.pfd) S.page = 'pfd';
-  SVG.i = 0; SVG.ready = false; PF.have = false; PF.acc = 0;
+  // G2813: the glass units power up on the PFD, the synthetic vision on (G2815: a pair's second display is the MFD,
+  // the map with the engine strip)
+  S.pfd = !!PFD_KINDS[kind]; S.svt = true; S.terr = true; S.vsp = o.speeds || null;
+  S.eis = S.i === 1;
+  if (S.pfd && S.i === 0) S.page = 'pfd';
   S.trHead = 0; S.trN = 0; S.have = false; S.acc = 0; S.trackAcc = 0; S.gs = 0; S.trk = 0; S.pT = 0;
   S.on = false; S.dark = false; S.boot = 0;
   paintDark(); S.dark = true;
   if (S.mat) S.mat.emissiveIntensity = 0;
 }
-// every frame: numbers only. CK: the cockpit (gpsOn, cg, nightK)
+// every frame: numbers only. CK: the cockpit (gpsOn, cg, nightK; sw: each unit's power button - G2814)
 function tick(dt, CK) {
+  let painted = false;
+  for (let i = 0; i < NU; i++) { use(i); if (tickOne(dt, CK)) painted = true; }
+  use(0);
+  return painted;
+}
+function tickOne(dt, CK) {
   if (!S.mat || !CK || !CK.cg) return false;
-  const on = !!CK.gpsOn;
+  const sw = CK.sw, on = !!CK.gpsOn && !(sw && sw[PWR[S.i]] === 0);
   const x = CK.cg[0], z = CK.cg[2];
   // the track keeps being recorded while the unit is on (a GPS logs what it saw)
   if (on) {
@@ -929,6 +1076,7 @@ function tick(dt, CK) {
   }
   S.px = x; S.pz = z; S.pT = 0;
   if (S.pfd) pfdRead(CK);
+  if (S.eis) eisRead(CK);                        // G2815: the MFD's engine strip
   FR.x = x; FR.z = z;
   paintPage();
   S.paints++;
@@ -938,8 +1086,10 @@ function tick(dt, CK) {
 function paintPage() { if (S.page === 'nav') paintNav(); else if (S.page === 'pfd') paintPfd(); else paintMap(); }
 // G2812: A SOFTKEY PRESSED (cockpit.js, the `gpskey` law; the switching functions only): the range a step down or up,
 // north-up / track-up, the page. Only a unit that is on and past its boot answers; the glass repaints at once (the
-// next 4 Hz repaint would leave a press unanswered for up to a quarter second). Returns true when it took the press
-function key(k) {
+// next 4 Hz repaint would leave a press unanswered for up to a quarter second). Returns true when it took the press.
+// ui: the unit (G2815: 1, a pair's MFD)
+function key(k, ui) {
+  use(ui || 0);
   if (!S.on || S.boot < BOOT_S || !S.g) return false;
   const n = (RANGES[S.units] || RANGES.aviation).length;
   // G2813: on the PFD the keys are its own: the synthetic vision, its terrain colours, (none), the page
@@ -960,22 +1110,29 @@ function key(k) {
 }
 // G2813: A TAP ON THE GLASS (cockpit.js: the screen's hit, its uv - u across from the pilot's left, v up). A key's label
 // is the key; on the map, + and - zoom; on the PFD the waypoint bar opens the nav page, the heading arc the map; on the
-// nav page a tap goes back. Only a unit on and past its boot answers
-function touch(u, v) {
+// nav page a tap goes back. Only a unit on and past its boot answers. ui: the unit
+function touch(u, v, ui) {
+  use(ui || 0);
   if (!S.on || S.boot < BOOT_S || !S.g || !(u >= 0 && u <= 1 && v >= 0 && v <= 1)) return false;
   const px = u * CW, py = (1 - v) * S.H, kL = keyStrip(), n = KEYS.length;
-  if (kL && (S.keysAt === 'left' ? px < kL : py > S.H - kL))
-    return key(KEYS[Math.max(0, Math.min(n - 1, Math.floor(S.keysAt === 'left' ? py / (S.H / n) : px / (CW / n))))]);
+  if (kL && (S.keysAt === 'left' ? px < kL : py > S.H - kL)) {
+    if (S.keysN) {                                // (G2815: a cap of the row; only the four slots switch)
+      const j = S.keySlots.indexOf(Math.max(0, Math.min(S.keysN - 1, Math.floor(px / (CW / S.keysN)))));
+      return j >= 0 ? key(KEYS[j], S.i) : false;
+    }
+    return key(KEYS[Math.max(0, Math.min(n - 1, Math.floor(S.keysAt === 'left' ? py / (S.H / n) : px / (CW / n))))], S.i);
+  }
   const PH = S.H - (S.keysAt === 'left' ? 0 : kL);
   let to = null;
   if (S.page === 'map') {
-    if (px >= ZB.x && px <= ZB.x + ZB.s && py >= ZB.y1 && py <= ZB.y1 + ZB.s) return key('rngDn');
-    if (px >= ZB.x && px <= ZB.x + ZB.s && py >= ZB.y2 && py <= ZB.y2 + ZB.s) return key('rngUp');
+    const ZB = S.zb;
+    if (px >= ZB.x && px <= ZB.x + ZB.s && py >= ZB.y1 && py <= ZB.y1 + ZB.s) return key('rngDn', S.i);
+    if (px >= ZB.x && px <= ZB.x + ZB.s && py >= ZB.y2 && py <= ZB.y2 + ZB.s) return key('rngUp', S.i);
     return false;
   }
   if (S.page === 'pfd') {
     if (py < PFD_TOP) to = 'nav';
-    else if (py > PH - 64 && Math.abs(px - CW / 2) < 110) to = 'map';
+    else if (py > PH - (PH > HSI_FULL ? 260 : 64) && Math.abs(px - CW / 2) < (PH > HSI_FULL ? 130 : 110)) to = 'map';
     else return false;
   } else to = S.pfd ? 'pfd' : 'map';
   S.page = to; FR.x = S.px; FR.z = S.pz;
@@ -985,16 +1142,19 @@ function touch(u, v) {
 const API = {
   HZ, TRACK_N, TRACK_DT, RANGE, BOOT_S,
   KEYS, RANGES,
-  material, bind, tick, key, touch, state: () => S,
+  material, bind, tick, key, touch, state: ui => { use(ui || 0); return S; }, units: () => NU,
   PFD_HZ, sv: () => SVG, pf: () => PF,              // G2813 (GATE GPSFACE, gps_shots.js)
-  paintPfd: (x, z) => { FR.x = x; FR.z = z; paintPfd(); },
-  // the shed: the unit off, its standby page, released by the flight (app.js enterGarage)
-  standby: () => { S.bound = false; S.on = false; S.dark = false; S.boot = 0; if (S.mat) S.mat.emissiveIntensity = 0; paintStandby(); },
+  paintPfd: (x, z, ui) => { use(ui || 0); FR.x = x; FR.z = z; paintPfd(); },
+  // the shed: the units off, their standby pages, released by the flight (app.js enterGarage)
+  standby: () => {
+    for (let i = 0; i < 2; i++) { use(i); S.bound = false; S.on = false; S.dark = false; S.boot = 0; if (S.mat) { S.mat.emissiveIntensity = 0; paintStandby(); } }
+    use(0);
+  },
   // GATE GPSFACE: a canvas factory for node, and the page painters by name
   setCanvas: f => { canvasMaker = f; },
   waypoint: (x, z) => { FR.x = x; FR.z = z; return waypoint(); },
-  paintMap: (x, z) => { FR.x = x; FR.z = z; paintMap(); },
-  paintNav: (x, z) => { FR.x = x; FR.z = z; paintNav(); },
+  paintMap: (x, z, ui) => { use(ui || 0); FR.x = x; FR.z = z; paintMap(); },
+  paintNav: (x, z, ui) => { use(ui || 0); FR.x = x; FR.z = z; paintNav(); },
 };
 if (W0) W0.FLYDIY_GPS = API;
 if (typeof module !== 'undefined' && module.exports) module.exports = API;

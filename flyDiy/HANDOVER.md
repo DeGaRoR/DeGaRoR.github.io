@@ -99616,3 +99616,89 @@ lined up on HOME 13, SVT off, the map with its zoom buttons; then `tools/box_ren
 **Gates owed before it lands:** by the grep rule over its files (gps_face.js, cockpit.js, app.js, _cage_panel.js) - a
 long set, app.js being read by most; it runs after the avionics landing battery frees the box. GPU (A0): the cockpit in
 the game's renderer, FRAMECOST with the PFD on.
+
+## G2814 - THE PFD'S SPEEDS OFF THE CERTIFICATE, A FINER SYNTHETIC VISION, A POWER BUTTON ON EVERY GPS (2026-10-27/28, AVIONICS-GPS for the user, cloud; branch claude/avionics-gps-pfd)
+
+The user, 27 Oct: "do we have the colors of the scale adjusting to the actual plane? In particular the rotation speed,
+the stall speed, the max speeds, etc? They definitely should, and none of these color scales should be shown if the data
+is unknown (no certificates?)"; "the virtual terrain is a little too blocky"; "the button should be clickable, like the
+light buttons. In the garage, it shows OFF, and ON in the world".
+
+**The speed tape (gps_face.js paintSpeedTape; app.js gpsSpeeds, a door - the certificate lands after the roll-out).**
+- The colour bands ONLY off a certificate (def.cert, 66_gen_cert.js: the speeds every member was sized to,
+  genCertSpeeds): white Vs0 to V_F (Vfe), green Vs1 to V_C (Vno), yellow V_C to 0.9 V_D (Vne), red above it, red under
+  Vs0 in the air; Vs0 and Vs1 are the machine sheet's measured stalls. **No certificate, no colour** - and a flight with
+  damage off has none (certKick runs only under genDamageOn), so by default the tape is plain. (The design speeds are a
+  pure function of the gen numbers, genCertSpeeds(def); taking them without a certificate is one line, the user's call.)
+- The reference speeds as cyan tags beside the tape - R (Vrot), X, Y (Vx, Vy), G (Vbg) - off the machine sheet
+  (44_machine_sheet.js: the pilot's own numbers), each only when the sheet has it.
+- The C172 as the game flies it (pfd_shots.js prints them): Vs0 = Vs1 43 kt (it lands flapless), R 44, X 53, Y 61,
+  white to 79, green to 111, Vne 140.
+- **A finding, not changed here:** the panel's analog ASI arcs (_cage_panel.js scaleFacts) read `GARAGE_SPEC.plaque().Vs`
+  - the plaque has no speeds (it is the bench's results), so the dials' arcs do not show today; and their Vfe / Vne are
+  the 1.8 Vs0 / 1.25 Vh rule. The same certificate rule would serve them.
+
+**The synthetic vision:** the height grid 256 x 256 (94 m cells; was 160, 150 m), baked 640 a frame (~1.7 s, under the
+boot splash); the fan 49 x 30 (was 33 x 22), as wide as the canvas (+-54 deg on 512 px, +-72 on the 10 in display's 768).
+Still allocation-free, still never a per-frame ground read.
+
+**The power button (_cage_panel.js gpsUnitAt; cockpit.js).** Every GPS unit has a latching push button with a power
+symbol on its cap - above the knob on the pilot's right (above the left knob on a 10 in display, at the key band's right
+end on a portable) - on the `switch` law (sw_gps; a pair's second display sw_gps2), its own pick pad. In the shed it
+stands out (OFF: the editor poses drives at 0); CK.bind puts it ON for the flight; a click turns the display off (its
+load off the bus: bus.on.gps) and on again, like a light switch. gps_face.js reads each unit's own button.
+
+## G2815 - THE 10 IN DISPLAYS: ONE (PILOT OR PASSENGER SIDE) OR A PAIR (PFD + MFD WITH ITS ENGINE STRIP), SKYHAWK STYLE (2026-10-28, AVIONICS-GPS for the user, cloud; branch claude/avionics-gps-pfd)
+
+The user, 27 Oct: "a larger version, more like a tablet or a small screen. Typically what you'd see fitted in cessna
+skyhawks. I don't expect all other instruments to fit then. Propose an option with 2 of them, one configured PFD by
+default, one MFD ... or only 1 of them, and if one, offer to place it on the pilot side or the passenger side."
+
+**The catalogue (60_gen_spec.js GEN_AVIONICS.gps):** `flat` (one 10 in display, G1000 GDU 1040 class: 2.9 kg, 9500,
+4 A) and `flatPair` (two: 5.8 kg, 19000, 8 A). The face: a 10.4 in 4:3 screen (211 x 158 mm) in a 271 x 208 mm bezel, a
+dual knob in each margin, twelve softkey caps under the glass (four switch - the same four KEYS - at slots 1, 2, 3, 11;
+the rest blank and inert for now). `systems.gpsSide` 'pilot' / 'copilot' places a single one (written only when the
+player picks it: no other spec gains a byte). Tech segment 3 (79b_tech.js). The Instruments column: a "display side"
+select for one, a PFD row and an MFD row saying where each went.
+
+**The layout (_panel_gen.js):** each screen has a line - the pilot's, the passenger's (the pilot's mirrored), or the
+middle (a pair's MFD) - and goes as high as it fits nearest it. A lost screen now costs 1000 EACH (it was 1000 for any
+number: a pair losing both screens outscored one placed and three dials off - Rufus showed neither). What finds no room
+is named and not billed as ever; a pair whose MFD has no room is billed - and flown - as the one display
+(genSystemsResolve; app.js binds it as `flat`).
+
+| build | one display (pilot / passenger) | the pair |
+|---|---|---|
+| metal Cessna | both fit, every dial kept | **both: PFD on the pilot's side, MFD across the middle, every dial kept** |
+| C172 | both fit, every dial kept | the MFD has no room (the arched plate and the yokes leave no 208 mm under the crown): billed as one |
+| Cub | in the middle (tandem); volts, clock, COM give way | the MFD has no room |
+| Rufus | fits; alt, tacho, DG give way | the PFD fits, the MFD has no room |
+| Jodel | no room | no room |
+
+**The painter (gps_face.js): two units.** Each its own canvas (768 px on a 10 in display), texture, material (the join's
+'gps' and 'gps2' buckets - the join needed nothing), page, keys, taps and power button; `bind` binds one or two; the API
+takes the unit (`key(k, ui)`, `touch(u, v, ui)`, `material(a, kind, ui)`, `state(ui)`). The PFD on a tall screen draws
+the whole HSI rose under the attitude (the course pointer turned to the desired track, its deviation bar off the dots,
+the aeroplane in the middle). **The MFD:** the map with the ENGINE STRIP down its left (G1000's EIS): the rpm dial (its
+green arc and red line only off the engine's rating - the dials' own fact), oil pressure, oil temperature, the fuel
+aboard (or a pack's charge), volts and amps, off the cockpit's own readings. cockpit.js: gk1_<key> and a tap on the
+'gps2' screen reach the second unit; a pair's load shared out by its two power buttons.
+
+**Allocation:** a 10 in PFD 1.45 bytes a call, a pair (PFD at 20 Hz, MFD at 4) 1.38 - the speed tape's helpers now take
+whole pixels (the doubles boxed once the bugs made them non-inlined: 225 bytes) and the map's data bar its cells in whole
+pixels (622 / 4 boxed on the MFD).
+
+**GATE GPSFACE** (446 checks, `GATE GPSFACE: PASS`): Q (the pair: two 768 px units on gps / gps2, PFD and MFD, 20 and
+4 Hz, each its own page key, zoom, caps - an inert cap does nothing - and power button; one display: one unit), E (the
+pair allocation-free), F (metal pair, C172 one each side and the pair's MFD named and billed as one, the Cub's one;
+every unit's power button on sw_gps), C (the power buttons ON at the bind, a click off and on with the bus; gk1_page and a
+tap on 'gps2' reach the second unit), H (the bind; the second material). GATE PANEL: PASS, GATE TECH: PASS.
+
+**Pictures:** `node tools/pfd_shots.js <out> aviation flatPair` (the 10 in PFD's states and pfd_mfd.png), then
+`tools/box_render.js "bugReports/cessnaMetal (1).json" out.png cockpit 1400 --fit flatPair --gps <out>/pfd_cruise.png
+--gps2 <out>/pfd_mfd.png --fov 80`; `--fit flat --side copilot` for the passenger's.
+
+**Owed:** the grep-rule gate pass over this branch (gps_face.js, cockpit.js, app.js, _cage_panel.js, _panel_gen.js,
+60_gen_spec.js, 79b_tech.js, 90_node_exports.js); A0's GPU: the cockpit in the game's renderer and FRAMECOST with the
+PFD's synthetic vision on a 768 px canvas (headless software 2D on this loaded box: 5-27 ms a paint - a GPU-backed page
+canvas should be far under; if not, the fan's density is the knob).

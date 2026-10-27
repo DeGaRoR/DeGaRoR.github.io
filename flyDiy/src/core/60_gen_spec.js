@@ -2108,8 +2108,23 @@ const GEN_AVIONICS = {
     glass:    { name: 'glass PFD/MFD',       kg: 3.5, price: 6500, amps: 2.5,
                 face: { w: 0.193, h: 0.115, sw: 0.155, sh: 0.093, keys: 'below', knob: true },
                 note: 'G3X Touch / HDX class with ADAHRS and magnetometer (a 7 in screen, 193 x 115 mm with its softkeys and dual knob); drawn as its map page' },
+    // G2815 (the user, 27 Oct: "a larger version, more like a tablet or a small screen. Typically what you'd see fitted in
+    // cessna skyhawks. I don't expect all other instruments to fit then ... 2 of them, one configured PFD by default, one
+    // MFD ... or only 1 of them, and if one ... on the pilot side or the passenger side"): the G1000 class display, one
+    // (`flat`: the PFD; systems.gpsSide 'pilot' or 'copilot', written only once picked) or two (`flatPair`: the PFD in front of the pilot,
+    // the MFD with its engine strip beside it). Its face: a 10.4 in 4:3 screen in a 271 x 208 mm bezel, a knob each side
+    // (`knobs: 'both'`), twelve softkey caps under the glass (`keysN`) of which four switch (`keySlots`: the same four
+    // KEYS the smaller units have). Mass, price and draw are per display x n (GDU 1040 class: 2.7 kg, ~4 A)
+    flat:     { name: '10 in glass display', kg: 2.9, price: 9500, amps: 4.0,
+                face: { w: 0.271, h: 0.208, sw: 0.211, sh: 0.158, keys: 'below', knob: true, knobs: 'both', keysN: 12, keySlots: [1, 2, 3, 11], n: 1 },
+                note: 'G1000 GDU 1040 class with ADAHRS (a 10.4 in 1024 x 768 screen, 271 x 208 mm): the PFD, the map on its page' },
+    flatPair: { name: 'twin 10 in displays (PFD + MFD)', kg: 5.8, price: 19000, amps: 8.0,
+                face: { w: 0.271, h: 0.208, sw: 0.211, sh: 0.158, keys: 'below', knob: true, knobs: 'both', keysN: 12, keySlots: [1, 2, 3, 11], n: 2 },
+                note: 'G1000 class, a Skyhawk\'s: the PFD in front of the pilot, the MFD with its engine strip beside it' },
   },
 };
+// G2815: where a single big display stands - in front of the pilot or of the passenger beside him
+const GEN_GPS_SIDES = ['pilot', 'copilot'];
 // THE TIERS: what each fit buys. Day VFR is what an engine and an airframe
 // need to be flown; basic is the user's minimum set (speed, altitude,
 // attitude, climb, compass, clock, rpm, fuel) with the electrics that feed a
@@ -2161,6 +2176,8 @@ function genSystemsResolve(S, opts) {
     elec[k] = pick(GEN_ELEC[k], sy.elec && sy.elec[k], T.elec[k]);
   for (const k of ['com', 'xpdr', 'nav', 'gps'])
     avionics[k] = pick(GEN_AVIONICS[k], sy.avionics && sy.avionics[k], T.avionics[k]);
+  // G2815: a single big display's side (only for it: no other fit carries the key)
+  if (avionics.gps === 'flat') avionics.gpsSide = sy.gpsSide === 'copilot' ? 'copilot' : 'pilot';
   // A BATTERY BUILD HAS A CHARGE GAUGE (A3, 2026-09-20): a pack has no cork
   // on a wire, so the minimal tier's sight glass becomes the pack's own
   // meter, and the `fuel` key reads GEN_INSTR.fuel.charge - fed by the pack,
@@ -2215,8 +2232,12 @@ function genSystemsResolve(S, opts) {
     if (r.kg > 0 || r.price > 0)
       rows.push({ key: k + ':' + elec[k], group: 'elec', name: r.name, kg: r.kg, price: r.price, amps: 0 });
   }
+  // G2815: a pair whose second display (the MFD) found no room on the dash is drawn - and billed - as the one display
+  const pairLost = avionics.gps === 'flatPair' && noRoom.has('gps2');
+  if (pairLost) dropped.push({ key: 'gps2', why: 'no room on the dash' });
   for (const k of ['com', 'xpdr', 'nav', 'gps']) {
-    const r = GEN_AVIONICS[k][avionics[k]];
+    let r = GEN_AVIONICS[k][avionics[k]];
+    if (k === 'gps' && pairLost) r = Object.assign({}, GEN_AVIONICS.gps.flat, { name: GEN_AVIONICS.gps.flat.name + ' (the MFD: no room)' });
     if (r.kg > 0 || r.price > 0) {
       rows.push({ key: k + ':' + avionics[k], group: 'avionics', name: r.name, kg: r.kg, price: r.price, amps: r.amps || 0 });
       nPowered++; loads.push({ key: k, amps: r.amps || 0, av: true });
@@ -4552,6 +4573,7 @@ function clampSpec(spec) {
     if (!sy.avionics || typeof sy.avionics !== 'object') sy.avionics = {};
     for (const k of ['com', 'xpdr', 'nav', 'gps'])
       if (sy.avionics[k] != null && !GEN_AVIONICS[k][sy.avionics[k]]) sy.avionics[k] = null;
+    if (sy.gpsSide != null && !GEN_GPS_SIDES.includes(sy.gpsSide)) delete sy.gpsSide;   // G2815 (written only when picked)
   }
   const ct = S.controls;
   clampControls(ct);

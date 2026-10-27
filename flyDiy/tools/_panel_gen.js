@@ -289,7 +289,8 @@ const T_KEYS = { asi: [0, 0], ai: [1, 0], alt: [2, 0], turn: [0, 1], dg: [1, 1],
 // drawn - and not billed (genSystemsResolve's `noRoom`, which the join writes from this layout).
 // What a layout costs (G2808): a screen outweighs every dial, a dial every switch drawn under a dial or a screen,
 // that switch a T broken into single dials, and that every breaker with no room
-const layoutCost = L => (L.screenLost ? 1000 : 0) + 10 * L.overflow.length + 5 * (L.swClash || 0) +
+// (G2815: each screen lost costs its 1000 - a pair's PFD placed beats both lost, whatever dials the second costs)
+const layoutCost = L => 1000 * (+L.screenLost || 0) + 10 * L.overflow.length + 5 * (L.swClash || 0) +
   (L.tBroken ? 3 : 0) + (L.extraOverflow ? L.extraOverflow.length : 0);
 // the packer's three ways with the switch row: the bottom band kept for it, the strip laid first, nothing kept
 const PACK_MODES = [[false, true], [true, 'strip'], [true, true]];
@@ -606,7 +607,7 @@ function layoutCore(A, o, flexRow, glass) {
     if (a < hi0) runs.push([a, hi0]);
     return runs.filter(r => r[1] - r[0] > 0.02);
   };
-  let screenLost = false;
+  let screenLost = 0;                             // (how many: G2815)
   // THE STRIP FIRST (G2808, glass === 'strip'): the switch row laid on the plate's lowest clear run BEFORE anything
   // else, and the screen and the dials kept off it alone - the bottom band beside it is theirs (a short plate whose
   // whole band, kept, would cost dials, and whose band, given away, would leave the switches nowhere)
@@ -669,18 +670,21 @@ function layoutCore(A, o, flexRow, glass) {
     // drop under the crown, on a 5 mm grid (a keep-out or the plate's edge slides a unit sideways, not down a row)
     for (const S of (Array.isArray(o.screens) ? o.screens : [])) {
       const w = +S.w, h = +S.h;
+      // G2815: a screen's own line - the pilot's (every GPS), the passenger's beside him (a single big display put
+      // there: the pilot's mirrored), the panel's middle (the MFD of a pair, beside the PFD)
+      const xT = S.line === 'copilot' ? -xC : S.line === 'centre' ? 0 : xC;
       let best = null;
       for (let cx = -xLim + w / 2; cx <= xLim - w / 2 + 1e-9; cx += 0.005)
         for (let cy = yTop - h / 2; cy - h / 2 >= yLow - 1e-9; cy -= 0.005) {
           const x0 = cx - w / 2, x1 = cx + w / 2, y0 = cy - h / 2, y1 = cy + h / 2;
           if (!rectFits(x0, x1, y0, y1)) continue;
           if (screens.some(q => x1 + GAP > q.cx - q.w / 2 && x0 - GAP < q.cx + q.w / 2 && y1 + GAP > q.cy - q.h / 2 && y0 - GAP < q.cy + q.h / 2)) continue;
-          const score = Math.abs(cx - xC) + 0.5 * (yTop - y1);
+          const score = Math.abs(cx - xT) + 0.5 * (yTop - y1);
           if (!best || score < best.score - 1e-12) best = { cx, cy, score };
           break;                                      // the highest at this x is the best at this x
         }
-      if (best) screens.push({ k: S.k, cx: best.cx, cy: best.cy, w, h, sw: +S.sw || w * 0.8, sh: +S.sh || h * 0.75 });
-      else screenLost = true;                         // placeExtras tries it again (a portable's cradle) or names it
+      if (best) screens.push({ k: S.k, cx: best.cx, cy: best.cy, w, h, sw: +S.sw || w * 0.8, sh: +S.sh || h * 0.75, line: S.line || 'pilot' });
+      else screenLost++;                              // placeExtras tries it again (a portable's cradle) or names it
     }
     // THE DIALS. The flight group first, AS A T where it fits as one (the six-pack's scan kept beside the screen: the
     // attitude in the middle of the top row, the airspeed on its left, the altimeter on its right, the turn, the

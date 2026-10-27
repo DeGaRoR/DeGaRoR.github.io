@@ -2594,8 +2594,8 @@
       // never runs the editor block) it falls through to a flat colour.
       // G2803: the GPS's screen is the GPS module's own material (gps_face.js, always in the page) - the editor
       // block need not be loaded for the flown aeroplane's map to be alive
-      if (data.cage && m.panel === 'gps' && window.FLYDIY_GPS && window.FLYDIY_GPS.material) {
-        const gm = window.FLYDIY_GPS.material();
+      if (data.cage && (m.panel === 'gps' || m.panel === 'gps2') && window.FLYDIY_GPS && window.FLYDIY_GPS.material) {
+        const gm = window.FLYDIY_GPS.material(0, null, m.panel === 'gps2' ? 1 : 0);   // (G2815: a pair's second display)
         if (gm) return matCache[mn] = gm;
       }
       if (data.cage && m.panel && window.CAGE_PANEL && window.CAGE_PANEL.material) {
@@ -6789,7 +6789,8 @@
         // G2803 (AVIONICS-GPS phase 2): the GPS on the panel, when one is fitted - its screen is the map's own
         // picture, the plan the pilot published and the field it is going to (gpsSource(): references, no copies)
         if (window.FLYDIY_GPS && CK.gpsFit)
-          window.FLYDIY_GPS.bind({ kind: CK.fit.avionics.gps, units: CK.fit.units, src: gpsSource(), speeds: gpsSpeeds(def) });
+          window.FLYDIY_GPS.bind({ kind: CK.fit.avionics.gps === 'flatPair' && !CK.gpsPair ? 'flat' : CK.fit.avionics.gps,   // (G2815: a pair whose MFD had no room flies as one)
+                                   units: CK.fit.units, src: gpsSource(), speeds: gpsSpeeds(def) });
       } catch (e) { console.warn('cockpit bind:', e); }
     }
     // THE MARKINGS REACH THE FLOWN AEROPLANE (G160). The user's report was
@@ -13931,15 +13932,25 @@
       },
     });
   }
-  // G2813: the PFD's speed bands - the dials' own facts (the plaque, the declared limits), the stalls the flight's build
-  // measured over them (Vs1 clean, Vs0 on the landing flap; Vfe 1.8 Vs0 as the dials print it)
+  // G2813 / G2814: THE PFD'S SPEEDS, a door (the certificate lands on the bench's thread after the roll-out: certKick).
+  // The colour bands only off a CERTIFICATE (66_gen_cert.js genCertSpeeds: V_F, V_C, V_D - the speeds every member was
+  // sized to; Vne 0.9 V_D, Vno V_C) with the measured stalls; the reference speeds (rotation, X, Y, best glide) off the
+  // machine sheet, the pilot's own numbers. No certificate: no colour (the user: "none of these color scales should be
+  // shown if the data is unknown"). Made again only when the certificate changes; the paint reads the same record
   function gpsSpeeds(def) {
-    let o = null;
-    try { o = window.CAGE_PANEL && CAGE_PANEL.facts ? Object.assign({}, CAGE_PANEL.facts()) : {}; } catch (e) { o = {}; }
-    const gen = def && def.params && def.params.gen;
-    if (gen && gen.Vs > 0) { o.Vs1 = gen.VsMeas > 0 ? gen.VsMeas : gen.Vs; o.Vs0 = gen.VsFlap > 0 ? gen.VsFlap : o.Vs1;
-      o.Vfe = ((typeof GEN_RULES !== 'undefined' && GEN_RULES.flapVfeK) || 1.8) * o.Vs0; }
-    return o.Vs1 || o.Vh ? o : null;
+    let memo = null, memoCert = null, made = false;
+    return () => {
+      const cert = def && def.cert && def.cert.speeds ? def.cert : null;
+      if (made && memoCert === cert) return memo;
+      made = true; memoCert = cert;
+      let ms = null;
+      try { ms = typeof machineSheet === 'function' && def ? machineSheet(def) : null; } catch (e) { ms = null; }
+      const o = { cert: !!cert, Vs0: ms && ms.Vs0, Vs1: ms && ms.Vs, Vr: ms && ms.Vrot, Vx: ms && ms.Vx, Vy: ms && ms.Vy, Vg: ms && ms.Vbg };
+      if (cert) { const V = cert.speeds; o.Vfe = V.VF; o.Vno = V.VC; o.Vne = 0.9 * V.VD; }
+      // G2815: the engine's rated speed, for the MFD's rpm arc (the dials' own fact; none: no arc)
+      try { const f = window.CAGE_PANEL && CAGE_PANEL.facts ? CAGE_PANEL.facts() : null; o.rpm = f && f.rpm > 0 ? f.rpm : 0; } catch (e) { o.rpm = 0; }
+      return (memo = o);
+    };
   }
   let mapBig = false, mapNoseUp = false;
   let mapBaseCv = null, mapBaseFor = null;   // G130: cached north-up underlay

@@ -9,7 +9,9 @@
 // A geometry check, not a beauty shot: no textures (but the GPS screen's, below), no transparency (a mesh under 0.15
 // opacity is left out), no shadows, no sky.
 //
-//   node tools/box_render.js [what] [out.png] [view] [px] [--fit portable|panel|glass] [--gps screen.png] [--fov deg]
+//   node tools/box_render.js [what] [out.png] [view] [px] [--fit portable|panel|glass|flat|flatPair] [--side pilot|copilot]
+//                            [--gps screen.png] [--gps2 mfd.png] [--fov deg]
+//   (G2815: --side puts a single 10 in display in front of the passenger; --gps2 textures a pair's second display)
 //     what   a saved build (builds/cub_2026-09-20_corrected.json), card:<archetype key> (card:c172), or nothing for the
 //            page's default aeroplane
 //     view   iso (default), side, top, front, sheet (the four in a 2 x 2) - orthographic, fitted to the aeroplane; or
@@ -26,7 +28,8 @@ const T = __dirname;
 
 const argv = process.argv.slice(2);
 const opt = k => { const i = argv.indexOf(k); if (i < 0) return null; const v = argv[i + 1]; argv.splice(i, 2); return v; };
-const GPS_PNG = (v => v && path.resolve(v))(opt('--gps')), FIT = opt('--fit'), FOV = +(opt('--fov') || 66);
+const GPS_PNG = (v => v && path.resolve(v))(opt('--gps')), GPS2_PNG = (v => v && path.resolve(v))(opt('--gps2'));
+const FIT = opt('--fit'), SIDE = opt('--side'), FOV = +(opt('--fov') || 66);
 const what = argv[0] || '', OUT = path.resolve(argv[1] || 'box_render.png');
 const VIEW = argv[2] || 'iso', PX = +(argv[3] || (VIEW === 'sheet' ? 800 : 1200));
 const COCKPIT = VIEW === 'cockpit';
@@ -60,6 +63,7 @@ function sceneOf(w) {
   else if (w) { const j = JSON.parse(fs.readFileSync(path.resolve(path.join(T, '..'), w), 'utf8')); spec = j.spec || j; }
   // --fit <portable|panel|glass>: a GPS fitted as the Instruments column fits it (systems.avionics.gps)
   if (FIT && spec) { spec.systems = spec.systems || {}; spec.systems.avionics = Object.assign({}, spec.systems.avionics, { gps: FIT }); name += ' + ' + FIT + ' GPS'; }
+  if (SIDE && spec) { spec.systems = spec.systems || {}; spec.systems.gpsSide = SIDE; name += ' (' + SIDE + ' side)'; }
   let r = SH.sceneBuild(spec, spec ? { garage: spec } : {});
   // the cockpit: the panel layer keeps its own Instruments column state, which the editor fills from the build it loads
   // (CAGE_PANEL.fromSpec) - the first build seeds the layer, the build's systems go in, and it builds again
@@ -72,7 +76,7 @@ function sceneOf(w) {
 
 // ---- the triangles, in the world frame, with their colour (and the GPS screen's uv) ----------------------------------
 // a triangle: Float64Array [ax, ay, az, bx, by, bz, cx, cy, cz, r, g, b] (+ .uv [u0, v0, u1, v1, u2, v2] on the screen)
-function trianglesOf(scene, THREE, gpsTex, hide) {
+function trianglesOf(scene, THREE, texOf, hide) {
   scene.updateMatrixWorld(true);
   const tris = [];
   const v = new THREE.Vector3(), M = new THREE.Matrix4(), IM = new THREE.Matrix4();
@@ -83,7 +87,8 @@ function trianglesOf(scene, THREE, gpsTex, hide) {
     const mats = Array.isArray(o.material) ? o.material : [o.material];
     const m0 = mats[0] || {};
     if (m0.visible === false || (m0.transparent && (m0.opacity ?? 1) < 0.15)) return;
-    const isGps = (m0.userData && m0.userData.panelSet === 'gps') || (o.userData && o.userData.panelSet === 'gps');   // (the screen's material carries it)
+    const set = (m0.userData && m0.userData.panelSet) || (o.userData && o.userData.panelSet);   // (the screen's material carries it)
+    const isGps = set === 'gps' || set === 'gps2', gpsTex = isGps ? texOf[set] : null;          // (G2815: a pair's second)
     if (m0.type === 'MeshBasicMaterial' && m0.transparent && !isGps) return;   // (the AO patches, the glows: painted shadows)
     const col = m0.color ? [m0.color.r, m0.color.g, m0.color.b] : [0.7, 0.7, 0.7];
     const P = o.geometry.attributes.position, I = o.geometry.index, UV = o.geometry.attributes.uv;
@@ -105,7 +110,11 @@ function trianglesOf(scene, THREE, gpsTex, hide) {
         tris.push(t);
       }
     }
-    if (isGps && !gps) { const b = new THREE.Box3().setFromObject(o); gps = { min: b.min.toArray(), max: b.max.toArray() }; }
+    if (isGps) {                                          // (the screens' box: the cockpit view aims at its middle)
+      const b = new THREE.Box3().setFromObject(o);
+      if (!gps) gps = { min: b.min.toArray(), max: b.max.toArray() };
+      else for (let i = 0; i < 3; i++) { gps.min[i] = Math.min(gps.min[i], b.min.getComponent(i)); gps.max[i] = Math.max(gps.max[i], b.max.getComponent(i)); }
+    }
   });
   return { tris, gps };
 }
@@ -270,8 +279,8 @@ function sheet(views) {
 
 const t0 = Date.now();
 const S = sceneOf(what);
-const tex = GPS_PNG ? unpng(fs.readFileSync(GPS_PNG)) : null;
-const { tris: layerTris, gps } = trianglesOf(S.scene, S.THREE, tex, COCKPIT ? hiddenOf(S.eye) : null);
+const texOf = { gps: GPS_PNG ? unpng(fs.readFileSync(GPS_PNG)) : null, gps2: GPS2_PNG ? unpng(fs.readFileSync(GPS2_PNG)) : null };
+const { tris: layerTris, gps } = trianglesOf(S.scene, S.THREE, texOf, COCKPIT ? hiddenOf(S.eye) : null);
 const tris = layerTris.concat(skinTriangles(S.skin, S.k, COCKPIT));
 const t1 = Date.now();
 const H0 = Math.round(PX * (COCKPIT ? 0.6 : 0.66));

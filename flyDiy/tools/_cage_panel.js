@@ -58,6 +58,8 @@ function fromSpec(sy) {
     SY.elec[k] = (s.elec && s.elec[k] != null) ? s.elec[k] : null;
   for (const k of Object.keys(SY.avionics))
     SY.avionics[k] = (s.avionics && s.avionics[k] != null) ? s.avionics[k] : null;
+  // G2815: a single big display's side - in the spec only once picked (every other build keeps its bytes)
+  if (s.gpsSide === 'pilot' || s.gpsSide === 'copilot') SY.gpsSide = s.gpsSide; else delete SY.gpsSide;
   SY.look = { bezel: s.look && LOOK_BEZEL.some(q => q[0] === s.look.bezel) ? s.look.bezel : 'plastic',
               sw: s.look && LOOK_SW.some(q => q[0] === s.look.sw) ? s.look.sw : 'toggle' };   // G371
   seeded = true;
@@ -354,15 +356,25 @@ function renderPanel() {
         (tab[q].later ? ' — declared, not drawn yet' : '')]),
       R.avionics[k], v => { makeCustom(); SY.avionics[k] = v; renderPanel(); commit(); });
   }
+  // G2815: a single 10 in display - in front of the pilot or of the passenger beside him
+  if (R.avionics.gps === 'flat')
+    select(av, 'display side', 'which seat the one 10 in display stands in front of (a pair puts the PFD in front of the ' +
+      'pilot and the MFD beside it)', [['pilot', 'in front of the pilot'], ['copilot', 'in front of the passenger']],
+      R.avionics.gpsSide || 'pilot', v => { SY.gpsSide = v; renderPanel(); commit(); });
   // G2803: where the GPS went - on the plate, in its cradle on the glareshield, or nowhere (named, not drawn)
   if (R.avionics.gps !== 'none') {
     const lay2 = LAST && LAST.layout;
-    const S = lay2 && lay2.screens ? lay2.screens.find(q => q.k === 'gps') : null;
-    const d = row(av, 'GPS on the dash', 'the moving map: the island, your track, the next waypoint and the ' +
-      'ground speed, alive on the avionics bus behind its breaker');
-    d.appendChild(el('span', 'v', S ? (S.coaming ? 'in a cradle on the glareshield' : 'on the panel, in front of the pilot')
-      : (lay2 ? 'no room on this dash — not fitted, not billed' : '…')));
-    if (lay2 && !S) d.lastChild.style.color = '#e08a5a';
+    const pair = R.avionics.gps === 'flatPair';
+    for (const k of pair ? ['gps', 'gps2'] : ['gps']) {
+      const S = lay2 && lay2.screens ? lay2.screens.find(q => q.k === k) : null;
+      const d = row(av, pair ? (k === 'gps' ? 'PFD on the dash' : 'MFD on the dash') : 'GPS on the dash',
+        pair && k === 'gps2' ? 'the MFD: the moving map with the engine strip down its left, on the avionics bus behind its breaker'
+          : 'the moving map: the island, your track, the next waypoint and the ground speed, alive on the avionics bus behind its breaker');
+      const line = S && S.line === 'centre' ? 'beside the PFD' : S && S.line === 'copilot' ? 'in front of the passenger' : 'in front of the pilot';
+      d.appendChild(el('span', 'v', S ? (S.coaming ? 'in a cradle on the glareshield' : 'on the panel, ' + line)
+        : (lay2 ? 'no room on this dash — not fitted, not billed' : '…')));
+      if (lay2 && !S) d.lastChild.style.color = '#e08a5a';
+    }
   }
 
   // ---- the bill ----------------------------------------------------------------
@@ -1539,14 +1551,27 @@ function gpsFace(R) {
   const row = k && k !== 'none' && typeof GEN_AVIONICS !== 'undefined' && GEN_AVIONICS.gps[k];
   return row && row.face ? Object.assign({}, row.face) : null;
 }
+// G2815: the screens the fit asks the dash for - one unit on the pilot's line (or a single 10 in display on the
+// passenger's), or a pair: the PFD on the pilot's line, the MFD towards the panel's middle
+function gpsScreens(R) {
+  const f = gpsFace(R);
+  if (!f) return [];
+  if (f.n === 2) return [Object.assign({ k: 'gps', line: 'pilot' }, f), Object.assign({ k: 'gps2', line: 'centre' }, f)];
+  return [Object.assign({ k: 'gps', cradle: R.avionics.gps === 'portable', line: R.avionics.gpsSide === 'copilot' ? 'copilot' : 'pilot' }, f)];
+}
 // the screen's material is the moving map's own (src/viewer/gps_face.js: FLYDIY_GPS.material(), one instance the
 // shed, the flight and a parked aeroplane share); a page without it (the bench) gets a dark glass in its place
-let gpsFallback = null;
-function gpsMaterial(aspect, kind) {
+let gpsFallback = null, gpsFallback2 = null;
+function gpsMaterial(aspect, kind, ui) {
   const G = typeof window !== 'undefined' ? window.FLYDIY_GPS : null;
   // (the unit stands in the shed off, its name on the glass - app.js puts it back in standby on the way into the
   // garage; a flight's bind darkens it and the bus lights it; while a flight holds it, this call changes nothing)
-  if (G && typeof G.material === 'function') { const m = G.material(aspect, kind); if (m) return m; }
+  if (G && typeof G.material === 'function') { const m = G.material(aspect, kind, ui || 0); if (m) return m; }
+  if (ui) {                                         // (G2815: a pair's second display, on a page without the module)
+    if (!gpsFallback2) { gpsFallback2 = new THREE.MeshStandardMaterial({ color: 0x0b0d10, roughness: 0.25, metalness: 0, side: THREE.FrontSide });
+      gpsFallback2.userData.aeroskin = 1; gpsFallback2.userData.panelSet = 'gps2'; gpsFallback2.userData.inside = 1; }
+    return gpsFallback2;
+  }
   if (!gpsFallback) {
     gpsFallback = new THREE.MeshStandardMaterial({ color: 0x0b0d10, roughness: 0.25, metalness: 0, side: THREE.FrontSide });
     gpsFallback.userData.aeroskin = 1; gpsFallback.userData.panelSet = 'gps'; gpsFallback.userData.inside = 1;
@@ -1575,36 +1600,57 @@ function roundBlockInto(bag, x, y, z0, z1, hx, hy, rad, ch) {
   KIT().sweep(bag, [[x, y, z0], [x, y, z1 + ch], [x, y, z1]],
     t => (t > 0.99 ? roundSect(hx - ch, hy - ch, rad - ch * 0.6) : roundSect(hx, hy, rad)), true, [0, 1, 0]);
 }
-// the unit's plan: where the screen, the keys and the knob sit on a face (shared with GATE GPSFACE)
-function gpsPlan(S, keysAt, knob) {
-  const W = S.w, H = S.h, sw = S.sw, sh = S.sh;
+// the unit's plan: where the screen, the keys and the knob sit on a face (shared with GATE GPSFACE).
+// G2815: a 10 in display (face.knobs 'both', face.keysN caps of which face.keySlots switch): its screen centred, a dual
+// knob in each margin, a row of keysN caps under the glass (P.keys the four that switch, P.caps the rest).
+// G2814: and every unit's POWER BUTTON (P.pwr): above the knob on the pilot's right, above the left knob on a 10 in
+// display, at the right end of the key band on a portable
+function gpsPlan(S, keysAt, knob, face) {
+  face = face || {};
+  const W = S.w, H = S.h, sw = S.sw, sh = S.sh, both = face.knobs === 'both';
   const m = Math.min(0.007, Math.max(0.003, (H - sh) / 2 - 0.0005));          // the frame round the glass
-  const P = { W, H, sw, sh, m, keys: [], knob: null };
+  const P = { W, H, sw, sh, m, keys: [], caps: [], knob: null, knob2: null, pwr: null };
+  let yk = 0, ky = 0;
   if (keysAt === 'left') {
     const kw = 0.011, colX = W / 2 - m - kw / 2;                                   // a column on the pilot's left
     P.xs = colX - kw / 2 - 0.004 - sw / 2; P.ys = 0;
     for (let i = 0; i < GPS_KEYS.length; i++)
       P.keys.push({ k: GPS_KEYS[i], x: colX, y: sh / 2 - (i + 0.5) * sh / GPS_KEYS.length, hx: kw / 2, hy: Math.min(0.0032, sh / GPS_KEYS.length / 2 - 0.0012) });
   } else {
-    P.xs = knob ? W / 2 - m - sw / 2 : 0; P.ys = H / 2 - m - sh / 2;            // the screen at the top (left of the knob)
-    const band = (P.ys - sh / 2) + H / 2, yk = -H / 2 + band / 2;               // the band under it
-    const kx = Math.min(0.0062, sw / GPS_KEYS.length / 2 - 0.003), ky = Math.min(0.0034, band / 2 - 0.0022);
+    P.xs = both ? 0 : knob ? W / 2 - m - sw / 2 : 0; P.ys = H / 2 - m - sh / 2;  // the screen at the top (left of the knob)
+    const band = (P.ys - sh / 2) + H / 2;
+    yk = -H / 2 + band / 2;                                                        // the band under it
+    const nK = face.keysN > GPS_KEYS.length && Array.isArray(face.keySlots) ? face.keysN : GPS_KEYS.length;
+    const kx = Math.min(0.0062, sw / nK / 2 - 0.003);
+    ky = Math.min(0.0034, band / 2 - 0.0022);
     if (ky > 0.0015)
-      for (let i = 0; i < GPS_KEYS.length; i++)
-        P.keys.push({ k: GPS_KEYS[i], x: P.xs + sw / 2 - (i + 0.5) * sw / GPS_KEYS.length, y: yk, hx: kx, hy: ky });
+      for (let c = 0; c < nK; c++) {
+        const j = nK === GPS_KEYS.length ? c : face.keySlots.indexOf(c), x = P.xs + sw / 2 - (c + 0.5) * sw / nK;
+        if (j >= 0) P.keys.push({ k: GPS_KEYS[j], x, y: yk, hx: kx, hy: ky }); else P.caps.push({ x, y: yk, hx: kx, hy: ky });
+      }
   }
-  // the knob: in the margin on the pilot's right (-x) when it is wide enough
+  // the knob: in the margin on the pilot's right (-x) when it is wide enough (both margins on a 10 in display)
   const right = (P.xs - sw / 2) + W / 2;
   if (knob && right >= 0.016) P.knob = { x: -W / 2 + right / 2, y: keysAt === 'left' ? 0 : P.ys, r: Math.min(0.0075, right / 2 - 0.003) };
+  if (both && P.knob) P.knob2 = { x: -P.knob.x, y: P.knob.y, r: P.knob.r };
+  // the power button, 3 mm round
+  const kb = both ? P.knob2 : P.knob;
+  if (kb) {
+    const top = kb.y + kb.r * 1.12, room = H / 2 - 0.002 - top;
+    P.pwr = room >= 0.009 ? { x: kb.x, y: top + room / 2, r: 0.003 } : { x: kb.x, y: kb.y - kb.r * 1.12 - 0.0055, r: 0.003 };
+  } else if (keysAt !== 'left' && ky > 0.0015) {
+    const side = W / 2 - (P.xs + sw / 2 > -P.xs + sw / 2 ? P.xs + sw / 2 : sw / 2);
+    if (side >= 0.008) P.pwr = { x: -W / 2 + side / 2, y: yk, r: Math.min(0.003, side / 2 - 0.0012) };
+  }
   return P;
 }
-function gpsUnitAt(parent, S, kind) {
+function gpsUnitAt(parent, S, kind, ui) {
   const K = KIT();
   const AV = typeof GEN_AVIONICS !== 'undefined' ? GEN_AVIONICS : null;
   const face = (AV && AV.gps[kind] && AV.gps[kind].face) || {};
   const keysAt = S.keys || face.keys || 'below';
-  const P = gpsPlan(S, keysAt, S.knob != null ? !!S.knob : !!face.knob);
-  const zF = -0.010;                                                              // the housing's front
+  const P = gpsPlan(S, keysAt, S.knob != null ? !!S.knob : !!face.knob, face);
+  const sfx = ui ? '2' : '', zF = -0.010;                                         // (G2815: the second display's names)
   // the housing: 10 mm proud, 4 mm corners, a 1.2 mm chamfer round its front
   const bez = K.Bag();
   roundBlockInto(bez, 0, 0, 0.0005, zF, P.W / 2, P.H / 2, 0.004, 0.0012);
@@ -1618,22 +1664,23 @@ function gpsUnitAt(parent, S, kind) {
   K.boxIn(lip, [P.xs - hw - lw / 2, P.ys, zl], [lw / 2, hh, ez], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
   lip.mesh(parent, matFor('ball'));
   // the screen: one quad, flush with the lip's inner edge (u runs against x: the mirror rule)
-  const sb = UVBag(gpsMaterial(P.sw / P.sh, kind)), z = zF - 0.0003;
+  const sb = UVBag(gpsMaterial(P.sw / P.sh, kind, ui)), z = zF - 0.0003;
   sb.v([P.xs + hw, P.ys - hh, z], [0, 0]); sb.v([P.xs - hw, P.ys - hh, z], [1, 0]);
   sb.v([P.xs - hw, P.ys + hh, z], [1, 1]); sb.v([P.xs + hw, P.ys + hh, z], [0, 1]);
   sb.quad(0, 1, 2, 3);
-  sb.mesh(parent, 'edGauge_gps');
-  // THE SOFTKEYS: a rounded cap 2.2 mm proud, its front chamfered, on its own gauge (press: 1.2 mm in, gk_<key>)
+  sb.mesh(parent, 'edGauge_gps' + sfx);
+  // THE SOFTKEYS: a rounded cap 2.2 mm proud, its front chamfered, on its own gauge (press: 1.2 mm in, gk_<key>; a pair's
+  // second display gk1_<key>)
   for (const q of P.keys) {
-    const g = gaugeAt(parent, 'edGauge_gpskey_' + q.k, [q.x, q.y, zF], [0, 0, 1], 'gk_' + q.k, 'gpskey',
-      { k: 0, sgn: 1, slide: [0, 0, 0.0012], slideDrive: 'gk_' + q.k, padR: Math.min(0.008, Math.max(q.hx, q.hy) + 0.002) });
+    const g = gaugeAt(parent, 'edGauge_gps' + sfx + 'key_' + q.k, [q.x, q.y, zF], [0, 0, 1], 'gk' + (ui ? '1' : '') + '_' + q.k, 'gpskey',
+      { k: 0, sgn: 1, slide: [0, 0, 0.0012], slideDrive: 'gk' + (ui ? '1' : '') + '_' + q.k, padR: Math.min(0.008, Math.max(q.hx, q.hy) + 0.002) });
     const cap = K.Bag();
     roundBlockInto(cap, 0, 0, 0.0004, -0.0022, q.hx, q.hy, Math.min(q.hx, q.hy) * 0.55, 0.0006);
     cap.mesh(g, matFor('grip'));
     // its legend, inlaid white on the cap: - (range down), + (range up), a chevron (north / track up), stacked bars (page).
-    // G2813: not on the glass unit - its keys are the page's (the PFD's SVT and TERR, the map's range), so its caps are
-    // blank and their labels are painted on the glass over each, as a Garmin's softkeys
-    if (kind === 'glass') continue;
+    // G2813: not on the glass units - their keys are the page's (the PFD's SVT and TERR, the map's range), so their caps
+    // are blank and their labels are painted on the glass over each, as a Garmin's softkeys
+    if (PFD_KINDS_3D[kind]) continue;
     const lg = K.Bag(), zt = -0.0022 - 0.0001, t = 0.00045, s2 = Math.min(q.hx, q.hy) * 0.55;
     const bar = (cx, cy, hl, a) => { const c = Math.cos(a), sn = Math.sin(a);
       K.boxIn(lg, [cx, cy, zt], [hl, t, 0.00012], [c, sn, 0], [-sn, c, 0], [0, 0, 1]); };
@@ -1643,9 +1690,17 @@ function gpsUnitAt(parent, S, kind) {
     else if (q.k === 'page') { bar(0, s2 * 0.42, s2 * 0.85, 0); bar(0, -s2 * 0.42, s2 * 0.85, 0); }
     lg.mesh(g, matFor('needle'));
   }
-  // THE DUAL KNOB: an outer ring with a ridged grip and an inner knob standing out of it, on a collar
-  if (P.knob) {
-    const kb = K.Bag(), r = P.knob.r, x = P.knob.x, y = P.knob.y;
+  // G2815: the row's other caps (a 10 in display's twelve; these do nothing yet), one mesh
+  if (P.caps.length) {
+    const cb = K.Bag();
+    for (const q of P.caps) roundBlockInto(cb, q.x, q.y, 0.0004 + zF, zF - 0.0022, q.hx, q.hy, Math.min(q.hx, q.hy) * 0.55, 0.0006);
+    cb.mesh(parent, matFor('grip'));
+  }
+  // THE DUAL KNOB: an outer ring with a ridged grip and an inner knob standing out of it, on a collar (one each side on
+  // a 10 in display)
+  for (const kn of [P.knob, P.knob2]) {
+    if (!kn) continue;
+    const kb = K.Bag(), r = kn.r, x = kn.x, y = kn.y;
     K.revolve(kb, [x, y, zF], [0, 0, -1], [[r * 1.12, 0], [r * 1.12, 0.0012], [0, 0.0012]], 28, false);   // the collar
     kb.mesh(parent, matFor('barrel'));
     const ko = K.Bag();
@@ -1655,7 +1710,27 @@ function gpsUnitAt(parent, S, kind) {
     K.revolve(ki, [x, y, zF - 0.0072], [0, 0, -1], [[r * 0.62, 0], [r * 0.62, 0.0062], [r * 0.55, 0.0070], [0, 0.0070]], 28, false);
     ki.mesh(parent, matFor('knob'));                    // the inner knob
   }
+  // G2814: THE POWER BUTTON (the user: "the button should be clickable, like the light buttons. In the garage, it shows
+  // OFF, and ON in the world"): a latching push button on the `switch` law (sw_gps, a pair's second sw_gps2) - out in
+  // the shed, 1 mm in when on (cockpit.js turns it on at the bind; a click turns the display off and on again); a
+  // power symbol inlaid on its cap
+  if (P.pwr) {
+    const q = P.pwr, drv = ui ? 'sw_gps2' : 'sw_gps';
+    const g = gaugeAt(parent, 'edGauge_gpspwr' + sfx, [q.x, q.y, zF], [0, 0, 1], drv, 'switch',
+      { k: 0, sgn: 1, slide: [0, 0, 0.0010], slideDrive: drv, padR: Math.max(0.006, q.r + 0.003) });
+    const pb = K.Bag(), r = q.r;
+    K.revolve(pb, [0, 0, 0.0004], [0, 0, -1], [[r, 0], [r, 0.0020], [r * 0.82, 0.0026], [0, 0.0026]], 24, false);
+    pb.mesh(g, matFor('grip'));
+    const lg = K.Bag(), zt = -0.0022 - 0.0001, rr = r * 0.52, t = 0.00035;
+    for (let i = 1; i < 8; i++) {                       // the ring, open at the top
+      const a = Math.PI / 2 + i * Math.PI * 2 / 8, c = Math.cos(a), sn = Math.sin(a);
+      K.boxIn(lg, [rr * c, rr * sn, zt], [rr * 0.32, t, 0.00012], [-sn, c, 0], [-c, -sn, 0], [0, 0, 1]);
+    }
+    K.boxIn(lg, [0, rr * 0.55, zt], [t, rr * 0.55, 0.00012], [1, 0, 0], [0, 1, 0], [0, 0, 1]);   // the bar through it
+    lg.mesh(g, matFor('needle'));
+  }
 }
+const PFD_KINDS_3D = { glass: 1, flat: 1, flatPair: 1 };
 
 // ---- the build ------------------------------------------------------------------
 const EXT_LIGHTS = ['taxi', 'beacon', 'land', 'nav'];
@@ -1697,7 +1772,7 @@ function build(parent, A, P, pilotX) {
     swStyle: (SY.look && SY.look.sw) || 'toggle',             // G371
     // G2802 / G2803: the breaker row and the GPS unit, placed in what the dials and switches left free
     breakers: (R.breakers || []).map(b => b.key),
-    screens: gpsFace(R) ? [Object.assign({ k: 'gps', cradle: R.avionics.gps === 'portable' }, gpsFace(R))] : [],
+    screens: gpsScreens(R),
   });
   const grp = new THREE.Group();
   grp.name = 'edPanel';
@@ -2099,8 +2174,8 @@ function build(parent, A, P, pilotX) {
       K.revolve(foot, [S.cx, S.top, S.z + 0.006], [0, 1, 0], [[0.006, 0], [0.006, 0.014], [0, 0.014]], 16, false);
       foot.mesh(grp, matFor('plate'));
     } else sg = standOn(S.cx, S.cy, Math.min(S.w, S.h) * 0.4);
-    sg.name = 'edGps';
-    gpsUnitAt(sg, S, R.avionics.gps);
+    sg.name = S.k === 'gps2' ? 'edGps2' : 'edGps';
+    gpsUnitAt(sg, S, R.avionics.gps, S.k === 'gps2' ? 1 : 0);
   }
   bowl.mesh(grp, matFor('bowl')); symC.mesh(grp, matFor('needle'));   // pale: the card is black now (G311)
   // THE REGISTRATION TAPE (G318): on the dash's roll above the plate, at

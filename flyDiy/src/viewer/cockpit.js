@@ -93,6 +93,8 @@ function make(THREE) {
     CK.sw.sw_master = 1; CK.sw.sw_alt = 1; CK.key = 'both'; CK.sw.key = 3;
     // G318: the avionics master on, the fuel selector on BOTH, the brake off
     CK.sw.sw_avionics = 1; CK.sw.fuel = 3; CK.park = false;
+    // G2814: each GPS display's power button ON in flight (in the shed the panel stands OFF: the button out)
+    CK.sw.sw_gps = 1; CK.sw.sw_gps2 = 1;
     // the registration on the dash's blank tape, from the spec
     try {
       const W1 = typeof window !== 'undefined' ? window : {};
@@ -132,6 +134,9 @@ function make(THREE) {
     CK.cbKeys = breakers.map(b => b.key); CK.cbSw = CK.cbKeys.map(k => 'cb_' + k);
     for (const k of CK.cbSw) CK.sw[k] = 0;
     CK.gpsFit = !!(fit && fit.avionics && fit.avionics.gps && fit.avionics.gps !== 'none');
+    // G2815: a pair of displays (their load shared out by their power buttons), the row's draw
+    CK.gpsPair = !!(fit && fit.avionics && fit.avionics.gps === 'flatPair' && !(fit.dropped || []).some(d => d.key === 'gps2'));
+    { const lg = fit && fit.loads ? fit.loads.find(l => l.key === 'gps') : null; CK.gpsAmps = lg ? lg.amps : 0; }
     // the solver asks the bus before it cranks
     if (sim) sim.starterOk = () => !CK.bus || (fit && !fit.starter ? false : CK.bus.starterOk);
     for (const k of Object.keys(REST)) { raw[k] = REST[k]; CK.readings[k] = REST[k]; }
@@ -261,7 +266,13 @@ function make(THREE) {
       for (let i = 0; i < cbK.length; i++) if (bus.cb[cbK[i]] === false) CK.sw[cbS[i]] = 1;
     }
     const busOk = bus ? bus.ok : true;
-    // G2801: the GPS is alive on the avionics bus, behind its breaker
+    // G2801: the GPS is alive on the avionics bus, behind its breaker (G2814: and its own power buttons - the load
+    // off the bus with every display switched off; each display's own button is gps_face.js's to read)
+    if (bus && CK.gpsFit) {
+      const on1 = +CK.sw.sw_gps > 0.5, on2 = CK.gpsPair && +CK.sw.sw_gps2 > 0.5;
+      bus.on.gps = on1 || on2;
+      if (CK.gpsPair) bus.setLoad('gps', CK.gpsAmps * ((on1 ? 1 : 0) + (on2 ? 1 : 0)) / 2);   // (a pair: each display half)
+    }
     CK.gpsOn = CK.gpsFit && CK.pw('gps');
     // G318: THE NEW CONTROLS' NUMBERS ON THE LINKAGE. The parking brake holds
     // the wheels through ctl.brake after the hand's write; the trim wheel
@@ -499,8 +510,8 @@ function make(THREE) {
       // G2813: the GPS's glass is a touch screen - a hit on it (its material: gps_face.js's, the join's 'gps' bucket)
       // carries where it landed, its uv, to the click
       const mg = h.object.material;
-      if (mg && mg.userData && mg.userData.panelSet === 'gps' && h.uv && h.object.visible)
-        return { pick: 'gps', obj: h.object, u: h.uv.x, v: h.uv.y, c: { law: 'pick:gps', drive: 'gps' } };
+      if (mg && mg.userData && (mg.userData.panelSet === 'gps' || mg.userData.panelSet === 'gps2') && h.uv && h.object.visible)
+        return { pick: 'gps', obj: h.object, u: h.uv.x, v: h.uv.y, unit: mg.userData.panelSet === 'gps2' ? 1 : 0, c: { law: 'pick:gps', drive: 'gps' } };
       // C4b (G875): a hit on the baked model's fold names the part its triangle rides (flown_bake.js mergeModel)
       let a = h.part || h.object;
       while (a && a !== model.grp) {
@@ -543,7 +554,7 @@ function make(THREE) {
       else if (g.pick === 'thr') did = true;               // G364: a click holds it; the drag moves it
       else if (g.pick === 'gps') {                         // G2813: a tap on the GPS's glass (gps_face.js touch)
         const GP = typeof window !== 'undefined' ? window.FLYDIY_GPS : null;
-        did = !!(GP && GP.touch && CK.gpsOn && GP.touch(g.u, g.v));
+        did = !!(GP && GP.touch && CK.gpsOn && GP.touch(g.u, g.v, g.unit || 0));
       }
       return did;
     }
@@ -553,7 +564,9 @@ function make(THREE) {
       // (gps_face.js key: the range, north-up / track-up, the page)
       CK.gkUntil[drv] = (typeof performance !== 'undefined' ? performance.now() : 0) + 140;
       const GP = typeof window !== 'undefined' ? window.FLYDIY_GPS : null;
-      if (GP && GP.key && CK.gpsOn) GP.key(String(drv).slice(3));
+      // (G2815: gk_<key> the first display's, gk1_<key> a pair's second)
+      const km = /^gk(\d?)_(.+)$/.exec(String(drv));
+      if (GP && GP.key && CK.gpsOn && km) GP.key(km[2], +km[1] || 0);
       did = true;
     }
     else if (c.law === 'knob') { const v = +CK.sw[drv] || 0; CK.sw[drv] = button === 2 ? (v <= 0 ? 1 : Math.max(0, v - 0.25)) : (v >= 1 ? 0 : Math.min(1, v + 0.25)); CK.handSw[drv] = true; did = true; }
