@@ -427,7 +427,11 @@ function scarRest(R, p, v, world, t, D) {
   if (t - Q.tc < SCAR.restDt) return;
   Q.tc = t;
   let vm = 0; if (v) for (let i = 0; i < R.n; i++) { const s = v[i * 3] * v[i * 3] + v[i * 3 + 1] * v[i * 3 + 1] + v[i * 3 + 2] * v[i * 3 + 2]; if (s > vm) vm = s; }
-  if (Math.sqrt(vm) > SCAR.vRest && t - Q.t0 < SCAR.restMax) return;
+  if (Math.sqrt(vm) > SCAR.vRest && t - Q.t0 < SCAR.restMax) { Q.calm = 0; return; }
+  // G2810: AT REST ON TWO READS IN A ROW. One read is an instant: a loose part bouncing or rolling reads near zero at
+  // the bottom of a bounce - the user's Cub 2.5 m out (DMGSCAR 2H) sealed at 7.33 s with a lone node still at ~1.2 m/s,
+  // which came to lie 0.84 m out of its hull (the margin 0.76). The hulls are the page's only (the solver never reads them)
+  if (t - Q.t0 < SCAR.restMax && (Q.calm = (Q.calm || 0) + 1) < 2) return;
   R.rest = null;
   const H = scarHulls(R, p, world, D), old = R.out.prims, oldH = old.filter(x => x.k === 'h');
   if (!H.length || (oldH.length && H.every(h => { for (let j = 0; j < h.p.length; j += 2) if (!scarIn(oldH, h.p[j], h.p[j + 1], false)) return false; return true; }))) return;
