@@ -1612,8 +1612,14 @@ function eyeApply(on) {
   return true;
 }
 const eyeWanted = () => EYE_VIEW || EYE_HOLD > 0;
-// a whole build's end, a release's end: the eye sheet back when the view wants it
-function eyeAfterBuild() { if (eyeWanted()) eyeApply(true); }
+// a whole build's end, a release's end: the eye sheet back when the view wants it. G3719: a capture's hold builds it
+// now (the snapshot reads it next); the interior view's waits behind the progress cursor as an entry does - the
+// level-2 sheet the build just drew stands meanwhile (the 16:52 table: a fuselage row's release in the cockpit view
+// rebuilt it in the release's own task, +270-340 ms on the Cessna, the settle past 1 s)
+function eyeAfterBuild() {
+  if (EYE_HOLD > 0) eyeApply(true);
+  else if (EYE_VIEW) eyeView(true);
+}
 // the interior view's switch: the entry defers a build that has to happen behind the progress cursor
 function eyeView(on) {
   EYE_VIEW = !!on;
