@@ -20,9 +20,9 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[
 const OUT = path.join(__dirname, 'stills');
 const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', jodel: 'builds/jodel_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json' };
 const SCENES = {
-  trunk0: { label: '30 m/s into a trunk, the centreline, 4 m up', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 0, r: 0.3, h: 10, steps: 1200 }, cams: [[200, 22, 14], [120, 12, 9], [300, 45, 18]] },
-  trunk25: { label: '30 m/s, the trunk 2.5 m out on the left wing', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 2.5, r: 0.3, h: 10, steps: 1200 }, cams: [[200, 22, 16], [250, 55, 26]] },
-  noseover: { label: '12 m/s on the ground into a 35 cm stump', o: { kind: 'trunk', D: 12, agl: 0, V: 12, off: 0, r: 0.25, h: 0.35, steps: 900 }, cams: [[200, 22, 9], [90, 15, 7]] },
+  trunk0: { label: '30 m/s into a trunk, the centreline, 4 m up', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 0, r: 0.3, h: 10, steps: 1200 }, cams: [[200, 32, 14], [120, 26, 9], [300, 60, 18]] },
+  trunk25: { label: '30 m/s, the trunk 2.5 m out on the left wing', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 2.5, r: 0.3, h: 10, steps: 1200 }, cams: [[200, 32, 16], [250, 60, 26]] },
+  noseover: { label: '12 m/s on the ground into a 35 cm stump', o: { kind: 'trunk', D: 12, agl: 0, V: 12, off: 0, r: 0.25, h: 0.35, steps: 900 }, cams: [[200, 30, 9], [90, 26, 7]] },
 };
 
 // ---- in the page: a wreck staged and stepped (inline sim), then frozen (tools/dmg_skin_stills.js stagePage) ----
@@ -35,7 +35,10 @@ function stagePage(o) {
   sim.reset(0);
   placeAtAerodrome(sim, strip);
   const n = sim.n, p = sim.p, v = sim.v, fx = Math.cos(strip.hdg), fz = Math.sin(strip.hdg);
-  for (let i = 0; i < n; i++) { p[i*3] += 60 * fx; p[i*3+2] += 60 * fz; }
+  // 250 m down the runway: the paved strip is clear of trees and the pylon (the first runs' wrecks ended under the
+  // world's own trees, 60 m in, where no camera could see them)
+  const SL = strip.len || strip.length || strip.L || 600, AT = o.at != null ? o.at : Math.min(250, 0.45 * SL);
+  for (let i = 0; i < n; i++) { p[i*3] += AT * fx; p[i*3+2] += AT * fz; }
   const c0 = sim.cgPos(), ground = world.terrainH(c0[0], c0[2]);
   let yMin = Infinity; for (let i = 0; i < n; i++) yMin = Math.min(yMin, p[i*3+1] - (sim.r[i] || 0));
   for (let i = 0; i < n; i++) { p[i*3+1] += ground - yMin + o.agl; v[i*3] = o.V * fx; v[i*3+1] = 0; v[i*3+2] = o.V * fz; }
@@ -58,7 +61,7 @@ function stagePage(o) {
   const xs = [], ys = [], zs = []; for (let i = 0; i < n; i++) { xs.push(p[i*3]); ys.push(p[i*3+1]); zs.push(p[i*3+2]); }
   const lo = [q(xs, 0.1), q(ys, 0.1), q(zs, 0.1)], hi = [q(xs, 0.9), q(ys, 0.9), q(zs, 0.9)];
   const centre = [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2], radius = Math.max(2.5, 0.5 * Math.hypot(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]));
-  return { centre, radius, hdg: strip.hdg, ms: Math.round(performance.now() - t0), steps: s, atRest: calm > 60, crashed: D.crashed, reason: D.reason, broken: D.broken.length, cg: sim.cgPos().map(x => +x.toFixed(2)) };
+  return { centre, radius, hdg: strip.hdg, at: AT, stripLen: SL, ms: Math.round(performance.now() - t0), steps: s, atRest: calm > 60, crashed: D.crashed, reason: D.reason, broken: D.broken.length, cg: sim.cgPos().map(x => +x.toFixed(2)) };
 }
 
 function stageFor(build, scenes, after, tag) {
