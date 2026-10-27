@@ -45,7 +45,8 @@
   const TX = 8;               // texels a slot
   const BEND_MIN = 0.015;     // m: a trunk bend drawn (= sim_host.js SIM_DMG_BEND_MIN)
   const SET_MIN = 0.01;       // a chord shortened past 1 % by its set: buckled (a tube; wood stays straight)
-  const KINK_STRETCH = 1.05;  // a kinked member whose ends are pulled past 1.05 x its rest length is drawn torn
+  const KINK_STRETCH = 1.05;
+  const R_MAX = 0.025, H_MAX = 0.05;   // m: a tube's radius, a wood member's half-depth, at most (the Cub's 4130: 0.9-1.6 cm)  // a kinked member whose ends are pulled past 1.05 x its rest length is drawn torn
   // the materials the pool takes (30_solver's member `mat`, 60_gen_spec GEN_CRASH keys): 1 steel, 2 alloy tube, 3 wood
   const MAT = { tubeFabric: 1, aluTube: 2, wood: 3 };
   // the modes (texel 1's w): whole (0: bent or straight), torn stubs (1), unparted kink (2), wood: slivers (3),
@@ -70,7 +71,7 @@
   // axes, and the first axis - the section's 'up'), and its paint (the record's R.col, linear RGB)
   function measure(recs, T, rest) {
     const nb = T.nb, beams = T.beams;
-    const n = new Int32Array(nb), sr = new Float64Array(nb), cov = new Float64Array(nb * 6), col = new Float32Array(nb * 3).fill(-1);
+    const n = new Int32Array(nb), sr = new Float64Array(nb), cov = new Float64Array(nb * 6), col = new Float32Array(nb * 3).fill(-1), rd = new Map();
     for (const R of recs) { const M = R.mem; if (!M) continue; const P = R.g.pos, rp = R.rep;
       for (let v = 0; v < R.nv; v++) { const bi = M[v]; if (bi < 0 || (rp && rp[v] !== v)) continue;
         const b = beams[bi], ax = rest[b.a * 3], ay = rest[b.a * 3 + 1], az = rest[b.a * 3 + 2];
@@ -78,7 +79,7 @@
         const ux = ex / L, uy = ey / L, uz = ez / L;
         let dx = P[v * 3] - ax, dy = P[v * 3 + 1] - ay, dz = P[v * 3 + 2] - az; const t = dx * ux + dy * uy + dz * uz;
         dx -= t * ux; dy -= t * uy; dz -= t * uz;
-        n[bi]++; sr[bi] += Math.hypot(dx, dy, dz);
+        n[bi]++; const dd = Math.hypot(dx, dy, dz); sr[bi] += dd; let Ld = rd.get(bi); if (!Ld) rd.set(bi, Ld = []); Ld.push(dd);
         const o = bi * 6; cov[o] += dx * dx; cov[o + 1] += dy * dy; cov[o + 2] += dz * dz; cov[o + 3] += dx * dy; cov[o + 4] += dx * dz; cov[o + 5] += dy * dz;
         if (col[bi * 3] < 0 && R.col) { col[bi * 3] = R.col[0]; col[bi * 3 + 1] = R.col[1]; col[bi * 3 + 2] = R.col[2]; } } }
     const drawn = new Uint8Array(nb), r = new Float32Array(nb), hh = new Float32Array(nb), up = new Float32Array(nb * 3);
@@ -96,11 +97,14 @@
       const c = [u[1] * a[2] - u[2] * a[1], u[2] * a[0] - u[0] * a[2], u[0] * a[1] - u[1] * a[0]];
       const va = a[0] * (C[0] * a[0] + C[1] * a[1] + C[2] * a[2]) + a[1] * (C[3] * a[0] + C[4] * a[1] + C[5] * a[2]) + a[2] * (C[6] * a[0] + C[7] * a[1] + C[8] * a[2]);
       const vc = c[0] * (C[0] * c[0] + C[1] * c[1] + C[2] * c[2]) + c[1] * (C[3] * c[0] + C[4] * c[1] + C[5] * c[2]) + c[2] * (C[6] * c[0] + C[7] * c[1] + C[8] * c[2]);
-      drawn[bi] = 1; r[bi] = sr[bi] * k;
+      // (the radius: the MEDIAN of the places' distances off the line - a joint's knuckle or a fitting bound to the member
+      // pulls a mean up 3-4 x: the first stills, 27 Oct, drew the Cub's cage as bars; capped at R_MAX)
+      const Ld = rd.get(bi).sort((x, y) => x - y), med = Ld[Ld.length >> 1];
+      drawn[bi] = 1; r[bi] = Math.min(med, R_MAX);
       // (a box section's places sit on its faces: the rms off-axis along a face's normal is ~0.8 of the half-depth)
       hh[bi] = Math.sqrt(Math.max(va, 0)) * 1.2; up[bi * 3] = a[0]; up[bi * 3 + 1] = a[1]; up[bi * 3 + 2] = a[2];
-      r[bi] = Math.max(r[bi], 1e-3); if (MAT[b.mat] === 3) r[bi] = Math.sqrt(Math.max(vc, 0)) * 1.2;
-      hh[bi] = Math.max(hh[bi], 1e-3);
+      r[bi] = Math.max(r[bi], 1e-3); if (MAT[b.mat] === 3) r[bi] = Math.min(Math.sqrt(Math.max(vc, 0)) * 1.2, med, H_MAX);
+      hh[bi] = Math.max(Math.min(hh[bi], med * 1.5, H_MAX), 1e-3);
     }
     return { drawn, r, hh, up, col };
   }
