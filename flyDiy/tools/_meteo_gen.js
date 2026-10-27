@@ -1004,11 +1004,12 @@ window.METEO_GEN = { DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, SETS, SET_IDX, GROUND
 window.METEO_GEN.CATALOGUE_V = 1;
 window.METEO_GEN.CATALOGUE_ALIASES = {};
 // G3660 THE PAD'S OUTLINE (27_premises ground need 'ramp'): the convex hull of the drum, the flat disc and the core, each
-// + 1.5 m (the user: "Keep the level pad tight around the building"); the triangulation pillar stands on its own stones
+// + 1.5 m (the user: "Keep the level pad tight around the building"), and the triangulation pillar with its heap of stones
+// (r 1.6 m): off the pad its stones stood on the generator's ground, not the drawn slope - they floated in the Tue 04:05 still
 const outlineOf = p => {
   const m = 1.5, pts = [];
   const circ = (x, z, r) => { for (let i = 0; i < 24; i++) { const a = i * Math.PI / 12; pts.push([x + (r + m) * Math.cos(a), z + (r + m) * Math.sin(a)]); } };
-  circ(0, 0, p.d1R); if (p.d2On) circ(p.d2x, p.d2z, p.d2R); circ(p.tx, p.tz, 4.5);
+  circ(0, 0, p.d1R); if (p.d2On) circ(p.d2x, p.d2z, p.d2R); circ(p.tx, p.tz, 4.5); if (p.obelisk) circ(p.obX, p.obZ, 1.6);
   pts.sort((u, v) => u[0] - v[0] || u[1] - v[1]);
   const cr = (o, u, v) => (u[0] - o[0]) * (v[1] - o[1]) - (u[1] - o[1]) * (v[0] - o[0]), lo = [], hi = [];
   for (const q of pts) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], q) <= 0) lo.pop(); lo.push(q); }
