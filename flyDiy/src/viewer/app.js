@@ -5815,6 +5815,86 @@
                    cullMs: cut ? +cut.ms.toFixed(2) : null, ms: +(performance.now() - t0).toFixed(2) };
     window.FLYDIY_SCAR = SCARS.last;   // the coordinator's read (the box stills)
   }
+  // G3623 (DMG-GLASS): THE IMPACT MARKS ON THE GLAZING (dmg_glass.js; the crack block in aeroskin.js's glass hook). At the
+  // first frame of a flight with nothing damaged, the glazing's points (its meshes' rest places, aRest) and the frame
+  // members near it (their rest midpoints, sim.p) are taken into CRAFT space by the very matrix the glass shader reads
+  // (aeroSharedU uCraftInv, set by poseModel this frame) - so a mark's point is where the shader looks for it; at each
+  // damage event (the broken list or the sets moved) the marks are made again from them and packed into the shared
+  // uniforms; a heal, a new flight or another aeroplane lets them go. Nothing runs while damage is off or nothing broke
+  // but one compare a frame; the capture is once a flight (a few thousand points). window.FLYDIY_GLASS: the page checks'
+  // read; window.FLYDIY_GLASS_TEST(sev, at): a mark placed by hand (at: a pane point index, or the windscreen's middle)
+  const GLM = { model: null, P: null, M: null, marks: [], key: '', test: false };
+  function glassPanes(U) {
+    const inv = U.uCraftInv.value, M4 = new THREE.Matrix4(), N3 = new THREE.Matrix3(), v = new THREE.Vector3(), nv = new THREE.Vector3();
+    const pts = [], nrm = [], pane = [], screen = []; let id = 0;
+    model.grp.updateMatrixWorld(true);
+    model.grp.traverse(o => {
+      if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
+      const mats = Array.isArray(o.material) ? o.material : [o.material], glass = mats.map(m => !!(m && m.userData && m.userData.aeroFinish === 'glass'));
+      if (!glass.some(Boolean)) return;
+      const g = o.geometry, P = g.attributes.position, R = g.attributes.aRest, Nn = g.attributes.normal, ix = g.index;
+      M4.multiplyMatrices(inv, o.matrixWorld); N3.getNormalMatrix(M4);
+      const ranges = Array.isArray(o.material) && g.groups.length ? g.groups.filter(gr => glass[gr.materialIndex]).map(gr => [gr.start, gr.count, gr.materialIndex]) : [[0, ix ? ix.count : P.count, 0]];
+      for (const [st, ct, mi] of ranges) {
+        const scr = !!(mats[mi] && mats[mi].userData.aeroU && mats[mi].userData.aeroU.uGlass && mats[mi].userData.aeroU.uGlass.value.y > 0.5);
+        const step = Math.max(1, Math.floor(ct / 1500));
+        for (let j = st; j < st + ct; j += step) {
+          const k = ix ? ix.getX(j) : j;
+          if (R && R.getW(k) > 1.5) v.set(R.getX(k), R.getY(k), R.getZ(k)); else v.set(P.getX(k), P.getY(k), P.getZ(k));
+          v.applyMatrix4(M4); pts.push(v.x, v.y, v.z);
+          if (Nn) { nv.set(Nn.getX(k), Nn.getY(k), Nn.getZ(k)).applyMatrix3(N3).normalize(); nrm.push(nv.x, nv.y, nv.z); } else nrm.push(0, 0, 1);
+          pane.push(id); screen.push(scr ? 1 : 0);
+        }
+        id++;
+      }
+    });
+    return pts.length ? { pts: Float32Array.from(pts), nrm: Float32Array.from(nrm), pane: Int32Array.from(pane), screen: Uint8Array.from(screen), n: pane.length, panes: id } : null;
+  }
+  function glassMembers(U) {
+    const inv = U.uCraftInv.value, v = new THREE.Vector3(), mids = [];
+    def.beams.forEach((b, bi) => {
+      if (b.cls === 'gear' || b.cls === 'wire') return;
+      v.set((sim.p[b.a * 3] + sim.p[b.b * 3]) / 2, (sim.p[b.a * 3 + 1] + sim.p[b.b * 3 + 1]) / 2, (sim.p[b.a * 3 + 2] + sim.p[b.b * 3 + 2]) / 2).applyMatrix4(inv);
+      mids.push({ bi, mid: [v.x, v.y, v.z] });
+    });
+    return DMG_GLASS.members(GLM.P, mids);
+  }
+  function glassClear(U) { GLM.marks = []; GLM.key = ''; GLM.test = false; if (U) DMG_GLASS.pack(U, []); window.FLYDIY_GLASS = null; }
+  function glassMarks() {
+    if (typeof DMG_GLASS === 'undefined' || !window.AEROSKIN || !AEROSKIN.aeroSharedU || !model || !sim || !def) return;
+    const U = AEROSKIN.aeroSharedU(THREE);
+    if (GLM.model !== model) { glassClear(U); GLM.model = model; GLM.P = GLM.M = null; }
+    const D = !inGarage && world && scarPageOn() ? dmgNow() : null;
+    if (!D) { if (GLM.marks.length && !GLM.test) glassClear(U); return; }
+    const damaged = D.br.length > 0 || D.sS !== '0:0';                  // (sim_host simDmgSigs: sS = yields:dents)
+    if (!damaged) {
+      if (GLM.marks.length && !GLM.test) glassClear(U);                    // healed: the panes whole again
+      if (!GLM.P) { GLM.P = glassPanes(U); GLM.M = GLM.P ? glassMembers(U) : []; }   // the capture, at rest
+      return;
+    }
+    if (!GLM.P || !GLM.M || !GLM.M.length) return;
+    const key = D.vB + '|' + D.sS; if (key === GLM.key) return; GLM.key = key;
+    GLM.marks = DMG_GLASS.impacts(GLM.P, GLM.M, D, GLM.test ? [] : GLM.marks); GLM.test = false;
+    DMG_GLASS.pack(U, GLM.marks);
+    window.FLYDIY_GLASS = { marks: GLM.marks.map(m => ({ p: m.p.map(x => +x.toFixed(3)), sev: +m.sev.toFixed(2), pane: m.pane, member: m.bi })),
+                            panes: GLM.P.panes, points: GLM.P.n, members: GLM.M.length };
+  }
+  window.FLYDIY_GLASS_TEST = (sev, at) => {
+    if (typeof DMG_GLASS === 'undefined' || !model) return null;
+    const U = AEROSKIN.aeroSharedU(THREE);
+    if (sev == null) { glassClear(U); return 0; }
+    if (!GLM.P) GLM.P = glassPanes(U); const P = GLM.P; if (!P) return null;
+    let k = at;
+    if (k == null) {   // the windscreen's middle: its points' mean, then the nearest point
+      let c = [0, 0, 0], m = 0; for (let j = 0; j < P.n; j++) if (P.screen[j]) { c[0] += P.pts[j * 3]; c[1] += P.pts[j * 3 + 1]; c[2] += P.pts[j * 3 + 2]; m++; }
+      if (!m) { for (let j = 0; j < P.n; j++) { c[0] += P.pts[j * 3]; c[1] += P.pts[j * 3 + 1]; c[2] += P.pts[j * 3 + 2]; } m = P.n; }
+      k = DMG_GLASS.nearest(P, c.map(x => x / m)).k;
+    }
+    const nl = Math.hypot(P.nrm[k * 3], P.nrm[k * 3 + 1], P.nrm[k * 3 + 2]) || 1;
+    GLM.marks = [{ p: [P.pts[k * 3], P.pts[k * 3 + 1], P.pts[k * 3 + 2]], n: [P.nrm[k * 3] / nl, P.nrm[k * 3 + 1] / nl, P.nrm[k * 3 + 2] / nl], sev: +sev, seed: 4242 + k, pane: P.pane[k], bi: -1 }];
+    GLM.test = true; DMG_GLASS.pack(U, GLM.marks);
+    return { at: k, p: GLM.marks[0].p, n: GLM.marks[0].n, panes: P.panes, points: P.n };
+  };
   function scarsClear() {
     GROUND_SCAR.clear(scarMesh);
     const ring = window.TREE_FILL && TREE_FILL.cover ? TREE_FILL.cover() : null;
@@ -17270,6 +17350,7 @@
     // frame before's - and on the camera under the free camera / the editor): shadow_near.js aim()
     if (!inGarage && window.SHADOW_NEAR && SHADOW_NEAR.aim) SHADOW_NEAR.aim();
     if (scarMesh) groundScars();                    // G2359 (DMG-SCAR): the crash's scar, once an event (T41b: after the near maps' aim - G1080 holds the aim right after poseModel)
+    if (!inGarage) glassMarks();                    // G3623 (DMG-GLASS): the impact marks on the glazing, once an event (after poseModel: uCraftInv is this frame's)
     // THE FLIGHT CAMERA (the flight rebaseline). It writes the SAME azT/elT/
     // distT the mouse writes, every frame, so a chase eases exactly the way a
     // drag eases and `orbit` is simply the mode that writes nothing. Cockpit
