@@ -99428,3 +99428,31 @@ simple renderer for real quick visualization? I'd like to see what the new one l
      bulge the passenger run has) for the nose - wanted?
   12. **The windows**: seven a side, one per row - re-draw the drawn windows at the new rows' stations (rows, no code), or a
      'window per bay' option on the bays (code)?
+
+### G3579 - DC3-2 ROUND 6 (2026-10-27, cloud): THE DC-3 FITTED TO THE USER'S REFERENCE MODEL - STEP 1 AND THE SURFACES (STAGED, NOT FLOWN)
+The user (27 Oct): "Attached is a reference 3d model, to be scaled first according to official wing span. I also attach a procedure
+for fitting a plane to a given 3d model. You'll first ensure to match the key points and dimensions, and aerodynamic surfaces" -
+then, steering through the round: the wheels retracted in the model ("they go down and back", a drawing), "move the wheels a lot
+fore", the tailwheel "very much fore, ahead of the stabs", "nose rings ... so it can bend nicely", "very round, so use the round
+top + round bottom options", the fin from "the curved, cub-like one, and straighten only the rudder", the stabs from "the chinook
+starting point and round only the elevator's ends", the dorsal fillet option; screenshots regularly (tools/quick_view.js).
+- **The tool on this branch:** tools/ref_match/ and tools/REF_MATCH.md from claude/new-shapes-1 (tools only, no card), the
+  reference refs/dc3.glb + refs/dc3.json (span 28.96 m, length 19.66 m: NASM). Added: refmatch.py `"datum": "nose"` +
+  `"level": "body"` (a twin), `--dump-ref`; fit_tail.js `--hold`. REF_MATCH.md section 11 (the log) and section 7 (the gaps).
+- **The envelope (src/core/60_gen_spec.js, spans past 18 m only):** a big wing's taper to 0.25 and its crank chord to 5 m;
+  the editor's `wgCrankChord` to 5 m and `wgTipX` to 4 m (tools/_cage_wing.js). AND A FIXED POINT (GATE WINGROWS' sweep
+  caught it on the wider crank row: 393/400): clampWing chose the envelope off the ASKED span, so a wing asking past 18 m on a
+  chord that holds it under (19.4 m on 0.89 m) took the big envelope's crank chord once and the small one on the next resolve -
+  now read again off the clamped span and clamped again by it. dc3_identity ALL IDENTICAL; the flown DC-3 fixture
+  byte-identical; gates WINGROWS SPECFIX GEN DESIGN JOIN BUILD SAVE PARTS PANEL PASS.
+- **STAGED, NOT THE FLOWN DC-3:** tools/dc3_build.js `DC3_FIT` (106 rows) over DC3_ROWS, `--fit` ->
+  tools/fixtures/dc3_fit_wip.json (join errors 0, on its wheels, deck 12.3 deg). The flown fixture and the HOME trip are
+  G3578's, unchanged. What holds the fit back from the flown DC-3: the design check (`pitch.sm` -0.017 at the worst loading
+  corner, `yaw.dutch`), the nacelles / props (step 3), then the HOME trip again.
+- **Measured (ours / ref, m aft of the nose, above the body's centre):** tail post 19.203 / 19.195; wing plan 1 - IoU 0.065
+  (0.783 before); body half-width 1.088 / 1.088; tailplane LE 16.096 / 16.092, TE 19.221 / 19.217, span 7.815 / 7.808; fin top
+  3.546 / 3.548; main wheel centre 5.41 aft (the model's station, extended per the drawing); tailwheel 16.96 / 16.96.
+- **Questions:**
+  13. **The fin station:** a row placing the fin's hinge ahead of the tail post (the DC-3's rudder overhangs the cone by 0.5 m)?
+  14. **A concave dorsal fillet** (the DC-3's LE curving into the spine): ours is convex, so it is off - wanted?
+  15. **The tailwheel's height:** the model's sets a 10 deg deck, the drawing ~14 deg, ours 12.3 - which?

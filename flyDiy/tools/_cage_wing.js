@@ -171,7 +171,8 @@ const WING_ITEMS = [
   // two numbers the root and tip carry. On a strutted wing the crank is
   // where the strut lands (the frame's ruling), so this trio IS the
   // C172's wing: constant chord to the strut, taper and offset outboard.
-  ['wgCrankChord', 'crank chord', 0.55, 2.10, 0.05,
+  // G3579 (DC3-2): to the big envelope's 5 m (the DC-3's constant-chord centre section, 4.63 m); a small wing is held at 2.10 as before
+  ['wgCrankChord', 'crank chord', 0.55, 5.00, 0.05,
    { when: P => +P.wingOn && +P.wgCrankAt > 0, dim: 'm' }],
   ['wgCrankX', 'crank aft',      -0.8, 1.5, 0.05,
    { when: P => +P.wingOn && +P.wgCrankAt > 0, dim: 'm', note: heldNote('wgCrankX') }],
@@ -179,7 +180,8 @@ const WING_ITEMS = [
    { when: P => +P.wingOn && +P.wgCrankAt > 0 }],
   // G140: sweep retired — the TIP's fore/aft seat is the honest knob (the
   // old angle was tan(this / exposed semispan))
-  ['wgTipX',   'tip aft',        -1.5, 2.5, 0.05, { ...on, dim: 'm', note: heldNote('wgTipX') }],
+  // G3579 (DC3-2): aft to 4 m (the DC-3's swept LE: the tip 3.2 m behind the root; the flown reach is tan 30 deg of the semispan)
+  ['wgTipX',   'tip aft',        -1.5, 4.0, 0.05, { ...on, dim: 'm', note: heldNote('wgTipX') }],
   ['wgDihedral', 'dihedral',     0, 6, 0.5, on],
   ['wgIncidence', 'incidence',   -1, 4, 0.1, on],
   ['wgWashout', 'washout',       0, 4, 0.1, on],

@@ -9,6 +9,7 @@
 // is what the widened envelope (G3503) and the structure rules (G3501, G3504, G3505) make of the drawing.
 //
 //   node tools/dc3_build.js --build      (re)write tools/fixtures/dc3_2026-10.json through the load chain
+//   node tools/dc3_build.js --fit        the reference fit's staged rows (DC3_FIT) over it: tools/fixtures/dc3_fit_wip.json
 //   node tools/dc3_build.js              the fixture's sheet, design check, cost, and the pilot's flight (take-off,
 //                                        circuit, landing) against the real DC-3 [--no-fly] [--no-cert] [--maxS=600]
 //                                        [--json=<file>]
@@ -75,6 +76,46 @@ const DC3_ROWS = {
   frPaxProfile: 1, frPaxEase: 0, frPaxBias: -0.6,
   aftRoofY: 0.64, aftKeelY: -0.48, frBoomWaistY: 0.12, frBoomWaistW: 0.49, frBoomTopW: 0.42, frBoomBotW: 0.4,
 };
+// G3579 (DC3-2, 27 Oct): THE FIT TO THE USER'S REFERENCE MODEL (tools/ref_match/refs/dc3.json: Sketchfab 'Dc3' by manilov.ap,
+// CC-BY-4.0, scaled to the published 28.96 m span, length anchored at 19.66 m; tools/REF_MATCH.md's procedure), STEP 1 - the
+// side view's proportions and the wing. Staged here, over DC3_ROWS, until step 3 puts the aeroplane back on its wheels (the
+// aft body came down and the wing forward: as drawn it rests on the belly, the gear and the tailwheel are step 3's, from the
+// user's drawing - the model's wheels are retracted). `--fit` builds with them (tools/fixtures/dc3_fit_wip.json).
+const DC3_FIT = {
+  // STEP 1 (the side view's proportions and the wing) - the wing the DC-3's own planform: a constant-chord centre section
+  // (4.63 m, flat) to the crank, the outer panel's LE swept to a straight TE, 1.40 m at the tip, 7.5 deg outboard (plan
+  // 1 - IoU 0.065, LE / TE within 9 cm); the nose's windscreen run shortened and the body lengthened aft by as much (the tail
+  // post 19.20 m aft of the nose, to 1 cm); the aft body lower and the tail ring smaller; THE USER'S STEERING (27 Oct): the
+  // section ROUND top and bottom (topRound / botRound 1, roofY / keelY brought in around it), the width the reference's
+  // (halfW 0.68, the frames' widths with it: 1.088 m, exact), five FRONT RINGS (cowlLoops 5: the nose bends), the main
+  // wheels 1.25 m forward at the model's station (extended down and back as the user's drawing), the tailwheel 2.45 m
+  // forward under the tailplane (16.96 m, the model's)
+  wgChord: 4.63, wgCrankAt: 0.19, wgCrankChord: 4.63, wgCrankX: 0, wgChordTip: 1.4, wgTipX: 2.85, wgDihedral: 0,
+  wgDihedralOut: 7.5, wgDx: -2.95, wgDy: -0.45, boomLen: 2.46, aftRoofY: 0.59, aftKeelY: -0.58, tailRoofY: 0.18,
+  tailKeelY: -0.07, tailHalfW: 0.08, noseW: 0.75, wsRun: 0.45, topRound: 1, botRound: 1, cowlLoops: 5, roofY: 0.79,
+  keelY: -0.72, halfW: 0.68, roofHalfW: 0.59, frPaxTopW: 0.48, frPaxWaistW: 0.55, frPaxBotW: 0.46, frBoomTopW: 0.37,
+  frBoomWaistW: 0.43, frBoomBotW: 0.35, noseDroop: 0.1, s1Z: 1.05, s1Drop: 1.5, s2Z: 2.57, s2Drop: 0.8,
+};
+// the tail (the user: "for the stabs, try the chinook starting point and round only the elevator's ends. For the fin and
+// rudder, start from the curved, cub-like one, and straighten only the rudder, not the fin leading edge"): the fin fitted
+// from the Piper Cub preset with the rudder held straight (its TE rows 0, its corners crisp) and the LE round (fit_tail.js
+// --hold; 1 - IoU 0.22, the top 3.546 m against 3.548), the dorsal on; the tailplane the Chinook's corners and edges with
+// the elevator's two ends round, sized and placed by hand (LE / TE / span within 7 mm)
+const DC3_FIT_TAIL = {
+  finOn: 1, finProject: 1, finCut: 2, finVentralOn: 1, finVentralH: 0.4, finVentralC: 0.6, finCutGap: 0.01,
+  finSolid: 1, finThick: 0.06, finThickTE: 0.015, finFillet: 0.035, finCons: 0, finDorsal: 0, finRootGuard: 1,
+  finKeel: 1, finCrA: 0, finCrB: 0, finTipZ: -0.565, finTipY: -0.79, finAftZ: 0.275, finAftY: -0.9, finBaseZ: 0.24,
+  finBaseY: 0.5, finMidY: -0.565, finUY: -0.015, finRootFwd: 0.25, finLEZ: 0.285, finLEY: -0.055, finShoulderZ: 0.37,
+  finShoulderY: 0, finTopY: 0.085, finTERoot: 0, finTEU: 0, finTEMid: 0, finSharpTip: 1, finSharpAft: 3,
+  finSharpBase: 3, finSharpShoulder: 0, finSharpLE: 0, finHeight: 1.64, finChord: 1.6, finChordTip: 1.5,
+  finSweep: -9, finHinge: 0.085,
+  stZ: 0.39, stY: 0.18, stTipZ: -0.2, stTipY: -0.3, stAftZ: 0, stAftY: -0.3, stBaseZ: 0, stBaseY: 0, stMidY: -0.2,
+  stUY: 0, stRootFwd: 0, stLEZ: -0.1, stLEY: 0, stShoulderZ: 0.305521, stShoulderY: 0, stTopY: 0, stTERoot: 0,
+  stTEU: 0, stTEMid: 0, stSharpAft: 0, stSharpBase: 0, stSharpTip: 3, stSharpShoulder: 3, stSharpLE: 3, stSpan: 1.36,
+  stChord: 1.09,
+};
+Object.assign(DC3_FIT, DC3_FIT_TAIL);
+const FIT_FIX = path.join(T, 'fixtures', 'dc3_fit_wip.json');
 function dc3FullRaw(over) {
   const j = PR.dc3Raw(1.0);
   Object.assign(j.spec.cage, DC3_ROWS, over || {});
@@ -111,6 +152,13 @@ function compare(s, R) {
 
 if (require.main === module) {
   const C = require('./flight_core.js');
+  if (flag('fit')) {
+    const r = buildFixture(DC3_FIT);
+    fs.writeFileSync(FIT_FIX, JSON.stringify(r.env, null, 1) + '\n');
+    console.log('wrote ' + path.relative(ROOT, FIT_FIX) + ' (join errors: ' + r.errors.length + ')');
+    for (const e of r.errors) console.log('  ERRS ' + e);
+    process.exit(r.errors.length ? 1 : 0);
+  }
   if (flag('build') || !fs.existsSync(FIX)) {
     const r = buildFixture();
     fs.writeFileSync(FIX, JSON.stringify(r.env, null, 1) + '\n');
@@ -152,4 +200,4 @@ function printSheetFull(s) {
   if (pr.printSheet) pr.printSheet(s); else console.log(JSON.stringify(s));
 }
 function printFlight(R) { const pr = require('./dc3_probe.js'); if (pr.printFlight) pr.printFlight(R); else console.log(JSON.stringify(R)); }
-module.exports = { DC3_ROWS, dc3FullRaw, buildFixture, FIX };
+module.exports = { DC3_ROWS, DC3_FIT, dc3FullRaw, buildFixture, FIX, FIT_FIX };

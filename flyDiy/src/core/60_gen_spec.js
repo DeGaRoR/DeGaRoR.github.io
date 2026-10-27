@@ -4015,7 +4015,10 @@ const GEN_WING_ENVELOPE = {
   chord: [0.80, 2.10], span: [6.5, 18.0], spanPerChord: [4.0, 20.0],
   taper: [0.45, 1.0], xLE: [-0.20, 3.00],
   placeDx: [-1.2, 1.8], placeDy: [-0.25, 0.60],
-  big: { chord: [0.80, 5.00], span: [6.5, 30.0], xLE: [-0.20, 9.00] },
+  // G3579 (DC3-2, the reference model's fit): a big wing's taper to 0.25 (the DC-3's outer panel, 4.63 -> 1.4 m) and its
+  // crank chord to the big chord (its constant-chord centre section, 4.63 m) - past 18 m only: every validated build's
+  // wing is inside the small box, which is unchanged
+  big: { chord: [0.80, 5.00], span: [6.5, 30.0], xLE: [-0.20, 9.00], taper: [0.25, 1.0], crankChord: [0.55, 5.00] },
 };
 // is a wing of this span a big aeroplane's? / the envelope it is clamped by / is this spec a big aeroplane?
 function genEnvBig(span) { return +span > GEN_WING_ENVELOPE.span[1]; }
@@ -4043,10 +4046,21 @@ function clampWing(w, S, k) {
   // aspect ratio to 20. Every build inside the old 1.15-2.10 / 6.5-14 box is
   // untouched; GATE GEN's wild spec still clamps, and the sail archetype's
   // circuit is the new corner's flight test.
-  const E = genWingEnv(w.span);                          // G3503: the big envelope past 18 m asked
+  let E = genWingEnv(w.span);                            // G3503: the big envelope past 18 m asked
+  const chord0 = w.chord;
   w.chord = genClamp(w.chord, ...E.chord);
   w.span = genClamp(w.span, Math.max(E.span[0], E.spanPerChord[0] * w.chord),
                             Math.min(E.span[1], E.spanPerChord[1] * w.chord));
+  // G3579: THE ENVELOPE OF THE SPAN THAT FLIES. A wing asking past 18 m on a chord whose aspect holds it under (19.4 m on
+  // 0.89: held at 17.9) took the big envelope here and the small one on the next resolve - its crank chord flew 3.74 m,
+  // then 2.10 (GATE WINGROWS' sweep). Read again off the clamped span and, if that is the other envelope, clamped again by
+  // it: a wing that is small or big from the start takes exactly the path it always did
+  if (genEnvBig(w.span) !== (E === GEN_WING_ENVELOPE ? false : true)) {
+    E = genWingEnv(w.span);
+    w.chord = genClamp(chord0, ...E.chord);
+    w.span = genClamp(w.span, Math.max(E.span[0], E.spanPerChord[0] * w.chord),
+                              Math.min(E.span[1], E.spanPerChord[1] * w.chord));
+  }
   w.taper = genClamp(w.taper, ...E.taper);
   w.dihedral = genClamp(w.dihedral, 0, 6);
   // Quarter-chord sweep, degrees, positive aft. At the speeds this game flies
@@ -4079,7 +4093,7 @@ function clampWing(w, S, k) {
     const reach = Math.tan(30 * Math.PI / 180) *
                   Math.max(0.5, 0.5 * w.span - 0.3);
     if (w.crankChord != null)
-      w.crankChord = genClamp(w.crankChord, 0.55, 2.10);
+      w.crankChord = genClamp(w.crankChord, ...(E.crankChord || [0.55, 2.10]));
     if (w.tipX != null) w.tipX = genClamp(w.tipX, -reach, reach);
     if (w.crankX != null) w.crankX = genClamp(w.crankX, -reach, reach);
     // G189: loft cuts are finite stations strictly inside the semispan,
