@@ -99123,4 +99123,5 @@ The user, 27 Oct: "never seen an impact mark on glass". Before this, a pane eith
   - Marks follow members, not contact points. A trunk that strikes the glass between frame members without bending one leaves no mark.
   - Only 4 marks are drawn, one uniform set per page.
   - The look is unseen on a real GPU: there are no in-game stills from this cloud session.
+- **Neighbour gates run on this branch (27 Oct):** BUILD, SKINMAT, PROGRAMS, ATMO, EDBUGS, PARKED, LAZY, REF, LIVERY, FLIGHTREC and SIMWORKER pass. KTX2 fails on row 10 ("the characters' budget": elizabeth / james / martha / leonard / david have no row). The same row fails on a clean origin/master d7e181f4e checkout, so it is not this branch's. The generated files (dev.html, index.html, sw.js, version.json) are not committed: A0 builds the train.
 - **Not touched:** DEFORM's pool code (`dmg_members.js` is not on master; nothing here reads it), skin_break, skin_gpu and wreck_debris.
