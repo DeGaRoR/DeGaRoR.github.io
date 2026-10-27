@@ -10,6 +10,8 @@ is `tools/ref_match/`: one command births a card and prints every number below a
 picture is `tools/quickshot.js` (`tools/QUICKSHOT.md`). The tools measure; the order and the judgement are the
 procedure's: a fitter is only ever run on the rows of the step in hand.
 
+**Handing a model to a new session:** `tools/ref_match/KICKOFF.md` is the message to paste with the GLB.
+
 **The rule above all: every change is a garage row.** A card is a list of the rows a builder could set by hand. If a
 shape needs something no row offers, stop and flag it (section 7): the garage gets the control, then the card uses it.
 

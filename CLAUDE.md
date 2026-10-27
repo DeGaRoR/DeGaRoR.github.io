@@ -17,6 +17,7 @@ fit-to-reference tool, not hand guessing:
   `fit_cowl.py`, `fit_tips.py`, `fit_tail.js`; the readers `refmatch.py`, `cowl_sections.py`, `leg_line.py`,
   `cowl_clip.js`, `rings.js`, `dump_build.js`); each prints its usage at the top of its file;
 - the reference configs and models: `flyDiy/tools/ref_match/refs/`.
+- handing a model to a new session: `flyDiy/tools/ref_match/KICKOFF.md` (the message to paste with the GLB).
 
 Keep it a tool: every fitted value lands on a garage row in the card (`flyDiy/tools/_cage_design.js` ARCHETYPES), a
 missing control is flagged as a garage gap (REF_MATCH.md section 7) and then built as a row, and the how-to is updated
