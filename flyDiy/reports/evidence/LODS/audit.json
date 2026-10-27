@@ -1,0 +1,7392 @@
+{
+ "rule": {
+  "area": 0.08,
+  "keep2": 3,
+  "keepShare": 0.04,
+  "near": 150,
+  "far2": 1200,
+  "swapPx": 48,
+  "detailPx": 9,
+  "shell": "/^(siding|roof|stone|log|floor)/",
+  "box": "/^(siding|roof)/",
+  "LOD_E": [
+   60,
+   600
+  ]
+ },
+ "rows": [
+  {
+   "label": "hangar/club hangar, long",
+   "gen": "HANGAR_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 3382,
+   "R": 21.37654090352319,
+   "nearLeak": 0.0007364127011811673,
+   "nearRoof": 1,
+   "keep": [
+    "wall",
+    "stem",
+    "roof"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (wall+stem+roof)",
+     "dist": 150,
+     "tris": 488,
+     "leak": 0.005649717514124294,
+     "hole": 0.07220720327897445,
+     "leakBy": {
+      "roof": 0.0022,
+      "stem": 0.0035
+     },
+     "worst": [
+      45,
+      12,
+      0.03805865921787709
+     ],
+     "roof": 0.96875,
+     "iou": 0.9878782593529258,
+     "open": 1745.6367923714492,
+     "openPer": {
+      "wall": 1175.6,
+      "stem": 570
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "wall",
+      "stem",
+      "roof"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.05218840537581272,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.96875,
+     "iou": 0.9501930357908872,
+     "open": 115.2,
+     "openPer": {
+      "box": 115.2
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/flying club",
+   "gen": "HOUSE_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 13882,
+   "R": 11.876723198873625,
+   "nearLeak": 0.00008106245862437008,
+   "nearRoof": 1,
+   "keep": [
+    "floor",
+    "siding",
+    "roof"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (floor+siding+roof)",
+     "dist": 150,
+     "tris": 2608,
+     "leak": 0.014637341213025862,
+     "hole": 0.02519793552571135,
+     "leakBy": {
+      "roof": 0.0146
+     },
+     "worst": [
+      45,
+      12,
+      0.0384407146724418
+     ],
+     "roof": 0.9768443726440496,
+     "iou": 0.8870124430873988,
+     "open": 888.7396079823709,
+     "openPer": {
+      "siding": 543.4,
+      "roof": 345.3
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "floor",
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.022995649471721565,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9779213785675821,
+     "iou": 0.8523342088381607,
+     "open": 54.14,
+     "openPer": {
+      "box": 54.1
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "big/fuel shed",
+   "gen": "BIG_GEN",
+   "n": 3,
+   "path": "item",
+   "nearTris": 1202,
+   "R": 6.076127439508807,
+   "nearLeak": 0.009241697989585847,
+   "nearRoof": 1,
+   "keep": [
+    "plinth",
+    "roof",
+    "wall"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (plinth+roof+wall)",
+     "dist": 150,
+     "tris": 210,
+     "leak": 0.011013584616856404,
+     "hole": 0.041099988493844206,
+     "leakBy": {
+      "roof": 0.011
+     },
+     "worst": [
+      0,
+      60,
+      0.024581005586592177
+     ],
+     "roof": 0.9918793503480279,
+     "iou": 0.9612285481108545,
+     "open": 350.61841014785836,
+     "openPer": {
+      "plinth": 115,
+      "wall": 235.6
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "plinth",
+      "roof",
+      "wall"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.044413761362328844,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 1,
+     "iou": 0.7545825211466586,
+     "open": 29.700000000000003,
+     "openPer": {
+      "box": 29.7
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "shed/tool shed",
+   "gen": "SHED_GEN",
+   "n": 5,
+   "path": "item",
+   "nearTris": 5090,
+   "R": 2.3662008676077257,
+   "nearLeak": 0.00047108276561820555,
+   "nearRoof": 1,
+   "keep": [
+    "roof",
+    "siding",
+    "trim"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (roof+siding+trim)",
+     "dist": 150,
+     "tris": 4920,
+     "leak": 0,
+     "hole": 0.0012507704020592394,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 1,
+     "iou": 0.9497843890418901,
+     "open": 0,
+     "openPer": {},
+     "hasRoofBag": true,
+     "bags": [
+      "roof",
+      "siding",
+      "trim"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.001558931225754994,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 1,
+     "iou": 0.8829525070828653,
+     "open": 10.394448206599353,
+     "openPer": {
+      "box": 10.4
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "hangar/field shed",
+   "gen": "HANGAR_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 1494,
+   "R": 12.730573474906777,
+   "nearLeak": 0.0010637354844428685,
+   "nearRoof": 1,
+   "keep": [
+    "stem",
+    "wall",
+    "roof"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (stem+wall+roof)",
+     "dist": 150,
+     "tris": 306,
+     "leak": 0.0035139559956874175,
+     "hole": 0.026121644915045556,
+     "leakBy": {
+      "roof": 0.0035
+     },
+     "worst": [
+      45,
+      12,
+      0.008389261744966443
+     ],
+     "roof": 0.96875,
+     "iou": 0.986634360626028,
+     "open": 818.1323348916012,
+     "openPer": {
+      "stem": 330,
+      "wall": 488.1
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "stem",
+      "wall",
+      "roof"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.03837478453582861,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.96875,
+     "iou": 0.9133996009366145,
+     "open": 67.2,
+     "openPer": {
+      "box": 67.2
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/pilot hut",
+   "gen": "HOUSE_GEN",
+   "n": 2,
+   "path": "item",
+   "nearTris": 9134,
+   "R": 5.925761234431225,
+   "nearLeak": 0.00006970260223048327,
+   "nearRoof": 1,
+   "keep": [
+    "floor",
+    "roof",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (floor+roof+siding)",
+     "dist": 150,
+     "tris": 1488,
+     "leak": 0.022609082566256013,
+     "hole": 0.021689630335277307,
+     "leakBy": {
+      "roof": 0.0226
+     },
+     "worst": [
+      315,
+      12,
+      0.04112718964204113
+     ],
+     "roof": 0.9727157360406091,
+     "iou": 0.835478624535316,
+     "open": 349.655202483405,
+     "openPer": {
+      "roof": 130.1,
+      "siding": 219.6
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "floor",
+      "roof",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.017170473291665697,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9771573604060914,
+     "iou": 0.8208022008941133,
+     "open": 25.84,
+     "openPer": {
+      "box": 25.8
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "shed/wood shed",
+   "gen": "SHED_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 4860,
+   "R": 2.9934876132554336,
+   "nearLeak": 0,
+   "nearRoof": 1,
+   "keep": [
+    "trim",
+    "siding",
+    "deck"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (trim+siding+deck)",
+     "dist": 150,
+     "tris": 4776,
+     "leak": 0,
+     "hole": 0.09330234448872825,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.3779380341880342,
+     "iou": 0.9161975627214803,
+     "open": 0,
+     "openPer": {},
+     "hasRoofBag": false,
+     "bags": [
+      "trim",
+      "siding",
+      "deck"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.005859012539877517,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 1,
+     "iou": 0.8457578141429561,
+     "open": 13.962948107206792,
+     "openPer": {
+      "box": 14
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "hangar/field shed, small",
+   "gen": "HANGAR_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 1010,
+   "R": 10.120804118250684,
+   "nearLeak": 0.0026517768772526098,
+   "nearRoof": 0.9696969696969697,
+   "keep": [
+    "stem",
+    "wall",
+    "roof"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (stem+wall+roof)",
+     "dist": 150,
+     "tris": 250,
+     "leak": 0.0055690256099409,
+     "hole": 0.022971332524045197,
+     "leakBy": {
+      "roof": 0.0056
+     },
+     "worst": [
+      90,
+      12,
+      0.025049439683586024
+     ],
+     "roof": 0.9696969696969697,
+     "iou": 0.9858634148163364,
+     "open": 610.4640773498882,
+     "openPer": {
+      "stem": 260,
+      "wall": 350.5
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "stem",
+      "wall",
+      "roof"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.03253338313568027,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9696969696969697,
+     "iou": 0.8998910934894326,
+     "open": 53.2,
+     "openPer": {
+      "box": 53.2
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/town hall",
+   "gen": "HOUSE_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 17384,
+   "R": 13.498187812984972,
+   "nearLeak": 0.00022752481442507322,
+   "nearRoof": 1,
+   "keep": [
+    "roof",
+    "floor",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (roof+floor+siding)",
+     "dist": 150,
+     "tris": 5102,
+     "leak": 0.014607016257181273,
+     "hole": 0.06782047270969026,
+     "leakBy": {
+      "siding": 0.0039,
+      "roof": 0.0107
+     },
+     "worst": [
+      90,
+      12,
+      0.030796048808832074
+     ],
+     "roof": 0.9397260273972603,
+     "iou": 0.9306902534057621,
+     "open": 1773.546229477775,
+     "openPer": {
+      "roof": 294.6,
+      "siding": 1479
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "roof",
+      "floor",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.012642566625899486,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9506849315068493,
+     "iou": 0.706499682292414,
+     "open": 56.06,
+     "openPer": {
+      "box": 56.1
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/church",
+   "gen": "HOUSE_GEN",
+   "n": 2,
+   "path": "item",
+   "nearTris": 7500,
+   "R": 11.780287928740517,
+   "nearLeak": 0.0003373762250974174,
+   "nearRoof": 1,
+   "keep": [
+    "floor",
+    "roof",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (floor+roof+siding)",
+     "dist": 150,
+     "tris": 2624,
+     "leak": 0.014534407800192823,
+     "hole": 0.02682457738637514,
+     "leakBy": {
+      "roof": 0.0132,
+      "siding": 0.0014
+     },
+     "worst": [
+      0,
+      12,
+      0.027953110910730387
+     ],
+     "roof": 0.9942093541202672,
+     "iou": 0.9273291611140163,
+     "open": 824.1949146282925,
+     "openPer": {
+      "roof": 202.9,
+      "siding": 621.3
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "floor",
+      "roof",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.004302054863852617,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9942093541202672,
+     "iou": 0.6854135156391796,
+     "open": 43.04,
+     "openPer": {
+      "box": 43
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/village church",
+   "gen": "HOUSE_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 8774,
+   "R": 8.227734893138509,
+   "nearLeak": 0.0001280482599664229,
+   "nearRoof": 1,
+   "keep": [
+    "floor",
+    "roof",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (floor+roof+siding)",
+     "dist": 150,
+     "tris": 1792,
+     "leak": 0.018107851833725874,
+     "hole": 0.028927148548662494,
+     "leakBy": {
+      "siding": 0.0016,
+      "roof": 0.0165
+     },
+     "worst": [
+      45,
+      12,
+      0.02851782363977486
+     ],
+     "roof": 0.9612403100775194,
+     "iou": 0.9302848362405031,
+     "open": 608.5037974971123,
+     "openPer": {
+      "roof": 144.1,
+      "siding": 464.4
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "floor",
+      "roof",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.0027888446215139444,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9612403100775194,
+     "iou": 0.730442139974834,
+     "open": 31.6,
+     "openPer": {
+      "box": 31.6
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/chapel",
+   "gen": "HOUSE_GEN",
+   "n": 2,
+   "path": "item",
+   "nearTris": 7940,
+   "R": 7.986546122520797,
+   "nearLeak": 0.0001747612919625693,
+   "nearRoof": 1,
+   "keep": [
+    "stone",
+    "roof",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (stone+roof+siding)",
+     "dist": 150,
+     "tris": 1520,
+     "leak": 0.0164669656603521,
+     "hole": 0.03227139111781997,
+     "leakBy": {
+      "siding": 0.0012,
+      "roof": 0.0152
+     },
+     "worst": [
+      0,
+      12,
+      0.025477707006369428
+     ],
+     "roof": 0.9850448654037887,
+     "iou": 0.9493668875013902,
+     "open": 544.9397117821862,
+     "openPer": {
+      "roof": 132.1,
+      "siding": 412.9
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "stone",
+      "roof",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.004131246524191627,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9850448654037887,
+     "iou": 0.7062899109689489,
+     "open": 26.64,
+     "openPer": {
+      "box": 26.6
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/school",
+   "gen": "HOUSE_GEN",
+   "n": 4,
+   "path": "item",
+   "nearTris": 20664,
+   "R": 24.33968038770842,
+   "nearLeak": 0,
+   "nearRoof": 1,
+   "keep": [
+    "siding2",
+    "floor",
+    "stone"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (siding2+floor+stone)",
+     "dist": 150,
+     "tris": 4588,
+     "leak": 0,
+     "hole": 0.5369002737179156,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.02404671934043284,
+     "iou": 0.8281774518411403,
+     "open": 525.1192892414026,
+     "openPer": {
+      "siding2": 525.1
+     },
+     "hasRoofBag": false,
+     "bags": [
+      "siding2",
+      "floor",
+      "stone"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.03041884005577648,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9446925455170044,
+     "iou": 0.7412297546052893,
+     "open": 115.88,
+     "openPer": {
+      "box": 115.9
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/general store",
+   "gen": "HOUSE_GEN",
+   "n": 4,
+   "path": "item",
+   "nearTris": 6684,
+   "R": 10.257578466617744,
+   "nearLeak": 0.00001186690084017658,
+   "nearRoof": 1,
+   "keep": [
+    "floor",
+    "roof",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (floor+roof+siding)",
+     "dist": 150,
+     "tris": 2740,
+     "leak": 0.011930856524513749,
+     "hole": 0.03280011392224807,
+     "leakBy": {
+      "roof": 0.0119
+     },
+     "worst": [
+      180,
+      12,
+      0.02830188679245283
+     ],
+     "roof": 0.9363115001509206,
+     "iou": 0.8553899463616083,
+     "open": 742.9749784338812,
+     "openPer": {
+      "roof": 175.7,
+      "siding": 567.3
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "floor",
+      "roof",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.018963307542602174,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9363115001509206,
+     "iou": 0.8149890967519798,
+     "open": 43.72,
+     "openPer": {
+      "box": 43.7
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/cafe",
+   "gen": "HOUSE_GEN",
+   "n": 4,
+   "path": "item",
+   "nearTris": 9528,
+   "R": 8.72030841386678,
+   "nearLeak": 0.00009887040561583903,
+   "nearRoof": 1,
+   "keep": [
+    "floor",
+    "roof",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (floor+roof+siding)",
+     "dist": 150,
+     "tris": 1772,
+     "leak": 0.01555333411737034,
+     "hole": 0.03878383388950686,
+     "leakBy": {
+      "roof": 0.0156
+     },
+     "worst": [
+      180,
+      12,
+      0.030659172202350538
+     ],
+     "roof": 0.935251798561151,
+     "iou": 0.8406950589514793,
+     "open": 557.2864666248907,
+     "openPer": {
+      "roof": 152.8,
+      "siding": 404.5
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "floor",
+      "roof",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.023668273390186626,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.935251798561151,
+     "iou": 0.8157116046653541,
+     "open": 36.6,
+     "openPer": {
+      "box": 36.6
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/motel",
+   "gen": "HOUSE_GEN",
+   "n": 2,
+   "path": "item",
+   "nearTris": 13636,
+   "R": 14.474545941089579,
+   "nearLeak": 0.00005808634535236629,
+   "nearRoof": 1,
+   "keep": [
+    "siding",
+    "floor",
+    "roof"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (siding+floor+roof)",
+     "dist": 150,
+     "tris": 3804,
+     "leak": 0.015856404401737863,
+     "hole": 0.018588710263001205,
+     "leakBy": {
+      "roof": 0.0159
+     },
+     "worst": [
+      180,
+      12,
+      0.054567022538552785
+     ],
+     "roof": 0.9747407604360543,
+     "iou": 0.9158183639980831,
+     "open": 1185.7970194573338,
+     "openPer": {
+      "siding": 695.4,
+      "roof": 490.4
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "siding",
+      "floor",
+      "roof"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.020069998112084115,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9752725339005583,
+     "iou": 0.8977625106928999,
+     "open": 71.34,
+     "openPer": {
+      "box": 71.3
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/saltbox cottage",
+   "gen": "HOUSE_GEN",
+   "n": 2,
+   "path": "item",
+   "nearTris": 10664,
+   "R": 8.032473495472352,
+   "nearLeak": 0.0005855598224255794,
+   "nearRoof": 0.9996780424983902,
+   "keep": [
+    "floor",
+    "roof",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (floor+roof+siding)",
+     "dist": 150,
+     "tris": 1502,
+     "leak": 0.01573636076947335,
+     "hole": 0.02270374809326651,
+     "leakBy": {
+      "roof": 0.015,
+      "siding": 0.0007
+     },
+     "worst": [
+      180,
+      12,
+      0.026851851851851852
+     ],
+     "roof": 0.95460399227302,
+     "iou": 0.8636326497262848,
+     "open": 599.5291507555827,
+     "openPer": {
+      "roof": 232.2,
+      "siding": 367.4
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "floor",
+      "roof",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.021913815646110262,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9716677398583387,
+     "iou": 0.7968592523145436,
+     "open": 33.86,
+     "openPer": {
+      "box": 33.9
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/post office",
+   "gen": "HOUSE_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 9382,
+   "R": 9.559756701117943,
+   "nearLeak": 0.00009481069464635611,
+   "nearRoof": 1,
+   "keep": [
+    "floor",
+    "roof",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (floor+roof+siding)",
+     "dist": 150,
+     "tris": 1768,
+     "leak": 0.01898916967509025,
+     "hole": 0.03580797067096489,
+     "leakBy": {
+      "roof": 0.019
+     },
+     "worst": [
+      0,
+      12,
+      0.050314465408805034
+     ],
+     "roof": 0.9330529267437785,
+     "iou": 0.875418747234688,
+     "open": 625.8454139217083,
+     "openPer": {
+      "roof": 207,
+      "siding": 418.8
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "floor",
+      "roof",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.023245156600613128,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9498773221170698,
+     "iou": 0.7961647822981659,
+     "open": 39.24,
+     "openPer": {
+      "box": 39.2
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/police",
+   "gen": "HOUSE_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 10766,
+   "R": 12.194387125038904,
+   "nearLeak": 0.0018144116122343183,
+   "nearRoof": 1,
+   "keep": [
+    "stone",
+    "roof",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (stone+roof+siding)",
+     "dist": 150,
+     "tris": 4200,
+     "leak": 0.01647837314396385,
+     "hole": 0.038500893416209776,
+     "leakBy": {
+      "roof": 0.0145,
+      "stone": 0.002
+     },
+     "worst": [
+      0,
+      12,
+      0.04124236252545825
+     ],
+     "roof": 0.9679550710274198,
+     "iou": 0.944713810874272,
+     "open": 901.8542941783026,
+     "openPer": {
+      "roof": 312.8,
+      "siding": 589.1
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "stone",
+      "roof",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.011499870187388322,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9838123554674595,
+     "iou": 0.774375464951645,
+     "open": 56.280007812500585,
+     "openPer": {
+      "box": 56.3
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/clinic",
+   "gen": "HOUSE_GEN",
+   "n": 5,
+   "path": "item",
+   "nearTris": 13176,
+   "R": 14.64105706725223,
+   "nearLeak": 0.0010262933464390512,
+   "nearRoof": 1,
+   "keep": [
+    "stone",
+    "siding",
+    "roof"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (stone+siding+roof)",
+     "dist": 150,
+     "tris": 5590,
+     "leak": 0.01541943912739647,
+     "hole": 0.040495963424867616,
+     "leakBy": {
+      "roof": 0.0144,
+      "stone": 0.0011
+     },
+     "worst": [
+      180,
+      12,
+      0.04701718907987867
+     ],
+     "roof": 0.9483436271757439,
+     "iou": 0.9515040256717885,
+     "open": 1221.5186526260475,
+     "openPer": {
+      "siding": 826.4,
+      "roof": 395.2
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "stone",
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.013411846407592812,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9823133071308254,
+     "iou": 0.7689720670391061,
+     "open": 75.25999999999999,
+     "openPer": {
+      "box": 75.3
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "big/fire hall",
+   "gen": "BIG_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 2048,
+   "R": 11.323106498923554,
+   "nearLeak": 0.004020119294702792,
+   "nearRoof": 1,
+   "keep": [
+    "plinth",
+    "roof",
+    "wall"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (plinth+roof+wall)",
+     "dist": 150,
+     "tris": 376,
+     "leak": 0.004074361841232542,
+     "hole": 0.06009835636418033,
+     "leakBy": {
+      "roof": 0.0041
+     },
+     "worst": [
+      0,
+      12,
+      0.025170068027210883
+     ],
+     "roof": 1,
+     "iou": 0.9866868607542866,
+     "open": 1033.0652479759842,
+     "openPer": {
+      "plinth": 280,
+      "wall": 753.1
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "plinth",
+      "roof",
+      "wall"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.06843807849810206,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 1,
+     "iou": 0.9428157086716379,
+     "open": 57.22,
+     "openPer": {
+      "box": 57.2
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "big/technical services",
+   "gen": "BIG_GEN",
+   "n": 2,
+   "path": "item",
+   "nearTris": 2334,
+   "R": 11.007596575777931,
+   "nearLeak": 0.004198510206055915,
+   "nearRoof": 1,
+   "keep": [
+    "plinth",
+    "roof",
+    "wall"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (plinth+roof+wall)",
+     "dist": 150,
+     "tris": 366,
+     "leak": 0.004241156893352575,
+     "hole": 0.07076521234400697,
+     "leakBy": {
+      "roof": 0.0042
+     },
+     "worst": [
+      180,
+      12,
+      0.023894862604540025
+     ],
+     "roof": 1,
+     "iou": 0.9853826061720035,
+     "open": 1064.3098070937729,
+     "openPer": {
+      "plinth": 270,
+      "wall": 794.3
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "plinth",
+      "roof",
+      "wall"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.05177517655025636,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 1,
+     "iou": 0.9354603838398925,
+     "open": 55.12,
+     "openPer": {
+      "box": 55.1
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "big/terminal",
+   "gen": "BIG_GEN",
+   "n": 2,
+   "path": "item",
+   "nearTris": 3072,
+   "R": 17.219046096166473,
+   "nearLeak": 0.00012752120039956642,
+   "nearRoof": 1,
+   "keep": [
+    "plinth",
+    "wall",
+    "roof"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (plinth+wall+roof)",
+     "dist": 150,
+     "tris": 540,
+     "leak": 0.0007807671036793649,
+     "hole": 0.07267800212539852,
+     "leakBy": {
+      "roof": 0.0008
+     },
+     "worst": [
+      45,
+      12,
+      0.0038732394366197184
+     ],
+     "roof": 1,
+     "iou": 0.9799685447705682,
+     "open": 1562.8533333333316,
+     "openPer": {
+      "plinth": 430,
+      "wall": 1132.9
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "plinth",
+      "wall",
+      "roof"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.03689691817215728,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 1,
+     "iou": 0.893207244814181,
+     "open": 91.1,
+     "openPer": {
+      "box": 91.1
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/log cabin",
+   "gen": "HOUSE_GEN",
+   "n": 7,
+   "path": "item",
+   "nearTris": 9580,
+   "R": 6.836091493465384,
+   "nearLeak": 0.0004665920119447555,
+   "nearRoof": 1,
+   "keep": [
+    "post",
+    "siding",
+    "roof"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (post+siding+roof)",
+     "dist": 150,
+     "tris": 3068,
+     "leak": 0.019216886963881213,
+     "hole": 0.027545091816972723,
+     "leakBy": {
+      "roof": 0.0192
+     },
+     "worst": [
+      135,
+      12,
+      0.03552123552123552
+     ],
+     "roof": 0.9771712158808933,
+     "iou": 0.9372200447928332,
+     "open": 445.6153466205287,
+     "openPer": {
+      "siding": 240.4,
+      "roof": 205.2
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "post",
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.028396761322537743,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9836228287841191,
+     "iou": 0.7073774950830648,
+     "open": 34.9623619045259,
+     "openPer": {
+      "box": 35
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/air taxi office",
+   "gen": "HOUSE_GEN",
+   "n": 2,
+   "path": "item",
+   "nearTris": 5118,
+   "R": 8.143164589748036,
+   "nearLeak": 0.00007025234642837071,
+   "nearRoof": 1,
+   "keep": [
+    "stone",
+    "roof",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (stone+roof+siding)",
+     "dist": 150,
+     "tris": 1900,
+     "leak": 0.01903448275862069,
+     "hole": 0.03876796829991429,
+     "leakBy": {
+      "roof": 0.019
+     },
+     "worst": [
+      0,
+      12,
+      0.03610832497492478
+     ],
+     "roof": 0.9001218026796589,
+     "iou": 0.9167931208902378,
+     "open": 479.2650806087179,
+     "openPer": {
+      "roof": 160.4,
+      "siding": 318.9
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "stone",
+      "roof",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.015189624404569533,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9141291108404385,
+     "iou": 0.7560820305638504,
+     "open": 36.26,
+     "openPer": {
+      "box": 36.3
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "big/workshop",
+   "gen": "BIG_GEN",
+   "n": 3,
+   "path": "item",
+   "nearTris": 1954,
+   "R": 9.141524195291012,
+   "nearLeak": 0.005859375,
+   "nearRoof": 1,
+   "keep": [
+    "plinth",
+    "roof",
+    "wall"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (plinth+roof+wall)",
+     "dist": 150,
+     "tris": 326,
+     "leak": 0.005930232558139535,
+     "hole": 0.054798027688223026,
+     "leakBy": {
+      "roof": 0.0059
+     },
+     "worst": [
+      0,
+      12,
+      0.0285935085007728
+     ],
+     "roof": 0.9981033665244191,
+     "iou": 0.9784587378640777,
+     "open": 839.1073662401584,
+     "openPer": {
+      "plinth": 220,
+      "wall": 619.1
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "plinth",
+      "roof",
+      "wall"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.037919590366015554,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 1,
+     "iou": 0.9198510538303026,
+     "open": 45.12,
+     "openPer": {
+      "box": 45.1
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/marine supply",
+   "gen": "HOUSE_GEN",
+   "n": 2,
+   "path": "item",
+   "nearTris": 7634,
+   "R": 10.294867152964484,
+   "nearLeak": 0.00016697492807233867,
+   "nearRoof": 1,
+   "keep": [
+    "floor",
+    "roof",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (floor+roof+siding)",
+     "dist": 150,
+     "tris": 2410,
+     "leak": 0.012897069687269145,
+     "hole": 0.03182962544314854,
+     "leakBy": {
+      "roof": 0.0129
+     },
+     "worst": [
+      180,
+      12,
+      0.031055900621118012
+     ],
+     "roof": 0.8239910313901345,
+     "iou": 0.8345663789560214,
+     "open": 687.0798797434963,
+     "openPer": {
+      "roof": 171.8,
+      "siding": 515.3
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "floor",
+      "roof",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.026165031084622103,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.8239910313901345,
+     "iou": 0.8275656176141312,
+     "open": 42,
+     "openPer": {
+      "box": 42
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/fuel and bait",
+   "gen": "HOUSE_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 4750,
+   "R": 7.059929635669765,
+   "nearLeak": 0.00024173079247411466,
+   "nearRoof": 1,
+   "keep": [
+    "post",
+    "roof",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (post+roof+siding)",
+     "dist": 150,
+     "tris": 2430,
+     "leak": 0.019331083154341823,
+     "hole": 0.031203825591704055,
+     "leakBy": {
+      "roof": 0.0193
+     },
+     "worst": [
+      225,
+      12,
+      0.030328559393428812
+     ],
+     "roof": 0.8462562396006655,
+     "iou": 0.8753340585257108,
+     "open": 351.0982557307487,
+     "openPer": {
+      "roof": 110.1,
+      "siding": 241
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "post",
+      "roof",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.02913521210004567,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 1,
+     "iou": 0.6255502457907267,
+     "open": 34.519999999999996,
+     "openPer": {
+      "box": 34.5
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "big/boat shed",
+   "gen": "BIG_GEN",
+   "n": 3,
+   "path": "item",
+   "nearTris": 1752,
+   "R": 10.947306699055112,
+   "nearLeak": 0.003727286845783507,
+   "nearRoof": 1,
+   "keep": [
+    "plinth",
+    "roof",
+    "wall"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (plinth+roof+wall)",
+     "dist": 150,
+     "tris": 360,
+     "leak": 0.003769340069466372,
+     "hole": 0.033154696025319896,
+     "leakBy": {
+      "roof": 0.0038
+     },
+     "worst": [
+      225,
+      12,
+      0.008625817965496729
+     ],
+     "roof": 0.9985597695631301,
+     "iou": 0.9836931200496971,
+     "open": 932.9721413919956,
+     "openPer": {
+      "plinth": 270,
+      "wall": 663
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "plinth",
+      "roof",
+      "wall"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.060328925651929086,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9985597695631301,
+     "iou": 0.936880388428379,
+     "open": 55.12,
+     "openPer": {
+      "box": 55.1
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "big/store",
+   "gen": "BIG_GEN",
+   "n": 2,
+   "path": "item",
+   "nearTris": 1732,
+   "R": 8.670344845355821,
+   "nearLeak": 0.00013063357282821686,
+   "nearRoof": 1,
+   "keep": [
+    "plinth",
+    "roof",
+    "wall"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (plinth+roof+wall)",
+     "dist": 150,
+     "tris": 276,
+     "leak": 0,
+     "hole": 0.08915473768686662,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9018567639257294,
+     "iou": 0.9365214145749743,
+     "open": 679.8000000000001,
+     "openPer": {
+      "plinth": 200,
+      "wall": 479.8
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "plinth",
+      "roof",
+      "wall"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.057147123047348876,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.96684350132626,
+     "iou": 0.8790727330691807,
+     "open": 40.72,
+     "openPer": {
+      "box": 40.7
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "shed/net store",
+   "gen": "SHED_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 2054,
+   "R": 4.087041904440789,
+   "nearLeak": 0.00009021380672193098,
+   "nearRoof": 1,
+   "keep": [
+    "deck",
+    "trim",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (deck+trim+siding)",
+     "dist": 150,
+     "tris": 1776,
+     "leak": 0,
+     "hole": 0.19237323816588808,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.25469246318221195,
+     "iou": 0.9550133817146638,
+     "open": 0,
+     "openPer": {},
+     "hasRoofBag": false,
+     "bags": [
+      "deck",
+      "trim",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.006305511558433747,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 1,
+     "iou": 0.8883454128957152,
+     "open": 19.144706215574573,
+     "openPer": {
+      "box": 19.1
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "big/cannery",
+   "gen": "BIG_GEN",
+   "n": 3,
+   "path": "item",
+   "nearTris": 2796,
+   "R": 18.86189373383576,
+   "nearLeak": 0.004299542455107719,
+   "nearRoof": 1,
+   "keep": [
+    "plinth",
+    "wall",
+    "roof"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (plinth+wall+roof)",
+     "dist": 150,
+     "tris": 524,
+     "leak": 0.005199809649825319,
+     "hole": 0.04232962383886692,
+     "leakBy": {
+      "roof": 0.0052
+     },
+     "worst": [
+      180,
+      12,
+      0.03925148334094021
+     ],
+     "roof": 1,
+     "iou": 0.990469730761272,
+     "open": 1155.8327628929603,
+     "openPer": {
+      "plinth": 145.3,
+      "wall": 1010.5
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "plinth",
+      "wall",
+      "roof"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.08432585303044238,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 1,
+     "iou": 0.8666626310320127,
+     "open": 97.01999999999998,
+     "openPer": {
+      "box": 97
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "big/warehouse",
+   "gen": "BIG_GEN",
+   "n": 3,
+   "path": "item",
+   "nearTris": 2200,
+   "R": 13.363394110059783,
+   "nearLeak": 0.005125231910946197,
+   "nearRoof": 1,
+   "keep": [
+    "plinth",
+    "roof",
+    "wall"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (plinth+roof+wall)",
+     "dist": 150,
+     "tris": 348,
+     "leak": 0.0057162428694594375,
+     "hole": 0.04607872700702837,
+     "leakBy": {
+      "roof": 0.0057
+     },
+     "worst": [
+      180,
+      12,
+      0.03713768115942029
+     ],
+     "roof": 1,
+     "iou": 0.981806586270872,
+     "open": 849.8987032066997,
+     "openPer": {
+      "plinth": 62,
+      "wall": 787.9
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "plinth",
+      "roof",
+      "wall"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.08591774721068869,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 1,
+     "iou": 0.8285769942534333,
+     "open": 68.30000000000001,
+     "openPer": {
+      "box": 68.3
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/kennecott mill",
+   "gen": "HOUSE_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 113532,
+   "R": 80.79356689605396,
+   "nearLeak": 0.0016512751513668889,
+   "nearRoof": 1,
+   "keep": [
+    "roof",
+    "floor",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (roof+floor+siding)",
+     "dist": 150,
+     "tris": 43040,
+     "leak": 0.012826768909027536,
+     "hole": 0.017495564935462164,
+     "leakBy": {
+      "roof": 0.0128,
+      "siding": 0.0001
+     },
+     "worst": [
+      45,
+      12,
+      0.026915113871635612
+     ],
+     "roof": 0.9473684210526315,
+     "iou": 0.8773163720873342,
+     "open": 13371.343992743181,
+     "openPer": {
+      "roof": 2378.3,
+      "floor": 91.6,
+      "siding": 10901.4
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "roof",
+      "floor",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.02092126995779042,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9958448753462604,
+     "iou": 0.1797475148438461,
+     "open": 362.6,
+     "openPer": {
+      "box": 362.6
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "big/mine shop",
+   "gen": "BIG_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 2212,
+   "R": 10.18426125890308,
+   "nearLeak": 0.004131591179052833,
+   "nearRoof": 1,
+   "keep": [
+    "plinth",
+    "roof",
+    "wall"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (plinth+roof+wall)",
+     "dist": 150,
+     "tris": 380,
+     "leak": 0.004203358483428259,
+     "hole": 0.06576024630389189,
+     "leakBy": {
+      "roof": 0.0042
+     },
+     "worst": [
+      225,
+      12,
+      0.00898110870238464
+     ],
+     "roof": 0.9976780185758514,
+     "iou": 0.9829261994525642,
+     "open": 922.7222314855464,
+     "openPer": {
+      "plinth": 240,
+      "wall": 682.7
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "plinth",
+      "roof",
+      "wall"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.056492855740719695,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9961300309597523,
+     "iou": 0.9208573225603561,
+     "open": 49.12,
+     "openPer": {
+      "box": 49.1
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/mine cottage",
+   "gen": "HOUSE_GEN",
+   "n": 7,
+   "path": "item",
+   "nearTris": 9816,
+   "R": 7.532038990539789,
+   "nearLeak": 0.00034235659390605263,
+   "nearRoof": 1,
+   "keep": [
+    "floor",
+    "roof",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (floor+roof+siding)",
+     "dist": 150,
+     "tris": 1696,
+     "leak": 0.014215603316974107,
+     "hole": 0.02659882176546285,
+     "leakBy": {
+      "roof": 0.0137,
+      "siding": 0.0005
+     },
+     "worst": [
+      90,
+      12,
+      0.02889001520527116
+     ],
+     "roof": 0.9764177428411005,
+     "iou": 0.9068553956579739,
+     "open": 717.9036970549362,
+     "openPer": {
+      "roof": 289.5,
+      "siding": 428.4
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "floor",
+      "roof",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.01807492060493725,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9764177428411005,
+     "iou": 0.8084823392935717,
+     "open": 34.74,
+     "openPer": {
+      "box": 34.7
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/storage shed",
+   "gen": "HOUSE_GEN",
+   "n": 2,
+   "path": "item",
+   "nearTris": 4830,
+   "R": 3.7778326779031004,
+   "nearLeak": 0.00011946479770627588,
+   "nearRoof": 0.9991208791208791,
+   "keep": [
+    "post",
+    "roof",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (post+roof+siding)",
+     "dist": 150,
+     "tris": 1018,
+     "leak": 0.03009309063786451,
+     "hole": 0.017881322182397453,
+     "leakBy": {
+      "roof": 0.0301
+     },
+     "worst": [
+      225,
+      12,
+      0.044928044928044926
+     ],
+     "roof": 0.9393406593406594,
+     "iou": 0.9254141446320484,
+     "open": 146.85515214589617,
+     "openPer": {
+      "roof": 56.7,
+      "siding": 90.2
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "post",
+      "roof",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.014204168326032125,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 1,
+     "iou": 0.6482827820515077,
+     "open": 17.061758445103358,
+     "openPer": {
+      "box": 17.1
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/mine office",
+   "gen": "HOUSE_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 12992,
+   "R": 10.187492073872567,
+   "nearLeak": 0.00010826286222949321,
+   "nearRoof": 1,
+   "keep": [
+    "roof",
+    "floor",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (roof+floor+siding)",
+     "dist": 150,
+     "tris": 3936,
+     "leak": 0.017640136106633918,
+     "hole": 0.053854759355715674,
+     "leakBy": {
+      "roof": 0.0148,
+      "siding": 0.0028
+     },
+     "worst": [
+      0,
+      12,
+      0.03563129357087529
+     ],
+     "roof": 0.9415105053946621,
+     "iou": 0.940371221325378,
+     "open": 1311.3650332882148,
+     "openPer": {
+      "roof": 240.2,
+      "siding": 1071.2
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "roof",
+      "floor",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.025742502796790606,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9534355479840999,
+     "iou": 0.7832663899460299,
+     "open": 45.54,
+     "openPer": {
+      "box": 45.5
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/bunkhouse",
+   "gen": "HOUSE_GEN",
+   "n": 2,
+   "path": "item",
+   "nearTris": 14694,
+   "R": 11.399056336397193,
+   "nearLeak": 0,
+   "nearRoof": 1,
+   "keep": [
+    "post",
+    "roof",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (post+roof+siding)",
+     "dist": 150,
+     "tris": 6724,
+     "leak": 0.014401153433476395,
+     "hole": 0.02307860808611841,
+     "leakBy": {
+      "roof": 0.0144
+     },
+     "worst": [
+      180,
+      12,
+      0.038254046101029913
+     ],
+     "roof": 0.8726384364820847,
+     "iou": 0.9332832644886719,
+     "open": 902.2392416902359,
+     "openPer": {
+      "roof": 256.9,
+      "siding": 645.3
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "post",
+      "roof",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.04938039804731506,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 1,
+     "iou": 0.5791282839397274,
+     "open": 60.32957558276351,
+     "openPer": {
+      "box": 60.3
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/mine bunkhouse",
+   "gen": "HOUSE_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 19272,
+   "R": 11.804222971006954,
+   "nearLeak": 0.00040670038890724687,
+   "nearRoof": 1,
+   "keep": [
+    "roof",
+    "floor",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (roof+floor+siding)",
+     "dist": 150,
+     "tris": 4822,
+     "leak": 0.009438775510204082,
+     "hole": 0.03145893179449373,
+     "leakBy": {
+      "roof": 0.0091,
+      "siding": 0.0003
+     },
+     "worst": [
+      270,
+      12,
+      0.020522388059701493
+     ],
+     "roof": 0.9905660377358491,
+     "iou": 0.9465951551816172,
+     "open": 1780.845712686355,
+     "openPer": {
+      "roof": 514.9,
+      "siding": 1265.9
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "roof",
+      "floor",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.04466532780842464,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9905660377358491,
+     "iou": 0.8110214512178311,
+     "open": 57.040000000000006,
+     "openPer": {
+      "box": 57
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/mine dormer hall",
+   "gen": "HOUSE_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 22630,
+   "R": 15.862862699512801,
+   "nearLeak": 0.00037908018899855136,
+   "nearRoof": 1,
+   "keep": [
+    "roof",
+    "siding",
+    "floor"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (roof+siding+floor)",
+     "dist": 150,
+     "tris": 6628,
+     "leak": 0.008917623453349682,
+     "hole": 0.030462625742949594,
+     "leakBy": {
+      "roof": 0.0066,
+      "siding": 0.0023
+     },
+     "worst": [
+      90,
+      12,
+      0.02315160567587752
+     ],
+     "roof": 1,
+     "iou": 0.9716366787160012,
+     "open": 2797.762096825464,
+     "openPer": {
+      "roof": 732.4,
+      "siding": 2065.3
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "roof",
+      "siding",
+      "floor"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.06275300903047616,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 1,
+     "iou": 0.8643756589312579,
+     "open": 75.94,
+     "openPer": {
+      "box": 75.9
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/mine mess hall",
+   "gen": "HOUSE_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 14028,
+   "R": 11.551440807160956,
+   "nearLeak": 0.00004683950443804304,
+   "nearRoof": 1,
+   "keep": [
+    "floor",
+    "siding",
+    "roof"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (floor+siding+roof)",
+     "dist": 150,
+     "tris": 3342,
+     "leak": 0.011127891264605358,
+     "hole": 0.03020047777413462,
+     "leakBy": {
+      "roof": 0.0111
+     },
+     "worst": [
+      45,
+      12,
+      0.02220604295595195
+     ],
+     "roof": 0.9612403100775194,
+     "iou": 0.8839317080025293,
+     "open": 1092.0843207056223,
+     "openPer": {
+      "siding": 826.8,
+      "roof": 265.3
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "floor",
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.033982856339875404,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9800664451827242,
+     "iou": 0.815855478944322,
+     "open": 54.34,
+     "openPer": {
+      "box": 54.3
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/hip cottage",
+   "gen": "HOUSE_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 11872,
+   "R": 8.821762802355344,
+   "nearLeak": 0.00035105558783652915,
+   "nearRoof": 1,
+   "keep": [
+    "stone",
+    "siding",
+    "roof"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (stone+siding+roof)",
+     "dist": 150,
+     "tris": 2384,
+     "leak": 0.017307544707959168,
+     "hole": 0.036502094481706576,
+     "leakBy": {
+      "roof": 0.0164,
+      "siding": 0.0009
+     },
+     "worst": [
+      225,
+      12,
+      0.03126285479226656
+     ],
+     "roof": 0.9445996275605214,
+     "iou": 0.9463248111563045,
+     "open": 623.8434713916874,
+     "openPer": {
+      "siding": 369.8,
+      "roof": 254
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "stone",
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.011089856897261436,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.946927374301676,
+     "iou": 0.7763360016792451,
+     "open": 42.84,
+     "openPer": {
+      "box": 42.8
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/fish shack",
+   "gen": "HOUSE_GEN",
+   "n": 2,
+   "path": "item",
+   "nearTris": 7670,
+   "R": 14.612017217623926,
+   "nearLeak": 0,
+   "nearRoof": 0.9914285714285714,
+   "keep": [
+    "roof",
+    "post",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (roof+post+siding)",
+     "dist": 150,
+     "tris": 2404,
+     "leak": 0.016843686299753247,
+     "hole": 0.018937834499794155,
+     "leakBy": {
+      "roof": 0.0168
+     },
+     "worst": [
+      315,
+      12,
+      0.031088082901554404
+     ],
+     "roof": 0.7914285714285715,
+     "iou": 0.7674763277068752,
+     "open": 254.4363352871348,
+     "openPer": {
+      "roof": 72.1,
+      "siding": 182.3
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "roof",
+      "post",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.03400576368876081,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9685714285714285,
+     "iou": 0.4451899577871584,
+     "open": 27.114370172520594,
+     "openPer": {
+      "box": 27.1
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/tram top station",
+   "gen": "HOUSE_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 47640,
+   "R": 38.57692321205428,
+   "nearLeak": 0.000383533623114293,
+   "nearRoof": 1,
+   "keep": [
+    "siding",
+    "floor",
+    "steel"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (siding+floor+steel)",
+     "dist": 150,
+     "tris": 14996,
+     "leak": 0,
+     "hole": 0.2560406545640501,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9195979899497487,
+     "iou": 0.7609307082587573,
+     "open": 1736.217380982878,
+     "openPer": {
+      "siding": 1732.5,
+      "steel": 3.7
+     },
+     "hasRoofBag": false,
+     "bags": [
+      "siding",
+      "floor",
+      "steel"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.030395039631807723,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9949748743718593,
+     "iou": 0.3533307627752954,
+     "open": 174.7244604723306,
+     "openPer": {
+      "box": 174.7
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/garage",
+   "gen": "HOUSE_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 2464,
+   "R": 5.848508180324797,
+   "nearLeak": 0.004551256565318379,
+   "nearRoof": 1,
+   "keep": [
+    "stone",
+    "roof",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (stone+roof+siding)",
+     "dist": 150,
+     "tris": 962,
+     "leak": 0.022501837863177745,
+     "hole": 0.02859154337592468,
+     "leakBy": {
+      "roof": 0.0179,
+      "stone": 0.0046
+     },
+     "worst": [
+      180,
+      12,
+      0.04526166902404526
+     ],
+     "roof": 0.9468493150684931,
+     "iou": 0.9820146895729143,
+     "open": 295.87606183212165,
+     "openPer": {
+      "roof": 107.7,
+      "siding": 188.2
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "stone",
+      "roof",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.019502353732347006,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9649315068493151,
+     "iou": 0.7675056983897454,
+     "open": 29.7770446240104,
+     "openPer": {
+      "box": 29.8
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/outhouse",
+   "gen": "HOUSE_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 1142,
+   "R": 2.4675799697796292,
+   "nearLeak": 0.0004182519765778893,
+   "nearRoof": 1,
+   "keep": [
+    "post",
+    "trim",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (post+trim+siding)",
+     "dist": 150,
+     "tris": 862,
+     "leak": 0.0005630802008826663,
+     "hole": 0.034965789935358496,
+     "leakBy": {
+      "trim": 0.0006
+     },
+     "worst": [
+      90,
+      12,
+      0.0023346303501945525
+     ],
+     "roof": 0.5148648648648648,
+     "iou": 0.8865592703526809,
+     "open": 63.28201547091968,
+     "openPer": {
+      "siding": 63.3
+     },
+     "hasRoofBag": false,
+     "bags": [
+      "post",
+      "trim",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.004237459683405082,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 1,
+     "iou": 0.6333465871438039,
+     "open": 9.73514957411733,
+     "openPer": {
+      "box": 9.7
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/tram base station",
+   "gen": "HOUSE_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 32230,
+   "R": 21.968566063013878,
+   "nearLeak": 0.00017994106929980432,
+   "nearRoof": 1,
+   "keep": [
+    "roof",
+    "floor",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (roof+floor+siding)",
+     "dist": 150,
+     "tris": 10992,
+     "leak": 0.008137259580966926,
+     "hole": 0.12298953998425374,
+     "leakBy": {
+      "roof": 0.0073,
+      "siding": 0.0008
+     },
+     "worst": [
+      0,
+      12,
+      0.025465230166503428
+     ],
+     "roof": 0.7744860943168077,
+     "iou": 0.9425763062596999,
+     "open": 1778.952930041336,
+     "openPer": {
+      "roof": 365.8,
+      "siding": 1413.2
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "roof",
+      "floor",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.10458891013384321,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9830713422007256,
+     "iou": 0.847073251445368,
+     "open": 100.89999999999998,
+     "openPer": {
+      "box": 100.9
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/bear tours",
+   "gen": "HOUSE_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 10452,
+   "R": 8.137407524008252,
+   "nearLeak": 0.0001262059681400045,
+   "nearRoof": 1,
+   "keep": [
+    "post",
+    "roof",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (post+roof+siding)",
+     "dist": 150,
+     "tris": 3612,
+     "leak": 0.01799880844125302,
+     "hole": 0.019716729771420558,
+     "leakBy": {
+      "roof": 0.018
+     },
+     "worst": [
+      0,
+      12,
+      0.03388141504733433
+     ],
+     "roof": 0.9701548923309407,
+     "iou": 0.8944076733228629,
+     "open": 446.70418028294637,
+     "openPer": {
+      "roof": 167.3,
+      "siding": 279.4
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "post",
+      "roof",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.02615341466834946,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 1,
+     "iou": 0.6130592923896208,
+     "open": 41.17843778979365,
+     "openPer": {
+      "box": 41.2
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "navaid/DVOR-DME",
+   "gen": "NAVAID_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 4392,
+   "R": 35.19992664140083,
+   "nearLeak": 0.00003584936098514044,
+   "nearRoof": 1,
+   "keep": [
+    "steel",
+    "metal"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (steel+metal)",
+     "dist": 150,
+     "tris": 2172,
+     "leak": 0.0002572678157962439,
+     "hole": 0.0012188782734947748,
+     "leakBy": {
+      "steel": 0.0003
+     },
+     "worst": [
+      0,
+      12,
+      0.0024154589371980675
+     ],
+     "roof": 0.9905113336847654,
+     "iou": 0.9754252630446862,
+     "open": 1494.8433845208529,
+     "openPer": {
+      "steel": 1494.8
+     },
+     "hasRoofBag": false,
+     "bags": [
+      "steel",
+      "metal"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.0016490706053164602,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9905113336847654,
+     "iou": 0.6102325478088977,
+     "open": 183.82988458230864,
+     "openPer": {
+      "box": 183.8
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "tower/WWII tower",
+   "gen": "TOWER_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 2108,
+   "R": 8.859731995664756,
+   "nearLeak": 0.04981129721468451,
+   "nearRoof": 0.9867674858223062,
+   "keep": [
+    "roof",
+    "deck",
+    "steel"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (roof+deck+steel)",
+     "dist": 150,
+     "tris": 1548,
+     "leak": 0.03147373153944592,
+     "hole": 0.046719395433731464,
+     "leakBy": {
+      "roof": 0.0108,
+      "deck": 0.0206
+     },
+     "worst": [
+      0,
+      12,
+      0.06011560693641618
+     ],
+     "roof": 0.9886578449905482,
+     "iou": 0.9018121705498893,
+     "open": 83.19999999999997,
+     "openPer": {
+      "deck": 83.2
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "roof",
+      "deck",
+      "steel"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.0027218290691344584,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 1,
+     "iou": 0.38357993372740845,
+     "open": 23.74060408222058,
+     "openPer": {
+      "box": 23.7
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "big/cafe",
+   "gen": "BIG_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 1660,
+   "R": 7.530640747538585,
+   "nearLeak": 0.00007410975654944973,
+   "nearRoof": 1,
+   "keep": [
+    "plinth",
+    "roof",
+    "wall"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (plinth+roof+wall)",
+     "dist": 150,
+     "tris": 252,
+     "leak": 0,
+     "hole": 0.09386609351404934,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9009381898454746,
+     "iou": 0.9364323563197094,
+     "open": 568.8400000000003,
+     "openPer": {
+      "plinth": 170,
+      "wall": 398.8
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "plinth",
+      "roof",
+      "wall"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.0562066314004873,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9666114790286976,
+     "iou": 0.8790941993014252,
+     "open": 34.72,
+     "openPer": {
+      "box": 34.7
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "meteo/meteo station",
+   "gen": "METEO_GEN",
+   "n": 1,
+   "path": "item",
+   "nearTris": 36298,
+   "R": 32.49809428722881,
+   "nearLeak": 0.0007479120787800723,
+   "nearRoof": 0.9996279761904762,
+   "keep": [
+    "pane",
+    "dark",
+    "roof"
+   ],
+   "rungs": [
+    {
+     "name": "lod 0 keep (pane+dark+roof)",
+     "dist": 150,
+     "tris": 12150,
+     "leak": 0.15443623574952203,
+     "hole": 0.14111704670643746,
+     "leakBy": {
+      "dark": 0.1364,
+      "pane": 0.0181
+     },
+     "worst": [
+      112.5,
+      35,
+      0.1864290610006854
+     ],
+     "roof": 0.8296130952380952,
+     "iou": 0.8801886400465367,
+     "open": 1701.2015769543027,
+     "openPer": {
+      "pane": 943.2,
+      "dark": 537.4,
+      "roof": 220.5
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "pane",
+      "dark",
+      "roof"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.0489721257976678,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9992559523809523,
+     "iou": 0.536406566224421,
+     "open": 153.2,
+     "openPer": {
+      "box": 153.2
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/shore cabin [as a plot]",
+   "gen": "HOUSE_GEN",
+   "n": 0,
+   "path": "plot",
+   "nearTris": 12896,
+   "R": 9.730481000715171,
+   "nearLeak": 0.0010315170270006552,
+   "nearRoof": 1,
+   "keep": null,
+   "rungs": [
+    {
+     "name": "lod 1 (far town)",
+     "dist": 258,
+     "tris": 1004,
+     "leak": 0.014400617169307257,
+     "hole": 0.008364584349862682,
+     "leakBy": {
+      "roof": 0.0144,
+      "metal": 0
+     },
+     "worst": [
+      0,
+      12,
+      0.031294452347083924
+     ],
+     "roof": 0.9792327660801846,
+     "iou": 0.9656071448382981,
+     "open": 213.29491957520938,
+     "openPer": {
+      "siding": 171,
+      "trim": 6,
+      "metal": 0.6,
+      "pane": 35.7
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "metal",
+      "floor",
+      "pane",
+      "log"
+     ]
+    },
+    {
+     "name": "lod 1 shells (past the detail band)",
+     "dist": 1375,
+     "tris": 84,
+     "leak": 0.016998698906743718,
+     "hole": 0.010037501219835218,
+     "leakBy": {
+      "roof": 0.017
+     },
+     "worst": [
+      0,
+      12,
+      0.03666666666666667
+     ],
+     "roof": 0.8376117680992212,
+     "iou": 0.8239572013708936,
+     "open": 170.9849195752094,
+     "openPer": {
+      "siding": 171
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "siding",
+      "roof",
+      "floor",
+      "log"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/village house [as a plot]",
+   "gen": "HOUSE_GEN",
+   "n": 0,
+   "path": "plot",
+   "nearTris": 13890,
+   "R": 8.286755954392452,
+   "nearLeak": 0.00010733708615590116,
+   "nearRoof": 0.999293036408625,
+   "keep": null,
+   "rungs": [
+    {
+     "name": "lod 1 (far town)",
+     "dist": 220,
+     "tris": 1120,
+     "leak": 0.014283630351802776,
+     "hole": 0.005379037259672726,
+     "leakBy": {
+      "roof": 0.014,
+      "siding": 0.0002,
+      "metal": 0.0001
+     },
+     "worst": [
+      45,
+      12,
+      0.023303834808259587
+     ],
+     "roof": 0.9741958289148109,
+     "iou": 0.9757829505310861,
+     "open": 312.1876207449973,
+     "openPer": {
+      "siding": 205,
+      "trim": 6,
+      "metal": 0.6,
+      "floor": 11.1,
+      "pane": 89.5
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "metal",
+      "floor",
+      "pane",
+      "log"
+     ]
+    },
+    {
+     "name": "lod 1 shells (past the detail band)",
+     "dist": 1171,
+     "tris": 124,
+     "leak": 0.015264080362047768,
+     "hole": 0.006166213444015076,
+     "leakBy": {
+      "roof": 0.0151,
+      "siding": 0.0002
+     },
+     "worst": [
+      45,
+      12,
+      0.02513522112631244
+     ],
+     "roof": 0.9314245316366208,
+     "iou": 0.9104723086274089,
+     "open": 216.08600530093364,
+     "openPer": {
+      "siding": 205,
+      "floor": 11.1
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "siding",
+      "roof",
+      "floor",
+      "log"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/saltbox farmhouse [as a plot]",
+   "gen": "HOUSE_GEN",
+   "n": 0,
+   "path": "plot",
+   "nearTris": 15448,
+   "R": 9.513660628267127,
+   "nearLeak": 0.00018815781736931852,
+   "nearRoof": 1,
+   "keep": null,
+   "rungs": [
+    {
+     "name": "lod 1 (far town)",
+     "dist": 252,
+     "tris": 1286,
+     "leak": 0.014288093651851148,
+     "hole": 0.00583316672742882,
+     "leakBy": {
+      "roof": 0.0142,
+      "siding": 0.0001
+     },
+     "worst": [
+      45,
+      12,
+      0.023290534487906838
+     ],
+     "roof": 0.9970597843841882,
+     "iou": 0.9827743902439025,
+     "open": 357.66706109251646,
+     "openPer": {
+      "siding": 268.2,
+      "trim": 6,
+      "metal": 0.6,
+      "pane": 82.9
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "stone",
+      "metal",
+      "floor",
+      "pane",
+      "log"
+     ]
+    },
+    {
+     "name": "lod 1 shells (past the detail band)",
+     "dist": 1345,
+     "tris": 212,
+     "leak": 0.0157140616012132,
+     "hole": 0.006374145899730686,
+     "leakBy": {
+      "roof": 0.0156,
+      "siding": 0.0001
+     },
+     "worst": [
+      45,
+      12,
+      0.026404874746106973
+     ],
+     "roof": 0.9496896439072199,
+     "iou": 0.8985977408700354,
+     "open": 268.1570610925165,
+     "openPer": {
+      "siding": 268.2
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "siding",
+      "roof",
+      "stone",
+      "floor",
+      "log"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/gambrel barn [as a plot]",
+   "gen": "HOUSE_GEN",
+   "n": 0,
+   "path": "plot",
+   "nearTris": 13326,
+   "R": 11.054385019541199,
+   "nearLeak": 0.0003170868920370276,
+   "nearRoof": 1,
+   "keep": null,
+   "rungs": [
+    {
+     "name": "lod 1 (far town)",
+     "dist": 293,
+     "tris": 1038,
+     "leak": 0.011481210220649674,
+     "hole": 0.0020867643899794394,
+     "leakBy": {
+      "roof": 0.011,
+      "stone": 0.0005,
+      "metal": 0
+     },
+     "worst": [
+      180,
+      12,
+      0.02002194185408667
+     ],
+     "roof": 1,
+     "iou": 0.9905942972815475,
+     "open": 452.2028586200368,
+     "openPer": {
+      "siding": 393.8,
+      "trim": 16,
+      "metal": 0.6,
+      "pane": 41.8
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "stone",
+      "metal",
+      "floor",
+      "pane",
+      "log"
+     ]
+    },
+    {
+     "name": "lod 1 shells (past the detail band)",
+     "dist": 1563,
+     "tris": 180,
+     "leak": 0.01333023981776381,
+     "hole": 0.004664532165836394,
+     "leakBy": {
+      "roof": 0.0112,
+      "stone": 0.0021
+     },
+     "worst": [
+      180,
+      12,
+      0.020032930845225026
+     ],
+     "roof": 0.9591836734693877,
+     "iou": 0.9695547237732917,
+     "open": 393.7828586200368,
+     "openPer": {
+      "siding": 393.8
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "siding",
+      "roof",
+      "stone",
+      "floor",
+      "log"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/hip cottage [as a plot]",
+   "gen": "HOUSE_GEN",
+   "n": 0,
+   "path": "plot",
+   "nearTris": 11872,
+   "R": 8.821762802355344,
+   "nearLeak": 0.00035105558783652915,
+   "nearRoof": 1,
+   "keep": null,
+   "rungs": [
+    {
+     "name": "lod 1 (far town)",
+     "dist": 234,
+     "tris": 988,
+     "leak": 0.01586657318918121,
+     "hole": 0.019274074432794983,
+     "leakBy": {
+      "roof": 0.0157,
+      "metal": 0.0001
+     },
+     "worst": [
+      225,
+      12,
+      0.03025347506132461
+     ],
+     "roof": 0.9869646182495344,
+     "iou": 0.982954270505686,
+     "open": 200.21049582771866,
+     "openPer": {
+      "siding": 158.2,
+      "trim": 12,
+      "metal": 1.2,
+      "pane": 28.8
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "stone",
+      "metal",
+      "floor",
+      "pane",
+      "log"
+     ]
+    },
+    {
+     "name": "lod 1 shells (past the detail band)",
+     "dist": 1247,
+     "tris": 104,
+     "leak": 0.016784023707433485,
+     "hole": 0.02870529552773675,
+     "leakBy": {
+      "roof": 0.0168
+     },
+     "worst": [
+      225,
+      12,
+      0.03104026845637584
+     ],
+     "roof": 0.9445996275605214,
+     "iou": 0.9228655805959671,
+     "open": 158.19049582771865,
+     "openPer": {
+      "siding": 158.2
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "siding",
+      "roof",
+      "stone",
+      "floor",
+      "log"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/log cabin [as a plot]",
+   "gen": "HOUSE_GEN",
+   "n": 0,
+   "path": "plot",
+   "nearTris": 9580,
+   "R": 6.836091493465384,
+   "nearLeak": 0.0004665920119447555,
+   "nearRoof": 1,
+   "keep": null,
+   "rungs": [
+    {
+     "name": "lod 1 (far town)",
+     "dist": 181,
+     "tris": 848,
+     "leak": 0.018628301523038366,
+     "hole": 0.019646732155773852,
+     "leakBy": {
+      "roof": 0.0186
+     },
+     "worst": [
+      225,
+      12,
+      0.03462551750094091
+     ],
+     "roof": 0.9766749379652605,
+     "iou": 0.9638014316475586,
+     "open": 142.18103580127317,
+     "openPer": {
+      "siding": 125.1,
+      "trim": 6,
+      "pane": 11.1
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "stone",
+      "floor",
+      "pane",
+      "log"
+     ]
+    },
+    {
+     "name": "lod 1 shells (past the detail band)",
+     "dist": 966,
+     "tris": 300,
+     "leak": 0.02023560209424084,
+     "hole": 0.018748395827986094,
+     "leakBy": {
+      "roof": 0.0202
+     },
+     "worst": [
+      45,
+      12,
+      0.038619556285949055
+     ],
+     "roof": 0.9766749379652605,
+     "iou": 0.890264661303486,
+     "open": 125.07103580127317,
+     "openPer": {
+      "siding": 125.1
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "siding",
+      "roof",
+      "stone",
+      "floor",
+      "log"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/church [as a plot]",
+   "gen": "HOUSE_GEN",
+   "n": 0,
+   "path": "plot",
+   "nearTris": 7500,
+   "R": 11.780287928740517,
+   "nearLeak": 0.0003373762250974174,
+   "nearRoof": 1,
+   "keep": null,
+   "rungs": [
+    {
+     "name": "lod 1 (far town)",
+     "dist": 312,
+     "tris": 879,
+     "leak": 0.012687230695574859,
+     "hole": 0.0022944292607213956,
+     "leakBy": {
+      "roof": 0.0124,
+      "trim": 0,
+      "siding": 0.0003
+     },
+     "worst": [
+      180,
+      12,
+      0.026050420168067228
+     ],
+     "roof": 0.9946547884187082,
+     "iou": 0.9834439316872705,
+     "open": 311.133617948803,
+     "openPer": {
+      "siding": 227.4,
+      "trim": 32.7,
+      "roof": 6,
+      "metal": 0.4,
+      "pane": 44.5
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "lod 1 shells (past the detail band)",
+     "dist": 1665,
+     "tris": 112,
+     "leak": 0.014519616929255484,
+     "hole": 0.004150217633363701,
+     "leakBy": {
+      "roof": 0.0132,
+      "siding": 0.0014
+     },
+     "worst": [
+      0,
+      12,
+      0.027653880463871544
+     ],
+     "roof": 0.9942093541202672,
+     "iou": 0.928273814544289,
+     "open": 233.46113752260874,
+     "openPer": {
+      "siding": 227.4,
+      "roof": 6
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "siding",
+      "roof",
+      "floor"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/general store [as a plot]",
+   "gen": "HOUSE_GEN",
+   "n": 0,
+   "path": "plot",
+   "nearTris": 6684,
+   "R": 10.257578466617744,
+   "nearLeak": 0.00001186690084017658,
+   "nearRoof": 1,
+   "keep": null,
+   "rungs": [
+    {
+     "name": "lod 1 (far town)",
+     "dist": 272,
+     "tris": 764,
+     "leak": 0.01067223061611147,
+     "hole": 0.0049247638486732805,
+     "leakBy": {
+      "roof": 0.0103,
+      "siding": 0.0004
+     },
+     "worst": [
+      180,
+      12,
+      0.026938775510204082
+     ],
+     "roof": 0.9939631753697555,
+     "iou": 0.9825233534350243,
+     "open": 317.4632526284458,
+     "openPer": {
+      "siding": 260.5,
+      "trim": 13.4,
+      "pane": 32.2,
+      "awning": 11.3
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "metal",
+      "floor",
+      "pane",
+      "awning"
+     ]
+    },
+    {
+     "name": "lod 1 shells (past the detail band)",
+     "dist": 1450,
+     "tris": 70,
+     "leak": 0.012366903283052351,
+     "hole": 0.011534627616651635,
+     "leakBy": {
+      "roof": 0.0119,
+      "siding": 0.0004
+     },
+     "worst": [
+      180,
+      12,
+      0.028181041844577284
+     ],
+     "roof": 0.9363115001509206,
+     "iou": 0.8559358238002563,
+     "open": 260.51719830433007,
+     "openPer": {
+      "siding": 260.5
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "siding",
+      "roof",
+      "floor"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/storage shed [as an outbuilding]",
+   "gen": "HOUSE_GEN",
+   "n": 0,
+   "path": "out",
+   "nearTris": 318,
+   "R": 3.6685378411697305,
+   "nearLeak": 0.028193673803056245,
+   "nearRoof": 1,
+   "keep": [
+    "floor",
+    "roof",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 1 keep (floor+roof+siding)",
+     "dist": 150,
+     "tris": 72,
+     "leak": 0.03325639312397497,
+     "hole": 0.0008908858504086454,
+     "leakBy": {
+      "roof": 0.0333
+     },
+     "worst": [
+      45,
+      12,
+      0.04844540853217643
+     ],
+     "roof": 0.9458544839255499,
+     "iou": 0.8477670352871506,
+     "open": 66.79478685042785,
+     "openPer": {
+      "siding": 66.8
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "floor",
+      "roof",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.004983796206633872,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9458544839255499,
+     "iou": 0.8150392574156237,
+     "open": 13.120000000000001,
+     "openPer": {
+      "box": 13.1
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/outhouse [as an outbuilding]",
+   "gen": "HOUSE_GEN",
+   "n": 0,
+   "path": "out",
+   "nearTris": 290,
+   "R": 2.407554962802583,
+   "nearLeak": 0.03414070905607894,
+   "nearRoof": 1,
+   "keep": [
+    "trim",
+    "roof",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 1 keep (trim+roof+siding)",
+     "dist": 150,
+     "tris": 122,
+     "leak": 0.04263966045589368,
+     "hole": 0.00019775352001265623,
+     "leakBy": {
+      "roof": 0.0426
+     },
+     "worst": [
+      45,
+      12,
+      0.05368456152050684
+     ],
+     "roof": 1,
+     "iou": 0.8006796651533838,
+     "open": 48.39357856970049,
+     "openPer": {
+      "trim": 5.3,
+      "siding": 43.1
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "trim",
+      "roof",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 1,
+     "iou": 0.7452652321465497,
+     "open": 6.800000000000001,
+     "openPer": {
+      "box": 6.8
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/garage [as an outbuilding]",
+   "gen": "HOUSE_GEN",
+   "n": 0,
+   "path": "out",
+   "nearTris": 368,
+   "R": 5.820510365798391,
+   "nearLeak": 0.022907930149590035,
+   "nearRoof": 1,
+   "keep": [
+    "stone",
+    "roof",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 1 keep (stone+roof+siding)",
+     "dist": 150,
+     "tris": 84,
+     "leak": 0.023103564791349892,
+     "hole": 0.0022038220571104746,
+     "leakBy": {
+      "roof": 0.0185,
+      "stone": 0.0046
+     },
+     "worst": [
+      180,
+      12,
+      0.04526166902404526
+     ],
+     "roof": 0.9642857142857143,
+     "iou": 0.9879201351943419,
+     "open": 119.78900181116967,
+     "openPer": {
+      "siding": 119.8
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "stone",
+      "roof",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.018533094061224276,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9821428571428571,
+     "iou": 0.7689341555081919,
+     "open": 29.7770446240104,
+     "openPer": {
+      "box": 29.8
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "house/woodshed [as an outbuilding]",
+   "gen": "HOUSE_GEN",
+   "n": 0,
+   "path": "out",
+   "nearTris": 318,
+   "R": 3.4164873061713164,
+   "nearLeak": 0.028678710855609493,
+   "nearRoof": 1,
+   "keep": [
+    "deck",
+    "roof",
+    "siding"
+   ],
+   "rungs": [
+    {
+     "name": "lod 1 keep (deck+roof+siding)",
+     "dist": 150,
+     "tris": 66,
+     "leak": 0.04223941350723526,
+     "hole": 0.017648600089833807,
+     "leakBy": {
+      "roof": 0.0328,
+      "siding": 0.0095
+     },
+     "worst": [
+      45,
+      12,
+      0.10998463901689708
+     ],
+     "roof": 0.9716904826098679,
+     "iou": 0.8743932095372087,
+     "open": 59.58186437458895,
+     "openPer": {
+      "siding": 59.6
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "deck",
+      "roof",
+      "siding"
+     ]
+    },
+    {
+     "name": "box (past far2)",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.0017218146429106153,
+     "leakBy": {},
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9716904826098679,
+     "iou": 0.8426480260384168,
+     "open": 15.599999999999998,
+     "openPer": {
+      "box": 15.6
+     },
+     "hasRoofBag": true,
+     "bags": [
+      "box"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #0 sampler #z1:r31:3",
+   "gen": "TOWNKIT",
+   "n": 28,
+   "path": "kit",
+   "nearTris": 10590,
+   "R": 9.55105235735414,
+   "nearLeak": 0.00022210130040311386,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 1134,
+     "leak": 0.010987644551959577,
+     "hole": 0.009028618388175064,
+     "worst": [
+      0,
+      12,
+      0.02596439169139466
+     ],
+     "roof": 0.998671096345515,
+     "iou": 0.9792662239026066,
+     "open": 314.2122732857525,
+     "openPer": {
+      "siding": 223.1,
+      "trim": 12.3,
+      "metal": 0.3,
+      "pane": 78.5
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.049907270647550725,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9534883720930233,
+     "iou": 0.8333768635276173,
+     "open": 119.39562042122705,
+     "openPer": {
+      "siding": 79.6,
+      "roof": 39.8
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 10,
+     "leak": 0.003519405611496725,
+     "hole": 0.012449054382711251,
+     "worst": [
+      180,
+      12,
+      0.0203955500618047
+     ],
+     "roof": 0.9534883720930233,
+     "iou": 0.8761843426625333,
+     "open": 114.39441026509527,
+     "openPer": {
+      "shell": 114.4
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #1 sampler #mk_z_res_w:mk_ax03:4",
+   "gen": "TOWNKIT",
+   "n": 26,
+   "path": "kit",
+   "nearTris": 4844,
+   "R": 6.823633248784012,
+   "nearLeak": 0.00019162170926564665,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 692,
+     "leak": 0.01203720590917381,
+     "hole": 0.006161919924523852,
+     "worst": [
+      0,
+      12,
+      0.02474793767186068
+     ],
+     "roof": 0.9892996108949417,
+     "iou": 0.9571482967692804,
+     "open": 130.98603885398694,
+     "openPer": {
+      "siding": 108.5,
+      "trim": 12.3,
+      "pane": 10.1
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "stone",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.01891326139512943,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9717898832684825,
+     "iou": 0.725806869063333,
+     "open": 69.82713565109299,
+     "openPer": {
+      "siding": 46.6,
+      "roof": 23.3
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0.002133686495235993,
+     "hole": 0.013458930361459991,
+     "worst": [
+      45,
+      12,
+      0.011125945705384957
+     ],
+     "roof": 0.9717898832684825,
+     "iou": 0.7471014596348768,
+     "open": 67.00108244285272,
+     "openPer": {
+      "shell": 67
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #2 sampler #mk_z_town:r3:2",
+   "gen": "TOWNKIT",
+   "n": 25,
+   "path": "kit",
+   "nearTris": 6738,
+   "R": 6.643382056400997,
+   "nearLeak": 0.00018145273854056166,
+   "nearRoof": 0.9779353821907013,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 828,
+     "leak": 0.0160268356317555,
+     "hole": 0.00830553190301372,
+     "worst": [
+      45,
+      12,
+      0.030927835051546393
+     ],
+     "roof": 0.9980299448384555,
+     "iou": 0.9653360760549285,
+     "open": 166.94653167707236,
+     "openPer": {
+      "siding": 130.6,
+      "trim": 12.1,
+      "metal": 0.3,
+      "pane": 23.9
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "stone",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.009589748600622566,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9487785657998424,
+     "iou": 0.7715674655960529,
+     "open": 73.34490777536205,
+     "openPer": {
+      "siding": 48.9,
+      "roof": 24.4
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 10,
+     "leak": 0.007063862430480087,
+     "hole": 0.012911961361828055,
+     "worst": [
+      180,
+      12,
+      0.020193861066235864
+     ],
+     "roof": 0.9487785657998424,
+     "iou": 0.8321252576545586,
+     "open": 67.27415172815061,
+     "openPer": {
+      "shell": 67.3
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #3 mine cottage",
+   "gen": "TOWNKIT",
+   "n": 24,
+   "path": "kit",
+   "nearTris": 7080,
+   "R": 7.788430160589378,
+   "nearLeak": 0.00019972537760579203,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 964,
+     "leak": 0.018441312632682814,
+     "hole": 0.010374272802177224,
+     "worst": [
+      45,
+      12,
+      0.03577817531305903
+     ],
+     "roof": 0.9874326750448833,
+     "iou": 0.9723651586698396,
+     "open": 202.71063598245036,
+     "openPer": {
+      "siding": 169,
+      "trim": 12,
+      "pane": 21.7
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.023520011984719483,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 1,
+     "iou": 0.798604536286173,
+     "open": 104.21999999999998,
+     "openPer": {
+      "siding": 69.5,
+      "roof": 34.7
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0.002343922347231414,
+     "hole": 0.03252103567950863,
+     "worst": [
+      90,
+      12,
+      0.0125
+     ],
+     "roof": 0.8904847396768402,
+     "iou": 0.8678169358786099,
+     "open": 97.21946729304219,
+     "openPer": {
+      "shell": 97.2
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #4 shore cabin",
+   "gen": "TOWNKIT",
+   "n": 23,
+   "path": "kit",
+   "nearTris": 9484,
+   "R": 8.733828229236162,
+   "nearLeak": 0.00007004681462110511,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 972,
+     "leak": 0.013954378994231551,
+     "hole": 0.0071100837098525445,
+     "worst": [
+      180,
+      12,
+      0.03177405119152692
+     ],
+     "roof": 0.9740053050397878,
+     "iou": 0.9715593978654984,
+     "open": 213.2949195752094,
+     "openPer": {
+      "siding": 171,
+      "trim": 6,
+      "metal": 0.6,
+      "pane": 35.7
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.031580913686619264,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9358090185676392,
+     "iou": 0.8137727424470038,
+     "open": 120,
+     "openPer": {
+      "siding": 80,
+      "roof": 40
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0.0012130597496451156,
+     "hole": 0.019532298927066184,
+     "worst": [
+      90,
+      12,
+      0.007023230686115613
+     ],
+     "roof": 0.9358090185676392,
+     "iou": 0.8577219571628654,
+     "open": 115.43492614277585,
+     "openPer": {
+      "shell": 115.4
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #5 log cabin",
+   "gen": "TOWNKIT",
+   "n": 23,
+   "path": "kit",
+   "nearTris": 6516,
+   "R": 6.702692487725987,
+   "nearLeak": 0.00026016333733004546,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 836,
+     "leak": 0.019393173789973565,
+     "hole": 0.022613889611638405,
+     "worst": [
+      135,
+      12,
+      0.03580562659846547
+     ],
+     "roof": 0.9711836151464635,
+     "iou": 0.9645721774102443,
+     "open": 142.18103580127317,
+     "openPer": {
+      "siding": 125.1,
+      "trim": 6,
+      "pane": 11.1
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "stone",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.0046834168580381684,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.97308883067397,
+     "iou": 0.7726101863530582,
+     "open": 97.55999999999999,
+     "openPer": {
+      "siding": 65,
+      "roof": 32.5
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0.0023920334884688387,
+     "hole": 0.05123477041076055,
+     "worst": [
+      45,
+      12,
+      0.013488880787458987
+     ],
+     "roof": 0.8330554894022386,
+     "iou": 0.8178099814181574,
+     "open": 82.4195453906597,
+     "openPer": {
+      "shell": 82.4
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #6 over the water",
+   "gen": "TOWNKIT",
+   "n": 17,
+   "path": "kit",
+   "nearTris": 11012,
+   "R": 7.677052733521109,
+   "nearLeak": 0.00013358593218692314,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 1228,
+     "leak": 0.014331487047018206,
+     "hole": 0.0068865002732738205,
+     "worst": [
+      135,
+      12,
+      0.022123893805309734
+     ],
+     "roof": 0.9428571428571428,
+     "iou": 0.9700737873472843,
+     "open": 249.16942332422417,
+     "openPer": {
+      "siding": 144.2,
+      "trim": 6,
+      "post": 21.9,
+      "metal": 0.6,
+      "pane": 76.5
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.04819335640978928,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9,
+     "iou": 0.8267478233374363,
+     "open": 84,
+     "openPer": {
+      "siding": 56,
+      "roof": 28
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0.0010206614989931313,
+     "hole": 0.014283111677901257,
+     "worst": [
+      90,
+      12,
+      0.005870841487279843
+     ],
+     "roof": 0.9,
+     "iou": 0.8457119017819894,
+     "open": 80.26430339550933,
+     "openPer": {
+      "shell": 80.3
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #7 saltbox cottage",
+   "gen": "TOWNKIT",
+   "n": 17,
+   "path": "kit",
+   "nearTris": 7756,
+   "R": 7.9116697741598845,
+   "nearLeak": 0.000214170024227984,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 1002,
+     "leak": 0.018025399426464563,
+     "hole": 0.008474916656625297,
+     "worst": [
+      0,
+      12,
+      0.03821656050955414
+     ],
+     "roof": 0.9958064516129033,
+     "iou": 0.9716520951060881,
+     "open": 225.4673208251682,
+     "openPer": {
+      "siding": 202.1,
+      "trim": 6,
+      "metal": 0.6,
+      "pane": 16.8
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "stone",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.0046458073931263475,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9767741935483871,
+     "iou": 0.7568008590558808,
+     "open": 101.58,
+     "openPer": {
+      "siding": 67.7,
+      "roof": 33.9
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0.0019723302080951292,
+     "hole": 0.021635806188161893,
+     "worst": [
+      90,
+      12,
+      0.00946372239747634
+     ],
+     "roof": 0.9354838709677419,
+     "iou": 0.852337908429786,
+     "open": 95.85112289157826,
+     "openPer": {
+      "shell": 95.9
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #8 sampler #mk_z_res_e:mk_sc37:10",
+   "gen": "TOWNKIT",
+   "n": 17,
+   "path": "kit",
+   "nearTris": 10152,
+   "R": 8.818490388580019,
+   "nearLeak": 0.00006057522231106588,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 1020,
+     "leak": 0.011077592601750655,
+     "hole": 0.005766970765335175,
+     "worst": [
+      0,
+      12,
+      0.021643557659790327
+     ],
+     "roof": 0.9744822485207101,
+     "iou": 0.974697921701305,
+     "open": 212.0717914128274,
+     "openPer": {
+      "siding": 170.2,
+      "trim": 12.4,
+      "metal": 0.6,
+      "pane": 28.9
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.050618495499097395,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9467455621301775,
+     "iou": 0.8270159585123195,
+     "open": 102.82672701627017,
+     "openPer": {
+      "siding": 68.6,
+      "roof": 34.3
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0.0009692792331924289,
+     "hole": 0.010601049200983778,
+     "worst": [
+      45,
+      12,
+      0.0046204620462046205
+     ],
+     "roof": 0.9467455621301775,
+     "iou": 0.8657973635368581,
+     "open": 100.44273585054856,
+     "openPer": {
+      "shell": 100.4
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #9 sampler #mk_z_town:mk_sc45:0",
+   "gen": "TOWNKIT",
+   "n": 17,
+   "path": "kit",
+   "nearTris": 6024,
+   "R": 7.240825695474341,
+   "nearLeak": 0.00011688311688311689,
+   "nearRoof": 0.9833194328607172,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 876,
+     "leak": 0.016101683600582117,
+     "hole": 0.011507390186248278,
+     "worst": [
+      45,
+      12,
+      0.03586321934945788
+     ],
+     "roof": 0.9716430358632193,
+     "iou": 0.9681135009069707,
+     "open": 171.34153416213164,
+     "openPer": {
+      "siding": 159.9,
+      "trim": 6,
+      "metal": 0.6,
+      "pane": 4.8
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.018261163207522663,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9382819015846539,
+     "iou": 0.7800526098944632,
+     "open": 99.48715702347059,
+     "openPer": {
+      "siding": 66.3,
+      "roof": 33.2
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0.0007668006011716714,
+     "hole": 0.03531444008624049,
+     "worst": [
+      135,
+      12,
+      0.005082592121982211
+     ],
+     "roof": 0.7506255212677231,
+     "iou": 0.7794211494425466,
+     "open": 83.69785348982906,
+     "openPer": {
+      "shell": 83.7
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #10 mine bunkhouse",
+   "gen": "TOWNKIT",
+   "n": 17,
+   "path": "kit",
+   "nearTris": 15998,
+   "R": 10.439160462284894,
+   "nearLeak": 0.00034372529474444025,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 1566,
+     "leak": 0.013535419030637057,
+     "hole": 0.00505287761953321,
+     "worst": [
+      315,
+      12,
+      0.027965284474445518
+     ],
+     "roof": 0.9970086748429554,
+     "iou": 0.9861713200727464,
+     "open": 471.799723631236,
+     "openPer": {
+      "siding": 331.6,
+      "trim": 12.2,
+      "pane": 128
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.06051995371059959,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9970086748429554,
+     "iou": 0.804155056856691,
+     "open": 151.12137206632642,
+     "openPer": {
+      "siding": 100.7,
+      "roof": 50.4
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0.0010461618935530272,
+     "hole": 0.08908418025367508,
+     "worst": [
+      90,
+      12,
+      0.007946210268948655
+     ],
+     "roof": 0.8399641040981155,
+     "iou": 0.8701774823545535,
+     "open": 131.42091378978031,
+     "openPer": {
+      "shell": 131.4
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #11 sampler #mk_z_town:mk_ax04:1",
+   "gen": "TOWNKIT",
+   "n": 16,
+   "path": "kit",
+   "nearTris": 15106,
+   "R": 10.642991798576535,
+   "nearLeak": 0.00009392317084624777,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 1338,
+     "leak": 0.012273682782938902,
+     "hole": 0.0057029373482012265,
+     "worst": [
+      180,
+      60,
+      0.022071911712353152
+     ],
+     "roof": 0.9965841161400513,
+     "iou": 0.9802064829778425,
+     "open": 331.0658937251605,
+     "openPer": {
+      "siding": 196.7,
+      "trim": 11.7,
+      "post": 22.2,
+      "metal": 0.6,
+      "pane": 99.9
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.05239993022288421,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9265584970111016,
+     "iou": 0.8018186713663289,
+     "open": 116.02315578530542,
+     "openPer": {
+      "siding": 77.3,
+      "roof": 38.7
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0.001479111325766723,
+     "hole": 0.010748359566845136,
+     "worst": [
+      90,
+      12,
+      0.008733624454148471
+     ],
+     "roof": 0.9265584970111016,
+     "iou": 0.8499513810412341,
+     "open": 117.93191071949529,
+     "openPer": {
+      "shell": 117.9
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #12 bunkhouse",
+   "gen": "TOWNKIT",
+   "n": 15,
+   "path": "kit",
+   "nearTris": 10090,
+   "R": 9.83007929934659,
+   "nearLeak": 0.00006888095992505751,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 1342,
+     "leak": 0.014168012024717475,
+     "hole": 0.00814195379337898,
+     "worst": [
+      0,
+      12,
+      0.04284949116229245
+     ],
+     "roof": 0.9980988593155894,
+     "iou": 0.9852522781313138,
+     "open": 322.62840255986566,
+     "openPer": {
+      "siding": 251.9,
+      "trim": 12,
+      "post": 18.8,
+      "metal": 0.3,
+      "pane": 39.6
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.014244974995522615,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9980988593155894,
+     "iou": 0.7694957177036258,
+     "open": 137.7422670610249,
+     "openPer": {
+      "siding": 91.8,
+      "roof": 45.9
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 10,
+     "leak": 0.004275857600984743,
+     "hole": 0.040971523826580515,
+     "worst": [
+      135,
+      12,
+      0.01637892872952634
+     ],
+     "roof": 0.8871989860583016,
+     "iou": 0.8280057154521331,
+     "open": 120.40398172665768,
+     "openPer": {
+      "shell": 120.4
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #13 modern dark",
+   "gen": "TOWNKIT",
+   "n": 13,
+   "path": "kit",
+   "nearTris": 8494,
+   "R": 7.8394427216542075,
+   "nearLeak": 0.00010602654904788159,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 956,
+     "leak": 0.013304104618640865,
+     "hole": 0.011939095767240648,
+     "worst": [
+      315,
+      12,
+      0.0243535778713169
+     ],
+     "roof": 0.9790322580645161,
+     "iou": 0.9788373791803852,
+     "open": 264.11851513949546,
+     "openPer": {
+      "siding": 187.8,
+      "trim": 6,
+      "metal": 0.3,
+      "pane": 70
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.03628382390363898,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.967741935483871,
+     "iou": 0.8079530173714976,
+     "open": 99.42,
+     "openPer": {
+      "siding": 66.3,
+      "roof": 33.1
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 10,
+     "leak": 0.006308124028850391,
+     "hole": 0.017664772245313428,
+     "worst": [
+      180,
+      12,
+      0.015681544028950542
+     ],
+     "roof": 0.9354838709677419,
+     "iou": 0.8833015197504981,
+     "open": 87.25151496607654,
+     "openPer": {
+      "shell": 87.3
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #14 sampler #mk_z_res_w:mk_ax02:10",
+   "gen": "TOWNKIT",
+   "n": 13,
+   "path": "kit",
+   "nearTris": 13270,
+   "R": 10.808759189265722,
+   "nearLeak": 0.000385658811638917,
+   "nearRoof": 0.999604273842501,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 1580,
+     "leak": 0.009210313393386915,
+     "hole": 0.011024815809772057,
+     "worst": [
+      180,
+      12,
+      0.02362470469119136
+     ],
+     "roof": 0.9687376335575781,
+     "iou": 0.9829522823229507,
+     "open": 334.997138351432,
+     "openPer": {
+      "siding": 194.7,
+      "trim": 11.8,
+      "post": 26.4,
+      "metal": 1.2,
+      "pane": 101
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "stone",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.03971061520866027,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9149188761377127,
+     "iou": 0.801049455902896,
+     "open": 124.94445648305117,
+     "openPer": {
+      "siding": 83.3,
+      "roof": 41.6
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0,
+     "hole": 0.02736920498975982,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9149188761377127,
+     "iou": 0.8535489549532981,
+     "open": 115.25762277650833,
+     "openPer": {
+      "shell": 115.3
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #15 sampler #mk_z_res_s:mk_sa03:2",
+   "gen": "TOWNKIT",
+   "n": 13,
+   "path": "kit",
+   "nearTris": 12298,
+   "R": 9.918831156613694,
+   "nearLeak": 0.0004143429864050707,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 1402,
+     "leak": 0.014208826695371367,
+     "hole": 0.005644781936697802,
+     "worst": [
+      180,
+      12,
+      0.024074074074074074
+     ],
+     "roof": 0.998810232004759,
+     "iou": 0.9869182305480019,
+     "open": 322.60992170342786,
+     "openPer": {
+      "siding": 210.2,
+      "trim": 11.7,
+      "metal": 0.6,
+      "pane": 100.1
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.04632305176623435,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9512195121951219,
+     "iou": 0.8873177430005975,
+     "open": 132.887318704091,
+     "openPer": {
+      "siding": 88.6,
+      "roof": 44.3
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0.0010106600572707366,
+     "hole": 0.017953542548663843,
+     "worst": [
+      90,
+      12,
+      0.005904455179817499
+     ],
+     "roof": 0.9512195121951219,
+     "iou": 0.925401469635718,
+     "open": 130.5581028016632,
+     "openPer": {
+      "shell": 130.6
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #16 sampler #mk_z_res_sub:mk_r_raven:1",
+   "gen": "TOWNKIT",
+   "n": 13,
+   "path": "kit",
+   "nearTris": 7258,
+   "R": 6.594531065259803,
+   "nearLeak": 0.0003668637383414937,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 780,
+     "leak": 0.021616759517177345,
+     "hole": 0.0080716855993791,
+     "worst": [
+      225,
+      12,
+      0.0317743662977508
+     ],
+     "roof": 0.9915094339622641,
+     "iou": 0.965677727784027,
+     "open": 227.69199929618176,
+     "openPer": {
+      "siding": 185.5,
+      "trim": 5.8,
+      "post": 11.9,
+      "pane": 24.4
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.027545332674804204,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9679245283018868,
+     "iou": 0.76070964950238,
+     "open": 67.49684930071236,
+     "openPer": {
+      "siding": 45,
+      "roof": 22.5
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0.006708482876597458,
+     "hole": 0.024850067028857687,
+     "worst": [
+      45,
+      12,
+      0.02205607476635514
+     ],
+     "roof": 0.9679245283018868,
+     "iou": 0.7978755648627797,
+     "open": 72.32794767582982,
+     "openPer": {
+      "shell": 72.3
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #17 saltbox farmhouse",
+   "gen": "TOWNKIT",
+   "n": 12,
+   "path": "kit",
+   "nearTris": 12024,
+   "R": 9.087379928009048,
+   "nearLeak": 0.00037480846185221524,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 1206,
+     "leak": 0.015477108406807693,
+     "hole": 0.006218027870876698,
+     "worst": [
+      0,
+      12,
+      0.027743142144638404
+     ],
+     "roof": 0.9940793368857312,
+     "iou": 0.9833146228180237,
+     "open": 357.66706109251646,
+     "openPer": {
+      "siding": 268.2,
+      "trim": 6,
+      "metal": 0.6,
+      "pane": 82.9
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "stone",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.009095519491973894,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9739490822972173,
+     "iou": 0.7900840694595027,
+     "open": 121.02000000000001,
+     "openPer": {
+      "siding": 80.7,
+      "roof": 40.3
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0.001403064110977845,
+     "hole": 0.015324572234962074,
+     "worst": [
+      135,
+      12,
+      0.0062824364927615405
+     ],
+     "roof": 0.9378330373001776,
+     "iou": 0.8921194704757478,
+     "open": 116.26927480167961,
+     "openPer": {
+      "shell": 116.3
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #18 sampler #mk_z_town:mk_ax05:5",
+   "gen": "TOWNKIT",
+   "n": 11,
+   "path": "kit",
+   "nearTris": 6764,
+   "R": 7.82542473312564,
+   "nearLeak": 0.00010580091291073425,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 938,
+     "leak": 0.013952770489273037,
+     "hole": 0.010399661406372817,
+     "worst": [
+      180,
+      12,
+      0.03259098316132537
+     ],
+     "roof": 0.9973386560212908,
+     "iou": 0.970655069148696,
+     "open": 151.97409092488792,
+     "openPer": {
+      "siding": 124.8,
+      "trim": 11.7,
+      "metal": 1.2,
+      "pane": 14.3
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.017126186589273836,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9181636726546906,
+     "iou": 0.7232254735755879,
+     "open": 92.59104335497696,
+     "openPer": {
+      "siding": 61.7,
+      "roof": 30.9
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0,
+     "hole": 0.03135014208839712,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9181636726546906,
+     "iou": 0.7956421786215173,
+     "open": 82.31462234950317,
+     "openPer": {
+      "shell": 82.3
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #19 hip cottage",
+   "gen": "TOWNKIT",
+   "n": 10,
+   "path": "kit",
+   "nearTris": 9564,
+   "R": 8.882736919056457,
+   "nearLeak": 0.0003274641678631704,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 1124,
+     "leak": 0.01523076923076923,
+     "hole": 0.01930925030229746,
+     "worst": [
+      0,
+      12,
+      0.05624711848778239
+     ],
+     "roof": 0.9966918714555766,
+     "iou": 0.9788285286833206,
+     "open": 200.21049582771866,
+     "openPer": {
+      "siding": 158.2,
+      "trim": 12,
+      "metal": 1.2,
+      "pane": 28.8
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.009270455461507456,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9588846880907372,
+     "iou": 0.7737761162949816,
+     "open": 128.52,
+     "openPer": {
+      "siding": 85.7,
+      "roof": 42.8
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0,
+     "hole": 0.05326733172108021,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.8109640831758034,
+     "iou": 0.8174252403757372,
+     "open": 106.20000000000002,
+     "openPer": {
+      "shell": 106.2
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #20 sampler #mk_z_res_w:mk_ax03:9",
+   "gen": "TOWNKIT",
+   "n": 10,
+   "path": "kit",
+   "nearTris": 7742,
+   "R": 9.330380026251255,
+   "nearLeak": 0.0003909933531129971,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 796,
+     "leak": 0.013986013986013986,
+     "hole": 0.006153527639115732,
+     "worst": [
+      0,
+      12,
+      0.022734449005367856
+     ],
+     "roof": 0.9706916764361079,
+     "iou": 0.9797235975967006,
+     "open": 302.05742960209,
+     "openPer": {
+      "siding": 248.6,
+      "trim": 12,
+      "metal": 0.6,
+      "pane": 40.9
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.05436957971981321,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9284876905041032,
+     "iou": 0.8402560426468509,
+     "open": 121.97811867387954,
+     "openPer": {
+      "siding": 81.3,
+      "roof": 40.7
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0.00032038079545974646,
+     "hole": 0.015493087345586713,
+     "worst": [
+      90,
+      12,
+      0.003786086133459536
+     ],
+     "roof": 0.9284876905041032,
+     "iou": 0.8874382956612107,
+     "open": 114.19121013863162,
+     "openPer": {
+      "shell": 114.2
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #21 sampler #mk_z_res_c:mk_ax03:6",
+   "gen": "TOWNKIT",
+   "n": 9,
+   "path": "kit",
+   "nearTris": 8410,
+   "R": 9.266638272299083,
+   "nearLeak": 0.00019065217710120697,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 1222,
+     "leak": 0.012846174528724644,
+     "hole": 0.008389187920742707,
+     "worst": [
+      0,
+      12,
+      0.026194144838212634
+     ],
+     "roof": 0.9705347399054202,
+     "iou": 0.9714206518250518,
+     "open": 288.986190264744,
+     "openPer": {
+      "siding": 227.2,
+      "trim": 11.7,
+      "post": 14.8,
+      "metal": 0.6,
+      "pane": 34.7
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "stone",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.029068829473622458,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9152419061476901,
+     "iou": 0.7707787298387097,
+     "open": 110.2065714593511,
+     "openPer": {
+      "siding": 73.5,
+      "roof": 36.7
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0.004469497348320603,
+     "hole": 0.028731501987298888,
+     "worst": [
+      90,
+      12,
+      0.024943310657596373
+     ],
+     "roof": 0.9152419061476901,
+     "iou": 0.8182063251088946,
+     "open": 110.93485746766035,
+     "openPer": {
+      "shell": 110.9
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #22 sampler #mk_z_town:mk_ax02:3",
+   "gen": "TOWNKIT",
+   "n": 9,
+   "path": "kit",
+   "nearTris": 5746,
+   "R": 7.914653134510057,
+   "nearLeak": 0.0005428390482222021,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 840,
+     "leak": 0.01771847898599066,
+     "hole": 0.01870330636196779,
+     "worst": [
+      315,
+      12,
+      0.03868385949310805
+     ],
+     "roof": 0.9425697598961713,
+     "iou": 0.9621156496760315,
+     "open": 194.07630255447452,
+     "openPer": {
+      "siding": 162.1,
+      "trim": 12.4,
+      "pane": 19.6
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "stone",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.009875138949926324,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9578195976638546,
+     "iou": 0.7993975305372572,
+     "open": 99.40682962151016,
+     "openPer": {
+      "siding": 66.3,
+      "roof": 33.1
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 10,
+     "leak": 0.00979848400813459,
+     "hole": 0.02654913010883334,
+     "worst": [
+      225,
+      12,
+      0.02522202486678508
+     ],
+     "roof": 0.9247242050616483,
+     "iou": 0.8544682881502781,
+     "open": 89.91896243617558,
+     "openPer": {
+      "shell": 89.9
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #23 sampler #mk_z_res_s:mk_sc48:1",
+   "gen": "TOWNKIT",
+   "n": 8,
+   "path": "kit",
+   "nearTris": 8612,
+   "R": 8.814646067384228,
+   "nearLeak": 0.00028286637931034485,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 1160,
+     "leak": 0.012418622462935609,
+     "hole": 0.008083312002371106,
+     "worst": [
+      180,
+      12,
+      0.023529411764705882
+     ],
+     "roof": 0.9946969696969697,
+     "iou": 0.9818167146353929,
+     "open": 325.6294796683967,
+     "openPer": {
+      "siding": 260.7,
+      "trim": 5.8,
+      "post": 17.4,
+      "metal": 0.6,
+      "pane": 41.2
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.05370013606908537,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9659090909090909,
+     "iou": 0.7913175085411589,
+     "open": 110.50583893836009,
+     "openPer": {
+      "siding": 73.7,
+      "roof": 36.8
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0.0013186813186813187,
+     "hole": 0.028951729155159173,
+     "worst": [
+      135,
+      12,
+      0.006635700066357001
+     ],
+     "roof": 0.8348484848484848,
+     "iou": 0.8640520139715597,
+     "open": 101.37929304462804,
+     "openPer": {
+      "shell": 101.4
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #24 motel",
+   "gen": "TOWNKIT",
+   "n": 7,
+   "path": "kit",
+   "nearTris": 11514,
+   "R": 11.592661950570546,
+   "nearLeak": 0.000025047904116623042,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 1236,
+     "leak": 0.012807155744161818,
+     "hole": 0.0072139770805936506,
+     "worst": [
+      315,
+      12,
+      0.034836980794997766
+     ],
+     "roof": 1,
+     "iou": 0.9810705450183672,
+     "open": 301.2007476393316,
+     "openPer": {
+      "siding": 227.1,
+      "trim": 36.7,
+      "metal": 0.6,
+      "pane": 36.8
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.022881833552507985,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9803168506961114,
+     "iou": 0.7507170671478773,
+     "open": 186.0344888592884,
+     "openPer": {
+      "siding": 124,
+      "roof": 62
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0.00034343607795998967,
+     "hole": 0.04840628718141399,
+     "worst": [
+      135,
+      12,
+      0.0023137436372049976
+     ],
+     "roof": 0.8070091214594335,
+     "iou": 0.8357015876907987,
+     "open": 155.38815620358486,
+     "openPer": {
+      "shell": 155.4
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #25 sampler #mk_z_town:mk_ax05:0",
+   "gen": "TOWNKIT",
+   "n": 7,
+   "path": "kit",
+   "nearTris": 7482,
+   "R": 7.795536424171497,
+   "nearLeak": 0.00014316392269148176,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 924,
+     "leak": 0.0163754927247068,
+     "hole": 0.012313860252004582,
+     "worst": [
+      135,
+      12,
+      0.030874097834803528
+     ],
+     "roof": 0.9995139732685298,
+     "iou": 0.9774638492507802,
+     "open": 184.01106926237526,
+     "openPer": {
+      "siding": 148.2,
+      "trim": 5.8,
+      "metal": 0.6,
+      "pane": 29.4
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.020582760595647193,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9635479951397327,
+     "iou": 0.7905139862834245,
+     "open": 115.44354922025893,
+     "openPer": {
+      "siding": 77,
+      "roof": 38.5
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0.0019219680953296175,
+     "hole": 0.04648720885834288,
+     "worst": [
+      90,
+      12,
+      0.01567209162145871
+     ],
+     "roof": 0.8092345078979344,
+     "iou": 0.8236444485833353,
+     "open": 98.61503237455548,
+     "openPer": {
+      "shell": 98.6
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #26 marine supply",
+   "gen": "TOWNKIT",
+   "n": 11,
+   "path": "kit",
+   "nearTris": 7466,
+   "R": 9.757987246169026,
+   "nearLeak": 0.000011830679317606417,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 952,
+     "leak": 0.01246390760346487,
+     "hole": 0.004460166102737619,
+     "worst": [
+      0,
+      12,
+      0.029077691958200817
+     ],
+     "roof": 1,
+     "iou": 0.9782872921657246,
+     "open": 262.2026514476135,
+     "openPer": {
+      "siding": 220.6,
+      "trim": 13.6,
+      "pane": 28
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.03628469346709888,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 1,
+     "iou": 0.8444976076555024,
+     "open": 125.99999999999999,
+     "openPer": {
+      "siding": 84,
+      "roof": 42
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0.00029749026395499786,
+     "hole": 0.01687054870690675,
+     "worst": [
+      90,
+      12,
+      0.0020920502092050207
+     ],
+     "roof": 1,
+     "iou": 0.8495203417127652,
+     "open": 122.02563550878673,
+     "openPer": {
+      "shell": 122
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #27 sampler #mk_z_harbour:mk_r_shore:2",
+   "gen": "TOWNKIT",
+   "n": 6,
+   "path": "kit",
+   "nearTris": 6968,
+   "R": 7.465440108999889,
+   "nearLeak": 0.000177782640208963,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 848,
+     "leak": 0.01631639867795334,
+     "hole": 0.008958245004581698,
+     "worst": [
+      45,
+      12,
+      0.028953229398663696
+     ],
+     "roof": 0.9732011747430249,
+     "iou": 0.9702081349476261,
+     "open": 180.21879168957776,
+     "openPer": {
+      "siding": 150.7,
+      "trim": 11.9,
+      "post": 12.3,
+      "metal": 0.3,
+      "pane": 5
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.01691809018422528,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9456681350954479,
+     "iou": 0.7894436068284616,
+     "open": 86.37970951802228,
+     "openPer": {
+      "siding": 57.6,
+      "roof": 28.8
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 10,
+     "leak": 0.006713682978657879,
+     "hole": 0.014100687938509512,
+     "worst": [
+      0,
+      12,
+      0.04057017543859649
+     ],
+     "roof": 0.9456681350954479,
+     "iou": 0.8567355666429081,
+     "open": 79.94783881957952,
+     "openPer": {
+      "shell": 79.9
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #28 mine bunkhouse",
+   "gen": "TOWNKIT",
+   "n": 5,
+   "path": "kit",
+   "nearTris": 15890,
+   "R": 10.805992129088262,
+   "nearLeak": 0.0007375505419679429,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 1598,
+     "leak": 0.015323783150495261,
+     "hole": 0.0042808783045087525,
+     "worst": [
+      45,
+      12,
+      0.029442327675788017
+     ],
+     "roof": 1,
+     "iou": 0.9850828656669339,
+     "open": 412.5255260969152,
+     "openPer": {
+      "siding": 247.2,
+      "trim": 12.2,
+      "post": 21.1,
+      "pane": 132
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.05466352296526561,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 1,
+     "iou": 0.840718219366682,
+     "open": 142.06602719955146,
+     "openPer": {
+      "siding": 94.7,
+      "roof": 47.4
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0.0010211967321704571,
+     "hole": 0.018717317140636732,
+     "worst": [
+      90,
+      12,
+      0.006711409395973154
+     ],
+     "roof": 0.9855595667870036,
+     "iou": 0.9208942279064348,
+     "open": 134.66801721193033,
+     "openPer": {
+      "shell": 134.7
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #29 log cabin",
+   "gen": "TOWNKIT",
+   "n": 4,
+   "path": "kit",
+   "nearTris": 7528,
+   "R": 7.309529088587291,
+   "nearLeak": 0.000589159465828751,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 1016,
+     "leak": 0.018371046800510306,
+     "hole": 0.021986224235916507,
+     "worst": [
+      135,
+      12,
+      0.035416666666666666
+     ],
+     "roof": 0.9982738780207134,
+     "iou": 0.970670847214057,
+     "open": 156.5831274449881,
+     "openPer": {
+      "siding": 125.1,
+      "trim": 12,
+      "post": 12.1,
+      "pane": 7.4
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "stone",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.004897467459340544,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9982738780207134,
+     "iou": 0.7673305782556008,
+     "open": 97.55999999999999,
+     "openPer": {
+      "siding": 65,
+      "roof": 32.5
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0.002389779098624345,
+     "hole": 0.05053295969410471,
+     "worst": [
+      135,
+      12,
+      0.013026487190620929
+     ],
+     "roof": 0.8739930955120828,
+     "iou": 0.8043536409838362,
+     "open": 82.4195453906597,
+     "openPer": {
+      "shell": 82.4
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #30 storage shed",
+   "gen": "TOWNKIT",
+   "n": 50,
+   "path": "kit",
+   "nearTris": 1318,
+   "R": 3.3529766366330014,
+   "nearLeak": 0.0009349803654123263,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 290,
+     "leak": 0.02991305892672744,
+     "hole": 0.005533796866748812,
+     "worst": [
+      180,
+      12,
+      0.0531459987782529
+     ],
+     "roof": 1,
+     "iou": 0.9814090983741173,
+     "open": 72.46478685042786,
+     "openPer": {
+      "siding": 66.8,
+      "trim": 5.7
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "floor"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.007525083612040134,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 1,
+     "iou": 0.8357328087275329,
+     "open": 39.36,
+     "openPer": {
+      "siding": 26.2,
+      "roof": 13.1
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0.0023321468025039893,
+     "hole": 0.0021673120929413836,
+     "worst": [
+      90,
+      12,
+      0.010178117048346057
+     ],
+     "roof": 1,
+     "iou": 0.8798569231943641,
+     "open": 37.695617823165605,
+     "openPer": {
+      "shell": 37.7
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #31 outhouse",
+   "gen": "TOWNKIT",
+   "n": 14,
+   "path": "kit",
+   "nearTris": 1142,
+   "R": 2.48805353645712,
+   "nearLeak": 0.0004311564424204045,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 290,
+     "leak": 0.034428624083655275,
+     "hole": 0.006643936228993437,
+     "worst": [
+      225,
+      12,
+      0.04727838258164852
+     ],
+     "roof": 0.9487179487179487,
+     "iou": 0.9651142647744686,
+     "open": 48.39357856970049,
+     "openPer": {
+      "siding": 43.1,
+      "trim": 5.3
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "deck",
+      "post",
+      "floor"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.0004582024985512715,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9487179487179487,
+     "iou": 0.7486914196262596,
+     "open": 20.400000000000002,
+     "openPer": {
+      "siding": 13.6,
+      "roof": 6.8
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0.004302528179781673,
+     "hole": 0.003288276754309125,
+     "worst": [
+      135,
+      12,
+      0.015245009074410164
+     ],
+     "roof": 0.9487179487179487,
+     "iou": 0.7401133711237079,
+     "open": 19.326468825721847,
+     "openPer": {
+      "shell": 19.3
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  },
+  {
+   "label": "kit #32 garage",
+   "gen": "TOWNKIT",
+   "n": 5,
+   "path": "kit",
+   "nearTris": 2464,
+   "R": 5.700516971407825,
+   "nearLeak": 0.0042719865244700604,
+   "nearRoof": 1,
+   "rungs": [
+    {
+     "name": "kit lod 1",
+     "dist": 150,
+     "tris": 368,
+     "leak": 0.022643662933485513,
+     "hole": 0.0027504151089469985,
+     "worst": [
+      0,
+      12,
+      0.055666003976143144
+     ],
+     "roof": 1,
+     "iou": 0.9957381607119301,
+     "open": 133.6990018111696,
+     "openPer": {
+      "siding": 119.8,
+      "trim": 9.9,
+      "metal": 0.6,
+      "pane": 3.4
+     },
+     "bags": [
+      "siding",
+      "trim",
+      "roof",
+      "post",
+      "stone",
+      "metal",
+      "floor",
+      "pane"
+     ]
+    },
+    {
+     "name": "kit box",
+     "dist": 1200,
+     "tris": 10,
+     "leak": 0,
+     "hole": 0.017093320565974308,
+     "worst": [
+      0,
+      0,
+      0
+     ],
+     "roof": 0.9661016949152542,
+     "iou": 0.7978746421676319,
+     "open": 86.82,
+     "openPer": {
+      "siding": 57.9,
+      "roof": 28.9
+     },
+     "bags": [
+      "siding",
+      "roof"
+     ]
+    },
+    {
+     "name": "city far shell",
+     "dist": 1000,
+     "tris": 14,
+     "leak": 0.0011693224807978906,
+     "hole": 0.0015381951164851733,
+     "worst": [
+      90,
+      12,
+      0.006355932203389831
+     ],
+     "roof": 0.9322033898305084,
+     "iou": 0.8851051739708374,
+     "open": 74.51571424443708,
+     "openPer": {
+      "shell": 74.5
+     },
+     "bags": [
+      "shell"
+     ]
+    }
+   ]
+  }
+ ]
+}
