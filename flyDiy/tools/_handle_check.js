@@ -43,6 +43,17 @@ const T = __dirname, ROOT = path.join(T, '..');
 const CORE = require(path.join(T, 'flight_core.js'));
 const SH = require(path.join(T, '_scene_headless.js'));
 const MQ = require(path.join(T, '_mesh_query.js'));
+// the user's validated builds come in through THE ONE LOAD PATH (GATE
+// JOINPARITY): the spec the game builds from the file, its cage riding along
+const LB = require(path.join(T, '_load_build.js'));
+const VALID = new Map(Object.entries(LB.VALIDATED).filter(([, b]) => !b.patch).map(([k, b]) => [path.normalize(b.build), k]));
+const specOf = rel => {
+  const raw = SH.loadFixture(path.join(ROOT, rel)).spec;
+  if (!VALID.has(path.normalize(rel))) return raw;
+  const g = LB.loadValidated(VALID.get(path.normalize(rel))).spec;
+  if (!g.cage) g.cage = raw.cage;
+  return g;
+};
 
 const SELF = process.argv.includes('--selftest');
 const VERBOSE = process.argv.includes('--verbose');
@@ -133,7 +144,7 @@ const listFiles = (dir, re) => { const d = path.join(ROOT, dir); return fs.exist
 for (const f of [].concat(listFiles('builds', /\.json$/i), listFiles('bugReports', /\.json$/i),
                           listFiles('tools/fixtures', /^(build_v|player_v|stol_cub).*\.json$/i))) {
   let spec = null;
-  try { spec = SH.loadFixture(path.join(ROOT, f)).spec; } catch (e) { continue; }
+  try { spec = specOf(f); } catch (e) { check(false, f + ': did not load', e.message); continue; }
   if (!spec || !spec.cage) continue;
   items.push([f, () => SH.sceneBuild(spec, {})]);
 }
@@ -153,9 +164,9 @@ if (!SELF) for (const [id, fn] of items) {
 }
 
 // ---- the negatives, through the real layer ----------------------------------
-// the stock Cub (the user's file), its sheet glazed at the build: the layer
+// the user's Cub (LB.VALIDATED.cub), its sheet glazed at the build: the layer
 // itself runs over it (CAGE2.cageSheet wrapped for one build)
-const CUB = path.join(ROOT, 'builds/cub_2026-09-20_corrected.json');
+const CUB_SPEC = () => specOf(LB.VALIDATED.cub.build);
 function glazedBuild(mark) {
   const CG2 = W0.CAGE2, orig = CG2.cageSheet;
   CG2.cageSheet = function (P, o) {
@@ -164,7 +175,7 @@ function glazedBuild(mark) {
     for (const f of b.sheet.F) if (mark(f, b.sheet, recs)) f.win = 1;
     return b;
   };
-  try { return SH.sceneBuild(SH.loadFixture(CUB).spec, {}); }
+  try { return SH.sceneBuild(CUB_SPEC(), {}); }
   finally { CG2.cageSheet = orig; }
 }
 let negA = null, negB = null;
@@ -207,7 +218,7 @@ if (!SELF) {
 if (SELF) {
   const probes = [];
   const say = (ok, what) => probes.push((ok ? '  ok   ' : '  MISS ') + what);
-  const S = SH.sceneBuild(SH.loadFixture(CUB).spec, {});
+  const S = SH.sceneBuild(CUB_SPEC(), {});
   const p = S.W.CAGE_ACCESS.placed.find(q => q.key === 'doorHandle');
   const rec = S.W.CAGE2.cageDoorEdges(S.built.sheet).find(r => (r.sgn > 0 ? 'star' : 'port') === p.side);
   const lift = rec.winLo * S.FS - p.p[1] + 0.03;      // the handle carried 30 mm up past the sill: onto the glass
