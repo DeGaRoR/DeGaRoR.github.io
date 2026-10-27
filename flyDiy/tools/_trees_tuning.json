@@ -402,7 +402,7 @@
    },
    "forest": {
     "ground": "wet",
-    "count": 5000,
+    "count": 3000,
     "radius": 220,
     "under": 20,
     "cover": 1,
@@ -420,7 +420,7 @@
     "canopyFloor": 3.5,
     "clump": 0.55,
     "clumpM": 28,
-    "debris": 14
+    "debris": 131
    }
   },
   "grassland": {
