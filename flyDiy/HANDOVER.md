@@ -99441,3 +99441,185 @@ Red on the same FAIL lines as master 2c2a74459 (unchanged from the 22 Oct list):
 Chinook-alike's rejected take-off), GATE ROLLANIM (G1039 flRevealStart), GATE CLOUD (1 of 239), GATE WORLD. HITBOX
 was run alone: its two rows are a timing (spec shape vs raster, ms) that went red with four gates sharing this box's
 four cores and PASS alone, as in the 22 Oct battery.
+
+## READY - ENGINE-CONFIGS-2 (G3490-G3494) ON TRAIN L25c: claude/ready/engine-configs (2026-10-27, cloud, node + SwiftShader stills; for the 14:00 train)
+
+**Branch** `claude/ready/engine-configs` = `claude/engine-configs-2` (the work to 95fbf9a82, then this note), with **origin/master d7e181f4e (train L25c)**
+merged (ed7c308fe; re-fetched before the push: master still d7e181f4e). Sources only: the built / cooked files are
+master's (index.html, dev.html, sw.js, version.json, tools/flight_core.js, career_core.*.js untouched here) - the train
+rebuilds them.
+
+**The merge (d7e181f4e, 3134 commits).** Two conflicts: `src/core/90_node_exports.js` - the union of both lists with
+every name still defined in src/core: master's 941 as they stand + GEN_ENG_LAYOUTS, genEngLayoutOf,
+genEngLayoutEngines; `acceptBenchXwind` (on the old side only, removed on master, defined nowhere now) dropped
+(checked by hand: STORY_T6_FEE, GP_HALF_DEFAULT and HYDRO are multi-declarations / `var HYDRO;` and stay);
+`HANDOVER.md` both sides (master's entries, then ours).
+
+**Since the 22 Oct entry and its 25 Oct addendum (all in this branch):**
+- **GATE TECH (master's G3230 TECH-MASK, new since L22c) went red on the layouts**: its table had 4 engine mounts and
+  read the join's mount list off a line G2790 had reshaped. Now `79b_tech` TECH_ROWS.engMount has the push-pull, the
+  three and the four as `cfg:twin` (several engines = the twin's machine-shop segment, as techKeysOf already reads any
+  spec with more than one engine); `_cage_join.js` keeps master's own `const mk = [...][Math.round(P.engMount ...`
+  line (outputs unchanged); `_tech_check.js`'s tile expectation: at segment 1 the Engines row greys the push-pull, the
+  three and the four with the twin. GATE TECH: PASS.
+- **The push-pull example is a proper twin boom** (the user, 27 Oct: "please give the push-pull a twin boom"):
+  `tools/fixtures/build_v10_engcfg_pushpull_2026-10-22.json` re-baked with the Skymaster's booms (0.24 x 0.34 m at the
+  wing, 0.16 x 0.22 at the tail, a 0.7 m fairing forward) and the straight fin; strut-braced wing kept (a cantilever
+  one BROKE UP at 5.7 g, 96 members). Design check PASS (static margin 0.141 as drawn), a damage-on autopilot circuit
+  clean, the bench 5.7 g HELD (no yield), nose / pusher cut on the downwind: beta 0.12 / 0.13 deg, heading 0.90 /
+  0.87 deg, -6.5 / -5.6 m in 10 s. A full damage-on autopilot circuit to STOPPED in 309 s (liftoff 8.9 s at
+  32 m/s, downwind 49.8 s, final 158.8 s, flare 272.9 s; 202 m and 59.4 m/s at the most; no break, no prop strike).
+  The game's load is the file to the byte.
+- The Skymaster-alike card rebalanced (25 Oct addendum above), the fixtures, the identity rows on master d7e181f4e
+  (below).
+
+**Validated builds (Cub, Jodel, both Cessnas, the floats, + Rufus) identical to master d7e181f4e:** GATE ENGCONFIG 1
+IDENTITY (17 rows, `--pin` run on a d7e181f4e worktree and here: equal, and equal to the 22 Oct pins) and
+`node tools/engconfig_ab.js cub|jodel|metal|floats|rufus` run in both trees: def, static thrust, the thrust digest of
+every frame and the 90 s autopilot flight byte-identical on all five. The joined spec differs by `cage.engNacAt2: 0.62`
+only (the Four's outer-nacelle row default; read by nothing unless engMount is 6).
+
+**Gates** - `node --max-old-space-size=4096 tools/run_gates.js --only=<IDs> --no-build --jobs=4` on every gate whose
+file names a file changed here (tools/ grepped for 25_airfield, 30_solver, 60_gen_spec, 61_gen_frame, 62_gen_aero,
+64_gen_build, 79b_tech, 90_node_exports, viewer/bench.js, the _cage_* layers, the engconfig tools and fixtures,
+frames_corpus, garage_shot) + BUILD, JOIN, PARTS, SAVE, STARTER, SIMWORKER, PILOT, BUILT, DMGDETERMINISM, PILOTMATRIX:
+96 gates. Every verdict line, the final run of each (gates re-run after a later edit: the _cage_join / 79b_tech readers,
+the fixture readers; BIPLANE and HITBOX, two timing rows red under four parallel jobs, re-run alone):
+```
+GATE INPUT: PASS
+GATE ATMOS: PASS
+GATE SUBSTEP: PASS
+GATE CLIMATE: PASS
+GATE CLOUD: FAIL (1 of 239)
+GATE GE: PASS
+GATE GEN: PASS (x4 shards)
+GATE STRIPSURF: PASS
+GATE RADIALDIV: FAIL (3)
+GATE TAXICLEAR: PASS (x4 shards)
+GATE TOUR: FAIL (2)          (shard 2/4; shards 0, 1, 3: GATE TOUR: PASS)
+GATE PROFILE: PASS
+GATE DEFAULT: PASS
+GATE BIPLANE: PASS
+GATE MASS: PASS
+GATE UISMOKE: PASS
+GATE WORLDRENDER: PASS
+GATE TREEHIT: FAIL
+GATE TREECRASH: FAIL
+GATE DMGMEMBERS: PASS
+GATE DMGCERT: FAIL
+GATE DMGGEAR: FAIL
+GATE DMGNOSE: PASS
+GATE DMGINST: FAIL
+GATE DMGSETTLE: PASS
+GATE DMGDRIVE: PASS
+GATE DMGTYRE: FAIL (4)
+GATE DMGFABRIC: FAIL
+GATE DMGCOMPOSITE: FAIL
+GATE ROLLANIM: PASS
+GATE CONTACT: PASS
+GATE MEDIA: PASS
+GATE BUILD: PASS
+GATE SKINMAT: PASS
+GATE LIVERYREACH: PASS
+GATE LIVERY: PASS
+GATE WEATHER: PASS
+GATE SURF: PASS
+GATE EDBUGS: PASS
+GATE FIT: PASS
+GATE HINGE: PASS
+GATE CAGEFIT: PASS
+GATE FRAMES: PASS
+GATE KNIFE: PASS
+GATE FIN: PASS
+GATE COWL: PASS
+GATE NACLAG: PASS
+GATE JOIN: PASS
+GATE WINGROWS: PASS
+GATE DESIGNCHECK: PASS
+GATE DESIGNSIM: PASS
+GATE SPECFIX: PASS
+GATE JOINPARITY: 1 FAIL
+GATE ENGINE: PASS
+GATE ENGID: PASS
+GATE STARTER: PASS
+GATE SAVE: PASS
+GATE BENCH: PASS
+GATE SIMWORKER: PASS
+GATE PARTS: PASS
+GATE SHOULDER: PASS
+GATE DESIGN: PASS
+GATE ARCHETYPES: FAIL (1)    (shard 0/4; shards 1, 2, 3: GATE ARCHETYPES: PASS)
+GATE VIEW: PASS
+GATE SITE: PASS
+GATE PARKED: PASS
+GATE HITBOX: PASS
+GATE WATER: PASS
+GATE WATERDAMP: PASS
+GATE RWYTREES: PASS
+GATE FLOATS: PASS
+GATE ACCEPT: PASS
+GATE POD: FAIL
+GATE STORY: PASS
+GATE TECH: PASS
+GATE PROCURE: PASS
+GATE FREIGHT: PASS
+GATE PILOTS: FAIL
+GATE ENERGYBASE: PASS
+GATE ENERGY: PASS
+GATE TANKMOUNT: PASS
+GATE ENGTORQUE: PASS
+GATE HEADING: PASS
+GATE PANEL: PASS
+GATE DASH: PASS
+GATE ELEC: PASS
+GATE WORLD: FAIL
+GATE FLEX: PASS (x3 shards)
+GATE LOAD: PASS
+GATE MOUNT: PASS
+GATE ENGCONFIG: PASS
+GATE AUDIOENG: PASS
+GATE PILOT: PASS (x3 shards)
+GATE BUILT: PASS
+GATE DMGDETERMINISM: PASS
+GATE PILOTMATRIX: PASS
+```
+**Red here AND red on master d7e181f4e with the same FAIL lines** (each run on a clean d7e181f4e worktree on this box,
+its FAIL lines diffed against this branch's; not this branch's):
+```
+GATE TOUR: FAIL (2)                2 FAIL lines, master d7e181f4e the same: 5 the float Cessna mk_sea > SEA: stopped at its To with no fault  (ground-loop: the nose 30 deg off the landin ...
+GATE CLOUD: FAIL (1 of 239)        1 FAIL line, master d7e181f4e the same: the pool is re-assigned every 30 frames to the nearest published lamps; the level is the bench's night divided
+GATE RADIALDIV: FAIL (3)           3 FAIL lines, master d7e181f4e the same: mosquito: HANDS OFF 20 s, the heading moved under 15 deg - -55.8 ...
+GATE TREEHIT: FAIL                 6 FAIL lines, master d7e181f4e the same: at 0 m the trunk stops it (the CG got to 63.5 m of 60) ...
+GATE TREECRASH: FAIL               1 FAIL line, master d7e181f4e the same: jodel/trunk0 against the reference: broken p 0.034, pieces p 0.045, work MOVED p 0.000, mountOff p 1.000, cowl
+GATE DMGCERT: FAIL                 2 FAIL lines, master d7e181f4e the same: to the ultimate x 1.1 (6.27 g): it breaks (0 members), the first group none, the first member a - ...
+GATE DMGGEAR: FAIL                 1 FAIL line, master d7e181f4e the same: SEVERE for the twin: the 90 km/h, 5 m/s, 20 deg nose-in (2.6 x its FAR 23.527 water load, past its ultimate): 
+GATE DMGINST: FAIL                 2 FAIL lines, master d7e181f4e the same: every k x 5 in flight (past the integrator's limit): tripped at frame 1 as 'speed' (node 65 at 570.42 m/s off  ...
+GATE DMGTYRE: FAIL (4)             4 FAIL lines, master d7e181f4e the same: Jodel taxi turn, rudder 0.2: R 31.8 m at 2.93 m/s against the old law's 40.5 m (x0.784, 0.80-1.10; the kinemat ...
+GATE DMGFABRIC: FAIL               9 FAIL lines, master d7e181f4e the same: cub t25: damage OFF - the base's bits (d108a5e49d48), no tie store ...
+GATE DMGCOMPOSITE: FAIL            1 FAIL line, master d7e181f4e the same: damage OFF: the Cub, the Jodel, the metal Cessna into the 30 m/s trunk on the base's bytes ({"cub":"8b472a2983
+GATE JOINPARITY: 1 FAIL            1 FAIL line, master d7e181f4e the same: no tool flies a validated build raw: _apsmooth_check.js, _engtorque_check.js, _floatdup_check.js, econ_sim.js,
+GATE ARCHETYPES: FAIL (1)          1 FAIL line, master d7e181f4e the same: Chinook-alike: the circuit completes — rejected-takeoff
+GATE POD: FAIL                     12 FAIL lines, master d7e181f4e the same: cub: pod off, the whole def is the base's bytes (4eceefb3:143310) ...
+GATE PILOTS: FAIL                  1 FAIL line, master d7e181f4e the same: FAIL: kit is not where the aeroplane is: refused (Kit is at Ridgeback Strip, not with the aeroplane.)
+GATE WORLD: FAIL                   1 FAIL line, master d7e181f4e the same: FAIL: island: 13/31 approaches under 4 % both ways (the fans clear)
+```
+
+**Gates that need the GPU (A0 runs those):** PILOTPAGE (full tier: the validated legs flown by the page on a quiet box -
+"run when the pilot, the servos, the nav or the core change"; the core changed: 30_solver's per-disc wash for layouts,
+61/62/64's layouts, 79b_tech) - not run here; and the garage stills (the box script in the 22 Oct entry:
+`node tools/garage_shot.js --file tools/fixtures/build_v10_engcfg_{pushpull,trimotor,four}_2026-10-22.json ...`).
+Every other gate in the list runs headless (node, or SwiftShader for UISMOKE / DMGCERTCOST / DMGDETERMINISM / ROLLANIM /
+LAZY) and ran here.
+
+**Pictures taken in the cloud** (shown to the user, not committed): the plane-building bench `tools/_cage8.html` driven
+headless on SwiftShader (CAGE_UI.applySpec + setView) - the Four, the Three, the Skymaster-alike card, the Push-pull;
+and a flat-shaded rasteriser of the garage's own layers (dash_stills.js's, every layer) for the push-pull's twin boom
+from rear / side / top and the cockpits (one throttle lever per engine, red).
+
+**Named for owners (seen in those pictures, not this branch's):**
+- `tools/_cage8.html` lags master by two scripts: `src/core/60d_gen_pod.js` (the wing layer throws genPodResolve: the
+  bench draws no wing nacelles, "no wing to hang the nacelles on") and `src/viewer/assets.js` (the tanks throw
+  TEX_FLAT). The stills added both on the fly; the page itself is untouched.
+- Wing nacelle engines are drawn uncowled (bare engine ahead of the nacelle tail) - master's Twin bush hauler card shows
+  it too.
+- A swept fin's ventral strake draws detached below a twin boom's fins (the push-pull now uses the straight fin).
