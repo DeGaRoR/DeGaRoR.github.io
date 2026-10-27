@@ -334,17 +334,26 @@ function manifestFiles() {
   // the 2-D island map (G2250 MAP-MENU): tools/map_bake.js owns media/map, named by the generated map pack (G2203: was missing,
   // so the map's two files read as orphans)
   const mapp = path.join(ROOT, 'src', 'viewer', 'map_pack.js'), maps = fs.existsSync(mapp) ? [mapp] : [];
-  return v.concat(packs, pier, totems, panelhw, cabin, loads, scenery, cars, camp, infra, models, chars, animals, trees, shots, worlds, townkit, sound, maps);
+  // THE PEOPLE (G3615 / G3620): tools/portrait_prep.py owns media/people; its generated tables name each file BARE
+  // (72_people.js prefixes PEOPLE_FACE_DIR), so collectRefs reads them through BARE_DIRS below
+  const people = ['72_people_faces.js', '72_people_bgs.js'].map(f => path.join(ROOT, 'src', 'core', f)).filter(f => fs.existsSync(f));
+  return v.concat(packs, pier, totems, panelhw, cabin, loads, scenery, cars, camp, infra, models, chars, animals, trees, shots, worlds, townkit, sound, maps, people);
 }
 
 const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin|ktx2|mp3|ogg|json)/g;   // webp: LOADING S4's texture prep; ktx2: AS3's (G916); mp3: the sound (G1636); json: Radio Jolene's broadcast script (G1701); ogg: the story's opening (G3380)
 
+// the manifests that name their files bare, under one media directory (the generated table: '<key>': '<file>')
+const BARE_DIRS = { '72_people_faces.js': 'media/people/', '72_people_bgs.js': 'media/people/' };
+const BARE_RE = /'([A-Za-z0-9_\-.]+?\.(?:jpg|png|webp))'/g;
+
 function collectRefs(files) {
   const refs = new Map();               // rel path -> first manifest naming it
   for (const f of files) {
-    const txt = fs.readFileSync(f, 'utf8');
+    const txt = fs.readFileSync(f, 'utf8'), dir = BARE_DIRS[path.basename(f)];
     for (const m of txt.match(REF_RE) || [])
       if (!refs.has(m)) refs.set(m, path.relative(ROOT, f));
+    if (dir) for (const m of txt.matchAll(BARE_RE))
+      if (!refs.has(dir + m[1])) refs.set(dir + m[1], path.relative(ROOT, f));
   }
   return refs;
 }
