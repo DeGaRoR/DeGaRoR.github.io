@@ -9509,22 +9509,28 @@
     const V = Math.max(14, Math.min(40, +ap.VAppr || (SH && (+SH.Vref || (+SH.Vs0 ? 1.3 * SH.Vs0 : 0))) || 22));
     // (posed on the way the pilot will land it - the wind on the day: 79_story storyFinalWay; a fresh pilot's t is 0)
     let way = 1; try { way = o && (o.way === 1 || o.way === -1) ? o.way : typeof storyFinalWay === 'function' ? storyFinalWay(H, world, 0) : 1; } catch (e) {}
-    // (A0 27 Oct 12:25: posed on the end the pilot itself plans from the pose - its own dirAt('land'), asked from each end's
-    // pose (PILOT's ap.landWayFrom); the scored way above breaks a tie, and stands alone without it. Never a re-pose after)
+    const poseOn = w => storyFinalPose(H, { V, way: w, groundH: (x, z) => (world && typeof world.terrainH === 'function' ? world.terrainH(x, z) : null) });
+    const placeOn = Q => {
+      sim.reset(0);
+      placeAtAerodrome(sim, { hdg: Q.hdg, spawn: [Q.x, Q.z], elev: Q.y });
+      for (let i = 0; i < sim.n; i++) { sim.v[i * 3] = Q.vx; sim.v[i * 3 + 1] = Q.vy; sim.v[i * 3 + 2] = Q.vz; }
+      if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'both', running: true });
+      ap = mkPilot(curKey);
+      // (a circuit at the WWII field, not the cabin -> HOME leg: a cross-country route flies to the pattern entry first - the
+      // 25 Oct 20:15 page run, 5 min round the circuit from 3 km out; a circuit's arrival takes the lined-up final straight in)
+      ap.setRoute(H, H);
+    };
+    let P = poseOn(way);
+    placeOn(P);
+    // (A0 27 Oct 12:25: posed on the end the pilot itself plans from the pose - the fresh pilot's own dirAt('land') at its
+    // t = 0, asked from each end's pose (PILOT's ap.landWayFrom, no side effects): both ends answering one way, that end;
+    // each its own (calm, the pref) or no answer, the scored way above. Settled in this call, before any frame: never a
+    // re-pose the player sees)
     let wayBy = 'scored';
     try { if (!(o && o.way) && typeof ap.landWayFrom === 'function') {
-      const fits = [way, -way].filter(w => { const Q = storyFinalPose(H, { V, way: w }), r = ap.landWayFrom(H, Q.x, Q.z); return !!(r && r.way === w); });
-      if (fits.length) { way = fits[0]; wayBy = 'pilot'; }
+      const fits = [way, -way].filter(w => { const Q = poseOn(w), r = ap.landWayFrom(H, Q.x, Q.z); return !!(r && r.way === w); });
+      if (fits.length) { wayBy = 'pilot'; if (fits[0] !== way) { way = fits[0]; P = poseOn(way); placeOn(P); } }
     } } catch (e) {}
-    const P = storyFinalPose(H, { V, way, groundH: (x, z) => (world && typeof world.terrainH === 'function' ? world.terrainH(x, z) : null) });
-    sim.reset(0);
-    placeAtAerodrome(sim, { hdg: P.hdg, spawn: [P.x, P.z], elev: P.y });
-    for (let i = 0; i < sim.n; i++) { sim.v[i * 3] = P.vx; sim.v[i * 3 + 1] = P.vy; sim.v[i * 3 + 2] = P.vz; }
-    if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'both', running: true });
-    ap = mkPilot(curKey);
-    // (a circuit at the WWII field, not the cabin -> HOME leg: a cross-country route flies to the pattern entry first - the
-    // 25 Oct 20:15 page run, 5 min round the circuit from 3 km out; a circuit's arrival takes the lined-up final straight in)
-    ap.setRoute(H, H);
     // (a fresh pilot's first update applies its DEFAULT modes before the phase's law engages its own: the elevator 'DE'
     // with no setting - ctl.de undefined, a NaN in the first step, 'sim diverged' at 0 s (the 25 Oct page run). Every other
     // start engages its modes on the ground first; this one starts in the air: the stick neutral for that one frame)
