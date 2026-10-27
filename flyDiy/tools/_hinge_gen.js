@@ -359,7 +359,19 @@ function buttHinge(bF, bM, F, S, len) {
     const lieFb = -(rA + 0.002);                    // the layer's lift, where no skin is measured
     const lie = a => skinAt(a, lieFb) + t * 0.5 + 0.0008;
     const aOut = Rk * 1.05, aJog = Rk + Math.max(0.004, 2.2 * Math.abs(-Rk + t * 0.5 - lie(dir * (Rk + 0.006))));
-    const aEnd = Rk + (S.reach || 0.035) * 0.75;
+    // A PLATE DOES NOT WRAP A CORNER: where the skin turns away from the
+    // leaf's flat by more than ~34 deg (the Cub's belly corner, where the
+    // bottom run's frame leaf met an 80 mm fall in 40 mm and stood off it in
+    // the air), the leaf ends - never shorter than a rivet's land past the jog
+    const aMax = Rk + (S.reach || 0.035) * 0.75, aMin = aJog + 0.008, da = 0.002;
+    let aEnd = aMax;
+    { const h0 = lie(dir * aJog), h1 = lie(dir * (aJog + da)), ang0 = Math.atan2(h1 - h0, da);
+      let hp = h1;
+      for (let a = aJog + 2 * da; a <= aMax + 1e-9; a += da) {
+        const h = lie(dir * a);
+        if (a > aMin && Math.abs(Math.atan2(h - hp, da) - ang0) > 0.6) { aEnd = a - da; break; }
+        hp = h;
+      } }
     const pts = [[0, -Rk + t * 0.5], [aOut, -Rk + t * 0.5]];
     const nF = Math.max(3, Math.round((aEnd - aJog) / 0.004));
     for (let k = 0; k <= nF; k++) { const a = aJog + (aEnd - aJog) * k / nF; pts.push([a, lie(dir * a)]); }
@@ -389,7 +401,7 @@ function buttHinge(bF, bM, F, S, len) {
     };
     sweep(bag, path, sect, true, F.z);
     // the rivets: domed heads on the flat, square to the skin under them
-    const nR = len > 0.12 ? 3 : 2;
+    const nR = (aEnd - aJog) < 0.012 ? 0 : len > 0.12 ? 3 : 2;   // a leaf cut short by a corner keeps no rivet land
     const aR = aJog + (aEnd - aJog) * 0.5;
     const R = 0.0026 * sz;
     for (let j = 0; j < nR; j++) {
