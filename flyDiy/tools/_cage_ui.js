@@ -934,7 +934,7 @@ function secMat(name, g) {
     ccK: r.ccK, fieldK: r.fieldK,                    // G206
     metalK: r.metalK,                                // G215
     fieldLK: r.fieldLK,                              // G217
-    // G206.1: the crew layer's sections (the seats, the dummies) sit inside
+    // G206.1: the crew layer's sections (the seats, the floor) sit inside
     inside: (A.AERO_SEC[name] && A.AERO_SEC[name].layer === 'crew') ? 1 : 0,
     // G207: the flying surfaces, the cowl and the spats take a marking; the
     // engine, the mount, the gear, the struts, the crew do not
@@ -2748,7 +2748,7 @@ const anchorSize = () => {
 // before it builds; a layer's starter then records the loaded value instead
 // of reacting to it. The design tiles (design_flow.js) deliberately do NOT go
 // through here: a tile writing `engPreset` IS a row change and must fire.
-const loaded = () => { if (PAGE.load) try { PAGE.load(); } catch (e) {} };
+const loaded = spec => { if (PAGE.load) try { PAGE.load(spec); } catch (e) {} };   // the file, when a file replaced P
 
 // G680: `steps` - the load is done now and the build comes back as a generator (buildSteps: the sheet | the layers),
 // for parked.js's capture a step a task (applySpecSteps); without it, as always, the build runs here
@@ -2761,7 +2761,7 @@ function applySpec(spec, what, steps) {
   const F = G.cageFromSpec(spec), VK = G.CAGE_VIEW_KEYS || {};
   for (const k of Object.keys(P)) if (!(k in F) && !(k in VK)) delete P[k];
   Object.assign(P, F);
-  loaded();
+  loaded(spec);
   // THE PAINT COMES WITH THE AEROPLANE (G105). Unconditional, INCLUDING when
   // the file has no `finish` at all: that is a build with no overrides, and
   // the aeroplane it describes is the factory one. Applying it only when

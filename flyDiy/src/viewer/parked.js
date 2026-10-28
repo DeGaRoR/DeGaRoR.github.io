@@ -97,7 +97,7 @@
 // KEYS. 'arch:<key>' an archetype (CAGE_DESIGN.designBake), 'stock:<name>' a
 // stock design, 'mine:<slot>' one of your own saved builds — GARAGE_SPEC's
 // stockSpec / slotSpec doors (G411). The parked spec flies nobody: the pilot
-// dummy and every seat's occupancy are switched off before the capture.
+// and every seat's occupancy are switched off before the capture.
 //
 // THE COOK (G805, the architecture queue's C0b). An 'arch:' or 'stock:' key is
 // the same aeroplane on every machine, so its capture and its bake are done
@@ -158,13 +158,13 @@
     if (!spec) return null;
     return emptyCockpit(spec);
   }
-  // NOBODY ABOARD: the pilot dummy (dumOn), the co-pilot's seat (cabOcc) and
+  // NOBODY ABOARD: the pilot (pilOn), the co-pilot's seat (cabOcc) and
   // every bay's occupancy (paxOcc<n>) are cage rows — deviations from the
   // template — so writing zeros is the whole of it. The lights off too.
   function emptyCockpit(spec) {
     const s = JSON.parse(JSON.stringify(spec));
     s.cage = Object.assign({}, s.cage || {});
-    s.cage.dumOn = 0; s.cage.cabOcc = 0;
+    s.cage.pilOn = 0; s.cage.cabOcc = 0;
     for (let n = 1; n <= 6; n++) s.cage['paxOcc' + n] = 0;
     s.cage.lightOn = 0;
     return s;

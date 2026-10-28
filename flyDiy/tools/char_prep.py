@@ -224,7 +224,7 @@ def hips_track(j, bin_, a):
 
 def bake_anim(row, report, root=False):
     """One clip -> f32 quats [frames][joints][4] on a uniform grid at row.fps.
-    Rotation channels only: the ATD owns the root and the legs, the clip
+    Rotation channels only: the crew's IK owns the root and the legs, the clip
     lends its upper body — translations would fight the seat."""
     j, bin_ = load(asset_src(row['glb']))
     anims = j.get('animations', [])

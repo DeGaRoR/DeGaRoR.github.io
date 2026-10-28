@@ -978,6 +978,8 @@ const GATES = [
   // deterministic and capped; a pilot follows their aeroplane; hire / fire / the boat; the sandbox's doors inert;
   // 36 doctored rules. ~2 s
   { id: 'PILOTS', file: '_pilots_check.js', tier: 'core' },
+  // G3700 (the user, 25 Oct): the racer is the only pilot - no reference to the retired figure outside the load migration
+  { id: 'NODUMMY', file: '_nodummy_check.js', tier: 'core' },
   // THE HANGAR (HANGARS S2/S3): shells, kits, capabilities and the placement
   // contract. The kit tables partition the declared prop tables exactly once,
   // every capability verb is grantable, every kit places into every shell OR

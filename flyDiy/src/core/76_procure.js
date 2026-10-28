@@ -61,7 +61,7 @@ const PROCURE_COSMETIC = ['paint', 'finish', 'meta'];          // bench.js BENCH
 // load with no edit). A readout is not a choice, so it never signs or withdraws a certificate.
 const PROCURE_READOUTS = ['fuel'];
 const PROCURE_LOOK = { energy: ['finish', 'hue', 'tint'], vessel: ['finish', 'hue', 'tint'], systems: ['look'] };
-const PROCURE_STATE_ROWS = /^_view|^(explodeD|dumOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail)$|^hgDr[A-Z]/;
+const PROCURE_STATE_ROWS = /^_view|^(explodeD|pilOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail)$|^hgDr[A-Z]/;
 const prClone = o => JSON.parse(JSON.stringify(o));
 const prNo = (doc, why) => ({ ok: false, doc, why });
 const prR100 = n => Math.round((+n || 0) / 100) * 100;
@@ -207,15 +207,15 @@ const PROCURE_MODELS = {
       gear:     { def: 'wheels', vals: { wheels: { design: 'c172', eff: { c172: {}, c172f: {} } }, floats: { design: 'c172f', eff: { c172: {}, c172f: {} } } } },
       engine:   { def: 'o540', vals: { o540: { eng: 'o540', eff: { c172: {}, c172f: {} } },
                                        o320: { eng: 'o320', eff: { c172: PE_({ cost: -11047, emptyKg: -77, massKg: -77, toM: 31, cruiseKmh: -8, rangeKm: 50, tankL: 0, seats: 0 }),
-                                                                   c172f: PE_({ cost: -11025, emptyKg: -77, massKg: -77, toM: 37, cruiseKmh: -29, rangeKm: 40, tankL: 0, seats: 0 }) } },
+                                                                   c172f: PE_({ cost: -11031, emptyKg: -77, massKg: -77, toM: 51, cruiseKmh: -29, rangeKm: 40, tankL: 0, seats: 0 }) } },
                                        io360: { eng: 'io360', eff: { c172: PE_({ cost: -724, emptyKg: -54, massKg: -54, toM: 13, cruiseKmh: -6, rangeKm: 27, tankL: 0, seats: 0 }),
-                                                                     c172f: PE_({ cost: -710, emptyKg: -54, massKg: -54, toM: 11, cruiseKmh: -16, rangeKm: 24, tankL: 0, seats: 0 }) } } } },
+                                                                     c172f: PE_({ cost: -714, emptyKg: -54, massKg: -54, toM: 27, cruiseKmh: -16, rangeKm: 24, tankL: 0, seats: 0 }) } } } },
       tank:     { def: 'std', vals: { std: { tank: 1, eff: { c172: {}, c172f: {} } },
                                       long: { tank: 1.5, eff: { c172: PE_({ cost: 728, emptyKg: 7, massKg: 17, toM: 6, cruiseKmh: 2, rangeKm: 52, tankL: 14.8, seats: 0 }),
-                                                                c172f: PE_({ cost: 724, emptyKg: 7, massKg: 17, toM: 27, cruiseKmh: 2, rangeKm: 60, tankL: 14.8, seats: 0 }) } } } },
+                                                                c172f: PE_({ cost: 726, emptyKg: 7, massKg: 17, toM: 39, cruiseKmh: 1, rangeKm: 60, tankL: 14.8, seats: 0 }) } } } },
       seats:    { def: '4', vals: { 4: { seats: null, eff: { c172: {}, c172f: {} } },
                                     3: { seats: 1, eff: { c172: PE_({ cost: -1541, emptyKg: -16, massKg: -16, toM: -6, cruiseKmh: -2, rangeKm: -1, tankL: 0, seats: -1 }),
-                                                          c172f: PE_({ cost: -1513, emptyKg: -15, massKg: -15, toM: -37, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: -1 }) } } } },
+                                                          c172f: PE_({ cost: -1521, emptyKg: -15, massKg: -15, toM: -37, cruiseKmh: -2, rangeKm: -1, tankL: 0, seats: -1 }) } } } },
       avionics: { def: 'custom', vals: { custom: { fit: null, eff: { c172: {}, c172f: {} } },
                                          basic: { fit: 'basic', eff: { c172: PE_({ cost: -11252, emptyKg: -9, massKg: -9, toM: -3, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: 0 }),
                                                                        c172f: PE_({ cost: -11249, emptyKg: -9, massKg: -9, toM: -20, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: 0 }) } } } },

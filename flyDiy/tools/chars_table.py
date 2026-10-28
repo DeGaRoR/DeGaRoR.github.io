@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
 """chars_table.py — THE DECLARED CHARACTER TABLE.
 
-One row per rigged character the crew layer may seat in place of the ATD-01
-crash-test dummy. This file is the single authority: `tools/char_prep.py`
+One row per rigged character the crew layer may seat (the pilot is always
+ch20, the racer - G3700). This file is the single authority: `tools/char_prep.py`
 bakes exactly these rows (GLB -> media/geo/chars + media/tex/chars + one
 src/chars/<key>_char.js manifest each, plus src/chars/chars_index.json in
-this order), and the editor's "pilot model" select lists them in this order
-after the ATD. Nothing downstream discovers characters by scanning a dir.
+this order), and the editor's co-pilot select lists them in this order
+after 'mixed crew'. Nothing downstream discovers characters by scanning a dir.
 
 The import path is FBX (Mixamo) -> GLB (tools/fbx_to_glb.py, Blender
 headless, as-is) -> bake. `assets/chars/` is gitignored: the FBX and the GLB
 are the source, the media store and the manifest are what ships.
 
 Each row:
-  key     game-side name, lowercase, stable forever (a saved spec's dumModel
-          index counts through this table)
+  key     game-side name, lowercase, stable forever (a saved spec's co-pilot
+          pick, `cabWho`, counts through this table)
   label   what the editor shows a human
   glb     the converted GLB under assets/chars/
   src     the delivered file it came from (for the manifest's provenance line)
@@ -65,8 +65,8 @@ ANIMS = [
 # the first time passengers appear - nothing of the cast is in index.html or
 # in a boot <script> (GATE MEDIA's WIRE budget, GATE CHARS check 6). The crowd
 # registers a member into CHAR_REG.chars WITHOUT CHAR_REG.order, so the editor's
-# "pilot model" select and the crew layer's passenger cycle never see them (a
-# saved spec's dumModel index and the flown model stay what they were).
+# co-pilot select and the crew layer's passenger cycle never see them (a
+# saved spec's co-pilot pick and the flown model stay what they were).
 # Each row: key/label/glb/src/credit as CHARS; `reuse` names a CHARS row
 # already baked for the crew (its boot manifest serves: nothing re-baked).
 # The source FBX (the user's 14, Mixamo 'name_ChNN_nonPBR.fbx') are under

@@ -1722,7 +1722,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // into flew as a two-seater and weighed like one.
     //
     // The bays are the capacity now. The LOADING is still what the cage
-    // shows: the pilot always, the second dummy when it is drawn, and the
+    // shows: the pilot always, the second occupant when drawn, and the
     // rest of the seats empty — `cabin.pax` is a loading number and an
     // aeroplane is not flown full because it could be.
     //
@@ -2206,12 +2206,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       if (o.userData && o.userData.edUnfit && !window.CAGE_JOIN_TAKE_UNFIT) return;
       const matList = Array.isArray(o.material) ? o.material : [o.material];
       if (!matList[0] || !matList[0].color) return;
-      // AN INVISIBLE MATERIAL IS NOT THE AEROPLANE (G210.2, the user: 'I only
-      // see the dummies in bright white'). The crew layer keeps a dressed
-      // dummy's ATD shells as the click/silhouette proxy under a material
-      // with `visible: false` — which this walk took, because it asked the
-      // OBJECT and never the material, and MeshBasicMaterial's default colour
-      // is white. Six white mannequins flew inside six people.
+      // AN INVISIBLE MATERIAL IS NOT THE AEROPLANE (G210.2: six white figures
+      // once flew inside six people). The crew layer keeps each character's
+      // posed body (_cage_char.js pickBody) as the click and clearance proxy
+      // under a material with `visible: false` — which this walk would take
+      // if it asked the OBJECT and never the material, MeshBasicMaterial's
+      // default colour being white.
       if (matList.every(m => m && m.visible === false)) return;
       // A LIVE OCCUPANT IS NOT BAKED (live crew, 2026-09-11): the crew layer
       // stamps the skinned meshes of whoever flies as a skeleton, and they
@@ -2878,7 +2878,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // THE LIVE CREW (2026-09-11): whoever the crew layer marked flies as a
     // SKELETON. Everything the flown solve needs, in the frames app.js has:
     // `cageM` is the bake's own cage -> model map as one matrix, `figM` the
-    // fig in the mount's frame, the solved ATD locals, and per job the grip
+    // fig in the mount's frame, the solved chain locals, and per job the grip
     // anchor in its MOVING PART's flown frame (the part group sits at its
     // pivot with the model's axes, so: the anchor in model axes, less the
     // pivot) with the pole the editor chose, in the fig's frame.
@@ -2891,14 +2891,14 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       const A4 = new THREE.Matrix4(), G4 = new THREE.Matrix4(),
             pa = new THREE.Vector3(), pg = new THREE.Vector3(),
             qa = new THREE.Quaternion(), sa = new THREE.Vector3();
-      for (const dum of LIVE) {
-        const L = dum.live;
-        if (!L || !dum.fig || !dum.char) continue;
-        dum.fig.updateWorldMatrix(true, true);
-        const figM = new THREE.Matrix4().multiplyMatrices(inv, dum.fig.matrixWorld)
+      for (const occ of LIVE) {
+        const L = occ.live;
+        if (!L || !occ.fig || !occ.char) continue;
+        occ.fig.updateWorldMatrix(true, true);
+        const figM = new THREE.Matrix4().multiplyMatrices(inv, occ.fig.matrixWorld)
           .toArray();
         const bones = {};
-        for (const bn in dum.bones) bones[bn] = dum.bones[bn].quaternion.toArray();
+        for (const bn in occ.bones) bones[bn] = occ.bones[bn].quaternion.toArray();
         const jobs = [];
         for (const j of L.jobs) {
           if (!j.ctl || !j.ctlObj || !j.poleFig) continue;
