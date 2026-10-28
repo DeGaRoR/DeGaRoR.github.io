@@ -100744,6 +100744,10 @@ on yellow, one white on the black boom side, a red V in each) - painted over too
 dark paint; `red`: the accent is part of the mark; a box without flags runs exactly as before); `bulldozer.glb` and
 `escavadeira_tractor.glb` are both WHEEL LOADERS - keyed machine_loader / machine_loader_rusty (the file names stay in
 the notes and CREDITS). Sizes and orientations right (all along z).
+SHIPPED (L28b) = ready 329c18824 WITH ONE KNOWN RESIDUAL: the crane's four black-on-yellow GROVE marks are dark GREY
+(max 0.22-0.33), above paint_over's 0.2 'black' cut - only their red V went, the side plate reads about "GLOVE" (the 13:20
+look). The fix, its own small ready for L28c: a `grey` box flag (the mark = max < 0.36) on those four boxes; needs the
+pier re-bake + the GPU look again.
 ## G3541-G3548 - AIRCRAFT-LOOKS: THE PAINT REACHES THE ROD BOOM AND THE TRUSS, NO REGISTRATION READS MIRRORED, THE WHOLE AEROPLANE PICKED WEARS ONE SILHOUETTE, THE TUNDRA IS A BALLOON ON A SMALL HUB (2026-10-26, AIRCRAFT-LOOKS, LOCAL; for T-P2 / L27a; claude/ready/aircraft-looks)
 Why: the user's playtest of 24 Oct, and the user's rulings of 25 Oct relayed by A0. Registrations: "not having mirrored registration when projecting either on the fuselage ... but also on the wings. The top side and bottom sides should be treated differently, and that should be the same for the stabs and the fins." Tundra: "the bigger tundra wheels are bad ... their flank was protruding, and their proportions were bad."
 What changed (drawing only - no spec key, no certificate):
