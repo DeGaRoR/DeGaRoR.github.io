@@ -17,7 +17,7 @@ const env=envOf({cage:{wgSlat:1,wgSlatSpan:1,wgVG:1,wgTip:7,wgDroop:1,
 // THE LIVERY (v2, "something more modern ... take inspiration from the CubCrafters Carbon Cubs"): white over graphite,
 // one accent colour - signal orange - on the keyline, the fin and the STOL parts that have a section of their own
 // (the drooped tips)
-const WHITE=0xE9E5DA, GRAPH=0x2A2D31, ORANGE=0xFF5A1F, INK=0x141414, PEARL=0.45;
+const WHITE=0xE9E5DA, GRAPH=0x2A2D31, ORANGE=0xFF5A1F, INK=0x141414, PEARL=0.60;
 env.name='STOL Cub';
 env.note='G2829 (STOL-WING-2): the showcase STOL Cub - the user\'s Cub (builds/cub_2026-09-20_corrected.json) with the STOL kit (full-span fixed slot, VGs, drooped tips, ailerons drooped 10 deg), a Rotax 915 iS on a three-blade carbon prop, 31-inch tundra tyres on 3-inch extended gear with coil-over shocks, a 45 % elevator on a 20 % wider stab, and a white / graphite / orange paint job. Every change is an editor row in spec.cage.';
 delete env.plaque; delete env.log;
@@ -28,7 +28,7 @@ const F=S.finish; const sec=F.sections;
 // a warmer off-white with metal flake in it (a pearl), body and flying surfaces alike
 for(const k of ['body','ceilingLoop','pillarFront','pillarCabin','floorLoop','pillarWindow','pillarPassenger','pillarTail','finRud']) sec[k]={tint:WHITE,metal:PEARL};
 for(const k of ['wingSkin','finSkin']) sec[k]=Object.assign({},sec[k]||{},{tint:WHITE,metal:PEARL});
-sec.stabSkin={tint:WHITE};   // the stab's surface takes the flake as a grey mirror of the hangar: plain off-white
+sec.stabSkin={tint:WHITE,metal:PEARL};
 sec.gearLeg={tint:GRAPH}; sec.waistband={tint:GRAPH}; sec.spinner={tint:GRAPH};
 sec.strut={fin:'castAlu',tint:GRAPH};
 sec.wingTip={tint:ORANGE}; sec.wingStol={tint:ORANGE};   // the STOL parts in the accent: the slot, the VG row, the drooped tips

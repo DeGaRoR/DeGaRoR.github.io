@@ -3805,6 +3805,9 @@ function finishFromSpec(f) {
         GLASS[k] = o.glass[k];
   }
   aeroSavePrefs(); decSavePrefs();
+  // G2829: the decal rows show what was just loaded (DEC_RELOAD, above)
+  for (const k in SYNC) try { SYNC[k](); } catch (e) {}
+  for (const f of DEC_RELOAD) try { f(); } catch (e) {}
   // EVERY ROW'S VALUE JUST CHANGED, and the panel only rebuilds when the
   // SECTION LIST changes shape — so loading into an aeroplane with the same
   // sections would have redrawn nothing and gone on showing the old numbers.
@@ -4132,6 +4135,10 @@ function syncMatPanel() {
 // itself. They live here rather than inside the builder because `decRange`
 // and `applyDecals` are called from the build and the builder runs once.
 const SYNC = {}, GREY = {}, LOCK = {};
+// G2829: what a LOADED build re-shows. The decal panel is built once; a load writes DEC (the drawing follows) but the
+// rows went on showing the boot aeroplane's values - the toggles and the pickers had no SYNC at all, and nothing
+// called the sliders'. A load now calls every SYNC and every hook here (the livery layers' titles)
+const DEC_RELOAD = [];
 // ---- SWITCHING PROJECTION KEEPS THE MARKING WHERE IT IS (G113.4) ---------
 // MEASURED, and it settles this the other way round from how it was planned.
 // The two frames do NOT differ by a constant anybody forgot to plumb: over
@@ -4452,6 +4459,7 @@ function buildDecPanel() {
     c.onchange = () => { DEC[key] = c.checked ? 1 : 0;
       decSavePrefs(); if (onChange) onChange(); applyDecals(); draw(); };
     d.appendChild(c);
+    SYNC[key] = () => { c.checked = !!DEC[key]; };
     return d;
   };
   const pick = (lab, key, names, title, onChange, parent) => {
@@ -4467,6 +4475,7 @@ function buildDecPanel() {
       decSavePrefs(); applyDecals(); draw();
     };
     d.appendChild(sel2);
+    SYNC[key] = () => { sel2.value = DEC[key]; };
     return d;
   };
   // the registration
@@ -4568,6 +4577,16 @@ function buildDecPanel() {
        'mirrored about the spine, which is what a registration wants');
   pick('projected as', 'regMode', MODE_NAMES, MODE_HELP,
        (a, b) => decReframe(a, b, { l: 'regL', c: 'regC' }));
+  // G2829 (the user, 27 Oct: "a large registration on the wing top ... we need a new option then"): THE SAME MARKING
+  // A SECOND TIME, ON THE WING TOP - the registration's text, colour and font, its own size and place, read from
+  // above (aeroskin's wreg*; off by default)
+  flag('on the wing top', 'wregOn',
+       'the registration a second time, large, on the wing - read from above');
+  num('wing letters', 'wregH', 0.10, 1.20, 0.01, 'metres - the letters\' height on the wing', 'len');
+  num('wing across', 'wregL', -6.0, 6.0, 0.05,
+      'metres from the centreline, in PLAN: + one wing, - the other', 'span');
+  num('wing along', 'wregC', -3.0, 3.0, 0.02, 'metres fore and aft, in PLAN, + forward', 'len');
+  num('wing turn', 'wregRot', -0.6, 0.6, 0.01, 'radians');
 
   // ---- THE MARKING KIT (G162) --------------------------------------------
   // Three layers, each its own <details>, and every row GENERATED from
@@ -4605,6 +4624,7 @@ function buildDecPanel() {
         sum.style.opacity = on ? '' : '.55';
       };
       const redo = () => { for (const f of refresh) f(); say(); };
+      DEC_RELOAD.push(redo);
 
       flag('on', q + 'On', 'paint this layer onto the aeroplane',
            () => { if (DEC[q + 'On']) det.open = true; redo(); }, det);

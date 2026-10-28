@@ -113,6 +113,18 @@ async function one(file) {
       say(name + ' the Leading edge row ' + (found ? 'found' : 'NOT FOUND'));
       await sleep(800); await shot('panel_stol');
     }
+    // G2829: the aeroplane's own panel scrolled to the registration's wing-top rows (the decals' "registration" block)
+    if (VIEWS.includes('reg')) {
+      await ev("(()=>{try{if(window.EDITOR_SELECT)window.EDITOR_SELECT('craft');}catch(e){}return 1})()");
+      await sleep(1500);
+      // the decals are on the FINISH tab
+      await ev("(()=>{const b=[...document.querySelectorAll('button,div,span,a')].find(e=>e.children.length===0&&/^finish$/i.test((e.textContent||'').trim()));if(b)b.click();return !!b})()");
+      await sleep(1500);
+      const found = await ev("(()=>{const el=[...document.querySelectorAll('*')].find(e=>e.children.length===0&&/^on the wing top$/i.test((e.textContent||'').trim()));if(!el)return false;el.scrollIntoView({block:'center'});return true})()");
+      say(name + ' the wing-top registration rows ' + (found ? 'found' : 'NOT FOUND'));
+      await ev("FLIGHT_PROBE.camSet(" + (Math.PI - 0.35) + ",0.95,12),1"); await sleep(1500);
+      await shot('reg');
+    }
     // the archetype picker away if it came up (the phone profile's garage can raise it after the load): the build stays
     await ev("(()=>{[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0).forEach(x=>x.click());return 1})()");
     await sleep(800);

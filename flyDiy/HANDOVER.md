@@ -98855,13 +98855,132 @@ every look change above; `diff` empty).
    let the kit show on landing too - an autopilot chantier, not this one.
 2. The tailplane is graphite because the tail sweep's side projection covers the whole tail; the drooped tips are
    orange with the slot. Say if you want either white.
-3. The wing-top registration is a new decal placement (wreg*) with no editor row yet - the build carries it; a row in
-   the decals panel is a small follow-up.
+3. The wing-top registration is a new decal placement (wreg*); its rows are in the decals panel (READY UPDATE below).
 4. The automatic slat is still drawn home; the `stol-kit` machine-shop pack is still the GAME coordinator's to wire.
 
 **What to watch for:** the shared wing normals change the SHADING of every wing tip in the editor and the flown model
 (no geometry); GATE STOL's baseline is d7e181f4e's (re-capture on a merge that moves the cards); GATE STOL ~6 min
 (`wall: 480`).
+
+**READY UPDATE (15:33 CET, 27 Oct; the user: "don't we have the wingtop registration yet? ... we need a new option", "add
+some metallic to the white ... 50-70 %"):**
+- **The wing-top registration has its rows** (_cage_ui.js, My Plane -> Finish -> Registration): "on the wing top",
+  "wing letters", "wing across", "wing along", "wing turn" - the wreg* keys the build already carried. Still
+  reports/evidence/STOL-WING-2/showcase_v3_desktop_reg.jpg.
+- **The decal panel shows a loaded build** (a bug this exposed): a load wrote DEC (the drawing followed) but the
+  panel, built once, kept the boot aeroplane's values - the toggles and pickers had no SYNC and nothing called the
+  sliders'. Toggles and pickers now have one, the livery layers' titles a hook (DEC_RELOAD), and the finish load
+  calls them all.
+- **The pearl:** the off-white's flake 0.45 -> 0.60 (body, wing, fin, stab); the fixture only.
+- **The gates** (the files changed: tools/_cage_ui.js, tools/stol_shots.js, the fixture): every gate that reads
+  _cage_ui.js (grep) plus STOL and the seven, plus UISMOKE / UISMOKE-PHONE (they boot the page), on this code:
+
+    GATE STOL: PASS
+    GATE BUILD: PASS
+    GATE JOIN: PASS
+    GATE STARTER: PASS
+    GATE SAVE: PASS
+    GATE PARTS: PASS
+    GATE CLOUD: FAIL (1 of 239)
+    GATE PILOT: PASS
+    GATE SIMWORKER: PASS
+    GATE MEDIA: PASS
+    GATE SKINMAT: PASS
+    GATE LIVERY: PASS
+    GATE WEATHER: PASS
+    GATE EDBUGS: PASS
+    GATE FIT: PASS
+    GATE NACLAG: PASS
+    GATE BENCH: PASS
+    GATE SHEETWORKER: PASS
+    GATE UISMOKE: PASS
+    GATE PARKED: PASS
+    GATE ENERGY: PASS
+    GATE UISMOKE-PHONE: PASS
+
+  CLOUD 1 of 239 is master's own (the lamp pool line, the same as master d7e181f4e); a run with the screenshot
+  Chrome alongside timed one more probe out at 601 s, and the run alone gave the line above. Master still
+  d7e181f4e (re-fetched 15:33 CET).
+
+**READY UPDATE (A0 round, night of 27-28 Oct; A0: "time RWYTREES on master vs your tree ... the STOL Cub showcase
+CANNOT DEPART the mine's 250 m strip ... find the cause and fix it ... node pilot legs as proof"):**
+- **RWYTREES is not slowed by this branch.** It reads none of this branch's files except 30_solver.js, and that
+  only in a comment; its time is the page harness (tools/_page_node.js over dev.html's scripts, Jolene, three
+  variants, ~3.6 GB each). Timed alone here: master d7e181f4e **1739 s PASS**; this tree (aa0d6c63a) 1801 s,
+  cut by the runner's 1800 s cap (both are well past the gate's own 1200 s wall on this 4-core box). One variant's
+  page child (`--page map`) is master 323 s vs the branch 369 s. The CPU profile puts the difference in
+  meshDecimate (the parked capture), because a branch carrying master's media/parked/* has a cook keyed to
+  master's builds, so the page captures the parked aeroplanes live (~16 s a variant). The train re-cooks, so
+  that gap is not there after the train. The solver itself is unchanged: 6000 steps of the Cub take
+  20.5 / 19.2 s on master and 19.9 / 18.3 s here. A0's 12 minutes is the gate's own time on the box,
+  not 10x: the branch adds 4 % here, the stale cook.
+- **The mine departure: the cause is the line-up, not the tyres or the prop.** pilot_trace on Jolene, mn_strip:
+  - **The spawn is off the run.** The mine spawn stands 18.5 m off the centreline, a 43 deg intercept for the
+    roll's 25 m look-ahead. HOME's spawn faces 85 deg off its run.
+  - **The roll turns onto the line at full power.** At static T/W 0.40 (Rotax 915) the turn became a ground
+    loop: e -43 -> +87 deg in 3.5 s against full rudder, V back to 2 m/s, then rejected ("0.02 m/s2").
+  - **The stock Cub (T/W 0.27) gets away with it.** The same Cub with a 915 or an O-320 does not; the showcase
+    with an O-200 or a 912 leaves (reports/evidence/STOL-WING-2/mine/eng_*.log, stockcub_*.log).
+  - **A capped throttle alone was not enough.** T/W 0.30 only moved the loop: the swing still overshot to +58 and
+    -52 deg (mine/first_try_cap/).
+- **The fix (src/core/43_pilot.js ROLL, G2829; FOR PILOT'S REVIEW):**
+  - **The hold.** While the tail is down and the line is more than 15 deg off, the throttle holds taxi thrust
+    (T/W lineTaxiTW 0.15) until the nose has stayed within 5 deg of the line for 1 s.
+  - **The clock.** The roll's clock (phaseT, which the accelerate-stop rules read) starts at the end of the hold.
+  - **Who arms it.** Only a taildragger on wheels over static T/W lineupTW 0.30. No validated build does: the
+    Cub is 0.27, the Jodel 0.23, the Cessnas are trikes and the float builds are on the water. The validated
+    builds' flights do not change; GATE PILOT is green.
+- **The legs** (reports/evidence/STOL-WING-2/mine/, legs.sh, SUMMARY.txt; before_fix/ is aa0d6c63a):
+
+      showcase  mine      expert   completed  LIFTOFF@11.6 (was: rejected 0.24 m/s2 at 7 s)
+      showcase  mine      student  completed  LIFTOFF@11.2 (was: rejected 0.03 m/s2)
+      showcase  HOME->mine expert  completed  LIFTOFF@12.2, landed at the mine (was: rejected)
+      showcase  HOME->mine student completed  LIFTOFF@13.0, landed at the mine (was: rejected)
+      stock Cub mine      expert   completed  (unchanged)
+      stock Cub HOME->mine expert  completed  (unchanged)
+      stock Cub mine / HOME->mine student: rejected-takeoff 9.4 s / 9.3 s - identical on master d7e181f4e
+      (a student's weave on the 43 / 85 deg line-up; the Cub does not arm the new rule). For PILOT.
+      Cub + 915 (diagnostic only): departs at the mine and HOME (4 of 4). HOME->mine student capsized on the
+      mine's FINAL, after the take-off.
+
+- **The gates** (the files changed in this round: src/core/43_pilot.js and the evidence; master still d7e181f4e,
+  re-fetched 00:20 CET 28 Oct - T-P1 had not landed). Every gate that reads 43_pilot.js (grep), plus STOL and A0's
+  three, on f77934338:
+
+    GATE STOL: PASS
+    GATE PILOT: PASS   [3 shards]
+    GATE STRIPSURF: PASS
+    GATE TAKEOFF: PASS
+    GATE PLAN: PASS
+    GATE LINEUP: PASS
+    GATE DESTTO: PASS   [3 shards]
+    GATE ROUTE: PASS   [3 shards]
+    GATE SEAPLANE: PASS
+    GATE PILOTS: FAIL
+    GATE CLIMATE: PASS
+    GATE CLOUD: FAIL (1 of 239)
+    GATE GEN: PASS   [4 shards]
+    GATE TAXICLEAR: PASS   [4 shards]
+    GATE DMGINST: FAIL
+    GATE MEDIA: PASS
+    GATE BENCH: PASS
+    GATE SIMWORKER: PASS
+    GATE STORY: PASS
+    GATE DMGCERTCOST: PASS
+    GATE RADIALDIV: FAIL (3)
+    GATE RWYTREES: PASS   (alone, outside the runner: 1700 s; master d7e181f4e alone 1739 s)
+
+  - **Reds, all master's own, each with the same line on master d7e181f4e:**
+    - PILOTS: "kit is not where the aeroplane is: refused (Kit is at Ridgeback Strip ...)" - a career check.
+    - CLOUD: 1 of 239, the lamp pool line.
+    - DMGINST: the 'speed' watchdog's two lines.
+    - RADIALDIV: FAIL (3), the HANDS OFF heading. Master reads mosquito -55.8, mosquito_1 -55.9, cub -46.9; this
+      tree reads -56.1, -56.2, -46.9. The Mosquito (M-14P, a taildragger far over T/W 0.30) arms the line-up
+      hold, which is why its number shifts 0.3 deg; the Cub's is identical.
+    - Logs: reports/evidence/STOL-WING-2/gates/a0round/.
+  - **Carried from the aa0d6c63a battery (READY note above):** the gates that do not read 43_pilot.js.
+  - **For A0's box (needs the browser, 2 h):** PILOTPAGE reads 43_pilot.js and has not been run here. The STOL
+    Cub page leg is A0's to book.
 
 ## G3353 - CABIN-MACHINES: THE CABIN KEEPS TWO SMALL MACHINES (2026-10-22, GAME coordinator; claude/cabin-machines on game-fri 5c50f4313; gated Fri 23 Oct 09:05 for L23b)
 - The user's request, verbatim (via A0): "get rid of the large router (the largest of the woodworking machines). Keep only the 2 smaller ones (the drill and another)".
