@@ -72,6 +72,8 @@
     // (G2435) the infrastructure: the main roads, the settlements and the tram from the fit; every road and the labels
     // from the middle zoom; the houses and the site footprints closer in; the roads' simplification band by zoom
     infra: 1, infraAll: 1.8, infraLbl: 1.8, infraBldg: 2.6, infraBand: [1.8, 4] };
+  const layerSaid = {};                  // (G3523) a failing layer is said once
+  const PLANES_ROW = 3;                 // (G3525) your planes side by side under a place's badge; more is one chip with the count
   const ZOOM_MAX = 8, ZOOM_ABS = 3;     // the deepest zoom: 8x the fit, and at least 3 screen px per picture px (4 m a px)
 
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -656,6 +658,8 @@
   }
 
   // ---- THE MAP'S OVERLAY (pure: strings over a view; the DOM half sets them) ----------------------------------------
+  // G3640: a hangar - the roof's arc over the doors (the garage's own tab glyph's shape, filled)
+  const GAR_ICON = '<path d="M3 11.2 12 5l9 6.2V20h-3.2v-6.4H6.2V20H3Z"/><path d="M7.4 14.8h9.2v1.4H7.4Zm0 2.6h9.2V20H7.4Z" opacity=".55"/>';
   const ICON = {
     airfield: '<path d="M12 3.5c.9 0 1.4.7 1.4 1.6v4.6l6.6 3.6v2l-6.6-1.9v3.9l2 1.5v1.6l-3.4-.9-3.4.9v-1.6l2-1.5v-3.9L4 15.3v-2l6.6-3.6V5.1c0-.9.5-1.6 1.4-1.6z"/>',
     strip: '<path d="M10.2 3h3.6l1.2 18H9z"/><path d="M12 5v2M12 9v2M12 13v2M12 17v2" stroke="#e9dcc0" stroke-width="1.2"/>',
@@ -675,11 +679,12 @@
   const SURF = { concrete: '#56524d', asphalt: '#4a4744', gravel: '#9a7650', grass: '#6f9a4a', snow: '#e8eef2', dirt: '#8a6a48' };
   const n1 = v => v.toFixed(1);
   // view: { s, tx, ty, fit, w, h } (screen px per picture px, the offset, the fit's scale, the viewport) -> { html, svg, n }
-  function overlayOf(M, st, pack, view) {
+  // layers (G3523, THE MAP'S LAYER HOOK): { id: draw } - the page's window.FLYDIY_MAP_LAYERS; see 3c
+  function overlayOf(M, st, pack, view, layers) {
     const s = view.s, zr = s / view.fit, mpp = pack.mpp, near = s / mpp;   // screen px per metre
     const X = x => view.tx + ((x - pack.x0) / mpp) * s, Y = z => view.ty + ((z - pack.z0) / mpp) * s;
     const bs = Math.round(clamp(10 + 9 * zr, 16, 34)), hs = Math.round(clamp(6 + 7 * zr, 14, 26));
-    const n = { badges: 0, names: 0, facts: 0, pois: 0, hot: 0, rings: 0, counts: 0, runways: 0, desig: 0, routes: 0, planes: 0, marks: 0, labels: 0, held: 0, dim: 0, rlines: 0, rplanes: 0 };   // marks (G2440), labels / held (G2435), dim (G2710), rlines / rplanes (G3260)
+    const n = { badges: 0, names: 0, facts: 0, pois: 0, hot: 0, rings: 0, counts: 0, runways: 0, desig: 0, routes: 0, planes: 0, marks: 0, labels: 0, held: 0, dim: 0, rlines: 0, rplanes: 0, layers: 0, garages: 0 };   // marks (G2440), labels / held (G2435), dim (G2710), rlines / rplanes (G3260), layers (G3523)
     const contractsOn = listOf(st) === 'contracts';   // (G2440) the other lists keep the tracked contract, not an open one
     let html = '', svg = '';
     // the open and the tracked contracts' places -> their type colour (the badge takes a ring)
@@ -761,6 +766,22 @@
       html += '<span class="mmRtPlane" style="left:' + n1(px) + 'px;top:' + n1(py) + 'px" role="img" aria-label="' + esc(r.plane + ' on its route ' + baseName(a.name) + ' – ' + baseName(b.name) + ', flown by ' + r.pilotName) + '">✈</span>';
       n.rlines++; n.rplanes++;
     }
+    // 3c. (G3523) THE LAYERS: what another part of the game draws on this map (AP-HONEST G3560s: the autopilot's route),
+    //     over the routes and under the places, so a badge stays a tap. Each is draw(ctx) -> { svg?, html?, boxes? } or
+    //     nothing, with ctx = { X, Y (world x / z in metres -> screen px), zr (1 = the whole island), near (screen px per
+    //     metre), aeros (id -> { x, z, len, wid, hdg, name }), place (an aerodrome id -> its place's badge id) }; its boxes
+    //     ([x0, y0, x1, y1], screen px) keep the labels below clear of it. A layer that throws is skipped (said once).
+    if (layers) for (const id of Object.keys(layers).sort()) {
+      const draw = layers[id]; if (typeof draw !== 'function') continue;
+      let o = null;
+      try { o = draw({ X, Y, zr, near, aeros: M.aeros, place: aid => M.placeOf[aid] || null }); }
+      catch (e) { if (!layerSaid[id]) { layerSaid[id] = 1; try { console.warn('flyDiy: the map layer ' + id + ' failed -', e && e.message); } catch (e2) {} } continue; }
+      if (!o) continue;
+      if (typeof o.svg === 'string') svg += o.svg;
+      if (typeof o.html === 'string') html += o.html;
+      if (Array.isArray(o.boxes)) for (const b of o.boxes) if (b && b.length === 4) boxes.push(b);
+      n.layers++;
+    }
     // 4. the places of interest (mid zoom)
     // (a place of interest beside a site's badge - the lodge at the altiport, the town at its float - stands below it)
     // (G2435: a place of interest the infrastructure names - the town, the cannery - is named once, by its label below)
@@ -796,12 +817,39 @@
       html += '<button type="button" class="mmNm' + (dim ? ' dim' : '') + '" data-place="' + esc(p.id) + '" style="left:' + n1(x + bs / 2 + 4) + 'px;top:' + n1(y) + 'px" aria-label="' + esc(p.name + ': show its contracts') + '"><span>' + esc(p.name) + (facts ? ' <small>' + esc(facts) + '</small>' : '') + '</span></button>';
       n.names++; if (facts) n.facts++;
     }
+    // 5b. (G3640 TELEPORT, the user 25 Oct: "clicking on an owned garage allows to teleport there, with whatever plane is in
+    //     there") YOUR GARAGES - M.garages, FLYDIY_PLAYER.garages() read by the DOM half (Game's G3613): a hangar beside its
+    //     place's badge, on the left (your planes stand under it, the name on the right); the one you are in ringed, a
+    //     story-held one dim. A tap asks first, in the confirm row (goHTML) - never a jump on a stray tap
+    const gby = {};
+    for (const g of (M.garages || [])) { const pid = M.placeOf[g.aero]; if (pid && at[pid]) (gby[pid] = gby[pid] || []).push(g); }
+    for (const pid of Object.keys(gby)) gby[pid].forEach((g, i) => {
+      const gs = Math.round(bs * 0.8), x = at[pid][0] - bs / 2 - gs / 2 - 8 - i * (gs + 6), y = at[pid][1];
+      boxes.push([x - gs / 2, y - gs / 2, x + gs / 2, y + gs / 2]);
+      html += '<button type="button" class="mmGar' + (g.here ? ' here' : '') + (g.locked ? ' locked' : '') + (st.gar === g.id ? ' on' : '') + '" data-act="gar" data-gid="' + esc(g.id) +
+        '" style="left:' + n1(x) + 'px;top:' + n1(y) + 'px;--gs:' + gs + 'px" aria-label="' + esc(g.name + (g.here ? ': you are here' : g.locked ? ': ' + g.why : ': go there')) +
+        '"><i><svg viewBox="0 0 24 24" aria-hidden="true">' + GAR_ICON + '</svg></i></button>';
+      n.garages++;
+    });
     // 6. your planes, where they stand (the contracts list); the other lists draw their own markers instead (7.)
+    //    (G3525, the 24 Oct playtest: a career lifts every saved build into its fleet, so the Cabin Strip drew seventeen
+    //    icons in a row across strip 13's name) - up to PLANES_ROW side by side under the badge, centred; more than that
+    //    is ONE chip with the count, the Fleet list naming them
     const fan = {};
     if (contractsOn) for (const f of M.fleet) { if (f.where && f.where.kind === 'route') continue;   // (G3260: drawn on its route, 3b)
-      const a = M.aeros[f.where && f.where.aero], pid = a && M.placeOf[a.id]; if (!pid || !at[pid]) continue; const k = fan[pid] = (fan[pid] || 0) + 1;
-      const px = at[pid][0] + (k - 1) * 24 - 12, py = at[pid][1] + bs / 2 + 14; boxes.push([px - 13, py - 11, px + 13, py + 11]);
-      html += '<span class="mmPlane" style="left:' + n1(px) + 'px;top:' + n1(py) + 'px" role="img" aria-label="' + esc('your ' + f.name + ', at ' + a.name) + '">✈</span>'; n.planes++; }
+      const a = M.aeros[f.where && f.where.aero], pid = a && M.placeOf[a.id]; if (!pid || !at[pid]) continue; (fan[pid] = fan[pid] || []).push([f, a]); }
+    for (const pid of Object.keys(fan)) {
+      const g = fan[pid], py = at[pid][1] + bs / 2 + 14, many = g.length > PLANES_ROW;
+      if (many) {
+        const px = at[pid][0], w = 20 + 8 * String(g.length).length; boxes.push([px - w / 2, py - 11, px + w / 2, py + 11]);
+        html += '<span class="mmPlane many" style="left:' + n1(px) + 'px;top:' + n1(py) + 'px" role="img" aria-label="' + esc(g.length + ' of your aeroplanes at ' + placeName(M, pid)) + '">✈<b>' + g.length + '</b></span>';
+        n.planes += g.length; continue;
+      }
+      g.forEach(([f, a], i) => {
+        const px = at[pid][0] + (i - (g.length - 1) / 2) * 24; boxes.push([px - 13, py - 11, px + 13, py + 11]);
+        html += '<span class="mmPlane" style="left:' + n1(px) + 'px;top:' + n1(py) + 'px" role="img" aria-label="' + esc('your ' + f.name + ', at ' + a.name) + '">✈</span>'; n.planes++;
+      });
+    }
     // 7. (G2440) THE LIST'S MARKERS - the places' badge style, sized to the zoom, under their place's badge side by side;
     //    a tap filters the list to that place and opens the row
     if (!contractsOn) {
@@ -1141,6 +1189,21 @@
 #mapScreen .mmZone{position:absolute;transform:translate(-50%,-50%);border-radius:50%;border:1.5px dashed rgba(232,243,223,.7);pointer-events:none}
 #mapScreen .mmRtPlane{position:absolute;transform:translate(-50%,-50%);font-size:14px;line-height:20px;padding:0 4px;border-radius:5px;background:#1f5f7a;color:#f4efe6;border:1px solid #0e2f3d;pointer-events:none}
 #mapScreen .mmPlane{position:absolute;transform:translate(-50%,-50%);font-size:14px;line-height:20px;padding:0 4px;border-radius:5px;background:var(--ed-acc);color:var(--ed-acc-ink);border:1px solid var(--ed-acc-ink);pointer-events:none}
+#mapScreen .mmPlane.many b{font:600 12px/20px 'IBM Plex Sans',sans-serif;margin-left:3px}
+#mapScreen .mmGar{position:absolute;width:44px;height:44px;margin:-22px 0 0 -22px;pointer-events:auto;display:grid;place-items:center;padding:0;border:0;background:transparent;cursor:pointer}
+#mapScreen .mmGar i{width:var(--gs,24px);height:var(--gs,24px);border-radius:6px;display:grid;place-items:center;background:var(--ed-plate);color:var(--ed-acc);border:1.5px solid var(--ed-acc);box-shadow:0 1px 3px rgba(0,0,0,.45)}
+#mapScreen .mmGar svg{width:72%;height:72%;fill:currentColor;display:block}
+#mapScreen .mmGar.here i{background:var(--ed-acc);color:var(--ed-acc-ink)}
+#mapScreen .mmGar.locked i{opacity:.5;border-style:dashed}
+#mapScreen .mmGar.on i,#mapScreen .mmGar:focus-visible i{box-shadow:0 0 0 3px var(--ed-acc),0 0 0 5px #1c1a17}
+#mapScreen .mmGo{position:absolute;left:50%;top:14px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;max-width:calc(100% - 28px);padding:8px 8px 8px 14px;border-radius:10px;background:var(--ed-plate);color:var(--ed-ink);border:1px solid var(--ed-border);box-shadow:0 6px 20px rgba(0,0,0,.4);font:400 13px/1.3 'IBM Plex Sans',sans-serif;pointer-events:auto}
+#mapScreen .mmGo[hidden]{display:none}
+#mapScreen .mmGo .mmGoT{min-width:0}
+#mapScreen .mmGo .mmGoT small{display:block;color:var(--ed-faint);font-size:11.5px}
+#mapScreen .mmGo button{flex:none;min-height:44px;padding:0 14px;border-radius:8px;border:1px solid var(--ed-border);background:transparent;color:var(--ed-ink);font:500 13px/1 'IBM Plex Sans',sans-serif;cursor:pointer}
+#mapScreen .mmGo button.pri{background:var(--ed-acc);border-color:var(--ed-acc);color:var(--ed-acc-ink);font-weight:600}
+#mapScreen .mmGo button:disabled{opacity:.5;cursor:default}
+#mapScreen.mmPhone .mmGo{top:10px;left:10px;right:10px;transform:none;max-width:none}
 #mapScreen .mmCtl{position:absolute;right:14px;bottom:14px;display:grid;gap:8px}
 #mapScreen .mmCtl button{font:500 18px/1 'IBM Plex Sans';color:var(--ed-ink);background:var(--ed-plate);border:1px solid var(--ed-border);border-radius:8px;min-width:48px;min-height:48px;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.35)}
 #mapScreen .mmRose{position:absolute;right:18px;top:16px;width:64px;height:64px;pointer-events:none}
@@ -1262,7 +1325,30 @@
     if (raw) lastRaw = raw;
     if (live === undefined) live = liveDoc();
     M = mapAdapt(lastRaw, pack, live);
+    M.garages = garagesNow();   // G3640: every mode (the sandbox: HOME alone), the live list - not the contracts' source
     try { M.market = marketAdapt(marketCore(), live, boardNow()); } catch (e) { console.warn('flyDiy: the market did not build -', e && e.message); M.market = null; }
+  }
+  const garagesNow = () => { try { return W.FLYDIY_PLAYER && W.FLYDIY_PLAYER.garages ? W.FLYDIY_PLAYER.garages() || [] : []; } catch (e) { return []; } };
+  // G3641: THE CONFIRM ROW - the tapped garage: where, what is in it, and Go; or why not (you are here, the story holds it,
+  // the air: "land first" - gotoGarage's own words). Go leaves the map for the garage (the trip from a flight is the shed's)
+  function goHTML() {
+    const g = st.gar && (M.garages || []).find(x => x.id === st.gar);
+    if (!g) return '';
+    const what = g.stand ? 'with ' + g.stand + (g.planes.length > 1 ? ' and ' + (g.planes.length - 1) + ' more' : '') : 'empty';
+    const shed = !!(D.body && D.body.classList.contains('mode-ws'));   // (from a flight, your own garage is the way back: the shed's trip)
+    const why = st.goWhy || (g.here && shed ? 'you are here' : g.locked ? g.why : '');
+    return '<span class="mmGoT">' + (why ? esc(g.name) : 'Go to <b>' + esc(g.name) + '</b>?') + '<small>' + esc(why || what) + '</small></span>' +
+      (why ? '' : '<button type="button" class="pri" data-act="goyes"' + (st.going ? ' disabled' : '') + '>' + (st.going ? 'Going…' : 'Go there') + '</button>') +
+      '<button type="button" data-act="gox" aria-label="close">' + (why ? 'OK' : 'Stay') + '</button>';
+  }
+  function goGarage() {
+    const id = st.gar; if (!id || st.going || !W.FLYDIY_PLAYER || !W.FLYDIY_PLAYER.gotoGarage) return;
+    st.going = true; place();
+    Promise.resolve(W.FLYDIY_PLAYER.gotoGarage(id)).then(r => {
+      st.going = false;
+      if (r && r.ok) { st.gar = null; st.goWhy = ''; close(); return; }
+      st.goWhy = (r && r.why) || 'not now'; reread(); place();
+    }, e => { st.going = false; st.goWhy = (e && e.message) || 'not now'; place(); });
   }
   const isPhone = () => !!((D.documentElement.classList && D.documentElement.classList.contains('phone')) || (W.matchMedia && W.matchMedia('(max-width: 760px)').matches));
 
@@ -1281,10 +1367,10 @@
           '<path class="rl" d="M30 0 L5 5 L0 0 L5-5Z" stroke-width=".8"/><path class="rd" d="M-30 0 L-5 5 L0 0 L-5-5Z"/>' +
           '<text y="-15" text-anchor="middle">N</text></svg>' +
         '<div class="mmCtl"><button type="button" data-act="zin" aria-label="zoom in">+</button><button type="button" data-act="zout" aria-label="zoom out">−</button><button type="button" data-act="fit" aria-label="fit the island">⤢</button></div>' +
-        '<div class="mmScale"></div></main>' +
+        '<div class="mmScale"></div><div class="mmGo" role="group" aria-label="go to a garage" hidden></div></main>' +
       '<footer class="mmFoot"></footer>';
     D.body.appendChild(root);
-    for (const k of ['mmSide', 'mmHeadIn', 'mmAtHost', 'mmList', 'mmMap', 'mmStage', 'mmOvH', 'mmScale', 'mmFoot', 'mmHandle'])
+    for (const k of ['mmSide', 'mmHeadIn', 'mmAtHost', 'mmList', 'mmMap', 'mmStage', 'mmOvH', 'mmScale', 'mmFoot', 'mmHandle', 'mmGo'])
       $[k] = root.querySelector('.' + k);
     $.mmH1 = root.querySelector('.mmTitle h1');
     $.img = root.querySelector('.mmStage img'); $.svg = root.querySelector('.mmOv svg'); $.inf = root.querySelector('.mmInfra g');   // G2435
@@ -1325,8 +1411,9 @@
     if (!pack || !M) return;
     clampView();
     $.mmStage.style.transform = 'translate(' + V.tx + 'px,' + V.ty + 'px) scale(' + V.s + ')';
-    const r = view(), O = overlayOf(M, st, pack, { s: V.s, tx: V.tx, ty: V.ty, fit: V.fit, w: r.width, h: r.height });
+    const r = view(), O = overlayOf(M, st, pack, { s: V.s, tx: V.tx, ty: V.ty, fit: V.fit, w: r.width, h: r.height }, W.FLYDIY_MAP_LAYERS || null);
     $.mmOvH.innerHTML = O.html; $.svg.innerHTML = O.svg;
+    const go = goHTML(); if ($.mmGo.innerHTML !== go) $.mmGo.innerHTML = go; $.mmGo.hidden = !go;   // G3641 (a pan leaves it as it is)
     st.lastOverlay = O.n;
     // (G2435) the infrastructure: a pan moves its group; a zoom step (~5 %) redraws it at that zoom's widths and detail
     $.inf.setAttribute('transform', 'translate(' + V.tx + ' ' + V.ty + ') scale(' + V.s + ')');
@@ -1453,6 +1540,9 @@
     const t = e.target.closest ? e.target.closest('[data-act],[data-place],[data-board]') : null; if (!t || !root.contains(t) || t.disabled) return;
     const a = t.dataset.act;
     if (a === 'close') return close();
+    if (a === 'gar') { st.gar = st.gar === t.dataset.gid ? null : t.dataset.gid; st.goWhy = ''; reread(); return place(); }   // G3640
+    if (a === 'goyes') return goGarage();
+    if (a === 'gox') { st.gar = null; st.goWhy = ''; return place(); }
     if (a === 'zin' || a === 'zout') { const v = view(); return zoomAt(a === 'zin' ? 1.5 : 1 / 1.5, v.width / 2, v.height / 2); }
     if (a === 'fit') return fit();
     if (a === 'sheet') { if (t.dataset.swiped) { delete t.dataset.swiped; return; } st.sheet = st.sheet === 'open' ? 'peek' : 'open'; return renderList(); }
@@ -1484,7 +1574,8 @@
     if (!root) build();
     if (!root.parentNode) D.body.appendChild(root);
     st = st || Object.assign({ list: 'contracts', item: null, at: null, open: null, sheet: 'peek', group: 'type', sort: 'pay', flt: FLT0(), fold: {}, fltOpen: false }, prefLoad());
-    st.phone = isPhone();
+    st.phone = isPhone(); st.gar = null; st.goWhy = ''; st.going = false;
+    if (opts.list && LISTS.some(l => l[0] === opts.list)) st.list = opts.list;   // (G3521) CONTRACTS opens on its list; Tab keeps the last
     const art = pack.art || { img: pack.img, edge: '#9db6c2' };
     $.mmMap.style.background = art.edge;
     $.img.width = pack.w; $.img.height = pack.h; $.img.style.width = pack.w + 'px'; $.img.style.height = pack.h + 'px';
