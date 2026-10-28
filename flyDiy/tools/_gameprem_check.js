@@ -93,7 +93,7 @@ const NAMES = ['PLAYER_V', 'PLAYER_MIGRATORS', 'playerMigrate', 'playerDefault',
   'PREM_MAIN', 'PREM_SIDE_MAX', 'PREM_SLOTS', 'PREM_WEAR', 'playerLedger', 'playerIsMain', 'playerSideIds', 'playerSlots',
   'playerFits', 'playerWearNow', 'playerWearReset', 'playerWearMacro', 'playerWearSpec', 'playerFootOfDef', 'playerPlace',
   'playerBringHome', 'playerRollFrom', 'FLIGHT_BASES', 'flightBasesOf', 'flightBases', 'flightBase',
-  'PREM_WORLD', 'playerWorldSheds', 'premResidentsDrawn', 'playerRollHangar', 'playerPlotSite',
+  'PREM_WORLD', 'playerWorldSheds', 'playerClosedSheds', 'premResidentsDrawn', 'playerRollHangar', 'playerPlotSite',
   'PREM_STORE', 'playerStoreSlots', 'playerBaseOutside', 'playerStoreWhere', 'playerStoreSettle', 'playerMove', 'playerFloorSync',
   'playerFlyStart', 'playerStoreView'];
 const RW_JS = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 'utf8');
@@ -700,7 +700,7 @@ function run(mut) {
     ok(!!wssSrc && !!spsSrc, 'S3 the page\'s side-shed doors are where they were (app.js worldSideSheds, render_world.js setPlayerSheds)');
     if (wssSrc && spsSrc) {
       const built = [];
-      const ctx = vm.createContext({ playerWorldSheds: R.playerWorldSheds, siteOf: id => S[id] || null, THREE: {}, console, JSON, Map, Array, isFinite, Object,
+      const ctx = vm.createContext({ CAREER_DEV: false, playerWorldSheds: R.playerWorldSheds, playerClosedSheds: R.playerClosedSheds, siteOf: id => S[id] || null, THREE: {}, console, JSON, Map, Array, isFinite, Object,
         genHangarBuild: () => null, genHangarSupported: () => true, dropShed: () => {}, shedNodeAt: (H, d, dr) => { built.push([H, d, dr]); return { name: '', userData: {} }; } });
       const run3 = doc => { built.length = 0; ctx.__doc = doc; vm.runInContext('(function () { var playerLoad = () => __doc; var playerSheds, playerShedsNow;\n' + wssSrc + '\n' + spsSrc + '\nthis.__n = setPlayerSheds(worldSideSheds()); this.__list = worldSideSheds(); }).call(this);', ctx); return { n: ctx.__n, list: ctx.__list, built: built.slice() }; };
       const r0 = run3(sb);
@@ -708,6 +708,30 @@ function run(mut) {
       const r3 = run3(h3);
       ok(r3.built.length === 2 && r3.built.every(b => b[0] && isFinite(b[0].x)) && r3.list.find(q => q.id === 'w3').x === P3.x && r3.list.find(q => q.id === 'w3').dims.shell === 'field'
          && r3.list.find(q => q.id === 'w3').dress.parts.doorMain.set === 'rawplank', 'S3 two side hangars held: two sheds built, each at its plot, at its shell, dressed', J(r3.list.map(q => q.id)));
+      // CLOSED-SHED (the user 28 Oct: an unowned plot draws "a closed shed"): in a career, a flagged plot not held stands its
+      // offer's shed, shut, outside the two held; the sandbox stands nothing more (the r0 row above runs with CAREER_DEV off)
+      ctx.CAREER_DEV = true;
+      const PM = S.mn_strip && S.mn_strip.plots ? S.mn_strip.plots.find(q => q.id === 'mn_strip') : null;
+      const c0 = run3(sb), cM = c0.list.find(q => q.id === 'mn_strip');
+      ok(!!PM && c0.list.length === 1 && !!cM && cM.closed === true && cM.x === PM.x && cM.z === PM.z && cM.dims.shell === 'field' && cM.dress === null && c0.built.length === 1,
+         'CLOSED-SHED: in a career the mine plot, not held, stands its offered shed shut at its plot (the only flagged plot)', J(c0.list));
+      const c3 = run3(h3);
+      ok(c3.built.length === 3 && c3.list.filter(q => !q.closed).length === 2 && c3.list.some(q => q.id === 'mn_strip' && q.closed),
+         'CLOSED-SHED: two side hangars held AND the closed shed: GQ4 counts the held two, the closed one stands beside them', J(c3.list.map(q => q.id + (q.closed ? '*' : ''))));
+      const hM = R.playerAcquire(sb, 'mn_strip', 'mn_strip', 'field', 'own');
+      const cB = hM.ok ? run3(hM.doc) : null, bM = cB && cB.list.find(q => q.id === 'mn_strip');
+      const key = q => q && J([q.x, q.z, q.ry, q.y, q.dims, q.dress || null]);
+      ok(hM.ok && !!bM && !bM.closed && cB.list.length === 1 && key(bM) === key(cM),
+         'CLOSED-SHED: bought, the mine shed is the same shed (same place, shell, dims and no dress: the setPlayerSheds key unchanged, nothing rebuilt)', J([key(cM), key(bM)]));
+      ctx.CAREER_DEV = false;
+    }
+    {
+      const cs = R.playerClosedSheds(sb), cs1 = cs[0];
+      const hM = R.playerAcquire(sb, 'mn_strip', 'mn_strip', 'field', 'own');
+      ok(cs.length === 1 && cs1.id === 'mn_strip' && cs1.base === 'mn_strip' && cs1.shell === 'field' && cs1.closed === true && hM.ok && eq(cs1.dims, R.hangarDims(hM.doc.sheds.mn_strip)),
+         'CLOSED-SHED: playerClosedSheds lists the flagged plot not held, at the shell and dims playerAcquire gives', J(cs));
+      ok(hM.ok && R.playerClosedSheds(hM.doc).length === 0 && R.playerWorldSheds(hM.doc).some(x => x.id === 'mn_strip'), 'CLOSED-SHED: once held it leaves the closed list and stands as a held hangar');
+      ok(!R.playerClosedSheds(h3).some(x => x.id === 'w3' || x.id === 'SEA' || x.id === 'mk_sea' || x.id === 'tw_ski'), 'CLOSED-SHED: an unflagged plot stands nothing (only the mine is flagged)');
     }
     ok(/function standShed\(dims\) \{[\s\S]{0,400}shedNode = shedNodeAt\(SITE\.hangar, dims\);/.test(R.__rw), 'S3 identity: HOME\'s shed is standShed\'s own build, undressed (no third argument)');
     ok(/if \(dress\) dressExterior\(shed\.mats/.test(R.__rw), 'S3 a shed is dressed only when it is handed a dress');
