@@ -204314,3 +204314,8 @@ Train gate (box quiet): IN FLIGHT better than L28a (25 fps vs 20, 1-2 frames ove
 the town and the new LOD materials. ACCEPTED under the user's rule (under the loading screen; no feature sacrificed); the TOP item of
 flydiy-notes/PERF-WEEK-KNOWN-ISSUES.md.
 Not in it: fittings-manual (HANDLE overlap with door-hinges-2, back to the hinge session), avionics-gps (new ready, conflict), new-shapes-1.
+
+## G3649 - ROUNDTRIP UNDER THE FLIGHT LAYOUT: THE SETUP CHILD ON ?flui=old (2026-10-28, GAME-MENUS, LOCAL; for L28c; claude/ready/roundtrip-fl2, on master a5e89abe9)
+Why: since L28a (menus-l28a) the default flight layout fl2 has no rail, and app.js setupOpen returns under it (G3649): the loading screen has no setup panel. GATE ROUNDTRIP's setup child still opened the default page, waited for #bootSetup, found no anti-aliasing pill and no "level horizon" row, touched nothing - six rows red on the missing touch (hold, pulse, LIVE both ways, the wait, the settle), no break (its own "no script, timer or frame threw" rows green). The seventh, "the setup screen's sections", was master's: FLY gained a "drawn" section.
+What changed (tools/_roundtrip_check.js only): openCounted(hooks, query) adds a query to ROUNDTRIP_QUERY; the setup child runs ?flui=old (the old layout, where the setup screen lives) and asserts it did (FLYDIY_FL2 off); each trips child asserts the default boot is fl2 (FLYDIY_FL2.on: no setup panel on its loading screen); FLY's expected sections gain 'drawn'. No page change.
+Gates: ROUNDTRIP.

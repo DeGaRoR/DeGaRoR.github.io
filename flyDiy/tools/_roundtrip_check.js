@@ -19,7 +19,8 @@
 //     rebuild included) the world's update door (WF.worldUpdate), the premises' tick and the world scene's
 //     updateMatrixWorld are counted and must be 0 (and are > 0 in flight: the counters can see);
 //   - every way back to the shed is logged, and runs no world step.
-// CHILD `setup` (a second first boot, the loading screen TOUCHED):
+// CHILD `setup` (a second first boot, the loading screen TOUCHED) - on the OLD layout, ?flui=old (G3649: the flight layout fl2,
+// the default since L28a, has no rail and so no setup panel; the `trips` children assert the default boot is fl2):
 //   - ONE REGISTRY: every section the setup screen mounts is the rail's (FLYDIY_RAIL), every row and pill of it is
 //     reached through the rail's own census of that item, every graphics option that does not reload is on it, and
 //     the options that reload (towns, colour management, the map, the storage's refresh) are not;
@@ -50,7 +51,7 @@ const COST = ['links', 'gl.calls', 'draws.total', 'bytes.bufferData', 'bytes.buf
 const pick = r => { const o = {}; for (const k of COST) if (r && r[k]) o[k] = r[k]; return o; };
 
 // ---- the page, with FRAMECOST's counters and the world's tick counters --------------------------------------------
-async function openCounted(extraHooks) {
+async function openCounted(extraHooks, query) {
   const { openPage } = require('./_page_node.js');
   const C = FC.bootMark.C = newC();
   const T = { watch: false, wu: 0, prem: 0, worldUmw: 0, scene: null };
@@ -71,7 +72,7 @@ async function openCounted(extraHooks) {
   const storage = {}; if (process.env.ROUNDTRIP_BUILD) storage['flydiy.wip'] = fs.readFileSync(path.resolve(process.env.ROUNDTRIP_BUILD), 'utf8');
   // G820 (C1c): THE PHYSICS WORKER IS THE PAGE'S OWN DEFAULT (app.js SIMW_DEFAULT): the harness gives the page its Worker
   // (the G815 shim, a real thread) so the round trips run what ships; ROUNDTRIP_QUERY=simw=0 flies them inline
-  const P = await openPage({ quiet: true, storage, hooks, query: process.env.ROUNDTRIP_QUERY || '', workers: /sim_host\.js/ });
+  const P = await openPage({ quiet: true, storage, hooks, query: [process.env.ROUNDTRIP_QUERY || '', query || ''].filter(Boolean).join('&'), workers: /sim_host\.js/ });
   const W = P.win;
   // the world's doors, wrapped as the world comes to exist (the boot builds it now): its update, the premises' tick
   const wrapWorld = () => {
@@ -186,6 +187,7 @@ async function childTrips() {
   const SWs = W.FLYDIY_SIMW && !W.FLYDIY_SIMW.dead() ? W.FLYDIY_SIMW.state() : null;
   out.simw = SWs ? { flights: SWs.flights, inline: SWs.inline, reason: SWs.reason, phase: SWs.phase, placeOk: SWs.placeOk, wvBad: SWs.wvBad, strays: SWs.strays,
                      errors: SWs.errors, prewarmed: SWs.prewarmed, worldMs: SWs.worldMs, readyWaitFrames: SWs.readyWaitFrames } : null;
+  out.fl2 = !!(W.FLYDIY_FL2 && W.FLYDIY_FL2.on);   // G3649: the flight layout (the default) - its loading screen has no setup panel
   if (WHO) process.stderr.write('GARAGE_SPEC.update calls:\n' + WHO.map(x => '  ' + x).join('\n') + '\n');
   out.errors = P.errors.filter(e => /^(script |timer: |frame: |FLYDIY_BOOT)/.test(e)).slice(0, 8);
   return out;
@@ -204,7 +206,9 @@ function pillsOf(host, label) {
 }
 const onOf = ps => (ps.find(b => b.classList.contains('on')) || {}).textContent;
 async function childSetup() {
-  const ctx = await openCounted();
+  // G3649 (GAME-MENUS UI, live since L28a): the flight layout fl2 - the default - drops the setup panel (setupOpen returns:
+  // its rows were the rail's, and fl2 has no rail). The setup screen is the OLD layout's (?flui=old): this child runs there
+  const ctx = await openCounted(null, 'flui=old');
   const { P, W, snap } = ctx;
   const doc = W.document, out = { errors: [] };
   const box = () => doc.getElementById('bootSetup');
@@ -265,6 +269,7 @@ async function childSetup() {
   out.afterLift = pick(FC.diff(b, snap()));
   out.afterLiftProgs = W.FLYDIY_RENDERER.info.programs.filter(p => !progs0.has(p)).map(p => p.name + ' ' + String(p.cacheKey).slice(0, 60)).slice(0, 30);
   out.setupHidden = box().hidden;
+  out.fl2 = !!(W.FLYDIY_FL2 && W.FLYDIY_FL2.on);
   out.errors = P.errors.filter(e => /^(script |timer: |frame: |FLYDIY_BOOT)/.test(e)).slice(0, 8);
   return out;
 }
@@ -301,6 +306,7 @@ async function main() {
     if (!R.failed) {
       ok(WORLD.every(id => R.boot.ran.includes(id)) && R.boot.ran.includes('craft'), 'the ONE LOADING ran the world\'s steps and the aeroplane\'s programs in its light', 'ran ' + R.boot.ran.join(' '));
       ok(!R.boot.log.includes('hold') && !R.boot.log.includes('waiting'), 'untouched, the loading screen lifted by itself (no hold, no wait)', R.boot.log.join(' '));
+      ok(R.fl2 === true, 'G3649: the default boot runs the flight layout fl2 - no setup panel on its loading screen (the setup screen is the old layout, ?flui=old)', 'FLYDIY_FL2.on ' + R.fl2);
       console.log('  the world settled at the stand: ' + JSON.stringify(R.settle));
       console.log('  boot rows (the world\'s, now in the one loading):');
       for (const id of WORLD.concat(['craft', 'compile', 'firstFrame'])) { const r = R.boot.rows['garage:' + id]; if (r) console.log('    ' + id.padEnd(14) + fmt(r)); }
@@ -342,12 +348,13 @@ async function main() {
   }
   if (S) {
     ok(!S.failed, 'setup: the page booted touched and lifted on Fly', S.failed);
+    ok(S.fl2 === false, 'G3649: the setup child runs the old layout (?flui=old), where the setup screen lives', 'FLYDIY_FL2.on ' + S.fl2);
     if (!S.failed) {
       ok(S.setup.sections.length > 0 && !S.setup.errors.length, 'the setup screen mounts the rail\'s sections', S.setup.sections.join(' ') + '; ' + S.setup.rows + ' rows, ' + S.setup.pills + ' pills' + (S.setup.errors.length ? '; errors ' + S.setup.errors.join(' | ') : ''));
       ok(!S.missingInRail.sections.length && !S.missingInRail.rows.length && !S.missingInRail.pills.length, 'ONE REGISTRY: every section, row and pill of the setup screen is the rail\'s', JSON.stringify(S.missingInRail));
       ok(!S.gfxMissing.length, 'every graphics option that does not reload is on the setup screen', S.gfxMissing.join(', ') || 'all');
       ok(!S.reloadPresent.length && !S.reloadRail.length, 'the options that reload the page are LEFT OUT of the setup screen (the rail keeps them)', 'present ' + (S.reloadPresent.join(', ') || 'none') + '; missing from the rail ' + (S.reloadRail.join(', ') || 'none'));
-      const want = { fly: ['route', 'start', 'engines', 'controls'], view: ['camera', 'instruments', 'map', 'trace', 'screen'], sky: ['night', 'weather'], graphics: ['graphics'], audio: ['sound'] };   // train 30: SOUND's rail section
+      const want = { fly: ['route', 'drawn', 'start', 'engines', 'controls'], view: ['camera', 'instruments', 'map', 'trace', 'screen'], sky: ['night', 'weather'], graphics: ['graphics'], audio: ['sound'] };   // train 30: SOUND's rail section
       ok(JSON.stringify(S.items) === JSON.stringify(Object.entries(want).map(([k, secs]) => ({ k, secs }))), 'the setup screen\'s sections: FLY route/start/engines/controls, VIEW, SKY & WORLD time/weather, GRAPHICS', JSON.stringify(S.items));
       ok(!S.touchBefore.touched && S.touched && S.holdLogged, 'a touch on the setup screen holds the auto-start', 'before ' + JSON.stringify(S.touchBefore) + ', hold logged ' + S.holdLogged);
       ok(!S.touchBefore.pulse && S.touchAfter && S.touchAfter.pulse && S.after60.pulse, 'G1065 Fly pulses once the setup is touched (not before; still when the load is done and it waits)', 'before ' + JSON.stringify(S.touchBefore) + ', after ' + JSON.stringify(S.touchAfter) + ', 60 frames on ' + JSON.stringify(S.after60));
