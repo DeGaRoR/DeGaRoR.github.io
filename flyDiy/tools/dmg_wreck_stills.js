@@ -45,6 +45,11 @@ const CASES = {
   // the ground (the nose-in, a bounce or a stop) - from a three-quarter view and from nearly above, the scar in frame)
   'scar-slide': { label: 'the scar of a slide: a trunk at 30 m/s, 2.5 m out, the wreck skidding on (DMG-SCAR2)', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 2.5, steps: 1500 }, cams: [['q34', 28, 22], ['side', 78, 30], ['q34', 13, 8]] },
   'scar-blow': { label: 'the scar of a blow on the ground: a nose-in at 180 km/h, 10 m/s down, 60 deg (DMG-SCAR2)', o: { kind: 'ground', V: 50, sink: 10, pitch: 60, steps: 1500 }, cams: [['q34', 28, 22], ['side', 78, 30], ['q34', 13, 8]] },
+  // G3651 (the user, 25 Oct: the runway scuffs "I can see nothing"): the scuff on the runway BEFORE / AFTER at the same eye
+  // (tag noscar: the wreck as drawn, the ground's decal hidden) from the three-quarter, the far chase (aft) and above
+  'scuff-slide': { label: 'the runway scuff of a slide: a trunk at 30 m/s, 2.5 m out, the wreck skidding on (G3651)', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 2.5, steps: 1500 }, cams: [['q34', 28, 22], ['aft', 12, 40], ['side', 78, 30]] },
+  'furrow-slide': { label: 'the furrow of a slide on soft ground: the scuff-slide 25 m off the runway, on the grass (G3651)', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 2.5, lat: 25, steps: 1500 }, cams: [['q34', 28, 22], ['aft', 12, 40], ['side', 78, 30]] },
+  'scuff-blow': { label: 'the runway scuff of a blow: a nose-in at 180 km/h, 10 m/s down, 60 deg (G3651)', o: { kind: 'ground', V: 50, sink: 10, pitch: 60, steps: 1500 }, cams: [['q34', 28, 22], ['aft', 12, 40], ['side', 78, 30]] },
   'trunk-2.5': { label: 'a trunk at 30 m/s, the wing 2.5 m out (DMG-D4a\'s wing still)', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 2.5, steps: 1500 }, cams: [[200, 22, 16], [250, 55, 26]] },
   'nosein':    { label: 'a nose-in on the ground (180 km/h, 10 m/s, 60 deg; DMG-D4a\'s nose-in still)', o: { kind: 'ground', V: 50, sink: 10, pitch: 60, steps: 1500 }, cams: [[150, 20, 12], [235, 28, 14]] },
   // G1863: the cockpit rule - the severe nose-in watched from the pilot's eye; no stills, its verdict read
@@ -61,6 +66,19 @@ const CASES = {
 };
 
 // ---- in the page ----
+// G3651: the ground's decal shown or hidden (the scene's 'scar:decal'; the page lays it again only on a new seal), and the
+// scar record's strips and patches (their ends, widths, lengths), the wreck's place - the scuff's coverage of the slide
+function pageScarVis(on) {
+  let sc = FLIGHT_PROBE.model() && FLIGHT_PROBE.model().grp; while (sc && sc.parent) sc = sc.parent;
+  const d = sc && sc.getObjectByName('scar:decal'); if (d && d.geometry !== d.userData.parked) d.visible = !!on;
+  return new Promise(r => setTimeout(() => r(d ? { visible: d.visible, verts: d.geometry.getAttribute('position').count } : null), 400));
+}
+function pageScar() {
+  const s = FLIGHT_PROBE.sim(), R = s && s.damageScar && s.damageScar(), m = FLIGHT_PROBE.model() && FLIGHT_PROBE.model().grp, r2 = v => Math.round(v * 100) / 100;
+  const len = p => { let L = 0; for (let j = 2; j < p.length; j += 2) L += Math.hypot(p[j] - p[j - 2], p[j + 1] - p[j - 1]); return r2(L); };
+  return { at: m ? [r2(m.position.x), r2(m.position.z)] : null, segs: R ? R.segs.length : null, stat: window.FLYDIY_SCAR || null,
+    prims: R && R.out ? R.out.prims.filter(p => p.k === 'g' || p.k === 'c').map(p => p.k === 'g' ? { k: 'g', s: p.s, w: p.w, L: len(p.p), from: [p.p[0], p.p[1]], to: [p.p[p.p.length - 2], p.p[p.p.length - 1]] } : { k: 'c', s: p.s, r: p.r, at: [p.x, p.z] }) : null };
+}
 // the UI hidden (the plates, the card), the camera
 function pageView([az, el, dist]) {
   const s = document.getElementById('d4bHide') || document.createElement('style'); s.id = 'd4bHide';
@@ -72,6 +90,8 @@ function pageView([az, el, dist]) {
   // (14 Oct, the user's comparison stills: 'side' the left side square on, 'q34' the front three-quarter - both from the
   // aeroplane's own heading, as 'nose'; a top view is 'side' at 80 deg)
   if (az === 'side' || az === 'q34') { const [xA] = FLIGHT_PROBE.sim().axes(); FLIGHT_PROBE.camSet(Math.atan2(-xA[2], -xA[0]) + (az === 'side' ? Math.PI / 2 : 0.7), el * Math.PI / 180, dist); }
+  // (G3651 'aft': from behind the aeroplane's own heading - the far chase view down the slide it left)
+  else if (az === 'aft') { const [xA] = FLIGHT_PROBE.sim().axes(); FLIGHT_PROBE.camSet(Math.atan2(-xA[2], -xA[0]) + Math.PI, el * Math.PI / 180, dist); }
   else if (az === 'nose' || az === 'noseL') { const [xA] = FLIGHT_PROBE.sim().axes(); FLIGHT_PROBE.camSet(Math.atan2(-xA[2], -xA[0]) + (az === 'nose' ? 0.6 : -0.6), el * Math.PI / 180, dist); }
   else FLIGHT_PROBE.camSet(az * Math.PI / 180, el * Math.PI / 180, dist);
   return new Promise(r => setTimeout(() => r(1), 900));
@@ -238,7 +258,8 @@ async function pageStage(o) {
   sim.reset(0); placeAtAerodrome(sim, strip);
   const n = sim.n, p = sim.p, v = sim.v, fx = Math.cos(strip.hdg), fz = Math.sin(strip.hdg);
   // ON THE RUNWAY (its centre less 300 m: open, flat, its trees cleared): the stand's is in the woods
-  { const c = sim.cgPos(), dx = strip.x - 300 * fx - c[0], dz = strip.z - 300 * fz - c[2]; for (let i = 0; i < n; i++) { p[i*3] += dx; p[i*3+2] += dz; } }
+  // (o.lat, G3651: the stand moved o.lat m across the runway - off it, on the grass: the soft ground's furrow)
+  { const c = sim.cgPos(), la = o.lat || 0, dx = strip.x - 300 * fx - fz * la - c[0], dz = strip.z - 300 * fz + fx * la - c[2]; for (let i = 0; i < n; i++) { p[i*3] += dx; p[i*3+2] += dz; } }
   const c0 = sim.cgPos(), ground = world.terrainH(c0[0], c0[2]);
   let yMin = Infinity; for (let i = 0; i < n; i++) yMin = Math.min(yMin, p[i*3+1] - (sim.r[i] || 0));
   const scene = P.craft().parent;
@@ -443,11 +464,13 @@ if (require.main === module) (async () => {
       console.log('  ' + k + ' members: ' + out.tears.members.join(' '));
     } catch (e) { console.log('  ' + k + ' tears: ' + (e && e.message)); }
     if (out.stage && out.stage.err) { R.cases[k] = out; continue; }
+    try { out.scar = await run(pageScar); console.log('  ' + k + ' scar: ' + JSON.stringify(out.scar).slice(0, 900)); } catch (e) { out.scar = { err: String(e && e.message || e) }; }
     // the wreck drawn first from every camera, then D4a's alone, then neither (a heal does not fly the debris again: it
     // would re-release them from the wreck at rest)
     const TAGS = opt('tags', 'after,skin,before').split(',');   // (--tags after: the wreck as drawn only)
-    for (const [tag, wreck, skin] of [['after', true, true], ['skin', false, true], ['before', false, false]].filter(t => TAGS.includes(t[0]))) {
+    for (const [tag, wreck, skin] of [['after', true, true], ['noscar', true, true], ['skin', false, true], ['before', false, false]].filter(t => TAGS.includes(t[0]))) {
       await post('/run', 'window.FLYDIY_WRECK = ' + wreck + '; window.FLYDIY_SKINBREAK = ' + skin + '; await new Promise(r => setTimeout(r, 700)); return 1;');
+      out.scarVis = await run(pageScarVis, tag !== 'noscar');   // (G3651: noscar - the same eye, the decal hidden)
       if (tag === 'after') { try { const dump = await run(pageDump); if (opt('dump', null)) fs.writeFileSync(path.join(opt('dump'), k + '_dump.json'), JSON.stringify(dump));
           out.clip = clipOf(dump); } catch (e) { out.clip = { err: String(e && e.message || e) }; } }
       for (const [ci, c] of C.cams.entries()) {
@@ -457,7 +480,7 @@ if (require.main === module) (async () => {
         out.shots.push({ cam: c, tag, file, census });
       }
     }
-    await post('/run', 'window.FLYDIY_WRECK = true; window.FLYDIY_SKINBREAK = true; return 1;');
+    await post('/run', 'window.FLYDIY_WRECK = true; window.FLYDIY_SKINBREAK = true; return 1;'); await run(pageScarVis, true);
     R.cases[k] = out;
     fs.writeFileSync(path.join(OUT, 'stills.json'), JSON.stringify(R, null, 1));
   }
