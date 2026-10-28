@@ -1,0 +1,10 @@
+c172r_stc  G3390 rig | 1157 kg | hump R/W 0.192 at 9.7 m/s, trim 8.5 | LIFT-OFF 38.0 s, 33.9 m/s, run 677 m
+c172r_stc  POH       | 1157 kg | hump R/W 0.177 at 9.0 m/s, trim 9.9 | LIFT-OFF 30.1 s, 25.2 m/s, run 433 m (Vr 26.2 m/s)
+c172r_land G3390 rig | 1157 kg | hump R/W 0.172 at 7.1 m/s, trim 10.5 | not off in 90 s
+c172r_land POH       | 1157 kg | hump R/W 0.167 at 7.0 m/s, trim 10.7 | not off in 90 s (Vr 26.2 m/s)
+floats     G3390 rig | 1018 kg | hump R/W 0.210 at 8.8 m/s, trim 8.5 | LIFT-OFF 28.4 s, 34.0 m/s, run 503 m
+floats     POH       | 1018 kg | hump R/W 0.198 at 8.6 m/s, trim 8.5 | LIFT-OFF 22.0 s, 25.3 m/s, run 307 m (Vr 25 m/s)
+wipline    G3390 rig | 965 kg | hump R/W 0.188 at 8.9 m/s, trim 8.1 | LIFT-OFF 22.7 s, 33.3 m/s, run 397 m
+wipline    POH       | 965 kg | hump R/W 0.177 at 8.7 m/s, trim 8.0 | LIFT-OFF 17.4 s, 24.9 m/s, run 241 m (Vr 24.3 m/s)
+twin       G3390 rig | 475 kg | hump R/W 0.240 at 12.8 m/s, trim 1.7 | LIFT-OFF 8.6 s, 25.9 m/s, run 120 m
+twin       POH       | 475 kg | hump R/W 0.619 at 2.0 m/s, trim -68.3 | not off in 90 s (Vr 15.9 m/s)

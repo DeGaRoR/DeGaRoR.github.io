@@ -11600,7 +11600,7 @@
     if (s.propPitch)
       R('propeller pitch',
         (s.propPitch === 'climb' ? 'fine (climb)'
-          : s.propPitch === 'cruise' ? 'coarse (cruise)' : 'standard') +
+          : s.propPitch === 'cruise' ? 'coarse (cruise)' : s.propPitch === 'seaplane' ? 'seaplane (float prop)' : 'standard') +
         (s.propPitchAuto ? ' · chosen for you' : ''));
     R('prop clear', n1(s.propClear, 2) + ' m', judge('prop clear', s.propClear || 0));
     R('nose-over', n1(s.noseOver, 0) + '°', judge('nose-over', s.noseOver || 0));

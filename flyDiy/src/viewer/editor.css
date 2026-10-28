@@ -1999,6 +1999,26 @@ body.stTut { cursor: default; }
 .edTab.locked { opacity: .45; cursor: not-allowed; }
 #edLockNote { font-size: 12px; color: var(--ed-dim, #8a8d91); padding: 2px 8px 6px; }
 #stNoBench { font-size: 12px; color: var(--ed-dim, #8a8d91); margin-left: 8px; }
+
+/* G3445 THE FLOAT KIT CARD (the user: "have a popup or something when we choose floats, it says what else it
+   changes"): an editor card, top right of the shed (never in flight), on the body - so the tokens are redeclared as
+   bench.css does for its cards. Buttons, no hover-only state. */
+#fkCard { position: fixed; top: 96px; right: 24px; z-index: 60; width: min(360px, calc(100vw - 48px));
+  --ed-plate: rgba(32,29,26,.95); --ed-ink: #f4efe6; --ed-dim: #c0b8ac; --ed-faint: #97907f;
+  --ed-acc: #e6dbc9; --ed-acc-ink: #221f1b; --ed-border: rgba(255,248,236,.14);
+  --ed-btn-bg: rgba(255,255,255,.06); --ed-btn-bd: rgba(255,255,255,.18);
+  background: var(--ed-plate); color: var(--ed-ink); border: 1px solid var(--ed-border); border-radius: 10px;
+  padding: 14px 16px 12px; font-size: 13px; line-height: 1.4; box-shadow: 0 8px 28px rgba(0,0,0,.35); }
+#fkCard[hidden] { display: none; }
+#fkCard .fkT { font-weight: 600; letter-spacing: .02em; margin-bottom: 8px; }
+#fkCard .fkR { display: flex; gap: 10px; padding: 5px 0; border-top: 1px solid var(--ed-border); }
+#fkCard .fkK { flex: 0 0 96px; color: var(--ed-faint); }
+#fkCard .fkV { flex: 1; color: var(--ed-dim); }
+#fkCard .fkV b { color: var(--ed-ink); font-weight: 600; }
+#fkCard .fkB { display: flex; gap: 8px; justify-content: flex-end; margin-top: 10px; }
+#fkCard button { min-height: 32px; padding: 0 14px; border-radius: 6px; border: 1px solid var(--ed-btn-bd);
+  background: var(--ed-btn-bg); color: var(--ed-ink); font: inherit; cursor: pointer; }
+#fkCard #fkOk { background: var(--ed-acc); color: var(--ed-acc-ink); border-color: var(--ed-acc); }
 /* G3351: the certification bench (the tool: the left panel's tests) never in the story's small shed */
 body.stNoBench #edBench { display: none !important; }
 #stNoBenchNote { font-size: 12px; color: var(--ed-dim); padding: 6px 10px; }

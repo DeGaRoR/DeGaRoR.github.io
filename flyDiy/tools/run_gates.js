@@ -642,6 +642,7 @@ const GATES = [
   // LOAD — the engine preset and the cowl-for-architecture, and the three
   // doors that replace P
   { id: 'STARTER', file: '_starter_check.js', tier: 'core' },
+  { id: 'FLOATKIT', file: '_floatkit_check.js', tier: 'core' },   // G3445: the float kit (the seaplane propeller in / out, the card)
   // 2026-09-03: what you SAVE is what is on the stand. The shelf's spec was
   // a cache of the editor that only a roll-out refreshed.
   { id: 'SAVE', file: '_save_check.js', tier: 'core' },
