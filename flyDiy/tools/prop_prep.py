@@ -295,16 +295,27 @@ def paint_over(img, boxes, seed=7):
     rim round it are filled from the body's own yellow by masked diffusion, never
     from the grey ground beside it, then given the ring's grain back so the patch
     does not read as a flat sticker. The delivered file is not touched; the box
-    list is on the table row (`paint`)."""
+    list is on the table row (`paint`). A box may carry flags after its four
+    numbers: 'dark' - the body round the mark is dark paint (white letters on
+    black): the fill reads the dark texels and only the light ones are the
+    mark; 'red' - a red accent inside the mark (the Grove V) is mark too."""
     import numpy as np
     mode = img.mode
     A = np.asarray(img.convert('RGBA')).astype(np.float32) / 255
     rng = np.random.default_rng(seed)
-    for (x0, y0, x1, y1) in boxes:
+    for box in boxes:
+        (x0, y0, x1, y1), flags = box[:4], box[4:]
         P = A[y0:y1, x0:x1, :3]
         mx, mn = P.max(-1), P.min(-1)
-        known = (mx > 0.35) & ((mx - mn) / np.maximum(mx, 1e-3) > 0.45) & (P[..., 0] >= P[..., 1]) & (P[..., 1] > P[..., 2] * 1.3)
-        hole = (mn > 0.62) | (mx < 0.2) | ((P[..., 1] > 0.74) & (P[..., 0] > 0.92) & (P[..., 2] < 0.35))
+        if 'dark' in flags:
+            hole = mn > 0.5
+            known = (mx < 0.3) & ~hole
+        else:
+            known = (mx > 0.35) & ((mx - mn) / np.maximum(mx, 1e-3) > 0.45) & (P[..., 0] >= P[..., 1]) & (P[..., 1] > P[..., 2] * 1.3)
+            hole = (mn > 0.62) | (mx < 0.2) | ((P[..., 1] > 0.74) & (P[..., 0] > 0.92) & (P[..., 2] < 0.35))
+        if 'red' in flags:
+            hole = hole | ((P[..., 0] > 0.5) & (P[..., 1] < 0.4) & (P[..., 2] < 0.4))
+            known = known & ~hole
         for _ in range(2):
             h2 = hole.copy(); h2[1:] |= hole[:-1]; h2[:-1] |= hole[1:]; h2[:, 1:] |= hole[:, :-1]; h2[:, :-1] |= hole[:, 1:]; hole = h2
         ring = P[~hole & known]

@@ -404,9 +404,9 @@ const YARD_KIT = {
   // editor places them); L along z
   machine_excavator:         { L: 8.161, W: 3.018, H: 3.707, machine: true },
   machine_backhoe:           { L: 7.149, W: 2.368, H: 3.537, machine: true },
-  machine_bulldozer:         { L: 8.053, W: 3.2, H: 3.358, machine: true },
+  machine_loader:            { L: 8.053, W: 3.2, H: 3.358, machine: true },
   machine_crane:             { L: 11.769, W: 3.955, H: 3.789, machine: true },
-  machine_excavator_wheeled: { L: 6.175, W: 2.389, H: 2.893, machine: true },
+  machine_loader_rusty:      { L: 6.175, W: 2.389, H: 2.893, machine: true },
   machine_skidsteer:         { L: 3.567, W: 1.784, H: 2.235, machine: true },
   tractor_farm:              { L: 4.789, W: 2.812, H: 3.058, machine: true },
   tractor_scan:              { L: 3.02, W: 1.483, H: 1.821, machine: true },

@@ -666,19 +666,25 @@ PROPS = [
            'Its one material is alpha-blended with a transmission sheen: opaque. The JCB marks and '
            'the 3CX badge are painted over (image 0)',
       scale=0.006, tex=512, opaque=True,
-      paint={0: [(748, 230, 795, 280), (753, 396, 798, 445), (856, 255, 877, 292)]}),
-    P('machine_bulldozer', 'construction', 'bulldozer', 'dozer',
-      note='a crawler dozer with its blade and ripper, 24k triangles, seven materials; '
-           'centimetres: 3.2 m wide, 3.4 m high, 8.1 m long',
+      paint={0: [(748, 230, 795, 280), (753, 396, 798, 445), (856, 255, 877, 292),
+                 # the Wed 28 09:00 bench look: the loader arms' two JCB plates + the upright plate
+                 (401, 611, 438, 637), (601, 645, 631, 679), (18, 222, 35, 253)]}),
+    P('machine_loader', 'construction', 'wheel loader', 'dozer',
+      note='a big wheel loader with its bucket (the file calls it a bulldozer), 24k triangles, '
+           'seven materials; centimetres: 3.2 m wide, 3.4 m high, 8.1 m long',
       scale=0.01, tex=512),
     P('machine_crane', 'construction', 'truck crane', 'crane',
       note='an all-terrain truck crane, boom stowed, 15k triangles, a glazed cab; at a 60th '
-           '(20 cm): 11.8 m long, 3.8 m high. Delivered along x: a quarter turn lays it along z',
-      scale=60.0, rot=(0, 90, 0), tex=512),
-    P('machine_excavator_wheeled', 'construction', 'wheeled excavator', 'escav',
-      note='a low-poly wheeled excavator, 6.5k triangles; the file carries a 2.5 m ground '
-           'quad (Material_254) that mats leaves out. 3.0 makes it 5.2 m long, 2.5 m high; '
-           'delivered along x, a quarter turn lays it along z',
+           '(20 cm): 11.8 m long, 3.8 m high. Delivered along x: a quarter turn lays it along z. '
+           'The GROVE marks are painted over like the CAT / JCB ones (four black on the yellow, '
+           'one white on the black side of the boom; the red V with them)',
+      scale=60.0, rot=(0, 90, 0), tex=512,
+      paint={0: [(393, 638, 412, 701, 'red'), (824, 9, 839, 52, 'red'), (824, 90, 839, 134, 'red'),
+                 (722, 153, 744, 175, 'red'), (728, 168, 747, 198, 'red'), (642, 229, 657, 277, 'dark', 'red')]}),
+    P('machine_loader_rusty', 'construction', 'wheel loader, rusty', 'escav',
+      note='a worn low-poly wheel loader (the file calls it an excavator), 6.5k triangles; the '
+           'file carries a 2.5 m ground quad (Material_254) that mats leaves out. 3.0 makes it '
+           '6.2 m long, 2.9 m high; delivered along x, a quarter turn lays it along z',
       mats=['Material_252', 'Material_253'], scale=3.0, rot=(0, 90, 0), tex=512),
     P('machine_skidsteer', 'construction', 'skid steer loader', 'skid',
       note='a skid steer with its bucket, 24k triangles, six materials; true size as delivered '

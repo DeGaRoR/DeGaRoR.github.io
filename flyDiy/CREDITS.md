@@ -660,18 +660,18 @@ the `construction` group of the pier table, baked into
 `src/pier/pier_construction.js`) — **Sketchfab, CC-BY-4.0**, the provenance
 read out of each file's own `asset.extras`; attribution is a condition of the
 licence and must stay visible wherever they are shown. The CAT and JCB marks
-are painted over at the bake (the user, 25 Oct); the delivered files are
-untouched.
+are painted over at the bake (the user, 25 Oct), the crane's GROVE marks with
+them; the delivered files are untouched.
 
 - `machine_excavator` — **"Excavator (CAT)"** by sarvesh12
   (https://sketchfab.com/3d-models/excavator-cat-5f195244108c46e495a1e78040f02f7e)
 - `machine_backhoe` — **"JCB Backhoe Loader 3CX Tractor"** by Kyle Burton
   (https://sketchfab.com/3d-models/jcb-backhoe-loader-3cx-tractor-5b2d02e1c1c14deba0f9c8d75fff54b6)
-- `machine_bulldozer` — **"Bulldozer"** by RobbyHollister
+- `machine_loader` — **"Bulldozer"** (a wheel loader) by RobbyHollister
   (https://sketchfab.com/3d-models/bulldozer-2137d93b5a804161bc65b44d583aa68e)
 - `machine_crane` — **"Components of Crane"** by Steven Mai
   (https://sketchfab.com/3d-models/components-of-crane-08b8b4f1bb7a46e9892e08bd9517f992)
-- `machine_excavator_wheeled` — **"Escavadeira Tractor"** by LuizZed36
+- `machine_loader_rusty` — **"Escavadeira Tractor"** (a wheel loader) by LuizZed36
   (https://sketchfab.com/3d-models/escavadeira-tractor-7e297dc563d24ae3aa9e95ce899e0f4f)
 - `machine_skidsteer` — **"Skid Steer Loader"** by Adelprince69
   (https://sketchfab.com/3d-models/skid-steer-loader-09c5ac66e1074d29ae1e7699001555ed)

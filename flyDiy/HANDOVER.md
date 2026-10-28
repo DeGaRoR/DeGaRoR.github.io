@@ -99576,6 +99576,12 @@ tractor_scan (1.9k). Sizes from each file's own node tree; scales and quarter tu
 Run (the slot): python tools/pier_prep.py && node tools/prop_lod.js --base && node tools/prop_lod.js && node tools/build.js,
 then GATE HOUSE STAGES ASSETBUDGET MEDIA BUILD (+ the pier kit's). Bench look: nose direction of the crane / wheeled
 excavator, the JCB's scale (0.006 from its width), the painted patches.
+THE BENCH LOOK (Wed 28 09:00, tools/_props.html?packs=pier): the CAT patches clean; the JCB showed THREE marks the first
+boxes missed (the loader arms' two JCB plates, an upright plate) - boxed; the crane carries GROVE five times (four black
+on yellow, one white on the black boom side, a red V in each) - painted over too, with two box flags (`dark`: white on
+dark paint; `red`: the accent is part of the mark; a box without flags runs exactly as before); `bulldozer.glb` and
+`escavadeira_tractor.glb` are both WHEEL LOADERS - keyed machine_loader / machine_loader_rusty (the file names stay in
+the notes and CREDITS). Sizes and orientations right (all along z).
 ## G3541-G3548 - AIRCRAFT-LOOKS: THE PAINT REACHES THE ROD BOOM AND THE TRUSS, NO REGISTRATION READS MIRRORED, THE WHOLE AEROPLANE PICKED WEARS ONE SILHOUETTE, THE TUNDRA IS A BALLOON ON A SMALL HUB (2026-10-26, AIRCRAFT-LOOKS, LOCAL; for T-P2 / L27a; claude/ready/aircraft-looks)
 Why: the user's playtest of 24 Oct, and the user's rulings of 25 Oct relayed by A0. Registrations: "not having mirrored registration when projecting either on the fuselage ... but also on the wings. The top side and bottom sides should be treated differently, and that should be the same for the stabs and the fins." Tundra: "the bigger tundra wheels are bad ... their flank was protruding, and their proportions were bad."
 What changed (drawing only - no spec key, no certificate):
