@@ -865,7 +865,7 @@ const CAGE_PARTS = [
     groups: [
       // (G2760: what the trunk leaves here is the thrust line and the mount's
       // own dials — no second 'fitted' heading under the trunk's)
-      ['thrust line & mounting', ['engOn', 'engMount', 'engAim', 'engNacAt', 'engRotate', 'engPylonH',
+      ['thrust line & mounting', ['engOn', 'engMount', 'engAim', 'engNacAt', 'engNacAt2', 'engRotate', 'engPylonH',
                   'engBlockZ', 'engBlockY', 'engTilt', 'engPower', 'engPreset', 'engY']],   // G477: the thrust line's tilt
       // THE STAND FIRST (2026-09-03, the user: "the stand is very important for
       // engine placement"): the mount's stand-off is the engine's fore / aft seat

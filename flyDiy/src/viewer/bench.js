@@ -505,7 +505,7 @@ const benchDestroyLine = D => {
   if (D.error) return 'the test to destruction did not run (' + D.error + ')';
   const side = c => (c === 'L' ? 'left ' : c === 'R' ? 'right ' : '');
   const part = D.key ? String(D.key).replace(/^wing(\d)([LR]?):/, (m, p, c) => 'the ' + side(c) + 'wing\'s ')
-    .replace(/^eng([LR]?):/, (m, c) => 'the ' + side(c) + 'engine\'s ').replace(/^([a-z]+)([LR]?):/, (m, w, c) => 'the ' + side(c) + w + '\'s ') : '';
+    .replace(/^eng([LR]?)(2|Aft)?:/, (m, c, o) => 'the ' + side(c) + (o === '2' ? 'outer ' : o === 'Aft' ? 'rear ' : '') + 'engine\'s ').replace(/^([a-z]+)([LR]?):/, (m, w, c) => 'the ' + side(c) + w + '\'s ') : '';
   return 'LIMIT ' + benchNum(D.limit, 1) + ' g · ULTIMATE ' + benchNum(D.ult, 1) + ' g · BROKE AT '
     + (D.brokeAt != null ? benchNum(D.brokeAt, 2) + ' g' + (part ? ' (' + part + (D.seam ? ', a ' + D.seam : '') + ', let go first)' : '')
                          : 'none (' + (D.verdict || 'held') + ')')

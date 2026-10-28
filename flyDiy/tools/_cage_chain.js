@@ -62,7 +62,7 @@
   // and the cowl's meshes (HIT_LAYERS). A layer that ran under a drag's defer returned early (G1303: hidden, its reads
   // not taken) and is STALE until it runs whole.
   const REL_FEEDS = { wing: ['eng', 'cowl'], gear: ['eng'], eng: ['energy'], cowl: ['energy'] };
-  const REL_WHEN = { 'wing>cowl': P => Math.round(+(P && P.engMount) || 0) >= 2 };
+  const REL_WHEN = { 'wing>cowl': P => [2, 3, 5, 6].includes(Math.round(+(P && P.engMount) || 0)) };
   const DEFERS = new Set(['access', 'light', 'energy', 'hinge']);
   let SEQ = 0;
   const L = [];

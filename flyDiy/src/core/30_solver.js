@@ -2608,6 +2608,15 @@ function makeSim(def, world) {
   // per engine, refreshed by the thrust pass: the hub (mount centroid), the swirl rate, the wake radius, the sense
   const SW_HUB = new Float64Array(SENSE.length * 3), SW_W = new Float64Array(SENSE.length), SW_R = new Float64Array(SENSE.length);
   let swirlOn = false;
+  // ENGINE-CONFIGS-2 (G3490): A LAYOUT'S STRIPS NAME THEIR DISC (62_gen_aero genStripsLayout, `washE`: an engine, -2
+  // the push-pull's centreline in series, -1 none). Their wash is that disc's own (its own thrust through momentum
+  // theory, the mean disc's law), so a dead engine takes the wake off what flies behind IT; the swirl at a tail strip
+  // sums every running disc's (the push-pull's counter-rotating pair: the rear prop takes back the front one's). Every
+  // other def has no `washE`: WE is null and the pass is the one it was, to the bit.
+  const WE = def.strips.some(st => st.washE != null) ? Int8Array.from(def.strips, st => st.washE == null ? -1 : st.washE) : null;
+  const WASH_E = WE ? new Float64Array(SENSE.length + 1) : null;   // per engine, then [SENSE.length] the series
+  const WE_C = WE ? Uint8Array.from(SENSE, (_, k) => (ENG_DEF[k] && ENG_DEF[k].side) ? 0 : 1) : null;   // on the centreline (side 0)
+  if (WE) out.washE = WASH_E;   // (published for a layout only: GATE ENGCONFIG reads each disc's wake)
   // the published moments, body components [along xAft, along yUp, along zRt] per engine (+yUp = nose LEFT,
   // +xAft = left wing down, +zRt = nose up): `out.propFx`
   const PFO = { Q: new Float64Array(SENSE.length), rpm: new Float64Array(SENSE.length), H: new Float64Array(SENSE.length),
@@ -2717,6 +2726,19 @@ function makeSim(def, world) {
   // wake radius, faded to nothing over its last quarter beyond it
   function swirlAt(sx, sy, sz, o) {
     o[0] = o[1] = o[2] = 0;
+    if (WE) {   // ENGINE-CONFIGS-2: a layout sums every running disc's, each faded by its own wake radius
+      for (let k = 0; k < SW_W.length; k++) {
+        if (!SW_W[k]) continue;
+        let dx = sx - SW_HUB[k*3], dy = sy - SW_HUB[k*3+1], dz = sz - SW_HUB[k*3+2];
+        const a = dx*xAft[0] + dy*xAft[1] + dz*xAft[2];
+        dx -= a * xAft[0]; dy -= a * xAft[1]; dz -= a * xAft[2];
+        const d = hyp3(dx, dy, dz), Rw = SW_R[k], g = d <= Rw ? 1 : Math.max(0, 1 - (d - Rw) / (0.25 * Rw));
+        if (!g) continue;
+        const w = SW_W[k] * g;
+        o[0] += w * (dy*xAft[2] - dz*xAft[1]); o[1] += w * (dz*xAft[0] - dx*xAft[2]); o[2] += w * (dx*xAft[1] - dy*xAft[0]);
+      }
+      return o;
+    }
     let best = -1, bd = Infinity, bdx = 0, bdy = 0, bdz = 0;
     for (let k = 0; k < SW_W.length; k++) {
       if (!SW_W[k]) continue;
@@ -2848,6 +2870,15 @@ function makeSim(def, world) {
       // propwash is ONE disc's — the tail flies in the wake of the prop ahead
       // of it, not in the sum of the aeroplane's engines (the mean disc now)
       wash = Math.sqrt(Vfwd * Vfwd + 2 * (T / nE) / (rho * PROPA)) - Vfwd;
+      if (WE) {   // ENGINE-CONFIGS-2: each disc's own wash, and the centreline's in series (nose + pusher)
+        let Tc = 0;
+        for (let k = 0; k < WASH_E.length - 1; k++) {
+          const Tk = k < nE ? Ti[k] : 0;
+          WASH_E[k] = Math.sqrt(Vfwd * Vfwd + 2 * Tk / (rho * PROPA)) - Vfwd;
+          if (WE_C[k]) Tc += Tk;
+        }
+        WASH_E[WASH_E.length - 1] = Math.sqrt(Vfwd * Vfwd + 2 * Tc / (rho * PROPA)) - Vfwd;
+      }
       // G477: THE THRUST LINE'S TILT (engTilt, downthrust positive): the
       // force is turned about the lateral axis, forward-and-down at the
       // front of the engine, so a high pusher's line of action passes
@@ -2970,7 +3001,7 @@ function makeSim(def, world) {
       let wx_ = wcx, wy_ = wcy, wz_ = wcz;
       if (world && world.wind) { const wv = world.wind(spx, spy, spz, simT); wx_ = wv[0]; wy_ = wv[1]; wz_ = wv[2]; }
       // relative air velocity = air motion (wash + wind) - node motion
-      const wsh = wash * st.wash;
+      const wsh = (WE && !probe ? (WE[stripIdx] >= 0 ? WASH_E[WE[stripIdx]] : WE[stripIdx] === -2 ? WASH_E[WASH_E.length - 1] : wash) : wash) * st.wash;
       let rx = wsh*xAft[0]+wx_-vx, ry = wsh*xAft[1]+wy_-vy, rz = wsh*xAft[2]+wz_-vz;
       // G2080: the slipstream's swirl, where the wash reaches
       if (swirlOn && st.wash > 0 && !probe && st.kind !== 'wing') { swirlAt(spx, spy, spz, _sw); rx += _sw[0] * st.wash; ry += _sw[1] * st.wash; rz += _sw[2] * st.wash; }

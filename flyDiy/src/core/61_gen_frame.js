@@ -248,13 +248,29 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const dmgCovered = !(S.fuselage && S.fuselage.covering === 'open');
   const dmgGlazed = dmgCovered && !(S.cab && S.cab.glazing === 'none');
   // the part a node belongs to, and the part's rank: the higher rank is the child of a joint (it comes off)
+  const dmgLay = S.engLayout === 'pushPull' || S.engLayout === 'tri' || S.engLayout === 'quad';
   const dmgPart = i => {
     const t = nodes[i].tag || '', z = P[i][2], sd = z < 0 ? 'L' : 'R';
     if (t === 'WF' || t === 'WR' || t === 'WB' || t === 'WB2') return { p: 'wing' + (nodes[i].plane || 0) + sd, r: 1, base: 'wing' + (nodes[i].plane || 0), wing: true };
     if (t.slice(0, 2) === 'BM') return { p: 'boom' + t[2], r: 2, base: 'boom' };
     if (/^(HF|HR|HB|HT)/.test(t)) return { p: 'stab', r: 3, base: 'stab' };
     if (/^(VF|VR|VX|FIN)/.test(t)) return Math.abs(z) > 0.2 ? { p: 'fin' + sd, r: 3, base: 'fin' } : { p: 'fin', r: 3, base: 'fin' };
-    if (/^(ENG|CGE|MNT)/.test(t)) return Math.abs(z) > (S.cab ? S.cab.halfW : 0.5) ? { p: 'eng' + sd, r: 3.5, base: 'eng' } : { p: 'eng', r: 3.5, base: 'eng' };
+    if (/^(ENG|CGE|MNT)/.test(t)) {
+      // ENGINE-CONFIGS-2 (G3491): A LAYOUT'S EVERY ENGINE IS ITS OWN PART (its own break group: one mount letting go
+      // takes its engine, not its neighbour's) - the nearest of the layout's mounts: the nose 'eng' as ever, a
+      // push-pull's pusher 'engAft', the inner wing pair 'engL' / 'engR' as ever, a four's outer pair 'engL2' / 'engR2'
+      if (dmgLay) {
+        let best = null, bd = Infinity;
+        for (const e of S.engAt) {
+          const ez = e.mount === 'wing' ? (z < 0 ? -e.z : e.z) : 0, d = Math.hypot(P[i][0] - e.x, z - ez);
+          if (d < bd) { bd = d; best = e; }
+        }
+        const pp = !best || best.mount === 'nose' ? 'eng' : best.mount === 'pusher' ? 'engAft'
+          : 'eng' + sd + (best.pair > 0 ? best.pair + 1 : '');
+        return { p: pp, r: 3.5, base: 'eng' };
+      }
+      return Math.abs(z) > (S.cab ? S.cab.halfW : 0.5) ? { p: 'eng' + sd, r: 3.5, base: 'eng' } : { p: 'eng', r: 3.5, base: 'eng' };
+    }
     if (t.slice(0, 4) === 'AXLE') return { p: 'gear' + sd, r: 4, base: 'gear' };
     if (t === 'TW') return { p: 'tw', r: 4, base: 'tw' };
     if (t === 'FLK' || t === 'FLD') return { p: 'float' + sd, r: 4, base: 'float' };
@@ -1607,7 +1623,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // solver can share thrust per ENGINE (a cut engine, a trimmed lever)
   // instead of evenly over the nodes.
   const engIdx = noseEng ? [0, 0] : [];
-  if (!noseEng) {
+  // G2790 ENGINE-CONFIGS: a LAYOUT (S.engLayout: pushPull / tri / quad) hangs
+  // its nose engine on the firewall pair above and every other entry here,
+  // each mount node carrying ITS OWN entry's index (the pusher of a push-pull
+  // is engine 1, the Trimotor's nacelles 1 and 2, the quad's 0..3) — the
+  // solver's per-engine thrust then makes a cut engine a real couple. The
+  // single mounts and the classic pair run exactly the old loop.
+  const LAYF = S.engLayout === 'pushPull' || S.engLayout === 'tri' || S.engLayout === 'quad';
+  const engCowl = [];                    // G2790: [nodeA, nodeB] per off-nose engine of a layout
+  if (!noseEng || LAYF) {
     sec('engines');
     const iRing = x => {
       let b = 0, d = 1e9;
@@ -1636,7 +1660,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     };
     for (let i = 0; i < EAT.length; i++) {
       const e = EAT[i];
-      if (e.mount === 'wing' && i > 0) continue;      // the pair's mirror
+      if (LAYF) {
+        if (e.mount === 'nose') continue;              // the firewall pair, above
+        if (e.mount === 'wing' && e.side > 0) continue; // the pair's mirror
+      } else if (e.mount === 'wing' && i > 0) continue;      // the pair's mirror
+      const iE = LAYF ? i : 0;                         // this entry's engine index
       if (e.mount === 'pusher') {
         const [PL, PR] = NM(e.x, e.y, 0.55 * cab.halfW, 'ENG');
         const rg = F[iRing(e.x)];
@@ -1645,7 +1673,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         BM(PR, rg.TR); BM(PR, rg.BR); BM(PR, rg.BL); BM(PR, rg.TL);
         hangEngine(e, [PL, PR], [rg.TL, rg.TR, rg.BL, rg.BR], 0,
                    engDryM, S.prop.mass);
-        engNodes.push(PL, PR); engIdx.push(0, 0);
+        engNodes.push(PL, PR); engIdx.push(iE, iE);
+        if (LAYF) engCowl.push([PL, PR]);
       } else if (e.mount === 'wingTop') {
         const [WL, WR] = NM(e.x, e.y, 0.35 * cab.halfW, 'ENG');
         const rg = F[iRing(e.x)];
@@ -1720,7 +1749,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
           hangEngine({ x: e.x, y: e.y, pushes: e.pushes }, [n], ring,
                      P[n][2], engDryM, S.prop.mass, bearA);
         }
-        engNodes.push(NL, NR); engIdx.push(0, 1);
+        engNodes.push(NL, NR); engIdx.push(iE, LAYF ? i + 1 : 1);
+        if (LAYF) engCowl.push([NL, NL], [NR, NR]);
       }
     }
     EL = engNodes[0]; ER = engNodes[1];
@@ -2976,6 +3006,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     if (noseEng && engOn) {
       half(F[0].TL, F[0].TR, 0.5 * cowlM); half(EL, ER, 0.5 * cowlM);
       half(EL, ER, exhM);
+      // G2790: a layout's every other engine wears its own cowl (nacelle)
+      // and its own exhaust, on its own mount nodes
+      for (const [a, b] of engCowl) half(a, b, cowlM + exhM);
+    } else if (engCowl.length) {
+      for (const [a, b] of engCowl) half(a, b, cowlM + exhM);
     } else {
       half(noseEng ? F[0].TL : EL, noseEng ? F[0].TR : ER, cowlM);
       half(noseEng ? F[0].BL : EL, noseEng ? F[0].BR : ER, exhM);

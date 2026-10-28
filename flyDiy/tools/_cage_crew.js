@@ -1116,7 +1116,11 @@ function buildPedals(g, A, P, sx) {
   return { objL: out[1], objR: out[-1], label: 'pedals' };
 }
 // a twin: wing nacelles (engMount 3) with the engine on - two throttle levers
-const twinEngines = P => !!(P && +P.engOn && Math.round(+P.engMount || 0) === 3);
+// ENGINE-CONFIGS-2 (G3494): ONE LEVER AN ENGINE - the push-pull's two (4), the three's three (5), the four's four (6),
+// each on its own engine's drive (thr0..thr3, makeLinkage's own keys); the first two stay the twin's, the rest follow
+const engLevers = P => (P && +P.engOn) ? ({ 3: 2, 4: 2, 5: 3, 6: 4 })[Math.round(+P.engMount || 0)] || 1 : 1;
+const twinEngines = P => engLevers(P) > 1;
+const moreLevers = (P, dxOf) => { const o = []; for (let i = 2; i < engLevers(P); i++) o.push(['edCtl_throttle' + (i + 1), 'thr' + i, dxOf(i)]); return o; };
 function buildThrottleWall(g0, A, P, sx, onFace) {
   const g = ctlShift(g0, P, 'thrX', 'thrY', 'thrZ');
   const zT = A.zBack + 0.40;
@@ -1175,6 +1179,7 @@ function buildThrottleWall(g0, A, P, sx, onFace) {
   // holds the first; a single engine keeps the one lever on 'thr'
   const twin = twinEngines(P);
   const levers = twin ? [['edCtl_throttle', 'thr0', 0], ['edCtl_throttle2', 'thr1', inb * 0.028]] : [['edCtl_throttle', 'thr', 0]];
+  levers.push(...moreLevers(P, i => inb * 0.028 * i));
   let gT = null, K = null;
   for (const [nm, drv, dx] of levers) {
     const pv = [piv[0] + dx, piv[1], piv[2]];
@@ -1272,6 +1277,7 @@ function buildThrottleDash(g0, A, P, sx) {
   // (twinEngines / thr0, thr1); a single engine keeps its one rod on 'thr'
   const inb = sx >= 0 ? -1 : 1;
   const rods = twinEngines(P) ? [['edCtl_throttle', 'thr0', 0], ['edCtl_throttle2', 'thr1', inb * 0.056]] : [['edCtl_throttle', 'thr', 0]];
+  rods.push(...moreLevers(P, i => inb * 0.056 * i));
   let first = null;
   for (const [nm, drv, dx] of rods) {
     const xR = xT + dx;
@@ -1382,6 +1388,7 @@ function buildConsole(g0, A, P, cx, withQuadrant, box) {
   // drive (the wall lever's rule); the boss is one across the box either way
   const twin = twinEngines(P);
   const levers = twin ? [['edCtl_throttle', 'thr0', -0.012], ['edCtl_throttle2', 'thr1', 0.012]] : [['edCtl_throttle', 'thr', 0]];
+  levers.push(...moreLevers(P, i => i === 2 ? -0.034 : 0.034));   // (the three's and the four's, outside the pair)
   const hw = twin ? 0.009 : 0.012;
   let gT = null, K = null;
   for (const [nm, drv, dx] of levers) {

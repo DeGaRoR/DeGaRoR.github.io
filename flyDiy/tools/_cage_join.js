@@ -282,14 +282,23 @@ function cageJoinSpec(P, M, T) {
     // drawn; a wing pair is two entries. Absent measurements = the spec's
     // own derivation for that mount.
     engines: (() => {
-      const mk = ['nose', 'pusher', 'wingTop', 'wing'][Math.round(P.engMount || 0)]
-               || 'nose';
+      // G2790 ENGINE-CONFIGS: 4 push-pull / 5 three / 6 four are LAYOUTS
+      // (60_gen_spec GEN_ENG_LAYOUTS) — one entry per drawn unit, in the
+      // order engineFaces lists them, each entry's own mount
+      const mK = Math.round(P.engMount || 0);
+      const LAY = mK === 4 ? 'pushPull' : mK === 5 ? 'tri' : mK === 6 ? 'quad' : null;
+      // the mounts of each layout, GEN_ENG_LAYOUTS' own lists (the join runs
+      // as a node module in GATE JOIN, where the core's globals are not)
+      const LAYM = { pushPull: ['nose', 'pusher'], tri: ['nose', 'wing', 'wing'],
+                     quad: ['wing', 'wing', 'wing', 'wing'] }[LAY];
+      // (the single mounts' and the pair's list, as GATE TECH reads it; a layout returns before it is used)
+      const mk = ['nose', 'pusher', 'wingTop', 'wing'][Math.round(P.engMount || 0)] || 'nose';
       const type = CAGE_JOIN_ENGINES[(T.PRESET_NAMES || [])[Math.round(P.engPreset)]]
                 || 'a65_sensenich74';
       const EU = Array.isArray(M.engUnits) ? M.engUnits : [];
       const aimK = Math.round(P.engAim || 0);
       const aim = aimK === 1 ? 'puller' : aimK === 2 ? 'pusher' : null;
-      const one = i => ({
+      const one = (i, mk) => ({
         type, mount: mk, place: { dx: 0, dy: 0 },
         ...(Math.abs(+P.engTilt || 0) > 0.01 ? { tilt: +P.engTilt } : {}),   // G477: the thrust line's tilt, deg, downthrust +
         ...(aim && mk !== 'nose' && mk !== 'pusher' ? { aim } : {}),
@@ -309,9 +318,10 @@ function cageJoinSpec(P, M, T) {
         // disc 2.4 cm INTO the ground at rest where the drawn disc clears
         // it by 0.26 m (a 172's ~10 in) - every taxi a prop strike. The
         // flange's y rides out with its x (the cowl, the mount and the nose
-        // leg read engY, now the drawn thrustline).
-        ...(mk === 'nose' && EU[0] && isFinite(EU[0].x)
-          ? Object.assign({ x: EU[0].x }, isFinite(EU[0].y) ? { y: EU[0].y } : {}) : {}),
+        // leg read engY, now the drawn thrustline). G2790: unit i's own
+        // flange (a layout's nose is unit 0, so a single reads EU[0] as before).
+        ...(mk === 'nose' && EU[i] && isFinite(EU[i].x)
+          ? Object.assign({ x: EU[i].x }, isFinite(EU[i].y) ? { y: EU[i].y } : {}) : {}),
         ...(mk === 'wingTop' ? { pylon: Math.max(0.05, +P.engPylonH || 0.30) } : {}),
         // G134: THE DRAWN ENGINE IS THE PHYSICS' AUTHOR — the G132 prop rule,
         // applied to the engine itself. M.engineFacts is engResolve over the
@@ -332,10 +342,14 @@ function cageJoinSpec(P, M, T) {
         // G194: the hand, seen from behind (+1 clockwise). A pair's row says
         // same hand / tops inward / tops outward; tops inward is port +1,
         // starboard -1 (down-going blades inboard). A single mount is +1.
+        // G2790: a layout's pairs take the row per pair (port first); a
+        // push-pull's rear hand is the clamp's (the nose's mirror)
         sense: mk === 'wing' && Math.round(P.engRotate || 0)
-          ? ((i === 0) === (Math.round(P.engRotate) === 1) ? 1 : -1) : 1,
+          ? (((LAY ? wingK(i) % 2 : i) === 0) === (Math.round(P.engRotate) === 1) ? 1 : -1) : 1,
       });
-      return mk === 'wing' ? [one(0), one(1)] : [one(0)];
+      const wingK = i => LAY ? LAYM.slice(0, i).filter(m => m === 'wing').length : i;
+      if (LAY) return LAYM.map((m, i) => one(i, m));
+      return mk === 'wing' ? [one(0, mk), one(1, mk)] : [one(0, mk)];
     })(),
     // ---- G132: THE PROPELLER FLIES AS DRAWN. spec.prop is the thrust
     // model's whole input (Tstatic, kV2, disc, mass all derive from D,
