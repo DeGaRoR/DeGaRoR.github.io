@@ -76,6 +76,16 @@ function certStrip(spec) {
   for (const b in CERT_MEASURED) if (c[b] && typeof c[b] === 'object') for (const k of CERT_MEASURED[b]) delete c[b][k];
   if (c.gear && c.gear.floats && typeof c.gear.floats === 'object') { delete c.gear.floats.x; delete c.gear.floats.y; }
   if (c.cage && typeof c.cage === 'object') for (const k of Object.keys(c.cage)) if (CERT_STATE_ROWS.test(k)) delete c.cage[k];
+  // G3451 (DASH-ARCH-SAVED) on the core's path too: the dash is a LOOK - a cage saved after the switch (dashV) hashes the
+  // dash it was certified with (dashWas / dashLegsWas, else the arch), never the one shown now, as bench.js
+  // benchStripCosmetic does before this - so procureFp (certMajor straight off the spec) is the bench's f3 on such a
+  // cage, and a dash picked later never withdraws the maker's certificate
+  if (c.cage && typeof c.cage === 'object' && c.cage.dashV != null) {
+    const cg = c.cage;
+    cg.dashStyle = cg.dashWas != null ? Math.round(+cg.dashWas || 0) : 1;
+    cg.dashLegs = cg.dashLegsWas != null ? Math.round(+cg.dashLegsWas) : 1;
+    delete cg.dashWas; delete cg.dashLegsWas; delete cg.dashV;
+  }
   return c;
 }
 // a stripped spec -> { fp, groups: { structure: h, ... } }. A block no group names counts with the structure: an

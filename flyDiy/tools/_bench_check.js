@@ -280,6 +280,13 @@ else {
   const p1v = CORE.procureFpP1(fx, 8, 4);
   ok(CORE.procureFp(fx) === M0.fp && CORE.procureP1Matches(fx, p1v) && !CORE.procureP1Matches(mut(c => { c.wings[0].span += 0.5; }) && JSON.parse(JSON.stringify(Object.assign({}, fx, { wings: [Object.assign({}, fx.wings[0], { span: (+fx.wings[0].span || 10) + 0.5 })] }))), p1v),
      'M3: procureFp is the bench\'s f3; a p1 signature of this spec under any version is recognised, another spec\'s is not');
+  {  // G3451 x G3780: a cage saved after the dash switch (dashV) - the core's certMajor reads it as the bench does: the dash
+     // it was certified with, never the one shown; so procureFp is the bench's f3, and another dash moves neither
+    const dv = (st, was) => Object.assign(JSON.parse(JSON.stringify(fx)), { cage: Object.assign({}, fx.cage, { dashV: 1, dashStyle: st, dashLegs: 1, dashWas: was, dashLegsWas: 1 }) });
+    const a = dv(1, 0), b = dv(0, 0);
+    ok(CORE.procureFp(a) === BE.benchMajor(a, null).fp && CORE.procureFp(a) === CORE.procureFp(b) && BE.benchMajor(b, null).fp === BE.benchMajor(a, null).fp,
+       'DASH x f3: a cage saved after the dash switch hashes its certified dash on both paths (procureFp = the bench\'s f3; another dash keeps both)');
+  }
   // M4: a leg signed under an alias (the old f2) still counts
   ok(CORE.acceptFpOk({ fp: 'aaaaaaaa', fpAlias: ['bbbbbbbb'] }, 'bbbbbbbb') && !CORE.acceptFpOk({ fp: 'aaaaaaaa', fpAlias: ['bbbbbbbb'] }, 'cccccccc')
      && CORE.acceptFpOk({ fp: null }, 'x'), 'M4: an acceptance leg under the live f3 or one of its f2 aliases counts, another build\'s does not');
