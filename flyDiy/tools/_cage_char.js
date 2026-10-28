@@ -478,45 +478,6 @@ function fistAt(inst, side, out) {
   return n ? out.multiplyScalar(1 / n) : null;
 }
 
-// THE HOLLOW OF THE HAND (G3700 HANDS, the user: "a better grip on the yoke
-// and throttle, something real clean"): fistAt is where the middle phalanges
-// gather, which on a hand closed ROUND a grip lies on the far side of it - so
-// aiming that point at the grip's axis drove the fingers through the grip.
-// The axis a curled hand wraps is the centre of the circle each finger's
-// bone line draws: knuckle (1), middle joint (2), tip (4, else 3). Returns
-// that centre (mean over the fingers that are curled, in world) and the
-// circle's mean radius (bone line, m), or null when fewer than two fingers
-// are curled enough to tell (radius over 8 cm).
-const _ha = new THREE.Vector3(), _hb = new THREE.Vector3(), _hc = new THREE.Vector3(),
-      _hn = new THREE.Vector3(), _hx = new THREE.Vector3(), _hy = new THREE.Vector3();
-function hollowAt(inst, side, out) {
-  const t = inst.tree, S = side === 'L' ? 'Left' : 'Right';
-  out = out || new THREE.Vector3();
-  out.set(0, 0, 0);
-  let n = 0, rs = 0;
-  for (const f of ['Index', 'Middle', 'Ring', 'Pinky']) {
-    const o1 = t.byBase[S + 'Hand' + f + '1'], o2 = t.byBase[S + 'Hand' + f + '2'];
-    const oT = t.byBase[S + 'Hand' + f + '4'] || t.byBase[S + 'Hand' + f + '3'];
-    if (!o1 || !o2 || !oT) continue;
-    const a = o1.getWorldPosition(_ha);
-    _hb.copy(o2.getWorldPosition(_hx)).sub(a);           // ab
-    _hc.copy(oT.getWorldPosition(_hy)).sub(a);           // ac
-    _hn.crossVectors(_hb, _hc);
-    const nn = _hn.lengthSq();
-    if (nn < 1e-12) continue;
-    // circumcentre: a + (|ac|^2 (n x ab) + |ab|^2 (ac x n)) / (2 |n|^2)
-    _hx.crossVectors(_hn, _hb).multiplyScalar(_hc.lengthSq());
-    _hy.crossVectors(_hc, _hn).multiplyScalar(_hb.lengthSq());
-    _hx.add(_hy).multiplyScalar(1 / (2 * nn));
-    const r = _hx.length();
-    if (!(r < 0.08)) continue;
-    out.add(_hx.add(a)); rs += r; n++;
-  }
-  if (n < 2) return null;
-  out.multiplyScalar(1 / n);
-  return { p: out, r: rs / n };
-}
-
 // WHERE THE SOLE IS (G468, playtest item 25, the user: "the feet of the
 // pilot are not well calibrated to the pedals"): the rig's shoe is its own
 // depth and length under the ankle - on the build (4) pilot the sole ran
@@ -834,6 +795,6 @@ function flatMaterial(key, mi) {
 // (72_people.js). Every pilot seat wears them unless the career hires another.
 const RACER = 'ch20';
 window.CAGE_CHAR = { CHAIN, RACER, list: () => REG().order.map(k => REG().chars[k]),
-  rig, load, ready, instance, dress, dispose, flatMaterial, fistAt, hollowAt, soleAt, pickBody,
+  rig, load, ready, instance, dress, dispose, flatMaterial, fistAt, soleAt, pickBody,
   animLoad, animate, animStep, clearAnims, anims: () => ANIMS().order.slice() };
 })();
