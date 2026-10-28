@@ -712,9 +712,14 @@ function anchorAt(parent, p, rx, ry) {
 // direction the arm arrives from: hand +x (its width) along the grip,
 // hand -y (its length, wrist->fingertips) wrapping away from the
 // shoulder. `fixed` anchors (the feet) keep the orientation as authored.
-function gripAt(parent, p, axis) {
+// `r` (G3700 HANDS): the grip's own radius where the hand closes - a control
+// that declares it gets the fingers curled to that radius and the hollow of
+// the hand (not the middle phalanges) put on the anchor, which is then the
+// AXIS the hand wraps (fitFists)
+function gripAt(parent, p, axis, r) {
   const o = anchorAt(parent, p);
   o.userData.grip = new THREE.Vector3(axis[0], axis[1], axis[2]).normalize();
+  if (r) o.userData.gripR = r;
   return o;
 }
 const _gx = new THREE.Vector3(), _gy = new THREE.Vector3(),
@@ -821,7 +826,7 @@ function buildStickCenter(g0, A, P, sx, seat) {
   // it under the thumb; the axis IS the shaft.
   const gc = K2 ? [T[0] - up[0] * 0.046, T[1] - up[1] * 0.046, T[2] - up[2] * 0.046]
                 : [T[0], T[1] + 0.035, T[2] + 0.006];
-  return { obj: gripAt(gP, gc, up), label: 'stick' };
+  return { obj: gripAt(gP, gc, up, 0.020), label: 'stick' };
 }
 // the yoke's forward-most metal: the hub's face at +0.052 from its origin
 // (the horns sweep to +0.036 behind it)
@@ -902,7 +907,7 @@ function buildYoke(g0, A, P, sx) {
     }
     // the horn IS the grip axis (out and up from the hub)
     grips[sd] = gripAt(gY, [sd * 0.132, 0.062, 0.030],
-                       [sd * 0.045, 0.080, 0.010]);
+                       [sd * 0.045, 0.080, 0.010], 0.016);
   }
   return { objL: grips[1], objR: grips[-1], label: 'yoke' };
 }
@@ -925,7 +930,7 @@ function buildStickSide(g0, A, P, sx, seat) {
   tube(gS, M.knob, [0, sl - 0.005, -sl * 0.15],
        [0, sl + 0.055, -sl * 0.15 - 0.010], 0.018);
   return { obj: gripAt(gS, [0, sl + 0.025, -sl * 0.15 - 0.004],
-                       [0, 0.99, -0.15]),
+                       [0, 0.99, -0.15], 0.018),
            label: 'side stick' };
 }
 // THE RUDDER PEDALS (G331, the user: "The pedals are really crude. I think
@@ -1195,9 +1200,10 @@ function buildThrottleWall(g0, A, P, sx, onFace) {
   // ball knob on a quadrant lever is held from above and behind: the
   // fingers curl over it fore-and-aft, the thumb inboard, so the axis the
   // hand wraps is the PIVOT's (lateral), and the wrist then continues the
-  // forearm with no twist. The anchor rides a little above the ball's
-  // centre, where the palm actually lands.
-  return { obj: gripAt(gT, [K[0], K[1] + 0.012, K[2] - 0.006], [inb, 0, 0]),
+  // forearm with no twist. G3700 HANDS: the anchor is the ball's centre, the
+  // axis the curled fingers wrap (it rode 12 mm above, where the palm had
+  // landed when the middle phalanges were aimed at it).
+  return { obj: gripAt(gT, [K[0], K[1], K[2]], [inb, 0, 0], 0.026),
            label: 'throttle (wall)' };
 }
 // THE THROTTLE THROUGH THE SHOULDER (G344, ctlThr 5): drawn off the cage
@@ -1252,7 +1258,7 @@ function buildThrottleSlot(g0, A, P, L) {
   KW.revolve(boss, [0, -0.008, 0], [0, 1, 0], [[0.011, 0], [0.011, 0.016], [0, 0.016]], 16, true);
   KW.revolve(kb, K, _nrm3(K), ballProf(0.020, 0.010), 32, true);
   arm.mesh(gT, M.frame); boss.mesh(gT, M.plated); kb.mesh(gT, M.ball);
-  return { obj: gripAt(gT, [K[0], K[1] + 0.012, K[2] - 0.004], [inb, 0, 0]), label: 'throttle (shoulder)' };
+  return { obj: gripAt(gT, [K[0], K[1], K[2]], [inb, 0, 0], 0.020), label: 'throttle (shoulder)' };
 }
 function buildThrottleDash(g0, A, P, sx) {
   const g = ctlShift(g0, P, 'thrX', 'thrY', 'thrZ');
@@ -1322,7 +1328,7 @@ function buildThrottleDash(g0, A, P, sx) {
   // fingers curled over its top and the thumb round its side — the axis
   // the hand wraps is lateral, the wrist continues the forearm, and the
   // knob's own centre (the head runs z +0.008 .. -0.026) sits in the palm.
-  return { obj: gripAt(first, [0, 0.004, -0.008], [1, 0, 0]),
+  return { obj: gripAt(first, [0, 0.004, -0.008], [1, 0, 0], 0.015),
            label: 'throttle (push-pull)', twinDx: rods.length > 1 ? rods[1][2] : 0 };
 }
 // THE CONSOLE BOX IS A SIDE-BY-SIDE FITTING (user 2026-08-19): with one
@@ -1395,8 +1401,9 @@ function buildConsole(g0, A, P, cx, withQuadrant, box) {
     } else { tube(gL, M.metal, [0, 0, 0], KL, 0.008); ballAt(gL, M.knob, KL, 0.024); }
     if (!gT) { gT = gL; K = KL; }
   }
-  // held from above like the wall lever's ball (G279): the pivot's axis
-  return { obj: gripAt(gT, [K[0], K[1] + 0.012, K[2] - 0.006], [1, 0, 0]),
+  // held from above like the wall lever's ball (G279): the pivot's axis,
+  // through the ball's centre (G3700 HANDS)
+  return { obj: gripAt(gT, [K[0], K[1], K[2]], [1, 0, 0], twin ? 0.020 : 0.024),
            label: 'throttle (quadrant)' };
 }
 
@@ -2599,11 +2606,17 @@ function anchorWorld(o) {
 // current bend as the editor does) }. Returns the reach gap.
 const _pole = new THREE.Vector3();
 // G2797: the fist options a dress() takes off P - one fist, or one per hand
-function fistOpts(P) {
+// G3700 HANDS: a hand closed round a grip that declares its radius wears the
+// curl fitFists solved for it (`occ.fistSolved`); the slider sets the others
+function fistOpts(P, occ) {
   const f = P.pilFist == null ? 0.5 : +P.pilFist;
-  if (!+P.pilHandsApart) return { fist: f };
-  return { fist: f, fistL: P.pilFistL == null ? f : +P.pilFistL,
-           fistR: P.pilFistR == null ? f : +P.pilFistR };
+  const sv = occ && occ.fistSolved;
+  if (!+P.pilHandsApart && !sv) return { fist: f };
+  const apart = !!+P.pilHandsApart;
+  const fL = apart && P.pilFistL != null ? +P.pilFistL : f,
+        fR = apart && P.pilFistR != null ? +P.pilFistR : f;
+  return { fist: f, fistL: sv && sv.L != null ? sv.L : fL,
+           fistR: sv && sv.R != null ? sv.R : fR };
 }
 function solveGripJob(occ, j, ctx) {
   const c = CHAINS[j.chain], s = ctx.s;
@@ -3498,28 +3511,65 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // The correction rides the job (`fixH`) through the join, so the flown
   // solve — the same function, every frame — lands the same fist on the
   // same grip as the stick moves.
+  // G3700 HANDS (the user: "a better grip on the yoke and throttle,
+  // something real clean ... the normal in-game one is quite off by a few
+  // cm"): a grip that declares its radius first gets each hand's curl
+  // solved so the fingers' bone circle is the grip plus the finger's own
+  // flesh (CAGE_CHAR.hollowAt), then the HOLLOW of that curl - the axis
+  // the hand wraps - is what lands on the anchor; up to five passes, to
+  // 2 mm. A hand still over 20 cm out could not reach: the IK's finding,
+  // recorded on occ.fistFit with the rest of the fit (curl, radius, error).
+  const FIST_FLESH = 0.009, FIST_TOL = 0.002, FIST_GIVEUP = 0.20;
   const fitFists = (occ, CH, jobs, solveJob) => {
     if (!occ.char || !window.CAGE_CHAR.fistAt) return;
     const grips = jobs.filter(j => j.a.userData.grip && CHAINS[j.chain].arm);
     if (!grips.length) return;
+    const CC = window.CAGE_CHAR, hollow = CC.hollowAt;
+    const wantR = {};
+    if (hollow) for (const j of grips) {
+      const r = j.a.userData.gripR;
+      if (r) wantR[CHAINS[j.chain].side] = r + FIST_FLESH;
+    }
+    // THE CURL: bisect each gripping hand's fist on its bone circle's
+    // radius (a tighter curl draws a smaller circle over this range)
+    const sides = Object.keys(wantR);
+    if (sides.length) {
+      const lo = {}, hi = {}, sv = occ.fistSolved = {};
+      for (const sd of sides) { lo[sd] = 0.2; hi[sd] = 1.0; sv[sd] = 0.6; }
+      for (let it = 0; it < 7; it++) {
+        CC.dress(occ.char, occ, fistOpts(P, occ));
+        for (const sd of sides) {
+          const h = hollow(occ.char, sd);
+          if (!h || h.r > wantR[sd]) lo[sd] = sv[sd]; else hi[sd] = sv[sd];
+          sv[sd] = (lo[sd] + hi[sd]) / 2;
+        }
+      }
+      CC.dress(occ.char, occ, fistOpts(P, occ));
+    }
+    const fit = occ.fistFit = {};
     const fp = new THREE.Vector3(), e = new THREE.Vector3(), q = new THREE.Quaternion();
-    for (let it = 0; it < 2; it++) {
+    for (let it = 0; it < 5; it++) {
       let moved = false;
       for (const j of grips) {
         const side = CHAINS[j.chain].side;
-        if (!window.CAGE_CHAR.fistAt(occ.char, side, fp)) continue;
+        let at = null, r = null;
+        if (wantR[side]) { const h = hollow(occ.char, side, fp); if (h) { at = h.p; r = h.r; } }
+        if (!at && CC.fistAt(occ.char, side, fp)) at = fp;
+        if (!at) continue;
         const aw = anchorWorld(j.a);
         occ.bones[CHAINS[j.chain].end].getWorldQuaternion(q).invert();
-        e.copy(fp).sub(aw.p).applyQuaternion(q);       // fist - grip, hand frame
+        e.copy(at).sub(aw.p).applyQuaternion(q);       // fist - grip, hand frame
+        const err = e.length();
+        fit[side] = { label: j.label, fist: occ.fistSolved ? occ.fistSolved[side] : null,
+                      r: r != null ? +r.toFixed(4) : null, err: +err.toFixed(4), skip: err > FIST_GIVEUP };
         // a hand that could not reach is the IK's finding, not the fit's
-        if (e.lengthSq() < 1e-6 || e.length() > 0.15) continue;
+        if (err < FIST_TOL || err > FIST_GIVEUP) continue;
         j.fixH = (j.fixH || new THREE.Vector3()).sub(e);
         solveJob(j);
         moved = true;
       }
       if (!moved) break;
-      window.CAGE_CHAR.dress(occ.char, occ,
-        fistOpts(P));
+      CC.dress(occ.char, occ, fistOpts(P, occ));
     }
   };
   // THE SOLES ON THE PEDALS (G468, item 25): fitFists' twin for the legs. A
@@ -3555,7 +3605,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       }
       if (!moved) break;
       window.CAGE_CHAR.dress(occ.char, occ,
-        fistOpts(P));
+        fistOpts(P, occ));
     }
   };
   const markLive = (occ, CH, role, idx, s, jobs, ctx) => {
@@ -3566,11 +3616,12 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
                  fist: P.pilFist == null ? 0.5 : +P.pilFist,
                  anim: occ.animSpec || null,
                  jobs: jobs.filter(j => j.ctl) };
-    // G2797: the two hands, only when set apart (one hand = the record as ever)
-    if (+P.pilHandsApart) {
-      const fo = fistOpts(P);
-      Object.assign(occ.live, { fistL: fo.fistL, fistR: fo.fistR,
-                                palmL: ctx.palmL, palmR: ctx.palmR });
+    // G2797: the two hands, only when set apart (one hand = the record as ever);
+    // G3700 HANDS: or when a grip solved a hand's curl, which the flown dress wears
+    if (+P.pilHandsApart || occ.fistSolved) {
+      const fo = fistOpts(P, occ);
+      Object.assign(occ.live, { fistL: fo.fistL, fistR: fo.fistR });
+      if (+P.pilHandsApart) Object.assign(occ.live, { palmL: ctx.palmL, palmR: ctx.palmR });
     }
     LIVE_CREW.push(occ);
     return occ;
