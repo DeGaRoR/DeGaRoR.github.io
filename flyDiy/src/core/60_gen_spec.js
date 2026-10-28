@@ -1340,7 +1340,9 @@ function genAccessNeeds(S) {
     // the cabin height as well, which mixed the cabin's frame into the gear's,
     // and it read `gear.drop` — a key that does not exist, so the fallback
     // fired on every aeroplane and the whole term was a constant.
-    sillH:     need(g.legDrop, 0.42) + need(g.wheelR, 0.20),
+    // G3570 (DC3-2): a raised cabin floor (cabin.floorUp, the cage's 'cabin floor height') lifts the door sills with
+    // it, so the climb in is that much higher; absent (every build before the row) adds nothing
+    sillH:     need(g.legDrop, 0.42) + need(g.wheelR, 0.20) + ((c.floorUp > 0) ? c.floorUp : 0),
     doorBoth:  true,
     derived,
   };
@@ -1423,7 +1425,7 @@ function genAccessNeedsCage(P, extra) {
     // and the cage's own keel is on the mesh. Passed in rather than guessed
     // here, and counted when it is not — a step that appears because nobody
     // measured is the decoration this table exists to refuse.
-    sillH:     E.sillH != null ? E.sillH : (derived++, 0.62),
+    sillH:     (E.sillH != null ? E.sillH : (derived++, 0.62)) + ((+P.floorUp > 0) ? +P.floorUp : 0),   // G3570: the raised floor's sills
     doorBoth:  !!(+P.doorOn) && !(+P.doorGone),
     derived,
   };
@@ -2494,6 +2496,14 @@ const GEN_RULES = {
   // builds sit at 0.47-0.50 of their own knee (the metal Cessna 1 049 kg, on
   // floats 1 111; the Cub 541 of 1 100, the Jodel 544 of 1 300).
   gaugeHoldK:   2,
+  // THE TAIL CONE'S ROOT AT SIZE (G3572, DC3-2): above the knee the shell's bending break (its root cut, 30_solver
+  // clCuts) holds at least this x the design weight x the cone's length - the moment the tail's loads make grows
+  // with the arm as well as the weight (the tailwheel's reaction, the empennage's inertia). 1.45 m/m: the validated
+  // float Cessna's own (Mu 67.2 kN.m over 1 111 kg x 4.25 m; the metal Cessna 1.54). The full-size DC-3's bare skin
+  // read 0.31 - a 220 kN.m root against ~1.5 MN.m for a real stringer-stiffened DC-3 cone (150 MPa over a ~2 mm
+  // smeared skin at R 1.3 m): it folded where a tail dropped after a braked stop. Strength only (the cut's sigB);
+  // the shell's stiffness, mass and bill stay G3505's. At or below the knee: the row's skin, to the bit
+  shellHoldKappa: 1.45,
   // A ROD BOOM IS A TUBE, AND THE TRUSS IS NOT (G199.5, 2026-09-07; the user:
   // "the stabs are moving with the tail wheel, and getting a huge torsion,
   // even when simply taxiing"). A rod-boom build flies the lofted default
@@ -4278,6 +4288,51 @@ function genNullToDefault(t, d) {
   }
 }
 
+// G2790 ENGINE-CONFIGS (2026-10-12, the user's slider review: "the
+// configuration nose engine + pusher engine (Cessna Skymaster) ... activate
+// the 3 and 4 engines configuration"): THE ENGINE LAYOUTS. `engines[]` has
+// been an array since day one and the solver shares thrust per engine over
+// each engine's own mount nodes (refs.engineOf); what held it to one mount
+// was the clamp. A layout is the LIST OF MOUNTS, in order, and only these
+// exact lists fly as several engines — anything else is clamped the way it
+// always was (a single mount, or the wing pair), so no save changes meaning.
+//   pushPull  nose + pusher: centreline thrust, the Skymaster. The rear prop
+//             turns the other way (the same engine turned round on its mount,
+//             so seen from behind it is the front one's mirror), which is
+//             what cancels the propeller's torque and P-factor in pairs.
+//   tri       nose + a wing pair: the Trimotor / Ju 52.
+//   quad      two wing pairs, inner then outer: the Heron / DC-4.
+// ONE ENGINE TYPE PER AEROPLANE: the solver flies one propeller law (PR,
+// EN) and multiplies it per engine, so every entry carries entry 0's type
+// and custom row, as a wing pair always did. `nacAt` is the default semispan
+// fraction of each wing pair, inner first.
+const GEN_ENG_LAYOUTS = {
+  pushPull: { mounts: ['nose', 'pusher'],              nacAt: [] },
+  tri:      { mounts: ['nose', 'wing', 'wing'],        nacAt: [0.35] },
+  quad:     { mounts: ['wing', 'wing', 'wing', 'wing'], nacAt: [0.30, 0.62] },
+};
+// the layout key of an engine list, or null for every list the clamp keeps
+// to one mount / the classic pair (the pre-G2790 path, byte for byte)
+function genEngLayoutOf(E) {
+  if (!Array.isArray(E)) return null;
+  for (const k in GEN_ENG_LAYOUTS) {
+    const m = GEN_ENG_LAYOUTS[k].mounts;
+    if (E.length === m.length && m.every((x, i) => E[i] && E[i].mount === x)) return k;
+  }
+  return null;
+}
+// a spec's engine list FOR a layout (the editor's tiles and the archetypes'
+// birth spec): every entry the first one's type, the mounts in order, the
+// pusher's hand the nose's mirror, each wing pair's tops-inward rows kept
+// to +1 / +1 (one hand, the Lycoming's, as the twin fixture flies)
+function genEngLayoutEngines(layout, type, base) {
+  const L = GEN_ENG_LAYOUTS[layout];
+  const b = Object.assign({ type: type || 'a65_sensenich74', place: { dx: 0, dy: 0 } }, base || {});
+  if (!L) return [Object.assign({}, b, { mount: (base && base.mount) || 'nose' })];
+  return L.mounts.map((m, i) => Object.assign(genClone(b), { mount: m,
+    sense: (layout === 'pushPull' && i === 1) ? -1 : 1 }));
+}
+
 function clampSpec(spec) {
   const S = genNormaliseSpec(spec);
   genNullToDefault(S, GEN_DEFAULT);                  // B13 (above)
@@ -4410,16 +4465,26 @@ function clampSpec(spec) {
   // or null. Anything else is a malformed file and reads as "derived".
   cb.seatsX = Array.isArray(cb.seatsX) && cb.seatsX.length &&
               cb.seatsX.every(x => typeof x === 'number' && isFinite(x))
-    ? cb.seatsX.map(x => genClamp(x, 0.05, 12)) : null;
+    ? cb.seatsX.map(x => genClamp(x, 0.05, 25)) : null;   // (G3573: 12 -> 25 m - the full-size DC-3's aft rows stand past 12 m; only a seat that far aft moves)
   // G180: the drawn capacity — a whole number of seats, or null = the table's;
   // and the occupancy — a list of 0/1 per seat, or null = the first N. A
   // malformed list reads as "derived", never as a crash or a jump, the same
   // ruling seatsX has.
   cb.seats = (typeof cb.seats === 'number' && isFinite(cb.seats))
-    ? Math.round(genClamp(cb.seats, 0, 24)) : null;
+    ? Math.round(genClamp(cb.seats, 0, 96)) : null;   // (G3573: 24 -> 96 - an airliner's cabin; the clamp only moves a cabin of more than 24)
   cb.occupied = Array.isArray(cb.occupied) && cb.occupied.length &&
                 cb.occupied.every(o => o === 0 || o === 1 || o === true || o === false)
     ? cb.occupied.map(o => o ? 1 : 0) : null;
+  // G3570 (DC3-2, 2026-10-24): THE CABIN FLOOR'S HEIGHT, metres over the floor the door sills give (the cage's
+  // 'cabin floor height', floorUp: it lifts the sills, and the floor, the seats and the people on it follow). The
+  // frame bills the occupants and the furnishing that much higher (61_gen_frame). READ OFF THE CAGE, which replaces
+  // as a whole (genSpecMerge) and writes the row only when raised (cageToSpec): a floor put back down can never
+  // stay up in the flown spec. A spec with no cage (a fiche) may say it here. ABSENT AT ITS DEFAULT: no key is
+  // written, so no build from before the row changes by a byte
+  {
+    const fu = S.cage ? +S.cage.floorUp : +cb.floorUp;
+    if (fu > 0 && isFinite(fu)) cb.floorUp = genClamp(fu, 0, 1.5); else delete cb.floorUp;
+  }
 
   const pl = cb.pilot || (cb.pilot = {});
   pl.show    = pl.show !== false;
@@ -4770,7 +4835,31 @@ function clampSpec(spec) {
   // exactly two entries (the second is the first's mirror: same type, same
   // station, the other side), every other mount stays one. A lone 'wing'
   // entry is doubled rather than flown as one nacelle on one side.
-  if (Array.isArray(S.engines) && S.engines.length) {
+  // G2790: THE LAYOUTS (GEN_ENG_LAYOUTS above) — an exact list of mounts
+  // keeps every entry; each wing pair is its own mirror (entry 2k+1 follows
+  // entry 2k of the wing entries), every entry flies entry 0's engine, and
+  // a push-pull's rear prop is the front one's mirror hand.
+  const LAY = genEngLayoutOf(S.engines);
+  if (LAY) {
+    const E = S.engines, e0 = E[0];
+    for (let i = 1; i < E.length; i++) {
+      E[i].type = e0.type;
+      if (e0.custom) E[i].custom = genClone(e0.custom); else delete E[i].custom;
+    }
+    const W = E.filter(e => e.mount === 'wing');
+    for (let k = 0; k + 1 < W.length; k += 2) {
+      const a = W[k], b = W[k + 1];
+      b.x = a.x; b.y = a.y; b.z = a.z; b.pylon = a.pylon; b.tilt = a.tilt;
+      if (a.aim) b.aim = a.aim; else delete b.aim;
+    }
+    // the outer pair stands outboard of the inner one (a measured inner
+    // nacelle past a measured outer one is the pair order swapped)
+    if (LAY === 'quad' && W[0].z != null && W[2].z != null && W[2].z < W[0].z + 0.3) {
+      const zi = Math.min(W[0].z, W[2].z), zo = Math.max(W[0].z, W[2].z, zi + 0.3);
+      W[0].z = W[1].z = zi; W[2].z = W[3].z = genClamp(zo, 0, 6.0);
+    }
+    if (LAY === 'pushPull') E[1].sense = -E[0].sense;
+  } else if (Array.isArray(S.engines) && S.engines.length) {
     const pair = S.engines[0].mount === 'wing';
     S.engines = S.engines.slice(0, pair ? 2 : 1);
     if (pair && S.engines.length === 1) S.engines.push(genClone(S.engines[0]));
@@ -5043,7 +5132,31 @@ function resolveSpec(spec) {
   // engine of a pair counted): a pusher's wing sits ~0.45 m further back, an
   // over-the-wing engine's ~0.3. A MEASURED station (the join's, off a drawn
   // wing) is the builder's and does not move — the plaque tells the margin.
-  if (auto['wing.xLE'] && S.engines[0].mount && S.engines[0].mount !== 'nose') {
+  // G2790: A LAYOUT'S ENGINES, the same estimate per entry. Entry 0 off the
+  // nose has MOVED from the nose (the lever from engX0, as above); every
+  // further engine is ADDED to an aeroplane that balanced on its wing, so its
+  // lever is from the wing's own quarter chord — a Skymaster's pusher pulls
+  // the wing aft by its arm behind it, a Trimotor's nacelles (ahead of the
+  // quarter chord) bring it forward a little. The single mounts and the
+  // classic pair keep the branch below, byte for byte.
+  const LAYW = genEngLayoutOf(S.engines);
+  if (auto['wing.xLE'] && LAYW) {
+    const PP0 = POWERPLANTS[S.engine] || POWERPLANTS.a65_sensenich74;
+    const e0 = S.engines[0];
+    const mE = (e0.custom && e0.custom.mass) || PP0.engine.mass;
+    const engX0 = -(0.18 + 0.32 * PP0.prop.D / 2);
+    const xAC = w.xLE + 0.25 * w.chord;
+    const xOf = e => e.x != null ? e.x
+      : e.mount === 'pusher' ? S.cab.noseGap + S.cab.len + S.fuse.cargoLen + 0.30
+      : e.mount === 'wing' ? w.xLE + 0.05 : engX0;
+    let mom = 0;
+    S.engines.forEach((e, i) => {
+      if (i === 0) { if (e.mount !== 'nose') mom += mE * (xOf(e) - engX0); }
+      else mom += mE * (xOf(e) - xAC);
+    });
+    const mRef = ((GEN_MATERIALS[S.material] || {}).refMass || 390) + (S.engines.length - 1) * mE;
+    w.xLE += mom / mRef;
+  } else if (auto['wing.xLE'] && S.engines[0].mount && S.engines[0].mount !== 'nose') {
     const e = S.engines[0], m = e.mount;
     const PP0 = POWERPLANTS[S.engine] || POWERPLANTS.a65_sensenich74;
     const mE = (e.custom && e.custom.mass) || PP0.engine.mass;
@@ -5417,8 +5530,16 @@ function resolveSpec(spec) {
   // at 0.45 of the cabin height; the over-the-wing engine 30 % of the chord
   // behind the leading edge, a pylon above the upper skin; a wing pair at
   // the front spar, 35 % of the way out from the root.
+  // G2790: a layout's wing pairs — entry 2k of the wing entries is the
+  // port nacelle of pair k, 2k+1 its starboard mirror; the default station
+  // is the layout's own semispan fraction for that pair (GEN_ENG_LAYOUTS)
+  const LAYA = genEngLayoutOf(S.engines);
+  const wingRank = []; { let r = 0; for (const e of S.engines) wingRank.push(e.mount === 'wing' ? r++ : -1); }
+  S.engLayout = LAYA || (S.engines[0].mount === 'wing' ? 'pair' : 'single');
   S.engAt = S.engines.map((e, i) => {
     const m = e.mount || 'nose';
+    const nacAt = LAYA && m === 'wing'
+      ? GEN_ENG_LAYOUTS[LAYA].nacAt[wingRank[i] >> 1] : 0.35;
     const semi = 0.5 * w.span, zR = S.cab.halfW;
     const wingY = S.wing.position === 'low' ? 0.22 * S.cab.h
                 : S.wing.position === 'mid' ? 0.55 * S.cab.h : S.cab.h + 0.01;
@@ -5427,13 +5548,16 @@ function resolveSpec(spec) {
             : m === 'wingTop' ? { x: w.xLE + 0.30 * w.chord,
                                   y: wingY + 0.06 * w.chord + pylon, z: 0 }
             : m === 'wing' ? { x: w.xLE + 0.05, y: wingY,
-                               z: zR + 0.35 * Math.max(0.5, semi - zR) }
+                               z: zR + nacAt * Math.max(0.5, semi - zR) }
             : { x: S.engX, y: S.engY, z: 0 };
     return { mount: m,
              // G194: the hand, and which SIDE of a wing pair this entry is
              // (the frame builds NL from entry 0 and NR from entry 1)
              sense: (+e.sense === -1) ? -1 : 1,
-             side: m === 'wing' ? (i === 0 ? -1 : 1) : 0,
+             side: m === 'wing' ? (LAYA ? ((wingRank[i] & 1) ? 1 : -1) : (i === 0 ? -1 : 1)) : 0,
+             // G2790: which wing pair (0 inner) — the frame builds a pair
+             // from its port entry and mirrors it
+             pair: m === 'wing' ? (LAYA ? wingRank[i] >> 1 : 0) : -1,
              x: e.x != null ? e.x : d.x,
              y: e.y != null ? e.y : d.y,
              z: m === 'wing' ? Math.abs(e.z != null ? e.z : d.z) : 0,

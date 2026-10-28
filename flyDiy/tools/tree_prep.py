@@ -4,6 +4,8 @@
 Usage:  python tools/tree_prep.py            (every species _trees_tuning.json names)
         python tools/tree_prep.py --report   (inventory only, writes nothing)
         python tools/tree_prep.py --biomes   (the mixes + map table alone, over the baked pack)
+        python tools/tree_prep.py --only k1,k2   (bake THOSE species alone and merge them into the baked pack:
+                                              the rest untouched, nothing pruned, the biomes re-read - G3430)
 
 Reads  tools/_trees_index.json    the inspector's grouping: which nodes are which
                                   SUBJECT, and what kind each subject is
@@ -686,10 +688,12 @@ def bake_textures(g, bin_, used, stem):
             img = load_image(g, bin_, g['textures'][nr]['source']).convert('RGB')
             img = img.resize((max(1, img.width // 2), max(1, img.height // 2)),
                              Image.LANCZOS)
+            # WebP q92, media_lib's `normal` role (JPEG blocks tear a normal; GATE ASSETS jpgNormal - G3430):
+            # the maps already baked keep their .jpg until their species is baked again
             buf = _io.BytesIO()
-            img.save(buf, 'JPEG', quality=90)
+            img.save(buf, 'WEBP', quality=92, method=4)
             rec['nor'] = write_media('tex/trees', stem + '_' + safe(name) + '_nor',
-                                     'jpg', buf.getvalue())
+                                     'webp', buf.getvalue())
             wrote.append(rec['nor'])
         out[name] = rec
     return out, wrote
@@ -882,6 +886,16 @@ def main():
     view_crown_w = view.get('crownW', 1.0)
     view_crown_h = view.get('crownH', 1.3)
     species = species_list(index, tune)
+    # --only (ASSETS wk44, G3430: the lake-shore reeds): one new species into a pack whose other bins this machine may
+    # not re-encode byte for byte (another Pillow) - bake the named species alone and MERGE them into the baked pack
+    only = None
+    if '--only' in sys.argv:
+        only = [k for k in sys.argv[sys.argv.index('--only') + 1].split(',') if k]
+        missing = [k for k in only if k not in {sp['key'] for sp in species}]
+        if missing:
+            print('--only: no renderable species %s (in the tuning, with an indexed file?)' % ', '.join(missing))
+            return 1
+        species = [sp for sp in species if sp['key'] in only]
     if not species:
         print('nothing to bake - _trees_tuning.json names no renderable species')
         return 1
@@ -949,9 +963,23 @@ def main():
     if report:
         print('\n--report: %d species, %.2f MB of geometry, nothing written' % (len(pack['collections']), total / 1e6))
         return 0
-    prune_media_stems('geo/trees', stems, [c['bin'] for c in pack['collections'] if c.get('bin')])
-    prune_media_stems('tex/trees', fstems, texAll, sep='_')
-    prune_media_stems('tex/flowers', [r.split('/')[-1].split('.')[0] for r in flowerRel], flowerRel)
+    if only is not None:
+        # THE MERGE: the baked pack keeps every other species exactly; a named one replaces its entry (or is appended)
+        base = json.load(open(OUT, encoding='utf-8'))
+        names = [c['name'] for c in base['collections']]
+        for c in pack['collections']:
+            if c['name'] in names:
+                base['collections'][names.index(c['name'])] = c
+            else:
+                base['collections'].append(c)
+        base.setdefault('materials', {}).update(pack.get('materials', {}))
+        base['biomes'] = pack['biomes']
+        pack = base
+        print('--only: merged %s into the baked pack (%d species; nothing pruned)' % (', '.join(only), len(pack['collections'])))
+    else:
+        prune_media_stems('geo/trees', stems, [c['bin'] for c in pack['collections'] if c.get('bin')])
+        prune_media_stems('tex/trees', fstems, texAll, sep='_')
+        prune_media_stems('tex/flowers', [r.split('/')[-1].split('.')[0] for r in flowerRel], flowerRel)
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, 'w', encoding='utf-8', newline='\n') as f:
         json.dump(pack, f, indent=1)

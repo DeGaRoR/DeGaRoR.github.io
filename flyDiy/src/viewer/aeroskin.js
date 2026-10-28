@@ -1118,7 +1118,11 @@ function aeroFinishLegacy(sections) {
 // follows the body; a row that walks its own name only (tintOwn, the float's deck) takes the pick itself. What is not
 // the airframe's paint (the propeller, the spinner, the engine, the seats, the crew) keeps G1320's rule: it follows
 // only if it was following. Decals and the registration are not paint and are not touched.
-function aeroBaseReach(map, prev, next, neutral, eq, names) {
+// G3541 (AIRCRAFT-LOOKS, the user's playtest 24 Oct, Rufus: "global paint misses the rod boom and the tube structure"):
+// ...AND WHAT IS OUTSIDE ON A BARE FRAME. The rod boom (boomTube) is never inside anything (aeroIsInside), so the pick
+// repaints it; the welded truss (tube) is the aeroplane's outside only when the fuselage is OPEN (`opts.open`: the
+// cage's skinOn 0, the spec's fuselage.covering 'open') - under a covering it is the cabin's frame and keeps its own.
+function aeroBaseReach(map, prev, next, neutral, eq, names, opts) {
   const same = (a, b) => a == null ? b == null : (b != null && eq(a, b));
   const put = k => {
     if (next == null || (neutral != null && eq(next, neutral))) delete map[k]; else map[k] = next; };
@@ -1151,7 +1155,7 @@ function aeroBaseReach(map, prev, next, neutral, eq, names) {
     layer.push([k, toBody]);
   }
   for (const nm of names || [])
-    if (['skin', 'rail', 'pillar'].includes(AERO_ROLE[nm])) put(nm);
+    if (['skin', 'rail', 'pillar'].includes(AERO_ROLE[nm]) || nm === 'boomTube' || (nm === 'tube' && opts && opts.open)) put(nm);
   put('body');
   // the parent-wearing parts follow by having NO override: clear theirs - a hand colour too (G2750: the global paint
   // plainly repaints what it covers)
@@ -3353,9 +3357,22 @@ const AERO_ALBEDO_FS = `
     // from the other side that direction crosses the eye the other way.
     // PLAN does not — a plan view has one handedness and a stripe drawn
     // across the span is the same stripe from either wing tip.
-    vec2 sideC2 = vec2((aeroA.y - uDecA[di].x) * mir,
+    // G3542 (AIRCRAFT-LOOKS, the user's playtest 24 Oct: "a registration on the wing gives mirrored text on the other
+    // side"): ...BUT IT HAS TWO FACES. The plan box paints through the wing, and seen from UNDER it the span crosses the
+    // eye the other way - the letters on the lower face read backwards. A marking that mirrors (letters: uDecC.w 0)
+    // turns its lateral axis about its own centre on a face looking down (the craft normal's z); paint (noMirror)
+    // keeps the one handedness, as before.
+    float pmir = mix((vCraftNrm.z < 0.0) ? -1.0 : 1.0, 1.0, step(0.5, uDecC[di].w));
+    // G3547 (the user, 25 Oct: "the top side and bottom sides should be treated differently, and that should be the same
+    // for the stabs and the fins"): the SIDE box's far flank is the face's, not the position's. Both faces of a fin stand
+    // the same few cm (a twin boom's the same metre) off the craft's plane, so the position mirrored both or neither and
+    // one face read backwards; the normal tells them apart, as aSide does below. Where the face looks up or down (a
+    // fuselage's crown and belly) the position decides, as before, and on a flank the two agree.
+    float nx = vCraftNrm.x / max(1e-4, length(vCraftNrm));
+    float smir = mix((abs(nx) > 0.25) ? sign(nx) : aeroSideF, 1.0, step(0.5, uDecC[di].w));
+    vec2 sideC2 = vec2((aeroA.y - uDecA[di].x) * smir,
                         aeroA.z - uDecA[di].y);
-    vec2 planC = vec2(aeroA.x - uDecA[di].x, aeroA.y - uDecA[di].y);
+    vec2 planC = vec2((aeroA.x - uDecA[di].x) * pmir, aeroA.y - uDecA[di].y);
     vec2 boxC = mix(sideC2, planC, step(1.5, mode));
     #if AEROSKIN_SURF == 1
       vec2 dd = mix(fieldC, boxC, step(0.5, mode));
