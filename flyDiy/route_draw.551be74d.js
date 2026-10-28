@@ -379,11 +379,28 @@ const ROUTE_DRAW = (() => {
     for (const r of ['msl', 'agl']) btn(op, r.toUpperCase(), () => { S.newRef = r; build(); }, r === 'msl' ? 'A new point’s altitude over the sea' : 'A new point’s altitude over the ground under it', S.newRef === r ? 'on' : '');
     op.appendChild(mkEl('span', 'rtK', 'then'));
     const en = mkEl('select', 'rtSel rtEnd');
-    for (const [v, t] of [['hold', 'hold over the last'], ['home', 'home, its circuit'], ['land', 'land, nearest strip']]) en.appendChild(Object.assign(mkEl('option', null, t), { value: v }));
+    // (G3611: 'dest' - on to the flight's destination, named)
+    const dTo = ap() && ap().route && ap().route.to;
+    for (const [v, t] of [['hold', 'hold over the last'], ['home', 'home, its circuit'], ['land', 'land, nearest strip'], ['dest', 'on to ' + ((dTo && dTo.name) || 'the destination')]]) en.appendChild(Object.assign(mkEl('option', null, t), { value: v }));
     en.value = R ? R.end : 'hold';
     en.onchange = () => { if (!S.route) S.route = routeNew(); S.route.end = en.value; changed(); };
     op.appendChild(en);
     el.appendChild(op);
+    // G3611 (the 24 Oct playtest, item 14): THE TRACKED CONTRACT. Its next stop named; "for this contract" makes the
+    // stop the flight's To and the route's end 'dest' - FLY THIS ROUTE then delivers it (the stop met as any landing)
+    const K = D.contract ? D.contract() : null;
+    if (K) {
+      const kr = mkEl('div', 'rtRow rtCtr');
+      const on = !!(R && R.end === 'dest' && dTo && dTo.id === K.to);
+      kr.appendChild(mkEl('span', 'rtK', '★ ' + K.title + ' · next: ' + K.name));
+      btn(kr, on ? 'for this contract ✓' : 'for this contract', () => {
+        if (!S.route) S.route = routeNew();
+        if (D.setTo) D.setTo(K.to);
+        S.route.end = 'dest'; S.msg = 'Then on to ' + K.name + ' (the contract’s stop).';
+        changed(); build();
+      }, 'The route ends at the contract’s next stop: the destination set to ' + K.name + ', the end “on to the destination”', on ? 'on' : '');
+      el.appendChild(kr);
+    }
     // the points
     const pr = profile();
     const list = mkEl('div', 'rtList');
