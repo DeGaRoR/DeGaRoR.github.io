@@ -2761,7 +2761,9 @@ function compose(rec0, world, opts) {
     if (runwayIsWater(r)) {
       const cw = F.toWorld(r.c[0], r.c[1]);
       const wl = world.waterH ? world.waterH(cw[0], cw[1]) : T1(r.c[0], r.c[1]);
-      aerodromes.push(stageAero(runwayAerodrome(r, F, isFinite(wl) ? wl : 0, [], null), r));
+      // (CABIN-LAKE 26 Oct: a lane on a LAKE - the composer's world has the DEM flat at the lake's surface, 1 cm over its level,
+      // and its waterH answers -Infinity there: the lane's elevation is that ground, the lake's own surface - never 0)
+      aerodromes.push(stageAero(runwayAerodrome(r, F, isFinite(wl) ? wl : T1(r.c[0], r.c[1]), [], null), r));
       // G2310: a lane's site is its PLOTS alone (the slipways), each shed on the shore's composed ground; no plots, no site
       r.site = Array.isArray(r.plots) && r.plots.length ? runwaySite(r, F) : null;
       if (r.site && r.site.plots) for (const p of r.site.plots) { const L = F.toLocal(p.x, p.z); p.y = +T1(L[0], L[1]).toFixed(2); }
