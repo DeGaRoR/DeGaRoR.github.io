@@ -358,23 +358,33 @@ function buttHinge(bF, bM, F, S, len) {
     };
     const lieFb = -(rA + 0.002);                    // the layer's lift, where no skin is measured
     const lie = a => skinAt(a, lieFb) + t * 0.5 + 0.0008;
-    const aOut = Rk * 1.05, aJog = Rk + Math.max(0.004, 2.2 * Math.abs(-Rk + t * 0.5 - lie(dir * (Rk + 0.006))));
-    // A PLATE DOES NOT WRAP A CORNER: where the skin turns away from the
-    // leaf's flat by more than ~34 deg (the Cub's belly corner, where the
-    // bottom run's frame leaf met an 80 mm fall in 40 mm and stood off it in
-    // the air), the leaf ends - never shorter than a rivet's land past the jog
+    // A PLATE DOES NOT WRAP A CORNER (the Cub's belly corner: the bottom
+    // run's frame leaf met a skin falling 80 mm in 40 mm and was drawn out
+    // into the air). The joggle is at most 10 mm long; a leaf whose skin
+    // lies more than 10 mm under the barrel is a short TAB beside the
+    // knuckles; otherwise the leaf ends where the skin under it slopes more
+    // than ~34 deg off the barrel's tangent plane - never shorter than a
+    // rivet's land past the jog
+    const aOut = Rk * 1.05, hRoot = -Rk + t * 0.5;
+    const drop0 = Math.abs(hRoot - lie(dir * (Rk + 0.006)));
+    const tab = drop0 > 0.010;
+    const aJog = Rk + Math.min(0.010, Math.max(0.004, 2.2 * drop0));
     const aMax = Rk + (S.reach || 0.035) * 0.75, aMin = aJog + 0.008, da = 0.002;
-    let aEnd = aMax;
-    { const h0 = lie(dir * aJog), h1 = lie(dir * (aJog + da)), ang0 = Math.atan2(h1 - h0, da);
-      let hp = h1;
-      for (let a = aJog + 2 * da; a <= aMax + 1e-9; a += da) {
+    let aEnd = tab ? aOut + 0.005 : aMax;
+    if (!tab) {
+      let hp = lie(dir * aJog);
+      for (let a = aJog + da; a <= aMax + 1e-9; a += da) {
         const h = lie(dir * a);
-        if (a > aMin && Math.abs(Math.atan2(h - hp, da) - ang0) > 0.6) { aEnd = a - da; break; }
+        if (a > aMin && Math.abs(Math.atan2(h - hp, da)) > 0.6) { aEnd = a - da; break; }
         hp = h;
-      } }
-    const pts = [[0, -Rk + t * 0.5], [aOut, -Rk + t * 0.5]];
-    const nF = Math.max(3, Math.round((aEnd - aJog) / 0.004));
-    for (let k = 0; k <= nF; k++) { const a = aJog + (aEnd - aJog) * k / nF; pts.push([a, lie(dir * a)]); }
+      }
+    }
+    const pts = [[0, hRoot], [aOut, hRoot]];
+    if (tab) pts.push([aEnd, hRoot]);
+    else {
+      const nF = Math.max(3, Math.round((aEnd - aJog) / 0.004));
+      for (let k = 0; k <= nF; k++) { const a = aJog + (aEnd - aJog) * k / nF; pts.push([a, lie(dir * a)]); }
+    }
     const path = resample(fillet(pts.map(([a, h]) => at(F, dir * a, h, 0)), t * 1.6, 4), 14);
     // the plan's rounded free end: the half-length shrinks on a quarter
     // circle over the last `cr` of the leaf
@@ -401,7 +411,7 @@ function buttHinge(bF, bM, F, S, len) {
     };
     sweep(bag, path, sect, true, F.z);
     // the rivets: domed heads on the flat, square to the skin under them
-    const nR = (aEnd - aJog) < 0.012 ? 0 : len > 0.12 ? 3 : 2;   // a leaf cut short by a corner keeps no rivet land
+    const nR = (tab || aEnd - aJog < 0.012) ? 0 : len > 0.12 ? 3 : 2;   // a tab, or a leaf cut short by a corner, keeps no rivet land
     const aR = aJog + (aEnd - aJog) * 0.5;
     const R = 0.0026 * sz;
     for (let j = 0; j < nR; j++) {
