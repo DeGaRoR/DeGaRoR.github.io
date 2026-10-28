@@ -679,8 +679,8 @@ PROPS = [
            'The GROVE marks are painted over like the CAT / JCB ones (four black on the yellow, '
            'one white on the black side of the boom; the red V with them)',
       scale=60.0, rot=(0, 90, 0), tex=512,
-      paint={0: [(393, 638, 412, 701, 'red'), (824, 9, 839, 52, 'red'), (824, 90, 839, 134, 'red'),
-                 (722, 153, 744, 175, 'red'), (728, 168, 747, 198, 'red'), (642, 229, 657, 277, 'dark', 'red')]}),
+      paint={0: [(393, 638, 412, 701, 'red', 'grey'), (824, 9, 839, 52, 'red', 'grey'), (824, 90, 839, 134, 'red', 'grey'),
+                 (722, 153, 744, 175, 'red', 'grey'), (728, 168, 747, 198, 'red', 'grey'), (642, 229, 657, 277, 'dark', 'red')]}),
     P('machine_loader_rusty', 'construction', 'wheel loader, rusty', 'escav',
       note='a worn low-poly wheel loader (the file calls it an excavator), 6.5k triangles; the '
            'file carries a 2.5 m ground quad (Material_254) that mats leaves out. 3.0 makes it '

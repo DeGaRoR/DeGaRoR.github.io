@@ -298,7 +298,9 @@ def paint_over(img, boxes, seed=7):
     list is on the table row (`paint`). A box may carry flags after its four
     numbers: 'dark' - the body round the mark is dark paint (white letters on
     black): the fill reads the dark texels and only the light ones are the
-    mark; 'red' - a red accent inside the mark (the Grove V) is mark too."""
+    mark; 'red' - a red accent inside the mark (the Grove V) is mark too;
+    'grey' - the letters are dark grey, not black (the Grove marks sit at
+    0.22-0.33, above the 0.2 cut: the 28 Oct 13:20 look found them unpainted)."""
     import numpy as np
     mode = img.mode
     A = np.asarray(img.convert('RGBA')).astype(np.float32) / 255
@@ -315,6 +317,9 @@ def paint_over(img, boxes, seed=7):
             hole = (mn > 0.62) | (mx < 0.2) | ((P[..., 1] > 0.74) & (P[..., 0] > 0.92) & (P[..., 2] < 0.35))
         if 'red' in flags:
             hole = hole | ((P[..., 0] > 0.5) & (P[..., 1] < 0.4) & (P[..., 2] < 0.4))
+        if 'grey' in flags:
+            hole = hole | (mx < 0.36)
+        if 'red' in flags or 'grey' in flags:
             known = known & ~hole
         for _ in range(2):
             h2 = hole.copy(); h2[1:] |= hole[:-1]; h2[:-1] |= hole[1:]; h2[:, 1:] |= hole[:, :-1]; h2[:, :-1] |= hole[:, 1:]; hole = h2
