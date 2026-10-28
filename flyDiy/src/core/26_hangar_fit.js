@@ -80,6 +80,10 @@ const SHELLS = {
       wallSides: { set: 'rawplank', tile: 2 },
       wallBack:  { set: 'rawplank', tile: 2 },
       roof:      { set: 'rustysheet', tile: 2 },
+      // (G3537, A0 25 Oct: the leaves read as light steel outside and warm boards inside - the same grey canvas boards
+      // under daylight and under the lamps): brown planks, dressed on both by this table (the room's setPart, the world's
+      // dressExterior)
+      doorMain:  { set: 'planks09', tile: 2 },
     },
     sky: 'alps', price: 6000, status: 'live',
   },
@@ -360,7 +364,9 @@ const HANGAR_KITS = {
       // THE GARAGE RADIO (SND-BOOMBOX, the user 2026-10-05: "place the boombox
       // close to the plane, and make it clickable"): on the floor abeam to
       // starboard, a metre forward of the tool chest, angled to the bay
-      { prop: 'boombox', station: 'abeamS', dx: -0.6, dz: 0.1, dry: Math.PI + 0.45 },
+      // G3533 (HANGARS-LOOK, the user 24 Oct: "the boombox in every hangar, the small shed included"): `always` - the
+      // ring stands it whatever the kits (the cabin and the side hangars carry no office); the claim stays the office's
+      { prop: 'boombox', station: 'abeamS', dx: -0.6, dz: 0.1, dry: Math.PI + 0.45, always: true },
     ],
   },
 
@@ -1022,6 +1028,47 @@ function hangarFit(dims, kitKeys, opts) {
            layout: layout ? opts.layout : null };
 }
 
+// ---- THE SIGN'S WALL (G3540 v2) -------------------------------------------
+// The user, 25 Oct: the shed's sign inside "on the BACK wall or a SIDE wall", and "the hanging wing under construction
+// must never sit in front of it". A spot on a wall is CLEAR when nothing the fit stood within 3.2 m of that wall overlaps
+// the board (plus 35 cm) along it: every recipe counts (the hung wing's straps and the stove's flue reach the roof), a
+// prop only when it stands taller than 2.2 m (the board's foot is ~3 m up; the stand's eye looks over a bench). The back
+// wall first, from the plot's own `inside` outward, then the flank the stand looks along (the room's +z: the house's +x),
+// back half first. In the house frame the polish build reads ({ wall: 0 the back at house x, +-1 a flank at house z });
+// null when no wall is clear (the plot's own spot stands).
+function hangarSignSpot(dims, fit, sign, reg) {
+  if (!dims || !fit || !sign) return null;
+  // (G3540 v4: the inside board's own width, inW; a wide one hangs low - TALL is its foot, 0.1 m under: the board's top 0.25 m
+  // under the eave, its height the width over the billboard's aspect)
+  const HW = dims.HW, HD = dims.HD, w = sign.inW > 0 ? sign.inW : (sign.w > 0 ? sign.w : 2), half = w / 2 + 0.35, NEAR = 3.2;
+  const meta = (typeof SIGN_TEX_META !== 'undefined' && SIGN_TEX_META && sign.key) ? SIGN_TEX_META[sign.key] : null;
+  const TALL = Math.min(2.2, (dims.EAVE || 4) - 0.25 - w / (meta && meta.aspect > 0 ? meta.aspect : 4) - 0.1);
+  const R = reg || (typeof PROP_REG !== 'undefined' ? PROP_REG : null);
+  const items = [];
+  const add = (it, foot, tall) => {
+    const q = Math.round((it.ry || 0) / (Math.PI / 2)) & 1, f = foot || [0.5, 0.5];
+    if (tall) items.push({ x: it.x, z: it.z, fx: q ? f[1] : f[0], fz: q ? f[0] : f[1] });
+  };
+  for (const r of fit.recipes || []) add(r, r.foot, true);
+  for (const p of fit.placed || []) {
+    const rp = R && R.props && R.props[p.prop];
+    add(p, hangarFootprint(p.prop, R), !rp || (p.y || 0) + rp.dim[1] > TALL);
+  }
+  const clear = (wall, u) => items.every(it => wall === 0
+    ? (it.x + it.fx < HD - NEAR || Math.abs(it.z - u) >= half + it.fz)
+    : (wall * it.z + it.fz < HW - NEAR || Math.abs(it.x - u) >= half + it.fx));
+  const scan = (lo, hi, from) => {
+    const out = [];
+    for (let u = lo; u <= hi + 1e-6; u += 0.25) out.push(+u.toFixed(2));
+    return out.sort((a, b) => Math.abs(a - from) - Math.abs(b - from));
+  };
+  const want = typeof sign.inside === 'number' && isFinite(sign.inside) ? sign.inside : 0;
+  for (const u of scan(-HW + 0.6 + w / 2, HW - 0.6 - w / 2, want)) if (clear(0, u)) return { wall: 0, at: u };
+  // the flank (the room's z = +HW): along the room's x, from the back corner toward the door; the house's z = -x
+  for (const u of scan(-HD + 3, HD - 0.6 - w / 2, HD)) if (clear(1, u)) return { wall: 1, at: -u };
+  return null;
+}
+
 // ---- THE RING -------------------------------------------------------------
 // placeMobile's arithmetic, verbatim (hangar.js G65): the caller measures the
 // aeroplane's footprint in the room's own frame, and the chosen kits' ring
@@ -1042,13 +1089,17 @@ function hangarFitRing(dims, kitKeys, bb) {
   const keys = (kitKeys && kitKeys.length ? kitKeys : HANGAR_KITS_DEFAULT)
     .filter(k => HANGAR_KITS[k]);
   const out = [];
-  for (const k of keys)
-    for (const r of HANGAR_KITS[k].ring) {
-      const a = AT[r.station];
-      if (!a) continue;
-      out.push({ kit: k, prop: r.prop, x: a[0] + r.dx, z: a[1] + r.dz,
-                 ry: r.dry, y: r.y || 0 });
-    }
+  const row = (k, r) => {
+    const a = AT[r.station];
+    if (a) out.push({ kit: k, prop: r.prop, x: a[0] + r.dx, z: a[1] + r.dz,
+                      ry: r.dry, y: r.y || 0 });
+  };
+  for (const k of keys) for (const r of HANGAR_KITS[k].ring) row(k, r);
+  // G3533: a row marked `always` stands even when its kit was not chosen (the garage radio in every hangar)
+  for (const k of Object.keys(HANGAR_KITS)) {
+    if (keys.indexOf(k) >= 0) continue;
+    for (const r of HANGAR_KITS[k].ring) if (r.always) row(k, r);
+  }
   return out;
 }
 

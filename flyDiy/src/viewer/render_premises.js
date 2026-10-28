@@ -2029,7 +2029,8 @@ function make(THREE, scene, world, rec0, opts) {
     for (const [m, a] of cand) { if (acc + a > DETAIL.area * total) break; acc += a; list.push(m); }
     const HL = typeof window !== 'undefined' && window.HANGAR_GEN && window.HANGAR_GEN.LIB, shellMat = new Set();
     if (HL) for (const s of Object.keys(HL)) for (const k of Object.keys(HL[s])) shellMat.add(HL[s][k]);
-    const list2 = cand.slice(0, Math.max(0, cand.length - DETAIL.keep2)).filter(x => !(shellMat.has(x[0].material) && x[1] >= DETAIL.keepShare * total)).map(x => x[0]).filter(m => !list.includes(m));
+    const isShell = mt => shellMat.has(mt) || !!(mt && mt.userData && mt.userData.hangarShell);   // G3531: a build's own clone of the library's
+    const list2 = cand.slice(0, Math.max(0, cand.length - DETAIL.keep2)).filter(x => !(isShell(x[0].material) && x[1] >= DETAIL.keepShare * total)).map(x => x[0]).filter(m => !list.includes(m));
     const big = bags.find(m => m.geometry.boundingSphere.radius === R);
     const c = new THREE.Vector3(); if (big) c.copy(big.geometry.boundingSphere.center).applyMatrix4(big.matrixWorld); else grp.getWorldPosition(c);
     const keep = cand.map(x => x[0]).filter(m => !list.includes(m) && !list2.includes(m));
@@ -2138,8 +2139,11 @@ function make(THREE, scene, world, rec0, opts) {
   // finish has nothing of the sort near: a hangar shell (tools/_hangar_gen.js wears hangar.js's own HANGAR_LIB steel,
   // kept far since G1398), a shed, a tank - at the houses' fifth its far walls went ~5x darker than its near ones: black.
   // A house-shaded finish (the generator's hook, its paint or its dirt) keeps the fifth; every other takes gainItem.
+  // G3531 (HANGARS-LOOK): a hangar shell wears the house's hook now (its dirt line and its bake) and is still a plain far
+  // surface - `hangarShell` keeps the item gain
   function farGain(mat) {
     const ud = mat && mat.userData;
+    if (ud && ud.hangarShell) return HLOD.gainItem;
     return (ud && (ud.houseShaded || ud.paint || ud.dirt)) ? HLOD.gain : HLOD.gainItem;
   }
   // THE NEAR RUNG'S OTHER BAGS (G801): what G566 merges per distinct material (a site item's finishes, a bag the arrays

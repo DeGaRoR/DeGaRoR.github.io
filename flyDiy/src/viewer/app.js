@@ -52,6 +52,11 @@
   // runs long before the load-test block further down is reached.
   let groundY = 0, rigLift = 0;
   let DEVCAM_ACTIVE = false;              // DEVCAM: the free camera has the eye this frame
+  // G3539 (HANGARS-LOOK): a developer's eye in the GARAGE, in the room's own frame (the door at local -x, the floor at 0):
+  // window.FLYDIY_ROOM_EYE([x, y, z], [tx, ty, tz]) holds it there until FLYDIY_ROOM_EYE(null) or the garage's own framing
+  // (the stills' inside-vs-outside pairs: the same local point through the room and through the world's shed)
+  let ROOM_EYE = null;
+  if (typeof window !== 'undefined') window.FLYDIY_ROOM_EYE = (p, t) => { ROOM_EYE = (Array.isArray(p) && Array.isArray(t)) ? { p: p.slice(), t: t.slice() } : null; return !!ROOM_EYE; };
   // THE WORLD EDITOR (G387): open = the host places the camera and the sim is held; PREM.host is
   // premises_host.js's, PREM.ed the mounted premises_ui.js; the panel is a right-hand column over
   // the flight screen and the view a transparent sheet over the canvas that takes the mouse
@@ -460,6 +465,11 @@
   function placeCamera() {
     if (PREM.open && PREM.host) { const r = renderer.domElement.getBoundingClientRect(); PREM.host.place({ width: r.width || innerWidth, height: r.height || innerHeight }); if (PREM.R) PREM.R.scaleHandles(camera, 6); return; }   // G387: the world editor's camera
     if (DEVCAM_ACTIVE) return;                          // DEVCAM placed it already
+    if (ROOM_EYE && inGarage && hangar && hangar.group) {   // G3539: FLYDIY_ROOM_EYE - a developer's eye in the room's own frame
+      const g = hangar.group; g.updateWorldMatrix(true, false);
+      const p = new THREE.Vector3().fromArray(ROOM_EYE.p).applyMatrix4(g.matrixWorld), t = new THREE.Vector3().fromArray(ROOM_EYE.t).applyMatrix4(g.matrixWorld);
+      camera.position.copy(p); camera.lookAt(t); return;
+    }
     if (HEADCAM_ACTIVE) return;                         // HEADCAM: the cockpit is a head, not an orbit
     let x = target.x + dist * Math.cos(el) * Math.cos(az),
         y = Math.max(0.4, target.y + dist * Math.sin(el)),
@@ -1271,6 +1281,9 @@
       // it through the open door just as the sky bake reads it directly — so
       // either way, the environment is worth having again once it lands
       if (hangar.onSkyReady) hangar.onSkyReady(() => bakeHangarEnv());
+      // G3536: a prop that lands after the floor print (the WIP fuselage on its trestles, a scan on the wire) prints too -
+      // now if the room is shown, else when it is next entered (applyEnv bakes it then anyway)
+      if (hangar.onFurnLanded) { const h0 = hangar; hangar.onFurnLanded(() => { if (hangar === h0 && inGarage && !envAway && h0.bakeGroundShadow) h0.bakeGroundShadow(renderer, hangarScene); }); }
       bakeHangarEnv();
       if (hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene);
       // the part system (G41, rehomed by HANGARS S1): the shell's default
@@ -10047,12 +10060,19 @@
       const omit = Array.isArray(P.omit) && !Array.isArray(sh.omit);
       const lamp = P.workLamp && typeof P.workLamp === 'object' && !sh.workLamp;   // G3354
       const cross = Array.isArray(P.lampXZ) && JSON.stringify(P.lampXZ) !== JSON.stringify(sh.lampXZ || null);   // G3354
-      if (!thin && !omit && !lamp && !cross) return;
+      // G3537 (the user 25 Oct: the cabin's door exactly 10 m, the shed 14 m wide): a cabin made at the old size (no door of
+      // its own) takes the plot's dims - the same shed, its aeroplane (Rufus passes the 10 m door), its kits
+      const want = P.dims && P.dims[sh.shell || 'field'];
+      const size = !!(want && want.door > 0 && !(sh.dims && sh.dims.door > 0));
+      const signed = !!(want && ((want.sign && !(sh.dims && sh.dims.sign)) || (want.ground && !(sh.dims && sh.dims.ground))));   // G3540/G3541: the plot's sign and ground, on a cabin made before them
+      if (!thin && !omit && !lamp && !cross && !size && !signed) return;
       const n = JSON.parse(JSON.stringify(d));
       if (thin) n.sheds[id].kits = P.kits.slice();
       if (omit) n.sheds[id].omit = P.omit.slice();
       if (lamp) n.sheds[id].workLamp = Object.assign({}, P.workLamp);
       if (cross) n.sheds[id].lampXZ = P.lampXZ.map(p => p.slice());
+      if (size) n.sheds[id].dims = Object.assign({}, want);
+      else if (signed) n.sheds[id].dims = Object.assign({}, n.sheds[id].dims, want.sign ? { sign: Object.assign({}, want.sign) } : {}, want.ground ? { ground: Object.assign({}, want.ground) } : {});
       player = n; playerSave();
     } catch (e) { console.warn('flyDiy (story): the cabin kits -', e && e.message); }
   }
@@ -12369,7 +12389,7 @@
     return F;
   }
   function garageCamera() {
-    HEADCAM_ACTIVE = false; DEVCAM_ACTIVE = false;
+    HEADCAM_ACTIVE = false; DEVCAM_ACTIVE = false; ROOM_EYE = null;
     if (flyEye) { flyEye = null; setNear(CAM_NEAR); }
     if (edEye) exitInterior();
     if (document.pointerLockElement && document.exitPointerLock) document.exitPointerLock();
@@ -12757,6 +12777,7 @@
     crowdStart();                      // G2970 (CHARACTERS): whoever is aboard walks out to the door first
     certKick();                        // G1831: stamped now if the roll-out's request has landed (or the build was flown before)
     envAway = true;                    // C0c: the room's probe waits for the way back (bakeHangarEnv)
+    if (hangar && hangar.polishHide) hangar.polishHide();   // G3534c: the next entry's passes draw no outside polish
     if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = null;   // F3: the room's air stays in the room
     showCage = false; applySkinVis();  // the MESH flies, not the editor's cage
     scene.add(craft);                  // out of the room, onto the strip
@@ -18613,7 +18634,10 @@
     if (introAt && WF) WF.worldUpdate(introAt);
     else if (!inGarage && WF) WF.worldUpdate((DEVCAM_ACTIVE || PREM.open)
       ? [camera.position.x, camera.position.y, camera.position.z] : cg);
-    else if (hangar && garageIsHangar()) hangar.faceShafts(camera);
+    else if (hangar && garageIsHangar()) {
+      hangar.faceShafts(camera);
+      if (hangar.polishFollow) hangar.polishFollow(camera, renderer, hangarScene);   // G3534b: the polish's outside, only from outside
+    }
     if (FR) FR.lap(FR.S.world);        // G620: the world's update (its premises, cover ring and fill pushed apart)
     if (CRW.M && !inGarage) crowdTick(rollHold || (typeof window !== 'undefined' && window.FLYDIY_HELD) ? 0 : fdt);   // G2970: the passengers
     // G1100 (POSE-SMOOTH): FROM HERE TO THE RENDER THE SIM'S POSITIONS ARE THE DRAWN ONES - between the last two steps,

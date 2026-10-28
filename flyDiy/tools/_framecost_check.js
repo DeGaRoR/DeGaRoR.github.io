@@ -445,6 +445,10 @@ const ALLOW = [
   { key: 'taxi/tris.shadow', build: 'cessna', upTo: 3551597, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (1908541 -> 3382473)', g: 'G3020' },
   { key: 'boot/garage:compile/bytes.bufferData', build: 'cessna', upTo: 1637328, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (1519232 -> 1559360)', g: 'G3020' },
   { key: 'boot/garage:landing/bytes.bufferData', build: 'cessna', upTo: 807, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (0 -> 768)', g: 'G3020' },
+  // G3534 (HANGARS-LOOK, A0 25 Oct): the garage room wears HANGAR_GEN's polish, uploaded once at compile (bakeHangarEnv's
+  // render of the room); proven by A/B - the polish off in source gives master's 1559360 back; upTo = measured + 5 %
+  { key: 'boot/garage:compile/bytes.bufferData', build: 'cub', upTo: 1736000, why: 'G3534 the room\'s polish (the user\'s 24 Oct ask: the garages\' outsides match the scenery\'s buildings): its casings, gutters, downpipes and ground skirt uploaded once at compile (1559360 -> 1653300)', g: 'G3534' },
+  { key: 'boot/garage:compile/bytes.bufferData', build: 'cessna', upTo: 1736000, why: 'G3534 the room\'s polish (the user\'s 24 Oct ask: the garages\' outsides match the scenery\'s buildings): its casings, gutters, downpipes and ground skirt uploaded once at compile (1559360 -> 1653300)', g: 'G3534' },
   // G3543 (VEHICLE PRINTS, A0 26 Oct): the traffic's prints follow the posed cars, only the drawn matrices uploaded (an update
   // range): 544 -> 768 B a frame at the bench, both builds; upTo 800
   { key: 'stand/bytes.bufferSubData', build: '*', upTo: 800, why: 'G3543 the moving cars\' ground prints: ~3.5 traffic matrices per frame (the user asked for car shadows)', g: 'G3543' },

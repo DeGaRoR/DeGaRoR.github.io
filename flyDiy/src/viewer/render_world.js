@@ -6260,7 +6260,47 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // nothing to merge.
     // SHELL: the dial (the A/B): merge false = the 278 meshes as built; castMin 0 = every piece casts as before.
     // WORLD.shell(o) sets it and re-stands the shed at its current dims.
-    const SHELL = { merge: true, castMin: 0.5, coarseShare: 0.03, swapPx: 48, swapM: [200, 900] };   // (G1398: the coarse rung and its switch)
+    const SHELL = { merge: true, castMin: 0.5, coarseShare: 0.03, swapPx: 48, swapM: [200, 900],   // (G1398: the coarse rung and its switch)
+      // G3532 (HANGARS-LOOK): the player's sheds built as the scenery's hangars are (HANGAR_GEN); ?shellpolish=0 the bare exterior
+      polish: !(typeof location !== 'undefined' && /[?&]shellpolish=0(&|$)/.test(location.search || '')) };
+    // G3532 (HANGARS-LOOK, the user 24 Oct: "the garages' outsides should match the real scenery buildings: simplified but
+    // matching"): the scenery's own hangars (the flying club's, Tamgas Hill's, the fire point's) are HANGAR_GEN items - hangar.js's
+    // very exterior baked into bags with the house's polish over it (the casings, the gutters and downpipes, the flue and its
+    // smoke), its ground skirt on the terrain and its occlusion baked - while the player's sheds stood the bare exterior. Now a
+    // player's shed is that same build at ITS shell and dims: the house frame (the door to +z) turned under the hangar's (the
+    // door at local -x) by -PI/2 and dropped by the slab's floorY, so the floor, the door and every reader of the shed (the
+    // stand, the roll-out, the coarse rung) are where they were; the ground is the world's, in the house frame; the finish is
+    // the build's own (G3531: the shell's materials are clones, so the player's dress lays on them alone). Returns the shape
+    // genHangarBuild's exterior had ({ group, mats by hangar.js's names, dims }) or null (the caller builds the bare one).
+    const POLISH_PRESET = { field: 'field shed', club: 'club hangar', works: 'works hangar' };
+    function polishedShell(H, dims, shell) {
+      const HGN = typeof window !== 'undefined' ? window.HANGAR_GEN : null;
+      if (!SHELL.polish || !HGN || !HGN.build || !HGN.PRESETS || typeof document === 'undefined' || !POLISH_PRESET[shell]) return null;
+      const P = Object.assign({}, HGN.DEF, HGN.PRESETS[POLISH_PRESET[shell]],
+        { HW: dims.HW, HD: dims.HD, EAVE: dims.EAVE, doorW: dims.door > 0 ? dims.door : 0, leaves: dims.leaves === 2 ? 2 : 0, lights: 0, sign: 0, signKey: '', ownShell: 1 },   // (G3537: its own door; G3531: its own shell finish)
+        HGN.signDials ? HGN.signDials(dims.sign) : {},   // (G3540: its own sign, the room's too)
+        HGN.groundDials ? HGN.groundDials(dims.ground) : {});   // (G3541/G3542: its own ground - the apron, the dark ring, the dark foot - the room's too)
+      const fy = P.floorY || 0, c = Math.cos(H.ry || 0), sn = Math.sin(H.ry || 0), y0 = H.y !== undefined ? H.y : 0;
+      // (X, Z) in the house frame -> the hangar's local (x = -Z, z = X) -> the world (the node's yaw), the height back in the frame
+      P.ground = (X, Z) => { const hx = -Z, hz = X; return world.terrainH(H.x + hx * c + hz * sn, H.z - hx * sn + hz * c) - y0 + fy; };
+      let F = null, built = null;
+      try { F = HGN.makeFinish(); HGN.applyFinish(P, F); built = HGN.build(P, 0, F); }
+      catch (e) { console.warn('player shed polish:', e && e.message); return null; }
+      if (!built || !built.stats || built.stats.source !== 'hangar.js') return null;   // headless / no canvas: the bare exterior
+      const group = new THREE.Group(), inner = new THREE.Group();
+      inner.rotation.y = -Math.PI / 2; inner.position.y = -fy; group.add(inner);
+      for (const k of built.BAGS) if (built.bags[k] && built.MAT[k]) { const m = built.bags[k].mesh(inner, built.MAT[k]); if (m && k === 'glass') m.castShadow = false; }   // (G3540: the sign's face casts nothing; its plank does)
+      const flat = [];
+      if (built.bags.smoke && F.MAT.smoke) { const m = built.bags.smoke.mesh(inner, F.MAT.smoke); if (m) { m.renderOrder = 10; flat.push(m); } }
+      if (built.bags.aoskirt && F.MAT.aoskirt) { const m = built.bags.aoskirt.mesh(inner, F.MAT.aoskirt); if (m) { m.renderOrder = 5; flat.push(m); } }
+      F.SHADE_U.uDirtY0.value = y0 - fy;   // G581: the dirt line drawn in the house frame, lifted by where it stands
+      // G3541/G3542: the shed's ground pad on the terrain (one draw: the apron, the dark ring round the walls), shadowed
+      const pad = built.pad && HGN.padMesh ? HGN.padMesh(THREE, built.pad) : null;
+      if (pad) inner.add(pad);
+      const mats = {};
+      for (const k in built.MAT) if (k.slice(0, 2) === 'h_') mats[k.slice(2)] = built.MAT[k];
+      return { group, mats, flat, pad, dims: { HW: dims.HW, HD: dims.HD, EAVE: dims.EAVE, RIDGE: dims.EAVE + 2.6 }, polished: true, stats: built.stats };
+    }
     // the merged shell's coarse rung (G1398): its meshes of at least `share` of the surface, sharing their geometry and
     // material (nothing copied); null when that keeps nothing. `cast` (a Set of materials): only those cast - the outer
     // wall and roof, two casters as the box had (the inner skins and the doors' 6 cm-off shadows add nothing at 500 m)
@@ -6393,18 +6433,21 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
             genHangarSupported(THREE))) return;
       if (shedNode) { dropShed(shedNode); shedNode = null; }
       shedNode = shedNodeAt(SITE.hangar, dims);
+      if (shedNode && !shedNode.name) shedNode.name = 'shed:HOME';   // G3532: named as the side sheds are (a census tells the player's sheds from the scenery's)
     }
     // G2310 (PREM-S3): ONE SHED AT ONE PLACE - HOME's at the site's hangar (above), a side hangar at its plot (below):
     // the same exterior build, merge, coarse rung, LOD and ground; `dress` (a held hangar's shell skin + its parts,
     // dressExterior) is laid on the exterior's own materials BEFORE the merge, and is nothing at all when absent
     function shedNodeAt(H, dims, dress) {
-      const shed = genHangarBuild(THREE,
-        dims || { HW: H.HW, HD: H.HD, EAVE: H.EAVE },
-        { exterior: true, shell: dims && dims.shell });
-      if (dress) dressExterior(shed.mats, dims && dims.shell, dress);
+      const D0 = dims || { HW: H.HW, HD: H.HD, EAVE: H.EAVE };
+      const shell = (dims && dims.shell) || 'club';
+      const shed = polishedShell(H, D0, shell) || genHangarBuild(THREE, D0, { exterior: true, shell: dims && dims.shell });
+      if (dress) dressExterior(shed.mats, shell, dress);
       shed.group.traverse(o => {
         if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
       });
+      for (const m of shed.flat || []) { m.castShadow = false; m.receiveShadow = false; }   // G3532: the skirt and the smoke
+      if (shed.pad) { shed.pad.castShadow = false; shed.pad.receiveShadow = true; }   // G3541: the pad takes the shed's shadow (blended over the terrain, it must)
       // G600 (A1-STAND, playtest 2026-09-26): THE SHELL IS A HANDFUL OF DRAWS. The 278 meshes below were 278
       // draws in the main pass, 278 more in the near shadow map (every frame: the stand is inside its 90 m) and
       // again in the far map - at the stand, where the frame was measured. Nothing in the exterior moves (the
@@ -6440,7 +6483,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         // clone keeps the building the same building across the switch;
         // the box's 0..1 uv is the same grammar the sheeting bands wear
         // (wallOutAlb repeats 4 x 1 per piece), so nothing else changes.
-        const skin = MT.wallOut.clone(); skin.side = THREE.FrontSide;
+        const skin = (MT.wallOut || MT.wall).clone(); skin.side = THREE.FrontSide;   // (G3532: a polished timber shed bakes no wallOut piece)
+        if (skin.userData && skin.userData.houseShaded) { skin.onBeforeCompile = () => {}; skin.userData = {}; }   // (a box has no aHouseAO: plain)
         const body = new THREE.Mesh(
           new THREE.BoxGeometry(2 * D.HD, D.EAVE, 2 * D.HW), skin);
         body.position.y = D.EAVE / 2;
@@ -6475,7 +6519,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         rgeo.setAttribute('uv', new THREE.Float32BufferAttribute([
           0, 0, 6, 0, 0, 6, 6, 6, 0, 6, 6, 6], 2));
         rgeo.computeVertexNormals();
-        const roof = new THREE.Mesh(rgeo, MT.roofOut);
+        const plainOf = m => { if (!m || !(m.userData && m.userData.houseShaded)) return m; const q = m.clone(); q.onBeforeCompile = () => {}; q.userData = {}; return q; };   // G3532
+        const roof = new THREE.Mesh(rgeo, plainOf(MT.roofOut));
         coarse.add(body, roof);
         coarse.traverse(o => { o.castShadow = true; o.receiveShadow = true; });
       }
@@ -6552,7 +6597,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const want = Object.assign({}, skin, dress && dress.parts ? dress.parts : {});
       const LIB = Object.assign({}, (typeof HANGAR_WALL_SETS !== 'undefined' && HANGAR_WALL_SETS) || {}, (typeof SITE_TEX_SETS !== 'undefined' && SITE_TEX_SETS) || {});
       const timber = shell === 'field';
-      const TARGET = { wallSides: [timber ? M.wall : M.wallOut], wallBack: [timber ? M.wall : M.wallOut], roof: [M.roofOut], stem: [M.stem], doorMain: [M.door], doorMan: [M.manDoor] };
+      // G3537: the timber shed's back gable is M.wallBack (hangar.js EXT), so its dress goes there - it stood white beside the
+      // room's planks
+      const TARGET = { wallSides: [timber ? M.wall : M.wallOut], wallBack: [timber ? (M.wallBack || M.wall) : M.wallOut], roof: [M.roofOut], stem: [M.stem], doorMain: [M.door], doorMan: [M.manDoor] };
       const tex = (img, srgb, tile) => {
         if (Array.isArray(img) || !img) return null;
         const t = new THREE.Texture(img); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1 / tile, 1 / tile);
