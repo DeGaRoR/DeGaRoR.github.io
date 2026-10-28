@@ -683,7 +683,8 @@ function run(mut) {
     ok(pW.own && pW.site.stand.x === P3.stand.x && pW.site.stand.z === P3.stand.z && eq(pW.site.taxiOut, P3.taxiOut) && pW.site.hangar.x === P3.x && pW.site.hangar.HD === R.hangarDims(h3.sheds.w3).HD && !pW.site.pattern,
        'S3 a roll-out from w3\'s side hangar plans from its door: the plot\'s stand and way out, its own dims (no walk)', J(pW.site.stand));
     const pM = R.playerPlotSite(S.mn_strip, 'mn_strip', { shell: 'field' });
-    ok(!pM.own && pM.site.stand === S.mn_strip.stand && !!pM.site.pattern && pM.site.hangar.x === 7273, 'S3 a plot with no way of its own (the mine\'s shed) rolls out on the field\'s stand and authored pattern');
+    const PM3 = S.mn_strip.plots && S.mn_strip.plots.find(q => q.id === 'mn_strip');   // (MINE-GARAGE-PAD 28 Oct: the plot moved off Main Street - its x read, not 7273)
+    ok(!pM.own && pM.site.stand === S.mn_strip.stand && !!pM.site.pattern && !!PM3 && pM.site.hangar.x === PM3.x, 'S3 a plot with no way of its own (the mine\'s shed) rolls out on the field\'s stand and authored pattern');
     // THE SANDBOX WORLD WITH ONLY HOME HELD IS TODAY'S
     const B = WORLD3.before, A2 = WORLD3.after;
     ok(B.aero === A2.aero, 'S3 identity: the aerodromes the world composes are the same with the plots in the record');

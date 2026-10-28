@@ -61,9 +61,16 @@
     747,
     -2851
    ]
+  },
+  "mn_strip": {
+   "mn_strip": [
+    7295.46,
+    -15214.88,
+    -3.1001
+   ]
   }
  },
- "plotMovesWhy": "the user 12 Oct (via A0): keep the cannery s2; the career base plot SEA moved 13.5 m west (760.5 -> 747.0), the smallest move that keeps its largest shell 3 m off the cannery (GATE TAXICLEAR 12); applied after the ship - a re-ship must apply it again",
+ "plotMovesWhy": "the user 12 Oct (via A0): keep the cannery s2; the career base plot SEA moved 13.5 m west (760.5 -> 747.0), the smallest move that keeps its largest shell 3 m off the cannery (GATE TAXICLEAR 12); applied after the ship - a re-ship must apply it again | MINE-GARAGE-SIDE (the user, 25 Oct via A0: 'ensure that the garage you've put in the middle of the road on the mine is put on the side, like the mine buildings are'): mn_strip's plot off Main Street, its door to the street - [x, z, hdg]",
  "kept": "ship-only entries no save carries and the user never removed: the VOR clear s_vor_ann_clear (the AFB (19) save carries the site s_vor_ann itself); the staged sg_ entries (kept by the ship)",
  "altiport": "rev 28: the user fixed the altiports themselves - w1 'strip 8' deleted in the save, w4 'strip 9' kept and reshaped (216 m, 4-point profile 28 -> -17.6 m, own clear 0 / 20) and shipped; nothing held back. 18 Oct (the user: 'strip 9 stays, the slope rules ... relaxed'): its 33.7 % and 14.2 % crest are WARNINGS (PG.warnings), no longer refusals",
  "fieldPatches": {
