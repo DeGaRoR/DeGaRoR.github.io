@@ -584,7 +584,9 @@ const BENCH_LOOK = { energy: ['finish', 'hue', 'tint'], vessel: ['finish', 'hue'
 // dimmers) are state like lightOn. What is FITTED (li_*Fit) and where (the bay, pod, tip rows) still counts.
 // DOOR-HINGES (2026-10-27): the door hinges' axis tweaks (`hgDr*`) place display hardware - not the airframe either;
 // absent from every file before them, so no certificate taken before moves.
-const BENCH_STATE_ROWS = /^_view|^(explodeD|pilOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|li_(?:nav|beacon|taxi|land|flood|instr|pedal|pax))$|^hgDr[A-Z]/;
+// G3852 (the user: "a Tundra tyre with no pattern"): whSlick, a tundra's lugs or smooth, is drawing only (the
+// physics reads the carcass, whProfile) - a look like the paint; whTread stays counted, as every file signed it.
+const BENCH_STATE_ROWS = /^_view|^(explodeD|pilOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|whSlick|li_(?:nav|beacon|taxi|land|flood|instr|pedal|pax))$|^hgDr[A-Z]/;
 function benchStripCosmetic(spec, defaults) {
   if (!spec || typeof spec !== 'object') return null;
   const c = JSON.parse(JSON.stringify(spec));

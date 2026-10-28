@@ -1416,7 +1416,11 @@ function editorInit(api) {
     // every layer's group are thrown away and remade on each build, and the
     // overlay hangs off both — so it has to be remade with them, or the tint
     // silently belongs to a mesh that no longer exists.
-    hiBuild(sel === 'craft' && !rootPicked ? null : sel, 'sel');   // G3543: the root too, when picked (its silhouette)
+    // G3543: the root too, when picked (its silhouette). G3858 (A0, GARAGE-LAG hardening): THE ROOT'S SILHOUETTE IS
+    // SETTLE-ONLY - a pair per drawn mesh of the whole aeroplane is not remade on every drag tick; the stale one goes
+    // (its meshes are thrown away) and the aeroplane the hand stops on gets its silhouette (rootSilSoon)
+    if (sel === 'craft' && rootPicked && cageDragging()) { hiClear('sel'); rootSilSoon(); }
+    else hiBuild(sel === 'craft' && !rootPicked ? null : sel, 'sel');
     // ...AND SO IS THE PIN, for the same reason and one better: the row it
     // names is the row being DRAGGED, so the dot walks the corner it is
     // moving instead of standing where the corner used to be.
@@ -3801,6 +3805,19 @@ function editorInit(api) {
   // anchor too until the callout went; the highlight-colour switch above still
   // needs to know what to rebuild.
   let pinFor = null;
+  // G3858: a slider held (or its settle build still owed: _cage_ui's CAGE_UI.dragging), and the root's silhouette
+  // drawn once the hand stops - unless the settle build has drawn it already
+  const cageDragging = () => { const U = window.CAGE_UI; return !!(U && typeof U.dragging === 'function' && U.dragging()); };
+  let rootSilT = null;
+  function rootSilSoon() {
+    if (rootSilT) return;
+    const tick = () => {
+      if (cageDragging()) { rootSilT = setTimeout(tick, 120); return; }
+      rootSilT = null;
+      if (sel === 'craft' && rootPicked && !hiSel) hiBuild('craft', 'sel');
+    };
+    rootSilT = setTimeout(tick, 120);
+  }
 
   // WHICH NAMED OBJECT a mesh belongs to — the nearest name on the way up,
   // the same walk `ownerOf` does, stopping one step earlier. Used to narrow a
