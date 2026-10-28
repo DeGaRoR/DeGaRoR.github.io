@@ -79,7 +79,7 @@ function knifeOutline(w) {
       const t = i / n * 2 * Math.PI;
       pts.push([w.z + a * Math.cos(t), w.y + b * Math.sin(t)]);
     }
-  } else if (knifeIsPlainRect(w)) {
+  } else if (w.shape !== 'quad' && knifeIsPlainRect(w)) {
     // THE RECTANGLE, VERBATIM (every window drawn before T2.2): one radius
     // on four right angles, the quarter arcs sampled as they always were
     const r = Math.max(0, Math.min(w.r || 0, W / 2, H / 2));
@@ -107,7 +107,15 @@ function knifeOutline(w) {
     let corners, radii;
     const rr = Array.isArray(w.rr) && w.rr.length === 4
       ? w.rr.map(v => Math.max(0, +v || 0)) : [w.r, w.r, w.r, w.r].map(v => Math.max(0, +v || 0));
-    if (Wt < 1e-6) {                 // the triangle: one apex, its radius the larger of the top pair
+    if (w.shape === 'quad' && Array.isArray(w.q) && w.q.length === 4) {
+      // WINDOWS-FREE: THE FREE QUAD - its four corners as placed (cageQuadWindow: side-view offsets from the
+      // window's centre, Q1..Q4 the rectangle's own order), each rounded by its own radius. Wound CCW like every
+      // outline here: a quad whose corners were dragged round the other way is turned back, its radii with it
+      corners = w.q.map(c => [c[0], c[1]]); radii = rr;
+      let a2 = 0;
+      for (let i = 0; i < 4; i++) { const p = corners[i], q = corners[(i + 1) % 4]; a2 += p[0] * q[1] - q[0] * p[1]; }
+      if (a2 < 0) { corners.reverse(); radii = radii.slice().reverse(); }
+    } else if (Wt < 1e-6) {                 // the triangle: one apex, its radius the larger of the top pair
       corners = [[sk, H / 2], [-W / 2, -H / 2], [W / 2, -H / 2]];
       radii = [Math.max(rr[0], rr[1]), rr[2], rr[3]];
     } else {                         // CCW: top-fwd, top-aft, bottom-aft, bottom-fwd
@@ -350,7 +358,22 @@ function knifeCut(m, win, opt) {
     return [d[0]*t1[0] + d[1]*t1[1] + d[2]*t1[2],
             d[0]*t2[0] + d[1]*t2[1] + d[2]*t2[2]];
   };
-  const outline = knifeOutline(Object.assign({}, win, { z: 0, y: 0 }));
+  let outline = knifeOutline(Object.assign({}, win, { z: 0, y: 0 }));
+  // WINDOWS-FREE: A QUAD IS PLACED IN THE SIDE VIEW, corner by corner, and each corner must land where it was put
+  // (the Cub's wing-line edge): its outline is in side-view offsets, so it is laid on the tangent plane by the
+  // plane's own relation - the point of the plane at side-view offset (dz, dy) is c0 + (dx, dy, dz) with
+  // dx = -(n.y dy + n.z dz) / n.x - and read in (t1, t2). A linear map: the outline stays convex, each corner lands
+  // on the plane exactly under its side-view place, and the projection along n0 onto the skin moves it by the
+  // sagitta only. (The rounded rectangle and the oval keep the drawn shape seen face-on, as they always have.)
+  if (win.shape === 'quad' && Math.abs(n0[0]) > 0.2) {
+    const kz = -n0[2] / n0[0], ky = -n0[1] / n0[0];
+    const m11 = t1[2] + kz * t1[0], m12 = t1[1] + ky * t1[0];
+    const m21 = t2[2] + kz * t2[0], m22 = t2[1] + ky * t2[0];
+    outline = outline.map(([dz, dy]) => [m11 * dz + m12 * dy, m21 * dz + m22 * dy]);
+    let a2 = 0;
+    for (let i = 0; i < outline.length; i++) { const p = outline[i], q = outline[(i + 1) % outline.length]; a2 += p[0] * q[1] - q[0] * p[1]; }
+    if (a2 < 0) outline.reverse();
+  }
   const bb = { u0: 1e9, u1: -1e9, v0: 1e9, v1: -1e9 };
   for (const p of outline) {
     bb.u0 = Math.min(bb.u0, p[0]); bb.u1 = Math.max(bb.u1, p[0]);

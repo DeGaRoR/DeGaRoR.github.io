@@ -7799,6 +7799,47 @@ function cageToSpec(P) {
   return n ? out : null;
 }
 
+// WINDOWS-FREE (2026-10-27, the user: "a window can't follow the Cub's angled wing line"): THE FREE QUAD, a row's
+// third shape. Its four corners are placed in the SIDE VIEW, absolute cage (z, y) like the row's station - Q1 the
+// top-fore corner, Q2 top-aft, Q3 bottom-aft, Q4 bottom-fore (the rounded rectangle's own corner order, so R1-R4
+// round them) - each corner row absent following the rectangle the row's other rows draw (topK and skew included),
+// so switching a row to 'quad' changes nothing until a corner moves. A row's later windows repeat the quad at the
+// pitch. The knife cuts CONVEX outlines (a convex clip is an intersection of half-planes): a quad dragged concave,
+// or crossed into a bow-tie, is REFUSED with its reason - kept in the list, never cut, the sheet watertight - the
+// way an overlapping window is.
+function cageQuadRect(P, pre) {
+  const z = +P[pre + 'Z'], y = +P[pre + 'Y'], W = Math.max(0.02, +P[pre + 'W']), H = Math.max(0.02, +P[pre + 'H']);
+  const topK = P[pre + 'TopK'] == null ? 1 : Math.max(0, +P[pre + 'TopK']);
+  const sk = +P[pre + 'Skew'] || 0, Wt = W * topK;
+  return [[z + sk + Wt / 2, y + H / 2], [z + sk - Wt / 2, y + H / 2], [z - W / 2, y - H / 2], [z + W / 2, y - H / 2]];
+}
+const CAGE_QUAD_KEYS = pre => [1, 2, 3, 4].flatMap(c => [pre + 'Q' + c + 'Z', pre + 'Q' + c + 'Y']);
+function cageQuadWindow(P, pre, i) {
+  const R0 = cageQuadRect(P, pre), dz = i * +P[pre + 'Pitch'];
+  const num = v => v != null && v !== '' && isFinite(+v);
+  const abs = R0.map((c, k) => {
+    const qz = P[pre + 'Q' + (k + 1) + 'Z'], qy = P[pre + 'Q' + (k + 1) + 'Y'];
+    return [(num(qz) ? +qz : c[0]) + dz, num(qy) ? +qy : c[1]];
+  });
+  const cz = abs.reduce((a, c) => a + c[0], 0) / 4, cy = abs.reduce((a, c) => a + c[1], 0) / 4;
+  const q = abs.map(c => [c[0] - cz, c[1] - cy]);
+  let z0 = Infinity, z1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const c of abs) { z0 = Math.min(z0, c[0]); z1 = Math.max(z1, c[0]); y0 = Math.min(y0, c[1]); y1 = Math.max(y1, c[1]); }
+  // CONVEX AND SIMPLE: every turn the same way (either way round - the outline is re-wound), none straight
+  const turn = k => { const a = q[k], b = q[(k + 1) % 4], c = q[(k + 2) % 4];
+    return (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]); };
+  const T = [0, 1, 2, 3].map(turn), big = Math.max(1e-9, (z1 - z0) * (y1 - y0));
+  let refused = null;
+  if (T.some(t => Math.abs(t) < 1e-4 * big)) refused = 'quad: three corners in a line (no window there)';
+  else if (!(T.every(t => t > 0) || T.every(t => t < 0))) {
+    // the turn at corner k+1 is T[k]; the corner turning against the others is the one that folds in
+    const pos = T.filter(t => t > 0).length, odd = T.findIndex(t => (t > 0) !== (pos > 2));
+    refused = pos === 2 ? 'quad: two edges cross (a bow-tie) - not cut, the knife cuts convex outlines'
+      : 'quad: corner Q' + ((odd + 1) % 4 + 1) + ' folds in (not convex) - not cut, the knife cuts convex outlines';
+  }
+  return Object.assign({ shape: 'quad', z: cz, y: cy, q, w: z1 - z0, h: y1 - y0, corners: abs }, refused ? { refused } : {});
+}
+
 function cageSpec(P) {
   if (cageHasLegacy(P)) P = cageLiftLegacy(P);     // T2.1: a retired row still reads
   const T = CAGE_DEFAULT, S = JSON.parse(JSON.stringify(T));
@@ -7832,12 +7873,16 @@ function cageSpec(P) {
       });
       const topK = P[pre + 'TopK'] == null ? 1 : Math.max(0, +P[pre + 'TopK']);
       const skew = +P[pre + 'Skew'] || 0;
-      for (let i = 0; i < n; i++)
-        S.windows.push({ shape: +P[pre + 'Shape'] ? 'ellipse' : 'rect', row, i,
-                         z: +P[pre + 'Z'] + i * +P[pre + 'Pitch'], y: +P[pre + 'Y'],
-                         w: +P[pre + 'W'], h: +P[pre + 'H'], r, rr, topK, skew,
-                         depth: Math.max(0, +P[pre + 'Depth'] || 0),
-                         step: Math.max(0.006, rim * 1.1) });
+      const quad = Math.round(+P[pre + 'Shape'] || 0) === 2;
+      for (let i = 0; i < n; i++) {
+        const w = { shape: +P[pre + 'Shape'] ? 'ellipse' : 'rect', row, i,
+                    z: +P[pre + 'Z'] + i * +P[pre + 'Pitch'], y: +P[pre + 'Y'],
+                    w: +P[pre + 'W'], h: +P[pre + 'H'], r, rr, topK, skew,
+                    depth: Math.max(0, +P[pre + 'Depth'] || 0),
+                    step: Math.max(0.006, rim * 1.1) };
+        if (quad) Object.assign(w, cageQuadWindow(P, pre, i));
+        S.windows.push(w);
+      }
     }
     // THE REFUSAL (the design note: "the second outline crosses the first
     // hole's reveal and the loops go open"): every pair of outlines is
@@ -7866,6 +7911,7 @@ function cageSpec(P) {
         };
         for (let i = 1; i < S.windows.length; i++)
           for (let j = 0; j < i; j++) {
+            if (S.windows[i].refused) break;            // WINDOWS-FREE: a quad refused for its shape
             if (S.windows[j].refused) continue;
             if (!sep(polys[i], polys[j])) {
               S.windows[i].refused = 'overlaps row ' + S.windows[j].row + ' window ' + (S.windows[j].i + 1);
@@ -9363,7 +9409,7 @@ if (typeof module !== 'undefined')
                      cageRims, cageInterior, cageCut, cageGlassSill,
                      cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                      cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,
-                     CAGE_GLASS_MATS, cageGlazedM2,
+                     CAGE_GLASS_MATS, cageGlazedM2, cageQuadRect, cageQuadWindow, CAGE_QUAD_KEYS,
                      CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };
 if (typeof window !== 'undefined')
   window.CAGE2 = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB,
@@ -9375,5 +9421,5 @@ if (typeof window !== 'undefined')
                    cageRims, cageInterior, cageCut, cageGlassSill,
                    cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                    cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,
-                   CAGE_GLASS_MATS, cageGlazedM2,
+                   CAGE_GLASS_MATS, cageGlazedM2, cageQuadRect, cageQuadWindow, CAGE_QUAD_KEYS,
                    CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };
