@@ -100478,3 +100478,10 @@ height and length" - and "fix the CLOCK pin to PLAYER_V 3".
   the words.
 - **GATE CLOCK**: its sandbox row now pins `PLAYER_V === 3` (70_player.js's; was 2 - red on master d7e181f4 too).
 - Gates (private build): MISSIONS, CONTRACTS, CLOCK, NAMES PASS.
+## G1730 - SND-SHUTTER: PHOTO MODE'S SHOT (2026-10-27, the Sound Coordinator; branch claude/snd-shutter off origin/master; for L27b with GAME-MENUS)
+
+- A0 for the user (Tue 01:00): a shutter sound for photo mode (GAME-MENUS G3741/G3742). Synthesized in WebAudio, no file, no licence: the mirror's click (3.5 kHz noise tick over a 140 -> 70 Hz thump), the curtain's swish (noise, band 2 -> 6 kHz) and the second curtain's click at +90 ms, ~0.16 s in all.
+- AUDIO.shutter() (audio.js; the ?audio=0 stub returns false) plays at master x interface x 0.32. Its gain goes straight into the limiter, never through master/fade: photo mode PAUSES the flight (FLYDIY_HELD faded and suspended the context), so the shot wakes the context for itself, leaves the paused mix shut and puts the context back to sleep 0.4 s later. A shot inside the pause's 0.2 s fade still gets the silence's own suspend and its event. No bus is scheduled, so the engine is never ducked.
+- The hook is an EVENT (A0, 27 Oct: neither branch edits the other's file): audio.js listens on window for 'flydiy:shutter', which GAME-MENUS G3744 fires at the take (the round shutter and FLYDIY_PHOTO.take). GATE AUDIO WIRING requires the listener and, wherever app.js has photoTake, the event fired; SHUTTER fires the event and wants a shot; a 5th mutation drops the listener.
+- GATE AUDIO SHUTTER: in flight; into the limiter by one gain; under 0.3 s; the interface volume; interface 0 = nothing; in the pause: wake, the fade still shut, back to sleep; inside the fade: the suspend event still comes; the buffer made once. Plus 4 mutations (through master, asleep in the pause, too long, deaf to the interface volume).
+- Hot files: src/viewer/audio/audio.js, tools/audio/_audio_check.js. Gates: AUDIO + UISMOKE (A0's slot).
