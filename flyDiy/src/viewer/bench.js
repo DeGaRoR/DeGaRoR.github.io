@@ -505,7 +505,7 @@ const benchDestroyLine = D => {
   if (D.error) return 'the test to destruction did not run (' + D.error + ')';
   const side = c => (c === 'L' ? 'left ' : c === 'R' ? 'right ' : '');
   const part = D.key ? String(D.key).replace(/^wing(\d)([LR]?):/, (m, p, c) => 'the ' + side(c) + 'wing\'s ')
-    .replace(/^eng([LR]?):/, (m, c) => 'the ' + side(c) + 'engine\'s ').replace(/^([a-z]+)([LR]?):/, (m, w, c) => 'the ' + side(c) + w + '\'s ') : '';
+    .replace(/^eng([LR]?)(2|Aft)?:/, (m, c, o) => 'the ' + side(c) + (o === '2' ? 'outer ' : o === 'Aft' ? 'rear ' : '') + 'engine\'s ').replace(/^([a-z]+)([LR]?):/, (m, w, c) => 'the ' + side(c) + w + '\'s ') : '';
   return 'LIMIT ' + benchNum(D.limit, 1) + ' g · ULTIMATE ' + benchNum(D.ult, 1) + ' g · BROKE AT '
     + (D.brokeAt != null ? benchNum(D.brokeAt, 2) + ' g' + (part ? ' (' + part + (D.seam ? ', a ' + D.seam : '') + ', let go first)' : '')
                          : 'none (' + (D.verdict || 'held') + ')')
@@ -582,7 +582,9 @@ const BENCH_LOOK = { energy: ['finish', 'hue', 'tint'], vessel: ['finish', 'hue'
 // G3449 (RUFUS-CERT, the user 22 Oct: "the cabin flood switched on at the story start; no change to Rufus's file"): a
 // LIGHT SWITCH is a position, not the airframe - the lamps' levels (li_nav .. li_pax, the cockpit's switches and
 // dimmers) are state like lightOn. What is FITTED (li_*Fit) and where (the bay, pod, tip rows) still counts.
-const BENCH_STATE_ROWS = /^_view|^(explodeD|dumOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|li_(?:nav|beacon|taxi|land|flood|instr|pedal|pax))$/;
+// DOOR-HINGES (2026-10-27): the door hinges' axis tweaks (`hgDr*`) place display hardware - not the airframe either;
+// absent from every file before them, so no certificate taken before moves.
+const BENCH_STATE_ROWS = /^_view|^(explodeD|dumOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|li_(?:nav|beacon|taxi|land|flood|instr|pedal|pax))$|^hgDr[A-Z]/;
 function benchStripCosmetic(spec, defaults) {
   if (!spec || typeof spec !== 'object') return null;
   const c = JSON.parse(JSON.stringify(spec));
@@ -599,6 +601,18 @@ function benchStripCosmetic(spec, defaults) {
   // already carries (the windows, the glazing switch), and the material is
   // the cage's glazeMat row — neither is a second deviation to count
   if (c.cabin && typeof c.cabin === 'object') { delete c.cabin.glazedM2; delete c.cabin.glazingMat; }
+  // G3451 (DASH-ARCH-SAVED): THE DASH IS A LOOK - the arch and the box weigh the same and sit at the same CG
+  // (GATE DASH's physics rows) - and every saved build took the arch at the switch. A cage saved after it
+  // (dashV) hashes the dash it was certified with: the file's dashWas / dashLegsWas when the switch moved it,
+  // else the arch (1, the legs' 1) - never the dash on it now. So the switch withdraws nothing (a certificate,
+  // a signed leg, a career airframe: the hash is the one stamped on the box) and a dash picked later keeps
+  // the certificate. A cage from before the switch (no dashV: a slot never reopened) hashes as it is, as before.
+  if (c.cage && typeof c.cage === 'object' && c.cage.dashV != null) {
+    const cg = c.cage;
+    cg.dashStyle = cg.dashWas != null ? Math.round(+cg.dashWas || 0) : 1;
+    cg.dashLegs = cg.dashLegsWas != null ? Math.round(+cg.dashLegsWas) : 1;
+    delete cg.dashWas; delete cg.dashLegsWas; delete cg.dashV;
+  }
   if (c.cage && typeof c.cage === 'object') {
     const D = (defaults && typeof defaults === 'object') ? defaults : null;
     const out = {};

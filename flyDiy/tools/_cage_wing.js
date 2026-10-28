@@ -43,6 +43,13 @@ if (typeof resolveSpec !== 'function' || typeof genFrame !== 'function' ||
   console.error('cage wing layer: game core (60..63) not loaded');
   return;
 }
+// G3549 (the user, 27 Oct: "the global livery does not reach the second wing"): the second plane wears a COPY of its
+// section's material (wingMat below); the garage's repaint swaps the materials the requests handed out and never saw
+// the copy. Its hook hands the second wing the copy of the replacement (AEROSKIN's aeroPlaneRepaint, as the cowl's twins)
+(PAGE.repaint = PAGE.repaint || []).push((swap, scene) => {
+  const A = window.AEROSKIN;
+  if (A && A.aeroPlaneRepaint) A.aeroPlaneRepaint(swap, scene);
+});
 
 // ---- parameters -----------------------------------------------------------
 // THE GARAGE'S OWN SURFACE, complete (G31 — the first cut dropped chord
@@ -514,9 +521,9 @@ function wingMat(cl, plane) {
     // the game bind them as one (measured: the second skin bound nothing).
     // A clone shares the shader and carries the plane on its userData, which
     // is what the join's bucket key and the game's binding read.
-    const m2 = m.clone();
-    m2.userData = Object.assign({}, m.userData, { aeroPlane: 2 });
-    return m2;
+    // G3549: AEROSKIN keeps the copy's source, so the garage's repaint can follow it (the hook below)
+    return A.aeroPlaneClone ? A.aeroPlaneClone(m, 2)
+      : Object.assign(m.clone(), { userData: Object.assign({}, m.userData, { aeroPlane: 2 }) });
   }
   return A.aeroMaterial(THREE, {
     finish: A.aeroFinishFor('body', cons),

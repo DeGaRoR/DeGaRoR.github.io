@@ -348,107 +348,107 @@ body.rollShot #flActs { display:none !important; }
   padding-bottom:9px; margin-bottom:6px;
   border-bottom:1px solid var(--ed-hair); }
 
-#flFlyBody .fr { display:flex; gap:10px; align-items:center; margin:7px 0;
+:is(#flFlyBody, #gmPage, #photoBody) .fr { display:flex; gap:10px; align-items:center; margin:7px 0;
   min-width:0; font:400 11.5px/1.3 'IBM Plex Sans'; color:var(--ed-dim); }
 
-#flFlyBody .fr > span.k { width:104px; flex:none; overflow:hidden;
+:is(#flFlyBody, #gmPage, #photoBody) .fr > span.k { width:104px; flex:none; overflow:hidden;
   text-overflow:ellipsis; white-space:nowrap; }
 
-#flFlyBody .fr > span.v { flex:1; min-width:0; text-align:right;
+:is(#flFlyBody, #gmPage, #photoBody) .fr > span.v { flex:1; min-width:0; text-align:right;
   font:500 11px/1 'IBM Plex Sans'; color:var(--ed-ink); }
 
-#flFlyBody .fr > b.v { flex:none; width:48px; text-align:right;
+:is(#flFlyBody, #gmPage, #photoBody) .fr > b.v { flex:none; width:48px; text-align:right;
   font:500 11px/1 'IBM Plex Sans'; color:var(--ed-ink); }
 
-#flFlyBody .fr.off { color:var(--ed-faint); }
+:is(#flFlyBody, #gmPage, #photoBody) .fr.off { color:var(--ed-faint); }
 
-#flFlyBody .fr.off > span.v, #flFlyBody .fr.off > b.v { color:var(--ed-faint); }
+:is(#flFlyBody, #gmPage, #photoBody) .fr.off > span.v, :is(#flFlyBody, #gmPage, #photoBody) .fr.off > b.v { color:var(--ed-faint); }
 
-#flFlyBody .fpills { display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 2px; }
+:is(#flFlyBody, #gmPage, #photoBody) .fpills { display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 2px; }
 
 /* 2026-09-20: a section head inside a flyout (the clouds panel's decks / veil / look / render) */
-#flFlyBody .fr.fsec { margin:12px 0 4px; padding-top:8px; border-top:1px solid var(--ed-hair); }
-#flFlyBody .fr.fsec > span.k { width:auto; font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em;
+:is(#flFlyBody, #gmPage, #photoBody) .fr.fsec { margin:12px 0 4px; padding-top:8px; border-top:1px solid var(--ed-hair); }
+:is(#flFlyBody, #gmPage, #photoBody) .fr.fsec > span.k { width:auto; font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em;
   text-transform:uppercase; color:var(--ed-faint); }
-#flFlyBody .fr.fsec:first-child { margin-top:2px; padding-top:0; border-top:0; }
+:is(#flFlyBody, #gmPage, #photoBody) .fr.fsec:first-child { margin-top:2px; padding-top:0; border-top:0; }
 
 /* G760: THE FOLDS - a section per old item (the flight rail) or per graphics group. The head is a
    button: the name, the line under it, a caret that turns; folded, only the head is drawn. */
-#flFlyBody .rsec { border-top:1px solid var(--ed-hair); }
-#flFlyBody .rsec:first-child { border-top:0; }
-#ui #flFlyBody .rsecHead { display:flex; flex-direction:column; align-items:flex-start; gap:3px;
+:is(#flFlyBody, #gmPage, #photoBody) .rsec { border-top:1px solid var(--ed-hair); }
+:is(#flFlyBody, #gmPage, #photoBody) .rsec:first-child { border-top:0; }
+:is(#ui :is(#flFlyBody, #gmPage, #photoBody), #gmPage) .rsecHead { display:flex; flex-direction:column; align-items:flex-start; gap:3px;
   width:100%; padding:9px 0 8px 16px; position:relative; border:0; background:transparent;
   cursor:pointer; text-align:left; color:var(--ed-dim); }
-#ui #flFlyBody .rsecHead::before { content:''; position:absolute; left:2px; top:12px;
+:is(#ui :is(#flFlyBody, #gmPage, #photoBody), #gmPage) .rsecHead::before { content:''; position:absolute; left:2px; top:12px;
   border:4px solid transparent; border-left:5px solid currentColor; border-right:0;
   transition:transform .12s ease; }
-#ui #flFlyBody .rsec.open > .rsecHead::before { transform:rotate(90deg); }
-#ui #flFlyBody .rsecHead:hover { color:var(--ed-ink); }
-#flFlyBody .rsecT { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em; text-transform:uppercase; }
-#flFlyBody .rsec.open > .rsecHead .rsecT { color:var(--ed-ink); }
-#flFlyBody .rsecS { font:400 10px/1.3 'IBM Plex Sans'; color:var(--ed-faint); }
-#flFlyBody .rsecBody { padding:0 0 10px; }
+:is(#ui :is(#flFlyBody, #gmPage, #photoBody), #gmPage) .rsec.open > .rsecHead::before { transform:rotate(90deg); }
+:is(#ui :is(#flFlyBody, #gmPage, #photoBody), #gmPage) .rsecHead:hover { color:var(--ed-ink); }
+:is(#flFlyBody, #gmPage, #photoBody) .rsecT { font:600 9.5px/1 'IBM Plex Sans'; letter-spacing:.18em; text-transform:uppercase; }
+:is(#flFlyBody, #gmPage, #photoBody) .rsec.open > .rsecHead .rsecT { color:var(--ed-ink); }
+:is(#flFlyBody, #gmPage, #photoBody) .rsecS { font:400 10px/1.3 'IBM Plex Sans'; color:var(--ed-faint); }
+:is(#flFlyBody, #gmPage, #photoBody) .rsecBody { padding:0 0 10px; }
 
-#flFlyBody .fnote { margin-top:10px; padding-top:9px;
+:is(#flFlyBody, #gmPage, #photoBody) .fnote { margin-top:10px; padding-top:9px;
   border-top:1px solid var(--ed-hair);
   font:400 10.5px/1.6 'IBM Plex Sans'; color:var(--ed-faint); }
 /* G2085 (PILOT-PERSONA): the personalities, a line each - the one flying in ink */
-#flFlyBody .fpersona { margin-top:6px; padding-top:6px; line-height:1.45; }
-#flFlyBody .fpersona .fpLine { margin:2px 0; }
-#flFlyBody .fpersona .fpLine b { font-weight:600; color:var(--ed-dim); margin-right:2px; }
-#flFlyBody .fpersona .fpLine.on, #flFlyBody .fpersona .fpLine.on b { color:var(--ed-ink); }
+:is(#flFlyBody, #gmPage, #photoBody) .fpersona { margin-top:6px; padding-top:6px; line-height:1.45; }
+:is(#flFlyBody, #gmPage, #photoBody) .fpersona .fpLine { margin:2px 0; }
+:is(#flFlyBody, #gmPage, #photoBody) .fpersona .fpLine b { font-weight:600; color:var(--ed-dim); margin-right:2px; }
+:is(#flFlyBody, #gmPage, #photoBody) .fpersona .fpLine.on, :is(#flFlyBody, #gmPage, #photoBody) .fpersona .fpLine.on b { color:var(--ed-ink); }
 
-#ui .pill { font:500 10px/1 'IBM Plex Sans'; letter-spacing:.08em;
+:is(#ui, #gmPage, #photoBody) .pill { font:500 10px/1 'IBM Plex Sans'; letter-spacing:.08em;
   text-transform:uppercase; color:var(--ed-dim); background:transparent;
   border:1px solid var(--ed-btn-bd); border-radius:7px; padding:7px 11px;
   cursor:pointer; transition:border-color .12s ease; }
 
-#ui .pill:hover { border-color:rgba(255,255,255,.3); }
+:is(#ui, #gmPage, #photoBody) .pill:hover { border-color:rgba(255,255,255,.3); }
 
-#ui .pill.on { color:var(--ed-acc-ink); background:var(--ed-acc);
+:is(#ui, #gmPage, #photoBody) .pill.on { color:var(--ed-acc-ink); background:var(--ed-acc);
   border-color:var(--ed-acc); }
 
 /* a preset the aeroplane cannot offer says so and stays put — it carries its
    reason in its `title`, exactly as the editor's `interior` does */
-#ui .pill:disabled { opacity:.4; cursor:not-allowed; }
-#ui .pill:disabled:hover { border-color:var(--ed-btn-bd); }
+:is(#ui, #gmPage, #photoBody) .pill:disabled { opacity:.4; cursor:not-allowed; }
+:is(#ui, #gmPage, #photoBody) .pill:disabled:hover { border-color:var(--ed-btn-bd); }
 
 /* the flyout's own controls: the editor's switch and slider, verbatim
    metrics, because a toggle that looks different on the other screen is a
    different toggle */
-#ui .fsw { -webkit-appearance:none; appearance:none; flex:none;
+:is(#ui, #gmPage, #photoBody) .fsw { -webkit-appearance:none; appearance:none; flex:none;
   width:30px; height:16px; border-radius:9px; background:var(--ed-off);
   border:1px solid var(--ed-off-bd); position:relative; cursor:pointer;
   transition:background .12s ease, border-color .12s ease; }
 
-#ui .fsw::after { content:''; position:absolute; top:2px; left:2px;
+:is(#ui, #gmPage, #photoBody) .fsw::after { content:''; position:absolute; top:2px; left:2px;
   width:10px; height:10px; border-radius:50%; background:var(--ed-panel);
   transition:left .12s ease; }
 
-#ui .fsw:checked { background:var(--ed-acc); border-color:var(--ed-acc); }
+:is(#ui, #gmPage, #photoBody) .fsw:checked { background:var(--ed-acc); border-color:var(--ed-acc); }
 
-#ui .fsw:checked::after { left:16px; }
+:is(#ui, #gmPage, #photoBody) .fsw:checked::after { left:16px; }
 
-#ui .frng { flex:1; min-width:30px; height:18px; -webkit-appearance:none;
+:is(#ui, #gmPage, #photoBody) .frng { flex:1; min-width:30px; height:18px; -webkit-appearance:none;
   appearance:none; background:transparent; cursor:pointer; }
 
-#ui .frng::-webkit-slider-runnable-track { height:3px; border-radius:2px;
+:is(#ui, #gmPage, #photoBody) .frng::-webkit-slider-runnable-track { height:3px; border-radius:2px;
   background:var(--ed-track); }
 
-#ui .frng::-webkit-slider-thumb { -webkit-appearance:none; appearance:none;
+:is(#ui, #gmPage, #photoBody) .frng::-webkit-slider-thumb { -webkit-appearance:none; appearance:none;
   width:11px; height:11px; margin-top:-4px; border-radius:50%;
   background:var(--ed-acc); border:none; }
 
-#ui .frng::-moz-range-track { height:3px; border-radius:2px;
+:is(#ui, #gmPage, #photoBody) .frng::-moz-range-track { height:3px; border-radius:2px;
   background:var(--ed-track); }
 
-#ui .frng::-moz-range-thumb { width:11px; height:11px; border:none;
+:is(#ui, #gmPage, #photoBody) .frng::-moz-range-thumb { width:11px; height:11px; border:none;
   border-radius:50%; background:var(--ed-acc); }
 
 /* the borrowed selects — #selDest (G1945: #selFrom retired) — and the flyouts' own (the day panel's
    conditions select, its date field) wear the editor's row select, because in the
    flyout that is what they are */
-#ui .fsel { flex:1; min-width:0; padding:5px 8px;
+:is(#ui, #gmPage, #photoBody) .fsel { flex:1; min-width:0; padding:5px 8px;
   font:400 11px/1.2 'IBM Plex Sans'; letter-spacing:0; text-transform:none;
   color:var(--ed-ink); background:var(--ed-btn-bg);
   border:1px solid var(--ed-btn-bd); border-radius:5px; cursor:pointer;
@@ -456,9 +456,9 @@ body.rollShot #flActs { display:none !important; }
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='6'%3E%3Cpath d='M1 1l3.5 3.5L8 1' fill='none' stroke='%23c0b8ac' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
   background-repeat:no-repeat; background-position:right 7px center; }
 
-#ui .fsel option { background:var(--ed-panel); color:var(--ed-ink); }
+:is(#ui, #gmPage, #photoBody) .fsel option { background:var(--ed-panel); color:var(--ed-ink); }
 
-#ui .fsel:disabled { opacity:.45; cursor:default; }
+:is(#ui, #gmPage, #photoBody) .fsel:disabled { opacity:.45; cursor:default; }
 
 /* =========================================================================
    3. THE BOTTOM-RIGHT PFD — WHAT IT IS DOING.
@@ -483,8 +483,10 @@ body.rollShot #flActs { display:none !important; }
    figures, and every text clips inside its own box. What the plate SAYS can never move its edges; only
    what you ask it to CARRY can (the instruments flyout's extra readouts wrap onto a second row).
    GATE UISMOKE holds this contract; tools/hud_fit_shot.js measures it in Chromium. */
+/* G3524 (the 24 Oct playtest: "a live wind indication on the HUD"): 540 and not 440 - the wind is the fifth always-on
+   cell, and the four that were there filled the 440 */
 #ui #pfd { grid-column:2; justify-self:center; padding:11px 14px 10px;
-  width:440px; box-sizing:border-box; overflow:hidden;
+  width:540px; box-sizing:border-box; overflow:hidden;
   background:var(--fl-glass); }
 
 #pfdRow { display:flex; flex-wrap:wrap; gap:6px 14px; align-items:flex-start; }
@@ -495,6 +497,11 @@ body.rollShot #flActs { display:none !important; }
 #ui .rd { flex:none; width:80px; min-width:0; overflow:hidden; text-align:right; }
 #ui .rd[data-i="nrg"], #ui .rd[data-i="netto"] { width:112px; }
 #ui .rd[data-i="thr"] { width:120px; }
+/* G3524: the wind - an arrow (where the air goes, the nose up), the speed; the unit line says where it comes from */
+#ui .rd[data-i="wind"] { width:100px; }
+#ui .rd b .windA { display:inline-block; width:18px; height:18px; margin-right:4px; vertical-align:2px;
+  fill:none; stroke:currentColor; stroke-width:2.2; stroke-linecap:round; stroke-linejoin:round; transform-origin:50% 50%; }
+#ui .rd b .windA.calm { visibility:hidden; }
 
 #ui .rd[hidden] { display:none; }
 
@@ -514,11 +521,13 @@ body.rollShot #flActs { display:none !important; }
 /* THE SMALL PFD (the user: "allow a minimized version of the top bar with
    smaller characters and only IAS, alt, Vs and power, plus the steps"). Two
    thirds of the type, four numbers, the steps unchanged. */
-#ui #pfd.small { padding:8px 11px 7px; width:372px; }
+#ui #pfd.small { padding:8px 11px 7px; width:448px; }   /* G3524: + the wind's 64 */
 #ui #pfd.small #pfdRow { gap:4px 12px; }
 #ui #pfd.small .rd { width:52px; }
 #ui #pfd.small .rd[data-i="nrg"], #ui #pfd.small .rd[data-i="netto"] { width:86px; }
 #ui #pfd.small .rd[data-i="thr"] { width:76px; }
+#ui #pfd.small .rd[data-i="wind"] { width:64px; }
+#ui #pfd.small .rd b .windA { width:12px; height:12px; margin-right:2px; vertical-align:1px; }
 #ui #pfd.small .rd b { font-size:19px; height:20px; line-height:20px; }
 #ui #pfd.small .rd i { font-size:7px; height:9px; line-height:9px; letter-spacing:.12em; }
 #ui #pfd.small #rail { margin-top:8px; padding-top:7px; height:22px; }
@@ -590,11 +599,6 @@ body.rollShot #flActs { display:none !important; }
 
 #track i.now { width:14px; background:var(--ed-acc); }
 
-/* G1091 (POLISH-2): the trees-by-the-runways variant, named while DEV is on - small, out of the way */
-#ui #rwyTreesTag { position:absolute; left:50%; bottom:6px; transform:translateX(-50%); padding:2px 8px;
-  font:500 9px/1.3 'IBM Plex Mono', monospace; letter-spacing:.04em; color:var(--ed-faint);
-  background:var(--fl-glass); border-radius:4px; pointer-events:none; white-space:nowrap; }
-#ui #rwyTreesTag[hidden] { display:none; }
 
 /* =========================================================================
    4. THE SUMMONED PANELS, and the arrival.
@@ -751,6 +755,22 @@ body.rollShot #flActs { display:none !important; }
 
 #arrCard[hidden] { display:none; }
 
+/* G3581 (STORY-TUTOR; the user, playtest 24 Oct: "I don't want the card concept. The map is where info about missions is.
+   Text on screen otherwise"): IN A CAREER THE ENDING IS A LINE - the card's own place (lower left, beside the rail), no
+   plate, no border: the title and a line or two of text over the world, shadowed to read on it; only "bring it home"
+   stays a button (app.js showArrival, CAREER_DEV) */
+#arrCard.line { width:auto; max-width:min(720px, calc(100% - 112px)); max-height:none; overflow:visible; padding:0;
+  background:transparent; border:0; border-radius:0; box-shadow:none; }
+#arrCard.line #arrHead { border-bottom:0; padding:0; justify-content:flex-start; cursor:default; }
+#arrCard.line #arrTitle, #arrCard.line #arrRows p { text-shadow:0 1px 3px rgba(0,0,0,.9), 0 0 10px rgba(0,0,0,.55); }
+#arrCard.line #arrTag { margin-left:0; }
+#arrCard.line #arrRows { display:block; margin-top:4px; }
+#arrCard.line #arrRows p { margin:2px 0 0; font:500 12px/1.4 'IBM Plex Sans'; font-style:normal; color:var(--ed-ink); }
+#arrCard.line #arrRows .warn { color:var(--ed-warn); }
+#arrCard.line #arrNotes, #arrCard.line #bLog, #arrCard.line #bWhy { display:none; }
+#arrCard.line #arrBtns { margin-top:6px; }
+#ui #arrCard.line #arrBtns button { flex:0 0 auto; padding:7px 12px; }
+
 /* G1868 (DMG-D4b; the user: "I want to SEE the crash"): A CRASH'S CARD is small and in the lower-left corner, not over the
    wreck; its title folds it to the one line (the reason stays on the top bar).
    (G3060: the corner and the fold are every card's now; the wreck's stays the smaller one) */
@@ -868,6 +888,7 @@ body.rollShot #flActs { display:none !important; }
      beside the rail (12 px + a 56 px plate) */
   #arrCard, #arrCard.wreck { left:76px; right:12px; width:auto; max-width:none; bottom:78px;
     max-height:max(160px, calc(50% - 90px)); padding:12px 14px 10px; }
+  #arrCard.line { padding:0; max-height:none; }
 }
 
 /* =========================================================================
@@ -1056,3 +1077,86 @@ body.premOpen #flFly { display:none; }
    left rail stays: the camera, the graphics, the time of day and the weather are how the world is looked at. */
 body.sceneryMode #flTop, body.sceneryMode #flActs, body.sceneryMode #pfd, body.sceneryMode #mmp,
 body.sceneryMode #telp, body.sceneryMode #arrCard, body.sceneryMode #flHint, body.sceneryMode #flNotice { display:none !important; }
+
+/* =========================================================================
+   G3643-G3649: THE FLIGHT LAYOUT (the user's 25 Oct mockup; app.js adds body.fl2 unless ?flui=old). The same
+   elements placed again: the top row (#flBar: the shed, Route, Conditions, Autopilot) over the readouts (#pfd) over
+   the autopilot's words (folded unless body.fl2Ap); the corner top left (pause, $, the eye: .flCornB beside #gmMenu,
+   placed by app.js gmLayout); the minimap top right with its own x (#mmX) and a button while it is away (#flMmB);
+   bottom right only Skip to line-up. The rail, the brief's plate, Pause / Restart / Fly are off the screen (the
+   pause menu has them); nothing is removed from the page (the gates drive the same elements).
+   ========================================================================= */
+body.fl2 #flTop { left:276px; right:250px; top:18px; display:flex; flex-direction:column; align-items:center; gap:8px; }
+body.fl2 #flBrief { order:3; max-width:540px; }
+body.fl2 #ui #flPlate, body.fl2 #ui #flLine { display:none !important; }
+body.fl2 #ui #pfd { order:2; grid-column:auto; justify-self:auto; cursor:pointer; }
+body.fl2 #ui #pfd #pfdFold { display:none; }
+body.fl2 #ui #rail { cursor:pointer; }
+body.fl2:not(.fl2Ap) #ui #phWhy { display:none; }
+#ui #fl2Rate { flex:none; margin-left:auto; padding:4px 9px; }
+#ui #fl2Rate[hidden], body:not(.fl2) #ui #fl2Rate { display:none; }
+body.fl2 #flBar { order:1; display:flex; align-items:stretch; gap:6px; width:540px; box-sizing:border-box; padding:5px; }
+body.fl2 #flBar .verb { flex:none; padding:9px 13px; }
+body.fl2 #flBar .verb[hidden] { display:none; }
+#ui .flTopB { flex:1; min-width:0; display:flex; flex-direction:column; justify-content:center; gap:3px; padding:6px 10px;
+  border-radius:7px; background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd); color:var(--ed-ink); cursor:pointer; text-align:left; }
+#ui .flTopB:hover { border-color:rgba(255,255,255,.3); }
+#ui .flTopB > i { font:500 8.5px/1 'IBM Plex Sans'; font-style:normal; letter-spacing:.16em; text-transform:uppercase; color:var(--ed-faint); }
+#ui .flTopB > b { font:500 12px/1.2 'IBM Plex Sans'; color:var(--ed-ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+body.fl2 #flActs #bPause, body.fl2 #flActs #bReset, body.fl2 #flActs #bGo { display:none !important; }
+body.fl2 #ui #flRail { display:none !important; }
+/* in flight the $ in the corner is the map and the contracts: the CONTRACTS pill is the shed's */
+body.fl2.mode-fly #mapEntry { display:none !important; }
+/* the corner: the pause pill's look (app.js #gmMenu), round, 48 px - a thumb's */
+.flCornB { position:fixed; z-index:2147482000; min-width:48px; min-height:48px; padding:0 12px; border-radius:24px; box-sizing:border-box;
+  display:none; align-items:center; justify-content:center; cursor:pointer;
+  border:1px solid rgba(255,178,87,.85); background:rgba(28,24,20,.86); color:#ffb257; font:600 16px/1 'IBM Plex Sans',sans-serif; }
+.flCornB svg { width:22px; height:22px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linejoin:round; }
+body.fl2.mode-fly .flCornB { display:inline-flex; }
+body.fl2 .flCornB[hidden], body.shot .flCornB, body.rollShot .flCornB, body.premOpen .flCornB, body.sceneryMode .flCornB { display:none !important; }
+#flMmB { top:18px; right:22px; }
+/* G3648 / G3741 photo mode: nothing on the screen but the camera button - pressed again it takes the picture and the
+   interface comes back (Esc: back without one); the back button of the shed's screenshot mode is not needed here */
+body.fl2.mode-fly #shotBack { display:none !important; }
+/* G3742 THE PHOTO BAR: bottom left (never the centre), the garage's plate; the camera's own rows (styled as the flyout's),
+   Done and a round shutter. The flash is a blink of the page, not of the picture */
+#photoBar { position:fixed; left:22px; bottom:22px; z-index:2147481000; width:300px; max-width:calc(100vw - 24px); box-sizing:border-box;
+  max-height:calc(100vh - 44px); display:flex; flex-direction:column; padding:10px 12px 12px; border-radius:10px;
+  background:var(--ed-plate); color:var(--ed-ink); border:1px solid var(--ed-border); box-shadow:0 10px 28px rgba(0,0,0,.45);
+  font:400 12px/1.3 'IBM Plex Sans', sans-serif; }
+#photoBar[hidden] { display:none; }
+#photoBar * { font-style:normal; }
+#photoBar .phHead { display:flex; align-items:baseline; gap:10px; padding:0 2px 8px; border-bottom:1px solid var(--ed-hair); }
+#photoBar .phHead b { font:600 10px/1 'IBM Plex Sans'; letter-spacing:.2em; text-transform:uppercase; color:var(--ed-ink); }
+#photoBar .phHead span { font:500 9px/1 'IBM Plex Sans'; letter-spacing:.16em; text-transform:uppercase; color:var(--ed-faint); }
+#photoBody { flex:1; min-height:0; overflow-y:auto; scrollbar-width:thin; }
+#photoBar .phActs { display:flex; align-items:center; justify-content:space-between; gap:10px; padding-top:10px; border-top:1px solid var(--ed-hair); }
+#photoDone { min-height:44px; padding:0 16px; border-radius:8px; border:1px solid var(--ed-btn-bd); background:var(--ed-btn-bg); color:var(--ed-ink);
+  font:500 12px/1 'IBM Plex Sans'; letter-spacing:.1em; text-transform:uppercase; cursor:pointer; }
+#photoShutter { width:62px; height:62px; padding:0; border-radius:50%; border:3px solid #f4efe6; background:transparent; cursor:pointer;
+  display:grid; place-items:center; }
+#photoShutter i { width:48px; height:48px; border-radius:50%; background:#f4efe6; transition:transform .08s ease; }
+#photoShutter:active i { transform:scale(.88); }
+#photoFlash { position:fixed; inset:0; z-index:2147480000; background:#fff; opacity:0; pointer-events:none; }
+#photoFlash.on { animation:phFlash .45s ease-out; }
+@keyframes phFlash { 0% { opacity:.7; } 100% { opacity:0; } }
+@media (max-width:760px) { #photoBar { left:12px; bottom:12px; width:auto; right:12px; max-height:46vh; } }
+#ui #mmX { position:absolute; top:8px; left:8px; z-index:2; width:32px; height:32px; padding:0; border-radius:16px; cursor:pointer;
+  border:1px solid var(--ed-border); background:var(--ed-plate); color:var(--ed-ink); font:500 18px/1 'IBM Plex Sans'; }
+body:not(.fl2) #ui #mmX { display:none; }
+@media (max-width:1080px) {
+  /* the corner row and the minimap take the top line; the row goes under them */
+  body.fl2 #flTop { left:12px; right:12px; top:68px; }
+}
+@media (max-width:760px) {
+  body.fl2 #flBar, body.fl2 #ui #pfd, body.fl2 #ui #pfd.small { width:auto; align-self:stretch; }
+  body.fl2 #flBar .verb { padding:8px 10px; letter-spacing:.06em; }
+  #ui .flTopB { padding:5px 8px; }
+  /* ONE LINE of readouts (the user: "only display the readouts that fit on a single line"): no wrap; app.js fl2Fit
+     leaves out what does not fit, the last first (the wind goes into the Conditions button then) */
+  body.fl2 #pfdRow { flex-wrap:nowrap; overflow:hidden; }
+  body.fl2 #ui .rd.fl2Clip { display:none; }
+  body.fl2 #ui .rd[data-i="nrg"], body.fl2 #ui .rd[data-i="netto"] { width:76px; }
+  .flCornB { min-width:44px; min-height:44px; }
+  #flMmB { top:12px; right:12px; }
+}

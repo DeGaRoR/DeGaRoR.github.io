@@ -68,9 +68,9 @@
   const ready = () => !!(WF() && G() && G().on && G().on());
 
   // ---- THE TERRAIN TYPES: names, colours (the ground's own palette, gTTCol) and the derivations ----
-  const NAMES = { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense', 17: 'bank' };
+  const NAMES = { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense', 17: 'bank', 18: 'lake shore' };
   const TTC = { 0: [5, 13, 77], 1: [13, 89, 242], 2: [191, 217, 64], 3: [89, 140, 38], 4: [242, 217, 140], 5: [140, 128, 115], 6: [77, 71, 71],
-                7: [153, 166, 13], 8: [5, 89, 13], 9: [250, 250, 255], 10: [242, 26, 26], 11: [168, 156, 132], 12: [120, 104, 98], 13: [3, 61, 8], 14: [111, 122, 10], 17: [70, 62, 58] };
+                7: [153, 166, 13], 8: [5, 89, 13], 9: [250, 250, 255], 10: [242, 26, 26], 11: [168, 156, 132], 12: [120, 104, 98], 13: [3, 61, 8], 14: [111, 122, 10], 17: [70, 62, 58], 18: [110, 150, 70] };
   const css = c => `rgb(${c[0]},${c[1]},${c[2]})`;
   const DERIVED = { 12: { from: 6, lo: 'cliffLo', hi: 'cliffHi', unit: '°', what: 'rock steeper than', max: 70 },
                     13: { from: 8, lo: 'oldLo', hi: 'oldHi', unit: ' m', what: 'forest under a canopy taller than', max: 35 },
@@ -79,7 +79,10 @@
   // 17 THE BANK (SHORES-2 G1958): derived from EVERY type by the water (the steep faces within the bank's reach of a lake or
   // the coast) - a ground and its blend, no biome (it plants nothing of its own: the planters keep their type's)
   const BANK = 17;
-  const EDITABLE = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, BANK];
+  // 18 THE LAKE SHORE (G3430, the user 25 Oct: "a proper biome with its mask"): derived from every type by a lake's line
+  // (28c_biomes SHORE, the cover ring's band) - a biome; its ground is its own type's until the splat carries an 18
+  const SHORE = 18;
+  const EDITABLE = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, BANK, SHORE];
   // the catalogue's kinds, as the user's five categories (+ the cliffs, their own section)
   const CATS = [
     { k: 'trees', label: 'trees', kinds: ['tree', 'dead'] },
@@ -586,7 +589,7 @@
     for (const c of EDITABLE) {
       const b = $('button', 'wr-leg'); b.type = 'button';
       const sw = $('span', 'wr-sw'); sw.style.background = css(TTC[c]); b.appendChild(sw);
-      b.appendChild($('span', null, NAMES[c])); b.appendChild($('em', null, SH[c] ? (SH[c] * 100).toFixed(1) + '%' : (PARENT_OF[c] || c === BANK ? 'derived' : '-')));
+      b.appendChild($('span', null, NAMES[c])); b.appendChild($('em', null, SH[c] ? (SH[c] * 100).toFixed(1) + '%' : (PARENT_OF[c] || c === BANK || c === SHORE ? 'derived' : '-')));
       b.onclick = () => { UI.code = c; open('types'); };
       lg.appendChild(b);
     }
@@ -665,7 +668,7 @@
     const hx = $('div'); hd.appendChild(hx);
     hx.appendChild($('div', 'wr-tname', NAMES[code]));
     const SH = shares();
-    hx.appendChild($('div', 'wr-tsub', code === BANK ? 'derived from every type by the water: the steep faces of the lake banks and the coast' : PARENT_OF[code] ? 'derived from ' + NAMES[PARENT_OF[code]] + ' in the shader and the planters' : ((SH[code] ? (SH[code] * 100).toFixed(1) + '% of the land' : 'not on this map') + ' · biome ' + ((B && B.mixAt(code)) || 'none'))));
+    hx.appendChild($('div', 'wr-tsub', code === BANK ? 'derived from every type by the water: the steep faces of the lake banks and the coast' : code === SHORE ? 'derived from every type by a lake: the gentle land within the shore band - its biome here (a premises biome polygon paints or erases it); the ground stays the type below it' : PARENT_OF[code] ? 'derived from ' + NAMES[PARENT_OF[code]] + ' in the shader and the planters' : ((SH[code] ? (SH[code] * 100).toFixed(1) + '% of the land' : 'not on this map') + ' · biome ' + ((B && B.mixAt(code)) || 'none'))));
     const pk = button(hd, 'under the eye', () => { const cam = camNow(); const t = TF(); if (!cam || !t || !t.at) return; const a = t.at(cam.position.x, cam.position.z); if (a && a.code >= 2) { UI.code = a.code; open('types', true); } });
     pk.title = 'the terrain type under the camera (or alt+click the ground)';
     if (DERIVED[code] && sp) {
@@ -680,8 +683,8 @@
     mapWidget(Mp, 300, code);
     // the tabs
     const tabs = $('div', 'wr-tabs'); body.appendChild(tabs);
-    for (const [k, l] of (code === BANK ? [['ground', 'ground']] : [['biome', 'biome'], ['ground', 'ground']])) { const b = $('button', 'wr-tab' + (UI.tab === k || code === BANK ? ' on' : ''), l); b.type = 'button'; b.onclick = () => { UI.tab = k; saveUI(); open('types', true); }; tabs.appendChild(b); }
-    if (UI.tab === 'ground' || code === BANK) groundTab(body, code); else biomeTab(body, code);
+    for (const [k, l] of (code === BANK ? [['ground', 'ground']] : code === SHORE ? [['biome', 'biome']] : [['biome', 'biome'], ['ground', 'ground']])) { const b = $('button', 'wr-tab' + (UI.tab === k || code === BANK || code === SHORE ? ' on' : ''), l); b.type = 'button'; b.onclick = () => { UI.tab = k; saveUI(); open('types', true); }; tabs.appendChild(b); }
+    if ((UI.tab === 'ground' && code !== SHORE) || code === BANK) groundTab(body, code); else biomeTab(body, code);
   }
   // THE BANK'S OWN ROWS (SHORES-2 G1958, the user: "these textures should be accessible through the world editor"): where the
   // bank's rock comes (the reach, the slope it takes over between), how it blends (the ramp's softness, the noise that breaks

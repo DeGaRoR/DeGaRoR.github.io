@@ -449,13 +449,22 @@ const ALLOW = [
   // render of the room); proven by A/B - the polish off in source gives master's 1559360 back; upTo = measured + 5 %
   { key: 'boot/garage:compile/bytes.bufferData', build: 'cub', upTo: 1736000, why: 'G3534 the room\'s polish (the user\'s 24 Oct ask: the garages\' outsides match the scenery\'s buildings): its casings, gutters, downpipes and ground skirt uploaded once at compile (1559360 -> 1653300)', g: 'G3534' },
   { key: 'boot/garage:compile/bytes.bufferData', build: 'cessna', upTo: 1736000, why: 'G3534 the room\'s polish (the user\'s 24 Oct ask: the garages\' outsides match the scenery\'s buildings): its casings, gutters, downpipes and ground skirt uploaded once at compile (1559360 -> 1653300)', g: 'G3534' },
+  // G3543 (VEHICLE PRINTS, A0 26 Oct): the traffic's prints follow the posed cars, only the drawn matrices uploaded (an update
+  // range): 544 -> 768 B a frame at the bench, both builds; upTo 800
+  { key: 'stand/bytes.bufferSubData', build: '*', upTo: 800, why: 'G3543 the moving cars\' ground prints: ~3.5 traffic matrices per frame (the user asked for car shadows)', g: 'G3543' },
+  { key: 'taxi/bytes.bufferSubData', build: '*', upTo: 800, why: 'G3543 the moving cars\' ground prints: ~3.5 traffic matrices per frame (the user asked for car shadows)', g: 'G3543' },
   // G3023 (RWYTREES-MAP, train 56 e21d9c7fc): 'mapx' the default - the woods to the strip's edge, the user's fans and own clears
   // standing: the taxi's shadow pass carries the new tree line (A0's FRAMECOST on master); upTo = measured + 5 %
   { key: 'taxi/tris.shadow', build: 'cub', upTo: 3848164, why: 'rwyTrees \'mapx\' (G3023): the trees reach the strip, the user\'s trees-on-the-strip ruling (train 56) (1782437 -> 3664917.5)', g: 'G3023' },
   { key: 'taxi/gl.bindBuffer', build: 'cub', upTo: 10, why: 'rwyTrees \'mapx\' (G3023): the trees reach the strip, the user\'s trees-on-the-strip ruling (train 56) (2 -> 7)', g: 'G3023' },
   // G3097 (CABIN STRIP, L19b): the fixture's new plots shift the stream queue's virtual-clock schedule - at --warm 6 other HOME
   // objects are built by the taxi frame; at --warm 300 before and after are identical (HWCOV's bisect, 19 Oct: 3 564 622 at the gate)
-  { key: 'taxi/tris.shadow', build: 'cessna', upTo: 3600000, why: 'G3097 fixture shifts the stream schedule; equal at --warm 300 (HWCOV 19 Oct)', g: 'G3097' }
+  { key: 'taxi/tris.shadow', build: 'cessna', upTo: 3600000, why: 'G3097 fixture shifts the stream schedule; equal at --warm 300 (HWCOV 19 Oct)', g: 'G3097' },
+  // G2991 (WORLD-LOOK debris, the user 26 Oct "keep the 131 debris"): the cover ring's debris are BatchedMeshes with
+  // perObjectFrustumCulled (G585) - each uploads its visible-instance list at every draw, per camera (main + cascades):
+  // taxi ~588 K -> ~779 K bytes a frame (Cub, 23:55 fold measure); upTo = measured + 5 %. The fix is ticket debris-batch-uploads
+  { key: 'taxi/bytes.texSubImage2D', build: 'cub', upTo: 818000, why: 'the 131 debris (the user 26 Oct): G585 BatchedMesh visible-list uploads per draw (ticket debris-batch-uploads)', g: 'G2991' },
+  { key: 'taxi/bytes.texSubImage2D', build: 'cessna', upTo: 825000, why: 'the 131 debris (the user 26 Oct): G585 BatchedMesh visible-list uploads per draw (ticket debris-batch-uploads)', g: 'G2991' }
 ];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------

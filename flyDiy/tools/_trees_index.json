@@ -1,5 +1,5 @@
 {
- "generated": "2026-09-22T12:01:59.597Z",
+ "generated": "2026-10-26T18:20:09.141Z",
  "raw": [
   "assets/treesRaw",
   "assets/vegetation"
@@ -7273,6 +7273,119 @@
    "folder": "vegetation/grass",
    "fileMB": 1.49,
    "binMB": 1.48,
+   "renderable": true
+  },
+  {
+   "name": "fern_grass_02.glb",
+   "tris": 2128,
+   "meshes": 1,
+   "materials": [
+    {
+     "name": "Material",
+     "alpha": "MASK",
+     "cutoff": 0.5336735014335281,
+     "doubleSided": true,
+     "img": 0,
+     "cannotCut": false
+    }
+   ],
+   "alphaBlend": 0,
+   "alphaMask": 1,
+   "cannotCut": 0,
+   "images": 3,
+   "imageList": [
+    {
+     "i": 0,
+     "name": "",
+     "kb": 169,
+     "fmt": "png",
+     "hasAlpha": true
+    },
+    {
+     "i": 1,
+     "name": "",
+     "kb": 42,
+     "fmt": "png",
+     "hasAlpha": false
+    },
+    {
+     "i": 2,
+     "name": "",
+     "kb": 163,
+     "fmt": "png",
+     "hasAlpha": false
+    }
+   ],
+   "texMB": 0.37,
+   "generator": "Sketchfab-15.49.0",
+   "credit": {
+    "author": "Digital screen official (https://sketchfab.com/ck212575)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/fern-grass-02-93d1f6a261e24b8394d0ea41cf985ef9",
+    "title": "fern grass 02"
+   },
+   "licence": {
+    "text": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "ok": true,
+    "why": "CC-BY — attribution required, see CREDITS.md"
+   },
+   "rawMeshes": 1,
+   "rawNodes": 3,
+   "extensions": [
+    "KHR_materials_specular"
+   ],
+   "trees": [],
+   "shrubs": [],
+   "cover": [
+    {
+     "name": "fern grass 02.obj.cleaner.materialmerger.gles",
+     "kind": "cover",
+     "h": 0.03,
+     "tris": 2128,
+     "parts": 1,
+     "sig": "0d5a38f51c74",
+     "copies": 1,
+     "islands": 0,
+     "merged": false,
+     "inPlace": false,
+     "origin": [
+      -0.02,
+      -0.01,
+      -0.05
+     ],
+     "clips": [],
+     "lods": [
+      {
+       "lod": 0,
+       "tris": 2128
+      }
+     ],
+     "chainInside": false,
+     "els": [
+      {
+       "node": 2,
+       "lod": null,
+       "tris": 2128,
+       "name": "Object_2",
+       "clips": null
+      }
+     ]
+    }
+   ],
+   "billboards": [],
+   "terrain": [],
+   "rocks": [],
+   "folderKind": "cover",
+   "weldedTrees": 0,
+   "tallest": 0.03,
+   "scaleFlag": true,
+   "scaleHint": 33.33333,
+   "binSha": "7400aaf9fefc",
+   "kind": "glb",
+   "file": "vegetation/grass/fern_grass_02.glb",
+   "folder": "vegetation/grass",
+   "fileMB": 0.49,
+   "binMB": 0.49,
    "renderable": true
   },
   {

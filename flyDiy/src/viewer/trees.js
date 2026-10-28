@@ -74,6 +74,7 @@
     const seen = new Uint8Array(256), T = I.ttype;
     for (let k = 0; k < T.length; k++) seen[T[k]] = 1;
     if (seen[6]) seen[12] = 1; if (seen[8]) seen[13] = 1; if (seen[7]) seen[14] = 1;
+    if (seen[1]) seen[18] = 1;   // G3430: a lake's shore band is 18 LAKESHORE (28c_biomes SHORE; the cover ring's)
     const names = new Set(['grass_dry']);
     for (let c = 0; c < 256; c++) { if (!seen[c]) continue;
       const m = B.mixAt(c), M = m && B.mixOf(m); if (M && M.species) for (const sp of Object.keys(M.species)) names.add(sp); }
@@ -363,7 +364,7 @@
   // onto the conifers' 0.42) with MASTER's hue - hue added, saturation and lightness multiplied. Identity by
   // default: nothing moves until the world rail moves it (TREE_LEAF.kindTint; the world look's `kindTint`).
   const COVER_BASE = { sat: 1.58, light: 1.12 };
-  const KIND_MASTER = { cover: { hue: 0, sat: 1, light: 1.3 }, shrub: { hue: 0, sat: 1, light: 1 }, flower: { hue: 0.015, sat: 0.74, light: 0.56 } };   // G2939: the user's look, 12 Oct
+  const KIND_MASTER = { cover: { hue: 0, sat: 1, light: 1.3 }, shrub: { hue: -0.055, sat: 1, light: 1 }, flower: { hue: -0.04, sat: 0.96, light: 0.18 } };   // G2939: the user's look, 12 Oct; the shrubs' hue and the flowers' colour, the user's look of 24 Oct (WORLD-LOOK colours: bugReports/flydiy-world-look-2026-10-241657.json, kindTint)
   // THE FLOWERS' COLOUR (GRASS-DENSE G2566, the user 9-10 Oct: colour options for the flowers, "they stand out"): a flower is its
   // picture (no tint of its own, the ring's 'cut' material), so its kind master is a hook of its own - TINT_GLSL after the map with
   // these uniforms (no flattening: uFlat 1), identity by default. TREE_LEAF.kindTint('flower', { sat: 0.7 }) moves every flower

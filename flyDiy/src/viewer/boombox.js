@@ -164,12 +164,7 @@ var BOOMBOX = (function () {
   // ---- THE PANEL -------------------------------------------------------------------------------------------------------
   let panel = null, body = null, obj = null, offs = [], vw = 0, vh = 0, vx = 0, vy = 0, cx = 0, cy = 0, cw = 0, ch = 0;
   let pw = 0, ph = 0, lastL = -1e9, lastT = -1e9, canvasEl = null;
-  // G3533 (HANGARS-LOOK, the user 24 Oct: "the little radio UI back when clicking the boombox or its icon"): opened from the
-  // quick bar's radio icon the card stands beside the ICON (`pin`, the button) and does not follow the radio
-  let pin = null;
-  // and the card is DRAGGABLE (the user's rule, 25 Oct; card_drag.js registers #bbPanel under 'boombox'): once the player has
-  // put it somewhere, it stays there - neither the radio nor the icon moves it again (double-click on it = home)
-  const dragged = () => { try { return !!(G.FLYDIY_DRAG && G.FLYDIY_DRAG.placed && G.FLYDIY_DRAG.placed('boombox')); } catch (e) { return false; } };
+  let pinned = false;   // G3723: opened from the top bar's radio button - stands under it, follows no prop
   const refs = {};   // the live bits a refresh repaints (no rebuild under a dragged slider)
   const isOpen = () => !!panel;
   const D = () => G.document || null;
@@ -349,9 +344,9 @@ var BOOMBOX = (function () {
     const t = e && e.target;
     if (panel && t && panel.contains && panel.contains(t)) return;
     if (t && t.closest && t.closest('#musicCredits')) return;   // the credits screen opened from here
+    if (t && t.closest && t.closest('[data-q="radio"]')) return;   // G3723: the top bar's radio button toggles it itself
     // a press ON the radio leaves it to the click that follows (which toggles the panel shut)
     if (t && t === canvasEl && hovered) return;
-    if (pin && t && pin.contains && pin.contains(t)) return;   // G3533: a press on the icon leaves it to its own click (the toggle)
     close();
   }
   // open beside the radio o; canvas: the render's (the anchor's pixels)
@@ -359,7 +354,6 @@ var BOOMBOX = (function () {
     const Dc = D();
     if (!Dc || !Dc.createElement) return false;
     obj = o; canvasEl = canvas || canvasEl;
-    pin = null;   // G3533: a click on the radio itself anchors the card to the radio again (toggleAt pins after this)
     if (!panel) {
       panel = el('div'); panel.id = 'bbPanel';
       panel.setAttribute('role', 'dialog'); panel.setAttribute('aria-label', 'The radio');
@@ -386,24 +380,7 @@ var BOOMBOX = (function () {
     if (my && my.restore && radio.soundOn()) my.restore().then(() => { if (panel) refresh(); }, () => {});
     return true;
   }
-  // G3533: the quick bar's radio icon - the card beside the icon (the same card, the same rows); a second press shuts it
-  function toggleAt(btn, o) {
-    if (panel && pin && pin === btn) { close(); return false; }
-    if (panel) close();
-    if (!open(o || null, canvasEl)) return false;
-    pin = btn || null;
-    if (pin && pin.getBoundingClientRect && !dragged()) {
-      const r = pin.getBoundingClientRect();
-      let L = r.right - vx + 10;
-      if (L + pw > vw - 12) L = r.left - vx - 10 - pw;
-      L = Math.max(12, Math.min(vw - pw - 12, L));
-      const Tp = Math.max(12, Math.min(vh - ph - 12, r.top - vy));
-      panel.style.left = Math.round(L) + 'px'; panel.style.top = Math.round(Tp) + 'px';
-    }
-    return true;
-  }
   function close() {
-    pin = null;
     if (!panel) return;
     const Dc = D();
     Dc.removeEventListener('keydown', onKey, true);
@@ -412,9 +389,23 @@ var BOOMBOX = (function () {
     for (const f of offs) { try { f(); } catch (e) {} }
     offs = [];
     if (panel.parentNode) panel.parentNode.removeChild(panel);
-    panel = null; body = null;
+    panel = null; body = null; pinned = false;
     for (const k in refs) delete refs[k];
     if (!hovered) cue(null, false);
+  }
+  // G3723 (PHONE-GARAGE; the user, 25 Oct: "a single button with the radio, and pop up a little menu where we can also
+  // turn it off"): THE SAME CARD, opened from the top bar's radio button and pinned under it - no prop to follow (the
+  // phone's studio has none), so frame() leaves it where it stands; card_drag.js moves it like any card
+  function openAt(btn) {
+    if (!open(null, canvasEl)) return false;
+    pinned = true;
+    if (G.FLYDIY_DRAG && G.FLYDIY_DRAG.placed && G.FLYDIY_DRAG.placed(KEY)) return true;
+    const view = panel.parentNode, vb = view && view.getBoundingClientRect ? view.getBoundingClientRect() : { left: 0, top: 0 };
+    const r = btn && btn.getBoundingClientRect ? btn.getBoundingClientRect() : null, W0 = G.innerWidth || 1280;
+    const L = Math.max(8, Math.min((r ? r.right - pw : 8), W0 - pw - 8));
+    panel.style.left = Math.round(L - vb.left) + 'px';
+    panel.style.top = Math.round((r ? r.bottom + 8 : 64) - vb.top) + 'px';
+    return true;
   }
   // app.js's click: true when the radio took it (the panel toggles)
   function click(o, ray, hit, canvas) {
@@ -426,8 +417,7 @@ var BOOMBOX = (function () {
   // the radio is gone (the shed left, the kit hidden) or off the screen. getObj: app.js's lookup, asked only now.
   function frame(camera, getObj) {
     if (!panel) return;
-    if (pin) return;   // G3533: stood beside the icon - it stays there until Esc, a press outside or the icon again
-    if (dragged()) return;   // the player's place (card_drag.js) - not the radio's
+    if (pinned) return;   // G3723: stood under the top bar's button - it stays until Esc, a press outside or the button
     const o = typeof getObj === 'function' ? getObj() : getObj;
     const S = scratch();
     if (!o || !S || !camera || !shown(o)) { close(); return; }
@@ -457,7 +447,7 @@ var BOOMBOX = (function () {
     return true;
   }
 
-  return { radio, pick, hitBox, hover, click, open, toggleAt, close, frame, refresh, placed, get isOpen() { return isOpen(); },
+  return { radio, pick, hitBox, hover, click, open, openAt, close, frame, refresh, placed, get isOpen() { return isOpen(); },
     get hovered() { return hovered; }, KEY, _localBox: localBox, _halo: () => halo };
 })();
 if (typeof window !== 'undefined') window.BOOMBOX = BOOMBOX;
