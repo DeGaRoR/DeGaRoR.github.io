@@ -918,6 +918,31 @@ for (const f of fail) console.log('  FAIL ' + f);
   }
 }
 
+// ---------------------------------------------------------------------------
+// G3549b A BUSH TYRE IS NEVER A SLICK (the user, 27 Oct: the tundras "suck in their geometry and thread"): the
+// torus wears low lugs for whTread 1 and 2 (procure's tundra writes 1), the drawing following the carcass - whTread is
+// a hashed cage row and moves nowhere. The lugs are the only thing that stands proud of the radius bought: their tops
+// sit BUSH_LUG.h (1.6 % R) off the crown, low as a Bushwheel's 3/16" on 31". A 31" tundra (R 0.394).
+{
+  const axle = [0.8, -1.0, 2.0], axis = [1, 0, 0], R = 0.394;
+  const tyreOf = P => { const b = freshBags(); GG.wheel(b, axle, axis, R, { inboard: 1, P }); return readBags(b).tyre; };
+  const rMaxOf = g => { let m = 0;
+    for (let i = 0; i < g.pos.length; i += 3) m = Math.max(m, Math.hypot(g.pos[i + 1] - axle[1], g.pos[i + 2] - axle[2]));
+    return m; };
+  const t1 = tyreOf({ whProfile: 1, whTread: 1 }), t2 = tyreOf({ whProfile: 1, whTread: 2 });
+  const t0 = tyreOf({ whProfile: 1, whTread: 0 }), s1 = tyreOf({ whProfile: 0, whTread: 1 });
+  if (check(!!(t1 && t2 && t0 && s1), 'G3549b: a tyre was not drawn')) {
+    const h = (rMaxOf(t1) - R) / R;
+    check(h > 0.008 && h < 0.024, 'G3549b: the tundra\'s lugs do not stand low and proud of the carcass (0.8-2.4 % R)', (h * 100).toFixed(2) + ' % R');
+    check(t1.nt === t2.nt && Math.abs(rMaxOf(t1) - rMaxOf(t2)) < 1e-9,
+      'G3549b: whTread 1 and 2 draw different tundras (the carcass decides, not the hashed row)', t1.nt + ' vs ' + t2.nt + ' tris');
+    check(rMaxOf(t0) <= R * 1.001, 'G3549b NEGATIVE: the ribbed torus (whTread 0) stands something proud - the instrument cannot tell lugs',
+      ((rMaxOf(t0) / R - 1) * 100).toFixed(2) + ' % R');
+    check(rMaxOf(s1) <= R * 1.001, 'G3549b: the standard carcass grew lugs', ((rMaxOf(s1) / R - 1) * 100).toFixed(2) + ' % R');
+    console.log('  tundra 31": lugs ' + (h * 100).toFixed(2) + ' % R proud, ' + t1.nt + ' tris (ribbed ' + t0.nt + ')');
+  }
+}
+
 // the sections after the summary (7-centre, 10-13) print their own reds
 for (const f of fail) if (!printed.has(f)) console.log('  FAIL ' + f);
 console.log('GATE GEAR: ' + (fail.length ? 'FAIL' : 'PASS'));
