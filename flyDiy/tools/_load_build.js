@@ -162,7 +162,7 @@ if (require.main === module && process.argv.includes('--child')) (async () => {
   // 2. _cage_ui.js applySpec: P from the spec, PAGE.load (a load is not a row change), the energy and panel layers
   //    seeded from the spec, one build of every layer
   const PAGE = W.CAGE_PAGE || (W.CAGE_PAGE = {});
-  if (PAGE.load) try { PAGE.load(); } catch (e) {}
+  if (PAGE.load) try { PAGE.load(spec); } catch (e) {}
   if (W.CAGE_ENERGY && W.CAGE_ENERGY.fromSpec) W.CAGE_ENERGY.fromSpec(spec.energy);
   if (W.CAGE_PANEL && W.CAGE_PANEL.fromSpec) W.CAGE_PANEL.fromSpec(spec.systems);
   // THE FLOWN AEROPLANE'S CG, model frame (app.js publishes it as FLYDIY_CG_MODEL whenever it builds the aeroplane,

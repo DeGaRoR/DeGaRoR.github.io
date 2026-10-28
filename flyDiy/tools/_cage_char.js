@@ -1,18 +1,17 @@
 // CAGE CHAR — rigged characters for the crew layer (G204).
 //
-// The ATD-01 dummy in _cage_crew.js is a 21-bone skeleton with analytic IK
-// that finds the grips from the control positions. A Mixamo character is a
-// skinned mesh over a 65-joint rig. This module makes the second wear the
-// first's solution: the ATD skeleton is REBUILT WITH THE CHARACTER'S OWN
-// PROPORTIONS (joint offsets read off the rig's reference pose, so the hands
-// really land where the character's hands are), the crew layer poses and IK-
-// solves it exactly as before, and `dress` copies each solved bone's world
-// orientation onto the matching Mixamo joint — every unmapped joint (Spine2,
-// fingers, toes, the head top) rides rigidly with its nearest mapped
-// ancestor. The mesh follows through ordinary GPU skinning.
+// A Mixamo character is a skinned mesh over a 65-joint rig. The crew layer
+// (_cage_crew.js) seats it and lays its hands and feet on the controls with
+// an analytic two-bone IK that runs on a SOLVER CHAIN: nineteen of the
+// character's OWN joints (CHAIN below, by their Mixamo names - Hips to the
+// feet), at the positions its own reference pose puts them (G3700: nothing
+// else - no stand-in body, no borrowed proportions). `dress` copies each
+// solved joint's world orientation onto the same-named Mixamo joint; every
+// joint off the chain (Spine2, fingers, toes, the head top) rides rigidly
+// with its nearest chain ancestor. The mesh follows through GPU skinning.
 //
 // Conventions that meet here:
-//   ATD    rest = identity everywhere, standing, arms hanging, +x the pilot's
+//   CHAIN  rest = identity everywhere, standing, arms hanging, +x the pilot's
 //          left, +y up, +z forward; a limb bone's local -y runs down the
 //          segment; a HAND's +x is the grip axis (thumb side), -y the fingers,
 //          +-z the palm (gripQuat in _cage_crew.js).
@@ -21,8 +20,8 @@
 //          hand's bone axis runs to the fingers, palm faces the body, thumb
 //          forward (+z world) when the arm is brought down to hang.
 // The REFERENCE POSE is the rig's rest with each upper arm rotated by the
-// shortest arc onto straight down — that pose IS the ATD identity, so the
-// transfer is: joint.worldQ = atdBone.worldQ * C * joint.refWorldQ, with C
+// shortest arc onto straight down — that pose IS the chain's identity, so
+// the transfer is: joint.worldQ = chainJoint.worldQ * C * joint.refWorldQ, with C
 // the identity except on hands, where a fixed 90 deg about the hand's own
 // length turns "palm to the body" into "palm across the grip".
 //
@@ -34,26 +33,19 @@ const D2R = Math.PI / 180;
 const REG = () => (typeof CHAR_REG !== 'undefined' ? CHAR_REG
                    : (window.CHAR_REG || { chars: {}, order: [] }));
 
-// ATD bone -> Mixamo joint (base name; the "mixamorig:" prefix is stripped)
-const MAP = {
-  root: 'Hips', lumbar: 'Spine', thorax: 'Spine1', neck: 'Neck', head: 'Head',
-  clavicleL: 'LeftShoulder', shoulderL: 'LeftArm', elbowL: 'LeftForeArm',
-  wristL: 'LeftHand', clavicleR: 'RightShoulder', shoulderR: 'RightArm',
-  elbowR: 'RightForeArm', wristR: 'RightHand',
-  hipL: 'LeftUpLeg', kneeL: 'LeftLeg', ankleL: 'LeftFoot',
-  hipR: 'RightUpLeg', kneeR: 'RightLeg', ankleR: 'RightFoot',
+// THE SOLVER CHAIN: Mixamo joint (base name; the "mixamorig:" prefix is
+// stripped) -> its chain parent. Spine2 is not on it (the shoulders hang off
+// Spine1 and Spine2 rides along), so the parent is the chain's, not always
+// the rig's. The order is the build order: every parent before its child.
+const CHAIN_PARENT = {
+  Hips: null, Spine: 'Hips', Spine1: 'Spine', Neck: 'Spine1', Head: 'Neck',
+  LeftShoulder: 'Spine1', LeftArm: 'LeftShoulder', LeftForeArm: 'LeftArm',
+  LeftHand: 'LeftForeArm', RightShoulder: 'Spine1', RightArm: 'RightShoulder',
+  RightForeArm: 'RightArm', RightHand: 'RightForeArm',
+  LeftUpLeg: 'Hips', LeftLeg: 'LeftUpLeg', LeftFoot: 'LeftLeg',
+  RightUpLeg: 'Hips', RightLeg: 'RightUpLeg', RightFoot: 'RightLeg',
 };
-// the ATD's own parent table (the order _cage_crew.js's BONES uses)
-const ATD_PARENT = {
-  root: null, lumbar: 'root', thorax: 'lumbar', neck: 'thorax', head: 'neck',
-  clavicleL: 'thorax', shoulderL: 'clavicleL', elbowL: 'shoulderL',
-  wristL: 'elbowL', clavicleR: 'thorax', shoulderR: 'clavicleR',
-  elbowR: 'shoulderR', wristR: 'elbowR', hipL: 'root', kneeL: 'hipL',
-  ankleL: 'kneeL', hipR: 'root', kneeR: 'hipR', ankleR: 'kneeR',
-};
-const ATD_ORDER = ['root', 'lumbar', 'thorax', 'neck', 'head', 'clavicleL',
-  'shoulderL', 'elbowL', 'wristL', 'clavicleR', 'shoulderR', 'elbowR',
-  'wristR', 'hipL', 'kneeL', 'ankleL', 'hipR', 'kneeR', 'ankleR'];
+const CHAIN = Object.keys(CHAIN_PARENT);
 const HAND_C = new THREE.Quaternion().setFromAxisAngle(
   new THREE.Vector3(0, 1, 0), Math.PI / 2);
 const base = n => n.replace(/^.*:/, '');
@@ -95,8 +87,8 @@ function hangArm(t, side) {
   t.root.updateMatrixWorld(true);
 }
 
-// ---- THE RIG: what the crew layer needs to build its ATD skeleton ---------
-// Computed from the manifest alone (no bin, no textures), so the dummy's
+// ---- THE RIG: what the crew layer needs to build the solver chain ---------
+// Computed from the manifest alone (no bin, no textures), so the chain's
 // proportions are right from the first build even while the mesh is still on
 // the wire. Cached per key.
 const RIGS = {};
@@ -124,13 +116,13 @@ function rig(key) {
   });
   hangArm(t, 'Left'); hangArm(t, 'Right');
   const wp = {};
-  for (const k in MAP) {
-    const o = t.byBase[MAP[k]];
-    if (!o) throw new Error('char ' + key + ': no joint for ' + k + ' (' + MAP[k] + ')');
+  for (const k of CHAIN) {
+    const o = t.byBase[k];
+    if (!o) throw new Error('char ' + key + ': no joint ' + k);
     wp[k] = o.getWorldPosition(new THREE.Vector3());
   }
-  const bones = ATD_ORDER.map(k => {
-    const p = ATD_PARENT[k];
+  const bones = CHAIN.map(k => {
+    const p = CHAIN_PARENT[k];
     const d = p ? wp[k].clone().sub(wp[p]) : new THREE.Vector3();
     return [k, p, [+d.x.toFixed(4), +d.y.toFixed(4), +d.z.toFixed(4)]];
   });
@@ -140,9 +132,17 @@ function rig(key) {
     if (y < yMin) yMin = y; if (y > yMax) yMax = y; });
   // the reference world quaternion of EVERY node, in the tree's frame
   const refQ = t.objs.map(o => o.getWorldQuaternion(new THREE.Quaternion()));
+  // THE EYES, off the character's own head (G3700): the rig carries no eye
+  // joints, so the eye point is read off the Head -> HeadTop_End span, `hl`:
+  // half of it up from the Head joint and a third of it forward - the eyes'
+  // place in a head, in the Head joint's frame (the chain's rest, +z ahead)
+  const top = t.byBase.HeadTop_End;
+  const hl = top ? top.getWorldPosition(new THREE.Vector3()).y - wp.Head.y : 0;
   return (RIGS[key] = { key, bones, height: yMax - yMin,
-    hipsOff: wp.root.clone(),                 // Hips in the tree's frame
-    hipDrop: wp.root.y - wp.hipL.y,           // pelvis centre above hip joints
+    hipsOff: wp.Hips.clone(),                 // Hips in the tree's frame
+    hipDrop: wp.Hips.y - wp.LeftUpLeg.y,      // pelvis centre above hip joints
+    eye: hl > 0.05 ? [0, 0.5 * hl, hl / 3] : null,
+    crown: hl > 0.05 ? hl : null,             // the head top over the Head joint
     refQ, restLocal, curl,
     byBase: (() => { const m = {}; t.objs.forEach((o, i) => { m[base(o.name)] = i; }); return m; })() });
 }
@@ -150,12 +150,12 @@ function rig(key) {
 // ---- LOAD: the bin through the page's one fetch ---------------------------
 const DEC = {}, LOADING = {}, FAILED = {};
 function ready(key) { return DEC[key] || null; }
-// A FAILED FETCH IS NOT REMEMBERED (G210.1, the user: 'selecting any mixamo
-// figures gives me back the original mannequin'). The first cut cached the
+// A FAILED FETCH IS NOT REMEMBERED (G210.1: the user picked a Mixamo figure
+// and got the old stand-in back). The first cut cached the
 // failed promise for the page's life, and ASSET_FETCH caches a rejection by
 // URL on purpose — so one dropped connection while a mixed crew pulled
 // 300 MB of textures (the dev servers drop connections under load) left
-// that character a mannequin until a reload. Now a failure is forgotten,
+// that seat without its character until a reload. Now a failure is forgotten,
 // the next build tries again, and the retry goes round ASSET_FETCH's cached
 // rejection with a fresh fetch. Both go through assets.js, which gunzips the
 // `.gz.bin` transport (G930): a plain fetch() here would hand the codec gzip.
@@ -360,11 +360,11 @@ function instance(key) {
     const sm = new THREE.SkinnedMesh(geos[i], material(c, m.mat));
     sm.name = 'char:' + c.key + ':' + m.name;
     sm.frustumCulled = false;                 // the sphere is the rest pose's
-    // NOT PICKABLE (G204.2): r128 raycasts a SkinnedMesh at its BIND pose —
-    // a T-pose under the floor — so a click there selected the crew and the
-    // highlight drew that ghost ('the 4 little dots at the bottom'). The
-    // crew layer's invisible ATD shells, which follow the pose, take the
-    // clicks and the silhouette instead.
+    // NOT PICKED ITSELF (G204.2; G3700): its attributes are the BIND pose
+    // (a T-pose under the floor, 'the 4 little dots at the bottom'), and a
+    // skinned raycast would skin every vertex on every hover. The posed body
+    // (pickBody below) takes the clicks and the crew clearance; the
+    // highlight draws this mesh's own skinned copy (editor.js).
     sm.raycast = () => {};
     const node = t.objs[m.node];
     node.add(sm);
@@ -381,7 +381,7 @@ function instance(key) {
   return { key, c, tree: t, skeleton, meshes, rig: rig(key) };
 }
 
-// ---- DRESS: the solved ATD skeleton -> the character's joints -------------
+// ---- DRESS: the solved crew skeleton -> the character's joints ------------
 // `dum` is _cage_crew.js's { fig, bones }; the instance root is parented under
 // fig (which carries the stature scale and no rotation) with the Hips on the
 // fig origin. Orientations are transferred in the FIG's frame, so a rotated
@@ -403,12 +403,12 @@ function dress(inst, dum, opts) {
   const src = opts.from || dum;
   src.fig.updateWorldMatrix(true, false);
   src.fig.getWorldQuaternion(_fq).invert();
-  // ATD bone world -> fig frame, once per mapped bone
-  const atdQ = {};
-  for (const k in MAP) {
+  // chain joint world -> fig frame, once per chain joint
+  const rigQ = {};
+  for (const k of CHAIN) {
     const b = src.bones[k];
     if (!b) continue;
-    atdQ[MAP[k]] = _fq.clone().multiply(b.getWorldQuaternion(new THREE.Quaternion()));
+    rigQ[k] = _fq.clone().multiply(b.getWorldQuaternion(new THREE.Quaternion()));
   }
   // depth-first from the tree root: each node takes its nearest mapped
   // ancestor's delta; parent world quaternions accumulate in the fig frame
@@ -417,8 +417,8 @@ function dress(inst, dum, opts) {
     let d = delta;
     if (i >= 0) {
       const nm = base(o.name);
-      if (atdQ[nm]) {
-        d = atdQ[nm].clone();
+      if (rigQ[nm]) {
+        d = rigQ[nm].clone();
         if (nm === 'LeftHand' || nm === 'RightHand') d.multiply(HAND_C);
       }
       if (d) {
@@ -461,7 +461,7 @@ function dress(inst, dum, opts) {
 // WHERE THE FIST CLOSES (G279): the world centroid of the four fingers'
 // middle phalanges — the hollow a grip sits in once the fingers curl. The
 // crew layer aims its grips at THIS, not at the wrist: the rig's hand is
-// its own length, offset from the ATD's wrist by its own arm's proportions,
+// its own length, offset from the skeleton's wrist by its own arm's proportions,
 // and the two differed by 5 cm along the stick on one hand and by nothing
 // on the other. Read after dress().
 const _fp = new THREE.Vector3();
@@ -481,14 +481,14 @@ function fistAt(inst, side, out) {
 // WHERE THE SOLE IS (G468, playtest item 25, the user: "the feet of the
 // pilot are not well calibrated to the pedals"): the rig's shoe is its own
 // depth and length under the ankle - on the build (4) pilot the sole ran
-// 11 cm under the Foot bone against the ATD's 7 cm, and the toes 25 cm
-// forward against 21 - so a target solved for the ATD's foot box sank the
+// 11 cm under the Foot bone against the reference foot's 7 cm, and the toes
+// 25 cm forward against 21 - so a target solved for that foot box sank the
 // shoe 4 cm through the pedal plate and pushed the toes out past its top.
 // This reads the DRESSED foot: every skinned vertex weighted to the side's
 // Foot / ToeBase bones, expressed in `frameInv` (the pedal anchor's frame,
 // whose -y is into the plate), the lowest tenth along that -y averaged -
 // the sole's contact patch, in the anchor's own axes. fitSoles() in the
-// crew layer moves the target by the difference to the ATD's mid-sole.
+// crew layer moves the target by the difference to the reference mid-sole.
 const _sv = new THREE.Vector3();
 // G1455 (RELEASE-FAST): WHICH VERTICES ARE THE SOLE is a fact of the shared geometry (its skin indices and weights) and
 // the skeleton's bone names - kept per geometry, by the side and the names and the attributes' versions; the pose
@@ -538,6 +538,72 @@ function soleAt(inst, side, frameInv, out) {
   return out.multiplyScalar(1 / n);
 }
 
+// THE POSED BODY (G3700; the user, 25 Oct: "the outline should
+// be theirs"). A skinned mesh's attributes are its bind pose, so whatever asks
+// WHERE THE BODY IS - the click, the tank's crew clearance (_cage_energy.js
+// crewPoints) - reads this instead: each skinned mesh's vertices put through
+// its bones once, as built (after dress and the fist and sole fits), into a
+// plain mesh under it, drawn by an invisible material (nothing shows, nothing
+// shadows, the join's walk skips it). It shares the index; a rebuild re-poses
+// it in place. The bone matrices are formed once per mesh, so this is four
+// weighted transforms per vertex, not applyBoneTransform's matrix products.
+const PICK_MAT = new THREE.MeshBasicMaterial({ visible: false });
+// guarded: the node gates load this file under a THREE stub whose materials
+// carry no userData
+if (PICK_MAT.userData) PICK_MAT.userData.cageUni = 1;   // the editor's passes leave it be
+const PICKS = new WeakMap();
+const _bm = new THREE.Matrix4();
+function pickBody(inst) {
+  const out = [];
+  if (!inst) return out;
+  inst.tree.root.updateMatrixWorld(true);
+  for (const m of inst.meshes) {
+    if (!m.isSkinnedMesh) continue;
+    const g = m.geometry, p = g.attributes.position,
+          si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
+    if (!p || !si || !sw) continue;
+    let pk = PICKS.get(m);
+    if (!pk) {
+      const pg = new THREE.BufferGeometry();
+      pg.setAttribute('position', new THREE.BufferAttribute(new Float32Array(p.count * 3), 3));
+      if (g.index) pg.setIndex(g.index);
+      pk = new THREE.Mesh(pg, PICK_MAT);
+      pk.name = 'edCrewPick';
+      pk.userData.pick = 1;
+      pk.userData.charPick = 1;
+      m.add(pk);
+      PICKS.set(m, pk);
+    }
+    // bindMatrixInverse * bone.matrixWorld * boneInverse * bindMatrix, per bone
+    const sk = m.skeleton, nb = sk.bones.length, M = new Float32Array(nb * 16);
+    for (let b = 0; b < nb; b++) {
+      _bm.multiplyMatrices(sk.bones[b].matrixWorld, sk.boneInverses[b])
+         .premultiply(m.bindMatrixInverse).multiply(m.bindMatrix);
+      M.set(_bm.elements, b * 16);
+    }
+    const P3 = p.array, ps = p.itemSize, I4 = si.array, W4 = sw.array,
+          A = pk.geometry.attributes.position, O = A.array;
+    for (let i = 0; i < p.count; i++) {
+      const x = P3[i * ps], y = P3[i * ps + 1], z = P3[i * ps + 2];
+      let ox = 0, oy = 0, oz = 0;
+      for (let k = 0; k < 4; k++) {
+        const w = W4[i * 4 + k];
+        if (!w) continue;
+        const e = I4[i * 4 + k] * 16;
+        ox += w * (M[e] * x + M[e + 4] * y + M[e + 8] * z + M[e + 12]);
+        oy += w * (M[e + 1] * x + M[e + 5] * y + M[e + 9] * z + M[e + 13]);
+        oz += w * (M[e + 2] * x + M[e + 6] * y + M[e + 10] * z + M[e + 14]);
+      }
+      O[i * 3] = ox; O[i * 3 + 1] = oy; O[i * 3 + 2] = oz;
+    }
+    A.needsUpdate = true;
+    pk.geometry.computeBoundingSphere();
+    pk.geometry.computeBoundingBox();
+    out.push(pk);
+  }
+  return out;
+}
+
 // dispose the per-instance objects (geometries and materials are shared and
 // stay for the page's life)
 function dispose(inst) {
@@ -547,7 +613,7 @@ function dispose(inst) {
 // ---- THE CLIPS (G205) -----------------------------------------------------
 // A Mixamo clip retargets by JOINT NAME: same rig, same joint frames, so a
 // sampled local rotation is the same rotation on every character. Two ways
-// to wear one, both layered OVER the solved pose (the ATD keeps the root,
+// to wear one, both layered OVER the solved pose (the skeleton keeps the root,
 // the legs, and for a pilot the arms — the user: 'we need to keep being
 // able to edit the position ourselves'):
 //   'body'  the clip's DEVIATION from its own MEAN pose, scaled by `amp`,
@@ -723,7 +789,12 @@ function flatMaterial(key, mi) {
   return (FLAT[k] = m);
 }
 
-window.CAGE_CHAR = { MAP, list: () => REG().order.map(k => REG().chars[k]),
-  rig, load, ready, instance, dress, dispose, flatMaterial, fistAt, soleAt,
+// THE RACER (G3700; the user, 25 Oct: "Our test guy is the racer mixamo
+// character, it's approved, it will always be them by default"): the car
+// driver in the red suit and the helmet, Stig in the story's cast
+// (72_people.js). Every pilot seat wears them unless the career hires another.
+const RACER = 'ch20';
+window.CAGE_CHAR = { CHAIN, RACER, list: () => REG().order.map(k => REG().chars[k]),
+  rig, load, ready, instance, dress, dispose, flatMaterial, fistAt, soleAt, pickBody,
   animLoad, animate, animStep, clearAnims, anims: () => ANIMS().order.slice() };
 })();

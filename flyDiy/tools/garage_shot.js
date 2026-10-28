@@ -2,6 +2,9 @@
 //
 //   node tools/garage_shot.js --url http://localhost:8450/flyDiy/dev.html --stock "cessna 172" \
 //        --out screenshots/c172 [--views q,s,f,t,x,fleet,air] [--wait 15000] [--log]
+//   node tools/garage_shot.js --file tools/fixtures/build_v10_engcfg_pushpull_2026-10-22.json --out screenshots/pp
+//        (ENGINE-CONFIGS-2: a BUILD FILE in place of a stock row - dropped on the garage as the user drops one,
+//        the DROP-JSON door G2799 opened: the page's own import, readFile)
 //
 // island_shot.js's rig (headless Chrome on this machine's GPU, the page's own
 // buttons pressed through CDP), pointed at the garage: the page booted, the
@@ -11,6 +14,23 @@
 // the seats, the bulkhead), `fleet` = the shelf with the row on it, `air` =
 // the roll-out and a chase shot 25 s later. Written because the Browser
 // pane lost its WebGL context and the user asked for pictures.
+//
+// G3700 (the racer is the only pilot): `--build builds/x.json` loads a saved
+// build (GARAGE_SPEC.set) in place of a stock row; the `crew` view selects the
+// Crew part with SEE INSIDE on and frames the pilot (the selection outline the
+// user judges by eye), `hands` frames the pilot's two hands on the controls
+// from three sides; `--dump f.json` writes the crew and the tanks as the page
+// measured them (the eye point, the seats, every vessel's fit, the bench's
+// fingerprint) for the before/after comparison. Both old and new crew names
+// are read, so the same rig shoots the tree before the change.
+// `--cglog f.json` records, from before the build is loaded, every CG the
+// page publishes (FLYDIY_CG_MODEL), every balance answer (cgMX/cgMY with the
+// loading the spec carried then) and the float layer's step station: why a
+// floatplane's step moved on a load. The crew views assert the frame loop
+// first (rAF counted, the eye read back): a loop that never placed the camera
+// gets each framing placed by the orbit's own formula and one frame drawn by
+// hand, said in the log. A page call that does not answer in 60 s stops the
+// run naming the step (the 26 Oct PA-18 loads hung silently).
 'use strict';
 const { spawn } = require('child_process');
 const fs = require('fs');
@@ -20,9 +40,13 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
 const URL = opt('url', 'http://localhost:8450/flyDiy/dev.html');
 const STOCK = opt('stock', 'cessna 172');
+const FILE = opt('file', null);
 const OUT = opt('out', 'screenshots/shot');
 const VIEWS = opt('views', 'q,s,f,t,x,fleet,air').split(',');
 const WAIT = +opt('wait', 15000);
+const BUILD = opt('build', null);
+const DUMP = opt('dump', null);
+const CGLOG = opt('cglog', null);
 const PORT = 9400 + (process.pid % 500);
 const CHROME = ['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
   'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe', '/usr/bin/google-chrome'].find(p => fs.existsSync(p));
@@ -43,11 +67,14 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     if (m.method === 'Runtime.exceptionThrown') console.error('page exception: ' + (m.params.exceptionDetails.exception && m.params.exceptionDetails.exception.description || m.params.exceptionDetails.text).split(String.fromCharCode(10)).slice(0, 3).join(' | '));
     if (LOG && m.method === 'Runtime.consoleAPICalled') console.log('page ' + m.params.type + ': ' + m.params.args.map(a => a.value !== undefined ? a.value : a.description).join(' ').slice(0, 1200)); };
   const cmd = (method, params) => new Promise(r => { const i = ++id; waits.set(i, r); ws.send(JSON.stringify({ id: i, method, params: params || {} })); });
-  const ev = async expr => { const r = await cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true });
+  const ev = async expr => { const r = await Promise.race([cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }),
+      sleep(60000).then(() => { throw new Error('page: no answer in 60 s to ' + expr.slice(0, 90)); })]);
     if (!r.result || r.result.exceptionDetails) throw new Error('page: ' + JSON.stringify(r.result && r.result.exceptionDetails && r.result.exceptionDetails.text)); return r.result.result.value; };
   const shot = async name => { const s = await cmd('Page.captureScreenshot', { format: 'png' });
     fs.mkdirSync(path.dirname(OUT), { recursive: true });
-    const f = OUT + '_' + name + '.png'; fs.writeFileSync(f, Buffer.from(s.result.data, 'base64')); console.log('garage_shot: wrote ' + f); };
+    const f = OUT + '_' + name + '.png'; const png = Buffer.from(s.result.data, 'base64'); fs.writeFileSync(f, png);
+    // a flat frame (one colour, the canvas not drawn or the camera on nothing) compresses to a few KB: say so
+    console.log('garage_shot: wrote ' + f + (png.length < 30000 ? '  BLANK? (' + png.length + ' bytes)' : '')); return png.length; };
   await cmd('Page.enable'); await cmd('Runtime.enable');
   await cmd('Emulation.setDeviceMetricsOverride', { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
   await cmd('Page.navigate', { url: URL });
@@ -55,6 +82,7 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   let up = false;
   for (let i = 0; i < 60 && !up; i++) { await sleep(1000); up = await ev("!!(document.getElementById('gLoad') && window.CAGE_UI && window.CAGE_ENERGY)"); }
   if (!up) throw new Error('the garage never came up');
+  console.log('garage_shot: the garage up, boot ' + await ev("window.BOOT&&BOOT.state"));
   await sleep(3000);
   // the shelf, and the stock row
   const openFleet = "(async()=>{const u=[...document.querySelectorAll('button')].find(b=>/^(unsaved|" + STOCK.replace(/\s+/g, '') + ")$/i.test(b.textContent.trim()))||[...document.querySelectorAll('button')].find(b=>/unsaved/i.test(b.textContent));if(u)u.click();await new Promise(r=>setTimeout(r,500));document.getElementById('gLoad').click();await new Promise(r=>setTimeout(r,800));const f=document.getElementById('gFleet');return f?[...f.querySelectorAll('.gfStock button')].map(b=>b.textContent.trim()):null})()";
@@ -62,7 +90,23 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
   if (!rows) throw new Error('the shelf did not open');
   console.log('garage_shot: stock rows ' + JSON.stringify(rows));
   if (VIEWS.includes('fleet')) { await sleep(800); await shot('fleet'); }
-  const loaded = await ev("(()=>{const f=document.getElementById('gFleet');const b=[...f.querySelectorAll('.gfStock button')].find(x=>x.textContent.trim().toLowerCase().startsWith('" + STOCK.toLowerCase() + "'));if(!b)return false;b.click();return true;})()");
+  // G3700 --cglog: the CG trail, armed before the load (what the float layer stood its step on, and when)
+  if (CGLOG) await ev("(()=>{const L=window.__cgLog=[],t0=performance.now(),T=()=>+(performance.now()-t0).toFixed(0);" +
+    "const spec=()=>{try{const s=window.GARAGE_SPEC.get();return {occ:s.cabin&&s.cabin.occupied,pilots:s.cabin&&s.cabin.pilots,pax:s.cabin&&s.cabin.pax,seatsX:s.cabin&&s.cabin.seatsX,fuel:s.fuel&&s.fuel.litres,floatX:s.gear&&s.gear.floats&&s.gear.floats.x,mass:s.mass}}catch(e){return null}};" +
+    "(window.BALANCE_LISTENERS=window.BALANCE_LISTENERS||[]).push(r=>L.push({t:T(),k:'bal',cgMX:r.cgMX,cgMY:r.cgMY,mass:r.mass,spec:spec(),crewPending:!!(window.CAGE_CREW_PENDING&&CAGE_CREW_PENDING()),held:!!(window.CAGE_FLOAT_HELD&&CAGE_FLOAT_HELD())}));" +
+    "let cg=null,st=null;setInterval(()=>{const c=JSON.stringify(window.FLYDIY_CG_MODEL||null);if(c!==cg){cg=c;L.push({t:T(),k:'cg',cg:window.FLYDIY_CG_MODEL,spec:spec(),crewPending:!!(window.CAGE_CREW_PENDING&&CAGE_CREW_PENDING())});}" +
+    "const F=window.CAGE_FLOAT,s2=F?JSON.stringify([F.zStep,F.cgZ,F.cgY,F.cgFrom]):null;if(s2!==st){st=s2;L.push({t:T(),k:'step',zStep:F&&F.zStep,cgZ:F&&F.cgZ,cgY:F&&F.cgY,cgFrom:F&&F.cgFrom,zFw:window.CAGE_DATUM&&CAGE_DATUM.zFw,held:!!(window.CAGE_FLOAT_HELD&&CAGE_FLOAT_HELD())});}},100);return 1})()");
+  let loaded;
+  if (FILE) {
+    // the shelf closed, the file DROPPED on the window (garage.js DROP-JSON -> readFile, the import door)
+    const txt = fs.readFileSync(FILE, 'utf8');
+    loaded = await ev("(()=>{const f=document.getElementById('gFleet');if(f&&f.getClientRects().length){const x=[...document.querySelectorAll('button')].find(b=>/^(close|×|done)$/i.test(b.textContent.trim()));if(x)x.click();}" +
+      "const dt=new DataTransfer();dt.items.add(new File([" + JSON.stringify(txt) + "]," + JSON.stringify(path.basename(FILE)) + ",{type:'application/json'}));" +
+      "window.dispatchEvent(new DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true}));return true;})()");
+    if (!loaded) throw new Error('the drop did not go through');
+  } else loaded = BUILD
+    ? await ev("(async()=>{const r=await fetch(" + JSON.stringify(BUILD.split(String.fromCharCode(92)).join('/').replace(/^flyDiy\//, '')) + ");const j=await r.json();window.GARAGE_SPEC.set(j.spec||j);const f=document.getElementById('gFleet');if(f)f.style.display='none';return true})()")
+    : await ev("(()=>{const f=document.getElementById('gFleet');const b=[...f.querySelectorAll('.gfStock button')].find(x=>x.textContent.trim().toLowerCase().startsWith('" + STOCK.toLowerCase() + "'));if(!b)return false;b.click();return true;})()");
   if (!loaded) throw new Error('no stock row ' + STOCK);
   await sleep(WAIT);
   // the fresh profile's chooser ("NEW AEROPLANE") sits over the shed: keep what was loaded
@@ -78,13 +122,95 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     await ev("(()=>{const c=document.querySelector('canvas');const keep=new Set();let e=c;while(e){keep.add(e);e=e.parentElement;}document.querySelectorAll('body *').forEach(el=>{if(!keep.has(el)&&!el.contains(c))el.style.visibility='hidden';});if(window.FLIGHT_PROBE&&FLIGHT_PROBE.balanceShow)try{FLIGHT_PROBE.balanceShow(false)}catch(e){}return 1})()");
     await sleep(800);
   }
+  console.log('garage_shot: canvas ' + await ev("JSON.stringify((()=>{const r=FLIGHT_PROBE.renderer().domElement,c=document.querySelector('canvas'),cs=getComputedStyle(r);return {first:c&&c.id,gl:r.id,same:c===r,w:r.width,h:r.height,vis:cs.visibility,disp:cs.display,edSit:!!(FLIGHT_PROBE.camGet)}})())"));
   const info = await ev("JSON.stringify((()=>{const s=window.GARAGE_SPEC&&(window.GARAGE_SPEC.get?window.GARAGE_SPEC.get():null);const R=window.CAGE_ENERGY.results();return {name:s&&s.meta&&s.meta.name,reg:s&&s.meta&&s.meta.reg,engX:s&&s.engines[0].x,tanks:R.map(r=>({on:r.on,ok:r.ok,why:r.why,along:r.along,fOut:r.fOut,spanM:r.spanM,ribs:(r.sides||[]).map(x=>x.ribs&&x.ribs.length),missed:(r.sides||[]).map(x=>x.ribsMissed),x:(r.sides||[]).map(x=>[x.x0,x.x1].map(v=>+v.toFixed(2)))}))}})())");
   console.log('garage_shot: loaded ' + info);
   // the game's garage orbit (app.js az/el/dist, FLIGHT_PROBE.camSet): quarter, side, front, top
   const PRESETS = { q: [0.85, 0.22, 11], s: [Math.PI / 2, 0.05, 12], f: [0, 0.08, 11], t: [0.6, 1.25, 12] };
-  const cam = async (a, e, d) => { await ev("FLIGHT_PROBE.camSet(" + a + "," + e + "," + d + "), 1"); await sleep(1500); };
+  // G3700: a dead loop's framing, by hand - placeCamera's orbit (app.js) and one frame drawn
+  let FORCE = false;
+  const force = async (a, e, d, pt) => console.log('garage_shot: frame drawn by hand, eye ' + await ev("(()=>{const g=FLIGHT_PROBE.camGet(),c=FLIGHT_PROBE.camera(),t=" + (pt ? JSON.stringify(pt) : 'g.target') + ";" +
+    "const a=" + a + ",e=" + e + ",d=" + d + ";c.position.set(t[0]+d*Math.cos(e)*Math.cos(a),Math.max(0.4,t[1]+d*Math.sin(e)),t[2]+d*Math.cos(e)*Math.sin(a));" +
+    "c.lookAt(t[0],t[1],t[2]);c.updateMatrixWorld(true);FLIGHT_PROBE.renderer().render(FLIGHT_PROBE.hangarScene(),c);return JSON.stringify(c.position.toArray().map(v=>+v.toFixed(2)))})()"));
+  const cam = async (a, e, d, pt) => { await ev("FLIGHT_PROBE.camSet(" + a + "," + e + "," + d + "), 1"); await sleep(1500); if (FORCE) await force(a, e, d, pt); };
+  const loopCheck = async () => JSON.parse(await ev("(async()=>{let n=0;const t0=performance.now();await new Promise(r=>{const f=()=>{n++;if(performance.now()-t0<1000)requestAnimationFrame(f);else r();};requestAnimationFrame(f);});" +
+    "const g=FLIGHT_PROBE.camGet();return JSON.stringify({raf:n,boot:window.BOOT&&BOOT.state,hidden:document.hidden,eye:g.eye,target:g.target})})()"));
+  // G3700: THE CREW AS THE PAGE HAS IT - the pilot's figure and hands (the
+  // names before and after the change), the eye, the seats, the tanks' fits
+  const CREW_JS = "(()=>{const S=FLIGHT_PROBE.hangarScene();let fig=null;S.traverse(o=>{if(!fig&&/^ed(Crew|Dum)1$/.test(o.name||''))fig=o;});" +
+    "const W=o=>{if(!o)return null;const v=new THREE.Vector3();o.getWorldPosition(v);return [+v.x.toFixed(3),+v.y.toFixed(3),+v.z.toFixed(3)];};" +
+    "const bone=(a,b)=>fig&&(fig.getObjectByName(a)||fig.getObjectByName(b));" +
+    "return {fig:W(fig),hip:W(bone('Hips','root')),hands:[W(bone('LeftHand','wristL')),W(bone('RightHand','wristR'))],head:W(bone('Head','head'))};})()";
+  const lookAt = async (pt, a, e, d) => {
+    await ev("FLIGHT_PROBE.pan(0,0,0), 1"); await sleep(200);
+    const t = await ev("FLIGHT_PROBE.camGet().target");
+    const T = Array.isArray(t) ? t : [t.x, t.y, t.z];
+    await ev("FLIGHT_PROBE.pan(" + (pt[0] - T[0]) + "," + (pt[1] - T[1]) + "," + (pt[2] - T[2]) + "), 1");
+    await cam(a, e, d, pt);
+    console.log('garage_shot: camera ' + JSON.stringify(await ev("(()=>{const g=FLIGHT_PROBE.camGet();return {eye:g.eye.map(v=>+v.toFixed(2)),target:g.target.map(v=>+v.toFixed(2)),dist:g.dist}})()")) + ' aimed at ' + JSON.stringify(pt));
+  };
+  if (DUMP) {
+    const d = await ev("JSON.stringify((()=>{const s=window.GARAGE_SPEC.get();const C=window.CAGE_CREW||{};const E=window.CAGE_CREW_EYE;" +
+      "const R=(window.CAGE_ENERGY&&window.CAGE_ENERGY.results)?window.CAGE_ENERGY.results():[];" +
+      "const live=(C.live||[]).map(o=>({key:o.live&&o.live.key,role:o.live&&o.live.role,s:o.live&&o.live.s}));" +
+      "return {name:s.meta&&s.meta.name,reg:s.meta&&s.meta.reg,fp:window.BENCH_FP?window.BENCH_FP():null," +
+      "eye:E&&E.p,seats:C.seatsAt,live,crew:" + CREW_JS + "," +
+      "tanks:R.map(r=>({on:r.on,ok:r.ok,why:r.why,section:r.section,shaped:r.shaped,dims:r.dims,capacity:r.capacity,crewHits:r.crewHits||0,c:r.c&&r.c.map(v=>+(+v).toFixed(3))})),cabin:s.cabin&&{pilots:s.cabin.pilots,pax:s.cabin.pax,seats:s.cabin.seats},mass:s.mass,fuel:s.fuel}})())");
+    fs.mkdirSync(path.dirname(DUMP), { recursive: true });
+    fs.writeFileSync(DUMP, d);
+    // what the fingerprint hashes, in full (bench.js benchStripCosmetic over the join's export and the page defaults)
+    const strip = await ev("JSON.stringify((()=>{const G=window.GARAGE_SPEC;let D=null;try{D=G.cageDefaults?G.cageDefaults():null}catch(e){}" +
+      "if(!D&&window.CAGE_PAGE)D=window.CAGE_PAGE.defaults;const c=benchStripCosmetic(window.CAGE_JOIN.export(),D);" +
+      "const S=o=>Array.isArray(o)?o.map(S):(o&&typeof o==='object')?Object.keys(o).sort().reduce((a,k)=>(a[k]=S(o[k]),a),{}):o;return S(c)})(),null,1)");
+    fs.writeFileSync(DUMP.replace(/\.json$/, '') + '_strip.json', strip);
+    // the fingerprint settled? read again 5 s on (a character or a tank landing late would move it)
+    await sleep(5000);
+    console.log('garage_shot: fp settle ' + JSON.parse(d).fp + ' -> ' + await ev("window.BENCH_FP?window.BENCH_FP():null"));
+    console.log('garage_shot: dump ' + DUMP + ' ' + d.slice(0, 400));
+  }
+  if (CGLOG) {
+    const L = await ev("JSON.stringify(window.__cgLog||[])");
+    fs.mkdirSync(path.dirname(CGLOG), { recursive: true }); fs.writeFileSync(CGLOG, L);
+    console.log('garage_shot: cglog ' + CGLOG + ' (' + JSON.parse(L).length + ' rows)');
+  }
   for (const v of VIEWS) {
     if (v === 'fleet' || v === 'air') continue;
+    if (v === 'crew' || v === 'hands') {
+      const cr = await ev(CREW_JS);
+      console.log('garage_shot: crew ' + JSON.stringify(cr));
+      if (!cr.hip) { console.error('garage_shot: no pilot figure on the stand'); continue; }
+      // the control: the whole aeroplane from the quarter first, and where the camera is after each framing
+      if (v === 'crew') {
+        // THE LOOP, ASSERTED: rAF ticking, and the eye placed off the origin after a camSet
+        await ev("FLIGHT_PROBE.camSet(" + PRESETS.q.join(',') + "), 1"); await sleep(1500);
+        const lc = await loopCheck();
+        FORCE = !(lc.raf >= 5) || lc.eye.every(x => Math.abs(x) < 1e-6);
+        console.log('garage_shot: loop ' + JSON.stringify(lc) + (FORCE ? '  NOT PLACING THE CAMERA - every framing drawn by hand' : '  ticking'));
+        await cam(PRESETS.q[0], PRESETS.q[1], PRESETS.q[2]);
+        if (await shot('control_q') < 30000) {
+          console.error('garage_shot: the control frame is BLANK - stopping; camera ' + JSON.stringify(await ev("(()=>{const g=FLIGHT_PROBE.camGet();return {eye:g.eye,target:g.target,az:g.az,el:g.el,dist:g.dist}})()")));
+          ws.close(); ch.kill(); process.exit(3);
+        }
+      }
+      await ev("(()=>{const c=document.getElementById('xray');if(c&&!c.checked){c.click();}return 1})()");
+      if (v === 'crew') {
+        await ev("window.EDITOR_SELECT('crew'), 1"); await sleep(1500);
+        const at = [cr.hip[0], cr.hip[1] + 0.25, cr.hip[2]];
+        await lookAt(at, 0.85, 0.22, 3.2); await shot('crew_q');
+        await lookAt(at, Math.PI / 2, 0.08, 3.0); await shot('crew_s');
+        await lookAt(at, 0.6, 0.9, 3.0); await shot('crew_t');
+        await ev("window.EDITOR_SELECT('craft'), 1"); await sleep(800);
+      } else {
+        const h = cr.hands.filter(Boolean);
+        const at = h.length ? h.reduce((a, p) => [a[0] + p[0] / h.length, a[1] + p[1] / h.length, a[2] + p[2] / h.length], [0, 0, 0]) : cr.hip;
+        await lookAt(at, 0.85, 0.35, 1.3); await shot('hands_q');
+        await lookAt(at, Math.PI / 2, 0.15, 1.2); await shot('hands_s');
+        await lookAt(at, 0.4, 1.0, 1.2); await shot('hands_t');
+      }
+      await ev("(()=>{const c=document.getElementById('xray');if(c&&c.checked){c.click();}FLIGHT_PROBE.pan(0,0,0);return 1})()");
+      await sleep(800);
+      continue;
+    }
     if (v === 'x') {
       // THE TANKS: the wing's skin meshes hidden for the picture (the shell,
       // the fuel and the spars stay), the see-inside switch on for the cabin

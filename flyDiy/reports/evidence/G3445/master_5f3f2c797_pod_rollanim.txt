@@ -1,0 +1,19 @@
+GATE ROLLANIM: 27 archetypes, the club shed; the eye planned in the works and field sheds too
+  FAIL   G1039 flRevealStart still frames the stand as standFraming assumes (tgt + s*0.45, el 0.16, 1.7 D; orbit +0.55, wing -PI/2)
+GATE ROLLANIM: FAIL (1 of 806: G1039 flRevealStart still frames the stand as standFraming assumes (tgt + s*0.45, el 0.16, 1.7 D; orbit +0.55, wing -PI/2))
+FAIL cub: pod off, the whole def is the base's bytes (4eceefb3:143310)
+  FAIL cub: pod off, the shakedown sheet is the base's bytes (bb1b9bfa:4189)
+  FAIL jodel: pod off, the whole def is the base's bytes (c656be5b:169871)
+  FAIL jodel: pod off, the shakedown sheet is the base's bytes (8fc4c309:4249)
+  FAIL c172: pod off, the whole def is the base's bytes (313c46ec:162219)
+  FAIL c172: pod off, the shakedown sheet is the base's bytes (a9b0410b:4263)
+  FAIL floats: pod off, the whole def is the base's bytes (3e0633ce:179749)
+  FAIL floats: pod off, the shakedown sheet is the base's bytes (400c4205:4084)
+  FAIL twinf: pod off, the whole def is the base's bytes (a34c7b5c:159379)
+  FAIL twinf: pod off, the shakedown sheet is the base's bytes (cad91a93:4002)
+  FAIL metal: pod off, the whole def is the base's bytes (e4c9386a:154348)
+  FAIL metal: pod off, the shakedown sheet is the base's bytes (ef03f4ec:4159)
+GATE POD: FAIL
+ROLLANIM  FAIL    17.3 s
+POD       FAIL    38.3 s
+BATTERY: FAIL — never deliver red.

@@ -261,6 +261,7 @@ if (!EXT) {
   } catch (e) {}
 }
 let meshObj = null, cageObj = null, refObj = null, loopsObj = null;
+let quadObj = null, quadDrag = null;     // WINDOWS-FREE: the free quads' corner handles, and the one in the hand
 let centre = new THREE.Vector3(), fitR = 3, centreOv = null;
 
 const matCache = {};
@@ -934,7 +935,7 @@ function secMat(name, g) {
     ccK: r.ccK, fieldK: r.fieldK,                    // G206
     metalK: r.metalK,                                // G215
     fieldLK: r.fieldLK,                              // G217
-    // G206.1: the crew layer's sections (the seats, the dummies) sit inside
+    // G206.1: the crew layer's sections (the seats, the floor) sit inside
     inside: (A.AERO_SEC[name] && A.AERO_SEC[name].layer === 'crew') ? 1 : 0,
     // G207: the flying surfaces, the cowl and the spats take a marking; the
     // engine, the mount, the gear, the struts, the crew do not
@@ -1514,6 +1515,156 @@ let LAST_SHEET = null;
 const PREVIEW = { n: 0, last: null, deform: 0, deformWhy: '' };
 let DEFORMED = false;                   // a deformed tick since the last whole build (its sit is the stand's)
 const PREVIEW_OFF = () => /(^|[?&])garage=old(&|$)/.test((typeof location !== 'undefined' && location.search) || '');
+// ?eye=off: G3713's eye sheet held off on this page (GARAGE-LAG's before, one tree; _cage_cowl reads it too)
+const EYE_URL_OFF = () => /(^|[?&])eye=off(&|$)/.test((typeof location !== 'undefined' && location.search) || '');
+if (typeof window !== 'undefined') window.CAGE_EYE_URL_OFF = EYE_URL_OFF;
+let EYE_CACHE = null;                   // G3713: the last eye sheet { s: the level-2 sheet, v: the variant, out }
+// THE EYE VARIANT (G3713): 0 off, 1 the cowl at detail 2, 2 + the nose section at level 3, 3 the whole fuselage at
+// level 3, 4 the whole fuselage but aft of the aft bulkhead. ?eyelod=N or CAGE_EYE_VARIANT (a rig's); held at 0 by
+// ?eye=off and in a parked aeroplane's capture (CAGE_EYE_OFF). G3719: THE DEFAULT IS 3 (the user, 27 Oct, from the
+// 16:52 table: "let's go v3 on the fuselage")
+const EYE_DEFAULT = 3;
+const EYE_VARIANT = () => {
+  if ((typeof window !== 'undefined' && window.CAGE_EYE_OFF) || EYE_URL_OFF()) return 0;
+  const w = typeof window !== 'undefined' ? window.CAGE_EYE_VARIANT : null;
+  if (w != null) return Math.max(0, Math.min(4, Math.round(+w) || 0));
+  const q = /(^|[?&])eyelod=([0-4])(&|$)/.exec((typeof location !== 'undefined' && location.search) || '');
+  return q ? +q[2] : EYE_DEFAULT;
+};
+if (typeof window !== 'undefined') window.CAGE_EYE_VARIANT_OF = EYE_VARIANT;
+// G3715 (COWL-RES): THE EYE SHEET IS THE COCKPIT'S, SWAPPED IN (the user, 27 Oct: "No, no smoothing in outside garage
+// view. Maybe in inside garage view though, cockpit garage view I mean ... better to have both interior views
+// matching"). Every whole build draws the level-2 sheet, as before; the eye sheet (variant 2-4) is a SECOND mesh of
+// the same build, made the first time it is wanted and kept for that build:
+//   - the garage's interior view: swapped in on the entry, the level-2 mesh stashed, swapped back on the exit - the
+//     exterior is the level-2 sheet, always. The view is SEEN, not told (eyeWatch: the camera at the crew layer's eye,
+//     the stills rig's own test), so app.js is untouched; the watch runs only while a variant is on;
+//   - the flight's capture (_cage_join snapshotSteps -> CAGE_UI.eyeHold): the flown visual is the eye sheet, the
+//     chase view and the cockpit both (one visual, the user's "ok for smoother nose");
+//   - a drag: the tick swaps back to level 2 (the deform preview moves the level-2 sheet's own vertices) and the
+//     settle swaps the eye sheet in again (a new one when the sheet moved).
+// The swap is the mesh object in the scene (its place among the children kept), the material slots by section from
+// the mesh that stood (a repaint since the build is carried) and the glass companion made again for those slots.
+// The first entry builds the sheet (Cessna 172 ~0.3 s): the cursor turns to `progress` and the build waits two
+// frames, so the view has moved before the work (the USER's rule: never a freeze without a sign).
+let EYE_OBJ = null, L2_OBJ = null;      // the eye mesh of this build; the level-2 mesh while the eye one stands
+let EYE_SRC = null;                     // this build's inputs for it { s, P, step, L, v, skin, glaze, cull }
+let EYE_VIEW = false, EYE_HOLD = 0;     // the interior view; the capture's hold
+let EYE_PEND = 0;                       // a deferred entry's ticket (an exit before it lands cancels it)
+const EYE_STATS = { builds: 0, buildMs: null, swaps: 0, swapMs: null, last: null };
+function eyeObjOf(src) {
+  if (EYE_OBJ && EYE_OBJ.userData.eyeSrc === src) return EYE_OBJ;
+  if (EYE_OBJ) { disposeObj(EYE_OBJ); EYE_OBJ = null; }
+  const t0 = performance.now();
+  let sEye = EYE_CACHE && EYE_CACHE.s === src.s && EYE_CACHE.v === src.v ? EYE_CACHE.out : null;
+  if (!sEye) {
+    sEye = G.cageSheet(src.P, { step: src.step, level: src.L, eye: { variant: src.v } }).mesh;
+    if (G.cageEyeFacia) G.cageEyeFacia(sEye, src.s);   // G3714: the facia back where the instruments stand
+    EYE_CACHE = { s: src.s, v: src.v, out: sEye };
+  }
+  const sd0 = src.skin ? sEye : { ...sEye, F: sEye.F.filter(f => !src.cull(f.m)) };
+  const sd = src.glaze ? sd0 : { ...sd0, F: sd0.F.filter(f => !GLASSM.has(f.m) && f.m !== 'paneEdge') };
+  const ext0 = Object.assign({}, GLASS_EXT);            // meshFrom writes the panes' extents: the stand's stay
+  const o = meshFrom(sd);
+  for (const k in GLASS_EXT) delete GLASS_EXT[k];
+  Object.assign(GLASS_EXT, ext0);
+  o.userData.eyeSrc = src;
+  o.userData.eye = null;
+  EYE_OBJ = o;
+  EYE_STATS.builds++; EYE_STATS.buildMs = performance.now() - t0;
+  if (window.CAGE_UI) window.CAGE_UI.eyeMs = EYE_STATS.buildMs;
+  return o;
+}
+// put `to` where meshObj stands: the scene slot, the transform, the fuselage's userData, the slots by section
+function eyePut(to) {
+  const from = meshObj;
+  if (!from || !to || from === to) return;
+  const par = from.parent;
+  const t0 = performance.now();
+  const names = from.userData.matNames || [], mm = Array.isArray(from.material) ? from.material : [from.material];
+  const bySec = new Map(names.map((nm, i) => [nm, mm[i]]));
+  PAINT_KIND = 'm';
+  try { to.material = (to.userData.matNames || []).map(nm => bySec.get(nm) || matOf(nm)); } finally { PAINT_KIND = 'c'; }
+  for (const c of to.children.slice()) if (c.userData && c.userData.aeroCompanion) to.remove(c);
+  meshGlass(to);
+  for (const k of ['bodyZones', 'frameZones']) to.userData[k] = from.userData[k];
+  to.position.copy(from.position); to.quaternion.copy(from.quaternion); to.scale.copy(from.scale);
+  to.visible = from.visible;
+  if (par) {
+    const i = par.children.indexOf(from);
+    par.remove(from);
+    par.add(to);
+    par.children.splice(par.children.indexOf(to), 1);
+    par.children.splice(i < 0 ? par.children.length : i, 0, to);
+  }
+  meshObj = to;
+  EYE_STATS.swaps++; EYE_STATS.swapMs = performance.now() - t0;
+}
+// the eye sheet on (the interior view, a capture) or the level-2 one; true when the eye sheet stands after it
+function eyeApply(on) {
+  if (!on) {
+    if (L2_OBJ && meshObj === EYE_OBJ) { eyePut(L2_OBJ); L2_OBJ = null; EYE_STATS.last = 'level 2'; }
+    return false;
+  }
+  if (!EYE_SRC || !meshObj || EYE_SRC.s !== MS) return false;
+  if (EYE_OBJ && meshObj === EYE_OBJ) return true;
+  const o = eyeObjOf(EYE_SRC);
+  L2_OBJ = meshObj;
+  eyePut(o);
+  EYE_STATS.last = 'eye v' + EYE_SRC.v;
+  return true;
+}
+const eyeWanted = () => EYE_VIEW || EYE_HOLD > 0;
+// a whole build's end, a release's end: the eye sheet back when the view wants it. G3719: a capture's hold builds it
+// now (the snapshot reads it next); the interior view's waits behind the progress cursor as an entry does - the
+// level-2 sheet the build just drew stands meanwhile (the 16:52 table: a fuselage row's release in the cockpit view
+// rebuilt it in the release's own task, +270-340 ms on the Cessna, the settle past 1 s)
+function eyeAfterBuild() {
+  if (EYE_HOLD > 0) eyeApply(true);
+  else if (EYE_VIEW) eyeView(true);
+}
+// the interior view's switch: the entry defers a build that has to happen behind the progress cursor
+function eyeView(on) {
+  EYE_VIEW = !!on;
+  const ticket = ++EYE_PEND;
+  if (!on) { eyeApply(false); return; }
+  if (!EYE_SRC || EYE_SRC.s !== MS) return;
+  const ready = EYE_OBJ && EYE_OBJ.userData.eyeSrc === EYE_SRC;
+  if (ready || typeof requestAnimationFrame !== 'function') { eyeApply(true); return; }
+  const root = typeof document !== 'undefined' ? document.documentElement : null;
+  const cur0 = root ? root.style.cursor : '';
+  if (root) root.style.cursor = 'progress';
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    try { if (ticket === EYE_PEND && EYE_VIEW) eyeApply(true); }
+    catch (e) { console.error('eye sheet:', e); }
+    finally { if (root) root.style.cursor = cur0; }
+  }));
+}
+// THE WATCH: one distance a frame while a variant is on - the editor's camera within 0.5 m of the crew layer's eye
+// (app.js applyInterior puts it AT the eye; every other preset is metres away), the interior view entered or left
+let EYE_WATCH = false;
+function eyeWatch() {
+  if (EYE_WATCH || typeof requestAnimationFrame !== 'function') return;
+  EYE_WATCH = true;
+  const tick = () => {
+    if (!EYE_SRC) { EYE_WATCH = false; if (EYE_VIEW) eyeView(false); return; }
+    try {
+      const E = window.CAGE_CREW_EYE, F = window.FLIGHT_PROBE, c = F && F.camera && F.camera();
+      const inside = !!(E && E.p && c && c.position &&
+        Math.hypot(c.position.x - E.p[0], c.position.y - E.p[1], c.position.z - E.p[2]) < 0.5);
+      if (inside !== EYE_VIEW) eyeView(inside);
+    } catch (e) {}
+    requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+}
+// the flight's capture: the eye sheet for the snapshot (synchronous - under the roll-out screen), then as it was
+function eyeHold(on) {
+  if (on) { EYE_HOLD++; return eyeApply(true); }
+  EYE_HOLD = Math.max(0, EYE_HOLD - 1);
+  if (!eyeWanted()) eyeApply(false);
+  return false;
+}
 // G1443 (GARAGE-INSTANT): THE STAND, DEFORMED. A drag tick on a row that moves the CAGE (the fuselage's length,
 // widths, heights, the nose, the deck lines - the same cage topology) would rebuild the sheet (subdivision, glass,
 // cuts, rims, interior, shoulder: 55-250 ms) and every layer on it. The preview moves what stands instead:
@@ -1628,11 +1779,16 @@ function deformTick(stand, step, L) {
   const D = new Float32Array(nB * 3);
   for (let i = 0; i < nB; i++) { D[i * 3] = b.V[i][0] - V[i][0]; D[i * 3 + 1] = b.V[i][1] - V[i][1]; D[i * 3 + 2] = b.V[i][2] - V[i][2]; }
   const pa = meshObj.geometry.attributes.position, a = pa.array, map = I.map;
-  if (a.length !== V.length * 3) { PREVIEW.deformWhy = 'the stand is not this sheet'; return false; }
+  const ey = meshObj.userData.eye;         // G3710: the deck's appended vertices, each riding its parent
+  if (a.length !== (V.length + (ey ? ey.parent.length : 0)) * 3 || (ey && ey.nSheet !== V.length)) { PREVIEW.deformWhy = 'the stand is not this sheet'; return false; }
   const F = standFollowers(I);
   for (let i = 0; i < V.length; i++) {
     const j = map[i] * 3, p = V[i];
     a[i * 3] = p[0] + D[j]; a[i * 3 + 1] = p[1] + D[j + 1]; a[i * 3 + 2] = p[2] + D[j + 2];
+  }
+  if (ey) for (let e = 0, o = V.length * 3; e < ey.parent.length; e++, o += 3) {
+    const j = map[ey.parent[e]] * 3;
+    a[o] = ey.v0[e * 3] + D[j]; a[o + 1] = ey.v0[e * 3 + 1] + D[j + 1]; a[o + 2] = ey.v0[e * 3 + 2] + D[j + 2];
   }
   pa.needsUpdate = true;
   meshObj.geometry.boundingSphere = null; meshObj.geometry.boundingBox = null;
@@ -1672,9 +1828,10 @@ function standSoon() {
 function standRestore(stand) {
   const I = stand && DEFORM.get(stand);
   if (!I || !I.dirty || !meshObj || stand.mesh !== MS) return;
-  const V = stand.mesh.V, a = meshObj.geometry.attributes.position.array;
-  if (a.length === V.length * 3) {
+  const V = stand.mesh.V, a = meshObj.geometry.attributes.position.array, ey = meshObj.userData.eye;
+  if (a.length === (V.length + (ey ? ey.parent.length : 0)) * 3) {
     for (let i = 0; i < V.length; i++) { a[i * 3] = V[i][0]; a[i * 3 + 1] = V[i][1]; a[i * 3 + 2] = V[i][2]; }
+    if (ey) a.set(ey.v0, V.length * 3);
     meshObj.geometry.attributes.position.needsUpdate = true;
     meshObj.geometry.boundingSphere = null; meshObj.geometry.boundingBox = null;
   }
@@ -1864,6 +2021,8 @@ function* buildSteps() {
   const stepSel = $('step') ? $('step').value : (PAGE.defaultStep || 'crease');
   const step = stepSel === 'crease' ? 'crease' : +stepSel;
   const L = +$('lvl').value;
+  // G3715: a drag tick draws the level-2 sheet (the previews move its own vertices); the settle brings the eye one back
+  if (DRAG_TICK) eyeApply(false);
   // ONE BUILD, SHARED (TAIL CHANTIER 2, P0): the sequence — spec, cage,
   // subdivide, glass sill, cut, canopy, rims, interior, the explode undo —
   // lives in CAGE2.cageSheet, so the headless tail (_tail_headless.js) and
@@ -1922,7 +2081,7 @@ function* buildSteps() {
     // layer runs anyway and the rows pass (dash, rims, shoulder on all four builds)
     const crewL = CH.layers.find(l => l.name === 'crew');
     const crewMoved = !!(rplan && crewL && crewL.seq > WHOLE_SEQ && !rplan.why.includes('sheet') && !(Array.isArray(RF) && RF.length));
-    if (rplan && !crewMoved) { yield* releaseSteps(built, rplan); return; }
+    if (rplan && !crewMoved) { yield* releaseSteps(built, rplan); eyeAfterBuild(); return; }
     RELEASE_INFO.whole++; RELEASE_INFO.last = { whole: crewMoved ? 'the crew moved in the drag' : (why || 'no plan') };
   }
   LAST_SHEET = built;
@@ -1930,6 +2089,10 @@ function* buildSteps() {
   let s = built.mesh;
   MS = s;
 
+  // G3715: the eye pair of the last build goes with it (the one standing is meshObj)
+  if (L2_OBJ && L2_OBJ !== meshObj) disposeObj(L2_OBJ);
+  if (EYE_OBJ && EYE_OBJ !== meshObj) disposeObj(EYE_OBJ);
+  L2_OBJ = null; EYE_OBJ = null;
   disposeObj(meshObj);
   for (const k in matCache) delete matCache[k];
   PAINT_REQ.clear();
@@ -1950,9 +2113,24 @@ function* buildSteps() {
   const sd = (P.glazeOn == null || +P.glazeOn) ? sd0
     : { ...sd0, F: sd0.F.filter(f => !GLASSM.has(f.m) && f.m !== 'paneEdge') };
   const surfSel = $('surf') ? $('surf').value : 'off';
+  // G3713 (COWL-RES): THE EYE SHEET - the same aeroplane built with a THIRD subdivision level where the variant puts
+  // it (cageEyeLevel in _cage_gen.js: 2 the nose section, 3 the whole fuselage, 4 all but aft of the aft bulkhead; 1 is
+  // the cowl alone, _cage_cowl.js). G3715: it is the interior view's and the flight capture's, swapped in over this
+  // build's level-2 mesh (eyeApply, above); this build draws the level-2 sheet and records what the eye sheet needs.
+  // Everything measured - MS, the fit, the join, the glazed area, the layers - keeps `s`: the eye sheet is never read
+  // for a number. A parked aeroplane's capture holds it off (CAGE_EYE_OFF), and so does ?eye=off; the diagnostic
+  // views draw the sheet as it is.
+  const zones = G.cageBodyZones ? G.cageBodyZones(spec) : null;
+  const diag = surfSel !== 'off' || ($('curv') && $('curv').checked) || ($('wire') && $('wire').checked);
+  const eyeV = EYE_VARIANT();
+  EYE_SRC = (eyeV >= 2 && !diag && G.cageEyeLevel) ? { s, P: Object.assign({}, P), step, L, v: eyeV, cull: skinCull,
+    skin: P.skinOn == null || !!P.skinOn, glaze: P.glazeOn == null || !!+P.glazeOn } : null;
+  if (window.CAGE_UI) window.CAGE_UI.eyeVariant = eyeV;
+  if (EYE_SRC) eyeWatch();
   meshObj = (surfSel !== 'off') ? surfMesh(sd, surfSel)
     : ($('curv') && $('curv').checked) ? curvatureMesh(sd)
     : ($('wire') && $('wire').checked) ? quadWire(sd) : meshFrom(sd);
+  meshObj.userData.eye = null;
   // THE UNIT (see CAGE_UNIT in _cage_gen.js): metres = cage x CAGE_UNIT
   // x planeScale. The cage scales; crew scenery is already metric and
   // never does. Pages without the param build at the unit exactly.
@@ -1963,7 +2141,7 @@ function* buildSteps() {
   // and the answer travels on the object that carries the skin, in the same
   // coordinates its positions are in (cage units, before FS), so a reader
   // needs the mesh and nothing else.
-  meshObj.userData.bodyZones = G.cageBodyZones ? G.cageBodyZones(spec) : null;
+  meshObj.userData.bodyZones = zones;
   // THE FRAMES (T2.1): the resolved table for the rows' readout, and each
   // frame's station range (cage units) for the row-hover highlight
   meshObj.userData.frameZones = G.cageFrameZones ? G.cageFrameZones(spec) : null;
@@ -1978,6 +2156,8 @@ function* buildSteps() {
   if (window.CAGE_UI) window.CAGE_UI.glazedM2 = G.cageGlazedM2(s, FS);
   meshObj.scale.setScalar(FS);
   scene.add(meshObj);
+  eyeAfterBuild();                       // G3715: the interior view's (or a capture's) eye sheet over it
+  quadHandles(s, spec, FS);              // WINDOWS-FREE
 
   disposeObj(cageObj); cageObj = null;
   if ($('cage').checked && L > 0) {
@@ -2168,6 +2348,85 @@ function previewDraw() {
   if (U) U.previewTick = true;
   try { draw(); } finally { if (U) U.previewTick = false; }
 }
+// ---- WINDOWS-FREE: THE FREE QUAD'S CORNER HANDLES (the bench's own view) -------------------------------------
+// The user (27 Oct): "Editor: drag the 4 corner handles + one rounding slider per corner, mirrored both flanks as
+// today". Every row drawn as a quad shows its first window's four corners as handles on the starboard flank (the
+// port window is the mirror, as every drawn window is), with the outline through them; a left press within 14 px
+// of one takes that corner instead of the orbit, and the hand moves it IN THE SIDE VIEW - the mouse's ray meets the
+// flank's own side plane (x of the handle) - writing the corner's two rows (P[<row>Q<k>Z / Y], cage units), a drag
+// tick at a time (the slider drag's own deferral: DRAG_ON / DRAG_TICK, the settle build on the release). The game's
+// editor (EXT) has no viewport of its own: there the corner rows are the hand.
+const QUAD_ROWS = ['paxWin', 'win2', 'win3'];
+function quadHandles(sheet, spec, FS) {
+  disposeObj(quadObj); quadObj = null;
+  if (EXT || !G.cageQuadWindow || !sheet) return;
+  const rows = QUAD_ROWS.filter(pre => +P[pre + 'N'] > 0 && Math.round(+P[pre + 'Shape']) === 2);
+  if (!rows.length) return;
+  quadObj = new THREE.Group(); quadObj.name = 'edQuadHandles';
+  if (window.SHOT_MODE && window.SHOT_MODE.on) quadObj.visible = false;
+  // the skin's x under a side-view point: the outermost sheet vertex near it (a handle sits just proud of it)
+  const skinX = (z, y) => { let b = 0; for (const p of sheet.V) if (p[0] > b && Math.abs(p[2] - z) < 0.06 && Math.abs(p[1] - y) < 0.06) b = p[0]; return b || +P.halfW || 0.5; };
+  const refused = new Set(((spec && spec.windows) || []).filter(w => w.refused && w.shape === 'quad').map(w => w.row));
+  for (const pre of rows) {
+    const q = G.cageQuadWindow(P, pre, 0);
+    const row = QUAD_ROWS.indexOf(pre) + 1, col = refused.has(row) ? 0xff5a4a : 0xffd24a;
+    const pts = [];
+    q.corners.forEach((c, k) => {
+      const x = skinX(c[0], c[1]) + 0.012;
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.02 / FS, 12, 8),
+        new THREE.MeshBasicMaterial({ color: col, depthTest: false, transparent: true, opacity: 0.95 }));
+      m.position.set(x, c[1], c[0]); m.renderOrder = 7;
+      m.userData = { quadPre: pre, quadC: k + 1, quadX: x };
+      quadObj.add(m); pts.push(x, c[1], c[0]);
+    });
+    pts.push(pts[0], pts[1], pts[2]);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pts), 3));
+    const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color: col, depthTest: false, transparent: true, opacity: 0.7 }));
+    l.renderOrder = 6; quadObj.add(l);
+  }
+  quadObj.scale.setScalar(FS);
+  scene.add(quadObj);
+}
+function quadPick(e) {
+  if (!quadObj || !camera) return null;
+  const r = cv.getBoundingClientRect(), v = new THREE.Vector3();
+  let best = null, bd = 14;
+  quadObj.updateMatrixWorld(true);
+  for (const m of quadObj.children) {
+    if (!m.userData || !m.userData.quadPre) continue;
+    m.getWorldPosition(v); v.project(camera);
+    const sx = r.left + (v.x + 1) / 2 * r.width, sy = r.top + (1 - v.y) / 2 * r.height;
+    const d = Math.hypot(sx - e.clientX, sy - e.clientY);
+    if (v.z < 1 && d < bd) { bd = d; best = m; }
+  }
+  return best;
+}
+let QUAD_RAF = 0;
+function quadMove(e) {
+  const m = quadDrag, u = m.userData, FS = (G.CAGE_UNIT || 1) * (P.planeScale || 1);
+  const r = cv.getBoundingClientRect();
+  const ndc = new THREE.Vector2((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  const rc = new THREE.Raycaster(); rc.setFromCamera(ndc, camera);
+  const o = rc.ray.origin, d = rc.ray.direction, X = u.quadX * FS;
+  if (Math.abs(d.x) < 1e-6) return;
+  const t = (X - o.x) / d.x;
+  if (!(t > 0)) return;
+  const z = (o.z + d.z * t) / FS, y = (o.y + d.y * t) / FS;
+  P[u.quadPre + 'Q' + u.quadC + 'Z'] = +Math.max(-6, Math.min(3.5, z)).toFixed(4);
+  P[u.quadPre + 'Q' + u.quadC + 'Y'] = +Math.max(-1, Math.min(1.2, y)).toFixed(4);
+  m.position.set(u.quadX, y, z);
+  if (QUAD_RAF) return;
+  QUAD_RAF = requestAnimationFrame(() => {
+    QUAD_RAF = 0;
+    DRAG_TICK = true;
+    try { build(); } finally { DRAG_TICK = false; }
+    if (DRAG_LATE) dragSettleSoon();
+    syncSliders();
+    draw();
+  });
+}
+
 function draw() {
   // EXT: the game's loop renders the shared scene; ping the mount so the
   // sit transform follows every rebuild (pitch/gy move with the gear)
@@ -2312,6 +2571,8 @@ const fmtV = v => (+v).toFixed(3);
 // val, d, own } per frame; the build copies it onto CAGE_UI.frames, and a
 // follow row reads its number from there
 const frameVal = path => {
+  // FITTINGS-MANUAL: a layer that derives the value itself (the access layer's auto site) hands a function
+  if (typeof path === 'function') { try { const v = path(); return v != null && isFinite(+v) ? +v : null; } catch (e) { return null; } }
   const F = window.CAGE_UI && window.CAGE_UI.frames;
   if (!F || !path) return null;
   const [fk, q] = path.split('.');
@@ -2328,6 +2589,9 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
   d.appendChild(kSpan);
   parent.appendChild(d);
   const rel = k === 'planeScale';
+  // G3570: `absent` - the value a row shows while its key is absent from P (a row the defaults table does not
+  // carry, so a build that never moved it saves no key: the cabin floor height)
+  if (val == null && opts.absent != null) val = opts.absent;
   if (opts.follow && val == null) {
     const fv = frameVal(opts.follow);
     val = fv != null ? fv : lo;
@@ -2469,7 +2733,7 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
   if (opts.follow) {                     // THE FRAMES' "follows" checkbox
     const fc = document.createElement('input');
     fc.type = 'checkbox'; fc.id = 'f_' + k; fc.style.flex = 'none';
-    fc.title = 'follows — the frame takes the derived value; untick to set your own';
+    fc.title = opts.followTitle || 'follows — the frame takes the derived value; untick to set your own';
     d.insertBefore(fc, kSpan.nextSibling);
     d.classList.add('tog');              // G1322: the editor sits it in the label's column
     meta.followEl = fc;
@@ -2567,7 +2831,7 @@ const anchorSize = () => {
 // before it builds; a layer's starter then records the loaded value instead
 // of reacting to it. The design tiles (design_flow.js) deliberately do NOT go
 // through here: a tile writing `engPreset` IS a row change and must fire.
-const loaded = () => { if (PAGE.load) try { PAGE.load(); } catch (e) {} };
+const loaded = spec => { if (PAGE.load) try { PAGE.load(spec); } catch (e) {} };   // the file, when a file replaced P
 
 // G680: `steps` - the load is done now and the build comes back as a generator (buildSteps: the sheet | the layers),
 // for parked.js's capture a step a task (applySpecSteps); without it, as always, the build runs here
@@ -2580,7 +2844,7 @@ function applySpec(spec, what, steps) {
   const F = G.cageFromSpec(spec), VK = G.CAGE_VIEW_KEYS || {};
   for (const k of Object.keys(P)) if (!(k in F) && !(k in VK)) delete P[k];
   Object.assign(P, F);
-  loaded();
+  loaded(spec);
   // THE PAINT COMES WITH THE AEROPLANE (G105). Unconditional, INCLUDING when
   // the file has no `finish` at all: that is a build with no overrides, and
   // the aeroplane it describes is the factory one. Applying it only when
@@ -5038,8 +5302,9 @@ function buildMatPanel() {
   // G1320: the reach lives in AEROSKIN now (pure, gated by node) and
   // carries the layer sections that wore the base too — the rudder, the
   // wing, the tips — see aeroBaseReach
+  // G3541: an open fuselage (no skin) shows its truss - the pick repaints it too
   const baseReach = (map, prev, next, neutral, eq) =>
-    A.aeroBaseReach(map, prev, next, neutral, eq, names);
+    A.aeroBaseReach(map, prev, next, neutral, eq, names, { open: P.skinOn != null && !+P.skinOn });
   {
     const d = mkRow2('base colour', 'one colour for the whole aircraft — ' +
       'the skin, the rings, the bands and pillars, the nose deck, the cowl, ' +
@@ -5413,6 +5678,7 @@ function syncSliders() {
     const el = meta.el;
     if (!el) continue;
     let v = k === 'planeScale' ? relSize() : P[k];
+    if (v == null && opts && opts.absent != null) v = opts.absent;   // G3570: an absent key shows its row's own value
     if (meta.followEl) {
       const on = v == null;
       meta.followEl.checked = on;
@@ -5515,14 +5781,23 @@ const viewEl = EXT ? null : $('view');
 let panD = null;
 if (viewEl) {
 viewEl.addEventListener('mousedown', e => {
+  // WINDOWS-FREE: a press on a quad's corner handle takes the corner, not the view
+  if (e.button === 0 && quadObj) {
+    const h = quadPick(e);
+    if (h) { quadDrag = h; DRAG_ON = 'quad'; e.preventDefault(); return; }
+  }
   if (e.button === 1 || e.button === 2) {
     panD = [e.clientX, e.clientY, (centreOv || centre).clone()];
     e.preventDefault();
   } else drag = [e.clientX, e.clientY, yaw, pitch];
 });
 viewEl.addEventListener('contextmenu', e => e.preventDefault());
-addEventListener('mouseup', () => { drag = null; panD = null; });
+addEventListener('mouseup', () => {
+  drag = null; panD = null;
+  if (quadDrag) { quadDrag = null; if (DRAG_ON === 'quad') { DRAG_ON = null; dragSettle(); } syncSliders(); draw(); }
+});
 addEventListener('mousemove', e => {
+  if (quadDrag) { quadMove(e); return; }
   if (panD) {
     const r = cv.getBoundingClientRect();
     const wpp = 2 * (fitR / ZOOM) *
@@ -5560,6 +5835,9 @@ syncSliders();
 window.CAGE_UI = { P, build, repaint, draw, applyPreset, syncSliders, republish /* G2227 */, reg: () => decReg(),   // G318: the tape reads it
   preview: PREVIEW,                      // G1442: the drag previews (n, the last plan)
   release: RELEASE_INFO,                 // G1451: the releases (n run partially, whole, the last one's plan)
+  // G3715 (COWL-RES): the eye sheet - the interior view's switch (eyeWatch's; a rig's), the flight capture's hold (_cage_join), the
+  // counters (builds, the last build's ms, swaps, the last swap's ms, what stands) and the mesh standing's level
+  eyeView, eyeHold, eyeStats: EYE_STATS, eyeStanding: () => !!(EYE_OBJ && meshObj === EYE_OBJ),
   // G2920 (GARAGE-SHEET): a hand on a slider, or its settle build still owed - the performance sheet's thread is asked
   // for the aeroplane the drag ends on, not for each tick (app.js sheetAsk, sheet_link.js held)
   dragging: () => !!(DRAG_ON || DRAG_T || DRAG_LATE),

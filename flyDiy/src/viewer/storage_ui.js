@@ -55,19 +55,20 @@
 #hsStore .hsDrop { outline:2px solid var(--ed-acc); outline-offset:-2px; background:var(--ed-acc-soft); }
 #hsStore .hsTarget .hsSlot.empty, #hsStore .hsTarget.hsFloor { border-color:var(--ed-acc); cursor:pointer; }
 #hsStore .hsTarget .hsColH { color:var(--ed-acc); cursor:pointer; }
-#hsStore .hsCard { flex:1; min-width:0; display:flex; align-items:center; gap:9px; padding:6px 8px; background:var(--ed-btn-bg);
+#hsStore .hsCard { flex:1; min-width:0; display:flex; flex-wrap:wrap; align-items:center; gap:9px; padding:6px 8px; background:var(--ed-btn-bg);
   border:1px solid var(--ed-btn-bd); border-radius:8px; cursor:grab; user-select:none; touch-action:manipulation; }
 #hsStore .hsCard.sel { border-color:var(--ed-acc); background:var(--ed-acc-soft); }
 #hsStore .hsCard.stand { border-color:var(--ed-acc); }
 #hsStore .hsCard.hsDragging { opacity:.45; border-style:dashed; border-color:var(--ed-acc); }
 #hsStore .hsThumb { flex:0 0 auto; width:56px; height:38px; border-radius:5px; background:var(--ed-track);
   border:1px solid var(--ed-hair); display:block; object-fit:cover; }
-#hsStore .hsTxt { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+#hsStore .hsTxt { flex:1 1 110px; min-width:0; display:flex; flex-direction:column; gap:2px; }
 #hsStore .hsName { font:600 12px/1.2 'IBM Plex Sans'; color:var(--ed-ink); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 #hsStore .hsMeta { font:400 10.5px/1.3 'IBM Plex Sans'; color:var(--ed-dim); }
 #hsStore .hsTag { font:500 9.5px/1.3 'IBM Plex Sans'; letter-spacing:.04em; color:var(--ed-acc); border:1px solid var(--ed-acc);
   border-radius:6px; padding:0 5px; margin-left:4px; }
-#hsStore .hsBtns { display:flex; gap:4px; flex:0 0 auto; }
+/* (a narrow column: the buttons wrap under the name instead of covering it - g4s 28 Oct, the OUTSIDE card) */
+#hsStore .hsBtns { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:4px; flex:0 1 auto; margin-left:auto; }
 #hsStore .dfPill, #hsStore .hsPill { font:500 10px/1 'IBM Plex Sans'; letter-spacing:.08em; color:var(--ed-ink);
   background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd); border-radius:999px; padding:6px 10px; cursor:pointer; }
 #hsStore .hsPill:hover, #hsStore .dfPill:hover { border-color:rgba(255,255,255,.3); }

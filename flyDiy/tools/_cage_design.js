@@ -391,7 +391,7 @@ function iconSeats(layout, bays) {
 // wings, and 4 engines on the wings"). Count and placement are ONE fact up
 // here — a twin IS wing-mounted — which is why this row carries the wing-
 // nacelle backlog and the mount row keeps only nose/pusher.
-function iconTopEngines(nose, wingN) {
+function iconTopEngines(nose, wingN, aft) {
   const paths = [];
   paths.push({ d: 'M32 2 Q35 5 35 11 L35 29 L33 37 L31 37 L29 29 L29 11 ' +
                   'Q29 5 32 2 Z' });                       // body
@@ -403,6 +403,12 @@ function iconTopEngines(nose, wingN) {
     paths.push({ d: 'M' + P2(x - 5, 8) + ' L' + P2(x + 5, 8), w: 1.8 });
   };
   if (nose) paths.push({ d: 'M25 2 L39 2', w: 1.8 });      // the nose prop
+  // G2790: the push-pull's pusher, behind the cabin between the booms
+  if (aft) {
+    paths.push({ d: poly([[24, 19], [25, 33], [26, 33], [27, 19]]) });  // port boom
+    paths.push({ d: poly([[37, 19], [38, 33], [39, 33], [40, 19]]) });  // starboard boom
+    paths.push({ d: 'M26 24 L38 24', w: 1.8 });             // the aft prop
+  }
   if (wingN === 2) { eng(17, 0); eng(47, 0); }
   if (wingN === 4) { eng(12, 0); eng(22, 0); eng(42, 0); eng(52, 0); }
   return { vb: '0 0 64 40', paths };
@@ -1330,8 +1336,10 @@ const DESIGN_ROWS = [
   // ENGINES row's (count and placement are one fact).
   { key: 'engMount', label: 'Engine mount', kind: 'discriminator',
     group: 'propulsion', status: 'live', twin: ['engMount'],
+    // G2790: a layout (4 / 5 / 6) is the Engines row's; no mount tile is lit
     read: P => Math.round(P.engMount) === 1 ? 'pusher'
-             : Math.round(P.engMount) === 2 ? 'wingTop' : 'nose',
+             : Math.round(P.engMount) === 2 ? 'wingTop'
+             : Math.round(P.engMount) >= 4 ? null : 'nose',
     options: [
       // 2026-09-04 (the user): "pusher configs should have no cowl by
       // default, possible to manually reactivate it" — the two pushing
@@ -1401,7 +1409,7 @@ const DESIGN_ROWS = [
   { key: 'engCount', label: 'Engines', kind: 'discriminator',
     group: 'propulsion', status: 'live', twin: ['engMount'],
     help: 'count and placement are one choice — a twin puts them on the wing',
-    read: P => Math.round(P.engMount) === 3 ? 2 : 1,
+    read: P => ({ 3: 2, 4: 'pushPull', 5: 3, 6: 4 })[Math.round(P.engMount)] || 1,
     options: [
       // one engine: back to the nose unless a single mount is already chosen
       // ...AND THE COUNT DECIDES THE NOSE TOO, because a pair on the wing
@@ -1411,7 +1419,7 @@ const DESIGN_ROWS = [
       // reads the mount this option has just chosen, not the one before it.
       { value: 1, label: 'Single engine', icon: iconTopEngines(true, 0),
         writes: { cage: Object.assign(
-          { engMount: P => Math.round(P.engMount) === 3 ? 0
+          { engMount: P => Math.round(P.engMount) >= 3 ? 0
                          : Math.round(P.engMount || 0) },
           // an IDENTITY on every shape key when the engine is back on the
           // nose: a discriminator may decide what exists, never undo a loft
@@ -1422,10 +1430,34 @@ const DESIGN_ROWS = [
         writes: { cage: Object.assign({ engMount: 3, cw_aftMode: 1,
                                         cw_tailLen: 1.2, aeroAftOn: 1 },
                                       NOSE_AERO) } },
+      // G2790 ENGINE-CONFIGS (the user, 10 Oct: "the configuration nose
+      // engine + pusher engine (Cessna Skymaster) ... activate the 3 and 4
+      // engines configuration"). THE PUSH-PULL: the nose keeps its engine
+      // and cowl, the pod ends at the aft bulkhead where the second engine
+      // pushes, the tail rides twin booms set outboard of the rear disc
+      // (its radius and 0.30 m: the boom and a hand's clearance) — the
+      // Skymaster's own answer to "where does the tail go". Centreline
+      // thrust: an engine out yaws the aeroplane by its drag, not by a lever.
+      { value: 'pushPull', label: 'Push-pull (nose + pusher)', icon: iconTopEngines(true, 0, true),
+        note: 'one engine in the nose, one behind the cabin pushing, the tail on twin booms (the Skymaster): centreline thrust',
+        writes: { cage: { engMount: 4, cowlOn: 1, noseFinish: 0, aeroAftOn: 0,
+                          cowlLoops: P => Math.max(2, Math.round(+P.cowlLoops || 0)),
+                          boomTwin: 1, taperOn: 1, stMount: 3, stX: 0, stCant: 0, finOn: 1,
+                          boomX: P => Math.max(+P.boomX || 1.2, 0.5 * (+P.cw_propD || 1.8) + 0.30) } } },
+      // THE THREE: the nose engine and a tractor nacelle a side (the Ford
+      // Trimotor / Ju 52) — the nose keeps its cowl, the nacelles wear the
+      // same cowl scaled to their faces with a nacelle tail
       { value: 3, label: 'Three (nose + wings)', icon: iconTopEngines(true, 2),
-        inactive: 'wing nacelles: ROADMAP P7' },
+        note: 'the nose engine and a tractor nacelle a side',
+        writes: { cage: Object.assign({ engMount: 5, cowlOn: 1, noseFinish: 0,
+                                        cw_aftMode: 1, cw_tailLen: 1.2, aeroAftOn: 1,
+                                        cowlLoops: P => Math.max(2, Math.round(+P.cowlLoops || 0)) }) } },
+      // THE FOUR: two tractor pairs, inner and outer (the Heron / DC-4)
       { value: 4, label: 'Four (wings)', icon: iconTopEngines(false, 4),
-        inactive: 'wing nacelles: ROADMAP P7' },
+        note: 'two tractor nacelles a side, inner and outer',
+        writes: { cage: Object.assign({ engMount: 6, engNacAt: 0.30, engNacAt2: 0.62,
+                                        cw_aftMode: 1, cw_tailLen: 1.2, aeroAftOn: 1 },
+                                      NOSE_AERO) } },
     ] },
 
   // 2026-09-04 (the user: "a wing-mounted engine can be configured as pusher
@@ -2362,21 +2394,39 @@ const ARCHETYPES = [
                                                   wgDx: 0.08 }),
             spec: { finish: { decals: { m1On: 1, m1Pat: 0, m1A: 0xc96f2a,
                                         m1B: 0x1b3a5c, m1D: 0xc96f2a } } } } },
-  // TWIN BOOMS (2026-09-04, spec §3): the 337's shape with its nose engine —
-  // the rear pusher is push-pull, the mixed-mount list the frame does not loop
-  // over yet — and a small P-38: two pullers on the booms' own stations.
+  // TWIN BOOMS (2026-09-04, spec §3): the 337's shape (its rear pusher since
+  // ENGINE-CONFIGS-2, below) and a small P-38: two pullers on the booms' own
+  // stations.
+  // ENGINE-CONFIGS-2 (G3493, 22 Oct): THE REAR PUSHER IS PAID - the Engines row's Push-pull tile (G2790): the nose engine
+  // and a second IO-360 pushing behind the cabin, its prop between the booms (boomX 1.25 is the rear disc's radius +
+  // 0.31 m), the two turning opposite ways
+  // ENGINE-CONFIGS-2 (the user, 25 Oct: "you can rebalance the skymaster"): THE CARD BALANCES. It read a static margin
+  // of -0.52 as drawn (-0.94 at the worst corner; -0.16 already as a nose-only single on master): paxCount 3 drew a
+  // 2.4 m cabin of EIGHT seats (the note says four) whose full load sat 0.5 m further aft, and the wing stood ahead
+  // of an aeroplane whose 144 kg pusher hangs off the aft bulkhead. Now the note's four seats (paxCount 1, the C172's
+  // 2 + 2) and the wing 0.5 m aft: CG 23-32 % MAC over the four corners, the neutral point 37-38 %, the design check
+  // PASS, the rear disc clear of the wing (0.7 m aft puts the wing into it)
+  // ENGINE-CONFIGS-2 (the user, 27 Oct: "updated archetypes for the push-pull (your twin boom)"): THE SKYMASTER'S
+  // BOOMS, 0.24 x 0.34 m at the wing and 0.16 x 0.22 at the tail (they were 0.18 x 0.27 and 0.126 x 0.189, rods
+  // beside the cabin), a 0.7 m fairing forward. The wing takes LIFT STRUTS: its cantilever already held the bench's
+  // 5.7 g only past yield, and with the real booms' 6 kg more it BROKE UP at 4.9 g at the root fitting (0.21 x 0.30
+  // booms: 5.1 g); strut-braced it holds with no yield, 23 kg lighter. And the stab 1.2 x span / 1.1 x chord: on
+  // the strut wing the rule's stab between the heavier booms yielded from the downwind's 61 m/s on (damage on, 1.1 g
+  // level) until a member kinked at 70 s; this one flies the circuit with no yield (the Push-pull starter's 1.4 /
+  // 1.25 too). Design check PASS, the bench's 5.7 g HELD with no yield
   { key: 'skymaster', kind: 'recreation', name: 'Skymaster-alike', note: 'twin ' +
-      'booms off a high wing, four seats, nose engine (the rear pusher is owed)',
-    sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 3,
+      'booms off a strut-braced high wing, four seats, an engine in the nose and one pushing behind the cabin',
+    sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, booms: 'twin',
            section: 3,
-           wgPos: 0, wgBrace: 1, wgTip: 1, wgFlapType: 1,
-           engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose',
+           wgPos: 0, wgBrace: 0, wgTip: 1, wgFlapType: 1,
+           engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose', engCount: 'pushPull',
            gearLayout: 'trike', suspension: 'oleo', s1Fair: 0,
            finArch: 'straight', empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0x1b3a5c },
     over: { cage: Object.assign({}, PLAN_TAPER, { boomX: 1.25, boomLen: 3.2,
-                                                   boomWf: 0.18, boomHf: 0.27,
-                                                   boomWa: 0.126, boomHa: 0.189 }),
+                                                   boomWf: 0.24, boomHf: 0.34,
+                                                   boomWa: 0.16, boomHa: 0.22, boomNoseLen: 0.7,
+                                                   stSpan: 1.2, stChord: 1.1, wgDx: -0.5 }),
             spec: { finish: { decals: { m1On: 1, m1Pat: 0, m1A: 0x1b3a5c,
                                         m1B: 0xefe6cf, m1D: 0x1b3a5c } } } } },
   { key: 'p38', kind: 'recreation', name: 'P-38-alike', note: 'a puller a boom, ' +
@@ -2395,6 +2445,47 @@ const ARCHETYPES = [
                                                    boomWf: 0.22, boomHf: 0.33,
                                                    boomWa: 0.154, boomHa: 0.231,
                                                    engNacAt: 0.245 }) } },
+  // THE LAYOUT STARTERS (ENGINE-CONFIGS-2, the user, 27 Oct: "updated archetypes for the push-pull ... and starting
+  // points for 3- and 4-engine layouts"): the Engines row's Push-pull, Three and Four over the C172-alike's own
+  // choices (its tiles, not its stock cage), the straight fin (the swept fin's ventral strake draws detached under a
+  // twin boom's fins). These three cards ARE tools/fixtures/build_v10_engcfg_{pushpull,trimotor,four}_2026-10-22.json
+  // (tools/engconfig_fixtures.js bakes the files from them; GATE ENGCONFIG 9 holds the files to the game's load, the
+  // design check, a circuit with an engine cut and the bench's 5.7 g).
+  // Push-pull: two IO-360s on the Skymaster's booms (0.24 x 0.34 m at the wing, a 0.7 m fairing forward); the wing
+  // 0.45 m aft and the stab 1.40 x span / 1.25 x chord for the pusher's 144 kg behind the cabin (the C172's wing
+  // station left a static margin of -0.16); the wing keeps its struts (a cantilever one broke up at 5.7 g)
+  { key: 'pushPull', kind: 'fiction', name: 'Push-pull starter', note: 'an IO-360 in the ' +
+      'nose and one pushing between twin booms; strut-braced high wing, four seats',
+    sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 1,
+           canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 1,
+           wgPos: 0, wgBrace: 0, wgTip: 1, wgFlapType: 2,
+           engFamily: 'flat', engModel: 'lycoming IO-360', engMount: 'nose', engCount: 'pushPull',
+           gearLayout: 'trike', suspension: 'spring', s1Fair: 1,
+           finArch: 'straight', empennage: 'conv', scheme: 'sweep', base: 0xefe6cf, trim: 0x2c4a31 },
+    over: { cage: { wgDx: -0.45, stSpan: 1.4, stChord: 1.25,
+                    boomWf: 0.24, boomHf: 0.34, boomWa: 0.16, boomHa: 0.22, boomNoseLen: 0.7 } } },
+  // Three and Four: Rotax 912s, the wing MID and strut-braced: on the C172's high wing the nacelles' thrust line
+  // stands 1.5 m up and full power tips the aeroplane onto its nosewheel; on a low wing the nacelle discs clear the
+  // grass by 2 cm; a cantilever mid wing lets go at its root on the bench's 5.7 g. Each wing a little aft for its
+  // nacelles' mass
+  { key: 'trimotor', kind: 'fiction', name: 'Trimotor', note: 'three Rotax 912s, ' +
+      'one in the nose and one on each wing; mid strut-braced wing, four seats',
+    sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 1,
+           canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 3,
+           wgPos: 1, wgBrace: 0, wgTip: 1, wgFlapType: 2,
+           engFamily: 'flat', engModel: 'rotax 912 (flat)', engMount: 'nose', engCount: 3,
+           gearLayout: 'trike', suspension: 'spring', s1Fair: 1,
+           finArch: 'straight', empennage: 'conv', scheme: 'sweep', base: 0xefe6cf, trim: 0x2c4a31 },
+    over: { cage: { wgDx: -0.15 } } },
+  { key: 'fourEngine', kind: 'fiction', name: 'Four-engine starter', note: 'four ' +
+      'Rotax 912s in wing nacelles, two a side; mid strut-braced wing, four seats',
+    sel: { class: 'n23', role: 'touring', seatLayout: 1, paxCount: 1,
+           canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 1,
+           wgPos: 1, wgBrace: 0, wgTip: 1, wgFlapType: 2,
+           engFamily: 'flat', engModel: 'rotax 912 (flat)', engMount: 'nose', engCount: 4,
+           gearLayout: 'trike', suspension: 'spring', s1Fair: 1,
+           finArch: 'straight', empennage: 'conv', scheme: 'sweep', base: 0xefe6cf, trim: 0x2c4a31 },
+    over: { cage: { wgDx: -0.2 } } },
   // "a mono engine larger aircraft ... something like the Beaver now that we
   // have large radial engines": the R-985 Wasp Junior (this batch's registry
   // row) on a strut-braced high wing, four bays, a taildragger on oleos.
@@ -2720,11 +2811,17 @@ function designBake(sel, over) {
   // THE MOUNT IS INTENT (2026-09-04): the pre-join spec GATE ARCHETYPES flies
   // must carry the mount the tiles chose, or a pusher archetype flies as a
   // tractor until the page's join runs. A wing pair is two entries.
-  const mk = ['nose', 'pusher', 'wingTop', 'wing'][Math.round(full.engMount || 0)]
-           || 'nose';
+  // G2790: the layouts (4 push-pull, 5 three, 6 four) are one entry per
+  // engine, in the spec's own order (60_gen_spec GEN_ENG_LAYOUTS); a
+  // push-pull's rear hand is the clamp's mirror of the nose's
+  const mK = Math.round(full.engMount || 0);
+  const LAYM = { 4: ['nose', 'pusher'], 5: ['nose', 'wing', 'wing'],
+                 6: ['wing', 'wing', 'wing', 'wing'] }[mK];
+  const mk = ['nose', 'pusher', 'wingTop', 'wing'][mK] || 'nose';
   const eng = Object.assign(engKey ? { type: engKey } : {}, { mount: mk });
   if (mk === 'wingTop') eng.pylon = Math.max(0.05, +full.engPylonH || 0.30);
-  designMerge(out, { engines: mk === 'wing' ? [eng, Object.assign({}, eng)] : [eng] });
+  designMerge(out, { engines: LAYM ? LAYM.map(m => Object.assign({}, eng, { mount: m }))
+                            : mk === 'wing' ? [eng, Object.assign({}, eng)] : [eng] });
   // ...and so is an open frame (G172's joined row)
   if (!(full.skinOn == null || +full.skinOn))
     designMerge(out, { fuselage: { covering: 'open' } });

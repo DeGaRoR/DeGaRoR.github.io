@@ -6,5 +6,6 @@
  "pier_car.js",
  "pier_vehicle.js",
  "pier_auto.js",
+ "pier_construction.js",
  "pier_lods.js"
 ]

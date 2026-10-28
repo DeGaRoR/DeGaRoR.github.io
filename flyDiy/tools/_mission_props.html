@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<!--
+  THE MISSION PROPS bench (tools/_mission_gen.js, MISSION_GEN): every preset built with the towers' finish and the
+  house's cloths, on a plain field. Pick one in the list (or "all"), drag to orbit, wheel to zoom, the dials rebuild
+  it. Serve from the repo root (node flyDiy/tools/_serve.js <port>) and open /flyDiy/tools/_mission_props.html;
+  headless: window.BENCH.show(name | 'all', { yaw, pitch, dist, lod }) then read the canvas.
+-->
+<meta charset="utf-8">
+<title>flyDiy — mission props</title>
+<style>
+  :root{--bg:#12151a;--fg:#dfe6ee;--dim:#7d8996;--acc:#5db3ff;--line:#242a33}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--fg);font:13px/1.4 system-ui,sans-serif;overflow:hidden}
+  main{display:flex;height:100vh}
+  #view{position:relative;flex:1;min-width:0}
+  canvas{display:block;width:100%;height:100%}
+  aside{width:300px;flex:none;border-left:1px solid var(--line);overflow-y:auto;padding:10px 12px}
+  h1{font-size:14px;margin:0 0 8px}
+  h2{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin:14px 0 4px}
+  .preset{display:block;width:100%;text-align:left;background:none;border:1px solid transparent;color:var(--fg);padding:5px 8px;border-radius:6px;cursor:pointer;font:inherit}
+  .preset:hover{background:#1a2029} .preset.on{border-color:var(--acc);color:var(--acc)}
+  .r{display:flex;gap:6px;align-items:center;margin:3px 0} .r span{color:var(--dim);flex:0 0 130px;font-size:12px}
+  .r input[type=range]{flex:1;accent-color:var(--acc)} .r select{flex:1;background:#1a1f27;color:var(--fg);border:1px solid var(--line);border-radius:4px}
+  #stat{position:absolute;left:12px;top:10px;white-space:pre;font:12px/1.45 ui-monospace,monospace;text-shadow:0 0 4px #000;pointer-events:none}
+</style>
+<main>
+  <div id="view"><canvas id="c"></canvas><div id="stat"></div></div>
+  <aside><h1>mission props</h1><div id="list"></div><h2>lod</h2><div class="r"><span>level</span><select id="lod"><option value="0">0 (near)</option><option value="1">1 (far)</option></select></div><div id="dials"></div></aside>
+</main>
+<script src="../vendor/three.min.js"></script>
+<script>window.FLYDIY_ASSET_BASE = '../';</script>
+<script src="../src/viewer/house_tex.js"></script>
+<script src="../src/viewer/assets.js"></script>
+<script src="_house_kit.js"></script>
+<script src="_house_gen.js"></script>
+<script src="../src/viewer/sign_tex.js"></script>
+<script src="_tower_gen.js"></script>
+<script src="_mission_gen.js"></script>
+<script>
+'use strict';
+const MG = window.MISSION_GEN;
+const cv = document.getElementById('c');
+const R = new THREE.WebGLRenderer({ canvas: cv, antialias: true, preserveDrawingBuffer: true });
+R.setPixelRatio(Math.min(2, devicePixelRatio)); R.shadowMap.enabled = true; R.shadowMap.type = THREE.PCFSoftShadowMap;
+R.outputColorSpace = THREE.SRGBColorSpace; R.toneMapping = THREE.ACESFilmicToneMapping; R.toneMappingExposure = 1.05;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xa9c3d8); scene.fog = new THREE.Fog(0xa9c3d8, 300, 1400);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.1, 3000);
+// an environment for the metals (the game's sky gives them one; without it galvanised steel renders black): a sky
+// dome graded from the horizon's haze to the zenith's blue over a ground-coloured lower half, pre-filtered once
+{
+  const env = new THREE.Scene(), geo = new THREE.SphereGeometry(100, 32, 16), col = [];
+  const pos = geo.attributes.position, c0 = new THREE.Color(0x6a6f5c), c1 = new THREE.Color(0xd6e2ea), c2 = new THREE.Color(0x7fa6cc);
+  for (let i = 0; i < pos.count; i++) { const y = pos.getY(i) / 100, c = y < 0 ? c0.clone().lerp(c1, Math.max(0, 1 + y * 4)) : c1.clone().lerp(c2, Math.min(1, y * 1.6)); col.push(c.r, c.g, c.b); }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  env.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide })));
+  scene.environment = new THREE.PMREMGenerator(R).fromScene(env, 0.02).texture;
+}
+scene.add(new THREE.HemisphereLight(0xd9e7f5, 0x5d5a4c, 0.9));
+const sun = new THREE.DirectionalLight(0xfff1dc, 2.4); sun.position.set(60, 90, 45); sun.castShadow = true;
+sun.shadow.mapSize.set(4096, 4096); Object.assign(sun.shadow.camera, { left: -90, right: 90, top: 90, bottom: -90, near: 1, far: 400 }); sun.shadow.bias = -0.0004;
+scene.add(sun); scene.add(sun.target);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000), new THREE.MeshStandardMaterial({ color: 0x6f7a55, roughness: 1 }));
+ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+const F = MG.makeFinish();
+MG.applyFinish({}, F);
+const root = new THREE.Group(); scene.add(root);
+const names = Object.keys(MG.PRESETS);
+// the gallery's places: where each preset stands when "all" is shown (a ring floats over its own spot)
+const LAYOUT = { 'air-race pylon': [-60, 0, -20], 'air-race pylon, hit': [-48, 0, -20], 'air-race pylon, blue': [-36, 0, -20],
+  'balloon column': [-20, 0, -26], 'balloon column, hit': [-12, 0, -26], 'ring': [10, 22, -30], 'ring, tethered': [40, 40, -40], 'ring, hit': [10, 22, -2],
+  'marker flag': [-56, 0, 14], 'photo target': [-36, 0, 18], 'tie-down spot': [-14, 0, 18], 'site, planned': [4, 0, 22], 'site, building': [16, 0, 22], 'weather station (built)': [30, 0, 22] };
+let cur = 'all', P = null, view = { yaw: 0.6, pitch: 0.28, dist: 40, at: [0, 8, 0] };
+function place(name, P0, lod) {
+  const r = MG.build(P0, lod, F), g = new THREE.Group();
+  for (const k of MG.BAGS) { const m = r.bags[k].mesh(g, F.MAT[k]); if (m && k === 'aoskirt') m.castShadow = false; }
+  return { g, r };
+}
+function show(name, o) {
+  o = o || {}; cur = name;
+  while (root.children.length) root.remove(root.children[0]);
+  const lod = o.lod != null ? o.lod : +document.getElementById('lod').value;
+  let stat = '';
+  if (name === 'all') {
+    let tris = 0;
+    for (const n of names) { const { g, r } = place(n, Object.assign({}, MG.DEF, MG.PRESETS[n]), lod); const p = LAYOUT[n] || [0, 0, 0]; g.position.set(p[0], p[1], p[2]); root.add(g); tris += r.stats.tris; }
+    view = Object.assign({ yaw: 0.35, pitch: 0.22, dist: 120, at: [-10, 12, 0] }, o);
+    stat = 'all ' + names.length + ' presets · ' + tris + ' tris (lod ' + lod + ')';
+  } else {
+    P = Object.assign({}, MG.DEF, MG.PRESETS[name], o.P || {});
+    const { g, r } = place(name, P, lod), s = r.stats, b = s.bbox;
+    const fl = s.floating ? (P.tether || 20) : 0; g.position.y = fl; root.add(g);
+    const size = Math.max(b.x1 - b.x0, b.y1 - b.y0, b.z1 - b.z0);
+    view = Object.assign({ yaw: 0.7, pitch: 0.25, dist: Math.max(6, size * 1.6), at: [(b.x0 + b.x1) / 2, fl + (b.y0 + b.y1) / 2, (b.z0 + b.z1) / 2] }, o);
+    stat = name + '\n' + s.tris + ' tris · ' + s.verts + ' verts · lights ' + s.lights + (s.strike ? '\nstrike: ' + JSON.stringify(s.strike) : '') +
+      '\n' + Object.entries(s.per).filter(e => e[1]).map(e => e[0] + ' ' + e[1]).join(' · ');
+    dials();
+  }
+  document.getElementById('stat').textContent = stat;
+  document.querySelectorAll('.preset').forEach(b => b.classList.toggle('on', b.dataset.n === name));
+  frame();
+}
+function frame() {
+  const W = cv.clientWidth, H = cv.clientHeight; R.setSize(W, H, false); cam.aspect = W / H; cam.updateProjectionMatrix();
+  const v = view, c = Math.cos(v.pitch);
+  cam.position.set(v.at[0] + Math.sin(v.yaw) * c * v.dist, v.at[1] + Math.sin(v.pitch) * v.dist, v.at[2] + Math.cos(v.yaw) * c * v.dist);
+  cam.lookAt(v.at[0], v.at[1], v.at[2]);
+  sun.target.position.set(v.at[0], 0, v.at[2]); sun.position.set(v.at[0] + 60, 90, v.at[2] + 45);
+  R.render(scene, cam);
+}
+function dials() {
+  const D = document.getElementById('dials'); D.innerHTML = '';
+  for (const [grp, rows] of MG.ROWS) {
+    const vis = rows.filter(r => !r[6] || r[6](P));
+    if (!vis.length) continue;
+    const h = document.createElement('h2'); h.textContent = grp; D.appendChild(h);
+    for (const [k, label, lo, hi, step, list] of vis) {
+      const row = document.createElement('div'); row.className = 'r';
+      const sp = document.createElement('span'); sp.textContent = label; row.appendChild(sp);
+      let inp;
+      const v = typeof P[k] === 'string' ? (k === 'kind' ? MG.KINDS : MG.STATES).indexOf(P[k]) : P[k];
+      if (list) { inp = document.createElement('select'); list.forEach((t, i) => { const o = document.createElement('option'); o.value = i; o.textContent = t; inp.appendChild(o); }); inp.value = Math.round(v); }
+      else { inp = document.createElement('input'); Object.assign(inp, { type: 'range', min: lo, max: hi, step }); inp.value = v; }
+      inp.oninput = () => { const o = {}; o[k] = +inp.value; rebuild(o); };
+      row.appendChild(inp); D.appendChild(row);
+    }
+  }
+}
+function rebuild(o) { const keep = view; show(cur, { P: Object.assign({}, P, o), yaw: keep.yaw, pitch: keep.pitch, dist: keep.dist, at: keep.at }); }
+const L = document.getElementById('list');
+for (const n of ['all'].concat(names)) { const b = document.createElement('button'); b.className = 'preset'; b.dataset.n = n; b.textContent = n; b.onclick = () => show(n); L.appendChild(b); }
+document.getElementById('lod').onchange = () => show(cur);
+let drag = null;
+cv.onpointerdown = e => { drag = [e.clientX, e.clientY]; cv.setPointerCapture(e.pointerId); };
+cv.onpointermove = e => { if (!drag) return; view.yaw -= (e.clientX - drag[0]) * 0.006; view.pitch = Math.max(-0.2, Math.min(1.45, view.pitch + (e.clientY - drag[1]) * 0.005)); drag = [e.clientX, e.clientY]; frame(); };
+cv.onpointerup = () => { drag = null; };
+cv.onwheel = e => { view.dist *= Math.exp(e.deltaY * 0.001); frame(); e.preventDefault(); };
+addEventListener('resize', frame);
+// the textures land late: redraw a few times as they arrive
+let n = 0; const tick = () => { frame(); if (++n < 40) setTimeout(tick, 250); }; tick();
+window.BENCH = { show: (name, o) => { show(name, o); return true; }, frame, names };
+show('all');
+</script>

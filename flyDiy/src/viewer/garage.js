@@ -879,7 +879,8 @@ function garageInit(api) {
       // the firewall after the boot, 1.44 m after a shelf load in the same page). Without one the layer takes the
       // build's own row, as on a first build ever; the second round below measures it.
       try { window.CAGE_DATUM = null; } catch (e) {}
-      E.applySpec(spec);
+      try { if (api.floodArm) api.floodArm(slotName); E.applySpec(spec); }   // G3358: the flood ON in this build (app.js)
+      finally { if (api.floodArm) api.floodArm(null); }
       // G1985: THE SECOND ROUND. The editor's layers run in one order (crew, cowl, engine, wing, ...), and a layer
       // reads what a LATER one drew on the build before: the engine layer hangs a wing mount's nacelles off the wing
       // layer's LAST wing, the float layer its step off the last join's datum and the flown CG. One build of a loaded
@@ -1180,6 +1181,8 @@ function garageInit(api) {
     if (nm) {
       nm.textContent = slotName || 'unsaved';
       if (nm.classList) nm.classList.toggle('unsaved', !slotName);
+      // G3721 (PHONE-GARAGE): the name is a disk icon now (editor.css) - the name rides in its tooltip
+      nm.title = (slotName ? '“' + slotName + '”' : 'Not saved yet') + ' — save, save as, new, load, storage, import, export';
     }
     renderFleet();                    // a no-op until the rack is first built
   }

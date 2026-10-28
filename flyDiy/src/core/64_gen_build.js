@@ -643,6 +643,18 @@ function genShakedown(def, opts) {
     out.propClear = ((S.engAt ? Math.min(...S.engAt.map(e => e.y)) : S.engY)
                      - S.propR) - ground;
     out.engMount = S.engAt ? S.engAt[0].mount : 'nose';
+    // G2790 ENGINE-CONFIGS: THE REAR DISC BETWEEN THE BOOMS. A push-pull's
+    // pusher turns between the twin booms (the Skymaster's whole layout):
+    // the clearance is each boom's inner face (its station less its drawn
+    // radius) less the disc's radius, and the stab sits that many metres
+    // aft of the disc. Said only for a layout, so no other plaque moves.
+    if (S.engLayout === 'pushPull') {
+      const t = S.tail, pu = S.engAt.find(e => e.mount === 'pusher');
+      const tb = t.type === 'twinBoom' && t.boomX > 0 && t.boomLen > 0;
+      out.engLayout = S.engLayout;
+      out.propBoomClear = tb ? t.boomX - Math.max(0.04, t.boomR || 0.09) - S.propR : null;
+      out.propStabClear = (tb && pu && t.hX != null) ? t.hX - pu.x : null;
+    } else if (S.engLayout === 'tri' || S.engLayout === 'quad') out.engLayout = S.engLayout;
     out.nEngines = S.engines.length;
     // The two halves of the split suspension height, as BUILT rather than as
     // asked for: legDrop is the knob, but gear.y can be bound by prop clearance
@@ -828,9 +840,9 @@ function genShakedown(def, opts) {
     } catch (e) {}
   }
   // THE CG ENVELOPE (2026-09-03). Every balance number above is quoted at
-  // WHATEVER LOADING IS DRAWN: `cabin.pilots` is the count of dummies the
-  // cage has switched on, `pax` the seats they fill, fuel as specified. A
-  // builder who leaves the second dummy on reads the two-up margin, and one
+  // WHATEVER LOADING IS DRAWN: `cabin.pilots` is the count of occupants the
+  // cage has seated, `pax` the seats they fill, fuel as specified. A
+  // builder who seats the second occupant reads the two-up margin, and one
   // who switches it off reads the solo margin — and neither is the number a
   // real aeroplane is certified on, which is a RANGE. (The user, on finding
   // both reference builds reading negative: "are we gathering the numbers
@@ -984,7 +996,7 @@ function buildGen(specIn) {
     if (S.gear[k] === null || S.gear[k] === undefined) S._auto['gear.' + k] = true;
     S.gear[k] = v;
   }
-  const strips = genStrips(S, fr);
+  const strips = genStripsLayout(S, fr, genStrips(S, fr));   // (ENGINE-CONFIGS-2: a layout's strips name their disc)
   const params = genParams(S, fr, strips);
   const def = { nodes: fr.nodes, beams: fr.beams, strips, refs: fr.refs, params };
   def.spec = S; def.parts = fr.parts;

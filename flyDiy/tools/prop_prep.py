@@ -287,6 +287,55 @@ class TexBank:
         return self.add(raw, mime), img.size[0], img.size[1], len(raw)
 
 
+def paint_over(img, boxes, seed=7):
+    """THE MARKS PAINTED OVER (ASSETS-OCT, the user 25 Oct: the CAT / JCB logos
+    on the construction machines are PAINTED OVER). Inside each (x0, y0, x1, y1)
+    box of the base colour map - texels of the map as delivered - the mark (white
+    lettering, a black plate or outline, a badge's bright lemon) and a 2-texel
+    rim round it are filled from the body's own yellow by masked diffusion, never
+    from the grey ground beside it, then given the ring's grain back so the patch
+    does not read as a flat sticker. The delivered file is not touched; the box
+    list is on the table row (`paint`). A box may carry flags after its four
+    numbers: 'dark' - the body round the mark is dark paint (white letters on
+    black): the fill reads the dark texels and only the light ones are the
+    mark; 'red' - a red accent inside the mark (the Grove V) is mark too."""
+    import numpy as np
+    mode = img.mode
+    A = np.asarray(img.convert('RGBA')).astype(np.float32) / 255
+    rng = np.random.default_rng(seed)
+    for box in boxes:
+        (x0, y0, x1, y1), flags = box[:4], box[4:]
+        P = A[y0:y1, x0:x1, :3]
+        mx, mn = P.max(-1), P.min(-1)
+        if 'dark' in flags:
+            hole = mn > 0.5
+            known = (mx < 0.3) & ~hole
+        else:
+            known = (mx > 0.35) & ((mx - mn) / np.maximum(mx, 1e-3) > 0.45) & (P[..., 0] >= P[..., 1]) & (P[..., 1] > P[..., 2] * 1.3)
+            hole = (mn > 0.62) | (mx < 0.2) | ((P[..., 1] > 0.74) & (P[..., 0] > 0.92) & (P[..., 2] < 0.35))
+        if 'red' in flags:
+            hole = hole | ((P[..., 0] > 0.5) & (P[..., 1] < 0.4) & (P[..., 2] < 0.4))
+            known = known & ~hole
+        for _ in range(2):
+            h2 = hole.copy(); h2[1:] |= hole[:-1]; h2[:-1] |= hole[1:]; h2[:, 1:] |= hole[:, :-1]; h2[:, :-1] |= hole[:, 1:]; hole = h2
+        ring = P[~hole & known]
+        grain = ring.std(0) if len(ring) > 8 else np.zeros(3)
+        F = P.copy(); F[hole] = ring.mean(0) if len(ring) else 0.8
+        src = known & ~hole
+        W = src.astype(np.float32)
+        for _ in range(600):
+            V = np.where((src | hole)[..., None], F * np.maximum(W, 0)[..., None], 0)
+            num = np.roll(V, 1, 0) + np.roll(V, -1, 0) + np.roll(V, 1, 1) + np.roll(V, -1, 1)
+            den = np.roll(W, 1, 0) + np.roll(W, -1, 0) + np.roll(W, 1, 1) + np.roll(W, -1, 1)
+            ok = hole & (den > 0); F[ok] = num[ok] / den[ok][:, None]; W = np.where(ok, 1.0, W)
+        nz = rng.normal(0, 1, hole.shape)
+        nz = (nz + np.roll(nz, 1, 0) + np.roll(nz, 1, 1) + np.roll(np.roll(nz, 1, 0), 1, 1)) / 2   # a soft grain, not sparkle
+        F[hole] *= (1 + nz[hole] * grain.mean() * 0.35)[:, None]
+        A[y0:y1, x0:x1, :3] = np.clip(F, 0, 1)
+    out = Image.fromarray((A * 255 + 0.5).astype(np.uint8), 'RGBA')
+    return out.convert(mode) if mode in ('RGB', 'RGBA') else out
+
+
 def has_real_alpha(img):
     if img.mode not in ('RGBA', 'LA', 'PA'):
         return False
@@ -501,6 +550,11 @@ def bake_material(j, bufs, base, mdef, bank, budget, log, row=None):
 
     if 'baseColorTexture' in pbr:
         img, name = img_of(pbr['baseColorTexture'])
+        # THE MARKS PAINTED OVER: `paint` = {image index: [boxes]} (paint_over)
+        boxes = ((row or {}).get('paint') or {}).get(tex_source(j, pbr['baseColorTexture']['index']))
+        if boxes:
+            img = paint_over(img, boxes)
+            log.append('    paint: %d mark(s) painted over on %s' % (len(boxes), name or 'its map'))
         # THE TONE (G414.1, the user: "increase the saturation of the big
         # firetruck, and lower the one of the small one. Get them in the same
         # tonal range"): a row may carry `tone` = {sat, bright} - gains on the

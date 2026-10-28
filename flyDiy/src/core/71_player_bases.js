@@ -105,7 +105,30 @@ const BASE_OFFERS = {
     // the field shell's widest): with every kit the story's ultralight (Rufus, class ul1) stands inside; a Cub does not, and
     // the story never brings one here (its client Cub lives at HOME) - `takes` names the class the offer is held to
     plots: { w1: { shells: ['field'], kits: ['park', 'bench', 'wood', 'metal', 'store', 'handling', 'comfort', 'curio', 'wip'], pf: 0.6,
-                   takes: 'ul1', dims: { field: { HW: 10, HD: 11, EAVE: 4.0 } },
+                   // (G3537, the user 25 Oct: "The shed should have a door exactly 10m wide, that was the brief and the
+                   // constraint on the cabin strip" - then: "the pair of doors, keep the clutter and you may add a meter or 2
+                   // on each side, for a total of 16-18m. Don't make it longer") the door 10.0 m, a bi-parting PAIR of 5.2 m
+                   // leaves; Rufus's 9.8 m wing passes it with 0.1 m a side (doorClr - the door was cut for it); the width the
+                   // smallest in 16-18 m where the fit drops none of the cozy kit AND the ultralight still parks: 18 m (25 Oct: hangarFit
+                   // places 41 pieces as at 20 m from 17 m up - 16 m loses the engine stand and a propane bottle - but at 17 m the
+                   // ultralight finds no room beside them, hangarRoomFor 0; GATE STORY); 22 m deep, as before
+                   // (G3540, the user 25 Oct: "a hand-painted sign on a wood plank that says 'the Shed' ... hung on a visible
+                   // wall inside the small shed, and also as a sign on top of the door. Ideally, it's a large one, 2m wide")
+                   // the one plank twice: over the door pair, and inside under the eave - on the back wall the stand looks
+                   // at or the flank beside it, wherever the room's fit leaves it clear (hangarSignSpot: never behind the
+                   // hung wing or its straps, the user 25 Oct), from 3.5 m toward the person door outward
+                   // (G3540 v3, the user 26 Oct: "the shed panel can be 4 times bigger, in and out"): 4 m wide, twice the
+                   // first board each way (four times its face); over the door and inside alike
+                   // (G3540 v4, the user 27 Oct: "about 8 meters total, and it should fit on the gambrel. Inside, maybe a
+                   // 6 meters one, and no problem if it hangs low"): 8 m asked over the door - HANGAR_GEN fits it to the
+                   // gable (~5.5 m on this 18 m front, clear of the leaf's track); 6 m inside, hung under the eave
+                   // (G3541/G3542, the user 25 Oct: "the pavement in front: concrete in the garage and dirt in the world -
+                   // aligned and the same materials"; "the building is not anchored"): ONE ground for the room and the world
+                   // - the site's dirt, 14 m out of the door and a metre past each flank, a metre round the back, dark at the
+                   // walls and gone a metre out; the walls' foot dark, gone a metre up
+                   takes: 'ul1', dims: { field: { HW: 9, HD: 11, EAVE: 4.0, door: 10, doorClr: 0.1, leaves: 2,
+                                                  sign: { key: 'the_shed', w: 8.0, inside: 3.5, inW: 6.0 },
+                                                  ground: { set: 'dirt', apron: 14, side: 1, ring: 1, fade: 2.5, ao: 0.55, foot: 0.5 } } },
                    // (G3353, the user 22 Oct: "get rid of the large router (the largest of the woodworking machines). Keep
                    // only the 2 smaller ones (the drill and another)") the two smallest machines stay - the pillar drill and
                    // the thicknesser; the panel saw (4.4 x 3.6 m), the band saw and the surface planer are left out
@@ -149,6 +172,13 @@ const BASE_OFFERS = {
   mk_sea: {
     words: GAME_NAMES.town + ' · the seaplane float',
     plots: { mk_sea: { shells: ['field'], kits: ['park'], pf: 0.8, water: true,
+                       dims: { field: { HW: 9, HD: 10, EAVE: 4.4 } } } },
+  },
+  // CABIN-LAKE (the user, 25 Oct via A0: "add a seaplane lane on the lake in front of the cabin strip? Where I installed piers?"):
+  // the lake below the Cabin Strip, a slipway shed on the north shore by the user's trestle pier
+  cb_sea: {
+    words: GAME_NAMES.fields.cb_sea + ' · a slipway by the cabin',
+    plots: { cb_sea: { shells: ['field'], kits: ['park'], pf: 0.7, water: true,
                        dims: { field: { HW: 9, HD: 10, EAVE: 4.4 } } } },
   },
 };
@@ -195,7 +225,7 @@ const PREM_STORE = {
   outsideMax: 6,
   // w5-w8: the field club's and SHIP-2's contract fields, cooked since train 52 / 53 (GATE STORAGE caught the pack ahead of this table);
   // w4 strip 9 + w1 the Cabin Strip (G3097, SCENERY-ED-2's cook)
-  spots: { w2: 12, HOME: 12, w3: 12, SEA: 12, mk_sea: 12, nv_strip: 5, mn_strip: 0, tw_ski: 0, w5: 7, w6: 12, w7: 12, w8: 12, w4: 0, w1: 11 },
+  spots: { w2: 12, HOME: 12, w3: 12, SEA: 12, mk_sea: 12, nv_strip: 5, mn_strip: 0, tw_ski: 0, w5: 7, w6: 12, w7: 12, w8: 12, w4: 0, w1: 3, cb_sea: 12 },
   kinds: ['floor', 'inside', 'outside', 'long', 'away'],
 };
 // THE OUTSIDE WEAR (GQ7): visible chalking and streaks after ~10 flown hours
@@ -213,7 +243,15 @@ function hangarDims(shed) {
   const sh = (typeof SHELLS !== 'undefined' && SHELLS[shed && shed.shell]) || SHELLS.club;
   const d = (shed && shed.dims) || {};
   const pick = k => (typeof d[k] === 'number' && isFinite(d[k]) && d[k] > 0) ? d[k] : sh.dims[k];
-  return { HW: pick('HW'), HD: pick('HD'), EAVE: pick('EAVE') };
+  const out = { HW: pick('HW'), HD: pick('HD'), EAVE: pick('EAVE') };
+  // G3537: a shed's own door (the cabin's 10 m) and its clearance through it, when it names them
+  if (typeof d.door === 'number' && isFinite(d.door) && d.door > 0) out.door = d.door;
+  if (typeof d.doorClr === 'number' && isFinite(d.doorClr) && d.doorClr >= 0) out.doorClr = d.doorClr;
+  if (d.leaves === 2) out.leaves = 2;   // a bi-parting pair (hangar.js, the timber shed)
+  // G3540: a shed's own sign ({ key, w, inside }: HANGAR_GEN signDials - over the door, and on the back wall inside)
+  if (d.sign && typeof d.sign.key === 'string' && d.sign.key) out.sign = Object.assign({}, d.sign);
+  if (d.ground && typeof d.ground.set === 'string' && d.ground.set) out.ground = Object.assign({}, d.ground);   // G3541/G3542
+  return out;
 }
 // THE DOOR, hangar.js's own two lines (GATE GAMEPREM source-scans them so the
 // two cannot drift): nearly the whole gable end; the portal's header takes
@@ -222,7 +260,8 @@ function hangarDoor(shed) {
   const D = hangarDims(shed);
   const sh = (typeof SHELLS !== 'undefined' && SHELLS[shed && shed.shell]) || SHELLS.club;
   const timber = sh.frame === 'timber';
-  return { w: Math.max(6, 2 * D.HW - 5), h: timber ? D.EAVE - 0.5 : Math.min(6.4, D.EAVE - 1.4) };
+  const D0 = D, HW = D.HW;   // (G3537: hangar.js's own expression, read with the same names)
+  return { w: (D0.door > 0) ? Math.min(D0.door, 2 * HW - 1) : Math.max(6, 2 * HW - 5), h: timber ? D.EAVE - 0.5 : Math.min(6.4, D.EAVE - 1.4) };
 }
 // What the fit-out stands on the floor: every prop and recipe hangarFit
 // PLACED (an unplaced one stands nowhere), as a plan rectangle at its
@@ -270,7 +309,9 @@ function parkFoot(f) {
 function hangarDoorWhy(shed, foot) {
   const door = hangarDoor(shed), f = parkFoot(foot);
   const span = 2 * f.half;
-  if (span + 2 * PARK_DOOR_CLR > door.w)
+  // G3537: a door cut for one aeroplane names its own clearance (the cabin's: Rufus's 9.8 m through 10 m)
+  const D = hangarDims(shed), clr = D.doorClr !== undefined ? D.doorClr : PARK_DOOR_CLR;
+  if (span + 2 * clr > door.w)
     return 'the span (' + span.toFixed(1) + ' m) does not pass the ' + door.w.toFixed(1) + ' m door';
   if (f.h && f.h > door.h - 0.1)
     return 'the height (' + f.h.toFixed(1) + ' m) does not pass the ' + door.h.toFixed(1) + ' m door';

@@ -1041,7 +1041,8 @@
    "cw_stubWaist": -0.07,
    "cw_stubKeelH": 0.83,
    "cw_stubSqTop": 0.53,
-   "cw_stubSqBot": 0.35
+   "cw_stubSqBot": 0.35,
+   "floorUp": 0.4
   },
   "wings": [
    {
@@ -1197,7 +1198,7 @@
    "glazing": "glass",
    "pilots": 2,
    "pax": 0,
-   "halfW": 1.2158418012585939,
+   "halfW": 1.2158418012585936,
    "h": 2.632129239785134,
    "len": 9.04,
    "noseGap": 3.5360000000000005,

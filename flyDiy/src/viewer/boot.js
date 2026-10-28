@@ -374,6 +374,7 @@
     return items;
   }
   function text(id, v) { const el = $(id); if (el && el.textContent !== v) el.textContent = v; }
+  const tipsOn = () => typeof window !== 'undefined' && window.FLYDIY_BOOT_TIPS === true;
   function showItem(it, manual) {
     if (!it) return;
     let kind, title, body;
@@ -384,7 +385,9 @@
     } else { kind = KIND[it.card.k] || ''; title = it.card.t || ''; body = it.card.x || ''; }
     text('bootCardKind', kind); text('bootCardTitle', title); text('bootCardText', body);
     text('bootCardN', (B._deckI + 1) + ' / ' + B._deck.length);
-    const card = $('bootCard'); if (card) card.hidden = false;
+    // G3589 (the user, 25 Oct: "The loading screen tips can go for now, we'll redo that properly at some point"): the
+    // card stays hidden unless a page asks for it (window.FLYDIY_BOOT_TIPS === true); the pictures still turn behind
+    const card = $('bootCard'); if (card) card.hidden = !tipsOn();
     // the reading time: ~50 ms a character, 7-15 s; a card picked by hand stays longer
     const dwell = Math.max(7000, Math.min(15000, 4500 + 50 * (title.length + body.length))) * (manual ? 1.8 : 1);
     B._cardNext = now() + dwell;

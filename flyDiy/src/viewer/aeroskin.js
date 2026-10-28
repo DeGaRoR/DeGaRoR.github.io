@@ -655,11 +655,11 @@ const AERO_HARD = {
            face: null },
   // ---- the cabin (_cage_crew.js M) ----------------------------------------
   crew: {
-    shell: 'composite', shellC: 'composite',
+    shellC: 'composite',
     cushion: 'leather', pipe: 'leather',
     belt: 'webbing',
     frame: 'steelTube', metal: 'bareAlu',
-    joint: 'plastic', knob: 'plastic', dark: 'plastic',
+    knob: 'plastic', dark: 'plastic',
     ctrl: 'trim', console: 'plasticGrn', trim: 'trim',
     // THE PANEL (G94). A bezel is a painted alloy clamp ring and a needle is
     // painted too — both dielectrics; the dial FACE is a printed plastic disc,
@@ -672,7 +672,6 @@ const AERO_HARD = {
     grip: 'rubberGrip', boot: 'rubberGrip', plated: 'chrome', cast: 'castAlu', hide: 'hide', ptt: 'plasticScr',
     seatAlu: 'bareAlu',           // G345: the seats' tube frame, drawn alloy
     ball: 'plasticScr', tread: 'rubberGrip', plateAl: 'panelMetal',
-    marker: null,
   },
 };
 // the propeller's material is a CHOICE on the cowl bench (COWL_GEN.MATERIALS),
@@ -963,19 +962,13 @@ const AERO_SEC = {
               layer: 'access', wears: 'parent' },
   // ---- the cabin and its crew (phase D) -----------------------------------
   // The seats follow NOBODY on purpose: a green fuselage does not force
-  // green leather. The dummies are the user's "give them a bit of
-  // personality": one suit COLOUR each, the second following the first
-  // (paint the crew once, then differ one) — the suit's MATERIAL stays
-  // pinned composite, because an ATD is an ATD whatever it wears.
+  // green leather. The occupants wear their characters' own clothes (G3700),
+  // so the crew has no livery section of its own.
   seatTrim: { parent: null,     fin: 'hide',      label: 'the seats',    // G332: the user's scan
               layer: 'crew' },
   // G2795 (the user's garage review, 18 Oct: "the floor's material
   // editable"): the cabin floor's boards, plywood until picked
   cabFloor: { parent: null,     fin: 'ply',       label: 'the cabin floor',
-              layer: 'crew' },
-  dummy1:   { parent: null,     fin: 'composite', label: 'the pilot',
-              layer: 'crew' },
-  dummy2:   { parent: 'dummy1', fin: 'composite', label: 'the pilot',
               layer: 'crew' },
 };
 
@@ -1122,7 +1115,11 @@ function aeroFinishLegacy(sections) {
 // follows the body; a row that walks its own name only (tintOwn, the float's deck) takes the pick itself. What is not
 // the airframe's paint (the propeller, the spinner, the engine, the seats, the crew) keeps G1320's rule: it follows
 // only if it was following. Decals and the registration are not paint and are not touched.
-function aeroBaseReach(map, prev, next, neutral, eq, names) {
+// G3541 (AIRCRAFT-LOOKS, the user's playtest 24 Oct, Rufus: "global paint misses the rod boom and the tube structure"):
+// ...AND WHAT IS OUTSIDE ON A BARE FRAME. The rod boom (boomTube) is never inside anything (aeroIsInside), so the pick
+// repaints it; the welded truss (tube) is the aeroplane's outside only when the fuselage is OPEN (`opts.open`: the
+// cage's skinOn 0, the spec's fuselage.covering 'open') - under a covering it is the cabin's frame and keeps its own.
+function aeroBaseReach(map, prev, next, neutral, eq, names, opts) {
   const same = (a, b) => a == null ? b == null : (b != null && eq(a, b));
   const put = k => {
     if (next == null || (neutral != null && eq(next, neutral))) delete map[k]; else map[k] = next; };
@@ -1155,7 +1152,7 @@ function aeroBaseReach(map, prev, next, neutral, eq, names) {
     layer.push([k, toBody]);
   }
   for (const nm of names || [])
-    if (['skin', 'rail', 'pillar'].includes(AERO_ROLE[nm])) put(nm);
+    if (['skin', 'rail', 'pillar'].includes(AERO_ROLE[nm]) || nm === 'boomTube' || (nm === 'tube' && opts && opts.open)) put(nm);
   put('body');
   // the parent-wearing parts follow by having NO override: clear theirs - a hand colour too (G2750: the global paint
   // plainly repaints what it covers)
@@ -1167,6 +1164,32 @@ function aeroBaseReach(map, prev, next, neutral, eq, names) {
     if (toBody || v == null) delete map[k]; else map[k] = v;
   }
   return map;
+}
+// G3549 (the user, 27 Oct: "the global livery does not reach the second wing"): A PLANE'S CLONE FOLLOWS ITS SOURCE.
+// The second wing wears its own copy of the pooled section material (aeroPlane 2: the join buckets it apart, the game
+// binds it apart - _cage_wing.js wingMat). The garage's repaint (_cage_ui.js) swaps the materials the section requests
+// handed out, and the copy was never one of them: the reach was right, the second wing kept the old paint until the
+// next full build. Each copy remembers its source here; a repaint hands the copy of the source's replacement to every
+// mesh wearing the old copy (or the game's understudy of it), as the cowl's twins do (G1301).
+const AERO_PLANE_SRC = new WeakMap();
+function aeroPlaneClone(m, plane) {
+  const m2 = m.clone();
+  m2.userData = Object.assign({}, m.userData, { aeroPlane: plane });
+  AERO_PLANE_SRC.set(m2, m);
+  return m2;
+}
+function aeroPlaneRepaint(swap, scene) {
+  const made = new Map();
+  let n = 0;
+  scene.traverse(o => {
+    if (!o.isMesh || !o.material || Array.isArray(o.material)) return;
+    const m = o.material, om = (m.userData && m.userData.cageUniOf) || m;
+    const src = AERO_PLANE_SRC.get(om), nu = src && swap.get(src);
+    if (!nu) return;
+    if (!made.has(om)) made.set(om, aeroPlaneClone(nu, om.userData.aeroPlane));
+    o.material = made.get(om); n++;
+  });
+  return n;
 }
 
 // ---------------------------------------------------------------------------
@@ -1809,6 +1832,14 @@ function aeroSharedU0(THREE, z4) {
     // fact about the AEROPLANE and not about any one material — the same
     // reason the decal list is shared.
     uCraftInv: { value: new THREE.Matrix4() },
+    // G3623 (DMG-GLASS): THE IMPACT MARKS ON THE GLAZING, in craft space (src/viewer/dmg_glass.js: where the frame hit a
+    // pane). SHARED for the reason uCraftInv is: a mark is a fact about the aeroplane flown, gated in the glass shader to
+    // fragments within its reach of its point and facing its normal - another aeroplane's glass is metres off in this
+    // frame and never shows it. uCrackN the marks in use (0: the block is skipped), P xyz the point + w the severity,
+    // Q xyz the pane's normal + w the seed
+    uCrackN: { value: 0 },
+    uCrackP: { value: Array.from({ length: 4 }, () => new THREE.Vector4(0, 0, 0, 0)) },
+    uCrackQ: { value: Array.from({ length: 4 }, () => new THREE.Vector4(0, 0, 1, 0)) },
     uInset: { value: 0.02 },
     // THE WEATHERING (G345, src/viewer/aeroweather.js). uWear carries the
     // FOUR MACROS now — x age, y flight, z bush, w rain — and the module
@@ -3366,9 +3397,22 @@ const AERO_ALBEDO_FS = `
     // from the other side that direction crosses the eye the other way.
     // PLAN does not — a plan view has one handedness and a stripe drawn
     // across the span is the same stripe from either wing tip.
-    vec2 sideC2 = vec2((aeroA.y - uDecA[di].x) * mir,
+    // G3542 (AIRCRAFT-LOOKS, the user's playtest 24 Oct: "a registration on the wing gives mirrored text on the other
+    // side"): ...BUT IT HAS TWO FACES. The plan box paints through the wing, and seen from UNDER it the span crosses the
+    // eye the other way - the letters on the lower face read backwards. A marking that mirrors (letters: uDecC.w 0)
+    // turns its lateral axis about its own centre on a face looking down (the craft normal's z); paint (noMirror)
+    // keeps the one handedness, as before.
+    float pmir = mix((vCraftNrm.z < 0.0) ? -1.0 : 1.0, 1.0, step(0.5, uDecC[di].w));
+    // G3547 (the user, 25 Oct: "the top side and bottom sides should be treated differently, and that should be the same
+    // for the stabs and the fins"): the SIDE box's far flank is the face's, not the position's. Both faces of a fin stand
+    // the same few cm (a twin boom's the same metre) off the craft's plane, so the position mirrored both or neither and
+    // one face read backwards; the normal tells them apart, as aSide does below. Where the face looks up or down (a
+    // fuselage's crown and belly) the position decides, as before, and on a flank the two agree.
+    float nx = vCraftNrm.x / max(1e-4, length(vCraftNrm));
+    float smir = mix((abs(nx) > 0.25) ? sign(nx) : aeroSideF, 1.0, step(0.5, uDecC[di].w));
+    vec2 sideC2 = vec2((aeroA.y - uDecA[di].x) * smir,
                         aeroA.z - uDecA[di].y);
-    vec2 planC = vec2(aeroA.x - uDecA[di].x, aeroA.y - uDecA[di].y);
+    vec2 planC = vec2((aeroA.x - uDecA[di].x) * pmir, aeroA.y - uDecA[di].y);
     vec2 boxC = mix(sideC2, planC, step(1.5, mode));
     #if AEROSKIN_SURF == 1
       vec2 dd = mix(fieldC, boxC, step(0.5, mode));
@@ -3814,6 +3858,60 @@ const GLASS_MATS = {
 };
 const aeroGlassMat = m => GLASS_MATS[m] || GLASS_MATS.acrylic;
 
+// G3623 (DMG-GLASS): THE CRACK MASK, the glass hook's - TEXTUALLY src/viewer/dmg_glass.js GLSL_CRACK (GATE DMGGLASS holds them
+// equal; dmg_glass.js crackJS is its mirror). Here and not read from DMG_GLASS: the glass compiles at roll-out, whatever
+// loads after it
+const AERO_GLASS_CRACK_FS = [
+  "float dgU1(int i, int seed) { uint x = (uint(i) * 0x27d4eb2du) ^ (uint(seed) * 0x165667b1u); x ^= x >> 15u; x *= 0x85ebca6bu; x ^= x >> 13u; x *= 0xc2b2ae35u; x ^= x >> 16u; return float(x) / 4294967296.0; }",
+  "float dgU2(int i, int j, int seed) { return dgU1(int(uint(i) * 73856093u ^ uint(j) * 19349663u), seed); }",
+  "float dgV1(float x, int seed) { float fi = floor(x); int i = int(fi); float f = x - fi; float s = f * f * (3.0 - 2.0 * f); float a = dgU1(i, seed); return a + (dgU1(i + 1, seed) - a) * s; }",
+  "float dgFbm(float x, int seed) { float s = 0.0, a = 0.5, f = 1.0, n = 0.0; for (int o = 0; o < 3; o++) { s += a * (dgV1(x * f, seed + o * 31) * 2.0 - 1.0); n += a; a *= 0.5; f *= 2.03; } return s / n; }",
+  "float dgSm(float a, float b, float x) { float t = clamp((x - a) / (b - a), 0.0, 1.0); return t * t * (3.0 - 2.0 * t); }",
+  "float dgLine(float dist, float w, float pw) { float we = max(w, pw); return (1.0 - dgSm(we * 0.5, we, dist)) * (w / we); }",
+  "float dgVor(vec2 p, int seed) { vec2 fl = floor(p); int ix = int(fl.x), iy = int(fl.y); float md = 9.0, mx = 0.0, my = 0.0;",
+  "  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) { float px = float(i) + dgU2(ix + i, iy + j, seed), py = float(j) + dgU2(ix + i, iy + j, seed + 1); float dx = px - (p.x - fl.x), dy = py - (p.y - fl.y), d = dx * dx + dy * dy; if (d < md) { md = d; mx = dx; my = dy; } }",
+  "  float e = 9.0;",
+  "  for (int j = -2; j <= 2; j++) for (int i = -2; i <= 2; i++) { float px = float(i) + dgU2(ix + i, iy + j, seed), py = float(j) + dgU2(ix + i, iy + j, seed + 1); float dx = px - (p.x - fl.x), dy = py - (p.y - fl.y), qx = dx - mx, qy = dy - my, ql = qx * qx + qy * qy;",
+  "    if (ql > 1e-5) e = min(e, ((mx + dx) * 0.5 * qx + (my + dy) * 0.5 * qy) / sqrt(ql)); }",
+  "  return e; }",
+  "vec2 dgCrack(vec2 q, float sev, int seed, float px) {",
+  "  float reach = 0.06 + 0.30 * sev, r = length(q) + 1e-6;",
+  "  if (r > reach * 1.05) return vec2(0.0);",
+  "  float th = atan(q.y, q.x); if (th < 0.0) th += 6.2831853;",
+  "  int NR = 5 + int(floor(dgU1(1, seed) * 5.0)); float cell = th / 6.2831853 * float(NR); int c0 = int(floor(cell));",
+  "  float line = 0.0, haze = 0.0;",
+  "  for (int o = -1; o <= 1; o++) {",
+  "    int k = c0 + o; if (k < 0) k += NR; if (k >= NR) k -= NR;",
+  "    float base = (float(k) + 0.5 + 0.7 * (dgU1(k, seed + 3) - 0.5)) / float(NR) * 6.2831853;",
+  "    float ang = base + 0.10 * dgFbm(r * 9.0 + float(k) * 7.1, seed + 5) + 0.12 * dgFbm(r * 2.3 + float(k), seed + 6) * min(1.0, r / 0.1);",
+  "    float d = th - ang; d -= 6.2831853 * floor(d / 6.2831853 + 0.5);",
+  "    float len = reach * (0.45 + 0.55 * dgU1(k, seed + 9)), dist = abs(d) * r;",
+  "    float w = 0.0009 * (1.0 - min(1.0, r / len)) + 0.00025;",
+  "    if (r < len) { line = max(line, dgLine(dist, w, px)); haze = max(haze, 0.55 * (1.0 - dgSm(w, max(w * 6.0, px * 2.0), dist))); }",
+  "  }",
+  "  if (sev >= 0.5) {",
+  "    int NG = 1 + int(floor(dgU1(2, seed) * 3.0));",
+  "    for (int j = 0; j < 3; j++) { if (j >= NG) break;",
+  "      float R = (0.03 + 0.02 * dgU1(j, seed + 13)) * pow(2.0, float(j)) * (0.6 + sev);",
+  "      if (dgU2(c0, j, seed + 17) > 0.55 || R > reach) continue;",
+  "      float Rw = R * (1.0 + 0.08 * dgFbm(th * 5.0 + float(j), seed + 19)), dist = abs(r - Rw);",
+  "      line = max(line, dgLine(dist, 0.0004, px)); haze = max(haze, 0.45 * (1.0 - dgSm(0.001, max(0.004, px * 2.0), dist))); }",
+  "  }",
+  "  if (sev >= 0.85) {",
+  "    float cz = 0.9 * (1.0 - dgSm(0.02, 0.06 + 0.06 * sev, r));",
+  "    if (cz > 0.0) { float e = dgVor(q * 60.0, seed + 23); haze = max(haze, cz * (1.0 - dgSm(0.02, 0.07, e)) * 0.8); }",
+  "  }",
+  "  return vec2(line, haze);",
+  "}",
+].join('\n');
+// ...its uniforms (aeroSharedU) and the fragment's mark, (line, haze) 0..1
+const AERO_GLASS_CRACK_PARS = `
+uniform float uCrackN;
+uniform vec4 uCrackP[4];
+uniform vec4 uCrackQ[4];
+vec2 aeroCrack = vec2(0.0);
+` + AERO_GLASS_CRACK_FS + '\n';
+
 const AEROGLASS_HOOK = function (shader) {
   const W = aeroWx();                       // G345, as in AEROSKIN_HOOK
   const u = this.userData.aeroU;
@@ -3826,7 +3924,9 @@ const AEROGLASS_HOOK = function (shader) {
              '#include <begin_vertex>\n' + AERO_MAIN_VS));
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <common>', AERO_PARS_FS + (W ? W.AERO_WX_PARS_FS : '')
-             + '\n#include <common>')
+             + AERO_GLASS_CRACK_PARS + '\n#include <common>')
+    // G3623: the pane is DoubleSide for its cracks only - a back face with no mark in use is gone before anything runs
+    .replace('void main() {', 'void main() {\n  if (!gl_FrontFacing && uCrackN < 0.5) discard;')
     .replace('#include <lights_physical_fragment>',
              '#include <lights_physical_fragment>\n' + (W ? W.AERO_WX_CC_FS : ''))
     .replace('#include <roughnessmap_fragment>', `
@@ -3869,6 +3969,24 @@ const AEROGLASS_HOOK = function (shader) {
     // THE WEATHERING ON THE PANE (G345): roughness and the clear coat,
     // nothing on the albedo by table — spliced in as text, same for every pane
     ` + (W ? W.AERO_WX_GLASS_FS : '') + `
+    // G3623 (DMG-GLASS): THE IMPACT MARKS (dmg_glass.js) - each mark gated to the fragments of ITS pane: within 4 cm of
+    // its tangent plane and facing its normal; the crack in that plane round its point. A crack roughens the clear coat
+    // (the reflection breaks up along it) and, at the output, scatters the light the pane receives (aeroCrack)
+    if (uCrackN > 0.5) {
+      float dgPx = max(fwidth(vCraftPos.x), max(fwidth(vCraftPos.y), fwidth(vCraftPos.z)));
+      vec3 dgNf = normalize(vCraftNrm);
+      for (int i = 0; i < 4; i++) {
+        if (float(i) >= uCrackN) break;
+        vec3 dgD = vCraftPos - uCrackP[i].xyz;
+        vec3 dgN = uCrackQ[i].xyz;
+        if (abs(dot(dgD, dgN)) > 0.04 || dot(dgNf, dgN) < 0.5) continue;
+        vec3 dgA = abs(dgN.z) < 0.9 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+        vec3 dgT1 = normalize(cross(dgN, dgA));
+        vec3 dgT2 = cross(dgN, dgT1);
+        aeroCrack = max(aeroCrack, dgCrack(vec2(dot(dgD, dgT1), dot(dgD, dgT2)), uCrackP[i].w, int(uCrackQ[i].w), dgPx));
+      }
+      roughnessFactor += 0.6 * aeroCrack.x + 0.5 * aeroCrack.y;
+    }
     roughnessFactor = clamp(roughnessFactor, 0.0, 1.0);
   }`)
     .replace('#include <clearcoat_normal_fragment_begin>', `
@@ -3931,7 +4049,13 @@ const AEROGLASS_HOOK = function (shader) {
                  + reflectedLight.indirectSpecular) * aeroGRain;
   vec3 aeroDiff = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse
                 + totalEmissiveRadiance;
-  gl_FragColor = vec4(aeroDiff * (1.0 - aeroT) * uGlassB.y + aeroSpec, 1.0);`);
+  // G3623 (DMG-GLASS): a crack scatters what the pane receives - the diffuse light over the pane's own colour is its
+  // irradiance (over pi): added near-white along the lines and, fainter, over the crazed haze. Zero without a mark
+  vec3 aeroIrr = (reflectedLight.directDiffuse + reflectedLight.indirectDiffuse) / max(diffuseColor.rgb, vec3(0.02));
+  vec3 aeroCrk = aeroIrr * (0.85 * aeroCrack.x + 0.30 * aeroCrack.y) * vec3(0.93, 0.95, 0.97);
+  // (the back face - the pane seen from the seat: the crack alone, nothing where there is none)
+  if (!gl_FrontFacing && aeroCrack.x + aeroCrack.y <= 0.0) discard;
+  gl_FragColor = vec4(gl_FrontFacing ? aeroDiff * (1.0 - aeroT) * uGlassB.y + aeroSpec + aeroCrk : aeroCrk, 1.0);`);
 };
 
 // THE MULTIPLY PASS (G206): pass 1 of the glass, see the family header. A
@@ -4481,10 +4605,23 @@ function aeroGlass(THREE, o) {
     // folded into the BASE rather than written on top of it, or the two fight
     // and the last one to run wins.
     envMapIntensity: 1.4 * G('refl'),
-    // FRONT SIDE ONLY: with DoubleSide transparency the far side of a curved
-    // pane rendered through the near one and its limb read as a phantom
-    // circle on the bubble (_cage_ui.js:231, the user's own report).
-    side: THREE.FrontSide,
+    // FRONT SIDE FOR THE GLASS ITSELF: with DoubleSide transparency the far
+    // side of a curved pane rendered through the near one and its limb read
+    // as a phantom circle on the bubble (_cage_ui.js:231, the user's own
+    // report). G3623 (DMG-GLASS, A0's 28 Oct page run: "FLYDIY_GLASS_TEST
+    // returns a mark, NOTHING shows in the cockpit view"): the flown panes are
+    // single sheets wound outward, so from the seat every one of their
+    // triangles faces away and the pane - and a crack on it - was never drawn.
+    // So the pane is DoubleSide, and its back faces draw the CRACK ALONE: the
+    // hook discards a back face first thing while no mark is in use (an
+    // intact pane draws exactly as before, its back faces cost a rasterised
+    // discard), and with a mark writes only the crack's scatter - never the
+    // reflection, so the phantom limb cannot come back. The side is set here,
+    // at roll-out: a crash links no program. ONE pass (three draws a
+    // transparent DoubleSide material back side then front side, two programs
+    // and two draws; the pane adds light - the order is nothing to it)
+    side: THREE.DoubleSide,
+    forceSinglePass: true,
     depthWrite: false,
   });
   m.userData.aeroU = U;
@@ -4879,7 +5016,7 @@ if (typeof window !== 'undefined')
                       AERO_KIT_LDEF, AERO_KIT_FIELDS,
                       aeroKitKnob, aeroKitLayers, aeroKitDraw, aeroKitArgs, AERO_KIT_CLEAR,
                       AERO_HARD, AERO_PROP_FIN, AERO_WEAR_K,
-                      AERO_SEC, aeroSecResolve, aeroBaseReach, aeroFinishLegacy,
+                      AERO_SEC, aeroSecResolve, aeroBaseReach, aeroFinishLegacy, aeroPlaneClone, aeroPlaneRepaint,
                       aeroHardFinish, aeroHardMat, aeroHardOn, aeroSetWear,
                       aeroSharedU,          // G345: uCraftInv for the sources
                       // THE LAB (G206)
@@ -4905,7 +5042,7 @@ if (typeof module !== 'undefined')
                      AERO_KIT, AERO_KIT_LAYERS, AERO_KIT_PAGE0,
                      AERO_KIT_LDEF, AERO_KIT_FIELDS,
                      aeroKitKnob, aeroKitLayers, aeroKitArgs, AERO_KIT_CLEAR,
-                     AERO_SEC, aeroSecResolve, aeroBaseReach, aeroFinishLegacy,
+                     AERO_SEC, aeroSecResolve, aeroBaseReach, aeroFinishLegacy, aeroPlaneClone, aeroPlaneRepaint,
                      AERO_FINISH_DEF, AERO_LAB_FIELDS, AERO_LAB_GRAM,
                      AERO_GAIN_DEF, GLASS_DEF, aeroIsInside, AERO_CABIN_DEF,
                      aeroDecOk, aeroRestBake };

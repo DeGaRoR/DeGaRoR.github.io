@@ -334,7 +334,7 @@
     // missing constructor here must degrade to the old path and not throw at
     // module eval — a dead viewer is a worse bug than a rough edge.
     const S = {
-      tier: 'off', w: 1, h: 1, rt: null, mat: null, dither: 1, scale: 1,   // scale: the render scale (0.5-1, PERF 2026-09-23), times the tier's ss
+      tier: 'off', w: 1, h: 1, rt: null, mat: null, mats: {}, u: null, dither: 1, scale: 1,   // scale: the render scale (0.5-1, PERF 2026-09-23), times the tier's ss
       fsScene: null, fsCam: null, ss: 1, samples: 0, able: false, maxSamples: 0,
       // CLOUDS C1: a pass that draws OVER the scene into this target before the resolve (the cloud
       // march composites there, reading the scene's depth) - it asks for the target even at tier
@@ -429,24 +429,33 @@
         S.quad.frustumCulled = false;
         S.fsScene.add(S.quad);
       }
-      if (S.mat) S.mat.dispose();
       if (!S.eyeWhite) { S.eyeWhite = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); S.eyeWhite.needsUpdate = true; }
       if (!S.eyeU.value) S.eyeU.value = S.eyeWhite;
-      S.mat = new THREE.ShaderMaterial({
-        uniforms: {
-          tSrc:    { value: S.rt.texture },
-          tEyeK:   S.eyeU,
-          uTexel:  { value: new THREE.Vector2(1 / SW, 1 / SH) },
-          uR:      { value: R },
-          uDither: { value: S.dither },
-        },
+      const u = blitUniforms();
+      u.tSrc.value = S.rt.texture; u.uTexel.value.set(1 / SW, 1 / SH); u.uR.value = R; u.uDither.value = S.dither;
+      S.mat = blitMat(R > 1.001 ? AA_FS_TENT : R < 0.999 ? AA_FS_UP : AA_FS_BLIT);
+      S.quad.material = S.mat;
+    }
+
+    // G1998c (HWCOV, AA-RESOLVE-CHURN): ONE BLIT MATERIAL PER FRAGMENT VARIANT, KEPT, ALL SHARING ONE UNIFORMS OBJECT.
+    // buildRT runs on every size, scale or tier change, and it used to dispose the blit and build a new one - the last
+    // user of its program gone, three deleted the program and the next frame linked it again, synchronously: 211 / 167 /
+    // 672 ms on the world -> garage hand-over (the s7_prof profiles, program 66e30961). The target changes, the program
+    // does not: a rebuild re-points the shared uniforms and picks the kept material for the ratio's variant.
+    function blitUniforms() {
+      if (!S.u) S.u = { tSrc: { value: null }, tEyeK: S.eyeU, uTexel: { value: new THREE.Vector2(1, 1) }, uR: { value: 1 }, uDither: { value: S.dither } };
+      return S.u;
+    }
+    function blitMat(fs) {
+      const k = (fs === AA_FS_TENT ? 'tent' : fs === AA_FS_UP ? 'up' : 'blit') + (S.linear ? ':lin' : '');
+      return S.mats[k] || (S.mats[k] = new THREE.ShaderMaterial({
+        uniforms: blitUniforms(),
         vertexShader: AA_VS,
-        fragmentShader: R > 1.001 ? AA_FS_TENT : R < 0.999 ? AA_FS_UP : AA_FS_BLIT,
+        fragmentShader: fs,
         defines: S.linear ? { AA_LINEAR: 1 } : {},
         depthTest: false, depthWrite: false,
         toneMapped: true,     // the blit carries the renderer's tone map in linear mode (a no-op define otherwise)
-      });
-      S.quad.material = S.mat;
+      }));
     }
 
     function setTier(k) {
@@ -555,7 +564,8 @@
 
     function dispose() {
       disposeRT();
-      if (S.mat) { S.mat.dispose(); S.mat = null; }
+      for (const k in S.mats) S.mats[k].dispose();
+      S.mats = {}; S.mat = null;
     }
 
     // the saved choice wins over the default, as any menu choice should
@@ -575,7 +585,7 @@
     function setLinear(on) { on = !!on; if (on === S.linear) return S.linear; S.linear = on; buildRT(); return S.linear; }
     function setDither(x) {
       S.dither = Math.max(0, Math.min(4, +x || 0));
-      if (S.mat) S.mat.uniforms.uDither.value = S.dither;
+      if (S.u) S.u.uDither.value = S.dither;
       return S.dither;
     }
 
@@ -596,7 +606,8 @@
       // G1524: the budget's sample cap (null = none); a change rebuilds the target
       setMsaaCap: n => { n = n == null ? null : Math.max(0, n | 0); if (n === (S.msaaCap == null ? null : S.msaaCap)) return n; S.msaaCap = n; if (S.rt) buildRT(); return S.msaaCap; },
       // G584: the blit's program, for the roll-out's compile step (shader_warm.js) - drawn onto the canvas
-      warmList: () => (S.rt && S.mat ? [{ m: S.mat, to: null }] : []),
+      // G1998c: all three variants (down, up, 1:1) under the loader - a later scale or tier change draws a linked program
+      warmList: () => (S.rt && S.mat ? [AA_FS_TENT, AA_FS_UP, AA_FS_BLIT].map(fs => ({ m: blitMat(fs), to: null })) : []),
       dither: () => S.dither,
       tier: () => S.tier,
       able: () => S.able,

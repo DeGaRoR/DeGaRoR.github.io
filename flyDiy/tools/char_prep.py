@@ -222,9 +222,50 @@ def hips_track(j, bin_, a):
     return None
 
 
+PACE_REACH, PACE_GAP, PACE_MIN, PACE_XFADE = 1.4, 0.2, 6, 1   # m, m, s, s
+
+
+def pace_loop(frames, drift, fps):
+    """G3619: a 'pace' take cut to the loop the crowd plays - the stretch
+    [a, e] (PACE_MIN s at least) whose ground track stays within PACE_REACH of
+    its start and comes back within PACE_GAP, the one whose end pose is
+    closest to its start's; its last PACE_XFADE s blend into the poses (and the
+    track) just before a, so frame e IS frame a and the loop has no seam.
+    Returns (frames, drift about a, a, e); the whole take when nothing fits."""
+    n, J = len(frames), len(frames[0])
+    K = PACE_XFADE * fps
+    pose = lambda f, g: sum(1 - min(1.0, abs(sum(x * y for x, y in zip(p, q))))
+                            for p, q in zip(frames[f], frames[g])) / J
+    best = None
+    for a in range(K, n):
+        r = 0.0
+        for e in range(a + 1, n):
+            dx, dz = drift[e][0] - drift[a][0], drift[e][1] - drift[a][1]
+            g = (dx * dx + dz * dz) ** 0.5
+            r = max(r, g)
+            if r > PACE_REACH:
+                break
+            if e - a >= PACE_MIN * fps and g <= PACE_GAP:
+                s = pose(a, e)
+                if best is None or s < best[0]:
+                    best = (s, a, e)
+    if best is None:
+        return frames, drift, 0, n - 1
+    _, a, e = best
+    out = [list(map(list, fr)) for fr in frames[a:e + 1]]
+    dr = [[d[0] - drift[a][0], d[1] - drift[a][1]] for d in drift[a:e + 1]]
+    m0 = len(out) - 1 - K
+    for m in range(K + 1):
+        w, src = m / K, a - K + m
+        out[m0 + m] = [slerp(q, p, w) for q, p in zip(out[m0 + m], frames[src])]
+        t = [drift[src][0] - drift[a][0], drift[src][1] - drift[a][1]]
+        dr[m0 + m] = [dr[m0 + m][0] + (t[0] - dr[m0 + m][0]) * w, dr[m0 + m][1] + (t[1] - dr[m0 + m][1]) * w]
+    return out, dr, a, e
+
+
 def bake_anim(row, report, root=False):
     """One clip -> f32 quats [frames][joints][4] on a uniform grid at row.fps.
-    Rotation channels only: the ATD owns the root and the legs, the clip
+    Rotation channels only: the crew's IK owns the root and the legs, the clip
     lends its upper body — translations would fight the seat."""
     j, bin_ = load(asset_src(row['glb']))
     anims = j.get('animations', [])
@@ -249,9 +290,10 @@ def bake_anim(row, report, root=False):
     fps = row.get('fps', 15)
     nf = max(2, int(round(t_end * fps)) + 1)
     joints = sorted(chans)
-    buf = bytearray()
+    frames = []
     for f in range(nf):
         t = f / fps
+        fr = []
         for name in joints:
             ts, qs = chans[name]
             k = 0
@@ -261,9 +303,10 @@ def bake_anim(row, report, root=False):
                 q = list(qs[k])
             else:
                 q = slerp(qs[k], qs[k + 1], (t - ts[k]) / (ts[k + 1] - ts[k]))
-            buf += struct.pack('<4f', *q)
+            fr.append(q)
+        frames.append(fr)
     print('%-9s clip %5.2f s  %3d frames @ %d fps  %2d joints  %.2f MB'
-          % (row['key'], t_end, nf, fps, len(joints), len(buf) / 1048576))
+          % (row['key'], t_end, nf, fps, len(joints), nf * len(joints) * 16 / 1048576))
     extra = {}
     if root:
         # THE ROOT'S TRAVEL (G2970): forward speed over the clip (first to last
@@ -291,6 +334,44 @@ def bake_anim(row, report, root=False):
             bob = [round(y - m, 4) for y in ys]
         extra = {'role': row.get('role'), 'rootV': round(rootV, 4), 'bob': bob}
         print('          root %.3f m/s  bob +-%.3f m' % (rootV, max(abs(b) for b in bob)))
+        # G3619 (THE QUEUE): a 'pace' clip walks about a spot - its ground track
+        # rides as `drift`, [dx, dz] per frame about the first sample (world
+        # axes = the character's own: +z its front), so the feet stay planted
+        if hk and row.get('role') == 'pace':
+            ts, ps = hk
+            drift = []
+            for f in range(nf):
+                t = f / fps
+                k = 0
+                while k + 1 < len(ts) and ts[k + 1] <= t:
+                    k += 1
+                if k + 1 >= len(ts) or t <= ts[k]:
+                    x, z = ps[k][0], ps[k][2]
+                else:
+                    u = (t - ts[k]) / (ts[k + 1] - ts[k])
+                    x = ps[k][0] + (ps[k + 1][0] - ps[k][0]) * u
+                    z = ps[k][2] + (ps[k + 1][2] - ps[k][2]) * u
+                drift.append([x - ps[0][0], z - ps[0][2]])
+            # a pacing take walks off (the user's: 3.9 m out, ending 3.1 m
+            # away): keep the stretch that comes back to where it began
+            frames, drift, a0, e0 = pace_loop(frames, drift, fps)
+            nf = len(frames)
+            bob = extra['bob'][a0:e0 + 1]
+            K = min(PACE_XFADE * fps, a0, nf - 1)
+            for m in range(K + 1):
+                i = nf - 1 - K + m
+                bob[i] = round(bob[i] + (extra['bob'][a0 - K + m] - bob[i]) * m / max(1, K), 4)
+            extra['bob'] = bob
+            drift = [[round(d[0], 3), round(d[1], 3)] for d in drift]
+            extra['drift'] = drift
+            extra['dur'] = (nf - 1) / fps
+            print('          drift %d frames (the loop %.2f-%.2f s of the take), reach %.2f m, loop gap %.2f m'
+                  % (nf, a0 / fps, e0 / fps, max((d[0] ** 2 + d[1] ** 2) ** 0.5 for d in drift),
+                     (drift[-1][0] ** 2 + drift[-1][1] ** 2) ** 0.5))
+    buf = bytearray()
+    for fr in frames:
+        for q in fr:
+            buf += struct.pack('<4f', *q)
     if report:
         return None, []
     rel = write_media('geo/chars', 'anim_' + row['key'], 'bin', bytes(buf))

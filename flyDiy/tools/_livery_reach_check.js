@@ -127,6 +127,50 @@ for (const [tag, [key0, cons]] of Object.entries(STOCK)) {
   ok(EQ(map.spinner, 0x383838), 'rule 2: the spinner (not the airframe paint) keeps its own colour, got ' + hex(map.spinner));
   console.log('mosquito: waistband ' + hex(0x262626) + ' -> ' + hex(map.waistband) + ', hand band -> ' + hex(map.floorLoop) + ', hand wing -> ' + hex(wing) + ', rudder -> ' + hex(rud) + ', spinner ' + hex(map.spinner));
 }
+// G3549 (the user, 27 Oct: "the global livery does not reach the second wing"), the MAP half: a biplane's second
+// plane (wingSkin2 and its tips, ailerons, flaps), its own colours set by hand, wears the global paint after a pick
+{
+  const map = { body: 0xcc2222, wingSkin2: 0x00aa00, wingTip2: 0x111111, wingAil2: 0xcc2222 };
+  A.aeroBaseReach(map, map.body, NEW, null, EQ, CAGE); map.body = NEW;
+  for (const k of ['wingSkin2', 'wingTip2', 'wingAil2', 'wingFlap2']) {
+    const t = A.aeroSecResolve(k, { tint: map }, { cons: 'fabric' }).tint;
+    ok(t != null && EQ(t, NEW), 'G3549: the second plane\'s ' + k + ' wears the global paint, got ' + hex(t));
+  }
+}
+// ...and the REPAINT half, the user's bug: the second plane wears a COPY of the pooled material (_cage_wing.js
+// wingMat, aeroPlane 2); the garage's repaint swaps only the materials the requests handed out (_cage_ui.js), so
+// the copy kept the old paint. aeroPlaneRepaint (a PAGE.repaint hook) hands it the copy of the replacement.
+{
+  class FM { constructor(id) { this.id = id; this.userData = {}; }
+             clone() { const c = new FM(this.id + "'"); c.userData = Object.assign({}, this.userData); return c; } }
+  const old = new FM('wing'), nu = new FM('wing-new'), other = new FM('cowl');
+  const copy = A.aeroPlaneClone(old, 2);
+  ok(copy !== old && copy.userData.aeroPlane === 2 && !old.userData.aeroPlane,
+     'G3549: the second plane\'s copy is its own object, tagged aeroPlane 2, the source untouched');
+  const w1 = { isMesh: true, material: old }, w2a = { isMesh: true, material: copy }, w2b = { isMesh: true, material: copy };
+  const und = new FM('understudy'); und.userData.cageUniOf = copy;         // the game's understudy of the copy
+  const w2u = { isMesh: true, material: und }, cw = { isMesh: true, material: other };
+  const meshes = [w1, w2a, w2b, w2u, cw], scene = { traverse: f => meshes.forEach(f) };
+  const swap = new Map([[old, nu]]);
+  // _cage_ui.js repaint's own pass: a mesh on a swapped material takes its replacement
+  for (const o of meshes) if (swap.has(o.material)) o.material = swap.get(o.material);
+  ok(w1.material === nu, 'G3549: the first wing takes the repaint');
+  ok(w2a.material === copy, 'G3549 NEGATIVE: the swap alone leaves the second wing on its old copy (the bug)');
+  const n = A.aeroPlaneRepaint(swap, scene);
+  const c2 = w2a.material;
+  ok(n === 3 && c2 !== copy && c2 !== nu && c2.id === "wing-new'" && c2.userData.aeroPlane === 2,
+     'G3549: the hook hands the second wing a copy of the replacement, aeroPlane 2 (moved ' + n + ', wears ' + c2.id + ')');
+  ok(w2b.material === c2 && w2u.material === c2, 'G3549: every mesh on the old copy (and its understudy) takes ONE new copy');
+  ok(cw.material === other, 'G3549: a mesh on a material the swap did not move is untouched');
+  const nu2 = new FM('wing-newer');
+  w1.material = nu2;
+  A.aeroPlaneRepaint(new Map([[nu, nu2]]), scene);
+  ok(w2a.material.id === "wing-newer'" && w2a.material.userData.aeroPlane === 2, 'G3549: the next repaint follows again');
+  const WS = require('fs').readFileSync(path.join(__dirname, '_cage_wing.js'), 'utf8');
+  ok(/A\.aeroPlaneClone\(m, 2\)/.test(WS) && /\(PAGE\.repaint = PAGE\.repaint \|\| \[\]\)\.push\(\(swap, scene\) => \{[^}]*aeroPlaneRepaint\(swap, scene\)/.test(WS),
+     'G3549: the wing layer dresses its second plane with aeroPlaneClone and hooks aeroPlaneRepaint on the repaint');
+  console.log('second plane: map + repaint (' + n + ' meshes moved, the swap alone left the copy)');
+}
 // the negative: the old reach leaves the Cub's rudder behind
 {
   const key = Object.keys(B).find(k => k.toLowerCase() === 'piper cub');

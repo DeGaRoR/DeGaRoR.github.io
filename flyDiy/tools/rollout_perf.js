@@ -249,7 +249,7 @@ function preScript() {
       cut += n - F.layers[k].length;
     }
     console.log('  variant nomet: ' + cut + ' mk_ records removed (rev ' + F.rev + ' kept, so the saved copy wins)');
-    lines.push('try{localStorage.setItem("flydiy.premises.game.jolene",' + JSON.stringify(JSON.stringify(F)) + ')}catch(e){}');
+    lines.push('try{localStorage.setItem("flydiy.premises.game.jolene",' + JSON.stringify(JSON.stringify(F)) + ');localStorage.setItem("flydiy.premises.bootWip","1")}catch(e){}');   // (SCENERY VERSIONS: the game boots master; the rigs' door boots the seeded copy)
   } else {
     lines.push('try{localStorage.removeItem("flydiy.premises.game.jolene")}catch(e){}');
   }

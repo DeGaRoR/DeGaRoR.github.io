@@ -151,7 +151,7 @@ chk(cmax < 1e-6, 'cantilever gen deltas non-zero at zero load');
     add('L1', mk(M3, 12, 1, [0, 3, 0]), { lampCup: 'nav' }); lamps.push({ mesh: meshes.L1 });
     add('L2', mk(M3, 12, 1, [0, 4, 0]), { lamp: 'nav' });
     add('P1', mk(M4, 12, 0.5, [1, 1, 0]), { char: 'pilot' });
-    add('P2', mk(M4, 12, 0.5, [1, 2, 0]), { sec: 'dummy1' });
+    add('P2', mk(M4, 12, 0.5, [1, 2, 0]), { char: 'pax' });
     add('G1', mk(M5, 12, 1, [3, 1, 0]), { opacity: 0.2, fin: 'glass' });
     add('G2', mk(M5, 12, 1, [3, 2, 0]), { opacity: 0.2, fin: 'glass' });
     add('A3', mk(M1, 70, 1, [0, 0, 1], true));
