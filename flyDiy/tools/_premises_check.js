@@ -993,7 +993,8 @@ if (SELFTEST) {
     }
     // (G3014, A0 + the user's default 12 Oct: two of the user's rev 26 placements stand dry AS DRAWN - kept, and flagged for the
     //  user to move in the editor; any other dry pier, float or wharf is still red)
-    const DRY_OK = ['marine/net pens @69,-10640', 'marine/wharf deck, small @-1452,-8371'];
+    // (JOLENE-FOLD 25 Oct: the user's AFB (19) seaplane float s37 likewise, its far end on the shore as drawn - A0's rule, flagged)
+    const DRY_OK = ['marine/net pens @69,-10640', 'marine/wharf deck, small @-1452,-8371', 'marine/seaplane float @2210,-17381'];
     const dryNew = dry.filter(d => DRY_OK.indexOf(d) < 0), dryUser = dry.filter(d => DRY_OK.indexOf(d) >= 0);
     if (dryUser.length) console.log('     14e FLAGGED for the user (their rev 26, drawn on dry ground; kept as drawn): ' + dryUser.join(' | '));
     check(dryNew.length === 0, '14e a pier, a float and a wharf reaches the water', dryNew.slice(0, 5).join(', '));
@@ -1645,7 +1646,8 @@ if (SELFTEST) {
     const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec;
     // (G3014: the user's rev 27 roads r37 / r38 came with a bed (rev 28: r39-r45 too) - the editor's default for a new road since G2952; a bed stands only
     //  on a road the user's own save gives one)
-    const bedU = new Set(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_user_jolene_rev28.json'), 'utf8')).rec.layers.roads.filter(r => r.bed).map(r => r.id));
+    //  (JOLENE-FOLD: and the user's AFB (19) save - r31 given one, r46 drawn with one)
+    const bedU = new Set(['scenery_user_jolene_rev28.json', 'scenery_user_jolene_afb19.json'].flatMap(f => PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', f), 'utf8')).rec.layers.roads.filter(r => r.bed).map(r => r.id)));
     check(J.layers.roads.every(r => !r.bed || bedU.has(r.id)), '21c a shipped road carries a bed only where the user gave it one (' + [...bedU].join(', ') + ')', J.layers.roads.filter(r => r.bed && !bedU.has(r.id)).map(r => r.id).join(' '));
   }
   // 21d METLAKATLA ONE GRID (G2954): its streets one component of shared-waypoint junctions; its connection points named;
