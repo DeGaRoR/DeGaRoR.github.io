@@ -100564,6 +100564,15 @@ a box A/B each, the GATE LODS ratchet live from step 1, `--strict` the gate at s
   OBSTACLE; PREMCOOK, PARKED and HITBOX alone, the parallel pool starved them); CLOUD (the lamp-pool row's regex),
   FRAMECOST (garage:restore updateMatrixWorld; and on any edited tree the stale parked cook) and SCENERYED (20b, a
   timing) FAIL IDENTICALLY on the untouched tree.
+- **Re-based on train L28-0** (A0, 28 Oct: held out of L28a for the box A/B and a conflict with ready/meteo-code in
+  `_house_gen.js`): master merged in; `HOUSE_GEN` exports both meteo-code's `std` (G3660) and `LOD_DETAIL`; the cook
+  outputs taken from master and re-cooked on the merged tree (the same 31 Jolene cells, the city places hash). GATE LODS
+  with the meteo station in the catalogue: 138 buildings, PASS (it has no `LOD_DETAIL` yet: its lod 1 stays whole).
+  The 38 gates on the merged tree: 35 PASS; CLOUD (the lamp-pool row), SCENERYED (row 20, EDITOR-PERF timing) and
+  FRAMECOST (the stale parked cook on an edited tree - its HINT - and cessna garage:restore updateMatrixWorld
+  2269 -> 4553) FAIL. The same three on untouched master (4ab6c317): CLOUD the same row, SCENERYED 20b (4028 ms there,
+  3985 here), FRAMECOST garage:restore 2269 -> 4553 - this branch's extra FRAMECOST rows are the parked cook, stale on
+  any edited tree (fresh on master's own build; the train re-cooks).
 - In game (dev.html on SwiftShader, `soft_still.js`, HOME from 420 m, the same camera): `reports/evidence/LODS/step1/` -
   the club hangar a washed-out box before, its walls, doors and roof lights now; the sheds their own colours; no page
   error.
