@@ -1,0 +1,60 @@
+PASS an idle taxi 20 s after the touch: 2.9 m/s (bound 5)
+GATE FLOATS: PASS
+PASS level in roll (0.12 deg)
+GATE WIPLINE: PASS
+PASS the track within 0.8 m (bound 10)
+GATE SEAPLANE: PASS
+PASS the G3390 rig's own technique gets off too: 38.0 s, 677 m (bound 60 s)
+GATE HYDROTRIM: PASS
+GATE STORAGE: PASS
+FAIL cub: pod off, the whole def is the base's bytes (4eceefb3:143310)
+  FAIL cub: pod off, the shakedown sheet is the base's bytes (bb1b9bfa:4189)
+  FAIL jodel: pod off, the whole def is the base's bytes (c656be5b:169871)
+  FAIL jodel: pod off, the shakedown sheet is the base's bytes (8fc4c309:4249)
+  FAIL c172: pod off, the whole def is the base's bytes (313c46ec:162219)
+  FAIL c172: pod off, the shakedown sheet is the base's bytes (a9b0410b:4263)
+  FAIL floats: pod off, the whole def is the base's bytes (3e0633ce:179749)
+  FAIL floats: pod off, the shakedown sheet is the base's bytes (400c4205:4084)
+  FAIL twinf: pod off, the whole def is the base's bytes (a34c7b5c:159379)
+  FAIL twinf: pod off, the shakedown sheet is the base's bytes (cad91a93:4002)
+  FAIL metal: pod off, the whole def is the base's bytes (e4c9386a:154348)
+  FAIL metal: pod off, the shakedown sheet is the base's bytes (ef03f4ec:4159)
+GATE POD: FAIL
+GATE CONTRACTS: PASS
+GATE STORY: PASS
+GATE PROCURE: PASS
+GATE HYDRO: PASS
+──────── summary ────────
+TOUR      FAIL   748.8 s  [4 shards]
+UISMOKE   PASS   224.4 s
+PROPS     PASS     0.7 s
+DMGHULL   FAIL    83.7 s
+DMGPLOUGH FAIL    59.4 s
+DMGFLOATTO PASS    40.7 s
+GFX       PASS     0.6 s
+ROLLANIM  FAIL    16.6 s
+CARDS     PASS     2.0 s
+FRAMES    PASS     3.3 s
+GEOPARITY PASS    17.5 s
+DESIGNCHECK PASS   141.5 s
+SPECFIX   PASS    37.4 s
+STARTER   PASS     0.4 s
+FLOATKIT  PASS     8.1 s
+SAVE      PASS     0.5 s
+SHEETWORKER PASS    18.1 s
+PARTS     PASS     1.8 s
+DESIGN    PASS     6.5 s
+PILOTMATRIX PASS   355.1 s
+HONESTY   PASS    14.5 s
+HYDRODYN  PASS    75.1 s
+FLOATS    PASS    23.8 s
+WIPLINE   PASS     4.8 s
+SEAPLANE  PASS    97.8 s
+HYDROTRIM PASS    50.3 s
+STORAGE   PASS     1.2 s
+POD       FAIL    38.1 s
+CONTRACTS PASS    18.1 s
+STORY     PASS     1.0 s
+PROCURE   PASS    90.3 s
+HYDRO     PASS     2.8 s
+BATTERY: FAIL — never deliver red.

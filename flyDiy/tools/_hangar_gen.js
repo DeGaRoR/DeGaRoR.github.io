@@ -131,10 +131,20 @@ const DEF = {
   glazing: 1, roofLights: 1, backDoor: 1, personDoor: 1,
   gutter: 1, flue: 1, smoke: 1, smokeK: 0.55, smokeLean: 0.35, lights: 0,
   sign: 0, signKey: '', signW: 4.0,
+  signPlank: 0, signIn: 0, signInX: 0,   // G3540: the sign as a hung plank; a second one inside, on the back wall at house x
+  signInW: 0,   // G3540 v4: the inside one's own width (0: the outside one's)
+  signInWall: 0,   // G3540: the inside one's wall - 0 the back wall (at house x signInX), 1 / -1 the flank at house x = +-HW (at house z signInX)
+  footAO: 0, footH: 1.0, pad: null,   // G3542: the ground's dark on the walls' foot (the dirt line taken dark); G3541/G3542: the shed's ground pad (groundDials)
   wallSet: SET_IDX('wall', 'rustysheet'), wallTint: 0xffffff, stemSet: SET_IDX('stem', 'sandstone'),
   roofSet: SET_IDX('roof', 'corrworn'), doorSet: SET_IDX('door', 'rustymetal'), metalSet: SET_IDX('metal', 'galv'),
   beamSet: SET_IDX('beam', 'rough'), trimCol: 6, trimW: 0.08,
   dirt: 0.5, dirtH: 1.1, noise: 0.16, clouds: 0.5,
+  // G3538 (HANGARS-LOOK, the user 25 Oct: "use all the tricks and details of the house generation, and the weathering
+  // techniques used for generating the old mine"): the mine's dials, on the shell too - `weather` (the house's: chroma out,
+  // contrast flatter, the dirt up), the walls' cloud weathering and the roof's (`roofClouds`, a whisper), `age` (the
+  // frame's greying: desaturated and darker, as the mine's bare timber), `rust` (the house's steel mix on the gutters, the
+  // pipes and the fittings: rain on the up faces, streaks down), `bulkheads` (the lamp fittings over the door, unlit)
+  weather: 0, roofClouds: 0.12, age: 0, rust: 0, bulkheads: 0,
   ao: 0.85, aoRange: 0.7, aoDirect: 0.35, aoGround: 1,
 };
 const ROWS = [
@@ -152,6 +162,12 @@ const ROWS = [
     ['lights', 'lights', 0, 1, 1], ['sign', 'a sign over the door', 0, 1, 1],
     ['signKey', 'billboard', 0, 0, 1, [''].concat(Object.keys((typeof SIGN_TEX_META !== 'undefined' && SIGN_TEX_META) || {})), P => !!P.sign],
     ['signW', 'its width', 1, 8, 0.1, null, P => !!P.sign],
+    ['signPlank', 'a hung plank', 0, 1, 1, null, P => !!P.sign],
+    ['signIn', 'one inside too', 0, 1, 1, null, P => !!P.sign && !!P.signPlank],
+    ['signInWall', 'on the back / a flank', -1, 1, 1, null, P => !!P.sign && !!P.signIn],
+    ['footAO', 'the dark foot', 0, 0.9, 0.05], ['footH', 'its height', 0.2, 3, 0.05],
+    ['signInX', 'inside, along the back', -20, 20, 0.1, null, P => !!P.signIn],
+    ['signInW', 'inside, its width (0: as outside)', 0, 8, 0.1, null, P => !!P.signIn],
   ]],
   ['finish', [
     ['wallSet', 'wall', 0, ROLE_SETS.wall.length - 1, 1, setNames('wall')], ['stemSet', 'stem', 0, ROLE_SETS.stem.length - 1, 1, setNames('stem')],
@@ -164,8 +180,11 @@ const ROWS = [
 ];
 // THE THREE SHELLS OF THE GARAGE (HANGARS.md S4), and the airport rows they anchor
 const PRESETS = {
-  'field shed':   { shell: 0, HW: 7, HD: 9, EAVE: 3.6, wallSet: SET_IDX('wall', 'rawplank'), roofSet: SET_IDX('roof', 'corrrust'), doorSet: SET_IDX('door', 'board'), trimCol: 0, glazing: 1, roofLights: 0, backDoor: 0, personDoor: 1, dirt: 0.55 },
-  'field shed, small': { shell: 0, HW: 5.5, HD: 7, EAVE: 3.3, wallSet: SET_IDX('wall', 'rawplank'), roofSet: SET_IDX('roof', 'corrworn'), doorSet: SET_IDX('door', 'board'), trimCol: 0, glazing: 1, roofLights: 0, backDoor: 0, personDoor: 0, flue: 0, smoke: 0 },
+  // (G3538: the timber sheds wear the old mine's weathering - the kennecott mill's dials, a little gentler)
+  'field shed':   { shell: 0, HW: 7, HD: 9, EAVE: 3.6, wallSet: SET_IDX('wall', 'rawplank'), roofSet: SET_IDX('roof', 'corrrust'), doorSet: SET_IDX('door', 'board'), trimCol: 0, glazing: 1, roofLights: 0, backDoor: 0, personDoor: 1, dirt: 0.7, dirtH: 1.4,
+                    weather: 0.8, clouds: 0.75, roofClouds: 0.15, age: 0.45, rust: 0.4, bulkheads: 1 },
+  'field shed, small': { shell: 0, HW: 5.5, HD: 7, EAVE: 3.3, wallSet: SET_IDX('wall', 'rawplank'), roofSet: SET_IDX('roof', 'corrworn'), doorSet: SET_IDX('door', 'board'), trimCol: 0, glazing: 1, roofLights: 0, backDoor: 0, personDoor: 0, flue: 0, smoke: 0,
+                    dirt: 0.7, dirtH: 1.4, weather: 0.8, clouds: 0.75, roofClouds: 0.15, age: 0.45, rust: 0.4 },
   'club hangar':  { shell: 1, HW: 15, HD: 12.5, EAVE: 7.0 },
   'club hangar, long': { shell: 1, HW: 12, HD: 16, EAVE: 6.5, wallSet: SET_IDX('wall', 'rustymetal'), roofSet: SET_IDX('roof', 'galv') },
   'works hangar': { shell: 2, HW: 20, HD: 20, EAVE: 9.5, wallSet: SET_IDX('wall', 'factory'), roofSet: SET_IDX('roof', 'galv'), doorSet: SET_IDX('door', 'factory'), stemSet: SET_IDX('stem', 'concrete008'), sign: 1, signW: 6 },
@@ -177,7 +196,8 @@ const catOf = name => CATS[name] || null;
 function shellOf(P) {
   const timber = Math.round(P.shell) === 0;
   const HW = P.HW, HD = P.HD, EAVE = P.EAVE, RIDGE = EAVE + 2.6;   // hangar.js: RIDGE = EAVE + 2.6, every shell
-  const DOOR_W = Math.max(6, 2 * HW - 5), DOOR_H = timber ? EAVE - 0.5 : Math.min(6.4, EAVE - 1.4);
+  const D0 = { door: P.doorW };   // G3537: a shed's own door (hangar.js's expression)
+  const DOOR_W = (D0.door > 0) ? Math.min(D0.door, 2 * HW - 1) : Math.max(6, 2 * HW - 5), DOOR_H = timber ? EAVE - 0.5 : Math.min(6.4, EAVE - 1.4);
   const BD_W = Math.min(11.0, 2 * HW - 8), BD_H = Math.min(4.4, EAVE - 2.2);
   const SILL = Math.min(3.2, EAVE - 2.4), HEAD = Math.min(5.2, EAVE - 1.0);
   const MDZ = Math.min(13.5, HW - 1.5);                     // the personnel door, across from the middle (hangar.js's z)
@@ -187,6 +207,123 @@ function shellOf(P) {
 function rng(seed) { let st = ((seed | 0) * 2654435761 + 11) >>> 0; return () => { st = (st + 0x6D2B79F5) >>> 0; let t = st; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
 // ---- the build ---------------------------------------------------------------
+// THE SIGN AS A PLANK (G3540): a board of the frame's own timber (bags.beam: its edges are wood) standing `z` off the
+// wall's plane (its back there, its face toward +z), turned `rot` in its own plane, the painted face over it on the glass
+// slot - the billboard alpha-cut at 0.5, so the painted board's own ragged edge is the silhouette; the body is held a
+// little inside that edge so it never shows round it. Returns the face's place (the sign slot's reading).
+function signPlank(bags, Q, o) {
+  // G3540 v2 (the user 25 Oct: "a wooden plank with the wood texture, the image projected on top ... the thickness UV
+  // mapped properly, end grain on the edges"): the plank is the whole board in the beam's wood - its face, its two long
+  // edges along the grain, its two ends ACROSS it (u up the end, v through the thickness, packed tight: the rings of a
+  // sawn end) - and the painted image lies on it, alpha-cut, so where the painting is clear the wood shows. `yaw` turns
+  // the board about y (0: facing +z); `rot` tilts it in its own plane.
+  const yw = o.yaw || 0, N = [Math.sin(yw), 0, Math.cos(yw)], Rr = [Math.cos(yw), 0, -Math.sin(yw)], Y = [0, 1, 0];
+  const c = Math.cos(o.rot), s = Math.sin(o.rot), X = add(mul(Rr, c), mul(Y, s)), U = add(mul(Rr, -s), mul(Y, c)), t = 0.04;
+  const at = (a, b, d) => add(add(add([o.x, o.y, o.z], mul(X, a)), mul(U, b)), mul(N, d));
+  const hw2 = o.w / 2, hh = o.h / 2, d0 = 0.004, d1 = d0 + t;
+  const loc = (p, d) => { const q = sub(p, at(0, 0, d)); return [dot(q, X), dot(q, U)]; };
+  // the face, the long edges (the grain along), the ends (end grain); no back - it is on the wall
+  face(bags.beam, [at(-hw2, -hh, d1), at(hw2, -hh, d1), at(hw2, hh, d1), at(-hw2, hh, d1)], N, p => { const l = loc(p, d1); return [l[0] + hw2, l[1] + hh]; });
+  for (const sb of [-1, 1])
+    face(bags.beam, [at(-hw2, sb * hh, d0), at(hw2, sb * hh, d0), at(hw2, sb * hh, d1), at(-hw2, sb * hh, d1)], mul(U, sb),
+         p => { const q = sub(p, at(0, 0, 0)); return [dot(q, X) + hw2, dot(q, N) * 3]; });
+  for (const sa of [-1, 1])
+    face(bags.beam, [at(sa * hw2, -hh, d0), at(sa * hw2, hh, d0), at(sa * hw2, hh, d1), at(sa * hw2, -hh, d1)], mul(X, sa),
+         p => { const q = sub(p, at(0, 0, 0)); return [(dot(q, U) + hh) * 0.35, dot(q, N) * 6]; });
+  // the painting, 4 mm proud of the wood
+  const df = d1 + 0.004;
+  face(bags.glass, [at(-hw2, -hh, df), at(hw2, -hh, df), at(hw2, hh, df), at(-hw2, hh, df)], N, p => { const l = loc(p, df); return [l[0] / o.w + 0.5, l[1] / o.h + 0.5]; });
+  // NO SHADOW IS CAST (the face is alpha-cut; the user: "fake it"): a soft dark rectangle on the wall behind the board, a
+  // little low (the light is from above), its edge fading over 12 cm - the contact the board would leave - in the ground
+  // skirt's bag (the house's multiply-dark, its alpha from the vertex: no new draw)
+  const sk = bags.aoskirt;
+  if (sk) {
+    const dz = 0.002, k = 0.5, sp = 0.12, lo = 0.05;
+    const P0 = (a, b, gl) => { sk.setGlow(gl); return sk.v(at(a, b - lo, dz), [0, 0]); };
+    const inn = [P0(-hw2 - 0.01, -hh - 0.01, k), P0(hw2 + 0.01, -hh - 0.01, k), P0(hw2 + 0.01, hh + 0.01, k), P0(-hw2 - 0.01, hh + 0.01, k)];
+    const out = [P0(-hw2 - sp, -hh - sp, 0), P0(hw2 + sp, -hh - sp, 0), P0(hw2 + sp, hh + sp * 0.6, 0), P0(-hw2 - sp, hh + sp * 0.6, 0)];
+    sk.quad(inn[0], inn[1], inn[2], inn[3]);
+    for (let i = 0; i < 4; i++) { const j = (i + 1) % 4; sk.quad(out[i], out[j], inn[j], inn[i]); }
+    sk.setGlow(0);
+  }
+  const F0 = at(0, 0, df);
+  return { x: F0[0], y: F0[1], z: F0[2], w: o.w, h: o.h, nx: N[0], nz: N[2], rot: o.rot };
+}
+// a shed's own sign (a plot's dims.sign: { key, w, inside, inW }) as the build's dials, for the world's shed and the room alike;
+// `spot` (the room's, from its fit: hangarSignSpot) says where the inside one hangs: { wall: 0 the back, 1 / -1 a flank, at }
+function signDials(sg, spot) {
+  if (!sg || typeof sg.key !== 'string' || !sg.key) return { sign: 0, signKey: '' };
+  const inside = typeof sg.inside === 'number' && isFinite(sg.inside);
+  const sp = spot && typeof spot.at === 'number' && isFinite(spot.at) ? spot : null;
+  return { sign: 1, signKey: sg.key, signW: sg.w > 0 ? sg.w : 2, signPlank: 1, signIn: inside ? 1 : 0,
+           signInX: sp ? sp.at : (inside ? sg.inside : 0), signInWall: sp ? (sp.wall | 0) : 0,
+           signInW: sg.inW > 0 ? sg.inW : 0 };   // (G3540 v4: the inside board's own width)
+}
+// G3541/G3542 (the user 25 Oct: "the pavement in front: concrete in the garage and dirt in the world - aligned and using
+// the same materials"; "the building is not anchored"): a plot's dims.ground - { set, apron, side, ring, fade, ao, foot }
+// - as the build's dials, for the world's shed and the room alike. The pad (padData) is ONE draped grid in the house frame:
+// the apron `apron` m out of the door, `side` m past each flank, `ring` m round the back; the set's own texture at metric
+// uv; its alpha fading over `ring` at the back and the flanks and over `fade` at the front; its colour the ground's
+// occlusion - `ao` dark at the walls, gone `ring` m out ((1 - d)^2, the skirt's own curve). `foot`: the walls' dark foot.
+function groundDials(gd) {
+  if (!gd || typeof gd.set !== 'string' || !gd.set) return { pad: null, footAO: 0 };
+  const n = (v, d, lo, hi) => (typeof v === 'number' && isFinite(v)) ? Math.max(lo, Math.min(hi, v)) : d;
+  const pad = { set: gd.set, apron: n(gd.apron, 12, 0, 60), side: n(gd.side, 1, 0.3, 20), ring: n(gd.ring, 1, 0.3, 4),
+                fade: n(gd.fade, 2, 0.3, 10), ao: n(gd.ao, 0.55, 0, 0.9), tile: n(gd.tile, 2, 0.25, 20), cell: 1 };
+  return { pad, footAO: n(gd.foot, 0.5, 0, 0.9), footH: n(gd.footH, 1.0, 0.2, 3), aoGround: 0 };
+}
+function padData(T, g, HW, HD) {
+  const ring = T.ring, side = Math.max(ring, T.side), x0 = -HW - side, x1 = HW + side, z0 = -HD - ring, z1 = HD + Math.max(T.apron, ring);
+  const nx = Math.max(2, Math.ceil((x1 - x0) / T.cell)), nz = Math.max(2, Math.ceil((z1 - z0) / T.cell));
+  const sm = v => { const q = Math.max(0, Math.min(1, v)); return q * q * (3 - 2 * q); };
+  const pos = [], uv = [], col = [], idx = [];
+  for (let j = 0; j <= nz; j++) for (let i = 0; i <= nx; i++) {
+    const X = x0 + (x1 - x0) * i / nx, Z = z0 + (z1 - z0) * j / nz;
+    const a = sm(Math.min(X - x0, x1 - X) / side) * sm((Z - z0) / ring) * sm((z1 - Z) / T.fade);
+    const dx = Math.max(0, Math.abs(X) - HW), dz = Math.max(0, Math.abs(Z) - HD), d = Math.min(1, Math.hypot(dx, dz) / ring);
+    const k = 1 - T.ao * (1 - d) * (1 - d);
+    pos.push(X, g(X, Z) + 0.025, Z); uv.push(X, Z); col.push(k, k, k, a);
+  }
+  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
+    const a = j * (nx + 1) + i, b = a + 1, c2 = a + nx + 1, d2 = c2 + 1;
+    idx.push(a, c2, b, b, c2, d2);
+  }
+  return { pos, uv, col, idx, set: T.set, tile: T.tile, rect: { x0, x1, z0, z1 } };
+}
+// the pad as a mesh (both callers): a draped grid, the set's maps at its tile, lit and shadowed, blended (never written to depth)
+function padMesh(THREE, data, extra) {
+  if (!data || !THREE || !THREE.BufferGeometry) return null;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(data.pos, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(data.uv, 2));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(data.col, 4));
+  geo.setIndex(data.idx); geo.computeVertexNormals();
+  const o = Object.assign({ roughness: 1, metalness: 0, vertexColors: true, transparent: true, depthWrite: false,
+                            polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 }, extra || {});
+  const maps = typeof siteGroundMaps === 'function' ? siteGroundMaps(THREE, data.set, data.tile, (typeof window !== 'undefined' && window.FLYDIY_ANISO) || 8) : null;
+  if (maps) Object.assign(o, maps); else o.color = 0x8a7a62;
+  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial(o));
+  m.name = 'shed:pad'; m.castShadow = false; m.receiveShadow = true; m.renderOrder = 4;
+  return m;
+}
+// G3542 (the user: "a bottom-up gradient on the walls, dark at the ground to transparent - the ground's AO on the
+// building"): the house's dirt line taken DARK - its ramp put on the ground (full at the foot, gone `footH` up) and its
+// colour the shadow's, at `footAO` whatever the weather made of the dirt dial. Every material this finish shades, roofs out.
+const FOOT_DARK = 0x221d17;
+function footDirt(mats, SU, P, g0) {
+  if (!(P.footAO > 0)) return 0;
+  const H = Math.max(0.2, P.footH || 1);
+  SU.uDirtTop.value = g0 + H; SU.uDirtH.value = H;
+  const gain = P.footAO / Math.max(0.05, SU.uDirtK.value);
+  let n = 0;
+  for (const k in mats) {
+    const m = mats[k], D = m && m.userData && m.userData.dirt;
+    if (!D || /^(glass|pane|smoke|aoskirt)$/.test(k)) continue;
+    const nm = (m.userData.hangarShell || k).split('/').pop();
+    D.uDirtGain.value = /^roof/.test(nm) ? 0 : gain; D.uDirtOwn.value.setHex(FOOT_DARK); n++;
+  }
+  return n;
+}
 function build(P0, lod, F) {
   const P = Object.assign({}, DEF, P0 || {});
   const Q = { lod: lod | 0 };
@@ -205,8 +342,11 @@ function build(P0, lod, F) {
   const rnd = rng(P.seed);
   const litOn = P.lights ? 1 : 0;
   // THE SHELL FROM hangar.js, baked into bags (browser, near mesh only); null headless
-  const ext = (Q.lod === 0 && !P.restated && typeof document !== 'undefined' && typeof genHangarBuild === 'function') ? bakeShell(P, S, fy, bags, litOn, F) : null;
-  const R = !ext;                                             // the restated shell draws only where hangar.js's does not
+  // G3534 (HANGARS-LOOK): `polishOnly` - the polish alone (the casings, the gutters and downpipes, the flue, the lamps, the
+  // ground skirt, their bake), no shell of either kind: the garage ROOM stands it on its own walls (hangar.js), so the
+  // building the roll-out shows is dressed as the world's is
+  const ext = (!P.polishOnly && Q.lod === 0 && !P.restated && typeof document !== 'undefined' && typeof genHangarBuild === 'function') ? bakeShell(P, S, fy, bags, litOn, F) : null;
+  const R = !ext && !P.polishOnly;                            // the restated shell draws only where hangar.js's does not
 
   if (R) {
     // ---- THE SLAB AND THE STEM: concrete from below the lowest corner to the floor, the brick course over it
@@ -403,9 +543,9 @@ function build(P0, lod, F) {
   }
 
   // ---- THE LIGHTS OVER THE DOOR: a bulkhead each side of the big opening
-  if (P.lights && Q.lod === 0) for (const s of [bigDoor.s0 - 0.5, bigDoor.s1 + 0.5]) {
+  if ((P.lights || P.bulkheads) && Q.lod === 0) for (const s of [bigDoor.s0 - 0.5, bigDoor.s1 + 0.5]) {   // (G3538: the fittings without the switch)
     const p = walls[0].W.P(s, bigDoor.y1 + 0.5, 1);
-    HG.lampAt(bags, Q, p, [0, 0, 1], { k: 1.4, range: 14 });
+    HG.lampAt(bags, Q, p, [0, 0, 1], { k: 1.4, range: 14, dark: !P.lights });
   }
 
   // ---- THE SIGN over the door (the works): the aspect is the sign's, the board narrowed to the gable's band
@@ -413,14 +553,47 @@ function build(P0, lod, F) {
   if (P.sign && P.signKey) {   // no board without a billboard to fill it (a blank one read as a black hole over the door)
     const meta = (typeof SIGN_TEX_META !== 'undefined' && SIGN_TEX_META && P.signKey) ? SIGN_TEX_META[P.signKey] : null;
     const aspect = meta ? meta.aspect : 4;
-    const y0 = bigDoor.y1 + 0.85, y1 = yRoof(0) - 0.35;
+    let y0 = bigDoor.y1 + 0.85, sw = 0;
+    const y1 = yRoof(0) - 0.35;
     if (y1 - y0 > 0.4) {
-      const sw = Math.min(P.signW, (y1 - y0) * aspect, S.DOOR_W - 1), sh = sw / aspect;
+      sw = Math.min(P.signW, (y1 - y0) * aspect, S.DOOR_W - 1);
+      // G3540 v4 (the user 27 Oct: "about 8 meters total, and it should fit on the gambrel"): the hung plank as wide as the
+      // gable holds - its foot 0.6 m over the door's head (clear of the timber leaf's track, hangar.js DOOR_H + 0.49), its
+      // top corners 0.15 m under the roof line (yRoof(w/2) = yRoof(0) - tp w/2), so w = (yRoof(0) - 0.15 - foot) / (1/aspect + tp/2);
+      // the field shed's 18 m gable holds ~5.5 m, whatever the plot asks
+      if (P.signPlank) { y0 = bigDoor.y1 + 0.6; sw = Math.min(P.signW, (yRoof(0) - 0.15 - y0) / (1 / aspect + tp / 2), 2 * HW - 1); }
+    }
+    if (sw > 0.5) {
+      const sh = sw / aspect;
       const y = y0 + sh / 2, z = HD + hw + 0.05;
-      const c0 = [-sw / 2, y - sh / 2, z];
-      face(bags.glass, [c0, [sw / 2, y - sh / 2, z], [sw / 2, y + sh / 2, z], [-sw / 2, y + sh / 2, z]], [0, 0, 1], p => [(p[0] + sw / 2) / sw, (p[1] - c0[1]) / sh]);
-      boxAB(bags.trim, [-sw / 2, y - sh / 2, z - 0.05], [sw / 2, y + sh / 2, z - 0.005], { pz: true });
-      sign = { x: 0, y, z, w: sw, h: sh, nx: 0, nz: 1, at: 'gable', key: P.signKey || '' };
+      if (!P.signPlank) {
+        const c0 = [-sw / 2, y - sh / 2, z];
+        face(bags.glass, [c0, [sw / 2, y - sh / 2, z], [sw / 2, y + sh / 2, z], [-sw / 2, y + sh / 2, z]], [0, 0, 1], p => [(p[0] + sw / 2) / sw, (p[1] - c0[1]) / sh]);
+        boxAB(bags.trim, [-sw / 2, y - sh / 2, z - 0.05], [sw / 2, y + sh / 2, z - 0.005], { pz: true });
+        sign = { x: 0, y, z, w: sw, h: sh, nx: 0, nz: 1, at: 'gable', key: P.signKey || '' };
+      } else {
+        // G3540 (the user 25 Oct: "a hand-painted sign on a wood plank ... on top of the door" and "on a visible wall
+        // inside"): the board hung, not printed - its own jitter (a stream apart from the build's, so nothing after it moves)
+        const jr = rng((P.seed | 0) * 7 + 3540);
+        const wf = Math.max(hw, 0.07);                         // the wall's face: hangar.js's timber boards are 0.14 thick
+        const out = signPlank(bags, Q, { x: (jr() - 0.5) * 0.16, y, z: HD + wf + 0.012, w: sw, h: sh, rot: (jr() - 0.5) * 0.05 });
+        sign = Object.assign(out, { at: 'gable', key: P.signKey });
+        if (P.signIn) {
+          // inside, under the eave: the back wall's inside face (the house frame's -z; the garage stand looks at it past the
+          // aeroplane) at house x = signInX, or a flank's (signInWall +-1: the wall at house x = +-HW) at house z = signInX -
+          // the room picks the spot from its fit, clear of the hung wing and everything else standing at that wall
+          // (G3540 v4, the user 27 Oct: "inside, maybe a 6 meters one, and no problem if it hangs low"): its own width
+          // (signInW; 0 the outside one's), its top 0.25 m under the eave as ever, its foot no lower than 1 m, on its wall
+          const fl = P.signInWall | 0, wallL = fl ? 2 * HD : 2 * HW;
+          const wi0 = P.signInW > 0 ? Math.min(P.signInW, wallL - 1.2, (eave - 0.25 - fy - 1.0) * aspect) : sw, hi = wi0 / aspect;
+          const ux = Math.max(-(wallL / 2 - 0.6 - wi0 / 2), Math.min(wallL / 2 - 0.6 - wi0 / 2, P.signInX));
+          const yi = eave - 0.25 - hi / 2, jx = (jr() - 0.5) * 0.16, jt = (jr() - 0.5) * 0.05;
+          const inn = fl
+            ? signPlank(bags, Q, { x: fl * (HW - wf - 0.012), y: yi, z: ux + jx, w: wi0, h: hi, rot: jt, yaw: -fl * Math.PI / 2 })
+            : signPlank(bags, Q, { x: ux + jx, y: yi, z: -HD + wf + 0.012, w: wi0, h: hi, rot: jt });
+          sign.inside = Object.assign(inn, { at: fl ? (fl > 0 ? '+x' : '-x') + ' flank, inside' : 'back wall, inside' });
+        }
+      }
     }
   }
 
@@ -443,6 +616,8 @@ function build(P0, lod, F) {
   const occ = [{ x: 0, z: 0, hx: HW + pt, hz: HD + pt, k: 0.75, soft: 2.2 }];
   for (const o of occ) o.dry = true;
   if (P.aoGround) HG.buildGroundAO(bags.aoskirt, occ, g);
+  // G3541/G3542: the shed's ground pad (the apron and the dark ring round the footprint; the callers stand it: padMesh)
+  const pad = P.pad && P.pad.set ? padData(P.pad, g, HW + pt / 2, HD + pt / 2) : null;
   const OUT = BAGS.concat(ext ? ext.keys : []);
   const aoInfo = K.bakeAO(OUT.map(k => bags[k]), { strength: P.ao === undefined ? 0.85 : P.ao, range: P.aoRange || 0.7, ground: g });
   let tris = 0, verts = 0; const per = {};
@@ -453,7 +628,7 @@ function build(P0, lod, F) {
   }
   const stats = {
     tris, verts, per, bbox: bb, footprint: 4 * HW * HD, eave, ridge, ridgeY: ridge, eaveY: eave, floorY: fy,
-    shell: SHELLS[Math.round(P.shell)], dims: { HW, HD, EAVE }, role: 'hangar', source: ext ? 'hangar.js' : 'restated',
+    shell: SHELLS[Math.round(P.shell)], dims: { HW, HD, EAVE }, role: 'hangar', source: ext ? 'hangar.js' : (P.polishOnly ? 'polish' : 'restated'),
     door: { x: 0, z: HD, w: S.DOOR_W, h: S.DOOR_H, leaves: timber ? 1 : 6, shut: true },
     backDoor: backDoor ? { w: S.BD_W, h: S.BD_H } : null, personDoor: !!pdoor,
     bands: bands.length, roofLights: roofLights.length, gutterLen, downpipes, flue, smoke, sign,
@@ -463,8 +638,10 @@ function build(P0, lod, F) {
   };
   // the bags this build carries (the shell's own beside the polish) and the materials for them
   const MATX = Object.assign({}, F ? F.MAT : MAT, ext ? ext.mats : {});
-  if (F && ext) Object.assign(F.MAT, ext.mats);
-  return { bags, stats, P, V: { L: 2 * HW, w: 2 * HD, wallT: t, floorY: fy }, R: null, MAT: MATX, BAGS: OUT };
+  if (F && ext && P.ownShell) { Object.assign(F.MAT, ext.mats); stats.shellShaded = finishShell(ext.mats, F.SHADE_U, P); }   // G3531
+  if (F && P.footAO > 0) stats.footDark = footDirt(MATX, F.SHADE_U, P, g(0, 0));   // G3542 (after the shell's own dirt)
+  stats.pad = pad ? { tris: pad.idx.length / 3, rect: pad.rect, set: pad.set } : null;
+  return { bags, stats, P, V: { L: 2 * HW, w: 2 * HD, wallT: t, floorY: fy }, R: null, MAT: MATX, BAGS: OUT, pad };
 }
 // THE BAKE (G405.1): hangar.js's exterior group, every mesh's geometry read
 // through its world matrix, turned from the hangar's frame (the long axis x,
@@ -482,7 +659,7 @@ let PANE_MAT = null;
 const LIB = {};
 function bakeShell(P, S, fy, bags, litOn, F) {
   let ext = null;
-  try { ext = genHangarBuild(THREE, { HW: P.HW, HD: P.HD, EAVE: P.EAVE }, { exterior: true, shell: SHELLS[Math.round(P.shell)] }); }
+  try { ext = genHangarBuild(THREE, { HW: P.HW, HD: P.HD, EAVE: P.EAVE, door: P.doorW > 0 ? P.doorW : undefined, leaves: P.leaves === 2 ? 2 : undefined }, { exterior: true, shell: SHELLS[Math.round(P.shell)] }); }
   catch (e) { if (typeof console !== 'undefined') console.warn('hangar shell:', e && e.message); return null; }
   if (!ext || !ext.group) return null;
   ext.group.updateMatrixWorld(true);
@@ -503,7 +680,14 @@ function bakeShell(P, S, fy, bags, litOn, F) {
       bags[key] = Bag(key); keys.push(key);
       const name = nameOf.get(o.material) || 'misc';
       if (isGlass) mats[key] = paneMat;
-      else { if (!lib[name]) lib[name] = o.material; else if (lib[name] !== o.material && o.material.dispose) o.material.dispose(); mats[key] = lib[name]; }
+      else {
+        if (!lib[name]) lib[name] = o.material; else if (lib[name] !== o.material && o.material.dispose) o.material.dispose();
+        // G3531 (HANGARS-LOOK): a PLAYER'S shed (P.ownShell: render_world polishedShell, a few nodes) wears a CLONE of the
+        // library's material - the same textures, shared - so the house's finish (finishShell: the dirt line, the baked
+        // occlusion, the mine's weathering) can ride it at THIS building's height. The scenery's hangars keep the library's
+        // own, shared by every item (a clone each broke the town's batching: FRAMECOST 25 Oct, +235 draws at the taxi)
+        mats[key] = F && P.ownShell ? shellClone(lib[name], shellName + '/' + name) : lib[name];
+      }
     }
     const bag = bags[key];
     const g = o.geometry, pa = g.attributes.position, na = g.attributes.normal, ua = g.attributes.uv;
@@ -525,6 +709,45 @@ function bakeShell(P, S, fy, bags, litOn, F) {
   ext.group.traverse(o => { if (o.isMesh && o.geometry) o.geometry.dispose(); });
   return { keys, mats, panes };
 }
+// G3531 (HANGARS-LOOK, the user 24 Oct: "rebuild it with the house generator's care ... the bottom gradient as AO/shadow,
+// the blending"): the SHELL's own surfaces never took the house's shader (HANGAR_GEN.LIB is hangar.js's materials), so the
+// occlusion baked into every shell vertex (aHouseAO, bakeAO below) and the dirt line the finish declares were drawn on
+// the casings and the gutters and NOT on the walls. A clone per build (`userData.hangarShell` names it: the far town keeps
+// its item gain, the town's texture arrays leave it alone - render_premises farGain, house_tarr classifyMat) takes
+// HOUSE_GEN.shadeHouse with this build's SHADE_U: the ramp from the ground (the stem's dark tide line, the doors' splash,
+// pale dust on the cladding), all of the bake on the indirect light and a third on the albedo. The glass stays the pane.
+function shellClone(m, name) {
+  const c = m.clone();
+  c.userData = { hangarShell: name };
+  return c;
+}
+const SHELL_DIRT = { stem: [1.6, 0x453f36], door: [1.2, 0x6d6353], manDoor: [1.2, 0x6d6353], wall: [1.0, 0x6d6353], wallOut: [1.0, 0x6d6353],
+  wallBack: [1.0, 0x6d6353], doorTrim: [0.9, 0x6d6353], steel: [0.8, 0x5a5246], steelDark: [0.8, 0x5a5246], wood: [1.0, 0x5d5446], beamMain: [1.0, 0x5d5446] };
+// G3538: and the old mine's weathering over it - the walls' cloud weathering (P.clouds), the roof's whisper (P.roofClouds),
+// the timber's age (desaturated, darker: the frame and the cladding of a shed nobody painted)
+const SHELL_AGED = { wall: 1, wallBack: 1, wallOut: 1, door: 0.8, wood: 1.2, beamMain: 1.2, beamSec: 1.2, manDoor: 0.8 };
+// the painted leaves and the steel take half the walls' clouds (25 Oct stills: the full dose read as soot blotches on the doors)
+const SHELL_CLOUD = { door: 0.5, manDoor: 0.5, doorTrim: 0.5, steel: 0.5, steelDark: 0.5 };
+function finishShell(mats, SU, P) {
+  let n = 0;
+  const age = Math.max(0, Math.min(1, (P && P.age) || 0));
+  for (const key in mats) {
+    const m = mats[key], ud = m && m.userData;
+    if (!ud || !ud.hangarShell || ud.houseShaded || !m.isMeshStandardMaterial) continue;
+    const name = ud.hangarShell.split('/')[1];
+    HG.shadeHouse(m, SU);
+    const d = SHELL_DIRT[name] || (/^roof/.test(name) ? [0, 0x6d6353] : [1.0, 0x6d6353]);
+    const D = m.userData.dirt;
+    D.uDirtGain.value = d[0]; D.uDirtOwn.value.setHex(d[1]); D.uWander.value = 0;
+    const ag = (SHELL_AGED[name] || 0) * age;
+    D.uAgeDesat.value = Math.min(1, ag * 0.7); D.uAgeDark.value = Math.min(0.6, ag * 0.32);
+    const roof = /^roof/.test(name);
+    const ck = roof ? (P && P.roofClouds !== undefined ? P.roofClouds : 0.12) : (P && P.clouds !== undefined ? P.clouds : 0.5) * (SHELL_CLOUD[name] || 1);
+    if (P && HG.cloudWeather && ck > 0 && !/^(glass|bulb|lamp)/.test(name)) HG.cloudWeather(m, ck, roof ? 1 : 0);
+    n++;
+  }
+  return n;
+}
 function applyFinish(P, F) {
   const M = F ? F.MAT : MAT;
   const SU = F ? F.SHADE_U : DEFAULT_FINISH.SHADE_U;
@@ -543,6 +766,12 @@ function applyFinish(P, F) {
   SU.uDirtTop.value = g(0, 0) + (P.dirtH || 1) * 0.6; SU.uDirtH.value = Math.max(0.05, P.dirtH || 1);
   SU.uDirtK.value = P.dirt === undefined ? 0.5 : P.dirt; SU.uNoiseK.value = P.noise === undefined ? 0.16 : P.noise;
   SU.uAOd.value = P.aoDirect === undefined ? 0.35 : P.aoDirect; SU.uSag.value = 0;
+  // G3538: THE WEATHER DIAL, the house's own law (HOUSE_GEN applyFinish): chroma out, the contrast flatter, the dirt up
+  const wthr = Math.max(0, Math.min(1, P.weather || 0));
+  SU.uSat.value = Math.max(0.35, 1 - wthr * 0.45); SU.uCon.value = Math.max(0.80, 1 - wthr * 0.14);
+  if (wthr > 0) SU.uDirtK.value = (P.dirt === undefined ? 0.5 : P.dirt) * (0.35 + wthr * 1.1);
+  // and the steel mix on the galvanising (the tram's / the mill's rust: the up faces, the streaks, the patches)
+  if (P.rust > 0 && HG.steelMix && M.metal) HG.steelMix(M.metal, 'rust', Math.min(1, P.rust));
   for (const k of BAGS) {
     if (HOUSE_OWNED[k]) continue;
     const ud = M[k].userData && M[k].userData.dirt; if (!ud) continue;
@@ -554,7 +783,16 @@ function applyFinish(P, F) {
     const set = SIGN_TEX_SETS[P.signKey];
     const tx = new THREE.Texture(set.img); tx.colorSpace = THREE.SRGBColorSpace; tx.wrapS = tx.wrapT = THREE.ClampToEdgeWrapping;
     const ok = () => { tx.needsUpdate = true; }; if (set.img.complete && set.img.naturalWidth) ok(); else if (set.img.addEventListener) set.img.addEventListener('load', ok);
-    M.glass = new THREE.MeshStandardMaterial({ map: tx, roughness: 0.75, transparent: true, alphaTest: 0.5, color: 0xffffff });
+    M.glass = std(0xffffff, { map: tx, roughness: 0.75, alphaTest: 0.5 });   // (G3540: cut, never blended; the file's one material site - GATE ASSETS AS4a)
+    // G3540 v2 (the user: "slightly darkened sign edges"): the painting darker toward its rim, a band of 7 % of its height
+    // all round (the width's uv scaled by the aspect so the band is one width), the board's own edge in shade
+    if (P.signPlank) {
+      const asp = (typeof SIGN_TEX_META !== 'undefined' && SIGN_TEX_META && SIGN_TEX_META[P.signKey] && SIGN_TEX_META[P.signKey].aspect) || 3;
+      const hook = sh => { sh.fragmentShader = sh.fragmentShader.replace('#include <map_fragment>', '#include <map_fragment>\n' +
+        '  { vec2 se = min(vMapUv, 1.0 - vMapUv); diffuseColor.rgb *= mix(0.62, 1.0, smoothstep(0.0, 0.07, min(se.x * ' + asp.toFixed(3) + ', se.y))); }'); };
+      M.glass.onBeforeCompile = hook;
+      M.glass.customProgramCacheKey = () => 'signedge' + asp.toFixed(3);
+    }
   }
 }
 function finishReport() {
@@ -569,7 +807,10 @@ function randomHangar(seed) {
   return P;
 }
 
-window.HANGAR_GEN = { DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, SHELLS, ROLE_SETS, SET_IDX, CATS, catOf, shellOf, build, applyFinish, makeFinish, finishReport, randomHangar, LIB, library: shell => LIB[shell] || null };
+// THE FAR TOWN'S DETAIL ROLES (LODS-2026-10): the bags of lod 1 that LEAVE at the far town's detail band (render_premises
+// lod1Bags; GATE LODS --fix holds the rest closed and roofed) - what is sub-pixel there; everything else of lod 1 stays.
+window.HANGAR_GEN = { LOD_DETAIL: /^(metal|beam|trim)$/, DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, SHELLS, ROLE_SETS, SET_IDX, CATS, catOf, shellOf, build, applyFinish, makeFinish, finishReport, randomHangar, LIB, library: shell => LIB[shell] || null,
+  finishShell, SHELL_DIRT, signDials, groundDials, padMesh };   // G3531; G3540; G3541/G3542
 window.HANGAR_LIB = LIB;
 // THE CATALOGUE: a building with its door hook toward the road side
 window.HANGAR_GEN.CATALOGUE_V = 1;

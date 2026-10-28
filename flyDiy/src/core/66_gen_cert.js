@@ -144,7 +144,8 @@ function genCertKey(def) {
   let h = 0x811c9dc5;
   const mix = s => { for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619) >>> 0; };
   mix('cert' + GEN_CERT_V + JSON.stringify(GEN_CERT) + (typeof PHYSICS_V !== 'undefined' ? PHYSICS_V : ''));
-  if (def.spec) mix(JSON.stringify(def.spec));
+  // (G2827: the cage's STOL rows at "off" are the absent rows - the key every build had before the STOL wing)
+  if (def.spec) mix(JSON.stringify(def.spec, (k, v) => k === 'cage' && typeof genStolCageOff === 'function' ? genStolCageOff(v) : v));
   else {
     for (const nd of def.nodes) mix(nd.p.join(',') + ':' + nd.m);
     for (const b of def.beams) mix(b.a + ',' + b.b + ',' + b.k + ',' + (b.kTrue || '') + ',' + (b.cls || ''));

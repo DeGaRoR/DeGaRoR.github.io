@@ -1556,6 +1556,43 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // not drawing only); the carry-through members above stay
   const ctrK = typeof genCentreSkin === 'function' ? genCentreSkin(w.centre) : 1;
   if (ctrK > 0) cover(1.9 * 2 * zRoot * w.chord * ctrK, [wf.L.F[0], wf.R.F[0], wf.L.R[0], wf.R.R[0]]);
+  // G2828 (STOL-WING-2): THE STOL DEVICES WEIGH AND COST (60_gen_spec GEN_STOL.cost). Their own ledger row, 'stol';
+  // each device's mass on the wing nodes it hangs on - the leading-edge ones shared over the front-spar nodes of
+  // their span, a fence on the station nearest it, a plate or a drooped tip on the tip's two nodes, the droop's
+  // linkage and the Fowler's tracks on the rear spar - so the CG, the inertia and the damage layer see them where
+  // they are. Nothing on a wing without them: no row, no mass, the same bits.
+  {
+    const ST = (typeof genStolOf === 'function') ? genStolOf(w.stol) : null, TIPk = GEN_TIPS[w.tip] || {};
+    if (ST || TIPk.plate || TIPk.droop) {
+      sec('stol');
+      const K = GEN_STOL.cost, zAt = [zRoot, ...zs];
+      // mass `m` (per side) over the front (or rear) spar nodes inside [z0, z1]; the nearest one if none
+      const spread = (row, z0, z1, m) => {
+        if (!(m > 0)) return;
+        for (const sd of ['L', 'R']) {
+          const N = wf[sd][row], ids = [];
+          zAt.forEach((z, i) => { if (z >= z0 - 1e-6 && z <= z1 + 1e-6 && N[i] != null) ids.push(N[i]); });
+          if (!ids.length) { let b = 0; zAt.forEach((z, i) => { if (Math.abs(z - z0) < Math.abs(zAt[b] - z0)) b = i; }); if (N[b] != null) ids.push(N[b]); }
+          for (const i of ids) pt(i, m / ids.length);
+        }
+      };
+      const semi = G.semi, CTk = k === 0 ? S.controls : (w.controls || {});
+      if (ST && ST.slat) { const span = ST.slatSpan * semi, R2 = K[ST.slat]; spread('F', semi - span, semi, R2.kgM * span); spend(2 * R2.perM * span); }
+      if (ST && ST.vg) { spread('F', zRoot, semi, K.vg.kgM * (semi - zRoot)); spend(K.vg.kit); }
+      if (ST && ST.cuff) { const span = ST.cuffSpan * semi; spread('F', semi - span, semi, K.cuff.kgM * span); spend(2 * K.cuff.perM * span); }
+      if (ST && ST.fences) {
+        const ail = CTk.aileron || { span: 0 };
+        for (const zf of genStolFences(ST, semi, zRoot, (1 - ail.span) * semi, ail.span)) { spread('F', zf, zf, K.fence.kg); spend(2 * K.fence.each); }
+      }
+      if (ST && ST.droop > 0) { const ail = CTk.aileron || { span: 0 }; spread('R', (1 - ail.span) * semi, semi, 0.5 * K.droop.kg); spend(K.droop.kit); }
+      if (ST && ST.grow && CTk.flap && GEN_FLAPS[CTk.flap.type] && GEN_FLAPS[CTk.flap.type].slide > 0) {
+        const fs2 = (CTk.flap.span || 0) * semi; spread('R', zRoot, zRoot + fs2, K.grow.kgM * fs2); spend(2 * K.grow.perM * fs2);
+      }
+      if (TIPk.plate) { spread('F', semi, semi, 0.5 * K.plate.kg); spread('R', semi, semi, 0.5 * K.plate.kg); spend(2 * K.plate.each); }
+      if (TIPk.droop) { spread('F', semi, semi, 0.5 * K.tipD.kg); spread('R', semi, semi, 0.5 * K.tipD.kg); spend(2 * K.tipD.each); }
+      sec('wings');
+    }
+  }
   curPlane = 0;
   return { k, w, wf, zs, zRoot, zCrank, xF, xR, xFat, xRat, sparSpacing, chordAt,
            yF, incAt, ribZ, linC, useStrut, strutOffset, iStrut: iStrutK,

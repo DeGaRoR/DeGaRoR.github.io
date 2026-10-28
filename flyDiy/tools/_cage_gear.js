@@ -167,7 +167,7 @@ const GROUP = ['9 · undercarriage', [
   ['fairCons', 'fairing build', 0, 2, 1, ['glassfibre', 'carbon', 'alloy'],
    { when: P => +P.gearOn && fairAny(P) }],
   // the wheel dressing — shared rows (G33: this group never made the
-  // cage port; tundra + smooth tread = the bush slick)
+  // cage port; G3852: the tundra's own 'tundra tread' row, lugs or smooth)
   ['wheel', GP.WHEEL_ROWS.map(r => r.slice()), { when: P => +P.gearOn * (1 - (+P.gearFloats || 0)) > 0 }],
   ['balance + prop', [
     ['cgZ',   'CG station z', -2, 4, 0.01, { dim: 'm' }],

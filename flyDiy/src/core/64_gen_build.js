@@ -67,7 +67,11 @@ function genClMax(def, flap) {
   // negative, and the ATTITUDE the peak occurs at is now a return value.
   // Numerically inert for CLmax — -2 + 16*0.25 lands exactly on the old 2, so
   // the grid is identical and nothing below the stall can out-lift the peak.
-  for (let a = -2; a <= 22; a += 0.25) {
+  // G2820: a STOL wing (slats, VGs, a cuff) stalls past 22 deg - the sweep
+  // runs on to the devices' cap, on that wing only (every other wing's grid
+  // is the one it always had)
+  const aTop = def.strips.some(st => st.stol && (st.stol.dAs > 0 || st.stol.sa > 0)) ? 22 + Math.ceil(GEN_STOL.dAsMax * 180 / Math.PI) : 22;
+  for (let a = -2; a <= aTop; a += 0.25) {
     const al = a * Math.PI / 180;
     const r = sim.probe([-V * CORE_MATH.cos(al), -V * CORE_MATH.sin(al), 0]);
     const L = -r.Fx * CORE_MATH.sin(al) + r.Fy * CORE_MATH.cos(al);
@@ -106,8 +110,9 @@ function genTrim(def) {
   sim.reset(0);
   const W = sim.totalM * 9.81;
   // G185: the lowest of the planes' stall angles bounds the trim search
+  // G2822: each plane's stall angle as it flies (its STOL devices' gain on it; the section's own without)
   const aMax = 0.85 * (def.params.polarWings || [def.params.polarWing])
-    .reduce((m, p) => Math.min(m, p.aStall), Infinity);
+    .reduce((m, p, k) => Math.min(m, def.params.polarWings ? genStallAngle(def, p, k) : genStallAngle(def, p)), Infinity);
   // through the SIM, so the sheet and the aeroplane cannot disagree about how
   // much thrust there is in this air (G72). Identical at the datum.
   const Tav = v => sim.thrustAt(v, 1);
@@ -179,6 +184,8 @@ function genTrim(def) {
     def.params.gen.liftSplit = fin.r.planeFy.map(v => (v || 0) / tot);
   }
 
+  // G2826: a STOL wing's approach is flown at the speed its elevator can hold (measured on the stab trim just solved)
+  genStolHeld(def);
   // ---- THE APPROACH, MEASURED --------------------------------------------
   // The glideslope, the approach throttle and the pitch floor used to be the
   // Cub's three constants (gs 0.0786, thrAppr 0.35, vsFloor -0.08) on every
@@ -236,11 +243,12 @@ function genTrim(def) {
     // the five validated builds only that Cub moves (the C172-alike sits at -0.153: inside, by 0.001 - flown, its
     // final holds -0.07). The budget a trim de is judged against:
     const trimBudget = de => 0.18 * (de < 0 ? -SERVO_GAINS.deMin / SERVO_GAINS.deMax : 1);
-    const rat = g.Vs / Math.max(1e-6, g.VsFlap);          // back onto the clean stall
+    const rat = g.Vs / Math.max(1e-6, g.VsFlapAP || g.VsFlap);   // back onto the clean stall (G2826: from the held one)
     const landFlapless = () => {
       def.params.flaps.ldg = 0;          // the AP's flap schedule reads this
       A.VAppr *= rat; A.VApprShort *= rat;
       g.VsFlap = g.Vs; g.landsFlapless = true;
+      if (g.VsFlapAP !== undefined) { delete g.VsFlapAP; delete g.VsHeld; }   // G2826: flapless, the held flap speed goes
       return genTrim(def);               // re-measure the lot at the new config
     };
     if (Math.abs(g.deAppr) > trimBudget(g.deAppr) && ldg > 0) {
@@ -266,7 +274,7 @@ function genTrim(def) {
     if (ldg > 0) {
       const flapWas = sim.ctl.flap;
       sim.ctl.flap = ldg;
-      const Vtd = 1.10 * g.VsFlap;
+      const Vtd = 1.10 * (g.VsFlapAP || g.VsFlap);       // G2826: a STOL wing's held touchdown
       g.deFlare = deAt(Vtd, genAlphaForLift(sim, Vtd, W, aMax));
       if (g.deFlare > 0.35) {
         sim.ctl.flap = 0;
@@ -283,7 +291,7 @@ function genTrim(def) {
     g.dragAppr = rA.drag;
     g.TavailAppr = Tav(Va);
     // arrival attitude, for the flare ceiling
-    g.alphaTD = genAlphaForLift(sim, 1.10 * g.VsFlap, W, aMax);
+    g.alphaTD = genAlphaForLift(sim, 1.10 * (g.VsFlapAP || g.VsFlap), W, aMax);
     sim.ctl.flap = 0;
     // WHAT IT CAN CLIMB, which is what decides how big a circuit it can fly.
     g.gammaClimb = Math.max(0.004, genClimbAt(sim, def, W, aMax));
@@ -424,7 +432,7 @@ function genShakedown(def, opts) {
   sim.reset(0);
   const W = sim.totalM * 9.81;
   const V = def.params.ap.VCruise;
-  const aMax = 0.85 * def.params.polarWing.aStall;
+  const aMax = 0.85 * genStallAngle(def);   // G2822: the wing's stall angle as it flies
   const a = genAlphaForLift(sim, V, W, aMax);
   const r0 = genProbeAt(sim, V, a), r1 = genProbeAt(sim, V, a + 0.02);
   // THE GLIDE RATIO, MEASURED (G179.4, the user: "I struggle to pass the
@@ -1054,6 +1062,54 @@ function buildGen(specIn) {
   return def;
 }
 
+// G2826 (STOL-WING-2): THE SLOWEST SPEED THE ELEVATOR CAN HOLD THE LANDING CONFIGURATION AT - on a STOL wing only.
+// A slat, a slot, VGs or a cuff move the wing's stall to a higher angle than the clean wing's, and so a lower
+// measured Vs0; the autopilot's ladder (Vref = 1.30 Vs0, the touchdown at 1.10 Vs0) then asks the flare for an
+// attitude the elevator may not reach. G970's flare budget catches exactly that - and its cure, land FLAPLESS, is the
+// wrong one here: measured on the user's Cub with a VG row, the flapped flare needed more than the stop at the new
+// 1.10 Vs0, the rule sent it in flapless at the clean stall and its landing roll went from 62 m to 160. A pilot keeps
+// the flap and flies the approach at what the elevator can hold (the Storch, the Courier: their tails are sized for
+// the slat; a Cub with slats needs the elevator it has to say how slow). So: prop off, the landing flap, the CG as
+// built, the cruise stab trim genTrim has just solved (the trim's own conditions), alpha swept up to the trim's cap; the highest attitude the elevator holds at
+// DE_HOLD (0.349: G970's budget, the AP's 0.35 stop) is the touchdown attitude, its lift the touchdown speed
+// Vheld, and the autopilot's Vs0 becomes Vheld / 1.10 (gen.VsFlapAP; the approach scales with it). The STALL stays
+// the measured one (gen.VsFlap - the plaque, the bench, the design check's ctl.flare says the gap). A wing whose
+// elevator reaches its slatted stall, and every wing without a stall-angle device, gets no key: the same bits.
+function genStolHeld(def) {
+  if (!def.strips.some(st => st.stol && (st.stol.dAs > 0 || st.stol.sa > 0))) return;
+  const P = def.params, g = P.gen, A = P.ap;
+  if (g.VsFlapAP !== undefined || g.landsFlapless) return;      // once (genTrim re-enters after a flapless verdict)
+  const ldg = P.flaps ? (P.flaps.ldg ?? 1) : 0;
+  const Vs0 = ldg > 0 ? g.VsFlap : (g.VsMeas || g.Vs);
+  if (!(Vs0 > 0)) return;
+  const sim = makeSim(def, null);
+  sim.reset(0);
+  sim.ctl.flap = ldg;
+  const W = sim.totalM * 9.81, V = 1.10 * Vs0, DE_HOLD = 0.349;   // G970: the flare budget is the stop, 0.35
+  const aMax = 0.85 * genStallAngle(def);
+  const deAt = a => {
+    sim.ctl.de = 0; const r0 = genProbeAt(sim, V, a);
+    sim.ctl.de = 0.20; const m1 = genProbeAt(sim, V, a).pitchUp;
+    sim.ctl.de = 0;
+    const d = (m1 - r0.pitchUp) / 0.20;
+    return { de: Math.abs(d) < 1e-9 ? 0 : -r0.pitchUp / d, Fy: r0.Fy };
+  };
+  if (deAt(aMax).de <= DE_HOLD) return;                 // the elevator reaches the wing's whole range
+  // the attitude where the elevator runs out (bisection: de rises with alpha on a stable aeroplane)
+  let lo = 0, hi = aMax;
+  if (deAt(lo).de > DE_HOLD) return;                    // not even level: G970's budget says it, not this
+  for (let i = 0; i < 24; i++) { const m = 0.5 * (lo + hi); if (deAt(m).de <= DE_HOLD) lo = m; else hi = m; }
+  const Fy = deAt(lo).Fy;
+  if (!(Fy > 0)) return;
+  const Vheld = V * Math.sqrt(W / Fy);                  // the speed at which that attitude carries the weight
+  const VsAP = Vheld / 1.10;
+  if (!(VsAP > Vs0)) return;
+  A.VAppr *= VsAP / Vs0;
+  A.VApprShort *= VsAP / Vs0;
+  g.VsFlapAP = VsAP;
+  g.VsHeld = Vheld;
+}
+
 // ---------------------------------------------------------------------------
 // THE DENSITY-ALTITUDE SHEET (G72) — the bench's second instant test.
 //
@@ -1092,7 +1148,7 @@ function genDensityAlt(def) {
   const sim = makeSim(def, null);
   sim.reset(0);
   const W = sim.totalM * 9.81;
-  const aMax = 0.85 * def.params.polarWing.aStall;
+  const aMax = 0.85 * genStallAngle(def);   // G2822: the wing's stall angle as it flies
 
   const at = (h, dISA) => {
     sim.setAtmos(dISA ? makeAtmos({ dISA }) : ATMOS_ISA, h);

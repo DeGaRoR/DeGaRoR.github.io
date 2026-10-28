@@ -45,6 +45,14 @@ OPTS = {
     'signs_sheet_2.png': {'alpha': 160, 'gap': 2},
 }
 
+# ONE SIGN TO A FILE (G3540, the user 25 Oct: "a hand-painted sign on a wood
+# plank that says 'the Shed'"): the file is the sign, tightened to its own
+# alpha; the working copy a 1024-wide webp (alpha kept - the slot cuts it at
+# 0.5, never blends it), which sign_prep.js takes over a png of the same key.
+SINGLES = {
+    'The Shed - sign.png': 'the_shed',
+}
+
 
 def runs(v, gap=6):
     """index ranges where v is true, joined across gaps shorter than `gap`"""
@@ -87,6 +95,16 @@ def main():
                 work.save(os.path.join(OUT, key + '_1k.png'))
                 print('%-16s %4d x %4d  aspect %.2f' % (key, w, h, w / h))
                 n += 1
+    for f, key in SINGLES.items():
+        im = Image.open(os.path.join(SRC, f)).convert('RGBA')
+        box = im.split()[3].point(lambda v: 255 if v > 40 else 0).getbbox()
+        sign = im.crop(box)
+        sign.save(os.path.join(OUT, key + '.png'))
+        w, h = sign.size
+        work = sign if w <= 1024 else sign.resize((1024, round(h * 1024 / w)), Image.LANCZOS)
+        work.save(os.path.join(OUT, key + '_1k.webp'), quality=88, method=6)
+        print('%-16s %4d x %4d  aspect %.2f (webp)' % (key, w, h, w / h))
+        n += 1
     print('%d signs under assets/billboards/out/' % n)
 
 

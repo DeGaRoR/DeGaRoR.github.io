@@ -81,6 +81,10 @@ function certStrip(spec) {
   // dash it was certified with (dashWas / dashLegsWas, else the arch), never the one shown now, as bench.js
   // benchStripCosmetic does before this - so procureFp (certMajor straight off the spec) is the bench's f3 on such a
   // cage, and a dash picked later never withdraws the maker's certificate
+  // G2820 / G2827 (STOL-WING, L28b) on the core's path too: a STOL record at "every device off" is the absent key, as
+  // bench.js benchStripCosmetic and procureFpP1 have it
+  if (Array.isArray(c.wings)) for (const w of c.wings) if (w && typeof w === 'object' && w.stol == null) delete w.stol;
+  if (c.cage && typeof genStolCageOff === 'function') c.cage = genStolCageOff(c.cage);
   if (c.cage && typeof c.cage === 'object' && c.cage.dashV != null) {
     const cg = c.cage;
     cg.dashStyle = cg.dashWas != null ? Math.round(+cg.dashWas || 0) : 1;

@@ -218,6 +218,7 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
     function classifyMat(m) {
       const ud = m && m.userData;
       if (!ud || !STD_OK(m)) return null;
+      if (ud.hangarShell) return null;   // G3531: a hangar shell's clone wears the house's hook over hangar.js's sheets (its sides, its canvas maps): it keeps its own draw
       const hook = rawHook(m), side = m.side === THREE.DoubleSide ? 2 : 0, dith = m.dithering ? 1 : 0;
       if (ud.glassShaded && hook === ud.hookGlass && ud.glassU && ud.houseU) {
         if (m.map || m.normalMap || m.roughnessMap) return null;

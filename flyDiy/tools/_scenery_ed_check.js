@@ -644,7 +644,8 @@ if (plots.length) {
   const FPa = M.fieldPatches || {};
   const CD = new Set(M.clearDefault || []), unC = e => { const c = JSON.parse(un(e)); if (CD.has(c.id)) delete c.clear;
     if (FPa[c.id]) Object.assign(c, JSON.parse(JSON.stringify(FPa[c.id])));
-    if (PMv[c.id] && Array.isArray(c.plots)) for (const p of c.plots) if (p && PMv[c.id][p.id]) { p.x = PMv[c.id][p.id][0]; p.z = PMv[c.id][p.id][1]; }
+    // (MINE-GARAGE-SIDE 26 Oct: a move may turn the plot too - a third number, its heading)
+    if (PMv[c.id] && Array.isArray(c.plots)) for (const p of c.plots) if (p && PMv[c.id][p.id]) { p.x = PMv[c.id][p.id][0]; p.z = PMv[c.id][p.id][1]; if (PMv[c.id][p.id].length > 2) p.hdg = PMv[c.id][p.id][2]; }
     return JSON.stringify(c); };
   check([...CD].every(id => { const w = (A.layers.runways || []).find(q => q.id === id); return w && !('clear' in w); }), '15 the strips the manifest names ship with the clearance of today, not their own (' + [...CD].join(', ') + ')');
   // (G3020) an AREA compared by what it composes - its areaEntries, keys sorted: an area the user grew in the editor (rev 28's

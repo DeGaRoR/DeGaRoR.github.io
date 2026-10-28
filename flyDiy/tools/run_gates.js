@@ -103,6 +103,13 @@ const GATES = [
   { id: 'CLOUD', file: '_cloud_check.js', tier: 'core' },
   { id: 'GE', file: 'test_ground_effect.js', tier: 'core' },
   { id: 'FLAPS', file: 'test_flaps.js', tier: 'core' },
+  // G2820 (STOL-WING): slats / slots, VGs, fences, cuffs, endplates, drooped tips, drooping ailerons, Fowler area
+  // growth - every card off the STOL wing is its pre-G2820 bits (def, 4 s of flight, the drawn wing); each device
+  // measured in the tunnel and drawn where it flies; Savannah / Super Cub / Highlander against their sheets
+  // G2821-G2824 (STOL-WING-2): the six validated builds (as the game ships and loads them) benched to master's bits too (the fixture is
+  // tools/_stol_samebits.js --capture's, on an untouched master); each device against its published range, the
+  // design check / Vref / damage on the STOL wing, the user's Cub with a STOL kit FLOWN (one circuit, ~2 min)
+  { id: 'STOL', file: '_stol_check.js', argv: ['--selftest'], tier: 'core', wall: 480 },
   { id: 'STRESS', file: 'test_stress.js', tier: 'core' },
   // G384: under core, GEN builds every configuration but flies four of the
   // sixteen circuits (test_gen.js CORE_FLY); --all flies them all
@@ -374,6 +381,10 @@ const GATES = [
   // (out past 1 mm in at most 1 % of the place-frames), no compact part triangle past 1 %, on the validated builds' crashes
   // with the binding inherited (the old binding beside it for the report). Three builds at once
   { id: 'DMGWALL', file: '_dmg_wall_check.js', tier: 'core', weight: 3, wall: 1200 },   // (G2354: the 30 m/s rows' ensembles)
+  // G3770-G3773 (DMG-LOOKS, ?dmglook=1): the frame members by material - off = master's skin bytes, the parting rule
+  // (released members whole, unparted kinks), the member pool's plan and its pose (the vertex shader's JS mirror) on the
+  // validated land builds' crashes. Three builds at once
+  { id: 'DMGLOOK', file: '_dmg_look_check.js', tier: 'core', weight: 3, wall: 900 },
   { id: 'DMGHEAL', file: '_dmg_heal_check.js', tier: 'core', weight: 4, wall: 300 },   // G1859.8 (DMG-WALL): a wreck's tears never reach the next flight (node page)
   // G1886 (DMG-DAMP): the deformation damper takes deformation, not rotation - in vacuum the five validated builds spun
   // about roll, pitch and yaw keep L about the CG (<= 1e-3 over 10 s, the damper's own share <= 1e-5), the pre-G1885
@@ -593,6 +604,10 @@ const GATES = [
   { id: 'CAGEFIT', file: '_cage_fit.js', tier: 'core' },      // the cage vs its 3 reference OBJs
   { id: 'FRAMES', file: '_frames_check.js', tier: 'core' },   // T2.1: the frames — corpus identity, locality, follow, migration, profile
   { id: 'KNIFE', file: '_knife_check.js', tier: 'core' },     // T2.2: the drawn windows — corpus identity, watertight, shapes, rows, refusal, glazing
+  // WINDOWS-FREE (2026-10-27): the free quad window - an unplaced quad is its rectangle, the Cub's quad rear window cut
+  // watertight with each corner where it was put (read off the cut loop), its fore part on the old window's, a concave
+  // and a crossed quad refused with their reason, the corners saved exact and absent from every other save (~20 s; --selftest)
+  { id: 'QUADWIN', file: '_quadwin_check.js', tier: 'core' },
   { id: 'FIN', file: '_fin_check.js', tier: 'core' },         // fin + stab vs the sketch
   { id: 'COWL', file: '_cowl_check.js', tier: 'core' },       // the cowl, and the engine inside it
   // G2880 (NACELLE-LAG): a wing-mounted engine stands on THIS build's wing - card A then card B equals card B fresh
@@ -638,6 +653,7 @@ const GATES = [
   // LOAD — the engine preset and the cowl-for-architecture, and the three
   // doors that replace P
   { id: 'STARTER', file: '_starter_check.js', tier: 'core' },
+  { id: 'FLOATKIT', file: '_floatkit_check.js', tier: 'core' },   // G3445: the float kit (the seaplane propeller in / out, the card)
   // 2026-09-03: what you SAVE is what is on the stand. The shelf's spec was
   // a cache of the editor that only a roll-out refreshed.
   { id: 'SAVE', file: '_save_check.js', tier: 'core' },
@@ -678,6 +694,11 @@ const GATES = [
   // the eye wind stay finite and lit, the card's Fly flies again, every saved record reads finite, the next load lit
   { id: 'SIMDIVERGE', file: '_simdiverge_check.js', tier: 'full', timeout: 2 * 3600_000, weight: 2, wall: 900 },
   { id: 'SIMWORKER-PAGE', file: '_simworker_page_check.js', tier: 'full', timeout: 3 * 3600_000, weight: 2, wall: 1100 },
+  // G3560-G3569 (AP-HONEST): the autopilot's reasons in words (every go-around reason 43_pilot.js gives has a sentence);
+  // the page under the physics worker (one page in node, ~4.8 GB, ~4.5 min): the worker pilot's route on the page's
+  // ap.route, the toggle keeping the plan, a forced go-around and divert said in #apWhy; --selftest strips the route /
+  // the report from the snapshots (red)
+  { id: 'APHONEST', file: '_aphonest_check.js', tier: 'core', timeout: 2 * 3600_000, weight: 2, wall: 300 },
   // G3320 (PILOTPAGE, the user 18 Oct: "some actual browser-based flying ... in case the numerical simulations would not be
   // fully representative"): the validated builds' legs flown BY THE PAGE (tools/pilotpage_legs.json: the persona the user
   // flies, the student, beside the expert), the expert legs held to node's track; a GPU job on a quiet box, run when the
@@ -712,6 +733,12 @@ const GATES = [
   // sixty FUZZED builds — forty random houses and twenty random sheds, which
   // is where the buried-in-the-hillside sampler bugs came from.
   { id: 'HOUSE', file: '_house_check.js', tier: 'core' },
+  // THE FAR RUNGS ARE BUILDINGS (LODS-2026-10, the user 27 Oct: "they don't even represent closed volumes ... Some
+  // houses show without roof and black"): every far rung of every building the island places, made by the game's own
+  // rules (tools/_lods_lib.js), roofed from above (>= 90 %), not looked INTO (leak, hole <= 3 %), the far colour's gain
+  // unity-calibrated. A RATCHET until the fix lands: tools/_lods_known.json holds today's failures at their numbers,
+  // anything new or worse is red; --strict is the fix's verdict, --selftest the negative verification, --fix the proposed ladder (~45 s, the whole catalogue)
+  { id: 'LODS', file: '_lods_check.js', tier: 'core' },
   // THE VILLAGE (G275): the terrain, the road, the plots off it, a house on
   // every plot built by the house generator on the terrain under it, the
   // fences on the plot lines and the paths to the road - eight seeds, every

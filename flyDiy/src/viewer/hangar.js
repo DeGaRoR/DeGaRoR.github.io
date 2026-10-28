@@ -141,7 +141,10 @@ const RIDGE = D0.RIDGE || (EAVE + 2.6);
 // the portal's formula leaves a 2.2 m opening, which is a stable door, not a
 // hangar door; a timber lintel is shallower than a steel header, so 0.5 m of
 // beam is what the opening actually gives up.
-const DOOR_W = Math.max(6, 2 * HW - 5);
+// G3537 (HANGARS-LOOK, the user 25 Oct: "the shed should have a door exactly 10m wide, that was the brief and the constraint
+// on the cabin strip ... a total width of 14m"): a shed's dims may name its door (`door`, metres; at least half a metre of
+// wall each side) - the cabin's 10 m - and every reader takes it from there (71 hangarDoor, HANGAR_GEN shellOf, the room's acoustics)
+const DOOR_W = (D0.door > 0) ? Math.min(D0.door, 2 * HW - 1) : Math.max(6, 2 * HW - 5);
 const DOOR_H = FRAME === 'timber' ? EAVE - 0.5 : Math.min(6.4, EAVE - 1.4);
 // THE BACK DOORS (G64, user: "I think we'd better add some doors over there and
 // have the wing hang in front of it"). A bi-parting pair: two leaves on ONE
@@ -185,6 +188,8 @@ const ground = m => { GROUND.push(m); return m; };
 // probe cannot be asked to guess where the wall is.
 const OUTDOOR = [];
 const outdoor = m => { OUTDOOR.push(m); return ground(m); };
+let ROOM_POLISH = null;   // G3534: what the room's polish stood (hangar.polish)
+let POLISH_OUT = null;    // G3534b: its pieces outside the walls, drawn only while the eye stands outside (polishFollow)
 
 // THE SEED IS RESETTABLE, and it has to be (G123). The canvas sheets below are
 // MEMOISED across builds, so on the second build their draw callbacks do not
@@ -1223,17 +1228,24 @@ if (FRAME === 'timber') {
   gm.rotation.y = -Math.PI / 2; gm.position.x = -HD;
   put(gm);
   // the leaf, its track, and the posts under the track's far end
-  const LW = DOOR_W + 0.4;
-  const parkZ = -(DOOR_W / 2 + LW / 2) + 1.0;   // clear, one metre on the jamb
-  const leafZ = EXT ? 0 : parkZ;
-  const tz0 = DOOR_W / 2 + 0.8, tz1 = parkZ - LW / 2 - 0.3;
-  put(box(0.12, 0.14, tz0 - tz1, M.steelDark, -HD - 0.24, DOOR_H + 0.42,
-          (tz0 + tz1) / 2));
-  for (const pz of [tz1 + 0.15, (tz1 - HW) / 2])
-    if (pz < -HW - 0.2)
-      put(box(0.14, DOOR_H + 0.38, 0.14, M.wood, -HD - 0.24,
-              (DOOR_H + 0.38) / 2, pz));
-  {
+  // G3537 (HANGARS-LOOK): `dims.leaves` 2 - a BI-PARTING PAIR (the cabin's 10 m door on a 14 m front: one 10.4 m leaf parked
+  // 7.4 m past the corner, a pair of 5.2 m leaves each about 3 m past its own); one leaf, as ever, otherwise
+  const PAIR = D0.leaves === 2;
+  const LW = PAIR ? DOOR_W / 2 + 0.2 : DOOR_W + 0.4;
+  const parks = PAIR ? [1, -1].map(s => ({ s, z: s * (DOOR_W / 2 + LW / 2 - 1.0), shut: s * LW / 2 }))
+                     : [{ s: -1, z: -(DOOR_W / 2 + LW / 2) + 1.0, shut: 0 }];   // clear, one metre on the jamb
+  for (const pk of parks) {
+    const far = pk.z + pk.s * (LW / 2 + 0.3);                 // the track's far end, past the corner
+    const near = PAIR ? 0 : DOOR_W / 2 + 0.8;                  // a pair's two tracks meet over the middle
+    const z0 = PAIR ? 0 : -pk.s * near;
+    put(box(0.12, 0.14, Math.abs(far - z0), M.steelDark, -HD - 0.24, DOOR_H + 0.42, (far + z0) / 2));
+    for (const pz of [far - pk.s * 0.15, (far + pk.s * HW) / 2])
+      if (pk.s * pz > HW + 0.2)
+        put(box(0.14, DOOR_H + 0.38, 0.14, M.wood, -HD - 0.24, (DOOR_H + 0.38) / 2, pz));
+  }
+  for (let li = 0; li < parks.length; li++) {
+    const pk = parks[li], leafZ = EXT ? pk.shut : pk.z;
+    {
     const g = new THREE.Group(); g.position.set(-HD - 0.15, 0, leafZ);
     g.add(mbox(0.08, DOOR_H + 0.12, LW, M.door, 0, (DOOR_H + 0.12) / 2, 0));
     // painted frame: sill and head channels, two stiles, and the Z-brace
@@ -1247,7 +1259,7 @@ if (FRAME === 'timber') {
     const brace = new THREE.Mesh(new THREE.BoxGeometry(0.07, bl, 0.16),
                                  M.doorTrim);
     brace.position.set(-0.03, DOOR_H / 2, 0);
-    brace.rotation.x = Math.atan2(LW - 0.8, DOOR_H - 0.6);
+    brace.rotation.x = Math.atan2(LW - 0.8, DOOR_H - 0.6) * (PAIR ? pk.s : 1);   // (a pair's braces mirror)
     brace.castShadow = brace.receiveShadow = true;
     g.add(brace);
     for (const o of [-0.35, 0, 0.35]) {               // hangers and rollers
@@ -1256,8 +1268,8 @@ if (FRAME === 'timber') {
                      o * LW, 12);
       wl.rotation.x = Math.PI / 2; g.add(wl);
     }
-    if (!EXT) {                                        // the wicket
-      const wz = LW / 2 - 1.0;
+    if (!EXT && li === 0) {                            // the wicket (one leaf of a pair)
+      const wz = (PAIR ? -pk.s : 1) * (LW / 2 - 1.0);
       g.add(box(0.05, 2.05, 0.86, M.doorTrim, -0.07, 1.03, wz));
       g.add(box(0.04, 1.92, 0.76, M.door, -0.10, 1.02, wz));
       g.add(cyl(0.028, 0.028, 0.12, M.brass, -0.14, 1.02, wz - 0.30, 10));
@@ -1265,6 +1277,7 @@ if (FRAME === 'timber') {
     g.traverse(o => { if (o.isMesh) { o.castShadow = true;
                                       o.receiveShadow = true; } });
     G.add(g);
+    }
   }
   if (!EXT) {
     const day = new THREE.Mesh(
@@ -1633,6 +1646,15 @@ if (!EXT) {
   const PLAIN = !!(SITE && !SITE.apron);
   // the slab in front of the door, in the shed's own frame (the door is at local -x)
   const SLAB_RECT = { x0: -HD - 42, x1: -HD + 0.5, z0: -HW - 12, z1: HW + 12 };
+  // G3541/G3542 (the user 25 Oct: "the pavement in front: concrete in the garage and dirt in the world. Can we ensure these
+  // are aligned and using the same materials?"): a plot's dims.ground is the ground round this shed in the room as in the
+  // world - HANGAR_GEN's pad (the apron, the dark ring round the walls) on the field, in place of the slab; the polish
+  // build below stands it, as render_world's polishedShell does. PAD_RECT: where no tuft grows (its fading rim left to them)
+  const HGN_G = typeof window !== 'undefined' ? window.HANGAR_GEN : null;
+  const GROUND = (PLAIN && D0 && D0.ground && HGN_G && HGN_G.groundDials) ? HGN_G.groundDials(D0.ground) : null;
+  const PAD = GROUND && GROUND.pad ? GROUND.pad : null;
+  const PAD_RECT = PAD ? { x0: -HD - PAD.apron + PAD.fade, x1: HD + PAD.ring * 0.5,
+                           z0: -HW - Math.max(PAD.ring, PAD.side) * 0.5, z1: HW + Math.max(PAD.ring, PAD.side) * 0.5 } : null;
 
   // ---- THE LIBRARY MATERIALS ---------------------------------------------
   // The ground wears scanned sets now (assets/airfield -> the ground library, ground_tex.js), and
@@ -1903,20 +1925,21 @@ if (!EXT) {
 
     // ---- THE APRON ------------------------------------------------------
     const ap = PLAIN ? SLAB_RECT : L(SITE.apron);
-    pad(ap, Y_APRON, M.apron);
-    kerb(ap, Y_APRON, SLAB, M.apron);
+    // (G3541: a plot's own ground stands instead - the pad, in the polish block - and none of the slab's paint)
+    if (!PAD) pad(ap, Y_APRON, M.apron);
+    if (!PAD) kerb(ap, Y_APRON, SLAB, M.apron);
     // SAW-CUT JOINTS on a 5 m grid, the way a slab that size is actually
     // poured and cut. They are what makes the eye read SIZE off the concrete.
-    for (let x = ap.x0 + 5; x < ap.x1 - 0.5; x += 5)
+    if (!PAD) for (let x = ap.x0 + 5; x < ap.x1 - 0.5; x += 5)
       paint(x - 0.02, ap.z0, x + 0.02, ap.z1, 0x2b2823, Y_APRON + 0.004, 0.55);
-    for (let z = ap.z0 + 5; z < ap.z1 - 0.5; z += 5)
+    if (!PAD) for (let z = ap.z0 + 5; z < ap.z1 - 0.5; z += 5)
       paint(ap.x0, z - 0.02, ap.x1, z + 0.02, 0x2b2823, Y_APRON + 0.004, 0.55);
     // the slot drain across the door line, and the lead-in the aeroplane
     // follows out to the taxiway
-    paint(ap.x1 - 1.4, -DOOR_W / 2, ap.x1 - 1.1, DOOR_W / 2, 0x1d1b18, Y_APRON + 0.005, 0.85);
+    if (!PAD) paint(ap.x1 - 1.4, -DOOR_W / 2, ap.x1 - 1.1, DOOR_W / 2, 0x1d1b18, Y_APRON + 0.005, 0.85);
     const tx = PLAIN ? null : L(SITE.taxiway);
     const lead = tx ? (tx.z0 + tx.z1) / 2 : 0;
-    paint(ap.x0, -0.09, ap.x1, 0.09, 0xd8bd4a, Y_APRON + 0.006, 0.9);
+    if (!PAD) paint(ap.x0, -0.09, ap.x1, 0.09, 0xd8bd4a, Y_APRON + 0.006, 0.9);
     if (tx) paint(ap.x0 - 0.02, Math.min(0, lead), ap.x0 + 0.16, Math.max(0, lead),
           0xd8bd4a, Y_APRON + 0.006, 0.9);
     // tie-down rings, from the declaration
@@ -2035,7 +2058,7 @@ if (!EXT) {
       roughness: 0.92, metalness: 0, fog: false, envMapIntensity: ENV_OUT }));
 
     // where a tuft may NOT stand: the paving, the strip, and the shed itself
-    const blocks = PLAIN ? [SLAB_RECT, { x0: -HD - 0.5, x1: HD + 0.5, z0: -HW - 0.5, z1: HW + 0.5 }]
+    const blocks = PLAIN ? [PAD_RECT || SLAB_RECT, { x0: -HD - 0.5, x1: HD + 0.5, z0: -HW - 0.5, z1: HW + 0.5 }]
                 : [L(SITE.apron), L(SITE.taxiway),
                     { x0: -HD - 0.5, x1: HD + 0.5, z0: -HW - 0.5, z1: HW + 0.5 }];
     if (R && !PLAIN) {
@@ -2049,6 +2072,95 @@ if (!EXT) {
       cx: -HD, cz: 0, x0: -95, x1: 26, z0: -62, z1: 78,
     });
     put(siteTufts(THREE, rows, tuftMat, Y_FIELD - 0.02));
+  }
+
+  // ---- G3534 (HANGARS-LOOK) THE POLISH ON THE ROOM'S OWN WALLS ------------
+  // The user, 24 Oct: "the garages' outsides should match the real scenery buildings". The world's sheds are HANGAR_GEN's
+  // builds now (render_world polishedShell): hangar.js's exterior with the house's polish over it. The roll-out shows THIS
+  // room from outside, so the same polish stands on the room's walls - HANGAR_GEN's own build of it (`polishOnly`: the
+  // casings round the door and the windows, the gutters and the downpipes cut to this ground, the ground skirt on the slab
+  // and the field, their bake), in the house frame (the door to +z) turned under this one (the door at local -x) by -PI/2
+  // and dropped by the slab's floorY. No flue (the stove corner brings its own through the roof), no lamps (the room's own).
+  // ?roompolish=0 or opts.polish === false: the room as it was.
+  {
+    const HGN = typeof window !== 'undefined' ? window.HANGAR_GEN : null;
+    const PRE = { field: 'field shed', club: 'club hangar', works: 'works hangar' }[SHELL];
+    let off = !!(opts && opts.polish === false);
+    try { off = off || (typeof location !== 'undefined' && /[?&]roompolish=0/.test(location.search || '')); } catch (e) {}
+    if (HGN && HGN.build && HGN.PRESETS && PRE && !off) {
+      try {
+        // G3540 v2 (the user 25 Oct: "the hanging wing under construction must never sit in front of it"): the inside sign's
+        // wall and spot from this room's own fit (the same call the props stand by below: hangarSignSpot keeps it off the
+        // hung wing, its straps, the stove's flue and anything tall at that wall); the plot's spot when the fit cannot say
+        let spot = null;
+        if (D0.sign && typeof hangarFit === 'function' && typeof hangarSignSpot === 'function') {
+          try {
+            const kits0 = (opts && opts.kits && opts.kits.length) ? opts.kits.slice() : ((typeof HANGAR_KITS_DEFAULT !== 'undefined') ? HANGAR_KITS_DEFAULT.slice() : []);
+            const reg0 = (typeof PROP_REG !== 'undefined') ? PROP_REG : null;
+            const fit0 = hangarFit({ HW: HW, HD: HD, EAVE: EAVE }, kits0, { reg: reg0, shell: SHELL, layout: LAYOUT ? opts.layout : undefined, omit: opts && opts.omit });
+            spot = hangarSignSpot({ HW: HW, HD: HD, EAVE: EAVE }, fit0, D0.sign, reg0);
+          } catch (e) { spot = null; }
+        }
+        const P = Object.assign({}, HGN.DEF, HGN.PRESETS[PRE], { HW: HW, HD: HD, EAVE: EAVE, polishOnly: 1, lights: 0, sign: 0, signKey: '', flue: 0, smoke: 0 },
+          HGN.signDials ? HGN.signDials(D0.sign, spot) : {},   // (G3540: the shed's own sign, as the world's shed wears it)
+          GROUND || {});   // (G3541/G3542: the plot's ground - the pad, the dark foot - as the world's shed stands on it)
+        const fy = P.floorY || 0;
+        const apR = PLAIN ? SLAB_RECT : (SITE && SITE.apron ? L(SITE.apron) : SLAB_RECT);
+        // the house frame's (X, Z) is this room's (x = -Z, z = X): the slab's height on the apron, the field's off it
+        // (G3541: on a plot's own ground there is no slab - the field all round, the pad draped on it)
+        P.ground = PAD ? (() => Y_FIELD + fy)
+          : (X, Z) => { const x = -Z, z = X; return ((x >= apR.x0 && x <= apR.x1 && z >= apR.z0 && z <= apR.z1) ? Y_APRON : Y_FIELD) + fy; };
+        const F = HGN.makeFinish(); HGN.applyFinish(P, F);
+        const built = HGN.build(P, 0, F);
+        // the dirt line is drawn against WORLD height: lifted by wherever the room's group stands (a uniform read at upload)
+        F.SHADE_U.uDirtY0 = { get value() { return G.matrixWorld.elements[13] - fy; }, set value(v) {} };
+        const inner = new THREE.Group();
+        inner.name = 'room:polish'; inner.rotation.y = -Math.PI / 2; inner.position.y = -fy;
+        for (const k of built.BAGS) if (built.bags[k] && built.MAT[k]) {
+          const m = built.bags[k].mesh(inner, built.MAT[k]);
+          if (m) { m.castShadow = k !== 'glass'; m.receiveShadow = true; }   // (G3540: the sign's face casts nothing; its plank does)
+        }
+        if (built.bags.aoskirt && F.MAT.aoskirt) {
+          const m = built.bags.aoskirt.mesh(inner, F.MAT.aoskirt);
+          if (m) { m.renderOrder = 5; m.castShadow = false; m.receiveShadow = false; }
+        }
+        // G3541/G3542: the plot's ground pad, the world's own (HANGAR_GEN padMesh), lit as the room's outdoors are
+        const pm = built.pad && HGN.padMesh ? HGN.padMesh(THREE, built.pad, { fog: false, envMapIntensity: ENV_OUT }) : null;
+        if (pm) { outdoor(pm.material); inner.add(pm); }
+        // G3534b (A0 26 Oct s26-g0h, alone on master: the room's entry 4.90 s, 1.81 s with the polish off, every entry after
+        // 0.44 s more): what stands OUTSIDE the walls - the casings, the gutters and pipes, the sign over the door, the skirt -
+        // is split off into its own group and drawn only while the eye stands outside (the roll-out); the room's own passes
+        // (the frame, the env bake, the floor's shadow bakes) never see it from in here. The inside sign stays where it was,
+        // the pad too (the field through the door). The split is by each triangle's centre in the house frame (x to +-HW,
+        // z to +-HD): inside the walls' line stays, the rest goes
+        const OUT = new THREE.Group(); OUT.name = 'room:polish-out'; OUT.visible = false;
+        const inWalls = (x, z) => Math.abs(x) < HW - 0.02 && Math.abs(z) < HD - 0.02;
+        for (const m of inner.children.slice()) {
+          if (!m.isMesh || m === pm || !m.geometry || !m.geometry.attributes.position) continue;
+          const g = m.geometry, pos = g.attributes.position, ix = g.index, n = ix ? ix.count : pos.count, keep = [], go = [];
+          for (let t = 0; t + 2 < n; t += 3) {
+            const a = ix ? ix.getX(t) : t, b = ix ? ix.getX(t + 1) : t + 1, c = ix ? ix.getX(t + 2) : t + 2;
+            (inWalls((pos.getX(a) + pos.getX(b) + pos.getX(c)) / 3, (pos.getZ(a) + pos.getZ(b) + pos.getZ(c)) / 3) ? keep : go).push(a, b, c);
+          }
+          if (!go.length) continue;
+          if (!keep.length) { inner.remove(m); OUT.add(m); continue; }
+          const tw = new THREE.Mesh(g.clone(), m.material);
+          tw.castShadow = m.castShadow; tw.receiveShadow = m.receiveShadow; tw.renderOrder = m.renderOrder;
+          g.setIndex(keep); tw.geometry.setIndex(go);
+          OUT.add(tw);
+        }
+        inner.add(OUT);
+        POLISH_OUT = OUT.children.length ? OUT : null;
+        G.add(inner);
+        // (G3540 v2: where the inside sign hung, in this room's frame - x = -Z, z = X - for the stills rig and the gates;
+        // G3541: the pad's triangles)
+        const si = built.stats.sign && built.stats.sign.inside;
+        ROOM_POLISH = { tris: built.stats.tris, gutter: built.stats.gutterLen, pipes: built.stats.downpipes, skirt: !!built.bags.aoskirt,
+          signIn: si ? { x: +(-si.z).toFixed(3), y: +(si.y - fy).toFixed(3), z: +si.x.toFixed(3), nx: -si.nz, nz: si.nx, at: si.at, fit: !!spot } : null,
+          pad: built.stats.pad ? built.stats.pad.tris : 0, footDark: built.stats.footDark || 0,
+          out: POLISH_OUT ? POLISH_OUT.children.length : 0, shown: 0, compiled: false };   // (G3534b: the outside group, polishFollow)
+      } catch (e) { ROOM_POLISH = { error: String(e && e.message || e) }; if (typeof console !== 'undefined') console.warn('room polish:', e && e.message); }
+    }
   }
 }
 
@@ -2290,6 +2402,49 @@ if (EXT) {
 // stub). Off: ?roommerge=0 or opts.merge === false. hangar.merged says what it did ({ sources, meshes, kept }); the
 // sources are kept aside (never uploaded: a few MB of CPU arrays) so hangar.roomMerge(false / true) swaps them back in and
 // out live - the GPU's same-task identity proof (tools/perf/garage_fps.js --roomidentity).
+// G3535 (HANGARS-LOOK, the user 24 Oct on the small shed: "the bottom gradient as AO/shadow ... the blending"): THE ROOM'S
+// WALLS WEAR THE HOUSE'S DIRT LINE. HOUSE_GEN.shadeHouse, the one patch every house material takes: the world height of
+// each fragment, a ramp from the ground (pow 1.7) mixed toward the material's own dirt - pale dust on the cladding and the
+// leaves, the stem's dark tide line - and roughened, plus the low-frequency noise that breaks the tiling. The room has no
+// per-vertex bake (its floor shadow and its lamps do that work), so its hook reads the occlusion as 1 (`aHouseAO` a
+// constant: no attribute to add to 470 boxes); the dirt line follows the room's group wherever it stands. Inside and out:
+// a shed's walls are dusty at the foot on both faces. ?roomdirt=0: the walls as they were.
+let ROOM_DIRT = 0;
+{
+  const HGH = typeof window !== 'undefined' ? window.HOUSE_GEN : null;
+  let off = !!(opts && opts.dirt === false);
+  try { off = off || (typeof location !== 'undefined' && /[?&]roomdirt=0/.test(location.search || '')); } catch (e) {}
+  if (!EXT && !off && HGH && HGH.shadeHouse && HGH.makeShadeU) {
+    const SU = HGH.makeShadeU();
+    SU.uDirtTop.value = 0.62; SU.uDirtH.value = 1.05; SU.uDirtK.value = FRAME === 'timber' ? 0.55 : 0.5; SU.uAOd.value = 0; SU.uSag.value = 0;
+    // G3542 (the user 25 Oct: "a bottom-up gradient on the walls, dark at the ground to transparent - the ground's AO on the
+    // building"): a plot's dims.ground takes the line DARK, as HANGAR_GEN footDirt does the world's shed - full at the
+    // field (10 cm under the floor), gone footH up, the shadow's colour at its foot dial (both faces: the floor's contact too)
+    const HGF = typeof window !== 'undefined' ? window.HANGAR_GEN : null;
+    const FOOT = (D0 && D0.ground && HGF && HGF.groundDials) ? HGF.groundDials(D0.ground) : null;
+    if (FOOT && FOOT.footAO > 0) { SU.uDirtTop.value = -0.10 + FOOT.footH; SU.uDirtH.value = FOOT.footH; SU.uDirtK.value = 1; }
+    SU.uDirtY0 = { get value() { return G.matrixWorld.elements[13]; }, set value(v) {} };
+    const DIRT = FRAME === 'timber'
+      ? { wall: [1.0, 0x6d6353], wallBack: [1.0, 0x6d6353], door: [1.2, 0x6d6353], beamMain: [0.8, 0x5d5446] }
+      : { wallOut: [1.0, 0x6d6353], wall: [0.6, 0x6d6353], wallBack: [0.6, 0x6d6353], stem: [1.6, 0x453f36], door: [1.2, 0x6d6353], doorTrim: [0.9, 0x6d6353] };
+    for (const k in DIRT) {
+      const m = M[k];
+      if (!m || !m.isMeshStandardMaterial || (m.userData && m.userData.houseShaded)) continue;
+      HGH.shadeHouse(m, SU);
+      // the raw hook (the game's ATMO serves every material's own hook wrapped, kept aside as _atmoHook - atmo.js G432.2)
+      const hook = m._atmoHook || m.onBeforeCompile;
+      const noAO = function (sh, r) {
+        hook.call(this, sh, r);
+        sh.vertexShader = sh.vertexShader.replace('attribute float aHouseAO;', 'const float aHouseAO = 1.0;');
+      };
+      noAO.toString = () => 'room-noao+' + hook.toString();   // (three keys the program on the hook's text)
+      m.onBeforeCompile = noAO;
+      m.userData.dirt.uDirtGain.value = DIRT[k][0]; m.userData.dirt.uDirtOwn.value.setHex(DIRT[k][1]); m.userData.dirt.uWander.value = 0;
+      if (FOOT && FOOT.footAO > 0) { m.userData.dirt.uDirtGain.value = FOOT.footAO; m.userData.dirt.uDirtOwn.value.setHex(0x221d17); }   // (HANGAR_GEN's FOOT_DARK)
+      ROOM_DIRT++;
+    }
+  }
+}
 let roomMerged = null;
 const roomMergeOff = () => { if (opts && opts.merge === false) return true; try { return typeof location !== 'undefined' && /[?&]roommerge=0\b/.test(location.search || ''); } catch (e) { return false; } };
 if (!EXT && !roomMergeOff() && THREE.Matrix4 && THREE.Matrix3 && THREE.Box3 && THREE.BufferAttribute && THREE.BufferGeometry) {
@@ -2448,11 +2603,24 @@ const claim = (obj, k) => {
 // The slot is per-build like everything in this closure; the latest room owns
 // it, which is also who a late prop should report to.
 const PENDING_LIGHT = new Map();      // pending group -> switch key
+// G3536 (HANGARS-LOOK, the user 24 Oct: "the small hangar lacks shadows: the fuselage under construction and the covered car
+// cast none (visible in the roll-out animation)"): THE FLOOR PRINT FOLLOWS THE PROPS THAT LAND. The baked floor shadow
+// (G58, GS below) is the grounding every static prop has under a light with no shadow map - and in a timber shed by day
+// (no roof lights, no glazing band) it is nearly all of it - but it was baked when the room opened and when the kit moved,
+// never when a prop's meshes LANDED after that: a prop on the wire prints an empty group, and the fuselage on its
+// trestles joins FURN only once its own prop is warm (wipBody). So every landing asks the caller for a new print
+// (onFurnLanded, debounced like the probe: a dozen props landing together are one bake of four draws).
+let furnTimer = null, furnLanded = null;
+const furnAsk = () => {
+  if (furnTimer) clearTimeout(furnTimer);
+  furnTimer = setTimeout(() => { furnTimer = null; if (typeof furnLanded === 'function') furnLanded(); }, 250);
+};
 if (typeof window !== 'undefined') window.PROP_LANDED = (key, g) => {
   claim(g, PENDING_LIGHT.get(g) || 'glow');
   PENDING_LIGHT.delete(g);
   setMood(moodI);
   roomTexLanded();
+  furnAsk();
 };
 
 function prop(key, x, z, ry, y, parent) {
@@ -2485,7 +2653,8 @@ function placeMobile(bb) {
   // ladder, the sack truck and the jerrycan against the far wall on the wrong
   // side. Which rows appear follows the chosen KITS: the cart is the handling
   // kit's, the toolbox the bench's, the jerrycan the stores' — a park-only
-  // shed walks nothing over to the aeroplane.
+  // shed walks only the boombox over (G3533: the garage radio stands in every
+  // hangar, its ring row `always`).
   const rows = (typeof hangarFitRing === 'function')
     ? hangarFitRing({ HW: HW, HD: HD, EAVE: EAVE }, KITS, bb) : [];
   for (const r of rows) prop(r.prop, r.x, r.z, r.ry, r.y, MOBILE);
@@ -3232,6 +3401,42 @@ const faceShafts = cam => {
   }
 };
 
+// G3534b: THE POLISH'S OUTSIDE FOLLOWS THE EYE - drawn only while the eye stands outside the walls (this room's frame:
+// the door at -x, x to +-HD, z to +-HW; over the ridge counts as outside), the host calling this every garage frame as it
+// calls faceShafts. Its programs are compiled async once the room has stood a second, so the roll-out's first frame
+// outside does not stop to build them.
+// G3534c (s27-g7x 13:45: the first roll-out paid a 1.28 s task, round trip 2's entry 0.77 s): once the programs are
+// built, its meshes go up ONE A FRAME from inside, behind the walls (the depth hides them), so the first frame outside
+// uploads nothing; and the room is left with it hidden (polishHide at the roll-out), so the next entry's passes skip it.
+const _pInv = new THREE.Matrix4(), _pEye = new THREE.Vector3();
+let polishFrames = 0, polishWarm = -1;
+const polishFollow = (cam, renderer, scene) => {
+  const O = POLISH_OUT;
+  if (!O || !cam) return false;
+  cam.getWorldPosition(_pEye).applyMatrix4(_pInv.copy(G.matrixWorld).invert());
+  const out = Math.abs(_pEye.x) > HD - 0.15 || Math.abs(_pEye.z) > HW - 0.15 || _pEye.y > RIDGE + 0.3 || _pEye.y < -0.5;
+  if (!ROOM_POLISH.compiled && !out && ++polishFrames > 60 && renderer && typeof renderer.compileAsync === 'function' && scene) {
+    ROOM_POLISH.compiled = true;
+    const R = ROOM_POLISH, go = () => { if (ROOM_POLISH === R && polishWarm < 0 && !R.warmed) polishWarm = 0; };
+    O.visible = true;
+    try { renderer.compileAsync(O, cam, scene).then(go, go); } catch (e) { go(); }
+    O.visible = false;
+  }
+  if (polishWarm >= 0) {
+    const K = O.children;
+    if (!out && polishWarm < K.length) {
+      if (polishWarm === 0) { for (const k of K) k.visible = false; O.visible = true; }
+      K[polishWarm++].visible = true;
+      return false;
+    }
+    for (const k of K) k.visible = true;   // all up, or the eye went out mid-way (the rest uploads now)
+    polishWarm = -1; ROOM_POLISH.warmed = true;
+  }
+  if (O.visible !== out) { O.visible = out; if (out) ROOM_POLISH.shown++; }
+  return out;
+};
+const polishHide = () => { if (POLISH_OUT) POLISH_OUT.visible = false; };
+
 // THE SHAFT HAS TO REACH THE FLOOR, and how far that is depends on how high
 // the roof is — which has been a parameter since G53 (user: "do the light
 // cones respond to the lamp's height?"). It did not: the length was a flat
@@ -3966,11 +4171,14 @@ return {
   texBudget: texBudget,        // dev: what the room costs in fragment samplers
   census: census,              // dev: meshes and triangles, which ARE draw calls here
   mats: M, shafts: shafts, faceShafts: faceShafts,
+  get polish() { return ROOM_POLISH; }, dirt: ROOM_DIRT,   // G3534 / G3535 (G3534b: read live - shown, compiled)
+  polishFollow: polishFollow, polishOut: () => POLISH_OUT, polishHide: polishHide,   // G3534b/c: the polish's outside, drawn only from outside
   // the kit that follows the aeroplane, and the equirect the caller may bake
   // an environment from instead of the room's own cube pass
   placeMobile: placeMobile, mobile: mobileList, mobileShow: mobileShow, mobileProp: mobileProp,
   // the baked floor shadow: re-run after anything on the floor moves
   bakeGroundShadow: GS.bake, disposeGroundShadow: GS.dispose,
+  onFurnLanded: fn => { furnLanded = fn; },   // G3536: a prop landed after the print - bake it again
   bakeCraftShadow: CS.bake,
   _gs: GS,                           // dev handle: the bake's own targets
   groundShadow: v => {

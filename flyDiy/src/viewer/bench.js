@@ -550,7 +550,9 @@ const BENCH_LOOK = { energy: ['finish', 'hue', 'tint'], vessel: ['finish', 'hue'
 // dimmers) are state like lightOn. What is FITTED (li_*Fit) and where (the bay, pod, tip rows) still counts.
 // DOOR-HINGES (2026-10-27): the door hinges' axis tweaks (`hgDr*`) place display hardware - not the airframe either;
 // absent from every file before them, so no certificate taken before moves.
-const BENCH_STATE_ROWS = /^_view|^(explodeD|pilOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|li_(?:nav|beacon|taxi|land|flood|instr|pedal|pax))$|^hgDr[A-Z]/;
+// G3852 (the user: "a Tundra tyre with no pattern"): whSlick, a tundra's lugs or smooth, is drawing only (the
+// physics reads the carcass, whProfile) - a look like the paint; whTread stays counted, as every file signed it.
+const BENCH_STATE_ROWS = /^_view|^(explodeD|pilOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|whSlick|li_(?:nav|beacon|taxi|land|flood|instr|pedal|pax))$|^hgDr[A-Z]/;
 function benchStripCosmetic(spec, defaults) {
   if (!spec || typeof spec !== 'object') return null;
   const c = JSON.parse(JSON.stringify(spec));
@@ -580,6 +582,13 @@ function benchStripCosmetic(spec, defaults) {
     cg.dashLegs = cg.dashLegsWas != null ? Math.round(+cg.dashLegsWas) : 1;
     delete cg.dashWas; delete cg.dashLegsWas; delete cg.dashV;
   }
+  // G2820: a wing's STOL record at "every device off" is the join STATING
+  // the default (A3) - null hashes as the absent key every build before
+  // the STOL wing carried, so no certificate is withdrawn for it
+  if (Array.isArray(c.wings)) for (const w of c.wings) if (w && typeof w === 'object' && w.stol == null) delete w.stol;
+  // G2827: ...and the cage's STOL rows at "off" are the rows every build before them lacked - with the page's defaults
+  // (the certificate) they drop anyway; with none (the parked fleet's bakes, parked.js fleetSig) they must drop here
+  if (c.cage && typeof genStolCageOff === 'function') c.cage = genStolCageOff(c.cage);
   if (c.cage && typeof c.cage === 'object') {
     const D = (defaults && typeof defaults === 'object') ? defaults : null;
     const out = {};

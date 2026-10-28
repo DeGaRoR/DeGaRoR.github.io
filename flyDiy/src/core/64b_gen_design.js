@@ -49,7 +49,7 @@ function genDesignDerivs(def, sim, V, opts) {
   const g = def.params.gen || {};
   const Sw = g.Sw || 10, b = g.span || Math.sqrt(Sw * (g.AR || 6)), c = g.cBar || Sw / b;
   const W = sim.totalM * 9.81;
-  const aMax = 0.85 * def.params.polarWing.aStall;
+  const aMax = 0.85 * genStallAngle(def);   // G2822: the wing's stall angle as it flies
   const a0 = genAlphaForLift(sim, V, W, aMax);
   const q = 0.5 * RHO * V * V;
   const ctl0 = { de: sim.ctl.de, da: sim.ctl.da, dr: sim.ctl.dr, flap: sim.ctl.flap, thr: sim.ctl.thr };
@@ -280,7 +280,7 @@ function genDesignCheck(def, sh, simIn, opts) {
   {
     const env = sh && sh.envelope, fwdX = env && env.fwd ? env.fwd.cgX : (sh ? sh.cgX : null);
     const Va = 1.2 * Vs, Wt = D.W;
-    const aMax = 0.85 * def.params.polarWing.aStall;
+    const aMax = 0.85 * genStallAngle(def);   // G2822: the wing's stall angle as it flies
     const aA = genAlphaForLift(sim, Va, Wt, aMax);
     sim.ctl.de = 0;
     const r0 = sim.probe(genDcVel(Va, aA, 0));
@@ -314,7 +314,7 @@ function genDesignCheck(def, sh, simIn, opts) {
   // flare to). Free air: ground effect's lost downwash is not modelled here.
   {
     const env = sh && sh.envelope, fwdX = env && env.fwd ? env.fwd.cgX : (sh ? sh.cgX : null);
-    const W = D.W, aS = def.params.polarWing.aStall;
+    const W = D.W, aS = genStallAngle(def);   // G2822: swept to the wing's own stall (a slat's, past the clean one)
     const a1 = genAlphaForLift(sim, 1.2 * Vs, W, 0.85 * aS);
     sim.ctl.de = 1; const pU = sim.probe(genDcVel(Vs, a1, 0)).pitchUp;
     sim.ctl.de = -1; const pD = sim.probe(genDcVel(Vs, a1, 0)).pitchUp;
@@ -414,6 +414,56 @@ function genDesignCheck(def, sh, simIn, opts) {
           limit: '>= 0.07 (the classic light-aircraft target); warn 0.04-0.07; fail below',
           why: 'steady roll rate at full aileron: ' + r2(pb * 2 * V / D.b * 180 / Math.PI) + ' deg/s at ' + r2(V * 3.6) + ' km/h',
           fix: lvl === 'pass' ? '' : 'longer or wider ailerons (their span outboard counts most)' });
+  }
+  // G2822 (STOL-WING-2): DROOPING AILERONS - the roll power they keep on the approach, full flap. The pair rides the
+  // flap lever, so the down-going aileron flies nearer its stall: owners of the Robertson / Horton STOL kits report
+  // less aileron with full flap (backcountrypilot.org threads on the R/STOL; the kit's flight-manual supplement
+  // governs), which is the authority a STOL approach needs most. Judged at 1.3 Vs0, flap down, against the same wing
+  // undrooped (the drooped strips' record set aside for the probe) and the target above. Only on a drooped wing: no
+  // other aeroplane has the row.
+  if (def.strips.some(st => st.dr)) {
+    // ITS OWN SIM at rest (the shared one has been flown by the shakedown: its lift is not even monotonic there), and
+    // ONE frame for the attitude and the moment (genProbeAt, the body's axes - the trim solver's own)
+    const sm = makeSim(def, null);
+    sm.reset(0);
+    // the approach the autopilot flies: 1.3 x its Vs0 (G2826: the held one on a wing the elevator cannot stall)
+    const Vs0 = g.VsFlapAP || g.VsFlap || Vs, Va = 1.3 * Vs0, qA = 0.5 * RHO * Va * Va, Wt = sm.totalM * 9.81;
+    sm.ctl.flap = 1;                  // FULL flap, whatever the landing schedule says (a flapless lander still droops)
+    // each wing at ITS OWN attitude for the weight at that speed (the undrooped one flies a little higher): a scan
+    // and a bisection, never a secant (with a drooped pair the lift curve has a knee below ~5 deg)
+    const aCap = 0.85 * genStallAngle(def);
+    const aFor = () => {
+      let a0 = -0.10, f0 = genProbeAt(sm, Va, a0).Fy - Wt;
+      for (let a = a0 + 0.01; a <= aCap + 1e-9; a += 0.01) {
+        const f = genProbeAt(sm, Va, a).Fy - Wt;
+        if (f >= 0 && f0 < 0) {
+          let lo = a - 0.01, hi = a;
+          for (let i = 0; i < 14; i++) { const m = 0.5 * (lo + hi); if (genProbeAt(sm, Va, m).Fy < Wt) lo = m; else hi = m; }
+          return 0.5 * (lo + hi);
+        }
+        f0 = f;
+      }
+      return aCap;
+    };
+    const clDa = () => {
+      const aA = aFor();
+      sm.ctl.da = 1; const u = genProbeAt(sm, Va, aA).rollLeft;
+      sm.ctl.da = -1; const d = genProbeAt(sm, Va, aA).rollLeft;
+      sm.ctl.da = 0;
+      return Math.abs(u - d) / 2 / (qA * D.Sw * D.b);
+    };
+    const withD = clDa();
+    const held = def.strips.map(st => st.dr);
+    for (const st of def.strips) delete st.dr;
+    const noD = clDa();
+    def.strips.forEach((st, i) => { if (held[i]) st.dr = held[i]; });
+    const keep = withD / Math.max(1e-9, noD), pb = withD / Math.max(1e-6, -D.Clp);
+    const lvl = keep >= 0.85 && pb >= 0.07 ? 'pass' : keep >= 0.60 && pb >= 0.04 ? 'warn' : 'fail';
+    row({ id: 'ctl.droop', group: 'control', label: 'Drooping ailerons: roll power on the approach, full flap',
+          value: r2(keep), unit: 'x undrooped', level: lvl,
+          limit: 'at 1.3 Vs0, flap down: the drooped pair keeps >= 85 % of the undrooped roll moment and pb/2V >= 0.07 (warn >= 60 % and 0.04)',
+          why: 'full aileron at ' + r2(Va * 3.6) + ' km/h, full flap: ' + Math.round(keep * 100) + ' % of the undrooped roll moment, pb/2V ' + r3(pb) + ' (the cruise roll damping)',
+          fix: lvl === 'pass' ? '' : 'less droop (the down-going aileron is the one stalling), or longer ailerons' });
   }
   {
     // the steady sideslip full rudder holds, and the crosswind that is at the approach

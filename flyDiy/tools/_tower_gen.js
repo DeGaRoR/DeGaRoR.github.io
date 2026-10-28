@@ -716,7 +716,9 @@ function randomTower(seed) {
   return P;
 }
 
-window.TOWER_GEN = { DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, BASES, ROOFS, STAIRS, TRUCKS, SET_IDX, CATS, catOf, build, applyFinish, makeFinish, finishReport, randomTower };
+// THE FAR TOWN'S DETAIL ROLES (LODS-2026-10): the bags of lod 1 that LEAVE at the far town's detail band (render_premises
+// lod1Bags; GATE LODS --fix holds the rest closed and roofed) - what is sub-pixel there; everything else of lod 1 stays.
+window.TOWER_GEN = { LOD_DETAIL: /^(trim|sock)$/, DEF, ROWS, PRESETS, BAGS, EXTRA, MAT, BASES, ROOFS, STAIRS, TRUCKS, SET_IDX, CATS, catOf, build, applyFinish, makeFinish, finishReport, randomTower };
 // THE CATALOGUE: a building; its way in is the stair's foot on the +z side
 window.TOWER_GEN.CATALOGUE_V = 1;
 window.TOWER_GEN.CATALOGUE_ALIASES = {};
