@@ -102847,3 +102847,29 @@ freeze-trace/A2-proof.json, C-layer.json, fixture-results.json and PNGs.
 The persistent first-flight freeze appears addressed by this isolated
 CSS experiment; do not tick the whole freeze family or publish ready yet.
 
+### Wind raster final built-source confirmation — 28 Oct 23:40
+
+Normal clean branch build1351aba97a29, committed CSS (no injected hint),
+UISMOKE/GFX/AA all PASS. Cold Cessna metal HOME/CIRCUIT gamer,30s record
+plus first shot:1238 frames, worst50.0ms,p99 33.5ms,zero >100ms/zero
+page exceptions. Initial CPU22%,GPU10% snapshot; no boot gain claimed
+(103.628s). Earlier profiled clean master worst4368.3ms; first treatment
+66.7ms. This verifies removal of the first-visible-wind-arrow freeze in
+the ordinary built page, not every other round-trip freeze.
+
+Cook/check(same) ran immediately before measurement through the same
+validated tool helper. Afterward, owned packs/manifest restored to
+committed M and rebuilt: buildID unchanged1351aba97a29. No cooked output
+committed. Diagnostic raw traces/profiles are verified .gz archives;
+cleanup/report.json records SHA256 and original sizes. Evidence: owned
+wind-final/summary.json,cold.json,gates.log,restored.json and retry.cjs.
+The first final runner stopped before browser launch on a cwd argument
+error; corrected retry reused passed gates and re-cooked before this run.
+
+A0/Claude owns landing. No master or ready ref published. The additional
+intro regression groups (master/candidate CLOUD/SHADOWSKY/HANGAR/UISMOKE,
+FRAMECOST,ROUNDTRIP,BOOTLIFT) run unattended under PID44532, three-hour
+limit. Inspect introperf/full-gates-status.json, per-group comparisons
+and complete logs before final landing. Existing known reds remain
+visible; the runner never auto-publishes a verdict or branch.
+
