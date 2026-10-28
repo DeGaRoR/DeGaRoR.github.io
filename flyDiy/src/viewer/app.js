@@ -5822,7 +5822,8 @@
   // damage event (the broken list or the sets moved) the marks are made again from them and packed into the shared
   // uniforms; a heal, a new flight or another aeroplane lets them go. Nothing runs while damage is off or nothing broke
   // but one compare a frame; the capture is once a flight (a few thousand points). window.FLYDIY_GLASS: the page checks'
-  // read; window.FLYDIY_GLASS_TEST(sev, at): a mark placed by hand (at: a pane point index, or the windscreen's middle)
+  // read; window.FLYDIY_GLASS_TEST(sev, at): a mark placed by hand (at: a pane point index, 'view' the glazing's point
+  // nearest the middle of the view, or by default the windscreen's middle)
   const GLM = { model: null, P: null, M: null, marks: [], key: '', test: false };
   function glassPanes(U) {
     const inv = U.uCraftInv.value, M4 = new THREE.Matrix4(), N3 = new THREE.Matrix3(), v = new THREE.Vector3(), nv = new THREE.Vector3();
@@ -5885,6 +5886,13 @@
     if (sev == null) { glassClear(U); return 0; }
     if (!GLM.P) GLM.P = glassPanes(U); const P = GLM.P; if (!P) return null;
     let k = at;
+    if (k === 'view') {   // (28 Oct) the glazing's point nearest the middle of the view - the windscreen's middle is off the
+      // left seat's view on the metal Cessna: the camera's eye and forward taken into craft space, the point most ahead
+      const inv = U.uCraftInv.value, e = camera.getWorldPosition(new THREE.Vector3()), f = camera.getWorldDirection(new THREE.Vector3());
+      const e2 = e.clone().applyMatrix4(inv), f2 = e.clone().add(f).applyMatrix4(inv).sub(e2).normalize(); let best = -2;
+      for (let j = 0; j < P.n; j++) { const dx = P.pts[j * 3] - e2.x, dy = P.pts[j * 3 + 1] - e2.y, dz = P.pts[j * 3 + 2] - e2.z, l = Math.hypot(dx, dy, dz) || 1, c = (dx * f2.x + dy * f2.y + dz * f2.z) / l;
+        if (c > best) { best = c; k = j; } }
+    }
     if (k == null) {   // the windscreen's middle: its points' mean, then the nearest point
       let c = [0, 0, 0], m = 0; for (let j = 0; j < P.n; j++) if (P.screen[j]) { c[0] += P.pts[j * 3]; c[1] += P.pts[j * 3 + 1]; c[2] += P.pts[j * 3 + 2]; m++; }
       if (!m) { for (let j = 0; j < P.n; j++) { c[0] += P.pts[j * 3]; c[1] += P.pts[j * 3 + 1]; c[2] += P.pts[j * 3 + 2]; } m = P.n; }
