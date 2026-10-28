@@ -9888,15 +9888,31 @@
   // change to Rufus's file"): at T0 in the cabin shed, the cage's light switches go on once per page - the master switch
   // and the cabin flood. A switch is a position, not the airframe (G3449: bench.js counts the levels as STATE, so the
   // certificates hold); no build file is touched. Waits for the garage's CAGE_UI, then never again on this page.
-  let stFloodDone = false;
+  let stFloodDone = false, stFloodLoads = 0, stFloodAt = -1;
+  // (the 27 Oct 04:35 page run: the switches set, then Rufus's file loaded onto the stand wrote its own back - every
+  // build carries lightOn 1 / li_flood 0 in its P. A load is counted at the editor's door (applySpec, its sliced twin);
+  // the flood goes on once per load while the story is at T0 in the cabin. The file is not touched)
+  function storyFloodWrap(U) {
+    if (U.__stFloodWrap) return;
+    U.__stFloodWrap = true;
+    if (typeof U.applySpec === 'function') { const f = U.applySpec; U.applySpec = function () { const r = f.apply(this, arguments); stFloodLoads++; return r; }; }
+    if (typeof U.applySpecSteps === 'function') { const g = U.applySpecSteps; U.applySpecSteps = function* () { const r = yield* g.apply(this, arguments); stFloodLoads++; return r; }; }
+  }
   function storyFloodOn() {
     if (!STORY_PAGE || stFloodDone) return;
     const U = window.CAGE_UI;
     if (!U || !U.P || typeof U.build !== 'function') return;
-    stFloodDone = true;
     try {
+      storyFloodWrap(U);
       const d = playerLoad(), sh = d.sheds && d.sheds[d.here], s = stLive();
-      if (!s || s.beat !== 'T0' || !sh || sh.story !== 'cabin') return;
+      // (no story yet, or not yet in the cabin: a New career on this page starts one - the 1.5 s tick tries again;
+      // the 26 Oct page run: the flag was set at the first tick, before the career began, and the flood never came on)
+      if (s && (s.open || s.beat !== 'T0')) { stFloodDone = true; return; }
+      if (!s || !sh || sh.story !== 'cabin') return;
+      if (stFloodAt === stFloodLoads) return;
+      // (a parked aeroplane's bake applies ITS spec through the same door, a slice a task: never switched under it)
+      try { const F = window.FLEET_STAND; if (F && F.state && F.state.busy) return; } catch (e) {}
+      stFloodAt = stFloodLoads;
       if (+U.P.lightOn === 1 && +U.P.li_flood === 1) return;
       U.P.lightOn = 1; U.P.li_flood = 1; U.build();
       if (typeof U.syncSliders === 'function') U.syncSliders();
