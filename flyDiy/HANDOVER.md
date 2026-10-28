@@ -102819,3 +102819,38 @@ assets-grove (the crane's GROVE marks painted out, 11/13 + master's GEO/MEDIA), 
 doors shut; bought = the same shed; 9/9, FRAMECOST = master's 15 rows).
 Battery: PARKED row 13 = master's own (identical rows to L28b). Train gate vs L28b: the same accepted costs (perf-week L0: garage ~95-130 s,
 compile 25-51 s), no new row; fps and worst tasks within L28b's spread. Everything else waits for R1: flydiy-notes/RESTART-PLAN.md.
+
+### Codex introduction performance draft — 28 Oct 23:19
+
+Independent claude/codex-introperf over L28c 62d23a05b; built normally as
+aa6d25ff8ed9. A0/Claude owns landing; no master/ready publication.
+
+Two profiled interventions: (1) while the New career cinematic draws the
+world, skip the garage atmosphere/light/probe updates; restore the room
+before the first garage frame, through the same shedFrameState helper.
+Physics/control logic, intro camera path, music and timing are unchanged.
+(2) FARLOD buildQuad computes the same AABB and box-centred sphere directly
+from its plain Float32 position buffer, instead of three BufferAttribute
+walks. No geometry, LOD tolerance, material or culling extent changes.
+
+FARBOUNDS passes exact Object.is bounds and unchanged-buffer comparisons
+for88 cases (signed-zero, empty,100k vertices, nonfinite fallback); legacy
+control300000 Vector3 attribute reads versus0 accessor reads in fast path.
+STORY also verifies room-state restoration once on played/skipped endings.
+STORY/CLOCKBAKE/WORLDRENDER/AA/POSTFX/GFX/PROGRAMS pass; LIGHT has the same
+pre-existing studio row on master and candidate, no new failure. Full
+required gate matrix still owed; this is not a ready verdict.
+
+First cold profiled intro: master26.8fps,20.5% uneven, p99 116.7ms;
+candidate28.5fps,13.1% uneven,p99 66.8ms. Excluding fade/profiler startup,
+visible >100ms frames12 ->1. Candidate ATMO calls987/987 frames, none at
+altitude0; exposure1.12 throughout, zero page exceptions/catcher catches.
+The ~734/767ms initial peaks are profiler-start overhead under fade, not
+a game performance claim. Final master repeat and separate visual passes
+(including sky-flicker inspection) are running; treat gains as provisional.
+Do not claim all intro judder/flicker fixed yet.
+
+Raw reports, commands and provenance live under the owned introperf folder
+linked from CODEX-LOG-SHADERWARM.md. Only sources/tests and normal build
+outputs committed: no cooked pack, manifest, trace, screenshot or model.
+

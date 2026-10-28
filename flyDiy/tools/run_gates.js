@@ -93,6 +93,7 @@ const GATES = [
   // validated and judged, day_clock.js's ONE jump door counted; --selftest breaks each rule in its own source
   { id: 'CLOCK', file: '_clock_check.js', tier: 'core', wall: 30 },
   // G2664 (SIM-CLOCK-GPU): a Wait re-shoots the shed's room probe a slice a frame, once, never skipped (the page in node)
+  { id: 'FARBOUNDS', file: '_farbounds_check.js', tier: 'core' },
   { id: 'CLOCKBAKE', file: '_clockbake_check.js', tier: 'core', wall: 120 },
   // THE CLIMATE (K0, 2026-09-22): the one wind field - the G72 column bit-identical against a
   // verbatim copy, the shared zero, the relief raster, the linearised sampler; pure, seconds

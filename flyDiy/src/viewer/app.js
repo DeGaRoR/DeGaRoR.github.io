@@ -1218,6 +1218,12 @@
     if (r && hangar.moodFor) { const mi = hangar.moodFor(world.day); if (mi !== hangarMood) setMood(mi, { fromClock: true }); }
     shedCraftLights(world.day);
   }
+  // The scene actually drawn owns the shared atmosphere. Resume the room before its first post-intro frame.
+  function shedFrameState() {
+    if (typeof ATMO !== 'undefined') ATMO.setAP(false);
+    shedDayTick();
+    envSliceStep();
+  }
   function setEnvSource(k) {
     envSource = k === 'sky' ? 'sky' : 'room';
     prefSet('flydiy.hangarEnvSrc', envSource);
@@ -9660,6 +9666,7 @@
     stIntroPose = null; stIntroWas = null; stIntroAt = null;
     try { storyIntroLamps(false); } catch (e) {}   // G3388: the world's lights as the flight will find them
     if (W) {
+      shedFrameState();
       setExp(W.exp);
       if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = W.mist;
       try { if (W.veil != null && typeof CLOUDS !== 'undefined' && CLOUDS.S) CLOUDS.S.veil = W.veil; } catch (e) {}   // G3588 (the quad: the next march shows it)
@@ -18656,10 +18663,9 @@
       if (CK && CK.dashAction) for (const id of inpEv.fired) CK.dashAction(id);
     }
     if (inGarage) {
-      if (typeof ATMO !== 'undefined') ATMO.setAP(false);   // S4/F3: no sky in the shed, so no aerial perspective - but the MIST still runs, as the room's own air
-      // ONE SKY (S5): the day on the shed every frame; the room's probe re-shot when the sun has moved 1.5 deg
-      shedDayTick();
-      envSliceStep();   // G2662: the clock's room-probe bake, a slice this frame
+      // The opening draws the world while the career remains in the garage. Its atmosphere and exposure belong
+      // to that eye; updating the room here would rebuild the same shared LUTs again at altitude zero.
+      if (!stIntro || !stIntroAt) shedFrameState();
       // CONTROL CHECK. The solver is stopped in the garage, so every control
       // sits at zero and the surfaces never move — which reads as "the surfaces
       // do not work" even when they do. Sweep them instead, the way you would

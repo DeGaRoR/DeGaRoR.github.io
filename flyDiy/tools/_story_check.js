@@ -543,9 +543,9 @@ async function introRun() {
   H.world.terrainH = terr;
   vm.runInContext(src, H);
   const lazy = [];
-  let exp = 1.1;
+  let exp = 1.1, shedRestores = 0;
   Object.assign(H, { WF: {}, inGarage: true, roomBase: () => 'w9', roomId: () => 'w9', siteOf: () => ({ plots: [plot] }), WORLD_EXPOSURE: 0.9,
-    renderer: { get toneMappingExposure() { return exp; } }, setExp: v => { exp = v; }, ATMO: { MIST: { room: 'the room' } },
+    shedFrameState: () => { shedRestores++; }, renderer: { get toneMappingExposure() { return exp; } }, setExp: v => { exp = v; }, ATMO: { MIST: { room: 'the room' } },
     FLYDIY_LAZY: n => { lazy.push(n); return Promise.resolve([true]); },
     camera: { fov: 46, position: { x: 0, y: 0, z: 0, set(x, y, z) { this.x = x; this.y = y; this.z = z; } }, lookAt() {}, updateProjectionMatrix() {}, updateMatrixWorld() {} } });
   const settle = async () => { for (let i = 0; i < 400; i++) { await new Promise(r => setTimeout(r, 5)); if (!H.window.FLYDIY_STORY || !H.window.FLYDIY_STORY.pending()) return; } };
@@ -553,7 +553,7 @@ async function introRun() {
   const half = () => vm.runInContext('(function () {\n' + P.half + '\nreturn { storyIntroWanted, storyIntroCurtain, storyIntroBoot, storyIntroFrame, el: () => stCardEl }; })', H)();
   const curtains = () => els.filter(e => e.id === 'stIntro').length;
   const play = async (skipAt) => {
-    career(); H.stIntroArm = true; H.FLYDIY_INTRO_LAST = null; lazy.length = 0;
+    career(); H.stIntroArm = true; H.FLYDIY_INTRO_LAST = null; lazy.length = 0; shedRestores = 0;
     const c0 = curtains(), X = half();
     await settle();
     const cur = els.filter(e => e.id === 'stIntro').slice(-1)[0];
@@ -569,7 +569,7 @@ async function introRun() {
     }
     return { up, during, worldF, n, skipF, near, X, last: H.FLYDIY_INTRO_LAST };
   };
-  const after = X => exp === 1.1 && H.ATMO.MIST.room === 'the room' && H.camera.fov === 46 && H.FLYDIY_MUSIC_HOLD === false &&
+  const after = X => shedRestores === 1 && exp === 1.1 && H.ATMO.MIST.room === 'the room' && H.camera.fov === 46 && H.FLYDIY_MUSIC_HOLD === false &&
     M.storyOf(P.get()).beat === 'T0' && X.el() && !X.el().hidden && /The cabin/.test(X.el().innerHTML);
   let r = await play(null);
   ok(r.up, 'a New career: the black curtain up under the loading screen (z 60 < the boot\'s 70), story_intro.js asked for');

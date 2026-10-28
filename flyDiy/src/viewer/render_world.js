@@ -2692,6 +2692,24 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         FARLOD.quads.set(key, Q = { m, sig: '', want: null, wantSig: '', tris: 0 });
         return Q;
       };
+      // This geometry owns a plain Float32 position array. Match three's box-centred sphere exactly while
+      // avoiding three full BufferAttribute/Vector3 walks (computeBoundingSphere also scans the box).
+      const farBounds = (geo, pos) => {
+        let ax = Infinity, ay = Infinity, az = Infinity, bx = -Infinity, by = -Infinity, bz = -Infinity;
+        for (let i = 0; i < pos.length; i += 3) {
+          const x = pos[i], y = pos[i + 1], z = pos[i + 2];
+          if (!Number.isFinite(x + y + z)) { geo.computeBoundingSphere(); geo.computeBoundingBox(); return; }
+          ax = Math.min(ax, x); ay = Math.min(ay, y); az = Math.min(az, z);
+          bx = Math.max(bx, x); by = Math.max(by, y); bz = Math.max(bz, z);
+        }
+        const box = new THREE.Box3(); box.min.set(ax, ay, az); box.max.set(bx, by, bz);
+        const center = box.getCenter(new THREE.Vector3()); let r2 = 0;
+        for (let i = 0; i < pos.length; i += 3) {
+          const x = center.x - pos[i], y = center.y - pos[i + 1], z = center.z - pos[i + 2];
+          r2 = Math.max(r2, x * x + y * y + z * z);
+        }
+        geo.boundingBox = box; geo.boundingSphere = new THREE.Sphere(center, Math.sqrt(r2));
+      };
       const buildQuad = Q => {
         const nodes = Q.want || [];
         const pos = new Float32Array(nodes.length * NV * 3), uv = new Float32Array(nodes.length * NV * 2), nor = new Float32Array(nodes.length * NV * 3);
@@ -2704,7 +2722,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
         geo.setIndex(new THREE.BufferAttribute(idx, 1));
         // G1200: drawn only - a re-cut builds a new geometry from the patch cache (FARLOD.cache keeps the patches' own)
-        if (nodes.length) { geo.computeBoundingSphere(); geo.computeBoundingBox(); if (typeof GPU_ONLY_GEO === 'function') GPU_ONLY_GEO(geo, true); }   // (G1230: uploaded as the build's slice ends)
+        if (nodes.length) { farBounds(geo, pos); if (typeof GPU_ONLY_GEO === 'function') GPU_ONLY_GEO(geo, true); }   // (G1230: uploaded as the build's slice ends)
         else if (Q.m.geometry.boundingSphere) { geo.boundingSphere = Q.m.geometry.boundingSphere; geo.boundingBox = Q.m.geometry.boundingBox; geo.setDrawRange(0, 0); }
         const old = Q.m.geometry; Q.m.geometry = geo; if (old && old.dispose) old.dispose();
         Q.sig = Q.wantSig; Q.tris = nodes.length * TPL.length / 3; FARLOD.stats.rebuilds++;
