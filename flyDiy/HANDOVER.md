@@ -99554,3 +99554,92 @@ KNOWN (G2810): WP1 climbs 1.7 m/s, plan limit +1.7 | the plan limit 1.691 m/s, W
 TOUR's verdict comes from the merge run (its four shards need the machine to themselves; see the READY note).
 The probes: `tools/avionics_bill_table.js` for the bill; the pilot sheet (`machineSheet` on `_tour_lib.defOf(cub)`) and
 `def.params.gen.landsFlapless` for the flaps, on both trees.
+
+## G2811 - LAND ON THE LARGEST FLAP NOTCH THAT FITS; THE PILOT LEAVES A SHORT STRIP BY ITS CENTRELINE; THE TRIM FIT FOLLOWS THE FLAP; THE WRECK RESTS ON TWO CALM READS (2026-10-26/27, AVIONICS-GPS for the user, cloud - node + headless only; branch claude/avionics-gps-2)
+
+The user, 26 Oct: "yes, do the partial-flap fix" (G2810's follow-up: the trim budget's rule was flaps or nothing, so
+0.0005 of trim cost the user's Cub 3 m/s of approach).
+
+**The partial flap (src/core/64_gen_build.js genTrim).** Where G2034 (the approach trim budget) or G970 (the flare's
+elevator) would take the whole landing flap away, genTrim first searches the 0.05 notches under it for the largest that
+fits both budgets (`notchFits`, `landPartial`), each notch measured as genTrim measures (its own stall by genClMax, the
+approach speed scaled to it, the trim on final, the flare at 1.10 of its stall). Only when none fits does the flapless
+rule stand. `flaps.ldg` becomes the notch, `g.landsPartialFlap` / `g.flapLdgFull` record it.
+- The user's Cub: full-flap trim -0.1548 against the 0.1543 budget, lands on **0.95**: Vs0 13.71, Vref 17.82 m/s
+  (flapless 15.81 / 20.6; master 13.45 / 17.49).
+- Moved (approved, the user's "yes"): Jodel 0 -> 0.7, twin floatplane 0 -> 0.7; the cards cub 0.6, jodel 0.8, radial
+  0.3, etrainer 0.6, ttail 0.3, vtail 1 -> 0.8. **Unchanged:** metal Cessna, floats Cessna, C172, Rufus.
+
+**The pilot's trim-attitude fit follows the flap (src/core/43_pilot.js tAlphaAt).** The fit (alpha = a0 + k / V^2 through
+the cruise point and the approach point) took its approach point from the LANDING configuration and flew it in every
+configuration. Flapless landers always had a clean point; the 0.7 notch gave the Jodel a flapped one (24.2 m/s at 0.032
+rad against 27.4 at 0.111) and on the take-off run ground effect let the nose down: three hops, lift-off 1.43 Vs, 360 m
+(GATE TAKEOFF red). genTrim now also measures the clean approach point (`g.VApprClean`, `g.alphaApprClean`); the pilot
+moves the anchor from it to the landing one as the flap goes from its take-off setting to the landing setting. A
+flapless lander's fit is exactly its own; a landing approach on the landing flap flies the fit it always had. The Jodel:
+one lift-off at 20.8 m/s (1.09 Vs), 186 m (master 20.6, 173 m).
+
+**A short strip left by its centreline (43_pilot.js planDeparture).** Jumbo Mine (250 m) is landed and left the same
+way. On its 0.95 notch the user's Cub stopped 161.7 m from the far end, facing its take-off with the start end behind it;
+with under 3/4 of the strip ahead (`need 299 > len 250`) planDeparture fell through to the pattern route, whose lane
+U-turn at the pose ran it into an obstacle beside the strip 7.5 s later. Now:
+- a taildragger facing the END rolls on to it and pivots wherever it stopped (G2450's roll-on, no longer gated on 3/4);
+- a taildragger on the centreline (|cross| <= 4 m) of a strip under 300 m, facing its take-off, turns on the spot,
+  taxis back along the centreline to the start end's turn spot (`taxiTgt`, `ap.pivSpot`) and turns there: the whole strip.
+  A tricycle pivots where it stands (G1949), as before.
+- With both, G2810's two named flapless known reds in TOUR cannot match any more: tools/_tour_check.js is master's again.
+
+**The wreck's rest (src/core/34_scar.js scarRest).** The rest seal read the wreck once per restDt and sealed on the first
+read with no node over vRest. A loose part reads near zero at the bottom of a bounce: the Cub 2.5 m out of the 30 m/s
+trunk (DMGSCAR 2H, a new trajectory with the 0.95 notch) sealed at 7.33 s with a node still at ~1.2 m/s, which came to
+rest 0.84 m outside its hull (margin 0.76). Two calm reads in a row now: sealed at 8.83 s (0.09 m/s), every node inside.
+The hulls are the page's only; the solver never reads them.
+
+## G2812 - THE GPS UNIT BUILT ROUND ITS SCREEN, FOUR SOFTKEYS (SWITCHING ONLY), A LIGHT RIG ON ANY BOX (2026-10-27, AVIONICS-GPS for the user, cloud - node + headless Chromium 2D only; branch claude/avionics-gps-2)
+
+The user, 27 Oct: "can you please build a super simple tool for cheap rendering directly on your box", then "fix the bezel
+so the screen fills it ... we need a few generic buttons straight on the GPS, with only switching functions for now.
+Ensure the whole thing is accurately modeled in 3D, with a professional look and good looking details first, and
+screenshot again using your light rig."
+
+**What was wrong (seen in the first render).** The housing was drawn on its side: `bevelBlockInto`'s sweep runs its FIRST
+half-size along y, so the glass unit's 198 x 159 mm face stood 159 wide and 198 tall round a 93 mm high screen.
+
+**The unit (src/core/60_gen_spec.js GEN_AVIONICS.gps[kind].face; tools/_cage_panel.js gpsUnitAt).** Each face is now the
+housing round its screen, with `keys` ('below' the screen, or a 'left' column on a slim navigator) and `knob`:
+- glass 193 x 115 mm, screen 155 x 93, keys below, dual knob;
+- panel navigator 159 x 51, screen 112 x 40, keys in a column at the left, dual knob;
+- portable 135 x 87, screen 111 x 67, keys below, no knob (a portable centres its screen).
+The housing is a rounded (4 mm corners), chamfered (1.2 mm) block; the glass sits 0.3 mm behind a gloss lip; four
+softkeys (RNG -, RNG +, north / track up, PAGE), each a cap with an inlaid legend on its own `gpskey` gauge (a 1.2 mm
+press slide and its own pick pad, `edGauge_gpskey_<k>`, drive `gk_<k>`); the ridged dual knob on a plated collar.
+The unit's mass, price and amps are unchanged (the faces' sizes only): `tools/avionics_bill_table.js` against the
+commit before G2812 (78422eb71) reads +0.00 kg, the same price, CG and no-room list on all seven validated builds.
+
+**The screen (src/viewer/gps_face.js).** The range in five steps (1/2/4/8/16 nm, or 2-32 km; starts at 4 nm),
+track-up (the map turned under the aeroplane, names upright, the north arrow turned, a N UP / TRK UP badge), a NAV page
+(GS TRK DTK DIS ETE BRG and the plan's legs), each key's label painted at its key. `FLYDIY_GPS.key(k)` repaints at once,
+only on a powered unit past its boot. Repaints and presses allocate nothing (GATE GPSFACE E: ~0.3 bytes / call, the
+measuring noise).
+
+**The click (src/viewer/cockpit.js).** The `gpskey` law: a click presses the key for 140 ms (the slide) and hands it to
+`FLYDIY_GPS.key` when the unit is powered; `gpskey` joins the switch pads.
+
+**GATE GPSFACE** (tools/_gpsface_check.js): J (the keys step, wrap and repaint), E (track-up, nav and a press allocate
+nothing), F (each unit is its face: landscape, the screen inside it, four keys off the glass on the gpskey law, the knob
+where fitted; Rufus's glass unit no longer costs a dial), C (the click presses and hands over). `GATE GPSFACE: PASS`.
+
+**The light rig, no GPU (the cloud's Chromium draws WebGL as sky only):**
+- `tools/box_render.js`: the editor's scene (tools/_scene_headless.js: the page's own drawing layers on real three.js,
+  plus the cage sheet as the skin) rasterised in plain node - z-buffer on 1/z, two-sided flat shading off the material
+  colours, 2 x 2 supersampled, PNG through zlib. Views iso / side / top / front / sheet / cockpit; `cockpit` takes the
+  crew layer's eye (CAGE_CREW_EYE, the pilot's head hidden), aims at the GPS, lights from behind the eye, and textures
+  the screen with `--gps <png>` (perspective-correct); `--fit glass|panel|portable`, `--fov`.
+- `tools/gps_shots.js`: runs gps_face.js unchanged in headless Chromium's 2D canvas over the island's printed map and
+  strips, a plan out of Jolene HOME flown at 45 m/s: boot, map, map_leg2, map_2nm, map_trkup, nav, off, standby, a sheet.
+
+    node tools/gps_shots.js out glass
+    node tools/box_render.js "bugReports/cessnaMetal (1).json" dash.png cockpit 1400 --fit glass --gps out/gps_map.png
+
+The stills sent to the user: the screen's states, the metal Cessna's glass unit close and from the seat, the C172's
+navigator, the Cub's portable. **Still owed on the GPU (A0):** the same views in the game's renderer.

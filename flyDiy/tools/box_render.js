@@ -57,7 +57,9 @@ function sceneOf(w) {
   let spec = null, name = w || 'the default aeroplane';
   if (w.startsWith('card:')) { const a = D.ARCHETYPES.find(x => x.key === w.slice(5)); if (!a) throw new Error('no archetype card ' + w.slice(5));
     spec = D.designBake(a.sel, a.over); name = a.name; }
-  else if (w) { const j = JSON.parse(fs.readFileSync(path.resolve(path.join(T, '..'), w), 'utf8')); spec = j.spec || j; }
+  // a saved build through the game's own load door (tools/_load_build.js - GATE JOINPARITY's rule): the aeroplane the game
+  // flies for the save, not the file as written
+  else if (w) spec = require(path.join(T, '_load_build.js')).loadBuild(path.resolve(path.join(T, '..'), w)).spec;
   // --fit <portable|panel|glass>: a GPS fitted as the Instruments column fits it (systems.avionics.gps)
   if (FIT && spec) { spec.systems = spec.systems || {}; spec.systems.avionics = Object.assign({}, spec.systems.avionics, { gps: FIT }); name += ' + ' + FIT + ' GPS'; }
   let r = SH.sceneBuild(spec, spec ? { garage: spec } : {});
