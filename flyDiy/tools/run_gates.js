@@ -675,6 +675,11 @@ const GATES = [
   // the eye wind stay finite and lit, the card's Fly flies again, every saved record reads finite, the next load lit
   { id: 'SIMDIVERGE', file: '_simdiverge_check.js', tier: 'full', timeout: 2 * 3600_000, weight: 2, wall: 900 },
   { id: 'SIMWORKER-PAGE', file: '_simworker_page_check.js', tier: 'full', timeout: 3 * 3600_000, weight: 2, wall: 1100 },
+  // G3560-G3569 (AP-HONEST): the autopilot's reasons in words (every go-around reason 43_pilot.js gives has a sentence);
+  // the page under the physics worker (one page in node, ~4.8 GB, ~4.5 min): the worker pilot's route on the page's
+  // ap.route, the toggle keeping the plan, a forced go-around and divert said in #apWhy; --selftest strips the route /
+  // the report from the snapshots (red)
+  { id: 'APHONEST', file: '_aphonest_check.js', tier: 'core', timeout: 2 * 3600_000, weight: 2, wall: 300 },
   // G3320 (PILOTPAGE, the user 18 Oct: "some actual browser-based flying ... in case the numerical simulations would not be
   // fully representative"): the validated builds' legs flown BY THE PAGE (tools/pilotpage_legs.json: the persona the user
   // flies, the student, beside the expert), the expert legs held to node's track; a GPU job on a quiet box, run when the

@@ -6034,6 +6034,7 @@
   // fitted to the circuit, and when the floats build arrived the refit started from 'CIRCUIT': the water To never came back,
   // and the next routeRemember saved the circuit. Every fit now starts from destWant; the pref keeps destWant
   let destWant = 'CIRCUIT';
+  let planBy = 'boot';   // G3564 (AP-HONEST): who set the To (FLYDIY_PLAN, below)
   // G710: THE ROUTE IS REMEMBERED (flydiy.route, v2 { v: 2, base, to }; a v1 { from, dest } migrates once:
   // flightRouteMigrate); checked against the world's strips where the picker is filled
   try {
@@ -7774,6 +7775,7 @@
     setRail(ap.phase);
     railStatus(ap.status);
     railPlan(ap.intent);
+    apWhyTick();   // G3560 (AP-HONEST): a go-around, a divert, an abort - said the moment the pilot says it
     // G202: the PAPI reads the aeroplane's position; the planned legs are
     // drawn the moment the pilot plans them
     if (patVis) {
@@ -7947,6 +7949,10 @@
       sim.ctl.brakeD = 0; sim.ctl.wr = null;
       ap.reEngage({ phase: resyncPhase() });
       if (ap.budget) ap.budget = Math.max(ap.budget, ap.t + 300);
+      // G3563 (AP-HONEST): THE HAND GIVES IT BACK TO THE SAME PLAN - the toggle never touches the route (ap.route, destId,
+      // the remembered To): the pilot resumes the To it had, and says which (the user: "switching between manual and AP
+      // should not change anything to the flight plan"; Rufus went back to the cabin's circuit with no word)
+      if (started && !inGarage && ap.phase !== 'STOPPED') apWhyPlan();
     }
     flRender();
     if (flShown.has('controls')) flyOpenSet(flyOpen);
@@ -8104,6 +8110,10 @@
     const t1 = telBase + (ap.t || 0);
     const mm = Math.floor(t1 / 60), ss = Math.round(t1 - mm * 60);
     row('outcome', outcome.replace(/-/g, ' '));
+    // G3560 (AP-HONEST): a diversion is part of the ending - where from, and why (ap_why.js, the pilot's own words)
+    { const V = (rep && rep.verdicts) || [], i = V.map(v => v.code).lastIndexOf('divert');
+      const W = i >= 0 && typeof AP_WHY !== 'undefined' ? AP_WHY.batch(V.slice(Math.max(0, i - 4), i + 1), { to }) : null;
+      if (W && W.kind === 'divert') row('diverted', String(W.head.replace(/^Diverting to /, 'to ') + (W.line ? ': ' + W.line : '')).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]), 'warn'); }
     if (dmgWhy) row('certificate', 'Not certified - the aeroplane was damaged: ' + dmgWhy, 'warn');   // (DMG-D4b: the plain why)
     // G2373 (DMG-OCCUPANT; the user, 7 Oct: "let's stay vague ... it's sad and frightening"): on a crash's card, one line
     // per occupant - the seat's name as the crew page says it and ONE of the five words; nothing else, ever
@@ -8187,6 +8197,81 @@
     const list = arrWhy ? arrVerd : arrVerd.slice(-1);
     n.innerHTML = list.map(v => '<i>' + v.t + ' s · ' + v.note + '</i>').join('');
   }
+
+  // ---- G3560-G3569 (AP-HONEST): WHY THE AUTOPILOT CHANGED ITS PLAN, ON SCREEN, WHEN IT DOES (the user's playtest, 24 Oct:
+  // "aborts / go-arounds with no visible reason", "silent re-routes to another runway", "every go-around / divert reason
+  // must be visible"). The reasons lived only in ap.report.verdicts - the end card's "What went wrong", read after the
+  // flight. Now every frame of a flight (scriptView) hands the verdicts NEW since the last look to ap_why.js (AP_WHY.batch:
+  // the strongest of the batch - a divert over its go-around - in a player's words) and a row goes up in the flight's
+  // top-right corner (#apWhy, the top bar's empty third column above the map, never the screen's centre): the head (Going around at X / Diverting to Y /
+  // Take-off stopped / Not going there ...) and the reason. The same verdicts inline and under the physics worker (the
+  // report rides the snapshot whole when its count moves - sim_host.js meta). A row stands APWHY_S seconds (wall), the
+  // newest on top, three at most; a click clears them. The hand giving the aeroplane back says what it flies now
+  // (setManual -> apWhyPlan: AP_WHY.plan). window.FLYDIY_APWHY { rows(), log(), seen() } is the rigs' read (GATE APHONEST,
+  // tools/evidence/AP-HONEST.js).
+  const APWHY_S = { divert: 30, 'gave-up': 30, energy: 30, abort: 25, declined: 25, 'go-around': 20, committed: 15, dest: 12, route: 12, plan: 10 };
+  let apWhyEl = null, apWhyRows = [], apWhyLog = [], apWhySeen = { ap: null, n: 0 }, apWhyN = 0;
+  const apWhyNow = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
+  function apWhyPush(ev) {
+    if (!ev || !ev.head) return;
+    const row = Object.assign({ at: apWhyNow(), n: ++apWhyN }, ev);
+    apWhyRows.unshift(row); if (apWhyRows.length > 3) apWhyRows.length = 3;
+    apWhyLog.push(row); if (apWhyLog.length > 40) apWhyLog.shift();
+    apWhyDraw();
+    if (ev.kind === 'divert' && FL.ready) flRender();   // the brief's trip line names the diversion
+  }
+  function apWhyDraw() {
+    if (typeof document === 'undefined' || !document.getElementById) return;
+    const now = apWhyNow();
+    apWhyRows = apWhyRows.filter(r => now - r.at < 1000 * (APWHY_S[r.kind] || 15));
+    const want = apWhyRows.length && !inGarage;
+    if (!apWhyEl && want) {
+      // THE TOP BAR'S EMPTY THIRD COLUMN (#flTop is `1fr auto 1fr`, the right third empty since the verbs went to the bottom):
+      // the top right, above the map - flLayout steps the map down under it, as under any of the bar's children. Not the
+      // top-left: the story's beat card (#stCard, fixed, z 40) stands there in a career and would cover it
+      const host = $('flTop');
+      if (!host) return;
+      apWhyEl = document.createElement('div');
+      apWhyEl.id = 'apWhy'; apWhyEl.className = 'flPlate'; apWhyEl.setAttribute('role', 'status'); apWhyEl.setAttribute('aria-live', 'polite');
+      apWhyEl.title = 'Why the autopilot changed its plan - click to clear';
+      apWhyEl.addEventListener('click', () => { apWhyRows = []; apWhyDraw(); });
+      host.appendChild(apWhyEl);
+    }
+    if (!apWhyEl) return;
+    if (apWhyEl.hidden !== !want) { apWhyEl.hidden = !want; try { flLayout(); } catch (e) {} }   // the map makes room / takes it back
+    // G3747 (the fl2 layout, the user: the AP's words folded by default): under the readouts while they are unfolded; folded,
+    // a warn dot on the phase line says there is a reason to read (flight.css)
+    { const rl = $('rail'); if (rl && rl.classList.contains('awNew') !== !!want) rl.classList.toggle('awNew', !!want); }
+    const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+    const key = apWhyRows.map(r => r.n).join(',');
+    if (apWhyEl.dataset.k === key) return;
+    apWhyEl.dataset.k = key;
+    apWhyEl.innerHTML = apWhyRows.map((r, i) => '<div class="awRow ' + esc(r.kind) + (i ? ' old' : '') + '"><b>' + esc(r.head) + '</b>' +
+      (r.line ? '<span>' + esc(r.line) + '</span>' : '') + '</div>').join('');
+  }
+  // the verdicts new since the last look: a new pilot (a reset, Fly on, the skip) starts its count at 0 - what it said as
+  // it was made (a strip refused at the departure) is new too; a report that came back shorter (the worker's whole copy
+  // over the page pilot's own) is taken as it stands
+  function apWhyTick() {
+    if (!ap) return;
+    const V = ap.report && ap.report.verdicts;
+    if (apWhySeen.ap !== ap) { apWhySeen.ap = ap; apWhySeen.n = 0; }
+    const n = V ? V.length : 0;
+    if (n < apWhySeen.n) apWhySeen.n = n;
+    if (n > apWhySeen.n && typeof AP_WHY !== 'undefined') {
+      const fresh = V.slice(apWhySeen.n);
+      apWhySeen.n = n;
+      apWhyPush(AP_WHY.batch(fresh, { to: ap.route && ap.route.to, from: ap.route && ap.route.from }));
+    }
+    if (apWhyRows.length) apWhyDraw();
+  }
+  const apWhyDiverted = () => !!(ap && ap.report && ap.report.verdicts && ap.report.verdicts.some(v => v.code === 'divert'));
+  function apWhyPlan() {
+    if (!ap || typeof AP_WHY === 'undefined') return;
+    apWhyPush(AP_WHY.plan({ to: ap.route && ap.route.to, from: ap.route && ap.route.from, diverted: apWhyDiverted() }));
+  }
+  window.FLYDIY_APWHY = { rows: () => apWhyRows.map(r => Object.assign({}, r)), log: () => apWhyLog.map(r => Object.assign({}, r)),
+                          seen: () => apWhySeen.n, clear: () => { apWhyRows = []; apWhyDraw(); } };
 
   // THE LOGBOOK'S OTHER HALF (G65). The bench writes what a build was TESTED
   // for; this writes what it has actually done. A stub, deliberately — P6 grows
@@ -14113,13 +14198,37 @@
       return r;
     }
     window.FLYDIY_DEST_LAST = null;
-    function setTo(id) {
-      destId = destWant = id; routeRemember(); routeSync();
+    function setTo(id) { return planSet(id, 'player'); }
+    // G3564 (AP-HONEST): THE PLAN HAS AN OWNER. `planBy` is who set the To the autopilot flies: 'player' (the pickers,
+    // FLYDIY_ROUTE.to - remembered in flydiy.route as ever), 'boot' (the remembered To read at boot: the sandbox's last
+    // pick, which a career's first flight used to inherit - the story's first flight flew the sandbox's CIRCUIT), or a
+    // caller's own word ('story', 'career', 'api' - NOT remembered: a story's leg is not the sandbox's next default).
+    // The manual / autopilot toggle never sets it, nor any other part of the plan (setManual: G3563).
+    //   window.FLYDIY_PLAN.set(to, { by })  to: an aerodrome id or 'CIRCUIT' -> the destApply verdict ('kept' | 'replan' |
+    //                                       'queued' | 'leg' | 'shed' ... - a To set in the shed is the next roll-out's;
+    //                                       in flight the autopilot's destination moves, as the picker's), or 'unknown'
+    //   window.FLYDIY_PLAN.get()            { to, want, by, live: { from, to } the route the pilot flies now (the
+    //                                       worker's under it), diverted, phase, manual }
+    function planSet(id, by) {
+      // (a caller's id is checked against the world; the player's picks are the pickers' own options, taken as ever)
+      if (by !== 'player' && id !== 'CIRCUIT' && !(world && world.aerodromes && world.aerodromes.some(a => a.id === id))) return 'unknown';
+      planBy = by || 'api';
+      destId = destWant = id;
+      if (planBy === 'player') routeRemember();
+      routeSync();
       const r = destApply();
-      window.FLYDIY_DEST_LAST = { to: id, how: r, phase: ap ? ap.phase : null };
+      window.FLYDIY_DEST_LAST = { to: id, how: r, phase: ap ? ap.phase : null, by: planBy };
       if (FL.ready) flRender();
       return r;
     }
+    window.FLYDIY_PLAN = {
+      set: (id, o) => planSet(id, (o && o.by) || 'api'),
+      get: () => {
+        const R = ap && ap.route, rid = a => (a && a.id) || null;
+        return { to: destId, want: destWant, by: planBy, live: R ? { from: rid(R.from), to: rid(R.to) } : null,
+                 diverted: apWhyDiverted(), phase: ap ? ap.phase : null, manual };
+      },
+    };
     $('selDest').onchange = e => setTo(e.target.value);
     // G710: THE ROUTE, CHOSEN BEFORE THE FLIGHT (the Jolene playtest: "there should be a way to select the circuit
     // either from the garage, or straight at roll out"): the same To picker in the shed beside ROLL OUT (#edRoute: the
@@ -14521,6 +14630,47 @@
   const NOSE_RANGE = 6000;
   // G710: the pilot's published plan on the minimap (drawMap calls it after the aerodromes, so their
   // names keep the ledger; the frame (PX, PY), the scale mk, the size W2 and the ledger are drawMap's)
+  // G3562 (AP-HONEST): THE AUTOPILOT'S ROUTE FOR ANOTHER MAP (map_menu.js's MAP screen - GAME-MENUS' Tab, its hook): the
+  // same facts drawPlanOnMap draws, read ON DEMAND (nothing copied a frame): window.FLYDIY_APROUTE.get() ->
+  //   null (no flight) | { from: {id, name, x, z}, to: {...}, circuit, diverted, gaveUp: the To it left ({id, name, x, z})
+  //   or null, phase, manual, plane: {x, z, hdg}, legs: [{ name, A: [x, z], B: [x, z], hPlan }], legI,
+  //   path: [[x, z], ...] (the filleted air path L1 follows, <= 240 points; null on the ground), pathI (in those points),
+  //   taxi: [[x, z], ...] | null, why: the newest #apWhy row ({ kind, head, line }) | null }
+  function apRouteGet() {
+    if (!ap || !sim || inGarage || !ap.route || !ap.route.from || !ap.route.to) return null;
+    const P = a => ({ id: a.id || null, name: a.name || a.id || null, x: a.x, z: a.z });
+    const R = ap.route, IT = ap.intent || {}, cg = sim.cgPos(), xA = sim.axes()[0];
+    const thin = (pts, n) => { if (!pts || pts.length < 2) return null; const st = Math.max(1, Math.ceil(pts.length / n)), o = [];
+      for (let i = 0; i < pts.length; i += st) o.push([pts[i].x, pts[i].z]); const e = pts[pts.length - 1]; o.push([e.x, e.z]); return { o, st }; };
+    const pa = thin(IT.path && IT.path.pts, 240), tx = thin(IT.taxi && IT.taxi.pts, 120);
+    const want = destId === 'CIRCUIT' ? null : world.aerodromes.find(a => a.id === destId);
+    const dv = apWhyDiverted();
+    return { from: P(R.from), to: P(R.to), circuit: R.from === R.to, diverted: dv, gaveUp: dv && want && want.id !== R.to.id ? P(want) : null,
+             phase: ap.phase, manual, plane: { x: cg[0], z: cg[2], hdg: Math.atan2(-xA[2], -xA[0]) },
+             legs: Array.isArray(IT.legs) ? IT.legs.map(L => ({ name: L.name, A: L.A ? [L.A[0], L.A[1]] : null, B: L.B ? [L.B[0], L.B[1]] : null, hPlan: L.hPlan != null ? L.hPlan : null })) : null,
+             legI: IT.legI | 0, path: pa ? pa.o : null, pathI: pa ? Math.floor((IT.pathI | 0) / pa.st) : 0, taxi: tx ? tx.o : null,
+             why: apWhyRows.length ? { kind: apWhyRows[0].kind, head: apWhyRows[0].head, line: apWhyRows[0].line } : null };
+  }
+  window.FLYDIY_APROUTE = { get: () => { try { return apRouteGet(); } catch (e) { return null; } } };
+  // G3748 (AP-HONEST on the MAP screen, map_menu.js's layer hook G3523): the way the autopilot flies, in amber - the air
+  // path from where it is (else the plane -> the To), the To ringed, the To it gave up on (a divert) crossed
+  window.FLYDIY_MAP_LAYERS = window.FLYDIY_MAP_LAYERS || {};
+  window.FLYDIY_MAP_LAYERS.aproute = c => {
+    const R = window.FLYDIY_APROUTE.get(); if (!R || !R.to) return null;
+    const AMB = '#b8731f', n1 = v => Math.round(v * 10) / 10, P = (x, z) => n1(c.X(x)) + ',' + n1(c.Y(z));
+    let pts = R.path && R.path.length > 1 ? R.path.slice(Math.max(0, Math.min(R.pathI | 0, R.path.length - 2))) : null;
+    if (!pts && R.plane) pts = [[R.plane.x, R.plane.z], [R.to.x, R.to.z]];
+    let svg = '';
+    if (pts) { const d = pts.map(p => P(p[0], p[1])).join(' ');
+      svg += '<polyline class="mmApRoute" points="' + d + '" fill="none" stroke="#1c1a17" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" opacity=".45"/>' +
+             '<polyline class="mmApRoute" points="' + d + '" fill="none" stroke="' + AMB + '" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="8 5"/>'; }
+    const tx = c.X(R.to.x), ty = c.Y(R.to.z), boxes = [[tx - 13, ty - 13, tx + 13, ty + 13]];
+    svg += '<circle class="mmApTo" cx="' + n1(tx) + '" cy="' + n1(ty) + '" r="12" fill="none" stroke="' + AMB + '" stroke-width="3"/>';
+    if (R.gaveUp) { const gx = c.X(R.gaveUp.x), gy = c.Y(R.gaveUp.z), k = 7;
+      svg += '<path class="mmApGaveUp" d="M' + n1(gx - k) + ' ' + n1(gy - k) + 'L' + n1(gx + k) + ' ' + n1(gy + k) + 'M' + n1(gx + k) + ' ' + n1(gy - k) + 'L' + n1(gx - k) + ' ' + n1(gy + k) + '" stroke="' + AMB + '" stroke-width="3" stroke-linecap="round"/>';
+      boxes.push([gx - k - 2, gy - k - 2, gx + k + 2, gy + k + 2]); }
+    return { svg, boxes };
+  };
   function drawPlanOnMap(g, PX, PY, mk, W2, labPut) {
     const IT = ap && ap.intent;
     if (IT && !(manual && !(ap.box && ap.box.on))) {
@@ -14588,6 +14738,27 @@
       }
     }
   }
+  // G3562 (AP-HONEST): THE ROUTE ON THE MAP IS THE ONE THE AUTOPILOT FLIES (the user: "the route the AP is following
+  // should be shown on the map") - ap.route, the pilot's own (under the physics worker the worker's, sim_link routeCopy),
+  // not the picker's To: after a diversion the line goes to the strip it diverted to, and the To it gave up is drawn
+  // crossed. Before the start (and with no pilot) the picker's, as before. drawMap's line, its active marks and the
+  // patterns read mapRoute(); the AP's To is named on the small map too ("AP · <name>"; the big map names every field)
+  function mapRoute() {
+    const RA = started && ap && ap.route && ap.route.from && ap.route.to && ap.route.from.id && ap.route.to.id ? ap.route : null;
+    const want = destId === 'CIRCUIT' ? aeroById(fromId) : aeroById(destId);
+    return { ap: RA, want, from: RA ? RA.from : aeroById(fromId), to: RA ? RA.to : want };
+  }
+  function mapRouteGaveUp(g, PX, PY, mk, MR) {
+    const w = MR.want;
+    if (!MR.ap || !w || w.id === MR.to.id || !apWhyDiverted()) return;
+    g.strokeStyle = 'rgba(251,244,234,.35)'; g.lineWidth = 1.4 * mk;
+    const qx = PX(w.x, w.z), qy = PY(w.x, w.z), r = 6 * mk;
+    g.beginPath(); g.moveTo(qx - r, qy - r); g.lineTo(qx + r, qy + r); g.moveTo(qx + r, qy - r); g.lineTo(qx - r, qy + r); g.stroke();
+  }
+  function mapRouteLabel(PX, PY, W2, labPut, MR) {
+    const to = MR.to, sx = PX(to.x, to.z), sy = PY(to.x, to.z);
+    if (sx > -30 && sx < W2 + 30 && sy > -30 && sy < W2 + 30) labPut(sx, sy, (to === MR.from ? 'AP · circuit ' : 'AP · ') + (to.name || to.id), 'rgba(20,14,8,.75)', '#ffd9a3');
+  }
   function drawMap() {
     const base = WF && WF.minimap, cv = $('mm');
     if (!base || !cv.getContext || !sim) return;   // G194: a persisted 'large map' drew it at boot, before the sim
@@ -14639,7 +14810,8 @@
       g.drawImage(base, MB.x0, MB.z0, MB.size, MB.size);
       g.restore();
     }
-    const from = aeroById(fromId), to = destId === 'CIRCUIT' ? from : aeroById(destId);
+    const MR = mapRoute(), from = MR.from, to = MR.to;   // G3562 (AP-HONEST): the route the autopilot flies (mapRoute)
+    mapRouteGaveUp(g, PX, PY, mk, MR);
     if (to !== from) {
       g.strokeStyle = 'rgba(255,178,87,.85)'; g.lineWidth = 2 * mk; g.setLineDash([5 * mk, 4 * mk]);
       g.beginPath(); g.moveTo(PX(from.x, from.z), PY(from.x, from.z));
@@ -14728,6 +14900,7 @@
       if (mapBig && !mead)                             // labels once there's room, and where they fit
         labPut(sx, sy, a.name + (sfc ? ' · ' + sfc.word : ''), 'rgba(20,14,8,.75)', active ? '#ffd9a3' : can ? 'rgba(251,244,234,.9)' : 'rgba(251,244,234,.45)');
     }
+    if (MR.ap && !mapBig) mapRouteLabel(PX, PY, W2, labPut, MR);   // G3562
     // G710: THE PLAN ON THE MAP (the Jolene playtest: "there are also no waypoints on the map, so it is
     // very unclear what the autopilot intends to do"). What the pilot PUBLISHED (ap.intent, 43_pilot.js),
     // nothing re-derived here: the filleted air path L1 follows (else the legs' straight lines) - flown
@@ -16954,6 +17127,9 @@
   };
   const flTrip = () => {
     const d = flS('Dest'), dov = d.options[d.selectedIndex];
+    // G3560 (AP-HONEST): a flight the pilot DIVERTED says where it flies now - the picker keeps the player's To
+    const R = started && !inGarage && ap && ap.route, dv = R && R.to && R.to.id && apWhyDiverted() ? R.to : null;
+    if (dv && dv.id !== destId) return flFrom() + ' → ' + (dv.name || dv.id) + ' · diverted';
     return flFrom() + ' → ' + (dov ? dov.textContent.replace(/^⟳\s*/, '').replace(/ · .*$/, '') : '—');
   };
   const flSel = sel => {
@@ -16986,6 +17162,7 @@
   let flVs = 0;
   function flRender() {
     if (!FL.ready) return;
+    apWhyDraw();   // G3560: the autopilot's reasons are a flight's; the shed hides them
     const held = railPhase === null || railPhase === 'GARAGE';
     const stopped = flightOver || (started && ap && ap.phase === 'STOPPED');
     $('flPlate').hidden = flFolded;
