@@ -7710,6 +7710,11 @@
   // G1868: the crash watched (its sim time at the solver's 'over', then at the debris' rest); the card waits for it
   let crashWatch = null;
   const WATCH_REST = 6, WATCH_HOLD = 3;          // s of sim time: the debris' longest wait, then the wreck held still
+  const WATCH_PIECES = 12, WATCH_FALL = 40;     // DMG-FALL: s of sim time after the over, the solver's pieces' longest wait - and
+                                                // a piece's still falling from a break-up in the air (400 m: ~20 s)
+  // DMG-FALL: the HUD's word for the crash - a break-up's reason is already 'broke up: ...' (30_solver.js compEvent),
+  // so the label read "BROKE UP: broke up: the fuselage parted"
+  const crashWord = (D, up) => { const why = D && D.reason ? String(D.reason).replace(/^broke up:\s*/i, '') : ''; return (up ? 'BROKE UP' : 'CRASHED') + (why ? ': ' + why : ''); };
   let flDmg = null;           // G1470 (TREE-CRASH): sim.damage() - the worker's verdict under the physics worker
   // G2373 (DMG-OCCUPANT): the occupants' bands for a crash's card - [{ name, band }] from the worker (sim_link's occView)
   // or the inline solver (34_occupant.js genOccWire); read only on the crash path
@@ -17184,13 +17189,17 @@
         const D = flDmg, up = !!(D && D.brokeUp);
         flOcc = occNow();                                       // G2373: the occupants' bands (the worker sends them once, at the close)
         if (!crashWatch) { crashWatch = { t: sim.t, rest: null };
-          $('phName').textContent = (up ? 'BROKE UP' : 'CRASHED') + (D && D.reason ? ': ' + D.reason : ''); }
+          $('phName').textContent = crashWord(D, up); }
         const W2 = window.FLYDIY_WRECK_STATS ? window.FLYDIY_WRECK_STATS() : null;
         const settled = !W2 || !W2.bodies.some(b => !b.asleep && !b.sunk);
-        if (crashWatch.rest == null && (settled || sim.t - crashWatch.t > WATCH_REST)) crashWatch.rest = sim.t;
+        // DMG-FALL (the user, 25 Oct: "detached parts hang metres high"): the watch waits for the solver's own pieces
+        // too (DMG.rest: every node at rest, 30_solver.js dmgOver) - it waited for the debris bodies only, so a part
+        // flung off or the halves of a break-up in the air froze where they were 3 s after the over
+        const tw = sim.t - crashWatch.t, still = !D || D.rest != null || (tw > WATCH_PIECES && !D.fall) || tw > WATCH_FALL;
+        if (crashWatch.rest == null && ((settled || tw > WATCH_REST) && still)) crashWatch.rest = sim.t;
         if (crashWatch.rest != null && sim.t - crashWatch.rest >= WATCH_HOLD) {
           endFlight(up ? 'broke-up' : 'crashed');
-          $('phName').textContent = (up ? 'BROKE UP' : 'CRASHED') + (D && D.reason ? ': ' + D.reason : '') + ' — RESET';
+          $('phName').textContent = crashWord(D, up) + ' — RESET';
         }
       }
     } else if (SIMW) SIMW.idle();       // G815: nothing flies this frame (a pause, the card) - the worker's clock stops
