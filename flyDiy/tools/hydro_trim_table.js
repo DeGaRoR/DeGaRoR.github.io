@@ -43,6 +43,21 @@ const CASES = {
   wipline: { label: 'Wipline fixture (172 on 2350s, v10)', def: () => build(readSpec('tools/fixtures/build_v10_c172_wipline2350_2026-09-20.json')) },
   twin: { label: 'twin on floats (GATE FLOATS)', def: () => { const S = readSpec('tools/fixtures/build_v7_ultralight_2026-09-05.json'); S.gear.type = 'floats'; S.cage = Object.assign({}, S.cage, { gearFloats: 1 }); return build(S); } },
 };
+// G3446 (HYDRO-TRIM, after train L25b): THE PILOT'S FEET AND HANDS. G2080 (ENGINE-TORQUE) made the propeller's torque,
+// P-factor and swirl real: with the rudder and the ailerons left alone the 172R swung 45 deg off its heading in 12 s and
+// heeled 17-19 deg onto a float - every take-off a water loop. A float pilot holds the heading with the rudder (the
+// water rudders below their raise speed, the air rudder on the step) and the wings level with the ailerons: the rudder
+// on the heading error from the throttle-up (2 per rad, damped by the yaw rate), the ailerons on the roll (2 per rad,
+// damped). Signs measured on the 172R (+dr swings the nose further the torque's way, -da lifts the low wing).
+const wrapPi = a => Math.atan2(Math.sin(a), Math.cos(a));
+function latHold(sim, L) {
+  const [xA, yU] = sim.axes(), psi = Math.atan2(xA[2], xA[0]), roll = Math.asin(Math.max(-1, Math.min(1, yU[2])));
+  if (L.psi0 == null) { L.psi0 = psi; L.e = 0; L.roll = roll; }
+  const e = wrapPi(psi - L.psi0), de = (e - L.e) * 60, dr = (roll - L.roll) * 60;
+  L.e = e; L.roll = roll;
+  sim.ctl.dr = Math.max(-1, Math.min(1, 2 * e + 1.0 * de));
+  sim.ctl.da = Math.max(-1, Math.min(1, 2 * roll + 0.5 * dr));
+}
 function fly(def, poh) {
   const world = C.makeWorld(), X0 = 0, Z0 = 1600, h = world.waterH(X0, Z0);
   def.params.damage = true;
@@ -57,28 +72,26 @@ function fly(def, poh) {
   const st = () => {
     const [xA] = sim.axes(); let vx = 0, vz = 0, x = 0, z = 0;
     for (let i = 0; i < sim.n; i++) { vx += sim.v[i * 3] * sim.m[i]; vz += sim.v[i * 3 + 2] * sim.m[i]; x += sim.p[i * 3] * sim.m[i]; z += sim.p[i * 3 + 2] * sim.m[i]; }
-    // speed along the nose, not along -x: the engine's torque and P-factor (G2540 / G3077) swing a floatplane
-    // round on the water unless the pilot holds the heading - the rudder hold below does, the way a pilot would
-    return { V: -(vx * xA[0] + vz * xA[2]) / M, x: x / M, z: z / M, hdg: Math.atan2(xA[2], xA[0]) * 180 / Math.PI,
-             trim: Math.asin(Math.max(-1, Math.min(1, -xA[1]))) * 180 / Math.PI,
-             R: F.reduce((a, q) => a + q.out.F[0], 0) / Wt, wet: F.reduce((a, q) => a + q.wet, 0) };
+    const V = Math.hypot(vx, vz) / M, ux = V > 0.05 ? vx / M / V : -1, uz = V > 0.05 ? vz / M / V : 0;
+    // (G3446: the speed along the track and the water's force against the motion - a swing read as a slow-down)
+    return { V, x: x / M, z: z / M, trim: Math.asin(Math.max(-1, Math.min(1, -xA[1]))) * 180 / Math.PI,
+             R: -F.reduce((a, q) => a + q.out.F[0] * ux + q.out.F[2] * uz, 0) / Wt, wet: F.reduce((a, q) => a + q.wet, 0) };
   };
-  const s0 = st(), x0 = s0.x, z0 = s0.z, Vr = 0.97 * ((def.params.gen && def.params.gen.Vs) || 25);
+  const s0 = st(), x0 = s0.x, z0 = s0.z, LAT = {}, Vr = 0.97 * ((def.params.gen && def.params.gen.Vs) || 25);
+  let swing = 0;
   sim.ctl.thr = 1; sim.ctl.de = 0.45;
   // 20 deg of flap, as a fraction of the build's own travel (00_registry / 60_gen_spec genTravel)
   if (poh) { const fl = def.spec.controls && def.spec.controls.flap; sim.ctl.flap = fl && fl.type && fl.type !== 'none' ? Math.min(1, 20 * Math.PI / 180 / C.genTravel('flap', fl.type)) : 0; }
-  let tP = null, hP = null, hump = { R: 0, V: 0, trim: 0 }, dry = null, out = null, crashed = null, rot = false, past = null;
+  let tP = null, hump = { R: 0, V: 0, trim: 0 }, dry = null, out = null, crashed = null, rot = false, past = null;
   for (let s = 0; s < MAXS * 60 && !out; s++) {
     sim.step(1 / 60);
     const r = st(), t = (s + 1) / 60;
     if (!Number.isFinite(r.V)) { crashed = 'non-finite'; break; }
     if (sim.out.dmg && sim.out.dmg.crashed) { crashed = 'crashed'; break; }
     const tq = tP == null ? 0 : (r.trim - tP) * 60; tP = r.trim;
-    // heading hold on the water (rudder + water rudders): measured sign, nose back to the run's line
-    { let dh = r.hdg - s0.hdg; dh -= 360 * Math.round(dh / 360); const hr = hP == null ? 0 : (dh - hP) * 60; hP = dh;
-      sim.ctl.dr = r.wet > 0 ? Math.max(-1, Math.min(1, 0.08 * dh + 0.04 * hr)) : 0; }
     if (poh && (sim.out.V || 0) >= Vr) rot = true;
     sim.ctl.de = rot ? 0.45 : r.V > 9 ? Math.max(-0.2, Math.min(0.45, 0.2 + 0.04 * (6 - r.trim) - 0.01 * tq)) : 0.45;
+    latHold(sim, LAT); swing = Math.max(swing, Math.abs(LAT.e) * 180 / Math.PI);
     if (r.wet > 0 && r.V < 14 && r.R > hump.R) hump = { R: r.R, V: r.V, trim: r.trim };
     if (!past && r.V >= 16 && r.wet > 0) past = { R: r.R, t, trim: r.trim };
     if (r.wet === 0) { if (!dry) dry = { t, V: r.V, dist: Math.hypot(r.x - x0, r.z - z0) }; else if (t - dry.t >= 2) out = dry; }
@@ -86,7 +99,7 @@ function fly(def, poh) {
   }
   const b = def.parts.floats[0].P.B;
   hump.Cv = hump.V / Math.sqrt(9.81 * b);
-  return { M: Math.round(M), Vr: +Vr.toFixed(1), hump, past, air: out, crashed };
+  return { M: Math.round(M), Vr: +Vr.toFixed(1), hump, past, air: out, crashed, swing };
 }
 const f = (v, d = 3) => (v == null || !Number.isFinite(v)) ? '-' : (+v).toFixed(d);
 // GATE HYDROTRIM flies these same flights (require: no table printed)
@@ -100,7 +113,7 @@ for (const [key, c] of Object.entries(CASES)) {
     rows.push(Object.assign({ key, tech: poh ? 'poh' : 'rig' }, r));
     console.log(`${key.padEnd(10)} ${poh ? 'POH      ' : 'G3390 rig'} | ${r.M} kg | hump R/W ${f(r.hump.R)} at ${f(r.hump.V, 1)} m/s, trim ${f(r.hump.trim, 1)} | ` +
       (r.air ? `LIFT-OFF ${f(r.air.t, 1)} s, ${f(r.air.V, 1)} m/s, run ${Math.round(r.air.dist)} m` : `not off in ${MAXS} s`) +
-      (poh ? ` (Vr ${r.Vr} m/s)` : '') + (r.crashed ? ` | ${r.crashed}` : ''));
+      (poh ? ` (Vr ${r.Vr} m/s)` : '') + ` | swing ${f(r.swing, 1)} deg` + (r.crashed ? ` | ${r.crashed}` : ''));
   }
 }
 if (opt('json')) fs.writeFileSync(path.resolve(opt('json')), JSON.stringify(rows, null, 1));

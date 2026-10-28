@@ -69,6 +69,7 @@ const hgDef = {
   hgHorn: 1, hgHornAt: 0, hgHornLen: 0.085, hgSize: 1,
   hgFair: 0, hgLink: 1, hgDetail: 1,
   hgDoor: 1, hgDoorEdge: 0,                  // G310: the cabin doors' hinges (0 forward, 1 top, 2 aft, 3 bottom, 4 top + bottom - G1105)
+  hgDrOff: 0, hgDrTilt: 0, hgDrSlide: 0, hgDrInset: 0,   // DOOR-HINGES: the doors' one axis, tweaked (0 each = the fitted line)
   hgFinish: -1,                              // T2.3 (51): 0 as the fuselage, 1 bare steel, 2 the finish tab's own; -1 = read off the finish tab once
 };
 const FAM = ['as built', 'strap', 'piano', 'bracket'];
@@ -105,6 +106,18 @@ const GROUP = ['13 · control hardware', [
   ['doors', [
     ['hgDoor', 'door hinges', 0, 1, 1, ['off', 'on']],
     ['hgDoorEdge', 'hinge edge', 0, 4, 1, ['forward', 'top', 'aft', 'bottom', 'top + bottom'],
+     { when: P => +P.hgOn && +P.hgDoor }],
+    // DOOR-HINGES (2026-10-27): every hinge of a door on ONE axis, fitted to
+    // the straight part of the chosen edge; these move that axis. Display
+    // hardware: bench.js / 76_procure.js keep them out of every certificate
+    // fingerprint (BENCH_STATE_ROWS / PROCURE_STATE_ROWS, `hgDr*`)
+    ['hgDrOff', 'axis offset into the door (m)', -0.03, 0.12, 0.005,
+     { when: P => +P.hgOn && +P.hgDoor }],
+    ['hgDrTilt', 'axis tilt (deg, 0 = the straight part)', -25, 25, 0.5,
+     { when: P => +P.hgOn && +P.hgDoor }],
+    ['hgDrSlide', 'hinges slide along the axis (m)', -0.20, 0.20, 0.005,
+     { when: P => +P.hgOn && +P.hgDoor }],
+    ['hgDrInset', 'ends inset (of the axis; 0 = auto)', 0, 0.45, 0.01,
      { when: P => +P.hgOn && +P.hgDoor }],
   ], { when: P => +P.hgOn }],
   // T2.3 (51): THE FINISH, on the layer's own rows. The hardware's section
@@ -262,13 +275,6 @@ function surfaceList(scene, P, FS, mesh) {
         return (q && isFinite(q[0]) && q[0] * n[0] + q[1] * n[1] + q[2] * n[2] > 0.3) ? q : n;
       };
       const raw = run.pts || [run.A, run.B];
-      const nrms = raw.map(nAt);
-      // (a hair over the barrel's radius: the barrel spans a few centimetres
-      // along a curving edge and its ends dipped 1.6 mm at the belly corner)
-      const liftH = rBar + 0.002;
-      const lift = (p, m) => [p[0] * FS + m[0] * liftH, p[1] * FS + m[1] * liftH, p[2] * FS + m[2] * liftH];
-      const pts = raw.map((p, i) => lift(p, nrms[i]));
-      const A = pts[0], B = pts[pts.length - 1];
       // "aft" for the kit is INTO the panel: from this run's middle toward
       // the opposite run's, in the door's own plane
       const mid = [(run.A[0] + run.B[0]) * 0.5, (run.A[1] + run.B[1]) * 0.5, (run.A[2] + run.B[2]) * 0.5];
@@ -276,9 +282,77 @@ function surfaceList(scene, P, FS, mesh) {
       let into = V.sub(omid, mid);
       into = V.sub(into, V.mul(n, V.dot(into, n)));
       if (V.len(into) < 1e-6) continue;
+      into = V.nrm(into);
+      // DOOR-HINGES (2026-10-27, the user on the STOL Cub's still: "the door
+      // would not open as both hinges are not on the same rotation axis").
+      // The stations shared out the run's POLYLINE, each on its local
+      // tangent: on the Cub's forward edge (the belly corner's curve, the
+      // vertical post, the slant up to the sill) the lower hinge stood on
+      // the corner and the upper on the slant - two axes. A door turns about
+      // ONE line, so the line is fitted first: the longest stretch of the
+      // run whose vertices all lie within `tol` of the chord between its
+      // ends (the vertical post, on a standing edge; the straight part of a
+      // roof or belly edge), and every hinge of the run sits ON that chord,
+      // its barrel along it. The builder's tweaks move the line itself
+      // (dr*, below); the stations ride whatever line results.
+      const sc = raw.map(p => [p[0] * FS, p[1] * FS, p[2] * FS]);
+      const tol = 0.005;
+      let best = [0, sc.length - 1], bestL = -1;
+      for (let i = 0; i < sc.length - 1; i++) for (let j = i + 1; j < sc.length; j++) {
+        const d = V.sub(sc[j], sc[i]), L = V.len(d);
+        if (!(L > bestL)) continue;
+        const u = V.mul(d, 1 / (L || 1));
+        let ok = true;
+        for (let k = i + 1; k < j && ok; k++) {
+          const w = V.sub(sc[k], sc[i]);
+          ok = V.len(V.sub(w, V.mul(u, V.dot(w, u)))) <= tol;
+        }
+        if (ok) { best = [i, j]; bestL = L; }
+      }
+      let P0 = sc[best[0]], P1 = sc[best[1]];
+      // the barrel's lift direction: the skin's normal over the stretch,
+      // square to the axis (frameOn keeps z on the axis only when the face
+      // is), ONE for every hinge on the line
+      let m = [0, 0, 0];
+      for (let k = best[0]; k <= best[1]; k++) m = V.add(m, nAt(raw[k]));
+      // MANUAL TWEAK (the '13 · control hardware' doors rows): the line slid
+      // into the panel (m), tilted about the skin normal (deg, + leans the
+      // run's far end into the door), the stations slid along it (m) and the
+      // ends' inset; at 0 each, the fitted line as it is
+      const drOff = +P.hgDrOff || 0, drTilt = (+P.hgDrTilt || 0) * Math.PI / 180, drSlide = +P.hgDrSlide || 0;
+      if (drTilt) {
+        const ax0 = V.nrm(m), c = V.lerp(P0, P1, 0.5);
+        const rot = (v, a) => { const ca = Math.cos(a), sa = Math.sin(a);
+          return V.add(V.add(V.mul(v, ca), V.mul(V.crs(ax0, v), sa)), V.mul(ax0, V.dot(ax0, v) * (1 - ca))); };
+        const h = V.sub(P1, c), sg = V.dot(V.sub(rot(h, drTilt), h), into) >= 0 ? 1 : -1;
+        P0 = V.add(c, rot(V.sub(P0, c), drTilt * sg)); P1 = V.add(c, rot(h, drTilt * sg));
+      }
+      const axU = V.nrm(V.sub(P1, P0));
+      if (drOff) { P0 = V.add(P0, V.mul(into, drOff)); P1 = V.add(P1, V.mul(into, drOff)); }
+      if (drSlide) { P0 = V.add(P0, V.mul(axU, drSlide)); P1 = V.add(P1, V.mul(axU, drSlide)); }
+      m = V.sub(m, V.mul(axU, V.dot(m, axU)));
+      m = V.len(m) > 1e-6 ? V.nrm(m) : n;
+      // ON THE SKIN, AS ONE: the drawn sheet measured along `m` under the
+      // line, every few centimetres and across the barrel's width (the chord
+      // of a convex flank runs a hair inside it, a door's rim steps beside
+      // it, a tweaked line crosses the panel), and the whole line lifted by
+      // the most any of it needs - every barrel clears the skin by the hair,
+      // and none leaves the line
+      const wS = V.nrm(V.crs(axU, m));
+      let need = -Infinity;
+      const nS = Math.max(2, Math.ceil(V.len(V.sub(P1, P0)) / 0.04));
+      for (let k = 0; k <= nS; k++) for (const e of [-1, -0.5, 0, 0.5, 1]) {
+        const q = V.add(V.lerp(P0, P1, k / nS), V.mul(wS, e * rBar));
+        const h = sheetRay(mesh, FS, V.add(q, V.mul(m, 0.15)), V.mul(m, -1), 0.30);
+        if (h) need = Math.max(need, 0.15 - h.t + rBar * Math.sqrt(Math.max(0, 1 - e * e)));
+      }
+      if (!isFinite(need)) need = rBar;
+      const liftH = 0.002;
+      const A = V.add(P0, V.mul(m, need + liftH)), B = V.add(P1, V.mul(m, need + liftH));
       out.push({ key: 'door_' + rec.key.replace(':', '_') + sfx, kind: 'door', obj: null, host: null,
-                 A, B, pts, nrms, r: rBar, aft: V.nrm(into), face: n, faces: 1, slide: null,
-                 chord: V.len(V.sub(omid, mid)) * FS, flat: 1 });
+                 A, B, r: rBar, aft: into, face: m, faces: 1, slide: null,
+                 chord: V.len(V.sub(omid, mid)) * FS, flat: 1,
+                 inset: +P.hgDrInset || 0 });
     }
   }
 
@@ -621,11 +695,21 @@ function frameOn(p, axis, aftIn, faceIn) {
 // on (`wears: 'parent'`, G207 — the rule written for exactly this case).
 const lam = (c, o) => new THREE.MeshLambertMaterial(Object.assign({ color: c }, o || {}));
 let FALLBACK = null;
-const TINT = { metal: 0x9aa2ab, fair: 0xc8ccd2 };
+const TINT = { metal: 0x9aa2ab, fair: 0xc8ccd2, door: 0xb9c2cc };
 const fallbackMats = () => (FALLBACK || (FALLBACK = {
-  metal: lam(TINT.metal), fair: lam(TINT.fair) }));
+  metal: lam(TINT.metal), fair: lam(TINT.fair), door: lam(TINT.door) }));
 
 function matFor(name) {
+  // DOOR-HINGES-2 (A0 and the user: "the same metal material and finish as
+  // the other airframe hardware, not a flat orange box"): a door's hinges
+  // are the door's hardware - the handle's metal (AERO_HARD.access.metal,
+  // the fittings' tint), not the control hardware's livery section, which
+  // follows the fuselage's paint ('as the fuselage', hgFinish 0)
+  if (name === 'door') {
+    const A = window.AEROSKIN;
+    const m = A && A.aeroHardMat && A.aeroHardMat(THREE, 'access', 'metal', TINT.door, {});
+    return m || fallbackMats().door;
+  }
   const sec = name === 'fair' ? 'ctlFair' : 'ctlHinge';
   if (window.CAGE_SECMAT) {
     const ms = window.CAGE_SECMAT(sec, { surf: 0, fieldM: 1, tint0: TINT[name] });
@@ -691,12 +775,12 @@ PAGE.post = ctx => {
   // ONE SET OF AIRFRAME BAGS PER HOST: '' is the static merge (the wing's
   // hardware), 'edFinSkin' / 'edStabSkinR' ... the tail parts the halves
   // are bolted to; each set is meshed on its own and tagged `partOf`
-  const HG_BAGS_F = HG.HINGE_BAGS.concat(['inner']);
+  const HG_BAGS_F = HG.HINGE_BAGS.concat(['inner', 'door']);   // DOOR-HINGES-2: a door's own bag (its metal)
   const bagsFBy = {};
   const bagsFor = host => bagsFBy[host || ''] ||
-    (bagsFBy[host || ''] = { metal: K.Bag(), fair: K.Bag(), inner: K.Bag() });
+    (bagsFBy[host || ''] = { metal: K.Bag(), fair: K.Bag(), inner: K.Bag(), door: K.Bag() });
   const perSurf = {};                  // key -> { metal, fair }
-  const bagM = key => (perSurf[key] || (perSurf[key] = { metal: K.Bag(), fair: K.Bag() }));
+  const bagM = key => (perSurf[key] || (perSurf[key] = { metal: K.Bag(), fair: K.Bag(), door: K.Bag() }));
 
   // the SURFACE's own construction decides how it hangs. genSurfKey is the
   // G213 vocabulary; the cage's per-part rows (wgCons/finCons/stCons) are
@@ -727,7 +811,9 @@ PAGE.post = ctx => {
               : (familyOf ? familyOf(consOf(s.kind)) : 'strap');
     // a door's stations keep clear of its corners (the belly and roof
     // curves the edge turns into): a deeper inset than a surface's
-    const inset = Math.max(s.kind === 'door' ? 0.12 : 0.005, Math.min(0.30, +P.hgOut || HC.endInset));
+    // (DOOR-HINGES: the doors' own 'ends inset' row, 0 = this rule)
+    const inset = (s.kind === 'door' && s.inset > 0) ? Math.min(0.45, s.inset)
+      : Math.max(s.kind === 'door' ? 0.12 : 0.005, Math.min(0.30, +P.hgOut || HC.endInset));
     const nOver = Math.round(+P.hgCount || 0);
     const ts = stationsOf(span, nOver).map(t =>
       inset + (1 - 2 * inset) * ((t - HC.endInset) / Math.max(1e-6, 1 - 2 * HC.endInset)));
@@ -749,8 +835,9 @@ PAGE.post = ctx => {
 
     // ---- the hinges ------------------------------------------------------
     // a station is a fraction of the run: on a straight hinge line the lerp,
-    // on a door's curved edge (G310: `pts`, the flank's own polyline) the
-    // point at that fraction of the ARC, with the local segment as its axis
+    // on a curved one (`pts`, a polyline) the point at that fraction of the
+    // ARC, with the local segment as its axis. A door's is straight since
+    // DOOR-HINGES (one axis a run, fitted in surfaceList)
     const along = t => {
       if (!s.pts || s.pts.length < 3) return { p: V.lerp(s.A, s.B, t), ax: axis, face: s.face };
       const L = []; let tot = 0;
@@ -773,17 +860,20 @@ PAGE.post = ctx => {
     // instead of overlapping. Straps and doors keep their stations.
     const tsRun = (fam === 'piano' && s.kind !== 'door')
       ? ts.map((_, k) => inset + (1 - 2 * inset) * (k + 0.5) / ts.length) : ts;
+    const stns = [];
     for (const t of tsRun) {
       const { p, ax: axL, face: faceL } = along(t);
+      stns.push({ p, ax: V.nrm(axL) });
       for (let f = 0; f < faces; f++) {
         const F = frameOn(p, axL, s.aft, f ? V.mul(faceL, -1) : faceL);
         Fcur = F;
         if (s.kind === 'door' && HG.buttHinge)
-          // a DOOR's edge is a curve, so its runs are short BUTT hinges on
-          // the local tangent (G310: a 0.5 m straight run on the flank's
-          // curve sat 22 mm inside it at its ends) - two whole leaves and a
-          // barrel, not the piano's alternating squares (A7: "pixelated")
-          HG.buttHinge(bagsF.metal, bm.metal, F, S,
+          // a DOOR's runs are short BUTT hinges on its one axis (G310: a
+          // 0.5 m straight run on the flank's curve sat 22 mm inside it at
+          // its ends; DOOR-HINGES: each on the shared line, its leaves
+          // probing down to the skin) - two whole leaves and a barrel, not
+          // the piano's alternating squares (A7: "pixelated")
+          HG.buttHinge(bagsF.door, bm.door, F, S,
                        Math.min(0.10, span * (1 - 2 * inset) / Math.max(1, ts.length)));
         else if (fam === 'piano')
           // a surface's piano runs join into one continuous hinge
@@ -942,7 +1032,8 @@ PAGE.post = ctx => {
     const trisF = {}; for (const k of HG_BAGS_F) trisF[k] = [tF0[k], bagsF[k].tris];
     placed.push({ key: s.key, kind: s.kind, family: fam, n: ts.length,
                   span, r: s.r, serves: row.serves, trisF, host: s.host || '',
-                  A: s.A, B: s.B });               // the line the stations rode (cage m)
+                  A: s.A, B: s.B,                  // the line the stations rode (cage m)
+                  stations: stns });               // DOOR-HINGES: each hinge's barrel centre and axis (GATE HINGE)
   }
 
   // ---- into the scene --------------------------------------------------
@@ -985,7 +1076,7 @@ PAGE.post = ctx => {
   for (const s of surfs) {
     const b = perSurf[s.key];
     if (!b) continue;
-    for (const k of HG.HINGE_BAGS) {
+    for (const k of HG.HINGE_BAGS.concat(['door'])) {
       if (!b[k].tris) continue;
       tris += b[k].tris;
       const tmp = new THREE.Group();

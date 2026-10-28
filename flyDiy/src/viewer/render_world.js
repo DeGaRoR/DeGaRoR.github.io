@@ -1394,7 +1394,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // box + 30 m, a gravel/paved surface. Only the aerodrome box above (len/2 + 150, wid/2 + 60) and the
   // pavements kept it off, so the editor's tool drew a polygon the island's woods walked straight through.
   // The collidable woodland (20_world.js) has always obeyed it. Read at call time: the editor swaps the overlay
-  const premTreeEx = (x, z) => { const o = world.premises && world.premises.overlay; return !!(o && o.excludeAt && o.excludeAt(x, z, 'trees')); };
+  const premTreeEx = (x, z) => { const o = world.premises && world.premises.overlay; return !!(o && o.excludeAt && (o.excludeAt(x, z, 'trees') || o.excludeAt(x, z, 'lot'))); };   // (LOT-CLEAR: a building's lot too)
   // G1091 (POLISH-2): ON AN ISLAND THE RUNWAYS' CLEARANCES ARE THE CORE'S - world.treeAeroBlocked (the aerodrome
   // box above in 'today' only, the pavement by the variant) and world.treeGround (the class a tree reads; the map's
   // under a lifted shoulder) - the SAME calls the collidable woodland makes (20_world.js), so a tree you see stands
@@ -1848,6 +1848,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       classWeights();   // a saved stack that starts at the class layer asks for them now
       gpuUploadNow();
       if (typeof WATER !== 'undefined' && WATER.setSDF) WATER.setSDF(gU.uGPackA.value, gU.uGGrid.value);   // G460: the water reads the coast and lake fields (kept until the material is made below)
+      if (typeof WATER !== 'undefined' && WATER.setCoast && ISLA) WATER.setCoast(ISLA.grid, ISLA.coast, lakeR);   // G2839: the same fields on the CPU - the ring's distances to land and water
       // THE SPLAT (alpha splatting, 2026-09-20): the ground drawn by terrain
       // type from the library (src/viewer/splat_ground.js owns it): two
       // texture arrays on top of the island's five units - 10 / 14 / 15 of 16
@@ -2821,6 +2822,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     seaPlaneY = 0.0;   // the DRAWN sea level, for waterDrawY (WSH is this block's own: reading it from the API below threw every frame, G460.11.5)
     water.position.set((BX0 + BX1) / 2, seaPlaneY, (BZ0 + BZ1) / 2);
     water.renderOrder = -10;   // the first transparent drawn, whatever its bounding sphere says from far offshore
+    // (G2832 prototype c, ?wrefl=c|bc: the sea receives the aircraft's shadow - in three r186 a per-object uniform, no new
+    // program; the water's body term is lit by directLight.color, which carries the shadow, so the darkening is the
+    // upwelled light's and scales with the body's own reflectance: faint on the clear sea, plain in a silty harbour)
+    if (WSH && WSH.proto && WSH.proto.shadow) water.receiveShadow = true;
     if (WSH) WSH.watch(water, renderer);   // the perf rig's GPU timer round its draw
     scene.add(water);
     // THE NEAR SEA MOVES (H4, G393; before the water shader, ruling at's
@@ -2841,6 +2846,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     seaGeo.rotateX(-Math.PI / 2);
     const seaNear = new THREE.Mesh(wtag(seaGeo, 0, true), waterMat);
     seaNear.frustumCulled = false; seaNear.visible = false;
+    if (WSH && WSH.proto && WSH.proto.shadow) seaNear.receiveShadow = true;   // (G2832 prototype c)
     if (WSH) WSH.watch(seaNear, renderer);
     scene.add(seaNear);
     // THE SEA LANE IS MARKED (G396.2; the user: "we need to visualize the
@@ -4769,6 +4775,16 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       return BIO.codeOf(tt, Math.atan(sl) * 180 / Math.PI, ISLC.canopyAt(x, z), r);
     };
     const biomeAt = (x, z, r) => BIO.mixHere(codeAt(x, z, r), x, z);
+    // 18 LAKESHORE's MASK (G3430, BIOMES.SHORE): the land within shoreReach m of a drawn lake's line - drawnLakeSD, the
+    // splat's own lsd field (+ inside, m) - its edge broken by shoreJit x the reach on a 17 m noise, under the bank's slope
+    // (the steeper faces are the 17 rock bank); the cover ring plants the lake shore's rows there (BIO.shoreHere)
+    if (BIO) BIO.shore = (x, z) => {
+      const K = BIO.knobs(), R = K.shoreReach || 0, J = K.shoreJit || 0; if (!(R > 0)) return false;
+      const sd = drawnLakeSD(x, z); if (sd > 0 || -sd > R * (1 + J)) return false;
+      if (-sd > R * (1 + (vnoise(x, z, 17, 9) - 0.5) * 2 * J)) return false;
+      const d = 4, sl = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
+      return Math.atan(sl) * 180 / Math.PI < (K.shoreSlope !== undefined ? K.shoreSlope : (K.bankLo !== undefined ? K.bankLo : 22));
+    };
     function plantWoodland() {
       // Undo the previous plant. The InstancedMeshes and the impostor atlas are
       // OURS and go; the geometry and materials of a real tree are NOT — they

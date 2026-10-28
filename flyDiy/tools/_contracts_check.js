@@ -241,9 +241,9 @@ function run(mut) {
 
   // ==== THE WORLD ============================================================
   const FW = M.contractFieldsOf(RUNWAYS);
-  ok(eq(Object.keys(F).sort(), Object.keys(FW).sort()) && Object.keys(FW).every(k => eq(F[k], FW[k])), 'CONTRACT_FIELDS is Jolene\'s record (14 runways through contractFieldsOf)');
+  ok(eq(Object.keys(F).sort(), Object.keys(FW).sort()) && Object.keys(FW).every(k => eq(F[k], FW[k])), 'CONTRACT_FIELDS is Jolene\'s record (15 runways through contractFieldsOf)');
   // (G3014: the user's rev 26 strips 10 and 11, w5 + w6, added to the career's fields at their word - 8 -> 10)
-  ok(Object.keys(F).length === 14, 'the 14 runways');   // (rev 27: w7; rev 28: w4 strip 9, w8 strip 13; save 17: w1 the Cabin Strip)
+  ok(Object.keys(F).length === 15, 'the 15 runways');   // (rev 27: w7; rev 28: w4 strip 9, w8 strip 13; save 17: w1 the Cabin Strip; CABIN-LAKE: cb_sea)
   for (const rw of RUNWAYS) for (const g of ['wheels', 'floats', 'amphibian', 'skis'])
     ok(M.contractGearOk(g, F[rw.id]) === CORE.stripAllows(g, rw).ok, 'the gear rule is stripAllows: ' + g + ' at ' + rw.id);
   for (const k of Object.keys(DS)) {
@@ -839,11 +839,11 @@ function run(mut) {
     {
       const e = M.careerNew({ seed: 'words' });
       const L = M.careerNightLine(e, A['field.n1']);
-      ok(L && L.line.startsWith('arrive 00:00-01:00') && /Tamgas Hill Strip lit \(PAPI\)/.test(L.line) && /Jolene AFB lit \(VASI\)/.test(L.line), 'night: the mail\'s line - ' + (L && L.line));
+      ok(L && L.line.startsWith('arrive 00:00-01:00') && L.line.includes(CORE.GAME_NAMES.fields.w3 + ' lit (PAPI)') && /Jolene AFB lit \(VASI\)/.test(L.line), 'night: the mail\'s line - ' + (L && L.line));
       const sea = M.contractNormalise({ id: 'x', provider: 'minedock', kind: 'job', title: 'job.minedock.mail.title', brief: 'job.minedock.mail.brief',
                                        stages: [{ subs: [{ do: 'carry', from: 'SEA', to: 'mk_sea', load: { kg: 20, pax: 0 }, when: { after: 'dusk' } }] }], rep: { provider: 'minedock', gain: 0 } });
       const LS = M.careerNightLine(e, sea);
-      ok(LS && /Annette Dock unlit/.test(LS.line) && /Metlakatla Seaplane Base unlit/.test(LS.line), 'night: water lanes are unlit (' + (LS && LS.line) + ')');
+      ok(LS && LS.line.includes(CORE.GAME_NAMES.fields.SEA + ' unlit') && LS.line.includes(CORE.GAME_NAMES.fields.mk_sea + ' unlit'), 'night: water lanes are unlit (' + (LS && LS.line) + ')');
       ok(M.contractMoonWords({ phase: 'full', up: true }) === 'full moon, up' && M.contractMoonWords({ phase: 'half', up: false }) === 'half moon, down'
          && M.contractMoonWords({ phase: 'new', up: true }) === 'no moon' && M.contractMoonWords({ phase: 'full', up: true, overcast: true }) === 'overcast: no moon light', 'night: the moon in words');
       // the line's moon is the NEXT opening's, at the window's middle

@@ -334,17 +334,26 @@ function manifestFiles() {
   // the 2-D island map (G2250 MAP-MENU): tools/map_bake.js owns media/map, named by the generated map pack (G2203: was missing,
   // so the map's two files read as orphans)
   const mapp = path.join(ROOT, 'src', 'viewer', 'map_pack.js'), maps = fs.existsSync(mapp) ? [mapp] : [];
-  return v.concat(packs, pier, totems, panelhw, cabin, loads, scenery, cars, camp, infra, models, chars, animals, trees, shots, worlds, townkit, sound, maps);
+  // THE PEOPLE (G3615 / G3620): tools/portrait_prep.py owns media/people; its generated tables name each file BARE
+  // (72_people.js prefixes PEOPLE_FACE_DIR), so collectRefs reads them through BARE_DIRS below
+  const people = ['72_people_faces.js', '72_people_bgs.js'].map(f => path.join(ROOT, 'src', 'core', f)).filter(f => fs.existsSync(f));
+  return v.concat(packs, pier, totems, panelhw, cabin, loads, scenery, cars, camp, infra, models, chars, animals, trees, shots, worlds, townkit, sound, maps, people);
 }
 
 const REF_RE = /media\/[A-Za-z0-9_\-./]+?\.(?:jpg|png|webp|bin|ktx2|mp3|ogg|json)/g;   // webp: LOADING S4's texture prep; ktx2: AS3's (G916); mp3: the sound (G1636); json: Radio Jolene's broadcast script (G1701); ogg: the story's opening (G3380)
 
+// the manifests that name their files bare, under one media directory (the generated table: '<key>': '<file>')
+const BARE_DIRS = { '72_people_faces.js': 'media/people/', '72_people_bgs.js': 'media/people/' };
+const BARE_RE = /'([A-Za-z0-9_\-.]+?\.(?:jpg|png|webp))'/g;
+
 function collectRefs(files) {
   const refs = new Map();               // rel path -> first manifest naming it
   for (const f of files) {
-    const txt = fs.readFileSync(f, 'utf8');
+    const txt = fs.readFileSync(f, 'utf8'), dir = BARE_DIRS[path.basename(f)];
     for (const m of txt.match(REF_RE) || [])
       if (!refs.has(m)) refs.set(m, path.relative(ROOT, f));
+    if (dir) for (const m of txt.matchAll(BARE_RE))
+      if (!refs.has(dir + m[1])) refs.set(dir + m[1], path.relative(ROOT, f));
   }
   return refs;
 }
@@ -487,6 +496,15 @@ for (const f of files)
   check(fs.existsSync(f), `manifest ${path.relative(ROOT, f)} does not exist`);
 const refs = collectRefs(files.filter(f => fs.existsSync(f)));
 const present = walkMedia(MEDIA);
+// SCENERY VERSIONS (ED-2, 25 Oct): media/scenery/<island>/index.json is the scenery editor's list of named versions - world_boot.js
+// fetches it by the island's id (no literal path to scan) - and it names its own version files (tools/scenery_version.js add)
+{ const WB = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'world_boot.js'), 'utf8');
+  const fetches = /getSync\('media\/scenery\/' \+ ISL_ID \+ '\/index\.json'\)/.test(WB);
+  for (const rel of present.filter(r => /^media\/scenery\/[a-z0-9_-]+\/index\.json$/.test(r))) {
+    if (fetches && !refs.has(rel)) refs.set(rel, 'src/viewer/world_boot.js (SCN.versions)');
+    let J = null; try { J = JSON.parse(fs.readFileSync(path.join(ROOT, rel), 'utf8')); } catch (e) {}
+    check(!!(J && Array.isArray(J.versions)), `${rel} is a scenery versions index ({versions: [...]})`);
+    for (const v of (J && J.versions) || []) { const f = rel.slice(0, -'index.json'.length) + (v && v.file); if (v && v.file && !refs.has(f)) refs.set(f, rel); } } }
 checkStore(refs, present);
 // MEDIA ACCEPTED BY NAME (a media file the user accepted by its size; the gate holds it to that size - a re-encode that
 // grows it is a new ask, not a silent pass)

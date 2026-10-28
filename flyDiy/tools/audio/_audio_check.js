@@ -661,6 +661,17 @@ function checkWiring(S) {
   const ip = list.indexOf("'audio/audio_params.js'"), ia = list.indexOf("'audio/audio.js'"), iw = list.indexOf("'app.js'");
   if (!(ip >= 0 && ia > ip && iw > ia)) F.push('build.js MANIFEST.viewer.scripts does not list audio/audio_params.js, audio/audio.js before app.js');
   if (!/audio: \{ modules: \[/.test(S.build) || !/window\.FLYDIY_AUDIO_SRC=\$\{JSON\.stringify\(AUDIO_SRC\)\}/.test(S.build)) F.push('build.js does not publish MANIFEST.audio.modules as FLYDIY_AUDIO_SRC');
+  // GARAGE-RATTLE (the user's playtest 24 Oct: a continuous rattle in the shed after a flight): the return to the shed
+  // leaves sim.out at rest - nothing steps there, and the last flight's speed / rpm fed the airframe and the engine
+  { const g = S.app.indexOf('  function enterGarage() {'), r = S.app.indexOf('    sim.reset(0);\n', g), z = S.app.indexOf('simOutAtRest(sim.out);', r);
+    const f = S.app.indexOf('  function simOutAtRest(o) {'), body = f >= 0 ? S.app.slice(f, S.app.indexOf('\n  }\n', f)) : '';
+    if (!(g >= 0 && r > g && z > r && z - r < 40)) F.push('enterGarage does not set sim.out at rest right after sim.reset(0) (GARAGE-RATTLE: the last flight’s speed sounds in the shed)');
+    if (!/o\.V = 0;/.test(body) || body.indexOf("'rpm', 'rpmEng', 'thrustPer'") < 0) F.push('simOutAtRest does not zero the speed and the engines’ rpm (GARAGE-RATTLE)'); }
+  // G1730 THE SHUTTER: audio.js listens for photo mode's 'flydiy:shutter' (GAME-MENUS G3744 fires it at the take - the
+  // round shutter and FLYDIY_PHOTO.take both); where photo mode exists (app.js photoTake) the event must be fired
+  if (S.audio.indexOf("W.addEventListener('flydiy:shutter', () => { shutter(); });") < 0) F.push('audio.js does not listen for photo mode’s flydiy:shutter (G1730)');
+  { const t = S.app.indexOf('const photoTake = () => {');
+    if (t >= 0 && S.app.indexOf("'flydiy:shutter'") < 0) F.push('photo mode (app.js photoTake) never fires flydiy:shutter: the shot is silent (G1730 / GAME-MENUS G3744)'); }
   const calls = S.app.split('AUDIO.update(').length - 1;
   if (calls !== 1) F.push('app.js calls AUDIO.update ' + calls + ' times (want 1)');
   const lp = S.app.indexOf('  function loop(ts) {'), le = S.app.indexOf('\n  }\n', lp);
@@ -4422,7 +4433,64 @@ function checkVoiceWiring(S) {
   return F;
 }
 
-const CHECKS = { MIX: checkMix, NUMBERS: checkNumbers, CONTACTS: checkContacts, BUDGET: checkBudget, GESTURE: checkGesture,
+// G1730 THE SHUTTER (photo mode's shot, GAME-MENUS G3741/G3742): synthesized (no file), under 0.3 s, at the interface
+// volume, round the fade straight into the limiter (it plays in the pause; the paused mix stays silent; no bus moves:
+// nothing ducks the engine), the context put back to sleep after it, the noise buffer made once
+function checkShutter(S) {
+  const F = [], made = [];
+  const pg = livePage(S, { ctx: (P, C) => {
+    const nd = o => Object.assign({ to: [], connect(d) { this.to.push(d); return d; }, disconnect() {} }, o);
+    const prm = v => ({ value: v, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime() {}, setTargetAtTime() {} });
+    const g0 = P.createGain;
+    P.createGain = function () { const g = g0.call(this); g.to = []; g.connect = d => { g.to.push(d); return d; }; made.push(g); return g; };
+    P.createBuffer = (n, len, sr) => { C.bufs = (C.bufs || 0) + 1; const d = new Float32Array(len); return { length: len, sampleRate: sr, getChannelData: () => d }; };
+    P.createBufferSource = () => { const s = nd({ ends: [], start(t, off, dur) { s.ends.push((+t || 0) + (dur || 0)); } }); made.push(s); return s; };
+    P.createBiquadFilter = () => { const b = nd({ type: '', frequency: prm(350), Q: prm(1) }); made.push(b); return b; };
+    P.createOscillator = () => { const o = nd({ ends: [], frequency: prm(440), start() {}, stop(t) { o.ends.push(+t || 0); } }); made.push(o); return o; };
+  } });
+  const A = pg.A, go = () => A.update(pg.sim, pg.camera, 1 / 60, pg.def, pg.cam, false, pg.world);
+  if (typeof A.shutter !== 'function') return ['AUDIO.shutter is missing (G1730: photo mode\'s shot)'];
+  go();
+  const LIM = A.bus('limiter'), FADE = A.bus('fade');
+  const BUS = ['master', 'aircraft', 'aircraft.ext', 'aircraft.int', 'ambience', 'music', 'ui'];
+  const evs = () => BUS.map(b => A.bus(b) ? A.bus(b).gain.ev.length : -1).join(',');
+  const shot = () => { made.length = 0; const e0 = evs(), ok = A.shutter(); return { ok, moved: evs() !== e0, nodes: made.slice() }; };
+  // in flight: plays, into the limiter alone, short, at the interface volume, no bus scheduled
+  A.set('interface', 0.5);
+  const s1 = shot(), mine = new Set(s1.nodes);
+  if (!s1.ok || !s1.nodes.length) F.push('the shutter did not play in flight (' + s1.ok + ', ' + s1.nodes.length + ' nodes)');
+  const outs = s1.nodes.filter(n => n.to.indexOf(LIM) >= 0);
+  if (outs.length !== 1) F.push('the shot does not reach the limiter by exactly one gain (' + outs.length + ')');
+  const stray = s1.nodes.filter(n => n.to.some(d => d !== LIM && !mine.has(d)));
+  if (stray.length) F.push('the shot connects past its own nodes to a bus (' + stray.length + ' nodes: through master/fade it would sleep in the pause or duck)');
+  if (outs[0] && !near(outs[0].gain.value, A.get('master') * 0.5 * 0.32, 1e-6)) F.push('the shot is not at master x interface x 0.32 (' + outs[0].gain.value + ')');
+  const end = Math.max(0, ...s1.nodes.map(n => n.ends ? Math.max(0, ...n.ends) : 0));
+  if (!(end > 0.05 && end < 0.3)) F.push('the shot lasts ' + end.toFixed(3) + ' s (want 0.05 .. 0.3)');
+  if (s1.moved) F.push('the shot scheduled a bus gain (the engine must not duck)');
+  // the interface at 0: nothing made
+  A.set('interface', 0); const s0 = shot(); A.set('interface', 0.7);
+  if (s0.ok || s0.nodes.length) F.push('the interface at 0 still made a shot (' + s0.nodes.length + ' nodes)');
+  // the pause (photo mode holds the flight): suspended, the shot wakes the context, the fade stays shut, back to sleep after
+  pg.win.FLYDIY_HELD = true; go(); pg.runTimers();
+  if (A.state !== 'suspended') F.push('the pause did not silence before the shot (state ' + A.state + ')');
+  const r0 = pg.C.resume, u0 = pg.C.suspend, s2 = shot();
+  if (!s2.ok || pg.C.resume !== r0 + 1) F.push('the shot in the pause did not wake the context (' + s2.ok + ', resumes +' + (pg.C.resume - r0) + ')');
+  if (FADE.gain.value !== 0 || A.state !== 'suspended') F.push('the shot in the pause opened the paused mix (fade ' + FADE.gain.value + ', state ' + A.state + ')');
+  pg.runTimers();
+  if (pg.C.suspend !== u0 + 1) F.push('the context did not go back to sleep after the shot in the pause (suspends +' + (pg.C.suspend - u0) + ')');
+  // the shot inside the pause's 0.2 s fade: the silence's own suspend (and its event) still comes
+  pg.win.FLYDIY_HELD = false; go();
+  let evSusp = 0; A.onEvent('suspend', () => evSusp++);
+  pg.win.FLYDIY_HELD = true; go(); shot(); pg.runTimers();
+  if (A.state !== 'suspended' || evSusp !== 1) F.push('a shot inside the pause\'s fade lost the suspend (state ' + A.state + ', events ' + evSusp + ')');
+  if (pg.C.bufs !== 1) F.push('the noise buffer was made ' + pg.C.bufs + ' times (once)');
+  // photo mode's event plays it (GAME-MENUS G3744 fires flydiy:shutter at the take)
+  pg.win.FLYDIY_HELD = false; go(); made.length = 0; pg.winEvent('flydiy:shutter');
+  if (!made.length) F.push('the flydiy:shutter event made no shot');
+  return F;
+}
+
+const CHECKS = { MIX: checkMix,NUMBERS: checkNumbers, CONTACTS: checkContacts, BUDGET: checkBudget, GESTURE: checkGesture,
                  SILENCE: checkSilence, SETTINGS: checkSettings, SOURCES: checkSources, WIRING: checkWiring,
                  MUSIC_CAT: checkMusicCatalogue, MUSIC_CTX: checkMusicContexts, MUSIC_SHUFFLE: checkMusicShuffle,
                  MUSIC_GAPS: checkMusicGaps, MUSIC_XFADE: checkMusicXfade, MUSIC_DUCK: checkMusicDuck,
@@ -4442,7 +4510,8 @@ const CHECKS = { MIX: checkMix, NUMBERS: checkNumbers, CONTACTS: checkContacts, 
                  EMITWIRING: checkEmWiring, EMITSAMPLES: checkEmSamples,
                  ANIMAP: checkAniMap, ANIBLOW: checkAniBlow, ANIELK: async S => checkAniElk(S).concat(await checkAniElkReal(S)),
                  ANILAND: checkAniLand, ANIGULL: checkAniGull, ANIMILL: checkAniMill, ANIPLAY: checkAniPlay, ANIALLOC: checkAniAlloc,
-                 VOICE_CAT: checkVoiceCat, VOICE_PLAY: checkVoicePlay, VOICE_WIRING: checkVoiceWiring };
+                 VOICE_CAT: checkVoiceCat, VOICE_PLAY: checkVoicePlay, VOICE_WIRING: checkVoiceWiring,
+                 SHUTTER: checkShutter };
 const REPORTS = { RADIO_HORIZON: 1, VOICE_CAT: 1, BUDGET: 1, AFVOICE: 1, AFALLOC: 1, AFFLOWN: 1, AFSOURCE: 1, SP_BUDGET: 1, AMBBUDGET: 1, AMBALLOC: 1, EMITRATE: 1, EMITBUDGET: 1, EMITALLOC: 1, ANIALLOC: 1 };
 
 // ---- THE MUTATIONS (D): [name, file, find, replace, the check that must go red] ---------------------------------
@@ -4465,6 +4534,11 @@ const MUT = [
   ['the gesture listeners kept', 'audio', '  if (ctx || api.state === \'off\') { disarm(); return; }\n    disarm();', '  if (ctx || api.state === \'off\') { return; }', 'GESTURE'],
   ['a hidden tab plays', 'audio', 'const want = hidden || held ||', 'const want = held ||', 'SILENCE'],
   ['the suspend never comes', 'audio', 'suspendTimer = setTimeout(doSuspend,', 'suspendTimer = setTimeout(() => {},', 'SILENCE'],
+  ['the shot through master', 'audio', 'out.gain.value = v; out.connect(N.limiter);', 'out.gain.value = v; out.connect(N.master);', 'SHUTTER'],
+  ['the shot asleep in the pause', 'audio', 'if (silent) {   // the pause', 'if (false) {   // the pause', 'SHUTTER'],
+  ['the shot too long', 'audio', 'tick(t0 + 0.09, 2500', 'tick(t0 + 0.39, 2500', 'SHUTTER'],
+  ['the shot deaf to the interface volume', 'audio', 'const v = set.master * set.interface * SHUT.out;', 'const v = set.master * SHUT.out;', 'SHUTTER'],
+  ['the shutter event unheard', 'audio', "W.addEventListener('flydiy:shutter', () => { shutter(); });", '', 'SHUTTER'],
   ['the settings not persisted', 'audio', "prefSet(PREF + '.' + k, set[k]);", '', 'SETTINGS'],
   ['the headset in the open', 'audio', 'const hs = interior && set.headset && !sp ? HEADSET_K : 1;', 'const hs = set.headset && !sp ? HEADSET_K : 1;', 'SETTINGS'],
   ['music in flight by default', 'audio', "set.music * (flying ? (set.musicFlight ? MIXK.music : 0) : 1)", 'set.music * (flying ? MIXK.music : 1)', 'SETTINGS'],
@@ -4545,6 +4619,8 @@ const MUT = [
   ['the garage setting ignored', 'music', 'if (garage) return musicGarage ? C_GARAGE : C_NONE;', 'if (garage) return C_GARAGE;', 'MUSIC_CTX'],
   ['the loading button never shown', 'music', 'b.hidden = false;   // shown: the sound is built', 'b.hidden = true;   // shown: the sound is built', 'MUSIC_WIRING'],
   ['the shed back to full', 'ambmodel', 'const GARAGE_K = Math.pow(10, -12 / 20);', 'const GARAGE_K = 1;', 'AMBPLACES'],
+  ['the shed keeps the flight’s speed', 'app', '    simOutAtRest(sim.out);            // GARAGE-RATTLE', '    void 0;                           // GARAGE-RATTLE (the call lost)', 'WIRING'],
+  ['the shed keeps the flight’s rpm', 'app', "for (const k of ['rpm', 'rpmEng', 'thrustPer'])", "for (const k of ['thrustPer'])", 'WIRING'],
   ['the loading setting ignored', 'music', 'if (welcome) return musicLoading ? C_WELCOME : C_NONE;', 'if (welcome) return C_WELCOME;', 'MUSIC_WIRING'],
   ['the loading screens back to the welcome-tagged few', 'music', '(c === C_WELCOME || c === C_CRUISE ? ix.slice() : ix.filter(', '(c === C_CRUISE ? ix.slice() : ix.filter(', 'MUSIC_SHUFFLE'],
   ['only the first boot is a loading screen', 'audio', "welcome = B && (B.state === 'loading' || B.state === 'landing' || B.state === 'waiting') ? 1 : 0;", "welcome = welcome && B && B.state !== 'gone' ? 1 : 0;", 'MUSIC_CTX'],

@@ -422,6 +422,16 @@
     }
     function wrapGL(gl) {
       rec.gl = gl;
+      // GARAGE-LINK (A0 24 Oct; HWCOV): THE GPU'S NAME IS ASKED ONCE, HERE - the context is new and the GPU idle. header() asked
+      // gl.getParameter six times on every write of the session's header (when the boot's log grew, every 30 s): each a call the
+      // page waits on, and at the garage boot's end - the GPU busy linking the programs - one header() held the page 2.2 s
+      // (the boot profile: flush > head > header, 2184 ms self)
+      try {
+        const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+        rec.gpuInfo = { vendor: gl.getParameter(gl.VENDOR), renderer: gl.getParameter(gl.RENDERER),
+          unmaskedVendor: dbg ? gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) : null, unmaskedRenderer: dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : null,
+          version: gl.getParameter(gl.VERSION), maxTex: gl.getParameter(gl.MAX_TEXTURE_SIZE) };
+      } catch (e) { rec.gpuInfo = null; }
       // the shader links: the call, and the page held while three first asks for the link's status
       const link = gl.linkProgram, infoLog = gl.getProgramInfoLog, param = gl.getProgramParameter;
       let linkN = 0;
@@ -498,15 +508,7 @@
       };
       const R = rec.renderer;
       if (R && R.domElement) H.canvas = { w: R.domElement.width, h: R.domElement.height, cssW: R.domElement.clientWidth, cssH: R.domElement.clientHeight, pixelRatio: R.getPixelRatio ? R.getPixelRatio() : null };
-      const gl = rec.gl;
-      if (gl) {
-        try {
-          const dbg = gl.getExtension('WEBGL_debug_renderer_info');
-          H.gpu = { vendor: gl.getParameter(gl.VENDOR), renderer: gl.getParameter(gl.RENDERER),
-            unmaskedVendor: dbg ? gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) : null, unmaskedRenderer: dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : null,
-            version: gl.getParameter(gl.VERSION), maxTex: gl.getParameter(gl.MAX_TEXTURE_SIZE) };
-        } catch (e) {}
-      }
+      if (rec.gpuInfo) H.gpu = Object.assign({}, rec.gpuInfo);   // (GARAGE-LINK: asked once, in wrapGL - no GL call here)
       try { if (W.GFX && W.GFX.get) H.gfx = W.GFX.get(); } catch (e) {}
       try { if (W.FLYDIY_PACE && W.FLYDIY_PACE.state) H.pace = W.FLYDIY_PACE.state(); } catch (e) {}
       try { if (W.FLYDIY_AA && W.FLYDIY_AA.tier) H.aa = W.FLYDIY_AA.tier(); } catch (e) {}

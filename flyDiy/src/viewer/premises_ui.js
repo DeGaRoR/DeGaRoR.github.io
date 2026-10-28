@@ -174,7 +174,18 @@ function mount(host, ctx) {
   // the module's window listeners answer only while this mount is ACTIVE (the game closes and
   // reopens the editor; a closed one must not eat the flight's keys)
   let active = true;
-  const loadWip = () => { try { const t = storage && storage.getItem(LS_WIP); if (t) { const U = PG.unwrap(t); rec = U.rec; recName = U.name; return true; } } catch (e) { console.warn('premises wip:', e.message); } return false; };
+  const loadWip = () => { try { const t = storage && storage.getItem(LS_WIP); if (t) { const U = PG.unwrap(t); rec = U.rec; recName = U.name; wipOwn = true; return true; } } catch (e) { console.warn('premises wip:', e.message); } return false; };
+  // SCENERY VERSIONS (ED-2, 25 Oct): the game's editor opens on MASTER (the game boots it), not on the last autosave - so before the
+  // first write of a session whose record did not come from that autosave, the autosave is KEPT as a slot 'my edits before <date>'
+  // (FILE > 'load a version' / 'load slot' list it; the same text is never kept twice, the last KEEP_N kept). Nothing is wiped
+  let wipOwn = false, recBase = ctx.scenery ? 'master' : 'this record';
+  const KEEP_PRE = 'flydiy.premises.slot.my edits before ', KEEP_N = 4;
+  const writeWip = t => {
+    if (!wipOwn) { wipOwn = true; try { const old = storage.getItem(LS_WIP);
+      if (old && old !== t) { const ks = []; let dup = false; for (let i = 0; i < storage.length; i++) { const k = storage.key(i); if (k && k.indexOf(KEEP_PRE) === 0) { ks.push(k); if (storage.getItem(k) === old) dup = true; } }
+        if (!dup) { const d = new Date(), p2 = v => String(v).padStart(2, '0'); storage.setItem(KEEP_PRE + d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()), old);
+          ks.sort(); while (ks.length >= KEEP_N) storage.removeItem(ks.shift()); } } } catch (e) { console.warn('premises: keeping the last edits', e.message); } }
+    storage.setItem(LS_WIP, t); };
   // THE EDITOR IN THE FLIGHT LOG (G3082 EDITOR-PERF; A0: "measure every editor action on the user's file"): every command's
   // rebuild, a select, a drag's moves, the autosave, the checks, the open - an 'edit' event with its time and what ran
   // (the composition, the renderer's steps, the game's ground re-sample, the inspector), which tools/analyze_log.js lists
@@ -183,7 +194,7 @@ function mount(host, ctx) {
   const logEdit = (ms, what) => { try { const F = typeof window !== 'undefined' && window.FLIGHT_REC; if (F && F.event && !F.off) F.event('edit', +(+ms).toFixed(1), what); } catch (e) {} };
   let LAST = '';
   let saveT = 0;
-  const autosave = () => { if (!storage) return; clearTimeout(saveT); saveT = setTimeout(() => { saveT = 0; const t0 = PERF.now(); try { storage.setItem(LS_WIP, PG.envelope(recName, rec)); } catch (e) {} const k = snapshot(); logEdit(PERF.now() - t0, 'autosave' + (k ? ' + history slot' : '')); }, 1000); };
+  const autosave = () => { if (!storage) return; clearTimeout(saveT); saveT = setTimeout(() => { saveT = 0; const t0 = PERF.now(); try { writeWip(PG.envelope(recName, rec)); } catch (e) {} const k = snapshot(); logEdit(PERF.now() - t0, 'autosave' + (k ? ' + history slot' : '')); }, 1000); };
   // THE ROLLING HISTORY (G2917; the user: "at least the paths I trace manually should be kept safe"): the autosave is one
   // slot, so a bad edit autosaved over the good one was gone. Every HIST_MS of editing the record is also kept as a slot
   // named 'autosave <date time>' (the FILE section's 'load slot' lists them; the host's storage puts back what the boot
@@ -207,7 +218,7 @@ function mount(host, ctx) {
   }
   // G1535 (UPDATE-NOW): the "Update" pill reloads the page - an edit still inside the autosave's second is written first
   if (typeof window !== 'undefined' && window.UPDATE_NOW && window.UPDATE_NOW.onBeforeUpdate)
-    window.UPDATE_NOW.onBeforeUpdate(() => { if (!saveT || !storage) return; clearTimeout(saveT); saveT = 0; try { storage.setItem(LS_WIP, PG.envelope(recName, rec)); } catch (e) {} });
+    window.UPDATE_NOW.onBeforeUpdate(() => { if (!saveT || !storage) return; clearTimeout(saveT); saveT = 0; try { writeWip(PG.envelope(recName, rec)); } catch (e) {} });
 
   // ---- undo / redo: commands over the record --------------------------------
   const undoS = [], redoS = [];
@@ -395,9 +406,12 @@ function mount(host, ctx) {
     const lines = PG.checks(rec, world, { overlay: R.overlay, site: ctx.site || null });
     const iss = PG.issues(rec), wrn = PG.warnings ? PG.warnings(rec) : [];   // (18 Oct: a strip's slope past the limits warns, it ships)
     if (PERF.now() - t0 >= 8) logEdit(PERF.now() - t0, 'checks');
-    if (els.chk) els.chk.innerHTML = lines.map(l => '<span class="' + (l.ok ? 'ok' : 'bad') + '">' + (l.ok ? '✓ ' : '✗ ') + l.label + '</span>').join('<br>') +
-      (iss.length ? '<br><span class="warn">' + iss.length + ' issue' + (iss.length > 1 ? 's' : '') + ': ' + iss[0] + '</span>' : '') +
-      (wrn.length ? '<br><span class="warn">⚠ ' + wrn.length + ' warning' + (wrn.length > 1 ? 's' : '') + ' (it ships): ' + wrn.join(' · ') + '</span>' : '');
+    // (the user, 24 Oct: "remove the long log list at the bottom left") - the panel says only what is wrong: a failed check,
+    // the first issue, the warnings' count; all well, it is empty (and hidden, flight.css #premChk:empty)
+    const bad = lines.filter(l => !l.ok);
+    if (els.chk) els.chk.innerHTML = [bad.length ? '<span class="bad">✗ ' + bad[0].label + (bad.length > 1 ? ' (+' + (bad.length - 1) + ')' : '') + '</span>' : '',
+      iss.length ? '<span class="warn">' + iss.length + ' issue' + (iss.length > 1 ? 's' : '') + ': ' + iss[0] + '</span>' : '',
+      wrn.length ? '<span class="warn">⚠ ' + wrn.length + ' warning' + (wrn.length > 1 ? 's' : '') + ' (it ships)</span>' : ''].filter(Boolean).join('<br>');
     return lines;
   }
   function plaque() {
@@ -704,6 +718,15 @@ function mount(host, ctx) {
     edit(zid, 'zones', x => { const r2 = Object.assign({}, x.rules); const l = Array.isArray(r2.noFence) ? r2.noFence.slice() : []; const k = l.indexOf(p.id); if (k >= 0) l.splice(k, 1); else l.push(p.id); if (l.length) r2.noFence = l; else delete r2.noFence; x.rules = r2; }, 'fence of plot ' + p.id);
     const off = ((PG.findById(rec, zid).entry.rules || {}).noFence || []).indexOf(p.id) >= 0;
     strip.status('plot ' + p.id + ': fence ' + (off ? 'off' : 'as built') + ' - click another, Esc ends');
+    return true;
+  }
+  // a plot's CARS switched (the user, 24 Oct): its id in the zone's noCar - the fence's twin
+  function togglePlotCar(zid, L) {
+    const p = (R.plots ? R.plots() : []).find(q => q.zone === zid && q.poly && PG.inPoly(q.poly, L[0], L[1]));
+    if (!p) { strip.status('no plot of ' + zid + ' there - click inside one of its plots (Esc ends)'); return true; }
+    edit(zid, 'zones', x => { const r2 = Object.assign({}, x.rules); const l = Array.isArray(r2.noCar) ? r2.noCar.slice() : []; const k = l.indexOf(p.id); if (k >= 0) l.splice(k, 1); else l.push(p.id); if (l.length) r2.noCar = l; else delete r2.noCar; x.rules = r2; }, 'cars of plot ' + p.id);
+    const off = ((PG.findById(rec, zid).entry.rules || {}).noCar || []).indexOf(p.id) >= 0;
+    strip.status('plot ' + p.id + ': cars ' + (off ? 'off' : 'as built') + ' - click another, Esc ends');
     return true;
   }
   function ghostFeature() {
@@ -1098,7 +1121,7 @@ function mount(host, ctx) {
   function clickAt(g) {
     const F = R.overlay.frame, L = F.toLocal(g[0], g[2]);
     if (T.state === 'drawing' && T.resume) { addPoint(+L[0].toFixed(2), +L[1].toFixed(2), snapTol(g)); return; }
-    if (T.plotPick) { if (PG.findById(rec, T.plotPick)) (T.pickWhat === 'fence' ? togglePlotFence : togglePlotGround)(T.plotPick, L); else T.plotPick = null; return; }
+    if (T.plotPick) { if (PG.findById(rec, T.plotPick)) (T.pickWhat === 'fence' ? togglePlotFence : T.pickWhat === 'car' ? togglePlotCar : togglePlotGround)(T.plotPick, L); else T.plotPick = null; return; }
     if (tool === 'select') {
       // (G2890) a click on the selected shape's edge adds a corner there; elsewhere it selects what is under it
       // THE PICK CYCLE (G3006; the user: "issue with overlapping assets, since I can select only one ... cycle through
@@ -1493,7 +1516,7 @@ function mount(host, ctx) {
           rows.pills(insp, 'plot ground', [['on', 'drawn', 'each plot\'s ground: the lawn, the paths, the dry ground under the house (never under the water line)'], ['off', 'none', 'no plot draws its ground or its lawn: the island\'s own ground runs to the houses']],
             () => (RU0.ground === false ? 'off' : 'on'), v => ed(x => { const r2 = Object.assign({}, x.rules); if (v === 'off') r2.ground = false; else delete r2.ground; x.rules = r2; }, 'plot ground of ' + id));
           if (RU0.ground !== false) {
-            rows.button(insp, T.plotPick === id && T.pickWhat !== 'fence' ? 'done picking plots (Esc)' : 'pick plots: a click switches one plot\'s ground', () => { T.plotPick = T.plotPick === id && T.pickWhat !== 'fence' ? null : id; T.pickWhat = 'ground'; strip.status(T.plotPick ? 'click a plot of ' + id + ' to switch its ground off or on - Esc ends' : 'plot pick ended'); inspector.refresh(); });
+            rows.button(insp, T.plotPick === id && T.pickWhat === 'ground' ? 'done picking plots (Esc)' : 'pick plots: a click switches one plot\'s ground', () => { T.plotPick = T.plotPick === id && T.pickWhat === 'ground' ? null : id; T.pickWhat = 'ground'; strip.status(T.plotPick ? 'click a plot of ' + id + ' to switch its ground off or on - Esc ends' : 'plot pick ended'); inspector.refresh(); });
             if (offN) { rows.note(insp, offN + ' plot' + (offN === 1 ? '' : 's') + ' with the ground off'); rows.button(insp, 'every plot\'s ground back', () => ed(x => { const r2 = Object.assign({}, x.rules); delete r2.noGround; x.rules = r2; }, 'plot ground of ' + id)); }
           } }
         // THE PLOTS' FENCES (G3007; the user: "we need an option to turn off the fencing around the plots too"): every plot's
@@ -1504,6 +1527,15 @@ function mount(host, ctx) {
           if (RU1.fences !== false) {
             rows.button(insp, T.plotPick === id && T.pickWhat === 'fence' ? 'done picking plots (Esc)' : 'pick plots: a click switches one plot\'s fence', () => { const on = !(T.plotPick === id && T.pickWhat === 'fence'); T.plotPick = on ? id : null; T.pickWhat = on ? 'fence' : null; strip.status(on ? 'click a plot of ' + id + ' to take its fence off or put it back - Esc ends' : 'plot pick ended'); inspector.refresh(); });
             if (offF) { rows.note(insp, offF + ' plot' + (offF === 1 ? '' : 's') + ' without a fence'); rows.button(insp, 'every plot\'s fence back', () => ed(x => { const r2 = Object.assign({}, x.rules); delete r2.noFence; x.rules = r2; }, 'plot fences of ' + id)); }
+          } }
+        // THE PLOTS' CARS (the user, 24 Oct: "options to remove the fences and the cars from the assets, especially the residential
+        // ones"): every plot's parked cars as built, or none - for the whole zone, or plot by plot (the fence switch's twin)
+        { const RU2 = e.rules || {}, offC = Array.isArray(RU2.noCar) ? RU2.noCar.length : 0;
+          rows.pills(insp, 'plot cars', [['auto', 'as built', 'each plot\'s parked cars as the village plans them'], ['off', 'none', 'no car parked on any plot of this zone']],
+            () => (RU2.cars === false ? 'off' : 'auto'), v => ed(x => { const r2 = Object.assign({}, x.rules); if (v === 'off') r2.cars = false; else delete r2.cars; x.rules = r2; }, 'plot cars of ' + id));
+          if (RU2.cars !== false) {
+            rows.button(insp, T.plotPick === id && T.pickWhat === 'car' ? 'done picking plots (Esc)' : 'pick plots: a click switches one plot\'s cars', () => { const on = !(T.plotPick === id && T.pickWhat === 'car'); T.plotPick = on ? id : null; T.pickWhat = on ? 'car' : null; strip.status(on ? 'click a plot of ' + id + ' to take its cars off or put them back - Esc ends' : 'plot pick ended'); inspector.refresh(); });
+            if (offC) { rows.note(insp, offC + ' plot' + (offC === 1 ? '' : 's') + ' without cars'); rows.button(insp, 'every plot\'s cars back', () => ed(x => { const r2 = Object.assign({}, x.rules); delete r2.noCar; x.rules = r2; }, 'plot cars of ' + id)); }
           } }
         const RU = Object.assign({}, PG.ZONE_RULES, e.rules || {});
         rows.slider(insp, 'plot min (m)', 12, 40, 1, () => RU.plotMin, v => ed(x => { x.rules = Object.assign({}, x.rules, { plotMin: v }); }, 'plots of ' + id, 'plotMin'), v => v.toFixed(0) + ' m');
@@ -2233,6 +2265,32 @@ function mount(host, ctx) {
     const ta = $('textarea', { placeholder: 'paste an envelope or a bare record here, then import', rows: '4' }); ta.className = 'pr-paste';
     P.appendChild(ta);
     rows.button(P, 'import', () => { try { load(ta.value); ta.value = ''; } catch (e) { strip.status('import refused: ' + e.message); } });
+    // SCENERY VERSIONS (ED-2; the user, 25 Oct: 'when getting into the scenery editor, there is an option to load a version, and that's the
+    // only place where scenery can be loaded'): master (what the game boots), the last autosave ('my edits'), and the named versions
+    // of the repo (media/scenery/<island>/index.json). A load replaces the record and composes it into this session's world; the next
+    // boot is master again. 'save as a version' downloads the record stamped as a version (tools/scenery_version.js add commits it)
+    const SC = ctx.scenery || null;
+    if (SC) {
+      const VS = SC.versions(), hasWip = !!(storage && (() => { try { return storage.getItem(LS_WIP); } catch (e) { return null; } })());
+      const opts = [['', 'running: ' + recBase], ['master', 'Master (the shipped scenery)']].concat(hasWip ? [['wip', 'My edits (the last autosave)']] : [], VS.map(v => ['v:' + v.id, v.name + (v.date ? ' (' + v.date + ')' : '')]));
+      rows.select(P, 'load a version', opts, () => '', v => {
+        if (!v) return;
+        try { let t = null, nm = v;
+          if (v === 'master') { t = SC.master; nm = 'master'; }
+          else if (v === 'wip') { t = storage.getItem(LS_WIP); nm = 'my edits'; }
+          else { const V = VS.find(q => 'v:' + q.id === v); t = V ? SC.versionText(V) : null; nm = V ? V.name : v; }
+          if (!t) { strip.status('load refused: ' + nm + ' is not in this build'); return; }
+          load(SC.prep ? SC.prep(t) : t); recBase = nm; if (v === 'wip') wipOwn = true;
+          strip.status('loaded ' + nm + ' - this session only: the game boots master'); palette.refresh();
+        } catch (e) { strip.status('load refused: ' + e.message); } });
+      rows.button(P, 'save as a version (download)', () => {
+        const d = new Date(), p2 = q => String(q).padStart(2, '0'), date = d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
+        const name = ((typeof prompt === 'function' ? prompt('A name for this version:', (recName || 'my scenery') + ' ' + date) : null) || '').trim(); if (!name) return;
+        const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'version';
+        const o = JSON.parse(PG.envelope(recName, rec)); o.scenery = { id, name, date, base: recBase, island: SC.island || null };
+        const a = document.createElement('a'); a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(o)); a.download = 'scenery_' + id + '.json'; a.click();
+        strip.status('saved ' + name + ' as a version (downloaded)'); });
+    }
     if (storage) {
       const slots = [];
       for (let i = 0; i < storage.length; i++) { const k = storage.key(i); if (k && k.startsWith('flydiy.premises.slot.')) slots.push(k.slice(21)); }
@@ -2269,8 +2327,14 @@ function mount(host, ctx) {
   function pavRows(e, id, layer, ed, lookRow) {
     if (!PAVM) return;
     const L = lookRow || null;
-    rows.slider(insp, 'band (m)', 0, 60, 0.5, () => (e.band === null || e.band === undefined) ? -0.5 : e.band, v => ed(x => { x.band = v < 0 ? null : v; }, 'band of ' + id, 'band'),
-      v => v < 0 ? "the look's" : v.toFixed(1) + ' m');
+    // (the user, 24 Oct: "a road's side stays very big once set manually, even back at 0; the original look never comes back" -
+    //  the row's minimum was 0, so its "the look's" notch at -0.5 could not be reached, and a road's declared band 0 is not its
+    //  side: it drew the band's 6 m fade. Now the notch is reachable, and on a ROAD 0 or less takes the band away - the road's
+    //  own side again; on a strip or an apron 0 stays "no cleared earth")
+    const road = layer === 'roads';
+    rows.slider(insp, 'band (m)', -0.5, 60, 0.5, () => (e.band === null || e.band === undefined || (road && !(+e.band > 0))) ? -0.5 : e.band,
+      v => ed(x => { if (v < 0 || (road && !(v > 0))) delete x.band; else x.band = v; }, 'band of ' + id, 'band'),
+      v => v < 0 ? (road ? "none (the road's own side)" : "the look's") : v.toFixed(1) + ' m');
     rows.note(insp, 'the band is the ground drawn beside the pavement - the cleared earth beside a strip, the gravel beside a road - fading into the terrain past it');
     const RS = PAVM.resolve(e, rec, L);
     const label = { paintAge: 'paint age', crackK: 'cracks', rubberK: 'rubber (touchdown)', laneW: 'lane width (m)', wet: 'wet', mossK: 'moss', patchK: 'patches' };
@@ -2469,7 +2533,7 @@ function mount(host, ctx) {
     if (!storage) return;
     const n = name || recName || 'premises';
     recName = n; rec.name = rec.name || n;
-    try { storage.setItem('flydiy.premises.slot.' + n, PG.envelope(n, rec)); storage.setItem(LS_WIP, PG.envelope(n, rec)); strip.status('saved as ' + n); } catch (e) { strip.status('save failed: ' + e.message); }
+    try { storage.setItem('flydiy.premises.slot.' + n, PG.envelope(n, rec)); writeWip(PG.envelope(n, rec)); strip.status('saved as ' + n); } catch (e) { strip.status('save failed: ' + e.message); }
     if (section === 'file') palette.refresh();
   }
   // (G2910) the editor holds every polygon as an AREA: a record still carrying foldable v1 entries (a v1 file the migrator
@@ -2478,6 +2542,7 @@ function mount(host, ctx) {
   function load(txt) {
     const U = PG.unwrap(txt);
     rec = foldIn(U.rec); recName = U.name; undoS.length = 0; redoS.length = 0;
+    recBase = U.name || 'an import';   // (SCENERY VERSIONS: what the record was loaded from - 'load a version' names it after)
     select(null); dirty(null);
     strip.status('loaded ' + (recName || '(unnamed)'));
   }
@@ -2587,6 +2652,7 @@ function mount(host, ctx) {
       if (name === 'subdivide') { return subdivide(args.id || selected); }
       if (name === 'plotGround') { return togglePlotGround(args.zone, [args.x, args.z]); }
       if (name === 'plotFence') { return togglePlotFence(args.zone, [args.x, args.z]); }   // (G3007)
+      if (name === 'plotCar') { return togglePlotCar(args.zone, [args.x, args.z]); }
       // G2910-G2914: an area's properties, the placer, the fold - scriptable (GATE SCENERYED)
       if (name === 'addProp') { return addProp(args.id || selected, args.prop); }
       if (name === 'importText') { return importText(String(args.text || ''), args.name || 'the drop'); }   // (DROP-JSON: a dropped file's text, headless)
@@ -2599,6 +2665,7 @@ function mount(host, ctx) {
       if (name === 'fold') { const n = PG.foldAreas(rec); dirty(null); return n; }
       if (name === 'paletteEl') { return pal; }
       if (name === 'snapshot') { return snapshot(true); }
+      if (name === 'saveNow') { clearTimeout(saveT); saveT = 0; if (storage) writeWip(PG.envelope(recName, rec)); return !!storage; }   // (SCENERY VERSIONS: the autosave's write, now - GATE SCENERYED 38)
       if (name === 'inspector') { return insp; }
       if (name === 'bank') { return bankTiles().map(t => ({ k: t.k, kind: t.kind, key: t.key, with: t.with || null, group: t.group })); }   // G2893
       if (name === 'tool') { setTool(args.name); return tool; }

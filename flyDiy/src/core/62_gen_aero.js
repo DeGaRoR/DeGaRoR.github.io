@@ -124,7 +124,26 @@ function genStrips(S, fr) {
       ? (z => { const u = (Math.abs(z) - E0.z) / Reff;
                 return Math.max(0, 1 - u * u); })
     : () => 0;
-  const tailWash = mount === 'wing' ? 0 : 1;
+  let tailWash = mount === 'wing' ? 0 : 1;
+  // G2790 ENGINE-CONFIGS: a LAYOUT blows from every disc it has — a nose
+  // engine washes the centre and inboard wing as above, each wing nacelle
+  // that pulls washes the wing about its own station (the strongest wake a
+  // strip sits in), the pusher of a push-pull blows on nothing ahead of it;
+  // the tail flies in the centreline wake whenever there is one (a nose or
+  // a pusher), between the nacelles' wakes not at all.
+  const LAYS = S.engLayout === 'pushPull' || S.engLayout === 'tri' || S.engLayout === 'quad';
+  let wingWashL = wingWash, cWashL = null;
+  if (LAYS) {
+    const nose = S.engAt.some(e => e.mount === 'nose');
+    const nacZ = S.engAt.filter(e => e.mount === 'wing' && e.side < 0 && !e.pushes).map(e => e.z);
+    wingWashL = z => {
+      let w = nose ? washAt(z) : 0;
+      for (const zn of nacZ) { const u = (Math.abs(z) - zn) / Reff; w = Math.max(w, 1 - u * u); }
+      return Math.max(0, w);
+    };
+    cWashL = nose ? 1 : 0;
+    tailWash = S.engAt.some(e => e.mount === 'nose' || e.mount === 'pusher') ? 1 : 0;
+  }
   // c/4 between the spars: weight the front spar by how far the quarter chord
   // sits from the rear one
   const cf = (P.sparRear - 0.25) / (P.sparRear - P.sparFront), cr = 1 - cf;
@@ -192,7 +211,7 @@ function genStrips(S, fr) {
           fIn: fw.F[b], fOut: fw.F[b + 1], rIn: fw.R[b], rOut: fw.R[b + 1],
           w: [[fw.F[b], cf * (1 - t)], [fw.F[b + 1], cf * t],
               [fw.R[b], cr * (1 - t)], [fw.R[b + 1], cr * t]],
-          wash: k === 0 ? wingWash(zc) : wingWash(zc) * fyk,
+          wash: k === 0 ? wingWashL(zc) : wingWashL(zc) * fyk,
           ail: zc > aStart ? kAil : 0, flap: fFrac * kFlap,
           // G185: the plane this strip belongs to, its plane's spar spacing
           // (the Cm0 couple arm) and the quarter-chord weight — the solver
@@ -206,7 +225,8 @@ function genStrips(S, fr) {
   // off the WING's own spar roots, not the fuselage frames — otherwise the
   // centre section's lift stays behind when the wing is moved.
   const cL = PL.wf.L, cR2 = PL.wf.R;
-  const cWash = mount === 'nose' ? 1 : (mount === 'wingTop' && !pushes) ? 0.6 : 0;
+  const cWash = cWashL != null ? cWashL
+    : mount === 'nose' ? 1 : (mount === 'wingTop' && !pushes) ? 0.6 : 0;
   // G274: the strip is what the centre construction leaves of the bay's
   // skin — a half cut lifts on 62 % of the chord, 'removed' on none (the
   // strip is dropped: two half-wings on a bare carry-through)
@@ -305,6 +325,47 @@ function genStrips(S, fr) {
   return strips;
 }
 
+// ENGINE-CONFIGS-2 (G3490, 2026-10-22): WHOSE WAKE A LAYOUT'S STRIP FLIES IN. The solver's wash is the MEAN disc
+// (T / nE) - fine while every engine runs, wrong the moment one stops: a dead nose left half the wash on the tail, a
+// dead nacelle half the wash on its own wing. A layout's every strip names its disc (`washE`): the engine whose wake
+// is the strongest at the strip (the nose's or a pulling nacelle's of the strip's own side, by the same laws
+// genStrips blew them with), the tail the nose's - or, on a push-pull, -2: THE CENTRELINE IN SERIES, the two coaxial
+// discs' thrust through one disc (the pusher swallows the nose's slipstream and accelerates it again). -1 is a strip
+// no disc reaches (the mean, which it multiplies by a zero wash). A twin boom's fins stand outside a push-pull's
+// centreline wake (the booms are set the rear disc's radius + 0.30 m out): they lose it. Called only for a layout,
+// so every other def's strips are the objects they were.
+function genStripsLayout(S, fr, strips) {
+  const LAY = S.engLayout;
+  if (!(LAY === 'pushPull' || LAY === 'tri' || LAY === 'quad')) return strips;
+  const R = GEN_RULES, PP = S.pplant || POWERPLANTS[S.engine];
+  const Reff = ((S.prop && S.prop.D ? S.prop.D : PP.prop.D) / 2) * R.washSpread;
+  const N = fr.nodes, zOf = st => {
+    let z = 0, ws = 0;
+    for (const [i, w] of st.w) { z += N[i].p[2] * w; ws += w; }
+    return ws > 0 ? z / ws : 0;
+  };
+  const iNose = S.engAt.findIndex(e => e.mount === 'nose');
+  const nac = [];
+  S.engAt.forEach((e, i) => { if (e.mount === 'wing' && !e.pushes) nac.push({ i, z: e.z, side: e.side }); });
+  const tailE = LAY === 'pushPull' ? -2 : iNose;
+  for (const st of strips) {
+    if (st.kind === 'wing') {
+      const z = zOf(st), az = Math.abs(z), sd = z < 0 ? -1 : 1;
+      let best = -1, bw = 0;
+      if (iNose >= 0) { bw = Math.max(0, 1 - (az / Reff) * (az / Reff)); if (bw > 0) best = iNose; }
+      for (const n of nac) if (n.side === sd) {
+        const u = (az - n.z) / Reff, w = 1 - u * u;
+        if (w > bw) { bw = w; best = n.i; }
+      }
+      st.washE = best;
+    } else {
+      if (st.kind === 'fin' && LAY === 'pushPull' && Math.abs(zOf(st)) > Reff) st.wash = 0;
+      st.washE = st.wash > 0 ? tailE : -1;
+    }
+  }
+  return strips;
+}
+
 // THE WETTED BODY (PERF STUDY chantier 2, 2026-09-15). The surface the air
 // rubs on, from the DECLARED loft — the frame's station table (x, half
 // width, floor, deck) closed by the spec's own section curve (genSect at
@@ -400,10 +461,14 @@ function genFusCdA(S, fr) {
   const ST = fr.parts.ST;
   let frontal = 0, sFwd = 0, sAft = 0;
   for (const s of ST) frontal = Math.max(frontal, 2 * s.w * (s.yt - s.yb));
+  // the nose and the cabin bays are the forward body: rings 0-2, or to the cabin's rear ring when a long cabin has
+  // frames along it (G3504, 61_gen_frame iCabR; GEN_RULES.cabBayMax)
+  const cabLen = S.cab && S.cab.len, iCR = (GEN_RULES.cabBayMax > 0 && cabLen > GEN_RULES.cabBayMax + 1e-6)
+    ? Math.max(2, ST.findIndex(s => Math.abs(s.x - (S.cab.noseGap + cabLen)) < 1e-6)) : 2;
   for (let i = 0; i < ST.length - 1; i++) {
     const a = ST[i], b = ST[i + 1];
     const A = 0.5 * ((a.yt - a.yb) + (b.yt - b.yb)) * (b.x - a.x);
-    if (i < 2) sFwd += A; else sAft += A;
+    if (i < iCR) sFwd += A; else sAft += A;
   }
   const D = GEN_DRAG, M = GEN_MATERIALS[S.material] || GEN_MATERIALS.tubeFabric;
   const wet = genFusSwet(S, ST);

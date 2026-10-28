@@ -28,6 +28,9 @@ const outPath = rel => { const p = path.join(OUT, rel); fs.mkdirSync(path.dirnam
 const MANIFEST = {
   core: [
     '00_registry.js',
+    // THE NAMES (G3240): every person, organisation and place the game shows, ONE table (fictional, GAME-PLAN §13).
+    // Ahead of everything that makes text; it also rides in the BOOT block (the loading screen's cards read it).
+    '01_names.js',
     // THE ATMOSPHERE (G72): pure, no dependencies, and needed by more than the
     // solver — 60_gen_spec synthesises the prop against a density and
     // 64_gen_build quotes stall speeds at one, so it sits in the 00_ band
@@ -102,6 +105,9 @@ const MANIFEST = {
     // THE GROUND'S SCAR (G2357, DMG-SCAR): a crash's ground contacts reduced to craters, gouges and the sweep - pure;
     // the solver feeds it behind the damage layer, the page's grass and decal read its primitives
     '34_scar.js',
+    // THE OCCUPANTS IN A CRASH (G2373, DMG-OCCUPANT): each filled seat's pulse and space, the criteria, five bands -
+    // pure; read by the solver behind the damage layer
+    '34_occupant.js',
     // THE GROUND PATH (G193): a declared pattern graph sampled into a path the
     // pilots follow (fillets, curvature, a STOP); pure, read by 25_'s
     // sitePattern consumers, the two pilots, pattern_vis.js and the gates.
@@ -182,6 +188,12 @@ const MANIFEST = {
     // Pure; reads 25_'s footprint default, 26_'s shells / kits / hangarFit
     // and 70_'s document. GAME-PREMISES-2026-10-06.md; GATE GAMEPREM.
     '71_player_bases.js',
+    // THE PEOPLE (G3614): the one list of everyone - name, portrait, body, one
+    // role (reserved / client / pilot / passenger). Pure data; in the core (not
+    // the career chunk): the sandbox's passengers board from its pool too.
+    '72_people_faces.js',            // (tools/portrait_prep.py writes it: the portraits' content names)
+    '72_people_bgs.js',              // (tools/portrait_prep.py bgs writes it: the large portraits' backgrounds, G3620)
+    '72_people.js',
     // ACCEPT (G2270): a build's acceptance - the static checks (no simulation:
     // the phone may run them), the flown leg's measurement and procedure on the
     // AP box, the signed record, acceptVerdict over a contract's criteria. Pure;
@@ -189,7 +201,13 @@ const MANIFEST = {
     '72_accept.js',
     // THE CONTRACTS (G2240 CONTRACT-MODEL): the providers' data (text keys), the record, the job generator, a
     // stage's acceptance and the career document; pure, GATE CONTRACTS. GAME-2026-10-06.md §6, §7, §13.2.
-    '72_contract_data.js', '73_contracts.js', '74_career.js', '75_career_wire.js',
+    '72_contract_data.js', '73_contracts.js',
+    // THE MISSION PACKS (MISSIONS-P0): src/missions/*.json's format, validator, the conversion into 73_'s record, the
+    // install over CONTRACT_PROVIDERS (a page calls it; nothing at boot yet). THE MISSION RUNTIME (MISSIONS-P1/P2): the
+    // in-flight tracker (points, gates, rings), the timers, the failure rules, an order's preferences / delivery / profit,
+    // the new verbs at a stop, the map's marker data. Pure; GATE MISSIONS. futureDesigns/MISSIONS-2026-10-25.md
+    '73b_missions.js', '73c_mission_run.js',
+    '74_career.js', '75_career_wire.js',
     // THE STAGES (G2300 STAGES): the career's tracks -> the premises' `stage` (27_premises.js stageView), the unlock ->
     // reveal map, the queue that never applies in flight. Pure; GATE STAGES. GAME-2026-10-06.md §11.
     '76_stages.js',
@@ -218,6 +236,10 @@ const MANIFEST = {
     // THE STORY (G2741 STORY-CORE): the tutorial's beats T0-T7 as data, the story in the career document, one pure step
     // per event, the story's places by ROLE (the cabin strip as the user names it); GATE STORY. GAME-PLAN-2026-10-15 §3.
     '79_story.js',
+    // THE TECH MASK (G3230 TECH-MASK): the machine shop's three segments - every build option -> its segment, a design's
+    // stage (computed), the career's segment, the editor's rows, the market's and the makers' filter; pure, GATE TECH.
+    // GAME-PLAN-2026-10-15 §R, §4.
+    '79b_tech.js',
     '90_node_exports.js',
   ],
   // THE CAREER-ONLY CORE (G2685 CAREER-LAZY, the coordinator's sanity check 8 Oct: train 43 grew index.html by 324 KB,
@@ -239,8 +261,8 @@ const MANIFEST = {
   // stored (flydiy.routeDraw { fly: true } - ROUTE_LOADER). The pilot's half is core (38c_route.js, 44_vprofile.js: the
   // page's pilot and the worker's fly them) and stays inline.
   routeDraw: 'route_draw.js',
-  career: ['72_contract_data.js', '73_contracts.js', '74_career.js', '75_career_wire.js', '76_economy.js',
-    '76_procure.js', '76_pilots.js', '76_freight.js', '77_freight_load.js', '78b_routes.js', '79_story.js'],
+  career: ['72_contract_data.js', '73_contracts.js', '73b_missions.js', '73c_mission_run.js', '74_career.js', '75_career_wire.js', '76_economy.js',
+    '76_procure.js', '76_pilots.js', '76_freight.js', '77_freight_load.js', '78b_routes.js', '79_story.js', '79b_tech.js'],
   // baked 3D model payloads (tools/model_prep.py baked the PA-18 and C172
   // when they were flyable, tools/ref_prep.py the rest — all REFERENCE
   // planes since the fleet retired 2026-09-05; data, not core):
@@ -369,6 +391,7 @@ const MANIFEST = {
   lazy: [['tools', '_sport_gen.js'], ['tools', '_marine_gen.js'],
          // ASSETS-OCT G2909: the radio navaids (the Annette Island DVOR/DME) - asked for when the record names a navaid/ key
          ['tools', '_navaid_gen.js'],
+         ['tools', '_meteo_gen.js'],   // G3660: the meteo station (world_boot asks for it when the record places one)
          // ASSETS-OCT G2904: the scenery kit's packs (src/scenery/, slim manifests - their bins and maps are lazy media
          // too) - asked for by world_boot when the record holds prop objects and by the editor's model placer, in the
          // manifest's order (the levels pack last: its rows name the props they stand in for)
@@ -517,12 +540,17 @@ const MANIFEST = {
     // prop disc and the contact blobs make their materials through window.MATLIB, so it is there before any of them
     // ui_layer.js (G1370) right after matlib.js: THE UI LAYER - pattern_vis.js, editor.js, app.js, water.js and
     // shadow_near.js read window.UI_LAYER (the in-world helpers on a layer only the main camera sees)
-    scripts: ['storage.js', 'flight_recorder.js', 'assets.js', 'matlib.js', 'ui_layer.js', 'aa_resolve.js',
+    // back_guard.js (G3880, GAME-MENUS) right after them: the browser's Back asks before it leaves the game - it reads
+    // welcome.js's WELCOME.RIG at eval (never on a rig) and app.js's FLIGHT_PROBE only at the player's first input
+    // card_drag.js (G3526, GAME-MENUS) right after it: EVERY CARD IS DRAGGABLE - window.FLYDIY_DRAG, before any card's
+    // own code (bench.js, app.js, freight_load.js, boombox.js, input_panel.js, gfx_settings.js) makes one
+    scripts: ['storage.js', 'flight_recorder.js', 'back_guard.js', 'assets.js', 'matlib.js', 'ui_layer.js', 'card_drag.js', 'aa_resolve.js',
               'light_rig.js', 'day_clock.js', 'atmo.js', 'sky_light.js', 'sky_glare.js', 'clouds.js', 'clouds_ui.js', 'day_ui.js', 'weather_ui.js', 'climate_link.js',
               // post_fx.js (POST-FX study, 2026-09-21): the switchable post passes over the resolve
               // pass's hook; publishes window.POST_FX at eval, app.js inits it, gfx_settings.js sets its rows
               'post_fx.js', 'shadow_near.js',
               'shed_shadow.js',   // G2070: the shed's shadow cache (app.js: SHED_SHADOW.pre / post round the garage's render)
+              'studio.js',   // G3726 (PHONE-GARAGE): the black studio in the shed's place (app.js getHangar; the phone's room, a desktop option)
               'prop_disc.js',   // G672: the propeller's disc, measured off its blades (app.js makes one per prop part)
               'contact_shadow.js',   // G1002: the tyres' contact shadows (app.js contactShadows, after poseModel)
               'shader_warm.js',   // G584: the programs the compile step warms beyond the scene (the shadow pass's depth, the full-screen passes)
@@ -641,6 +669,8 @@ const MANIFEST = {
               'skin_gpu.js',
               // G1860-G1863 (DMG-D4b): the wreck's non-member parts - debris, the prop strike, the cockpit rule (window.WRECK_DEBRIS, pure)
               'wreck_debris.js',
+              // G3623 (DMG-GLASS): the impact marks on the glazing (window.DMG_GLASS, pure; app.js glassMarks; the crack block is aeroskin.js's)
+              'dmg_glass.js',
               'world_boot.js', 'app.js',
               'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)
   },
@@ -950,9 +980,13 @@ function buildViewer(core) {
   // G1535: the build's id and date ride ahead of the boot scripts; their values are known only once every script is
   // read (BUILD_ID below), so the slot carries a marker that both pages swap for them (BUILD_MARK)
   // (update_now.js ahead of welcome.js: the welcome card's footer reads UPDATE_NOW.stamp as it opens)
-  const bodyArt = fill(bodyHtml, 'BOOT', BUILD_MARK + `\n<script>\n${cardsJs}\n${bootJs}</script>`
+  // (G3240 NAMES) the names table rides ahead of the cards, which read it before the core runs (01_names.js: a `var`,
+  // so the core's own copy re-declares it)
+  const namesJs = cardsJs ? read(path.join(CORE_DIR, '01_names.js')) : '';
+  const bodyArt = fill(bodyHtml, 'BOOT', BUILD_MARK + `\n<script>\n${namesJs}\n${cardsJs}\n${bootJs}</script>`
     + (updateJs ? `\n<script>\n${updateJs}</script>` : '') + (profileJs ? `\n<script>\n${profileJs}</script>` : '') + (welcomeJs ? `\n<script>\n${welcomeJs}</script>` : ''));
-  const bodyDev = fill(bodyHtml, 'BOOT', BUILD_MARK + '\n' + (cardsJs ? `<script src="src/viewer/${V.bootCards}?v=${sha(cardsJs).slice(0, 8)}"></script>\n` : '')
+  const bodyDev = fill(bodyHtml, 'BOOT', BUILD_MARK + '\n' + (namesJs ? `<script src="src/core/01_names.js?v=${sha(namesJs).slice(0, 8)}"></script>\n` : '')
+    + (cardsJs ? `<script src="src/viewer/${V.bootCards}?v=${sha(cardsJs).slice(0, 8)}"></script>\n` : '')
     + `<script src="src/viewer/${V.boot}?v=${sha(bootJs).slice(0, 8)}"></script>`
     + (updateJs ? `\n<script src="src/viewer/${V.updateNow}?v=${sha(updateJs).slice(0, 8)}"></script>` : '')
     + (profileJs ? `\n<script src="src/viewer/${V.profile}?v=${sha(profileJs).slice(0, 8)}"></script>` : '')
@@ -1275,16 +1309,18 @@ window.FLYDIY_BOOT.then(function () {
   // G2252 (MAP-MENU): THE MAP ENTRY - only with ?map=1 (the dev flag) or in the career mode (FLYDIY_MODE, welcome.js's);
   // the sandbox has none. A button, and nothing else: the screen, its projection, the picture and the contracts load when
   // it is pressed (lazy, like diag.js)
+  // G3521 (GAME-MENUS, the 24 Oct playtest: "the map button is confused with the minimap"): the entry is CONTRACTS and
+  // opens the screen on the contracts list; Tab is the map (app.js); where it stands, beside MENU, is app.js gmLayout
   window.FLYDIY_MAP_SRC = { fixture: ${JSON.stringify(MAP_FIXTURE)} };
   var mapEntry = window.FLYDIY_MAP_ENTRY = function () {
     var on = /[?&]map=1(&|$)/.test(location.search) || window.FLYDIY_MODE === 'career';
     if (!on) return false;   // the sandbox: nothing touched
     if (!document.body || document.getElementById('mapEntry')) return !!document.getElementById('mapEntry');
     var b = document.createElement('button');
-    b.id = 'mapEntry'; b.type = 'button'; b.textContent = 'MAP'; b.setAttribute('aria-label', 'the island map and the contracts');
+    b.id = 'mapEntry'; b.type = 'button'; b.textContent = 'CONTRACTS'; b.setAttribute('aria-label', 'the contracts, on the island map');
     b.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:2147482000;min-width:72px;min-height:48px;padding:0 18px;border-radius:24px;' +
       "border:1px solid rgba(255,178,87,.85);background:rgba(28,24,20,.86);color:#ffb257;font:600 13px/1 'IBM Plex Sans',sans-serif;letter-spacing:.16em;cursor:pointer";
-    b.onclick = function () { lazy(['map_pack', 'map_menu']).then(function () { if (window.MAP_MENU) window.MAP_MENU.open(); }); };
+    b.onclick = function () { lazy(['map_pack', 'map_menu']).then(function () { if (window.MAP_MENU) window.MAP_MENU.open({ list: 'contracts' }); }); };
     document.body.appendChild(b);
     return true;
   };

@@ -256,9 +256,13 @@
     const realST = W.setTimeout;
     // G2220: while a parked aeroplane is held, every step runs with the editor's sit-pitch mount at the identity (the
     // layers measure hinge lines and datums through it; the player's pitch moved their last digits)
+    // G3710: a parked aeroplane is never seen from its own cockpit - its deck and cowl are drawn at the sheet's
+    // density (CAGE_EYE_OFF, read by _cage_ui's display pass and _cage_cowl's sampling)
     const run = fn => {
       const unmount = asOn && W.PARKED.neutralSteps !== false ? neutralMount(J) : null;
-      try { return run0(fn); } finally { if (unmount) unmount(); }
+      const eye0 = W.CAGE_EYE_OFF;
+      if (asOn) W.CAGE_EYE_OFF = 1;
+      try { return run0(fn); } finally { W.CAGE_EYE_OFF = eye0; if (unmount) unmount(); }
     };
     const run0 = fn => {
       W.setTimeout = function (cb, ms) { const a = Array.prototype.slice.call(arguments, 2);
@@ -1894,7 +1898,8 @@ self.onmessage = function (e) {
     const pick = (o, ks) => { const r = {}; if (o && typeof o === 'object') for (const k of ks || []) if (o[k] !== undefined) r[k] = o[k]; return r; };
     const look = { paint: spec.paint || null, finish: spec.finish || null, meta: spec.meta || null, energy: pick(spec.energy, LK.energy),
                    vessels: spec.energy && Array.isArray(spec.energy.vessels) ? spec.energy.vessels.map(v => pick(v, LK.vessel)) : null,
-                   systems: pick(spec.systems, LK.systems), img: images ? hash(JSON.stringify(images)) : null };
+                   systems: pick(spec.systems, LK.systems), img: images ? hash(JSON.stringify(images)) : null,
+                   dash: spec.cage && typeof spec.cage === 'object' ? [spec.cage.dashStyle, spec.cage.dashLegs, spec.cage.dashV] : null };   // G3451: a look row (bench.js)
     return hash(['fleet', FLEET.V, COOK.V, BAKE.V, BAKE.S, BAKE.gutter, BAKE.glassK, BAKE.seam, JSON.stringify(CUT), JSON.stringify(WEAR), fp, canon(look)].join('|'));
   }
   const idbStore = {

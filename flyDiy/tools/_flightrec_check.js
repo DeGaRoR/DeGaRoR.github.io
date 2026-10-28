@@ -422,6 +422,11 @@ function session(script) {
     '  app.js: begin after the frame clock says the frame is ours, end before PACE.end, end(false) on the boot\'s hold');
   verdict(/if \(holdRender\) \{ if \(FR\) FR\.end\(false, cg\); POSE_LERP\.back\(\); PACE\.end\([^;]*, true\);/.test(loop) && /function end\(workMs, physMs, steps, now, ran, held\) \{\s+if \(P\.legacy \|\| held\) return;/.test(app),
     '  app.js: a held frame (holdRender) reports itself to PACE.end flagged held, and the pace counts nothing of it (REVEAL)');
+  // GARAGE-LINK (A0 24 Oct; HWCOV): the session header asks the GL nothing - the GPU's name is asked once, when the context is
+  // wrapped (a getParameter is a call the page waits on: one header() held the garage boot's end 2.2 s, the GPU linking)
+  { const fr = rd('src/viewer/flight_recorder.js'), hd = (fr.match(/function header\(\) \{[\s\S]*?\n    \}\n/) || [''])[0], wg = (fr.match(/function wrapGL\(gl\) \{[\s\S]*?\n    \}\n/) || [''])[0];
+    verdict(hd.length > 0 && !/getParameter|getExtension/.test(hd) && /H\.gpu = Object\.assign\(\{\}, rec\.gpuInfo\)/.test(hd) && /rec\.gpuInfo = \{ vendor: gl\.getParameter\(gl\.VENDOR\)/.test(wg),
+      '  flight_recorder: header() makes no GL call (the GPU named once in wrapGL, rec.gpuInfo) - GARAGE-LINK'); }
   // GATE-SCREEN (A0 22 Oct): what a loading screen holds after the reveal is the screen's - the rig splits its frames and tasks by
   // the spans BOOT.state was not 'gone' (bootSpans), and the ratchet holds them on their own rows
   { const RT = require('./rollout_ratchet.js'), rp = rd('tools/rollout_perf.js');
@@ -435,6 +440,10 @@ function session(script) {
     verdict(/R\.bs = \[\]; var bsL = null;/.test(rp) && /const frScr = fr\.filter\(r => scr\(r\[0\] - r\[1\], r\[0\]\)\)/.test(rp) && /const over100 = frFree\.filter/.test(rp) && /const lt = ltAll\.filter\(x => !scr\(/.test(rp) && /const lt1s = ltAll\.filter\(x => x\[1\] > 1000\)/.test(rp)
       && /screen: \{ frames: frScr\.length, over100: over100S\.length/.test(rp) && /bootSpans: SPANS\.map/.test(rp),
       '  rollout_perf: BOOT.state from the first frame; a frame overlapping a screen leaves over100, a task the worst task (the 1 s count keeps every task), for gates.screen; the JSON carries the spans (GATE-SCREEN)'); }
+  { const pg = (app.match(/function worldPrelinkGfx\(\) \{[\s\S]*?\n  \}\n/) || [''])[0], ss = (app.match(/function settleScreen\(what\) \{[\s\S]*?\n  \}\n/) || [''])[0];
+    verdict(/TRIP_BY\.worldCompile/.test(pg) && /k === tripKeys\.worldCompile/.test(pg) && /compileSliced\(scene,[^\n]*dress\)/.test(pg) && /compileDepthVariants\(scene, true, dress\)/.test(pg) && !/holdRender/.test(pg)
+      && /done: \(\) => \{[^\n]*if \(garage\) setTimeout\(worldPrelinkGfx, 0\);/.test(ss),
+      '  app.js: a world setting changed in the shed starts the world\'s link from the shed (worldPrelinkGfx: re-keyed only, per-task dress, no hold) - the roll-out\'s worldCompile finds it linked (REVEAL)'); }
   verdict(/if \(FR\) FR\.push\(0\); script\(1 \/ 60\); if \(FR\) FR\.pop\(\);/.test(loop) && /if \(FR\) FR\.push\(1\); sim\.step\(1 \/ 60\); if \(FR\) FR\.pop\(\);/.test(loop) && FR.SLOTS[0] === 'script' && FR.SLOTS[1] === 'solver',
     '  app.js: the pilot\'s script and each solver step pushed (slots 0 and 1 are script and solver)');
   const laps = ['other', 'world', 'scene', 'hud', 'mirror', 'render'].filter(k => loop.indexOf('FR.lap(FR.S.' + k + ')') < 0);

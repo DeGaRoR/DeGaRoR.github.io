@@ -97,6 +97,7 @@ module.exports = function mapSmoke(html, phone) {
 
   // ---- the core over the fixture and the projection -------------------------------------------------------------------
   const C = require('./flight_core.js');
+  const NN = C.GAME_NAMES, NF = NN.fields;   // (G3240 NAMES) the names the map shows are the table's
   const MM = require(path.join(ROOT, 'src', 'viewer', 'map_menu.js'));
   const pack = JSON.parse(/window\.MAP_PACK = (\{[\s\S]*\});\s*$/.exec(packSrc)[1]);
   const fmt = n => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
@@ -147,7 +148,7 @@ module.exports = function mapSmoke(html, phone) {
   };
   for (const c of M.contracts) checkPara(M, c, '');
   const ph = para(M, M.contracts.find(c => c.id === 'minedock.j.parts'));
-  need(ph.includes('Jumbo Mine Street 250 × 18 m gravel, 347 m up → Annette Dock 1 500 m water lane · 14 km'), 'the runways condensed: ' + (/class="mmRw">([^<]*)/.exec(ph) || [])[1]);
+  need(ph.includes(NF.mn_strip + ' 250 × 18 m gravel, 347 m up → ' + NF.SEA + ' 1 500 m water lane · 14 km'), 'the runways condensed: ' + (/class="mmRw">([^<]*)/.exec(ph) || [])[1]);
   say('every paragraph (' + M.contracts.length + '): who + what + the pay, the runways condensed ("' + (/class="mmRw">([^<]*)/.exec(ph) || [])[1] + '"), the ✗\'s reason, ONE button (Track); no per-plane table');
   // ✓ / ✗ ONLY on the surface-vs-gear no-no's, against the fleet (wheels: Cub, Jodel, Voyager; floats: the C172)
   const mk = (MX, id) => MM.markOf(MX, MX.contracts.find(c => c.id === id));
@@ -170,8 +171,8 @@ module.exports = function mapSmoke(html, phone) {
     need(A.includes('At ' + escH(p.name)) && /data-act="atx"/.test(A), 'the "At ' + p.name + ' ✕" row');
   }
   need(!MM.atHTML(M, st) && /No contract involves/.test(MM.listHTML({ ...M, contracts: [] }, { at: 'nv_strip' })), 'the filter row without a place, or the empty place');
-  need(M.places.map(p => p.name).join() === 'Jolene AFB,Tamgas Hill Strip,Annette Dock,Metlakatla Seaplane Base,Jumbo Mine Street,East Point Clearing,Skyline Altiport,strip 10,strip 11,strip 12,strip 9,strip 13,Cabin Strip' &&
-       M.places.map(p => p.kind).join() === 'airfield,strip,seaplane,seaplane,mine,clearing,altiport,strip,strip,strip,altiport,strip,strip',   // + the user's strips 10-12 (w5-w7, SCENERY-SHIP rev27); strip 9 (w4, an altiport) + strip 13 (w8) appended (G3020 rev28); the Cabin Strip (w1, G3097)
+  need(M.places.map(p => p.name).join() === ['Jolene AFB', NF.w3, NF.SEA, NF.mk_sea, NF.mn_strip, NF.nv_strip, NF.tw_ski, 'strip 10,strip 11,strip 12,strip 9,strip 13,Cabin Strip', NF.cb_sea].join() &&
+       M.places.map(p => p.kind).join() === 'airfield,strip,seaplane,seaplane,mine,clearing,altiport,strip,strip,strip,altiport,strip,strip,seaplane',   // (CABIN-LAKE: + Cabin Lake)   // + the user's strips 10-12 (w5-w7, SCENERY-SHIP rev27); strip 9 (w4, an altiport) + strip 13 (w8) appended (G3020 rev28); the Cabin Strip (w1, G3097)
        'the places and their kinds: ' + M.places.map(p => p.name + ' (' + p.kind + ')').join(', '));
   say('the place filter: ' + M.places.length + ' places (' + M.places.map(p => p.name + ' ' + MM.rowsOf(M, { at: p.id }).length).join(', ') + '), each listing exactly the contracts involving it, under "At <place> ✕"');
   // Track: accept and track are one gesture, a second tap untracks
@@ -211,7 +212,7 @@ module.exports = function mapSmoke(html, phone) {
   say('the map: a badge per place at the fit (' + o1.bs + ' px), names + ' + o2.n.hot + ' hotspots from the second step (' + o2.bs + ' px), rings + counts + places + runway facts closer (' + o3.bs + ' px), close up every runway at true scale (Jolene AFB 13/31 and 02/20 with their designators; the lane buoyed, the gravel edge-marked); the open contract ringed in its type colour');
   // (G2435) THE INFRASTRUCTURE by zoom band, over the projection's infra
   const IF = pack.infra, inf = k => MM.infraOf(pack, { s: fit * k, fit });
-  need(IF && IF.roads.length === 115 &&   // A0 12 Oct: the re-baked map carries the road graph (train 47) + the user's rev27 roads (was 76); rev 28 (G3020): -r_airport -r_strip +r39..r45
+  need(IF && IF.roads.length === 117 &&   // A0 12 Oct: the re-baked map carries the road graph (train 47) + the user's rev27 roads (was 76); rev 28 (G3020): -r_airport -r_strip +r39..r45; JOLENE-FOLD (AFB 19, 25 Oct): +r46 +r47
     IF.zones.length >= 10 && IF.links.length === 1, 'the projection carries no infra (roads, zones, the tram)');
   const mainN = IF.roads.filter(r => r.main).length, nH = IF.houses.split(' ').length;
   const i1 = inf(1), i2 = inf(2), i3 = inf(3), i8 = inf(8);
@@ -225,7 +226,7 @@ module.exports = function mapSmoke(html, phone) {
   const lo = k => ov(k, st, { x: -2500, z: -8300 });
   const l15 = lo(1.5), l2 = lo(2), l3 = lo(3);
   need(l15.n.labels === 0 && l2.n.labels + l2.n.held === IF.labels.length && l2.n.labels > 0 && l3.n.labels >= 3, 'the labels from the middle zoom (1.5x ' + l15.n.labels + ', 2x ' + l2.n.labels + ' + ' + l2.n.held + ' held, 3x ' + l3.n.labels + ')');
-  need(/class="mmLbl town"[^>]*>Metlakatla</.test(l3.html) && !/class="mmPoi"[^>]*>(Metlakatla|the cannery)</.test(l3.html), 'the town and the cannery are not named once, by their labels');
+  need(new RegExp('class="mmLbl town"[^>]*>' + NN.town + '<').test(l3.html) && !new RegExp('class="mmPoi"[^>]*>(' + NN.town + '|the cannery)<').test(l3.html), 'the town and the cannery are not named once, by their labels');
   const boxOf = (h, cls, w, hh) => [...h.matchAll(new RegExp('class="' + cls + (/"$/.test(cls) ? '' : '[^"]*"') + '[^>]*style="left:([-\\d.]+)px;top:([-\\d.]+)px[^"]*"[^>]*>([^<]*)<', 'g'))].map(m => ({ x: +m[1], y: +m[2], t: m[3], w: w(m[3]), h: hh }));
   for (const L of [l2, l3]) {
     const lb = boxOf(L.html, 'mmLbl', t => t.length * 7, 14), bd = boxOf(L.html, 'mmPl(?: water)?"', () => L.bs, L.bs).concat(boxOf(L.html, 'mmPlane', () => 24, 20));
@@ -620,18 +621,18 @@ module.exports = function mapSmoke(html, phone) {
   need(+/--ms:(\d+)px/.exec(oF3.html)[1] > +/--ms:(\d+)px/.exec(oF.html)[1], 'the Fleet\'s markers are not sized to the zoom');
   need(o1R.n.marks === 0 && o1R.n.planes === 2, 'the contracts list draws the other lists\' markers');
   say('the Fleet: ' + M1.fleet.length + ' rows (✈, the name, the payload), the paragraph "' + fb.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() + '", no button; the place filter; a marker per aeroplane at its base, sized to the zoom (' + /--ms:(\d+)px/.exec(oF.html)[1] + ' -> ' + /--ms:(\d+)px/.exec(oF3.html)[1] + ' px)');
-  // PILOTS (G2290): the real record - kit hired, 2-3 looking for work; Hire / Flies next / Fire (disabled in the preview)
+  // PILOTS (G2290): the real record - brian hired, 2-3 looking for work; Hire / Flies next / Fire (disabled in the preview)
   const pst = { list: 'pilots', at: null, phone };
   const PL = MR.pilots || [], PH = MM.listHTML(MR, pst);
-  need(PL.length >= 3 && PL.length <= 4 && PL.filter(p => p.hired).map(p => p.id).join() === 'kit' && PL.filter(p => !p.hired).every(p => p.onOffer), 'the real Pilots: kit hired, 2-3 looking for work (' + PL.map(p => p.id + (p.hired ? '*' : '')).join() + ')');
-  need(keysOf(PH).length === PL.length && PH.indexOf('Your pilots') < PH.indexOf('data-key="p:kit"') && PH.indexOf('data-key="p:kit"') < PH.indexOf('Looking for work'), 'the Pilots list: a row per pilot, yours first');
+  need(PL.length >= 3 && PL.length <= 4 && PL.filter(p => p.hired).map(p => p.id).join() === 'brian' && PL.filter(p => !p.hired).every(p => p.onOffer), 'the real Pilots: brian hired, 2-3 looking for work (' + PL.map(p => p.id + (p.hired ? '*' : '')).join() + ')');
+  need(keysOf(PH).length === PL.length && PH.indexOf('Your pilots') < PH.indexOf('data-key="p:brian"') && PH.indexOf('data-key="p:brian"') < PH.indexOf('Looking for work'), 'the Pilots list: a row per pilot, yours first');
   for (const p of PL) {
     const b = checkItem(MR, pst, 'p:' + p.id, 'the Pilots: ');
     need(b.includes(p.fliesLike.replace(/&/g, '&amp;').replace(/'/g, '&#39;')) && p.traits.every(t => b.includes(t.label.replace(/'/g, '&#39;'))), p.id + ': the paragraph lacks how they fly or a trait');
     need(p.hired ? /data-pa="fire"/.test(b) : b.includes('data-pa="hire" data-pid="' + p.id + '"') && b.includes('Hire · ' + fmt(p.signOn)), p.id + ': the paragraph lacks ' + (p.hired ? 'Fire' : 'Hire · its fee'));
     need(/data-act="pilot"[^>]*disabled/.test(b), p.id + ': the preview (no live career) lets Hire / Fire act');
   }
-  need(MM.listMarkers(MR, pst).some(m => m.kind === 'pilot' && m.key === 'p:kit' && m.aero === 'HOME') && keysOf(MM.listHTML(MR, Object.assign({}, pst, { at: MR.placeOf.HOME }))).join() === 'p:kit', 'the hired pilot is not a marker at HOME, or the place filter keeps the others');
+  need(MM.listMarkers(MR, pst).some(m => m.kind === 'pilot' && m.key === 'p:brian' && m.aero === 'HOME') && keysOf(MM.listHTML(MR, Object.assign({}, pst, { at: MR.placeOf.HOME }))).join() === 'p:brian', 'the hired pilot is not a marker at HOME, or the place filter keeps the others');
   need(/come with the career/.test(MM.listHTML(M, pst)), 'the fixture\'s Pilots (the sandbox ?map=1) do not say they come with the career');
   say('the Pilots (real record): ' + PL.map(p => p.name + (p.hired ? ' (hired)' : ' (' + p.signOn + ')')).join(', ') + '; a row each (initials, the name, flights / the fee), the paragraph (the line, flies like, the traits, the place), Hire or Flies next + Fire; kit a marker at HOME; the fixture: with the career');
   // MARKET (G2280): the makers' models (validated builds only), the used listings where they stand, the drawing board

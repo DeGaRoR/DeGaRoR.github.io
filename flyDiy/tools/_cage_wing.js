@@ -43,6 +43,13 @@ if (typeof resolveSpec !== 'function' || typeof genFrame !== 'function' ||
   console.error('cage wing layer: game core (60..63) not loaded');
   return;
 }
+// G3549 (the user, 27 Oct: "the global livery does not reach the second wing"): the second plane wears a COPY of its
+// section's material (wingMat below); the garage's repaint swaps the materials the requests handed out and never saw
+// the copy. Its hook hands the second wing the copy of the replacement (AEROSKIN's aeroPlaneRepaint, as the cowl's twins)
+(PAGE.repaint = PAGE.repaint || []).push((swap, scene) => {
+  const A = window.AEROSKIN;
+  if (A && A.aeroPlaneRepaint) A.aeroPlaneRepaint(swap, scene);
+});
 
 // ---- parameters -----------------------------------------------------------
 // THE GARAGE'S OWN SURFACE, complete (G31 — the first cut dropped chord
@@ -115,7 +122,9 @@ const flownOf = (P, plane) => {
   return f && f.of.span === +P.wgSpan && f.of.chord === +P.wgChord &&
          f.of.tip === +P.wgChordTip ? f : null;
 };
-const ENVW = () => (typeof GEN_WING_ENVELOPE !== 'undefined' ? GEN_WING_ENVELOPE : null);
+// (G3503: the envelope the drawn span is held by - its `big` one past span[1], the core's genWingEnv rule)
+const envFor = (E, span) => (E && E.big && +span > E.span[1]) ? Object.assign({}, E, E.big) : E;
+const ENVW = P => envFor(typeof GEN_WING_ENVELOPE !== 'undefined' ? GEN_WING_ENVELOPE : null, P && P.wgSpan);
 // G3050: and since the rows are WRITTEN BACK to the flown wing (the coerce
 // below), a row the resolver held says where and why until it is moved again
 // (HELD: what was asked, what was written). (P, plane) as the notes above.
@@ -130,19 +139,19 @@ const WHY = {
   wgDx: E => `the leading edge is held ${E.xLE[0]}–${E.xLE[1]} m aft of the firewall (the flown envelope)`,
 };
 const heldNote = k0 => (P, plane) => {
-  const k = plane ? 'w2' + k0.slice(2) : k0, h = HELD[k], E = ENVW();
+  const k = plane ? 'w2' + k0.slice(2) : k0, h = HELD[k], E = ENVW(P);
   if (!h || +P[k0] !== h.wrote || !E) return '';
   const f2 = v => (Math.round(v * 1000) / 1000).toString();
   return `held at ${f2(h.wrote)} (asked ${f2(h.asked)}) — ` + (WHY[k0] ? WHY[k0](E) : 'the flown envelope');
 };
 const spanNote = (P, plane) => {
-  const f = flownOf(P, plane), E = ENVW();
+  const f = flownOf(P, plane), E = ENVW(P);
   if (!f || !E || !(Math.abs(f.span - f.of.span) > 0.005)) return heldNote('wgSpan')(P, plane);
   return `flies ${f.span.toFixed(2)} m — the span is held to ` +
          `${E.spanPerChord[0]}–${E.spanPerChord[1]} × the root chord`;
 };
 const tipNote = (P, plane) => {
-  const f = flownOf(P, plane), E = ENVW();
+  const f = flownOf(P, plane), E = ENVW(P);
   if (!f || !E) return heldNote('wgChordTip')(P, plane);
   const tip = f.chord * f.taper;
   if (!(Math.abs(tip - f.of.tip) > 0.005)) return heldNote('wgChordTip')(P, plane);
@@ -158,9 +167,10 @@ const WING_ITEMS = [
   // G1283: span and chord reach GEN_WING_ENVELOPE's own bounds (GATE DESIGN
   // holds them equal) - the 2026-09-04 sailplane opening (0.80 m, 18 m) had
   // reached the clamp and the class seed (15 x 1.00) but not these rows
-  ['wgSpan',   'span',           6.5, 18, 0.1, { ...on, dim: 'm', note: spanNote }],
-  ['wgChord',  'root chord',     0.80, 2.10, 0.05, { ...on, dim: 'm' }],
-  ['wgChordTip', 'tip chord',    0.55, 2.10, 0.05, { ...on, dim: 'm', note: tipNote }],
+  // G3503 (DC3-BUILD): to the widened envelope's 30 m and 5 m (a full-size DC-3)
+  ['wgSpan',   'span',           6.5, 30, 0.1, { ...on, dim: 'm', note: spanNote }],
+  ['wgChord',  'root chord',     0.80, 5.00, 0.05, { ...on, dim: 'm' }],
+  ['wgChordTip', 'tip chord',    0.55, 5.00, 0.05, { ...on, dim: 'm', note: tipNote }],
   ['wgTip',    'tips',           0, TIP_KEYS.length - 1, 1,
    TIP_KEYS.map(k => GEN_TIPS[k].name), on],
   ['wgCrankAt', 'crank at',      0, 0.85, 0.05, { ...on, note: heldNote('wgCrankAt') }],
@@ -215,7 +225,9 @@ const WING_ITEMS = [
   ['wgCons', 'construction', 0, 6, 1,
    ['as the aeroplane', 'carbon', 'steel tube', 'fabric on wood', 'aluminium', 'aluminium tube', 'glassfibre'],
    on],
-  ['wgDx',     'fore / aft',       -1.5, 1.8, 0.05, { ...on, note: heldNote('wgDx') }],
+  // G3503 (DC3-BUILD): aft to 6 m (negative is aft) - a full-size DC-3's wing stands
+  // ~4 m behind its cockpit ring; the flown envelope's xLE window still holds it
+  ['wgDx',     'fore / aft',       -6.0, 1.8, 0.05, { ...on, note: heldNote('wgDx') }],
   ['wgDy',     'up / down',         -1.0, 1.0, 0.02, on],
   ['wgParaH',  'height (cabane)',    0.25, 1.20, 0.01,
    { when: P => +P.wingOn && Math.round(P.wgPos) === 3, dim: 'm' }],
@@ -509,9 +521,9 @@ function wingMat(cl, plane) {
     // the game bind them as one (measured: the second skin bound nothing).
     // A clone shares the shader and carries the plane on its userData, which
     // is what the join's bucket key and the game's binding read.
-    const m2 = m.clone();
-    m2.userData = Object.assign({}, m.userData, { aeroPlane: 2 });
-    return m2;
+    // G3549: AEROSKIN keeps the copy's source, so the garage's repaint can follow it (the hook below)
+    return A.aeroPlaneClone ? A.aeroPlaneClone(m, 2)
+      : Object.assign(m.clone(), { userData: Object.assign({}, m.userData, { aeroPlane: 2 }) });
   }
   return A.aeroMaterial(THREE, {
     finish: A.aeroFinishFor('body', cons),
@@ -831,7 +843,8 @@ function wingGSpec(P) {
 // (the row's - the chord row is the envelope's). null = the join measures
 // nothing either (no firewall ring): the row is the drawing.
 function wingDxWindow(P, CSp) {
-  const E = typeof GEN_WING_ENVELOPE !== 'undefined' && GEN_WING_ENVELOPE.xLE;
+  const E0 = envFor(typeof GEN_WING_ENVELOPE !== 'undefined' ? GEN_WING_ENVELOPE : null, P.wgSpan);   // G3503
+  const E = E0 && E0.xLE;
   if (!E || !CG2 || !CG2.cageNamedZ || !CSp) return null;
   let zOf;
   try { zOf = CG2.cageNamedZ(CG2.cageResolve(CSp), (CG2.CAGE_UNIT || 1) * (P.planeScale || 1)); }

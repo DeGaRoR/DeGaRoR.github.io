@@ -77,7 +77,8 @@ const CATEGORIES = ['residential', 'shed', 'commercial', 'industrial', 'official
 // by hand). A zone may override its categories (zone.rules.cats). A second theme is a table, not a
 // rewrite: the same seven categories, other draws.
 const THEMES = {
-  alaska: { name: 'Alaska', blurb: 'the panhandle: wooden houses and their sheds, canneries and net lofts on the water, a mine and its tram, totems, a ball park',
+  // (G3240 NAMES: the id stays 'alaska' - records name it; the words the editor shows are fictional, GAME-PLAN §13)
+  alaska: { name: 'North Coast', blurb: 'the north coast: wooden houses and their sheds, canneries and net lofts on the water, a mine and its tram, totems, a ball park',
     categories: CATEGORIES,
     // each category's PLACEMENT LAW (THEME-ALASKA-RURAL-2026-09-14.md): zoned = the composer sows it on the
     // plots of a zone; hand = the editor stands it as a site (the palette lists every category)
@@ -530,7 +531,8 @@ function makeModifier0(m, y0) {
         const c = polyCentroid(poly), hd = (+m.hdg || 0) * Math.PI / 180, a = (+m.slope || 0) * CORE_MATH.sin(hd), b = (+m.slope || 0) * CORE_MATH.cos(hd);
         pl = [a, b, (+m.level || 0) - a * c[0] - b * c[1]];
       } else pl = m.plane || [0, 0, 0];
-      target = (x, z) => y0 + pl[0] * x + pl[1] * z + (pl[2] || 0);
+      const base = m.abs ? 0 : y0;   // G3660: `abs` - the plane in world heights (siteShelves' ramp pad), as a flatten's level
+      target = (x, z) => base + pl[0] * x + pl[1] * z + (pl[2] || 0);
     }
     // THE TWO ENDS OF THE FEATHER NEED NO DISTANCE (PHYSICS PERF 2026-09-24). weight() is 1 for any
     // sd <= 0 and sdPoly is -d inside, so a point inside the polygon weighs 1 whatever its distance to
@@ -810,6 +812,10 @@ function normalise(rec) {
   // v1.37: a road's junction ids run beside its points too, one slot each (a hand edit's short list padded with null)
   for (const rd of r.layers.roads) if (rd && Array.isArray(rd.nodes) && Array.isArray(rd.pts)) { while (rd.nodes.length < rd.pts.length) rd.nodes.push(null); rd.nodes.length = rd.pts.length; }
   feelFollowsLook(r);
+  // A ROAD'S BAND 0 IS NO BAND (the user, 24 Oct: the editor's band row could not give a road its side back - its minimum was 0,
+  // and a declared band 0 drew the band's 6 m fade): a road read with band 0 or null has its band taken away - its own side
+  // again (Jolene's r45). A strip's or an area's band 0 is kept (no cleared earth).
+  for (const rd of r.layers.roads) if (rd && 'band' in rd && !(+rd.band > 0)) delete rd.band;
   r.budget =Object.assign({}, d.budget, r.budget || {});
   if (typeof r.seed !== 'number') r.seed = 1;
   if (!THEMES[r.theme]) r.theme = THEME_DEF;
@@ -1189,7 +1195,7 @@ function sowPlots(zone, roads, ctx) {
   // corner within `half` of it and no sample of it inside, so the road is skipped
   // with the answer the two tests would have given.
   const boxed = roads.map(rd => {
-    const pr = polyRoad(rd.pts, rd.w || 3.6), half = (rd.w || 3.6) / 2 + 0.5;
+    const pr = polyRoad(rd.pts, roadLayW(rd)), half = roadLayW(rd) / 2 + 0.5;
     let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
     for (const p of rd.pts.concat(pr.pts)) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); }
     const m = half + 1e-3;
@@ -1208,7 +1214,7 @@ function sowPlots(zone, roads, ctx) {
     return false;
   };
   for (const road of roads) {
-    const rd = polyRoad(road.pts, road.w || 3.6);
+    const rd = polyRoad(road.pts, roadLayW(road));   // (the layout width: the plots stand where the town was laid out)
     if (rd.length < 40) continue;
     const zoneSeed = zone.seed !== null && zone.seed !== undefined ? zone.seed : seedOf(ctx.seed, 'zone', zone.id);
     const rnd = mulberry32(hash32(zoneSeed, fnv(String(road.id))));
@@ -1535,6 +1541,22 @@ function zoneGrass(zone) { return Object.assign({}, ZONE_GRASS[zone && zone.kind
 // a road's look: its own, else its class's; the pavement's row for it (or null for 'none')
 // ONE SURFACE (the user, 18 Oct): what a road's wheels feel (its own `surface`, else its class's - the composer's rule) and
 // whether a look feels as a class does (a look with no feel of its own - markings only - feels as anything)
+// A ROAD'S LAYOUT WIDTH (TOWN-ROAD-SIDES, the user 22 Oct: Metlakatla's streets "a smaller side ... the same overall width ...
+// a higher proportion of the road"): `w` is the carriageway DRAWN and felt, `lay` (when set) the width the town was laid out
+// against - its plots' setback, its houses' fronts, its graded bed, its trees' clearing (its poles stand off what it DRAWS). A street that traded its side
+// for carriageway says its old width in `lay`, and nothing beside it moves. Unset: the carriageway, as ever.
+function roadLayW(r) { return r && +r.lay > 0 ? +r.lay : (+(r && r.w) || 3.6); }
+// ...and A TRADED STREET'S GRADE (the 23 Oct survey: GATE CONTACT's road edge / side counted the pavement within 5 mm of the
+// patch where the ground CURVES under it - a bank starting at the drawn edge, under the side's fade): flat under everything it
+// draws that CONTACT sees - the carriageway and ROAD_SIDE_FLAT past each edge (the side's fade reach) - its bank narrower by
+// as much, so the grade's OUTER edge (lay / 2 + falloff) is where it was and no ground past it moves. A road that traded
+// nothing (lay unset or = w): its grade as ever.
+const ROAD_SIDE_FLAT = 1.2;
+function roadGradeW(r, falloff) {
+  const w = +r.w || 3.6, lay = roadLayW(r), ext = Math.max(0, w - lay);
+  if (!(ext > 0)) return { width: lay, falloff };
+  return { width: w + 2 * ROAD_SIDE_FLAT, falloff: Math.max(1, falloff - ext / 2 - ROAD_SIDE_FLAT) };
+}
 function roadFeel(r) { return r.surface !== undefined && r.surface !== null ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL); }
 function lookFeelsAs(look, feel) { const L = RUNWAY_LOOKS[look]; return !L || L.surface === null || L.surface === undefined || +L.surface === +feel; }
 function roadLook(r) { const k = r.look && RUNWAY_LOOKS[r.look] ? r.look : (ROAD_LOOK[r.cls] || 'gravel'); return { key: k, row: RUNWAY_LOOKS[k] }; }
@@ -1814,7 +1836,7 @@ function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
   const flatPolys = (flats || []).map(poly => poly.map(q => F.toWorld(q[0], q[1])));
   // ... and every GRADED ROAD (G434): a road's bed is flat across and smoothed along by construction -
   // a taxiway traced as a road is ground a pattern may walk on (the validator asks flat())
-  const roadsL = (gradedRoads || []).filter(rd => rd.pts && rd.pts.length >= 2).map(rd => ({ pts: rd.pts, w: +rd.w || 3.6 }));
+  const roadsL = (gradedRoads || []).filter(rd => rd.pts && rd.pts.length >= 2).map(rd => ({ pts: rd.pts, w: roadLayW(rd) }));
   const onRoad = (x, z) => { if (!roadsL.length) return false; const L = F.toLocal(x, z); return roadsL.some(rd => roadDist(rd, L[0], L[1]) <= rd.w / 2 + 1); };
   const flat = (x, z) => inPoly(flatBox, x, z) || flatPolys.some(pl => inPoly(pl, x, z)) || onRoad(x, z);
   // the aeroplane is placed at the stand when the strip has one
@@ -1825,10 +1847,13 @@ function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
   if (S && S.stand) S.stand.elev = groundAt(S.stand.x, S.stand.z);
   const spawnElev = groundAt(spawnAt[0], spawnAt[1]);
   // a SEA LANE (G434): the analytic SEA's shape - kind 'water', no site, flat everywhere (the water is)
-  if (runwayIsWater(r)) return { id: r.id, name: r.name || 'sea lane', kind: 'water', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat: () => true,
+  // (G3240 NAMES) the name it shows is the names table's (01_names.js fieldName) for a field the table names - the
+  // user's own saved record may still carry an older one - else the record's own (a required-alone 27_ reads the record's)
+  const nm = (dflt) => typeof fieldName === 'function' ? fieldName(r.id, r.name || dflt) : (r.name || dflt);
+  if (runwayIsWater(r)) return { id: r.id, name: nm('sea lane'), kind: 'water', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat: () => true,
            surface: SURFACE.WATER, look: 'none', elev, tdz, spawn, spawnElev: elev, flyIn: false, premises: true, water: true,
            landHdg: r.approach === 0 ? hdg : r.approach === 1 ? hdg + Math.PI : null, slope: 0, disp: [0, 0], papi: [false, false], circuit: r.circuit || null };
-  return { id: r.id, name: r.name || 'strip', kind: 'strip', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat,
+  return { id: r.id, name: nm('strip'), kind: 'strip', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat,
            surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, look: RUNWAY_LOOKS[r.look] ? r.look : 'grass', elev, tdz, spawn: spawnAt, spawnElev, flyIn: false, premises: true,
            band: r.band === undefined ? null : r.band, pav: r.pav || null,   // the pavement's (v1.16): the renderer resolves them with the premises' recipe
            // the direction of travel when landing over the named end (end 0 -> end 1 is +hdg); the pilot reads it in calm air
@@ -1945,6 +1970,26 @@ function siteShelves(site, cat, T) {
     const toWorld = (lx, lz) => [c[0] + lx * cy + lz * sy, c[1] - lx * sy + lz * cy];
     const P = entry.params ? entry.params(Object.assign({ recvZ: it.z || 0 }, it.P || {})) : Object.assign({}, entry.P || {}, it.bottomOnRoad ? { recvZ: it.z || 0 } : {}, it.P || {});
     const id = site.id + '/' + (it.id || ('i' + k)) + ':ground';
+    if (entry.ground.need === 'ramp' && typeof entry.ground.outline === 'function') {
+      // G3660 THE RAMP (the meteo station; the user 25 Oct: "Keep the level pad tight around the building. The real one is
+      // positioned slightly on a slope, but a small one"): the pad is the entry's OUTLINE (its own walls + a margin, not the
+      // foot's rectangle), its ground the least-squares PLANE of the ground inside it (a 12 x 12 grid), the slope capped at
+      // ground.maxSlope (0.06 when unsaid) - a 'ramp' modifier with an absolute plane, the bank law's falloff
+      const poly = entry.ground.outline(P).map(q => toWorld(q[0], q[1])), bb = polyBBox(poly), S = [];
+      let mx = 0, mz = 0, mh = 0;
+      for (let i = 0; i < 12; i++) for (let j = 0; j < 12; j++) { const x = bb.x0 + (i + 0.5) / 12 * (bb.x1 - bb.x0), z = bb.z0 + (j + 0.5) / 12 * (bb.z1 - bb.z0); if (inPoly(poly, x, z)) { const h = T(x, z); S.push([x, z, h]); mx += x; mz += z; mh += h; } }
+      if (S.length < 3) return;   // (an outline smaller than the grid: no pad)
+      mx /= S.length; mz /= S.length; mh /= S.length;
+      let sxx = 0, szz = 0, sxz = 0, sxh = 0, szh = 0;
+      for (const q of S) { const dx = q[0] - mx, dz = q[1] - mz, dh = q[2] - mh; sxx += dx * dx; szz += dz * dz; sxz += dx * dz; sxh += dx * dh; szh += dz * dh; }
+      const det = sxx * szz - sxz * sxz;
+      let a = det > 1e-9 ? (sxh * szz - szh * sxz) / det : 0, b = det > 1e-9 ? (szh * sxx - sxh * sxz) / det : 0;
+      const s0 = Math.hypot(a, b), cap = entry.ground.maxSlope === undefined ? 0.06 : +entry.ground.maxSlope;
+      if (s0 > cap) { a *= cap / s0; b *= cap / s0; }
+      const f = bankFalloff(poly, T, mh, entry.ground.falloff || 6);
+      out.push({ id, kind: 'ramp', abs: true, poly: poly.map(q => [+q[0].toFixed(2), +q[1].toFixed(2)]), plane: [+a.toFixed(5), +b.toFixed(5), +(mh - a * mx - b * mz).toFixed(3)], falloff: f, drop: +polyDrop(poly, T, mh, 0).toFixed(2) });
+      return;
+    }
     if (entry.ground.need === 'flatten' && typeof entry.ground.shelf === 'function') {
       const M = entry.ground.shelf(P);
       const ahead = toWorld(0, M.zLevel || 0), level = T(ahead[0], ahead[1]);
@@ -2412,6 +2457,13 @@ function plotFenceOff(zone, plotId) {
   const R = (zone && zone.rules) || {};
   return R.fences === false || (Array.isArray(R.noFence) && R.noFence.indexOf(plotId) >= 0);
 }
+// A PLOT'S CARS (the user, 24 Oct: "options to remove the fences and the cars from the assets, especially the residential
+// ones"): a zone's `rules.cars === false` takes the parked cars off every plot it sows (a house's car and its drive's, a lot's
+// bays), `rules.noCar` [plot ids] off those plots alone (the pad, the drive, the bays and the boat as they were); absent - today's
+function plotCarOff(zone, plotId) {
+  const R = (zone && zone.rules) || {};
+  return R.cars === false || (Array.isArray(R.noCar) && R.noCar.indexOf(plotId) >= 0);
+}
 function plotGroundOff(zone, plotId) {
   const R = (zone && zone.rules) || {};
   return R.ground === false || (Array.isArray(R.noGround) && R.noGround.indexOf(plotId) >= 0);
@@ -2709,7 +2761,7 @@ function compose(rec0, world, opts) {
     .map(r => (r.curve === 'spline' || r.smooth ? Object.assign({}, r, { pts: roadLine(r), wp: r.wp || r.pts }) : r));   // (G2950: `wp` its waypoints, where its junctions are)
   // `traffic` (contract v1.13, G432): vehicles per km the renderer runs up and down the road - 0 or absent, none
   // `ribbon` false (G434): the renderer draws no ribbon over it - a taxiway under a material polygon of its own
-  const roadObjs = roads.map(r => Object.assign({ id: r.id, pts: r.pts, w: +r.w || 3.6, surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL), traffic: Math.max(0, +r.traffic || 0), ribbon: r.ribbon !== false,
+  const roadObjs = roads.map(r => Object.assign({ id: r.id, pts: r.pts, w: +r.w || 3.6, lay: roadLayW(r), surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL), traffic: Math.max(0, +r.traffic || 0), ribbon: r.ribbon !== false,
     look: roadLook(r).key, band: r.band === undefined ? null : r.band, pav: r.pav || null }, roadClearOf(r) !== null ? { clear: roadClearOf(r) } : {},
     // G2893 (SCENERY-ED-1; the user: "no effect of enabling/disabling power lines and guardrails on roads"): the guardrail and the
     // power line read THIS object (render_premises buildRail / buildLine: rd.rail, rd.poles, rd.polesSide), which never carried
@@ -2730,7 +2782,9 @@ function compose(rec0, world, opts) {
     if (runwayIsWater(r)) {
       const cw = F.toWorld(r.c[0], r.c[1]);
       const wl = world.waterH ? world.waterH(cw[0], cw[1]) : T1(r.c[0], r.c[1]);
-      aerodromes.push(stageAero(runwayAerodrome(r, F, isFinite(wl) ? wl : 0, [], null), r));
+      // (CABIN-LAKE 26 Oct: a lane on a LAKE - the composer's world has the DEM flat at the lake's surface, 1 cm over its level,
+      // and its waterH answers -Infinity there: the lane's elevation is that ground, the lake's own surface - never 0)
+      aerodromes.push(stageAero(runwayAerodrome(r, F, isFinite(wl) ? wl : T1(r.c[0], r.c[1]), [], null), r));
       // G2310: a lane's site is its PLOTS alone (the slipways), each shed on the shore's composed ground; no plots, no site
       r.site = Array.isArray(r.plots) && r.plots.length ? runwaySite(r, F) : null;
       if (r.site && r.site.plots) for (const p of r.site.plots) { const L = F.toLocal(p.x, p.z); p.y = +T1(L[0], L[1]).toFixed(2); }
@@ -2787,7 +2841,7 @@ function compose(rec0, world, opts) {
     const BED = bedOf(r);
     let floor = null;
     if (BED) {
-      const hw = (+r.w || 3.6) / 2;
+      const hw = roadGradeW(r, 0).width / 2;   // (the bed's floor under all a traded street draws)
       floor = dense.map((p, i) => {
         const a = dense[Math.max(0, i - 1)], b = dense[Math.min(dense.length - 1, i + 1)], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1, nx = -dz / l, nz = dx / l;
         return Math.max(hs[i], T1r(p[0] + nx * hw, p[1] + nz * hw), T1r(p[0] - nx * hw, p[1] - nz * hw)) + BED.fill;
@@ -2850,7 +2904,8 @@ function compose(rec0, world, opts) {
       const s = jAt.s, hAtS = sj => { let k = 0; while (k + 2 < s.length && s[k + 1] < sj) k++; const L = s[k + 1] - s[k]; return L > 1e-9 ? hs[k] + (hs[k + 1] - hs[k]) * Math.max(0, Math.min(1, (sj - s[k]) / L)) : hs[k]; };
       for (const [jid, sj, isEnd] of jAt) if (!JH.has(jid) || (!isEnd && JH.get(jid).end)) JH.set(jid, { h: hAtS(sj), end: isEnd });
     }
-    const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: dense.map((p, i) => [p[0], p[1], hs[i]]), width: (+r.w || 3.6) + (BED ? 2 * BED.shoulder : 0), falloff: BED ? BED.bank : (+r.falloff || 6), abs: true }, F.y0);
+    const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: dense.map((p, i) => [p[0], p[1], hs[i]]), width: roadGradeW(r, 0).width + (BED ? 2 * BED.shoulder : 0), falloff: roadGradeW(r, BED ? BED.bank : (+r.falloff || 6)).falloff, abs: true }, F.y0);
+    // (TOWN-ROAD-SIDES: roadGradeW - a traded street flat under all it draws, its grade's outer edge where it was)
     if (M) mods.push(M);
   }
   // THE GROUND UNDER THE SITES (stage 5 -> T2): every item's shelf, from its entry, cut before anything is placed
@@ -2940,6 +2995,24 @@ function compose(rec0, world, opts) {
   const treeOff = e => RWT !== 'today' && (e.rwy || (RWT === 'map' && (e.shoulder || e.fan)));
   // a clear zone is a derived exclude of trees
   for (const z of rec.layers.zones) if (z.kind === 'clear' && z.poly && z.poly.length >= 3) excl.push({ poly: z.poly, bbox: polyBBox(z.poly), what: ['trees'], derived: true });
+  // LOT-CLEAR (the user, 22 Oct, at the old mine: "trees have grown into the building since we allowed them right next to the
+  // runway edge ... I would have expected the buildings themselves to clear their lots"): A BUILDING CLEARS ITS OWN LOT, whatever
+  // the strip's tree rule. The runway's box + 30 m had kept the woods off the buildings near a strip; with the woods to the
+  // strip's edge ('mapx') nothing did - the island's woodland and the viewer's fill read excludeAt(.., 'trees'), and a
+  // building's keep-out reached only its zone's own planting. Every runway plot (a hangar's place: the offer's widest shell,
+  // else a field shed's 9 x 10) and every site item (its foot's box, below) + LOT_M keeps the trees out. Their own kind,
+  // 'lot': read by the woodland's planting and the viewer's fill (excludeAt .. 'lot'), never by a zone's sowing (its plots
+  // keep their places - PREMISES 21d) nor by anything that reads 'trees' alone
+  const LOT_M = 3;
+  for (const r of runways) for (const p of (r.plots || [])) {
+    if (!p || !isFinite(+p.x) || !isFinite(+p.z)) continue;
+    let HW = 0, HD = 0; const OF = typeof BASE_OFFERS !== 'undefined' && BASE_OFFERS[r.id] && BASE_OFFERS[r.id].plots && BASE_OFFERS[r.id].plots[p.id];
+    if (OF && typeof SHELLS !== 'undefined') for (const sh of OF.shells || []) { const d = (OF.dims && OF.dims[sh]) || (SHELLS[sh] && SHELLS[sh].dims); if (d) { HW = Math.max(HW, +d.HW || 0); HD = Math.max(HD, +d.HD || 0); } }
+    if (!(HW > 0 && HD > 0)) { HW = 9; HD = 10; }
+    const c = CORE_MATH.cos(+p.hdg || 0), sn = CORE_MATH.sin(+p.hdg || 0), A = HD + LOT_M, B = HW + LOT_M;
+    const poly = [[-A, -B], [A, -B], [A, B], [-A, B]].map(q => [+p.x + c * q[0] - sn * q[1], +p.z + sn * q[0] + c * q[1]]);
+    excl.push({ poly, bbox: polyBBox(poly), what: ['lot'], derived: true, lot: r.id + '/' + p.id });
+  }
   // THE TTYPE STAMPS (v1.20): each polygon with the code it stamps. 0 sea and 1 lake are
   // never overwritten - the water is not a place's to re-classify - and the codes
   // the ISLAND itself derives (12 cliff, 13 forest old, 14 scrub dense) are not
@@ -2992,7 +3065,7 @@ function compose(rec0, world, opts) {
   // regrows the trees under the pieces it moved, never the whole of an island-long road. Unset: today's road.
   for (const ro of roadObjs) {
     if (ro.runway || !(ro.clear >= 0) || !ro.pts || ro.pts.length < 2) continue;
-    const half = ro.w / 2 + ro.clear;
+    const half = ro.lay / 2 + ro.clear;   // (from the layout edge: the trees stand where they stood)
     // (the pieces are the line's runs through a 200 m grid's cells: an edit changes the runs it moved and no other - an
     // arclength cut would shift every piece past the edit)
     const cellOf = p => Math.floor(p[0] / 200) * 100003 + Math.floor(p[1] / 200);
@@ -3920,9 +3993,9 @@ function compose(rec0, world, opts) {
         O.records.items.push(it);
         // an item astride a road it was not put on: its pad would re-grade the road (an authoring mistake, named)
         const rit = (st.items || []).find(q => (q.id || '') === it.item) || {};
-        if (!rit.onRoad && !rit.bottomOnRoad && it.foot) for (const rd of roadObjs) if (!rd.runway && (roadInPoly(polyRoad(rd.pts, rd.w), it.foot).length || it.foot.some(q => roadDist(rd, q[0], q[1]) < rd.w / 2))) { S.issues.push('site ' + st.id + ': ' + it.item + ' stands on road ' + rd.id + ' (set it back, or put it on the road)'); break; }
+        if (!rit.onRoad && !rit.bottomOnRoad && it.foot) for (const rd of roadObjs) if (!rd.runway && (roadInPoly(polyRoad(rd.pts, rd.lay), it.foot).length || it.foot.some(q => roadDist(rd, q[0], q[1]) < rd.lay / 2))) { S.issues.push('site ' + st.id + ': ' + it.item + ' stands on road ' + rd.id + ' (set it back, or put it on the road)'); break; }
       }
-      for (const k of S.keepOut) { ctx.keepOut.push(k); ctx.excludes.push(k); O.records.excludes.push(k); }
+      for (const k of S.keepOut) { ctx.keepOut.push(k); ctx.excludes.push(k); O.records.excludes.push(k); excl.push({ poly: k, bbox: polyBBox(k), what: ['lot'], derived: true, lot: st.id }); }   // (LOT-CLEAR: the woods too)
       for (const i of S.issues) O.records.issues.push(i);
     }
     O.records.links = solveLinks(rec, O.records.items, 'placed');
@@ -3935,7 +4008,7 @@ function compose(rec0, world, opts) {
       if (!z.poly || z.poly.length < 3 || !polySimple(z.poly)) continue;
       if (['residential', 'commercial', 'industrial', 'harbour', 'park'].indexOf(z.kind) >= 0)
         { let n = 0; const zc = Object.assign({}, ctx, { waterY: zoneWaterY(z) });
-          for (const p of zoneMemoRun(ZM, 'sow', z.id, () => zmKey(z, zc, roads, null), () => sowPlots(z, roads, zc))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; if (plotGroundOff(z, p.id)) p.noGround = true; if (plotFenceOff(z, p.id)) p.noFence = true; O.records.plots.push(p); n++; }
+          for (const p of zoneMemoRun(ZM, 'sow', z.id, () => zmKey(z, zc, roads, null), () => sowPlots(z, roads, zc))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; if (plotGroundOff(z, p.id)) p.noGround = true; if (plotFenceOff(z, p.id)) p.noFence = true; if (plotCarOff(z, p.id)) p.noCar = true; O.records.plots.push(p); n++; }
           if (!n && z.kind === 'harbour' && roads.some(rd => roadInPoly(polyRoad(rd.pts, rd.w || 3.6), z.poly).length)) O.records.issues.push('harbour ' + z.id + ': no plot of its road reaches the water'); }
     }
     // (v1.33) a zone below its stage's band sowed to hold its land; its plots go now, their ground kept clear of trees
@@ -3988,7 +4061,7 @@ function compose(rec0, world, opts) {
         if (site.items.length) {
           const S = placeSite(site, cat, ctx);
           for (const it of S.items) { it.park = park.id; O.records.items.push(it); park.items.push(it); }
-          for (const k of S.keepOut) { ctx.keepOut.push(k); ctx.excludes.push(k); O.records.excludes.push(k); }
+          for (const k of S.keepOut) { ctx.keepOut.push(k); ctx.excludes.push(k); O.records.excludes.push(k); excl.push({ poly: k, bbox: polyBBox(k), what: ['lot'], derived: true, lot: park.id }); }   // (LOT-CLEAR)
           for (const i of S.issues) O.records.issues.push(i);
         }
         // THE PARK'S DRESSING (placePark's, in the composer): the footpath from the road's verge to the
@@ -3997,7 +4070,7 @@ function compose(rec0, world, opts) {
           const rd = roadObjs.find(r => r.id === p.road);
           const n = p.n, tg = p.tg, w = p.w;
           const prnd = mulberry32(hash32(seed, 0x9a7));
-          const back = rd ? Math.max(0, roadDist(rd, p.front[0], p.front[1]) - rd.w / 2 - 0.6) : 0;
+          const back = rd ? Math.max(0, roadDist(rd, p.front[0], p.front[1]) - rd.lay / 2 - 0.6) : 0;
           const p0 = [p.front[0] - n[0] * back, p.front[1] - n[1] * back];
           const front = plan.toWorld(0, plan.local.patch.z1 + 0.6);
           const sway = (prnd() < 0.5 ? -1 : 1) * (3 + prnd() * 3);
@@ -4374,8 +4447,8 @@ function checks(rec0, world, opts) {
 // the catalogue — collect what the loaded generators export, or DERIVE an
 // entry per preset for those without one (the contract §2.2)
 // ---------------------------------------------------------------------------
-const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN', 'HANGAR_GEN', 'TOWER_GEN', 'MARINE_GEN', 'NAVAID_GEN'];   // SPORT_GEN: the sports grounds (G392); MARINE_GEN: the harbour kit (2026-09-22) - piers, floats, moles, wharves, net pens
-const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport', HANGAR_GEN: 'hangar', TOWER_GEN: 'tower', NAVAID_GEN: 'navaid', MARINE_GEN: 'marine' };
+const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN', 'HANGAR_GEN', 'TOWER_GEN', 'MARINE_GEN', 'NAVAID_GEN', 'METEO_GEN'];   // SPORT_GEN: the sports grounds (G392); MARINE_GEN: the harbour kit (2026-09-22) - piers, floats, moles, wharves, net pens
+const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport', HANGAR_GEN: 'hangar', TOWER_GEN: 'tower', NAVAID_GEN: 'navaid', MARINE_GEN: 'marine', METEO_GEN: 'meteo' };   // METEO_GEN: the meteo station (G3660)
 function collect(globals) {
   const entries = new Map(), aliases = {}, issuesOut = [];
   for (const g of GENERATORS) {
@@ -4408,10 +4481,10 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
+const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, plotCarOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale, roadLoneSegs, roadPatchChunks, LONE_R, roadCutAtPoly,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, profileCheck, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks, roadFeel, lookFeelsAs,
+  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, profileCheck, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks, roadFeel, roadLayW, roadGradeW, ROAD_SIDE_FLAT, lookFeelsAs,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces, TOWN_OFF,
   AREA_PROPS, AREA_LAYERS, AREA_SLOT, AREA_SUFFIX, AREA_TERRAFORM, AREA_EXCLUDE, MARK_KINDS, MARK_DEF, rectPoly, rectOk, areaFoldable, foldAreas, areaEntries, expandAreas, areaOfEntry, areaMarks, areaLabel,
   STAGE_KITS, STAGE_FENCE, STAGE_RUNWAY_VARY, stageFrameKey, stageBand, stageValue, stageStands, stageVaryOf, stageKitObjects, stageKitPoly, stageView, stageRestore, stageIssues,

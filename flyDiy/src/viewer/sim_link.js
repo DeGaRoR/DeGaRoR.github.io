@@ -87,11 +87,23 @@ const SIM_LINK = (() => {
   // the page has, after three (they build with it at load), so its world composes the premises as the page's did
   const GEN_FILES = { HOUSE_GEN: ['tools/_house_kit.js', 'tools/_house_gen.js'], BIG_GEN: ['tools/_big_gen.js'], SHED_GEN: ['tools/_shed_gen.js'],
                       HANGAR_GEN: ['tools/_hangar_gen.js'], TOWER_GEN: ['tools/_tower_gen.js'], TRAM_GEN: ['tools/_tram_gen.js'],
-                      TOTEM_GEN: ['tools/_totem_gen.js'], SPORT_GEN: ['tools/_sport_gen.js'], MARINE_GEN: ['tools/_marine_gen.js'], NAVAID_GEN: ['tools/_navaid_gen.js'] };
+                      TOTEM_GEN: ['tools/_totem_gen.js'], SPORT_GEN: ['tools/_sport_gen.js'], MARINE_GEN: ['tools/_marine_gen.js'], NAVAID_GEN: ['tools/_navaid_gen.js'], METEO_GEN: ['tools/_meteo_gen.js'] };
   function catalogueScripts(W) {
     const out = [];
     for (const g of Object.keys(GEN_FILES)) if (W[g]) for (const f of GEN_FILES[g]) if (out.indexOf(f) < 0) out.push(f);
     return out.length ? ['vendor/three.min.js'].concat(out) : out;
+  }
+  // G3610: the worker's route ({ from, to } ids, sim_host meta) onto the page's pilot F.ap, once per change of the worker's
+  // ids (F.routeSeen); true when the page's route was replaced
+  function routeCopy(F, wr, world) {
+    const wSig = wr ? wr.from + '>' + wr.to : null;
+    if (wSig === F.routeSeen) return false;
+    F.routeSeen = wSig;
+    const cur = F.ap.route, A = (world && world.aerodromes) || [], byId = id => A.find(a => a.id === id) || null;
+    const to = wr && byId(wr.to);
+    if (!to || !cur || (cur.to && cur.to.id === wr.to && cur.from && cur.from.id === wr.from)) return false;
+    F.ap.route = { from: byId(wr.from) || cur.from, to };
+    return true;
   }
   const copyEng = e => (Array.isArray(e) ? e.map(x => (x && typeof x === 'object' ? Object.assign({}, x) : x)) : e == null ? null : e);
 
@@ -423,6 +435,8 @@ const SIM_LINK = (() => {
         const out = W.slice(); for (let i = 0; i < W[0]; i++) W[5 + i * 18 + 13] = 0; return out; } });
       // G1861.5 (DMG-D4b): ...and DMG-DRIVE's per-engine state (the worker's meta.drv, sim_view's view.drv): the prop draws its grade
       def('drv', { get: () => V.drv || null });
+      // G2373 (DMG-OCCUPANT): ...and the occupants' bands the worker closed (sim_view's view.occ: [{ name, band }] | null)
+      def('occView', { get: () => V.occ || null });
       // (...and the worker's node velocities and engines, under their own names - the wreck's reads only: a released part
       // leaves with its nodes' velocity, a seized prop stops; the page's own v / eng are never stepped under the worker)
       def('vView', { get: () => V.v || null });
@@ -516,6 +530,12 @@ const SIM_LINK = (() => {
       }
       merge(F.ap, V.ap, 3, AP_SKIP.concat(AP_WHOLE));
       for (const k of AP_WHOLE) if (k in V.ap && F.ap[k] !== V.ap[k]) F.ap[k] = V.ap[k];
+      // G3610 (the 24 Oct playtest, item 53): THE WORKER'S ROUTE ON THE PAGE. sim_host sends ap.route as its two ids; the
+      // page's route stayed the one it started with, so a divert (43_pilot 'divert') never reached the page's readers - the
+      // arrival card said 'Short of Jumbo Mine Street' long after the plane had gone elsewhere. When the worker's route
+      // CHANGES (not every snapshot: a destination the page has just asked for, not yet stepped there, stays), the page's
+      // route is the worker's, as the page world's own aerodromes
+      if (routeCopy(F, V.ap.route, world)) st.routeCopies = (st.routeCopies || 0) + 1;
       const step = f[S.STEP];
       F.lastStep = step; st.lastStep = step;
       if (f[S.FLAGS] & S.F_DIVERGED) st.diverged = true;
@@ -700,7 +720,7 @@ const SIM_LINK = (() => {
     };
     return api;
   }
-  return { make };
+  return { make, routeCopy };
 })();
 if (typeof window !== 'undefined') window.SIM_LINK = SIM_LINK;
 if (typeof module !== 'undefined' && module.exports) module.exports = { SIM_LINK };

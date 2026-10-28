@@ -621,8 +621,10 @@ if (plots.length) {
 //    and the record settings. The shipped fixture, migrated, the town cut as a save has it, IS the save entry by entry
 //    (normalised) - but for a `stage`, which a save (the sandbox's view, every track at its max) never carries and the
 //    shipped record keeps, and the entries only a stage stands (`sg_`) or a removal not yet confirmed keeps.
+//    (JOLENE-FOLD 25 Oct, the user: "my new scenery gets folded in right away": the manifest is scenery_ship_afb19.json, the
+//    Jolene AFB (19) save; rev 28's stays beside it as the record of that ship - row 13's r1 still reads it)
 {
-  const M = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_ship_rev28.json'), 'utf8'));
+  const M = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_ship_afb19.json'), 'utf8'));
   const stxt = fs.readFileSync(path.join(TOOLS, 'fixtures', M.save), 'utf8');
   check(require('crypto').createHash('sha256').update(stxt).digest('hex') === M.sha256, '15 the save beside the manifest is the user\'s, byte for byte (' + M.sha256.slice(0, 16) + ')');
   const A = PG.dropPlaces(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec, ['mk_']).rec, B = PG.unwrap(stxt).rec;
@@ -650,11 +652,32 @@ if (plots.length) {
   //  fold's order and its marks inside its draw - the same ground, another spelling
   const sk = v => Array.isArray(v) ? v.map(sk) : v && typeof v === 'object' ? Object.keys(v).sort().reduce((o, k) => (o[k] = sk(v[k]), o), {}) : v;
   const canA = s => { const c = JSON.parse(s); if (c.props) c.props = PG.areaEntries(Object.assign({}, c, { src: null })).map(q => { const x = Object.assign({}, q.entry); delete x.id; delete x.poly; return [q.layer, sk(x)]; }).sort((p, q) => p[0] < q[0] ? -1 : 1); return JSON.stringify(c); };
-  const same = (L, x, y) => L === 'areas' ? canA(unC(x)) === canA(unC(y)) : unC(x) === unC(y);
+  // (JOLENE-FOLD) a staged item the save has not at all - shown only below its track's max, so not in the sandbox's view - is
+  //  the shipped entry's own (the old club hangar, the mine's mill)
+  const svItems = (x, y) => { if (!Array.isArray(x.items) || !Array.isArray(y.items)) return x; const ids = new Set(y.items.map(q => q && q.id));
+    return Object.assign({}, x, { items: x.items.filter(it => !(it && it.stage) || ids.has(it.id)) }); };
+  // (JOLENE-FOLD) a save made below a track's max carries a staged entry at its `stage.vary` variant (AFB (19): tw_ski at
+  //  resort<3, nv_strip at survey<1): a field equal to a variant is the stage's - the shipped entry's own value, as the ship
+  //  tool's devary and stageRestore put it back
+  //  (and the view's own `stageSown` mark never ships: the ship tool drops it)
+  const devary = (y0, x) => { const y = y0 && y0.stageSown !== undefined ? Object.assign({}, y0) : y0; if (y !== y0) delete y.stageSown;
+    const vs = x && x.stage && Array.isArray(x.stage.vary) ? x.stage.vary : []; if (!vs.length) return y;
+    const c = JSON.parse(JSON.stringify(y)), eq = (p, q) => JSON.stringify(p) === JSON.stringify(q);
+    for (const q of vs) for (const k of Object.keys(q)) { if (k === 'show') continue;
+      if (k === 'P') { if (c.P) for (const pk of Object.keys(q.P || {})) if (eq(c.P[pk], q.P[pk])) { if (x.P && pk in x.P) c.P[pk] = x.P[pk]; else delete c.P[pk]; } continue; }
+      if (eq(c[k], q[k])) { if (x[k] === undefined) delete c[k]; else c[k] = JSON.parse(JSON.stringify(x[k])); } }
+    return c; };
+  const same = (L, x, y) => L === 'areas' ? canA(unC(x)) === canA(unC(y)) : unC(svItems(x, y)) === unC(devary(y, x));
+  // (JOLENE-FOLD) an area the save folded from STAGED v1 entries (the sandbox's view carries no stage, so they fold; the shipped
+  //  record's staged entries do not - sg_x_mill, sg_x_lodge): its entries against those sources, stage aside
+  const fromStaged = e => !!(e.src && Object.keys(e.src).length) && Object.entries(e.src).every(([k, s]) => (A.layers[k] || []).some(q => q.id === s[0] && q.stage));
+  const srcSame = e => PG.areaEntries(e).every(q => { const f = (A.layers[q.layer] || []).find(z => z.id === q.entry.id); return !!f && JSON.stringify(sk(JSON.parse(un(f)))) === JSON.stringify(sk(JSON.parse(un(q.entry)))); });
   const bad = [], pending = [];
   for (const L of PG.LAYERS) {
     const a = new Map((A.layers[L] || []).map(e => [e.id, e])), b = new Map((B.layers[L] || []).map(e => [e.id, e]));
-    for (const [id, e] of b) { if (EX.has(id)) { if (a.has(id)) bad.push(L + ' ' + id + ' held back, but shipped'); continue; } if (!a.has(id)) bad.push(L + ' ' + id + ' not shipped'); else if (!same(L, a.get(id), e)) bad.push(L + ' ' + id + ' differs'); }
+    for (const [id, e] of b) { if (EX.has(id)) { if (a.has(id)) bad.push(L + ' ' + id + ' held back, but shipped'); continue; }
+      if (!a.has(id)) { if (L === 'areas' && fromStaged(e)) { if (!srcSame(e)) bad.push(L + ' ' + id + ' differs from its staged sources'); } else bad.push(L + ' ' + id + ' not shipped'); }
+      else if (!same(L, a.get(id), e)) bad.push(L + ' ' + id + ' differs'); }
     for (const [id, e] of a) if (!b.has(id)) { if (RM.has(id)) bad.push(L + ' ' + id + ' removal confirmed, still shipped'); else if (!staged(e)) pending.push(id); }
   }
   check(!bad.length, '15 the shipped record is the save entry by entry (held back: ' + (M.except.join(', ') || 'none') + ')', bad.slice(0, 6).join('; '));
@@ -1296,6 +1319,165 @@ if (plots.length) {
   const UIs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'premises_ui.js'), 'utf8'), WRs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'world_rail.js'), 'utf8');
   check(['dragenter', 'dragover', 'dragleave', 'drop'].every(k => new RegExp("addEventListener\\('" + k + "', ev => \\{ ?\\n? *if \\(!active \\|\\| !fileDrag\\(ev\\)\\) return;").test(UIs)) && (UIs.match(/stopImmediatePropagation\(\)/g) || []).length >= 4 && /\}, true\);/.test(UIs) &&
         /dropEl\.innerHTML = '<b>drop to import<\/b>/.test(UIs) && /importLook: o => \{ applyLook\(o, true\); saveLook\(\); \}/.test(WRs), '37 the page: capture-phase drag listeners while the editor is open (stopped there), the overlay, the world rail\'s importLook');
+}
+// 38 TOWN-ROAD-SIDES (the user, 22 Oct, Metlakatla's streets: "a smaller side to the road. The same overall width (including the
+//    side), but a higher proportion of the road. The sides should be between a third and a half of their current width"): a street
+//    with its 2 m side traded for carriageway (band 0.8, w + 2.4, `lay` = its old w) DRAWS wider and feels paved there, and nothing
+//    beside it moves - the plots, the houses' fronts, the graded ground and the trees' clearing are the old street's; the shipped
+//    Metlakatla: every street converted, w + 2 band as it was
+{
+  const zone = { id: 'z38', kind: 'residential', poly: [[9900, 9940], [10300, 9940], [10300, 10060], [9900, 10060]] };
+  const street = x => Object.assign({ id: 's38', pts: [[9900, 10000], [10100, 10002], [10300, 10000]], cls: 'paved', look: 'worn', graded: true, falloff: 6, clear: 3 }, x);
+  const recOf = x => PG.normalise({ seed: 38, theme: 'alaska', layers: { roads: [street(x)], zones: [JSON.parse(JSON.stringify(zone))] } });
+  const before = recOf({ w: 4, band: 2 }), after = recOf({ w: 6.4, band: 0.8, lay: 4 });
+  const Ob = PG.compose(before, synth), Oa = PG.compose(after, synth);
+  const plotsOf = O => JSON.stringify((O.records.plots || []).map(q => [q.id, q.poly || q.foot || null, q.front || null, q.road || null]));
+  const nPl = (Ob.records.plots || []).length;
+  check(nPl > 0 && plotsOf(Ob) === plotsOf(Oa), '38 the plots along the street stand where they stood (' + nPl + ' plots)', nPl + ' plots');
+  // the ground: identical past the street's footprint (its old half-width + its falloff, 2 + 6 m), flat across all it draws now
+  const zc = x => (x < 10100 ? 10000 + (x - 9900) * 0.01 : 10002 - (x - 10100) * 0.01);   // the street's centreline (its three points)
+  let dH = 0, dT = 0, flatW = 0; for (let x = 9920; x <= 10280; x += 7) for (let z = 9975; z <= 10025; z += 0.5) { const off = Math.abs(z - zc(x)), w = Ob.frame.toWorld(x, z);
+    if (off > 2 + 6 + 0.05) dH = Math.max(dH, Math.abs(Ob.terrainAt(w[0], w[1]) - Oa.terrainAt(w[0], w[1])));
+    if (!!Ob.excludeAt(w[0], w[1], 'trees') !== !!Oa.excludeAt(w[0], w[1], 'trees')) dT++; }
+  for (let x = 9960; x <= 10240; x += 9) for (const o of [3.1, 4.3]) { const c = Oa.frame.toWorld(x, zc(x)), e = Oa.frame.toWorld(x, zc(x) + o);
+    flatW = Math.max(flatW, Math.abs(Oa.terrainAt(c[0], c[1]) - Oa.terrainAt(e[0], e[1]))); }
+  check(dH < 1e-9 && dT === 0, '38 the ground past the street\'s footprint and the trees\' clearing are the old street\'s (height ' + dH.toExponential(1) + ' m, clearing ' + dT + ' points differ)');
+  check(flatW < 0.005 && PG.ROAD_SIDE_FLAT === 1.2 && PG.roadGradeW({ w: 5 }, 6).width === 5 && PG.roadGradeW({ w: 5 }, 6).falloff === 6, '38 ...and the street is graded flat under all it draws and CONTACT sees (3.1 and 4.3 m out: the carriageway 3.2 + the side 1.2; under 5 mm - the old bed 15 mm), an untraded road as ever: ' + (flatW * 1000).toFixed(1) + ' mm off the centreline)');
+  const ra = Oa.roads.find(r => r.id === 's38'), rb = Ob.roads.find(r => r.id === 's38');
+  check(ra && rb && ra.w === 6.4 && rb.w === 4 && ra.lay === 4 && rb.lay === 4 && PG.roadLayW({ w: 5 }) === 5 && PG.roadLayW({ w: 6.4, lay: 4 }) === 4, '38 the carriageway drawn is 2.4 m wider, the layout width the old one');
+  const w2 = Oa.frame.toWorld(10100, 10002 + 2.9);
+  check(Oa.surfaceAt(w2[0], w2[1]) === PG.SURFACE.PAVED, '38 ...and the wheels feel the paved carriageway where the side was (2.9 m out)');
+  // the shipped Metlakatla
+  const JM = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')), mk = JM.layers.roads.filter(r => /^mk_/.test(r.id) && +r.lay > 0);
+  check(mk.length >= 60 && mk.every(r => r.band === 0.8 && Math.abs(r.w - r.lay - 2.4) < 1e-6) && !JM.layers.roads.some(r => /^mk_/.test(r.id) && r.band === 2), '38 the shipped Metlakatla: ' + mk.length + ' streets, side 0.8 m, carriageway + 2.4 m (w + 2 band unchanged), the old width in lay');
+  const AU = fs.readFileSync(path.join(TOOLS, 'metlakatla_author.py'), 'utf8');
+  check(/if r\.get\('band'\) == 2:\s*\n\s*r\['lay'\] = r\['w'\]\s*\n\s*r\['w'\] = round\(r\['w'\] \+ 2 \* \(2 - 0\.8\), 3\)\s*\n\s*r\['band'\] = 0\.8/.test(AU), '38 the author makes them so (a re-author keeps the sides)');
+}
+// 39 TOWN-ROAD-SIDES, THE POLES (the 24 Oct stills: at the layout width a traded street's poles stood 0.55 m past its OLD edge -
+//    0.65 m inside its new asphalt): the power line plans off the DRAWN pavement - every pole past w / 2 on a traded street
+{
+  const PL = require(path.join(ROOT, 'src', 'viewer', 'powerline.js'));
+  const pts = [[0, 0], [150, 3], [300, 0]], road = PG.polyRoad(pts, 8.9);
+  const dOf = q => Math.min(...[0, 1].map(k => { const a = pts[k], b = pts[k + 1], dx = b[0] - a[0], dz = b[1] - a[1], t = Math.max(0, Math.min(1, ((q.x - a[0]) * dx + (q.z - a[1]) * dz) / (dx * dx + dz * dz))); return Math.hypot(q.x - a[0] - dx * t, q.z - a[1] - dz * t); }));
+  const drawn = PL.plan({ path: road, w: 8.9, seed: 3 }), atLay = PL.plan({ path: road, w: 6.5, seed: 3 });
+  const dmin = ps => Math.min(...ps.map(dOf));
+  check(drawn.poles.length > 3 && dmin(drawn.poles) > 8.9 / 2 + 0.3 && atLay.poles.length > 3 && dmin(atLay.poles) < 8.9 / 2,
+        '39 a traded street\'s poles plan off its drawn pavement (nearest ' + dmin(drawn.poles).toFixed(2) + ' m from the centreline, the asphalt to 4.45; at the layout width they stood at ' + dmin(atLay.poles).toFixed(2) + ')');
+  const RPs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8');
+  check(/const g = PWR\.build\(THREE, \{ path: pr, w: rd\.w, mode: rd\.poles \|\| 'auto'/.test(RPs), '39 ...and the page builds them at the drawn width (render_premises)');
+}
+// 40 A ROAD'S BAND BACK TO NONE (the user, 24 Oct: "a road's side stays very big once set manually, even back at 0; the original look
+//    never comes back" - they deleted a whole road): the row reaches its "none" notch; on a road, 0 or less takes the band away
+//    and the road draws its own side again (sided); a road loaded with band 0 / null is read so (Jolene's r45); a strip keeps 0
+{
+  const sl = new Map();
+  const rows40 = Object.assign({}, rows, { slider: (h, label, mn, mx, st, get, set, fmt) => { sl.set(label, { mn, get, set, fmt }); } });
+  ctxG.PAVEMENT = require(path.join(ROOT, 'src', 'viewer', 'pavement.js'));   // (the band row is a pavement row: the page has PAVEMENT, the harness lends it)
+  const ed40 = UI.mount(new El('div'), { THREE: null, world: synth, R: makeR(), rows: rows40, els: { chk: null, plaque: null, strip: new El('div') }, viewEl: new El('div'), storage: null, fresh: true, camera: () => null, redraw: noop });
+  const rid = ed40.cmd('add', { layer: 'roads', entry: { pts: [[11000, 11000], [11200, 11000]], w: 6, cls: 'paved' } });
+  const R40 = () => PG.findById(ed40.record(), rid).entry, re = () => { sl.clear(); ed40.select(null); ed40.select(rid); };
+  re();
+  const B = () => sl.get('band (m)');
+  check(B() && B().mn <= -0.5 && B().get() === -0.5 && !('band' in R40()), '40 a new road has no band and the row sits at its reachable "none" notch', JSON.stringify(B() && { mn: B().mn, v: B().get() }));
+  B().set(12); re();
+  check(R40().band === 12, '40 a band set by hand: 12 m');
+  B().set(0); re();
+  check(!('band' in R40()) && B().get() === -0.5 && /none/.test(B().fmt(-0.5)), '40 ...back to 0: the band is gone - the road\'s own side, as it was', JSON.stringify(R40().band));
+  const O40 = PG.compose(ed40.record(), synth), ro = (O40.roads || []).find(q => q.id === rid);
+  check(ro && ro.sided === true, '40 ...and it composes sided again (the plain side, not the band\'s fade)', ro && String(ro.sided));
+  B().set(5); re(); B().set(-0.5); re();
+  check(!('band' in R40()), '40 the "none" notch takes it away too');
+  ed40.close(); delete ctxG.PAVEMENT;
+  const L40 = PG.normalise({ layers: { roads: [{ id: 'z0', pts: [[0, 0], [50, 0]], w: 5, cls: 'paved', band: 0 }, { id: 'zn', pts: [[0, 9], [50, 9]], w: 5, cls: 'paved', band: null }, { id: 'z3', pts: [[0, 19], [50, 19]], w: 5, cls: 'paved', band: 3 }],
+    runways: [Object.assign(JSON.parse(JSON.stringify(PG.RUNWAY_DEF)), { id: 'b0', c: [0, 300], len: 400, wid: 20, band: 0 })] } });
+  const lr = id => L40.layers.roads.find(q => q.id === id);
+  check(!('band' in lr('z0')) && !('band' in lr('zn')) && lr('z3').band === 3 && L40.layers.runways[0].band === 0, '40 a road loaded with band 0 or null is read with none (its own side), a band 3 kept, a strip\'s band 0 kept');
+  const J40 = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')), r45 = PG.normalise(J40.layers ? J40 : (J40.rec || J40.premises)).layers.roads.find(q => q.id === 'r45');
+  check(r45 && !('band' in r45), '40 Jolene\'s r45 (band 0 in the file) draws its own side again');
+}
+// 41 THE USER'S EDITOR ITEMS (24 Oct playtest 40-42): the checks panel says only what is wrong (the long list gone); the editor
+//    opens in FLY (WASD) seeded from the flight's eye, the orbit's centre on the aeroplane (not the island-wide extent); a zone's
+//    plot cars: rules.cars false flags every plot it sows noCar, rules.noCar [ids] those alone, none set - every plot record as
+//    before; the village generator parks no car on a noCar plot (after its draws); the renderer builds a switched plot again
+{
+  const flat = { id: 'flat', terrainH: () => 0, waterH: () => -100 };
+  const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec;
+  const key = O => JSON.stringify(O.records.plots);
+  const O0 = PG.compose(J, flat, { raster: false }), z = J.layers.zones.find(q => O0.records.plots.some(p => p.zone === q.id && p.kind !== 'park'));
+  check(z && !O0.records.plots.some(p => 'noCar' in p), '41 no zone saying so: no plot carries noCar (' + O0.records.plots.length + ' plots)');
+  const mine = O0.records.plots.filter(p => p.zone === z.id), one = mine[0];
+  const J1 = JSON.parse(JSON.stringify(J)); J1.layers.zones.find(q => q.id === z.id).rules = Object.assign({}, z.rules, { noCar: [one.id] });
+  const O1 = PG.compose(J1, flat, { raster: false });
+  check(O1.records.plots.filter(p => p.noCar).map(p => p.id).join() === one.id, '41 a plot\'s cars switched off: it alone carries noCar (' + one.id + ')');
+  check(JSON.stringify(O1.records.plots.map(p => { const c = Object.assign({}, p); delete c.noCar; return c; })) === key(O0), '41 ...and every plot otherwise the same, its boundary and seed too');
+  const J2 = JSON.parse(JSON.stringify(J)); J2.layers.zones.find(q => q.id === z.id).rules = Object.assign({}, z.rules, { cars: false });
+  const O2 = PG.compose(J2, flat, { raster: false });
+  check(O2.records.plots.filter(p => p.zone === z.id).every(p => p.noCar) && O2.records.plots.filter(p => p.zone !== z.id).every(p => !p.noCar), '41 the zone\'s cars off: its ' + mine.length + ' plots, and no other');
+  const VGs = fs.readFileSync(path.join(TOOLS, '_village_gen.js'), 'utf8'), RPs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8'), APs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+  check(/if \(plot\.noCar\) \{ plot\.car = null; if \(plot\.drive\) plot\.drive\.car = null; \}/.test(VGs) && /if \(plot\.lot && plot\.noCar\) plot\.lot\.cars = \[\];/.test(VGs), '41 the village generator parks no car on a noCar plot (a house\'s, its drive\'s, a lot\'s bays)');
+  check(/!!p\.noCar !== !!\(h\.plot && h\.plot\.noCar\)/.test(RPs), '41 the renderer builds a plot again when its cars switch');
+  check(/'plot cars'/.test(UI_SRC) && /pick plots: a click switches one plot\\'s cars/.test(UI_SRC) && /name === 'plotCar'/.test(UI_SRC), '41 the zone\'s inspector: the cars switch and the plot pick');
+  // the pick, end to end: a click in the plot puts it in noCar, a second takes it out
+  let zid = null;
+  const ed41 = UI.mount(new El('div'), { THREE: null, world: synth, R: Object.assign(makeR(), { plots: () => [{ zone: zid, id: zid + '.1', poly: [[0, 0], [30, 0], [30, 30], [0, 30]] }] }), rows, els: { chk: new El('div'), plaque: null, strip: new El('div') }, viewEl: new El('div'), storage: null, fresh: true, camera: () => null, redraw: noop });
+  zid = ed41.cmd('add', { layer: 'zones', entry: { id: 'zc41', kind: 'residential', poly: [[-10, -10], [40, -10], [40, 40], [-10, 40]] } });
+  ed41.cmd('plotCar', { zone: zid, x: 15, z: 15 });
+  const nc1 = ((PG.findById(ed41.record(), zid).entry.rules || {}).noCar || []).join();
+  ed41.cmd('plotCar', { zone: zid, x: 15, z: 15 });
+  const nc2 = (PG.findById(ed41.record(), zid).entry.rules || {}).noCar;
+  check(nc1 === zid + '.1' && nc2 === undefined, '41 a plot picked: its cars off (noCar ' + nc1 + '), picked again: back (' + JSON.stringify(nc2) + ')');
+  // the checks panel: what is wrong, never the list of what is right
+  check(!/✓/.test(String(UI_SRC.match(/function checks\(\) \{[\s\S]*?\n  \}/)[0].split('els.chk.innerHTML')[1] || '')), '41 the checks panel lists no passed check (the long list gone): a failed check, the first issue, the warnings\' count');
+  ed41.close();
+  check(/const eye0 = camera\.position\.clone\(\), q0 = camera\.quaternion\.clone\(\);/.test(APs) && /camera\.position\.copy\(eye0\); camera\.quaternion\.copy\(q0\); PREM\.host\.cameras\.set\('fly'\);/.test(APs) && !/cameras\.frame\(ov\.extent\)/.test(APs),
+        '41 the editor opens in FLY (WASD) from the flight\'s eye, the orbit centred on the aeroplane - not framed on the island-wide extent');
+}
+// 42 SCENERY VERSIONS (41 is EDITOR-ITEMS, ED-1) (ED-2; the user, 24 Oct: "the fact that the game and the player edits can diverge is problematic ... keep some sort
+//    of master, so there is no confusion" - and 25 Oct: "the game always loads master. When getting into the scenery editor, there is an
+//    option to load a version, and that's the only place where scenery can be loaded"): every named version listed in
+//    media/scenery/<island>/index.json is a file of the repo that unwraps and composes (an id once); the boot composes master and never
+//    reads (but the rigs' door) nor deletes the editor's copy; the editor opened on master offers master / the last autosave / the
+//    versions and loads each, and keeps the last autosave as a slot before its first write overwrites it (once, whatever the writes)
+{
+  const SCN_DIR = path.join(TOOLS, '..', 'media', 'scenery');
+  let n = 0, bad = [];
+  for (const isl of (fs.existsSync(SCN_DIR) ? fs.readdirSync(SCN_DIR) : [])) {
+    const ixf = path.join(SCN_DIR, isl, 'index.json'); if (!fs.existsSync(ixf)) continue;
+    let ix = null; try { ix = JSON.parse(fs.readFileSync(ixf, 'utf8')); } catch (e) { bad.push(isl + ': index.json does not parse'); continue; }
+    if (!Array.isArray(ix.versions)) { bad.push(isl + ': index.json has no versions list'); continue; }
+    const ids = new Set();
+    for (const v of ix.versions) {
+      n++;
+      if (!v.id || ids.has(v.id)) bad.push(isl + ': version id missing or twice: ' + v.id); ids.add(v.id);
+      const f = path.join(SCN_DIR, isl, v.file || '');
+      if (!v.file || !fs.existsSync(f)) { bad.push(isl + '/' + v.id + ': no file ' + v.file); continue; }
+      try { const R = PG.unwrap(fs.readFileSync(f, 'utf8')).rec; PG.compose(PG.expandAreas ? PG.expandAreas(R) : R, synth); } catch (e) { bad.push(isl + '/' + v.id + ': does not compose (' + e.message.slice(0, 60) + ')'); }
+    }
+  }
+  check(!bad.length, '42 the named scenery versions (' + n + ') are repo files that compose, one id each', bad.slice(0, 4).join('; '));
+  const WBsrc = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'world_boot.js'), 'utf8'), APsrc = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'app.js'), 'utf8');
+  const has = (s, t) => s.indexOf(t) >= 0, wipReads = WBsrc.split('getItem(WIP_KEY)').length - 1;
+  check(wipReads === 1 && has(WBsrc, 'if (rig) { let t = null; try { t = localStorage.getItem(WIP_KEY)') && has(WBsrc, "getItem('flydiy.premises.bootWip') === '1'") && !has(WBsrc, 'removeItem(WIP_KEY)') && !has(WBsrc, "get('scenery')") && has(WBsrc, '      return fixture;'),
+    '42 the game boots master: the editor\'s copy is read only behind the rigs\' door, never deleted; no ?scenery= in the game', 'getItem(WIP_KEY) x' + wipReads);
+  check(has(APsrc, 'scenery: WB.SCN ? { island: WB.SCN.island, master: rec0,') && !has(APsrc, 'clear the saved premises (the map') && !has(APsrc, "flSelect(body, 'scenery'"),
+    '42 the scenery editor gets the versions (master = what the page composed); the WORLD panel neither picks a scenery nor deletes the editor\'s copy');
+  { const M = new Map(), S = { getItem: k => (M.has(k) ? M.get(k) : null), setItem: (k, v) => { M.set(k, String(v)); }, removeItem: k => { M.delete(k); }, key: i => Array.from(M.keys())[i] || null, get length() { return M.size; } };
+    const base = fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_user_jolene_rev23.json'), 'utf8');
+    const named = nm => { const o = JSON.parse(base); o.name = nm; (o.premises || o).name = nm; return JSON.stringify(o); };
+    const mineT = named('my edits 38'), verT = named('version 38'), VS = [{ id: 'v38', name: 'Version 38', file: 'v38.json' }];
+    S.setItem('K38', mineT);
+    let sel = null; const rows38 = Object.assign({}, rows, { select: (h, t, opts, g, set) => { if (t === 'load a version') sel = { opts: opts.map(o => o[0]), set }; } });
+    const ed38 = UI.mount(new El('div'), { THREE: null, world: synth, R: makeR(), rows: rows38, els: { chk: null, plaque: null, strip: new El('div') }, viewEl: new El('div'), storage: S, wipKey: 'K38', fresh: true, record: base, camera: () => null, redraw: noop,
+      scenery: { island: 'jolene', master: base, versions: () => VS, versionText: v => (v.id === 'v38' ? verT : null), prep: t => t } });
+    ed38.setSection('file');
+    check(sel && ['master', 'wip', 'v:v38'].every(k => sel.opts.indexOf(k) >= 0), '42 FILE > load a version: master, my edits (the last autosave), the named versions', JSON.stringify(sel && sel.opts));
+    const kept = () => Array.from(M.keys()).filter(k => k.indexOf('flydiy.premises.slot.my edits before ') === 0);
+    ed38.cmd('saveNow'); ed38.cmd('saveNow');
+    check(kept().length === 1 && S.getItem(kept()[0]) === mineT && S.getItem('K38') !== mineT, '42 opened on master, the first autosave keeps the last edits as a slot (once) before it writes', JSON.stringify(kept()));
+    const nameOf = () => { const r = ed38.record(); return r && r.name; };
+    if (sel) { sel.set('v:v38'); const v1 = nameOf(); sel.set('master'); const m1 = nameOf(); sel.set('wip'); const w1 = PG.unwrap(S.getItem('K38')).rec.name;
+      check(v1 === 'version 38' && m1 !== 'version 38' && nameOf() === w1, '42 each loads: the version, master, the last autosave', [v1, m1, nameOf(), w1].join(' / ')); }
+    ed38.close(); }
 }
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');

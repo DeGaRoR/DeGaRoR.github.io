@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 07f6c9fdc45af850
+// body-sha256: 18bbc74fab39f9e0
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -990,6 +990,55 @@ const GROUND_DEF = GROUND_SURF[0];
 // carcass (the cage's whProfile: standard, tundra balloon, slim) for the mains and by the gear type for the third.
 const TYRE_CN = { standard: 8, tundra: 4.5, slim: 10, tailwheel: 10, nosewheel: 8 };
 
+// ===========================================================================
+// THE NAMES (G3240 NAMES, 2026-10-22; GAME-PLAN-2026-10-15 §R and §13). The user, 15 Oct: "Everything should have a
+// fictional name, I don't want to get in hot waters with some Indian community thing." Every PERSON, ORGANISATION and
+// PLACE the game SHOWS is fictional, real geographic names included; the island's terrain shape stays.
+//
+// THIS IS THE ONE TABLE: a name the game shows is written here once, so renaming a place is a one-line edit. The words
+// below are read where the text is made (72_contract_data's fields and briefs, 71_player_bases' plot words, 38_nav's
+// beacon, the boot's cards, the map bake's labels) and where the island's runways become aerodromes (27_premises
+// runwayAerodrome and 73_ contractFieldsOf through fieldName), so the user's own saved scenery, whose record may still
+// carry an older name, shows these too. A field that is not in GAME_NAMES.fields shows its record's own name (the strips
+// the user names in the scenery editor: the Cabin Strip, strips 9-13).
+//
+// INTERNAL IDS NEVER CHANGE (HOME, w1-w8, SEA, mk_sea, mn_strip, nv_strip, tw_ski ...): a save, a contract or a route
+// names ids, never these words, so an edit here breaks nothing. GATE NAMES (tools/_names_check.js) holds that no real
+// name it lists is shown: the source's text, this table, the island record and the built page's text.
+//
+// `var`, not const: the loading screen's cards (src/viewer/boot_cards.js) read it before the core runs, so build.js
+// puts this file in the BOOT block too and the core's own copy re-declares the same table (a const would throw).
+// Pure data and one lookup: no DOM, no THREE, no storage.
+// ===========================================================================
+var GAME_NAMES = {
+  // ---- the island and its places (shown in the briefs, the plot words, the cards, the map) ----
+  island:   'Jolene',                         // the island (was Annette)
+  town:     'Cedar Harbour',                  // the town on the west shore (was Metlakatla)
+  hill:     'Ridgeback',                      // the hill of the w3 strip (was Tamgas Hill)
+  mountain: 'Mount Ardent',                   // the island's summit, 1 096 m (was Mount Tamgas)
+  mine:     'Copperhead Mine',                // the mine up the mountain (was Jumbo Mine)
+  vor:      'Jolene VOR/DME',                 // the radio beacon by the field (was Annette Island VOR/DME)
+  // ---- the organisations ----
+  mineCo:   'Copperhead Mine & Dock Co.',     // the mine-and-dock provider (was Jumbo Mine & Dock Co.)
+  // ---- the fields, by internal id (the contracts, the map, the arrival card, the plot list) ----
+  fields: {
+    HOME:     'Jolene AFB 13/31',
+    w2:       'Jolene AFB 02/20',
+    w3:       'Ridgeback Strip',              // (was Tamgas Hill Strip)
+    SEA:      'Greywater Dock',               // (was Annette Dock)
+    mk_sea:   'Cedar Harbour Seaplane Base',  // (was Metlakatla Seaplane Base)
+    mn_strip: 'Copperhead Mine Street',       // (was Jumbo Mine Street)
+    nv_strip: 'East Point Clearing',
+    tw_ski:   'Skyline Altiport',
+    cb_sea:   'Cabin Lake',                   // (CABIN-LAKE 26 Oct: the seaplane lane in front of the Cabin Strip, by the user's piers)
+  },
+};
+
+// the name a field shows: the table's, else the record's own, else its id
+function fieldName(id, recName) {
+  const F = GAME_NAMES.fields;
+  return (id && Object.prototype.hasOwnProperty.call(F, id)) ? F[id] : (recName || id);
+}
 // ============================================================
 // THE ATMOSPHERE — pressure, temperature and density with height.
 // Units: m, K, Pa, kg/m3, m/s. Altitude `h` is metres above MEAN SEA LEVEL,
@@ -4054,7 +4103,7 @@ function makeWorld(seed, opts) {
       if (SET.inCore(x, z)) continue;          // clear of settlement cores
       if (AERO.inBox(x, z, 30)) continue;      // clear of strips + margin
       if (PM && PM.vegAt && PM.vegAt(x, z) === null) continue;   // G1385: a cover polygon whose vegetation is none
-      if (PM && PM.excludeAt(x, z, 'trees')) continue;   // clear of the premises' excludes: its plots, its strips' boxes, its sites, its clear zones
+      if (PM && (PM.excludeAt(x, z, 'trees') || PM.excludeAt(x, z, 'lot'))) continue;   // clear of the premises' excludes: its plots, its strips' boxes, its sites, its clear zones; and every building's lot (LOT-CLEAR)
       // ...and clear of the premises' PAVEMENTS and their bands (2026-09-22, the user: "we have a lot
       // of trees on the roads"). On an island SET is stubbed, so this is the only thing that keeps a
       // collidable tree off a village street - the same law the grass obeys (contract v1.17)
@@ -6390,13 +6439,16 @@ const GP_FILLET = 12, GP_HOLD_IN = 110, GP_LANE = 12, GP_UTURN_R = 12;
 // key ('stock:', 'mine:') gets the default, an 12 m-span single. The world's obstacle registry holds
 // the real meshes in the browser only; the core plans from these.
 const GP_CLEAR = 1.5, GP_HALF_DEFAULT = 6.0;
+// (ENGINE-CONFIGS-2: the Skymaster-alike's rear pusher, then its wing and booms 0.5 m aft (25 Oct) - 6.16 m: 6.2)
+// (ENGINE-CONFIGS-2, 27 Oct: the three layout starters - the Push-pull starter 0.79 / 6.12 m, the Trimotor 0.76 /
+// 5.93, the Four-engine starter 0.51 / 6.01; all inside the table's envelope, so FLEET_SPOT_FOOT does not move)
 const GP_PARKED_FOOT = {   // [half-span, nose + prop ahead of the mount, tail behind it], metres
   cub: [5.4, 1.3, 5.5], pietenpol: [4.4, 0.9, 5.6], tigermoth: [4.5, 0.9, 5.6], stearman: [4.9, 1.0, 5.4], pittsAlike: [3.3, 0.9, 4.4],
   sesqui: [5.0, 0.9, 5.6], jodel: [4.2, 1.4, 4.5], c172: [5.5, 1.5, 6.1], chinook: [4.9, 0.4, 5.2], caravan: [7.0, 2.1, 6.6],
   rv: [4.9, 0.9, 5.7], savannah: [4.6, 0.9, 5.4], ul1: [4.7, 0.9, 5.4], floatplane: [5.9, 1.2, 5.8], pusherPod: [4.6, 0.6, 5.7],
   motorglider: [6.5, 0.9, 5.0], radial: [5.5, 0.9, 5.8], etrainer: [4.5, 0.9, 5.6], ttail: [5.5, 0.9, 5.8], vtail: [5.5, 0.9, 5.9],
-  mw5: [4.7, 0.6, 5.6], archaeopteryx: [5.5, 0.6, 5.5], da62: [7.0, 0.7, 6.1], twinBush: [8.0, 0.7, 7.1], skymaster: [5.5, 0.9, 5.7],
-  p38: [5.5, 0.7, 5.6], beaver: [7.3, 1.0, 5.9],
+  mw5: [4.7, 0.6, 5.6], archaeopteryx: [5.5, 0.6, 5.5], da62: [7.0, 0.7, 6.1], twinBush: [8.0, 0.7, 7.1], skymaster: [5.5, 0.9, 6.2],
+  p38: [5.5, 0.7, 5.6], beaver: [7.3, 1.0, 5.9], pushPull: [5.5, 0.9, 6.2], trimotor: [5.5, 0.8, 6.0], fourEngine: [5.5, 0.6, 6.1],
 };
 const GP_PARKED_DEFAULT = [6.0, 1.6, 6.6];
 function parkedFoot(p) {
@@ -7896,6 +7948,9 @@ function hangarFit(dims, kitKeys, opts) {
 
   const placed = [], recipes = [], unplaced = [];
   const placedKeys = new Set();
+  // G3353: a shed may leave named props out (opts.omit: the story's cabin keeps two small machines of the woodshop and
+  // the metalshop). A left-out row is REPORTED, never silent - the invariant below holds
+  const omit = new Set((opts && Array.isArray(opts.omit)) ? opts.omit : []);
   const lanes = { shop: [], build: [], back: [] };  // packed intervals per wall
 
   const resolve = s => {
@@ -7921,6 +7976,7 @@ function hangarFit(dims, kitKeys, opts) {
     if (isRecipe) { out.recipe = row.recipe; out.n = row.n; out.free = !!row.free; out.foot = row.foot; }
     else out.prop = row.prop;
     const label = isRecipe ? row.recipe : row.prop;
+    if (!isRecipe && omit.has(row.prop)) { unplaced.push({ kit, key: label, at: row.at, reason: 'left out of this shed' }); return; }
 
     // 1. bounds — even a `free` row: free waives the keepouts and the
     // packing (the hung wing is ALLOWED across the doorway), never the
@@ -8143,7 +8199,8 @@ const CATEGORIES = ['residential', 'shed', 'commercial', 'industrial', 'official
 // by hand). A zone may override its categories (zone.rules.cats). A second theme is a table, not a
 // rewrite: the same seven categories, other draws.
 const THEMES = {
-  alaska: { name: 'Alaska', blurb: 'the panhandle: wooden houses and their sheds, canneries and net lofts on the water, a mine and its tram, totems, a ball park',
+  // (G3240 NAMES: the id stays 'alaska' - records name it; the words the editor shows are fictional, GAME-PLAN §13)
+  alaska: { name: 'North Coast', blurb: 'the north coast: wooden houses and their sheds, canneries and net lofts on the water, a mine and its tram, totems, a ball park',
     categories: CATEGORIES,
     // each category's PLACEMENT LAW (THEME-ALASKA-RURAL-2026-09-14.md): zoned = the composer sows it on the
     // plots of a zone; hand = the editor stands it as a site (the palette lists every category)
@@ -8596,7 +8653,8 @@ function makeModifier0(m, y0) {
         const c = polyCentroid(poly), hd = (+m.hdg || 0) * Math.PI / 180, a = (+m.slope || 0) * CORE_MATH.sin(hd), b = (+m.slope || 0) * CORE_MATH.cos(hd);
         pl = [a, b, (+m.level || 0) - a * c[0] - b * c[1]];
       } else pl = m.plane || [0, 0, 0];
-      target = (x, z) => y0 + pl[0] * x + pl[1] * z + (pl[2] || 0);
+      const base = m.abs ? 0 : y0;   // G3660: `abs` - the plane in world heights (siteShelves' ramp pad), as a flatten's level
+      target = (x, z) => base + pl[0] * x + pl[1] * z + (pl[2] || 0);
     }
     // THE TWO ENDS OF THE FEATHER NEED NO DISTANCE (PHYSICS PERF 2026-09-24). weight() is 1 for any
     // sd <= 0 and sdPoly is -d inside, so a point inside the polygon weighs 1 whatever its distance to
@@ -8876,6 +8934,10 @@ function normalise(rec) {
   // v1.37: a road's junction ids run beside its points too, one slot each (a hand edit's short list padded with null)
   for (const rd of r.layers.roads) if (rd && Array.isArray(rd.nodes) && Array.isArray(rd.pts)) { while (rd.nodes.length < rd.pts.length) rd.nodes.push(null); rd.nodes.length = rd.pts.length; }
   feelFollowsLook(r);
+  // A ROAD'S BAND 0 IS NO BAND (the user, 24 Oct: the editor's band row could not give a road its side back - its minimum was 0,
+  // and a declared band 0 drew the band's 6 m fade): a road read with band 0 or null has its band taken away - its own side
+  // again (Jolene's r45). A strip's or an area's band 0 is kept (no cleared earth).
+  for (const rd of r.layers.roads) if (rd && 'band' in rd && !(+rd.band > 0)) delete rd.band;
   r.budget =Object.assign({}, d.budget, r.budget || {});
   if (typeof r.seed !== 'number') r.seed = 1;
   if (!THEMES[r.theme]) r.theme = THEME_DEF;
@@ -9255,7 +9317,7 @@ function sowPlots(zone, roads, ctx) {
   // corner within `half` of it and no sample of it inside, so the road is skipped
   // with the answer the two tests would have given.
   const boxed = roads.map(rd => {
-    const pr = polyRoad(rd.pts, rd.w || 3.6), half = (rd.w || 3.6) / 2 + 0.5;
+    const pr = polyRoad(rd.pts, roadLayW(rd)), half = roadLayW(rd) / 2 + 0.5;
     let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
     for (const p of rd.pts.concat(pr.pts)) { x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); z0 = Math.min(z0, p[1]); z1 = Math.max(z1, p[1]); }
     const m = half + 1e-3;
@@ -9274,7 +9336,7 @@ function sowPlots(zone, roads, ctx) {
     return false;
   };
   for (const road of roads) {
-    const rd = polyRoad(road.pts, road.w || 3.6);
+    const rd = polyRoad(road.pts, roadLayW(road));   // (the layout width: the plots stand where the town was laid out)
     if (rd.length < 40) continue;
     const zoneSeed = zone.seed !== null && zone.seed !== undefined ? zone.seed : seedOf(ctx.seed, 'zone', zone.id);
     const rnd = mulberry32(hash32(zoneSeed, fnv(String(road.id))));
@@ -9601,6 +9663,22 @@ function zoneGrass(zone) { return Object.assign({}, ZONE_GRASS[zone && zone.kind
 // a road's look: its own, else its class's; the pavement's row for it (or null for 'none')
 // ONE SURFACE (the user, 18 Oct): what a road's wheels feel (its own `surface`, else its class's - the composer's rule) and
 // whether a look feels as a class does (a look with no feel of its own - markings only - feels as anything)
+// A ROAD'S LAYOUT WIDTH (TOWN-ROAD-SIDES, the user 22 Oct: Metlakatla's streets "a smaller side ... the same overall width ...
+// a higher proportion of the road"): `w` is the carriageway DRAWN and felt, `lay` (when set) the width the town was laid out
+// against - its plots' setback, its houses' fronts, its graded bed, its trees' clearing (its poles stand off what it DRAWS). A street that traded its side
+// for carriageway says its old width in `lay`, and nothing beside it moves. Unset: the carriageway, as ever.
+function roadLayW(r) { return r && +r.lay > 0 ? +r.lay : (+(r && r.w) || 3.6); }
+// ...and A TRADED STREET'S GRADE (the 23 Oct survey: GATE CONTACT's road edge / side counted the pavement within 5 mm of the
+// patch where the ground CURVES under it - a bank starting at the drawn edge, under the side's fade): flat under everything it
+// draws that CONTACT sees - the carriageway and ROAD_SIDE_FLAT past each edge (the side's fade reach) - its bank narrower by
+// as much, so the grade's OUTER edge (lay / 2 + falloff) is where it was and no ground past it moves. A road that traded
+// nothing (lay unset or = w): its grade as ever.
+const ROAD_SIDE_FLAT = 1.2;
+function roadGradeW(r, falloff) {
+  const w = +r.w || 3.6, lay = roadLayW(r), ext = Math.max(0, w - lay);
+  if (!(ext > 0)) return { width: lay, falloff };
+  return { width: w + 2 * ROAD_SIDE_FLAT, falloff: Math.max(1, falloff - ext / 2 - ROAD_SIDE_FLAT) };
+}
 function roadFeel(r) { return r.surface !== undefined && r.surface !== null ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL); }
 function lookFeelsAs(look, feel) { const L = RUNWAY_LOOKS[look]; return !L || L.surface === null || L.surface === undefined || +L.surface === +feel; }
 function roadLook(r) { const k = r.look && RUNWAY_LOOKS[r.look] ? r.look : (ROAD_LOOK[r.cls] || 'gravel'); return { key: k, row: RUNWAY_LOOKS[k] }; }
@@ -9880,7 +9958,7 @@ function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
   const flatPolys = (flats || []).map(poly => poly.map(q => F.toWorld(q[0], q[1])));
   // ... and every GRADED ROAD (G434): a road's bed is flat across and smoothed along by construction -
   // a taxiway traced as a road is ground a pattern may walk on (the validator asks flat())
-  const roadsL = (gradedRoads || []).filter(rd => rd.pts && rd.pts.length >= 2).map(rd => ({ pts: rd.pts, w: +rd.w || 3.6 }));
+  const roadsL = (gradedRoads || []).filter(rd => rd.pts && rd.pts.length >= 2).map(rd => ({ pts: rd.pts, w: roadLayW(rd) }));
   const onRoad = (x, z) => { if (!roadsL.length) return false; const L = F.toLocal(x, z); return roadsL.some(rd => roadDist(rd, L[0], L[1]) <= rd.w / 2 + 1); };
   const flat = (x, z) => inPoly(flatBox, x, z) || flatPolys.some(pl => inPoly(pl, x, z)) || onRoad(x, z);
   // the aeroplane is placed at the stand when the strip has one
@@ -9891,10 +9969,13 @@ function runwayAerodrome(r, F, elev, flats, hAt, gradedRoads) {
   if (S && S.stand) S.stand.elev = groundAt(S.stand.x, S.stand.z);
   const spawnElev = groundAt(spawnAt[0], spawnAt[1]);
   // a SEA LANE (G434): the analytic SEA's shape - kind 'water', no site, flat everywhere (the water is)
-  if (runwayIsWater(r)) return { id: r.id, name: r.name || 'sea lane', kind: 'water', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat: () => true,
+  // (G3240 NAMES) the name it shows is the names table's (01_names.js fieldName) for a field the table names - the
+  // user's own saved record may still carry an older one - else the record's own (a required-alone 27_ reads the record's)
+  const nm = (dflt) => typeof fieldName === 'function' ? fieldName(r.id, r.name || dflt) : (r.name || dflt);
+  if (runwayIsWater(r)) return { id: r.id, name: nm('sea lane'), kind: 'water', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat: () => true,
            surface: SURFACE.WATER, look: 'none', elev, tdz, spawn, spawnElev: elev, flyIn: false, premises: true, water: true,
            landHdg: r.approach === 0 ? hdg : r.approach === 1 ? hdg + Math.PI : null, slope: 0, disp: [0, 0], papi: [false, false], circuit: r.circuit || null };
-  return { id: r.id, name: r.name || 'strip', kind: 'strip', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat,
+  return { id: r.id, name: nm('strip'), kind: 'strip', x: c[0], z: c[1], hdg, len: r.len, wid: r.wid, flat,
            surface: r.surface === undefined ? SURFACE.GRASS : +r.surface, look: RUNWAY_LOOKS[r.look] ? r.look : 'grass', elev, tdz, spawn: spawnAt, spawnElev, flyIn: false, premises: true,
            band: r.band === undefined ? null : r.band, pav: r.pav || null,   // the pavement's (v1.16): the renderer resolves them with the premises' recipe
            // the direction of travel when landing over the named end (end 0 -> end 1 is +hdg); the pilot reads it in calm air
@@ -10011,6 +10092,26 @@ function siteShelves(site, cat, T) {
     const toWorld = (lx, lz) => [c[0] + lx * cy + lz * sy, c[1] - lx * sy + lz * cy];
     const P = entry.params ? entry.params(Object.assign({ recvZ: it.z || 0 }, it.P || {})) : Object.assign({}, entry.P || {}, it.bottomOnRoad ? { recvZ: it.z || 0 } : {}, it.P || {});
     const id = site.id + '/' + (it.id || ('i' + k)) + ':ground';
+    if (entry.ground.need === 'ramp' && typeof entry.ground.outline === 'function') {
+      // G3660 THE RAMP (the meteo station; the user 25 Oct: "Keep the level pad tight around the building. The real one is
+      // positioned slightly on a slope, but a small one"): the pad is the entry's OUTLINE (its own walls + a margin, not the
+      // foot's rectangle), its ground the least-squares PLANE of the ground inside it (a 12 x 12 grid), the slope capped at
+      // ground.maxSlope (0.06 when unsaid) - a 'ramp' modifier with an absolute plane, the bank law's falloff
+      const poly = entry.ground.outline(P).map(q => toWorld(q[0], q[1])), bb = polyBBox(poly), S = [];
+      let mx = 0, mz = 0, mh = 0;
+      for (let i = 0; i < 12; i++) for (let j = 0; j < 12; j++) { const x = bb.x0 + (i + 0.5) / 12 * (bb.x1 - bb.x0), z = bb.z0 + (j + 0.5) / 12 * (bb.z1 - bb.z0); if (inPoly(poly, x, z)) { const h = T(x, z); S.push([x, z, h]); mx += x; mz += z; mh += h; } }
+      if (S.length < 3) return;   // (an outline smaller than the grid: no pad)
+      mx /= S.length; mz /= S.length; mh /= S.length;
+      let sxx = 0, szz = 0, sxz = 0, sxh = 0, szh = 0;
+      for (const q of S) { const dx = q[0] - mx, dz = q[1] - mz, dh = q[2] - mh; sxx += dx * dx; szz += dz * dz; sxz += dx * dz; sxh += dx * dh; szh += dz * dh; }
+      const det = sxx * szz - sxz * sxz;
+      let a = det > 1e-9 ? (sxh * szz - szh * sxz) / det : 0, b = det > 1e-9 ? (szh * sxx - sxh * sxz) / det : 0;
+      const s0 = Math.hypot(a, b), cap = entry.ground.maxSlope === undefined ? 0.06 : +entry.ground.maxSlope;
+      if (s0 > cap) { a *= cap / s0; b *= cap / s0; }
+      const f = bankFalloff(poly, T, mh, entry.ground.falloff || 6);
+      out.push({ id, kind: 'ramp', abs: true, poly: poly.map(q => [+q[0].toFixed(2), +q[1].toFixed(2)]), plane: [+a.toFixed(5), +b.toFixed(5), +(mh - a * mx - b * mz).toFixed(3)], falloff: f, drop: +polyDrop(poly, T, mh, 0).toFixed(2) });
+      return;
+    }
     if (entry.ground.need === 'flatten' && typeof entry.ground.shelf === 'function') {
       const M = entry.ground.shelf(P);
       const ahead = toWorld(0, M.zLevel || 0), level = T(ahead[0], ahead[1]);
@@ -10478,6 +10579,13 @@ function plotFenceOff(zone, plotId) {
   const R = (zone && zone.rules) || {};
   return R.fences === false || (Array.isArray(R.noFence) && R.noFence.indexOf(plotId) >= 0);
 }
+// A PLOT'S CARS (the user, 24 Oct: "options to remove the fences and the cars from the assets, especially the residential
+// ones"): a zone's `rules.cars === false` takes the parked cars off every plot it sows (a house's car and its drive's, a lot's
+// bays), `rules.noCar` [plot ids] off those plots alone (the pad, the drive, the bays and the boat as they were); absent - today's
+function plotCarOff(zone, plotId) {
+  const R = (zone && zone.rules) || {};
+  return R.cars === false || (Array.isArray(R.noCar) && R.noCar.indexOf(plotId) >= 0);
+}
 function plotGroundOff(zone, plotId) {
   const R = (zone && zone.rules) || {};
   return R.ground === false || (Array.isArray(R.noGround) && R.noGround.indexOf(plotId) >= 0);
@@ -10775,7 +10883,7 @@ function compose(rec0, world, opts) {
     .map(r => (r.curve === 'spline' || r.smooth ? Object.assign({}, r, { pts: roadLine(r), wp: r.wp || r.pts }) : r));   // (G2950: `wp` its waypoints, where its junctions are)
   // `traffic` (contract v1.13, G432): vehicles per km the renderer runs up and down the road - 0 or absent, none
   // `ribbon` false (G434): the renderer draws no ribbon over it - a taxiway under a material polygon of its own
-  const roadObjs = roads.map(r => Object.assign({ id: r.id, pts: r.pts, w: +r.w || 3.6, surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL), traffic: Math.max(0, +r.traffic || 0), ribbon: r.ribbon !== false,
+  const roadObjs = roads.map(r => Object.assign({ id: r.id, pts: r.pts, w: +r.w || 3.6, lay: roadLayW(r), surface: r.surface !== undefined ? +r.surface : (ROAD_CLS[r.cls] !== undefined ? ROAD_CLS[r.cls] : SURFACE.GRAVEL), traffic: Math.max(0, +r.traffic || 0), ribbon: r.ribbon !== false,
     look: roadLook(r).key, band: r.band === undefined ? null : r.band, pav: r.pav || null }, roadClearOf(r) !== null ? { clear: roadClearOf(r) } : {},
     // G2893 (SCENERY-ED-1; the user: "no effect of enabling/disabling power lines and guardrails on roads"): the guardrail and the
     // power line read THIS object (render_premises buildRail / buildLine: rd.rail, rd.poles, rd.polesSide), which never carried
@@ -10796,7 +10904,9 @@ function compose(rec0, world, opts) {
     if (runwayIsWater(r)) {
       const cw = F.toWorld(r.c[0], r.c[1]);
       const wl = world.waterH ? world.waterH(cw[0], cw[1]) : T1(r.c[0], r.c[1]);
-      aerodromes.push(stageAero(runwayAerodrome(r, F, isFinite(wl) ? wl : 0, [], null), r));
+      // (CABIN-LAKE 26 Oct: a lane on a LAKE - the composer's world has the DEM flat at the lake's surface, 1 cm over its level,
+      // and its waterH answers -Infinity there: the lane's elevation is that ground, the lake's own surface - never 0)
+      aerodromes.push(stageAero(runwayAerodrome(r, F, isFinite(wl) ? wl : T1(r.c[0], r.c[1]), [], null), r));
       // G2310: a lane's site is its PLOTS alone (the slipways), each shed on the shore's composed ground; no plots, no site
       r.site = Array.isArray(r.plots) && r.plots.length ? runwaySite(r, F) : null;
       if (r.site && r.site.plots) for (const p of r.site.plots) { const L = F.toLocal(p.x, p.z); p.y = +T1(L[0], L[1]).toFixed(2); }
@@ -10853,7 +10963,7 @@ function compose(rec0, world, opts) {
     const BED = bedOf(r);
     let floor = null;
     if (BED) {
-      const hw = (+r.w || 3.6) / 2;
+      const hw = roadGradeW(r, 0).width / 2;   // (the bed's floor under all a traded street draws)
       floor = dense.map((p, i) => {
         const a = dense[Math.max(0, i - 1)], b = dense[Math.min(dense.length - 1, i + 1)], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.hypot(dx, dz) || 1, nx = -dz / l, nz = dx / l;
         return Math.max(hs[i], T1r(p[0] + nx * hw, p[1] + nz * hw), T1r(p[0] - nx * hw, p[1] - nz * hw)) + BED.fill;
@@ -10916,7 +11026,8 @@ function compose(rec0, world, opts) {
       const s = jAt.s, hAtS = sj => { let k = 0; while (k + 2 < s.length && s[k + 1] < sj) k++; const L = s[k + 1] - s[k]; return L > 1e-9 ? hs[k] + (hs[k + 1] - hs[k]) * Math.max(0, Math.min(1, (sj - s[k]) / L)) : hs[k]; };
       for (const [jid, sj, isEnd] of jAt) if (!JH.has(jid) || (!isEnd && JH.get(jid).end)) JH.set(jid, { h: hAtS(sj), end: isEnd });
     }
-    const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: dense.map((p, i) => [p[0], p[1], hs[i]]), width: (+r.w || 3.6) + (BED ? 2 * BED.shoulder : 0), falloff: BED ? BED.bank : (+r.falloff || 6), abs: true }, F.y0);
+    const M = makeModifier({ id: r.id + ':grade', kind: 'grade', pts: dense.map((p, i) => [p[0], p[1], hs[i]]), width: roadGradeW(r, 0).width + (BED ? 2 * BED.shoulder : 0), falloff: roadGradeW(r, BED ? BED.bank : (+r.falloff || 6)).falloff, abs: true }, F.y0);
+    // (TOWN-ROAD-SIDES: roadGradeW - a traded street flat under all it draws, its grade's outer edge where it was)
     if (M) mods.push(M);
   }
   // THE GROUND UNDER THE SITES (stage 5 -> T2): every item's shelf, from its entry, cut before anything is placed
@@ -11006,6 +11117,24 @@ function compose(rec0, world, opts) {
   const treeOff = e => RWT !== 'today' && (e.rwy || (RWT === 'map' && (e.shoulder || e.fan)));
   // a clear zone is a derived exclude of trees
   for (const z of rec.layers.zones) if (z.kind === 'clear' && z.poly && z.poly.length >= 3) excl.push({ poly: z.poly, bbox: polyBBox(z.poly), what: ['trees'], derived: true });
+  // LOT-CLEAR (the user, 22 Oct, at the old mine: "trees have grown into the building since we allowed them right next to the
+  // runway edge ... I would have expected the buildings themselves to clear their lots"): A BUILDING CLEARS ITS OWN LOT, whatever
+  // the strip's tree rule. The runway's box + 30 m had kept the woods off the buildings near a strip; with the woods to the
+  // strip's edge ('mapx') nothing did - the island's woodland and the viewer's fill read excludeAt(.., 'trees'), and a
+  // building's keep-out reached only its zone's own planting. Every runway plot (a hangar's place: the offer's widest shell,
+  // else a field shed's 9 x 10) and every site item (its foot's box, below) + LOT_M keeps the trees out. Their own kind,
+  // 'lot': read by the woodland's planting and the viewer's fill (excludeAt .. 'lot'), never by a zone's sowing (its plots
+  // keep their places - PREMISES 21d) nor by anything that reads 'trees' alone
+  const LOT_M = 3;
+  for (const r of runways) for (const p of (r.plots || [])) {
+    if (!p || !isFinite(+p.x) || !isFinite(+p.z)) continue;
+    let HW = 0, HD = 0; const OF = typeof BASE_OFFERS !== 'undefined' && BASE_OFFERS[r.id] && BASE_OFFERS[r.id].plots && BASE_OFFERS[r.id].plots[p.id];
+    if (OF && typeof SHELLS !== 'undefined') for (const sh of OF.shells || []) { const d = (OF.dims && OF.dims[sh]) || (SHELLS[sh] && SHELLS[sh].dims); if (d) { HW = Math.max(HW, +d.HW || 0); HD = Math.max(HD, +d.HD || 0); } }
+    if (!(HW > 0 && HD > 0)) { HW = 9; HD = 10; }
+    const c = CORE_MATH.cos(+p.hdg || 0), sn = CORE_MATH.sin(+p.hdg || 0), A = HD + LOT_M, B = HW + LOT_M;
+    const poly = [[-A, -B], [A, -B], [A, B], [-A, B]].map(q => [+p.x + c * q[0] - sn * q[1], +p.z + sn * q[0] + c * q[1]]);
+    excl.push({ poly, bbox: polyBBox(poly), what: ['lot'], derived: true, lot: r.id + '/' + p.id });
+  }
   // THE TTYPE STAMPS (v1.20): each polygon with the code it stamps. 0 sea and 1 lake are
   // never overwritten - the water is not a place's to re-classify - and the codes
   // the ISLAND itself derives (12 cliff, 13 forest old, 14 scrub dense) are not
@@ -11058,7 +11187,7 @@ function compose(rec0, world, opts) {
   // regrows the trees under the pieces it moved, never the whole of an island-long road. Unset: today's road.
   for (const ro of roadObjs) {
     if (ro.runway || !(ro.clear >= 0) || !ro.pts || ro.pts.length < 2) continue;
-    const half = ro.w / 2 + ro.clear;
+    const half = ro.lay / 2 + ro.clear;   // (from the layout edge: the trees stand where they stood)
     // (the pieces are the line's runs through a 200 m grid's cells: an edit changes the runs it moved and no other - an
     // arclength cut would shift every piece past the edit)
     const cellOf = p => Math.floor(p[0] / 200) * 100003 + Math.floor(p[1] / 200);
@@ -11986,9 +12115,9 @@ function compose(rec0, world, opts) {
         O.records.items.push(it);
         // an item astride a road it was not put on: its pad would re-grade the road (an authoring mistake, named)
         const rit = (st.items || []).find(q => (q.id || '') === it.item) || {};
-        if (!rit.onRoad && !rit.bottomOnRoad && it.foot) for (const rd of roadObjs) if (!rd.runway && (roadInPoly(polyRoad(rd.pts, rd.w), it.foot).length || it.foot.some(q => roadDist(rd, q[0], q[1]) < rd.w / 2))) { S.issues.push('site ' + st.id + ': ' + it.item + ' stands on road ' + rd.id + ' (set it back, or put it on the road)'); break; }
+        if (!rit.onRoad && !rit.bottomOnRoad && it.foot) for (const rd of roadObjs) if (!rd.runway && (roadInPoly(polyRoad(rd.pts, rd.lay), it.foot).length || it.foot.some(q => roadDist(rd, q[0], q[1]) < rd.lay / 2))) { S.issues.push('site ' + st.id + ': ' + it.item + ' stands on road ' + rd.id + ' (set it back, or put it on the road)'); break; }
       }
-      for (const k of S.keepOut) { ctx.keepOut.push(k); ctx.excludes.push(k); O.records.excludes.push(k); }
+      for (const k of S.keepOut) { ctx.keepOut.push(k); ctx.excludes.push(k); O.records.excludes.push(k); excl.push({ poly: k, bbox: polyBBox(k), what: ['lot'], derived: true, lot: st.id }); }   // (LOT-CLEAR: the woods too)
       for (const i of S.issues) O.records.issues.push(i);
     }
     O.records.links = solveLinks(rec, O.records.items, 'placed');
@@ -12001,7 +12130,7 @@ function compose(rec0, world, opts) {
       if (!z.poly || z.poly.length < 3 || !polySimple(z.poly)) continue;
       if (['residential', 'commercial', 'industrial', 'harbour', 'park'].indexOf(z.kind) >= 0)
         { let n = 0; const zc = Object.assign({}, ctx, { waterY: zoneWaterY(z) });
-          for (const p of zoneMemoRun(ZM, 'sow', z.id, () => zmKey(z, zc, roads, null), () => sowPlots(z, roads, zc))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; if (plotGroundOff(z, p.id)) p.noGround = true; if (plotFenceOff(z, p.id)) p.noFence = true; O.records.plots.push(p); n++; }
+          for (const p of zoneMemoRun(ZM, 'sow', z.id, () => zmKey(z, zc, roads, null), () => sowPlots(z, roads, zc))) { p.pick = pickFor(p, cat, mulberry32(p.seed ^ 0x51ed), themeOf(rec), z); if (z.stageSown) p.stageSown = true; if (plotGroundOff(z, p.id)) p.noGround = true; if (plotFenceOff(z, p.id)) p.noFence = true; if (plotCarOff(z, p.id)) p.noCar = true; O.records.plots.push(p); n++; }
           if (!n && z.kind === 'harbour' && roads.some(rd => roadInPoly(polyRoad(rd.pts, rd.w || 3.6), z.poly).length)) O.records.issues.push('harbour ' + z.id + ': no plot of its road reaches the water'); }
     }
     // (v1.33) a zone below its stage's band sowed to hold its land; its plots go now, their ground kept clear of trees
@@ -12054,7 +12183,7 @@ function compose(rec0, world, opts) {
         if (site.items.length) {
           const S = placeSite(site, cat, ctx);
           for (const it of S.items) { it.park = park.id; O.records.items.push(it); park.items.push(it); }
-          for (const k of S.keepOut) { ctx.keepOut.push(k); ctx.excludes.push(k); O.records.excludes.push(k); }
+          for (const k of S.keepOut) { ctx.keepOut.push(k); ctx.excludes.push(k); O.records.excludes.push(k); excl.push({ poly: k, bbox: polyBBox(k), what: ['lot'], derived: true, lot: park.id }); }   // (LOT-CLEAR)
           for (const i of S.issues) O.records.issues.push(i);
         }
         // THE PARK'S DRESSING (placePark's, in the composer): the footpath from the road's verge to the
@@ -12063,7 +12192,7 @@ function compose(rec0, world, opts) {
           const rd = roadObjs.find(r => r.id === p.road);
           const n = p.n, tg = p.tg, w = p.w;
           const prnd = mulberry32(hash32(seed, 0x9a7));
-          const back = rd ? Math.max(0, roadDist(rd, p.front[0], p.front[1]) - rd.w / 2 - 0.6) : 0;
+          const back = rd ? Math.max(0, roadDist(rd, p.front[0], p.front[1]) - rd.lay / 2 - 0.6) : 0;
           const p0 = [p.front[0] - n[0] * back, p.front[1] - n[1] * back];
           const front = plan.toWorld(0, plan.local.patch.z1 + 0.6);
           const sway = (prnd() < 0.5 ? -1 : 1) * (3 + prnd() * 3);
@@ -12440,8 +12569,8 @@ function checks(rec0, world, opts) {
 // the catalogue — collect what the loaded generators export, or DERIVE an
 // entry per preset for those without one (the contract §2.2)
 // ---------------------------------------------------------------------------
-const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN', 'HANGAR_GEN', 'TOWER_GEN', 'MARINE_GEN', 'NAVAID_GEN'];   // SPORT_GEN: the sports grounds (G392); MARINE_GEN: the harbour kit (2026-09-22) - piers, floats, moles, wharves, net pens
-const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport', HANGAR_GEN: 'hangar', TOWER_GEN: 'tower', NAVAID_GEN: 'navaid', MARINE_GEN: 'marine' };
+const GENERATORS = ['HOUSE_GEN', 'BIG_GEN', 'SHED_GEN', 'TRAM_GEN', 'TOTEM_GEN', 'FACTORY_GEN', 'SPORT_GEN', 'HANGAR_GEN', 'TOWER_GEN', 'MARINE_GEN', 'NAVAID_GEN', 'METEO_GEN'];   // SPORT_GEN: the sports grounds (G392); MARINE_GEN: the harbour kit (2026-09-22) - piers, floats, moles, wharves, net pens
+const GEN_NS = { HOUSE_GEN: 'house', BIG_GEN: 'big', SHED_GEN: 'shed', TRAM_GEN: 'tram', TOTEM_GEN: 'totem', FACTORY_GEN: 'factory', SPORT_GEN: 'sport', HANGAR_GEN: 'hangar', TOWER_GEN: 'tower', NAVAID_GEN: 'navaid', MARINE_GEN: 'marine', METEO_GEN: 'meteo' };   // METEO_GEN: the meteo station (G3660)
 function collect(globals) {
   const entries = new Map(), aliases = {}, issuesOut = [];
   for (const g of GENERATORS) {
@@ -12474,10 +12603,10 @@ function collect(globals) {
            byCat(c) { const out = []; entries.forEach(e => { if ((e.cat || (e.kind === 'park' ? 'landmark' : null)) === c) out.push(e); }); return out; } };
 }
 
-const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
+const API = { PREMISES_V, LAYERS, smoothPath, roadCurve, roadHandles, roadLine, roundPoly, roundOk, plotGroundOff, runwayGrab, objectPickR, plotFenceOff, plotCarOff, SURFACE, SURFACE_NAMES, ROAD_CLS, ROAD_LOOK, roadLook, PAVE_BAND, PAVE_FADE, PAVE_SIDE, GRASS_SIDES_DEF, grassSides, RWY_TREES, rwyTreesMode, RWY_CLEAR_DEF, runwayClearOf, runwayClearPoly, inRwyClear, VEG_MODES, vegOf, vegMixOf, paveBand, PAV_KEYS, PAV_MARKS, STAND_KEYS, ZONE_GRASS, zoneGrass, ZONE_KINDS, ZONE_RULES, KIND_RULES, CATEGORIES, THEMES, THEME_DEF, themeOf, RUNWAY_LOOKS, runwaySite, runwayPlots, runwayIsWater, HANGAR_DIMS, PREMISES_MIGRATORS, GENERATORS, PAVE_SIDE_SOFT,
   fnv, hash32, mulberry32, seedOf, fbm, roadBuildKeys, roadBoxTouch, objScale, roadLoneSegs, roadPatchChunks, LONE_R, roadCutAtPoly,
   polyBBox, polyCentroid, polyArea, polyCCW, inPoly, sdPoly, distPtSeg, polySimple, ensureCCW, smf01, polysOverlap,
-  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, profileCheck, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks, roadFeel, lookFeelsAs,
+  polyRoad, roadDist, roadDistNear, roadCrossesPoly, segIdx, roadClearOf, BED_DEF, bedOf, graphMake, graphOfPattern, junctionIds, newJunctionId, roadInPoly, shoreDepth, sowPlots, planForest, pickFor, PICK_TAGS, RUNWAY_DEF, ALTIPORT, hangarSquare, wayFrom, waysVia, runwayProfile, profileIssues, profileCheck, runwayShoulder, runwayEnds, runwayBox, runwayAerodrome, siteFrame, placeSite, siteShelves, slotAt, polyDrop, bankFalloff, shelfCovers, cellTol, deltaAt, LINK_SOLVERS, solveLinks, roadFeel, roadLayW, roadGradeW, ROAD_SIDE_FLAT, lookFeelsAs,
   makeModifier, SpatialIndex, DEF, migrate, normalise, envelope, unwrap, newId, findById, dropPlaces, restorePlaces, TOWN_OFF,
   AREA_PROPS, AREA_LAYERS, AREA_SLOT, AREA_SUFFIX, AREA_TERRAFORM, AREA_EXCLUDE, MARK_KINDS, MARK_DEF, rectPoly, rectOk, areaFoldable, foldAreas, areaEntries, expandAreas, areaOfEntry, areaMarks, areaLabel,
   STAGE_KITS, STAGE_FENCE, STAGE_RUNWAY_VARY, stageFrameKey, stageBand, stageValue, stageStands, stageVaryOf, stageKitObjects, stageKitPoly, stageView, stageRestore, stageIssues,
@@ -13161,6 +13290,10 @@ if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld
 //     B.mixAt(code)   the mix name or null (no biome here: sea, snow, built...)
 //     B.mixHere(code, x, z)  the same at a point, a premises polygon's own vegetation first (B.over)
 //     B.mixOf(name)   the mix record
+//     B.SHORE / B.shore / B.shoreHere(x, z)   18 LAKESHORE (G3430): the land within shoreReach m of a
+//                     drawn lake's line under the bank's slope - the renderer sets B.shore (the lake field
+//                     lives there); shoreHere is it where no premises polygon speaks and map[18] names a mix.
+//                     The COVER RING's band (tufts, flowers, bushes); the trees keep their own code's mix
 //     B.density(name) the mix's trees per m2 (its `count` in its `radius`)
 //     B.set(code, mixName) / B.export()   F8's handle
 //   The derivation's thresholds are the splat's knobs (GROUND_FIELDS.RECIPE
@@ -13169,11 +13302,15 @@ if (typeof module !== 'undefined' && module.exports && !module.exports.makeWorld
 // ===========================================================================
 'use strict';
 const BIOMES = (() => {
-  const KNOBS = { cliffLo: 32, cliffHi: 42, oldLo: 14, oldHi: 20, denseLo: 1, denseHi: 2.5 };
+  const KNOBS = { cliffLo: 32, cliffHi: 42, oldLo: 14, oldHi: 20, denseLo: 1, denseHi: 2.5, shoreReach: 12, shoreJit: 0.35 };   // shoreSlope: the bank's bankLo unless set
+  // 18 LAKESHORE (G3430, the user 25 Oct: "a proper biome with its mask, and we can paint it and everything, like the
+  // other"): a VEGETATION code - the band along the drawn lakes is its mask, a premises polygon paints it (or erases it)
+  // like any biome; the ground under it stays its own code's (no splat row: NCODE 17)
+  const SHORE = 18;
   // 15 LUSH is AUTHORED, not classified: a premises `cover` polygon stamps it into the island's ttype grid
   // (the route BIOMES-IN-GAME-2026-09-20 L5 proposed), and it carries the `borders` mix - the deciduous
   // shrubs, holly, raspberry and the odd birch that had been left orphaned when 7 and 14 were re-pointed.
-  const NAMES = { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense', 15: 'lush', 16: 'city trees' };
+  const NAMES = { 0: 'sea', 1: 'lake', 2: 'heath', 3: 'muskeg', 4: 'sand', 5: 'scree', 6: 'rock', 7: 'scrub', 8: 'forest', 9: 'snow', 10: 'built', 11: 'shingle', 12: 'cliff', 13: 'forest old', 14: 'scrub dense', 15: 'lush', 16: 'city trees', 18: 'lake shore' };
   const smooth = (lo, hi, v) => { const t = Math.max(0, Math.min(1, (v - lo) / Math.max(1e-6, hi - lo))); return t * t * (3 - 2 * t); };
   function make(pack, opts) {
     const src = (pack && pack.biomes) || {};
@@ -13193,6 +13330,8 @@ const BIOMES = (() => {
       if (tt === 7 && r < smooth(K.denseLo, K.denseHi, canopyM)) return 14;
       return tt;
     };
+    B.SHORE = SHORE; B.shore = null;
+    B.shoreHere = (x, z) => { if (!B.shore || !B.mixAt(SHORE)) return false; if (B.over && B.over(x, z) !== undefined) return false; return !!B.shore(x, z); };
     B.mixAt = code => { const m = B.map[code]; return (m && B.mixes[m]) ? m : null; };
     B.mixOf = name => B.mixes[name] || null;
     // A POLYGON'S OWN VEGETATION (G1385 EDITOR-VEG, contract v1.31): `over(x, z)` - set by the renderer from the
@@ -13209,7 +13348,7 @@ const BIOMES = (() => {
     B.export = () => JSON.stringify({ biomes: B.map, mixes: B.mixes }, null, 1);
     return B;
   }
-  return { make, NAMES, KNOBS };
+  return { make, NAMES, KNOBS, SHORE };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = BIOMES;
 if (typeof window !== 'undefined') window.BIOMES = BIOMES;
@@ -14320,7 +14459,7 @@ function makeSim(def, world) {
   let tkSub = 0;
   const nb = beams.length;
   const DMG = { yields: 0, breaks: 0, work: 0, broken: [], firstBreak: null, firstYield: null,
-                crashed: false, reason: null, at: null, dented: false, propStrike: false, propAt: null,
+                crashed: false, reason: null, at: null, dented: false, propStrike: false, propAt: null, rest: null, restFrom: null, fall: false,
                 gPeak: 0, setMax: 0, orphans: [], members: 0, dents: 0, primary: 0, firstPrimary: null, holed: 0,
                 // DMG-D1a: the groups broken (in order, G1815), the kink floors (G1813), the spruce cracks and their log
                 // [member, stage, t] (G1814), the frames armed (the census GATE DMGMEMBERS reads parked)
@@ -14337,6 +14476,11 @@ function makeSim(def, world) {
   // (bm.sec, G1803; DEFORM §10). Written only where the total is (beamYield, beamKink: the armed path), zeroed by reset()
   DMG.wB = new Float64Array(nb);
   const dmgW = (bi, w) => { DMG.work += w; DMG.wB[bi] += w; };
+  // G2373 (DMG-OCCUPANT, 34_occupant.js): THE OCCUPANTS' RECORD - each filled seat's pulse and space, kept on an event,
+  // judged at its close into one of five bands (DMG.occ). With the layer off (or no cabin) null: nothing of it exists
+  const OCC = DMG_ON && typeof genOccSpec === 'function' && GEN_OCC.on !== false ? genOccSpec(def) : null;
+  const OCS = OCC ? genOccState() : null;
+  if (OCC) DMG.occ = null;
   // per node: the members still holding it (an ORPHAN, every member broken, is debris: gravity and the ground
   // only, its aero dropped - a lone node carries a strip's lift on its own few kilos and would be flung)
   const nodeDeg = new Int32Array(n), nodeDeg0 = new Int32Array(n), orphan = new Uint8Array(n);
@@ -15157,9 +15301,11 @@ function makeSim(def, world) {
     DMG.brokeUp = null; DMG.stripsSplit = 0; DMG.stripsDropped = 0;
     DMG.yields = 0; DMG.breaks = 0; DMG.work = 0; DMG.broken.length = 0; DMG.firstBreak = null; DMG.firstYield = null;
     DMG.crashed = false; DMG.over = false; DMG.reason = null; DMG.at = null; DMG.dented = false; DMG.propStrike = false; DMG.propAt = null;
+    DMG.rest = null; DMG.restFrom = null; DMG.fall = false;
     DMG.gPeak = 0; DMG.setMax = 0; DMG.orphans.length = 0; DMG.members = 0; DMG.dents = 0; DMG.primary = 0; DMG.firstPrimary = null; DMG.holed = 0; gF = 0; cIx = cIy = cIz = 0;
     for (const b of beams) b.yielded = false;
     DMG.wB.fill(0);   // G1802
+    if (OCC) { genOccReset(OCS); DMG.occ = null; }   // G2373
     tkSub += 2;       // G1883: every member's contact starts again
     if (SCR !== null) scarReset(SCR);   // G2357: no scar (a new version, empty, if there was one: the page lets it go)
   }
@@ -15339,6 +15485,11 @@ function makeSim(def, world) {
   // Under all three a set is a DENT (DMG.dented): the aeroplane taxies on, bent. A prop strike stops its engine and is
   // not a crash on its own (a nose-over on the ground is a crash only if it breaks something).
   const CRASH_G = 9, CRASH_J = 1500;
+  // G3505 (DC3-BUILD, 2026-10-23): ...AND ON A HEAVY AEROPLANE THE WORK IS IN PROPORTION. 1.5 kJ is a light aeroplane's
+  // crushed nose (11 t at 0.5 m/s carries 1.4 kJ): above CRASH_J_KG of mass the threshold grows with it. Every aeroplane
+  // at or under 3 t (the whole fleet): 1500, the same comparison. Set once the mass is summed (below)
+  const CRASH_J_KG = 3000;
+  let crashJ = CRASH_J;
   // G1835 (DMG-D2b): the AIRFRAME's plastic work - the gear's is its energy absorber doing its job (§7.3: a spring-steel
   // leg spreads, an oleo bottoms; a gear joint's crush past its limit is its bracket), not the airframe crushing. Summed
   // only once the total has passed CRASH_J (one pass over the beams, then the answer)
@@ -15358,17 +15509,29 @@ function makeSim(def, world) {
     if (DMG.crashed || !DMG_ON) return;
     const why = DMG.primary ? 'a ' + (DMG.firstPrimary.cls || 'member') + ' member broke'
       : gF > CRASH_G ? 'an impact of ' + gF.toFixed(0) + ' g'
-      : DMG.work > CRASH_J && airWork() > CRASH_J ? 'the airframe crushed (' + (airWork() / 1000).toFixed(1) + ' kJ of plastic work)' : null;
+      : DMG.work > crashJ && airWork() > crashJ ? 'the airframe crushed (' + (airWork() / 1000).toFixed(1) + ' kJ of plastic work)' : null;
     if (why) { DMG.crashed = true; DMG.reason = why; DMG.at = simT; }
   }
   // ...and the flight is OVER once the wreck has come to rest (the CG under 1 m/s) or 4 s after the crash: the game
   // ends it there (app.js endFlight('crashed')), so the card shows the aeroplane bent as it lies, not the first
   // millisecond of the impact
+  // DMG-FALL (the user, 25 Oct: "detached parts hang metres high"): ...and the PIECES' rest, for the game's watch
+  // (app.js): DMG.rest = the time every node has been under 0.3 m/s for 0.5 s (null while one moves), DMG.fall = a node
+  // still coming down faster than 3 m/s (a piece in the air: the watch's cap waits for it). The CG's rest
+  // above ends the flight's physics verdict, not the picture: a part flung off, or the halves of a break-up in the air
+  // (over at the parting, 30_solver.js compEvent), still fall when the CG has stopped. Read only after a crash (n nodes)
   function dmgOver() {
-    if (!DMG.crashed || DMG.over) return;
-    let x = 0, y = 0, z = 0;
-    for (let i = 0; i < n; i++) { x += v[i*3] * m[i]; y += v[i*3+1] * m[i]; z += v[i*3+2] * m[i]; }
-    if (simT - DMG.at > 4 || (simT - DMG.at > 0.5 && Math.hypot(x, y, z) / totalM < 1)) DMG.over = true;
+    if (!DMG.crashed) return;
+    if (!DMG.over) {
+      let x = 0, y = 0, z = 0;
+      for (let i = 0; i < n; i++) { x += v[i*3] * m[i]; y += v[i*3+1] * m[i]; z += v[i*3+2] * m[i]; }
+      if (simT - DMG.at > 4 || (simT - DMG.at > 0.5 && Math.hypot(x, y, z) / totalM < 1)) DMG.over = true;
+    }
+    let v2 = 0, vd = 0;
+    for (let i = 0; i < n * 3; i += 3) { const s = v[i] * v[i] + v[i+1] * v[i+1] + v[i+2] * v[i+2]; if (s > v2) v2 = s; if (-v[i+1] > vd) vd = -v[i+1]; }
+    DMG.fall = vd > 3;
+    if (v2 > 0.09) { DMG.restFrom = null; DMG.rest = null; }
+    else { if (DMG.restFrom === null) DMG.restFrom = simT; if (DMG.rest === null && simT - DMG.restFrom >= 0.5) DMG.rest = simT; }
   }
   const _treeScratch = [], _obstScratch = [], _obstRecs = [], _pen = [0, 0, 0];
   // the obstacles this frame can touch (G433): the registry's bins round the CG, kept to the shapes
@@ -15599,6 +15762,7 @@ function makeSim(def, world) {
   }
   let totalM = 0;
   for (const nd of def.nodes) totalM += nd.m;
+  if (totalM > CRASH_J_KG) crashJ = CRASH_J * totalM / CRASH_J_KG;   // G3505
 
   // ---- THE PANEL ARC, session 1 (2026-09-11): WHAT THE INSTRUMENTS READ ----
   // Three sources that did not exist — a shaft speed, a burn, a load factor
@@ -16467,6 +16631,15 @@ function makeSim(def, world) {
   // per engine, refreshed by the thrust pass: the hub (mount centroid), the swirl rate, the wake radius, the sense
   const SW_HUB = new Float64Array(SENSE.length * 3), SW_W = new Float64Array(SENSE.length), SW_R = new Float64Array(SENSE.length);
   let swirlOn = false;
+  // ENGINE-CONFIGS-2 (G3490): A LAYOUT'S STRIPS NAME THEIR DISC (62_gen_aero genStripsLayout, `washE`: an engine, -2
+  // the push-pull's centreline in series, -1 none). Their wash is that disc's own (its own thrust through momentum
+  // theory, the mean disc's law), so a dead engine takes the wake off what flies behind IT; the swirl at a tail strip
+  // sums every running disc's (the push-pull's counter-rotating pair: the rear prop takes back the front one's). Every
+  // other def has no `washE`: WE is null and the pass is the one it was, to the bit.
+  const WE = def.strips.some(st => st.washE != null) ? Int8Array.from(def.strips, st => st.washE == null ? -1 : st.washE) : null;
+  const WASH_E = WE ? new Float64Array(SENSE.length + 1) : null;   // per engine, then [SENSE.length] the series
+  const WE_C = WE ? Uint8Array.from(SENSE, (_, k) => (ENG_DEF[k] && ENG_DEF[k].side) ? 0 : 1) : null;   // on the centreline (side 0)
+  if (WE) out.washE = WASH_E;   // (published for a layout only: GATE ENGCONFIG reads each disc's wake)
   // the published moments, body components [along xAft, along yUp, along zRt] per engine (+yUp = nose LEFT,
   // +xAft = left wing down, +zRt = nose up): `out.propFx`
   const PFO = { Q: new Float64Array(SENSE.length), rpm: new Float64Array(SENSE.length), H: new Float64Array(SENSE.length),
@@ -16576,6 +16749,19 @@ function makeSim(def, world) {
   // wake radius, faded to nothing over its last quarter beyond it
   function swirlAt(sx, sy, sz, o) {
     o[0] = o[1] = o[2] = 0;
+    if (WE) {   // ENGINE-CONFIGS-2: a layout sums every running disc's, each faded by its own wake radius
+      for (let k = 0; k < SW_W.length; k++) {
+        if (!SW_W[k]) continue;
+        let dx = sx - SW_HUB[k*3], dy = sy - SW_HUB[k*3+1], dz = sz - SW_HUB[k*3+2];
+        const a = dx*xAft[0] + dy*xAft[1] + dz*xAft[2];
+        dx -= a * xAft[0]; dy -= a * xAft[1]; dz -= a * xAft[2];
+        const d = hyp3(dx, dy, dz), Rw = SW_R[k], g = d <= Rw ? 1 : Math.max(0, 1 - (d - Rw) / (0.25 * Rw));
+        if (!g) continue;
+        const w = SW_W[k] * g;
+        o[0] += w * (dy*xAft[2] - dz*xAft[1]); o[1] += w * (dz*xAft[0] - dx*xAft[2]); o[2] += w * (dx*xAft[1] - dy*xAft[0]);
+      }
+      return o;
+    }
     let best = -1, bd = Infinity, bdx = 0, bdy = 0, bdz = 0;
     for (let k = 0; k < SW_W.length; k++) {
       if (!SW_W[k]) continue;
@@ -16707,6 +16893,15 @@ function makeSim(def, world) {
       // propwash is ONE disc's — the tail flies in the wake of the prop ahead
       // of it, not in the sum of the aeroplane's engines (the mean disc now)
       wash = Math.sqrt(Vfwd * Vfwd + 2 * (T / nE) / (rho * PROPA)) - Vfwd;
+      if (WE) {   // ENGINE-CONFIGS-2: each disc's own wash, and the centreline's in series (nose + pusher)
+        let Tc = 0;
+        for (let k = 0; k < WASH_E.length - 1; k++) {
+          const Tk = k < nE ? Ti[k] : 0;
+          WASH_E[k] = Math.sqrt(Vfwd * Vfwd + 2 * Tk / (rho * PROPA)) - Vfwd;
+          if (WE_C[k]) Tc += Tk;
+        }
+        WASH_E[WASH_E.length - 1] = Math.sqrt(Vfwd * Vfwd + 2 * Tc / (rho * PROPA)) - Vfwd;
+      }
       // G477: THE THRUST LINE'S TILT (engTilt, downthrust positive): the
       // force is turned about the lateral axis, forward-and-down at the
       // front of the engine, so a high pusher's line of action passes
@@ -16829,7 +17024,7 @@ function makeSim(def, world) {
       let wx_ = wcx, wy_ = wcy, wz_ = wcz;
       if (world && world.wind) { const wv = world.wind(spx, spy, spz, simT); wx_ = wv[0]; wy_ = wv[1]; wz_ = wv[2]; }
       // relative air velocity = air motion (wash + wind) - node motion
-      const wsh = wash * st.wash;
+      const wsh = (WE && !probe ? (WE[stripIdx] >= 0 ? WASH_E[WE[stripIdx]] : WE[stripIdx] === -2 ? WASH_E[WASH_E.length - 1] : wash) : wash) * st.wash;
       let rx = wsh*xAft[0]+wx_-vx, ry = wsh*xAft[1]+wy_-vy, rz = wsh*xAft[2]+wz_-vz;
       // G2080: the slipstream's swirl, where the wash reaches
       if (swirlOn && st.wash > 0 && !probe && st.kind !== 'wing') { swirlAt(spx, spy, spz, _sw); rx += _sw[0] * st.wash; ry += _sw[1] * st.wash; rz += _sw[2] * st.wash; }
@@ -17624,13 +17819,14 @@ function makeSim(def, world) {
     wetArmFrame(dtFrame);                           // G1384: the water's pass only on a frame that can reach it
     propWater();                                    // G2105: the disc in the water stops its engine
     armFrame();
+    const occRec = OCC !== null && genOccArm(OCC, OCS, armed);   // G2373 (DMG-OCCUPANT): an armed frame's substeps are recorded
     postLive = (nPost > 0 || (nSup > 0 && (armed || DMG.breaks > 0))) ? 1 : 0;   // G1898.4 (G2040: nPost - the floors and the live cover ties)
     // G1840 (DMG-D3): the clusters' cuts are measured on every substep of an armed frame, and on the last of any other:
     // the members across them read from the substep's own starting state (the beam loop's), the cuts judged once its
     // projection has run, the parts that came off re-formed rigid - all out here, so substep() is the base's
     // G1898.10: no cut (always so with the layer off) - master's own loop, no per-substep flag
     // G1883 (DMG-WINDBREAK): an instrument's per-substep reader (sim.onSubstep) takes the second loop; unset, one compare a frame
-    if (nCut0 === 0 && subHook === null) for (let s = 0; s < sub; s++) { substep(dt); simT += dt; burn(dt); }
+    if (nCut0 === 0 && subHook === null && !occRec) for (let s = 0; s < sub; s++) { substep(dt); simT += dt; burn(dt); }
     else for (let s = 0; s < sub; s++) {
       clMs = nCut0 > 0 && (armed || s === sub - 1);
       if (clMs) cutX();
@@ -17638,13 +17834,15 @@ function makeSim(def, world) {
       if (clMs) clCuts();
       if (clQ.length) clApply();
       simT += dt; burn(dt);
+      if (occRec) genOccSub(OCC, OCS, p, v, dt, simT);
       if (subHook !== null) subHook(s, dt);
     }
     readPanel(dtFrame);
     dmgFrame(dtFrame);
     if (DRV) driveFrame(dtFrame);                   // G1826 (DMG-DRIVE)
     dmgOver();
-    if (SCR !== null && (SCR.nt > 0 || SCR.ev.open)) scarFrame(SCR, p, m, world, simT, DMG);   // G2357 (DMG-SCAR)
+    if (SCR !== null && (SCR.nt > 0 || SCR.ev.open || SCR.rest !== null)) scarFrame(SCR, p, m, world, simT, DMG, v);   // G2357 (DMG-SCAR); G2380: the wreck's rest
+    if (occRec && genOccFrame(OCC, OCS, DMG, gF, simT, p, pieces)) DMG.occ = OCS.res;   // G2373: an event closed
   }
 
   // ONE THRUST MODEL, TWO READERS. 64_gen_build's design-time numbers — the
@@ -17833,6 +18031,7 @@ function makeSim(def, world) {
      vPrev, hdgPrev, totalM, coneOn, coneLive, coneS2, hbLive, hbH, hbX0, hbX1, hbZ0, hbZ1, wetArm,
      _tkN, _prN, _tkHits, postLive, clMs, clArm, clDirty, _w0x, _w0y, _w0z] = Sn.S;
     if (vPrev) vPrev = vPrev.slice();
+    if (OCC) { genOccReset(OCS); DMG.occ = null; }   // G2373: a snapshot is a whole aeroplane - no record carried over
     return true;
   }
   // G121: totalM is a GETTER — it was a copied value, so a mass change via
@@ -17855,7 +18054,11 @@ function makeSim(def, world) {
            // G1470: the damage - yields, breaks (beam indices), plastic work (J), the largest set (strain), the peak
            // filtered g, the prop strike, and the verdict: crashed (with why and when) / dented / neither
            damage: () => DMG, damagePeak: () => PEAK,
+           // DMG-FALL: each node's piece (the root of its part: the unbroken beams and the clusters, as compEvent reads it) - GATE DMGFALL's
+           pieceOf: () => { const fd = pieces(), r = new Int32Array(n); for (let i = 0; i < n; i++) r[i] = fd(i); return r; },
            damageScar: () => SCR,   // G2357 (DMG-SCAR): the ground's record (34_scar.js scarMake), null with the layer off
+           // G2373 (DMG-OCCUPANT): the seats and the recorder (null with the layer off) - the gates' reader
+           occupants: () => (OCC ? { spec: OCC, state: OCS } : null),
            // G1883 (DMG-WINDBREAK): the instruments - the live caps each member is judged against (FY tension, FC
            // compression; PHY its physics, 4 a member: yield, break, crush, sigY A) and a per-substep reader
            // (fn(s, dt), after the substep; null clears it) - nothing of either runs unless asked
@@ -18067,6 +18270,25 @@ function makeBus(cfg) {
 // collapses — which is the hump's far side (§1.3). kWake and dVent are
 // INFERRED constants the tow sweep exposes; H3's calibration against the
 // NACA tank reports pins them.
+// G3440 (HYDRO-TRIM): THE WAKE IS NOW THE MEASURED ONE (P.wakeSM, 1). The
+// streamline above sank the deeper the higher the trim, so the afterbody
+// DRIED as the bow rose and nothing held the trim down: a free float in
+// GATE HYDRODYN's tank ran to 23 deg, the seaplane tow to 20, and the 172R
+// on Wipline 2350s sat at its hump at 10-15 deg and never left the water
+// (G3390). A float's afterbody is what limits its hump trim (Parkinson,
+// NACA TN 563, 1936: the free-to-trim hump trim and resistance follow the
+// afterbody keel angle). Behind the step the surface now stands H over the
+// forebody keel line extended aft, Savitsky & Morabito's tank fit (Marine
+// Technology 47(1), 2010, "Surface wave contours associated with the
+// forebody wake of stepped planing hulls"; deadrise 10-30 deg):
+//   H / b = 0.17 (A + 0.03 L_K tau^1.5) sin((pi / C_V) (X / 3)^1.5)
+// b the chine beam at the step, X = x / b aft of it, L_K the wetted keel
+// length in beams, tau the forebody's trim in degrees, C_V = V / sqrt(g b),
+// A 1.5 on the centreline and 2 at the quarter beam (held to the chine). Held
+// at its crest past the first quarter wave, never above the undisturbed
+// surface, blended in by the step's air as before. It RISES with the trim
+// and the loading: a trimmed-up hull's afterbody meets its own wake. kWake
+// is the H0 law's alone (wakeSM 0).
 //
 // NOT MODELLED (H0 cuts, each named): the spray-root wave rise (Savitsky's
 // lambda is the still-water one here); whisker spray drag; the added-mass
@@ -18181,6 +18403,8 @@ const DEF = {
   xi0: 0.01,       // the leading-edge weight's core, in beams (0.05 integrated to 86 % of lambda^0.5 at lambda 2)
   kTr: 0.15,       // transom fade length = kTr V^2/g (fitted in the check)
   kWake: 0.5,      // wake recovery length = kWake V^2/g (INFERRED)
+  sideShed: 1,     // G3440: no skin friction on a side above a chine that sheds the flow (1); 0 = the H0 clipper's wetted side
+  wakeSM: 1,       // G3440: the wake behind a ventilated step is Savitsky & Morabito's measured profile (1); 0 = the H0 law (kWake)
   dVent: 0.05,     // chine depth at the step over which the step loses its air, m
   Cd: 1.2,         // cross-flow / square-on pressure coefficient
   kw: Math.PI / 2, // Wagner's rise-up on the wetted width (1 = von Karman)
@@ -18698,16 +18922,7 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
   const air = Math.max(airStill, airChine);
   const vent = air * sep;
   const lr = Math.max(0.02, P.kWake * Vflow * Vflow / G);
-  // the stern transom's own: its chines are higher, so it usually has air
-  const sK = W[F.stern.K];
-  // (a transom is open to the sky: its air comes over the deck edge)
-  const dSternChine = 0.5 * ((water.h(W[F.stern.Dm][0], W[F.stern.Dm][2], t) - W[F.stern.Dm][1]) +
-                             (water.h(W[F.stern.Dp][0], W[F.stern.Dp][2], t) - W[F.stern.Dp][1]));
-  const dStern = water.h(sK[0], sK[2], t) - sK[1];
-  const sepStern = smooth01(1 - 2 * G * Math.max(0, dStern) / (Vflow * Vflow));
-  const airStern = smooth01(1 - dSternChine / P.dVent);
-  const ventStern = airStern * sepStern;
-  out.sep = sep; out.air = air; out.sepStern = sepStern; out.airStern = airStern; out.ventStern = ventStern;
+  out.sep = sep; out.air = air;
   out.vent = vent; out.Vflow = Vflow; out.dEdge = dEdge; out.lr = lr;
   // (0) G1807: the hull's own wave (the plough), from the still-water keel and the speed through the water
   const wvA = P.kWave > 0 ? ploughWave(F, W, water, t, -dot(vE, xhat) + dot(water.v(eK[0], eK[2], t), xhat), out.wave) : (out.wave.a = 0);
@@ -18715,6 +18930,26 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
   // the CG's horizontal velocity is the steady motion; what is left of a
   // panel's velocity after it is the UNSTEADY entry the slam is computed on
   const vH = ctx.vH;
+  // (3b) G3440: THE FOREBODY'S WAKE AS MEASURED (Savitsky & Morabito 2010) - see the header's THE STEP WORKS BY
+  // GEOMETRY. The trim, the wetted keel length and the beam Froude number it reads, once per pass
+  const wSM = (P.wakeSM != null ? P.wakeSM : DEF.wakeSM) > 0 && vent > 0;
+  let smB = 1, smCv = 1, smAmp = 0;
+  if (wSM) {
+    smB = 2 * halfBeamAt(F, -1e-6);
+    smCv = Vflow / Math.sqrt(G * smB);
+    const tauD = Math.max(0, -Math.asin(Math.max(-1, Math.min(1, xhat[1]))) / D2R);
+    // the wetted keel length ahead of the step (still water): the forebody's keel stations walked forward from it
+    let LK = 0;
+    for (let i = F.nF; i > 0; i--) {
+      const a = F.sta[i], b = F.sta[i - 1], ka = W[a.K], kb = W[b.K];
+      const da = water.h(ka[0], ka[2], t) - ka[1], db = water.h(kb[0], kb[2], t) - kb[1];
+      if (da <= 0) break;
+      if (db <= 0) { LK = -(a.x + (b.x - a.x) * da / (da - db)); break; }
+      LK = -b.x;
+    }
+    smAmp = 0.03 * (LK / smB) * CORE_MATH.pow(tauD, 1.5);
+    out.smLK = LK; out.smTau = tauD;
+  }
   // 3. signed depth per vertex — with the WAKE under everything aft of the step
   for (let i = 0; i < V.length; i++) {
     const x = V[i][0];
@@ -18722,7 +18957,16 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
     // (0) the plough wave: its crest at the keel's wet entry (and up the stem ahead of it), cos(k s) aft; behind a
     // ventilated step the forebody's wake (below) is the trough, so the wave yields to it there by (1 - vent)
     if (wvA !== 0) h += wvA * (x <= wvX ? 1 : CORE_MATH.cos(wvK * (x - wvX))) * (x > 0 ? wvAft : 1);
-    if (x > 0 && vent > 0) {
+    if (x > 0 && wSM) {
+      // the wake's surface stands H over the forebody keel line extended aft, H/b = 0.17 (A + 0.03 L_K tau^1.5)
+      // sin((pi / C_V)(X / 3)^1.5), A 1.5 on the centreline and 2 at the quarter beam (held to the chine), held at its
+      // crest past the first quarter wave, never above the undisturbed surface; the air that reaches the step blends it in
+      const X = x / smB, z = Math.abs(V[i][2]);
+      const A0 = 1.5 + 0.5 * Math.min(1, 4 * z / smB);
+      const arg = Math.min(0.5 * Math.PI, (Math.PI / smCv) * CORE_MATH.pow(X / 3, 1.5));
+      const yW = eK[1] + x * xhat[1] + 0.17 * smB * (A0 + smAmp) * CORE_MATH.sin(arg);
+      if (yW < h) h -= vent * (h - yW);
+    } else if (x > 0 && vent > 0) {
       const dx = Math.max(0, x);
       const yW = eK[1] + dx * xhat[1] - 0.5 * G * (dx / Vflow) * (dx / Vflow);
       const drop = Math.max(0, h - yW) * Math.exp(-dx / lr);
@@ -18730,6 +18974,21 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
     }
     D[i] = h - W[i][1];
   }
+  // the stern transom's own: its chines are higher, so it usually has air
+  // (a transom is open to the sky: its air comes over the deck edge). G3440: its depths are read against the water it
+  // actually sits in - the forebody's wake (step 3) - as the afterbody bottom around it is; they read the still surface,
+  // and at the hump (the 172 on 2350s, 7.8 m/s, 8 deg) a stern deck under the still level but over the wake kept the
+  // transom unventilated: its base suction 0.03 W of drag and the deck's 0.02 W of download
+  const dSternChine = 0.5 * (D[F.stern.Dm] + D[F.stern.Dp]);
+  const dStern = D[F.stern.K];
+  const sepStern = smooth01(1 - 2 * G * Math.max(0, dStern) / (Vflow * Vflow));
+  // ...and, as at the step (S1, G451.1), the air also comes up a side whose chine sheds the flow (sigma_chine under 1):
+  // a transom whose deck edge is awash in the wake's crest is not sealed when its chines are throwing the water off
+  const dSternC = 0.5 * (D[F.stern.Cm] + D[F.stern.Cp]);
+  const airStern = Math.max(smooth01(1 - dSternChine / P.dVent),
+                            (P.wakeSM != null ? P.wakeSM : DEF.wakeSM) > 0 ? smooth01(1 - 2 * G * Math.max(0, dSternC) / (Vflow * Vflow)) : 0);
+  const ventStern = airStern * sepStern;
+  out.sepStern = sepStern; out.airStern = airStern; out.ventStern = ventStern;
   // 4. clip every panel; the wet leading edge per (body, side) row
   const LE = out.LE;
   LE.F[0][0] = LE.F[0][1] = LE.F[1][0] = LE.F[1][1] = LE.A[0][0] = LE.A[0][1] = LE.A[1][0] = LE.A[1][1] = Infinity;
@@ -18846,7 +19105,17 @@ function hydroPanels(F, ctx, water, t, out, opt = {}) {
         const Re = Math.max(1e4, Vt * s / NU);
         const lg = Math.log10(Re) - 2;
         const Cf = 0.075 / (lg * lg);
-        scl(ut, 0.5 * rho * Cf * Vt * A, fv);   // ut is already Vt * direction
+        // G3440: A SIDE ABOVE A CHINE THAT SHEDS THE FLOW IS NOT WETTED BY IT. The chine sheds by the cavity law the
+        // step's air reads (sigma_chine = 2 g d_chine / V^2 under 1, (2) above), and what the clipper counts on the
+        // side over it is the still level the spray has been thrown off (the spray-root rise is an H0 cut): Savitsky's
+        // planing hull is wetted on its bottom only. Its skin friction alone goes - the side's pressure terms (the
+        // keel's grip in a slip) stay as they were
+        let kWet = 1;
+        if ((pn.kind === 'side' || pn.kind === 'bevel') && (P.sideShed != null ? P.sideShed : DEF.sideShed) > 0) {
+          let dC = 0; for (let j = 0; j < pn.v.length; j++) if (D[pn.v[j]] > dC) dC = D[pn.v[j]];
+          kWet = 1 - smooth01(1 - 2 * G * dC / (Vt * Vt));
+        }
+        scl(ut, 0.5 * rho * Cf * Vt * A * kWet, fv);   // ut is already Vt * direction
         apply(fv, o.c, T.fric); add(o.Ff, fv, o.Ff);
       }
     }
@@ -20789,13 +21058,36 @@ function genNoseWork(N, c, keep) {
 //   SCAR.W   GAME - the contact's width by the member's ledger section (bm.sec): the fuselage's belly stringers 0.2 m,
 //            a wing's leading edge or bow 0.15, the cowl 0.3, a strut 0.06, the gear 0.08
 //
+// G2378-G2382 (DMG-SCAR2; the box stills of 7 Oct: the Jodel's wing strike drawn as a trail of identical round craters,
+// the wreck still standing in tall grass, the runway's nose-over with no scuff to see):
+//   THE JOIN (G2378). A part that slid or bounced along the ground is ONE furrow: the slides are chained in the order they
+//            began - a slide continues a chain one of whose slides ended at most joinT before it began: the same node on
+//            that time gap alone (a bounce: its hop is its own flight), another node only from a contact still moving
+//            (> vHand), ahead of it, landing within joinD + joinK x the hop of where that contact's speed would have
+//            carried it (a hop is ballistic: its ground speed hardly changes in the air); any join on the line it left
+//            (across the heading at most the two contacts' half-widths + merge + joinL x the way along). A chain is one gouge: its path the slides' paths end to end (the hops
+//            bridged), its width the contacting part's (SCAR.W, the widest of its nodes), its depth from the friction
+//            work the slides recorded over the length they slid. A CRATER is kept only for a BLOW of eBlow or more that
+//            STOPPED there (its contact went on less than stopK x the bowl's radius): a blow on the way is the furrow's
+//            (its work counted in the gouge's E). eBlow is the blow that digs past the sod: a bowl d = r_b / 3 deeper
+//            than the turf's root mat (sod 0.07 m) - E = pi qB (3 sod)^3 / 6 = 970 J.
+//   THE DIRECTION (G2379). A crater carries the heading its contact had when it struck (u): the decal throws its spoil
+//            down-range (the footprint's r includes it: rim x r_b x (1 + throw)).
+//   THE RESTING WRECK (G2380). Each seal adds the HULLS { k: 'h', p: [x, z, ...] (convex, anticlockwise), m }: every
+//            piece of the wreck as it lies (the nodes joined by members still whole: the airframe and every piece that
+//            came off), the convex hull of its nodes lower than hSweep over the ground, m the margin round it (mRest,
+//            and what a simplification to hullPts points cut off). The grass and the shrubs go under them (the cover
+//            ring's cull - scarIn tests them as the footprint); no decal (a cleared site, not a scar). A later seal
+//            replaces them (the wreck where it finally lies).
+//   HARD GROUND (G2381). A scuff, never a bowl or a furrow: d 0, at least wScuff wide (rubber and metal streaks, the
+//            decal's); a blow on paved or rock is a scuff patch along its heading.
 // The page (sim_host.js simDmgHop -> sim_view.js dmgS.scar; inline, app.js dmgNow) culls the grass in the footprint
 // (cover_ring.js scar), the shrubs and the debris in the footprint and the sweep, and lays the decal (ground_scar.js).
 // scarIn / scarBox are the one footprint test both use, and the gate's.
 // ============================================================
 const SCAR = {
   qB: 200e3, qP: 60e3, kP: 0.5, rim: 1.4, spoil: 1.0,
-  eArm: 250, eCrater: 300,
+  eArm: 250,
   impS: 0.15,                 // s: the blow is the approach's work over a contact's first 0.15 s
   gapS: 0.25,                 // s: a node off the ground longer than this starts a new slide (a bounce)
   quiet: 1.0,                 // s: an event whose contacts did no work this long is sealed
@@ -20808,7 +21100,27 @@ const SCAR = {
   blade: 0.12,                // m GAME: a blade's width at its tip (the prop strike's slot)
   maxPts: 24, maxPrims: 64, maxCraters: 16, maxSweeps: 4,
   W: { fuselage: 0.2, wings: 0.15, bracing: 0.06, tail: 0.1, gear: 0.08, engines: 0.3, vessel: 0.2 }, W0: 0.12,
+  // G2378 (DMG-SCAR2): the join (above). join false: every slide its own (the old record - GATE DMGSCAR's selftest)
+  join: true,
+  joinT: 0.5,                 // s GAME: a bounce's time in the air - a rebound of up to 2.5 m/s (2 vy / g)
+  joinD: 1.0,                 // m GAME: where a hop lands, round where its speed carried it ...
+  joinK: 0.3,                 //   ... + this share of the hop (the part turns in the air: its lowest point moves)
+  joinL: 0.2,                 // GAME: a join lands across the heading within the half-widths + merge + this x the way along
+  vHand: 1.0,                 // m/s GAME: a contact slower than this hands its furrow to no other node (a wreck settling)
+  sod: 0.07,                  // m AS RECALLED: a turf's root zone, 5-10 cm (eBlow below: the blow that digs past it)
+  stopK: 2,                   // GAME: a blow STOPPED when its contact went on less than stopK x its bowl's radius
+  throw: 0.3,                 // GAME: a crater's spoil thrown down-range, x its radius
+  // G2380: the resting wreck's hulls
+  mRest: 0.75,                // m GAME: the margin round a piece's hull (a tuft's lean and the eye's angle over it)
+  maxHulls: 24, hullPts: 16,
+  vRest: 0.5,                 // m/s GAME: the wreck is AT REST when no node moves faster (a loose wheel rolling on: not yet;
+                              //   a dangling member's jitter, 0.2-0.3 m/s, is rest)
+  restDt: 0.5, restMax: 10,   // s: after a seal, that read every restDt until the wreck rests (at most restMax): the hulls
+                              //    sealed again once, where the pieces finally lie
+  // G2381: a scuff on hard ground at least this wide (rubber and metal, streaks the decal draws)
+  wScuff: 0.4,                // m GAME
 };
+SCAR.eBlow = Math.round(Math.PI * SCAR.qB * CORE_MATH.pow(3 * SCAR.sod, 3) / 6);   // 970 J: a bowl deeper than the sod
 // the ground's class under a point: 0 turf, 1 bare, 2 hard, -1 water (world.SURFACE: GRASS 0, ROCK 1, SCREE 2,
 // FOREST_FLOOR 3, WATER 4, PAVED 5, GRAVEL 6, SAND 7)
 const SCAR_SURF = [0, 2, 1, 0, -1, 2, 1, 1];
@@ -20826,7 +21138,11 @@ function scarMake(def, nE) {
   for (const b of def.beams) { const x = SCAR.W[b.sec] || SCAR.W0; if (x > w[b.a]) w[b.a] = x; if (x > w[b.b]) w[b.b] = x; }
   for (let i = 0; i < n; i++) if (!(w[i] > 0)) w[i] = SCAR.W0;
   for (let i = n; i < ns; i++) w[i] = SCAR.W.engines;
-  return { n, ns, w, acc: new Float64Array(ns * 8), touched: new Int32Array(ns), nt: 0,
+  // (G2380: the members' ends and the nodes' radii - the wreck's pieces at a seal)
+  const nb = def.beams.length, ba = new Int32Array(nb), bb = new Int32Array(nb), nr = new Float64Array(n);
+  for (let b = 0; b < nb; b++) { ba[b] = def.beams[b].a; bb[b] = def.beams[b].b; }
+  for (let i = 0; i < n; i++) nr[i] = def.nodes[i].r || 0;
+  return { n, ns, w, ba, bb, nr, tPrev: -1, last: null, rest: null, acc: new Float64Array(ns * 8), touched: new Int32Array(ns), nt: 0,
            trk: new Array(ns).fill(null), segs: [], strikes: [], ev: { open: false, armed: false, E: 0, t0: 0, tLast: 0, sw: [], ww: [] }, overSealed: false,
            out: { v: 0, prims: [] }, hits: 0, frames: 0, ms: 0, seals: 0 };
 }
@@ -20858,25 +21174,34 @@ function scarStrike(R, k, x, z, ex, ez, b, Rp, t) {
 }
 function scarReset(R) {
   R.acc.fill(0); R.nt = 0; R.trk.fill(null); R.segs.length = 0; R.strikes.length = 0;
-  const E = R.ev; E.open = false; E.armed = false; E.E = 0; E.sw.length = 0; E.ww.length = 0; R.overSealed = false;
+  const E = R.ev; E.open = false; E.armed = false; E.E = 0; E.sw.length = 0; E.ww.length = 0; R.overSealed = false; R.rest = null; R.carry = null; R.carrySegs = null;
   if (R.out.prims.length || R.out.v) { R.out.v++; R.out.prims = []; }   // a new version, empty: the page lets its scar go
 }
-// once a frame, on a frame with a contact or an event open (30_solver step, after dmgOver)
-function scarFrame(R, p, m, world, t, D) {
+// once a frame, on a frame with a contact or an event open, or a sealed scar waiting for the wreck's rest (30_solver step,
+// after dmgOver)
+function scarFrame(R, p, m, world, t, D, v) {
+  if (R.nt === 0 && !R.ev.open) { if (R.rest !== null) scarRest(R, p, v, world, t, D); return; }
   R.frames++;
   const A = R.acc, n = R.n, E = R.ev;
   let fw = 0;
   const add = (T, x, z) => { T.L += Math.hypot(x - T.lx, z - T.lz); T.lx = x; T.lz = z;
     const k = T.pts.length; if (Math.hypot(x - T.pts[k - 2], z - T.pts[k - 1]) >= SCAR.step) T.pts.push(x, z); };
+  const dtF = R.tPrev >= 0 && t - R.tPrev > 0 && t - R.tPrev < 0.1 ? t - R.tPrev : 1 / 60; R.tPrev = t;
   for (let q = 0; q < R.nt; q++) {
     const i = R.touched[q], o = i * 8, Wn = A[o + 1], Wf = A[o + 2], Fm = A[o + 3], x0 = A[o + 4], z0 = A[o + 5], x1 = A[o + 6], z1 = A[o + 7];
     A[o] = 0; A[o + 1] = 0; A[o + 2] = 0; A[o + 3] = 0;
     let T = R.trk[i];
-    if (!T || t - T.t1 > SCAR.gapS) {
-      T = { i, w: R.w[i], pts: [x0, z0], lx: x0, lz: z0, L: 0, Wf: 0, Fm: 0, t0: t, t1: t, imp: 0 };
+    const fresh = !T || t - T.t1 > SCAR.gapS;
+    // (G2378) the contact's speed over the ground and its heading: from its last point (a frame or a skip before) to
+    // this frame's last touch - a fresh slide's from its first touch this frame (an underestimate: the join's tolerance)
+    const px = fresh ? x0 : T.lx, pz = fresh ? z0 : T.lz, dtt = fresh ? dtF : Math.max(dtF, t - T.t1);
+    if (fresh) {
+      T = { i, w: R.w[i], pts: [x0, z0], lx: x0, lz: z0, L: 0, Wf: 0, Fm: 0, t0: t, t1: t, imp: 0, v: 0, ux: 0, uz: 0, u0: null };
       R.segs.push(T); R.trk[i] = T;
     } else add(T, x0, z0);
     add(T, x1, z1);
+    { const ux = x1 - px, uz = z1 - pz, ul = Math.hypot(ux, uz);
+      if (ul > 1e-3) { T.v = ul / dtt; T.ux = ux / ul; T.uz = uz / ul; if (!T.u0) T.u0 = [T.ux, T.uz]; } }
     T.Wf += Wf; T.t1 = t; if (Fm > T.Fm) T.Fm = Fm;
     if (t - T.t0 <= SCAR.impS) T.imp += Wn;
     fw += Wn + Wf;
@@ -20886,7 +21211,7 @@ function scarFrame(R, p, m, world, t, D) {
   // does nothing - the event is sealed SCAR.quiet after the last frame that did more than SCAR.eQuiet
   if (fw > SCAR.eQuiet) { if (!E.open) { E.open = true; E.t0 = t; } E.tLast = t; }
   if (E.open) E.E += fw;
-  if (!E.open) return;
+  if (!E.open) { if (R.rest !== null) scarRest(R, p, v, world, t, D); return; }   // (a wreck at rest still touches)
   if (!E.armed && (D.breaks > 0 || D.crashed || E.E > SCAR.eArm)) E.armed = true;
   // the sweep: the CG's track while the wreck touches, a point a metre; the low nodes' reach across it
   if (t - E.tLast < 0.05) {
@@ -20908,8 +21233,13 @@ function scarFrame(R, p, m, world, t, D) {
   }
   if ((D.over && !R.overSealed) || t - E.tLast > SCAR.quiet) {
     if (D.over) R.overSealed = true;
-    if (E.armed) scarSeal(R, world);
-    R.trk.fill(null); R.segs.length = 0; R.strikes.length = 0; E.open = false; E.armed = false; E.E = 0; E.sw.length = 0; E.ww.length = 0;
+    if (E.armed) { scarSeal(R, world, p, D, t); R.rest = { t0: t, tc: t }; }
+    // (G2378: a chain still moving at the seal - the D.over seal comes 4 s after the crash, a part may still slide - is
+    // CARRIED into the next event, its slides kept: the next seal replaces its prims with the whole chain's)
+    const keep = R.carrySegs || []; R.carrySegs = null;
+    R.trk.fill(null); R.segs.length = 0;
+    for (const T of keep) { R.segs.push(T); if (t - T.t1 <= SCAR.gapS) R.trk[T.i] = T; }
+    R.strikes.length = 0; E.open = false; E.armed = false; E.E = 0; E.sw.length = 0; E.ww.length = 0;
   }
 }
 // ---- the event's primitives ----------------------------------------------------------------------------------------
@@ -20949,59 +21279,127 @@ function scarDry(world, P) {
   }
   return cur.length > best.length ? cur : best;
 }
-function scarSeal(R, world) {
+function scarSeal(R, world, p, D, t) {
   const clk = typeof performance !== 'undefined' ? performance : Date, t0 = clk.now();
-  try { scarSeal0(R, world); } finally { R.ms += clk.now() - t0; }   // the event's cost (GATE DMGSCAR reads it)
+  try { scarSeal0(R, world, p, D, t); } finally { R.ms += clk.now() - t0; }   // the event's cost (GATE DMGSCAR reads it)
 }
-function scarSeal0(R, world) {
-  const out = [];
-  // the gouges: one per slide, the longest first; a shorter one alongside merges into it (the strip widened to cover it)
-  const G = [];
-  for (const T of R.segs) {
-    if (T.L < SCAR.minL) continue;
-    if (T.pts.length < 4) T.pts.push(T.lx, T.lz);   // a short slide: its first point and its last
-    const Ff = T.Wf / Math.max(T.L, 1e-6), d = Math.min(SCAR.dMax, Math.max(SCAR.dMin, SCAR.kP * Ff / SCAR.qP / T.w));
-    G.push({ p: T.pts.slice(), w: Math.min(SCAR.wMax, T.w + 2 * SCAR.spoil * d), d, E: T.Wf, L: T.L });
+// G2378: the bowl a blow of E J digs (the soil's volume E / qB, a bowl of depth r_b / 3) and the turf it tears (r)
+const scarBowl = E => { const rb = Math.cbrt(6 * E / (Math.PI * SCAR.qB)); return { rb, r: Math.min(SCAR.rMax, Math.max(SCAR.rMin, SCAR.rim * rb)) }; };
+// G2378: THE JOIN - the slides chained (a slide continues the chain it follows: above); each chain { s: [slides], last }
+function scarChains(segs) {
+  const S = segs.slice().sort((a, b) => a.t0 - b.t0 || a.i - b.i), CH = [];
+  for (const T of S) {
+    let best = null, bd = Infinity;
+    // (any slide of a chain that ended within joinT is a tip it may continue from - not only its last: a chain handed to
+    // a neighbour still takes its own node back, landing a hop on; the same node's tip first, at equal fit)
+    if (SCAR.join) for (const ch of CH) for (let q = ch.s.length - 1; q >= 0; q--) {
+      const A = ch.s[q], gap = T.t0 - A.t1;
+      if (gap > SCAR.joinT + 1e-6) { if (T.t0 - ch.last.t1 > SCAR.joinT + 1e-6) break; continue; }   // (inclusive: a frame's times)
+      if (gap < 0) continue;
+      if (A.i !== T.i && !(A.v >= SCAR.vHand)) continue;                 // a settling contact hands over to no other node
+      const hop = (A.v || 0) * gap, qx = A.lx + A.ux * hop, qz = A.lz + A.uz * hop;
+      const e = A.i === T.i ? -1 : Math.hypot(T.pts[0] - qx, T.pts[1] - qz);   // (its own furrow first, always)
+      if (A.i !== T.i && (T.pts[0] - A.lx) * A.ux + (T.pts[1] - A.lz) * A.uz < -SCAR.joinD) continue;   // another node: ahead of it
+      // (any join: it lands on the line it left - across the heading no more than the two contacts' half-widths + merge +
+      // joinL x the way along (the heading's error and the part's turn in the air: ~11 deg); a part that comes down beside
+      // its track starts a furrow of its own, never a strip drawn across to a parallel one)
+      // (the line: the slide's own if it slid 0.5 m, else the chain's from its start to that slide's end - a touch of a frame
+      // has no heading to trust; none shorter)
+      { let lx = A.lx - A.pts[0], lz = A.lz - A.pts[1], ll = Math.hypot(lx, lz);
+        if (ll < 0.5) { lx = A.lx - ch.s[0].pts[0]; lz = A.lz - ch.s[0].pts[1]; ll = Math.hypot(lx, lz); }
+        if (ll >= 0.5) { lx /= ll; lz /= ll; const dx = T.pts[0] - A.lx, dz = T.pts[1] - A.lz;
+          if (Math.abs(dx * lz - dz * lx) > (A.w + T.w) / 2 + SCAR.merge + SCAR.joinL * Math.abs(dx * lx + dz * lz)) continue; } }
+      // the same node: the time gap alone (its hop is its own flight - a contact braked by the ground leaves at a speed
+      // its slide does not show); another node: where the hop lands, round where its speed carried it
+      if ((A.i === T.i || e <= SCAR.joinD + SCAR.joinK * hop) && e < bd) { bd = e; best = ch; }
+    }
+    if (best) { best.s.push(T); if (T.t1 >= best.last.t1) best.last = T; } else CH.push({ s: [T], last: T });
   }
+  return CH;
+}
+function scarSeal0(R, world, p, D, t) {
+  const out = [], CH = scarChains(R.segs), hardW = w => Math.max(w, SCAR.wScuff), carry = new Set(), carrySegs = [];
+  // (the carry by MERGE GROUP: a chain merged - its strip or its bowl - with a live one is carried with it, or the next
+  // seal, replacing the merged prim, would lose the finished chain's part)
+  const up = CH.map((_, q) => q), grp = q => { while (up[q] !== q) { up[q] = up[up[q]]; q = up[q]; } return q; }, join = (a, b) => { a = grp(a); b = grp(b); if (a !== b) up[a] = b; };
+  const st = { slides: R.segs.length, chains: CH.length, joined: 0, blows: 0, stopped: 0, onWay: 0, gouges: 0 };
+  // each chain: its path (the slides end to end, the hops bridged), the length it SLID (the hops not counted), its work,
+  // its width (the widest contacting node's); a blow of eBlow or more that stopped is a crater, any other the furrow's
+  const G = [], C = [], owner = [];   // (owner: [prim, its chain] - the carry decided after the merges)
+  CH.forEach((ch, ci) => {
+    const s = ch.s, P = [];
+    ch.live = t != null && t - ch.last.t1 <= SCAR.joinT;
+    let L = 0, Wf = 0, w = 0, Eon = 0, after = 0;
+    for (const T of s) { L += T.L; Wf += T.Wf; if (T.w > w) w = T.w; }
+    if (s.length > 1) st.joined += s.length;
+    // the length the chain went on after each slide began (the hops counted: the part went on)
+    const rest = new Float64Array(s.length);
+    for (let q = s.length - 1; q >= 0; q--) { rest[q] = after + s[q].L; after = rest[q] + (q ? Math.hypot(s[q].pts[0] - s[q - 1].lx, s[q].pts[1] - s[q - 1].lz) : 0); }
+    for (let q = 0; q < s.length; q++) {
+      const T = s[q];
+      for (let j = 0; j < T.pts.length; j += 2) P.push(T.pts[j], T.pts[j + 1]);
+      if (Math.hypot(T.lx - P[P.length - 2], T.lz - P[P.length - 1]) > 0.01) P.push(T.lx, T.lz);
+      if (T.imp >= SCAR.eBlow) {
+        st.blows++;
+        if (rest[q] <= SCAR.stopK * scarBowl(T.imp).r) { st.stopped++; C.push({ x: T.pts[0], z: T.pts[1], E: T.imp, u: T.u0, ci }); continue; }
+        st.onWay++;
+      }
+      Eon += T.imp;
+    }
+    if (L < SCAR.minL) return;
+    if (P.length < 4) return;
+    const d = Math.min(SCAR.dMax, Math.max(SCAR.dMin, SCAR.kP * Wf / L / SCAR.qP / w));
+    // (the path dried and simplified HERE, before the merge: a joined chain's raw path is hundreds of points, and the merge
+    // tests every point of one against every leg of another)
+    const Q = scarSimplify(scarDry(world, P), 0.08, SCAR.maxPts); if (Q.length < 4) return;
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    for (let j = 0; j < Q.length; j += 2) { if (Q[j] < x0) x0 = Q[j]; if (Q[j] > x1) x1 = Q[j]; if (Q[j + 1] < z0) z0 = Q[j + 1]; if (Q[j + 1] > z1) z1 = Q[j + 1]; }
+    G.push({ p: Q, w: Math.min(SCAR.wMax, w + 2 * SCAR.spoil * d), d, E: Wf + Eon, L, n: s.length, ci, b: [x0, z0, x1, z1] });
+  });
+  // parallel chains closer than their half-widths + merge are one strip (a belly between its longerons) - never a strip
+  // wider than it is long (G2378: two short scrapes side by side stay two, not a 2.5 m blot)
   G.sort((a, b) => b.L - a.L);
   const acc = [];
   for (const g of G) {
     let into = null, far = 0;
     for (const h of acc) {
       const lim = (h.w + g.w) / 2 + SCAR.merge; let inside = 0, dmx = 0;
+      if (g.b[0] > h.b[2] + lim || g.b[2] < h.b[0] - lim || g.b[1] > h.b[3] + lim || g.b[3] < h.b[1] - lim) continue;   // (apart)
       for (let j = 0; j < g.p.length; j += 2) { const dd = scarSegD(h.p, g.p[j], g.p[j + 1]); if (dd <= lim) { inside++; if (dd > dmx) dmx = dd; } }
-      if (inside >= 0.8 * g.p.length / 2) { into = h; far = dmx; break; }
+      if (inside >= 0.8 * g.p.length / 2 && 2 * dmx + g.w <= Math.max(h.w, h.L)) { into = h; far = dmx; break; }
     }
-    if (into) { into.w = Math.min(SCAR.wMax, Math.max(into.w, 2 * far + g.w)); into.d = Math.max(into.d, g.d); into.E += g.E; }
+    if (into) { into.w = Math.min(SCAR.wMax, Math.max(into.w, 2 * far + g.w)); into.d = Math.max(into.d, g.d); into.E += g.E; into.n += g.n; join(g.ci, into.ci); }
     else acc.push(g);
   }
   for (const g of acc) {
-    const P = scarSimplify(scarDry(world, g.p), 0.08, SCAR.maxPts); if (P.length < 4) continue;
+    const P = g.p;
     const s = scarSurf(world, P[0], P[1]);
-    out.push({ k: 'g', p: P.map(scarR2), w: scarR2(g.w), d: s === 2 ? 0 : Math.round(g.d * 1000) / 1000, s, E: Math.round(g.E) });
+    // (hard ground: no spoil - the part's own width, at least wScuff)
+    out.push({ k: 'g', p: P.map(scarR2), w: scarR2(s === 2 ? hardW(g.w - 2 * SCAR.spoil * g.d) : g.w), d: s === 2 ? 0 : Math.round(g.d * 1000) / 1000, s, E: Math.round(g.E), n: g.n });
+    owner.push([out[out.length - 1], g.ci]);
+    st.gouges++;
   }
-  // the craters: each slide's first blow over eCrater, at the point it struck; blows that overlap are one bowl
-  const C = [];
-  for (const T of R.segs) if (T.imp >= SCAR.eCrater) C.push({ x: T.pts[0], z: T.pts[1], E: T.imp });
+  // the craters: the blows that stopped; blows that overlap are one bowl (the heading the strongest's)
   C.sort((a, b) => b.E - a.E);
-  const rOf = E => { const rb = Math.cbrt(6 * E / (Math.PI * SCAR.qB)); return { rb, r: Math.min(SCAR.rMax, Math.max(SCAR.rMin, SCAR.rim * rb)) }; };
   const B = [];
   for (const c of C) {
     let into = null;
-    for (const b of B) if (Math.hypot(c.x - b.x, c.z - b.z) < rOf(b.E).r + rOf(c.E).r) { into = b; break; }
-    if (into) { const E = into.E + c.E; into.x = (into.x * into.E + c.x * c.E) / E; into.z = (into.z * into.E + c.z * c.E) / E; into.E = E; }
+    for (const b of B) if (Math.hypot(c.x - b.x, c.z - b.z) < scarBowl(b.E).r + scarBowl(c.E).r) { into = b; break; }
+    if (into) { const E = into.E + c.E; into.x = (into.x * into.E + c.x * c.E) / E; into.z = (into.z * into.E + c.z * c.E) / E; into.E = E; join(c.ci, into.ci); }
     else B.push(Object.assign({}, c));
   }
   for (const b of B.slice(0, SCAR.maxCraters)) {
     const s = scarSurf(world, b.x, b.z); if (s < 0) continue;
-    const { rb, r } = rOf(b.E);
-    out.push({ k: 'c', x: scarR2(b.x), z: scarR2(b.z), r: scarR2(s === 2 ? Math.min(r, 0.6) : r), d: s === 2 ? 0 : Math.round(rb / 3 * 1000) / 1000, s, E: Math.round(b.E) });
+    const { rb, r } = scarBowl(b.E), th = b.u ? 1 + SCAR.throw : 1;
+    const c = { k: 'c', x: scarR2(b.x), z: scarR2(b.z), r: scarR2(s === 2 ? Math.min(r, 0.6) : Math.min(SCAR.rMax, r * th)), d: s === 2 ? 0 : Math.round(rb / 3 * 1000) / 1000, s, E: Math.round(b.E) };
+    if (b.u) c.u = [Math.round(b.u[0] * 1000) / 1000, Math.round(b.u[1] * 1000) / 1000];
+    out.push(c); owner.push([c, b.ci]);
   }
   // the propellers' slots (scarStrike)
   for (const k of R.strikes) {
     const s = scarSurf(world, k.x, k.z); if (s < 0) continue;
-    const d = Math.min(SCAR.dMax, k.b), h = k.c / 2;
-    out.push({ k: 'g', p: [k.x - k.ex * h, k.z - k.ez * h, k.x + k.ex * h, k.z + k.ez * h].map(scarR2), w: scarR2(SCAR.blade + 2 * SCAR.spoil * d), d: s === 2 ? 0 : Math.round(d * 1000) / 1000, s, E: 0, ps: 1 });
+    const d = Math.min(SCAR.dMax, k.b), h = k.c / 2, w = SCAR.blade + 2 * SCAR.spoil * d;
+    out.push({ k: 'g', p: [k.x - k.ex * h, k.z - k.ez * h, k.x + k.ex * h, k.z + k.ez * h].map(scarR2), w: scarR2(s === 2 ? hardW(SCAR.blade) : w), d: s === 2 ? 0 : Math.round(d * 1000) / 1000, s, E: 0, ps: 1 });
   }
   // the sweep
   const E = R.ev;
@@ -21015,20 +21413,112 @@ function scarSeal0(R, world) {
       let w = 0; for (let j = Math.max(0, a - 1); j < Math.min(N, b + 1); j++) w = Math.max(w, W[j]); P2.push(P[a * 2], P[a * 2 + 1]); W2.push(w); } P = P2; W = W2; }
     if (P.length >= 4) out.push({ k: 's', p: P.map(scarR2), w: scarR2(Math.max(...W)), ws: W.map(scarR2) });
   }
-  // with the events before it, at most maxPrims: the sweeps, then the craters, then the gouges by their work
-  if (!out.length) return;                       // nothing new (an event of a wreck settling): the page's scar stands
-  const all = R.out.prims.concat(out), sw = all.filter(x => x.k === 's').slice(-SCAR.maxSweeps);
+  // G2380: the resting wreck - every piece's hull as it lies
+  const H = p && D ? scarHulls(R, p, world, D) : [];
+  R.last = st; st.hulls = H.length;
+  // with the events before it, at most maxPrims: the sweeps, the hulls (this seal's replace the last's), then the craters,
+  // then the gouges by their work. A seal with nothing new but hulls the old ones cover (a wreck settling) changes nothing
+  // the carry: every chain of a merge group with a live chain in it - its slides kept, its prims replaced at the next seal
+  const gLive = new Set(); CH.forEach((ch, q) => { if (ch.live) gLive.add(grp(q)); });
+  CH.forEach((ch, q) => { if (gLive.has(grp(q))) for (const T of ch.s) carrySegs.push(T); });
+  for (const [prim, q] of owner) if (gLive.has(grp(q))) carry.add(prim);
+  // (the prims of the chains the last seal carried go: this seal's chains hold them whole)
+  const C0 = R.carry; R.carry = carry; R.carrySegs = carrySegs;
+  const old = C0 ? R.out.prims.filter(x => !C0.has(x)) : R.out.prims, oldH = old.filter(x => x.k === 'h');
+  if (!out.length && (!H.length || (oldH.length && H.every(h => { for (let j = 0; j < h.p.length; j += 2) if (!scarIn(oldH, h.p[j], h.p[j + 1], false)) return false; return true; })))) return;
+  const all = old.filter(x => x.k !== 'h' || !H.length).concat(out, H), sw = all.filter(x => x.k === 's').slice(-SCAR.maxSweeps);
+  const hu = all.filter(x => x.k === 'h');
   const cr = all.filter(x => x.k === 'c').sort((a, b) => b.E - a.E).slice(0, SCAR.maxCraters);
-  const go = all.filter(x => x.k === 'g').sort((a, b) => b.E - a.E).slice(0, Math.max(0, SCAR.maxPrims - sw.length - cr.length));
-  R.out.prims = cr.concat(go, sw);
+  const go = all.filter(x => x.k === 'g').sort((a, b) => b.E - a.E).slice(0, Math.max(0, SCAR.maxPrims - sw.length - hu.length - cr.length));
+  R.out.prims = cr.concat(go, sw, hu);
   R.out.v++; R.seals++;
 }
-// ---- THE FOOTPRINT (the page's cull and the gate's): inside a crater's disc or a gouge's strip; `sweep` adds the sweeps
-function scarIn(prims, x, z, sweep) {
+// G2380: THE WRECK'S REST - after a seal, every restDt: when no node moves faster than vRest (or restMax went by), the
+// hulls sealed again where the pieces lie (a wheel that came off and rolled on, a wing that slid after the contacts went
+// quiet), once - a new version only if the old hulls do not already cover them. A crashed wreck's few seconds: the
+// physics' thread, n speeds twice a second; nothing on an intact flight (rest stays null) or with the layer off
+function scarRest(R, p, v, world, t, D) {
+  const Q = R.rest;
+  if (t - Q.tc < SCAR.restDt) return;
+  Q.tc = t;
+  let vm = 0; if (v) for (let i = 0; i < R.n; i++) { const s = v[i * 3] * v[i * 3] + v[i * 3 + 1] * v[i * 3 + 1] + v[i * 3 + 2] * v[i * 3 + 2]; if (s > vm) vm = s; }
+  if (Math.sqrt(vm) > SCAR.vRest && t - Q.t0 < SCAR.restMax) return;
+  R.rest = null;
+  const H = scarHulls(R, p, world, D), old = R.out.prims, oldH = old.filter(x => x.k === 'h');
+  if (!H.length || (oldH.length && H.every(h => { for (let j = 0; j < h.p.length; j += 2) if (!scarIn(oldH, h.p[j], h.p[j + 1], false)) return false; return true; }))) return;
+  R.out.prims = old.filter(x => x.k !== 'h').concat(H);
+  R.out.v++; R.seals++; R.rests = (R.rests || 0) + 1;
+}
+// G2380: THE PIECES AS THEY LIE - the nodes joined by members still whole (union-find over the unbroken beams), each
+// piece's nodes lower than hSweep over the ground (dry), their convex hull (Andrew's monotone chain), simplified to at
+// most hullPts points - a point dropped widens the margin by its distance from the chord that replaced it, so the hull
+// with its margin still covers every node; the margin mRest + that (+ 1 cm for the rounding). The biggest pieces first.
+// The nodes are rounded to the cm BEFORE the hull (rounding a hull's corners after can fold a short edge inside out).
+function scarHulls(R, p, world, D) {
+  const n = R.n, par = new Int32Array(n);
+  for (let i = 0; i < n; i++) par[i] = i;
+  const find = i => { while (par[i] !== i) { par[i] = par[par[i]]; i = par[i]; } return i; };
+  const brk = new Uint8Array(R.ba.length); if (D.broken) for (const bi of D.broken) brk[bi] = 1;
+  for (let b = 0; b < R.ba.length; b++) if (!brk[b]) { const a = find(R.ba[b]), c = find(R.bb[b]); if (a !== c) par[a] = c; }
+  const gH = world && typeof world.terrainH === 'function' ? world.terrainH : null, by = new Map();
+  for (let i = 0; i < n; i++) {
+    const x = p[i * 3], y = p[i * 3 + 1], z = p[i * 3 + 2];
+    if (!Number.isFinite(x) || !Number.isFinite(z)) continue;
+    if (gH && y - R.nr[i] - gH(x, z) > SCAR.hSweep) continue;
+    if (scarSurf(world, x, z) < 0) continue;
+    const r = find(i); let L = by.get(r); if (!L) by.set(r, L = []); L.push(scarR2(x), scarR2(z));   // (to the cm first: the hull is built on what is sent)
+  }
+  const pieces = [...by.values()].sort((a, b) => b.length - a.length).slice(0, SCAR.maxHulls), out = [];
+  for (const L of pieces) {
+    const { P, m } = scarHull(L);
+    out.push({ k: 'h', p: P, m: scarR2(SCAR.mRest + m + 0.01) });
+  }
+  return out;
+}
+// the convex hull of [x, z, ...] anticlockwise (x right, z the second axis), at most hullPts points: { P, m } - m the
+// farthest a dropped point lay outside what was kept
+function scarHull(L) {
+  const N = L.length / 2, id = [];
+  for (let j = 0; j < N; j++) id.push(j);
+  id.sort((a, b) => L[a * 2] - L[b * 2] || L[a * 2 + 1] - L[b * 2 + 1]);
+  const cr = (o, a, b) => (L[a * 2] - L[o * 2]) * (L[b * 2 + 1] - L[o * 2 + 1]) - (L[a * 2 + 1] - L[o * 2 + 1]) * (L[b * 2] - L[o * 2]);
+  const lo = [], up = [];
+  for (const j of id) { while (lo.length >= 2 && cr(lo[lo.length - 2], lo[lo.length - 1], j) <= 1e-9) lo.pop(); lo.push(j); }
+  for (let q = id.length - 1; q >= 0; q--) { const j = id[q]; while (up.length >= 2 && cr(up[up.length - 2], up[up.length - 1], j) <= 1e-9) up.pop(); up.push(j); }
+  let h = N > 1 ? lo.slice(0, -1).concat(up.slice(0, -1)) : id.slice();
+  if (!h.length) h = [id[0]];
+  let P = []; for (const j of h) P.push(L[j * 2], L[j * 2 + 1]);
+  let m = 0;
+  while (P.length / 2 > SCAR.hullPts) {
+    const K = P.length / 2; let bi = -1, bd = Infinity;
+    for (let q = 0; q < K; q++) { const a = (q + K - 1) % K, b = (q + 1) % K;
+      const d = scarSegD([P[a * 2], P[a * 2 + 1], P[b * 2], P[b * 2 + 1]], P[q * 2], P[q * 2 + 1]); if (d < bd) { bd = d; bi = q; } }
+    P.splice(bi * 2, 2); if (bd > m) m = bd;
+  }
+  return { P, m };
+}
+// a hull with its margin: inside the polygon (anticlockwise: left of every edge) or within m of its edges
+function scarHullIn(c, x, z) {
+  const P = c.p, K = P.length / 2;
+  let inside = K >= 3, best = Infinity;
+  for (let q = 0; q < K; q++) {
+    const ax = P[q * 2], az = P[q * 2 + 1], b = (q + 1) % K, ex = P[b * 2] - ax, ez = P[b * 2 + 1] - az;
+    if (ex * (z - az) - ez * (x - ax) < -1e-9) inside = false;
+    const e2 = ex * ex + ez * ez; let u = e2 > 1e-12 ? ((x - ax) * ex + (z - az) * ez) / e2 : 0; u = u < 0 ? 0 : u > 1 ? 1 : u;
+    const d = Math.hypot(x - ax - u * ex, z - az - u * ez); if (d < best) best = d;
+  }
+  return inside || best <= c.m;
+}
+// ---- THE FOOTPRINT (the page's cull and the gate's): inside a crater's disc, a gouge's strip or a piece's hull (G2380);
+// `sweep` adds the sweeps
+// (G2382: `B` - scarBoxes(prims), each primitive's own box, tested first: the page's cull tests thousands of instances)
+function scarIn(prims, x, z, sweep, B) {
   for (let q = 0; q < prims.length; q++) {
+    if (B && (x < B[q * 4] || z < B[q * 4 + 1] || x > B[q * 4 + 2] || z > B[q * 4 + 3])) continue;
     const c = prims[q];
     if (c.k === 'c') { const dx = x - c.x, dz = z - c.z; if (dx * dx + dz * dz <= c.r * c.r) return true; }
     else if (c.k === 'g') { if (scarSegD(c.p, x, z) <= c.w / 2) return true; }
+    else if (c.k === 'h') { if (scarHullIn(c, x, z)) return true; }        // G2380: the resting wreck's pieces
     else if (sweep && c.k === 's') { if (scarSweepIn(c, x, z)) return true; }
   }
   return false;
@@ -21039,8 +21529,24 @@ function scarSweepIn(c, x, z) {
   if (!c.ws) return scarSegD(P, x, z) <= c.w / 2;
   if (P.length === 2) return Math.hypot(x - P[0], z - P[1]) <= c.ws[0] / 2;
   for (let j = 0; j + 3 < P.length; j += 2) { const h = Math.max(c.ws[j / 2], c.ws[j / 2 + 1]) / 2;
-    if (scarSegD([P[j], P[j + 1], P[j + 2], P[j + 3]], x, z) <= h) return true; }
+    const ax = P[j], az = P[j + 1], ex = P[j + 2] - ax, ez = P[j + 3] - az, e2 = ex * ex + ez * ez;   // (no array a leg)
+    let u = e2 > 1e-12 ? ((x - ax) * ex + (z - az) * ez) / e2 : 0; u = u < 0 ? 0 : u > 1 ? 1 : u;
+    if (Math.hypot(x - ax - u * ex, z - az - u * ez) <= h) return true; }
   return false;
+}
+// each primitive's own box [x0, z0, x1, z1, ...] (scarIn's B): a crater's disc, a strip's or a sweep's points +- its half
+// width, a hull's + its margin
+function scarBoxes(prims) {
+  const B = new Float64Array(prims.length * 4);
+  prims.forEach((c, q) => {
+    let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+    if (c.k === 'c') { x0 = c.x - c.r; x1 = c.x + c.r; z0 = c.z - c.r; z1 = c.z + c.r; }
+    else for (let j = 0; j < c.p.length; j += 2) { const h = c.k === 'h' ? c.m : (c.ws ? c.ws[j / 2] : c.w) / 2;
+      x0 = Math.min(x0, c.p[j] - h); x1 = Math.max(x1, c.p[j] + h); z0 = Math.min(z0, c.p[j + 1] - h); z1 = Math.max(z1, c.p[j + 1] + h); }
+    if (c.k === 's' && c.ws) { let w = 0; for (const v of c.ws) w = Math.max(w, v / 2); x0 -= w; x1 += w; z0 -= w; z1 += w; }   // (a leg takes its wider end)
+    B[q * 4] = x0; B[q * 4 + 1] = z0; B[q * 4 + 2] = x1; B[q * 4 + 3] = z1;
+  });
+  return B;
 }
 // the footprint's box [x0, z0, x1, z1] (the sweeps with `sweep`), null for none
 function scarBox(prims, sweep) {
@@ -21048,10 +21554,473 @@ function scarBox(prims, sweep) {
   for (const c of prims) {
     if (c.k === 'c') { x0 = Math.min(x0, c.x - c.r); x1 = Math.max(x1, c.x + c.r); z0 = Math.min(z0, c.z - c.r); z1 = Math.max(z1, c.z + c.r); continue; }
     if (c.k === 's' && !sweep) continue;
-    for (let j = 0; j < c.p.length; j += 2) { const h = (c.ws ? c.ws[j / 2] : c.w) / 2; x0 = Math.min(x0, c.p[j] - h); x1 = Math.max(x1, c.p[j] + h); z0 = Math.min(z0, c.p[j + 1] - h); z1 = Math.max(z1, c.p[j + 1] + h); }
+    for (let j = 0; j < c.p.length; j += 2) { const h = c.k === 'h' ? c.m : (c.ws ? c.ws[j / 2] : c.w) / 2; x0 = Math.min(x0, c.p[j] - h); x1 = Math.max(x1, c.p[j] + h); z0 = Math.min(z0, c.p[j + 1] - h); z1 = Math.max(z1, c.p[j + 1] + h); }
   }
   return x0 <= x1 ? [x0, z0, x1, z1] : null;
 }
+// ============================================================
+// THE OCCUPANTS IN A CRASH (G2373-G2377, DMG-OCCUPANT; the DEFORM COORDINATOR's DMG block). The user, 7 Oct: "let's
+// stay vague ... let's not get into the detail, it's sad and frightening." Per occupied seat the game says ONE of five
+// words - GEN_OCC.bands - and nothing more; the criteria behind it stay here, in the gates and in HANDOVER.
+//
+// What is recorded, behind the damage layer only (30_solver: DMG_ON; off, nothing here exists - not one buffer, not one op):
+//   THE SEAT: each filled seat's station (cabin.seatsX, metres aft of the firewall, the join's measurement; else the
+//     ring its row bills onto, 61_gen_frame's SEAT_ROWS rule) between two cabin pillars (the S<i> rings); its velocity
+//     is the occupant's load path - the four floor nodes the frame bills the 80 kg onto (61_gen_frame billAt), by the
+//     same lever-arm split, a side seat leaning 3:1 to its own wall - and its frame the bay's own (forward: ring i+1 to
+//     ring i, up: the floor to the roof, lateral: their cross).
+//   THE PULSE: the seat's velocity, averaged over each solver substep of a ~1 ms bin (a box-car before the difference),
+//     in a BOUNDED ring buffer (GEN_OCC.len s at most). It records only on an ARMED frame (30_solver armFrame: a trunk or
+//     an obstacle in reach, a scrape, a member past half its yield - never on an intact aeroplane flying clear) and is
+//     KEPT when an event fires: a member breaks, the contact g passes GEN_OCC.trigG, or the solver calls a crash; it
+//     closes at the crash's end (DMG.over), when the buffer is full, or - an event that is no crash - after
+//     GEN_OCC.quiet s of nothing. Its pre-trigger history is the last GEN_OCC.pre s of armed frames.
+//   THE SPACE: the occupant's point (the chest: a seat's station, a quarter of the width from its wall, GEN_OCC.chest of
+//     the bay's height) rides its bay's eight corners trilinearly; once a frame while the event runs its clearance to
+//     the bay's walls (the floor, the roof, the two sides, the ring ahead - the panel or the firewall) over the same
+//     clearance as built, and the nearest node of any OTHER structure now inside the bay (an engine, a ring ahead, a
+//     wing root: outside it as built) over the smallest of those clearances. The worst held over GEN_OCC.hold frames.
+//     The bay's corners on two pieces at the end (the cabin parted at the seat) is its own row.
+//   THE RESTRAINT: spec.cabin.restraint ('harness' | 'lap') when the build says; no build carries it (the cage's belt
+//     option is drawn-only and was removed 2026-09-20), so the validated builds default to a lap belt + shoulder harness
+//     (`restraintDefault: true` on the result). The seat's type (spec.outfit.seats, GEN_SEATS) says whether it was
+//     dynamically tested ('energy': FAR 23.562) or only statically (23.561).
+//
+// THE CRITERIA (sources AS RECALLED - none opened in this session; GAME where no source fits, said so):
+//   DRI   the Dynamic Response Index, spinal (+z): the seat's spinal acceleration (the accelerometer's specific force,
+//         1 g at rest) through a single-degree spring-mass, wn 52.9 rad/s, zeta 0.224 (Stech & Payne 1969, AMRL-TR-66-157;
+//         MIL-S-9479; the AGARD-CP-472 Brinkley model's z axis); DRI = wn^2 dmax / g. Brinkley's limits (AGARD 1990):
+//         15.2 low risk (~0.5 % spinal injury), 18.0 moderate (~5 %), 22.8 high (~50 %).
+//   EIBAND the tolerance to a uniform pulse vs its duration (Eiband 1959, NASA Memo 5-19-59E), longitudinal (the
+//         eyeballs-out curve, the lower, used both ways) and lateral, restrained occupant: the voluntary (uninjured)
+//         limit and the moderate-injury limit (above it the severe-injury region); the plateau of a duration w = the
+//         highest level held for w (the max over t of the min over [t, t+w]) of the CFC 60 signal (SAE J211's
+//         channel class, the Butterworth forwards and backwards). The curves' points: GEN_OCC.eiband (approximate).
+//   FAR 23.562 the emergency-landing dynamic seat tests: longitudinal 26 g (first row) / 21 g (other rows) at 42 ft/s,
+//         combined vertical 19 / 15 g at 31 ft/s - what a certified seat is shown to make survivable. A pulse past
+//         BOTH its peak and its velocity change is beyond that reference.
+//   SPACE no intrusion into the occupant's space (the survivable-volume rule: NTSB / the crash survival design guide,
+//         USAAVSCOM TR 89-D-22, "survivable" = tolerable loads AND the occupiable volume kept).
+//   RESTRAINT the longitudinal load held 20 ms against the restraint's strength: FAR 23.561's 9 g forward ultimate x
+//         23.625's 1.33 fitting factor x a GAME margin of 1.5 for a statically certified seat (18 g); a dynamically
+//         tested one 26 g x 1.5 (39 g, GAME). A lap belt alone (no shoulder harness) lowers the longitudinal Eiband
+//         curves x 0.6 (GAME: the jack-knife's head strike).
+// THE BANDS (the worst criterion wins; HANDOVER G2373-G2377 has the table): GEN_OCC.band.
+// ============================================================
+const GEN_OCC = {
+  on: true,            // the A/B (a gate's): false and the solver makes no record at all
+  bands: ['Unharmed', 'Light injuries', 'Heavy injuries', 'Life threatening', 'Fatal injuries'],
+  dt: 0.001,           // the record's bin and the criteria's grid (s)
+  len: 4.5,            // the buffer (s): the pre-trigger history + the event (the solver's 'over' is <= 4 s after a crash)
+  pre: 0.5,            // the pre-trigger history kept (s)
+  trigG: 4,            // GAME: the contact g (30_solver gF, filtered 50 ms) that keeps a record - over a firm landing's 2-3 g
+  quiet: 1.0,          // s with nothing (no break, the contact under quietG) closes an event that is no crash
+  quietG: 2,           // ...'nothing': the contact g under this (an aeroplane at rest on its wheels reads 1)
+  post: 0.5,           // a crash closes once over and this quiet (s)...
+  crashMax: 3.0,       // ...or this long after its trigger (s): the card waits WATCH_HOLD s after 'over' (app.js G1868)
+  chest: 0.45,         // the occupant's point: this share of the bay's height over its floor (GAME)
+  side: 0.25,          // ...and a side seat's centre this share of the width from its wall (a centred seat 0.5)
+  intrude: 0.05,       // a node of other structure counts inside the bay past this (m; DMG-D1b's probe margin)
+  hold: 3,             // the space's worst is held this many frames (an elastic flicker of one frame is not a crush)
+  cfc: 60,             // SAE J211 channel class of the criteria's signal
+  dri: { wn: 52.9, zeta: 0.224 },
+  // Eiband (as recalled; approximate): duration (s) -> g, the voluntary (uninjured) and the moderate-injury limits
+  eiband: {
+    w: [0.01, 0.02, 0.04, 0.1, 0.2, 0.4, 1.0],
+    x: { vol: [40, 35, 32, 25, 22, 18, 15], mod: [60, 55, 50, 45, 40, 32, 25] },
+    y: { vol: [20, 18, 15, 11, 10, 9, 8], mod: [32, 29, 25, 20, 18, 15, 12] },
+  },
+  // FAR 23.562 (as recalled): [first row, other rows] peak g and the velocity change (m/s: 42 and 31 ft/s)
+  far562: { x: { g: [26, 21], dv: 12.8 }, z: { g: [19, 15], dv: 9.45 } },
+  dvWin: 0.3,          // s: a pulse's velocity change is read within this (the 23.562 pulses last ~0.1-0.2 s)
+  restraint: { stat: 9 * 1.33 * 1.5, dyn: 26 * 1.5, w: 0.02, lapK: 0.6 },
+  // THE BAND TABLE: each criterion's value -> 0..4 (the worst wins). GAME where the source has no fifth level.
+  band: {
+    dri: [15.2, 18.0, 22.8, 30],          // < 15.2 Unharmed ... >= 30 Fatal (30: GAME)
+    eibMod: [0.8, 1.0, 1.5],              // past the voluntary curve: mod ratio <= 0.8 Light, <= 1 Heavy, <= 1.5 LT, else Fatal (GAME splits)
+    space: [0.85, 0.70, 0.50, 0.30],      // clearance kept >= 0.85 Unharmed, >= 0.70 Light, >= 0.50 Heavy, >= 0.30 LT, else Fatal (GAME)
+    cell: [1.10, 1.20, 1.35, 1.60],       // the cell's worst edge (x or / its length as built): < 1.10 Unharmed ... >= 1.60 Fatal (GAME)
+    far562: 2, restraint: 2, parted: 4,   // floors: past the certified seat's pulse, a restraint failed -> Heavy; the cabin parted at the seat -> Fatal (GAME)
+  },
+};
+
+// ---- THE SEATS (once, at makeSim with the layer on): null when the frame has no cabin rings or no one aboard ----
+function genOccSpec(def) {
+  const T = {};
+  def.nodes.forEach((nd, i) => { const m = /^S(\d+)([BT])([LR])$/.exec(nd.tag || ''); if (m) T[nd.tag] = i; });
+  const rings = []; for (let i = 0; T['S' + i + 'BL'] != null && T['S' + i + 'BR'] != null && T['S' + i + 'TL'] != null && T['S' + i + 'TR'] != null; i++)
+    rings.push({ BL: T['S' + i + 'BL'], BR: T['S' + i + 'BR'], TR: T['S' + i + 'TR'], TL: T['S' + i + 'TL'], x: def.nodes[T['S' + i + 'BL']].p[0] });
+  if (rings.length < 2) return null;
+  const spec = def.spec || {}, cab = spec.cabin || {};
+  const seatsX = Array.isArray(cab.seatsX) ? cab.seatsX : null, occ = Array.isArray(cab.occupied) ? cab.occupied : null;
+  const aboard = Math.max(1, (cab.pilots | 0) + (cab.pax | 0) || 1);
+  const ROWS = { single: [1], tandem2: [1, 2], side2: [1, 1], side4: [1, 1, 2, 2], tandem4: [1, 1, 2, 2], drone: [] };
+  const rowsOf = ROWS[cab.seating] || [1, 1], abreast = /^side|^tandem4/.test(cab.seating || '') ? 2 : 1;
+  const nS = occ ? occ.length : aboard;
+  const xOf = i => {
+    if (seatsX && typeof seatsX[i] === 'number' && Number.isFinite(seatsX[i])) return seatsX[i];
+    const ri = rowsOf[i] != null ? rowsOf[i] : 1 + Math.floor(i / abreast);
+    return rings[Math.min(ri, rings.length - 1)].x;
+  };
+  const sideOf = i => {
+    if (seatsX) { const x = xOf(i);
+      if (i % 2 === 1 && Math.abs(xOf(i - 1) - x) < 1e-6) return 1;
+      if (i % 2 === 0 && i + 1 < Math.max(nS, seatsX.length) && typeof seatsX[i + 1] === 'number' && Math.abs(seatsX[i + 1] - x) < 1e-6) return -1;
+      return 0; }
+    return abreast === 2 ? (i % 2 ? 1 : -1) : 0;
+  };
+  const out = [];
+  for (let i = 0; i < nS; i++) {
+    if (!(i === 0 || (occ ? occ[i] : i < aboard))) continue;
+    const x = xOf(i), side = sideOf(i);
+    let b = 0; while (b < rings.length - 2 && x >= rings[b + 1].x) b++;
+    const R0 = rings[b], R1 = rings[b + 1];
+    const u = Math.max(0, Math.min(1, (x - R0.x) / Math.max(1e-6, R1.x - R0.x)));
+    const s = side < 0 ? GEN_OCC.side : side > 0 ? 1 - GEN_OCC.side : 0.5, h = GEN_OCC.chest;
+    const wl = side < 0 ? 0.75 : side > 0 ? 0.25 : 0.5;
+    // the bay's corners: [BL_i, BR_i, TR_i, TL_i, BL_a, BR_a, TR_a, TL_a] (30_solver's / DMG-D1b's order)
+    const n8 = [R0.BL, R0.BR, R0.TR, R0.TL, R1.BL, R1.BR, R1.TR, R1.TL];
+    const w8 = new Float64Array(8);   // the chest's trilinear weights
+    for (let c = 0; c < 8; c++) w8[c] = (c < 4 ? 1 - u : u) * ((c & 3) === 0 || (c & 3) === 3 ? 1 - s : s) * ((c & 3) >= 2 ? h : 1 - h);
+    // the load path: the floor nodes by the frame's own lever-arm split
+    const fl = [R0.BL, R0.BR, R1.BL, R1.BR], fw = [(1 - u) * wl, (1 - u) * (1 - wl), u * wl, u * (1 - wl)];
+    out.push({ i, x, side, bay: b, n8, w8, fl, fw: Float64Array.from(fw), row: (rowsOf[i] != null ? rowsOf[i] : 1 + Math.floor(i / abreast)) <= 1 ? 0 : 1, name: null });
+  }
+  if (!out.length) return null;
+  // the names, as the game says them (the crew page's 'pilot' / 'co-pilot', the passenger bays)
+  const pilot = out.find(o => o.i === 0);
+  let nPax = 0; for (const o of out) if (o.i !== 0 && !(pilot && o.side > 0 && Math.abs(o.x - pilot.x) < 1e-6)) nPax++;
+  let k = 0;
+  for (const o of out) {
+    if (o.i === 0) o.name = 'Pilot';
+    else if (pilot && o.side > 0 && Math.abs(o.x - pilot.x) < 1e-6) o.name = 'Co-pilot';
+    else o.name = nPax > 1 ? 'Passenger ' + (++k) : 'Passenger';
+  }
+  // the space as built: each seat's chest point, its five walls' clearances, the nodes outside its bay
+  const P = def.nodes.length, rest = new Float64Array(P * 3);
+  def.nodes.forEach((nd, i) => { rest[i * 3] = nd.p[0]; rest[i * 3 + 1] = nd.p[1]; rest[i * 3 + 2] = nd.p[2]; });
+  const pl = new Float64Array(36), pt = [0, 0, 0];
+  for (const o of out) {
+    genOccPlanes(rest, o.n8, pl);
+    { let x = 0, y = 0, z = 0; for (let c = 0; c < 8; c++) { const i = o.n8[c] * 3, w = o.w8[c]; x += w * rest[i]; y += w * rest[i + 1]; z += w * rest[i + 2]; }
+      o.hc = Math.max(0.05, genOccDist(pl, 2, x, y, z)); }   // the chest's height over the floor as built (GEN_OCC.chest of the bay's)
+    genOccChest(rest, o, pt, pl);
+    o.d0 = new Float64Array(6); for (let f = 0; f < 6; f++) o.d0[f] = genOccFace(rest, o.n8, pl, f, pt[0], pt[1], pt[2]);
+    o.dMin0 = Math.min(o.d0[0], o.d0[2], o.d0[3], o.d0[4], o.d0[5]);
+    o.e0 = Float64Array.from(GEN_OCC_EDGES.map(([a, b]) => Math.hypot(rest[o.n8[a] * 3] - rest[o.n8[b] * 3], rest[o.n8[a] * 3 + 1] - rest[o.n8[b] * 3 + 1], rest[o.n8[a] * 3 + 2] - rest[o.n8[b] * 3 + 2])));
+    const inB = new Set(o.n8), foreign = [];
+    for (let j = 0; j < P; j++) if (!inB.has(j) && genOccDepth(pl, rest[j * 3], rest[j * 3 + 1], rest[j * 3 + 2]) < -GEN_OCC.intrude) foreign.push(j);
+    o.foreign = Int32Array.from(foreign);
+  }
+  const seatType = (spec.outfit && spec.outfit.seats) || 'sling';
+  const restraint = cab.restraint === 'lap' || cab.restraint === 'harness' ? cab.restraint : 'harness';
+  return { seats: out, n: P, seatType, dynamic: seatType === 'energy', restraint, restraintDefault: !(cab.restraint === 'lap' || cab.restraint === 'harness') };
+}
+// a bay's six face planes [c(3), n_in(3)] x 6 (the order: ring i, ring i+1, floor, right, roof, left)
+const GEN_OCC_FACES = [[0, 1, 2, 3], [4, 7, 6, 5], [0, 4, 5, 1], [1, 5, 6, 2], [2, 6, 7, 3], [3, 7, 4, 0]];
+// ...and its twelve edges (the two rings' four, the four longerons)
+const GEN_OCC_EDGES = [[0, 1], [1, 2], [2, 3], [3, 0], [4, 5], [5, 6], [6, 7], [7, 4], [0, 4], [1, 5], [2, 6], [3, 7]];
+function genOccPlanes(p, B, pl) {
+  let cx = 0, cy = 0, cz = 0; for (const i of B) { cx += p[i * 3]; cy += p[i * 3 + 1]; cz += p[i * 3 + 2]; } cx /= 8; cy /= 8; cz /= 8;
+  for (let fi = 0; fi < 6; fi++) {
+    const F = GEN_OCC_FACES[fi], a = B[F[0]] * 3, b = B[F[1]] * 3, c = B[F[2]] * 3, e = B[F[3]] * 3;
+    const fx = (p[a] + p[b] + p[c] + p[e]) / 4, fy = (p[a + 1] + p[b + 1] + p[c + 1] + p[e + 1]) / 4, fz = (p[a + 2] + p[b + 2] + p[c + 2] + p[e + 2]) / 4;
+    const d1x = p[c] - p[a], d1y = p[c + 1] - p[a + 1], d1z = p[c + 2] - p[a + 2], d2x = p[e] - p[b], d2y = p[e + 1] - p[b + 1], d2z = p[e + 2] - p[b + 2];
+    let nx = d1y * d2z - d1z * d2y, ny = d1z * d2x - d1x * d2z, nz = d1x * d2y - d1y * d2x; const ln = Math.hypot(nx, ny, nz) || 1e-9; nx /= ln; ny /= ln; nz /= ln;
+    if ((cx - fx) * nx + (cy - fy) * ny + (cz - fz) * nz < 0) { nx = -nx; ny = -ny; nz = -nz; }
+    const o = fi * 6; pl[o] = fx; pl[o + 1] = fy; pl[o + 2] = fz; pl[o + 3] = nx; pl[o + 4] = ny; pl[o + 5] = nz;
+  }
+}
+const genOccDist = (pl, f, x, y, z) => { const o = f * 6; return (x - pl[o]) * pl[o + 3] + (y - pl[o + 1]) * pl[o + 4] + (z - pl[o + 2]) * pl[o + 5]; };
+function genOccDepth(pl, x, y, z) { let d = Infinity; for (let f = 0; f < 6; f++) { const q = genOccDist(pl, f, x, y, z); if (q < d) d = q; } return d; }
+// the chest's clearance to a bay's face AS A QUAD (its two triangles), not its plane: a firewall swung aside by a nose
+// torn off has a plane through the cabin and no structure there. 0 once the chest is on the face's outer side
+const _occQ = [0, 0, 0];
+function genOccTri(px, py, pz, p, a, b, c, q) {
+  // Ericson's closest point on a triangle
+  const ax = p[a], ay = p[a + 1], az = p[a + 2], abx = p[b] - ax, aby = p[b + 1] - ay, abz = p[b + 2] - az, acx = p[c] - ax, acy = p[c + 1] - ay, acz = p[c + 2] - az;
+  const apx = px - ax, apy = py - ay, apz = pz - az, d1 = abx * apx + aby * apy + abz * apz, d2 = acx * apx + acy * apy + acz * apz;
+  const set = (u, v) => { q[0] = ax + u * abx + v * acx; q[1] = ay + u * aby + v * acy; q[2] = az + u * abz + v * acz; };
+  if (d1 <= 0 && d2 <= 0) return set(0, 0);
+  const bpx = px - p[b], bpy = py - p[b + 1], bpz = pz - p[b + 2], d3 = abx * bpx + aby * bpy + abz * bpz, d4 = acx * bpx + acy * bpy + acz * bpz;
+  if (d3 >= 0 && d4 <= d3) return set(1, 0);
+  const vc = d1 * d4 - d3 * d2; if (vc <= 0 && d1 >= 0 && d3 <= 0) return set(d1 / (d1 - d3), 0);
+  const cpx = px - p[c], cpy = py - p[c + 1], cpz = pz - p[c + 2], d5 = abx * cpx + aby * cpy + abz * cpz, d6 = acx * cpx + acy * cpy + acz * cpz;
+  if (d6 >= 0 && d5 <= d6) return set(0, 1);
+  const vb = d5 * d2 - d1 * d6; if (vb <= 0 && d2 >= 0 && d6 <= 0) return set(0, d2 / (d2 - d6));
+  const va = d3 * d6 - d5 * d4; if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) { const w = (d4 - d3) / ((d4 - d3) + (d5 - d6)); q[0] = p[b] + w * (p[c] - p[b]); q[1] = p[b + 1] + w * (p[c + 1] - p[b + 1]); q[2] = p[b + 2] + w * (p[c + 2] - p[b + 2]); return; }
+  const dn = 1 / (va + vb + vc); set(vb * dn, vc * dn);
+}
+function genOccFace(p, B, pl, f, x, y, z) {
+  const F = GEN_OCC_FACES[f], a = B[F[0]] * 3, b = B[F[1]] * 3, c = B[F[2]] * 3, e = B[F[3]] * 3;
+  let best = Infinity, bx = 0, by = 0, bz = 0;
+  for (const [u, v, w] of [[a, b, c], [a, c, e]]) { genOccTri(x, y, z, p, u, v, w, _occQ); const d = Math.hypot(x - _occQ[0], y - _occQ[1], z - _occQ[2]); if (d < best) { best = d; bx = _occQ[0]; by = _occQ[1]; bz = _occQ[2]; } }
+  const o = f * 6;
+  return (x - bx) * pl[o + 3] + (y - by) * pl[o + 4] + (z - bz) * pl[o + 5] < -1e-9 ? 0 : best;
+}
+// the chest: the seat on the floor (the floor nodes by the load path's own weights) and the chest's height as built
+// along the floor's normal - the occupant sits on the seat, so a cabin sheared into a parallelogram moves its walls and
+// roof round the occupant, not the occupant with the roof. pl: the bay's planes this frame (face 2 the floor, inward up)
+function genOccChest(p, o, out, pl) {
+  let x = 0, y = 0, z = 0;
+  for (let q = 0; q < 4; q++) { const i = o.fl[q] * 3, w = o.fw[q]; x += w * p[i]; y += w * p[i + 1]; z += w * p[i + 2]; }
+  const hc = o.hc || 0;
+  out[0] = x + hc * pl[15]; out[1] = y + hc * pl[16]; out[2] = z + hc * pl[17]; return out;
+}
+
+// ---- THE RECORDER'S STATE (allocated on the first armed frame: an aeroplane that never meets anything holds none) ----
+function genOccState() { return { buf: null, tS: null, cap: 0, head: 0, count: 0, st: 0, rec: false, binT: 0, binN: 0, acc: null, t: 0,
+  trigT: 0, actT: 0, brk: 0, sp: null, spH: null, spAt: null, res: null, ver: 0, events: 0 }; }
+function genOccReset(S) { S.head = 0; S.count = 0; S.st = 0; S.rec = false; S.binT = 0; S.binN = 0; S.t = 0; S.brk = 0; S.res = null; S.ver = 0; S.events = 0; if (S.acc) S.acc.fill(0); }
+function genOccAlloc(O, S) {
+  const nS = O.seats.length;
+  S.cap = Math.ceil(GEN_OCC.len / GEN_OCC.dt) + 8;
+  S.buf = new Float32Array(S.cap * nS * 9); S.tS = new Float64Array(S.cap); S.acc = new Float64Array(nS * 3);
+  S.sp = new Float64Array(nS); S.spH = new Float64Array(nS * GEN_OCC.hold); S.spAt = new Array(nS);
+  S.ce = new Float64Array(nS); S.ceH = new Float64Array(nS * GEN_OCC.hold); S.ceAt = new Array(nS);
+}
+// the frame's start (after 30_solver armFrame): record this frame's substeps? An armed frame or a kept event; a gap in
+// the armed run drops the pre-trigger history (it would join two moments that are not one)
+function genOccArm(O, S, armed) {
+  const rec = (armed && S.st !== 3) || S.st === 2;   // (3: a crash closed - its result stands until the reset)
+  if (rec && !S.buf) genOccAlloc(O, S);
+  if (!rec && S.st === 1) { S.st = 0; S.count = 0; S.binT = 0; S.binN = 0; S.acc.fill(0); }
+  if (rec && S.st === 0) S.st = 1;
+  S.rec = rec;
+  return rec;
+}
+// one substep's velocities into the bin; a full bin (>= dt) is a sample: the bin's mean velocity, the bay's axes
+function genOccSub(O, S, p, v, dt, simT) {
+  const SE = O.seats, nS = SE.length, A = S.acc;
+  for (let k = 0; k < nS; k++) { const o = SE[k]; let x = 0, y = 0, z = 0;
+    for (let q = 0; q < 4; q++) { const i = o.fl[q] * 3, w = o.fw[q]; x += w * v[i]; y += w * v[i + 1]; z += w * v[i + 2]; }
+    A[k * 3] += x; A[k * 3 + 1] += y; A[k * 3 + 2] += z; }
+  S.binT += dt; S.binN++;
+  if (S.binT < GEN_OCC.dt - 1e-9) return;
+  const h = S.head, B = S.buf, inv = 1 / S.binN;
+  S.tS[h] = simT - 0.5 * S.binT;
+  for (let k = 0; k < nS; k++) {
+    const o = SE[k], N = o.n8, b = (h * nS + k) * 9;
+    B[b] = A[k * 3] * inv; B[b + 1] = A[k * 3 + 1] * inv; B[b + 2] = A[k * 3 + 2] * inv;
+    // forward (ring i+1 -> ring i: toward the nose), up (floor -> roof)
+    let fx = 0, fy = 0, fz = 0, ux = 0, uy = 0, uz = 0;
+    for (let c = 0; c < 4; c++) { const i0 = N[c] * 3, i1 = N[c + 4] * 3; fx += p[i0] - p[i1]; fy += p[i0 + 1] - p[i1 + 1]; fz += p[i0 + 2] - p[i1 + 2]; }
+    for (let c = 0; c < 8; c++) { const i = N[c] * 3, sg = (c & 3) >= 2 ? 1 : -1; ux += sg * p[i]; uy += sg * p[i + 1]; uz += sg * p[i + 2]; }
+    B[b + 3] = fx; B[b + 4] = fy; B[b + 5] = fz; B[b + 6] = ux; B[b + 7] = uy; B[b + 8] = uz;
+  }
+  A.fill(0); S.binT = 0; S.binN = 0;
+  S.head = (h + 1) % S.cap;
+  if (S.count < S.cap) S.count++;
+}
+// the frame's end (after 30_solver dmgFrame): the trigger, the space, the close. D the damage record, gF the contact g,
+// fd() the solver's pieces (asked only at a close). Returns true when a result was (re)made
+function genOccFrame(O, S, D, gF, simT, p, fd) {
+  if (!S.rec) return false;
+  const nS = O.seats.length, newBrk = D.breaks > S.brk; S.brk = D.breaks;
+  const hot = newBrk || gF > GEN_OCC.trigG;
+  if (S.st === 1 && (hot || D.crashed)) {
+    S.st = 2; S.trigT = simT; S.actT = simT; S.events++;
+    // the pre-trigger history: the last GEN_OCC.pre s of the armed run
+    S.count = Math.min(S.count, Math.ceil(GEN_OCC.pre / GEN_OCC.dt));
+    S.sp.fill(Infinity); S.spH.fill(Infinity); S.ce.fill(0); S.ceH.fill(0); for (let k = 0; k < nS; k++) { S.spAt[k] = null; S.ceAt[k] = null; }
+  }
+  if (S.st !== 2) return false;
+  if (newBrk || gF > GEN_OCC.quietG) S.actT = simT;
+  genOccSpace(O, S, p, simT);
+  const full = S.count >= S.cap - 2;
+  // the close: a crash once its wreck is over AND quiet (a break-up is 'over' at its first parting - the pulse runs on),
+  // or GEN_OCC.crashMax s after the trigger; an event that is no crash after GEN_OCC.quiet s of nothing; a full buffer
+  const crashEnd = D.crashed && D.over && (simT - S.actT > GEN_OCC.post || simT - S.trigT > GEN_OCC.crashMax);
+  if (!(crashEnd || full || (!D.crashed && simT - S.actT > GEN_OCC.quiet))) return false;
+  // the close: the criteria on the record, the cabin parted at a seat, the bands; merged with an earlier event's (the worst)
+  const R = genOccClose(O, S, fd);
+  S.res = S.res ? genOccMerge(S.res, R) : R; S.ver++;
+  S.st = D.crashed ? 3 : 0; S.count = 0; S.binT = 0; S.binN = 0; S.acc.fill(0); S.rec = false;
+  return true;
+}
+// the space this frame: each seat's chest riding its bay, its clearance to the walls and to an intruding node, over its
+// clearance as built (the worst wall); held GEN_OCC.hold frames (the frame's worst must last that long to count)
+const _occPl = new Float64Array(36), _occPt = [0, 0, 0];
+// one seat's space now: the worst ratio, and what set it (a face 0 ahead / 2 floor / 3 right / 4 roof / 5 left, or -1 - the
+// intruding node); `all` (a gate's reader) gets every face's ratio and the nearest intruder's
+function genOccSpaceOf(o, p, all) {
+  genOccPlanes(p, o.n8, _occPl); genOccChest(p, o, _occPt, _occPl);
+  const x = _occPt[0], y = _occPt[1], z = _occPt[2];
+  let r = Infinity, why = null;
+  for (const f of [0, 2, 3, 4, 5]) { const q = genOccFace(p, o.n8, _occPl, f, x, y, z) / o.d0[f]; if (all) all['f' + f] = q; if (q < r) { r = q; why = f; } }
+  for (let j = 0; j < o.foreign.length; j++) {
+    const i = o.foreign[j], px = p[i * 3], py = p[i * 3 + 1], pz = p[i * 3 + 2];
+    if (genOccDepth(_occPl, px, py, pz) <= GEN_OCC.intrude) continue;
+    const q = Math.hypot(px - x, py - y, pz - z) / o.dMin0; if (all && !(all.intr <= q)) { all.intr = q; all.node = i; } if (q < r) { r = q; why = -1 - i; }
+  }
+  // THE CELL: its worst edge against its length as built (|ln L/L0|: crushed or torn open alike) - a cabin torn apart round
+  // the seat keeps no space, whatever the clearance reads
+  let e = 0, eW = -1;
+  for (let q = 0; q < 12; q++) { const [a, b] = GEN_OCC_EDGES[q], A = o.n8[a] * 3, B = o.n8[b] * 3;
+    const L = Math.hypot(p[A] - p[B], p[A + 1] - p[B + 1], p[A + 2] - p[B + 2]), d = Math.abs(Math.log(Math.max(1e-6, L) / o.e0[q])); if (d > e) { e = d; eW = q; } }
+  if (all) { all.cell = Math.exp(e); all.edge = eW; }
+  return { r, why, e, eW };
+}
+function genOccSpace(O, S, p, simT) {
+  const SE = O.seats, H = GEN_OCC.hold;
+  for (let k = 0; k < SE.length; k++) {
+    const { r, why, e, eW } = genOccSpaceOf(SE[k], p, null);
+    // the hold: this frame's ratio into the last H; the space counts the best of those H (a lasting loss); the cell's
+    // distortion the least of its last H
+    const hb = k * H; for (let q = H - 1; q > 0; q--) { S.spH[hb + q] = S.spH[hb + q - 1]; S.ceH[hb + q] = S.ceH[hb + q - 1]; } S.spH[hb] = r; S.ceH[hb] = e;
+    let held = -Infinity, heldE = Infinity; for (let q = 0; q < H; q++) { if (S.spH[hb + q] > held) held = S.spH[hb + q]; if (S.ceH[hb + q] < heldE) heldE = S.ceH[hb + q]; }
+    if (held < S.sp[k]) { S.sp[k] = held; S.spAt[k] = { t: simT, by: why }; }
+    if (heldE > S.ce[k]) { S.ce[k] = heldE; S.ceAt[k] = { t: simT, edge: eW }; }
+  }
+}
+// the record unrolled onto a uniform grid (GEN_OCC.dt): per seat the specific force (g) in its frame - x forward, y
+// lateral, z up (spinal) - and the velocity change along x and z (m/s, the kinematic part)
+function genOccSeries(O, S, k) {
+  const nS = O.seats.length, n = S.count, cap = S.cap, i0 = (S.head - n + cap) % cap;
+  if (n < 4) return null;
+  const T0 = S.tS[i0], T1 = S.tS[(S.head - 1 + cap) % cap], dt = GEN_OCC.dt, N = Math.max(4, Math.floor((T1 - T0) / dt) + 1);
+  const at = j => (i0 + j) % cap;
+  // velocities and axes resampled (linear in time; the axes from the nearer sample)
+  const V = new Float64Array(N * 3), FW = new Float64Array(N * 3), UP = new Float64Array(N * 3);
+  let j = 0;
+  for (let g = 0; g < N; g++) {
+    const t = T0 + g * dt;
+    while (j < n - 2 && S.tS[at(j + 1)] < t) j++;
+    const ta = S.tS[at(j)], tb = S.tS[at(j + 1)], a = Math.max(0, Math.min(1, (t - ta) / Math.max(1e-9, tb - ta)));
+    const ba = (at(j) * nS + k) * 9, bb = (at(j + 1) * nS + k) * 9, bn = a < 0.5 ? ba : bb, B = S.buf;
+    for (let c = 0; c < 3; c++) { V[g * 3 + c] = B[ba + c] + a * (B[bb + c] - B[ba + c]); FW[g * 3 + c] = B[bn + 3 + c]; UP[g * 3 + c] = B[bn + 6 + c]; }
+  }
+  const ax = new Float64Array(N), ay = new Float64Array(N), az = new Float64Array(N), kx = new Float64Array(N), kz = new Float64Array(N);
+  for (let g = 0; g < N; g++) {
+    const gm = Math.max(0, g - 1), gp = Math.min(N - 1, g + 1), h = (gp - gm) * dt;
+    const a0 = (V[gp * 3] - V[gm * 3]) / h, a1 = (V[gp * 3 + 1] - V[gm * 3 + 1]) / h, a2 = (V[gp * 3 + 2] - V[gm * 3 + 2]) / h;
+    // the frame: forward f, up u orthogonalised to it, lateral l = f x u
+    let fx = FW[g * 3], fy = FW[g * 3 + 1], fz = FW[g * 3 + 2]; const fl = Math.hypot(fx, fy, fz) || 1; fx /= fl; fy /= fl; fz /= fl;
+    let ux = UP[g * 3], uy = UP[g * 3 + 1], uz = UP[g * 3 + 2]; const fu = ux * fx + uy * fy + uz * fz; ux -= fu * fx; uy -= fu * fy; uz -= fu * fz;
+    const ul = Math.hypot(ux, uy, uz) || 1; ux /= ul; uy /= ul; uz /= ul;
+    const lx = fy * uz - fz * uy, ly = fz * ux - fx * uz, lz = fx * uy - fy * ux;
+    const s0 = a0, s1 = a1 + 9.81, s2 = a2;   // the specific force (the accelerometer's: gravity's reaction included)
+    ax[g] = (s0 * fx + s1 * fy + s2 * fz) / 9.81; ay[g] = (s0 * lx + s1 * ly + s2 * lz) / 9.81; az[g] = (s0 * ux + s1 * uy + s2 * uz) / 9.81;
+    kx[g] = a0 * fx + a1 * fy + a2 * fz; kz[g] = a0 * ux + a1 * uy + a2 * uz;   // the kinematic part (m/s^2)
+  }
+  return { N, dt, ax, ay, az, kx, kz, t0: T0 };
+}
+// SAE J211 CFC filter (a 2-pole Butterworth run forwards then backwards), in place
+function genOccCFC(x, dt, cfc) {
+  const wd = 2 * Math.PI * cfc * 2.0775, wa = CORE_MATH.sin(wd * dt / 2) / CORE_MATH.cos(wd * dt / 2), r2 = Math.SQRT2, den = 1 + r2 * wa + wa * wa;
+  const a0 = wa * wa / den, a1 = 2 * a0, a2 = a0, b1 = -2 * (wa * wa - 1) / den, b2 = (-1 + r2 * wa - wa * wa) / den;
+  const run = (fwd) => {
+    const N = x.length; let x1 = x[fwd ? 0 : N - 1], x2 = x1, y1 = x1, y2 = x1;
+    for (let q = 0; q < N; q++) { const i = fwd ? q : N - 1 - q, x0 = x[i], y0 = a0 * x0 + a1 * x1 + a2 * x2 + b1 * y1 + b2 * y2; x2 = x1; x1 = x0; y2 = y1; y1 = y0; x[i] = y0; }
+  };
+  run(true); run(false); return x;
+}
+// the DRI: the spinal signal (g) through the spring-mass; its largest compression x wn^2 / g (RK4 on the grid)
+function genOccDRI(az, dt) {
+  const wn = GEN_OCC.dri.wn, ze = GEN_OCC.dri.zeta, g = 9.81, N = az.length;
+  let d = 0, dv = 0, dMax = 0, tMax = 0;
+  const acc = (A, x, xv) => A - 2 * ze * wn * xv - wn * wn * x;
+  for (let i = 0; i < N - 1; i++) {
+    const A0 = az[i] * g, A1 = az[i + 1] * g, Am = 0.5 * (A0 + A1);
+    const k1x = dv, k1v = acc(A0, d, dv);
+    const k2x = dv + 0.5 * dt * k1v, k2v = acc(Am, d + 0.5 * dt * k1x, k2x);
+    const k3x = dv + 0.5 * dt * k2v, k3v = acc(Am, d + 0.5 * dt * k2x, k3x);
+    const k4x = dv + dt * k3v, k4v = acc(A1, d + dt * k3x, k4x);
+    d += dt / 6 * (k1x + 2 * k2x + 2 * k3x + k4x); dv += dt / 6 * (k1v + 2 * k2v + 2 * k3v + k4v);
+    if (d > dMax) { dMax = d; tMax = (i + 1) * dt; }
+  }
+  return { dri: wn * wn * dMax / g, t: tMax };
+}
+// the plateau held for each Eiband duration (both signs), over the curves: the ratios to the voluntary and the
+// moderate-injury limits, their worst duration
+function genOccEiband(a, dt, curve, k) {
+  const W = GEN_OCC.eiband.w, N = a.length, kk = k || 1;
+  let vol = 0, mod = 0, wV = null, wM = null, pl = [];
+  const q = new Int32Array(N);
+  for (let wi = 0; wi < W.length; wi++) {
+    const n = Math.max(1, Math.round(W[wi] / dt));
+    let best = 0;
+    if (n <= N) for (const sg of [1, -1]) {
+      // the sliding window's minimum of sg * a (a monotone deque), its largest value over the record
+      let h = 0, tl = 0;
+      for (let i = 0; i < N; i++) {
+        const v = sg * a[i];
+        while (tl > h && sg * a[q[tl - 1]] >= v) tl--;
+        q[tl++] = i;
+        if (q[h] <= i - n) h++;
+        if (i >= n - 1) { const m = sg * a[q[h]]; if (m > best) best = m; }
+      }
+    }
+    pl.push(best);
+    const rV = best / (kk * curve.vol[wi]), rM = best / (kk * curve.mod[wi]);
+    if (rV > vol) { vol = rV; wV = W[wi]; } if (rM > mod) { mod = rM; wM = W[wi]; }
+  }
+  return { vol, mod, wV, wM, plateau: pl };
+}
+const genOccBandOf = (v, th) => { let b = 0; while (b < th.length && v >= th[b]) b++; return b; };
+// THE CRITERIA AND THE BAND of one seat's series (pure: GATE DMGOCCUPANT's selftest feeds it synthetic pulses).
+// sr = genOccSeries(...) shape; o = { row (0 the first row), dynamic, restraint, space, parted }
+function genOccJudge(sr, o) {
+  const B = GEN_OCC.band, dt = sr.dt, C = GEN_OCC.cfc;
+  const ax = genOccCFC(Float64Array.from(sr.ax), dt, C), ay = genOccCFC(Float64Array.from(sr.ay), dt, C), az = genOccCFC(Float64Array.from(sr.az), dt, C);
+  const pk = a => { let m = 0; for (let i = 0; i < a.length; i++) if (Math.abs(a[i]) > m) m = Math.abs(a[i]); return m; };
+  // the velocity change of a pulse: the largest change of the axis' running integral within GEN_OCC.dvWin s (a seat axis
+  // turning for seconds - a floatplane pitching over - would add up a velocity no pulse carried)
+  const dvOf = kin => { const N = kin.length, W = Math.max(1, Math.round(GEN_OCC.dvWin / dt)), S = new Float64Array(N + 1);
+    for (let i = 0; i < N; i++) S[i + 1] = S[i] + kin[i] * dt;
+    // (the window's least and largest integral by two monotone deques: O(N))
+    const qa = new Int32Array(N + 1), qb = new Int32Array(N + 1); let ha = 0, ta = 0, hb = 0, tb = 0, best = 0;
+    for (let j = 1; j <= N; j++) {
+      const i = j - 1;
+      while (ta > ha && S[qa[ta - 1]] >= S[i]) ta--; qa[ta++] = i;
+      while (tb > hb && S[qb[tb - 1]] <= S[i]) tb--; qb[tb++] = i;
+      while (qa[ha] < j - W) ha++; while (qb[hb] < j - W) hb++;
+      const d = Math.max(S[j] - S[qa[ha]], S[qb[hb]] - S[j]); if (d > best) best = d;
+    }
+    return best; };
+  const dri = genOccDRI(az, dt);
+  const lap = o.restraint === 'lap';
+  const eibX = genOccEiband(ax, dt, GEN_OCC.eiband.x, lap ? GEN_OCC.restraint.lapK : 1), eibY = genOccEiband(ay, dt, GEN_OCC.eiband.y, 1);
+  const xPk = pk(ax), yPk = pk(ay), zPk = pk(az), dvX = dvOf(sr.kx), dvZ = dvOf(sr.kz);
+  const F = GEN_OCC.far562, row = o.row ? 1 : 0;
+  const far562 = (xPk > F.x.g[row] && dvX > F.x.dv) || (zPk > F.z.g[row] && dvZ > F.z.dv);
+  // the restraint: the longitudinal load held 20 ms (either way: a harness and its anchorage)
+  const wi = GEN_OCC.eiband.w.indexOf(GEN_OCC.restraint.w), rLoad = wi >= 0 ? eibX.plateau[wi] : 0;
+  const rStr = o.dynamic ? GEN_OCC.restraint.dyn : GEN_OCC.restraint.stat, rFail = rLoad > rStr;
+  const eibBand = e => e.vol <= 1 ? 0 : 1 + genOccBandOf(e.mod, B.eibMod);
+  const rows = {
+    dri: genOccBandOf(dri.dri, B.dri),
+    eibandX: eibBand(eibX), eibandY: eibBand(eibY),
+    far562: far562 ? B.far562 : 0,
+    restraint: rFail ? B.restraint : 0,
+    space: o.space == null ? 0 : genOccBandOf(-o.space, B.space.map(x => -x)),
+    cell: o.cell == null ? 0 : genOccBandOf(o.cell, B.cell),
+    parted: o.parted ? B.parted : 0,
+  };
+  let band = 0, by = null; for (const k of Object.keys(rows)) if (rows[k] > band) { band = rows[k]; by = k; }
+  return { band, by, rows, dri: dri.dri, xPk, yPk, zPk, dvX, dvZ, eibX: { vol: eibX.vol, mod: eibX.mod, wV: eibX.wV, wM: eibX.wM },
+    eibY: { vol: eibY.vol, mod: eibY.mod, wV: eibY.wV, wM: eibY.wM }, far562, restraint: { load: rLoad, strength: rStr, failed: rFail }, space: o.space, cell: o.cell, parted: !!o.parted };
+}
+// a record too short to judge (an event closed at once): a still second, so the space rows still speak
+const genOccQuiet = () => { const N = 16, z = new Float64Array(N), one = new Float64Array(N).fill(1); return { N, dt: GEN_OCC.dt, ax: z, ay: z, az: one, kx: z, kz: z, t0: 0 }; };
+// the close: every seat judged; the result the hop sends is { name, band } per seat - the criteria stay in `crit`
+function genOccClose(O, S, fd) {
+  const find = fd ? fd() : null;   // (the solver's pieces(): the union-find over the live members and clusters, its find)
+  const seats = O.seats.map((o, k) => {
+    let parted = false;
+    if (find) { const r0 = find(o.n8[0]); for (let c = 1; c < 8; c++) if (find(o.n8[c]) !== r0) { parted = true; break; } }
+    const sr = genOccSeries(O, S, k), sp = Number.isFinite(S.sp[k]) ? S.sp[k] : null, ce = Math.exp(S.ce[k]);
+    const J = genOccJudge(sr || genOccQuiet(), { row: o.row, dynamic: O.dynamic, restraint: O.restraint, space: sp, cell: ce, parted });
+    J.spaceAt = S.spAt[k]; J.cellAt = S.ceAt[k]; J.samples = sr ? sr.N : 0;
+    return { name: o.name, seat: o.i, band: J.band, crit: J };
+  });
+  return { seats, restraint: O.restraint, restraintDefault: O.restraintDefault, seatType: O.seatType, events: S.events };
+}
+function genOccMerge(A, B) {
+  return Object.assign({}, B, { events: B.events, seats: B.seats.map((s, k) => (A.seats[k] && A.seats[k].band > s.band ? A.seats[k] : s)) });
+}
+// what crosses to the page (sim_host meta.occ, once a close): the seat's name and its band's index - nothing else
+const genOccWire = R => (R ? R.seats.map(s => ({ name: s.name, band: s.band })) : null);
 // ============================================================
 // THE NAV (G202.1, 2026-09-06) — a GPS-style navigator, pure: no sim, no
 // THREE, no DOM. The user: "did you develop unit functions that we could
@@ -21108,8 +22077,9 @@ function navLegGeom(A, B, x, z) {
 // ANN: the Annette Island VOR/DME, FAA-published 55 03'37.471"N 131 34'42.238"W, elevation 174 ft (H class, DVOR,
 // 117.1 MHz); x / z by tools/geo.py lonlat_to_game at the PUBLISHED point, as a chart gives it (the 3D model,
 // navaid/DVOR-DME, stands at the disc's centre on the imagery, ~8 m from it).
+// (G3240 NAMES) the name it SHOWS is the names table's (01_names.js); the id stays.
 const NAV_FIXES = [
-  { id: 'ANN', name: 'Annette Island VOR/DME', kind: 'VOR/DME', freq: 117.1, lat: 55.060409, lon: -131.578399,
+  { id: 'ANN', name: GAME_NAMES.vor, kind: 'VOR/DME', freq: 117.1, lat: 55.060409, lon: -131.578399,
     x: -1004.8, z: -1669.4, elev: 53 },
 ];
 
@@ -21402,7 +22372,9 @@ function flightRouteMigrate(saved, isBase) {
 //            null: the aeroplane's cruise
 //     end    what the pilot does past the last point: 'hold' (orbits it at its
 //            altitude), 'home' (flies back to the field it left and lands off
-//            its circuit), 'land' (the nearest strip this gear may use)
+//            its circuit), 'land' (the nearest strip this gear may use),
+//            'dest' (G3611, the 24 Oct playtest's item 14: on to the flight's
+//            destination - the To, a tracked contract's stop - and lands there)
 //     margin the terrain clearance the profile is judged against (m)
 //
 // THE PROFILE (routeProfile) is what the pilot will fly, vertically, and it is
@@ -21427,7 +22399,7 @@ const ROUTE_MARGIN = 60;          // m: the clearance a drawn profile keeps over
 const ROUTE_AGL_DEFAULT = 150;    // m: a new point's height over the highest ground about it
 const ROUTE_SAFE_R = 500;         // m: the ground looked at about a new point for that default
 const ROUTE_MAX_PTS = 24;
-const ROUTE_ENDS = ['hold', 'home', 'land'];
+const ROUTE_ENDS = ['hold', 'home', 'land', 'dest'];
 const ROUTE_CLIMB_K = 0.70;       // the share of the measured climb a drawn climb may ask (the cruise speed, the day, the wind)
 const ROUTE_SINK_K = 0.80;        // the share of TECS's descent limit a drawn descent may ask
 
@@ -23071,6 +24043,69 @@ function pilotProfileSpec(p) {
   }
   return o;
 }
+// G3760 (HIRE, Game's seam): CAN THIS PILOT TAKE THIS AEROPLANE INTO THIS STRIP? Pure, for the hire card (what a pilot
+// can fly) and routeSign (no crew for a leg they would not fly) - the AP's own laws, so a refusal at dispatch is the
+// one the pilot would make on the way:
+//   gear       stripAllows (G1375): floats on water only, wheels never on it, skis on snow and grass
+//   land       G2450: the sheet's landing run (LDGrun, the stop from 1.15 Vs0) longer than the strip - every pilot,
+//              the expert too (makePilot's departFrom / setDest say 'strip-too-short' and do not go)
+//   technique  a person whose profile flies the NORMAL approach everywhere (the student: technique.field 'normal' -
+//              makePilot keeps it on every strip, G1943) lands 1.3 Vs0 on the 12 % mark (60 m in at least; 40 m on
+//              a strip of 700 m and more) and floats 3 s: refused when the stop from the touch does not fit past
+//              that. No margin on top (the user 25 Oct: "try if there's a reasonable chance, not too conservative")
+// THE WIND: only a one-way strip's (an altiport's `landHdg`, landed that way whatever the wind) - the component behind
+// the landing adds to the touch over the ground (G2530's law); a headwind is not credited; a two-way strip is landed
+// into the wind. No crosswind law: the AP has none, so none is made up here (a person's wind limit is 76_pilots'
+// trait refusal, pilotsRefusal 'weather'). Water lanes have no run laws (the AP's: shortOfRun skips them).
+//   profile  a PILOT_PROFILES name, an object profile (76_pilots' pilotsProfile) or a resolved one (pilotProfile's)
+//   def      the built aeroplane; its sheet is machineSheet with no shakedown (the landing run and Vs0 are the build's own
+//            numbers, the same the flying pilot reads), memoised per def - opts.sheet passes one
+//   strip    an aerodrome record (len, surface/water, altiport, landHdg) or a CONTRACT_FIELDS row (len, surf, alti)
+//   wind     null | [wx, wz] | { x, z }: the wind's velocity (m/s, where it blows to) - the climate's own sense
+//   opts     { who: the person's name, plane: the aeroplane's, sheet }
+// -> { ok, why, kind: null | 'gear' | 'land' | 'technique', len, need } - `why` is the card's one line
+const PILOT_CANFLY_SHEETS = typeof WeakMap === 'function' ? new WeakMap() : null;
+function pilotCanFly(profile, def, strip, wind, opts) {
+  opts = opts || {};
+  const P = profile && typeof profile === 'object' && profile.reaction !== undefined ? profile : pilotProfile(profile);
+  const who = opts.who || 'The pilot', plane = opts.plane || (def && def.spec && def.spec.name) || 'the aeroplane';
+  const name = (strip && strip.name) || (strip && strip.id) || 'the strip', len = strip && strip.len > 0 ? strip.len : 0;
+  const no = (kind, line, need) => ({ ok: false, kind, why: who + ' won\'t take the ' + plane + ' into ' + name + ': ' + line, len: Math.round(len), need: Math.round(need || 0) });
+  const yes = need => ({ ok: true, kind: null, why: '', len: Math.round(len), need: need != null ? Math.round(need) : null });
+  if (!strip) return yes(null);
+  // the strip as 25_airfield's rule reads it: a CONTRACT_FIELDS row carries its surface as a word
+  const key = typeof strip.surf === 'string' ? strip.surf : null;
+  const wet = key === 'water' || strip.water || strip.kind === 'water' || +strip.surface === 4;
+  const rec = key ? (wet ? { kind: 'water' } : key === 'snow' ? { snow: true } : { surface: STRIP_ENUM_SURF.indexOf(key) >= 0 ? STRIP_ENUM_SURF.indexOf(key) : (STRIP_SURFACES[key] && STRIP_SURFACES[key].cls === 'hard' ? 5 : 0) }) : strip;
+  if (typeof stripAllows === 'function') {
+    const G = stripAllows(stripGear(def), rec);
+    if (!G.ok) return no('gear', G.why, 0);
+  }
+  if (wet || !(len > 0)) return yes(null);
+  let S = opts.sheet || (PILOT_CANFLY_SHEETS && def && typeof def === 'object' ? PILOT_CANFLY_SHEETS.get(def) : null);
+  if (!S && def && typeof machineSheet === 'function') { S = machineSheet(def); if (S && PILOT_CANFLY_SHEETS) PILOT_CANFLY_SHEETS.set(def, S); }
+  const run = S && S.LDGrun, Vs0 = S && S.Vs0;
+  if (!(run > 0)) return yes(null);
+  // the touch over the ground: a one-way strip's wind behind the landing (never a headwind's credit)
+  let tail = 0;
+  if ((strip.altiport || strip.alti) && typeof strip.landHdg === 'number' && wind) {
+    const wx = Array.isArray(wind) ? wind[0] : wind.x, wz = Array.isArray(wind) ? wind[1] : wind.z;
+    if (Number.isFinite(wx) && Number.isFinite(wz)) tail = Math.max(0, wx * CORE_MATH.cos(strip.landHdg) + wz * CORE_MATH.sin(strip.landHdg));
+  }
+  const Vtd = Vs0 > 0 ? 1.15 * Vs0 : null;
+  // the sheet's stop law (LDGrun = Vtd^2 / 2a + Vtd): its deceleration, so a faster touch is stopped the same way
+  const aS = Vtd && run > Vtd ? Vtd * Vtd / (2 * (run - Vtd)) : null;
+  const stop = v => aS ? v * v / (2 * aS) + v : run;
+  const behind = tail > 0.5 ? ' with ' + tail.toFixed(1) + ' m/s behind' : '';
+  const needL = Vtd ? stop(Vtd + tail) : run;
+  if (needL > len) return no('land', Math.round(len) + ' m of strip for a ' + Math.round(needL) + ' m landing run' + behind, needL);
+  if (P.active && P.field === 'normal' && Vtd) {
+    const aim = len < 700 ? Math.max(60, 0.12 * len) : 40, Vg = Vtd + tail, needT = aim + 3 * Vg + stop(Vg);
+    if (needT > len) return no('technique', 'the normal approach (' + Math.round(aim) + ' m in, the float, the stop' + behind + ') needs ' + Math.round(needT) + ' m of ' + Math.round(len), needT);
+    return yes(needT);
+  }
+  return yes(needL);
+}
 
 function makePilot(sim, def, world, opts) {
   opts = opts || {};
@@ -23162,6 +24197,13 @@ function makePilot(sim, def, world, opts) {
   const threePoint = !trike && (GP.cap < 1 || highThrust);
   // every taildragger rotates at Vr (G193); every TRICYCLE rotates too (G202)
   const rotateTD = !trike && (A.rotate != null ? !!A.rotate : true);
+  // G3502 (DC3-BUILD, 2026-10-23): A HEAVY TAILDRAGGER IS PULLED OFF TOO. The rotate-pull below (G3077) was the tricycle's:
+  // a taildragger's tail-up schedule never sat on the stop. The full-size DC-3 (11 t, a 3.4 m disc's thrust line well
+  // below its CG) does: from Vr the elevator rides the servo's 0.35 top with the nose under its lift-off attitude and
+  // it runs on (DC3-STUDY §3: lift-off at 1.6 Vs, a porpoise, settled back). Above heavyTDKg (no taildragger the garage
+  // had built weighs a third of it) the same rescue: past Vr, a second on the stop with the attitude under the
+  // rotation target, the top opens to the stick's full travel until the wheels leave. Every lighter taildragger: unchanged
+  const heavyTD = !trike && !sim.hydro && sim.totalM > (A.heavyTDKg ?? 3000);
   // G1570: THE SERVOS ARE ONE MODULE (39b_servos.js), shared with 40 and 41;
   // this pilot flies it with its own laws on (the calm-air course trim, P1.D's
   // ground steer, the aileron into wind, the water's branch and stick top)
@@ -23169,6 +24211,7 @@ function makePilot(sim, def, world, opts) {
   // G3077 (TORQUE-RETUNE-66): THE NOSEWHEEL THAT WILL NOT LIFT - past Vr with the stick on the servo's 0.35 top for a second
   // and the nose not up, the pull goes on to the stick's full travel (ROLL, below); rotStuckT the time it has been so
   let rotPull = false, rotStuckT = 0;
+  let humpBack = true, humpThPk = null, humpEase = 0;   // G3444: the back stick through the hump (ROLL, on the water), the nose's peak, the ease to neutral
   const SV = makeServos(sim, def, { pilot: 'pilot', now: () => ap.t, trike, rotateTD, TW, features: {
     trimCalm: true, groundP1D: true, xwBank: true, water: true, porpoise: true,
     // G396.2 / G970: on the step the stick comes all the way back, through LIFTOFF
@@ -23395,6 +24438,13 @@ function makePilot(sim, def, world, opts) {
     if (!DEST_KEPT.includes(ph) && !DEST_REPLAN.includes(ph)) { ap.nextTo = to; return 'queued'; }
     ap.nextTo = null;
     if (to === ap.route.to) return 'same';
+    // G3611: a drawn route being flown keeps flying - its end ('dest') reads the new To when it gets there
+    if (ap.drawn && (ap.drawn.state === 'flying' || ap.drawn.state === 'hold')) {
+      ap.route = { from, to }; ap.xc = from !== to;
+      ap.budget = Math.max(ap.budget, ap.t + routeBudget(ap._m ? { x: ap._m.x, z: ap._m.z } : (from && from.x != null ? from : null), to));
+      say('new-destination', 'the destination is now ' + (to.name || to.id) + ' - after the drawn route');
+      return 'kept';
+    }
     ap.route = { from, to };
     ap.xc = from !== to;
     ap.budget = Math.max(ap.budget, ap.t + routeBudget(ap._m ? { x: ap._m.x, z: ap._m.z } : (from && from.x != null ? from : null), to));   // the way left, from here
@@ -23495,6 +24545,12 @@ function makePilot(sim, def, world, opts) {
   let pAsst = 0, flLeft = Infinity;
   // G1936: the forward slip on a short final (FINAL, below) - its amount 0..1, its side, said once
   let slipK = 0, slipSg = 1, slipSaid = false;
+  // G3472 (T-P1 SLIP-BETA): the slip's rudder, this airframe's (eased off a sideslip past A.betaSlip); the last time it slipped
+  let slipDr = null, slipLastT = -1e9;
+  // G3471 (T-P1 BOUNCE): the time off the ground in this hop of the roll-out, and the hop judged a bounce (flown, not rolled)
+  let bounceT = 0, bounceOn = false;
+  // G3473 (T-P1 PLAN-KEPT): the autopilot given back in the air (ap.reEngage) - the arrival judged from here once
+  let reEngAir = false;
   // G1938: THE PIVOT (TAXI / LINEUP, below) - the tightest turn the wheels steer (39_ground_path groundRmin, at the
   // taxi's 0.85 of rudder) and the pivot in progress { hdg, j, thr, t0 }; a trike's nosewheel turns tight enough
   const RgMin = (typeof groundRmin === 'function') ? groundRmin(def, 0.85) : Infinity;
@@ -23680,7 +24736,7 @@ function makePilot(sim, def, world, opts) {
   let fLandCap = 1, fCapT = 0, deF = 0;
   let abortV0 = null, abortS0 = null, committedTO = false;
   ap.reEngage = (o) => {
-    pendReEng = true;
+    pendReEng = true; reEngAir = true;
     if (o && typeof o.phase === 'string' && o.phase !== ap.phase) go(o.phase);
   };
   ap.taxiFF = taxiFF;
@@ -23864,6 +24920,40 @@ function makePilot(sim, def, world, opts) {
     else if (typeof a.landHdg === 'number') { dx = CORE_MATH.cos(a.landHdg); dz = CORE_MATH.sin(a.landHdg); }
     const sg = (dx * axx + dz * axz) >= 0 ? 1 : -1;
     return [axx * sg, axz * sg];
+  };
+  // LAND-WAY (A0 27 Oct, STORY-SKIP consistency): THE LANDING WAY THIS PILOT WOULD PLAN arriving at `a` from (x, z), in
+  // the wind of its own clock - the very call planFromHere's re-plan makes (dirAt, pref from there to the field, the
+  // sheet's limits), for a caller that poses the aeroplane (the story's skip onto the final poses on the end returned):
+  // { u: [ux, uz], way: +1 along a.hdg / -1 against it, why }. No side effect: ap.dirWhy is the pilot's and is put back
+  ap.landWayFrom = (a, x, z) => {
+    if (!a || !Number.isFinite(x) || !Number.isFinite(z)) return null;
+    const why0 = ap.dirWhy;
+    try {
+      const u = dirAt(a, a.x - x, a.z - z), why = ap.dirWhy;
+      return { u: [u[0], u[1]], way: u[0] * CORE_MATH.cos(a.hdg) + u[1] * CORE_MATH.sin(a.hdg) >= 0 ? 1 : -1, why: why == null ? null : why };
+    } finally { ap.dirWhy = why0; }
+  };
+  // ...AND THE FINAL IT WOULD FLY (A0 27 Oct, slot A: the story's skip was posed off a.spawn - 225 m beside the line the
+  // pilot lands on, 1.1 km short of its aim, on 6 % where the Cub flies 10 % - and every pilot rightly joined the circuit;
+  // posed on the pilot's own final, master lands straight in 8/8): planArrival's own answer for that way, the line, the
+  // aim and the slope - { u, way, why, aim: [x, z], aimY, gs, dIaf: the IAF's distance out } - with everything
+  // planArrival writes on `ap` put back and anything it said taken back (it plans, it does not fly). The caller poses d m
+  // before `aim` along u, d * gs over aimY
+  // (the straight-in is taken from 300 m before the IAF: d >= dIaf + 300; slot A's 8/8 flew d = 3000)
+  const PLAN_KEYS = ['frame', 'dirX', 'altRef', 'refAlt', 'appr', 'xAim', 'shortFld', 'VAppr', 'stripShortSaid', 'gs', 'siteDir', 'patGround', 'protocolSaid', 'plan'];
+  ap.finalFrom = (a, x, z) => {
+    const L = ap.landWayFrom(a, x, z);
+    if (!L) return null;
+    const S = {}, had = {}, nV = ap.report.verdicts.length;
+    for (const k of PLAN_KEYS) { had[k] = Object.prototype.hasOwnProperty.call(ap, k); S[k] = ap[k]; }
+    try {
+      const P = planArrival(a, L.u, (ap.route && ap.route.from) || a);
+      const aim = wp(P.F, P.sAim, 0);
+      return { u: L.u, way: L.way, why: L.why, aim: [aim[0], aim[1]], aimY: aimAlt(), gs: ap.gs, dIaf: P.sAim - P.sIaf };
+    } finally {
+      for (const k of PLAN_KEYS) { if (had[k]) ap[k] = S[k]; else delete ap[k]; }
+      ap.report.verdicts.length = nV;
+    }
   };
   // P1.B: THE GUST, READ OFF THE DAY — the wind at the aerodrome sampled
   // over the next 30 s (the field is deterministic in t): the spread of
@@ -24890,8 +25980,15 @@ function makePilot(sim, def, world, opts) {
       // once the elevator has margin again (no saturation for 3 s, under 0.25 of its travel). Land aeroplanes as before
       // (CESSNA-VREF G2500 judges the metal Cessna on its raise - a generic change is train 66's)
       const capRamp = !!sim.hydro && SV.IthMax < SV.IthMaxT - 0.01;
+      // G3470 (T-P1 RUFUS-250; the user 25 Oct: "Rufus is a super STOL, it should definitely not refuse 250m, not the expert
+      // autopilot at least"): THE SLIP'S ELEVATOR IS THE SLIP'S. Crossed controls hold the nose up against the yaw's drop and
+      // the drag the slip is for keeps the speed over the reference while it does - the elevator on its stop is the
+      // technique, not the airframe's limit. Rufus into the mine (Jumbo Mine Street, 250 m): slip at 842 s, 'cannot hold
+      // 17.6 m/s' at 847 s, the touch judged at 21.3 m/s and the 250 m strip refused (171 m needed = 171 m left) for strip 13.
+      // Not judged while slipping nor for 2 s after it
+      if (slipK > 0.02) slipLastT = ap.t;
       const eSat = (deHeld() > 0.30 || (!capRamp && SV.Ith >= SV.IthMax - 1e-3 && (PRA ? thShortH : SV.thCA - th) > 0.03)) && V > (o.ias || A.VAppr) + 0.5
-                   && (!PRA || ap.phase === 'FINAL');
+                   && (!PRA || ap.phase === 'FINAL') && ap.t - slipLastT > 2;
       tDeSatT = eSat ? tDeSatT + dt : Math.max(0, tDeSatT - dt);
       if (tDeSatT > 1.5) tVAdapt = Math.min(tVAdapt + 0.5 * dt, 0.25 * (o.ias || A.VAppr));
       if (sim.hydro && !eSat) { tVOkT += dt; if (tVOkT > 3 && SV.aDe < 0.25) tVAdapt = Math.max(0, tVAdapt - 0.25 * dt); } else tVOkT = 0;
@@ -25056,7 +26153,7 @@ function makePilot(sim, def, world, opts) {
           break;
         }
         case 'PITCH': holdPitch(SEL.pitch); break;
-        case 'DE': c.de = SEL.de; break;
+        case 'DE': c.de = SEL.de ?? 0; break;   // (an in-air reEngage's first update: the default afcs, no de selected yet)
         case 'TECS': tecs(SEL); break;                 // P0.5: the throttle is this law's too
         default: break;
       }
@@ -25085,7 +26182,23 @@ function makePilot(sim, def, world, opts) {
         default: break;
       }
       // G1936: THE SLIP'S RUDDER, mixed over the lateral law's (whose bank then holds the track)
-      if (slipK > 0 && (AF.lat === 'LOC' || AF.lat === 'PATH')) c.dr = (1 - slipK) * c.dr + slipK * slipSg * (A.drSlip ?? 0.80);
+      // G3472 (T-P1 SLIP-BETA; A0's read of the user's ultralight, 24 Oct: the fixed 0.80 of rudder put a 379 kg airframe 28-33
+      // deg side-on in 2-4 s, the aileron on its cap, two incipient spirals): THE SLIP'S RUDDER IS WHAT THE AILERON CAN HOLD.
+      // The bank that keeps the track is the aileron's; past its stop the rudder's roll wins and the aeroplane slides off the
+      // line. Rufus on 0.80 (replay 25 Oct 07:45): 28 deg side-on, the aileron on its 0.30 stop from the first second, the bank
+      // walked -3 -> +10 deg and the calm final ended 111 m off the centreline, twice round; in the day's wind 4.9 m/s down and
+      // 5 m low, twice round. Two earlier cuts eased it on the SIDESLIP (15 deg: hunted 4 <-> 23 deg every 4 s, high 8 m) and
+      // on the bank (never reached: the slide is in the track, not the bank). The rudder starts at drSlip (0.80) and is
+      // eased (0.4 /s) while the aileron works past 90 % of its stop (or the bank past bankSlip 15 deg, the sideslip past
+      // betaSlip 35 deg), given back (0.08 /s) only under 70 % with both well inside
+      if (slipK > 0 && (AF.lat === 'LOC' || AF.lat === 'PATH')) {
+        const dr0 = A.drSlip ?? 0.80, bCap = A.betaSlip ?? 0.61, phCap = A.bankSlip ?? 0.26, aU = Math.abs(c.da) / SERVO_GAINS.daMax;
+        if (slipDr == null) slipDr = dr0;
+        const spiral = aU > (A.slipAU ?? 0.90) || Math.abs(ph) > phCap || Math.abs(beta) > bCap;
+        const calmS = aU < (A.slipAUlo ?? 0.70) && Math.abs(ph) < 0.66 * phCap && Math.abs(beta) < 0.86 * bCap;
+        slipDr = clamp(slipDr + (spiral ? -0.4 : calmS ? 0.08 : 0) * dt, 0.15, dr0);
+        c.dr = (1 - slipK) * c.dr + slipK * slipSg * slipDr;
+      } else if (slipK === 0) slipDr = null;
       // G381.1: POWER WHEN THE ELEVATOR RUNS OUT. On the approach and in the
       // flare, an aeroplane whose elevator sits on its nose-up stop cannot
       // hold the slope or the hold-off at idle — the drawn-tail Caravan-alike
@@ -25462,7 +26575,7 @@ function makePilot(sim, def, world, opts) {
     // ...AND ENDS AS ITS RECORD SAYS
     const routeEnd = () => {
       const D = ap.drawn, Lz = ap.legs[ap.legs.length - 1];
-      say('route-done', 'the drawn route flown' + (D.end === 'hold' ? ' - holding over ' + Lz.name : D.end === 'home' ? ' - home' : ' - to the nearest strip'));
+      say('route-done', 'the drawn route flown' + (D.end === 'hold' ? ' - holding over ' + Lz.name : D.end === 'home' ? ' - home' : D.end === 'dest' ? ' - on to the destination' : ' - to the nearest strip'));
       const tl = Math.hypot(vcg[0], vcg[2]) || 1, ux = vcg[0] / tl, uz = vcg[2] / tl;
       if (D.end === 'hold') {
         // the orbit through the last point, tangent to the track there (no reversal), turning the way the route's last
@@ -25477,7 +26590,8 @@ function makePilot(sim, def, world, opts) {
         return 'LOITER';
       }
       D.state = 'done';
-      let to = ap.route && ap.route.from;
+      // (G3611: 'dest' - on to the flight's own destination, a contract's stop: the drawn route is the way there)
+      let to = ap.route && (D.end === 'dest' ? ap.route.to : ap.route.from);
       if (D.end === 'land' && world && world.aerodromes) {
         const need = Math.max(350, 1.4 * ((sheetOf() && sheetOf().LDGrun) || 0));
         let best = null, bd = Infinity;
@@ -25604,6 +26718,20 @@ function makePilot(sim, def, world, opts) {
     // position and track (ap.setDest); the box flies on until it hands back (CLIMB plans then)
     // G2120: a route drawn in the air begins from here (ap.flyRoute 'now'), the To's re-plan below then leaves it
     if (routeGo && !BX.on && onG === 0 && DEST_REPLAN.includes(ap.phase) && ap.drawn && !replanReq) { routeGo = false; go(routeStart()); }
+    // G3473 (T-P1 PLAN-KEPT; the user's story flight 24 Oct, A0's read: Rufus flown by hand 60 s off the Cabin Strip's
+    // designed approach, given back - reEngage kept the phase and the OLD legs, BASE ended at once and the FINAL began 4.4 km
+    // out at 665 m): THE PLAN KEPT IS THE DESTINATION, NOT THE LEGS. Given back in the air on a leg of the arrival, the
+    // arrival at the SAME To is planned again from where the hand left the aeroplane (the To's own re-plan, G1945); on the
+    // slope of the final it was flying (60 m of the line, 30 m of the slope) it flies on; a drawn route still being flown
+    // resumes as drawn (its follower judges 'left' itself). On the ground: as before
+    if (reEngAir) {
+      reEngAir = false;
+      if (onG === 0 && !BX.on && DEST_REPLAN.includes(ap.phase) && ap.route && ap.route.to && !(ap.drawn && (ap.drawn.state === 'flying' || ap.drawn.state === 'hold'))) {
+        const dF = ap.xAim != null ? ap.xAim - sAl : -1;
+        const onSlope = ap.phase === 'FINAL' && dF > 0 && Math.abs(sCr) < 60 && Math.abs(cg[1] - (aimAlt() + dF * ap.gs)) < 30;
+        if (!onSlope) { replanReq = true; say('replan', 'back on the autopilot - planning the arrival at ' + (ap.route.to.name || ap.route.to.id) + ' from here'); }
+      }
+    }
     if (replanReq && !BX.on && onG === 0 && DEST_REPLAN.includes(ap.phase)) {
       replanReq = false; replanning = true; routeGo = false;
       if (ap.drawn && (ap.drawn.state === 'flying' || ap.drawn.state === 'hold')) ap.drawn.state = 'left';
@@ -26044,7 +27172,7 @@ function makePilot(sim, def, world, opts) {
         }
         if (thRest === null) thRest = th;
         if (rollS0 === null) {
-          rollS0 = sAl; committedTO = false; humpR = humpPk = 0; humpPast = false; wrUp = false; rotPull = false; rotStuckT = 0;
+          rollS0 = sAl; committedTO = false; humpR = humpPk = 0; humpPast = false; wrUp = false; rotPull = false; rotStuckT = 0; humpBack = true; humpThPk = null; humpEase = 0;
           depC = null; toAccelDone = false; toHoldH = null; toLowT = 0; flcI = 0; flcTh = flcVt = null; flcSet = false; flcSetT = 0; flcRelax = 0;   // G2125: a new run, a new climb-out
           // P1.C: THE DEPARTURE PLAN (PILOT-ROADMAP C.3-C.4), the approach
           // plan's twin: 'short' when the strip is under 2 x the sheet's
@@ -26262,6 +27390,10 @@ function makePilot(sim, def, world, opts) {
           if (!rotPull && rotStuckT > 1.0) { rotPull = true; say('rotate-pull', 'the nose will not come up at ' + V.toFixed(1) + ' m/s on the stop - full back stick'); }
         }
         else if (softTO) deRoll = 0.20;                        // P1.C soft, a trike: the nosewheel light through the roll
+        if (heavyTD && V > vrT && vert === 'PITCH') {        // G3502: a heavy taildragger on the stop past Vr
+          rotStuckT = (SV.aDe >= 0.34 && th < pitch - 0.035) ? rotStuckT + dt : 0;
+          if (!rotPull && rotStuckT > 1.0) { rotPull = true; say('rotate-pull', 'the tail will not come down to the lift-off attitude at ' + V.toFixed(1) + ' m/s on the stop - full back stick'); }
+        }
         // G970: ON THE WATER THE RUN ATTITUDE IS NOT A WHEEL'S. G431's tail-up
         // attitude (liftoffTh - 0.05, the J-3's run a few degrees under its
         // fly-off one) reached the float card too, and G431 measured it there
@@ -26313,7 +27445,24 @@ function makePilot(sim, def, world, opts) {
         // (WATER_LEAD s), is short of the lift-off attitude, and eases to nothing over its last WATER_BAND - the
         // attitude servo (the rotation's integrator) holds it from there. 10.2 deg/s, 28.4 m/s (1.16 Vs); a hull that
         // never reaches the attitude (the twin's) keeps the full stick as before
-        if (sim.hydro && onG > 0) SV.deFloor = V > (A.vWaterStick ?? 1.12) * vr ? Math.max(0.02, waterPull(A.thRotate ?? A.liftoffTh)) : 0.02;
+        // G3444 (HYDRO-TRIM, the user's ruling 25 Oct): ...AND THROUGH THE HUMP THE STICK IS BACK, as the floatplane
+        // supplement and FAA-H-8083-23 fly it: full power, the stick back to raise the bow and keep the spray off the
+        // propeller, and once the nose stops rising (the hull on its hump) eased to the planing attitude. G396.4's
+        // "never back" was a cure for the H0 wake, under which a raised bow dried the afterbody and nothing held it
+        // (the sterns "buried" because the trim ran away); with the measured wake (32_hydro G3440) the afterbody holds
+        // the bow, and the neutral stick left the float Cessna at 5.4 deg through its hump (DMGPLOUGH's floor 6, the tank
+        // band 8-12) where the stick back gives 8.5-9. The pull (deHump, 0.45: GATE FLOATS' and the G3390 rig's) holds from
+        // the throttle-up until the pitch has come off its peak (from 3 m/s) by half a degree, the hump's resistance has
+        // fallen away (humpPast), or half of Vr; then it eases to neutral over humpEaseS (2 s) and stays off for the run
+        if (sim.hydro && onG > 0) {
+          if (humpBack) {
+            // (the peak is the hump's: tracked from 3 m/s - the throttle's ramp bobs the bow 2 deg at the start)
+            if (V > 3) humpThPk = humpThPk == null ? th : Math.max(humpThPk, th);
+            if ((humpThPk != null && th < humpThPk - 0.5 * Math.PI / 180) || humpPast || V > 0.5 * vr) humpBack = false;
+          } else humpEase = Math.min(1, humpEase + dt / (A.humpEaseS ?? 2));
+          const deHump = (A.deHump ?? 0.45) * (1 - humpEase);
+          SV.deFloor = V > (A.vWaterStick ?? 1.12) * vr ? Math.max(0.02, waterPull(A.thRotate ?? A.liftoffTh)) : Math.max(0.02, deHump);
+        }
         c.brake = 0;
         if (onG === 0 && V > vr) {
           go('LIFTOFF'); thLift0 = th; SV.IthMaxT = 0.15; SV.IthGain = null;
@@ -26847,7 +27996,7 @@ function makePilot(sim, def, world, opts) {
         {
           const eE = (V * V - iasF * iasF) / (2 * 9.81) + above;
           const hOff = (A.flareK ?? 1.3) * A.flareAgl + 0.6 * V;
-          if ((ap.shortFld || (PRA && PRF.slip)) && slopeCaptured && aglG > hOff && c.thr < 0.10 && eE > 2) {
+          if ((ap.shortFld || (PRA && PRF.slip)) && slopeCaptured && aglG > hOff && c.thr < 0.10 && eE > (A.slipArm ?? 2)) {
             if (slipK === 0) slipSg = SV.crossWind(F) >= 0 ? 1 : -1;
             slipK = Math.min(1, slipK + dt / 3);
             if (!slipSaid) { slipSaid = true; say('slip', 'high on energy on the short final (+' + eE.toFixed(1) + ' m at idle) — slipping it down'); }
@@ -26926,7 +28075,10 @@ function makePilot(sim, def, world, opts) {
           if (!committed) { committed = true; say('committed-landing', 'past the aim at ' + Math.round(agl) + ' m agl — landing it'); }
         }
         // G3326: a designed approach's long final (the Cabin Strip's 5-6 km) is given the time its length asks
-        const finalMax = ap.plan && ap.plan.designed ? Math.max(240, 1.6 * (ap.plan.sAim - ap.plan.sIaf) / Math.max(10, iasF)) : 240;
+        // PLAYTEST 24 Oct #55: ...and so is every plan's - strip 13's terrain-raised circuit flew a final longer
+        // than 240 s and went round for 'final took 240 s'; 240 s stays the floor, a plan without its IAF keeps it
+        const finalLen = ap.plan && isFinite(ap.plan.sAim - ap.plan.sIaf) ? ap.plan.sAim - ap.plan.sIaf : 0;
+        const finalMax = Math.max(240, 1.6 * finalLen / Math.max(10, iasF));
         if (ap.t - finalT0 > finalMax && canGA) { goAround('final took ' + Math.round(ap.t - finalT0) + ' s'); break; }
         // G1936: A SHORT FINAL IS STABILIZED OR FLOWN AGAIN - 5 m/s over Vref under 20 m is a float the strip has no
         // room for (the Cub's 25 m/s at the flare touched 213 m into 150 m)
@@ -27113,7 +28265,7 @@ function makePilot(sim, def, world, opts) {
           else engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'IDLE', { pitch: thC, bank: 0.10, idle: A.flareThr ?? 0 });
         }
         if (onG > 0) {
-          go('ROLLOUT');
+          go('ROLLOUT'); bounceT = 0; bounceOn = false;
           SV.pitchK = SV.pitchDK = 1; SV.IthMaxT = 0.15; SV.IthGain = null;
           // G381: a three-point arrival (the attitude at or above the rest
           // attitude, less 3 deg) is pinned from the first frame
@@ -27160,7 +28312,23 @@ function makePilot(sim, def, world, opts) {
         // LEVEL by the air's roll law (the roll-out's ground law steers a hull, not a wing), the touch attitude held, and a
         // little power (0.15) cushions the next contact instead of a closed throttle dropping it on a float (FAA-H-8083-23:
         // a skip is not landed again off its top - the attitude held, power to soften, then idle once settled)
-        if (sim.hydro && onG === 0 && V > 0.7 * VsW) engage('LOC', 'PITCH', 'SET', { thr: A.waterSkipThr ?? 0.15, pitch: Math.min(ap.tdInfo ? ap.tdInfo.th : th, flCap), bank: 0.05 });
+        // G3471 (T-P1 BOUNCE; the user's DC-3, 24 Oct: "it thought it was rolling out while it actually bumped, it went up and
+        // then crashed"): ON LAND TOO, A BOUNCE IS FLOWN. ROLLOUT begins at the first contact; a hop off it (every wheel off,
+        // the wheels over 0.3 m for 0.15 s, still over 0.7 Vs0) ran the ground laws in the air - the DC-3 entered ROLLOUT at
+        // 2.5 m on a wheel's kiss, the taildragger's full-back stick and the closed throttle ballooned it to 7.7 m at 16.5 deg,
+        // it mushed down at 4.6 m/s and broke up on the second hit. In the hop: G3330's skip law (wings level, the touch
+        // attitude, 0.15 of power to cushion the next contact, no brakes); a hop past bounceGA (2 m) or still climbing at a
+        // metre is not landed off its top - round again (twice, then committed: held as a hop). Only a hop past 0.3 m changes
+        // anything: a wheel's flicker on the roll-out rolls on as before
+        if (!sim.hydro) {
+          bounceT = onG === 0 && aglG > (A.bounceH ?? 0.3) && V > 0.7 * VsW ? bounceT + dt : 0;
+          if (bounceT > 0.15) bounceOn = true; else if (onG > 0) bounceOn = false;
+          if (bounceOn && (ap.gaN || 0) < 2 && !committed && (aglG > (A.bounceGA ?? 2.0) || (vcg[1] > 1.0 && aglG > 1.0))) {
+            goAround('bounced ' + aglG.toFixed(1) + ' m off the touch at ' + V.toFixed(1) + ' m/s'); break;
+          }
+        }
+        if (bounceOn) engage('LOC', 'PITCH', 'SET', { thr: A.bounceThr ?? 0.15, pitch: Math.min(ap.tdInfo ? ap.tdInfo.th : th, flCap), bank: 0.05 });
+        else if (sim.hydro && onG === 0 && V > 0.7 * VsW) engage('LOC', 'PITCH', 'SET', { thr: A.waterSkipThr ?? 0.15, pitch: Math.min(ap.tdInfo ? ap.tdInfo.th : th, flCap), bank: 0.05 });
         else if (sim.hydro && V > 0.7 * VsW) engage('RWY', 'PITCH', 'SET', { thr: 0, pitch: Math.min(ap.tdInfo ? ap.tdInfo.th : th, flCap) });
         else if (trike) {
           // P1.B soft: the nosewheel stays off to 0.7 Vs, then full up
@@ -27218,6 +28386,7 @@ function makePilot(sim, def, world, opts) {
         // lateral — wings level, the nose held on the centreline — until the
         // wheels are back.
         if (onG === 0 && phaseT < 6 && AF.lat === 'RWY') { AF.lat = 'DECRAB'; ap.trackHold = true; }
+        if (bounceOn) brakeRamp = 0;   // G3471: no brake waiting for the next contact
         c.brake = brakeRamp * Math.min(1, Math.max(0, (Vg - A.VBrakeRelease) / 2.0));
         setStatus('rolling out', [cond('ground speed', Vg, A.VStop, Vg < A.VStop, 'm/s')]);
         if (Vg < A.VStop || phaseT > 120) {
@@ -30079,7 +31248,9 @@ function genAccessNeeds(S) {
     // the cabin height as well, which mixed the cabin's frame into the gear's,
     // and it read `gear.drop` — a key that does not exist, so the fallback
     // fired on every aeroplane and the whole term was a constant.
-    sillH:     need(g.legDrop, 0.42) + need(g.wheelR, 0.20),
+    // G3570 (DC3-2): a raised cabin floor (cabin.floorUp, the cage's 'cabin floor height') lifts the door sills with
+    // it, so the climb in is that much higher; absent (every build before the row) adds nothing
+    sillH:     need(g.legDrop, 0.42) + need(g.wheelR, 0.20) + ((c.floorUp > 0) ? c.floorUp : 0),
     doorBoth:  true,
     derived,
   };
@@ -30162,7 +31333,7 @@ function genAccessNeedsCage(P, extra) {
     // and the cage's own keel is on the mesh. Passed in rather than guessed
     // here, and counted when it is not — a step that appears because nobody
     // measured is the decoration this table exists to refuse.
-    sillH:     E.sillH != null ? E.sillH : (derived++, 0.62),
+    sillH:     (E.sillH != null ? E.sillH : (derived++, 0.62)) + ((+P.floorUp > 0) ? +P.floorUp : 0),   // G3570: the raised floor's sills
     doorBoth:  !!(+P.doorOn) && !(+P.doorGone),
     derived,
   };
@@ -30248,6 +31419,12 @@ const GEN_FLAPS = {
   // on every other row, which is what makes them plain hinges.
   fowler:  { name: 'Fowler flap',  dCl: 2.05, cd: 0.095, rate: 0.14,
              slide: 0.62, drop: 0.10 },
+  // G3506 (DC3-BUILD, 2026-10-23): THE SPLIT FLAP - the DC-3's, the lower skin
+  // alone hinged down. About a plain flap's lift (Abbott & von Doenhoff: a 0.20c
+  // split flap ~0.9 on the 23012 / 2412 family) for markedly more drag - the
+  // flap a transport lands on steeply. Last in the table so every saved row's
+  // index (the editor's wgFlapType) is the one it was. Drawn as a plain hinge.
+  split:   { name: 'Split flap',   dCl: 0.90, cd: 0.110, rate: 0.20 },
 };
 
 // ===========================================================================
@@ -30284,7 +31461,7 @@ const GEN_TRAVEL = {                       // degrees, each way
 // the flap's own travel is the type's, where the type has an opinion: a
 // Fowler runs out further than it turns down, and a split flap goes further
 // than either. Absent = the table's own number.
-const GEN_FLAP_TRAVEL = { fowler: 35, slotted: 40, plain: 40 };
+const GEN_FLAP_TRAVEL = { fowler: 35, slotted: 40, plain: 40, split: 45 };   // (G3506: the DC-3's 45 deg)
 
 // travel in RADIANS for one surface key, which is what every caller wants
 function genTravel(which, flapType) {
@@ -31007,8 +32184,20 @@ function genPropAuto(pr, Vs) {
   return pick;
 }
 
+// G3443 (HYDRO-TRIM): `fm` IS FM^(2/3), NOT THE FIGURE OF MERIT the note above reads it as: momentum theory's
+// T = (FM P sqrt(2 rho A))^(2/3) = FM^(2/3) (2 rho A)^(1/3) P^(2/3), and genPropSynth multiplies by fm. So 'standard'
+// 0.477 is FM 0.33 (the A-65 + Sensenich anchor: a fixed prop that cannot turn its engine to rated rpm standing - it
+// stays the anchor) and 'climb' 0.530 was FM 0.386, under every measured prop absorbing full power standing:
+// Flight Resource's static tests for STC SA02245CH (C170B, O-360-A1A 180 hp, 1000 ft, 75 F; McFarlane's copy of the
+// report): Hartzell 2-blade 76 in 672 lbf (FM 0.49), MT 2-blade 80 in 785 lbf (FM 0.59) - the sim gave the same discs
+// and power 13 % and 23 % less on 'climb'. A fine prop is the one that DOES reach rated rpm standing (the 172R's
+// IO-360-L2A is rated at 2,400 rpm, under the 82 x 43 float prop's static rpm), so 'climb' is now FM 0.50: fm 0.630.
+// The 82 x 43 on 118 kW: 2,587 -> 3,075 N (692 lbf; a McCauley 2-blade float prop on 180 hp, 750 lbf at 2,450 rpm, in
+// the same report as transcribed). Its V0 (propV0K P / Tstatic) falls with it - a fine prop runs out of pitch sooner:
+// the thrust is the old one's at ~40 m/s and 12 % under it at 55. Builds on 'climb': the 3-blade carbon tile (the
+// Caravan-alike), the G3390 STC build; 'auto' tries 'climb' first, and a lower V0 can send it to 'standard'.
 const GEN_PROP_PITCH = {
-  climb:    { name: 'Fine (climb)',    fm: 0.530, pd: 0.55 },
+  climb:    { name: 'Fine (climb)',    fm: 0.630, pd: 0.55 },
   standard: { name: 'Standard',        fm: 0.477, pd: 0.70 },
   cruise:   { name: 'Coarse (cruise)', fm: 0.420, pd: 0.85 },
 };
@@ -31203,6 +32392,38 @@ const GEN_RULES = {
   // GATE MOUNT holds both, on every mount kind, with a negative control.
   mountK:      2.5,
   mountFoot:   true,
+  // THE WING PAIR'S BEARER AT AN AIRLINER'S ENGINE (G3501, DC3-BUILD 2026-10-23).
+  // The bearer's members are one steel-tube section (74 mm2) on every wing pair,
+  // calibrated on the user's twin: two Rotax 582s, 59 kg a side with the prop
+  // (G179). Under an R-1830 (750 kg + a 3.4 m Hamilton Standard, ~945 kg a side)
+  // the same members buckle 0.25 s after spawn (DC3-STUDY §3: proven by the same
+  // build standing with a 150 kg engine). Above mountHeavyKg a side, every member
+  // with an end on the engine (the four-node fans, the post, the foot's caps, the
+  // CG's locators) takes a section in proportion to the side's engine mass over
+  // mountRefKg: strength only (A, read by the damage model); k, c, the mass and
+  // the bill stay as built. Below it - every engine but the R-1830 class - the
+  // bearer is today's to the bit.
+  mountHeavyKg: 500,
+  mountRefKg:   59,
+  // THE CABIN BOX'S LONGEST BAY (G3504): a cabin longer than this gets frames along
+  // it (61_gen_frame). 2.6 m = the cabin.len ceiling every build had until G3503,
+  // so no saved cabin is split.
+  cabBayMax:    2.6,
+  // THE GAUGE'S KNEE FOR STRENGTH (G3505): above this multiple of the airframe
+  // material's design gross (refGross) a member's damage section and the tail
+  // cone's skin grow with the gross (61_gen_frame); the billed mass keeps
+  // GEN_GAUGE's exponents. 2 x: the alloy row's knee is 2 222 kg; the validated
+  // builds sit at 0.47-0.50 of their own knee (the metal Cessna 1 049 kg, on
+  // floats 1 111; the Cub 541 of 1 100, the Jodel 544 of 1 300).
+  gaugeHoldK:   2,
+  // THE TAIL CONE'S ROOT AT SIZE (G3572, DC3-2): above the knee the shell's bending break (its root cut, 30_solver
+  // clCuts) holds at least this x the design weight x the cone's length - the moment the tail's loads make grows
+  // with the arm as well as the weight (the tailwheel's reaction, the empennage's inertia). 1.45 m/m: the validated
+  // float Cessna's own (Mu 67.2 kN.m over 1 111 kg x 4.25 m; the metal Cessna 1.54). The full-size DC-3's bare skin
+  // read 0.31 - a 220 kN.m root against ~1.5 MN.m for a real stringer-stiffened DC-3 cone (150 MPa over a ~2 mm
+  // smeared skin at R 1.3 m): it folded where a tail dropped after a braked stop. Strength only (the cut's sigB);
+  // the shell's stiffness, mass and bill stay G3505's. At or below the knee: the row's skin, to the bit
+  shellHoldKappa: 1.45,
   // A ROD BOOM IS A TUBE, AND THE TRUSS IS NOT (G199.5, 2026-09-07; the user:
   // "the stabs are moving with the tail wheel, and getting a huge torsion,
   // even when simply taxiing"). A rod-boom build flies the lofted default
@@ -32700,11 +33921,29 @@ function genPlanePair(pos0, pos1) {
 // resolver moved a value, instead of a slider that silently stops mattering.
 // Metres; `spanPerChord` bounds span / chord; `taper` is tip over root chord.
 // Widen here, nowhere else.
+// G3503 (DC3-BUILD, 2026-10-23, the user: "On the DC3, we'll go full size"):
+// THE BIG ENVELOPE. A wing asked WIDER than span[1] (18 m: every build the
+// garage made before the DC-3) is a big aeroplane, and `big` widens its rows:
+// the span to 30 m, the root chord to 5 m, the leading edge to 9 m aft of the
+// firewall (a DC-3 is 29 m x 4.4 m, its root LE ~4.5 m aft of the windscreen
+// base) - and with it the cabin, the tail arm and the tail (GEN_FIELDS
+// clampBig, GEN_TAIL_ENVELOPE.big), the gear and the fuel (clampSpec, genBig).
+// A build that asks 18 m or less is clamped by exactly the numbers above, so
+// nothing it draws moves (the metal Cessna's drawn 1.51 m cabin is held to
+// its 1.45, as ever). The editor's rows reach the big envelope.
 const GEN_WING_ENVELOPE = {
   chord: [0.80, 2.10], span: [6.5, 18.0], spanPerChord: [4.0, 20.0],
   taper: [0.45, 1.0], xLE: [-0.20, 3.00],
   placeDx: [-1.2, 1.8], placeDy: [-0.25, 0.60],
+  big: { chord: [0.80, 5.00], span: [6.5, 30.0], xLE: [-0.20, 9.00] },
 };
+// is a wing of this span a big aeroplane's? / the envelope it is clamped by / is this spec a big aeroplane?
+function genEnvBig(span) { return +span > GEN_WING_ENVELOPE.span[1]; }
+function genWingEnv(span) { return genEnvBig(span) ? Object.assign({}, GEN_WING_ENVELOPE, GEN_WING_ENVELOPE.big) : GEN_WING_ENVELOPE; }
+function genBig(S) {
+  const w = S && (Array.isArray(S.wings) ? S.wings[0] : S.wing);
+  return !!(w && genEnvBig(w.span));
+}
 
 // G185: ONE PLANE'S CLAMP. Lifted out of clampSpec so a biplane's second
 // plane is clamped by the same lines as the first (every wing key lives on
@@ -32724,7 +33963,7 @@ function clampWing(w, S, k) {
   // aspect ratio to 20. Every build inside the old 1.15-2.10 / 6.5-14 box is
   // untouched; GATE GEN's wild spec still clamps, and the sail archetype's
   // circuit is the new corner's flight test.
-  const E = GEN_WING_ENVELOPE;
+  const E = genWingEnv(w.span);                          // G3503: the big envelope past 18 m asked
   w.chord = genClamp(w.chord, ...E.chord);
   w.span = genClamp(w.span, Math.max(E.span[0], E.spanPerChord[0] * w.chord),
                             Math.min(E.span[1], E.spanPerChord[1] * w.chord));
@@ -32741,7 +33980,7 @@ function clampWing(w, S, k) {
   // default. The envelope spans a wing rooted on the firewall to one rooted
   // well down the cabin; static margin is the honest consequence either way,
   // and the shakedown posts it.
-  w.xLE = genFieldClamp('wings[].xLE', w.xLE);
+  w.xLE = genFieldClamp('wings[].xLE', w.xLE, S);
   w.yRoot = genClampN(w.yRoot, -1.0, 3.0);                  // G266.1
   if (!GEN_TIPS[w.tip]) w.tip = 'rounded';
   // CRANK: a second wing section, and only a second. `crankAt` is the break
@@ -32810,6 +34049,9 @@ function clampWing(w, S, k) {
 const GEN_TAIL_ENVELOPE = {
   hSpan: [1.50, 4.50], hChord: [0.40, 1.60],
   vHeight: [0.60, 2.20], vChord: [0.40, 1.80],
+  // G3503 (DC3-BUILD): A BIG AEROPLANE'S TAIL (genBig: a wing over 18 m) - the
+  // DC-3's 8.2 m x 2.25 m stab and its 3 m fin of 2.9 m chord, with headroom
+  big: { hSpan: [1.50, 9.00], hChord: [0.40, 3.00], vHeight: [0.60, 4.00], vChord: [0.40, 3.50] },
   // P3: re-cut to what a DRAWN control can be — the Cub reference reads a
   // 35 % rudder, a horn-balanced tailplane reaches 60 % (measured on the
   // stock); the thin-airfoil tau formula holds to 0.70
@@ -32857,37 +34099,43 @@ const GEN_FIELDS = {
   // which cut its DERIVED cabin on the second pass only); every other
   // seating's table cabin is inside the floors, so a measured cabin is cut
   // exactly as before.
-  'cabin.halfW':   { def: null, clamp: [0.28, 0.75], seatFloor: 'halfW', rule: 'derive', auto: 'cab.halfW' },
-  'cabin.h':       { def: null, clamp: [0.75, 1.45], seatFloor: 'h', rule: 'derive', auto: 'cab.h' },
-  'cabin.len':     { def: null, clamp: [0.60, 2.60], seatFloor: 'len', rule: 'derive', auto: 'cab.len' },
+  // G3503 (DC3-BUILD): `clampBig` is a BIG aeroplane's (genBig: a wing over 18 m) - here
+  // a DC-3's cabin box (outside the skin, the join's datum: ~2.5 m wide, ~2.6 m deep,
+  // 9.1 m long) with headroom; a cabin longer than 2.6 m gets frames along it
+  // (61_gen_frame G3504), so the wing and the mains never sit inside one long bay
+  'cabin.halfW':   { def: null, clamp: [0.28, 0.75], clampBig: [0.28, 1.40], seatFloor: 'halfW', rule: 'derive', auto: 'cab.halfW' },
+  'cabin.h':       { def: null, clamp: [0.75, 1.45], clampBig: [0.75, 3.00], seatFloor: 'h', rule: 'derive', auto: 'cab.h' },
+  'cabin.len':     { def: null, clamp: [0.60, 2.60], clampBig: [0.60, 10.0], seatFloor: 'len', rule: 'derive', auto: 'cab.len' },
   'cabin.canopy.reach':   { def: null, clamp: [0, 1], rule: 'derive', auto: 'cabin.canopy.reach' },
   'cabin.canopy.x1':      { def: null, clamp: [0, 9], rule: 'derive', auto: 'cabin.canopy.x1' },
   'cabin.canopy.wsAngle': { def: null, clamp: [22, 80], rule: 'derive', auto: 'cabin.canopy.wsAngle' },
   'fuselage.cowlDeck':    { def: null, clamp: [0.50, 1.00], rule: 'derive', auto: 'fuse.cowlDeck' },
-  'wings[].xLE':          { def: null, clamp: GEN_WING_ENVELOPE.xLE, rule: 'derive', auto: 'wing.xLE' },
+  'wings[].xLE':          { def: null, clamp: GEN_WING_ENVELOPE.xLE, clampBig: GEN_WING_ENVELOPE.big.xLE, rule: 'derive', auto: 'wing.xLE' },
   'wings[].dihedralOut':  { def: null, clamp: [0, 20], rule: 'derive', auto: 'wing.dihedralOut' },
-  'fuselage.tailArm':     { def: null, clamp: [2.00, 6.50], rule: 'derive', auto: 'fuse.tailArm' },
-  'tail.hX':       { def: null, clamp: [2.00, 9.00], rule: 'derive', auto: 'tail.hX' },
-  'tail.vX':       { def: null, clamp: [2.00, 9.00], rule: 'derive', auto: 'tail.vX' },
+  // G3503 (DC3-BUILD): a big aeroplane's tail post to 20 m (the DC-3's ~17.8 m from the windscreen base)
+  'fuselage.tailArm':     { def: null, clamp: [2.00, 6.50], clampBig: [2.00, 20.0], rule: 'derive', auto: 'fuse.tailArm' },
+  'tail.hX':       { def: null, clamp: [2.00, 9.00], clampBig: [2.00, 21.0], rule: 'derive', auto: 'tail.hX' },
+  'tail.vX':       { def: null, clamp: [2.00, 9.00], clampBig: [2.00, 21.0], rule: 'derive', auto: 'tail.vX' },
   // B9: the AREAS had no clamp at all - a 0 or a negative from a hand spec
   // or the console reached the lattice as a NaN chord. The bounds are a
   // non-degenerate tail, not a taste: the envelope's own spans x chords
   // (4.5 x 1.6 = 7.2 m2 a tailplane, twice 2.2 x 1.8 a pair of boom fins)
   // with headroom for the volume rule on the largest wing.
-  'tail.Sh':       { def: null, clamp: [0.20, 12.0], rule: 'derive', auto: 'tail.Sh', join: 'measure' },
-  'tail.Sv':       { def: null, clamp: [0.10, 10.0], rule: 'derive', auto: 'tail.Sv', join: 'measure' },
-  'tail.Svt':      { def: null, clamp: [0.20, 14.0], rule: 'derive', auto: 'tail.Svt', join: 'measure' },
-  'tail.hSpan':    { def: null, clamp: GEN_TAIL_ENVELOPE.hSpan, rule: 'derive', auto: 'tail.hSpan', join: 'measure' },
-  'tail.hChord':   { def: null, clamp: GEN_TAIL_ENVELOPE.hChord, rule: 'derive', auto: 'tail.hChord', join: 'measure' },
-  'tail.vHeight':  { def: null, clamp: GEN_TAIL_ENVELOPE.vHeight, rule: 'derive', auto: 'tail.vHeight', join: 'measure' },
-  'tail.vChord':   { def: null, clamp: GEN_TAIL_ENVELOPE.vChord, rule: 'derive', auto: 'tail.vChord', join: 'measure' },
+  // (G3503: a big aeroplane's to 27 m2 a stab - 9 x 3, its envelope - and 15 / 20 the fins)
+  'tail.Sh':       { def: null, clamp: [0.20, 12.0], clampBig: [0.20, 27.0], rule: 'derive', auto: 'tail.Sh', join: 'measure' },
+  'tail.Sv':       { def: null, clamp: [0.10, 10.0], clampBig: [0.10, 15.0], rule: 'derive', auto: 'tail.Sv', join: 'measure' },
+  'tail.Svt':      { def: null, clamp: [0.20, 14.0], clampBig: [0.20, 20.0], rule: 'derive', auto: 'tail.Svt', join: 'measure' },
+  'tail.hSpan':    { def: null, clamp: GEN_TAIL_ENVELOPE.hSpan, clampBig: GEN_TAIL_ENVELOPE.big.hSpan, rule: 'derive', auto: 'tail.hSpan', join: 'measure' },
+  'tail.hChord':   { def: null, clamp: GEN_TAIL_ENVELOPE.hChord, clampBig: GEN_TAIL_ENVELOPE.big.hChord, rule: 'derive', auto: 'tail.hChord', join: 'measure' },
+  'tail.vHeight':  { def: null, clamp: GEN_TAIL_ENVELOPE.vHeight, clampBig: GEN_TAIL_ENVELOPE.big.vHeight, rule: 'derive', auto: 'tail.vHeight', join: 'measure' },
+  'tail.vChord':   { def: null, clamp: GEN_TAIL_ENVELOPE.vChord, clampBig: GEN_TAIL_ENVELOPE.big.vChord, rule: 'derive', auto: 'tail.vChord', join: 'measure' },
   'tail.vSweep':   { def: null, clamp: [-20, 60], rule: 'derive', auto: 'tail.vSweep' },
   'tail.dorsal.angle': { def: null, clamp: [8, 80], rule: 'derive', auto: 'tail.dorsal.angle' },
   'prop.D':        { def: null, clamp: [0.20, 4.00], rule: 'derive', auto: 'prop.D' },
   'cowl.halfW':    { def: null, clamp: [0.05, 1.10], rule: 'derive', auto: 'cowl.halfW' },
   'cowl.top':      { def: null, clamp: [0.03, 1.10], rule: 'derive', auto: 'cowl.top' },
   'cowl.bot':      { def: null, clamp: [0.03, 1.10], rule: 'derive', auto: 'cowl.bot' },
-  'gear.legDrop':  { def: null, clamp: [0.15, 1.20], rule: 'derive', auto: 'gear.legDrop' },
+  'gear.legDrop':  { def: null, clamp: [0.15, 1.20], clampBig: [0.15, 1.80], rule: 'derive', auto: 'gear.legDrop' },   // G3503: a DC-3's oleo under its nacelle
   // The ride height's floor reaches what its own derivation produces: the
   // legDrop row's 1.20 m leg (-0.02 - 1.20) and a 4 m disc's clearance. The
   // old -0.90 cut a derived stance on the second pass only, so the corners of
@@ -32931,10 +34179,11 @@ const GEN_FIELD_BY_AUTO = (() => {
 function genFieldClamp(path, v, S) {
   const F = GEN_FIELDS[path];
   if (!F || !F.clamp || v == null) return v;
-  let lo = F.clamp[0];
+  const C = (F.clampBig && genBig(S)) ? F.clampBig : F.clamp;    // G3503: a big aeroplane's bounds (genBig)
+  let lo = C[0];
   if (F.seatFloor && S && S.cabin && GEN_SEATING[S.cabin.seating])
     lo = Math.min(lo, GEN_SEATING[S.cabin.seating][F.seatFloor]);
-  return genClamp(v, lo, F.clamp[1]);
+  return genClamp(v, lo, C[1]);
 }
 const genFieldClampAuto = (autoKey, v, S) =>
   genFieldClamp(GEN_FIELD_BY_AUTO[String(autoKey).replace(/\d+$/, '')], v, S);
@@ -32957,6 +34206,51 @@ function genNullToDefault(t, d) {
     } else if (dv && typeof dv === 'object') genNullToDefault(t[k], dv);
     else if (typeof dv === 'number' && t[k] === null) t[k] = dv;
   }
+}
+
+// G2790 ENGINE-CONFIGS (2026-10-12, the user's slider review: "the
+// configuration nose engine + pusher engine (Cessna Skymaster) ... activate
+// the 3 and 4 engines configuration"): THE ENGINE LAYOUTS. `engines[]` has
+// been an array since day one and the solver shares thrust per engine over
+// each engine's own mount nodes (refs.engineOf); what held it to one mount
+// was the clamp. A layout is the LIST OF MOUNTS, in order, and only these
+// exact lists fly as several engines — anything else is clamped the way it
+// always was (a single mount, or the wing pair), so no save changes meaning.
+//   pushPull  nose + pusher: centreline thrust, the Skymaster. The rear prop
+//             turns the other way (the same engine turned round on its mount,
+//             so seen from behind it is the front one's mirror), which is
+//             what cancels the propeller's torque and P-factor in pairs.
+//   tri       nose + a wing pair: the Trimotor / Ju 52.
+//   quad      two wing pairs, inner then outer: the Heron / DC-4.
+// ONE ENGINE TYPE PER AEROPLANE: the solver flies one propeller law (PR,
+// EN) and multiplies it per engine, so every entry carries entry 0's type
+// and custom row, as a wing pair always did. `nacAt` is the default semispan
+// fraction of each wing pair, inner first.
+const GEN_ENG_LAYOUTS = {
+  pushPull: { mounts: ['nose', 'pusher'],              nacAt: [] },
+  tri:      { mounts: ['nose', 'wing', 'wing'],        nacAt: [0.35] },
+  quad:     { mounts: ['wing', 'wing', 'wing', 'wing'], nacAt: [0.30, 0.62] },
+};
+// the layout key of an engine list, or null for every list the clamp keeps
+// to one mount / the classic pair (the pre-G2790 path, byte for byte)
+function genEngLayoutOf(E) {
+  if (!Array.isArray(E)) return null;
+  for (const k in GEN_ENG_LAYOUTS) {
+    const m = GEN_ENG_LAYOUTS[k].mounts;
+    if (E.length === m.length && m.every((x, i) => E[i] && E[i].mount === x)) return k;
+  }
+  return null;
+}
+// a spec's engine list FOR a layout (the editor's tiles and the archetypes'
+// birth spec): every entry the first one's type, the mounts in order, the
+// pusher's hand the nose's mirror, each wing pair's tops-inward rows kept
+// to +1 / +1 (one hand, the Lycoming's, as the twin fixture flies)
+function genEngLayoutEngines(layout, type, base) {
+  const L = GEN_ENG_LAYOUTS[layout];
+  const b = Object.assign({ type: type || 'a65_sensenich74', place: { dx: 0, dy: 0 } }, base || {});
+  if (!L) return [Object.assign({}, b, { mount: (base && base.mount) || 'nose' })];
+  return L.mounts.map((m, i) => Object.assign(genClone(b), { mount: m,
+    sense: (layout === 'pushPull' && i === 1) ? -1 : 1 }));
 }
 
 function clampSpec(spec) {
@@ -33091,16 +34385,26 @@ function clampSpec(spec) {
   // or null. Anything else is a malformed file and reads as "derived".
   cb.seatsX = Array.isArray(cb.seatsX) && cb.seatsX.length &&
               cb.seatsX.every(x => typeof x === 'number' && isFinite(x))
-    ? cb.seatsX.map(x => genClamp(x, 0.05, 12)) : null;
+    ? cb.seatsX.map(x => genClamp(x, 0.05, 25)) : null;   // (G3573: 12 -> 25 m - the full-size DC-3's aft rows stand past 12 m; only a seat that far aft moves)
   // G180: the drawn capacity — a whole number of seats, or null = the table's;
   // and the occupancy — a list of 0/1 per seat, or null = the first N. A
   // malformed list reads as "derived", never as a crash or a jump, the same
   // ruling seatsX has.
   cb.seats = (typeof cb.seats === 'number' && isFinite(cb.seats))
-    ? Math.round(genClamp(cb.seats, 0, 24)) : null;
+    ? Math.round(genClamp(cb.seats, 0, 96)) : null;   // (G3573: 24 -> 96 - an airliner's cabin; the clamp only moves a cabin of more than 24)
   cb.occupied = Array.isArray(cb.occupied) && cb.occupied.length &&
                 cb.occupied.every(o => o === 0 || o === 1 || o === true || o === false)
     ? cb.occupied.map(o => o ? 1 : 0) : null;
+  // G3570 (DC3-2, 2026-10-24): THE CABIN FLOOR'S HEIGHT, metres over the floor the door sills give (the cage's
+  // 'cabin floor height', floorUp: it lifts the sills, and the floor, the seats and the people on it follow). The
+  // frame bills the occupants and the furnishing that much higher (61_gen_frame). READ OFF THE CAGE, which replaces
+  // as a whole (genSpecMerge) and writes the row only when raised (cageToSpec): a floor put back down can never
+  // stay up in the flown spec. A spec with no cage (a fiche) may say it here. ABSENT AT ITS DEFAULT: no key is
+  // written, so no build from before the row changes by a byte
+  {
+    const fu = S.cage ? +S.cage.floorUp : +cb.floorUp;
+    if (fu > 0 && isFinite(fu)) cb.floorUp = genClamp(fu, 0, 1.5); else delete cb.floorUp;
+  }
 
   const pl = cb.pilot || (cb.pilot = {});
   pl.show    = pl.show !== false;
@@ -33228,7 +34532,9 @@ function clampSpec(spec) {
   // here and 400 L per vessel / in total were a light aeroplane's numbers;
   // a Caravan carries 1 250 L. Now 2 000 L total, 1 000 L a vessel. Every
   // saved file sits inside the old range, so nothing moves.
-  S.fuel.litres = genClamp(S.fuel.litres, 0, 2000);
+  // G3503 (DC3-BUILD): a big aeroplane's (genBig) 4 000 L total, 2 000 L a vessel (the
+  // DC-3's 3 111 L in two centre-section tanks)
+  S.fuel.litres = genClamp(S.fuel.litres, 0, genBig(S) ? 4000 : 2000);
   if (!S.outfit || typeof S.outfit !== 'object') S.outfit = { seats: 'sling' };
   if (!GEN_SEATS[S.outfit.seats]) S.outfit.seats = 'sling';
   {
@@ -33277,10 +34583,10 @@ function clampSpec(spec) {
     for (const v of E.vessels) {
       if (!GEN_BAYS[v.bay]) v.bay = 'nose';
       v.capacity = genClamp(v.capacity || 0, 0,
-                            E.kind === 'battery' ? 400 : 1000);
+                            E.kind === 'battery' ? 400 : genBig(S) ? 2000 : 1000);
       v.along = v.along == null ? null : genClamp(v.along, -1, 12);
       // a fuel state's design capacity (genSpecAtFuel; the shell is sized off it)
-      if (v.designCap != null) v.designCap = genClamp(+v.designCap || 0, 0, E.kind === 'battery' ? 400 : 1000);
+      if (v.designCap != null) v.designCap = genClamp(+v.designCap || 0, 0, E.kind === 'battery' ? 400 : genBig(S) ? 2000 : 1000);
       v.lv = v.lv == null ? null : genClamp(v.lv, 0, 1);
       v.rot = genClamp(v.rot || 0, -90, 90);
       // ROUND OR SQUARED (2026-09-04). Geometry, and therefore capacity: a
@@ -33310,7 +34616,7 @@ function clampSpec(spec) {
       total += v.capacity;
     }
     if (E.kind === 'battery') { E.kWh = total; S.fuel.litres = 0; }
-    else { S.fuel.litres = genClamp(total, 0, 2000); E.kWh = 0; }
+    else { S.fuel.litres = genClamp(total, 0, genBig(S) ? 4000 : 2000); E.kWh = 0; }
     // `fuel.tank` is the pre-G99 station and is kept as a READING of the first
     // vessel's bay, because GEN_ACCESS decides where the filler cap goes from
     // it and a cap that moved would be a fitting nobody asked to move.
@@ -33449,7 +34755,31 @@ function clampSpec(spec) {
   // exactly two entries (the second is the first's mirror: same type, same
   // station, the other side), every other mount stays one. A lone 'wing'
   // entry is doubled rather than flown as one nacelle on one side.
-  if (Array.isArray(S.engines) && S.engines.length) {
+  // G2790: THE LAYOUTS (GEN_ENG_LAYOUTS above) — an exact list of mounts
+  // keeps every entry; each wing pair is its own mirror (entry 2k+1 follows
+  // entry 2k of the wing entries), every entry flies entry 0's engine, and
+  // a push-pull's rear prop is the front one's mirror hand.
+  const LAY = genEngLayoutOf(S.engines);
+  if (LAY) {
+    const E = S.engines, e0 = E[0];
+    for (let i = 1; i < E.length; i++) {
+      E[i].type = e0.type;
+      if (e0.custom) E[i].custom = genClone(e0.custom); else delete E[i].custom;
+    }
+    const W = E.filter(e => e.mount === 'wing');
+    for (let k = 0; k + 1 < W.length; k += 2) {
+      const a = W[k], b = W[k + 1];
+      b.x = a.x; b.y = a.y; b.z = a.z; b.pylon = a.pylon; b.tilt = a.tilt;
+      if (a.aim) b.aim = a.aim; else delete b.aim;
+    }
+    // the outer pair stands outboard of the inner one (a measured inner
+    // nacelle past a measured outer one is the pair order swapped)
+    if (LAY === 'quad' && W[0].z != null && W[2].z != null && W[2].z < W[0].z + 0.3) {
+      const zi = Math.min(W[0].z, W[2].z), zo = Math.max(W[0].z, W[2].z, zi + 0.3);
+      W[0].z = W[1].z = zi; W[2].z = W[3].z = genClamp(zo, 0, 6.0);
+    }
+    if (LAY === 'pushPull') E[1].sense = -E[0].sense;
+  } else if (Array.isArray(S.engines) && S.engines.length) {
     const pair = S.engines[0].mount === 'wing';
     S.engines = S.engines.slice(0, pair ? 2 : 1);
     if (pair && S.engines.length === 1) S.engines.push(genClone(S.engines[0]));
@@ -33539,31 +34869,34 @@ function clampSpec(spec) {
   cb.halfW = genFieldClamp('cabin.halfW', cb.halfW, S);
   cb.h = genFieldClamp('cabin.h', cb.h, S);
   cb.len = genFieldClamp('cabin.len', cb.len, S);
-  fu.tailArm = genFieldClamp('fuselage.tailArm', fu.tailArm);
+  fu.tailArm = genFieldClamp('fuselage.tailArm', fu.tailArm, S);
   // the tail's flown envelope has ONE home (GEN_TAIL_ENVELOPE, above): the
   // join reads the same numbers to SAY when a drawn value is cut here
   // (through GEN_FIELDS, which resolveSpec's put() reads as well - B8)
-  S.tail.hSpan = genFieldClamp('tail.hSpan', S.tail.hSpan);
-  S.tail.hChord = genFieldClamp('tail.hChord', S.tail.hChord);
-  S.tail.vHeight = genFieldClamp('tail.vHeight', S.tail.vHeight);
-  S.tail.vChord = genFieldClamp('tail.vChord', S.tail.vChord);
+  S.tail.hSpan = genFieldClamp('tail.hSpan', S.tail.hSpan, S);
+  S.tail.hChord = genFieldClamp('tail.hChord', S.tail.hChord, S);
+  S.tail.vHeight = genFieldClamp('tail.vHeight', S.tail.vHeight, S);
+  S.tail.vChord = genFieldClamp('tail.vChord', S.tail.vChord, S);
   // B9: the AREAS - never clamped before, so a 0 or a negative reached the
   // lattice as a NaN chord (GEN_FIELDS 'tail.Sh' says why these bounds)
-  S.tail.Sh = genFieldClamp('tail.Sh', S.tail.Sh);
-  S.tail.Sv = genFieldClamp('tail.Sv', S.tail.Sv);
-  S.tail.Svt = genFieldClamp('tail.Svt', S.tail.Svt);
+  S.tail.Sh = genFieldClamp('tail.Sh', S.tail.Sh, S);
+  S.tail.Sv = genFieldClamp('tail.Sv', S.tail.Sv, S);
+  S.tail.Svt = genFieldClamp('tail.Svt', S.tail.Svt, S);
   // the tail surfaces' STATIONS, measured by the join since G54.3 — bounded
   // like the other measured stations; nullable keeps the volume-coefficient
   // derivation for everything that does not measure them.
-  S.tail.hX = genFieldClamp('tail.hX', S.tail.hX);
-  S.tail.vX = genFieldClamp('tail.vX', S.tail.vX);
-  S.gear.track = genClampN(S.gear.track, 0.90, 3.50);
-  S.gear.wheelR = genClamp(S.gear.wheelR, 0.10, 0.40);
+  S.tail.hX = genFieldClamp('tail.hX', S.tail.hX, S);
+  S.tail.vX = genFieldClamp('tail.vX', S.tail.vX, S);
+  // G3503 (DC3-BUILD): a big aeroplane's (genBig) track to 6 m and wheel to 0.65 m (the
+  // DC-3's 5.64 m and 1.14 m tyres); its stations below to a 20 m tailwheel and 8 m mains
+  const bigG = genBig(S);
+  S.gear.track = genClampN(S.gear.track, 0.90, bigG ? 6.00 : 3.50);
+  S.gear.wheelR = genClamp(S.gear.wheelR, 0.10, bigG ? 0.65 : 0.40);
   S.gear.twR = genClamp(S.gear.twR, 0.05, 0.25);
   // Leg lengths: generous, because a stilt-legged bush aeroplane and a squatting
   // racer are both aeroplanes somebody builds. The floor is rule 5 (a leg this
   // short has no vertical stiffness whatever its k) and the shakedown says so.
-  S.gear.legDrop = genFieldClamp('gear.legDrop', S.gear.legDrop);
+  S.gear.legDrop = genFieldClamp('gear.legDrop', S.gear.legDrop, S);
   S.gear.twLeg = genClampN(S.gear.twLeg, 0.06, 1.40);
   // The THIRD WHEEL the join measures off the built cage (G51). They were
   // nullable expose-the-derivation fields with no bounds because nothing ever
@@ -33571,7 +34904,7 @@ function clampSpec(spec) {
   // non-degenerate envelope as the leg lengths. twY is an axle height in the
   // lattice's own datum (the cabin keel line since G49); twX is a station,
   // NEGATIVE for a nose wheel ahead of the firewall.
-  S.gear.twX = genClampN(S.gear.twX, -1.50, 8.00);
+  S.gear.twX = genClampN(S.gear.twX, -1.50, bigG ? 20.0 : 8.00);
   S.gear.twY = genClampN(S.gear.twY, -1.00, 1.50);
   // The RIDE HEIGHT, measured since G53. G51 blamed its collapse on soft long
   // levers and left it derived — WRONG twice over: the collapse was a rule-10
@@ -33586,7 +34919,7 @@ function clampSpec(spec) {
   // the CG/rake placement rule — deliberately: the wheels go where the built
   // aeroplane's wheels are, and the shakedown's noseOver row posts the
   // consequence. The height (gear.y) stays the prop-clearance rule's.
-  S.gear.x = genClampN(S.gear.x, -0.50, 3.00);
+  S.gear.x = genClampN(S.gear.x, -0.50, bigG ? 8.00 : 3.00);
   // Camber, degrees, tops-outboard positive. Real aeroplanes run a few degrees
   // either way; the range is wide enough to be a look and not wide enough for
   // the wheel to lie on its side.
@@ -33719,7 +35052,31 @@ function resolveSpec(spec) {
   // engine of a pair counted): a pusher's wing sits ~0.45 m further back, an
   // over-the-wing engine's ~0.3. A MEASURED station (the join's, off a drawn
   // wing) is the builder's and does not move — the plaque tells the margin.
-  if (auto['wing.xLE'] && S.engines[0].mount && S.engines[0].mount !== 'nose') {
+  // G2790: A LAYOUT'S ENGINES, the same estimate per entry. Entry 0 off the
+  // nose has MOVED from the nose (the lever from engX0, as above); every
+  // further engine is ADDED to an aeroplane that balanced on its wing, so its
+  // lever is from the wing's own quarter chord — a Skymaster's pusher pulls
+  // the wing aft by its arm behind it, a Trimotor's nacelles (ahead of the
+  // quarter chord) bring it forward a little. The single mounts and the
+  // classic pair keep the branch below, byte for byte.
+  const LAYW = genEngLayoutOf(S.engines);
+  if (auto['wing.xLE'] && LAYW) {
+    const PP0 = POWERPLANTS[S.engine] || POWERPLANTS.a65_sensenich74;
+    const e0 = S.engines[0];
+    const mE = (e0.custom && e0.custom.mass) || PP0.engine.mass;
+    const engX0 = -(0.18 + 0.32 * PP0.prop.D / 2);
+    const xAC = w.xLE + 0.25 * w.chord;
+    const xOf = e => e.x != null ? e.x
+      : e.mount === 'pusher' ? S.cab.noseGap + S.cab.len + S.fuse.cargoLen + 0.30
+      : e.mount === 'wing' ? w.xLE + 0.05 : engX0;
+    let mom = 0;
+    S.engines.forEach((e, i) => {
+      if (i === 0) { if (e.mount !== 'nose') mom += mE * (xOf(e) - engX0); }
+      else mom += mE * (xOf(e) - xAC);
+    });
+    const mRef = ((GEN_MATERIALS[S.material] || {}).refMass || 390) + (S.engines.length - 1) * mE;
+    w.xLE += mom / mRef;
+  } else if (auto['wing.xLE'] && S.engines[0].mount && S.engines[0].mount !== 'nose') {
     const e = S.engines[0], m = e.mount;
     const PP0 = POWERPLANTS[S.engine] || POWERPLANTS.a65_sensenich74;
     const mE = (e.custom && e.custom.mass) || PP0.engine.mass;
@@ -33733,7 +35090,7 @@ function resolveSpec(spec) {
   }
   // the nudge and the engine's lever can carry the station past its
   // envelope: cut here, where it is made, not by the next pass (B8)
-  w.xLE = genFieldClamp('wings[].xLE', w.xLE);
+  w.xLE = genFieldClamp('wings[].xLE', w.xLE, S);
   // G185: THE PLANFORM OF ONE PLANE. The block below is the old one verbatim
   // as a function of the plane, so a biplane's second plane gets the same
   // law, MAC, aerodynamic centre, tip bow and reference area as the first.
@@ -33743,7 +35100,7 @@ function resolveSpec(spec) {
   // explicit xLE wins, like every nullable), then its own nudge
   if (k > 0) {
     put(w, 'xLE', S.wings[0].xLE + (w.stagger || 0), 'wing.xLE' + k);
-    w.xLE = genFieldClamp('wings[].xLE', w.xLE + ((w.place && w.place.dx) || 0));
+    w.xLE = genFieldClamp('wings[].xLE', w.xLE + ((w.place && w.place.dx) || 0), S);
     if (w.place) consume(w.place, 'dx', 'wings.' + k + '.place.dx');   // SPEC-FIXPOINT (A2)
   }
   // an uncranked wing's outer dihedral IS its dihedral, so the field can be
@@ -33883,8 +35240,8 @@ function resolveSpec(spec) {
   const t = S.tail;
   put(t, 'hX', S.fuse.tailArm + 0.70 * S.fuse.postGap, 'tail.hX');
   put(t, 'vX', S.fuse.tailArm + 0.90 * S.fuse.postGap, 'tail.vX');
-  t.hX = genFieldClamp('tail.hX', t.hX + pl.tailDx);
-  t.vX = genFieldClamp('tail.vX', t.vX + pl.tailDx);
+  t.hX = genFieldClamp('tail.hX', t.hX + pl.tailDx, S);
+  t.vX = genFieldClamp('tail.vX', t.vX + pl.tailDx, S);
   consume(t.place, 'dx', 'tail.place.dx', 'tailDx');      // SPEC-FIXPOINT (A2)
   const lh = Math.max(1.0, t.hX - xAC), lv = Math.max(1.0, t.vX - xAC);
   // G115: the tail AREAS are derivable, not imposed — `put`, not assignment.
@@ -33897,7 +35254,7 @@ function resolveSpec(spec) {
   // arms stay computed — they are geometry readouts, not choices.
   // twin booms: a MEASURED fin is one of two, so the vertical area is twice it
   if (t.type === 'twinBoom' && t.Sv == null && t.vHeight != null && t.vChord != null)
-    t.Sv = genFieldClamp('tail.Sv', 2 * t.vHeight * t.vChord);
+    t.Sv = genFieldClamp('tail.Sv', 2 * t.vHeight * t.vChord, S);
   put(t, 'Sh', GEN_RULES.Vh * S.geom.Sw * cBar / lh, 'tail.Sh');
   // G185: the vertical volume divides by the aeroplane's span (a biplane's
   // longer plane; a monoplane's own, exactly)
@@ -33952,7 +35309,7 @@ function resolveSpec(spec) {
     // B8 / SPEC-FIXPOINT: a RULED span is cut to the tailplane envelope here
     // (its projection is what lands in hSpan, which the next pass reads as
     // built); the area stays the rule's, so the chord takes up the cut
-    if (!built) bVt = genFieldClamp('tail.hSpan', bVt * cG) / cG;
+    if (!built) bVt = genFieldClamp('tail.hSpan', bVt * cG, S) / cG;
     // P1: a MEASURED panel area (the join's Svt, off the drawn sheets) is
     // the area; its mean chord is that over the uncanted span. Left null,
     // the chord is the measured (or ruled) one and the area their product.
@@ -33962,7 +35319,7 @@ function resolveSpec(spec) {
     let Svt = (built && t.Svt > 0) ? t.Svt : bVt * cVt;
     if (!(built && t.Svt > 0)) {
       auto['tail.Svt'] = true;
-      const SvtC = genFieldClamp('tail.Svt', Svt);
+      const SvtC = genFieldClamp('tail.Svt', Svt, S);
       if (SvtC !== Svt) { Svt = SvtC; cVt = Svt / bVt; }
     }
     S.tail.Svt = Svt; S.tail.vG = G;
@@ -34093,8 +35450,16 @@ function resolveSpec(spec) {
   // at 0.45 of the cabin height; the over-the-wing engine 30 % of the chord
   // behind the leading edge, a pylon above the upper skin; a wing pair at
   // the front spar, 35 % of the way out from the root.
+  // G2790: a layout's wing pairs — entry 2k of the wing entries is the
+  // port nacelle of pair k, 2k+1 its starboard mirror; the default station
+  // is the layout's own semispan fraction for that pair (GEN_ENG_LAYOUTS)
+  const LAYA = genEngLayoutOf(S.engines);
+  const wingRank = []; { let r = 0; for (const e of S.engines) wingRank.push(e.mount === 'wing' ? r++ : -1); }
+  S.engLayout = LAYA || (S.engines[0].mount === 'wing' ? 'pair' : 'single');
   S.engAt = S.engines.map((e, i) => {
     const m = e.mount || 'nose';
+    const nacAt = LAYA && m === 'wing'
+      ? GEN_ENG_LAYOUTS[LAYA].nacAt[wingRank[i] >> 1] : 0.35;
     const semi = 0.5 * w.span, zR = S.cab.halfW;
     const wingY = S.wing.position === 'low' ? 0.22 * S.cab.h
                 : S.wing.position === 'mid' ? 0.55 * S.cab.h : S.cab.h + 0.01;
@@ -34103,13 +35468,16 @@ function resolveSpec(spec) {
             : m === 'wingTop' ? { x: w.xLE + 0.30 * w.chord,
                                   y: wingY + 0.06 * w.chord + pylon, z: 0 }
             : m === 'wing' ? { x: w.xLE + 0.05, y: wingY,
-                               z: zR + 0.35 * Math.max(0.5, semi - zR) }
+                               z: zR + nacAt * Math.max(0.5, semi - zR) }
             : { x: S.engX, y: S.engY, z: 0 };
     return { mount: m,
              // G194: the hand, and which SIDE of a wing pair this entry is
              // (the frame builds NL from entry 0 and NR from entry 1)
              sense: (+e.sense === -1) ? -1 : 1,
-             side: m === 'wing' ? (i === 0 ? -1 : 1) : 0,
+             side: m === 'wing' ? (LAYA ? ((wingRank[i] & 1) ? 1 : -1) : (i === 0 ? -1 : 1)) : 0,
+             // G2790: which wing pair (0 inner) — the frame builds a pair
+             // from its port entry and mirrors it
+             pair: m === 'wing' ? (LAYA ? wingRank[i] >> 1 : 0) : -1,
              x: e.x != null ? e.x : d.x,
              y: e.y != null ? e.y : d.y,
              z: m === 'wing' ? Math.abs(e.z != null ? e.z : d.z) : 0,
@@ -35613,13 +36981,29 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const dmgCovered = !(S.fuselage && S.fuselage.covering === 'open');
   const dmgGlazed = dmgCovered && !(S.cab && S.cab.glazing === 'none');
   // the part a node belongs to, and the part's rank: the higher rank is the child of a joint (it comes off)
+  const dmgLay = S.engLayout === 'pushPull' || S.engLayout === 'tri' || S.engLayout === 'quad';
   const dmgPart = i => {
     const t = nodes[i].tag || '', z = P[i][2], sd = z < 0 ? 'L' : 'R';
     if (t === 'WF' || t === 'WR' || t === 'WB' || t === 'WB2') return { p: 'wing' + (nodes[i].plane || 0) + sd, r: 1, base: 'wing' + (nodes[i].plane || 0), wing: true };
     if (t.slice(0, 2) === 'BM') return { p: 'boom' + t[2], r: 2, base: 'boom' };
     if (/^(HF|HR|HB|HT)/.test(t)) return { p: 'stab', r: 3, base: 'stab' };
     if (/^(VF|VR|VX|FIN)/.test(t)) return Math.abs(z) > 0.2 ? { p: 'fin' + sd, r: 3, base: 'fin' } : { p: 'fin', r: 3, base: 'fin' };
-    if (/^(ENG|CGE|MNT)/.test(t)) return Math.abs(z) > (S.cab ? S.cab.halfW : 0.5) ? { p: 'eng' + sd, r: 3.5, base: 'eng' } : { p: 'eng', r: 3.5, base: 'eng' };
+    if (/^(ENG|CGE|MNT)/.test(t)) {
+      // ENGINE-CONFIGS-2 (G3491): A LAYOUT'S EVERY ENGINE IS ITS OWN PART (its own break group: one mount letting go
+      // takes its engine, not its neighbour's) - the nearest of the layout's mounts: the nose 'eng' as ever, a
+      // push-pull's pusher 'engAft', the inner wing pair 'engL' / 'engR' as ever, a four's outer pair 'engL2' / 'engR2'
+      if (dmgLay) {
+        let best = null, bd = Infinity;
+        for (const e of S.engAt) {
+          const ez = e.mount === 'wing' ? (z < 0 ? -e.z : e.z) : 0, d = Math.hypot(P[i][0] - e.x, z - ez);
+          if (d < bd) { bd = d; best = e; }
+        }
+        const pp = !best || best.mount === 'nose' ? 'eng' : best.mount === 'pusher' ? 'engAft'
+          : 'eng' + sd + (best.pair > 0 ? best.pair + 1 : '');
+        return { p: pp, r: 3.5, base: 'eng' };
+      }
+      return Math.abs(z) > (S.cab ? S.cab.halfW : 0.5) ? { p: 'eng' + sd, r: 3.5, base: 'eng' } : { p: 'eng', r: 3.5, base: 'eng' };
+    }
     if (t.slice(0, 4) === 'AXLE') return { p: 'gear' + sd, r: 4, base: 'gear' };
     if (t === 'TW') return { p: 'tw', r: 4, base: 'tw' };
     if (t === 'FLK' || t === 'FLD') return { p: 'float' + sd, r: 4, base: 'float' };
@@ -35677,6 +37061,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     return null;
   };
   const boxRearJ = S.fuse ? S.fuse.boxRear : -1;
+  // G3505: the gauge's knee for strength (GEN_RULES.gaugeHoldK x the airframe material's design gross); Infinity = off
+  const kneeW = R.gaugeHoldK > 0 ? R.gaugeHoldK * (((GEN_MATERIALS[S.material] || {}).refGross) || 550) : Infinity;
   const B = (a, b, cls, ext, vis, mnt, opt) => {
     const L = Math.hypot(P[b][0]-P[a][0], P[b][1]-P[a][1], P[b][2]-P[a][2]);
     // A MEMBER BETWEEN TWO POINTS THAT ARE ONE POINT IS REFUSED (REVIEW
@@ -35816,6 +37202,17 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // `cover`, not `lin`. Measured: on the metal Cessna its own billed area put a wing member at 133 % of yield
       // at the 3.8 g limit (a 172's wing holds it), the class's at 52 % - the load test's own figure.
       bm.A = lin > 0 && MM.phys ? Math.max(lin * aftG * webK * g1, lin) / MM.phys.rho : 0;
+      // G3505 (DC3-BUILD, 2026-10-23): AN AIRLINER'S MEMBERS HOLD ITS STRESS. The gauge above is Raymer's mass rule,
+      // sub-linear in the gross (fus 0.30, wing 0.49, tail 0.41, gear 0.75, capped at 3) - right for what the structure
+      // WEIGHS, and on the fleet the members' strength is calibrated with it. But one lattice member stands for what an
+      // airliner carries in many (stringers, skin, frames), and its loads grow with the gross: at 9 t the DC-3's aft
+      // longerons were the 172's 180 mm2 (the class floor) and its tail cone broke settling on its wheels (DC3-BUILD).
+      // Above GEN_RULES.gaugeHoldK x the AIRFRAME's design gross (its material row's refGross: the knee is the
+      // aeroplane's, not a part's - a tube strut on an alloy floatplane is not past a 550 kg row's knee), a gauged
+      // member's SECTION (strength only: the damage model's A) grows in proportion to the design gross over that knee,
+      // so its stress holds; the mass, the bill and k stay the gauge's. At or below the knee (every saved build: the
+      // heaviest, the Cessna on floats, is 0.50 of its 2 222 kg) nothing is multiplied.
+      if (bk && GG && GG.W0 > kneeW) bm.A *= GG.W0 / kneeW;
       bm.mat = genPhysKey(MM.phys);
       // G2361 (DMG-MOUNTRIG): a member whose section is its own and not its class row's (the nose mount's bearer, its
       // isolators, the engine's case: GEN_RULES.mountTubeA / mountIsoA / mountCaseA) - weightless ones, so only the
@@ -35823,6 +37220,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       // (an isolator is listed in parts.dmg.iso, not flagged on the member: a field on 8 members of ~450 gives the solver's
       // hottest loop two shapes of beam - measured, the Cub's step with the damage layer on 2.5 -> 5 ms a frame)
       if (opt && opt.A > 0) bm.A = opt.A;
+      // G3501: a heavy wing engine's bearer (GEN_RULES.mountHeavyKg): its section times opt.aMul
+      if (opt && opt.aMul > 1) bm.A *= opt.aMul;
       if (opt && opt.iso) dmgIso.push(beams.length);
       if (opt && opt.lump) dmgLump.push(beams.length);
     }
@@ -36030,6 +37429,14 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const cabRear = cab.noseGap + cab.len;
   const boxRear = fu.boxRear;                 // cabin + cargo bay: full section
   const xs = [0, cab.noseGap, cabRear];
+  // G3504 (DC3-BUILD, 2026-10-23): A LONG CABIN HAS FRAMES ALONG IT. The cabin box was always one bay, ring 1 to ring 2,
+  // which the 2.6 m cabin.len ceiling kept short; a DC-3's is 9 m, and its wing and mains then sat inside a single
+  // bay (DC3-STUDY §3: the full size broke at the cabin's aft frame 0.14 s after spawn). A cabin longer than
+  // GEN_RULES.cabBayMax gets evenly spaced full-section rings between its front and rear, so no bay is longer than
+  // that; the cabin's rear ring is then iCabR (2 on every cabin inside the old ceiling: today's lattice, to the bit).
+  const nCabSub = (R.cabBayMax > 0 && cab.len > R.cabBayMax + 1e-6) ? Math.ceil(cab.len / R.cabBayMax - 1e-9) - 1 : 0;
+  for (let k = nCabSub; k >= 1; k--) xs.splice(2, 0, cab.noseGap + cab.len * k / (nCabSub + 1));
+  const iCabR = 2 + nCabSub;
   if (boxRear > cabRear + 1e-6) xs.push(boxRear);
   for (let i = 1; i <= fu.tailBays; i++)
     xs.push(boxRear + (fu.tailArm - boxRear) * i / fu.tailBays);
@@ -36205,7 +37612,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const SHELL = (!ROD_TUBE && S.fuse.boom !== 'rod' && S.fuse.boom !== 'twin' && fusCovered
                  && !(R.shellBoom === 0 || R.shellBoom === false)) ? (R.shellSkin || {})[S.material] : null;
   if (SHELL && SHELL.t > 0 && M && M.phys && M.phys.E > 0) {
-    const E = M.phys.E * (SHELL.eK || 1), tS = SHELL.t, G = E / 2.6;
+    // G3505 (DC3-BUILD): ABOVE THE GAUGE'S KNEE THE SKIN THICKENS (GEN_RULES.gaugeHoldK, the members' rule in B above):
+    // the shell's skin by the root of the design gross over the knee, so its buckling-bound bending strength (~t^2)
+    // grows in proportion to the gross, as the members' sections do - the DC-3's tailcone skin is 0.8-1.6 mm where a
+    // 172's is 0.5-0.6. At or below the knee (every saved build) the row's own t
+    const tS = (GG && GG.W0 > kneeW) ? SHELL.t * Math.sqrt(GG.W0 / kneeW) : SHELL.t;
+    const E = M.phys.E * (SHELL.eK || 1), G = E / 2.6;
     const cl = [], rings = [];
     ST.forEach((st, i) => { if (st.x >= boxRear - 1e-6) {
       cl.push(F[i].BL, F[i].BR, F[i].TL, F[i].TR);
@@ -36260,6 +37672,17 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                                   const xs = [...rings[k0], ...rings[k0 + 1]].reduce((a, q) => a + P[q][0], 0) / 8, qs = secAt(xs);
                                   const Rm = Math.max(0.05, Math.sqrt(qs.a * qs.b)), ph = Math.sqrt(Rm / tS) / 16;
                                   return (1 - 0.731 * (1 - Math.exp(-ph))) * 0.605 * E * tS / Rm; })() };
+      // G3572 (DC3-2, 2026-10-24): ABOVE THE KNEE THE CONE IS AN AIRLINER'S, STIFFENED. The bare skin's buckling is the
+      // lower bound named above; a 9 t aeroplane's cone is stringer- and frame-stiffened, and the moment its tail
+      // makes grows with the cone's length as well as the weight (G3505's t ~ sqrt(W0) held only the weight). So past
+      // GEN_RULES.gaugeHoldK x the material's design gross, the break stress is raised until the root holds
+      // GEN_RULES.shellHoldKappa x W0 g x the cone's length (the validated float Cessna's figure); the solver still
+      // caps it at the alloy's ultimate (30_solver: min(fu, sigB)). Strength only: EI, GJ, Kt, the mass and the bill
+      // are the skin's. Measured on the full-size DC-3: 220 kN.m -> 1.05 MN.m; at or below the knee nothing is set
+      if (GG && GG.W0 > kneeW && R.shellHoldKappa > 0) {
+        const Mu0 = shellDmg.sigB * shellDmg.EIv / (E * shellDmg.cv), Mreq = R.shellHoldKappa * GG.W0 * 9.81 * Lb;
+        if (Mreq > Mu0) shellDmg.sigB *= Mreq / Mu0;
+      }
     }
     if (cl.length >= 6) clusters.push({ cls: 'shell', tag: 'SHELL', nodes: cl, rings, gj: GJs,
                                         omega: { k: Kt, kRef: 29182, mRef: 61.6, wRef: 300 }, dmg: shellDmg,
@@ -36933,7 +38356,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // solver can share thrust per ENGINE (a cut engine, a trimmed lever)
   // instead of evenly over the nodes.
   const engIdx = noseEng ? [0, 0] : [];
-  if (!noseEng) {
+  // G2790 ENGINE-CONFIGS: a LAYOUT (S.engLayout: pushPull / tri / quad) hangs
+  // its nose engine on the firewall pair above and every other entry here,
+  // each mount node carrying ITS OWN entry's index (the pusher of a push-pull
+  // is engine 1, the Trimotor's nacelles 1 and 2, the quad's 0..3) — the
+  // solver's per-engine thrust then makes a cut engine a real couple. The
+  // single mounts and the classic pair run exactly the old loop.
+  const LAYF = S.engLayout === 'pushPull' || S.engLayout === 'tri' || S.engLayout === 'quad';
+  const engCowl = [];                    // G2790: [nodeA, nodeB] per off-nose engine of a layout
+  if (!noseEng || LAYF) {
     sec('engines');
     const iRing = x => {
       let b = 0, d = 1e9;
@@ -36948,20 +38379,25 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     const cgA = S.engCgAft;
     const farN = (a, b) => Math.hypot(P[a][0] - P[b][0], P[a][1] - P[b][1],
                                       P[a][2] - P[b][2]) > 0.05;
-    const hangEngine = (e, mountNodes, anchors, z, mEng, mProp) => {
+    const hangEngine = (e, mountNodes, anchors, z, mEng, mProp, aMul) => {
       if (cgA == null) {
         for (const n of mountNodes) pt(n, (mEng + mProp) / mountNodes.length);
         return;
       }
       const CG = N(e.x + (e.pushes ? -cgA : cgA), e.y, z, 'CGE');
+      const locOpt = aMul > 1 ? { noMass: true, aMul } : { noMass: true };     // G3501
       for (const q of mountNodes.concat(anchors))
-        if (farN(CG, q)) B(CG, q, 'fus', false, 'inner', true, { noMass: true });
+        if (farN(CG, q)) B(CG, q, 'fus', false, 'inner', true, locOpt);
       pt(CG, mEng);
       for (const n of mountNodes) pt(n, mProp / mountNodes.length);
     };
     for (let i = 0; i < EAT.length; i++) {
       const e = EAT[i];
-      if (e.mount === 'wing' && i > 0) continue;      // the pair's mirror
+      if (LAYF) {
+        if (e.mount === 'nose') continue;              // the firewall pair, above
+        if (e.mount === 'wing' && e.side > 0) continue; // the pair's mirror
+      } else if (e.mount === 'wing' && i > 0) continue;      // the pair's mirror
+      const iE = LAYF ? i : 0;                         // this entry's engine index
       if (e.mount === 'pusher') {
         const [PL, PR] = NM(e.x, e.y, 0.55 * cab.halfW, 'ENG');
         const rg = F[iRing(e.x)];
@@ -36970,7 +38406,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         BM(PR, rg.TR); BM(PR, rg.BR); BM(PR, rg.BL); BM(PR, rg.TL);
         hangEngine(e, [PL, PR], [rg.TL, rg.TR, rg.BL, rg.BR], 0,
                    engDryM, S.prop.mass);
-        engNodes.push(PL, PR); engIdx.push(0, 0);
+        engNodes.push(PL, PR); engIdx.push(iE, iE);
+        if (LAYF) engCowl.push([PL, PR]);
       } else if (e.mount === 'wingTop') {
         const [WL, WR] = NM(e.x, e.y, 0.35 * cab.halfW, 'ENG');
         const rg = F[iRing(e.x)];
@@ -37011,6 +38448,9 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                             * (xFat(e.z) - e.x);
         const feet = R.mountFoot
           ? NM(xFoot, ySp + (above ? -depth : depth), e.z, 'MNT') : null;
+        // G3501: the bearer's section factor (1 = today's members)
+        const mSide = engDryM + S.prop.mass;
+        const bearA = (R.mountHeavyKg > 0 && mSide > R.mountHeavyKg) ? mSide / (R.mountRefKg || 59) : 1;
         for (const [n, o, ft] of [[NL, 'L', feet && feet[0]],
                                   [NR, 'R', feet && feet[1]]]) {
           const W = wf[o];
@@ -37020,10 +38460,13 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
           // to its spar fittings) - not a thin tube of the class's section: no Euler (30_solver dmgMember, as the
           // strut fan's hidden members). Measured: the twin's ENGL-WR (1.71 m) buckled at 4.52 kN, 1.47 x 23.361's limit
           // torque, against its certified 8.69 kN. The post keeps its tube
-          const LUMP = { lump: true };
+          // G3501 (DC3-BUILD): above GEN_RULES.mountHeavyKg a side, every bearer member's section in proportion to
+          // the side's engine (aMul); below it the calls are today's, to the bit
+          const LUMP = bearA > 1 ? { lump: true, aMul: bearA } : { lump: true };
+          const BMb = bearA > 1 ? (a, b2, vis) => B(a, b2, 'fus', false, vis || null, true, { aMul: bearA }) : BM;
           for (const q of ring) B(n, q, 'fus', false, null, true, LUMP);
           if (ft != null) {
-            BM(n, ft);                                   // the post
+            BMb(n, ft);                                  // the post
             for (const q of ring) B(ft, q, 'fus', false, 'inner', true, LUMP);
             // a box's own cap can sit where the foot does (an engine drawn
             // exactly on a station, on the spar) — a zero-length member is
@@ -37032,14 +38475,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                                         P[q][2] - P[ft][2]) > 0.05;
             for (const caps of [W.FB, W.RB]) if (caps)
               for (const k of [b, b + 1])
-                if (caps[k] != null && far(caps[k])) BM(ft, caps[k], 'inner');
+                if (caps[k] != null && far(caps[k])) BMb(ft, caps[k], 'inner');
           }
           // a whole engine a side — at its CG when the row knows one, on the
           // nacelle node otherwise (the mirror's z is the node's own)
           hangEngine({ x: e.x, y: e.y, pushes: e.pushes }, [n], ring,
-                     P[n][2], engDryM, S.prop.mass);
+                     P[n][2], engDryM, S.prop.mass, bearA);
         }
-        engNodes.push(NL, NR); engIdx.push(0, 1);
+        engNodes.push(NL, NR); engIdx.push(iE, LAYF ? i + 1 : 1);
+        if (LAYF) engCowl.push([NL, NL], [NR, NR]);
       }
     }
     EL = engNodes[0]; ER = engNodes[1];
@@ -37978,13 +39422,25 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // pillar rule below is unchanged — GATE BUILD's "old layouts resolve
   // exactly as they did" holds to the millimetre.
   const seatsX = Array.isArray(S.cab && S.cab.seatsX) ? S.cab.seatsX : null;
-  const billAt = (x, m) => {
+  // G3570 (DC3-2, 2026-10-24): A RAISED CABIN FLOOR CARRIES WHAT STANDS ON IT. `cabin.floorUp` (the cage's 'cabin
+  // floor height', metres over the floor the door sills give) lifts the floor, its seats, the people and the bags on
+  // it: what the frame billed on a ring's bottom pair (BL / BR) is shared with its top pair (TL / TR) so the mass
+  // centre stands floorUp higher. Absent (every build before the row): onRing is pt, to the bit
+  const floorUp = (S.cab && S.cab.floorUp > 0) ? S.cab.floorUp : 0;
+  const onRing = (rg, sd, m) => {
+    const b = rg['B' + sd], t = rg['T' + sd];
+    if (!(floorUp > 0) || t == null) { pt(b, m); return; }
+    const w = Math.max(0, Math.min(1, floorUp / Math.max(1e-6, P[t][1] - P[b][1])));
+    pt(b, m * (1 - w)); pt(t, m * w);
+  };
+  const billAt = (x, m, up) => {
     const [f, a] = straddle(x);
-    if (f === a || !F[a]) { pt(F[f].BL, 0.5 * m); pt(F[f].BR, 0.5 * m); return; }
+    const put = up ? onRing : (rg, sd, mm) => pt(rg['B' + sd], mm);
+    if (f === a || !F[a]) { put(F[f], 'L', 0.5 * m); put(F[f], 'R', 0.5 * m); return; }
     const x0 = ST[f].x, x1 = ST[a].x;
     const wa = Math.max(0, Math.min(1, (x - x0) / Math.max(1e-6, x1 - x0)));
-    pt(F[f].BL, 0.5 * m * (1 - wa)); pt(F[f].BR, 0.5 * m * (1 - wa));
-    pt(F[a].BL, 0.5 * m * wa);       pt(F[a].BR, 0.5 * m * wa);
+    put(F[f], 'L', 0.5 * m * (1 - wa)); put(F[f], 'R', 0.5 * m * (1 - wa));
+    put(F[a], 'L', 0.5 * m * wa);       put(F[a], 'R', 0.5 * m * wa);
   };
   const seatAt = i => (seatsX && typeof seatsX[i] === 'number') ? seatsX[i] : null;
   // WHICH CHAIRS ARE FILLED (G180). `S.occupied` is the resolved per-seat
@@ -37999,11 +39455,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   for (let i = 0; i < nSeats; i++) {
     if (occ ? !occ[i] : i >= aboard) continue;
     const sx = seatAt(i);
-    if (sx != null) { billAt(sx, 80); continue; }
-    const ri = seatRows[i] != null ? Math.min(seatRows[i], F.length - 1)
+    if (sx != null) { billAt(sx, 80, true); continue; }
+    // (G3504: a layout's second row is the cabin's rear ring, wherever the long cabin's frames put it)
+    const ri = seatRows[i] != null ? Math.min(seatRows[i] >= 2 ? seatRows[i] + nCabSub : seatRows[i], F.length - 1)
              : Math.min(1 + Math.floor(i / abreast), F.length - 1);
     const rg = F[ri] || F[1];
-    pt(rg.BL, 40); pt(rg.BR, 40);
+    onRing(rg, 'L', 40); onRing(rg, 'R', 40);
   }
   // ---- THE ENERGY, ITS VESSELS AND WHERE THEY SIT (G98, placed at G99) ----
   // A vessel is a real solid in a declared bay, so its mass goes where the
@@ -38269,7 +39726,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // THE SEATS GO WHERE THE SEATS ARE. With measured stations each chair is
     // billed at its own; without, the front ring as before.
     if (seatsX && seatsX.length)
-      for (let i = 0; i < seats; i++) billAt(seatAt(i) != null ? seatAt(i) : ST[1].x, seat.kg);
+      for (let i = 0; i < seats; i++) billAt(seatAt(i) != null ? seatAt(i) : ST[1].x, seat.kg, true);
     else half(F[1].BL, F[1].BR, seatM);
     half(F[1].TL, F[1].TR, panelM + plumbM);
     // the cowl and the exhaust go where the ENGINE is (2026-09-04). On a
@@ -38282,16 +39739,24 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     if (noseEng && engOn) {
       half(F[0].TL, F[0].TR, 0.5 * cowlM); half(EL, ER, 0.5 * cowlM);
       half(EL, ER, exhM);
+      // G2790: a layout's every other engine wears its own cowl (nacelle)
+      // and its own exhaust, on its own mount nodes
+      for (const [a, b] of engCowl) half(a, b, cowlM + exhM);
+    } else if (engCowl.length) {
+      for (const [a, b] of engCowl) half(a, b, cowlM + exhM);
     } else {
       half(noseEng ? F[0].TL : EL, noseEng ? F[0].TR : ER, cowlM);
       half(noseEng ? F[0].BL : EL, noseEng ? F[0].BR : ER, exhM);
     }
     half(F[1].TL, F[1].TR, glassM);
     half(F[1].BL, F[1].BR, 0.5 * ctlM);
-    half(F[2].BL, F[2].BR, 0.5 * ctlM);
-    // the furnishing on the cabin floor, both rings
+    half(F[iCabR].BL, F[iCabR].BR, 0.5 * ctlM);         // G3504: the cabin's rear ring
+    // the furnishing on the cabin floor, both rings (G3570: the floor is in it - at the raised floor's height)
+    if (floorUp > 0) for (const rg of [F[1], F[iCabR]]) { onRing(rg, 'L', 0.25 * furnM); onRing(rg, 'R', 0.25 * furnM); }
+    else {
     half(F[1].BL, F[1].BR, 0.5 * furnM);
-    half(F[2].BL, F[2].BR, 0.5 * furnM);
+    half(F[iCabR].BL, F[iCabR].BR, 0.5 * furnM);
+    }
     spend(Math.round(seat.price * seats + 40 * (panelM + cowlM + glassM) +
                      28 * (exhM + plumbM + ctlM) + 60 * furnM));
   }
@@ -38323,7 +39788,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   if (fu.cargoLen > 1e-6) {
     // the bay spans frames 2 (cabin rear) and 3 (its own aft bulkhead); spread
     // the freight across both so it sits IN the bay rather than on one end
-    for (const rg of [F[2], F[3]]) { pt(rg.BL, 0.25 * load); pt(rg.BR, 0.25 * load); }
+    for (const rg of [F[iCabR], F[iCabR + 1]]) { pt(rg.BL, 0.25 * load); pt(rg.BR, 0.25 * load); }
   } else {
     // ...IN THE BOX, behind the last seat (G457): the "baggage frame" was
     // ring 3 — on a build whose box ends at ring 2 that is the first TAIL
@@ -38333,10 +39798,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // middle is where the load goes, split between the rings by lever.
     const lastSeat = seatsX && seatsX.length ? Math.max(...seatsX.filter(v => typeof v === 'number')) : null;
     const boxX = ST.reduce((m, s) => (s.x <= boxRear + 1e-6 ? Math.max(m, s.x) : m), 0);
-    if (lastSeat != null && isFinite(lastSeat) && lastSeat < boxX) billAt(0.5 * (lastSeat + boxX), load);
+    if (lastSeat != null && isFinite(lastSeat) && lastSeat < boxX) billAt(0.5 * (lastSeat + boxX), load, true);
     else { const bi = ST.findIndex(s => Math.abs(s.x - boxX) < 1e-6);
-           const bag = F[bi >= 0 ? bi : Math.min(3, F.length - 1)];
-           pt(bag.BL, 0.5 * load); pt(bag.BR, 0.5 * load); }
+           const bag = F[bi >= 0 ? bi : Math.min(iCabR + 1, F.length - 1)];
+           onRing(bag, 'L', 0.5 * load); onRing(bag, 'R', 0.5 * load); }
   }
 
   // THE BELLY POD (G2410, BELLY-POD; src/core/60d_gen_pod.js). Off by default and absent by default: with no pod no
@@ -38356,7 +39821,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     noseFrame: [F[0].BL, F[0].BR, F[0].TL, F[0].TR],
     tailMid: [TPB, TPT],
     upLo: [F[0].BL, F[0].BR], upHi: [F[0].TL, F[0].TR],
-    fusDrag: [F[2].BL, F[2].BR, F[2].TL, F[2].TR],
+    fusDrag: [F[iCabR].BL, F[iCabR].BR, F[iCabR].TL, F[iCabR].TR],
     fusDragAft: [F[F.length-2].BL, F[F.length-2].BR, F[F.length-2].TL, F[F.length-2].TR],
     engine: engNodes, engineOf: engIdx, mains: [GAL, GAR], tw: TW, fin: FIN, fin2: FIN2,
     // THE DRAWING'S DATUM IS THE WING CARRY-THROUGH (G179.3, the user: "we
@@ -38742,7 +40207,26 @@ function genStrips(S, fr) {
       ? (z => { const u = (Math.abs(z) - E0.z) / Reff;
                 return Math.max(0, 1 - u * u); })
     : () => 0;
-  const tailWash = mount === 'wing' ? 0 : 1;
+  let tailWash = mount === 'wing' ? 0 : 1;
+  // G2790 ENGINE-CONFIGS: a LAYOUT blows from every disc it has — a nose
+  // engine washes the centre and inboard wing as above, each wing nacelle
+  // that pulls washes the wing about its own station (the strongest wake a
+  // strip sits in), the pusher of a push-pull blows on nothing ahead of it;
+  // the tail flies in the centreline wake whenever there is one (a nose or
+  // a pusher), between the nacelles' wakes not at all.
+  const LAYS = S.engLayout === 'pushPull' || S.engLayout === 'tri' || S.engLayout === 'quad';
+  let wingWashL = wingWash, cWashL = null;
+  if (LAYS) {
+    const nose = S.engAt.some(e => e.mount === 'nose');
+    const nacZ = S.engAt.filter(e => e.mount === 'wing' && e.side < 0 && !e.pushes).map(e => e.z);
+    wingWashL = z => {
+      let w = nose ? washAt(z) : 0;
+      for (const zn of nacZ) { const u = (Math.abs(z) - zn) / Reff; w = Math.max(w, 1 - u * u); }
+      return Math.max(0, w);
+    };
+    cWashL = nose ? 1 : 0;
+    tailWash = S.engAt.some(e => e.mount === 'nose' || e.mount === 'pusher') ? 1 : 0;
+  }
   // c/4 between the spars: weight the front spar by how far the quarter chord
   // sits from the rear one
   const cf = (P.sparRear - 0.25) / (P.sparRear - P.sparFront), cr = 1 - cf;
@@ -38810,7 +40294,7 @@ function genStrips(S, fr) {
           fIn: fw.F[b], fOut: fw.F[b + 1], rIn: fw.R[b], rOut: fw.R[b + 1],
           w: [[fw.F[b], cf * (1 - t)], [fw.F[b + 1], cf * t],
               [fw.R[b], cr * (1 - t)], [fw.R[b + 1], cr * t]],
-          wash: k === 0 ? wingWash(zc) : wingWash(zc) * fyk,
+          wash: k === 0 ? wingWashL(zc) : wingWashL(zc) * fyk,
           ail: zc > aStart ? kAil : 0, flap: fFrac * kFlap,
           // G185: the plane this strip belongs to, its plane's spar spacing
           // (the Cm0 couple arm) and the quarter-chord weight — the solver
@@ -38824,7 +40308,8 @@ function genStrips(S, fr) {
   // off the WING's own spar roots, not the fuselage frames — otherwise the
   // centre section's lift stays behind when the wing is moved.
   const cL = PL.wf.L, cR2 = PL.wf.R;
-  const cWash = mount === 'nose' ? 1 : (mount === 'wingTop' && !pushes) ? 0.6 : 0;
+  const cWash = cWashL != null ? cWashL
+    : mount === 'nose' ? 1 : (mount === 'wingTop' && !pushes) ? 0.6 : 0;
   // G274: the strip is what the centre construction leaves of the bay's
   // skin — a half cut lifts on 62 % of the chord, 'removed' on none (the
   // strip is dropped: two half-wings on a bare carry-through)
@@ -38923,6 +40408,47 @@ function genStrips(S, fr) {
   return strips;
 }
 
+// ENGINE-CONFIGS-2 (G3490, 2026-10-22): WHOSE WAKE A LAYOUT'S STRIP FLIES IN. The solver's wash is the MEAN disc
+// (T / nE) - fine while every engine runs, wrong the moment one stops: a dead nose left half the wash on the tail, a
+// dead nacelle half the wash on its own wing. A layout's every strip names its disc (`washE`): the engine whose wake
+// is the strongest at the strip (the nose's or a pulling nacelle's of the strip's own side, by the same laws
+// genStrips blew them with), the tail the nose's - or, on a push-pull, -2: THE CENTRELINE IN SERIES, the two coaxial
+// discs' thrust through one disc (the pusher swallows the nose's slipstream and accelerates it again). -1 is a strip
+// no disc reaches (the mean, which it multiplies by a zero wash). A twin boom's fins stand outside a push-pull's
+// centreline wake (the booms are set the rear disc's radius + 0.30 m out): they lose it. Called only for a layout,
+// so every other def's strips are the objects they were.
+function genStripsLayout(S, fr, strips) {
+  const LAY = S.engLayout;
+  if (!(LAY === 'pushPull' || LAY === 'tri' || LAY === 'quad')) return strips;
+  const R = GEN_RULES, PP = S.pplant || POWERPLANTS[S.engine];
+  const Reff = ((S.prop && S.prop.D ? S.prop.D : PP.prop.D) / 2) * R.washSpread;
+  const N = fr.nodes, zOf = st => {
+    let z = 0, ws = 0;
+    for (const [i, w] of st.w) { z += N[i].p[2] * w; ws += w; }
+    return ws > 0 ? z / ws : 0;
+  };
+  const iNose = S.engAt.findIndex(e => e.mount === 'nose');
+  const nac = [];
+  S.engAt.forEach((e, i) => { if (e.mount === 'wing' && !e.pushes) nac.push({ i, z: e.z, side: e.side }); });
+  const tailE = LAY === 'pushPull' ? -2 : iNose;
+  for (const st of strips) {
+    if (st.kind === 'wing') {
+      const z = zOf(st), az = Math.abs(z), sd = z < 0 ? -1 : 1;
+      let best = -1, bw = 0;
+      if (iNose >= 0) { bw = Math.max(0, 1 - (az / Reff) * (az / Reff)); if (bw > 0) best = iNose; }
+      for (const n of nac) if (n.side === sd) {
+        const u = (az - n.z) / Reff, w = 1 - u * u;
+        if (w > bw) { bw = w; best = n.i; }
+      }
+      st.washE = best;
+    } else {
+      if (st.kind === 'fin' && LAY === 'pushPull' && Math.abs(zOf(st)) > Reff) st.wash = 0;
+      st.washE = st.wash > 0 ? tailE : -1;
+    }
+  }
+  return strips;
+}
+
 // THE WETTED BODY (PERF STUDY chantier 2, 2026-09-15). The surface the air
 // rubs on, from the DECLARED loft — the frame's station table (x, half
 // width, floor, deck) closed by the spec's own section curve (genSect at
@@ -39018,10 +40544,14 @@ function genFusCdA(S, fr) {
   const ST = fr.parts.ST;
   let frontal = 0, sFwd = 0, sAft = 0;
   for (const s of ST) frontal = Math.max(frontal, 2 * s.w * (s.yt - s.yb));
+  // the nose and the cabin bays are the forward body: rings 0-2, or to the cabin's rear ring when a long cabin has
+  // frames along it (G3504, 61_gen_frame iCabR; GEN_RULES.cabBayMax)
+  const cabLen = S.cab && S.cab.len, iCR = (GEN_RULES.cabBayMax > 0 && cabLen > GEN_RULES.cabBayMax + 1e-6)
+    ? Math.max(2, ST.findIndex(s => Math.abs(s.x - (S.cab.noseGap + cabLen)) < 1e-6)) : 2;
   for (let i = 0; i < ST.length - 1; i++) {
     const a = ST[i], b = ST[i + 1];
     const A = 0.5 * ((a.yt - a.yb) + (b.yt - b.yb)) * (b.x - a.x);
-    if (i < 2) sFwd += A; else sAft += A;
+    if (i < iCR) sFwd += A; else sAft += A;
   }
   const D = GEN_DRAG, M = GEN_MATERIALS[S.material] || GEN_MATERIALS.tubeFabric;
   const wet = genFusSwet(S, ST);
@@ -42122,6 +43652,18 @@ function genShakedown(def, opts) {
     out.propClear = ((S.engAt ? Math.min(...S.engAt.map(e => e.y)) : S.engY)
                      - S.propR) - ground;
     out.engMount = S.engAt ? S.engAt[0].mount : 'nose';
+    // G2790 ENGINE-CONFIGS: THE REAR DISC BETWEEN THE BOOMS. A push-pull's
+    // pusher turns between the twin booms (the Skymaster's whole layout):
+    // the clearance is each boom's inner face (its station less its drawn
+    // radius) less the disc's radius, and the stab sits that many metres
+    // aft of the disc. Said only for a layout, so no other plaque moves.
+    if (S.engLayout === 'pushPull') {
+      const t = S.tail, pu = S.engAt.find(e => e.mount === 'pusher');
+      const tb = t.type === 'twinBoom' && t.boomX > 0 && t.boomLen > 0;
+      out.engLayout = S.engLayout;
+      out.propBoomClear = tb ? t.boomX - Math.max(0.04, t.boomR || 0.09) - S.propR : null;
+      out.propStabClear = (tb && pu && t.hX != null) ? t.hX - pu.x : null;
+    } else if (S.engLayout === 'tri' || S.engLayout === 'quad') out.engLayout = S.engLayout;
     out.nEngines = S.engines.length;
     // The two halves of the split suspension height, as BUILT rather than as
     // asked for: legDrop is the knob, but gear.y can be bound by prop clearance
@@ -42459,7 +44001,7 @@ function buildGen(specIn) {
     if (S.gear[k] === null || S.gear[k] === undefined) S._auto['gear.' + k] = true;
     S.gear[k] = v;
   }
-  const strips = genStrips(S, fr);
+  const strips = genStripsLayout(S, fr, genStrips(S, fr));   // (ENGINE-CONFIGS-2: a layout's strips name their disc)
   const params = genParams(S, fr, strips);
   const def = { nodes: fr.nodes, beams: fr.beams, strips, refs: fr.refs, params };
   def.spec = S; def.parts = fr.parts;
@@ -43054,6 +44596,30 @@ function genDesignCheck(def, sh, simIn, opts) {
   return { verdict: worst, rows,
            modes: { spiral: lat.spiral, roll: lat.roll, dutch: lat.dutch, short: sp },
            deriv: D };
+}
+
+// ---- P1 CG-COLOURS (the user, 24 Oct: "the garage's CG / neutral point indicators get clear colour coding: RED = bad,
+// ORANGE = acceptable, GREEN = good and safe - ONLY that coding, an added "!" in the wording for red and orange, and a
+// tooltip explaining the reasons"). THE BAND OF A STATIC MARGIN (CG ahead of the neutral point, fraction of the mean
+// chord), one function so the garage's posts and the gate read the same edges. PROPOSED edges (the user judges them
+// from the stills): below 0 the aeroplane is unstable in pitch (red); 0-5 % flies but wanders (orange - the indicator's
+// old red line); over 40 % is the design check's own nose-heavy warn (orange); 5-40 % stable (green). The bench's own
+// pitch.sm row (above) is NOT changed: it warns below 2 % - the certification rule is CERT-REVIEW's.
+const GEN_MARGIN_BANDS = { unstable: 0, comfy: 0.05, noseHeavy: 0.40 };
+function genMarginBand(sm) {
+  if (sm == null || typeof sm !== 'number' || !isFinite(sm)) return null;
+  const pct = Math.round(Math.abs(sm) * 100), B = GEN_MARGIN_BANDS;
+  if (sm < B.unstable) return { band: 'red', mark: '!', title: 'unstable in pitch',
+    why: 'the centre of gravity is ' + pct + ' % of the wing chord BEHIND the neutral point: after a bump the nose keeps going, and no trim holds it',
+    fix: 'move weight forward (engine, pilot, tank, battery) or the wing aft, until the margin is over 5 %' };
+  if (sm < B.comfy) return { band: 'orange', mark: '!', title: 'barely stable',
+    why: 'a ' + pct + ' % margin: it flies, but the nose wanders and it is tiring to fly hands-off',
+    fix: 'a little weight forward or the wing a little aft: 5 % or more is comfortable' };
+  if (sm > B.noseHeavy) return { band: 'orange', mark: '!', title: 'very nose-heavy',
+    why: 'a ' + pct + ' % margin: steady, but the elevator may run out when you raise the nose to land',
+    fix: 'move weight aft or the wing forward, or give the tail more area' };
+  return { band: 'green', mark: '', title: 'stable',
+    why: 'a ' + pct + ' % margin: the nose comes back by itself after a gust', fix: '' };
 }
 // ============================================================
 // GARAGE 5/5 — the LOAD TEST RIG. Static proof-of-structure, in the sim.
@@ -45084,7 +46650,18 @@ const BASE_OFFERS = {
     // the field shell's widest): with every kit the story's ultralight (Rufus, class ul1) stands inside; a Cub does not, and
     // the story never brings one here (its client Cub lives at HOME) - `takes` names the class the offer is held to
     plots: { w1: { shells: ['field'], kits: ['park', 'bench', 'wood', 'metal', 'store', 'handling', 'comfort', 'curio', 'wip'], pf: 0.6,
-                   takes: 'ul1', dims: { field: { HW: 10, HD: 11, EAVE: 4.0 } } } },
+                   takes: 'ul1', dims: { field: { HW: 10, HD: 11, EAVE: 4.0 } },
+                   // (G3353, the user 22 Oct: "get rid of the large router (the largest of the woodworking machines). Keep
+                   // only the 2 smaller ones (the drill and another)") the two smallest machines stay - the pillar drill and
+                   // the thicknesser; the panel saw (4.4 x 3.6 m), the band saw and the surface planer are left out
+                   omit: ['panelsaw', 'bandsaw', 'jointer'],
+                   // (G3354, the user 22 Oct: "We need light in the cabin, right now it's a dark hole") a work lamp hung
+                   // ahead of the stand, aimed into the ultralight's cockpit (hangar.js opts.workLamp)
+                   workLamp: { cd: 40 },
+                   // (G3354, the user 22 Oct: "Maybe the lamps are too directly on top of the wing") the field cross hung
+                   // one fitting over the stand and two over the 9.8 m wing's tips: those three hang ahead of the leading
+                   // edge instead (the 23 Oct stills' pick, d2), the fore and aft fittings stay. hangar.js LAMP_XZ units
+                   lampXZ: [[-8, 0], [-3.1, 0], [8, 0], [-3.1, 7.6], [-3.1, -7.6]] } },
   },
   HOME: {
     words: 'Jolene AFB · the WWII field',
@@ -45096,7 +46673,7 @@ const BASE_OFFERS = {
     },
   },
   w3: {
-    words: 'Tamgas Hill · a strip above the trees',
+    words: GAME_NAMES.hill + ' · a strip above the trees',
     plots: { w3: { shells: ['field'], kits: ['park', 'bench'], pf: 0.8,
                    dims: { field: { HW: 8.5, HD: 9, EAVE: 3.6 } } } },
   },
@@ -45106,17 +46683,24 @@ const BASE_OFFERS = {
                        dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } } },
   },
   mn_strip: {
-    words: 'Jumbo Mine · a derelict shed on the street',
+    words: GAME_NAMES.mine + ' · a derelict shed on the street',
     plots: { mn_strip: { shells: ['field'], kits: ['park', 'bench', 'curio'], pf: 0.5, derelict: true } },
   },
   SEA: {
-    words: 'Annette Dock · a slipway',
+    words: GAME_NAMES.fields.SEA + ' · a slipway',
     plots: { SEA: { shells: ['field', 'club'], kits: ['park', 'store'], pf: 1, water: true,
                     dims: { field: { HW: 9, HD: 10, EAVE: 4.4 } } } },
   },
   mk_sea: {
-    words: 'Metlakatla · the seaplane float',
+    words: GAME_NAMES.town + ' · the seaplane float',
     plots: { mk_sea: { shells: ['field'], kits: ['park'], pf: 0.8, water: true,
+                       dims: { field: { HW: 9, HD: 10, EAVE: 4.4 } } } },
+  },
+  // CABIN-LAKE (the user, 25 Oct via A0: "add a seaplane lane on the lake in front of the cabin strip? Where I installed piers?"):
+  // the lake below the Cabin Strip, a slipway shed on the north shore by the user's trestle pier
+  cb_sea: {
+    words: GAME_NAMES.fields.cb_sea + ' · a slipway by the cabin',
+    plots: { cb_sea: { shells: ['field'], kits: ['park'], pf: 0.7, water: true,
                        dims: { field: { HW: 9, HD: 10, EAVE: 4.4 } } } },
   },
 };
@@ -45163,7 +46747,7 @@ const PREM_STORE = {
   outsideMax: 6,
   // w5-w8: the field club's and SHIP-2's contract fields, cooked since train 52 / 53 (GATE STORAGE caught the pack ahead of this table);
   // w4 strip 9 + w1 the Cabin Strip (G3097, SCENERY-ED-2's cook)
-  spots: { w2: 12, HOME: 12, w3: 12, SEA: 12, mk_sea: 12, nv_strip: 5, mn_strip: 0, tw_ski: 0, w5: 7, w6: 12, w7: 12, w8: 12, w4: 0, w1: 11 },
+  spots: { w2: 12, HOME: 12, w3: 12, SEA: 12, mk_sea: 12, nv_strip: 5, mn_strip: 0, tw_ski: 0, w5: 7, w6: 12, w7: 12, w8: 12, w4: 0, w1: 3, cb_sea: 12 },
   kinds: ['floor', 'inside', 'outside', 'long', 'away'],
 };
 // THE OUTSIDE WEAR (GQ7): visible chalking and streaks after ~10 flown hours
@@ -45200,7 +46784,8 @@ function hangarObstacles(shed, reg) {
   if (typeof hangarFit !== 'function') return [];
   const kits = (shed && Array.isArray(shed.kits) && shed.kits.length) ? shed.kits : ['park'];
   // G2315: the shed's LAYOUT (cozy: the career's works) stands the kits elsewhere - its rows are the floor's obstacles
-  const fit = hangarFit(hangarDims(shed), kits, { shell: (shed && shed.shell) || 'club', reg, layout: shed && shed.layout });
+  const fit = hangarFit(hangarDims(shed), kits, { shell: (shed && shed.shell) || 'club', reg, layout: shed && shed.layout,
+    omit: shed && shed.omit });   // G3353
   const orient = (f, ry) => (Math.round((ry || 0) / (Math.PI / 2)) & 1) ? [f[1], f[0]] : [f[0], f[1]];
   const out = [];
   for (const p of fit.placed) {
@@ -46245,6 +47830,214 @@ function playerPlotSite(site, hangarId, shed) {
   delete out.plots;
   return { site: out, plot: P, own: true };
 }
+// GENERATED by tools/portrait_prep.py all (G3615) - the portraits of the people as cut, content-named: do not edit.
+// <id>_<px> -> the file under media/people/ (72_people.js peopleFace reads it).
+const PEOPLE_FACES = {
+  'adam_128': 'adam_128.584464c9.webp',
+  'adam_256': 'adam_256.d94f3b8a.webp',
+  'adam_512': 'adam_512.32e313af.webp',
+  'brian_128': 'brian_128.5922e5fb.webp',
+  'brian_256': 'brian_256.25309439.webp',
+  'brian_512': 'brian_512.49a7cce0.webp',
+  'bryce_128': 'bryce_128.6930d44a.webp',
+  'bryce_256': 'bryce_256.daa2314d.webp',
+  'bryce_512': 'bryce_512.55b84aff.webp',
+  'david_128': 'david_128.3c4b0f05.webp',
+  'david_256': 'david_256.8714862f.webp',
+  'david_512': 'david_512.39cf4231.webp',
+  'elizabeth_128': 'elizabeth_128.5b66b5b5.webp',
+  'elizabeth_256': 'elizabeth_256.31ff8a5b.webp',
+  'elizabeth_512': 'elizabeth_512.544e510f.webp',
+  'james_128': 'james_128.93923ec7.webp',
+  'james_256': 'james_256.e5fa7d63.webp',
+  'james_512': 'james_512.65e27d0d.webp',
+  'jody_128': 'jody_128.0d6d856a.webp',
+  'jody_256': 'jody_256.c36e4810.webp',
+  'jody_512': 'jody_512.4396816b.webp',
+  'kate_128': 'kate_128.a80874c0.webp',
+  'kate_256': 'kate_256.27937e85.webp',
+  'kate_512': 'kate_512.24d61fbe.webp',
+  'leonard_128': 'leonard_128.7e898136.webp',
+  'leonard_256': 'leonard_256.45b46aa2.webp',
+  'leonard_512': 'leonard_512.4da17cfc.webp',
+  'martha_128': 'martha_128.ff0d5745.webp',
+  'martha_256': 'martha_256.577fa73b.webp',
+  'martha_512': 'martha_512.50ef2cdf.webp',
+  'megan_128': 'megan_128.604d5860.webp',
+  'megan_256': 'megan_256.6d0263b5.webp',
+  'megan_512': 'megan_512.2fe97fbf.webp',
+  'pete_128': 'pete_128.703b3256.webp',
+  'pete_256': 'pete_256.4727dee7.webp',
+  'pete_512': 'pete_512.e30178a4.webp',
+  'remy_128': 'remy_128.656b3883.webp',
+  'remy_256': 'remy_256.bc804d84.webp',
+  'remy_512': 'remy_512.029254fc.webp',
+  'sophie_128': 'sophie_128.09bcddcd.webp',
+  'sophie_256': 'sophie_256.205de36a.webp',
+  'sophie_512': 'sophie_512.78520191.webp',
+  'stig_128': 'stig_128.1143636f.webp',
+  'stig_256': 'stig_256.67ae682d.webp',
+  'stig_512': 'stig_512.bbf70577.webp',
+  'tim_128': 'tim_128.e79b7778.webp',
+  'tim_256': 'tim_256.82f39c2e.webp',
+  'tim_512': 'tim_512.eab43459.webp',
+};
+// GENERATED by tools/portrait_prep.py bgs (G3620) - the portrait backgrounds as cut, content-named: do not edit.
+// <the user file name>_<px> -> the file under media/people/ (72_people.js peopleBg reads it).
+const PEOPLE_BGS = {
+  'BG-Tim_512': 'BG-Tim_512.2715a336.webp',
+  'BG-local-man_512': 'BG-local-man_512.d32bac64.webp',
+  'BG-local-woman_512': 'BG-local-woman_512.8e1c9941.webp',
+  'BG-pilot-amateur_512': 'BG-pilot-amateur_512.a6f4f559.webp',
+  'BG-pilot-bush_512': 'BG-pilot-bush_512.7f1cc5ef.webp',
+  'BG-pilot-normal_512': 'BG-pilot-normal_512.14d995f5.webp',
+  'BG-pilot-rookie_512': 'BG-pilot-rookie_512.63a27c63.webp',
+  'BG-tourist-indoorsy_512': 'BG-tourist-indoorsy_512.a4858dc0.webp',
+  'BG-tourist-normal_512': 'BG-tourist-normal_512.78f43099.webp',
+  'BG-worker_512': 'BG-worker_512.d0bf287b.webp',
+};
+// ===========================================================================
+// THE PEOPLE (G3614 PEOPLE, the user 25 Oct) — one list of everyone in the game, the only one: each person a name, a
+// portrait, a 3D body (a tools/chars_table.py key) and ONE role at a time. Every other table (76_pilots.js's roster, the
+// contracts' clients, the crowd's passengers, Tim's band) reads its people from here.
+//   "Let's build a generic list of people internally, that we can use either as clients or pilots."
+//   "The new official persona replace your made-up ones" - Kit / Rafe / Sky and the companion are gone ("We were always
+//   flying solo, or with passengers, but no co-pilot").
+// THE ROLES:
+//   reserved   the story's own: Stig (the test pilot), Sophie ("your girlfriend") and Tim ("always just a voice on the
+//              phone, we never see him": a portrait, never a body). Never a client, a pilot for hire or a passenger.
+//   client     the face of one contract provider (72_contract_data.js's five), shown beside its contracts on the map
+//   pilot      hirable (76_pilots.js); `fly` is the pilot's person - THE SAME SHAPE AS 76_'s roster rows: { profile:
+//              { base, knobs }, style, traits, grow, pack? } - and `from` the narrative pack's pilot it wears (GATE
+//              PILOTS holds the numbers to the pack's Block 3: each of the four tuned persons stays on the body it
+//              always had, only the name and the face became official)
+//   passenger  the random pool (the crowd's queue, G2970 / G3619) - a client still rides its own provider's jobs
+// THE BODIES: Brian = Ch01 (the user 25 Oct: "He's ch01. Bald, with a white polo"), Bryce = Ch42, Sophie = ch02 (the FBX
+// filed as brian_Ch02 is hers), Megan = Ch22. `char` is the tools/chars_table.py KEY: the crew's bakes by their Mixamo
+// number (ch01 ch02 ch20 ch22 ch42, remy), the crowd's cast by the person (david elizabeth james leonard martha); adam /
+// jody / kate / pete (Mixamo Ch08 / Ch37 / Ch21 / Ch17) are baked by G3617 under those keys - until then the crowd skips a
+// person whose body it does not hold (window.CROWD.castKeys).
+// THE PORTRAITS (G3615): media/people/<id>_<px>.webp, px in PEOPLE_FACE_PX, cut from the user's originals
+// (assets/chars/people, never written) by tools/portrait_prep.py: premultiplied resizes and a clean edge (no red
+// specks round the hair - the user, 25 Oct: "unacceptable"). Fetched only when shown: never at boot, never precached.
+// THE BACKGROUNDS (G3620, the user 26 Oct: "here are backgrounds for the characters. They're fit for a type of character
+// in the game ... Small portrait heads keep their transparency, only when displayed in large format do they get their
+// background"; and "the mapping is in the name"): the user's ten BG-<type> pictures, keyed BY THEIR NAMES. Each person
+// is given the TYPE their role makes them (PEOPLE_BG: a pilot by experience level, a client or passenger by what they
+// are). A large display (the hire cards, the map's big contract portrait) LAYERS the untouched transparent head over
+// peopleBg(id) - never baked into the head, so every small head (map rows, chips, Tim's band) stays transparent.
+// media/people/BG-<type>_<px>.<sha8>.webp, cut from the user's originals by tools/portrait_prep.py bgs, fetched only
+// when a large display is drawn.
+// Pure data + pure helpers: no DOM, no storage, no clock, no random (the pool takes a seed).
+// ===========================================================================
+const PEOPLE_V = 1;
+const PEOPLE_ROLES = ['reserved', 'client', 'pilot', 'passenger'];
+const PEOPLE_FACE_PX = [128, 256, 512];
+const PEOPLE_FACE_DIR = 'media/people/';
+const PEOPLE_BG_PX = 512;   // the backgrounds' one cut: a hire card is ~230-300 CSS px wide (512 = sharp at 2x)
+// the user's backgrounds BY THEIR NAMES (backgrounds-2026-10-26/BG-<type>.png: the name is the type of character it is
+// for), each with who wears it (PEOPLE_BG below; GATE PILOTS holds the two agreeing)
+const PEOPLE_BG_SCENES = {
+  'BG-Tim':              { who: ['tim'] },
+  'BG-pilot-rookie':     { who: ['remy'] },
+  'BG-pilot-amateur':    { who: ['brian'] },
+  'BG-pilot-normal':     { who: ['stig', 'bryce'] },
+  'BG-pilot-bush':       { who: ['megan'] },
+  'BG-worker':           { who: ['pete', 'kate'] },
+  'BG-local-man':        { who: ['leonard', 'james'] },
+  'BG-local-woman':      { who: ['sophie', 'martha'] },
+  'BG-tourist-normal':   { who: ['adam', 'david'] },
+  'BG-tourist-indoorsy': { who: ['elizabeth', 'jody'] },
+};
+// a hired pilot's type is their experience level (76_pilots.js PILOTS_LEVEL's base -> the user's pilot types)
+const PEOPLE_BG_PILOT = { student: 'BG-pilot-rookie', club: 'BG-pilot-amateur', hamfist: 'BG-pilot-normal', bush: 'BG-pilot-bush', expert: 'BG-pilot-normal' };
+const GAME_PEOPLE = {
+  // ---- reserved: the story's own ----
+  stig:      { id: 'stig',      name: 'Stig',      file: 'Stig',      char: 'ch20', role: 'reserved', why: 'the test pilot' },
+  sophie:    { id: 'sophie',    name: 'Sophie',    file: 'Sofie',     char: 'ch02', role: 'reserved', why: 'your girlfriend' },
+  tim:       { id: 'tim',       name: 'Tim',       file: 'Tim',       char: null,   role: 'reserved', why: 'your friend and business partner: a voice on the phone', voice: true },
+  // ---- clients: one face per provider (72_contract_data.js CONTRACT_PROVIDERS) ----
+  leonard:   { id: 'leonard',   name: 'Leonard',   file: 'Leonard',   char: 'leonard', role: 'client', org: 'field' },
+  pete:      { id: 'pete',      name: 'Pete',      file: 'Pete',      char: 'pete', role: 'client', org: 'minedock' },
+  martha:    { id: 'martha',    name: 'Martha',    file: 'Martha',    char: 'martha', role: 'client', org: 'resort' },
+  kate:      { id: 'kate',      name: 'Kate',      file: 'Kate',      char: 'kate', role: 'client', org: 'survey' },
+  adam:      { id: 'adam',      name: 'Adam',      file: 'adam',      char: 'adam', role: 'client', org: 'clients' },
+  // ---- pilots for hire: the pack's four tuned persons, on the bodies they always wore ----
+  brian:     { id: 'brian',     name: 'Brian',     file: 'Brian',     char: 'ch01', role: 'pilot', from: 'kit',
+               fly: { profile: { base: 'club', knobs: { reaction: 0.25, smooth: 0.8, bankK: 0.85, comfortG: 1.25 } },
+                      style: 'cautious', traits: ['mechanic', 'cautious', 'night-shy'], grow: { rate: 'steady', ceiling: 'bush' } } },
+  bryce:     { id: 'bryce',     name: 'Bryce',     file: 'Bryce',     char: 'ch42', role: 'pilot', from: 'rafe',
+               fly: { profile: { base: 'hamfist', knobs: { hamFist: 0.04, comfortG: 1.9, bankK: 1.25 } },
+                      style: 'normal', traits: ['fearless', 'hard-on-airframes'], grow: null,
+                      pack: { style: 'not given: normal', grow: 'not given: none (the rough hands stay)' } } },
+  remy:      { id: 'remy',      name: 'Remy',      file: 'Remy',      char: 'remy', role: 'pilot', from: 'remy',
+               fly: { profile: { base: 'student', knobs: { reaction: 0.40, overRotate: 0.03, flareK: 0.85 } },
+                      style: 'normal', traits: ['eager'], grow: { rate: 'fast', ceiling: 'expert' },
+                      pack: { style: 'not given: normal' } } },
+  megan:     { id: 'megan',     name: 'Megan',     file: 'Megan',     char: 'ch22', role: 'pilot', from: 'sky',
+               fly: { profile: { base: 'bush', knobs: { reaction: 0.12, smooth: 1.0, slip: true, field: 'short', bankK: 1.2, comfortG: 1.7 } },
+                      style: 'normal', traits: ['short-field', 'loves-taildraggers', 'refuses-nothing'], grow: { rate: 'steady', ceiling: 'expert' },
+                      pack: { style: 'not given: normal', grow: 'not given: steady to the expert, on tailwheel types only (loves taildraggers)' } } },
+  // ---- passengers: the random pool ----
+  david:     { id: 'david',     name: 'David',     file: 'David',     char: 'david', role: 'passenger' },
+  elizabeth: { id: 'elizabeth', name: 'Elizabeth', file: 'Elizabeth', char: 'elizabeth', role: 'passenger' },
+  james:     { id: 'james',     name: 'James',     file: 'James',     char: 'james', role: 'passenger' },
+  jody:      { id: 'jody',      name: 'Jody',      file: 'Jody',      char: 'jody', role: 'passenger' },
+};
+const PEOPLE_IDS = Object.keys(GAME_PEOPLE);
+// G3620 EACH PERSON'S TYPE (fixed by their role; GATE PILOTS: everyone has one, a pilot's is their level's)
+const PEOPLE_BG = {
+  tim: 'BG-Tim',                          // Tim's own
+  stig: 'BG-pilot-normal',                // the test pilot: a professional
+  sophie: 'BG-local-woman',               // your girlfriend: she lives here (not a pilot)
+  leonard: 'BG-local-man',                // the field's client: a local
+  pete: 'BG-worker',                      // the mine & dock: hard hat, hi-vis
+  martha: 'BG-local-woman',               // the resort's owner: a local
+  kate: 'BG-worker',                      // the survey: out on the job
+  adam: 'BG-tourist-normal',              // the charter clients: visitors
+  remy: 'BG-pilot-rookie',                // student: a fresh licence
+  brian: 'BG-pilot-amateur',              // club: the weekend pilot
+  bryce: 'BG-pilot-normal',               // hamfist: experienced, rough hands
+  megan: 'BG-pilot-bush',                 // bush
+  david: 'BG-tourist-normal',             // passengers: visitors and locals
+  elizabeth: 'BG-tourist-indoorsy',
+  james: 'BG-local-man',
+  jody: 'BG-tourist-indoorsy',
+};
+// the narrative pack's pilot ids -> the person wearing each (an older save's roster, the pack's import)
+const PEOPLE_FROM_PACK = PEOPLE_IDS.filter(id => GAME_PEOPLE[id].from).reduce((o, id) => (o[GAME_PEOPLE[id].from] = id, o), {});
+
+const peopleOf = role => PEOPLE_IDS.filter(id => GAME_PEOPLE[id].role === role);
+const peopleName = id => (GAME_PEOPLE[id] ? GAME_PEOPLE[id].name : String(id));
+// the face of a provider's contracts (null: none set)
+const peopleClientOf = org => PEOPLE_IDS.find(id => GAME_PEOPLE[id].role === 'client' && GAME_PEOPLE[id].org === org) || null;
+// the portrait's path for a display of `px` CSS pixels: the smallest cut at least that big (the largest past it); null
+// for no such person, or a cut tools/portrait_prep.py has not made
+function peopleFace(id, px) {
+  if (!GAME_PEOPLE[id]) return null;
+  const want = Math.max(1, +px || PEOPLE_FACE_PX[0]);
+  const cut = PEOPLE_FACE_PX.find(p => p >= want) || PEOPLE_FACE_PX[PEOPLE_FACE_PX.length - 1], k = id + '_' + cut;
+  const F = typeof PEOPLE_FACES !== 'undefined' ? PEOPLE_FACES : {};   // 72_people_faces.js: the content-named cut
+  return F[k] ? PEOPLE_FACE_DIR + F[k] : null;
+}
+// G3620 the background behind `id`'s head in a LARGE display (a hire card, the big contract portrait): the path of its
+// one cut, or null (no such person, no scene, or a cut tools/portrait_prep.py bgs has not made). Small heads never ask.
+function peopleBg(id) {
+  const sc = PEOPLE_BG[id], B = typeof PEOPLE_BGS !== 'undefined' ? PEOPLE_BGS : {};   // 72_people_bgs.js: content-named
+  const k = sc && PEOPLE_BG_SCENES[sc] ? sc + '_' + PEOPLE_BG_PX : null;
+  return k && B[k] ? PEOPLE_FACE_DIR + B[k] : null;
+}
+// n people of a role, drawn without repeats by a seed (the same seed, the same people, in the same order); fewer when
+// the role holds fewer. A string or number seed; the hash is FNV-1a, the draw a xorshift - no Math.random.
+function peoplePool(role, n, seed) {
+  const pool = peopleOf(role);
+  let h = 2166136261 >>> 0;
+  for (const ch of String(seed == null ? 0 : seed)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  const next = () => { h ^= h << 13; h >>>= 0; h ^= h >>> 17; h ^= h << 5; h >>>= 0; return h / 4294967296; };
+  const out = [], k = Math.min(Math.max(0, n | 0), pool.length);
+  while (out.length < k) out.push(pool.splice(Math.floor(next() * pool.length), 1)[0]);
+  return out;
+}
 // ===========================================================================
 // ACCEPT (G2270-G2279) — THE ACCEPTANCE OF A BUILD: THE CHECKS THAT NEED NO
 // FLIGHT, THE LEG THAT IS FLOWN, AND THE VERDICT OVER A CONTRACT'S CRITERIA.
@@ -46333,7 +48126,22 @@ const ACCEPT_KINDS = {
   rangeKm:      { src: 'flown',  op: '>=', unit: 'km',     what: 'TAS x the endurance, still air' },
   takeoffAt:    { src: 'flown',  op: '==', unit: '',       what: 'a take-off from that strip, in the logbook' },
   landAt:       { src: 'flown',  op: '==', unit: '',       what: 'a landing and a stop on that strip, in the logbook' },
+  // (MISSIONS-P2) THE AIRCRAFT ORDER'S NEW CRITERIA (73_contracts.js CONTRACT_CRIT_NEXT): the size off the measured plan
+  // (playerFootOfDef: the built nodes), the shakedown's numbers (ev.shake: genShakedown's { Vs, TORun, climbRate, mass },
+  // handed in by the bench - never computed here, GQ19), the leg's measured flow. A load (`at.pax` / `at.kg`) scales
+  // the shakedown's solo-full-fuel number by first-order laws (ACCEPT_LOAD_LAWS). ldgDistM and cargoL are not answered
+  // yet (no landing distance is measured; the hold's volume is the validated designs' only) - an order naming one waits.
+  heightM:      { src: 'static', op: '<=', unit: 'm',      what: 'the parked height: the built nodes (playerFootOfDef h)' },
+  lengthM:      { src: 'static', op: '<=', unit: 'm',      what: 'nose and propeller to tail: the built nodes (playerFootOfDef fwd + aft)' },
+  fitsShed:     { src: 'static', op: '==', unit: '',       what: 'through the shed’s door and parked inside it, its fit-out stood (hangarDoorWhy + hangarPark)' },
+  pax:          { src: 'static', op: '>=', unit: 'pax',    what: 'the seats beside the pilot (cabin.seats - 1)' },
+  stallKmh:     { src: 'static', op: '<=', unit: 'km/h',   what: 'the shakedown’s stall speed (Vs), at a load by the square-root law' },
+  toDistM:      { src: 'static', op: '<=', unit: 'm',      what: 'the shakedown’s take-off distance to the screen (TORun), at a load by the (W/W0)^2 law' },
+  climbMs:      { src: 'static', op: '>=', unit: 'm/s',    what: 'the shakedown’s climb rate at VClimb, at a load by the (W0/W)^2 law (first order)' },
+  fuelLph:      { src: 'flown',  op: '<=', unit: 'L/h',    what: 'the acceptance leg: the measured flow, litres an hour' },
 };
+// (MISSIONS-P2) the shakedown is measured solo, full fuel (its `mass`); a criterion's load adds occupants x occKg + kg
+const ACCEPT_LOAD_LAWS = { occKg: 80, stall: 0.5, toRun: 2, climb: -2 };   // value x (W / W0)^law
 
 const acceptNum = v => (typeof v === 'number' && isFinite(v)) ? v : null;
 function acceptCmp(op, a, b) {
@@ -46464,6 +48272,28 @@ function acceptStatic(c, ev) {
       const v = settled ? !!r.ok : null;
       return { k: c.k, ok: v === true && (c.v == null || c.v === true), value: v, need: 'lifts off the water',
                source: settled ? 'the bench’s hydroplane test: ' + (r.verdict || '') : 'the bench’s hydroplane test has not been run (a float build only)' };
+    }
+    // (MISSIONS-P2) the size, the seats beside the pilot, the shakedown's numbers
+    case 'heightM': return out(ev.foot && acceptNum(ev.foot.h) != null ? ev.foot.h : null, 'the measured plan: the built nodes (playerFootOfDef h)');
+    case 'lengthM': return out(ev.foot ? Math.round((ev.foot.fwd + ev.foot.aft) * 10) / 10 : null, 'the measured plan: nose and propeller to tail (playerFootOfDef)');
+    case 'pax': return out(ev.seats != null ? Math.max(0, ev.seats - 1) : null, 'the spec: cabin.seats less the pilot\'s');
+    case 'fitsShed': {
+      const at = c.at && typeof c.at === 'object' ? c.at : {};
+      const shed = Object.assign({ shell: c.v }, at.dims ? { dims: at.dims } : {});
+      if (!ev.foot || typeof hangarDoorWhy !== 'function' || typeof hangarPark !== 'function')
+        return { k: c.k, ok: false, value: null, need: 'fits a ' + c.v + ' shed', source: 'no measured plan yet (the roll-out measures it)' };
+      const why = hangarDoorWhy(shed, ev.foot) || ((hangarPark(shed, [{ name: 'order', foot: ev.foot }]).unplaced[0] || {}).why || '');
+      return { k: c.k, ok: !why, value: !why, need: 'through the door and parked inside a ' + c.v + ' shed' + (at.dims ? ' (' + 2 * at.dims.HW + ' x ' + 2 * at.dims.HD + ' m, eave ' + at.dims.EAVE + ' m)' : ''),
+               source: 'the measured plan through hangarDoor and hangarPark (71_player_bases)', why };
+    }
+    case 'stallKmh': case 'toDistM': case 'climbMs': {
+      const SH = ev.shake || null, L = ACCEPT_LOAD_LAWS;
+      const raw = !SH ? null : c.k === 'stallKmh' ? acceptNum(SH.Vs) != null ? SH.Vs * 3.6 : null : c.k === 'toDistM' ? acceptNum(SH.TORun) : acceptNum(SH.climbRate);
+      if (raw == null) return out(null, 'the bench’s shakedown has not been read (ev.shake): run the bench');
+      const a = c.at && typeof c.at === 'object' ? c.at : {}, W0 = acceptNum(SH.mass);
+      const add = (acceptNum(a.pax) || 0) * L.occKg + (acceptNum(a.kg) || 0);
+      const r = W0 > 0 && add > 0 ? Math.pow((W0 + add) / W0, c.k === 'stallKmh' ? L.stall : c.k === 'toDistM' ? L.toRun : L.climb) : 1;
+      return out(Math.round(raw * r * 10) / 10, 'the bench\'s shakedown (' + (c.k === 'stallKmh' ? 'Vs' : c.k === 'toDistM' ? 'TORun' : 'climbRate') + ')' + (r !== 1 ? ', scaled to ' + Math.round(W0 + add) + ' kg' : ''));
     }
   }
   return { k: c.k, ok: false, value: null, need: String(c.v), source: 'not a static kind' };
@@ -46770,7 +48600,7 @@ function acceptVerdict(crit, evidence) {
       Object.assign(row, { value: s.value, need: s.need, source: s.source, ok: s.ok });
       if (s.why) row.why = s.why;
       row.status = s.ok ? 'ok' : s.value == null ? 'needs-test' : 'fail';
-    } else if (c.k === 'tasKmh' || c.k === 'enduranceMin' || c.k === 'rangeKm') {
+    } else if (c.k === 'tasKmh' || c.k === 'enduranceMin' || c.k === 'rangeKm' || c.k === 'fuelLph') {
       const need = acceptLoadOf(c);
       const legs = acceptLegsFor(ev, need);
       const leg = legs[legs.length - 1];
@@ -46783,7 +48613,7 @@ function acceptVerdict(crit, evidence) {
           : any.every(r => !r.valid) ? 'no VALID leg: ' + ((any[any.length - 1].why || []).join('; ') || 'rejected')
           : 'no valid leg at that load';
       } else {
-        let val = leg[c.k];
+        let val = c.k === 'fuelLph' ? leg.flowLh : leg[c.k];
         // a criterion with its own reserve: the gross endurance less that one
         if ((c.k === 'enduranceMin' || c.k === 'rangeKm') && acceptNum(c.reserveMin) != null && acceptNum(leg.grossMin) != null) {
           const end = Math.round((leg.grossMin - c.reserveMin) * 10) / 10;
@@ -46792,6 +48622,7 @@ function acceptVerdict(crit, evidence) {
         row.value = acceptNum(val);
         row.ok = row.value != null && acceptCmp(op, row.value, c.v);
         row.status = row.ok ? 'ok' : 'fail';
+        if (c.k === 'fuelLph' && row.value == null) row.status = 'needs-flight';   // (MISSIONS-P2) a leg with no litres (a pack, or no fuel density)
         row.source = 'the acceptance leg of ' + (leg.when || '?') + ' (' + leg.decl.legMin + ' min at ' + Math.round(leg.decl.thr * 100) + ' % throttle, '
           + (leg.load && leg.load.occupants != null ? leg.load.occupants + ' aboard, ' : '') + 'sig ' + leg.sig + ')';
         row.leg = leg.sig;
@@ -46849,9 +48680,10 @@ function acceptPlaqueLeg(legs, fp) {
 //
 // THE PEOPLE AND ORGANISATIONS ARE FICTIONAL (GQ20, a hard constraint): the
 // working names below are placeholders for the pack, and the island's real
-// community is not depicted. The fields' NAMES are geography and come from the
-// premises record (CONTRACT_FIELDS mirrors tools/fixtures/island_jolene.json;
-// the gate holds it to the record).
+// community is not depicted. So are the PLACES (G3240 NAMES, GAME-PLAN §13): a
+// field's name and every place a text names are GAME_NAMES' (01_names.js, the one
+// table). CONTRACT_FIELDS mirrors tools/fixtures/island_jolene.json through
+// contractFieldsOf, whose names are fieldName's; the gate holds it to the record.
 //
 // Pure data: no DOM, no THREE, no storage. Read by 73_contracts.js and
 // 74_career.js at call time.
@@ -46865,14 +48697,14 @@ function acceptPlaqueLeg(legs, fp) {
 //            strip is lit, a water lane is not (contractFieldsOf derives it off the record, so a new site says it too)
 //   glide    the record's glideslope lights (`papi`): 'vasi' (Jolene AFB's two-bar VASI) | 'papi'; absent: none
 const CONTRACT_FIELDS = {
-  HOME:     { id: 'HOME',     name: 'Jolene AFB 13/31',         x: -301,  z: 221,    len: 2325, surf: 'concrete', lit: true, glide: 'vasi' },
-  w2:       { id: 'w2',       name: 'Jolene AFB 02/20',         x: 599,   z: -130,   len: 1758, surf: 'concrete', lit: true, glide: 'papi' },   // (rev 28: the user moved, shortened it, gave it a PAPI)
-  w3:       { id: 'w3',       name: 'Tamgas Hill Strip',        x: -811,  z: -2397,  len: 543,  surf: 'gravel', lit: true, glide: 'papi' },   // (rev 28: moved)
-  SEA:      { id: 'SEA',      name: 'Annette Dock',             x: 361,   z: -3661,  len: 1500, surf: 'water', lit: false },
-  mk_sea:   { id: 'mk_sea',   name: 'Metlakatla Seaplane Base', x: -3980, z: -9420,  len: 1500, surf: 'water', lit: false },
-  mn_strip: { id: 'mn_strip', name: 'Jumbo Mine Street',        x: 7250,  z: -15429, len: 250,  surf: 'gravel', lit: true },
-  nv_strip: { id: 'nv_strip', name: 'East Point Clearing',      x: 10030, z: -11660, len: 150,  surf: 'gravel', lit: true },
-  tw_ski:   { id: 'tw_ski',   name: 'Skyline Altiport',         x: 257,   z: -7707,  len: 380,  surf: 'grass', alti: true, lit: true },
+  HOME:     { id: 'HOME',     name: GAME_NAMES.fields.HOME,            x: -301,  z: 221,    len: 2325, surf: 'concrete', lit: true, glide: 'vasi' },
+  w2:       { id: 'w2',       name: GAME_NAMES.fields.w2,              x: 599,   z: -130,   len: 1758, surf: 'concrete', lit: true, glide: 'papi' },   // (rev 28: the user moved, shortened it, gave it a PAPI)
+  w3:       { id: 'w3',       name: GAME_NAMES.fields.w3,              x: -811,  z: -2397,  len: 543,  surf: 'gravel', lit: true, glide: 'papi' },   // (rev 28: moved)
+  SEA:      { id: 'SEA',      name: GAME_NAMES.fields.SEA,             x: 361,   z: -3661,  len: 1500, surf: 'water', lit: false },
+  mk_sea:   { id: 'mk_sea',   name: GAME_NAMES.fields.mk_sea,          x: -3980, z: -9420,  len: 1500, surf: 'water', lit: false },
+  mn_strip: { id: 'mn_strip', name: GAME_NAMES.fields.mn_strip,        x: 7250,  z: -15429, len: 250,  surf: 'gravel', lit: true },
+  nv_strip: { id: 'nv_strip', name: GAME_NAMES.fields.nv_strip,        x: 10030, z: -11660, len: 150,  surf: 'gravel', lit: true },
+  tw_ski:   { id: 'tw_ski',   name: GAME_NAMES.fields.tw_ski,          x: 257,   z: -7707,  len: 380,  surf: 'grass', alti: true, lit: true },
   // (G3014, the user 12 Oct: 'add them' - their rev 26 strips 10 and 11, contracts may land there)
   w5:       { id: 'w5',       name: 'strip 10',                 x: 3055,  z: -2837,  len: 310,  surf: 'gravel', lit: true, glide: 'papi' },
   w6:       { id: 'w6',       name: 'strip 11',                 x: -4172, z: -22110, len: 312,  surf: 'gravel', lit: true },
@@ -46882,6 +48714,7 @@ const CONTRACT_FIELDS = {
   w8:       { id: 'w8',       name: 'strip 13',                 x: 4361,  z: -16251, len: 392,  surf: 'sand', lit: true },
   // (G2745, the user's save 17, 18 Oct: the Cabin Strip - the story's start, an S of gravel up a lake valley)
   w1:       { id: 'w1',       name: 'Cabin Strip',              x: 2646,  z: -16040, len: 383,  surf: 'gravel', lit: true },   // (22 Oct, the user: no PAPI at the Cabin Strip - a bush strip, no glideslope lights)
+  cb_sea:   { id: 'cb_sea',   name: GAME_NAMES.fields.cb_sea,          x: 1890,  z: -17804, len: 1400, surf: 'water', lit: false },   // (CABIN-LAKE 26 Oct: the lake below the Cabin Strip; no job flies there yet - CABIN-LAKE-JOBS)
 };
 
 // ---- THE VALIDATED DESIGNS (the user's five; HANDOVER G1985's LB.VALIDATED, _treecrash_lib's BUILDS) -------
@@ -47263,8 +49096,8 @@ const CONTRACT_TEXT = {
   // the providers (working names; GQ20: fictional)
   'prov.field.name': CT_('The Field Trust'),
   'prov.field.desc': CT_('The old Army field\'s landlord. They lease it to anyone who will bring it back to life.'),
-  'prov.minedock.name': CT_('Jumbo Mine & Dock Co.'),
-  'prov.minedock.desc': CT_('One company reopening the old mine up the street strip and shipping through Annette Dock.'),
+  'prov.minedock.name': CT_(GAME_NAMES.mineCo),
+  'prov.minedock.desc': CT_('One company reopening the old mine up the street strip and shipping through ' + GAME_NAMES.fields.SEA + '.'),
   'prov.resort.name': CT_('Skyline Resort'),
   'prov.resort.desc': CT_('A small lodge above the hill, with a sloped strip and guests who want to see it all.'),
   'prov.survey.name': CT_('The Survey Office'),
@@ -47286,7 +49119,7 @@ const CONTRACT_TEXT = {
   'trk.resort.3': CT_('The strip lengthened'),
   'trk.survey.1': CT_('A windsock and tie-downs at East Point'),
   'trk.survey.2': CT_('East Point becomes a station'),
-  'trk.survey.3': CT_('The weather mast on Tamgas Hill'),
+  'trk.survey.3': CT_('The weather mast on ' + GAME_NAMES.hill),
   'trk.clients.1': CT_('The club house'),
   'trk.clients.2': CT_('A small museum hangar for your best design'),
   // goods (the load words)
@@ -47327,21 +49160,21 @@ const CONTRACT_TEXT = {
   'job.then.pair': CT_(', then over {at}, then back to {from}.'),
   'job.then.transit': CT_(', then land at {to}.'),
   // the arcs
-  'ct.field.01.title': CT_('Wake the field'), 'ct.field.01.brief': CT_('Show us the old field still flies: over to Tamgas Hill and back.'),
+  'ct.field.01.title': CT_('Wake the field'), 'ct.field.01.brief': CT_('Show us the old field still flies: over to ' + GAME_NAMES.hill + ' and back.'),
   'ct.field.01.done': CT_('Two landings, no drama. The Trust is listening.'),
-  'ct.field.02.title': CT_('Tools from the hill'), 'ct.field.02.brief': CT_('A crate of hand tools waits at Tamgas Hill. Bring it home.'),
+  'ct.field.02.title': CT_('Tools from the hill'), 'ct.field.02.brief': CT_('A crate of hand tools waits at ' + GAME_NAMES.hill + '. Bring it home.'),
   'ct.field.02.done': CT_('The bench has tools again.'),
   'ct.field.03.title': CT_('The first mail run'), 'ct.field.03.brief': CT_('Two mail sacks: one for the hill, one for the lodge. Any order.'),
   'ct.field.03.done': CT_('The Trust starts on the second hangar.'),
   'ct.field.04.title': CT_('The inspector'), 'ct.field.04.brief': CT_('Take the Trust\'s inspector to the hill, and bring her back.'),
   'ct.field.04.done': CT_('She signed the form without looking up.'),
-  'ct.field.05.title': CT_('Light the tower'), 'ct.field.05.brief': CT_('The tower\'s new lamp is at Tamgas Hill, and it is heavy.'),
+  'ct.field.05.title': CT_('Light the tower'), 'ct.field.05.brief': CT_('The tower\'s new lamp is at ' + GAME_NAMES.hill + ', and it is heavy.'),
   'ct.field.05.done': CT_('The tower is lit and the second hangar stands.'),
   'ct.minedock.01.title': CT_('Look at the road'), 'ct.minedock.01.brief': CT_('Fly over the mine street and tell us if it is still a strip.'),
   'ct.minedock.01.done': CT_('Rough, short, landable. The company is in.'),
   'ct.minedock.02.title': CT_('Engineers in'), 'ct.minedock.02.brief': CT_('Two engineers, from the field to the mine street.'),
   'ct.minedock.02.done': CT_('The headframe\'s frame goes up.'),
-  'ct.minedock.03.title': CT_('The pump'), 'ct.minedock.03.brief': CT_('Take the pump up to the mine, then bring the first samples down to Tamgas Hill, for the boat.'),
+  'ct.minedock.03.title': CT_('The pump'), 'ct.minedock.03.brief': CT_('Take the pump up to the mine, then bring the first samples down to ' + GAME_NAMES.hill + ', for the boat.'),
   'ct.minedock.03.done': CT_('The pump runs. The samples look good.'),
   'ct.minedock.04.title': CT_('Four of us, fast'), 'ct.minedock.04.brief': CT_('I need to get my team of four to the mine fast.'),
   'ct.minedock.04.follow': CT_('The team loves it. Same again, with one thing changed.'),
@@ -47356,9 +49189,9 @@ const CONTRACT_TEXT = {
   'ct.minedock.b2.follow': CT_('It works. Now the accountant has a request.'),
   'ct.resort.01.title': CT_('The first guest'), 'ct.resort.01.brief': CT_('Our first guest is at the field. Bring her up.'),
   'ct.resort.01.done': CT_('She wants to stay a week.'),
-  'ct.resort.02.title': CT_('A kitchen uphill'), 'ct.resort.02.brief': CT_('The kitchen\'s first order came in on the boat: from Tamgas Hill to the altiport.'),
+  'ct.resort.02.title': CT_('A kitchen uphill'), 'ct.resort.02.brief': CT_('The kitchen\'s first order came in on the boat: from ' + GAME_NAMES.hill + ' to the altiport.'),
   'ct.resort.02.done': CT_('The lodge\'s frame goes up.'),
-  'ct.resort.03.title': CT_('Show them the hill'), 'ct.resort.03.brief': CT_('Fly our photographer over Tamgas Hill, and back to the altiport.'),
+  'ct.resort.03.title': CT_('Show them the hill'), 'ct.resort.03.brief': CT_('Fly our photographer over ' + GAME_NAMES.hill + ', and back to the altiport.'),
   'ct.resort.03.done': CT_('The brochure has a cover.'),
   'ct.resort.04.title': CT_('Quiet, please'), 'ct.resort.04.brief': CT_('Electric. The guests hate the noise.'),
   'ct.resort.04.follow': CT_('The guests noticed. Can it do a little more?'),
@@ -47378,7 +49211,7 @@ const CONTRACT_TEXT = {
   'ct.survey.04.title': CT_('In and out of East Point'), 'ct.survey.04.brief': CT_('A plane for the East Point clearing: in and out, with an hour of fuel.'),
   'ct.survey.04.follow': CT_('It works. Could it take a second person?'),
   'ct.survey.04.done': CT_('East Point is a station.'),
-  'ct.survey.05.title': CT_('The weather mast'), 'ct.survey.05.brief': CT_('The mast\'s sections, from the field to Tamgas Hill, and the old instruments back to the office.'),
+  'ct.survey.05.title': CT_('The weather mast'), 'ct.survey.05.brief': CT_('The mast\'s sections, from the field to ' + GAME_NAMES.hill + ', and the old instruments back to the office.'),
   'ct.survey.05.done': CT_('The mast is up.'),
   'ct.clients.01.title': CT_('A ride for the doctor'), 'ct.clients.01.brief': CT_('The doctor has a clinic on the hill today, and an evening call at the lodge.'),
   'ct.clients.01.done': CT_('The doctor tells everyone.'),
@@ -47396,13 +49229,13 @@ const CONTRACT_TEXT = {
   'ct.clients.b1.title': CT_('A ridiculous tank'), 'ct.clients.b1.brief': CT_('An hour in the air on a ridiculous tank: twenty litres, no more.'),
   'ct.clients.b1.follow': CT_('An hour was fun. One more thing.'),
   // (G2665 NIGHT-OPS) the night work
-  'ct.field.n1.title': CT_('The night mail'), 'ct.field.n1.brief': CT_('The boat\'s mail sacks wait at Tamgas Hill. Into the field between midnight and one: the runway lights and the VASI are on.'),
+  'ct.field.n1.title': CT_('The night mail'), 'ct.field.n1.brief': CT_('The boat\'s mail sacks wait at ' + GAME_NAMES.hill + '. Into the field between midnight and one: the runway lights and the VASI are on.'),
   'ct.field.n1.done': CT_('The mail made the morning sort.'),
   'ct.minedock.n1.title': CT_('The late shift'), 'ct.minedock.n1.brief': CT_('The shift engineer is stuck at the mine street. Bring them down to the field after dusk.'),
   'ct.minedock.n1.done': CT_('Home for supper, late.'),
-  'ct.clients.n1.title': CT_('Night medevac'), 'ct.clients.n1.brief': CT_('A climber fell on Tamgas Hill. Take the doctor up, then bring them both down to the ambulance at the field before dawn. The patient can sit.'),
+  'ct.clients.n1.title': CT_('Night medevac'), 'ct.clients.n1.brief': CT_('A climber fell on ' + GAME_NAMES.hill + '. Take the doctor up, then bring them both down to the ambulance at the field before dawn. The patient can sit.'),
   'ct.clients.n1.done': CT_('The ambulance was waiting on the apron.'),
-  'ct.clients.n2.title': CT_('A stretcher case'), 'ct.clients.n2.brief': CT_('This one cannot sit: a stretcher and the doctor, from Tamgas Hill to the ambulance at the field, before dawn.'),
+  'ct.clients.n2.title': CT_('A stretcher case'), 'ct.clients.n2.brief': CT_('This one cannot sit: a stretcher and the doctor, from ' + GAME_NAMES.hill + ' to the ambulance at the field, before dawn.'),
   'ct.clients.n2.done': CT_('The stretcher went straight into the ambulance.'),
   // the criteria (labels; {v} the value, {at} the load or the strip)
   'crit.seats': CT_('{v} seats occupied'), 'crit.emptyKg': CT_('empty mass at most {v} kg'),
@@ -47423,6 +49256,16 @@ const CONTRACT_TEXT = {
   'ev.pending': CT_('{t}: acceptance pending - {n}'), 'ev.none': CT_('{t}: {n}'), 'ev.wallet': CT_('wallet {n}'),
   // (G2705 CAREER-DAMAGE) a crash in the career: back where the flight departed from ({n} the place), repaired, free
   'ev.crash': CT_('crashed - back at {n}, repaired'),
+  // (MISSIONS-P1/P2) a mission failed by its rules (and offered again), a lap timed, the airframe handed over, the profit,
+  // the damage assessed ({t} the mission, {n} a reason / a time / a name, {c} the cost, {p} the profit)
+  'ev.failed': CT_('{t}: failed - {n}'), 'ev.restart': CT_('You can start it again.'),
+  'ev.timer': CT_('{t}: {n}'), 'ev.strikes': CT_('{n} hit, +{s} s'), 'ev.handover': CT_('handed over to the client; the blueprint is saved as {n}'),
+  'ev.handback': CT_('the client\'s aeroplane ({n}) is back with its owner'),
+  'ev.profit': CT_('paid {n}, it cost {c} to build: {p} profit'),
+  'ev.assess.ok': CT_('the client checked the airframe: not a scratch'), 'ev.assess.bent': CT_('the client noted the damage: {n}'),
+  // (MISSIONS-P3) a step's pay, a site's new state ({n} the site)
+  'ev.bonus': CT_('{t}: +{n}'), 'ev.site.planned': CT_('{n}: planned'), 'ev.site.building': CT_('{n}: building has started'),
+  'ev.site.built': CT_('{n}: built'),
 };
 // ===========================================================================
 // THE CONTRACTS (G2240 CONTRACT-MODEL) — the record, its kinds and criteria,
@@ -47444,6 +49287,9 @@ const CONTRACT_TEXT = {
 //   `do`: carry (a load from -> to) | fly (from? -> to, a challenge's medals) | land (at `to`) |
 //         survey (over `at`, departing `from`) | deliver (a build contract: the airframe lands at `to`, its
 //         `crit` judged by ACCEPT's hook) | accept (the criteria alone, judged by the hook, anywhere).
+// (MISSIONS-P0) A MISSION PACK (src/missions/*.json, 73b_missions.js) is read INTO this record: its legs are `stages`,
+// its steps `subs`; its new fields (places, new verbs and criteria, rules, timers, people) ride along, validated with
+// contractValidate(rec, { mission: true }), and contractRuntimeOk says whether this runtime can run the record yet.
 //
 // RULINGS THIS FILE HOLDS (GATE CONTRACTS proves each, --selftest breaks each):
 //   G-COST  pay depends on the JOB, never on the aeroplane: contractPay reads the job and the fields, and
@@ -47464,6 +49310,10 @@ const CONTRACT_TEXT = {
 const CONTRACT_KINDS = ['contract', 'job', 'challenge', 'build', 'survey'];
 const CONTRACT_DO = ['carry', 'fly', 'land', 'survey', 'deliver', 'accept'];
 const CONTRACT_OPS = ['>=', '<=', '=='];
+// (MISSIONS-P0, futureDesigns/MISSIONS-2026-10-25.md §3.2) THE MISSION VERBS a pack's record may carry whose runtime is a
+// later phase (photo over a point, pass a gate / ring, park on a spot, wait, talk): contractValidate takes them only with
+// opts.mission (73b_missions.js), and a record holding one is never run (contractRuntimeOk) until its phase lands
+const CONTRACT_DO_NEXT = ['photo', 'pass', 'park', 'wait', 'talk'];
 
 // ---- THE CRITERION KINDS (data: ACCEPT implements each kind, MAP labels each) -----------------------------
 //   k        the key a criterion names            unit   the value's unit ('' for a word, 'strip' for a field id)
@@ -47508,6 +49358,34 @@ const CONTRACT_CRIT_KINDS = {
                   op: ['=='], at: ['pax', 'kg', 'fuelMin'], follow: null },
   landAt:       { k: 'landAt',       unit: 'strip', when: 'flown',  how: 'strip',  src: 'flown at that strip: the delivery\'s arrival',
                   op: ['=='], at: ['pax', 'kg', 'fuelMin'], follow: null },
+};
+// (MISSIONS-P0 §3.6) THE AIRCRAFT ORDER'S NEW CRITERIA: the same row shape, taken only by a pack's record (contractCritWhy
+// with opts.mission). ACCEPT does not judge them yet (phase 2: acceptVerdict's kinds), so a record naming one is never run
+// (contractRuntimeOk); the bench / leg each will read is named in `src`
+const CONTRACT_CRIT_NEXT = {
+  climbMs:  { k: 'climbMs',  unit: 'm/s',  when: 'flown',  how: 'bench', src: 'genShakedown climb at the load (the bench\'s best rate)',
+              op: ['>='], band: [0.5, 20], at: ['pax', 'kg'], follow: { add: 0.5, round: 0.5 } },
+  stallKmh: { k: 'stallKmh', unit: 'km/h', when: 'static', how: 'design', src: 'genShakedown Vs x 3.6, flaps down, at the load',
+              op: ['<='], band: [30, 200], at: ['pax', 'kg'], follow: { add: -5, round: 1 } },
+  toDistM:  { k: 'toDistM',  unit: 'm',    when: 'flown',  how: 'bench', src: 'genShakedown TORun at the load (the roll + the air segment to 15 m)',
+              op: ['<='], band: [30, 2000], at: ['pax', 'kg', 'fuelMin'], follow: { mul: 0.9, round: 5 } },
+  ldgDistM: { k: 'ldgDistM', unit: 'm',    when: 'flown',  how: 'bench', src: 'the landing distance from 15 m at the load (the bench, phase 2)',
+              op: ['<='], band: [30, 2000], at: ['pax', 'kg', 'fuelMin'], follow: { mul: 0.9, round: 5 } },
+  fuelLph:  { k: 'fuelLph',  unit: 'L/h',  when: 'flown',  how: 'leg',   src: 'the acceptance leg: the measured flow in a stabilised cruise',
+              op: ['<='], band: [2, 200], at: ['pax', 'kg', 'tasKmh'], follow: { mul: 0.9, round: 0.5 } },
+  cargoL:   { k: 'cargoL',   unit: 'L',    when: 'static', how: 'spec',  src: 'the hold\'s volume (FREIGHT_CARDS, measured off the mesh)',
+              op: ['>='], band: [10, 5000], follow: { mul: 1.2, round: 10 } },
+  pax:      { k: 'pax',      unit: 'pax',  when: 'static', how: 'spec',  src: 'the seats beside the pilot (genShakedown envelope.seats - 1)',
+              op: ['>='], band: [0, 7], follow: { add: 1 } },
+  // THE SIZE (the user, 26 Oct: "the orders could specify requests in terms of plane dimensions, so they fit in their sheds:
+  // width, height and length") - the width is spanM (above); the airframe's parked footprint is 71_'s parkFoot frame
+  // { half, fwd, aft, h }; a shed is a SHELLS row (26_hangar_fit.js), its door 71_ hangarDoor
+  heightM:  { k: 'heightM',  unit: 'm',    when: 'static', how: 'spec',  src: 'the parked height: the footprint\'s h (the fin or the wing\'s top, off the mesh; 71_ hangarDoorWhy reads it)',
+              op: ['<='], band: [1, 8], follow: { add: -0.2, round: 0.1 } },
+  lengthM:  { k: 'lengthM',  unit: 'm',    when: 'static', how: 'spec',  src: 'nose and propeller to tail: the footprint\'s fwd + aft (25_ GP_PARKED_FOOT\'s frame)',
+              op: ['<='], band: [3, 25], follow: { mul: 0.95, round: 0.1 } },
+  fitsShed: { k: 'fitsShed', unit: 'shell', when: 'static', how: 'spec', src: 'through the shed\'s door (71_ hangarDoorWhy) and parked inside it with its fit-out stood (hangarPark); at.dims: the client\'s own shed { HW, HD, EAVE } (half-width, half-depth, eave, m), else the shell\'s',
+              op: ['=='], at: ['dims'], follow: null },
 };
 
 // ---- (g1) A BUILD CRITERION NEVER NAMES A CONFIGURATION ---------------------------------------------------
@@ -47765,17 +49643,38 @@ function contractKm(a, b, fields) {
   return Math.hypot(A.x - B.x, A.z - B.z) / 1000;
 }
 const ctWet = f => !!f && f.surf === 'water';
+// (MISSIONS-P0 §3.1) A PLACE's plan position: a field id or { field } (its strip's centre), { pt: [x, z] }, { gate } (the
+// posts' middle), { ring: [x, y, z] }, { site, at: {x, z} } (73b_missions.js resolves a site's position onto the step);
+// null when it has none (a spot is its field's: { spot: '<field>:<id>' })
+function contractPlaceXZ(p, fields) {
+  const F = fields || CONTRACT_FIELDS;
+  if (typeof p === 'string') { const f = F[p]; return f ? [f.x, f.z] : null; }
+  if (!p || typeof p !== 'object') return null;
+  if (typeof p.field === 'string') return contractPlaceXZ(p.field, F);
+  if (Array.isArray(p.pt)) return [+p.pt[0], +p.pt[1]];
+  if (Array.isArray(p.gate) && p.gate.length === 2) return [(+p.gate[0][0] + +p.gate[1][0]) / 2, (+p.gate[0][1] + +p.gate[1][1]) / 2];
+  if (Array.isArray(p.ring)) return [+p.ring[0], +p.ring[2]];
+  if (p.at && typeof p.at === 'object') return [+p.at.x, +p.at.z];
+  if (typeof p.spot === 'string') return contractPlaceXZ(p.spot.split(':')[0], F);
+  return null;
+}
+// a field to a place, km (NaN when either has no position)
+function contractPlaceKm(a, p, fields) {
+  const A = contractPlaceXZ(a, fields), B = contractPlaceXZ(p, fields);
+  return A && B ? Math.hypot(A[0] - B[0], A[1] - B[1]) / 1000 : NaN;
+}
 
 // THE FIELDS OF A WORLD: the same rows off the world's aerodromes (a premises record's runways or
 // world.aerodromes: `c` or x/z, len, the surface through 25_'s stripSurface). GATE CONTRACTS holds
 // CONTRACT_FIELDS equal to this over Jolene's record.
+// (G3240 NAMES) a row's name is fieldName's (01_names.js): the table's name for a field it names, else the record's own
 function contractFieldsOf(aerodromes) {
   const out = {};
   for (const a of (aerodromes || [])) {
     if (!a || !a.id || a.kind === 'meadow') continue;
     const x = Array.isArray(a.c) ? a.c[0] : a.x, z = Array.isArray(a.c) ? a.c[1] : a.z;
     const S = typeof stripSurface === 'function' ? stripSurface(a) : null;
-    const row = { id: a.id, name: a.name || a.id, x: Math.round(x), z: Math.round(z), len: Math.round(a.len || 0),
+    const row = { id: a.id, name: typeof fieldName === 'function' ? fieldName(a.id, a.name) : (a.name || a.id), x: Math.round(x), z: Math.round(z), len: Math.round(a.len || 0),
                   surf: S ? S.key : (+a.surface === 4 ? 'water' : 'grass') };
     if (a.altiport) row.alti = true;
     // (G2665 NIGHT-OPS) lit at night: 25_'s rule (runwayLightStrips - a land strip; a water lane none); the record's
@@ -47825,8 +49724,10 @@ function contractKeys(rec) {
 const contractFollowKey = rec => 'ct.' + String(rec.base || rec.id).split('+')[0] + '.follow';
 // a criterion as words (MAP's card): its label with the value (a strip by its name) and the load it is judged at
 function contractCritWords(c, fields, text) {
-  const F = fields || CONTRACT_FIELDS, K = CONTRACT_CRIT_KINDS[c.k] || {};
-  const v = K.unit === 'strip' ? (F[c.v] ? F[c.v].name : c.v) : (c.v === true ? '' : c.v);
+  const F = fields || CONTRACT_FIELDS, K = CONTRACT_CRIT_KINDS[c.k] || CONTRACT_CRIT_NEXT[c.k] || {};
+  const v = K.unit === 'strip' ? (F[c.v] ? F[c.v].name : c.v)
+    : K.unit === 'shell' ? ((typeof SHELLS !== 'undefined' && SHELLS[c.v] ? SHELLS[c.v].name : c.v) + (c.at && c.at.dims ? ' (' + 2 * c.at.dims.HW + ' x ' + 2 * c.at.dims.HD + ' m, eave ' + c.at.dims.EAVE + ' m)' : ''))
+    : (c.v === true ? '' : c.v);
   let at = '';
   if (c.at && (c.at.pax || c.at.kg)) at = 'with ' + contractLoadWords({ kg: c.at.kg || 0, pax: c.at.pax || 0 }, 'goods.kit', text);
   return contractText('crit.' + c.k, { v, at }, text).replace(/\s+$/, '');
@@ -47892,17 +49793,22 @@ function contractNormalise(r) {
 
 // ---- THE VALIDATOR -----------------------------------------------------------------------------------------
 // -> [ 'reason', ... ] (empty = valid). opts.text: the text table; opts.fields; opts.ids: the ids `after` may name
-function contractCritWhy(c) {
-  const K = c && CONTRACT_CRIT_KINDS[c.k];
+// (MISSIONS-P0) opts.mission: a pack's record, which may also name CONTRACT_CRIT_NEXT's kinds
+function contractCritWhy(c, opts) {
+  const K = c && (CONTRACT_CRIT_KINDS[c.k] || (opts && opts.mission && CONTRACT_CRIT_NEXT[c.k]));
   if (!K) return 'unknown criterion kind ' + (c && c.k);
   if (!K.op.includes(c.op)) return c.k + ': operator ' + c.op + ' not one of ' + K.op.join(' ');
   if (K.unit === 'strip') { if (!ctField(c.v)) return c.k + ': no field ' + c.v; }
+  else if (K.unit === 'shell') { if (typeof SHELLS === 'undefined' || !SHELLS[c.v]) return c.k + ': no shed shell ' + c.v + ' (26_hangar_fit.js SHELLS)'; }
   else if (K.values) { if (!K.values.includes(c.v)) return c.k + ': ' + c.v + ' not one of ' + K.values.join(' '); }
   else if (typeof c.v !== 'number' || !isFinite(c.v) || c.v < K.band[0] || c.v > K.band[1])
     return c.k + ': ' + c.v + ' outside ' + K.band[0] + '..' + K.band[1] + ' ' + K.unit;
   if (c.at != null) {
     if (typeof c.at !== 'object') return c.k + ': `at` is not an object';
     for (const a of Object.keys(c.at)) if (!(K.at || []).includes(a)) return c.k + ': `at.' + a + '` not a condition of this kind';
+    const D = c.at.dims;
+    if (D != null && (!D || typeof D !== 'object' || ['HW', 'HD', 'EAVE'].some(k => !(typeof D[k] === 'number' && D[k] > 0 && D[k] <= 60))))
+      return c.k + ': at.dims is the shed\'s { HW, HD, EAVE } (half-width, half-depth, eave: m, 0-60)';
   }
   return '';
 }
@@ -47926,9 +49832,9 @@ function contractValidate(rec, opts) {
     if (!st || !Array.isArray(st.subs) || !st.subs.length) { why.push(id + ': stage ' + i + ' has no subs'); return; }
     st.subs.forEach((s, j) => {
       const at = id + ' ' + i + '.' + j;
-      if (!CONTRACT_DO.includes(s.do)) { why.push(at + ': do ' + s.do + ' is not one of ' + CONTRACT_DO.join(' ')); return; }
+      if (!CONTRACT_DO.includes(s.do) && !(opts.mission && CONTRACT_DO_NEXT.includes(s.do))) { why.push(at + ': do ' + s.do + ' is not one of ' + CONTRACT_DO.join(' ')); return; }
       for (const f of ['from', 'to', 'at']) if (s[f] != null && !F[s[f]]) why.push(at + ': no field ' + s[f]);
-      if ((s.do === 'carry' || s.do === 'fly') && (!s.to || (s.do === 'carry' && !s.from))) why.push(at + ': ' + s.do + ' needs from and to');
+      if ((s.do === 'carry' || s.do === 'fly') && (!(s.to || (opts.mission && s.place)) || (s.do === 'carry' && !s.from))) why.push(at + ': ' + s.do + ' needs from and to');
       if (s.goods != null && !contractTextOk(s.goods, T)) why.push(at + ': goods key ' + s.goods + ' does not resolve');
       if ((s.do === 'land' || s.do === 'deliver') && !s.to) why.push(at + ': ' + s.do + ' needs to');
       if (s.do === 'survey' && (!s.at || !s.from)) why.push(at + ': survey needs at and from');
@@ -47948,7 +49854,7 @@ function contractValidate(rec, opts) {
       }
       if (s.crit != null) {
         if (r.kind !== 'build') why.push(at + ': criteria on a ' + r.kind + ' (build contracts only)');
-        for (const c of s.crit) { const w = contractCritWhy(c); if (w) why.push(at + ': ' + w); }
+        for (const c of s.crit) { const w = contractCritWhy(c, opts); if (w) why.push(at + ': ' + w); }
       }
       if ((s.do === 'deliver' || s.do === 'accept') && r.kind !== 'build') why.push(at + ': ' + s.do + ' on a ' + r.kind);
       if (s.when != null) { const ww = contractWhenWhy(s.when); if (ww) why.push(at + ': ' + ww); }
@@ -47969,7 +49875,10 @@ function contractValidate(rec, opts) {
     for (const c of crit) { if (seen[c.k]) why.push(id + ': criterion ' + c.k + ' named twice'); seen[c.k] = 1; }
     // (g1) never a configuration: the criteria, and the words the client says
     for (const c of crit) { const w = contractConfigWord(JSON.stringify(c)); if (w) why.push(id + ': criterion ' + c.k + ' names a configuration (' + w + ')'); }
-    for (const k of [r.title, r.brief, contractFollowKey(r)]) {
+    // (MISSIONS-P0, the user 25 Oct: "If I wanted 2 engines, I would be upset with 1 only") a pack's order that states
+    // its configuration as PREFERENCES (`prefs`, each bonus | mandatory) may say it in its words; the criteria never do
+    const prefs = opts.mission && Array.isArray(r.prefs) && r.prefs.length > 0;
+    for (const k of (prefs ? [] : [r.title, r.brief, contractFollowKey(r)])) {
       const w = T[k] && contractConfigWord(T[k].t);
       if (w) why.push(id + ': ' + k + ' names a configuration (' + w + ')');
     }
@@ -48014,6 +49923,41 @@ function contractCertifiable(rec) {
 // (G2665 NIGHT-OPS) A NIGHT CONTRACT NO VALIDATED DESIGN CAN FLY is held out the same way (74_ careerOfferIds: the
 // stretcher case, until a door takes the 2.0 m stretcher) - the ✗ stays the hard no-no of the player's own fleet only
 const contractFlyable = (rec, fields) => contractDoers(contractSubsOf(rec).filter(s => s.do !== 'deliver' && s.do !== 'accept'), fields).length > 0;
+
+// (MISSIONS-P0/P1/P2) CAN THIS RUNTIME RUN THIS RECORD AS WRITTEN? '' yes, else why not. A pack's mission rides into a
+// contract record with its new fields (73b_missions.js missionToContract); those not judged yet keep it OUT of the career
+// (73b missionPackInstall) until their phase lands - never a mission that cannot be completed, or one completed against
+// rules it does not apply. Presentation rides along freely: the client, the speakers (say), the done line, the
+// passengers' names (load.who), a step's id, the embedded route and the pack's tree.
+//   RUNS (73c_mission_run.js): rules, timers, startFrom, prefs, delivery; photo / pass / fly to a point, a gate, a ring
+//           (the in-flight tracker), park on a spot, wait (require.waitMin), talk; a leg's steps in order seq, any or
+//           choose:N; (P3) embark / disembark, require.maxMin / depart, a site served by a strip (`field`), an onDone
+//           that speaks, pays or moves a site; the new criteria ACCEPT answers (72_accept.js ACCEPT_KINDS)
+//   WAITS:  legs in an order other than seq, a site with no strip to serve it, a criterion ACCEPT does not answer
+//           (ldgDistM, cargoL)
+const CONTRACT_RUNTIME_PENDING = [];
+const CONTRACT_RUNTIME_WAITS = [];
+const CONTRACT_ONDONE = ['say', 'pay', 'site'];
+function contractRuntimeOk(rec) {
+  const r = rec || {};
+  for (const k of CONTRACT_RUNTIME_PENDING) if (r[k] != null && !(Array.isArray(r[k]) && !r[k].length)) return k + ': no runtime yet';
+  if (typeof missionStepOnStop !== 'function' && ['rules', 'timers', 'startFrom', 'prefs'].some(k => r[k] != null)) return 'no mission runtime (73c_mission_run.js)';
+  if (r.order != null && r.order !== 'seq') return 'legs in order ' + r.order + ' (no runtime yet)';
+  for (const st of r.stages || []) {
+    if (st.order != null && !/^(any|seq|choose:\d+)$/.test(st.order)) return 'steps in order ' + st.order + ' (no runtime yet)';
+    for (const s of st.subs || []) {
+      if (!CONTRACT_DO.includes(s.do) && !CONTRACT_DO_NEXT.includes(s.do)) return 'do ' + s.do + ' (no runtime yet)';
+      if (CONTRACT_DO_NEXT.includes(s.do) && typeof missionStepOnStop !== 'function') return 'do ' + s.do + ' (no mission runtime)';
+      if (s.place != null && s.place.site != null && !s.to && !s.at) return s.do + ' at a site no strip serves (no runtime yet)';
+      for (const k of CONTRACT_RUNTIME_WAITS) if (s[k] != null) return s.do + ': ' + k + ' (no runtime yet)';
+      if (s.require != null && Object.keys(s.require).some(k => !['waitMin', 'maxMin', 'depart'].includes(k))) return s.do + ': require.' + Object.keys(s.require).join(', ') + ' (no runtime yet)';
+      if (s.onDone != null && Object.keys(s.onDone).some(k => !CONTRACT_ONDONE.includes(k))) return s.do + ': onDone.' + Object.keys(s.onDone).filter(k => !CONTRACT_ONDONE.includes(k)).join(', ') + ' (no runtime yet)';
+      for (const c of s.crit || []) if (!CONTRACT_CRIT_KINDS[c.k] && !(typeof ACCEPT_KINDS !== 'undefined' && ACCEPT_KINDS[c.k])) return 'criterion ' + c.k + ' (ACCEPT does not judge it yet)';
+    }
+  }
+  if (r.onDone != null && Object.keys(r.onDone).some(k => !CONTRACT_ONDONE.includes(k))) return 'onDone.' + Object.keys(r.onDone).filter(k => !CONTRACT_ONDONE.includes(k)).join(', ') + ' (no runtime yet)';
+  return '';
+}
 
 // ---- THE AUTHORED CONTRACTS (the arcs, the standalone builds and the night work, normalised, by id) ---------------
 function contractAuthored() {
@@ -48114,7 +50058,7 @@ function contractPay(rec, fields) {
   for (const st of rec.stages || []) {
     let skm = 0, kg = 0, pax = 0, bulk = false;
     for (const s of st.subs || []) {
-      if (s.do === 'carry' || (s.do === 'fly' && s.from)) skm += contractKm(s.from, s.to, F);
+      if (s.do === 'carry' || (s.do === 'fly' && s.from)) skm += s.to || !s.place ? contractKm(s.from, s.to, F) : contractPlaceKm(s.from, s.place, F);
       if (s.do === 'survey') skm += 2 * contractKm(s.from, s.at, F);
       for (const k of ['from', 'to']) if (s[k]) touched[s[k]] = 1;
       if (s.load) { kg = Math.max(kg, s.load.kg || 0); pax = Math.max(pax, s.load.pax || 0); bulk = bulk || !!s.load.bulk; }
@@ -48508,6 +50452,11 @@ function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
   // record's { damaged, why } (Deform's sim.damage().structural; absent = not damaged). A transport job that
   // arrives damaged still delivers (the repair is free).
   const S = stop.structural;
+  // (MISSIONS-P1) the mission verbs and a flight to a point / a gate / a ring: 73c_mission_run.js judges them off the stop
+  if (CONTRACT_DO_NEXT.includes(sub.do) || (sub.do === 'fly' && sub.place)) {
+    if (typeof missionStepOnStop !== 'function') return { st: 'no', why: 'no mission runtime on this page' };
+    return missionStepOnStop(rec, sub, prog, stop);
+  }
   const bentWhy = () => (S && S.damaged && (rec.kind === 'build' || rec.kind === 'challenge')
     && (((sub.do === 'accept' || sub.do === 'deliver') && Array.isArray(sub.crit) && sub.crit.length) || (sub.do === 'fly' && sub.medals)))
     ? 'flown with structural damage' + (S.why ? ' (' + S.why + ')' : '') : '';
@@ -48550,6 +50499,10 @@ function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
   }
   if (sub.do === 'deliver' || sub.do === 'accept') {
     if (sub.do === 'deliver' && at !== sub.to) return { st: 'no', why: 'delivered at ' + nm(sub.to) + ', stopped at ' + nm(at) };
+    // (MISSIONS-P2) THE CLIENT'S OWN AIRFRAME (startFrom): only the one the client handed over is delivered
+    const own = prog && prog.start;
+    if (own && !own.slot) return { st: 'no', pending: true, why: 'the client\'s airframe has not arrived yet' };
+    if (own && stop.slot !== own.slot) return { st: 'no', why: 'not the client\'s airframe (' + own.slot + ')' };
     const b = bentWhy(); if (b) return { st: 'no', why: 'refused: ' + b };
     const H = hooks && typeof hooks.acceptVerdict === 'function' ? hooks.acceptVerdict : null;
     if (!H) return { st: 'no', pending: true, why: 'acceptance pending: no verdict yet' };
@@ -48557,6 +50510,13 @@ function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
     try { v = H(rec, sub, stop, career); } catch (e) { v = { ok: null, why: 'the verdict failed: ' + (e && e.message) }; }
     if (!v || v.ok == null) return { st: 'no', pending: true, why: (v && v.why) || 'acceptance pending' };
     if (v.ok === false) return { st: 'no', why: 'refused: ' + (v.why || 'a criterion is not met') };
+    // (MISSIONS-P2) THE PREFERENCES (§7: each bonus | mandatory), judged off the delivered spec (stop.spec)
+    if (Array.isArray(rec.prefs) && rec.prefs.length && typeof missionPrefsJudge === 'function') {
+      if (!stop.spec) return { st: 'no', pending: true, why: 'the delivered spec is not on the stop record (the preferences)' };
+      const P = missionPrefsJudge(rec.prefs, stop.spec);
+      if (!P.ok) return { st: 'no', why: 'refused: ' + P.why };
+      return { st: 'done', why: '', got: Object.assign({}, v.got || {}, P.got) };
+    }
     return { st: 'done', why: '', got: v.got || {} };
   }
   return { st: 'no', why: 'unknown do ' + sub.do };
@@ -48575,6 +50535,8 @@ function contractPayTotal(rec, got, medal) {
     const beat = c.op === '>=' ? g >= c.v * (1 + b.by) : c.op === '<=' ? g <= c.v * (1 - b.by) : false;
     if (beat) pct += b.pct;
   }
+  // (MISSIONS-P2) a bonus preference met (missionPrefsJudge's got['pref.<k>']) pays its pct
+  for (const p of rec.prefs || []) if (p && p.need === 'bonus' && got && got['pref.' + p.k]) pct += p.pct || 0;
   return Math.round(total * (1 + pct / 100) / CONTRACT_PAY.round) * CONTRACT_PAY.round;
 }
 
@@ -48621,6 +50583,1204 @@ function contractImportPack(pack, text) {
     put(tpl.title, j.title); put(tpl.brief, j.brief);
   }
   return { ok: !why.length, text: T, why };
+}
+// ===========================================================================
+// THE MISSION PACKS (MISSIONS-P0) — the authored missions as a JSON pack, read
+// INTO today's contract record: the pack's format, its normaliser and
+// validator, the two-way conversion with 73_contracts.js's record, the
+// install over CONTRACT_PROVIDERS, the rally's derived checkpoints and the
+// tutorial's read-only listing. futureDesigns/MISSIONS-2026-10-25.md (the
+// design, §7 the user's decisions, §8 the people addendum). GATE MISSIONS
+// (tools/_missions_check.js) holds it; tools/mission_editor.html edits it.
+// ===========================================================================
+// NOT A PARALLEL SYSTEM: a pack's mission IS a contract record once read (missionToContract) - the legs are its
+// `stages`, the steps its `subs` - judged by contractValidate (opts.mission), paid by contractPay, run by the career
+// (74_career.js) when installed (missionPackInstall). The new fields ride along until their phase adds the runtime;
+// contractRuntimeOk (73_) keeps a record the runtime cannot judge yet out of the career. The world construction
+// "stages" (76_stages.js) keep their name: here a contract stage is a LEG and a sub a STEP.
+//
+// THE PACK (structure B, the user 25 Oct: "YES"):
+//   { what: 'flydiy-missions', v: 1, id, title,
+//     campaigns: [ { id, title, provider?, order, needs?, tutorial?, readonly?, phase?,
+//                    chapters: [ { id, title, order, needs?, missions: [mission id] } ] } ],
+//     missions:  [ mission ],                       a mission in no chapter is campaign-less
+//     sites:     [ { id, asset, at: { x, z, hdg }, state, track? } ],     §3.5 (the construction project's hook)
+//     text:      { key: { t, draft? } },             the pack's own words (a record names KEYS: 72_'s rule)
+//     legacy?:   { retrofitted: [id], dropped: [ { id, why } ] } }        the built-in pack's account of 72_'s contracts
+//   order      'seq' | 'any' | 'choose:N' on every container (campaign: its chapters, chapter: its missions, mission:
+//              its legs, leg: its steps); needs { after: [ids], rep? } the cross-links (a mission's after names missions,
+//              a container's names containers)
+// THE MISSION: today's record's fields (id provider kind title brief pay rep unlock needs repeat followUp goods) and
+//   client     the owner: a GAME_PEOPLE id (72_people.js; peopleClientOf(provider) by default) - the card's portrait
+//   legs       [ { order?, steps: [ step ] } ]                           (today's stages)
+//   order?     the legs' order (seq)
+//   onDone?    { say: { who, text } }                 the completion line (72_'s ct.<id>.done)
+//   rules?     { crash, injury, freight, damage, strike }   §3.4: 'fail' | 'reset' | 'assess' | 'ignore'; injury may be
+//                                                     { fail: <band> } (34_occupant GEN_OCC.bands: the index or the word)
+//                                                     strike: 'penalty' (+3 s on the laps running) | { penalty: s } | 'fail' | 'ignore'
+//   timers?    [ { id, start, stop, target: s | { refKmh }, splits?, medals?: [ { medal, le } ] } ]          §3.3
+//   startFrom? 'player' | <CONTRACT_DESIGNS id> | { build: 'path.json' }                                      §3.6
+//   prefs?     [ { k, v, need: 'bonus' | 'mandatory', pct? } ]   a configuration the client would like (bonus: +pct)
+//                                                     or insists on (mandatory: no delivery without it)        §7
+//   delivery?  { sold, blueprint }   a build's airframe sold to the client (leaves the fleet), its blueprint saved;
+//                                    the model's default for every build (§7) - written only to say otherwise
+//   route?     a 38c_route.js record, EMBEDDED (its pts; never a localStorage id): the rally's hidden course
+//   rally?     { refKmh, r }   the course's reference speed and checkpoint radius (missionRallyDerive)
+//   tutorial?  '<beat>'        a TUTORIAL listing: { id: 'story.<beat>', tutorial } and nothing else (read-only)
+// THE STEP (today's sub):
+//   { id?, do, place?, from?, load?: { kg, pax: n | [person ids], bulk?, items? }, goods?, embark?, disembark?,
+//     require?: { when, maxMin, depart, plane: [criterion] }, medals?, say?: { who, text }, onDone?, split?, auto? }
+//   do         carry | fly | land | photo | pass | park | deliver | accept | wait | talk
+//   place      { field } | { pt: [x, z], r, alt? } | { gate: [[x1, z1], [x2, z2]], alt?, prop?, dir? }
+//              | { ring: [x, y, z], r, dir?, prop? } | { spot: '<field>:<spot id>' } | { site: '<site id>' }
+//              (a field may be written as its id: 'w3'); alt { min?, max?, ref: 'agl' | 'msl' }
+//   from       where a carry is picked up / a fly or a photo departs (a field)
+//   photo over a FIELD is today's survey (the 450 m overflight); over a point it is phase 1's (the shutter + a line)
+// Pure: no DOM, no storage, no clock, no random. Reads 72_people.js, 72_ / 73_ (and, when present, 79_story.js,
+// 38c_route.js, 34_occupant.js, the GEN tables, the map / spot packs handed in) at call time.
+// ===========================================================================
+
+const MISSION_PACK_WHAT = 'flydiy-missions';
+const MISSION_PACK_V = 1;
+const MISSION_DO = ['carry', 'fly', 'land', 'photo', 'pass', 'park', 'deliver', 'accept', 'wait', 'talk'];
+const MISSION_PLACE_KINDS = ['field', 'pt', 'gate', 'ring', 'spot', 'site'];
+// the places each verb takes ('' = it may have none)
+const MISSION_PLACES_OF = {
+  carry: ['field', 'site'], fly: ['field', 'pt'], land: ['field'], photo: ['field', 'pt'], pass: ['gate', 'ring', 'pt'],
+  park: ['spot'], deliver: ['field'], accept: [''], wait: ['', 'field', 'pt', 'spot', 'site'], talk: ['', 'field', 'spot', 'site'],
+};
+const MISSION_PLACE_R = { pt: 150, ring: 8 };                  // m: a point's / a ring's radius when none is written
+const MISSION_PROPS = { gate: ['balloons', 'pylons'], ring: ['donut'] };
+const MISSION_RULES = { crash: ['fail', 'reset'], injury: ['fail', 'ignore'], freight: ['fail', 'ignore'], damage: ['assess', 'fail', 'ignore'],
+                        strike: ['penalty', 'fail', 'ignore'] };   // a gate post / a ring touched (73c missionStrikeTest); { penalty: s } too
+// §3.4's rules for a NEW mission that states none (the built-in pack states none: today's crash resets, keeps it live)
+const MISSION_RULES_NEW = { crash: 'fail', injury: 'fail', freight: 'fail', damage: 'assess', strike: 'penalty' };
+const MISSION_SITE_STATES = ['planned', 'building', 'built'];
+const MISSION_REQUIRE = ['when', 'maxMin', 'depart', 'plane', 'waitMin'];
+// THE PREFERENCES (§3.6, §7): a configuration word set, each read off the spec in phase 2 (`of`). Values are the GEN
+// vocabulary (60_gen_spec.js); a live table, when present, is the authority (missionPrefValues)
+const MISSION_PREF_KINDS = {
+  engines:    { of: 'spec.engines.length',   values: [1, 2, 3, 4] },
+  thrust:     { of: 'spec.engines[].mount',  values: ['tractor', 'pusher'] },
+  wing:       { of: 'spec.wing.position',    values: ['high', 'mid', 'low', 'parasol'] },
+  tail:       { of: 'spec.tail.type',        values: ['conventional', 'v', 'twinBoom'] },
+  gear:       { of: 'spec.gear.type',        values: ['taildragger', 'tricycle', 'floats'] },
+  canopy:     { of: 'spec.cabin.canopy.style', values: ['screen', 'bubble'] },
+  suspension: { of: 'spec.gear.suspension',  values: ['bungee'] },
+};
+const MISSION_NEED = ['bonus', 'mandatory'];
+// the record's fields a mission adds (the legacy projection strips them: missionStrip)
+const MISSION_RIDE = { rec: ['client', 'onDone', 'rules', 'timers', 'startFrom', 'prefs', 'delivery', 'route', 'rally', 'order', 'pack', 'campaign', 'chapter'],
+                       stage: ['order'], sub: ['id', 'say', 'onDone', 'embark', 'disembark', 'require', 'split', 'auto', 'place'], load: ['who'] };
+// THE PEOPLE are 72_people.js's (GAME_PEOPLE, the one list - §8): a person in a pack is its id, never a free name; the
+// provider's client is peopleClientOf's. '' when `id` names a person, else why not
+function missionPersonWhy(id, as) {
+  if (typeof id !== 'string' || !/^[a-z][a-z0-9_]*$/.test(id)) return (as || 'a person') + ' must be a person id (72_people.js), got ' + JSON.stringify(id);
+  if (!GAME_PEOPLE[id]) return (as || 'a person') + ' ' + id + ' is not in the people table';
+  if (as === 'a passenger' && GAME_PEOPLE[id].voice) return id + ' is a voice, never aboard';
+  return '';
+}
+// the mission model's own words (merged under the pack's text and over CONTRACT_TEXT: missionText)
+const MT_ = t => ({ t, draft: true });
+const MISSION_TEXT = {
+  'crit.climbMs': MT_('climbs at {v} m/s or more {at}'), 'crit.stallKmh': MT_('stalls at {v} km/h or less {at}'),
+  'crit.toDistM': MT_('takes off in {v} m or less {at}'), 'crit.ldgDistM': MT_('lands in {v} m or less {at}'),
+  'crit.fuelLph': MT_('burns {v} L/h or less {at}'), 'crit.cargoL': MT_('a hold of {v} L or more'),
+  'crit.pax': MT_('{v} passengers beside the pilot'),
+  'crit.heightM': MT_('at most {v} m high'), 'crit.lengthM': MT_('at most {v} m long'),
+  'crit.fitsShed': MT_('fits their {v}: through the door, parked inside'),
+  'pref.engines': MT_('engines: {v}'), 'pref.thrust': MT_('a {v} propeller'), 'pref.wing': MT_('a {v} wing'),
+  'pref.tail': MT_('a {v} tail'), 'pref.gear': MT_('{v} gear'), 'pref.canopy': MT_('a {v} canopy'),
+  'pref.suspension': MT_('{v} suspension'),
+  'pref.bonus': MT_('a bonus: {p}'), 'pref.mandatory': MT_('a must: {p}'),
+  // the built-in pack's containers (missionPackFromContracts)
+  'ms.chapter.arc': MT_('The arc'), 'ms.chapter.builds': MT_('Aircraft orders'), 'ms.chapter.night': MT_('Night work'),
+  'ms.campaign.tutorial': MT_('Tutorial / phase 0'), 'ms.chapter.tutorial': MT_('The story (79_story.js, as it is)'),
+};
+const msClone = o => JSON.parse(JSON.stringify(o));
+const msObj = o => !!o && typeof o === 'object' && !Array.isArray(o);
+const msNum = v => typeof v === 'number' && isFinite(v);
+// the text a pack reads: today's table, the model's words, the pack's own over both
+const missionText = pack => Object.assign({}, typeof CONTRACT_TEXT !== 'undefined' ? CONTRACT_TEXT : {}, MISSION_TEXT, (pack && msObj(pack.text)) ? pack.text : {});
+// a preference kind's values: the live GEN table when present (the suspensions), else the vocabulary's
+function missionPrefValues(k) {
+  const K = MISSION_PREF_KINDS[k];
+  if (!K) return null;
+  if (k === 'suspension' && typeof GEN_SUSPENSION !== 'undefined' && GEN_SUSPENSION) return Object.keys(GEN_SUSPENSION);
+  if (k === 'gear' && typeof TECH_GEAR_TYPES !== 'undefined') return TECH_GEAR_TYPES.slice();
+  if (k === 'canopy' && typeof TECH_CANOPY_STYLES !== 'undefined') return TECH_CANOPY_STYLES.slice();
+  return K.values.slice();
+}
+// an order word -> { kind: 'seq' | 'any' | 'choose', n } or null
+function missionOrder(o) {
+  if (o === 'seq' || o === 'any') return { kind: o, n: 0 };
+  const m = /^choose:(\d+)$/.exec(String(o || ''));
+  return m && +m[1] >= 1 ? { kind: 'choose', n: +m[1] } : null;
+}
+
+// ---- THE PLACE ---------------------------------------------------------------------------------------------------
+// a place's kind ('' none, null not a place)
+function missionPlaceKind(p) {
+  if (p == null) return '';
+  if (typeof p === 'string') return 'field';
+  if (!msObj(p)) return null;
+  const ks = MISSION_PLACE_KINDS.filter(k => p[k] != null);
+  return ks.length === 1 ? ks[0] : null;
+}
+// one spelling: a field id becomes { field }, a point / ring gets its radius
+function missionPlaceNorm(p) {
+  if (p == null) return null;
+  if (typeof p === 'string') return { field: p };
+  if (!msObj(p)) return p;
+  const o = msClone(p), k = missionPlaceKind(o);
+  if ((k === 'pt' || k === 'ring') && o.r == null) o.r = MISSION_PLACE_R[k];
+  return o;
+}
+const msFieldOf = p => (typeof p === 'string' ? p : (msObj(p) && typeof p.field === 'string' && missionPlaceKind(p) === 'field' ? p.field : null));
+function msAltWhy(a) {
+  if (a == null) return '';
+  if (!msObj(a)) return 'alt must be { min?, max?, ref }';
+  if (a.ref != null && !['agl', 'msl'].includes(a.ref)) return 'alt.ref is agl | msl';
+  if (a.min != null && !msNum(a.min)) return 'alt.min is not a number';
+  if (a.max != null && !msNum(a.max)) return 'alt.max is not a number';
+  if (msNum(a.min) && msNum(a.max) && a.min >= a.max) return 'alt.min must be below alt.max';
+  if (a.min == null && a.max == null) return 'alt names neither min nor max';
+  return '';
+}
+const msXZ = q => Array.isArray(q) && q.length === 2 && q.every(v => msNum(v) && Math.abs(v) < 60000);
+// '' when the place is well formed (a known field, a site of the pack, a spot of the field), else why not.
+// ctx: { fields, sites: { id: site }, spots: { field: [[x, z, ry, id]] } (src/viewer/fleet_spots_pack.js's `aero`) }
+function missionPlaceWhy(p, ctx) {
+  ctx = ctx || {};
+  const F = ctx.fields || CONTRACT_FIELDS, k = missionPlaceKind(p);
+  if (k === null) return 'a place is one of ' + MISSION_PLACE_KINDS.join(' | ') + ', got ' + JSON.stringify(p);
+  if (k === '') return '';
+  if (k === 'field') { const f = msFieldOf(p); return F[f] ? '' : 'no field ' + f; }
+  if (k === 'pt') {
+    if (!msXZ(p.pt)) return 'pt must be [x, z] in world metres';
+    if (!(msNum(p.r) && p.r > 0 && p.r <= 5000)) return 'pt.r must be 0-5000 m';
+    return msAltWhy(p.alt);
+  }
+  if (k === 'gate') {
+    if (!Array.isArray(p.gate) || p.gate.length !== 2 || !p.gate.every(msXZ)) return 'gate must be two posts [[x1, z1], [x2, z2]]';
+    const w = Math.hypot(p.gate[0][0] - p.gate[1][0], p.gate[0][1] - p.gate[1][1]);
+    if (!(w >= 5 && w <= 2000)) return 'a gate is 5-2000 m wide, got ' + Math.round(w);
+    if (p.prop != null && !MISSION_PROPS.gate.includes(p.prop)) return 'gate.prop is ' + MISSION_PROPS.gate.join(' | ');
+    if (p.dir != null && !msNum(p.dir)) return 'gate.dir is a heading in degrees';
+    return msAltWhy(p.alt);
+  }
+  if (k === 'ring') {
+    if (!Array.isArray(p.ring) || p.ring.length !== 3 || !p.ring.every(msNum) || !msXZ([p.ring[0], p.ring[2]])) return 'ring must be [x, y, z] (y the altitude, m MSL)';
+    if (!(msNum(p.r) && p.r >= 2 && p.r <= 100)) return 'ring.r must be 2-100 m';
+    if (p.dir != null && !msNum(p.dir)) return 'ring.dir is a heading in degrees';
+    if (p.prop != null && !MISSION_PROPS.ring.includes(p.prop)) return 'ring.prop is ' + MISSION_PROPS.ring.join(' | ');
+    return '';
+  }
+  if (k === 'spot') {
+    const m = /^([^:]+):(.+)$/.exec(String(p.spot));
+    if (!m || !F[m[1]]) return 'spot must be <field>:<spot id> on a known field, got ' + p.spot;
+    const S = ctx.spots && ctx.spots[m[1]];
+    if (S && !S.some(s => s[3] === m[2])) return 'no spot ' + m[2] + ' at ' + m[1];
+    return '';
+  }
+  if (k === 'site') return ctx.sites && ctx.sites[p.site] ? '' : 'no site ' + p.site + ' in the pack';
+  return '';
+}
+
+// ---- THE NORMALISER (fills what is missing, carries what is present: unknown fields ride along) --------------------
+function missionStepNorm(s) {
+  const o = msObj(s) ? msClone(s) : {};
+  if (o.place != null) o.place = missionPlaceNorm(o.place);
+  if (typeof o.from === 'string') o.from = { field: o.from };
+  return o;
+}
+function missionNormalise(m) {
+  const o = msObj(m) ? msClone(m) : {};
+  if (typeof o.id !== 'string') o.id = '';
+  if (o.tutorial != null) return o;                             // a tutorial listing is read-only: as it is
+  if (typeof o.provider !== 'string') o.provider = '';
+  if (typeof o.kind !== 'string') o.kind = 'contract';
+  for (const k of ['title', 'brief']) if (typeof o[k] !== 'string') o[k] = '';
+  if (o.client == null && o.provider) { const c = peopleClientOf(o.provider); if (c) o.client = c; }
+  if (!Array.isArray(o.legs)) o.legs = [];
+  o.legs = o.legs.map(L => { const l = msObj(L) ? L : {}; l.steps = Array.isArray(l.steps) ? l.steps.map(missionStepNorm) : []; return l; });
+  if (!msObj(o.pay)) o.pay = { base: 0 };
+  if (!msObj(o.rep)) o.rep = { provider: o.provider, gain: 0 };
+  return o;
+}
+function missionPackNormalise(p) {
+  const o = msObj(p) ? msClone(p) : {};
+  o.what = MISSION_PACK_WHAT;
+  if (!msNum(o.v)) o.v = MISSION_PACK_V;
+  if (typeof o.id !== 'string') o.id = '';
+  if (typeof o.title !== 'string') o.title = '';
+  for (const k of ['campaigns', 'missions', 'sites']) if (!Array.isArray(o[k])) o[k] = [];
+  if (!msObj(o.text)) o.text = {};
+  o.campaigns = o.campaigns.map(c => {
+    const C = msObj(c) ? c : {};
+    if (C.order == null) C.order = 'any';
+    C.chapters = Array.isArray(C.chapters) ? C.chapters.map(h => { const H = msObj(h) ? h : {}; if (H.order == null) H.order = 'seq';
+      H.missions = Array.isArray(H.missions) ? H.missions : []; return H; }) : [];
+    return C;
+  });
+  o.missions = o.missions.map(missionNormalise);
+  return o;
+}
+
+// ---- THE CONVERSION: a mission <-> today's contract record ----------------------------------------------------------
+// the pack's sites by id (a mission's site place resolves its position onto the step)
+const msSites = pack => { const out = {}; for (const s of (pack && pack.sites) || []) if (msObj(s) && s.id) out[s.id] = s; return out; };
+// (MISSIONS-P3) an onDone's site carries its world construction stage (the pack's site `track`), so the record alone
+// reveals it when the site is built (74_ careerOnDone)
+function msSiteTrack(od, sites) { if (od && od.site && sites && sites[od.site.id] && sites[od.site.id].track) od.site.track = sites[od.site.id].track; return od; }
+// one step -> one sub
+function missionStepToSub(st, sites) {
+  const s = missionStepNorm(st), sub = { do: s.do }, P = s.place, kind = missionPlaceKind(P), f = msFieldOf(P);
+  const from = msFieldOf(s.from);
+  const put = () => { if (kind === 'site') { const S = sites && sites[P.site]; sub.place = Object.assign({}, P, S && S.at ? { at: { x: S.at.x, z: S.at.z } } : {}); } else sub.place = P; };
+  // (MISSIONS-P3) a site served by a strip (`field`): the step is flown to that strip, the site rides along (the marker)
+  const served = kind === 'site' && sites && sites[P.site] && sites[P.site].field ? sites[P.site].field : null;
+  if (s.do === 'carry') { if (from) sub.from = from; if (f) sub.to = f; else if (P) { put(); if (served) sub.to = served; } }
+  else if (s.do === 'fly') { if (from) sub.from = from; if (f) sub.to = f; else if (P) put(); }
+  else if (s.do === 'land' || s.do === 'deliver') { if (f) sub.to = f; else if (P) put(); }
+  else if (s.do === 'photo') {
+    if (f) { sub.do = 'survey'; if (from) sub.from = from; sub.at = f; }   // today's survey: the overflight of a field
+    else { if (from) sub.from = from; if (P) put(); }
+  } else if (s.do !== 'accept') { if (f) sub.at = f; else if (P) { put(); if (served) sub.at = served; } }
+  if (s.goods != null) sub.goods = s.goods;
+  if (msObj(s.load)) {
+    const L = msClone(s.load);
+    if (Array.isArray(L.pax)) { L.who = L.pax.slice(); L.pax = L.pax.length; }
+    sub.load = L;
+  }
+  const R = msObj(s.require) ? s.require : {};
+  if (R.when != null) sub.when = msClone(R.when);
+  if (R.plane != null) sub.crit = msClone(R.plane);
+  const rest = {};
+  for (const k of Object.keys(R)) if (k !== 'when' && k !== 'plane') rest[k] = msClone(R[k]);
+  if (Object.keys(rest).length) sub.require = rest;
+  for (const k of ['medals', 'id', 'say', 'onDone', 'embark', 'disembark', 'split', 'auto']) if (s[k] != null) sub[k] = msClone(s[k]);
+  msSiteTrack(sub.onDone, sites);
+  return sub;
+}
+// one mission -> a contract record (normalised: what the career runs). ctx: { pack }
+function missionToContract(m, ctx) {
+  const M = missionNormalise(m), sites = msSites(ctx && ctx.pack);
+  const r = { id: M.id, provider: M.provider, kind: M.kind, title: M.title, brief: M.brief };
+  if (M.goods != null) r.goods = M.goods;
+  r.stages = M.legs.map(L => { const st = { subs: L.steps.map(s => missionStepToSub(s, sites)) }; if (L.order != null && L.order !== 'any') st.order = L.order; return st; });
+  for (const k of ['pay', 'rep', 'unlock', 'needs', 'repeat', 'followUp']) if (M[k] != null) r[k] = msClone(M[k]);
+  for (const k of MISSION_RIDE.rec) if (k !== 'order' && M[k] != null) r[k] = msClone(M[k]);
+  msSiteTrack(r.onDone, sites);
+  if (M.order != null && M.order !== 'seq') r.order = M.order;
+  return contractNormalise(r);
+}
+// one sub -> one step (the retrofit: a contract record read into the model)
+function missionSubToStep(u) {
+  const s = { do: u.do };
+  if (u.do === 'survey') { s.do = 'photo'; if (u.from) s.from = { field: u.from }; s.place = { field: u.at }; }
+  else {
+    if (u.from) s.from = { field: u.from };
+    if (u.to) s.place = { field: u.to };
+    else if (u.at) s.place = { field: u.at };
+    else if (u.place) s.place = msClone(u.place);
+  }
+  if (u.goods != null) s.goods = u.goods;
+  if (u.load) { const L = msClone(u.load); if (Array.isArray(L.who)) { L.pax = L.who; delete L.who; } s.load = L; }
+  const R = {};
+  if (u.when != null) R.when = msClone(u.when);
+  if (u.crit != null) R.plane = msClone(u.crit);
+  if (msObj(u.require)) Object.assign(R, msClone(u.require));
+  if (Object.keys(R).length) s.require = R;
+  for (const k of ['medals', 'id', 'say', 'onDone', 'embark', 'disembark', 'split', 'auto']) if (u[k] != null) s[k] = msClone(u[k]);
+  return s;
+}
+const MS_REPEAT_DEFAULT = rec => (rec.kind === 'job' ? null : false);
+function missionFromContract(rec) {
+  const r = contractNormalise(rec);
+  const m = { id: r.id, provider: r.provider, kind: r.kind, title: r.title, brief: r.brief };
+  if (r.goods != null) m.goods = r.goods;
+  m.legs = r.stages.map(st => { const L = { steps: st.subs.map(missionSubToStep) }; if (st.order != null) L.order = st.order; return L; });
+  m.pay = msClone(r.pay); m.rep = msClone(r.rep);
+  if (r.unlock != null) m.unlock = msClone(r.unlock);
+  if (rec.needs != null) m.needs = msClone(rec.needs);
+  if (rec.repeat != null && rec.repeat !== MS_REPEAT_DEFAULT(r)) m.repeat = msClone(rec.repeat);
+  if (r.kind === 'build' && rec.followUp) { const f = {}; for (const k of ['prefer', 'add']) if (rec.followUp[k] && rec.followUp[k].length) f[k] = msClone(rec.followUp[k]); if (Object.keys(f).length) m.followUp = f; }
+  for (const k of MISSION_RIDE.rec) if (r[k] != null) m[k] = msClone(r[k]);
+  return m;
+}
+// THE LEGACY PROJECTION: a record with the mission's ride-along fields taken off - what today's code reads (the gate
+// holds the built-in pack's records to 72_'s, through this, key order aside)
+function missionStrip(rec) {
+  const r = msClone(rec);
+  for (const k of MISSION_RIDE.rec) delete r[k];
+  for (const st of r.stages || []) {
+    for (const k of MISSION_RIDE.stage) delete st[k];
+    for (const s of st.subs || []) { for (const k of MISSION_RIDE.sub) delete s[k]; if (s.load) for (const k of MISSION_RIDE.load) delete s.load[k]; }
+  }
+  return r;
+}
+// a canonical JSON (sorted keys): two records are the same record whatever order their keys were written in
+function missionCanon(o) {
+  if (Array.isArray(o)) return '[' + o.map(missionCanon).join(',') + ']';
+  if (msObj(o)) return '{' + Object.keys(o).sort().filter(k => o[k] !== undefined).map(k => JSON.stringify(k) + ':' + missionCanon(o[k])).join(',') + '}';
+  return JSON.stringify(o);
+}
+
+// ---- THE VALIDATOR ------------------------------------------------------------------------------------------------
+// a mission's new fields -> [why]. ctx: { pack, fields, sites, spots, text }
+function missionWhy(m, ctx) {
+  ctx = ctx || {};
+  const why = [], id = (m && m.id) || '(no id)', T = ctx.text || missionText(ctx.pack), F = ctx.fields || CONTRACT_FIELDS;
+  const sites = ctx.sites || msSites(ctx.pack);
+  const say = (v, at) => {
+    if (!msObj(v)) { why.push(at + ': say is { who, text }'); return; }
+    const w = missionPersonWhy(v.who, 'a speaker'); if (w) why.push(at + ': ' + w);
+    if (!contractTextOk(v.text, T)) why.push(at + ': say.text key ' + v.text + ' does not resolve');
+  };
+  const people = (L, at, as) => {
+    if (typeof L === 'number') { if (!(L >= 0 && L === Math.round(L))) why.push(at + ': a count of people must be a whole number'); return; }
+    if (!Array.isArray(L)) { why.push(at + ': a list of person ids or a count'); return; }
+    for (const p of L) { const w = typeof p === 'number' ? (p >= 1 && p === Math.round(p) ? '' : 'a count must be >= 1') : missionPersonWhy(p, as); if (w) why.push(at + ': ' + w); }
+  };
+  if (m.client != null) { const w = missionPersonWhy(m.client, 'the client'); if (w) why.push(id + ': ' + w); }
+  const O = missionOrder(m.order || 'seq');
+  if (!O) why.push(id + ': order ' + m.order + ' is not seq | any | choose:N');
+  else if (O.kind === 'choose' && O.n > (m.legs || []).length) why.push(id + ': choose:' + O.n + ' of ' + (m.legs || []).length + ' legs');
+  const stepIds = {}, stepLeg = {}, stepPos = {};
+  (m.legs || []).forEach((L, i) => {
+    const lo = missionOrder(L.order || 'any');
+    if (!lo) why.push(id + ' leg ' + i + ': order ' + L.order + ' is not seq | any | choose:N');
+    else if (lo.kind === 'choose' && lo.n > (L.steps || []).length) why.push(id + ' leg ' + i + ': choose:' + lo.n + ' of ' + (L.steps || []).length + ' steps');
+    (L.steps || []).forEach((s, j) => {
+      const at = id + ' ' + i + '.' + j;
+      if (!MISSION_DO.includes(s.do)) { why.push(at + ': do ' + s.do + ' is not one of ' + MISSION_DO.join(' ')); return; }
+      if (s.id != null) { if (typeof s.id !== 'string' || !s.id) why.push(at + ': a step id is a string'); else if (stepIds[s.id]) why.push(at + ': step id ' + s.id + ' twice'); else { stepIds[s.id] = 1; stepLeg[s.id] = i; stepPos[s.id] = j; } }
+      const k = missionPlaceKind(s.place), allow = MISSION_PLACES_OF[s.do];
+      if (k === null || !allow.includes(k)) why.push(at + ': ' + s.do + ' takes ' + allow.map(x => x || 'no place').join(' | ') + ', got ' + (k === null ? JSON.stringify(s.place) : (k || 'no place')));
+      else { const w = missionPlaceWhy(s.place, { fields: F, sites, spots: ctx.spots }); if (w) why.push(at + ': ' + w); }
+      if (s.from != null) { const f = msFieldOf(s.from); if (!f || !F[f]) why.push(at + ': from must be a field, got ' + JSON.stringify(s.from)); }
+      if (s.do === 'photo' && missionPlaceKind(s.place) === 'field' && s.from == null) why.push(at + ': a photo over a field departs from a field (`from`: today\'s survey)');
+      // (MISSIONS-P1) an IN-FLIGHT step (a pass, a photo or a fly to a point / gate / ring) is judged off the flight's
+      // evidence by its id, and a timer starts / stops on ids: it needs one
+      if (['pass', 'photo', 'fly'].includes(s.do) && ['pt', 'gate', 'ring'].includes(missionPlaceKind(s.place)) && !s.id) why.push(at + ': an in-flight ' + s.do + ' needs an id (its evidence, its timers)');
+      if (s.do === 'wait' && !(s.require && s.require.waitMin != null)) why.push(at + ': wait needs require.waitMin');
+      if (s.load && Array.isArray(s.load.pax)) people(s.load.pax, at + ' load.pax', 'a passenger');
+      for (const e of ['embark', 'disembark']) if (s[e] != null) people(s[e], at + ' ' + e, 'a passenger');
+      if (s.require != null) {
+        if (!msObj(s.require)) why.push(at + ': require is an object');
+        else {
+          for (const q of Object.keys(s.require)) if (!MISSION_REQUIRE.includes(q)) why.push(at + ': require.' + q + ' is not one of ' + MISSION_REQUIRE.join(' '));
+          const R = s.require;
+          if (R.maxMin != null && !(msNum(R.maxMin) && R.maxMin > 0 && R.maxMin <= 1440)) why.push(at + ': require.maxMin is 1-1440 minutes');
+          if (R.waitMin != null && !(msNum(R.waitMin) && R.waitMin > 0 && R.waitMin <= 1440)) why.push(at + ': require.waitMin is 1-1440 minutes');
+          if (R.waitMin != null && s.do !== 'wait') why.push(at + ': require.waitMin on a ' + s.do + ' (wait only)');
+          if (R.depart != null) {
+            const D = R.depart, h = v => msNum(v) && v >= 0 && v <= 24;
+            const ok = msObj(D) && Object.keys(D).length === 1 && ((D.after != null && h(D.after)) || (D.before != null && h(D.before)) || (Array.isArray(D.at) && D.at.length === 2 && D.at.every(h) && D.at[0] !== D.at[1]));
+            if (!ok) why.push(at + ': require.depart is { after: h } | { before: h } | { at: [h0, h1] } (local hours)');
+          }
+          if (R.plane != null && !Array.isArray(R.plane)) why.push(at + ': require.plane is a list of criteria');
+        }
+      }
+      if (s.say != null) say(s.say, at + ' say');
+      if (s.do === 'talk' && s.say == null) why.push(at + ': talk needs a say');
+      if (s.onDone != null) {
+        if (!msObj(s.onDone)) why.push(at + ': onDone is an object');
+        else {
+          if (s.onDone.say != null) say(s.onDone.say, at + ' onDone.say');
+          if (s.onDone.site != null) { const S = s.onDone.site; if (!msObj(S) || !sites[S.id] || !MISSION_SITE_STATES.includes(S.state)) why.push(at + ': onDone.site is { id (a pack site), state: ' + MISSION_SITE_STATES.join(' | ') + ' }'); }
+          if (s.onDone.pay != null && !(msNum(s.onDone.pay) && s.onDone.pay >= 0)) why.push(at + ': onDone.pay is credits >= 0');
+        }
+      }
+      if (s.split != null && !(msNum(s.split) && s.split >= 0)) why.push(at + ': split is seconds >= 0 (from the first checkpoint)');
+    });
+  });
+  if (m.onDone != null) {
+    if (!msObj(m.onDone)) why.push(id + ': onDone is an object');
+    else {
+      if (m.onDone.say != null) say(m.onDone.say, id + ' onDone.say');
+      if (m.onDone.site != null) { const S = m.onDone.site; if (!msObj(S) || !sites[S.id] || !MISSION_SITE_STATES.includes(S.state)) why.push(id + ': onDone.site is { id (a pack site), state: ' + MISSION_SITE_STATES.join(' | ') + ' }'); }
+      if (m.onDone.pay != null && !(msNum(m.onDone.pay) && m.onDone.pay >= 0)) why.push(id + ': onDone.pay is credits >= 0');
+    }
+  }
+  if (m.rules != null) {
+    if (!msObj(m.rules)) why.push(id + ': rules is an object');
+    else for (const k of Object.keys(m.rules)) {
+      const v = m.rules[k];
+      if (!MISSION_RULES[k]) { why.push(id + ': rules.' + k + ' is not one of ' + Object.keys(MISSION_RULES).join(' ')); continue; }
+      if (k === 'injury' && msObj(v)) {
+        const B = typeof GEN_OCC !== 'undefined' && GEN_OCC.bands ? GEN_OCC.bands : null;
+        const b = v.fail, okB = (msNum(b) && b >= 1 && b <= 4 && b === Math.round(b)) || (typeof b === 'string' && (!B || B.indexOf(b) >= 1));
+        if (!okB) why.push(id + ': rules.injury.fail is a band 1-4 or its word (34_occupant GEN_OCC.bands)');
+      } else if (k === 'strike' && msObj(v)) {
+        if (!(msNum(v.penalty) && v.penalty >= 0 && v.penalty <= 60)) why.push(id + ': rules.strike.penalty is seconds, 0-60');
+      } else if (!MISSION_RULES[k].includes(v)) why.push(id + ': rules.' + k + ' is ' + MISSION_RULES[k].join(' | '));
+    }
+  }
+  if (m.timers != null) {
+    if (!Array.isArray(m.timers)) why.push(id + ': timers is a list');
+    else {
+      const seen = {};
+      m.timers.forEach((t, i) => {
+        const at = id + ' timer ' + ((t && t.id) || i);
+        if (!msObj(t) || typeof t.id !== 'string' || !t.id) { why.push(at + ': a timer has an id'); return; }
+        if (seen[t.id]) why.push(at + ': timer id twice'); seen[t.id] = 1;
+        for (const e of ['start', 'stop']) if (!stepIds[t[e]]) why.push(at + ': ' + e + ' names no step of the mission (' + t[e] + ')');
+        // (MISSIONS-P1) a lap is flown in one flight over one leg (the tracker arms one leg at a time): start and stop
+        // in the same leg, the start first
+        if (stepIds[t.start] && stepIds[t.stop] && (stepLeg[t.start] !== stepLeg[t.stop] || stepPos[t.start] > stepPos[t.stop])) why.push(at + ': starts and stops in one leg, the start first');
+        if (t.start === t.stop) why.push(at + ': starts and stops on the same step');
+        const tg = t.target;
+        if (!((msNum(tg) && tg > 0) || (msObj(tg) && msNum(tg.refKmh) && tg.refKmh > 0))) why.push(at + ': target is seconds or { refKmh }');
+        if (t.medals != null && (!Array.isArray(t.medals) || !t.medals.length || t.medals.some(x => !['gold', 'silver', 'bronze'].includes(x && x.medal) || !(x.le > 0))))
+          why.push(at + ': a medal is { medal: gold|silver|bronze, le: seconds }');
+      });
+    }
+  }
+  if (m.startFrom != null) {
+    const S = m.startFrom, DS = typeof CONTRACT_DESIGNS !== 'undefined' ? CONTRACT_DESIGNS : {};
+    if (!(S === 'player' || (typeof S === 'string' && DS[S]) || (msObj(S) && typeof S.build === 'string' && /\.json$/.test(S.build))))
+      why.push(id + ': startFrom is player | a validated design id | { build: <file>.json }');
+    if (m.kind !== 'build') why.push(id + ': startFrom on a ' + m.kind + ' (an aircraft order starts from a plane)');
+  }
+  if (m.prefs != null) {
+    if (!Array.isArray(m.prefs)) why.push(id + ': prefs is a list');
+    else {
+      if (m.kind !== 'build') why.push(id + ': prefs on a ' + m.kind + ' (aircraft orders only)');
+      const seen = {};
+      for (const p of m.prefs) {
+        const V = p && missionPrefValues(p.k), at = id + ' pref ' + (p && p.k);
+        if (!V) { why.push(at + ': not one of ' + Object.keys(MISSION_PREF_KINDS).join(' ')); continue; }
+        if (seen[p.k]) why.push(at + ': named twice'); seen[p.k] = 1;
+        if (!V.includes(p.v)) why.push(at + ': ' + p.v + ' is not one of ' + V.join(' '));
+        if (!MISSION_NEED.includes(p.need)) why.push(at + ': need is bonus | mandatory (the user: each item marked by the author)');
+        if (p.need === 'bonus' && !(msNum(p.pct) && p.pct > 0 && p.pct <= 100)) why.push(at + ': a bonus pays pct (1-100)');
+        if (p.need === 'mandatory' && p.pct != null) why.push(at + ': a mandatory preference pays no bonus');
+      }
+    }
+  }
+  if (m.delivery != null) {
+    if (m.kind !== 'build') why.push(id + ': delivery on a ' + m.kind + ' (aircraft orders only)');
+    if (!msObj(m.delivery) || Object.keys(m.delivery).some(k => !['sold', 'blueprint'].includes(k) || typeof m.delivery[k] !== 'boolean')) why.push(id + ': delivery is { sold: bool, blueprint: bool }');
+  }
+  if (m.route != null) {
+    const R = typeof routeNormalise === 'function' ? routeNormalise(m.route) : (msObj(m.route) && Array.isArray(m.route.pts) ? m.route : null);
+    if (!R || R.pts.length < 2) why.push(id + ': route is a drawn route record (38c_route.js) with 2+ points');
+    else if (R.pts.length !== m.route.pts.length) why.push(id + ': the route has points routeNormalise drops');
+  }
+  if (m.rally != null) {
+    if (!msObj(m.rally) || !(msNum(m.rally.refKmh) && m.rally.refKmh > 20) || (m.rally.r != null && !(msNum(m.rally.r) && m.rally.r > 0))) why.push(id + ': rally is { refKmh > 20, r? }');
+    if (m.route == null) why.push(id + ': a rally needs its embedded route');
+  }
+  return why;
+}
+// THE PACK -> [why] (empty = valid). opts: { fields, spots, ids (contract ids `needs.after` may name besides the pack's) }
+function missionPackValidate(pack, opts) {
+  opts = opts || {};
+  const why = [], P = pack || {};
+  if (P.what !== MISSION_PACK_WHAT) why.push('what must be ' + MISSION_PACK_WHAT);
+  if (P.v !== MISSION_PACK_V) why.push('v must be ' + MISSION_PACK_V + ' (got ' + P.v + ')');
+  for (const k of ['campaigns', 'missions']) if (!Array.isArray(P[k])) why.push(k + ' is not a list');
+  if (why.length) return why;
+  const T = missionText(P), F = opts.fields || CONTRACT_FIELDS;
+  for (const k of Object.keys(P.text || {})) if (!msObj(P.text[k]) || typeof P.text[k].t !== 'string') why.push('text ' + k + ' is not { t }');
+  // the sites
+  const sites = {};
+  for (const s of P.sites || []) {
+    const at = 'site ' + (s && s.id);
+    if (!msObj(s) || typeof s.id !== 'string' || !s.id) { why.push('a site has an id'); continue; }
+    if (sites[s.id]) why.push(at + ': twice'); sites[s.id] = s;
+    if (typeof s.asset !== 'string' || !s.asset) why.push(at + ': an asset (what stands there)');
+    if (!msObj(s.at) || !msXZ([s.at.x, s.at.z]) || (s.at.hdg != null && !msNum(s.at.hdg))) why.push(at + ': at is { x, z, hdg? }');
+    if (!MISSION_SITE_STATES.includes(s.state)) why.push(at + ': state is ' + MISSION_SITE_STATES.join(' | '));
+    if (s.field != null && !(opts.fields || CONTRACT_FIELDS)[s.field]) why.push(at + ': field ' + s.field + ' is not a field (the strip that serves it)');
+    if (s.track != null) { const m = /^(\w+):(\d+)$/.exec(s.track); if (!m || typeof CONTRACT_TRACKS === 'undefined' || !CONTRACT_TRACKS[m[1]] || +m[2] < 1 || +m[2] > CONTRACT_TRACKS[m[1]].max) why.push(at + ': track is <track>:<1..max> (76_stages)'); }
+  }
+  // the missions: ids once, each valid as a contract record and in its new fields
+  const byId = {};
+  for (const m of P.missions) {
+    if (!msObj(m) || typeof m.id !== 'string' || !m.id) { why.push('a mission with no id'); continue; }
+    if (byId[m.id]) why.push(m.id + ': mission id twice'); byId[m.id] = m;
+  }
+  const ids = Object.keys(byId).concat(opts.ids || []);
+  const beats = typeof STORY_BEATS !== 'undefined' ? STORY_BEATS.map(b => b.id) : null;
+  for (const m of P.missions) {
+    if (!msObj(m) || !m.id) continue;
+    if (m.tutorial != null) {
+      const extra = Object.keys(m).filter(k => !['id', 'tutorial'].includes(k));
+      if (extra.length) why.push(m.id + ': a tutorial listing is read-only (id, tutorial) - it carries ' + extra.join(', '));
+      if (m.id !== 'story.' + m.tutorial) why.push(m.id + ': a tutorial listing is story.<beat>');
+      if (beats && !beats.includes(m.tutorial)) why.push(m.id + ': no beat ' + m.tutorial + ' in 79_story.js');
+      continue;
+    }
+    const n = missionNormalise(m);
+    const rec = missionToContract(n, { pack: P });
+    for (const w of contractValidate(rec, { mission: true, text: T, fields: F, ids })) why.push(w);
+    for (const w of missionWhy(n, { pack: P, text: T, fields: F, sites, spots: opts.spots })) why.push(w);
+  }
+  // the tree: containers once, their orders, every mission in one chapter at most, the cross-links resolve
+  const boxes = {}, placed = {};
+  for (const c of P.campaigns) {
+    const at = 'campaign ' + (c && c.id);
+    if (!msObj(c) || typeof c.id !== 'string' || !c.id) { why.push('a campaign has an id'); continue; }
+    if (boxes[c.id] || byId[c.id]) why.push(at + ': id twice'); boxes[c.id] = c;
+    if (c.title && !contractTextOk(c.title, T)) why.push(at + ': title key ' + c.title + ' does not resolve');
+    if (c.provider != null && (typeof CONTRACT_PROVIDERS === 'undefined' || !CONTRACT_PROVIDERS[c.provider])) why.push(at + ': no provider ' + c.provider);
+    const O = missionOrder(c.order);
+    if (!O) why.push(at + ': order ' + c.order + ' is not seq | any | choose:N');
+    else if (O.kind === 'choose' && O.n > (c.chapters || []).length) why.push(at + ': choose:' + O.n + ' of ' + (c.chapters || []).length + ' chapters');
+    for (const h of c.chapters || []) {
+      const hat = 'chapter ' + (h && h.id);
+      if (!msObj(h) || typeof h.id !== 'string' || !h.id) { why.push(at + ': a chapter has an id'); continue; }
+      if (boxes[h.id] || byId[h.id]) why.push(hat + ': id twice'); boxes[h.id] = h;
+      if (h.title && !contractTextOk(h.title, T)) why.push(hat + ': title key ' + h.title + ' does not resolve');
+      const HO = missionOrder(h.order);
+      if (!HO) why.push(hat + ': order ' + h.order + ' is not seq | any | choose:N');
+      else if (HO.kind === 'choose' && HO.n > (h.missions || []).length) why.push(hat + ': choose:' + HO.n + ' of ' + (h.missions || []).length + ' missions');
+      for (const id of h.missions || []) {
+        if (!byId[id]) why.push(hat + ': no mission ' + id);
+        else if (placed[id]) why.push(hat + ': ' + id + ' is already in chapter ' + placed[id]);
+        else placed[id] = h.id;
+        const m = byId[id];
+        if (m && c.tutorial && m.tutorial == null) why.push(hat + ': ' + id + ' in the tutorial campaign is not a tutorial listing');
+        if (m && !c.tutorial && m.tutorial != null) why.push(hat + ': tutorial listing ' + id + ' outside the tutorial campaign');
+        if (m && c.provider && m.tutorial == null && m.provider !== c.provider && !c.mixed) why.push(hat + ': ' + id + ' is ' + m.provider + '\'s, the campaign ' + c.provider + '\'s (mixed: true to allow)');
+      }
+    }
+    // THE TUTORIAL (§7: it stays exactly as it is): read-only, phase 0, every beat once and in the story's order
+    if (c.tutorial) {
+      if (c.readonly !== true) why.push(at + ': the tutorial campaign is readonly');
+      const listed = [].concat(...(c.chapters || []).map(h => h.missions || [])).map(id => byId[id] && byId[id].tutorial);
+      if (beats && listed.join() !== beats.join()) why.push(at + ': lists ' + listed.join(' ') + ', the story is ' + beats.join(' '));
+    }
+  }
+  for (const c of P.campaigns) for (const B of [c].concat((c && c.chapters) || [])) if (B && B.needs != null) {
+    if (!msObj(B.needs) || !Array.isArray(B.needs.after)) why.push(B.id + ': needs is { after: [container ids] }');
+    else for (const a of B.needs.after) if (!boxes[a]) why.push(B.id + ': needs.after names ' + a + ', no campaign or chapter');
+  }
+  // the built-in pack's account of 72_'s contracts
+  if (P.legacy != null) {
+    const L = P.legacy;
+    if (!msObj(L) || !Array.isArray(L.retrofitted) || !Array.isArray(L.dropped)) why.push('legacy is { retrofitted: [id], dropped: [{ id, why }] }');
+    else {
+      for (const id of L.retrofitted) if (!byId[id]) why.push('legacy: retrofitted ' + id + ' is not a mission of the pack');
+      for (const d of L.dropped) if (!msObj(d) || typeof d.id !== 'string' || typeof d.why !== 'string' || !d.why) why.push('legacy: a drop is { id, why }');
+        else if (byId[d.id]) why.push('legacy: ' + d.id + ' is dropped and still a mission');
+    }
+  }
+  return why;
+}
+
+// ---- THE PACK AS THE CAREER READS IT --------------------------------------------------------------------------------
+// every (non-tutorial) mission as a contract record, by id
+function missionPackContracts(pack) {
+  const P = missionPackNormalise(pack), out = {};
+  for (const m of P.missions) if (m.tutorial == null && m.id) out[m.id] = missionToContract(m, { pack: P });
+  return out;
+}
+// THE INSTALL: a providers table (CONTRACT_PROVIDERS' shape) with each provider's authored lists filled from the pack's
+// campaigns - a SEQ chapter of the provider's campaign is its `arc` (offered one at a time, in order: 74_ careerOfferIds),
+// an ANY or a CHOOSE:N chapter's aircraft orders its `builds` and its other missions its `night` list (each offered once
+// its needs are met: the night list's check - a validated design flies it - is the one a flying mission needs).
+// (MISSIONS-P3) THE CONTAINERS ride on the records: a container is DONE when all its missions are (a choose:N chapter: N
+// of them; a campaign: every chapter) -> `needs.of: [{ ids, n }]` on every mission behind it - a chapter's or a campaign's
+// `needs.after`, the chapter before in a seq campaign; a choose:N chapter's missions carry `closed: { ids, n }` (offered
+// only while fewer than n are done). 74_ careerNeedsOk reads both. HELD OUT, with the reason: a mission the runtime
+// cannot run yet (contractRuntimeOk), a choose:N CAMPAIGN (N chapters of many: not expressible yet), a mission of
+// another provider in a seq chapter (its arc is per provider).
+// Pure: returns { providers, held: [{ id, why }], text }; the table handed in is not changed (its jobs, goods, fields
+// kept). `text` is the pack's own words over the model's labels (MISSION_TEXT): the boot merges it into CONTRACT_TEXT
+// with the providers, or the card reads a pack mission's keys as [keys].
+function missionPackInstall(pack, providers) {
+  const P = missionPackNormalise(pack), base = providers || CONTRACT_PROVIDERS, out = {}, held = [];
+  const recs = missionPackContracts(P);
+  for (const p of Object.keys(base)) out[p] = Object.assign({}, base[p], { arc: [], builds: [], night: [] });
+  const boxes = {};
+  for (const c of P.campaigns) { boxes[c.id] = c; for (const h of c.chapters) boxes[h.id] = h; }
+  // a container's DONE as conditions [{ ids, n }] (null: not expressible - a choose:N campaign)
+  const chDone = h => { const O = missionOrder(h.order); return [{ ids: h.missions.slice(), n: O && O.kind === 'choose' ? O.n : h.missions.length }]; };
+  const doneOf = id => { const B = boxes[id]; if (!B) return []; if (!B.chapters) return chDone(B);
+    const O = missionOrder(B.order); return O && O.kind === 'choose' ? null : [].concat(...B.chapters.map(chDone)); };
+  const needsOf = N => { if (!N || !Array.isArray(N.after)) return []; const L = N.after.map(doneOf); return L.some(x => x == null) ? null : [].concat(...L); };
+  for (const c of P.campaigns) {
+    if (c.tutorial) continue;
+    const all = [].concat(...c.chapters.map(h => h.missions)), CO = missionOrder(c.order);
+    if (CO && CO.kind === 'choose') { for (const id of all) held.push({ id, why: 'campaign ' + c.id + ' is ' + c.order + ' (N chapters of many: no runtime yet)' }); continue; }
+    const c0 = needsOf(c.needs);
+    c.chapters.forEach((h, k) => {
+      const O = missionOrder(h.order);
+      const conds = c0 == null ? null : c0.concat(needsOf(h.needs) || [], CO && CO.kind === 'seq' && k > 0 ? chDone(c.chapters[k - 1]) : []);
+      const closed = O && O.kind === 'choose' ? { ids: h.missions.slice(), n: O.n } : null;
+      for (const id of h.missions) {
+        let r = recs[id];
+        if (!r) continue;
+        if (conds == null || needsOf(h.needs) == null) { held.push({ id, why: 'its needs name a choose:N campaign (no runtime yet)' }); continue; }
+        const rw = contractRuntimeOk(r);
+        if (rw) { held.push({ id, why: rw }); continue; }
+        const T = out[r.provider];
+        if (!T) { held.push({ id, why: 'no provider ' + r.provider }); continue; }
+        if (conds.length || closed) {
+          r = msClone(r);
+          if (conds.length) r.needs = Object.assign({}, r.needs || { after: [], rep: 0 }, { of: msClone(conds) });
+          if (closed) r.closed = closed;
+        }
+        if (O.kind === 'seq') { if (c.provider && r.provider !== c.provider) { held.push({ id, why: 'a seq chapter of ' + c.provider + ' holds ' + r.provider + '\'s mission (its arc is per provider)' }); continue; } T.arc.push(r); }
+        else (r.kind === 'build' ? T.builds : T.night).push(r);
+      }
+    });
+  }
+  return { providers: out, held, text: Object.assign({}, MISSION_TEXT, msClone(P.text || {})) };
+}
+
+// ---- THE REWARD (the editor's live line) ----------------------------------------------------------------------------
+// -> { pay: contractPay's parts (what the map's card shows), paid: contractPayTotal with no bonus (what careerComplete
+//      pays), best: every bonus earned (the gold medal, each criterion beaten by its margin), prefs: the bonus
+//      preferences' pct (phase 2 pays them), why: contractRuntimeOk's ('' = the runtime runs it today) }
+function missionReward(m, ctx) {
+  const rec = missionToContract(m, ctx), pay = contractPay(rec, ctx && ctx.fields), crit = contractCrit(rec), got = {};
+  for (const b of (rec.pay && rec.pay.bonus) || []) {
+    const c = crit.find(x => x.k === b.crit);
+    if (c && msNum(c.v) && msNum(b.by)) got[c.k] = c.op === '>=' ? c.v * (1 + b.by) + 1e-6 : c.v * (1 - b.by) - 1e-6;
+  }
+  const medals = contractSubsOf(rec).some(s => s.medals) || (rec.timers || []).some(t => t.medals);
+  const prefs = (rec.prefs || []).filter(p => p.need === 'bonus').reduce((a, p) => a + (p.pct || 0), 0);
+  return { pay, paid: contractPayTotal(rec, {}, null), best: contractPayTotal(rec, got, medals ? 'gold' : null), prefs, why: contractRuntimeOk(rec) };
+}
+
+// ---- THE RALLY (§3.3, §7: "checkpoints and split targets are worked out automatically from the hidden route, and the
+// author can override them") -----------------------------------------------------------------------------------------
+// -> a new mission: its rally leg's checkpoints rebuilt from the embedded route - one `pass` over each route point
+// (a point place of the rally's radius, the drawn altitude as a band of +-alt), a split (s from the first checkpoint) at
+// the reference speed along the route, and the `rally` timer from the first to the last. An AUTHORED checkpoint (auto
+// absent or false, same id) keeps its place and split; an authored split on an auto checkpoint is kept too (`split`
+// written with auto: 'place'). Other legs are untouched. opts: { refKmh, r, band (m), leg (the leg index) }
+function missionRallyDerive(m, opts) {
+  const M = missionNormalise(m), R = M.route && (typeof routeNormalise === 'function' ? routeNormalise(M.route) : M.route);
+  if (!R || !Array.isArray(R.pts) || R.pts.length < 2) return M;
+  const o = Object.assign({ refKmh: 150, r: 300, band: 150 }, M.rally || {}, opts || {});
+  const v = o.refKmh / 3.6;
+  let li = o.leg != null ? o.leg : M.legs.findIndex(L => L.rally);
+  if (li < 0) { M.legs.push({ rally: true, order: 'seq', steps: [] }); li = M.legs.length - 1; }
+  const L = M.legs[li], old = {};
+  for (const s of L.steps || []) if (s.id) old[s.id] = s;
+  let d = 0;
+  L.rally = true; L.order = 'seq';
+  L.steps = R.pts.map((p, i) => {
+    if (i) d += Math.hypot(p.x - R.pts[i - 1].x, p.z - R.pts[i - 1].z);
+    const id = 'cp' + (i + 1), was = old[id];
+    if (was && !was.auto) return was;                           // authored: kept whole
+    const s = { id, do: 'pass', place: { pt: [Math.round(p.x), Math.round(p.z)], r: o.r, alt: { min: Math.round(p.alt - o.band), max: Math.round(p.alt + o.band), ref: p.ref } },
+                split: Math.round(d / v), auto: true };
+    if (was && was.auto === 'place' && msNum(was.split)) { s.split = was.split; s.auto = 'place'; }
+    return s;
+  });
+  const timers = (M.timers || []).filter(t => t.id !== 'rally');
+  timers.push({ id: 'rally', start: 'cp1', stop: 'cp' + R.pts.length, target: L.steps[L.steps.length - 1].split || Math.round(d / v), splits: true });
+  M.timers = timers;
+  M.rally = { refKmh: o.refKmh, r: o.r };
+  return M;
+}
+
+// ---- THE TUTORIAL (§7: the tutorial missions stay exactly as they are - listed, marked "tutorial / phase 0", read-only)
+// -> [{ id, beat, title, brief, goal, tim, readonly: true, phase: 0 }] off 79_story.js's beats (empty without it)
+function missionTutorial() {
+  if (typeof STORY_BEATS === 'undefined') return [];
+  return STORY_BEATS.map(b => ({ id: 'story.' + b.id, beat: b.id, title: b.title, brief: b.brief, goal: msClone(b.goal),
+    tim: (typeof STORY_TIM !== 'undefined' && STORY_TIM[b.id]) ? STORY_TIM[b.id].slice() : [], readonly: true, phase: 0 }));
+}
+
+// ---- THE BUILT-IN PACK, FROM TODAY'S CONTRACTS (the retrofit; tools/_missions_retrofit.js writes it) ----------------
+// One campaign per provider (its client the owner of every mission): the arc a SEQ chapter, the standalone aircraft
+// orders and the night work ANY chapters; each mission read from its record (missionFromContract), its completion line
+// (72_'s ct.<id>.done, when written) said by the client; the tutorial a read-only campaign. opts.dropped: [{ id, why }]
+function missionPackFromContracts(opts) {
+  opts = opts || {};
+  const drop = {};
+  for (const d of opts.dropped || []) drop[d.id] = d.why;
+  const T = typeof CONTRACT_TEXT !== 'undefined' ? CONTRACT_TEXT : {};
+  const pack = { what: MISSION_PACK_WHAT, v: MISSION_PACK_V, id: 'builtin', title: 'The built-in missions (72_contract_data.js, retrofitted)',
+                 campaigns: [], missions: [], sites: [], text: {}, legacy: { retrofitted: [], dropped: (opts.dropped || []).map(msClone) } };
+  for (const p of Object.keys(CONTRACT_PROVIDERS)) {
+    const Pr = CONTRACT_PROVIDERS[p], client = peopleClientOf(p);
+    const C = { id: 'prov.' + p, title: Pr.name, provider: p, order: 'any', chapters: [] };
+    const lists = [['arc', 'seq'], ['builds', 'any'], ['night', 'any']];
+    for (const [k, order] of lists) {
+      const recs = (Pr[k] || []).filter(r => !(r.id in drop));
+      if (!recs.length) continue;
+      C.chapters.push({ id: p + '.' + k, title: 'ms.chapter.' + k, order, missions: recs.map(r => r.id) });
+      for (const r of recs) {
+        const m = missionFromContract(r);
+        if (client) m.client = client;
+        const done = 'ct.' + r.id + '.done';
+        if (client && T[done]) m.onDone = { say: { who: client, text: done } };
+        pack.missions.push(m);
+        pack.legacy.retrofitted.push(r.id);
+      }
+    }
+    pack.campaigns.push(C);
+  }
+  const tut = missionTutorial();
+  if (tut.length) {
+    pack.campaigns.push({ id: 'tutorial', title: 'ms.campaign.tutorial', tutorial: true, readonly: true, phase: 0, order: 'seq',
+                          chapters: [{ id: 'tutorial.beats', title: 'ms.chapter.tutorial', order: 'seq', missions: tut.map(t => t.id) }] });
+    for (const t of tut) pack.missions.push({ id: t.id, tutorial: t.beat });
+  }
+  return pack;
+}
+// ===========================================================================
+// THE MISSION RUNTIME (MISSIONS-P1/P2) — what a mission record (73b_missions.js
+// read it into 73_contracts.js's record) needs at run time, beyond today's
+// stop-by-stop contract: the aircraft order's preferences, its delivery (the
+// airframe sold to the client, the blueprint kept) and its profit; the failure
+// rules; the timers on step groups; the IN-FLIGHT TRACKER (point places, gates,
+// rings: hit between two samples of the flight); the at-stop judges of the new
+// verbs (photo pass park wait talk); the map's marker data.
+// futureDesigns/MISSIONS-2026-10-25.md §3.1-§3.6, §7. GATE MISSIONS holds it.
+// ===========================================================================
+// THE SEAMS (pure everywhere; the page feeds samples and draws):
+//   the flight   the page runs missionTrackNew(rec, live) at departure for each accepted contract with in-flight
+//                objectives, missionTrackStep(T, sample) every sample (sample: { t s, x, z, y m MSL, agl? m }), shows
+//                the step's events (a photo's shutter + its line, a gate passed, a split), and hands
+//                missionTrackEvidence(T) in the stop record (`tracks: { <contract id>: evidence }`, 75_ careerStopRecord)
+//   the stop     73_ contractSubOnStop asks missionStepOnStop for the new verbs and for a fly to a point; 74_
+//                contractOnStop asks missionTimerOnSub for a step a timer stops on (the medal, the target); 74_
+//                careerOnStop asks missionRulesJudge first (a mission failed: careerFail, offered again: the restart)
+//   the order    73_ contractSubOnStop asks missionPrefsJudge of a delivery (the delivered spec on the stop record);
+//                74_ careerComplete hands the airframe over (contractDelivery) and states the profit (contractProfit)
+//   the map      missionMarkers(rec, live) -> what the map and the 3-D world draw (a local session draws them)
+// HEADINGS are compass degrees on the island's map: 0 = north = -z, 90 = east = +x (MAP_PACK's rule: -z is north).
+// ===========================================================================
+
+const MISSION_RUN_V = 1;
+// the in-flight verbs: hit between two samples of the flight, judged at the next stop from the stop's evidence
+const MISSION_FLIGHT_KINDS = ['pt', 'gate', 'ring'];
+const msrClone = o => JSON.parse(JSON.stringify(o));
+const msrNum = v => typeof v === 'number' && isFinite(v);
+const msrDeg = (dx, dz) => ((Math.atan2(dx, -dz) * 180 / Math.PI) + 360) % 360;   // the compass heading of a motion
+const msrDiff = (a, b) => { const d = Math.abs(((a - b) % 360 + 540) % 360 - 180); return d; };
+const msrKind = p => (!p || typeof p !== 'object' ? null : ['pt', 'gate', 'ring', 'spot', 'site', 'field'].find(k => p[k] != null) || null);
+// is a sub an in-flight objective (its place a point, a gate or a ring)
+const missionInFlight = s => !!s && ['pass', 'photo', 'fly'].includes(s.do) && MISSION_FLIGHT_KINDS.includes(msrKind(s.place));
+
+// ---- THE PREFERENCES (§3.6, §7: each item bonus | mandatory) ------------------------------------------------------------
+// a spec's value for a preference kind (73b MISSION_PREF_KINDS' `of`), or null
+function missionPrefOf(spec, k) {
+  const S = spec || {}, E = Array.isArray(S.engines) ? S.engines : [];
+  if (k === 'engines') return E.length || null;
+  if (k === 'thrust') { if (!E.length) return null; const e = E[0]; return (e.mount === 'pusher' || e.aim === 'pusher') ? 'pusher' : 'tractor'; }
+  if (k === 'wing') return (S.wing && S.wing.position) || null;
+  if (k === 'tail') return (S.tail && S.tail.type) || null;
+  if (k === 'gear') return typeof stripGear === 'function' && stripGear(S) === 'floats' ? 'floats' : ((S.gear && S.gear.type) || null);
+  if (k === 'canopy') return (S.cabin && S.cabin.canopy && S.cabin.canopy.style) || null;
+  if (k === 'suspension') return (S.gear && S.gear.suspension) || null;
+  return null;
+}
+// a delivered spec against the order's preferences -> { ok, why, got: { 'pref.<k>': true }, pct, rows }. A mandatory one
+// unmet refuses the delivery; a bonus one met adds its pct to the pay (73_ contractPayTotal reads got)
+function missionPrefsJudge(prefs, spec) {
+  const rows = [], got = {}, miss = [];
+  let pct = 0;
+  for (const p of prefs || []) {
+    const v = missionPrefOf(spec, p.k), met = v != null && String(v) === String(p.v);
+    rows.push({ k: p.k, want: p.v, got: v, need: p.need, met });
+    if (met) { got['pref.' + p.k] = true; if (p.need === 'bonus') pct += p.pct || 0; }
+    else if (p.need === 'mandatory') miss.push(p.k + ' ' + p.v + ' (built: ' + (v == null ? 'none' : v) + ')');
+  }
+  return { ok: !miss.length, why: miss.length ? 'a must: ' + miss.join(', ') : '', got, pct, rows };
+}
+
+// ---- THE DELIVERY AND THE PROFIT (§7: "we paid to manufacture the plane; it is sold to the client at a higher price
+// and is no longer ours"; "the BLUEPRINT is saved automatically") -----------------------------------------------------------
+// an order's delivery: the record's, else the build kind's default (sold, the blueprint kept); null for anything else
+// THE HAND-OVER WAITS FOR THE PAGE (Game + A0, 27 Oct): selling the airframe takes it out of the save, so until the page
+// also takes it out of the world and saves its blueprint (MUST-WIRE 5) nothing is sold - an order is delivered, paid
+// and completed, and the airframe stays ours. The page calls missionHandoverWired(true) once it does both; opts.wired
+// overrides it for one call (the gate, the editor's card).
+let MISSION_HANDOVER_WIRED = false;
+function missionHandoverWired(on) { if (on !== undefined) MISSION_HANDOVER_WIRED = !!on; return MISSION_HANDOVER_WIRED; }
+function contractDelivery(rec, opts) {
+  if (!rec || rec.kind !== 'build') return null;
+  const D = rec.delivery && typeof rec.delivery === 'object' ? rec.delivery : {};
+  const wired = opts && opts.wired != null ? !!opts.wired : MISSION_HANDOVER_WIRED;
+  return { sold: wired && D.sold !== false, blueprint: wired && D.blueprint !== false, wired };
+}
+// the profit line: what the client pays less what the airframe cost us (the economy's price when it was made: 76_
+// econMaterialise's `paid`); cost unknown -> profit null
+const contractProfit = (pay, cost) => ({ pay, cost: msrNum(cost) ? cost : null, profit: msrNum(cost) ? pay - cost : null });
+// the blueprint's name: the career slot's without its career tag (74_ CAREER_SLOT_TAG ' @<id>')
+const missionBlueprintName = slot => String(slot || '').replace(/ @[\w.-]+$/, '');
+
+// ---- THE FAILURE RULES (§3.4: a full crash, anyone harmed, the freight harmed -> fail; damage assessed) ---------------------
+// the stop record's facts: wrecked / how 'crashed'; occ [{ name, band }] (34_occupant genOccWire's bands, 0 unharmed ..
+// 4); freight { harmed } (or a wreck with a load aboard); structural { damaged, why }. -> { fail: '' | why, assess }
+function missionRulesJudge(rec, stop) {
+  const R = rec && rec.rules, S = stop || {};
+  if (!R || typeof R !== 'object') return { fail: '', assess: null };
+  const crashed = !!S.wrecked || S.how === 'crashed';
+  if (R.crash === 'fail' && crashed) return { fail: 'the aeroplane crashed', assess: null };
+  if (R.injury != null && R.injury !== 'ignore') {
+    const B = typeof GEN_OCC !== 'undefined' && GEN_OCC.bands ? GEN_OCC.bands : null;
+    let thr = R.injury === 'fail' ? 1 : (R.injury && R.injury.fail);
+    if (typeof thr === 'string') thr = B ? B.indexOf(thr) : -1;
+    const worst = Array.isArray(S.occ) ? S.occ.reduce((a, o) => Math.max(a, (o && msrNum(o.band)) ? o.band : 0), 0) : 0;
+    if (thr >= 1 && worst >= thr) return { fail: 'someone aboard was hurt' + (B ? ' (' + B[worst].toLowerCase() + ')' : ''), assess: null };
+  }
+  if (R.freight === 'fail') {
+    const L = S.load || {}, aboard = (L.kg || 0) > 0 || (Array.isArray(L.items) && L.items.length > 0);
+    if ((S.freight && S.freight.harmed) || (crashed && aboard)) return { fail: 'the freight was damaged', assess: null };
+  }
+  if (R.strike === 'fail') {
+    const ev = S.tracks && rec && S.tracks[rec.id], n = ev && Array.isArray(ev.strikes) ? ev.strikes.length : 0;
+    if (n) return { fail: n === 1 ? 'a gate or a ring was hit' : n + ' gates or rings were hit', assess: null };
+  }
+  const dmg = S.structural && S.structural.damaged;
+  if (R.damage === 'fail' && dmg) return { fail: 'the airframe was damaged' + (S.structural.why ? ' (' + S.structural.why + ')' : ''), assess: null };
+  return { fail: '', assess: R.damage === 'assess' ? { damaged: !!dmg, why: (S.structural && S.structural.why) || null } : null };
+}
+
+// ---- THE TIMERS (§3.3: a group of steps timed from a start step to a stop step) --------------------------------------------
+// the subs of a record in mission order (stage by stage), with their stage and index
+const msrSubs = rec => [].concat(...((rec && rec.stages) || []).map((st, i) => (st.subs || []).map((s, j) => ({ s, i, j }))));
+// a place's plan point (73_ contractPlaceXZ; a ring's centre; a site's position)
+const msrXZ = (p, F) => (typeof contractPlaceXZ === 'function' ? contractPlaceXZ(p, F) : null);
+// a timer's target in seconds: written, or { refKmh }: the steps' places from start to stop, in order, at that speed
+function missionTimerTarget(rec, t, fields) {
+  if (!t) return null;
+  if (msrNum(t.target)) return t.target;
+  if (!t.target || !msrNum(t.target.refKmh) || !(t.target.refKmh > 0)) return null;
+  const L = msrSubs(rec), a = L.findIndex(x => x.s.id === t.start), b = L.findIndex(x => x.s.id === t.stop);
+  if (a < 0 || b < a) return null;
+  let d = 0, prev = null;
+  for (const x of L.slice(a, b + 1)) {
+    const q = msrXZ(x.s.place || x.s.to || x.s.at, fields);
+    if (q && prev) d += Math.hypot(q[0] - prev[0], q[1] - prev[1]);
+    if (q) prev = q;
+  }
+  return Math.round(d / (t.target.refKmh / 3.6));
+}
+// ONE STEP a timer STOPS on, done at a stop, judged from the flight's lap (stop.tracks[rec.id].timers): the medal (its
+// best band), or the target to beat (no medals) - over it, or no lap timed, the step is NOT done (fly it again).
+// r: contractSubOnStop's result -> the result (r itself when no timer stops on the step)
+function missionTimerOnSub(rec, sub, r, stop, fields) {
+  if (!r || r.st !== 'done' || !sub || !sub.id) return r;
+  const ev = stop && stop.tracks && stop.tracks[rec.id];
+  for (const t of (rec && rec.timers) || []) {
+    if (t.stop !== sub.id) continue;
+    const E = ev && ev.timers && ev.timers[t.id];
+    if (!E || !msrNum(E.s)) return { st: 'no', why: 'the ' + t.id + ' timer ran no lap (' + t.start + ' to ' + t.stop + ' in one flight)' };
+    const target = missionTimerTarget(rec, t, fields), timer = Object.assign({ id: t.id, s: E.s, target, splits: E.splits || [] },
+      E.pen ? { raw: E.raw, pen: E.pen, strikes: E.strikes || 0 } : {});
+    if (Array.isArray(t.medals) && t.medals.length) {
+      const m = t.medals.slice().sort((a, b) => a.le - b.le).find(x => E.s <= x.le);
+      if (!m) return { st: 'no', why: t.id + ': ' + E.s + ' s, ' + Math.max(...t.medals.map(x => x.le)) + ' s or less for a medal' };
+      r = Object.assign({}, r, { medal: m.medal, timer });
+    } else if (msrNum(target) && E.s > target) return { st: 'no', why: t.id + ': ' + E.s + ' s, the target is ' + target + ' s' };
+    else r = Object.assign({}, r, { timer });
+  }
+  return r;
+}
+// A TIMED GROUP IS FLOWN WHOLE: when a timer's stop step is not done at this stop, every step of its group (start .. stop,
+// in this stage) done at this stop is not done either - else the start would be spent and the lap could never be flown
+// again. Mutates and returns res (74_ contractOnStop's)
+function missionTimerGroups(rec, stage, res) {
+  const st = rec && rec.stages && rec.stages[stage];
+  if (!st) return res;
+  for (const t of (rec.timers || [])) {
+    const a = st.subs.findIndex(s => s.id === t.start), b = st.subs.findIndex(s => s.id === t.stop);
+    if (a < 0 || b < a || !res[b] || res[b].st === 'done' || res[b].st === 'was') continue;
+    for (let j = a; j < b; j++) if (res[j] && res[j].st === 'done') res[j] = { st: 'no', why: res[b].why || ('the ' + t.id + ' lap is flown whole') };
+  }
+  return res;
+}
+// a whole stage's results (each step a timer stops on through missionTimerOnSub); mutates and returns res
+function missionTimersOnStop(rec, stage, res, stop, fields) {
+  const st = rec && rec.stages && rec.stages[stage];
+  if (st) st.subs.forEach((s, j) => { res[j] = missionTimerOnSub(rec, s, res[j], stop, fields); });
+  return res;
+}
+
+// ---- THE IN-FLIGHT TRACKER (§3.1: point places, gates, rings) -------------------------------------------------------------
+// the alt band of a place against a sample: '' inside (or no band, or the sample lacks the height asked: an unknown
+// refuses nothing), else why not
+function msrAltWhy(alt, smp) {
+  if (!alt) return '';
+  const v = alt.ref === 'msl' ? smp.y : smp.agl;
+  if (!msrNum(v)) return '';
+  if (msrNum(alt.min) && v < alt.min) return 'too low (' + Math.round(v) + ' m ' + (alt.ref || 'agl') + ')';
+  if (msrNum(alt.max) && v > alt.max) return 'too high (' + Math.round(v) + ' m ' + (alt.ref || 'agl') + ')';
+  return '';
+}
+const msrLerp = (a, b, u) => { const o = { t: a.t + (b.t - a.t) * u, x: a.x + (b.x - a.x) * u, z: a.z + (b.z - a.z) * u };
+  for (const k of ['y', 'agl']) if (msrNum(a[k]) && msrNum(b[k])) o[k] = a[k] + (b[k] - a[k]) * u; else if (msrNum(b[k])) o[k] = b[k]; return o; };
+// one objective between two samples a -> b: the crossing (an interpolated sample) or null
+function missionHitTest(p, a, b) {
+  const k = msrKind(p), dx = b.x - a.x, dz = b.z - a.z, L2 = dx * dx + dz * dz;
+  if (k === 'pt') {
+    const cx = +p.pt[0], cz = +p.pt[1];
+    const u = L2 > 0 ? Math.max(0, Math.min(1, ((cx - a.x) * dx + (cz - a.z) * dz) / L2)) : 1;
+    const q = msrLerp(a, b, u);
+    return Math.hypot(q.x - cx, q.z - cz) <= p.r && !msrAltWhy(p.alt, q) ? q : null;
+  }
+  if (k === 'gate') {
+    const [[x1, z1], [x2, z2]] = p.gate, ex = x2 - x1, ez = z2 - z1, den = dx * ez - dz * ex;
+    if (Math.abs(den) < 1e-9) return null;
+    const u = ((x1 - a.x) * ez - (z1 - a.z) * ex) / den, w = ((x1 - a.x) * dz - (z1 - a.z) * dx) / den;
+    if (u < 0 || u > 1 || w < 0 || w > 1) return null;
+    const q = msrLerp(a, b, u);
+    if (msrAltWhy(p.alt, q)) return null;
+    if (msrNum(p.dir) && msrDiff(msrDeg(dx, dz), p.dir) > 90) return null;
+    return q;
+  }
+  if (k === 'ring') {
+    const [cx, cy, cz] = p.ring.map(Number), ya = msrNum(a.y) ? a.y : cy, yb = msrNum(b.y) ? b.y : cy;
+    if (!msrNum(p.dir)) {
+      // no facing: a sphere of the ring's radius, its closest approach on the segment (3-D)
+      const dy = yb - ya, M2 = L2 + dy * dy;
+      const u = M2 > 0 ? Math.max(0, Math.min(1, ((cx - a.x) * dx + (cy - ya) * dy + (cz - a.z) * dz) / M2)) : 1, q = msrLerp(a, b, u);
+      return Math.hypot(q.x - cx, (msrNum(q.y) ? q.y : cy) - cy, q.z - cz) <= p.r ? q : null;
+    }
+    const r = p.dir * Math.PI / 180, nx = Math.sin(r), nz = -Math.cos(r);       // the ring faces its heading
+    const sa = (a.x - cx) * nx + (a.z - cz) * nz, sb = (b.x - cx) * nx + (b.z - cz) * nz;
+    if (!(sa < 0 && sb >= 0)) return null;                                     // through it, the way it faces
+    const u = sa / (sa - sb), q = msrLerp(a, b, u);
+    const lat = (q.x - cx) * nz - (q.z - cz) * nx, up = (msrNum(q.y) ? q.y : cy) - cy;
+    return Math.hypot(lat, up) <= p.r ? q : null;
+  }
+  return null;
+}
+
+// ---- THE STRIKE: A POST OR A RING TOUCHED (MISSIONS-PROPS) -----------------------------------------------------------------
+// The gate posts and the rings are fabric (tools/_mission_gen.js draws them: the air-race pylon, the balloon column, the
+// helium torus): a touch NEVER harms the aeroplane - there is no collider in the flight model - it TEARS the prop (the
+// page swaps in the generator's torn variant for `rearm` s; a torn prop cannot be hit again) and the mission's
+// rules.strike decides: 'penalty' (the default: +pen s on every lap running then - the air race's +3 s a pylon),
+// { penalty: s }, 'fail' (the mission fails at the next stop: 74_ careerOnStop's rules pass), or 'ignore'.
+// The dimensions are the generator's (GATE MISSIONPROPS holds the two tables equal): a pylon is a cone h tall, r0 at its
+// foot, r1 at its top; a balloon column a cylinder of the balls' radius up to the band's top (alt.max; none: h); a ring
+// a torus of tube radius round its hole (the place's r). `reach` is the aeroplane's half-span (the page's, else this):
+// the wing is level, so it reaches sideways - a pass a wingtip too close is a pass AND a strike.
+const MISSION_PROP_DIMS = { pylons: { h: 25, r0: 2.5, r1: 0.375 }, balloons: { h: 60, r: 0.9 }, donut: { tube: 1.2 }, reach: 5, pen: 3, rearm: 30 };
+const MISSION_GATE_PROP = 'pylons';                            // a gate that names no prop is an air-race gate
+// a mission's strike rule -> { mode: 'penalty' | 'fail' | 'ignore', pen }
+function missionStrikeRule(rec) {
+  const v = rec && rec.rules && rec.rules.strike, D = MISSION_PROP_DIMS.pen;
+  if (v && typeof v === 'object' && msrNum(v.penalty)) return { mode: 'penalty', pen: v.penalty };
+  if (v === 'fail' || v === 'ignore') return { mode: v, pen: 0 };
+  return { mode: 'penalty', pen: D };
+}
+// the height of a sample over a post's foot in the frame the post is measured in: AGL (a post stands on the ground)
+const msrAgl = q => (msrNum(q.agl) ? q.agl : null);
+// one place's posts / ring against the segment a -> b -> [{ post: 0 | 1 | 'ring', t, x, z, y }] (touched: within reach)
+function missionStrikeTest(p, a, b, reach) {
+  const k = msrKind(p), R = msrNum(reach) ? reach : MISSION_PROP_DIMS.reach, out = [];
+  const dx = b.x - a.x, dz = b.z - a.z, L2 = dx * dx + dz * dz;
+  if (k === 'gate') {
+    const prop = p.prop || MISSION_GATE_PROP;
+    p.gate.forEach((g, i) => {
+      const px = +g[0], pz = +g[1];
+      const u = L2 > 0 ? Math.max(0, Math.min(1, ((px - a.x) * dx + (pz - a.z) * dz) / L2)) : 1, q = msrLerp(a, b, u);
+      const d = Math.hypot(q.x - px, q.z - pz), h = msrAgl(q);
+      if (prop === 'balloons') {
+        const D = MISSION_PROP_DIMS.balloons, top = p.alt && msrNum(p.alt.max) ? p.alt.max : D.h, msl = p.alt && p.alt.ref === 'msl';
+        const v = msl ? q.y : h;
+        if (!msrNum(v) || v > top || d > D.r + R) return;
+      } else {
+        const D = MISSION_PROP_DIMS.pylons;
+        if (!msrNum(h) || h > D.h || d > D.r0 + (D.r1 - D.r0) * Math.max(0, h) / D.h + R) return;
+      }
+      out.push({ post: i, t: q.t, x: q.x, z: q.z, y: msrNum(q.y) ? q.y : null });
+    });
+    return out;
+  }
+  if (k === 'ring' && msrNum(p.dir)) {
+    const [cx, cy, cz] = p.ring.map(Number), r = p.dir * Math.PI / 180, nx = Math.sin(r), nz = -Math.cos(r);
+    const sa = (a.x - cx) * nx + (a.z - cz) * nz, sb = (b.x - cx) * nx + (b.z - cz) * nz;
+    if ((sa < 0) === (sb < 0) || !msrNum(a.y) || !msrNum(b.y)) return out;   // not across its plane (or no height known)
+    const u = sa / (sa - sb), q = msrLerp(a, b, u);
+    const lat = (q.x - cx) * nz - (q.z - cz) * nx, up = q.y - cy, tube = MISSION_PROP_DIMS.donut.tube, Rc = p.r + tube;
+    // the wing: lat - R .. lat + R across the ring's plane at height up; its nearest and farthest reach from the centre
+    const lo = lat - R, hi = lat + R, xn = lo <= 0 && hi >= 0 ? 0 : Math.min(Math.abs(lo), Math.abs(hi)), xf = Math.max(Math.abs(lo), Math.abs(hi));
+    const dn = Math.hypot(xn, up), df = Math.hypot(xf, up);
+    const gap = Rc >= dn && Rc <= df ? 0 : Math.min(Math.abs(dn - Rc), Math.abs(df - Rc));
+    if (gap <= tube) out.push({ post: 'ring', t: q.t, x: q.x, z: q.z, y: q.y });
+  }
+  return out;
+}
+// the objectives of a contract's CURRENT leg (stage) not done yet -> [{ key, j, do, place, split?, say? }]; `seq` when the
+// leg's steps run in order (only the next one is armed)
+function missionObjectives(rec, live) {
+  const L = live || { stage: 0, subs: [] }, st = rec && rec.stages && rec.stages[L.stage];
+  if (!st) return { seq: false, objs: [] };
+  const objs = [];
+  st.subs.forEach((s, j) => { if (!(L.subs || [])[j] && missionInFlight(s) && s.id) objs.push(Object.assign({ key: s.id, j, do: s.do, place: s.place },
+    s.split != null ? { split: s.split } : {}, s.say ? { say: s.say } : {})); });
+  return { seq: st.order === 'seq', objs };
+}
+// a tracker for one contract's flight (the page makes one at departure, per accepted contract with objectives)
+// opts.reach: the aeroplane's half-span (m; MISSION_PROP_DIMS.reach when the page gives none)
+function missionTrackNew(rec, live, opts) {
+  const O = missionObjectives(rec, live), o = opts || {};
+  return { v: MISSION_RUN_V, id: rec.id, stage: (live && live.stage) || 0, seq: O.seq, objs: O.objs, timers: msrClone(rec.timers || []),
+           hits: {}, laps: {}, last: null, reach: msrNum(o.reach) && o.reach >= 0 ? o.reach : MISSION_PROP_DIMS.reach,
+           strike: missionStrikeRule(rec), strikes: [], torn: {} };
+}
+// one sample of the flight -> the events it made [{ k: 'hit' | 'photo' | 'split' | 'timer', key, ... }]. Mutates T.
+// In a seq leg only the first objective not yet hit is armed; after a hit the REST of the segment is tested against the
+// next one (a fast sample across two close gates counts both, in order). Any order: every objective on the segment.
+function missionTrackStep(T, smp) {
+  if (!T || !smp || !msrNum(smp.t) || !msrNum(smp.x) || !msrNum(smp.z)) return [];
+  const a = T.last, out = [];
+  T.last = { t: smp.t, x: smp.x, z: smp.z, y: smp.y, agl: smp.agl };
+  if (!a) return out;
+  let from = a;
+  for (const o of T.objs) {
+    if (T.hits[o.key]) continue;
+    const q = missionHitTest(o.place, from, T.last);
+    if (!q) { if (T.seq) break; continue; }
+    {
+      const t = Math.round(q.t * 100) / 100;
+      T.hits[o.key] = { t, x: Math.round(q.x), z: Math.round(q.z), y: msrNum(q.y) ? Math.round(q.y) : null };
+      out.push({ k: o.do === 'photo' ? 'photo' : 'hit', key: o.key, do: o.do, t, say: o.say || null });
+      for (const tm of T.timers) {
+        const lap = T.laps[tm.id];
+        if (tm.start === o.key && !lap) { T.laps[tm.id] = { t0: t, splits: [] }; out.push({ k: 'timer', id: tm.id, state: 'start', t }); }
+        else if (lap && lap.s == null && tm.stop === o.key) { lap.raw = Math.round((t - lap.t0) * 10) / 10; lap.t1 = t; lap.s = Math.round((lap.raw + (lap.pen || 0)) * 10) / 10; out.push({ k: 'timer', id: tm.id, state: 'stop', s: lap.s }); }
+        else if (lap && lap.s == null && o.split != null) { const sp = { key: o.key, s: Math.round((t - lap.t0) * 10) / 10, target: o.split }; lap.splits.push(sp); out.push(Object.assign({ k: 'split', id: tm.id }, sp)); }
+      }
+    }
+    if (T.seq) from = q;                                       // the rest of the segment, for the next one in order
+  }
+  // THE STRIKES: every post and ring of this leg's objectives (passed or not: they still stand), not torn now
+  if (T.strikes) for (const o of T.objs) {
+    for (const h of missionStrikeTest(o.place, a, T.last, T.reach)) {
+      const id = o.key + ':' + h.post, t = Math.round(h.t * 100) / 100;
+      if (T.torn[id] != null && T.torn[id] > t) continue;
+      T.torn[id] = t + MISSION_PROP_DIMS.rearm;
+      const e = { k: 'strike', key: o.key, post: h.post, t, prop: msrKind(o.place) === 'ring' ? (o.place.prop || 'donut') : (o.place.prop || MISSION_GATE_PROP), until: T.torn[id] };
+      if (T.strike.mode === 'penalty' && T.strike.pen > 0) {
+        // every lap running at that moment (started at or before it, not stopped before it) takes the penalty
+        for (const lid of Object.keys(T.laps)) {
+          const L = T.laps[lid];
+          if (L.t0 > t || (L.t1 != null && L.t1 < t)) continue;
+          L.pen = Math.round(((L.pen || 0) + T.strike.pen) * 10) / 10; L.strikes = (L.strikes || 0) + 1;
+          if (L.s != null) L.s = Math.round((L.raw + L.pen) * 10) / 10;
+          e.pen = T.strike.pen; (e.laps = e.laps || []).push(lid);
+        }
+      }
+      if (T.strike.mode === 'fail') e.fail = true;
+      T.strikes.push({ key: o.key, post: h.post, t });
+      out.push(e);
+    }
+  }
+  return out;
+}
+// what the stop record carries for this contract (75_ careerStopRecord `tracks[id]`)
+function missionTrackEvidence(T) {
+  if (!T) return null;
+  const timers = {};
+  for (const id of Object.keys(T.laps)) timers[id] = msrClone(T.laps[id]);
+  const ev = { v: MISSION_RUN_V, id: T.id, stage: T.stage, hits: msrClone(T.hits), timers };
+  if (T.strikes && T.strikes.length) ev.strikes = msrClone(T.strikes);
+  return ev;
+}
+
+// ---- THE NEW VERBS AT A STOP (73_ contractSubOnStop asks) -------------------------------------------------------------------
+// -> { st: 'done' | 'no', why, say? }. In flight (pass, a photo or a fly to a point / gate / ring): the flight's evidence
+// (stop.tracks[rec.id].hits[step id]); park: the stop's tie-down spot (stop.spot '<field>:<spot id>', the page's nearest
+// by 25_ fleetSpotDist); wait: a stop at its field after waiting require.waitMin (stop.waitedMin, the page's Wait); talk:
+// a stop at its field (or anywhere without one): its line is the event
+function missionStepOnStop(rec, sub, prog, stop) {
+  const S = stop || {}, nm = id => (typeof CONTRACT_FIELDS !== 'undefined' && CONTRACT_FIELDS[id] ? CONTRACT_FIELDS[id].name : id || 'nowhere');
+  if (missionInFlight(sub)) {
+    const ev = S.tracks && S.tracks[rec.id], h = sub.id && ev && ev.hits && ev.hits[sub.id];
+    return h ? { st: 'done', why: '', at: h } : { st: 'no', why: sub.do + ' ' + (sub.id || '') + ': not flown yet' };
+  }
+  if (sub.do === 'park') {
+    const want = sub.place && sub.place.spot;
+    return S.spot === want ? { st: 'done', why: '' } : { st: 'no', why: 'parked ' + (S.spot ? 'at ' + S.spot : 'on no tie-down spot') + ', not ' + want };
+  }
+  if (sub.do === 'wait') {
+    if (sub.at && S.aero !== sub.at) return { st: 'no', why: 'stopped at ' + nm(S.aero) + ', not ' + nm(sub.at) };
+    const need = (sub.require && sub.require.waitMin) || 0, got = msrNum(S.waitedMin) ? S.waitedMin : 0;
+    return got >= need ? { st: 'done', why: '' } : { st: 'no', why: 'waited ' + got + ' min of ' + need };
+  }
+  if (sub.do === 'talk') {
+    if (sub.at && S.aero !== sub.at) return { st: 'no', why: 'stopped at ' + nm(S.aero) + ', not ' + nm(sub.at) };
+    return { st: 'done', why: '', say: sub.say || null };
+  }
+  return { st: 'no', why: 'no runtime for ' + sub.do + ' at a ' + (msrKind(sub.place) || 'place') };
+}
+
+// ---- THE STOP'S OWN CONDITIONS ON A STEP (MISSIONS-P3: the bush missions) ------------------------------------------------------
+// A step done at a stop is judged further, when it says so (74_ contractOnStop asks):
+//   require.maxMin   the flight that ended here took at most that many minutes (the logbook row's t)
+//   require.depart   that flight left inside a local-hour window: { after: h } | { before: h } | { at: [h0, h1] } (wraps
+//                    midnight); its departure hour is stop.departHour (the page's), else the stop's hour less the flight
+//   embark           these people got on here (stop.people.on: [person ids]; a number: that many got on)
+//   disembark        these people got off here (stop.people.off)
+// -> the result (r when nothing fails), or { st: 'no', why }
+const msrHourIn = (h, D) => { if (!D) return true; if (msrNum(D.after)) return h >= D.after; if (msrNum(D.before)) return h < D.before;
+  if (Array.isArray(D.at)) { const [a, b] = D.at; return a < b ? h >= a && h < b : h >= a || h < b; } return true; };
+function missionStopChecks(rec, sub, r, stop) {
+  if (!r || r.st !== 'done' || !sub) return r;
+  const S = stop || {}, R = sub.require || {}, row = S.row || {};
+  if (msrNum(R.maxMin) && msrNum(row.t) && row.t > R.maxMin * 60) return { st: 'no', why: 'the flight took ' + Math.round(row.t / 60) + ' min, ' + R.maxMin + ' allowed' };
+  if (R.depart) {
+    const h = msrNum(S.departHour) ? S.departHour : (msrNum(S.hour) && msrNum(row.t) ? ((S.hour - row.t / 3600) % 24 + 24) % 24 : null);
+    if (h != null && !msrHourIn(h, R.depart)) return { st: 'no', why: 'it left at ' + h.toFixed(1) + ' h, outside its departure window' };
+  }
+  const P = S.people || {};
+  for (const [k, list] of [['embark', P.on], ['disembark', P.off]]) {
+    const want = sub[k];
+    if (want == null) continue;
+    const got = Array.isArray(list) ? list : [];
+    const ids = (Array.isArray(want) ? want : []).filter(x => typeof x === 'string'), n = Array.isArray(want) ? want.filter(x => typeof x === 'number').reduce((a, x) => a + x, 0) : +want || 0;
+    const miss = ids.filter(id => !got.includes(id)), name = id => (typeof peopleName === 'function' ? peopleName(id) : id);
+    if (miss.length) return { st: 'no', why: (k === 'embark' ? 'waiting for ' : 'still aboard: ') + miss.map(name).join(', ') };
+    if (got.length < ids.length + n) return { st: 'no', why: (k === 'embark' ? 'on board here: ' : 'off here: ') + got.length + ' of ' + (ids.length + n) };
+  }
+  return r;
+}
+// a leg's steps all done - or, a choose:N leg, N of them (MISSIONS-P3)
+function missionLegDone(st, subsDone) {
+  const m = /^choose:(\d+)$/.exec(String((st && st.order) || ''));
+  const n = (subsDone || []).filter(Boolean).length;
+  return m ? n >= +m[1] : (st.subs || []).every((s, j) => (subsDone || [])[j]);
+}
+
+// ---- THE MAP'S MARKERS (what a local session draws: the map's symbols, the 3-D props) -------------------------------------
+// -> [{ key, n, do, kind, x, z, y?, r?, posts?, dir?, prop?, alt?, spot?, site?, field?, split?, label, state }]: every
+// step of every leg with a place, in mission order; state 'done' (its sub done), 'next' (the current leg's armed one: the
+// first open step of a seq leg, every open step of an any leg), 'later' (a leg still to come). opts.spots: the fleet
+// spot pack's `aero` table (a spot's position), opts.fields
+function missionMarkers(rec, live, opts) {
+  opts = opts || {};
+  const L = live || { stage: 0, subs: [] }, out = [], F = opts.fields;
+  let n = 0;
+  ((rec && rec.stages) || []).forEach((st, i) => {
+    let armed = false;
+    (st.subs || []).forEach((s, j) => {
+      const p = s.place || (s.to ? { field: s.to } : s.at ? { field: s.at } : null), k = msrKind(p);
+      if (!k) return;
+      n++;
+      const done = i < L.stage || (i === L.stage && (L.subs || [])[j]);
+      let state = done ? 'done' : i > L.stage ? 'later' : 'next';
+      if (state === 'next' && st.order === 'seq') { if (armed) state = 'later'; armed = true; }
+      const m = { key: s.id || ('s' + i + '.' + j), n, do: s.do, kind: k, state, label: (s.id || s.do) };
+      const q = msrXZ(p, F);
+      if (q) { m.x = q[0]; m.z = q[1]; }
+      if (k === 'pt') { m.r = p.r; if (p.alt) m.alt = msrClone(p.alt); }
+      if (k === 'gate') { m.posts = msrClone(p.gate); if (p.alt) m.alt = msrClone(p.alt); m.prop = p.prop || MISSION_GATE_PROP; if (msrNum(p.dir)) m.dir = p.dir; }
+      if (k === 'ring') { m.y = +p.ring[1]; m.r = p.r; if (msrNum(p.dir)) m.dir = p.dir; m.prop = p.prop || 'donut'; }
+      if (k === 'spot') { m.spot = p.spot; const i0 = String(p.spot).indexOf(':'), a = String(p.spot).slice(0, i0), id = String(p.spot).slice(i0 + 1), sp = opts.spots && opts.spots[a] && opts.spots[a].find(z => z[3] === id); if (sp) { m.x = sp[0]; m.z = sp[1]; m.dir = sp[2]; } }
+      if (k === 'site') m.site = p.site;
+      if (k === 'field') m.field = p.field;
+      if (s.split != null) m.split = s.split;
+      out.push(m);
+    });
+  });
+  return out;
 }
 // ===========================================================================
 // THE CAREER DOCUMENT (G2240 CONTRACT-MODEL) — `flydiy.career.<id>`: a player
@@ -48736,6 +51896,56 @@ function careerNew(o) {
   return careerRefresh(d);
 }
 
+// G3612 (the user 25 Oct, item 39: "a career starts only with its own plane. Any imported plane in the career costs
+// money"; then: "old careers are reset to only their own planes, and yes, once a plane is imported into a career, it
+// becomes its own plane. What you import is a design, then making it exist in game requires money and freezes the
+// design, until the next edit. At that point, it is its own copy, and will live its life as an individual object"):
+// THE CAREER'S OWN SLOTS. The saved builds (flydiy.build.*) are one shelf; of them a career holds the ones it has an
+// airframe row for (career.airframes: the story's starter and client, a maker's or a used airframe bought, a build
+// materialised - paid - in its garage, an import bought). The lift (playerFleetReconcile) is handed these, never the whole
+// shelf - so an older career's rows for anything else leave at its next load (the reset, once: the lift drops a row whose
+// slot it was not handed). The sandbox: every slot but a career's copies (careerSlotTag).
+const CAREER_SLOT_TAG = / @(main|dev|c[0-9a-z]{1,16})$/;
+const careerSlotTag = name => typeof name === 'string' && CAREER_SLOT_TAG.test(name);
+function careerOwnSlots(doc, names) {
+  const L = Array.isArray(names) ? names : [];
+  if (!doc || doc.mode !== 'career') return L.filter(n => !careerSlotTag(n));
+  const A = (doc.career && doc.career.airframes) || {}, has = Object.prototype.hasOwnProperty;
+  return L.filter(n => has.call(A, n));
+}
+// the sandbox's designs a career may buy in: the shelf's slots that are neither its own nor any career's copy
+function careerImportable(doc, names) {
+  const own = careerOwnSlots(doc, names);
+  return (Array.isArray(names) ? names : []).filter(n => own.indexOf(n) < 0 && !careerSlotTag(n));
+}
+// THE COPY'S NAME: the design's name, tagged with the career's id (' @<id>' - the sandbox never lists it, no other career
+// holds it); a second copy of the same design numbered before the tag
+function careerCopyName(doc, name, taken) {
+  const id = doc && doc.career && typeof doc.career.id === 'string' && /^(main|dev|c[0-9a-z]{1,16})$/.test(doc.career.id) ? doc.career.id : 'main';
+  const T = new Set(taken || []);
+  let n = name + ' @' + id, i = 2;
+  while (T.has(n) || (doc && doc.fleet && doc.fleet[n])) n = name + ' ' + i++ + ' @' + id;
+  return n;
+}
+// a build SAVED in the career's garage: a name the career holds (its airframe row: the story's slots, a re-save) or a
+// copy's tagged name stays; a new name becomes the career's own slot, tagged as a copy is (the sandbox never edits it)
+function careerSaveKey(doc, name, taken) {
+  if (!doc || doc.mode !== 'career' || careerSlotTag(name)) return name;
+  if (doc.career && doc.career.airframes && doc.career.airframes[name]) return name;
+  return careerCopyName(doc, name, taken);
+}
+// ...and a design BROUGHT IN is a purchase: the economy's airframe price over its ledger (the main hangar's labour, as a
+// build materialised there - 76_economy.js econMaterialise, its row's how 'import', `of` the design it was copied from),
+// on the COPY's slot (the page writes the copy's envelope: the design frozen there); refused short of the cash
+function careerImport(doc, design, copy, cost, wants) {
+  if (!doc || doc.mode !== 'career') return { ok: false, doc, why: 'not a career' };
+  if (careerSlotTag(design)) return { ok: false, doc, why: design + ' is a career\u2019s own airframe, not a design' };
+  if (!careerSlotTag(copy) || (doc.career.airframes && doc.career.airframes[copy])) return { ok: false, doc, why: 'no copy to make' };
+  const r = econMaterialise(doc, copy, cost, wants, { how: 'import' });
+  if (r.ok) r.doc.career.airframes[copy].of = design;
+  return r;
+}
+
 // THE NORMALISER: the player document's own (its walk first), then the career block filled where missing and
 // carried verbatim where present (unknown fields ride along).
 function careerNormalise(r) {
@@ -48768,6 +51978,9 @@ function careerNormalise(r) {
   }
   const C = c.contracts = (c.contracts && typeof c.contracts === 'object') ? c.contracts : def.contracts;
   for (const k of ['offered', 'accepted', 'done']) if (!Array.isArray(C[k])) C[k] = [];
+  if (C.failed != null && !Array.isArray(C.failed)) C.failed = [];      // (MISSIONS-P2) kept when present: the failures
+  if (c.sold != null && !Array.isArray(c.sold)) c.sold = [];             // ... and the airframes handed over
+  if (c.sites != null && (typeof c.sites !== 'object' || Array.isArray(c.sites))) c.sites = {};   // (P3) the sites' states
   if (typeof C.tracked !== 'string' || !C.accepted.includes(C.tracked)) C.tracked = C.accepted[0] || null;
   if (!C.live || typeof C.live !== 'object') C.live = {};
   for (const id of C.accepted) if (!C.live[id] || typeof C.live[id] !== 'object') C.live[id] = { stage: 0, subs: [], picked: [], got: {} };
@@ -48781,6 +51994,8 @@ function careerNormalise(r) {
   if (typeof pilotsBlock === 'function') pilotsBlock(d);
   // G3260 (ROUTES): the routes kept well-formed, the fleet's and the pilots' route marks agreeing with them (78b_routes.js)
   if (typeof routesBlock === 'function') routesBlock(d);
+  // G3230 (TECH-MASK): the machine shop kept well-formed WHEN PRESENT (79b_tech.js); a career without one stays without
+  if (c.tech !== undefined && typeof techNormalise === 'function') c.tech = techNormalise(c.tech);
   return d;
 }
 
@@ -48850,6 +52065,11 @@ function careerNeedsOk(doc, rec) {
   const N = rec.needs || {}, P = doc.career.providers[rec.provider] || { rep: 0 };
   if ((N.rep || 0) > P.rep + 1e-9) return false;
   const done = careerDoneIds(doc);
+  // (MISSIONS-P3) the pack's containers (73b missionPackInstall): `needs.of` [{ ids, n }] - at least n of those done (a
+  // chapter, a campaign before this one); `closed` { ids, n } - a choose:N chapter that has had its n: the rest close
+  const nOf = c => (c.ids || []).filter(i => done.includes(i)).length;
+  if ((N.of || []).some(c => nOf(c) < c.n)) return false;
+  if (rec.closed && nOf(rec.closed) >= rec.closed.n) return false;
   return (N.after || []).every(a => done.includes(a));
 }
 
@@ -48908,9 +52128,16 @@ function careerAccept(doc, id) {
   D.accepted.push(id);
   D.live[id] = { stage: 0, subs: rec.stages[0].subs.map(() => false), picked: rec.stages[0].subs.map(() => false), got: {} };
   if (rec.kind === 'job') D.live[id].rec = rec;            // the job as offered (careerContract reads it back)
+  // (MISSIONS-P2) an order that starts from the CLIENT'S airframe (startFrom: a validated design or a build file): the
+  // page brings it (the effect) and binds it (careerOrderBind); only that airframe is delivered
+  const effects = [];
+  if (rec.kind === 'build' && rec.startFrom != null && rec.startFrom !== 'player') {
+    D.live[id].start = { from: crClone(rec.startFrom), slot: null };
+    effects.push({ k: 'clientPlane', id, from: crClone(rec.startFrom) });
+  }
   if (!D.tracked) D.tracked = id;
   careerRefresh(d);
-  return { ok: true, doc: d, why: '' };
+  return { ok: true, doc: d, why: '', effects };
 }
 function careerTrack(doc, id) {
   const C = doc.career && doc.career.contracts;
@@ -48949,7 +52176,21 @@ function contractOnStop(doc, contract, stop, hooks) {
   const L = C.live[id] || { stage: 0, subs: [], picked: [], got: {} };
   const st = rec.stages[L.stage];
   if (!st) return crNo(doc, id + ' has no stage ' + L.stage);
-  const res = st.subs.map((s, j) => L.subs[j] ? { st: 'was' } : contractSubOnStop(rec, s, { picked: !!L.picked[j] }, stop, hooks, doc));
+  // (MISSIONS-P1) a leg whose steps run in ORDER (seq) is judged in order: the first step not done stops the rest; a
+  // step a timer stops on is judged by its lap (73c missionTimersOnStop: the medal, the target)
+  const seq = st.order === 'seq';
+  let blocked = false;
+  const res = st.subs.map((s, j) => {
+    if (L.subs[j]) return { st: 'was' };
+    if (blocked) return { st: 'no', why: 'after an earlier step of this leg' };
+    let r = contractSubOnStop(rec, s, { picked: !!L.picked[j], start: L.start || null }, stop, hooks, doc);
+    if (rec.timers && typeof missionTimerOnSub === 'function') r = missionTimerOnSub(rec, s, r, stop);
+    // (MISSIONS-P3) the stop's own conditions on the step: the flight's time, its departure, who got on and off
+    if ((s.require || s.embark != null || s.disembark != null) && typeof missionStopChecks === 'function') r = missionStopChecks(rec, s, r, stop);
+    if (seq && r.st !== 'done') blocked = true;
+    return r;
+  });
+  if (rec.timers && typeof missionTimerGroups === 'function') missionTimerGroups(rec, L.stage, res);
   if (!res.some(r => r.st === 'done' || r.st === 'picked')) {
     const r = res.find(x => x.st === 'no') || { why: 'nothing to do here' };
     const out = crNo(doc, r.why);
@@ -48966,18 +52207,27 @@ function contractOnStop(doc, contract, stop, hooks) {
       Object.assign(live.got, r.got || {});
       if (r.medal) medal = live.medal = r.medal;
       events.push({ k: 'sub', id, stage: live.stage, sub: j });
+      // (MISSIONS-P1/P2) the airframe a delivery handed over (the handover's), a lap timed, a line said
+      if (st.subs[j].do === 'deliver' && stop.slot) live.slot = stop.slot;
+      if (r.timer) { live.timers = Object.assign({}, live.timers || {}); live.timers[r.timer.id] = r.timer; events.push({ k: 'timer', id, timer: r.timer, medal: r.medal || null }); }
+      // (MISSIONS-P3) every step's line, and what its done does (onDone: say, pay, a site's state)
+      const sy = st.subs[j].say || r.say;
+      if (sy) events.push({ k: 'say', id, say: sy });
+      if (st.subs[j].onDone) careerOnDone(d, rec, st.subs[j].onDone, events);
     } else if (r.st === 'picked') {
       live.picked[j] = true;
       events.push({ k: 'picked', id, stage: live.stage, sub: j, at: stop.aero });
     }
   });
-  if (st.subs.every((s, j) => live.subs[j])) {
+  if (typeof missionLegDone === 'function' ? missionLegDone(st, live.subs) : st.subs.every((s, j) => live.subs[j])) {   // (P3: choose:N)
     events.push({ k: 'stage', id, stage: live.stage });
     live.stage++;
     if (live.stage < rec.stages.length) {
       live.subs = rec.stages[live.stage].subs.map(() => false);
       live.picked = rec.stages[live.stage].subs.map(() => false);
     } else {
+      // (MISSIONS-P2) damage ASSESSED at the end (§3.4: the rules' damage: 'assess'), off the stop that completed it
+      if (rec.rules && typeof missionRulesJudge === 'function') { const a = missionRulesJudge(rec, stop).assess; if (a) live.assess = a; }
       careerComplete(d, rec, live, medal, events);
     }
   }
@@ -49004,9 +52254,89 @@ function careerComplete(d, rec, live, medal, events) {
   C.accepted = C.accepted.filter(x => x !== rec.id);
   delete C.live[rec.id];
   if (C.tracked === rec.id) C.tracked = C.accepted[0] || null;
+  // (MISSIONS-P2) THE DELIVERY (§7: "it is sold to the client at a higher price and is no longer ours"; "the BLUEPRINT is
+  // saved automatically"): an aircraft order's delivered airframe leaves the fleet and the career's airframes, like a
+  // sale; the event names its blueprint (the page saves the design to the sandbox under it) and the profit line
+  if (rec.onDone) careerOnDone(d, rec, rec.onDone, events);             // (MISSIONS-P3) the mission's own done: its line, pay, a site
+  const dl = typeof contractDelivery === 'function' ? contractDelivery(rec) : null;
+  const handover = dl && dl.sold && live.slot && d.fleet && d.fleet[live.slot] ? careerHandover(d, live.slot, rec, pay, dl) : null;
   careerRefresh(d);
-  events.push({ k: 'done', id: rec.id, pay, medal: medal || null, unlock: unlocked,
-                followUp: rec.kind === 'build' ? ((contractFollowUp(rec) || {}).id || null) : null });
+  const ev = { k: 'done', id: rec.id, pay, medal: medal || null, unlock: unlocked,
+               followUp: rec.kind === 'build' ? ((contractFollowUp(rec) || {}).id || null) : null };
+  if (handover) ev.handover = handover;
+  if (live.assess) ev.assess = live.assess;
+  if (live.timers) ev.timers = live.timers;
+  events.push(ev);
+}
+// (MISSIONS-P3) WHAT A DONE DOES (a step's or the mission's onDone): its line (an event), its pay (a ledger line, the
+// contract's), a site's new state (career.sites; a site whose `track` is a world construction stage reveals it when
+// built: the tracks move like an unlock). Mutates d.
+function careerOnDone(d, rec, od, events) {
+  if (od.say) events.push({ k: 'say', id: rec.id, say: od.say });
+  if (typeof od.pay === 'number' && isFinite(od.pay) && od.pay > 0) { playerCharge(d, -od.pay, 'contract', rec.id); events.push({ k: 'bonus', id: rec.id, pay: od.pay }); }
+  const S = od.site;
+  if (S && typeof S.id === 'string') {
+    const c = d.career;
+    c.sites = Object.assign({}, c.sites || {}, { [S.id]: S.state });
+    const m = /^(\w+):(\d+)$/.exec(S.track || '');
+    if (m && S.state === 'built') c.tracks[m[1]] = Math.max(c.tracks[m[1]] || 0, +m[2]);
+    events.push({ k: 'site', id: rec.id, site: S.id, state: S.state, unlock: m && S.state === 'built' ? S.track : null });
+  }
+}
+// (MISSIONS-P2) THE HANDOVER: the airframe `slot` out of the fleet (71_ playerFleetReconcile: the canonical drop, the
+// storage settled) and out of career.airframes; a pilot bound to it freed, a route on it ended (78b_ routesBlock); the
+// sale on record (career.sold). Mutates d (careerComplete's clone) -> { slot, blueprint (the sandbox name) | null, cost,
+// profit, client } - cost the economy's price when we made it (76_ econMaterialise `paid`); a client's own airframe
+// (startFrom) was never ours: no cost, the pay is the profit
+function careerHandover(d, slot, rec, pay, dl) {
+  const c = d.career, A = (c.airframes && c.airframes[slot]) || {};
+  const r = playerFleetReconcile(d, Object.keys(d.fleet).filter(n => n !== slot));
+  for (const k of Object.keys(r.doc)) if (k !== 'career') d[k] = r.doc[k];   // the player's half; the career is ours
+  delete c.airframes[slot];
+  for (const p of Object.keys(c.pilots || {})) if (c.pilots[p] && c.pilots[p].plane === slot) c.pilots[p].plane = null;
+  if (typeof routesBlock === 'function') routesBlock(d);
+  const P = typeof contractProfit === 'function' ? contractProfit(pay, A.client ? 0 : A.paid) : { pay, cost: null, profit: null };
+  c.sold = (Array.isArray(c.sold) ? c.sold : []).concat([{ slot, id: rec.id, at: Math.round(d.clock || 0), pay, cost: P.cost }]);
+  return { slot, blueprint: dl && dl.blueprint && !A.client ? missionBlueprintName(slot) : null, cost: P.cost, profit: P.profit, client: !!A.client };
+}
+// (MISSIONS-P2) A MISSION FAILED (§3.4, its rules broken; or the page's give-up): out of the accepted list, its progress
+// gone, on record (contracts.failed); offered again as long as its needs hold - the RESTART is accepting it again
+// (careerRestart). A client's airframe (startFrom) goes back to the client. -> { ok, doc, why, events }
+function careerFail(doc, id, why) {
+  const C = doc && doc.career && doc.career.contracts;
+  if (!C || !C.accepted.includes(id)) return crNo(doc, id + ' is not accepted');
+  const d = crClone(doc), D = d.career.contracts, live = D.live[id] || {};
+  if (live.start && live.start.slot && d.fleet[live.start.slot]) {
+    const r = playerFleetReconcile(d, Object.keys(d.fleet).filter(n => n !== live.start.slot));
+    for (const k of Object.keys(r.doc)) if (k !== 'career') d[k] = r.doc[k];
+    delete d.career.airframes[live.start.slot];
+  }
+  D.accepted = D.accepted.filter(x => x !== id);
+  delete D.live[id];
+  if (D.tracked === id) D.tracked = D.accepted[0] || null;
+  D.failed = (Array.isArray(D.failed) ? D.failed : []).concat([{ id, at: Math.round(d.clock || 0), why: String(why || 'failed') }]);
+  careerRefresh(d);
+  return { ok: true, doc: d, why: '', events: [{ k: 'failed', id, why: String(why || 'failed'), restart: D.offered.includes(id) }] };
+}
+// (MISSIONS-P2) THE RESTART: a failed mission accepted again, from its first step
+function careerRestart(doc, id) {
+  const C = doc && doc.career && doc.career.contracts;
+  if (!C || !(C.failed || []).some(f => f.id === id)) return crNo(doc, id + ' has not failed');
+  const r = careerAccept(doc, id);
+  if (r.ok) r.events = [{ k: 'restart', id }];
+  return r;
+}
+// (MISSIONS-P2) THE CLIENT'S AIRFRAME ARRIVED: the page brought it (the accept's clientPlane effect) into the fleet as
+// `slot`; it is bound to the order (only it is delivered) and stands in career.airframes as the CLIENT'S (no price, not
+// ours: the handover gives it back with no cost)
+function careerOrderBind(doc, id, slot) {
+  const C = doc && doc.career && doc.career.contracts, L = C && C.live && C.live[id];
+  if (!L || !L.start) return crNo(doc, id + ' waits for no client airframe');
+  if (typeof slot !== 'string' || !slot) return crNo(doc, 'no slot');
+  const d = crClone(doc);
+  d.career.contracts.live[id].start.slot = slot;
+  d.career.airframes[slot] = Object.assign({}, d.career.airframes[slot] || {}, { client: id, paid: 0, how: 'client', at: Math.round(d.clock || 0) });
+  return { ok: true, doc: d, why: '' };
 }
 
 // ---- A FLIGHT'S END, ON THE CAREER -----------------------------------------------------------------------------------
@@ -49014,10 +52344,22 @@ function careerComplete(d, rec, live, medal, events) {
 // moved, with every event and, for those that did not move, why.
 function careerOnStop(doc, stop, hooks) {
   if (!doc || !doc.career) return crNo(doc, 'not a career');
-  const C = doc.career.contracts;
-  const order = (C.tracked ? [C.tracked] : []).concat(C.accepted.filter(x => x !== C.tracked));
+  let C = doc.career.contracts;
   let d = doc, moved = false;
   const events = [], why = {};
+  // (MISSIONS-P2) THE FAILURE RULES FIRST (§3.4): a mission in progress on this flight (the tracked one, or one with a
+  // step done or a load aboard) whose rules the stop breaks - a crash, someone hurt, the freight harmed, the airframe
+  // damaged where it says fail - FAILS, and is offered again (the restart). The page hands a crash's stop here too.
+  if (typeof missionRulesJudge === 'function') for (const id of C.accepted.slice()) {
+    const rec = careerContract(d, id), L = d.career.contracts.live[id] || {};
+    if (!rec || !rec.rules) continue;
+    const busy = id === d.career.contracts.tracked || (L.picked || []).some(Boolean) || (L.subs || []).some(Boolean) || (L.stage || 0) > 0
+      || !!(stop && stop.tracks && stop.tracks[id]);                         // the flight tracked it (its gates, its strikes)
+    const v = busy ? missionRulesJudge(rec, stop) : null;
+    if (v && v.fail) { const f = careerFail(d, id, v.fail); if (f.ok) { d = f.doc; moved = true; events.push(...f.events); } }
+  }
+  C = d.career.contracts;
+  const order = (C.tracked ? [C.tracked] : []).concat(C.accepted.filter(x => x !== C.tracked));
   for (const id of order) {
     const r = contractOnStop(d, id, stop, hooks);
     if (r.ok) { d = r.doc; moved = true; events.push(...r.events); }
@@ -49037,7 +52379,9 @@ function careerOnStop(doc, stop, hooks) {
 // ===========================================================================
 // THE RECORD THE MAP READS (map_menu.js mapAdapt; the shape of tools/fixtures/contracts_sample.json, §7.3):
 //   { what: 'flydiy-career-map', v, source: 'career',
-//     providers: [ { id, name, short, colour, home, line, rep, track } ],
+//     providers: [ { id, name, short, colour, home, line, rep, track, client: { id, name, face, faceBig, bg } | null } ],
+//                  (G3616 PEOPLE: the provider's face - 72_people.js peopleClientOf; face 128 / faceBig 256 px cuts; G3620 bg: the
+//                  background the big portrait alone layers behind the head - the small face stays transparent)
 //     contracts: [ the accepted (in order) then the offers: { id, provider, kind, title, brief (RESOLVED words),
 //                  stages: [ { subs: [ {do, from?, to?, at?, load?, when?, crit?: [ {k, op, v, at?, words} ]} ] } ],
 //                  pay: contractPay(rec) + { bonus }, rep, unlock?, followLine?, classes,
@@ -49104,6 +52448,13 @@ function careerMapContract(doc, id, F, opts) {
   // (G2665 NIGHT-OPS) the window, the runways lit / unlit, the moon: the job line's facts (careerNightLine)
   const nl = careerNightLine(doc, rec, Object.assign({ fields: F }, opts || {}));
   if (nl) out.night = nl;
+  // (MISSIONS-P1/P2) a mission's places as marker data (73c missionMarkers: what the map and the world draw), its
+  // preferences and its delivery - only on a record that has them (today's contracts' map record is unchanged)
+  const L = doc && doc.career && doc.career.contracts && doc.career.contracts.live && doc.career.contracts.live[id];
+  if (typeof missionMarkers === 'function' && contractSubsOf(rec).some(s => s.place)) out.markers = missionMarkers(rec, L, { fields: F, spots: opts && opts.spots });
+  if (Array.isArray(rec.prefs) && rec.prefs.length) out.prefs = cwClone(rec.prefs);
+  if (rec.client) out.client = rec.client;
+  if (rec.rules) out.rules = cwClone(rec.rules);
   return out;
 }
 
@@ -49215,7 +52566,9 @@ function careerMapRecord(doc, world, opts) {
     const P = CONTRACT_PROVIDERS[id];
     return { id, name: contractText(P.name), short: contractText('prov.' + id + '.short'), colour: CAREER_MAP_LOOK[id] || '#888',
              home: (P.fields && P.fields[0]) || null, line: contractText(P.desc),
-             rep: (c.providers[id] || {}).rep || 0, track: (c.tracks || {})[P.track] || 0 };
+             rep: (c.providers[id] || {}).rep || 0, track: (c.tracks || {})[P.track] || 0,
+             client: typeof peopleClientOf === 'function' && peopleClientOf(id)
+               ? { id: peopleClientOf(id), name: peopleName(peopleClientOf(id)), face: peopleFace(peopleClientOf(id), 128), faceBig: peopleFace(peopleClientOf(id), 256), bg: peopleBg(peopleClientOf(id)) } : null };
   });
   const offered = careerOfferIds(doc).filter(id => !C.accepted.includes(id));
   const nightOpts = { day: opts.day || (world && world.day) || null, cover: typeof opts.cover === 'number' ? opts.cover : (world && world.day && typeof world.day.cloudCover === 'number' ? world.day.cloudCover : undefined) };
@@ -49301,6 +52654,23 @@ function careerStopRecord(o) {
   // (G2650 SIM-CLOCK) the day's own dusk / dawn (07b_clock.js dayDuskDawnH), only when the page hands them in: a
   // time-of-day window is judged on them (73_ contractWhenOk), else on the constants as before
   for (const k of ['duskH', 'dawnH']) if (typeof o[k] === 'number' && isFinite(o[k])) out[k] = Math.round(o[k] * 100) / 100;
+  // (MISSIONS-P1/P2) what a mission judges, only when the page hands it in (a stop without them is today's, to the byte):
+  //   tracks     { <contract id>: 73c missionTrackEvidence } - the flight's points, gates and rings, its timers' laps
+  //   spot       '<field>:<spot id>' the tie-down spot it stopped on (25_ fleetSpotDist <= 0)    (park)
+  //   waitedMin  minutes waited there (the page's Wait)                                         (wait)
+  //   spec       the delivered airframe's spec                                                  (an order's preferences)
+  //   occ        [{ name, band }] the seats' injury bands (34_ genOccWire)                      (the rules: injury)
+  //   freight    { harmed }                                                                     (the rules: freight)
+  if (o.tracks && typeof o.tracks === 'object') out.tracks = JSON.parse(JSON.stringify(o.tracks));
+  if (typeof o.spot === 'string' && o.spot) out.spot = o.spot;
+  if (typeof o.waitedMin === 'number' && isFinite(o.waitedMin)) out.waitedMin = Math.max(0, Math.round(o.waitedMin));
+  if (o.spec && typeof o.spec === 'object') out.spec = o.spec;
+  if (Array.isArray(o.occ)) out.occ = o.occ.filter(x => x && typeof x === 'object').map(x => ({ name: x.name || null, band: Math.max(0, Math.min(4, Math.round(+x.band || 0))) }));
+  if (o.freight && typeof o.freight === 'object') out.freight = { harmed: !!o.freight.harmed };
+  // (MISSIONS-P3) who got on and off here ({ on: [person ids], off: [...] } - the crowd's boarding), the flight's local
+  // departure hour (else the stop's hour less the flight)
+  if (o.people && typeof o.people === 'object') out.people = { on: (Array.isArray(o.people.on) ? o.people.on : []).filter(x => typeof x === 'string'), off: (Array.isArray(o.people.off) ? o.people.off : []).filter(x => typeof x === 'string') };
+  if (typeof o.departHour === 'number' && isFinite(o.departHour)) out.departHour = Math.round((((o.departHour % 24) + 24) % 24) * 100) / 100;
   return out;
 }
 // (G2705 CAREER-DAMAGE, §R.4: "free repair everywhere, but after a crash you reset to your STARTING PLACE") A CRASH
@@ -49393,6 +52763,17 @@ function careerEventLines(res, before, after) {
       }
       if (e.followUp) out.push({ k: 'follow', ok: true, text: T('ev.follow', { t: title(e.followUp) }) });
     } else if (e.k === 'pending') out.push({ k: e.k, ok: null, text: T('ev.pending', { t: title(e.id), n: e.why || '' }) });
+    // (MISSIONS-P1/P2) a mission failed (and its restart), a lap timed, a line said
+    else if (e.k === 'failed') out.push({ k: e.k, ok: false, text: T('ev.failed', { t: title(e.id), n: e.why || '' }) + (e.restart ? ' ' + T('ev.restart') : '') });
+    else if (e.k === 'timer') out.push({ k: e.k, ok: true, text: T('ev.timer', { t: title(e.id), n: e.timer.s + ' s' + (e.timer.target != null ? ' / ' + e.timer.target + ' s' : '') }) + (e.timer.pen ? ' · ' + T('ev.strikes', { n: e.timer.strikes, s: e.timer.pen }) : '') + (e.medal ? ' · ' + T('medal.' + e.medal) : '') });
+    else if (e.k === 'say' && e.say) out.push({ k: e.k, ok: true, text: (typeof peopleName === 'function' ? peopleName(e.say.who) : e.say.who) + ': ' + T(e.say.text) });
+    else if (e.k === 'bonus') out.push({ k: e.k, ok: true, text: T('ev.bonus', { t: title(e.id), n: cwMoney(e.pay) }) });
+    else if (e.k === 'site') out.push({ k: e.k, ok: true, text: T('ev.site.' + e.state, { n: e.site }) });
+    if (e.k === 'done' && e.handover) {
+      const H = e.handover, n = H.profit != null ? T('ev.profit', { n: cwMoney(e.pay), c: cwMoney(H.cost), p: (H.profit < 0 ? '−' : '') + cwMoney(Math.abs(H.profit)) }) : '';
+      out.push({ k: 'handover', ok: true, text: T(H.client ? 'ev.handback' : 'ev.handover', { n: H.blueprint || H.slot }) + (n ? ' · ' + n : '') });
+    }
+    if (e.k === 'done' && e.assess) out.push({ k: 'assess', ok: !e.assess.damaged, text: T(e.assess.damaged ? 'ev.assess.bent' : 'ev.assess.ok', { n: e.assess.why || '' }) });
   }
   if (!out.length && res && res.untouched) {
     const C = before && before.career && before.career.contracts;
@@ -49606,7 +52987,19 @@ const ECON_V = 1;
 //   loanTo       ...and pays the wallet back up to this (rounded up to `loanRound`)
 const ECON_BOOK = {
   ref: 'cub',
-  shells: { field: 1.8, club: 3.2, works: 5.4 },
+  // (G3359 ECON-APPLY, the user 23 Oct: "apply the economics table, keep demo time as it is for now"; ECON-SIM G3250 HANDOVER): the shells re-priced
+  // (field 1.8 -> 3.6, club 3.2 -> 5.6, works 5.4 -> 8.6 Cubs) - a side field shed at Tamgas Hill 44 960 -> 89 840
+  shells: { field: 3.6, club: 5.6, works: 8.6 },
+  // THE TABLE'S SINKS NOT YET BUILT INTO THE GAME (G3359: data only, read by nothing in play; tools/econ_sim.js plays them):
+  //   landmarks  the co-funding in Cubs; a keystone opens the next segment, the others are optional
+  //   rungs      the machine shop's rung of a segment, bought once it opens (its designs cannot be built before)
+  //   comps      competitions: entry in Cubs by segment, prizes x the entry for gold / silver / bronze
+  landmarks: [
+    { id: 'observatory', seg: 1, keystone: true,  cubs: 2.5 }, { id: 'mine-village', seg: 1, keystone: false, cubs: 1.5 },
+    { id: 'hydro',       seg: 2, keystone: true,  cubs: 6 },   { id: 'sky-tram',     seg: 2, keystone: false, cubs: 3 },
+    { id: 'long-runway', seg: 3, keystone: true,  cubs: 12 },  { id: 'community',    seg: 3, keystone: false, cubs: 5 } ],
+  rungs: { 2: { cubs: 0.25, words: 'Sheets and bolts' }, 3: { cubs: 2.5, words: 'Composite and electronics' } },
+  comps: { entry: { 1: 0.08, 2: 0.15, 3: 0.25 }, prizes: [3, 1.6, 0.8] },
   kits: { park: 0, bench: 0.05, wood: 0.16, metal: 0.24, store: 0.02, handling: 0.05,
           office: 0.1, comfort: 0.06, curio: 0, wip: 0 },
   makerMargin: 1.35,
@@ -49768,10 +53161,13 @@ function econLoanJob(doc, id) {
 // 15-25, 25-35, 20-40) are scaled by the measured contracts-per-leg ratio, 0.78 (the reference's 21-22 / 26-28 / 22-23
 // contracts at the airframe / hangar2 / arc before, 17-18 / 21-22 / 18-19 after); the first hangar is unchanged (it
 // is bought inside the arc-only opening, 8 contracts both ways).
+// (G3359 ECON-APPLY: the user's table re-priced the shells x2 - the reference career, measured on the applied tree on 24
+// Oct over the 8 seeds: hangar1 13-14, airframe 20-21, arc 21-22, hangar2 27-30; the bands re-derived around them, the
+// table speaking, not a regression. Before: hangar1 6-10, airframe 12-20, hangar2 20-27)
 const ECON_BANDS = {
-  hangar1:  [6, 10],     // the first side hangar
-  airframe: [12, 20],    // a C172-class airframe (CONTRACT_DESIGNS.c172, materialised in the main hangar)   (G2260: 15-25)
-  hangar2:  [20, 27],    // the second side hangar                                                         (G2260: 25-35)
+  hangar1:  [11, 16],    // the first side hangar
+  airframe: [16, 24],    // a C172-class airframe (CONTRACT_DESIGNS.c172, materialised in the main hangar)   (G2260: 15-25)
+  hangar2:  [24, 33],    // the second side hangar                                                         (G2260: 25-35)
   arc:      [16, 31],    // a full arc: the first provider whose whole arc is complete (its track at its last stage) (G2260: 20-40)
 };
 // THE REFERENCE CAREER the bands are measured on (econReference). Stated, so the numbers mean something:
@@ -49958,7 +53354,7 @@ const PROCURE_COSMETIC = ['paint', 'finish', 'meta'];          // bench.js BENCH
 // load with no edit). A readout is not a choice, so it never signs or withdraws a certificate.
 const PROCURE_READOUTS = ['fuel'];
 const PROCURE_LOOK = { energy: ['finish', 'hue', 'tint'], vessel: ['finish', 'hue', 'tint'], systems: ['look'] };
-const PROCURE_STATE_ROWS = /^_view|^(explodeD|dumOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail)$/;
+const PROCURE_STATE_ROWS = /^_view|^(explodeD|dumOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail)$|^hgDr[A-Z]/;
 const prClone = o => JSON.parse(JSON.stringify(o));
 const prNo = (doc, why) => ({ ok: false, doc, why });
 const prR100 = n => Math.round((+n || 0) / 100) * 100;
@@ -50133,12 +53529,15 @@ const PROCURE_EFF_KEYS = ['cost', 'emptyKg', 'massKg', 'toM', 'cruiseKmh', 'rang
 // ---- VALIDATED ONLY ---------------------------------------------------------------------------------------
 const procureValidated = id => !!(typeof CONTRACT_DESIGNS !== 'undefined' && CONTRACT_DESIGNS[id] && CONTRACT_DESIGNS[id].build);
 // the catalogue the screens read: the makers, each with the models whose every design is a validated build; an
-// option value whose effect names no validated design of its model is dropped (never offered)
-function procureCatalogue() {
+// option value whose effect names no validated design of its model is dropped (never offered). (G3230 TECH-MASK) With a
+// career document, only the models whose stock stage is at or below its machine shop's segment (79b_tech.js techModelOk);
+// no document, or no machine shop, lists them all
+function procureCatalogue(doc) {
   const out = [];
+  const techOk = id => !doc || typeof techModelOk !== 'function' || techModelOk(doc, id);
   for (const mk of Object.keys(PROCURE_MAKERS)) {
     const models = Object.keys(PROCURE_MODELS).filter(id => PROCURE_MODELS[id].maker === mk)
-      .filter(id => Object.values(PROCURE_MODELS[id].designs).every(procureValidated));
+      .filter(id => Object.values(PROCURE_MODELS[id].designs).every(procureValidated)).filter(techOk);
     if (models.length) out.push({ maker: mk, models });
   }
   return out;
@@ -50459,6 +53858,9 @@ function procureBuyModel(doc, modelId, opts, o) {
   o = o || {};
   const F = procureOpts(modelId, opts);
   if (!F.ok) return prNo(doc, F.why);
+  // G3230 (TECH-MASK): a maker sells what the machine shop can keep - the model with these options at or below the segment
+  const stage = typeof techStageOfModel === 'function' && careerTechOf(doc) ? techStageOfModel(modelId, F.opts) : null;
+  if (stage != null && stage > careerTechSeg(doc)) return prNo(doc, techWhy(stage) + ': not in your machine shop yet');
   if (!o.fileSpec) return prNo(doc, 'the design\'s build file is not loaded');
   const slot = String(o.slot || '').trim();
   if (!prSlotFree(doc, o.slotNames, slot)) return prNo(doc, slot ? slot + ' is taken: name the aeroplane differently' : 'name the aeroplane');
@@ -50561,10 +53963,13 @@ function procureMarket(seed, done, sold) {
 const procureUsedById = (seed, id) => { const m = /^used:(\d+):(\d+)$/.exec(id || ''); return m ? procureUsedListing(seed, +m[1], +m[2]) : null; };
 // the market of a document: the career's seed and completed count; the sandbox's own seed ('sandbox', epoch 0).
 // (G2742 STORY-PAGE) A story's occasions first (79_story.js storyOccasionListings: authored, one-time; none without a story)
+// (G3230 TECH-MASK) A career with a machine shop sees the listings at or below its segment; an occasion (the story's
+// three: `occasion: true`) may stand one above (79b_tech.js techListingOk). No machine shop: every listing, as before
 function procureMarketOf(doc) {
   const c = doc && doc.career;
   const occ = (c && c.story && typeof storyOccasionListings === 'function') ? storyOccasionListings(doc) : [];
-  return occ.concat(procureMarket(c ? c.seed : 'sandbox', c ? c.contracts.done.length : 0, procureSold(doc)));
+  const all = occ.concat(procureMarket(c ? c.seed : 'sandbox', c ? c.contracts.done.length : 0, procureSold(doc)));
+  return typeof techListingOk === 'function' ? all.filter(L => techListingOk(doc, L)) : all;
 }
 function procureSold(doc) {
   const m = doc && ((doc.career && doc.career.market) || doc.market);
@@ -51225,17 +54630,32 @@ const FREIGHT_CARDS = {
 // it was given, untouched (74_career.js's contract). No DOM, no storage, no clock, no random.
 // ===========================================================================
 const PILOTS_V = 1;
-const PILOTS_ORDER = ['kit', 'rafe', 'remy', 'sky'];
-const PILOTS_COMPANION = 'kit';                       // arrives with the player (§9.2, the pack's COMPANION)
-const PILOTS_RESERVED = { ch20: 'the test pilot', ch02: 'kept for the user\'s own purposes' };   // GQ13: not recruits
-const PILOTS_MARKET = { min: 2, max: 3 };             // recruitables shown at a time, refreshed with the market
+// G3614 (PEOPLE, the user 25 Oct): the pilots are PEOPLE (72_people.js GAME_PEOPLE, role 'pilot'): the pack's four
+// tuned persons on the bodies they always wore - kit -> Brian (ch01), rafe -> Bryce (ch42), remy -> Remy, sky -> Megan
+// (ch22); the names and the portraits are the official ones. The companion stays Brian until HIRE (G3618) retires it
+// with the tutorial's first hire ("we were always flying solo").
+const PILOTS_ORDER = peopleOf('pilot');
+const PILOTS_COMPANION = PEOPLE_FROM_PACK.kit;        // arrives with the player (§9.2, the pack's COMPANION) - until G3618
+const PILOTS_RESERVED = peopleOf('reserved').filter(id => GAME_PEOPLE[id].char)
+  .reduce((o, id) => (o[GAME_PEOPLE[id].char] = GAME_PEOPLE[id].why, o), {});   // GQ13: not recruits (ch20 Stig, ch02 Sophie)
+const PILOTS_MARKET = { all: true };                  // G3618 (HIRE, the user 25 Oct: "All 4 available"): every pilot not hired is on offer
 const PILOTS_GROW = { fast: 30, steady: 60 };         // logged landings to reach the ceiling (§9.4)
 const PILOTS_WEATHER = { windKt: 18 };                // a cautious pilot's limit: the surface wind at the decision
 const PILOTS_SHORT_M = 300;                           // short-strip nerves: refuses strips under this (m)
 const PILOTS_PAVED = ['concrete', 'asphalt'];         // paved-only: the surfaces it will use
 // G-COST: the one-time sign-on fee. ECONOMY (G2260) owns the price book (econPrice('signon', id)); until it lands,
 // this stub - the order is the pack's (remy the cheapest, sky the priciest; the companion comes with the opening).
-const PILOTS_SIGNON_STUB = { kit: 0, remy: 1500, rafe: 4000, sky: 7000 };
+const PILOTS_SIGNON_STUB = { brian: 2500, remy: 1500, bryce: 4000, megan: 7000 };
+// G3618 (HIRE, the user 25 Oct: "a signing fee plus recurring cost, so we have the same model as the contract itself";
+// "sign-on only, first day paid at the end of the first day, like classic paycheck"): THE WAGE, per sim day, paid at
+// the END of each day a pilot is on the roster (pilotsPayroll) - never at the hire. The companion (until STORY's T6b
+// retires it) works for nothing. ECONOMY's price book wins when it prices them (econPrice('wage', id)).
+const PILOTS_WAGE_STUB = { brian: 250, remy: 150, bryce: 300, megan: 450 };
+const PILOTS_DAY_S = 86400;
+const PILOTS_PAY_UT_S = 3 * 3600;   // the payday's hour: 03:00 UT = 18:00 on the island (UT-9), the end of the working day
+// G3618: THE EXPERIENCE LEVEL the hire card states (the user: "We'll state their experience level, and their skills
+// ... and we'll let the player discover. It shouldn't be fully fail safe") - by the person's base profile
+const PILOTS_LEVEL = { student: 'pilot.level.student', club: 'pilot.level.club', hamfist: 'pilot.level.hamfist', bush: 'pilot.level.bush', expert: 'pilot.level.expert' };
 
 // ---- THE TRAITS: hooks, never prose (§9.3). Each names what it does; the pack's phrase is its label key. --------------
 //   refuse     a refusal kind (pilotsRefusal): 'weather' | 'night' | 'short' | 'unpaved' | 'water' | 'snow'
@@ -51270,41 +54690,31 @@ const PILOTS_REFUSALS = ['weather', 'night', 'short', 'unpaved', 'water', 'snow'
 //   grow      { rate: PILOTS_GROW key, ceiling: a PILOT_PROFILES name } | null (the pack: "grows ... (ceiling: X)")
 //   signOn    'stub' (the price book's, pilotsSignOn) - the companion's is 0
 //   pack      what the pack left unsaid that this table decided (HANDOVER G2290 lists them)
-const PILOTS_ROSTER = {
-  kit:  { id: 'kit', who: 'ch01', companion: true,
-          profile: { base: 'club', knobs: { reaction: 0.25, smooth: 0.8, bankK: 0.85, comfortG: 1.25 } },
-          style: 'cautious', traits: ['mechanic', 'cautious', 'night-shy'], grow: { rate: 'steady', ceiling: 'bush' },
-          portrait: null },
-  rafe: { id: 'rafe', who: 'ch42',
-          profile: { base: 'hamfist', knobs: { hamFist: 0.04, comfortG: 1.9, bankK: 1.25 } },
-          style: 'normal', traits: ['fearless', 'hard-on-airframes'], grow: null,
-          portrait: null, pack: { style: 'not given: normal', grow: 'not given: none (the rough hands stay)' } },
-  remy: { id: 'remy', who: 'remy',
-          profile: { base: 'student', knobs: { reaction: 0.40, overRotate: 0.03, flareK: 0.85 } },
-          style: 'normal', traits: ['eager'], grow: { rate: 'fast', ceiling: 'expert' },
-          portrait: null, pack: { style: 'not given: normal' } },
-  sky:  { id: 'sky', who: 'ch22',
-          profile: { base: 'bush', knobs: { reaction: 0.12, smooth: 1.0, slip: true, field: 'short', bankK: 1.2, comfortG: 1.7 } },
-          style: 'normal', traits: ['short-field', 'loves-taildraggers', 'refuses-nothing'], grow: { rate: 'steady', ceiling: 'expert' },
-          portrait: null, pack: { style: 'not given: normal', grow: 'not given: steady to the expert, on tailwheel types only (loves taildraggers)' } },
-};
+const PILOTS_ROSTER = PILOTS_ORDER.reduce((o, id) => {
+  const P = GAME_PEOPLE[id], F = P.fly;
+  o[id] = Object.assign({ id, who: P.char }, id === PILOTS_COMPANION ? { companion: true } : {},
+    { profile: { base: F.profile.base, knobs: Object.assign({}, F.profile.knobs) }, style: F.style, traits: F.traits.slice(),
+      grow: F.grow ? Object.assign({}, F.grow) : null, portrait: peopleFace(id, 256), from: P.from },
+    F.pack ? { pack: Object.assign({}, F.pack) } : {});
+  return o;
+}, {});
 
 // ---- THE TEXT: draft keys until the user's AI run (GQ21); the same { t, draft } shape as CONTRACT_TEXT ------------
 const PLT_ = t => ({ t, draft: true });
 const PILOTS_TEXT = {
-  'pilot.kit.name': PLT_('Kit'), 'pilot.rafe.name': PLT_('Rafe'), 'pilot.remy.name': PLT_('Remy'), 'pilot.sky.name': PLT_('Sky'),
-  'pilot.kit.tagline': PLT_('Fixes engines, flies a little, came with you.'),
-  'pilot.rafe.tagline': PLT_('Loud, brave, rough on the stick.'),
+  // (G3614) the names are the people's, official (not drafts, set below); the lines stay drafts, keyed by person
+  'pilot.brian.tagline': PLT_('Fixes engines, flies a little.'),
+  'pilot.bryce.tagline': PLT_('Loud, brave, rough on the stick.'),
   'pilot.remy.tagline': PLT_('A brand-new licence and no hours.'),
-  'pilot.sky.tagline': PLT_('Grew up landing on gravel bars.'),
-  'pilot.kit.bio': PLT_('[draft] The one who came with you. The text comes from the narrative run.'),
-  'pilot.rafe.bio': PLT_('[draft] Ex-crop-duster and airshow ground crew turned pilot.'),
+  'pilot.megan.tagline': PLT_('Grew up landing on gravel bars.'),
+  'pilot.brian.bio': PLT_('[draft] A mechanic first, a pilot second. The text comes from the narrative run.'),
+  'pilot.bryce.bio': PLT_('[draft] Ex-crop-duster and airshow ground crew turned pilot.'),
   'pilot.remy.bio': PLT_('[draft] Just finished the commercial licence. Wants hours.'),
-  'pilot.sky.bio': PLT_('[draft] A bush pilot from the gravel bars.'),
-  'pilot.kit.pitch': PLT_('[draft] I believed in this before you did.'),
-  'pilot.rafe.pitch': PLT_('[draft] Weather? I fly in it.'),
+  'pilot.megan.bio': PLT_('[draft] A bush pilot from the gravel bars.'),
+  'pilot.brian.pitch': PLT_('[draft] I believed in this before you did.'),
+  'pilot.bryce.pitch': PLT_('[draft] Weather? I fly in it.'),
   'pilot.remy.pitch': PLT_('[draft] Give me the hours, I\'ll give you the landings.'),
-  'pilot.sky.pitch': PLT_('[draft] Show me the strip. Any strip.'),
+  'pilot.megan.pitch': PLT_('[draft] Show me the strip. Any strip.'),
   // the eight barks (Block 3), one draft line per moment, shared until the pack writes each pilot's own
   'pilot.bark.hired': PLT_('{name} is on the roster.'),
   'pilot.bark.takeoff': PLT_('{name}: rolling.'),
@@ -51334,11 +54744,22 @@ const PILOTS_TEXT = {
   'pilot.trait.fearless.how': PLT_('no weather refusals'), 'pilot.trait.eager.how': PLT_('the cheapest sign-on, grows fast'),
   'pilot.trait.short-field.how': PLT_('short-field technique, slips'), 'pilot.trait.loves-taildraggers.how': PLT_('grows on tailwheel types'),
   'pilot.trait.refuses-nothing.how': PLT_('flies anything'),
+  // G3618: the hire card's experience level and its skill chips (what a pilot is good at, never a promise)
+  'pilot.level.student': PLT_('Novice: a fresh licence, few hours'), 'pilot.level.club': PLT_('Weekend pilot: some hours, gentle'),
+  'pilot.level.hamfist': PLT_('Experienced, rough hands'), 'pilot.level.bush': PLT_('Bush pilot: many hours off rough strips'),
+  'pilot.level.expert': PLT_('Expert'),
+  'pilot.skill.short-field': PLT_('short landings'), 'pilot.skill.fearless': PLT_('big weather'), 'pilot.skill.refuses-nothing': PLT_('flies anything'),
+  'pilot.skill.loves-taildraggers': PLT_('taildraggers'), 'pilot.skill.mechanic': PLT_('field repairs'), 'pilot.skill.eager': PLT_('learns fast'),
+  'pilot.skill.cautious': PLT_('careful in wind'), 'pilot.skill.night-shy': PLT_('day flying only'), 'pilot.skill.hard-on-airframes': PLT_('rough on planes'),
+  'pilot.wage': PLT_('{name}\'s wage'),
   'pilot.me': PLT_('I fly'), 'pilot.me.how': PLT_('by hand, or the expert autopilot'),
   'pilot.boat': PLT_('takes the boat home'),
 };
+for (const id of PILOTS_ORDER) PILOTS_TEXT['pilot.' + id + '.name'] = { t: peopleName(id), draft: false };
 const pilotsText = (key, vars, text) => contractText(key, vars, Object.assign({}, PILOTS_TEXT, text || {}));
 const pilotsName = id => pilotsText('pilot.' + id + '.name');
+// an older save's pilot id (the pack's: kit / rafe / remy / sky) -> the person wearing it today
+const pilotsId = id => (PILOTS_ROSTER[id] ? id : (PEOPLE_FROM_PACK[id] || id));
 
 const plClone = o => JSON.parse(JSON.stringify(o));
 const plNo = (doc, why, extra) => Object.assign({ ok: false, doc, why }, extra || {});
@@ -51450,11 +54871,27 @@ function pilotsSignOn(id) {
   return PILOTS_SIGNON_STUB[id] || 0;
 }
 
+function pilotsWage(id) {
+  if (!PILOTS_ROSTER[id] || PILOTS_ROSTER[id].companion) return 0;
+  if (typeof econPrice === 'function') { const p = econPrice('wage', id); if (typeof p === 'number' && isFinite(p)) return Math.max(0, Math.round(p)); }
+  return PILOTS_WAGE_STUB[id] || 0;
+}
+// the career's instant (s) - the routes' clock (78b_routes.js routeNow: the career's own day) when it is loaded, else
+// the document's clock; the day number a wage counts by
+const pilotsNow = (doc, now) => (typeof routeNow === 'function' ? routeNow(doc, now) : (typeof now === 'number' && isFinite(now) ? now : ((doc && doc.clock) || 0)));
+const pilotsDay = (doc, now) => Math.floor((pilotsNow(doc, now) - PILOTS_PAY_UT_S) / PILOTS_DAY_S);
+
 // ---- THE CAREER BLOCK ----------------------------------------------------------------------------------------------
 function pilotsBlock(doc) {
   const c = doc.career;
   if (!c.pilots || typeof c.pilots !== 'object' || Array.isArray(c.pilots)) c.pilots = {};
   if (!Array.isArray(c.roster)) c.roster = [];
+  // G3614: an older career's pack ids (kit / rafe / sky) become the people wearing them - the roster, the rows, the
+  // pick and the routes' pilots (their logbooks and routes carry on)
+  c.roster = c.roster.map(pilotsId);
+  for (const id of Object.keys(c.pilots)) { const n = pilotsId(id); if (n !== id && !c.pilots[n]) { c.pilots[n] = c.pilots[id]; delete c.pilots[id]; } }
+  if (typeof c.pilotPick === 'string' && c.pilotPick !== 'me') c.pilotPick = pilotsId(c.pilotPick);
+  if (Array.isArray(c.routes)) for (const r of c.routes) if (r && typeof r.pilot === 'string') r.pilot = pilotsId(r.pilot);
   c.roster = c.roster.filter((id, i, a) => PILOTS_ROSTER[id] && a.indexOf(id) === i);
   for (const id of Object.keys(c.pilots)) {
     const P = c.pilots[id];
@@ -51473,7 +54910,7 @@ function pilotsBlock(doc) {
 function pilotsCompanion(doc) {
   const c = doc.career;
   c.roster = [PILOTS_COMPANION];
-  c.pilots = { [PILOTS_COMPANION]: { hired: Math.round(doc.clock || 0), fee: 0, aero: plHome(doc), plane: null, log: [] } };
+  c.pilots = { [PILOTS_COMPANION]: { hired: Math.round(doc.clock || 0), fee: 0, aero: plHome(doc), plane: null, log: [], paidDay: pilotsDay(doc) } };
   c.pilotPick = PILOTS_COMPANION;
   c.pilotN = 0;
   return doc;
@@ -51483,18 +54920,12 @@ const pilotsHired = doc => (doc && doc.career && Array.isArray(doc.career.roster
 // or boated home until the route ends (routeEnd frees them)
 const pilotsOnRoute = (doc, id) => !!(doc && doc.career && doc.career.pilots && doc.career.pilots[id] && doc.career.pilots[id].route);
 
-// ---- THE MARKET: 2-3 recruitables at a time, refreshed with the job market (contractEpoch) --------------------------
+// ---- THE MARKET (G3618, the user 25 Oct: "All 4 available"): every pilot not on the roster ------------------------------
 function pilotsOffers(doc) {
   const c = doc && doc.career;
   if (!c) return [];
   const hired = new Set(pilotsHired(doc));
-  const pool = PILOTS_ORDER.filter(id => !hired.has(id));
-  const epoch = contractEpoch(((c.contracts && c.contracts.done) || []).length);
-  const rng = contractRng(String(c.seed) + ':pilots:' + epoch);
-  const n = Math.min(pool.length, PILOTS_MARKET.min + Math.floor(rng() * (PILOTS_MARKET.max - PILOTS_MARKET.min + 1)));
-  const left = pool.slice(), pick = [];
-  while (pick.length < n) pick.push(left.splice(Math.floor(rng() * left.length) % left.length, 1)[0]);
-  return PILOTS_ORDER.filter(id => pick.includes(id));
+  return PILOTS_ORDER.filter(id => !hired.has(id));
 }
 
 // ---- HIRE / FIRE --------------------------------------------------------------------------------------------------
@@ -51508,9 +54939,30 @@ function pilotsHire(doc, id) {
   const d = pilotsBlock(plClone(doc)), c = d.career;
   c.roster.push(id);
   const old = c.pilots[id];
-  c.pilots[id] = { hired: Math.round(d.clock || 0), fee, aero: plHome(d), plane: null, log: old ? old.log : [] };
+  c.pilots[id] = { hired: Math.round(d.clock || 0), fee, aero: plHome(d), plane: null, log: old ? old.log : [], paidDay: pilotsDay(d) };
   if (fee) playerCharge(d, fee, 'signon', id);
-  return { ok: true, doc: d, fee, why: '' };
+  return { ok: true, doc: d, fee, wage: pilotsWage(id), why: '' };   // (G3618: the sign-on only; the wage at each day's end)
+}
+// G3618: THE PAYDAY - each hired pilot is paid the wage for every day ENDED since the last payday (the first at the end
+// of the hiring day), a ledger line per pilot ('wage'). A wallet that cannot cover it goes below zero: the wage is owed
+// all the same (the economy's loan offer is the way out, ECON). No day ended, or nobody on wages: the same document back.
+// -> { ok, doc, paid, lines: [{ id, days, sum }] }
+function pilotsPayroll(doc, now) {
+  if (!doc || !doc.career) return { ok: false, doc, why: 'not a career', paid: 0, lines: [] };
+  const today = pilotsDay(doc, now), owed = [];
+  for (const id of pilotsHired(doc)) {
+    const P = doc.career.pilots && doc.career.pilots[id], w = pilotsWage(id);
+    if (!P || !w) continue;
+    const from = typeof P.paidDay === 'number' && isFinite(P.paidDay) ? P.paidDay : today;
+    if (today > from) owed.push({ id, days: today - from, sum: w * (today - from) });
+  }
+  const fix = pilotsHired(doc).filter(id => doc.career.pilots[id] && typeof doc.career.pilots[id].paidDay !== 'number');
+  if (!owed.length && !fix.length) return { ok: true, doc, paid: 0, lines: [] };
+  const d = plClone(doc);
+  for (const id of fix) d.career.pilots[id].paidDay = today;   // (a pilot hired before G3618: the payday starts now)
+  let paid = 0;
+  for (const o of owed) { d.career.pilots[o.id].paidDay = today; playerCharge(d, o.sum, 'wage', o.id); paid += o.sum; }
+  return { ok: true, doc: d, paid, lines: owed };
 }
 // firing is free (G-COST); the logbook stays with the row (a re-hire brings their hours back); the next flight's
 // pick falls to the roster's first, else "I fly"
@@ -51680,11 +55132,14 @@ function pilotsCard(doc, id, world) {
   const initials = name.split(/\s+/).map(s => s[0] || '').join('').slice(0, 2).toUpperCase();
   return {
     id, who: R.who, name, initials, portrait: R.portrait || null, companion: !!R.companion,
+    bg: typeof peopleBg === 'function' ? peopleBg(id) : null,   // G3620: behind the head in a LARGE display only
     tagline: pilotsText('pilot.' + id + '.tagline'), bio: pilotsText('pilot.' + id + '.bio'), pitch: pilotsText('pilot.' + id + '.pitch'),
     fliesLike: (PILOTS_TEXT['pilot.' + id + '.flies'] && !PILOTS_TEXT['pilot.' + id + '.flies'].draft) ? pilotsText('pilot.' + id + '.flies') : pilotsFliesLike(G.flat),
     style: R.style,
     traits: R.traits.map(t => ({ id: t, label: pilotsText('pilot.trait.' + t), how: PILOTS_TEXT['pilot.trait.' + t + '.how'] ? pilotsText('pilot.trait.' + t + '.how') : '' })),
-    signOn: pilotsSignOn(id), hired, onOffer: !hired && pilotsOffers(doc).includes(id),
+    level: pilotsText(PILOTS_LEVEL[R.profile.base] || 'pilot.level.club'),
+    skills: R.traits.map(t => (PILOTS_TEXT['pilot.skill.' + t] ? pilotsText('pilot.skill.' + t) : pilotsText('pilot.trait.' + t))),
+    signOn: pilotsSignOn(id), wage: pilotsWage(id), hired, onOffer: !hired && pilotsOffers(doc).includes(id),
     at, atName: atRow ? (atRow.name || at) : null, atXZ: atRow ? [atRow.c ? atRow.c[0] : atRow.x, atRow.c ? atRow.c[1] : atRow.z] : null,
     plane: rec && hired ? rec.plane || null : null, route: rec && hired ? rec.route || null : null,
     flights: rec ? rec.log.length : 0, landings, grown: Math.round(G.f * 100), ceiling: R.grow ? R.grow.ceiling : null,
@@ -51697,9 +55152,11 @@ function pilotsImportPack(pack, text) {
   const T = plClone(text || PILOTS_TEXT), why = [];
   const put = (k, s) => { if (typeof s === 'string' && s) T[k] = { t: s, draft: false }; };
   for (const p of ((pack && pack.pilots) || [])) {
-    if (!p || !PILOTS_ROSTER[p.id]) { why.push('no pilot ' + (p && p.id)); continue; }
-    const b = 'pilot.' + p.id + '.';
-    put(b + 'name', p.name); put(b + 'tagline', p.tagline); put(b + 'bio', p.backstory); put(b + 'voice', p.voice);
+    const id = p && pilotsId(p.id);
+    if (!p || !PILOTS_ROSTER[id]) { why.push('no pilot ' + (p && p.id)); continue; }
+    const b = 'pilot.' + id + '.';
+    // (G3614: the name is the person's own, never the pack's)
+    put(b + 'tagline', p.tagline); put(b + 'bio', p.backstory); put(b + 'voice', p.voice);
     put(b + 'flies', p.fliesLike); put(b + 'pitch', p.pitch);
     for (const k of Object.keys(p.barks || {})) put(b + 'bark.' + k, p.barks[k]);
   }
@@ -52369,7 +55826,10 @@ const ROUTES_V = 1;
 // x (1 + the plane's payload / kgUnit) - a bigger plane earns more per trip, a faster one more trips a day: the route
 // rewards the design. The down payment is downTrips round trips' pay, paid on signing. turnS: the turnaround at the
 // ends, per round trip (§5.3 "plus a turnaround"). minKm: a route shorter than this pays as this.
-const ROUTES_PAY = { perKm: 100, kgUnit: 150, turnS: 1800, downTrips: 8, minKm: 1, round: 10 };
+// (G3359 ECON-APPLY, the user 23 Oct: "apply the economics table, keep demo time as it is for now"; ECON-SIM G3250 HANDOVER) perKm 100 -> 30, downTrips 8 -> 6,
+// and a TIMETABLE: at most dayTrips round trips a sim day (a round trip takes at least 86400 / dayTrips, the plane waiting
+// at its home end the rest) - waits no longer pay a fortune. The router's route share: 66 % -> 13 % (econ_sim, 20 seeds)
+const ROUTES_PAY = { perKm: 30, kgUnit: 150, turnS: 1800, downTrips: 6, dayTrips: 6, minKm: 1, round: 10 };
 const rtClone = o => JSON.parse(JSON.stringify(o));
 const rtNo = (doc, why, extra) => Object.assign({ ok: false, doc, why }, extra || {});
 const rtRound = v => Math.round(v / ROUTES_PAY.round) * ROUTES_PAY.round;
@@ -52400,9 +55860,11 @@ function routeDesignOf(doc, plane, o) {
 function routeTerms(km, D) {
   const P = ROUTES_PAY, seats = Math.max(1, D.seats | 0);
   const payloadKg = Math.max(0, seats - 1) * CONTRACT_FIT.occKg + (+D.bagKg || 0);
-  const tripS = Math.round(2 * km / D.cruiseKmh * 3600 + P.turnS);
+  // flyS: the round trip as flown (both legs + the turnarounds); tripS: as timetabled (G3359: at least a day / dayTrips)
+  const flyS = Math.round(2 * km / D.cruiseKmh * 3600 + P.turnS);
+  const tripS = P.dayTrips > 0 ? Math.max(flyS, Math.round(86400 / P.dayTrips)) : flyS;
   const pay = rtRound(2 * Math.max(P.minKm, km) * P.perKm * (1 + payloadKg / P.kgUnit));
-  return { km: Math.round(km * 100) / 100, cruiseKmh: Math.round(D.cruiseKmh), seats, payloadKg, tripS, pay, down: pay * P.downTrips };
+  return { km: Math.round(km * 100) / 100, cruiseKmh: Math.round(D.cruiseKmh), seats, payloadKg, flyS, tripS, pay, down: pay * P.downTrips };
 }
 // the end the plane comes back to: the end where a hangar of yours stands (b first, the story's HOME), else b
 function routeHomeOf(doc, a, b) {
@@ -52456,7 +55918,7 @@ function routeSign(doc, offer, plane, pilot, o) {
   c.routeN = (typeof c.routeN === 'number' && isFinite(c.routeN) ? c.routeN : c.routes.length) + 1;
   const route = { id: 'rt' + c.routeN, plane, pilot, a: offer.a, b: offer.b, home: offer.home || routeHomeOf(d, offer.a, offer.b),
                   signedAt: Math.round(now), trips: 0, settled: Math.round(now), km: offer.km, cruiseKmh: offer.cruiseKmh,
-                  tripS: offer.tripS, pay: offer.pay, down: offer.down, earned: offer.down };
+                  tripS: offer.tripS, flyS: offer.flyS > 0 ? offer.flyS : offer.tripS, pay: offer.pay, down: offer.down, earned: offer.down };
   c.routes.push(route);
   // the plane: on the route, standing nowhere of yours (its wear runs as outside: it flies)
   const e = d.fleet[plane];
@@ -52556,7 +56018,8 @@ function routesBlock(doc) {
 // WHERE THE PLANE IS ON ITS ROUTE at `now`: the cycle a -> b, the turnaround at b, b -> a, the turnaround at a (each
 // turnaround half of turnS) -> { leg: 'out' | 'atB' | 'back' | 'atA', f: 0..1 along a -> b }
 function routePos(r, now) {
-  const turn = ROUTES_PAY.turnS / 2, fly = Math.max(1, (r.tripS - ROUTES_PAY.turnS) / 2);
+  // (G3359: the legs take the FLOWN time; a timetabled trip's rest is spent at the home end, atA)
+  const turn = ROUTES_PAY.turnS / 2, fly = Math.max(1, (Math.min(r.tripS, r.flyS > 0 ? r.flyS : r.tripS) - ROUTES_PAY.turnS) / 2);
   const t = ((Math.max(0, (now == null ? r.settled : now) - r.signedAt) % r.tripS) + r.tripS) % r.tripS;
   if (t < fly) return { leg: 'out', f: t / fly };
   if (t < fly + turn) return { leg: 'atB', f: 1 };
@@ -52620,10 +56083,14 @@ const STORY_ROLES = {
   home:   { name: null, ids: ['HOME'], words: 'the WWII field' },
   client: { name: /\bowner\b/i, ids: ['w6', 'w7', 'w5'], words: "the owner's strip" },        // long and easy (§3 T3)
   water:  { name: null, kinds: ['water'], ids: ['SEA', 'mk_sea'], words: 'the seaplane base' },
+  // T6's route is water to water (the floats Cub never lands on HOME's tarmac; G3760 pilotCanFly refuses floats into a
+  // land strip): the OTHER water field - never the one 'water' picked; none on the island -> null (the offer refused)
+  harbour: { name: null, kinds: ['water'], ids: ['mk_sea', 'SEA'], not: 'water', words: 'the harbour seaplane base' },
 };
 function storySite(role, aeros) {
-  const R = STORY_ROLES[role], L = Array.isArray(aeros) ? aeros.filter(a => a && typeof a.id === 'string') : [];
+  const R = STORY_ROLES[role], L0 = Array.isArray(aeros) ? aeros.filter(a => a && typeof a.id === 'string') : [];
   if (!R) return null;
+  const other = R.not ? storySite(R.not, L0) : null, L = other ? L0.filter(a => a.id !== other) : L0;
   const tagged = L.find(a => a.role === role || (Array.isArray(a.roles) && a.roles.includes(role)));
   if (tagged) return tagged.id;
   if (R.name) { const n = L.find(a => typeof a.name === 'string' && R.name.test(a.name)); if (n) return n.id; }
@@ -52681,7 +56148,7 @@ const STORY_BEATS = [
     goal: { k: 'jobs', n: 3 } },
   { id: 'T6', title: 'The water job', brief: 'A job you promised: fit floats to the Cub and land it at the seaplane base.',
     goal: { k: 'stop', at: 'water', plane: 'gift', gear: 'floats' },
-    done: [{ k: 'routeOffer', plane: 'gift', a: 'water', b: 'home' }] },
+    done: [{ k: 'routeOffer', plane: 'gift', a: 'harbour', b: 'water' }] },   // (b: the Cub's home end - where it landed)
   { id: 'T7', title: 'The three occasions', brief: 'Back to the ultralight alone - and three planes on offer, once only.',
     enter: [{ k: 'occasions', n: 3 }], goal: { k: 'ack' },
     done: [{ k: 'open' }] },
@@ -52698,7 +56165,7 @@ const STORY_TIM = {
        'It\u2019s pre-certified, so no bench needed here (this shed has none anyway). When it looks right, tap OK on the card.'],
   T1: ['Good news: we got the old WWII airport. It\u2019s our base of operations now. Come and join me there.',
        'You can take the controls yourself whenever you like, but you never have to. The autopilot flies every normal mission just as well.'],
-  T2: ['Our first client! Their Cub is in the hangar, unfinished. The list of what they want is on the card. Keep it on budget.'],
+  T2: ['Here is what the client wants, and it has to stay on budget. Certify it at the bench here, then we fly it to them.'],
   T3: ['Certified? Then fly it over to its owner.'],
   T4: ['He can\u2019t pay us... so he\u2019s giving us the Cub. Not a bad trade.'],
   T5: ['A few quick jobs with the Cub. Nothing fancy, just get them done.'],
@@ -52743,6 +56210,106 @@ function storyLadderStep(L, o) {
   }
   if (want > L.i && (L.i < 0 || t - L.at >= R.hold)) { L.i++; L.at = t; }
   return { L, card: L.i >= 0 ? STORY_LADDER[L.i] : null };
+}
+// ---- G3580 (STORY-TUTOR): TIM IS THE TUTORIAL (the user, playtest 24 Oct: "Each step checks that the action was done
+// before moving on, tutorial-style. Tim replaces all cards. For now you've made Tim optional."). A beat's lines become
+// STEPS: { id, say, wait?, allow?, pass?, free?, ack? } -
+//   say    Tim's words (draft English, for the narrative pack)
+//   wait   the page's predicate (app.js STORY_TUTOR_FACTS): the step stands until it is true - no Next, the band not
+//          closable. No wait: just words, a Next (the last step's OK; `ack` sends the beat's { k: 'ack' } on it)
+//   allow  the one control (or panel) the step needs (app.js STORY_TUTOR_ALLOW): while the step stands ONLY it works -
+//          every other click, tap, drag and key is held at the window - and it is lit
+//   pass   a second button that passes the step as it stands ('Keep N47RF'); free: the step waits but locks nothing (the
+//          taxi after the landing is the player's hands)
+// T1's flight is the LADDER's (STORY_LADDER: its own check is the pilot's phase; off when manual, G3370). A beat with no
+// steps speaks its STORY_TIM lines as before.
+const STORY_REG = 'N47RF';          // G3586: Rufus's own registration (fictional; the generator's meta.reg is F-PGAR)
+const STORY_TUTOR = {
+  T0: [
+    { id: 'hello', say: 'Morning! The ultralight has sat in this shed all winter. Let’s dust it off.' },
+    { id: 'paint', wait: 'painted', allow: 'finish',
+      say: 'Click the plane once, twice or three times to climb to the top of its tree. Up there you change the global colour, add a livery, or recolour any single piece. Give it a fresh coat: change any colour.' },
+    { id: 'reg', wait: 'registered', allow: 'reg', pass: 'Keep ' + STORY_REG,
+      say: 'Now a registration of its own: type it in the registration box and press Enter. It came as ' + STORY_REG + '.' },
+    { id: 'cert', ack: true,
+      say: 'It’s pre-certified, so it flies as it is. No test bench in here, mind - certification happens at the WWII field’s hangar.' },
+  ],
+  T1: [
+    { id: 'news', say: 'Good news: we got the old WWII airport. It’s our base of operations now. Come and join me there.' },
+    { id: 'ap', say: 'You can take the controls yourself whenever you like, but you never have to. The autopilot flies every normal mission just as well.' },
+    { id: 'roll', wait: 'flying', allow: 'rollout',
+      say: 'Roll it out when you’re ready. Or skip the flight: you start on the final at the WWII field.' },
+  ],
+  // the WWII arrival (the user 24 Oct: "land at the WWII field with Rufus, then the taxi (skippable); we naturally see Rufus
+  // in the new hangar. Then the new Tim ... tells us about the new contract, that the Cub is parked outside, and to swap it
+  // with the ultralight. Only that control is allowed ... The ultralight should be put on a storage, visible place")
+  T2: [
+    { id: 'down', wait: 'inHangar', allow: 'shed', free: true,
+      say: 'We’re down - welcome to the WWII field! Taxi over to the hangar if you like, or go straight in with The shed.' },
+    { id: 'hangar', say: 'There it is, in our own hangar. Not bad for an old army field.' },
+    { id: 'contract', say: 'And our first contract is here already: a client brought us an unfinished Cub. It’s parked outside.' },
+    { id: 'store', wait: 'storeOpen', allow: 'store', say: 'Let’s swap it with the ultralight. Open Storage: tap the aeroplane’s name at the top, then Storage.' },
+    { id: 'swap', wait: 'clientOnStand', allow: 'storeClient',
+      say: 'Drag the Cub onto the floor, or tap its "work on". The ultralight steps off the stand to make room.' },
+    { id: 'park', wait: 'starterInside', allow: 'storeStarter',
+      say: 'Now put the ultralight where we can see it: drag it into an INSIDE slot. Storage keeps every plane you own - inside, on the apron, or long-term.' },
+    { id: 'list', say: 'Here is what the client wants, and it has to stay on budget. Certify it at the bench here, then we fly it to them.' },
+  ],
+};
+const storyTutorSteps = id => STORY_TUTOR[id] || null;
+// one tick of the tutor (pure): T { beat, i }, the beat now, fact(name) -> bool (the page's predicates) -> { T, step }.
+// A new beat starts at its first step; a step whose wait is already true is passed at once (a reload, a skip, an action
+// done early); words wait for next(). step null: the beat's steps are done (or it has none).
+function storyTutorTick(T, beat, fact) {
+  T = (T && T.beat === beat) ? { beat, i: T.i | 0 } : { beat, i: 0 };
+  const L = storyTutorSteps(beat) || [];
+  while (T.i < L.length && L[T.i].wait && typeof fact === 'function' && fact(L[T.i].wait)) T.i++;
+  return { T, step: L[T.i] || null };
+}
+// the step's Next / OK / pass: words move on; a waiting step moves only by its `pass`
+function storyTutorNext(T, how) {
+  const L = storyTutorSteps(T && T.beat) || [], s = L[T ? T.i : 0];
+  if (!s || (s.wait && !(how === 'pass' && s.pass))) return T;
+  return { beat: T.beat, i: T.i + 1 };
+}
+// G3584 "SKIP THE FLIGHT" ON THE FINAL (the user 24 Oct: "put the plane on its final, not landed"): the pose a skip starts
+// from - on the runway's extended centreline `d` m before the aim point (60 m in from the threshold), on a `gs` slope
+// over the field (never under `floor` m over the ground beneath), flying along the landing heading at V m/s and sinking
+// on the slope. a: the aerodrome record (x, z, hdg: the take-off heading, len, elev; spawn: the take-off end), groundH(x,
+// z) -> m or null -> { x, y, z, hdg, vx, vy, vz }: hdg in placeAtAerodrome's sense (the nose along (cos hdg, sin hdg)).
+// 3 km out, not 1.5 (the 25 Oct page run): the pilot takes a lined-up arrival STRAIGHT IN only from 300 m before its IAF
+// (43_pilot planFromHere: the FAF at the circuit height on the slope, the IAF 400 m before it - ~2.3 km out on a 105 m
+// circuit); nearer, it joined the circuit (1.5 km out: a downwind, 227 s to the wheels; 3 km: the final at 40 s, 147 s)
+// o.way -1: the final of the OTHER end (landing against a.hdg; the threshold the take-off end's mirror about the centre)
+function storyFinalPose(a, o) {
+  o = o || {};
+  const d = o.d || 3000, gs = o.gs || 0.06, V = o.V || 22, floor = o.floor || 60, sg = o.way === -1 ? -1 : 1;
+  const ux = sg * Math.cos(a.hdg), uz = sg * Math.sin(a.hdg);
+  const sp0 = a.spawn || [a.x || 0, a.z || 0], elev = +a.elev || 0;
+  const sp = sg > 0 ? sp0 : [2 * (a.x || 0) - sp0[0], 2 * (a.z || 0) - sp0[1]];
+  const ax = sp[0] + 60 * ux, az = sp[1] + 60 * uz;            // the aim point, 60 m in from the landing end
+  const x = ax - d * ux, z = az - d * uz;
+  const g = typeof o.groundH === 'function' ? o.groundH(x, z) : null;
+  const y = Math.max(elev + d * gs, (Number.isFinite(g) ? g : elev) + floor);
+  const cg = Math.cos(Math.atan(gs));
+  return { x, y, z, hdg: sg > 0 ? a.hdg : a.hdg + Math.PI, vx: V * cg * ux, vy: -V * Math.sin(Math.atan(gs)), vz: V * cg * uz };
+}
+// THE WAY THE PILOT WILL LAND IT (the 25 Oct 20:15 page run, 8 kt on the day: posed on a.hdg's final, the pilot given back
+// in the air re-plans the arrival (43_pilot G3473) on the SCORED direction - the wind, the slope, the approach - and flew
+// round to the other end's circuit, 5 min): the skip is posed on that same direction. The runway model's two ways scored
+// as dirAt scores them (25_airfield siteScoreDirections; its default limits - the sheet's only move a steep or short
+// strip's score), the wind at 30 m over the field at the pilot's t; +1 along a.hdg, -1 against it; no model: +1
+function storyFinalWay(a, world, t) {
+  if (!a || !world || typeof siteRunwayModel !== 'function' || typeof siteScoreDirections !== 'function') return 1;
+  try {
+    const M = siteRunwayModel(a, world);
+    if (!M || !Array.isArray(M.dir) || M.dir.length < 2) return 1;
+    const wv = typeof world.wind === 'function' ? world.wind(a.x, (+a.elev || 0) + 30, a.z, t || 0) : null;
+    const u = [Math.cos(a.hdg), Math.sin(a.hdg)];
+    const sc = siteScoreDirections(M, wv ? [wv[0], wv[2]] : [0, 0], { mode: 'land' }, u, typeof a.landHdg === 'number');
+    const D = M.dir[sc.k].u;
+    return D[0] * u[0] + D[1] * u[1] >= 0 ? 1 : -1;
+  } catch (e) { return 1; }
 }
 // (G3260 ROUTES: at T7, with the story's route signed, Tim names it and its down payment first)
 const storyTimLines = (id, doc) => { const L = (STORY_TIM[id] || []).slice(), r = id === 'T7' && doc ? storyRoute(doc) : null;
@@ -52898,9 +56465,13 @@ const STORY_JOBS = ['clients.01', 'survey.01', 'resort.01'];
 // authored, never generated). PLACEHOLDERS until the user authors the two planes the story names (HANDOVER G2742): the
 // fabric 4-seater stands as the validated metal Cessna (meridian), the Jodel-class one as the validated Jodel (pinson);
 // the Cub is the story's own. `price` is the occasion's factor on the maker's catalogue (well under a used listing's).
+// (G3359 ECON-APPLY, the user 23 Oct: "apply the economics table, keep demo time as it is for now"; ECON-SIM G3250 HANDOVER): THE STORY'S MONEY. The story career
+// starts without careerNew's grant (STORY_GRANT 0: the Rufus, not 60 000) and T6 pays a commitment fee beside the route's
+// own down payment - the first real money, enough for any one of T7's occasions.
+const STORY_GRANT = 0, STORY_T6_FEE = 20000;
 const STORY_OCCASIONS = [
   { id: 'occ:fabric4', model: 'meridian', opts: { avionics: 'basic', finish: 'white', reg: 'N4OCC' }, hours: 2400, repair: 'skin',
-    seller: 'used.seller.3', aero: 'HOME', price: 0.30, placeholder: 'the fabric 4-seater (stands as the metal Cessna until authored)' },
+    seller: 'used.seller.3', aero: 'HOME', price: 0.35, placeholder: 'the fabric 4-seater (stands as the metal Cessna until authored)' },   // G3359: 0.30 -> 0.35, the table's
   { id: 'occ:jodel', model: 'pinson', opts: { engine: 'a65', finish: 'red', reg: 'N2OCC' }, hours: 1150, repair: 'none',
     seller: 'used.seller.0', aero: 'HOME', price: 0.35, placeholder: 'the Jodel-class one (stands as the validated Jodel until authored)' },
   { id: 'occ:cub', model: 'scout', opts: { engine: 'a65', avionics: 'minimal', finish: 'green', reg: 'N3OCC' }, hours: 1800, repair: 'gear',
@@ -52920,7 +56491,10 @@ function storyCabinShed(aero, clock) {
   const P = plot ? O.plots[plot] : null;
   const S = (typeof SHELLS !== 'undefined' && SHELLS.field) ? SHELLS.field.dims : {};
   return { id: plot || aero, shed: { shell: 'field', kits: ((P && P.kits) || STORY_CABIN_SHED.kits).slice(), base: aero, tenure: 'own',
-    dims: Object.assign({}, S, STORY_CABIN_SHED.dims, (P && P.dims && P.dims.field) || {}), since: Math.round(clock || 0), story: 'cabin' } };
+    dims: Object.assign({}, S, STORY_CABIN_SHED.dims, (P && P.dims && P.dims.field) || {}), since: Math.round(clock || 0), story: 'cabin',
+    ...(P && Array.isArray(P.omit) ? { omit: P.omit.slice() } : {}),   // G3353: the props the plot leaves out
+    ...(P && P.workLamp && typeof P.workLamp === 'object' ? { workLamp: Object.assign({}, P.workLamp) } : {}),   // G3354
+    ...(P && Array.isArray(P.lampXZ) ? { lampXZ: P.lampXZ.map(p => p.slice()) } : {}) } };   // G3354: the fittings off the wing line
 }
 // A NEW CAREER WITH THE STORY (the welcome's New career, the player's career 'main' only): storyStart with the starter's
 // slot, then the cabin - the strip that plays the cabin (storySite, never a guess) gets the smallest shed, the garage opens
@@ -52934,6 +56508,11 @@ function storyNewCareer(doc, o) {
   const r = storyStart(doc, slot);
   if (!r.ok) return r;
   const d = r.doc, s = storyNormalise(d.career.story), cabin = storySite('cabin', o.aeros);
+  // G3359: careerNew's grant is not the story career's - its ledger line goes and the wallet holds STORY_GRANT instead
+  if (d.mode === 'career' && typeof CAREER_GRANT === 'number' && Array.isArray(d.ledger)) {
+    const i = d.ledger.findIndex(e => e && e.k === 'grant' && e.amt === -CAREER_GRANT);
+    if (i >= 0) { d.ledger.splice(i, 1); d.wallet -= CAREER_GRANT; if (STORY_GRANT) playerCharge(d, -STORY_GRANT, 'grant', 'story'); }
+  }
   if (cabin && cabin !== 'HOME') {
     const C = storyCabinShed(cabin, d.clock);
     d.sheds[C.id] = C.shed;
@@ -52942,6 +56521,8 @@ function storyNewCareer(doc, o) {
     s.cabin = { aero: cabin, hangar: C.id };
   } else { s.cabin = null; s.note = STORY_NO_CABIN; }
   d.career.story = s;
+  // G3230 (TECH-MASK): a new story career opens its machine shop at the first segment, Wood and fabric (79b_tech.js)
+  if (typeof techNew === 'function') d.career.tech = techNew();
   d.career.airframes[slot] = { from: 'story', story: 'starter', factory: false, modified: false, paid: 0, at: Math.round(d.clock || 0) };
   return { ok: true, doc: d, effects: r.effects, cabin: s.cabin, why: null };
 }
@@ -52985,10 +56566,16 @@ function storyApply(doc, e, o) {
     d.fleet[slot] = { hangar: null, aero: PREM_MAIN };
     if (o.foot) d.fleet[slot].foot = parkFoot(o.foot);
     const r = playerArrive(d, slot, PREM_MAIN, { prefer: PREM_MAIN, foots: o.foot ? { [slot]: o.foot } : null });
-    const D = r.ok ? r.doc : d;
+    let D = r.ok ? r.doc : d;
+    // G3585 (the WWII arrival, the user 24 Oct: "the Cub is parked outside"): tied down on HOME's apron, where the swap
+    // finds it (Tim's storage steps); no apron there - it stays where the arrival put it
+    const out = r.ok ? playerMove(D, slot, { kind: 'outside' }, { foots: o.foot ? { [slot]: o.foot } : null }) : null;
+    if (out && out.ok) D = out.doc;
     D.career.airframes[slot] = { from: 'story', story: 'client', owner: 'client', factory: false, modified: false, paid: 0, at: clock };
     D.career.story = s;
-    return { ok: true, doc: D, why: '', line: 'The client’s Cub is in the hangar at HOME.', where: r.ok ? (r.hangar || r.kind) : null };
+    const outside = !!(out && out.ok);
+    return { ok: true, doc: D, why: '', line: outside ? 'The client’s Cub is parked outside the hangar at HOME.' : 'The client’s Cub is in the hangar at HOME.',
+             where: outside ? 'outside' : r.ok ? (r.hangar || r.kind) : null };
   } else if (e.k === 'giftPlane') {
     const slot = s.planes.gift || s.planes.client;
     if (!slot || !d.career.airframes[slot]) return stNo(doc, 'no client plane to give');
@@ -53013,6 +56600,7 @@ function storyApply(doc, e, o) {
     const D = R.doc;
     Object.assign(offer, { route: R.route.id, down: R.route.down, pay: R.route.pay, tripS: R.route.tripS });
     s.offers = (s.offers || []).filter(x => x.k !== 'route').concat([offer]);
+    if (STORY_T6_FEE > 0) { playerCharge(D, -STORY_T6_FEE, 'story', 'T6:fee'); offer.fee = STORY_T6_FEE; }   // G3359: the commitment fee
     D.career.story = s;
     return { ok: true, doc: D, why: '', route: R.route, line: storyRouteLine(R.route, o.aeros) };
   } else if (e.k === 'occasions') {
@@ -53089,8 +56677,328 @@ function storyCard(doc, o) {
   return { beat: B.id, title: B.title, brief: B.brief, rows, ack: G.k === 'ack', note: notes.join(' ') || null,
            step: STORY_IDS.indexOf(B.id) + 1, of: STORY_IDS.length };
 }
+// ===========================================================================
+// THE TECH MASK (G3230 TECH-MASK) — the machine shop's three segments, one
+// table: every build option -> the segment that unlocks it. The editor greys
+// what is above the player's segment, the market and the makers list what is
+// at or below it (an occasion one above), and a design's stage is the highest
+// segment of any option it uses — computed, never stored.
+// futureDesigns/game/GAME-PLAN-2026-10-15.md §R (binding: MACHINE-SHOP, no
+// eras, "a segmented tech tree"), §4.1-§4.4.
+// ===========================================================================
+// THE SHAPE: `career.tech = { seg: 1..3, entries: [key] }` rides the career block (74_career.js careerNormalise
+// normalises it when present). A NEW story career gets `{ seg: 1, entries: [] }` (79_story.js storyNewCareer). A career
+// without the key (every career made before this, the dev career ?career=1) and the sandbox have NO machine shop:
+// everything is open, exactly as before. `entries` is §4.2's later split of a segment into individual entries: a key
+// of TECH_TABLE listed there is open whatever the segment (v1 never writes one).
+// THE KEYS are '<group>:<option>' over the GEN tables' own option lists (GATE TECH walks every table both ways: every
+// option has a row, every row names an option that exists). The groups:
+//   mat     fuselage construction        GEN_MATERIALS        spec.fuselage.material
+//   surf    a flying surface's own        GEN_SURF_MATERIALS   wings[].material, tail.finMaterial / stabMaterial
+//   eng     the engine                    POWERPLANTS          engines[].type
+//   cfg     twin                          (engines.length)     more than one engine
+//   prop    the blades' material          GEN_PROP_MATS        prop.material
+//   pitch   the fixed pitch               GEN_PROP_PITCH       prop.pitch
+//   fit     the panel's tier              GEN_SYSTEMS          systems.fit
+//   elec.*  battery / alternator / ...    GEN_ELEC             genSystemsResolve(spec).elec
+//   av.*    com / xpdr / nav / gps        GEN_AVIONICS         genSystemsResolve(spec).avionics
+//   gear    the undercarriage's type      clampSpec's list     gear.type
+//   susp    the mains' springing          GEN_SUSPENSION       gear.suspension
+//   fair    the fairings' layup           GEN_FAIR_MATS        gear.fairMat, when a fairing is fitted
+//   glaze   the glazing's material        GEN_OUTFIT.glassKgM2By  cabin.glazingMat, when glazed
+//   canopy  a flat screen or a bubble     clampSpec's list     cabin.canopy.style
+//   fuel    the liquid                    GEN_FUELS            energy.fuel (a fuel build)
+//   cell    the pack's chemistry          GEN_CELLS            energy.cell (a battery build)
+//   kit     the STOL kit (G2820)          GEN_SLATS / GEN_STOL wings[].stol, any device fitted (the kit is on
+//                                                             claude/stol-wing-g2820, not on master yet: the row
+//                                                             waits for it and reads nothing until then)
+// NOT MASKED IN v1 (not in §4.1's columns): flaps, seats, tips, the tail's type, booms, the instrument items of a
+// custom fit (the fit's own electrics and avionics are masked), the glazing route (an open cockpit or a screen).
+// Pure: no DOM, no storage, no clock.
+// ===========================================================================
+const TECH_V = 1;
+const TECH_MAX = 3;
+// §R: the three segments, by material; v1 = the three unlocks
+const TECH_SEGS = {
+  1: { seg: 1, name: 'Wood and fabric' },
+  2: { seg: 2, name: 'Sheets and bolts' },
+  3: { seg: 3, name: 'Composite and electronics' },
+};
+// THE TABLE (a ruling per option, for the user to review: HANDOVER G3230 prints it). The rules it follows:
+//   steel tube, wood, fabric = 1; aluminium in any form = 2; carbon and glassfibre = 3.
+//   a naturally aspirated piston up to 115 kW (the O-320's 112 kW, the Super Cub's) = 1; a bigger or supercharged one
+//   = 2; the modern turbocharged Rotax 915 iS ("economical engines"), every electric motor and every turbine = 3.
+//   twins = 2. A tricycle = 2; the taildragger and floats = 1. A bubble canopy and polycarbonate = 2. Fairings: glassfibre
+//   = 1 (a homebuilt's wheel spats), alloy = 2, carbon = 3.
+//   the steam-gauge panels (minimal / basic) = 1; the IFR panel's 60 A alternator, vacuum pump, transponder and VOR = 2;
+//   GPS of any kind, the glass cockpit and a lithium battery = 3 (electronics). Suspension: all 1 (the Jodel's oleo legs).
+//   the propeller is bought off the shelf, not built of the airframe's material: every blade material and pitch = 1
+//   (the user's Rufus, the story's starter, flies a carbon prop on a wood-and-fabric airframe).
+const TECH_TABLE = {
+  // ---- materials
+  'mat:tubeFabric': 1, 'mat:wood': 1, 'mat:alloy': 2, 'mat:aluTube': 2, 'mat:carbon': 3, 'mat:glass': 3,
+  'surf:fabric': 1, 'surf:steel': 1, 'surf:alloy': 2, 'surf:aluFabric': 2, 'surf:carbon': 3, 'surf:glass': 3,
+  // ---- engines
+  'eng:a65_sensenich74': 1, 'eng:vw2180_wood': 1, 'eng:rotax277_pusher': 1, 'eng:rotax503_wood': 1, 'eng:rotax582_ivo': 1,
+  'eng:jabiru2200_std': 1, 'eng:rotax912_warp': 1, 'eng:o200_eprops': 1, 'eng:mikron3_wood': 1, 'eng:gipsymajor1_wood': 1,
+  'eng:verner7u_wood': 1, 'eng:rotec3600_std': 1, 'eng:o320_mccauley': 1,
+  'eng:io360_mccauley': 2, 'eng:o540_hartzell': 2, 'eng:io550_hartzell3': 2, 'eng:io720_hartzell3': 2, 'eng:ranger440_wood': 2,
+  'eng:hirth508_wood': 2, 'eng:argus10c_wood': 2, 'eng:w670_hs2b': 2, 'eng:r755_hs2b': 2, 'eng:m14p_v530': 2,
+  'eng:r985_hs2b20': 2, 'eng:r1340_hs12d40': 2, 'eng:r1830_hs23e50': 2,
+  'eng:rotax915_carbon': 3,
+  'eng:emrax268_carbon': 3, 'eng:emrax228_3blade': 3, 'eng:e811_velis': 3, 'eng:sp260d_class': 3, 'eng:eppg_direct_130': 3,
+  'eng:fes_folding_100': 3, 'eng:outrunner2212_9x47': 3, 'eng:outrunner3548_12x6': 3, 'eng:outrunner6374_18x10': 3,
+  'eng:pt6a114a_hartzell3': 3, 'eng:pt6a34_hartzell4': 3, 'eng:pt6a42_hartzell4': 3, 'eng:pt6a60a_hartzell4': 3,
+  'cfg:twin': 2,
+  'prop:wood': 1, 'prop:maple': 1, 'prop:walnut': 1, 'prop:alu': 1, 'prop:carbon': 1,
+  'pitch:climb': 1, 'pitch:standard': 1, 'pitch:cruise': 1,
+  // ---- systems / avionics
+  'fit:minimal': 1, 'fit:basic': 1, 'fit:custom': 1, 'fit:ifr': 2,
+  'elec.battery:none': 1, 'elec.battery:lead': 1, 'elec.battery:lithium': 3,
+  'elec.alternator:none': 1, 'elec.alternator:gen20': 1, 'elec.alternator:alt60': 2,
+  'elec.starter:none': 1, 'elec.starter:yes': 1,
+  'elec.vac:none': 1, 'elec.vac:venturi': 1, 'elec.vac:pump': 2,
+  'av.com:none': 1, 'av.com:compact': 1,
+  'av.xpdr:none': 1, 'av.xpdr:modeS': 2,
+  'av.nav:none': 1, 'av.nav:vor': 2,
+  'av.gps:none': 1, 'av.gps:portable': 3, 'av.gps:panel': 3, 'av.gps:glass': 3,
+  // ---- gear
+  'gear:taildragger': 1, 'gear:floats': 1, 'gear:tricycle': 2,
+  'susp:bungee': 1, 'susp:spring': 1, 'susp:oleo': 1,
+  'fair:glass': 1, 'fair:alloy': 2, 'fair:carbon': 3,
+  // ---- canopy / glazing
+  'glaze:acrylic': 1, 'glaze:glass': 1, 'glaze:polycarbonate': 2,
+  'canopy:screen': 1, 'canopy:bubble': 2,
+  // ---- energy (the liquid follows the engine; a pack is electric)
+  'fuel:avgas100LL': 1, 'fuel:mogas': 1, 'fuel:jetA': 3,
+  'cell:lifepo4': 3, 'cell:nmc': 3, 'cell:nca': 3,
+  // ---- the STOL kit (G2820: slats, VGs, cuffs, fences, drooped ailerons)
+  'kit:stol': 3,
+};
+// the gear types and canopy styles clampSpec accepts (60_gen_spec.js clampSpec: an unknown is rewritten to the first);
+// GATE TECH probes clampSpec with each and with an unknown, so this list cannot drift from it
+const TECH_GEAR_TYPES = ['taildragger', 'tricycle', 'floats'];
+const TECH_CANOPY_STYLES = ['screen', 'bubble'];
+// the powertrain families of the editor's `engPower` row (piston / electric / turbine), read off POWERPLANTS: a family
+// opens with the first of its engines
+const TECH_FAMILIES = { piston: ['four', 'two'], electric: ['electric'], turbine: ['turbine'] };
+
+const techName = seg => (TECH_SEGS[seg] ? TECH_SEGS[seg].name : '');
+// the words written next to a greyed row (nothing hover-only, §4.3)
+const techWhy = seg => 'Machine shop: ' + techName(seg);
+// a key's segment: the table's row, or a family's (its first engine), or null (an option the mask does not know is
+// never greyed)
+function techSegOf(key) {
+  if (typeof key !== 'string') return null;
+  if (TECH_TABLE[key] != null) return TECH_TABLE[key];
+  const m = /^fam:(\w+)$/.exec(key);
+  if (m && TECH_FAMILIES[m[1]] && typeof POWERPLANTS !== 'undefined') {
+    let s = null;
+    for (const k of Object.keys(POWERPLANTS)) {
+      if (!TECH_FAMILIES[m[1]].includes(POWERPLANTS[k].engine.family)) continue;
+      const v = TECH_TABLE['eng:' + k];
+      if (v != null && (s == null || v < s)) s = v;
+    }
+    return s;
+  }
+  return null;
+}
+
+// ---- A DESIGN'S STAGE -------------------------------------------------------------------------------------------------
+// every option a spec uses, as table keys (deduplicated, in group order). Raw or resolved: an absent row reads as
+// GEN_DEFAULT's (what clampSpec would fill), the systems through genSystemsResolve (the one reader the ledger uses)
+function techKeysOfSpec(spec) {
+  const S = spec && spec.spec && !spec.engines ? spec.spec : (spec || {});
+  const out = [], add = k => { if (!out.includes(k)) out.push(k); };
+  const D = typeof GEN_DEFAULT !== 'undefined' ? GEN_DEFAULT : {};
+  const fu = S.fuselage || {};
+  add('mat:' + (fu.material || (D.fuselage && D.fuselage.material) || 'tubeFabric'));
+  const surf = v => (v == null ? null : (typeof GEN_SURF_MATERIALS !== 'undefined' && GEN_SURF_MATERIALS[v]) ? v
+    : ((typeof GEN_SURF_LEGACY !== 'undefined' && GEN_SURF_LEGACY[v]) || null));
+  for (const w of (Array.isArray(S.wings) ? S.wings : [])) { const m = w && surf(w.material); if (m) add('surf:' + m); }
+  for (const f of ['finMaterial', 'stabMaterial']) { const m = S.tail && surf(S.tail[f]); if (m) add('surf:' + m); }
+  const E = Array.isArray(S.engines) && S.engines.length ? S.engines : (D.engines || []);
+  for (const e of E) if (e && e.type) add('eng:' + e.type);
+  if (E.length > 1) add('cfg:twin');
+  const pr = S.prop || {};
+  add('prop:' + (pr.material || 'wood'));
+  add('pitch:' + (pr.pitch || 'standard'));
+  for (const k of techKeysOfSystems(S)) add(k);
+  const g = S.gear || {};
+  add('gear:' + (TECH_GEAR_TYPES.includes(g.type) ? g.type : 'taildragger'));
+  add('susp:' + ((typeof GEN_SUSPENSION !== 'undefined' && GEN_SUSPENSION[g.suspension]) ? g.suspension : 'bungee'));
+  const faired = (g.fairing && g.fairing !== 'none') || (g.twFairing && g.twFairing !== 'none') || g.legFair === 'fair' || g.twLegFair === 'fair';
+  if (faired) add('fair:' + (g.fairMat || 'glass'));
+  const cb = S.cabin || {};
+  if (cb.glazing !== 'none') add('glaze:' + (cb.glazingMat || 'acrylic'));
+  add('canopy:' + (cb.canopy && cb.canopy.style === 'bubble' ? 'bubble' : 'screen'));
+  const en = S.energy || {};
+  if (en.kind === 'battery') add('cell:' + (en.cell || 'lifepo4'));
+  else add('fuel:' + (en.fuel || 'avgas100LL'));
+  for (const w of (Array.isArray(S.wings) ? S.wings : [])) if (w && techStolOn(w.stol)) add('kit:stol');
+  return out;
+}
+// the panel's keys: the tier, and the electrics and avionics it resolves to (genSystemsResolve: a radio without a bus
+// is dropped, so it is not counted)
+function techKeysOfSystems(S) {
+  const out = [];
+  let R = null;
+  try { R = typeof genSystemsResolve === 'function' ? genSystemsResolve(S || {}) : null; } catch (e) { R = null; }
+  if (!R) return ['fit:' + ((S && S.systems && S.systems.fit) || 'basic')];
+  out.push('fit:' + R.tier);
+  for (const k of ['battery', 'alternator', 'starter', 'vac']) out.push('elec.' + k + ':' + R.elec[k]);
+  for (const k of ['com', 'xpdr', 'nav', 'gps']) out.push('av.' + k + ':' + R.avionics[k]);
+  return out;
+}
+// a wing's STOL devices: G2820's own reader when it is in the core, else any device that is not 'none' / 0
+function techStolOn(st) {
+  if (!st || typeof st !== 'object') return false;
+  if (typeof genStolOf === 'function') { try { return !!genStolOf(st); } catch (e) { return false; } }
+  return Object.keys(st).some(k => !/Span$/.test(k) && st[k] && st[k] !== 'none');
+}
+// THE STAGE: the highest segment of any option the spec uses (1 for an empty spec). Computed, never stored.
+function techStageOfSpec(spec) {
+  let s = 1;
+  for (const k of techKeysOfSpec(spec)) { const v = techSegOf(k); if (v != null && v > s) s = v; }
+  return s;
+}
+// the keys of a spec above a segment, each with its own: [{ key, seg }]
+function techOver(spec, seg) {
+  return techKeysOfSpec(spec).map(key => ({ key, seg: techSegOf(key) })).filter(r => r.seg != null && r.seg > seg);
+}
+
+// ---- THE CAREER'S MACHINE SHOP ----------------------------------------------------------------------------------------
+const techNew = () => ({ seg: 1, entries: [] });
+function techNormalise(t) {
+  const d = techNew();
+  if (!t || typeof t !== 'object') return d;
+  const s = Math.round(+t.seg);
+  d.seg = Number.isFinite(s) ? Math.max(1, Math.min(TECH_MAX, s)) : 1;
+  if (Array.isArray(t.entries)) for (const k of t.entries) if (typeof k === 'string' && TECH_TABLE[k] != null && !d.entries.includes(k)) d.entries.push(k);
+  return d;
+}
+// the machine shop of a document: null = no mask (the sandbox, a career without one)
+const careerTechOf = doc => (doc && doc.mode === 'career' && doc.career && doc.career.tech) ? techNormalise(doc.career.tech) : null;
+// the player's segment (TECH_MAX when nothing is masked)
+const careerTechSeg = doc => { const t = careerTechOf(doc); return t ? t.seg : TECH_MAX; };
+// may this career use this option? (an unknown key is never refused)
+function careerTechAllows(doc, key) {
+  const t = careerTechOf(doc);
+  if (!t) return true;
+  const s = techSegOf(key);
+  return s == null || s <= t.seg || t.entries.includes(key);
+}
+// may this career own a design of this stage? an OCCASION may stand one segment above (§4.4: own it and fly it, the
+// parts above the segment not modifiable)
+const careerTechStageOk = (doc, stage, occasion) => stage <= careerTechSeg(doc) + (occasion ? 1 : 0);
+// a segment unlocked (the keystone landmark's effect, §4.2): never down, never past TECH_MAX -> { ok, doc, why }
+function careerTechUnlock(doc, seg) {
+  const t = careerTechOf(doc);
+  if (!t) return { ok: false, doc, why: 'no machine shop in this document' };
+  const s = Math.max(1, Math.min(TECH_MAX, Math.round(+seg) || 1));
+  if (s <= t.seg) return { ok: false, doc, why: 'segment ' + s + ' is open already' };
+  const d = JSON.parse(JSON.stringify(doc));
+  d.career.tech = Object.assign(techNormalise(d.career.tech), { seg: s });
+  return { ok: true, doc: d, why: null };
+}
+
+// ---- THE EDITOR'S ROWS --------------------------------------------------------------------------------------------------
+// the cage rows that choose an option, each option index -> its key (null = not masked). The join's own vocabularies
+// (_cage_join.js: intCons' order, the surfaces' CONS4 after 'as the aeroplane', glazeMat, the canopy tile, fairCons, the
+// nacelle mount, the powertrain). Two rows read the page's tables, handed in by the editor: `engPreset` (the row's
+// names through CAGE_JOIN_ENGINES) and `cw_material` (CAGE_JOIN_PROP_MATS). GATE TECH holds every list to the join.
+const TECH_SURF_ROW = [null, 'surf:carbon', 'surf:steel', 'surf:fabric', 'surf:alloy', 'surf:aluFabric', 'surf:glass'];
+const TECH_ROWS = {
+  intCons: ['mat:carbon', 'mat:tubeFabric', 'mat:wood', 'mat:alloy', 'mat:aluTube', 'mat:glass'],
+  wgCons: TECH_SURF_ROW, w2Cons: TECH_SURF_ROW, finCons: TECH_SURF_ROW, stCons: TECH_SURF_ROW,
+  glazeMat: ['glaze:acrylic', 'glaze:polycarbonate', 'glaze:glass'],
+  canopy: ['canopy:screen', 'canopy:screen', 'canopy:screen', 'canopy:bubble'],
+  fairCons: ['fair:glass', 'fair:carbon', 'fair:alloy'],
+  // (ENGINE-CONFIGS-2: 4 push-pull, 5 three, 6 four - several engines, the twin's segment, as techKeysOf reads any
+  // spec with more than one engine)
+  engMount: [null, null, null, 'cfg:twin', 'cfg:twin', 'cfg:twin', 'cfg:twin'],
+  engPower: ['fam:piston', 'fam:electric', 'fam:turbine'],
+};
+// a row's keys, per option index; ctx: { names (the row's own option names), engines (CAGE_JOIN_ENGINES), propMats
+// (CAGE_JOIN_PROP_MATS) } -> [key | null] or null (a row the mask does not read)
+function techRowKeys(k, ctx) {
+  ctx = ctx || {};
+  if (TECH_ROWS[k]) return TECH_ROWS[k].slice();
+  if (k === 'engPreset' && Array.isArray(ctx.names) && ctx.engines)
+    return ctx.names.map(n => (ctx.engines[n] ? 'eng:' + ctx.engines[n] : null));
+  if (k === 'cw_material' && Array.isArray(ctx.propMats)) return ctx.propMats.map(m => (m ? 'prop:' + m : null));
+  return null;
+}
+// a spec PATCH's keys (a design tile's spec writes): the rows it names, only
+function techKeysOfPatch(p) {
+  const out = [];
+  if (!p || typeof p !== 'object') return out;
+  if (p.gear && TECH_GEAR_TYPES.includes(p.gear.type)) out.push('gear:' + p.gear.type);
+  if (p.systems && p.systems.fit) out.push('fit:' + p.systems.fit);
+  if (Array.isArray(p.engines)) { for (const e of p.engines) if (e && e.type) out.push('eng:' + e.type); if (p.engines.length > 1) out.push('cfg:twin'); }
+  if (p.fuselage && p.fuselage.material) out.push('mat:' + p.fuselage.material);
+  if (p.cabin && p.cabin.canopy && p.cabin.canopy.style) out.push('canopy:' + p.cabin.canopy.style);
+  return out;
+}
+
+// ---- THE MARKET AND THE MAKERS ------------------------------------------------------------------------------------------
+// THE VALIDATED DESIGNS' KEYS, as their build files are (CONTRACT_DESIGNS[id].build; the twin's floats patch applied).
+// A MEASURED table, never typed: GATE TECH re-derives every row from the file with techKeysOfSpec and fails on any
+// difference (`node tools/_tech_check.js --emit` prints the table) - the core cannot read a file, the gate can.
+const TECH_DESIGNS = {
+  cub: ['mat:tubeFabric', 'eng:a65_sensenich74', 'prop:wood', 'pitch:standard', 'fit:basic', 'elec.battery:lead', 'elec.alternator:gen20', 'elec.starter:yes', 'elec.vac:venturi', 'av.com:compact', 'av.xpdr:none', 'av.nav:none', 'av.gps:none', 'gear:taildragger', 'susp:bungee', 'glaze:acrylic', 'canopy:screen', 'fuel:avgas100LL'],
+  jodel: ['mat:wood', 'eng:a65_sensenich74', 'prop:wood', 'pitch:cruise', 'fit:basic', 'elec.battery:lead', 'elec.alternator:gen20', 'elec.starter:yes', 'elec.vac:venturi', 'av.com:compact', 'av.xpdr:none', 'av.nav:none', 'av.gps:none', 'gear:taildragger', 'susp:oleo', 'glaze:acrylic', 'canopy:screen', 'fuel:avgas100LL'],
+  c172: ['mat:alloy', 'eng:o540_hartzell', 'prop:alu', 'pitch:standard', 'fit:custom', 'elec.battery:lead', 'elec.alternator:alt60', 'elec.starter:yes', 'elec.vac:pump', 'av.com:compact', 'av.xpdr:modeS', 'av.nav:vor', 'av.gps:none', 'gear:tricycle', 'susp:spring', 'fair:glass', 'glaze:acrylic', 'canopy:screen', 'fuel:avgas100LL'],
+  c172f: ['mat:alloy', 'eng:o540_hartzell', 'prop:alu', 'pitch:standard', 'fit:custom', 'elec.battery:lead', 'elec.alternator:alt60', 'elec.starter:yes', 'elec.vac:pump', 'av.com:compact', 'av.xpdr:modeS', 'av.nav:vor', 'av.gps:none', 'gear:floats', 'susp:spring', 'fair:glass', 'glaze:acrylic', 'canopy:screen', 'fuel:avgas100LL'],
+  twinf: ['mat:tubeFabric', 'eng:rotax582_ivo', 'cfg:twin', 'prop:carbon', 'pitch:standard', 'fit:basic', 'elec.battery:lead', 'elec.alternator:gen20', 'elec.starter:yes', 'elec.vac:venturi', 'av.com:compact', 'av.xpdr:none', 'av.nav:none', 'av.gps:none', 'gear:floats', 'susp:spring', 'canopy:screen', 'fuel:avgas100LL'],
+};
+// a maker's model with its options, as keys: the design's keys with the rows its options write replaced (76_procure.js
+// prWrite: the engine -> every engine's type; the avionics -> the tier's own electrics and avionics). Exact: GATE TECH
+// holds it to techKeysOfSpec(procureSpec(...)) for every model and every option value.
+function techKeysOfModel(modelId, opts) {
+  if (typeof PROCURE_MODELS === 'undefined' || !PROCURE_MODELS[modelId]) return null;
+  const M = PROCURE_MODELS[modelId], o = opts || procureDefaults(modelId), design = procureDesignOf(modelId, o);
+  const base = TECH_DESIGNS[design];
+  if (!base) return null;
+  let keys = base.slice();
+  const val = r => (M.opts[r] && o[r] != null && o[r] !== M.opts[r].def) ? M.opts[r].vals[o[r]] : null;
+  const ev = val('engine');
+  if (ev && ev.eng && PROCURE_ENGINES[ev.eng]) {
+    const at = keys.findIndex(k => k.startsWith('eng:'));
+    keys = keys.filter(k => !k.startsWith('eng:'));
+    keys.splice(Math.max(0, at), 0, 'eng:' + PROCURE_ENGINES[ev.eng].type);
+  }
+  const av = val('avionics');
+  if (av && av.fit) {
+    const at = keys.findIndex(k => /^(fit|elec\.|av\.)/.test(k));
+    keys = keys.filter(k => !/^(fit|elec\.|av\.)/.test(k));
+    keys.splice(Math.max(0, at), 0, ...techKeysOfSystems({ systems: { fit: av.fit } }));
+  }
+  return keys;
+}
+function techStageOfKeys(keys) {
+  let s = 1;
+  for (const k of keys || []) { const v = techSegOf(k); if (v != null && v > s) s = v; }
+  return s;
+}
+const techStageOfModel = (modelId, opts) => { const k = techKeysOfModel(modelId, opts); return k ? techStageOfKeys(k) : null; };
+// a listing (used, or a story occasion) of this career: its stage <= the segment, one above for an occasion; a stage the
+// table cannot read (a design with no row) is never shown in a masked career
+function techListingOk(doc, L) {
+  if (!careerTechOf(doc)) return true;
+  const s = L ? techStageOfModel(L.model, L.opts) : null;
+  return s != null && careerTechStageOk(doc, s, !!(L && L.occasion));
+}
+// a maker's model in the catalogue: its STOCK model at or below the segment
+const techModelOk = (doc, modelId) => { if (!careerTechOf(doc)) return true; const s = techStageOfModel(modelId); return s != null && s <= careerTechSeg(doc); };
+// an option value on the sheet: the model with that one value at or below the segment
+const techOptionOk = (doc, modelId, opts, row, val) => {
+  if (!careerTechOf(doc)) return true;
+  const s = techStageOfModel(modelId, Object.assign({}, opts || procureDefaults(modelId), { [row]: val }));
+  return s != null && s <= careerTechSeg(doc);
+};
 if (typeof module !== 'undefined')
-  module.exports = { TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute };
+  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay };
 
 // (DMG-DETERMINISM G2353, standalone): NODE REFUSES A STALE CORE. tools/flight_core.js is generated (tools/build.js) and
 // tracked, so a tree whose generated files were put back from git (`git checkout -- tools/flight_core.js`, a stash, a fresh

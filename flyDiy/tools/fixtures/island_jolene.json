@@ -603,6 +603,10 @@
    {
     "id": "mn_t_stand",
     "kind": "flatten",
+    "level": 346.8,
+    "falloff": 13.5,
+    "abs": true,
+    "order": 0,
     "poly": [
      [
       7270.77,
@@ -620,11 +624,7 @@
       7303.64,
       -15311.62
      ]
-    ],
-    "level": 346.8,
-    "falloff": 13.5,
-    "abs": true,
-    "order": 0
+    ]
    },
    {
     "id": "mn_t_turn_s",
@@ -1803,6 +1803,7 @@
    },
    {
     "id": "mn_y_stand",
+    "surface": 6,
     "poly": [
      [
       7270.77,
@@ -1820,8 +1821,7 @@
       7303.64,
       -15311.62
      ]
-    ],
-    "surface": 6
+    ]
    },
    {
     "id": "mn_y_turn_s",
@@ -2782,6 +2782,30 @@
       -7910.67
      ]
     ]
+   },
+   {
+    "id": "mn_y_stand_d",
+    "poly": [
+     [
+      7270.77,
+      -15308.75
+     ],
+     [
+      7267.37,
+      -15347.6
+     ],
+     [
+      7300.24,
+      -15350.48
+     ],
+     [
+      7303.64,
+      -15311.62
+     ]
+    ],
+    "look": "gravel",
+    "band": 2,
+    "z": 0
    }
   ],
   "exclude": [
@@ -3083,13 +3107,16 @@
    },
    {
     "id": "sg_x_mill",
+    "what": [
+     "trees"
+    ],
     "poly": [
      [
       7177.46,
       -15358.75
      ],
      [
-      7172.0,
+      7172,
       -15421.21
      ],
      [
@@ -3101,9 +3128,6 @@
       -15372.06
      ]
     ],
-    "what": [
-     "trees"
-    ],
     "stage": {
      "track": "minedock",
      "show": [
@@ -3114,6 +3138,9 @@
    },
    {
     "id": "sg_x_lodge",
+    "what": [
+     "trees"
+    ],
     "poly": [
      [
       277,
@@ -3131,9 +3158,6 @@
       277,
       -7827
      ]
-    ],
-    "what": [
-     "trees"
     ],
     "stage": {
      "track": "resort",
@@ -3249,26 +3273,26 @@
    },
    {
     "id": "x_fan_w1_0",
-    "poly": [
-     [
-      2512.84,
-      -16190.41
-     ],
-     [
-      2354.43,
-      -16448.3
-     ],
-     [
-      2537.19,
-      -16529.54
-     ],
-     [
-      2622.5,
-      -16239.16
-     ]
-    ],
     "what": [
      "trees"
+    ],
+    "poly": [
+     [
+      2553.59,
+      -16205.67
+     ],
+     [
+      2467.95,
+      -16412.81
+     ],
+     [
+      2494.48,
+      -16422.55
+     ],
+     [
+      2580.17,
+      -16221.69
+     ]
     ]
    }
   ],
@@ -3355,13 +3379,13 @@
       -8561.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -3372,7 +3396,8 @@
      "mk_j1",
      "mk_j2",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sa01",
@@ -3390,13 +3415,13 @@
       -8456.78
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -3406,7 +3431,8 @@
      null,
      "mk_j3",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sa02",
@@ -3424,13 +3450,13 @@
       -8616.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -3440,7 +3466,8 @@
      null,
      "mk_j4",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sa03",
@@ -3478,13 +3505,13 @@
       -8434.92
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -3499,7 +3526,8 @@
      "mk_j9",
      "mk_j10",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sa04",
@@ -3533,13 +3561,13 @@
       -8546.0
      ]
     ],
-    "w": 4.0,
+    "w": 6.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -3553,7 +3581,8 @@
      "mk_j14",
      "mk_j15",
      null
-    ]
+    ],
+    "lay": 4.0
    },
    {
     "id": "mk_sa05",
@@ -3567,18 +3596,19 @@
       -8368.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
     "smooth": 0,
-    "traffic": 0
+    "traffic": 0,
+    "lay": 3.2
    },
    {
     "id": "mk_sa06",
@@ -3620,13 +3650,13 @@
       -8448.38
      ]
     ],
-    "w": 4.0,
+    "w": 6.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -3642,7 +3672,8 @@
      "mk_j21",
      "mk_j22",
      "mk_j23"
-    ]
+    ],
+    "lay": 4.0
    },
    {
     "id": "mk_sa08",
@@ -3692,13 +3723,13 @@
       -8449.0
      ]
     ],
-    "w": 4.0,
+    "w": 6.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -3716,7 +3747,8 @@
      "mk_j31",
      "mk_j32",
      null
-    ]
+    ],
+    "lay": 4.0
    },
    {
     "id": "mk_sa12",
@@ -3754,13 +3786,13 @@
       -8736.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -3775,7 +3807,8 @@
      "mk_j37",
      "mk_j38",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sa15",
@@ -3805,13 +3838,13 @@
       -8611.0
      ]
     ],
-    "w": 4.0,
+    "w": 6.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -3824,7 +3857,8 @@
      "mk_j42",
      "mk_j43",
      null
-    ]
+    ],
+    "lay": 4.0
    },
    {
     "id": "mk_sa17",
@@ -3882,13 +3916,13 @@
       -8643.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -3908,7 +3942,8 @@
      "mk_j53",
      "mk_j54",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sa20",
@@ -3962,13 +3997,13 @@
       -8609.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -3987,7 +4022,8 @@
      "mk_j63",
      "mk_j64",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sa22",
@@ -4041,13 +4077,13 @@
       -8671.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4066,7 +4102,8 @@
      "mk_j73",
      "mk_j74",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sa23",
@@ -4124,13 +4161,13 @@
       -8622.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4150,7 +4187,8 @@
      "mk_j84",
      "mk_j85",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sa29",
@@ -4180,13 +4218,13 @@
       -8333.84
      ]
     ],
-    "w": 4.0,
+    "w": 6.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4199,7 +4237,8 @@
      "mk_j88",
      "mk_j89",
      "mk_j90"
-    ]
+    ],
+    "lay": 4.0
    },
    {
     "id": "mk_sa30",
@@ -4225,13 +4264,13 @@
       -8486.0
      ]
     ],
-    "w": 4.0,
+    "w": 6.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4243,7 +4282,8 @@
      "mk_j93",
      "mk_j94",
      null
-    ]
+    ],
+    "lay": 4.0
    },
    {
     "id": "mk_sc33",
@@ -4257,13 +4297,13 @@
       -8544.0
      ]
     ],
-    "w": 4.0,
+    "w": 6.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4272,7 +4312,8 @@
     "nodes": [
      "mk_j2",
      null
-    ]
+    ],
+    "lay": 4.0
    },
    {
     "id": "mk_sc34",
@@ -4294,13 +4335,13 @@
       -8842.9
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4311,7 +4352,8 @@
      "mk_j44",
      "mk_j33",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc35",
@@ -4337,13 +4379,13 @@
       -8715.58
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4355,7 +4397,8 @@
      "mk_j34",
      "mk_j25",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc36",
@@ -4385,13 +4428,13 @@
       -8418.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4404,7 +4447,8 @@
      "mk_j5",
      "mk_j3",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc37",
@@ -4454,13 +4498,13 @@
       -8566.0
      ]
     ],
-    "w": 4.0,
+    "w": 6.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4478,7 +4522,8 @@
      "mk_j13",
      "mk_j6",
      null
-    ]
+    ],
+    "lay": 4.0
    },
    {
     "id": "mk_sc38",
@@ -4528,13 +4573,13 @@
       -8507.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4552,7 +4597,8 @@
      "mk_j14",
      "mk_j7",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc40",
@@ -4606,13 +4652,13 @@
       -8482.0
      ]
     ],
-    "w": 4.0,
+    "w": 6.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4631,7 +4677,8 @@
      "mk_j15",
      "mk_j8",
      null
-    ]
+    ],
+    "lay": 4.0
    },
    {
     "id": "mk_sc41",
@@ -4645,18 +4692,19 @@
       -8265.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
     "smooth": 0,
-    "traffic": 0
+    "traffic": 0,
+    "lay": 3.2
    },
    {
     "id": "mk_sc42",
@@ -4706,13 +4754,13 @@
       -8477.61
      ]
     ],
-    "w": 5.0,
+    "w": 7.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4730,7 +4778,8 @@
      "mk_j29",
      "mk_j20",
      "mk_j9"
-    ]
+    ],
+    "lay": 5.0
    },
    {
     "id": "mk_sc43",
@@ -4760,13 +4809,13 @@
       -8435.56
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4779,7 +4828,8 @@
      "mk_j21",
      "mk_j10",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc44",
@@ -4817,13 +4867,13 @@
       -8747.19
      ]
     ],
-    "w": 5.0,
+    "w": 7.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4838,7 +4888,8 @@
      "mk_j59",
      "mk_j50",
      "mk_j39"
-    ]
+    ],
+    "lay": 5.0
    },
    {
     "id": "mk_sc45",
@@ -4872,13 +4923,13 @@
       -8710.64
      ]
     ],
-    "w": 5.0,
+    "w": 7.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4892,7 +4943,8 @@
      "mk_j60",
      "mk_j51",
      "mk_j40"
-    ]
+    ],
+    "lay": 5.0
    },
    {
     "id": "mk_sc46",
@@ -4918,13 +4970,13 @@
       -8489.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4936,7 +4988,8 @@
      "mk_j31",
      "mk_j22",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc47",
@@ -4966,13 +5019,13 @@
       -8679.72
      ]
     ],
-    "w": 5.0,
+    "w": 7.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -4985,7 +5038,8 @@
      "mk_j61",
      "mk_j52",
      "mk_j41"
-    ]
+    ],
+    "lay": 5.0
    },
    {
     "id": "mk_sc48",
@@ -5011,13 +5065,13 @@
       -8428.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5029,7 +5083,8 @@
      "mk_j32",
      "mk_j23",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc49",
@@ -5067,13 +5122,13 @@
       -8613.0
      ]
     ],
-    "w": 4.0,
+    "w": 6.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5088,7 +5143,8 @@
      "mk_j53",
      "mk_j42",
      null
-    ]
+    ],
+    "lay": 4.0
    },
    {
     "id": "mk_sc50",
@@ -5130,13 +5186,13 @@
       -8448.0
      ]
     ],
-    "w": 5.0,
+    "w": 7.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5152,7 +5208,8 @@
      "mk_j43",
      "mk_j109",
      null
-    ]
+    ],
+    "lay": 5.0
    },
    {
     "id": "mk_sc51",
@@ -5170,13 +5227,13 @@
       -8373.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5186,7 +5243,8 @@
      null,
      "mk_j110",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc52",
@@ -5220,13 +5278,13 @@
       -8452.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5240,7 +5298,8 @@
      "mk_j74",
      "mk_j64",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc55",
@@ -5254,13 +5313,13 @@
       -8331.0
      ]
     ],
-    "w": 3.6,
+    "w": 6.0,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5269,7 +5328,8 @@
     "nodes": [
      "mk_j113",
      null
-    ]
+    ],
+    "lay": 3.6
    },
    {
     "id": "mk_sc56",
@@ -5291,13 +5351,13 @@
       -8610.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5308,7 +5368,8 @@
      "mk_j114",
      "mk_j85",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc61",
@@ -5334,13 +5395,13 @@
       -8518.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5352,7 +5413,8 @@
      "mk_j86",
      "mk_j115",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc63",
@@ -5374,13 +5436,13 @@
       -8501.0
      ]
     ],
-    "w": 4.0,
+    "w": 6.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5391,7 +5453,8 @@
      "mk_j92",
      "mk_j87",
      null
-    ]
+    ],
+    "lay": 4.0
    },
    {
     "id": "mk_sc64",
@@ -5429,13 +5492,13 @@
       -8289.0
      ]
     ],
-    "w": 4.0,
+    "w": 6.4,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5450,7 +5513,8 @@
      "mk_j118",
      "mk_j119",
      null
-    ]
+    ],
+    "lay": 4.0
    },
    {
     "id": "mk_sc65",
@@ -5476,13 +5540,13 @@
       -8388.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5494,7 +5558,8 @@
      "mk_j89",
      "mk_j120",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc69",
@@ -5516,13 +5581,13 @@
       -8259.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5533,7 +5598,8 @@
      "mk_j121",
      "mk_j90",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_sc70",
@@ -5555,13 +5621,13 @@
       -8235.0
      ]
     ],
-    "w": 3.2,
+    "w": 5.6,
     "cls": "paved",
     "pav": {
      "marks": "none"
     },
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.12,
@@ -5572,7 +5638,8 @@
      "mk_j122",
      "mk_j123",
      null
-    ]
+    ],
+    "lay": 3.2
    },
    {
     "id": "mk_r_shore",
@@ -5710,10 +5777,10 @@
       -9077.27
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 7,
     "grade": 0.12,
@@ -5753,7 +5820,8 @@
      null,
      null,
      "mk_c_south"
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_ax00",
@@ -5783,10 +5851,10 @@
       -8352.5
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.12,
@@ -5799,7 +5867,8 @@
      null,
      null,
      null
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_ax01",
@@ -6069,10 +6138,10 @@
       -8997.6
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.12,
@@ -6145,7 +6214,8 @@
      null,
      null,
      null
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_ax02",
@@ -6299,10 +6369,10 @@
       -8287.8
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.12,
@@ -6346,7 +6416,8 @@
      null,
      null,
      "mk_j126"
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_ax03",
@@ -6492,10 +6563,10 @@
       -8359.0
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.12,
@@ -6537,7 +6608,8 @@
      null,
      null,
      "mk_j128"
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_ax04",
@@ -6667,10 +6739,10 @@
       -8287.8
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.12,
@@ -6708,7 +6780,8 @@
      null,
      null,
      "mk_j126"
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_ax05",
@@ -6798,10 +6871,10 @@
       -8074.0
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.12,
@@ -6829,7 +6902,8 @@
      null,
      null,
      "mk_c_north"
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_ax06",
@@ -6931,10 +7005,10 @@
       -8413.2
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.12,
@@ -6965,7 +7039,8 @@
      null,
      null,
      "mk_j129"
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_ax07",
@@ -7011,10 +7086,10 @@
       -8202.3
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.12,
@@ -7031,7 +7106,8 @@
      null,
      null,
      null
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_ax08",
@@ -7061,10 +7137,10 @@
       -8453.1
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.12,
@@ -7077,7 +7153,8 @@
      null,
      null,
      "mk_j125"
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_ax09",
@@ -7107,10 +7184,10 @@
       -8359.0
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.12,
@@ -7123,7 +7200,8 @@
      null,
      null,
      "mk_j128"
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_ax10",
@@ -7153,10 +7231,10 @@
       -8453.1
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.12,
@@ -7169,7 +7247,8 @@
      null,
      null,
      "mk_j125"
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_r_walden",
@@ -7239,10 +7318,10 @@
       -8277.07
      ]
     ],
-    "w": 6.5,
+    "w": 8.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.09,
@@ -7266,7 +7345,8 @@
      null,
      null,
      "mk_c_east"
-    ]
+    ],
+    "lay": 6.5
    },
    {
     "id": "mk_r_airport",
@@ -7408,16 +7488,17 @@
       -7760.0
      ]
     ],
-    "w": 6.0,
+    "w": 8.4,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.1,
     "smooth": 30,
     "traffic": 1,
-    "rail": "auto"
+    "rail": "auto",
+    "lay": 6.0
    },
    {
     "id": "mk_r_skaters",
@@ -7515,16 +7596,17 @@
       -8030.45
      ]
     ],
-    "w": 6.0,
+    "w": 8.4,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.1,
     "smooth": 30,
     "traffic": 1,
-    "rail": "auto"
+    "rail": "auto",
+    "lay": 6.0
    },
    {
     "id": "mk_r_graveyard",
@@ -7566,10 +7648,10 @@
       -7900.0
      ]
     ],
-    "w": 5.0,
+    "w": 7.4,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.11,
@@ -7586,7 +7668,8 @@
      null,
      null,
      null
-    ]
+    ],
+    "lay": 5.0
    },
    {
     "id": "mk_r_raven",
@@ -7624,16 +7707,17 @@
       -7772.0
      ]
     ],
-    "w": 5.5,
+    "w": 7.9,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.1,
     "smooth": 30,
     "traffic": 0,
-    "rail": "auto"
+    "rail": "auto",
+    "lay": 5.5
    },
    {
     "id": "mk_r_wolf",
@@ -7659,16 +7743,17 @@
       -7938.33
      ]
     ],
-    "w": 5.0,
+    "w": 7.4,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 6,
     "grade": 0.1,
     "smooth": 30,
     "traffic": 0,
-    "rail": "auto"
+    "rail": "auto",
+    "lay": 5.0
    },
    {
     "id": "mk_r_breakwater",
@@ -7698,10 +7783,10 @@
       -8736.0
      ]
     ],
-    "w": 6.0,
+    "w": 8.4,
     "cls": "paved",
     "look": "worn",
-    "band": 2,
+    "band": 0.8,
     "graded": true,
     "falloff": 8,
     "grade": 0.1,
@@ -7715,7 +7800,8 @@
      null,
      "mk_j24",
      null
-    ]
+    ],
+    "lay": 6.0
    },
    {
     "id": "mn_main",
@@ -11966,8 +12052,8 @@
     "id": "r31",
     "pts": [
      [
-      -4738.15,
-      -23158.93
+      -4749.6,
+      -23153.73
      ],
      [
       -4690.21,
@@ -12014,7 +12100,8 @@
      null,
      "j1"
     ],
-    "look": "dirt"
+    "look": "dirt",
+    "bed": true
    },
    {
     "id": "r32",
@@ -13826,6 +13913,140 @@
     "poles": "off",
     "rail": "off",
     "band": 0
+   },
+   {
+    "id": "r46",
+    "pts": [
+     [
+      2692.98,
+      -15960.24
+     ],
+     [
+      2711.61,
+      -15968.69
+     ],
+     [
+      2685.47,
+      -16077.7
+     ],
+     [
+      2662.89,
+      -16177.91
+     ],
+     [
+      2629.1,
+      -16257.15
+     ],
+     [
+      2587.95,
+      -16381.15
+     ],
+     [
+      2496.91,
+      -16510.47
+     ],
+     [
+      2460.97,
+      -16550.26
+     ],
+     [
+      2410.12,
+      -16603.99
+     ],
+     [
+      2399.85,
+      -16665.61
+     ],
+     [
+      2369.42,
+      -16739.26
+     ],
+     [
+      2323.78,
+      -16840.72
+     ],
+     [
+      2274.78,
+      -16961.32
+     ],
+     [
+      2214,
+      -17325.42
+     ]
+    ],
+    "w": 2,
+    "cls": "gravel",
+    "graded": true,
+    "falloff": 6,
+    "curve": "spline",
+    "clear": 1,
+    "rail": "off",
+    "poles": "off",
+    "bed": true
+   },
+   {
+    "id": "r47",
+    "pts": [
+     [
+      2208.2,
+      -16687.42
+     ],
+     [
+      2070.71,
+      -16654.83
+     ],
+     [
+      2222.69,
+      -16378.93
+     ],
+     [
+      2336.82,
+      -16377.78
+     ],
+     [
+      2376.54,
+      -16422.79
+     ],
+     [
+      2385.09,
+      -16479.8
+     ],
+     [
+      2381.79,
+      -16542.45
+     ],
+     [
+      2385.66,
+      -16597.59
+     ],
+     [
+      2426.63,
+      -16583.89
+     ]
+    ],
+    "w": 3,
+    "cls": "gravel",
+    "graded": true,
+    "falloff": 6,
+    "curve": "spline",
+    "clear": 2,
+    "tan": [
+     [
+      -55.16,
+      38.81
+     ],
+     [
+      43.08,
+      100.83
+     ],
+     null,
+     null,
+     null,
+     null,
+     null,
+     null,
+     null
+    ]
    }
   ],
   "runways": [
@@ -13987,7 +14208,7 @@
    },
    {
     "id": "w3",
-    "name": "Tamgas Hill Strip",
+    "name": "Ridgeback Strip",
     "c": [
      -811.27,
      -2396.97
@@ -14104,7 +14325,7 @@
    },
    {
     "id": "SEA",
-    "name": "Annette Dock",
+    "name": "Greywater Dock",
     "c": [
      360.5,
      -3660.99
@@ -14131,8 +14352,8 @@
     "plots": [
      {
       "id": "SEA",
-      "x": 747.0,
-      "z": -2851.0,
+      "x": 747,
+      "z": -2851,
       "hdg": -1.1781,
       "slip": true,
       "stand": {
@@ -14145,7 +14366,7 @@
    },
    {
     "id": "mk_sea",
-    "name": "Metlakatla Seaplane Base",
+    "name": "Cedar Harbour Seaplane Base",
     "c": [
      -3980.0,
      -9420.0
@@ -14186,7 +14407,7 @@
    },
    {
     "id": "mn_strip",
-    "name": "Jumbo Mine Street",
+    "name": "Copperhead Mine Street",
     "c": [
      7249.68,
      -15429.37
@@ -14295,8 +14516,8 @@
        },
        {
         "id": "stand",
-        "x": 7278.0,
-        "z": -15318.0,
+        "x": 7278,
+        "z": -15318,
         "kind": "stand",
         "hdg": -1.9484
        },
@@ -14490,8 +14711,8 @@
     "profile": null,
     "approach": 1,
     "stand": {
-     "x": 7278.0,
-     "z": -15318.0,
+     "x": 7278,
+     "z": -15318,
      "hdg": null
     },
     "taxiOut": [
@@ -14507,8 +14728,8 @@
     "plots": [
      {
       "id": "mn_strip",
-      "x": 7273.0,
-      "z": -15181.0,
+      "x": 7273,
+      "z": -15181,
       "hdg": -1.5708
      }
     ]
@@ -15059,6 +15280,47 @@
      "terrainOk": true
     },
     "departure": 0
+   },
+   {
+    "id": "cb_sea",
+    "name": "Cabin Lake",
+    "c": [
+     1890.0,
+     -17803.9
+    ],
+    "hdg": 0.5672,
+    "len": 1400,
+    "wid": 150,
+    "surface": 4,
+    "look": "none",
+    "crossfall": 0,
+    "disp": [
+     0,
+     0
+    ],
+    "papi": [
+     false,
+     false
+    ],
+    "falloff": null,
+    "site": null,
+    "pattern": null,
+    "profile": null,
+    "approach": null,
+    "plots": [
+     {
+      "id": "cb_sea",
+      "x": 2172.08,
+      "z": -17293.76,
+      "hdg": -2.7053,
+      "slip": true,
+      "stand": {
+       "x": 2135.8,
+       "z": -17310.7,
+       "hdg": null
+      }
+     }
+    ]
    }
   ],
   "zones": [
@@ -16704,63 +16966,11 @@
       "bottomOnRoad": false
      }
     ],
-    "fences": [
-     {
-      "a": [
-       -222,
-       762
-      ],
-      "b": [
-       -222,
-       618
-      ],
-      "gap": [
-       60,
-       84
-      ],
-      "style": "rail"
-     },
-     {
-      "a": [
-       -222,
-       618
-      ],
-      "b": [
-       -150,
-       618
-      ],
-      "gap": null,
-      "style": "rail"
-     },
-     {
-      "a": [
-       -128,
-       670
-      ],
-      "b": [
-       -128,
-       762
-      ],
-      "gap": null,
-      "style": "rail"
-     },
-     {
-      "a": [
-       -128,
-       762
-      ],
-      "b": [
-       -222,
-       762
-      ],
-      "gap": null,
-      "style": "rail"
-     }
-    ]
+    "fences": []
    },
    {
     "id": "s_strip",
-    "name": "Tamgas Hill",
+    "name": "Ridgeback",
     "at": {
      "x": -674.34,
      "z": -2356.03,
@@ -16877,7 +17087,7 @@
    },
    {
     "id": "mk_hall",
-    "name": "Metlakatla Town Hall",
+    "name": "Cedar Harbour Town Hall",
     "at": {
      "x": -3462.0,
      "z": -8724.0,
@@ -16900,7 +17110,7 @@
    },
    {
     "id": "mk_church_presb",
-    "name": "Metlakatla Presbyterian Church",
+    "name": "Cedar Harbour Church",
     "at": {
      "x": -3413.9,
      "z": -8772.1,
@@ -16923,7 +17133,7 @@
    },
    {
     "id": "mk_church_duncan",
-    "name": "William Duncan Memorial Church",
+    "name": "Memorial Church",
     "at": {
      "x": -3470.9,
      "z": -8630.1,
@@ -16992,7 +17202,7 @@
    },
    {
     "id": "mk_school_elem",
-    "name": "Richard Johnson Elementary School",
+    "name": "Cedar Harbour Elementary School",
     "at": {
      "x": -3321.0,
      "z": -8771.0,
@@ -17015,7 +17225,7 @@
    },
    {
     "id": "mk_school_high",
-    "name": "Metlakatla High School",
+    "name": "Cedar Harbour High School",
     "at": {
      "x": -3358.0,
      "z": -8598.0,
@@ -17038,7 +17248,7 @@
    },
    {
     "id": "mk_store_acc",
-    "name": "Alaska Commercial Company",
+    "name": "Harbour General Store",
     "at": {
      "x": -3467.9,
      "z": -8993.9,
@@ -17061,7 +17271,7 @@
    },
    {
     "id": "mk_cafe_als",
-    "name": "Al's American",
+    "name": "Dockside Diner",
     "at": {
      "x": -3466.0,
      "z": -8681.0,
@@ -17084,7 +17294,7 @@
    },
    {
     "id": "mk_inn",
-    "name": "Metlakatla Inn & Suites",
+    "name": "Cedar Harbour Inn & Suites",
     "at": {
      "x": -3365.0,
      "z": -8879.0,
@@ -17107,7 +17317,7 @@
    },
    {
     "id": "mk_museum",
-    "name": "Duncan Cottage Museum",
+    "name": "Cottage Museum",
     "at": {
      "x": -3209.0,
      "z": -8907.0,
@@ -17130,7 +17340,7 @@
    },
    {
     "id": "mk_post",
-    "name": "United States Postal Service",
+    "name": "Post office",
     "at": {
      "x": -3392.0,
      "z": -8560.0,
@@ -17153,7 +17363,7 @@
    },
    {
     "id": "mk_police",
-    "name": "Metlakatla Police",
+    "name": "Cedar Harbour Police",
     "at": {
      "x": -3268.0,
      "z": -8586.0,
@@ -17176,7 +17386,7 @@
    },
    {
     "id": "mk_clinic",
-    "name": "Annette Island Service Unit",
+    "name": "Island Clinic",
     "at": {
      "x": -3234.2,
      "z": -8695.8,
@@ -17199,7 +17409,7 @@
    },
    {
     "id": "mk_fire",
-    "name": "Metlakatla Fire Hall",
+    "name": "Cedar Harbour Fire Hall",
     "at": {
      "x": -3177.5,
      "z": -8744.5,
@@ -17222,7 +17432,7 @@
    },
    {
     "id": "mk_credit_union",
-    "name": "Tongass Federal Credit Union",
+    "name": "Harbour Credit Union",
     "at": {
      "x": -3220.5,
      "z": -8717.5,
@@ -17268,7 +17478,7 @@
    },
    {
     "id": "mk_senior",
-    "name": "Metlakatla Senior Citizens Center",
+    "name": "Cedar Harbour Senior Citizens Center",
     "at": {
      "x": -3552.5,
      "z": -8846.0,
@@ -17291,7 +17501,7 @@
    },
    {
     "id": "mk_longhouse",
-    "name": "Metlakatla Long House",
+    "name": "Cedar Harbour Long House",
     "at": {
      "x": -3674.2,
      "z": -8689.1,
@@ -17314,7 +17524,7 @@
    },
    {
     "id": "mk_harbormaster",
-    "name": "MIC Harbor master",
+    "name": "Harbour master",
     "at": {
      "x": -3838.2,
      "z": -8665.2,
@@ -17337,7 +17547,7 @@
    },
    {
     "id": "mk_se_winds",
-    "name": "Southeast Winds",
+    "name": "Sea Winds",
     "at": {
      "x": -3845.8,
      "z": -8617.5,
@@ -17360,7 +17570,7 @@
    },
    {
     "id": "mk_marine",
-    "name": "Tongass Marine Supply",
+    "name": "Harbour Marine Supply",
     "at": {
      "x": -3825.7,
      "z": -8665.7,
@@ -17429,7 +17639,7 @@
    },
    {
     "id": "mk_power",
-    "name": "Alaska Power & Telephone",
+    "name": "Island Power & Telephone",
     "at": {
      "x": -3026.0,
      "z": -8801.0,
@@ -17475,7 +17685,7 @@
    },
    {
     "id": "mk_gardens_shed",
-    "name": "Metlakatla Indian Community Gardens",
+    "name": "Cedar Harbour Community Gardens",
     "at": {
      "x": -2812.0,
      "z": -8354.0,
@@ -17498,7 +17708,7 @@
    },
    {
     "id": "mk_coffee",
-    "name": "Shadow Mountain Coffee",
+    "name": "Hilltop Coffee",
     "at": {
      "x": -1987.0,
      "z": -8404.0,
@@ -17521,7 +17731,7 @@
    },
    {
     "id": "mk_gas",
-    "name": "Annette Island gas fuel storage",
+    "name": "Jolene Island fuel storage",
     "at": {
      "x": -2379.0,
      "z": -8513.0,
@@ -17544,7 +17754,7 @@
    },
    {
     "id": "mk_housing",
-    "name": "Metlakatla Housing Authority",
+    "name": "Cedar Harbour Housing Authority",
     "at": {
      "x": -3271.0,
      "z": -7938.0,
@@ -17567,7 +17777,7 @@
    },
    {
     "id": "mk_social",
-    "name": "MIC Social Services",
+    "name": "Social Services",
     "at": {
      "x": -3279.0,
      "z": -7838.0,
@@ -17613,7 +17823,7 @@
    },
    {
     "id": "mk_wildlife",
-    "name": "MIC Fish and Wildlife",
+    "name": "Fish and Wildlife office",
     "at": {
      "x": -3000.56,
      "z": -8864.27,
@@ -17636,7 +17846,7 @@
    },
    {
     "id": "mk_ballpark",
-    "name": "Metlakatla Baseball Field",
+    "name": "Cedar Harbour Baseball Field",
     "at": {
      "x": -3324.0,
      "z": -8682.0,
@@ -17663,7 +17873,7 @@
    },
    {
     "id": "mk_court",
-    "name": "Metlakatla hard court",
+    "name": "Cedar Harbour hard court",
     "at": {
      "x": -3252.0,
      "z": -8640.0,
@@ -17686,7 +17896,7 @@
    },
    {
     "id": "mk_mp_west",
-    "name": "Metlakatla dock",
+    "name": "Cedar Harbour dock",
     "at": {
      "x": -3570.17,
      "z": -9091.68,
@@ -17745,7 +17955,7 @@
    },
    {
     "id": "mk_mf_air",
-    "name": "Metlakatla seaplane float",
+    "name": "Cedar Harbour seaplane float",
     "at": {
      "x": -3351.0,
      "z": -9114.0,
@@ -17773,7 +17983,7 @@
    },
    {
     "id": "mk_mf_harb_a",
-    "name": "Metlakatla Boat Harbor floats",
+    "name": "Cedar Harbour boat harbour floats",
     "at": {
      "x": -3905.0,
      "z": -8790.0,
@@ -17802,7 +18012,7 @@
    },
    {
     "id": "mk_mf_harb_b",
-    "name": "Metlakatla Boat Harbor floats, inner",
+    "name": "Cedar Harbour boat harbour floats, inner",
     "at": {
      "x": -3878.0,
      "z": -8776.0,
@@ -17831,7 +18041,7 @@
    },
    {
     "id": "mk_mw_cannery",
-    "name": "Annette Island Packing",
+    "name": "Jolene Island Packing",
     "at": {
      "x": -3081.5,
      "z": -9059.6,
@@ -17930,7 +18140,7 @@
    },
    {
     "id": "mk_mw_small",
-    "name": "Metlakatla small boat dock",
+    "name": "Cedar Harbour small boat dock",
     "at": {
      "x": -2946.0,
      "z": -8902.0,
@@ -18523,7 +18733,7 @@
    },
    {
     "id": "mn_s_mine",
-    "name": "Jumbo Mine",
+    "name": "Copperhead Mine",
     "at": {
      "x": 7265.12,
      "z": -15430.72,
@@ -18900,7 +19110,7 @@
    },
    {
     "id": "nv_grounds",
-    "name": "East Point Ceremonial Grounds",
+    "name": "East Point grounds",
     "at": {
      "x": 10096.92,
      "z": -11600.66,
@@ -19310,7 +19520,7 @@
    },
    {
     "id": "s_vor_ann",
-    "name": "Annette Island VOR/DME (ANN 117.1)",
+    "name": "Jolene VOR/DME (ANN 117.1)",
     "at": {
      "x": -1010.1,
      "z": -1663.3,
@@ -19672,14 +19882,14 @@
     "id": "s29",
     "name": "trestle pier",
     "at": {
-     "x": -4739.3,
-     "z": -23158.57,
+     "x": -4778.54,
+     "z": -23149.38,
      "yaw": 0.17453292519943295
     },
     "items": [
      {
       "id": "i1",
-      "key": "marine/trestle pier",
+      "key": "marine/seaplane float",
       "x": 0,
       "z": 0,
       "yaw": 0,
@@ -19791,6 +20001,220 @@
      }
     ],
     "yard": null
+   },
+   {
+    "id": "s35",
+    "name": "saltbox cottage",
+    "at": {
+     "x": 2717.89,
+     "z": -15951.58,
+     "yaw": 0
+    },
+    "items": [
+     {
+      "id": "i1",
+      "key": "house/modern dark",
+      "x": 0,
+      "z": 0,
+      "yaw": 0.4886921905584123,
+      "P": {
+       "plotGround": false
+      }
+     }
+    ],
+    "yard": null
+   },
+   {
+    "id": "s36",
+    "name": "hut tower",
+    "at": {
+     "x": 2665.92,
+     "z": -15940.96,
+     "yaw": 0
+    },
+    "items": [
+     {
+      "id": "i1",
+      "key": "tower/field cab",
+      "x": 0,
+      "z": 0,
+      "yaw": 0.3839724354387525,
+      "P": {}
+     }
+    ],
+    "yard": null
+   },
+   {
+    "id": "s38",
+    "name": "hip cottage",
+    "at": {
+     "x": 2208.58,
+     "z": -17204.67,
+     "yaw": 0
+    },
+    "items": [
+     {
+      "id": "i1",
+      "key": "house/hip cottage",
+      "x": 0,
+      "z": 0,
+      "yaw": -1.43116998663535,
+      "P": {}
+     }
+    ],
+    "yard": null
+   },
+   {
+    "id": "s39",
+    "name": "saltbox cottage",
+    "at": {
+     "x": 2217.4,
+     "z": -17334.11,
+     "yaw": 0
+    },
+    "items": [
+     {
+      "id": "i1",
+      "key": "house/saltbox cottage",
+      "x": 0,
+      "z": 0,
+      "yaw": 0,
+      "P": {
+       "plotGround": false
+      }
+     }
+    ],
+    "yard": null
+   },
+   {
+    "id": "s37",
+    "name": "trestle pier",
+    "at": {
+     "x": 2212.08,
+     "z": -17363.04,
+     "yaw": 0
+    },
+    "items": [
+     {
+      "id": "i1",
+      "key": "marine/seaplane float",
+      "x": 0,
+      "z": 0,
+      "yaw": -1.43116998663535,
+      "P": {}
+     }
+    ],
+    "yard": null
+   },
+   {
+    "id": "s40",
+    "name": "pilot hut",
+    "at": {
+     "x": 2703.53,
+     "z": -15863.19,
+     "yaw": 0.41887902047863906
+    },
+    "items": [
+     {
+      "id": "i1",
+      "key": "house/pilot hut",
+      "x": 0,
+      "z": 0,
+      "yaw": 0,
+      "P": {
+       "plotGround": false
+      }
+     }
+    ],
+    "yard": null
+   },
+   {
+    "id": "s41",
+    "name": "lookout cab",
+    "at": {
+     "x": 2217.95,
+     "z": -16698.22,
+     "yaw": 0
+    },
+    "items": [
+     {
+      "id": "i1",
+      "key": "tower/lookout cab",
+      "x": 0,
+      "z": 0,
+      "yaw": 0,
+      "P": {}
+     }
+    ],
+    "yard": null
+   },
+   {
+    "id": "s42",
+    "name": "trapper cabin",
+    "at": {
+     "x": 2187.37,
+     "z": -16703.95,
+     "yaw": 0
+    },
+    "items": [
+     {
+      "id": "i1",
+      "key": "shed/trapper cabin",
+      "x": 0,
+      "z": 0,
+      "yaw": 0,
+      "P": {
+       "plotGround": false
+      }
+     }
+    ],
+    "yard": null
+   },
+   {
+    "id": "s43",
+    "name": "pilot hut",
+    "at": {
+     "x": 2185.69,
+     "z": -16694.79,
+     "yaw": 0
+    },
+    "items": [
+     {
+      "id": "i1",
+      "key": "house/pilot hut",
+      "x": 0,
+      "z": 0,
+      "yaw": 0,
+      "P": {
+       "plotGround": false
+      }
+     }
+    ],
+    "yard": null
+   },
+   {
+    "id": "mt_s_meteo",
+    "name": "Mount Ardent meteo station",
+    "at": {
+     "x": 9112.2,
+     "z": -5881.9,
+     "yaw": 0
+    },
+    "yard": null,
+    "items": [
+     {
+      "onRoad": false,
+      "bottomOnRoad": false,
+      "id": "station",
+      "key": "meteo/meteo station",
+      "x": 0,
+      "z": 0,
+      "yaw": 3.141592653589793,
+      "P": {
+       "lot": false
+      }
+     }
+    ]
    }
   ],
   "links": [
@@ -20587,8 +21011,8 @@
     "id": "o3",
     "kind": "aircraft",
     "key": "arch:jodel",
-    "x": -57,
-    "z": 642,
+    "x": -170,
+    "z": 621,
     "yaw": -1.637
    },
    {
@@ -20683,16 +21107,16 @@
     "id": "af_park1",
     "kind": "aircraft",
     "key": "arch:cub",
-    "x": -75,
-    "z": 644,
+    "x": -166,
+    "z": 593,
     "yaw": -1.637
    },
    {
     "id": "af_park2",
     "kind": "aircraft",
     "key": "arch:c172",
-    "x": -95,
-    "z": 639,
+    "x": -170,
+    "z": 607,
     "yaw": -1.637
    },
    {
@@ -21021,15 +21445,6 @@
     "x": -220.0,
     "z": 651.0,
     "yaw": 3.642,
-    "on": "ground"
-   },
-   {
-    "id": "af_wk_fence",
-    "kind": "prop",
-    "key": "fence_old",
-    "x": -210.0,
-    "z": 655.0,
-    "yaw": 0.0,
     "on": "ground"
    },
    {
@@ -22497,12 +22912,11 @@
     "id": "o60",
     "kind": "prop",
     "key": "boat_grady",
-    "x": -4751.8,
-    "z": -23148.77,
-    "yaw": -2.8798,
-    "dy": 3,
-    "on": "flat",
-    "s": 0.85
+    "x": -4786.5,
+    "z": -23152.42,
+    "yaw": -1.43116998663535,
+    "dy": 4.4,
+    "on": "flat"
    },
    {
     "id": "o61",
@@ -22609,22 +23023,245 @@
     "yaw": -2.8798,
     "dy": 0,
     "on": "ground"
+   },
+   {
+    "id": "o72",
+    "kind": "prop",
+    "key": "boat_progress",
+    "x": 2216.59,
+    "z": -17360.35,
+    "yaw": 1.5882496193148399,
+    "dy": -0.45,
+    "on": "ground"
+   },
+   {
+    "id": "o73",
+    "kind": "prop",
+    "key": "boat_clinker",
+    "x": 2193.02,
+    "z": -17346.12,
+    "yaw": 0,
+    "dy": 0,
+    "on": "ground"
+   },
+   {
+    "id": "o75",
+    "kind": "prop",
+    "key": "boat_clinker",
+    "x": 2216.8,
+    "z": -17357.01,
+    "yaw": 1.6580627893946132,
+    "dy": -0.15,
+    "on": "ground"
+   },
+   {
+    "id": "o76",
+    "kind": "prop",
+    "key": "boat_runabout",
+    "x": 2213.75,
+    "z": -17370.24,
+    "yaw": 0.13962634015954636,
+    "dy": -0.25,
+    "on": "ground"
+   },
+   {
+    "id": "o77",
+    "kind": "prop",
+    "key": "totem_wings",
+    "x": 2208.2,
+    "z": -17327.54,
+    "yaw": 2.1467549799530254,
+    "dy": -0.2,
+    "on": "flat"
+   },
+   {
+    "id": "o74",
+    "kind": "prop",
+    "key": "auto_suv_black_box",
+    "x": 2205.92,
+    "z": -16711.89,
+    "yaw": 0,
+    "dy": 0,
+    "on": "ground"
+   },
+   {
+    "id": "o78",
+    "kind": "prop",
+    "key": "pallets_three",
+    "x": 2652.63,
+    "z": -15913.75,
+    "yaw": 0,
+    "dy": 0,
+    "on": "ground"
+   },
+   {
+    "id": "o79",
+    "kind": "prop",
+    "key": "cement_bags",
+    "x": 2706.2,
+    "z": -15872.86,
+    "yaw": 0,
+    "dy": 0,
+    "on": "ground"
+   },
+   {
+    "id": "o80",
+    "kind": "prop",
+    "key": "camp_firepit",
+    "x": 2700.93,
+    "z": -15873.95,
+    "yaw": 0,
+    "dy": 0,
+    "on": "ground"
+   },
+   {
+    "id": "o81",
+    "kind": "prop",
+    "key": "camp_chair",
+    "x": 2665.86,
+    "z": -15893.7,
+    "yaw": 0,
+    "dy": 0,
+    "on": "ground"
+   },
+   {
+    "id": "o82",
+    "kind": "prop",
+    "key": "camp_table",
+    "x": 2664.72,
+    "z": -15894.22,
+    "yaw": 0,
+    "dy": 0,
+    "on": "ground"
+   },
+   {
+    "id": "o83",
+    "kind": "animal",
+    "key": "elk",
+    "x": 2650.69,
+    "z": -15839.08,
+    "yaw": 0,
+    "n": 4,
+    "r": 120,
+    "dy": 0
+   },
+   {
+    "id": "o84",
+    "kind": "animal",
+    "key": "doe",
+    "x": 2537.2,
+    "z": -15774.55,
+    "yaw": 0,
+    "n": 4,
+    "r": 120,
+    "dy": 0
+   },
+   {
+    "id": "o85",
+    "kind": "prop",
+    "key": "auto_flatbed_unimog",
+    "x": 2692.18,
+    "z": -15868.35,
+    "yaw": 0,
+    "dy": 0,
+    "on": "ground"
+   },
+   {
+    "id": "o86",
+    "kind": "prop",
+    "key": "chair_plastic",
+    "x": 2699.03,
+    "z": -15870.39,
+    "yaw": 0,
+    "dy": 0,
+    "on": "ground"
+   },
+   {
+    "id": "o87",
+    "kind": "prop",
+    "key": "chair_plastic",
+    "x": 2696.87,
+    "z": -15869.47,
+    "yaw": 0,
+    "dy": 0,
+    "on": "ground"
+   },
+   {
+    "id": "o88",
+    "kind": "prop",
+    "key": "stove_barrel",
+    "x": 2729.15,
+    "z": -15872.06,
+    "yaw": 0,
+    "dy": 0,
+    "on": "ground"
+   },
+   {
+    "id": "o89",
+    "kind": "prop",
+    "key": "stove_barrel",
+    "x": 2714.21,
+    "z": -15865.44,
+    "yaw": 0,
+    "dy": 0,
+    "on": "ground"
+   },
+   {
+    "id": "o90",
+    "kind": "prop",
+    "key": "bin_metal_rust",
+    "x": 2654.84,
+    "z": -15912.9,
+    "yaw": 0,
+    "dy": 0,
+    "on": "ground"
+   },
+   {
+    "id": "o91",
+    "kind": "prop",
+    "key": "stepladder",
+    "x": 2663.12,
+    "z": -15895.49,
+    "yaw": 0,
+    "dy": 0,
+    "on": "ground"
+   },
+   {
+    "id": "o92",
+    "kind": "animal",
+    "key": "orca",
+    "x": -7821.48,
+    "z": -24003.49,
+    "yaw": 0,
+    "n": 5,
+    "r": 300,
+    "dy": 0
+   },
+   {
+    "id": "o93",
+    "kind": "prop",
+    "key": "ferry_merituuli",
+    "x": -7618.79,
+    "z": -23921.89,
+    "yaw": 0,
+    "dy": 5.5,
+    "on": "flat"
    }
   ],
   "junctions": [
    {
     "id": "mk_c_east",
-    "name": "Metlakatla east (the Walden road)",
+    "name": "Cedar Harbour east (the east road)",
     "conn": true
    },
    {
     "id": "mk_c_north",
-    "name": "Metlakatla north (the old airport road)",
+    "name": "Cedar Harbour north (the old airport road)",
     "conn": true
    },
    {
     "id": "mk_c_south",
-    "name": "Metlakatla south (the shore road, the seaplane base)",
+    "name": "Cedar Harbour south (the shore road, the seaplane base)",
     "conn": true
    }
   ],
@@ -24524,20 +25161,44 @@
     "name": "cabin apron",
     "poly": [
      [
-      2678.52,
-      -15938.34
+      2680.69,
+      -15939.23
      ],
      [
-      2704.52,
-      -15879.86
+      2693.8,
+      -15910.12
      ],
      [
-      2650.61,
-      -15855.89
+      2707.59,
+      -15878.37
      ],
      [
-      2624.61,
-      -15914.38
+      2674.33,
+      -15866.14
+     ],
+     [
+      2663.61,
+      -15890.93
+     ],
+     [
+      2640.52,
+      -15880.04
+     ],
+     [
+      2631.53,
+      -15902.89
+     ],
+     [
+      2649.97,
+      -15913.27
+     ],
+     [
+      2649.8,
+      -15917.34
+     ],
+     [
+      2649.97,
+      -15922.93
      ]
     ],
     "props": {
@@ -24601,57 +25262,254 @@
     "id": "a31",
     "poly": [
      [
-      2553.57,
-      -16210.29
+      2228.67,
+      -17190.69
      ],
      [
-      2439.95,
-      -16337.54
+      2215.8,
+      -17192.32
      ],
      [
-      2392.38,
-      -16471.54
+      2209,
+      -17201.43
      ],
      [
-      2448.23,
-      -16480.29
+      2207.06,
+      -17214.36
      ],
      [
-      2498.86,
-      -16467.13
+      2206.5,
+      -17222.97
      ],
      [
-      2546.96,
-      -16419.27
+      2213.67,
+      -17224.66
      ],
      [
-      2576.85,
-      -16371.04
+      2220.52,
+      -17226.34
      ],
      [
-      2581.99,
-      -16322.85
-     ],
-     [
-      2570.99,
-      -16290.5
-     ],
-     [
-      2577.54,
-      -16256.03
-     ],
-     [
-      2578.23,
-      -16214.72
+      2224.68,
+      -17228.62
      ]
     ],
     "props": {
-     "cover": {
-      "code": 3,
-      "veg": {
-       "mode": "biome",
-       "mix": "shingle"
-      }
+     "draw": {
+      "look": "gravel",
+      "z": 0,
+      "yaw": 1.7627825445142729
+     },
+     "wheels": {
+      "surface": 6
+     },
+     "terraform": {
+      "kind": "flatten",
+      "level": 83.92,
+      "falloff": 10,
+      "abs": false,
+      "order": 0
+     }
+    }
+   },
+   {
+    "id": "a32",
+    "poly": [
+     [
+      2198.03,
+      -17335.37
+     ],
+     [
+      2203.95,
+      -17339.31
+     ],
+     [
+      2226.67,
+      -17331.89
+     ],
+     [
+      2236.71,
+      -17316.6
+     ],
+     [
+      2234.32,
+      -17302.32
+     ],
+     [
+      2226.79,
+      -17292.33
+     ],
+     [
+      2220.52,
+      -17281.14
+     ]
+    ],
+    "props": {
+     "exclude": {
+      "what": [
+       "trees"
+      ]
+     }
+    }
+   },
+   {
+    "id": "a33",
+    "poly": [
+     [
+      2235.72,
+      -16736.09
+     ],
+     [
+      2245.59,
+      -16715.02
+     ],
+     [
+      2255.89,
+      -16690.7
+     ],
+     [
+      2238.28,
+      -16681.18
+     ],
+     [
+      2209.14,
+      -16687.09
+     ],
+     [
+      2202.37,
+      -16711.55
+     ],
+     [
+      2216.94,
+      -16731.58
+     ]
+    ],
+    "props": {
+     "exclude": {
+      "what": [
+       "trees"
+      ]
+     }
+    }
+   },
+   {
+    "id": "a34",
+    "poly": [
+     [
+      2182.54,
+      -16699.93
+     ],
+     [
+      2183.87,
+      -16706.42
+     ],
+     [
+      2184.88,
+      -16710.12
+     ],
+     [
+      2187.03,
+      -16713.62
+     ],
+     [
+      2191.49,
+      -16715.63
+     ],
+     [
+      2196.06,
+      -16716.49
+     ],
+     [
+      2200.92,
+      -16717.13
+     ],
+     [
+      2205.8,
+      -16716.87
+     ],
+     [
+      2210.67,
+      -16716.11
+     ],
+     [
+      2215.29,
+      -16713.81
+     ],
+     [
+      2219.13,
+      -16711
+     ],
+     [
+      2222.12,
+      -16706.98
+     ],
+     [
+      2223,
+      -16701.25
+     ],
+     [
+      2222.36,
+      -16696.36
+     ],
+     [
+      2221.73,
+      -16691.05
+     ],
+     [
+      2220.26,
+      -16687.05
+     ],
+     [
+      2217.2,
+      -16683.45
+     ],
+     [
+      2213.24,
+      -16681.99
+     ],
+     [
+      2205.12,
+      -16681.65
+     ],
+     [
+      2198.33,
+      -16681.43
+     ],
+     [
+      2194.88,
+      -16683
+     ],
+     [
+      2190.75,
+      -16685.24
+     ],
+     [
+      2188.02,
+      -16687.63
+     ],
+     [
+      2186.9,
+      -16691.67
+     ],
+     [
+      2184.07,
+      -16695.07
+     ]
+    ],
+    "props": {
+     "terraform": {
+      "kind": "flatten",
+      "level": 262.27,
+      "falloff": 10,
+      "abs": false,
+      "order": 0
+     },
+     "draw": {
+      "look": "gravel",
+      "z": 0
+     },
+     "wheels": {
+      "surface": 6
      }
     }
    }

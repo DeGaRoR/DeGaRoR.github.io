@@ -333,6 +333,9 @@ function editorInit(api) {
   if (sel === 'wingPanel') sel = 'wings';
   if (!PT.partByKey[sel] && !rootFor(sel)) sel = 'craft';
   if (partHidden(PT.partByKey[sel])) sel = 'craft';
+  // G3543: the whole aeroplane wears its silhouette only when the player PICKED it (its tree row, the livery pill) -
+  // the garage opening on the root, or a click into empty space, is no selection and draws nothing (as before)
+  let rootPicked = false;
   // =========================================================================
   // TWO VIEWS OF ONE TREE (G103) — UI-MODEL §2.3
   // =========================================================================
@@ -1135,7 +1138,7 @@ function editorInit(api) {
       const b = document.createElement('button');
       b.className = 'pill';
       b.textContent = 'the aeroplane\'s livery';
-      b.onclick = () => select('craft');
+      b.onclick = () => select('craft', true);
       n.appendChild(b);
       rowsEl.appendChild(n);
     }
@@ -1151,11 +1154,126 @@ function editorInit(api) {
     let n = $('edLockNote');
     if (lockWhy && !n) { const tabs = $('edTabShape') && $('edTabShape').parentNode; if (tabs) { n = document.createElement('div'); n.id = 'edLockNote'; tabs.parentNode.insertBefore(n, tabs.nextSibling); } }
     if (n) { n.hidden = !lockWhy; n.textContent = lockWhy || ''; }
+    techApply();                          // G3230: the machine shop's mask yields to the lock, and returns when it lifts
   }
   window.EDITOR_LOCK = {
     finishOnly(why) { lockWhy = why ? String(why) : null; lockSync(); if (lockWhy && view !== 'finish') setView('finish'); },
     locked: () => lockWhy,
   };
+
+  // ---- G3230 TECH-MASK: THE MACHINE SHOP IN THE EDITOR (begin) -------------------------------------------------------
+  // GAME-PLAN §4.3: the rows and options above the player's segment are greyed IN PLACE, the reason written in the row
+  // ("Machine shop: Sheets and bolts") and in the option's own words - nothing hover-only. CAREER ONLY: app.js hands the
+  // career's machine shop in (techMaskSync, behind CAREER_DEV) as window.TECH_MASK.set({ seg, entries }); with nothing set
+  // (the sandbox, a career without one) this pass touches nothing. THE STORY'S LOCK WINS while it holds (finishOnly above:
+  // the finish view, Shape and Design refused); the mask applies once it lifts. TECH_MASK.tutorial(mask) is the story's
+  // hand-over (app.js storyMaskNote): the beat's mode is kept ('finish' at T0 is the lock above; 'checklist' at T2 is the
+  // segment's own mask). A part ALREADY above the segment (an occasion, §4.4) is the player's to fly, not to modify: its
+  // whole row is held, with the reason. The keys are 79b_tech.js's (techRowKeys over the join's own vocabularies).
+  let techState = null, techTut = null;
+  const techOpts = new Map();             // option -> its own words, while greyed
+  const techHeld = new Map();             // widget -> its disabled state before the hold
+  const techNotes = new Map();            // row -> the reason's line
+  const techTiles = new Map();            // design tile 'row=value' -> its reason (cleared with the state)
+  const techCtx = names => ({ names,
+    engines: typeof CAGE_JOIN_ENGINES !== 'undefined' ? CAGE_JOIN_ENGINES : null,
+    propMats: typeof CAGE_JOIN_PROP_MATS !== 'undefined' ? CAGE_JOIN_PROP_MATS : null });
+  // the segment a key needs that the machine shop does not have (null = open)
+  function techAbove(key) {
+    if (!techState || !key || typeof techSegOf !== 'function') return null;
+    const s = techSegOf(key);
+    return s != null && s > techState.seg && !techState.entries.includes(key) ? s : null;
+  }
+  const techSegWords = segs => 'Machine shop: ' + Array.from(new Set(segs)).sort().map(techName).join(' / ');
+  function techOpt(op, why) {
+    if (why) {
+      if (!techOpts.has(op)) techOpts.set(op, op.textContent);
+      const t = techOpts.get(op) + ' · ' + why;
+      if (op.textContent !== t) op.textContent = t;
+      op.disabled = true;
+    } else if (techOpts.has(op)) {
+      op.textContent = techOpts.get(op); techOpts.delete(op);
+      op.disabled = !!op.hidden;          // the cage's optHide writes hidden and disabled together
+    }
+  }
+  function techHold(el, on) {
+    if (on) { if (!techHeld.has(el)) techHeld.set(el, !!el.disabled); el.disabled = true; }
+    else if (techHeld.has(el)) { el.disabled = techHeld.get(el); techHeld.delete(el); }
+  }
+  function techNote(row, text) {
+    let n = techNotes.get(row);
+    if (text) {
+      if (!n) { n = document.createElement('span'); n.className = 'rn edTech'; row.appendChild(n); techNotes.set(row, n); }
+      if (n.textContent !== text) n.textContent = text;
+      row.classList.add('tech');
+    } else if (n) { if (n.parentNode) n.parentNode.removeChild(n); techNotes.delete(row); row.classList.remove('tech'); }
+  }
+  function techApply() {
+    const on = !!techState && !lockWhy && !!CU && !!CU.ROWMETA;
+    if (!on) {
+      for (const op of Array.from(techOpts.keys())) techOpt(op, null);
+      for (const el of Array.from(techHeld.keys())) techHold(el, false);
+      for (const row of Array.from(techNotes.keys())) techNote(row, null);
+      return;
+    }
+    for (const meta of CU.ROWMETA) {
+      if (!meta.el || (meta.kind !== 'select' && meta.kind !== 'check')) continue;
+      const keys = typeof techRowKeys === 'function' ? techRowKeys(meta.k, techCtx(meta.names)) : null;
+      if (!keys) continue;
+      const cur = meta.kind === 'check' ? (meta.el.checked ? 1 : 0) : Math.round(+CU.P[meta.k] || 0);
+      const curAbove = techAbove(keys[cur]);
+      techHold(meta.el, curAbove != null);
+      const segs = [];
+      if (meta.kind === 'select') {
+        for (const op of Array.from(meta.el.options)) {
+          const s = curAbove == null ? techAbove(keys[+op.value]) : null;
+          techOpt(op, s != null ? techWhy(s) : null);
+          if (s != null && !op.hidden) segs.push(s);
+        }
+      } else { const s = curAbove == null ? techAbove(keys[1 - cur]) : null; techHold(meta.el, curAbove != null || s != null); if (s != null) segs.push(s); }
+      techNote(meta.row, curAbove != null ? techWhy(curAbove) + ': yours to fly as it is, not to modify'
+                         : segs.length ? techSegWords(segs) : null);
+    }
+  }
+  // a design tile's reason (design_flow.js tileGrid and the seed pill): the keys of every row the tile would write, its
+  // starting values included, against the machine shop
+  function techTileWhy(row, opt, seedOnly) {
+    if (!techState || lockWhy || !CU || !window.CAGE_DESIGN || !row || !opt) return null;
+    const id = (seedOnly ? 'seed:' : '') + row.key + '=' + opt.value;
+    if (techTiles.has(id)) return techTiles.get(id);
+    let why = null;
+    try {
+      const D = window.CAGE_DESIGN, P = Object.assign({}, CU.P);
+      const w = seedOnly ? D.designSeed(P, row.key, opt.value) : D.designApply(P, { [row.key]: opt.value }, { seeds: true });
+      const keys = techKeysOfPatch(w.spec);
+      for (const k of Object.keys(w.cage || {})) {
+        const meta = (CU.ROWMETA || []).find(m => m.k === k);
+        const ks = techRowKeys(k, techCtx(meta && meta.names));
+        const v = w.cage[k];
+        if (k === 'engPreset' && typeof v === 'string') { const t = techCtx().engines; if (t && t[v]) keys.push('eng:' + t[v]); }
+        else if (ks && ks[Math.round(+v || 0)]) keys.push(ks[Math.round(+v || 0)]);
+      }
+      const segs = keys.map(techAbove).filter(s => s != null);
+      why = segs.length ? techWhy(Math.max(...segs)) : null;
+    } catch (e) { why = null; }
+    techTiles.set(id, why);
+    return why;
+  }
+  window.TECH_MASK = {
+    set(t) {
+      const n = t && typeof t === 'object' ? { seg: Math.max(1, Math.min(3, Math.round(+t.seg) || 1)),
+        entries: Array.isArray(t.entries) ? t.entries.filter(k => typeof k === 'string') : [] } : null;
+      if (JSON.stringify(n) === JSON.stringify(techState)) return;
+      techState = n; techTiles.clear(); techApply();
+    },
+    tutorial(m) { techTut = m || null; techTiles.clear(); techApply(); },
+    state: () => (techState ? { seg: techState.seg, entries: techState.entries.slice(), tutorial: techTut, held: !!lockWhy } : null),
+    tileWhy: (row, opt) => techTileWhy(row, opt, false),
+    seedWhy: (row, opt) => techTileWhy(row, opt, true),
+    sig: () => (techState && !lockWhy ? 'T' + techState.seg + techState.entries.join(',') : ''),
+    apply: techApply,
+  };
+  // ---- G3230 TECH-MASK (end) -------------------------------------------------------------------------------------------
   function setView(v) {
     if (lockWhy && v !== 'finish') { lockSync(); return; }   // G3350: the story's lock holds the finish view
     view = ['finish', 'design'].includes(v) ? v : 'shape';
@@ -1293,6 +1411,8 @@ function editorInit(api) {
     // build and every syncSliders, which is exactly when the geometry the
     // discrepancy line was measured against has been replaced.
     { const r = rootFor(sel); if (r && r.refresh) r.refresh(); }
+    // G3230 (TECH-MASK): the machine shop's greys, after every visibility pass (the cage's optHide rewrites the engine's)
+    techApply();
     // the tiles relight when P moved under them (a load, an undo, a preset)
     if (window.DESIGN_FLOW && window.DESIGN_FLOW.sync) window.DESIGN_FLOW.sync();
     const cEl = $('edChanged');
@@ -1304,7 +1424,7 @@ function editorInit(api) {
     // every layer's group are thrown away and remade on each build, and the
     // overlay hangs off both — so it has to be remade with them, or the tint
     // silently belongs to a mesh that no longer exists.
-    hiBuild(sel === 'craft' ? null : sel, 'sel');
+    hiBuild(sel === 'craft' && !rootPicked ? null : sel, 'sel');   // G3543: the root too, when picked (its silhouette)
     // ...AND SO IS THE PIN, for the same reason and one better: the row it
     // names is the row being DRAGGED, so the dot walks the corner it is
     // moving instead of standing where the corner used to be.
@@ -1458,9 +1578,9 @@ function editorInit(api) {
         b.textContent = badges[i];
         d.appendChild(b);
       }
-      d.onclick = () => select(r.p.key);
+      d.onclick = () => select(r.p.key, true);
       d.onkeydown = e => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(r.p.key); }
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(r.p.key, true); }
       };
       // THE OTHER DIRECTION (G79). Pointing at a row lights the geometry, so
       // the tree can be read against the aeroplane without clicking through
@@ -1514,7 +1634,7 @@ function editorInit(api) {
     return out;
   };
 
-  function select(key) {
+  function select(key, picked) {
     // THE REFERENCE PLANE IS THE ONE ROW THAT IS NOT A PART (G90). It is a
     // second ROOT beside the aeroplane's, and it is deliberately NOT in
     // CAGE_PARTS: the part table is the declared assembly of the aeroplane
@@ -1530,6 +1650,7 @@ function editorInit(api) {
     { const was = rootFor(sel);
       if (was && was !== rdef && was.shown) was.shown(false); }
     sel = key;
+    rootPicked = key === 'craft' && !!picked;
     pref(LS_SEL, key);
     // A ROOT THAT BUILDS ITS OWN PANEL HAS NO TWO VIEWS. The shape/finish
     // split is the aeroplane's — the reference plane is a display, the shed is
@@ -1870,6 +1991,35 @@ function editorInit(api) {
     box: 'M3.2 6.6h11.6a1.4 1.4 0 0 1 1.4 1.4v5.2a1.4 1.4 0 0 1-1.4 1.4H3.2a1.4 1.4 0 0 1-1.4-1.4V8a1.4 1.4 0 0 1 1.4-1.4ZM5.4 6.6V4.3h7.2v2.3',
   };
   const QUICK = [
+    // ---- G3724 (PHONE-GARAGE; the user, 25 Oct: "a button for cycling through the views", the top bar for every version):
+    // THE VIEWS. No `row`: the camera's framing presets are the rail's `camera` flyout's PILLS (buildCamera), not a row;
+    // this presses the same api.camera door with the next of them. The interior only with a pilot to look out of.
+    { k: 'views', state: 'the orbit camera framing (api.camera q / s / t / f / i)',
+      why: 'the framing presets the camera flyout offers as pills: they move the eye and nothing of the build, so no capture sees them',
+      view: () => {
+        const v = QVIEWS[qView] || QVIEWS[0];
+        return { on: false,
+          title: 'View: ' + v[0] + ' — click for the next (' + qViews().map(x => x[0]).join(', ') + ')',
+          icon: '<path d="M4 5.5h2.2l1-1.5h3.6l1 1.5H14a1 1 0 0 1 1 1V13a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6.5a1 1 0 0 1 1-1Z"/>' +
+                '<path d="M9 11.6a2.1 2.1 0 1 0 0-4.2 2.1 2.1 0 0 0 0 4.2Z"/>' };
+      },
+      act: () => {
+        const L = qViews(), at = L.indexOf(QVIEWS[qView]);
+        const v = L[(at + 1) % L.length];
+        qView = QVIEWS.indexOf(v);
+        if (api.camera) api.camera(v[1]);
+      } },
+    // ---- G3722: THE EXPLODE (the user: "Give explode ... a button at the top. Clicking it gives the slider"): the rail's
+    // explode item (its `explode` and `cutaway` rows, borrowed) in a small card under the button; again closes it
+    { k: 'explode', row: 'explode',
+      view: () => {
+        const r = labelIndex().get('explode'), i = r && r.querySelector('input[type=range]');
+        const on = !!(i && +i.value > +i.min);
+        return { on: on || qPop === 'explode',
+          title: on ? 'Exploded — click for the slider' : 'Explode the build — click for the slider',
+          icon: '<path d="M9 2.4v4.2M9 11.4v4.2M2.4 9h4.2M11.4 9h4.2"/><path d="M7.4 7.4h3.2v3.2H7.4z"/>' };
+      },
+      act: () => qPopOpen(qPop === 'explode' ? null : 'explode') },
     // ---- inside / outside -------------------------------------------------
     { k: 'inside', row: 'see inside',
       view: () => {
@@ -1982,14 +2132,26 @@ function editorInit(api) {
         const on = B.radio.playing();
         const st = M.station, name = B.radio.label(st === 'off' ? M.lastStation : st);
         return { on, off: false,
-          title: on ? 'Radio: ' + name + ' — click for the next station; right-click or hold to switch the radio off'
-            : 'Radio off — click to play ' + name,
+          title: on ? 'Radio: ' + name + ' — click for the stations and the volume; right-click or hold to switch it off'
+            : 'Radio off — click to play ' + name + ' and open the stations and the volume',
           // the boombox; playing, its two cones are sounding (solid), off they are dashed
           icon: '<path d="' + QI.box + '"/>' +
                 '<circle cx="5.9" cy="10.6" r="2"' + (on ? '' : ' stroke-dasharray="1.6 1.4"') + '/>' +
                 '<circle cx="12.1" cy="10.6" r="2"' + (on ? '' : ' stroke-dasharray="1.6 1.4"') + '/>' };
       },
-      act: () => { const B = window.BOOMBOX; if (B) B.radio.next(); },
+      // G3723 (the user: "a single button with the radio, and pop up a little menu where we can also turn it off"): the
+      // boombox's own card (stations, volumes, off), pinned under the button - one radio card, wherever it is opened from
+      // (the act names only window globals: GATE BOOMBOX runs QUICK alone in a vm. With no music the press also plays it;
+      // no card to open - no page - it is the old next station.)
+      act: btn => {
+        const B = window.BOOMBOX;
+        if (!B) return;
+        if (B.isOpen) { B.close(); return; }
+        if (window.EDITOR_QUICK_POP) window.EDITOR_QUICK_POP(null);
+        const was = B.radio.playing();
+        if (!was) B.radio.next();
+        if (!(B.openAt && B.openAt(btn)) && was) B.radio.next();
+      },
       alt: () => { const B = window.BOOMBOX; if (B) B.radio.off(); } },
     // ---- the light --------------------------------------------------------
     // 2026-09-20: it presses the CLOCK now (the next preset on the day's own almanac), not the
@@ -2055,6 +2217,92 @@ function editorInit(api) {
       } },
   ];
 
+  // G3724: the framing presets, in the camera flyout's order (the interior only with a pilot)
+  const QVIEWS = [['3/4 front', 'q'], ['side', 's'], ['plan', 't'], ['nose', 'f'], ['interior', 'i']];
+  let qView = 0;
+  const qViews = () => QVIEWS.filter(v => v[1] !== 'i' || !!window.CAGE_CREW_EYE);
+  const qBtn = k => { const bar = $('edQuick'); return bar ? [...bar.children].filter(b => b.dataset.q === k)[0] || null : null; };
+  // G3722: THE TOP BAR'S CARD - one at a time, under its button, a FLYDIY_DRAG card ('quickPop'); its body is a flyout
+  // host (EDITOR_FLY_INTO), so the rows are the rail's own, borrowed and given back. Closes on Esc, on its x, on a press
+  // outside it and the bar, on a second press of its button, and when a MENU page takes the rows
+  let qPop = null, qPopOff = null;
+  function qPopOpen(k) {
+    let card = $('edPopCard');
+    if (qPopOff) { const f = qPopOff; qPopOff = null; f(); }
+    qPop = null;
+    if (!k) { if (card) card.hidden = true; syncQuick(); return; }
+    if (window.BOOMBOX && window.BOOMBOX.isOpen) window.BOOMBOX.close();
+    if (!card) {
+      card = document.createElement('div'); card.id = 'edPopCard'; card.hidden = true;
+      card.innerHTML = '<div class="edPopHead"><span></span><button type="button" class="edPopX" title="Close (Esc)">×</button></div><div class="edPopBody"></div>';
+      card.querySelector('.edPopX').onclick = () => qPopOpen(null);
+      document.body.appendChild(card);
+      document.addEventListener('keydown', e => { if (e.key === 'Escape' && qPop) { qPopOpen(null); e.stopPropagation(); } }, true);
+      document.addEventListener('pointerdown', e => {
+        const t = e.target;
+        if (!qPop || !t || !t.closest || t.closest('#edPopCard') || t.closest('#edQuick')) return;
+        qPopOpen(null);
+      }, true);
+    }
+    const t = RAIL.filter(x => x.k === k)[0];
+    card.querySelector('.edPopHead span').textContent = t ? (t.head || t.label) : k;
+    const body = card.querySelector('.edPopBody');
+    qPop = k;
+    card.hidden = false;
+    qPopOff = flyInto(k, body, () => { qPopOff = null; qPop = null; card.hidden = true; syncQuick(); });
+    if (!(window.FLYDIY_DRAG && window.FLYDIY_DRAG.placed && window.FLYDIY_DRAG.placed('quickPop'))) {
+      const b = qBtn(k), r = b ? b.getBoundingClientRect() : null, W0 = window.innerWidth || 1280, w = card.offsetWidth || 280;
+      card.style.top = Math.round(r ? r.bottom + 8 : 64) + 'px';
+      card.style.left = Math.round(Math.max(8, Math.min((r ? r.left : 8), W0 - w - 8))) + 'px';
+    }
+    syncQuick();
+  }
+  window.EDITOR_QUICK_POP = qPopOpen;
+
+  // G3725 (PHONE-GARAGE; the user, 25 Oct: "we can move the left rail to the pause menu", every version): THE RAIL'S
+  // ITEMS ARE MENU PAGES - app.js's FLYDIY_MENU (GAME-MENUS' G3700 hook), each page the rail's own flyout built into it
+  // by flyInto (the rows borrowed, given back when the page closes). Controls, graphics and sound are the menu's own
+  // pages; explode is the top bar's button. The sky has nothing to say in the phone's studio. And the MENU pill stands
+  // on the top bar's row, after the quick actions, where there is room for it (else the menu's own place, under the bar)
+  const MENU_PAGES = [['gCamera', 'camera', 'Camera'], ['gDisplay', 'display', 'Display'],
+                      ['gNight', 'night', 'Sky & light'], ['gLegend', 'legend', 'Legend']];
+  let menuHooked = false;
+  const inShed = () => !!(document.body && document.body.classList.contains('mode-ws'));
+  const studio = () => { try { return !!(window.PROFILE && window.PROFILE.is && window.PROFILE.is('room', 'studio')); } catch (e) { return false; } };
+  function hookMenu(n) {
+    const M = window.FLYDIY_MENU;
+    if (menuHooked) return;
+    if (!M || !M.add) { if (n < 40) setTimeout(() => hookMenu(n + 1), 500); return; }
+    menuHooked = true;
+    MENU_PAGES.forEach(([key, k, label], i) => M.add({ k: key, label, sec: i ? undefined : 'View', before: 'controls',
+      when: () => inShed() && !(k === 'night' && studio()),
+      page: body => flyInto(k, body) }));
+    // G3726: the desktop's studio backdrop (the user: "black studio on desktop an option only if it comes for free. Then
+    // put it under view or something in the menu") - app.js FLYDIY_STUDIO; the phone always stands in it
+    M.add({ k: 'gStudio', before: 'controls',
+      label: () => 'Studio backdrop: ' + (window.FLYDIY_STUDIO && window.FLYDIY_STUDIO.on() ? 'on' : 'off'),
+      when: () => inShed() && !studio() && !!window.FLYDIY_STUDIO,
+      act: () => { const S = window.FLYDIY_STUDIO; S.set(!S.on()); } });
+    // G3728 (the user, 26 Oct: "the menu button has no place. Make it a burger menu on the top leftmost, before the disk
+    // icon"): the burger opens the same menu, first on the top bar's plate - every version; the MENU pill stands down
+    const fleet = $('edFleet');
+    if (M.opener && fleet && !$('edMenu')) {
+      const b = document.createElement('button');
+      b.id = 'edMenu'; b.type = 'button'; b.title = 'Menu';
+      b.setAttribute('aria-label', 'the menu: resume, the shed, the options, the main menu'); b.setAttribute('aria-expanded', 'false');
+      b.onclick = () => { if (M.isOpen()) M.close(); else M.open(); };
+      fleet.insertBefore(b, fleet.firstChild);
+      M.opener(b);
+    }
+    if (M.anchor) M.anchor(() => {
+      if (!inShed()) return null;
+      const q = $('edQuick'), r = q && q.getClientRects().length ? q.getBoundingClientRect() : null;
+      const m = $('gmMenu'), mw = (m && m.offsetWidth) || 72, mh = (m && m.offsetHeight) || 32;
+      if (!r || (window.innerWidth || 0) - r.right < mw + 14) return null;
+      return { top: r.top + (r.height - mh) / 2, left: r.right + 6 };
+    });
+  }
+
   const QUICK_HOLD_MS = 600;
   function buildQuick() {
     const bar = $('edQuick');
@@ -2064,7 +2312,7 @@ function editorInit(api) {
       b.className = 'edQuickBtn';
       b.type = 'button';
       b.dataset.q = q.k;
-      b.onclick = () => { if (b.dataset.held) { delete b.dataset.held; return; } if (!b.disabled) { q.act(); syncQuick(); } };
+      b.onclick = () => { if (b.dataset.held) { delete b.dataset.held; return; } if (!b.disabled) { q.act(b); syncQuick(); } };   // (the button: the radio's card stands under it)
       // G1710: an entry's second action (the radio off): a right-click, or a press held QUICK_HOLD_MS (touch)
       if (q.alt) {
         let held = 0;
@@ -2219,23 +2467,29 @@ function editorInit(api) {
     new ResizeObserver(replaceFly).observe($('edView'));
   window.addEventListener('resize', replaceFly);
 
+  // G3725 (PHONE-GARAGE; the user, 25 Oct: "the left rail goes ... move the left rail to the pause menu", every version):
+  // THE FLYOUT HAS A HOST. null = #edFly beside the rail (kept for the rigs and the gates); else { body } - a MENU page
+  // (EDITOR_FLY_INTO, app.js FLYDIY_MENU.add's page) or a top-bar card (the explode slider). The same assembly, the same
+  // borrow and return: every refresh that calls openFly(flyOpen) rebuilds whichever host is up. One host at a time.
+  let flyHost = null;
+  const railOn = k => { const rail = $('edRail'); if (rail) for (const b of rail.children) b.classList.toggle('on', b.dataset.f === k); };
   function openFly(k) {
-    const fly = $('edFly'), body = $('edFlyBody'), head = $('edFlyHead');
-    if (!fly) return;
+    const pg = flyHost, fly = $('edFly'), body = pg ? pg.body : $('edFlyBody'), head = $('edFlyHead');
+    if (!fly && !pg) return;
     returnRows();
     for (const r of Array.from(body.children)) r.remove();
     flyOpen = k;
-    for (const b of $('edRail').children)
-      b.classList.toggle('on', b.dataset.f === k);
-    if (!k) { fly.hidden = true; return; }
+    railOn(pg ? null : k);
+    if (!k) { if (fly) fly.hidden = true; return; }
     // G760: an old item's name (the day panel's door to `clouds`) opens the item that holds it, unfolded
     if (!RAIL.some(x => x.k === k) && ED_HOME[k]) { edSecSet(k, true); k = ED_HOME[k]; flyOpen = k; }
     const t = RAIL.filter(x => x.k === k)[0];
-    if (!t) { fly.hidden = true; flyOpen = null; return; }
-    for (const b of $('edRail').children)
-      b.classList.toggle('on', b.dataset.f === k);
-    fly.hidden = false;
-    head.textContent = t.head || t.title;   // G760: a short head where the tooltip says more
+    if (!t) { if (fly) fly.hidden = true; flyOpen = null; return; }
+    railOn(pg ? null : k);
+    if (!pg) {
+      fly.hidden = false;
+      head.textContent = t.head || t.title;   // G760: a short head where the tooltip says more
+    } else if (fly) fly.hidden = true;
     if (t.k === 'camera') buildCamera(body);
     if (t.k === 'controls') buildControls(body);
     if (t.k === 'graphics') buildGraphics(body);   // GFX, in its seven folds (G760)
@@ -2278,8 +2532,20 @@ function editorInit(api) {
     // were borrowed, so it measured an EMPTY flyout (~60 px) and hung the
     // graphics menu 400 px past the bottom of the window; the rows that
     // spilled could be scrolled to but not seen. Measured full, it fits.
-    placeFly(k);
+    if (!pg) placeFly(k);
   }
+  // G3725: build rail item k into `body` (a MENU page, a top-bar card); returns the cleanup that gives the rows back.
+  // A second host closes the first (its rows come home before they are borrowed again)
+  function flyInto(k, body, onClose) {
+    if (flyHost && flyHost.onClose) { const f = flyHost.onClose; flyHost.onClose = null; try { f(); } catch (e) {} }
+    if (flyOpen) openFly(null);
+    const me = { body, onClose };
+    flyHost = me;
+    openFly(k);
+    return () => { if (flyHost !== me) return; returnRows(); flyHost = null; flyOpen = null; };
+  }
+  window.EDITOR_FLY_INTO = flyInto;
+  window.EDITOR_RAIL = () => RAIL.map(t => ({ k: t.k, label: t.label, title: t.title, head: t.head || null }));
 
   // THE FRAMING PRESETS. The game's own orbit camera, driven through the
   // bridge — the bench's `setView` moves a camera the game does not use.
@@ -3541,15 +3807,39 @@ function editorInit(api) {
   function hiBuild(partKey, which, only) {
     hiClear(which);
     const root = window.CAGE_UI_SCENE;
-    // HIGHLIGHTING THE WHOLE AEROPLANE IS NOT A HIGHLIGHT. The root selects
-    // everything, and an overlay over everything is a tint over a tint — it
-    // says nothing and costs a copy of every index in the build.
-    if (!partKey || partKey === 'craft' || !root ||
-        typeof THREE === 'undefined') return;
+    if (!partKey || !root || typeof THREE === 'undefined') return;
     if (!hiMats) hiMats = { sel: hiMat(0.34), hov: hiMat(0.16),
                             selL: hiLine('sel'), hovL: hiLine('hov'),
                             selM: hiSilMask('sel'), hovM: hiSilMask('hov'),
                             selS: hiSilShell('sel'), hovS: hiSilShell('hov') };
+    // THE WHOLE AEROPLANE IS ONE SILHOUETTE (G3543, the user's playtest 24 Oct: "when the full plane is selected, the
+    // highlight should cover the whole plane, more clearly"). It drew nothing: an overlay over everything is a tint
+    // over a tint, and that ruling stands - so the root takes the silhouette whatever the style, the union contour of
+    // every drawn cage mesh and layer mesh (the mask over the whole footprint, the rim round it). Whole geometries,
+    // shared as the subsets are: no index is copied. Hidden meshes and invisible pick proxies (the crew's shells) are
+    // not the aeroplane's outline and are left out.
+    if (partKey === 'craft') {
+      const out = [];
+      const drawn = o => o.visible !== false && !(o.material && o.material.visible === false);
+      for (const child of root.children) {
+        if (child.userData && child.userData.matNames) {
+          if (drawn(child) && child.geometry && child.parent)
+            out.push(...hiSilPair(child.geometry, which, child.parent, child.scale));
+          continue;
+        }
+        if ((child.name || '').lastIndexOf('cageLayer:', 0) !== 0 || child.visible === false) continue;
+        const ms = [];
+        child.traverse(o => {
+          if (!o.isMesh || o.isSkinnedMesh || (o.userData && o.userData.edHi) || !drawn(o)) return;
+          for (let q = o.parent; q && q !== child; q = q.parent) if (q.visible === false) return;
+          ms.push(o);
+        });
+        for (const o of ms) out.push(...hiSilPair(o.geometry, which, o));
+      }
+      if (which === 'sel') { hiSel = out; pinFor = partKey; }
+      else hiHov = out;
+      return;
+    }
     const mat = hiMats[which];
     const wantFill = HI.mode === 'fill' || HI.mode === 'both';
     const wantLine = HI.mode === 'outline' || HI.mode === 'both';
@@ -3890,6 +4180,7 @@ function editorInit(api) {
     // ---- the view layer -------------------------------------------------
     buildRail();
     buildQuick();
+    hookMenu(0);
     // THE INFORMATION PANEL FOLDS, like the parts column. Four columns is
     // 920 px of chrome and a 1440 frame has 520 px of render left; on a
     // narrow screen this is the one to give back first, because a verdict

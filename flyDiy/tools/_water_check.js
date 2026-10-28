@@ -131,7 +131,7 @@ console.log('\n2. THE RULES');
   const dev = fs.existsSync(path.join(__dirname, '..', 'dev.html')) ? src('dev.html') : '';
   verdict(!dev || /water\.js/.test(dev), 'dev.html carries water.js');
   // the samplers the hook declares: the detail tile, the fields, the interaction slot - no more
-  const samplers = (W.GLSL.frag.match(/sampler2D\s+\w+/g) || []).map(s => s.split(/\s+/)[1]);
+  const samplers = (W.GLSL.frag.replace(/#ifdef W_HULL[\s\S]*?#endif/g, '').match(/sampler2D\s+\w+/g) || []).map(s => s.split(/\s+/)[1]);   // (G2831: the hull's sampler only under #ifdef W_HULL - counted by its own row)
   verdict(samplers.length === 4 && samplers.includes('uWDetail') && samplers.includes('uWSdf') && samplers.includes('uWInter') && samplers.includes('uWMirror'), `four samplers of its own: ${samplers.join(', ')}`);
   verdict(typeof W.setInteraction === 'function' && /uWInterBox/.test(W.GLSL.frag), 'the interaction slot (setInteraction) exists and the shader reads it');
 }
@@ -158,19 +158,19 @@ console.log('\n3. THE LAWS');
   // THE MIRROR (G460.11): the shader reads the capture where the point projects, keeps the probe's sky where the
   // capture is empty; the pass hides the water's own material, reuses the shadow maps, restores the target
   { verdict(/uniform sampler2D uWMirror; uniform mat4 uWMirrorVP;/.test(W.GLSL.frag) && /vec3 mcol = mr\.rgb \/ max\(mr\.a, 0\.02\);/.test(src('src/viewer/water.js')) && /iblRadiance = mix\(iblRadiance, mcol, mmask \* edge \* mPlane \* uWMirror4\.x\);/.test(src('src/viewer/water.js')), 'the mirror replaces the IBL only where the capture has something, its colour un-premultiplied (alphaToCoverage resolves to a partial alpha)');
-  verdict(/samples: 2,/.test(src('src/viewer/water.js')) && /depthTexture: THREE\.DepthTexture \? new THREE\.DepthTexture\(w, h, [^)]*THREE\.UnsignedInt248Type\)/.test(src('src/viewer/water.js')), "the capture is multisampled (its depth texture a resolve: the clouds' composite samples it while drawing into it)");
+  verdict((/samples: 2,/.test(src('src/viewer/water.js')) || (/const smp = RG \? MIR\.ringSamples : 2;/.test(src('src/viewer/water.js')) && /samples: smp,/.test(src('src/viewer/water.js')))) && /depthTexture: THREE\.DepthTexture \? new THREE\.DepthTexture\(w, h, [^)]*THREE\.UnsignedInt248Type\)/.test(src('src/viewer/water.js')), "the capture is multisampled (its depth texture a resolve: the clouds' composite samples it while drawing into it)");
     const w = src('src/viewer/water.js'), mp = w.slice(w.indexOf('function mirrorRender('), w.indexOf('function mirrorOff('));
     verdict(/mat\.visible = false/.test(mp) && /renderer\.shadowMap\.autoUpdate = false/.test(mp) && /renderer\.setRenderTarget\(prevT\)/.test(mp) && /scene\.background = null/.test(mp), 'the capture hides the water, reuses the shadow maps, restores the target and the background');
     // THE SKY IS IN THE CAPTURE (G460.11.3): without it the clear sky was alpha 0 and the water took the PROBE's sky
     // there - the reflection changed source at every cloud's edge, a hard line across the water
-    verdict(/if \(opts\.sky\) \{/.test(mp) && /MIR\.skyScene\.add\(sky\);/.test(mp) && /sky\.position\.copy\(mc\.position\);/.test(mp) && /skyPar\.add\(sky\);/.test(mp), 'the capture draws the sky dome at the mirrored eye first (and hands it back to its parent)');
+    verdict(/if \(opts\.sky(?: && \(!RG \|\| MIR\.ringSky\))?\) \{/.test(mp) && /MIR\.skyScene\.add\(sky\);/.test(mp) && /sky\.position\.copy\(mc\.position\);/.test(mp) && /skyPar\.add\(sky\);/.test(mp), 'the capture draws the sky dome at the mirrored eye first (and hands it back to its parent)');
     verdict(/sky: WF\.skyDome/.test(src('src/viewer/app.js')), "app.js hands the world's sky dome to the capture");
     // AND IT IS VISIBLE WHILE IT IS DRAWN (G460.11.8): the dome is in opts.hide (it must be out of the SCENE
     // draw, where it rides the main camera) and the hide loop runs FIRST - so for six landings the sky pass
     // rendered an invisible dome, the capture's clear sky stayed alpha 0 and the water read the probe there:
     // one sky in the cloudy parts of the reflection and another in the clear ones, which is what the user saw
     // ("the cloud reflections look really strange ... my brain does not reconcile it as being the mirrored sky")
-    { const sk = mp.slice(mp.indexOf('if (opts.sky) {'), mp.indexOf('if (opts.clouds)'));
+    { const sk = mp.slice(mp.search(/if \(opts\.sky(?: && \(!RG \|\| MIR\.ringSky\))?\) \{/), mp.search(/if \(opts\.clouds(?: && \(!RG \|\| MIR\.ringSky\))?\)/));
       verdict(/const skyVis = sky\.visible;\s*\n\s*sky\.visible = true;/.test(sk) && sk.indexOf('sky.visible = true;') < sk.indexOf('renderer.render(MIR.skyScene, mc);') && /sky\.visible = skyVis;/.test(sk),
         'the sky pass makes the dome VISIBLE for its own draw (opts.hide had already silenced it) and puts it back'); }
     // the mean Fresnel rides the MIRROR too: with the sky in the capture the mirror supplies the whole
@@ -197,7 +197,7 @@ console.log('\n3. THE LAWS');
             /mD \*= min\(1\.0, mLim \/ max\(length\(mD\), 1\.0e-4\)\);/.test(w) &&
             !/muv = mp\.xy \/ mp\.w \* 0\.5 \+ 0\.5 \+ /.test(w),
       "the slope walks the POINT on the water (the mirrored eye's reflected ray back to the plane), never the capture's uv");
-    verdict(/U\.uWMirror4\.value\.set\(mirW, MIR\.perturb, MIR\.lod, waterY\);/.test(w) && W.mirror.perturb > 0 && W.mirror.perturb <= 0.25,
+    verdict(/U\.uWMirror4\.value\.set\((?:mirW|MIR\.w), MIR\.perturb, MIR\.lod, waterY\);/.test(w) && W.mirror.perturb > 0 && W.mirror.perturb <= 0.25,
       `the mirror's plane rides uWMirror4.w (the walk needs it) and the walk is capped at ${(W.mirror.perturb * 100).toFixed(0)} % of the view distance`);
     // THE CEILING IS A FADE, NOT A CLIFF (G522): the weight rides uWMirror4.x and the shader MIXES by it, so
     // the hand-over to the probe dissolves; and the move threshold scales with the eye's height, or raising
@@ -247,9 +247,10 @@ console.log('\n3. THE LAWS');
       verdict(/\{ v: 'off',[^\n]*\n[\s\S]{0,900}\{ v: 'auto',[^\n]*\n\s*\{ v: 'live',\s*label: 'on'/.test(g), "the reflections row: sky only / auto / on (three ways, the menu's ON is 'live')");
       const m0 = W.mirror.mode; W.set({ mirror: 'periodic' }); const p1 = W.mirror.mode; W.set({ mirror: 'banana' }); const p2 = W.mirror.mode; W.set({ mirror: 'live' }); const p3 = W.mirror.mode; W.set({ mirror: 'auto' }); const p4 = W.mirror.mode; W.set({ mirror: m0 });
       verdict(p1 === 'periodic' && p2 === 'off' && p3 === 'live' && p4 === 'auto', `an unknown reflections value is 'off', never 'periodic' (${p1}/${p2}/${p3}/${p4})`);
-      // AUTO is master's behaviour: no water under the eye or the CG = off (mirrorOff), the plane the water under the eye, the ceiling's fade
-      verdict(/if \(auto && !hasUnder\) \{ if \(MIR\.on \|\| MIR\.last\) mirrorOff\(\); MIR\.w = 0; return false; \}/.test(mp) && /const waterY = auto \? under : mirrorPlane\(/.test(mp) && /: always \|\| eyeAgl <= MIR\.fadeFrom \? 1/.test(mp),
-        "AUTO: off over land (mirrorOff), the plane the water under the eye, faded out from fadeFrom to maxAgl; ON (live) never: the sticky sliding plane, no ceiling");
+      // AUTO IS THE RING (G2839, the user 22 Oct): no switch over land - the plane kept (mirrorPlane), the inland factor dissolving it;
+      // ?wrefl=legacy keeps master's old AUTO (off over land, the plane the water under the eye) for a rig's A/B; the ceiling's fade
+      verdict(/const RING = PROTO\.ring && MIR\.mode === 'auto';/.test(mp) && /if \(auto && !RING && !hasUnder\) \{ if \(MIR\.on \|\| MIR\.last\) mirrorOff\(\); MIR\.w = 0; return false; \}/.test(mp) && /const waterY = auto && !RING \? under : mirrorPlane\(/.test(mp) && /: always \|\| eyeAgl <= MIR\.fadeFrom \? 1/.test(mp),
+        "AUTO is the ring: no switch over land (the plane kept, the inland dissolve), faded out from fadeFrom to maxAgl; ?wrefl=legacy = master's old AUTO; ON (live): the sticky sliding plane, no ceiling");
       const app = src('src/viewer/app.js'), cs = app.slice(app.indexOf('if (window.WATER && WATER.mirrorRender && !inGarage && WF) {'), app.indexOf('if (FR) FR.lap(FR.S.mirror);'));
       verdict(cs.length > 100 && !/WATER\.mirrorOff\(/.test(cs) && /WATER\.mirrorRender\(THREE, renderer, scene, camera, Number\.isFinite\(wl\) \? wl : null,/.test(cs),
         'app.js hands the water under the eye (null over land) every frame and never switches the mirror off at a shore'); }
@@ -283,6 +284,41 @@ console.log('\n3. THE LAWS');
       // the node harness's recording GL has no queries: the capture always runs there (and FRAMECOST counts it)
       S.ok = false; const v = W.waterSeen(); S.ok = null;
       verdict(v === true, 'a context with no occlusion queries answers seen (the capture runs)'); }
+    // THE PROTOTYPES (G2831-G2833, ?wrefl=b|c|bc - the redesign's P0 look): without the switch NOTHING of them is in the page -
+    // no hull sampler in the water program (its sampler budget, G424), no shader block, the switch's flags all off
+    { verdict(W.proto && W.proto.mode === null && W.proto.hull && W.proto.shadow && W.proto.ring && !W.proto.seaOff && !W.proto.legacy && /#ifdef W_HULL\s*\n\s*uniform sampler2D uWHull;/.test(W.GLSL.frag),
+        "G2839 SHIPPED: without ?wrefl the ring, the hull's reflection and the shadow are the water (?wrefl=legacy / b / c / bc for the rigs); the hull's uniforms under #ifdef W_HULL");
+      verdict(/#ifdef W_HULL\s*\n\s*\/\/ THE AIRCRAFT'S OWN REFLECTION/.test(w) && /if \(PROTO\.hull\) mat\.defines = Object\.assign\(mat\.defines \|\| \{\}, \{ W_HULL: '' \}\);/.test(w) && !/\$\{PROTO/.test(w) && /PROTO = \(\(\) => \{ const q = \(typeof location !== 'undefined' && location\.search && \(\/\[\?&\]wrefl=\(b\|c\|bc\|ring\|legacy\)/.test(w),
+        "the hull's sampler and block live under #ifdef W_HULL, defined on the material with the hull (the default; not under ?wrefl=legacy / c) - nothing interpolated");
+      const app = src('src/viewer/app.js'), rw = src('src/viewer/render_world.js');
+      // THE RING STUDY (G2836, ?wrefl=ring - the user, 18 Oct: the full mirror within 1 km of land and 300 m over the water, the fades
+      // outside them, one sky for both models): absent without the switch; its capture holds no sky and no clouds
+      { const M = W.mirror, mp2 = w.slice(w.indexOf('function mirrorRender('), w.indexOf('function obliqueClip('));
+        verdict(W.proto.ring && M.ringD0 === 1000 && M.ringD1 === 1300 && M.ringH0 === 300 && M.ringH1 === 400 && M.ringD1 > M.ringD0 && M.ringH1 > M.ringH0,
+          `the ring: full to ${M.ringD0} m from land and ${M.ringH0} m up, gone by ${M.ringD1} / ${M.ringH1} m (the fades outside the user's numbers); AUTO's, the default (?wrefl=legacy: none)`);
+        verdict(W.mirror.ringSky === true && /if \(opts\.sky && \(!RG \|\| MIR\.ringSky\)\)/.test(mp2) && /if \(opts\.clouds && \(!RG \|\| MIR\.ringSky\)\)/.test(mp2) && /const inland = 1 - sstep\(0, MIR\.ringIn, MIR\.waterD\);/.test(mp2) && /ringW = lake \? inland : \(1 - sstep\(MIR\.ringH0, MIR\.ringH1, eyeAgl\)\) \* \(1 - sstep\(MIR\.ringD0, MIR\.ringD1, ld\)\) \* inland;/.test(mp2) && W.mirror.ringIn > 0,
+          'the ring keeps the sky and the clouds in its capture (MIR.ringSky, G2839 (b): one sky within the ring; false = the probe through alpha 0), weighted by height x distance to land'); }
+      // LAKES KEEP THE FULL MIRROR (the user, 20 Oct) and the hull's reflection is off with the mirror (A0, 22 Oct: OFF = the sky only)
+      { const mp3 = w.slice(w.indexOf('function mirrorRender('), w.indexOf('function obliqueClip('));
+        verdict(/let ringW = 1; const lake = Math\.abs\(waterY - MIR\.seaY\) > 0\.5, RG = RING && !lake;/.test(mp3) && /const skipList = RG && MIR\.ringSkip \?/.test(mp3) && /mc\.far = Math\.min\(camera\.far, RG \? MIR\.ringFar : MIR\.far\);/.test(mp3),
+          "lakes keep today's full mirror: a plane over the sea's level is a lake - today's height fade and capture (grass and cover in it), the inland dissolve only");
+        verdict(/if \(!PROTO\.hull \|\| MIR\.mode === 'off' \|\|/.test(w), "the aircraft's own reflection only while the mirror is not OFF (OFF = the sky; the shadow stays everywhere)"); }
+      // THE RING READS THE COAST FIELD (G2839, FRAMECOST 23 Oct: the probe search's terrainH / waterDrawY streamed the ground raster at
+      // the taxi): the distances from the island's own coast and lake bytes on the CPU; the probe search only without them
+      verdict(typeof W.setCoast === 'function' && /if \(CO\.G && CO\.coast\) return ringFromField\(eye, planeY\);/.test(w) && /WATER\.setCoast\(ISLA\.grid, ISLA\.coast, lakeR\)/.test(rw),
+        "the ring's distances to land and water come from the coast and lake fields on the CPU (no terrain queries, no streaming)");
+      // G2839 ONE SKY: the probe's lookup lobe scaled under the mirror's weight (MIR.skyK, 1 = today's lobe: nothing changes without it)
+      verdict(W.mirror.skyK === 1 && /uniform vec4 uWSky;/.test(W.GLSL.frag) && /getIBLRadiance\( geometryViewDir, nn, material\.roughness \* mix\(1\.0, uWSky\.x, uWMirror4\.x\) \)/.test(w) && /if \(U\) \{ U\.uWSky\.value\.x = MIR\.skyK;/.test(w) && /iblRadiance \*= mix\(1\.0, uWSky\.y, uWMirror4\.x\);/.test(w) && W.mirror.skyGain === 0 && /U\.uWSky\.value\.y = MIR\.skyGain > 0 \? MIR\.skyGain : PROTO\.ring && MIR\.mode === 'auto' && !MIR\.ringSky \? 1 \/ Math\.max\(0\.05, \(scene && scene\.environmentIntensity\) \|\| 1\) : 1;/.test(w),
+        `one sky: under the mirror's weight the probe's lobe scales by MIR.skyK (${W.mirror.skyK}: today's lobe by default) and its level rises to the capture's (1 / the scene's environmentIntensity under the ring; 1 elsewhere)`);
+      verdict(/if \(WATER\.proto && WATER\.proto\.seaOff && Number\.isFinite\(wl\) && Math\.abs\(wl\) < 0\.05\) wl = null;/.test(app) && /WATER\.proto && WATER\.proto\.hull && WATER\.hullRender/.test(app) && /if \(WSH && WSH\.proto && WSH\.proto\.shadow\) water\.receiveShadow = true;/.test(rw),
+        "the switch: the sea's mirror off (lakes kept), the hull capture under b, the sea receiving the shadow under c");
+      // perspBounds with a view offset is the frustum PerspectiveCamera.updateProjectionMatrix makes (the hull's oblique clip bends THAT one)
+      const cam = (view) => ({ near: 0.5, fov: 60, zoom: 1, aspect: 16 / 9, view });
+      const full = W.perspBounds(cam(null)), all = W.perspBounds(cam({ enabled: true, fullWidth: 1920, fullHeight: 1080, offsetX: 0, offsetY: 0, width: 1920, height: 1080 }));
+      const right = W.perspBounds(cam({ enabled: true, fullWidth: 1920, fullHeight: 1080, offsetX: 960, offsetY: 540, width: 960, height: 540 }));
+      const close = (a, b) => Math.abs(a - b) < 1e-9;
+      verdict(full.every((v, i) => close(v, all[i])) && close(full[0], -full[1]) && close(right[0], 0) && close(right[1], full[1]) && close(right[2], 0) && close(right[3], full[3]),
+        `perspBounds: no offset = the symmetric frustum, a whole-frame offset the same, the lower-right quarter [0, ${right[1].toFixed(3)}] x [0, ${right[3].toFixed(3)}]`); }
   }
   // WATER-FX-FIX (G2834-G2835, objective 5 - the user saw no spray and no wake on float landings, gamer, the worker live):
   // the float's water level crosses the worker (the spray's y was NaN without it) and the wake's foam is drawn on every tier
@@ -411,11 +447,19 @@ console.log('\n6. THE SPRAY');
   verdict(typeof SP.makeSheets === 'function' && /#include <logdepthbuf_vertex>/.test(SP.GLSL.sheetVert) && /#include <logdepthbuf_fragment>/.test(SP.GLSL.sheetFrag) && /#include <tonemapping_fragment>/.test(SP.GLSL.sheetFrag), 'spray.js makes the chine sheets (log-depth + tone-mapping chunks)');
   // THE SHEETS REFINED (G2837, the user 18 Oct: "too low poly model, too flat, not transparent enough"): three layers, a smooth
   // resample of the roots, a thin film's alpha (clear face-on, denser at grazing), soft at the waterline, the translucent sun
+  // THE SPRAY, VIOLENT (G2837b / G2838b, the user 22 Oct: "much too calm ... static 'wings' ... the round droplets much too big - small,
+  // but heavy"): the drops 3-12 mm and never under ~1 px (their alpha takes the rest), streaked by a frame's motion; the sheet's shape
+  // gusts per root and in time and is shaken out of its arc, its holes travel, and it sheds chunks in bursts
+  { const S3 = require('../src/viewer/spray.js');
+    verdict(S3.KIND.droplet.size[1] <= 0.01 && S3.KIND.puff.size[1] <= 0.015 && /uniform float uStretch; uniform float uMinNdc;/.test(S3.GLSL.vert) && /if \(ndc < uMinNdc && ndc > 0\.0\)/.test(S3.GLSL.vert) && /\* vK;/.test(S3.GLSL.frag)
+      && /float holes = smoothstep\(0\.50, 0\.66, fbm\(/.test(S3.GLSL.sheetFrag) && /set\(i, roots, out, up, uo, uu, strength, t, gust\)/.test(src('src/viewer/spray.js')) && /const burst = 1 \+ 0\.6 \* gust/.test(src('src/viewer/spray.js'))
+      && /SHED CHUNKS/.test(app) && /const SPRAY_N = 1400,/.test(app) && /const SPRAY_K = 0\.77, uo = 0\.45 \* V \* SPRAY_K, uu = Math\.min\(2\.6, 0\.22 \* V\) \* SPRAY_K;/.test(app),
+      `the spray, violent: drops ${S3.KIND.droplet.size.join('-')} / ${S3.KIND.puff.size.join('-')} m held at ~1 px and streaked; the sheets gust, shake, tear in travelling holes and shed chunks`); }
   { const S2 = require('../src/viewer/spray.js'), fr = S2.GLSL.sheetFrag, vt = S2.GLSL.sheetVert;
     verdict(/attribute float aL;/.test(vt) && /varying vec3 vVP;/.test(vt) && /float graze = pow\(1\.0 - abs\(dot\(N, Vd\)\), 1\.3\);/.test(fr) && /float root = smoothstep\(0\.0, 0\.07, v\);/.test(fr) && /float through = pow\(max\(0\.0, dot\(-Vd, uSunV\)\), 5\.0\);/.test(fr) && /float speck = /.test(fr),
       'the chine sheets: three layers, a thin film (clear face-on, dense at grazing), soft at the waterline, torn into speckle, the sun through them'); }
-  verdict(/SPRAY\.makeSheets\(THREE, nF \* 2, 24, 14\)/.test(app) && /F\._chineSta/.test(app) && /SH\.set\(si, roots, \[ox, 0, oz\], \[0, 1, 0\], uo, uu, strength\)/.test(app) && /D\.sheets\.commit\(waterFx\.t\)/.test(app), 'app.js builds two sheets per float off the wet chine stations and commits them each frame');
-  verdict(/uu - 9\.81 \* t \+ 0\.3 \* Math\.random\(\)/.test(app), "the droplets peel off the sheet's far edge with its velocity");
+  verdict(/SPRAY\.makeSheets\(THREE, nF \* 2, 24, 14\)/.test(app) && /F\._chineSta/.test(app) && /SH\.set\(si, roots, \[ox, 0, oz\], \[0, 1, 0\], uo, uu, strength, waterFx\.t \+ si \* 7\.3, gust\)/.test(app) && /D\.sheets\.commit\(waterFx\.t\)/.test(app), 'app.js builds two sheets per float off the wet chine stations and commits them each frame');
+  verdict(/uu - 9\.81 \* t \+ (?:0\.3|1\.2|0\.8) \* Math\.random\(\)/.test(app), "the droplets peel off the sheet's far edge with its velocity (G2838b: a wider spread)");
   // THE FLOAT TRUSS REACHES THE GAME (G460.10, the user: "the cessna does not draw its float support structure")
   const join = src('tools/_cage_join.js');
   verdict(/pt\.kind === 'floatStrut';\s*\/\/ G460\.10/.test(join), "the join lists floatStrut among the truss kinds (its members exported for app.js's two-end follow)");

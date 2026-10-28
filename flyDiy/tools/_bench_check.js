@@ -145,12 +145,14 @@ console.log('THE WORD');
     const D = { waistY: 0.5, wgSpan: 9.0, lightOn: 0, zzNew: 0.42 };
     const s2 = { wings: [{ span: 10 }], energy: { hue: 0.1, tint: '#abc', finish: 'gloss', vessels: [{ capacity: 40, hue: 0.2, tint: '#123', finish: 'matt' }] },
                  systems: { avionics: 'basic', look: { bezel: 1, sw: 0 } },
-                 cage: { waistY: 0.5, wgSpan: 9.4, lightOn: 0, _viewLoops: 0, explodeD: 0, cabOcc: 0, paxOcc2: 0, li_reflect: 1, accDetail: 2 } };
+                 cage: { waistY: 0.5, wgSpan: 9.4, lightOn: 0, _viewLoops: 0, explodeD: 0, cabOcc: 0, paxOcc2: 0, li_reflect: 1, accDetail: 2, li_flood: 0, li_nav: 0, li_floodFit: 1 } };
     const g0 = BE.benchFingerprint(s2, D);
     const v = (mut, same, label) => { const c = JSON.parse(JSON.stringify(s2)); mut(c); ok((BE.benchFingerprint(c, D) === g0) === same, label); };
     v(c => { c.energy.hue = 0.9; c.energy.tint = '#000'; c.energy.finish = 'matt'; c.energy.vessels[0].hue = 0.7; c.energy.vessels[0].tint = '#fff'; }, true, 'a tank hue, tint or finish keeps it');
     v(c => { c.systems.look = { bezel: 3, sw: 2 }; }, true, 'the panel bezel keeps it');
     v(c => { c.cage.lightOn = 1; c.cage.cabOcc = 1; c.cage.paxOcc2 = 1; c.cage._viewLoops = 1; c.cage.explodeD = 0.4; c.cage.li_reflect = 0; c.cage.accDetail = 0; }, true, 'the lights, who is aboard, a view toggle and a look row keep it');
+    v(c => { c.cage.li_flood = 1; c.cage.li_nav = 1; }, true, 'a light switched on (the cabin flood, the nav lights) keeps it (G3449)');
+    v(c => { c.cage.li_floodFit = 0; }, false, 'a lamp taken out (li_floodFit) changes it');
     v(c => { c.cage.zzNew = 0.42; }, true, 'a cage row added at its default keeps it');
     v(c => { const o = {}; Object.keys(c.cage).reverse().forEach(k => o[k] = c.cage[k]); c.cage = o; }, true, 'the key order keeps it');
     v(c => { c.cage.waistY = 0.5 + 1e-12; }, true, 'a float printed to the last digit keeps it');
@@ -159,6 +161,23 @@ console.log('THE WORD');
     v(c => { c.energy.vessels[0].capacity = 60; }, false, 'a vessel capacity changes it');
     v(c => { c.systems.avionics = 'ifr'; }, false, 'the systems fit changes it');
     ok(BE.benchFingerprint(s2, null) !== g0 && /^[0-9a-f]{8}$/.test(BE.benchFingerprint(s2, null)), 'without defaults every row counts (a core-only caller)');
+    // G3451 DASH-ARCH-SAVED: the switch to the arch keeps every fingerprint - with the page's defaults and without
+    {
+      const DD = Object.assign({}, D, { dashStyle: 1, dashLegs: 1, dashV: 1 });
+      const mk = o => { const c = JSON.parse(JSON.stringify(s2)); Object.assign(c.cage, o); return c; };
+      const same = (a, b) => BE.benchFingerprint(a, DD) === BE.benchFingerprint(b, DD) && BE.benchFingerprint(a, null) === BE.benchFingerprint(b, null);
+      const boxOld = mk({ dashStyle: 0, dashLegs: 1 }), archOld = mk({ dashStyle: 1, dashLegs: 2 });
+      const boxNew = mk({ dashStyle: 1, dashLegs: 1, dashV: 1, dashWas: 0, dashLegsWas: 1 });
+      ok(same(boxNew, boxOld), 'a box build switched to the arch hashes as it was certified on the box (G3451)');
+      ok(same(mk({ dashStyle: 1, dashLegs: 2, dashV: 1, dashWas: 1, dashLegsWas: 2 }), archOld), 'an arch build through the switch hashes as before');
+      ok(same(mk({ dashStyle: 0, dashLegs: 1, dashV: 1, dashWas: 0, dashLegsWas: 1 }), boxNew) && same(mk({ dashStyle: 1, dashLegs: 0, dashV: 1, dashWas: 0, dashLegsWas: 1 }), boxNew),
+         'after the switch the dash is a look: the box picked again, or other legs, keep it');
+      ok(same(mk({ dashStyle: 1, dashLegs: 1, dashV: 1 }), mk({ dashStyle: 1, dashLegs: 1 })) && same(mk({ dashStyle: 0, dashLegs: 0, dashV: 1 }), mk({ dashStyle: 1, dashLegs: 1 })),
+         'a build born after the switch hashes as an arch build did, whatever dash it wears');
+      ok(!same(boxOld, archOld) && BE.benchFingerprint(boxOld, DD) !== BE.benchFingerprint(mk({ dashStyle: 1, dashLegs: 1 }), DD),
+         'a cage from before the switch (no dashV) still hashes as it is (the box is not the arch there)');
+      ok(!same(mk({ dashStyle: 1, dashLegs: 1, dashV: 1, dashWas: 0, dashLegsWas: 1, waistY: 0.6 }), boxNew), 'through the switch a real cage row still changes it');
+    }
     ok(typeof BE.BENCH_FP_SCHEME === 'string' && /^f\d$/.test(BE.BENCH_FP_SCHEME), 'the scheme is named in the tag');
     ok(BE.benchCanon({ b: 1, a: [2, { d: 1, c: 2 }] }) === '{"a":[2,{"c":2,"d":1}],"b":1}', 'canonical JSON sorts keys at every depth');
   }
@@ -203,7 +222,7 @@ console.log('THE STRIP');
   for (const m of PILOT.matchAll(/\bgo\('([A-Z_-]+)'\)/g)) phases.add(m[1]);
   { const i = PILOT.indexOf('const PILOT_PHASES = {'), j = PILOT.indexOf('};', i);
     for (const m of PILOT.slice(i, j).matchAll(/\b([A-Z]+): \[/g)) phases.add(m[1]); }
-  const unknown = [...phases].filter(p => BE.benchFlightStep(p) === 3 && !/DEPART|ENROUTE|CRUISE|HOLD|TURNBACK|DOWNWIND|BOX|CROSSWIND/.test(p));
+  const unknown = [...phases].filter(p => BE.benchFlightStep(p) === 3 && !/DEPART|ENROUTE|CRUISE|HOLD|TURNBACK|DOWNWIND|BOX|CROSSWIND|ROUTE|LOITER/.test(p));   // G2120 ROUTE-DRAW's legs (the drawn route, its orbit) are cruise
   ok(phases.size >= 15 && !unknown.length, 'the phase strip knows all ' + phases.size + ' pilot phases' + (unknown.length ? ' — not ' + unknown.join(', ') : ''));
   ok(BE.benchFlightStep('CROSSWIND 3.0 m/s') === 3 && BE.benchFlightStep('TAXI') === 0 && BE.benchFlightStep('STOPPED') === 5, 'the crosswind leg is cruise, taxi and stopped map to their steps (A9: the ladder has its own card)');
   // the stickers: a stub context that records calls and throws on nothing

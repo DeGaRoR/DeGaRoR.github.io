@@ -471,6 +471,8 @@ const CAGE_PARTS = [
              at: 'aft of the cabin' },
     groups: [
       ['bays', ['paxCount', 'paxLen', 'paxAbreast']],       // T2.3 (132)
+      // G3573 (DC3-2): the rows of seats in each bay, their pitch, the aisle and the seat's width
+      ['seat layout', ['paxRows', 'paxPitch', 'paxAisle', 'paxSeatW']],
       // G180: who sits in each bay is the BAY's own row — click a bay, seat
       // its passengers (bays counted front to back from the cockpit)
       ['aboard', ['paxOcc1', 'paxOcc2', 'paxOcc3', 'paxOcc4']],
@@ -832,7 +834,7 @@ const CAGE_PARTS = [
       ['size', ['hgHornLen', 'hgSize']],
       ['linkage', ['hgHorn', 'hgLink']],
       ['fairings', ['hgFair']],
-      ['doors', ['hgDoor', 'hgDoorEdge']],       // G310
+      ['doors', ['hgDoor', 'hgDoorEdge', 'hgDrOff', 'hgDrTilt', 'hgDrSlide', 'hgDrInset']],   // G310; DOOR-HINGES
       ['finish', ['hgFinish']],                  // T2.3 (51)
       ['detail', ['hgDetail']],
     ] },
@@ -863,7 +865,7 @@ const CAGE_PARTS = [
     groups: [
       // (G2760: what the trunk leaves here is the thrust line and the mount's
       // own dials — no second 'fitted' heading under the trunk's)
-      ['thrust line & mounting', ['engOn', 'engMount', 'engAim', 'engNacAt', 'engRotate', 'engPylonH',
+      ['thrust line & mounting', ['engOn', 'engMount', 'engAim', 'engNacAt', 'engNacAt2', 'engRotate', 'engPylonH',
                   'engBlockZ', 'engBlockY', 'engTilt', 'engPower', 'engPreset', 'engY']],   // G477: the thrust line's tilt
       // THE STAND FIRST (2026-09-03, the user: "the stand is very important for
       // engine placement"): the mount's stand-off is the engine's fore / aft seat
@@ -1150,7 +1152,7 @@ const CAGE_PARTS = [
       ['trim wheel', ['trimX', 'trimY', 'trimZ']],         // G331
       ['parking brake', ['parkX', 'parkY', 'parkZ']],      // G2791
       ['fuel selector', ['fselX', 'fselY', 'fselZ']],      // G2791
-      ['floor', ['floorOn', 'floorLift']],                 // G331
+      ['floor', ['floorOn', 'floorLift', 'floorUp']],                 // G331
     ] },
 
   { key: 'cockpit', name: 'Cockpit & dash', parent: 'fit', layer: 'cage',

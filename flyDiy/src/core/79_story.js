@@ -28,10 +28,14 @@ const STORY_ROLES = {
   home:   { name: null, ids: ['HOME'], words: 'the WWII field' },
   client: { name: /\bowner\b/i, ids: ['w6', 'w7', 'w5'], words: "the owner's strip" },        // long and easy (§3 T3)
   water:  { name: null, kinds: ['water'], ids: ['SEA', 'mk_sea'], words: 'the seaplane base' },
+  // T6's route is water to water (the floats Cub never lands on HOME's tarmac; G3760 pilotCanFly refuses floats into a
+  // land strip): the OTHER water field - never the one 'water' picked; none on the island -> null (the offer refused)
+  harbour: { name: null, kinds: ['water'], ids: ['mk_sea', 'SEA'], not: 'water', words: 'the harbour seaplane base' },
 };
 function storySite(role, aeros) {
-  const R = STORY_ROLES[role], L = Array.isArray(aeros) ? aeros.filter(a => a && typeof a.id === 'string') : [];
+  const R = STORY_ROLES[role], L0 = Array.isArray(aeros) ? aeros.filter(a => a && typeof a.id === 'string') : [];
   if (!R) return null;
+  const other = R.not ? storySite(R.not, L0) : null, L = other ? L0.filter(a => a.id !== other) : L0;
   const tagged = L.find(a => a.role === role || (Array.isArray(a.roles) && a.roles.includes(role)));
   if (tagged) return tagged.id;
   if (R.name) { const n = L.find(a => typeof a.name === 'string' && R.name.test(a.name)); if (n) return n.id; }
@@ -89,7 +93,7 @@ const STORY_BEATS = [
     goal: { k: 'jobs', n: 3 } },
   { id: 'T6', title: 'The water job', brief: 'A job you promised: fit floats to the Cub and land it at the seaplane base.',
     goal: { k: 'stop', at: 'water', plane: 'gift', gear: 'floats' },
-    done: [{ k: 'routeOffer', plane: 'gift', a: 'water', b: 'home' }] },
+    done: [{ k: 'routeOffer', plane: 'gift', a: 'harbour', b: 'water' }] },   // (b: the Cub's home end - where it landed)
   { id: 'T7', title: 'The three occasions', brief: 'Back to the ultralight alone - and three planes on offer, once only.',
     enter: [{ k: 'occasions', n: 3 }], goal: { k: 'ack' },
     done: [{ k: 'open' }] },
@@ -106,7 +110,7 @@ const STORY_TIM = {
        'It\u2019s pre-certified, so no bench needed here (this shed has none anyway). When it looks right, tap OK on the card.'],
   T1: ['Good news: we got the old WWII airport. It\u2019s our base of operations now. Come and join me there.',
        'You can take the controls yourself whenever you like, but you never have to. The autopilot flies every normal mission just as well.'],
-  T2: ['Our first client! Their Cub is in the hangar, unfinished. The list of what they want is on the card. Keep it on budget.'],
+  T2: ['Here is what the client wants, and it has to stay on budget. Certify it at the bench here, then we fly it to them.'],
   T3: ['Certified? Then fly it over to its owner.'],
   T4: ['He can\u2019t pay us... so he\u2019s giving us the Cub. Not a bad trade.'],
   T5: ['A few quick jobs with the Cub. Nothing fancy, just get them done.'],
@@ -151,6 +155,106 @@ function storyLadderStep(L, o) {
   }
   if (want > L.i && (L.i < 0 || t - L.at >= R.hold)) { L.i++; L.at = t; }
   return { L, card: L.i >= 0 ? STORY_LADDER[L.i] : null };
+}
+// ---- G3580 (STORY-TUTOR): TIM IS THE TUTORIAL (the user, playtest 24 Oct: "Each step checks that the action was done
+// before moving on, tutorial-style. Tim replaces all cards. For now you've made Tim optional."). A beat's lines become
+// STEPS: { id, say, wait?, allow?, pass?, free?, ack? } -
+//   say    Tim's words (draft English, for the narrative pack)
+//   wait   the page's predicate (app.js STORY_TUTOR_FACTS): the step stands until it is true - no Next, the band not
+//          closable. No wait: just words, a Next (the last step's OK; `ack` sends the beat's { k: 'ack' } on it)
+//   allow  the one control (or panel) the step needs (app.js STORY_TUTOR_ALLOW): while the step stands ONLY it works -
+//          every other click, tap, drag and key is held at the window - and it is lit
+//   pass   a second button that passes the step as it stands ('Keep N47RF'); free: the step waits but locks nothing (the
+//          taxi after the landing is the player's hands)
+// T1's flight is the LADDER's (STORY_LADDER: its own check is the pilot's phase; off when manual, G3370). A beat with no
+// steps speaks its STORY_TIM lines as before.
+const STORY_REG = 'N47RF';          // G3586: Rufus's own registration (fictional; the generator's meta.reg is F-PGAR)
+const STORY_TUTOR = {
+  T0: [
+    { id: 'hello', say: 'Morning! The ultralight has sat in this shed all winter. Let’s dust it off.' },
+    { id: 'paint', wait: 'painted', allow: 'finish',
+      say: 'Click the plane once, twice or three times to climb to the top of its tree. Up there you change the global colour, add a livery, or recolour any single piece. Give it a fresh coat: change any colour.' },
+    { id: 'reg', wait: 'registered', allow: 'reg', pass: 'Keep ' + STORY_REG,
+      say: 'Now a registration of its own: type it in the registration box and press Enter. It came as ' + STORY_REG + '.' },
+    { id: 'cert', ack: true,
+      say: 'It’s pre-certified, so it flies as it is. No test bench in here, mind - certification happens at the WWII field’s hangar.' },
+  ],
+  T1: [
+    { id: 'news', say: 'Good news: we got the old WWII airport. It’s our base of operations now. Come and join me there.' },
+    { id: 'ap', say: 'You can take the controls yourself whenever you like, but you never have to. The autopilot flies every normal mission just as well.' },
+    { id: 'roll', wait: 'flying', allow: 'rollout',
+      say: 'Roll it out when you’re ready. Or skip the flight: you start on the final at the WWII field.' },
+  ],
+  // the WWII arrival (the user 24 Oct: "land at the WWII field with Rufus, then the taxi (skippable); we naturally see Rufus
+  // in the new hangar. Then the new Tim ... tells us about the new contract, that the Cub is parked outside, and to swap it
+  // with the ultralight. Only that control is allowed ... The ultralight should be put on a storage, visible place")
+  T2: [
+    { id: 'down', wait: 'inHangar', allow: 'shed', free: true,
+      say: 'We’re down - welcome to the WWII field! Taxi over to the hangar if you like, or go straight in with The shed.' },
+    { id: 'hangar', say: 'There it is, in our own hangar. Not bad for an old army field.' },
+    { id: 'contract', say: 'And our first contract is here already: a client brought us an unfinished Cub. It’s parked outside.' },
+    { id: 'store', wait: 'storeOpen', allow: 'store', say: 'Let’s swap it with the ultralight. Open Storage: tap the aeroplane’s name at the top, then Storage.' },
+    { id: 'swap', wait: 'clientOnStand', allow: 'storeClient',
+      say: 'Drag the Cub onto the floor, or tap its "work on". The ultralight steps off the stand to make room.' },
+    { id: 'park', wait: 'starterInside', allow: 'storeStarter',
+      say: 'Now put the ultralight where we can see it: drag it into an INSIDE slot. Storage keeps every plane you own - inside, on the apron, or long-term.' },
+    { id: 'list', say: 'Here is what the client wants, and it has to stay on budget. Certify it at the bench here, then we fly it to them.' },
+  ],
+};
+const storyTutorSteps = id => STORY_TUTOR[id] || null;
+// one tick of the tutor (pure): T { beat, i }, the beat now, fact(name) -> bool (the page's predicates) -> { T, step }.
+// A new beat starts at its first step; a step whose wait is already true is passed at once (a reload, a skip, an action
+// done early); words wait for next(). step null: the beat's steps are done (or it has none).
+function storyTutorTick(T, beat, fact) {
+  T = (T && T.beat === beat) ? { beat, i: T.i | 0 } : { beat, i: 0 };
+  const L = storyTutorSteps(beat) || [];
+  while (T.i < L.length && L[T.i].wait && typeof fact === 'function' && fact(L[T.i].wait)) T.i++;
+  return { T, step: L[T.i] || null };
+}
+// the step's Next / OK / pass: words move on; a waiting step moves only by its `pass`
+function storyTutorNext(T, how) {
+  const L = storyTutorSteps(T && T.beat) || [], s = L[T ? T.i : 0];
+  if (!s || (s.wait && !(how === 'pass' && s.pass))) return T;
+  return { beat: T.beat, i: T.i + 1 };
+}
+// G3584 "SKIP THE FLIGHT" ON THE FINAL (the user 24 Oct: "put the plane on its final, not landed"): the pose a skip starts
+// from - on the runway's extended centreline `d` m before the aim point (60 m in from the threshold), on a `gs` slope
+// over the field (never under `floor` m over the ground beneath), flying along the landing heading at V m/s and sinking
+// on the slope. a: the aerodrome record (x, z, hdg: the take-off heading, len, elev; spawn: the take-off end), groundH(x,
+// z) -> m or null -> { x, y, z, hdg, vx, vy, vz }: hdg in placeAtAerodrome's sense (the nose along (cos hdg, sin hdg)).
+// 3 km out, not 1.5 (the 25 Oct page run): the pilot takes a lined-up arrival STRAIGHT IN only from 300 m before its IAF
+// (43_pilot planFromHere: the FAF at the circuit height on the slope, the IAF 400 m before it - ~2.3 km out on a 105 m
+// circuit); nearer, it joined the circuit (1.5 km out: a downwind, 227 s to the wheels; 3 km: the final at 40 s, 147 s)
+// o.way -1: the final of the OTHER end (landing against a.hdg; the threshold the take-off end's mirror about the centre)
+function storyFinalPose(a, o) {
+  o = o || {};
+  const d = o.d || 3000, gs = o.gs || 0.06, V = o.V || 22, floor = o.floor || 60, sg = o.way === -1 ? -1 : 1;
+  const ux = sg * Math.cos(a.hdg), uz = sg * Math.sin(a.hdg);
+  const sp0 = a.spawn || [a.x || 0, a.z || 0], elev = +a.elev || 0;
+  const sp = sg > 0 ? sp0 : [2 * (a.x || 0) - sp0[0], 2 * (a.z || 0) - sp0[1]];
+  const ax = sp[0] + 60 * ux, az = sp[1] + 60 * uz;            // the aim point, 60 m in from the landing end
+  const x = ax - d * ux, z = az - d * uz;
+  const g = typeof o.groundH === 'function' ? o.groundH(x, z) : null;
+  const y = Math.max(elev + d * gs, (Number.isFinite(g) ? g : elev) + floor);
+  const cg = Math.cos(Math.atan(gs));
+  return { x, y, z, hdg: sg > 0 ? a.hdg : a.hdg + Math.PI, vx: V * cg * ux, vy: -V * Math.sin(Math.atan(gs)), vz: V * cg * uz };
+}
+// THE WAY THE PILOT WILL LAND IT (the 25 Oct 20:15 page run, 8 kt on the day: posed on a.hdg's final, the pilot given back
+// in the air re-plans the arrival (43_pilot G3473) on the SCORED direction - the wind, the slope, the approach - and flew
+// round to the other end's circuit, 5 min): the skip is posed on that same direction. The runway model's two ways scored
+// as dirAt scores them (25_airfield siteScoreDirections; its default limits - the sheet's only move a steep or short
+// strip's score), the wind at 30 m over the field at the pilot's t; +1 along a.hdg, -1 against it; no model: +1
+function storyFinalWay(a, world, t) {
+  if (!a || !world || typeof siteRunwayModel !== 'function' || typeof siteScoreDirections !== 'function') return 1;
+  try {
+    const M = siteRunwayModel(a, world);
+    if (!M || !Array.isArray(M.dir) || M.dir.length < 2) return 1;
+    const wv = typeof world.wind === 'function' ? world.wind(a.x, (+a.elev || 0) + 30, a.z, t || 0) : null;
+    const u = [Math.cos(a.hdg), Math.sin(a.hdg)];
+    const sc = siteScoreDirections(M, wv ? [wv[0], wv[2]] : [0, 0], { mode: 'land' }, u, typeof a.landHdg === 'number');
+    const D = M.dir[sc.k].u;
+    return D[0] * u[0] + D[1] * u[1] >= 0 ? 1 : -1;
+  } catch (e) { return 1; }
 }
 // (G3260 ROUTES: at T7, with the story's route signed, Tim names it and its down payment first)
 const storyTimLines = (id, doc) => { const L = (STORY_TIM[id] || []).slice(), r = id === 'T7' && doc ? storyRoute(doc) : null;
@@ -306,9 +410,13 @@ const STORY_JOBS = ['clients.01', 'survey.01', 'resort.01'];
 // authored, never generated). PLACEHOLDERS until the user authors the two planes the story names (HANDOVER G2742): the
 // fabric 4-seater stands as the validated metal Cessna (meridian), the Jodel-class one as the validated Jodel (pinson);
 // the Cub is the story's own. `price` is the occasion's factor on the maker's catalogue (well under a used listing's).
+// (G3359 ECON-APPLY, the user 23 Oct: "apply the economics table, keep demo time as it is for now"; ECON-SIM G3250 HANDOVER): THE STORY'S MONEY. The story career
+// starts without careerNew's grant (STORY_GRANT 0: the Rufus, not 60 000) and T6 pays a commitment fee beside the route's
+// own down payment - the first real money, enough for any one of T7's occasions.
+const STORY_GRANT = 0, STORY_T6_FEE = 20000;
 const STORY_OCCASIONS = [
   { id: 'occ:fabric4', model: 'meridian', opts: { avionics: 'basic', finish: 'white', reg: 'N4OCC' }, hours: 2400, repair: 'skin',
-    seller: 'used.seller.3', aero: 'HOME', price: 0.30, placeholder: 'the fabric 4-seater (stands as the metal Cessna until authored)' },
+    seller: 'used.seller.3', aero: 'HOME', price: 0.35, placeholder: 'the fabric 4-seater (stands as the metal Cessna until authored)' },   // G3359: 0.30 -> 0.35, the table's
   { id: 'occ:jodel', model: 'pinson', opts: { engine: 'a65', finish: 'red', reg: 'N2OCC' }, hours: 1150, repair: 'none',
     seller: 'used.seller.0', aero: 'HOME', price: 0.35, placeholder: 'the Jodel-class one (stands as the validated Jodel until authored)' },
   { id: 'occ:cub', model: 'scout', opts: { engine: 'a65', avionics: 'minimal', finish: 'green', reg: 'N3OCC' }, hours: 1800, repair: 'gear',
@@ -328,7 +436,10 @@ function storyCabinShed(aero, clock) {
   const P = plot ? O.plots[plot] : null;
   const S = (typeof SHELLS !== 'undefined' && SHELLS.field) ? SHELLS.field.dims : {};
   return { id: plot || aero, shed: { shell: 'field', kits: ((P && P.kits) || STORY_CABIN_SHED.kits).slice(), base: aero, tenure: 'own',
-    dims: Object.assign({}, S, STORY_CABIN_SHED.dims, (P && P.dims && P.dims.field) || {}), since: Math.round(clock || 0), story: 'cabin' } };
+    dims: Object.assign({}, S, STORY_CABIN_SHED.dims, (P && P.dims && P.dims.field) || {}), since: Math.round(clock || 0), story: 'cabin',
+    ...(P && Array.isArray(P.omit) ? { omit: P.omit.slice() } : {}),   // G3353: the props the plot leaves out
+    ...(P && P.workLamp && typeof P.workLamp === 'object' ? { workLamp: Object.assign({}, P.workLamp) } : {}),   // G3354
+    ...(P && Array.isArray(P.lampXZ) ? { lampXZ: P.lampXZ.map(p => p.slice()) } : {}) } };   // G3354: the fittings off the wing line
 }
 // A NEW CAREER WITH THE STORY (the welcome's New career, the player's career 'main' only): storyStart with the starter's
 // slot, then the cabin - the strip that plays the cabin (storySite, never a guess) gets the smallest shed, the garage opens
@@ -342,6 +453,11 @@ function storyNewCareer(doc, o) {
   const r = storyStart(doc, slot);
   if (!r.ok) return r;
   const d = r.doc, s = storyNormalise(d.career.story), cabin = storySite('cabin', o.aeros);
+  // G3359: careerNew's grant is not the story career's - its ledger line goes and the wallet holds STORY_GRANT instead
+  if (d.mode === 'career' && typeof CAREER_GRANT === 'number' && Array.isArray(d.ledger)) {
+    const i = d.ledger.findIndex(e => e && e.k === 'grant' && e.amt === -CAREER_GRANT);
+    if (i >= 0) { d.ledger.splice(i, 1); d.wallet -= CAREER_GRANT; if (STORY_GRANT) playerCharge(d, -STORY_GRANT, 'grant', 'story'); }
+  }
   if (cabin && cabin !== 'HOME') {
     const C = storyCabinShed(cabin, d.clock);
     d.sheds[C.id] = C.shed;
@@ -350,6 +466,8 @@ function storyNewCareer(doc, o) {
     s.cabin = { aero: cabin, hangar: C.id };
   } else { s.cabin = null; s.note = STORY_NO_CABIN; }
   d.career.story = s;
+  // G3230 (TECH-MASK): a new story career opens its machine shop at the first segment, Wood and fabric (79b_tech.js)
+  if (typeof techNew === 'function') d.career.tech = techNew();
   d.career.airframes[slot] = { from: 'story', story: 'starter', factory: false, modified: false, paid: 0, at: Math.round(d.clock || 0) };
   return { ok: true, doc: d, effects: r.effects, cabin: s.cabin, why: null };
 }
@@ -393,10 +511,16 @@ function storyApply(doc, e, o) {
     d.fleet[slot] = { hangar: null, aero: PREM_MAIN };
     if (o.foot) d.fleet[slot].foot = parkFoot(o.foot);
     const r = playerArrive(d, slot, PREM_MAIN, { prefer: PREM_MAIN, foots: o.foot ? { [slot]: o.foot } : null });
-    const D = r.ok ? r.doc : d;
+    let D = r.ok ? r.doc : d;
+    // G3585 (the WWII arrival, the user 24 Oct: "the Cub is parked outside"): tied down on HOME's apron, where the swap
+    // finds it (Tim's storage steps); no apron there - it stays where the arrival put it
+    const out = r.ok ? playerMove(D, slot, { kind: 'outside' }, { foots: o.foot ? { [slot]: o.foot } : null }) : null;
+    if (out && out.ok) D = out.doc;
     D.career.airframes[slot] = { from: 'story', story: 'client', owner: 'client', factory: false, modified: false, paid: 0, at: clock };
     D.career.story = s;
-    return { ok: true, doc: D, why: '', line: 'The client’s Cub is in the hangar at HOME.', where: r.ok ? (r.hangar || r.kind) : null };
+    const outside = !!(out && out.ok);
+    return { ok: true, doc: D, why: '', line: outside ? 'The client’s Cub is parked outside the hangar at HOME.' : 'The client’s Cub is in the hangar at HOME.',
+             where: outside ? 'outside' : r.ok ? (r.hangar || r.kind) : null };
   } else if (e.k === 'giftPlane') {
     const slot = s.planes.gift || s.planes.client;
     if (!slot || !d.career.airframes[slot]) return stNo(doc, 'no client plane to give');
@@ -421,6 +545,7 @@ function storyApply(doc, e, o) {
     const D = R.doc;
     Object.assign(offer, { route: R.route.id, down: R.route.down, pay: R.route.pay, tripS: R.route.tripS });
     s.offers = (s.offers || []).filter(x => x.k !== 'route').concat([offer]);
+    if (STORY_T6_FEE > 0) { playerCharge(D, -STORY_T6_FEE, 'story', 'T6:fee'); offer.fee = STORY_T6_FEE; }   // G3359: the commitment fee
     D.career.story = s;
     return { ok: true, doc: D, why: '', route: R.route, line: storyRouteLine(R.route, o.aeros) };
   } else if (e.k === 'occasions') {
