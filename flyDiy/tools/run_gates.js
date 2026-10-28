@@ -584,6 +584,10 @@ const GATES = [
   { id: 'CAGEFIT', file: '_cage_fit.js', tier: 'core' },      // the cage vs its 3 reference OBJs
   { id: 'FRAMES', file: '_frames_check.js', tier: 'core' },   // T2.1: the frames — corpus identity, locality, follow, migration, profile
   { id: 'KNIFE', file: '_knife_check.js', tier: 'core' },     // T2.2: the drawn windows — corpus identity, watertight, shapes, rows, refusal, glazing
+  // WINDOWS-FREE (2026-10-27): the free quad window - an unplaced quad is its rectangle, the Cub's quad rear window cut
+  // watertight with each corner where it was put (read off the cut loop), its fore part on the old window's, a concave
+  // and a crossed quad refused with their reason, the corners saved exact and absent from every other save (~20 s; --selftest)
+  { id: 'QUADWIN', file: '_quadwin_check.js', tier: 'core' },
   { id: 'FIN', file: '_fin_check.js', tier: 'core' },         // fin + stab vs the sketch
   { id: 'COWL', file: '_cowl_check.js', tier: 'core' },       // the cowl, and the engine inside it
   // G2880 (NACELLE-LAG): a wing-mounted engine stands on THIS build's wing - card A then card B equals card B fresh
