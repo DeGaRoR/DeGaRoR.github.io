@@ -466,7 +466,7 @@ function run() {
       'crew: the yoke hub is yokeGap off the plate; the collar and column live outside the stick shift');
     {
       const p5 = fs.readFileSync(path.join(__dirname, '_cage_page5.js'), 'utf8');
-      check(/yokeGap: 0\.16/.test(p5) && /\['yokeGap', +'yoke off the dash', 0\.04, 0\.40, 0\.005/.test(p5), 'page5: the yoke-off-the-dash row, 0.16 m by default');
+      check(/yokeGap: 0\.16/.test(p5) && /\['yokeGap', +'yoke off the dash', 0\.02, 0\.80, 0\.005/.test(p5), 'page5: the yoke-off-the-dash row, 0.16 m by default');   // (G3573: its range widened for the big cabins)
     }
     // G446.2: the key's ring - the bow read mod 180; a ring in the key's own group at its six o'clock tells OFF from BOTH
     check(/const ring = new THREE\.Mesh\(new THREE\.TorusGeometry\(R, T, 8, 28\), matFor\('barrel'\)\);[\s\S]{0,200}g\.add\(ring\);/.test(fs.readFileSync(path.join(__dirname, '_cage_panel.js'), 'utf8')),

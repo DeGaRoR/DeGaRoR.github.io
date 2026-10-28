@@ -49,6 +49,17 @@
   details details{margin:6px 0;border-color:#1b2029}
   summary{cursor:pointer;color:var(--dim);font-size:11px;
     text-transform:uppercase;padding:4px 0}
+  /* G3730-G3737: the classes the tank / instruments panels now write instead
+     of inline styles (the game's copy, on the --ed-* tokens, is editor.css) */
+  .r.note{display:block;font-size:11px;white-space:normal;line-height:1.35;opacity:.9}
+  .noteH{opacity:.7;margin-bottom:2px}
+  .bad,.r .v.bad{color:#ff7b6b}
+  details.on{outline:1px solid rgba(255,211,90,.55)}
+  .r button.wide{flex:1}
+  .cgBar{position:relative;height:14px;margin:2px 0 4px;border-radius:3px;
+    background:linear-gradient(90deg,#2c4a6e,#3b6f4a)}
+  .cgBar>i{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:#dfe7f0}
+  .cgBar>i.cg{width:4px;margin-left:-2px;background:#ffd35a}
 </style>
 
 <header>

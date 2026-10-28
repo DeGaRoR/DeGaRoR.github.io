@@ -96,6 +96,8 @@ function model(check, doctor) {
         'a record normalises: junk points dropped, the end and the margin sound', JSON.stringify(n));
   check(JSON.stringify(C.routeNormalise(JSON.parse(JSON.stringify(n)))) === JSON.stringify(n), 'the record round-trips through JSON (the save, the library, the career map)');
   check(C.routeNormalise(null) === null && C.routeNormalise({ pts: 3 }) === null, 'a non-record is none');
+  check(C.ROUTE_ENDS.includes('dest') && C.routeNormalise({ end: 'dest', pts: [{ x: 1, z: 2, alt: 300 }] }).end === 'dest',
+        'G3611: the end "on to the destination" is a record\'s end (a contract\'s stop: the 24 Oct playtest, item 14)');
   // the default altitude
   const hx = H.x + 3000, hz = H.z - 4200, safe = C.routeSafeAlt(W, hx, hz);
   let top = -1e9; for (let r = 0; r <= 500; r += 250) for (let k = 0; k < 8; k++) top = Math.max(top, C.routeGroundAt(W, hx + r * Math.cos(k * Math.PI / 4), hz + r * Math.sin(k * Math.PI / 4), true));
@@ -225,15 +227,18 @@ async function drawing(check, doctor) {
 // on top; the capture radius is that person's own (routePerf at their bank), the altitude +-25 m, and the hands' checks
 // (the reversals, the vertical speed flown) are logged, not judged: unsteady hands are the person
 const PROFILE_KNOWN = { jodel: /^WP1 climbs / };   // G2810: the profile warnings a build is allowed, each named above
-function flight(key, end, check, doctor, persona) {
-  const W = jolene(), H = W.aerodromes.find(a => a.id === 'HOME');
+function flight(key, end, check, doctor, persona, toId, midToId) {
+  const W = jolene(), H = W.aerodromes.find(a => a.id === 'HOME'), To = (toId && W.aerodromes.find(a => a.id === toId)) || H;
+  // (G3611: midToId - the To set 30 s into the drawn route, as the panel's "for this contract" in the air: the route flies on)
+  const MidTo = midToId ? W.aerodromes.find(a => a.id === midToId) : null;
+  let midHow = null, midState = null;
   const def = L.defOf(key);                     // the damage model ON (_treecrash_lib: damage unless `elastic`)
   const tag = 'fly:' + key + (persona ? '/' + persona : '') + ': ';
   const { sim, pose, site } = startAt(def, W, H);
   const ap = C.makePilot(sim, def, W, persona ? { profile: persona } : {});
   if (persona) check(ap.profile && ap.profile !== 'expert', tag + 'the persona flies (' + ap.profile + ')', ap.profile);
   const tolH = persona ? 25 : 15;
-  ap.departFrom(H, H, site, { atHold: pose });
+  ap.departFrom(H, To, site, { atHold: pose });   // (G3611 'dest': the flight's own To, the drawn route the way there)
   const R = gateRoute(W, end), perf = ap.routePerf();
   const prof = C.routeProfile(R, W, { perf, from: { x: H.x, z: H.z, h: H.elev } });
   // G2810 (AVIONICS-GPS): THE JODEL'S WP1, SAID. G2809 bills the Jodel as drawn (+13.3 kg: 464.18 -> 477.49 kg) and its
@@ -265,6 +270,7 @@ function flight(key, end, check, doctor, persona) {
     if (I.phase === 'ROUTE') {
       if (startT == null) { startT = ap.t; const A0 = ap.legs[0].A; capR[0] = C.routeCaptureR(R, 0, perf, { x: A0[0], z: A0[1] }); }
       routeSteps++;
+      if (MidTo && routeSteps === 1800) { midHow = ap.setDest(MidTo); midState = ap.drawn && ap.drawn.state; }
       da.step(sim.ctl.da || 0); dr.step(sim.ctl.dr || 0);
       const g = C.routeGroundAt(W, c[0], c[2], false); aglMin = Math.min(aglMin, c[1] - g);
       if (I.vsCmd != null && (I.vsCmd > I.vsUp + 1e-9 || I.vsCmd < I.vsDn - 1e-9)) vsAskBad++;
@@ -316,6 +322,8 @@ function flight(key, end, check, doctor, persona) {
   } else {
     const c = sim.cgPos(), w = C.flightWhere(W, c[0], c[2], {});
     const want = end === 'home' ? 'HOME' : ap.route.to && ap.route.to.id;
+    if (MidTo) check(midHow === 'kept' && midState === 'flying', tag + 'a new To in the air keeps the drawn route flying (G3611)', midHow + ' ' + midState);
+    if (end === 'dest') check(want === (MidTo || To).id, tag + 'the end (dest): the flight\'s own destination, not where it left', want + ' vs ' + (MidTo || To).id);
     check(ap.report.outcome === 'completed' && ap.phase === 'STOPPED' && w.id === want && !crashed, tag + 'the end (' + end + '): landed and stopped on ' + want,
           (ap.report.outcome || '-') + ' ' + ap.phase + ' ' + w.kind + ' ' + w.id + ' after ' + (s / 60).toFixed(0) + ' s: ' + phases.join('>') + ' | ' + vsay());
     if (end === 'land') {
@@ -332,6 +340,10 @@ const CASES = [
   { id: 'fly:cub', run: (c, d) => flight('cub', 'home', c, d) },
   { id: 'fly:jodel', run: (c, d) => flight('jodel', 'hold', c, d) },
   { id: 'fly:metal', run: (c, d) => flight('metal', 'land', c, d) },
+  // G3611 (the 24 Oct playtest, item 14): the drawn route as the way to a contract's stop - the Cub HOME -> Jolene AFB
+  // 02/20 by the same five points, then on to its destination
+  { id: 'fly:dest', run: (c, d) => flight('cub', 'dest', c, d, null, 'w2') },
+  { id: 'fly:dest-air', run: (c, d) => flight('cub', 'dest', c, d, null, null, 'w2') },   // the To set in the air, 30 s into the route
   // G2085 PILOT-PERSONA (train 40): the same route by the Cub's three people (A0: "build your laws as the expert
   // baseline that the persona traits act on top of")
   { id: 'persona:club', run: (c, d) => flight('cub', 'home', c, d, 'club') },

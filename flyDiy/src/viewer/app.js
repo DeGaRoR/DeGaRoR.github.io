@@ -61,7 +61,7 @@
       // G909: the editor's scripts (and every generator its palette lists) load on demand the first time
       if ((!window.PREMISES_HOST || !window.PREMISES_UI || !window.MARINE_GEN || !window.NAVAID_GEN) && window.FLYDIY_LAZY && !PREM.loading) {
         PREM.loading = true;
-        window.FLYDIY_LAZY(['_sport_gen', '_marine_gen', '_navaid_gen'].concat(Object.keys(window.FLYDIY_LAZY_SRC || {}).filter(n => /^scenery_/.test(n) || /^camp_/.test(n) || /^infra_/.test(n)), ['premises_host', 'premises_ui']))
+        window.FLYDIY_LAZY(['_sport_gen', '_marine_gen', '_navaid_gen', '_meteo_gen'].concat(Object.keys(window.FLYDIY_LAZY_SRC || {}).filter(n => /^scenery_/.test(n) || /^camp_/.test(n) || /^infra_/.test(n)), ['premises_host', 'premises_ui']))
           .then(() => { if (window.PREMISES_HOST && window.PREMISES_UI) { PREM.loading = false; PREM.openEditor(); } },
                 e => console.warn('premises editor: load failed', e))   // REVIEW 2026-10-04 (B23): a failed load is not a held door
           .finally(() => { PREM.loading = false; });
@@ -100,11 +100,14 @@
       PREM.host = PREM.host || window.PREMISES_HOST.make({ THREE, world, size: 900, view: PREM.view, canvas: renderer.domElement, R: () => PREM.R, persp: camera, map: 'persp', storageKey: 'flydiy.premises.gameview', onDraw: dirtyDraw,
         fly: window.DEV_CAM || null,   // G2915: the world editor's free camera (WASD / ZQSD, R / F, Shift x5, its speed)
         onMode: m => { const l = document.getElementById('premCam'); if (l) l.textContent = m === 'map' ? 'MAP · wheel zooms · middle-drag pans · Tab: fly' : m === 'fly' ? 'FLY ' + Math.round((window.DEV_CAM && window.DEV_CAM.speed) || 0) + ' m/s · WASD / ZQSD · R F up down · Shift x5 · right-drag looks · wheel = speed · Tab: orbit' : 'ORBIT · right-drag turns · middle-drag pans · wheel zooms · Tab: map'; } });
+      // THE CAMERA WHERE THE WORLD WAS, WASD BY DEFAULT (the user, 24 Oct: "WASD by default; open the world editor with the camera
+      // where the world was, not miles away"): the flight's eye kept before the host takes the camera; the orbit's centre on the
+      // aeroplane (not the island-wide extent), and the editor opens in FLY seeded from that eye - Tab for the orbit or the map
+      const eye0 = camera.position.clone(), q0 = camera.quaternion.clone();
       PREM.host.attach();
-      // the camera starts over the premises (its extent), or over the aeroplane
-      const ov = world.premises.overlay;
-      if (ov && ov.n) PREM.host.cameras.frame(ov.extent); else { const cg = sim.cgPos(); PREM.host.cameras.centreOn(cg[0], cg[2]); }
-      PREM.host.cameras.set(PREM.host.cameras.mode());
+      { const cg = sim.cgPos(); PREM.host.cameras.centreOn(cg[0], cg[2]); }
+      if (PREM.host.cameras.flyOk()) { camera.position.copy(eye0); camera.quaternion.copy(q0); PREM.host.cameras.set('fly'); }
+      else PREM.host.cameras.set(PREM.host.cameras.mode());
       const els = { chk: document.getElementById('premChk'), plaque: document.getElementById('premPlaque'), strip: document.getElementById('premStrip'), rail: document.getElementById('premRail') };
       const rec0 = world.premises.rec ? PREMISES_GEN.envelope(world.premises.rec.name || null, world.premises.rec) : null;   // BEFORE the mount: the mount's first rebuild recomposes the world with what the editor holds
       PREM.ed = window.PREMISES_UI.mount(PREM.body, {
@@ -119,6 +122,12 @@
           return !TOWN.cut && !SVnow() ? ls : { getItem: k => ls.getItem(k), removeItem: k => ls.removeItem(k), key: i => ls.key(i), get length() { return ls.length; },
             setItem: (k, v) => { if (k === WIP_KEY || k.startsWith('flydiy.premises.slot.')) try { const U = PREMISES_GEN.unwrap(v), SV = SVnow(); if (SV) U.rec = PREMISES_GEN.stageRestore(U.rec, SV); v = PREMISES_GEN.envelope(U.name, TOWN.cut ? PREMISES_GEN.restorePlaces(U.rec, TOWN.cut) : U.rec, U.plaque, U.log); } catch (e) {} ls.setItem(k, v); } };
         } catch (e) { return null; } })(), wipKey: WIP_KEY,
+        // SCENERY VERSIONS (ED-2; the user, 25 Oct: 'when getting into the scenery editor, there is an option to load a version, and that's
+        // the only place where scenery can be loaded'): the game boots master (world_boot.js), so the editor opens on it; FILE > 'load a
+        // version' offers master (what this page composed), the editor's last autosave and the named versions of the repo. A loaded
+        // record is cut like the boot's (prep: the town switch's places), so it composes as the game would; a save puts them back (above)
+        scenery: WB.SCN ? { island: WB.SCN.island, master: rec0, versions: () => WB.SCN.versions(), versionText: v => WB.SCN.versionText(v),
+          prep: t => { if (TOWN.all || typeof PREMISES_GEN === 'undefined') return t; try { const U = PREMISES_GEN.unwrap(t), D = PREMISES_GEN.dropPlaces(U.rec, TOWN.off, TOWN.keep); return D.n ? PREMISES_GEN.envelope(U.name, D.rec, U.plaque, U.log) : t; } catch (e) { return t; } } } : null,
         rig: (typeof window !== 'undefined' && window.WORLD && window.WORLD.rig) || null, day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null,   // SKY chantier: LIGHT and TIME in the game's editor
         redraw: dirtyDraw, frameText: () => '', pool: () => [], site: PREM.host.site, catalogue: PREMISES_GEN.collect(window), fresh: true, record: rec0, overlayOn: () => false,
         // G1400 (EDITOR-LAG): an edit of the OBJECTS layer (a prop, a tree, a billboard, an aeroplane, an animal), or a
@@ -7722,6 +7731,11 @@
   // G1868: the crash watched (its sim time at the solver's 'over', then at the debris' rest); the card waits for it
   let crashWatch = null;
   const WATCH_REST = 6, WATCH_HOLD = 3;          // s of sim time: the debris' longest wait, then the wreck held still
+  const WATCH_PIECES = 12, WATCH_FALL = 40;     // DMG-FALL: s of sim time after the over, the solver's pieces' longest wait - and
+                                                // a piece's still falling from a break-up in the air (400 m: ~20 s)
+  // DMG-FALL: the HUD's word for the crash - a break-up's reason is already 'broke up: ...' (30_solver.js compEvent),
+  // so the label read "BROKE UP: broke up: the fuselage parted"
+  const crashWord = (D, up) => { const why = D && D.reason ? String(D.reason).replace(/^broke up:\s*/i, '') : ''; return (up ? 'BROKE UP' : 'CRASHED') + (why ? ': ' + why : ''); };
   let flDmg = null;           // G1470 (TREE-CRASH): sim.damage() - the worker's verdict under the physics worker
   // G2373 (DMG-OCCUPANT): the occupants' bands for a crash's card - [{ name, band }] from the worker (sim_link's occView)
   // or the inline solver (34_occupant.js genOccWire); read only on the crash path
@@ -8105,6 +8119,8 @@
       if (CAREER_DEV && d.career && world && world.day && typeof careerDaySet === 'function') { const r = careerDaySet(d, { date: world.day.date, utc: world.day.utc }); if (r.ok) d = careerCoverNote(r.doc); }
       // G3260 (ROUTES): the routes' round trips flown up to this landing, paid now (before the stop's wallet line)
       const rtSettled = CAREER_DEV && d.career ? routesSettleNow(d) : null; if (CAREER_DEV && rtSettled) d = rtSettled.doc;
+      // G3618 (HIRE): the hired pilots' wages for every day ended up to this landing (the paycheck at each day's end)
+      const pyPaid = CAREER_DEV && d.career && typeof pilotsPayroll === 'function' ? pilotsPayroll(d) : null; if (CAREER_DEV && pyPaid && pyPaid.ok) d = pyPaid.doc;
       // G2320 (CAREER-WIRE): ...and the career meets the stop (careerOnStop: every accepted contract, the tracked first)
       if (CAREER_DEV && d.career) { const c = careerStopApply(d, how, W, wrecked); d = c.doc; out.career = c; }
       // G2742 (STORY-PAGE): ...and the story meets it (the stop, each contract it delivered), its effects applied
@@ -8710,6 +8726,95 @@
     act: careerCrewAct, check: id => careerCrewCheck(id), flyer: () => crFlyer,
     card: id => pilotsCard(playerLoad(), id, world), offers: () => pilotsOffers(playerLoad()), hired: () => pilotsHired(playerLoad()),
   };
+  // ---- G3618 (HIRE, the user 25 Oct): THE HIRE SCREEN --------------------------------------------------------------------
+  // Every pilot not on the roster (all four), each a card: the portrait, the tagline, the EXPERIENCE LEVEL and the SKILL
+  // chips ("We'll state their experience level, and their skills ... and we'll let the player discover" - no "can fly"
+  // verdict), the sign-on and the daily wage. Hire pays the SIGN-ON only; the wage is paid at the end of each day
+  // (pilotsPayroll: "like classic paycheck"). A wallet short of the sign-on: the button says by how much.
+  // FROZEN HOOKS (STORY-TUTOR's T6b): window.FLYDIY_HIRE.open({ from }) / close() / isOpen(); events 'flydiy:hireOpen'
+  // { from }, 'flydiy:hireClose' { hired: [ids] }, 'flydiy:hired' { id, fee, wage } (after the save, the sign-on charged;
+  // `id` is the roster's own, pilotsHired's). Opened from the story, it cannot close before a first hire.
+  const HIRE = { el: null, from: null, hired: [] };
+  const hireEsc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  function hireCss() {
+    if (document.getElementById('hireCss')) return;
+    const st = document.createElement('style'); st.id = 'hireCss';
+    // the stack (the 10:30 stills): over the MAP / LOAD pills (2147482000), under Tim's band (2147482500, the story opens
+    // this screen while he talks) and the map screen (2147483000); opaque, as the map screen is - the garage behind showed through
+    st.textContent = '#hireScreen{position:fixed;inset:0;z-index:2147482200;display:flex;flex-direction:column;background:var(--ed-board,#1a1815);color:var(--ed-ink,#f4efe6);font-family:"IBM Plex Sans",system-ui,sans-serif;overflow:auto}' +
+      '#hireScreen .hrTop{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:24px 32px 16px;border-bottom:1px solid var(--ed-hair,rgba(255,248,236,.09));flex-wrap:wrap}' +
+      '#hireScreen h2{margin:0;font-size:24px;font-weight:600}#hireScreen .hrSub{margin:4px 0 0;font-size:14px;color:var(--ed-dim,#c0b8ac)}' +
+      '#hireScreen .hrRight{display:flex;align-items:center;gap:18px}#hireScreen .hrWal{display:grid;justify-items:end;gap:2px}' +
+      '#hireScreen .hrWal small{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ed-dim,#c0b8ac)}#hireScreen .hrWal b{font-size:20px;font-variant-numeric:tabular-nums}' +
+      '#hireScreen .hrX{width:48px;height:48px;border-radius:10px;background:var(--ed-btn-bg,rgba(255,255,255,.06));border:1px solid var(--ed-btn-bd,rgba(255,255,255,.18));color:var(--ed-ink,#f4efe6);font-size:20px;cursor:pointer}' +
+      '#hireScreen .hrX:disabled{opacity:.4;cursor:default}' +
+      '#hireScreen .hrGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:18px;padding:22px 32px 120px}' +
+      '#hireScreen .hrCard{background:var(--ed-panel,#201d1a);border:1px solid var(--ed-hair,rgba(255,248,236,.09));border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:10px}' +
+      '#hireScreen .hrCard img{width:100%;aspect-ratio:1/1;object-fit:cover;object-position:50% 25%;border-radius:10px;background:rgba(255,248,236,.06)}' +
+      '#hireScreen .hrNm{font-size:19px;font-weight:600}#hireScreen .hrTag,#hireScreen .hrLvl{font-size:13px;color:var(--ed-dim,#c0b8ac);line-height:1.45}#hireScreen .hrLvl{color:var(--ed-acc,#e6dbc9)}' +
+      '#hireScreen .hrChips{display:flex;flex-wrap:wrap;gap:6px}#hireScreen .hrChips span{font-size:12px;padding:4px 9px;border-radius:999px;border:1px solid var(--ed-btn-bd,rgba(255,255,255,.18));color:var(--ed-acc,#e6dbc9)}' +
+      '#hireScreen .hrMoney{margin-top:auto;display:grid;gap:6px;padding-top:10px;border-top:1px solid var(--ed-hair,rgba(255,248,236,.09));font-size:13px;font-variant-numeric:tabular-nums}' +
+      '#hireScreen .hrMoney div{display:flex;justify-content:space-between}#hireScreen .hrMoney span{color:var(--ed-dim,#c0b8ac)}' +
+      '#hireScreen .hrGo{min-height:48px;border-radius:8px;border:1px solid var(--ed-acc,#e6dbc9);background:var(--ed-acc,#e6dbc9);color:var(--ed-acc-ink,#221f1b);font:600 12.5px/1.2 "IBM Plex Sans",sans-serif;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}' +
+      '#hireScreen .hrGo:disabled{background:var(--ed-btn-bg,rgba(255,255,255,.06));border-color:var(--ed-btn-bd,rgba(255,255,255,.18));color:var(--ed-bad,#e08a5a);text-transform:none;letter-spacing:0;font-weight:500;cursor:default}' +
+      '#hireScreen .hrNone{padding:22px 32px;color:var(--ed-dim,#c0b8ac)}' +
+      '@media (max-width:600px){#hireScreen .hrTop,#hireScreen .hrGrid{padding-left:16px;padding-right:16px}}';
+    document.head.appendChild(st);
+  }
+  function hireDraw() {
+    if (!HIRE.el) return;
+    const d = playerLoad(), wallet = Math.round(d.wallet || 0), ids = pilotsOffers(d);
+    const lock = HIRE.from === 'story' && !HIRE.hired.length;
+    const card = id => {
+      const c = pilotsCard(d, id, world);
+      const short = d.mode === 'career' ? c.signOn - wallet : -1;
+      // G3620: the head over its background (the user 26 Oct: "only when displayed in large format do they get their
+      // background") - the <img>'s CSS background, behind the transparent head; the head file is never touched
+      const bg = c.bg ? ' style="background:url(' + hireEsc(c.bg) + ') center/cover"' : '';   // (a media/people path: no space, no paren)
+      return '<div class="hrCard">' + (c.portrait ? '<img src="' + hireEsc(c.portrait) + '"' + bg + ' alt="' + hireEsc(c.name) + '" loading="lazy" decoding="async">' : '') +
+        '<div><div class="hrNm">' + hireEsc(c.name) + '</div><div class="hrTag">' + hireEsc(c.tagline) + '</div></div>' +
+        '<div class="hrLvl">' + hireEsc(c.level) + '</div>' +
+        '<div class="hrChips">' + c.skills.map(k => '<span>' + hireEsc(k) + '</span>').join('') + '</div>' +
+        '<div class="hrMoney"><div><span>Sign-on</span>' + ecFmt(c.signOn) + '</div><div><span>Wage, at each day\'s end</span>' + ecFmt(c.wage) + ' / day</div>' +
+        (short > 0 ? '<button type="button" class="hrGo" disabled>Short by ' + ecFmt(short) + ' for the sign-on</button>'
+                   : '<button type="button" class="hrGo" data-hire="' + hireEsc(id) + '">Hire · pay ' + ecFmt(c.signOn) + ' now</button>') + '</div></div>';
+    };
+    HIRE.el.innerHTML = '<div class="hrTop"><div><h2>Hire a pilot</h2><p class="hrSub">They fly your routes and your flights. The sign-on is paid now, the wage at the end of each day.</p></div>' +
+      '<div class="hrRight"><div class="hrWal"><small>Wallet</small><b>' + ecFmt(wallet) + '</b></div>' +
+      '<button type="button" class="hrX" aria-label="' + (lock ? 'Close (after your first hire)' : 'Close') + '"' + (lock ? ' disabled' : '') + '>×</button></div></div>' +
+      (ids.length ? '<div class="hrGrid">' + ids.map(card).join('') + '</div>' : '<p class="hrNone">Everyone is on your roster.</p>');
+    HIRE.el.querySelector('.hrX').onclick = () => hireClose();
+    for (const b of HIRE.el.querySelectorAll('[data-hire]')) b.onclick = () => hireNow(b.getAttribute('data-hire'));
+  }
+  function hireNow(id) {
+    const fee = pilotsSignOn(id), wage = pilotsWage(id);
+    const r = careerCrewAct('hire', id);
+    if (r && r.ok) {
+      HIRE.hired.push(id);
+      econWalletSync();
+      try { window.dispatchEvent(new CustomEvent('flydiy:hired', { detail: { id, fee, wage } })); } catch (e) {}
+    }
+    hireDraw();
+    return r;
+  }
+  function hireOpen(o) {
+    if (!CAREER_DEV) return false;
+    hireCss();
+    HIRE.from = (o && o.from) || null; HIRE.hired = [];
+    if (!HIRE.el) { HIRE.el = document.createElement('div'); HIRE.el.id = 'hireScreen'; HIRE.el.setAttribute('role', 'dialog'); HIRE.el.setAttribute('aria-label', 'Hire a pilot'); document.body.appendChild(HIRE.el); }
+    HIRE.el.hidden = false;
+    hireDraw();
+    try { window.dispatchEvent(new CustomEvent('flydiy:hireOpen', { detail: { from: HIRE.from } })); } catch (e) {}
+    return true;
+  }
+  function hireClose() {
+    if (!HIRE.el || HIRE.el.hidden) return false;
+    if (HIRE.from === 'story' && !HIRE.hired.length) return false;
+    HIRE.el.hidden = true;
+    try { window.dispatchEvent(new CustomEvent('flydiy:hireClose', { detail: { hired: HIRE.hired.slice() } })); } catch (e) {}
+    return true;
+  }
+  if (CAREER_DEV) window.FLYDIY_HIRE = { open: hireOpen, close: hireClose, isOpen: () => !!(HIRE.el && !HIRE.el.hidden), hire: id => hireNow(id) };
   // ---- G3260-G3269 (ROUTES): THE ROUTES' PAGE HALF (every function below runs only under CAREER_DEV; 78b_routes.js is the
   // model, pure) ---------------------------------------------------------------------------------------------------------
   // The settle at every landing (playerFlightEnd: the round trips flown since, paid, a line on the arrival card) and every
@@ -8732,6 +8837,15 @@
     player = r.doc; playerSave();
     ecNote = 'routes +' + ecFmt(r.paid); econWalletSync();
     storeChanged();
+  }
+  // G3618 (HIRE): the wages on a day jump (a wait, the full moon): every day ended paid now, said on the wallet line
+  function pilotsPayNow(now) {
+    if (!CAREER_DEV || typeof pilotsPayroll !== 'function') return 0;
+    const r = pilotsPayroll(playerLoad(), now);
+    if (!r || !r.ok || r.doc === playerLoad()) return 0;
+    player = r.doc; playerSave();
+    if (r.paid) { ecNote = 'wages -' + ecFmt(r.paid); econWalletSync(); }
+    return r.paid;
   }
   // the plane's gear and seats off its saved envelope (the storage card's)
   const routesGear = n => { try { return storeCard(n).gear || null; } catch (e) { return null; } };
@@ -8771,6 +8885,8 @@
       player = r.doc; playerSave();
       ecNote = 'route signed +' + ecFmt(r.route.down); econWalletSync();
       storeChanged(); routesStandRule();
+      // G3618: the frozen hook STORY-TUTOR's T6b moves Tim on with
+      try { window.dispatchEvent(new CustomEvent('flydiy:routeSigned', { detail: { id: r.route.id, pilot, plane: name } })); } catch (e) {}
       return { ok: true, why: '', route: r.route };
     } catch (e) { return { ok: false, why: String((e && e.message) || e) }; }
   }
@@ -8812,7 +8928,7 @@
     return true;
   }
   if (CAREER_DEV) {
-    try { window.addEventListener('flydiy:dayjump', ev => { try { routesOnWait(ev && ev.detail); } catch (e) {} }); } catch (e) {}
+    try { window.addEventListener('flydiy:dayjump', ev => { try { routesOnWait(ev && ev.detail); pilotsPayNow(ev && ev.detail && ev.detail.to); } catch (e) {} }); } catch (e) {}
     setInterval(() => { try { routesStandRule(); } catch (e) {} }, 1500);
     Object.assign(window.FLYDIY_STORE, {
       routeTargets: n => routesTargets(n), routeAsk: (n, b, p) => routesAsk(n, b, p), routeSign: (n, b, p) => routesSignNow(n, b, p),
@@ -9437,8 +9553,68 @@
       ladder: () => ({ i: stLad.i, off: stLad.off, card: stLad.i >= 0 && !stLad.off ? STORY_LADDER[stLad.i].id : null }), skip: storySkipFlight,   // G3370
     };
   }
+  // G3613 GARAGE-GO (the user 25 Oct: "We also need an interface in all game modes for moving between the garages. I
+  // suggest the ability to teleport from the map, clicking on an owned garage allows to teleport there, with whatever
+  // plane is in there"): THE GARAGE HALF of GAME-MENUS's map (G3640s: the markers, the confirm row). Every mode alike:
+  // the sandbox holds HOME alone, a career its hangars; a story-held one is listed, locked, with why.
+  //   garages() -> [{ id, name, aero, here, locked, why, planes, stand }]   planes: the slots inside (floor first);
+  //             stand: the plane that will be on the stand there (the open garage's own: what is on it)
+  //   gotoGarage(id) -> Promise<{ ok, why, stand }>: refused in the air ("land first"), locked, already there; else the
+  //             hangar becomes `here` (playerGoTo - free, instant, as the shed's base select), out of a flight through
+  //             "The shed"'s own trip (rollInScreen), the room re-dressed, and that hangar's plane put on the stand
+  const garageWhy = sh => (sh && sh.locked ? (sh.locked === 'story' ? 'not yours yet - the story hands it over' : 'not yours yet') : '');
+  function garageStand(d, id) {
+    const V = typeof playerStoreView === 'function' ? playerStoreView(d, id) : null;
+    if (!V) return { planes: [], stand: null };
+    const planes = [V.floor].concat(V.inside.slots).filter(Boolean);
+    return { planes, stand: planes[0] || null };
+  }
+  function garagesList() {
+    const d = playerLoad(), A = (world && world.aerodromes) || [], out = [];
+    for (const id of Object.keys(d.sheds || {})) {
+      const sh = d.sheds[id];
+      if (!sh || typeof sh !== 'object') continue;
+      const aero = typeof sh.base === 'string' ? sh.base : 'HOME', a = A.find(x => x.id === aero);
+      const G = garageStand(d, id), here = d.here === id;
+      const kind = ((typeof SHELLS === 'object' && SHELLS[sh.shell]) || {}).name || 'hangar';
+      out.push({ id, name: sh.name || (id === PREM_MAIN && aero === 'HOME' ? 'the main hangar' : 'the ' + String(kind).toLowerCase()) + (a ? ' at ' + (a.name || a.id) : ''),
+                 aero, here, locked: !!sh.locked, why: garageWhy(sh), planes: G.planes, stand: here && inGarage ? (slotOnStand() || G.stand) : G.stand });
+    }
+    return out;
+  }
+  function gotoGarage(id) {
+    const d = playerLoad(), sh = d.sheds && d.sheds[id];
+    if (!sh) return Promise.resolve({ ok: false, why: 'no hangar ' + id, stand: null });
+    if (sh.locked) return Promise.resolve({ ok: false, why: garageWhy(sh), stand: null });
+    if (inGarage && d.here === id) return Promise.resolve({ ok: false, why: 'you are there', stand: slotOnStand() });
+    const air = !inGarage && started && !flEnded && sim && typeof sim.wheelsOnGround === 'function' && sim.wheelsOnGround() === 0;
+    if (air) return Promise.resolve({ ok: false, why: 'land first', stand: null });
+    const r = playerGoTo(d, id);
+    if (!r.ok) return Promise.resolve({ ok: false, why: r.why, stand: null });
+    player = r.doc; playerSave();
+    baseId = player.sheds[player.here].base;
+    return new Promise(res => {
+      const arrive = () => {
+        try {
+          roomFollow();
+          const n = garageStand(playerLoad(), id).stand;
+          if (n && n !== slotOnStand() && window.GARAGE_SPEC && window.GARAGE_SPEC.open) {
+            const W = playerStoreWhere(playerLoad(), n);
+            if (W.kind === 'floor') { storeSyncHold = true; try { window.GARAGE_SPEC.open(n); } finally { storeSyncHold = false; } }
+            else storeMove(n, { kind: 'floor' });   // an inside slot: "Work on" (the floor swap, a resident's in the career)
+            if (inGarage) applyEnv();
+          }
+          storeChanged(); try { if (window.FLYDIY_ROUTE) window.FLYDIY_ROUTE.sync(); } catch (e) {}   // (the base line follows)
+        } catch (e) { console.warn('flyDiy: the garage could not take its plane -', e && e.message); }
+        res({ ok: true, why: '', stand: slotOnStand() || null });
+      };
+      if (inGarage) arrive();
+      else { const ac = $('arrCard'); if (ac) ac.hidden = true; arrivalShown = false; flyOpenSet(null); rollInScreen(arrive); }
+    });
+  }
   window.FLYDIY_PLAYER = {
     doc: () => JSON.parse(JSON.stringify(playerLoad())),
+    garages: () => garagesList(), gotoGarage: id => gotoGarage(id),   // G3613 (GAME-MENUS's map)
     // the gates' and the rigs' door: a whole document in, normalised and lifted like a load (then saved)
     // (with no storage there are no slots to read: the document's own fleet is kept as handed)
     set: doc => { player = playerNormalise(playerMigrate(JSON.parse(JSON.stringify(doc)))); if (PREF) player = playerFleetReconcile(player, fleetSlotNames(player)).doc; playerSave(); if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); return window.FLYDIY_PLAYER.doc(); },
@@ -9892,6 +10068,19 @@
       if (ps && ps[0]) FST.pax.push({ P: ps[0], frame, seat: i });
     });
   }
+  // ---- G3614 (PEOPLE): THE PEOPLE'S DOOR -------------------------------------------------------------------------------
+  // 72_people.js's one list, for the page's readers: the crowd (PEOPLE-CROWD G3619: who queues - pool('passenger', n, seed)
+  // and each one's body, char(id)), the map's client faces, the pilots' cards, Tim's band. face(id, px): the portrait's
+  // URL for a display of px CSS pixels (null: no such person / no cut) - nothing is fetched until an <img> asks for it.
+  window.FLYDIY_PEOPLE = {
+    get: id => (GAME_PEOPLE[id] ? JSON.parse(JSON.stringify(GAME_PEOPLE[id])) : null),
+    of: role => peopleOf(role),
+    name: id => peopleName(id),
+    char: id => (GAME_PEOPLE[id] ? GAME_PEOPLE[id].char : null),
+    client: org => peopleClientOf(org),
+    pool: (role, n, seed) => peoplePool(role, n, seed),
+    face: (id, px) => peopleFace(id, px),
+  };
   // ---- G2970 (CHARACTERS): THE CROWD ------------------------------------------------------------------------------------
   // The passengers board at the stand. Every figure seated at the roll-out - a job's passenger FREIGHT-STRAP seats live
   // (fsPeople, its own character: the crowd's cast first), the build's own baked into the flown model (one bucket per
@@ -12271,6 +12460,26 @@
       .then(() => compileDepthVariants(scene, true, dress))
       .catch(e => console.warn('world prelink (settled):', e && e.message));
   }
+  // REVEAL (A0 22 Oct; HWCOV): A WORLD SETTING CHANGED IN THE SHED LINKS FROM THE SHED. The settings screen there compiles the
+  // shed only; the world's programs, keyed on the graphics (worldCompile's key), waited for the roll-out - its trip ran
+  // worldCompile and first light AFTER the shot, under the roll-out screen, the loop holding the draw (holdRender) over the
+  // reveal (the strict gate pins mirror=off in the shed: its reveal row 133 ms, BOOT 'loading', the held frames' worldUpdate
+  // 35 + 30 + 25 ms). Now the shed's screen, once done, starts the world's link in the background - a group a task, the
+  // aeroplane dressed in the world per task as worldPrelinkSettled does (the shed draws as it was) - so the trip's
+  // worldCompile finds its programs known and linked, and its hold is the key's check
+  let worldPrelinkGfxP = null, worldPrelinkGfxK = null;
+  function worldPrelinkGfx() {
+    if (GARAGE_ONLY || !WF || typeof renderer.compileAsync !== 'function' || tripKeys.worldCompile === undefined || !inGarage) return null;
+    const S = TRIP_BY.worldCompile; let k = null; try { k = S.key(); } catch (e) { k = null; }
+    if (k === null || k === tripKeys.worldCompile || k === worldPrelinkGfxK) return worldPrelinkGfxP;   // nothing re-keyed, or on its way
+    worldPrelinkGfxK = k;
+    const dress = f => craftInWorldNow(() => craftLightsGuess(f));
+    const run = () => compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, dress)
+      .then(() => compileDepthVariants(scene, true, dress))
+      .catch(e => console.warn('world prelink (settings):', e && e.message));
+    worldPrelinkGfxP = Promise.resolve(worldPrelinkGfxP).then(run).then(() => { if (worldPrelinkGfxK === k) worldPrelinkGfxK = null; });
+    return worldPrelinkGfxP;
+  }
   // THE LOTS' GROUND, BEFORE THE FIRST LOT (G1085). LOT_GROUND's one material (lot_tex.js: the lawn splat, a ~6 KB
   // hook) is made when the first lot's mesh is - the premises' stream, in the settle - and its program then linked
   // ~20 s on the driver (warm: Chrome keeps no binary of it, like the ground's splats), the one link worldCompile was
@@ -12826,7 +13035,7 @@
           .then(() => { holdRender = false; return framesRendered(2); }) },   // G732
     ];
     BOOT.show('settings', { steps, set: 'settings', shots: garage ? 'garage' : 'rollout', require: [], landingLabel: 'the new settings',
-      done: () => { holdRender = false; if (held && !inGarage) running = true; }, idle: 20000, hard: 90000, quietFrames: 1 });
+      done: () => { holdRender = false; if (held && !inGarage) running = true; if (garage) setTimeout(worldPrelinkGfx, 0); }, idle: 20000, hard: 90000, quietFrames: 1 });   // (REVEAL: the world's link starts in the shed)
   }
   if (typeof window !== 'undefined') window.FLYDIY_SETTLE = settleScreen;
   // every texture a material of the scene holds (its uniforms' too), the environment and the background, sent to the
@@ -14235,6 +14444,18 @@
     // G3070 ROUTE-LAZY: an action asked before the drawing's file had run (route_lazy.js) is done once it has - the
     // rail (and the setup screen) rebuilt then, as a pill's pick rebuilds them
     rail: () => flyOpenSet(flyOpen),
+    // G3611 (the 24 Oct playtest, item 14: "the draw-route feature must be integrated with the contracts"): the tracked
+    // contract's next stop (its first open sub's to / at - a field id is an aerodrome id), and the To set to it
+    contract: () => {
+      if (!CAREER_DEV) return null;
+      const d = playerLoad(), C = d && d.career && d.career.contracts;
+      const rec = CAREER_DEV && C && C.tracked ? careerContract(d, C.tracked) : null;
+      if (!rec) return null;
+      const L = C.live[C.tracked] || { stage: 0, subs: [] }, st = rec.stages[L.stage] || { subs: [] };
+      const u = st.subs.find((s, i) => !L.subs[i] && (s.to || s.at)), at = u && (u.to || u.at);
+      return at ? { title: contractText(rec.title, contractVars(rec)), to: at, name: CONTRACT_FIELDS[at] ? CONTRACT_FIELDS[at].name : at } : null;
+    },
+    setTo: id => (window.FLYDIY_ROUTE ? window.FLYDIY_ROUTE.to(id) : null),
     // the drawing wants the map shown and large; closing it puts the map back as it was
     mapOpen: on => {
       if (on) { rdMapWas = { show: !!panels.map, big: mapBig }; if (!panels.map) flPanel('map', true); if (!mapBig) flMapBig(true); $('mmp').classList.add('draw'); }
@@ -15171,7 +15392,8 @@
       const b = document.createElement('button'); b.className = 'pill'; b.textContent = PREM.open ? 'close the scenery editor' : 'open the scenery editor';
       b.onclick = () => { if (PREM.open) PREM.close(); else PREM.openEditor(); flyOpenSet(null); };
       body.appendChild(b);
-      if (rec) { const c = document.createElement('button'); c.className = 'pill'; c.textContent = 'clear the saved premises (the map\'s own at the next boot)'; c.onclick = () => { try { localStorage.removeItem(WIP_KEY); } catch (e) {} flNote(body, 'cleared - reload for the map\'s own premises'); }; body.appendChild(c); }
+      // (SCENERY VERSIONS: the 'clear the saved premises' pill is gone - the game boots master whatever the editor saved, and the
+      // editor's copy is the user's work: FILE > 'load a version' reaches it, nothing on the rail deletes it)
     },
     // CLIMATE K2: THE WEATHER - weather_ui.js in this rail's own rows and pills
     weather(body) {
@@ -17221,13 +17443,17 @@
         const D = flDmg, up = !!(D && D.brokeUp);
         flOcc = occNow();                                       // G2373: the occupants' bands (the worker sends them once, at the close)
         if (!crashWatch) { crashWatch = { t: sim.t, rest: null };
-          $('phName').textContent = (up ? 'BROKE UP' : 'CRASHED') + (D && D.reason ? ': ' + D.reason : ''); }
+          $('phName').textContent = crashWord(D, up); }
         const W2 = window.FLYDIY_WRECK_STATS ? window.FLYDIY_WRECK_STATS() : null;
         const settled = !W2 || !W2.bodies.some(b => !b.asleep && !b.sunk);
-        if (crashWatch.rest == null && (settled || sim.t - crashWatch.t > WATCH_REST)) crashWatch.rest = sim.t;
+        // DMG-FALL (the user, 25 Oct: "detached parts hang metres high"): the watch waits for the solver's own pieces
+        // too (DMG.rest: every node at rest, 30_solver.js dmgOver) - it waited for the debris bodies only, so a part
+        // flung off or the halves of a break-up in the air froze where they were 3 s after the over
+        const tw = sim.t - crashWatch.t, still = !D || D.rest != null || (tw > WATCH_PIECES && !D.fall) || tw > WATCH_FALL;
+        if (crashWatch.rest == null && ((settled || tw > WATCH_REST) && still)) crashWatch.rest = sim.t;
         if (crashWatch.rest != null && sim.t - crashWatch.rest >= WATCH_HOLD) {
           endFlight(up ? 'broke-up' : 'crashed');
-          $('phName').textContent = (up ? 'BROKE UP' : 'CRASHED') + (D && D.reason ? ': ' + D.reason : '') + ' — RESET';
+          $('phName').textContent = crashWord(D, up) + ' — RESET';
         }
       }
     } else if (SIMW) SIMW.idle();       // G815: nothing flies this frame (a pause, the card) - the worker's clock stops

@@ -199,6 +199,9 @@ const DOORS = {
     // (G2799, the census of 20 Oct: the tour flown in the real page from the WIP slot, the storage screen's shelf, the
     // garage's clock bake under _page_node with the file as its autosave - the page's own chain each time)
     'tour_real', 'storage_shot', '_clockbake_check',
+    // (COWL-RES G3713/G3716: the eye variants' stills and the entry/exit probe hand the file to the real page's
+    // GARAGE_SPEC.set - the page's own load chain - and judge what it draws)
+    'cowl_res_stills', 'cowl_res_probe',
     // (DMG-OCCUPANT G2373-G2377: GATE DMGOCCUPANT's crash-card row boots the page under node (_page_node.js) with the
     // Cub's file as its autosave (flydiy.wip) - the page's own chain; its node rows fly through _treecrash_lib.js defOf)
     '_dmg_occupant_check'],

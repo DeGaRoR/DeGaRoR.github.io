@@ -198,7 +198,7 @@ function row(parent, label, title) {
 }
 function select(parent, label, title, options, value, onchange) {
   const d = row(parent, label, title);
-  const s = document.createElement('select'); s.style.flex = '1';
+  const s = document.createElement('select');
   for (const [v, name] of options) {
     const o = document.createElement('option');
     o.value = v; o.textContent = name;
@@ -212,7 +212,6 @@ function select(parent, label, title, options, value, onchange) {
 function fold(parent, name, open) {
   const det = document.createElement('details');
   det.open = !!open;
-  det.style.marginLeft = '6px';
   const sum = document.createElement('summary');
   sum.textContent = name;
   det.appendChild(sum);
@@ -307,7 +306,7 @@ function renderPanel() {
     d.appendChild(cb);
     const v = el('span', 'v', dropped[k] ? 'dead — ' + dropped[k]
       : (fitted.has(k) ? fmtCr(r.price) + ' · ' + fmtKg(r.kg) : ''));
-    if (dropped[k]) v.style.color = '#e08a5a';
+    if (dropped[k]) v.classList.add('bad');
     d.appendChild(v);
   }
 
@@ -375,7 +374,10 @@ function renderPanel() {
     const h = row(bill, name, '');
     h.appendChild(el('span', 'v', fmtKg(sum.kg) + ' · ' + fmtCr(sum.price)));
     for (const r of rows) {
-      const d = row(bill, '   ' + r.name, r.key);
+      // G3737: a line of the group above, in the sub-row grammar (the
+      // leading spaces this used to indent with collapse in HTML)
+      const d = row(bill, r.name, r.key);
+      d.classList.add('dial');
       d.appendChild(el('span', 'v', fmtKg(r.kg) + ' · ' + fmtCr(r.price)));
     }
   }

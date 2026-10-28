@@ -282,14 +282,23 @@ function cageJoinSpec(P, M, T) {
     // drawn; a wing pair is two entries. Absent measurements = the spec's
     // own derivation for that mount.
     engines: (() => {
-      const mk = ['nose', 'pusher', 'wingTop', 'wing'][Math.round(P.engMount || 0)]
-               || 'nose';
+      // G2790 ENGINE-CONFIGS: 4 push-pull / 5 three / 6 four are LAYOUTS
+      // (60_gen_spec GEN_ENG_LAYOUTS) — one entry per drawn unit, in the
+      // order engineFaces lists them, each entry's own mount
+      const mK = Math.round(P.engMount || 0);
+      const LAY = mK === 4 ? 'pushPull' : mK === 5 ? 'tri' : mK === 6 ? 'quad' : null;
+      // the mounts of each layout, GEN_ENG_LAYOUTS' own lists (the join runs
+      // as a node module in GATE JOIN, where the core's globals are not)
+      const LAYM = { pushPull: ['nose', 'pusher'], tri: ['nose', 'wing', 'wing'],
+                     quad: ['wing', 'wing', 'wing', 'wing'] }[LAY];
+      // (the single mounts' and the pair's list, as GATE TECH reads it; a layout returns before it is used)
+      const mk = ['nose', 'pusher', 'wingTop', 'wing'][Math.round(P.engMount || 0)] || 'nose';
       const type = CAGE_JOIN_ENGINES[(T.PRESET_NAMES || [])[Math.round(P.engPreset)]]
                 || 'a65_sensenich74';
       const EU = Array.isArray(M.engUnits) ? M.engUnits : [];
       const aimK = Math.round(P.engAim || 0);
       const aim = aimK === 1 ? 'puller' : aimK === 2 ? 'pusher' : null;
-      const one = i => ({
+      const one = (i, mk) => ({
         type, mount: mk, place: { dx: 0, dy: 0 },
         ...(Math.abs(+P.engTilt || 0) > 0.01 ? { tilt: +P.engTilt } : {}),   // G477: the thrust line's tilt, deg, downthrust +
         ...(aim && mk !== 'nose' && mk !== 'pusher' ? { aim } : {}),
@@ -309,9 +318,10 @@ function cageJoinSpec(P, M, T) {
         // disc 2.4 cm INTO the ground at rest where the drawn disc clears
         // it by 0.26 m (a 172's ~10 in) - every taxi a prop strike. The
         // flange's y rides out with its x (the cowl, the mount and the nose
-        // leg read engY, now the drawn thrustline).
-        ...(mk === 'nose' && EU[0] && isFinite(EU[0].x)
-          ? Object.assign({ x: EU[0].x }, isFinite(EU[0].y) ? { y: EU[0].y } : {}) : {}),
+        // leg read engY, now the drawn thrustline). G2790: unit i's own
+        // flange (a layout's nose is unit 0, so a single reads EU[0] as before).
+        ...(mk === 'nose' && EU[i] && isFinite(EU[i].x)
+          ? Object.assign({ x: EU[i].x }, isFinite(EU[i].y) ? { y: EU[i].y } : {}) : {}),
         ...(mk === 'wingTop' ? { pylon: Math.max(0.05, +P.engPylonH || 0.30) } : {}),
         // G134: THE DRAWN ENGINE IS THE PHYSICS' AUTHOR — the G132 prop rule,
         // applied to the engine itself. M.engineFacts is engResolve over the
@@ -332,10 +342,14 @@ function cageJoinSpec(P, M, T) {
         // G194: the hand, seen from behind (+1 clockwise). A pair's row says
         // same hand / tops inward / tops outward; tops inward is port +1,
         // starboard -1 (down-going blades inboard). A single mount is +1.
+        // G2790: a layout's pairs take the row per pair (port first); a
+        // push-pull's rear hand is the clamp's (the nose's mirror)
         sense: mk === 'wing' && Math.round(P.engRotate || 0)
-          ? ((i === 0) === (Math.round(P.engRotate) === 1) ? 1 : -1) : 1,
+          ? (((LAY ? wingK(i) % 2 : i) === 0) === (Math.round(P.engRotate) === 1) ? 1 : -1) : 1,
       });
-      return mk === 'wing' ? [one(0), one(1)] : [one(0)];
+      const wingK = i => LAY ? LAYM.slice(0, i).filter(m => m === 'wing').length : i;
+      if (LAY) return LAYM.map((m, i) => one(i, m));
+      return mk === 'wing' ? [one(0, mk), one(1, mk)] : [one(0, mk)];
     })(),
     // ---- G132: THE PROPELLER FLIES AS DRAWN. spec.prop is the thrust
     // model's whole input (Tstatic, kV2, disc, mass all derive from D,
@@ -1732,7 +1746,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     // T2.3 (132): the bays' own abreast when the row says so
     const paxAb0 = Math.round(+P.paxAbreast || 0);
     const perRow = abreast ? 2 : 1;
-    const perBay = paxAb0 >= 1 && paxAb0 <= 3 ? paxAb0 : perRow;
+    // (G3573: 4-7 an aisle's two blocks - 2 + 1, 2 + 2, 3 + 2, 3 + 3 - and `paxRows` rows of them; the crew layer's own
+    // count, which also drops a row past the bay's front ring, is the one the drawn path below reads)
+    const perAb = paxAb0 >= 4 && paxAb0 <= 7 ? [3, 4, 5, 6][paxAb0 - 4] : paxAb0 >= 1 && paxAb0 <= 3 ? paxAb0 : perRow;
+    const perBay = perAb * Math.max(1, Math.round(+P.paxRows || 1));
     M.seating = bays >= 3 ? (abreast ? 'side4' : 'tandem4')
              : bays >= 1 ? (abreast ? 'side2' : 'tandem2')
              : 'single';
@@ -1845,7 +1862,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     window.CAGE_UI.build();
     return true;
   };
+  // G3715 (COWL-RES): the capture's eye-sheet hold is let go FIRST, so the build below raises no eye sheet for a
+  // capture that is over (eyeHold is declared with snapshot, further down)
+  let eyeHeld = 0;
   const viewRestore = () => {
+    if (eyeHeld) { eyeHeld--; eyeHold(false); }
     if (!viewWas) return;
     const was = viewWas; viewWas = null;    // once, even if this throws
     VIEW_STATE.forEach((r, i) => { if (was[i] !== null) r.set(was[i]); });
@@ -3031,15 +3052,18 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
              poseK: BK.slice() };
   };
   // ...and the view comes back, on the way out or on the way to a throw.
+  // G3715 (COWL-RES): the flown visual is the EYE SHEET when a variant is on (_cage_ui.js eyeHold: the level-2 mesh
+  // stashed for the capture, back before the view is) - the cockpit and the chase both fly it, the user's one visual
+  const eyeHold = on => { try { const U = window.CAGE_UI; return !!(U && U.eyeHold && U.eyeHold(on)); } catch (e) { console.error('eye hold:', e); return false; } };
   const snapshot = spec => {
-    try { return snapshotAt(spec); }
+    try { eyeHeld++; eyeHold(true); return snapshotAt(spec); }
     finally { viewRestore(); }
   };
   // G680: THE SAME CAPTURE IN THREE TASKS (app.js syncBuildSteps, under the roll-out screen): the view neutralised
   // (a build), the snapshot, the view back (a build) - 1.2-1.9 s in one task on the click of "roll out". Its
   // caller drives it to the end (the finally is the view's way back, as above).
   function* snapshotSteps(spec) {
-    try { if (viewNeutral()) yield 'view'; const r = snapshotAt(spec); yield 'snapshot'; return r; }
+    try { if (viewNeutral()) yield 'view'; eyeHeld++; if (eyeHold(true)) yield 'eye'; const r = snapshotAt(spec); yield 'snapshot'; return r; }
     finally { viewRestore(); }
   }
   // THE FIT REPORT (G52, user: "the visual fit remains very approximate").

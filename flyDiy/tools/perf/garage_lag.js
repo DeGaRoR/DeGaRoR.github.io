@@ -18,6 +18,7 @@
 // --prof: one extra, untimed rep per change under a CDP CPU profile: self ms by function and by file in the window.
 // Usage: node tools/perf/garage_lag.js --port 8771 --udd D:/ugl1 --trees base=_ab/3da1c82a/flyDiy,today=_ab/06bbd8e3/flyDiy
 //          [--builds cub,metal] [--reps 5] [--only fuseLen,wingSpan] [--prof] [--list] [--out file.json] [--page index.html] [--evms 60000] [--nodrag] [--norender]
+//          [--cam interior]
 // No --help (an unknown flag is ignored).
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -26,6 +27,7 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] !== undefined && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
 const flag = k => argv.includes('--' + k);
 const PORT = +opt('port', 0), UDD = opt('udd', null);
+const CAM = opt('cam', null);                // --cam interior: time the rows from the pilot's seat (G3713)
 if (!PORT || !UDD) { console.error('garage_lag: --port and --udd are required'); process.exit(2); }
 const REPO = path.resolve(__dirname, '..', '..', '..');
 const TREES = opt('trees', 'here=flyDiy').split(',').map(s => { const [k, p] = s.split('='); return { key: k, rel: p.replace(/\\/g, '/').replace(/\/$/, '') }; });
@@ -167,6 +169,12 @@ function hot(p) {
     await sleep(6000);
     log('harness ' + await b.ev(HARNESS));
     if (NORENDER) { await b.ev("(() => { window.requestAnimationFrame = () => 0; return 1; })()"); await sleep(3000); log('render loop stopped'); }
+    // --cam interior (G3713, COWL-RES): the rows timed from the pilot's seat - the editor's INTERIOR pill pressed through
+    // the rail's camera flyout (opened, pressed once it has filled, closed), then a settle; the log says whether it took
+    if (CAM === 'interior') {
+      const got = await b.ev("(async () => { const R = () => document.querySelector('#edRail [data-f=\"camera\"]'); if (!R()) return 'no rail'; R().click(); let p = null; for (let i = 0; i < 20 && !p; i++) { await new Promise(r => setTimeout(r, 300)); p = [...document.querySelectorAll('#edFlyBody .pill')].find(x => x.textContent.trim() === 'interior'); } if (!p) { R().click(); return 'no pill'; } if (p.disabled) { R().click(); return 'disabled (no pilot)'; } p.click(); await new Promise(r => setTimeout(r, 300)); R().click(); return 'interior'; })()", 20000);
+      await sleep(4000); log('camera ' + got);
+    }
     const ver = await b.ev("(() => { try { return (window.FLYDIY_BUILD || '') + ''; } catch (e) { return '?'; } })()");
     if (flag('dumpwip')) {
       const w = await b.ev("(() => { try { return localStorage.getItem('flydiy.wip') || ''; } catch (e) { return ''; } })()");
