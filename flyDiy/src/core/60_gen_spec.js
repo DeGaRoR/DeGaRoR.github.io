@@ -2276,8 +2276,20 @@ function genPropAuto(pr, Vs) {
   return pick;
 }
 
+// G3443 (HYDRO-TRIM): `fm` IS FM^(2/3), NOT THE FIGURE OF MERIT the note above reads it as: momentum theory's
+// T = (FM P sqrt(2 rho A))^(2/3) = FM^(2/3) (2 rho A)^(1/3) P^(2/3), and genPropSynth multiplies by fm. So 'standard'
+// 0.477 is FM 0.33 (the A-65 + Sensenich anchor: a fixed prop that cannot turn its engine to rated rpm standing - it
+// stays the anchor) and 'climb' 0.530 was FM 0.386, under every measured prop absorbing full power standing:
+// Flight Resource's static tests for STC SA02245CH (C170B, O-360-A1A 180 hp, 1000 ft, 75 F; McFarlane's copy of the
+// report): Hartzell 2-blade 76 in 672 lbf (FM 0.49), MT 2-blade 80 in 785 lbf (FM 0.59) - the sim gave the same discs
+// and power 13 % and 23 % less on 'climb'. A fine prop is the one that DOES reach rated rpm standing (the 172R's
+// IO-360-L2A is rated at 2,400 rpm, under the 82 x 43 float prop's static rpm), so 'climb' is now FM 0.50: fm 0.630.
+// The 82 x 43 on 118 kW: 2,587 -> 3,075 N (692 lbf; a McCauley 2-blade float prop on 180 hp, 750 lbf at 2,450 rpm, in
+// the same report as transcribed). Its V0 (propV0K P / Tstatic) falls with it - a fine prop runs out of pitch sooner:
+// the thrust is the old one's at ~40 m/s and 12 % under it at 55. Builds on 'climb': the 3-blade carbon tile (the
+// Caravan-alike), the G3390 STC build; 'auto' tries 'climb' first, and a lower V0 can send it to 'standard'.
 const GEN_PROP_PITCH = {
-  climb:    { name: 'Fine (climb)',    fm: 0.530, pd: 0.55 },
+  climb:    { name: 'Fine (climb)',    fm: 0.630, pd: 0.55 },
   standard: { name: 'Standard',        fm: 0.477, pd: 0.70 },
   cruise:   { name: 'Coarse (cruise)', fm: 0.420, pd: 0.85 },
 };

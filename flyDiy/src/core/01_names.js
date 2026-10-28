@@ -38,6 +38,7 @@ var GAME_NAMES = {
     mn_strip: 'Copperhead Mine Street',       // (was Jumbo Mine Street)
     nv_strip: 'East Point Clearing',
     tw_ski:   'Skyline Altiport',
+    cb_sea:   'Cabin Lake',                   // (CABIN-LAKE 26 Oct: the seaplane lane in front of the Cabin Strip, by the user's piers)
   },
 };
 

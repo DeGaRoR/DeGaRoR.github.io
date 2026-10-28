@@ -199,6 +199,52 @@ function tyreTorus(R, rb, zb, b, grooveAt) {
   const pts = [...phs].sort((p, q) => p - q).map(ph => [rc + a * Math.cos(ph), b * Math.sin(ph), ph]);
   return { pts, rc, a, b };
 }
+// G3549b (the user, 27 Oct: the tundras "suck in their geometry and thread"): A BUSH TYRE IS NEVER A SLICK. The
+// Alaskan Bushwheel family (26-35") wears LOW, WIDE lugs (3/16-1/4": ~0.6 % of the diameter) with wide voids, across a
+// round crown and onto the shoulders, no circumferential rib (futureDesigns/TYRES-2026-10.md). The torus drew a plain
+// balloon for whTread 1 ('smooth') and 2 ('blocked' laid its boxes on a flat crown); it now wears these lugs for
+// both - whTread is a hashed cage row (bench.js), so the drawing follows the carcass and no key moves. BUSH_LUG: N
+// bars a side, staggered half a pitch; each runs from the centreline (ph0) onto the shoulder (ph1) along the section,
+// leaning `lean` rad round the wheel over its run, so a pair reads as a chevron; `w` its width along the circumference
+// and `h` its height off the carcass, both of R. Drawing only.
+const BUSH_LUG = { N: 20, ph0: 0.05, ph1: 1.20, lean: 0.10, w: 0.11, h: 0.016, steps: 6 };
+function bushLugs(T, TT, R, at) {
+  const L = BUSH_LUG, H = R * L.h, sink = R * 0.004;
+  // the carcass point at section angle ph, `dh` off it along the section's normal, at wheel angle an
+  const P = (ph, dh, an) => {
+    const nr = TT.b * Math.cos(ph), nz = TT.a * Math.sin(ph), nl = Math.hypot(nr, nz) || 1;
+    return at(TT.rc + TT.a * Math.cos(ph) + dh * nr / nl, TT.b * Math.sin(ph) + dh * nz / nl, an);
+  };
+  const quad = (a, b, c, d, out) => {
+    const n = crs(sub(b.p, a.p), sub(d.p, a.p));
+    if (dot(n, out) >= 0) T.quad(a.i, b.i, c.i, d.i); else T.quad(a.i, d.i, c.i, b.i);
+  };
+  const V = p => ({ p, i: T.v(p) });
+  for (const s of [-1, 1])
+    for (let k = 0; k < L.N; k++) {
+      const an0 = 2 * Math.PI * (k + (s > 0 ? 0.5 : 0)) / L.N;
+      const st = [];
+      for (let j = 0; j <= L.steps; j++) {
+        const u = j / L.steps, ph = s * (L.ph0 + (L.ph1 - L.ph0) * u);
+        const an = an0 + L.lean * u;
+        const r = TT.rc + TT.a * Math.cos(ph), dA = L.w * R * 0.5 / Math.max(r, R * 0.3);
+        st.push({ lo: [V(P(ph, -sink, an - dA)), V(P(ph, -sink, an + dA))],
+                  hi: [V(P(ph, H, an - dA)), V(P(ph, H, an + dA))], ph, an });
+      }
+      // outward = off the carcass at the station's mid
+      const outAt = q => sub(P(q.ph, H, q.an), P(q.ph, 0, q.an));
+      for (let j = 0; j < L.steps; j++) {
+        const a = st[j], b = st[j + 1], o = outAt(a);
+        quad(a.hi[0], a.hi[1], b.hi[1], b.hi[0], o);                         // the lug's face
+        const side = sub(a.hi[1].p, a.hi[0].p);
+        quad(a.lo[1], b.lo[1], b.hi[1], a.hi[1], side);                      // its two walls
+        quad(a.lo[0], a.hi[0], b.hi[0], b.lo[0], mul(side, -1));
+      }
+      const f = st[0], e = st[L.steps];
+      quad(f.lo[0], f.lo[1], f.hi[1], f.hi[0], sub(P(f.ph, 0, f.an), P(e.ph, 0, e.an)));   // the ends
+      quad(e.lo[0], e.hi[0], e.hi[1], e.lo[1], sub(P(e.ph, 0, e.an), P(f.ph, 0, f.an)));
+    }
+}
 function wheel(bags, ctr, axis, R, opt) {
   opt = opt || {};
   const P = opt.P || {};
@@ -273,8 +319,9 @@ function wheel(bags, ctr, axis, R, opt) {
       return [r, z];
     }), 44);
     wallAt = r => { const u = (r - TT.rc) / TT.a; return Math.abs(u) < 1 ? TT.b * Math.sqrt(1 - u * u) : beadH; };
+    if (tread !== 0) bushLugs(T, TT, R, at);
   } else revolve(T, ctr, ax, flank(-1).concat(crown, flank(1).reverse()), 44);
-  if (tread === 2) {
+  if (tread === 2 && !prof.torus) {
     const NB = 15;
     for (let row = -1; row <= 1; row += 2)
       for (let k = 0; k < NB; k++) {

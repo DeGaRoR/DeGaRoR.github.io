@@ -418,6 +418,11 @@ const GATES = [
   // G2382 (DMG-SCAR2): + the join (a skipping slide one gouge, a crater only where a hard blow stopped), the resting wreck's
   // hull inside the cull, the runway's scuff readable from the chase camera, the floats' water crash scarless
   { id: 'DMGSCAR', file: '_dmg_scar_check.js', tier: 'core', weight: 3, wall: 950 },
+  // G3623 (DMG-GLASS): the impact mark on the glazing - the GLSL copy in aeroskin.js = dmg_glass.js's, the rules (no mark
+  // under 0.3 % set: no crazing on hard landings; never moved; at most 4), the GLSL against its JS mirror and the real
+  // aeroGlass drawn in WebGL2 (headless Chromium, NOT RUN without it), the triggers on the Cub, the Jodel and the metal
+  // Cessna (the taxi and FAR 23.473's drop unmarked, the 30 m/s centreline trunk marked). Three children at once
+  { id: 'DMGGLASS', file: '_dmg_glass_check.js', tier: 'core', weight: 3, wall: 400 },
   // G2373-G2377 (DMG-OCCUPANT): each occupant's band after a crash (src/core/34_occupant.js) - one of five words, the
   // criteria behind it in the gate's output only: the bands by case on the validated builds (the taxi and FAR 23.473's
   // drop Unharmed, the 30 m/s centreline severe), damage off = no record, the recorder only reads, the hop once, the
@@ -431,6 +436,9 @@ const GATES = [
   { id: 'DMGDETERMINISM', file: '_dmg_determinism_check.js', tier: 'core', weight: 3, wall: 1800 },
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
+  // G3880-G3884 (GAME-MENUS): the browser's Back asks first - the guard armed at the first input, Back -> the box (the sim held),
+  // Stay keeps the flight, Leave leaves, the tab's beforeunload; and NEVER on a rig (WELCOME.RIG, ?nogate, ?backguard=0, a frame)
+  { id: 'BACKGUARD', file: '_backguard_check.js', tier: 'core' },
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two
   // boots key and link the same sources, a bake links each program once, the off-scene passes are listed
   { id: 'PROGRAMS', file: '_program_check.js', tier: 'core' },
@@ -528,6 +536,7 @@ const GATES = [
   // five SPECIFICATIONS, because the shapes alone never build an IFR
   // wing-tank aeroplane and that is where the collisions were.
   { id: 'FIT', file: '_fit_check.js', tier: 'core' },
+  { id: 'HANDLE', file: '_handle_check.js', tier: 'core', wall: 400 },   // DOOR-HINGES-2: no handle on the glass, every build file and card
   // THE RAY INDEX (G1281, GARAGE-LAG): three's Mesh raycast answered from a per-geometry hierarchy must give three's
   // own hit list - both ways on ~3 200 rays (random, axis-aligned, grazing at vertices and edges, inside, near/far)
   // over indexed, non-indexed, transformed, instanced meshes and a sliver soup; the meshes it must leave alone take
@@ -858,6 +867,9 @@ const GATES = [
   // THE PILOT ON THE WATER (H4, G393): the sea lane's circuit, a crosswind
   // take-off, an idle taxi on the water rudder — three flights (~8 min)
   { id: 'SEAPLANE', file: '_seaplane_check.js', tier: 'full', wall: 480 },
+  // THE HUMP (G3442, HYDRO-TRIM): the afterbody in the forebody's wake (the 2350 hull in the tank), and the stock
+  // 172R on Wipaire's exact float over its hump and off the water at the STC gross (~3 min)
+  { id: 'HYDROTRIM', file: '_hydrotrim_check.js', tier: 'full', wall: 200 },
   // THE PLAYER (HANGARS S1): the player's property as ONE document — its own
   // version and migrator walk beside the spec's (G105's ruling: state that is
   // not the aeroplane costs no spec version), the one-time lift of the two
@@ -907,8 +919,13 @@ const GATES = [
   // pack validates (the tree, the orders, the places, the people, each record through contractValidate), the editor's
   // core judges them as the full core; the BUILT-IN pack is today's contracts (each record, its pay, the install, the
   // offers and documents of two careers walked under both); the tutorial listed read-only; the new model's rules each
-  // refused alone; the rally's derived checkpoints. ~25 s. `--selftest`: 18 doctored rules, each red (~8 min)
+  // refused alone; the rally's derived checkpoints; (P1/P2) the runtime end to end through a career - orders sold + profit,
+  // preferences, the client's airframe, the failure rules + restart, the in-flight tracker, timers, markers. ~40 s.
+  // `--selftest`: 37 doctored rules, each red (~25 min)
   { id: 'MISSIONS', file: '_missions_check.js', tier: 'core', wall: 45 },
+  // THE MISSION PROPS (MISSIONS-PROPS): tools/_mission_gen.js - the air-race pylon, the balloon column, the ring, the marker
+  // flag, the tie-down spot, the site's stages; their strike dimensions are the core's (73c MISSION_PROP_DIMS)
+  { id: 'MISSIONPROPS', file: '_mission_props_check.js', tier: 'core' },
   // THE STAGES (G2300 STAGES, contract v1.33, GAME-2026-10-06.md §11): the sandbox's composed record = the island cook's
   // hash (today's island, byte for byte, both variants); every stage value of every track composes (valid, the village
   // unmoved, the altiport and East Point by their stage); MILL-TAXI's census at every stage with the kits' solids; never

@@ -1,4 +1,4 @@
-// GENERATED FILE - DO NOT EDIT. Written by tools/build.js (LOADING S4). Build f7d94c304df1.
+// GENERATED FILE - DO NOT EDIT. Written by tools/build.js (LOADING S4). Build 49c5e44d9b9e.
 // The media cache: cache-first for media/ (content-hashed, immutable), nothing else.
 // The world payloads and mesh bins this build asks for; anything else under
 // media/world/ or media/geo/ is swept on activate (a superseded world is ~35 MB,
@@ -9,7 +9,7 @@ const GEO_KEEP = ["media/geo/airframe/airframe_jodel_body.19f6f9f4.gz.bin","medi
 // stale. Precached on install when a career page is open (?career=1 / ?map=1 / ?freight=1), and on the career loader's
 // word (a page that fetched it), so a career boots offline after one visit; a sandbox never asks and never caches it.
 // Any other career_core.*.js in the cache is a superseded build's and is swept on activate.
-const CAREER_KEEP = ["career_core.a5fa33b1.js"];
+const CAREER_KEEP = ["career_core.9d9c443c.js"];
 const CAREER_RE = /\/career_core\.[0-9a-f]{8}\.js$/;
 const CAREER_URL = /[?&](career|map|freight)=1(&|$)/;
 // G3070 (ROUTE-LAZY): THE DRAWN ROUTE'S DRAWING, this build's (route_draw.<h8>.js) - the same rules: cache-first for

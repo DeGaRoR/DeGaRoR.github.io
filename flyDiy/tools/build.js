@@ -201,7 +201,13 @@ const MANIFEST = {
     '72_accept.js',
     // THE CONTRACTS (G2240 CONTRACT-MODEL): the providers' data (text keys), the record, the job generator, a
     // stage's acceptance and the career document; pure, GATE CONTRACTS. GAME-2026-10-06.md §6, §7, §13.2.
-    '72_contract_data.js', '73_contracts.js', '74_career.js', '75_career_wire.js',
+    '72_contract_data.js', '73_contracts.js',
+    // THE MISSION PACKS (MISSIONS-P0): src/missions/*.json's format, validator, the conversion into 73_'s record, the
+    // install over CONTRACT_PROVIDERS (a page calls it; nothing at boot yet). THE MISSION RUNTIME (MISSIONS-P1/P2): the
+    // in-flight tracker (points, gates, rings), the timers, the failure rules, an order's preferences / delivery / profit,
+    // the new verbs at a stop, the map's marker data. Pure; GATE MISSIONS. futureDesigns/MISSIONS-2026-10-25.md
+    '73b_missions.js', '73c_mission_run.js',
+    '74_career.js', '75_career_wire.js',
     // THE STAGES (G2300 STAGES): the career's tracks -> the premises' `stage` (27_premises.js stageView), the unlock ->
     // reveal map, the queue that never applies in flight. Pure; GATE STAGES. GAME-2026-10-06.md §11.
     '76_stages.js',
@@ -255,7 +261,7 @@ const MANIFEST = {
   // stored (flydiy.routeDraw { fly: true } - ROUTE_LOADER). The pilot's half is core (38c_route.js, 44_vprofile.js: the
   // page's pilot and the worker's fly them) and stays inline.
   routeDraw: 'route_draw.js',
-  career: ['72_contract_data.js', '73_contracts.js', '74_career.js', '75_career_wire.js', '76_economy.js',
+  career: ['72_contract_data.js', '73_contracts.js', '73b_missions.js', '73c_mission_run.js', '74_career.js', '75_career_wire.js', '76_economy.js',
     '76_procure.js', '76_pilots.js', '76_freight.js', '77_freight_load.js', '78b_routes.js', '79_story.js', '79b_tech.js'],
   // baked 3D model payloads (tools/model_prep.py baked the PA-18 and C172
   // when they were flyable, tools/ref_prep.py the rest — all REFERENCE
@@ -534,14 +540,17 @@ const MANIFEST = {
     // prop disc and the contact blobs make their materials through window.MATLIB, so it is there before any of them
     // ui_layer.js (G1370) right after matlib.js: THE UI LAYER - pattern_vis.js, editor.js, app.js, water.js and
     // shadow_near.js read window.UI_LAYER (the in-world helpers on a layer only the main camera sees)
+    // back_guard.js (G3880, GAME-MENUS) right after them: the browser's Back asks before it leaves the game - it reads
+    // welcome.js's WELCOME.RIG at eval (never on a rig) and app.js's FLIGHT_PROBE only at the player's first input
     // card_drag.js (G3526, GAME-MENUS) right after it: EVERY CARD IS DRAGGABLE - window.FLYDIY_DRAG, before any card's
     // own code (bench.js, app.js, freight_load.js, boombox.js, input_panel.js, gfx_settings.js) makes one
-    scripts: ['storage.js', 'flight_recorder.js', 'assets.js', 'matlib.js', 'ui_layer.js', 'card_drag.js', 'aa_resolve.js',
+    scripts: ['storage.js', 'flight_recorder.js', 'back_guard.js', 'assets.js', 'matlib.js', 'ui_layer.js', 'card_drag.js', 'aa_resolve.js',
               'light_rig.js', 'day_clock.js', 'atmo.js', 'sky_light.js', 'sky_glare.js', 'clouds.js', 'clouds_ui.js', 'day_ui.js', 'weather_ui.js', 'climate_link.js',
               // post_fx.js (POST-FX study, 2026-09-21): the switchable post passes over the resolve
               // pass's hook; publishes window.POST_FX at eval, app.js inits it, gfx_settings.js sets its rows
               'post_fx.js', 'shadow_near.js',
               'shed_shadow.js',   // G2070: the shed's shadow cache (app.js: SHED_SHADOW.pre / post round the garage's render)
+              'studio.js',   // G3726 (PHONE-GARAGE): the black studio in the shed's place (app.js getHangar; the phone's room, a desktop option)
               'prop_disc.js',   // G672: the propeller's disc, measured off its blades (app.js makes one per prop part)
               'contact_shadow.js',   // G1002: the tyres' contact shadows (app.js contactShadows, after poseModel)
               'shader_warm.js',   // G584: the programs the compile step warms beyond the scene (the shadow pass's depth, the full-screen passes)
@@ -660,6 +669,8 @@ const MANIFEST = {
               'skin_gpu.js',
               // G1860-G1863 (DMG-D4b): the wreck's non-member parts - debris, the prop strike, the cockpit rule (window.WRECK_DEBRIS, pure)
               'wreck_debris.js',
+              // G3623 (DMG-GLASS): the impact marks on the glazing (window.DMG_GLASS, pure; app.js glassMarks; the crack block is aeroskin.js's)
+              'dmg_glass.js',
               'world_boot.js', 'app.js',
               'dev_panel.js'],   // (the WORLD rail, world_rail.js, rides the world pack above - G582)
   },
@@ -1298,16 +1309,18 @@ window.FLYDIY_BOOT.then(function () {
   // G2252 (MAP-MENU): THE MAP ENTRY - only with ?map=1 (the dev flag) or in the career mode (FLYDIY_MODE, welcome.js's);
   // the sandbox has none. A button, and nothing else: the screen, its projection, the picture and the contracts load when
   // it is pressed (lazy, like diag.js)
+  // G3521 (GAME-MENUS, the 24 Oct playtest: "the map button is confused with the minimap"): the entry is CONTRACTS and
+  // opens the screen on the contracts list; Tab is the map (app.js); where it stands, beside MENU, is app.js gmLayout
   window.FLYDIY_MAP_SRC = { fixture: ${JSON.stringify(MAP_FIXTURE)} };
   var mapEntry = window.FLYDIY_MAP_ENTRY = function () {
     var on = /[?&]map=1(&|$)/.test(location.search) || window.FLYDIY_MODE === 'career';
     if (!on) return false;   // the sandbox: nothing touched
     if (!document.body || document.getElementById('mapEntry')) return !!document.getElementById('mapEntry');
     var b = document.createElement('button');
-    b.id = 'mapEntry'; b.type = 'button'; b.textContent = 'MAP'; b.setAttribute('aria-label', 'the island map and the contracts');
+    b.id = 'mapEntry'; b.type = 'button'; b.textContent = 'CONTRACTS'; b.setAttribute('aria-label', 'the contracts, on the island map');
     b.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:2147482000;min-width:72px;min-height:48px;padding:0 18px;border-radius:24px;' +
       "border:1px solid rgba(255,178,87,.85);background:rgba(28,24,20,.86);color:#ffb257;font:600 13px/1 'IBM Plex Sans',sans-serif;letter-spacing:.16em;cursor:pointer";
-    b.onclick = function () { lazy(['map_pack', 'map_menu']).then(function () { if (window.MAP_MENU) window.MAP_MENU.open(); }); };
+    b.onclick = function () { lazy(['map_pack', 'map_menu']).then(function () { if (window.MAP_MENU) window.MAP_MENU.open({ list: 'contracts' }); }); };
     document.body.appendChild(b);
     return true;
   };
