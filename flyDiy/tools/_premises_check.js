@@ -113,7 +113,7 @@ try {
   const ctx = { window: GENS, THREE: makeTHREE(), console, Math, JSON, Float32Array, Object, Array, Set, Map, Number, String, isFinite, parseInt, parseFloat };
   ctx.globalThis = ctx;
   vm.createContext(ctx);
-  for (const f of ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_sport_gen.js', '_marine_gen.js', '_shed_gen.js', '_hangar_gen.js', '_tower_gen.js', '_navaid_gen.js', '_tram_gen.js', '_totem_gen.js', '_village_gen.js'])
+  for (const f of ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_sport_gen.js', '_marine_gen.js', '_shed_gen.js', '_hangar_gen.js', '_tower_gen.js', '_navaid_gen.js', '_meteo_gen.js', '_tram_gen.js', '_totem_gen.js', '_village_gen.js'])
     vm.runInContext(fs.readFileSync(path.join(TOOLS, f), 'utf8'), ctx, { filename: f });
 } catch (e) { console.log('  (generators not loaded headless: ' + e.message + ')'); }
 const CAT = PG.collect(GENS);
@@ -993,7 +993,8 @@ if (SELFTEST) {
     }
     // (G3014, A0 + the user's default 12 Oct: two of the user's rev 26 placements stand dry AS DRAWN - kept, and flagged for the
     //  user to move in the editor; any other dry pier, float or wharf is still red)
-    const DRY_OK = ['marine/net pens @69,-10640', 'marine/wharf deck, small @-1452,-8371'];
+    // (JOLENE-FOLD 25 Oct: the user's AFB (19) seaplane float s37 likewise, its far end on the shore as drawn - A0's rule, flagged)
+    const DRY_OK = ['marine/net pens @69,-10640', 'marine/wharf deck, small @-1452,-8371', 'marine/seaplane float @2210,-17381'];
     const dryNew = dry.filter(d => DRY_OK.indexOf(d) < 0), dryUser = dry.filter(d => DRY_OK.indexOf(d) >= 0);
     if (dryUser.length) console.log('     14e FLAGGED for the user (their rev 26, drawn on dry ground; kept as drawn): ' + dryUser.join(' | '));
     check(dryNew.length === 0, '14e a pier, a float and a wharf reaches the water', dryNew.slice(0, 5).join(', '));
@@ -1363,6 +1364,14 @@ if (SELFTEST) {
   const mh = (x, z) => { const w = O.frame.toWorld(x, z); return B.mixHere(8, w[0], w[1]); };
   check(mh(0, 50) === 'conifer' && mh(60, 0) === null && mh(-300, 10) === '@k3' && mh(2000, 0) === 'deciduous' && B.density('@k3') > 0,
     "17 mixHere: the polygon's biome, none, its own mix, the terrain type's elsewhere", [mh(0, 50), mh(60, 0), mh(-300, 10), mh(2000, 0)].map(String).join(' '));
+  // G3430 18 LAKESHORE: the band answers only where map[18] names a mix and no polygon speaks (a polygon paints or erases it)
+  const sh = (x, z) => { const w = O.frame.toWorld(x, z); return B.shoreHere(w[0], w[1]); };
+  B.shore = () => true;
+  const shNoMap = sh(2000, 0);
+  B.map[BIOMES.SHORE] = 'deciduous';
+  check(BIOMES.SHORE === 18 && !shNoMap && sh(2000, 0) === true && sh(0, 50) === false && sh(60, 0) === false && sh(-300, 10) === false,
+    "17 shoreHere: no band without map[18]; the band where no polygon speaks; a polygon's biome, none or own mix wins", [shNoMap, sh(2000, 0), sh(0, 50), sh(60, 0), sh(-300, 10)].map(String).join(' '));
+  delete B.map[BIOMES.SHORE]; B.shore = null;
   // the clearance: the aerodrome carries it (null without), the box and its taper, the outline
   const a1 = O.aerodromes.find(a => a.id === 'w1'), a2 = O.aerodromes.find(a => a.id === 'w2');
   check(a1 && a1.treeClear && a1.treeClear.side === 40 && a1.treeClear.beyond === 200 && a1.treeClear.taper === 0.15 && a1.treeClear.bushes === true && a2 && a2.treeClear === null,
@@ -1637,7 +1646,8 @@ if (SELFTEST) {
     const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec;
     // (G3014: the user's rev 27 roads r37 / r38 came with a bed (rev 28: r39-r45 too) - the editor's default for a new road since G2952; a bed stands only
     //  on a road the user's own save gives one)
-    const bedU = new Set(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_user_jolene_rev28.json'), 'utf8')).rec.layers.roads.filter(r => r.bed).map(r => r.id));
+    //  (JOLENE-FOLD: and the user's AFB (19) save - r31 given one, r46 drawn with one)
+    const bedU = new Set(['scenery_user_jolene_rev28.json', 'scenery_user_jolene_afb19.json'].flatMap(f => PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', f), 'utf8')).rec.layers.roads.filter(r => r.bed).map(r => r.id)));
     check(J.layers.roads.every(r => !r.bed || bedU.has(r.id)), '21c a shipped road carries a bed only where the user gave it one (' + [...bedU].join(', ') + ')', J.layers.roads.filter(r => r.bed && !bedU.has(r.id)).map(r => r.id).join(' '));
   }
   // 21d METLAKATLA ONE GRID (G2954): its streets one component of shared-waypoint junctions; its connection points named;

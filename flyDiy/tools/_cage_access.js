@@ -573,7 +573,10 @@ PAGE.post = ctx => {
       // along the chord (sL, metres) and up the panel (lv, cage units)
       const recs = (CG2 && CG2.cageDoorEdges) ? CG2.cageDoorEdges(mesh) : [];
       const edge = Math.round(+P.hgDoorEdge || 0);
-      sites = recs.map(r => SITE.doorHandleSite(r, { edge, inset: 0.06 / FS, dSL: dSL / FS, dLV: dLV })).filter(Boolean);
+      // DOOR-HINGES-2: on the door's SOLID skin (never its glass), lying
+      // along the chord; the frame beside it when the door has no room
+      sites = recs.map(r => SITE.doorHandleSite(r, { edge, inset: 0.06 / FS, dSL: dSL / FS, dLV: dLV,
+                                                    mesh, FS, size: row.size })).filter(Boolean);
     } else if (row.on === 'boom') {
       const want = typeof row.side === 'function' ? row.side(R) : row.side;
       sites = boomSites(row, P, R, atSL, atLV, bagsFor, want || 'both');
@@ -707,6 +710,14 @@ PAGE.post = ctx => {
         }
       }
     }
+    // DOOR-HINGES-2: A HANDLE IS NEVER ON THE GLASS - a grab handle snapped to
+    // a ring beside a window (the PA-18's, the STOL Cub's: its foot over the
+    // door's glass) walks to the nearest clear skin on its side
+    if (row.form === 'handleGrab' && row.on === 'body' && SITE.handleOffGlass) {
+      const sz = row.size || {}, r = +sz.r || 0.009;
+      const hl = ((+sz.w || 0.13) * 0.5 + 2 * r + 0.006) / K2, hh = (2 * r + 0.006) / K2;
+      sites = sites.map(s => SITE.handleOffGlass(mesh, s, { FS: K2, hl, hh, along: [0, 1, 0] })).filter(Boolean);
+    }
     if (!sites.length) { unplaced.push(row); continue; }
 
     for (const s of sites) {
@@ -717,6 +728,18 @@ PAGE.post = ctx => {
       // under the keel); every other form keeps the surface's own normal.
       const upright = (atLV === 'crown' || atLV === 'keel') && /Aerial|Beacon/.test(String(row.form));
       let F = frameAt(pm, upright ? [0, atLV === 'keel' ? -1 : 1, 0] : s.n);
+      // DOOR-HINGES-2: a site that names its long axis (the door handle
+      // along the chord, or upright on the frame) turns the form's `side`
+      // onto it; fore = side x n keeps the frame's handedness
+      if (s.along) {
+        const n = F.n, a = s.along, d = a[0] * n[0] + a[1] * n[1] + a[2] * n[2];
+        let sd = [a[0] - n[0] * d, a[1] - n[1] * d, a[2] - n[2] * d];
+        const L = Math.hypot(sd[0], sd[1], sd[2]);
+        if (L > 1e-6) {
+          sd = [sd[0] / L, sd[1] / L, sd[2] / L];
+          F = { p: F.p, n, side: sd, fore: [sd[1] * n[2] - sd[2] * n[1], sd[2] * n[0] - sd[0] * n[2], sd[0] * n[1] - sd[1] * n[0]] };
+        }
+      }
       // the conforming surface: ask the contract where the skin is a little
       // way off in each direction, so a big plate follows the section instead
       // of standing off at its corners
@@ -768,7 +791,7 @@ PAGE.post = ctx => {
           const d = (q[0] - pm[0]) * F.n[0] + (q[1] - pm[1]) * F.n[1] + (q[2] - pm[2]) * F.n[2];
           if (d > lift) lift = d;
         }
-        if (lift > 0.0003) F = frameAt([pm[0] + F.n[0] * (lift + 0.0003), pm[1] + F.n[1] * (lift + 0.0003), pm[2] + F.n[2] * (lift + 0.0003)], F.n);
+        if (lift > 0.0003) F = Object.assign({}, F, { p: [pm[0] + F.n[0] * (lift + 0.0003), pm[1] + F.n[1] * (lift + 0.0003), pm[2] + F.n[2] * (lift + 0.0003)] });
       }
       // GATE CLIP reads each fitting's own triangles back out of the
       // merged bags, so the range every form wrote is recorded with the site
@@ -783,7 +806,8 @@ PAGE.post = ctx => {
       // pass without it fell back to "up" for everything and reported seven
       // perfectly good fittings as invisible.
       placed.push({ key: row.key, name: row.name, serves: row.serves,
-                    on: row.on, side: s.side, p: pm, n: F.n,
+                    on: row.on, side: s.side, p: pm, n: F.n, along: F.side,
+                    onFrame: !!s.onFrame,                          // DOOR-HINGES-2: the handle went to the frame
                     st: s.st, lv: s.lv, mat: s.mat, tris, host: s.host || '' });
     }
   }

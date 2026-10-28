@@ -2,6 +2,9 @@
 //
 //   node tools/garage_shot.js --url http://localhost:8450/flyDiy/dev.html --stock "cessna 172" \
 //        --out screenshots/c172 [--views q,s,f,t,x,fleet,air] [--wait 15000] [--log]
+//   node tools/garage_shot.js --file tools/fixtures/build_v10_engcfg_pushpull_2026-10-22.json --out screenshots/pp
+//        (ENGINE-CONFIGS-2: a BUILD FILE in place of a stock row - dropped on the garage as the user drops one,
+//        the DROP-JSON door G2799 opened: the page's own import, readFile)
 //
 // island_shot.js's rig (headless Chrome on this machine's GPU, the page's own
 // buttons pressed through CDP), pointed at the garage: the page booted, the
@@ -37,6 +40,7 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
 const URL = opt('url', 'http://localhost:8450/flyDiy/dev.html');
 const STOCK = opt('stock', 'cessna 172');
+const FILE = opt('file', null);
 const OUT = opt('out', 'screenshots/shot');
 const VIEWS = opt('views', 'q,s,f,t,x,fleet,air').split(',');
 const WAIT = +opt('wait', 15000);
@@ -92,7 +96,15 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
     "(window.BALANCE_LISTENERS=window.BALANCE_LISTENERS||[]).push(r=>L.push({t:T(),k:'bal',cgMX:r.cgMX,cgMY:r.cgMY,mass:r.mass,spec:spec(),crewPending:!!(window.CAGE_CREW_PENDING&&CAGE_CREW_PENDING()),held:!!(window.CAGE_FLOAT_HELD&&CAGE_FLOAT_HELD())}));" +
     "let cg=null,st=null;setInterval(()=>{const c=JSON.stringify(window.FLYDIY_CG_MODEL||null);if(c!==cg){cg=c;L.push({t:T(),k:'cg',cg:window.FLYDIY_CG_MODEL,spec:spec(),crewPending:!!(window.CAGE_CREW_PENDING&&CAGE_CREW_PENDING())});}" +
     "const F=window.CAGE_FLOAT,s2=F?JSON.stringify([F.zStep,F.cgZ,F.cgY,F.cgFrom]):null;if(s2!==st){st=s2;L.push({t:T(),k:'step',zStep:F&&F.zStep,cgZ:F&&F.cgZ,cgY:F&&F.cgY,cgFrom:F&&F.cgFrom,zFw:window.CAGE_DATUM&&CAGE_DATUM.zFw,held:!!(window.CAGE_FLOAT_HELD&&CAGE_FLOAT_HELD())});}},100);return 1})()");
-  const loaded = BUILD
+  let loaded;
+  if (FILE) {
+    // the shelf closed, the file DROPPED on the window (garage.js DROP-JSON -> readFile, the import door)
+    const txt = fs.readFileSync(FILE, 'utf8');
+    loaded = await ev("(()=>{const f=document.getElementById('gFleet');if(f&&f.getClientRects().length){const x=[...document.querySelectorAll('button')].find(b=>/^(close|×|done)$/i.test(b.textContent.trim()));if(x)x.click();}" +
+      "const dt=new DataTransfer();dt.items.add(new File([" + JSON.stringify(txt) + "]," + JSON.stringify(path.basename(FILE)) + ",{type:'application/json'}));" +
+      "window.dispatchEvent(new DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true}));return true;})()");
+    if (!loaded) throw new Error('the drop did not go through');
+  } else loaded = BUILD
     ? await ev("(async()=>{const r=await fetch(" + JSON.stringify(BUILD.split(String.fromCharCode(92)).join('/').replace(/^flyDiy\//, '')) + ");const j=await r.json();window.GARAGE_SPEC.set(j.spec||j);const f=document.getElementById('gFleet');if(f)f.style.display='none';return true})()")
     : await ev("(()=>{const f=document.getElementById('gFleet');const b=[...f.querySelectorAll('.gfStock button')].find(x=>x.textContent.trim().toLowerCase().startsWith('" + STOCK.toLowerCase() + "'));if(!b)return false;b.click();return true;})()");
   if (!loaded) throw new Error('no stock row ' + STOCK);

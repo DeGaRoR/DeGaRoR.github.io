@@ -1927,7 +1927,7 @@ function applyReadouts(r) {
     const bad = (s.vessels || []).filter(v => !v.fits).length;
     if (bad) t += ' \u00b7 ' + bad + ' vessel' + (bad > 1 ? 's' : '') + ' the ledger cannot fit';
     balEl.textContent = t;
-    balEl.style.color = (s.staticMargin != null && s.staticMargin < 0.05) ? '#ff7b6b' : '';
+    balEl.classList.toggle('bad', s.staticMargin != null && s.staticMargin < 0.05);
   }
   const E = s.envelope;
   const sh = r.fillSh;
@@ -1942,14 +1942,26 @@ function applyReadouts(r) {
       fillEl.textContent = f(r.litres, 0) + ' L aboard \u00b7 ' + f(sh.mass, 0) + ' kg \u00b7 CG ' +
         f(sh.cgX, 2) + ' m' + (pct != null ? ' (' + f(pct * 100, 0) + '% MAC)' : '') +
         ' \u00b7 static margin ' + f(sh.staticMargin, 2);
-      fillEl.style.color = (sh.staticMargin != null && sh.staticMargin < 0.05) ? '#ff7b6b' : '';
+      fillEl.classList.toggle('bad', sh.staticMargin != null && sh.staticMargin < 0.05);
     } else fillEl.textContent = '';
   }
   drawBar(E, sh ? sh.cgX : null);
   if (r.chart && chartEl && window.BALANCE) {
-    try { window.BALANCE.draw(chartEl, r.chart); LAST_CHART = r.chart; }
+    try { window.BALANCE.draw(chartEl, r.chart, chartStyle()); LAST_CHART = r.chart; }
     catch (e) { console.error('balance chart:', e); }
   }
+}
+// G3734: THE CHART IN THE COLUMN'S PALETTE. balance.js draws in its own cold
+// defaults; here the chrome (text, grid, the corners, the type) and the two
+// limit lines are read off the --ed-* tokens the canvas inherits, so the
+// chart is the garage's. The blue burn line and the yellow dot stay: the
+// tooltip above names them. No token (the bench) keeps balance.js's own.
+function chartStyle() {
+  const cs = chartEl && window.getComputedStyle ? getComputedStyle(chartEl) : null;
+  const t = k => cs ? cs.getPropertyValue(k).trim() : '';
+  if (!t('--ed-ink')) return undefined;
+  return { fg: t('--ed-ink'), dim: t('--ed-faint'), grid: t('--ed-hair'), corner: t('--ed-dim'),
+           np: t('--ed-bad'), caution: t('--ed-warn'), font: "10px 'IBM Plex Sans', sans-serif" };
 }
 // the rows in the panel and the build both ask the same way
 function chartReadout() { readoutsRequest(); }
@@ -1965,22 +1977,24 @@ function drawBar(E, cgX) {
   // still has somewhere to be drawn
   const pad = 0.15 * span, x0 = lo - pad, x1 = hi + pad;
   const at = x => Math.max(0, Math.min(100, (x - x0) / (x1 - x0) * 100));
-  const mark = (x, col, w, t) => {
-    const m = document.createElement('div');
-    m.style.cssText = 'position:absolute;top:0;bottom:0;width:' + w + 'px;background:' + col +
-      ';left:calc(' + at(x).toFixed(1) + '% - ' + (w / 2) + 'px)';
+  // G3733: the look is the sheet's (.cgBar > i, .cgBar > i.cg); only WHERE a
+  // mark stands is computed here, so only `left` is written inline
+  const mark = (x, cls, t) => {
+    const m = document.createElement('i');
+    if (cls) m.className = cls;
+    m.style.left = at(x).toFixed(1) + '%';
     m.title = t; barEl.appendChild(m);
   };
-  mark(lo, '#dfe7f0', 2, 'forward corner \u00b7 ' + E.fwd.label);
-  mark(hi, '#dfe7f0', 2, 'aft corner \u00b7 ' + E.aft.label);
-  if (cgX != null) mark(cgX, '#ffd35a', 4, 'the CG at the fuel aboard');
+  mark(lo, '', 'forward corner \u00b7 ' + E.fwd.label);
+  mark(hi, '', 'aft corner \u00b7 ' + E.aft.label);
+  if (cgX != null) mark(cgX, 'cg', 'the CG at the fuel aboard');
 }
 function loadingTable() {
   if (!tableEl) return;
   const E = LAST_SHAKE && LAST_SHAKE.envelope;
   if (!E || !E.corners) { tableEl.textContent = ''; return; }
   const f = (v, d) => (v == null || !isFinite(v)) ? '\u2014' : v.toFixed(d);
-  tableEl.innerHTML = '<div style="opacity:.7;margin-bottom:2px">loading table \u00b7 % MAC \u00b7 static margin</div>' +
+  tableEl.innerHTML = '<div class="noteH">loading table \u00b7 % MAC \u00b7 static margin</div>' +
     E.corners.map(c => '<div>' + c.label + ': ' + f(c.litres, 0) + ' L \u00b7 ' +
       f(c.mass, 0) + ' kg \u00b7 ' + (c.cgPct != null ? f(c.cgPct * 100, 0) + '%' : '\u2014') +
       ' \u00b7 ' + f(c.staticMargin, 2) + (c === E.worst ? ' \u2190 worst' : '') + '</div>').join('');
@@ -2062,7 +2076,7 @@ function selectVessel(i) {
   if (panelBody) {
     for (const d of panelBody.querySelectorAll('details[data-ves]')) {
       const on = +d.dataset.ves === i;
-      d.style.outline = on ? '1px solid rgba(255,211,90,.55)' : '';
+      d.classList.toggle('on', on);
       if (on) { d.open = true; if (d.scrollIntoView) d.scrollIntoView({ block: 'nearest' }); }
     }
   // ...AND IN THE FINISH COLUMN, which is a different element in a different
@@ -2072,7 +2086,7 @@ function selectVessel(i) {
   if (lookBody)
     for (const d of lookBody.querySelectorAll('details[data-veslook]')) {
       const on = +d.dataset.veslook === i;
-      d.style.outline = on ? '1px solid rgba(255,211,90,.55)' : '';
+      d.classList.toggle('on', on);
       if (on) { d.open = true; if (d.scrollIntoView) d.scrollIntoView({ block: 'nearest' }); }
     }
   }
@@ -2093,7 +2107,7 @@ function row(parent, label, title) {
 }
 function select(parent, label, title, options, value, onchange) {
   const d = row(parent, label, title);
-  const s = document.createElement('select'); s.style.flex = '1';
+  const s = document.createElement('select');
   for (const [v, name, dis] of options) {
     const o = document.createElement('option');
     o.value = v; o.textContent = name; if (dis) o.disabled = true;
@@ -2108,7 +2122,6 @@ function range(parent, label, title, lo, hi, step, value, fmt, oninput, onchange
   const d = row(parent, label, title);
   const i = document.createElement('input');
   i.type = 'range'; i.min = lo; i.max = hi; i.step = step; i.value = value;
-  i.style.flex = '1';
   const v = el('span', 'v', fmt(+value));
   i.oninput = () => { v.textContent = fmt(+i.value); oninput(+i.value); };
   i.onchange = () => { onchange(+i.value); };
@@ -2169,7 +2182,6 @@ function lookRows(B, i, v) {
   c.type = 'color';
   c.value = tintOf(v) ||
     '#' + ('000000' + (FINISH[fk] || FINISH.alu).col.toString(16)).slice(-6);
-  c.style.flex = '1';
   c.oninput = () => { lookWrite(v, 'tint', c.value); relayout(); };
   c.onchange = () => { lookWrite(v, 'tint', c.value); commit(); };
   if (window.CAGE_RECENT && window.CAGE_RECENT.attach)
@@ -2190,7 +2202,7 @@ function renderLook() {
     const det = document.createElement('details');
     det.open = true;
     det.dataset.veslook = i;
-    if (i === selected) det.style.outline = '1px solid rgba(255,211,90,.55)';
+    if (i === selected) det.classList.add('on');
     const sum = document.createElement('summary');
     sum.textContent = (EN.kind === 'battery' ? 'pack ' : 'tank ') + (i + 1) +
       (bay ? ' · ' + bay.name.toLowerCase() : '');
@@ -2270,12 +2282,11 @@ function renderPanel() {
     const bay = BAYS.find(b => b.key === v.bay) || BAYS[0];
     const det = document.createElement('details');
     det.open = true;
-    det.style.marginLeft = '6px';
     // the entry a viewport click lands on (see `selectVessel`): the list is
     // rebuilt on every render, so the index rides on the element rather than
     // being remembered as a node
     det.dataset.ves = i;
-    if (i === selected) det.style.outline = '1px solid rgba(255,211,90,.55)';
+    if (i === selected) det.classList.add('on');
     const sum = document.createElement('summary');
     sum.textContent = (EN.kind === 'battery' ? 'pack ' : 'tank ') + (i + 1) +
       ' · ' + (bay ? bay.name.toLowerCase() : '?');
@@ -2377,8 +2388,7 @@ function renderPanel() {
         'or along a narrow one', -90, 90, 1, v.rot || 0, fmtD,
         x => { v.rot = x; relayout(); }, x => { v.rot = x; commitSoon(); });
     }
-    const rd = el('div', 'r');
-    rd.style.cssText = 'font-size:11px;opacity:.9;white-space:normal;line-height:1.3';
+    const rd = el('div', 'r note');
     box.appendChild(rd);
     READ[i] = rd;
 
@@ -2386,7 +2396,7 @@ function renderPanel() {
       const rm = row(box, '', '');
       const b = document.createElement('button');
       b.textContent = 'remove this ' + (EN.kind === 'battery' ? 'pack' : 'tank');
-      b.style.flex = '1';
+      b.className = 'wide';
       b.onclick = () => { EN.vessels.splice(i, 1); selected = 0;
         renderPanel(); relayout(); commit(); };
       rm.appendChild(b);
@@ -2398,7 +2408,7 @@ function renderPanel() {
     const r = row(B, '', '');
     const b = document.createElement('button');
     b.textContent = '+ add a ' + (EN.kind === 'battery' ? 'pack' : 'tank');
-    b.style.flex = '1';
+    b.className = 'wide';
     b.title = 'two tanks bracketing the CG barely move it as they burn — ' +
       'which is why real aeroplanes carry two';
     b.onclick = () => {
@@ -2421,8 +2431,7 @@ function renderPanel() {
     c.onchange = () => { VIEW.showBay = c.checked ? 1 : 0; relayout(); };
     d.appendChild(c);
   }
-  totalEl = el('div', 'r');
-  totalEl.style.cssText = 'font-size:11px;opacity:.85;white-space:normal;line-height:1.3';
+  totalEl = el('div', 'r note');
   B.appendChild(totalEl);
   // ---- G100: THE CG AS A FUNCTION OF FILL --------------------------------
   // The user, at the start of the arc: "we need to see how the CG is
@@ -2437,12 +2446,9 @@ function renderPanel() {
       x => { VIEW.fill = x; relayout(); },
       x => { VIEW.fill = x; relayout(); fillReadout(); });
   }
-  fillEl = el('div', 'r');
-  fillEl.style.cssText = 'font-size:11px;white-space:normal;line-height:1.3';
+  fillEl = el('div', 'r note');
   B.appendChild(fillEl);
-  barEl = el('div', 'r');
-  barEl.style.cssText = 'display:block;height:14px;position:relative;margin:2px 0 4px 0;' +
-    'background:linear-gradient(90deg,#2c4a6e,#3b6f4a);border-radius:3px;opacity:.95';
+  barEl = el('div', 'cgBar');
   barEl.title = 'the CG envelope: forward corner to aft corner, in % MAC; the ' +
     'marker is the CG at the fuel aboard';
   B.appendChild(barEl);
@@ -2465,8 +2471,7 @@ function renderPanel() {
     range(B, 'baggage', 'kilograms in the baggage bay for the chart', 0, 60, 1,
       VIEW.baggage, fmtKg, x => { VIEW.baggage = x; }, x => { VIEW.baggage = x; chartReadout(); });
     chartEl = document.createElement('canvas');
-    chartEl.style.cssText = 'display:block;width:100%;height:170px;margin:2px 0 4px 0;' +
-      'background:rgba(0,0,0,.18);border-radius:3px';
+    chartEl.className = 'cgChart';
     chartEl.title = 'weight and balance: CG across (% of the mean chord), mass up. ' +
       'The blue line is the CG walking as the fuel burns at this loading, full ' +
       'to dry, the hollow point at reserves; the yellow dot is the fuel aboard; ' +
@@ -2475,12 +2480,10 @@ function renderPanel() {
       'limit is drawn: the model has no elevator-authority rule to place one.';
     B.appendChild(chartEl);
   }
-  tableEl = el('div', 'r');
-  tableEl.style.cssText = 'display:block;font-size:11px;white-space:normal;line-height:1.35;opacity:.9';
+  tableEl = el('div', 'r note');
   B.appendChild(tableEl);
   if (inGame()) {
-    balEl = el('div', 'r');
-    balEl.style.cssText = 'font-size:11px;white-space:normal;line-height:1.3';
+    balEl = el('div', 'r note');
     balEl.title = 'the core’s own shakedown over the spec as committed — the ' +
       'same ledger the flight weighs itself with';
     B.appendChild(balEl);
@@ -2535,7 +2538,7 @@ function syncReadouts() {
        : r.v.shaped === 'band' ? ', height capped by the bay' : ''));
     d.textContent = (r.ok ? '✓ fits · ' : '✗ ') + bits.join(' · ') +
       (r.ok ? '' : ' — ' + r.why.join('; '));
-    d.style.color = r.ok ? '' : '#ff7b6b';
+    d.classList.toggle('bad', !r.ok);
   });
   if (totalEl)
     totalEl.textContent = 'total ' + totCap.toFixed(0) + ' ' + unit() + ' · ' +

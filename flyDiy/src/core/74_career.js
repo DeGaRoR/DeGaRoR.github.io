@@ -194,6 +194,9 @@ function careerNormalise(r) {
   }
   const C = c.contracts = (c.contracts && typeof c.contracts === 'object') ? c.contracts : def.contracts;
   for (const k of ['offered', 'accepted', 'done']) if (!Array.isArray(C[k])) C[k] = [];
+  if (C.failed != null && !Array.isArray(C.failed)) C.failed = [];      // (MISSIONS-P2) kept when present: the failures
+  if (c.sold != null && !Array.isArray(c.sold)) c.sold = [];             // ... and the airframes handed over
+  if (c.sites != null && (typeof c.sites !== 'object' || Array.isArray(c.sites))) c.sites = {};   // (P3) the sites' states
   if (typeof C.tracked !== 'string' || !C.accepted.includes(C.tracked)) C.tracked = C.accepted[0] || null;
   if (!C.live || typeof C.live !== 'object') C.live = {};
   for (const id of C.accepted) if (!C.live[id] || typeof C.live[id] !== 'object') C.live[id] = { stage: 0, subs: [], picked: [], got: {} };
@@ -278,6 +281,11 @@ function careerNeedsOk(doc, rec) {
   const N = rec.needs || {}, P = doc.career.providers[rec.provider] || { rep: 0 };
   if ((N.rep || 0) > P.rep + 1e-9) return false;
   const done = careerDoneIds(doc);
+  // (MISSIONS-P3) the pack's containers (73b missionPackInstall): `needs.of` [{ ids, n }] - at least n of those done (a
+  // chapter, a campaign before this one); `closed` { ids, n } - a choose:N chapter that has had its n: the rest close
+  const nOf = c => (c.ids || []).filter(i => done.includes(i)).length;
+  if ((N.of || []).some(c => nOf(c) < c.n)) return false;
+  if (rec.closed && nOf(rec.closed) >= rec.closed.n) return false;
   return (N.after || []).every(a => done.includes(a));
 }
 
@@ -336,9 +344,16 @@ function careerAccept(doc, id) {
   D.accepted.push(id);
   D.live[id] = { stage: 0, subs: rec.stages[0].subs.map(() => false), picked: rec.stages[0].subs.map(() => false), got: {} };
   if (rec.kind === 'job') D.live[id].rec = rec;            // the job as offered (careerContract reads it back)
+  // (MISSIONS-P2) an order that starts from the CLIENT'S airframe (startFrom: a validated design or a build file): the
+  // page brings it (the effect) and binds it (careerOrderBind); only that airframe is delivered
+  const effects = [];
+  if (rec.kind === 'build' && rec.startFrom != null && rec.startFrom !== 'player') {
+    D.live[id].start = { from: crClone(rec.startFrom), slot: null };
+    effects.push({ k: 'clientPlane', id, from: crClone(rec.startFrom) });
+  }
   if (!D.tracked) D.tracked = id;
   careerRefresh(d);
-  return { ok: true, doc: d, why: '' };
+  return { ok: true, doc: d, why: '', effects };
 }
 function careerTrack(doc, id) {
   const C = doc.career && doc.career.contracts;
@@ -377,7 +392,21 @@ function contractOnStop(doc, contract, stop, hooks) {
   const L = C.live[id] || { stage: 0, subs: [], picked: [], got: {} };
   const st = rec.stages[L.stage];
   if (!st) return crNo(doc, id + ' has no stage ' + L.stage);
-  const res = st.subs.map((s, j) => L.subs[j] ? { st: 'was' } : contractSubOnStop(rec, s, { picked: !!L.picked[j] }, stop, hooks, doc));
+  // (MISSIONS-P1) a leg whose steps run in ORDER (seq) is judged in order: the first step not done stops the rest; a
+  // step a timer stops on is judged by its lap (73c missionTimersOnStop: the medal, the target)
+  const seq = st.order === 'seq';
+  let blocked = false;
+  const res = st.subs.map((s, j) => {
+    if (L.subs[j]) return { st: 'was' };
+    if (blocked) return { st: 'no', why: 'after an earlier step of this leg' };
+    let r = contractSubOnStop(rec, s, { picked: !!L.picked[j], start: L.start || null }, stop, hooks, doc);
+    if (rec.timers && typeof missionTimerOnSub === 'function') r = missionTimerOnSub(rec, s, r, stop);
+    // (MISSIONS-P3) the stop's own conditions on the step: the flight's time, its departure, who got on and off
+    if ((s.require || s.embark != null || s.disembark != null) && typeof missionStopChecks === 'function') r = missionStopChecks(rec, s, r, stop);
+    if (seq && r.st !== 'done') blocked = true;
+    return r;
+  });
+  if (rec.timers && typeof missionTimerGroups === 'function') missionTimerGroups(rec, L.stage, res);
   if (!res.some(r => r.st === 'done' || r.st === 'picked')) {
     const r = res.find(x => x.st === 'no') || { why: 'nothing to do here' };
     const out = crNo(doc, r.why);
@@ -394,18 +423,27 @@ function contractOnStop(doc, contract, stop, hooks) {
       Object.assign(live.got, r.got || {});
       if (r.medal) medal = live.medal = r.medal;
       events.push({ k: 'sub', id, stage: live.stage, sub: j });
+      // (MISSIONS-P1/P2) the airframe a delivery handed over (the handover's), a lap timed, a line said
+      if (st.subs[j].do === 'deliver' && stop.slot) live.slot = stop.slot;
+      if (r.timer) { live.timers = Object.assign({}, live.timers || {}); live.timers[r.timer.id] = r.timer; events.push({ k: 'timer', id, timer: r.timer, medal: r.medal || null }); }
+      // (MISSIONS-P3) every step's line, and what its done does (onDone: say, pay, a site's state)
+      const sy = st.subs[j].say || r.say;
+      if (sy) events.push({ k: 'say', id, say: sy });
+      if (st.subs[j].onDone) careerOnDone(d, rec, st.subs[j].onDone, events);
     } else if (r.st === 'picked') {
       live.picked[j] = true;
       events.push({ k: 'picked', id, stage: live.stage, sub: j, at: stop.aero });
     }
   });
-  if (st.subs.every((s, j) => live.subs[j])) {
+  if (typeof missionLegDone === 'function' ? missionLegDone(st, live.subs) : st.subs.every((s, j) => live.subs[j])) {   // (P3: choose:N)
     events.push({ k: 'stage', id, stage: live.stage });
     live.stage++;
     if (live.stage < rec.stages.length) {
       live.subs = rec.stages[live.stage].subs.map(() => false);
       live.picked = rec.stages[live.stage].subs.map(() => false);
     } else {
+      // (MISSIONS-P2) damage ASSESSED at the end (§3.4: the rules' damage: 'assess'), off the stop that completed it
+      if (rec.rules && typeof missionRulesJudge === 'function') { const a = missionRulesJudge(rec, stop).assess; if (a) live.assess = a; }
       careerComplete(d, rec, live, medal, events);
     }
   }
@@ -432,9 +470,89 @@ function careerComplete(d, rec, live, medal, events) {
   C.accepted = C.accepted.filter(x => x !== rec.id);
   delete C.live[rec.id];
   if (C.tracked === rec.id) C.tracked = C.accepted[0] || null;
+  // (MISSIONS-P2) THE DELIVERY (§7: "it is sold to the client at a higher price and is no longer ours"; "the BLUEPRINT is
+  // saved automatically"): an aircraft order's delivered airframe leaves the fleet and the career's airframes, like a
+  // sale; the event names its blueprint (the page saves the design to the sandbox under it) and the profit line
+  if (rec.onDone) careerOnDone(d, rec, rec.onDone, events);             // (MISSIONS-P3) the mission's own done: its line, pay, a site
+  const dl = typeof contractDelivery === 'function' ? contractDelivery(rec) : null;
+  const handover = dl && dl.sold && live.slot && d.fleet && d.fleet[live.slot] ? careerHandover(d, live.slot, rec, pay, dl) : null;
   careerRefresh(d);
-  events.push({ k: 'done', id: rec.id, pay, medal: medal || null, unlock: unlocked,
-                followUp: rec.kind === 'build' ? ((contractFollowUp(rec) || {}).id || null) : null });
+  const ev = { k: 'done', id: rec.id, pay, medal: medal || null, unlock: unlocked,
+               followUp: rec.kind === 'build' ? ((contractFollowUp(rec) || {}).id || null) : null };
+  if (handover) ev.handover = handover;
+  if (live.assess) ev.assess = live.assess;
+  if (live.timers) ev.timers = live.timers;
+  events.push(ev);
+}
+// (MISSIONS-P3) WHAT A DONE DOES (a step's or the mission's onDone): its line (an event), its pay (a ledger line, the
+// contract's), a site's new state (career.sites; a site whose `track` is a world construction stage reveals it when
+// built: the tracks move like an unlock). Mutates d.
+function careerOnDone(d, rec, od, events) {
+  if (od.say) events.push({ k: 'say', id: rec.id, say: od.say });
+  if (typeof od.pay === 'number' && isFinite(od.pay) && od.pay > 0) { playerCharge(d, -od.pay, 'contract', rec.id); events.push({ k: 'bonus', id: rec.id, pay: od.pay }); }
+  const S = od.site;
+  if (S && typeof S.id === 'string') {
+    const c = d.career;
+    c.sites = Object.assign({}, c.sites || {}, { [S.id]: S.state });
+    const m = /^(\w+):(\d+)$/.exec(S.track || '');
+    if (m && S.state === 'built') c.tracks[m[1]] = Math.max(c.tracks[m[1]] || 0, +m[2]);
+    events.push({ k: 'site', id: rec.id, site: S.id, state: S.state, unlock: m && S.state === 'built' ? S.track : null });
+  }
+}
+// (MISSIONS-P2) THE HANDOVER: the airframe `slot` out of the fleet (71_ playerFleetReconcile: the canonical drop, the
+// storage settled) and out of career.airframes; a pilot bound to it freed, a route on it ended (78b_ routesBlock); the
+// sale on record (career.sold). Mutates d (careerComplete's clone) -> { slot, blueprint (the sandbox name) | null, cost,
+// profit, client } - cost the economy's price when we made it (76_ econMaterialise `paid`); a client's own airframe
+// (startFrom) was never ours: no cost, the pay is the profit
+function careerHandover(d, slot, rec, pay, dl) {
+  const c = d.career, A = (c.airframes && c.airframes[slot]) || {};
+  const r = playerFleetReconcile(d, Object.keys(d.fleet).filter(n => n !== slot));
+  for (const k of Object.keys(r.doc)) if (k !== 'career') d[k] = r.doc[k];   // the player's half; the career is ours
+  delete c.airframes[slot];
+  for (const p of Object.keys(c.pilots || {})) if (c.pilots[p] && c.pilots[p].plane === slot) c.pilots[p].plane = null;
+  if (typeof routesBlock === 'function') routesBlock(d);
+  const P = typeof contractProfit === 'function' ? contractProfit(pay, A.client ? 0 : A.paid) : { pay, cost: null, profit: null };
+  c.sold = (Array.isArray(c.sold) ? c.sold : []).concat([{ slot, id: rec.id, at: Math.round(d.clock || 0), pay, cost: P.cost }]);
+  return { slot, blueprint: dl && dl.blueprint && !A.client ? missionBlueprintName(slot) : null, cost: P.cost, profit: P.profit, client: !!A.client };
+}
+// (MISSIONS-P2) A MISSION FAILED (§3.4, its rules broken; or the page's give-up): out of the accepted list, its progress
+// gone, on record (contracts.failed); offered again as long as its needs hold - the RESTART is accepting it again
+// (careerRestart). A client's airframe (startFrom) goes back to the client. -> { ok, doc, why, events }
+function careerFail(doc, id, why) {
+  const C = doc && doc.career && doc.career.contracts;
+  if (!C || !C.accepted.includes(id)) return crNo(doc, id + ' is not accepted');
+  const d = crClone(doc), D = d.career.contracts, live = D.live[id] || {};
+  if (live.start && live.start.slot && d.fleet[live.start.slot]) {
+    const r = playerFleetReconcile(d, Object.keys(d.fleet).filter(n => n !== live.start.slot));
+    for (const k of Object.keys(r.doc)) if (k !== 'career') d[k] = r.doc[k];
+    delete d.career.airframes[live.start.slot];
+  }
+  D.accepted = D.accepted.filter(x => x !== id);
+  delete D.live[id];
+  if (D.tracked === id) D.tracked = D.accepted[0] || null;
+  D.failed = (Array.isArray(D.failed) ? D.failed : []).concat([{ id, at: Math.round(d.clock || 0), why: String(why || 'failed') }]);
+  careerRefresh(d);
+  return { ok: true, doc: d, why: '', events: [{ k: 'failed', id, why: String(why || 'failed'), restart: D.offered.includes(id) }] };
+}
+// (MISSIONS-P2) THE RESTART: a failed mission accepted again, from its first step
+function careerRestart(doc, id) {
+  const C = doc && doc.career && doc.career.contracts;
+  if (!C || !(C.failed || []).some(f => f.id === id)) return crNo(doc, id + ' has not failed');
+  const r = careerAccept(doc, id);
+  if (r.ok) r.events = [{ k: 'restart', id }];
+  return r;
+}
+// (MISSIONS-P2) THE CLIENT'S AIRFRAME ARRIVED: the page brought it (the accept's clientPlane effect) into the fleet as
+// `slot`; it is bound to the order (only it is delivered) and stands in career.airframes as the CLIENT'S (no price, not
+// ours: the handover gives it back with no cost)
+function careerOrderBind(doc, id, slot) {
+  const C = doc && doc.career && doc.career.contracts, L = C && C.live && C.live[id];
+  if (!L || !L.start) return crNo(doc, id + ' waits for no client airframe');
+  if (typeof slot !== 'string' || !slot) return crNo(doc, 'no slot');
+  const d = crClone(doc);
+  d.career.contracts.live[id].start.slot = slot;
+  d.career.airframes[slot] = Object.assign({}, d.career.airframes[slot] || {}, { client: id, paid: 0, how: 'client', at: Math.round(d.clock || 0) });
+  return { ok: true, doc: d, why: '' };
 }
 
 // ---- A FLIGHT'S END, ON THE CAREER -----------------------------------------------------------------------------------
@@ -442,10 +560,22 @@ function careerComplete(d, rec, live, medal, events) {
 // moved, with every event and, for those that did not move, why.
 function careerOnStop(doc, stop, hooks) {
   if (!doc || !doc.career) return crNo(doc, 'not a career');
-  const C = doc.career.contracts;
-  const order = (C.tracked ? [C.tracked] : []).concat(C.accepted.filter(x => x !== C.tracked));
+  let C = doc.career.contracts;
   let d = doc, moved = false;
   const events = [], why = {};
+  // (MISSIONS-P2) THE FAILURE RULES FIRST (§3.4): a mission in progress on this flight (the tracked one, or one with a
+  // step done or a load aboard) whose rules the stop breaks - a crash, someone hurt, the freight harmed, the airframe
+  // damaged where it says fail - FAILS, and is offered again (the restart). The page hands a crash's stop here too.
+  if (typeof missionRulesJudge === 'function') for (const id of C.accepted.slice()) {
+    const rec = careerContract(d, id), L = d.career.contracts.live[id] || {};
+    if (!rec || !rec.rules) continue;
+    const busy = id === d.career.contracts.tracked || (L.picked || []).some(Boolean) || (L.subs || []).some(Boolean) || (L.stage || 0) > 0
+      || !!(stop && stop.tracks && stop.tracks[id]);                         // the flight tracked it (its gates, its strikes)
+    const v = busy ? missionRulesJudge(rec, stop) : null;
+    if (v && v.fail) { const f = careerFail(d, id, v.fail); if (f.ok) { d = f.doc; moved = true; events.push(...f.events); } }
+  }
+  C = d.career.contracts;
+  const order = (C.tracked ? [C.tracked] : []).concat(C.accepted.filter(x => x !== C.tracked));
   for (const id of order) {
     const r = contractOnStop(d, id, stop, hooks);
     if (r.ok) { d = r.doc; moved = true; events.push(...r.events); }

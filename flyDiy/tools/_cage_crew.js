@@ -1119,7 +1119,11 @@ function buildPedals(g, A, P, sx) {
   return { objL: out[1], objR: out[-1], label: 'pedals' };
 }
 // a twin: wing nacelles (engMount 3) with the engine on - two throttle levers
-const twinEngines = P => !!(P && +P.engOn && Math.round(+P.engMount || 0) === 3);
+// ENGINE-CONFIGS-2 (G3494): ONE LEVER AN ENGINE - the push-pull's two (4), the three's three (5), the four's four (6),
+// each on its own engine's drive (thr0..thr3, makeLinkage's own keys); the first two stay the twin's, the rest follow
+const engLevers = P => (P && +P.engOn) ? ({ 3: 2, 4: 2, 5: 3, 6: 4 })[Math.round(+P.engMount || 0)] || 1 : 1;
+const twinEngines = P => engLevers(P) > 1;
+const moreLevers = (P, dxOf) => { const o = []; for (let i = 2; i < engLevers(P); i++) o.push(['edCtl_throttle' + (i + 1), 'thr' + i, dxOf(i)]); return o; };
 function buildThrottleWall(g0, A, P, sx, onFace) {
   const g = ctlShift(g0, P, 'thrX', 'thrY', 'thrZ');
   const zT = A.zBack + 0.40;
@@ -1178,6 +1182,7 @@ function buildThrottleWall(g0, A, P, sx, onFace) {
   // holds the first; a single engine keeps the one lever on 'thr'
   const twin = twinEngines(P);
   const levers = twin ? [['edCtl_throttle', 'thr0', 0], ['edCtl_throttle2', 'thr1', inb * 0.028]] : [['edCtl_throttle', 'thr', 0]];
+  levers.push(...moreLevers(P, i => inb * 0.028 * i));
   let gT = null, K = null;
   for (const [nm, drv, dx] of levers) {
     const pv = [piv[0] + dx, piv[1], piv[2]];
@@ -1276,6 +1281,7 @@ function buildThrottleDash(g0, A, P, sx) {
   // (twinEngines / thr0, thr1); a single engine keeps its one rod on 'thr'
   const inb = sx >= 0 ? -1 : 1;
   const rods = twinEngines(P) ? [['edCtl_throttle', 'thr0', 0], ['edCtl_throttle2', 'thr1', inb * 0.056]] : [['edCtl_throttle', 'thr', 0]];
+  rods.push(...moreLevers(P, i => inb * 0.056 * i));
   let first = null;
   for (const [nm, drv, dx] of rods) {
     const xR = xT + dx;
@@ -1386,6 +1392,7 @@ function buildConsole(g0, A, P, cx, withQuadrant, box) {
   // drive (the wall lever's rule); the boss is one across the box either way
   const twin = twinEngines(P);
   const levers = twin ? [['edCtl_throttle', 'thr0', -0.012], ['edCtl_throttle2', 'thr1', 0.012]] : [['edCtl_throttle', 'thr', 0]];
+  levers.push(...moreLevers(P, i => i === 2 ? -0.034 : 0.034));   // (the three's and the four's, outside the pair)
   const hw = twin ? 0.009 : 0.012;
   let gT = null, K = null;
   for (const [nm, drv, dx] of levers) {
@@ -2746,24 +2753,29 @@ function anchors(spec, P, mesh) {
   // keel line at that station (outline pts are raw cage units). An
   // EXPLODED door part is measured at its as-built place — the part's
   // faces record their translation as cutOff.
-  let sillOff = FLOOR_BOARDS;
+  // G3570 (DC3-2): THE RAISED CABIN FLOOR (floorUp, metres; absent = 0) - the floor stands exactly that much over
+  // the sill the door's own row gives; the door rose with it by whole rows (_cage_gen cageCut, mesh.doorRise), and
+  // that rise is taken back out of the measured sill so the floor is not the row step
+  const floorUp = (+P.floorUp > 0) ? +P.floorUp : 0;
+  let sillOff = FLOOR_BOARDS + floorUp;
   const doors = ((mesh && mesh.outlines) || []).filter(o =>
     o.kind === 'door' && o.pts && o.pts.length);
   if (doors.length) {
     const meanZ = o => o.pts.reduce((s, p) => s + p[2], 0) / o.pts.length;
     const front = doors.reduce((a, b) => meanZ(a) > meanZ(b) ? a : b);
-    let x0 = [0, 0, 0];
+    let x0 = [0, 0, 0], dk = null;
     if (mesh.F && front.ids) {
       const idset = new Set(front.ids);
       for (const f of mesh.F)
         if (f.cutOff && f.doorKey && f.v.some(vi => idset.has(vi))) {
-          x0 = f.cutOff; break;
+          x0 = f.cutOff; dk = f.doorKey; break;
         }
     }
     let off = 1e9;
     for (const p of front.pts)
       off = Math.min(off, (p[1] - x0[1]) * k - keelAt((p[2] - x0[2]) * k));
-    if (off > -0.05 && off < 0.5) sillOff = Math.max(0, off);
+    if (floorUp > 0) off -= ((mesh.doorRise && dk && mesh.doorRise[dk]) || 0) * k;   // G3570
+    if (off > -0.05 && off < 0.5) sillOff = Math.max(0, off) + floorUp;
   }
   // G331: `floorLift` is the builder's own number over the sill (0 = the
   // sill, where you step in) — the floor is drawn there and everything
@@ -3093,19 +3105,33 @@ function seatPlaces(A, P) {
   // before), 1 a single seat (tandem passengers behind a side-by-side
   // cockpit), 2 a pair, 3 a bench (x = 0, +-gap)
   const paxAb0 = Math.round(+P.paxAbreast || 0);
-  const paxAb = paxAb0 >= 1 && paxAb0 <= 3 ? paxAb0 : abreast;
+  const paxAb = paxAb0 >= 1 && paxAb0 <= 7 ? paxAb0 : abreast;
   const bays = Math.max(0, Math.round(P.paxCount || 0));
+  // G3573 (DC3-2): AN AIRLINER'S ROW - paxAbreast 4-7 is two blocks either side of an aisle ([left, right]: 2 + 1, 2 + 2,
+  // 3 + 2, 3 + 3), each seat `paxSeatW` wide, the aisle `paxAisle` (absent: 0.50, 0.45 m), drawn in from the walls
+  // when the cabin is narrower than the row; and ROWS IN A BAY (`paxRows`, absent 1) at `paxPitch` (absent 0.86 m)
+  // forward of the bay's first, a row whose back stands within 0.55 m of the bay's front ring not drawn. Seats fill
+  // from the bay's first row (by its aft ring) forward, each row from the aisle out. Absent / 0-3: every build before, seat for seat
+  const AISLE = { 4: [2, 1], 5: [2, 2], 6: [3, 2], 7: [3, 3] };
+  const perRowOf = ab => AISLE[ab] ? AISLE[ab][0] + AISLE[ab][1] : ab;
+  const aisleXs = (ab, halfW) => {
+    const [nl, nr] = AISLE[ab], w = +P.paxSeatW > 0 ? +P.paxSeatW : 0.50, a = +P.paxAisle > 0 ? +P.paxAisle : 0.45;
+    const at = i => a / 2 + w / 2 + i * w, outer = at(Math.max(nl, nr) - 1), room = Math.max(0.18, halfW - 0.25);
+    const k = outer > room ? room / outer : 1, xs = [];
+    for (let i = 0; i < Math.max(nl, nr); i++) { if (i < nl) xs.push(at(i) * k); if (i < nr) xs.push(-at(i) * k); }
+    return xs;
+  };
   // the outer shoulder sits ~0.21 m outboard of the seat centre (the
   // skeleton's clavicle + joint), so the seat centre stays 0.25 m inside the
   // waist half-width (2026-09-04: the pilots stuck out of the sides)
   const gapIn = halfW => Math.min(P.seatGap, Math.max(0.18, halfW - 0.25));
   const row = (zBack, halfW, section, filled, ab) => {
     const out = [];
-    const n = ab || abreast;
-    const gp = n >= 2 ? gapIn(halfW) : 0;
+    const n0 = ab || abreast, n = perRowOf(n0);
+    const gp = n0 >= 2 && n0 <= 3 ? gapIn(halfW) : 0;
     // a pair sits +-gap; a bench of three adds the middle seat last (the
     // outer two fill first, the way a rear bench is used)
-    const xs = n === 3 ? [gp, -gp, 0] : n === 2 ? [gp, -gp] : [0];
+    const xs = AISLE[n0] ? aisleXs(n0, halfW) : n === 3 ? [gp, -gp, 0] : n === 2 ? [gp, -gp] : [0];
     for (let j = 0; j < n; j++)
       out.push({ x: xs[j], zBack, section,
                  pilot: section === 0 && j === 0,
@@ -3124,7 +3150,16 @@ function seatPlaces(A, P) {
     const zBack = r.lv.waist.z * A.k + 0.05 + (P.paxSeatZ || 0);
     const halfW = (r.lv.waist.x != null ? r.lv.waist.x * A.k : A.halfW);
     const want = Math.max(0, Math.round(+P['paxOcc' + n] || 0));
-    seats.push(...row(zBack, halfW, n, Math.min(paxAb, want), paxAb));
+    const rows = Math.max(1, Math.round(+P.paxRows || 1));
+    if (rows === 1) { seats.push(...row(zBack, halfW, n, Math.min(perRowOf(paxAb), want), paxAb)); continue; }
+    // G3573: the bay's front ring (the next bay forward's aft ring, or the cockpit's back for the first bay)
+    const fr = i + 1 < bays ? rg('pilPaxB' + (i + 1)) : rg('pilCabB');
+    const zFront = fr ? fr.lv.waist.z * A.k : Infinity, pitch = +P.paxPitch > 0 ? +P.paxPitch : 0.86, per = perRowOf(paxAb);
+    for (let q = 0; q < rows; q++) {
+      const zb = zBack + q * pitch;
+      if (q > 0 && zb + 0.55 > zFront) break;
+      seats.push(...row(zb, halfW, n, Math.max(0, Math.min(per, want - q * per)), paxAb));
+    }
   }
   return seats;
 }

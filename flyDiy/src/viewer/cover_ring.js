@@ -226,7 +226,7 @@ var COVER_RING = (() => {
           lakeMargin: 0.03,      // G2572: how far ABOVE a lake's water the ground must stand for a tuft (m; render_world okAt; the sea keeps 0.3)
           tufts: 70, cards: 3, variants: 2, block: 2, sizeFade: 1, sizeMax: 1, hRef: 0.3, blotch: 0.05, clumpM: 4, clumpAmp: 0.3, hK: 1, sigmaK: 1, tier: 1, trunc: 1,
           colour: 1, match: 1, vary: 0.05, cutH: 0.08, cutSigma: 0.1, cutDens: 1.2, stripH: 0.07, stripDens: 1 }
-      : { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.35, batch: true,
+      : { on: true, cell: 32, reach: 220, near: 50, taper: 0.5, aglFull: 60, aglOff: 150, density: 2, shrubs: 1, rocks: 1, budgetMs: 4, maxCells: 400, blockBudget: 2, debrisKinds: 4, castMinH: 0.35, castMinDebris: 1.0, batch: true,
           aglPre: 260, preBudgetMs: 2, lead: 4, grow: 0.8, growNear: 140, trunc: 1 };   // G670/G671: the grow, the pre-grow and the lead (update)   // density 2 (2026-09-22, the user: "the grass is really too sparse")
     // THE FIELD SHIPS OFF until its cost is cut (A0, train 43: the dials early, the field behind its editor switch - VEGETATION > the
     // grass field > 'the field'; the world look keeps the user's choice). ?grassfield=1 / 0 forces it for a rig; FIELD_ON the default
@@ -429,6 +429,7 @@ var COVER_RING = (() => {
       const bush = new Uint8Array(N * N);   // G1385: inside a strip's own clearance that keeps the bushes out
       const kill = new Float32Array(N * N), boost = new Float32Array(N * N), kind = new Uint8Array(N * N), lawnH = new Float32Array(N * N), lawnD = new Float32Array(N * N), cls = new Uint8Array(N * N);
       const cut = new Float32Array(N * N), surf = new Uint8Array(N * N);   // G2565: the premises' cut grass (the 'sides' law)
+      const shore = new Uint8Array(N * N); let nShore = 0;   // G3430: the lake shore's band (the cover ring's; the grass field has none)
       for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
         const x = x0 + i * SG, z = z0 + j * SG, k = j * N + i, r = hsh(Math.round(x * 3.7), Math.round(z * 5.3));
         let cd = ctx.codeAt ? ctx.codeAt(x, z, r) : -1;
@@ -440,6 +441,7 @@ var COVER_RING = (() => {
           find: for (const rr of [6, 12]) for (let a = 0; a < 8; a++) { const c2 = ctx.codeAt(x + Math.cos(a * 0.7854) * rr, z + Math.sin(a * 0.7854) * rr, r); if (c2 >= 2) { cd = c2; break find; } }
         }
         code[k] = cd; mix[k] = BIO.mixHere ? BIO.mixHere(cd, x, z) : (cd < 0 ? null : BIO.mixAt(cd)); bush[k] = bushOff && bushOff(x, z) ? 1 : 0; ok[k] = (ctx.okAt(x, z) && !(ctx.poolAt && (cd === 3 || cd === 7) && ctx.poolAt(x, z) > 0.5)) ? 1 : 0;   // no tuft in a puddle (the shader's pools, in JS)
+        if (!FIELD && ok[k] && BIO.shoreHere && BIO.shoreHere(x, z)) { shore[k] = 1; nShore++; }
         let cv = null; try { cv = ctx.coverAt ? ctx.coverAt(x, z) : null; } catch (e) { cv = null; }
         if (cv) { kill[k] = cv.kill || 0; boost[k] = cv.boost || 0; kind[k] = KIND[cv.kind] || 0; cls[k] = cv.cls ? 1 : 0; cut[k] = cv.cut || 0; surf[k] = cv.surf ? 1 : 0;
           if (cv.grass) { lawnH[k] = cv.grass.h || 0.12; lawnD[k] = cv.grass.density === undefined ? 1 : cv.grass.density; }
@@ -447,14 +449,20 @@ var COVER_RING = (() => {
           if (kind[k] && !mix[k]) mix[k] = 'lawn'; if (kind[k] && !ok[k] && ctx.okAt(x, z)) ok[k] = 1; }
         // THE FIELD'S COLOUR IS THE GROUND AS DRAWN (G2562): the splat's mean at the point (splat_ground meanAt, through
         // ctx.groundMeanAt) - except ON a grass pavement, which draws its own (cv.col: the class's set as graded)
+        // (G3430) A SHORE node on the lake's 10 m cells (code 1) takes the colour of the land round it, as the grass field's code
+        // does above (G2572): the lake code's colour is black, and 30 of 76 lake-shore ferns stood black in the Mon 20:20 still
+        let cdC = cd;
+        if (shore[k] && cd === 1 && ctx.codeAt) {
+          find2: for (const rr of [6, 12]) for (let a = 0; a < 8; a++) { const c2 = ctx.codeAt(x + Math.cos(a * 0.7854) * rr, z + Math.sin(a * 0.7854) * rr, r); if (c2 >= 2) { cdC = c2; break find2; } }
+        }
         let c;
         if (FIELD && S.colour && ctx.groundMeanAt) c = (cv && cv.col && (cv.surf || (cv.cls === 'grass' && cv.kill > 0.5))) ? cv.col : (cd >= 0 ? ctx.groundMeanAt(x, z, cd) : null) || imageryAt(x, z);
-        else c = (cv && cv.col) ? cv.col : (cd >= 0 ? colAt(x, z, cd) : null) || imageryAt(x, z);
+        else c = (cv && cv.col) ? cv.col : (cdC >= 0 ? colAt(x, z, cdC) : null) || imageryAt(x, z);
         if (c) { col[k * 3] = c[0]; col[k * 3 + 1] = c[1]; col[k * 3 + 2] = c[2]; } else { col[k * 3] = 0.3; col[k * 3 + 1] = 0.3; col[k * 3 + 2] = 0.15; }
       }
       const at = (x, z) => Math.round((z - z0) / SG) * N + Math.round((x - x0) / SG);
       let bmax = 0, lawn = 0, paved = false; for (let k = 0; k < N * N; k++) { if (boost[k] > bmax) bmax = boost[k]; if (kind[k] === 1) lawn++; if (kill[k] > 0 || cut[k] > 0 || boost[k] > 0 || kind[k]) paved = true; }
-      const G = { N, mix, code, ok, col, kill, boost, kind, cls, lawnH, lawnD, at, bmax, lawn, bush, cut, surf };
+      const G = { N, mix, code, ok, col, kill, boost, kind, cls, lawnH, lawnD, at, bmax, lawn, bush, cut, surf, shore, nShore };
       if (FIELD) {
         // the colour between the nodes (bilinear: the imagery is 10 m, the nodes 4 m - a tuft's root on its own colour)
         G.colB = (x, z) => { const fx = Math.min(N - 1.001, Math.max(0, (x - x0) / SG)), fz = Math.min(N - 1.001, Math.max(0, (z - z0) / SG)), i = Math.floor(fx), j = Math.floor(fz), tx = fx - i, tz = fz - j;
@@ -608,7 +616,9 @@ var COVER_RING = (() => {
     // fade's threshold carried in the colour's alpha (trees.js BATCH_RAND_VS) - the same instances thin at the same
     // distances. `batch: false` is the per-block instanced path, as before (the A/B).
     const batched = kind => S.batch && (kind === 'rock' || kind === 'debris' || kind === 'shrub');
-    const castOf = p => p.kind !== 'cover' && !((p.kind === 'debris' || p.kind === 'rock') && p.h < S.castMinH);
+    // (DEBRIS-SHADOW, the user 26 Oct: "keep the 131 debris, no shadows on small ones") the debris has its own floor, castMinDebris:
+    // a stick, a log or a stump under it casts nothing - at the muskeg's 131 a thousand it was the taxi view's shadow pass doubled
+    const castOf = p => p.kind !== 'cover' && !((p.kind === 'debris' || p.kind === 'rock') && p.h < S.castMinH) && !(p.kind === 'debris' && p.h < (+S.castMinDebris || 0));
     const attrSig = g => Object.keys(g.attributes).sort().map(k => k + g.attributes[k].itemSize).join(',') + (g.index ? '|i' : '');
     const batches = new Map();   // key -> BatchedMesh
     const V4 = new THREE.Vector4();
@@ -763,11 +773,8 @@ var COVER_RING = (() => {
       // THE CELL HOLDS ITS INSTANCES, NOT MESHES (PERF 2026-09-23): the block it falls in (below) draws them
       const cell = { n: 0, parts: new Map(), inst: [], by: {}, cx, cz };   // inst: [batch, id, ...] - the batched instances (G585)   // by: this cell's tally per species (STAT.by is the live sum)
       cells.set(cellKey(cx, cz), cell); markBlock(cx, cz);
-      if (!centreMix && !G.lawn) { STAT.lastMs = performance.now() - t0; return cell; }
+      if (!centreMix && !G.lawn && !G.nShore) { STAT.lastMs = performance.now() - t0; return cell; }
       const M = BIO.mixOf(centreMix) || { species: {}, forest: {} }, F = M.forest || {};   // a cell of plots alone ('lawn' stands for a mix) plants its lawn and nothing else
-      const blotch = F.blotch || 0, blotchM = F.blotchM || 18, spread = F.coverSpread === undefined ? 0.08 : F.coverSpread;
-      if (GF && GF.C && GF.C.blotch) { GF.C.blotch.amount = blotch; GF.C.blotch.cellM = blotchM; }
-      const blotchAt = (x, z, seed) => (GF && GF.blotch) ? GF.blotch(x, z, seed) : 1 - blotch * vnoise(x, z, blotchM, seed % 1000);
       const items = new Map();   // proto -> { pos: [], col: [] | null }
       // the instance record: x y z s yaw tx tz - tx/tz the ground's slope under a rock that `tilt`s to it (0 0 = upright)
       // (G2358: none where a crash scarred the ground - after the draws, so the cell's stream is the same either way)
@@ -792,61 +799,89 @@ var COVER_RING = (() => {
           }
         }
       }
-      for (const c of speciesOf()) {
-        const row = M.species && M.species[c.name]; if (!row) continue;
-        const place = c.place || {};
-        const P = protosOf(c); if (!P.length) continue;
-        if (c.kind === 'cover' && LEAF.fadeOwn) for (const p of P) for (const q of p.parts) LEAF.fadeOwn(q.mat, null);   // (the reed back from the field: the shared fade)
-        const sSeed = hashStr(c.name);
-        const isRock = rockish(c), isShrub = c.kind === 'shrub';
-        if (isRock) {   // the rocks and the debris: their own stream, shared with the rock map (placeRocks above)
-          const made = placeRocks(c, row, F, G, centreMix, cx, cz, C, push);
-          if (made) { STAT.by[c.name] = (STAT.by[c.name] || 0) + made; cell.by[c.name] = (cell.by[c.name] || 0) + made; }
-          continue;
-        }
-        let per = 0;   // per m2
-        if (isShrub) { const tot = Object.keys(M.species).filter(k => { const cc = pack.collections.find(q => q.name === k); return cc && cc.kind === 'shrub'; }).reduce((a, k) => a + (M.species[k].proportion === undefined ? 1 : M.species[k].proportion), 0) || 1;
-          per = (F.under || 0) / 1000 * S.shrubs * (row.proportion === undefined ? 1 : row.proportion) / tot; }
-        // THE BENCH'S COUNT: a cover's density times the MIX's own `forest.cover` (1 for every
-        // shipped mix), then the ring's global `density` dial on top. The game used to skip the
-        // mix's multiplier and lean on S.density alone.
-        else per = (row.density !== undefined ? row.density : (place.density || 0)) * (F.cover === undefined ? 1 : F.cover) * S.density;   // no proportion, as the bench
-        if (per <= 0) continue;
-        const patch = row.patch !== undefined ? row.patch : (place.patch || 0), share = place.patchShare || row.patchShare || 0.35;
-        // the bench's beds: centres for 0.25 x patchShare of the area, each of radius `patch`,
-        // so a bed stands at density / (0.25 share) - here the beds are the top slice of a noise
-        const bedFrac = patch ? Math.min(1, 0.25 * share) : 1;
-        const n = Math.round(per * C * C * (patch ? 1 / bedFrac : 1) * (1 + G.bmax));   // (1 + bmax): the border's boost is drawn from this envelope
-        const lift = place.lift === undefined ? 1 : place.lift, noTint = !!place.noTint || !!c.maps;
-        const vary = place.vary === undefined ? 0.05 : place.vary;
-        for (let i = 0; i < n; i++) {
-          const x = x0 + R() * C, z = z0 + R() * C, r1 = R(), r2 = R(), r3 = R();
-          // the bed (see bedKeep): its own hash for the draw, so the cell's stream R() - and every
-          // other species' positions in the cell - are not disturbed by a flower's beds
-          if (patch) { const kp = bedKeep(x, z, patch, sSeed % 1000, bedFrac);
-            if (kp <= 0 || hsh(Math.round(x * 13.7) + 5, Math.round(z * 11.3) - 3) > kp) continue; }
-          if (blotch && r1 > blotchAt(x, z, sSeed)) continue;   // the bench's GF.blotch: keeps 1 - blotch .. 1 by area
-          const gk = G.at(x, z);
-          if (!G.ok[gk] || G.mix[gk] !== centreMix) continue;
-          if (isShrub && G.bush[gk]) continue;   // G1385: a strip's own clearance with `bushes` keeps the tall vegetation out
-          // the cover's query: nothing on a pavement (kill), more on a border (boost), a plot's lawn or
-          // meadow or nothing instead of the biome's rows (the LAWN row is planted below, on its own)
-          if (G.kind[gk] === 1 || G.kind[gk] === 3) continue;
-          if (G.cut[gk] > 0.05) continue;   // G2565: the mown ground by a runway ('sides' law) grows the field's cut grass, no flower, no bush
-          if (G.bmax > 0 || G.kill[gk] > 0) { const keep = (1 - G.kill[gk]) * (1 + G.boost[gk]) / (1 + G.bmax); if (keep < 1 && R() > keep) continue; }   // a rejection sampler: n was drawn at (1 + bmax) x
-          const p = draw(P, r2);
-          const y = world.terrainH(x, z);
-          let s = 1, yaw = r3 * Math.PI * 2, col = null;
-          if (isShrub && place.hMin !== undefined && place.hMax !== undefined && p.h0 > 0) s = (place.hMin + R() * (place.hMax - place.hMin)) / p.h0;
-          // the species' size ALWAYS (the reed's 0.012 is absolute); a MIX ROW may scale it (`size`, a factor:
-          // a village's grass is shorter than a moor's - 2026-09-22)
-          else s = (place.size || 1) * (row.size === undefined ? 1 : row.size) * Math.exp((R() * 2 - 1) * spread);
-          const yy = y - (place.sink || 0);
-          if (!noTint && !isShrub) {
-            col = lifted([G.col[gk * 3], G.col[gk * 3 + 1], G.col[gk * 3 + 2]], lift);
-            if (vary) { const j = 1 + (R() * 2 - 1) * vary; col = [col[0] * j, col[1] * j, col[2] * j]; }
-          } else if (noTint && !isShrub && vary) { const j = 1 + (R() * 2 - 1) * vary; col = [j, j, j]; }
-          push(p, x, yy, z, s, yaw, col, 0, 0); STAT.by[c.name] = (STAT.by[c.name] || 0) + 1; cell.by[c.name] = (cell.by[c.name] || 0) + 1;
+      // G3430 LAKESHORE (code 18, the user 25 Oct: "a proper biome with its mask"): the cell plants its centre's mix on that
+      // mix's points, then THE LAKE SHORE'S rows on the band's points (G.shore: BIO.shoreHere) whatever the centre says - the
+      // band is metres wide and a 32 m cell's one mix would miss it or swallow the cell; the centre's rows skip the band.
+      // A cell with no band point plants exactly as before
+      const passes = centreMix ? [[M, F, false]] : [];
+      if (G.nShore) { const MS = BIO.mixOf(BIO.mixAt(BIO.SHORE)); if (MS) passes.push([MS, MS.forest || {}, true]); }
+      for (const [M, F, band] of passes) {
+        const blotch = F.blotch || 0, blotchM = F.blotchM || 18, spread = F.coverSpread === undefined ? 0.08 : F.coverSpread;
+        if (GF && GF.C && GF.C.blotch) { GF.C.blotch.amount = blotch; GF.C.blotch.cellM = blotchM; }
+        const blotchAt = (x, z, seed) => (GF && GF.blotch) ? GF.blotch(x, z, seed) : 1 - blotch * vnoise(x, z, blotchM, seed % 1000);
+        for (const c of speciesOf()) {
+          const row = M.species && M.species[c.name]; if (!row) continue;
+          const place = c.place || {};
+          const P = protosOf(c); if (!P.length) continue;
+          if (c.kind === 'cover' && LEAF.fadeOwn) for (const p of P) for (const q of p.parts) LEAF.fadeOwn(q.mat, null);   // (the reed back from the field: the shared fade)
+          const sSeed = hashStr(c.name);
+          const isRock = rockish(c), isShrub = c.kind === 'shrub';
+          if (isRock) {   // the rocks and the debris: their own stream, shared with the rock map (placeRocks above)
+            if (band) continue;   // (the lake shore's band: its tufts, flowers and bushes; the stones stay the centre's)
+            const made = placeRocks(c, row, F, G, centreMix, cx, cz, C, push);
+            if (made) { STAT.by[c.name] = (STAT.by[c.name] || 0) + made; cell.by[c.name] = (cell.by[c.name] || 0) + made; }
+            continue;
+          }
+          let per = 0;   // per m2
+          if (isShrub) { const tot = Object.keys(M.species).filter(k => { const cc = pack.collections.find(q => q.name === k); return cc && cc.kind === 'shrub'; }).reduce((a, k) => a + (M.species[k].proportion === undefined ? 1 : M.species[k].proportion), 0) || 1;
+            per = (F.under || 0) / 1000 * S.shrubs * (row.proportion === undefined ? 1 : row.proportion) / tot; }
+          // THE BENCH'S COUNT: a cover's density times the MIX's own `forest.cover` (1 for every
+          // shipped mix), then the ring's global `density` dial on top. The game used to skip the
+          // mix's multiplier and lean on S.density alone.
+          else per = (row.density !== undefined ? row.density : (place.density || 0)) * (F.cover === undefined ? 1 : F.cover) * S.density;   // no proportion, as the bench
+          if (per <= 0) continue;
+          const patch = row.patch !== undefined ? row.patch : (place.patch || 0), share = place.patchShare || row.patchShare || 0.35;
+          // the bench's beds: centres for 0.25 x patchShare of the area, each of radius `patch`,
+          // so a bed stands at density / (0.25 share) - here the beds are the top slice of a noise
+          const bedFrac = patch ? Math.min(1, 0.25 * share) : 1;
+          const n = Math.round(per * C * C * (patch ? 1 / bedFrac : 1) * (1 + G.bmax));   // (1 + bmax): the border's boost is drawn from this envelope
+          const lift = place.lift === undefined ? 1 : place.lift, noTint = !!place.noTint || !!c.maps;
+          const vary = place.vary === undefined ? 0.05 : place.vary;
+          for (let i = 0; i < n; i++) {
+            const x = x0 + R() * C, z = z0 + R() * C, r1 = R(), r2 = R(), r3 = R();
+            // the bed (see bedKeep): its own hash for the draw, so the cell's stream R() - and every
+            // other species' positions in the cell - are not disturbed by a flower's beds
+            if (patch) { const kp = bedKeep(x, z, patch, sSeed % 1000, bedFrac);
+              if (kp <= 0 || hsh(Math.round(x * 13.7) + 5, Math.round(z * 11.3) - 3) > kp) continue; }
+            if (blotch && r1 > blotchAt(x, z, sSeed)) continue;   // the bench's GF.blotch: keeps 1 - blotch .. 1 by area
+            const gk = G.at(x, z);
+            if (!G.ok[gk] || (band ? !G.shore[gk] : (G.mix[gk] !== centreMix || G.shore[gk]))) continue;
+            if (isShrub && G.bush[gk]) continue;   // G1385: a strip's own clearance with `bushes` keeps the tall vegetation out
+            // the cover's query: nothing on a pavement (kill), more on a border (boost), a plot's lawn or
+            // meadow or nothing instead of the biome's rows (the LAWN row is planted below, on its own)
+            if (G.kind[gk] === 1 || G.kind[gk] === 3) continue;
+            if (G.cut[gk] > 0.05) continue;   // G2565: the mown ground by a runway ('sides' law) grows the field's cut grass, no flower, no bush
+            if (G.bmax > 0 || G.kill[gk] > 0) { const keep = (1 - G.kill[gk]) * (1 + G.boost[gk]) / (1 + G.bmax); if (keep < 1 && R() > keep) continue; }   // a rejection sampler: n was drawn at (1 + bmax) x
+            const p = draw(P, r2);
+            const y = world.terrainH(x, z);
+            let s = 1, yaw = r3 * Math.PI * 2, col = null;
+            if (isShrub && place.hMin !== undefined && place.hMax !== undefined && p.h0 > 0) s = (place.hMin + R() * (place.hMax - place.hMin)) / p.h0;
+            // the species' size ALWAYS (the reed's 0.012 is absolute); a MIX ROW may scale it (`size`, a factor:
+            // a village's grass is shorter than a moor's - 2026-09-22)
+            else s = (place.size || 1) * (row.size === undefined ? 1 : row.size) * Math.exp((R() * 2 - 1) * spread);
+            const yy = y - (place.sink || 0);
+            if (!noTint && !isShrub) {
+              col = lifted([G.col[gk * 3], G.col[gk * 3 + 1], G.col[gk * 3 + 2]], lift);
+              if (vary) { const j = 1 + (R() * 2 - 1) * vary; col = [col[0] * j, col[1] * j, col[2] * j]; }
+              // a species' own hue swing (G3430, the user: "random colouration"): place.hueTurn [lo, hi] degrees about the grey
+              // axis, from the tuft's own hash so the cell's stream R() - every other species' tufts - is untouched; the
+              // lake-shore fern runs green -> yellow -> bronze (negative is toward red)
+              if (place.hueTurn && GF && GF.hueTurn) {
+                const h = hsh(Math.round(x * 7.3) + 11, Math.round(z * 6.1) - 7), a = place.hueTurn[0] + h * (place.hueTurn[1] - place.hueTurn[0]);
+                col = GF.hueTurn(col, a * Math.PI / 180).map(v => Math.max(0, v));
+              }
+            } else if (noTint && !isShrub && vary) { const j = 1 + (R() * 2 - 1) * vary; col = [j, j, j];
+              // an untinted species' small hue swing (G3430, the user 27 Oct: "don't color them as the ground", the reeds on their
+              // own hue/sat/light and "a small variation per instance"): the multiplier that turns place.hueRef (the tinted texel's
+              // mean, relative) by hueTurn [lo, hi] degrees - a grey multiplier has no hue to turn; the tuft's own hash, as above
+              if (place.hueTurn && place.hueRef && GF && GF.hueTurn) {
+                const h = hsh(Math.round(x * 7.3) + 11, Math.round(z * 6.1) - 7), a = place.hueTurn[0] + h * (place.hueTurn[1] - place.hueTurn[0]);
+                const rf = place.hueRef, t = GF.hueTurn(rf, a * Math.PI / 180);
+                col = [0, 1, 2].map(i => j * Math.max(0, t[i]) / Math.max(1e-3, rf[i]));
+              }
+            }
+            push(p, x, yy, z, s, yaw, col, 0, 0); STAT.by[c.name] = (STAT.by[c.name] || 0) + 1; cell.by[c.name] = (cell.by[c.name] || 0) + 1;
+          }
         }
       }
       // the meshes: one InstancedMesh per prototype part
@@ -1212,7 +1247,7 @@ var COVER_RING = (() => {
         if (FIELD && S.block !== was.block) { const nb = Math.max(1, S.block | 0); S.block = was.block; api.replant(); B = S.block = nb; }   // the old blocks emptied under the old grain, then the new one
         // what the planting reads (a replant); the fade's dials (near, reach, taper, AGL, the size fade's strength) are live
         const PLANT = FIELD ? ['cell', 'cards', 'variants', 'tufts', 'sizeMax', 'lakeMargin', 'hK', 'sigmaK', 'blotch', 'clumpM', 'clumpAmp', 'tier', 'hRef', 'colour', 'match', 'vary', 'cutH', 'cutSigma', 'cutDens', 'stripH', 'stripDens', 'trunc']
-                            : ['cell', 'density', 'shrubs', 'rocks', 'batch', 'castMinH', 'trunc'];
+                            : ['cell', 'density', 'shrubs', 'rocks', 'batch', 'castMinH', 'castMinDebris', 'trunc'];
         if (PLANT.some(k => S[k] !== was[k])) api.replant(); return api.get(); },
       species: () => (FIELD ? FIELD_SPECIES.slice() : []),   // what the field plants (the first ring leaves it to it: ctx.owned)
       fadeSet: () => FSET,   // the field's own fade uniforms (null: the shared set) - GATE COVER reads them

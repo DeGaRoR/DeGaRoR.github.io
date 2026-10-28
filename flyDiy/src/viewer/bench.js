@@ -505,7 +505,7 @@ const benchDestroyLine = D => {
   if (D.error) return 'the test to destruction did not run (' + D.error + ')';
   const side = c => (c === 'L' ? 'left ' : c === 'R' ? 'right ' : '');
   const part = D.key ? String(D.key).replace(/^wing(\d)([LR]?):/, (m, p, c) => 'the ' + side(c) + 'wing\'s ')
-    .replace(/^eng([LR]?):/, (m, c) => 'the ' + side(c) + 'engine\'s ').replace(/^([a-z]+)([LR]?):/, (m, w, c) => 'the ' + side(c) + w + '\'s ') : '';
+    .replace(/^eng([LR]?)(2|Aft)?:/, (m, c, o) => 'the ' + side(c) + (o === '2' ? 'outer ' : o === 'Aft' ? 'rear ' : '') + 'engine\'s ').replace(/^([a-z]+)([LR]?):/, (m, w, c) => 'the ' + side(c) + w + '\'s ') : '';
   return 'LIMIT ' + benchNum(D.limit, 1) + ' g · ULTIMATE ' + benchNum(D.ult, 1) + ' g · BROKE AT '
     + (D.brokeAt != null ? benchNum(D.brokeAt, 2) + ' g' + (part ? ' (' + part + (D.seam ? ', a ' + D.seam : '') + ', let go first)' : '')
                          : 'none (' + (D.verdict || 'held') + ')')
@@ -582,7 +582,9 @@ const BENCH_LOOK = { energy: ['finish', 'hue', 'tint'], vessel: ['finish', 'hue'
 // G3449 (RUFUS-CERT, the user 22 Oct: "the cabin flood switched on at the story start; no change to Rufus's file"): a
 // LIGHT SWITCH is a position, not the airframe - the lamps' levels (li_nav .. li_pax, the cockpit's switches and
 // dimmers) are state like lightOn. What is FITTED (li_*Fit) and where (the bay, pod, tip rows) still counts.
-const BENCH_STATE_ROWS = /^_view|^(explodeD|pilOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|li_(?:nav|beacon|taxi|land|flood|instr|pedal|pax))$/;
+// DOOR-HINGES (2026-10-27): the door hinges' axis tweaks (`hgDr*`) place display hardware - not the airframe either;
+// absent from every file before them, so no certificate taken before moves.
+const BENCH_STATE_ROWS = /^_view|^(explodeD|pilOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|li_(?:nav|beacon|taxi|land|flood|instr|pedal|pax))$|^hgDr[A-Z]/;
 function benchStripCosmetic(spec, defaults) {
   if (!spec || typeof spec !== 'object') return null;
   const c = JSON.parse(JSON.stringify(spec));

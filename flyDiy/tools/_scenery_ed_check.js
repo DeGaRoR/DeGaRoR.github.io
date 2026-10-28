@@ -621,8 +621,10 @@ if (plots.length) {
 //    and the record settings. The shipped fixture, migrated, the town cut as a save has it, IS the save entry by entry
 //    (normalised) - but for a `stage`, which a save (the sandbox's view, every track at its max) never carries and the
 //    shipped record keeps, and the entries only a stage stands (`sg_`) or a removal not yet confirmed keeps.
+//    (JOLENE-FOLD 25 Oct, the user: "my new scenery gets folded in right away": the manifest is scenery_ship_afb19.json, the
+//    Jolene AFB (19) save; rev 28's stays beside it as the record of that ship - row 13's r1 still reads it)
 {
-  const M = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_ship_rev28.json'), 'utf8'));
+  const M = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_ship_afb19.json'), 'utf8'));
   const stxt = fs.readFileSync(path.join(TOOLS, 'fixtures', M.save), 'utf8');
   check(require('crypto').createHash('sha256').update(stxt).digest('hex') === M.sha256, '15 the save beside the manifest is the user\'s, byte for byte (' + M.sha256.slice(0, 16) + ')');
   const A = PG.dropPlaces(PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec, ['mk_']).rec, B = PG.unwrap(stxt).rec;
@@ -650,11 +652,32 @@ if (plots.length) {
   //  fold's order and its marks inside its draw - the same ground, another spelling
   const sk = v => Array.isArray(v) ? v.map(sk) : v && typeof v === 'object' ? Object.keys(v).sort().reduce((o, k) => (o[k] = sk(v[k]), o), {}) : v;
   const canA = s => { const c = JSON.parse(s); if (c.props) c.props = PG.areaEntries(Object.assign({}, c, { src: null })).map(q => { const x = Object.assign({}, q.entry); delete x.id; delete x.poly; return [q.layer, sk(x)]; }).sort((p, q) => p[0] < q[0] ? -1 : 1); return JSON.stringify(c); };
-  const same = (L, x, y) => L === 'areas' ? canA(unC(x)) === canA(unC(y)) : unC(x) === unC(y);
+  // (JOLENE-FOLD) a staged item the save has not at all - shown only below its track's max, so not in the sandbox's view - is
+  //  the shipped entry's own (the old club hangar, the mine's mill)
+  const svItems = (x, y) => { if (!Array.isArray(x.items) || !Array.isArray(y.items)) return x; const ids = new Set(y.items.map(q => q && q.id));
+    return Object.assign({}, x, { items: x.items.filter(it => !(it && it.stage) || ids.has(it.id)) }); };
+  // (JOLENE-FOLD) a save made below a track's max carries a staged entry at its `stage.vary` variant (AFB (19): tw_ski at
+  //  resort<3, nv_strip at survey<1): a field equal to a variant is the stage's - the shipped entry's own value, as the ship
+  //  tool's devary and stageRestore put it back
+  //  (and the view's own `stageSown` mark never ships: the ship tool drops it)
+  const devary = (y0, x) => { const y = y0 && y0.stageSown !== undefined ? Object.assign({}, y0) : y0; if (y !== y0) delete y.stageSown;
+    const vs = x && x.stage && Array.isArray(x.stage.vary) ? x.stage.vary : []; if (!vs.length) return y;
+    const c = JSON.parse(JSON.stringify(y)), eq = (p, q) => JSON.stringify(p) === JSON.stringify(q);
+    for (const q of vs) for (const k of Object.keys(q)) { if (k === 'show') continue;
+      if (k === 'P') { if (c.P) for (const pk of Object.keys(q.P || {})) if (eq(c.P[pk], q.P[pk])) { if (x.P && pk in x.P) c.P[pk] = x.P[pk]; else delete c.P[pk]; } continue; }
+      if (eq(c[k], q[k])) { if (x[k] === undefined) delete c[k]; else c[k] = JSON.parse(JSON.stringify(x[k])); } }
+    return c; };
+  const same = (L, x, y) => L === 'areas' ? canA(unC(x)) === canA(unC(y)) : unC(svItems(x, y)) === unC(devary(y, x));
+  // (JOLENE-FOLD) an area the save folded from STAGED v1 entries (the sandbox's view carries no stage, so they fold; the shipped
+  //  record's staged entries do not - sg_x_mill, sg_x_lodge): its entries against those sources, stage aside
+  const fromStaged = e => !!(e.src && Object.keys(e.src).length) && Object.entries(e.src).every(([k, s]) => (A.layers[k] || []).some(q => q.id === s[0] && q.stage));
+  const srcSame = e => PG.areaEntries(e).every(q => { const f = (A.layers[q.layer] || []).find(z => z.id === q.entry.id); return !!f && JSON.stringify(sk(JSON.parse(un(f)))) === JSON.stringify(sk(JSON.parse(un(q.entry)))); });
   const bad = [], pending = [];
   for (const L of PG.LAYERS) {
     const a = new Map((A.layers[L] || []).map(e => [e.id, e])), b = new Map((B.layers[L] || []).map(e => [e.id, e]));
-    for (const [id, e] of b) { if (EX.has(id)) { if (a.has(id)) bad.push(L + ' ' + id + ' held back, but shipped'); continue; } if (!a.has(id)) bad.push(L + ' ' + id + ' not shipped'); else if (!same(L, a.get(id), e)) bad.push(L + ' ' + id + ' differs'); }
+    for (const [id, e] of b) { if (EX.has(id)) { if (a.has(id)) bad.push(L + ' ' + id + ' held back, but shipped'); continue; }
+      if (!a.has(id)) { if (L === 'areas' && fromStaged(e)) { if (!srcSame(e)) bad.push(L + ' ' + id + ' differs from its staged sources'); } else bad.push(L + ' ' + id + ' not shipped'); }
+      else if (!same(L, a.get(id), e)) bad.push(L + ' ' + id + ' differs'); }
     for (const [id, e] of a) if (!b.has(id)) { if (RM.has(id)) bad.push(L + ' ' + id + ' removal confirmed, still shipped'); else if (!staged(e)) pending.push(id); }
   }
   check(!bad.length, '15 the shipped record is the save entry by entry (held back: ' + (M.except.join(', ') || 'none') + ')', bad.slice(0, 6).join('; '));
@@ -1371,6 +1394,90 @@ if (plots.length) {
   check(!('band' in lr('z0')) && !('band' in lr('zn')) && lr('z3').band === 3 && L40.layers.runways[0].band === 0, '40 a road loaded with band 0 or null is read with none (its own side), a band 3 kept, a strip\'s band 0 kept');
   const J40 = JSON.parse(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')), r45 = PG.normalise(J40.layers ? J40 : (J40.rec || J40.premises)).layers.roads.find(q => q.id === 'r45');
   check(r45 && !('band' in r45), '40 Jolene\'s r45 (band 0 in the file) draws its own side again');
+}
+// 41 THE USER'S EDITOR ITEMS (24 Oct playtest 40-42): the checks panel says only what is wrong (the long list gone); the editor
+//    opens in FLY (WASD) seeded from the flight's eye, the orbit's centre on the aeroplane (not the island-wide extent); a zone's
+//    plot cars: rules.cars false flags every plot it sows noCar, rules.noCar [ids] those alone, none set - every plot record as
+//    before; the village generator parks no car on a noCar plot (after its draws); the renderer builds a switched plot again
+{
+  const flat = { id: 'flat', terrainH: () => 0, waterH: () => -100 };
+  const J = PG.unwrap(fs.readFileSync(path.join(TOOLS, 'fixtures', 'island_jolene.json'), 'utf8')).rec;
+  const key = O => JSON.stringify(O.records.plots);
+  const O0 = PG.compose(J, flat, { raster: false }), z = J.layers.zones.find(q => O0.records.plots.some(p => p.zone === q.id && p.kind !== 'park'));
+  check(z && !O0.records.plots.some(p => 'noCar' in p), '41 no zone saying so: no plot carries noCar (' + O0.records.plots.length + ' plots)');
+  const mine = O0.records.plots.filter(p => p.zone === z.id), one = mine[0];
+  const J1 = JSON.parse(JSON.stringify(J)); J1.layers.zones.find(q => q.id === z.id).rules = Object.assign({}, z.rules, { noCar: [one.id] });
+  const O1 = PG.compose(J1, flat, { raster: false });
+  check(O1.records.plots.filter(p => p.noCar).map(p => p.id).join() === one.id, '41 a plot\'s cars switched off: it alone carries noCar (' + one.id + ')');
+  check(JSON.stringify(O1.records.plots.map(p => { const c = Object.assign({}, p); delete c.noCar; return c; })) === key(O0), '41 ...and every plot otherwise the same, its boundary and seed too');
+  const J2 = JSON.parse(JSON.stringify(J)); J2.layers.zones.find(q => q.id === z.id).rules = Object.assign({}, z.rules, { cars: false });
+  const O2 = PG.compose(J2, flat, { raster: false });
+  check(O2.records.plots.filter(p => p.zone === z.id).every(p => p.noCar) && O2.records.plots.filter(p => p.zone !== z.id).every(p => !p.noCar), '41 the zone\'s cars off: its ' + mine.length + ' plots, and no other');
+  const VGs = fs.readFileSync(path.join(TOOLS, '_village_gen.js'), 'utf8'), RPs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_premises.js'), 'utf8'), APs = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
+  check(/if \(plot\.noCar\) \{ plot\.car = null; if \(plot\.drive\) plot\.drive\.car = null; \}/.test(VGs) && /if \(plot\.lot && plot\.noCar\) plot\.lot\.cars = \[\];/.test(VGs), '41 the village generator parks no car on a noCar plot (a house\'s, its drive\'s, a lot\'s bays)');
+  check(/!!p\.noCar !== !!\(h\.plot && h\.plot\.noCar\)/.test(RPs), '41 the renderer builds a plot again when its cars switch');
+  check(/'plot cars'/.test(UI_SRC) && /pick plots: a click switches one plot\\'s cars/.test(UI_SRC) && /name === 'plotCar'/.test(UI_SRC), '41 the zone\'s inspector: the cars switch and the plot pick');
+  // the pick, end to end: a click in the plot puts it in noCar, a second takes it out
+  let zid = null;
+  const ed41 = UI.mount(new El('div'), { THREE: null, world: synth, R: Object.assign(makeR(), { plots: () => [{ zone: zid, id: zid + '.1', poly: [[0, 0], [30, 0], [30, 30], [0, 30]] }] }), rows, els: { chk: new El('div'), plaque: null, strip: new El('div') }, viewEl: new El('div'), storage: null, fresh: true, camera: () => null, redraw: noop });
+  zid = ed41.cmd('add', { layer: 'zones', entry: { id: 'zc41', kind: 'residential', poly: [[-10, -10], [40, -10], [40, 40], [-10, 40]] } });
+  ed41.cmd('plotCar', { zone: zid, x: 15, z: 15 });
+  const nc1 = ((PG.findById(ed41.record(), zid).entry.rules || {}).noCar || []).join();
+  ed41.cmd('plotCar', { zone: zid, x: 15, z: 15 });
+  const nc2 = (PG.findById(ed41.record(), zid).entry.rules || {}).noCar;
+  check(nc1 === zid + '.1' && nc2 === undefined, '41 a plot picked: its cars off (noCar ' + nc1 + '), picked again: back (' + JSON.stringify(nc2) + ')');
+  // the checks panel: what is wrong, never the list of what is right
+  check(!/✓/.test(String(UI_SRC.match(/function checks\(\) \{[\s\S]*?\n  \}/)[0].split('els.chk.innerHTML')[1] || '')), '41 the checks panel lists no passed check (the long list gone): a failed check, the first issue, the warnings\' count');
+  ed41.close();
+  check(/const eye0 = camera\.position\.clone\(\), q0 = camera\.quaternion\.clone\(\);/.test(APs) && /camera\.position\.copy\(eye0\); camera\.quaternion\.copy\(q0\); PREM\.host\.cameras\.set\('fly'\);/.test(APs) && !/cameras\.frame\(ov\.extent\)/.test(APs),
+        '41 the editor opens in FLY (WASD) from the flight\'s eye, the orbit centred on the aeroplane - not framed on the island-wide extent');
+}
+// 42 SCENERY VERSIONS (41 is EDITOR-ITEMS, ED-1) (ED-2; the user, 24 Oct: "the fact that the game and the player edits can diverge is problematic ... keep some sort
+//    of master, so there is no confusion" - and 25 Oct: "the game always loads master. When getting into the scenery editor, there is an
+//    option to load a version, and that's the only place where scenery can be loaded"): every named version listed in
+//    media/scenery/<island>/index.json is a file of the repo that unwraps and composes (an id once); the boot composes master and never
+//    reads (but the rigs' door) nor deletes the editor's copy; the editor opened on master offers master / the last autosave / the
+//    versions and loads each, and keeps the last autosave as a slot before its first write overwrites it (once, whatever the writes)
+{
+  const SCN_DIR = path.join(TOOLS, '..', 'media', 'scenery');
+  let n = 0, bad = [];
+  for (const isl of (fs.existsSync(SCN_DIR) ? fs.readdirSync(SCN_DIR) : [])) {
+    const ixf = path.join(SCN_DIR, isl, 'index.json'); if (!fs.existsSync(ixf)) continue;
+    let ix = null; try { ix = JSON.parse(fs.readFileSync(ixf, 'utf8')); } catch (e) { bad.push(isl + ': index.json does not parse'); continue; }
+    if (!Array.isArray(ix.versions)) { bad.push(isl + ': index.json has no versions list'); continue; }
+    const ids = new Set();
+    for (const v of ix.versions) {
+      n++;
+      if (!v.id || ids.has(v.id)) bad.push(isl + ': version id missing or twice: ' + v.id); ids.add(v.id);
+      const f = path.join(SCN_DIR, isl, v.file || '');
+      if (!v.file || !fs.existsSync(f)) { bad.push(isl + '/' + v.id + ': no file ' + v.file); continue; }
+      try { const R = PG.unwrap(fs.readFileSync(f, 'utf8')).rec; PG.compose(PG.expandAreas ? PG.expandAreas(R) : R, synth); } catch (e) { bad.push(isl + '/' + v.id + ': does not compose (' + e.message.slice(0, 60) + ')'); }
+    }
+  }
+  check(!bad.length, '42 the named scenery versions (' + n + ') are repo files that compose, one id each', bad.slice(0, 4).join('; '));
+  const WBsrc = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'world_boot.js'), 'utf8'), APsrc = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'app.js'), 'utf8');
+  const has = (s, t) => s.indexOf(t) >= 0, wipReads = WBsrc.split('getItem(WIP_KEY)').length - 1;
+  check(wipReads === 1 && has(WBsrc, 'if (rig) { let t = null; try { t = localStorage.getItem(WIP_KEY)') && has(WBsrc, "getItem('flydiy.premises.bootWip') === '1'") && !has(WBsrc, 'removeItem(WIP_KEY)') && !has(WBsrc, "get('scenery')") && has(WBsrc, '      return fixture;'),
+    '42 the game boots master: the editor\'s copy is read only behind the rigs\' door, never deleted; no ?scenery= in the game', 'getItem(WIP_KEY) x' + wipReads);
+  check(has(APsrc, 'scenery: WB.SCN ? { island: WB.SCN.island, master: rec0,') && !has(APsrc, 'clear the saved premises (the map') && !has(APsrc, "flSelect(body, 'scenery'"),
+    '42 the scenery editor gets the versions (master = what the page composed); the WORLD panel neither picks a scenery nor deletes the editor\'s copy');
+  { const M = new Map(), S = { getItem: k => (M.has(k) ? M.get(k) : null), setItem: (k, v) => { M.set(k, String(v)); }, removeItem: k => { M.delete(k); }, key: i => Array.from(M.keys())[i] || null, get length() { return M.size; } };
+    const base = fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_user_jolene_rev23.json'), 'utf8');
+    const named = nm => { const o = JSON.parse(base); o.name = nm; (o.premises || o).name = nm; return JSON.stringify(o); };
+    const mineT = named('my edits 38'), verT = named('version 38'), VS = [{ id: 'v38', name: 'Version 38', file: 'v38.json' }];
+    S.setItem('K38', mineT);
+    let sel = null; const rows38 = Object.assign({}, rows, { select: (h, t, opts, g, set) => { if (t === 'load a version') sel = { opts: opts.map(o => o[0]), set }; } });
+    const ed38 = UI.mount(new El('div'), { THREE: null, world: synth, R: makeR(), rows: rows38, els: { chk: null, plaque: null, strip: new El('div') }, viewEl: new El('div'), storage: S, wipKey: 'K38', fresh: true, record: base, camera: () => null, redraw: noop,
+      scenery: { island: 'jolene', master: base, versions: () => VS, versionText: v => (v.id === 'v38' ? verT : null), prep: t => t } });
+    ed38.setSection('file');
+    check(sel && ['master', 'wip', 'v:v38'].every(k => sel.opts.indexOf(k) >= 0), '42 FILE > load a version: master, my edits (the last autosave), the named versions', JSON.stringify(sel && sel.opts));
+    const kept = () => Array.from(M.keys()).filter(k => k.indexOf('flydiy.premises.slot.my edits before ') === 0);
+    ed38.cmd('saveNow'); ed38.cmd('saveNow');
+    check(kept().length === 1 && S.getItem(kept()[0]) === mineT && S.getItem('K38') !== mineT, '42 opened on master, the first autosave keeps the last edits as a slot (once) before it writes', JSON.stringify(kept()));
+    const nameOf = () => { const r = ed38.record(); return r && r.name; };
+    if (sel) { sel.set('v:v38'); const v1 = nameOf(); sel.set('master'); const m1 = nameOf(); sel.set('wip'); const w1 = PG.unwrap(S.getItem('K38')).rec.name;
+      check(v1 === 'version 38' && m1 !== 'version 38' && nameOf() === w1, '42 each loads: the version, master, the last autosave', [v1, m1, nameOf(), w1].join(' / ')); }
+    ed38.close(); }
 }
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');

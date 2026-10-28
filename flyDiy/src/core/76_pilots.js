@@ -31,17 +31,32 @@
 // it was given, untouched (74_career.js's contract). No DOM, no storage, no clock, no random.
 // ===========================================================================
 const PILOTS_V = 1;
-const PILOTS_ORDER = ['kit', 'rafe', 'remy', 'sky'];
-const PILOTS_COMPANION = 'kit';                       // arrives with the player (§9.2, the pack's COMPANION)
-const PILOTS_RESERVED = { ch20: 'the test pilot', ch02: 'kept for the user\'s own purposes' };   // GQ13: not recruits
-const PILOTS_MARKET = { min: 2, max: 3 };             // recruitables shown at a time, refreshed with the market
+// G3614 (PEOPLE, the user 25 Oct): the pilots are PEOPLE (72_people.js GAME_PEOPLE, role 'pilot'): the pack's four
+// tuned persons on the bodies they always wore - kit -> Brian (ch01), rafe -> Bryce (ch42), remy -> Remy, sky -> Megan
+// (ch22); the names and the portraits are the official ones. The companion stays Brian until HIRE (G3618) retires it
+// with the tutorial's first hire ("we were always flying solo").
+const PILOTS_ORDER = peopleOf('pilot');
+const PILOTS_COMPANION = PEOPLE_FROM_PACK.kit;        // arrives with the player (§9.2, the pack's COMPANION) - until G3618
+const PILOTS_RESERVED = peopleOf('reserved').filter(id => GAME_PEOPLE[id].char)
+  .reduce((o, id) => (o[GAME_PEOPLE[id].char] = GAME_PEOPLE[id].why, o), {});   // GQ13: not recruits (ch20 Stig, ch02 Sophie)
+const PILOTS_MARKET = { all: true };                  // G3618 (HIRE, the user 25 Oct: "All 4 available"): every pilot not hired is on offer
 const PILOTS_GROW = { fast: 30, steady: 60 };         // logged landings to reach the ceiling (§9.4)
 const PILOTS_WEATHER = { windKt: 18 };                // a cautious pilot's limit: the surface wind at the decision
 const PILOTS_SHORT_M = 300;                           // short-strip nerves: refuses strips under this (m)
 const PILOTS_PAVED = ['concrete', 'asphalt'];         // paved-only: the surfaces it will use
 // G-COST: the one-time sign-on fee. ECONOMY (G2260) owns the price book (econPrice('signon', id)); until it lands,
 // this stub - the order is the pack's (remy the cheapest, sky the priciest; the companion comes with the opening).
-const PILOTS_SIGNON_STUB = { kit: 0, remy: 1500, rafe: 4000, sky: 7000 };
+const PILOTS_SIGNON_STUB = { brian: 2500, remy: 1500, bryce: 4000, megan: 7000 };
+// G3618 (HIRE, the user 25 Oct: "a signing fee plus recurring cost, so we have the same model as the contract itself";
+// "sign-on only, first day paid at the end of the first day, like classic paycheck"): THE WAGE, per sim day, paid at
+// the END of each day a pilot is on the roster (pilotsPayroll) - never at the hire. The companion (until STORY's T6b
+// retires it) works for nothing. ECONOMY's price book wins when it prices them (econPrice('wage', id)).
+const PILOTS_WAGE_STUB = { brian: 250, remy: 150, bryce: 300, megan: 450 };
+const PILOTS_DAY_S = 86400;
+const PILOTS_PAY_UT_S = 3 * 3600;   // the payday's hour: 03:00 UT = 18:00 on the island (UT-9), the end of the working day
+// G3618: THE EXPERIENCE LEVEL the hire card states (the user: "We'll state their experience level, and their skills
+// ... and we'll let the player discover. It shouldn't be fully fail safe") - by the person's base profile
+const PILOTS_LEVEL = { student: 'pilot.level.student', club: 'pilot.level.club', hamfist: 'pilot.level.hamfist', bush: 'pilot.level.bush', expert: 'pilot.level.expert' };
 
 // ---- THE TRAITS: hooks, never prose (§9.3). Each names what it does; the pack's phrase is its label key. --------------
 //   refuse     a refusal kind (pilotsRefusal): 'weather' | 'night' | 'short' | 'unpaved' | 'water' | 'snow'
@@ -76,41 +91,31 @@ const PILOTS_REFUSALS = ['weather', 'night', 'short', 'unpaved', 'water', 'snow'
 //   grow      { rate: PILOTS_GROW key, ceiling: a PILOT_PROFILES name } | null (the pack: "grows ... (ceiling: X)")
 //   signOn    'stub' (the price book's, pilotsSignOn) - the companion's is 0
 //   pack      what the pack left unsaid that this table decided (HANDOVER G2290 lists them)
-const PILOTS_ROSTER = {
-  kit:  { id: 'kit', who: 'ch01', companion: true,
-          profile: { base: 'club', knobs: { reaction: 0.25, smooth: 0.8, bankK: 0.85, comfortG: 1.25 } },
-          style: 'cautious', traits: ['mechanic', 'cautious', 'night-shy'], grow: { rate: 'steady', ceiling: 'bush' },
-          portrait: null },
-  rafe: { id: 'rafe', who: 'ch42',
-          profile: { base: 'hamfist', knobs: { hamFist: 0.04, comfortG: 1.9, bankK: 1.25 } },
-          style: 'normal', traits: ['fearless', 'hard-on-airframes'], grow: null,
-          portrait: null, pack: { style: 'not given: normal', grow: 'not given: none (the rough hands stay)' } },
-  remy: { id: 'remy', who: 'remy',
-          profile: { base: 'student', knobs: { reaction: 0.40, overRotate: 0.03, flareK: 0.85 } },
-          style: 'normal', traits: ['eager'], grow: { rate: 'fast', ceiling: 'expert' },
-          portrait: null, pack: { style: 'not given: normal' } },
-  sky:  { id: 'sky', who: 'ch22',
-          profile: { base: 'bush', knobs: { reaction: 0.12, smooth: 1.0, slip: true, field: 'short', bankK: 1.2, comfortG: 1.7 } },
-          style: 'normal', traits: ['short-field', 'loves-taildraggers', 'refuses-nothing'], grow: { rate: 'steady', ceiling: 'expert' },
-          portrait: null, pack: { style: 'not given: normal', grow: 'not given: steady to the expert, on tailwheel types only (loves taildraggers)' } },
-};
+const PILOTS_ROSTER = PILOTS_ORDER.reduce((o, id) => {
+  const P = GAME_PEOPLE[id], F = P.fly;
+  o[id] = Object.assign({ id, who: P.char }, id === PILOTS_COMPANION ? { companion: true } : {},
+    { profile: { base: F.profile.base, knobs: Object.assign({}, F.profile.knobs) }, style: F.style, traits: F.traits.slice(),
+      grow: F.grow ? Object.assign({}, F.grow) : null, portrait: peopleFace(id, 256), from: P.from },
+    F.pack ? { pack: Object.assign({}, F.pack) } : {});
+  return o;
+}, {});
 
 // ---- THE TEXT: draft keys until the user's AI run (GQ21); the same { t, draft } shape as CONTRACT_TEXT ------------
 const PLT_ = t => ({ t, draft: true });
 const PILOTS_TEXT = {
-  'pilot.kit.name': PLT_('Kit'), 'pilot.rafe.name': PLT_('Rafe'), 'pilot.remy.name': PLT_('Remy'), 'pilot.sky.name': PLT_('Sky'),
-  'pilot.kit.tagline': PLT_('Fixes engines, flies a little, came with you.'),
-  'pilot.rafe.tagline': PLT_('Loud, brave, rough on the stick.'),
+  // (G3614) the names are the people's, official (not drafts, set below); the lines stay drafts, keyed by person
+  'pilot.brian.tagline': PLT_('Fixes engines, flies a little.'),
+  'pilot.bryce.tagline': PLT_('Loud, brave, rough on the stick.'),
   'pilot.remy.tagline': PLT_('A brand-new licence and no hours.'),
-  'pilot.sky.tagline': PLT_('Grew up landing on gravel bars.'),
-  'pilot.kit.bio': PLT_('[draft] The one who came with you. The text comes from the narrative run.'),
-  'pilot.rafe.bio': PLT_('[draft] Ex-crop-duster and airshow ground crew turned pilot.'),
+  'pilot.megan.tagline': PLT_('Grew up landing on gravel bars.'),
+  'pilot.brian.bio': PLT_('[draft] A mechanic first, a pilot second. The text comes from the narrative run.'),
+  'pilot.bryce.bio': PLT_('[draft] Ex-crop-duster and airshow ground crew turned pilot.'),
   'pilot.remy.bio': PLT_('[draft] Just finished the commercial licence. Wants hours.'),
-  'pilot.sky.bio': PLT_('[draft] A bush pilot from the gravel bars.'),
-  'pilot.kit.pitch': PLT_('[draft] I believed in this before you did.'),
-  'pilot.rafe.pitch': PLT_('[draft] Weather? I fly in it.'),
+  'pilot.megan.bio': PLT_('[draft] A bush pilot from the gravel bars.'),
+  'pilot.brian.pitch': PLT_('[draft] I believed in this before you did.'),
+  'pilot.bryce.pitch': PLT_('[draft] Weather? I fly in it.'),
   'pilot.remy.pitch': PLT_('[draft] Give me the hours, I\'ll give you the landings.'),
-  'pilot.sky.pitch': PLT_('[draft] Show me the strip. Any strip.'),
+  'pilot.megan.pitch': PLT_('[draft] Show me the strip. Any strip.'),
   // the eight barks (Block 3), one draft line per moment, shared until the pack writes each pilot's own
   'pilot.bark.hired': PLT_('{name} is on the roster.'),
   'pilot.bark.takeoff': PLT_('{name}: rolling.'),
@@ -140,11 +145,22 @@ const PILOTS_TEXT = {
   'pilot.trait.fearless.how': PLT_('no weather refusals'), 'pilot.trait.eager.how': PLT_('the cheapest sign-on, grows fast'),
   'pilot.trait.short-field.how': PLT_('short-field technique, slips'), 'pilot.trait.loves-taildraggers.how': PLT_('grows on tailwheel types'),
   'pilot.trait.refuses-nothing.how': PLT_('flies anything'),
+  // G3618: the hire card's experience level and its skill chips (what a pilot is good at, never a promise)
+  'pilot.level.student': PLT_('Novice: a fresh licence, few hours'), 'pilot.level.club': PLT_('Weekend pilot: some hours, gentle'),
+  'pilot.level.hamfist': PLT_('Experienced, rough hands'), 'pilot.level.bush': PLT_('Bush pilot: many hours off rough strips'),
+  'pilot.level.expert': PLT_('Expert'),
+  'pilot.skill.short-field': PLT_('short landings'), 'pilot.skill.fearless': PLT_('big weather'), 'pilot.skill.refuses-nothing': PLT_('flies anything'),
+  'pilot.skill.loves-taildraggers': PLT_('taildraggers'), 'pilot.skill.mechanic': PLT_('field repairs'), 'pilot.skill.eager': PLT_('learns fast'),
+  'pilot.skill.cautious': PLT_('careful in wind'), 'pilot.skill.night-shy': PLT_('day flying only'), 'pilot.skill.hard-on-airframes': PLT_('rough on planes'),
+  'pilot.wage': PLT_('{name}\'s wage'),
   'pilot.me': PLT_('I fly'), 'pilot.me.how': PLT_('by hand, or the expert autopilot'),
   'pilot.boat': PLT_('takes the boat home'),
 };
+for (const id of PILOTS_ORDER) PILOTS_TEXT['pilot.' + id + '.name'] = { t: peopleName(id), draft: false };
 const pilotsText = (key, vars, text) => contractText(key, vars, Object.assign({}, PILOTS_TEXT, text || {}));
 const pilotsName = id => pilotsText('pilot.' + id + '.name');
+// an older save's pilot id (the pack's: kit / rafe / remy / sky) -> the person wearing it today
+const pilotsId = id => (PILOTS_ROSTER[id] ? id : (PEOPLE_FROM_PACK[id] || id));
 
 const plClone = o => JSON.parse(JSON.stringify(o));
 const plNo = (doc, why, extra) => Object.assign({ ok: false, doc, why }, extra || {});
@@ -256,11 +272,27 @@ function pilotsSignOn(id) {
   return PILOTS_SIGNON_STUB[id] || 0;
 }
 
+function pilotsWage(id) {
+  if (!PILOTS_ROSTER[id] || PILOTS_ROSTER[id].companion) return 0;
+  if (typeof econPrice === 'function') { const p = econPrice('wage', id); if (typeof p === 'number' && isFinite(p)) return Math.max(0, Math.round(p)); }
+  return PILOTS_WAGE_STUB[id] || 0;
+}
+// the career's instant (s) - the routes' clock (78b_routes.js routeNow: the career's own day) when it is loaded, else
+// the document's clock; the day number a wage counts by
+const pilotsNow = (doc, now) => (typeof routeNow === 'function' ? routeNow(doc, now) : (typeof now === 'number' && isFinite(now) ? now : ((doc && doc.clock) || 0)));
+const pilotsDay = (doc, now) => Math.floor((pilotsNow(doc, now) - PILOTS_PAY_UT_S) / PILOTS_DAY_S);
+
 // ---- THE CAREER BLOCK ----------------------------------------------------------------------------------------------
 function pilotsBlock(doc) {
   const c = doc.career;
   if (!c.pilots || typeof c.pilots !== 'object' || Array.isArray(c.pilots)) c.pilots = {};
   if (!Array.isArray(c.roster)) c.roster = [];
+  // G3614: an older career's pack ids (kit / rafe / sky) become the people wearing them - the roster, the rows, the
+  // pick and the routes' pilots (their logbooks and routes carry on)
+  c.roster = c.roster.map(pilotsId);
+  for (const id of Object.keys(c.pilots)) { const n = pilotsId(id); if (n !== id && !c.pilots[n]) { c.pilots[n] = c.pilots[id]; delete c.pilots[id]; } }
+  if (typeof c.pilotPick === 'string' && c.pilotPick !== 'me') c.pilotPick = pilotsId(c.pilotPick);
+  if (Array.isArray(c.routes)) for (const r of c.routes) if (r && typeof r.pilot === 'string') r.pilot = pilotsId(r.pilot);
   c.roster = c.roster.filter((id, i, a) => PILOTS_ROSTER[id] && a.indexOf(id) === i);
   for (const id of Object.keys(c.pilots)) {
     const P = c.pilots[id];
@@ -279,7 +311,7 @@ function pilotsBlock(doc) {
 function pilotsCompanion(doc) {
   const c = doc.career;
   c.roster = [PILOTS_COMPANION];
-  c.pilots = { [PILOTS_COMPANION]: { hired: Math.round(doc.clock || 0), fee: 0, aero: plHome(doc), plane: null, log: [] } };
+  c.pilots = { [PILOTS_COMPANION]: { hired: Math.round(doc.clock || 0), fee: 0, aero: plHome(doc), plane: null, log: [], paidDay: pilotsDay(doc) } };
   c.pilotPick = PILOTS_COMPANION;
   c.pilotN = 0;
   return doc;
@@ -289,18 +321,12 @@ const pilotsHired = doc => (doc && doc.career && Array.isArray(doc.career.roster
 // or boated home until the route ends (routeEnd frees them)
 const pilotsOnRoute = (doc, id) => !!(doc && doc.career && doc.career.pilots && doc.career.pilots[id] && doc.career.pilots[id].route);
 
-// ---- THE MARKET: 2-3 recruitables at a time, refreshed with the job market (contractEpoch) --------------------------
+// ---- THE MARKET (G3618, the user 25 Oct: "All 4 available"): every pilot not on the roster ------------------------------
 function pilotsOffers(doc) {
   const c = doc && doc.career;
   if (!c) return [];
   const hired = new Set(pilotsHired(doc));
-  const pool = PILOTS_ORDER.filter(id => !hired.has(id));
-  const epoch = contractEpoch(((c.contracts && c.contracts.done) || []).length);
-  const rng = contractRng(String(c.seed) + ':pilots:' + epoch);
-  const n = Math.min(pool.length, PILOTS_MARKET.min + Math.floor(rng() * (PILOTS_MARKET.max - PILOTS_MARKET.min + 1)));
-  const left = pool.slice(), pick = [];
-  while (pick.length < n) pick.push(left.splice(Math.floor(rng() * left.length) % left.length, 1)[0]);
-  return PILOTS_ORDER.filter(id => pick.includes(id));
+  return PILOTS_ORDER.filter(id => !hired.has(id));
 }
 
 // ---- HIRE / FIRE --------------------------------------------------------------------------------------------------
@@ -314,9 +340,30 @@ function pilotsHire(doc, id) {
   const d = pilotsBlock(plClone(doc)), c = d.career;
   c.roster.push(id);
   const old = c.pilots[id];
-  c.pilots[id] = { hired: Math.round(d.clock || 0), fee, aero: plHome(d), plane: null, log: old ? old.log : [] };
+  c.pilots[id] = { hired: Math.round(d.clock || 0), fee, aero: plHome(d), plane: null, log: old ? old.log : [], paidDay: pilotsDay(d) };
   if (fee) playerCharge(d, fee, 'signon', id);
-  return { ok: true, doc: d, fee, why: '' };
+  return { ok: true, doc: d, fee, wage: pilotsWage(id), why: '' };   // (G3618: the sign-on only; the wage at each day's end)
+}
+// G3618: THE PAYDAY - each hired pilot is paid the wage for every day ENDED since the last payday (the first at the end
+// of the hiring day), a ledger line per pilot ('wage'). A wallet that cannot cover it goes below zero: the wage is owed
+// all the same (the economy's loan offer is the way out, ECON). No day ended, or nobody on wages: the same document back.
+// -> { ok, doc, paid, lines: [{ id, days, sum }] }
+function pilotsPayroll(doc, now) {
+  if (!doc || !doc.career) return { ok: false, doc, why: 'not a career', paid: 0, lines: [] };
+  const today = pilotsDay(doc, now), owed = [];
+  for (const id of pilotsHired(doc)) {
+    const P = doc.career.pilots && doc.career.pilots[id], w = pilotsWage(id);
+    if (!P || !w) continue;
+    const from = typeof P.paidDay === 'number' && isFinite(P.paidDay) ? P.paidDay : today;
+    if (today > from) owed.push({ id, days: today - from, sum: w * (today - from) });
+  }
+  const fix = pilotsHired(doc).filter(id => doc.career.pilots[id] && typeof doc.career.pilots[id].paidDay !== 'number');
+  if (!owed.length && !fix.length) return { ok: true, doc, paid: 0, lines: [] };
+  const d = plClone(doc);
+  for (const id of fix) d.career.pilots[id].paidDay = today;   // (a pilot hired before G3618: the payday starts now)
+  let paid = 0;
+  for (const o of owed) { d.career.pilots[o.id].paidDay = today; playerCharge(d, o.sum, 'wage', o.id); paid += o.sum; }
+  return { ok: true, doc: d, paid, lines: owed };
 }
 // firing is free (G-COST); the logbook stays with the row (a re-hire brings their hours back); the next flight's
 // pick falls to the roster's first, else "I fly"
@@ -486,11 +533,14 @@ function pilotsCard(doc, id, world) {
   const initials = name.split(/\s+/).map(s => s[0] || '').join('').slice(0, 2).toUpperCase();
   return {
     id, who: R.who, name, initials, portrait: R.portrait || null, companion: !!R.companion,
+    bg: typeof peopleBg === 'function' ? peopleBg(id) : null,   // G3620: behind the head in a LARGE display only
     tagline: pilotsText('pilot.' + id + '.tagline'), bio: pilotsText('pilot.' + id + '.bio'), pitch: pilotsText('pilot.' + id + '.pitch'),
     fliesLike: (PILOTS_TEXT['pilot.' + id + '.flies'] && !PILOTS_TEXT['pilot.' + id + '.flies'].draft) ? pilotsText('pilot.' + id + '.flies') : pilotsFliesLike(G.flat),
     style: R.style,
     traits: R.traits.map(t => ({ id: t, label: pilotsText('pilot.trait.' + t), how: PILOTS_TEXT['pilot.trait.' + t + '.how'] ? pilotsText('pilot.trait.' + t + '.how') : '' })),
-    signOn: pilotsSignOn(id), hired, onOffer: !hired && pilotsOffers(doc).includes(id),
+    level: pilotsText(PILOTS_LEVEL[R.profile.base] || 'pilot.level.club'),
+    skills: R.traits.map(t => (PILOTS_TEXT['pilot.skill.' + t] ? pilotsText('pilot.skill.' + t) : pilotsText('pilot.trait.' + t))),
+    signOn: pilotsSignOn(id), wage: pilotsWage(id), hired, onOffer: !hired && pilotsOffers(doc).includes(id),
     at, atName: atRow ? (atRow.name || at) : null, atXZ: atRow ? [atRow.c ? atRow.c[0] : atRow.x, atRow.c ? atRow.c[1] : atRow.z] : null,
     plane: rec && hired ? rec.plane || null : null, route: rec && hired ? rec.route || null : null,
     flights: rec ? rec.log.length : 0, landings, grown: Math.round(G.f * 100), ceiling: R.grow ? R.grow.ceiling : null,
@@ -503,9 +553,11 @@ function pilotsImportPack(pack, text) {
   const T = plClone(text || PILOTS_TEXT), why = [];
   const put = (k, s) => { if (typeof s === 'string' && s) T[k] = { t: s, draft: false }; };
   for (const p of ((pack && pack.pilots) || [])) {
-    if (!p || !PILOTS_ROSTER[p.id]) { why.push('no pilot ' + (p && p.id)); continue; }
-    const b = 'pilot.' + p.id + '.';
-    put(b + 'name', p.name); put(b + 'tagline', p.tagline); put(b + 'bio', p.backstory); put(b + 'voice', p.voice);
+    const id = p && pilotsId(p.id);
+    if (!p || !PILOTS_ROSTER[id]) { why.push('no pilot ' + (p && p.id)); continue; }
+    const b = 'pilot.' + id + '.';
+    // (G3614: the name is the person's own, never the pack's)
+    put(b + 'tagline', p.tagline); put(b + 'bio', p.backstory); put(b + 'voice', p.voice);
     put(b + 'flies', p.fliesLike); put(b + 'pitch', p.pitch);
     for (const k of Object.keys(p.barks || {})) put(b + 'bark.' + k, p.barks[k]);
   }

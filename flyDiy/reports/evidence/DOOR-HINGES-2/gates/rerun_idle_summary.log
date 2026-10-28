@@ -1,0 +1,11 @@
+──────── summary ────────
+UISMOKE   PASS   424.8 s
+ROLLANIM  PASS    63.2 s
+HANDLE    PASS   268.9 s
+JOINPARITY FAIL   140.7 s
+ACCEPT    PASS   645.3 s
+total           1542.9 s
+wall             645.3 s  (jobs 3)
+
+BATTERY: FAIL — never deliver red.
+EXIT 1
