@@ -416,9 +416,10 @@ const PANELS = [
   // the shipped metal Cessna (tools/_load_build.js VALIDATED.metal): A0's evidence build for tools/avionics_stills.js
   ['metal', 'bugReports/cessnaMetal (1).json', 'glass', 'plate', true, true],
   ['metal', 'bugReports/cessnaMetal (1).json', 'portable', 'plate', true, true],
-  // the Jodel's short plate: a portable there would cost dials, so it stands in its cradle on the pilot's line; the
-  // glass unit fits only in the middle, and four gauges give way to it
-  ['jodel', 'builds/jodel_2026-09-20_corrected.json', 'portable', 'coaming', true, true],
+  // the Jodel's plate: since master's L28-0 (merged 28 Oct) the portable fits ON it, on the pilot's line, every dial and
+  // breaker kept - so it stands there (its glareshield cradle is for a plate that would cost a dial: the CRADLE rows
+  // below hold that rule); the glass unit fits only in the middle, and gauges give way to it
+  ['jodel', 'builds/jodel_2026-09-20_corrected.json', 'portable', 'plate', true, true],
   ['jodel', 'builds/jodel_2026-09-20_corrected.json', 'glass', 'plate', false, false],
   // Rufus's glass unit in front of the pilot: G2812's unit (193 x 115 round its screen, 198 x 159 before) leaves every dial
   // its place (it cost the DG and the oil gauges)
