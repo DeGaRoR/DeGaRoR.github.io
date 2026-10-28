@@ -353,7 +353,7 @@ function runChecks(C, F, D, src, quiet) {
   // ===== D. THE PAGE (source) =====
   const S = src;
   ok(/'71_player_bases\.js',[\s\S]*'72_accept\.js',[\s\S]*'90_node_exports\.js'/.test(S.build) && /'bench\.js', 'accept_rec\.js'/.test(S.build), 'the manifest: 72_accept.js before the exports, accept_rec.js after bench.js');
-  ok(/hudEnergy\(\);\s*\n\s*if \(window\.ACCEPT_REC\) window\.ACCEPT_REC\.frame\(\);/.test(S.app), 'app.js: the leg ticked and signed beside the HUD (ACCEPT_REC.frame)');
+  ok(/hudEnergy\(\);\s*\n(\s*hudWind\(\);\s*\n)?\s*if \(window\.ACCEPT_REC\) window\.ACCEPT_REC\.frame\(\);/.test(S.app), 'app.js: the leg ticked and signed beside the HUD (ACCEPT_REC.frame; GAME-MENUS\' hudWind may sit between)');
   ok(/flightLogged = true;\s*\n\s*if \(window\.ACCEPT_REC\) window\.ACCEPT_REC\.flightEnd\(\);/.test(S.app), 'app.js logFlight: a leg still flying ends with the flight');
   ok(/r\.at = at;/.test(S.app) && /acceptStopAt\(world, cg\[0\], cg\[2\]\)/.test(S.app) && /r\.occ = S\.occupants/.test(S.app) && /r\.fp = fpo/.test(S.app), 'app.js logFlight: the row says where it stopped, who was aboard, which build');
   const blk = (S.app.split("H('proved in flight')")[1] || '').split('// G134')[0];

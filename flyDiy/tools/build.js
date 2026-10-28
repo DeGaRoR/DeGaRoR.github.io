@@ -534,14 +534,17 @@ const MANIFEST = {
     // prop disc and the contact blobs make their materials through window.MATLIB, so it is there before any of them
     // ui_layer.js (G1370) right after matlib.js: THE UI LAYER - pattern_vis.js, editor.js, app.js, water.js and
     // shadow_near.js read window.UI_LAYER (the in-world helpers on a layer only the main camera sees)
+    // back_guard.js (G3880, GAME-MENUS) right after them: the browser's Back asks before it leaves the game - it reads
+    // welcome.js's WELCOME.RIG at eval (never on a rig) and app.js's FLIGHT_PROBE only at the player's first input
     // card_drag.js (G3526, GAME-MENUS) right after it: EVERY CARD IS DRAGGABLE - window.FLYDIY_DRAG, before any card's
     // own code (bench.js, app.js, freight_load.js, boombox.js, input_panel.js, gfx_settings.js) makes one
-    scripts: ['storage.js', 'flight_recorder.js', 'assets.js', 'matlib.js', 'ui_layer.js', 'card_drag.js', 'aa_resolve.js',
+    scripts: ['storage.js', 'flight_recorder.js', 'back_guard.js', 'assets.js', 'matlib.js', 'ui_layer.js', 'card_drag.js', 'aa_resolve.js',
               'light_rig.js', 'day_clock.js', 'atmo.js', 'sky_light.js', 'sky_glare.js', 'clouds.js', 'clouds_ui.js', 'day_ui.js', 'weather_ui.js', 'climate_link.js',
               // post_fx.js (POST-FX study, 2026-09-21): the switchable post passes over the resolve
               // pass's hook; publishes window.POST_FX at eval, app.js inits it, gfx_settings.js sets its rows
               'post_fx.js', 'shadow_near.js',
               'shed_shadow.js',   // G2070: the shed's shadow cache (app.js: SHED_SHADOW.pre / post round the garage's render)
+              'studio.js',   // G3726 (PHONE-GARAGE): the black studio in the shed's place (app.js getHangar; the phone's room, a desktop option)
               'prop_disc.js',   // G672: the propeller's disc, measured off its blades (app.js makes one per prop part)
               'contact_shadow.js',   // G1002: the tyres' contact shadows (app.js contactShadows, after poseModel)
               'shader_warm.js',   // G584: the programs the compile step warms beyond the scene (the shadow pass's depth, the full-screen passes)
@@ -1300,16 +1303,18 @@ window.FLYDIY_BOOT.then(function () {
   // G2252 (MAP-MENU): THE MAP ENTRY - only with ?map=1 (the dev flag) or in the career mode (FLYDIY_MODE, welcome.js's);
   // the sandbox has none. A button, and nothing else: the screen, its projection, the picture and the contracts load when
   // it is pressed (lazy, like diag.js)
+  // G3521 (GAME-MENUS, the 24 Oct playtest: "the map button is confused with the minimap"): the entry is CONTRACTS and
+  // opens the screen on the contracts list; Tab is the map (app.js); where it stands, beside MENU, is app.js gmLayout
   window.FLYDIY_MAP_SRC = { fixture: ${JSON.stringify(MAP_FIXTURE)} };
   var mapEntry = window.FLYDIY_MAP_ENTRY = function () {
     var on = /[?&]map=1(&|$)/.test(location.search) || window.FLYDIY_MODE === 'career';
     if (!on) return false;   // the sandbox: nothing touched
     if (!document.body || document.getElementById('mapEntry')) return !!document.getElementById('mapEntry');
     var b = document.createElement('button');
-    b.id = 'mapEntry'; b.type = 'button'; b.textContent = 'MAP'; b.setAttribute('aria-label', 'the island map and the contracts');
+    b.id = 'mapEntry'; b.type = 'button'; b.textContent = 'CONTRACTS'; b.setAttribute('aria-label', 'the contracts, on the island map');
     b.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:2147482000;min-width:72px;min-height:48px;padding:0 18px;border-radius:24px;' +
       "border:1px solid rgba(255,178,87,.85);background:rgba(28,24,20,.86);color:#ffb257;font:600 13px/1 'IBM Plex Sans',sans-serif;letter-spacing:.16em;cursor:pointer";
-    b.onclick = function () { lazy(['map_pack', 'map_menu']).then(function () { if (window.MAP_MENU) window.MAP_MENU.open(); }); };
+    b.onclick = function () { lazy(['map_pack', 'map_menu']).then(function () { if (window.MAP_MENU) window.MAP_MENU.open({ list: 'contracts' }); }); };
     document.body.appendChild(b);
     return true;
   };
