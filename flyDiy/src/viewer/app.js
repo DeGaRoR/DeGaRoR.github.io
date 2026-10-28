@@ -10341,6 +10341,7 @@
     ['parts120', '120 kg of crated parts', { kg: 120 }, 'goods.parts', 0],
     ['parts60', '60 kg of crated parts', { kg: 60 }, 'goods.parts', 0],
     ['mail60p', '60 kg of mail + a passenger', { kg: 60 }, 'goods.mail', 1],
+    ['bags20p3', '20 kg of bags + three passengers', { kg: 20 }, 'goods.mail', 3],   // G3619: the queue's rig (a C172)
     ['tools80', '80 kg of tools', { kg: 80 }, 'goods.tools', 0],
     ['supplies90', '90 kg of supplies (sacks)', { kg: 90 }, 'goods.supplies', 0],
     ['samples100', '100 kg of ore samples', { kg: 100 }, 'goods.samples', 0],
@@ -10627,8 +10628,11 @@
   // (work only when the model or the seats change: the 700 ms tick re-asserts the hidden figures and nothing else)
   function fsPeople() {
     const R = FST.R, M = model, grp = M && M.grp;
-    const hide = R && grp ? R.seats.filter(s => s.build && !s.job).map(s => s.i) : [];
-    const want = R && grp ? R.seats.filter(s => s.job && !s.build).map(s => s.i) : [];
+    // G3619: a job's seat the build already fills (a C172's co-pilot, a pilot's body) takes a drawn passenger too -
+    // the build's figure hidden there, so only the job's people queue (pilots and the reserved never do)
+    const jobOwn = s => s.job && s.build && s.i > 0;
+    const hide = R && grp ? R.seats.filter(s => (s.build && !s.job) || jobOwn(s)).map(s => s.i) : [];
+    const want = R && grp ? R.seats.filter(s => (s.job && !s.build) || jobOwn(s)).map(s => s.i) : [];
     const key = (grp ? grp.uuid : '') + '|' + hide.join(',') + '|' + want.join(',');
     if (key === FST.paxKey) { for (const o of FST.hidden) if (o.visible) o.visible = false; return; }
     FST.paxKey = key;
@@ -10648,10 +10652,11 @@
     // G2970 (CHARACTERS): the crowd's cast first, once its manifests are in (crowdPrep), then the crew's own
     const cast = window.CROWD && window.CROWD.castKeys ? window.CROWD.castKeys() : [];
     const others = [...new Set(cast.concat((CC.list ? CC.list() : []).map(c => c && c.key)))].filter(k => k && !used.has(k));
+    const drawn = crowdPax(want.length, used);
     want.forEach((i, n) => {
       const s = got.card.seats.find(q => q.i === i);
       if (!s) return;
-      const key2 = others[n % Math.max(1, others.length)] || base.key;
+      const key2 = (drawn ? drawn[n % drawn.length] : others[n % Math.max(1, others.length)]) || base.key;
       const figM = base.figM.slice();
       let k = 1; try { const a = CC.rig(base.key), b = CC.rig(key2); if (a && b && a.height > 0 && b.height > 0) k = a.height / b.height; } catch (e) {}
       for (const j of [0, 1, 2, 4, 5, 6, 8, 9, 10]) figM[j] *= k;
@@ -10662,6 +10667,22 @@
       const frame = grp.children.length > before ? grp.children[grp.children.length - 1] : null;
       if (ps && ps[0]) FST.pax.push({ P: ps[0], frame, seat: i });
     });
+  }
+  // G3619 (PEOPLE, the user 25 Oct): WHO the job's passengers are - the job's own client first (FLYDIY_PEOPLE.client of the
+  // contract's provider), then the passenger pool drawn by the contract's id (the same job, the same faces on a reload);
+  // only people whose body the crowd's cast holds (CROWD.castKeys: a body not baked yet is skipped), never a reserved
+  // person or a pilot (the pool holds neither). -> body keys, or null without the seam / the cast (the cast order then)
+  function crowdPax(n, used) {
+    const FP = window.FLYDIY_PEOPLE, cast = window.CROWD && window.CROWD.castKeys ? window.CROWD.castKeys() : [];
+    if (!FP || typeof FP.pool !== 'function' || !cast.length || !(n > 0)) return null;
+    const has = new Set(cast), out = [], id = (FST.A && FST.A.contract) || null;
+    const take = pid => { const k = FP.char(pid); if (k && has.has(k) && !(used && used.has(k)) && !out.includes(k)) out.push(k); };
+    let rec = null;
+    try { rec = id && CAREER_DEV && typeof careerContract === 'function' ? careerContract(playerLoad(), id) : null; } catch (e) {}
+    const c = rec && rec.provider && typeof FP.client === 'function' ? FP.client(rec.provider) : null;
+    if (c) take(c);
+    for (const pid of FP.pool('passenger', 64, id || 'sandbox')) { if (out.length >= n) break; take(pid); }
+    return out.length ? out : null;
   }
   // ---- G3614 (PEOPLE): THE PEOPLE'S DOOR -------------------------------------------------------------------------------
   // 72_people.js's one list, for the page's readers: the crowd (PEOPLE-CROWD G3619: who queues - pool('passenger', n, seed)
@@ -10685,7 +10706,8 @@
   // rows of the strict gates roll the stock builds out (the C172 seats a co-pilot) and stay as they were. The flight waits
   // for the last of them (`started` held, so the stand's brake stays on); Go seats everyone at once. ?crowd=0 or
   // localStorage flydiy.crowd = '0' turns it off. The pilot does not walk (the user: out of scope).
-  const CRW = { on: true, all: false, M: null, gen: 0, seats: new Map(), pending: false, after: null, prep: null, queued: null };
+  const CRW = { on: true, all: false, M: null, gen: 0, seats: new Map(), pending: false, after: null, prep: null, queued: null,
+                fadeMs: 0, warmMs: 0 };
   try {
     const q = /[?&]crowd=([01])(&|$)/.exec(window.location.search || '');
     CRW.on = q ? q[1] === '1' : window.localStorage.getItem('flydiy.crowd') !== '0';
@@ -10709,7 +10731,8 @@
     if (CRW.all || job) for (const P of M.people || []) {
       const nm = P && P.crew && P.crew.fig && P.crew.fig.name;
       const r = nm && (M.data.people || []).find(q => nm === 'flCrew' + q.idx);
-      if (!r || r.role === 'pilot' || P.dead) continue;
+      // (a figure a job's passenger replaced - fsPeople hid it - stays out of the line)
+      if (!r || r.role === 'pilot' || P.dead || FST.hidden.some(o => o.name === nm)) continue;
       out.push({ seat: 'l:' + r.idx, key: P.key, meshes: () => (P.inst ? P.inst.meshes : []) });
     }
     if (CRW.all || job) for (const k in M.meshes || {}) {
@@ -10746,8 +10769,27 @@
     const e = CRW.seats.get(seat);
     if (!e || !window.CROWD) return;
     e.w = w;
+    const t0 = performance.now();
     window.CROWD.fadeObjects(THREE, e.meshes(), w);
+    CRW.fadeMs += performance.now() - t0;
     if (w >= 1) CRW.seats.delete(seat);
+  }
+  // G3619 (the 17:58 split, 27 Oct: 130-190 ms at each passenger's turn -> board, +0 programs - the seated figure's FIRST
+  // SHOW, on fade twins built that frame): a seat's twins built and its figure compiled on them and on its own materials
+  // while the roll-out's screen covers it - shown for the call, hidden after (three's compile walks VISIBLE objects,
+  // synchronously, before its promise: as the walkers' in crowd.js). A live passenger's character landing late is warmed
+  // by crowdTick once its meshes are there.
+  function crowdWarmSeat(e) {
+    const ms = e.meshes().filter(m => m && m.material);
+    if (!ms.length || typeof renderer.compileAsync !== 'function') return;
+    e.warm = true;
+    const t0 = performance.now();
+    for (const w of [0.5, 1]) {
+      window.CROWD.fadeObjects(THREE, ms, w);
+      for (const m of ms) try { renderer.compileAsync(m, camera, scene).catch(() => {}); } catch (err) {}
+    }
+    window.CROWD.fadeObjects(THREE, ms, e.w);
+    CRW.warmMs += performance.now() - t0;
   }
   // the roll-out (under its screen): who is aboard, then the walk
   function crowdStart() {
@@ -10769,7 +10811,8 @@
         compile: gs => Promise.all(gs.map(g => (typeof renderer.compileAsync === 'function' ? renderer.compileAsync(g, camera, scene) : null))),
       });
       // hidden from now (crowdTick keeps them so); their characters and the clips fetched under the screen
-      for (const q of seats) CRW.seats.set(q.seat, { meshes: q.meshes, w: 0 });
+      for (const q of seats) CRW.seats.set(q.seat, { meshes: q.meshes, w: 0, warm: false });
+      for (const [, e] of CRW.seats) crowdWarmSeat(e);
       const CC = window.CAGE_CHAR;
       if (CC) for (const k of new Set(seats.map(q => q.key))) CC.load(k);
       // THE WALK BEGINS WHEN THE SCREEN LIFTS: the aeroplane is on its stand and drawn by then (under the roll-out's
@@ -10778,7 +10821,10 @@
         CRW.queued = () => {
           try {
             const R = crowdRoute(seats.length);
-            CRW.M.board({ path: R.path, face: R.face, seats: seats.map(q => ({ seat: q.seat, key: q.key })) }).then(res, rej);
+            // G3619: they stand in a line at the embark point when the screen lifts, then walk out in order (seeded by
+            // the job: the same line on a reload)
+            CRW.M.board({ path: R.path, face: R.face, seats: seats.map(q => ({ seat: q.seat, key: q.key })),
+                          line: {}, seed: (FST.A && FST.A.contract) || 'sandbox' }).then(res, rej);
           } catch (e) { rej(e); }
         };
       });
@@ -10790,7 +10836,7 @@
   function crowdTick(dt) {
     if (!CRW.M || !window.CROWD) return;
     if (CRW.queued && !rollHold && crowdPlaced()) { const q = CRW.queued; CRW.queued = null; q(); }
-    for (const [, e] of CRW.seats) if (e.w < 1) window.CROWD.fadeObjects(THREE, e.meshes(), e.w);
+    for (const [, e] of CRW.seats) if (e.w < 1) { if (!e.warm) crowdWarmSeat(e); window.CROWD.fadeObjects(THREE, e.meshes(), e.w); }
     CRW.M.tick(dt);
     if (CRW.after && !CRW.pending && !CRW.M.busy()) crowdDone(true);
   }
@@ -10817,7 +10863,7 @@
   // the start (the roll-out screen's done): now, or when the last passenger is seated
   function crowdThen(fn) { if (CRW.on && (CRW.pending || (CRW.M && CRW.M.busy()))) CRW.after = fn; else fn(); }
   if (typeof window !== 'undefined') window.FLYDIY_CROWD = () => ({ on: CRW.on, pending: CRW.pending, waiting: !!CRW.after,
-    seats: [...CRW.seats.keys()], stats: CRW.M ? Object.assign({}, CRW.M.stats) : null });
+    seats: [...CRW.seats.keys()], stats: CRW.M ? Object.assign({}, CRW.M.stats) : null, fadeMs: CRW.fadeMs, warmMs: CRW.warmMs });
   // THE DRAWING'S SYNC (the 700 ms entry tick, an accept, a roll-out, a stop): build the group when the load changes,
   // hang it where it is seen
   function fsSync() {

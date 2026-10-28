@@ -1251,7 +1251,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     for (const [o, c] of nearReg) {
       if (o.userData.craft) { nearReg.delete(o); continue; }        // joined before tagCraft marked it: the craft's layers are shadow_near's
       let s = c;
-      if (!s || o.matrixWorldAutoUpdate || o.matrixAutoUpdate) {    // not frozen (or never seen): posed again
+      const cp = o.userData.crowdPerson;
+      if (cp) {   // G3619 (the user 26 Oct: "passengers should have shadows"): a passenger's piece (a shirt, a shoe: each under
+        // NEAR_MIN_R) is tagged by the WHOLE person's sphere - 1 m about the hips of its group (crowd.js) - so the person casts
+        // whole, and no prop's floor moves
+        const e = cp.matrixWorld.elements;
+        if (!s) nearReg.set(o, s = [0, 0, 0, 0]);
+        s[0] = e[12]; s[1] = e[13] + 0.9; s[2] = e[14]; s[3] = 1;
+      } else if (!s || o.matrixWorldAutoUpdate || o.matrixAutoUpdate) {    // not frozen (or never seen): posed again
         const g = o.geometry; if (!g) continue;
         if (!g.boundingSphere) g.computeBoundingSphere();
         if (!g.boundingSphere) continue;

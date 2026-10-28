@@ -203399,3 +203399,49 @@ What ?town=1&cityhost=1 did is the default now; the GRAPHICS 'towns' row stays t
 - FRAMECOST's census stays the field's (town=0 in its query unless FRAMECOST_QUERY names the town): its baseline was taken with Metlakatla cut.
 - GATE GFX (the default, the migration, the loader rule), GATE CITYHOST row H.
 What the strict light gate sees with the town on (the user accepted the cost; Fri 23 Oct A/B, master 20a136670, floats P vs O): at the CIRCUIT (~6 km from the town) loop +2.9 ms (world +0.9, render +2.0), +26 draws, +1.1 M tris, frames over 34 ms +0.07 pt, p99 equal; the close visit p99 50.0 = off; the approach's town-host cell builds 167-434 ms ENROUTE (CITY-B's slicing, next week). The boot gains the town step (~1.9 s) and the kit's host (~0.3 s).
+
+## G3617 + G3619 - PEOPLE-CROWD: THE PASSENGERS WAIT IN A LINE AT THE EMBARK POINT, THEN BOARD IN ORDER; FOUR NEW BODIES (ADAM, JODY, KATE, PETE); SHADOWS + FEET BLOBS (2026-10-25/27, PEOPLE-CROWD for A0, local GPU; branch claude/people-crowd, master d7e181f4e merged in fcd0e1965; for L28a)
+The user 25 Oct: "prioritize the people job, and the passengers queuing ... under strict performance constraints".
+- **G3619, THE LINE (src/viewer/crowd.js, lazy).** run() takes spec.line / spec.seed: at the roll-out the job's passengers
+  stand in single file on the path's first metres, facing the aeroplane's door, each on their own seeded idle and phase
+  (phone, briefcase, happy, sad, swat; a pacer at the back on the 'pace' clip with its baked drift); after the hold (2.5 s,
+  the run's clock starting with its first drawn frame) they walk out in order, queue, turn and fade into their seats as
+  G2970 did. States: line, walk, queue, turn, board, seated.
+- **WHO (app.js crowdPax).** The job's own client first (FLYDIY_PEOPLE.client of the contract's provider), then
+  FLYDIY_PEOPLE.pool('passenger', 64, contractId) - the same job, the same faces on a reload - and only bodies the cast holds
+  (CROWD.castKeys()). Reserved people and pilots never queue (the pool holds neither); Tim stays a voice. A seat the build
+  already fills takes a drawn passenger (the build's figure hidden, out of the line). Without the seam (no FLYDIY_PEOPLE)
+  the cast order is used. THE SEAM'S MERGE: Game's window.FLYDIY_PEOPLE door (G3614, claude/ready/people + ready/hire)
+  and crowdPax are one app.js hunk apart - the merge keeps BOTH (crowdPax, then the door); checked with merge-tree against
+  both ready branches, node --check clean.
+- **G3617, THE BODIES (tools/char_prep.py, chars_table.py, src/chars/crowd_pack.json).** Adam Ch08, Jody Ch37, Kate Ch21,
+  Pete Ch17 + six clips (phone 12 fps, briefcase, happy, sad, swat, pacing cut to its loop 27.27-36.67 s, reach 1.28 m),
+  imported as-is (credit-only, CREDITS.md). Baked Mon 26 Oct 01:15-01:29 (CHARS + KTX2 PASS):
+  | body | MiB |
+  |------|-----|
+  | adam | 6.01 |
+  | jody | 4.19 |
+  | kate | 4.38 |
+  | pete | 4.47 |
+  The cast of ten 41.36 MiB -> the budgets castMiB 42, memberMiB 6.1 (A0 26 Oct). Nothing at boot: the pack is fetched
+  only for a job that seats passengers.
+- **GATE KTX2 ROW 10 (commit b792110ca, its own).** Row 10 reads the cast's rows from crowd_pack.json, and a character
+  diffuse may be ETC1S where the cast's encoder picks it (colorCodec 'auto').
+- **SHADOWS (the user 26 Oct: "passengers should have shadows").** render_world nearTag tags a passenger's pieces by the
+  whole person's sphere (userData.crowdPerson), so the CAP 4 posed people (NEAR 60 m) cast into the near map's 60 m box.
+  Smooth idle shadows: shadow_near S.posedHz, 60 by default (?posedhz=0 the cache as it was) - the near map is redrawn
+  while a queued passenger is posed; at the stand it was already redrawn every frame in every row (nearDrawn = frames,
+  'none' included - board item shadow-near-cache), so it adds no pass. FEET: src/viewer/contact_shadow.js make(THREE, max)
+  - one instanced quad per person under the feet like the wheels' blobs (footA 0.8 / footCore 0.6), ?crowdcontact=0 off.
+  At the game's 16:00 the line stands in the hangar's shade (the user 27 Oct: the boarding point STAYS).
+- **COST (s27-g7c 27 Oct, Jolene stand, 3 waiting, real parked_cook + --check same first).** Counts: crowd shadows +60
+  shadow draws (306 -> 366), +0.48 M shadow tris; feet 1 draw; smooth idles 0 extra near-map passes. The ms of that run
+  fell with run order (32 -> 17 ms p50) - drift, so no ms delta is claimed; A0's interleaved ABAB on Wed 28 measures them.
+  Stand rows over100 0. BOARDING over100: 3 in 1408 frames while the line walks out / boards - split by the per-hitch log
+  (crowd_cost: the states two frames back / now, programs, textures, geometries) in s27-g9p Tue 17:58: the 3 were each one passenger's turn -> board (130-190 ms, +0 programs / textures / geometries): the seated figure's FIRST SHOW on fade twins built that frame. THE FIX (75d5d48d7, app.js crowdWarmSeat): every seat's twins built and its figure compiled (renderer.compileAsync) on them and on its own materials under the roll-out's screen - shown for the call, hidden after; a live passenger landing late warmed by crowdTick. L28a s28-g2p Wed 28 02:45 (TIMED, the box alone, fcd0e1965, cook --check same): the board row x2 over100 0 / 0 (walking/boarding p50 16.6 / p95 19.2-19.5 ms, the taxi after 0), warmMs 339 / 452 under the screen. crowd_cost's hitch log now says the ms inside crowdSeatFade and inside renderer.render across each frame over 100 ms.
+- **TOOLS.** tools/crowd_cost.js (rows none / off / nofeet / cache / hz12 / every / board; --rows), tools/crowd_shot.js
+  (the queue's stills with the eye asserted; --diag the shadow flags, --probe the crowd's draws by pass + the sun ray,
+  --preset <hour>), tools/_stand_check.js, tools/_chars_check.js (the line, the pace drift).
+- **GATES (L28a s28-g2p Wed 28 02:55-03:14, fcd0e1965 = this branch + master d7e181f4e, build 01071dfc7a4d, a real cook --check same, --no-build --jobs=2, the 40 the grep of the touched files gives):** 32 PASS (UISMOKE + UISMOKE-PHONE green: crowdPax's contract read under CAREER_DEV, 31954588f - red in s27-c9pc Tue). 8 red, none in a crowd file, riding by the user's rule of 28 Oct (land everything but a real break): FRAMECOST = master's (updateMatrixWorld 2269 -> 4553 at the cessna's garage restore; page errors 55 = master's 55), FOG = master's (the gate wants !inGarage, master's app.js has !inShed), CLOCK 1/777, CLOUD 1/239 (the lamp pool), TREEHIT (the trunk does not stop the CG: 63.5 / 83.7 m of 60), ROUNDTRIP (the setup screen's sections), RWYLIGHTS (jolene w5 15/24, w4 16/22), LAKEBED (02/20's pond 28 texels, 4 without water) - for A0 against master's own rows.
+HOT FILES: src/viewer/crowd.js, src/viewer/app.js (crowdPax, fsPeople/jobOwn), src/viewer/render_world.js (nearTag),
+src/viewer/shadow_near.js (posedHz), src/viewer/contact_shadow.js, src/chars/crowd_pack.json, tools/_ktx2_check.js.
