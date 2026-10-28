@@ -1,16 +1,16 @@
 {
  "what": "join-parity-page",
- "at": "2026-10-28T05:30:45.167Z",
+ "at": "2026-10-28T12:15:07.524Z",
  "door": "load (GARAGE_SPEC.set)",
- "chainSig": "1a5f1c7c63f9887554b29002c296bf1a4fb39290",
+ "chainSig": "86084ae43ca0971e5ac2e577aefb675743f39229",
  "builds": {
   "jodel": {
    "file": "builds/jodel_2026-09-20_corrected.json",
    "page": {
     "n": 115,
     "nb": 502,
-    "mass": 477.48648559976795,
-    "build": "dee2748c7609"
+    "mass": 477.1804400589298,
+    "build": "c91f843a3910"
    },
    "spec": {
     "cage": {
@@ -307,8 +307,9 @@
      "dashDepth": 0.14,
      "dashCrease": 3,
      "dashCrown": 0.05,
-     "dashStyle": 0,
+     "dashStyle": 1,
      "dashLegs": 1,
+     "dashV": 1,
      "shoulderOn": 1,
      "shoulderW": 0.07,
      "shoulderH": 0.135,
@@ -334,6 +335,10 @@
      "hgDetail": 1,
      "hgDoor": 1,
      "hgDoorEdge": 0,
+     "hgDrOff": 0,
+     "hgDrTilt": 0,
+     "hgDrSlide": 0,
+     "hgDrInset": 0,
      "hgFinish": 0,
      "lightOn": 1,
      "lightSw": 1,
@@ -694,6 +699,7 @@
      "propOn": 1,
      "engMount": 0,
      "engNacAt": 0.35,
+     "engNacAt2": 0.62,
      "engPylonH": 0.3,
      "engBlockZ": 0,
      "engBlockY": 0,
@@ -1052,7 +1058,9 @@
      "cw_stubKeelH": 0.83,
      "cw_stubSqTop": 0.53,
      "cw_stubSqBot": 0.35,
-     "s2_twHornY": 0.11
+     "s2_twHornY": 0.11,
+     "dashWas": 0,
+     "dashLegsWas": 1
     },
     "v": 10,
     "meta": {
@@ -1540,8 +1548,8 @@
     "outfit": {
      "seats": "sling",
      "drawn": {
-      "board": 0.1538,
-      "dash": 0.4005,
+      "board": 0.1623,
+      "dash": 0.266,
       "shoulder": 0.5164,
       "door": 0,
       "floor": 0.7505,
@@ -1559,8 +1567,8 @@
    "page": {
     "n": 97,
     "nb": 404,
-    "mass": 465.96008959021725,
-    "build": "dee2748c7609"
+    "mass": 465.7582109478276,
+    "build": "c91f843a3910"
    },
    "spec": {
     "cage": {
@@ -1857,8 +1865,9 @@
      "dashDepth": 0.39,
      "dashCrease": 1.5,
      "dashCrown": 0,
-     "dashStyle": 0,
+     "dashStyle": 1,
      "dashLegs": 1,
+     "dashV": 1,
      "shoulderOn": 1,
      "shoulderW": 0.07,
      "shoulderH": 0.135,
@@ -1884,6 +1893,10 @@
      "hgDetail": 1,
      "hgDoor": 1,
      "hgDoorEdge": 0,
+     "hgDrOff": 0,
+     "hgDrTilt": 0,
+     "hgDrSlide": 0,
+     "hgDrInset": 0,
      "hgFinish": 0,
      "lightOn": 1,
      "lightSw": 1,
@@ -2244,6 +2257,7 @@
      "propOn": 1,
      "engMount": 0,
      "engNacAt": 0.35,
+     "engNacAt2": 0.62,
      "engPylonH": 0.3,
      "engBlockZ": 0,
      "engBlockY": 0,
@@ -2601,7 +2615,9 @@
      "cw_stubWaist": -0.07,
      "cw_stubKeelH": 0.83,
      "cw_stubSqTop": 0.53,
-     "cw_stubSqBot": 0.35
+     "cw_stubSqBot": 0.35,
+     "dashWas": 0,
+     "dashLegsWas": 1
     },
     "meta": {
      "name": "Piper Cub",
@@ -3080,8 +3096,8 @@
     "outfit": {
      "seats": "sling",
      "drawn": {
-      "board": 0.1845,
-      "dash": 0.3847,
+      "board": 0.1897,
+      "dash": 0.2967,
       "shoulder": 0.5165,
       "door": 0,
       "floor": 1.3662,
@@ -3099,8 +3115,8 @@
    "page": {
     "n": 107,
     "nb": 452,
-    "mass": 898.234650174669,
-    "build": "dee2748c7609"
+    "mass": 897.8718910347959,
+    "build": "c91f843a3910"
    },
    "spec": {
     "cage": {
@@ -3397,8 +3413,9 @@
      "dashDepth": 0.35,
      "dashCrease": 3,
      "dashCrown": 0.03,
-     "dashStyle": 0,
+     "dashStyle": 1,
      "dashLegs": 1,
+     "dashV": 1,
      "shoulderOn": 1,
      "shoulderW": 0.07,
      "shoulderH": 0.135,
@@ -3424,6 +3441,10 @@
      "hgDetail": 1,
      "hgDoor": 1,
      "hgDoorEdge": 0,
+     "hgDrOff": 0,
+     "hgDrTilt": 0,
+     "hgDrSlide": 0,
+     "hgDrInset": 0,
      "hgFinish": 0,
      "lightOn": 1,
      "lightSw": 1,
@@ -3784,6 +3805,7 @@
      "propOn": 1,
      "engMount": 0,
      "engNacAt": 0.35,
+     "engNacAt2": 0.62,
      "engPylonH": 0.3,
      "engBlockZ": 0,
      "engBlockY": 0,
@@ -4141,7 +4163,9 @@
      "cw_stubWaist": -0.07,
      "cw_stubKeelH": 0.83,
      "cw_stubSqTop": 0.53,
-     "cw_stubSqBot": 0.35
+     "cw_stubSqBot": 0.35,
+     "dashWas": 0,
+     "dashLegsWas": 1
     },
     "wings": [
      {
@@ -4514,8 +4538,8 @@
     "outfit": {
      "seats": "sling",
      "drawn": {
-      "board": 0.395,
-      "dash": 0.5861,
+      "board": 0.4031,
+      "dash": 0.4344,
       "shoulder": 0.5111,
       "door": 2.7134,
       "floor": 1.845,
@@ -4633,8 +4657,8 @@
      "tip": "rounded",
      "tipV": null,
      "tipH": null,
-     "vSweep": 38.175121128526335,
-     "stabH": 0.04828709160565392,
+     "vSweep": 38.17512112852634,
+     "stabH": 0.04828709160565377,
      "dorsal": {
       "len": 0.34,
       "height": 0.16,
@@ -4642,7 +4666,7 @@
       "angle": null,
       "area": 0.11896522017949966
      },
-     "vHeight": 1.4041700990346624,
+     "vHeight": 1.4041700990346622,
      "vChord": 1.0382763924195082,
      "vX": 5.340068190527831,
      "vTaper": 0.6733361264080304,
@@ -4670,8 +4694,8 @@
    "page": {
     "n": 134,
     "nb": 543,
-    "mass": 959.8067224424753,
-    "build": "dee2748c7609"
+    "mass": 959.4428994306456,
+    "build": "c91f843a3910"
    },
    "spec": {
     "cage": {
@@ -4968,8 +4992,9 @@
      "dashDepth": 0.35,
      "dashCrease": 3,
      "dashCrown": 0.03,
-     "dashStyle": 0,
+     "dashStyle": 1,
      "dashLegs": 1,
+     "dashV": 1,
      "shoulderOn": 1,
      "shoulderW": 0.07,
      "shoulderH": 0.135,
@@ -4995,6 +5020,10 @@
      "hgDetail": 1,
      "hgDoor": 1,
      "hgDoorEdge": 0,
+     "hgDrOff": 0,
+     "hgDrTilt": 0,
+     "hgDrSlide": 0,
+     "hgDrInset": 0,
      "hgFinish": 0,
      "lightOn": 1,
      "lightSw": 1,
@@ -5355,6 +5384,7 @@
      "propOn": 1,
      "engMount": 0,
      "engNacAt": 0.35,
+     "engNacAt2": 0.62,
      "engPylonH": 0.3,
      "engBlockZ": 0,
      "engBlockY": 0,
@@ -5712,7 +5742,9 @@
      "cw_stubWaist": -0.07,
      "cw_stubKeelH": 0.83,
      "cw_stubSqTop": 0.53,
-     "cw_stubSqBot": 0.35
+     "cw_stubSqBot": 0.35,
+     "dashWas": 0,
+     "dashLegsWas": 1
     },
     "wings": [
      {
@@ -5969,7 +6001,7 @@
       "track": 0.8,
       "volDeck": 1.0120897070518313,
       "inc": -0.5,
-      "x": 1.2337750114952968,
+      "x": 1.2335558446842012,
       "H": 0.45454545454545453,
       "betaBow": 33.21981353759766,
       "aftCurve": 0,
@@ -6079,8 +6111,8 @@
     "outfit": {
      "seats": "sling",
      "drawn": {
-      "board": 0.395,
-      "dash": 0.5861,
+      "board": 0.4031,
+      "dash": 0.4344,
       "shoulder": 0.5111,
       "door": 2.7134,
       "floor": 1.8379,
@@ -6235,8 +6267,8 @@
    "page": {
     "n": 123,
     "nb": 500,
-    "mass": 491.48973217978903,
-    "build": "dee2748c7609"
+    "mass": 493.040363693466,
+    "build": "c91f843a3910"
    },
    "spec": {
     "cage": {
@@ -6533,8 +6565,9 @@
      "dashDepth": 0.35,
      "dashCrease": 3,
      "dashCrown": 0,
-     "dashStyle": 0,
+     "dashStyle": 1,
      "dashLegs": 1,
+     "dashV": 1,
      "shoulderOn": 1,
      "shoulderW": 0.07,
      "shoulderH": 0.135,
@@ -6560,6 +6593,10 @@
      "hgDetail": 1,
      "hgDoor": 1,
      "hgDoorEdge": 0,
+     "hgDrOff": 0,
+     "hgDrTilt": 0,
+     "hgDrSlide": 0,
+     "hgDrInset": 0,
      "hgFinish": 0,
      "lightOn": 1,
      "lightSw": 1,
@@ -6920,6 +6957,7 @@
      "propOn": 1,
      "engMount": 3,
      "engNacAt": 0.28,
+     "engNacAt2": 0.62,
      "engPylonH": 0.32,
      "engBlockZ": -0.51,
      "engBlockY": -0.09,
@@ -7269,7 +7307,9 @@
      "acc_grabHandle_sL": 0,
      "acc_grabHandle_lv": 0,
      "acc_tieDownTail_sL": 0,
-     "acc_tieDownTail_lv": 0
+     "acc_tieDownTail_lv": 0,
+     "dashWas": 0,
+     "dashLegsWas": 1
     },
     "wings": [
      {
@@ -7426,10 +7466,7 @@
       "flood": 1,
       "pedal": 1,
       "instr": 1
-     },
-     "noRoom": [
-      "com"
-     ]
+     }
     },
     "cabin": {
      "baggage": 0,
@@ -7562,11 +7599,11 @@
       "sheerK": 0.1,
       "aftHold": 0.2,
       "aftPow": 2,
-      "y": -0.45813508348001586,
+      "y": -0.4585403386241568,
       "track": 0.8,
       "volDeck": 0.7239997746977722,
       "inc": 0,
-      "x": 1.2234126302214985
+      "x": 1.221110114066514
      }
     },
     "paint": {
@@ -7613,8 +7650,8 @@
     "outfit": {
      "seats": "sling",
      "drawn": {
-      "board": 0.126,
-      "dash": 0.1828,
+      "board": 0.1338,
+      "dash": 0.2443,
       "shoulder": 0,
       "door": 0,
       "floor": 0.3294,
