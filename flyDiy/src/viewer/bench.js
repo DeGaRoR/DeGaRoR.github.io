@@ -550,7 +550,7 @@ const BENCH_LOOK = { energy: ['finish', 'hue', 'tint'], vessel: ['finish', 'hue'
 // dimmers) are state like lightOn. What is FITTED (li_*Fit) and where (the bay, pod, tip rows) still counts.
 // DOOR-HINGES (2026-10-27): the door hinges' axis tweaks (`hgDr*`) place display hardware - not the airframe either;
 // absent from every file before them, so no certificate taken before moves.
-const BENCH_STATE_ROWS = /^_view|^(explodeD|dumOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|li_(?:nav|beacon|taxi|land|flood|instr|pedal|pax))$|^hgDr[A-Z]/;
+const BENCH_STATE_ROWS = /^_view|^(explodeD|pilOn|cabOcc|paxOcc\d+|lightOn|li_reflect|li_beaconRpm|accDetail|li_(?:nav|beacon|taxi|land|flood|instr|pedal|pax))$|^hgDr[A-Z]/;
 function benchStripCosmetic(spec, defaults) {
   if (!spec || typeof spec !== 'object') return null;
   const c = JSON.parse(JSON.stringify(spec));
@@ -584,17 +584,53 @@ function benchStripCosmetic(spec, defaults) {
     const D = (defaults && typeof defaults === 'object') ? defaults : null;
     const out = {};
     const fr = benchFrameRows(c.cage, D);
+    const pn = benchPilotNames();
     for (const k in c.cage) {
+      if (k === 'fpLegacy') continue;                  // below
       if (BENCH_STATE_ROWS.test(k)) continue;
       if (fr && (k in fr.skip)) continue;              // a frame row: see below
       const v = c.cage[k];
       if (D && (k in D) && benchSame(v, D[k])) continue;
-      out[k] = v;
+      if (k === 'cabWho') { const w = Math.round(+v || 0); out.copWho = w >= 1 ? w + 1 : 0; continue; }
+      out[pn[k] || k] = v;
     }
+    const fl = c.cage.fpLegacy;
+    if (fl && typeof fl === 'object')
+      for (const k in fl) {
+        if (D && benchSame(fl[k], benchLegacyDefault(k))) continue;
+        out[k] = fl[k];
+      }
     if (fr) Object.assign(out, fr.rows);
     c.cage = out;
   }
   return c;
+}
+// THE PILOT'S ROWS HASH AS THEY WERE SAVED (G3700). The rows
+// were renamed (`pil<Row>`, _cage_gen.js CAGE_PILOT_OLD the name before) and
+// the co-pilot's pick renumbered (`cabWho` 1.. = the old `copWho` 2..); the
+// retired rows (the pilot pick, the statures, the eye markers) ride unread in
+// `fpLegacy`. Each hashes under the name and the number a certificate was
+// taken with, and a retired row at the default it had then counts for
+// nothing, as it did - so no certificate is withdrawn by the rename (Rufus's
+// shipped one is a77a11c0). Without the generator in scope the rows hash as
+// they are.
+function benchPilotNames() {
+  const C2 = typeof window !== 'undefined' && window.CAGE2;
+  const out = {};
+  if (C2 && C2.CAGE_PILOT_ROWS && C2.CAGE_PILOT_OLD)
+    for (const r of C2.CAGE_PILOT_ROWS) out['pil' + r] = C2.CAGE_PILOT_OLD(r);
+  return out;
+}
+// the default a retired row had: the pilot pick's was the racer's place in the
+// character list (+2: 0 was the mixed crew, 1 the retired figure), or 0 with no
+// list; the others were 1
+function benchLegacyDefault(k) {
+  if (k !== 'pilotWho') return 1;
+  const R = typeof CHAR_REG !== 'undefined' ? CHAR_REG : null;
+  const W = typeof window !== 'undefined' ? window : null;
+  const key = W && W.CAGE_CHAR && W.CAGE_CHAR.RACER;
+  const i = R && key ? R.order.indexOf(key) : -1;
+  return i >= 0 ? i + 2 : 0;
 }
 // THE FRAMES HASH AS DEVIATIONS (T2.1, 2026-09-21). A frame's height/width
 // row is an ABSOLUTE metre value with null = follow (cageSpec derives it),

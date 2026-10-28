@@ -850,7 +850,7 @@ function objAirframe(text) {
 // its own size and worn at `planeScale`, so the conversion happens ONCE, here,
 // on the vertices. Every leg, pad, lug and bolt downstream is then in metres
 // without knowing a cage exists — which is the same rule the crew layer
-// follows, and the reason a dummy or a wheel can be the ruler at all.
+// follows, and the reason a pilot or a wheel can be the ruler at all.
 //
 // Faces are filtered to the skin materials for the reason the OBJ path filters
 // them: an interior, a dash and a set of seats are inside the body, and a ray

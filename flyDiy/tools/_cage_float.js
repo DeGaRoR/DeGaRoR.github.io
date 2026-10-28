@@ -194,13 +194,36 @@ function applyFloatPreset(P, name) {
   Object.assign(P, rowsOfParams(Q));
   return true;
 }
+// ---- A LOAD STANDS THE FLOATS WHERE THE FILE SAVED THEM (G3700) ------------
+// The step follows the flown CG (the placement rule above, and the energy
+// layer's CG handshake rebuilds when that CG moves 2 cm). On a LOAD that is
+// wrong: a saved build must come back exactly as saved (WYSIWYG), and the
+// CG the page reads while a load settles is not the CG the file was saved
+// on - the certified PA-18 floats came back 8 cm aft on the page (A0, 26
+// Oct: never re-place on a load, only on an edit). So a load that carries a
+// measured station (`gear.floats.x`, metres aft of the firewall) holds it
+// until a row changes; the first build after the load records the rows, and
+// the build that sees them differ (the builder's edit) hands the step back
+// to the rule. A preset, a reset or a file with no station: the rule.
+let held = null;                                  // { x, rows } while a load holds
+const rowsOf = P => {
+  const VK = (CG2 && CG2.CAGE_VIEW_KEYS) || {};
+  return JSON.stringify(Object.keys(P).filter(k => !(k in VK)).sort().map(k => [k, P[k]]));
+};
 const prevLoad = PAGE.load;
-PAGE.load = () => { if (prevLoad) prevLoad(); lastPreset = null; };
+PAGE.load = spec => {
+  if (prevLoad) prevLoad(spec);
+  lastPreset = null;
+  const f = spec && spec.gear && spec.gear.floats;
+  held = f && typeof f.x === 'number' && isFinite(f.x) ? { x: f.x, rows: null } : null;
+};
 if (typeof window !== 'undefined') {
   window.CAGE_FLOAT_STARTER = floatPresetStarter;
   window.CAGE_FLOAT_APPLY_PRESET = applyFloatPreset;
   window.CAGE_FLOAT_PRESETS = PRESET_NAMES;
   window.CAGE_FLOAT_CUSTOM = CUSTOM_IDX;
+  // the energy layer's CG handshake asks before it rebuilds for a moved CG
+  window.CAGE_FLOAT_HELD = () => !!held;
 }
 
 // ---- the build ------------------------------------------------------------
@@ -294,7 +317,14 @@ PAGE.post = ctx => {
   const cgZ = (DAT && DAT.fwOk && CGM) ? DAT.zFw - CGM[0] : +P.cgZ;
   const cgY = (DAT && CGM) ? CGM[1] + DAT.yD : +P.cgY;
   const keelY0 = AF.keelAt(cgZ) - +P.fltDrop;
-  const zStep = cgZ - Math.tan(12 * D2R) * Math.max(0.2, cgY - keelY0) + +P.fltZ;
+  let zStep = cgZ - Math.tan(12 * D2R) * Math.max(0.2, cgY - keelY0) + +P.fltZ;
+  // the load's station, while no row has changed since (the hold above)
+  if (held) {
+    const rows = rowsOf(P);
+    if (held.rows === null) held.rows = rows;
+    if (rows !== held.rows) held = null;
+    else if (DAT && DAT.fwOk) zStep = DAT.zFw - held.x;
+  }
   const zc = Math.max(AF.z0 + 0.3, Math.min(AF.z1 - 0.3, zStep));
   const keelY = AF.keelAt(zc) - +P.fltDrop;
   const track = +P.fltTrack;

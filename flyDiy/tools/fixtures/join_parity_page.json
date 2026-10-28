@@ -1,8 +1,8 @@
 {
  "what": "join-parity-page",
- "at": "2026-10-20T08:10:41.773Z",
+ "at": "2026-10-27T02:42:21.000Z",
  "door": "load (GARAGE_SPEC.set)",
- "chainSig": "e200020eee8108bb775c388dd02be9758a185660",
+ "chainSig": "24292a1070c04c38b1894b0c3d44e1c2e93be31a",
  "builds": {
   "jodel": {
    "file": "builds/jodel_2026-09-20_corrected.json",
@@ -1537,8 +1537,8 @@
    "page": {
     "n": 97,
     "nb": 404,
-    "mass": 460.70322237014057,
-    "build": "16321fe72a49"
+    "mass": 461.6597235065414,
+    "build": "e4f091c75146"
    },
    "spec": {
     "cage": {
@@ -2462,16 +2462,13 @@
      "pedalH": 0.17,
      "pedalSpread": 0.1,
      "pedalAngle": 47,
-     "dumOn": 1,
-     "dumSize": 1,
-     "dumElbows": 0.01,
-     "dumKnees": 0,
-     "dumRecline": 0,
-     "dumMarkers": 1,
-     "pilotWho": 0,
-     "copWho": 0,
-     "dumFist": 0.5,
-     "dumIdle": 0.5,
+     "pilOn": 1,
+     "pilElbows": 0.01,
+     "pilKnees": 0,
+     "pilRecline": 0,
+     "cabWho": 0,
+     "pilFist": 0.5,
+     "pilIdle": 0.5,
      "swMaster": 0,
      "swAlt": 0,
      "swAvionics": 0,
@@ -2480,12 +2477,12 @@
      "paxFeetY": 0,
      "paxFeetX": 0.14,
      "paxIdle": 1,
-     "dumHandGrip": 0.075,
-     "dumHandsApart": 0,
-     "dumFistL": 0.5,
-     "dumFistR": 0.5,
-     "dumGripL": 0.075,
-     "dumGripR": 0.075,
+     "pilHandGrip": 0.075,
+     "pilHandsApart": 0,
+     "pilFistL": 0.5,
+     "pilFistR": 0.5,
+     "pilGripL": 0.075,
+     "pilGripR": 0.075,
      "cabOcc": 0,
      "paxOcc1": 0,
      "paxOcc2": 0,
@@ -2495,7 +2492,6 @@
      "flapX": 0,
      "flapZ": 0,
      "paxSeatZ": 0,
-     "paxSize": 1,
      "paxRecline": 0,
      "fltPreset": 15,
      "fltDetail": 1,
@@ -2572,6 +2568,12 @@
      "acc_grabHandle_lv": 0,
      "acc_tieDownTail_sL": 0,
      "acc_tieDownTail_lv": 0,
+     "fpLegacy": {
+      "pilotWho": 0,
+      "dumSize": 1,
+      "paxSize": 1,
+      "dumMarkers": 1
+     },
      "fltBow": 0.36,
      "fltBowB": 0.15,
      "fltSide": 0.22,
@@ -2662,7 +2664,7 @@
      "kg": 0
     },
     "fuel": {
-     "litres": 27,
+     "litres": 28,
      "tank": "nose"
     },
     "systems": {
@@ -3029,7 +3031,7 @@
      "vessels": [
       {
        "bay": "nose",
-       "capacity": 27,
+       "capacity": 28,
        "along": -0.11691118935264937,
        "lv": 0.4642857142857143,
        "rot": 0,
@@ -3037,7 +3039,7 @@
        "dims": {
         "L": 0.193,
         "W": 0.522,
-        "H": 0.311
+        "H": 0.322
        },
        "finish": null,
        "hue": null,
@@ -4605,7 +4607,7 @@
     "n": 134,
     "nb": 543,
     "mass": 952.4492536922977,
-    "build": "16321fe72a49"
+    "build": "e4f091c75146"
    },
    "spec": {
     "cage": {
@@ -5529,16 +5531,13 @@
      "pedalH": 0.18,
      "pedalSpread": 0.1,
      "pedalAngle": 25,
-     "dumOn": 1,
-     "dumSize": 1,
-     "dumElbows": 0.08,
-     "dumKnees": 0,
-     "dumRecline": 0,
-     "dumMarkers": 1,
-     "pilotWho": 2,
-     "copWho": 5,
-     "dumFist": 0.5,
-     "dumIdle": 0.5,
+     "pilOn": 1,
+     "pilElbows": 0.08,
+     "pilKnees": 0,
+     "pilRecline": 0,
+     "cabWho": 4,
+     "pilFist": 0.5,
+     "pilIdle": 0.5,
      "swMaster": 0,
      "swAlt": 0,
      "swAvionics": 0,
@@ -5547,12 +5546,12 @@
      "paxFeetY": 0,
      "paxFeetX": 0.14,
      "paxIdle": 1,
-     "dumHandGrip": 0.075,
-     "dumHandsApart": 0,
-     "dumFistL": 0.5,
-     "dumFistR": 0.5,
-     "dumGripL": 0.075,
-     "dumGripR": 0.075,
+     "pilHandGrip": 0.075,
+     "pilHandsApart": 0,
+     "pilFistL": 0.5,
+     "pilFistR": 0.5,
+     "pilGripL": 0.075,
+     "pilGripR": 0.075,
      "cabOcc": 1,
      "paxOcc1": 0,
      "paxOcc2": 0,
@@ -5562,7 +5561,6 @@
      "flapX": 0,
      "flapZ": 0,
      "paxSeatZ": 0,
-     "paxSize": 1,
      "paxRecline": 0,
      "fltPreset": 15,
      "fltDetail": 1,
@@ -5639,6 +5637,12 @@
      "acc_grabHandle_lv": 0,
      "acc_tieDownTail_sL": 0,
      "acc_tieDownTail_lv": 0,
+     "fpLegacy": {
+      "pilotWho": 2,
+      "dumSize": 1,
+      "paxSize": 1,
+      "dumMarkers": 1
+     },
      "fltBow": 0.43,
      "fltBowB": 0.39,
      "fltSide": 0.5,

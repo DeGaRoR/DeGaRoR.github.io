@@ -699,7 +699,7 @@ const MANIFEST = {
     // reads (GEN_*, ENG_PAGE) is reached lazily, so it sits with its sibling.
     '_cage_design.js',
     // THE CHARACTERS (G204): the rig/skin module the crew layer dresses its
-    // dummies with — reads CHAR_REG at call time, so only before the crew.
+    // occupants with — reads CHAR_REG at call time, so only before the crew.
     // THE KNIFE (G245): the drawn-window cut, pure, reached by cageSheet at
     // call time through the KNIFE_GEN global — before the generator.
     // THE SHOULDER (G325): the sill trim, pure, reached by cageSheet at call

@@ -7634,7 +7634,7 @@ const CAGE_VIEW_KEYS = { explodeD: 1 };
 
 // LAYER PARAMETERS RIDE THROUGH. The cage's own parameters are CAGE_PARAMS,
 // but a bench page also carries its layers' (the crew's seats, controls and
-// dummy live in _cage_crew.js and are declared only in the page's defaults).
+// occupants live in _cage_crew.js and are declared only in the page's defaults).
 // Both directions therefore pass a key they do not recognise straight through
 // instead of dropping it: a build file has to be able to carry the cockpit, and
 // the generator reads only the keys it knows, so an unknown one is inert here.
@@ -7673,6 +7673,15 @@ const cageSameVal = (a, b) => a === b ||
   (a && b && typeof a === 'object' && typeof b === 'object' &&
    JSON.stringify(a) === JSON.stringify(b));
 
+// THE PILOT'S ROWS (G3700): `pil<Row>` now, `CAGE_PILOT_OLD`
+// the name a file saved before it carries (cageFromSpec's one alias, and the
+// name bench.js hashes the row under so a certificate keeps its fingerprint);
+// CAGE_PILOT_GONE the retired rows nothing reads (carried in `fpLegacy`).
+const CAGE_PILOT_ROWS = ['On', 'Recline', 'Elbows', 'Knees', 'HandGrip', 'Fist',
+  'Idle', 'HandsApart', 'FistL', 'FistR', 'GripL', 'GripR'];
+const CAGE_PILOT_OLD = r => 'dum' + r;
+const CAGE_PILOT_GONE = ['pilotWho', CAGE_PILOT_OLD('Size'), 'paxSize', CAGE_PILOT_OLD('Markers')];
+
 // spec | bare cage object | null  ->  a FULL parameter set.
 // A null field means "as the template" exactly as it does in the game spec, so
 // a build may null a single parameter to hand it back rather than restating it.
@@ -7690,7 +7699,7 @@ function cageFromSpec(spec) {
   // G180 MIGRATIONS, at the one door a saved cage comes through. (1) The
   // TANDEM layout is retired: every bay seats the cockpit's row now, so a
   // tandem IS one abreast with a bay, and `seatLayout 2` reads as 0. (2) The
-  // SECOND DUMMY switch became per-section occupancy: an older file that
+  // SECOND OCCUPANT switch became per-section occupancy: an older file that
   // carried `dum2On` (only a 0 ever rode in spec.cage — 1 was the default)
   // and none of the section rows gets the sections it meant: all full, or
   // nobody but the pilot. A file with no `dum2On` was at the default, which
@@ -7728,6 +7737,37 @@ function cageFromSpec(spec) {
     if (P.dashWas !== 1) P.dashLegs = 1;           // the box's legs row was never shown: the arch's default
     P.dashStyle = 1; P.dashV = 1;
   }
+  // (6) THE PILOT'S OWN ROWS (G3700, DUMMY-RETIRE; the user, 25 Oct: "retire
+  // everything related to the dummy"). THE ONE ALIAS: the pilot's rows were
+  // named for the crash-test figure the cage seated before the characters -
+  // `dum<Row>` reads as `pil<Row>`, the value as saved (a file that carries
+  // the new name keeps it), and the old name does not survive. The pilot is
+  // the racer (no `pilotWho`), nobody has a stature (`dumSize`, `paxSize`:
+  // every character sits at its own height) and the eye markers are gone
+  // (`dumMarkers`). The co-pilot's pick `copWho` (0 mixed, 1 the retired
+  // figure, 2.. a character) reads as `cabWho` (0 mixed, 1.. a character).
+  // A CERTIFICATE KEEPS ITS FINGERPRINT: the bench hashed these rows under
+  // their saved names, so the retired ones a file carried ride on unread in
+  // `fpLegacy` (bench.js benchStripCosmetic hashes them as they were, and the
+  // renamed ones under CAGE_PILOT_OLD) - Rufus's shipped certificate and every
+  // builder's own still match. A build made from here on carries none.
+  const cc = c && typeof c === 'object' && !Array.isArray(c) ? c : null;
+  for (const r of CAGE_PILOT_ROWS) {
+    const old = CAGE_PILOT_OLD(r);
+    if (cc && old in cc && cc['pil' + r] == null) P['pil' + r] = cc[old];
+    delete P[old];
+  }
+  if (cc && 'copWho' in cc && cc.cabWho == null) {
+    const v = Math.round(+cc.copWho || 0);
+    P.cabWho = v >= 2 ? v - 1 : 0;
+  }
+  const fpl = {};
+  for (const k of CAGE_PILOT_GONE) {
+    if (cc && cc[k] != null && !(P.fpLegacy && k in P.fpLegacy)) fpl[k] = cc[k];
+    delete P[k];
+  }
+  delete P.copWho;
+  if (Object.keys(fpl).length) P.fpLegacy = Object.assign({}, P.fpLegacy || {}, fpl);
   if (cageHasLegacy(P)) return cageLiftLegacy(P);
   return P;
 }
@@ -8668,7 +8708,7 @@ function cageCanopy(m, S) {
 //
 // CAGE_UNIT is a CONSTANT — the unit the fiche is written in. It is 1.0:
 // the template IS metric, measured against the crew (a 50th-percentile
-// dummy's seated eye lands 0.97 m above the floor in it, and the cage's
+// pilot's seated eye lands 0.97 m above the floor in it, and the cage's
 // own length reads 6.6 m — both real light-aircraft numbers). The
 // "planes are too big" reading is NOT a unit error: it is PROPORTION
 // (the template's cabin is ~0.4 m taller than a light aeroplane's for
@@ -9316,6 +9356,7 @@ function cageFirewallZ(zOf) {
 if (typeof module !== 'undefined')
   module.exports = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB, cageJointSweep,
                      CAGE_FRAME_KEYS, CAGE_FRAME_ORDER, CAGE_FRAME_NAMES, CAGE_LEGACY_FRAME,
+                     CAGE_PILOT_ROWS, CAGE_PILOT_OLD, CAGE_PILOT_GONE,
                      cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                      CAGE_UNIT,
                      buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
@@ -9327,6 +9368,7 @@ if (typeof module !== 'undefined')
 if (typeof window !== 'undefined')
   window.CAGE2 = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB,
                    CAGE_FRAME_KEYS, CAGE_FRAME_ORDER, CAGE_FRAME_NAMES, CAGE_LEGACY_FRAME,
+                   CAGE_PILOT_ROWS, CAGE_PILOT_OLD, CAGE_PILOT_GONE,
                    cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                    CAGE_UNIT,
                    buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,

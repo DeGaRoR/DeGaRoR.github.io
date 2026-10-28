@@ -393,7 +393,7 @@ function pageDump() {
     const ix = g.index ? g.index.array : null;
     for (let t = 0; t < nt; t++) { const a = ix ? ix[t*3] : t*3, b = ix ? ix[t*3+1] : t*3+1, c = ix ? ix[t*3+2] : t*3+2; if (a === b && b === c) continue;
       for (const k of [a, b, c]) { v.set(pa[k*3], pa[k*3+1], pa[k*3+2]).applyMatrix4(M); L.push(v.x, v.y, v.z); } } };
-  const furn = (mt, key) => !!(mt && (mt.char || mt.panel || /seat|dash|panel|yoke|stick|pedal|dummy/i.test((mt.sec || '') + key)));
+  const furn = (mt, key) => !!(mt && (mt.char || mt.panel || /seat|dash|panel|yoke|stick|pedal/i.test((mt.sec || '') + key)));
   for (const [mesh, par] of B.parentOf) {
     if (mesh.userData && mesh.userData.propDisc) continue;
     const key = B.keyOf.get(mesh) || Object.keys(B.meshes0).find(k => B.meshes0[k] === mesh) || '';
