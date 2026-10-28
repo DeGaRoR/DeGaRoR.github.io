@@ -204314,3 +204314,19 @@ Train gate (box quiet): IN FLIGHT better than L28a (25 fps vs 20, 1-2 frames ove
 the town and the new LOD materials. ACCEPTED under the user's rule (under the loading screen; no feature sacrificed); the TOP item of
 flydiy-notes/PERF-WEEK-KNOWN-ISSUES.md.
 Not in it: fittings-manual (HANDLE overlap with door-hinges-2, back to the hinge session), avionics-gps (new ready, conflict), new-shapes-1.
+
+## COOKWAIT draft — Codex, 28 Oct 2026 (validation-tool quick win)
+
+Independent claude/codex-cookwait on a5e89abe9fe691551a7a8a2e5bb5d7ec5ebf7b87. parked_cook's successful
+Runtime.evaluate calls left the losing 120/300-second Promise.race timeout alive.
+Observed first cook finished writing at 18:13:29 but exited around 18:18:25.
+Draft clears that timeout in finally after success/rejection/expiry; timeout
+values, page evaluation and pack contents unchanged. This shortens the test
+cycle, not game loading or FPS. No game source changed.
+
+COOKWAIT gate prepared with virtual CDP/timers: success value, rejected/sync
+transport, page error/malformed result, default/custom deadline and timer cleanup.
+Syntax checked only; gate and real cook validation deferred until box free.
+No claimed measured after result. Validate build-id/pack-signature stability
+and prompt clean exit, then apply the same tool revision across every A/B arm.
+No lock/browser/build/gate run during preparation. No ready ref yet.
