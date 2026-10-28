@@ -218,7 +218,7 @@ function run(mut) {
     ok(J(M.careerDay(v1b)) === J({ date: '2026-06-23', utc: 6 * 3600 }), 'careerDay reads the implied day of an un-normalised v1 document');
     ok(CORE.playerNormalise(JSON.parse(J(fwd.doc))).career.day.utc === 3600, 'the player normaliser keeps the career\'s day');
     const sb = CORE.playerDefault();
-    ok(!('day' in sb) && !('career' in sb) && sb.v === CORE.PLAYER_V && CORE.PLAYER_V === 2, 'the sandbox\'s player document is unchanged (no day: the pref keeps it; PLAYER_V 2)');
+    ok(!('day' in sb) && !('career' in sb) && sb.v === CORE.PLAYER_V && CORE.PLAYER_V === 3, 'the sandbox\'s player document is unchanged (no day: the pref keeps it; PLAYER_V 3)');
   }
   // ==== WHEN ======================================================================================================
   {

@@ -8044,6 +8044,7 @@ function dressSlot(matKey, role, idx, col, flat, F) {
 // trim stays (a lighthouse's lantern, a tower's cab, a door is trim), the awning stays (it is a roof over the plan)
 const LOD_DETAIL = /^(rib|post|pile|logend|flag|star|pane)/;
 window.HOUSE_GEN = {
+  std,   // G3660: the house's own opaque-PBR factory, for a sibling generator (the meteo station) - no new material site (GATE ASSETS mats)
   LOD_DETAIL,
   DEF, ROWS, PRESETS, MAT, BAGS, EXTRA, SMOKE_U, FAMS, STANCES, RAILS, SET_TINT, SHADE_U,
   HAND_LEAN, HAND_TWIST, YARD_KIT, CAR_KEYS, AUTO_KEYS, POLE_KEYS, SMALL_BOATS, makeSpread,

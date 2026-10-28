@@ -428,6 +428,16 @@ function build(P0, lod, F) {
     // hangar.js's shell stands in its own bags: the restated walls, stem, roof, doors and panes give way to it
     for (const k of ['wall', 'stem', 'roof', 'door', 'pane']) bags[k] = Bag(k);
     LIT.panes = ext.panes; LIT.windows = litOn ? ext.panes : 0;
+    // THE FOUNDATION under hangar.js's shell (the user 26 Oct: "the medium hangar floats 30-40 cm into the air"): the shell
+    // stands at the floor (placeSite: the high corner + 0.3 / 0.55) and drew nothing under it - the restated shell's stem
+    // ring, concrete from below the lowest corner up to the floor, so the floor stays level and nothing hangs on a slope
+    let gLo = 1e9;
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) gLo = Math.min(gLo, g(sx * HW, sz * HD));
+    if (fy > gLo + 0.02) {
+      const pt = 0.25, ring = [[-HW - pt / 2, HD + pt / 2], [HW + pt / 2, HD + pt / 2], [HW + pt / 2, -HD - pt / 2], [-HW - pt / 2, -HD - pt / 2]];
+      for (let i = 0; i < 4; i++)
+        wall(bags.stem, { A: ring[i], B: ring[(i + 1) % 4], y0: gLo - 0.35, t: pt, topAt: () => fy, ext: [pt / 2, pt / 2], inner: false, endCap: [false, false], capBot: false, capTop: true, sub: 2.5 });
+    }
   }
   // ---- THE GROUND SKIRT AND THE BAKE
   const occ = [{ x: 0, z: 0, hx: HW + pt, hz: HD + pt, k: 0.75, soft: 2.2 }];

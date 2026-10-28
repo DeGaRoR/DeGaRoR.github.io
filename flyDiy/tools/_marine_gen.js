@@ -233,16 +233,18 @@ function planking(bags, x0, x1, z0, z1, y, board) {
   }
 }
 
-function railRun(bags, a, b, y, h) {
-  const dx = b[0] - a[0], dz = b[1] - a[1];
+// yb: the walking level at b when the run climbs (a gangway): the posts stand on the slope and the rails follow it
+// (the user, 25 Oct: "the guardrails do not follow the stairs ... looks sloppy"); a flat run when it is left out
+function railRun(bags, a, b, y, h, yb) {
+  const dx = b[0] - a[0], dz = b[1] - a[1], dy = (yb === undefined ? y : yb) - y;
   const L = Math.hypot(dx, dz);
   if (L < 0.3) return;
   const n = Math.max(1, Math.round(L / 2.2));
   for (let i = 0; i <= n; i++) {
     const t = i / n, x = a[0] + dx * t, z = a[1] + dz * t;
-    cyl(bags.steel, [x, y, z], [0, 1, 0], 0.035, h, 6, true, {});
+    cyl(bags.steel, [x, y + dy * t, z], [0, 1, 0], 0.035, h, 6, true, {});
   }
-  for (const f of [1.0, 0.55]) beam(bags.steel, [a[0], y + h * f, a[1]], [b[0], y + h * f, b[1]], 0.03, 0.03, [0, 1, 0], 0, {});
+  for (const f of [1.0, 0.55]) beam(bags.steel, [a[0], y + h * f, a[1]], [b[0], y + dy + h * f, b[1]], 0.03, 0.03, [0, 1, 0], 0, {});
 }
 
 function cleat(bags, x, y, z) {
@@ -346,8 +348,8 @@ function buildFloat(bags, P, PL, g, wy, rnd, lights) {
       const t = (i + 0.5) / nS, x = gx0 + (gx1 - gx0) * t, yy = sy + (y + 0.18 - sy) * t;
       boxAB(bags.deck, [x - 0.16, yy - 0.04, -w2], [x + 0.16, yy, w2], {});
     }
-    railRun(bags, [gx0, -w2], [gx1, -w2], sy + 0.1, 1.0);
-    railRun(bags, [gx0, w2], [gx1, w2], sy + 0.1, 1.0);
+    railRun(bags, [gx0, -w2], [gx1, -w2], sy + 0.1, 1.0, y + 0.28);
+    railRun(bags, [gx0, w2], [gx1, w2], sy + 0.1, 1.0, y + 0.28);
   }
   if (P.lamps) for (let i = 0; i <= 2; i++) lampPost(bags, lights, x0 + fl * i / 2, y, fw / 2 - 0.2, 2.6);
   return { deckY: y, x0, x1, fw, slips: n };

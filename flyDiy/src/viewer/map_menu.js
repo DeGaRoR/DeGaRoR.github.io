@@ -120,7 +120,8 @@
     for (const p of places) for (const id of p.aeros) placeOf[id] = p.id;
     const text = raw.text || {};
     const say = k => (k && text[k]) || k || '';
-    const providers = (raw.providers || []).map(p => ({ id: p.id, name: p.name, short: p.short || p.name, home: p.home || null }));
+    const providers = (raw.providers || []).map(p => ({ id: p.id, name: p.name, short: p.short || p.name, home: p.home || null,
+      client: p.client && p.client.face ? { id: p.client.id, name: p.client.name, face: p.client.face, faceBig: p.client.faceBig || p.client.face, bg: p.client.bg || null } : null }));
     const prov = {}; for (const p of providers) prov[p.id] = p;
     const car = raw.career || {};
     const career = { accepted: (car.accepted || []).slice(), tracked: car.tracked || null, stage: Object.assign({}, car.stage || {}), wallet: car.wallet, clock: car.clock,
@@ -347,9 +348,18 @@
   // the facts only: an unlit strip at night is the player's call, never a ✗
   const nightHTML = c => c.night && c.night.line ? '<span class="mmRw mmNight">' + esc(c.night.line) + '</span>' : '';
   // the paragraph: who + what + pay; the runways condensed; the window (G2665); the ✗'s reason - then the one button
+  // G3616 (PEOPLE, the user 25 Oct: "use the client portraits in the map view next to their contracts", "display the
+  // portraits in a generous format"): the provider's face - a round one on the row, a big one over the opened paragraph
+  // with the client's name. Lazy: an <img> asks for the cut only when its row is drawn.
+  const faceHTML = p => (p && p.client ? '<img class="mmFace" src="' + esc(p.client.face) + '" alt="" width="40" height="40" loading="lazy" decoding="async">' : '');
+  // G3620: a LARGE portrait's background - the <img>'s own CSS background, drawn through the head's transparent pixels
+  // (the head file untouched: every small face stays transparent)
+  const bgCss = u => (u ? ' style="background:url(' + esc(u) + ') center/cover"' : '');   // (a media/people path: no space, no paren)
+  const whoHTML = p => (p && p.client ? '<div class="mmWho"><img class="mmFaceBig" src="' + esc(p.client.faceBig) + '"' + bgCss(p.client.bg) + ' alt="' + esc(p.client.name) +
+    '" width="120" height="120" loading="lazy" decoding="async"><span><b>' + esc(p.client.name) + '</b>' + esc(p.name) + '</span></div>' : '');
   function paraHTML(M, c) {
     const p = M.prov[c.provider], P = payOf(M, c), K = markOf(M, c), tr = M.career.tracked === c.id;
-    return '<div class="mmBody"><p>' + esc(p.name) + ': ' + esc(c.brief) + ' Pays ' + fmt(P.total) + '.' +
+    return '<div class="mmBody">' + whoHTML(p) + '<p>' + esc(p.name) + ': ' + esc(c.brief) + ' Pays ' + fmt(P.total) + '.' +
       '<span class="mmRw">' + esc(routeWord(M, c)) + '</span>' + nightHTML(c) + (K.mark === '✗' ? '<span class="mmWhy">' + esc(K.why) + '</span>' : '') + '</p>' +
       (c.held ? '<button type="button" class="mmTrack" disabled>' + esc(M.story && M.story.held ? M.story.held : 'later') + '</button></div>'
        : '<button type="button" class="mmTrack' + (tr ? ' on' : '') + '" data-act="track" data-id="' + esc(c.id) + '" aria-pressed="' + tr + '">' + (tr ? 'Tracking ★' : 'Track') + '</button></div>');
@@ -364,7 +374,7 @@
     const kw = keyWord(M, c, V.sort);
     return '<div class="mmItem' + (on ? ' open' : '') + (tr ? ' trk' : '') + (c.held ? ' held' : '') + '" data-id="' + esc(c.id) + '">' +
       '<button type="button" class="mmRow" data-act="row" data-id="' + esc(c.id) + '" aria-expanded="' + on + '">' +
-        '<i class="mmDot" style="background:' + TYPE_COLOUR[ty] + '" aria-label="' + esc(TYPES.find(t => t[0] === ty)[1]) + '"></i>' +
+        '<i class="mmDot" style="background:' + TYPE_COLOUR[ty] + '" aria-label="' + esc(TYPES.find(t => t[0] === ty)[1]) + '"></i>' + faceHTML(M.prov[c.provider]) +
         '<span class="mmT">' + esc(c.title) + (tr ? ' <em>★</em>' : '') + (kw || tags ? '<span class="mmSub">' + (kw ? '<small class="mmKey">' + esc(kw) + '</small>' : '') + tags + '</span>' : '') + '</span>' +
         '<span class="mmPay">' + fmt(payOf(M, c).total) + '</span>' +
         '<span class="mmMark ' + (K.mark === '✓' ? 'ok' : K.mark === '✗' ? 'no' : '') + '" aria-label="' + (K.mark === '✓' ? 'nothing rules your fleet out' : K.mark === '✗' ? 'a hard no-no for your fleet' : '') + '">' + K.mark + '</span>' +
@@ -540,14 +550,17 @@
       b.push(btn('fire', 'Fire', true));
     }
     return '<p>' + esc(p.tagline) + '<span class="mmRw">Flies like: ' + esc(p.fliesLike) + '</span>' +
-      '<span class="mmRw">' + esc(p.traits.map(t => t.label).join(', ')) + ' · ' + esc(pilotWhere(M, p)) + (p.hired ? '' : ' · a one-time sign-on, no wages') + '</span></p>' +
+      '<span class="mmRw">' + esc(p.traits.map(t => t.label).join(', ')) + ' · ' + esc(pilotWhere(M, p)) + (p.hired ? '' : ' · sign-on ' + fmt(p.signOn)) + (p.wage ? ' · wage ' + fmt(p.wage) + ' a day' : '')   /* G3618: the paycheck at each day's end */ + '</span></p>' +
       '<div class="mmActs">' + b.join('') + '</div>' + (live ? '' : '<p class="mmFine">Hiring and firing come with the career (?career=1).</p>');
   }
   function pilotsListHTML(M, st) {
     if (!(M.pilots || []).length) return '<p class="mmEmpty">Pilots come with the career: the four recruits and your hired pilots are listed under ?career=1.</p>';
     const rows = pilotRows(M, st);
     if (!rows.length) return '<p class="mmEmpty">None of your pilots is at ' + esc(placeName(M, st.at)) + '.</p>';
-    const row = p => itemHTML(st, 'p:' + p.id, icHTML(p.initials, PILOT_COLOUR, p.hired ? 'your pilot' : 'looking for work'),
+    // G3616 (PEOPLE): the pilot's own face in the row's icon place (the initials when a pilot has none)
+    const ic = p => (p.portrait ? '<img class="mmIc mmIcF" src="' + esc(p.portrait) + '" alt="" aria-label="' + (p.hired ? 'your pilot' : 'looking for work') + '" width="24" height="24" loading="lazy" decoding="async">'
+      : icHTML(p.initials, PILOT_COLOUR, p.hired ? 'your pilot' : 'looking for work'));
+    const row = p => itemHTML(st, 'p:' + p.id, ic(p),
       esc(p.name) + (p.picked ? ' <em>flies next</em>' : ''), p.hired ? p.flights + (p.flights === 1 ? ' flight' : ' flights') : fmt(p.signOn), pilotCardHTML(M, st, p));
     const hired = rows.filter(p => p.hired), want = rows.filter(p => !p.hired);
     return sectHTML('Your pilots') + (hired.length ? hired.map(row).join('') : '<p class="mmEmpty">Nobody on the roster: you fly yourself.</p>') +
@@ -1097,6 +1110,12 @@
 #mapScreen .mmItem{border-bottom:1px solid var(--ed-hair)}
 #mapScreen .mmRow{width:100%;display:grid;grid-template-columns:10px 1fr auto 18px;gap:10px;align-items:center;padding:10px 16px 10px 14px;min-height:48px;border-left:2px solid transparent}
 #mapScreen .mmItem.open .mmRow{background:var(--ed-acc-soft);border-left-color:var(--ed-acc)}
+#mapScreen .mmRow:has(.mmFace){grid-template-columns:10px 40px 1fr auto 18px}
+#mapScreen .mmFace{width:40px;height:40px;border-radius:50%;object-fit:cover;object-position:50% 25%;background:var(--ed-hair)}
+#mapScreen .mmWho{display:flex;gap:14px;align-items:center}
+#mapScreen .mmFaceBig{width:120px;height:120px;flex:none;border-radius:12px;object-fit:cover;object-position:50% 25%;background:var(--ed-hair)}
+#mapScreen .mmWho span{display:grid;gap:2px;color:var(--ed-dim);font-size:13px}
+#mapScreen .mmWho b{color:var(--ed-ink);font-size:16px;font-weight:600}
 #mapScreen .mmT{font-weight:500;min-width:0}
 #mapScreen .mmT em{color:var(--ed-acc)}
 #mapScreen .mmPay{font-variant-numeric:tabular-nums}
@@ -1160,7 +1179,10 @@
 #mapScreen .mmSwB.on{background:var(--ed-acc);color:var(--ed-acc-ink)}
 #mapScreen .mmRowI{grid-template-columns:24px 1fr auto}
 #mapScreen .mmRowI+.mmBody{padding-left:50px}
+#mapScreen .mmRowI:has(.mmIcF){grid-template-columns:40px 1fr auto}
+#mapScreen .mmRowI:has(.mmIcF)+.mmBody{padding-left:66px}
 #mapScreen .mmIc{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:600;line-height:1;color:var(--ed-acc-ink);border:1px solid var(--ed-acc-ink)}
+#mapScreen .mmIcF{width:40px;height:40px;object-fit:cover;object-position:50% 25%;background:var(--ed-hair);border-color:var(--ed-hair)}
 #mapScreen .mmSect{margin:0;padding:16px 16px 7px;font:600 10.5px/1 'IBM Plex Sans';letter-spacing:.2em;text-transform:uppercase;color:var(--ed-faint);border-bottom:1px solid var(--ed-hair)}
 #mapScreen .mmActs{display:flex;flex-wrap:wrap;gap:8px}
 #mapScreen .mmAct{font:600 12px/1 'IBM Plex Sans';letter-spacing:.1em;text-transform:uppercase;color:var(--ed-acc-ink);background:var(--ed-acc);border:1px solid var(--ed-acc);border-radius:8px;padding:0 18px;min-height:48px;text-align:center}

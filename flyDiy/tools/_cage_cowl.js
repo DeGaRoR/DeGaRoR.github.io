@@ -119,7 +119,7 @@ const GROUP = ['2b · cowl', [
                         g.id === 'g_barrel' || g.id === 'g_bowl' || g.id === 'g_scoop' ? 'open' : undefined,
                         // the nacelle rows only mean something off the body
                         g.id === 'g_aft'
-                          ? { when: P => +P.cowlOn && Math.round(P.engMount || 0) >= 2 }
+                          ? { when: P => +P.cowlOn && [2, 3, 5, 6].includes(Math.round(P.engMount || 0)) }
                           : { when: P => +P.cowlOn }]))];
 (PAGE.groupsOverride || (PAGE.groups = PAGE.groups || [])).push(GROUP);
 
@@ -429,8 +429,20 @@ function noseFace(mesh, FS, end) {
 // face bodily (pylon, nacelle, engine and prop together); `engAim` says which
 // way a wing engine faces — 0 the mount's own, 1 puller, 2 pusher. A pusher
 // nacelle roots at the TRAILING edge (`teAt`), a puller at the leading edge.
+// G2790 ENGINE-CONFIGS: THE LAYOUTS are the faces of the single mounts put
+// together, in the order the spec lists its engines (the join reads unit i
+// as engines[i]): 4 push-pull = the nose face + the aft bulkhead's (the
+// Skymaster); 5 = the nose + a nacelle pair at `engNacAt` (the Trimotor);
+// 6 = two nacelle pairs, inner at `engNacAt`, outer at `engNacAt2`.
 function engineFaces(mesh, FS, P) {
   const mount = Math.round((P && P.engMount) || 0);
+  if (mount >= 4 && mount <= 6) {
+    const one = (m, extra) => engineFaces(mesh, FS, Object.assign({}, P, { engMount: m }, extra || {}));
+    if (mount === 4) return one(0).concat(one(1));
+    if (mount === 5) return one(0).concat(one(3));
+    const inner = +P.engNacAt || 0.30, outer = Math.max(inner + 0.10, +P.engNacAt2 || 0.62);
+    return one(3, { engNacAt: inner }).concat(one(3, { engNacAt: outer }));
+  }
   // G185: an over-the-wing engine sits on the UPPER plane of a biplane
   const W0 = window.CAGE_WING;
   const W = (W0 && W0.planes) ? (W0.planes[W0.upper] || W0) : W0;
@@ -1028,7 +1040,8 @@ function sectionFromFace(face) {
 // (CAGE_WING_EARLY, _cage_wing.js) and placed again, once, over the wing this
 // build publishes when that wing reads differently. A nose or a pusher face
 // never touches the wing and is placed once, as it always was.
-const onWing = P => { const m = Math.round(+(P && P.engMount) || 0); return m === 2 || m === 3; };
+// (ENGINE-CONFIGS-2: and the three's / the four's nacelles, mounts 5 and 6)
+const onWing = P => { const m = Math.round(+(P && P.engMount) || 0); return m === 2 || m === 3 || m === 5 || m === 6; };
 const facesSig = ctx => {
   const P = ctx.P;
   if (!+P.cowlOn || !onWing(P)) return null;
@@ -1045,6 +1058,7 @@ PAGE.post = ctx => {
 // the layer's own build; `again` is the first pass's starter decision when the
 // wing places it again (returned here for that)
 function cowlPlace(ctx, again) {
+  if (CW.__eyeDet0 != null) { CW.P.detail = CW.__eyeDet0; CW.__eyeDet0 = null; }   // G3713: a thrown build's dial
   const { scene, mesh, P, stat } = ctx;
   dispose(group); group = null;
   if (!P.cowlOn) return null;
@@ -1131,6 +1145,15 @@ function cowlPlace(ctx, again) {
   const nacelle = station.synthetic && Math.round(CW.P.aftMode) === 1;
   if (CW.P.fwLipOn !== undefined) CW.P.fwLipOn = nacelle ? 0 : CW.P.fwLipOn;
   CW.prepareLid();
+  // G3713 (COWL-RES): THE EYE VARIANT'S COWL - from variant 1 up the cowl is sampled at detail 2 (the page's own
+  // `cowl detail` row at its top, 2x the samples round and along), for this build only: nothing saved. Every builder
+  // below reads the dial (the lips, the spinner, the propeller, the aft ring), so it holds until this function returns
+  // (restored there, and at the top of the next call should a build have thrown). Held off in a parked aeroplane's
+  // capture and by ?eye=off (CAGE_EYE_VARIANT_OF says 0 there).
+  const eyeV = window.CAGE_EYE_VARIANT_OF ? window.CAGE_EYE_VARIANT_OF() : 0;
+  // G3715: variant 1 only - the cowl is drawn in every view, and the user wants no smoothing outside (27 Oct); the
+  // 01:55 stills showed detail 2 changes nothing in the seat's view (v0 = v1): variants 2-4 keep the cowl's own dial
+  if (eyeV === 1) { CW.__eyeDet0 = CW.P.detail; CW.P.detail = Math.max(2, +CW.P.detail || 1); }
   CW.prepareMesh();
   // COWL ALPHA (G29, user): see the engine through the shell. The view panel
   // owns the dial (viewer state, never spec) and the materials are built to
@@ -1244,6 +1267,18 @@ function cowlPlace(ctx, again) {
     ug.name = 'cageLayer:cowl'; ug.userData.xray = XRAY ? 1 : 0;
     ug.add(c);
     if (u.aft) ug.rotation.y = Math.PI;
+    // G2790: A LAYOUT'S OTHER FACES ARE OTHER SIZES — the Skymaster's aft
+    // bulkhead, a Trimotor's nacelle — so a clone on a face of another KIND
+    // than the first unit's is the same cowl scaled to that face (its width,
+    // its height, its length by their mean): the nacelle a nose cowl makes.
+    // A pair's second side is the same kind and stays a plain clone.
+    {
+      const f0 = units[0].face;
+      if (k > 0 && u.kind !== units[0].kind && f0.halfW > 0 && f0.halfH > 0 && f.halfW > 0 && f.halfH > 0) {
+        const sx = f.halfW / f0.halfW, sy = f.halfH / f0.halfH;
+        c.scale.set(sx, sy, Math.sqrt(sx * sy));
+      }
+    }
     // ON THE SKIN, NOT IN IT: `seat` is how far the fuselage skin domes past
     // the flat firewall cap (noseFace). The builder's stand-off adds to it.
     ug.position.set(f.x || 0, f.yc,
@@ -1267,6 +1302,7 @@ function cowlPlace(ctx, again) {
       `${(CW.zEnd() * 1000).toFixed(0)} mm long` +
       (face.seat ? ` · seat +${(face.seat * 1000).toFixed(1)} mm` : '');
   }
+  if (CW.__eyeDet0 != null) { CW.P.detail = CW.__eyeDet0; CW.__eyeDet0 = null; }   // G3713: the dial as it was
   return forEng.dec || null;
 }
 // THE AERO AFT, CUT 1 (2026-09-04, TWIN-BOOM spec §1.2; the user: "an 'aero
@@ -1291,7 +1327,7 @@ PAGE.post = ctx => {
   }
   return;   // CUT 2 (2026-09-04): the cage's own rings draw the aero aft now
   // eslint-disable-next-line no-unreachable
-  if (!+P.aeroAftOn || !(+P.boomStyle || +P.boomTwin) || Math.round(P.engMount || 0) === 1) return;
+  if (!+P.aeroAftOn || !(+P.boomStyle || +P.boomTwin) || [1, 4].includes(Math.round(P.engMount || 0))) return;
   const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
   const face = noseFace(mesh, FS, 'tail');
   if (!face) { if (stat) stat.textContent += '  ·  aero aft: no aft face'; return; }

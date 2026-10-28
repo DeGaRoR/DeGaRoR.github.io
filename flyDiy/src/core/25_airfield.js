@@ -604,13 +604,16 @@ const GP_FILLET = 12, GP_HOLD_IN = 110, GP_LANE = 12, GP_UTURN_R = 12;
 // key ('stock:', 'mine:') gets the default, an 12 m-span single. The world's obstacle registry holds
 // the real meshes in the browser only; the core plans from these.
 const GP_CLEAR = 1.5, GP_HALF_DEFAULT = 6.0;
+// (ENGINE-CONFIGS-2: the Skymaster-alike's rear pusher, then its wing and booms 0.5 m aft (25 Oct) - 6.16 m: 6.2)
+// (ENGINE-CONFIGS-2, 27 Oct: the three layout starters - the Push-pull starter 0.79 / 6.12 m, the Trimotor 0.76 /
+// 5.93, the Four-engine starter 0.51 / 6.01; all inside the table's envelope, so FLEET_SPOT_FOOT does not move)
 const GP_PARKED_FOOT = {   // [half-span, nose + prop ahead of the mount, tail behind it], metres
   cub: [5.4, 1.3, 5.5], pietenpol: [4.4, 0.9, 5.6], tigermoth: [4.5, 0.9, 5.6], stearman: [4.9, 1.0, 5.4], pittsAlike: [3.3, 0.9, 4.4],
   sesqui: [5.0, 0.9, 5.6], jodel: [4.2, 1.4, 4.5], c172: [5.5, 1.5, 6.1], chinook: [4.9, 0.4, 5.2], caravan: [7.0, 2.1, 6.6],
   rv: [4.9, 0.9, 5.7], savannah: [4.6, 0.9, 5.4], ul1: [4.7, 0.9, 5.4], floatplane: [5.9, 1.2, 5.8], pusherPod: [4.6, 0.6, 5.7],
   motorglider: [6.5, 0.9, 5.0], radial: [5.5, 0.9, 5.8], etrainer: [4.5, 0.9, 5.6], ttail: [5.5, 0.9, 5.8], vtail: [5.5, 0.9, 5.9],
-  mw5: [4.7, 0.6, 5.6], archaeopteryx: [5.5, 0.6, 5.5], da62: [7.0, 0.7, 6.1], twinBush: [8.0, 0.7, 7.1], skymaster: [5.5, 0.9, 5.7],
-  p38: [5.5, 0.7, 5.6], beaver: [7.3, 1.0, 5.9],
+  mw5: [4.7, 0.6, 5.6], archaeopteryx: [5.5, 0.6, 5.5], da62: [7.0, 0.7, 6.1], twinBush: [8.0, 0.7, 7.1], skymaster: [5.5, 0.9, 6.2],
+  p38: [5.5, 0.7, 5.6], beaver: [7.3, 1.0, 5.9], pushPull: [5.5, 0.9, 6.2], trimotor: [5.5, 0.8, 6.0], fourEngine: [5.5, 0.6, 6.1],
 };
 const GP_PARKED_DEFAULT = [6.0, 1.6, 6.6];
 function parkedFoot(p) {

@@ -111,6 +111,11 @@ const GATES = [
   // a build that cannot fly must come back SAYING SO in bounded time. Carries
   // --selftest (doctored reports; every check proven able to go red).
   { id: 'PILOT', file: 'test_pilot.js', tier: 'core', shards: 3, wall: 1200 },
+  // G3760 (HIRE): pilotCanFly - the pilot's own laws asked before the flight (the hire card, routeSign). The expert's
+  // refusal IS makePilot departFrom's (every validated land build x every strip under 700 m); the gear; a contract row
+  // = the aerodrome record; a normal-approach person refuses at least the expert's; the wind only on a one-way strip,
+  // never a headwind's credit; the boundary; the card's words; pure. Then the roster's table (information)
+  { id: 'PILOTCANFLY', file: '_canfly_check.js', tier: 'core' },
   // THE NAV (G202.1): the navigator and the units, pure and fast
   { id: 'NAV', file: 'test_nav.js', tier: 'core' },
   // G1375 STRIP-SURFACE: every aerodrome of both worlds says its surface, the gear rule (wheels / floats / amphibian /
@@ -307,6 +312,8 @@ const GATES = [
   // the Cub, the Jodel and the metal Cessna (no mount comes off), one physics with DMG-DRIVE's strike, nothing in the nose's
   // reach in a circuit, the 30 m/s trunks still crash. Three at once
   { id: 'DMGNOSE', file: '_dmg_nose_check.js', tier: 'core', weight: 3, wall: 1500 },
+  // DMG-FALL: every separated piece down before the flight ends - the watch waits for the solver's pieces (DMG.rest / DMG.fall), a break-up in the air
+  { id: 'DMGFALL', file: '_dmg_fall_check.js', tier: 'core', weight: 3, wall: 600 },
   // G1840-G1843 (DMG-D3 CLUSTERS): a shape-matched cluster is one breakable part - the fin, the twin's rod, the floats (and
   // the twin-boom fixture, reported): its root load read off the cut equals the statics; nothing parts in normal
   // operations (the load test, the pull, the drops, a circuit, parked, the ordinary water cases); a scripted pull takes
@@ -453,6 +460,10 @@ const GATES = [
   // the panels the player opens), the arrival / award / run cards anchored left + bottom; and Chrome (--disable-gpu, a bare
   // page with the real stylesheets) lays them in the lower-left quadrant (flight, workshop) / on the phone's sheet. ~5 s
   { id: 'CARDS', file: '_cards_check.js', tier: 'core', wall: 20 },
+  // G3526-G3529 (GAME-MENUS, the user 25 Oct: "any card you show in game should be draggable"): card_drag.js - the census
+  // (every card-like id draggable or allow-listed with its reason), the manifest (before app.js), the gesture in a stub DOM
+  // (threshold, save per key, buttons never drag, re-render / re-made cards put back, on screen, the double-click). ~1 s
+  { id: 'CARDDRAG', file: '_carddrag_check.js', tier: 'core', wall: 5 },
   // G3449 FLOAT-DUP: one pair of floats in the shed along the builder's path (dev.html, headless Chrome, software GL)
   { id: 'FLOATDUP', file: '_floatdup_check.js', tier: 'full', timeout: 900_000, wall: 300 },
   { id: 'FADES', file: '_fades_check.js', tier: 'core' },   // A2-FADES G670-G673: the prop disc, the grass's grow / pre-grow / lead, the premises' rise
@@ -898,6 +909,12 @@ const GATES = [
   // 3-stop chain flown through the stop records; 64 doctored rules. ~2 s (20 s cold: the five designs' shakedown,
   // cached in the OS temp dir by content)
   { id: 'CONTRACTS', file: '_contracts_check.js', tier: 'core' },
+  // MISSIONS-P0 (futureDesigns/MISSIONS-2026-10-25.md): the mission packs (src/missions/*.json, 73b_missions.js) - every
+  // pack validates (the tree, the orders, the places, the people, each record through contractValidate), the editor's
+  // core judges them as the full core; the BUILT-IN pack is today's contracts (each record, its pay, the install, the
+  // offers and documents of two careers walked under both); the tutorial listed read-only; the new model's rules each
+  // refused alone; the rally's derived checkpoints. ~25 s. `--selftest`: 18 doctored rules, each red (~8 min)
+  { id: 'MISSIONS', file: '_missions_check.js', tier: 'core', wall: 45 },
   // THE STAGES (G2300 STAGES, contract v1.33, GAME-2026-10-06.md §11): the sandbox's composed record = the island cook's
   // hash (today's island, byte for byte, both variants); every stage value of every track composes (valid, the village
   // unmoved, the altiport and East Point by their stage); MILL-TAXI's census at every stage with the kits' solids; never
@@ -1022,6 +1039,12 @@ const GATES = [
   // engine stays on its bearer, the bearer stops ringing, the wing root
   // stays put against the firewall. Negative control on the twin fixture.
   { id: 'MOUNT', file: '_mount_check.js', tier: 'core', wall: 130 },
+  // G2790-G2799 ENGINE-CONFIGS (the user, 10 Oct: the Skymaster's nose + pusher, the 3 and 4 engines): the layouts
+  // (60_gen_spec GEN_ENG_LAYOUTS) - the saved builds and single mounts bit-identical to master, the clamp, each layout's
+  // lattice and balance, a Skymaster-alike / three / four flown level and each engine cut on a straight downwind
+  // (centreline: no yaw; the twin fixture the control), the three certify (bench to the ultimate HELD), the join and
+  // the design tiles. Flights and certificates in parallel children (~3-4 min at --jobs=4).
+  { id: 'ENGCONFIG', file: '_engconfig_check.js', tier: 'core', wall: 240 },
   // SND-ENGINE (G1613): the engine part of GATE AUDIO - the worklet run in node under a shim: the
   // firing frequency within 3 % across idle..rated on the five validated engines (48 and 44.1 kHz), no
   // NaN/clip/DC/subnormal, process() allocation-free, seeded, the life driven by the solver, the sound
