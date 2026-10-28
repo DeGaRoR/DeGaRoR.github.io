@@ -2002,7 +2002,7 @@ function selectVessel(i) {
   if (panelBody) {
     for (const d of panelBody.querySelectorAll('details[data-ves]')) {
       const on = +d.dataset.ves === i;
-      d.style.outline = on ? '1px solid rgba(255,211,90,.55)' : '';
+      d.classList.toggle('on', on);
       if (on) { d.open = true; if (d.scrollIntoView) d.scrollIntoView({ block: 'nearest' }); }
     }
   // ...AND IN THE FINISH COLUMN, which is a different element in a different
@@ -2012,7 +2012,7 @@ function selectVessel(i) {
   if (lookBody)
     for (const d of lookBody.querySelectorAll('details[data-veslook]')) {
       const on = +d.dataset.veslook === i;
-      d.style.outline = on ? '1px solid rgba(255,211,90,.55)' : '';
+      d.classList.toggle('on', on);
       if (on) { d.open = true; if (d.scrollIntoView) d.scrollIntoView({ block: 'nearest' }); }
     }
   }
@@ -2130,7 +2130,7 @@ function renderLook() {
     const det = document.createElement('details');
     det.open = true;
     det.dataset.veslook = i;
-    if (i === selected) det.style.outline = '1px solid rgba(255,211,90,.55)';
+    if (i === selected) det.classList.add('on');
     const sum = document.createElement('summary');
     sum.textContent = (EN.kind === 'battery' ? 'pack ' : 'tank ') + (i + 1) +
       (bay ? ' · ' + bay.name.toLowerCase() : '');
@@ -2215,7 +2215,7 @@ function renderPanel() {
     // rebuilt on every render, so the index rides on the element rather than
     // being remembered as a node
     det.dataset.ves = i;
-    if (i === selected) det.style.outline = '1px solid rgba(255,211,90,.55)';
+    if (i === selected) det.classList.add('on');
     const sum = document.createElement('summary');
     sum.textContent = (EN.kind === 'battery' ? 'pack ' : 'tank ') + (i + 1) +
       ' · ' + (bay ? bay.name.toLowerCase() : '?');

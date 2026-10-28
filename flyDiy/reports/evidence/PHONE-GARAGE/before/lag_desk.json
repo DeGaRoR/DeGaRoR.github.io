@@ -1,0 +1,1380 @@
+{
+ "date": "2026-10-26T02:21:27.217Z",
+ "trees": [
+  {
+   "key": "before",
+   "rel": "flyDiy"
+  }
+ ],
+ "builds": [
+  "cub",
+  "metal"
+ ],
+ "reps": 3,
+ "quiet": 700,
+ "udd": "C:/Users/denis/AppData/Local/Temp/pglag_before",
+ "page": "index.html",
+ "rows": [
+  {
+   "tree": "before",
+   "build": "cub",
+   "change": "fuseLen",
+   "widget": {
+    "id": "p_paxLen",
+    "tag": "INPUT",
+    "type": "range",
+    "min": "0.4",
+    "max": "3",
+    "step": "0.01",
+    "value": "1.76",
+    "label": "bay length",
+    "opts": null
+   },
+   "vals": [
+    1.7444,
+    1.7288,
+    1.7132
+   ],
+   "sync": {
+    "med": 6.6,
+    "max": 7.1
+   },
+   "frame": {
+    "med": 51.6,
+    "max": 59.7
+   },
+   "busy": {
+    "med": 353,
+    "max": 448
+   },
+   "settle": {
+    "med": 731,
+    "max": 742
+   },
+   "nLong": {
+    "med": 2,
+    "max": 3
+   },
+   "maxLong": {
+    "med": 303,
+    "max": 311
+   },
+   "fn": {
+    "BENCH_DIRTY": [
+     0,
+     3
+    ],
+    "CAGE_ON_BUILD": [
+     10.8,
+     3
+    ],
+    "genNormaliseSpec": [
+     0,
+     1
+    ],
+    "VESSEL_GEN.sLTable": [
+     2.8,
+     4
+    ],
+    "VESSEL_GEN.bayCache": [
+     1.1,
+     1
+    ],
+    "CAGE_ENERGY.toSpec": [
+     0,
+     1
+    ],
+    "CAGE_JOIN.export": [
+     1.9,
+     1
+    ]
+   },
+   "reps": [
+    {
+     "sync": 6.6,
+     "frame": 59.7,
+     "busy": 448,
+     "nLong": 3,
+     "maxLong": 311,
+     "settle": 742,
+     "fn": {
+      "BENCH_DIRTY": [
+       0.1,
+       3
+      ],
+      "CAGE_ON_BUILD": [
+       12,
+       3
+      ],
+      "genNormaliseSpec": [
+       0,
+       1
+      ],
+      "VESSEL_GEN.sLTable": [
+       3.1,
+       4
+      ],
+      "VESSEL_GEN.bayCache": [
+       1.1,
+       1
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       2.1,
+       1
+      ]
+     },
+     "t0": 50818.39999997616
+    },
+    {
+     "sync": 5.5,
+     "frame": 30.9,
+     "busy": 276,
+     "nLong": 1,
+     "maxLong": 276,
+     "settle": 632,
+     "fn": {
+      "BENCH_DIRTY": [
+       0,
+       3
+      ],
+      "CAGE_ON_BUILD": [
+       10.2,
+       3
+      ],
+      "genNormaliseSpec": [
+       0,
+       1
+      ],
+      "VESSEL_GEN.sLTable": [
+       2.2,
+       4
+      ],
+      "VESSEL_GEN.bayCache": [
+       1.1,
+       1
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       1.7,
+       1
+      ]
+     },
+     "t0": 52727.799999952316
+    },
+    {
+     "sync": 7.1,
+     "frame": 51.6,
+     "busy": 353,
+     "nLong": 2,
+     "maxLong": 303,
+     "settle": 731,
+     "fn": {
+      "BENCH_DIRTY": [
+       0,
+       3
+      ],
+      "CAGE_ON_BUILD": [
+       10.3,
+       3
+      ],
+      "genNormaliseSpec": [
+       0,
+       1
+      ],
+      "VESSEL_GEN.sLTable": [
+       3.2,
+       4
+      ],
+      "VESSEL_GEN.bayCache": [
+       1.1,
+       1
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       1.8,
+       1
+      ]
+     },
+     "t0": 54586.39999997616
+    }
+   ],
+   "prof": null
+  },
+  {
+   "tree": "before",
+   "build": "cub",
+   "change": "wingSpan",
+   "widget": {
+    "id": "p_wgSpan",
+    "tag": "INPUT",
+    "type": "range",
+    "min": "6.5",
+    "max": "18",
+    "step": "0.1",
+    "value": "10.7",
+    "label": "span",
+    "opts": null
+   },
+   "vals": [
+    10.8,
+    10.9,
+    11
+   ],
+   "sync": {
+    "med": 27.2,
+    "max": 30.3
+   },
+   "frame": {
+    "med": 72.8,
+    "max": 74.2
+   },
+   "busy": {
+    "med": 80,
+    "max": 86
+   },
+   "settle": {
+    "med": 463,
+    "max": 467
+   },
+   "nLong": {
+    "med": 1,
+    "max": 1
+   },
+   "maxLong": {
+    "med": 80,
+    "max": 86
+   },
+   "fn": {
+    "genNormaliseSpec": [
+     0.1,
+     1
+    ],
+    "BENCH_DIRTY": [
+     0,
+     2
+    ],
+    "CAGE_ON_BUILD": [
+     0.6,
+     2
+    ],
+    "CAGE_ENERGY.toSpec": [
+     0,
+     1
+    ],
+    "CAGE_JOIN.export": [
+     1.6,
+     1
+    ]
+   },
+   "reps": [
+    {
+     "sync": 26.3,
+     "frame": 71.2,
+     "busy": 86,
+     "nLong": 1,
+     "maxLong": 86,
+     "settle": 467,
+     "fn": {
+      "genNormaliseSpec": [
+       0.1,
+       1
+      ],
+      "BENCH_DIRTY": [
+       0,
+       2
+      ],
+      "CAGE_ON_BUILD": [
+       0.5,
+       2
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       1.6,
+       1
+      ]
+     },
+     "t0": 57918.299999952316
+    },
+    {
+     "sync": 30.3,
+     "frame": 74.2,
+     "busy": 80,
+     "nLong": 1,
+     "maxLong": 80,
+     "settle": 463,
+     "fn": {
+      "genNormaliseSpec": [
+       0,
+       1
+      ],
+      "BENCH_DIRTY": [
+       0,
+       2
+      ],
+      "CAGE_ON_BUILD": [
+       0.5,
+       2
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       1.7,
+       1
+      ]
+     },
+     "t0": 59518
+    },
+    {
+     "sync": 27.2,
+     "frame": 72.8,
+     "busy": 78,
+     "nLong": 1,
+     "maxLong": 78,
+     "settle": 457,
+     "fn": {
+      "genNormaliseSpec": [
+       0.1,
+       1
+      ],
+      "BENCH_DIRTY": [
+       0,
+       2
+      ],
+      "CAGE_ON_BUILD": [
+       0.7,
+       2
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       1.5,
+       1
+      ]
+     },
+     "t0": 61072.299999952316
+    }
+   ],
+   "prof": null
+  },
+  {
+   "tree": "before",
+   "build": "cub",
+   "change": "wingChord",
+   "widget": {
+    "id": "p_wgChord",
+    "tag": "INPUT",
+    "type": "range",
+    "min": "0.8",
+    "max": "2.1",
+    "step": "0.05",
+    "value": "1.7",
+    "label": "root chord",
+    "opts": null
+   },
+   "vals": [
+    1.65,
+    1.6,
+    1.55
+   ],
+   "sync": {
+    "med": 26.1,
+    "max": 26.6
+   },
+   "frame": {
+    "med": 68.5,
+    "max": 70.3
+   },
+   "busy": {
+    "med": 77,
+    "max": 77
+   },
+   "settle": {
+    "med": 462,
+    "max": 478
+   },
+   "nLong": {
+    "med": 1,
+    "max": 1
+   },
+   "maxLong": {
+    "med": 77,
+    "max": 77
+   },
+   "fn": {
+    "genNormaliseSpec": [
+     0,
+     1
+    ],
+    "BENCH_DIRTY": [
+     0,
+     2
+    ],
+    "CAGE_ON_BUILD": [
+     0.6,
+     2
+    ],
+    "CAGE_ENERGY.toSpec": [
+     0,
+     1
+    ],
+    "CAGE_JOIN.export": [
+     1.5,
+     1
+    ]
+   },
+   "reps": [
+    {
+     "sync": 26.6,
+     "frame": 70.3,
+     "busy": 77,
+     "nLong": 1,
+     "maxLong": 77,
+     "settle": 458,
+     "fn": {
+      "genNormaliseSpec": [
+       0.1,
+       1
+      ],
+      "BENCH_DIRTY": [
+       0.1,
+       2
+      ],
+      "CAGE_ON_BUILD": [
+       0.7,
+       2
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       1.4,
+       1
+      ]
+     },
+     "t0": 63938.299999952316
+    },
+    {
+     "sync": 26.1,
+     "frame": 67.5,
+     "busy": 77,
+     "nLong": 1,
+     "maxLong": 77,
+     "settle": 462,
+     "fn": {
+      "genNormaliseSpec": [
+       0,
+       1
+      ],
+      "BENCH_DIRTY": [
+       0,
+       2
+      ],
+      "CAGE_ON_BUILD": [
+       0.6,
+       2
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       1.5,
+       1
+      ]
+     },
+     "t0": 65552.60000002384
+    },
+    {
+     "sync": 25.4,
+     "frame": 68.5,
+     "busy": 77,
+     "nLong": 1,
+     "maxLong": 77,
+     "settle": 478,
+     "fn": {
+      "genNormaliseSpec": [
+       0,
+       1
+      ],
+      "BENCH_DIRTY": [
+       0,
+       2
+      ],
+      "CAGE_ON_BUILD": [
+       0.4,
+       2
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       1.5,
+       1
+      ]
+     },
+     "t0": 67151.60000002384
+    }
+   ],
+   "prof": null
+  },
+  {
+   "tree": "before",
+   "build": "cub",
+   "change": "tailSize",
+   "widget": {
+    "id": "p_stSpan",
+    "tag": "INPUT",
+    "type": "range",
+    "min": "0.5",
+    "max": "1.8",
+    "step": "0.01",
+    "value": "1.41",
+    "label": "span (× the drawn)",
+    "opts": null
+   },
+   "vals": [
+    1.4,
+    1.39,
+    1.38
+   ],
+   "sync": {
+    "med": 3.8,
+    "max": 4.9
+   },
+   "frame": {
+    "med": 44.5,
+    "max": 48.7
+   },
+   "busy": {
+    "med": 59,
+    "max": 62
+   },
+   "settle": {
+    "med": 422,
+    "max": 428
+   },
+   "nLong": {
+    "med": 1,
+    "max": 1
+   },
+   "maxLong": {
+    "med": 59,
+    "max": 62
+   },
+   "fn": {
+    "BENCH_DIRTY": [
+     0,
+     2
+    ],
+    "CAGE_ON_BUILD": [
+     0.5,
+     2
+    ],
+    "CAGE_ENERGY.toSpec": [
+     0,
+     1
+    ],
+    "CAGE_JOIN.export": [
+     1.6,
+     1
+    ]
+   },
+   "reps": [
+    {
+     "sync": 4.9,
+     "frame": 48.7,
+     "busy": 62,
+     "nLong": 1,
+     "maxLong": 62,
+     "settle": 422,
+     "fn": {
+      "BENCH_DIRTY": [
+       0,
+       2
+      ],
+      "CAGE_ON_BUILD": [
+       0.5,
+       2
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       1.5,
+       1
+      ]
+     },
+     "t0": 70023.29999995232
+    },
+    {
+     "sync": 3.5,
+     "frame": 44.5,
+     "busy": 59,
+     "nLong": 1,
+     "maxLong": 59,
+     "settle": 428,
+     "fn": {
+      "BENCH_DIRTY": [
+       0,
+       2
+      ],
+      "CAGE_ON_BUILD": [
+       0.6,
+       2
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       1.6,
+       1
+      ]
+     },
+     "t0": 71519.20000004768
+    },
+    {
+     "sync": 3.8,
+     "frame": 25.6,
+     "busy": 59,
+     "nLong": 1,
+     "maxLong": 59,
+     "settle": 417,
+     "fn": {
+      "BENCH_DIRTY": [
+       0,
+       2
+      ],
+      "CAGE_ON_BUILD": [
+       0.5,
+       2
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       1.8,
+       1
+      ]
+     },
+     "t0": 73109.60000002384
+    }
+   ],
+   "prof": null
+  },
+  {
+   "tree": "before",
+   "build": "metal",
+   "change": "fuseLen",
+   "widget": {
+    "id": "p_paxLen",
+    "tag": "INPUT",
+    "type": "range",
+    "min": "0.4",
+    "max": "3",
+    "step": "0.01",
+    "value": "1",
+    "label": "bay length",
+    "opts": null
+   },
+   "vals": [
+    1.0156,
+    1.0312,
+    1.0468
+   ],
+   "sync": {
+    "med": 8.7,
+    "max": 9.3
+   },
+   "frame": {
+    "med": 57.5,
+    "max": 76.8
+   },
+   "busy": {
+    "med": 490,
+    "max": 678
+   },
+   "settle": {
+    "med": 850,
+    "max": 899
+   },
+   "nLong": {
+    "med": 2,
+    "max": 3
+   },
+   "maxLong": {
+    "med": 429,
+    "max": 430
+   },
+   "fn": {
+    "BENCH_DIRTY": [
+     0,
+     3
+    ],
+    "CAGE_ON_BUILD": [
+     18.8,
+     3
+    ],
+    "genNormaliseSpec": [
+     0.1,
+     1
+    ],
+    "VESSEL_GEN.sLTable": [
+     2.5,
+     4
+    ],
+    "VESSEL_GEN.bayCache": [
+     0.9,
+     1
+    ],
+    "CAGE_ENERGY.toSpec": [
+     0,
+     1
+    ],
+    "CAGE_JOIN.export": [
+     1.8,
+     1
+    ]
+   },
+   "reps": [
+    {
+     "sync": 9.3,
+     "frame": 76.8,
+     "busy": 678,
+     "nLong": 3,
+     "maxLong": 430,
+     "settle": 899,
+     "fn": {
+      "BENCH_DIRTY": [
+       0,
+       3
+      ],
+      "CAGE_ON_BUILD": [
+       19.8,
+       3
+      ],
+      "genNormaliseSpec": [
+       0,
+       1
+      ],
+      "VESSEL_GEN.sLTable": [
+       3.2,
+       4
+      ],
+      "VESSEL_GEN.bayCache": [
+       0.8,
+       1
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       1.9,
+       1
+      ]
+     },
+     "t0": 60850.90000009537
+    },
+    {
+     "sync": 6.7,
+     "frame": 57.5,
+     "busy": 490,
+     "nLong": 2,
+     "maxLong": 429,
+     "settle": 850,
+     "fn": {
+      "BENCH_DIRTY": [
+       0,
+       3
+      ],
+      "CAGE_ON_BUILD": [
+       18,
+       3
+      ],
+      "genNormaliseSpec": [
+       0.1,
+       1
+      ],
+      "VESSEL_GEN.sLTable": [
+       2,
+       4
+      ],
+      "VESSEL_GEN.bayCache": [
+       0.9,
+       1
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       1.9,
+       1
+      ]
+     },
+     "t0": 63035.40000009537
+    },
+    {
+     "sync": 8.7,
+     "frame": 56.8,
+     "busy": 445,
+     "nLong": 2,
+     "maxLong": 381,
+     "settle": 828,
+     "fn": {
+      "BENCH_DIRTY": [
+       0,
+       3
+      ],
+      "CAGE_ON_BUILD": [
+       18.5,
+       3
+      ],
+      "genNormaliseSpec": [
+       0.1,
+       1
+      ],
+      "VESSEL_GEN.sLTable": [
+       2.2,
+       4
+      ],
+      "VESSEL_GEN.bayCache": [
+       0.9,
+       1
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       1.6,
+       1
+      ]
+     },
+     "t0": 65175
+    }
+   ],
+   "prof": null
+  },
+  {
+   "tree": "before",
+   "build": "metal",
+   "change": "wingSpan",
+   "widget": {
+    "id": "p_wgSpan",
+    "tag": "INPUT",
+    "type": "range",
+    "min": "6.5",
+    "max": "18",
+    "step": "0.1",
+    "value": "11",
+    "label": "span",
+    "opts": null
+   },
+   "vals": [
+    11.1,
+    11.2,
+    11.3
+   ],
+   "sync": {
+    "med": 27.2,
+    "max": 31.3
+   },
+   "frame": {
+    "med": 76.2,
+    "max": 80.6
+   },
+   "busy": {
+    "med": 89,
+    "max": 101
+   },
+   "settle": {
+    "med": 468,
+    "max": 511
+   },
+   "nLong": {
+    "med": 1,
+    "max": 1
+   },
+   "maxLong": {
+    "med": 89,
+    "max": 101
+   },
+   "fn": {
+    "genNormaliseSpec": [
+     0.1,
+     1
+    ],
+    "BENCH_DIRTY": [
+     0,
+     2
+    ],
+    "CAGE_ON_BUILD": [
+     0.8,
+     2
+    ],
+    "CAGE_ENERGY.toSpec": [
+     0,
+     1
+    ],
+    "CAGE_JOIN.export": [
+     1.6,
+     1
+    ]
+   },
+   "reps": [
+    {
+     "sync": 31.3,
+     "frame": 80.6,
+     "busy": 101,
+     "nLong": 1,
+     "maxLong": 101,
+     "settle": 511,
+     "fn": {
+      "genNormaliseSpec": [
+       0.1,
+       1
+      ],
+      "BENCH_DIRTY": [
+       0,
+       2
+      ],
+      "CAGE_ON_BUILD": [
+       0.8,
+       2
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       1.6,
+       1
+      ]
+     },
+     "t0": 69062.5
+    },
+    {
+     "sync": 27.2,
+     "frame": 76.2,
+     "busy": 86,
+     "nLong": 1,
+     "maxLong": 86,
+     "settle": 465,
+     "fn": {
+      "genNormaliseSpec": [
+       0,
+       1
+      ],
+      "BENCH_DIRTY": [
+       0,
+       2
+      ],
+      "CAGE_ON_BUILD": [
+       0.7,
+       2
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       1.7,
+       1
+      ]
+     },
+     "t0": 70686.30000007153
+    },
+    {
+     "sync": 26.8,
+     "frame": 74,
+     "busy": 89,
+     "nLong": 1,
+     "maxLong": 89,
+     "settle": 468,
+     "fn": {
+      "genNormaliseSpec": [
+       0.1,
+       1
+      ],
+      "BENCH_DIRTY": [
+       0,
+       2
+      ],
+      "CAGE_ON_BUILD": [
+       0.8,
+       2
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       1.6,
+       1
+      ]
+     },
+     "t0": 72345.10000002384
+    }
+   ],
+   "prof": null
+  },
+  {
+   "tree": "before",
+   "build": "metal",
+   "change": "wingChord",
+   "widget": {
+    "id": "p_wgChord",
+    "tag": "INPUT",
+    "type": "range",
+    "min": "0.8",
+    "max": "2.1",
+    "step": "0.05",
+    "value": "1.95",
+    "label": "root chord",
+    "opts": null
+   },
+   "vals": [
+    1.9,
+    1.85,
+    1.8
+   ],
+   "sync": {
+    "med": 26.5,
+    "max": 26.6
+   },
+   "frame": {
+    "med": 75.1,
+    "max": 75.5
+   },
+   "busy": {
+    "med": 83,
+    "max": 85
+   },
+   "settle": {
+    "med": 463,
+    "max": 467
+   },
+   "nLong": {
+    "med": 1,
+    "max": 1
+   },
+   "maxLong": {
+    "med": 83,
+    "max": 85
+   },
+   "fn": {
+    "genNormaliseSpec": [
+     0.1,
+     1
+    ],
+    "BENCH_DIRTY": [
+     0,
+     2
+    ],
+    "CAGE_ON_BUILD": [
+     0.6,
+     2
+    ],
+    "CAGE_ENERGY.toSpec": [
+     0,
+     1
+    ],
+    "CAGE_JOIN.export": [
+     1.5,
+     1
+    ]
+   },
+   "reps": [
+    {
+     "sync": 26.6,
+     "frame": 75.5,
+     "busy": 83,
+     "nLong": 1,
+     "maxLong": 83,
+     "settle": 463,
+     "fn": {
+      "genNormaliseSpec": [
+       0,
+       1
+      ],
+      "BENCH_DIRTY": [
+       0,
+       2
+      ],
+      "CAGE_ON_BUILD": [
+       0.6,
+       2
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       1.5,
+       1
+      ]
+     },
+     "t0": 75272.90000009537
+    },
+    {
+     "sync": 26.3,
+     "frame": 74.5,
+     "busy": 85,
+     "nLong": 1,
+     "maxLong": 85,
+     "settle": 467,
+     "fn": {
+      "genNormaliseSpec": [
+       0.2,
+       1
+      ],
+      "BENCH_DIRTY": [
+       0,
+       2
+      ],
+      "CAGE_ON_BUILD": [
+       0.7,
+       2
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       1.6,
+       1
+      ]
+     },
+     "t0": 76912.80000007153
+    },
+    {
+     "sync": 26.5,
+     "frame": 75.1,
+     "busy": 80,
+     "nLong": 1,
+     "maxLong": 80,
+     "settle": 460,
+     "fn": {
+      "genNormaliseSpec": [
+       0,
+       1
+      ],
+      "BENCH_DIRTY": [
+       0,
+       2
+      ],
+      "CAGE_ON_BUILD": [
+       0.6,
+       2
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       1.5,
+       1
+      ]
+     },
+     "t0": 78546.70000004768
+    }
+   ],
+   "prof": null
+  },
+  {
+   "tree": "before",
+   "build": "metal",
+   "change": "tailSize",
+   "widget": {
+    "id": "p_stSpan",
+    "tag": "INPUT",
+    "type": "range",
+    "min": "0.5",
+    "max": "1.8",
+    "step": "0.01",
+    "value": "1",
+    "label": "span (× the drawn)",
+    "opts": null
+   },
+   "vals": [
+    1.01,
+    1.02,
+    1.03
+   ],
+   "sync": {
+    "med": 5.3,
+    "max": 6.5
+   },
+   "frame": {
+    "med": 50.1,
+    "max": 51.3
+   },
+   "busy": {
+    "med": 62,
+    "max": 69
+   },
+   "settle": {
+    "med": 440,
+    "max": 443
+   },
+   "nLong": {
+    "med": 1,
+    "max": 1
+   },
+   "maxLong": {
+    "med": 62,
+    "max": 69
+   },
+   "fn": {
+    "BENCH_DIRTY": [
+     0,
+     2
+    ],
+    "CAGE_ON_BUILD": [
+     0.7,
+     2
+    ],
+    "CAGE_ENERGY.toSpec": [
+     0,
+     1
+    ],
+    "CAGE_JOIN.export": [
+     2,
+     1
+    ]
+   },
+   "reps": [
+    {
+     "sync": 6.5,
+     "frame": 51.3,
+     "busy": 62,
+     "nLong": 1,
+     "maxLong": 62,
+     "settle": 443,
+     "fn": {
+      "BENCH_DIRTY": [
+       0,
+       2
+      ],
+      "CAGE_ON_BUILD": [
+       0.8,
+       2
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       1.8,
+       1
+      ]
+     },
+     "t0": 81497
+    },
+    {
+     "sync": 4.3,
+     "frame": 50.1,
+     "busy": 59,
+     "nLong": 1,
+     "maxLong": 59,
+     "settle": 440,
+     "fn": {
+      "BENCH_DIRTY": [
+       0,
+       2
+      ],
+      "CAGE_ON_BUILD": [
+       0.6,
+       2
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0.1,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       2.3,
+       1
+      ]
+     },
+     "t0": 83081.20000004768
+    },
+    {
+     "sync": 5.3,
+     "frame": 49.8,
+     "busy": 69,
+     "nLong": 1,
+     "maxLong": 69,
+     "settle": 432,
+     "fn": {
+      "BENCH_DIRTY": [
+       0,
+       2
+      ],
+      "CAGE_ON_BUILD": [
+       0.8,
+       2
+      ],
+      "CAGE_ENERGY.toSpec": [
+       0,
+       1
+      ],
+      "CAGE_JOIN.export": [
+       1.8,
+       1
+      ]
+     },
+     "t0": 84682.60000002384
+    }
+   ],
+   "prof": null
+  }
+ ],
+ "meta": [
+  {
+   "tree": "before",
+   "build": "cub",
+   "load": {
+    "state": "ready",
+    "sec": 44.3
+   },
+   "ver": "fcffb63b45c1",
+   "exc": [],
+   "excAfter": []
+  },
+  {
+   "tree": "before",
+   "build": "metal",
+   "load": {
+    "state": "ready",
+    "sec": 54.3
+   },
+   "ver": "fcffb63b45c1",
+   "exc": [],
+   "excAfter": []
+  }
+ ],
+ "warmed": true
+}

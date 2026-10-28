@@ -1310,8 +1310,9 @@ body.shot #c { margin-left:0 !important; width:100% !important; cursor:grab; }
 /* G3729 (the user, 26 Oct, the tank panel: "get rid of the frame, we use that nowhere else. Keep the warning, but not the
    container"): a tank (_cage_energy.js details[data-ves], its finish twin [data-veslook]) is a flat group like the
    instruments' (UI-STYLE G3736) - no box, its summary the group's heading, the picked one in the selection colour; its
-   red line (.r.note.bad, --ed-bad) stays as it is */
-.edRoot details:is([data-ves], [data-veslook]) { border:0; border-radius:0; padding:0; margin:0; outline:0 !important; }
+   red line (.r.note.bad, --ed-bad) stays as it is. The pick is a class now, not an inline outline (UI-STYLE G3730's own
+   _cage_energy.js lines, word for word) */
+.edRoot details:is([data-ves], [data-veslook]) { border:0; border-radius:0; padding:0; margin:0; }
 .edRoot details:is([data-ves], [data-veslook]) > summary { padding:18px 0 6px; }
 .edRoot details:is([data-ves], [data-veslook]).on > summary { color:var(--ed-acc); }
 #edTopBar { flex-wrap:nowrap; gap:6px; }
