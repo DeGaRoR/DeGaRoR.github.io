@@ -111,6 +111,11 @@ const GATES = [
   // a build that cannot fly must come back SAYING SO in bounded time. Carries
   // --selftest (doctored reports; every check proven able to go red).
   { id: 'PILOT', file: 'test_pilot.js', tier: 'core', shards: 3, wall: 1200 },
+  // G3760 (HIRE): pilotCanFly - the pilot's own laws asked before the flight (the hire card, routeSign). The expert's
+  // refusal IS makePilot departFrom's (every validated land build x every strip under 700 m); the gear; a contract row
+  // = the aerodrome record; a normal-approach person refuses at least the expert's; the wind only on a one-way strip,
+  // never a headwind's credit; the boundary; the card's words; pure. Then the roster's table (information)
+  { id: 'PILOTCANFLY', file: '_canfly_check.js', tier: 'core' },
   // THE NAV (G202.1): the navigator and the units, pure and fast
   { id: 'NAV', file: 'test_nav.js', tier: 'core' },
   // G1375 STRIP-SURFACE: every aerodrome of both worlds says its surface, the gear rule (wheels / floats / amphibian /
