@@ -101098,10 +101098,26 @@ navigator, the Cub's portable. **Still owed on the GPU (A0):** the same views in
 
 ## AVIONICS-GPS - READY for A0: claude/ready/avionics-gps (2026-10-28, cloud; G2801-G2812 - the PFD work G2813-G2815 is NOT in it: claude/avionics-gps-pfd, its own gate pass owed)
 
-**Base:** origin/master **d7e181f4e** (train L25c), merged at 0b41654e3 (G2810's entry: the export union, HANDOVER both sides,
-master's side for every built / cooked file); re-fetched Tue 15:04, Wed 00:00 and Wed 05:50 - master unchanged, nothing to
-merge again. The built files (index.html, dev.html, sw.js, version.json, tools/flight_core.js, career_core.*.js) and the
-cooked ones are master's in this branch: the train rebuilds and re-cooks.
+**Base:** origin/master **4ab6c317d** (train L28-0), merged at 818c9d5f9 (on top of the earlier d7e181f4e merge 0b41654e3):
+the export union (master's list, aliases kept, plus GEN_TRIM, genFurnK, GEN_LIGHT_PARTS, genDrawnCabin, GEN_ELEC_PARTS,
+GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize; none dropped), HANDOVER both sides, master's side for every built / cooked
+file; src/core/61_gen_frame.js takes master's chairs at the raised floor and keeps the furnishing / outfit split of the bill;
+tools/_route_check.js takes master's flight() signature with PROFILE_KNOWN. The built files (index.html, dev.html, sw.js,
+version.json, tools/flight_core.js, career_core.*.js) and the cooked ones are master's in this branch: the train rebuilds
+and re-cooks.
+
+**MASTER MOVED AGAIN (re-fetched Wed 11:53 and again 12:32 before the push):** origin/master is now **20a534e89** (train L28a, 165 commits, 309 files). Not
+merged into this branch - the 154-gate pass below took the morning and could not be redone by 13:30. A trial merge (local,
+not pushed: 40057f4af in a scratch worktree) conflicts in HANDOVER.md (both sides kept) and src/core/90_node_exports.js
+(master's 1049 names + this branch's 8, none dropped) only; every other file auto-merges (43_pilot, 60_gen_spec, app.js,
+garage.js, _cage_access, _fit_check, _takeoff_check, build.js, run_gates.js); `tools/build.js` builds it clean. L28a's
+"cockpit glass" is G3623 DMG-GLASS (the windscreen's impact mark) - no file of the GPS / panel. The trial merge's gates:
+`run_gates.js --no-build --jobs=2 --only=BUILD,JOIN,PARTS,SAVE,STARTER,SIMWORKER,PILOT,GPSFACE,HINGE,ENGCONFIG` on its own
+build (Wed 12:14-12:31): GATE PILOT: PASS (3 shards) · GATE BUILD: PASS · GATE HINGE: PASS · GATE JOIN: PASS · GATE STARTER:
+PASS · GATE SAVE: PASS · GATE SIMWORKER: PASS · GATE PARTS: PASS · GATE GPSFACE: PASS · GATE ENGCONFIG: FAIL - one PIN row:
+builds/chinook_2026-09-21_corrected.json reads 85daa7e02806fd6c 5d9ebb8f6d803158 on the L28a + avionics tree (pinned
+bf6854b8a6066f35 f4dbe53bc257a050 here, on 4ab6c317d): L28a moves the Chinook's identity, so whoever merges L28a re-pins that
+row with `node tools/_engconfig_check.js --pin` (the same as 6c82ad951 did for L28-0).
 
 **What lands:** G2801-G2807 (the electrics as parts, the GPS face, the furnishing row), G2808-G2809 (the glass panel, WYSIWYG
 billing), G2810 (the five reds explained and re-baselined), G2811 (the partial-flap notch, the centreline backtrack, the
@@ -101111,187 +101127,209 @@ tools/box_render.js, tools/gps_shots.js).
 **Approved validated-build changes (the user's, by name):** the bill (G2808-G2809: `tools/avionics_bill_table.js <master>`
 - Cub +5.26 kg, Jodel +13.30, metal Cessna +9.46, floats +7.36, twin floats +4.25, C172 +4.27, Rufus +11.71; every CG,
 furnishing and electrics row as G2809's table); the landing flap (G2811, "yes, do the partial-flap fix": the user's Cub
-lands on 0.95, the Jodel and the twin floatplane on 0.7; metal, floats, C172 and Rufus unchanged). G2812 moves no bill
-(+0.00 kg on all seven against 78422eb71).
+lands on 0.95, the Jodel and the twin floatplane on 0.7; metal, floats, C172 and Rufus unchanged). G2812 moves no bill.
+The L28-0 merge moves the masses by master's own chairs-at-the-raised-floor (page, after the merge: Cub 465.758, Jodel
+477.180, metal 897.872, twin floats 493.040 kg).
 
-**JOINPARITY, re-captured (its own rule: "re-capture if the move is meant, and say so in the HANDOVER"):**
-`node tools/join_parity_page.js --only <key> --jobs 1`, one build at a time (Wed 04:50-05:35: the full run with --jobs 2
-stalled twice on one Chromium and writes only at its end). The page's masses are node's to the gram, each the snapshot
-of 20 Oct plus the approved bill: Cub 465.960, Jodel 477.486, metal 898.235, floats 959.807, twin floats 491.490 kg.
-tools/_joinparity_check.js: the twin floatplane's drawn floor (G2809's billed area, r4 of the crew floor less the
-float struts' holes) follows the page-timed float station inside its deadband (0.3295 / page 0.3294 m2), so it is now
-declared with the station - held to 1e-3 m2, then carried; every other number of every def still compared exactly.
-tools/box_render.js loads a saved build through tools/_load_build.js (the gate's "no tool flies a validated build raw").
+**Fixed after the L28-0 merge (each gate run alone, PASS):**
+- ENGCONFIG (6c82ad951): the PIN table re-pinned from `--pin` for the approved bill; the three example layouts rebaked
+  (`node tools/engconfig_fixtures.js --write`). NB master 4ab6c317d's own fixtures already DIFFER from its bake (L28-0's
+  hgDr / dashV / lights rows): row 9 is red on master too.
+- HINGE (642b8751f): the rebake writes L28-0's four hgDr door rows (at 0) into those layouts, and DOOR AXIS's "an old file
+  hashes the same" row hashed them raw under the pre-hgDr bench. The row now strips the hgDr rows for the OLD bench only -
+  byte-identical for every file saved before the rows existed, and still catches a bench that lets the rows into the hash.
+  A gate change: A0's to accept or replace.
+- GPSFACE (251c8801b): the Jodel's portable now stands on its plate (L28-0's panel), the PANELS row says so.
 
-**The gates:** the grep rule over the 51 files this branch changes plus BUILD, JOIN, PARTS, SAVE, STARTER, SIMWORKER,
-PILOT - **222 gates**, `node --max-old-space-size=4096 tools/run_gates.js --no-build --jobs=4 --only=<ID>`, two at a time
-(Tue 15:04 - Tue 22:51, on this branch's own build). **190 PASS** in the battery; ROLLANIM and AUDIO (red under the
-battery's load) PASS alone on a quiet box; JOINPARITY after its re-capture fails master's one row. Every red was run on a
-clean master worktree (d7e181f4e, its own build) the same way (Tue 22:55 - Wed 01:55).
+**JOINPARITY, re-captured on the merged tree** (`node tools/join_parity_page.js --only <key> --jobs 1`, Wed 11:00-12:08):
+one build at a time (the --jobs 2 run stalls on one Chromium and writes only at its end); Wed 11:00-12:24. The page's masses
+are node's to the gram: Cub 465.758, Jodel 477.180, metal 897.872, floats 959.443, twin floats 493.040 kg (the approved bill
+plus master L28-0's chairs at the raised floor). The float Cessna's capture timed out twice at 1100 s under the battery's
+load and captured in 522 s on a quieter box. tools/_joinparity_check.js keeps G2810's floatplane drawn-floor carry.
+**JOINPARITY: 1 FAIL** - master's own raw-tool row (the same seven tools as master).
 
-**Red on master too (30), with master's own verdict:** ARCHETYPES FAIL (1) / master FAIL (1) · BIOME FAIL / FAIL ·
-BOOTLIFT FAIL (1) / FAIL (1) · CLOCK FAIL (1 of 777) / FAIL (1 of 777) · CLOUD FAIL (1 of 239) / FAIL (1 of 239) ·
-DMGCERT FAIL / FAIL · DMGCOMPOSITE FAIL / FAIL · DMGDETERMINISM 1800 s cap / 1800 s cap · DMGINST FAIL / FAIL ·
-FLOATDUP SKIP (no Chrome) / SKIP · FOG FAIL (2 of 22) / FAIL (2 of 22) · FRAMECOST FAIL (22) / FAIL (1) (see the GPU list)
-· INSTANT 1800 s cap / 1800 s cap · JOINPARITY 1 FAIL / 1 FAIL (the same six raw tools) · KTX2 FAIL / FAIL · LAKEBED FAIL (2)
-/ FAIL (2) · PILOTPAGE FAIL (4: no Chrome) / FAIL (4) · PILOTS FAIL / FAIL · POD FAIL / FAIL · RADIALDIV FAIL (3) / FAIL (3) ·
-ROUNDTRIP FAIL (1) / FAIL (1) · RWYLIGHTS FAIL (2 of 120) / FAIL (2 of 120) · RWYTREES 1800 s cap / 1800 s cap · SCENERYED
-FAIL (1) / FAIL (1) · SIMWORKER-EDGES FAIL (6) / FAIL (6) · TOUR FAIL (2) / FAIL (2) (the float Cessna's mk_sea > SEA: a
-ground loop and a prop strike, on both; the Cub and the C172 end at their known reds) · TREECRASH 1800 s cap / 1800 s cap ·
-TREEHIT FAIL / FAIL (the trunk stops it at 63.5 m of 60, both) · VEHICLE FAIL (2 rows) / FAIL (2 rows) · WORLD FAIL / FAIL
-(13/31's approaches).
+**The gates:** the grep rule over the 58 files this branch changes against 4ab6c317d plus BUILD, JOIN, PARTS, SAVE,
+STARTER, SIMWORKER, PILOT - **154 gates: 135 PASS, 19 red** (17 red on master too - DMGINST by another row; DMGSKINGPU and DMGCERTCOST green on master: below), re-run on the merged tree (4ab6c317d), three at a time, `node
+--max-old-space-size=4096 tools/run_gates.js --no-build --jobs=4 --only=<ID>`, Wed 05:49-11:47; then 72 more (the
+first pass's extras, 222 on d7e181f4e) were queued behind them and stopped at 11:47 to give the box to the alone re-runs -
+each of those carries its d7e181f4e verdict, marked NOT RE-RUN. Red rows that read load were re-run alone (marked).
 
-**For A0's GPU:** FRAMECOST - this branch's rows (the Cub's and the Cessna's stand / taxi draws and uniforms) are a STALE
-PARKED COOK (`node tools/parked_cook.js --check`: manifest 1bd647158b91, this tree dee2748c7609 - every parked aeroplane
-captured live); the cook bakes on a GPU (headless Chrome on the box's GPU), the train re-cooks on its final build, so
-FRAMECOST is judged there; master's own row (cessna boot/garage:restore updateMatrixWorld) is red on both. FLOATDUP and
-PILOTPAGE need Chrome. The stills: the GPS units in the game's renderer (tools/avionics_stills.js; this box's evidence is
-tools/box_render.js and tools/gps_shots.js, CPU / 2D only).
+**Red on master too** (master's verdict: on 4ab6c317d where marked L28-0, else the clean d7e181f4e worktree, same rows):
+ARCHETYPES FAIL (1) (the Chinook-alike's rejected take-off) · BOOTLIFT FAIL (1) · CLOUD FAIL (1 of 239) · DMGDETERMINISM
+1800 s cap · DMGFABRIC FAIL (the same 9 rows, L28-0) · JOINPARITY 1 FAIL (master's raw-tool row) · FOG FAIL (2 of 22: app.js's MAIN camera rows) · KTX2 FAIL (row 10, the
+characters' budget) · POD FAIL (the pinned base bytes of cub / jodel / c172 / floats, the same hashes) · ROUNDTRIP FAIL (1)
+· SCENERYED FAIL (1: Metlakatla, 3294 ms alone / master 3502 ms, of 2500) · SIMWORKER-EDGES FAIL (6) · TREECRASH 1800 s cap ·
+VEHICLE FAIL (2 rows: DEF, AIRBORNE, the same numbers) · FLOATDUP SKIP (no Chrome) · FRAMECOST FAIL (21; GPU list) · and,
+not re-run, INSTANT / RWYTREES 1800 s caps, RADIALDIV (3), PILOTPAGE (4: no Chrome), DMGCERT, TREEHIT, DMGCOMPOSITE, WORLD,
+LAKEBED (2), CLOCK (1 of 777), BIOME, RWYLIGHTS (2 of 120) - each red on d7e181f4e's master the same way.
 
-**Every gate verdict line** (the branch; the three re-run alone as noted):
+**Red, and NOT the same as master - for A0:**
+- **DMGINST** red on both, by another row: master's k x 5 trips at frame 1 ('speed', node 65 at 570 m/s); this branch's
+  never trips in 600 frames (tripped at frame null) - every number finite on both. The billed nodes are heavier (the bill);
+  the test is not changed. Its second row (the worker's diverged()) reads the same on both.
+- **DMGSKINGPU** (master L28-0 PASS; this branch FAIL, alone too): every row but one passes; the tear row's one failing
+  condition is the FLOAT32 TOLERANCE (A0, train 41): ONE tear in the Cub's trunk-0 crash (flapL) the GPU path makes 13
+  frames after the CPU, where the CPU tore it 0.0107 mm inside the bound - the allowance is 0.01 mm (3593 torn / CPU 3591,
+  0 missed, the longest live edge 3 frames of 4). The Cub's mass and flap are the approved bill's, so its crash differs from
+  master's; the gate's float32 allowance is A0's rule, not changed here.
+- **DMGCERTCOST** (PASS on d7e181f4e): every frame budget holds; one wall-clock ceiling missed - 45.4 s of 42 alone, beside
+  a Chromium capture (the same run's uncut certificate took 76.4 s); 3-lane battery: 19.3 / 32.4 / 51.1 s rows. Judge it on
+  a quiet box.
+
+**For A0's GPU:** FRAMECOST - this branch's rows are a STALE PARKED COOK (`node tools/parked_cook.js --check`); the cook bakes
+on a GPU, the train re-cooks on its final build, so FRAMECOST is judged there. FLOATDUP and PILOTPAGE need Chrome. The
+stills: the GPS units in the game's renderer (tools/avionics_stills.js; this box's evidence is tools/box_render.js and
+tools/gps_shots.js, CPU / 2D only).
+
+**Every gate verdict line** (the merged tree 4ab6c317d; the alone re-runs marked; NOT RE-RUN = stopped at 11:47, run 1's
+verdict on d7e181f4e):
 ```
 GATE AA: PASS
 GATE ACCEPT: PASS
-GATE AERO: PASS
+GATE AERO: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE ALTIPORT: PASS
 GATE ANIMALS: PASS
 GATE ARCHETYPES: FAIL (1)
 GATE ASSETBUDGET: PASS
 GATE ASSETS: PASS
 GATE ATMO: PASS
-GATE ATMOS: PASS
-GATE AUDIO: PASS   (alone, Wed 05:40; under load EMITALLOC read 7.0 B a frame - quiet: 2.5-3.0, master 2.9-4.4)
+GATE ATMOS: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
+GATE AUDIO: PASS
 GATE AUDIOENG: PASS
 GATE BAY: PASS
 GATE BEACON: PASS
 GATE BENCH: PASS
-GATE BIOME: FAIL
-GATE BIPLANE: PASS
+GATE BIOME: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: FAIL)
+GATE BIPLANE: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE BOOMBOX: PASS
 GATE BOOT: PASS
 GATE BOOTLIFT: FAIL (1)
 GATE BUILD: PASS
 GATE BUILT: PASS
-GATE CARDS: PASS
-GATE CARS: PASS
+GATE CARDDRAG: PASS
+GATE CARDS: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
+GATE CARS: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE CESSNAVREF: PASS
 GATE CGBAND: PASS
 GATE CHARS: PASS
 GATE CITYHOST: PASS
 GATE CLIMATE: PASS
 GATE CLIP: PASS
-GATE CLOCK: FAIL (1 of 777)
-GATE CLOCKBAKE: PASS
+GATE CLOCK: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: FAIL (1 of 777))
+GATE CLOCKBAKE: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE CLOUD: FAIL (1 of 239)
 GATE CONTACT: PASS
-GATE CONTRACTS: PASS
+GATE CONTRACTS: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE DASH: PASS
-GATE DAY: PASS
+GATE DAY: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE DEFAULT: PASS
 GATE DESIGN: PASS
-GATE DESIGNCHECK: PASS
-GATE DESIGNSIM: PASS
+GATE DESIGNCHECK: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
+GATE DESIGNSIM: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE DESTTO: PASS
-GATE DMGCERT: FAIL
-GATE DMGCERTCOST: PASS
-GATE DMGCOMPOSITE: FAIL
-GATE DMGCRASHUI: PASS
-GATE DMGDETERMINISM: FAIL (1800.0 s, no verdict line: the gate's 1800 s cap)
-GATE DMGFABRIC: PASS
+GATE DMGCERT: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: FAIL)
+GATE DMGCERTCOST: FAIL   [alone, beside a Chromium capture - one wall-clock ceiling, see below; the battery: FAIL]
+GATE DMGCOMPOSITE: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: FAIL)
+GATE DMGCRASHUI: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
+GATE DMGDETERMINISM: FAIL (1800.1 s, no verdict line: the gate's 1800 s cap)
+GATE DMGFABRIC: FAIL
+GATE DMGFALL: PASS
 GATE DMGFLOATTO: PASS
 GATE DMGFPS: PASS
 GATE DMGHEAL: PASS
 GATE DMGHULL: PASS
 GATE DMGINST: FAIL
-GATE DMGMEMBERS: PASS
+GATE DMGMEMBERS: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE DMGOCCUPANT: PASS
 GATE DMGPAGEW: PASS
 GATE DMGSCAR: PASS
 GATE DMGSETTLE: PASS
 GATE DMGSKIN: PASS
-GATE DMGSKINGPU: PASS
-GATE DMGUPLOAD: PASS
+GATE DMGSKINGPU: FAIL   [alone - see below; the battery: FAIL]
+GATE DMGUPLOAD: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE DMGWALL: PASS
 GATE DMGWRECK: PASS
-GATE DRAG: PASS
+GATE DRAG: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE ECON: PASS
 GATE EDBUGS: PASS
 GATE ELEC: PASS
 GATE ENERGY: PASS
 GATE ENERGYBASE: PASS
+GATE ENGCONFIG: PASS   [alone, after the re-pin 6c82ad951; the battery: FAIL]
 GATE ENGID: PASS
-GATE ENGINE: PASS
+GATE ENGINE: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE ENGMESH: PASS
 GATE FADES: PASS
 GATE FIN: PASS
 GATE FIT: PASS
-GATE FLAPS: PASS
-GATE FLEX: PASS
+GATE FLAPS: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
+GATE FLEX: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE FLIGHTREC: PASS
 GATE FLOATDUP: SKIP (no Chrome)
 GATE FLOATS: PASS
 GATE FLOWNBAKE: PASS
 GATE FOG: FAIL (2 of 22)
-GATE FRAMECOST: FAIL (22)
+GATE FRAMECOST: FAIL (21)
 GATE FRAMES: PASS
 GATE FREIGHT: PASS
 GATE GAMEPREM: PASS
-GATE GE: PASS
-GATE GEAR: PASS
-GATE GEN: PASS
-GATE GENPAIRS: PASS
-GATE GEOPARITY: PASS
+GATE GE: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
+GATE GEAR: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
+GATE GEN: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
+GATE GENPAIRS: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
+GATE GEOPARITY: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE GFX: PASS
-GATE GPSFACE: PASS
-GATE GRASSSIDES: PASS
+GATE GPSFACE: PASS   [alone, after 251c8801b; the battery: FAIL]
+GATE GRASSSIDES: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE HANGAR: PASS
-GATE HEADING: PASS
-GATE HINGE: PASS
-GATE HITBOX: PASS
-GATE HONEST: PASS
+GATE HEADING: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
+GATE HINGE: PASS   [alone, after 642b8751f; the battery: FAIL]
+GATE HITBOX: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
+GATE HONEST: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE HONESTY: PASS
-GATE HOTHIGH: PASS
-GATE HOUSE: PASS
+GATE HOTHIGH: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
+GATE HOUSE: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE HOUSEWORKER: PASS
 GATE HWCOV: PASS
-GATE HYDRO: PASS
+GATE HYDRO: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE HYDRODYN: PASS
-GATE HYPOT: PASS
+GATE HYPOT: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE INPUT: PASS
-GATE INSTANT: FAIL (1800.5 s, no verdict line: the gate's 1800 s cap)
+GATE INSTANT: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: FAIL (1800.5 s, no verdict line: the gate's 1800 s cap))
 GATE JOIN: PASS
-GATE JOINPARITY: 1 FAIL   (after the re-capture, Wed 05:45: the one row is master's - "no tool flies a validated build raw": the same six tools as master)
+GATE JOINPARITY: 1 FAIL   [alone, after the re-capture: master's raw-tool row only; the battery: 6 FAIL]
 GATE KITHOST: PASS
 GATE KNIFE: PASS
 GATE KTX2: FAIL
-GATE LAKEBED: FAIL (2)
+GATE LAKEBED: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: FAIL (2))
 GATE LAZY: PASS
 GATE LIFE: PASS
 GATE LIGHT: PASS
 GATE LINEUP: PASS
 GATE LIVERY: PASS
-GATE LOAD: PASS
-GATE LOADS: PASS
-GATE MAPBAKE: PASS
-GATE MASS: PASS
-GATE MATLIB: PASS
+GATE LOAD: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
+GATE LOADS: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
+GATE MAPBAKE: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
+GATE MASS: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
+GATE MATLIB: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE MEDIA: PASS
 GATE METKIT: PASS
-GATE MOUNT: PASS
+GATE MIXLEAD: PASS
+GATE MOUNT: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE NACLAG: PASS
-GATE NAMES: PASS
-GATE NAV: PASS
+GATE NAMES: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
+GATE NAV: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE NAVAID: PASS
-GATE OBSTACLE: PASS
-GATE OBSTFRAME: PASS
+GATE OBSTACLE: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
+GATE OBSTFRAME: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE PACE: PASS
 GATE PANEL: PASS
 GATE PARKED: PASS
 GATE PARTS: PASS
-GATE PAVEMENT: PASS
+GATE PAVEMENT: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE PILOT: PASS
-GATE PILOTPAGE: FAIL (4)
-GATE PILOTS: FAIL
+GATE PILOTPAGE: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: FAIL (4))
+GATE PILOTS: PASS
 GATE PLAN: PASS
 GATE PLAYER: PASS
 GATE POD: FAIL
@@ -101299,65 +101337,65 @@ GATE POSEBACK: PASS
 GATE POSEHIDDEN: PASS
 GATE POSTFX: PASS
 GATE PREMCOOK: PASS
-GATE PREMISES: PASS
-GATE PREMRASTER: PASS
+GATE PREMISES: PASS   [alone (the battery's FAIL (2): the terrainH timing row, 511 / 639 ms of 500); the battery: FAIL (2)]
+GATE PREMRASTER: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE PROCURE: PASS
-GATE PROFILE: PASS
+GATE PROFILE: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE PROGRAMS: PASS
-GATE PROPS: PASS
-GATE RADIALDIV: FAIL (3)
+GATE PROPS: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
+GATE RADIALDIV: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: FAIL (3))
 GATE REF: PASS
-GATE ROLLANIM: PASS   (alone, Wed 02:00; the battery under load read 64.1 B / frame against 64 - master PASS)
+GATE ROLLANIM: PASS
 GATE ROLLSND: PASS
-GATE ROOMMERGE: PASS
+GATE ROOMMERGE: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE ROUNDTRIP: FAIL (1)
 GATE ROUTE: PASS
 GATE ROUTES: PASS
-GATE RPM: PASS
-GATE RWYLIGHTS: FAIL (2 of 120)
-GATE RWYTREES: FAIL (1800.2 s, no verdict line: the gate's 1800 s cap)
+GATE RPM: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
+GATE RWYLIGHTS: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: FAIL (2 of 120))
+GATE RWYTREES: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: FAIL (1800.2 s, no verdict line: the gate's 1800 s cap))
 GATE SAVE: PASS
 GATE SCENERY: PASS
-GATE SCENERYED: FAIL (1)
+GATE SCENERYED: FAIL (1)   [alone - master's Metlakatla row only (the battery's second row was 'select 83 > 60' ms); the battery: FAIL (2)]
 GATE SEAPLANE: PASS
-GATE SETTLE: PASS
+GATE SETTLE: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE SHADOWSKY: PASS
 GATE SHEETWORKER: PASS
-GATE SHOULDER: PASS
-GATE SIMDIVERGE: PASS
-GATE SIMWORKER: PASS
+GATE SHOULDER: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
+GATE SIMDIVERGE: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE SIMWORKER-EDGES: FAIL (6)
 GATE SIMWORKER-PAGE: PASS
 GATE SIMWORKER-PLACE: PASS
+GATE SIMWORKER: PASS   [alone (the battery's FAIL: a wall-clock row under three lanes); the battery: FAIL]
 GATE SITE: PASS
 GATE SKIN: PASS
 GATE SKINMAT: PASS
-GATE SOFTGPU: PASS
-GATE SPECFIX: PASS
+GATE SOFTGPU: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
+GATE SPECFIX: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE STAGES: PASS
 GATE STARTER: PASS
 GATE STORAGE: PASS
 GATE STOREDRAW: PASS
 GATE STORESPOT: PASS
 GATE STORY: PASS
-GATE STRESS: PASS
-GATE STRIPGROUND: PASS
+GATE STRESS: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
+GATE STRIPGROUND: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE STRIPSURF: PASS
-GATE STRUT: PASS
+GATE STRUT: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE SUBSTEP: PASS
 GATE TAKEOFF: PASS
 GATE TANKMOUNT: PASS
 GATE TARR: PASS
 GATE TAXICLEAR: PASS
 GATE TECH: PASS
-GATE TOUR: FAIL (2)
-GATE TREE: PASS
+GATE TOUR: PASS
+GATE TREE: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE TREECRASH: FAIL (1800.0 s, no verdict line: the gate's 1800 s cap)
-GATE TREEHIT: FAIL
-GATE TREES: PASS
+GATE TREEHIT: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: FAIL)
+GATE TREES: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE UILAYER: PASS
-GATE UISMOKE: PASS
 GATE UISMOKE-PHONE: PASS
+GATE UISMOKE: PASS
 GATE UPDATE: PASS
 GATE VEHICLE: FAIL (2 rows)
 GATE VIEW: PASS
@@ -101366,10 +101404,13 @@ GATE WATER: PASS
 GATE WATERDAMP: PASS
 GATE WEATHER: PASS
 GATE WEIGHT: PASS
-GATE WETFX: PASS
+GATE WETFX: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 GATE WINGROWS: PASS
-GATE WINGSPLIT: PASS
-GATE WIPLINE: PASS
-GATE WORLD: FAIL
-GATE WORLDRENDER: PASS
+GATE WINGSPLIT: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
+GATE WIPLINE: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
+GATE WORLD: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: FAIL)
+GATE WORLDRENDER: NOT RE-RUN on 4ab6c317d (run 1 on d7e181f4e: PASS)
 ```
+
+**Pushed:** claude/ready/avionics-gps and claude/avionics-gps-2 at this commit. Not in it: the PFD and 10-inch displays
+(G2813-G2815, claude/avionics-gps-pfd) - their own gate pass is owed before they land.
