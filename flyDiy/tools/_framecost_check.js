@@ -445,6 +445,10 @@ const ALLOW = [
   { key: 'taxi/tris.shadow', build: 'cessna', upTo: 3551597, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (1908541 -> 3382473)', g: 'G3020' },
   { key: 'boot/garage:compile/bytes.bufferData', build: 'cessna', upTo: 1637328, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (1519232 -> 1559360)', g: 'G3020' },
   { key: 'boot/garage:landing/bytes.bufferData', build: 'cessna', upTo: 807, why: '52ab: the user\'s rev28 HOME content + parked aircraft by the stand; frame time in slack (strict gate 52ab PASS) (0 -> 768)', g: 'G3020' },
+  // G3543 (VEHICLE PRINTS, A0 26 Oct): the traffic's prints follow the posed cars, only the drawn matrices uploaded (an update
+  // range): 544 -> 768 B a frame at the bench, both builds; upTo 800
+  { key: 'stand/bytes.bufferSubData', build: '*', upTo: 800, why: 'G3543 the moving cars\' ground prints: ~3.5 traffic matrices per frame (the user asked for car shadows)', g: 'G3543' },
+  { key: 'taxi/bytes.bufferSubData', build: '*', upTo: 800, why: 'G3543 the moving cars\' ground prints: ~3.5 traffic matrices per frame (the user asked for car shadows)', g: 'G3543' },
   // G3023 (RWYTREES-MAP, train 56 e21d9c7fc): 'mapx' the default - the woods to the strip's edge, the user's fans and own clears
   // standing: the taxi's shadow pass carries the new tree line (A0's FRAMECOST on master); upTo = measured + 5 %
   { key: 'taxi/tris.shadow', build: 'cub', upTo: 3848164, why: 'rwyTrees \'mapx\' (G3023): the trees reach the strip, the user\'s trees-on-the-strip ruling (train 56) (1782437 -> 3664917.5)', g: 'G3023' },
