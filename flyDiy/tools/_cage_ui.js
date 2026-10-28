@@ -261,6 +261,7 @@ if (!EXT) {
   } catch (e) {}
 }
 let meshObj = null, cageObj = null, refObj = null, loopsObj = null;
+let quadObj = null, quadDrag = null;     // WINDOWS-FREE: the free quads' corner handles, and the one in the hand
 let centre = new THREE.Vector3(), fitR = 3, centreOv = null;
 
 const matCache = {};
@@ -2156,6 +2157,7 @@ function* buildSteps() {
   meshObj.scale.setScalar(FS);
   scene.add(meshObj);
   eyeAfterBuild();                       // G3715: the interior view's (or a capture's) eye sheet over it
+  quadHandles(s, spec, FS);              // WINDOWS-FREE
 
   disposeObj(cageObj); cageObj = null;
   if ($('cage').checked && L > 0) {
@@ -2346,6 +2348,85 @@ function previewDraw() {
   if (U) U.previewTick = true;
   try { draw(); } finally { if (U) U.previewTick = false; }
 }
+// ---- WINDOWS-FREE: THE FREE QUAD'S CORNER HANDLES (the bench's own view) -------------------------------------
+// The user (27 Oct): "Editor: drag the 4 corner handles + one rounding slider per corner, mirrored both flanks as
+// today". Every row drawn as a quad shows its first window's four corners as handles on the starboard flank (the
+// port window is the mirror, as every drawn window is), with the outline through them; a left press within 14 px
+// of one takes that corner instead of the orbit, and the hand moves it IN THE SIDE VIEW - the mouse's ray meets the
+// flank's own side plane (x of the handle) - writing the corner's two rows (P[<row>Q<k>Z / Y], cage units), a drag
+// tick at a time (the slider drag's own deferral: DRAG_ON / DRAG_TICK, the settle build on the release). The game's
+// editor (EXT) has no viewport of its own: there the corner rows are the hand.
+const QUAD_ROWS = ['paxWin', 'win2', 'win3'];
+function quadHandles(sheet, spec, FS) {
+  disposeObj(quadObj); quadObj = null;
+  if (EXT || !G.cageQuadWindow || !sheet) return;
+  const rows = QUAD_ROWS.filter(pre => +P[pre + 'N'] > 0 && Math.round(+P[pre + 'Shape']) === 2);
+  if (!rows.length) return;
+  quadObj = new THREE.Group(); quadObj.name = 'edQuadHandles';
+  if (window.SHOT_MODE && window.SHOT_MODE.on) quadObj.visible = false;
+  // the skin's x under a side-view point: the outermost sheet vertex near it (a handle sits just proud of it)
+  const skinX = (z, y) => { let b = 0; for (const p of sheet.V) if (p[0] > b && Math.abs(p[2] - z) < 0.06 && Math.abs(p[1] - y) < 0.06) b = p[0]; return b || +P.halfW || 0.5; };
+  const refused = new Set(((spec && spec.windows) || []).filter(w => w.refused && w.shape === 'quad').map(w => w.row));
+  for (const pre of rows) {
+    const q = G.cageQuadWindow(P, pre, 0);
+    const row = QUAD_ROWS.indexOf(pre) + 1, col = refused.has(row) ? 0xff5a4a : 0xffd24a;
+    const pts = [];
+    q.corners.forEach((c, k) => {
+      const x = skinX(c[0], c[1]) + 0.012;
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.02 / FS, 12, 8),
+        new THREE.MeshBasicMaterial({ color: col, depthTest: false, transparent: true, opacity: 0.95 }));
+      m.position.set(x, c[1], c[0]); m.renderOrder = 7;
+      m.userData = { quadPre: pre, quadC: k + 1, quadX: x };
+      quadObj.add(m); pts.push(x, c[1], c[0]);
+    });
+    pts.push(pts[0], pts[1], pts[2]);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pts), 3));
+    const l = new THREE.Line(g, new THREE.LineBasicMaterial({ color: col, depthTest: false, transparent: true, opacity: 0.7 }));
+    l.renderOrder = 6; quadObj.add(l);
+  }
+  quadObj.scale.setScalar(FS);
+  scene.add(quadObj);
+}
+function quadPick(e) {
+  if (!quadObj || !camera) return null;
+  const r = cv.getBoundingClientRect(), v = new THREE.Vector3();
+  let best = null, bd = 14;
+  quadObj.updateMatrixWorld(true);
+  for (const m of quadObj.children) {
+    if (!m.userData || !m.userData.quadPre) continue;
+    m.getWorldPosition(v); v.project(camera);
+    const sx = r.left + (v.x + 1) / 2 * r.width, sy = r.top + (1 - v.y) / 2 * r.height;
+    const d = Math.hypot(sx - e.clientX, sy - e.clientY);
+    if (v.z < 1 && d < bd) { bd = d; best = m; }
+  }
+  return best;
+}
+let QUAD_RAF = 0;
+function quadMove(e) {
+  const m = quadDrag, u = m.userData, FS = (G.CAGE_UNIT || 1) * (P.planeScale || 1);
+  const r = cv.getBoundingClientRect();
+  const ndc = new THREE.Vector2((e.clientX - r.left) / r.width * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  const rc = new THREE.Raycaster(); rc.setFromCamera(ndc, camera);
+  const o = rc.ray.origin, d = rc.ray.direction, X = u.quadX * FS;
+  if (Math.abs(d.x) < 1e-6) return;
+  const t = (X - o.x) / d.x;
+  if (!(t > 0)) return;
+  const z = (o.z + d.z * t) / FS, y = (o.y + d.y * t) / FS;
+  P[u.quadPre + 'Q' + u.quadC + 'Z'] = +Math.max(-6, Math.min(3.5, z)).toFixed(4);
+  P[u.quadPre + 'Q' + u.quadC + 'Y'] = +Math.max(-1, Math.min(1.2, y)).toFixed(4);
+  m.position.set(u.quadX, y, z);
+  if (QUAD_RAF) return;
+  QUAD_RAF = requestAnimationFrame(() => {
+    QUAD_RAF = 0;
+    DRAG_TICK = true;
+    try { build(); } finally { DRAG_TICK = false; }
+    if (DRAG_LATE) dragSettleSoon();
+    syncSliders();
+    draw();
+  });
+}
+
 function draw() {
   // EXT: the game's loop renders the shared scene; ping the mount so the
   // sit transform follows every rebuild (pitch/gy move with the gear)
@@ -2490,6 +2571,8 @@ const fmtV = v => (+v).toFixed(3);
 // val, d, own } per frame; the build copies it onto CAGE_UI.frames, and a
 // follow row reads its number from there
 const frameVal = path => {
+  // FITTINGS-MANUAL: a layer that derives the value itself (the access layer's auto site) hands a function
+  if (typeof path === 'function') { try { const v = path(); return v != null && isFinite(+v) ? +v : null; } catch (e) { return null; } }
   const F = window.CAGE_UI && window.CAGE_UI.frames;
   if (!F || !path) return null;
   const [fk, q] = path.split('.');
@@ -2650,7 +2733,7 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
   if (opts.follow) {                     // THE FRAMES' "follows" checkbox
     const fc = document.createElement('input');
     fc.type = 'checkbox'; fc.id = 'f_' + k; fc.style.flex = 'none';
-    fc.title = 'follows — the frame takes the derived value; untick to set your own';
+    fc.title = opts.followTitle || 'follows — the frame takes the derived value; untick to set your own';
     d.insertBefore(fc, kSpan.nextSibling);
     d.classList.add('tog');              // G1322: the editor sits it in the label's column
     meta.followEl = fc;
@@ -5674,14 +5757,23 @@ const viewEl = EXT ? null : $('view');
 let panD = null;
 if (viewEl) {
 viewEl.addEventListener('mousedown', e => {
+  // WINDOWS-FREE: a press on a quad's corner handle takes the corner, not the view
+  if (e.button === 0 && quadObj) {
+    const h = quadPick(e);
+    if (h) { quadDrag = h; DRAG_ON = 'quad'; e.preventDefault(); return; }
+  }
   if (e.button === 1 || e.button === 2) {
     panD = [e.clientX, e.clientY, (centreOv || centre).clone()];
     e.preventDefault();
   } else drag = [e.clientX, e.clientY, yaw, pitch];
 });
 viewEl.addEventListener('contextmenu', e => e.preventDefault());
-addEventListener('mouseup', () => { drag = null; panD = null; });
+addEventListener('mouseup', () => {
+  drag = null; panD = null;
+  if (quadDrag) { quadDrag = null; if (DRAG_ON === 'quad') { DRAG_ON = null; dragSettle(); } syncSliders(); draw(); }
+});
 addEventListener('mousemove', e => {
+  if (quadDrag) { quadMove(e); return; }
   if (panD) {
     const r = cv.getBoundingClientRect();
     const wpp = 2 * (fitR / ZOOM) *

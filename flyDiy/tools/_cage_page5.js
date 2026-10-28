@@ -23,6 +23,20 @@ const WHO_DEFAULT = (() => {
   const i = typeof CHAR_REG !== 'undefined' ? CHAR_REG.order.indexOf('ch20') : -1;
   return i >= 0 ? i + 2 : 0;
 })();
+// WINDOWS-FREE (2026-10-27): THE FREE QUAD'S CORNER ROWS, one station and one height a corner (side view, absolute
+// cage units like the row's own station), in the rounded rectangle's corner order so R1-R4 round them. Each follows
+// the rectangle the row's width / height / top width / top shift draw (_cage_gen.js cageQuadRect) until it is
+// unticked or dragged on the bench (_cage_ui.js: the corner handles); the keys are not defaults, so no file written
+// before them carries them.
+const QUAD_CORNER = ['fwd top', 'aft top', 'aft bottom', 'fwd bottom'];
+const quadRows = pre => [1, 2, 3, 4].flatMap(c => ['Z', 'Y'].map(a => [
+  pre + 'Q' + c + a, 'corner · ' + QUAD_CORNER[c - 1] + (a === 'Z' ? ' · station' : ' · height'),
+  a === 'Z' ? -6.0 : -1.0, a === 'Z' ? 3.5 : 1.2, 0.005,
+  { when: P => +P[pre + 'N'] > 0 && Math.round(+P[pre + 'Shape']) === 2, dim: 'len',
+    follow: () => { const U = window.CAGE_UI, G2 = window.CAGE2;
+                    return U && U.P && G2 && G2.cageQuadRect ? G2.cageQuadRect(U.P, pre)[c - 1][a === 'Z' ? 0 : 1] : null; },
+    followTitle: 'follows the rectangle (width, height, top width, top shift); untick - or drag its handle on the ' +
+                 'bench - to place this corner (tick again: back to the rectangle)' }]));
 // Jodel-ish defaults: near-semicircular top, full roundness, glass canopy.
 window.CAGE_PAGE = {
   defaultStep: 'crease',
@@ -830,9 +844,13 @@ window.CAGE_PAGE = {
       ['row 1', [
         ['paxWinN',     'windows',         0, 4, 1,
          { note: P => { const R = (window.CAGE_UI && window.CAGE_UI.windowsRefused) || [];
+                        const own = R.filter(w => w.row === 1 && /^quad:/.test(w.refused || ''));
+                        if (own.length) return own.map(w => 'window ' + (w.i + 1) + ': ' + w.refused.slice(6)).join('; ');
                         const k = R.filter(w => w.row === 1).length;
                         return k ? k + (k > 1 ? ' overlap earlier windows' : ' overlaps an earlier window') + ' — not cut until moved' : ''; } }],
-        ['paxWinShape', 'shape',           0, 1, 1, ['rounded', 'oval'], { when: P => +P.paxWinN > 0 }],
+        ['paxWinShape', 'shape',           0, 2, 1, ['rounded', 'oval', 'quad'], { when: P => +P.paxWinN > 0 }],
+        // WINDOWS-FREE: the free quad's four corners, side view, each following the rectangle until moved
+        ...quadRows('paxWin'),
         ['paxWinZ',     'first station',  -6.0, 3.5, 0.01, { when: P => +P.paxWinN > 0, dim: 'len' }],
         ['paxWinPitch', 'pitch',           0.2, 1.5, 0.01, { when: P => +P.paxWinN > 1, dim: 'len' }],
         ['paxWinY',     'centre height',  -1.0, 1.2, 0.01, { when: P => +P.paxWinN > 0, dim: 'len' }],
@@ -840,23 +858,27 @@ window.CAGE_PAGE = {
         ['paxWinH',     'height',          0.05, 1.0, 0.01, { when: P => +P.paxWinN > 0, dim: 'len' }],
         ['paxWinTopK',  'top width ×',     0.0, 2.0, 0.01, { when: P => +P.paxWinN > 0 && !+P.paxWinShape }],
         ['paxWinSkew',  'top shift',      -0.6, 0.6, 0.005, { when: P => +P.paxWinN > 0 && !+P.paxWinShape, dim: 'len' }],
-        ['paxWinR',     'corner radius',   0.0, 0.45, 0.005, { when: P => +P.paxWinN > 0 && !+P.paxWinShape, dim: 'len' }],
+        ['paxWinR',     'corner radius',   0.0, 0.45, 0.005, { when: P => +P.paxWinN > 0 && +P.paxWinShape !== 1, dim: 'len' }],
         ['paxWinR1',    'radius · fwd top',   -0.01, 0.45, 0.005,
-         { when: P => +P.paxWinN > 0 && !+P.paxWinShape, dim: 'len', link: { sentinel: -1, from: 'paxWinR', test: v => v == null || v < 0 } }],
+         { when: P => +P.paxWinN > 0 && +P.paxWinShape !== 1, dim: 'len', link: { sentinel: -1, from: 'paxWinR', test: v => v == null || v < 0 } }],
         ['paxWinR2',    'radius · aft top',   -0.01, 0.45, 0.005,
-         { when: P => +P.paxWinN > 0 && !+P.paxWinShape, dim: 'len', link: { sentinel: -1, from: 'paxWinR', test: v => v == null || v < 0 } }],
+         { when: P => +P.paxWinN > 0 && +P.paxWinShape !== 1, dim: 'len', link: { sentinel: -1, from: 'paxWinR', test: v => v == null || v < 0 } }],
         ['paxWinR3',    'radius · aft bottom', -0.01, 0.45, 0.005,
-         { when: P => +P.paxWinN > 0 && !+P.paxWinShape, dim: 'len', link: { sentinel: -1, from: 'paxWinR', test: v => v == null || v < 0 } }],
+         { when: P => +P.paxWinN > 0 && +P.paxWinShape !== 1, dim: 'len', link: { sentinel: -1, from: 'paxWinR', test: v => v == null || v < 0 } }],
         ['paxWinR4',    'radius · fwd bottom', -0.01, 0.45, 0.005,
-         { when: P => +P.paxWinN > 0 && !+P.paxWinShape, dim: 'len', link: { sentinel: -1, from: 'paxWinR', test: v => v == null || v < 0 } }],
+         { when: P => +P.paxWinN > 0 && +P.paxWinShape !== 1, dim: 'len', link: { sentinel: -1, from: 'paxWinR', test: v => v == null || v < 0 } }],
         ['paxWinDepth', 'reveal depth',    0.0, 0.03, 0.001, { when: P => +P.paxWinN > 0, dim: 'len' }],
       ], 'open'],
       ['row 2', [
         ['win2N',     'windows',         0, 4, 1,
          { note: P => { const R = (window.CAGE_UI && window.CAGE_UI.windowsRefused) || [];
+                        const own = R.filter(w => w.row === 2 && /^quad:/.test(w.refused || ''));
+                        if (own.length) return own.map(w => 'window ' + (w.i + 1) + ': ' + w.refused.slice(6)).join('; ');
                         const k = R.filter(w => w.row === 2).length;
                         return k ? k + (k > 1 ? ' overlap earlier windows' : ' overlaps an earlier window') + ' — not cut until moved' : ''; } }],
-        ['win2Shape', 'shape',           0, 1, 1, ['rounded', 'oval'], { when: P => +P.win2N > 0 }],
+        ['win2Shape', 'shape',           0, 2, 1, ['rounded', 'oval', 'quad'], { when: P => +P.win2N > 0 }],
+        // WINDOWS-FREE: the free quad's four corners, side view, each following the rectangle until moved
+        ...quadRows('win2'),
         ['win2Z',     'first station',  -6.0, 3.5, 0.01, { when: P => +P.win2N > 0, dim: 'len' }],
         ['win2Pitch', 'pitch',           0.2, 1.5, 0.01, { when: P => +P.win2N > 1, dim: 'len' }],
         ['win2Y',     'centre height',  -1.0, 1.2, 0.01, { when: P => +P.win2N > 0, dim: 'len' }],
@@ -864,23 +886,27 @@ window.CAGE_PAGE = {
         ['win2H',     'height',          0.05, 1.0, 0.01, { when: P => +P.win2N > 0, dim: 'len' }],
         ['win2TopK',  'top width ×',     0.0, 2.0, 0.01, { when: P => +P.win2N > 0 && !+P.win2Shape }],
         ['win2Skew',  'top shift',      -0.6, 0.6, 0.005, { when: P => +P.win2N > 0 && !+P.win2Shape, dim: 'len' }],
-        ['win2R',     'corner radius',   0.0, 0.45, 0.005, { when: P => +P.win2N > 0 && !+P.win2Shape, dim: 'len' }],
+        ['win2R',     'corner radius',   0.0, 0.45, 0.005, { when: P => +P.win2N > 0 && +P.win2Shape !== 1, dim: 'len' }],
         ['win2R1',    'radius · fwd top',   -0.01, 0.45, 0.005,
-         { when: P => +P.win2N > 0 && !+P.win2Shape, dim: 'len', link: { sentinel: -1, from: 'win2R', test: v => v == null || v < 0 } }],
+         { when: P => +P.win2N > 0 && +P.win2Shape !== 1, dim: 'len', link: { sentinel: -1, from: 'win2R', test: v => v == null || v < 0 } }],
         ['win2R2',    'radius · aft top',   -0.01, 0.45, 0.005,
-         { when: P => +P.win2N > 0 && !+P.win2Shape, dim: 'len', link: { sentinel: -1, from: 'win2R', test: v => v == null || v < 0 } }],
+         { when: P => +P.win2N > 0 && +P.win2Shape !== 1, dim: 'len', link: { sentinel: -1, from: 'win2R', test: v => v == null || v < 0 } }],
         ['win2R3',    'radius · aft bottom', -0.01, 0.45, 0.005,
-         { when: P => +P.win2N > 0 && !+P.win2Shape, dim: 'len', link: { sentinel: -1, from: 'win2R', test: v => v == null || v < 0 } }],
+         { when: P => +P.win2N > 0 && +P.win2Shape !== 1, dim: 'len', link: { sentinel: -1, from: 'win2R', test: v => v == null || v < 0 } }],
         ['win2R4',    'radius · fwd bottom', -0.01, 0.45, 0.005,
-         { when: P => +P.win2N > 0 && !+P.win2Shape, dim: 'len', link: { sentinel: -1, from: 'win2R', test: v => v == null || v < 0 } }],
+         { when: P => +P.win2N > 0 && +P.win2Shape !== 1, dim: 'len', link: { sentinel: -1, from: 'win2R', test: v => v == null || v < 0 } }],
         ['win2Depth', 'reveal depth',    0.0, 0.03, 0.001, { when: P => +P.win2N > 0, dim: 'len' }],
       ], {}],
       ['row 3', [
         ['win3N',     'windows',         0, 4, 1,
          { note: P => { const R = (window.CAGE_UI && window.CAGE_UI.windowsRefused) || [];
+                        const own = R.filter(w => w.row === 3 && /^quad:/.test(w.refused || ''));
+                        if (own.length) return own.map(w => 'window ' + (w.i + 1) + ': ' + w.refused.slice(6)).join('; ');
                         const k = R.filter(w => w.row === 3).length;
                         return k ? k + (k > 1 ? ' overlap earlier windows' : ' overlaps an earlier window') + ' — not cut until moved' : ''; } }],
-        ['win3Shape', 'shape',           0, 1, 1, ['rounded', 'oval'], { when: P => +P.win3N > 0 }],
+        ['win3Shape', 'shape',           0, 2, 1, ['rounded', 'oval', 'quad'], { when: P => +P.win3N > 0 }],
+        // WINDOWS-FREE: the free quad's four corners, side view, each following the rectangle until moved
+        ...quadRows('win3'),
         ['win3Z',     'first station',  -6.0, 3.5, 0.01, { when: P => +P.win3N > 0, dim: 'len' }],
         ['win3Pitch', 'pitch',           0.2, 1.5, 0.01, { when: P => +P.win3N > 1, dim: 'len' }],
         ['win3Y',     'centre height',  -1.0, 1.2, 0.01, { when: P => +P.win3N > 0, dim: 'len' }],
@@ -888,15 +914,15 @@ window.CAGE_PAGE = {
         ['win3H',     'height',          0.05, 1.0, 0.01, { when: P => +P.win3N > 0, dim: 'len' }],
         ['win3TopK',  'top width ×',     0.0, 2.0, 0.01, { when: P => +P.win3N > 0 && !+P.win3Shape }],
         ['win3Skew',  'top shift',      -0.6, 0.6, 0.005, { when: P => +P.win3N > 0 && !+P.win3Shape, dim: 'len' }],
-        ['win3R',     'corner radius',   0.0, 0.45, 0.005, { when: P => +P.win3N > 0 && !+P.win3Shape, dim: 'len' }],
+        ['win3R',     'corner radius',   0.0, 0.45, 0.005, { when: P => +P.win3N > 0 && +P.win3Shape !== 1, dim: 'len' }],
         ['win3R1',    'radius · fwd top',   -0.01, 0.45, 0.005,
-         { when: P => +P.win3N > 0 && !+P.win3Shape, dim: 'len', link: { sentinel: -1, from: 'win3R', test: v => v == null || v < 0 } }],
+         { when: P => +P.win3N > 0 && +P.win3Shape !== 1, dim: 'len', link: { sentinel: -1, from: 'win3R', test: v => v == null || v < 0 } }],
         ['win3R2',    'radius · aft top',   -0.01, 0.45, 0.005,
-         { when: P => +P.win3N > 0 && !+P.win3Shape, dim: 'len', link: { sentinel: -1, from: 'win3R', test: v => v == null || v < 0 } }],
+         { when: P => +P.win3N > 0 && +P.win3Shape !== 1, dim: 'len', link: { sentinel: -1, from: 'win3R', test: v => v == null || v < 0 } }],
         ['win3R3',    'radius · aft bottom', -0.01, 0.45, 0.005,
-         { when: P => +P.win3N > 0 && !+P.win3Shape, dim: 'len', link: { sentinel: -1, from: 'win3R', test: v => v == null || v < 0 } }],
+         { when: P => +P.win3N > 0 && +P.win3Shape !== 1, dim: 'len', link: { sentinel: -1, from: 'win3R', test: v => v == null || v < 0 } }],
         ['win3R4',    'radius · fwd bottom', -0.01, 0.45, 0.005,
-         { when: P => +P.win3N > 0 && !+P.win3Shape, dim: 'len', link: { sentinel: -1, from: 'win3R', test: v => v == null || v < 0 } }],
+         { when: P => +P.win3N > 0 && +P.win3Shape !== 1, dim: 'len', link: { sentinel: -1, from: 'win3R', test: v => v == null || v < 0 } }],
         ['win3Depth', 'reveal depth',    0.0, 0.03, 0.001, { when: P => +P.win3N > 0, dim: 'len' }],
       ], {}],
     ]],
