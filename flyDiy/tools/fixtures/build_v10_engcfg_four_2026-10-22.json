@@ -299,6 +299,7 @@
    "dashCrown": 0,
    "dashStyle": 1,
    "dashLegs": 1,
+   "dashV": 1,
    "shoulderOn": 1,
    "shoulderW": 0.07,
    "shoulderH": 0.135,
@@ -324,6 +325,10 @@
    "hgDetail": 1,
    "hgDoor": 1,
    "hgDoorEdge": 0,
+   "hgDrOff": 0,
+   "hgDrTilt": 0,
+   "hgDrSlide": 0,
+   "hgDrInset": 0,
    "hgFinish": 0,
    "lightOn": 1,
    "lightSw": 1,
@@ -1368,6 +1373,16 @@
    "look": {
     "bezel": "plastic",
     "sw": "toggle"
+   },
+   "lights": {
+    "nav": 3,
+    "beacon": 1,
+    "taxi": 1,
+    "land": 1,
+    "flood": 1,
+    "pedal": 1,
+    "pax": 3,
+    "instr": 1
    }
   },
   "paint": {
@@ -1434,6 +1449,21 @@
     "dx": 0
    }
   },
+  "outfit": {
+   "seats": "sling",
+   "drawn": {
+    "board": 0.3543,
+    "dash": 0.364,
+    "shoulder": 0.625,
+    "door": 0,
+    "floor": 2.6136,
+    "console": 0
+   },
+   "ctl": {
+    "stations": 2,
+    "kind": "stick"
+   }
+  },
   "v": 10,
   "meta": {
    "name": "Garage Special",
@@ -1466,9 +1496,6 @@
      "tint": null
     }
    ]
-  },
-  "outfit": {
-   "seats": "sling"
   },
   "cowl": {
    "fillet": 0.1,
