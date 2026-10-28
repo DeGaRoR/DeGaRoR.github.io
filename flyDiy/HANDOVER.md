@@ -102854,3 +102854,32 @@ Raw reports, commands and provenance live under the owned introperf folder
 linked from CODEX-LOG-SHADERWARM.md. Only sources/tests and normal build
 outputs committed: no cooked pack, manifest, trace, screenshot or model.
 
+### Introperf final focused controls and sky proof — 28 Oct 23:32
+
+The fresh master repeat supports the treatment:26.9fps,23.5% uneven,
+p99 116.7ms,15 visible frames>100ms; candidate28.5fps,13.1% uneven,
+p99 66.8ms,1 visible frame at100.1ms. First master had12 such frames.
+Exclude fade-in/out and profiler-start spikes when quoting maxima.
+No clear boot win (138.8/115.9/110.3s); do not claim one.
+
+Master recorded1872 atmosphere calls/936 frames, including936 altitude0
+room calls. Candidate987/987, none at altitude0. Outdoor ownership also
+means intro exposure1.12 instead of the room-owned0.92; this is a visible
+lighting correction, not pixel-identical brightness. Shared sky is no
+longer alternately driven by the hidden room and the outdoor eye.
+
+Separate visual passes (timings INFO) reproduced two isolated master sky
+flashes: captured sky-band luma about74 ->137/140 ->74. Candidate517
+captured frames have no comparable sky spike; master489 frames do.
+Pixel catcher independently marked a bright spike (mean.3477, neighbours
+.2830/.2858); one catch picture saved. See owned introperf/sky-flash-proof.png
+(master before/flash/after above, candidate matched camera times below),
+contact sheets, raw cast frames and RESULTS.md. The capture/probe adds
+overhead; these are visual proof, not additional FPS measurements.
+
+Focused checks remain no-new-red; LIGHT's pre-existing studio row is
+unchanged. Motion path/music/story/restoration preserved; bounds exact.
+The intro is improved, not perfectly even:13.1% uneven intervals and
+cover/vegetation generation plus scene traversal remain. A0 owns broad
+landing validation and merge; no ready ref or master update by Codex.
+
