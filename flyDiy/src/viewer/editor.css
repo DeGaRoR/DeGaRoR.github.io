@@ -1992,6 +1992,10 @@ body.stNoCard #stCard { display: none !important; }
 body.stSkipOn #stTim { bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
 :root.phone #stSkip { min-height: 48px; }
 :root.phone body.stSkipOn #stTim { bottom: calc(72px + env(safe-area-inset-bottom, 0px)); }
+/* G3580 (STORY-TUTOR): a step that waits for the player's action - the band's accent edge, no Next (only its pass, when it
+   has one); the lit control is written per step by app.js (#stTutCss: an outline on the step's own selectors) */
+#stTim.tut { border-color: var(--ed-acc, #d9a441); box-shadow: 0 0 0 1px var(--ed-acc-soft, rgba(217,164,65,.25)); }
+body.stTut { cursor: default; }
 .edTab.locked { opacity: .45; cursor: not-allowed; }
 #edLockNote { font-size: 12px; color: var(--ed-dim, #8a8d91); padding: 2px 8px 6px; }
 #stNoBench { font-size: 12px; color: var(--ed-dim, #8a8d91); margin-left: 8px; }

@@ -8151,6 +8151,22 @@
       bw.hidden = arrVerd.length < 2;
       bw.textContent = 'What went wrong';
     }
+    // G3581 (STORY-TUTOR; the user, playtest 24 Oct: "I don't want the card concept. The map is where info about missions
+    // is. Text on screen otherwise"): IN A CAREER THE ENDING IS A LINE at the bottom edge, not a card - where (the title),
+    // how long and how far, and the career's own lines (a load, paid, the wallet); the story's line is Tim's to say (his
+    // band). No Log / What went wrong (the logbook and the shed's door are the bar's); "bring it home" stays when it
+    // applies. The sandbox keeps the card: the numbers are its point.
+    const line = !!CAREER_DEV;
+    el.classList.toggle('line', line);
+    if (line) {
+      const esc = t => String(t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]);
+      const bits = [good ? null : esc(outcome.replace(/-/g, ' ')), mm ? mm + ' min ' + String(ss).padStart(2, '0') + ' s' : ss + ' s', tel.km.toFixed(1) + ' km'].filter(Boolean);
+      if (dmgWhy) bits.push('<span class="warn">not certified - the aeroplane was damaged: ' + esc(dmgWhy) + '</span>');
+      const cl = CE ? CE.lines.filter(l => l.k !== 'story').map(l => '<span' + (l.ok === false ? ' class="warn"' : '') + '>' + esc(l.text) + '</span>') : [];
+      $('arrRows').innerHTML = '<p>' + bits.join(' · ') + '</p>' + (cl.length ? '<p>' + cl.join(' · ') + '</p>' : '');
+      arrVerd = []; drawArrNotes();
+      if (bw) bw.hidden = true;
+    }
     el.hidden = false;
   }
   // G2373: the occupants' lines - only a seat's own name and only the five words (34_occupant.js GEN_OCC.bands); anything
@@ -8225,6 +8241,9 @@
       if (CAREER_DEV && d.career) { const c = careerStopApply(d, how, W, wrecked); d = c.doc; out.career = c; }
       // G2742 (STORY-PAGE): ...and the story meets it (the stop, each contract it delivered), its effects applied
       if (CAREER_DEV && STORY_PAGE && d.career && out.career) d = storyOnFlightEnd(d, out);
+      // G3585 (B'1): the stop's story effects can lift that hangar's lock (T1 done: the WWII field's hangar is ours) -
+      // the roll-in opens there now, where the go-to above was refused while it was still locked
+      if (out.moved && out.moved.kind === 'in' && out.moved.hangar && out.moved.hangar !== d.here && !out.room) { const g = playerGoTo(d, out.moved.hangar); if (g.ok) { d = g.doc; out.room = out.moved.hangar; } }
       if (CAREER_DEV && out.career && rtSettled && rtSettled.lines.length) out.career.lines.unshift(...rtSettled.lines);   // (G3260: the routes' line)
       // G2705 (CAREER-DAMAGE, §R.4): a crash in the career - back at the place the flight departed from, repaired, free
       // (75_ careerCrashReset); its line leads the career's lines on the arrival card. The sandbox: nothing (gp4 stands)
@@ -8350,8 +8369,24 @@
     try { if (window.PARKED && typeof window.PARKED.fleetThumb === 'function') thumb = window.PARKED.fleetThumb('mine:' + name) || null; } catch (e) {}
     return Object.assign(c, { wear: typeof playerWearNow === 'function' ? playerWearNow(playerLoad(), name) : 0, onStand: name === slotOnStand(), thumb });
   }
+  // G3587 (the playtest 24 Oct, item 10: "the storage interface ... says the Cub is on the stand while the ultralight
+  // is"): the floor followed the stand only on a LOAD (garage.js api.loaded). An aeroplane already on the stand when the
+  // garage opened in another room - Rufus rolled in at HOME, where the client's Cub had been put on the floor - never
+  // reached the document's floor, and the screen showed the document. The view first puts the stand's aeroplane on the
+  // floor of the room it is in (the core's one move; the one there before takes its place) - no redraw from inside it
+  function storeFloorStand() {
+    try {
+      if (!inGarage || storeSyncHold || typeof playerFloorSync !== 'function') return;
+      const n = slotOnStand(), d = playerLoad();
+      if (!n || !d || !d.sheds[d.here]) return;
+      const W = playerStoreWhere(d, n);
+      if (W.kind === 'floor' && W.hangar === d.here) return;
+      const r = playerFloorSync(d, n, { foots: storeFoots(n) });
+      if (r.ok && r.doc !== d) { player = r.doc; playerSave(); try { residentsSync(RES.bb); } catch (e) {} }
+    } catch (e) { console.warn('flyDiy: the floor could not follow the stand -', e && e.message); }
+  }
   window.FLYDIY_STORE = {
-    view: () => (typeof playerStoreView === 'function' ? playerStoreView(playerLoad(), roomId()) : null),
+    view: () => { storeFloorStand(); return typeof playerStoreView === 'function' ? playerStoreView(playerLoad(), roomId()) : null; },
     where: n => (typeof playerStoreWhere === 'function' ? playerStoreWhere(playerLoad(), n) : null),
     move: (n, to) => storeMove(n, to),
     workOn: n => storeMove(n, { kind: 'floor' }),
@@ -9044,6 +9079,8 @@
   // waits to be read, the bind after the page makes a story plane. The effects it hands back are applied here (storyApply;
   // a plane's file fetched first). The beat card stands in the top-left corner (never centred), the garage's look.
   const stFiles = {};
+  // (G3585: ?stcub=0, a measuring rig's control - the client's Cub only at T2, as before; never the player's)
+  var ST_CUB_LATE = typeof location !== 'undefined' && /[?&]stcub=0(&|$)/.test(location.search || '');
   let stCardEl = null, stLine = '', stQueue = [], stBusy = false, stMemo = { fp: null, fb: null, L0: null, cost: null, next: null }, stMaskWas;
   const stLive = () => (STORY_PAGE ? storyOf(playerLoad()) : null);
   // G3380 (STORY-INTRO): the opening's player, its curtain, this frame's pose, what it set aside, the world's point (below)
@@ -9059,8 +9096,13 @@
     }
     return stFiles[role];
   }
-  const stEnvelope = (slot, file) => ({ what: 'flydiy-build', v: file.v != null ? file.v : (typeof GEN_SPEC_V === 'number' ? GEN_SPEC_V : null), name: slot,
-    spec: file.spec, plaque: file.plaque || null, log: Object.assign({ built: null, tests: [], flights: [] }, file.log || {}, { story: true }) });
+  // G3586 (the playtest 24 Oct: "Rufus needs a better default registration"): the starter's file carries the generator's
+  // F-PGAR (60_gen_spec.js meta) - the story's Rufus wears its own fictional US mark, STORY_REG. meta is cosmetic to the
+  // bench (bench.js BENCH_COSMETIC: paint, finish, meta), so the certificate's fingerprint does not move
+  const stEnvelope = (slot, file, role) => ({ what: 'flydiy-build', v: file.v != null ? file.v : (typeof GEN_SPEC_V === 'number' ? GEN_SPEC_V : null), name: slot,
+    spec: role === 'starter' && file.spec && (!file.spec.meta || !file.spec.meta.reg || file.spec.meta.reg === 'F-PGAR')
+      ? Object.assign({}, file.spec, { meta: Object.assign({}, file.spec.meta || {}, { reg: STORY_REG }) }) : file.spec,
+    plaque: file.plaque || null, log: Object.assign({ built: null, tests: [], flights: [] }, file.log || {}, { story: true }) });
   const stHasSlot = n => !!n && prefGet('flydiy.build.' + n, null) != null;
   // one event into the story: the document advanced, the effects applied (the synchronous ones now, a plane's after its
   // file), the beat card redrawn -> storyStep's result
@@ -9092,14 +9134,24 @@
     const s = stLive();
     if (!s) return;
     const starter = s.planes.starter && !stHasSlot(s.planes.starter) ? s.planes.starter : null;
+    // G3585 (the user 25 Oct: "the client's Cub is already waiting outside"): the Cub is put on HOME's apron as soon as the
+    // starter stands (T0 / T1), quietly - so the fleet's bake (garage-only) has the cabin's minutes to make its prop, and
+    // the T1 roll-out stands it at HOME (storyFleetFrom): it waits there, visible, when Rufus arrives. T2's own effect
+    // then finds it here already
+    if (!starter && !s.planes.client && (s.beat === 'T0' || s.beat === 'T1') && !stQueue.some(q => q.k === 'clientPlane') && !ST_CUB_LATE)
+      stQueue.push({ k: 'clientPlane', at: 'home', beat: 'T2', early: true });
     const e = stQueue[0];
     if (!starter && !e) return;
+    // (T2's effect on a Cub that already waits: nothing to fetch or write)
+    if (!starter && e.k === 'clientPlane' && !e.early && s.planes.client && stHasSlot(s.planes.client) && playerLoad().fleet[s.planes.client]) {
+      stQueue.shift(); storyFlush(); return;
+    }
     stBusy = true;
     const role = starter ? 'starter' : 'client';
     storyFile(role).then(file => {
       stBusy = false;
       if (starter) {
-        prefSet('flydiy.build.' + starter, JSON.stringify(stEnvelope(starter, file)));
+        prefSet('flydiy.build.' + starter, JSON.stringify(stEnvelope(starter, file, 'starter')));
         player = playerFleetReconcile(playerLoad(), fleetSlotNames(playerLoad())).doc; playerSave();
         storyEvent({ k: 'bind', role: 'starter', slot: starter, spec: file.spec });
         storyStand(starter);
@@ -9110,8 +9162,10 @@
         const spec = storyClientSpec(file.spec);
         prefSet('flydiy.build.' + slot, JSON.stringify(stEnvelope(slot, { v: file.v, spec, plaque: null, log: null })));
         const a = storyApply(playerLoad(), e, { slot });
-        if (a.ok) { player = playerFleetReconcile(a.doc, fleetSlotNames(a.doc)).doc; playerSave(); if (a.line) stLine = a.line; }
+        if (a.ok) { player = playerFleetReconcile(a.doc, fleetSlotNames(a.doc)).doc; playerSave(); if (a.line && !e.early) stLine = a.line; }
         storyEvent({ k: 'bind', role: 'client', slot, spec });
+        // (its apron prop: the fleet's bake runs in the garage's quiet; the drawn set is HOME's while it waits)
+        try { if (window.PARKED && window.PARKED.fleetQueue) window.PARKED.fleetQueue(slot); } catch (err) {}
       }
       try { if (window.GARAGE_SPEC && window.GARAGE_SPEC.syncShelf) window.GARAGE_SPEC.syncShelf(); } catch (err) {}
       try { if (window.FLYDIY_PLAYER && window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); } catch (err) {}
@@ -9388,6 +9442,10 @@
                      mist: typeof ATMO !== 'undefined' && ATMO.MIST ? ATMO.MIST.room : null, fov: camera.fov };
       setExp(WORLD_EXPOSURE);
       if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = null;   // F3: the room's air stays in the room
+      // G3588 (the playtest 24 Oct, item 48: "No clouds in the intro"): the march never runs under the opening (the loop
+      // reads it as the shed), but its composite quad kept the boot's last world frame (visible, a stale march) and the
+      // dome's cirrus veil follows CLOUDS.update every worldUpdate: both off while it plays, put back at the swap
+      try { if (typeof CLOUDS !== 'undefined' && CLOUDS.S) { stIntroWas.veil = CLOUDS.S.veil; CLOUDS.S.veil = 0; const q = CLOUDS.compositeMesh && CLOUDS.compositeMesh(); if (q) q.visible = false; } } catch (e) {}
       window.FLYDIY_MUSIC_HOLD = true;
       stIntroAt = plan.anchor;
       try { storyIntroLamps(true); } catch (e) { console.warn('story intro: the lamps', e && e.message); }   // G3388
@@ -9405,6 +9463,7 @@
     if (W) {
       setExp(W.exp);
       if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = W.mist;
+      try { if (W.veil != null && typeof CLOUDS !== 'undefined' && CLOUDS.S) CLOUDS.S.veil = W.veil; } catch (e) {}   // G3588 (the quad: the next march shows it)
       camera.fov = W.fov; camera.updateProjectionMatrix();
     }
     window.FLYDIY_MUSIC_HOLD = false;
@@ -9433,6 +9492,7 @@
   // (OK); shown again on each new beat. Never centred, never over the middle; the garage's look (editor.css #stTim).
   // The portrait is a PLACEHOLDER silhouette (no image, no real person).
   let stTimEl = null, stTimBeat = null, stTimI = 0, stTimShut = false, stTimK = null;
+  const ST_TIM_STATES = ['lad', 'tut', 'min'];   // the band's own looks (the ladder's transparent ground, a waiting step, the chip)
   const STIM_FACE = '<svg class="stTimFace" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="23"/><circle class="h" cx="24" cy="19" r="8"/><path class="h" d="M9 41c2-9 8-13 15-13s13 4 15 13"/></svg>';
   function storyTimSync() {
     if (!STORY_PAGE || typeof document === 'undefined' || !document.body) return;
@@ -9444,13 +9504,29 @@
     if (id !== stTimBeat) { stTimBeat = id; stTimI = 0; stTimShut = false; }
     // G3370 (TUTO-FLIGHT): T1's flight speaks the LADDER in the band instead (Tim's own T1 lines are the shed's)
     const lad = storyLadderNow();
-    if (lad) return storyLadderShow(lad);
+    if (lad) { storyTutorLock(null); return storyLadderShow(lad); }   // (G3580: nothing locked in the air)
     const manual = window.FLYDIY_AP && typeof window.FLYDIY_AP.manual === 'function' && window.FLYDIY_AP.manual() && !inGarage;
+    // G3580 (STORY-TUTOR): a beat with steps is the tutor's - one step at a time, each checked; the effects' messages of
+    // its entry (the hangar ours, the Cub parked outside) are what its steps say, so they are not said twice
+    const tut = id ? storyTutorNow(id) : null;
+    if (tut && tut.step && stLine && !STORY_CARD) stLine = '';
+    // G3585 ("going into the hangar should already load the Cub"): the client's file fetched while T1 runs, so the Cub's
+    // slot is written the moment the landing hands T2 its effect
+    if (id === 'T1') try { storyFile('client').catch(() => {}); } catch (e) {}
     // G3357: a story message (a refused delivery, a signed route) is Tim's to say, once, with its OK
     if (stLine && !STORY_CARD && !manual) {
+      storyTutorLock(null);
       stTimPut('', STIM_FACE + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>' + stEsc(STORY_TIM.role) + '</small><p>' + stEsc(stLine) + '</p></div>' +
         '<button type="button" class="stTimBtn" data-tim="line">OK</button>');
       return;
+    }
+    // (done, Tim's last words wait behind his chip, the checklist with them)
+    if (tut && tut.step && (!manual || tut.step.free)) return storyTutorShow(tut.step);
+    storyTutorLock(null);
+    if (tut && !tut.step) {
+      const S = storyTutorSteps(id);
+      L.length = 0; L.push(S[S.length - 1].say);
+      if (stTutDoneBeat !== id) { stTutDoneBeat = id; stTimShut = true; }
     }
     if (!L.length || manual) { if (stTimEl) stTimEl.hidden = true; return; }
     // G3357: closed, the band leaves Tim's face in the corner - a click brings his last words (and the checklist) back
@@ -9476,15 +9552,119 @@
         else if (b.dataset.tim === 'line') { stLine = ''; storyCardSync(); }               // G3357: Tim's message read
         else if (b.dataset.tim === 'open') stTimShut = false;                              // G3357: the chip
         else if (b.dataset.tim === 'ack') { stTimShut = true; stLine = ''; storyEvent({ k: 'ack' }); }   // G3357: the beat read
+        else if (b.dataset.tim === 'tnext' || b.dataset.tim === 'tpass') storyTutorGo(b.dataset.tim === 'tpass' ? 'pass' : 'next');   // G3580
         else stTimShut = true;
         storyTimSync();
       });
       document.body.appendChild(stTimEl);
     }
-    if (stTimEl.className !== cls) stTimEl.className = cls;
+    // (only the band's own state classes are written: a class another module puts on it - the shared drag helper's, the
+    // user's rule of 25 Oct: every in-game card draggable - is kept; no inline position is ever set here)
+    const want = String(stTimEl.className || '').split(/\s+/).filter(c => c && !ST_TIM_STATES.includes(c)).concat(cls ? [cls] : []).join(' ');
+    if (stTimEl.className !== want) stTimEl.className = want;
     if (stTimEl.dataset.html !== html) { stTimEl.innerHTML = html; stTimEl.dataset.html = html; }
     stTimEl.hidden = false;
   }
+  // ---- G3580-G3589 (STORY-TUTOR): TIM IS THE TUTORIAL (the user, playtest 24 Oct: "Each step checks that the action was
+  // done before moving on, tutorial-style. Tim replaces all cards."). 79_story.js STORY_TUTOR holds each beat's steps,
+  // storyTutorTick steps them (pure); here: the predicates (STORY_TUTOR_FACTS), the one control each step allows
+  // (STORY_TUTOR_ALLOW: selectors), and THE LOCK - while a step stands, every pointer press, click, drag start, drop and
+  // key outside its control (and Tim's band, the loading screens, the 3D view) is held at the window in the capture
+  // phase; the allowed control is lit (a style written per step, so a panel that redraws keeps its light). A `free` step
+  // locks nothing (the taxi). No lock under the opening, nor on the phone (its own panels; the band still steps). The
+  // tutor's place is kept per career in this browser (a reload resumes the step it stood on).
+  let stTut = null, stTutSnap = null, stTutDoneBeat = null, stTutLockV = null, stTutCssEl = null;
+  var STORY_TUTOR_OFF = typeof location !== 'undefined' && /[?&]tutor=0(&|$)/.test(location.search || '');
+  const stTutKey = () => 'flydiy.story.tut.' + (typeof CAREER_ID !== 'undefined' ? CAREER_ID : 'main');
+  const stTutCard = n => '#hsStore .hsCard[data-name="' + String(n || '').replace(/["\\]/g, '\\$&') + '"]';
+  // (the cosmetic fingerprint a paint step compares: the paint and the per-piece finish of the build on the stand)
+  const stTutFp = () => { try { const s = window.GARAGE_SPEC && window.GARAGE_SPEC.get && window.GARAGE_SPEC.get(); return s ? JSON.stringify([s.paint || null, s.finish || null]) : null; } catch (e) { return null; } };
+  const stTutReg = () => { try { const s = window.GARAGE_SPEC.get(); return (s && s.meta && s.meta.reg) || null; } catch (e) { return null; } };
+  const stTutHome = () => { try { return storySite('home', world.aerodromes); } catch (e) { return null; } };
+  const STORY_TUTOR_FACTS = {
+    painted: s => !!stTutSnap && slotOnStand() === s.planes.starter && stTutSnap.fp != null && stTutFp() != null && stTutFp() !== stTutSnap.fp,
+    // (a registration typed while the paint step stood counts: anything but the one it came with)
+    registered: s => !!stTutSnap && slotOnStand() === s.planes.starter && !!stTutReg() && (stTutReg() !== stTutSnap.reg || ![STORY_REG, 'F-PGAR'].includes(stTutReg())),
+    flying: () => !inGarage && !!ap,
+    inHangar: () => { try { const d = playerLoad(); return inGarage && !!d.sheds[d.here] && d.sheds[d.here].base === stTutHome(); } catch (e) { return false; } },
+    storeOpen: () => { const e = document.getElementById('hsStore'); return !!e && !e.hidden; },
+    clientOnStand: s => !!s.planes.client && slotOnStand() === s.planes.client,
+    starterInside: s => { try { const d = playerLoad(), W = playerStoreWhere(d, s.planes.starter);
+      return W.kind === 'inside' || (W.kind === 'outside' && !playerStoreSlots(d, d.here).inside); } catch (e) { return false; } },
+  };
+  const STORY_TUTOR_ALLOW = {
+    finish: () => ({ allow: '#edWrap', deny: '#edTabShape, #edTabDesign' }),
+    reg: () => ({ allow: '[data-dec="reg"]' }),
+    rollout: () => ({ allow: '#bGo, #edRoll, #stSkip' }),
+    shed: () => ({ allow: '#bHangar2' }),
+    // (Storage lives in the name menu: its opener #fbName and the button - #gStore alone was out of reach, g10 27 Oct)
+    store: () => ({ allow: '#fbName, #gStore' }),
+    storeClient: s => ({ allow: stTutCard(s.planes.client) + ', #hsStore .hsFloor', deny: '#hsStore .hsFly, #hsStore .hsRoute, #hsStore .hsSend' }),
+    storeStarter: s => ({ allow: stTutCard(s.planes.starter) + ', #hsStore .hsCol[data-col="inside"]', deny: '#hsStore .hsFly, #hsStore .hsRoute, #hsStore .hsSend, #hsStore .hsWork' }),
+  };
+  // the beat's step now (the tutor ticked on the page's facts), or null when the beat has no steps
+  function storyTutorNow(id) {
+    if (!storyTutorSteps(id)) return null;
+    const s = stLive();
+    if (!stTut) { try { const k = JSON.parse(prefGet(stTutKey(), 'null')); if (k && typeof k.beat === 'string') stTut = { beat: k.beat, i: k.i | 0 }; } catch (e) {} }
+    const was = stTut ? stTut.beat + ':' + stTut.i : '';
+    const r = storyTutorTick(stTut, id, k => { const f = STORY_TUTOR_FACTS[k]; try { return !!(f && f(s)); } catch (e) { return false; } });
+    stTut = r.T;
+    if (stTut.beat + ':' + stTut.i !== was) { prefSet(stTutKey(), JSON.stringify(stTut)); stTutSnap = null; }
+    // what a paint or a registration step compares against: the build as the step found it
+    if (r.step && (!stTutSnap || (stTutSnap.fp == null && stTutFp() != null))) stTutSnap = { fp: stTutFp(), reg: stTutReg() };
+    return { step: r.step };
+  }
+  // Next / OK / the pass: words move on (the last one's `ack` moves the story), a waiting step only by its pass
+  function storyTutorGo(how) {
+    if (!stTut) return;
+    const L = storyTutorSteps(stTut.beat) || [], s = L[stTut.i];
+    const n = storyTutorNext(stTut, how);
+    if (n === stTut) return;
+    stTut = n; stTutSnap = null; prefSet(stTutKey(), JSON.stringify(stTut));
+    if (s && s.ack) { stLine = ''; storyEvent({ k: 'ack' }); }
+  }
+  function storyTutorShow(step) {
+    const s = stLive(), last = stTut.i >= (storyTutorSteps(stTut.beat) || []).length - 1;
+    // the last step carries the beat's checklist (T2), as Tim's last line did (G3357)
+    let rows = '';
+    if (last && !step.wait) { try { const K = storyCardNow(); if (K && K.rows && K.rows.length) rows = '<ul class="stTimRows">' + K.rows.map(r => '<li class="' + (r.ok ? 'ok' : '') + '">' + (r.ok ? '\u2713 ' : '') + stEsc(r.words) + '</li>').join('') + '</ul>'; } catch (e) {} }
+    const btn = step.wait ? (step.pass ? '<button type="button" class="stTimBtn" data-tim="tpass">' + stEsc(step.pass) + '</button>' : '')
+      : '<button type="button" class="stTimBtn" data-tim="tnext">' + (last ? 'OK' : 'Next') + '</button>';
+    stTimPut(step.wait ? 'tut' : '', STIM_FACE + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>' + stEsc(STORY_TIM.role) + '</small><p>' + stEsc(step.say) + '</p>' + rows + '</div>' + btn);
+    const A = step.allow && STORY_TUTOR_ALLOW[step.allow] ? STORY_TUTOR_ALLOW[step.allow](s) : { allow: null };
+    storyTutorLock(step.free ? { allow: A.allow, deny: null, free: true, id: step.id } : { allow: A.allow, deny: A.deny || null, id: step.id });
+  }
+  // the lock (and the light): L { allow, deny, free } or null
+  function storyTutorLock(L) {
+    let on = !!L;
+    try { if (stIntro || stIntroWas || (window.PROFILE && window.PROFILE.name === 'phone')) on = false; } catch (e) {}
+    if (STORY_TUTOR_OFF) on = false;      // (a dev's ?tutor=0: the steps still step, nothing is held)
+    const lock = on && !L.free ? L : null;
+    stTutLockV = lock;
+    if (typeof document === 'undefined' || !document.body) return;
+    if (document.body.classList.contains('stTut') !== !!lock) document.body.classList.toggle('stTut', !!lock);
+    const css = on && L.allow ? 'body.stTut :is(' + L.allow + '), body.stTutFree :is(' + L.allow + ') { outline: 2px solid var(--ed-acc, #e8a33a) !important; outline-offset: 2px; }' +
+      (lock ? ' body.stTut :is(#ui, #wsUI, #hsStore) :is(button, select, input):not(' + L.allow + ', :is(' + L.allow + ') *) { opacity: .45; }' : '') : '';
+    if (document.body.classList.contains('stTutFree') !== !!(on && L.free)) document.body.classList.toggle('stTutFree', !!(on && L.free));
+    if (!stTutCssEl && css) { stTutCssEl = document.createElement('style'); stTutCssEl.id = 'stTutCss'; (document.head || document.body).appendChild(stTutCssEl); }
+    if (stTutCssEl && stTutCssEl.textContent !== css) stTutCssEl.textContent = css;
+  }
+  // THE GUARD (the window, capture phase): an event outside the step's control is held
+  function storyTutorGuard(ev) {
+    const L = stTutLockV, t = ev && ev.target;
+    if (!L || !t || typeof t.closest !== 'function') return;
+    if (t.closest('#stTim, #stIntro, [id^="boot"]')) return;
+    // (the shared card drag, card_drag.js FLYDIY_DRAG - the user's rule of 25 Oct: every in-game card draggable: a press
+    // or a double-click on a card's handle moves the card, never a control in it; its clicks stay held)
+    if ((ev.type === 'pointerdown' || ev.type === 'dblclick') && t.closest('.cdHandle') && !t.closest('button, a, input, select, textarea, label, [data-nodrag]')) return;
+    if (ev.type !== 'keydown' && typeof renderer !== 'undefined' && renderer && t === renderer.domElement) return;   // the 3D view: look around
+    const drag = ev.type === 'drop' || ev.type === 'dragover';
+    if (L.allow && t.closest(L.allow) && (drag || !L.deny || !t.closest(L.deny))) return;
+    ev.stopImmediatePropagation(); ev.stopPropagation();
+    if (ev.cancelable && !drag) ev.preventDefault();          // (a dragover's default refused is a drop allowed: left alone)
+  }
+  if (STORY_PAGE) { try { for (const k of ['pointerdown', 'mousedown', 'click', 'dblclick', 'touchstart', 'contextmenu', 'dragstart', 'dragover', 'drop', 'keydown']) window.addEventListener(k, storyTutorGuard, { capture: true, passive: false }); } catch (e) {} }
   // ---- G3370-G3379 (TUTO-FLIGHT): THE LADDER ON T1'S FLIGHT, AND "SKIP THE FLIGHT" (GAME-PLAN §R2, the user 19 Oct: "a few
   // cards covering the basics ... text and/or image on transparent background in the bottom part of the screen. This will
   // be deactivated if manual controls are taken. There will be an option to skip the tutorial flight and get straight into
@@ -9525,7 +9705,91 @@
   // hangar ours, T2's client Cub on its way), the starter into the HOME hangar through the stop's own roll-in
   // (playerArrive, then the garage there: playerGoTo), then the shed door. The skip IS the move: no flight of its own is
   // written (no money, no logbook row, no clock) - a flight in the air is walked away from without its end being recorded
+  // G3584 (the playtest 24 Oct: "Skip the flight: put the plane on its final, not landed"): the skip is the flight's last
+  // minute - from the shed, the roll-out as ever, then the aeroplane cut to the WWII field's final (storyFinalNow); in
+  // flight, cut there at once. The landing is flown (the autopilot, or the player's hands) and ends T1 as any landing at
+  // HOME does. The garage on its own (no world) keeps the old skip: straight into the WWII hangar (storySkipHangar)
   function storySkipFlight() {
+    const s = stLive();
+    if (!s || s.open || s.beat !== 'T1') return { ok: false, why: 'the flight to skip is the move (T1)' };
+    const home = storySite('home', world.aerodromes), slot = s.planes.starter;
+    if (!home || !slot) return { ok: false, why: home ? 'no starter aeroplane' : 'no aerodrome plays the WWII field' };
+    let worldOk = false;
+    try { worldOk = !GARAGE_ONLY && typeof rollOut === 'function' && typeof storyFinalPose === 'function'; } catch (e) {}
+    if (!worldOk) return storySkipHangar();
+    if (!inGarage) { const r = storyFinalNow(); return r.ok ? r : storySkipHangar(); }
+    try { if (slotOnStand() !== slot && window.GARAGE_SPEC && window.GARAGE_SPEC.open) window.GARAGE_SPEC.open(slot); } catch (e) {}
+    storeStart = null;
+    rollOut(() => { const r = storyFinalNow(); if (!r.ok) console.warn('flyDiy (story): the final - ' + r.why); started = true; }, true);
+    return { ok: true, why: '', final: 'rolling out' };
+  }
+  // the aeroplane on the final (79_story.js storyFinalPose): a fresh reset onto the pose, its speed along the slope, the
+  // engines running, a fresh pilot whose arrival is planned from there (the box's own hand-back: INBOUND with no legs
+  // plans from where it is - straight in when lined up)
+  // the aeroplane on the PILOT's final (F = ap.finalFrom: u the landing direction, aim [x, z] and aimY its touchdown aim,
+  // gs its slope, dIaf the aim to its IAF): 3 km out (PILOT's 8/8), never inside dIaf + 300 m - the straight-in is taken
+  // only from 300 m before the IAF - at aimY + d * gs and 60 m over the ground at the least, moving along u at V down the
+  // slope: storyFinalPose's shape, the pilot's numbers
+  function storyPoseOnFinal(F, o) {
+    if (!F || !Array.isArray(F.u) || !Array.isArray(F.aim) || !(+F.gs > 0)) return null;
+    const L = Math.hypot(F.u[0], F.u[1]); if (!(L > 0.5)) return null;
+    const ux = F.u[0] / L, uz = F.u[1] / L, gs = +F.gs, V = o.V || 22, d = Math.max(3000, Number.isFinite(+F.dIaf) ? +F.dIaf + 400 : 0);
+    const x = F.aim[0] - d * ux, z = F.aim[1] - d * uz;
+    let g = null; try { g = world && typeof world.terrainH === 'function' ? world.terrainH(x, z) : null; } catch (e) {}
+    const y0 = Number.isFinite(+F.aimY) ? +F.aimY : o.elev, y = Math.max(y0 + d * gs, (Number.isFinite(g) ? g : o.elev) + 60), c = Math.cos(Math.atan(gs));
+    if (![x, y, z].every(Number.isFinite)) return null;
+    return { x, y, z, hdg: Math.atan2(uz, ux), vx: V * c * ux, vy: -V * Math.sin(Math.atan(gs)), vz: V * c * uz };
+  }
+  let stSkipLast = null;   // (the last skip's way; FLYDIY_STORY.skipLast adds the phases the pilot planned)
+  function storyFinalNow(o) {
+    const s = stLive();
+    if (!s || s.open || s.beat !== 'T1') return { ok: false, why: 'not on the move (T1)' };
+    if (inGarage || !sim || !ap || typeof placeAtAerodrome !== 'function') return { ok: false, why: 'no flight to place' };
+    if (sim.hydro) return { ok: false, why: 'a floatplane starts on the water' };
+    const H = aeroById(storySite('home', world.aerodromes));
+    if (!H || !Number.isFinite(+H.hdg)) return { ok: false, why: 'no WWII field on this island' };
+    let SH = null; try { SH = ap.sheet; } catch (e) {}       // (the machine sheet's approach speed: Vref, else 1.3 Vs0)
+    const V = Math.max(14, Math.min(40, +ap.VAppr || (SH && (+SH.Vref || (+SH.Vs0 ? 1.3 * SH.Vs0 : 0))) || 22));
+    // (posed on the way the pilot will land it - the wind on the day: 79_story storyFinalWay; a fresh pilot's t is 0)
+    let way = 1; try { way = o && (o.way === 1 || o.way === -1) ? o.way : typeof storyFinalWay === 'function' ? storyFinalWay(H, world, 0) : 1; } catch (e) {}
+    const poseOn = w => storyFinalPose(H, { V, way: w, groundH: (x, z) => (world && typeof world.terrainH === 'function' ? world.terrainH(x, z) : null) });
+    const placeOn = Q => {
+      sim.reset(0);
+      placeAtAerodrome(sim, { hdg: Q.hdg, spawn: [Q.x, Q.z], elev: Q.y });
+      for (let i = 0; i < sim.n; i++) { sim.v[i * 3] = Q.vx; sim.v[i * 3 + 1] = Q.vy; sim.v[i * 3 + 2] = Q.vz; }
+      if (sim.setEngine && sim.eng) for (let i = 0; i < sim.eng.length; i++) sim.setEngine(i, { key: 'both', running: true });
+      ap = mkPilot(curKey);
+      // (a circuit at the WWII field, not the cabin -> HOME leg: a cross-country route flies to the pattern entry first - the
+      // 25 Oct 20:15 page run, 5 min round the circuit from 3 km out; a circuit's arrival takes the lined-up final straight in)
+      ap.setRoute(H, H);
+    };
+    let P = poseOn(way);
+    placeOn(P);
+    // (A0 27 Oct 13:00 - PILOT's node: the pose above is 225 m beside the centreline the pilot lands on, 1146 m short of
+    // its aim, on 6 % against its 10 % (Cub) / 6.5 % (Rufus): from there any pilot joins the circuit. Posed on the pilot's
+    // OWN final instead - the fresh pilot's (its t = 0) planArrival answer from where it is, ap.finalFrom: d m before its
+    // aim along u, on its slope gs, the ground floor as before - master lands straight in, both ends, calm and day.
+    // Settled in this call, before any frame: never a re-pose the player sees. No finalFrom: the pose above stands)
+    let wayBy = 'scored', wayAgain = null;
+    try { if (!(o && o.way) && typeof ap.finalFrom === 'function') {
+      const F = ap.finalFrom(H, P.x, P.z), Q = F && storyPoseOnFinal(F, { V, elev: +H.elev || 0 });
+      if (Q) { P = Q; way = F.way === -1 ? -1 : 1; wayBy = 'pilot'; placeOn(P);
+        const F2 = ap.finalFrom(H, P.x, P.z); wayAgain = F2 ? F2.way : null; }   // (the diag: asked again from the pose, the same way)
+    } } catch (e) {}
+    // (a fresh pilot's first update applies its DEFAULT modes before the phase's law engages its own: the elevator 'DE'
+    // with no setting - ctl.de undefined, a NaN in the first step, 'sim diverged' at 0 s (the 25 Oct page run). Every other
+    // start engages its modes on the ground first; this one starts in the air: the stick neutral for that one frame)
+    try { if (ap.afcs && ap.afcs.sel && !Number.isFinite(ap.afcs.sel.de)) ap.afcs.sel.de = 0; } catch (e) {}
+    ap.reEngage({ phase: 'INBOUND' });
+    // (the skip hands the aeroplane to the autopilot, as every flight starts: the hand is one toggle away)
+    try { if (manual && typeof setManual === 'function') setManual(false, 'skip'); } catch (e) {}
+    try { destId = H.id; } catch (e) {}
+    // (the pilot flies its own plan from its own final; no flip, A0 27 Oct)
+    stSkipLast = { way, by: wayBy, again: wayAgain };
+    return { ok: true, why: '', final: H.id, pose: P, way };
+  }
+  // (the old skip, kept for the garage without a world: T1 done as a stop at HOME, straight into the WWII hangar)
+  function storySkipHangar() {
     const s = stLive();
     if (!s || s.open || s.beat !== 'T1') return { ok: false, why: 'the flight to skip is the move (T1)' };
     const home = storySite('home', world.aerodromes), slot = s.planes.starter;
@@ -9550,6 +9814,11 @@
     if (flying) { const b = document.getElementById('bHangar2'); if (b && b.onclick) b.onclick(); }
     return { ok: true, why: '', here: d.here, where: d.fleet[slot] ? playerWhere(d, slot) : null };
   }
+  // G3585: while the client's Cub waits at HOME (T0 / T1), the fleet's drawn set is HOME's apron (the roll-out stands it
+  // there, and its bake is wanted) -> the aerodrome, or null (the fleet's own rule)
+  function storyFleetFrom() { const s = stLive(); return s && !s.open && (s.beat === 'T0' || s.beat === 'T1') && s.planes.client ? storySite('home', world.aerodromes) : null; }
+  // G3583: the roll-out button says just "Roll out" for the story's starter while the rails run
+  function storyRollPlain() { const s = stLive(); return !!(s && !s.open && s.planes.starter && slotOnStand() === s.planes.starter); }
   // the pill at the bottom edge (the garage's look, never centred): T1 only, in the shed, on the stand and in flight
   function storySkipSync() {
     if (!STORY_PAGE || typeof document === 'undefined' || !document.body) return;
@@ -9558,7 +9827,7 @@
     if (!stSkipEl) {
       stSkipEl = document.createElement('button');
       stSkipEl.type = 'button'; stSkipEl.id = 'stSkip';
-      stSkipEl.textContent = 'Skip the flight: straight to the WWII hangar';
+      stSkipEl.textContent = 'Skip the flight: start on the final';
       stSkipEl.addEventListener('click', () => { const r = storySkipFlight(); if (!r.ok) console.warn('flyDiy (story): the skip - ' + r.why); });
       document.body.appendChild(stSkipEl);
     }
@@ -9651,6 +9920,11 @@
       event: ev => { const r = storyEvent(ev); return { ok: r.ok, why: r.why, advanced: r.advanced, effects: r.effects }; },
       certified: storyCertified, flush: storyFlush, pending: () => stBusy || stQueue.length > 0, line: () => stLine,
       ladder: () => ({ i: stLad.i, off: stLad.off, card: stLad.i >= 0 && !stLad.off ? STORY_LADDER[stLad.i].id : null }), skip: storySkipFlight,   // G3370
+      // (the skip as the rig reads it: the way posed, the pilot's planned phase, the flip; its phases and words since)
+      skipLast: () => stSkipLast ? Object.assign({}, stSkipLast, { ap: ap && ap.report ? { phase: ap.phase, phases: ap.report.phases.slice(-12), said: ap.report.verdicts.slice(-12) } : null }) : null,
+      // G3580 (STORY-TUTOR): the tutor as the rigs read it - the beat, the step, what it waits for, the lock (its control)
+      tutor: () => { const L = stTut ? storyTutorSteps(stTut.beat) || [] : [], s = stTut ? L[stTut.i] : null;
+        return { beat: stTut ? stTut.beat : null, i: stTut ? stTut.i : -1, step: s ? s.id : null, wait: s ? s.wait || null : null, lock: stTutLockV ? Object.assign({}, stTutLockV) : null }; },
     };
   }
   // G3613 GARAGE-GO (the user 25 Oct: "We also need an interface in all game modes for moving between the garages. I
@@ -10511,7 +10785,11 @@
     }
     const armed = testFlight; testFlight = null;
     director.stop(); simRateSet(1);
-    if (typeof window.BENCH_FLIGHT_LOGGED === 'function' && curKey === 'gen') {
+    // G3585 (the user 27 Oct: "Rufus is meant at already having had its first flight a long time ago ... It's a used
+    // machine"): while the story runs, its starter's landings award (and celebrate) no flight certificate - a test
+    // flight armed at the bench still does; the logbook row above is written either way
+    const stUsed = !armed && (() => { try { const s = stLive(); return !!(s && !s.open && s.planes && s.planes.starter && flSlot === s.planes.starter); } catch (e) { return false; } })();
+    if (typeof window.BENCH_FLIGHT_LOGGED === 'function' && curKey === 'gen' && !stUsed) {
       try {
         window.BENCH_FLIGHT_LOGGED({
           report: tfVal.report, arrived: !!t, outcome, t: tfVal.t, manual: !!manual, damaged: A.damaged,
@@ -12441,7 +12719,7 @@
       return playerResidentsShown(d, id, null, ((S && isFinite(S.parked)) ? S.parked : 2) + 1);
     } catch (e) { return []; }
   };
-  const fleetCtx = () => { const d = playerLoad(); return { world, doc: d, flown: slotOnStand(), from: inGarage ? rollFromId() : fromId,
+  const fleetCtx = () => { const d = playerLoad(); return { world, doc: d, flown: slotOnStand(), from: (CAREER_DEV && STORY_PAGE && storyFleetFrom()) || (inGarage ? rollFromId() : fromId),   // (G3585: the Cub waiting at HOME)
                             cap: window.PARKED && PARKED.fleetCap ? PARKED.fleetCap() : 6, inside: fleetInside(d) }; };
   const FS_ON = () => { const F = window.FLEET_STAND; if (!F) return false; F.setCtx(fleetCtx); return F.on(); };
   const fleetStandKey = () => { if (!FS_ON()) return ''; try { return '|fleet ' + FLEET_STAND.key(fleetCtx()); } catch (e) { return '|fleet ?'; } };
@@ -13558,9 +13836,12 @@
     // G107.1: "untested" was accusing TESTED aeroplanes — a build whose test
     // flight was refused read "Roll out untested", which is the one thing it
     // is not. Three states, three sentences: never a lock, ever.
-    const untested = st && !st.passed;
+    let untested = st && !st.passed;
     b.textContent = !untested ? 'Roll out & fly'
       : st.any ? 'Roll out — not passed' : 'Roll out untested';
+    // G3583 (the playtest 24 Oct: "First step: the button should just be 'Roll out'"): the story's own pre-certified
+    // starter on the stand reads plainly, whatever the bench's state
+    if (CAREER_DEV && STORY_PAGE && storyRollPlain()) { b.textContent = 'Roll out'; untested = false; }
     b.classList.toggle('warn', !!untested);
     // ...and the verb in the view says the same thing (G78). Two buttons, one
     // sentence: the bottom bar's is what the game has always had and is hidden

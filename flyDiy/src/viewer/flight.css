@@ -755,6 +755,22 @@ body.rollShot #flActs { display:none !important; }
 
 #arrCard[hidden] { display:none; }
 
+/* G3581 (STORY-TUTOR; the user, playtest 24 Oct: "I don't want the card concept. The map is where info about missions is.
+   Text on screen otherwise"): IN A CAREER THE ENDING IS A LINE - the card's own place (lower left, beside the rail), no
+   plate, no border: the title and a line or two of text over the world, shadowed to read on it; only "bring it home"
+   stays a button (app.js showArrival, CAREER_DEV) */
+#arrCard.line { width:auto; max-width:min(720px, calc(100% - 112px)); max-height:none; overflow:visible; padding:0;
+  background:transparent; border:0; border-radius:0; box-shadow:none; }
+#arrCard.line #arrHead { border-bottom:0; padding:0; justify-content:flex-start; cursor:default; }
+#arrCard.line #arrTitle, #arrCard.line #arrRows p { text-shadow:0 1px 3px rgba(0,0,0,.9), 0 0 10px rgba(0,0,0,.55); }
+#arrCard.line #arrTag { margin-left:0; }
+#arrCard.line #arrRows { display:block; margin-top:4px; }
+#arrCard.line #arrRows p { margin:2px 0 0; font:500 12px/1.4 'IBM Plex Sans'; font-style:normal; color:var(--ed-ink); }
+#arrCard.line #arrRows .warn { color:var(--ed-warn); }
+#arrCard.line #arrNotes, #arrCard.line #bLog, #arrCard.line #bWhy { display:none; }
+#arrCard.line #arrBtns { margin-top:6px; }
+#ui #arrCard.line #arrBtns button { flex:0 0 auto; padding:7px 12px; }
+
 /* G1868 (DMG-D4b; the user: "I want to SEE the crash"): A CRASH'S CARD is small and in the lower-left corner, not over the
    wreck; its title folds it to the one line (the reason stays on the top bar).
    (G3060: the corner and the fold are every card's now; the wreck's stays the smaller one) */
@@ -872,6 +888,7 @@ body.rollShot #flActs { display:none !important; }
      beside the rail (12 px + a 56 px plate) */
   #arrCard, #arrCard.wreck { left:76px; right:12px; width:auto; max-width:none; bottom:78px;
     max-height:max(160px, calc(50% - 90px)); padding:12px 14px 10px; }
+  #arrCard.line { padding:0; max-height:none; }
 }
 
 /* =========================================================================

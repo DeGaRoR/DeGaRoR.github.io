@@ -56,6 +56,11 @@ function run(M) {
   ok(M.storySite('cabin', remote) === 'nv_strip' && M.storySite('cabin', remote.filter(a => a.id !== 'nv_strip')) === 'w3',
      'no strip named Cabin yet: the remote fallback, East Point Clearing then Tamgas Hill (the user: "the middle of nowhere")');
   ok(M.storySite('home', aeros) === 'HOME' && M.storySite('client', aeros) === 'w6' && M.storySite('water', aeros) === 'SEA', 'home, the owner\'s strip and the water by their fallbacks');
+  const twoWater = aeros.concat([{ id: 'mk_sea', name: 'Cedar Harbour Seaplane Base', kind: 'water' }]);
+  ok(M.storySite('harbour', twoWater) === 'mk_sea' && M.storySite('water', twoWater) === 'SEA' && M.storySite('harbour', aeros) === null &&
+     M.storySite('harbour', twoWater.map(a => a.id === 'mk_sea' ? Object.assign({}, a, { role: 'water' }) : a)) === 'SEA',
+     "T6's route ends on the OTHER water field (never the one 'water' picked; one water field only: null - never HOME's tarmac)");
+  ok(M.STORY_BEATS.find(b => b.id === 'T6').done.some(e => e.k === 'routeOffer' && e.a === 'harbour' && e.b === 'water'), "T6's route: water to water (the floats Cub, G3760's gear law)");
   ok(M.storySite('nope', aeros) === null, 'an unknown role: null');
   // ---- the documents
   const cubFile = fs.readdirSync(path.join(ROOT, 'builds')).find(f => /^cub_.*\.json$/.test(f) && !/edits|corrected/.test(f));
@@ -340,6 +345,16 @@ async function pageRun() {
   const starterFile = M.STORY_FILES.starter.find(f => fs.existsSync(path.join(ROOT, f)));
   ok(prefs.has('flydiy.build.Rufus') && d.fleet.Rufus && d.fleet.Rufus.aero === 'w9' && d.fleet.Rufus.hangar === 'w9' && M.storyOf(d).planes.starter === 'Rufus',
      'the starter: the first file found (builds/ first) written as the slot "Rufus", standing in the cabin\'s shed', starterFile + ' -> ' + JSON.stringify(d.fleet.Rufus));
+  const fetchedS = P.fetched.filter(u => !M.STORY_FILES.client.includes(u));
+  ok(fetchedS[0] && fetchedS[0].startsWith('builds/') && fetchedS.slice(-1)[0] === starterFile, 'builds/ is asked before the archived candidate', P.fetched.join(' > '));
+  // G3585 (the user 25 Oct: "the client's Cub is already waiting outside"): put on HOME's apron as soon as the starter
+  // stands, bound as the client's, quietly (no line for Tim at T0)
+  { const cl = M.storyOf(d).planes.client;
+    ok(cl && prefs.has('flydiy.build.' + cl) && M.playerStoreWhere(d, cl).kind === 'outside' && M.playerStoreWhere(d, cl).aero === 'HOME' && d.career.airframes[cl] && d.career.airframes[cl].owner === 'client' &&
+       M.storyOf(d).beat === 'T0' && !half.line() && M.storyOf(d).base.client && M.storyOf(d).base.client.paint.job === 'bare',
+       "T0: the client's Cub already waits outside at HOME (bound, its arrival spec kept, the client's row written before the lift), and nothing is said of it yet", cl + ' ' + JSON.stringify(cl ? M.playerStoreWhere(d, cl) : null)); }
+  ok(/from: \(CAREER_DEV && STORY_PAGE && storyFleetFrom\(\)\) \|\| \(inGarage \? rollFromId\(\) : fromId\)/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8')),
+     "while it waits (T0 / T1) the fleet's drawn set is HOME's apron: the Cub's prop baked in the cabin's garage, stood at HOME by the roll-out");
   { // G3612 (the user 25 Oct): "a career starts only with its own plane. Any imported plane in the career costs money" /
     // "old careers are reset to only their own planes ... What you import is a design ... it is its own copy"
     const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');   // (pageRun's own app is a block below's)
@@ -371,7 +386,6 @@ async function pageRun() {
        /const shelf = slotNames\(\), names = api\.ownSlots \? api\.ownSlots\(shelf\) : shelf;/.test(G) && /const bring = api\.importable \? api\.importable\(shelf\) : \[\];/.test(G),
        'every lift is handed the career\'s own slots (the save just made with them); the purchase writes the copy\'s own envelope; the rack lists its own, the designs bought in (G3612)');
   }
-  ok(P.fetched[0] && P.fetched[0].startsWith('builds/') && P.fetched.slice(-1)[0] === starterFile, 'builds/ is asked before the archived candidate', P.fetched.join(' > '));
   ok(H.window.FLYDIY_STORY.mask() === 'finish' && H.window.FLYDIY_STORY.jobsOpen() === false, "window.FLYDIY_STORY: the tech mask's tutorial mode ('finish' at T0), the job list held");
   // ---- the beat card
   let el = half.el();
@@ -403,7 +417,8 @@ async function pageRun() {
   d = P.get();
   const S = M.storyOf(d), cub = d.fleet[S.planes.client || ''] || null;
   ok(S.beat === 'T2' && !d.sheds.HOME.locked && d.ledger.some(l => l.k === 'story' && l.ref === 'HOME'), 'T1 done: the WWII field\'s hangar is ours (the lock lifted, its ledger line)');
-  ok(cub && cub.hangar === 'HOME' && M.playerWhere(d, S.planes.client).kind === 'in', "T2: the client's Cub stands in the HOME hangar", S.planes.client + ' ' + JSON.stringify(cub));
+  // (G3585, the user 24 Oct: "the Cub is parked outside" - Tim's storage steps swap it onto the stand)
+  ok(cub && cub.aero === 'HOME' && M.playerStoreWhere(d, S.planes.client).kind === 'outside', "T2: the client's Cub is parked outside the WWII hangar (HOME's apron)", S.planes.client + ' ' + JSON.stringify(cub));
   const env = JSON.parse(prefs.get('flydiy.build.' + S.planes.client) || 'null'), base = S.base.client || {};
   const file = JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'cub_2026-09-20.json'), 'utf8')).spec;
   ok(env && env.spec && base.controls.flap.type === 'none' && base.systems.fit === 'minimal' && base.paint.job === 'bare' && base.engines[0].type === file.engines[0].type &&
@@ -670,8 +685,8 @@ async function ladderRun() {
   const S = M.storyOf(d), cub = S.planes.client, RW = M.playerWhere(d, 'Rufus');
   ok(S.beat === 'T2' && S.done.join() === 'T0,T1' && !d.sheds.HOME.locked && d.ledger.some(l => l.k === 'story' && l.ref === 'HOME'), 'Skip: T1 complete as a stop at HOME (the hangar ours, its ledger line)', S.beat);
   ok(RW.kind === 'in' && RW.hangar === 'HOME' && d.here === 'HOME', 'Rufus straight into the HOME hangar, the garage there', JSON.stringify(RW) + ' here ' + d.here);
-  ok(cub && prefs.has('flydiy.build.' + cub) && M.playerWhere(d, cub).hangar === 'HOME' && d.career.airframes[cub].owner === 'client' && S.base.client && S.base.client.paint.job === 'bare',
-     "T2's client Cub effect fired: the Cub in the HOME hangar as it arrives, bound", cub + ' ' + JSON.stringify(M.playerWhere(d, cub || '')));
+  ok(cub && prefs.has('flydiy.build.' + cub) && M.playerWhere(d, cub).aero === 'HOME' && M.playerStoreWhere(d, cub).kind === 'outside' && d.career.airframes[cub].owner === 'client' && S.base.client && S.base.client.paint.job === 'bare',
+     "T2's client Cub effect fired: the Cub parked outside at HOME as it arrives, bound", cub + ' ' + JSON.stringify(M.playerWhere(d, cub || '')));
   ok(d.wallet === w0 && JSON.stringify(d.career.pilots || null) === log0 && JSON.stringify(d.career.contracts) === con0 && d.ledger.filter(l => l.amount).length === 0 && d.ledger.length - led0 <= 2,
      'no money, no logbook row, no contract moved: only what the stop records', 'wallet ' + d.wallet + ', ledger +' + (d.ledger.length - led0));
   X.storySkipSync();
@@ -694,6 +709,190 @@ async function ladderRun() {
   return fails;
 }
 
+// ---- G3580-G3589 (STORY-TUTOR): TIM IS THE TUTORIAL - each step checked, only its control works -----------------------
+async function tutorRun() {
+  const P = await page();
+  const { fails, ok, H, M, els, prefs } = P;
+  if (fails.length) return fails;
+  const app = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8'), css = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'editor.css'), 'utf8');
+  const fcss = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'flight.css'), 'utf8');
+  // ---- the steps, pure
+  const TU = M.STORY_TUTOR, all = [].concat(TU.T0 || [], TU.T1 || [], TU.T2 || []);
+  const facts = new Set((app.match(/const STORY_TUTOR_FACTS = \{([\s\S]*?)\n  \};/) || ['', ''])[1].match(/^\s{4}(\w+):/gm).map(x => x.trim().slice(0, -1)));
+  const allows = new Set((app.match(/const STORY_TUTOR_ALLOW = \{([\s\S]*?)\n  \};/) || ['', ''])[1].match(/^\s{4}(\w+):/gm).map(x => x.trim().slice(0, -1)));
+  ok(['T0', 'T1', 'T2'].every(k => Array.isArray(TU[k]) && TU[k].length >= 3) && all.every(s => s.id && typeof s.say === 'string' && s.say.length > 20 && s.say.length < 280),
+     "the tutor: T0, T1 and T2 as steps, each Tim's words (draft English, a line or two)", all.length + ' steps');
+  const badW = all.filter(s => s.wait && !facts.has(s.wait)).map(s => s.id), badA = all.filter(s => s.allow && !allows.has(s.allow)).map(s => s.id);
+  ok(!badW.length && !badA.length && all.filter(s => s.wait).every(s => s.allow), "every waiting step names a predicate the page defines and the one control it allows", (badW.concat(badA).join() || [...facts].join(', ')));
+  const ids = k => TU[k].map(s => s.id + (s.wait ? ':' + s.wait : '')).join(' > ');
+  const t0 = TU.T0, t0p = t0.find(s => s.wait === 'painted'), t0r = t0.find(s => s.wait === 'registered');
+  ok(t0p && t0p.allow === 'finish' && t0r && t0r.allow === 'reg' && t0r.pass && t0.indexOf(t0p) < t0.indexOf(t0r) && t0[t0.length - 1].ack && !t0[t0.length - 1].wait,
+     'T0: paint Rufus (checked), then its registration (checked, or kept), then the OK that reads the beat', ids('T0'));
+  const t1 = TU.T1, roll = t1[t1.length - 1];
+  ok(roll.wait === 'flying' && roll.allow === 'rollout', 'T1 in the shed: the news, then Roll out (the step waits for the flight; in flight the ladder, G3370)', ids('T1'));
+  const t2 = TU.T2, w2 = t2.map(s => s.wait).filter(Boolean).join();
+  ok(w2 === 'inHangar,storeOpen,clientOnStand,starterInside' && t2[0].free && t2[0].allow === 'shed' && /parked outside/.test(t2.map(s => s.say).join(' ')) && /INSIDE/.test(t2.map(s => s.say).join(' ')) && !t2[t2.length - 1].wait,
+     'T2, the WWII arrival: the taxi or The shed (free), the hangar, the contract (the Cub parked outside), Storage, the swap, the ultralight into a visible slot, the list', ids('T2'));
+  // the tick and the Next
+  let f = {};
+  const fact = k => !!f[k];
+  let r = M.storyTutorTick(null, 'T0', fact);
+  ok(r.T.i === 0 && r.step.id === 'hello' && M.storyTutorTick(r.T, 'T0', fact).T.i === 0, 'words wait for Next (a tick moves nothing)');
+  let T = M.storyTutorNext(r.T, 'next'); r = M.storyTutorTick(T, 'T0', fact);
+  ok(r.step.id === 'paint' && M.storyTutorNext(r.T, 'next') === r.T && M.storyTutorNext(r.T, 'pass') === r.T, 'a waiting step: Next moves nothing, nor a pass it does not offer');
+  f.painted = true; r = M.storyTutorTick(r.T, 'T0', fact);
+  ok(r.step.id === 'reg', 'the action done: the next step');
+  T = M.storyTutorNext(r.T, 'pass'); r = M.storyTutorTick(T, 'T0', fact);
+  ok(r.step.id === 'cert' && r.step.ack, "the registration's pass ('" + t0r.pass + "'): on to the OK");
+  f = { flying: true }; r = M.storyTutorTick({ beat: 'T0', i: 3 }, 'T1', fact);
+  ok(r.T.beat === 'T1' && r.T.i === 0 && r.step.id === 'news', 'a new beat: its first step');
+  r = M.storyTutorTick({ beat: 'T1', i: 2 }, 'T1', fact);
+  ok(r.step === null, 'an action already done (a reload in flight): the step passes at once; the beat\'s steps done');
+  // the final's pose
+  const H0 = { id: 'HOME', x: 0, z: 0, hdg: Math.PI, spawn: [0, 0], elev: 4, len: 900 };
+  const FP = M.storyFinalPose(H0, { V: 20 }), along = (FP.x - (-60)) * Math.cos(H0.hdg) + FP.z * Math.sin(H0.hdg);
+  ok(Math.abs(Math.abs(FP.x - (-60)) - 3000) < 1 && Math.abs(FP.z) < 1e-6 && Math.abs(along + 3000) < 1 && Math.abs(FP.y - (4 + 180)) < 1e-6 &&
+     Math.abs(Math.hypot(FP.vx, FP.vy, FP.vz) - 20) < 1e-6 && FP.vy < 0 && (FP.vx * Math.cos(H0.hdg) + FP.vz * Math.sin(H0.hdg)) > 0 && FP.hdg === H0.hdg,
+     "Skip on the final: 3 km out (before the pilot's IAF: straight in) on the runway's extended centreline, on a 6 % slope over the field, flying the landing heading at the approach speed, sinking", JSON.stringify({ x: Math.round(FP.x), y: FP.y, z: FP.z }));
+  const FG = M.storyFinalPose(H0, { V: 20, groundH: () => 150 });
+  ok(FG.y === 210, 'the final never under 60 m over the ground beneath it (a hill before the field)', FG.y);
+  const H1 = Object.assign({}, H0, { x: -450 }), FR = M.storyFinalPose(H1, { V: 20, way: -1 });
+  ok(Math.abs(FR.x - (-900 + 60 - 3000)) < 1e-6 && Math.abs(FR.hdg - 2 * Math.PI) < 1e-9 && FR.vx > 0 && Math.abs(FR.vz) < 1e-6,
+     "the other end's final (way -1): 3 km out past the take-off end's mirror, flying against a.hdg", JSON.stringify({ x: FR.x, hdg: FR.hdg }));
+  { const Wd = M.makeWorld(0, {}), HW = Wd.aerodromes.find(a => a.id === 'HOME'), wd = v => Object.create(Wd, { wind: { value: () => v } });
+    const hx = Math.cos(HW.hdg), hz = Math.sin(HW.hdg);
+    ok(M.storyFinalWay(HW, wd([0, 0, 0]), 0) === 1 && M.storyFinalWay(HW, wd([-6 * hx, 0, -6 * hz]), 0) === 1 && M.storyFinalWay(HW, wd([6 * hx, 0, 6 * hz]), 0) === -1 &&
+       M.storyFinalWay(null, Wd, 0) === 1,
+       "the skip's way is the pilot's scored way: calm and a headwind along the take-off heading +1, 12 kt down it -1 (the other end); nothing to score: +1"); }
+  ok(/function storyFinalNow\(o\)[\s\S]{0,1600}storyFinalWay\(H, world, 0\)[\s\S]{0,200}const poseOn = w => storyFinalPose\(H, \{ V, way: w,[\s\S]{0,900}let P = poseOn\(way\);/.test(app), "the skip poses the final on the way the pilot will land it (storyFinalWay -> storyFinalPose's way)");
+  // ---- the page: T0 at the cabin, the lock
+  const settle = async () => { for (let i = 0; i < 400; i++) { await new Promise(r => setTimeout(r, 5)); if (!H.window.FLYDIY_STORY || !H.window.FLYDIY_STORY.pending()) { await new Promise(r => setTimeout(r, 5)); if (!H.window.FLYDIY_STORY.pending()) return; } } };
+  let d = M.storyNewCareer(M.careerNormalise(M.careerNew({ id: 'main', seed: 'tutor' })), { aeros: P.aerosCabin }).doc;
+  P.set(d); prefs.delete('flydiy.story.tut.main');
+  H.inGarage = true; H.ap = null;
+  const X = vm.runInContext('(function () {\n' + P.half + '\nreturn { storyTimSync, storyTutorGuard, storySkipSync, tim: () => stTimEl, lock: () => stTutLockV, css: () => stTutCssEl }; })', H)();
+  await settle();
+  d = P.get();
+  const rufusEnv = JSON.parse(prefs.get('flydiy.build.Rufus') || 'null');
+  ok(rufusEnv && rufusEnv.spec.meta.reg === M.STORY_REG && /^N\d{1,5}[A-Z]{0,2}$/.test(M.STORY_REG) && M.STORY_REG !== 'F-PGAR',
+     "Rufus's own registration: " + M.STORY_REG + ' (a fictional US mark, not the generator\'s F-PGAR) - meta, cosmetic to the bench', rufusEnv && rufusEnv.spec.meta.reg);
+  ok(/const BENCH_COSMETIC = \['paint', 'finish', 'meta'\];/.test(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'bench.js'), 'utf8')), "meta is one of the bench's cosmetic blocks: the certificate's fingerprint does not move");
+  let spec = JSON.parse(JSON.stringify(rufusEnv.spec));
+  P.standSet('Rufus'); P.specSet(spec);
+  const tim = () => { X.storyTimSync(); return X.tim(); };
+  const press = k => X.tim().listeners.click({ target: { closest: () => ({ dataset: { tim: k } }) } });
+  // a fake target: inside the selectors it is listed under
+  const tgt = (...under) => ({ closest: sel => (String(sel).split(',').map(x => x.trim()).some(q => under.includes(q)) ? {} : null) });
+  const held = (t, type) => { let stopped = false; X.storyTutorGuard({ type: type || 'click', target: t, cancelable: true, stopImmediatePropagation() { stopped = true; }, stopPropagation() {}, preventDefault() {} }); return stopped; };
+  let e = tim();
+  ok(e && !e.hidden && /dust it off/.test(e.innerHTML) && /data-tim="tnext"/.test(e.innerHTML) && P.bodyCls.has('stTut'), "T0's first step: Tim's words with Next; the page locked (body.stTut)");
+  ok(held(tgt('#bGo')) && held(tgt('#edWrap')) && !held(tgt('#stTim')) && !held(tgt('[id^="boot"]')) && held(tgt('#gStore'), 'keydown'),
+     'while a step stands, a press anywhere else is held at the window (the roll-out, the panel, a key); Tim\'s band and the loading screens are not');
+  // the shared card drag (FLYDIY_DRAG): a press on a card's handle moves the card, its clicks and buttons stay held
+  ok(!held(tgt('.cdHandle'), 'pointerdown') && !held(tgt('.cdHandle'), 'dblclick') && held(tgt('.cdHandle'), 'click') && held(tgt('.cdHandle', 'button'), 'pointerdown') && held(tgt('.cdHandle', '[data-nodrag]'), 'pointerdown'),
+     "a card's drag handle takes its press (the card moves) while a step stands; a click on it, or a control inside it, is still held");
+  press('tnext'); e = tim();
+  ok(/fresh coat/.test(e.innerHTML) && e.className === 'tut' && !/data-tim="tnext"/.test(e.innerHTML) && X.lock() && X.lock().allow === '#edWrap',
+     'the paint step: no Next, the band on its accent edge, the finish panel the one control allowed', X.lock() && X.lock().allow);
+  ok(!held(tgt('#edWrap')) && held(tgt('#edWrap', '#edTabShape')) && held(tgt('#bGo')) && /outline/.test(X.css().textContent) && /#edWrap/.test(X.css().textContent),
+     'the finish panel works (not its locked tabs), the roll-out does not; the panel is lit');
+  tim(); tim();
+  ok(/fresh coat/.test(X.tim().innerHTML), 'unpainted: the step stands');
+  spec = JSON.parse(JSON.stringify(spec)); spec.paint = Object.assign({}, spec.paint, { base: 0x3366aa }); P.specSet(spec);
+  e = tim();
+  ok(/registration/.test(e.innerHTML) && /data-tim="tpass"/.test(e.innerHTML) && new RegExp('Keep ' + M.STORY_REG).test(e.innerHTML) && X.lock().allow === '[data-dec="reg"]',
+     'painted: on to the registration (only its box allowed; "Keep ' + M.STORY_REG + '" passes it)');
+  spec = JSON.parse(JSON.stringify(spec)); spec.meta = Object.assign({}, spec.meta, { reg: 'N512TB' }); P.specSet(spec);
+  e = tim();
+  ok(/pre-certified/.test(e.innerHTML) && /data-tim="tnext"/.test(e.innerHTML) && />OK</.test(e.innerHTML), 'a registration typed: the last words, with OK');
+  ok(M.storyOf(P.get()).beat === 'T0', 'the story waits at T0 until that OK');
+  press('tnext'); e = tim();
+  ok(M.storyOf(P.get()).beat === 'T1' && /WWII airport/.test(e.innerHTML), "the OK reads the beat: T1, Tim's news");
+  ok(JSON.parse(prefs.get('flydiy.story.tut.main')).beat === 'T1', "the tutor's place is kept for this career (a reload resumes it)");
+  press('tnext'); press('tnext'); e = tim();
+  ok(/Roll it out/.test(e.innerHTML) && !/data-tim="tnext"/.test(e.innerHTML) && !held(tgt('#bGo')) && !held(tgt('#stSkip')) && held(tgt('#gStore')),
+     'T1: Roll out (or the Skip) the only way on');
+  H.inGarage = false; H.ap = { phase: 'DEPART', t: 0 }; H.sim = { cgPos: () => [5000, 300, 0] }; H.window.FLYDIY_AP = { manual: () => false };
+  e = tim();
+  ok(e && e.className === 'lad' && !P.bodyCls.has('stTut') && !X.lock(), 'rolled out: the steps done, the flight is the ladder\'s (no lock in the air)');
+  // ---- T2: the WWII arrival
+  d = M.playerArrive(P.get(), 'Rufus', 'HOME', {}).doc;
+  const stop = M.careerStopRecord({ how: 'stopped', aero: 'HOME', slot: 'Rufus', gear: 'wheels', row: { from: 'w9', to: 'HOME', t: 900 } });
+  const sr = M.storyStep(d, { k: 'stop', stop, slot: 'Rufus' }, { aeros: P.aerosCabin });
+  d = sr.doc; for (const ef of sr.effects) { if (ef.k === 'hangar') d = M.storyApply(d, ef, {}).doc; }
+  d = M.storyApply(d, { k: 'clientPlane', at: 'home' }, { slot: 'Client Cub' }).doc;
+  prefs.set('flydiy.build.Client Cub', JSON.stringify({ spec: M.storyClientSpec(JSON.parse(fs.readFileSync(path.join(ROOT, 'builds', 'cub_2026-09-20.json'), 'utf8')).spec) }));
+  d = M.storyStep(d, { k: 'bind', role: 'client', slot: 'Client Cub' }, {}).doc;
+  P.set(d); H.ap = { phase: 'STOPPED', t: 600 };
+  ok(M.playerStoreWhere(d, 'Client Cub').kind === 'outside', 'the fixture: T2, Rufus landed at HOME, the client\'s Cub parked outside');
+  e = tim();
+  ok(/welcome to the WWII field/.test(e.innerHTML) && !P.bodyCls.has('stTut') && P.bodyCls.has('stTutFree') && /#bHangar2/.test(X.css().textContent),
+     'landed: Tim says taxi or The shed - nothing locked (the taxi is the player\'s), The shed lit');
+  H.window.FLYDIY_AP = { manual: () => true };
+  ok(!tim().hidden, '...and he stays on screen with the hand on the controls');
+  H.window.FLYDIY_AP = { manual: () => false };
+  d = JSON.parse(JSON.stringify(P.get())); d.here = 'HOME'; P.set(d); H.inGarage = true; H.ap = null;
+  e = tim();
+  ok(/in our own hangar/.test(e.innerHTML) && /data-tim="tnext"/.test(e.innerHTML), 'in the WWII hangar: "there it is" (Rufus on its stand)');
+  press('tnext'); e = tim();
+  ok(/parked outside/.test(e.innerHTML), 'the new contract: the Cub parked outside');
+  press('tnext'); e = tim();
+  ok(/Open Storage/.test(e.innerHTML) && /the aeroplane’s name/.test(e.innerHTML) && X.lock().allow === '#fbName, #gStore' && !held(tgt('#fbName')) && !held(tgt('#gStore')) && held(tgt('#gSave')) && held(tgt('#bGo')),
+    'Storage: the name menu and its Storage button the only controls (#gStore sits in the hidden #edShelf)');
+  const store = P.mkEl('div'); store.id = 'hsStore'; store.hidden = false;
+  e = tim();
+  ok(/Drag the Cub onto the floor/.test(e.innerHTML) && /hsCard\[data-name="Client Cub"\]/.test(X.lock().allow) && /\.hsFly/.test(X.lock().deny),
+     "Storage open: the swap - the Cub's card and the floor allowed (not its fly / route / send)");
+  const card = '#hsStore .hsCard[data-name="Client Cub"]';
+  ok(!held(tgt(card)) && !held(tgt('#hsStore .hsFloor')) && held(tgt(card, '#hsStore .hsFly')) && held(tgt('#hsStore .hsClose')) && !held(tgt('#hsStore .hsFloor', '#hsStore .hsFly'), 'drop'),
+     'the Cub\'s card and the floor work (a drop onto the floor too), its Fly and the close do not');
+  // (the storage view first puts the stand's Rufus on the floor - G3587 storeFloorStand - then the swap: the Cub onto the
+  // floor, Rufus to the Cub's place outside)
+  d = M.playerMove(P.get(), 'Rufus', { kind: 'floor', hangar: 'HOME' }).doc;
+  P.standSet('Client Cub');
+  const sw = M.playerMove(d, 'Client Cub', { kind: 'floor', hangar: 'HOME' }); d = sw.doc; P.set(d);
+  ok(sw.ok && M.playerStoreWhere(d, 'Rufus').kind === 'outside', 'the swap: the Cub on the floor, Rufus where the Cub stood (the apron)', JSON.stringify(M.playerStoreWhere(d, 'Rufus')));
+  e = tim();
+  ok(/INSIDE slot/.test(e.innerHTML) && /hsCard\[data-name="Rufus"\]/.test(X.lock().allow) && /\.hsWork/.test(X.lock().deny), 'the Cub on the stand: now the ultralight into an inside slot (its card and the INSIDE column)');
+  const W1 = M.playerStoreWhere(P.get(), 'Rufus');
+  const mv = M.playerMove(P.get(), 'Rufus', { kind: 'inside' });
+  ok(mv.ok, 'the HOME hangar has an inside slot for it', mv.why || JSON.stringify(W1));
+  P.set(mv.doc);
+  e = tim();
+  ok(/what the client wants/.test(e.innerHTML) && /stTimRows/.test(e.innerHTML) && />OK</.test(e.innerHTML), "Rufus inside: Tim's last T2 words carry the client's checklist");
+  press('tnext'); e = tim();
+  ok(!P.bodyCls.has('stTut') && e.className === 'min' && /data-tim="open"/.test(e.innerHTML), "OK: the steps done, Tim's chip in the corner (his last words behind it), nothing locked");
+  // ---- the source
+  ok(/for \(const k of \['pointerdown', 'mousedown', 'click', 'dblclick', 'touchstart', 'contextmenu', 'dragstart', 'dragover', 'drop', 'keydown'\]\) window\.addEventListener\(k, storyTutorGuard, \{ capture: true, passive: false \}\)/.test(app) &&
+     /if \(stIntro \|\| stIntroWas \|\| \(window\.PROFILE && window\.PROFILE\.name === 'phone'\)\) on = false;/.test(app),
+     'the guard: on the window, in the capture phase, every press, drag and key; never under the opening, nor on the phone');
+  ok(/#stTim\.tut \{[^}]*var\(--ed-acc/.test(css) && /if \(CAREER_DEV && STORY_PAGE && storyRollPlain\(\)\) \{ b\.textContent = 'Roll out'; untested = false; \}/.test(app),
+     "the waiting band's accent edge; the story's starter rolls out under a plain 'Roll out' (G3583)");
+  ok(/const line = !!CAREER_DEV;\n\s*el\.classList\.toggle\('line', line\);/.test(app) && /#arrCard\.line \{[^}]*background:transparent;[^}]*border:0;/.test(fcss) && /#arrCard\.line #arrNotes, #arrCard\.line #bLog, #arrCard\.line #bWhy \{ display:none; \}/.test(fcss),
+     "no card in a career: the flight's ending is a line of text at the bottom left (no plate, no Log / What went wrong; the story's line is Tim's)");
+  ok(/view: \(\) => \{ storeFloorStand\(\); return/.test(app), "Storage shows the stand's aeroplane on the floor (G3587: the Cub was shown on the stand while Rufus stood there)");
+  ok(/stIntroWas\.veil = CLOUDS\.S\.veil; CLOUDS\.S\.veil = 0; const q = CLOUDS\.compositeMesh && CLOUDS\.compositeMesh\(\); if \(q\) q\.visible = false;/.test(app) && /CLOUDS\.S\.veil = W\.veil;/.test(app),
+     'no clouds in the opening (G3588): the veil off and the stale composite hidden while it plays, the veil back at the swap');
+  ok(/stSkipEl\.textContent = 'Skip the flight: start on the final';/.test(app) && /rollOut\(\(\) => \{ const r = storyFinalNow\(\);/.test(app) && /ap\.reEngage\(\{ phase: 'INBOUND' \}\);/.test(app),
+     'Skip the flight: rolled out, then on the final at the WWII field, a fresh pilot planning its arrival from there (G3584); the garage alone keeps the hangar skip');
+  ok(/ap\.afcs\.sel\.de = 0; \} catch \(e\) \{\}\n\s*ap\.reEngage\(\{ phase: 'INBOUND' \}\);/.test(app),
+     "the skip's fresh pilot starts with the stick neutral before its first update (its default 'DE' mode has no setting: the sim diverged at 0 s, the 25 Oct page run)");
+  ok(/function storyFinalNow\(o\)[\s\S]{0,2400}ap\.setRoute\(H, H\);/.test(app),
+     "the skip's pilot flies a circuit at the WWII field (a cabin -> HOME route flew to the pattern entry first: 5 min round the circuit, the 25 Oct 20:15 page run)");
+  ok(!/flipped: true/.test(app) && /\n    stSkipLast = \{ way, by: wayBy, again: wayAgain \};\n    return \{ ok: true, why: '', final: H\.id, pose: P, way \};/.test(app),
+     "the skip flies the pilot's own plan from the pose, no flip onto the other end (the 27 Oct 11:00 run: the flipped pose flew the circuit too; PILOT's final-cap plans the FINAL, A0 27 Oct)");
+  ok(/typeof ap\.finalFrom === 'function'\) \{\n      const F = ap\.finalFrom\(H, P\.x, P\.z\), Q = F && storyPoseOnFinal\(F, \{ V, elev: \+H\.elev \|\| 0 \}\);\n      if \(Q\) \{ P = Q; way = F\.way === -1 \? -1 : 1; wayBy = 'pilot'; placeOn\(P\);/.test(app) &&
+     /placeOn\(P\);\n[\s\S]{0,900}typeof ap\.finalFrom/.test(app) && /const x = F\.aim\[0\] - d \* ux, z = F\.aim\[1\] - d \* uz;/.test(app),
+     "the skip is posed on the fresh pilot's OWN final (ap.finalFrom: d before its aim along u, on its slope gs; re-placed with a fresh pilot in the same call, before any frame), the scored pose the fallback (A0 27 Oct: PILOT's node - the spawn pose sat 225 m off the centreline, 1146 m short, on 6 %)");
+  ok(/const stUsed = !armed && \(\(\) => \{ try \{ const s = stLive\(\); return !!\(s && !s\.open && s\.planes && s\.planes\.starter && flSlot === s\.planes\.starter\); \}/.test(app) &&
+     /if \(typeof window\.BENCH_FLIGHT_LOGGED === 'function' && curKey === 'gen' && !stUsed\) \{/.test(app),
+     "Rufus is a used machine: while the story runs, its landings award no flight certificate (the user 27 Oct), a bench-armed test flight still does");
+  ok(/d = storyOnFlightEnd\(d, out\);\s*\n(?:\s*\/\/.*\n)*\s*if \(out\.moved && out\.moved\.kind === 'in' && out\.moved\.hangar && out\.moved\.hangar !== d\.here && !out\.room\) \{ const g = playerGoTo\(d, out\.moved\.hangar\);/.test(app),
+     "a landing whose story effects lift the hangar's lock (T1 done) opens the roll-in there: the go-to again after storyOnFlightEnd (B'1, the 26 Oct page run: The shed opened the cabin's garage)");
+  H.inGarage = true; H.ap = null;
+  return fails;
+}
+
 if (!SELF) {
   (async () => {
     const f = run();
@@ -704,6 +903,8 @@ if (!SELF) {
     try { g = g.concat(await introRun()); } catch (e) { g.push('the opening threw: ' + (e && e.stack || e)); console.log('  FAIL ' + g[g.length - 1]); }
     console.log('  -- the tutorial flight (G3370-G3379 TUTO-FLIGHT)');
     try { g = g.concat(await ladderRun()); } catch (e) { g.push('the tutorial flight threw: ' + (e && e.stack || e)); console.log('  FAIL ' + g[g.length - 1]); }
+    console.log('  -- Tim, the tutorial (G3580-G3589 STORY-TUTOR)');
+    try { g = g.concat(await tutorRun()); } catch (e) { g.push('the tutor threw: ' + (e && e.stack || e)); console.log('  FAIL ' + g[g.length - 1]); }
     const all = f.concat(g);
     console.log(all.length ? all.length + ' failing' : 'all story rows hold');
     console.log('GATE STORY: ' + (all.length ? 'FAIL' : 'PASS'));
