@@ -1020,7 +1020,21 @@ var CLOUDS = (function () {
   // frame (0.5-1.4 s at the Jolene reveal, found by rollout_perf's program census). Its key reads no map and no cover.
   // B9 (G1020): and the probe's (tileStat / tileMean read the shadow tile through it: it linked on the first flight frames)
   function warmList() { if (!ready || S.mode === 'off') return []; skyMats(); probeMats(); return [bakeMat, skyMat, shadowMat, marchMat, probeMat].filter(Boolean).map(m => ({ m, to: 'rt' })); }
-  const API = { S, init, install, inject, update, draw, composite, warmList, compositeMesh, bakeStep, probe, sunT, hemiUnder, skyFraction: () => (renderer ? skyFraction(renderer) : NaN), tileStat: () => (renderer ? tileStat(renderer) : null), refit, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get layers() { return lays; }, get map() { return map; }, get maps() { return maps; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; }, get shadowOn() { return cloudScalars[3]; } };
+  // warmDraw(r) (G1998e, HWCOV CLOUD-MRT-WARM): THE MARCH'S FIRST DRAW, under the loading screen. The march writes two
+  // targets (outC, outK - the cloud and its key, `rt` count 2), and ANGLE on D3D11 links a program's pixel shader for its
+  // FIRST output only: the warm's compile (warmList, into a one-target PLAIN_RT) never builds the two-output variant, and the
+  // first real march compiled it on the GPU process's main thread, synchronously - 481-495 ms of D3DCompile plus ~3 s of the
+  // driver, a 3.55-3.58 s flush that held every frame 8.6-12 s after the roll-out click, on a cold profile (the s28-g8h GPU
+  // trace; the warm disk cache hid it). One 4x4 draw into a target of the same layout builds it; the program is the
+  // session's from then on (marchMat is kept). Returns whether it drew
+  function warmDraw(r) {
+    if (!ready || S.mode === 'off' || !marchMat || !quad || !r) return false;
+    const t = new THREE.WebGLRenderTarget(4, 4, { count: 2, type: THREE.HalfFloatType, format: THREE.RGBAFormat, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, depthBuffer: false, stencilBuffer: false, generateMipmaps: false });
+    const prev = r.getRenderTarget();
+    try { r.setRenderTarget(t); quad.material = marchMat; r.render(fsScene, fsCam); } finally { r.setRenderTarget(prev); t.dispose(); }
+    return true;
+  }
+  const API = { S, init, install, inject, update, draw, composite, warmList, warmDraw, compositeMesh, bakeStep, probe, sunT, hemiUnder, skyFraction: () => (renderer ? skyFraction(renderer) : NaN), tileStat: () => (renderer ? tileStat(renderer) : null), refit, domeMat, domeMesh, probeDirty, probeBaked, rt: () => rt, get active() { return active(); }, get ready() { return ready; }, get layer() { return lay; }, get layers() { return lays; }, get map() { return map; }, get maps() { return maps; }, stats, get baked() { return bakeAt >= NB + 1; }, get installed() { return installed; }, get shadowOn() { return cloudScalars[3]; } };
   if (typeof window !== 'undefined') { window.CLOUDS = API; API.install(); }   // BEFORE any program compiles, like ATMO.install
   return API;
 })();
