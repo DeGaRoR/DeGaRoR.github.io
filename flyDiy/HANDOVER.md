@@ -99523,3 +99523,9 @@ T-P1 did not land: new-shapes-1 turned four battery gates red that the cloud's o
 - Two more reds the same change carried, found on the way (both red at 07f979701 already): **TECH** read the custom
   engine as the LAST option (now: at its slot); **PROCURE**'s frozen dial base (src/core/76_procure.js
   PROCURE_ENG_BASE) lacked the Merlin's `eng_exPair` (0, the default: a procured build's dials unchanged).
+- **The gates on the fixed head (cloud, 28 Oct, each group alone):** AUDIOENG FRAMES WINGROWS TAXICLEAR (4 shards) BUILD
+  BENCH DESIGN GEAR PARTS EDBUGS UISMOKE + ENGID TECH PROCURE JOIN SAVE SKINMAT LIVERY COWL: PASS. FRAMECOST: red - master's
+  own row (`cessna boot/garage:restore/three.updateMatrixWorld`, red on a d7e181f4e worktree in the same container) plus 21
+  stand / taxi rows that are the STALE PARKED COOK (`parked_cook.js --check`: manifest 1bd647158b91, this tree
+  5ec99dc3f3bd - every parked key captured live; master's is current). **A0: `node tools/parked_cook.js` on the box, then
+  FRAMECOST.** The full core battery (252 jobs, ~4 h of this container) was not run here.
