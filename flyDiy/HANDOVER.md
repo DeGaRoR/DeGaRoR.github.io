@@ -100516,3 +100516,92 @@ NOT run: the timed rollout train gate (the box is not quiet before 06:00), so a 
 full battery + train gate on this master plus the overnight readies (menus + phone, floodlight, passengers, story, Back confirmation, shed).
 Excluded: cert-rule, cert-pod, new-shapes-1, lods-step1, scenery-afb + meteo-station (scenery train S28), dc3-2-scenery, jolene-fold
 (superseded), missions p1/p3/props, hydro-trim, belly-pod-2, stol-wing, dmg-glass, the old game-menus / game-menus-ui / phone-garage refs.
+## G3623 - DMG-GLASS: AN IMPACT MARK ON THE GLAZING - A STAR OF CRACKS WHERE THE FRAME HIT THE PANE, DRAWN BY THE GLASS'S OWN SHADER (2026-10-27, DMG-LOOKS for A0 + DEFORM; cloud, node + headless WebGL2 on SwiftShader, no GPU stills; branch claude/dmg-glass off origin/master d7e181f4e = L25c (built); claude/ready/dmg-glass)
+The user, 27 Oct: "never seen an impact mark on glass". Before this, a pane either stayed whole or left the wreck whole as a debris body (wreck_debris.js). There was never a crack. This is P1c of the DMG-LOOKS plan (G3620-G3629 study §4), cut to what the hit events already carry.
+- **What existed.**
+  - Glass is `aeroGlass` (aeroskin.js): a MeshPhysical pane with `AEROGLASS_HOOK`, blended additively (ONE + ONE, or screen). It can only ADD light; a separate multiply pass (`aeroGlassCompanion`) carries the tint.
+  - It already had the touch roughness, edge grime and rainbow. It had no crack texture, no crack hook, and no state.
+  - The page's damage state (`dmgNow()`: `broken[]`, `set[]`, `vB`, `sS`) arrives on change through the damage hop. Those are the hit events used here.
+- **What it does.**
+  - When a frame member whose rest midpoint lies within 0.35 m of a pane yields (|set| >= 0.3 %) or breaks, that pane takes a star at its point nearest the member.
+  - Severity: at 0.3 % set, a short light star of rays; at 3 % (the kink), the full star with arcs; a broken member adds a crazed core.
+  - Marks on one pane within 12 cm merge. At most 4 are drawn, the strongest; of equal ones, the earlier stay.
+  - A mark never moves or shrinks until a heal, a new flight or another aeroplane.
+  - The look follows acrylic (study §2.5): 5-9 long radial cracks, reaching 6-36 cm by severity, with arcs on some sectors and a crazed Voronoi speckle within ~6-12 cm of the hit.
+  - Shading is the glass's own. The cracks add the pane's own irradiance as near-white scatter (0.85 x line + 0.30 x haze; silver in sun, dim in shade, never dark). They also roughen the clear coat (+0.6 line, +0.5 haze), so the reflection breaks up along them. No hole is cut.
+  - Lines under a pixel fade to their share of the pixel; they do not fatten.
+  - No crazing on hard landings (the user, 25 Oct): a landing that bends no frame member marks nothing.
+- **How it works (all aeroplane-wide, no clone, no new program).**
+  - **The rules:** `src/viewer/dmg_glass.js` (pure: `window.DMG_GLASS` / `module.exports`). It has the rules, the GLSL text (`GLSL_CRACK`) and its JS mirror (`crackJS`).
+  - **The uniforms:** aeroskin.js `aeroSharedU` carries `uCrackN`, `uCrackP[4]` (point, severity) and `uCrackQ[4]` (normal, seed). FBK twins share them.
+  - **The shader:** the glass hook splices `AERO_GLASS_CRACK_FS`, a textual copy of `GLSL_CRACK` (`node tools/_dmg_glass_check.js --sync` rewrites it). It loops over the marks only when `uCrackN > 0`.
+  - **Gating:** each mark is gated in CRAFT space (`vCraftPos`, from the vertex's REST place, so the mark rides its pane). It shows only within 4 cm of its plane and on fragments facing its normal (dot >= 0.5), so the parked and shed aeroplanes' glass never shows it.
+  - **The page side:** app.js `glassMarks()` runs after `poseModel` (so `uCraftInv` is this frame's).
+    - It captures once a flight, at rest: the glass meshes' points (<= 1500 a pane) and the near members.
+    - At each damage event (vB | sS moved) it recomputes the marks and packs them. Otherwise it costs one compare a frame.
+  - The build manifest loads `dmg_glass.js` after `wreck_debris.js`, before `app.js`.
+- **GATE DMGGLASS** (`tools/_dmg_glass_check.js`, run_gates row `DMGGLASS`, core, weight 3, ~125 s with three children):
+  - **S** the source: the copy equals `GLSL_CRACK`; the hook splices, calls and scatters; the shader's gates equal the JS constants; the uniforms; the manifest order; the `app.js` call.
+  - **U** the rules: the thresholds, merge, never moved, MAX, pack, the mask's reach, the core from 0.85 only, the sub-pixel fade.
+  - **G** the mirror: `GLSL_CRACK` in a real GLSL ES 3.00 (WebGL2, transform feedback) against `crackJS` on 24000 samples. 0 over 0.05.
+  - **R** the real `aeroGlass` on vendor three r186: it links, and the program count is 1 -> 1. A broken member's mark brightens 3162 px and darkens 0; a light one brightens 671. Off the plane by 5 cm, facing away, or cleared: 0 px changed.
+    - Picture: `futureDesigns/dmg-glass/glass_mark_webgl2.png`, a 1 m pane, sev 1.
+    - G and R report NOT RUN without Chromium (never a pass).
+  - **T** the triggers on the Cub, the Jodel and the metal Cessna, the page's own path (the snapshot's glass groups, the def's members, `simDmgHop` -> `simViewDmgApply` every frame):
+
+    | build | taxi 3 m/s | FAR 23.473 drop | 30 m/s trunk, centreline | 30 m/s trunk, 2.5 m out | centreline twice |
+    |---|---|---|---|---|---|
+    | Cub | 0 | 0 | 4 (windscreen x2, both side windows) | 4 | same marks |
+    | Jodel | 0 | 0 | 4 on the windscreen | 0 (the wing takes it; nothing near the glazing bends) | same marks |
+    | metal Cessna | 0 | 0 | 4 on the windscreen | 0 | same marks |
+
+    Every mark sits on a glass pane, within 0.35 m of its member, and is drawn at its point. No mark is ever moved or displaced.
+    - Reported only: the 4 m/s nose-over, the 6 m/s drop and the 12 m/s runway stump mark nothing on any of the three.
+  - **N** smooth shading (the user, 27 Oct: "no flat shading on any deformed or damaged part"; see below). A curved pane (12 facets, its own smooth normals) drawn by the real `aeroGlass` under a light near the eye shows 0 steps at its facet edges, marked or not. The same pane with `flatShading` forced shows 12: that is the control, proving the row sees flat shading.
+  - `--selftest` sabotages the copy by one character and sets the members' reach to 0: S and T go red on every build.
+- **THE COCKPIT FIX (28 Oct).** A0's page run (DEFORM's 00:30 run, ready/dmg-glass 5f1032d7b merged with dmg-looks b951dcbb3): "FLYDIY_GLASS_TEST(1) and (0.3) DO return a mark at the windscreen's middle, but NOTHING shows in the cockpit view; the windscreen stays clear."
+  - **What the flown windscreen uses** (measured in the page, `tools/dmg_glass_stills.js` FACES): `aeroGlass`.
+    - The Cub's four flown panes are MeshPhysical, `aeroFinish: 'glass'`, sharing `aeroSharedU`, and each linked program has `uCrackN`.
+    - It is not the fold/bake path: glass never bakes (flown_bake.js `bakes()`), and no other material draws them.
+    - The test mark was right: at the windscreen's middle, 0.71 m from the eye, uniforms set.
+  - **The cause:** the flown panes are single sheets wound outward, and `aeroGlass` was FrontSide.
+    - From the seat every triangle faces away: Cub windshield 64 / 64; metal windshield 128 / 128, side panes 328 / 328 and 256 / 256.
+    - So from the cockpit the pane, and any crack on it, was never drawn. The tint companion is FrontSide too, so the windscreen draws nothing at all from inside, by design.
+  - **The fix (aeroskin.js `aeroGlass` and `AEROGLASS_HOOK`):**
+    - The pane is `DoubleSide` with `forceSinglePass: true`: one program, one draw. Without the flag, three draws a transparent DoubleSide material as two passes, two programs.
+    - First thing in the fragment, a back face with no mark in use (`uCrackN < 0.5`) is discarded. An intact pane looks exactly as before; its back faces cost a rasterised discard.
+    - With a mark, a back face writes only the crack's scatter, never the reflection, so the bubble's phantom limb (the reason for FrontSide) cannot come back. Where there is no crack it discards.
+    - The side is set at roll-out, so a crash links no program.
+  - **`FLYDIY_GLASS_TEST(sev, 'view')`** puts the mark on the glazing's point nearest the middle of the view. The metal Cessna's left seat sees the windscreen's middle only at its top right edge.
+  - **GATE DMGGLASS row B:** from behind, the pane with no mark changes 0 px against the pane hidden, and a broken member's mark brightens 3,000 px and darkens none. The other rows are unchanged and pass (R: 1 program).
+  - **Evidence** (`reports/evidence/DMG-GLASS/`, `cockpit_sheet.jpg` + the stills + 300 px crops round the mark; SwiftShader, the stand, the cockpit camera):
+    - Cub, windscreen middle: mark 1 a full star with arcs and the crazed core; 0.3 a short light star; cleared, the windscreen clear again.
+    - Metal Cessna, `at: view`: the same.
+    - The crop counts (pixels brighter by 24+ codes against the no-mark frame): Cub noise 4,257, mark 1 18,692, 0.3 7,392, cleared 3,479. The propeller disc moves in the crop; on the metal Cessna its idling blade sweeps through it (noise 16,253), so the pictures are the proof there, not the counts.
+  - **Neighbour gates on this head:** BUILD, SKINMAT, PROGRAMS, ATMO, EDBUGS, REF, LIVERY, FLIGHTREC, PARKED pass.
+- **WHAT THE PAGE MUST SHOW (A0 + DEFORM's page check and evidence round).** Use dev.html with damage on. **The cockpit view is the one to check**: from the seat, a mark shows on the windscreen in front of the pilot (`FLYDIY_GLASS_TEST(1, 'view')` puts it there on any build), as in `reports/evidence/DMG-GLASS/cockpit_sheet.jpg`.
+  1. **By hand, no crash.**
+     - In flight, run `FLYDIY_GLASS_TEST(1)` from the console. It returns `{ at, p, n, panes, points }`. A full star appears at the windscreen's middle at once: 5-9 silver-white wandering radial cracks up to ~36 cm long, arcs on some, and a speckled crazed patch ~6-12 cm round the centre.
+     - Seen from the cockpit and the chase camera, it is brighter where the sun lights the pane and faint in shade. The reflection is broken up along the cracks. It is never a black line and never a hole.
+     - `FLYDIY_GLASS_TEST(0.3)` gives a short light star (rays only, no core). `FLYDIY_GLASS_TEST(null)` clears it.
+     - No frame hitch, and `renderer.info.programs.length` is the same before and after.
+  2. **A crash.** Fly 30 m/s into a trunk on the centreline (the gates' case).
+     - After the impact, `FLYDIY_GLASS` is `{ marks: [{ p, sev, pane, member }, ...up to 4], panes, points, members }`.
+     - The stars sit where the cabin frame hit the windscreen (Cub: the side windows too). They stay on the pane as the wreck rides and tumbles.
+     - The parked aeroplanes' glass shows nothing.
+  3. **Nothing on gentle events.** A taxi into a trunk at 3 m/s, a hard landing at the FAR cap, and a circuit all leave `FLYDIY_GLASS` null and the panes clear.
+  4. **A reset or new flight** clears the marks (`FLYDIY_GLASS` null). So does another aeroplane.
+- **Smooth shading (the user, 27 Oct: "no flat shading on any deformed or damaged part - it looks bad and looks like a bench").** It holds for the glass marks:
+  - The mark adds no geometry and writes no normal. The crack block and `GLSL_CRACK` use no `normal =`, `geometryNormal`, `dFdx` / `dFdy` or `faceDirection`; GATE DMGGLASS S/N checks this in the source. So a marked pane shades with its own interpolated normals, and the crack's scatter is lit by the irradiance computed with them.
+  - The glazing's own normals are smooth in the flown snapshot: coincident places share them (windshield 303 / 303 pairs, pilotWindow 588 / 588 on the metal Cessna).
+  - Riding the wreck, skin_break / skin_gpu turn each vertex's own rest normal, so it stays per vertex, never per face.
+  - `aeroGlass` has `flatShading` false. Row N proves it on a curved pane against a flat control.
+- **Limits, said plainly.**
+  - A pane thrown off as a debris body (wreck_debris) can lose its mark: its craft-space place no longer matches.
+  - Marks follow members, not contact points. A trunk that strikes the glass between frame members without bending one leaves no mark.
+  - Only 4 marks are drawn, one uniform set per page.
+  - The look is unseen on a real GPU: there are no in-game stills from this cloud session.
+- **Neighbour gates run on this branch (27 Oct):** BUILD, SKINMAT, PROGRAMS, ATMO, EDBUGS, PARKED, REF, LIVERY, FLIGHTREC and SIMWORKER pass. Two fail, each on one row, and each row fails the same way on a clean origin/master d7e181f4e checkout, so neither is this branch's:
+  - KTX2 row 10, "the characters' budget": elizabeth / james / martha / leonard / david have no row.
+  - LAZY, "default: the door's first demand (ROUTE_DRAW.ready) fetched route_draw.df5cd4af.js once and ran it". The generated files (dev.html, index.html, sw.js, version.json) are not committed: A0 builds the train.
+- **Not touched:** DEFORM's pool code (`dmg_members.js` is not on master; nothing here reads it), skin_break, skin_gpu and wreck_debris.
