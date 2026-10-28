@@ -100263,3 +100263,10 @@ from rear / side / top and the cockpits (one throttle lever per engine, red).
 - Wing nacelle engines are drawn uncowled (bare engine ahead of the nacelle tail) - master's Twin bush hauler card shows
   it too.
 - A swept fin's ventral strake draws detached below a twin boom's fins (the push-pull now uses the straight fin).
+## G3544 - HANGAR PLINTH: THE NEAR SHELL STANDS ON A FOUNDATION, NOT IN THE AIR (2026-10-26..27, HANGARS-LOOK for A0, LOCAL-GPU; claude/ready/hangar-plinth on master d7e181f4e = L25c, gated 9dcb7fd44; READY for L27b)
+The user, 26 Oct: "the medium hangar floats 30-40 cm into the air". placeSite stands a HANGAR_GEN item's floor at the high corner + 0.3 (stance 0) or 0.55, and the near shell (hangar.js's, restated in _hangar_gen.js's own bags) drew nothing under it: on any slope, or even flat, the low side showed a gap.
+- tools/_hangar_gen.js build(): when the floor stands over the lowest corner (+ 2 cm), a stem ring in bags.stem round the walls' line (+ pt/2, pt 0.25 m), concrete from 0.35 m under the lowest corner up to the floor (topAt fy, capTop). The floor stays level; nothing else moves.
+- Proof in node (A0 27 Oct: "prove the plinth by a node/geometry probe"): every HANGAR_GEN item of Jolene's default world as the cook composes it, the ring's bottom against the item's own ground every 0.5 m round its line: all 3 (s_club/hangar_long float 0.60 m, s_strip/shed 0.55, af_s_fire/bay 0.55) buried 0.35 m, none short of 5 cm.
+### THE GATES (Tue 27 Oct, s27-c5h 10:00 CPU UNTIMED, on 9dcb7fd44; parked cook re-cooked, --check (same))
+- PASS: PREMCOOK ASSETS HOUSE PREMISES KITHOST CITYHOST METKIT (PREMCOOK green with no re-cook).
+- FRAMECOST: FAIL (1) = master's standing key only (cessna boot/garage:restore/three.updateMatrixWorld 2269 -> 4553).
