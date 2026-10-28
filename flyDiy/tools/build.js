@@ -188,6 +188,12 @@ const MANIFEST = {
     // Pure; reads 25_'s footprint default, 26_'s shells / kits / hangarFit
     // and 70_'s document. GAME-PREMISES-2026-10-06.md; GATE GAMEPREM.
     '71_player_bases.js',
+    // THE PEOPLE (G3614): the one list of everyone - name, portrait, body, one
+    // role (reserved / client / pilot / passenger). Pure data; in the core (not
+    // the career chunk): the sandbox's passengers board from its pool too.
+    '72_people_faces.js',            // (tools/portrait_prep.py writes it: the portraits' content names)
+    '72_people_bgs.js',              // (tools/portrait_prep.py bgs writes it: the large portraits' backgrounds, G3620)
+    '72_people.js',
     // ACCEPT (G2270): a build's acceptance - the static checks (no simulation:
     // the phone may run them), the flown leg's measurement and procedure on the
     // AP box, the signed record, acceptVerdict over a contract's criteria. Pure;
