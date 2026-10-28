@@ -99118,3 +99118,86 @@ Gate verdicts (run_gates --only, logs in reports/evidence/DOOR-HINGES/gates/):
 - RED, master's own: JOINPARITY. Its one FAIL is the source scan "no tool flies a validated build raw" (_apsmooth_check.js, _engtorque_check.js, _floatdup_check.js, econ_sim.js, engine_torque_seasweep.js, hand_controls_probe.js; none touched here), identical on origin/master d7e181f4e (joinparity_master.log).
 - Not run: the rest of the core and the full tier (ARCHETYPES and the other sweeps), for the container reason above. A0's battery is the verdict.
 Pushed claude/door-hinges and claude/ready/door-hinges.
+
+## G3872 - DOOR-HINGES-2: THE DOOR HINGE MODELLED (KNUCKLES, PIN, JOGGLED LEAVES, RIVETS, THE DOOR HARDWARE'S METAL); THE DOOR HANDLE NEVER ON THE GLASS; GATE HANDLE (2026-10-27, cloud, for A0; claude/door-hinges-2 on top of claude/door-hinges 04d7f54ea = G3871)
+
+Why: A0 and the user on the G3871 before/after stills (27 Oct): the hinge axis is right and lands as is in L28a. Two follow-ups:
+- (1) "the hinges look cheap": proper bevelling, shading, detailing, still cheap to draw.
+- (2) "the door handle is wrongly placed. It must NEVER sit on top of a window or any glazing."
+The G3871 axis is untouched: every station's barrel centre and axis are the ones GATE HINGE DOOR AXIS measured (0.000 mm on all 12 lines, re-run here).
+
+(1) THE HINGE (tools/_hinge_gen.js buttHinge; only doors call it). Modelled after a surface-mounted steel butt hinge. Every part is its own primitive, so GEAR_KIT's smoothing (shared vertices only) stops at the part's real edges:
+- KNUCKLES: an odd number (~22 mm each, 5 on a 0.10 m hinge), alternating frame / door, 0.6 mm apart. Each is a revolved ring with radiused shoulders, giving the rolled knuckle's round edge instead of a lathe step. 12 sides.
+- PIN: through the stack, showing in the gaps. A domed head at the upper end (a horizontal run: +z) and a peened stub at the other.
+- LEAVES: a 2 mm plate rolled off the knuckle's skin side, joggled onto the MEASURED skin in one S-bend (fillet 1.6 t), then lying on it.
+  - The section is a rounded rectangle with an inner pair of vertices on each flat face, so the faces shade flat right up to the edge radius.
+  - The free end is rounded in plan (6 mm).
+- RIVETS: two domed heads a leaf (three past 120 mm), on the flat.
+- A PLATE DOES NOT WRAP A CORNER: the joggle is at most 10 mm.
+  - A leaf whose skin lies more than 10 mm under the barrel is a short tab beside the knuckles.
+  - Otherwise the leaf ends where the skin under it slopes past ~34 deg off the barrel's tangent plane.
+  - A tab, or a leaf cut short, carries no rivets.
+  - This is the clamshell's bottom run at the belly corner: the frame leaf met a skin falling 80 mm in 40 mm and stood off it in the air. That was G3871's look too, painted; it read worse in metal until the rule.
+- The barrel (0.76 of the lift radius, ~7 mm) sits inside the clearance G3871 lifted the axis by; the leaves step down to the skin.
+- THE METAL: a door's hinges are now the door's hardware. They have their own 'door' bag, meshed with the access layer's metal (AERO_HARD.access.metal: the handle's finish and tint), no longer with the ctlHinge livery section, which on 'as the fuselage' (hgFinish 0, the user's Cub and the STOL Cub) painted them the fuselage's orange. The control-surface hinges are unchanged.
+- COST (tools/_scene_headless.js, the door hinges' own triangles, both halves):
+
+  | build | hinges | before (tris) | after (tris) | per hinge |
+  |---|---|---|---|---|
+  | stock Cub (clamshell) | 8 | 5 504 | 15 424 | 688 -> 1 928 (belly tabs carry no rivets) |
+  | STOL Cub, Jodel, Cessna 172 | 4 | 2 656-2 752 | 8 352 | ~670 -> 2 088 |
+
+  - Of the whole aeroplane, +6.4 % at most (Cub clamshell, 155 256 -> ~165 200 tris) and +3.7-3.9 % (the others).
+  - DRAW CALLS +1 a build: the fixed halves leave the shared static hinge mesh for one 'edHinge_static_door' mesh. The door-side halves stay one mesh a hinge run, as before (renamed '_door').
+  - The first cut was 2 532 a hinge; the knuckles 14 -> 12 sides, the leaf 18 -> 14 rings and the rivets 10 -> 8 sides took it to 2 088 with no visible loss at 0.8 m.
+
+(2) THE HANDLE (tools/_fit_site.js doorHandleOnSkin / handleOffGlass; tools/_cage_access.js).
+- Measured on the old rule (0.62 of the opposite run's arc), the door handle's 115 mm U stood across the sill, 53-142 of its 321 vertices over glass. This hit the page default, the user's Cub and Jodel, the composite Jodel, the PA-18, the chinook edits, the stock / v5 / v8 / v9 / player fixtures, the pusher and the STOL Cub. The PA-18's and the STOL Cub's grab handle had 12. Only the Cessnas and the twin boom were clear.
+- Now the placement reads the FLANK AS DRAWN: one side of the sheet seen along x, each face a (z, y) triangle with its x, its outward normal and its flags (`win` glass, `doorKey` the door's skin).
+- The handle's footprint (long axis, half-length and half-height, each grown by 15 mm) must land wholly on faces it is allowed, with no glazed face under any of 45 samples and no glass corner inside it.
+- THE DOOR HANDLE lies ALONG THE CHORD (a pull, as a Cub's or a Cessna's outside handle does), near the edge opposite the hinges:
+  - HEIGHT: the G310 waist rule (0.62 up the door), capped under the sill less its half-height. A gull (top-hinged) door keeps it low (0.22), the old rule.
+  - REACH: its near foot `inset` from the opposite edge.
+  - The builder's two nudge rows move the TARGET. The search walks out from it in 1 cm steps, nearest first, so no nudge can put the handle on the glass.
+  - Fallbacks: none clear on the door -> UPRIGHT ON THE FRAME just outside the opposite edge (the pillar it shuts against). None there either -> no site (reported unplaced, never drawn on glass).
+- THE GRAB HANDLE (a ring-snapped body fitting) is walked to the nearest clear skin on its side, upright as it was. It moved 25 mm aft onto the pillar between the door and rear windows on the PA-18 / STOL Cub. The pillar band is `joint` faces, allowed for it.
+- _cage_access.js:
+  - passes the sheet, FS and the row's size;
+  - a site's `along` turns the form's frame onto it (fore = side x n);
+  - the sagitta lift keeps that frame;
+  - `placed` records `along` and `onFrame`.
+- GATE FIT's door check now runs the new path.
+
+GATE HANDLE (tools/_handle_check.js, new, core, registered after FIT). It covers the page default, every build under builds/ and bugReports/, every build_v* / player_v* / stol_cub fixture and every archetype card (CAGE_DESIGN.designBake): 59 builds and cards, 98 handles, 94 on doors. The user's validated builds come in through tools/_load_build.js (GATE JOINPARITY's one load path).
+- ON GLASS: no handle vertex nearer a glazed face than a solid one within 8 cm (the handle's own triangles, read back out of the access layer's bags).
+- PLACED: every door side keeps its handle.
+- BELOW THE SILL.
+- HAND HEIGHT: above a quarter of the solid panel. Measured 0.92-0.96 of the panel on windowed doors, i.e. just under the sill; 0.62 on doors with no window.
+- OPPOSITE THE HINGES.
+- NEGATIVES, through the real layer (CAGE2.cageSheet wrapped for one build of the user's Cub):
+  - the door glazed whole -> both handles on the frame, off the door's faces and off all glass;
+  - the door's side glazed 0.6 m round -> no handle drawn, reported unplaced.
+- --selftest:
+  - a handle carried 30 mm past the sill is caught;
+  - the old rule's site is within half a handle of the sill (the bug);
+  - a dropped handle is caught.
+
+Stills (cloud, SwiftShader, CLOUD-SHOTS' plane_shot.js from a scratch copy, not committed). The copy adds G3871's `mesh:` view and a `loc:<layer>/<x>/<y>/<z>/<az>/<el>/<dist>` view: a point in a layer group's own frame (the headless layer's metres), turned to the page's world by the group's matrix. Note: in this page's orbit a NEGATIVE az puts the eye at -z of the target, i.e. on the PORT side; G3871's "P" close-ups at az -75 were the mirror-image port door. In `reports/evidence/DOOR-HINGES-2/`, `*_before_after.jpg`, before = claude/door-hinges 04d7f54ea, after = this branch, 0.8 m from the part:
+- the user's Cub (builds/cub_2026-09-20_corrected.json): its forward hinge, and the handle (before: upright across the sill onto the glass; after: along the chord on the door's skin under the sill);
+- the clamshell Cub (the same file, hgDoorEdge 4): the handle, and the belly-corner hinge (before: a painted leaf hanging in the air; after: the barrel and short tabs);
+- the STOL Cub showcase: hinge and handle;
+- a big-window Cub (the same file, waistY -0.25 and winSillPilot 0.9: the window is 61 % of the door): hinge and handle (before: the handle standing on the glass; after: under the low sill on the door).
+`tris_before.log` / `tris_after.log` hold the cost table above (`tris.js`).
+
+Gate verdicts (run_gates --only; logs in reports/evidence/DOOR-HINGES-2/gates/):
+- PASS (26): HINGE (and --selftest: DOOR AXIS unchanged, 0.000 mm), HANDLE (and --selftest), CLIP, FIT, BENCH, PARTS, DESIGN, DEFAULT, PROCURE, SAVE, JOIN, ACCEPT, ENERGY, FRAMES, FREIGHT, KNIFE, MEDIA, PANEL, ROLLANIM, STARTER, SUBSTEP, TECH, SKINMAT, UISMOKE, CAGEFIT. That is the G3871 set plus HANDLE.
+  - UISMOKE, ACCEPT and ROLLANIM first ran beside two SwiftShader stills: the first two hit the runner's 1 800 s timeout and ROLLANIM failed with no FAIL line. Re-run on an idle box (`rerun_idle_summary.log`), all three PASS. HINGE and CLIP were re-run after the last hinge commit (182c92d2b).
+- RED, master's own: JOINPARITY. Its one FAIL is the "no tool flies a validated build raw" scan: the same six tools as on master d7e181f4e (G3871's joinparity_master.log). The first cut of _handle_check.js named the user's Cub file and joined the list; it now loads the validated builds through tools/_load_build.js and is off it.
+- Not run: the rest of the core and the full tier (ARCHETYPES), as G3871 (12 of 280 jobs in 2 h on this container). A0's battery is the verdict.
+
+READY: claude/ready/door-hinges-2 = claude/door-hinges-2. It sits on claude/door-hinges (G3871, landing in L28a); merge that first, or this alone (it contains it).
+For A0's page check:
+- the four hinge-axis rows still move the hinges (G3871);
+- the door hinges read as metal in the editor's material view, and with it off (the fallback Lambert, tint 0xb9c2cc);
+- the door handle's two nudge rows (acc_doorHandle_sL / _lv) walk it but never onto glass;
+- a door glazed by the winSillPilot row moves the handle down with the sill.
