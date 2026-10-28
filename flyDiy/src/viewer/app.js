@@ -572,7 +572,7 @@
     // (71_player_bases.js playerFleetReconcile, pure: handed the slot names this page reads): a slot the ledger lacks is
     // lifted to the garage's base - inside while a slot is free and the floor packs it, outside after; a row whose slot
     // went (deleted in another tab) leaves. Idempotent, and it refuses nothing: forty builds keep forty aeroplanes.
-    try { if (typeof playerFleetReconcile === 'function') player = playerFleetReconcile(player, playerSlotNames()).doc; }
+    try { if (typeof playerFleetReconcile === 'function') player = playerFleetReconcile(player, fleetSlotNames(player)).doc; }
     catch (e) { console.warn('flyDiy: the fleet lift failed -', e && e.message); }
     // persist what the first load decided — a lift that is only re-run every
     // boot would keep reading prefs that may go stale under it, and a
@@ -624,6 +624,16 @@
     catch (e) {}
     return out.sort();
   }
+  // G3612 (the user 25 Oct, item 39): THE SLOTS THE LIFT IS HANDED - a career's own (74_career.js careerOwnSlots: its
+  // airframes), plus `extra` (the slot its garage has just saved: a purchase, materialised below); the sandbox: the shelf
+  // but the careers' copies. (`names`: the shelf as a caller read it, else read here)
+  function fleetSlotNames(doc, names, extra) {
+    const all = Array.isArray(names) ? names : playerSlotNames();
+    if (typeof careerOwnSlots !== 'function') return all;
+    const own = careerOwnSlots(CAREER_DEV ? doc : null, all);
+    if (CAREER_DEV && extra && all.indexOf(extra) >= 0 && own.indexOf(extra) < 0) own.push(extra);
+    return own;
+  }
   // PREM-S2: THE SLOTS DOOR (garage.js save / save as / delete / import -> api.slotsChanged). The lift again over the
   // names the shelf now holds; a SAVE measures the aeroplane on the stand (playerFootOfDef: its own nodes - the
   // footprint the hangar packs it by), and a save that REPAINTED it (the finish changed) resets its outside wear (GQ7).
@@ -633,7 +643,7 @@
       const foots = {};
       if (info.saved && curKey === 'gen' && def && typeof playerFootOfDef === 'function') { const f = playerFootOfDef(def); if (f) foots[info.saved] = f; }
       const isNew = !!(info.saved && !playerLoad().fleet[info.saved]);
-      let d = playerFleetReconcile(playerLoad(), Array.isArray(names) ? names : playerSlotNames(), { foots }).doc;
+      let d = playerFleetReconcile(playerLoad(), fleetSlotNames(playerLoad(), names, info.saved), { foots }).doc;   // (G3612: a career's own + the save)
       if (info.saved && d.fleet[info.saved]) {
         if (foots[info.saved]) d.fleet[info.saved].foot = parkFoot(foots[info.saved]);
         if (info.repainted) d = playerWearReset(d, info.saved).doc;
@@ -3823,6 +3833,9 @@
   // offset), now kept only where the lots are (render_premises patchDrop); on HOME's apron the drop sank the Cub's tail
   // 20 mm into the concrete (tools/ground_drawn.js). The dial stays: a nonzero value is the old rig, for an A/B.
   const TW_DRAW_DROP = 0;
+  // G3540: a lifted wheel's run-down (poseModel) - the rate's drag time (s), a steady bearing brake (rad/s^2), and the
+  // most a rolling wheel is credited with (m/s at the rim: a placement's jump is no roll)
+  const WHEEL_SPIN_TAU = 3, WHEEL_SPIN_BRAKE = 8, WHEEL_OM_MAX = 90;
   const mR = new THREE.Matrix4();
   function poseRigid(o) {
     if (!model || !model.K4 || !o || !o.matrix || !o.matrix.multiplyMatrices || !o.quaternion) return;
@@ -4189,6 +4202,17 @@
               dx * yU[0] + dy * yU[1] + dz * yU[2] - O[1],
               dx * vZ.x + dy * vZ.y + dz * vZ.z];
     };
+    const WC = model.wheelParts && typeof sim.wheelContacts === 'function' ? sim.wheelContacts() : null;   // G3540
+    const wheelOn = w => {
+      const refs = def && def.refs;
+      if (WC && !WC.water && refs) {
+        const k = (refs.mains || []).indexOf(w.idx);
+        if (k >= 0 && WC.mains && k < WC.mains.length) return !!WC.mains[k];
+        if (refs.tw === w.idx) return !!WC.tw;
+      }
+      const i3 = w.idx * 3;
+      return sim.p[i3 + 1] - groundH(sim.p[i3], sim.p[i3 + 2]) - Math.max(0.05, w.R) < 0.06;
+    };
     if (model.wheelParts) for (const w of model.wheelParts) {
       if (!w.obj.position || !w.obj.position.set) continue;    // smoke stub
       const i3 = w.idx * 3;
@@ -4205,11 +4229,26 @@
                              w.pivot[2] + L[2] - w.rest0[2]);
         else w.obj.position.set(L[0], L[1], L[2]);
       }
+      // G3540 (WHEELS-SPIN, the user's playtest 24 Oct: "wheels keep turning the whole flight"): IT ROLLS ONLY ON THE
+      // GROUND. The axle's motion spun the wheel in the air at the flying speed. Now a wheel touching (the solver's own
+      // wheelContacts, by its node: the mains in order and the third wheel; on the water, or a wheel it does not list, the
+      // same law here - its rim within 6 cm of the ground) rolls with its node as before and keeps that rate (w.om, rad/s);
+      // lifted, it runs down on its bearing - a drag on the rate and a steady brake, ~5 s from a lift-off at 25 m/s.
+      // A paused world holds it (as the prop). Drawing only: the solver's contact is untouched.
       if (w.prev && w.obj.rotation) {
         const mx = (sim.p[i3] - w.prev[0]) * xA[0] +
                    (sim.p[i3 + 1] - w.prev[1]) * xA[1] +
                    (sim.p[i3 + 2] - w.prev[2]) * xA[2];
-        w.obj.rotation.z -= mx / Math.max(0.05, w.R);
+        const R = Math.max(0.05, w.R), dt = frameDt();
+        if (wheelOn(w)) {
+          w.obj.rotation.z -= mx / R;
+          const om = Math.max(-WHEEL_OM_MAX / R, Math.min(WHEEL_OM_MAX / R, -mx / R / Math.max(1e-3, dt)));
+          w.om = w.om == null ? om : w.om + (om - w.om) * 0.5;
+        } else if (running && w.om) {
+          const a = Math.abs(w.om) * Math.exp(-dt / WHEEL_SPIN_TAU) - WHEEL_SPIN_BRAKE * dt;
+          w.om = a > 0 ? Math.sign(w.om) * a : 0;
+          w.obj.rotation.z += w.om * dt;
+        }
       }
       w.prev = [sim.p[i3], sim.p[i3 + 1], sim.p[i3 + 2]];
       poseRigid(w.obj);                               // G357: in the true frame
@@ -8517,6 +8556,34 @@
     b.hidden = !(D && D.damaged && !D.writeOff);
     if (!b.hidden) b.textContent = 'Repair · free';
   }
+  // G3612: the garage's rack (inside this half: career + economy calls, CAREER_DEV only) - the sandbox's designs this career may buy in, each with the price (null: the build's file does
+  // not read), and the purchase: the design COPIED to the career's own slot (careerCopyName - frozen there: the sandbox's
+  // later edits never reach it, its own edits in this garage are its life), paid, then lifted like any other
+  function careerImportPrice(name) {
+    let spec = null; try { const env = JSON.parse(prefGet('flydiy.build.' + name, 'null')); spec = env && env.spec; } catch (e) {}
+    const led = spec ? procureLedger(spec) : null;
+    if (!led) return null;
+    let wants = []; try { wants = typeof hangarWants === 'function' ? hangarWants(resolveSpec(genMigrateSpec(JSON.parse(JSON.stringify(spec))))) : []; } catch (e) {}
+    const cost = econLedgerCost(led);
+    return { cost, wants, price: econAirframePrice(cost, playerLoad().sheds[PREM_MAIN], wants) };
+  }
+  function careerImportNow(name) {
+    const P = careerImportPrice(name);
+    if (!P) return { ok: false, why: 'the build ' + name + ' does not read' };
+    const txt = prefGet('flydiy.build.' + name, null);
+    let env = null; try { env = JSON.parse(txt); } catch (e) {}
+    if (!env || !env.spec) return { ok: false, why: 'the build ' + name + ' does not read' };
+    const copy = careerCopyName(playerLoad(), name, playerSlotNames());
+    const r = careerImport(playerLoad(), name, copy, P.cost, P.wants);
+    if (!r.ok) { ecNote = r.why; econWalletSync(); return { ok: false, why: r.why }; }
+    env.meta = Object.assign({}, env.meta || {}, { name: copy, career: r.doc.career.id, of: name });
+    env.plaque = null; env.log = null;   // (a new airframe: its own certificate and logbook to earn)
+    prefSet('flydiy.build.' + copy, JSON.stringify(env));
+    player = playerFleetReconcile(r.doc, fleetSlotNames(r.doc)).doc; playerSave();
+    ecNote = 'bought ' + name + ' into the career: ' + ecFmt(r.cost);
+    try { if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); } catch (e) {}
+    return { ok: true, why: '', cost: r.cost, slot: copy };
+  }
   if (CAREER_DEV) window.FLYDIY_ECON = {
     price: econBuildPrice, saveWhy: econSaveWhy, shed: econShedDoor, repair: econRepairNow,
     wallet: () => playerLoad().wallet, note: () => ecNote, sync: econWalletSync,
@@ -8805,7 +8872,7 @@
       stBusy = false;
       if (starter) {
         prefSet('flydiy.build.' + starter, JSON.stringify(stEnvelope(starter, file)));
-        player = playerFleetReconcile(playerLoad(), playerSlotNames()).doc; playerSave();
+        player = playerFleetReconcile(playerLoad(), fleetSlotNames(playerLoad())).doc; playerSave();
         storyEvent({ k: 'bind', role: 'starter', slot: starter, spec: file.spec });
         storyStand(starter);
       } else {
@@ -8815,7 +8882,7 @@
         const spec = storyClientSpec(file.spec);
         prefSet('flydiy.build.' + slot, JSON.stringify(stEnvelope(slot, { v: file.v, spec, plaque: null, log: null })));
         const a = storyApply(playerLoad(), e, { slot });
-        if (a.ok) { player = playerFleetReconcile(a.doc, playerSlotNames()).doc; playerSave(); if (a.line) stLine = a.line; }
+        if (a.ok) { player = playerFleetReconcile(a.doc, fleetSlotNames(a.doc)).doc; playerSave(); if (a.line) stLine = a.line; }
         storyEvent({ k: 'bind', role: 'client', slot, spec });
       }
       try { if (window.GARAGE_SPEC && window.GARAGE_SPEC.syncShelf) window.GARAGE_SPEC.syncShelf(); } catch (err) {}
@@ -9362,7 +9429,7 @@
     doc: () => JSON.parse(JSON.stringify(playerLoad())),
     // the gates' and the rigs' door: a whole document in, normalised and lifted like a load (then saved)
     // (with no storage there are no slots to read: the document's own fleet is kept as handed)
-    set: doc => { player = playerNormalise(playerMigrate(JSON.parse(JSON.stringify(doc)))); if (PREF) player = playerFleetReconcile(player, playerSlotNames()).doc; playerSave(); if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); return window.FLYDIY_PLAYER.doc(); },
+    set: doc => { player = playerNormalise(playerMigrate(JSON.parse(JSON.stringify(doc)))); if (PREF) player = playerFleetReconcile(player, fleetSlotNames(player)).doc; playerSave(); if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); return window.FLYDIY_PLAYER.doc(); },
     place: n => (typeof playerPlace === 'function' ? playerPlace(playerLoad(), n, world) : null),
     wear: n => (typeof playerWearNow === 'function' ? playerWearNow(playerLoad(), n) : 0),
     rollFrom: () => rollFromId(), slot: () => flSlot, last: () => flLastEnd,
@@ -9391,7 +9458,7 @@
   function procureCommit(r) {
     if (!r || !r.ok) return { ok: false, why: (r && r.why) || 'refused' };
     prefSet('flydiy.build.' + r.slot, JSON.stringify(r.envelope));
-    player = playerFleetReconcile(r.doc, playerSlotNames()).doc;
+    player = playerFleetReconcile(r.doc, fleetSlotNames(r.doc)).doc;
     playerSave();
     try { if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); } catch (e) {}
     if (CAREER_DEV) { try { careerPlateSync(); } catch (e) {} }
@@ -11079,6 +11146,9 @@
     const BANDC = { red: lin(0xff6b5b), orange: lin(0xffa13d), green: lin(0x6fd08a) };
     const COL = MB ? BANDC[MB.band] : AMBER;
     if (MB && MB.mark && smTxt) smTxt += ' ' + MB.mark;
+    // G3452 (the user 25 Oct: "I'd put a warning sign straight in the CG text if not good (red or orange)"): the CG's own
+    // readout opens on a warning sign; with no readout (no wing chord) the band's title stands in
+    if (MB && MB.mark) cgTxt = '⚠ ' + (cgTxt || MB.title);
     gTipBand = MB ? Object.assign({ sm: smV }, MB) : null;
     // an upright post from the ground to well above the aeroplane, so the two
     // are comparable at a glance from any angle
@@ -16466,6 +16536,17 @@
     slotsChanged: (names, info) => { playerSlotsChanged(names, info); if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); },
     // G2260 (ECONOMY): a career's first save of a new airframe is a purchase - refused short of the cash (the sandbox: '')
     canSave: (name, isNew) => (CAREER_DEV ? econSaveWhy(name, isNew) : ''),
+    // G3612 (item 39): a career's rack lists its own airframes, the sandbox's designs bought in below; the sandbox's rack
+    // never lists a career's copy
+    ownSlots: names => fleetSlotNames(playerLoad(), names),
+    importable: CAREER_DEV ? (names => careerImportable(playerLoad(), names)) : null,
+    slotLabel: n => (typeof CAREER_SLOT_TAG !== 'undefined' && typeof n === 'string' ? n.replace(CAREER_SLOT_TAG, '') : n),   // (the tag's text, no career call: G2320)
+    // ...and a build saved in a career's garage under a NEW name is the career's own slot (a copy's tag; a name it
+    // already holds - the story's Rufus, a re-save - stays as it is)
+    slotKey: CAREER_DEV ? (n => careerSaveKey(playerLoad(), n, playerSlotNames())) : null,
+    importPrice: CAREER_DEV ? (n => { const P = careerImportPrice(n); return P ? P.price : null; }) : null,
+    importSlot: CAREER_DEV ? (n => careerImportNow(n)) : null,
+    money: CAREER_DEV ? (v => ecFmt(v)) : null,
     // G2280 (PROCURE): a slot the garage has just built (the join settled) - a maker's or a used airframe's factory
     // certificate is signed on THAT aeroplane, once (the build files are not the join's fixpoint: measured on the page)
     loaded: (name, spec) => { if (CAREER_DEV) procureLoaded(name, spec); storeFloorFollows(name); },
