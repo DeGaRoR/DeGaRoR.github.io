@@ -102819,3 +102819,31 @@ assets-grove (the crane's GROVE marks painted out, 11/13 + master's GEO/MEDIA), 
 doors shut; bought = the same shed; 9/9, FRAMECOST = master's 15 rows).
 Battery: PARKED row 13 = master's own (identical rows to L28b). Train gate vs L28b: the same accepted costs (perf-week L0: garage ~95-130 s,
 compile 25-51 s), no new row; fps and worst tasks within L28b's spread. Everything else waits for R1: flydiy-notes/RESTART-PLAN.md.
+
+### Codex wind-arrow raster freeze — 28 Oct 23:11
+
+Source-only draft on claude/codex-windraster, based on final L28c 62d23a05b.
+A0/Claude owns landing; no master or ready ref changed. One CSS hint,
+will-change:transform on the existing windA SVG; vector, size, stroke,
+colour and wind calculation unchanged.
+
+Clean cold diagnostic A2: CPU0%, GPU9%, worst first-flight frame4368.3ms.
+The first windA calm->visible at rotate(218deg) was followed by a
+4353.959ms Chrome GPU RasterDecoderImpl::DoEndRasterCHROMIUM::Flush
+(2.654ms GPU-thread CPU); no WebGL call over20ms explained that interval.
+Corrected CSS-hint cold C: CPU9%, GPU9%, worst frame66.7ms, no frame>100ms,
+no exception. These are profiled diagnostics, one successful treatment
+run; final normal-build repeat and broader checks remain owed. Earlier
+B-layer was invalid (a preload insertion before documentElement existed),
+not a hint failure.
+
+Isolated fixed-state PFD screenshots: unchanged baseline repeats are
+pixel-identical; hint differs at106 anti-aliasing pixels inside the
+13x14 arrow rectangle. Arrow geometry/layout unchanged; do not claim
+whole-image pixel identity. The standalone fixture does NOT reproduce
+the game-context freeze (all arms ~17ms), so use it only for visual proof.
+Evidence and exact commands: CODEX-LOG-SHADERWARM.md and owned
+freeze-trace/A2-proof.json, C-layer.json, fixture-results.json and PNGs.
+The persistent first-flight freeze appears addressed by this isolated
+CSS experiment; do not tick the whole freeze family or publish ready yet.
+
