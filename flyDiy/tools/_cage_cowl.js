@@ -1045,6 +1045,7 @@ PAGE.post = ctx => {
 // the layer's own build; `again` is the first pass's starter decision when the
 // wing places it again (returned here for that)
 function cowlPlace(ctx, again) {
+  if (CW.__eyeDet0 != null) { CW.P.detail = CW.__eyeDet0; CW.__eyeDet0 = null; }   // G3713: a thrown build's dial
   const { scene, mesh, P, stat } = ctx;
   dispose(group); group = null;
   if (!P.cowlOn) return null;
@@ -1131,6 +1132,15 @@ function cowlPlace(ctx, again) {
   const nacelle = station.synthetic && Math.round(CW.P.aftMode) === 1;
   if (CW.P.fwLipOn !== undefined) CW.P.fwLipOn = nacelle ? 0 : CW.P.fwLipOn;
   CW.prepareLid();
+  // G3713 (COWL-RES): THE EYE VARIANT'S COWL - from variant 1 up the cowl is sampled at detail 2 (the page's own
+  // `cowl detail` row at its top, 2x the samples round and along), for this build only: nothing saved. Every builder
+  // below reads the dial (the lips, the spinner, the propeller, the aft ring), so it holds until this function returns
+  // (restored there, and at the top of the next call should a build have thrown). Held off in a parked aeroplane's
+  // capture and by ?eye=off (CAGE_EYE_VARIANT_OF says 0 there).
+  const eyeV = window.CAGE_EYE_VARIANT_OF ? window.CAGE_EYE_VARIANT_OF() : 0;
+  // G3715: variant 1 only - the cowl is drawn in every view, and the user wants no smoothing outside (27 Oct); the
+  // 01:55 stills showed detail 2 changes nothing in the seat's view (v0 = v1): variants 2-4 keep the cowl's own dial
+  if (eyeV === 1) { CW.__eyeDet0 = CW.P.detail; CW.P.detail = Math.max(2, +CW.P.detail || 1); }
   CW.prepareMesh();
   // COWL ALPHA (G29, user): see the engine through the shell. The view panel
   // owns the dial (viewer state, never spec) and the materials are built to
@@ -1267,6 +1277,7 @@ function cowlPlace(ctx, again) {
       `${(CW.zEnd() * 1000).toFixed(0)} mm long` +
       (face.seat ? ` · seat +${(face.seat * 1000).toFixed(1)} mm` : '');
   }
+  if (CW.__eyeDet0 != null) { CW.P.detail = CW.__eyeDet0; CW.__eyeDet0 = null; }   // G3713: the dial as it was
   return forEng.dec || null;
 }
 // THE AERO AFT, CUT 1 (2026-09-04, TWIN-BOOM spec §1.2; the user: "an 'aero

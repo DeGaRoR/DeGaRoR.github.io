@@ -99155,3 +99155,153 @@ Correction to G3540 above: its evidence was the node page check, not steps_wheel
 G3430 (Mon 26 Oct 20:20 still, ASSETS): 30 of 76 lake-shore ferns stood BLACK. The shore band's nodes lie on the island's 10 m lake cells (code 1), and the cover ring took their tuft colour from that code - the lake's, black (the grass field already swaps a dry lake cell for the land code round it, G2572; the ring did not). Fix: a shore node on code 1 takes the colour of the nearest land code (6 then 12 m, eight ways) - the colour only; its code and mix are untouched. CODE ONLY (node --check): re-gate (COVER TREES FADES STAND + FRAMECOST with the control) and a re-still before the reeds go ready.
 
 G3430b (the user, Tue 27 Oct 00:15, via A0: "The other reeds color is not good either. Just implement the bright/hue/saturation controls, tune them so they fit the general look, do a small variation per instance ... Don't color them as the ground here."): the lake-shore fern (reed_marsh) is no longer tinted by the ground (place.noTint: 1, no lift). It draws its own texel through the species' material dials, the existing cover tint (hue 0 + the master's 0.045, sat 1 x 1.58, light 0.24 x 1.456) and contrast 0.6 (flattening toward the map's mean lightness). Modelled on the texture's kept-texel mean (0.50, 0.58, 0.19), that lands the tuft near (0.14, 0.19, 0.06) at hue ~83 deg: the island grass's albedo band (0.10-0.20) in a fern green, no pink, no black. Per instance: brightness +-6 % (vary 0.06) and a hue swing of -4..+4 deg (hueTurn). The swing is the new noTint branch in cover_ring.js: a grey multiplier has no hue to turn, so the multiplier turns place.hueRef (the tinted mean, relative: 0.74, 1, 0.31) by the tuft's own hash, and the cell's stream R() is untouched. The pack's place/tint edited in trees_pack.json + trees_pack.js and in _trees_tuning.json (the bins are unchanged, so no re-bake). The 10 m lake-cell colour fix above stays: the band's grass_reed is still ground-tinted. The dials are live on TREE_LEAF.tint for the bench; a re-tune after the still moves only these three numbers.
+## G3710-G3712 - COWL-RES: THE NOSE DECK AND THE COWL'S TOP ARCH AT THE DASH'S DENSITY, FROM THE PILOT'S EYE, DISPLAY ONLY (2026-10-25, COWL-RES for A0, local; branch claude/vibrant-maxwell-3f5b3a; target claude/ready/cowl-res, L27b / T-P1)
+The user (25 Oct): "a higher resolution subsurf for the nose and cowl in interior view, matching the resolution of the
+dashboard ... the top arch of the cowl and nose, very visible in interior view, that do not hold up. The Cessna is the
+worst example, with edges and corners very visible."
+- WHAT IT IS (code read). Two surfaces ahead of the windscreen. (a) THE FUSELAGE NOSE DECK: with `front rings`
+  (cowlLoops) 0 - the Cessna, the metal Cessna, the Cub and the Jodel - the deck from the windscreen base to the twin
+  band is ONE control quad a side (buildCage2's low bands: P.waist -> C.waist), so level 2 leaves 4 x 4 facets of
+  ~11 cm (C172 noseLen 0.45). Rufus has 2 rings, which is why it looks better. (b) THE ENGINE COWL (_cowl_gen.js,
+  0.9 m on the C172): its azimuths are equal-sagitta, so the flattish TOP gets the fewest samples - the part the pilot
+  looks along. The cowl's lips are their own fine profiles and are not touched.
+- WHY NOT THE CAGE: G445/G468 item 73 tried rings in the nose run; CAGEFIT refused (template ring for ring) and the
+  finer skin moved gear.twY 0.5 mm, which flips every certificate. So both fixes are DRAWN-ONLY.
+- G3710 `cageEyeRefine(m, {zNose, k})` (_cage_gen.js): the deck faces (body / pillarFront, forward of the 'nose' zone's
+  z0, up-facing, upper half) split k x k (4) on a curved patch THROUGH the sheet's vertices - each edge a cubic Hermite
+  off its two smooth normals, the inside a Coons patch. The sheet's vertices never move, new ones are APPENDED (every
+  index keeps its meaning), an edge's points depend on that edge alone (no crack between split faces), a creased edge
+  or one a non-skin face shares stays straight, and a face outside the deck on a split edge takes the points into its
+  outline (fan from a clear corner, else from its centre: no T-junction). The field (aStruct) is interpolated, the old
+  normals kept, the new ones meshFrom's face average. _cage_ui draws meshFrom(sdE); MS, the measurements and the join
+  read the sheet. THE DRAG PREVIEW (G1443 deformTick / standRestore) carries the appended vertices on their parents
+  (meshObj.userData.eye) - without it every nose-slider tick would have fallen back to a whole build.
+- G3711 `prepareMesh({eyeArc})` (_cowl_gen.js): every upper-half interval longer than eyeArc / detail is split evenly
+  in theta; today's samples all stay (the lip, the seam, the cut read the same array). A bare call (the bench,
+  GATE COWL's port check) is byte-identical. _cage_cowl passes COWL_EYE_ARC (0.016 m, a page constant - nothing saved,
+  no spec or certificate moves).
+- OFF: a parked aeroplane's capture (parked.js holdEditor `run` sets CAGE_EYE_OFF while the parked spec is held - A0:
+  "YES skip it in parked capture"); `CAGE_UI.eyeRefine = false` (the rigs' BEFORE: the geometry master draws).
+- G3712 RIGS: tools/cowl_res_rig.js (node: dash vs deck vs cowl top - edge length, face-to-face angle; the pass's ms,
+  tris, verts; no sheet vertex moved, no new open edge), tools/cowl_res_stills.js (GPU: the garage's INTERIOR pill,
+  before/after in one page and one camera, `ahead` + `left`).
+- STATE: WIP 44dc3383a, node --check only. Slots (A0): CPU Mon 26 03:00-03:25 the rig (cr_cpu.sh), GPU Mon 26
+  04:05-04:30 the stills (cr_gpu.sh). Then: density tuned to the dash's numbers, rebase on master after L26b (G3451 arch
+  dash), gates COWL, CAGEFIT, FIT, CLIP, SURF, SKIN, SKINMAT, JOIN, JOINPARITY, VIEW, LIGHT, DESIGN, PARKED, DMGSKIN,
+  DMGSKINGPU, FRAMECOST + the GARAGE-LAG bench, the parked re-cook check after the build, AFTER stills to the user.
+- RIG Mon 26 03:00 (A0's CPU slot s26-c2c; scratchpad cr_rig_final.json). The dash's median facet edge is 1.6 cm on
+  every build, so the target is 1.6 cm: the page passes `edge: 0.016 / fieldM()` and k = the deck's median edge over it,
+  ROUNDED, 2..8 (C172 8, metal 8, Cub 5, Jodel 6; Rufus already 2 cm a side and its pass median says 2).
+  | build | deck edge p50 now -> after | face angle p50/p90 now -> after | cowl top longest chord | pass | tris |
+  | C172 corrected | 12.1 -> 1.5 cm | 3.6/14.6 -> 0.04/1.9 deg | 7.5 -> 1.6 cm | 8.4 ms | +8232 (66752) |
+  | metal C172 | 14.4 -> 1.8 cm | 3.3/12.5 -> 0.04/2.0 deg | 7.5 -> 1.6 cm | 5.1 ms | +8232 |
+  | Cub corrected | 7.4 -> 1.5 cm | 7.7/31.4 -> 0.6/6.8 deg | 4.9 -> 1.75 cm | 5.0 ms | +3848 |
+  | Jodel corrected | 9.0 -> 1.75 cm | 7.7/34.9 -> 0.9/5.6 deg | 5.8 -> 1.6 cm | 3.9 ms | +3752 |
+  | Rufus certified | 2.0 -> 0.5 cm | 5.1/36.7 -> 0.5/7.9 deg | (no cowl) | 3.3 ms | +4806 |
+  Clean on all five: no sheet vertex moved, the open borders' total length unchanged (the extra open-edge COUNT is the
+  firewall border split straight - nothing opened), the field aligned. Three fixes the first run found: (1) Rufus's
+  field (A) is shorter than its sheet - appended rows went to the wrong vertices; now padded with null first. (2) a 63 deg
+  fold in the C172's 7 mm pillarFront strip at the firewall: its front border stays straight (the corners' normals face
+  the firewall) while the edge 7 mm behind bowed ~1 cm. A face under a third as deep as long now passes a straight edge
+  to its opposite one (the bow fades over the next 10 cm row), and an edge leaves a corner along its chord where the
+  corner's normal is > 35 deg off the edge's own faces. Max angle now 22 deg = the shoulder crease as today. (3) the
+  cowl's arc was measured on the squarest probe (the C172's small front ring): now the largest, and the intervals that
+  straddle the waist line count. Cost cut 13 -> 8 ms on the C172: normals only for the deck's own vertices (meshFrom
+  fills the rest exactly as today).
+- STILLS Mon 26 04:05-04:28 (A0 s26-g3). The rig needed four fixes before it saw the cockpit: the camera pills live in the
+  rail's flyout (open it, press, close it), the #boot overlay ("before you fly") stands over the shed for minutes (wait it
+  out, ?world=none), the 3D canvas is not the first <canvas>, and the head turns through HEAD_CAM (a mouse drag did not
+  move it). The eye is ASSERTED now (camera = CAGE_CREW_EYE, d 0.000). FINDING: from the C172's seated eye the deck and
+  the cowl show only past the windscreen's lower left corner, and there before and after looked the same. Cause found
+  in node: the strip rule (a thin face hands its straight edge across) ran across EVERY C172 deck row (5 cm deep, 32 cm
+  across) and left the centreline ridge at 21 deg - the edge the user describes. Replaced by a per-edge bow fade
+  (w = distance to the nearest fixed edge / taper, capped at 1). The C172's deck is only 23 cm between its two fixed rows
+  (the windscreen-base band aft, the firewall ring's E1 creases forward), so taper 5 cm. Rig: C172 face angle p50/p90
+  0.49/2.8 deg, the centreline ridge gone from the top of the list; max 24.6 deg is now in the 7 mm firewall ring strip at
+  the shoulder (to look at). The 04:27 take of the same corner still reads alike - whether that patch is the deck or the
+  cowl's shoulder is the next still's question (the cowl hidden, the head raised 10 cm, an outside close-up of the arch).
+  NOT READY: the Tue gate slots stand, the ready push waits for a still that shows the arch.
+
+## G3713 - COWL-RES: THE EYE SHEET, A THIRD SUBDIVISION LEVEL AT CONSTRUCTION (2026-10-26, COWL-RES for A0; replaces G3710/G3711)
+The user, after the 04:27 pair (before/after alike): "the plane is built from the low poly cage, with 2 levels of
+subdivision ... Don't try to subdivide the finished model ... It's in the construction of the plane, we need 3 levels
+rather than 2." Their marked-up still (C172 seated, ahead): the arch's silhouette against the runway is the WINDSCREEN
+BASE - the glass panes meet the deck there, panes are faces of the subdivided sheet, so that edge is the level-2 polygon
+(one kink per ~12 cm, ~120 px at the eye). G3710's display refine had to keep it straight (the glass is flat): it could
+never round it. Then: "We can try only with the cowl smoothed ... the nose section ... the whole fuselage ... cut what
+is behind the aft bulkhead ... Try all ... and benchmark."
+- THE KNOBS FOUND. The cage level has no spec row: only the hidden `lvl` select (subsurf 0-3, G106.1's bench
+  instrument). cageSheet applies it to the whole sheet and the measured rows read that sheet - lvl 3 as-is moves
+  physics (G468: the finer nose moved gear.twY 0.5 mm, certificates flip). The cowl's own is `cw_detail` (the
+  polycount group's "cowl detail", 0.35-2); the validated builds don't set it (1).
+- G3713 cageSubdivideRegion(m, inReg) (_cage_gen.js): one more Catmull-Clark step on a face set, through cageSubdivide
+  itself on the region cut out as its own mesh (creases, field, tags, seam lists - one rule), the region's border held
+  as a crease for that step (exact midpoints, the ends on the crease curve), the faces outside taking the midpoints into
+  their outline (n-gons): no crack. cageEyeLevel(m, spec, {variant}): 2 the nose section (every face forward of the
+  windscreen's aft edge), 3 the whole fuselage, 4 all but aft of the cabin's aft bulkhead (the pax zone's aft ring).
+  cageSheet(P, {eye}) runs it between the global levels and cageRefitArc - before the sill / cut / knife / canopy /
+  rims / interior / shoulder - and never through the kept-stages path.
+- THE MEASURED SHEET IS UNTOUCHED: _cage_ui draws the eye sheet (one entry cached per level-2 sheet and variant) and
+  keeps `s`, the level-2 sheet, for MS, the fit, the join, the glazed area, the layers. Variant 1+ = the cowl at detail
+  2 for that build (_cage_cowl.js, the dial held through cowlPlace and restored at its return). _cowl_gen.js is master's.
+- SWITCH (prototype): ?eyelod=0..4 or window.CAGE_EYE_VARIANT; ?eye=off and the parked capture (CAGE_EYE_OFF) hold 0.
+  Default 0 = master's geometry until the user picks. The flight bakes what the garage draws (CAGE_JOIN.snapshot walks
+  the editor's mount), so ?eyelod=N reaches the flight; A0: in the shipping version the snapshot takes the eye sheet
+  (one visual, damage binds it as today), the garage draws it in the interior view only (asked of the user).
+- Known prototype cost: with an eye sheet drawn the drag preview (deformTick) refuses (its own vertices) and a tick
+  builds whole - the shipping eye sheet is the interior view's only. Overlays computed on the level-2 sheet (decals,
+  panels) may sit a hair off a level-3 skin: look at the stills.
+- RIGS: tools/cowl_res_rig.js (node: per variant the sheet ms, tris, the windscreen base polygon's segment / sharpest
+  turn, the deck facets, the open-border length (a crack would add to it), the measured sheet's hash unchanged, the
+  cowl at detail 1 / 2); tools/cowl_res_stills.js (modes v0..v4 / lvl3, views ahead = THE USER'S VIEW, ext34,
+  outside, left/right/down/up/nocowl; tris, draws, eye ms per view in its JSON).
+- SLOTS (A0): Tue 01:55-02:15 GPU s27-g1w the rig then the stills (C172, metal, Cub; fallback v0,v1,lvl3 if a variant
+  throws); Tue 06:30 rebase on L26c; Tue 07:45-09:15 CPU s27-c4c the 43 CPU gates (+ DMGWALLPATH / FLOWNBAKE grep) then
+  FRAMECOST per variant (chase + cockpit, FRAMECOST_QUERY=eyelod=N); Tue 13:00-13:45 GPU s27-g7w parked cook + GPU gates
+  + GARAGE-LAG per variant. Then the table + stills to A0, the user picks, the shipping wiring, its own gates.
+- STATE: 77da883b8, node --check only - NOTHING RUN YET (no box before 01:55). NOT READY.
+
+## G3714-G3716 - COWL-RES: THE 01:55 STILLS, THE FACIA, THE SWAP, THE PROBE (2026-10-27, COWL-RES for A0)
+- THE STILLS (s27-g1w, 01:55-02:03): THE USER'S VIEW (C172 seated, ahead) - v0 and v1 alike (the kinked arch, a doubled
+  ridge line by the compass: the cowl's detail does nothing there, the arch is the deck); v2 = v3 = v4: one smooth arch
+  (deck facet angle p50 3.3 -> 0.8 deg, edge 14 -> 7 cm). v2 OUT: its region border runs through the Cessna's door (an
+  extra dark line outside; the node rig's open-border length moved on every build for v2 only). Candidates v3 / v4.
+  Tris C172 66.7k -> v4 105.9k / v3 136.8k; eye sheet 270-460 ms (Cub 110-140). A0 02:10: v1 and v2 dropped from the
+  slots, the reps to v0 / v3 / v4.
+- G3714 cageEyeFacia(eye, m2) (_cage_gen.js): the Cub's dial faces and plate vanished in v2-v4 (bezels left). The third
+  level SLIDES the facia toward the pilot (every facia vertex by one amount: Cub 8.7 mm, Cessna 3.8, Jodel / Rufus 0)
+  and the instruments stand on the level-2 facia (the panel layer reads `s`). One shift back along the plate's normal,
+  the median gap of the vertices over the level-2 plate (a per-vertex projection clamped the bowed foot 34 mm wrong).
+- G3715 THE SWAP (_cage_ui.js): every whole build draws the level-2 sheet; the eye sheet (variant 2-4) is a second mesh
+  of the build, made when first wanted - the garage's INTERIOR view (seen, not told: eyeWatch, the camera within 0.5 m
+  of CAGE_CREW_EYE, one distance a frame while a variant is on - app.js untouched, its ~80 gates not owed) swaps it in
+  (the scene slot kept, the slots by section from the mesh that stood, the glass companion again), the exit swaps the
+  level-2 mesh back; the first entry builds behind the `progress` cursor, two frames after the view moved. The flight's
+  capture holds it (_cage_join snapshot / snapshotSteps -> CAGE_UI.eyeHold): cockpit and chase fly the eye sheet. A drag
+  tick swaps back to level 2 (the previews move its own vertices); the settle (whole build, release) brings it back.
+  CAGE_UI.eyeView / eyeHold / eyeStats / eyeStanding. The cowl's detail 2 is variant 1's only now (the cowl is drawn in
+  every view; the user: no smoothing outside). Default variant 0 = master until the user picks.
+- G3716 tools/cowl_res_probe.js (GPU): per build and variant (interleaved, v0 the floor) the exterior tris (level 2
+  always), the first entry (build ms, swap ms, the longest rAF frame of 2.5 s, the cockpit tris), --toggles exits and
+  entries (swap ms, longest frame); NOT CLEAN when a swap is wrong or the exterior has the eye sheet.
+- SLOTS (re-armed 03:2x, one waiter each): 06:30 rebase on origin/master; 07:45 s27-c4c build + 49 CPU gates (+ the
+  _cage_join readers ARCHETYPES ENGID PANEL WATER WINGROWS INPUT); 13:00 s27-g7w real parked cook + --check same, GPU
+  gates, FRAMECOST v0/v3/v4 chase + cockpit; 15:45 s27-g8 build + real cook + --check, master_bench taxi chase/cockpit
+  cub + metal v0/v3/v4 x3 rounds, the probe, garage_lag --cam interior v0/v3/v4.
+- STATE: 0cafb164a (facia) + 21fbdcbc8 (swap + probe), node --check only. NOT READY: the gates, the probe, the table.
+
+## G3717-G3719 - COWL-RES: THE GATES' FIXES, THE TABLE, THE USER'S PICK = v3, THE DEFERRED REBUILD (2026-10-27, COWL-RES for A0)
+- G3717: _cage_join's capture lets the eye-sheet hold go inside viewRestore (first, before its build), so the finally is
+  viewRestore() again (GATE VIEW's shape); cowl_res_stills + cowl_res_probe declared on JOINPARITY's page door.
+- G3718: cowl_res_probe waits for the camera to clear the crew eye before the next build loads.
+- THE TABLE (s27-g8, 15:52-16:52, real cook --check same, packs restored; evidence-2026-10-18/2026-10-27/1_cockpit_nose/
+  6_table_v0_v3/): metal Cessna 4 clean v0/v3 pairs, HOME taxi chase + cockpit 30 fps both, cockpit p99 33.5 both;
+  plane tris 66.9k -> 136.9k (scene +0.6 %); swaps 0.1 ms; the eye sheet is built on the LOAD (the flight capture's
+  hold in BUILD_SYNC's snapshotSteps): C172 336 / metal 283 / Cub 126 ms. Garage cockpit view, a fuselage row's
+  release: busy 469 -> 790, settle 805 -> 1154 ms (metal) - the eye sheet rebuilt in the release's task.
+- THE USER (19:3x, via A0): "let's go v3 on the fuselage then ... land the fix still". EYE_DEFAULT = 3.
+- G3719 eyeAfterBuild: a capture's hold builds the eye sheet at once (the snapshot reads it next); the interior view's
+  goes through eyeView(true) - the level-2 sheet the build drew stands, the eye sheet two frames later behind the
+  `progress` cursor, a later release or an exit cancels it (the ticket).
+- OPEN (A0's, code only): the cockpit view's release costs more than the outside's at v0 already (469 / 805 against
+  ~300) - where it goes is the next study.

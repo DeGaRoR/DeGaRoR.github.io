@@ -8791,6 +8791,218 @@ function cageShoulder(m, S) {
   return withPanel(out);
 }
 
+// THE EYE'S THIRD LEVEL (G3713, COWL-RES; the user, 26 Oct: "the plane is built from the low poly cage, with 2
+// levels of subdivision ... a lot of operations work further on that base subdivided mesh ... Don't try to subdivide
+// the finished model ... It's in the construction of the plane, we need 3 levels rather than 2"). The polygonality
+// they marked from the C172's seat is the windscreen base against the deck: the panes are faces of the subdivided
+// sheet, so that edge is the level-2 polygon, and nothing after the sill / cut / knife / canopy can round it.
+//
+// So the EYE SHEET is a second cageSheet with one more Catmull-Clark step between the two global levels and
+// everything that works on them (cageSheet's opts.eye). The MEASURED sheet - the fit, the join, the aero, the
+// certificates - is the level-2 one, built exactly as before: the eye sheet is only ever drawn.
+//
+// cageSubdivideRegion(m, inReg): one more level on the faces inReg picks. The region is cut out as its own mesh and
+// handed to cageSubdivide itself (the creases, the field, the tags, the seam lists - one subdivision rule, not a
+// second copy), with every edge it shares with the rest held as a crease for that step: its point is the exact
+// midpoint and its two ends follow the crease curve, so the faces outside - still level 2 - take the midpoint into
+// their outline and the moved ends as they are, and nothing cracks. Region faces come out as quads, the ring round
+// it as n-gons (meshFrom fans them).
+function cageSubdivideRegion(m, inReg) {
+  const V = m.V, F = m.F, E = m.E || new Map(), nV = V.length;
+  const reg = new Uint8Array(F.length);
+  let nReg = 0;
+  for (let fi = 0; fi < F.length; fi++) if (inReg(F[fi], fi)) { reg[fi] = 1; nReg++; }
+  if (!nReg) return m;
+  if (nReg === F.length) return cageSubdivide(m);
+  // every edge: how many region faces and how many outside faces use it
+  const EK = new Map();
+  for (let fi = 0; fi < F.length; fi++) {
+    const v = F[fi].v, q = v.length;
+    for (let k = 0; k < q; k++) {
+      const key = cageEdgeKey(v[k], v[(k + 1) % q]);
+      let c = EK.get(key);
+      if (!c) { c = [0, 0]; EK.set(key, c); }
+      c[reg[fi] ? 0 : 1]++;
+    }
+  }
+  // the region as its own mesh
+  const sIdx = new Int32Array(nV).fill(-1), back = [], sV = [];
+  const sF = [];
+  for (let fi = 0; fi < F.length; fi++) {
+    if (!reg[fi]) continue;
+    const f = F[fi];
+    for (const i of f.v) if (sIdx[i] < 0) { sIdx[i] = back.length; back.push(i); sV.push(V[i]); }
+    sF.push(Object.assign({}, f, { v: f.v.map(i => sIdx[i]) }));
+  }
+  const sE = new Map();
+  for (const [key, c] of EK) {
+    if (!c[0]) continue;
+    let w = E.get(key) || 0;
+    if (c[1]) w = Math.max(w, 1);                        // the region's border: a crease for this step
+    if (w > 0) { const [a, b] = key.split('_').map(Number); sE.set(cageEdgeKey(sIdx[a], sIdx[b]), w); }
+  }
+  const sub = { V: sV, F: sF, E: sE };
+  if (m.A) sub.A = back.map(i => m.A[i] || null);
+  if (m.VW) {
+    const vw = new Map();
+    for (const [i, w] of m.VW) if (sIdx[i] >= 0) vw.set(sIdx[i], w);
+    if (vw.size) sub.VW = vw;
+  }
+  const LISTS = ['dashRim', 'seamS', 'seamA', 'dashRimA', 'seamSA'].concat(m.seamKeys || []);
+  if (m.seamKeys) sub.seamKeys = m.seamKeys;
+  for (const key of LISTS) if (m[key]) {
+    sub[key] = [];
+    for (const [a, b] of m[key]) {
+      const c = EK.get(cageEdgeKey(a, b));
+      if (c && c[0] && sIdx[a] >= 0 && sIdx[b] >= 0) sub[key].push([sIdx[a], sIdx[b]]);
+    }
+  }
+  const S = cageSubdivide(sub);
+  // back into the sheet: the region's own vertices move in place (they are level 3 now), the new ones append
+  const NV = V.slice(), NA = m.A ? m.A.slice() : null;
+  if (NA) while (NA.length < nV) NA.push(null);
+  const map = new Int32Array(S.V.length);
+  for (let j = 0; j < S.V.length; j++) {
+    if (j < back.length) { map[j] = back[j]; NV[back[j]] = S.V[j]; if (NA && S.A) NA[back[j]] = S.A[j]; }
+    else { map[j] = NV.length; NV.push(S.V[j]); if (NA) NA.push(S.A ? S.A[j] : null); }
+  }
+  // the border's midpoints, read off cageSubdivide's children (corner k of a face: [cur, ep(cur, next), fp, ...])
+  const bep = new Map();
+  let off = 0;
+  for (const f of sF) {
+    const q = f.v.length;
+    for (let k = 0; k < q; k++) {
+      const key = cageEdgeKey(back[f.v[k]], back[f.v[(k + 1) % q]]);
+      const c = EK.get(key);
+      if (c && c[1]) bep.set(key, map[S.F[off + k].v[1]]);
+    }
+    off += q;
+  }
+  const NF = [];
+  for (let fi = 0; fi < F.length; fi++) {
+    if (reg[fi]) continue;
+    const f = F[fi], v = f.v, q = v.length, out = [];
+    let hit = false;
+    for (let k = 0; k < q; k++) {
+      out.push(v[k]);
+      const ep = bep.get(cageEdgeKey(v[k], v[(k + 1) % q]));
+      if (ep != null) { out.push(ep); hit = true; }
+    }
+    NF.push(hit ? Object.assign({}, f, { v: out }) : f);
+  }
+  for (const f of S.F) NF.push(Object.assign({}, f, { v: f.v.map(j => map[j]) }));
+  const NE = new Map();
+  for (const [key, w] of E) { const c = EK.get(key); if (!c || !c[0]) NE.set(key, w); }
+  for (const [key, w] of S.E) { const [a, b] = key.split('_').map(Number); NE.set(cageEdgeKey(map[a], map[b]), w); }
+  const out = { V: NV, F: NF, E: NE };
+  if (NA) out.A = NA;
+  if (m.VW || S.VW) {
+    const vw = new Map();
+    if (m.VW) for (const [i, w] of m.VW) if (sIdx[i] < 0) vw.set(i, w);
+    if (S.VW) for (const [j, w] of S.VW) vw.set(map[j], w);
+    if (vw.size) out.VW = vw;
+  }
+  if (m.seamKeys) out.seamKeys = m.seamKeys;
+  for (const key of LISTS) if (m[key]) {
+    out[key] = [];
+    for (const [a, b] of m[key]) { const c = EK.get(cageEdgeKey(a, b)); if (c && !c[0]) out[key].push([a, b]); }
+    for (const [a, b] of (S[key] || [])) out[key].push([map[a], map[b]]);
+  }
+  return out;
+}
+
+// cageEyeLevel(m, spec, eye): THE VARIANTS (the user, 26 Oct: "We can try only with the cowl smoothed, but I think we
+// should also do the nose section of the fuselage, then we probably need to do the whole fuselage, but we may also
+// cut what is behind the aft bulkhead ... Try all ... and benchmark"). eye.variant:
+//   1  the cowl only (the cowl's own detail 2 - _cage_cowl.js; the fuselage stays level 2: nothing here)
+//   2  + the fuselage's nose section: every face forward of the windscreen's aft edge (the deck, the windscreen, the
+//      A-pillars' foot, the front frame) - the ring band whole, top and bottom
+//   3  the whole fuselage at level 3
+//   4  the whole fuselage at level 3 but aft of the cabin's aft bulkhead (the pax zone's aft ring, pilPaxA; the cabin's
+//      without a pax bay): the taper, the boom and the tail stay level 2 - never seen from the seat
+// m is the level-2 sheet straight out of the global subdivision (cageSheet calls this before cageRefitArc).
+function cageEyeLevel(m, spec, eye) {
+  const v = eye && +eye.variant || 0;
+  if (v === 3) return cageSubdivide(m);
+  if (v !== 2 && v !== 4) return m;
+  const zones = cageBodyZones(spec);
+  const zOf = k => { const z = zones.find(x => x.key === k); return z && isFinite(z.z0) ? z.z0 : null; };
+  let zCut = null;
+  if (v === 2) {
+    zCut = zOf('nose');
+    if (zCut == null) return m;
+    let zWs = Infinity;                                  // the windscreen's aft edge
+    for (const f of m.F) {
+      if (f.m !== 'windshield') continue;
+      for (const i of f.v) if (m.V[i][2] < zWs) zWs = m.V[i][2];
+    }
+    if (isFinite(zWs)) zCut = Math.min(zCut, zWs);
+  } else {
+    zCut = zOf('pax');
+    if (zCut == null) zCut = zOf('cabin');
+    if (zCut == null) return cageSubdivide(m);
+  }
+  const cz = f => { let s = 0; for (const i of f.v) s += m.V[i][2]; return s / f.v.length; };
+  return cageSubdivideRegion(m, f => cz(f) >= zCut - 1e-6);
+}
+
+// cageEyeFacia(eye, m2): THE FACIA STAYS WHERE THE INSTRUMENTS ARE (G3714). The instruments stand on the level-2
+// sheet's facia (the panel layer reads `s`), and the third level relaxes the facia's bow: the Cub's plate came 8 mm
+// toward the pilot and covered every dial face (the 01:55 stills: bezels, no faces, no plate). Each eye-sheet facia
+// vertex is moved back along the plate's normal by the median gap to the level-2 facia (the plate slid; see below);
+// the dash faces round it share the rim vertices and follow by those few mm. In place; returns the shift in cage
+// units. Both sheets final, the same build.
+function cageEyeFacia(eye, m2) {
+  const n = [0, 0, 0], tri = [];
+  for (const f of m2.F) {
+    if (f.m !== 'dashFace') continue;
+    const q = f.v.length;
+    for (let i = 0; i < q; i++) {
+      const a = m2.V[f.v[i]], b = m2.V[f.v[(i + 1) % q]];
+      n[0] += (a[1] - b[1]) * (a[2] + b[2]); n[1] += (a[2] - b[2]) * (a[0] + b[0]); n[2] += (a[0] - b[0]) * (a[1] + b[1]);
+    }
+    for (let i = 1; i + 1 < q; i++) tri.push([m2.V[f.v[0]], m2.V[f.v[i]], m2.V[f.v[i + 1]]]);
+  }
+  const ln = Math.hypot(n[0], n[1], n[2]);
+  if (!tri.length || !(ln > 0)) return 0;
+  n[0] /= ln; n[1] /= ln; n[2] /= ln;
+  // the plate's own frame: e1 lateral (x off the normal), e2 = n x e1, h along n
+  const dx = n[0], e1 = [1 - dx * n[0], -dx * n[1], -dx * n[2]], l1 = Math.hypot(e1[0], e1[1], e1[2]) || 1;
+  e1[0] /= l1; e1[1] /= l1; e1[2] /= l1;
+  const e2 = [n[1] * e1[2] - n[2] * e1[1], n[2] * e1[0] - n[0] * e1[2], n[0] * e1[1] - n[1] * e1[0]];
+  const uvh = p => [p[0] * e1[0] + p[1] * e1[1] + p[2] * e1[2], p[0] * e2[0] + p[1] * e2[1] + p[2] * e2[2],
+    p[0] * n[0] + p[1] * n[1] + p[2] * n[2]];
+  const T = tri.map(t => t.map(uvh));
+  // the level-2 facia's height under (u, v): null outside its outline (the bowed foot of the plate sits outside it
+  // once the third level has moved the plate, and a clamped height there is a wrong one)
+  const heightAt = (u, v) => {
+    for (const [A, B, C] of T) {
+      const d = (B[1] - C[1]) * (A[0] - C[0]) + (C[0] - B[0]) * (A[1] - C[1]);
+      if (Math.abs(d) < 1e-14) continue;
+      const w0 = ((B[1] - C[1]) * (u - C[0]) + (C[0] - B[0]) * (v - C[1])) / d;
+      const w1 = ((C[1] - A[1]) * (u - C[0]) + (A[0] - C[0]) * (v - C[1])) / d;
+      const w2 = 1 - w0 - w1;
+      if (w0 >= -1e-9 && w1 >= -1e-9 && w2 >= -1e-9) return w0 * A[2] + w1 * B[2] + w2 * C[2];
+    }
+    return null;
+  };
+  // THE PLATE SLID, IT DID NOT BEND (the probe, 27 Oct: the Cub's inner vertices all 8.7 mm, the Cessna's 3.8, the
+  // Jodel's 0): ONE shift along the normal, the median of the vertices over the level-2 plate, for every facia
+  // vertex - the plate keeps its own (level-3) shape and stands where the instruments were placed.
+  const ids = [];
+  for (const f of eye.F) if (f.m === 'dashFace') for (const i of f.v) ids.push(i);
+  const uniq = [...new Set(ids)], dh = [];
+  for (const i of uniq) {
+    const c = uvh(eye.V[i]), h = heightAt(c[0], c[1]);
+    if (h != null) dh.push(h - c[2]);
+  }
+  if (!dh.length) return 0;
+  dh.sort((a, b) => a - b);
+  const k = dh[dh.length >> 1];
+  for (const i of uniq) { const p = eye.V[i]; p[0] += k * n[0]; p[1] += k * n[1]; p[2] += k * n[2]; }
+  return Math.abs(k);
+}
+
 // THE FIELD RE-MEASURED ON THE SMOOTH SKIN (G476, playtest item 149, the
 // user's Screenshot 2026-09-19 162154: "mapping issue on the centre section,
 // back and belly - stretched rivets"). sC is the arc round the CONTROL ring's
@@ -8924,11 +9136,13 @@ function cageSheet(P, opts) {
   const step = (opts && opts.step != null) ? opts.step : 'crease';
   const L = (opts && opts.level != null) ? +opts.level : 2;
   const spec = cageSpec({ ...P });
-  if (opts && opts.passKeep && step === 'crease' && !((P.explodeD || 0) > 0) && !(spec.cut && spec.cut.explode > 0))
+  const eye = opts && opts.eye && +opts.eye.variant >= 2 ? opts.eye : null;   // G3713: the eye sheet (never measured)
+  if (opts && opts.passKeep && !eye && step === 'crease' && !((P.explodeD || 0) > 0) && !(spec.cut && spec.cut.explode > 0))
     return cageSheetKept(spec, step, L);
   const m = buildCage2(spec, step);
   let s = m;
   for (let i = 0; i < L; i++) s = cageSubdivide(s);
+  if (eye && L > 0) s = cageEyeLevel(s, spec, eye);
   if (L > 0) s = cageRefitArc(s);
   // DRAWN WINDOWS (G245): with any drawn, the pax glass BAND is skin again —
   // before the sill and the cut see it, so neither extends nor separates a
@@ -9067,7 +9281,7 @@ if (typeof module !== 'undefined')
                      CAGE_FRAME_KEYS, CAGE_FRAME_ORDER, CAGE_FRAME_NAMES, CAGE_LEGACY_FRAME,
                      cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                      CAGE_UNIT,
-                     buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc,
+                     buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
                      cageRims, cageInterior, cageCut, cageGlassSill,
                      cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                      cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,
@@ -9078,7 +9292,7 @@ if (typeof window !== 'undefined')
                    CAGE_FRAME_KEYS, CAGE_FRAME_ORDER, CAGE_FRAME_NAMES, CAGE_LEGACY_FRAME,
                    cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                    CAGE_UNIT,
-                   buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc,
+                   buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
                    cageRims, cageInterior, cageCut, cageGlassSill,
                    cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                    cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,
