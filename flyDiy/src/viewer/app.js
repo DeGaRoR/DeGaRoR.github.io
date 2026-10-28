@@ -12635,6 +12635,12 @@
   }
   window.FLYDIY_REVEAL_PLANT_NOW = () => revealPlant(1e9);
   window.FLYDIY_REVEAL_EYES = () => revealEyes();   // (the probe's view of them)   // (tools/perf/reveal_probe.js: the harness's boot takes the synchronous path)
+  // G1998e (HWCOV, CLOUD-MRT-WARM): the clouds' march drawn once into its two-target layout under the screen (clouds.js
+  // warmDraw: ANGLE links the first output only, and the first live march built the two-output shader on the GPU process -
+  // 3.6 s held 8.6 s after the roll-out click on a cold profile). The program is the session's after (window.FLYDIY_CLOUD_WARM: drew)
+  function cloudsWarm() {
+    try { if (typeof CLOUDS !== 'undefined' && CLOUDS.warmDraw) window.FLYDIY_CLOUD_WARM = CLOUDS.warmDraw(renderer); } catch (e) { console.warn('clouds warm draw:', e && e.message); }
+  }
   function worldWarmDraw() {
     const a = standAnchor(); if (!a || !WF) return;
     const cam = camera.clone(), D = (def && def.params && def.params.viewDist) || 12;
@@ -12902,7 +12908,7 @@
         // every program linked, before the first frame draws them (the boot's warm draw from the stand is a first frame too)
         .then(() => typeof renderer.initTexture === 'function' ? uploadSliced(scene, 'frames', 'first light') : null)
         .then(() => shaderProgress(programsReady(30000), 'world', 60000))
-        .then(() => { if (inGarage) return Promise.resolve(worldWarmDraw()).then(() => revealPlant(120, 0, () => inGarage)); holdRender = false; return framesRendered(2); }));   // (REVEAL-HITCH: the stand's grass)
+        .then(() => { if (inGarage) return Promise.resolve(worldWarmDraw()).then(cloudsWarm).then(() => revealPlant(120, 0, () => inGarage)); cloudsWarm(); holdRender = false; return framesRendered(2); }));   // (REVEAL-HITCH: the stand's grass; G1998e: the clouds' march)
     } },
   ];
   const TRIP_BY = {}; for (const s of TRIP_STEPS) TRIP_BY[s.id] = s;
@@ -13018,7 +13024,7 @@
           .then(() => programsReady(20000))
           .then(() => warmDrawSliced(sc, aa && aa.target ? aa.target() : null, 'first light'))
           .catch(e => console.warn('settings warm draw:', e && e.message))
-          .then(() => { holdRender = false; return framesRendered(2); }) },   // G732
+          .then(() => { cloudsWarm(); holdRender = false; return framesRendered(2); }) },   // G732 (G1998e: the clouds' march, a cloud row may have rebuilt it)
     ];
     BOOT.show('settings', { steps, set: 'settings', shots: garage ? 'garage' : 'rollout', require: [], landingLabel: 'the new settings',
       done: () => { holdRender = false; if (held && !inGarage) running = true; if (garage) setTimeout(worldPrelinkGfx, 0); }, idle: 20000, hard: 90000, quietFrames: 1 });   // (REVEAL: the world's link starts in the shed)
