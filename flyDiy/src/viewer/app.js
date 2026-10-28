@@ -9780,6 +9780,8 @@
     inHangar: () => { try { const d = playerLoad(); return inGarage && !!d.sheds[d.here] && d.sheds[d.here].base === stTutHome(); } catch (e) { return false; } },
     storeOpen: () => { const e = document.getElementById('hsStore'); return !!e && !e.hidden; },
     clientOnStand: s => !!s.planes.client && slotOnStand() === s.planes.client,
+    // T6b: a pilot of your own hired (the companion does not count); no hire screen (no career on) - nothing to wait for
+    hiredPilot: () => { try { return !window.FLYDIY_HIRE || pilotsHired(playerLoad()).some(id => id !== PILOTS_COMPANION); } catch (e) { return false; } },
     starterInside: s => { try { const d = playerLoad(), W = playerStoreWhere(d, s.planes.starter);
       return W.kind === 'inside' || (W.kind === 'outside' && !playerStoreSlots(d, d.here).inside); } catch (e) { return false; } },
   };
@@ -9825,7 +9827,23 @@
     stTimPut(step.wait ? 'tut' : '', STIM_FACE + '<div class="stTimTxt"><b>' + stEsc(STORY_TIM.name) + '</b> <small>' + stEsc(STORY_TIM.role) + '</small><p>' + stEsc(step.say) + '</p>' + rows + '</div>' + btn);
     const A = step.allow && STORY_TUTOR_ALLOW[step.allow] ? STORY_TUTOR_ALLOW[step.allow](s) : { allow: null };
     storyTutorLock(step.free ? { allow: A.allow, deny: null, free: true, id: step.id } : { allow: A.allow, deny: A.deny || null, id: step.id });
+    if (step.open === 'hire') storyHireOpen();
   }
+  // G3585 T6b: the hire screen, opened from the story in the garage (never over a flight; it closes only after a hire).
+  // A wallet short of the cheapest sign-on on offer is topped up to it first ('story' T6:signon) - the screen opened
+  // from the story cannot close before a hire, so a short wallet would be a dead end
+  function storyHireOpen() {
+    const H = window.FLYDIY_HIRE;
+    if (!H || H.isOpen() || !inGarage || STORY_TUTOR_FACTS.hiredPilot()) return;
+    try {
+      const d = playerLoad(), fees = pilotsOffers(d).map(id => pilotsSignOn(id)).filter(Number.isFinite);
+      const need = fees.length ? Math.min(...fees) - Math.round(d.wallet || 0) : 0;
+      if (d.mode === 'career' && need > 0) { playerCharge(d, -need, 'story', 'T6:signon'); playerSave(); econWalletSync(); }
+    } catch (e) { console.warn('flyDiy (story): the sign-on top-up -', e && e.message); }
+    H.open({ from: 'story' });
+  }
+  // (a hire answers at once: Tim moves on without waiting for the next tick)
+  if (STORY_PAGE && typeof window !== 'undefined') window.addEventListener('flydiy:hired', () => { try { storyCardSync(); } catch (e) {} });
   // the lock (and the light): L { allow, deny, free } or null
   function storyTutorLock(L) {
     let on = !!L;
@@ -10156,8 +10174,9 @@
     try { storyIntroCurtain(); } catch (e) { console.warn('flyDiy (story): the opening -', e && e.message); }
     // G3384: a story with its starter - the design flow's "New aeroplane" door stays shut (design_flow.js maybeAutoOpen)
     try { const s = stLive(); if (s && s.planes && s.planes.starter) window.FLYDIY_STORY_STARTER = s.planes.starter; } catch (e) {}
-    // T2's checklist follows the build on the stand (its ledger memoised on the spec's fingerprint)
-    setInterval(() => { try { const s = stLive(); if (s && !s.open && s.beat === 'T2') storyCardSync(); } catch (e) {} }, 3000);
+    // T2's checklist follows the build on the stand (its ledger memoised on the spec's fingerprint); T6's hire step opens
+    // the hire screen once the garage is up (T6b: the beat may begin in the air)
+    setInterval(() => { try { const s = stLive(); if (s && !s.open && (s.beat === 'T2' || (s.beat === 'T6' && inGarage && !STORY_TUTOR_FACTS.hiredPilot()))) storyCardSync(); } catch (e) {} }, 3000);
     window.FLYDIY_STORY = {
       story: () => { const s = stLive(); return s ? JSON.parse(JSON.stringify(s)) : null; },
       mask: () => storyMask(playerLoad()), jobsOpen: () => storyJobsOpen(playerLoad()), card: () => storyCardNow(),
