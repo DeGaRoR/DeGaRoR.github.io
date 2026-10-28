@@ -5014,8 +5014,9 @@ function buildMatPanel() {
   // G1320: the reach lives in AEROSKIN now (pure, gated by node) and
   // carries the layer sections that wore the base too — the rudder, the
   // wing, the tips — see aeroBaseReach
+  // G3541: an open fuselage (no skin) shows its truss - the pick repaints it too
   const baseReach = (map, prev, next, neutral, eq) =>
-    A.aeroBaseReach(map, prev, next, neutral, eq, names);
+    A.aeroBaseReach(map, prev, next, neutral, eq, names, { open: P.skinOn != null && !+P.skinOn });
   {
     const d = mkRow2('base colour', 'one colour for the whole aircraft — ' +
       'the skin, the rings, the bands and pillars, the nose deck, the cowl, ' +
