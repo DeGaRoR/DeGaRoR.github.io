@@ -205,6 +205,15 @@ function run(M) {
          "Tim's band carries the beat: his last line's OK moves an ack beat, the checklist rides under it, the story's messages are his, a closed band leaves a chip");
       ok(/stMarksOff = want;/.test(APP) && /&& !stMarksOff;/.test(APP) && /var stMarksOff = false;/.test(APP),
          'the CG / neutral-point marks are off while the story holds the paint-only stage (T0)');
+    // G3358 (the user 23 Oct: "Interior flood light should be ON by default in the garage")
+      { const GJ = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'garage.js'), 'utf8');
+        ok(/function garageFloodArm\(name\)/.test(APP) && /addEventListener\('flydiy:specApplied', \(\) => \{\n    const k = gFloodArm; gFloodArm = null;/.test(APP)
+           && /if \(!P \|\| \+P\.lightOn !== 1 \|\| \(P\.li_floodFit != null && !\+P\.li_floodFit\) \|\| \+P\.li_flood === 1\) return;\n      P\.li_flood = 1;   /.test(APP)
+           && !/function garageFloodOn\(/.test(APP) && !/li_flood = 1; U\.build\(\);\n      if \(typeof U\.syncSliders === 'function'\) U\.syncSliders\(\);\n    \} catch \(e\) \{ console\.warn\('flyDiy: the garage flood/.test(APP)
+           && /garageFloodArm\(slotOnStand\(\) \|\| ''\); E\.applySpec\(genSpec\);/.test(APP) && /garageFloodArm\(slotOnStand\(\) \|\| ''\); g = E\.applySpecSteps\(genSpec\);/.test(APP)
+           && /gFloodArm = name == null \? null : String\(name \|\| 'stand'\);/.test(APP)
+           && /floodArm: n => garageFloodArm\(n\),/.test(APP) && /if \(api\.floodArm\) api\.floodArm\(slotName\); E\.applySpec\(spec\);/.test(GJ),
+           'in the garage the cabin flood is ON in the stand\'s own load (the boot seed, an aeroplane put on the stand): set between the rows and the build, never a flip + build after it; once per aeroplane, only where fitted and the master on; the boot seed ARMS (a build not in the fleet arms as "stand", only null disarms) (G3358)'); }
       ok(!/n\.id = 'stNoBenchNote'/.test(APP) && /var STORY_BENCH_LINE = 'No test bench in here/.test(APP) && /small && L0\.length \? L0\.concat\(\[STORY_BENCH_LINE\]\) : L0/.test(APP),
          'no bench note in the panel: in the small shed Tim says it, his last line (G3361)'); }
     ok(/id = 'stTim'/.test(APP) && /FLYDIY_AP\.manual\(\) && !inGarage/.test(APP), 'Tim band at the bottom; it steps aside in flight when the player takes manual control');
