@@ -1062,7 +1062,7 @@
   // LOOK_COS, its line within LOOK_OFF of the axis - the drawings run 2-6 cm off the physics lines). Each such place gets
   // that member and its station on it (R.mem, R.mt). Anything else the bucket draws - a panel, a seat, a fitting, a tube
   // crossing a member - is no member's: never hidden with it, never in its re-ringed copy (dmg_members.js)
-  const LOOK_R = 0.035, LOOK_COS = 0.94, LOOK_OFF = 0.09;
+  const LOOK_R = 0.035, LOOK_COS = 0.94, LOOK_OFF = 0.09, LOOK_ONE = 0.012;
   // ...and on a record the inheritance never bound (made after its list: app.js brkLook) - the tags alone, its binding as
   // it is: the switch on is the switch off and the members (st: { places, done })
   function* lookTagOnly(E, T, rest, st) {
@@ -1084,7 +1084,7 @@
       for (let e = 0; e < 3; e++) { const v = q[e]; nb[fill[v]++] = q[(e + 1) % 3]; nb[fill[v]++] = q[(e + 2) % 3]; } }
     const d3 = (u, v) => [P[u * 3] - P[v * 3], P[u * 3 + 1] - P[v * 3 + 1], P[u * 3 + 2] - P[v * 3 + 2]];
     const ln = a => Math.hypot(a[0], a[1], a[2]);
-    let _n = 0;
+    let _n = 0; const dc = new Float32Array(nv), near = new Map();
     for (let v = 0; v < nv; v++) { R.mem[v] = -1; R.mt[v] = 0;
       if (cv[v] !== INH.tube || (rp && rp[v] !== v) || at[v + 1] === at[v]) continue;
       if (++_n >= 100) { _n = 0; yield st.places; }   // (a welded joint has many neighbours: small chunks)
@@ -1119,8 +1119,13 @@
       if (best < 0) continue;
       const g = Sall[best]; let t = ((P[v * 3] - g.ax) * g.ex + (P[v * 3 + 1] - g.ay) * g.ey + (P[v * 3 + 2] - g.az) * g.ez) / g.L2;
       if (t < -0.15 || t > 1.15) continue;
-      R.mem[v] = g.bi; R.mt[v] = t < 0 ? 0 : t > 1 ? 1 : t; st.lookPl = (st.lookPl || 0) + 1;
+      R.mem[v] = g.bi; R.mt[v] = t < 0 ? 0 : t > 1 ? 1 : t; dc[v] = Math.sqrt(bd);
+      const m0 = near.get(g.bi); if (m0 === undefined || bd < m0) near.set(g.bi, bd);
     }
+    // ONE drawn tube a member: the one nearest it (two tubes drawn side by side - a longeron and its rail - both parallel to
+    // one member were one ring round both, a flat slab); the farther ones are no member's
+    for (let v = 0; v < nv; v++) { const bi = R.mem[v]; if (bi < 0) continue;
+      if (dc[v] > Math.sqrt(near.get(bi)) + LOOK_ONE) { R.mem[v] = -1; R.mt[v] = 0; } else st.lookPl = (st.lookPl || 0) + 1; }
   }
   const TUBE_SEG = 0.10;      // m: ...and a piece farther than this from every member along its length is no member's tube
   function tubePieces(E, Sall, st) {
