@@ -1,0 +1,13 @@
+=== RADIALDIV ===
+FAIL mosquito: HANDS OFF 20 s, the heading moved under 15 deg - -55.8
+  FAIL mosquito_1: HANDS OFF 20 s, the heading moved under 15 deg - -55.9
+  FAIL cub: HANDS OFF 20 s, the heading moved under 15 deg - -46.9
+GATE RADIALDIV: FAIL (3)
+(exit code 1)
+
+──────── summary ────────
+RADIALDIV FAIL  1610.9 s
+total           1610.9 s
+wall            1610.9 s  (jobs 4)
+
+BATTERY: FAIL — never deliver red.

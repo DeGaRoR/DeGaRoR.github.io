@@ -1,0 +1,95 @@
+GATE RWYTREES - the trees by the runways (core + full)
+  ok   1 Jolene's runway clearances are named  (fans mn_x_fan_n nv_fan_n nv_fan_s x_fan13_0 x_fan3_0 x_fan_w1_0 | boxes 12 | shoulders )
+  ok   1 today lifts none  (0 lifted: none)
+  ok   1 map lifts box+fan  (18 lifted: box+fan)
+  ok   1 mapx lifts box  (12 lifted: box)
+  ok   3 today: no collidable tree on paving  (24737 trees; 0 on paving, 0 on a side)
+  ok   5 today: every collidable tree stands where the fill may plant (one rule)  (0 outside it)
+  ok   4 today: the analytic world's corridor is not the island's  (15 collidable trees in |z| < 60, -3300 < x < 150)
+  ok   4 today: no collidable tree inside the aerodrome box the fill keeps (no unseen hitbox)  (0 inside)
+  ok   3 map: no collidable tree on paving or its drawn side  (24789 trees; 0 on paving, 0 on a side)
+  ok   5 map: every collidable tree stands where the fill may plant (one rule)  (0 outside it)
+  ok   4 map: the analytic world's corridor is not the island's  (15 collidable trees in |z| < 60, -3300 < x < 150)
+  ok   3 mapx: no collidable tree on paving or its drawn side  (24771 trees; 0 on paving, 0 on a side)
+  ok   5 mapx: every collidable tree stands where the fill may plant (one rule)  (0 outside it)
+  ok   4 mapx: the analytic world's corridor is not the island's  (15 collidable trees in |z| < 60, -3300 < x < 150)
+  ok   4 mapx: the shoulders and the fans stay clear  (0 inside)
+  ok   4 map: 13/31 has its woods nearer than today on both sides, and no side of 13/31 or 02/20 farther  (nearer HOME L, HOME R, w2 R | HOME L 50.8 -> 39.0, HOME R 46.9 -> 33.2, w2 L 55.5 -> 55.5, w2 R 48.8 -> 25.5)
+  ok   6 map: every stand's way out clears every collidable tree by the widest half-span (twinBush 8 m)  (least margin 24.0 m)
+  ok   6 map: every runway's centreline clears every collidable tree by the widest half-span  (least margin 8.8 m)
+  ok   6 map: 13/31's climb-out and approach clear a 5 % surface over the collidable trees  (7.5 m under it at worst (past end 0, 162 m out))
+  ok   3 no collidable tree on a taxiway, an apron or a road in any variant  (today taxiway 64.2 apron 8.3 road 7.2 | map taxiway 64.2 apron 3.6 road 2.1 | mapx taxiway 64.2 apron 3.6 road 2.1)
+  ok   7 today: the page composed Jolene in its variant  (jolene / today / today, 318 s)
+  ok   7 today: no visible tree on paving  (47461 fill trees near the runways; 0 on paving)
+  ok   7 today: every visible tree stands outside the core's clearances (one rule)  (0 inside)
+  ok   7 today: the page threw nothing
+  ok   7 today: no visible tree on a taxiway, an apron or a road round HOME's field  (taxiway 11.7 apron 10.8 road 7.2)
+  ok   7 map: the page composed Jolene in its variant  (jolene / map / map, 303 s)
+  ok   7 map: no visible tree on paving  (51022 fill trees near the runways; 0 on paving)
+  ok   7 map: every visible tree stands outside the core's clearances (one rule)  (0 inside)
+  ok   7 map: the page threw nothing
+  ok   7 map: no visible tree on a taxiway, an apron or a road round HOME's field  (taxiway 4.1 apron 2.1 road 2.0)
+  ok   7 mapx: the page composed Jolene in its variant  (jolene / mapx / mapx, 308 s)
+  ok   7 mapx: no visible tree on paving  (50764 fill trees near the runways; 0 on paving)
+  ok   7 mapx: every visible tree stands outside the core's clearances (one rule)  (0 inside)
+  ok   7 mapx: the page threw nothing
+  ok   7 mapx: no visible tree on a taxiway, an apron or a road round HOME's field  (taxiway 4.1 apron 2.1 road 2.0)
+  ok   7 map: the visible forest of 13/31 and 02/20 nearer than today on every side  (HOME L, HOME R, w2 L, w2 R)
+  ok   8 map: the aluminium C172 flies Jolene AFB 13/31's circuit to a stop and touches no tree  (STOPPED at 464 s; nearest node to a tree cylinder (below its top): taxi 62.0 m, roll 73.9 m, climb 102.8 m, circuit none within 64 m, final none within 64 m, landing 49.6 m)
+  ok   8 map: the Cub flies Jolene AFB 13/31's circuit to a stop and touches no tree  (STOPPED at 603 s; nearest node to a tree cylinder (below its top): taxi 49.8 m, roll 68.1 m, climb 68.1 m, circuit none within 64 m, final none within 64 m, landing 69.9 m)
+  ok   8 map: the Cub flies East Point Clearing's circuit to a stop and touches no tree  (STOPPED at 260 s; nearest node to a tree cylinder (below its top): taxi 27.6 m, roll 85.1 m, climb 18.4 m, circuit none within 64 m, final 45.6 m, landing 46.4 m)
+  ok   9 the strips with a clearance of their own are the user's authored HOME, w2, w3, w4, w5, w6, w7, w8 (every other today's box), no collidable tree inside one  (HOME w2 w3 w4 w5 w6 w7 w8 | )
+  ok   9 02/20's own wide clearance (200 m, 500 m, taper 0.15) clears its trapezoid of collidable trees  (today 52 trees in it, with the clearance 0; today's own box 0)
+  ok   9 02/20's own narrow clearance (10 m, 20 m) lets the woods in past today's 60 m and keeps its own 10 m clear  (7 trees inside today's box, 0 inside its own)
+  ok   9 the taper: 400 m past the end the clearance reaches 260 m, beside the strip 200 m
+
+  metres past the paved edge, inside the runway's length: the MAP's nearest TREE cell (canopy >= 2.5 m);
+  per variant the nearest COLLIDABLE tree (col) and VISIBLE tree (vis: the forest rule / the open ground; --all)
+  (map: the nearest / the median over 10 m stations of the first TREE cell within 200 m)
+  runway side  map near/median |  today col   vis(for/open) |    map col   vis(for/open) |   mapx col   vis(for/open)
+  w2 L         27.5/ 58.0 |      55.5   46.3/ 46.0 |     55.5   29.5/  4.6 |     55.5   29.5/  4.6
+  w2 R          0.0/ 22.0 |      48.8   46.1/ 46.9 |     25.5    4.1/  5.1 |     25.5    4.1/  5.1
+  HOME L       11.0/ 42.5 |      50.8   46.0/ 46.1 |     39.0   14.2/  5.0 |     39.0   14.2/  5.0
+  HOME R        0.0/ 38.5 |      46.9   46.0/ 46.3 |     33.2   14.1/  1.8 |     33.2   14.1/  1.8
+  w3 L          0.0/ 34.5 |      30.2   10.2/ 10.7 |     30.2    8.3/  8.2 |     30.2    8.3/  8.2
+  w3 R          0.0/  0.0 |      17.8   10.1/ 10.1 |     17.8    7.9/  8.0 |     17.8    7.9/  8.0
+  mn_strip L    0.0/  0.0 |      72.0   60.6/ 64.7 |     72.0    9.8/ 24.3 |     72.0    9.8/ 24.3
+  mn_strip R    0.0/  0.0 |     217.0   60.5/ 62.7 |    217.0    8.5/ 32.9 |    217.0    8.5/ 32.9
+  nv_strip L    0.0/  0.0 |      50.4   33.6/  -   |     50.4   24.9/  -   |     50.4   24.9/  -  
+  nv_strip R    0.0/  0.0 |     145.4   32.5/177.3 |     31.7   25.4/177.3 |     31.7   25.4/177.3
+  tw_ski L      -  /  -   |     953.9    -  / 63.4 |    953.9    -  / 63.4 |    953.9    -  / 63.4
+  tw_ski R      -  /  -   |     516.2    -  /243.3 |    516.2    -  /  8.8 |    516.2    -  /  8.8
+  w5 L          0.0/ 12.0 |      50.7    9.0/  8.5 |     50.7    9.0/  8.5 |     50.7    9.0/  8.5
+  w5 R          0.0/ 13.0 |     2286.5   12.4/ 11.4 |      9.5   12.4/  7.9 |      9.5   12.4/  7.9
+  w6 L          4.5/ 46.0 |      15.9   15.6/  9.1 |     15.9   15.6/  9.1 |     15.9   15.6/  9.1
+  w6 R         22.0/ 81.0 |     233.7   22.8/ 10.4 |    233.7   22.8/ 10.4 |    233.7   22.8/ 10.4
+  w7 L          7.0/149.5 |      42.8   19.7/  7.8 |     42.8   19.7/  8.3 |     42.8   19.7/  8.3
+  w7 R          3.5/144.0 |     255.7    8.5/  7.7 |    255.7    8.5/  8.6 |    255.7    8.5/  8.6
+  w4 L          1.5/ 24.0 |      26.8   21.5/ 22.8 |     26.8   10.0/  8.6 |     26.8   10.0/  8.6
+  w4 R          0.5/ 18.0 |     463.2   20.8/ 28.7 |    463.2   11.1/  8.5 |    463.2   11.1/  8.5
+  w8 L          0.0/ 23.0 |      45.4   12.4/ 12.0 |     45.4   12.4/ 12.0 |     45.4   12.4/ 12.0
+  w8 R          0.0/ 60.0 |     266.7   45.7/ 13.5 |    266.7   45.7/ 13.5 |    266.7   45.7/ 13.5
+  w1 L          0.0/ 21.5 |      73.6   60.4/ 60.0 |     53.0    8.0/  8.8 |     53.0    8.0/  8.8
+  w1 R          0.0/  5.5 |      64.9   60.0/ 61.0 |      8.4    7.9/  9.5 |      8.4    7.9/  9.5
+
+  the pavement kinds - the nearest collidable tree past the edge (the island) / the nearest visible (HOME's field, --all), m:
+    rule: today - the pavement + its band + 6 m fade (taxiway 3+6, apron 3+6, road <= 1.2+6), the aerodrome box, the strip box
+          map / mapx - taxiways and aprons: the paving + 1.8 m (their drawn side); roads: unchanged (band + fade: what they draw)
+  taxiway   today  64.2 /  11.7   map  64.2 /   4.1   mapx  64.2 /   4.1
+  apron     today   8.3 /  10.8   map   3.6 /   2.1   mapx   3.6 /   2.1
+  road      today   7.2 /   7.2   map   2.1 /   2.0   mapx   2.1 /   2.0
+
+  the ground paths (the widest footprint, twinBush half-span 8 m, against each tree's cylinder), per variant: taxi | roll | 5 % surface
+  w2        today - | 62.5 | 4.3   map - | 39.4 | 4.3   mapx - | 39.4 | 4.3
+  HOME      today 67.6 | 60.8 | 7.6   map 51.6 | 47.1 | 7.5   mapx 51.6 | 47.1 | 7.6
+  w3        today 49.7 | 18.2 | 37.5   map 49.7 | 18.2 | -1.9   mapx 49.7 | 18.2 | 37.5
+  mn_strip  today 86.2 | 72.4 | 56.4   map 86.2 | 11.3 | -2.8   mapx 86.2 | 72.4 | 56.4
+  nv_strip  today 64.4 | 47.8 | 2.4   map 24.0 | 29.1 | -0.4   mapx 24.0 | 29.1 | 2.2
+  tw_ski    today 495.3 | 516.6 | 469.0   map 495.3 | 516.6 | 469.0   mapx 495.3 | 516.6 | 469.0
+  w5        today - | 23.2 | -396.0   map - | 9.4 | -396.0   mapx - | 9.4 | -396.0
+  w6        today - | 17.9 | -5.6   map - | 17.9 | -5.6   mapx - | 17.9 | -5.6
+  w7        today - | 38.7 | 0.0   map - | 38.7 | 3.3   mapx - | 38.7 | 3.3
+  w4        today - | 22.2 | -46.2   map - | 22.2 | -46.2   mapx - | 22.2 | -46.2
+  w8        today - | 42.8 | -16.4   map - | 42.8 | -16.4   mapx - | 42.8 | -16.4
+  w1        today 73.0 | 65.4 | -33.8   map 73.0 | 8.8 | -33.8   mapx 73.0 | 8.8 | -33.8
+GATE RWYTREES: PASS
