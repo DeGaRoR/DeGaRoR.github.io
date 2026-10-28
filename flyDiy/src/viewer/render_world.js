@@ -4782,6 +4782,16 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       return BIO.codeOf(tt, Math.atan(sl) * 180 / Math.PI, ISLC.canopyAt(x, z), r);
     };
     const biomeAt = (x, z, r) => BIO.mixHere(codeAt(x, z, r), x, z);
+    // 18 LAKESHORE's MASK (G3430, BIOMES.SHORE): the land within shoreReach m of a drawn lake's line - drawnLakeSD, the
+    // splat's own lsd field (+ inside, m) - its edge broken by shoreJit x the reach on a 17 m noise, under the bank's slope
+    // (the steeper faces are the 17 rock bank); the cover ring plants the lake shore's rows there (BIO.shoreHere)
+    if (BIO) BIO.shore = (x, z) => {
+      const K = BIO.knobs(), R = K.shoreReach || 0, J = K.shoreJit || 0; if (!(R > 0)) return false;
+      const sd = drawnLakeSD(x, z); if (sd > 0 || -sd > R * (1 + J)) return false;
+      if (-sd > R * (1 + (vnoise(x, z, 17, 9) - 0.5) * 2 * J)) return false;
+      const d = 4, sl = Math.hypot(world.terrainH(x + d, z) - world.terrainH(x - d, z), world.terrainH(x, z + d) - world.terrainH(x, z - d)) / (2 * d);
+      return Math.atan(sl) * 180 / Math.PI < (K.shoreSlope !== undefined ? K.shoreSlope : (K.bankLo !== undefined ? K.bankLo : 22));
+    };
     function plantWoodland() {
       // Undo the previous plant. The InstancedMeshes and the impostor atlas are
       // OURS and go; the geometry and materials of a real tree are NOT — they

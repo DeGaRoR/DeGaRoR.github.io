@@ -1057,6 +1057,12 @@ geometry belongs to evolveduk.
   - source: https://sketchfab.com/3d-models/grass-patches-6952780b80594a31aab2dedf7249a47a
   - 3 cover · 1,910 tris · tallest 129.5 m · **units: x0.0077 to a metre**
 
+- **fern grass 02** — `vegetation/grass/fern_grass_02.glb` (the lake-shore reeds, `reed_marsh`; ASSETS wk44, 2026-10-24)
+  - author: Digital screen official (https://sketchfab.com/ck212575)
+  - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+  - source: https://sketchfab.com/3d-models/fern-grass-02-93d1f6a261e24b8394d0ea41cf985ef9
+  - 1 cover · 2,128 tris · bakes 0.019 m tall (a x0.001 wrapper): size 62 stands a 1.2 m clump
+
 - **Realtime Grass** — `vegetation/grass/realtime_grass.glb`
   - author: mfhscoobydoo (https://sketchfab.com/mfhscoobydoo)
   - licence: CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)

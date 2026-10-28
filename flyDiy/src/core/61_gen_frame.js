@@ -248,13 +248,29 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   const dmgCovered = !(S.fuselage && S.fuselage.covering === 'open');
   const dmgGlazed = dmgCovered && !(S.cab && S.cab.glazing === 'none');
   // the part a node belongs to, and the part's rank: the higher rank is the child of a joint (it comes off)
+  const dmgLay = S.engLayout === 'pushPull' || S.engLayout === 'tri' || S.engLayout === 'quad';
   const dmgPart = i => {
     const t = nodes[i].tag || '', z = P[i][2], sd = z < 0 ? 'L' : 'R';
     if (t === 'WF' || t === 'WR' || t === 'WB' || t === 'WB2') return { p: 'wing' + (nodes[i].plane || 0) + sd, r: 1, base: 'wing' + (nodes[i].plane || 0), wing: true };
     if (t.slice(0, 2) === 'BM') return { p: 'boom' + t[2], r: 2, base: 'boom' };
     if (/^(HF|HR|HB|HT)/.test(t)) return { p: 'stab', r: 3, base: 'stab' };
     if (/^(VF|VR|VX|FIN)/.test(t)) return Math.abs(z) > 0.2 ? { p: 'fin' + sd, r: 3, base: 'fin' } : { p: 'fin', r: 3, base: 'fin' };
-    if (/^(ENG|CGE|MNT)/.test(t)) return Math.abs(z) > (S.cab ? S.cab.halfW : 0.5) ? { p: 'eng' + sd, r: 3.5, base: 'eng' } : { p: 'eng', r: 3.5, base: 'eng' };
+    if (/^(ENG|CGE|MNT)/.test(t)) {
+      // ENGINE-CONFIGS-2 (G3491): A LAYOUT'S EVERY ENGINE IS ITS OWN PART (its own break group: one mount letting go
+      // takes its engine, not its neighbour's) - the nearest of the layout's mounts: the nose 'eng' as ever, a
+      // push-pull's pusher 'engAft', the inner wing pair 'engL' / 'engR' as ever, a four's outer pair 'engL2' / 'engR2'
+      if (dmgLay) {
+        let best = null, bd = Infinity;
+        for (const e of S.engAt) {
+          const ez = e.mount === 'wing' ? (z < 0 ? -e.z : e.z) : 0, d = Math.hypot(P[i][0] - e.x, z - ez);
+          if (d < bd) { bd = d; best = e; }
+        }
+        const pp = !best || best.mount === 'nose' ? 'eng' : best.mount === 'pusher' ? 'engAft'
+          : 'eng' + sd + (best.pair > 0 ? best.pair + 1 : '');
+        return { p: pp, r: 3.5, base: 'eng' };
+      }
+      return Math.abs(z) > (S.cab ? S.cab.halfW : 0.5) ? { p: 'eng' + sd, r: 3.5, base: 'eng' } : { p: 'eng', r: 3.5, base: 'eng' };
+    }
     if (t.slice(0, 4) === 'AXLE') return { p: 'gear' + sd, r: 4, base: 'gear' };
     if (t === 'TW') return { p: 'tw', r: 4, base: 'tw' };
     if (t === 'FLK' || t === 'FLD') return { p: 'float' + sd, r: 4, base: 'float' };
@@ -923,6 +939,17 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                                   const xs = [...rings[k0], ...rings[k0 + 1]].reduce((a, q) => a + P[q][0], 0) / 8, qs = secAt(xs);
                                   const Rm = Math.max(0.05, Math.sqrt(qs.a * qs.b)), ph = Math.sqrt(Rm / tS) / 16;
                                   return (1 - 0.731 * (1 - Math.exp(-ph))) * 0.605 * E * tS / Rm; })() };
+      // G3572 (DC3-2, 2026-10-24): ABOVE THE KNEE THE CONE IS AN AIRLINER'S, STIFFENED. The bare skin's buckling is the
+      // lower bound named above; a 9 t aeroplane's cone is stringer- and frame-stiffened, and the moment its tail
+      // makes grows with the cone's length as well as the weight (G3505's t ~ sqrt(W0) held only the weight). So past
+      // GEN_RULES.gaugeHoldK x the material's design gross, the break stress is raised until the root holds
+      // GEN_RULES.shellHoldKappa x W0 g x the cone's length (the validated float Cessna's figure); the solver still
+      // caps it at the alloy's ultimate (30_solver: min(fu, sigB)). Strength only: EI, GJ, Kt, the mass and the bill
+      // are the skin's. Measured on the full-size DC-3: 220 kN.m -> 1.05 MN.m; at or below the knee nothing is set
+      if (GG && GG.W0 > kneeW && R.shellHoldKappa > 0) {
+        const Mu0 = shellDmg.sigB * shellDmg.EIv / (E * shellDmg.cv), Mreq = R.shellHoldKappa * GG.W0 * 9.81 * Lb;
+        if (Mreq > Mu0) shellDmg.sigB *= Mreq / Mu0;
+      }
     }
     if (cl.length >= 6) clusters.push({ cls: 'shell', tag: 'SHELL', nodes: cl, rings, gj: GJs,
                                         omega: { k: Kt, kRef: 29182, mRef: 61.6, wRef: 300 }, dmg: shellDmg,
@@ -1596,7 +1623,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // solver can share thrust per ENGINE (a cut engine, a trimmed lever)
   // instead of evenly over the nodes.
   const engIdx = noseEng ? [0, 0] : [];
-  if (!noseEng) {
+  // G2790 ENGINE-CONFIGS: a LAYOUT (S.engLayout: pushPull / tri / quad) hangs
+  // its nose engine on the firewall pair above and every other entry here,
+  // each mount node carrying ITS OWN entry's index (the pusher of a push-pull
+  // is engine 1, the Trimotor's nacelles 1 and 2, the quad's 0..3) — the
+  // solver's per-engine thrust then makes a cut engine a real couple. The
+  // single mounts and the classic pair run exactly the old loop.
+  const LAYF = S.engLayout === 'pushPull' || S.engLayout === 'tri' || S.engLayout === 'quad';
+  const engCowl = [];                    // G2790: [nodeA, nodeB] per off-nose engine of a layout
+  if (!noseEng || LAYF) {
     sec('engines');
     const iRing = x => {
       let b = 0, d = 1e9;
@@ -1625,7 +1660,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     };
     for (let i = 0; i < EAT.length; i++) {
       const e = EAT[i];
-      if (e.mount === 'wing' && i > 0) continue;      // the pair's mirror
+      if (LAYF) {
+        if (e.mount === 'nose') continue;              // the firewall pair, above
+        if (e.mount === 'wing' && e.side > 0) continue; // the pair's mirror
+      } else if (e.mount === 'wing' && i > 0) continue;      // the pair's mirror
+      const iE = LAYF ? i : 0;                         // this entry's engine index
       if (e.mount === 'pusher') {
         const [PL, PR] = NM(e.x, e.y, 0.55 * cab.halfW, 'ENG');
         const rg = F[iRing(e.x)];
@@ -1634,7 +1673,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
         BM(PR, rg.TR); BM(PR, rg.BR); BM(PR, rg.BL); BM(PR, rg.TL);
         hangEngine(e, [PL, PR], [rg.TL, rg.TR, rg.BL, rg.BR], 0,
                    engDryM, S.prop.mass);
-        engNodes.push(PL, PR); engIdx.push(0, 0);
+        engNodes.push(PL, PR); engIdx.push(iE, iE);
+        if (LAYF) engCowl.push([PL, PR]);
       } else if (e.mount === 'wingTop') {
         const [WL, WR] = NM(e.x, e.y, 0.35 * cab.halfW, 'ENG');
         const rg = F[iRing(e.x)];
@@ -1709,7 +1749,8 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
           hangEngine({ x: e.x, y: e.y, pushes: e.pushes }, [n], ring,
                      P[n][2], engDryM, S.prop.mass, bearA);
         }
-        engNodes.push(NL, NR); engIdx.push(0, 1);
+        engNodes.push(NL, NR); engIdx.push(iE, LAYF ? i + 1 : 1);
+        if (LAYF) engCowl.push([NL, NL], [NR, NR]);
       }
     }
     EL = engNodes[0]; ER = engNodes[1];
@@ -2648,13 +2689,25 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   // pillar rule below is unchanged — GATE BUILD's "old layouts resolve
   // exactly as they did" holds to the millimetre.
   const seatsX = Array.isArray(S.cab && S.cab.seatsX) ? S.cab.seatsX : null;
-  const billAt = (x, m) => {
+  // G3570 (DC3-2, 2026-10-24): A RAISED CABIN FLOOR CARRIES WHAT STANDS ON IT. `cabin.floorUp` (the cage's 'cabin
+  // floor height', metres over the floor the door sills give) lifts the floor, its seats, the people and the bags on
+  // it: what the frame billed on a ring's bottom pair (BL / BR) is shared with its top pair (TL / TR) so the mass
+  // centre stands floorUp higher. Absent (every build before the row): onRing is pt, to the bit
+  const floorUp = (S.cab && S.cab.floorUp > 0) ? S.cab.floorUp : 0;
+  const onRing = (rg, sd, m) => {
+    const b = rg['B' + sd], t = rg['T' + sd];
+    if (!(floorUp > 0) || t == null) { pt(b, m); return; }
+    const w = Math.max(0, Math.min(1, floorUp / Math.max(1e-6, P[t][1] - P[b][1])));
+    pt(b, m * (1 - w)); pt(t, m * w);
+  };
+  const billAt = (x, m, up) => {
     const [f, a] = straddle(x);
-    if (f === a || !F[a]) { pt(F[f].BL, 0.5 * m); pt(F[f].BR, 0.5 * m); return; }
+    const put = up ? onRing : (rg, sd, mm) => pt(rg['B' + sd], mm);
+    if (f === a || !F[a]) { put(F[f], 'L', 0.5 * m); put(F[f], 'R', 0.5 * m); return; }
     const x0 = ST[f].x, x1 = ST[a].x;
     const wa = Math.max(0, Math.min(1, (x - x0) / Math.max(1e-6, x1 - x0)));
-    pt(F[f].BL, 0.5 * m * (1 - wa)); pt(F[f].BR, 0.5 * m * (1 - wa));
-    pt(F[a].BL, 0.5 * m * wa);       pt(F[a].BR, 0.5 * m * wa);
+    put(F[f], 'L', 0.5 * m * (1 - wa)); put(F[f], 'R', 0.5 * m * (1 - wa));
+    put(F[a], 'L', 0.5 * m * wa);       put(F[a], 'R', 0.5 * m * wa);
   };
   const seatAt = i => (seatsX && typeof seatsX[i] === 'number') ? seatsX[i] : null;
   // WHICH CHAIRS ARE FILLED (G180). `S.occupied` is the resolved per-seat
@@ -2669,12 +2722,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
   for (let i = 0; i < nSeats; i++) {
     if (occ ? !occ[i] : i >= aboard) continue;
     const sx = seatAt(i);
-    if (sx != null) { billAt(sx, 80); continue; }
+    if (sx != null) { billAt(sx, 80, true); continue; }
     // (G3504: a layout's second row is the cabin's rear ring, wherever the long cabin's frames put it)
     const ri = seatRows[i] != null ? Math.min(seatRows[i] >= 2 ? seatRows[i] + nCabSub : seatRows[i], F.length - 1)
              : Math.min(1 + Math.floor(i / abreast), F.length - 1);
     const rg = F[ri] || F[1];
-    pt(rg.BL, 40); pt(rg.BR, 40);
+    onRing(rg, 'L', 40); onRing(rg, 'R', 40);
   }
   // ---- THE ENERGY, ITS VESSELS AND WHERE THEY SIT (G98, placed at G99) ----
   // A vessel is a real solid in a declared bay, so its mass goes where the
@@ -2940,7 +2993,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // THE SEATS GO WHERE THE SEATS ARE. With measured stations each chair is
     // billed at its own; without, the front ring as before.
     if (seatsX && seatsX.length)
-      for (let i = 0; i < seats; i++) billAt(seatAt(i) != null ? seatAt(i) : ST[1].x, seat.kg);
+      for (let i = 0; i < seats; i++) billAt(seatAt(i) != null ? seatAt(i) : ST[1].x, seat.kg, true);
     else half(F[1].BL, F[1].BR, seatM);
     half(F[1].TL, F[1].TR, panelM + plumbM);
     // the cowl and the exhaust go where the ENGINE is (2026-09-04). On a
@@ -2953,6 +3006,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     if (noseEng && engOn) {
       half(F[0].TL, F[0].TR, 0.5 * cowlM); half(EL, ER, 0.5 * cowlM);
       half(EL, ER, exhM);
+      // G2790: a layout's every other engine wears its own cowl (nacelle)
+      // and its own exhaust, on its own mount nodes
+      for (const [a, b] of engCowl) half(a, b, cowlM + exhM);
+    } else if (engCowl.length) {
+      for (const [a, b] of engCowl) half(a, b, cowlM + exhM);
     } else {
       half(noseEng ? F[0].TL : EL, noseEng ? F[0].TR : ER, cowlM);
       half(noseEng ? F[0].BL : EL, noseEng ? F[0].BR : ER, exhM);
@@ -2960,9 +3018,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     half(F[1].TL, F[1].TR, glassM);
     half(F[1].BL, F[1].BR, 0.5 * ctlM);
     half(F[iCabR].BL, F[iCabR].BR, 0.5 * ctlM);         // G3504: the cabin's rear ring
-    // the furnishing on the cabin floor, both rings
+    // the furnishing on the cabin floor, both rings (G3570: the floor is in it - at the raised floor's height)
+    if (floorUp > 0) for (const rg of [F[1], F[iCabR]]) { onRing(rg, 'L', 0.25 * furnM); onRing(rg, 'R', 0.25 * furnM); }
+    else {
     half(F[1].BL, F[1].BR, 0.5 * furnM);
     half(F[iCabR].BL, F[iCabR].BR, 0.5 * furnM);
+    }
     spend(Math.round(seat.price * seats + 40 * (panelM + cowlM + glassM) +
                      28 * (exhM + plumbM + ctlM) + 60 * furnM));
   }
@@ -3004,10 +3065,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // middle is where the load goes, split between the rings by lever.
     const lastSeat = seatsX && seatsX.length ? Math.max(...seatsX.filter(v => typeof v === 'number')) : null;
     const boxX = ST.reduce((m, s) => (s.x <= boxRear + 1e-6 ? Math.max(m, s.x) : m), 0);
-    if (lastSeat != null && isFinite(lastSeat) && lastSeat < boxX) billAt(0.5 * (lastSeat + boxX), load);
+    if (lastSeat != null && isFinite(lastSeat) && lastSeat < boxX) billAt(0.5 * (lastSeat + boxX), load, true);
     else { const bi = ST.findIndex(s => Math.abs(s.x - boxX) < 1e-6);
            const bag = F[bi >= 0 ? bi : Math.min(iCabR + 1, F.length - 1)];
-           pt(bag.BL, 0.5 * load); pt(bag.BR, 0.5 * load); }
+           onRing(bag, 'L', 0.5 * load); onRing(bag, 'R', 0.5 * load); }
   }
 
   // THE BELLY POD (G2410, BELLY-POD; src/core/60d_gen_pod.js). Off by default and absent by default: with no pod no

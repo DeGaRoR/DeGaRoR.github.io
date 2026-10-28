@@ -665,7 +665,7 @@ function make(THREE, host) {
       if (!clear(wp[0], wp[1], K.L / 2, true)) continue;
       const dir = side > 0 ? 1 : -1, ry = Math.atan2(a.tg[0] * dir, a.tg[1] * dir) + F.yaw;   // parked the way its side's traffic runs
       const k = scanKind(key, 'cars', CUT.cars, 0, { proc: 'carBody', at: 120 });
-      if (k && put(k, wp[0], wp[1], ry, { tilt: true })) { occupy(wp[0], wp[1], K.L / 2); CARS.push({ x: wp[0], z: wp[1], yaw: ry, L: K.L, W: K.W, H: K.H || 1.6 }); }
+      if (k && put(k, wp[0], wp[1], ry, { tilt: true })) { occupy(wp[0], wp[1], K.L / 2); CARS.push({ x: wp[0], z: wp[1], yaw: ry, L: K.L, W: K.W, H: K.H || 1.6 }); CARS_REV++; }
     }
     // someone on the shoulder, in a zone
     rnd = S('people');
@@ -677,6 +677,7 @@ function make(THREE, host) {
     }
   }
   const CARS = [];
+  let CARS_REV = 0;   // (G3543: the host's vehicle prints re-list the parked cars when it moves)
 
   // THE APRONS: the edge's clutter (drums, jerrycans, tyres, cones), people round the parked aeroplanes
   function apronLife(poly, rnd, craft) {
@@ -795,7 +796,7 @@ function make(THREE, host) {
   function place() {
     const t0 = performance.now();
     stats.stands++;
-    LIST = []; OCCG = new Map(); CARS.length = 0; MASTS.length = 0; PARTS = new Map(); PEND.length = 0; ADD = false; ADDED = false; CUR_OCC = null;
+    LIST = []; OCCG = new Map(); CARS.length = 0; CARS_REV++; MASTS.length = 0; PARTS = new Map(); PEND.length = 0; ADD = false; ADDED = false; CUR_OCC = null;
     dropObstacles();
     if (!cfg.on) { BASE = { list: [], occ: [] }; packAll(); stats.placeMs = performance.now() - t0; return; }
     if (!KIT) KIT = buildKit(T);
@@ -1114,7 +1115,10 @@ function make(THREE, host) {
   }
   // the stand NOW (the gate, a script): what tick does once the build queue is empty
   function standNow() { owed = false; place(); beaconSync(); return stats.items; }
-  return { root, stats, set, dirty, built, tick, standNow, draw: e => draw(e), trafficOf, dispose, items, get cfg() { return Object.assign({}, cfg); }, masts: () => MASTS.slice(), kinds: () => KINDS.map(k => ({ id: k.id, cat: k.cat, levels: k.levels.map(l => (l.prop || l.proc) + '<' + l.to) })), redraw: () => { dirtyDraw = true; } };
+  return { root, stats, set, dirty, built, tick, standNow, draw: e => draw(e), trafficOf, dispose, items, get cfg() { return Object.assign({}, cfg); }, masts: () => MASTS.slice(),
+    // G3543 (VEHICLE PRINTS): the parked cars (world x, z, yaw, L, W), their revision, and how far they are drawn (the cars' cut
+    // times the record's dist and the tier) - render_premises lays a soft dark rectangle under each within that reach
+    cars: () => CARS, carsRev: () => CARS_REV, carReach: () => CUT.cars * reach(), kinds: () => KINDS.map(k => ({ id: k.id, cat: k.cat, levels: k.levels.map(l => (l.prop || l.proc) + '<' + l.to) })), redraw: () => { dirtyDraw = true; } };
 }
 
 window.SCENERY_LIFE = { make, DEF, CATS, CUT, TIER_DIST, buildKit, QUIET, mergeLife };

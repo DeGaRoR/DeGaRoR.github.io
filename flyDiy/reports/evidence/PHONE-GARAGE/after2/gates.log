@@ -1,0 +1,52 @@
+=== BOOMBOX ===
+  ok   SELF-TEST the sources are byte-identical after 40 mutations
+  ok   SELF-TEST 40 / 40 mutations caught
+GATE BOOMBOX: PASS
+[run_gates] 7/8 jobs done · running UISMOKE 30 s
+[run_gates] 7/8 jobs done · running UISMOKE 60 s
+[run_gates] 7/8 jobs done · running UISMOKE 90 s
+[run_gates] 7/8 jobs done · running UISMOKE 120 s
+[run_gates] 7/8 jobs done · running UISMOKE 150 s
+[run_gates] 7/8 jobs done · running UISMOKE 180 s
+[run_gates] 7/8 jobs done · running UISMOKE 210 s
+[run_gates] 7/8 jobs done · running UISMOKE 240 s
+=== UISMOKE ===
+G1090 the top bar holds one size over 47 texts (29 phase labels): desktop 540 x 143, desktop small 448 x 76, phone screen x 132, phone small screen x 76; the pilot's area 35 px, two lines clamped + the plan line
+ran app block: raf x1937, handlers wired: _ce1010 _ce104 _ce1049 _ce1063 _ce1106 _ce1120 _ce1159 _ce1173 _ce1216 _ce1227 _ce1235 _ce1238 _ce1244 _ce1248 _ce1254 _ce1258 _ce1262 _ce1266 _ce1270 _ce1278 _ce1284 _ce1287 _ce1294 _ce1295 _ce1300 _ce1303 _ce1308 _ce1309 _ce1311 _ce1312 _ce1313 _ce1316 _ce1320 _ce1324 _ce1328 _ce1334 _ce1341 _ce1345 _ce1349 _ce1353 _ce1357 _ce1361 _ce1365 _ce1369 _ce1373 _ce1377 _ce138 _ce1381 _ce1387 _ce139 _ce1391 _ce1395 _ce1398 _ce140 _ce1404 _ce1407 _ce1408 _ce1409 _ce141 _ce1412 _ce142 _ce1422 _ce1423 _ce1427 _ce143 _ce1430 _ce1435 _ce144 _ce145 _ce1457 _ce1463 _ce1471 _ce1472 _ce1475 _ce148 _ce1482 _ce1483 _ce1484 _ce1485 _ce1486 _ce1487 _ce1492 _ce1493 _ce1494 _ce1495 _ce1499 _ce1500 _ce1501 _ce1502 _ce1503 _ce1504 _ce1508 _ce1509 _ce151 _ce1510 _ce1511 _ce1515 _ce1516 _ce1519 _ce1526 _ce1527 _ce1528 _ce1529 _ce1533 _ce1534 _ce1538 _ce1539 _ce154 _ce1543 _ce1544 _ce1545 _ce1546 _ce1547 _ce1548 _ce1552 _ce1553 _ce1554 _ce1555 _ce1556 _ce1557 _ce1561 _ce1562 _ce1566 _ce1567 _ce1569 _ce157 _ce1576 _ce1577 _ce1578 _ce1579 _ce1583 _ce1584 _ce1585 _ce1586 _ce1590 _ce1591 _ce1592 _ce1593 _ce1597 _ce1598 _ce1599 _ce160 _ce1600 _ce1604 _ce1605 _ce1609 _ce1610 _ce1611 _ce1613 _ce1620 _ce1621 _ce1625 _ce1626 _ce1627 _ce1629 _ce163 _ce1636 _ce1637 _ce1638 _ce1642 _ce1643 _ce1644 _ce1645 _ce1649 _ce1650 _ce1652 _ce1659 _ce166 _ce1660 _ce1661 _ce1665 _ce1666 _ce1667 _ce1668 _ce1672 _ce1673 _ce1674 _ce1678 _ce1679 _ce1683 _ce1684 _ce1688 _ce1689 _ce169 _ce1691 _ce1698 _ce1699 _ce1703 _ce1704 _ce1705 _ce1709 _ce1710 _ce1714 _ce1715 _ce1718 _ce172 _ce1724 _ce1729 _ce1733 _ce1737 _ce1741 _ce1745 _ce1749 _ce175 _ce1753 _ce1757 _ce1761 _ce1765 _ce1769 _ce1773 _ce1777 _ce178 _ce1780 _ce1788 _ce1791 _ce1802 _ce1810 _ce1811 _ce1814 _ce1823 _ce1834 _ce1842 _ce1845 _ce1851 _ce1855 _ce186 _ce1861 _ce1865 _ce1869 _ce1873 _ce1877 _ce1885 _ce1891 _ce1894 _ce1901 _ce1902 _ce1907 _ce1910 _ce1921 _ce1929 _ce1932 _ce1938 _ce1942 _ce1948 _ce1952 _ce1956 _ce1960 _ce1964 _ce197 _ce1972 _ce1978 _ce1981 _ce1988 _ce1989 _ce1993 _ce1994 _ce1995 _ce1996 _ce1997 _ce1998 _ce201 _ce2018 _ce2023 _ce2024 _ce2025 _ce2026 _ce2027 _ce2030 _ce2034 _ce2038 _ce2042 _ce2046 _ce205 _ce2050 _ce2054 _ce2058 _ce2062 _ce2067 _ce2068 _ce2069 _ce2072 _ce2076 _ce2083 _ce2086 _ce209 _ce2091 _ce2095 _ce2101 _ce2105 _ce2110 _ce2111 _ce2113 _ce2114 _ce2115 _ce2118 _ce2122 _ce2126 _ce2130 _ce2134 _ce2138 _ce2142 _ce2146 _ce215 _ce2157 _ce2161 _ce2165 _ce2169 _ce2177 _ce2183 _ce2186 _ce2190 _ce2195 _ce220 _ce221 _ce2217 _ce2223 _ce2227 _ce223 _ce2235 _ce2238 _ce224 _ce2249 _ce225 _ce2253 _ce2257 _ce2265 _ce2268 _ce2279 _ce228 _ce2283 _ce2287 _ce2295 _ce2298 _ce2302 _ce2313 _ce2317 _ce232 _ce2321 _ce2329 _ce2332 _ce2336 _ce2347 _ce2355 _ce2356 _ce2359 _ce236 _ce2368 _ce2376 _ce2379 _ce2383 _ce2394 _ce2398 _ce240 _ce2402 _ce2410 _ce2413 _ce2424 _ce2428 _ce244 _ce248 _ce252 _ce258 _ce263 _ce269 _ce276 _ce277 _ce278 _ce279 _ce280 _ce281 _ce286 _ce287 _ce288 _ce289 _ce293 _ce294 _ce295 _ce296 _ce297 _ce298 _ce302 _ce303 _ce304 _ce305 _ce309 _ce310 _ce313 _ce317 _ce321 _ce325 _ce329 _ce333 _ce340 _ce345 _ce350 _ce364 _ce37 _ce400 _ce405 _ce419 _ce455 _ce460 _ce474 _ce51 _ce510 _ce515 _ce529 _ce565 _ce570 _ce584 _ce620 _ce625 _ce639 _ce678 _ce692 _ce731 _ce745 _ce784 _ce798 _ce837 _ce851 _ce890 _ce90 _ce904 _ce943 _ce957 _ce996 bAP bBring bEdit bGo bHangar2 bLog bMood bPause bReset bSkin bSkip bWhy bootFly edClose flLine mm pfdFold selAc selCond selDest selPersona selPilot tabBench tabDesign
+GATE UISMOKE: PASS
+=== UISMOKE-PHONE ===
+phone.css: 106 selectors, every one under html.phone (or hiding a phone-only element)
+STORAGE (phone): the view (inside 1/2, outside 1/6, long-term 1), a refusal with its reason, tap-then-column and a drop moved the aeroplanes (✓ Jodel inside 2); Fly off
+GATE UISMOKE-PHONE: PASS
+=== CARDDRAG ===
+C census: 158 files, 25 card-like ids - 10 draggable, 15 allow-listed; 11 registered
+G the gesture in a stub DOM: bind, threshold, drag + save, buttons, re-render, re-made, clamps, the header handle, the double-click, resetAll, register, no storage
+GATE CARDDRAG: PASS
+=== BUILD ===
+  ok     the clock, the date and the run all ride the save envelope
+
+GATE BUILD: PASS
+=== VIEW ===
+
+12 controls neutralised, 7 exempt, over 18 the editor shows
+GATE VIEW: PASS
+=== PANEL ===
+GATE PANEL: PASS
+=== BUILT ===
+  build inputs moved since 3c2d4d7d2: 13 committed (flyDiy/src/viewer/app.js, flyDiy/src/viewer/boombox.js, flyDiy/src/viewer/card_drag.js, flyDiy/src/viewer/editor.css, ...)
+  a source commit: the outputs lag until the train's (built) commit (BUILT_STRICT=1 makes this red)
+GATE BUILT: PASS
+
+──────── summary ────────
+BOOMBOX   PASS     0.7 s
+UISMOKE   PASS   241.6 s
+UISMOKE-PHONE PASS    26.9 s
+CARDDRAG  PASS     0.4 s
+BUILD     PASS     1.2 s
+VIEW      PASS     0.3 s
+PANEL     PASS     0.8 s
+BUILT     PASS     1.8 s
+total            273.7 s
+wall             241.6 s  (jobs 3)
+
+BATTERY: PASS

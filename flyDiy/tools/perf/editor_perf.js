@@ -151,7 +151,7 @@ function hot(p) {
   for (const T of TREES) for (const town of TOWNS) {
     log('== ' + T.key + ' (' + T.rel + '), town ' + town);
     if (b) await b.close(); b = await MB.browser(UDD);
-    const pre = MB.preScript('default') + ';try{localStorage.setItem("flydiy.premises.game.jolene",' + JSON.stringify(TXT) + ')}catch(e){}';
+    const pre = MB.preScript('default') + ';try{localStorage.setItem("flydiy.premises.game.jolene",' + JSON.stringify(TXT) + ');localStorage.setItem("flydiy.premises.bootWip","1")}catch(e){}';   // (SCENERY VERSIONS: the rigs' door boots the seeded copy)
     const l = await b.load('http://localhost:' + PORT + '/' + T.rel + '/' + PAGE + (town === 'on' ? '?town=1' : ''), pre);
     log('loaded ' + l.state + ' in ' + l.sec + ' s'); await sleep(4000);
     log('harness ' + await b.ev(HARNESS, 180000));

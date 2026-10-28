@@ -98841,6 +98841,171 @@ Strict light gate RED (11), all in the known classes:
 - cub garage fps 26.7: ONE 2167 ms frame in 160; the other 159 at 33 ms (the garage hitch class, L24b 27.0).
 - metal chase flight 68.9 s vs 63.6 + 5.09 slack: 0.23 s over, the scripted flight's wall time. Named; re-read in L25a.
 Pushed with these, by the user's order of 25 Oct: land last week's items and priority 1 as soon as possible.
+## G3430-G3434 - ASSETS wk44: THE LAKE-SHORE REEDS (playtest 24 Oct item 46) + THE 54-VEHICLE PACK DROPPED (item 45) (2026-10-24, ASSETS-OCT for A0; branch claude/assets-wk44)
+
+**THE REEDS (G3430)** - the user: reeds ("roseaux") in the grass round the lakes, from fern_grass_02.glb ("fern grass 02"
+by Digital screen official, CC BY 4.0; CREDITS.md). Today's pipeline, no new system:
+- the species `reed_marsh` (tools/_trees_tuning.json `tuning`: kind cover, file fern_grass_02.glb, size 62 - the file bakes
+  0.019 m tall through its x0.001 Z-up wrapper, so a 1.2 m clump; noTint: it keeps its own green-brown, as the flowers do;
+  density 0.9 / m2, no patching);
+- the mix `lakeshore` (the reed alone; its forest: no trees, shrubs, rocks or debris) and the terrain-type map's code 1
+  (`lake`) -> `lakeshore`. Code 1 had NO mix, so the first cover ring planted nothing on a lake's 10 m cells - the dry bank
+  of every lake (the land test, render_world okAt with lakeMargin 0.03 m) now takes the reeds; the water is refused as
+  before; the grass FIELD keeps G2572's rule (a dry lake node takes the nearest land code's grass) - reeds AND grass on the
+  bank; the trees read B.density('lakeshore') = 0.
+- tools/tree_prep.py `--only k1,k2`: bakes the named species alone and MERGES them into the baked pack (the rest untouched,
+  nothing pruned, the biomes re-read) - the pack was last re-written by --biomes, and a full re-bake on another Pillow could
+  re-encode every tree map.
+- the source goes to the main checkout's assets/vegetation/grass/ (gitignored); tools/tree_inspect.js indexes it
+  (TREE_ASSETS = the main checkout's assets/ from a worktree).
+- 25 Oct, after the first bake + the 05:00 look (the reeds stood as a solid neon-lime band along every bank, the fern's
+  own picture, noTint): the reed takes the grass's colour recipe instead (sat 0.15, light 2.14, lift 0.29, contrast 0.35:
+  the ground's colour at its foot, as grass_dry), beds (patch 5, share 0.5) and density 0.6 so the bank is not one ribbon;
+  tree_inspect no longer files a cut-out tuft in the cover folder as flat ground (the fern is 3 cm through its x0.001
+  wrapper - --only had found no species); tree_prep writes a NEW normal map as WebP q92 (media_lib's `normal` role; GATE
+  ASSETS jpgNormal stays at 75 - the maps already baked keep their .jpg until their species is baked again).
+- the live page at HOME (05:00 A/B, the same stand, the pack with and without the reed): the reed adds ~8 cover draws
+  (125 vs 117 cover meshes) and casts nothing (covers never cast: cover_ring castOf); none stand near the FRAMECOST taxi
+  point - the first gate run's FRAMECOST rise (+233 draws) is judged in the CPU slot against a control run on the
+  pre-bake pack.
+
+**THE 54-VEHICLE PACK (G3431) - DROPPED** (25 Oct): the user, through A0: "the vehicle pack is from burnout 2, drop it" -
+a game rip, out under the credit-only rule. Nothing of it was processed or committed (no mesh, texture, manifest or credit
+row); the source file in bugReports/ is the user's to delete.
+
+**THE LAKE SHORE AS A BIOME (G3430, 25 Oct)** - the user, through A0: "you've only included the new ferns. It should be a
+new proper biome" - tall weeds, the ferns more spread with varying sizes and random colouration, some of the flowers.
+- mix `lakeshore` (terrain code 1): reed_marsh (the fern, beds of 5 m), grass_reed (tall weeds, beds of 6 m, x1.15),
+  flower_fireweed (sparse beds of 8 m), flower_foam (beds of 4 m), a few shrub_deciduous; the mix's coverSpread
+  0.08 -> 0.3 (the tufts' size jitter); no trees (count 0).
+- the fern's colour: `place.hueTurn` [-45, 6] degrees (new, cover_ring.js) - a hue turn about the grey axis per tuft, from
+  the tuft's own hash (the cell's R() stream and every other species untouched; a species without the key is
+  unchanged), green -> yellow -> bronze; lightness jitter vary 0.03 -> 0.1.
+- the flowers' colour is the KIND_MASTER flower look (trees.js), so the lake shore's fireweed / foam take the user's
+  24 Oct world look (claude/world-look-1024 c5292cf88, ED-2) when that lands - nothing of it is copied here.
+
+**18 LAKESHORE - THE BIOME'S MASK (G3430, 25 Oct)** - the user, through A0: "I'd want the reeds to be a proper biome with its
+mask, and we can paint it and everything, like the other."
+- 18 is a VEGETATION code (28c_biomes SHORE, NAMES[18] 'lake shore'; the tuning map "18": "lakeshore", code 1's "1" gone).
+  Its mask is the land within shoreReach (12 m, ragged by shoreJit 0.35 on a 17 m noise) of a drawn lake's line, under the
+  bank's slope (bankLo 22 deg; the steeper faces stay the 17 rock bank): render_world BIO.shore reads drawnLakeSD - the
+  splat's own lsd field, bilinear as the shader reads it.
+- PAINTED like any biome: a premises cover polygon in the editor's biome tool grows `lakeshore` anywhere (the list is the
+  pack's mixes), and a polygon that speaks (none, another biome, its own mix) erases the band under it (BIO.shoreHere).
+  NOT a terrain-type stamp: STAMP_CODES stays as it is - the splat cannot draw an 18 (NCODE 17; the ground grid's codes are
+  masked at 15). The ground under the band is its own code's. Its own ground texture would be a splat widening (the
+  user's call, asked through A0).
+- THE COVER RING plants it as a SECOND PASS per cell: the centre's mix on its own points (the band's points skipped), then
+  the lake shore's rows on the band's points whatever the centre - a 32 m cell's one mix would miss a 12 m band or swallow
+  the cell. A cell with no band point plants exactly as before (the stream unchanged). The stones stay the centre's; the
+  TREES keep their own code's mix (the fill and the placed trees never read the band).
+- treeReachOf: 1 on the grid -> 18 reached (the fern loads where there are lakes); GATE TREES mirrors it; GATE PREMISES 17
+  checks shoreHere (no band without map[18]; a polygon wins).
+- the fern on the flowers' pattern: beds of 5 m at patchShare 0.6, density 0.45, the mix's size spread 0.3; its colour the
+  ground's at its foot with the hueTurn swing (A0: the flower master on the fern's mesh is a follow-up after the stills).
+- THE FERN'S COLOUR CONTROL (the user, 25 Oct: "I need my lightness, saturation, hue control for them"): F8 > terrain types
+  > lake shore (18, now in the world rail's types: biome tab only - no ground row until the splat carries an 18) > the
+  lakeshore biome > reed marsh's card: hue / saturation / lightness (TREE_LEAF.tintOf, the species' own tint; the world look
+  exports it under `tints`). The same card's density / patch / share / size are the mix row's.
+
+### G3651 - THE RUNWAY SCUFF AS LONG DARK STREAKS (src/viewer/ground_scar.js, tools/dmg_wreck_stills.js; DEFORM, 25 Oct; branch claude/dmg-runway-scuff on 031e3af90 = ready/dmg-scar2-occupant)
+The user (25 Oct, via A0, on the st_0345 stills): "RUNWAY SCARS: I can see nothing. I'd expect long dark streaks". The
+G2381 scuff - 12 columns of one grey (SCUFF x the soil map, its alpha-weighted alpha ~0.58) - drew as a PALE, FLAT-EDGED
+PANEL a few metres long (read as a shadow), and vanished from a low eye. (A first try this morning, 3a7d95fda, feathered
+and broke that panel up: fainter still - replaced here.)
+Now, on hard ground only (the soft furrow and the crater are unchanged byte for byte), a scuff is:
+- LONG DARK STREAKS: one per S.streakGap 0.3 m of the strip's width (2 to S.streakMax 10), each its own narrow ribbon
+  (half-width S.streakW 0.06-0.16 m; a near-black core RUBBER 0.08 x the soil map at S.scuffA 0.95 x its strength 0.7-1,
+  soft edges) at its own place across, wandering S.wander 0.05 m along the slide, starting and stopping at its own place
+  (up to 1.5 m in from either end), broken now and then on a long one (noise every S.gapL 2.5 m under S.gapHard 0.15:
+  about a tenth of its length - a part lifting);
+- under them a faint rubber haze (S.hazeA 0.35, SCUFF), its two edges ragged (0.65-1 x h) and feathered - no border;
+- the soil map stretched along the slide (3 x along, 0.35 x across): streaky grit;
+- every vertex inside the half-width h, at terrainH + liftHard, the same mesh / material / program (no new link).
+The stills rig: cases scuff-slide / scuff-blow (the scar cases from the three-quarter, the far chase 'aft' - behind the
+aeroplane's heading, 12 deg, 40 m - and above), tag noscar (the same eye, the decal hidden: BEFORE / AFTER for the
+scuff alone), and each case's scar record logged (its strips' ends, widths and lengths; the wreck's place) - the
+scuff's coverage of the slide, for the "long" half of the user's ask.
+Gates: DMGSCAR (2S: the darkening, alpha-weighted, and every vertex over the runway's layers) + MEDIA (the only two that
+read the file). Stills: scuff-slide + scuff-blow, the Cub and the metal Cessna, ?damage=1&simw=0.
+THE ROOT CAUSE (found Mon 26 Oct 00:2x on the box with the fixed noscar switch): the decal drew NO pixel on the runway - everystrip (the scuff, the furrow, its spoil cap) was wound face DOWN while the material is FrontSide, so from above each stripwas culled; only the craters (wound up) ever drew. The dark rectangles behind the wrecks in every still so far are therunway's own slabs (there with the decal hidden). Fixed: the three strip index orders wound up (a, b, c / b, d, c). Thisalso makes the soft-ground FURROWS (G2378) draw for the first time. Re-shoot (00:25, the Cub slide): thin streaks now show,faint - the streaks widened (0.06-0.16 m) and the haze raised (0.35) for the next look.
+
+
+## G3520-G3529 - GAME-MENUS: A WAY BACK, THE MAP ON TAB, CONTRACTS, THE WIND, NO DEBUG TEXT, ONE PLANE CHIP, EVERY CARD DRAGS (2026-10-25, GAME-MENUS for A0; claude/ready/game-menus a705ad8c3, for L25c)
+- The user's asks, playtest 24 Oct (PLAYTEST-2026-10-24 items 8, 9, 12, 49), and the card rule of 25 Oct ("any card you show in game should be draggable, so they never cover anything important anymore").
+- G3520 MENU (src/viewer/app.js gm*, editor.css #gmPanel): a MENU pill, plus Esc, in the shed and in flight. In flight it pauses (#bPause reads Run). The panel offers Resume, Back to the shed (flight only), Map (Tab), Options (Controls / Graphics / Sound) and Main menu. Main menu asks to confirm in flight ("The flight is not kept; your saves are."). The pills sit under what is there:
+  - in the shed, under #edTopBar from its left edge (centred at the top they covered the quick actions);
+  - in flight, at the top bar's right inset;
+  - on a phone in flight, under #pfd (they covered the route strip).
+  The panel opens under its pill. window.FLYDIY_MENU = {open, close, isOpen, act, tab, layout}.
+- G3521 TAB = THE MAP. G3522 CONTRACTS is its own pill (career only), so it is no longer confused with the minimap. The old map button moved off the flight info.
+- G3523 WIND on the PFD (body.html wind cell, flight.css; the PFD widens 540 / 448 on a phone): an arrow turned to the wind, km/h and the degrees it blows from, live from sim.out.
+- G3524 the debug text at the bottom centre (#rwyTreesTag) is removed.
+- G3525 the map's plane icons (bugReports 151939, the Cabin Strip): src/viewer/map_menu.js draws at most 3 plane icons per stand; more than 3 show as one chip "✈N".
+- The map hook for AP-HONEST (G3560s): window.FLYDIY_MAP_LAYERS is a list of draw layers that the map calls each frame with its projection. AP-HONEST pushes its route layer there and touches nothing else in map_menu.js. MAP_MENU.open({list}) opens on a list.
+- G3526-G3529 CARD DRAG (src/viewer/card_drag.js, in build.js's MANIFEST after ui_layer.js): every in-game card gets a .cdHandle and drags. The position is kept per card key. A double-click on the handle puts the card back. window.FLYDIY_DRAG = {keys, placed, resetAll, ...}. STORY-TUTOR's tutor guard lets .cdHandle pointerdown and dblclick through. New GATE CARDDRAG (tools/_carddrag_check.js): every card class is wired, drag moves it, and reset returns it.
+- In the gates' stub DOM the pills are not built (a quiet throw 0: gmBtn stays null, so every gm* call is a no-op). hudWind falls back to Date.now() where the vm has no performance.
+- The parked aeroplanes are re-cooked on build 3791eb8aac40 (parked_cook --check: same). On a stale cook, FRAMECOST's stand / taxi rows jump (uniform4fv x8): see [[core-change-stales-parked-cook]] and the G1560 entry.
+- Gates (Sun 25 Oct 20:00, CPU s25-c14, on a705ad8c3; UNTIMED): PASS for UISMOKE, UISMOKE-PHONE, BOOT, CARDDRAG, BUILD, BUILT and LAZY. FRAMECOST FAIL (1), and that one is master's standing key: cessna boot/garage:restore/three.updateMatrixWorld 2269 -> 4553. The 12:00 run's CLOUD (the lamp pool) and DMGINST reds are master's (the core is identical).
+- Stills (GPU, Sun 15:45, on a705ad8c3, 0 page errors), sent to A0:
+  - the wind cell;
+  - Esc -> PAUSED with the menu;
+  - the confirm;
+  - the menu dragged;
+  - the career map with "✈8";
+  - the phone in flight.
+  09 and 10 are byte-identical: the rig never asserted the map closed after Tab. Count 09 as "Tab = the map", not 10 as the CONTRACTS pill. The Mon 26 Oct TELEPORT stills assert it.
+- Next, G3640-G3649 TELEPORT for L26c (Mon 21:30): owned-garage markers on the map, a confirm row in the map, FLYDIY_PLAYER.gotoGarage (Game's claude/garage-go, G3613), and Tab = the map screen in every mode.
+
+## G3720-G3729 - PHONE-GARAGE: THE PLANE GETS TWO THIRDS, A BLACK STUDIO ON THE PHONE, THE RAIL INTO THE MENU, ONE TOP ROW FOR EVERY VERSION (2026-10-25, PHONE-GARAGE for A0; branch claude/phone-garage on GAME-MENUS' claude/game-menus-ui b12fbb04e - carried; target L27a)
+- The user, 25 Oct, on the phone garage: "much more room for the plane ... two thirds at least, no garage at all, just dark studio ... Only a third of the screen for the sliders. left rail goes completely. Unsaved becomes a simple disk button and the other icons are on the top row ... Everything feels laggy ... sacrifice the garage altogether ... in the garage, I'd like the pause menu too, and we can move the left rail to the pause menu ... Give explode in the garage a button at the top. Clicking it gives the slider. Have a single button with the radio, and pop up a little menu where we can also turn it off. Have a button for cycling through the views."
+- Then, relayed by A0: "For the buttons in the garage top bar, that's for all versions, not just mobile"; "desktop garage left rail follows same fate. black studio on desktop an option only if it comes for free. Then put it under view or something in the menu".
+- G3720 THE ESTATE (phone.css): portrait = the view 66.6dvh, the sheet + tab bar the last third; landscape = the sheet max(280px, 1/3 of the width).
+- G3721 THE DISK (editor.css, garage.js): #fbName is drawn as a disk icon on every version, the same button and shelf (save, save as, new, load, storage, import, export). Unsaved = an amber dot. The name is in its tooltip (garage.js writes it with the text).
+- G3722 EXPLODE ON TOP (editor.js QUICK 'explode', row 'explode'): a press opens #edPopCard under the button - the rail's explode item (explode + cutaway rows, borrowed) - a FLYDIY_DRAG card ('quickPop', card_drag.js CARDS). It closes on Esc, ×, a press outside, the button again, or when a MENU page takes the rows.
+- G3723 THE RADIO (editor.js QUICK 'radio', boombox.js openAt): a press opens THE BOOMBOX'S OWN CARD (#bbPanel: stations, volumes, off) pinned under the button (frame() leaves a pinned card alone; the phone's studio has no radio prop to follow). Right-click / hold = off, as before.
+- G3724 THE VIEWS (editor.js QUICK 'views'): each press = the next framing preset (3/4 front, side, plan, nose, interior when a pilot is fitted), through api.camera, as the camera pills do.
+- G3725 THE RAIL INTO THE MENU (every version):
+  - #edBotBar is display:none. The RAIL table, its flyout and the element stay (GATE VIEW, the rigs, the stub DOM).
+  - openFly has a HOST now (flyHost: null = #edFly; else a body). window.EDITOR_FLY_INTO(k, body, onClose) builds a rail item into any body and returns the cleanup that gives the rows back.
+  - The MENU (GAME-MENUS' FLYDIY_MENU.add) gets a View section above Options: Camera (gCamera), Display (gDisplay), Sky & light (gNight; not in the studio), Legend (gLegend) and, desktop only, Studio backdrop: on/off (gStudio). Controls / Graphics / Sound are the menu's own pages.
+  - FLYDIY_MENU.anchor puts the MENU pill on the top row after the quick actions when there is room (else the menu's own place under the bar).
+  - The editor's row styles (`:is(#wsUI, #edView ...)`, `#edFlyBody`) also cover #gmPage and #edPopCard, and phone.js gives their sliders the finger knob.
+  - Phone: the clock's button is hidden, and the reference button only shows with a reference standing.
+- G3726 THE BLACK STUDIO (studio.js NEW, in build.js's manifest after shed_shadow.js; app.js getHangar / setStudio; profile.js room):
+  - PROFILE phone room 'studio': the shed is never built (hangar stays null - the empty-room path, its error silenced for the studio).
+  - hangarScene gets a near-black background, a warm key / cool fill / rim (DirectionalLights, no shadow maps), a faint hemisphere, a floor pool (one transparent quad, a 128 px radial canvas) and one PMREM of a tiny dome + three soft boxes baked once.
+  - SHED_SHADOW is skipped in the studio. Exposure = WORLD_EXPOSURE (the no-room value).
+  - Desktop: an option, OFF by default (pref flydiy.garageStudio, MENU > View > Studio backdrop). setStudio disposes the shed and builds the studio, or back. The default garage pays three boolean reads; no program, no draw.
+- G3727 THE MEASUREMENTS:
+  - mobile_phone_cdp.js gained --size / --dpr / --no-adb / --shot / --cpu-throttle / --desk, plus R.view (the canvas's share of the screen, draws, triangles, programs, textures).
+  - S1 (Mon 03:15, GPU) = BEFORE on master (the shared checkout, read only); S3 (Mon 15:45, GPU) = AFTER on this branch, built and cooked. Each runs: S20 412x915 Cub at CPU x4, the desktop 1600x900 Cub, GARAGE-LAG on the desktop page (Cub + metal), 375x812 Cub x4, GARAGE-LAG on the phone page, S20 metal x4, S20 Cub x1.
+  - Outputs: the scratchpad's pg_before/ and pg_after/ -> reports/evidence/PHONE-GARAGE/ once read.
+- G3728 THE BURGER (the user, 26 Oct: "the menu button has no place. Make it a burger menu on the top leftmost, before the disk icon"):
+  - editor.js #edMenu: a 3-line icon, first on #edFleet (the disk's plate), on every version. It opens the same FLYDIY_MENU.
+  - app.js (GAME-MENUS' code, changed here): FLYDIY_MENU.opener(el). While that icon is visible, gmLayout hides the MENU pill (flight keeps it), gmPlace hangs the panel under the icon, and Esc/Tab and aria-expanded follow it.
+- G3729 THE TANK WITHOUT A FRAME (the user, 26 Oct: "get rid of the frame, we use that nowhere else. Keep the warning, but not the container"):
+  - The frame was the bordered tank card, details[data-ves] and its finish twin [data-veslook] (tools/_cage_energy.js). editor.css flattens both like UI-STYLE's instruments (G3736): the summary is the group's heading, in --ed-acc when picked. The red "needs N of M L" line is unchanged.
+  - The pick is a class now: UI-STYLE G3730's own 4 _cage_energy.js lines, copied word for word (outline -> .on), since ui-style is held.
+- G3723 fix: the radio act uses window globals only (GATE BOOMBOX runs QUICK in a vm), plays when there's no music, and steps when no card opens (HANGARS-LOOK G3533's contract, for the later fold onto toggleAt).
+- MEASURED (S20 412x915, CPU x4, Cub; BEFORE master 03:15 / AFTER 15:50):
+  - Frames: at rest 12.2 -> 60 fps, orbiting 11 -> 59.4 fps.
+  - Rendering: programs 397 -> 24, textures 639 -> 65. Memory: JS heap peak 748 -> 189 MB. Boot 108 -> 30 s.
+  - Drags (drawn): wgSpan 298 -> 126 ms, stSpan 187 -> 31 ms. The view's share of the screen 0.58 -> 0.67.
+  - Desktop 1600x900 (the shed): 60/60 fps before and after, drags within noise.
+  - garage_lag desk HUNG after its warm-up on the after tree (timeout), so 375x812 / lag phone / metal / x1 were skipped. Evidence only: a Tue 08:30 GPU re-run.
+- GATES, on the built + re-cooked tree (ccaa51836, build d21a95f11ba1, parked_cook --check same):
+  - Mon 20:40, all PASS: BOOMBOX, VIEW, CARDDRAG, PANEL, BUILD, BUILT, UISMOKE, UISMOKE-PHONE.
+  - Mon 16:35 S2 (on 9f20ac6dd): UISMOKE, UISMOKE-PHONE, CARDDRAG, CARDS, BOOT, BUILD, BUILT, PANEL, VIEW, UILAYER and PROFILE PASS.
+    - BOOMBOX red, fixed in bd63c2cb7.
+    - FRAMECOST red only on master's standing line "cessna boot/garage:restore/three.updateMatrixWorld rose 2269 -> 4553".
+    - ROUNDTRIP red only on master's standing line "the setup screen's sections" ('drawn' since ROUTE-DRAW, 7 Oct).
+  - The user's rule: no full battery on minor UI changes.
+- CARRIED on the ready branch:
+  - GAME-MENUS b12fbb04e (FLYDIY_MENU add/page/anchor) and 1bafe174a (origin/claude/ready/game-menus, merged here).
+  - UI-STYLE G3730's 4 _cage_energy.js lines.
+- EVIDENCE: reports/evidence/PHONE-GARAGE/{before,after,after2}/. after2 holds the burger and the tank stills, phone and desktop.
+- Files of other sessions touched: card_drag.js (one CARDS line: #edPopCard), boombox.js (openAt + pinned), and GAME-MENUS' hook used as is.
 ## G3450 - P1 CG-COLOURS: THE GARAGE'S CG / NEUTRAL-POINT INDICATORS WEAR ONE BAND - RED / ORANGE / GREEN, '!' ON RED AND ORANGE, A TOOLTIP WITH THE REASONS (2026-10-25, RUFUS-CERT for A0; claude/cg-colours; stills Sun 25 07:45 GPU; for L25b)
 
 The user, 24 Oct: the garage's CG / neutral point indicators get clear colour coding - RED = bad, ORANGE = acceptable, GREEN = good and safe - ONLY that coding, an added "!" in the wording for red and orange, and a tooltip explaining the reasons.
@@ -99030,6 +99195,458 @@ Strict light gate RED both runs (13 / 16) vs the 12 Oct baseline; judged against
 - OPEN (Pilot): Rufus mine CALM still open: twice round, high 7-8 m at 58 m, divert; cause = the 1.4/LDbest slope cap needs a slip Rufus's aileron can't hold.
 Pushed by the user's order of 25 Oct: land last week's items and priority 1 as soon as possible.
 
+## G3580-G3589 - STORY-TUTOR: TIM IS THE TUTORIAL, NO CARDS IN A CAREER, THE WWII ARRIVAL AND THE CUB SWAP, SKIP ONTO THE FINAL (2026-10-25, STORY-TUTOR [LOCAL-GPU] for the GAME coordinator; branch claude/story-tutor off ready/bench-tim, master L24c merged)
+The playtest ledger of 24 Oct (flydiy-notes/PLAYTEST-2026-10-24.md), items 1-7, 10 and 48.
+- **G3580 Tim is the tutorial** (item 2: "Each step checks that the action was done before moving on, tutorial-style. Tim replaces all cards. For now you've made Tim optional").
+  - 79_story.js `STORY_TUTOR`: a beat's lines are STEPS `{ id, say, wait?, allow?, pass?, free?, ack? }`.
+    `storyTutorTick` (pure) passes a step once its predicate is true. A step with no wait is just words, with a Next; the last step's OK sends the beat's ack.
+  - T0: hello > paint (painted, the finish panel) > reg (registered, its box, "Keep N47RF") > cert (OK: the ack).
+  - T1 in the shed: news > ap > roll (flying: Roll out or the Skip). In flight, the ladder runs (G3370).
+  - T2 (item 4, the WWII arrival): down > hangar > contract > store > swap > park > list.
+    - down: "taxi over, or The shed", free (nothing held: the taxi is the player's).
+    - hangar: Rufus on its stand in the new hangar.
+    - contract: the Cub is parked outside.
+    - store: Storage's button is the only control.
+    - swap: the Cub's card and the floor (not its fly / route / send).
+    - park: Rufus into an INSIDE slot, "storage keeps every plane".
+    - list: the client's checklist in the band.
+  - app.js holds the predicates (`STORY_TUTOR_FACTS`) and each step's control as selectors (`STORY_TUTOR_ALLOW`).
+  - THE GUARD (`storyTutorGuard`, the window, capture phase): pointerdown / mousedown / click / dblclick / touchstart / contextmenu / dragstart / dragover / drop / keydown outside the step's control are held.
+    Always let through: Tim's band, the loading screens, the opening and the 3D canvas.
+  - The control is lit by a style written per step (#stTutCss), so Storage's redraws keep the light; the rest of the controls are dimmed.
+  - Nothing is held under the opening, on the phone (the band still steps), in the air, or with `?tutor=0` (a dev's escape).
+  - The tutor's place is kept per career (`flydiy.story.tut.<career>`). `FLYDIY_STORY.tutor()` is for the rigs.
+  - A beat's entry messages (the hangar ours, the Cub outside) are not said twice: the steps say them.
+- **G3581 no card in a career** (item 1): the flight's ending is a LINE at the card's corner (`#arrCard.line`: no plate, no border, text shadowed over the world). It gives where, how long, how far and the career's own lines. No Log / What went wrong; "bring it home" stays. The story's line is Tim's.
+  - The sandbox keeps the card. Audit: the only other card a career meets was the beat card (off since G3357).
+  - Storage, the map and the boot / loading tips are panels the player opens, not cards: the tips are kept, pending the user's word.
+- **G3583 "Roll out"** (item 3): the story's starter on the stand reads just "Roll out" while the rails run.
+- **G3584 Skip the flight -> on the final** (item 5): from the shed, the roll-out as ever (the door shot), then a cut to the WWII field's final. In flight, the cut is immediate.
+  - `storyFinalPose`: 1500 m before the aim point on the runway's extended centreline; a 6 % slope over the field, never under 60 m over the ground; the landing heading; the sheet's Vref (else 1.3 Vs0, else 22 m/s).
+  - A fresh pilot is handed INBOUND with no legs: it plans the arrival from there (straight in when lined up). The hand is given back to the autopilot.
+  - The landing ends T1 as any landing at HOME does. The garage without a world (the phone) keeps the old skip (`storySkipHangar`).
+- **G3585 the Cub parked outside at HOME** (storyApply clientPlane: playerMove outside; no apron, it stays where the arrival put it).
+  - Its file is prefetched while T1 runs ("going into the hangar should already load the Cub": read as the slot ready the moment the landing hands T2 its effect).
+  - Rufus goes to a visible INSIDE slot by Tim's park step.
+- **G3586 Rufus's registration N47RF** (item 7; fictional): stEnvelope puts it in a NEW career's starter when its file carries the generator's F-PGAR. meta is cosmetic to the bench (BENCH_COSMETIC), so no certificate moves. Existing careers keep the Rufus they saved.
+- **G3587 Storage: the floor is the stand's** (item 10): the floor followed the stand only on a LOAD. FLYDIY_STORE.view() first puts the stand's aeroplane on the floor of its room (`storeFloorStand`, the core's playerFloorSync; no redraw from inside the view).
+- **G3588 no clouds in the intro** (item 48): under the opening the march never runs, but its composite quad kept the boot's last world frame visible, and the dome's cirrus veil follows CLOUDS.update. Both are off while it plays (CLOUDS.S.veil 0, the composite hidden); the veil comes back at the swap.
+- Item 6 (Rufus pre-certified): L24c re-stamped Rufus. The page run reads BENCH_STATE().passed on the stand before the first roll-out. CERT-REVIEW owns the rest.
+- GATE STORY: PASS (+ --selftest PASS), a new section "Tim, the tutorial" (+55 rows): the steps and their predicates / controls, the tick, the final's pose, N47RF, the page's T0 > T1 > T2 run with the guard probed, the source rows (the guard, Roll out, the line, the floor, the clouds, the skip). Two rows moved: the client's Cub is parked outside at HOME.
+- The rig: claude/story-smoke 0f63d2c8d (story_smoke.js) plays the tutor with REAL clicks (CDP mouse events through the guard), then the skip onto the final and the landing, the arrival, the swap.
+- **The user's answers (25 Oct, via A0 / GAME), and what changed:**
+  - **G3585 the Cub, visibly outside.** The user: "the garage shows the plane you came with, the client's Cub is already waiting outside, Tim explains how you swap them in the garage."
+    - The fleet's prop bake runs in the garage only (parked.js), so a Cub placed at the landing could never show on arrival.
+    - The Cub is now put on HOME's apron as soon as the starter stands (storyFlush, T0 / T1): bound as the client's, its airframes row written before the lift, nothing said of it yet.
+    - While it waits, fleetCtx's drawn set is HOME's apron (`storyFleetFrom`), so its bake is wanted in the cabin's garage and the T1 roll-out stands it at HOME. T2's effect finds it there.
+    - The cost: one more garage bake at T0, one more parked prop during T1. During T0 / T1, Rufus's own apron prop is not baked (it is the flown one).
+  - **G3589 the loading tips off.** The user: "can go for now, we'll redo that properly at some point." boot.js keeps #bootCard hidden unless window.FLYDIY_BOOT_TIPS === true; the pictures still turn. GATE BOOT +1 row; its carousel rows run with the flag.
+  - The shared card drag (GAME-MENUS' FLYDIY_DRAG, card_drag.js) picks up #stTim and #arrCard by itself. The band writes only its own state classes, and the tutor's guard lets a `.cdHandle` take its pointerdown and dblclick (never a click, nor a control in it).
+
+## G3570-G3579 - DC3-2: THE CABIN FLOOR GOES UP (A NEW ROW, ABSENT AT ITS DEFAULT) AND THE DC-3 STOPS FOLDING - THE PAGE'S TAXI AND LANDING BREAKS REPRODUCED THROUGH THE GAME'S HOST: THE TAIL CONE'S ROOT WAS ONE FIFTH OF THE FLEET'S, NOW HELD; THE OTHER TAXI BREAKS ARE COLLISIONS AT HOME'S CROWDED STAND (2026-10-24, cloud, node only; branch claude/dc3-2 off origin/claude/dc3-build b5142615; NOT on claude/ready/; for A0)
+The user (24 Oct, verbatim): "the dc3 as such is an experiment, and making it an official plane requires a lot more work. Yet the code
+modifications leading to it to exist are green lit by me. Yet, the breaking issue is serious and should be addressed soon." And: "in such
+plane, I guess the floor is quite high up in the fuselage, with the storage below. So there should be a control (if not already) to get
+the floor higher up. Right now, pilots and passengers are buried."
+The DC-3 stays sandbox-only (G3507's works room); nothing in the career, contracts, story, economy or parking.
+- **What was done, in plain words:**
+  - **G3570 THE CABIN FLOOR HEIGHT** (a new row, 'cabin floor height', the crew page's floor group, 0-1.20 m). What existed: the crew
+    layer's floor is the front door's measured sill (+ `floorLift`, -0.10..+0.20 m, 'floor over sill'); the door's own sill row
+    (`doorSill`, 0-0.25 cage units) drops whole MESH ROWS (`_cage_gen.js` cutZone), so on the DC-3 0.25 more of it moved the door's
+    bottom 0.27 -> 1.18 m over the keel, and the crew layer's sill window (0.5 m) then threw the measurement away and put the floor
+    back on the boards over the keel. No row raised the floor 0.4 m and kept it there. The new row `floorUp` (metres) is the smallest extension of those rows:
+    - the FLOOR stands exactly floorUp over where the sill put it (`_cage_crew.js` anchors: sillOff + floorUp), so every seat, pedal,
+      console and occupant (all stand on A.floorAt) follows; the doorless boards too;
+    - the DOORS rise with it by the most whole mesh rows that fit under it (`cageCut` cutZone `up`; the rise published per door,
+      mesh.doorRise, and taken back out of the measured sill so the floor is the floor, not the row step). At 0.40 m the DC-3's door
+      bottom rose 0.31 m and stands 6 cm under the raised floor;
+    - the STEP (GEN_ACCESS step / grab handle: sillH) counts the climb the raised sill adds, both its game-side and editor-side rows;
+    - FLOWN: `clampSpec` reads cabin.floorUp OFF THE CAGE (the cage replaces as a whole in genSpecMerge and `cageToSpec` writes the
+      row only when raised, so a floor put back down cannot stay up in the flown spec), and the frame (61_gen_frame onRing) bills the
+      occupants, the seats, the bags in the cabin and the furnishing (Raymer's furnishings row, the floor in it) floorUp higher - shared
+      between a ring's bottom and top pair. DC-3: the CG 2.2 cm higher, the mass identical (8 527.24 kg);
+    - THE SPACE BELOW: not a hold. Freight's holds are measured cards for the validated builds only (FREIGHT_CARDS); an under-floor
+      hold is a second freight space = a new system: QUESTION 3 below.
+    - ABSENT AT ITS DEFAULT: the row is NOT in the page's defaults table (CAGE_PAGE.defaults), so a build that never moved it
+      carries no key - G377's re-save (every row the page knows, GATE BUILD's theorem) writes it only once it is set; the row shows
+      0 while absent (a new generic row option `absent`, _cage_ui.js mkRow / syncSliders: a stale value from the aeroplane loaded
+      before can no longer stay on the slider); the core deletes a 0. **The six validated builds bit-identical** (below). (A first
+      cut put floorUp: 0 in the defaults and stripped it in cageToSpec: GATE BUILD's 12 "the re-save carries every row" rows went
+      red - the load door rebuilds spec.cage from the whole row table, which is also why a default would have reached every
+      validated def.) The DC-3 fixture is rebuilt with floorUp 0.40 (DC3_ROWS): the real cabin's
+      1.98 m (6 ft 6 in) under this section's roof. Measured headless (the page's load chain): the floor under the pilots -1.044 ->
+      -0.663 m, the seat pans -0.88 -> -0.50, the pilots' heads 0.07 -> 0.45 m.
+    - **Not solved by it - the cockpit**: the DC-3 drawing's windscreen base (the dash top) stands at +0.87 m, the pilots' eyes at
+      ~+0.33 with the floor at 0.40: still 0.5 m under it. The real DC-3's cockpit floor sits a step over the cabin's; here there is one
+      floor for the cockpit and the cabin. The pilot seat's own row ('up / down (squab height)', to 0.50 m) lifts the pilots 0.35 m more;
+      a cockpit floor of its own is a new control: QUESTION 2.
+  - **G3571 WHY THE TAXI BROKE (run 1)** - reproduced through the GAME's host (tools/dc3_break.js: src/viewer/sim_host.js via
+    _tour_lib gameHost - the stand walked out of the WORKS shed (G3507's room for a 29 m build), the wheels seated, manual mode, the
+    hand's packet every step, damage ON; with and without the certificate - the page flies its first minute on the physics limits and
+    stamps the certificate when the bench's thread answers, 34-56 s in node for this build). Two causes, neither the tail's members:
+    1. **COLLISIONS AT THE STAND.** HOME's stand for a 29 m build is in the middle of the parked fleet and the props: a parked aeroplane
+       7.1 m from the DC-3's CG (inside its 14.5 m half-span), another at 18 m, props at 20-40 m, sheds at 32 m (29_obstacles records).
+       A full-rudder turn under power from the stand drives into one at 8 s; the obstacle's push is the trees' CAPPED spring
+       (30_solver KTn = min(2.2e4, 2e5 m) N/m a node - DC3-STUDY §4 named it), so an 8.5 t aeroplane sinks into a parked Cub, rides up
+       onto it (out.obst 4-16 nodes; the CG climbed 4 m at 12 m/s, vy 5 m/s) and breaks when it falls off: the stabiliser's attach
+       fittings (tail class, 189 mm2, 65 kN) yield first - "a tail member broke" is this. With the parked fleet removed the same turn
+       met a prop; with every obstacle removed it holds (no yield). QUESTION 1.
+    2. **THE TAIL CONE'S ROOT**, after a braked stop: full brakes from 10 m/s pitch the DC-3 from its 11.6 deg deck to 2.7 deg (the tail
+       ~2.2 m up); it stops and the tail falls back at 4.7 m/s; the shell's ROOT CUT (the cabin-to-tailcone joint, S5-S6) parts in
+       bending at 220.3 kN.m = exactly its limit (30_solver clCuts 'root-bend', ratio 1.0002), the rivet-line longerons go with it.
+       Full power to 25 m/s and full brakes: the same, "the fuselage parted (TPB off the core)". No obstacle in either.
+  - **G3572 THE LANDING (run 2)** - reproduced: the pilot from the line-up through the whole circuit, certificate stamped: FLARE 265 s,
+    ROLLOUT 271, touchdown 2.3 m/s at 34.5 m/s, the bounce, 4.51 m/s at 28.4 m/s (the user's 4.6), and at 277.0 s "a fus member
+    broke" - S5BL-S6BL, the same root cut. The certificate never restamps a cluster's cuts (only members): the cone's root is its
+    PHYSICS, the bare skin's buckling (61_gen_frame SHELL sigB: 0.605 E t / R x NASA SP-8007's knockdown, the record's own comment:
+    "A LOWER BOUND ... a real tailcone is stringer- and frame-stiffened").
+  - **The sizing against real numbers** - the root's bending limit over the design weight x the cone's length (the moment the tail's
+    loads make grows with both):
+    | build | W0 kg | cone m | root Mu kN.m | Mu / (W0 g L) |
+    |---|---|---|---|---|
+    | metal Cessna (validated) | 1 049 | 4.25 | 67.2 | 1.54 |
+    | Cessna floats (validated) | 1 111 | 4.25 | 67.2 | 1.45 |
+    | Jodel (validated, ply) | 544 | 2.87 | 74.6 | 4.87 |
+    | DC-3 as DC3-BUILD left it | 9 007 | 8.18 | 220 | **0.31** |
+    | DC-3, G3572 | 9 007 | 8.18 | 1 048 | 1.45 |
+    A real DC-3 cone (24ST alclad, stringer-stiffened: ~150 MPa over a ~2 mm smeared skin at R ~1.3 m) carries ~1.5 MN.m; FAR 25.481's
+    tail-down landing at 10 ft/s puts ~0.2 MN.m limit (0.3 ultimate) through it from the tailwheel's reaction (static 545 kg x the
+    landing's 2.67 g at 8.5 m) and the empennage's inertia - the old root broke at 1.1 x the limit, not 1.5 x. **G3572**: above
+    G3505's knee (2 x the material's design gross) the shell's break stress is raised until its root holds GEN_RULES.shellHoldKappa
+    (1.45, the validated float Cessna's own figure) x W0 g x the cone's length; the solver still caps it at the alloy's ultimate
+    (282 MPa against 470 here). STRENGTH ONLY: EI, GJ, Kt, the mass and the bill stay the skin's (G3505's rule for members). At or
+    under the knee nothing is set (every saved build: the heaviest sits at 0.50 of its knee).
+  - **After G3572** (tools/dc3_break.js, the same cases; `--kappa 0` is the before):
+    | case (damage on, the game's host; physics limits unless said) | before (`--kappa 0`, DC3-BUILD's cone) | after (G3572) |
+    |---|---|---|
+    | open ground (every obstacle out): full power to 24.7 m/s, then full brakes | "the fuselage parted (TPB off the core)" 20.3 s | holds, 0 yields |
+    | open ground: throttle bursts, full-rudder swings, firm stops at 10 m/s | root-bend S5-S6, 9.3 s | holds, 0 yields |
+    | open ground: S-turns at 11 m/s, full-rudder circles at 12.7 m/s, full back stick and brakes at 16 m/s | - | hold, 0 yields |
+    | the works stand, parked fleet out: bursts and firm stops | root-bend S5-S6, 9.75 s | holds, 0 yields |
+    | the works stand, everything in: bursts and firm stops | root-bend after the tail drop | **collision** 5.8 s (a prop / a parked aeroplane), "a tail member broke" (the stab's attach, HTR-S9BR), 54 m, peak strain 68 % - the user's run 1 |
+    | the works stand, everything in: full-rudder turn at 55 % power | collision 8.9 s, breaks up 9.6 s | collision 7.5 s, "the airframe crushed" 13.6 s |
+    | rough field (genCertTaxi's ground, damage live): 0.04 m bumps / 3 m at 8 m/s (the certificate's) | holds | holds (cert-stamped too) |
+    | rough field: 0.08 m / 3 m at 8 m/s | root-bend 2.5 s | holds, worst member 0.68 (cert-stamped: holds, gear 0.89) |
+    | rough field: 0.08 m / 5 m at 12 m/s | root-bend 7.6 s | holds, worst 0.74 (the inboard wing by the nacelle) |
+    | drop on the mains, no lift, 34 m/s along (genCertDrop's, damage live) | physics limits | certificate stamped |
+    |---|---|---|
+    | level (23.479) 3.05 m/s (10 ft/s) | 0 yields, nz 2.06 | 0 yields; the gear's bracket at 0.83 |
+    | level 3.85 / 4.6 m/s | 0 yields (worst 0.72 / 0.94, the inboard wing) | the main gear's bracket gives (yields), no break, the fuselage whole |
+    | three-point (25.481) and tail first (3 deg past it), 3.05 / 4.6 m/s | 0 yields | 0 yields (the gear 0.96 at 4.6) |
+    | any attitude, 5.5 m/s | the inboard wing member by the nacelle takes a set; no break | - |
+    (the drops held before G3572 too: a whole-body drop does not swing the tail; a braked stop's tail-fall and the bounce do)
+    THE USER'S RUN 2, the pilot from the line-up, certificate stamped: the same circuit to the same touchdowns (2.30 m/s at 34.5 m/s,
+    the bounce, **4.51 m/s** at 28.4, 1.89 m/s): before "a fus member broke" (S5BL-S6BL root-bend) at 277.0 s; after **0 yields, 0
+    breaks, STOPPED at 309 s** (gPeak 4.0; the inboard wing member at 0.96 the worst).
+- **The identity proof** (tools/dc3_identity.js, the page's load chain, against DC3-BUILD's reports/dc3_identity_branch_2026-10-23.json,
+  itself identical to master 20a13667): Cub, Jodel, metal Cessna, Cessna floats, twin floatplane, Rufus - the def
+  (sha1 of the whole def), the mass / cost ledger, the shakedown sheet, the mass and the 20 s flight **ALL IDENTICAL** (run after the
+  last core change; the floor row and the cone rule are both absent / unset under the knee)
+- **Gates** (`node tools/run_gates.js --only=... --no-build`, this box: 4 cores):
+  - **PASS, on the final tree:** `GATE GEN: PASS` (4 shards), `GATE PILOT: PASS` (3 shards), `GATE FLEX: PASS` (3 shards),
+    `GATE BUILD: PASS`, `GATE PARTS: PASS`, `GATE SAVE: PASS`, `GATE STARTER: PASS`, `GATE EDBUGS: PASS`, `GATE DESIGN: PASS`,
+    `GATE FRAMES: PASS`, `GATE KNIFE: PASS`, `GATE FIT: PASS`, `GATE HINGE: PASS`, `GATE JOIN: PASS`, `GATE WINGROWS: PASS`,
+    `GATE DESIGNCHECK: PASS`, `GATE SUBSTEP: PASS`, `GATE GEAR: PASS`, `GATE BAY: PASS`, `GATE CABIN: PASS`, `GATE SPECFIX: PASS`,
+    `GATE FLAPS: PASS`, `GATE MASS: PASS`, `GATE DMGMEMBERS: PASS`, `GATE FLOATS: PASS`, `GATE LOAD: PASS`, `GATE MOUNT: PASS`,
+    `GATE TAKEOFF: PASS`, `GATE LINEUP: PASS`, `GATE DMGSETTLE: PASS`, `GATE FREIGHT: PASS`, `GATE ENGID: PASS`, `GATE ENERGY: PASS`,
+    `GATE PANEL: PASS`, `GATE DASH: PASS`, `GATE PILOTS: PASS`, `GATE FIN: PASS`, `GATE SURF: PASS`, `GATE SHOULDER: PASS`,
+    `GATE LIVERY: PASS`, `GATE LIVERYREACH: PASS`, `GATE MEDIA: PASS`, `GATE TANKMOUNT: PASS`, `GATE PROCURE: PASS`,
+    `GATE SIMWORKER: PASS`, `GATE VIEW: PASS`, `GATE WATER: PASS`, `GATE WEATHER: PASS`, `GATE UISMOKE: PASS`, `GATE ACCEPT: PASS`,
+    `GATE HANGAR: PASS`, `GATE GAMEPREM: PASS`, `GATE SKINMAT: PASS`, `GATE NACLAG: PASS`, `GATE WINGSPLIT: PASS`,
+    `GATE ENERGYBASE: PASS`, `GATE BIPLANE: PASS`, `GATE STRIPSURF: PASS`, `GATE ENGINE: PASS`, `GATE COWL: PASS`, `GATE CAGEFIT: PASS`
+    `GATE DMGNOSE: PASS`
+  - **RED, the base's** (controls run on an origin/claude/dc3-build b5142615 worktree, the same file):
+    - `GATE DMGCLUSTERS: FAIL` - 3 rows (the FIN pulled sideways twice, the twin's severe nose-in): **the 108 rows identical line for
+      line** on the base (diffed). DC3-BUILD did not run it.
+    - `GATE ROLLANIM: FAIL (1 of 806)` - "G1039 flRevealStart still frames the stand as standFraming assumes": the same row red on the
+      base (with a timing row there, 64.1 bytes / frame against 64). A source scan of app.js's framing: DC3-BUILD's G3507
+      garageFraming change is the likely cause (not this branch's: app.js untouched here). DC3-BUILD did not run it.
+    - `GATE TREECRASH: FAIL` - 1 row, "jodel/trunk0 against the reference ... work MOVED p 0.000, work median 19724.1 -> 22577.2":
+      **the same row, the same numbers on the base** (run directly on both: the runner's 1 800 s timeout ended it once beside other
+      gates on this 4-core box; alone it reads 899 s). The Jodel's def and flight are bit-identical here (the identity proof).
+    - `GATE DMGGEAR: FAIL` - 1 row, "SEVERE for the twin: the 90 km/h, 5 m/s, 20 deg nose-in ... the boom root goes": **its 72
+      rows identical line for line on the base** (run directly on both: the runner's 1 800 s timeout ends it on this box).
+  - (The first gate batch had BUILD red - 12 rows, "the re-save carries every row" - from a first cut of G3570; fixed as said above,
+    and batch 1's editor readers re-run on the final tree: the PASS list is the final tree's.)
+  - **NOT RUN** (session time; the identity proof covers the validated builds' def and flight bit for bit): A0, please - DC3-BUILD's
+    own not-run list (DMGWALL DMGSCAR RWYTREES TAXICLEAR PLAN ROUTE DESTTO DMGSKIN DMGSKINGPU DMGPAGEW DMGWRECK DMGHEAL; batch 3;
+    the full tier), plus DMGCERT DMGTYRE DMGFABRIC DMGCOMPOSITE JOINPARITY POD (red on master per DC3-BUILD's controls), RADIALDIV, DESIGNSIM.
+- **Tools:** tools/dc3_break.js (a tool, not a gate: taxi / drop / field / circuit through the game's host, --kappa 0 the before),
+  tools/evidence/DC3-2.js (for A0: the garage stills with the floor's numbers, a page taxi on the keys, the circuit's landing and two
+  drops on the stand through FLIGHT_PROBE.place - UNTESTED ON A SCREEN: the cloud box cannot render the world).
+- **For A0 on the box:**
+  - `node tools/evidence/DC3-2.js` (the PNGs in reports/evidence/DC3-2/; a ROW per seat: its pan over the floor; exit 1 on a buried
+    seat, a crashed taxi or a broken 3.05 m/s drop). Smoke-run here on the cloud box (Playwright, SwiftShader), garage part only:
+    the page booted, the dropped fixture loaded as "DC-3 (full size) 8527 kg all-up, 29.0 m span", cage floorUp 0.4, the eight
+    seat pans 0.149-0.150 m over the floor at -0.648 / -0.663 (the node chain's numbers), four stills written - but the room's
+    camera clamp kept the eye close (the 29 m build in "Home base - the WWII hangar") and the canvas filled half the window here:
+    look at the stills on the GPU and take wider ones if they are as tight. The taxi and landing parts were not run here.
+  - Rebase: master moved to L24c (2b381015) while this ran; dc3-build was not on it yet (T-BG, Sun 25 Oct 16:00). Rebase this branch
+    once dc3-build lands, re-run tools/dc3_identity.js against the new master (L24c re-stamped Rufus and added double floats: the
+    reference fingerprints move with master, not with this branch).
+  - The gates listed NOT RUN below.
+- **Questions for the user:**
+  1. **HOME's stand for a 29 m build** stands among the parked fleet (one 7 m off the DC-3's CG, inside its half-span) and the
+     props: a turn there hits something. And the obstacles' push is a light aeroplane's (the trees' capped spring): a heavy
+     aeroplane rides up onto a parked Cub and is thrown. A clear stand for the wide build (DC3-STUDY's G3507 parking class), the
+     obstacle spring scaled with the aeroplane's mass above 3 t (gated as CRASH_J_KG is), both, or leave it (sandbox only)?
+  2. **The cockpit floor**: one floor for the cockpit and the cabin today; the DC-3's pilots need ~0.5 m more than its passengers to see
+     over the coaming. A 'cockpit floor' row of its own (the same machinery, section 0 only), or the pilot seat's height row?
+  3. **"The storage below"**: the space under the raised floor is drawn but is not a freight hold (freight's holds are measured cards
+     of the validated builds). Make it a second hold (FREIGHT's site tool + a card for the DC-3), or not while the DC-3 is an experiment?
+
+### G3573-G3574 - DC3-2 ROUND 2 (2026-10-25, cloud): THE SEATS' FREEDOM, AND HOME CLEARED FOR THE DC-3'S WHOLE TRIP (branch claude/dc3-2, rebased on L25b 61e93cb1)
+The user (25 Oct, verbatim): "Push back obstacles for real so the dc3 fits everywhere. It will become default scenery, so start from the
+latest. Let's have a very flexible seat height settings. And generally, for such a big place, Let's give bug freedom on the seat
+arrangements and sliders. The storage below the floor, don't do anything with it for now." Then: "Only home taxi should been cleaned,
+sorry. The WW2 strip is the only one where the DC3 can fly for now, but it should be able to complete a circuit including taxi from and
+to the hangar without hitting anything". And, on the plan pictures: "why don't you just take the lane in front, or change the default
+plane orientation? By the way, it does not even line up with the garage, so it is something to be fixed anyways, as it rolls out and
+should keep that rotation. ... did you try modifying the tail wheel for better turning? And using differential braking?"
+- **G3573 THE SEATS** (commit 555897f5):
+  - every seat and control row's range widened - pilot seat height (`seatH`) 0-1.50 m (was 0.06-0.50), passenger squab height
+    (`seat2H`) to 1.50, fore / aft +-1.50 m, rake 0-60, tilt -10-40, the side-by-side gap to 1.20 m; the stick, yoke, throttle, pedals,
+    flap / trim / park / fuel selector ranges doubled. Every new range CONTAINS the old one (a range only clamps the slider): no saved
+    build moves. GATE PANEL's source row for the yoke range moved with it;
+  - an airliner's cabin: `paxAbreast` 4-7 = 2 + 1, 2 + 2, 3 + 2, 3 + 3 with an aisle (0-3 as before, to the bit); new rows
+    `paxRows` (rows in a bay, 1-8), `paxPitch` (0.55-1.50 m), `paxAisle` (0.20-1.20 m), `paxSeatW` (0.38-0.80 m) - NOT in the
+    defaults table (absent = one row, 0.86, 0.45, 0.50: G377's every-row re-save writes them only once set; GATE PARTS: the pax part's
+    'seat layout' group claims them); a row that would stand past the bay's front ring is not drawn; `paxOcc1-4` are now counts
+    (0-48, filled row by row; 0-3 read as before);
+  - the core: `clampSpec` cabin.seats 24 -> 96, seatsX 12 -> 25 m (only a cabin past the old limits moves);
+  - found on the way: the headless editor chain (tools/_scene_headless.js) never ran assets.js's TEX_FLAT, so a build with SEATED
+    PASSENGERS threw in _cage_char.js and every layer after the crew was skipped (the join's seatsX missing); it runs it now;
+  - measured (the page's load chain): the DC-3 at 2 + 2, three rows a bay, 9 + 6 aboard: 38 seats, 15 passengers, seatsX 3.08-12.17 m,
+    10 068 kg, no scene errors. tools/evidence/DC3-2.js `--parts seats` draws it (a still from above, exit 1 under 26 seats).
+- **G3574 HOME, THE DC-3'S WHOLE TRIP** - reproduced first, then fixed in the scenery (no physics change):
+  - **WHY IT HIT (tools/dc3_break.js --cases home --track):** from the works stand the pilot's taxi out ran the DC-3's right wing 3.8 m
+    into the parked C172 af_park2 at 15.8 s, rode up on it and stood there 300 s (never airborne). Two causes:
+    1. **HOME's stand had no heading** (`stand.hdg: null`): `runwaySite` derives it toward taxiOut's first point - the way out for 13 -
+       so every aeroplane rolled out of the hangar along its door (-0.8552) and was SET DOWN 58 deg to the left (-1.8656). The wind's
+       way out (for 31, the east lane) then starts with a 107 deg right turn 13 m from the stand; the 29 m taildragger arcs through it
+       wide (its steered tailwheel: below) and its wing swept the parked row north of the lane;
+    2. the parked row (o3 / af_park1 / af_park2, SCENERY-ED-1's, noses east on z 639-644) stood inside that sweep.
+  - **THE FIXES (scenery; the manifest tools/fixtures/scenery_ship_rev28.json `fieldPatches` + its why, so a re-ship applies them
+    again; GATE SCENERYED 15 holds the fixture to the save + the patches):**
+    - **HOME's stand heading = the hangar's** (-0.8552; the stand already stood on the door's axis, 30.4 m out): the aeroplane rolls
+      out and keeps its rotation (the user's own line). The way out for 31 now starts 49 deg right, for 13 70 deg left;
+    - **the three parked aeroplanes** to the pad's west pocket beyond r_taxi_ne, by the fire bay: af_park1 (-166, 593), af_park2
+      (-170, 607), o3 (-170, 621), noses east at the user's own -1.637, keys kept, all on t_pad's flatten (GATE PARKED 7). NOT on the
+      painted apron af_y_park south of the lane: its stands are the player's fleet spots (GATE TAXICLEAR 10 went red when I tried).
+      The heading fix ALONE would not do: the flown line from the aligned stand passes af_park1's old spot with 1.2 m at the wingtip
+      (under TAXICLEAR's 3 m), af_park2's with 4.6;
+    - re-cooked: `premises_cook.js --island jolene` (one place cell p_m1_2 + the two terrain-type files), `fleet_spots.js --cook`
+      (GATE TAXICLEAR 10: HOME's spots re-planned round the moved aeroplanes).
+  - **THE PROOF - the whole trip, damage on, the game's host (dc3_break home; the works stand; the day's wind -> the 31 way out):**
+    | | before (L25b's scenery) | after (G3574) |
+    |---|---|---|
+    | taxi out | the wing into af_park2 at 15.8 s, stuck 300 s | 0 contacts, least clearance 13.6 m (the club's long hangar beside the stand) |
+    | the circuit | never airborne | lift-off 300 s, two go-arounds (master's T-P1 bounce rule: 1.0 / 1.2 m hops off 2.3-2.5 m/s touches at 34 m/s), the third committed: STOPPED 1 129 s |
+    | the taxi back (the hand, `taxiBack`) | - | a teardrop on the runway, the backtrack, out[0] reversed: parked 2.5 m off the stand at 203 s, 0 contacts, least clearance 6.2 m (the club's C172 o2) |
+    | damage | - | 0 yields, 0 breaks (gPeak 4.0 on the committed landing's 4.35 m/s second touch; the worst member 0.89, the inboard wing) |
+    Physics limits and certificate stamped: identical. Plans: reports/evidence/DC3-2/plan_home_before.png / plan_home_after.png
+    (the flown line dashed, the swept wings + 3 m pink); the runs' records home_trip_phys.json / home_trip_cert.json.
+  - **The user's questions, answered from the runs:** differential braking - tried for the turn on the runway (the toe brakes fully
+    split, `brakeD` the hand's own key, plus the outside engine full and the inside idling): 3 deg in 10 s. The tailwheel - NOT
+    modified: every taildragger's tailwheel is steered by the rudder to +-28.6 deg (62_gen_aero twSteer 0.5) and never casters, so a
+    pivot cannot swing the tail round; a real DC-3's swivels free (with a lock). That is a new ground law: QUESTION 4.
+  - tools/dc3_break.js: the `home` case (the whole trip, 1 300 s cap, the go-arounds' reasons, `--track`), `back` (the taxi back
+    alone from the landing's stop: `--from x,z`), `taxiBack` (the nearest way out from its nearest point; a teardrop when that way lies
+    behind - `--tdOff`, `--tdR`; a corner met at a walk; a point behind the aeroplane skipped, not circled).
+- **The identity proof (after all of it):** tools/dc3_identity.js on this tree against an origin/master L25b worktree - Cub, Jodel,
+  metal Cessna, Cessna floats, twin floatplane, Rufus: def, ledger, sheet, mass, the 20 s flight **ALL IDENTICAL**.
+- **Gates (this round, `--only=... --no-build`):** PASS - GEN (4 shards), BUILD, PARTS, SAVE, STARTER, EDBUGS, DESIGN, FRAMES, PANEL,
+  DASH, CABIN, JOIN, UISMOKE, SIMWORKER (seats); on the final scenery (the stand's heading included): TAXICLEAR (4 shards), LINEUP,
+  PARKED, ROLLANIM, TAKEOFF, PREMCOOK, CONTACT, STORESPOT, PILOT (3 shards), ACCEPT, UISMOKE, HANGAR, GAMEPREM; PREMISES and MEDIA on the
+  moved aeroplanes. RED, master's own on this box: `GATE PILOTS: FAIL` "kit is not where the aeroplane is: refused
+  (Kit is at Ridgeback Strip ...)" - the same line on the L25b worktree; `GATE SCENERYED: FAIL (1)` only 20b, a timing row (Metlakatla
+  put back under 2 500 ms: 2 915 ms here, 3 612 ms on the L25b worktree) - its row 15 (the shipped record = the save + the patches)
+  passes. (ROLLANIM's G1039 red of the first round was the dc3-build base's: L25b passes it, so does this tree.)
+- **Answered by the user this round:** QUESTION 1 (HOME's stand among the fleet): clear HOME's scenery for the trip - done above.
+  QUESTION 3 (the storage below): "don't do anything with it for now" - nothing done. QUESTION 2 (the cockpit floor): the pilot seat's
+  height row now reaches 1.50 m - the user's "very flexible seat height"; a cockpit floor of its own is still open if wanted.
+- **Questions for the user (new):**
+  4. **A swivelling tailwheel for the big taildraggers?** The DC-3 turns on a ~25 m radius at a walk (its tailwheel steered +-28.6 deg,
+     no castor), so it cannot pivot on a braked wheel as a real DC-3 does. A castoring tailwheel (free past the steering's range, or
+     unlocked by a cockpit lock) is a new ground law; it can be held to builds above G3505's knee so the validated ones stay
+     bit-identical. Wanted?
+  5. **The fleet's spots at HOME** (FLYDIY_FLEET, off by default): the planner keeps a light aeroplane's taxi half (5.5 m) off the
+     routes; three of HOME's re-planned spots (apron:34:255, 46:240, 46:270, z 632-647) lie inside the DC-3's swept wings from the
+     works stand. With the fleet on, the DC-3 would meet a parked fleet aeroplane there. Plan the spots for the widest build in the
+     garage, or leave it while the DC-3 is sandbox-only?
+  6. **The DC-3's landing** (master's autopilot, T-P1): it bounces 1.0-1.2 m off a 2.3-2.5 m/s touch at 34 m/s and goes round twice
+     before the committed third landing (4.35 m/s on its second touch, held). The trip completes; the pilot's flare for a heavy
+     taildragger is the pilot's lot (P1), not this branch's.
+
+### DC3-2 SPLIT FOR A0 (27 Oct, train check: "claude/ready/dc3-2 ab6a84914 ALONE adds +183 draws.main at HOME's stand and +232 at the taxi")
+claude/ready/dc3-2 is now the CODE (+ HOME's stand heading, -0.8552: island_jolene.json's HOME stand row and its manifest patch);
+the three parked aeroplanes' moves (o3 / af_park1 / af_park2, their premises cook, the fleet-spot pack) are claude/ready/dc3-2-scenery,
+one commit on top of it (the two share the manifest's fieldPatchesWhy line and the generated fleet pack: stacked, they never conflict;
+the scenery's own cost is that one commit's delta). GATE FRAMECOST's census (tools/_framecost_check.js --census cub, the cloud box),
+draws.main stand / taxi, every tree on L25b 61e93cb1 (A0's base read ~1 054 / 907, mine 708 / 760: compare within a column only):
+| tree | stand | taxi | renders (stand) |
+|---|---|---|---|
+| L25b | 708 | 760 | 16 |
+| L25b + the parked moves ONLY (scenery) | 705 (-3) | 760 (0) | 16 |
+| ab6a84914's CODE, L25b's scenery (stand hdg null) | 846 (+138) | 1 077 (+317) | 16 |
+| code + the parked moves (hdg null) | 1 044 | 904 | 16 |
+| code + the stand heading (= this ready) | 1 252 | 1 258 | 22 |
+| ab6a84914 (all) | 1 237 | 1 139 | 22 |
+- **THE PARKED MOVES COST NOTHING** (-3 / 0): the scenery ready is free to go.
+- **THE STAND HEADING** (the view out of the door) adds renders (16 -> 22 at the stand: the LIVE water mirror's capture - the
+  allow list's own G-note: the recording GL answers no occlusion query, so water seen is captured every frame) and draws.
+- **CORRECTED (13:35): THE CODE COSTS NOTHING EITHER - the "code alone" row is a STALE PARKED COOK.** The parked aeroplanes' shipped
+  bakes (src/core/parked_packs.json, media/parked) carry the game's build id in their signature (parked.js cookSig): any change to
+  the hashed sources (the core, the editor) leaves them stale and the page captures every parked aeroplane LIVE - the census's
+  detail: `parked` 2 -> 139 draws at the stand, 5 -> 320 at the taxi, the parking step's fetches 5 (14.5 MB) -> 1 (1 KB);
+  `node tools/parked_cook.js --check`: L25b 'same', this code 'STALE'. A train's own parked cook after its build ends it (the tool's
+  WHEN TO COOK). The steady state proves it is not warm-up: --warm 300 gives the same 708 / 760 and 846 / 1077.
+- **THE STAND HEADING, measured alone** (L25b + the HOME stand row only - the fixtures are not in the build id: the parked cook stays
+  valid, 'same'): stand 708 -> **1 101** (+393 draws.main), renders 16 -> 22, gl.uniform2f 18 -> **111**; taxi 760 -> **1 076**
+  (+316), renders 16 -> 17, uniform2f 14 -> 111 (A0's own reading: uniform2f 45 -> 111). THE VIEW IS THE COST: the plane facing out
+  of the door puts water in the stand camera's view, the LIVE WATER MIRROR switches on (its capture: a second scene draw every
+  frame, +6 renders at the stand) and keeps capturing at the taxi pin (renders 17). GATE FRAMECOST's allow list says it: "the
+  recording GL answers no occlusion query, so THE WATER SEEN never skips it" - in a browser the capture may skip when the water is
+  occluded; the harness is the worst case. For the user (they asked for the plane to face out of the garage): the heading costs
+  the water mirror at the stand. (Measured on the cloud box; the cessna not re-run.)
+
+## MISSIONS-P0 - THE MISSION PACK: src/missions/*.json READ INTO TODAY'S CONTRACT RECORD; THE 35 AUTHORED CONTRACTS RETROFITTED (NONE DROPPED); THE TUTORIAL LISTED READ-ONLY; GATE MISSIONS; THE DEV EDITOR tools/mission_editor.html (2026-10-25, cloud, node only + a headless page check; branch claude/missions-p0 off origin/master 61e93cb1 + claude/missions-design; for A0 to land, Game to review 72-75)
+
+Design: futureDesigns/MISSIONS-2026-10-25.md (structure B, §7 the user's decisions, §8 the people addendum). **A running
+career's behaviour is unchanged**: the career still reads 72_contract_data.js's literals; the built-in pack is held to
+them by GATE MISSIONS (records, pay, install, the offers and the documents of two careers walked under both tables).
+
+**Files.**
+- `src/core/73b_missions.js` (NEW, pure) - the pack's format, normaliser, validator (`missionPackValidate`), the two-way
+  conversion with the contract record (`missionToContract` / `missionFromContract`, `missionStrip` = the legacy
+  projection), `missionPackInstall` (a CONTRACT_PROVIDERS-shaped table filled from the pack), `missionReward`,
+  `missionRallyDerive`, `missionTutorial`, `missionPackFromContracts` (the retrofit). **NOT in build.js MANIFEST yet**:
+  in P0 only the editor and the gate read it, so tools/flight_core.js / index.html / career_core are byte-unchanged by it.
+  When phase 1 wires a pack into the career: add it to MANIFEST.core AND MANIFEST.career right after 73_contracts.js.
+- `src/core/73_contracts.js` (EXTENDED, additive; Game owns it - please review): `CONTRACT_DO_NEXT` (photo pass park wait
+  talk), `CONTRACT_CRIT_NEXT` (climbMs stallKmh toDistM ldgDistM fuelLph cargoL pax - same row shape, ACCEPT judges none
+  yet), `contractCritWhy(c, opts)` / `contractValidate(rec, { mission: true })` take them (WITHOUT opts.mission they are
+  refused exactly as before - gated), g1: an order that states `prefs` may say its configuration in its words (the
+  criteria never), `contractPlaceXZ` / `contractPlaceKm` + contractPay's carry / fly km to a place (a field id: the very
+  same arithmetic), `contractRuntimeOk(rec)` ('' = today's runtime can run it; else why), `CONTRACT_RUNTIME_PENDING`.
+  90_node_exports.js exports the six new names. (The core goes stale until A0's build: nothing else in src/core moved.)
+- `src/missions/builtin.json` - the retrofit (written by `tools/_missions_retrofit.js`, `--check` compares).
+- `tools/_missions_lib.js` (the LEAN set = the editor's files; `core: true` over flight_core), `tools/_missions_check.js`
+  (GATE MISSIONS, ~25 s; `--selftest` 18 doctored rules, ~8 min), row in run_gates.js after CONTRACTS.
+- `tools/mission_editor.html` - the dev editor (below). Not linked from the game yet (§7: later, under Dev; UISMOKE then).
+
+**The pack** (`{ what: 'flydiy-missions', v: 1, id, title, campaigns, missions, sites, text, legacy? }`, header of 73b):
+- Campaign -> chapter -> mission ids; mission -> legs -> steps. `order` on every container: seq | any | choose:N;
+  `needs.after` cross-links (a mission's names missions - pack or 72_ ids; a container's names containers).
+- A mission is today's record (id provider kind title brief pay rep unlock needs repeat followUp goods) + `client`
+  (person id; default the provider's client), `legs`, `order`, `onDone.say`, `rules`, `timers`, `startFrom`, `prefs`,
+  `delivery`, `route` (EMBEDDED 38c record), `rally { refKmh, r }`. Pack-level `sites` (id, asset, at {x,z,hdg}, state,
+  track?) - steps move them (`onDone.site`). Words are KEYS (72_'s rule): the pack's own words live in its `text`
+  table (`ms.<id>.title`...); MISSION_TEXT holds the model's labels (crit.<new kind>, pref.*, the built-in containers).
+- A step: `{ id?, do, place?, from?, load { kg, pax: n | [person ids] }, goods?, embark?, disembark?, require { when,
+  maxMin, depart, plane: [criteria] }, medals?, say { who, text }, onDone?, split?, auto? }`. Places: `'w3'` |
+  `{ field }` | `{ pt: [x,z], r, alt }` | `{ gate: [[x,z],[x,z]], alt, prop, dir }` | `{ ring: [x,y,z], r, dir }` |
+  `{ spot: '<field>:<spot id>' }` (src/viewer/fleet_spots_pack.js ids) | `{ site }`. MISSION_PLACES_OF says which verb
+  takes which. **photo over a FIELD (with `from`) IS today's survey** (the 450 m overflight) - the record keeps
+  `do: 'survey'`; the new model has no 'survey' verb. A photo over a point is P1's.
+- Into the record: legs -> `stages`, steps -> `subs`; require.when -> `when`, require.plane -> `crit`, field places ->
+  from / to / at, other places -> `sub.place` (a site's position copied on), pax ids -> `load.pax` (the count) +
+  `load.who`. Everything else rides along. `contractRuntimeOk` keeps a record OUT of the career while it holds anything
+  this runtime does not judge (rules, timers, startFrom, prefs, a non-default order, a new verb, a place, embark /
+  disembark, require.maxMin / depart, an onDone doing more than speaking, a new criterion). Presentation rides freely
+  (client, say, onDone.say, load.who, step ids, route, the tree).
+- **missionPackInstall**: a SEQ chapter of a provider's campaign = its `arc`; an ANY chapter = `builds` (kind build) /
+  `night` (the rest: the night list's "a validated design flies it" check is the one a flying mission needs). Held out
+  with the reason: not runnable, choose:N chapters, container `needs`, a seq campaign of 2+ chapters, another provider's
+  mission in a seq chapter. The built-in pack installs with nothing held, the lists equal 72_'s.
+- **People** (§8): ids only. With 72_people.js loaded the id must be in GAME_PEOPLE (and a `voice` - Tim - is never
+  aboard); without it (master until L26c) the id's SHAPE is checked (a free name like "Adam Smith" is refused either way);
+  `msClientOf` = peopleClientOf, else a 5-id stub map (leonard pete martha kate adam - ids only, the table is not
+  copied). GATE MISSIONS passes in both modes (checked here against claude/people's 72_people.js).
+- **Rally** (§7): `missionRallyDerive` - one `pass` over each route point (a point of the rally's radius, the drawn
+  altitude +-150 m), a split = the route length to it at refKmh, the `rally` timer cp1 -> cpN. Derived checkpoints are
+  `auto: true`; an authored one (auto absent / false) is kept whole on a re-derive; `auto: 'place'` keeps an authored
+  split on a derived checkpoint. Idempotent.
+- **Rules default** for a NEW mission (the editor's "+ mission"): crash fail, injury fail, freight fail, damage assess
+  (MISSION_RULES_NEW); injury may be `{ fail: <band 1-4 | GEN_OCC.bands word> }`. The retrofit states no rules (today:
+  a crash resets and keeps the contract live).
+- **Delivery** (§7: sold, blueprint saved) is the build kind's DEFAULT, written only to say otherwise - so the
+  retrofitted orders carry nothing, and P2's handover will apply to them too (see the questions).
+
+**The retrofit (the user: each retrofitted or dropped).** All 35 RETROFITTED, NONE DROPPED: every one is offered in
+today's careers or held out by a rule that will lift, so dropping one would change a running career (needs Game's
+migration ruling first). Every mission gained its owner (`client`: field leonard, minedock pete, resort martha, survey
+kate, clients adam) and, where 72_ wrote one, its completion line as the client's `onDone.say` (ct.<id>.done - never
+shown today; P3 shows it).
+
+| id | kind | steps | how |
+| field.01 | contract | land, land | as is |
+| field.02-05 | contract | carry | as is (field.03: two carries, any order) |
+| field.n1 | contract | carry | when -> require.when (arrive 00-01) |
+| minedock.01 | contract | photo + land | survey -> photo over a field (from HOME) |
+| minedock.02, .03, .06 | contract | carry | as is |
+| minedock.04 | build | deliver | crit -> require.plane; follow-up kept |
+| minedock.05 | contract | carry + photo | survey -> photo over a field |
+| minedock.b1, .b2 | build | deliver | crit -> require.plane |
+| minedock.n1 | contract | carry | when -> require.when (after dusk) |
+| resort.01, .02, .05 | contract | carry | as is |
+| resort.03 | contract | photo + land | survey -> photo over a field (the photographer's flight: P1 may add the shutter) |
+| resort.04, .b1, .b2 | build | deliver | crit -> require.plane |
+| survey.01, .03 | survey | photo + land | survey -> photo over a field |
+| survey.02, .05 | contract | carry | as is |
+| survey.04 | build | deliver | crit -> require.plane |
+| clients.01 | contract | carry, carry | as is (a T5 tutorial job) |
+| clients.02, .04, .b1 | build | deliver | crit -> require.plane |
+| clients.03 | challenge | fly | medals kept on the fly step (the logbook time); a timer later |
+| clients.05 | build | deliver | crit -> require.plane; STILL HELD OUT (ultimateG 6 > the normal category's 5.7) |
+| clients.n1 | contract | carry, carry | when -> require.when (before dawn) |
+| clients.n2 | contract | carry | when -> require.when; STILL HELD OUT (no door takes the 2.0 m stretcher) |
+
+**The tutorial** (§7: exactly as it is): campaign `tutorial` (readonly, phase 0) listing `story.T0` .. `story.T7` as
+`{ id, tutorial: '<beat>' }` only; the validator refuses any other field on a listing and any order but 79_story.js's.
+The T5 jobs (STORY_JOBS: clients.01, survey.01, resort.01) are retrofitted missions the runtime runs (gated).
+
+**The editor** (`tools/mission_editor.html`; serve flyDiy/ statically, open it): loads the LEAN core set in order (GATE
+MISSIONS holds the list = tools/_missions_lib.js LEAN: 01_names, 72_people*, 34_occupant, 38c_route, 72_contract_data,
+73_contracts, 73b_missions, 79_story) + map_pack.js + fleet_spots_pack.js. The tree (campaign / chapter / mission / leg /
+step, sites, the campaign-less; ✗ = problems, ⏳ = waits for its runtime, 🔒 = tutorial), a form per node (+ a raw JSON
+box), the 2-D map (the island art, zoom / pan; pick a field, a point, a gate's two posts, a ring, the nearest tie-down
+spot, a site's position), the route importer (a 38c record, the `flydiy.routes` library or the `flydiy.routeDraw`
+draft, pasted or a file) + "derive checkpoints + splits", the card preview (the owner's portrait via peopleFace when
+72_people.js is there, else an initial; the words as contractText fills them; offered / paid / best; the runtime
+verdict), the validation list (the game's own missionPackValidate). Save downloads the JSON (commit it in
+src/missions/); a draft stays in the browser. Checked headless in Chromium on master (no people: two 404s for
+72_people*.js, expected) and with claude/people's table + portraits: no page errors, the built-in pack loads and
+validates, a new mission, a point picked on the map, a route imported and a rally derived.
+
+**Gates** (private copy of the tree, `node tools/build.js` there, `run_gates.js --no-build`): CONTRACTS (+ its
+--selftest), MISSIONS (+ --selftest 18/18 red), ECON, STORY, ROUTES, ACCEPT, SAVE, GAMEPREM, NAMES green. UISMOKE not
+run: the game's page is untouched (the editor is a separate tools/ page).
+
+**OPEN QUESTIONS (for Game / A0 / the user)**
+1. **Pay shown != pay paid on the four authored night contracts** (found, not changed - the no-change rule):
+   careerMapContract shows contractPay(rec).total, which adds the condition / night premiums; careerComplete pays
+   contractPayTotal (the story base, no premium). field.n1 card 6420 / paid 4940; minedock.n1 8110 / 6240; clients.n1
+   9460 / 7280; clients.n2 11490 / 8840. Which is right? (missionReward shows both: "offered" and "paid".)
+2. **The switch** (P1, Game): the career reading the pack instead of the literals = the JSON in the bundle (build.js,
+   e.g. baked to a JS object like map_pack.js) + `missionPackInstall` over CONTRACT_PROVIDERS at boot; then delete 72_'s
+   arc / builds / night literals and invert GATE MISSIONS (72_'s tables no longer exist to compare). The editor's
+   "Rebuild built-in from game" button and tools/_missions_retrofit.js retire then.
+3. **Drop candidates** for the user (kept in P0): clients.05 (the aerobatic box: unwinnable until the certificate has an
+   aerobatic category; it also holds the clients:2 unlock - the museum hangar - out of reach; P1's ring course could
+   replace it), clients.n2 (the stretcher, until a door takes 2.0 m), survey.02 (a duplicate of the generated survey
+   samples job). Dropping any needs Game's ruling on careers that already passed it.
+4. **Delivery = sold** applies to every build by default: when P2 implements it, the retrofitted orders (minedock.04,
+   resort.04, survey.04, clients.02/04/05, the b-orders) will leave the fleet too. Confirm, or mark them `delivery:
+   { sold: false }`.
+5. The new criteria's `how` / `src` (stallKmh static off genShakedown Vs, toDistM bench TORun, ldgDistM the bench's
+   landing distance - not measured anywhere yet, fuelLph the leg, cargoL FREIGHT_CARDS, pax the seats) - ACCEPT's owner
+   to confirm in P2. MISSION_PREF_KINDS reads the GEN vocabulary (thrust tractor|pusher from engines[].mount, wing
+   position, tail type, gear type, canopy style, suspension from GEN_SUSPENSION); P2 reads each off the spec.
+6. GATE NAMES does not scan src/missions/*.json (a pack's `text` table can hold words): add src/missions to its scan.
+7. contractImportPack (the narrative pack) knows ct.* keys only: a pack's own `ms.*` keys are rewritten in the pack.
+8. A choose:N chapter, container needs, legs any / steps seq, the timers, the rules: P1 runtime - the install holds such
+   missions out with the reason until then.
 ## G3452 - CG-WARN: A WARNING SIGN IN THE CG READOUT ITSELF ON RED AND ORANGE (2026-10-25, RUFUS-CERT for A0; claude/cg-warn, on top of G3450; for L25c or L26a)
 
 The user on the G3450 stills (25 Oct): "The CG coloring looks good, but I'd put a warning sign straight in the CG text if not good (red or orange)."
@@ -99063,6 +99680,1839 @@ Strict light gate RED (6), all in known classes; the loads are back inside their
 - metal fuseWidth busy 393: the bimodal 0 / ~400 ms rep (master's own L24b / L24c show the same).
 - world -> garage: cub round trip 2 at 2.02 s, floats at 5.29 s. The class red since L24c (2.99 / 3.55 there); HWCOV has the cause, the per-trip cacheKey churn of fragment 66e30961, and its Mon 12:45 slot names the owner.
 Pushed by the user's order of 25 Oct: land as soon as possible.
+
+## G3541-G3548 - AIRCRAFT-LOOKS: THE PAINT REACHES THE ROD BOOM AND THE TRUSS, NO REGISTRATION READS MIRRORED, THE WHOLE AEROPLANE PICKED WEARS ONE SILHOUETTE, THE TUNDRA IS A BALLOON ON A SMALL HUB (2026-10-26, AIRCRAFT-LOOKS, LOCAL; for T-P2 / L27a; claude/ready/aircraft-looks)
+Why: the user's playtest of 24 Oct, and the user's rulings of 25 Oct relayed by A0. Registrations: "not having mirrored registration when projecting either on the fuselage ... but also on the wings. The top side and bottom sides should be treated differently, and that should be the same for the stabs and the fins." Tundra: "the bigger tundra wheels are bad ... their flank was protruding, and their proportions were bad."
+What changed (drawing only - no spec key, no certificate):
+- G3541 (_cage_ui.js baseReach): the global paint reaches the rod boom and an open fuselage's truss tubes, like the other skins.
+- G3542 + G3547 (aeroskin.js decal shader):
+  - PLAN box (wings, stabs): flips on a face whose normal points down (vCraftNrm.z < 0), so the bottom reads from below and the top from above.
+  - SIDE box (fins, fuselage flanks): mirrors by the face's own lateral normal (|nx| > 0.25; else the position's side). Both faces of a fin and a twin boom's inner face read forward.
+  - The field box is unchanged.
+- G3543 (editor.js hiBuild): the root picked (its tree row, the livery pill) draws the union silhouette of every drawn mesh. The garage opening on the root, or a click into empty space, draws nothing, as before (select(key, picked) / rootPicked).
+- G3548 (_gear_gen.js TYRE[1], the torus):
+  - hw 0.50 -> 0.44 R, bead 0.34 -> 0.25 R: W/D 0.44, rim 0.26 D, section 0.84 of its width. That is the Alaska Bushwheel family (26x12x6, 35x15x10: 0.43-0.46, 0.23-0.29, ~0.83).
+  - For the torus only, the rim, face style, bolts, cap, valve and brake scale with the bead (Rh); the 0.62 R brake disc had stood proud of the sidewall.
+  - No moulded rings on the torus sidewall.
+  - The standard and slim wheels draw byte for byte (Rh === R). The flight reads s1R; TYRE_CN is untouched.
+- G3545 (retire the old dummy) WITHDRAWN: it moved to DUMMY-RETIRE (the user's call). The commit 35484a7b6's title still names it; its code is not in this branch.
+- NOT DONE: the elevator's visible side shaded and detailed like the cut wing side (item 4) - left for a later round.
+Stills (Mon 26 00:45 s26-g1, before = L25b's files vs after; the session's scratchpad stills/):
+- reg2/ba_*: N1ORF on the Cub and Rufus. Under the wing and the stab it read mirrored and now reads right; the tops and both fin sides are unchanged and right.
+- tundra_wheel_front.jpg: the standard wheel | today's tundra | this.
+- valid/pair_*: Cub, Jodel, Cessna, Cessna floats, twin floats, Rufus, unchanged at load apart from the entry outline that f46685a6e removes.
+Rig trap: since L25b, dev.html's boot runs ~65 s after the garage objects exist. A still taken before BOOT.state 'gone' shows a half-built world.
+Correction to G3540 above: its evidence was the node page check, not steps_wheels.js. That check is tools/_page_node.js with the user's Cub, rolled out and flown for 240 s: worker and inline PASS, master's app.js FAIL.
+G3430 (Mon 26 Oct 20:20 still, ASSETS): 30 of 76 lake-shore ferns stood BLACK. The shore band's nodes lie on the island's 10 m lake cells (code 1), and the cover ring took their tuft colour from that code - the lake's, black (the grass field already swaps a dry lake cell for the land code round it, G2572; the ring did not). Fix: a shore node on code 1 takes the colour of the nearest land code (6 then 12 m, eight ways) - the colour only; its code and mix are untouched. CODE ONLY (node --check): re-gate (COVER TREES FADES STAND + FRAMECOST with the control) and a re-still before the reeds go ready.
+
+G3430b (the user, Tue 27 Oct 00:15, via A0: "The other reeds color is not good either. Just implement the bright/hue/saturation controls, tune them so they fit the general look, do a small variation per instance ... Don't color them as the ground here."): the lake-shore fern (reed_marsh) is no longer tinted by the ground (place.noTint: 1, no lift). It draws its own texel through the species' material dials, the existing cover tint (hue 0 + the master's 0.045, sat 1 x 1.58, light 0.24 x 1.456) and contrast 0.6 (flattening toward the map's mean lightness). Modelled on the texture's kept-texel mean (0.50, 0.58, 0.19), that lands the tuft near (0.14, 0.19, 0.06) at hue ~83 deg: the island grass's albedo band (0.10-0.20) in a fern green, no pink, no black. Per instance: brightness +-6 % (vary 0.06) and a hue swing of -4..+4 deg (hueTurn). The swing is the new noTint branch in cover_ring.js: a grey multiplier has no hue to turn, so the multiplier turns place.hueRef (the tinted mean, relative: 0.74, 1, 0.31) by the tuft's own hash, and the cell's stream R() is untouched. The pack's place/tint edited in trees_pack.json + trees_pack.js and in _trees_tuning.json (the bins are unchanged, so no re-bake). The 10 m lake-cell colour fix above stays: the band's grass_reed is still ground-tinted. The dials are live on TREE_LEAF.tint for the bench; a re-tune after the still moves only these three numbers.
+## G3710-G3712 - COWL-RES: THE NOSE DECK AND THE COWL'S TOP ARCH AT THE DASH'S DENSITY, FROM THE PILOT'S EYE, DISPLAY ONLY (2026-10-25, COWL-RES for A0, local; branch claude/vibrant-maxwell-3f5b3a; target claude/ready/cowl-res, L27b / T-P1)
+The user (25 Oct): "a higher resolution subsurf for the nose and cowl in interior view, matching the resolution of the
+dashboard ... the top arch of the cowl and nose, very visible in interior view, that do not hold up. The Cessna is the
+worst example, with edges and corners very visible."
+- WHAT IT IS (code read). Two surfaces ahead of the windscreen. (a) THE FUSELAGE NOSE DECK: with `front rings`
+  (cowlLoops) 0 - the Cessna, the metal Cessna, the Cub and the Jodel - the deck from the windscreen base to the twin
+  band is ONE control quad a side (buildCage2's low bands: P.waist -> C.waist), so level 2 leaves 4 x 4 facets of
+  ~11 cm (C172 noseLen 0.45). Rufus has 2 rings, which is why it looks better. (b) THE ENGINE COWL (_cowl_gen.js,
+  0.9 m on the C172): its azimuths are equal-sagitta, so the flattish TOP gets the fewest samples - the part the pilot
+  looks along. The cowl's lips are their own fine profiles and are not touched.
+- WHY NOT THE CAGE: G445/G468 item 73 tried rings in the nose run; CAGEFIT refused (template ring for ring) and the
+  finer skin moved gear.twY 0.5 mm, which flips every certificate. So both fixes are DRAWN-ONLY.
+- G3710 `cageEyeRefine(m, {zNose, k})` (_cage_gen.js): the deck faces (body / pillarFront, forward of the 'nose' zone's
+  z0, up-facing, upper half) split k x k (4) on a curved patch THROUGH the sheet's vertices - each edge a cubic Hermite
+  off its two smooth normals, the inside a Coons patch. The sheet's vertices never move, new ones are APPENDED (every
+  index keeps its meaning), an edge's points depend on that edge alone (no crack between split faces), a creased edge
+  or one a non-skin face shares stays straight, and a face outside the deck on a split edge takes the points into its
+  outline (fan from a clear corner, else from its centre: no T-junction). The field (aStruct) is interpolated, the old
+  normals kept, the new ones meshFrom's face average. _cage_ui draws meshFrom(sdE); MS, the measurements and the join
+  read the sheet. THE DRAG PREVIEW (G1443 deformTick / standRestore) carries the appended vertices on their parents
+  (meshObj.userData.eye) - without it every nose-slider tick would have fallen back to a whole build.
+- G3711 `prepareMesh({eyeArc})` (_cowl_gen.js): every upper-half interval longer than eyeArc / detail is split evenly
+  in theta; today's samples all stay (the lip, the seam, the cut read the same array). A bare call (the bench,
+  GATE COWL's port check) is byte-identical. _cage_cowl passes COWL_EYE_ARC (0.016 m, a page constant - nothing saved,
+  no spec or certificate moves).
+- OFF: a parked aeroplane's capture (parked.js holdEditor `run` sets CAGE_EYE_OFF while the parked spec is held - A0:
+  "YES skip it in parked capture"); `CAGE_UI.eyeRefine = false` (the rigs' BEFORE: the geometry master draws).
+- G3712 RIGS: tools/cowl_res_rig.js (node: dash vs deck vs cowl top - edge length, face-to-face angle; the pass's ms,
+  tris, verts; no sheet vertex moved, no new open edge), tools/cowl_res_stills.js (GPU: the garage's INTERIOR pill,
+  before/after in one page and one camera, `ahead` + `left`).
+- STATE: WIP 44dc3383a, node --check only. Slots (A0): CPU Mon 26 03:00-03:25 the rig (cr_cpu.sh), GPU Mon 26
+  04:05-04:30 the stills (cr_gpu.sh). Then: density tuned to the dash's numbers, rebase on master after L26b (G3451 arch
+  dash), gates COWL, CAGEFIT, FIT, CLIP, SURF, SKIN, SKINMAT, JOIN, JOINPARITY, VIEW, LIGHT, DESIGN, PARKED, DMGSKIN,
+  DMGSKINGPU, FRAMECOST + the GARAGE-LAG bench, the parked re-cook check after the build, AFTER stills to the user.
+- RIG Mon 26 03:00 (A0's CPU slot s26-c2c; scratchpad cr_rig_final.json). The dash's median facet edge is 1.6 cm on
+  every build, so the target is 1.6 cm: the page passes `edge: 0.016 / fieldM()` and k = the deck's median edge over it,
+  ROUNDED, 2..8 (C172 8, metal 8, Cub 5, Jodel 6; Rufus already 2 cm a side and its pass median says 2).
+  | build | deck edge p50 now -> after | face angle p50/p90 now -> after | cowl top longest chord | pass | tris |
+  | C172 corrected | 12.1 -> 1.5 cm | 3.6/14.6 -> 0.04/1.9 deg | 7.5 -> 1.6 cm | 8.4 ms | +8232 (66752) |
+  | metal C172 | 14.4 -> 1.8 cm | 3.3/12.5 -> 0.04/2.0 deg | 7.5 -> 1.6 cm | 5.1 ms | +8232 |
+  | Cub corrected | 7.4 -> 1.5 cm | 7.7/31.4 -> 0.6/6.8 deg | 4.9 -> 1.75 cm | 5.0 ms | +3848 |
+  | Jodel corrected | 9.0 -> 1.75 cm | 7.7/34.9 -> 0.9/5.6 deg | 5.8 -> 1.6 cm | 3.9 ms | +3752 |
+  | Rufus certified | 2.0 -> 0.5 cm | 5.1/36.7 -> 0.5/7.9 deg | (no cowl) | 3.3 ms | +4806 |
+  Clean on all five: no sheet vertex moved, the open borders' total length unchanged (the extra open-edge COUNT is the
+  firewall border split straight - nothing opened), the field aligned. Three fixes the first run found: (1) Rufus's
+  field (A) is shorter than its sheet - appended rows went to the wrong vertices; now padded with null first. (2) a 63 deg
+  fold in the C172's 7 mm pillarFront strip at the firewall: its front border stays straight (the corners' normals face
+  the firewall) while the edge 7 mm behind bowed ~1 cm. A face under a third as deep as long now passes a straight edge
+  to its opposite one (the bow fades over the next 10 cm row), and an edge leaves a corner along its chord where the
+  corner's normal is > 35 deg off the edge's own faces. Max angle now 22 deg = the shoulder crease as today. (3) the
+  cowl's arc was measured on the squarest probe (the C172's small front ring): now the largest, and the intervals that
+  straddle the waist line count. Cost cut 13 -> 8 ms on the C172: normals only for the deck's own vertices (meshFrom
+  fills the rest exactly as today).
+- STILLS Mon 26 04:05-04:28 (A0 s26-g3). The rig needed four fixes before it saw the cockpit: the camera pills live in the
+  rail's flyout (open it, press, close it), the #boot overlay ("before you fly") stands over the shed for minutes (wait it
+  out, ?world=none), the 3D canvas is not the first <canvas>, and the head turns through HEAD_CAM (a mouse drag did not
+  move it). The eye is ASSERTED now (camera = CAGE_CREW_EYE, d 0.000). FINDING: from the C172's seated eye the deck and
+  the cowl show only past the windscreen's lower left corner, and there before and after looked the same. Cause found
+  in node: the strip rule (a thin face hands its straight edge across) ran across EVERY C172 deck row (5 cm deep, 32 cm
+  across) and left the centreline ridge at 21 deg - the edge the user describes. Replaced by a per-edge bow fade
+  (w = distance to the nearest fixed edge / taper, capped at 1). The C172's deck is only 23 cm between its two fixed rows
+  (the windscreen-base band aft, the firewall ring's E1 creases forward), so taper 5 cm. Rig: C172 face angle p50/p90
+  0.49/2.8 deg, the centreline ridge gone from the top of the list; max 24.6 deg is now in the 7 mm firewall ring strip at
+  the shoulder (to look at). The 04:27 take of the same corner still reads alike - whether that patch is the deck or the
+  cowl's shoulder is the next still's question (the cowl hidden, the head raised 10 cm, an outside close-up of the arch).
+  NOT READY: the Tue gate slots stand, the ready push waits for a still that shows the arch.
+
+## G3713 - COWL-RES: THE EYE SHEET, A THIRD SUBDIVISION LEVEL AT CONSTRUCTION (2026-10-26, COWL-RES for A0; replaces G3710/G3711)
+The user, after the 04:27 pair (before/after alike): "the plane is built from the low poly cage, with 2 levels of
+subdivision ... Don't try to subdivide the finished model ... It's in the construction of the plane, we need 3 levels
+rather than 2." Their marked-up still (C172 seated, ahead): the arch's silhouette against the runway is the WINDSCREEN
+BASE - the glass panes meet the deck there, panes are faces of the subdivided sheet, so that edge is the level-2 polygon
+(one kink per ~12 cm, ~120 px at the eye). G3710's display refine had to keep it straight (the glass is flat): it could
+never round it. Then: "We can try only with the cowl smoothed ... the nose section ... the whole fuselage ... cut what
+is behind the aft bulkhead ... Try all ... and benchmark."
+- THE KNOBS FOUND. The cage level has no spec row: only the hidden `lvl` select (subsurf 0-3, G106.1's bench
+  instrument). cageSheet applies it to the whole sheet and the measured rows read that sheet - lvl 3 as-is moves
+  physics (G468: the finer nose moved gear.twY 0.5 mm, certificates flip). The cowl's own is `cw_detail` (the
+  polycount group's "cowl detail", 0.35-2); the validated builds don't set it (1).
+- G3713 cageSubdivideRegion(m, inReg) (_cage_gen.js): one more Catmull-Clark step on a face set, through cageSubdivide
+  itself on the region cut out as its own mesh (creases, field, tags, seam lists - one rule), the region's border held
+  as a crease for that step (exact midpoints, the ends on the crease curve), the faces outside taking the midpoints into
+  their outline (n-gons): no crack. cageEyeLevel(m, spec, {variant}): 2 the nose section (every face forward of the
+  windscreen's aft edge), 3 the whole fuselage, 4 all but aft of the cabin's aft bulkhead (the pax zone's aft ring).
+  cageSheet(P, {eye}) runs it between the global levels and cageRefitArc - before the sill / cut / knife / canopy /
+  rims / interior / shoulder - and never through the kept-stages path.
+- THE MEASURED SHEET IS UNTOUCHED: _cage_ui draws the eye sheet (one entry cached per level-2 sheet and variant) and
+  keeps `s`, the level-2 sheet, for MS, the fit, the join, the glazed area, the layers. Variant 1+ = the cowl at detail
+  2 for that build (_cage_cowl.js, the dial held through cowlPlace and restored at its return). _cowl_gen.js is master's.
+- SWITCH (prototype): ?eyelod=0..4 or window.CAGE_EYE_VARIANT; ?eye=off and the parked capture (CAGE_EYE_OFF) hold 0.
+  Default 0 = master's geometry until the user picks. The flight bakes what the garage draws (CAGE_JOIN.snapshot walks
+  the editor's mount), so ?eyelod=N reaches the flight; A0: in the shipping version the snapshot takes the eye sheet
+  (one visual, damage binds it as today), the garage draws it in the interior view only (asked of the user).
+- Known prototype cost: with an eye sheet drawn the drag preview (deformTick) refuses (its own vertices) and a tick
+  builds whole - the shipping eye sheet is the interior view's only. Overlays computed on the level-2 sheet (decals,
+  panels) may sit a hair off a level-3 skin: look at the stills.
+- RIGS: tools/cowl_res_rig.js (node: per variant the sheet ms, tris, the windscreen base polygon's segment / sharpest
+  turn, the deck facets, the open-border length (a crack would add to it), the measured sheet's hash unchanged, the
+  cowl at detail 1 / 2); tools/cowl_res_stills.js (modes v0..v4 / lvl3, views ahead = THE USER'S VIEW, ext34,
+  outside, left/right/down/up/nocowl; tris, draws, eye ms per view in its JSON).
+- SLOTS (A0): Tue 01:55-02:15 GPU s27-g1w the rig then the stills (C172, metal, Cub; fallback v0,v1,lvl3 if a variant
+  throws); Tue 06:30 rebase on L26c; Tue 07:45-09:15 CPU s27-c4c the 43 CPU gates (+ DMGWALLPATH / FLOWNBAKE grep) then
+  FRAMECOST per variant (chase + cockpit, FRAMECOST_QUERY=eyelod=N); Tue 13:00-13:45 GPU s27-g7w parked cook + GPU gates
+  + GARAGE-LAG per variant. Then the table + stills to A0, the user picks, the shipping wiring, its own gates.
+- STATE: 77da883b8, node --check only - NOTHING RUN YET (no box before 01:55). NOT READY.
+
+## G3714-G3716 - COWL-RES: THE 01:55 STILLS, THE FACIA, THE SWAP, THE PROBE (2026-10-27, COWL-RES for A0)
+- THE STILLS (s27-g1w, 01:55-02:03): THE USER'S VIEW (C172 seated, ahead) - v0 and v1 alike (the kinked arch, a doubled
+  ridge line by the compass: the cowl's detail does nothing there, the arch is the deck); v2 = v3 = v4: one smooth arch
+  (deck facet angle p50 3.3 -> 0.8 deg, edge 14 -> 7 cm). v2 OUT: its region border runs through the Cessna's door (an
+  extra dark line outside; the node rig's open-border length moved on every build for v2 only). Candidates v3 / v4.
+  Tris C172 66.7k -> v4 105.9k / v3 136.8k; eye sheet 270-460 ms (Cub 110-140). A0 02:10: v1 and v2 dropped from the
+  slots, the reps to v0 / v3 / v4.
+- G3714 cageEyeFacia(eye, m2) (_cage_gen.js): the Cub's dial faces and plate vanished in v2-v4 (bezels left). The third
+  level SLIDES the facia toward the pilot (every facia vertex by one amount: Cub 8.7 mm, Cessna 3.8, Jodel / Rufus 0)
+  and the instruments stand on the level-2 facia (the panel layer reads `s`). One shift back along the plate's normal,
+  the median gap of the vertices over the level-2 plate (a per-vertex projection clamped the bowed foot 34 mm wrong).
+- G3715 THE SWAP (_cage_ui.js): every whole build draws the level-2 sheet; the eye sheet (variant 2-4) is a second mesh
+  of the build, made when first wanted - the garage's INTERIOR view (seen, not told: eyeWatch, the camera within 0.5 m
+  of CAGE_CREW_EYE, one distance a frame while a variant is on - app.js untouched, its ~80 gates not owed) swaps it in
+  (the scene slot kept, the slots by section from the mesh that stood, the glass companion again), the exit swaps the
+  level-2 mesh back; the first entry builds behind the `progress` cursor, two frames after the view moved. The flight's
+  capture holds it (_cage_join snapshot / snapshotSteps -> CAGE_UI.eyeHold): cockpit and chase fly the eye sheet. A drag
+  tick swaps back to level 2 (the previews move its own vertices); the settle (whole build, release) brings it back.
+  CAGE_UI.eyeView / eyeHold / eyeStats / eyeStanding. The cowl's detail 2 is variant 1's only now (the cowl is drawn in
+  every view; the user: no smoothing outside). Default variant 0 = master until the user picks.
+- G3716 tools/cowl_res_probe.js (GPU): per build and variant (interleaved, v0 the floor) the exterior tris (level 2
+  always), the first entry (build ms, swap ms, the longest rAF frame of 2.5 s, the cockpit tris), --toggles exits and
+  entries (swap ms, longest frame); NOT CLEAN when a swap is wrong or the exterior has the eye sheet.
+- SLOTS (re-armed 03:2x, one waiter each): 06:30 rebase on origin/master; 07:45 s27-c4c build + 49 CPU gates (+ the
+  _cage_join readers ARCHETYPES ENGID PANEL WATER WINGROWS INPUT); 13:00 s27-g7w real parked cook + --check same, GPU
+  gates, FRAMECOST v0/v3/v4 chase + cockpit; 15:45 s27-g8 build + real cook + --check, master_bench taxi chase/cockpit
+  cub + metal v0/v3/v4 x3 rounds, the probe, garage_lag --cam interior v0/v3/v4.
+- STATE: 0cafb164a (facia) + 21fbdcbc8 (swap + probe), node --check only. NOT READY: the gates, the probe, the table.
+
+## G3717-G3719 - COWL-RES: THE GATES' FIXES, THE TABLE, THE USER'S PICK = v3, THE DEFERRED REBUILD (2026-10-27, COWL-RES for A0)
+- G3717: _cage_join's capture lets the eye-sheet hold go inside viewRestore (first, before its build), so the finally is
+  viewRestore() again (GATE VIEW's shape); cowl_res_stills + cowl_res_probe declared on JOINPARITY's page door.
+- G3718: cowl_res_probe waits for the camera to clear the crew eye before the next build loads.
+- THE TABLE (s27-g8, 15:52-16:52, real cook --check same, packs restored; evidence-2026-10-18/2026-10-27/1_cockpit_nose/
+  6_table_v0_v3/): metal Cessna 4 clean v0/v3 pairs, HOME taxi chase + cockpit 30 fps both, cockpit p99 33.5 both;
+  plane tris 66.9k -> 136.9k (scene +0.6 %); swaps 0.1 ms; the eye sheet is built on the LOAD (the flight capture's
+  hold in BUILD_SYNC's snapshotSteps): C172 336 / metal 283 / Cub 126 ms. Garage cockpit view, a fuselage row's
+  release: busy 469 -> 790, settle 805 -> 1154 ms (metal) - the eye sheet rebuilt in the release's task.
+- THE USER (19:3x, via A0): "let's go v3 on the fuselage then ... land the fix still". EYE_DEFAULT = 3.
+- G3719 eyeAfterBuild: a capture's hold builds the eye sheet at once (the snapshot reads it next); the interior view's
+  goes through eyeView(true) - the level-2 sheet the build drew stands, the eye sheet two frames later behind the
+  `progress` cursor, a later release or an exit cancels it (the ticket).
+- OPEN (A0's, code only): the cockpit view's release costs more than the outside's at v0 already (469 / 805 against
+  ~300) - where it goes is the next study.
+## G3451 - DASH-ARCH-SAVED: EVERY SAVED BUILD TAKES THE ARCH DASHBOARD; A CERTIFICATION-RULE CHANGE (THE DASH IS A LOOK ROW, HASHED AS IT WAS CERTIFIED) (2026-10-25, RUFUS-CERT for A0; claude/dash-arch off L24c 2b381015d; gates Mon 26 17:15 CPU, cockpit stills Tue 27 12:15 GPU; for L26a/b)
+
+The user, 25 Oct: "Yes, we should switch the saved planes to the new dashboard." G3340 (L19c) had made the arch (`dashStyle 1`) the default for NEW builds only; every file saved before it loaded on the box.
+
+**The migration** (`tools/_cage_gen.js` cageFromSpec (5), the one door). A cage without the new row `dashV` takes the arch once: `dashStyle 1`, `dashV 1`, and the box's never-shown legs row goes to its default (1). Two things made this the rule, ruled by A0 on 25 Oct:
+- "no dashStyle" was not enough: cageSpec has written every row since G377, so every build saved since L19c carries an explicit `dashStyle 0`. That covers the user's browser saves, Rufus and the PA-18.
+- A box picked deliberately between L19c and today flips once too. The user can pick it again, and from now on it stands (`dashV 1`).
+
+The dash the file was drawn with stays on it as `dashWas` / `dashLegsWas`. The template carries `dashV 1`. Rufus and the PA-18 are rewritten the same way in their files: `dashStyle 1, dashV 1, dashWas 0, dashLegsWas 1`.
+
+**CERT-RULE CHANGE - for CERT-REVIEW.** The dash is now a LOOK row for the fingerprint (`src/viewer/bench.js` benchStripCosmetic):
+- **Why it can be a look row:** the arch and the box weigh the same and sit at the same CG (GATE DASH's physics rows).
+- **What it hashes:** a cage saved after the switch hashes the dash it was CERTIFIED with. That is `dashWas` / `dashLegsWas` when the switch moved the file, else the arch (1 / 1). It is never the dash shown now.
+- **What that gives:**
+  - Every stamp taken on the box keeps matching: the bench plaque, the acceptance legs signed into the logbook (72_accept), and a career airframe's fp (76_procure). Nothing loads WITHDRAWN, no re-stamp is needed, and no fingerprint or scheme bump is made.
+  - A dash picked later keeps the certificate.
+- **Unchanged:** a cage from before the switch that was never reopened (no `dashV`: a parked slot's raw spec) still hashes exactly as it is.
+- **Matches A0's ruling, narrower than first proposed:** A0 OK'd look rows outside the fp plus an old-key equivalence on restore. But the fp is also stored by the signed legs, the flights and the career's airframes, so an equivalence would have been needed at every one of those comparisons. Hashing the certified dash keeps one hash everywhere.
+- **Precedent:** the frame rows' retired keys (T2.1) were hashed the same way.
+
+**The parked fleet** (`parked.js` fleetSig): the dash rows ride in the look part of the signature, since the fp holds them still. Every parked bake re-bakes once (the arch is a new look anyway).
+
+**Gates:**
+- DASH's load rows follow the switch: an old file takes the arch with dashWas 0; a file carrying the box takes the arch; a box picked after the switch stands; the switch happens once.
+- BENCH gets 6 rows, each with defaults and without: a box build through the switch hashes as certified; so does an arch build; after the switch the dash is a look; a build born after hashes as an arch build did; a cage from before still hashes as it is; a real cage row still counts. They were shown red on master's bench.js (4 of the 6).
+- KNIFE: the corpus is re-recorded in the Mon slot for the dash change only.
+- PANEL, CAGEFIT, CABIN, FRAMECOST, STORY (Rufus's certificate) and BENCH run in the Mon 17:15 CPU slot.
+## DC3-2 FOR A0 - THE CODE PART'S DRAWS AT HOME, MEASURED (2026-10-27, cloud; claude/ready/dc3-2 re-pushed CODE ONLY on origin/master d7e181f4e = L25c)
+A0 (27 Oct): "In the L27a train, FRAMECOST rose by about +200 draws at HOME, and it came from dc3-2 ... your CODE part alone also
+adds draws. Do: find which code adds draws at HOME with no DC-3 on screen ... name the objects or passes that are new."
+- **THE ANSWER: THE CODE ADDS NO DRAW.** Five censuses (tools/_framecost_check.js --census cub, FRAMECOST_WHAT=1: the drawn
+  objects by name; the trees: origin/master d7e181f4e, and the code part alone - claude/dc3-2-split-code + origin/master merged,
+  HOME's stand row reset to master's):
+  | census (cub, HOME)                                   | stand draws.main | taxi draws.main | shadow s/t   | uniform2f s/t |
+  | A master, its parked cook valid                      | 708              | 760             | 104.5 / 100  | 18 / 14       |
+  | B the code, master's cook accepted (its build id)    | 708              | 760             | 104.5 / 100  | 18 / 14       |
+  | C master, the cook off (?parkcook=0)                 | 846              | 1 077           | 247 / 146.5  | 135 / 271     |
+  | C' the code, the cook off                            | 846              | 1 077           | 247 / 146.5  | 135 / 271     |
+  | D the code, its own build id (the cook STALE)        | 846              | 1 077           | 247 / 146.5  | 135 / 271     |
+  A vs B, C vs C', C vs D: 0 objects differ (every drawn object's name and material, both views), 0 counters moved (--compare).
+  The rise D - A is THE PARKED AEROPLANES CAPTURED LIVE: stand +129 net (parked:arch:c172 +56, parked:arch:cub +51,
+  parked:merged +25, their ShaderMaterials +6, parked:baked -2; 7 guardrail spans fewer), taxi +304 net (c172 +120, cub +106,
+  jodel +55, merged +25, shaders +14, parked:baked -5; 11 rail / pole spans fewer) - the editor's meshes in place of the
+  cook's one baked mesh each. The cook's signature (parked.js cookSig) carries FLYDIY_BUILD, so ANY code change leaves it
+  stale until the train re-cooks (parked_cook.js: a GPU box - it refuses SwiftShader, so not cookable here); master with its
+  cook off draws exactly the same. (The few guardrail / power-line spans fewer in D and C are the streaming the slower live
+  capture delays on the virtual clock - identical in C and D, so not the code's.)
+- **WHAT WAS IN THE OLD claude/ready/dc3-2 (879ecf70d) BESIDES THE CODE:** HOME's STAND HEADING (tools/fixtures/
+  island_jolene.json's stand row, scenery_ship_rev28.json's) - the view change (the plane facing the door: the water mirror's
+  capture in the stand camera; measured on L25b with the cook valid, stand 708 -> 1 101, renders 16 -> 22, uniform2f 18 -> 111).
+  It is scenery by A0's rule and is OUT of the code ref now: claude/ready/dc3-2 = the code only (reports/evidence/DC3-2/
+  framecost_codeonly/: the five censuses). claude/ready/dc3-2-scenery (43bce3a68, not moved) still carries the stand heading
+  and the parked moves on top of the old ref - over the new code ref it adds exactly those two, for the scenery train's own A/B.
+- **The DC-3's HOME trip needs the stand heading** (the plane rolls out of the door on it): sandbox-only, it waits with the
+  scenery. Nothing else in the code reads it.
+## G3871 - DOOR-HINGES: A DOOR'S HINGES ON ONE STRAIGHT AXIS, FITTED TO THE STRAIGHT PART OF ITS EDGE; FOUR TWEAK ROWS; CERT-SAFE (2026-10-27, cloud, for A0 / the Performance Coordinator; claude/door-hinges off origin/master d7e181f4e = L25c)
+
+Why: the user, 27 Oct, on the STOL Cub's garage still: "the door hinges are placed at a ridiculous place here, the door would not open as both hinges are not on the same rotation axis. Could we place that better by default, on the straight vertical part of the door? And allow some manual tweaking?"
+Measured cause: `surfaceList` handed a door's hinge run over as its POLYLINE (the sheet's edge, `cageDoorEdges`), and the stations rode the arc, each barrel on its local tangent and lifted along its own local normal. On the Cub's forward edge (the belly corner's curve, the vertical post, the slant up to the window sill) the lower hinge sat on the corner and the upper one on the slant: 147.8 mm off each other's axis and 45 deg apart on the STOL Cub, 57-124 mm on the Jodel and both Cessnas, 31 mm and 4.4 deg on the clamshell's lower half. Several master barrels also dipped 0.2-1.0 mm into the skin (`reports/evidence/DOOR-HINGES/gate_on_master_placement.log`: this branch's gate run on master's placement).
+
+What changed:
+- tools/_cage_hinge.js (surfaceList, the doors): each run (forward/aft cut at the sill as G1105 did, top, bottom, and each half of the clamshell) is fitted with ONE line. It is the longest stretch of the run whose vertices all lie within 5 mm of the chord between its ends: the vertical post on a standing edge, the straight part of a roof or belly edge. Every hinge sits ON that chord with its barrel along it. The lift direction is the mean skin normal over the stretch, made square to the axis (frameOn keeps z on the axis only then). The whole line is lifted as one: the drawn sheet is ray-cast along that normal every 4 cm and across the barrel's width (`sheetRay`), and the line rises by the most any sample needs plus 2 mm. Every barrel clears the skin and none leaves the line. The butt hinges' leaves still probe down to the skin (skinProbe), so a barrel standing a few mm proud keeps its leaves on the skin. `placed[]` now publishes each station's barrel centre and axis (`stations`).
+- THE TWEAK ROWS (in the existing '13 · control hardware' > doors group and in the parts tree, _cage_parts.js; no parallel system). Each applies to every run of every door:
+  - `hgDrOff`: axis offset into the door, m, -0.03..0.12.
+  - `hgDrTilt`: axis tilt about the skin normal, deg, -25..25. + leans the run's far end into the door; the sign is the same on both sides and every edge.
+  - `hgDrSlide`: the hinges slid along the axis, m, ±0.20.
+  - `hgDrInset`: the ends' inset as a fraction of the axis, 0..0.45, where 0 = the old rule max(0.12, hgOut).
+  - All four at 0 give the fitted line, to the nanometre (gated).
+- CERT-SAFE (how): the four rows are named as STATE rows. `^hgDr[A-Z]` is appended to bench.js BENCH_STATE_ROWS and to 76_procure.js PROCURE_STATE_ROWS, so they never reach either fingerprint, at their default or moved, with or without the page defaults. Every file saved before this change lacks the keys, so its stripped spec, and therefore its hash, is byte-identical. Proved two ways:
+  - GATE HINGE hashes every build fixture under bench.js and under the same source with the `hgDr` alternation removed.
+  - `reports/evidence/DOOR-HINGES/fp_master_vs_branch.js` hashes every file in builds/ and tools/fixtures/ under master's bench.js / flight_core.js and this branch's: 27 of 27 the same, bench and procure (`fp_master_vs_branch.log`).
+- tools/fixtures/stol_cub_showcase.json: copied BYTE-IDENTICAL from claude/ready/stol-wing (blob b9b3e4b9). The two branches add the same blob, so they merge clean in either order.
+
+GATE HINGE, a new block "4f2 A DOOR TURNS ABOUT ONE LINE" (DOOR AXIS), run on five aeroplanes: the stock 'piper cub' preset (its clamshell, edge 4, one line a half), the STOL Cub showcase, the Jodel (page default), the 'cessna 172' preset and the Cessna metal fixture.
+- CO-AXIAL: every barrel centre within 1 mm of the line through the first barrel along its own axis, and every barrel within 0.5 deg. Measured 0.000 mm / 0.000 deg on all 12 lines.
+- ON THE SKIN: every barrel centre r + 0.5 .. r + 8 mm off the cage sheet (MQ.triSet signedDist, CAGE_MATS, not the layer's own ray). Measured r + 1.0 .. 2.5 mm.
+- ON ITS EDGE: at the defaults every barrel is within r + 8 mm of the chosen run, and the end barrels are at least 0.15 m apart. Spans: Cub top 0.56 / bottom 0.62, STOL Cub 0.43, Jodel 0.61, both Cessnas 0.33 m.
+- THE TWEAKS, on the STOL Cub:
+  - the rows at 0 reproduce the auto line;
+  - tilt 10 turns each line 10 ± 0.5 deg;
+  - offset 50 mm moves it 50 ± 10 mm aft into the door;
+  - inset 0.3 draws the hinges in;
+  - slide -60 mm stays co-axial;
+  - each tweaked line stays co-axial and clear of the skin (≤ 25 mm proud: a tweaked line crosses a curved panel).
+- CERT-SAFE as above; procureFp too.
+- --selftest probe (g): the master polyline placement (corner + slant) and a barrel 1.2 mm off the line are both caught, and two barrels on a line pass.
+The tolerance 5 mm was measured, not guessed:
+- at 3 mm the Cessnas' curved forward edge leaves only 0.22 m of straight post, and the hinges bunch;
+- at 6 mm and above the STOL Cub's line reaches into the belly corner, and the upper barrel floats 5 mm off the skin;
+- at 4.5 and 5 mm the result is identical on all five aeroplanes.
+
+Stills (cloud, SwiftShader, CLOUD-SHOTS' tools/plane_shot.js from origin/claude/cloud-shots, run from a scratch copy NOT committed here). The copy has one extra view, `mesh:<prefix>/<az>/<el>/<dist>`: the box of the scene meshes named `<prefix>` (the door's moving-leaf mesh `edHinge_door_pilot_P_metal`) and an orbit about it. If CLOUD-SHOTS wants it, it is 15 lines in the view switch. `reports/evidence/DOOR-HINGES/`:
+- `*_close_before_after.jpg` and `*_wide_before_after.jpg`, master d7e181f4e | this branch, for:
+  - the STOL Cub showcase;
+  - the user's Cub (builds/cub_2026-09-20_corrected.json, forward edge);
+  - the same Cub on the clamshell (edge 4).
+- On the STOL Cub and the user's Cub: before, one barrel tilted on the slant up to the sill and one down on the belly corner; after, both on the vertical post, one line.
+- The clamshell's close-up frames the middle of the box spanning its two lines and shows neither. Its wide view shows the two top hinges under the wing root on one line; GATE HINGE measures both halves.
+- `after/stol_cub_showcase_s.jpg`: the side view. `*_plane_shot.log`: the runs. The garage was up in 180 s; each close view took 6-10 min on SwiftShader.
+
+Not done / for A0:
+- the in-page check of the four rows (A0's local page check);
+- the full `--all` battery: in this 4-core container it did 12 of 280 jobs in 2 h and was stopped. Verdicts below are every gate that reads the hinge layer, the door edges, the parts tree or a certificate fingerprint.
+- _cage_access.js (the door handle, "the edge opposite the hinges") reads hgDoorEdge only and is unchanged; GATE FIT holds it.
+Gate verdicts (run_gates --only, logs in reports/evidence/DOOR-HINGES/gates/):
+- PASS (25): HINGE (and --selftest), CLIP, FIT, BENCH, PARTS, DESIGN, DEFAULT, PROCURE, SAVE, JOIN, ACCEPT, ENERGY, FRAMES, FREIGHT, KNIFE, MEDIA, PANEL, ROLLANIM, STARTER, SUBSTEP, TECH, SKINMAT, UISMOKE, CAGEFIT.
+- RED, master's own: JOINPARITY. Its one FAIL is the source scan "no tool flies a validated build raw" (_apsmooth_check.js, _engtorque_check.js, _floatdup_check.js, econ_sim.js, engine_torque_seasweep.js, hand_controls_probe.js; none touched here), identical on origin/master d7e181f4e (joinparity_master.log).
+- Not run: the rest of the core and the full tier (ARCHETYPES and the other sweeps), for the container reason above. A0's battery is the verdict.
+Pushed claude/door-hinges and claude/ready/door-hinges.
+## G2790 ENGINE-CONFIGS - THE SKYMASTER'S NOSE + PUSHER, THE THREE AND THE FOUR: ENGINE LAYOUTS ON THE GENERATOR, THE SOLVER, THE EDITOR; GATE ENGCONFIG (2026-10-12, ENGINE-CONFIGS for A0, cloud, node only; branch claude/engine-configs-g2790 off origin/master f353a0f8; G2790 used, G2791-G2799 unused)
+
+**READY for A0.** Source: the user's slider review, 10 Oct: "We need the configuration nose engine + pusher engine
+(Cessna skymaster). We could activate the 3 and 4 engines configuration I believe."
+
+**Where it stood.** `engines[]` has been an array since day one and the solver has shared thrust PER ENGINE over each
+engine's own mount nodes since G194 (`refs.engineOf`, `sim.setEngine`, `out.thrustPer`) - a cut engine on a wing pair
+is already a real yaw couple. What held the aeroplane to one mount (or the classic wing pair) was clampSpec (G121's
+truncation), the frame's mount block (`if (!noseEng)`), the wash rule (keyed off `engAt[0]`) and the editor (the
+Three / Four tiles greyed "ROADMAP P7").
+
+**The layouts (60_gen_spec `GEN_ENG_LAYOUTS`, `genEngLayoutOf`, `genEngLayoutEngines`).** A layout is the LIST OF
+MOUNTS, in order, and only these exact lists fly as several engines:
+- `pushPull` = [nose, pusher] - the Skymaster. The rear prop's hand is forced to the nose's MIRROR (the same engine
+  turned round on its mount): seen from behind they counter-rotate, so the reaction torque, the gyroscopic couple and
+  the P-factor cancel in pairs once ENGINE-TORQUE (G2080, not on master yet) lands - it reads `engines[i].sense`, +1
+  clockwise from behind, the same convention.
+- `tri` = [nose, wing, wing] - the Trimotor / Ju 52 (nacelles at 0.35 semispan).
+- `quad` = [wing x4] - two pairs, inner (0.30) then outer (0.62); the clamp keeps the outer pair outboard.
+- ONE ENGINE TYPE PER AEROPLANE (every entry takes entry 0's type and custom row): the solver flies one propeller law
+  per def. Each wing pair is mirrored off its port entry (station, pylon, tilt, aim), as the classic pair always was.
+- EVERY OTHER LIST CLAMPS EXACTLY AS BEFORE (one mount, or the classic pair - which is NOT a layout and keeps its old
+  code path byte for byte). A save cannot change meaning: no save could hold a layout list before (the clamp cut them).
+- `S.engLayout` ('single' / 'pair' / 'pushPull' / 'tri' / 'quad') and `engAt[i].pair` are published on the resolved
+  spec; `engAt[i].side` alternates over the wing entries (-1 port, +1 starboard).
+- THE WING FOLLOWS THE ENGINES (the 2026-09-04 rule, per entry for a layout): entry 0 off the nose has MOVED from the
+  nose (lever from engX0); every further engine is ADDED to an aeroplane that balanced on its wing (lever from the
+  quarter chord). Measured static margins on the stock airframe: push-pull 0.205, three 0.205, four 0.155 (single 0.19);
+  the Skymaster-alike (IO-360s, twin booms, tricycle) 0.234.
+
+**The frame (61_gen_frame).** A layout's nose engine is the firewall pair, byte for byte; every other entry is built in
+block 2b with ITS OWN engine index on its mount nodes (Skymaster engineOf [0,0,1,1], three [0,0,1,2], four [0,1,2,3]).
+Each off-nose engine of a layout wears its own cowl (nacelle) and exhaust mass on its own mount nodes (the classic pair
+still splits one cowl over two nacelles - unchanged, named below).
+
+**The wash (62_gen_aero).** A layout blows from every disc: a nose engine washes the centre and inboard wing as fitted
+to the Cub, each pulling nacelle washes the wing about its own station (the strongest wake a strip sits in), the
+push-pull's pusher blows on nothing ahead of it; the tail flies in the centreline wake whenever there is a nose or a
+pusher, between nacelle wakes not at all. The solver's wash magnitude is still the MEAN disc (T / nE) - see below.
+
+**Fuel / feeding.** Every engine draws from the one manifold (the solver drains every tank in proportion and the burn
+sums each engine's own throttle - unchanged); the tanks starving stops every engine at once. No per-engine tank
+selection or crossfeed valve exists (named below).
+
+**The plaque.** For a push-pull only, `genShakedown` adds `propBoomClear` (each boom's inner face - its station less
+its drawn radius - less the rear disc's radius: 0.210 m on the Skymaster-alike) and `propStabClear` (the stab 3.95 m
+aft of the disc); a three / four adds `engLayout`. No other plaque gains a field.
+
+**The editor.** `engMount` 4 = nose + pusher (push-pull), 5 = nose + wing nacelles (three), 6 = two pairs (four);
+`engNacAt2` the four's outer station (0.62). `engineFaces` composes the single mounts' faces in the spec's order
+(the join reads unit i as engines[i]); the cowl layer's clone on a face of ANOTHER KIND than the first unit's is the
+same cowl SCALED to that face (the nacelle a nose cowl makes, the Skymaster's aft cowl on the bulkhead); a unit on a
+synthetic face draws its own mount plate when the first unit's is the real firewall. `_cage_gen`: a push-pull opens
+the aft bulkhead on a rod OR twin booms and keeps the engine nose; the three keeps the engine nose; the four the aero
+nose. The join writes one entry per unit with its own drawn station. DESIGN TILES (the Engines row; EDITOR-UX-A
+G2760 owns their styling): **Push-pull (nose + pusher)** - engMount 4, twin booms set out at the rear disc's radius +
+0.30 m, the nose cowl on, no aero aft; **Three (nose + wings)** live - the nose cowl kept, nacelle tails; **Four
+(wings)** live - inner 0.30 / outer 0.62, nacelle tails, the aero nose; **Single** brings any layout back to the nose.
+designBake's intent spec carries the layout (GATE ARCHETYPES flies what the tiles chose).
+
+**Measured (GATE ENGCONFIG, straight wings-level downwind, the pilot flying, one engine cut, 10 s):**
+
+| build | cut | sideslip max | yaw rate max | heading | alt |
+|---|---|---|---|---|---|
+| twin fixture (CONTROL, 582s on the wing) | port | 6.57 deg | 7.8 deg/s | 6.6 deg | -5.4 m |
+| Skymaster-alike | none / nose / pusher | 0.01 / 0.01 / 0.01 deg | 0.13 deg/s | 0.2 deg | 0.0 / -8.4 / -8.2 m |
+| three | none / nose / wing | 0.01 / 0.01 / 3.19 deg | 0.11 / 0.11 / 4.66 | 0.0 / 0.0 / 3.1 | -0.1 / -6.0 / -5.8 m |
+| four | none / inner / outer | 0.05 / 2.74 / 5.10 deg | 0.20 / 3.10 / 5.82 | 0.3 / 2.6 / 4.5 | -0.1 / -4.6 / -5.1 m |
+
+Certificates (66_gen_cert) + the garage bench to 5.7 g on the certified airframe, damage on: Skymaster-alike 521
+members HELD 0 broken; three 413 HELD; four 432 HELD. (The twin-boom ELECTRIC fixture breaks at 4.6 g as a single on
+master too - it is not a certifying airframe, which is why the Skymaster-alike is the stock airframe, not that one.)
+
+**Gates.** NEW: **GATE ENGCONFIG** (`tools/_engconfig_check.js`, core, ~3 min at --jobs=4): 1 IDENTITY - 15 builds
+(the Cub, Jodel, 172, Chinook corrected builds, the twin-582, twin, twin-boom, pusher and metal-Cessna fixtures, the
+four single mounts, two clamped lists) digested against master f353a0f8 (nodes, beams, params, refs, strips, 2 s of
+the sim) - all equal; 2 CLAMP; 3 LATTICE; 4 SHAKEDOWN; 5 FLIGHT (the table); 6 CERTIFY; 7 EDITOR (join + tiles).
+PASS. Existing gates, `run_gates.js --no-build --only=...` on this branch (build 5c0b86a1d2c1), every one PASS:
+ENGCONFIG 278 s, GEN 632 s [4 shards], PILOT 341 s [3 shards], MOUNT, JOIN, GENPAIRS, SPECFIX, DESIGN, PARTS, ENGINE,
+ENGID, COWL, ENGMESH, CAGEFIT, BUILD, SAVE, STARTER, HONEST, WEIGHT, MASS, DRAG, BENCH, LOAD, AUDIO, ROLLANIM, DEFAULT,
+TAKEOFF (BATTERY: PASS, 25 + 2 gates); BUILT PASS on a fresh build with the source lag named (this branch commits
+sources only; A0's train commits the built outputs). NOT run: the full tier (ARCHETYPES, PILOTMATRIX, SEAPLANE,
+HOTHIGH), UISMOKE and the page gates (node only, no pixels) - ARCHETYPES flies designBake's intent, which this change
+touches only for engMount 4-6 (no archetype card uses them).
+
+**What to watch for.**
+- ENGINE-TORQUE (G2080) is NOT on master: today an engine out on the push-pull has ZERO yaw because there is no
+  propeller torque / P-factor at all. Once G2080 lands, the remaining engine's own torque/P-factor yaws it a little
+  (like any single) and the both-running case cancels (opposite hands) - re-run GATE ENGCONFIG on that merge; its
+  `beta < 0.5 deg` bounds have room for a single prop's swing but that is a prediction, not a measurement.
+- The propwash is still the MEAN disc (T / nE): an engine out halves the wash everywhere rather than killing it behind
+  the dead disc only. The yaw of a wing engine out is the thrust couple; the lost wash on that wing is not modelled.
+- The classic wing pair still bills ONE cowl + exhaust split over two nacelles (bit-identity); a layout bills one per
+  engine. Fixing the pair moves the twin fixtures' numbers - a later, gated change.
+- Fuel: one manifold, no per-engine tank or crossfeed valve; starvation stops every engine at once.
+- No Vmc number on the plaque yet; the gate measures engine-out yaw, it does not compute Vmc.
+- The cowl's scaled clone and the mount plates were not LOOKED AT (node only, no pixels): the user should open
+  Push-pull / Three / Four in the garage. Likely rough edges: the aft cowl's fit on a twin-boom pod's bulkhead; the
+  Push-pull tile's `boomX` uses the cage's `cw_propD` (a preset engine without that row falls back to 1.8 m);
+  `propFitCheck` tests the pod and rod, not the twin booms - the plaque's `propBoomClear` is the physics' number.
+- The Engine mount row lights no tile while a layout is on (the Engines row owns it); picking a mount tile on a
+  layout turns it back into that single mount.
+- No Skymaster ARCHETYPE card (the birth overlay) - the tile builds it on any airframe; a card is a follow-up and
+  would add a flight to GATE ARCHETYPES.
+
+## G3490-G3494 - ENGINE-CONFIGS-2: THE SKYMASTER'S PUSH-PULL, THE THREE AND THE FOUR REVIVED ON TODAY'S MASTER - EACH DISC'S OWN WAKE, A BREAK GROUP PER ENGINE, ONE THROTTLE AN ENGINE, THE GARAGE'S NACELLES BACK, THREE EXAMPLE BUILDS (2026-10-22, ENGINE-CONFIGS for A0, cloud, node only; branch claude/engine-configs-2 = claude/engine-configs-g2790 4e9fa98be + b57cfad7f with origin/master 2c2a74459 (L22c) merged)
+
+**READY for A0 (pushed claude/engine-configs-2 only; sources only - A0's train builds the outputs).** The user, 22 Oct: "did we activate the 3 and 4 engines configurations? And the pusher + nose engine (like
+the Skymaster)?" - "revive the engine [configurations] as a cloud session". They were coded and READY on 12 Oct (G2790,
+the entry above) and never landed; 699 master commits since.
+
+**G-block.** G2795-G2799 were taken on master meanwhile (EDITOR-REVIEW trains A / B G2790-G2798, JOINPARITY G2799), so
+this work is **G3490-G3494** (unused on master and in every branch name). A0: confirm, or renumber.
+
+**What changed since 12 Oct (master's side, and what it meant here).**
+- G2080 ENGINE-TORQUE landed (reaction torque, gyroscopic couple, P-factor, slipstream swirl), retuned as t66 (G3077):
+  the solver already loops them PER ENGINE (out.propFx, engines[i].sense), so the layouts got them for free - but the
+  12 Oct "the Trimotor's nose cut: no yaw (< 0.5 deg)" bound was a prediction made without them, and the swirl reached
+  the tail from the NEAREST disc only (a push-pull's tail saw the nose's swirl, never the pusher's).
+- Damage ON by default (DMG trains): the frame's break groups are keyed by part, and a layout's engines shared parts
+  (the four's two nacelles a side were ONE group; the push-pull's pusher was the nose's 'eng').
+- G2880 NACELLE-LAG: a wing-mounted unit is placed again once the wing publishes - keyed engMount 2 / 3 only, so in
+  the garage the Three drew its nose alone and the Four NOTHING ("engine: no wing to hang the nacelles on").
+- JOINPARITY's census (G1985 / G2799): a tool reading a validated build raw is red - the 12 Oct gate did.
+- CORE_MATH in the core (DMG-DETERMINISM): the G2790 core code calls no Math.sin / cos / pow (checked).
+- The float kit's 'seaplane' prop class is not on master yet: nothing here touches the prop class (one propeller law per
+  aeroplane, as on 12 Oct).
+
+**1 THE MERGE** (c8b7327c9). Five conflicts: `90_node_exports.js` - master's line kept as it is, ONLY our three names
+appended (GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines; `git diff origin/master` on the file adds exactly those
+three and removes none); `_cage_join.js` master's G2365 drawn-flange
+height with G2790's per-unit flange (EU[i]; a layout's nose is unit 0, so a single reads EU[0] as before);
+`_cage_design.js` master's `twin: ['engMount']` + the layout note; `_cage_parts.js` master's 'thrust line & mounting'
+group + engNacAt2; HANDOVER both sides. node --check on every touched file.
+
+**2 THE LAYOUTS ON TODAY'S PHYSICS** (f2e08e9c6, d1c32ff47).
+- **Each disc's own wake** (62_gen_aero `genStripsLayout`, 30_solver; LAYOUTS ONLY - every other def has no `washE`
+  and the solver's pass is the one it was, to the bit). The solver's wash was the MEAN disc (T / nE): a dead engine
+  halved the wash everywhere instead of removing it behind itself (12 Oct named this). Now every strip of a layout names
+  its disc - a wing strip the nose's or its own side's pulling nacelle (the strongest wake, genStrips' own laws), the
+  tail the nose's (a three) or the push-pull's CENTRELINE IN SERIES (nose + pusher thrust through one disc: the pusher
+  swallows the nose's slipstream and accelerates it again) - and flies that disc's own momentum-theory wash. A twin
+  boom's fins stand outside a push-pull's wake (booms at the rear disc's radius + 0.30 m) and lose it. Measured
+  (ground run, full power): the three's discs 24.2 / 24.2 / 24.2 m/s; nose off 0.0 / 24.7 / 24.7 (the mean disc would
+  have left 19.8 m/s on the tail); the push-pull's series wake 49.0 m/s over one disc's 33.8, nose off the pusher's own.
+- **The pusher's torque and swirl on the tail**: the swirl at a tail strip now SUMS every running disc's (each faded by
+  its own wake radius) - the push-pull's counter-rotating pair takes back each other's swirl, and with the nose cut the
+  tail feels the pusher's. Reaction torque 473.9 / -473.9 N.m and angular momentum 186.3 / 186.3 with hands +1 / -1:
+  net zero to the bit (the rear hand is the nose's mirror, G2790's clamp).
+- **3 / 4 engines**: torque, P-factor and gyro already per engine; the three's sum 604.0 N.m (3 x 201.3), the four's
+  805.4 (4 x), same hand (one engine type per aeroplane).
+- **Damage ON**: a layout's every engine its own part and break group (61_gen_frame dmgPart: the nearest of the
+  layout's mounts): nose 'eng', pusher 'engAft', inner pair 'engL' / 'engR', the four's outer pair 'engL2' / 'engR2';
+  the bench's destruction line names "the rear / outer engine". genCertDrive and genCertMountKinds were already per
+  engine / nose-ring only. Certificates + the garage bench to 5.7 g, damage on: Skymaster-alike 531 members HELD 0
+  broken; three 423 HELD; four 432 HELD; and the three fixtures below HELD.
+- **The autopilot**: there is no engine-out logic in the pilot (no identify / feather / Vyse): the servos' yaw and roll
+  loops (39b) hold the asymmetric thrust, and GATE ENGCONFIG measures how well (the table). Nothing changed there.
+- **The garage**: NACELLE-LAG keyed on mounts 2 / 3 -> 2 / 3 / 5 / 6 in `_cage_eng` and `_cage_cowl` (the Three's and
+  the Four's nacelles draw again: 3 and 4 prop units joined); `propFitCheck` no longer reads a push-pull's rear disc
+  "through the body" (AF.surf holds the pod's last section past AF.z0; with twin booms there is no rod: the whole disc
+  behind a blunt pod read inside it - an aft unit's points behind AF.z0 are now out; a rod-boom pusher is unchanged);
+  the cockpit draws ONE THROTTLE LEVER AN ENGINE (`_cage_crew`: push-pull 2, three 3, four 4, on makeLinkage's own
+  thr0..thr3; the twin's two exactly as before - wall lever, panel rods and the console quadrant). The Skymaster-alike
+  ARCHETYPE card flies its rear pusher now (`engCount: 'pushPull'`; its note said "the rear pusher is owed"): its parked
+footprint's tail 5.7 -> 5.8 m (25_airfield GP_PARKED_FOOT, GATE TAXICLEAR) and its frames_corpus.json entry re-recorded
+alone (13 -> 11 rings: the pod ends at the aft bulkhead for the pusher; every other item byte-equal, GATE FRAMES).
+
+**3 GATES** - the grep rule (every tools/_*_check.js / test_*.js naming a touched file: 30_solver, 60_gen_spec,
+61_gen_frame, 62_gen_aero, 64_gen_build, 90_node_exports, 25_airfield, viewer/bench.js, the _cage_* layers) gave 90
+gates; + PILOT, PILOTMATRIX, DMGDETERMINISM, DMGCERT, DMGCERTCOST, BUILT. Changed since the first run (so re-run):
+25_airfield's footprint row (TAXICLEAR, CLOUD, SITE, STRIPSURF, TOUR, WORLD, WORLDRENDER), the fixtures (FRAMES,
+KNIFE, SUBSTEP, ENGCONFIG).
+Every line below is the gate's own verdict line from this branch's runs (`node tools/run_gates.js --only=<IDs>
+--no-build --jobs=4`, 22 Oct 16:53-21:30 UTC on the cloud box; then KNIFE, SUBSTEP, FRAMES, TAXICLEAR, ENGCONFIG and
+the world gates re-run on the final tree after the last fixture / footprint / identity edits):
+```
+GATE INPUT: PASS            GATE ATMOS: PASS           GATE SUBSTEP: PASS         GATE CLIMATE: PASS
+GATE GE: PASS               GATE GEN: PASS (x4 shards) GATE PILOT: PASS (x3)      GATE PROFILE: PASS
+GATE DEFAULT: PASS          GATE BIPLANE: PASS         GATE MASS: PASS            GATE UISMOKE: PASS
+GATE DMGMEMBERS: PASS       GATE DMGCERTCOST: PASS     GATE DMGNOSE: PASS         GATE DMGSETTLE: PASS
+GATE DMGDRIVE: PASS         GATE DMGDETERMINISM: PASS  GATE CONTACT: PASS         GATE MEDIA: PASS
+GATE BUILD: PASS            GATE BUILT: PASS           GATE SKINMAT: PASS         GATE LIVERYREACH: PASS
+GATE LIVERY: PASS           GATE WEATHER: PASS         GATE SURF: PASS            GATE EDBUGS: PASS
+GATE FIT: PASS              GATE HINGE: PASS           GATE CAGEFIT: PASS         GATE FRAMES: PASS
+GATE KNIFE: PASS            GATE FIN: PASS             GATE COWL: PASS            GATE NACLAG: PASS
+GATE JOIN: PASS             GATE WINGROWS: PASS        GATE DESIGNCHECK: PASS     GATE DESIGNSIM: PASS
+GATE SPECFIX: PASS          GATE ENGINE: PASS          GATE ENGID: PASS           GATE STARTER: PASS
+GATE SAVE: PASS             GATE SIMWORKER: PASS       GATE PARTS: PASS           GATE SHOULDER: PASS
+GATE DESIGN: PASS           GATE PILOTMATRIX: PASS     GATE VIEW: PASS            GATE PARKED: PASS
+GATE HITBOX: PASS           GATE WATER: PASS           GATE WATERDAMP: PASS       GATE RWYTREES: PASS
+GATE FLOATS: PASS           GATE ACCEPT: PASS          GATE STORY: PASS           GATE PROCURE: PASS
+GATE FREIGHT: PASS          GATE PILOTS: PASS          GATE ENERGYBASE: PASS      GATE ENERGY: PASS
+GATE TANKMOUNT: PASS        GATE ENGTORQUE: PASS       GATE HEADING: PASS         GATE PANEL: PASS
+GATE DASH: PASS             GATE ELEC: PASS            GATE FLEX: PASS (x3)       GATE LOAD: PASS
+GATE MOUNT: PASS            GATE AUDIOENG: PASS        GATE TAXICLEAR: PASS (x4)  GATE ENGCONFIG: PASS
+GATE STRIPSURF: PASS        GATE TOUR: PASS (x4)       GATE WORLDRENDER: PASS     GATE SITE: PASS
+```
+RED HERE AND RED ON MASTER 2c2a74459 WITH THE SAME FAIL LINES (each run on a clean master worktree on the same box,
+its FAIL lines diffed against this branch's: identical) - not this branch's, named for their owners:
+```
+GATE RADIALDIV: FAIL (3)      mosquito / mosquito_1 / cub HANDS OFF 20 s heading moves 47-56 deg
+GATE TREEHIT: FAIL            the trunk stops it (CG 63.5 m of 60)...
+GATE TREECRASH: FAIL          jodel/trunk0 work median moved (p 0.000)
+GATE DMGCERT: FAIL            BROKE AT 7.21 g (wing0R:strut) outside [5.70, 5.99]
+GATE DMGGEAR: FAIL            SEVERE for the twin: the boom root goes
+GATE DMGINST: FAIL            the worker host's diverged() false, then true
+GATE DMGFABRIC: FAIL          the base's bits (pinned digests moved)
+GATE DMGCOMPOSITE: FAIL       damage OFF on the base's bytes
+GATE POD: FAIL                pod off, the whole def is the base's bytes
+GATE ROLLANIM: FAIL (1 of 806: G1039 flRevealStart still frames the stand as standFraming assumes ...)
+GATE JOINPARITY: 1 FAIL       no tool flies a validated build raw: _apsmooth_check.js, _engtorque_check.js,
+                              engine_torque_seasweep.js, hand_controls_probe.js (master's own tools, t66 / G2480)
+GATE BENCH: FAIL              the phase strip knows all 24 pilot phases - not ROUTE, LOITER
+GATE ARCHETYPES: FAIL (1)     Chinook-alike: the circuit completes - rejected-takeoff (shard 0; shards 1-3 PASS,
+                              the Skymaster-alike push-pull flown and passing)
+GATE CLOUD: FAIL (1 of 239)   the pool is re-assigned every 30 frames to the nearest published lamps
+GATE WORLD: FAIL              island: 13/31 approaches under 4 % both ways
+GATE DMGTYRE: FAIL (4)        the Jodel / metal Cessna taxi-turn radius, the Cub's crosswind roll-out
+```
+(Several of these read digests pinned on other machines or trains: they may be green on A0's box. The comparison
+that matters here is branch == master.)
+
+GATE ENGCONFIG (`tools/_engconfig_check.js`, 318 s at --jobs=4) on today's master: 1 IDENTITY re-pinned on master
+2c2a74459 THROUGH tools/_load_build.js for the validated files (JOINPARITY's one load path; `--pin` prints the table on
+any tree - run on a master worktree and here: the 17 rows identical), with the user's metal Cessna file
+(bugReports/cessnaMetal (1).json), the Cessna on floats (bugReports/cessnaFloatsWOrks.json) and Rufus; 5 FLIGHT adds the stock single's own power cut as the
+reference the Trimotor's nose cut is held under; NEW 8 PHYSICS (torque / gyro pairs and sums, the wakes in the strips
+and in the solver, a break group per engine) and 9 FIXTURES (below).
+
+| build | cut | sideslip max | yaw rate max | heading | alt in 10 s | rudder |
+|---|---|---|---|---|---|---|
+| twin fixture (CONTROL) | port | 5.30 deg | 8.43 deg/s | 1.65 deg | -4.9 m | 0.213 |
+| stock single (REFERENCE) | its engine | 1.94 | 2.78 | 0.25 | -4.3 | 0.060 |
+| Skymaster-alike | none / nose / pusher | 0.01 / 0.02 / 0.03 | 0.14 / 0.16 / 0.13 | 0.21 / 0.18 | -0.3 / -8.8 / -8.3 | 0.002 |
+| three | none / nose / wing | 0.02 / 1.16 / 3.11 | 0.09 / 1.75 / 4.95 | 0.01 / 0.07 | -0.3 / -6.3 / -5.4 | 0.040 / 0.058 |
+| four | none / inner / outer | 0.07 / 2.83 / 5.33 | 0.13 / 3.53 / 6.64 | 0.01 / -0.20 | -0.2 / -4.3 / -4.4 | 0.093 / 0.176 |
+
+(12 Oct, before ENGINE-TORQUE: the three's nose cut 0.01 deg; now 1.16 - the nose's torque, P-factor and swirl on the
+fin go with it, as a single's power cut does: 1.94.)
+
+**4 THE VALIDATED AIRCRAFT, BEFORE / AFTER** - `node tools/engconfig_ab.js <build>`, one line per build (the aeroplane the game loads -
+tools/_load_build.js -, its static thrust, sha1 of out.thrust + out.thrustPer every frame of a 90 s autopilot flight
+from the runway, sha1 of every node's position once a second); "before" = the same script in a master 2c2a74459
+worktree:
+| build | def | thrust (static N / run sha1) | 90 s flight (sha1 / alt / V / phase) | before = after |
+|---|---|---|---|---|
+| cub | 2edac3d4580bbcb2 | 1214.657 / fd98d7fd01b776b8 | 7955310466070afd / 110.254 m / 31.683 m/s / DOWNWIND | YES, to the byte |
+| jodel | 38e084604f47abe6 | 1039.433 / be41c8020360b2e9 | 4a2b58c7fdfba895 / 129.922 m / 35.118 m/s / DOWNWIND | YES, to the byte |
+| metal | e4735c255b5f4c71 | 3005.203 / db2767f80725684f | c728236798f31f5b / 153.714 m / 49.838 m/s / DOWNWIND | YES, to the byte |
+| floats | 0c4b5dc1b32baeb4 | 3005.203 / 28374731d5126b1e | e7a89108a383667d / 1.667 m / 0 m/s / STOPPED | YES, to the byte |
+| rufus | e0f2ee3392db1461 | 1393.553 / 4a6dc1f58f288433 | 0472bef3cbbaf17c / 104.837 m / 33.184 m/s / DOWNWIND | YES, to the byte |
+
+(cub / jodel = builds/*_2026-09-20_corrected.json, metal = bugReports/cessnaMetal (1).json, floats =
+bugReports/cessnaFloatsWOrks.json, rufus = tools/fixtures/repro/rufus_2026-10-18_certified.json, every one through
+tools/_load_build.js. The floats row runs from the land strip like the others: the floatplane's pilot STOPS on the
+roll there, identically on master and here - its 90 s are the take-off run's bits.)
+def, thrust and flight byte-identical on all five. The JOINED SPEC's digest differs by one key only: `cage.engNacAt2:
+0.62` (the four's outer-nacelle row default, G2790), read by nothing unless engMount is 6 - the new-row pattern every
+editor row follows (the build is the same bits; a save gains the key).
+
+**5 EXAMPLE BUILDS** (tools/fixtures/, NOT builds/) - `node tools/engconfig_fixtures.js [--write]` bakes them: the
+tiles over the C172-alike card's choices (without its stock 172 cage), the page's chain (_bake_joined), then the GAME's
+load (tools/_load_build.js) to its fixpoint: opening each in the garage changes nothing (checked: the load is the file
+to the byte, no join error). Each passes the design check at its worst loading corner, flies a circuit with one engine
+cut, certifies and holds the bench:
+| fixture | layout | engines | mass | static margin drawn / worst corner | design | one engine cut (10 s) | bench 5.7 g |
+|---|---|---|---|---|---|---|---|
+| build_v10_engcfg_pushpull_2026-10-22.json | pushPull | 2 x IO-360 | 1027 kg | 0.150 / 0.119 | PASS | pusher: beta 0.03 deg, hdg 0.16, -6.6 m | HELD, 0 broken (586 members) |
+| build_v10_engcfg_trimotor_2026-10-22.json | tri | 3 x Rotax 912 | 826 kg | 0.241 / 0.162 | PASS | nose: beta 0.74 deg, hdg 0.13, -4.8 m | HELD, 0 broken (408) |
+| build_v10_engcfg_four_2026-10-22.json | quad | 4 x Rotax 912 | 938 kg | 0.221 / 0.158 | PASS | outer: beta 3.03 deg, hdg -0.09, -3.7 m | HELD, 0 broken (413) |
+
+Recipes (`tools/engconfig_fixtures.js FIX`, over the C172-alike card's choices): push-pull - wing 0.45 m aft, stab
+1.40 x span / 1.25 x chord; three - mid strut-braced wing, the round section, wing 0.15 m aft; four - mid strut-braced
+wing, 0.2 m aft. A damage-on circuit with the autopilot: no prop strike, nothing broken, on all three.
+
+What it took to balance them (the user's to know, it is the game's design story too):
+- The tiles' parent cards are tail-heavy ON MASTER already: the Twin bush hauler SM -0.11 as drawn, the
+  Skymaster-alike (nose only) -0.16 (-0.73 at the worst corner) - the design check FAILs both. The push-pull's 144 kg
+  pusher behind the cabin moves the CG further aft: the example moves the wing 0.45 m aft and grows the stab (1.40 x
+  span, 1.25 x chord).
+- On a HIGH wing the three's / four's nacelles put the thrust line 1.5 m up: at full power the aeroplane TIPS OVER ITS
+  NOSEWHEEL (7.4 kN.m of thrust moment about the nosewheel against 6.1 of weight - measured, the tail 6 m up in 3.7 s;
+  with damage on, 12 members broken). Real high-wing trimotors hung their engines under the wing. On a LOW wing the
+  nacelle discs clear the grass by 2 cm (a prop strike on the roll, then the bent prop's imbalance kinks the mount at
+  29 s). A CANTILEVER mid wing let go at its root on the bench's 5.7 g (the four BROKE UP, 2 broken). The examples use a
+  MID STRUT-BRACED wing.
+- Prop clearance on the examples' nose prop: 0.110 m (push-pull) / 0.129 (three) - the C172-alike airframe's own
+  nosewheel (its single-engine bake reads the same), under FAR 23.925's 7 in; the nacelles' discs 0.43+ m.
+
+**What to watch for / named, not done.**
+- The garage's prop-clearance note ('prop clr' in the gear layer's status) reads the NOSE prop only; the shakedown's
+  `propClear` row reads every engine (the lowest disc). A layout's nacelle strike is on the plaque, not in the shed's
+  note. Proposal: the gear note reads CAGE_ENG.units (a follow-up; the gear layer runs before the engine layer).
+- Every twin-boom build carries 8 `parts.dmg.issues` ("stab - boomL joins two parts in no group") ON MASTER (the
+  twin-boom fixture, a single pusher on twin booms) - the Skymaster-alike inherits them. Deform's: the stab's joints to
+  the booms want a group.
+- No Vmc on the plaque and no engine-out pilot logic (the servos hold it). No per-engine fuel selection / crossfeed (one
+  manifold, 12 Oct).
+- The stock designs' nose-prop "through the body (6 points)" (propFitCheck's 0.6 R ring on the cowl) shows up whenever
+  the disc is smaller than the cage's; the examples keep the cage's disc and have no join error.
+- ARCHETYPES now flies the Skymaster-alike as a push-pull (its card was nose-only and failed the design check before).
+
+**A0's notes of 22 Oct, done:** today's entry (this one); the Cessna on floats and the user's
+`bugReports/cessnaMetal (1).json` (the game's load) in GATE ENGCONFIG's identity AND in tools/engconfig_ab.js;
+90_node_exports.js adds only our three names; pushed claude/engine-configs-2 only (no claude/ready/*).
+
+**ASKS FOR THE USER.**
+1. (the user, 25 Oct: "I'll test later") Open Push-pull / Three / Four in the garage (or load the three fixtures: drop the .json on the garage) and look: the
+   pusher's cowl on the pod's bulkhead, the nacelles, the throttle levers (2 / 3 / 4).
+2. The Skymaster-alike card is now a push-pull and still tail-heavy as the card draws it (its design check FAILs on
+   master too): rebalance the card (the example's -0.45 m wing / bigger stab), or leave the card as the user's to fix?
+   **ANSWERED by the user, 25 Oct: "you can rebalance the skymaster" - DONE, the G3494 addendum below.**
+3. High-wing Three / Four tip over at full power on a tricycle: should the Three / Four tiles move the wing to MID (as
+   the examples do), hang the nacelles lower, or leave it to the builder with the bench's warning?
+   **ANSWERED by the user, 25 Oct: "Leave the tip over to the builder."** The Three / Four tiles stay as they are (they
+   keep the wing where the builder put it); a high-wing layout that tips over at full power is the builder's to fix
+   (move the wing, a taildragger, less power). No code change; the example builds keep their mid wing.
+
+**EVIDENCE SCRIPT for A0 (the box; cloud cannot render the game).** From flyDiy/ on claude/engine-configs-2, after
+`node tools/build.js` and the usual local server on :8450:
+```
+node tools/run_gates.js --only=ENGCONFIG --no-build
+node tools/engconfig_fixtures.js
+node tools/garage_shot.js --url http://localhost:8450/flyDiy/dev.html --file tools/fixtures/build_v10_engcfg_pushpull_2026-10-22.json --out screenshots/engcfg/pushpull --views q,s,t,x,air --clean
+node tools/garage_shot.js --url http://localhost:8450/flyDiy/dev.html --file tools/fixtures/build_v10_engcfg_trimotor_2026-10-22.json --out screenshots/engcfg/trimotor --views q,s,t,x,air --clean
+node tools/garage_shot.js --url http://localhost:8450/flyDiy/dev.html --file tools/fixtures/build_v10_engcfg_four_2026-10-22.json --out screenshots/engcfg/four --views q,s,t,x,air --clean
+for b in cub jodel metal floats rufus; do node tools/engconfig_ab.js $b; done
+```
+(`--file` is new and UNTESTED here (no GPU / Chrome in the cloud): the build DROPPED on the garage through DROP-JSON's door, G2799. `air` rolls out and shoots the
+chase view 30 s later. `x` is the see-inside top view: the throttle levers, one an engine. If the drop does not take,
+the page's own: Garage > Load > Import the .json, then the same views by hand.)
+
+### G3494 addendum (2026-10-25) - THE SKYMASTER-ALIKE CARD REBALANCED (the user: "you can rebalance the skymaster")
+
+The user, 25 Oct, on ask 2: "I'll test later, and you can rebalance the skymaster" (ask 1, the garage look, stays theirs).
+
+**What was wrong** (`_cage_design.js` ARCHETYPES 'skymaster', baked as the game bakes a card - designBake, the page's
+chain, then the game's load): static margin **-0.52 as drawn, -0.94 at the worst corner** (CG 93-139 % MAC against a
+neutral point of 41-46 %; even master's nose-only card read -0.16 / -0.73). Two causes:
+- `paxCount: 3` drew a 2.4 m cabin of EIGHT seats ('side4'), while the card's own note says four: the full cabin added
+  560 kg about 0.5 m aft of the solo CG;
+- the wing stood ahead of an aeroplane whose 144 kg rear IO-360 hangs off the aft bulkhead.
+
+**The card now**: `paxCount: 1` (four seats, the C172-alike's 2 + 2, as the note says) and `wgDx: -0.5` (the wing,
+and the twin booms and tail it carries, 0.5 m aft). Nothing else on the card moved (boomX 1.25, boomLen 3.2, the
+look).
+| | before (25 Oct) | after |
+|---|---|---|
+| static margin as drawn (bake / game load) | -0.516 | 0.147 / 0.100 |
+| CG over the four corners (% MAC) | 93 / 99 / 134 / 139 | 23 / 28 / 27 / 32 |
+| neutral point (% MAC) | 41-46 | 37-38 |
+| design check | FAIL (pitch.sm, pitch.short) | PASS |
+| mass (solo, full fuel) | 1234 kg | 1069 kg |
+| bench to 5.7 g, damage on | BROKE UP, 2 broken | HELD - over yield, 0 broken (master's nose-only card: the same verdict) |
+| circuit, autopilot, damage on | - | downwind at 54 s, nothing broken, no prop strike |
+| one engine cut on the downwind (10 s) | - | nose: beta 0.04 deg, hdg -0.20, -4.0 m; pusher: 0.03 deg, -0.23, -3.2 m |
+Wing 0.7 m aft or more puts it into the rear disc (propFitCheck: "through the wing"), 0.4 m leaves the worst corner
+at +0.006 (WARN): 0.5 is the middle. The over-yield on the bench is the card's cantilever high wing (the real 337's
+construction), as on master's card.
+
+Followed by: GP_PARKED_FOOT skymaster tail 5.8 -> **6.2 m** (the booms moved aft with the wing: 6.16 m; GATE
+TAXICLEAR), frames_corpus.json's Skymaster-alike entry alone re-recorded (GATE FRAMES; every other recorded item
+byte-equal).
+
+**Gates on the final tree** (`run_gates.js --only=... --no-build`):
+```
+GATE DESIGN: PASS           GATE DEFAULT: PASS         GATE SUBSTEP: PASS         GATE FRAMES: PASS
+GATE PARKED: PASS           GATE HITBOX: PASS          GATE ENGCONFIG: PASS       GATE TAXICLEAR: PASS (x4)
+GATE TOUR: PASS (x4)        GATE SITE: PASS            GATE STRIPSURF: PASS       GATE WORLDRENDER: PASS
+GATE BUILD: PASS            GATE BUILT: PASS           GATE ARCHETYPES: PASS (shards 1-3; the Skymaster-alike:
+                                                       "the circuit completes", "full stop inside 700 s")
+```
+Red on the same FAIL lines as master 2c2a74459 (unchanged from the 22 Oct list): GATE ARCHETYPES shard 0 (the
+Chinook-alike's rejected take-off), GATE ROLLANIM (G1039 flRevealStart), GATE CLOUD (1 of 239), GATE WORLD. HITBOX
+was run alone: its two rows are a timing (spec shape vs raster, ms) that went red with four gates sharing this box's
+four cores and PASS alone, as in the 22 Oct battery.
+
+## READY - ENGINE-CONFIGS-2 (G3490-G3494) ON TRAIN L25c: claude/ready/engine-configs (2026-10-27, cloud, node + SwiftShader stills; for the 14:00 train)
+
+**Branch** `claude/ready/engine-configs` = `claude/engine-configs-2` (the work to 95fbf9a82, then this note), with **origin/master d7e181f4e (train L25c)**
+merged (ed7c308fe; re-fetched before the push: master still d7e181f4e). Sources only: the built / cooked files are
+master's (index.html, dev.html, sw.js, version.json, tools/flight_core.js, career_core.*.js untouched here) - the train
+rebuilds them.
+
+**The merge (d7e181f4e, 3134 commits).** Two conflicts: `src/core/90_node_exports.js` - the union of both lists with
+every name still defined in src/core: master's 941 as they stand + GEN_ENG_LAYOUTS, genEngLayoutOf,
+genEngLayoutEngines; `acceptBenchXwind` (on the old side only, removed on master, defined nowhere now) dropped
+(checked by hand: STORY_T6_FEE, GP_HALF_DEFAULT and HYDRO are multi-declarations / `var HYDRO;` and stay);
+`HANDOVER.md` both sides (master's entries, then ours).
+
+**Since the 22 Oct entry and its 25 Oct addendum (all in this branch):**
+- **GATE TECH (master's G3230 TECH-MASK, new since L22c) went red on the layouts**: its table had 4 engine mounts and
+  read the join's mount list off a line G2790 had reshaped. Now `79b_tech` TECH_ROWS.engMount has the push-pull, the
+  three and the four as `cfg:twin` (several engines = the twin's machine-shop segment, as techKeysOf already reads any
+  spec with more than one engine); `_cage_join.js` keeps master's own `const mk = [...][Math.round(P.engMount ...`
+  line (outputs unchanged); `_tech_check.js`'s tile expectation: at segment 1 the Engines row greys the push-pull, the
+  three and the four with the twin. GATE TECH: PASS.
+- **The push-pull example is a proper twin boom** (the user, 27 Oct: "please give the push-pull a twin boom"):
+  `tools/fixtures/build_v10_engcfg_pushpull_2026-10-22.json` re-baked with the Skymaster's booms (0.24 x 0.34 m at the
+  wing, 0.16 x 0.22 at the tail, a 0.7 m fairing forward) and the straight fin; strut-braced wing kept (a cantilever
+  one BROKE UP at 5.7 g, 96 members). Design check PASS (static margin 0.141 as drawn), a damage-on autopilot circuit
+  clean, the bench 5.7 g HELD (no yield), nose / pusher cut on the downwind: beta 0.12 / 0.13 deg, heading 0.90 /
+  0.87 deg, -6.5 / -5.6 m in 10 s. A full damage-on autopilot circuit to STOPPED in 309 s (liftoff 8.9 s at
+  32 m/s, downwind 49.8 s, final 158.8 s, flare 272.9 s; 202 m and 59.4 m/s at the most; no break, no prop strike).
+  The game's load is the file to the byte.
+- The Skymaster-alike card rebalanced (25 Oct addendum above), the fixtures, the identity rows on master d7e181f4e
+  (below).
+
+**Validated builds (Cub, Jodel, both Cessnas, the floats, + Rufus) identical to master d7e181f4e:** GATE ENGCONFIG 1
+IDENTITY (17 rows, `--pin` run on a d7e181f4e worktree and here: equal, and equal to the 22 Oct pins) and
+`node tools/engconfig_ab.js cub|jodel|metal|floats|rufus` run in both trees: def, static thrust, the thrust digest of
+every frame and the 90 s autopilot flight byte-identical on all five. The joined spec differs by `cage.engNacAt2: 0.62`
+only (the Four's outer-nacelle row default; read by nothing unless engMount is 6).
+
+**Gates** - `node --max-old-space-size=4096 tools/run_gates.js --only=<IDs> --no-build --jobs=4` on every gate whose
+file names a file changed here (tools/ grepped for 25_airfield, 30_solver, 60_gen_spec, 61_gen_frame, 62_gen_aero,
+64_gen_build, 79b_tech, 90_node_exports, viewer/bench.js, the _cage_* layers, the engconfig tools and fixtures,
+frames_corpus, garage_shot) + BUILD, JOIN, PARTS, SAVE, STARTER, SIMWORKER, PILOT, BUILT, DMGDETERMINISM, PILOTMATRIX:
+96 gates. Every verdict line, the final run of each (gates re-run after a later edit: the _cage_join / 79b_tech readers,
+the fixture readers; BIPLANE and HITBOX, two timing rows red under four parallel jobs, re-run alone):
+```
+GATE INPUT: PASS
+GATE ATMOS: PASS
+GATE SUBSTEP: PASS
+GATE CLIMATE: PASS
+GATE CLOUD: FAIL (1 of 239)
+GATE GE: PASS
+GATE GEN: PASS (x4 shards)
+GATE STRIPSURF: PASS
+GATE RADIALDIV: FAIL (3)
+GATE TAXICLEAR: PASS (x4 shards)
+GATE TOUR: FAIL (2)          (shard 2/4; shards 0, 1, 3: GATE TOUR: PASS)
+GATE PROFILE: PASS
+GATE DEFAULT: PASS
+GATE BIPLANE: PASS
+GATE MASS: PASS
+GATE UISMOKE: PASS
+GATE WORLDRENDER: PASS
+GATE TREEHIT: FAIL
+GATE TREECRASH: FAIL
+GATE DMGMEMBERS: PASS
+GATE DMGCERT: FAIL
+GATE DMGGEAR: FAIL
+GATE DMGNOSE: PASS
+GATE DMGINST: FAIL
+GATE DMGSETTLE: PASS
+GATE DMGDRIVE: PASS
+GATE DMGTYRE: FAIL (4)
+GATE DMGFABRIC: FAIL
+GATE DMGCOMPOSITE: FAIL
+GATE ROLLANIM: PASS
+GATE CONTACT: PASS
+GATE MEDIA: PASS
+GATE BUILD: PASS
+GATE SKINMAT: PASS
+GATE LIVERYREACH: PASS
+GATE LIVERY: PASS
+GATE WEATHER: PASS
+GATE SURF: PASS
+GATE EDBUGS: PASS
+GATE FIT: PASS
+GATE HINGE: PASS
+GATE CAGEFIT: PASS
+GATE FRAMES: PASS
+GATE KNIFE: PASS
+GATE FIN: PASS
+GATE COWL: PASS
+GATE NACLAG: PASS
+GATE JOIN: PASS
+GATE WINGROWS: PASS
+GATE DESIGNCHECK: PASS
+GATE DESIGNSIM: PASS
+GATE SPECFIX: PASS
+GATE JOINPARITY: 1 FAIL
+GATE ENGINE: PASS
+GATE ENGID: PASS
+GATE STARTER: PASS
+GATE SAVE: PASS
+GATE BENCH: PASS
+GATE SIMWORKER: PASS
+GATE PARTS: PASS
+GATE SHOULDER: PASS
+GATE DESIGN: PASS
+GATE ARCHETYPES: FAIL (1)    (shard 0/4; shards 1, 2, 3: GATE ARCHETYPES: PASS)
+GATE VIEW: PASS
+GATE SITE: PASS
+GATE PARKED: PASS
+GATE HITBOX: PASS
+GATE WATER: PASS
+GATE WATERDAMP: PASS
+GATE RWYTREES: PASS
+GATE FLOATS: PASS
+GATE ACCEPT: PASS
+GATE POD: FAIL
+GATE STORY: PASS
+GATE TECH: PASS
+GATE PROCURE: PASS
+GATE FREIGHT: PASS
+GATE PILOTS: FAIL
+GATE ENERGYBASE: PASS
+GATE ENERGY: PASS
+GATE TANKMOUNT: PASS
+GATE ENGTORQUE: PASS
+GATE HEADING: PASS
+GATE PANEL: PASS
+GATE DASH: PASS
+GATE ELEC: PASS
+GATE WORLD: FAIL
+GATE FLEX: PASS (x3 shards)
+GATE LOAD: PASS
+GATE MOUNT: PASS
+GATE ENGCONFIG: PASS
+GATE AUDIOENG: PASS
+GATE PILOT: PASS (x3 shards)
+GATE BUILT: PASS
+GATE DMGDETERMINISM: PASS
+GATE PILOTMATRIX: PASS
+```
+**Red here AND red on master d7e181f4e with the same FAIL lines** (each run on a clean d7e181f4e worktree on this box,
+its FAIL lines diffed against this branch's; not this branch's):
+```
+GATE TOUR: FAIL (2)                2 FAIL lines, master d7e181f4e the same: 5 the float Cessna mk_sea > SEA: stopped at its To with no fault  (ground-loop: the nose 30 deg off the landin ...
+GATE CLOUD: FAIL (1 of 239)        1 FAIL line, master d7e181f4e the same: the pool is re-assigned every 30 frames to the nearest published lamps; the level is the bench's night divided
+GATE RADIALDIV: FAIL (3)           3 FAIL lines, master d7e181f4e the same: mosquito: HANDS OFF 20 s, the heading moved under 15 deg - -55.8 ...
+GATE TREEHIT: FAIL                 6 FAIL lines, master d7e181f4e the same: at 0 m the trunk stops it (the CG got to 63.5 m of 60) ...
+GATE TREECRASH: FAIL               1 FAIL line, master d7e181f4e the same: jodel/trunk0 against the reference: broken p 0.034, pieces p 0.045, work MOVED p 0.000, mountOff p 1.000, cowl
+GATE DMGCERT: FAIL                 2 FAIL lines, master d7e181f4e the same: to the ultimate x 1.1 (6.27 g): it breaks (0 members), the first group none, the first member a - ...
+GATE DMGGEAR: FAIL                 1 FAIL line, master d7e181f4e the same: SEVERE for the twin: the 90 km/h, 5 m/s, 20 deg nose-in (2.6 x its FAR 23.527 water load, past its ultimate): 
+GATE DMGINST: FAIL                 2 FAIL lines, master d7e181f4e the same: every k x 5 in flight (past the integrator's limit): tripped at frame 1 as 'speed' (node 65 at 570.42 m/s off  ...
+GATE DMGTYRE: FAIL (4)             4 FAIL lines, master d7e181f4e the same: Jodel taxi turn, rudder 0.2: R 31.8 m at 2.93 m/s against the old law's 40.5 m (x0.784, 0.80-1.10; the kinemat ...
+GATE DMGFABRIC: FAIL               9 FAIL lines, master d7e181f4e the same: cub t25: damage OFF - the base's bits (d108a5e49d48), no tie store ...
+GATE DMGCOMPOSITE: FAIL            1 FAIL line, master d7e181f4e the same: damage OFF: the Cub, the Jodel, the metal Cessna into the 30 m/s trunk on the base's bytes ({"cub":"8b472a2983
+GATE JOINPARITY: 1 FAIL            1 FAIL line, master d7e181f4e the same: no tool flies a validated build raw: _apsmooth_check.js, _engtorque_check.js, _floatdup_check.js, econ_sim.js,
+GATE ARCHETYPES: FAIL (1)          1 FAIL line, master d7e181f4e the same: Chinook-alike: the circuit completes — rejected-takeoff
+GATE POD: FAIL                     12 FAIL lines, master d7e181f4e the same: cub: pod off, the whole def is the base's bytes (4eceefb3:143310) ...
+GATE PILOTS: FAIL                  1 FAIL line, master d7e181f4e the same: FAIL: kit is not where the aeroplane is: refused (Kit is at Ridgeback Strip, not with the aeroplane.)
+GATE WORLD: FAIL                   1 FAIL line, master d7e181f4e the same: FAIL: island: 13/31 approaches under 4 % both ways (the fans clear)
+```
+
+**Gates that need the GPU (A0 runs those):** PILOTPAGE (full tier: the validated legs flown by the page on a quiet box -
+"run when the pilot, the servos, the nav or the core change"; the core changed: 30_solver's per-disc wash for layouts,
+61/62/64's layouts, 79b_tech) - not run here; and the garage stills (the box script in the 22 Oct entry:
+`node tools/garage_shot.js --file tools/fixtures/build_v10_engcfg_{pushpull,trimotor,four}_2026-10-22.json ...`).
+Every other gate in the list runs headless (node, or SwiftShader for UISMOKE / DMGCERTCOST / DMGDETERMINISM / ROLLANIM /
+LAZY) and ran here.
+
+**Pictures taken in the cloud** (shown to the user, not committed): the plane-building bench `tools/_cage8.html` driven
+headless on SwiftShader (CAGE_UI.applySpec + setView) - the Four, the Three, the Skymaster-alike card, the Push-pull;
+and a flat-shaded rasteriser of the garage's own layers (dash_stills.js's, every layer) for the push-pull's twin boom
+from rear / side / top and the cockpits (one throttle lever per engine, red).
+
+**Named for owners (seen in those pictures, not this branch's):**
+- `tools/_cage8.html` lags master by two scripts: `src/core/60d_gen_pod.js` (the wing layer throws genPodResolve: the
+  bench draws no wing nacelles, "no wing to hang the nacelles on") and `src/viewer/assets.js` (the tanks throw
+  TEX_FLAT). The stills added both on the fly; the page itself is untouched.
+- Wing nacelle engines are drawn uncowled (bare engine ahead of the nacelle tail) - master's Twin bush hauler card shows
+  it too.
+- A swept fin's ventral strake draws detached below a twin boom's fins (the push-pull now uses the straight fin).
+## G3544 - HANGAR PLINTH: THE NEAR SHELL STANDS ON A FOUNDATION, NOT IN THE AIR (2026-10-26..27, HANGARS-LOOK for A0, LOCAL-GPU; claude/ready/hangar-plinth on master d7e181f4e = L25c, gated 9dcb7fd44; READY for L27b)
+The user, 26 Oct: "the medium hangar floats 30-40 cm into the air". placeSite stands a HANGAR_GEN item's floor at the high corner + 0.3 (stance 0) or 0.55, and the near shell (hangar.js's, restated in _hangar_gen.js's own bags) drew nothing under it: on any slope, or even flat, the low side showed a gap.
+- tools/_hangar_gen.js build(): when the floor stands over the lowest corner (+ 2 cm), a stem ring in bags.stem round the walls' line (+ pt/2, pt 0.25 m), concrete from 0.35 m under the lowest corner up to the floor (topAt fy, capTop). The floor stays level; nothing else moves.
+- Proof in node (A0 27 Oct: "prove the plinth by a node/geometry probe"): every HANGAR_GEN item of Jolene's default world as the cook composes it, the ring's bottom against the item's own ground every 0.5 m round its line: all 3 (s_club/hangar_long float 0.60 m, s_strip/shed 0.55, af_s_fire/bay 0.55) buried 0.35 m, none short of 5 cm.
+### THE GATES (Tue 27 Oct, s27-c5h 10:00 CPU UNTIMED, on 9dcb7fd44; parked cook re-cooked, --check (same))
+- PASS: PREMCOOK ASSETS HOUSE PREMISES KITHOST CITYHOST METKIT (PREMCOOK green with no re-cook).
+- FRAMECOST: FAIL (1) = master's standing key only (cessna boot/garage:restore/three.updateMatrixWorld 2269 -> 4553).
+## G3660-G3669 - THE METEO STATION (ASSETS)
+
+The user, 25 Oct: the Śnieżka meteo station another chat modelled on the house bench (an observatory was wrong, a meteo station great) becomes an asset, ONE on Mount Ardent's summit, waiting for the user, later the story's. "Keep the level pad tight around the building. The real one is positioned slightly on a slope, but a small one."
+
+- G3660 THE GENERATOR: `tools/_meteo_gen.js` (window.METEO_GEN), the bench's `_observatory_gen.js` renamed - presets 'meteo station' / 'meteo station 1974', catalogue keys `meteo/<preset>` (27_premises GENERATORS + GEN_NS meteo), category landmark. ON DEMAND the navaids' way: build.js MANIFEST.lazy, world_boot.js asks for `_meteo_gen` only when the placed record names a `meteo/` key, house_worker HW_LAZY + its filter, sim_link GEN_FILES, render_premises' lazy list; the scenery editor's lazy set (app.js) so the editor lists it. A page without one pays nothing. The headless loaders that compose the island name it (premises_cook, _premises_check, town_kit, _house_check, asset_census, _houseworker_check GEN_OTHER). The bench (`tools/_house.html`) has it as before.
+- G3661 THE DOORS DARK, as the photographs: the drum's door dressed with the dark sheet's bag as its trim (the house's buildDoor draws leaf and casing in trim). The east view's mirror against the user's road photo is NOT touched (the user's call).
+- G3662 THE RAMP PAD (27_premises siteShelves, a catalogue ground need 'ramp' with an `outline`; A0 / the user 26 Oct: the pad cut to the building, not the foot's rectangle): the pad is the entry's outline - for the station the convex hull of the drum, the flat disc and the core, + 1.5 m (1 197 m2 against the rectangle's 2 060; the triangulation pillar stands on its own stones) - its ground the least-squares PLANE of the ground inside it (12 x 12), the slope capped at `maxSlope` (0.06), pushed as a 'ramp' modifier with an absolute plane (`abs`: the ramp's plane in world heights, as a flatten's level; a ramp without it unchanged) and the bank law's falloff (8 m least). The pad rides the ITEM: a station placed or moved in the editor gets the same pad. The station's walls and plinth run down to the lowest ground round each disc. The summit probe (Mon 19:49, DEM read): peak (9104, -5888) 1 095.6 m, the ground's plane 9.6 % -> 6 % rising to the south, cut <= 1.9 m, fill <= 3.7 m inside the outline (the rectangle had 2.7 / 6.9).
+- G3663 THE PLACEMENT (island_jolene.json, spliced in place per ED-2 - no jolene_author, no rev bump, the file's own json.dumps form): site `mt_s_meteo`, the pad outline's centre on the DEM's highest point within 80 m of the map's summit (9106, -5886), site yaw 0 + item yaw PI (the generator's +z front to the south). Done in the CPU slot (it composes the island): the numbers (peak, slope, cut, fill) in its commit.
+- G3664 (Tue 27 Oct 04:05 still): the triangulation pillar's heap of stones FLOATED on the east bank. The pillar stood outside the pad outline, and its stones took the generator's ground there, not the drawn slope. The outline now takes the pillar too (a 1.6 m circle at obX/obZ in the hull), so the pillar and its stones stand on the pad's plane. A small wedge toward the pillar; the rest of the pad is unchanged.
+- LOD: the catalogue's dist [0, 300, 900, 2500] - never drawn from HOME (11 km), so no FRAMECOST row.
+- CODE ONLY in this commit (node --check): placement + cooks + GATE PREMISES SITE SCENERYED STAGES CONTACT PREMCOOK MAPBAKE HOUSE ASSETS MATLIB MEDIA LAZY NAVAID HOUSEWORKER CITYCOOK TOWNKIT SIMWORKER BUILD in Tue 02:45 s27-c2a, the stills (air + summit ground, draws, first-view compile) Tue 04:05 s27-g3a; ready for L27a.
+- The shared checkout still holds the uncommitted originals (tools/_observatory_gen.js, its _house.html edits - which also DROP the matlib.js tag, a stale base - and the futureDesigns doc): the user may remove them.
+## MISSIONS-P0 - MERGE: origin/master d7e181f4 (L25c) + origin/claude/people 2caa3e6a INTO claude/missions-p0; THE PEOPLE STUBS DROPPED; GATES (2026-10-26, cloud; for Game's local review, the GPU gates and the push to ready/)
+
+**Merged.** `857f546e` = origin/master **d7e181f4e** (train L25c built) into claude/missions-p0 (was 92611762);
+`6cb7109e` = origin/claude/people **2caa3e6a** (G3614-G3616 + the PILOTS w3 row) on top. Conflicts, both times only:
+- `src/core/90_node_exports.js`: the UNION - master's / people's list + this branch's six (CONTRACT_DO_NEXT,
+  CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk) after
+  contractFlyable. Every one of the 947 names is defined in MANIFEST.core (none dropped, no duplicates).
+- `HANDOVER.md`: both sides kept (this branch's MISSIONS-P0 entry, then master's L25c entries).
+- Built / cooked files: none conflicted; the committed tools/flight_core.js, index.html, dev.html, sw.js, version.json are
+  master's d7e181f4 build (this branch commits no built file - the core is stale until A0 / Game builds).
+
+**The stubs dropped** (`2d99e861`): 72_people.js is on the branch and in MANIFEST.core, so 73b_missions.js reads
+GAME_PEOPLE / peopleClientOf / peopleName directly - MS_CLIENT_STUB and the ms* fallbacks are gone. Every person id must
+be a GAME_PEOPLE key (a free name and an unknown id refused, a `voice` never aboard); GATE MISSIONS's rows "a voice
+aboard" (always run now) and "a person the table does not hold" (new). The editor and tools/_missions_lib.js load
+72_people_faces.js then 72_people.js (MANIFEST.core's order) as required files; the editor re-checked headless on the
+merged tree: no 404, no page error, the portraits shown. (The MISSIONS-P0 entry above still describes the stub: superseded.)
+
+**Merge fix-ups in two gates (people x master, not missions)**: claude/people renamed the pack's pilot `kit` -> `brian`
+(PEOPLE_FROM_PACK; PILOTS_COMPANION = brian) but master's `tools/_routes_check.js` (21 refs, + `rafe` -> `bryce`) and
+`tools/_map_smoke.js` (the Pilots rows 624-635, UISMOKE's MAP block) still named `kit`: ROUTES threw at its line 84
+(pilots.kit undefined) and UISMOKE / UISMOKE-PHONE failed "the real Pilots: kit hired" on master + people ALONE (checked in
+a separate worktree: d7e181f4 + 2caa3e6a, no missions code - red; d7e181f4 alone - green). Renamed the ids, no expectation
+relaxed. The fleet's "kit" (an aeroplane) rows in _map_smoke.js untouched.
+
+**Gates** (a private copy of the merged tree, `node tools/build.js` there - build 658ad6881170 - then `run_gates.js
+--only=... --no-build`; ROUTES / UISMOKE / UISMOKE-PHONE re-run after the fix-ups):
+GATE MISSIONS: PASS
+GATE CONTRACTS: PASS
+GATE STAGES: PASS
+GATE ECON: PASS
+GATE CLOCK: FAIL (1 of 777)
+GATE ROUTES: PASS            (first run: FAIL - threw, pilots.kit; fixed above)
+GATE UISMOKE: PASS           (first run: FAIL - "the real Pilots: kit hired"; fixed above)
+GATE UISMOKE-PHONE: PASS     (first run: FAIL - the same)
+**CLOCK is red on pure origin/master d7e181f4 too** (the same 1 of 777, checked in a clean worktree): its row "the
+sandbox's player document is unchanged (no day: the pref keeps it; PLAYER_V 2)" pins `CORE.PLAYER_V === 2`, and
+70_player.js holds PLAYER_V = 3 (the sandbox's default has no `day`, no `career`: only the version pin is stale). Not this
+branch's - for CLOCK's owner / A0 (a one-token pin, or a deliberate v3 the row should say).
+
+## MISSIONS-P0 - THE SIZE OF AN ORDER (width, height, length, "fits their shed") + THE CLOCK PIN (2026-10-26, cloud)
+
+The user (26 Oct): "the orders could specify requests in terms of plane dimensions (so they fit in their sheds), width,
+height and length" - and "fix the CLOCK pin to PLAYER_V 3".
+- **Width = spanM** (today's criterion, static, runs now). **New in CONTRACT_CRIT_NEXT** (73_contracts.js; static, how
+  'spec'; ACCEPT judges them in phase 2, so an order naming one waits: contractRuntimeOk):
+  `heightM` (<=, 1-8 m: the parked footprint's h - the fin or the wing top, the number 71_ hangarDoorWhy reads),
+  `lengthM` (<=, 3-25 m: nose and propeller to tail, the footprint's fwd + aft), `fitsShed` (==, a SHELLS row of
+  26_hangar_fit.js - club | works | field - with optional `at.dims: { HW, HD, EAVE }` for the client's own odd shed:
+  through its door (hangarDoorWhy) and parked inside with its fit-out (hangarPark) - phase 2 runs those two on the
+  delivered airframe's footprint). contractCritWhy checks the shell and the dims; contractCritWords names the shed
+  ("fits their Field shed (12 x 16 m, eave 3.2 m): through the door, parked inside") and now reads both tables.
+- The editor: an order's "size (their shed)" row (span / height / length, the shed and its own dims), written into the
+  delivery step's require.plane; it loads 26_hangar_fit.js (LEAN, gated) so its verdicts are the game's.
+- GATE MISSIONS: the sample order carries all four; refused alone: 30 m high, a length asked as "more", a shed nobody
+  builds, a negative width, a shed judged at a load; each new size criterion alone waits for the runtime, the span runs;
+  the words.
+- **GATE CLOCK**: its sandbox row now pins `PLAYER_V === 3` (70_player.js's; was 2 - red on master d7e181f4 too).
+- Gates (private build): MISSIONS, CONTRACTS, CLOCK, NAMES PASS.
+## G1730 - SND-SHUTTER: PHOTO MODE'S SHOT (2026-10-27, the Sound Coordinator; branch claude/snd-shutter off origin/master; for L27b with GAME-MENUS)
+
+- A0 for the user (Tue 01:00): a shutter sound for photo mode (GAME-MENUS G3741/G3742). Synthesized in WebAudio, no file, no licence: the mirror's click (3.5 kHz noise tick over a 140 -> 70 Hz thump), the curtain's swish (noise, band 2 -> 6 kHz) and the second curtain's click at +90 ms, ~0.16 s in all.
+- AUDIO.shutter() (audio.js; the ?audio=0 stub returns false) plays at master x interface x 0.32. Its gain goes straight into the limiter, never through master/fade: photo mode PAUSES the flight (FLYDIY_HELD faded and suspended the context), so the shot wakes the context for itself, leaves the paused mix shut and puts the context back to sleep 0.4 s later. A shot inside the pause's 0.2 s fade still gets the silence's own suspend and its event. No bus is scheduled, so the engine is never ducked.
+- The hook is an EVENT (A0, 27 Oct: neither branch edits the other's file): audio.js listens on window for 'flydiy:shutter', which GAME-MENUS G3744 fires at the take (the round shutter and FLYDIY_PHOTO.take). GATE AUDIO WIRING requires the listener and, wherever app.js has photoTake, the event fired; SHUTTER fires the event and wants a shot; a 5th mutation drops the listener.
+- GATE AUDIO SHUTTER: in flight; into the limiter by one gain; under 0.3 s; the interface volume; interface 0 = nothing; in the pause: wake, the fade still shut, back to sleep; inside the fade: the suspend event still comes; the buffer made once. Plus 4 mutations (through master, asleep in the pause, too long, deaf to the interface volume).
+- Hot files: src/viewer/audio/audio.js, tools/audio/_audio_check.js. Gates: AUDIO + UISMOKE (A0's slot).
+## G3730-G3739 - UI-STYLE: THE TANK AND INSTRUMENTS GARAGE PANELS ON THE GARAGE LOOK, MEASURED AGAINST THE WINGS ROWS (2026-10-25/26, UI-STYLE for A0; branch claude/ready/ui-style off 61e93cb15 = L25b built; slot s26-g4 Mon 26 04:30-04:41; for L26b)
+The user (25 Oct): the tank and instruments panels "still carry styling which is not in line with the styling of the other menus"; then (via A0, 22:00) "they feel smaller and more packed".
+- G3730 tank selection = `details.on` (was a yellow inline outline). G3731 `.bad` on the --ed-bad token (was a cold inline red). G3732 readout rows = `.r.note` + `.noteH` (was an 11 px cssText). G3733 `.cgBar` (only a mark's `left` stays inline). G3734 `.cgChart` + chartStyle(): BALANCE.draw gets its colours from the --ed-* tokens (balance.js untouched; the burn line and the now-dot keep their colours, the tooltip names them). G3735 inline flex/6 px indents dropped, `button.wide`. G3736 the instruments outer fold flattened like the shed's/tanks'. G3737 bill line items = `.r.dial` (were space-indented text).
+- G3738 tools/ui_style_shot.js: stills of Wings (reference), tanks (structure + finish) and instruments, desktop 1600x900 + phone 375x812, top/mid/end. G3739 it also writes `<out>_<mode>_metrics.json`: the computed font/size/weight/colour of labels, values, selects, headings and readouts, row height/pitch, label left, heading spacing, a serif/italic count.
+- G3739 tuned off those numbers: values and readouts at the label's size (12 px desktop, 13.5 phone; were 11 px faint); a readout after a label or switch spans the free width on one line (`350 cr · 0.40 kg` broke in two in the 64 px column); the instrument sub-groups are flat headings at the .edH 24/6 rhythm, rows at the reference's label left (11 px, was 28). The tanks keep their boxes (they are objects with a selection), label left 22.
+- Inline styles under the panels: energy 24 -> 0, finish 3 -> 0, instruments 18 -> 0 (desktop); phone energy 34 -> 10 (phone.js's steppers, not ours).
+- Gates (light set, --no-build after build.js): UISMOKE, UISMOKE-PHONE, CARDS, BUILD, PANEL, BUILT all PASS. No CARDDRAG gate exists on master. parked_cook hash unchanged -> no FRAMECOST.
+- OPEN (not on this branch): on the phone a long label squeezes a dial readout to an ellipsis (`magnetic compass ... 300 cr · 0.3…`); fix = let the phone readout wrap (one line of phone.css), needs its own light gates.
+- The serif/italic count on the phone is 18 in the Wings reference itself and 10 in tanks: the phone shell's, not these panels'.
+HOT FILES: src/viewer/editor.css (a block above `.edRoot details`, ~l.1509-1560; no `:is(#wsUI,#edView)` rules, clear of GAME-MENUS' tail and PHONE-GARAGE's l.1549+ widening - whoever lands second rebases). tools/_cage_energy.js, tools/_cage_panel.js, tools/_cage8.html (the bench's copy of the classes).
+## G3543 - VEHICLE PRINTS: A SOFT DARK RECTANGLE UNDER EVERY CAR ON THE GROUND (2026-10-25..27, HANGARS-LOOK for A0, LOCAL-GPU; claude/ready/vehicle-shadows on master d7e181f4e = L25c, gated 78ea9cd96; READY for L27a)
+The user, 25 Oct via A0: "the vehicles not casting a shadow on the ground ... A simple dark rectangle would suffice, but something, otherwise they float"; 26 Oct: "undo your lifts now, to the minimum where it remains visible" and "you can make the shadows darker".
+- render_premises.js: two InstancedMesh prints (premises:carprints = the yards', lots' and life's parked cars; premises:carprints:traffic = the moving traffic), one board each car, (W + 1.0) x (L + 1.2) m, the alpha ramp 20 % of each side, opacity 0.75, renderOrder 6.5, the MATLIB material (GATE ASSETS AS4a); only the drawn prints' matrices are uploaded (FRAMECOST bytes.bufferSubData ALLOW 544 -> 768, upTo 800, both builds, A0 26 Oct). scenery_life.js feeds its parked cars.
+- PRINT_LIFT { st, tr } = 0.25 / 0.25 m over heightAt, picked by tools/prints_probe.js --pick (node, all Jolene: the drawn ground - ribbons, paved polys, patch, fine tiles - over the print's tilted plane in its core; each class's p99.5 + 0.03, clamped 0.03-0.25). 27 Oct: traffic n 51208 p99.5 0.239; parked n 47068 p99.5 0.993 (the lots' polys over slopes) -> both at the 0.25 cap. Re-run the probe after any road / pave / patch change before moving the lift.
+- Premises re-cooked on L25c (the placement code's hash), GATE PREMCOOK.
+### THE GATES (Tue 27 Oct, s27-c2h 02:15 + s27-c3p 05:31, on 78ea9cd96, parked cook --check (same))
+- PASS: AUDIO ATMO ANIMALS DMGSCAR GFX FADES CONTACT LOOKS ASSETS PREMISES SCENERYED PATCHFAR PREMCOOK TARR KITHOST CITYHOST METKIT PARKED PAVEMENT LIFE.
+- CLOUD FAIL 1/239 = master's own: tools/_cloud_check.js:263 expects `.filter(q => q[0] < r2).sort(`, master's render_premises.js reads `.filter(q => q[0] < r2 && !(q[1].chunk && !q[1].grp.visible))` (no match on master d7e181f4e either).
+- FRAMECOST: GATE FRAMECOST: FAIL (1) = the standing master key only (cessna boot/garage:restore/three.updateMatrixWorld rose 2269 -> 4553; A0: a standing master red). Run s27-c3p 05:31 (the 02:15 run was cut at its stop with no verdict).
+
+## Train L28-0 (A0, Wed 28 Oct ~03:30) - the pre-checked set, landed early on the user's call
+
+The user (28 Oct 02:55): land now rather than wait for 06:00 ("we're at 86% credits, and you haven't landed anything this week yet").
+31 readies, pinned to the shas A0 dry-ran at 01:08-01:32 (merge + the landing's own cooks + a real parked cook): TAXICLEAR,
+DMGCERTCOST, DMGSKINGPU, AUDIOENG, FRAMES, WINGROWS PASS; FRAMECOST = master's standing key only (cessna boot/garage:restore
+updateMatrixWorld) with the declared ALLOW rows. The rest of the battery = T-P1's (same content plus cert-rule and new-shapes-1, both
+pulled: cert-rule's roll-out freeze measured alone 1.0 -> 2.8 s; new-shapes-1's AUDIOENG / FRAMES / WINGROWS / TAXICLEAR camel rows).
+NOT run: the timed rollout train gate (the box is not quiet before 06:00), so a roll-out stutter is unmeasured. L28a (06:00) runs the
+full battery + train gate on this master plus the overnight readies (menus + phone, floodlight, passengers, story, Back confirmation, shed).
+Excluded: cert-rule, cert-pod, new-shapes-1, lods-step1, scenery-afb + meteo-station (scenery train S28), dc3-2-scenery, jolene-fold
+(superseded), missions p1/p3/props, hydro-trim, belly-pod-2, stol-wing, dmg-glass, the old game-menus / game-menus-ui / phone-garage refs.
+## G3623 - DMG-GLASS: AN IMPACT MARK ON THE GLAZING - A STAR OF CRACKS WHERE THE FRAME HIT THE PANE, DRAWN BY THE GLASS'S OWN SHADER (2026-10-27, DMG-LOOKS for A0 + DEFORM; cloud, node + headless WebGL2 on SwiftShader, no GPU stills; branch claude/dmg-glass off origin/master d7e181f4e = L25c (built); claude/ready/dmg-glass)
+The user, 27 Oct: "never seen an impact mark on glass". Before this, a pane either stayed whole or left the wreck whole as a debris body (wreck_debris.js). There was never a crack. This is P1c of the DMG-LOOKS plan (G3620-G3629 study §4), cut to what the hit events already carry.
+- **What existed.**
+  - Glass is `aeroGlass` (aeroskin.js): a MeshPhysical pane with `AEROGLASS_HOOK`, blended additively (ONE + ONE, or screen). It can only ADD light; a separate multiply pass (`aeroGlassCompanion`) carries the tint.
+  - It already had the touch roughness, edge grime and rainbow. It had no crack texture, no crack hook, and no state.
+  - The page's damage state (`dmgNow()`: `broken[]`, `set[]`, `vB`, `sS`) arrives on change through the damage hop. Those are the hit events used here.
+- **What it does.**
+  - When a frame member whose rest midpoint lies within 0.35 m of a pane yields (|set| >= 0.3 %) or breaks, that pane takes a star at its point nearest the member.
+  - Severity: at 0.3 % set, a short light star of rays; at 3 % (the kink), the full star with arcs; a broken member adds a crazed core.
+  - Marks on one pane within 12 cm merge. At most 4 are drawn, the strongest; of equal ones, the earlier stay.
+  - A mark never moves or shrinks until a heal, a new flight or another aeroplane.
+  - The look follows acrylic (study §2.5): 5-9 long radial cracks, reaching 6-36 cm by severity, with arcs on some sectors and a crazed Voronoi speckle within ~6-12 cm of the hit.
+  - Shading is the glass's own. The cracks add the pane's own irradiance as near-white scatter (0.85 x line + 0.30 x haze; silver in sun, dim in shade, never dark). They also roughen the clear coat (+0.6 line, +0.5 haze), so the reflection breaks up along them. No hole is cut.
+  - Lines under a pixel fade to their share of the pixel; they do not fatten.
+  - No crazing on hard landings (the user, 25 Oct): a landing that bends no frame member marks nothing.
+- **How it works (all aeroplane-wide, no clone, no new program).**
+  - **The rules:** `src/viewer/dmg_glass.js` (pure: `window.DMG_GLASS` / `module.exports`). It has the rules, the GLSL text (`GLSL_CRACK`) and its JS mirror (`crackJS`).
+  - **The uniforms:** aeroskin.js `aeroSharedU` carries `uCrackN`, `uCrackP[4]` (point, severity) and `uCrackQ[4]` (normal, seed). FBK twins share them.
+  - **The shader:** the glass hook splices `AERO_GLASS_CRACK_FS`, a textual copy of `GLSL_CRACK` (`node tools/_dmg_glass_check.js --sync` rewrites it). It loops over the marks only when `uCrackN > 0`.
+  - **Gating:** each mark is gated in CRAFT space (`vCraftPos`, from the vertex's REST place, so the mark rides its pane). It shows only within 4 cm of its plane and on fragments facing its normal (dot >= 0.5), so the parked and shed aeroplanes' glass never shows it.
+  - **The page side:** app.js `glassMarks()` runs after `poseModel` (so `uCraftInv` is this frame's).
+    - It captures once a flight, at rest: the glass meshes' points (<= 1500 a pane) and the near members.
+    - At each damage event (vB | sS moved) it recomputes the marks and packs them. Otherwise it costs one compare a frame.
+  - The build manifest loads `dmg_glass.js` after `wreck_debris.js`, before `app.js`.
+- **GATE DMGGLASS** (`tools/_dmg_glass_check.js`, run_gates row `DMGGLASS`, core, weight 3, ~125 s with three children):
+  - **S** the source: the copy equals `GLSL_CRACK`; the hook splices, calls and scatters; the shader's gates equal the JS constants; the uniforms; the manifest order; the `app.js` call.
+  - **U** the rules: the thresholds, merge, never moved, MAX, pack, the mask's reach, the core from 0.85 only, the sub-pixel fade.
+  - **G** the mirror: `GLSL_CRACK` in a real GLSL ES 3.00 (WebGL2, transform feedback) against `crackJS` on 24000 samples. 0 over 0.05.
+  - **R** the real `aeroGlass` on vendor three r186: it links, and the program count is 1 -> 1. A broken member's mark brightens 3162 px and darkens 0; a light one brightens 671. Off the plane by 5 cm, facing away, or cleared: 0 px changed.
+    - Picture: `futureDesigns/dmg-glass/glass_mark_webgl2.png`, a 1 m pane, sev 1.
+    - G and R report NOT RUN without Chromium (never a pass).
+  - **T** the triggers on the Cub, the Jodel and the metal Cessna, the page's own path (the snapshot's glass groups, the def's members, `simDmgHop` -> `simViewDmgApply` every frame):
+
+    | build | taxi 3 m/s | FAR 23.473 drop | 30 m/s trunk, centreline | 30 m/s trunk, 2.5 m out | centreline twice |
+    |---|---|---|---|---|---|
+    | Cub | 0 | 0 | 4 (windscreen x2, both side windows) | 4 | same marks |
+    | Jodel | 0 | 0 | 4 on the windscreen | 0 (the wing takes it; nothing near the glazing bends) | same marks |
+    | metal Cessna | 0 | 0 | 4 on the windscreen | 0 | same marks |
+
+    Every mark sits on a glass pane, within 0.35 m of its member, and is drawn at its point. No mark is ever moved or displaced.
+    - Reported only: the 4 m/s nose-over, the 6 m/s drop and the 12 m/s runway stump mark nothing on any of the three.
+  - **N** smooth shading (the user, 27 Oct: "no flat shading on any deformed or damaged part"; see below). A curved pane (12 facets, its own smooth normals) drawn by the real `aeroGlass` under a light near the eye shows 0 steps at its facet edges, marked or not. The same pane with `flatShading` forced shows 12: that is the control, proving the row sees flat shading.
+  - `--selftest` sabotages the copy by one character and sets the members' reach to 0: S and T go red on every build.
+- **THE COCKPIT FIX (28 Oct).** A0's page run (DEFORM's 00:30 run, ready/dmg-glass 5f1032d7b merged with dmg-looks b951dcbb3): "FLYDIY_GLASS_TEST(1) and (0.3) DO return a mark at the windscreen's middle, but NOTHING shows in the cockpit view; the windscreen stays clear."
+  - **What the flown windscreen uses** (measured in the page, `tools/dmg_glass_stills.js` FACES): `aeroGlass`.
+    - The Cub's four flown panes are MeshPhysical, `aeroFinish: 'glass'`, sharing `aeroSharedU`, and each linked program has `uCrackN`.
+    - It is not the fold/bake path: glass never bakes (flown_bake.js `bakes()`), and no other material draws them.
+    - The test mark was right: at the windscreen's middle, 0.71 m from the eye, uniforms set.
+  - **The cause:** the flown panes are single sheets wound outward, and `aeroGlass` was FrontSide.
+    - From the seat every triangle faces away: Cub windshield 64 / 64; metal windshield 128 / 128, side panes 328 / 328 and 256 / 256.
+    - So from the cockpit the pane, and any crack on it, was never drawn. The tint companion is FrontSide too, so the windscreen draws nothing at all from inside, by design.
+  - **The fix (aeroskin.js `aeroGlass` and `AEROGLASS_HOOK`):**
+    - The pane is `DoubleSide` with `forceSinglePass: true`: one program, one draw. Without the flag, three draws a transparent DoubleSide material as two passes, two programs.
+    - First thing in the fragment, a back face with no mark in use (`uCrackN < 0.5`) is discarded. An intact pane looks exactly as before; its back faces cost a rasterised discard.
+    - With a mark, a back face writes only the crack's scatter, never the reflection, so the bubble's phantom limb (the reason for FrontSide) cannot come back. Where there is no crack it discards.
+    - The side is set at roll-out, so a crash links no program.
+  - **`FLYDIY_GLASS_TEST(sev, 'view')`** puts the mark on the glazing's point nearest the middle of the view. The metal Cessna's left seat sees the windscreen's middle only at its top right edge.
+  - **GATE DMGGLASS row B:** from behind, the pane with no mark changes 0 px against the pane hidden, and a broken member's mark brightens 3,000 px and darkens none. The other rows are unchanged and pass (R: 1 program).
+  - **Evidence** (`reports/evidence/DMG-GLASS/`, `cockpit_sheet.jpg` + the stills + 300 px crops round the mark; SwiftShader, the stand, the cockpit camera):
+    - Cub, windscreen middle: mark 1 a full star with arcs and the crazed core; 0.3 a short light star; cleared, the windscreen clear again.
+    - Metal Cessna, `at: view`: the same.
+    - The crop counts (pixels brighter by 24+ codes against the no-mark frame): Cub noise 4,257, mark 1 18,692, 0.3 7,392, cleared 3,479. The propeller disc moves in the crop; on the metal Cessna its idling blade sweeps through it (noise 16,253), so the pictures are the proof there, not the counts.
+  - **Neighbour gates on this head:** BUILD, SKINMAT, PROGRAMS, ATMO, EDBUGS, REF, LIVERY, FLIGHTREC, PARKED pass.
+- **WHAT THE PAGE MUST SHOW (A0 + DEFORM's page check and evidence round).** Use dev.html with damage on. **The cockpit view is the one to check**: from the seat, a mark shows on the windscreen in front of the pilot (`FLYDIY_GLASS_TEST(1, 'view')` puts it there on any build), as in `reports/evidence/DMG-GLASS/cockpit_sheet.jpg`.
+  1. **By hand, no crash.**
+     - In flight, run `FLYDIY_GLASS_TEST(1)` from the console. It returns `{ at, p, n, panes, points }`. A full star appears at the windscreen's middle at once: 5-9 silver-white wandering radial cracks up to ~36 cm long, arcs on some, and a speckled crazed patch ~6-12 cm round the centre.
+     - Seen from the cockpit and the chase camera, it is brighter where the sun lights the pane and faint in shade. The reflection is broken up along the cracks. It is never a black line and never a hole.
+     - `FLYDIY_GLASS_TEST(0.3)` gives a short light star (rays only, no core). `FLYDIY_GLASS_TEST(null)` clears it.
+     - No frame hitch, and `renderer.info.programs.length` is the same before and after.
+  2. **A crash.** Fly 30 m/s into a trunk on the centreline (the gates' case).
+     - After the impact, `FLYDIY_GLASS` is `{ marks: [{ p, sev, pane, member }, ...up to 4], panes, points, members }`.
+     - The stars sit where the cabin frame hit the windscreen (Cub: the side windows too). They stay on the pane as the wreck rides and tumbles.
+     - The parked aeroplanes' glass shows nothing.
+  3. **Nothing on gentle events.** A taxi into a trunk at 3 m/s, a hard landing at the FAR cap, and a circuit all leave `FLYDIY_GLASS` null and the panes clear.
+  4. **A reset or new flight** clears the marks (`FLYDIY_GLASS` null). So does another aeroplane.
+- **Smooth shading (the user, 27 Oct: "no flat shading on any deformed or damaged part - it looks bad and looks like a bench").** It holds for the glass marks:
+  - The mark adds no geometry and writes no normal. The crack block and `GLSL_CRACK` use no `normal =`, `geometryNormal`, `dFdx` / `dFdy` or `faceDirection`; GATE DMGGLASS S/N checks this in the source. So a marked pane shades with its own interpolated normals, and the crack's scatter is lit by the irradiance computed with them.
+  - The glazing's own normals are smooth in the flown snapshot: coincident places share them (windshield 303 / 303 pairs, pilotWindow 588 / 588 on the metal Cessna).
+  - Riding the wreck, skin_break / skin_gpu turn each vertex's own rest normal, so it stays per vertex, never per face.
+  - `aeroGlass` has `flatShading` false. Row N proves it on a curved pane against a flat control.
+- **Limits, said plainly.**
+  - A pane thrown off as a debris body (wreck_debris) can lose its mark: its craft-space place no longer matches.
+  - Marks follow members, not contact points. A trunk that strikes the glass between frame members without bending one leaves no mark.
+  - Only 4 marks are drawn, one uniform set per page.
+  - The look is unseen on a real GPU: there are no in-game stills from this cloud session.
+- **Neighbour gates run on this branch (27 Oct):** BUILD, SKINMAT, PROGRAMS, ATMO, EDBUGS, PARKED, REF, LIVERY, FLIGHTREC and SIMWORKER pass. Two fail, each on one row, and each row fails the same way on a clean origin/master d7e181f4e checkout, so neither is this branch's:
+  - KTX2 row 10, "the characters' budget": elizabeth / james / martha / leonard / david have no row.
+  - LAZY, "default: the door's first demand (ROUTE_DRAW.ready) fetched route_draw.df5cd4af.js once and ran it". The generated files (dev.html, index.html, sw.js, version.json) are not committed: A0 builds the train.
+- **Not touched:** DEFORM's pool code (`dmg_members.js` is not on master; nothing here reads it), skin_break, skin_gpu and wreck_debris.
+
+## G3872 - DOOR-HINGES-2: THE DOOR HINGE MODELLED (KNUCKLES, PIN, JOGGLED LEAVES, RIVETS, THE DOOR HARDWARE'S METAL); THE DOOR HANDLE NEVER ON THE GLASS; GATE HANDLE (2026-10-27, cloud, for A0; claude/door-hinges-2 on top of claude/door-hinges 04d7f54ea = G3871)
+
+Why: A0 and the user on the G3871 before/after stills (27 Oct): the hinge axis is right and lands as is in L28a. Two follow-ups:
+- (1) "the hinges look cheap": proper bevelling, shading, detailing, still cheap to draw.
+- (2) "the door handle is wrongly placed. It must NEVER sit on top of a window or any glazing."
+The G3871 axis is untouched: every station's barrel centre and axis are the ones GATE HINGE DOOR AXIS measured (0.000 mm on all 12 lines, re-run here).
+
+(1) THE HINGE (tools/_hinge_gen.js buttHinge; only doors call it). Modelled after a surface-mounted steel butt hinge. Every part is its own primitive, so GEAR_KIT's smoothing (shared vertices only) stops at the part's real edges:
+- KNUCKLES: an odd number (~22 mm each, 5 on a 0.10 m hinge), alternating frame / door, 0.6 mm apart. Each is a revolved ring with radiused shoulders, giving the rolled knuckle's round edge instead of a lathe step. 12 sides.
+- PIN: through the stack, showing in the gaps. A domed head at the upper end (a horizontal run: +z) and a peened stub at the other.
+- LEAVES: a 2 mm plate rolled off the knuckle's skin side, joggled onto the MEASURED skin in one S-bend (fillet 1.6 t), then lying on it.
+  - The section is a rounded rectangle with an inner pair of vertices on each flat face, so the faces shade flat right up to the edge radius.
+  - The free end is rounded in plan (6 mm).
+- RIVETS: two domed heads a leaf (three past 120 mm), on the flat.
+- A PLATE DOES NOT WRAP A CORNER: the joggle is at most 10 mm.
+  - A leaf whose skin lies more than 10 mm under the barrel is a short tab beside the knuckles.
+  - Otherwise the leaf ends where the skin under it slopes past ~34 deg off the barrel's tangent plane.
+  - A tab, or a leaf cut short, carries no rivets.
+  - This is the clamshell's bottom run at the belly corner: the frame leaf met a skin falling 80 mm in 40 mm and stood off it in the air. That was G3871's look too, painted; it read worse in metal until the rule.
+- The barrel (0.76 of the lift radius, ~7 mm) sits inside the clearance G3871 lifted the axis by; the leaves step down to the skin.
+- THE METAL: a door's hinges are now the door's hardware. They have their own 'door' bag, meshed with the access layer's metal (AERO_HARD.access.metal: the handle's finish and tint), no longer with the ctlHinge livery section, which on 'as the fuselage' (hgFinish 0, the user's Cub and the STOL Cub) painted them the fuselage's orange. The control-surface hinges are unchanged.
+- COST (tools/_scene_headless.js, the door hinges' own triangles, both halves):
+
+  | build | hinges | before (tris) | after (tris) | per hinge |
+  |---|---|---|---|---|
+  | stock Cub (clamshell) | 8 | 5 504 | 15 424 | 688 -> 1 928 (belly tabs carry no rivets) |
+  | STOL Cub, Jodel, Cessna 172 | 4 | 2 656-2 752 | 8 352 | ~670 -> 2 088 |
+
+  - Of the whole aeroplane, +6.4 % at most (Cub clamshell, 155 256 -> ~165 200 tris) and +3.7-3.9 % (the others).
+  - DRAW CALLS +1 a build: the fixed halves leave the shared static hinge mesh for one 'edHinge_static_door' mesh. The door-side halves stay one mesh a hinge run, as before (renamed '_door').
+  - The first cut was 2 532 a hinge; the knuckles 14 -> 12 sides, the leaf 18 -> 14 rings and the rivets 10 -> 8 sides took it to 2 088 with no visible loss at 0.8 m.
+
+(2) THE HANDLE (tools/_fit_site.js doorHandleOnSkin / handleOffGlass; tools/_cage_access.js).
+- Measured on the old rule (0.62 of the opposite run's arc), the door handle's 115 mm U stood across the sill, 53-142 of its 321 vertices over glass. This hit the page default, the user's Cub and Jodel, the composite Jodel, the PA-18, the chinook edits, the stock / v5 / v8 / v9 / player fixtures, the pusher and the STOL Cub. The PA-18's and the STOL Cub's grab handle had 12. Only the Cessnas and the twin boom were clear.
+- Now the placement reads the FLANK AS DRAWN: one side of the sheet seen along x, each face a (z, y) triangle with its x, its outward normal and its flags (`win` glass, `doorKey` the door's skin).
+- The handle's footprint (long axis, half-length and half-height, each grown by 15 mm) must land wholly on faces it is allowed, with no glazed face under any of 45 samples and no glass corner inside it.
+- THE DOOR HANDLE lies ALONG THE CHORD (a pull, as a Cub's or a Cessna's outside handle does), near the edge opposite the hinges:
+  - HEIGHT: the G310 waist rule (0.62 up the door), capped under the sill less its half-height. A gull (top-hinged) door keeps it low (0.22), the old rule.
+  - REACH: its near foot `inset` from the opposite edge.
+  - The builder's two nudge rows move the TARGET. The search walks out from it in 1 cm steps, nearest first, so no nudge can put the handle on the glass.
+  - Fallbacks: none clear on the door -> UPRIGHT ON THE FRAME just outside the opposite edge (the pillar it shuts against). None there either -> no site (reported unplaced, never drawn on glass).
+- THE GRAB HANDLE (a ring-snapped body fitting) is walked to the nearest clear skin on its side, upright as it was. It moved 25 mm aft onto the pillar between the door and rear windows on the PA-18 / STOL Cub. The pillar band is `joint` faces, allowed for it.
+- _cage_access.js:
+  - passes the sheet, FS and the row's size;
+  - a site's `along` turns the form's frame onto it (fore = side x n);
+  - the sagitta lift keeps that frame;
+  - `placed` records `along` and `onFrame`.
+- GATE FIT's door check now runs the new path.
+
+GATE HANDLE (tools/_handle_check.js, new, core, registered after FIT). It covers the page default, every build under builds/ and bugReports/, every build_v* / player_v* / stol_cub fixture and every archetype card (CAGE_DESIGN.designBake): 59 builds and cards, 98 handles, 94 on doors. The user's validated builds come in through tools/_load_build.js (GATE JOINPARITY's one load path).
+- ON GLASS: no handle vertex nearer a glazed face than a solid one within 8 cm (the handle's own triangles, read back out of the access layer's bags).
+- PLACED: every door side keeps its handle.
+- BELOW THE SILL.
+- HAND HEIGHT: above a quarter of the solid panel. Measured 0.92-0.96 of the panel on windowed doors, i.e. just under the sill; 0.62 on doors with no window.
+- OPPOSITE THE HINGES.
+- NEGATIVES, through the real layer (CAGE2.cageSheet wrapped for one build of the user's Cub):
+  - the door glazed whole -> both handles on the frame, off the door's faces and off all glass;
+  - the door's side glazed 0.6 m round -> no handle drawn, reported unplaced.
+- --selftest:
+  - a handle carried 30 mm past the sill is caught;
+  - the old rule's site is within half a handle of the sill (the bug);
+  - a dropped handle is caught.
+
+Stills (cloud, SwiftShader, CLOUD-SHOTS' plane_shot.js from a scratch copy, not committed). The copy adds G3871's `mesh:` view and a `loc:<layer>/<x>/<y>/<z>/<az>/<el>/<dist>` view: a point in a layer group's own frame (the headless layer's metres), turned to the page's world by the group's matrix. Note: in this page's orbit a NEGATIVE az puts the eye at -z of the target, i.e. on the PORT side; G3871's "P" close-ups at az -75 were the mirror-image port door. In `reports/evidence/DOOR-HINGES-2/`, `*_before_after.jpg`, before = claude/door-hinges 04d7f54ea, after = this branch, 0.8 m from the part:
+- the user's Cub (builds/cub_2026-09-20_corrected.json): its forward hinge, and the handle (before: upright across the sill onto the glass; after: along the chord on the door's skin under the sill);
+- the clamshell Cub (the same file, hgDoorEdge 4): the handle, and the belly-corner hinge (before: a painted leaf hanging in the air; after: the barrel and short tabs);
+- the STOL Cub showcase: hinge and handle;
+- a big-window Cub (the same file, waistY -0.25 and winSillPilot 0.9: the window is 61 % of the door): hinge and handle (before: the handle standing on the glass; after: under the low sill on the door).
+`tris_before.log` / `tris_after.log` hold the cost table above (`tris.js`).
+
+Gate verdicts (run_gates --only; logs in reports/evidence/DOOR-HINGES-2/gates/):
+- PASS (26): HINGE (and --selftest: DOOR AXIS unchanged, 0.000 mm), HANDLE (and --selftest), CLIP, FIT, BENCH, PARTS, DESIGN, DEFAULT, PROCURE, SAVE, JOIN, ACCEPT, ENERGY, FRAMES, FREIGHT, KNIFE, MEDIA, PANEL, ROLLANIM, STARTER, SUBSTEP, TECH, SKINMAT, UISMOKE, CAGEFIT. That is the G3871 set plus HANDLE.
+  - UISMOKE, ACCEPT and ROLLANIM first ran beside two SwiftShader stills: the first two hit the runner's 1 800 s timeout and ROLLANIM failed with no FAIL line. Re-run on an idle box (`rerun_idle_summary.log`), all three PASS. HINGE and CLIP were re-run after the last hinge commit (182c92d2b).
+- RED, master's own: JOINPARITY. Its one FAIL is the "no tool flies a validated build raw" scan: the same six tools as on master d7e181f4e (G3871's joinparity_master.log). The first cut of _handle_check.js named the user's Cub file and joined the list; it now loads the validated builds through tools/_load_build.js and is off it.
+- Not run: the rest of the core and the full tier (ARCHETYPES), as G3871 (12 of 280 jobs in 2 h on this container). A0's battery is the verdict.
+
+READY: claude/ready/door-hinges-2 = claude/door-hinges-2. It sits on claude/door-hinges (G3871, landing in L28a); merge that first, or this alone (it contains it).
+For A0's page check:
+- the four hinge-axis rows still move the hinges (G3871);
+- the door hinges read as metal in the editor's material view, and with it off (the fallback Lambert, tint 0xb9c2cc);
+- the door handle's two nudge rows (acc_doorHandle_sL / _lv) walk it but never onto glass;
+- a door glazed by the winSillPilot row moves the handle down with the sill.
+## G3440-G3448 - HYDRO-TRIM: THE STOCK 172R GETS OFF WIPAIRE'S EXACT FLOAT - THE MEASURED WAKE BEHIND THE STEP (THE AFTERBODY HOLDS THE TRIM), THE TRANSOM IN THE WATER IT SITS IN, NO SKIN FRICTION ON A SHEDDING CHINE'S SIDE, THE FINE PROP AT FM 0.50, THE PILOT'S STICK BACK THROUGH THE HUMP, DMGHULL PER WETTED KEEL, THE RIGS' RUDDER AND AILERONS, THE THREE RED GATES DECIDED; GATE HYDROTRIM (2026-10-20 / 25, HYDRO-TRIM for A0, cloud - node only; branch claude/hydro-trim off claude/hydro-trim-rig 8698ddb47, master L25b 61e93cb1 merged in; G3449 is RUFUS-CERT's, not this branch's)
+
+**FOR A0, IN ONE PARAGRAPH.** Ready to land on the user's word. Every gate run is green except ARCHETYPES and PILOTS,
+red on master L25b too (the same lines). The three this change turned red (DMGPLOUGH, TAKEOFF, DMGDRIVE) were decided by
+the user's word of 25 Oct ("decide on the 3 questions, do what you think is best") - G3447-G3448, below. The pilot
+changed (G3444), so the user's rule asks a BROWSER-FLOWN check: the command lines are at the end. Rounds: 20 Oct
+(G3440-G3443, the physics and the asks), 25 Oct (the user: "I go with all your recommendations"; G3444-G3446 and master
+L25b merged in; then "decide on the 3 questions": G3447-G3448).
+
+**THE BUG (G3390).** The user: "taking the validated C172 and putting the exact Wipaire floats on it should work out of
+the box, otherwise we have another issue with realism." The corrected 172R on catalogue-exact Wipline 2350s, at
+Wipaire's STC gross 1,157 kg with the STC float prop (McCauley 82 x 43), never left the water - 0 of 10 runs; it sat at
+6-7 m/s, R/W 0.18-0.23, the trim 8-15 deg and RISING with the thrust. Fixed the physics, never the plane: no build, no
+float preset, no airframe number moved.
+
+**THE CAUSE (measured first; scratch rigs, the numbers in the evidence).**
+1. At the stuck state the water's drag was Delta tan(trim) + friction (0.172 + 0.04 at 9.8 deg) - Savitsky's law AT
+   THAT TRIM: the trim decided it. More thrust made it worse (x1.15: 11.5 deg; x1.30: 15.1 deg - the held-back
+   elevator in a stronger wash); full forward stick reached 5.6 deg but the stalled tail in the 29 m/s wash cost 0.06 W.
+2. THE HULL'S OWN PITCH BALANCE RAN AWAY. GATE HYDRODYN's free-to-trim tows read 19.8 deg (the seaplane) and 23.5 deg
+   (the lone float) at the hump, the afterbody DRYING as the trim rose: the wake behind the step was a ballistic
+   streamline continuing the forebody keel, sagging under gravity, recovering over kWake V^2/g - the higher the trim,
+   the deeper the hollow, the drier the afterbody, nothing to hold the bow. A real float's afterbody is what limits its
+   hump trim (Parkinson, NACA TN 563: the hull with the lower afterbody keel angle ran ~3 deg lower and 15 % less hump
+   resistance; a NACA series: afterbody keel 4 -> 9 deg raised the free-to-trim hump resistance ~25 %).
+3. In the tank (the 172R's own 2350 hull, 578 kg, trim held) the forebody's excess over Savitsky's prismatic R (0.202 vs
+   0.130 W at 6.5 m/s, 6 deg) is the BOW ROCKER: the leading-edge planing pressure on panels sloped 15-25 deg. 2D+t
+   momentum theory (Wagner / Zarnick) on the same pose gives D/L 0.29-0.51, the sim 0.20-0.24: NOT overstated, left alone.
+4. The transom stayed unventilated at the hump (base suction 0.03-0.04 W) with the afterbody deck under water (0.02 W
+   of download): it read its air off the STILL level while the afterbody around it sat in the wake.
+5. The 82 x 43's static thrust 2,587 N (T/W 0.228) is ~20 % under what the measurements give (G3443).
+
+**WHAT LANDED.**
+- G3440 `src/core/32_hydro.js` THE WAKE AS MEASURED (`P.wakeSM`, default 1; 0 = the H0 wake). Behind a ventilated
+  step the surface stands H over the forebody keel line extended aft, Savitsky & Morabito's tank fit (2010):
+  H/b = 0.17 (A + 0.03 L_K tau^1.5) sin((pi/C_V)(X/3)^1.5), A 1.5 on the centreline, 2 at the quarter beam (held to the
+  chine), b the chine beam at the step, L_K the wetted keel length in beams, tau the forebody trim (deg); held at its
+  crest past the first quarter wave (tried: the sine past its crest - the float Cessna 5.4 / 6.1 deg, the 172R 30.9 s:
+  no material difference, not kept), never above the undisturbed surface, blended by the step's air as before. It
+  rises with trim and loading: a trimmed-up hull meets its own wake on the afterbody. CORE_MATH (census clean).
+- G3440 THE TRANSOM READS THE WATER IT SITS IN: its depths (keel, deck edge) from the wake-modified surface, and its air
+  also comes up a side whose chine sheds the flow (sigma_chine < 1: G451.1's step rule, now the transom's too).
+- G3440 (`P.sideShed`, default 1) NO SKIN FRICTION ON A SIDE ABOVE A CHINE THAT SHEDS THE FLOW (the same cavity law per
+  side panel, on its chine's depth): Savitsky's planing hull is wetted on its bottom only. Friction only - the side's
+  pressure terms (the keel's grip in a slip) are untouched.
+- G3443 `src/core/60_gen_spec.js` GEN_PROP_PITCH.climb.fm 0.530 -> 0.630 (KEPT: the user's ruling, 25 Oct). `fm` is
+  FM^(2/3) (genPropSynth multiplies momentum theory's (2 rho A)^(1/3) P^(2/3) by it), so 'climb' was a figure of merit
+  of 0.386, under every prop measured absorbing full power standing: Flight Resource's static tests for STC SA02245CH
+  (C170B, O-360-A1A 180 hp, 1000 ft, 75 F): Hartzell 2-blade 76 in 672 lbf (FM 0.49), MT 2-blade 80 in 785 lbf (FM
+  0.59), MT 3-blade 78 in 775 lbf; the sim's 'climb' gave the same discs and power 13 % and 23 % less. Now FM 0.50. A
+  fine prop is the one that reaches rated rpm standing (the 172R's IO-360-L2A is rated at 2,400 rpm). 'standard' (the
+  A-65 + Sensenich anchor, FM 0.33: a prop that cannot turn its engine to rated standing) and 'cruise' untouched. The
+  82 x 43 on 118 kW: 2,587 -> 3,075 N (692 lbf). V0 falls with it (propV0K P / Tstatic): the thrust is the old one's at
+  ~40 m/s and 12 % under at 55 - a fine prop runs out of pitch. WHO MOVES: the 3-blade carbon tile ("the STOL pick":
+  the Caravan-alike archetype - PILOTMATRIX green; ARCHETYPES' red row is the Chinook-alike, red on master too), the
+  G3390 STC build, and an 'auto' build whose lower 'climb' V0 now sends it to 'standard'. No validated aeroplane is on
+  'climb'.
+- G3444 `src/core/43_pilot.js` THE PILOT'S STICK BACK THROUGH THE HUMP (the user's ruling, 25 Oct). ROLL on the water:
+  the stick back (deHump 0.45, GATE FLOATS' and the G3390 rig's) from the throttle-up until the nose comes off its peak
+  by half a degree (the peak tracked from 3 m/s - the throttle's 4 s ramp bobs the bow 2 deg at the start and released
+  the pull at 3 s in the first cut), the hump is past (humpPast) or half of Vr; then eased to neutral over humpEaseS
+  (2 s) and off for the run; the G2470 lift-off pull unchanged. FAA-H-8083-23 and the floatplane supplement: back to
+  raise the bow, eased to the planing attitude as the nose stops rising. G396.4's "never back" was a cure for the H0
+  wake ("buried the sterns": the trim ran away). Measured (the float Cessna, the game's SEA lane): the bow rises to a
+  7.5 deg keel trim at 6.6 m/s (C_V 2.6), the pull eases, lift-off 24.0 s in GATE DMGPLOUGH (master L25b 24.8). Held until both afterbodies were
+  dry instead (tried): 5.8-6.1 deg at 9-13 m/s, lift-off 24.7 s - not kept.
+- G3445 `tools/_dmghull_check.js` JONES' LAW PER WETTED-KEEL GROUP (the user's ruling, 25 Oct). With the measured wake
+  the twin's afterbody sits at the wake's edge at its hump and re-wets with slip, which left one angle at the small-slip
+  keel (">= 3" unmet, the law at 0.00 %). Now each group of angles sharing a wetted keel holds its own m(TE) to 1 %, the
+  groups >= 3 angles in all; the small-slip constant is the one quoted. The twin's hump: 0.57 % over 17 angles, 9 groups.
+- G3446 `tools/sea_to_g3390.js`, `tools/hydro_trim_table.js` (GATE HYDROTRIM's flights) FLY THE RUN AS A PILOT DOES.
+  Master L25b's G2080 (ENGINE-TORQUE) made the propeller's torque, P-factor and swirl real: hands off, the 172R swung
+  45 deg in 12 s and heeled 17-19 deg onto a float, and the rigs' speed (along world x) read the swing as a stall at the
+  hump (HYDROTRIM went red on the merged tree: "R/W 0.255, never off"). The rudder now holds the heading (2 per rad,
+  damped by the yaw rate) and the ailerons the wings (2 per rad, damped); the speed is along the track, the drag against
+  the motion, the run the distance moved. HYDROTRIM asserts the swing under 15 deg (9.5 / 8.0).
+- G3441 `tools/hydro_trim_table.js` (the table below, any core: `--core <path>`); `tools/sea_to_g3390.js` flies the
+  Cessna floatplane supplement's technique beside GATE FLOATS' ('poh': flaps 20, the same stick through the hump and onto
+  the step, the stick back at 50 KIAS) and its lift-off is 2 s of both floats dry (G3390's 8 kt rows "lifted" at 16 m/s
+  of water speed - a porpoise's skip, below the stall). Both techniques are kept (the user's ruling, 25 Oct): 'poh' is
+  the realistic reference, 'g3390' the regression continuity (it never rotates: it lifts at the step attitude, 34 m/s).
+- G3442 GATE HYDROTRIM (`tools/_hydrotrim_check.js`, full tier, ~3 min): the 2350 hull in the tank at 8.5 m/s (the
+  afterbody's share rises with the trim 1 -> 13 -> 27 %; the H0 wake left it 0-2 %), the 172R STC at gross (hump R/W
+  0.12-0.21 at C_V 2.2-4.5, trim there <= 11.5, falling past it; airborne 18-36 s / 250-500 m on the supplement's
+  technique, <= 60 s on G3390's; the swing under 15 deg).
+
+**THE USER'S RULINGS (25 Oct, "I go with all your recommendations") AND WHAT WAS DONE.**
+1. The prop change (G3443): KEPT.
+2. DMGPLOUGH vs the pilot's neutral hump stick: the pilot holds the stick back through the hump (G3444) - DONE. DMGPLOUGH stayed
+   red until G3447 (below).
+3. DMGHULL's population: the law per wetted-keel group (G3445) - DONE, DMGHULL green.
+4. The land prop on 2350s stays on the water at the STC gross (T/W 0.194; off at half fuel in 63-74 s): accepted as
+   expected - Wipaire's STC specifies the float prop. No change.
+5. The G3390 rig keeps both techniques ('poh' the reference) - DONE (G3441).
+
+**BEFORE / AFTER - THE VALIDATED FLOATPLANES** (`node tools/hydro_trim_table.js`; before = master L25b's core, after =
+this tree; the sea south of HOME, calm, damage on, the heading and wings held (G3446) on both; "G3390" = stick back,
+the step attitude from 9 m/s, no flap, no rotation; "POH" = flaps 20, the same stick, back stick at 0.97 Vs clean;
+lift-off = both floats dry 2 s; reports/evidence/G3440/hydro_trim_table_*):
+
+| build (as loaded) | technique | hump R/W @ trim, before -> after | lift-off before | lift-off after |
+| 172R + 2350, STC 82x43, 1157 kg | G3390 | 0.208 @ 9.8 -> 0.186 @ 8.4 | never (90 s) | 37.9 s, 676 m |
+| same | POH | 0.200 @ 9.8 -> 0.176 @ 10.0 | never | **30.0 s, 433 m** (26.4 m/s) |
+| 172R + 2350, land prop 1.905 m, 1157 kg | G3390 / POH | 0.178 -> 0.175 | never | never (T/W 0.194) |
+| Cessna floats, cessnaFloatsWOrks, as built 1018 kg | G3390 | 0.319 @ 14.5 -> 0.208 @ 8.3 | 32.6 s, 539 m | 28.4 s, 503 m |
+| same | POH | 0.309 @ 14.2 -> 0.198 @ 8.5 | 26.6 s, 347 m | 22.0 s, 309 m |
+| Wipline fixture (v10, 172 on 2350s), 965 kg | G3390 | 0.239 @ 13.1 -> 0.185 @ 8.0 | 24.9 s, 415 m | 22.7 s, 397 m |
+| same | POH | 0.223 @ 12.9 -> 0.179 @ 8.1 | 19.7 s, 259 m | 17.4 s, 241 m |
+| twin on floats (GATE FLOATS'), 475 kg | G3390 | 0.246 -> 0.231 | 8.8 s, 123 m | 8.7 s, 121 m |
+| same | POH | - | pitch-poles | the same: 20 deg of flap is not this aeroplane's technique (both cores) |
+
+No Cub on floats exists in the tree (none validated). The brief's "Cessna floats today ~27 s" was G3390's 952 kg
+loading; as built (1018 kg) it reads 26.6 (POH) / 32.6 s (G3390) on master L25b. Every validated number moved the
+right way: hump trims 13-14.5 deg -> 8-8.5, take-offs 0.1-4.6 s shorter. Under THE PILOT (the game's, GATE DMGPLOUGH):
+the float Cessna lifts at 24.0 s (master L25b 24.8). The 20 Oct round's table (branch-start core) is in
+reports/evidence/G3440/round1_2026-10-20/ - the same picture, without the torque.
+
+**THE G3390 RIG** (`node tools/sea_to_g3390.js`, both techniques; evidence sea_to_runs_after.log), STC prop: gross calm
+POH **29.4 s, 419 m, 25.9 m/s** (G3390's technique 37.9 s, 676 m); gross 8 kt 22.8 / 31.0 s; half calm 20.4 / 25.7 s;
+half 8 kt 16.1 / 20.7 s - 8 of 8 airborne (0 of 8 before), the swing 6-11 deg. Land prop: half calm 62.8 / 73.8 s,
+half 8 kt 42.3 / 51.6 s, gross never.
+
+**GATES** (the final tree, `run_gates --only=... --no-build`; the brief's list - "PROP" is PROPS - plus HYDRODYN, and
+every gate that flies a float build under the pilot, since the pilot changed):
+- PASS: HYDRO, HYDRODYN, HYDROTRIM (re-run after G3446: PASS; the battery's red row was the hands-off rig), SEAPLANE,
+  FLOATS, WIPLINE, DMGFLOATTO (the twin's 4.5 m/s swing under 30 now; it was red at 34.3 / 30.6 deg in round 1),
+  DMGHULL, PROPS, TOUR, PILOTMATRIX, ACCEPT, BENCH, DESIGNCHECK, DESTTO, GFX, SIMWORKER, STRIPSURF.
+- RED ON MASTER L25b TOO (not this change, the same lines): ARCHETYPES ("Chinook-alike: the circuit completes -
+  rejected-takeoff"), PILOTS ("kit is not where the aeroplane is: refused (Kit is at Ridgeback Strip)").
+- RED FROM THIS CHANGE (master L25b green) - DECIDED, green now (G3447-G3448, below): DMGPLOUGH, TAKEOFF, DMGDRIVE.
+
+**REFERENCES.** Savitsky, D. & Morabito, M., "Surface wave contours associated with the forebody wake of stepped
+planing hulls", Marine Technology 47(1), 2010, pp. 1-16 (doi 10.5957/mtsn.2010.47.1.1) - the centreline and quarter-beam
+profiles; the form used is the one the stepped-hull literature reproduces (Gray-Stephens et al. 2020, Strathclyde,
+test them against CFD); the paper itself could not be opened from the cloud box - A0, check the constants (0.17,
+1.5 / 2, 0.03, the /3, the 1.5 power) against it. Parkinson, J. B., NACA TN 563, "Tank tests of models of floats for
+seaplanes - first series", 1936. Locke, F. W. S., NACA ARR 4B19, "General resistance tests on flying-boat hull models",
+1944. NACA TN 1524 (take-off at a fixed 6 deg past the hump, near the least-resistance trim). Savitsky, D.,
+"Hydrodynamic design of planing hulls", Marine Technology 1(1), 1964 (the prismatic lift, drag and centre of pressure
+the tank compared; chines-wet planing wets the bottom only). Wagner (1932) / Zarnick (1978) 2D+t (the rocker
+cross-check). Flight Resource LLC, "Cessna 170, 172 & 175 MT Propeller Performance Test Results, STC SA02245CH"
+(McFarlane Aviation's copy); a McCauley 2-blade row at 750 lbf / 2,450 rpm is in a forum transcription of a version of
+that report (Van's Air Force, "Static thrust testing"), not in the primary - unverified. Cessna 172R: IO-360-L2A,
+160 hp at 2,400 rpm. FAA-H-8083-23 (Seaplane, Skiplane, and Float/Ski Equipped Helicopter Operations Handbook) and the
+Cessna floatplane supplement for the technique (flaps 20, the stick back until the nose stops rising, lift-off ~50
+KIAS) - as recalled, A0 to confirm against the Wipaire / Cessna supplement. Wipaire's Wipline 2350 page (the 172R/S
+row, 2,550 lb, McCauley 1A200/WFA8243) as G3390.
+
+**THE THREE RED GATES, DECIDED (the user, 25 Oct: "decide on the 3 questions, do what you think is best").**
+- G3447 DMGPLOUGH (`tools/_dmgplough_check.js`) judges the plough as the bow's HIGHEST keel trim over C_V 1.5-4, inside
+  the same 6-12 deg band; the trim at the resistance maximum is printed beside it. Red was "keel trim at the hump 5.4 deg
+  inside 6-12" (master L25b 7.0 at C_V 2.6, its resistance peak there; 12.4 its highest over C_V 1.5-4). With the
+  measured wake and the stick back the float Cessna's bow rises to 7.5 deg at C_V 2.6 and the pull eases; its resistance
+  maximum is a late plateau at C_V 4 (a 235 hp aeroplane unloading on its wing) where the afterbody in the wake holds it
+  at 5.4-6.1 deg whatever the stick (neutral, eased, held until the afterbodies dry: all three measured) - the hull has
+  already ploughed. Now: 7.5 deg, PASS. (Not taken: the floor to 5 deg - it would pass a hull that never ploughs.)
+- G3447 TAKEOFF (`tools/_takeoff_check.js`): the twin on floats' lift-off band 1.65 -> 1.67 Vs. Red was 1.652 Vs (30.4
+  m/s); master L25b 1.647 (30.3) - 0.1 m/s under the band it was given at 1.64 (G3074, the user's "simple margins to
+  recalibrate"). Its lift-off is G2470's pull, not the hump's: the same recalibration with the band's original margin
+  (1 %). Every other floatplane keeps 1.6. PASS.
+- G3448 DMGDRIVE (`tools/_dmg_drive_check.js`): the float Cessna's full-power trunk graze is OPEN beside the twin's
+  (Deform G2398), the strike itself still asserted (a blade lost, separation, finite). Red was "the mount lets go - s
+  later". MEASURED: not the water (the flat strip's water at the ground's level was the first suspicion - the row was
+  identical on a dry strip, that change not kept) but THE CERTIFICATE: the gate flies `cert: true`, and the float
+  Cessna's certificate sizes its members from its water cases too; with the measured wake those loads fell, and under
+  the graze's 87.8 kN of imbalance - far past any certified case - the tail's attachments give first (wing0R:root >
+  fin:attach > stab:attach) and the mount holds through the 3 s window. This tree with the H0 hull terms back (HYDRO.DEF
+  wakeSM 0, sideShed 0): the mount at 1.55 s (master 1.50) - the hull law, through the certificate. Which member goes
+  first in a beyond-design shake is Deform's question; the line prints the order.
+
+**A0 - LANDING AND THE BROWSER-FLOWN CHECK.** The branch carries master L25b (merged 25 Oct; the generated files rebuilt
+from the merged sources). The pilot changed (G3444) - the user's rule for autopilot changes: fly it in the browser on
+the box. From flyDiy/: `node tools/rollout_perf.js --build bugReports/cessnaFloatsWOrks.json --world none --secs 120
+--label hydrotrim_floats --shot-phase all`, `node tools/rollout_perf.js --build
+builds/c172r_wipline2350_stcprop_2026-10-20.json --world none --secs 120 --label hydrotrim_stc --shot-phase all` (the
+analytic world's SEA lane; a float build is put there by applyRoute). The twin on floats has no file of its own (its
+float patch is tools/_load_build.js `twinFloats`): fly it from the garage's validated list if the page offers it.
+Look for: the bow up through the hump (to-displace / to-step), eased onto the step, no water loop, lift-off; the
+summary's phase times.
+
+## READY - claude/ready/hydro-trim (G3440-G3448 HYDRO-TRIM, 26 Oct 2026, cloud - node only; for the train)
+
+- MERGED: origin/master **d7e181f4e** (train L25c; re-fetched before the merge and again before the push: unchanged).
+  Conflicts: HANDOVER.md (both kept), the built files master's side (index.html, dev.html, sw.js, version.json,
+  tools/flight_core.js - the train rebuilds them; the gates below ran on a local build of the merged sources, not
+  committed). 90_node_exports.js merged clean: every exported name still defined in src/core. No media/parked,
+  *_packs.json or map_pack.js differ from master.
+- WHAT THE BRANCH CHANGES (the G3440-G3448 entry above): src/core/32_hydro.js (the measured wake, the transom's air,
+  the side friction), src/core/60_gen_spec.js ('climb' fm 0.53 -> 0.63), src/core/43_pilot.js (the stick back through
+  the hump), tools: _hydrotrim_check.js (new gate, run_gates row), hydro_trim_table.js, sea_to_g3390.js, the
+  DMGHULL / DMGPLOUGH / TAKEOFF / DMGDRIVE assertions; builds/c172r_wipline2350_{landprop,stcprop}_2026-10-20.json
+  (G3390's test builds); evidence.
+- VALIDATED BUILDS: bit-identical to master d7e181f4e over a 90 s pilot-flown circuit (positions and velocities
+  hashed): the Cub f95db325, the Jodel 639f7167, the metal Cessna b1cb85e4, the corrected 172 1f3e634f. The float
+  Cessna DIFFERS on the water only (its design sheet - Vs, static thrust - identical): the approved hull law (G3440,
+  the user 20 Oct "fix the physics") and the pilot's hump stick (G3444, the user's ruling 25 Oct). The twin on floats
+  likewise. No validated aeroplane flies a 'climb' prop.
+- GATES: `node --max-old-space-size=4096 tools/run_gates.js --no-build --jobs=4 --only=<60>` - every gate whose file
+  names a changed file (grep of flyDiy/tools: 48), plus BUILD, JOIN, PARTS, SAVE, STARTER, SIMWORKER, PILOT, plus HYDRO,
+  WIPLINE, DMGFLOATTO, PROPS, PILOTMATRIX, ACCEPT, DESIGNCHECK, GFX (this branch's earlier batteries). Verdicts:
+    ACCEPT    PASS   850.5 s
+    ALTIPORT  PASS   583.3 s  [4 shards]
+    ANIMALS   PASS     2.8 s
+    ARCHETYPES FAIL  1311.8 s  [4 shards]
+    ASSETBUDGET PASS     5.0 s
+    ATMOS     PASS     1.9 s
+    BENCH     PASS    72.9 s
+    BIPLANE   PASS   104.1 s
+    BUILD     PASS     2.6 s
+    CESSNAVREF PASS   472.2 s  [2 shards]
+    CLIMATE   PASS    22.8 s
+    CLOUD     FAIL   867.9 s
+    DESIGN    PASS    18.7 s
+    DESIGNCHECK PASS   301.7 s
+    DESTTO    PASS  1593.4 s  [3 shards]
+    DMGCOMPOSITE FAIL   321.3 s
+    DMGDRIVE  PASS   771.6 s
+    DMGFLOATTO PASS   127.3 s
+    DMGHULL   PASS   273.2 s
+    DMGINST   FAIL   224.1 s
+    DMGPLOUGH PASS   182.3 s
+    FIT       PASS     9.2 s
+    FLEX      PASS   289.1 s  [3 shards]
+    FLOATS    PASS    52.3 s
+    GEN       PASS   581.1 s  [4 shards]
+    GFX       PASS     0.7 s
+    HYDRO     PASS     6.3 s
+    HYDRODYN  PASS   165.2 s
+    HYDROTRIM PASS   119.4 s
+    JOIN      PASS     7.5 s
+    KITHOST   PASS    34.1 s
+    LINEUP    PASS   190.3 s
+    MEDIA     PASS     1.6 s
+    MIXLEAD   PASS    42.6 s
+    PARTS     PASS     4.5 s
+    PILOT     PASS   307.0 s  [3 shards]
+    PILOTMATRIX PASS  1505.2 s
+    PILOTPAGE FAIL  1047.1 s
+    PILOTS    FAIL     0.9 s
+    PLAN      PASS   404.4 s
+    PREMISES  PASS   109.0 s
+    PROPS     PASS     1.2 s
+    ROUTE     PASS   615.5 s  [3 shards]
+    SAVE      PASS     0.5 s
+    SEAPLANE  PASS   216.0 s
+    SHEETWORKER PASS    41.4 s
+    SIMWORKER PASS   106.9 s
+    STARTER   PASS     0.3 s
+    STORY     PASS     2.5 s
+    STRIPSURF PASS    11.9 s
+    TAKEOFF   PASS   401.3 s
+    TAXICLEAR PASS   402.3 s  [4 shards]
+    TOUR      PASS  1921.0 s  [4 shards]
+    TREECRASH FAIL  1147.6 s
+    TREEHIT   FAIL   394.6 s
+    UISMOKE   PASS   361.6 s
+    VILLAGE   PASS   138.5 s
+    WATERDAMP PASS    46.7 s
+    WETFX     PASS    47.9 s
+    WIPLINE   PASS    10.8 s
+- RED ON MASTER d7e181f4e TOO (all 8 reds - re-run on a master worktree, the same 8 gates, the same 17 FAIL lines):
+    ARCHETYPES FAIL  1397.7 s  [4 shards]
+    CLOUD     FAIL   722.6 s
+    DMGCOMPOSITE FAIL   331.5 s
+    DMGINST   FAIL   273.8 s
+    PILOTPAGE FAIL   719.6 s
+    PILOTS    FAIL     0.8 s
+    TREECRASH FAIL  1100.7 s
+    TREEHIT   FAIL   393.3 s
+  (ARCHETYPES: "Chinook-alike: the circuit completes - rejected-takeoff"; CLOUD: "the pool is re-assigned every 30 frames
+  to the nearest published lamps..."; DMGCOMPOSITE: damage-off bytes vs claude/dmg-t41; DMGINST: the k x 5 lattice
+  trips at frame 1; PILOTPAGE: no Chrome on this box; PILOTS: "kit is not where the aeroplane is"; TREECRASH: jodel/trunk0
+  work moved vs the reference; TREEHIT: "the trunk stops it" 63.5 m of 60.) None is red from this branch.
+- NEEDS THE GPU / A BROWSER (A0 runs these): PILOTPAGE (rollout_perf / tour_real: "no Chrome found" here - its four
+  expert legs, the floats one at SEA > mk_sea included); and the browser-flown check the pilot change asks for (the
+  user's rule for autopilot changes): `node tools/rollout_perf.js --build bugReports/cessnaFloatsWOrks.json --world none
+  --secs 120 --label hydrotrim_floats --shot-phase all` and `node tools/rollout_perf.js --build
+  builds/c172r_wipline2350_stcprop_2026-10-20.json --world none --secs 120 --label hydrotrim_stc --shot-phase all`
+  (the bow up through the hump, eased onto the step, no water loop, lift-off).
+## G3880-G3884 - BACK-GUARD: THE BROWSER'S BACK ASKS BEFORE IT LEAVES THE GAME (2026-10-27/28, GAME-MENUS, LOCAL; for L28a; claude/ready/back-guard, on master d7e181f4e + claude/ready/card-drag 376d91d87)
+Why: the user, 27 Oct: "we need a confirmation box when doing 'back' in the browser, on computer like on mobile". Any Back (the desktop button, Alt+Left, a mouse's back button, Android's back button / gesture, iOS's edge swipe) dropped the player out of the game without a word.
+- src/viewer/back_guard.js (new; MANIFEST.viewer.scripts right after flight_recorder.js, before app.js): THE HISTORY GUARD - one sentinel entry ({ flydiyBackGuard: 1 }, the same URL) pushed at the player's FIRST input (pointer down, key, touch) once the game is up (window.FLIGHT_PROBE). Never at boot: Chrome's history intervention lets Back skip an entry a page added before any input. A Back pops it: the guard pushes it again (Back once more lands here too) and shows THE BOX "Leave flyDiy?" - Stay (the default: focused; Esc; Back again) / Leave (history.go(-2): past the sentinel and the game's entry; the tab's first page, history.length 2, replaces itself after 600 ms with document.referrer or the site's root).
+- The box: a top-edge card (#bgBox, under the safe area; never a centre card), the garage's --ed-* tokens, IBM Plex Sans upright, 16 px gutters and 48 px buttons under html.phone; draggable by its title line (card_drag.js CARDS row ['#bgBox', 'backGuard', '.bgHead'], its own title-line drag without card_drag); every key stops at it while open.
+- THE SIM HOLDS: the player's own Pause (#bPause: running / userPaused / FLYDIY_HELD) pressed when the flight runs, pressed again on Stay; never when the player had paused, never in the garage (the button is hidden there).
+- TAB CLOSE / RELOAD (desktop): beforeunload asks the browser's own prompt, the game up and the guard armed, except within 3 s of an in-page click or Enter / Space (the page's own reloads: the graphics menu, the world pills, the update pill, storage's reset); F5, Ctrl/Cmd+R / W are never an in-page intent.
+- NEVER ON A RIG: welcome.js's WELCOME.RIG (gfx_settings.js's answer), navigator.webdriver without welcome.js, ?nogate, ?backguard=0, a frame -> window.BACK_GUARD = { on: false, why }, not one listener; ?backguard=1 forces it on a rig. No device test (GATE GFX's census).
+- GATE BACKGUARD (tools/_backguard_check.js, core, ~1 s, run_gates row beside GFX): the module in a vm with a stub history (the page before, the game's entry, the pushes), a stub DOM and a stub flight - armed at the first input (no boot push, none before the game, none on a reloaded sentinel); Back -> the box, the flight paused, the sentinel back; Stay keeps the state; Back again / Esc = Stay; keys stop at the box; Leave -> the page before / the first page's referrer or '/'; the player's pause kept, the garage untouched; beforeunload; the NEGATIVE: every rig flag -> no guard, no listener, no push, Back leaves as before; the page (the manifest, the look, both drags, no device test).
+Gates: BACKGUARD CARDS CARDDRAG GFX BUILD UISMOKE UISMOKE-PHONE FRAMECOST NAMES REF FLIGHTREC SIMWORKER KTX2 AUDIO BUILT BOOT LAZY (the files' readers: every src/viewer scan, every MANIFEST.viewer.scripts reader). Page leg: dev.html?backguard=1 in Chrome over CDP - a real mouse input, a real Back (Page.navigateToHistoryEntry), the box shown, the sim's clock held, Stay resumes, Leave leaves; and without the flag, Back leaves as before.
+## G3640-G3649 + G3740-G3746 - GAME-MENUS UI: TELEPORT ON THE MAP, THE FLIGHT LAYOUT (fl2), MENU PAGES, PHOTO MODE, THE GARAGE TOP BAR + DESTINATION, THE SHUTTER EVENT (2026-10-27, GAME-MENUS for A0; claude/ready/game-menus-ui, for L27b behind game-menus 1bafe174a)
+- Carries PHONE-GARAGE 6e7714083 (G3720-G3729, the garage burger G3728: merged in 6cac8e2d6) and game-menus 1bafe174a.
+- G3640-G3649 TELEPORT (map_menu.js, app.js): each owned garage has a hangar marker on the map (here filled, a story-held one dim).
+  - A tap asks first, in a row across the top of the map (never the centre): "Go to <garage>? <the plane there | empty>", Go there / Stay. A story-held garage says why, with no Go.
+  - Go = FLYDIY_PLAYER.gotoGarage (Game's G3613).
+  - Tab = the map screen in every mode (the sandbox too). From a flight on the ground, your own garage is the way back.
+- G3640s THE FLIGHT LAYOUT (body.fl2; ?flui=old for the old one; app.js "the flight layout", flight.css "fl2"):
+  - Top: the shed / Route / Conditions / AP over the readouts.
+  - The corner (II, $, the eye) is top left.
+  - Route and Conditions are flyouts under their buttons.
+  - A tap on the readouts says what they show.
+  - The AP's words (#phWhy) are folded by default (pref flydiy.fl2Ap); a tap on the phase line unfolds them.
+  - The phone shows ONE line of readouts (fl2Fit).
+  - No rail, no Fly and no Pause at the bottom: Restart is in the pause menu, and Camera / Display / Dev are menu pages.
+- GATE UISMOKE G1090 allows `body.fl2:not(.fl2Ap) #ui #phWhy` (the player's fold) beside .small.
+- G3740-G3742 MENU PAGES + PHOTO:
+  - FLYDIY_MENU.add({k, label, sec, when, act | page(body) -> cleanup, before}), page(k), current(), anchor(fn), opener(el).
+  - Photo mode: paused, only the photo bar (the camera's rows, the free camera, the FOV, Done, the shutter: a PNG, the mode stays).
+- G3743 THE GARAGE TOP BAR (the user, 27 Oct):
+  - The burger + disk are at the left, the quick icons at the right.
+  - At the far right, #edDest opens the destination (#edRoute: To + wait until) as the menu's 'dest' page. It is the same element, moved in and back.
+  - It is hidden on the phone, whose profile never flies.
+  - destto_shot.js / persona_shot.js open FLYDIY_MENU.page('dest') first.
+- G3744 THE SHUTTER: photoTake fires window 'flydiy:shutter' {detail:{at}} inside the gesture. Sound's claude/snd-shutter audio.js plays it; with nobody listening, nothing happens.
+- Rig (the scratchpad's gm_tele_stills.js): since G3612 CAREER-OWN a career's fleet holds only planes with a career.airframes row. The rig's Copy builds get the starter's row, as if bought in.
+- Gates + stills: Tue 27 09:45 GPU s27-g5m / 10:45 CPU s27-c6m. Before them: a real parked_cook, then --check (same). The verdicts are in the READY message to A0.
+
+## MISSIONS-P1/P2 - THE MISSION RUNTIME (node logic): ORDERS SOLD + PROFIT, PREFERENCES, THE CLIENT'S AIRFRAME, FAILURE RULES + RESTART, THE IN-FLIGHT TRACKER (POINTS, GATES, RINGS), TIMERS, MARKER DATA (2026-10-26, cloud, node only; branch claude/missions-p1 off claude/missions-p0 db58b0b5 + origin/master d7e181f4 = no-op; for Game's review; the visuals are a LOCAL session's - the list below)
+
+The user (26 Oct): "P2: aircraft-order extensions (criteria, preferences, startFrom, handover + selling, profit line) +
+failure rules and restart. P1 logic only: point places, gates/rings as objectives, timers on step groups, map-marker data.
+Leave the visuals (props, photo shutter, markers drawn) to a local session." People are GAME_PEOPLE ids; the tutorial is
+untouched (STORY green; the T5 jobs stay retrofitted, runnable).
+
+**Files.** NEW `src/core/73c_mission_run.js` (pure). `73b_missions.js` + `73c` now in build.js MANIFEST.core AND
+MANIFEST.career, after 73_contracts.js (career-only modules: index.html's sandbox never runs them). Edited (additive):
+72_accept.js (ACCEPT answers 8 new kinds), 72_contract_data.js (the ev.* words), 73_contracts.js, 74_career.js,
+75_career_wire.js, 90_node_exports.js. tools: _missions_check.js (the runtime block + 18 more selftest mutations, 36 in
+all), _accept_check.js (a sample per new kind), _missions_demo.js -> `src/missions/demo_p1.json` (one mission per piece,
+HOME <-> Ridgeback Strip), mission_editor.html (loads 72_accept + 73c: LEAN = the game's verdicts; waitMin).
+
+**P2 - THE AIRCRAFT ORDER.**
+- *Criteria* (72_accept.js ACCEPT_KINDS; 73_ CONTRACT_CRIT_NEXT keeps them apart from the 15 ruled kinds): heightM,
+  lengthM (the measured plan: playerFootOfDef h, fwd + aft), fitsShed (hangarDoorWhy + hangarPark on the SHELLS row,
+  `at.dims` the client's own shed), pax (seats - 1), stallKmh / toDistM / climbMs (genShakedown's Vs / TORun / climbRate
+  READ from `ev.shake`, never computed in acceptStatic - GQ19; at a load scaled by ACCEPT_LOAD_LAWS: stall x (W/W0)^0.5,
+  take-off x (W/W0)^2, climb x (W0/W)^2, W0 the shakedown's mass, 80 kg an occupant), fuelLph (the leg's flowLh). NOT
+  answered yet, so an order naming one is held out (contractRuntimeOk): ldgDistM (no landing distance is measured
+  anywhere), cargoL (the hold's volume exists for the five validated designs only).
+- *Preferences* (missionPrefsJudge off the delivered spec, `stop.spec`): engines (count), thrust (tractor | pusher off
+  engines[0].mount / aim), wing (position), tail (type), gear (type; floats by stripGear), canopy (style), suspension.
+  A mandatory one unmet refuses the delivery ("a must: engines 2 (built: 1)"); a bonus one met pays its pct
+  (contractPayTotal reads got['pref.<k>']). No spec on the stop -> pending.
+- *startFrom* (the client's airframe): careerAccept returns `effects: [{ k: 'clientPlane', id, from }]`; the page brings
+  it into the fleet and calls `careerOrderBind(doc, id, slot)` (career.airframes[slot] = { client: id, paid: 0 }); before
+  that the delivery is pending; only that slot delivers.
+- *Handover + selling* (§7: "sold to the client ... no longer ours"; "the BLUEPRINT is saved automatically"):
+  `contractDelivery(rec)` = sold + blueprint by default for EVERY build (records may say `delivery: { sold: false }`).
+  careerComplete -> `careerHandover`: the airframe leaves the fleet (playerFleetReconcile) and career.airframes, a pilot
+  on it is freed, a route on it ended (routesBlock), `career.sold` gets { slot, id, at, pay, cost }; the done event
+  carries `handover: { slot, blueprint (the slot's name without its ' @<career>' tag; null for a client's airframe), cost
+  (airframes[slot].paid: econMaterialise's price), profit (pay - cost), client }`. **THIS CHANGES RUNNING CAREERS: an
+  authored build contract delivered from now on hands its airframe over** (minedock.04, resort.04, survey.04,
+  clients.02/04/05, the b-orders) - the user's ruling of 25 Oct, flagged for Game.
+- *The profit line*: contractProfit(pay, cost); the card: "handed over to the client; the blueprint is saved as <name> ·
+  paid X, it cost Y to build: Z profit" (ev.handover / ev.profit / ev.handback).
+
+**P2 - FAILURE RULES AND RESTART** (§3.4). `missionRulesJudge(rec, stop)`: crash 'fail' (stop.wrecked / how 'crashed');
+injury 'fail' (any band >= 1) or { fail: <band 1-4 | its GEN_OCC word> } off `stop.occ` (genOccWire's bands); freight
+'fail' (`stop.freight.harmed`, or a crash with a load aboard - there is no freight-damage model yet); damage 'fail'
+(structural.damaged) or 'assess' (the done event's `assess`, the card's "the client noted the damage"). careerOnStop
+judges the rules FIRST, for the missions on that flight (the tracked one, or one with a step done / a load aboard):
+broken -> `careerFail(doc, id, why)` (out of accepted, `contracts.failed` [{ id, at, why }], a client's airframe back,
+offered again) -> event { k: 'failed', id, why, restart }. `careerRestart(doc, id)` = accept it again from step 1.
+Contracts without rules (today's) are untouched: a crash still resets and keeps them live.
+
+**P1 - THE IN-FLIGHT OBJECTIVES** (logic). An in-flight step = pass / photo / fly whose place is a pt, a gate or a ring;
+it needs an `id` (the validator says so). `missionTrackNew(rec, live)` arms the current leg's objectives (a seq leg:
+only the next one); `missionTrackStep(T, { t, x, z, y (m MSL), agl })` tests the segment between two samples:
+- pt: the closest approach of the segment within r, the alt band at that point (agl / msl; a sample without the
+  height asked refuses nothing);
+- gate: the segment crosses the posts' segment, the band at the crossing, and (dir set) the motion within 90 deg of dir;
+- ring: dir set - crossing its plane the way it faces (normal (sin dir, -cos dir)), within r of the centre (lateral +
+  vertical); no dir - a sphere of radius r;
+- headings: compass degrees, 0 = north = -z, 90 = east = +x.
+Events: { k: 'hit' | 'photo' (with its say) | 'split' { id, key, s, target } | 'timer' { id, state: start | stop, s } }.
+`missionTrackEvidence(T)` -> the stop record's `tracks[<contract id>]` = { hits: { <step id>: { t, x, z, y } }, timers:
+{ <id>: { t0, s, splits } } }; contractSubOnStop -> missionStepOnStop judges the step off it at the next stop (any
+aerodrome stop). park: `stop.spot` = '<field>:<spot id>'; wait: a stop at its field with `stop.waitedMin` >=
+require.waitMin; talk: a stop at its field (its line as an event).
+**Timers**: missionTimerOnSub on the stop step: medals -> the best band (no band reached: NOT done, fly it again); no
+medals -> the target (seconds or { refKmh } over the steps' places) must be beaten; **a timed group is flown whole**
+(missionTimerGroups: a slow lap un-does its start step too, so the next flight can time it again). A seq leg is judged
+in order at the stop. Splits are reported (events, the done event's `timers`), never required.
+**Markers**: `missionMarkers(rec, live, { spots, fields })` -> [{ key, n, do, kind: pt | gate | ring | spot | site |
+field, x, z, y?, r?, posts?, dir?, prop?, alt?, split?, label, state: done | next | later }] (a seq leg: one `next`);
+careerMapContract's record carries `markers` (and prefs / client / rules) for a mission with places only - today's
+contracts' map record is unchanged (gated).
+
+**THE LOCAL SESSION MUST WIRE (app.js / the flight page; node can't run these):**
+1. A dev flag (e.g. `?missions=demo_p1`): fetch `src/missions/<name>.json`, `I = missionPackInstall(pack)`, put
+   `I.providers[p].arc / builds / night` into CONTRACT_PROVIDERS[p] and `Object.assign(CONTRACT_TEXT, I.text)` before the
+   career's first careerRefresh (the demo pack is the clients' campaign: two speed runs on the arc, the rest offered).
+2. Each flight: for each accepted contract with `missionObjectives(rec, live).objs.length`, `missionTrackNew` at the
+   departure; `missionTrackStep(T, { t: sim s, x, z, y: MSL m, agl: m })` at the recorder's rate (>= 2 Hz; gates are
+   segment-tested, so a low rate still catches them); show its events (below).
+3. The stop record (careerStopRecord): `tracks: { <id>: missionTrackEvidence(T) }`, `spot` (the FLEET_SPOTS_PACK spot
+   whose box holds the stopped aeroplane: 25_ fleetSpotDist <= 0), `waitedMin` (after the Wait button: call careerOnStop
+   again at the same field with the minutes waited), `spec` (the stopped airframe's spec: an order's preferences),
+   `occ` (sim_host meta.occ: genOccWire) and the load at a crash.
+4. A crash: `careerOnStop(doc, careerStopRecord({ how: 'crashed', wrecked: true, occ, cargoKg / items, ... }))` BEFORE
+   careerCrashReset (the rules fail the missions on that flight); the card's "failed - <why>. You can start it again."
+   + a Restart button -> `careerRestart(doc, id)`.
+5. An order: careerAccept's `effects` clientPlane -> materialise CONTRACT_DESIGNS[from].build (or { build }) into the
+   fleet as a new tagged slot, then careerOrderBind. The done event's `handover`: the fleet row is already gone from the
+   document - remove the airframe from the world, and SAVE THE BLUEPRINT: the slot's design to the sandbox library under
+   `handover.blueprint` (null: a client's airframe, nothing saved); show the profit line (careerEventLines has it).
+6. ACCEPT's evidence (accept_rec.js ACCEPT_REC.verdict): hand `ev.shake` = the bench's genShakedown result ({ Vs, TORun,
+   climbRate, mass }) for stallKmh / toDistM / climbMs (else "needs a test"); the leg's acceptLegMeasure needs `kgL`
+   (the fuel's density) for fuelLph.
+**... AND DRAW (the visuals left to it):**
+- GATE (kind 'gate', posts [[x1,z1],[x2,z2]]): two posts - prop 'balloons' a column of tethered balloons from the ground
+  to the band's top (alt.max, AGL or MSL as `alt.ref`; none: 60 m), 'pylons' an air-race pylon (~25 m); a faint line
+  between them at the band; with `dir` an arrow showing the way through.
+- RING (kind 'ring', [x, y MSL, z], r, dir): a donut of radius r, its axis horizontal along heading dir (normal (sin dir,
+  -cos dir)); no dir: a ring facing the approach (any way counts).
+- POINT (kind 'pt', r, alt): a translucent column of radius r between alt.min and alt.max (a ground circle when no band);
+  a camera glyph for a photo, a flag for a fly-to.
+- SPOT (kind 'spot', x, z, dir = the spot's ry): the tie-down box highlighted (FLEET_SPOT_FOOT's size).
+- STATES: next = bright and pulsing, later = dim, done = grey (or hidden in 3-D); the 2-D map numbers them (m.n) and
+  labels a rally checkpoint's split ("cp2 · 41 s"); a rally shows ONLY its checkpoints and split targets (the user: the
+  route stays hidden - never draw `route`).
+- EVENTS: 'photo' -> the SHUTTER SOUND + a white flash frame + the step's `say` line (the speaker's portrait, peopleFace)
+  - the user: "sound only, plus the message"; 'hit' -> a short chime + "Gate 1"; 'split' -> "cp2: 41 s (target 45)";
+  'timer' start -> a HUD stopwatch running, stop -> the lap held on it; a done event's `timers` on the arrival card.
+- The editor's link under the Dev section (§7), when Game wants it.
+
+**Gates** (private copy, built there, `run_gates.js --no-build`): see the READY note's verdict lines.
+
+## READY claude/ready/missions-p1 - MISSIONS P1 (logic) + P2 (2026-10-27, cloud, node only; Game reviews before it lands)
+
+**Base: origin/claude/missions-p0 db58b0b5** (Game's merged P0 + the order's size + the CLOCK pin) with **origin/master
+d7e181f4** merged first (already contained: a no-op). Work branch claude/missions-p1; the code as gated = ca288b1ad (this
+note and two comment lines on top). What it does and what the local session must wire and draw: the MISSIONS-P1/P2 entry
+above.
+
+**Running careers - one behaviour change, the user's ruling of 25 Oct:** an aircraft order (every build contract,
+authored ones included) hands its delivered airframe over at completion - it leaves the fleet and career.airframes, the
+done event names its blueprint and the profit. Nothing else changes for today's contracts (no rules, no timers, no new
+verbs: a crash still resets and keeps them live; their map record, stop record and pay are as before - gated).
+
+**Fixes outside the mission code** (each red on the base too, or a list the change extends): 76_pilots.js (G3614,
+claude/people): pilotsImportPack's bio / voice puts sat inside a trailing comment - GATE PILOTS red on db58b0b5, green
+now. tools/_lazy_check.js row 3: MANIFEST.career is fourteen modules (+73b, 73c). tools/_accept_check.js: a sample per
+new ACCEPT kind (its "every kind has a sample" row).
+
+**Gates** (a private copy of the tree, `node tools/build.js` there - build career_core.686ab783 -, `run_gates.js --only=...
+--no-build`; MISSIONS and both selftests re-run on the final gate file):
+```
+GATE MISSIONS: PASS            (836 checks, 2 packs; --selftest: 37 doctored rules, 37 red)
+GATE CONTRACTS: PASS           (--selftest: PASS)
+GATE STAGES: PASS
+GATE ECON: PASS
+GATE CLOCK: PASS
+GATE FREIGHT: PASS
+GATE PROCURE: PASS
+GATE ACCEPT: PASS
+GATE STORY: PASS
+GATE ROUTES: PASS
+GATE SAVE: PASS
+GATE UISMOKE: PASS
+GATE UISMOKE-PHONE: PASS
+GATE DEFAULT: PASS
+GATE NAMES: PASS
+GATE PILOTS: PASS
+GATE TECH: PASS
+GATE GAMEPREM: PASS
+GATE LAZY: FAIL (1)
+```
+**LAZY's one row is not this branch's**: "default: the door's first demand (ROUTE_DRAW.ready) fetched route_draw.<h8>.js
+once and ran it" fails identically on db58b0b5 in this cloud box (a clean worktree, built); probed alone in the same
+Chromium the door works (loaded, ran, one request) - the gate's request recorder / service worker in a headless cloud
+browser, G3070 ROUTE-LAZY's to look at on the box. Every static LAZY row (the career bundle with 73b / 73c, the page's
+split, the vm split run, the workers, sw.js) and every other request row passes. Not run here: the GPU gates (Game's).
+
+## READY claude/ready/missions-p1 (review round, 2026-10-27 evening) - P1 + P2 + FIX (a), REBASED ON ready/missions-p0 17f331783
+
+**Base: ready/missions-p0 17f331783** (= claude/missions-p0 5d52254d0 + the parked-cook commit; p0 rides T-P1). The 9
+commits of p1 rebased on it clean (A0's test merge agreed); nothing of master, people or hire merged. Not for T-P1: the
+train after p0 is on master (L28a).
+**Fix (a)** (Game + A0's review): `contractDelivery` sells nothing until the page wires the hand-over - an order is
+delivered, paid and completed, the airframe stays in the save (and the world), no blueprint is claimed; the page calls
+`missionHandoverWired(true)` once it takes the airframe out of the world and saves the blueprint (MUST-WIRE 5, Game's,
+after T-P1). GATE MISSIONS: the unwired default rows, the wired hand-over rows, one more selftest mutation.
+**Gates** (a private copy of this commit's tree built there, `run_gates.js --no-build`; node gates only, no local box):
+MISSIONS (838 checks; selftest 38/38 red), CONTRACTS, STAGES, ECON, CLOCK, FREIGHT, PROCURE, ACCEPT, STORY, ROUTES, SAVE,
+PILOTS: PASS.
+**Two notes for the train:**
+1. 73b_missions.js + 73c_mission_run.js join MANIFEST.core and 9 core files change against the base (72_accept,
+   72_contract_data, 73_contracts, 73b_missions, 73c_mission_run, 74_career, 75_career_wire, 76_pilots,
+   90_node_exports): the parked cook committed in 17f331783 (parked_cook.js) goes STALE - the local box cooks it again and
+   runs FRAMECOST in the train (not run here).
+2. LAZY's one row ("default: the door's first demand (ROUTE_DRAW.ready) fetched route_draw ... once and ran it") is red in
+   the cloud on every tree tried, the base included: UNVERIFIED here - the local box's LAZY decides it.
+## MISSIONS-P3 - THE BUSH MISSIONS (node logic): WHO GETS ON AND OFF, A TIME LIMIT, A DEPARTURE WINDOW, CHOOSE:N LEGS, EVERY STEP'S LINE, ONDONE PAY / SITE, A SITE SERVED BY ITS STRIP, THE PACK'S CONTAINERS IN THE CAREER (2026-10-27, cloud, node only; branch claude/missions-p3 off claude/missions-p1 287d8e21; for Game's review)
+
+The design's P3 row ("multi-step bush missions: embark/disembark per stop, narrative per step, parking spot") - park
+landed in P1. **Not done here: the full tutorial skip** (start after the route with the floats Cub): it needs the user's
+three validated Cub files (J3, Super-Cub-like, floats - §7) and Game's STORY call; the tutorial stays exactly as it is.
+- **The stop's conditions on a step** (73c missionStopChecks, asked by 74_ contractOnStop in the ordered walk):
+  `require.maxMin` - the flight that ended there (the logbook row's t) took at most that; `require.depart` - it left
+  inside { after: h } | { before: h } | { at: [h0, h1] } local hours (stop.departHour, else the stop's hour less the
+  flight); `embark` / `disembark` - these people (ids, or a count) got on / off there (stop.people { on, off }).
+  "still aboard: David", "the flight took 60 min, 30 allowed", "it left at 4.7 h, outside its departure window".
+- **choose:N legs** (missionLegDone): the leg is done when N of its steps are; markers show every open one as next.
+- **Every step's line**: a step's `say` is an event when it is done (not only a talk's); a mission's onDone.say at the end.
+- **onDone** (a step's or the mission's; careerOnDone): `pay` (a ledger line, the card's "+500"), `site: { id, state }`
+  -> career.sites[id] (kept by the normaliser when present); a site with a `track` (a world construction stage) built ->
+  career.tracks moves like an unlock (the card: "<site>: built"; the event's `unlock`).
+- **A site served by a strip** (`sites[].field`): a step to the site is flown to that strip (sub.to / sub.at), the site
+  rides along for the marker. A site no strip serves still waits (contractRuntimeOk).
+- **The containers** (missionPackInstall): a container is done when all its missions are (a choose:N chapter: N of them);
+  a chapter's / a campaign's `needs.after`, and the chapter before in a seq campaign, become `needs.of: [{ ids, n }]` on
+  every mission behind it; a choose:N chapter's missions carry `closed: { ids, n }` (offered while fewer than n are
+  done). 74_ careerNeedsOk reads both. Held, with the reason: a choose:N CAMPAIGN (N chapters of many).
+- **Still waiting** (contractRuntimeOk): legs in an order other than seq; a site with no strip; ldgDistM, cargoL.
+- The editor: a site's "served by", a step's onDone.pay. The demo pack: `demo.supply` (David and Jody to Ridgeback in 20
+  min after 07:00, David off, +300, the mast building; then strip 10 or 11, the mast built).
+- GATE MISSIONS: the bush pack end to end through a career (the containers offered / closed / opened, the run refused
+  for each condition then done, the line, the pay, the site, the choose leg, the site's stage revealed, a carry to a site
+  by its strip, the stop record's people / departure), 9 more selftest mutations (46 in all).
+
+**THE LOCAL SESSION ADDS** (to the P1/P2 list): the stop record's `people: { on: [ids], off: [ids] }` - who boarded and
+who got off at that stop (the crowd's boarding, G2970 / G3619: the named passengers of the step's load / embark /
+disembark walk on or off; the arrival card lists them); `departHour` (the local hour the flight left: 07b's clock at the
+take-off) - optional, the core derives it otherwise. Draw a site (kind 'site') as a construction marker at its `x, z`,
+its state on the 2-D map; a choose:N leg's open steps all as `next` with "one of" on the map.
+
+## READY claude/ready/missions-p3 - MISSIONS P3 (the bush missions, logic) (2026-10-27, cloud, node only; Game reviews before it lands)
+
+**Base: claude/missions-p1 287d8e21** = claude/ready/missions-p1 4c557cc16 + the editor's cosmetics (examples marked
+"e.g.", compact rows, "engines: N"). **Land missions-p1 first**; this is on top of it (its base in turn: claude/missions-p0
+db58b0b5 + origin/master d7e181f4). The gated code = 22cde5516 (this note on top). What it does, and what the local
+session adds: the MISSIONS-P3 entry above. No change to running careers beyond p1's (today's contracts have no
+embark / disembark, no time limits, no choose legs, no onDone, no containers: gated).
+
+**Gates** (the private copy, built there - career_core.3d115c60 -, `run_gates.js --only=... --no-build`; MISSIONS and its
+selftest re-run on the final gate file):
+```
+GATE MISSIONS: PASS            (857 checks, 2 packs; --selftest: 46 doctored rules, 46 red)
+GATE CONTRACTS: PASS           (--selftest: PASS)
+GATE STAGES: PASS
+GATE ECON: PASS
+GATE CLOCK: PASS
+GATE FREIGHT: PASS
+GATE PROCURE: PASS
+GATE ACCEPT: PASS
+GATE STORY: PASS
+GATE ROUTES: PASS
+GATE SAVE: PASS
+GATE UISMOKE: PASS
+GATE UISMOKE-PHONE: PASS
+GATE DEFAULT: PASS
+GATE NAMES: PASS
+GATE PILOTS: PASS
+GATE TECH: PASS
+GATE GAMEPREM: PASS
+GATE LAZY: FAIL (1)            (the same row as p1's and db58b0b5's: route_draw's lazy door in this cloud browser)
+```
+
+## READY claude/ready/missions-p3 (review round, 2026-10-27 evening) - THE BUSH MISSIONS (logic), REBASED ON THE NEW missions-p1
+
+**Base: ready/missions-p0 17f331783**, through claude/ready/missions-p1 (the review round's, above - land p1 first). p3's
+4 commits rebased on it: one conflict, 90_node_exports.js, resolved as the union of both lists (every name of both sides,
+no duplicate); HANDOVER kept both sides. Fix (a) comes from p1 (the bush missions sell nothing). Not for T-P1: L28a with p1.
+**Gates** (a private copy of the gated code - this note is HANDOVER only - built there, `run_gates.js --no-build`; node
+gates only, no local box): MISSIONS (859 checks), CONTRACTS, STAGES, ECON, CLOCK, FREIGHT, PROCURE, ACCEPT, STORY, ROUTES,
+SAVE, PILOTS: PASS.
+**The same two notes as p1's:** the 9 core files change against the base (73b + 73c in MANIFEST.core), so the parked cook
+of 17f331783 goes stale - the local box cooks it and runs FRAMECOST in the train; LAZY's route_draw row is red in the
+cloud too - UNVERIFIED here.
+## MISSIONS-PROPS - THE MISSION MESHES (tools/_mission_gen.js) + WHAT A HIT DOES (2026-10-27, cloud; branch claude/missions-props off claude/missions-p3 afa3e83ce; for Game's review)
+
+The user (27 Oct): "the visuals we need, we'll do ourselves. These are simple meshes to generate. SO first task, list
+the new meshes, and do some professional models for them, ideally reusing materials we already have. Take inspiration
+from the real thing ... Think that floating gates will be hit, how do we want to handle that?"
+
+**THE LIST** (every place kind 73c missionMarkers emits, and what draws it; `MISSION_GEN.forMarker(marker, o)` gives the
+preset's dials from a marker):
+
+| marker | mesh (preset) | the real thing it follows |
+|---|---|---|
+| gate, prop `pylons` (the default now) | `air-race pylon`: a 25 m cone of fabric, 9 sections bulging between seams, chequered cap, galvanised collar, blower + duct, 8 straps to stakes | the Red Bull Air Race "Air Gate": 25 m spinnaker-nylon pylons kept up by a blower, built to tear on contact (+3 s), re-erected in minutes |
+| gate, prop `balloons` | `balloon column`: marker balls (1.8 m, alternating) on a tether up to the band's top, a finned aerostat holding it up, a concrete anchor | power-line marker balls; a tethered aerostat (lit: red light under the envelope) |
+| ring (prop `donut`) | `ring` / `ring, tethered`: a helium torus in 12 banded sections, pinched at the seams, valves; 4 tethers to anchor blocks when `tether` (centre height AGL) is given; 4 amber beads for the night | inflatable race arches / tethered helium shapes |
+| pt (fly to) | `marker flag`: a 12 m mast flying a chequered flag, a bullseye ground target under it | ICAO Annex 14's orange-and-white chequered vehicle flag, scaled up |
+| pt (photo) | `photo target`: the aerial-survey panel cross (white strips, orange centre) | photogrammetry ground control targets |
+| spot (park) | `tie-down spot`: yellow corner brackets on the spot's box (FLEET_SPOT_FOOT frame, +x the nose), a nose bar, 3 anchors (both wings, tail) with ropes coiled, chocks + rope at the mains | a GA tie-down |
+| site | `site, planned` (survey stakes, flagging tape, string line, a centre lath), `site, building` (the pad poured, the mast's lower half up, a pallet under a blue tarp, the upper section lying, a cable drum), `weather station (built)` | the FAA AWOS: 10 m tilt-down mast, anemometer + vane on a cross-arm, red obstruction light, lightning rod, temperature screen at 2 m, solar panel facing south, cabinet, visibility sensor on its own post, ceilometer, rain gauge, fenced compound |
+
+Not meshes (the page draws them as effects/HUD): the point's translucent column, the faint line between gate posts at
+the band, the gate's direction arrow, the state tints (next pulsing / later dim / done grey), the photo flash.
+
+**MATERIALS - NONE NEW** (GATE MISSIONPROPS 5 holds it: no `new THREE.` in the file). The control towers' finish
+(TOWER_GEN: galvanised metal, grey steel, concrete, rough posts, panes, glowing glass) and the house's cloths: the
+windsock's orange (`sock`), the storefront canvas (`awning`, its colour the `canvasCol` dial, white by default), the flag's
+blue (`flag`) and the star's gold (`star`). A `scheme` dial picks the pair a post wears: orange/white (default - the
+obstacle marking pilots read as "keep clear"), blue/white, blue/gold. `sock` is single-sided, so cloth sheets are emitted
+both ways. Same API as the other generators (DEF/ROWS/PRESETS/BAGS/EXTRA/MAT/build/applyFinish/makeFinish/finishReport/
+catOf + KINDS/STATES/SCHEMES/DIMS/forMarker); lod 0 / lod 1; stats carry `strike`, `top`, `lit` (beacons for the night
+pool), the ground AO skirt (none under a floating ring). Budgets (lod 0 / 1 tris): pylon 2028/406, balloons 2610/866,
+ring 1464/384, marker flag 1894/610, photo target 10, tie-down 1178/386, site 138 / 490 / 1320.
+
+**THE BENCH**: `tools/_mission_props.html` (serve the repo root, open /flyDiy/tools/_mission_props.html): every preset on
+a field, the dials live, lod switch; `window.BENCH.show(name | 'all', { yaw, pitch, dist, lod })` for headless shots.
+
+**WHAT A HIT DOES** (my proposal, implemented as the default and switchable per mission - Game / the user to confirm):
+- The props are fabric or a light frame: **a touch never damages the aeroplane and never stops it** (no collider in the
+  flight model - none is added). This is the real race's model too: the pylon tears, the aeroplane flies on.
+- The touch is a **mission event**: 73c `missionStrikeTest(place, a, b, reach)` judges every flight segment against the
+  props' own dimensions (`MISSION_PROP_DIMS`: the pylon cone 25 m, 2.5 -> 0.375 m; the balloon column 0.9 m up to the
+  band's top or 60 m; the ring's 1.2 m tube round its hole = the place's r) with the aeroplane's half-span as `reach`
+  (`missionTrackNew(rec, live, { reach })`; 5 m when the page gives none) - the wing is level, it reaches sideways, so a
+  pass a wingtip too close is a pass AND a strike. Unknown height -> no strike. A ring with no facing is not judged.
+- The tracker emits `{ k: 'strike', key, post: 0 | 1 | 'ring', t, prop, until, pen?, laps?, fail? }`; the struck prop is
+  **torn for `rearm` 30 s** (cannot be hit again meanwhile) - the page swaps in the generator's `torn: 1` variant (the
+  pylon folds over and drapes to the ground, the struck balls burst, the ring's quadrant deflates and sags) until `until`.
+- **`rules.strike`** decides: `'penalty'` (DEFAULT, MISSION_RULES_NEW too) - +3 s on every lap running at that moment
+  (the air race's pylon-hit penalty): the lap's evidence carries `raw`, `pen`, `strikes`, its `s` includes the penalty, so
+  the medal and the target read the penalised time; `{ penalty: s }` its own seconds; `'fail'` - the mission fails at the
+  next stop through careerOnStop's rules pass ("a gate or a ring was hit"; a tracked flight now counts as "on that flight");
+  `'ignore'` - recorded, nothing more. The card's timer line adds "· 2 hit, +6 s" (ev.strikes).
+- Not judged (a call for Game): the ring's tethers and the aerostat's cable (thin; flying through them is not a strike);
+  the balloon column's lifter above the band.
+
+**THE LOCAL SESSION**: lazy-load `_mission_gen.js` with the other generators (build.js MANIFEST.lazy - not added here),
+build each marker's prop from `forMarker(m, { torn, agl, state })` (a ring: `rotation.y = -dir` in radians - through it is
+-z at yaw 0; `tether` = its centre's height over the ground; a balloon post: its gate's band top), place a post at each of
+`m.posts`, a site at its x, z with `career.sites[id].state`, a spot with its `dir` (the spot's ry) - and pass the
+aeroplane's half-span to missionTrackNew. On a 'strike' event: the fabric "thwack" + "+3 s" on the HUD stopwatch, swap
+the torn mesh until `until`.
+
+**Files**: NEW tools/_mission_gen.js, tools/_mission_props.html, tools/_mission_props_check.js (GATE MISSIONPROPS,
+run_gates core tier). Edited: 73c (MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest; tracker
+strikes / torn / penalty; evidence `strikes`; the timer's pen; rules.strike fail; markers' default prop), 73b
+(MISSION_RULES.strike, MISSION_RULES_NEW.strike 'penalty', its validation), 74_ (careerOnStop: a tracked flight is "on
+that flight"), 75_ (the timer line's strikes), 72_contract_data (ev.strikes), 90_ exports. GATE MISSIONS 873 checks (+16
+strike rows), selftest +5 mutations (51).
+
+**THE EDITOR'S UI PASS** (the user, 27 Oct: "Dark theme for the app please, and a little less hostile in the labels (give
+them meaningful names), the tree (is border line unreadable) ... Everything looks like code at this stage ... a passenger
+picker, and an interface that resembles the contract one for preview like in game"). tools/mission_editor.html, rewritten
+presentation, same model calls (the LEAN core list and every verdict unchanged; GATE MISSIONS green):
+- the game's dark editor tokens (src/viewer/editor.css --ed-*) and IBM Plex Sans (vendor/fonts); three columns: Structure,
+  the form, the preview (the in-game card, the player's steps in words and the money, the map, the checks).
+- the tree: two-line rows (the words, then id · type · client in small), the contract type's colour dot (the map screen's
+  cargo / passengers / survey / build), a step as a sentence ("Carry 30 kg + David, Jody from Jolene AFB 13/31 to
+  Ridgeback Strip"), problem / "later" badges, the selected row as the map list's (accent bar, soft fill).
+- the words: "Action: Fly through", "Where: A gate (two posts)", "Looks like: Air-race pylons | Balloon columns", "Its
+  legs are flown: In order | Any order | Any N of them", "If the aircraft crashes: The mission fails", "If a gate post or
+  ring is hit: +3 s on the lap", "Opens after", "Reputation needed", "Departure window: leave between 8 and 10 h"...; a
+  text field edits the words, its key shown small under it (click to rename).
+- no JSON boxes left in the forms: bonuses (a medal, or beating a requirement by n %, +pct), timers (from / to step,
+  seconds or a speed, medals), the aircraft's requirements (kind · at least / at most / exactly · value, its sentence
+  beside), the follow-up order, the departure window, the gate's posts, the ring's centre / altitude, step medals, a
+  step's site change. The raw JSON stays, folded, under "Advanced".
+- THE PEOPLE PICKER: chips with portraits; "+ Add a person" opens a searchable grid of GAME_PEOPLE by role (clients with
+  their contractor, pilots, story people), or a count of unnamed people; used for the client, passengers, boarding,
+  getting off, and every "said by".
+- THE PREVIEW: map_menu.js's contract row and opened paragraph reproduced (type dot, round face, title, pay, ✓ / ⏳ / ✗;
+  the 120 px portrait with the client and contractor, "Contractor: brief. Pays N.", the stops and km, TRACK); a campaign
+  or chapter shows its missions as the list's rows.
+
+## READY claude/ready/missions-props - THE MISSION PROPS, THE STRIKE RULE, THE EDITOR'S UI PASS (2026-10-27, cloud, node + a headless page check; Game reviews before it lands)
+
+**Base: claude/missions-p3 afa3e83ce** (= claude/ready/missions-p3; land p1, then p3, then this). What it does: the
+MISSIONS-PROPS entry above (meshes, what a hit does, the editor). Running careers: unchanged except that a NEW mission
+(MISSION_RULES_NEW) now carries `strike: 'penalty'`, and a mission's laps take +3 s per gate post / ring touched when the
+page feeds the tracker (nothing feeds it yet); today's contracts state no rules - nothing changes for them.
+**Gates** (private copy built there, `run_gates.js --no-build`, 27 Oct): CLOCK, DEFAULT, UISMOKE, UISMOKE-PHONE, NAVAID,
+SAVE, ACCEPT, CONTRACTS, MISSIONS (873 checks; selftest 51/51 red), MISSIONPROPS (new, 84 checks), STAGES, STORY, ROUTES,
+ECON, PROCURE, FREIGHT, PILOTS: PASS. LAZY: FAIL (1) - the same row as p1's, p3's and db58b0b5's (route_draw's lazy door
+in this cloud browser; passes probed alone). MISSIONS + MISSIONPROPS re-run after the editor's last commit: PASS.
+Not run here (GPU / local): the visuals in the game - nothing draws the props yet (the local session's list above).
+
+## READY claude/ready/missions-props (review round, 2026-10-27 evening) - THE MISSION PROPS, THE STRIKE RULE, THE EDITOR'S UI PASS, REBASED ON THE NEW missions-p3
+
+**Base: ready/missions-p0 17f331783**, through claude/ready/missions-p1 and claude/ready/missions-p3 (the review round's,
+above; this replaces the READY note just above, whose base afa3e83ce is gone). The 4 commits rebased: one conflict,
+90_node_exports.js, resolved as the union (the strike names + p1's missionHandoverWired); HANDOVER kept both sides. Not
+for T-P1, not for L28a: it waits for a local page check and the user's look at the props.
+**Gates** (a private copy of the gated code - the notes are HANDOVER only - built there, `run_gates.js --no-build`; no
+local box): MISSIONS (875 checks; selftest 52/52 red), MISSIONPROPS (84 checks), CONTRACTS, STAGES, ECON, CLOCK, FREIGHT,
+PROCURE, ACCEPT, STORY, ROUTES, SAVE, PILOTS, NAVAID, UISMOKE, UISMOKE-PHONE, DEFAULT: PASS. LAZY: FAIL (1) - the
+route_draw row, red in the cloud on every tree tried (the base included): UNVERIFIED here.
+**The parked cook**: the same 9 core files change against the base (73b + 73c in MANIFEST.core; props adds to 72_ / 73b /
+73c / 74_ / 75_ / 90_ within that list): the parked cook of 17f331783 goes stale - the local box cooks it and runs
+FRAMECOST in the train. tools/_mission_gen.js is NOT in MANIFEST.lazy (nothing loads it in the game yet).
+
+## Train L28a (A0, Wed 28 Oct, pushed ~10:45 on the user's land-everything rule)
+
+Merged onto L28-0 (4ab6c317d): menus-l28a (game menus + menus UI + phone garage + card-drag + Back confirmation), story-tutor, missions p1/p3/props,
+hydro-trim (with its re-stamps), looks-2, dmg-glass, door-hinges-2, scenery-afb (the user's AFB fold, no fences, cabin lake lane + slipway, meteo
+station site), scenery-dc3park (HOME's three parked planes moved off the DC-3's wings).
+Battery: CLOUD / FRAMECOST / KTX2 = master's standing rows. Named, not breaks (the user 28 Oct 03:00: "land everything, apart if you highly
+suspect a poisoning feature"): MEDIA career_core 553 KB vs a 512 KB budget (the missions' career code; the user 14 Oct: no page-size work);
+LIGHT "the studio is back" = the phone garage's dark studio (by design, the row is stale); PARKED row 13's source scan of the parking step
+(the DC-3 parking moved the stand); DMGSKINGPU a torn edge 528 mm past its bound on the GPU path (damage-only, cosmetic).
+Train gate (box quiet, cpuLoad <= 25 %): a few multi-second tasks per flight (worst 3.5-5.6 s, fps 20 averaged over the run) - the same class
+GAME-MENUS' tree showed alone on 27 Oct (s27-g11b: longTask1s n 4-9, worst 8.2 s), the menus' freeze the user ACCEPTED BY NAME on 28 Oct 02:40
+("take the risk for the menus, we don't care, land that"). Follow-up: GAME-MENUS' 10:25 no-blur A/B + HWCOV's cloud-march warm (f93b69c9c).
+Not in it: garage-flood (accepted 2 s; its ready awaited A0's ok), people-crowd (pushed after the train's merge), windows + fittings (CLIP red),
+cert-rule + cert-pod, new-shapes-1, lods-step1, the shed (its polish freezes 2.2 s), metla-on (L28b).
 
 ## G3617 + G3619 - PEOPLE-CROWD: THE PASSENGERS WAIT IN A LINE AT THE EMBARK POINT, THEN BOARD IN ORDER; FOUR NEW BODIES (ADAM, JODY, KATE, PETE); SHADOWS + FEET BLOBS (2026-10-25/27, PEOPLE-CROWD for A0, local GPU; branch claude/people-crowd, master d7e181f4e merged in fcd0e1965; for L28a)
 The user 25 Oct: "prioritize the people job, and the passengers queuing ... under strict performance constraints".

@@ -1,0 +1,4 @@
+# origin/master d7e181f4e, node tools/_joinparity_check.js
+     (the load chain's files changed since the capture of 2026-10-20T08:10:41.773Z: a FAIL below means the game's aeroplane moved - re-capture with node tools/join_parity_page.js if that move is meant, and say so in the HANDOVER)
+FAIL no tool flies a validated build raw: _apsmooth_check.js, _engtorque_check.js, _floatdup_check.js, econ_sim.js, engine_torque_seasweep.js, hand_controls_probe.js
+GATE JOINPARITY: 1 FAIL
