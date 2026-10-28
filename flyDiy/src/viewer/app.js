@@ -14403,6 +14403,18 @@
     // G3070 ROUTE-LAZY: an action asked before the drawing's file had run (route_lazy.js) is done once it has - the
     // rail (and the setup screen) rebuilt then, as a pill's pick rebuilds them
     rail: () => flyOpenSet(flyOpen),
+    // G3611 (the 24 Oct playtest, item 14: "the draw-route feature must be integrated with the contracts"): the tracked
+    // contract's next stop (its first open sub's to / at - a field id is an aerodrome id), and the To set to it
+    contract: () => {
+      if (!CAREER_DEV) return null;
+      const d = playerLoad(), C = d && d.career && d.career.contracts;
+      const rec = CAREER_DEV && C && C.tracked ? careerContract(d, C.tracked) : null;
+      if (!rec) return null;
+      const L = C.live[C.tracked] || { stage: 0, subs: [] }, st = rec.stages[L.stage] || { subs: [] };
+      const u = st.subs.find((s, i) => !L.subs[i] && (s.to || s.at)), at = u && (u.to || u.at);
+      return at ? { title: contractText(rec.title, contractVars(rec)), to: at, name: CONTRACT_FIELDS[at] ? CONTRACT_FIELDS[at].name : at } : null;
+    },
+    setTo: id => (window.FLYDIY_ROUTE ? window.FLYDIY_ROUTE.to(id) : null),
     // the drawing wants the map shown and large; closing it puts the map back as it was
     mapOpen: on => {
       if (on) { rdMapWas = { show: !!panels.map, big: mapBig }; if (!panels.map) flPanel('map', true); if (!mapBig) flMapBig(true); $('mmp').classList.add('draw'); }
