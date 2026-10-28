@@ -109,6 +109,15 @@ if (PAGE) {
         ns.gear.floats.x.toFixed(5) + ' / page ' + P.spec.gear.floats.x.toFixed(5) + ', y ' + ns.gear.floats.y.toFixed(5) + ' / page ' +
         P.spec.gear.floats.y.toFixed(5) + ' (within ' + (FLOAT_TOL * 1000) + ' mm)');
       ns.gear.floats.x = P.spec.gear.floats.x; ns.gear.floats.y = P.spec.gear.floats.y;
+      // G2809 / G2815 (AVIONICS-GPS): the drawn cabin floor billed by its area (tools/_cage_furnish.js, r4 of the crew
+      // layer's floor less the holes the float struts pass through) follows that page-timed station: inside its deadband
+      // the 4th decimal can turn (the twin floatplane: 0.3295 / page 0.3294 m2). Held to 1e-3 m2, then carried too
+      const dn0 = ns.outfit && ns.outfit.drawn, dp0 = P.spec.outfit && P.spec.outfit.drawn;
+      if (dn0 && dp0 && dn0.floor != null && dp0.floor != null) {
+        ok(Math.abs(dn0.floor - dp0.floor) <= 1e-3, LB.VALIDATED[k].label.padEnd(16) + ' the drawn floor under the float station (page-timed with it): ' +
+          dn0.floor + ' / page ' + dp0.floor + ' m2 (within 0.001)');
+        dn0.floor = dp0.floor;
+      }
     }
     let dn = C.buildGen(ns);
     if (SELF && k === 'metal') { dn = C.buildGen(rawSpec(k)); console.log('     (selftest: the metal Cessna flown as written)'); }

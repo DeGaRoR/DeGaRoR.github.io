@@ -99643,3 +99643,281 @@ where fitted; Rufus's glass unit no longer costs a dial), C (the click presses a
 
 The stills sent to the user: the screen's states, the metal Cessna's glass unit close and from the seat, the C172's
 navigator, the Cub's portable. **Still owed on the GPU (A0):** the same views in the game's renderer.
+
+## AVIONICS-GPS - READY for A0: claude/ready/avionics-gps (2026-10-28, cloud; G2801-G2812 - the PFD work G2813-G2815 is NOT in it: claude/avionics-gps-pfd, its own gate pass owed)
+
+**Base:** origin/master **d7e181f4e** (train L25c), merged at 0b41654e3 (G2810's entry: the export union, HANDOVER both sides,
+master's side for every built / cooked file); re-fetched Tue 15:04, Wed 00:00 and Wed 05:50 - master unchanged, nothing to
+merge again. The built files (index.html, dev.html, sw.js, version.json, tools/flight_core.js, career_core.*.js) and the
+cooked ones are master's in this branch: the train rebuilds and re-cooks.
+
+**What lands:** G2801-G2807 (the electrics as parts, the GPS face, the furnishing row), G2808-G2809 (the glass panel, WYSIWYG
+billing), G2810 (the five reds explained and re-baselined), G2811 (the partial-flap notch, the centreline backtrack, the
+trim fit following the flap, the wreck's two calm reads), G2812 (the GPS unit round its screen, its softkeys, the light rig:
+tools/box_render.js, tools/gps_shots.js).
+
+**Approved validated-build changes (the user's, by name):** the bill (G2808-G2809: `tools/avionics_bill_table.js <master>`
+- Cub +5.26 kg, Jodel +13.30, metal Cessna +9.46, floats +7.36, twin floats +4.25, C172 +4.27, Rufus +11.71; every CG,
+furnishing and electrics row as G2809's table); the landing flap (G2811, "yes, do the partial-flap fix": the user's Cub
+lands on 0.95, the Jodel and the twin floatplane on 0.7; metal, floats, C172 and Rufus unchanged). G2812 moves no bill
+(+0.00 kg on all seven against 78422eb71).
+
+**JOINPARITY, re-captured (its own rule: "re-capture if the move is meant, and say so in the HANDOVER"):**
+`node tools/join_parity_page.js --only <key> --jobs 1`, one build at a time (Wed 04:50-05:35: the full run with --jobs 2
+stalled twice on one Chromium and writes only at its end). The page's masses are node's to the gram, each the snapshot
+of 20 Oct plus the approved bill: Cub 465.960, Jodel 477.486, metal 898.235, floats 959.807, twin floats 491.490 kg.
+tools/_joinparity_check.js: the twin floatplane's drawn floor (G2809's billed area, r4 of the crew floor less the
+float struts' holes) follows the page-timed float station inside its deadband (0.3295 / page 0.3294 m2), so it is now
+declared with the station - held to 1e-3 m2, then carried; every other number of every def still compared exactly.
+tools/box_render.js loads a saved build through tools/_load_build.js (the gate's "no tool flies a validated build raw").
+
+**The gates:** the grep rule over the 51 files this branch changes plus BUILD, JOIN, PARTS, SAVE, STARTER, SIMWORKER,
+PILOT - **222 gates**, `node --max-old-space-size=4096 tools/run_gates.js --no-build --jobs=4 --only=<ID>`, two at a time
+(Tue 15:04 - Tue 22:51, on this branch's own build). **190 PASS** in the battery; ROLLANIM and AUDIO (red under the
+battery's load) PASS alone on a quiet box; JOINPARITY after its re-capture fails master's one row. Every red was run on a
+clean master worktree (d7e181f4e, its own build) the same way (Tue 22:55 - Wed 01:55).
+
+**Red on master too (30), with master's own verdict:** ARCHETYPES FAIL (1) / master FAIL (1) · BIOME FAIL / FAIL ·
+BOOTLIFT FAIL (1) / FAIL (1) · CLOCK FAIL (1 of 777) / FAIL (1 of 777) · CLOUD FAIL (1 of 239) / FAIL (1 of 239) ·
+DMGCERT FAIL / FAIL · DMGCOMPOSITE FAIL / FAIL · DMGDETERMINISM 1800 s cap / 1800 s cap · DMGINST FAIL / FAIL ·
+FLOATDUP SKIP (no Chrome) / SKIP · FOG FAIL (2 of 22) / FAIL (2 of 22) · FRAMECOST FAIL (22) / FAIL (1) (see the GPU list)
+· INSTANT 1800 s cap / 1800 s cap · JOINPARITY 1 FAIL / 1 FAIL (the same six raw tools) · KTX2 FAIL / FAIL · LAKEBED FAIL (2)
+/ FAIL (2) · PILOTPAGE FAIL (4: no Chrome) / FAIL (4) · PILOTS FAIL / FAIL · POD FAIL / FAIL · RADIALDIV FAIL (3) / FAIL (3) ·
+ROUNDTRIP FAIL (1) / FAIL (1) · RWYLIGHTS FAIL (2 of 120) / FAIL (2 of 120) · RWYTREES 1800 s cap / 1800 s cap · SCENERYED
+FAIL (1) / FAIL (1) · SIMWORKER-EDGES FAIL (6) / FAIL (6) · TOUR FAIL (2) / FAIL (2) (the float Cessna's mk_sea > SEA: a
+ground loop and a prop strike, on both; the Cub and the C172 end at their known reds) · TREECRASH 1800 s cap / 1800 s cap ·
+TREEHIT FAIL / FAIL (the trunk stops it at 63.5 m of 60, both) · VEHICLE FAIL (2 rows) / FAIL (2 rows) · WORLD FAIL / FAIL
+(13/31's approaches).
+
+**For A0's GPU:** FRAMECOST - this branch's rows (the Cub's and the Cessna's stand / taxi draws and uniforms) are a STALE
+PARKED COOK (`node tools/parked_cook.js --check`: manifest 1bd647158b91, this tree dee2748c7609 - every parked aeroplane
+captured live); the cook bakes on a GPU (headless Chrome on the box's GPU), the train re-cooks on its final build, so
+FRAMECOST is judged there; master's own row (cessna boot/garage:restore updateMatrixWorld) is red on both. FLOATDUP and
+PILOTPAGE need Chrome. The stills: the GPS units in the game's renderer (tools/avionics_stills.js; this box's evidence is
+tools/box_render.js and tools/gps_shots.js, CPU / 2D only).
+
+**Every gate verdict line** (the branch; the three re-run alone as noted):
+```
+GATE AA: PASS
+GATE ACCEPT: PASS
+GATE AERO: PASS
+GATE ALTIPORT: PASS
+GATE ANIMALS: PASS
+GATE ARCHETYPES: FAIL (1)
+GATE ASSETBUDGET: PASS
+GATE ASSETS: PASS
+GATE ATMO: PASS
+GATE ATMOS: PASS
+GATE AUDIO: PASS   (alone, Wed 05:40; under load EMITALLOC read 7.0 B a frame - quiet: 2.5-3.0, master 2.9-4.4)
+GATE AUDIOENG: PASS
+GATE BAY: PASS
+GATE BEACON: PASS
+GATE BENCH: PASS
+GATE BIOME: FAIL
+GATE BIPLANE: PASS
+GATE BOOMBOX: PASS
+GATE BOOT: PASS
+GATE BOOTLIFT: FAIL (1)
+GATE BUILD: PASS
+GATE BUILT: PASS
+GATE CARDS: PASS
+GATE CARS: PASS
+GATE CESSNAVREF: PASS
+GATE CGBAND: PASS
+GATE CHARS: PASS
+GATE CITYHOST: PASS
+GATE CLIMATE: PASS
+GATE CLIP: PASS
+GATE CLOCK: FAIL (1 of 777)
+GATE CLOCKBAKE: PASS
+GATE CLOUD: FAIL (1 of 239)
+GATE CONTACT: PASS
+GATE CONTRACTS: PASS
+GATE DASH: PASS
+GATE DAY: PASS
+GATE DEFAULT: PASS
+GATE DESIGN: PASS
+GATE DESIGNCHECK: PASS
+GATE DESIGNSIM: PASS
+GATE DESTTO: PASS
+GATE DMGCERT: FAIL
+GATE DMGCERTCOST: PASS
+GATE DMGCOMPOSITE: FAIL
+GATE DMGCRASHUI: PASS
+GATE DMGDETERMINISM: FAIL (1800.0 s, no verdict line: the gate's 1800 s cap)
+GATE DMGFABRIC: PASS
+GATE DMGFLOATTO: PASS
+GATE DMGFPS: PASS
+GATE DMGHEAL: PASS
+GATE DMGHULL: PASS
+GATE DMGINST: FAIL
+GATE DMGMEMBERS: PASS
+GATE DMGOCCUPANT: PASS
+GATE DMGPAGEW: PASS
+GATE DMGSCAR: PASS
+GATE DMGSETTLE: PASS
+GATE DMGSKIN: PASS
+GATE DMGSKINGPU: PASS
+GATE DMGUPLOAD: PASS
+GATE DMGWALL: PASS
+GATE DMGWRECK: PASS
+GATE DRAG: PASS
+GATE ECON: PASS
+GATE EDBUGS: PASS
+GATE ELEC: PASS
+GATE ENERGY: PASS
+GATE ENERGYBASE: PASS
+GATE ENGID: PASS
+GATE ENGINE: PASS
+GATE ENGMESH: PASS
+GATE FADES: PASS
+GATE FIN: PASS
+GATE FIT: PASS
+GATE FLAPS: PASS
+GATE FLEX: PASS
+GATE FLIGHTREC: PASS
+GATE FLOATDUP: SKIP (no Chrome)
+GATE FLOATS: PASS
+GATE FLOWNBAKE: PASS
+GATE FOG: FAIL (2 of 22)
+GATE FRAMECOST: FAIL (22)
+GATE FRAMES: PASS
+GATE FREIGHT: PASS
+GATE GAMEPREM: PASS
+GATE GE: PASS
+GATE GEAR: PASS
+GATE GEN: PASS
+GATE GENPAIRS: PASS
+GATE GEOPARITY: PASS
+GATE GFX: PASS
+GATE GPSFACE: PASS
+GATE GRASSSIDES: PASS
+GATE HANGAR: PASS
+GATE HEADING: PASS
+GATE HINGE: PASS
+GATE HITBOX: PASS
+GATE HONEST: PASS
+GATE HONESTY: PASS
+GATE HOTHIGH: PASS
+GATE HOUSE: PASS
+GATE HOUSEWORKER: PASS
+GATE HWCOV: PASS
+GATE HYDRO: PASS
+GATE HYDRODYN: PASS
+GATE HYPOT: PASS
+GATE INPUT: PASS
+GATE INSTANT: FAIL (1800.5 s, no verdict line: the gate's 1800 s cap)
+GATE JOIN: PASS
+GATE JOINPARITY: 1 FAIL   (after the re-capture, Wed 05:45: the one row is master's - "no tool flies a validated build raw": the same six tools as master)
+GATE KITHOST: PASS
+GATE KNIFE: PASS
+GATE KTX2: FAIL
+GATE LAKEBED: FAIL (2)
+GATE LAZY: PASS
+GATE LIFE: PASS
+GATE LIGHT: PASS
+GATE LINEUP: PASS
+GATE LIVERY: PASS
+GATE LOAD: PASS
+GATE LOADS: PASS
+GATE MAPBAKE: PASS
+GATE MASS: PASS
+GATE MATLIB: PASS
+GATE MEDIA: PASS
+GATE METKIT: PASS
+GATE MOUNT: PASS
+GATE NACLAG: PASS
+GATE NAMES: PASS
+GATE NAV: PASS
+GATE NAVAID: PASS
+GATE OBSTACLE: PASS
+GATE OBSTFRAME: PASS
+GATE PACE: PASS
+GATE PANEL: PASS
+GATE PARKED: PASS
+GATE PARTS: PASS
+GATE PAVEMENT: PASS
+GATE PILOT: PASS
+GATE PILOTPAGE: FAIL (4)
+GATE PILOTS: FAIL
+GATE PLAN: PASS
+GATE PLAYER: PASS
+GATE POD: FAIL
+GATE POSEBACK: PASS
+GATE POSEHIDDEN: PASS
+GATE POSTFX: PASS
+GATE PREMCOOK: PASS
+GATE PREMISES: PASS
+GATE PREMRASTER: PASS
+GATE PROCURE: PASS
+GATE PROFILE: PASS
+GATE PROGRAMS: PASS
+GATE PROPS: PASS
+GATE RADIALDIV: FAIL (3)
+GATE REF: PASS
+GATE ROLLANIM: PASS   (alone, Wed 02:00; the battery under load read 64.1 B / frame against 64 - master PASS)
+GATE ROLLSND: PASS
+GATE ROOMMERGE: PASS
+GATE ROUNDTRIP: FAIL (1)
+GATE ROUTE: PASS
+GATE ROUTES: PASS
+GATE RPM: PASS
+GATE RWYLIGHTS: FAIL (2 of 120)
+GATE RWYTREES: FAIL (1800.2 s, no verdict line: the gate's 1800 s cap)
+GATE SAVE: PASS
+GATE SCENERY: PASS
+GATE SCENERYED: FAIL (1)
+GATE SEAPLANE: PASS
+GATE SETTLE: PASS
+GATE SHADOWSKY: PASS
+GATE SHEETWORKER: PASS
+GATE SHOULDER: PASS
+GATE SIMDIVERGE: PASS
+GATE SIMWORKER: PASS
+GATE SIMWORKER-EDGES: FAIL (6)
+GATE SIMWORKER-PAGE: PASS
+GATE SIMWORKER-PLACE: PASS
+GATE SITE: PASS
+GATE SKIN: PASS
+GATE SKINMAT: PASS
+GATE SOFTGPU: PASS
+GATE SPECFIX: PASS
+GATE STAGES: PASS
+GATE STARTER: PASS
+GATE STORAGE: PASS
+GATE STOREDRAW: PASS
+GATE STORESPOT: PASS
+GATE STORY: PASS
+GATE STRESS: PASS
+GATE STRIPGROUND: PASS
+GATE STRIPSURF: PASS
+GATE STRUT: PASS
+GATE SUBSTEP: PASS
+GATE TAKEOFF: PASS
+GATE TANKMOUNT: PASS
+GATE TARR: PASS
+GATE TAXICLEAR: PASS
+GATE TECH: PASS
+GATE TOUR: FAIL (2)
+GATE TREE: PASS
+GATE TREECRASH: FAIL (1800.0 s, no verdict line: the gate's 1800 s cap)
+GATE TREEHIT: FAIL
+GATE TREES: PASS
+GATE UILAYER: PASS
+GATE UISMOKE: PASS
+GATE UISMOKE-PHONE: PASS
+GATE UPDATE: PASS
+GATE VEHICLE: FAIL (2 rows)
+GATE VIEW: PASS
+GATE VILLAGE: PASS
+GATE WATER: PASS
+GATE WATERDAMP: PASS
+GATE WEATHER: PASS
+GATE WEIGHT: PASS
+GATE WETFX: PASS
+GATE WINGROWS: PASS
+GATE WINGSPLIT: PASS
+GATE WIPLINE: PASS
+GATE WORLD: FAIL
+GATE WORLDRENDER: PASS
+```
