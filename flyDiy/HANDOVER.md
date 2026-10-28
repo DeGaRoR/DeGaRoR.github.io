@@ -100504,3 +100504,15 @@ The user, 25 Oct via A0: "the vehicles not casting a shadow on the ground ... A 
 - PASS: AUDIO ATMO ANIMALS DMGSCAR GFX FADES CONTACT LOOKS ASSETS PREMISES SCENERYED PATCHFAR PREMCOOK TARR KITHOST CITYHOST METKIT PARKED PAVEMENT LIFE.
 - CLOUD FAIL 1/239 = master's own: tools/_cloud_check.js:263 expects `.filter(q => q[0] < r2).sort(`, master's render_premises.js reads `.filter(q => q[0] < r2 && !(q[1].chunk && !q[1].grp.visible))` (no match on master d7e181f4e either).
 - FRAMECOST: GATE FRAMECOST: FAIL (1) = the standing master key only (cessna boot/garage:restore/three.updateMatrixWorld rose 2269 -> 4553; A0: a standing master red). Run s27-c3p 05:31 (the 02:15 run was cut at its stop with no verdict).
+
+## Train L28-0 (A0, Wed 28 Oct ~03:30) - the pre-checked set, landed early on the user's call
+
+The user (28 Oct 02:55): land now rather than wait for 06:00 ("we're at 86% credits, and you haven't landed anything this week yet").
+31 readies, pinned to the shas A0 dry-ran at 01:08-01:32 (merge + the landing's own cooks + a real parked cook): TAXICLEAR,
+DMGCERTCOST, DMGSKINGPU, AUDIOENG, FRAMES, WINGROWS PASS; FRAMECOST = master's standing key only (cessna boot/garage:restore
+updateMatrixWorld) with the declared ALLOW rows. The rest of the battery = T-P1's (same content plus cert-rule and new-shapes-1, both
+pulled: cert-rule's roll-out freeze measured alone 1.0 -> 2.8 s; new-shapes-1's AUDIOENG / FRAMES / WINGROWS / TAXICLEAR camel rows).
+NOT run: the timed rollout train gate (the box is not quiet before 06:00), so a roll-out stutter is unmeasured. L28a (06:00) runs the
+full battery + train gate on this master plus the overnight readies (menus + phone, floodlight, passengers, story, Back confirmation, shed).
+Excluded: cert-rule, cert-pod, new-shapes-1, lods-step1, scenery-afb + meteo-station (scenery train S28), dc3-2-scenery, jolene-fold
+(superseded), missions p1/p3/props, hydro-trim, belly-pod-2, stol-wing, dmg-glass, the old game-menus / game-menus-ui / phone-garage refs.
