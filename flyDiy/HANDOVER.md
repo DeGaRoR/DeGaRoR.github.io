@@ -99107,7 +99107,27 @@ The user, 27 Oct: "never seen an impact mark on glass". Before this, a pane eith
     - Reported only: the 4 m/s nose-over, the 6 m/s drop and the 12 m/s runway stump mark nothing on any of the three.
   - **N** smooth shading (the user, 27 Oct: "no flat shading on any deformed or damaged part"; see below). A curved pane (12 facets, its own smooth normals) drawn by the real `aeroGlass` under a light near the eye shows 0 steps at its facet edges, marked or not. The same pane with `flatShading` forced shows 12: that is the control, proving the row sees flat shading.
   - `--selftest` sabotages the copy by one character and sets the members' reach to 0: S and T go red on every build.
-- **WHAT THE PAGE MUST SHOW (A0 + DEFORM's page check and evidence round).** Use dev.html with damage on.
+- **THE COCKPIT FIX (28 Oct).** A0's page run (DEFORM's 00:30 run, ready/dmg-glass 5f1032d7b merged with dmg-looks b951dcbb3): "FLYDIY_GLASS_TEST(1) and (0.3) DO return a mark at the windscreen's middle, but NOTHING shows in the cockpit view; the windscreen stays clear."
+  - **What the flown windscreen uses** (measured in the page, `tools/dmg_glass_stills.js` FACES): `aeroGlass`.
+    - The Cub's four flown panes are MeshPhysical, `aeroFinish: 'glass'`, sharing `aeroSharedU`, and each linked program has `uCrackN`.
+    - It is not the fold/bake path: glass never bakes (flown_bake.js `bakes()`), and no other material draws them.
+    - The test mark was right: at the windscreen's middle, 0.71 m from the eye, uniforms set.
+  - **The cause:** the flown panes are single sheets wound outward, and `aeroGlass` was FrontSide.
+    - From the seat every triangle faces away: Cub windshield 64 / 64; metal windshield 128 / 128, side panes 328 / 328 and 256 / 256.
+    - So from the cockpit the pane, and any crack on it, was never drawn. The tint companion is FrontSide too, so the windscreen draws nothing at all from inside, by design.
+  - **The fix (aeroskin.js `aeroGlass` and `AEROGLASS_HOOK`):**
+    - The pane is `DoubleSide` with `forceSinglePass: true`: one program, one draw. Without the flag, three draws a transparent DoubleSide material as two passes, two programs.
+    - First thing in the fragment, a back face with no mark in use (`uCrackN < 0.5`) is discarded. An intact pane looks exactly as before; its back faces cost a rasterised discard.
+    - With a mark, a back face writes only the crack's scatter, never the reflection, so the bubble's phantom limb (the reason for FrontSide) cannot come back. Where there is no crack it discards.
+    - The side is set at roll-out, so a crash links no program.
+  - **`FLYDIY_GLASS_TEST(sev, 'view')`** puts the mark on the glazing's point nearest the middle of the view. The metal Cessna's left seat sees the windscreen's middle only at its top right edge.
+  - **GATE DMGGLASS row B:** from behind, the pane with no mark changes 0 px against the pane hidden, and a broken member's mark brightens 3,000 px and darkens none. The other rows are unchanged and pass (R: 1 program).
+  - **Evidence** (`reports/evidence/DMG-GLASS/`, `cockpit_sheet.jpg` + the stills + 300 px crops round the mark; SwiftShader, the stand, the cockpit camera):
+    - Cub, windscreen middle: mark 1 a full star with arcs and the crazed core; 0.3 a short light star; cleared, the windscreen clear again.
+    - Metal Cessna, `at: view`: the same.
+    - The crop counts (pixels brighter by 24+ codes against the no-mark frame): Cub noise 4,257, mark 1 18,692, 0.3 7,392, cleared 3,479. The propeller disc moves in the crop; on the metal Cessna its idling blade sweeps through it (noise 16,253), so the pictures are the proof there, not the counts.
+  - **Neighbour gates on this head:** BUILD, SKINMAT, PROGRAMS, ATMO, EDBUGS, REF, LIVERY, FLIGHTREC, PARKED pass.
+- **WHAT THE PAGE MUST SHOW (A0 + DEFORM's page check and evidence round).** Use dev.html with damage on. **The cockpit view is the one to check**: from the seat, a mark shows on the windscreen in front of the pilot (`FLYDIY_GLASS_TEST(1, 'view')` puts it there on any build), as in `reports/evidence/DMG-GLASS/cockpit_sheet.jpg`.
   1. **By hand, no crash.**
      - In flight, run `FLYDIY_GLASS_TEST(1)` from the console. It returns `{ at, p, n, panes, points }`. A full star appears at the windscreen's middle at once: 5-9 silver-white wandering radial cracks up to ~36 cm long, arcs on some, and a speckled crazed patch ~6-12 cm round the centre.
      - Seen from the cockpit and the chase camera, it is brighter where the sun lights the pane and faint in shade. The reflection is broken up along the cracks. It is never a black line and never a hole.
