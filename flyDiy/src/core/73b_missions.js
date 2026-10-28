@@ -68,7 +68,7 @@ const MISSION_RULES = { crash: ['fail', 'reset'], injury: ['fail', 'ignore'], fr
 // §3.4's rules for a NEW mission that states none (the built-in pack states none: today's crash resets, keeps it live)
 const MISSION_RULES_NEW = { crash: 'fail', injury: 'fail', freight: 'fail', damage: 'assess' };
 const MISSION_SITE_STATES = ['planned', 'building', 'built'];
-const MISSION_REQUIRE = ['when', 'maxMin', 'depart', 'plane'];
+const MISSION_REQUIRE = ['when', 'maxMin', 'depart', 'plane', 'waitMin'];
 // THE PREFERENCES (§3.6, §7): a configuration word set, each read off the spec in phase 2 (`of`). Values are the GEN
 // vocabulary (60_gen_spec.js); a live table, when present, is the authority (missionPrefValues)
 const MISSION_PREF_KINDS = {
@@ -101,7 +101,7 @@ const MISSION_TEXT = {
   'crit.pax': MT_('{v} passengers beside the pilot'),
   'crit.heightM': MT_('at most {v} m high'), 'crit.lengthM': MT_('at most {v} m long'),
   'crit.fitsShed': MT_('fits their {v}: through the door, parked inside'),
-  'pref.engines': MT_('{v} engines'), 'pref.thrust': MT_('a {v} propeller'), 'pref.wing': MT_('a {v} wing'),
+  'pref.engines': MT_('engines: {v}'), 'pref.thrust': MT_('a {v} propeller'), 'pref.wing': MT_('a {v} wing'),
   'pref.tail': MT_('a {v} tail'), 'pref.gear': MT_('{v} gear'), 'pref.canopy': MT_('a {v} canopy'),
   'pref.suspension': MT_('{v} suspension'),
   'pref.bonus': MT_('a bonus: {p}'), 'pref.mandatory': MT_('a must: {p}'),
@@ -352,7 +352,7 @@ function missionWhy(m, ctx) {
   const O = missionOrder(m.order || 'seq');
   if (!O) why.push(id + ': order ' + m.order + ' is not seq | any | choose:N');
   else if (O.kind === 'choose' && O.n > (m.legs || []).length) why.push(id + ': choose:' + O.n + ' of ' + (m.legs || []).length + ' legs');
-  const stepIds = {};
+  const stepIds = {}, stepLeg = {}, stepPos = {};
   (m.legs || []).forEach((L, i) => {
     const lo = missionOrder(L.order || 'any');
     if (!lo) why.push(id + ' leg ' + i + ': order ' + L.order + ' is not seq | any | choose:N');
@@ -360,12 +360,16 @@ function missionWhy(m, ctx) {
     (L.steps || []).forEach((s, j) => {
       const at = id + ' ' + i + '.' + j;
       if (!MISSION_DO.includes(s.do)) { why.push(at + ': do ' + s.do + ' is not one of ' + MISSION_DO.join(' ')); return; }
-      if (s.id != null) { if (typeof s.id !== 'string' || !s.id) why.push(at + ': a step id is a string'); else if (stepIds[s.id]) why.push(at + ': step id ' + s.id + ' twice'); else stepIds[s.id] = 1; }
+      if (s.id != null) { if (typeof s.id !== 'string' || !s.id) why.push(at + ': a step id is a string'); else if (stepIds[s.id]) why.push(at + ': step id ' + s.id + ' twice'); else { stepIds[s.id] = 1; stepLeg[s.id] = i; stepPos[s.id] = j; } }
       const k = missionPlaceKind(s.place), allow = MISSION_PLACES_OF[s.do];
       if (k === null || !allow.includes(k)) why.push(at + ': ' + s.do + ' takes ' + allow.map(x => x || 'no place').join(' | ') + ', got ' + (k === null ? JSON.stringify(s.place) : (k || 'no place')));
       else { const w = missionPlaceWhy(s.place, { fields: F, sites, spots: ctx.spots }); if (w) why.push(at + ': ' + w); }
       if (s.from != null) { const f = msFieldOf(s.from); if (!f || !F[f]) why.push(at + ': from must be a field, got ' + JSON.stringify(s.from)); }
       if (s.do === 'photo' && missionPlaceKind(s.place) === 'field' && s.from == null) why.push(at + ': a photo over a field departs from a field (`from`: today\'s survey)');
+      // (MISSIONS-P1) an IN-FLIGHT step (a pass, a photo or a fly to a point / gate / ring) is judged off the flight's
+      // evidence by its id, and a timer starts / stops on ids: it needs one
+      if (['pass', 'photo', 'fly'].includes(s.do) && ['pt', 'gate', 'ring'].includes(missionPlaceKind(s.place)) && !s.id) why.push(at + ': an in-flight ' + s.do + ' needs an id (its evidence, its timers)');
+      if (s.do === 'wait' && !(s.require && s.require.waitMin != null)) why.push(at + ': wait needs require.waitMin');
       if (s.load && Array.isArray(s.load.pax)) people(s.load.pax, at + ' load.pax', 'a passenger');
       for (const e of ['embark', 'disembark']) if (s[e] != null) people(s[e], at + ' ' + e, 'a passenger');
       if (s.require != null) {
@@ -374,6 +378,8 @@ function missionWhy(m, ctx) {
           for (const q of Object.keys(s.require)) if (!MISSION_REQUIRE.includes(q)) why.push(at + ': require.' + q + ' is not one of ' + MISSION_REQUIRE.join(' '));
           const R = s.require;
           if (R.maxMin != null && !(msNum(R.maxMin) && R.maxMin > 0 && R.maxMin <= 1440)) why.push(at + ': require.maxMin is 1-1440 minutes');
+          if (R.waitMin != null && !(msNum(R.waitMin) && R.waitMin > 0 && R.waitMin <= 1440)) why.push(at + ': require.waitMin is 1-1440 minutes');
+          if (R.waitMin != null && s.do !== 'wait') why.push(at + ': require.waitMin on a ' + s.do + ' (wait only)');
           if (R.depart != null) {
             const D = R.depart, h = v => msNum(v) && v >= 0 && v <= 24;
             const ok = msObj(D) && Object.keys(D).length === 1 && ((D.after != null && h(D.after)) || (D.before != null && h(D.before)) || (Array.isArray(D.at) && D.at.length === 2 && D.at.every(h) && D.at[0] !== D.at[1]));
@@ -417,6 +423,9 @@ function missionWhy(m, ctx) {
         if (!msObj(t) || typeof t.id !== 'string' || !t.id) { why.push(at + ': a timer has an id'); return; }
         if (seen[t.id]) why.push(at + ': timer id twice'); seen[t.id] = 1;
         for (const e of ['start', 'stop']) if (!stepIds[t[e]]) why.push(at + ': ' + e + ' names no step of the mission (' + t[e] + ')');
+        // (MISSIONS-P1) a lap is flown in one flight over one leg (the tracker arms one leg at a time): start and stop
+        // in the same leg, the start first
+        if (stepIds[t.start] && stepIds[t.stop] && (stepLeg[t.start] !== stepLeg[t.stop] || stepPos[t.start] > stepPos[t.stop])) why.push(at + ': starts and stops in one leg, the start first');
         if (t.start === t.stop) why.push(at + ': starts and stops on the same step');
         const tg = t.target;
         if (!((msNum(tg) && tg > 0) || (msObj(tg) && msNum(tg.refKmh) && tg.refKmh > 0))) why.push(at + ': target is seconds or { refKmh }');
@@ -571,7 +580,9 @@ function missionPackContracts(pack) {
 // met: the night list's check - a validated design flies it - is the one a flying mission needs). HELD OUT, with the
 // reason: a mission the runtime cannot run yet (contractRuntimeOk), a choose:N chapter or a chapter / campaign with needs
 // of its own (phase 1), a seq campaign of more than one chapter (phase 1), a mission of another provider in a seq chapter.
-// Pure: returns { providers, held: [{ id, why }] }; the table handed in is not changed (its jobs, goods, fields kept).
+// Pure: returns { providers, held: [{ id, why }], text }; the table handed in is not changed (its jobs, goods, fields
+// kept). `text` is the pack's own words over the model's labels (MISSION_TEXT): the boot merges it into CONTRACT_TEXT
+// with the providers, or the card reads a pack mission's keys as [keys].
 function missionPackInstall(pack, providers) {
   const P = missionPackNormalise(pack), base = providers || CONTRACT_PROVIDERS, out = {}, held = [];
   const recs = missionPackContracts(P);
@@ -597,7 +608,7 @@ function missionPackInstall(pack, providers) {
       }
     }
   }
-  return { providers: out, held };
+  return { providers: out, held, text: Object.assign({}, MISSION_TEXT, msClone(P.text || {})) };
 }
 
 // ---- THE REWARD (the editor's live line) ----------------------------------------------------------------------------

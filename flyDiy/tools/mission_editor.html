@@ -38,6 +38,7 @@ legend { color: var(--mute); font-size: 12px; }
 .row input, .row select, .row textarea { width: 100%; }
 textarea { min-height: 54px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
 .tools { display: flex; gap: 4px; flex-wrap: wrap; margin: 4px 0 8px; }
+.tools input, .tools select { width: auto; max-width: 180px; } .tools input[type=number] { width: 80px; }
 .ro-box { background: var(--ro); border-radius: 6px; padding: 8px; }
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
 .card .who { display: flex; gap: 10px; align-items: center; }
@@ -94,13 +95,15 @@ dialog { background: var(--panel); color: var(--ink); border: 1px solid var(--li
 <!-- THE GAME'S CORE: the LEAN set (tools/_missions_lib.js), in build.js MANIFEST.core's order -->
 <script data-core="01_names.js" src="../src/core/01_names.js"></script>
 <script data-core="26_hangar_fit.js" src="../src/core/26_hangar_fit.js"></script>
-<script data-core="72_people_faces.js" src="../src/core/72_people_faces.js"></script>
-<script data-core="72_people.js" src="../src/core/72_people.js"></script>
 <script data-core="34_occupant.js" src="../src/core/34_occupant.js"></script>
 <script data-core="38c_route.js" src="../src/core/38c_route.js"></script>
+<script data-core="72_people_faces.js" src="../src/core/72_people_faces.js"></script>
+<script data-core="72_people.js" src="../src/core/72_people.js"></script>
+<script data-core="72_accept.js" src="../src/core/72_accept.js"></script>
 <script data-core="72_contract_data.js" src="../src/core/72_contract_data.js"></script>
 <script data-core="73_contracts.js" src="../src/core/73_contracts.js"></script>
 <script data-core="73b_missions.js" src="../src/core/73b_missions.js"></script>
+<script data-core="73c_mission_run.js" src="../src/core/73c_mission_run.js"></script>
 <script data-core="79_story.js" src="../src/core/79_story.js"></script>
 <!-- the island's 2-D map (map_bake.js) and the fleet's tie-down spots (fleet_spots.js --cook) -->
 <script src="../src/viewer/map_pack.js"></script>
@@ -120,7 +123,18 @@ const store = { get() { try { return localStorage.getItem(DRAFT); } catch (e) { 
 const emptyPack = () => ({ what: MISSION_PACK_WHAT, v: MISSION_PACK_V, id: 'new', title: '', campaigns: [], missions: [], sites: [], text: {} });
 function setPack(p, name) { S.pack = missionPackNormalise(p); S.sel = { t: 'pack' }; if (name) S.file = name; status('loaded ' + (name || '') + ': ' + S.pack.missions.length + ' missions'); renderAll(); }
 function status(s) { $('status').textContent = s; }
-function changed() { store.set(JSON.stringify({ file: S.file, pack: S.pack })); renderAll(); }
+// (MISSIONS-P1) an in-flight step (a pass, a photo or a fly to a point / gate / ring) is judged by its id: give one to
+// any that has none (p1, p2, ... unique in its mission)
+function autoIds() {
+  for (const m of S.pack.missions) {
+    if (isTut(m) || !Array.isArray(m.legs)) continue;
+    const used = new Set([].concat(...m.legs.map(L => (L.steps || []).map(s => s.id).filter(Boolean))));
+    let n = 1;
+    for (const L of m.legs) for (const st of L.steps || [])
+      if (!st.id && missionInFlight({ do: st.do, place: missionPlaceNorm(st.place) })) { while (used.has('p' + n)) n++; st.id = 'p' + n; used.add(st.id); }
+  }
+}
+function changed() { autoIds(); store.set(JSON.stringify({ file: S.file, pack: S.pack })); renderAll(); }
 const T = () => missionText(S.pack);
 const words = k => { const e = T()[k]; return e ? e.t : ''; };
 const setWords = (k, s) => { S.pack.text[k] = { t: s, draft: true }; };
@@ -296,7 +310,7 @@ function missionForm(f, m) {
     row('goods word', inp(m.goods || '', x => m.goods = x || undefined, { ph: 'goods.mail (a text key)' }))));
   f.append(el('fieldset', {}, el('legend', {}, 'pay, reputation, unlocks, needs'),
     row('pay.base', inp(m.pay.base, x => m.pay.base = +x || 0, { type: 'number' }), 'credits; an authored contract is paid base x the story factor, a build as written'),
-    row('pay.bonus', json(m.pay.bonus, v => { if (v === undefined) delete m.pay.bonus; else m.pay.bonus = v; }, { ph: '[{"crit":"medal","by":"gold","pct":100}]' })),
+    row('pay.bonus', json(m.pay.bonus, v => { if (v === undefined) delete m.pay.bonus; else m.pay.bonus = v; }, { ph: 'e.g. [{"crit":"medal","by":"gold","pct":100}]' })),
     row('rep gain', inp(m.rep.gain, x => m.rep.gain = +x || 0, { type: 'number' })),
     row('unlock', sel((m.unlock || {}).stage || '', trackOpts(), x => m.unlock = x ? { stage: x } : undefined, { blank: '—' }), 'a world construction stage (76_stages)'),
     row('needs.after', inp(((m.needs || {}).after || []).join(', '), x => { const a = x.split(/[\s,]+/).filter(Boolean); m.needs = Object.assign({}, m.needs || {}, { after: a }); })),
@@ -309,12 +323,12 @@ function missionForm(f, m) {
       : sel(R[k] || '', MISSION_RULES[k], x => { m.rules = Object.assign({}, m.rules || {}); if (x) m.rules[k] = x; else delete m.rules[k]; }, { blank: '— (today: crash resets, keeps it live)' }))),
     el('div', { cls: 'tools' }, el('button', { on: { click: () => { m.rules = Object.assign({}, MISSION_RULES_NEW); changed(); } } }, 'the new missions\' rules'), el('button', { on: { click: () => { delete m.rules; changed(); } } }, 'none (today\'s)'))));
   f.append(el('fieldset', {}, el('legend', {}, 'timers (§3.3: start / stop on step ids; target s or {refKmh}; splits; medals)'),
-    json(m.timers, v => { if (v === undefined) delete m.timers; else m.timers = v; }, { ph: '[{"id":"speed","start":"g1","stop":"g2","target":90,"medals":[{"medal":"gold","le":80}]}]' })));
+    json(m.timers, v => { if (v === undefined) delete m.timers; else m.timers = v; }, { ph: 'e.g. [{"id":"speed","start":"g1","stop":"g2","target":90,"medals":[{"medal":"gold","le":80}]}]' })));
   if (m.kind === 'build') {
     f.append(el('fieldset', {}, el('legend', {}, 'aircraft order (§3.6)'),
       row('startFrom', inp(typeof m.startFrom === 'object' ? JSON.stringify(m.startFrom) : (m.startFrom || ''), x => { m.startFrom = !x ? undefined : x.trim().startsWith('{') ? JSON.parse(x) : x; }, { ph: 'player | ' + Object.keys(CONTRACT_DESIGNS).join(' | ') + ' | {"build":"builds/x.json"}' })),
       row('delivery', sel(m.delivery ? (m.delivery.sold ? 'sold' : 'kept') : '', [['sold', 'sold to the client, blueprint saved'], ['kept', 'kept in the fleet']], x => m.delivery = !x ? undefined : { sold: x === 'sold', blueprint: true }, { blank: '— (the default: sold, blueprint saved)' })),
-      row('followUp', json(m.followUp, v => m.followUp = v, { ph: '{"prefer":["tasKmh"],"add":[...]}' }), 'GQ26: a happy client asks again, one criterion changed'),
+      row('followUp', json(m.followUp, v => m.followUp = v, { ph: 'e.g. {"prefer":["tasKmh"],"add":[...]}' }), 'GQ26: a happy client asks again, one criterion changed'),
       sizeEditor(m), prefsEditor(m)));
   }
   f.append(el('fieldset', {}, el('legend', {}, 'the completion line'), ...sayRows('onDone.say', (m.onDone || {}).say, v => { m.onDone = v ? { say: v } : undefined; })));
@@ -348,7 +362,7 @@ function sizeEditor(m) {
     el('div', { cls: 'tools' }, 'span ≤', num('spanM'), 'height ≤', num('heightM'), 'length ≤', num('lengthM')),
     el('div', { cls: 'tools' }, 'shed', sel(sh.v || '', Object.keys(SHELLS).map(k => [k, words(k)]), x => shed(x, null), { blank: '— none' }),
       sh.v ? ['own HW', dimIn('HW'), 'HD', dimIn('HD'), 'EAVE', dimIn('EAVE')] : null),
-    el('div', { cls: 'mute' }, 'Width = the span. The shed: through its door and parked inside, its fit-out stood (phase 2 judges it off the airframe\'s footprint). Own dims for an odd shed: half-width, half-depth, eave (m).')));
+    el('div', { cls: 'mute' }, 'Width = the span. The shed: through its door and parked inside, its fit-out stood (ACCEPT judges it off the delivered airframe\'s measured plan). Own dims for an odd shed: half-width, half-depth, eave (m).')));
 }
 function prefsEditor(m) {
   const box = el('div', {});
@@ -360,7 +374,7 @@ function prefsEditor(m) {
     p.need === 'bonus' ? inp(p.pct, x => p.pct = +x, { type: 'number', ph: 'pct' }) : null,
     el('button', { on: { click: () => { list.splice(i, 1); if (!list.length) delete m.prefs; changed(); } } }, '✕'))));
   box.append(el('button', { on: { click: () => { m.prefs = list.concat([{ k: 'engines', v: 2, need: 'mandatory' }]); changed(); } } }, '+ preference'),
-    el('div', { cls: 'mute' }, '"If I wanted 2 engines, I would be upset with 1 only": each item is a bonus (+pct) or mandatory (no delivery without it). Phase 2 judges them.'));
+    el('div', { cls: 'mute' }, '"If I wanted 2 engines, I would be upset with 1 only": each item is a bonus (+pct) or mandatory (no delivery without it), judged off the delivered airframe\'s spec.'));
   return row('preferences', box);
 }
 function legForm(f, m, li) {
@@ -412,9 +426,10 @@ function stepForm(f, m, li, si) {
   f.append(el('fieldset', {}, el('legend', {}, 'require'),
     row('when', sel(R.when ? JSON.stringify(R.when) : '', [['{"before":"dusk"}', 'arrive before dusk'], ['{"after":"dusk"}', 'arrive after dusk'], ['{"before":"dawn"}', 'arrive before dawn']], x => setR('when', x ? JSON.parse(x) : undefined), { blank: '—' }), 'or {arrive:[h0,h1]} in the raw JSON'),
     row('maxMin', inp(R.maxMin, x => setR('maxMin', x), { type: 'number', ph: 'minutes (the user\'s spec: allowed)' })),
-    row('depart', json(R.depart, v => setR('depart', v), { ph: '{"after":8} | {"at":[8,10]}' })),
-    s.do === 'deliver' || s.do === 'accept' ? row('plane (criteria)', json(R.plane, v => setR('plane', v), { ph: '[{"k":"seats","op":">=","v":4}] - kinds: ' + Object.keys(CONTRACT_CRIT_KINDS).concat(Object.keys(CONTRACT_CRIT_NEXT)).join(' ') })) : null,
-    s.do === 'fly' ? row('medals', json(s.medals, v => s.medals = v, { ph: '[{"medal":"gold","le":300}] (a challenge, the logbook time)' })) : null,
+    s.do === 'wait' ? row('waitMin', inp(R.waitMin, x => setR('waitMin', x), { type: 'number', ph: 'minutes to wait there' })) : null,
+    row('depart', json(R.depart, v => setR('depart', v), { ph: 'e.g. {"after":8} | {"at":[8,10]}' })),
+    s.do === 'deliver' || s.do === 'accept' ? row('plane (criteria)', json(R.plane, v => setR('plane', v), { ph: 'e.g. [{"k":"seats","op":">=","v":4}] - kinds: ' + Object.keys(CONTRACT_CRIT_KINDS).concat(Object.keys(CONTRACT_CRIT_NEXT)).join(' ') })) : null,
+    s.do === 'fly' ? row('medals', json(s.medals, v => s.medals = v, { ph: 'e.g. [{"medal":"gold","le":300}] (a challenge, the logbook time)' })) : null,
     row('split s', inp(s.split, x => s.split = x == null ? undefined : +x, { type: 'number' }), 'a rally checkpoint\'s target from the first'),
     row('auto', sel(s.auto == null ? '' : String(s.auto), ['true', 'place', 'false'], x => s.auto = x === '' ? undefined : x === 'true' ? true : x === 'false' ? false : 'place', { blank: '—' }))));
   f.append(el('fieldset', {}, el('legend', {}, 'narrative'), ...sayRows('say', s.say, v => { if (v) s.say = v; else delete s.say; }),
@@ -497,7 +512,7 @@ function drawMap() {
     if (k === 'pt') { const [x, y] = w2s(s.place.pt[0], s.place.pt[1]); cx.beginPath(); cx.arc(x, y, Math.max(3, s.place.r / MAP.mpp * V.s), 0, 7); cx.stroke(); cx.fillText((s.id || s.do) + (s.split != null ? ' ' + s.split + 's' : ''), x + 6, y - 6); }
     if (k === 'gate') { const a = w2s(s.place.gate[0][0], s.place.gate[0][1]), b = w2s(s.place.gate[1][0], s.place.gate[1][1]); cx.lineWidth = 3; cx.beginPath(); cx.moveTo(a[0], a[1]); cx.lineTo(b[0], b[1]); cx.stroke(); cx.lineWidth = 1.5; cx.fillText(s.id || 'gate', b[0] + 5, b[1]); }
     if (k === 'ring') { const [x, y] = w2s(s.place.ring[0], s.place.ring[2]); cx.beginPath(); cx.arc(x, y, 6, 0, 7); cx.stroke(); cx.beginPath(); cx.arc(x, y, 2, 0, 7); cx.fill(); cx.fillText((s.id || 'ring') + ' y' + s.place.ring[1], x + 8, y); }
-    if (k === 'spot') { const [a, id] = s.place.spot.split(':'), q = (SPOTS[a] || []).find(z => z[3] === id); if (q) { const [x, y] = w2s(q[0], q[1]); cx.fillRect(x - 3, y - 3, 6, 6); } }
+    if (k === 'spot') { const i0 = s.place.spot.indexOf(':'), a = s.place.spot.slice(0, i0), id = s.place.spot.slice(i0 + 1), q = (SPOTS[a] || []).find(z => z[3] === id); if (q) { const [x, y] = w2s(q[0], q[1]); cx.fillRect(x - 3, y - 3, 6, 6); } }
   }));
   if (S.sel.t === 'step') { const s = m.legs[S.sel.l].steps[S.sel.s]; if (s && missionPlaceKind(s.place) === 'spot') { const a = s.place.spot.split(':')[0]; cx.fillStyle = '#ffffff88'; for (const q of SPOTS[a] || []) { const [x, y] = w2s(q[0], q[1]); cx.fillRect(x - 2, y - 2, 4, 4); } } }
 }
