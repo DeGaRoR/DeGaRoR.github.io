@@ -204292,3 +204292,25 @@ src/viewer/shadow_near.js (posedHz), src/viewer/contact_shadow.js, src/chars/cro
 - FRAMECOST (03:50, a real parked_cook, --check same, the committed packs restored after): one red, cessna boot/garage:restore/three.updateMatrixWorld 2269 -> 4553 = master's (the same row red in the train logs). Every tris row is down, so no ALLOW is needed.
 - Stills: flydiy-notes/evidence-2026-10-18/2026-10-28/g3852_three_tyres_close.png (the user's Cub: ribbed standard / 31" tundra lugs / 31" tundra smooth).
 - Open: the outboard cap/valve reach on standard/slim (G3853) wants a face still; the cloud tyre proposals (G3853-G3855) are not in this branch.
+
+## Train L28b (A0, Wed 28 Oct, pushed ~15:45; the user: "pack that one", land everything that isn't a poison)
+
+19 features, via A0's integration branch claude/ready/a-l28b-int 0245523e3 (15 readies, A0-resolved: _cage_float's PAGE.load chain, _hangar_gen's
+export list, app.js crew names + the passengers' hidden filter, STATE_ROWS pilOn + whSlick, _cage_page5's WHO_DEFAULT removed + the quad rows;
+16 gates PASS on it) + assets-construction + cert-pod (on top of the integration; the Cessna floats file = crew-hands' floats.x 1.2272 + the cert's
+25 L tank; the Meridian rows re-emitted) + cloud-mrt-warm:
+the racer-only pilot + crew grid, the passengers' queue (boarding stutter fixed), the floodlight, the shed with its full room polish + signs,
+the story + the cabin light at T0, AP-HONEST, Metlakatla ON, the float kit (seaplane prop; climb props back to their pre-L28a thrust), tyres,
+the free-quad window, the STOL wing, the mine garage pad, LODs step 1, the crash looks (switch OFF) + the DMGCOMPOSITE live reference,
+the construction machines (crane reads "GLOVE": fix in L28c), the cert rule (Rufus certified + his log, the margins, the pod outside the cert),
+the first-launch cloud freeze fix + the AA cleanup.
+
+Battery: CLOUD, FRAMECOST (the flood's accepted seed links + master's restore key), MEDIA, LIGHT, PARKED row 13, DMGSKINGPU = master's / accepted;
+HOUSEWORKER = Metlakatla's page-vs-worker parity row (named); LIVERY = "garageFloodArm is not defined" in the cage-editor seed harness (it loads
+garage.js without app.js) - a harness gap, not the player's page.
+Train gate (box quiet): IN FLIGHT better than L28a (25 fps vs 20, 1-2 frames over 100 ms vs 3-5; worst frame ~3.5 s). LOAD: garage ready
+~120 s (L28a ~70, master ~60) with one 28-30 s task under the loading screen. Profile (pb_l28b_boot.cpuprofile): ~37 s of shader-link waits
+(gl.getProgramInfoLog from getUniforms), mostly inside bakeHangarEnv - the floodlight's 2-light variants multiplied across the shed polish,
+the town and the new LOD materials. ACCEPTED under the user's rule (under the loading screen; no feature sacrificed); the TOP item of
+flydiy-notes/PERF-WEEK-KNOWN-ISSUES.md.
+Not in it: fittings-manual (HANDLE overlap with door-hinges-2, back to the hinge session), avionics-gps (new ready, conflict), new-shapes-1.
