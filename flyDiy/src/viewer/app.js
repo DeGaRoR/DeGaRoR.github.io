@@ -8900,6 +8900,12 @@
     let n = null;
     try { n = slotOnStand(); } catch (e) { /* the garage's slot reader is not up yet (the first load) */ }
     const D = n && d.fleet[n] && d.fleet[n].damage;
+    // G3780 R5 (the user 26 Oct, "3b"): the bench's certificate follows the career's record - a damaged airframe is
+    // GROUNDED (the roundel greyed, one line: the damage, repair it), and the repair alone returns it
+    try {
+      if (D && D.damaged) { if (typeof window.BENCH_GROUND === 'function') window.BENCH_GROUND(D.why || 'damaged'); }
+      else if (n && typeof window.BENCH_REPAIRED === 'function') window.BENCH_REPAIRED();
+    } catch (e) {}
     const b = ecWalletEl.querySelector('#ecRepair');
     b.hidden = !(D && D.damaged && !D.writeOff);
     if (!b.hidden) b.textContent = 'Repair · free';
@@ -11268,6 +11274,21 @@
     try { drawPlaque(); } catch (e) {}
     try { if (indStale) buildIndicators(); } catch (e) {}
   }
+  // G3780 (the user 27 Oct: "For the checks taking more than a second ... Avoid an actual freeze at all costs"): THE
+  // BENCH'S CHECKS WAIT FOR THE SHEET OFF THE PAGE - cb() at once when the sheet is known; else the stand's lane on the
+  // sheet thread (the same aeroplane already computing is joined, not asked twice), cb() when it lands, and the check
+  // reads it from the memo. A dead link (file://, the node page) or a thread that fails: cb() a task later, and shakeOf
+  // computes it on the page as it always did - the one path left that blocks, and only where there is no thread at all.
+  function shakeReady(cb) {
+    let fired = false;
+    const go = () => { if (!fired) { fired = true; cb(); } };
+    if (curKey !== 'gen' || !def || shakeKnown()) return go();
+    const d = def, key = shakeKeyOf(d);
+    if (SHEET && !SHEET.dead && key && genSpec && SHEET.request('stand', { key, spec: genSpec, opts: { corners: false },
+        on: (sh, r) => { sheetLand(d, key, sh, r); go(); },
+        fail: () => setTimeout(go, 0) })) return;
+    setTimeout(go, 0);
+  }
   let shakeSoonT = null, shakeSoonI = null;
   function shakeSoon() {
     if (sheetAsk()) return;
@@ -11432,6 +11453,18 @@
     return out;
   }
   function htEnd() { ht = null; }
+  // G3780: the same run, to its end, a 60 ms slice a turn (htPoll's own budget) with the page breathing between -
+  // no card, no watch; `cb(r)` once with htPoll's final answer
+  function hydroQuick(cb) {
+    htStart();
+    const step = () => {
+      let r = null;
+      try { r = htPoll(); } catch (e) { r = { done: true, bad: true, error: String(e && e.message || e) }; }
+      if (!r || r.done) { ht = null; if (cb) cb(r); return; }
+      setTimeout(step, 0);
+    };
+    step();
+  }
 
   // ---- THE PLAQUE (P3) -------------------------------------------------
   // The aeroplane's own measured numbers, posted where it was built.
@@ -12361,6 +12394,47 @@
     if (cert) msg.cert = { nb: cert.nb, Ft: cert.Ft, Fc: cert.Fc };
     if (!w || !w.post(msg)) { if (w) w.kill(); destroyJob = null; if (cb) cb({ error: 'no bench thread' }); return null; }
     job.w = w;
+    return job;
+  }
+  // G3780: THE WING LOADING, COMPUTED (the user 26 Oct: "No long tests ... as fast as the bench check"): the rig unpaced
+  // on the bench's thread (bench_worker 'loadq': destroy's loop at the certificate's own loads), the stand's pose as the
+  // start like the watched rig; `cb(state)` once with the rig's last state (benchLoadVerdict reads it), or { error }.
+  // No worker (file://): the same run on the page, in budgeted slices.
+  let quickJob = null;
+  function startLoadQuick(cb) {
+    if (quickJob && quickJob.w) quickJob.w.kill();
+    quickJob = null;
+    const spec = genSpec, W = window.BENCH_WORKER;
+    if (!spec || !sim) { if (cb) cb({ error: 'no aeroplane on the stand' }); return null; }
+    const cfg = { material: (spec.fuselage && spec.fuselage.material) || undefined,
+                  wingMaterial: (typeof genSurfKey === 'function') ? genSurfKey(spec, 'wing', 0) : undefined };
+    const p0 = Float64Array.from(sim.p);
+    const job = quickJob = { seq: ++loadSeq, w: null, t0: perfNow() };
+    const fin = st => { if (quickJob !== job) return; if (job.w) job.w.kill(); job.w = null; quickJob = null; if (cb) cb(st); };
+    const onPage = () => {
+      if (!W || !W.loadRun) { fin({ error: 'no bench thread' }); return; }
+      let run = null;
+      try { run = W.loadRun({ buildGen, makeSim, makeLoadTest, genSurfKey }, { spec: JSON.parse(JSON.stringify(spec)), cfg, p0 }); }
+      catch (e) { fin({ error: String(e && e.message || e) }); return; }
+      const tick = () => {
+        if (quickJob !== job) return;
+        const t1 = perfNow();
+        while (!run.done && perfNow() - t1 < 30) run.pump(30);
+        if (run.done) { const s = run.snapshot(); fin(Object.assign({}, s.state, { ms: perfNow() - job.t0, thread: 'page' })); }
+        else setTimeout(tick, 0);
+      };
+      tick();
+    };
+    const w = (W && typeof W.start === 'function')
+      ? W.start(m => {
+          if (quickJob !== job || !m || m.seq !== job.seq) return;
+          if (m.error) { if (job.w) job.w.kill(); job.w = null; onPage(); return; }
+          fin(Object.assign({}, m.state, { ms: perfNow() - job.t0, thread: 'worker' }));
+        }, () => { if (quickJob === job) { job.w = null; onPage(); } })
+      : null;
+    const p0w = Float64Array.from(p0);
+    if (w && w.post({ kind: 'loadq', spec: JSON.parse(JSON.stringify(spec)), p0: p0w, cfg, seq: job.seq }, [p0w.buffer])) job.w = w;
+    else { if (w) w.kill(); onPage(); }
     return job;
   }
   function fixTick() {
@@ -18017,6 +18091,11 @@
   // Guarded, so a core-only build still runs.
   if (typeof benchInit === 'function') benchInit({
     shake: () => shakeOf(),
+    // G3780 (the user 27 Oct: "Avoid an actual freeze at all costs"): cb once the sheet is known - asked of its thread
+    shakeReady: cb => shakeReady(cb),
+    // G3780 (STORY g3 27 Oct): the bench fingerprints only in the garage - out in the world the join's export reads a
+    // closed editor (G700), and a rebuild there (the story's skip onto the final) superseded Rufus's certificate
+    inGarage: () => !!inGarage,
     densAlt: () => densAltOf(),
     // the plaque is app.js's to draw (it needs `def`); the bench decides WHEN
     plaque: on => { plaqueLive = !!on; drawPlaque(); },
@@ -18065,6 +18144,10 @@
     hydroStart: () => htStart(),
     hydroPoll: () => htPoll(),
     hydroEnd: () => htEnd(),
+    // G3780 (the user 26 Oct: "Everything should be as fast as the bench check"): the hydroplane's run and the wing
+    // loading's rig COMPUTED - to their end, unwatched; `cb` once with the verdict's input
+    hydroQuick: cb => hydroQuick(cb),
+    loadQuick: cb => startLoadQuick(cb),
     // the export the bench needs before it measures anything — the same one
     // rolling out uses, so a test and a flight can never read different builds
     sync: () => syncBuild(),

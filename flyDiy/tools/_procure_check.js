@@ -203,7 +203,9 @@ function run(mut, extra) {
         const s = M.procureSpec(mid, j.opts, FILE[design]);
         const rows = ROWS[j.row] || [];
         ok(rows.length && rows.some(p => J(get(s, p)) !== J(get(s0, p))), j.key + ': writes its spec rows (' + rows.join(', ') + ')');
-        ok(M.procureFp(s) !== fp0, j.key + ': the aeroplane changed (the fingerprint moved)');
+        // (G3780 CERT-RULE R2: the avionics are MINOR - a logbook entry and a W&B update, never a new certificate)
+        if (j.row === 'avionics') ok(M.procureFp(s) === fp0, j.key + ': the avionics are minor (the fingerprint holds: G3780 R2)');
+        else ok(M.procureFp(s) !== fp0, j.key + ': the aeroplane changed (the fingerprint moved)');
         if (j.row === 'engine') {
           const E = M.PROCURE_ENGINES[P.opts.engine.vals[j.val].eng], want = {}; PANEL.apply(want, E.preset);
           ok(Object.keys(want).every(k => s.cage[k] === want[k]) && s.cage.engPreset === E.idx, j.key + ': the cage carries the engine\'s own dials (the panel\'s audit keeps it ' + E.preset + ')');

@@ -102403,6 +102403,40 @@ GAME-MENUS' tree showed alone on 27 Oct (s27-g11b: longTask1s n 4-9, worst 8.2 s
 ("take the risk for the menus, we don't care, land that"). Follow-up: GAME-MENUS' 10:25 no-blur A/B + HWCOV's cloud-march warm (f93b69c9c).
 Not in it: garage-flood (accepted 2 s; its ready awaited A0's ok), people-crowd (pushed after the train's merge), windows + fittings (CLIP red),
 cert-rule + cert-pod, new-shapes-1, lods-step1, the shed (its polish freezes 2.2 s), metla-on (L28b).
+## G3780 CERT-RULE - THE CERTIFICATE BELONGS TO THE DESIGN; EVERY TEST AS FAST AS THE BENCH CHECK (2026-10-26, RUFUS-CERT for A0; branch claude/cert-rule; G3780-G3789)
+The user 26 Oct: "R1-R6 yes, 3b, give it to RUFUS-CERT" (CERT-REVIEW-2026-10.md §6, cloud branch claude/cert-review) and "I had
+also asked to simplify the tests a while back, I want this now too. No long tests that would need to re-run. Everything should
+be as fast as the bench check and the altitude check" (CERT-SLIM G2840, 10 Oct). A0's rulings: the study's proposals for Q2/Q4/
+Q5/Q6; the test flight awarded once and never re-asked (the user's "nothing that ever needs re-flying" over R4's table).
+- ONE LIST: src/core/66b_cert_rule.js (MANIFEST.core after 66_gen_cert) - CERT_GROUPS structure / engine / gear / tail / wb,
+  CERT_MINOR_BLOCKS (systems, cargo, the fuel aboard), CERT_STATE_ROWS (views, crew and who sits, occupancy, lamps' switches
+  and lamps fitted; BENCH_STATE_ROWS + PROCURE_STATE_ROWS made one), the join's MEASURED rows out (cabin glazedM2 / seatsX /
+  occupied / pilots / pax, gear.floats.x / y). certMajor -> { fp 'f3', groups }, NO version tag; certGroupsChanged /
+  certChangeLine name a change. Read by bench.js (benchMajor over benchStripCosmetic's deviations), 76_procure (procureFp)
+  and the acceptance legs (signed with the bench's fp).
+- bench.js: R2 minor / loading never withdraw; R3 a game update re-checks the bench check silently (recheckUpdate: held ->
+  re-stamped sv/pv + "re-checked" on the row; fails -> SUSPENDED, the row and the fix); R4 a major change SUPERSEDES (fp +
+  numbers kept, struck, the change named; undoing it restores) and the computed tests re-run themselves 1.2 s after the last
+  edit (scheduleRecheck -> runQuiet); R5 GROUNDED from the career's damage record (app.js econWalletDraw ->
+  BENCH_GROUND / BENCH_REPAIRED: the repair alone returns it, 3b; the sandbox never grounds); R6 the flight awarded ONCE by
+  the first arrival, the airworthiness card once (masterShown); M1 an f2 certificate whose hash is this body's under any
+  (GEN_SPEC_V <= 10, PHYSICS_V <= 6) is re-stamped f3 and re-checked (benchF2Set); M2 no fp / another body's: withdrawn,
+  one run restores. One header line (§8): AIRWORTHY · certified · re-checked / CHANGED · <the change> · re-checking /
+  SUSPENDED / GROUNDED.
+- THE TESTS, ALL COMPUTED: run the tests = every row quietly, no card but the airworthiness one; the wing loading = the
+  65 rig UNPACED on the bench's thread (bench_worker 'loadq', page fallback W.loadRun; benchLoadVerdict shared with the
+  watched rig, now a DEV tool); the hydroplane = its run to the end in 60 ms slices (app.js hydroQuick, benchHydroVerdict);
+  the crosswind ladder row DELETED (its roundel = the design check's ctl.rudder against the plaque's 4 m/s bar, the number
+  the contracts already read). The flight row has no "run again".
+- 76_procure: procureFp = certMajor (p1 kept as procureFpP1); M3 procureOnSave re-signs an airframe whose p1 is this spec's
+  under any version (nothing withdrawn, nothing billed) and restores a maker's certificate an update alone withdrew.
+  72_accept / accept_rec: M4 a leg or a logbook row under one of the live aeroplane's f2 aliases counts (acceptFpOk,
+  BENCH_FP_ALIASES). 64b: pitch.sm warn 0.02 -> 0.05 (FAIL stays < 0: no certificate changes; the Cub 0.027 and the Jodel
+  0.030 at their worst corner now show orange). parked.js keeps the versioned f2 (the parked look's key).
+- Gates: BENCH (+THE RULE: keeps T3-T6, each group withdraws and names, M1, M3, M4; R6 on the session), PROCURE (avionics
+  are minor), NEW BENCHTIME (no live test; the bench check 1.9-3.5 s, the density altitude <0.1 s, the wing loading computed
+  1.5-4.2 s in node on the box; ceilings 6 / 3 / 8 s and the wing loading <= 2 bench checks). Page evidence: the session's
+  scratch cert_evidence.js (CDP; the study's CERT-REVIEW.js needs Playwright, not on this box).
 ## G3560-G3569 - AP-HONEST: THE AUTOPILOT SAYS WHY IT CHANGES ITS PLAN, THE PAGE KNOWS THE ROUTE IT FLIES, THE MAP DRAWS IT, THE TOGGLE NEVER TOUCHES THE PLAN (2026-10-24, AP-HONEST for A0 / train T-P1, cloud - node + the page in node, no GPU; branch claude/ap-honest off origin/master 20a13667 = L23b)
 THE USER (playtest 24 Oct): go-arounds and aborts with no visible reason; silent re-routes; "Short of Jumbo Mine Street" long after the aeroplane stopped going there; manual then AP back on -> Rufus went back to the cabin; "the route the AP is following should be shown on the map"; "every go-around / divert reason must be visible"; "switching between manual and AP should not change anything to the flight plan". A0's four causes, each verified in code:
 - (cause 1, CONFIRMED) sim_link.js AP_SKIP = ['route', 'nav', 'sheet']: sim_host.js sends the route every snapshot as its two ids ({ from, to }), the page skipped it - after a divert (43_pilot.js judgeHeld / goAround: `ap.route = { from: ap.route.to, to: best }`) the page's ap.route stayed the roll-out's: the end card's title (showArrival reads ap.route.to), the map's patterns, legHere's legFrom. GATE APHONEST --selftest 'noroute' reproduces it exactly (the page's route stays HOME while the worker flies to w2).

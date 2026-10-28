@@ -182,6 +182,30 @@ if (!ONLY_SIM) {
   ok(!(cubDef.clusters || []).some(c => c.cls === 'shell'), "the Cub's tube-and-fabric fuselage stays a truss (no shell)");
 }
 
+if (!ONLY_SIM) {
+  // G3780 (the user 27 Oct: "the margins in the test should be the same as for the coloring of the CG indicators in the
+  // garage"): ONE SOURCE - the pitch.sm row's level IS the garage posts' band (genMarginBand, GEN_MARGIN_BANDS): red =
+  // fail, orange = warn, green = pass; and moving an edge in GEN_MARGIN_BANDS moves the row with it (no constant of its own)
+  console.log('THE MARGINS ARE THE GARAGE CG COLOURS');
+  const smRow = (S, corners) => { const r = check(S, null, corners); return { row: row(r.dc, 'pitch.sm'), sh: r.sh }; };
+  for (const [nm, f] of VALID.slice(0, 3)) {
+    const J0 = joined(f), a = smRow(J0, true), sm = a.sh.staticMargin, smA = a.sh.envelope ? a.sh.envelope.staticMarginAft : sm;
+    const bA = C.genMarginBand(smA), bD = C.genMarginBand(sm);
+    const want = bA.band === 'red' ? 'fail' : (bA.band === 'orange' && smA < C.GEN_MARGIN_BANDS.comfy) || (bD.band === 'orange' && sm > C.GEN_MARGIN_BANDS.noseHeavy) ? 'warn' : 'pass';
+    ok(a.row.level === want, nm + ': pitch.sm ' + a.row.level + ' = the garage CG colour ' + bA.band + ' (worst corner ' + smA.toFixed(3) + ', drawn ' + sm.toFixed(3) + ' ' + bD.band + ')');
+  }
+  const B = C.GEN_MARGIN_BANDS, keep = Object.assign({}, B), J0 = joined(CUB);
+  const base = smRow(J0, false);
+  B.comfy = Math.max(0.6, base.sh.staticMargin + 0.1);
+  const moved = smRow(J0, false);
+  Object.assign(B, keep);
+  ok(base.row.level !== 'fail' && moved.row.level === 'warn',
+     'the Cub row follows GEN_MARGIN_BANDS: the orange edge raised over its margin -> ' + base.row.level + ' becomes ' + moved.row.level);
+  const SRC = fs.readFileSync(path.join(ROOT, 'src/core/64b_gen_design.js'), 'utf8');
+  const blk = SRC.slice(SRC.indexOf("id: 'pitch.sm'") - 600, SRC.indexOf("id: 'pitch.Vh'"));
+  ok(!/\b0\.(02|05|40)\b/.test(blk), 'the pitch.sm row carries no margin number of its own (only GEN_MARGIN_BANDS)');
+}
+
 if (SIM) {
   console.log('THE MODEL AGAINST THE SIM (the spiral, hands off, banked 2 deg each way)');
   const world = C.makeWorld();
