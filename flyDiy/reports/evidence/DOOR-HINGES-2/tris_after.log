@@ -1,0 +1,4 @@
+stock Cub (clamshell)  hinges 8 tris fixed 9216 moving 6208 total 15424 per hinge 1928 | door-hinge meshes edHinge_static_door,edHinge_door_pilot_P_top_door,edHinge_door_pilot_P_bot_door,edHinge_door_pilot_M_top_door,edHinge_door_pilot_M_bot_door | scene meshes 135 tris 165176
+STOL Cub               hinges 4 tris fixed 4928 moving 3424 total 8352 per hinge 2088 | door-hinge meshes edHinge_static_door,edHinge_door_pilot_P_door,edHinge_door_pilot_M_door | scene meshes 125 tris 151216
+Jodel                  hinges 4 tris fixed 4928 moving 3424 total 8352 per hinge 2088 | door-hinge meshes edHinge_static_door,edHinge_door_pilot_P_door,edHinge_door_pilot_M_door | scene meshes 124 tris 153138
+Cessna 172             hinges 4 tris fixed 4928 moving 3424 total 8352 per hinge 2088 | door-hinge meshes edHinge_static_door,edHinge_door_pilot_P_door,edHinge_door_pilot_M_door | scene meshes 134 tris 162546

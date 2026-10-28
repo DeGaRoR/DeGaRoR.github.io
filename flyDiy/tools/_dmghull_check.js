@@ -232,9 +232,19 @@ function law(key) {
     // is the hull's constant to 1 % at every slip angle whose wetted keel is the small-slip one - and its peak at 45
     // where that holds through 40-50 deg; where it does not, every departure from the constant must come with a
     // change of the wetted keel (the afterbody re-wetting), never on its own
+    // G3445 (HYDRO-TRIM, the user's ruling 25 Oct): PER WETTED-KEEL GROUP. With the measured wake (32_hydro G3440) a
+    // hull at its hump carries its afterbody AT the wake's edge: the twin on floats' re-wets from 10 deg of slip
+    // (10 -> 11 keel stations), which left the small-slip keel one angle (5 deg) and the ">= 3 angles" unmet while the
+    // law held there to 0.00 %. The law is the same statement at each fixed wetted keel, so it is asserted per group:
+    // the angles that share a wetted keel, each group's side term over U w its own constant (its m(TE)) to 1 %, the
+    // groups together >= 3 angles; the small-slip group's constant is the one quoted (k0)
     const k0 = curve[1][3], n0 = curve[1][4];
-    const same = curve.filter(x => x[3] != null && x[4] === n0), dev = same.reduce((m, x) => Math.max(m, Math.abs(x[3] / k0 - 1)), 0);
-    chk(same.length >= 3 && dev < 0.01, `${where}: the side term is U w x ${k0.toFixed(1)} kg/m (the wetted keel's m(TE)) to ${(100 * dev).toFixed(2)} % at the ${same.length} slip angles whose wetted keel is the small-slip one (${n0} stations; Jones' U w = V^2 sin b cos b, 1 %)`);
+    const groups = new Map();
+    for (const x of curve) if (x[3] != null) { if (!groups.has(x[4])) groups.set(x[4], []); groups.get(x[4]).push(x); }
+    let nG = 0, dev = 0;
+    for (const g of groups.values()) { const kg = g[0][3]; nG += g.length; for (const x of g) dev = Math.max(dev, Math.abs(x[3] / kg - 1)); }
+    const gTxt = [...groups.entries()].map(([n, g]) => n + ' stations: ' + g.length + ' (' + g[0][0] + '-' + g[g.length - 1][0] + ' deg, x' + g[0][3].toFixed(1) + ')').join('; ');
+    chk(nG >= 3 && dev < 0.01, `${where}: the side term is U w x ${k0.toFixed(1)} kg/m (the small-slip keel's m(TE)), each wetted keel's own constant to ${(100 * dev).toFixed(2)} % over ${nG} slip angles in ${groups.size} group(s) [${gTxt}] (Jones' U w = V^2 sin b cos b at a fixed wetted keel, 1 %)`);
     const fixed4050 = curve.filter(x => x[0] >= 40 && x[0] <= 50).every(x => x[4] === n0);
     if (fixed4050) chk(pk[0] === 45, `${where}: the side term peaks at ${pk[0]} deg of slip (45: Jones' U w = V^2 sin b cos b, the wetted keel the same through 40-50 deg)`);
     else {

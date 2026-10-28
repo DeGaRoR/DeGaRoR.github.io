@@ -79,6 +79,13 @@ function careerMapContract(doc, id, F, opts) {
   // (G2665 NIGHT-OPS) the window, the runways lit / unlit, the moon: the job line's facts (careerNightLine)
   const nl = careerNightLine(doc, rec, Object.assign({ fields: F }, opts || {}));
   if (nl) out.night = nl;
+  // (MISSIONS-P1/P2) a mission's places as marker data (73c missionMarkers: what the map and the world draw), its
+  // preferences and its delivery - only on a record that has them (today's contracts' map record is unchanged)
+  const L = doc && doc.career && doc.career.contracts && doc.career.contracts.live && doc.career.contracts.live[id];
+  if (typeof missionMarkers === 'function' && contractSubsOf(rec).some(s => s.place)) out.markers = missionMarkers(rec, L, { fields: F, spots: opts && opts.spots });
+  if (Array.isArray(rec.prefs) && rec.prefs.length) out.prefs = cwClone(rec.prefs);
+  if (rec.client) out.client = rec.client;
+  if (rec.rules) out.rules = cwClone(rec.rules);
   return out;
 }
 
@@ -278,6 +285,23 @@ function careerStopRecord(o) {
   // (G2650 SIM-CLOCK) the day's own dusk / dawn (07b_clock.js dayDuskDawnH), only when the page hands them in: a
   // time-of-day window is judged on them (73_ contractWhenOk), else on the constants as before
   for (const k of ['duskH', 'dawnH']) if (typeof o[k] === 'number' && isFinite(o[k])) out[k] = Math.round(o[k] * 100) / 100;
+  // (MISSIONS-P1/P2) what a mission judges, only when the page hands it in (a stop without them is today's, to the byte):
+  //   tracks     { <contract id>: 73c missionTrackEvidence } - the flight's points, gates and rings, its timers' laps
+  //   spot       '<field>:<spot id>' the tie-down spot it stopped on (25_ fleetSpotDist <= 0)    (park)
+  //   waitedMin  minutes waited there (the page's Wait)                                         (wait)
+  //   spec       the delivered airframe's spec                                                  (an order's preferences)
+  //   occ        [{ name, band }] the seats' injury bands (34_ genOccWire)                      (the rules: injury)
+  //   freight    { harmed }                                                                     (the rules: freight)
+  if (o.tracks && typeof o.tracks === 'object') out.tracks = JSON.parse(JSON.stringify(o.tracks));
+  if (typeof o.spot === 'string' && o.spot) out.spot = o.spot;
+  if (typeof o.waitedMin === 'number' && isFinite(o.waitedMin)) out.waitedMin = Math.max(0, Math.round(o.waitedMin));
+  if (o.spec && typeof o.spec === 'object') out.spec = o.spec;
+  if (Array.isArray(o.occ)) out.occ = o.occ.filter(x => x && typeof x === 'object').map(x => ({ name: x.name || null, band: Math.max(0, Math.min(4, Math.round(+x.band || 0))) }));
+  if (o.freight && typeof o.freight === 'object') out.freight = { harmed: !!o.freight.harmed };
+  // (MISSIONS-P3) who got on and off here ({ on: [person ids], off: [...] } - the crowd's boarding), the flight's local
+  // departure hour (else the stop's hour less the flight)
+  if (o.people && typeof o.people === 'object') out.people = { on: (Array.isArray(o.people.on) ? o.people.on : []).filter(x => typeof x === 'string'), off: (Array.isArray(o.people.off) ? o.people.off : []).filter(x => typeof x === 'string') };
+  if (typeof o.departHour === 'number' && isFinite(o.departHour)) out.departHour = Math.round((((o.departHour % 24) + 24) % 24) * 100) / 100;
   return out;
 }
 // (G2705 CAREER-DAMAGE, §R.4: "free repair everywhere, but after a crash you reset to your STARTING PLACE") A CRASH
@@ -370,6 +394,17 @@ function careerEventLines(res, before, after) {
       }
       if (e.followUp) out.push({ k: 'follow', ok: true, text: T('ev.follow', { t: title(e.followUp) }) });
     } else if (e.k === 'pending') out.push({ k: e.k, ok: null, text: T('ev.pending', { t: title(e.id), n: e.why || '' }) });
+    // (MISSIONS-P1/P2) a mission failed (and its restart), a lap timed, a line said
+    else if (e.k === 'failed') out.push({ k: e.k, ok: false, text: T('ev.failed', { t: title(e.id), n: e.why || '' }) + (e.restart ? ' ' + T('ev.restart') : '') });
+    else if (e.k === 'timer') out.push({ k: e.k, ok: true, text: T('ev.timer', { t: title(e.id), n: e.timer.s + ' s' + (e.timer.target != null ? ' / ' + e.timer.target + ' s' : '') }) + (e.timer.pen ? ' · ' + T('ev.strikes', { n: e.timer.strikes, s: e.timer.pen }) : '') + (e.medal ? ' · ' + T('medal.' + e.medal) : '') });
+    else if (e.k === 'say' && e.say) out.push({ k: e.k, ok: true, text: (typeof peopleName === 'function' ? peopleName(e.say.who) : e.say.who) + ': ' + T(e.say.text) });
+    else if (e.k === 'bonus') out.push({ k: e.k, ok: true, text: T('ev.bonus', { t: title(e.id), n: cwMoney(e.pay) }) });
+    else if (e.k === 'site') out.push({ k: e.k, ok: true, text: T('ev.site.' + e.state, { n: e.site }) });
+    if (e.k === 'done' && e.handover) {
+      const H = e.handover, n = H.profit != null ? T('ev.profit', { n: cwMoney(e.pay), c: cwMoney(H.cost), p: (H.profit < 0 ? '−' : '') + cwMoney(Math.abs(H.profit)) }) : '';
+      out.push({ k: 'handover', ok: true, text: T(H.client ? 'ev.handback' : 'ev.handover', { n: H.blueprint || H.slot }) + (n ? ' · ' + n : '') });
+    }
+    if (e.k === 'done' && e.assess) out.push({ k: 'assess', ok: !e.assess.damaged, text: T(e.assess.damaged ? 'ev.assess.bent' : 'ev.assess.ok', { n: e.assess.why || '' }) });
   }
   if (!out.length && res && res.untouched) {
     const C = before && before.career && before.career.contracts;

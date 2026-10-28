@@ -655,30 +655,38 @@ function contractCertifiable(rec) {
 // stretcher case, until a door takes the 2.0 m stretcher) - the ✗ stays the hard no-no of the player's own fleet only
 const contractFlyable = (rec, fields) => contractDoers(contractSubsOf(rec).filter(s => s.do !== 'deliver' && s.do !== 'accept'), fields).length > 0;
 
-// (MISSIONS-P0) CAN TODAY'S RUNTIME RUN THIS RECORD AS WRITTEN? '' yes, else why not. A pack's mission rides into a contract
-// record with its new fields (73b_missions.js missionToContract); those this file does not judge yet keep it OUT of the
-// career (73b missionPackInstall) until their phase lands - never a mission that cannot be completed, or one completed
-// against rules it does not apply. Presentation rides along freely: the client, the speakers (say), the done line, the
+// (MISSIONS-P0/P1/P2) CAN THIS RUNTIME RUN THIS RECORD AS WRITTEN? '' yes, else why not. A pack's mission rides into a
+// contract record with its new fields (73b_missions.js missionToContract); those not judged yet keep it OUT of the career
+// (73b missionPackInstall) until their phase lands - never a mission that cannot be completed, or one completed against
+// rules it does not apply. Presentation rides along freely: the client, the speakers (say), the done line, the
 // passengers' names (load.who), a step's id, the embedded route and the pack's tree.
-//   record: rules (§3.4), timers (§3.3), startFrom / prefs (§3.6), legs in an order other than seq, a leg's steps in an
-//           order other than any; step: a CONTRACT_DO_NEXT verb, a place (a point, a gate, a ring, a spot, a site),
-//           embark / disembark, require (maxMin, depart), an onDone doing more than speaking; criterion: CONTRACT_CRIT_NEXT
-const CONTRACT_RUNTIME_PENDING = ['rules', 'timers', 'startFrom', 'prefs'];
+//   RUNS (73c_mission_run.js): rules, timers, startFrom, prefs, delivery; photo / pass / fly to a point, a gate, a ring
+//           (the in-flight tracker), park on a spot, wait (require.waitMin), talk; a leg's steps in order seq, any or
+//           choose:N; (P3) embark / disembark, require.maxMin / depart, a site served by a strip (`field`), an onDone
+//           that speaks, pays or moves a site; the new criteria ACCEPT answers (72_accept.js ACCEPT_KINDS)
+//   WAITS:  legs in an order other than seq, a site with no strip to serve it, a criterion ACCEPT does not answer
+//           (ldgDistM, cargoL)
+const CONTRACT_RUNTIME_PENDING = [];
+const CONTRACT_RUNTIME_WAITS = [];
+const CONTRACT_ONDONE = ['say', 'pay', 'site'];
 function contractRuntimeOk(rec) {
   const r = rec || {};
-  for (const k of CONTRACT_RUNTIME_PENDING) if (r[k] != null && !(Array.isArray(r[k]) && !r[k].length)) return k + ': phase 1-2 (no runtime yet)';
+  for (const k of CONTRACT_RUNTIME_PENDING) if (r[k] != null && !(Array.isArray(r[k]) && !r[k].length)) return k + ': no runtime yet';
+  if (typeof missionStepOnStop !== 'function' && ['rules', 'timers', 'startFrom', 'prefs'].some(k => r[k] != null)) return 'no mission runtime (73c_mission_run.js)';
   if (r.order != null && r.order !== 'seq') return 'legs in order ' + r.order + ' (no runtime yet)';
   for (const st of r.stages || []) {
-    if (st.order != null && st.order !== 'any') return 'steps in order ' + st.order + ' (no runtime yet)';
+    if (st.order != null && !/^(any|seq|choose:\d+)$/.test(st.order)) return 'steps in order ' + st.order + ' (no runtime yet)';
     for (const s of st.subs || []) {
-      if (!CONTRACT_DO.includes(s.do)) return 'do ' + s.do + ' (no runtime yet)';
-      if (s.place != null) return s.do + ' at a place that is not a field (no runtime yet)';
-      for (const k of ['embark', 'disembark', 'require']) if (s[k] != null) return s.do + ': ' + k + ' (no runtime yet)';
-      if (s.onDone != null && Object.keys(s.onDone).some(k => k !== 'say')) return s.do + ': onDone does more than speak (no runtime yet)';
-      for (const c of s.crit || []) if (!CONTRACT_CRIT_KINDS[c.k]) return 'criterion ' + c.k + ' (ACCEPT does not judge it yet)';
+      if (!CONTRACT_DO.includes(s.do) && !CONTRACT_DO_NEXT.includes(s.do)) return 'do ' + s.do + ' (no runtime yet)';
+      if (CONTRACT_DO_NEXT.includes(s.do) && typeof missionStepOnStop !== 'function') return 'do ' + s.do + ' (no mission runtime)';
+      if (s.place != null && s.place.site != null && !s.to && !s.at) return s.do + ' at a site no strip serves (no runtime yet)';
+      for (const k of CONTRACT_RUNTIME_WAITS) if (s[k] != null) return s.do + ': ' + k + ' (no runtime yet)';
+      if (s.require != null && Object.keys(s.require).some(k => !['waitMin', 'maxMin', 'depart'].includes(k))) return s.do + ': require.' + Object.keys(s.require).join(', ') + ' (no runtime yet)';
+      if (s.onDone != null && Object.keys(s.onDone).some(k => !CONTRACT_ONDONE.includes(k))) return s.do + ': onDone.' + Object.keys(s.onDone).filter(k => !CONTRACT_ONDONE.includes(k)).join(', ') + ' (no runtime yet)';
+      for (const c of s.crit || []) if (!CONTRACT_CRIT_KINDS[c.k] && !(typeof ACCEPT_KINDS !== 'undefined' && ACCEPT_KINDS[c.k])) return 'criterion ' + c.k + ' (ACCEPT does not judge it yet)';
     }
   }
-  if (r.onDone != null && Object.keys(r.onDone).some(k => k !== 'say')) return 'onDone does more than speak (no runtime yet)';
+  if (r.onDone != null && Object.keys(r.onDone).some(k => !CONTRACT_ONDONE.includes(k))) return 'onDone.' + Object.keys(r.onDone).filter(k => !CONTRACT_ONDONE.includes(k)).join(', ') + ' (no runtime yet)';
   return '';
 }
 
@@ -1175,6 +1183,11 @@ function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
   // record's { damaged, why } (Deform's sim.damage().structural; absent = not damaged). A transport job that
   // arrives damaged still delivers (the repair is free).
   const S = stop.structural;
+  // (MISSIONS-P1) the mission verbs and a flight to a point / a gate / a ring: 73c_mission_run.js judges them off the stop
+  if (CONTRACT_DO_NEXT.includes(sub.do) || (sub.do === 'fly' && sub.place)) {
+    if (typeof missionStepOnStop !== 'function') return { st: 'no', why: 'no mission runtime on this page' };
+    return missionStepOnStop(rec, sub, prog, stop);
+  }
   const bentWhy = () => (S && S.damaged && (rec.kind === 'build' || rec.kind === 'challenge')
     && (((sub.do === 'accept' || sub.do === 'deliver') && Array.isArray(sub.crit) && sub.crit.length) || (sub.do === 'fly' && sub.medals)))
     ? 'flown with structural damage' + (S.why ? ' (' + S.why + ')' : '') : '';
@@ -1217,6 +1230,10 @@ function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
   }
   if (sub.do === 'deliver' || sub.do === 'accept') {
     if (sub.do === 'deliver' && at !== sub.to) return { st: 'no', why: 'delivered at ' + nm(sub.to) + ', stopped at ' + nm(at) };
+    // (MISSIONS-P2) THE CLIENT'S OWN AIRFRAME (startFrom): only the one the client handed over is delivered
+    const own = prog && prog.start;
+    if (own && !own.slot) return { st: 'no', pending: true, why: 'the client\'s airframe has not arrived yet' };
+    if (own && stop.slot !== own.slot) return { st: 'no', why: 'not the client\'s airframe (' + own.slot + ')' };
     const b = bentWhy(); if (b) return { st: 'no', why: 'refused: ' + b };
     const H = hooks && typeof hooks.acceptVerdict === 'function' ? hooks.acceptVerdict : null;
     if (!H) return { st: 'no', pending: true, why: 'acceptance pending: no verdict yet' };
@@ -1224,6 +1241,13 @@ function contractSubOnStop(rec, sub, prog, stop, hooks, career) {
     try { v = H(rec, sub, stop, career); } catch (e) { v = { ok: null, why: 'the verdict failed: ' + (e && e.message) }; }
     if (!v || v.ok == null) return { st: 'no', pending: true, why: (v && v.why) || 'acceptance pending' };
     if (v.ok === false) return { st: 'no', why: 'refused: ' + (v.why || 'a criterion is not met') };
+    // (MISSIONS-P2) THE PREFERENCES (§7: each bonus | mandatory), judged off the delivered spec (stop.spec)
+    if (Array.isArray(rec.prefs) && rec.prefs.length && typeof missionPrefsJudge === 'function') {
+      if (!stop.spec) return { st: 'no', pending: true, why: 'the delivered spec is not on the stop record (the preferences)' };
+      const P = missionPrefsJudge(rec.prefs, stop.spec);
+      if (!P.ok) return { st: 'no', why: 'refused: ' + P.why };
+      return { st: 'done', why: '', got: Object.assign({}, v.got || {}, P.got) };
+    }
     return { st: 'done', why: '', got: v.got || {} };
   }
   return { st: 'no', why: 'unknown do ' + sub.do };
@@ -1242,6 +1266,8 @@ function contractPayTotal(rec, got, medal) {
     const beat = c.op === '>=' ? g >= c.v * (1 + b.by) : c.op === '<=' ? g <= c.v * (1 - b.by) : false;
     if (beat) pct += b.pct;
   }
+  // (MISSIONS-P2) a bonus preference met (missionPrefsJudge's got['pref.<k>']) pays its pct
+  for (const p of rec.prefs || []) if (p && p.need === 'bonus' && got && got['pref.' + p.k]) pct += p.pct || 0;
   return Math.round(total * (1 + pct / 100) / CONTRACT_PAY.round) * CONTRACT_PAY.round;
 }
 

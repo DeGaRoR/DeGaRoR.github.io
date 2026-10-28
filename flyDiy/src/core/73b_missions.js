@@ -29,8 +29,9 @@
 //   legs       [ { order?, steps: [ step ] } ]                           (today's stages)
 //   order?     the legs' order (seq)
 //   onDone?    { say: { who, text } }                 the completion line (72_'s ct.<id>.done)
-//   rules?     { crash, injury, freight, damage }     §3.4: 'fail' | 'reset' | 'assess' | 'ignore'; injury may be
+//   rules?     { crash, injury, freight, damage, strike }   §3.4: 'fail' | 'reset' | 'assess' | 'ignore'; injury may be
 //                                                     { fail: <band> } (34_occupant GEN_OCC.bands: the index or the word)
+//                                                     strike: 'penalty' (+3 s on the laps running) | { penalty: s } | 'fail' | 'ignore'
 //   timers?    [ { id, start, stop, target: s | { refKmh }, splits?, medals?: [ { medal, le } ] } ]          §3.3
 //   startFrom? 'player' | <CONTRACT_DESIGNS id> | { build: 'path.json' }                                      §3.6
 //   prefs?     [ { k, v, need: 'bonus' | 'mandatory', pct? } ]   a configuration the client would like (bonus: +pct)
@@ -64,11 +65,12 @@ const MISSION_PLACES_OF = {
 };
 const MISSION_PLACE_R = { pt: 150, ring: 8 };                  // m: a point's / a ring's radius when none is written
 const MISSION_PROPS = { gate: ['balloons', 'pylons'], ring: ['donut'] };
-const MISSION_RULES = { crash: ['fail', 'reset'], injury: ['fail', 'ignore'], freight: ['fail', 'ignore'], damage: ['assess', 'fail', 'ignore'] };
+const MISSION_RULES = { crash: ['fail', 'reset'], injury: ['fail', 'ignore'], freight: ['fail', 'ignore'], damage: ['assess', 'fail', 'ignore'],
+                        strike: ['penalty', 'fail', 'ignore'] };   // a gate post / a ring touched (73c missionStrikeTest); { penalty: s } too
 // §3.4's rules for a NEW mission that states none (the built-in pack states none: today's crash resets, keeps it live)
-const MISSION_RULES_NEW = { crash: 'fail', injury: 'fail', freight: 'fail', damage: 'assess' };
+const MISSION_RULES_NEW = { crash: 'fail', injury: 'fail', freight: 'fail', damage: 'assess', strike: 'penalty' };
 const MISSION_SITE_STATES = ['planned', 'building', 'built'];
-const MISSION_REQUIRE = ['when', 'maxMin', 'depart', 'plane'];
+const MISSION_REQUIRE = ['when', 'maxMin', 'depart', 'plane', 'waitMin'];
 // THE PREFERENCES (§3.6, §7): a configuration word set, each read off the spec in phase 2 (`of`). Values are the GEN
 // vocabulary (60_gen_spec.js); a live table, when present, is the authority (missionPrefValues)
 const MISSION_PREF_KINDS = {
@@ -101,7 +103,7 @@ const MISSION_TEXT = {
   'crit.pax': MT_('{v} passengers beside the pilot'),
   'crit.heightM': MT_('at most {v} m high'), 'crit.lengthM': MT_('at most {v} m long'),
   'crit.fitsShed': MT_('fits their {v}: through the door, parked inside'),
-  'pref.engines': MT_('{v} engines'), 'pref.thrust': MT_('a {v} propeller'), 'pref.wing': MT_('a {v} wing'),
+  'pref.engines': MT_('engines: {v}'), 'pref.thrust': MT_('a {v} propeller'), 'pref.wing': MT_('a {v} wing'),
   'pref.tail': MT_('a {v} tail'), 'pref.gear': MT_('{v} gear'), 'pref.canopy': MT_('a {v} canopy'),
   'pref.suspension': MT_('{v} suspension'),
   'pref.bonus': MT_('a bonus: {p}'), 'pref.mandatory': MT_('a must: {p}'),
@@ -242,18 +244,23 @@ function missionPackNormalise(p) {
 // ---- THE CONVERSION: a mission <-> today's contract record ----------------------------------------------------------
 // the pack's sites by id (a mission's site place resolves its position onto the step)
 const msSites = pack => { const out = {}; for (const s of (pack && pack.sites) || []) if (msObj(s) && s.id) out[s.id] = s; return out; };
+// (MISSIONS-P3) an onDone's site carries its world construction stage (the pack's site `track`), so the record alone
+// reveals it when the site is built (74_ careerOnDone)
+function msSiteTrack(od, sites) { if (od && od.site && sites && sites[od.site.id] && sites[od.site.id].track) od.site.track = sites[od.site.id].track; return od; }
 // one step -> one sub
 function missionStepToSub(st, sites) {
   const s = missionStepNorm(st), sub = { do: s.do }, P = s.place, kind = missionPlaceKind(P), f = msFieldOf(P);
   const from = msFieldOf(s.from);
   const put = () => { if (kind === 'site') { const S = sites && sites[P.site]; sub.place = Object.assign({}, P, S && S.at ? { at: { x: S.at.x, z: S.at.z } } : {}); } else sub.place = P; };
-  if (s.do === 'carry') { if (from) sub.from = from; if (f) sub.to = f; else if (P) put(); }
+  // (MISSIONS-P3) a site served by a strip (`field`): the step is flown to that strip, the site rides along (the marker)
+  const served = kind === 'site' && sites && sites[P.site] && sites[P.site].field ? sites[P.site].field : null;
+  if (s.do === 'carry') { if (from) sub.from = from; if (f) sub.to = f; else if (P) { put(); if (served) sub.to = served; } }
   else if (s.do === 'fly') { if (from) sub.from = from; if (f) sub.to = f; else if (P) put(); }
   else if (s.do === 'land' || s.do === 'deliver') { if (f) sub.to = f; else if (P) put(); }
   else if (s.do === 'photo') {
     if (f) { sub.do = 'survey'; if (from) sub.from = from; sub.at = f; }   // today's survey: the overflight of a field
     else { if (from) sub.from = from; if (P) put(); }
-  } else if (s.do !== 'accept') { if (f) sub.at = f; else if (P) put(); }
+  } else if (s.do !== 'accept') { if (f) sub.at = f; else if (P) { put(); if (served) sub.at = served; } }
   if (s.goods != null) sub.goods = s.goods;
   if (msObj(s.load)) {
     const L = msClone(s.load);
@@ -267,6 +274,7 @@ function missionStepToSub(st, sites) {
   for (const k of Object.keys(R)) if (k !== 'when' && k !== 'plane') rest[k] = msClone(R[k]);
   if (Object.keys(rest).length) sub.require = rest;
   for (const k of ['medals', 'id', 'say', 'onDone', 'embark', 'disembark', 'split', 'auto']) if (s[k] != null) sub[k] = msClone(s[k]);
+  msSiteTrack(sub.onDone, sites);
   return sub;
 }
 // one mission -> a contract record (normalised: what the career runs). ctx: { pack }
@@ -277,6 +285,7 @@ function missionToContract(m, ctx) {
   r.stages = M.legs.map(L => { const st = { subs: L.steps.map(s => missionStepToSub(s, sites)) }; if (L.order != null && L.order !== 'any') st.order = L.order; return st; });
   for (const k of ['pay', 'rep', 'unlock', 'needs', 'repeat', 'followUp']) if (M[k] != null) r[k] = msClone(M[k]);
   for (const k of MISSION_RIDE.rec) if (k !== 'order' && M[k] != null) r[k] = msClone(M[k]);
+  msSiteTrack(r.onDone, sites);
   if (M.order != null && M.order !== 'seq') r.order = M.order;
   return contractNormalise(r);
 }
@@ -352,7 +361,7 @@ function missionWhy(m, ctx) {
   const O = missionOrder(m.order || 'seq');
   if (!O) why.push(id + ': order ' + m.order + ' is not seq | any | choose:N');
   else if (O.kind === 'choose' && O.n > (m.legs || []).length) why.push(id + ': choose:' + O.n + ' of ' + (m.legs || []).length + ' legs');
-  const stepIds = {};
+  const stepIds = {}, stepLeg = {}, stepPos = {};
   (m.legs || []).forEach((L, i) => {
     const lo = missionOrder(L.order || 'any');
     if (!lo) why.push(id + ' leg ' + i + ': order ' + L.order + ' is not seq | any | choose:N');
@@ -360,12 +369,16 @@ function missionWhy(m, ctx) {
     (L.steps || []).forEach((s, j) => {
       const at = id + ' ' + i + '.' + j;
       if (!MISSION_DO.includes(s.do)) { why.push(at + ': do ' + s.do + ' is not one of ' + MISSION_DO.join(' ')); return; }
-      if (s.id != null) { if (typeof s.id !== 'string' || !s.id) why.push(at + ': a step id is a string'); else if (stepIds[s.id]) why.push(at + ': step id ' + s.id + ' twice'); else stepIds[s.id] = 1; }
+      if (s.id != null) { if (typeof s.id !== 'string' || !s.id) why.push(at + ': a step id is a string'); else if (stepIds[s.id]) why.push(at + ': step id ' + s.id + ' twice'); else { stepIds[s.id] = 1; stepLeg[s.id] = i; stepPos[s.id] = j; } }
       const k = missionPlaceKind(s.place), allow = MISSION_PLACES_OF[s.do];
       if (k === null || !allow.includes(k)) why.push(at + ': ' + s.do + ' takes ' + allow.map(x => x || 'no place').join(' | ') + ', got ' + (k === null ? JSON.stringify(s.place) : (k || 'no place')));
       else { const w = missionPlaceWhy(s.place, { fields: F, sites, spots: ctx.spots }); if (w) why.push(at + ': ' + w); }
       if (s.from != null) { const f = msFieldOf(s.from); if (!f || !F[f]) why.push(at + ': from must be a field, got ' + JSON.stringify(s.from)); }
       if (s.do === 'photo' && missionPlaceKind(s.place) === 'field' && s.from == null) why.push(at + ': a photo over a field departs from a field (`from`: today\'s survey)');
+      // (MISSIONS-P1) an IN-FLIGHT step (a pass, a photo or a fly to a point / gate / ring) is judged off the flight's
+      // evidence by its id, and a timer starts / stops on ids: it needs one
+      if (['pass', 'photo', 'fly'].includes(s.do) && ['pt', 'gate', 'ring'].includes(missionPlaceKind(s.place)) && !s.id) why.push(at + ': an in-flight ' + s.do + ' needs an id (its evidence, its timers)');
+      if (s.do === 'wait' && !(s.require && s.require.waitMin != null)) why.push(at + ': wait needs require.waitMin');
       if (s.load && Array.isArray(s.load.pax)) people(s.load.pax, at + ' load.pax', 'a passenger');
       for (const e of ['embark', 'disembark']) if (s[e] != null) people(s[e], at + ' ' + e, 'a passenger');
       if (s.require != null) {
@@ -374,6 +387,8 @@ function missionWhy(m, ctx) {
           for (const q of Object.keys(s.require)) if (!MISSION_REQUIRE.includes(q)) why.push(at + ': require.' + q + ' is not one of ' + MISSION_REQUIRE.join(' '));
           const R = s.require;
           if (R.maxMin != null && !(msNum(R.maxMin) && R.maxMin > 0 && R.maxMin <= 1440)) why.push(at + ': require.maxMin is 1-1440 minutes');
+          if (R.waitMin != null && !(msNum(R.waitMin) && R.waitMin > 0 && R.waitMin <= 1440)) why.push(at + ': require.waitMin is 1-1440 minutes');
+          if (R.waitMin != null && s.do !== 'wait') why.push(at + ': require.waitMin on a ' + s.do + ' (wait only)');
           if (R.depart != null) {
             const D = R.depart, h = v => msNum(v) && v >= 0 && v <= 24;
             const ok = msObj(D) && Object.keys(D).length === 1 && ((D.after != null && h(D.after)) || (D.before != null && h(D.before)) || (Array.isArray(D.at) && D.at.length === 2 && D.at.every(h) && D.at[0] !== D.at[1]));
@@ -395,7 +410,14 @@ function missionWhy(m, ctx) {
       if (s.split != null && !(msNum(s.split) && s.split >= 0)) why.push(at + ': split is seconds >= 0 (from the first checkpoint)');
     });
   });
-  if (m.onDone != null) { if (!msObj(m.onDone)) why.push(id + ': onDone is an object'); else if (m.onDone.say != null) say(m.onDone.say, id + ' onDone.say'); }
+  if (m.onDone != null) {
+    if (!msObj(m.onDone)) why.push(id + ': onDone is an object');
+    else {
+      if (m.onDone.say != null) say(m.onDone.say, id + ' onDone.say');
+      if (m.onDone.site != null) { const S = m.onDone.site; if (!msObj(S) || !sites[S.id] || !MISSION_SITE_STATES.includes(S.state)) why.push(id + ': onDone.site is { id (a pack site), state: ' + MISSION_SITE_STATES.join(' | ') + ' }'); }
+      if (m.onDone.pay != null && !(msNum(m.onDone.pay) && m.onDone.pay >= 0)) why.push(id + ': onDone.pay is credits >= 0');
+    }
+  }
   if (m.rules != null) {
     if (!msObj(m.rules)) why.push(id + ': rules is an object');
     else for (const k of Object.keys(m.rules)) {
@@ -405,6 +427,8 @@ function missionWhy(m, ctx) {
         const B = typeof GEN_OCC !== 'undefined' && GEN_OCC.bands ? GEN_OCC.bands : null;
         const b = v.fail, okB = (msNum(b) && b >= 1 && b <= 4 && b === Math.round(b)) || (typeof b === 'string' && (!B || B.indexOf(b) >= 1));
         if (!okB) why.push(id + ': rules.injury.fail is a band 1-4 or its word (34_occupant GEN_OCC.bands)');
+      } else if (k === 'strike' && msObj(v)) {
+        if (!(msNum(v.penalty) && v.penalty >= 0 && v.penalty <= 60)) why.push(id + ': rules.strike.penalty is seconds, 0-60');
       } else if (!MISSION_RULES[k].includes(v)) why.push(id + ': rules.' + k + ' is ' + MISSION_RULES[k].join(' | '));
     }
   }
@@ -417,6 +441,9 @@ function missionWhy(m, ctx) {
         if (!msObj(t) || typeof t.id !== 'string' || !t.id) { why.push(at + ': a timer has an id'); return; }
         if (seen[t.id]) why.push(at + ': timer id twice'); seen[t.id] = 1;
         for (const e of ['start', 'stop']) if (!stepIds[t[e]]) why.push(at + ': ' + e + ' names no step of the mission (' + t[e] + ')');
+        // (MISSIONS-P1) a lap is flown in one flight over one leg (the tracker arms one leg at a time): start and stop
+        // in the same leg, the start first
+        if (stepIds[t.start] && stepIds[t.stop] && (stepLeg[t.start] !== stepLeg[t.stop] || stepPos[t.start] > stepPos[t.stop])) why.push(at + ': starts and stops in one leg, the start first');
         if (t.start === t.stop) why.push(at + ': starts and stops on the same step');
         const tg = t.target;
         if (!((msNum(tg) && tg > 0) || (msObj(tg) && msNum(tg.refKmh) && tg.refKmh > 0))) why.push(at + ': target is seconds or { refKmh }');
@@ -481,6 +508,7 @@ function missionPackValidate(pack, opts) {
     if (typeof s.asset !== 'string' || !s.asset) why.push(at + ': an asset (what stands there)');
     if (!msObj(s.at) || !msXZ([s.at.x, s.at.z]) || (s.at.hdg != null && !msNum(s.at.hdg))) why.push(at + ': at is { x, z, hdg? }');
     if (!MISSION_SITE_STATES.includes(s.state)) why.push(at + ': state is ' + MISSION_SITE_STATES.join(' | '));
+    if (s.field != null && !(opts.fields || CONTRACT_FIELDS)[s.field]) why.push(at + ': field ' + s.field + ' is not a field (the strip that serves it)');
     if (s.track != null) { const m = /^(\w+):(\d+)$/.exec(s.track); if (!m || typeof CONTRACT_TRACKS === 'undefined' || !CONTRACT_TRACKS[m[1]] || +m[2] < 1 || +m[2] > CONTRACT_TRACKS[m[1]].max) why.push(at + ': track is <track>:<1..max> (76_stages)'); }
   }
   // the missions: ids once, each valid as a contract record and in its new fields
@@ -567,37 +595,56 @@ function missionPackContracts(pack) {
 }
 // THE INSTALL: a providers table (CONTRACT_PROVIDERS' shape) with each provider's authored lists filled from the pack's
 // campaigns - a SEQ chapter of the provider's campaign is its `arc` (offered one at a time, in order: 74_ careerOfferIds),
-// an ANY chapter's aircraft orders its `builds` and its other missions its `night` list (each offered once its needs are
-// met: the night list's check - a validated design flies it - is the one a flying mission needs). HELD OUT, with the
-// reason: a mission the runtime cannot run yet (contractRuntimeOk), a choose:N chapter or a chapter / campaign with needs
-// of its own (phase 1), a seq campaign of more than one chapter (phase 1), a mission of another provider in a seq chapter.
-// Pure: returns { providers, held: [{ id, why }] }; the table handed in is not changed (its jobs, goods, fields kept).
+// an ANY or a CHOOSE:N chapter's aircraft orders its `builds` and its other missions its `night` list (each offered once
+// its needs are met: the night list's check - a validated design flies it - is the one a flying mission needs).
+// (MISSIONS-P3) THE CONTAINERS ride on the records: a container is DONE when all its missions are (a choose:N chapter: N
+// of them; a campaign: every chapter) -> `needs.of: [{ ids, n }]` on every mission behind it - a chapter's or a campaign's
+// `needs.after`, the chapter before in a seq campaign; a choose:N chapter's missions carry `closed: { ids, n }` (offered
+// only while fewer than n are done). 74_ careerNeedsOk reads both. HELD OUT, with the reason: a mission the runtime
+// cannot run yet (contractRuntimeOk), a choose:N CAMPAIGN (N chapters of many: not expressible yet), a mission of
+// another provider in a seq chapter (its arc is per provider).
+// Pure: returns { providers, held: [{ id, why }], text }; the table handed in is not changed (its jobs, goods, fields
+// kept). `text` is the pack's own words over the model's labels (MISSION_TEXT): the boot merges it into CONTRACT_TEXT
+// with the providers, or the card reads a pack mission's keys as [keys].
 function missionPackInstall(pack, providers) {
   const P = missionPackNormalise(pack), base = providers || CONTRACT_PROVIDERS, out = {}, held = [];
   const recs = missionPackContracts(P);
   for (const p of Object.keys(base)) out[p] = Object.assign({}, base[p], { arc: [], builds: [], night: [] });
-  const hold = (ids, why) => { for (const id of ids) held.push({ id, why }); };
+  const boxes = {};
+  for (const c of P.campaigns) { boxes[c.id] = c; for (const h of c.chapters) boxes[h.id] = h; }
+  // a container's DONE as conditions [{ ids, n }] (null: not expressible - a choose:N campaign)
+  const chDone = h => { const O = missionOrder(h.order); return [{ ids: h.missions.slice(), n: O && O.kind === 'choose' ? O.n : h.missions.length }]; };
+  const doneOf = id => { const B = boxes[id]; if (!B) return []; if (!B.chapters) return chDone(B);
+    const O = missionOrder(B.order); return O && O.kind === 'choose' ? null : [].concat(...B.chapters.map(chDone)); };
+  const needsOf = N => { if (!N || !Array.isArray(N.after)) return []; const L = N.after.map(doneOf); return L.some(x => x == null) ? null : [].concat(...L); };
   for (const c of P.campaigns) {
     if (c.tutorial) continue;
-    const all = [].concat(...c.chapters.map(h => h.missions));
-    if (c.needs != null) { hold(all, 'campaign ' + c.id + ' has needs (phase 1)'); continue; }
-    if (missionOrder(c.order).kind !== 'any' && c.chapters.length > 1) { hold(all, 'campaign ' + c.id + ' runs its chapters in order ' + c.order + ' (phase 1)'); continue; }
-    for (const h of c.chapters) {
+    const all = [].concat(...c.chapters.map(h => h.missions)), CO = missionOrder(c.order);
+    if (CO && CO.kind === 'choose') { for (const id of all) held.push({ id, why: 'campaign ' + c.id + ' is ' + c.order + ' (N chapters of many: no runtime yet)' }); continue; }
+    const c0 = needsOf(c.needs);
+    c.chapters.forEach((h, k) => {
       const O = missionOrder(h.order);
-      if (h.needs != null || !O || O.kind === 'choose') { hold(h.missions, 'chapter ' + h.id + (h.needs != null ? ' has needs' : ' is ' + h.order) + ' (phase 1)'); continue; }
+      const conds = c0 == null ? null : c0.concat(needsOf(h.needs) || [], CO && CO.kind === 'seq' && k > 0 ? chDone(c.chapters[k - 1]) : []);
+      const closed = O && O.kind === 'choose' ? { ids: h.missions.slice(), n: O.n } : null;
       for (const id of h.missions) {
-        const r = recs[id];
+        let r = recs[id];
         if (!r) continue;
+        if (conds == null || needsOf(h.needs) == null) { held.push({ id, why: 'its needs name a choose:N campaign (no runtime yet)' }); continue; }
         const rw = contractRuntimeOk(r);
         if (rw) { held.push({ id, why: rw }); continue; }
         const T = out[r.provider];
         if (!T) { held.push({ id, why: 'no provider ' + r.provider }); continue; }
-        if (O.kind === 'seq') { if (c.provider && r.provider !== c.provider) { held.push({ id, why: 'a seq chapter of ' + c.provider + ' holds ' + r.provider + '\'s mission (phase 1)' }); continue; } T.arc.push(r); }
+        if (conds.length || closed) {
+          r = msClone(r);
+          if (conds.length) r.needs = Object.assign({}, r.needs || { after: [], rep: 0 }, { of: msClone(conds) });
+          if (closed) r.closed = closed;
+        }
+        if (O.kind === 'seq') { if (c.provider && r.provider !== c.provider) { held.push({ id, why: 'a seq chapter of ' + c.provider + ' holds ' + r.provider + '\'s mission (its arc is per provider)' }); continue; } T.arc.push(r); }
         else (r.kind === 'build' ? T.builds : T.night).push(r);
       }
-    }
+    });
   }
-  return { providers: out, held };
+  return { providers: out, held, text: Object.assign({}, MISSION_TEXT, msClone(P.text || {})) };
 }
 
 // ---- THE REWARD (the editor's live line) ----------------------------------------------------------------------------

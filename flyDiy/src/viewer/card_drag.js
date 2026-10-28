@@ -45,6 +45,8 @@
     ['#bbPanel', 'boombox', ''],      // the boombox (boombox.js)
     ['#ctlPanel', 'controls', ''],    // the controls panel (input_panel.js)
     ['#hwNote', 'hwNote', ''],        // the graphics' hardware notice (gfx_settings.js)
+    ['#bgBox', 'backGuard', '.bgHead'],   // the browser Back's "Leave flyDiy?" box (back_guard.js G3880): by its title line
+    ['#edPopCard', 'quickPop', '.edPopHead'],   // G3722 (PHONE-GARAGE): the garage top bar's card - the explode slider (editor.js)
   ];
   const STORE = 'flydiy.cardPos', MOVE_PX = 4, SCAN_MS = 400, KEEP = 40;
   const NO_DRAG = 'button, a, input, select, textarea, label, option, [contenteditable="true"], [data-nodrag]';
