@@ -599,6 +599,18 @@ function benchStripCosmetic(spec, defaults) {
   // already carries (the windows, the glazing switch), and the material is
   // the cage's glazeMat row — neither is a second deviation to count
   if (c.cabin && typeof c.cabin === 'object') { delete c.cabin.glazedM2; delete c.cabin.glazingMat; }
+  // G3451 (DASH-ARCH-SAVED): THE DASH IS A LOOK - the arch and the box weigh the same and sit at the same CG
+  // (GATE DASH's physics rows) - and every saved build took the arch at the switch. A cage saved after it
+  // (dashV) hashes the dash it was certified with: the file's dashWas / dashLegsWas when the switch moved it,
+  // else the arch (1, the legs' 1) - never the dash on it now. So the switch withdraws nothing (a certificate,
+  // a signed leg, a career airframe: the hash is the one stamped on the box) and a dash picked later keeps
+  // the certificate. A cage from before the switch (no dashV: a slot never reopened) hashes as it is, as before.
+  if (c.cage && typeof c.cage === 'object' && c.cage.dashV != null) {
+    const cg = c.cage;
+    cg.dashStyle = cg.dashWas != null ? Math.round(+cg.dashWas || 0) : 1;
+    cg.dashLegs = cg.dashLegsWas != null ? Math.round(+cg.dashLegsWas) : 1;
+    delete cg.dashWas; delete cg.dashLegsWas; delete cg.dashV;
+  }
   if (c.cage && typeof c.cage === 'object') {
     const D = (defaults && typeof defaults === 'object') ? defaults : null;
     const out = {};
