@@ -1208,7 +1208,7 @@ function buildThrottleWall(g0, A, P, sx, onFace) {
   // forearm with no twist. G3700 HANDS: the anchor is the ball's centre, the
   // axis the curled fingers wrap (it rode 12 mm above, where the palm had
   // landed when the middle phalanges were aimed at it).
-  return { obj: gripAt(gT, [K[0], K[1], K[2]], [inb, 0, 0], 0.026),
+  return { obj: gripAt(gT, [K[0], K[1], K[2]], [inb, 0, 0], 0.030),
            label: 'throttle (wall)' };
 }
 // THE THROTTLE THROUGH THE SHOULDER (G344, ctlThr 5): drawn off the cage
@@ -3551,10 +3551,19 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
   // cm"): a grip that declares its radius first gets each hand's curl
   // solved so the fingers' bone circle is the grip plus the finger's own
   // flesh (CAGE_CHAR.hollowAt), then the HOLLOW of that curl - the axis
-  // the hand wraps - is what lands on the anchor; up to five passes, to
+  // the hand wraps - is what lands on the anchor; up to eight passes, to
   // 2 mm. A hand still over 20 cm out could not reach: the IK's finding,
   // recorded on occ.fistFit with the rest of the fit (curl, radius, error).
-  const FIST_FLESH = 0.009, FIST_TOL = 0.002, FIST_GIVEUP = 0.20;
+  // HANDS-2: the error is taken in the basis solveGripJob moves the target
+  // in (the grip basis from the SHOULDER's approach) - it was read in the
+  // hand bone's frame (the wrist solved from the ELBOW), and where those two
+  // differ (the Cub's stick) every pass turned the correction, which grew
+  // until the target passed the IK's 12 cm reach and the arm fell back to
+  // its rest pose 33 cm off. Each job also keeps its best correction: a pass
+  // that makes the error grow, or would put the hand out of reach, goes back
+  // to the best and halves the step. Flesh 9 -> 18 mm: at 9 the finger pads
+  // still sat 0.6-1.8 cm inside the grip.
+  const FIST_FLESH = 0.018, FIST_TOL = 0.002, FIST_GIVEUP = 0.20, FIST_REACH = 0.12;
   const fitFists = (occ, CH, jobs, solveJob) => {
     if (!occ.char || !window.CAGE_CHAR.fistAt) return;
     const grips = jobs.filter(j => j.a.userData.grip && CHAINS[j.chain].arm);
@@ -3582,30 +3591,58 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
       CC.dress(occ.char, occ, fistOpts(P, occ));
     }
     const fit = occ.fistFit = {};
-    const fp = new THREE.Vector3(), e = new THREE.Vector3(), q = new THREE.Quaternion();
-    for (let it = 0; it < 5; it++) {
+    const fp = new THREE.Vector3(), e = new THREE.Vector3(), q = new THREE.Quaternion(),
+          rp = new THREE.Vector3();
+    const st = new Map();
+    // the fist's error against the grip, in the basis fixH is applied in
+    const errOf = (j, out) => {
+      const c = CHAINS[j.chain], side = c.side;
+      let at = null, r = null;
+      if (wantR[side]) { const h = hollow(occ.char, side, fp); if (h) { at = h.p; r = h.r; } }
+      if (!at && CC.fistAt(occ.char, side, fp)) at = fp;
+      if (!at) return null;
+      occ.bones[c.root].getWorldPosition(rp);
+      gripQuat(j.a, rp, q).invert();
+      out.copy(at).sub(anchorWorld(j.a).p).applyQuaternion(q);
+      return { r, err: out.length() };
+    };
+    for (let it = 0; it < 8; it++) {
       let moved = false;
       for (const j of grips) {
         const side = CHAINS[j.chain].side;
-        let at = null, r = null;
-        if (wantR[side]) { const h = hollow(occ.char, side, fp); if (h) { at = h.p; r = h.r; } }
-        if (!at && CC.fistAt(occ.char, side, fp)) at = fp;
-        if (!at) continue;
-        const aw = anchorWorld(j.a);
-        occ.bones[CHAINS[j.chain].end].getWorldQuaternion(q).invert();
-        e.copy(at).sub(aw.p).applyQuaternion(q);       // fist - grip, hand frame
-        const err = e.length();
+        const m = errOf(j, e);
+        if (!m) continue;
+        let s = st.get(j);
+        if (!s) st.set(j, s = { best: Infinity, fix: null, e: new THREE.Vector3(), gain: 1, done: false });
+        if (m.err < s.best) {
+          s.best = m.err; s.fix = j.fixH ? j.fixH.clone() : null; s.e.copy(e);
+        } else if (!s.done) {
+          s.gain *= 0.5;                               // grew: back to the best, half the step
+          if (s.gain < 0.1) s.done = true;
+        }
         fit[side] = { label: j.label, fist: occ.fistSolved ? occ.fistSolved[side] : null,
-                      r: r != null ? +r.toFixed(4) : null, err: +err.toFixed(4), skip: err > FIST_GIVEUP };
+                      r: m.r != null ? +m.r.toFixed(4) : null, err: +s.best.toFixed(4),
+                      skip: s.best > FIST_GIVEUP, passes: it + 1 };
         // a hand that could not reach is the IK's finding, not the fit's
-        if (err < FIST_TOL || err > FIST_GIVEUP) continue;
-        j.fixH = (j.fixH || new THREE.Vector3()).sub(e);
-        solveJob(j);
+        if (s.done || s.best < FIST_TOL || s.best > FIST_GIVEUP) continue;
+        j.fixH = (s.fix ? s.fix.clone() : new THREE.Vector3()).addScaledVector(s.e, -s.gain);
+        if (solveJob(j) > FIST_REACH) {                // never push the hand out of reach
+          j.fixH = s.fix ? s.fix.clone() : null;
+          s.gain *= 0.5; if (s.gain < 0.1) s.done = true;
+          solveJob(j);
+        }
         moved = true;
       }
       if (!moved) break;
       CC.dress(occ.char, occ, fistOpts(P, occ));
     }
+    // every hand ends on its best correction
+    let back = false;
+    for (const [j, s] of st) {
+      const m = errOf(j, e);
+      if (m && m.err > s.best + 1e-4) { j.fixH = s.fix ? s.fix.clone() : null; solveJob(j); back = true; }
+    }
+    if (back) CC.dress(occ.char, occ, fistOpts(P, occ));
   };
   // THE SOLES ON THE PEDALS (G468, item 25): fitFists' twin for the legs. A
   // leg job's target is the ANKLE, placed so the reference foot box has its
