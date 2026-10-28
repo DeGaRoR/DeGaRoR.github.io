@@ -655,11 +655,11 @@ const AERO_HARD = {
            face: null },
   // ---- the cabin (_cage_crew.js M) ----------------------------------------
   crew: {
-    shell: 'composite', shellC: 'composite',
+    shellC: 'composite',
     cushion: 'leather', pipe: 'leather',
     belt: 'webbing',
     frame: 'steelTube', metal: 'bareAlu',
-    joint: 'plastic', knob: 'plastic', dark: 'plastic',
+    knob: 'plastic', dark: 'plastic',
     ctrl: 'trim', console: 'plasticGrn', trim: 'trim',
     // THE PANEL (G94). A bezel is a painted alloy clamp ring and a needle is
     // painted too — both dielectrics; the dial FACE is a printed plastic disc,
@@ -672,7 +672,6 @@ const AERO_HARD = {
     grip: 'rubberGrip', boot: 'rubberGrip', plated: 'chrome', cast: 'castAlu', hide: 'hide', ptt: 'plasticScr',
     seatAlu: 'bareAlu',           // G345: the seats' tube frame, drawn alloy
     ball: 'plasticScr', tread: 'rubberGrip', plateAl: 'panelMetal',
-    marker: null,
   },
 };
 // the propeller's material is a CHOICE on the cowl bench (COWL_GEN.MATERIALS),
@@ -807,6 +806,10 @@ const AERO_SEC = {
   wingAil:  { parent: 'wingSkin', role: 'skin', label: 'the ailerons',
               layer: 'wing' },
   wingFlap: { parent: 'wingSkin', role: 'skin', label: 'the flaps',
+              layer: 'wing' },
+  // G2829: the STOL devices (the slat, the cuff, the VGs, the fences, the endplates) - their own paint, the wing's
+  // until repainted (the user: "highlight through a different color the STOL elements")
+  wingStol: { parent: 'wingSkin', role: 'skin', label: 'the STOL devices',
               layer: 'wing' },
   finSkin:  { parent: 'body',     role: 'skin', label: 'the fin',
               layer: 'fin' },
@@ -959,19 +962,13 @@ const AERO_SEC = {
               layer: 'access', wears: 'parent' },
   // ---- the cabin and its crew (phase D) -----------------------------------
   // The seats follow NOBODY on purpose: a green fuselage does not force
-  // green leather. The dummies are the user's "give them a bit of
-  // personality": one suit COLOUR each, the second following the first
-  // (paint the crew once, then differ one) — the suit's MATERIAL stays
-  // pinned composite, because an ATD is an ATD whatever it wears.
+  // green leather. The occupants wear their characters' own clothes (G3700),
+  // so the crew has no livery section of its own.
   seatTrim: { parent: null,     fin: 'hide',      label: 'the seats',    // G332: the user's scan
               layer: 'crew' },
   // G2795 (the user's garage review, 18 Oct: "the floor's material
   // editable"): the cabin floor's boards, plywood until picked
   cabFloor: { parent: null,     fin: 'ply',       label: 'the cabin floor',
-              layer: 'crew' },
-  dummy1:   { parent: null,     fin: 'composite', label: 'the pilot',
-              layer: 'crew' },
-  dummy2:   { parent: 'dummy1', fin: 'composite', label: 'the pilot',
               layer: 'crew' },
 };
 
@@ -2003,6 +2000,10 @@ const AERO_DEC_DEF = {
   regMetal: 0, imgMetal: 0, wimMetal: 0,   // G215: metal flake in the marking
   regW: 0.96, regLock: 1,         // locked: width follows height at the aspect
   regFont: 0,                     // an index into AERO_DEC_FONTS
+  // G2829 (STOL-WING-2, the user 27 Oct: "put a large registration on the wing top as well"): THE SAME MARKING A
+  // SECOND TIME, on the wing - the registration's own page (its text, colour, font), its own height and place, read
+  // in the plan view; off unless a build asks
+  wregOn: 0, wregH: 0.55, wregL: 2.6, wregC: 0.5, wregRot: 0, wregMode: 2,   // plan: L across the span, C fore / aft, radians
   imgOn: 0, imgL: 1.2, imgC: 0.0, imgW: 1.2, imgH: 0.6, imgTarget: 0,
   imgMode: 0, imgRot: 0, imgLock: 1,
   wimOn: 0, wimL: 0.0, wimC: 0.0, wimW: 2.0, wimH: 1.0,
@@ -2479,6 +2480,11 @@ function aeroDecalsFor(THREE, D, opts) {
   list.push({ page: 0, sL: D.regL, sC: D.regC, w: pw, h: ph,
                   rot: D.regRot, rough: -0.06, sdf: 1, metal: +D.regMetal || 0,
                   on: onOf(D.regTarget), mode: modeOf(D.regMode) });
+  if (D.wregOn) {
+    const ww = D.wregH * Math.max(1.2, aspect);
+    list.push({ page: 0, sL: D.wregL, sC: D.wregC, w: ww / Math.max(0.05, fit.w), h: D.wregH / Math.max(0.05, fit.h),
+                rot: D.wregRot, rough: -0.06, sdf: 1, metal: +D.regMetal || 0, on: { wing: 1 }, mode: modeOf(D.wregMode) });
+  }
   if (D.imgOn) list.push({ page: 1, sL: D.imgL, sC: D.imgC, w: D.imgW,
     h: D.imgH, rot: D.imgRot, rough: -0.04, metal: +D.imgMetal || 0,
     on: onOf(D.imgTarget), mode: modeOf(D.imgMode) });

@@ -1078,20 +1078,12 @@ function editorInit(api) {
     // glass-owning part shown, never duplicated.
     const GLASSSEC = (window.AEROSKIN && window.AEROSKIN.AERO_GLASS) || new Set();
     let glazeDone = false;
-    // G2794 (the user: "remove the leftovers of the original pilot dummy"):
-    // the ATD-01's suit colours are shown only while an ATD is aboard -
-    // under a dressed character its shells are invisible click proxies and
-    // the rows coloured nothing. Still TAKEN, so they never fall into the
-    // root's 'unclaimed' bucket either.
-    const atdAboard = Math.round(+CU.P.pilotWho) === 1 || Math.round(+CU.P.copWho) === 1;
-    const DUMMY_SEC = new Set(['dummy1', 'dummy2']);
     for (const p of shown) {
       const els = [];
       for (const s of (p.sections || [])) {
         const r = bySec.get(s);
         if (!r || taken.has(s)) continue;
         taken.add(s);
-        if (DUMMY_SEC.has(s) && !atdAboard) continue;
         for (const el of r) els.push(el);
       }
       emitEls(p, nameOf(p), els, '', true);
@@ -1424,7 +1416,11 @@ function editorInit(api) {
     // every layer's group are thrown away and remade on each build, and the
     // overlay hangs off both — so it has to be remade with them, or the tint
     // silently belongs to a mesh that no longer exists.
-    hiBuild(sel === 'craft' && !rootPicked ? null : sel, 'sel');   // G3543: the root too, when picked (its silhouette)
+    // G3543: the root too, when picked (its silhouette). G3858 (A0, GARAGE-LAG hardening): THE ROOT'S SILHOUETTE IS
+    // SETTLE-ONLY - a pair per drawn mesh of the whole aeroplane is not remade on every drag tick; the stale one goes
+    // (its meshes are thrown away) and the aeroplane the hand stops on gets its silhouette (rootSilSoon)
+    if (sel === 'craft' && rootPicked && cageDragging()) { hiClear('sel'); rootSilSoon(); }
+    else hiBuild(sel === 'craft' && !rootPicked ? null : sel, 'sel');
     // ...AND SO IS THE PIN, for the same reason and one better: the row it
     // names is the row being DRAGGED, so the dot walks the corner it is
     // moving instead of standing where the corner used to be.
@@ -2888,14 +2884,12 @@ function editorInit(api) {
     [/^edSurf_elev/, 'stab'],
     // the crew layer NAMES ITS FURNITURE now (G113 closed the gap this
     // comment used to declare): seats, control stations and the console
-    // carry identity wrappers, the dummies their figure names — and the
-    // bones stay as the fallback for anything struck inside a figure.
+    // carry identity wrappers, the occupants their figure names (and each
+    // character's posed pick body, `edCrewPick`, G3700).
     [/^edSeat/, 'seats'],
     [/^edCtl|^edConsole/, 'controls'],
     [/^edGauge|^edPanel/, 'instruments'],   // the panel arc: the dials and the switch row
-    [/^edDum/, 'crew'],
-    [/^(root|lumbar|thorax|neck|head|clavicle|shoulder|elbow|wrist|hip|knee|ankle)/,
-     'crew'],
+    [/^edCrew/, 'crew'],
   ];
   // G2760: a part marked `layerHome` answers first, assembly or not (the
   // Wings assembly carries the wing's own rows since 'Wing panels' merged
@@ -3136,7 +3130,15 @@ function editorInit(api) {
          'float hiDepth = projectionMatrix[3][3] > 0.5 ? 1.0 : -mvPosition.z;',
          'float hiPxWorld = 2.0 * hiDepth / ( projectionMatrix[1][1] * hiSilVH );',
          'float hiOff = max( hiSilW, hiSilPx * hiPxWorld );',
-         'mvPosition.xyz += normalize( normalMatrix * normal ) * hiOff;',
+         // a skinned character's own normal is its bind pose's: the
+         // skinned one (meshbasic declares it under USE_SKINNING) follows
+         // the limb the rim is drawn round
+         '#ifdef USE_SKINNING',
+         'vec3 hiN = objectNormal;',
+         '#else',
+         'vec3 hiN = normal;',
+         '#endif',
+         'mvPosition.xyz += normalize( normalMatrix * hiN ) * hiOff;',
          'gl_Position = projectionMatrix * mvPosition;'].join('\n'));
       m.userData.sh = sh;              // hiSilFeed writes hiSilVH through this
     };
@@ -3161,10 +3163,13 @@ function editorInit(api) {
   // one mask + one shell over the same geometry, in stamp-then-test order.
   // The mask is opaque-list (colorWrite off keeps it invisible) and the shell
   // transparent-list, so the renderer itself guarantees the order.
-  function hiSilPair(geo, which, addTo, scaleOf) {
+  // `mk` builds each pass's mesh: a plain one by default, a skinned copy for a
+  // character (hiSkinMk below), so the silhouette is the body as it is posed
+  function hiSilPair(geo, which, addTo, scaleOf, mk) {
+    mk = mk || ((g, m) => new THREE.Mesh(g, m));
     const pair = [
-      new THREE.Mesh(geo, hiMats[which === 'sel' ? 'selM' : 'hovM']),
-      new THREE.Mesh(geo, hiMats[which === 'sel' ? 'selS' : 'hovS'])];
+      mk(geo, hiMats[which === 'sel' ? 'selM' : 'hovM']),
+      mk(geo, hiMats[which === 'sel' ? 'selS' : 'hovS'])];
     pair[0].renderOrder = 6; pair[1].renderOrder = 7;
     pair[1].onBeforeRender = hiPxFeed;
     for (const m of pair) {
@@ -3174,6 +3179,22 @@ function editorInit(api) {
       addTo.add(m);
     }
     return pair;
+  }
+
+  // a character's highlight pass: the same geometry, skinned by the same
+  // skeleton (attached bind: its own place cancels, as the character's does)
+  function hiSkinMk(o) {
+    return (g, m) => {
+      const sm = new THREE.SkinnedMesh(g, m);
+      sm.bind(o.skeleton, o.bindMatrix);
+      sm.frustumCulled = false;
+      return sm;
+    };
+  }
+  // the posed body under a character's skinned mesh, if the crew made one
+  function hiPickGeo(o) {
+    const pk = o.children.find(c => c.userData && c.userData.charPick);
+    return pk ? pk.geometry : null;
   }
 
   // ONE OUTLINE, from whatever geometry it is handed. EdgesGeometry keeps only
@@ -3784,6 +3805,19 @@ function editorInit(api) {
   // anchor too until the callout went; the highlight-colour switch above still
   // needs to know what to rebuild.
   let pinFor = null;
+  // G3858: a slider held (or its settle build still owed: _cage_ui's CAGE_UI.dragging), and the root's silhouette
+  // drawn once the hand stops - unless the settle build has drawn it already
+  const cageDragging = () => { const U = window.CAGE_UI; return !!(U && typeof U.dragging === 'function' && U.dragging()); };
+  let rootSilT = null;
+  function rootSilSoon() {
+    if (rootSilT) return;
+    const tick = () => {
+      if (cageDragging()) { rootSilT = setTimeout(tick, 120); return; }
+      rootSilT = null;
+      if (sel === 'craft' && rootPicked && !hiSel) hiBuild('craft', 'sel');
+    };
+    rootSilT = setTimeout(tick, 120);
+  }
 
   // WHICH NAMED OBJECT a mesh belongs to — the nearest name on the way up,
   // the same walk `ownerOf` does, stopping one step earlier. Used to narrow a
@@ -3980,21 +4014,29 @@ function editorInit(api) {
       // transform chain comes for free.
       const def = layerDefault(ln.slice(10));
       child.traverse(o => {
-        // a SKINNED mesh is never re-drawn: r128 would draw its geometry at
-        // the bind pose (G204.2) — its dummy's invisible shells stand for it
-        if (!o.isMesh || o.isSkinnedMesh || (o.userData && o.userData.edHi)) return;
+        // A CHARACTER IS OUTLINED AS IT IS DRAWN (G3700, the user: "the
+        // outline should be theirs"). Its skinned mesh is re-drawn as a
+        // SKINNED copy bound to the same skeleton, so the fill and the
+        // silhouette follow the pose and the idle frame by frame; the edge
+        // outline reads the posed body (_cage_char.js pickBody), which is
+        // also what a click strikes - and that pick mesh is never itself
+        // outlined, or the body would be drawn twice.
+        if (!o.isMesh || (o.userData && (o.userData.edHi || o.userData.charPick))) return;
         if (!keys.has(ownerOf(o, child, def))) return;
         if (only && instOf(o, child) !== only) return;
+        const mk = o.isSkinnedMesh ? hiSkinMk(o) : null;
         if (wantFill) {
-          const m = new THREE.Mesh(o.geometry, mat);
+          const m = mk ? mk(o.geometry, mat) : new THREE.Mesh(o.geometry, mat);
           m.renderOrder = 6;
           m.userData.edHi = 1;
           o.add(m);
           out.push(m);
         }
-        if (wantLine) { const l = hiEdges(o.geometry, which); o.add(l);
-                        out.push(l); }
-        if (wantSil) out.push(...hiSilPair(o.geometry, which, o));
+        if (wantLine) {
+          const eg = o.isSkinnedMesh ? hiPickGeo(o) : o.geometry;
+          if (eg) { const l = hiEdges(eg, which); o.add(l); out.push(l); }
+        }
+        if (wantSil) out.push(...hiSilPair(o.geometry, which, o, null, mk));
       });
     }
     if (which === 'sel') { hiSel = out; pinFor = partKey; }

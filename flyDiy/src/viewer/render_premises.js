@@ -2029,7 +2029,8 @@ function make(THREE, scene, world, rec0, opts) {
     for (const [m, a] of cand) { if (acc + a > DETAIL.area * total) break; acc += a; list.push(m); }
     const HL = typeof window !== 'undefined' && window.HANGAR_GEN && window.HANGAR_GEN.LIB, shellMat = new Set();
     if (HL) for (const s of Object.keys(HL)) for (const k of Object.keys(HL[s])) shellMat.add(HL[s][k]);
-    const list2 = cand.slice(0, Math.max(0, cand.length - DETAIL.keep2)).filter(x => !(shellMat.has(x[0].material) && x[1] >= DETAIL.keepShare * total)).map(x => x[0]).filter(m => !list.includes(m));
+    const isShell = mt => shellMat.has(mt) || !!(mt && mt.userData && mt.userData.hangarShell);   // G3531: a build's own clone of the library's
+    const list2 = cand.slice(0, Math.max(0, cand.length - DETAIL.keep2)).filter(x => !(isShell(x[0].material) && x[1] >= DETAIL.keepShare * total)).map(x => x[0]).filter(m => !list.includes(m));
     const big = bags.find(m => m.geometry.boundingSphere.radius === R);
     const c = new THREE.Vector3(); if (big) c.copy(big.geometry.boundingSphere.center).applyMatrix4(big.matrixWorld); else grp.getWorldPosition(c);
     const keep = cand.map(x => x[0]).filter(m => !list.includes(m) && !list2.includes(m));
@@ -2041,7 +2042,7 @@ function make(THREE, scene, world, rec0, opts) {
   // material colour x its map's mean (linear), one shared plain material; their plain bags hide. Glass and lit bags
   // stay the house's own. Built per cell once the cell is live (G592: it waited for the whole queue), rebuilt when its houses change.
   const HLOD = { on: true, bake: true, tarr: true, cell: 256, near: 150, far2: 1200, dirt: 0.35, gain: 0.2, gainItem: 1, sig: '', cells: [], cellMap: new Map(), todo: [], warm: [], group: null,
-                 lod1: true, outLod: 1, fadeW: 40, proj: true, swapPx: 48, detailPx: 9, hMax: 1440 };
+                 lod1: true, outLod: 1, streamLod1: true, fadeW: 40, proj: true, swapPx: 48, detailPx: 9, hMax: 1440 };
   // LOD 1 PAST HLOD.near (G800, C0 of QUEUE-C; ARCH-2026-09-27 §1.2 / §5 interim 1 / §9 rows 2-3). The far town merged
   // each house's lod-0 kept bags (its three largest: 10x the generator's own far mesh). Now every house is ALSO built at
   // lod 1 - the generator's "TWO MESHES, ONE CONSTRUCTION" far mesh, 10 % of the triangles at 15 % of the build, in the
@@ -2064,6 +2065,7 @@ function make(THREE, scene, world, rec0, opts) {
   //   ?houselod=N   (N > 1) the near/far edge at N metres
   //   ?lodfade=0    the hard per-cell switch (no band)
   //   ?outlod=0|1   the outbuildings at lod 0 / lod 1, whatever houselod says
+  //   ?streamlod1=0 the in-flight stream's builds without their lod 1 (LODS-2026-10 step 1's A/B "before")
   // THE EDGE BY PROJECTED SIZE (G1395, HOUSE-LOD; the user, 3 Oct: "they swap a little too late"): each house leaves
   // lod 0 where its radius (detailOf's R) stands swapPx pixels tall on the screen - edge = R x F / swapPx, F the
   // camera's focal length in drawing-buffer pixels (capped at hMax rows), clamped to LOD_E - so a church swaps far, a
@@ -2081,6 +2083,7 @@ function make(THREE, scene, world, rec0, opts) {
     const qp = /[?&]lodpx=([\d.]+)/.exec(location.search); if (qp && +qp[1] > 0) HLOD.swapPx = +qp[1];
     if (/[?&]lodfade=0/.test(location.search)) HLOD.fadeW = 0;
     const qo = /[?&]outlod=([01])\b/.exec(location.search); if (qo) HLOD.outLod = +qo[1];   // the outbuildings alone (after houselod)
+    if (/[?&]streamlod1=0/.test(location.search)) HLOD.streamLod1 = false;   // (LODS-2026-10: the in-flight stream's lod 1, the A/B's "before")
   }
   let IN_STREAM = false;   // a build the in-flight stream makes (stream(): no lod 1 there); declared up here, no TDZ (G570)
   const LOD_U = { uLodA: { value: HLOD.near }, uLodB: { value: HLOD.far2 }, uLodW: { value: HLOD.fadeW }, uLodOn: { value: HLOD.fadeW > 0 ? 1 : 0 }, uLodS: { value: 0 }, uLodSB: { value: 0 } };
@@ -2138,8 +2141,11 @@ function make(THREE, scene, world, rec0, opts) {
   // finish has nothing of the sort near: a hangar shell (tools/_hangar_gen.js wears hangar.js's own HANGAR_LIB steel,
   // kept far since G1398), a shed, a tank - at the houses' fifth its far walls went ~5x darker than its near ones: black.
   // A house-shaded finish (the generator's hook, its paint or its dirt) keeps the fifth; every other takes gainItem.
+  // G3531 (HANGARS-LOOK): a hangar shell wears the house's hook now (its dirt line and its bake) and is still a plain far
+  // surface - `hangarShell` keeps the item gain
   function farGain(mat) {
     const ud = mat && mat.userData;
+    if (ud && ud.hangarShell) return HLOD.gainItem;
     return (ud && (ud.houseShaded || ud.paint || ud.dirt)) ? HLOD.gain : HLOD.gainItem;
   }
   // THE NEAR RUNG'S OTHER BAGS (G801): what G566 merges per distinct material (a site item's finishes, a bag the arrays
@@ -2166,10 +2172,11 @@ function make(THREE, scene, world, rec0, opts) {
   // the generator's lod 1 of a house, as meshes that never join the scene (the far town's source): its opaque bags in
   // their finish, the town shader's channels kept (G1395: the far town rides house_tarr - the walls' texture and paint,
   // the dirt, the lit panes); `box` marks the walls and roof (the G594 box's extent), `shell` what stays past the
-  // detail band (walls, roof, chimney stone, logs, the floor's edge). Their parent (out.root, never in a scene) takes
-  // the house's matrix for the merge.
+  // detail band: every bag but its generator's LOD_DETAIL roles (LODS-2026-10: a site item's generator - a navaid, a
+  // tower, a hangar - is no house; the house's LOD1_SHELL list, walls/roof/stone/logs/floor, took a lighthouse's lantern
+  // and left a navaid nothing) - a generator with none keeps its lod 1 whole. Their parent (out.root, never in a scene)
+  // takes the house's matrix for the merge.
   // (G830: `b0`, the lod 1 already generated - inline by premises_build.js genHouse, or by the house worker)
-  const LOD1_SHELL = /^(siding|roof|stone|log|floor)/;
   function lod1Bags(HG, P, F, b0) {
     const b = b0 || HG.build(P, 1, F), tmp = new THREE.Group(), out = [];
     tmp.matrixAutoUpdate = false;
@@ -2177,7 +2184,7 @@ function make(THREE, scene, world, rec0, opts) {
       const bg = b.bags[k], mt = F.MAT[k];
       if (!bg || !mt || !mt.isMeshStandardMaterial || mt.transparent) continue;
       const m = bg.mesh(tmp, mt); if (!m) continue;
-      m.name = k; m.userData.box = /^(siding|roof)/.test(k); m.userData.shell = LOD1_SHELL.test(k); out.push(m);
+      m.name = k; m.userData.box = /^(siding|roof)/.test(k); m.userData.shell = !(HG.LOD_DETAIL && HG.LOD_DETAIL.test(k)); out.push(m);
     }
     out.tris = b.stats ? b.stats.tris : 0; out.root = tmp;
     return out;
@@ -2295,8 +2302,8 @@ function make(THREE, scene, world, rec0, opts) {
     }
     return byCell;
   }
-  // a house takes the band when it has its lod 1 (G801); a site item, a park, an object (no lod 1: their far version
-  // is their lod-0 kept bags) keeps the hard per-cell switch of before, every rung of it, in meshes of its own
+  // a house takes the band when it has its lod 1 (G801) - since LODS-2026-10 a site item and an outbuilding too; a park,
+  // an object (no lod 1: their far version is their lod-0 kept bags) keeps the hard per-cell switch of before
   const banded = g => !!(HLOD.lod1 && g.userData.lod1 && g.userData.lod1.length);
   function hlodCell(key, houses) {
     const cl = { key, sig: houses.map(g => g.id).join(','), houses, x0: Infinity, x1: -Infinity, z0: Infinity, z1: -Infinity, y: 0, far: false, far2: false, mesh: null, box: null, near: null,
@@ -2308,7 +2315,7 @@ function make(THREE, scene, world, rec0, opts) {
     const bagsB = [], bagsH = [];
     for (const g of houses) {
       const D = detailOf(g);
-      if (banded(g)) { for (const m of g.userData.lod1) if (m.geometry.index) bagsB.push({ m, M: g.matrixWorld, h: g, box: m.userData.box, D }); }
+      if (banded(g)) { g.updateWorldMatrix(true, false); for (const m of g.userData.lod1) if (m.geometry.index) bagsB.push({ m, M: g.matrixWorld, h: g, box: m.userData.box, D }); }   // (its frame now: a site item placed this frame has not been walked yet)
       else for (const m of D.keep) if (m.geometry.index) bagsH.push({ m, M: m.matrixWorld, h: m.parent, box: true, D });
     }
     // G1395: what rides the town's shader goes to the far town on it (hlodFarTarr); the rest - a layer not in the stack
@@ -2345,10 +2352,11 @@ function make(THREE, scene, world, rec0, opts) {
   // on the town material's far variant (arriving at the house's edge; its detail leaving at its b band, the shells
   // staying: no box). Returns the bags it could not take (G559's plain far town takes them).
   function hlodFarTarr(cl, TA, bags) {
-    const groups = new Map(), left = [], litBase = u => (LAMPS.glass.has(u) ? LAMPS.glass.get(u) : u.value);
+    const groups = new Map(), left = [], litBase = u => (LAMPS.glass.has(u) ? LAMPS.glass.get(u) : u.value), framed = new Set();
     for (const b of bags) {
       const c = TA.classify(b.m); if (!c) { left.push(b); continue; }
-      const root = b.m.parent; if (root) { root.matrixAutoUpdate = false; root.matrix.copy(b.M); }   // the merge reads the house's frame through it
+      // the merge reads each bag's matrixWorld as it stands: the root takes the house's frame and walks its bags, once a house
+      const root = b.m.parent; if (root && !framed.has(root)) { framed.add(root); root.matrixAutoUpdate = false; root.matrix.copy(b.M); root.updateMatrixWorld(true); }
       let G = groups.get(c.key); if (!G) groups.set(c.key, G = { c, dith: b.m.material.dithering, list: [], of: new Map() });
       G.list.push(b.m); G.of.set(b.m, b);
     }
@@ -2922,7 +2930,8 @@ function make(THREE, scene, world, rec0, opts) {
   //     it is near (the far cell's shell holds their box), never in the far town's bake.
   // Off (the default), or with no pack / a pack of another kit, nothing here runs: the town is on the kit as before.
   //   ?cityhost=1   the town from its pack
-  const CITY = { want: !!(KT.want && typeof location !== 'undefined' && /[?&]cityhost=1\b/.test(location.search || '')), on: false, status: 'off', err: null, man: null, town: null, city: null, host: null,
+  // (METLA-ON, the user 23 Oct: the town host from its pack is the default with the town on; ?cityhost=0 the old kit host, the A/B)
+  const CITY = { want: !!(KT.want && !(typeof location !== 'undefined' && /[?&]cityhost=0\b/.test(location.search || ''))), on: false, status: 'off', err: null, man: null, town: null, city: null, host: null,
                  O: null, plots: new Map(), bound: new Map(), objects: new Set(), boundBy: [], stubs: 0, hits: new Map(), hitQ: [], hitN: 0, hitMs: 0, loadMs: 0, props: new Set(), farMats: null };
   // THE SWITCH (G3423, the user 20 Oct: "at 1 km - a dial; 2 km the fallback"; the pack's lod.far): ?cityfar=<m> (absent: the
   // cook's 1 km), in at m - 50, out at m + 50; live: WORLD.premises.city.host.setSwitch(m)
@@ -3714,10 +3723,12 @@ function make(THREE, scene, world, rec0, opts) {
     if (!F) { F = HG.makeFinish(); HG.applyFinish(house.P, F); PB.uniApply(F, R.fin); }
     const grp = placeBuilt(G.houses, house, built, F, HG);
     if (R.shape0) grp.userData.shape0 = R.shape0;   // G844: the worker rasterised its bags
-    // G800: its lod 1 (generated with it, under the loading screen), for the far town; the bench keeps none, nor does
-    // the in-flight stream (G591's items past the roll-out's reach): no merge added to a frame in flight - such a
-    // house keeps G559's lod-0 far town and the hard switch
-    if (HLOD.lod1 && o.game && !IN_STREAM && R.lod1) { try { grp.userData.lod1 = lod1Bags(HG, house.P, F, R.lod1); } catch (e) { console.warn('premises lod 1', plot.id, e && e.message); } }
+    // G800: its lod 1 (generated with it, under the loading screen), for the far town; the bench keeps none. G591's in-flight
+    // stream kept none either ("no merge added to a frame in flight") - LODS-2026-10 gives it its lod 1 too
+    // (HLOD.streamLod1; ?streamlod1=0 the A/B's "before"): its build made the lod 1 already (genHouse / the worker) and the
+    // far town merges the cell either way - lod 1, ~1 000 triangles a house, where the stream's keep of lod 0 was ~3 000
+    // and roofless whenever the roof was not one of its three largest bags
+    if (HLOD.lod1 && o.game && (HLOD.streamLod1 || !IN_STREAM) && R.lod1) { try { grp.userData.lod1 = lod1Bags(HG, house.P, F, R.lod1); } catch (e) { console.warn('premises lod 1', plot.id, e && e.message); } }
     hitAdd(grp, 'house', 1.0);
     const D = placeDress(plot, built, R.dress, R.Tv);
     return { grp, tris: built.stats.tris + D.tris, house, built, extra: D.groups, lights: litOf(built) + D.lights };
@@ -3796,6 +3807,9 @@ function make(THREE, scene, world, rec0, opts) {
         if (!F2) { F2 = HG.makeFinish(); HG.applyFinish(plot.out.P, F2); PB.uniApply(F2, D.out.fin); }
         const b2 = D.out.built; plot.out.built = b2;
         const og = placeBuilt(G.houses, plot.out, b2, F2, HG); if (D.out.shape0) og.userData.shape0 = D.out.shape0; hitAdd(og, 'outbuilding', 1.0);
+        // LODS-2026-10: an outbuilding built at lod 1 (outLod) is its own far mesh - banded on it, as a house's lod 1 (it
+        // took detailOf's three largest bags and a box: "not the same color at all")
+        if (HLOD.lod1 && o.game && (HLOD.streamLod1 || !IN_STREAM) && HLOD.outLod) { try { og.userData.lod1 = lod1Bags(HG, plot.out.P, F2, b2); } catch (e) { console.warn('premises outbuilding lod 1', plot.id, e && e.message); } }
         out.groups.push(og); out.tris += b2.stats.tris; out.lights += litOf(b2);
       } catch (e) { console.warn('premises outbuilding', plot.id, e && e.message); plot.out = null; }
     }
@@ -3933,6 +3947,10 @@ function make(THREE, scene, world, rec0, opts) {
     if (!F) { F = GEN.makeFinish(); GEN.applyFinish(it.P, F); PB.uniApply(F, R.fin); }
     const grp = placeBuilt(G.houses, it, built, F, GEN);
     if (R.shape0) grp.userData.shape0 = R.shape0;   // G844
+    // LODS-2026-10: an item takes the far town as a house does (G800 / G801 / G1395) - its own lod 1, banded, its edge by
+    // its projected size - where it had detailOf's three largest bags of lod 0 at 150 m (the school's roof was not among
+    // them: the user's "houses without roof and black"; the meteo station kept three floating lids)
+    if (HLOD.lod1 && o.game && (HLOD.streamLod1 || !IN_STREAM) && R.lod1) { try { grp.userData.lod1 = lod1Bags(GEN, it.P, F, R.lod1); } catch (e) { console.warn('premises item lod 1', it.id, e && e.message); } }
     hitAdd(grp, 'item', 1.0);
     if (built.bags.aoskirt && GEN.MAT && GEN.MAT.aoskirt) { const sk = built.bags.aoskirt.mesh(grp, GEN.MAT.aoskirt); if (sk) { sk.renderOrder = 5; sk.castShadow = false; sk.receiveShadow = false; } }
     // A HAND-PLACED SITE ITEM DRESSES LIKE A PLOT (G401, the user: "the ground textures of all lots"): a

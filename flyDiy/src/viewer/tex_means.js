@@ -364,6 +364,7 @@ const TEX_MEANS = {
   "media/tex/signs/north_motel_1k.9d86db3a.png": [101.19, 109.25, 116.69],
   "media/tex/signs/postal_service_1k.a8f1c88e.png": [81.44, 93.44, 101.38],
   "media/tex/signs/sitka_lumber_1k.6d38fe1b.png": [127.62, 114.06, 94.5],
+  "media/tex/signs/the_shed_1k.d046f1e8.webp": [121.62, 98.44, 67.06],
   "media/tex/signs/tidal_cup_1k.00faf619.png": [129.56, 122.81, 100.56],
   "media/tex/signs/tongass_marine_1k.eb57d574.png": [100.38, 115.06, 118.62],
   "media/tex/signs/town_hall_1k.a68849c0.png": [70.38, 78.88, 65.5],

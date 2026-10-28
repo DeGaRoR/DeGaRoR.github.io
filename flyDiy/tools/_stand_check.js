@@ -148,6 +148,14 @@ console.log('GATE STAND');
     stuck.position.set(10, 2, 0); stuck.updateMatrix(); stuck.matrixWorld.copy(stuck.matrix); pass();
     ok(!stuck.layers.isEnabled(NL), '2 a frozen caster is read by its cached sphere (render_premises freezes what never moves)');
     ok(walks === w0, '2 no scene walk after the first pass', (walks - w0) + ' walks');
+    // G3619 (the user 26 Oct: "passengers should have shadows"): a passenger's pieces are each under NEAR_MIN_R; tagged by
+    // the whole person's sphere (its crowd group) they cast, wherever the group walks - and a prop that size still does not
+    const person = new THREE.Group(); person.position.set(8, 0, 3);
+    const shoe = box(0.2, 0, 0), shirt = box(0.5, 0, 1.3); shoe.userData.crowdPerson = person; shirt.userData.crowdPerson = person;
+    const crate = box(0.5, 9, 3); person.add(shoe, shirt); scene.add(person, crate); scene.updateMatrixWorld(true); pass();
+    ok(shoe.layers.isEnabled(NL) && shirt.layers.isEnabled(NL) && !crate.layers.isEnabled(NL), '2 a passenger\'s pieces are near casters by the whole person\'s sphere (a crate their size is not)');
+    person.position.set(200, 0, 0); scene.updateMatrixWorld(true); pass();
+    ok(!shoe.layers.isEnabled(NL) && !shirt.layers.isEnabled(NL), '2 ...and leave the near layer when the person walks out of reach');
   }
 }
 

@@ -58,6 +58,20 @@ const DEF = {
   near: 60,         // m: the skeleton is posed under this
   far: 150,         // m: nobody is drawn past this
   cap: 4,           // the nearest this many animate every frame
+  // G3619 (THE QUEUE): the line waiting at the embark point
+  lineSp: 1.1,      // m between two people waiting (more than `spacing`: they are standing about, not walking)
+  lineJit: 0.08,    // m: each one's place along the line, seeded (under (lineSp - spacing) / 2: no one starts too close)
+  lineYaw: 0.17,    // rad: each one's facing about the aeroplane's door, seeded
+  hold: 2.5,        // s the line stands once drawn before the first one walks (R.go() releases it sooner)
+  idleHalf: 25,     // m: a waiting person past this is posed every second frame
+  // the user 26 Oct ("passengers should have shadows"): the CAP nearest cast; ?crowdshadow=0 turns it off (the frame-cost
+  // table's A/B: the shadow passes' draws and triangles with and without the people)
+  shadow: !(typeof location !== 'undefined' && /[?&]crowdshadow=0(&|$)/.test(location.search || '')),
+  // the user 26 Oct ("fake contact shadows for passengers like we have for the plane's wheels"): a soft ellipse under
+  // EVERY drawn person's feet (contact_shadow.js's blob, one instanced draw for the crowd); ?crowdcontact=0 off (the A/B)
+  contact: !(typeof location !== 'undefined' && /[?&]crowdcontact=0(&|$)/.test(location.search || '')),
+  footLen: 0.62, footWid: 0.46, footA: 0.8, footCore: 0.6,   // m along the facing / across; the halo's and the core's darkness (27 Oct: 0.55/0.35 barely read in shade)
+  contactMax: 32,  // people the one draw holds
 };
 CR.DEF = DEF;
 
@@ -139,11 +153,26 @@ CR.route = route;
 // ---- THE RUN: the state machine ------------------------------------------
 // spec = { path: [[x,z]...] start -> the door's foot, face: yaw to board,
 //          seats: [{ seat, key, pose? }] in boarding order,
-//          spacing?, speed?, gap?, queueClips?: n (how many queue clips to alternate) }
+//          spacing?, speed?, gap?, queueClips?: n (how many queue clips to alternate),
+//          line?: { hold? } (G3619: they WAIT in a line at the path's start, already there), seed? (string) }
 // people[i] = { seat, key, state, s, x, z, yaw, clip: {a, ta, b, tb, w}, stand, seatW, bob }
-//   state: 'wait' (not out yet) | 'walk' | 'queue' | 'turn' | 'board' | 'seated'
+//   state: 'line' (waiting, drawn) | 'wait' (not out yet) | 'walk' | 'queue' | 'turn' | 'board' | 'seated'
 //   stand: the walker's fade (1 drawn, 0 gone); seatW: the seated figure's (0 -> 1)
-const CLIP = { walk: 'walk', idle: 'idle', queue: 'queue' };
+// THE LINE (G3619, the user 25 Oct: "the passengers queuing"): the job's passengers stand at the embark point when the
+// screen lifts - single file along the path's first metres, the first in boarding order at the front, each facing the
+// aeroplane's door (seeded: a little off it, a little off their place), each on their own idle at their own phase. After
+// `hold` s (or R.go()) the front one walks, the next `gap` s later, each from where they stood: the walk's slots then
+// hold them apart as before. The one at the back may PACE (a clip whose Hips walk about a spot: clipInfo.drift), placed
+// its reach further back; at its turn it finishes the loop (|drift| under 0.2 m, 4 s at most) and walks on.
+const CLIP = { walk: 'walk', idle: 'idle', queue: 'queue', pace: 'pace' };
+// a seeded number in [0, 1) per (seed, person, salt): FNV-1a, no Math.random (the same job, the same line)
+function hash01(seed, i, salt) {
+  let h = 2166136261 >>> 0;
+  for (const ch of String(seed == null ? '' : seed) + '|' + i + '|' + salt) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; }
+  h ^= h >>> 15; h = Math.imul(h, 2246822519) >>> 0; h ^= h >>> 13;
+  return (h >>> 0) / 4294967296;
+}
+CR.hash01 = hash01;
 function run(spec, clipInfo) {
   const o = Object.assign({}, DEF, spec);
   const P = poly(spec.path && spec.path.length ? spec.path : [[0, 0]]);
@@ -151,13 +180,36 @@ function run(spec, clipInfo) {
   const v = ci.rootV > 0.3 ? ci.rootV : o.speed;          // a walk 'in place' moves at the default
   const nQ = Math.max(1, ci.queueClips | 0 || o.queueClips | 0 || 1);
   const face = spec.face != null ? spec.face : at(P, P.L).yaw;
-  const people = (spec.seats || []).map((s, i) => ({
-    i, seat: s.seat, key: s.key, pose: s.pose || null,
-    state: 'wait', s: 0, x: P.pts[0][0], z: P.pts[0][1], yaw: at(P, 0).yaw,
-    clip: { a: CLIP.idle, ta: 0, b: null, tb: 0, w: 0 },
-    queueClip: i % nQ, stand: 0, seatW: 0, bob: 0, tState: 0, walkT: 0, yaw0: 0,
-  }));
-  const R = { P, v, face, people, T: 0, spec: o, boarded: [] };
+  const line = !!spec.line, seed = spec.seed == null ? '' : String(spec.seed), q0 = Math.floor(hash01(seed, -1, 'q') * nQ);
+  const nP = (spec.seats || []).length;
+  const pace = line && nP >= 2 && typeof ci.drift === 'function';
+  const paceReach = pace ? Math.max(0, +ci.paceReach || 0) : 0;
+  // the line's front: its people's places fit before the path's middle (the queue at the door needs the rest)
+  const lineFront = Math.min((nP - 1) * o.lineSp + paceReach + 1.5, P.L * 0.5);
+  const door = P.pts[P.pts.length - 1];
+  const people = (spec.seats || []).map((s, i) => {
+    const p = {
+      i, seat: s.seat, key: s.key, pose: s.pose || null,
+      state: 'wait', s: 0, x: P.pts[0][0], z: P.pts[0][1], yaw: at(P, 0).yaw,
+      clip: { a: CLIP.idle, ta: 0, b: null, tb: 0, w: 0 },
+      // neighbours on different idles (nQ >= 2), the line's first one seeded; the phases seeded
+      queueClip: (i + q0) % nQ, stand: 0, seatW: 0, bob: 0, tState: 0, walkT: 0, yaw0: 0, ox: 0, oz: 0, pace: false,
+    };
+    if (line) {
+      p.pace = pace && i === nP - 1;
+      const jit = (hash01(seed, i, 's') * 2 - 1) * o.lineJit;
+      p.s = Math.max(0, lineFront - i * o.lineSp - (p.pace ? paceReach : 0) + (i ? jit : 0));
+      at(P, p.s, p);
+      p.yaw = wrap(Math.atan2(door[0] - p.x, door[1] - p.z) + (hash01(seed, i, 'y') * 2 - 1) * o.lineYaw);
+      p.state = 'line'; p.stand = 1;
+      p.clip.a = p.pace ? CLIP.pace : CLIP.queue;
+      p.clip.ta = hash01(seed, i, 't') * 30;
+    }
+    return p;
+  });
+  const R = { P, v, face, people, T: 0, spec: o, boarded: [], goT: line ? (spec.line.hold != null ? +spec.line.hold : o.hold) : 0 };
+  // the line walks now (the host: the aeroplane is ready sooner than the hold)
+  R.go = () => { if (R.goT > R.T) R.goT = R.T; return R; };
   const pt = {};
   function setClip(p, name) {
     const c = p.clip;
@@ -182,6 +234,22 @@ function run(spec, clipInfo) {
     for (const p of people) {
       if (p.state === 'seated') continue;
       const r = rank++;
+      if (p.state === 'line') {
+        p.tState += dt;
+        stepClip(p, dt, 1);
+        if (p.pace) {
+          // the pacer's ground track, in its own frame turned to its yaw (three's rotation.y)
+          const d = ci.drift(p.clip.ta), c = Math.cos(p.yaw), sn = Math.sin(p.yaw);
+          p.ox = d[0] * c + d[1] * sn; p.oz = -d[0] * sn + d[1] * c;
+        }
+        at(P, p.s, pt);
+        p.x = pt.x + p.ox; p.z = pt.z + p.oz;
+        // its turn: the one ahead gone on, `gap` s after it; a pacer back near its spot first (or 4 s late at most)
+        const turn = R.T >= R.goT + p.i * o.gap && (!ahead || ahead.state !== 'line');
+        const back = !p.pace || Math.hypot(p.ox, p.oz) < 0.2 || R.T >= R.goT + p.i * o.gap + 4;
+        if (turn && back) { p.state = 'walk'; p.tState = 0; setClip(p, CLIP.walk); }
+        else { ahead = p; continue; }
+      }
       if (p.state === 'wait') {
         // out of the start point on its turn, once the one ahead is out and a spacing clear of it
         if (R.T >= p.i * o.gap && (!ahead || (ahead.state !== 'wait' && ahead.s >= o.spacing - 1e-6))) {
@@ -209,7 +277,9 @@ function run(spec, clipInfo) {
           stepClip(p, dt, 1);
         }
         at(P, p.s, pt);
-        p.x = pt.x; p.z = pt.z;
+        // a pacer's last offset off the line fades over its first half second of walking
+        if (p.ox || p.oz) { const k = Math.max(0, 1 - dt / 0.5); p.ox *= k; p.oz *= k; if (Math.hypot(p.ox, p.oz) < 1e-3) p.ox = p.oz = 0; }
+        p.x = pt.x + p.ox; p.z = pt.z + p.oz;
         // the heading follows the path's at turnRate (a corner is a turn, not a snap)
         const d = wrap(pt.yaw - p.yaw), mx = o.turnRate * dt;
         p.yaw = wrap(p.yaw + Math.max(-mx, Math.min(mx, d)));
@@ -263,6 +333,15 @@ function bobAt(a, t) {
   return a.bob[f0] + (a.bob[f1] - a.bob[f0]) * u;
 }
 CR.bobAt = bobAt;
+// G3619: a pace clip's ground track at t -> [dx, dz] (m, the character's own frame), linear between frames
+const D0 = [0, 0];
+function driftAt(a, t) {
+  if (!a || !a.drift || !a.drift.length) return D0;
+  const n = a.drift.length, f = ((t % a.dur) + a.dur) % a.dur * a.fps, f0 = Math.min(n - 1, Math.floor(f)),
+        f1 = Math.min(f0 + 1, n - 1), u = f - f0, A = a.drift[f0], B = a.drift[f1];
+  return [A[0] + (B[0] - A[0]) * u, A[1] + (B[1] - A[1]) * u];
+}
+CR.driftAt = driftAt;
 
 // ---- THE PACK (the page: fetched once) ------------------------------------
 const W = typeof window !== 'undefined' ? window : null;
@@ -365,7 +444,10 @@ CR.fadeObjects = fadeObjects;
 // ctx.done(seat)        optional: a person has boarded
 function make(THREE, ctx) {
   const CC = W && W.CAGE_CHAR;
-  const M = { people: [], stats: { shown: 0, posed: 0, frozen: 0, boarding: 0 }, runs: [] };
+  const M = { people: [], stats: { shown: 0, posed: 0, frozen: 0, boarding: 0, line: 0, feet: 0 }, runs: [] };
+  const CS = W && W.CONTACT_SHADOW, UP = [0, 1, 0];
+  let feet = null;   // the feet's blobs: made with the first run (nothing at boot, nothing without a job)
+  const FEET = [];
   const QA = new Float32Array(4), QB = new Float32Array(4);
   const qa = new THREE.Quaternion(), qb = new THREE.Quaternion();
   const MATS = new Map();   // char material -> its walker twin
@@ -411,12 +493,13 @@ function make(THREE, ctx) {
     return pack().then(P => {
       clipsRegister(P);
       const roles = P.roles || {};
-      const want = { walk: (roles.walk || [])[0], idle: (roles.idle || [])[0], queue: (roles.queue || []).slice() };
+      const want = { walk: (roles.walk || [])[0], idle: (roles.idle || [])[0], queue: (roles.queue || []).slice(),
+                     pace: spec.line ? (roles.pace || [])[0] : null };
       const castKeys = (P.cast || []).map(c => c.key);
       // a seat whose figure has no character takes the cast in order
       const seats = (spec.seats || []).map((s, i) => Object.assign({}, s, { key: s.key || castKeys[i % Math.max(1, castKeys.length)] }));
       const keys = [...new Set(seats.map(s => s.key).filter(Boolean))];
-      const clipKeys = [want.walk, want.idle, ...want.queue].filter(Boolean);
+      const clipKeys = [want.walk, want.idle, ...want.queue, want.pace].filter(Boolean);
       return Promise.all([
         Promise.all(keys.map(k => castLoad(P, k).then(() => CC.load(k)))),
         Promise.all(clipKeys.map(k => CC.animLoad(k))),
@@ -424,13 +507,17 @@ function make(THREE, ctx) {
         const clips = {};
         const A = typeof CHAR_ANIMS !== 'undefined' ? CHAR_ANIMS.anims : {};
         clipKeys.forEach((k, i) => { clips[k] = { a: A[k], dec: decs[i] }; });
-        const walkA = A[want.walk];
+        const walkA = A[want.walk], paceA = want.pace ? A[want.pace] : null;
         const R = run(Object.assign({}, spec, { seats }), {
           rootV: walkA && walkA.rootV, queueClips: want.queue.length,
           bob: walkA && walkA.bob ? t => bobAt(walkA, t) : null,
+          // G3619: the pacer's ground track (a pack without the clip: nobody paces)
+          drift: paceA && paceA.drift && paceA.drift.length ? t => driftAt(paceA, t) : null,
+          paceReach: paceA && paceA.drift ? paceA.drift.reduce((m, d) => Math.max(m, Math.hypot(d[0], d[1])), 0) : 0,
         });
         // the run's clip names -> this pack's clip keys (a person's queue clip by index)
-        const name = (p, n) => (n === 'walk' ? want.walk : n === 'idle' ? want.idle : want.queue[p.queueClip] || want.idle);
+        const name = (p, n) => (n === 'walk' ? want.walk : n === 'idle' ? want.idle : n === 'pace' ? want.pace || want.idle
+          : want.queue[p.queueClip] || want.idle);
         const H = R.people.map(p => {
           const inst = CC.instance(p.key);
           if (!inst) return null;
@@ -444,6 +531,8 @@ function make(THREE, ctx) {
           for (const o of inst.tree.objs) if (o.isBone) { o.getWorldPosition(v); if (v.y < yMin) yMin = v.y; }
           inst.tree.root.position.y = -(isFinite(yMin) ? yMin : 0);
           g.add(inst.tree.root);
+          // the shadow (the user 26 Oct): render_world's nearTag takes the whole person's sphere for each piece
+          for (const sm of inst.meshes) sm.userData.crowdPerson = g;
           g.visible = false;
           ctx.scene.add(g);
           if (ctx.seatFade) ctx.seatFade(p.seat, 0);
@@ -451,6 +540,8 @@ function make(THREE, ctx) {
         });
         const one = { R, H, clips, name, seen: new Set(), ready: !ctx.compile };
         M.runs.push(one);
+        // the feet's blobs: contact_shadow's own mesh and program (the world's tyres link it), one draw for the crowd
+        if (!feet && DEF.contact && CS && CS.make) { feet = CS.make(THREE, DEF.contactMax); feet.name = 'crowd:feet'; ctx.scene.add(feet); }
         // THE PROGRAMS BEFORE THE FIRST DRAW: the walkers' twins compiled off the frame (renderer.compileAsync), the
         // group drawn once they are - a person appears a moment late rather than a frame arriving late
         // (three's compile walks VISIBLE objects, synchronously, before its promise: shown for the call, hidden after)
@@ -477,11 +568,14 @@ function make(THREE, ctx) {
     frame++;
     const e = ctx.eye ? ctx.eye() : null;
     const S = M.stats;
-    S.shown = S.posed = S.frozen = S.boarding = 0;
+    S.shown = S.posed = S.frozen = S.boarding = S.line = S.feet = 0;
+    FEET.length = 0;
     for (const one of M.runs) {
-      one.R.step(dt);
+      // the run's clock starts with its first drawn frame (G3619: the line's hold is seen whole, however long the
+      // programs took to compile)
+      if (one.ready) one.R.step(dt);
       // the ladder: distances first, then the CAP nearest pose every frame
-      const order = [];
+      const order = [], SN = typeof window !== 'undefined' ? window.SHADOW_NEAR : null;
       for (const h of one.H) {
         if (!h) continue;
         const p = h.p;
@@ -497,7 +591,13 @@ function make(THREE, ctx) {
         }
         if (!on) { park(h, 0); continue; }
         S.shown++;
-        h.g.position.set(p.x, ctx.ground(p.x, p.z) + p.bob, p.z);
+        if (p.state === 'line') S.line++;
+        const gy = ctx.ground(p.x, p.z);
+        h.g.position.set(p.x, gy + p.bob, p.z);
+        // the feet's blob: faded with the boarding (p.stand), along the facing
+        if (DEF.contact && feet) { const k = p.state === 'board' ? p.stand : 1;
+          if (k > 0.02) FEET.push({ kind: 'foot', x: p.x, z: p.z, gy, n: UP, ax: [Math.sin(p.yaw), Math.cos(p.yaw)], len: DEF.footLen, wid: DEF.footWid,
+            a: DEF.footA * k, core: DEF.footCore * k, cu: 0.55, cv: 0.6 }); }
         h.g.rotation.set(0, p.yaw, 0);
         if (p.state === 'board') {
           S.boarding++;
@@ -511,16 +611,21 @@ function make(THREE, ctx) {
       order.forEach((h, k) => {
         park(h, 2);
         // a shadow for the CAP nearest only (the depth pass of a 50k-triangle skin is not free)
-        for (const sm of h.inst.meshes) sm.castShadow = k < DEF.cap;
+        for (const sm of h.inst.meshes) sm.castShadow = DEF.shadow && k < DEF.cap;
         if (k >= DEF.cap && (frame + h.p.i) % 3) return;
+        // G3619: a waiting one past idleHalf on every second frame (an idle's half rate does not show at 25 m)
+        if (h.p.state === 'line' && h.d > DEF.idleHalf && (frame + h.p.i) % 2) return;
         // the walker's material carries its own fade; reset after a board
         if (h.p.state !== 'board') for (const sm of h.inst.meshes) sm.material.userData.crowdFade.value = 1;
         const cv = clipView(one, h.p);
         const c = h.p.clip;
         pose(h, { clip: { a: cv.a, ta: c.ta, b: cv.b, tb: c.tb, w: c.w } }, one.clips);
         S.posed++;
+        // an idle casting into the near map: its shadow follows the pose (shadow_near's posedHz)
+        if (k < DEF.cap && DEF.shadow && h.p.state === 'line' && SN && SN.posed) SN.posed();
       });
     }
+    if (feet) { CS.update(THREE, feet, FEET); S.feet = feet.count; }
     // a run whose everyone boarded is put away
     for (let i = M.runs.length - 1; i >= 0; i--) if (M.runs[i].R.done()) { drop(M.runs[i]); M.runs.splice(i, 1); }
     return S.shown;

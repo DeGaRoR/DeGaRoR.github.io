@@ -178,6 +178,9 @@ const MANIFEST = {
     // THE CERTIFICATE (G1830, DMG-D2a): the load cases and the per-member envelope; needs 65_'s rig constants and
     // 30_'s makeSim (the drop); called at a flight's start and by the bench, never in the garage's edit loop
     '66_gen_cert.js',
+    // THE CERTIFICATE'S RULE (G3780 CERT-RULE): the major/minor row list and the `f3` major fingerprint, ONE list read by
+    // the bench (bench.js), the career's factory certificate (76_procure procureFp) and the acceptance legs; pure
+    '66b_cert_rule.js',
     // THE PLAYER (HANGARS S1): the player's property as one document — its
     // own version and migrator walk beside the spec's (G105: state that is
     // not the aeroplane costs no spec version). References 26_'s default kit
@@ -607,6 +610,9 @@ const MANIFEST = {
     // table (window.BLUEPRINT_LIBRARY) that blueprint.js reads lazily.
               'garage.js', 'storage_ui.js', 'workshop.js', 'plaque.js', 'stickers.js', 'bench_worker.js', 'bench.js', 'accept_rec.js', 'refplane.js', 'blueprint_library.js', 'blueprint.js',
               'sim_host.js', 'sim_view.js', 'sim_link.js', 'sheet_link.js',
+    // ap_why.js (G3560 AP-HONEST) before app.js: the autopilot's reasons in a player's words (window.AP_WHY, pure) - app.js
+    // shows them as the pilot says them (#apWhy) and on the arrival card
+              'ap_why.js',
     // house_worker.js (G830, C2a): the houses' own thread - the page's client (window.HOUSE_WORKER, started by
     // world_boot.js) and the worker's body, imported RAW by its own Blob worker (with sim_host.js, the core, three and
     // the generators by their URLs) - so it must stay a file the page can fetch, like sim_host.js
@@ -667,6 +673,8 @@ const MANIFEST = {
               'skin_break.js',
               // G1818 (DMG-SKINGPU): the wreck's skin ridden on the GPU (window.SKIN_GPU; app.js brkGpu - nothing at load)
               'skin_gpu.js',
+              // G3770 (DMG-LOOKS): the wreck's frame members by material - the parting rule's plan and the member pool (window.DMG_MEMBERS; ?dmglook=1)
+              'dmg_members.js',
               // G1860-G1863 (DMG-D4b): the wreck's non-member parts - debris, the prop strike, the cockpit rule (window.WRECK_DEBRIS, pure)
               'wreck_debris.js',
               // G3623 (DMG-GLASS): the impact marks on the glazing (window.DMG_GLASS, pure; app.js glassMarks; the crack block is aeroskin.js's)
@@ -696,7 +704,7 @@ const MANIFEST = {
     // reads (GEN_*, ENG_PAGE) is reached lazily, so it sits with its sibling.
     '_cage_design.js',
     // THE CHARACTERS (G204): the rig/skin module the crew layer dresses its
-    // dummies with — reads CHAR_REG at call time, so only before the crew.
+    // occupants with — reads CHAR_REG at call time, so only before the crew.
     // THE KNIFE (G245): the drawn-window cut, pure, reached by cageSheet at
     // call time through the KNIFE_GEN global — before the generator.
     // THE SHOULDER (G325): the sill trim, pure, reached by cageSheet at call
@@ -1119,7 +1127,7 @@ function buildViewer(core) {
   // raster cells fetched below are this variant's alone: a town-off page never pays the town's cells
   var tq = new URLSearchParams(location.search).get('town'), townOn = true;
   if (tq !== null) townOn = tq === '1' || tq === 'all';
-  else { try { var gp = JSON.parse(localStorage.getItem('flydiy.gfx') || 'null'); townOn = !(gp && gp.town === 'nearby' && gp.pv >= 7); } catch (e) {} }
+  else { try { var gp = JSON.parse(localStorage.getItem('flydiy.gfx') || 'null'); townOn = !(gp && gp.town === 'nearby' && gp.pv >= 10); } catch (e) {} }   // (METLA-ON: a 'nearby' saved before pv 10 was the old default - gfx_settings makes it 'all')
   // (G1526, POTATO-DEEP) potato and laptop never build Metlakatla (GFX.BUDGETS town 'nearby'): their page composes the default
   // variant - a ?gfx= in the URL, else the saved preset's build budget (a custom mix keeps its last preset's: gp.build)
   if (tq === null) { try { var gq = new URLSearchParams(location.search).get('gfx'), gs = JSON.parse(localStorage.getItem('flydiy.gfx') || 'null');

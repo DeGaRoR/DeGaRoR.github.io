@@ -21,6 +21,8 @@
   const today = () => new Date().toISOString().slice(0, 10);
   const fpOut = () => { try { return (window.BENCH_FP_OUT && window.BENCH_FP_OUT()) || (window.BENCH_FP && window.BENCH_FP()) || null; } catch (e) { return null; } };
   const fpLive = () => { try { return window.BENCH_FP ? window.BENCH_FP() : null; } catch (e) { return null; } };
+  // G3780 M4: the live aeroplane's old (f2) hashes, so legs and rows signed before the certificate's rule still count
+  const fpAlias = () => { try { return window.BENCH_FP_ALIASES ? window.BENCH_FP_ALIASES() : []; } catch (e) { return []; } };
   const logOf = () => { try { const G = window.GARAGE_SPEC; return G && G.log ? G.log() : null; } catch (e) { return null; } };
   let inline = null;          // the page's own leg (no physics worker)
   let signed = {};            // the signatures already written this session
@@ -103,14 +105,14 @@
   }
   const legs = () => { const lg = logOf(); return (lg && Array.isArray(lg.accept)) ? lg.accept : []; };
   // the plaque's row: the last valid leg under the LIVE fingerprint, { withdrawn } under another, null with none
-  function plaqueLeg(fp) { return typeof acceptPlaqueLeg === 'function' ? acceptPlaqueLeg(legs(), fp !== undefined ? fp : fpLive()) : null; }
+  function plaqueLeg(fp) { return typeof acceptPlaqueLeg === 'function' ? acceptPlaqueLeg(legs(), fp !== undefined ? fp : fpLive(), fpAlias()) : null; }
   // THE CONTRACT MODEL'S DOOR: this build's evidence and the verdict over a contract's criteria
   function evidence(extra) {
     const F = P(), def = F && F.def ? F.def() : null;
     let bench = null;
     try { const st = window.BENCH_STATE ? window.BENCH_STATE() : null; bench = st ? st.results : null; } catch (e) {}
     const lg = logOf();
-    return acceptEvidence(def, Object.assign({ bench, legs: legs(), flights: (lg && lg.flights) || [], fp: fpLive(),
+    return acceptEvidence(def, Object.assign({ bench, legs: legs(), flights: (lg && lg.flights) || [], fp: fpLive(), fpAlias: fpAlias(),
                                                cert: def && def.cert ? { limit: def.cert.limit, ult: def.cert.ult } : null }, extra || {}));
   }
   const verdict = (crit, extra) => acceptVerdict(crit, evidence(extra));

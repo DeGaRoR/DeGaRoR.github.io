@@ -387,11 +387,14 @@ const CAGE_PARTS = [
     groups: [
       ['row 1', ['paxWinN', 'paxWinShape', 'paxWinZ', 'paxWinPitch', 'paxWinY', 'paxWinW',
                  'paxWinH', 'paxWinTopK', 'paxWinSkew', 'paxWinR', 'paxWinR1', 'paxWinR2',
-                 'paxWinR3', 'paxWinR4', 'paxWinDepth']],
+                 'paxWinR3', 'paxWinR4', 'paxWinDepth',
+                 'paxWinQ1Z', 'paxWinQ1Y', 'paxWinQ2Z', 'paxWinQ2Y', 'paxWinQ3Z', 'paxWinQ3Y', 'paxWinQ4Z', 'paxWinQ4Y']],
       ['row 2', ['win2N', 'win2Shape', 'win2Z', 'win2Pitch', 'win2Y', 'win2W', 'win2H',
-                 'win2TopK', 'win2Skew', 'win2R', 'win2R1', 'win2R2', 'win2R3', 'win2R4', 'win2Depth']],
+                 'win2TopK', 'win2Skew', 'win2R', 'win2R1', 'win2R2', 'win2R3', 'win2R4', 'win2Depth',
+                 'win2Q1Z', 'win2Q1Y', 'win2Q2Z', 'win2Q2Y', 'win2Q3Z', 'win2Q3Y', 'win2Q4Z', 'win2Q4Y']],
       ['row 3', ['win3N', 'win3Shape', 'win3Z', 'win3Pitch', 'win3Y', 'win3W', 'win3H',
-                 'win3TopK', 'win3Skew', 'win3R', 'win3R1', 'win3R2', 'win3R3', 'win3R4', 'win3Depth']],
+                 'win3TopK', 'win3Skew', 'win3R', 'win3R1', 'win3R2', 'win3R3', 'win3R4', 'win3Depth',
+                 'win3Q1Z', 'win3Q1Y', 'win3Q2Z', 'win3Q2Y', 'win3Q3Z', 'win3Q3Y', 'win3Q4Z', 'win3Q4Y']],
     ] },
 
   { key: 'pilotWindow', name: 'pilot window', parent: 'glazing', layer: 'cage',
@@ -623,7 +626,7 @@ const CAGE_PARTS = [
              at: 'on the cabin carry-through' },
     // LAYER sections (AEROSKIN's AERO_SEC), not cage mesh names: the wing's
     // own livery rows, following the fuselage until overridden
-    sections: ['wingSkin', 'wingTip', 'wingLongeron'],
+    sections: ['wingSkin', 'wingTip', 'wingLongeron', 'wingStol'],   // G2829: the STOL devices' own paint
     // (T2.3 (48): the carry-through beam's switch rides with the centre section)
     groups: [
       ['planform', ['wgSpan', 'wgChord', 'wgChordTip', 'wgTip',
@@ -634,6 +637,8 @@ const CAGE_PARTS = [
       ['aerofoil', ['wgCamber', 'wgThick']],
       ['structure', ['wgCentre', 'wgCentreW', 'wgBeam', 'wgPanels', 'wgCons']],
       ['placement', ['wgDx', 'wgDy', 'wgParaH']],
+      // G2820: the STOL wing's leading-edge and spanwise devices
+      ['STOL devices', ['wgSlat', 'wgSlatSpan', 'wgVG', 'wgFence', 'wgCuff', 'wgCuffSpan']],
     ] },
 
   { key: 'struts', name: 'Lift struts', parent: 'wings', layer: 'wing',
@@ -655,8 +660,8 @@ const CAGE_PARTS = [
     sections: ['wingAil', 'wingFlap'],
     place: { type: 'wgFlapType', at: 'along the trailing edge' },
     groups: [
-      ['flaps', ['wgFlapType', 'wgFlapSpan', 'wgFlapChord']],
-      ['ailerons', ['wgAilOn', 'wgAilSpan', 'wgAilChord']],
+      ['flaps', ['wgFlapType', 'wgFlapSpan', 'wgFlapChord', 'wgFowlerGrow']],
+      ['ailerons', ['wgAilOn', 'wgAilSpan', 'wgAilChord', 'wgDroop']],
     ] },
 
   // G185: THE CABANE — the struts a parasol wing (and a biplane's upper
@@ -1110,19 +1115,19 @@ const CAGE_PARTS = [
   { key: 'wheels', name: 'Wheels & tyres', parent: 'mains', layer: 'gear',
     when: P => (+P.gearOn) * (1 - (+P.gearFloats || 0)) > 0, unless: ['gearFloats'],
     sections: ['spat'],
-    place: { type: ['whProfile', 'whTread', 'whRim', 'whCap', 'whBrake', 'fairCons'],
+    place: { type: ['whProfile', 'whSlick', 'whRim', 'whCap', 'whBrake', 'fairCons'],
              count: ['whRibs', 'whBolts'], at: 'every station' },
     groups: [
       // the radii, one per station — the wheel's own size, filed with the wheel
       ['size', ['s1R', 's2R']],
-      ['carcass', ['whProfile', 'whTread', 'whBulge', 'whRibs']],
+      ['carcass', ['whProfile', 'whSlick', 'whBulge', 'whRibs']],
       ['rim', ['whRim', 'whBolts', 'whCap', 'whValve', 'whBrake']],
       ['fairing build', ['fairCons']],
     ] },
 
   // =========================================================================
   // CABIN FIT — the crew layer (cage5): seats, controls, the dashboard and the
-  // dummy. A disjoint layer over the cage; never in the mesh, the gates or the
+  // occupants. A disjoint layer over the cage; never in the mesh, the gates or the
   // OBJ.
   // =========================================================================
   // 2026-09-04 (the user: "cabin fit should definitely be in cabin")
@@ -1191,18 +1196,17 @@ const CAGE_PARTS = [
     ] },
 
   { key: 'crew', name: 'Crew', parent: 'fit', layer: 'crew',
-    sections: ['dummy1', 'dummy2'],
     when: P => +P.crewOn,
     groups: [
       // G180: the cockpit's occupants and the two poses (a passenger bay's
       // occupancy is the bay's own row, see the Passenger bay part)
-      ['aboard', ['dumOn', 'pilotWho', 'cabOcc', 'copWho']],
-      ['pilot pose', ['dumSize', 'dumElbows', 'dumKnees', 'dumRecline',
-                      'dumHandGrip', 'dumFist', 'dumIdle']],
-      ['hands', ['dumHandsApart', 'dumFistL', 'dumFistR', 'dumGripL', 'dumGripR']],   // G2797
-      ['passenger pose', ['paxSize', 'paxRecline', 'paxFeetOn', 'paxFeetZ',
+      // G3700: the pilot is the racer (no select); the co-pilot picks
+      ['aboard', ['pilOn', 'cabOcc', 'cabWho']],
+      ['pilot pose', ['pilElbows', 'pilKnees', 'pilRecline',
+                      'pilHandGrip', 'pilFist', 'pilIdle']],
+      ['hands', ['pilHandsApart', 'pilFistL', 'pilFistR', 'pilGripL', 'pilGripR']],   // G2797
+      ['passenger pose', ['paxRecline', 'paxFeetOn', 'paxFeetZ',
                           'paxFeetY', 'paxFeetX', 'paxIdle']],
-      ['markers', ['dumMarkers'], EXPERT],                  // G2794: an expert's instrument
     ] },
 
   // LIGHTS ARE A CABIN FITTING and not a fuselage one, because the thing you

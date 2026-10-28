@@ -7634,7 +7634,7 @@ const CAGE_VIEW_KEYS = { explodeD: 1 };
 
 // LAYER PARAMETERS RIDE THROUGH. The cage's own parameters are CAGE_PARAMS,
 // but a bench page also carries its layers' (the crew's seats, controls and
-// dummy live in _cage_crew.js and are declared only in the page's defaults).
+// occupants live in _cage_crew.js and are declared only in the page's defaults).
 // Both directions therefore pass a key they do not recognise straight through
 // instead of dropping it: a build file has to be able to carry the cockpit, and
 // the generator reads only the keys it knows, so an unknown one is inert here.
@@ -7673,6 +7673,15 @@ const cageSameVal = (a, b) => a === b ||
   (a && b && typeof a === 'object' && typeof b === 'object' &&
    JSON.stringify(a) === JSON.stringify(b));
 
+// THE PILOT'S ROWS (G3700): `pil<Row>` now, `CAGE_PILOT_OLD`
+// the name a file saved before it carries (cageFromSpec's one alias, and the
+// name bench.js hashes the row under so a certificate keeps its fingerprint);
+// CAGE_PILOT_GONE the retired rows nothing reads (carried in `fpLegacy`).
+const CAGE_PILOT_ROWS = ['On', 'Recline', 'Elbows', 'Knees', 'HandGrip', 'Fist',
+  'Idle', 'HandsApart', 'FistL', 'FistR', 'GripL', 'GripR'];
+const CAGE_PILOT_OLD = r => 'dum' + r;
+const CAGE_PILOT_GONE = ['pilotWho', CAGE_PILOT_OLD('Size'), 'paxSize', CAGE_PILOT_OLD('Markers')];
+
 // spec | bare cage object | null  ->  a FULL parameter set.
 // A null field means "as the template" exactly as it does in the game spec, so
 // a build may null a single parameter to hand it back rather than restating it.
@@ -7690,7 +7699,7 @@ function cageFromSpec(spec) {
   // G180 MIGRATIONS, at the one door a saved cage comes through. (1) The
   // TANDEM layout is retired: every bay seats the cockpit's row now, so a
   // tandem IS one abreast with a bay, and `seatLayout 2` reads as 0. (2) The
-  // SECOND DUMMY switch became per-section occupancy: an older file that
+  // SECOND OCCUPANT switch became per-section occupancy: an older file that
   // carried `dum2On` (only a 0 ever rode in spec.cage — 1 was the default)
   // and none of the section rows gets the sections it meant: all full, or
   // nobody but the pilot. A file with no `dum2On` was at the default, which
@@ -7728,6 +7737,37 @@ function cageFromSpec(spec) {
     if (P.dashWas !== 1) P.dashLegs = 1;           // the box's legs row was never shown: the arch's default
     P.dashStyle = 1; P.dashV = 1;
   }
+  // (6) THE PILOT'S OWN ROWS (G3700, DUMMY-RETIRE; the user, 25 Oct: "retire
+  // everything related to the dummy"). THE ONE ALIAS: the pilot's rows were
+  // named for the crash-test figure the cage seated before the characters -
+  // `dum<Row>` reads as `pil<Row>`, the value as saved (a file that carries
+  // the new name keeps it), and the old name does not survive. The pilot is
+  // the racer (no `pilotWho`), nobody has a stature (`dumSize`, `paxSize`:
+  // every character sits at its own height) and the eye markers are gone
+  // (`dumMarkers`). The co-pilot's pick `copWho` (0 mixed, 1 the retired
+  // figure, 2.. a character) reads as `cabWho` (0 mixed, 1.. a character).
+  // A CERTIFICATE KEEPS ITS FINGERPRINT: the bench hashed these rows under
+  // their saved names, so the retired ones a file carried ride on unread in
+  // `fpLegacy` (bench.js benchStripCosmetic hashes them as they were, and the
+  // renamed ones under CAGE_PILOT_OLD) - Rufus's shipped certificate and every
+  // builder's own still match. A build made from here on carries none.
+  const cc = c && typeof c === 'object' && !Array.isArray(c) ? c : null;
+  for (const r of CAGE_PILOT_ROWS) {
+    const old = CAGE_PILOT_OLD(r);
+    if (cc && old in cc && cc['pil' + r] == null) P['pil' + r] = cc[old];
+    delete P[old];
+  }
+  if (cc && 'copWho' in cc && cc.cabWho == null) {
+    const v = Math.round(+cc.copWho || 0);
+    P.cabWho = v >= 2 ? v - 1 : 0;
+  }
+  const fpl = {};
+  for (const k of CAGE_PILOT_GONE) {
+    if (cc && cc[k] != null && !(P.fpLegacy && k in P.fpLegacy)) fpl[k] = cc[k];
+    delete P[k];
+  }
+  delete P.copWho;
+  if (Object.keys(fpl).length) P.fpLegacy = Object.assign({}, P.fpLegacy || {}, fpl);
   if (cageHasLegacy(P)) return cageLiftLegacy(P);
   return P;
 }
@@ -7757,6 +7797,47 @@ function cageToSpec(P) {
     out[k] = P[k]; n++;
   }
   return n ? out : null;
+}
+
+// WINDOWS-FREE (2026-10-27, the user: "a window can't follow the Cub's angled wing line"): THE FREE QUAD, a row's
+// third shape. Its four corners are placed in the SIDE VIEW, absolute cage (z, y) like the row's station - Q1 the
+// top-fore corner, Q2 top-aft, Q3 bottom-aft, Q4 bottom-fore (the rounded rectangle's own corner order, so R1-R4
+// round them) - each corner row absent following the rectangle the row's other rows draw (topK and skew included),
+// so switching a row to 'quad' changes nothing until a corner moves. A row's later windows repeat the quad at the
+// pitch. The knife cuts CONVEX outlines (a convex clip is an intersection of half-planes): a quad dragged concave,
+// or crossed into a bow-tie, is REFUSED with its reason - kept in the list, never cut, the sheet watertight - the
+// way an overlapping window is.
+function cageQuadRect(P, pre) {
+  const z = +P[pre + 'Z'], y = +P[pre + 'Y'], W = Math.max(0.02, +P[pre + 'W']), H = Math.max(0.02, +P[pre + 'H']);
+  const topK = P[pre + 'TopK'] == null ? 1 : Math.max(0, +P[pre + 'TopK']);
+  const sk = +P[pre + 'Skew'] || 0, Wt = W * topK;
+  return [[z + sk + Wt / 2, y + H / 2], [z + sk - Wt / 2, y + H / 2], [z - W / 2, y - H / 2], [z + W / 2, y - H / 2]];
+}
+const CAGE_QUAD_KEYS = pre => [1, 2, 3, 4].flatMap(c => [pre + 'Q' + c + 'Z', pre + 'Q' + c + 'Y']);
+function cageQuadWindow(P, pre, i) {
+  const R0 = cageQuadRect(P, pre), dz = i * +P[pre + 'Pitch'];
+  const num = v => v != null && v !== '' && isFinite(+v);
+  const abs = R0.map((c, k) => {
+    const qz = P[pre + 'Q' + (k + 1) + 'Z'], qy = P[pre + 'Q' + (k + 1) + 'Y'];
+    return [(num(qz) ? +qz : c[0]) + dz, num(qy) ? +qy : c[1]];
+  });
+  const cz = abs.reduce((a, c) => a + c[0], 0) / 4, cy = abs.reduce((a, c) => a + c[1], 0) / 4;
+  const q = abs.map(c => [c[0] - cz, c[1] - cy]);
+  let z0 = Infinity, z1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const c of abs) { z0 = Math.min(z0, c[0]); z1 = Math.max(z1, c[0]); y0 = Math.min(y0, c[1]); y1 = Math.max(y1, c[1]); }
+  // CONVEX AND SIMPLE: every turn the same way (either way round - the outline is re-wound), none straight
+  const turn = k => { const a = q[k], b = q[(k + 1) % 4], c = q[(k + 2) % 4];
+    return (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]); };
+  const T = [0, 1, 2, 3].map(turn), big = Math.max(1e-9, (z1 - z0) * (y1 - y0));
+  let refused = null;
+  if (T.some(t => Math.abs(t) < 1e-4 * big)) refused = 'quad: three corners in a line (no window there)';
+  else if (!(T.every(t => t > 0) || T.every(t => t < 0))) {
+    // the turn at corner k+1 is T[k]; the corner turning against the others is the one that folds in
+    const pos = T.filter(t => t > 0).length, odd = T.findIndex(t => (t > 0) !== (pos > 2));
+    refused = pos === 2 ? 'quad: two edges cross (a bow-tie) - not cut, the knife cuts convex outlines'
+      : 'quad: corner Q' + ((odd + 1) % 4 + 1) + ' folds in (not convex) - not cut, the knife cuts convex outlines';
+  }
+  return Object.assign({ shape: 'quad', z: cz, y: cy, q, w: z1 - z0, h: y1 - y0, corners: abs }, refused ? { refused } : {});
 }
 
 function cageSpec(P) {
@@ -7792,12 +7873,16 @@ function cageSpec(P) {
       });
       const topK = P[pre + 'TopK'] == null ? 1 : Math.max(0, +P[pre + 'TopK']);
       const skew = +P[pre + 'Skew'] || 0;
-      for (let i = 0; i < n; i++)
-        S.windows.push({ shape: +P[pre + 'Shape'] ? 'ellipse' : 'rect', row, i,
-                         z: +P[pre + 'Z'] + i * +P[pre + 'Pitch'], y: +P[pre + 'Y'],
-                         w: +P[pre + 'W'], h: +P[pre + 'H'], r, rr, topK, skew,
-                         depth: Math.max(0, +P[pre + 'Depth'] || 0),
-                         step: Math.max(0.006, rim * 1.1) });
+      const quad = Math.round(+P[pre + 'Shape'] || 0) === 2;
+      for (let i = 0; i < n; i++) {
+        const w = { shape: +P[pre + 'Shape'] ? 'ellipse' : 'rect', row, i,
+                    z: +P[pre + 'Z'] + i * +P[pre + 'Pitch'], y: +P[pre + 'Y'],
+                    w: +P[pre + 'W'], h: +P[pre + 'H'], r, rr, topK, skew,
+                    depth: Math.max(0, +P[pre + 'Depth'] || 0),
+                    step: Math.max(0.006, rim * 1.1) };
+        if (quad) Object.assign(w, cageQuadWindow(P, pre, i));
+        S.windows.push(w);
+      }
     }
     // THE REFUSAL (the design note: "the second outline crosses the first
     // hole's reveal and the loops go open"): every pair of outlines is
@@ -7826,6 +7911,7 @@ function cageSpec(P) {
         };
         for (let i = 1; i < S.windows.length; i++)
           for (let j = 0; j < i; j++) {
+            if (S.windows[i].refused) break;            // WINDOWS-FREE: a quad refused for its shape
             if (S.windows[j].refused) continue;
             if (!sep(polys[i], polys[j])) {
               S.windows[i].refused = 'overlaps row ' + S.windows[j].row + ' window ' + (S.windows[j].i + 1);
@@ -8668,7 +8754,7 @@ function cageCanopy(m, S) {
 //
 // CAGE_UNIT is a CONSTANT — the unit the fiche is written in. It is 1.0:
 // the template IS metric, measured against the crew (a 50th-percentile
-// dummy's seated eye lands 0.97 m above the floor in it, and the cage's
+// pilot's seated eye lands 0.97 m above the floor in it, and the cage's
 // own length reads 6.6 m — both real light-aircraft numbers). The
 // "planes are too big" reading is NOT a unit error: it is PROPORTION
 // (the template's cabin is ~0.4 m taller than a light aeroplane's for
@@ -9316,22 +9402,24 @@ function cageFirewallZ(zOf) {
 if (typeof module !== 'undefined')
   module.exports = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB, cageJointSweep,
                      CAGE_FRAME_KEYS, CAGE_FRAME_ORDER, CAGE_FRAME_NAMES, CAGE_LEGACY_FRAME,
+                     CAGE_PILOT_ROWS, CAGE_PILOT_OLD, CAGE_PILOT_GONE,
                      cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                      CAGE_UNIT,
                      buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
                      cageRims, cageInterior, cageCut, cageGlassSill,
                      cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                      cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,
-                     CAGE_GLASS_MATS, cageGlazedM2,
+                     CAGE_GLASS_MATS, cageGlazedM2, cageQuadRect, cageQuadWindow, CAGE_QUAD_KEYS,
                      CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };
 if (typeof window !== 'undefined')
   window.CAGE2 = { CAGE_DEFAULT, CAGE_PARAMS, CAGE_MAT, CAGE_AFT_SUB,
                    CAGE_FRAME_KEYS, CAGE_FRAME_ORDER, CAGE_FRAME_NAMES, CAGE_LEGACY_FRAME,
+                   CAGE_PILOT_ROWS, CAGE_PILOT_OLD, CAGE_PILOT_GONE,
                    cageLiftLegacy, cageHasLegacy, CAGE_LEGACY_KEYS,
                    CAGE_UNIT,
                    buildCage2, cageResolve, cageNamedZ, cageFirewallZ, cageSpec, cageSubdivide, cageRefitArc, cageSubdivideRegion, cageEyeLevel, cageEyeFacia,
                    cageRims, cageInterior, cageCut, cageGlassSill,
                    cageCanopy, cageShoulder, cageBodyZones, cageFrameZones, cageZoneAt, CAGE_ZONE_RINGS,
                    cageDefaults, cageFromSpec, cageToSpec, cageSheet, cageDoorEdges,
-                   CAGE_GLASS_MATS, cageGlazedM2,
+                   CAGE_GLASS_MATS, cageGlazedM2, cageQuadRect, cageQuadWindow, CAGE_QUAD_KEYS,
                    CAGE_VIEW_KEYS, CAGE_LVI_BASE, cageLvIndex };

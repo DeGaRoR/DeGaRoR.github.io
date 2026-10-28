@@ -3352,8 +3352,10 @@ function buildVolume(bags, P, Q, V, R, plan, wallOpts) {
       holes: holes, splits: wallSplits(R, A, B),
       // the far mesh keeps its inner faces: without them you see through the
       // building from any angle that catches an open edge, which is what the
-      // user noticed about lod 1
-      inner: true, capTop: Q.lod === 0, capBot: Q.lod === 0,
+      // user noticed about lod 1. AND ITS TOP (LODS-2026-10, the user: "they
+      // don't even represent closed volumes"): an uncapped lod-1 wall is open
+      // between its two skins under the eave - two triangles a wall close it
+      inner: true, capTop: true, capBot: Q.lod === 0,
       endCap: [false, false],
       sub: Q.lod === 0 ? (P.aoRange || 0.55) * 0.85 : 0,
     });
@@ -4116,7 +4118,7 @@ function buildDormer(bags, P, Q, V, R, d) {
                  y0: yLo, y1: yLo + winH, kind: 'window' });
   const W = wall(bags.siding, {
     A: A, B: B, y0: yf - 0.05, t: t, topAt: topAt, holes: holes,
-    splits: gable ? [Lw / 2] : [], inner: true, capTop: Q.lod === 0,
+    splits: gable ? [Lw / 2] : [], inner: true, capTop: true,   // (capped at lod 1 too: LODS-2026-10)
     capBot: false, endCap: [false, false],
     sub: Q.lod === 0 ? (P.aoRange || 0.55) * 0.85 : 0,
   });
@@ -5358,7 +5360,7 @@ function buildLean(bags, P, Q, V, R, g) {
       topAt: (s, side) => under(
         A[0] + (B[0] - A[0]) * s / Lw + nO[0] * (t / 2) * side,
         A[1] + (B[1] - A[1]) * s / Lw + nO[1] * (t / 2) * side),
-      capTop: Q.lod === 0, capBot: false,
+      capTop: true, capBot: false,   // (capped at lod 1 too: LODS-2026-10)
       endCap: [false, false],
     });
   }
@@ -6115,7 +6117,7 @@ function buildBay(bags, P, Q, V, R, B0) {
       A: a, B: b, y0: y0, t: t,
       ext: [i === 0 ? t / 2 : t / 2, i === 2 ? t / 2 : t / 2],
       topAt: () => top, holes: holes, inner: true,
-      capTop: Q.lod === 0, capBot: Q.lod === 0, endCap: [false, false],
+      capTop: true, capBot: Q.lod === 0, endCap: [false, false],   // (capped at lod 1 too: LODS-2026-10)
       sub: Q.lod === 0 ? (P.aoRange || 0.55) * 0.85 : 0,
     });
     if (!W) continue;
@@ -7144,7 +7146,7 @@ function lampAt(bags, Q, p, n, o) {
   const out = 0.32, hw = 0.075, hh = 0.11;
   const c = [p[0] + nn[0] * out, p[1] + (opt.down ? -hh - 0.05 : hh + 0.05), p[2] + nn[2] * out];
   beam(bags.metal, p, [p[0] + nn[0] * (out + hw), p[1], p[2] + nn[2] * (out + hw)], 0.03, 0.03, [0, 1, 0], 0);
-  if (Q.lod !== 0) {
+  if (Q.lod !== 0 || opt.dark) {   // (opt.dark, G3538: a fitting with no switch - the closed box, no glass, no light)
     boxAB(bags.metal, [c[0] - hw - 0.02, c[1] - hh - 0.03, c[2] - hw - 0.02], [c[0] + hw + 0.02, c[1] + hh + 0.035, c[2] + hw + 0.02]);
   } else {
     const corner = (sx, sz) => [c[0] + sx * hw, 0, c[2] + sz * hw];
@@ -7165,7 +7167,7 @@ function lampAt(bags, Q, p, n, o) {
     }
     bags.glass.setGlow(0);
   }
-  LIT_LOG.lights.push({ kind: 'wall', x: c[0], y: c[1], z: c[2], nx: nn[0], nz: nn[2],
+  if (!opt.dark) LIT_LOG.lights.push({ kind: 'wall', x: c[0], y: c[1], z: c[2], nx: nn[0], nz: nn[2],
                         col: opt.col || [1.0, 0.82, 0.55], k: opt.k === undefined ? 0.7 : opt.k, range: opt.range || 9.0 });
   return c;
 }
@@ -8048,8 +8050,13 @@ function dressSlot(matKey, role, idx, col, flat, F) {
   dressMat((F ? F.MAT : MAT)[matKey], key, col, { flat: flat });   // a finish of its own when handed one (G393.3)
 }
 
+// THE FAR TOWN'S DETAIL ROLES (LODS-2026-10): the bags of lod 1 that LEAVE at the far town's detail band (render_premises
+// lod1Bags; GATE LODS --fix holds the rest closed and roofed) - what is sub-pixel there; everything else of lod 1 stays.
+// trim stays (a lighthouse's lantern, a tower's cab, a door is trim), the awning stays (it is a roof over the plan)
+const LOD_DETAIL = /^(rib|post|pile|logend|flag|star|pane)/;
 window.HOUSE_GEN = {
   std,   // G3660: the house's own opaque-PBR factory, for a sibling generator (the meteo station) - no new material site (GATE ASSETS mats)
+  LOD_DETAIL,
   DEF, ROWS, PRESETS, MAT, BAGS, EXTRA, SMOKE_U, FAMS, STANCES, RAILS, SET_TINT, SHADE_U,
   HAND_LEAN, HAND_TWIST, YARD_KIT, CAR_KEYS, AUTO_KEYS, POLE_KEYS, SMALL_BOATS, makeSpread,
   STAIR_MAX, SET_SEAM, SET_MISS, PIER_KIT, PIER_TRIS, PIER_DECK, PIER_LOW, SKIRT_OK,

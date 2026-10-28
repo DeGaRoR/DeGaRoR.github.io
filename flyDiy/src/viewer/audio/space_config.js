@@ -295,7 +295,8 @@ var SPACE_CONFIG = (function () {
     const HW = D.HW || 15, HD = D.HD || 12.5, EAVE = D.EAVE || 7.0, RIDGE = D.RIDGE || EAVE + 2.6;
     const key = SHELL_MAT[shell] ? shell : 'club', M = SHELL_MAT[key], timber = key === 'field';
     // hangar.js's door: nearly the whole gable (the timber shed's to its eave)
-    const doorW = Math.max(6, 2 * HW - 5), doorH = timber ? EAVE - 0.5 : Math.min(6.4, EAVE - 1.4);
+    // (G3537: a shed's own door)
+    const doorW = D.door > 0 ? Math.min(D.door, 2 * HW - 1) : Math.max(6, 2 * HW - 5), doorH = timber ? EAVE - 0.5 : Math.min(6.4, EAVE - 1.4);
     const doorOpen = o.doorOpen == null ? 1 : +o.doorOpen;
     const W = 2 * HW, L = 2 * HD, rise = RIDGE - EAVE;
     const V = W * L * (EAVE + rise / 2);

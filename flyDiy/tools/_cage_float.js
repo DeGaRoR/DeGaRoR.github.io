@@ -194,13 +194,120 @@ function applyFloatPreset(P, name) {
   Object.assign(P, rowsOfParams(Q));
   return true;
 }
+// ---- A LOAD STANDS THE FLOATS WHERE THE FILE SAVED THEM (G3700) ------------
+// The step follows the flown CG (the placement rule above, and the energy
+// layer's CG handshake rebuilds when that CG moves 2 cm). On a LOAD that is
+// wrong: a saved build must come back exactly as saved (WYSIWYG), and the
+// CG the page reads while a load settles is not the CG the file was saved
+// on - the certified PA-18 floats came back 8 cm aft on the page (A0, 26
+// Oct: never re-place on a load, only on an edit). So a load that carries a
+// measured station (`gear.floats.x`, metres aft of the firewall) holds it
+// until a row changes; the first build after the load records the rows, and
+// the build that sees them differ (the builder's edit) hands the step back
+// to the rule. A preset, a reset or a file with no station: the rule.
+let held = null;                                  // { x, rows } while a load holds
+const rowsOf = P => {
+  const VK = (CG2 && CG2.CAGE_VIEW_KEYS) || {};
+  return JSON.stringify(Object.keys(P).filter(k => !(k in VK)).sort().map(k => [k, P[k]]));
+};
 const prevLoad = PAGE.load;
-PAGE.load = () => { if (prevLoad) prevLoad(); lastPreset = null; };
+PAGE.load = spec => {
+  if (prevLoad) prevLoad(spec);
+  lastPreset = null;
+  const f = spec && spec.gear && spec.gear.floats;
+  held = f && typeof f.x === 'number' && isFinite(f.x) ? { x: f.x, rows: null } : null;
+};
+// ---- G3445 THE FLOAT KIT (the user 22 Oct: "4 yes" - fitting floats fits the certified seaplane propeller, other
+// planes are left alone; "have a popup or something when we choose floats, it says what else it changes") -----------
+// A float model with a row in GEN_SEAPLANE_PROPS (60_gen_spec.js: the 2350 -> the 172's McCauley 82 x 43) brings its
+// STC propeller: the cowl page's blade rows (cw_propD, cw_bladeN, cw_material: what the join flies, G132) and the
+// spec's pitch class ('seaplane', through GARAGE_SPEC.update as a design tile writes it). The propeller it replaced is
+// kept in the cage's own numbers (fltKitPrev*) and comes back when the floats go off or the float model has no row.
+// A STARTER like the preset's: it fires on a CHANGE of (floats on, float model) - the first look records, and a LOAD
+// is not a change (PAGE.load forgets) - so no saved aeroplane is ever refitted by opening it. The builder can still
+// change the propeller after; the kit does not fight them (it re-acts only on the next floats / model change).
+const KIT_PITCHES = ['auto', 'climb', 'standard', 'cruise', 'seaplane'];
+const KIT_MATS = ['wood', 'wood', 'alu', 'carbon', 'carbon', 'carbon', 'maple', 'walnut'];   // _cage_join's CAGE_JOIN_PROP_MATS
+Object.assign(PAGE.defaults, { fltKit: 0, fltKitPrevD: 0, fltKitPrevN: 0, fltKitPrevMat: 0, fltKitPrevPitch: -1 });
+const seaProps = () => (typeof GEN_SEAPLANE_PROPS !== 'undefined' ? GEN_SEAPLANE_PROPS : (window.GEN_SEAPLANE_PROPS || {}));
+const kitModel = P => (+P.gearFloats ? PRESET_NAMES[Math.round(P.fltPreset)] || null : null);
+const specPitch = () => { try { const S = window.GARAGE_SPEC && window.GARAGE_SPEC.get(); return (S && S.prop && S.prop.pitch) || null; } catch (e) { return null; } };
+const setPitch = p => { if (!p) return; setTimeout(() => { try { if (window.GARAGE_SPEC && window.GARAGE_SPEC.update) window.GARAGE_SPEC.update({ prop: { pitch: p } }); } catch (e) {} }, 0); };
+let lastKit = null;
+// -> null (nothing changed) or { kind: 'fit' | 'restore' | 'floats' | 'off', model, row, prev }; writes the rows
+function floatKitStep(P) {
+  const model = kitModel(P), row = model ? seaProps()[model] || null : null;
+  const key = (+P.gearFloats ? 1 : 0) + ':' + (model || '');
+  if (lastKit === null) { lastKit = key; return null; }
+  if (key === lastKit) return null;
+  lastKit = key;
+  const prev = { D: +P.cw_propD, N: Math.round(P.cw_bladeN), mat: KIT_MATS[Math.round(P.cw_material)] || null, pitch: specPitch() };
+  if (row && !+P.fltKit) {
+    Object.assign(P, { fltKitPrevD: prev.D, fltKitPrevN: prev.N, fltKitPrevMat: Math.round(P.cw_material),
+                       fltKitPrevPitch: KIT_PITCHES.indexOf(prev.pitch) });
+    Object.assign(P, { cw_propD: row.D, cw_bladeN: row.blades, cw_material: Math.max(0, KIT_MATS.indexOf(row.material)), fltKit: 1 });
+    setPitch(row.pitch);
+    return { kind: 'fit', model, row, prev };
+  }
+  if (!row && +P.fltKit) {
+    const back = { D: +P.fltKitPrevD, N: +P.fltKitPrevN, pitch: KIT_PITCHES[+P.fltKitPrevPitch] || null };
+    if (back.D > 0) Object.assign(P, { cw_propD: back.D, cw_bladeN: back.N, cw_material: +P.fltKitPrevMat });
+    P.fltKit = 0;
+    setPitch(back.pitch);
+    return { kind: 'restore', model, row: null, prev: back };
+  }
+  return { kind: +P.gearFloats ? 'floats' : 'off', model, row: null, prev };
+}
+// THE CARD: what else the floats change. The garage's look (--ed tokens, redeclared on the body as bench.css does for
+// its cards), buttons not hover, top right of the shed - an editor card, never shown in flight (PAGE.post runs only
+// when the editor builds, and only after a builder's change). OK keeps it; UNDO puts the floats off (the kit then
+// gives the propeller back).
+function floatKitCard(ev, P) {
+  if (!ev || ev.kind === 'off' || typeof document === 'undefined' || !document.createElement || !document.body) return;
+  try {
+    let el = document.getElementById('fkCard');
+    if (!el) { el = document.createElement('div'); el.id = 'fkCard'; document.body.appendChild(el); }
+    const HY = HYc(), R = HY && ev.model && HY.FLOAT_PRESETS && HY.FLOAT_PRESETS[ev.model];
+    const esc = s => String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+    const propOf = q => (q && q.D > 0 ? q.D.toFixed(2) + ' m' + (q.N ? ', ' + q.N + '-blade' : '') + (q.pitch ? ', ' + q.pitch + ' pitch' : '') : 'the previous propeller');
+    const lines = [];
+    if (ev.kind === 'fit') lines.push(['Propeller', 'the certified seaplane propeller: <b>' + esc(ev.row.name) + '</b>, replacing ' + esc(propOf(ev.prev)) + '. Taking the floats off puts yours back.']);
+    else if (ev.kind === 'restore') lines.push(['Propeller', 'your own propeller is back (' + esc(propOf(ev.prev)) + ').']);
+    else lines.push(['Propeller', ev.model && ev.model !== CUSTOM ? 'unchanged: no certified seaplane propeller is listed for the ' + esc(ev.model) + '.'
+                                     : 'unchanged. Pick a Wipline model: one with a certified propeller (the 2350, for the Cessna 172) fits it.']);
+    if (+P.gearFloats) {
+      lines.push(['Ventral fin', +P.finOn && +P.finVentralOn ? 'added under the tail (it comes with floats).' : 'not fitted (switch it on in the fin rows).']);
+      lines.push(['Water rudders', +P.fltRudder ? 'fitted on both float sterns.' : 'off.']);
+      const pairKg = R ? R.mSys : 2 * (+P.fltMass || 0);
+      lines.push(['Weight', '+' + Math.round(pairKg) + ' kg for the pair' + (R ? ' with its rigging (Wipaire)' : ' (the two hulls)') +
+                  (R ? '; the ' + esc(ev.model) + ' is rated for ' + Math.round(R.gross).toLocaleString('en') + ' kg gross (' + Math.round(R.gross * 2.20462).toLocaleString('en') + ' lb).' : '; the bench re-measures the gross.')]);
+    }
+    el.innerHTML = '<div class="fkT">' + (+P.gearFloats ? 'Floats fitted' + (ev.model && ev.model !== CUSTOM ? ' - ' + esc(ev.model) : '') : 'Floats removed') + '</div>' +
+      '<div class="fkL">' + lines.map(l => '<div class="fkR"><span class="fkK">' + l[0] + '</span><span class="fkV">' + l[1] + '</span></div>').join('') + '</div>' +
+      '<div class="fkB"><button id="fkOk">OK</button>' + (+P.gearFloats ? '<button id="fkUndo">undo the floats</button>' : '') + '</div>';
+    el.hidden = false;
+    const ok = document.getElementById('fkOk'); if (ok) ok.onclick = () => { el.hidden = true; };
+    const un = document.getElementById('fkUndo');
+    if (un) un.onclick = () => {
+      el.hidden = true;
+      P.gearFloats = 0;
+      const UI = window.CAGE_UI;
+      if (UI && UI.syncSliders) UI.syncSliders();
+      if (UI && UI.build) UI.build();
+    };
+  } catch (e) { /* a card is never worth a build */ }
+}
+const prevLoadKit = PAGE.load;                    // (A0 L28b: G3700's load hold is chained before; the spec passes through)
+PAGE.load = spec => { if (prevLoadKit) prevLoadKit(spec); lastPreset = null; lastKit = null; };
 if (typeof window !== 'undefined') {
   window.CAGE_FLOAT_STARTER = floatPresetStarter;
   window.CAGE_FLOAT_APPLY_PRESET = applyFloatPreset;
+  window.CAGE_FLOAT_KIT = floatKitStep;          // G3445 (GATE FLOATKIT drives it without a scene)
+  window.CAGE_FLOAT_KIT_CARD = floatKitCard;
   window.CAGE_FLOAT_PRESETS = PRESET_NAMES;
   window.CAGE_FLOAT_CUSTOM = CUSTOM_IDX;
+  // the energy layer's CG handshake asks before it rebuilds for a moved CG
+  window.CAGE_FLOAT_HELD = () => !!held;
 }
 
 // ---- the build ------------------------------------------------------------
@@ -271,6 +378,14 @@ PAGE.post = ctx => {
       if (UI && UI.syncSliders) UI.syncSliders();
     }
   }
+  // G3445: the float kit (the seaplane propeller in / out) and its card, after the preset wrote its rows
+  {
+    const ev = floatKitStep(P);
+    if (ev) {
+      if (ev.kind === 'fit' || ev.kind === 'restore') { const UI = window.CAGE_UI; if (UI && UI.syncSliders) UI.syncSliders(); }
+      floatKitCard(ev, P);
+    }
+  }
   if (prevPost) prevPost(ctx);
   dispose(group); group = null;
   window.CAGE_FLOAT = null;
@@ -294,7 +409,14 @@ PAGE.post = ctx => {
   const cgZ = (DAT && DAT.fwOk && CGM) ? DAT.zFw - CGM[0] : +P.cgZ;
   const cgY = (DAT && CGM) ? CGM[1] + DAT.yD : +P.cgY;
   const keelY0 = AF.keelAt(cgZ) - +P.fltDrop;
-  const zStep = cgZ - Math.tan(12 * D2R) * Math.max(0.2, cgY - keelY0) + +P.fltZ;
+  let zStep = cgZ - Math.tan(12 * D2R) * Math.max(0.2, cgY - keelY0) + +P.fltZ;
+  // the load's station, while no row has changed since (the hold above)
+  if (held) {
+    const rows = rowsOf(P);
+    if (held.rows === null) held.rows = rows;
+    if (rows !== held.rows) held = null;
+    else if (DAT && DAT.fwOk) zStep = DAT.zFw - held.x;
+  }
   const zc = Math.max(AF.z0 + 0.3, Math.min(AF.z1 - 0.3, zStep));
   const keelY = AF.keelAt(zc) - +P.fltDrop;
   const track = +P.fltTrack;

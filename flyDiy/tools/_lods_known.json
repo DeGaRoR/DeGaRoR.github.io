@@ -1,0 +1,7 @@
+{
+ "note": "GATE LODS ledger (tools/_lods_check.js): the far-rung failures the game ships today, each at its number - the ratchet passes them, fails anything new or worse. LODS-2026-10 empties it.",
+ "known": {
+  "far town | HLOD.gain": 0.2,
+  "city pack | farGain": 0.2
+ }
+}

@@ -832,17 +832,13 @@ const secFinBad = tbl => Object.keys(tbl)
   check(r.fin === 'trim',
     "the spinner's own override does not win", JSON.stringify(r));
 
-  // THE CREW (phase D): the second dummy's suit COLOUR follows the first
-  // (paint the crew once, then differ one), while its MATERIAL stays its
-  // own pin — personality is a tint, not a re-moulding.
-  r = A.aeroSecResolve('dummy2', { tint: { dummy1: 0x8899aa } }, {});
-  check(r.tint === 0x8899aa,
-    "the first dummy's suit colour does not reach the second",
-    JSON.stringify(r));
-  r = A.aeroSecResolve('dummy2', { fin: { dummy1: 'leather' } }, {});
-  check(r.fin === 'composite',
-    "the first dummy's suit material leaks onto the second",
-    JSON.stringify(r));
+  // THE CREW WEARS ITS CHARACTERS (G3700): the cabin's livery sections are
+  // the seats and the floor; no section dresses a figure
+  {
+    const crewSec = Object.keys(A.AERO_SEC).filter(k => A.AERO_SEC[k].layer === 'crew').sort();
+    check(crewSec.join() === 'cabFloor,seatTrim',
+      'the crew layer has a livery section beyond the seats and the floor', crewSec.join());
+  }
 
   // THE DIALS CROSS THE JOIN (G113), and the chain is three files long with
   // a silent failure at every link: the factory must STAMP the deviation on
