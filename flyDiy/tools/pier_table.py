@@ -92,6 +92,14 @@ GROUPS = [
     # wreck; YARD_KIT's `auto` word (car/pickup/suv/van/truck/bus/police/old)
     # is what the drive, garage, car park and traffic planners pick by.
     ('auto', 'everyday vehicles'),
+    # THE CONSTRUCTION MACHINES (ASSETS-OCT, 25 Oct: eight Sketchfab CC-BY
+    # exports the user delivered under assets/vehicles/construction/ - two
+    # excavators, a backhoe loader, a bulldozer, a truck crane, a skid steer
+    # and two farm tractors). Their own group: no planner deals them out yet;
+    # the editor lists them for the sites. The CAT and JCB marks are PAINTED
+    # OVER at the bake (the user, 25 Oct): `paint` on the row, prop_prep's
+    # paint_over - the delivered maps stay as they are.
+    ('construction', 'construction machines'),
 ]
 
 # `lic` drives what CREDITS.md must carry. Every boat is CC-BY-4.0 and needs
@@ -169,6 +177,24 @@ SOURCES = {
     # file's own asset.extras
     'orchids':   ('Orchids Simulator Traffic Car Pack', 'Oren garage', 'CC-BY-4.0',
                   'https://sketchfab.com/3d-models/orchids-simulator-traffic-car-pack-2fc5970d5ba2415fa98ec98b8801e794'),
+    # the construction machines (ASSETS-OCT): the provenance read out of each
+    # file's own asset.extras
+    'excat':   ('Excavator (CAT)', 'sarvesh12', 'CC-BY-4.0',
+                'https://sketchfab.com/3d-models/excavator-cat-5f195244108c46e495a1e78040f02f7e'),
+    'jcb':     ('JCB Backhoe Loader 3CX Tractor', 'Kyle Burton', 'CC-BY-4.0',
+                'https://sketchfab.com/3d-models/jcb-backhoe-loader-3cx-tractor-5b2d02e1c1c14deba0f9c8d75fff54b6'),
+    'dozer':   ('Bulldozer', 'RobbyHollister', 'CC-BY-4.0',
+                'https://sketchfab.com/3d-models/bulldozer-2137d93b5a804161bc65b44d583aa68e'),
+    'crane':   ('Components of Crane', 'Steven Mai', 'CC-BY-4.0',
+                'https://sketchfab.com/3d-models/components-of-crane-08b8b4f1bb7a46e9892e08bd9517f992'),
+    'escav':   ('Escavadeira Tractor', 'LuizZed36', 'CC-BY-4.0',
+                'https://sketchfab.com/3d-models/escavadeira-tractor-7e297dc563d24ae3aa9e95ce899e0f4f'),
+    'skid':    ('Skid Steer Loader', 'Adelprince69', 'CC-BY-4.0',
+                'https://sketchfab.com/3d-models/skid-steer-loader-09c5ac66e1074d29ae1e7699001555ed'),
+    'tractor1': ('Tractor', 'sheldon.bean', 'CC-BY-4.0',
+                 'https://sketchfab.com/3d-models/tractor-e9e844f2f9364044a181ce8f38a83dc3'),
+    'tractorscan': ('Tractor', 'selfie 3D scan (bevadek)', 'CC-BY-4.0',
+                    'https://sketchfab.com/3d-models/tractor-1b258bcc01bf4ed0935ef73e80442c30'),
 }
 
 # the delivered files, under assets/woodenPierBoats/
@@ -208,6 +234,10 @@ FILES = {
     'firebig':  'fire_truck_burnout_legends.glb',
     'firesmall': 'on_the_run_-_firetruck.glb',
     'orchids':  'orchids_simulator_traffic_car_pack.glb',
+    'excat':    'excavator_cat.glb', 'jcb': 'jcb_backhoe_loader_3cx_tractor.glb',
+    'dozer':    'bulldozer.glb', 'crane': 'components_of_crane.glb',
+    'escav':    'escavadeira_tractor.glb', 'skid': 'skid_steer_loader.glb',
+    'tractor1': 'tractor (1).glb', 'tractorscan': 'tractor.glb',
 }
 # where each source's file lives, relative to assets/woodenPierBoats/
 DIRS = {
@@ -226,18 +256,23 @@ DIRS = {
     'multicab': '../abandonedCars', 'crashed': '../abandonedCars', 'buick': '../abandonedCars',
     'kcar': '../abandonedCars',
     'firebig': '../vehicles', 'firesmall': '../vehicles', 'orchids': '../vehicles',
+    'excat': '../vehicles/construction', 'jcb': '../vehicles/construction',
+    'dozer': '../vehicles/construction', 'crane': '../vehicles/construction',
+    'escav': '../vehicles/construction', 'skid': '../vehicles/construction',
+    'tractor1': '../vehicles/construction', 'tractorscan': '../vehicles/construction',
 }
 
 
 def P(key, group, label, src, note, mats=None, nodes=None, place='floor',
       scale=1.0, rot=(0, 0, 0), tex=512, deck=None, float=None, piles=None,
-      pilesCut=1.9, slots=None, opaque=False, metalCap=None, tone=None, roughMin=None):
+      pilesCut=1.9, slots=None, opaque=False, metalCap=None, tone=None, roughMin=None,
+      paint=None):
     return dict(key=key, group=group, label=label, src=src, file=FILES[src],
                 dir=DIRS.get(src, ''),
                 mats=mats, nodes=nodes, place=place, scale=scale, rot=rot,
                 tex=tex, note=note, deck=deck, float=float, piles=piles,
                 pilesCut=pilesCut, slots=slots, opaque=opaque, metalCap=metalCap, tone=tone,
-                roughMin=roughMin)
+                roughMin=roughMin, paint=paint)
 
 
 PLANKS = 'modular_wooden_pier_planks'
@@ -611,4 +646,56 @@ PROPS = [
     P('auto_micro_white', 'auto', 'microcar, white', 'orchids',
       note='a white two-door microcar, 0.4k triangles, 3.9 m',
       nodes=['Object_216', 'Object_224', 'Object_220', 'Object_222', 'Object_218'], **AUTO),   # kind: car
+
+    # ---- the construction machines (ASSETS-OCT) -----------------------------
+    # Sizes from each file's own node tree (the world box of every mesh): three
+    # exports in centimetres, one in millimetres, two at a 70th / 60th (a
+    # 12 cm CAT, a 20 cm crane) scaled to the machine's real width or length.
+    # The three heavy ones (the CAT 181k, the JCB 153k, the tractor 69k) are
+    # cut to 25k by prop_lod.js --base (BASE.pier); the levels from there.
+    P('machine_excavator', 'construction', 'tracked excavator (CAT)', 'excat',
+      note='a CAT tracked excavator, 181k triangles and 25 materials as delivered (cut to 25k); '
+           'at a 70th of size (11.7 cm): 70 makes it 3.0 m wide, 3.7 m high, 8.2 m long. '
+           'The CAT marks are painted over (images 11: the big counterweight mark, 18: the two small ones)',
+      scale=70.0, tex=512,
+      paint={11: [(96, 30, 182, 146), (164, 8, 186, 36)],
+             18: [(192, 615, 238, 660), (380, 596, 425, 642)]}),
+    P('machine_backhoe', 'construction', 'backhoe loader (JCB 3CX)', 'jcb',
+      note='a JCB 3CX backhoe loader, 153k triangles in one material (cut to 25k); centimetres '
+           'at 1.72, 0.006 makes it 2.4 m wide, 3.5 m high, 7.1 m long (backhoe stowed back). '
+           'Its one material is alpha-blended with a transmission sheen: opaque. The JCB marks and '
+           'the 3CX badge are painted over (image 0)',
+      scale=0.006, tex=512, opaque=True,
+      paint={0: [(748, 230, 795, 280), (753, 396, 798, 445), (856, 255, 877, 292),
+                 # the Wed 28 09:00 bench look: the loader arms' two JCB plates + the upright plate
+                 (401, 611, 438, 637), (601, 645, 631, 679), (18, 222, 35, 253)]}),
+    P('machine_loader', 'construction', 'wheel loader', 'dozer',
+      note='a big wheel loader with its bucket (the file calls it a bulldozer), 24k triangles, '
+           'seven materials; centimetres: 3.2 m wide, 3.4 m high, 8.1 m long',
+      scale=0.01, tex=512),
+    P('machine_crane', 'construction', 'truck crane', 'crane',
+      note='an all-terrain truck crane, boom stowed, 15k triangles, a glazed cab; at a 60th '
+           '(20 cm): 11.8 m long, 3.8 m high. Delivered along x: a quarter turn lays it along z. '
+           'The GROVE marks are painted over like the CAT / JCB ones (four black on the yellow, '
+           'one white on the black side of the boom; the red V with them)',
+      scale=60.0, rot=(0, 90, 0), tex=512,
+      paint={0: [(393, 638, 412, 701, 'red'), (824, 9, 839, 52, 'red'), (824, 90, 839, 134, 'red'),
+                 (722, 153, 744, 175, 'red'), (728, 168, 747, 198, 'red'), (642, 229, 657, 277, 'dark', 'red')]}),
+    P('machine_loader_rusty', 'construction', 'wheel loader, rusty', 'escav',
+      note='a worn low-poly wheel loader (the file calls it an excavator), 6.5k triangles; the '
+           'file carries a 2.5 m ground quad (Material_254) that mats leaves out. 3.0 makes it '
+           '6.2 m long, 2.9 m high; delivered along x, a quarter turn lays it along z',
+      mats=['Material_252', 'Material_253'], scale=3.0, rot=(0, 90, 0), tex=512),
+    P('machine_skidsteer', 'construction', 'skid steer loader', 'skid',
+      note='a skid steer with its bucket, 24k triangles, six materials; true size as delivered '
+           '(1.8 m wide, 2.2 m high, 3.6 m long)',
+      tex=512),
+    P('tractor_farm', 'construction', 'farm tractor', 'tractor1',
+      note='a farm tractor, 69k triangles (cut to 25k), 92 primitives in three materials; '
+           'centimetres: 2.8 m wide, 3.1 m high, 4.8 m long',
+      scale=0.01, tex=512),
+    P('tractor_scan', 'construction', 'small tractor (scan)', 'tractorscan',
+      note='a photogrammetry scan of a small old tractor, 1.9k triangles, one map; '
+           'millimetres: 1.5 m wide, 1.8 m high, 3.0 m long',
+      scale=0.001, tex=512),
 ]

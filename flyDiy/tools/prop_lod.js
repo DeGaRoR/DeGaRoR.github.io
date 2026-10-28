@@ -100,6 +100,9 @@ const LEVELS = {
   boat:   [[0.25, 3000, 15], [0.06, 800, 45], [0.015, 250, 120]],
   car:    [[0.25, 2500, 15], [0.06, 700, 45], [0.015, 200, 120]],
   vehicle: [[0.25, 2500, 15], [0.06, 700, 45], [0.015, 200, 120]],   // the fire trucks (G410): 2k-triangle game assets, cut like the cars
+  // the construction machines (ASSETS-OCT): seen at a site from the road or the air - a quarter past 25 m, 6 % past
+  // 80 m, 1.5 % past 200 m (a 25k cut excavator -> 6k / 1.5k / 400)
+  construction: [[0.25, 2500, 25], [0.06, 700, 80], [0.015, 250, 200]],
   auto:   [[0.25, 2500, 15], [0.06, 700, 45], [0.015, 200, 120]],   // the everyday vehicles (G432): 0.4-9k-triangle game assets, cut like the cars - the 2k bodies get a 700 and a 200, the semis a 2.5k first
   pier:   [[0.3, 2000, 20], [0.08, 600, 60]],
   yard:   [[0.25, 1200, 20], [0.06, 400, 60]],
@@ -131,7 +134,9 @@ const LEVELS = {
 // GATE ASSETBUDGET holds every cap below, so it cannot pass unseen. Idempotent: a prop at its cap is left alone.
 const BASE = {
   pier: { person_andrew: 8000, person_charles: 8000, person_john: 8000, person_koky: 8000, person_luke: 8000,
-          boat_grady: 30000 },
+          boat_grady: 30000,
+          // the construction machines (ASSETS-OCT): the three heavy exports, a site prop's budget
+          machine_excavator: 25000, machine_backhoe: 25000, tractor_farm: 25000 },
 };
 function cutBase(report) {
   const caps = BASE[KIT_NAME] || {};

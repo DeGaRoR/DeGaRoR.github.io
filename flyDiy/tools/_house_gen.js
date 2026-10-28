@@ -399,6 +399,17 @@ const YARD_KIT = {
   auto_hatch_green_pale: { L: 3.409, W: 1.604, H: 1.301, auto: 'car' },
   auto_hatch_silver_kia: { L: 3.78, W: 1.777, H: 1.294, auto: 'car' },
   auto_micro_white:      { L: 3.861, W: 1.849, H: 1.738, auto: 'car' },
+  // THE CONSTRUCTION MACHINES (G3665): the user's eight, the CAT / JCB marks
+  // painted over at the bake - `machine`, in no planner's menu yet (a site's
+  // editor places them); L along z
+  machine_excavator:         { L: 8.161, W: 3.018, H: 3.707, machine: true },
+  machine_backhoe:           { L: 7.149, W: 2.368, H: 3.537, machine: true },
+  machine_loader:            { L: 8.053, W: 3.2, H: 3.358, machine: true },
+  machine_crane:             { L: 11.769, W: 3.955, H: 3.789, machine: true },
+  machine_loader_rusty:      { L: 6.175, W: 2.389, H: 2.893, machine: true },
+  machine_skidsteer:         { L: 3.567, W: 1.784, H: 2.235, machine: true },
+  tractor_farm:              { L: 4.789, W: 2.812, H: 3.058, machine: true },
+  tractor_scan:              { L: 3.02, W: 1.483, H: 1.821, machine: true },
 };
 const CAR_KEYS = Object.keys(YARD_KIT).filter(k => YARD_KIT[k].car);
 // the everyday vehicles by kind (G432): AUTO_KEYS() every one, AUTO_KEYS(['car', 'suv']) a menu

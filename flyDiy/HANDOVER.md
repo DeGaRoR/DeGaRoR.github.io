@@ -100546,6 +100546,31 @@ Strict light gate RED (6), all in known classes; the loads are back inside their
 - world -> garage: cub round trip 2 at 2.02 s, floats at 5.29 s. The class red since L24c (2.99 / 3.55 there); HWCOV has the cause, the per-trip cacheKey churn of fragment 66e30961, and its Mon 12:45 slot names the owner.
 Pushed by the user's order of 25 Oct: land as soon as possible.
 
+## G3665 - ASSETS-OCT: THE CONSTRUCTION MACHINES, THE CAT / JCB MARKS PAINTED OVER AT THE BAKE (2026-10-27, ASSETS-OCT for A0; branch claude/assets-construction off master d7e181f4e; CODE + TABLE ONLY - bake + gates Wed 28 03:40 s28-c4b, bench look 09:00)
+
+The user delivered eight Sketchfab CC-BY exports under assets/vehicles/construction/ (25 Oct) and ruled the CAT and JCB
+logos PAINTED OVER. They join the pier table (tools/pier_table.py) as a ninth group, `construction` ('construction
+machines'): machine_excavator (CAT, 181k), machine_backhoe (JCB 3CX, 153k), machine_bulldozer (24k), machine_crane
+(15k), machine_excavator_wheeled (6.5k, its ground quad left out by mats), machine_skidsteer (24k), tractor_farm (69k),
+tractor_scan (1.9k). Sizes from each file's own node tree; scales and quarter turns on the rows, notes say which.
+- THE PAINT: a row's `paint` = {image index: [(x0, y0, x1, y1) texel boxes]}; tools/prop_prep.py paint_over() fills the
+  mark (white letters, black plate, the badge's lemon) + a 2-texel rim from the body's own yellow by masked diffusion
+  (never from the grey ground beside it) and gives the ring's grain back, on the base colour map before `tone` and the
+  encode. The delivered maps are untouched. CAT: images 11 (counterweight) + 18 (two small marks); JCB: image 0 (two
+  JCB marks + the 3CX badge). Before/after crops: D:/Dev/flydiy-notes/evidence-2026-10-18/2026-10-27/construction-logos/.
+- THE BUDGET: tools/prop_lod.js BASE.pier caps the excavator, the backhoe and the farm tractor at 25k (GATE ASSETBUDGET
+  holds them); the `construction` ladder: a quarter past 25 m, 6 % past 80 m, 1.5 % past 200 m.
+- The JCB's one material is alpha-blended with a transmission sheen: `opaque`.
+- CREDITS.md: the eight, under the pier kit's vehicles.
+Run (the slot): python tools/pier_prep.py && node tools/prop_lod.js --base && node tools/prop_lod.js && node tools/build.js,
+then GATE HOUSE STAGES ASSETBUDGET MEDIA BUILD (+ the pier kit's). Bench look: nose direction of the crane / wheeled
+excavator, the JCB's scale (0.006 from its width), the painted patches.
+THE BENCH LOOK (Wed 28 09:00, tools/_props.html?packs=pier): the CAT patches clean; the JCB showed THREE marks the first
+boxes missed (the loader arms' two JCB plates, an upright plate) - boxed; the crane carries GROVE five times (four black
+on yellow, one white on the black boom side, a red V in each) - painted over too, with two box flags (`dark`: white on
+dark paint; `red`: the accent is part of the mark; a box without flags runs exactly as before); `bulldozer.glb` and
+`escavadeira_tractor.glb` are both WHEEL LOADERS - keyed machine_loader / machine_loader_rusty (the file names stay in
+the notes and CREDITS). Sizes and orientations right (all along z).
 ## G3541-G3548 - AIRCRAFT-LOOKS: THE PAINT REACHES THE ROD BOOM AND THE TRUSS, NO REGISTRATION READS MIRRORED, THE WHOLE AEROPLANE PICKED WEARS ONE SILHOUETTE, THE TUNDRA IS A BALLOON ON A SMALL HUB (2026-10-26, AIRCRAFT-LOOKS, LOCAL; for T-P2 / L27a; claude/ready/aircraft-looks)
 Why: the user's playtest of 24 Oct, and the user's rulings of 25 Oct relayed by A0. Registrations: "not having mirrored registration when projecting either on the fuselage ... but also on the wings. The top side and bottom sides should be treated differently, and that should be the same for the stabs and the fins." Tundra: "the bigger tundra wheels are bad ... their flank was protruding, and their proportions were bad."
 What changed (drawing only - no spec key, no certificate):
