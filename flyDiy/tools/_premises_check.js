@@ -113,7 +113,7 @@ try {
   const ctx = { window: GENS, THREE: makeTHREE(), console, Math, JSON, Float32Array, Object, Array, Set, Map, Number, String, isFinite, parseInt, parseFloat };
   ctx.globalThis = ctx;
   vm.createContext(ctx);
-  for (const f of ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_sport_gen.js', '_marine_gen.js', '_shed_gen.js', '_hangar_gen.js', '_tower_gen.js', '_navaid_gen.js', '_tram_gen.js', '_totem_gen.js', '_village_gen.js'])
+  for (const f of ['_house_kit.js', '_house_gen.js', '../src/viewer/sign_tex.js', '_big_gen.js', '_sport_gen.js', '_marine_gen.js', '_shed_gen.js', '_hangar_gen.js', '_tower_gen.js', '_navaid_gen.js', '_meteo_gen.js', '_tram_gen.js', '_totem_gen.js', '_village_gen.js'])
     vm.runInContext(fs.readFileSync(path.join(TOOLS, f), 'utf8'), ctx, { filename: f });
 } catch (e) { console.log('  (generators not loaded headless: ' + e.message + ')'); }
 const CAT = PG.collect(GENS);
@@ -1363,6 +1363,14 @@ if (SELFTEST) {
   const mh = (x, z) => { const w = O.frame.toWorld(x, z); return B.mixHere(8, w[0], w[1]); };
   check(mh(0, 50) === 'conifer' && mh(60, 0) === null && mh(-300, 10) === '@k3' && mh(2000, 0) === 'deciduous' && B.density('@k3') > 0,
     "17 mixHere: the polygon's biome, none, its own mix, the terrain type's elsewhere", [mh(0, 50), mh(60, 0), mh(-300, 10), mh(2000, 0)].map(String).join(' '));
+  // G3430 18 LAKESHORE: the band answers only where map[18] names a mix and no polygon speaks (a polygon paints or erases it)
+  const sh = (x, z) => { const w = O.frame.toWorld(x, z); return B.shoreHere(w[0], w[1]); };
+  B.shore = () => true;
+  const shNoMap = sh(2000, 0);
+  B.map[BIOMES.SHORE] = 'deciduous';
+  check(BIOMES.SHORE === 18 && !shNoMap && sh(2000, 0) === true && sh(0, 50) === false && sh(60, 0) === false && sh(-300, 10) === false,
+    "17 shoreHere: no band without map[18]; the band where no polygon speaks; a polygon's biome, none or own mix wins", [shNoMap, sh(2000, 0), sh(0, 50), sh(60, 0), sh(-300, 10)].map(String).join(' '));
+  delete B.map[BIOMES.SHORE]; B.shore = null;
   // the clearance: the aerodrome carries it (null without), the box and its taper, the outline
   const a1 = O.aerodromes.find(a => a.id === 'w1'), a2 = O.aerodromes.find(a => a.id === 'w2');
   check(a1 && a1.treeClear && a1.treeClear.side === 40 && a1.treeClear.beyond === 200 && a1.treeClear.taper === 0.15 && a1.treeClear.bushes === true && a2 && a2.treeClear === null,

@@ -8038,6 +8038,7 @@ function dressSlot(matKey, role, idx, col, flat, F) {
 }
 
 window.HOUSE_GEN = {
+  std,   // G3660: the house's own opaque-PBR factory, for a sibling generator (the meteo station) - no new material site (GATE ASSETS mats)
   DEF, ROWS, PRESETS, MAT, BAGS, EXTRA, SMOKE_U, FAMS, STANCES, RAILS, SET_TINT, SHADE_U,
   HAND_LEAN, HAND_TWIST, YARD_KIT, CAR_KEYS, AUTO_KEYS, POLE_KEYS, SMALL_BOATS, makeSpread,
   STAIR_MAX, SET_SEAM, SET_MISS, PIER_KIT, PIER_TRIS, PIER_DECK, PIER_LOW, SKIRT_OK,

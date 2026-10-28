@@ -76,6 +76,7 @@ async function view(name, yaw, pitch) {
     const saved = await run(`return (() => { const k = Object.keys(localStorage).find(k => /^flydiy\\.premises\\.game/.test(k)); const v = k ? localStorage.getItem(k) : ''; return { key: k, bytes: v.length, zone: v.indexOf(${JSON.stringify(zid)}) >= 0, road: v.indexOf(${JSON.stringify(rid)}) >= 0, town: (v.match(/"mk_/g) || []).length }; })();`);
     console.log('  saved: ' + JSON.stringify(saved));
     await run('PREMISES_EDITOR.close(); return 1;');
+    await run("localStorage.setItem('flydiy.premises.bootWip', '1'); return 1;");   // (SCENERY VERSIONS: the game boots master; the rigs' door boots the save after the reload)
     fs.writeFileSync(path.join(DIR, 'c2c_editor_ids.json'), JSON.stringify({ rid, zid, mine, w0, w1, saved }, null, 1));
     return;
   }

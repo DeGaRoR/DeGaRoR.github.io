@@ -161,6 +161,23 @@ console.log('THE WORD');
     v(c => { c.energy.vessels[0].capacity = 60; }, false, 'a vessel capacity changes it');
     v(c => { c.systems.avionics = 'ifr'; }, false, 'the systems fit changes it');
     ok(BE.benchFingerprint(s2, null) !== g0 && /^[0-9a-f]{8}$/.test(BE.benchFingerprint(s2, null)), 'without defaults every row counts (a core-only caller)');
+    // G3451 DASH-ARCH-SAVED: the switch to the arch keeps every fingerprint - with the page's defaults and without
+    {
+      const DD = Object.assign({}, D, { dashStyle: 1, dashLegs: 1, dashV: 1 });
+      const mk = o => { const c = JSON.parse(JSON.stringify(s2)); Object.assign(c.cage, o); return c; };
+      const same = (a, b) => BE.benchFingerprint(a, DD) === BE.benchFingerprint(b, DD) && BE.benchFingerprint(a, null) === BE.benchFingerprint(b, null);
+      const boxOld = mk({ dashStyle: 0, dashLegs: 1 }), archOld = mk({ dashStyle: 1, dashLegs: 2 });
+      const boxNew = mk({ dashStyle: 1, dashLegs: 1, dashV: 1, dashWas: 0, dashLegsWas: 1 });
+      ok(same(boxNew, boxOld), 'a box build switched to the arch hashes as it was certified on the box (G3451)');
+      ok(same(mk({ dashStyle: 1, dashLegs: 2, dashV: 1, dashWas: 1, dashLegsWas: 2 }), archOld), 'an arch build through the switch hashes as before');
+      ok(same(mk({ dashStyle: 0, dashLegs: 1, dashV: 1, dashWas: 0, dashLegsWas: 1 }), boxNew) && same(mk({ dashStyle: 1, dashLegs: 0, dashV: 1, dashWas: 0, dashLegsWas: 1 }), boxNew),
+         'after the switch the dash is a look: the box picked again, or other legs, keep it');
+      ok(same(mk({ dashStyle: 1, dashLegs: 1, dashV: 1 }), mk({ dashStyle: 1, dashLegs: 1 })) && same(mk({ dashStyle: 0, dashLegs: 0, dashV: 1 }), mk({ dashStyle: 1, dashLegs: 1 })),
+         'a build born after the switch hashes as an arch build did, whatever dash it wears');
+      ok(!same(boxOld, archOld) && BE.benchFingerprint(boxOld, DD) !== BE.benchFingerprint(mk({ dashStyle: 1, dashLegs: 1 }), DD),
+         'a cage from before the switch (no dashV) still hashes as it is (the box is not the arch there)');
+      ok(!same(mk({ dashStyle: 1, dashLegs: 1, dashV: 1, dashWas: 0, dashLegsWas: 1, waistY: 0.6 }), boxNew), 'through the switch a real cage row still changes it');
+    }
     ok(typeof BE.BENCH_FP_SCHEME === 'string' && /^f\d$/.test(BE.BENCH_FP_SCHEME), 'the scheme is named in the tag');
     ok(BE.benchCanon({ b: 1, a: [2, { d: 1, c: 2 }] }) === '{"a":[2,{"c":2,"d":1}],"b":1}', 'canonical JSON sorts keys at every depth');
   }

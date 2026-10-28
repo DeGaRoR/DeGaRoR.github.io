@@ -111,6 +111,12 @@ function make(THREE, scene, world, rec0, opts) {
   let composedFresh = !!o.game;
   const root = new THREE.Group(); root.name = 'premises';
   const G = {}; for (const k of ['ground', 'water', 'outlines', 'plots', 'houses', 'lots', 'trees', 'runways', 'roads', 'tram', 'traffic', 'animals', 'handles', 'ghost']) { G[k] = new THREE.Group(); G[k].name = 'premises:' + k; root.add(G[k]); }
+  // G3543 VEHICLE PRINTS' state (the prints themselves: by the traffic, below)
+  const PRINT = { on: !(typeof location !== 'undefined' && /[?&]carprints=0\b/.test(location.search || '')),
+                  geo: null, mat: null, st: null, tr: null, cars: [], frame: 0, life: -1, lifeList: [], trN: -1, tick: 0, n: 0, nTr: 0 };
+  const PRINT_LIFT = { st: 0.25, tr: 0.25 };   // (G3543: the parked cars' and the traffic's, prints_probe.js)
+  const PRINT_REACH = 800;   // a 4.5 m car's print is ~3 px there (the standing ones; a car's own cull distance is ~3.5 km)
+  const PRINT_TMP = { m: new THREE.Matrix4(), ri: new THREE.Matrix4(), s: new THREE.Matrix4(), o: new THREE.Object3D() };
   // THE STATIC SUBTREES LEAVE THE MATRIX WALK (PERF 2026-09-23). The frame is CPU-bound on Jolene (three's render()
   // was 22 ms of the 24 at 300 m over the field), and 12 % of it was updateMatrixWorld: 20 500 objects composed
   // and multiplied every frame, 17 400 of them the premises' - houses (8 000), lots, roads, the ground - none of
@@ -314,7 +320,7 @@ function make(THREE, scene, world, rec0, opts) {
 
   // THE LOTS group stands at the premises frame: what the village's plan functions draw in the
   // premises frame (fences, lot patches, cars, boats) goes in here untransformed
-  const placeLots = () => { const a = O.frame.anchor; G.lots.position.set(a.x, 0, a.z); G.lots.rotation.y = O.frame.yaw; };
+  const placeLots = () => { const a = O.frame.anchor; G.lots.position.set(a.x, 0, a.z); G.lots.rotation.y = O.frame.yaw; PRINT.frame++; };
   placeLots();
   scene.add(root);
   const stats = { tris: 0, chunks: 0, ms: 0, houses: 0, houseTris: 0, trees: 0, queued: 0, lights: 0, objects: 0, litNow: 0, animals: 0, animalsShown: 0 };
@@ -1784,6 +1790,7 @@ function make(THREE, scene, world, rec0, opts) {
       moveTraffic(TRAFFIC.get(id), 0);
     }
     stats.traffic = 0; for (const [, t] of TRAFFIC) stats.traffic += t.cars.length;
+    if (PRINT.on && stats.traffic) printRoom('tr', stats.traffic);   // (G3543)
   }
   // G1192 (METLA-RETURN): A ROAD OUT OF SIGHT DRIVES ON, UNPOSED. Every car on every road read the ground (heightAt and
   // the tilt's four reads) every frame, wherever the eye was: with the town on, Metlakatla's streets 9-10 km from HOME
@@ -1801,6 +1808,107 @@ function make(THREE, scene, world, rec0, opts) {
     if (posed === TRC.posed && all === TRC.all) return;   // (G3416: the count last logged - no string a frame)
     const W = typeof window !== 'undefined' ? window : null, now = typeof performance !== 'undefined' ? performance.now() : 0, k = posed + '/' + all;
     if (W && W.FLIGHT_REC && W.FLIGHT_REC.event && k !== TRC.last && now - TRC.t > 10000) { TRC.t = now; TRC.last = k; TRC.posed = posed; TRC.all = all; W.FLIGHT_REC.event('traffic', null, posed + ' cars posed of ' + all + ' on ' + TRAFFIC.size + ' road' + (TRAFFIC.size === 1 ? '' : 's')); }
+  }
+  // ---- G3543 VEHICLE PRINTS (the user 25 Oct: "I'm bothered with the vehicles not casting a shadow on the ground ... A
+  // simple dark rectangle would suffice, but something, otherwise they float"; A0: all of them - the traffic, the yards' and
+  // the lots' cars, the life's parked cars). A soft dark rectangle under each, a hair over the ground in the car's own
+  // tilt: ONE InstancedMesh for the cars that stand (re-listed every 15 frames: the ones still in the scene, shown, and
+  // within their reach of the eye) and ONE for the traffic (written as each car is posed, nothing for a road out of
+  // reach). No shadow-map caster is added: two draws in all, the alpha one 32x32 texture made once. ?carprints=0: none.
+  // (PRINT, PRINT_REACH, PRINT_TMP stand by G at the top: placeLots and the yards reach them while the premises are made)
+  function printMesh(cap, name) {
+    if (!PRINT.geo) {
+      const N = 32, d = new Uint8Array(N * N * 4), ss = t => t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t);
+      for (let j = 0; j < N; j++) for (let i = 0; i < N; i++) {
+        const u = (i + 0.5) / N, v = (j + 0.5) / N, a = ss(Math.min(u, 1 - u) / 0.2) * ss(Math.min(v, 1 - v) / 0.2);
+        d.fill(Math.round(255 * a), (j * N + i) * 4, (j * N + i) * 4 + 4);
+      }
+      const tex = new THREE.DataTexture(d, N, N, THREE.RGBAFormat); tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearFilter; tex.needsUpdate = true;
+      PRINT.mat = MATLIB.make(THREE, 'basic', { color: 0x000000, alphaMap: tex, transparent: true, opacity: 0.75, depthWrite: false,   // (the user 26 Oct: "you can make the shadows darker")
+        polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
+      PRINT.mat.name = 'premises:carprint';
+      // HOW HIGH (the user 26 Oct: "undo your lifts now, to the minimum where it remains visible"): a car stands on heightAt,
+      // the drawn ground over it - the roads' ribbons 0.07 up between their 3 m samples, the paved lots 0.08, the patch and the
+      // fine tiles - so each print rides the least lift that keeps its core over every drawn layer under it, by the cars'
+      // class: tools/prints_probe.js drops a print at every lane spot and lot cell of Jolene against ground_drawn's drawnAt
+      PRINT.geo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, PRINT_LIFT.st, 0);
+      PRINT.geoTr = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2).translate(0, PRINT_LIFT.tr, 0);
+    }
+    const m = new THREE.InstancedMesh(name === 'premises:carprints:traffic' ? PRINT.geoTr : PRINT.geo, PRINT.mat, Math.max(16, cap));
+    m.name = name; m.count = 0; m.frustumCulled = false; m.castShadow = false; m.receiveShadow = false;
+    m.renderOrder = 6.5;   // after the roads' and the runways' see-through skins (2..6), before the editor's lines (7, 8)
+    m.matrixAutoUpdate = false; m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    root.add(m);
+    return m;
+  }
+  // a mesh with room for n (grown x2, the old one given back; the geometry and material are shared)
+  function printRoom(which, n) {
+    const m = PRINT[which];
+    if (m && m.instanceMatrix.count >= n) return m;
+    if (m) { root.remove(m); m.dispose(); }
+    return (PRINT[which] = printMesh(Math.max(n, m ? m.instanceMatrix.count * 2 : 64), which === 'st' ? 'premises:carprints' : 'premises:carprints:traffic'));
+  }
+  // the drawn prints only go up (n matrices, never the mesh's whole room: FRAMECOST bytes.bufferSubData); none drawn, nothing sent
+  function printUpload(m, n) {
+    m.count = n;
+    if (!n) return;
+    const a = m.instanceMatrix; a.clearUpdateRanges(); a.addUpdateRange(0, n * 16); a.needsUpdate = true;
+  }
+  // the print's size from the car's: past its body by ~0.5 m a side, the soft edge outside it (+0.5/+0.6 hid it all under the
+  // body seen from above: only the faded rim showed, the bench's stills 26 Oct)
+  function printScale(W, L) { return PRINT_TMP.s.makeScale((W || 1.8) + 1.0, 1, (L || 4.5) + 1.2); }
+  // a yard's or a lot's car (placeDress): its prop stands, frozen with the yard; the print follows it while it is in the scene
+  function printAdd(ob, key) {
+    if (!PRINT.on || !ob) return;
+    const HG = window.HOUSE_GEN, K = (HG && HG.YARD_KIT && HG.YARD_KIT[key]) || null;
+    const PR = K ? null : propReg(), P = PR && PR.props[key], dm = P && P.dim;
+    const W = K ? K.W : (dm ? dm[0] : 1.8), L = K ? K.L : (dm ? dm[2] : 4.5);
+    PRINT.cars.push({ ob, W, L, M: null, at: -1, x: 0, z: 0 });
+  }
+  function printsStatic(eye) {
+    const T = PRINT_TMP;
+    root.updateWorldMatrix(true, false); T.ri.copy(root.matrixWorld).invert();
+    // the life's parked cars: re-listed when its stand moves (their pose made once: the ground under them, its tilt)
+    const LC = LIFE && LIFE.cars ? LIFE : null;
+    if (LC && LC.carsRev() !== PRINT.life) {
+      PRINT.life = LC.carsRev(); PRINT.lifeList = [];
+      for (const c of LC.cars()) {
+        T.o.position.set(c.x, heightAt(c.x, c.z), c.z); tiltToGround(T.o, heightAt, c.x, c.z, c.yaw); T.o.scale.set(1, 1, 1); T.o.updateMatrix();
+        PRINT.lifeList.push({ x: c.x, z: c.z, M: new THREE.Matrix4().multiplyMatrices(T.ri, T.o.matrix).multiply(printScale(c.W, c.L)) });
+      }
+    }
+    const keep = [];
+    let n = 0;
+    const want = PRINT.cars.length + PRINT.lifeList.length, st = want ? printRoom('st', want) : PRINT.st;
+    if (!st) return;
+    for (const e of PRINT.cars) {
+      let p = e.ob, vis = true;
+      while (p && p !== root) { if (!p.visible) vis = false; p = p.parent; }
+      if (p !== root) continue;                      // its yard was rebuilt or streamed away: the print goes with it
+      keep.push(e);
+      if (!vis) continue;
+      if (e.at !== PRINT.frame) {                    // (the lots' frame moved: placeLots)
+        e.ob.updateWorldMatrix(true, false);
+        e.M = (e.M || new THREE.Matrix4()).multiplyMatrices(T.ri, e.ob.matrixWorld).multiply(printScale(e.W, e.L));
+        e.x = e.ob.matrixWorld.elements[12]; e.z = e.ob.matrixWorld.elements[14]; e.at = PRINT.frame;
+      }
+      if (eye && Math.hypot(e.x - eye.x, e.z - eye.z) > PRINT_REACH) continue;
+      st.setMatrixAt(n++, e.M);
+    }
+    PRINT.cars = keep;
+    const lr = LC ? Math.min(PRINT_REACH, LC.carReach()) : 0;
+    for (const e of PRINT.lifeList) {
+      if (eye && Math.hypot(e.x - eye.x, e.z - eye.z) > lr) continue;
+      st.setMatrixAt(n++, e.M);
+    }
+    printUpload(st, n);
+    PRINT.n = n;
+  }
+  // the traffic: tickPost opens the frame's list (printTraffic(-1)), moveTraffic writes each posed car, tickPost closes it
+  function printTrafficCar(grp, K) {
+    const tr = PRINT.tr; if (!tr || PRINT.trN < 0 || PRINT.trN >= tr.instanceMatrix.count) return;
+    grp.updateMatrix();
+    tr.setMatrixAt(PRINT.trN++, PRINT_TMP.m.multiplyMatrices(grp.matrix, printScale(K.W, K.L)));
   }
   // THE CARS' DRAW REACH (G3087 HOME-FRAME; A0, 13 Oct: SCENERY-SHIP's rev 27 cost ~+2 ms a frame at HOME). A car's reach
   // was its prop's own cull distance (props.js propCullDist: 730 x its diagonal - ~3.6 km for a car, 1-2 px there), so
@@ -1846,6 +1954,7 @@ function make(THREE, scene, world, rec0, opts) {
       const gy = heightAt(w[0], w[1]);
       c.grp.position.set(w[0], gy, w[1]);
       tiltToGround(c.grp, heightAt, w[0], w[1], ry);
+      printTrafficCar(c.grp, c.K);   // (G3543)
       if (c.hit) { const R = OBS(); if (R) R.move(c.hit, w[0], w[1], ry, gy); }
     }
   }
@@ -3088,7 +3197,14 @@ function make(THREE, scene, world, rec0, opts) {
     t1 = tmNow(); TM.ms[TMI.hit] += t1 - t; t = t1;
     if (TRAMS.size) for (const [, tr] of TRAMS) { tr.run.tick(dt).apply(); if (CABIN_FAR > 0 && tr.cabs) cabinCut(tr.cabs); }
     t1 = tmNow(); TM.ms[TMI.trams] += t1 - t; t = t1;
-    if (TRAFFIC.size) { const e = o.eye && o.eye(); for (const [, tr] of TRAFFIC) moveTraffic(tr, dt, e); trafficCount(); }
+    if (TRAFFIC.size) {
+      const e = o.eye && o.eye();
+      if (PRINT.tr) PRINT.trN = 0;   // (G3543: the posed cars' prints, this frame's)
+      for (const [, tr] of TRAFFIC) moveTraffic(tr, dt, e);
+      if (PRINT.tr) { const n = PRINT.trN; printUpload(PRINT.tr, n); PRINT.nTr = n; PRINT.trN = -1; }
+      trafficCount();
+    }
+    if (PRINT.on && ++PRINT.tick % 15 === 0) printsStatic(o.eye ? o.eye() : null);   // (G3543: the cars that stand)
     t1 = tmNow(); TM.ms[TMI.traffic] += t1 - t; t = t1;
     if (ANIM) stats.animalsShown = ANIM.tick(dt);
     TM.ms[TMI.anim] += tmNow() - t;
@@ -3692,6 +3808,7 @@ function make(THREE, scene, world, rec0, opts) {
     for (const c of [plot.car, plot.boat].concat(lotCars)) if (c && pp && PR && PR.props[c.key]) {
       const ob = pp(THREE, c.key, c.x, c.z, c.ry, c.y); tiltToGround(ob, h, c.x, c.z, c.ry); grp.add(ob);
       hitAdd(ob, plot.boat === c ? 'boat' : 'car', 0.5);
+      if (plot.boat !== c) printAdd(ob, c.key);   // (G3543: its print on the ground)
     }
     if (D.lot && window.LOT_GROUND) {
       try { window.LOT_GROUND.mesh(THREE, grp, D.lot, () => { if (o.onBuilt) o.onBuilt(0, queue.length); }); }
@@ -3930,7 +4047,7 @@ function make(THREE, scene, world, rec0, opts) {
     const VGe = window.VILLAGE_GEN;
     // (G842: an entry in a cell a ground edit marked dirty is taken down too - its seed is its own, the ground under it is not)
     // (G3007: a plot whose fence was switched - its seed the same - is taken down and built again too)
-    for (const [id, h] of HOUSES) { const p = want.get(id); if (!p || p.seed !== h.seed || DIRTY.has(id) || (!!p.noFence !== !!(h.plot && h.plot.noFence))) {
+    for (const [id, h] of HOUSES) { const p = want.get(id); if (!p || p.seed !== h.seed || DIRTY.has(id) || (!!p.noFence !== !!(h.plot && h.plot.noFence)) || (!!p.noCar !== !!(h.plot && h.plot.noCar))) {
       for (const g of [h.grp].concat(h.extra || [])) if (g) { hitDrop(g); if (g.parent) g.parent.remove(g); g.traverse(c => { if (c.geometry && !c.userData.sharedGeo) c.geometry.dispose(); }); }
       if (VGe && VGe.edgeKey && h.plot && h.plot.fences) for (const sg of h.plot.fences) { FENCED.delete(VGe.edgeKey(sg.a, sg.b)); HWQ.needState = true; }
       HOUSES.delete(id);
@@ -4225,7 +4342,7 @@ function make(THREE, scene, world, rec0, opts) {
   }
   function hwComposeNow() {
     HWQ.composeDue = 0;
-    const lazy = ['SPORT_GEN', 'MARINE_GEN', 'NAVAID_GEN'].filter(g => !!window[g]);
+    const lazy = ['SPORT_GEN', 'MARINE_GEN', 'NAVAID_GEN', 'METEO_GEN'].filter(g => !!window[g]);   // METEO_GEN: G3660
     HWQ.epoch = HWK.compose(rec, composedPool || [], lazy, TALLY ? TALLY.list : null);   // G841: the cook's tallies ride with the composition
     HWQ.needState = true;
   }
@@ -4752,6 +4869,9 @@ function make(THREE, scene, world, rec0, opts) {
     LINES.clear();
     for (const c of G.roads.children) if (c.isMesh) disposePav(c);   // G925: the pavement's rows (and an own material's MATS entry) given back
     if (KT.host) { KT.host.dispose(); KT.host = null; }   // (C3c)
+    for (const k of ['st', 'tr']) if (PRINT[k]) { root.remove(PRINT[k]); PRINT[k].dispose(); PRINT[k] = null; }   // (G3543)
+    if (PRINT.mat) { PRINT.mat.alphaMap.dispose(); PRINT.mat.dispose(); PRINT.geo.dispose(); PRINT.geoTr.dispose(); PRINT.mat = PRINT.geo = PRINT.geoTr = null; }
+    PRINT.cars.length = 0; PRINT.lifeList = []; PRINT.life = -1;
     scene.remove(root);
   }
 

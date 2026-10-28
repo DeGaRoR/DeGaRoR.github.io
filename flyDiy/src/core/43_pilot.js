@@ -247,6 +247,69 @@ function pilotProfileSpec(p) {
   }
   return o;
 }
+// G3760 (HIRE, Game's seam): CAN THIS PILOT TAKE THIS AEROPLANE INTO THIS STRIP? Pure, for the hire card (what a pilot
+// can fly) and routeSign (no crew for a leg they would not fly) - the AP's own laws, so a refusal at dispatch is the
+// one the pilot would make on the way:
+//   gear       stripAllows (G1375): floats on water only, wheels never on it, skis on snow and grass
+//   land       G2450: the sheet's landing run (LDGrun, the stop from 1.15 Vs0) longer than the strip - every pilot,
+//              the expert too (makePilot's departFrom / setDest say 'strip-too-short' and do not go)
+//   technique  a person whose profile flies the NORMAL approach everywhere (the student: technique.field 'normal' -
+//              makePilot keeps it on every strip, G1943) lands 1.3 Vs0 on the 12 % mark (60 m in at least; 40 m on
+//              a strip of 700 m and more) and floats 3 s: refused when the stop from the touch does not fit past
+//              that. No margin on top (the user 25 Oct: "try if there's a reasonable chance, not too conservative")
+// THE WIND: only a one-way strip's (an altiport's `landHdg`, landed that way whatever the wind) - the component behind
+// the landing adds to the touch over the ground (G2530's law); a headwind is not credited; a two-way strip is landed
+// into the wind. No crosswind law: the AP has none, so none is made up here (a person's wind limit is 76_pilots'
+// trait refusal, pilotsRefusal 'weather'). Water lanes have no run laws (the AP's: shortOfRun skips them).
+//   profile  a PILOT_PROFILES name, an object profile (76_pilots' pilotsProfile) or a resolved one (pilotProfile's)
+//   def      the built aeroplane; its sheet is machineSheet with no shakedown (the landing run and Vs0 are the build's own
+//            numbers, the same the flying pilot reads), memoised per def - opts.sheet passes one
+//   strip    an aerodrome record (len, surface/water, altiport, landHdg) or a CONTRACT_FIELDS row (len, surf, alti)
+//   wind     null | [wx, wz] | { x, z }: the wind's velocity (m/s, where it blows to) - the climate's own sense
+//   opts     { who: the person's name, plane: the aeroplane's, sheet }
+// -> { ok, why, kind: null | 'gear' | 'land' | 'technique', len, need } - `why` is the card's one line
+const PILOT_CANFLY_SHEETS = typeof WeakMap === 'function' ? new WeakMap() : null;
+function pilotCanFly(profile, def, strip, wind, opts) {
+  opts = opts || {};
+  const P = profile && typeof profile === 'object' && profile.reaction !== undefined ? profile : pilotProfile(profile);
+  const who = opts.who || 'The pilot', plane = opts.plane || (def && def.spec && def.spec.name) || 'the aeroplane';
+  const name = (strip && strip.name) || (strip && strip.id) || 'the strip', len = strip && strip.len > 0 ? strip.len : 0;
+  const no = (kind, line, need) => ({ ok: false, kind, why: who + ' won\'t take the ' + plane + ' into ' + name + ': ' + line, len: Math.round(len), need: Math.round(need || 0) });
+  const yes = need => ({ ok: true, kind: null, why: '', len: Math.round(len), need: need != null ? Math.round(need) : null });
+  if (!strip) return yes(null);
+  // the strip as 25_airfield's rule reads it: a CONTRACT_FIELDS row carries its surface as a word
+  const key = typeof strip.surf === 'string' ? strip.surf : null;
+  const wet = key === 'water' || strip.water || strip.kind === 'water' || +strip.surface === 4;
+  const rec = key ? (wet ? { kind: 'water' } : key === 'snow' ? { snow: true } : { surface: STRIP_ENUM_SURF.indexOf(key) >= 0 ? STRIP_ENUM_SURF.indexOf(key) : (STRIP_SURFACES[key] && STRIP_SURFACES[key].cls === 'hard' ? 5 : 0) }) : strip;
+  if (typeof stripAllows === 'function') {
+    const G = stripAllows(stripGear(def), rec);
+    if (!G.ok) return no('gear', G.why, 0);
+  }
+  if (wet || !(len > 0)) return yes(null);
+  let S = opts.sheet || (PILOT_CANFLY_SHEETS && def && typeof def === 'object' ? PILOT_CANFLY_SHEETS.get(def) : null);
+  if (!S && def && typeof machineSheet === 'function') { S = machineSheet(def); if (S && PILOT_CANFLY_SHEETS) PILOT_CANFLY_SHEETS.set(def, S); }
+  const run = S && S.LDGrun, Vs0 = S && S.Vs0;
+  if (!(run > 0)) return yes(null);
+  // the touch over the ground: a one-way strip's wind behind the landing (never a headwind's credit)
+  let tail = 0;
+  if ((strip.altiport || strip.alti) && typeof strip.landHdg === 'number' && wind) {
+    const wx = Array.isArray(wind) ? wind[0] : wind.x, wz = Array.isArray(wind) ? wind[1] : wind.z;
+    if (Number.isFinite(wx) && Number.isFinite(wz)) tail = Math.max(0, wx * CORE_MATH.cos(strip.landHdg) + wz * CORE_MATH.sin(strip.landHdg));
+  }
+  const Vtd = Vs0 > 0 ? 1.15 * Vs0 : null;
+  // the sheet's stop law (LDGrun = Vtd^2 / 2a + Vtd): its deceleration, so a faster touch is stopped the same way
+  const aS = Vtd && run > Vtd ? Vtd * Vtd / (2 * (run - Vtd)) : null;
+  const stop = v => aS ? v * v / (2 * aS) + v : run;
+  const behind = tail > 0.5 ? ' with ' + tail.toFixed(1) + ' m/s behind' : '';
+  const needL = Vtd ? stop(Vtd + tail) : run;
+  if (needL > len) return no('land', Math.round(len) + ' m of strip for a ' + Math.round(needL) + ' m landing run' + behind, needL);
+  if (P.active && P.field === 'normal' && Vtd) {
+    const aim = len < 700 ? Math.max(60, 0.12 * len) : 40, Vg = Vtd + tail, needT = aim + 3 * Vg + stop(Vg);
+    if (needT > len) return no('technique', 'the normal approach (' + Math.round(aim) + ' m in, the float, the stop' + behind + ') needs ' + Math.round(needT) + ' m of ' + Math.round(len), needT);
+    return yes(needT);
+  }
+  return yes(needL);
+}
 
 function makePilot(sim, def, world, opts) {
   opts = opts || {};
@@ -578,6 +641,13 @@ function makePilot(sim, def, world, opts) {
     if (!DEST_KEPT.includes(ph) && !DEST_REPLAN.includes(ph)) { ap.nextTo = to; return 'queued'; }
     ap.nextTo = null;
     if (to === ap.route.to) return 'same';
+    // G3611: a drawn route being flown keeps flying - its end ('dest') reads the new To when it gets there
+    if (ap.drawn && (ap.drawn.state === 'flying' || ap.drawn.state === 'hold')) {
+      ap.route = { from, to }; ap.xc = from !== to;
+      ap.budget = Math.max(ap.budget, ap.t + routeBudget(ap._m ? { x: ap._m.x, z: ap._m.z } : (from && from.x != null ? from : null), to));
+      say('new-destination', 'the destination is now ' + (to.name || to.id) + ' - after the drawn route');
+      return 'kept';
+    }
     ap.route = { from, to };
     ap.xc = from !== to;
     ap.budget = Math.max(ap.budget, ap.t + routeBudget(ap._m ? { x: ap._m.x, z: ap._m.z } : (from && from.x != null ? from : null), to));   // the way left, from here
@@ -1053,6 +1123,40 @@ function makePilot(sim, def, world, opts) {
     else if (typeof a.landHdg === 'number') { dx = CORE_MATH.cos(a.landHdg); dz = CORE_MATH.sin(a.landHdg); }
     const sg = (dx * axx + dz * axz) >= 0 ? 1 : -1;
     return [axx * sg, axz * sg];
+  };
+  // LAND-WAY (A0 27 Oct, STORY-SKIP consistency): THE LANDING WAY THIS PILOT WOULD PLAN arriving at `a` from (x, z), in
+  // the wind of its own clock - the very call planFromHere's re-plan makes (dirAt, pref from there to the field, the
+  // sheet's limits), for a caller that poses the aeroplane (the story's skip onto the final poses on the end returned):
+  // { u: [ux, uz], way: +1 along a.hdg / -1 against it, why }. No side effect: ap.dirWhy is the pilot's and is put back
+  ap.landWayFrom = (a, x, z) => {
+    if (!a || !Number.isFinite(x) || !Number.isFinite(z)) return null;
+    const why0 = ap.dirWhy;
+    try {
+      const u = dirAt(a, a.x - x, a.z - z), why = ap.dirWhy;
+      return { u: [u[0], u[1]], way: u[0] * CORE_MATH.cos(a.hdg) + u[1] * CORE_MATH.sin(a.hdg) >= 0 ? 1 : -1, why: why == null ? null : why };
+    } finally { ap.dirWhy = why0; }
+  };
+  // ...AND THE FINAL IT WOULD FLY (A0 27 Oct, slot A: the story's skip was posed off a.spawn - 225 m beside the line the
+  // pilot lands on, 1.1 km short of its aim, on 6 % where the Cub flies 10 % - and every pilot rightly joined the circuit;
+  // posed on the pilot's own final, master lands straight in 8/8): planArrival's own answer for that way, the line, the
+  // aim and the slope - { u, way, why, aim: [x, z], aimY, gs, dIaf: the IAF's distance out } - with everything
+  // planArrival writes on `ap` put back and anything it said taken back (it plans, it does not fly). The caller poses d m
+  // before `aim` along u, d * gs over aimY
+  // (the straight-in is taken from 300 m before the IAF: d >= dIaf + 300; slot A's 8/8 flew d = 3000)
+  const PLAN_KEYS = ['frame', 'dirX', 'altRef', 'refAlt', 'appr', 'xAim', 'shortFld', 'VAppr', 'stripShortSaid', 'gs', 'siteDir', 'patGround', 'protocolSaid', 'plan'];
+  ap.finalFrom = (a, x, z) => {
+    const L = ap.landWayFrom(a, x, z);
+    if (!L) return null;
+    const S = {}, had = {}, nV = ap.report.verdicts.length;
+    for (const k of PLAN_KEYS) { had[k] = Object.prototype.hasOwnProperty.call(ap, k); S[k] = ap[k]; }
+    try {
+      const P = planArrival(a, L.u, (ap.route && ap.route.from) || a);
+      const aim = wp(P.F, P.sAim, 0);
+      return { u: L.u, way: L.way, why: L.why, aim: [aim[0], aim[1]], aimY: aimAlt(), gs: ap.gs, dIaf: P.sAim - P.sIaf };
+    } finally {
+      for (const k of PLAN_KEYS) { if (had[k]) ap[k] = S[k]; else delete ap[k]; }
+      ap.report.verdicts.length = nV;
+    }
   };
   // P1.B: THE GUST, READ OFF THE DAY — the wind at the aerodrome sampled
   // over the next 30 s (the field is deterministic in t): the spread of
@@ -2252,7 +2356,7 @@ function makePilot(sim, def, world, opts) {
           break;
         }
         case 'PITCH': holdPitch(SEL.pitch); break;
-        case 'DE': c.de = SEL.de; break;
+        case 'DE': c.de = SEL.de ?? 0; break;   // (an in-air reEngage's first update: the default afcs, no de selected yet)
         case 'TECS': tecs(SEL); break;                 // P0.5: the throttle is this law's too
         default: break;
       }
@@ -2674,7 +2778,7 @@ function makePilot(sim, def, world, opts) {
     // ...AND ENDS AS ITS RECORD SAYS
     const routeEnd = () => {
       const D = ap.drawn, Lz = ap.legs[ap.legs.length - 1];
-      say('route-done', 'the drawn route flown' + (D.end === 'hold' ? ' - holding over ' + Lz.name : D.end === 'home' ? ' - home' : ' - to the nearest strip'));
+      say('route-done', 'the drawn route flown' + (D.end === 'hold' ? ' - holding over ' + Lz.name : D.end === 'home' ? ' - home' : D.end === 'dest' ? ' - on to the destination' : ' - to the nearest strip'));
       const tl = Math.hypot(vcg[0], vcg[2]) || 1, ux = vcg[0] / tl, uz = vcg[2] / tl;
       if (D.end === 'hold') {
         // the orbit through the last point, tangent to the track there (no reversal), turning the way the route's last
@@ -2689,7 +2793,8 @@ function makePilot(sim, def, world, opts) {
         return 'LOITER';
       }
       D.state = 'done';
-      let to = ap.route && ap.route.from;
+      // (G3611: 'dest' - on to the flight's own destination, a contract's stop: the drawn route is the way there)
+      let to = ap.route && (D.end === 'dest' ? ap.route.to : ap.route.from);
       if (D.end === 'land' && world && world.aerodromes) {
         const need = Math.max(350, 1.4 * ((sheetOf() && sheetOf().LDGrun) || 0));
         let best = null, bd = Infinity;
@@ -4156,7 +4261,10 @@ function makePilot(sim, def, world, opts) {
           if (!committed) { committed = true; say('committed-landing', 'past the aim at ' + Math.round(agl) + ' m agl — landing it'); }
         }
         // G3326: a designed approach's long final (the Cabin Strip's 5-6 km) is given the time its length asks
-        const finalMax = ap.plan && ap.plan.designed ? Math.max(240, 1.6 * (ap.plan.sAim - ap.plan.sIaf) / Math.max(10, iasF)) : 240;
+        // PLAYTEST 24 Oct #55: ...and so is every plan's - strip 13's terrain-raised circuit flew a final longer
+        // than 240 s and went round for 'final took 240 s'; 240 s stays the floor, a plan without its IAF keeps it
+        const finalLen = ap.plan && isFinite(ap.plan.sAim - ap.plan.sIaf) ? ap.plan.sAim - ap.plan.sIaf : 0;
+        const finalMax = Math.max(240, 1.6 * finalLen / Math.max(10, iasF));
         if (ap.t - finalT0 > finalMax && canGA) { goAround('final took ' + Math.round(ap.t - finalT0) + ' s'); break; }
         // G1936: A SHORT FINAL IS STABILIZED OR FLOWN AGAIN - 5 m/s over Vref under 20 m is a float the strip has no
         // room for (the Cub's 25 m/s at the flare touched 213 m into 150 m)

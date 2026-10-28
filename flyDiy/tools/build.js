@@ -188,6 +188,12 @@ const MANIFEST = {
     // Pure; reads 25_'s footprint default, 26_'s shells / kits / hangarFit
     // and 70_'s document. GAME-PREMISES-2026-10-06.md; GATE GAMEPREM.
     '71_player_bases.js',
+    // THE PEOPLE (G3614): the one list of everyone - name, portrait, body, one
+    // role (reserved / client / pilot / passenger). Pure data; in the core (not
+    // the career chunk): the sandbox's passengers board from its pool too.
+    '72_people_faces.js',            // (tools/portrait_prep.py writes it: the portraits' content names)
+    '72_people_bgs.js',              // (tools/portrait_prep.py bgs writes it: the large portraits' backgrounds, G3620)
+    '72_people.js',
     // ACCEPT (G2270): a build's acceptance - the static checks (no simulation:
     // the phone may run them), the flown leg's measurement and procedure on the
     // AP box, the signed record, acceptVerdict over a contract's criteria. Pure;
@@ -379,6 +385,7 @@ const MANIFEST = {
   lazy: [['tools', '_sport_gen.js'], ['tools', '_marine_gen.js'],
          // ASSETS-OCT G2909: the radio navaids (the Annette Island DVOR/DME) - asked for when the record names a navaid/ key
          ['tools', '_navaid_gen.js'],
+         ['tools', '_meteo_gen.js'],   // G3660: the meteo station (world_boot asks for it when the record places one)
          // ASSETS-OCT G2904: the scenery kit's packs (src/scenery/, slim manifests - their bins and maps are lazy media
          // too) - asked for by world_boot when the record holds prop objects and by the editor's model placer, in the
          // manifest's order (the levels pack last: its rows name the props they stand in for)
@@ -527,7 +534,9 @@ const MANIFEST = {
     // prop disc and the contact blobs make their materials through window.MATLIB, so it is there before any of them
     // ui_layer.js (G1370) right after matlib.js: THE UI LAYER - pattern_vis.js, editor.js, app.js, water.js and
     // shadow_near.js read window.UI_LAYER (the in-world helpers on a layer only the main camera sees)
-    scripts: ['storage.js', 'flight_recorder.js', 'assets.js', 'matlib.js', 'ui_layer.js', 'aa_resolve.js',
+    // card_drag.js (G3526, GAME-MENUS) right after it: EVERY CARD IS DRAGGABLE - window.FLYDIY_DRAG, before any card's
+    // own code (bench.js, app.js, freight_load.js, boombox.js, input_panel.js, gfx_settings.js) makes one
+    scripts: ['storage.js', 'flight_recorder.js', 'assets.js', 'matlib.js', 'ui_layer.js', 'card_drag.js', 'aa_resolve.js',
               'light_rig.js', 'day_clock.js', 'atmo.js', 'sky_light.js', 'sky_glare.js', 'clouds.js', 'clouds_ui.js', 'day_ui.js', 'weather_ui.js', 'climate_link.js',
               // post_fx.js (POST-FX study, 2026-09-21): the switchable post passes over the resolve
               // pass's hook; publishes window.POST_FX at eval, app.js inits it, gfx_settings.js sets its rows

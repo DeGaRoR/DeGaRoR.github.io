@@ -13,7 +13,9 @@
 //            null: the aeroplane's cruise
 //     end    what the pilot does past the last point: 'hold' (orbits it at its
 //            altitude), 'home' (flies back to the field it left and lands off
-//            its circuit), 'land' (the nearest strip this gear may use)
+//            its circuit), 'land' (the nearest strip this gear may use),
+//            'dest' (G3611, the 24 Oct playtest's item 14: on to the flight's
+//            destination - the To, a tracked contract's stop - and lands there)
 //     margin the terrain clearance the profile is judged against (m)
 //
 // THE PROFILE (routeProfile) is what the pilot will fly, vertically, and it is
@@ -38,7 +40,7 @@ const ROUTE_MARGIN = 60;          // m: the clearance a drawn profile keeps over
 const ROUTE_AGL_DEFAULT = 150;    // m: a new point's height over the highest ground about it
 const ROUTE_SAFE_R = 500;         // m: the ground looked at about a new point for that default
 const ROUTE_MAX_PTS = 24;
-const ROUTE_ENDS = ['hold', 'home', 'land'];
+const ROUTE_ENDS = ['hold', 'home', 'land', 'dest'];
 const ROUTE_CLIMB_K = 0.70;       // the share of the measured climb a drawn climb may ask (the cruise speed, the day, the wind)
 const ROUTE_SINK_K = 0.80;        // the share of TECS's descent limit a drawn descent may ask
 

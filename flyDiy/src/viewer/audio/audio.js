@@ -123,7 +123,7 @@ var AUDIO = (function () {
     const stub = { enabled: false, state: 'off', ctx: null, params: null, stats: null,
       update() {}, bus() { return null; }, addSource() { return null; }, onEvent() {}, emit() {},
       module() { return Promise.resolve(false); }, get: k => readSetting(k), set() {}, lagS: null, space: null,
-      stateLine: () => 'off', unlock() {}, addRows() {}, inGarage: false, welcome: false,
+      stateLine: () => 'off', unlock() {}, addRows() {}, shutter: () => false, inGarage: false, welcome: false,
       enable(on) { if (on && query !== '0') prefSet(PREF, '1'); },
       mount(body, kit) { mountRows(stub, body, kit, true); } };
     return stub;
@@ -239,6 +239,7 @@ var AUDIO = (function () {
       return modules[stem];
     },
     unlock: () => unlock(),
+    shutter: () => shutter(),   // G1730: photo mode's shot (true = played)
     enable(on) {
       prefSet(PREF, on ? '1' : '0');
       if (on) { if (api.state === 'off') api.state = 'armed'; unlock(); }   // the click on the switch IS a gesture
@@ -432,6 +433,57 @@ var AUDIO = (function () {
   function onBlur() { focused = false; silence(); }
   function onFocus() { focused = true; silence(); }
 
+  // ---- G1730 THE SHUTTER (A0 for the user, 27 Oct: photo mode's shutter, GAME-MENUS G3741/G3742) ------------
+  // A synthesized SLR shot, no file: the mirror's click (a 3.5 kHz noise tick over a 140 -> 70 Hz thump), the curtain's
+  // swish (noise through a band sweeping 2 -> 6 kHz) and the second curtain's click at +90 ms; ~0.2 s in all, at the
+  // 'interface' volume. Photo mode PAUSES the flight (FLYDIY_HELD: the mix faded to nothing and the context suspended),
+  // so the shot goes round the fade - its own gain straight into the limiter, never through master/fade, so it neither
+  // ducks the engine nor brings the paused mix back - and wakes the context for itself, put back to sleep after it
+  // when the silence still holds. Nodes per shot (a discrete event, not the frame); the noise buffer once.
+  const SHUT = { out: 0.32, len: 0.3 };
+  let noiseBuf = null, shutWake = 0;
+  function shutter() {
+    if (!ctx || !N.limiter || !ctx.createBiquadFilter || !ctx.createOscillator || !ctx.createBuffer) return false;
+    const v = set.master * set.interface * SHUT.out;
+    if (!(v > 0)) return false;
+    if (!noiseBuf) {
+      noiseBuf = ctx.createBuffer(1, Math.ceil(ctx.sampleRate * SHUT.len), ctx.sampleRate);
+      const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    if (silent) {   // the pause / a hidden tab: wake for the shot (the fade stays at 0: the rest stays silent)
+      clearSuspend(); if (shutWake) clearTimeout(shutWake);
+      try { const r = ctx.resume(); if (r && r.catch) r.catch(() => {}); } catch (e) {}
+      // back to sleep: the bare suspend when the silence had already suspended (no event: the music stays paused), else
+      // the silence's own (the shot came inside its 0.2 s fade and cleared its timer: the 'suspend' still has to come)
+      shutWake = setTimeout(() => { shutWake = 0; if (!silent || !ctx) return;
+        if (api.state !== 'suspended') doSuspend(); else try { const r = ctx.suspend(); if (r && r.catch) r.catch(() => {}); } catch (e) {} }, 400);
+    }
+    const t0 = ctx.currentTime + 0.005, out = ctx.createGain();
+    out.gain.value = v; out.connect(N.limiter);
+    const tick = (t, f, q, a, d) => {   // a noise tick: attack 1 ms, exponential decay d s
+      const s = ctx.createBufferSource(), b = ctx.createBiquadFilter(), g = ctx.createGain();
+      s.buffer = noiseBuf; b.type = 'bandpass'; b.frequency.value = f; b.Q.value = q;
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(a, t + 0.001); g.gain.setTargetAtTime(0, t + 0.001, d / 4);
+      s.connect(b); b.connect(g); g.connect(out); s.start(t, Math.random() * 0.1, d + 0.02); return s;
+    };
+    const thump = (t, f0, f1, a, d) => {   // the body's knock: a falling sine
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + d);
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(a, t + 0.002); g.gain.setTargetAtTime(0, t + 0.002, d / 4);
+      o.connect(g); g.connect(out); o.start(t); o.stop(t + d + 0.02); return o;
+    };
+    tick(t0, 3500, 1.2, 1, 0.015); thump(t0, 140, 70, 0.6, 0.05);
+    const sw = ctx.createBufferSource(), sb = ctx.createBiquadFilter(), sg = ctx.createGain();   // the curtain's swish
+    sw.buffer = noiseBuf; sb.type = 'bandpass'; sb.Q.value = 0.9;
+    sb.frequency.setValueAtTime(2000, t0 + 0.012); sb.frequency.exponentialRampToValueAtTime(6000, t0 + 0.08);
+    sg.gain.setValueAtTime(0, t0 + 0.012); sg.gain.linearRampToValueAtTime(0.22, t0 + 0.04); sg.gain.linearRampToValueAtTime(0, t0 + 0.085);
+    sw.connect(sb); sb.connect(sg); sg.connect(out); sw.start(t0 + 0.012, 0, 0.08);
+    tick(t0 + 0.09, 2500, 1, 0.8, 0.012);
+    const last = thump(t0 + 0.09, 110, 60, 0.4, 0.04);
+    last.onended = () => { try { out.disconnect(); } catch (e) {} };
+    return true;
+  }
+
   // ---- THE FRAME ------------------------------------------------------------------------------------------
   // sim: the page's sim (the worker's snapshot mirrored, or the inline solver); camera: the THREE camera (the
   // listener's position); dt: the frame's seconds; def: the flown aeroplane (def.spec, def.params, def.refs);
@@ -471,6 +523,9 @@ var AUDIO = (function () {
   }
 
   arm();
+  // G1730: the shot on photo mode's own event (GAME-MENUS G3744 fires 'flydiy:shutter' at the take: the round shutter and
+  // FLYDIY_PHOTO.take) - neither file edits the other's
+  if (W.addEventListener) W.addEventListener('flydiy:shutter', () => { shutter(); });
   return api;
 })();
 if (typeof window !== 'undefined') window.AUDIO = AUDIO;

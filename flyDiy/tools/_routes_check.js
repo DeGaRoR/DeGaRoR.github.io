@@ -54,20 +54,20 @@ function run(M) {
   ok(!M.routeOffer(d, 'A', 'B', 'Ul', { fields }).ok && /not read yet/.test(M.routeOffer(d, 'A', 'B', 'Ul', { fields }).why), 'a plane whose numbers are not known: refused, never guessed');
   // ---- SIGN on a clone
   const t0 = M.dayAbs(M.careerDay(d));
-  ok(!M.routeSign(d, T, 'Cub', 'rafe').ok && !M.routeSign(d, T, 'Ul', 'kit').ok && !M.routeSign(d, null, 'Cub', 'kit').ok,
+  ok(!M.routeSign(d, T, 'Cub', 'rafe').ok && !M.routeSign(d, T, 'Ul', 'brian').ok && !M.routeSign(d, null, 'Cub', 'brian').ok,
      'routeSign refuses a pilot not hired, another plane than the offer\'s, no offer');
   const away = JSON.parse(d0); away.fleet.Cub.aero = 'HOME';
-  ok(!M.routeSign(M.careerNormalise(away), T, 'Cub', 'kit').ok, 'routeSign refuses a plane that stands at neither end');
-  const S = M.routeSign(d, T, 'Cub', 'kit');
+  ok(!M.routeSign(M.careerNormalise(away), T, 'Cub', 'brian').ok, 'routeSign refuses a plane that stands at neither end');
+  const S = M.routeSign(d, T, 'Cub', 'brian');
   ok(S.ok && J(d) === d0, 'routeSign: on a clone (the document handed in unchanged)', S.why);
   let e = S.doc;
   const R = S.route || {};
   ok(e.wallet === w0 + 2880 && e.ledger.some(l => l.k === 'route' && l.amt === -2880 && l.ref === R.id), 'the down payment: +2 880 in the wallet, its ledger line (income)', e.wallet - w0);
-  ok(R.plane === 'Cub' && R.pilot === 'kit' && R.a === 'A' && R.b === 'B' && R.signedAt === Math.round(t0) && R.trips === 0, 'the route: the plane, the pilot, A <-> B, signed at the career\'s instant', J(R));
+  ok(R.plane === 'Cub' && R.pilot === 'brian' && R.a === 'A' && R.b === 'B' && R.signedAt === Math.round(t0) && R.trips === 0, 'the route: the plane, the pilot, A <-> B, signed at the career\'s instant', J(R));
   const W = M.playerStoreWhere(e, 'Cub');
-  ok(W.kind === 'route' && W.a === 'A' && W.b === 'B' && M.playerWhere(e, 'Cub').kind === 'route' && e.career.pilots.kit.route === R.id && e.career.pilots.kit.plane === 'Cub',
+  ok(W.kind === 'route' && W.a === 'A' && W.b === 'B' && M.playerWhere(e, 'Cub').kind === 'route' && e.career.pilots.brian.route === R.id && e.career.pilots.brian.plane === 'Cub',
      'locked: the plane\'s place is "route" (A, B), the pilot marked with it', J(W));
-  ok(!M.routeSign(e, T, 'Cub', 'kit').ok && !M.routeOffer(e, 'A', 'B', 'Cub', { fields, design }).ok, 'a plane on a route: no second route');
+  ok(!M.routeSign(e, T, 'Cub', 'brian').ok && !M.routeOffer(e, 'A', 'B', 'Cub', { fields, design }).ok, 'a plane on a route: no second route');
   // ---- THE LOCK
   const refused = (r, what) => ok(r && !r.ok && /route/.test(r.why || ''), what + ' refused', r && r.why);
   refused(M.playerMove(e, 'Cub', { kind: 'outside' }), 'playerMove');
@@ -79,9 +79,9 @@ function run(M) {
   refused(M.playerFlyStart(e, 'Cub'), 'a flight from where it stands');
   ok(M.playerFloorSync(e, 'Cub').doc === e, 'the stand does not take it (playerFloorSync leaves it on its route)');
   ok(J(M.playerStoreSettle(JSON.parse(J(e)))) === J(e) && J(M.careerNormalise(JSON.parse(J(e))).fleet.Cub) === J(e.fleet.Cub), 'the storage settle keeps a plane on its route (a fixpoint)');
-  ok(!M.pilotsFire(e, 'kit').ok && !M.pilotsPick(e, 'kit').ok && !M.pilotsCanFly(e, 'kit', 'A').ok && M.pilotsPicked(e) === 'me', 'its pilot: not fired, not picked, not flying the player\'s flights');
+  ok(!M.pilotsFire(e, 'brian').ok && !M.pilotsPick(e, 'brian').ok && !M.pilotsCanFly(e, 'brian', 'A').ok && M.pilotsPicked(e) === 'me', 'its pilot: not fired, not picked, not flying the player\'s flights');
   const fe = M.pilotsOnFlightEnd(e, { pilot: 'me', slot: 'Cub', from: 'A', to: 'B', landed: true, t: 60 });
-  ok(fe.ok && fe.doc.career.pilots.kit.plane === 'Cub' && fe.doc.career.pilots.kit.route === R.id, 'a flight\'s end never unbinds the route\'s pilot');
+  ok(fe.ok && fe.doc.career.pilots.brian.plane === 'Cub' && fe.doc.career.pilots.brian.route === R.id, 'a flight\'s end never unbinds the route\'s pilot');
   const V = M.playerStoreView(e, 'HOME');
   ok(V && Array.isArray(V.routes) && !V.routes.includes('Cub') && ![].concat(V.long, V.others, V.outside.slots, V.inside.slots).includes('Cub'), 'the storage view at HOME: the Cub is in no column (its ends are A and B)');
   // ---- SETTLE: no pay without sim time
@@ -105,29 +105,29 @@ function run(M) {
   ok(J(back) === J(e), 'saved and reloaded: the document unchanged (the route, the lock, the pilot)');
   const lost = JSON.parse(J(e)); delete lost.fleet.Cub;
   const L2 = M.careerNormalise(lost);
-  ok(L2.career.routes[0].ended && !M.routesActive(L2).length && !L2.career.pilots.kit.route, 'a route whose plane left the fleet: ended, its pilot freed');
+  ok(L2.career.routes[0].ended && !M.routesActive(L2).length && !L2.career.pilots.brian.route, 'a route whose plane left the fleet: ended, its pilot freed');
   const stray = JSON.parse(J(e)); stray.career.routes = [];
   const L3 = M.careerNormalise(stray);
-  ok(L3.fleet.Cub.kind !== 'route' && M.playerStoreWhere(L3, 'Cub').kind !== 'route' && !L3.career.pilots.kit.route, 'a fleet row on a route nobody runs: unlocked, placed again', M.playerStoreWhere(L3, 'Cub').kind);
+  ok(L3.fleet.Cub.kind !== 'route' && M.playerStoreWhere(L3, 'Cub').kind !== 'route' && !L3.career.pilots.brian.route, 'a fleet row on a route nobody runs: unlocked, placed again', M.playerStoreWhere(L3, 'Cub').kind);
   // ---- END
   const E = M.routeEnd(e, R.id, { now: t0 + 4 * 14400 + 1 });
   ok(E.ok && J(e) === J(r.doc) && E.paid === 480, 'routeEnd on a clone: the trip flown since the last settle paid first', E.why || E.paid);
   const We = M.playerStoreWhere(E.doc, 'Cub');
   ok(E.route.ended && We.kind !== 'route' && We.aero === 'B' && !M.routeOfPlane(E.doc, 'Cub'), 'the plane back at the route\'s home field (B: the end it was not signed at, with no hangar of yours at either)', J(We));
-  ok(!E.doc.career.pilots.kit.route && E.doc.career.pilots.kit.plane === null && M.pilotsPick(E.doc, 'kit').ok, 'the pilot freed');
+  ok(!E.doc.career.pilots.brian.route && E.doc.career.pilots.brian.plane === null && M.pilotsPick(E.doc, 'brian').ok, 'the pilot freed');
   ok(E.doc.wallet === e.wallet + 480 && E.doc.ledger.slice(-1)[0].k === 'routeEnd' && E.doc.ledger.slice(-1)[0].amt === 0, 'no penalty: the ledger line at 0, the wallet only gains the trip flown');
   ok(M.routeSettle(E.doc, t0 + 50 * 14400).paid === 0, 'an ended route pays nothing more');
   ok(M.playerMove(E.doc, 'Cub', { kind: 'outside' }).why !== undefined && !/flies the route/.test(M.playerMove(E.doc, 'Cub', { kind: 'outside' }).why || ''), 'after the end: the storage moves it again (no route refusal)');
   ok(!M.routeEnd(E.doc, R.id).ok, 'ending an ended route: refused');
   // HOME's end: a hangar of yours there takes it inside
   const H = M.routeOffer(d, 'A', 'HOME', 'Cub', { design, fields: Object.assign({}, M.CONTRACT_FIELDS, fields) });
-  const HS = H.ok ? M.routeSign(d, H.offer, 'Cub', 'kit') : H;
+  const HS = H.ok ? M.routeSign(d, H.offer, 'Cub', 'brian') : H;
   const HE = HS.ok ? M.routeEnd(HS.doc, HS.route.id) : HS;
   ok(H.ok && H.offer.home === 'HOME' && HE.ok && HE.where.hangar === 'HOME', 'a route to HOME ends inside the HOME hangar (as any arrival)', HE.where && J(HE.where));
   // ---- THE SANDBOX
   const sand = M.playerNormalise(M.playerMigrate(M.playerDefault()));
   const s0 = J(sand);
-  ok(!M.routeOffer(sand, 'HOME', 'w2', 'x').ok && !M.routeSign(sand, T, 'x', 'kit').ok && M.routeSettle(sand).paid === 0 && J(sand) === s0, 'the sandbox: no route offered, signed or paid; its document untouched');
+  ok(!M.routeOffer(sand, 'HOME', 'w2', 'x').ok && !M.routeSign(sand, T, 'x', 'brian').ok && M.routeSettle(sand).paid === 0 && J(sand) === s0, 'the sandbox: no route offered, signed or paid; its document untouched');
   ok(J(M.playerNormalise(JSON.parse(s0))) === s0 && J(M.playerStoreView(sand, 'HOME').routes) === '[]', 'the sandbox\'s document normalises byte for byte; its storage view lists no route');
   return { fails, d, M };
 }
@@ -190,7 +190,7 @@ async function page() {
   ok(outside.length >= 2 && !loose.length, 'every call into the routes outside the career\'s half is behind CAREER_DEV', outside.length + ' calls' + (loose.length ? '; loose: ' + loose.map(l => l.trim().slice(0, 70)).join(' | ') : ''));
   const half = app.slice(r0, r1);
   ok(/  if \(CAREER_DEV\) \{\n[\s\S]*Object\.assign\(window\.FLYDIY_STORE, \{\n\s*routeTargets/.test(half), "the storage's route doors are published under CAREER_DEV only");
-  ok(/routesSettleNow\(d\) : null; if \(CAREER_DEV && rtSettled\) d = rtSettled\.doc;\n\s*\/\/ G2320 \(CAREER-WIRE\): \.\.\.and the career meets the stop/.test(app) &&
+  ok(/routesSettleNow\(d\) : null; if \(CAREER_DEV && rtSettled\) d = rtSettled\.doc;\n(?:\s*\/\/ G3618 \(HIRE\)[^\n]*\n\s*const pyPaid = [^\n]*\n)?\s*\/\/ G2320 \(CAREER-WIRE\): \.\.\.and the career meets the stop/.test(app) &&
      /if \(CAREER_DEV && out\.career && rtSettled && rtSettled\.lines\.length\) out\.career\.lines\.unshift/.test(app), 'the landing settles the routes (before the stop\'s wallet line), its line on the arrival card');
   ok(/'flydiy:dayjump'[\s\S]{0,80}routesOnWait/.test(half) && /\/\^\(wait\|fullmoon\)\/\.test/.test(half), 'a wait settles them (the clock\'s jump of a wait only: never the 30 s save)');
   ok(/if \(CAREER_DEV && routesRollRefused\(\)\) return;/.test(app), 'a plane on a route never rolls out');
@@ -206,7 +206,7 @@ async function page() {
     const w = {}; vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'map_pack.js'), 'utf8'), { window: w });
     let d = M.careerNormalise(M.careerNew({ id: 'm', seed: 'map' }));
     d.fleet.Cub = { hangar: null, aero: 'SEA' }; d = M.careerNormalise(d); d.career.airframes.Cub = { from: 'story', story: 'client', gift: true };
-    const O = M.routeOffer(d, 'SEA', 'HOME', 'Cub'); d = M.routeSign(d, O.offer, 'Cub', 'kit').doc;
+    const O = M.routeOffer(d, 'SEA', 'HOME', 'Cub'); d = M.routeSign(d, O.offer, 'Cub', 'brian').doc;
     const R = M.careerMapRecord(d, null, {}); R.routes = M.routesMapOf(d, M.dayAbs(M.careerDay(d)) + 60, w.MAP_PACK.aerodromes);
     const A = MM.mapAdapt(R, w.MAP_PACK, d);
     const pk = w.MAP_PACK, view = { s: 0.3, fit: 0.3, tx: 0, ty: 0 };

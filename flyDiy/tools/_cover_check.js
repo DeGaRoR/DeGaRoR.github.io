@@ -134,7 +134,11 @@ ok(ia.all.length > 100 && JSON.stringify(ia.all) === JSON.stringify(ib.all) && r
   for (const W of [A, Bt]) W.CR.root.traverse(o => { if (!(o.isInstancedMesh || o.isBatchedMesh) || !o.castShadow) return; cast++;
     const geos = o.isBatchedMesh ? [...o.userData.geoIds.keys()] : [o.geometry];
     for (const g of geos) if (/rock|debris/.test(o.userData.coverKind) && heightOf(g) < S.castMinH) bad++; });
-  ok(S.castMinH === 0.35 && bad === 0 && cast > 0, '4 no rock or debris under castMinH (0.35 m: the user world look, 2026-10-03; 0.5 since G585) casts, in either path', cast + ' casters'); }
+  ok(S.castMinH === 0.35 && bad === 0 && cast > 0, '4 no rock or debris under castMinH (0.35 m: the user world look, 2026-10-03; 0.5 since G585) casts, in either path', cast + ' casters');
+  // (DEBRIS-SHADOW, the user 26 Oct: "keep the 131 debris, no shadows on small ones") no debris model under castMinDebris casts
+  let badD = 0; for (const W of [A, Bt]) W.CR.root.traverse(o => { if (!(o.isInstancedMesh || o.isBatchedMesh) || !o.castShadow || !/debris/.test(o.userData.coverKind)) return;
+    for (const g of (o.isBatchedMesh ? [...o.userData.geoIds.keys()] : [o.geometry])) if (heightOf(g) < S.castMinDebris) badD++; });
+  ok(S.castMinDebris === 1.0 && badD === 0, '4 no debris under castMinDebris (1.0 m, DEBRIS-SHADOW: the user\'s "no shadows on small ones") casts, in either path', badD + ' small debris casting'); }
 // 5
 { const W = Bt, n0 = batchedRecs(W).all.length;
   W.camera.position.set(3000, 3, 0); W.camera.updateMatrixWorld(); for (let i = 0; i < 4; i++) W.CR.update();
