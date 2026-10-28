@@ -864,6 +864,9 @@ const GATES = [
   // THE PILOT ON THE WATER (H4, G393): the sea lane's circuit, a crosswind
   // take-off, an idle taxi on the water rudder — three flights (~8 min)
   { id: 'SEAPLANE', file: '_seaplane_check.js', tier: 'full', wall: 480 },
+  // THE HUMP (G3442, HYDRO-TRIM): the afterbody in the forebody's wake (the 2350 hull in the tank), and the stock
+  // 172R on Wipaire's exact float over its hump and off the water at the STC gross (~3 min)
+  { id: 'HYDROTRIM', file: '_hydrotrim_check.js', tier: 'full', wall: 200 },
   // THE PLAYER (HANGARS S1): the player's property as ONE document — its own
   // version and migrator walk beside the spec's (G105's ruling: state that is
   // not the aeroplane costs no spec version), the one-time lift of the two
