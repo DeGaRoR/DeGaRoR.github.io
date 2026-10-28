@@ -61,6 +61,7 @@ if (typeof resolveSpec !== 'function' || typeof genFrame !== 'function' ||
 // the garage's @chordTip does.
 const TIP_KEYS = Object.keys(GEN_TIPS);
 const FLAP_KEYS = Object.keys(GEN_FLAPS);
+const SLAT_KEYS = Object.keys(GEN_SLATS);                 // G2820
 // G189: the lamp bay's edges as loft stations — the join's cageWingCuts,
 // the same arithmetic off the same declaration, so the drawn loft and the
 // flown loft have the same rows (see the join's note)
@@ -92,6 +93,11 @@ PAGE.defaults = Object.assign({
   // none); off writes an aileron span of 0 to the spec
   wgAilOn: 1, wgAilSpan: 0.38, wgAilChord: 0.22,
   wgCons: 0,
+  // G2820: THE STOL WING - every device off (60_gen_spec GEN_SLATS /
+  // GEN_STOL). wgSlat indexes Object.keys(GEN_SLATS); the spans are
+  // fractions of the semispan measured in from the tip.
+  // G2827: one table (60_gen_spec GEN_STOL_ROW_OFF), the value every fingerprint treats as absent
+  ...GEN_STOL_ROW_OFF,
   // G185: THE SECOND PLANE — the full key set of the first (port the full
   // surface: never a subset), its own position band, cabane height, nudge
   // and stagger (metres its leading edge sits AFT of the first plane's,
@@ -267,6 +273,22 @@ const WING_ITEMS = [
     ['wgAilOn', 'ailerons', 0, 1, 1],
     ['wgAilSpan', 'ail. span',   0.15, 0.55, 0.01, { when: P => +P.wgAilOn }],
     ['wgAilChord', 'ail. chord', 0.10, 0.35, 0.01, { when: P => +P.wgAilOn }],
+    // G2820: drooping ailerons ride the flap lever (only with a flap);
+    // Fowler area growth only means something on a Fowler
+    // G2823: an index into GEN_STOL.droopSteps (none / 10 / 20 deg), its tiles in the slot
+    ['wgDroop', 'aileron droop', 0, 2, 1, ['none', '10 deg with flaps', '20 deg with flaps'],
+     { when: P => +P.wgAilOn && FLAP_KEYS[Math.round(P.wgFlapType)] !== 'none' }],
+    ['wgFowlerGrow', 'Fowler area growth', 0, 1, 1,
+     { when: P => FLAP_KEYS[Math.round(P.wgFlapType)] === 'fowler' }],
+  ], 'open', on],
+  // G2820: THE STOL WING - the leading edge and the spanwise devices
+  ['STOL devices', [
+    ['wgSlat', 'leading edge', 0, SLAT_KEYS.length - 1, 1, SLAT_KEYS.map(k => GEN_SLATS[k].name)],
+    ['wgSlatSpan', 'slat span', 0.30, 1.00, 0.05, { when: P => Math.round(P.wgSlat) > 0 }],
+    ['wgVG', 'vortex generators', 0, 1, 1],
+    ['wgFence', 'wing fences', 0, 2, 1, ['none', 'one a side', 'two a side']],
+    ['wgCuff', 'LE cuff', 0, 1, 1],
+    ['wgCuffSpan', 'cuff span', 0.20, 0.60, 0.05, { when: P => +P.wgCuff }],
   ], 'open', on],
 ];
 // G185: THE SECOND PLANE'S ROWS, GENERATED from the first's — the same
@@ -279,7 +301,11 @@ const WING_ITEMS = [
 // `up / down` is the explicit row below, in the spec's own metres; the
 // generated twin was a second row of the same key that moved nothing)
 const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStruts', 'wgStrutZ', 'wgStrutX',   // T2.3: the strut count is the fuselage fan's
-                         'wgDx', 'wgDy', 'wgParaH']);
+                         'wgDx', 'wgDy', 'wgParaH',
+                         // G2820: the STOL devices are the first plane's in the
+                         // editor (the spec and the physics take them per plane)
+                         'wgSlat', 'wgSlatSpan', 'wgVG', 'wgFence', 'wgCuff', 'wgCuffSpan',
+                         'wgDroop', 'wgFowlerGrow']);
 const w2Key = k => 'w2' + k.slice(2);
 const w2On = P => +P.wingOn && +P.w2On;
 // the first plane's `when`s read wg* keys; the second plane's rows answer
@@ -481,7 +507,7 @@ const glassMat = () => {
 // follows the fuselage) until the builder says otherwise. G31's diagnostic
 // tints (purple tip, orange ailerons) do NOT ride into the material view any
 // more — that was the G70-owed leak, and the per-part rows are its answer.
-const CLSEC = { main: 'wingSkin', centre: 'wingSkin', tip: 'wingTip',
+const CLSEC = { main: 'wingSkin', centre: 'wingSkin', tip: 'wingTip', stol: 'wingStol',
                 ailR: 'wingAil', ailL: 'wingAil',
                 flapR: 'wingFlap', flapL: 'wingFlap' };
 // G185: the second plane's classes map to its own livery sections
@@ -572,7 +598,13 @@ function bodyFrameOf(def) {
 // `field(i)` -> the four numbers of THE SURFACE FIELD (G66) for source
 // vertex i, or null. The wing's is built in wingField() below; everything
 // else passes nothing and takes the shader's triplanar branch.
-function pickParts(g, keep, toCage, classOf, field) {
+// G2829 (the user 27 Oct: "the stuff at the wing end ... looks odd"): `smooth` names the classes that are ONE
+// surface split for paint (the wing's main panel, centre, tips, STOL devices). Their normals are accumulated over all
+// of them at once, per source vertex, so the row where a tip meets the panel shades as the one skin it is - each
+// class computing its own (computeVertexNormals) drew a crease at every class boundary. The skin's deliberate hard
+// edges stay hard: those rows are emitted twice in genWing, so they never share a source vertex. Other classes (the
+// caps, the lamp bay) keep their own normals.
+function pickParts(g, keep, toCage, classOf, field, smooth) {
   const nv = g.nv, ok = new Uint8Array(nv);
   for (let i = 0; i < nv; i++) ok[i] = keep(i) ? 1 : 0;
   const out = {};                     // class -> {map,pos,idx,wpos,eseen}
@@ -586,6 +618,7 @@ function pickParts(g, keep, toCage, classOf, field) {
       const p = toCage(raw(i));
       B2.map[i] = B2.pos.length / 3;
       B2.pos.push(p[0], p[1], p[2]);
+      if (B2.src) B2.src.push(i);
       if (B2.fld) {
         const a = field(i, B2.cl) || [0, 0, 0, 0];
         B2.fld.push(a[0], a[1], a[2], a[3]);
@@ -601,6 +634,7 @@ function pickParts(g, keep, toCage, classOf, field) {
     B2.wpos.push(A[0], A[1], A[2], C[0], C[1], C[2]);
   };
   const idxA = g.idx;
+  const faces = [];
   for (let t = 0; t < idxA.length; ) {
     const a = idxA[t], b = idxA[t+1], c = idxA[t+2];
     // the quad pair: [a,b,c] followed by [a,c,d]
@@ -615,7 +649,27 @@ function pickParts(g, keep, toCage, classOf, field) {
       cen[0] += p[0] / vs.length; cen[1] += p[1] / vs.length;
       cen[2] += p[2] / vs.length;
     }
-    const B2 = bucket(classOf ? classOf(cen, vs) : 'x');
+    faces.push({ vs, isQuad, cl: classOf ? classOf(cen, vs) : 'x' });
+  }
+  // the shared normals (cage space: toCage is a rigid map), area-weighted, one per source vertex
+  const NRM = smooth ? new Float32Array(nv * 3) : null;
+  if (NRM) {
+    const P3 = new Map(), at = i => P3.get(i) || (P3.set(i, toCage(raw(i))), P3.get(i));
+    const addTri = (i, j, k) => {
+      const A = at(i), Bq = at(j), Cq = at(k);
+      const ux = Bq[0] - A[0], uy = Bq[1] - A[1], uz = Bq[2] - A[2], wx = Cq[0] - A[0], wy = Cq[1] - A[1], wz = Cq[2] - A[2];
+      const nx = uy * wz - uz * wy, ny = uz * wx - ux * wz, nz = ux * wy - uy * wx;
+      for (const q of [i, j, k]) { NRM[q * 3] += nx; NRM[q * 3 + 1] += ny; NRM[q * 3 + 2] += nz; }
+    };
+    for (const f of faces) if (smooth.has(f.cl)) {
+      const v = f.vs;
+      addTri(v[0], v[1], v[2]); if (f.isQuad) addTri(v[0], v[2], v[3]);
+    }
+  }
+  for (const f of faces) {
+    const vs = f.vs, isQuad = f.isQuad;
+    const B2 = bucket(f.cl);
+    if (NRM && smooth.has(f.cl) && !B2.src) B2.src = [];
     if (isQuad) {
       const q = vs.map(i => vtx(B2, i));
       B2.idx.push(q[0], q[1], q[2], q[0], q[2], q[3]);
@@ -633,7 +687,14 @@ function pickParts(g, keep, toCage, classOf, field) {
     if (B2.fld) geo.setAttribute('aStruct',
       new THREE.BufferAttribute(new Float32Array(B2.fld), 4));
     geo.setIndex(B2.idx);
-    geo.computeVertexNormals();
+    if (B2.src && B2.src.length * 3 === B2.pos.length) {
+      const nA = new Float32Array(B2.pos.length);
+      B2.src.forEach((i, k) => {
+        const x = NRM[i * 3], y = NRM[i * 3 + 1], z = NRM[i * 3 + 2], L = Math.hypot(x, y, z) || 1;
+        nA[k * 3] = x / L; nA[k * 3 + 1] = y / L; nA[k * 3 + 2] = z / L;
+      });
+      geo.setAttribute('normal', new THREE.BufferAttribute(nA, 3));
+    } else geo.computeVertexNormals();
     const wire = new THREE.BufferGeometry();
     wire.setAttribute('position',
       new THREE.BufferAttribute(new Float32Array(B2.wpos), 3));
@@ -814,6 +875,8 @@ function wingGSpec(P) {
       // G189: the lamp bay's two edges as loft stations, so the cut is the
       // width asked for (the same declaration the bay below resolves)
       cuts: wingCutsOf(P),
+      // G2820: the STOL devices, drawn as the join flies them
+      ...((st => st ? { stol: st } : {})(genStolCage(P))),
     }, ...(+P.w2On ? [w2SpecOf()] : [])],
     bracing: { type: Math.round(P.wgBrace) ? 'cantilever' : 'strut',
                struts: Math.round(+P.wgStruts) === 1 ? 1 : 2,          // T2.3 (83)
@@ -1228,7 +1291,13 @@ const wingPost = ctx => {
     if (capsTip && Math.abs(hi - zTipEnd) < 2e-3) return 'capTip';
     return null;
   };
+  // G2829: THE STOL DEVICES ARE THEIR OWN LIVERY SECTION (aeroskin wingStol, following the wing until repainted):
+  // genWing reports the skin vertex ranges its STOL block emitted (the slat, the cuff, the VGs, the fences, the
+  // endplates); a face all of whose vertices are in one is 'stol'. No ranges, no class: the wing it always was
+  const STOLR = (pay && pay.stol && pay.stol.skin) || null;
+  const inStol = i => { for (const [a, b] of STOLR) if (i >= a && i < b) return true; return false; };
   const skinClass = (cen, vs) => {
+    if (STOLR && vs && vs.length && vs.every(inStol)) return 'stol';
     const cap = capOf(vs);
     if (cap) return cap;
     const az = Math.abs(toBody(cen)[2]);
@@ -1648,8 +1717,8 @@ const wingPost = ctx => {
   const skinProbe = [];        // G133: every skin class, for the underside
   if (gs.skin) {
     const parts = pickParts(gs.skin, wingVert(gs.skin), toCage, skinClass,
-                            wingField(gs.skin));
-    for (const cl of ['main', 'centre', 'tip']) {
+                            wingField(gs.skin), new Set(['main', 'centre', 'tip', 'stol']));
+    for (const cl of ['main', 'centre', 'tip', 'stol']) {
       const pr = add(parts, cl, wingMat(cl));
       if (pr) { faces += pr.geo.index.count / 3; skinProbe.push(pr.geo); }
     }

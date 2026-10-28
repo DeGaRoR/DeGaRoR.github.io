@@ -1,0 +1,7 @@
+STOL Cub (file tail) HOME -> mn_strip calm · normal
+  ROLL@0 ABORT@12.3 STOPPED@22.5
+  departure: normal · Vx 16.9 m/s · run needed 58 m of 2325
+  control reversals /min (da dr de): takeoff 12 16 16 · landing 0 0 0
+  ! 12.3s rejected-takeoff: will not reach Vr: 0.08 m/s^2 needs 690 m more, 746 m left
+  rejected-takeoff at 22.5 s (29 s wall)
+{"key":"tools/fixtures/stol_cub_showcase.json","name":"STOL Cub","from":"HOME","to":"mn_strip","style":"normal","profile":"expert","seed":null,"floats":false,"tail":"file","slope":0,"surface":null,"weather":null,"day":"2026-06-21 10:00:00 AKDT","outcome":"rejected-takeoff","phase":"STOPPED","t":22.5,"phases":["ROLL@0","ABORT@12.3","STOPPED@22.5"],"goArounds":0,"verdicts":["12.3s rejected-takeoff: will not reach Vr: 0.08 m/s^2 needs 690 m more, 746 m left"],"takeoff":null,"climb":{"hTurn":null,"vsMean":null},"legs":[],"final":null,"flare":null,"track":{"xtRms":null,"n":0},"bounces":0,"pitchMax":-99,"stab":null,"landing":null,"activity":{"takeoff":{"s":23,"da":12,"dr":16,"de":16},"landing":{"s":0,"da":0,"dr":0,"de":0}},"rollout":null,"Vs":14.1,"VsLanding":12.1,"VAppr":15.7,"appr":null,"dep":{"technique":"normal","Vx":16.9,"runNeed":58,"len":2325,"surface":5},"circuit":null,"mass":525,"sheet":{"Vs":13.72,"Vs0":12.09,"Vref":15.72,"Vrot":13.9,"Vx":16.88,"Vy":19.4,"Vbg":21.72,"Vms":16.5,"Vcruise":31,"climbMax":5.04,"sinkMin":2.33,"LDbest":8.18,"TORun":58,"LDGrun":80.47,"mass":525.08},"tecs":true,"path":true,"wall":29}

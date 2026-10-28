@@ -98204,6 +98204,783 @@ Rolling set (6): apsmooth-known-drop (Pilot: APSMOOTH's c172 level-off row back 
 - The battery on the six: AUDIO RED, NEW: WIRING "app.js: AUDIO.update is not in loop() between the render and PACE.end" - reveal-held's held-frame PACE.end before the hold's return; gate-screen is built on reveal-held, so both are out. Otherwise master's known reds.
 - Strict light gate on the six: over100 gone (the screen split), cub cockpit / metal chase tasks1s + cub cockpit taskWorst 2136 (the boot ~1 s class, still judged against 1 s as ruled), metal fuseWidth (accepted), floats world->garage 2.25 s (the known re-link).
 - Landed: 7332badc1 = master 5f3f2c797 + apsmooth-known-drop + pilotpage + town200-life + w1-papi, re-cooked (premises / fleet / map / parked); AUDIO STORY UISMOKE SCENERYED CONTRACTS PREMISES LIFE CITYHOST APSMOOTH PASS on that exact tree (17:10-17:20). HWCOV fixes the AUDIO wiring row vs the held path for L22d / L23b.
+## G2820 STOL-WING - THE STOL WING: SLATS AND SLOTS, VGs, FENCES, CUFFS, ENDPLATES, DROOPED TIPS, DROOPING AILERONS, FOWLER AREA GROWTH (2026-10-12, STOL-WING for A0, cloud, node only; branch claude/stol-wing-g2820 off origin/master f353a0f8; G2821-G2829 unused)
+
+**READY.** The user (10 Oct): "it's a bush flying game, and there were plans for STOL wing features back in the day ...
+Could we resurrect that?" - slats ("the mini wing on the leading edge"), endplates ("the large flat surfaces at the
+wingtips"), fences / VGs ("the longitudinal ribs channelling air"). Nothing existed in src for slats (the session-2
+flap model said "no slat modeling, no Fowler area growth"); it does now. **Every option is OFF by default and every
+existing build flies, draws and certifies to the bit** (GATE STOL section 1: all 27 cards, the joined bake, against
+a fixture captured on the untouched master: def hash, 4 s of flight with flap/aileron/elevator inputs, the drawn
+wing).
+
+- **THE SPEC (60_gen_spec).** `wings[k].stol = { slat: 'slot'|'auto', slatSpan, vg, fences: 1|2, cuff, cuffSpan,
+  droop, grow }`, normalised by `genStolOf` in clampWing - ABSENT (or null, or all-off) IS OFF and the key leaves the
+  resolved spec, so genCertKey never sees it. Two tips APPENDED to GEN_TIPS (the cage saves a tip as an index):
+  `endplate` (e 1.05, a flat plate 0.55 x 1.10 tip chords, its wetted area priced) and `drooped` (the bush tip:
+  Hoerner's bow bent down 0.14 tip chords, e 1.03). Tables `GEN_SLATS` (none / slot / auto) and `GEN_STOL` (vg, cuff,
+  fence, the dAs cap, droop max, the machine-shop `packs`), each number commented with its source in the file.
+- **THE PHYSICS - a stall-angle device, not a camber delta.** A slat, a slot, VGs and a cuff raise the strip's STALL
+  ANGLE (`dAs`: the lift curve runs on past the clean stall, dCLmax = a3d x dAs; nothing below the stall moves) and pay
+  their profile drag; a cuff adds a little nose camber. Per strip, by coverage fraction (as the flap's), as optional
+  strip keys (`stol`, `dr`, `fg`) - a strip without them takes the old branch of the solver, byte for byte.
+  - fixed slot (Storch / 701 / Savannah): +8 deg, dCd 0.006 always (measured on the Savannah-alike: Vs x0.875,
+    cruise drag +9 %);
+  - automatic slat (Helio / Me 108): +10 deg once OUT - it deploys as a function of alpha over the last 0.10 rad
+    before the clean stall - a seam's 0.0006 at cruise (+1 % drag), its gap drag only while out (Vs x0.852);
+  - VGs: +3 deg, dCd 0.0008 (Vs x0.952 = 4 km/h on the Super Cub, the kit sheets' 3-5 mph);
+  - cuff (Robertson / Horton): outboard 40 %, +4 deg and a little camber - the tip stalls last, the aileron answers;
+  - fences: +1.4 deg outboard of the innermost fence (at the aileron's inboard end; the second midway in), each
+    fence's area priced (axial CdA, like the struts);
+  - drooping ailerons: on the FLAP LEVER (only with a flap), `droop` of a plain flap's travel (0.35 = 14 deg), a
+    plain-flap increment at the aileron chord + its moment; they still deflect about the drooped datum;
+  - Fowler area growth: the Fowler flies the slotted row's camber (1.60) and the flapped strips' area AND chord grow
+    by slide x flap chord as it runs out (the moment arm, Gamma and drag with it): the same CLmax within 2 % (the
+    2.05 stand-in was fitted to it), a steeper lift curve flaps-down.
+  - the devices add on a strip, capped at `GEN_STOL.dAsMax` 0.22 rad. The analytic CLmax / Vs (the AP's speed ladder)
+    includes them (area-weighted); genClMax's sweep runs to 35 deg on a STOL wing only (22 on every other).
+- **THE DRAWING (63_gen_wing, into the plane's own skin - painted, flexed and exported with it, no new group).** The
+  slot stands off the nose rotated nose-down with a visible gap; the auto slat lies nested on the nose (DRAWN HOME -
+  it does not run out in the viewer yet); the cuff is a drooped glove; one VG row (vanes every 0.11 m, toed +-16 deg)
+  on the upper skin; fences wrap the nose and run to 75 % chord at the strips' own stations (`genStolFences`, shared);
+  the endplate stands above and below the tip; the drooped tip's bow bends down; drooping ailerons publish
+  `drive2: 'flap'` (genWing's moving list AND the cage join's snapshot - the path the game flies), k2 = droop x the
+  plain flap's travel. Checked as section cuts / oblique projections rendered in node (no WebGL): the slot and
+  the cuff's sections, the drooped tip's front view, the endplate and the fence in 3/4.
+- **THE EDITOR.** Design flow (big tiles with drawn icons, EDITOR-UX-A G2760 owns the styling): `Leading edge`
+  (none / fixed slot / automatic slat), `Vortex generators`, `Wing fences` (0/1/2), `Leading-edge cuff`, `Drooping
+  ailerons`, `Fowler area growth`; the `Wing tips` row offers Endplate and Drooped. Cage panel: a 'STOL devices' group
+  (with the slat / cuff spans) on the wing panel, droop and growth beside the ailerons / flaps; the second plane does
+  not get them in the editor (W2_DROP) though the spec and the physics take them per plane. Boot card "The STOL wing".
+  Cage rows `wgSlat wgSlatSpan wgVG wgFence wgCuff wgCuffSpan wgDroop wgFowlerGrow` (defaults off, so a saved cage
+  without them is unchanged); `genStolCage(P)` turns them into the record for both the join and the wing layer. The
+  join STATES the record (null when off, A3) so the garage's merge can take a slat back off; bench.js
+  benchStripCosmetic and 76_procure procureFp drop a null `stol` so **no certificate is withdrawn**.
+- **THE MACHINE SHOP (the GAME coordinator's).** A flag, no era calendar: `GEN_STOL.packs` names each option's
+  candidate pack ('stol-kit' for all but the drooped tip); `genStolLocked(opt, owned)` returns the missing pack;
+  the design tiles grey (`inactive`, never write) when the page publishes `window.MACHINE_SHOP_OWNS` (an array) and
+  the pack is not in it. Nothing publishes it today: nothing is locked.
+
+**GATE STOL (new, core, ~75 s, `--selftest` in the row)**: 1 off is the bits (27 cards x def / flight / drawing;
+null, {} and all-zero are the absent key; both fingerprints; the merge takes a device back off); 2 the spec (the
+append rule, the clamps, the cage rows, the join's three states, the shop flag and the greyed tiles, every tile
+drawn); 3 the physics (each device in the tunnel, bands above); 4 the drawing (each device where its strips fly it);
+5 the bench (below); selftest breaks 4 of them. **RESULTS (12 Oct, cloud, one `--only=... --no-build` run on the
+built tree, 713 s wall): 26/26 PASS** - STOL 80 s, FLAPS, GEN (4 shards, 598 s), DEFAULT, HONEST, WEIGHT, DRAG, SKIN,
+UISMOKE, UISMOKE-PHONE, BOOT, BUILD, FIT, HINGE, CLIP, WINGSPLIT, CAGEFIT, JOIN, SPECFIX, ENGINE, STARTER, SAVE, BENCH,
+PARTS (red once mid-session: the second plane's generated twins of the new rows - fixed by W2_DROP), DESIGN, VIEW.
+ARCHETYPES / PILOTMATRIX (full tier) not run: every card's def and 4 s flight are the pre-G2820 bits (section 1), so
+their inputs did not move. The branch carries SOURCE only (the built files, the career chunk's hash and the parked
+cook are the train's).
+
+**THE BENCH against the makers' figures** (GATE STOL section 5, `node tools/_stol_check.js --bench` prints it; Vs =
+the measured stall at the sheet's weight, TO = genTORunAt's roll, LDG~ = Vtd^2/2a, a = 0.3 g, Vtd = 1.1 x the
+landing-configuration stall - an estimate of the bench's own):
+
+| aeroplane (devices) | Vs1 without / with / sheet | Vs0 | TO roll | LDG~ |
+|---|---|---|---|---|
+| Savannah-alike 600 kg (fixed slot) | 77 / **68** / 52 km/h | 66 / **59** / 45 | 163 / 164 / 60 m | 95 / **73** / 70 m |
+| Super Cub-alike 794 kg, O-320, slotted (VGs) | **75** / 71 / 76 | **67** / 63 / 69 | 110 / 108 / 61 | 90 / 80 / 107 |
+| Highlander-alike 599 kg, 912 (VGs + droop) | 65 / **61** / - | 57 / **52** / 45 | 102 / 98 / 30 | 51 / **42** / 46 |
+
+(bold = the configuration the sheet is for; the PA-18's POH predates VG kits.) The devices move every number toward
+the sheets; the Super Cub's stock stall is the POH's to 1 %. **Flown** (perf_study's fly(), the pilot's own circuit,
+HOME, calm): all six builds completed (Savannah stock / slot / auto / everything + endplate; Super Cub stock / VG +
+drooped tips), no stall, no crash; VAppr 28.7 -> 24.4 m/s with the slot.
+
+**What to watch for:**
+- **The take-off roll does not shorten, and neither does the flown landing roll** (Savannah 214 m lift-off run and
+  ~300 m landing roll with or without slats). That is not the wing: a taildragger's lift-off attitude is capped by
+  its three-point deck (genTuneAP), and at the deck the slatted wing gives the clean wing's CL - a slat only pays above
+  the clean stall angle. The pilot also caps pitch at thMax <= 0.26 rad (15 deg; max flown alpha 13-15 deg on every
+  build), lands on the perf study's gentle brake law, and the Savannah/Super Cub cards land FLAPLESS (the trim solver's
+  verdict, ruling owed since TAIL CHANTIER 2 P5). Those are the STOL TECHNIQUE chantier (the pilot: a tail-low,
+  high-alpha take-off and a slow, steep, braked landing; thMax off the measured stall; the flap take-off notch) - the
+  wing now has the lift for it. The taildraggers' +80..+240 % TO gap is the perf study's known #3.
+- The automatic slat is drawn HOME; it does not run out in the viewer (the solver deploys it with alpha; publishing
+  its deployment for the drawing is a small follow-up: sim.out + a moving group).
+- The devices weigh nothing (no ledger lines): a slatted wing is ~1 kg/m heavier in life.
+- The Fowler with growth flies a little LESS lift at mid alpha than the old stand-in and more at high alpha (steeper
+  curve, same CLmax) - a grown-Fowler build's approach trim moves a hair.
+- On a biplane whose flap record is plane 1, `grow` on plane 0 scales nothing (the record's camber is the record
+  plane's); the editor offers the devices on plane 0 only.
+- Sources in GEN_SLATS / GEN_STOL are textbook-class numbers (Abbott & von Doenhoff, Hoerner, the kit sheets), +-30 %;
+  the makers' sheets are generous (the perf study's Jodel / Chinook ruling) - the bench reports the gaps, it does not
+  fit to them.
+
+## G2821-G2827 STOL-WING-2 - THE STOL WING ON TODAY'S MASTER: EACH DEVICE AGAINST ITS PUBLISHED RANGE, THE AUTOPILOT FLIES WHAT THE ELEVATOR CAN HOLD, DROOPED AILERONS KEEP THEIR ROLL, THE DEVICES PART WITH THEIR WING; THE SIX SHIPPED BUILDS TO THE BIT; THE USER'S CUB WITH A KIT, FLOWN (2026-10-22/23, STOL-WING-2 for A0, cloud - node + headless Chromium / SwiftShader; branch claude/stol-wing-2 = origin/claude/stol-wing-g2820 a0443704a + origin/master 2c2a74459 merged; tip f58610dfd (+ this entry); G2828-G2829 unused)
+
+**READY for A0 (gates below).** The user, 22 Oct: re-open the STOL wing kit ("bush flying high-lift"), parked on 12
+Oct. G2820 (its entry is the one above) is the kit; this lands it on a master 699 commits on. Every STOL option is
+still OFF by default, and **every aeroplane without one flies, draws, certifies, benches and is keyed exactly as on
+master** (the six shipped builds below, a whole circuit each, before / after).
+
+- **G2821 THE MERGE.** origin/master merged (53ee617c8). Three conflicts: 90_node_exports.js - **only names added to
+  the export line** (master's line, master's order, the STOL names after GEN_TIPS; no name lost, no other line
+  touched: GEN_SLATS GEN_STOL GEN_STOL_ROWS genStolOf genStolCage genStolLocked genStolStrip genStolFences
+  genStallAngle GEN_STOL_ROW_OFF genStolCageOff); design_flow.js DESIGN_PART takes G2760's 'wingPanel' -> 'wings';
+  HANDOVER keeps master's entries. A hazard master's census caught: the STOL drawing's sin / cos were the builtin
+  (DMGDETERMINISM's CORE_MATH census) - now CORE_MATH.
+- **G2821 THE BITS (GATE STOL section 1).** One fingerprint source, `tools/_stol_fp.js` (def / 4 s / drawing / the design
+  check + machine sheet / the pilot's whole circuit - a floatplane's off the SEA base). The fixture is captured BY
+  MASTER'S OWN CORE AND LOAD DOOR in a worktree: `node tools/_stol_samebits.js --root=<master tree> --capture` - the 27
+  cards (the joined bake) and **the six builds as the game ships them, loaded the game's way** (tools/_load_build.js:
+  its VALIDATED table - the Cub, the Jodel, `bugReports/cessnaMetal (1).json`, `bugReports/cessnaFloatsWOrks.json`, the
+  twin floatplane with its float patch - and the certified Rufus, builds/rufus_2026-10-18_certified.json; the corrected
+  C172 file is out, the user dropped it). The gate loads the six through THIS tree's door and asserts master's spec +
+  the eight STOL rows at their "off" (the join states `stol: null`), def / 4 s / drawing / design check / sheet to the
+  bit, and every key below equal. **Re-capture on every merge of master that moves the physics.**
+- **G2822 TODAY'S PHYSICS.**
+  - `genStallAngle(def)` (62_gen_aero): the wing's stall angle AS IT FLIES (the section's own + the devices'
+    area-weighted gain). Every near-stall attitude solve caps at 0.85 x it (genTrim, genShakedown, genDensityAlt, the
+    design check's derivs / ctl.elevator / ctl.flare). No STOL strip: `P.aStall`, the same bits.
+  - Drooped ailerons stall earlier, as a plain flap's section does: dAs = 0.8 dCl / (0.9 x 2 pi) (Abbott & von
+    Doenhoff's plain-flap data, as recalled): 1.9 deg at the editor's 10 deg of droop, 3.9 at 20.
+  - The fences' and endplates' drag rides the STRIP it stands on (G2820 hung it on the fuselage's axial CdA, which a
+    wingless wreck kept); `gen.drag.stol` reports it; the body's term is the clean one to the bit.
+  - genClMax sweeps past 22 deg only for a stall-angle device.
+- **G2822 THE DESIGN CHECK.** ctl.flare sweeps to the slatted wing's own stall (the clean sweep passed a slat the
+  elevator cannot reach). New row **ctl.droop** (drooped wings only): full aileron at 1.3 x the autopilot's Vs0, FULL
+  flap, drooped against the same wing undrooped, each at its own attitude (scan + bisection), its own sim, one probe
+  frame. Pass >= 85 % and pb/2V >= 0.07; warn >= 60 %.
+- **G2826 THE AUTOPILOT'S VREF / FLARE (STOL approach speeds).** `genStolHeld` (64_gen_build, in genTrim after the
+  cruise stab trim): on a stall-angle wing, the highest attitude the elevator holds in the landing configuration at
+  G970's flare budget (0.349) gives the touchdown speed `gen.VsHeld`; the autopilot's Vs0 (`gen.VsFlapAP` -> the
+  machine sheet's Vs0 -> Vref 1.30 x, VAppr, the flare budget, alphaTD, VPinFull) is that / 1.10 when above the
+  slatted stall. The plaque and bench keep the measured stall; ctl.flare says the gap. WHY: a VG row on the user's
+  Cub asked the flare for an attitude past the stop at its new 1.10 Vs0, G970's cure sent it FLAPLESS, and its
+  landing roll went 62 m -> 160. No stall-angle device: no key, the same bits.
+- **G2827 EVERY KEY THE GAME HASHES A BUILD BY.** The cage states its STOL rows once the editor has seen a build, so
+  each of them had to be the ABSENT row at its "off" (`GEN_STOL_ROW_OFF`, the wing layer's PAGE.defaults spread it;
+  `genStolCageOff`): the certificate store's key (genCertKey - else every stored certificate is a miss and a worker
+  job), the bench's and **the parked fleet's** fingerprint (bench.js benchStripCosmetic; parked.js fleetSig hashes
+  with no defaults), the procurement's (procureFp). GATE STOL asserts all four equal to master's on the six builds.
+- **G2823 THE EDITOR (the --ed look, WYSIWYG).** The six STOL tile rows (Leading edge, Vortex generators, Wing fences,
+  Leading-edge cuff, Drooping ailerons, Fowler area growth) are their cage rows' TWINS (G2760: the tile stands in its
+  row's slot on the Wings panel, one control per choice; every row value is a tile's, each tile writes its row
+  alone). The droop row is an index (none / 10 / 20 deg: `GEN_STOL.droopSteps`). WYSIWYG held by construction and by
+  the gate: the drawing (`wingGSpec`) and the join read one `genStolCage(P)`; the fences are drawn and flown at
+  `genStolFences`' stations; the game's flown snapshot (`CAGE_JOIN.snapshot(spec)`) carries the drooped ailerons on
+  the flap lever, 10.0 deg, each with its own side's flap sense; the devices' 1956 drawn vertices hang on wing nodes
+  of one side each. **Seen in a real page** (cloud SwiftShader, below): the kit's rows in the editor are the spec's,
+  and the Wing tips tiles (Endplate, Drooped lit) stand in their row's slot.
+- **DAMAGE ON (the new surfaces in their break groups).** Forces on the wing's strips, drawing on its nodes, drag on
+  its strips. Gated: the right wing let go (18 attachments, 2 break groups) takes every right STOL strip off the
+  core; the left stay on.
+- **G2824** `tools/fixtures/stol_cub_kit.json` (never builds/): the user's Cub with a fixed slot, a VG row, the drooped
+  tips and the ailerons drooped 10 deg, set in the CAGE ROWS (wgSlat 1, wgVG 1, wgTip 7, wgDroop 1). GATE STOL
+  section 6 loads it through the door, benches it and flies the pilot's circuit against master's stock lap.
+- **G2825** `tools/stol_shots.js` - the evidence rig (below: what works here, what A0 runs).
+
+**EACH DEVICE AGAINST ITS PUBLISHED RANGE** (GATE STOL 3b, the Savannah-alike in the tunnel; the ranges are in the gate):
+
+| device | measured | published range | source |
+|---|---|---|---|
+| fixed slot | CLmax +31 %, stall +7.8 deg, Vs x0.875 | CLmax +25..45 %, stall +6..11 deg | NACA TR-428 (a fixed auxiliary aerofoil at its best station: +32 % on the Clark Y); NACA TR-400 (Wenzinger & Shortal 1931, the slotted Clark Y); a slot takes a section's stall from ~15 to 22-25 deg (as commonly quoted) |
+| automatic slat | CLmax +38 %, stall +9.5 deg, Vs x0.852 | +25..50 %, +6..12 deg | the same; at its optimum station it out-lifts the fixed slot |
+| VGs | CLmax +10 %, stall +2.5 deg, Vs x0.952 | Vs x0.92..0.97 | Flight International's PA-28 test of the Micro AeroDynamics kit: -3.5 kt clean, -4.4 kt landing; the kit's "up to 5 mph" |
+| Fowler growth | flapped lift slope x1.049 | the grown area's c'/c x1.053 (within 10 %) | NACA TN-459 (CLmax on the ORIGINAL area, the convention); the Franchini / Raymer-type table: Fowler dClmax 1.3 c'/c |
+| drooped ailerons | 83 % / 71 % of the undrooped roll at 10 / 20 deg (Savannah, warn); 98 % on the kit Cub (pass) | "less aileron with full flap" | owners of the Robertson / Horton kits (backcountrypilot.org); the R/STOL supplement governs |
+
+**THE USER'S CUB, STOCK / WITH A KIT** (the game's load door, the pilot's own circuit off HOME, calm;
+reports/evidence/STOL-WING-2/cub_kits_flown.log, rig cubkit2.js beside it):
+
+| build | Vs1 km/h | Vs0 km/h (AP's) | Vref km/h | TO plaque m | lift-off run m | landing roll m | ctl.flare |
+|---|---|---|---|---|---|---|---|
+| stock (master's lap) | 56.6 | 48.4 | 63.0 | 142 | 96.1 | 62 | 1.04 |
+| VGs + drooped tips | 53.0 (-6 %) | 46.0 | 62.8 | 119 | 89.2 (-7 %) | 66 | 1.03 |
+| bush: VGs + cuff + droop 10 + tips | 52.8 (-7 %) | 44.6 | 61.7 | 112 | 86.1 (-10 %) | 66 | 1.04 |
+| slot + VGs | 47.0 (-17 %) | 41.8 | 62.7 | 100 | 86.6 (-10 %) | 69 | 1.17 warn |
+| **the fixture: slot + VGs + tips + droop 10** | **46.5 (-18 %)** | 40.9 stall / **47.6 held** | **61.9 (-2 %)** | **97 (-32 %)** | **83.5 (-13 %)** | **70 (+13 %)** | 1.17 warn |
+| the same + elevator 40 % of the stab root | 46.4 | 40.8 / 46.7 held | 60.7 | 97 | 81.3 | 65 | 1.14 warn |
+
+**Read it honestly:** the kits do what the published figures say to the STALL (VGs -6..-7 %, the slot -17..-18 %) and
+shorten the take-off (lift-off run -7..-13 %, the plaque's roll -16..-32 %). They do **not** shorten this Cub's
+landing: its elevator barely flares the stock aeroplane to its stall (ctl.flare 1.04), so the touchdown is the
+elevator's speed, not the wing's (the kit's AP Vs0 is held at 47.6 km/h against a 40.9 stall). Against R/STOL's
+"15-25 mph slower approaches, up to 40 % less runway" this Cub gets 1 mph: those claims belong to aeroplanes whose
+tails were sized for the slat (the Storch, the Courier). A bigger elevator buys a little (65 m).
+
+**THE SIX SHIPPED BUILDS, BEFORE / AFTER** (one node line per build, through tools/_load_build.js; before = master
+2c2a74459's own core and load door in a worktree, after = this branch f58610dfd (+ this entry); `diff` of the two:
+IDENTICAL, every field of all six; reports/evidence/STOL-WING-2/samebits_*.log):
+
+    cub        def 8ff2d5d6246babbf fly dd4c0a3ce620304c draw b9db7b7226e1d9bc check cd22c0c69e75ee4e (warn Vref 62.96 km/h, Vs0 48.43, TO 142 m) lap 84c01b091606aa8d (completed, 248.50 s, 10 phases, lift-off 96.09 m, landing 62.00 m)
+    jodel      def e9e28e9ad40d753f fly 1fe46819d1cd0238 draw 241172632adb7eaf check ac2e474757fad2c6 (warn Vref 88.16 km/h, Vs0 67.82, TO 206 m) lap 90589a378d31293a (completed, 353.28 s, 10 phases, lift-off 173.18 m, landing 238.00 m)
+    metal      def 44f14d8f686dfb9c fly f69811754aaf0bcd draw 700e23b8f7dd20ef check 86453ebf9e036d63 (warn Vref 103.81 km/h, Vs0 79.86, TO 147 m) lap e1154ba569a88bba (completed, 339.62 s, 10 phases, lift-off 175.08 m, landing 519.00 m)
+    floats     def 51db8b882fe3ad13 fly fb3fd4cb1ffbc641 draw f56d50e1bdbeb11a check 0bcf5da337480f91 (pass Vref 113.97 km/h, Vs0 87.67, TO 1080 m) lap 14e42b28e822d92b (completed, 379.95 s, 10 phases, lift-off 359.42 m, landing 369.00 m)
+    twinFloats def 3dd6640d5a04421f fly eaab76d349049cfb draw 538d8307ced85068 check bd4e83349d019f75 (warn Vref 76.32 km/h, Vs0 58.70, TO 339 m) lap 779034bc173e02c8 (completed, 307.78 s, 10 phases, lift-off 81.21 m, landing 189.00 m)
+    rufus      def c2a7d48aef638a70 fly bf17b112061232d7 draw 6fc30c86300a447b check db76235b27a40e10 (pass Vref 68.81 km/h, Vs0 52.93, TO 77 m) lap 605fe9fc9e699ce6 (completed, 262.08 s, 10 phases, lift-off 61.23 m, landing 144.00 m)
+
+(`lap` hashes every phase change and its time and the final positions and velocities of every node: take-off,
+climb, pattern, approach, flare, roll-out; damage ON as the build has it. The floatplanes fly theirs off the SEA base.)
+
+**GATES** - the grep rule (every tools/_*_check.js / test_*.js that names a touched file: 110 gates, STOL GEN
+DESIGNCHECK DMGCERT PILOT PILOTMATRIX CESSNAVREF DMGDETERMINISM PANEL UISMOKE BUILD among them), each as
+`node tools/run_gates.js --only=<ID> --no-build --jobs=2` on the built tree f58610dfd (= this entry's code), two at a
+time, nothing else on the 4 cores; HITBOX, FRAMECOST, RADIALDIV, then DMGCERTCOST and RWYTREES, alone at the end (23 Oct
+01:30-07:30 UTC, a resumable driver: the container restarted twice; reports/evidence/STOL-WING-2/gates/verdicts.tsv).
+Every verdict line, as printed:
+
+PASS (95):
+
+    GATE INPUT: PASS
+    GATE ATMOS: PASS
+    GATE SUBSTEP: PASS
+    GATE CLIMATE: PASS
+    GATE GE: PASS
+    GATE STOL: PASS
+    GATE GEN: PASS
+    GATE PILOT: PASS
+    GATE TAXICLEAR: PASS
+    GATE TOUR: PASS
+    GATE ALTIPORT: PASS
+    GATE CESSNAVREF: PASS
+    GATE PROFILE: PASS
+    GATE DEFAULT: PASS
+    GATE BIPLANE: PASS
+    GATE MASS: PASS
+    GATE UISMOKE: PASS
+    GATE UISMOKE-PHONE: PASS
+    GATE BOOT: PASS
+    GATE ASSETBUDGET: PASS
+    GATE ANIMALS: PASS
+    GATE TREES: PASS
+    GATE DMGMEMBERS: PASS
+    GATE DMGCERTCOST: PASS   (alone: in the two-lane run its 42 s cost ceiling read 48.5 s; the first battery passed it too)
+    GATE DMGNOSE: PASS
+    GATE DMGSKIN: PASS
+    GATE DMGSETTLE: PASS
+    GATE DMGDRIVE: PASS
+    GATE DMGHULL: PASS
+    GATE DMGPLOUGH: PASS
+    GATE DMGDETERMINISM: PASS
+    GATE CARDS: PASS
+    GATE FADES: PASS
+    GATE CONTACT: PASS
+    GATE MEDIA: PASS
+    GATE SPLAT: PASS
+    GATE GROUNDLIB: PASS
+    GATE BUILD: PASS
+    GATE SKINMAT: PASS
+    GATE LIVERYREACH: PASS
+    GATE LIVERY: PASS
+    GATE WEATHER: PASS
+    GATE SURF: PASS
+    GATE LIGHT: PASS
+    GATE EDBUGS: PASS
+    GATE FIT: PASS
+    GATE FRAMES: PASS
+    GATE KNIFE: PASS
+    GATE FIN: PASS
+    GATE COWL: PASS
+    GATE NACLAG: PASS
+    GATE ENGMESH: PASS
+    GATE JOIN: PASS
+    GATE WINGROWS: PASS
+    GATE DESIGNCHECK: PASS
+    GATE DESIGNSIM: PASS
+    GATE SPECFIX: PASS
+    GATE ENGINE: PASS
+    GATE ENGID: PASS
+    GATE STARTER: PASS
+    GATE SAVE: PASS
+    GATE SIMWORKER: PASS
+    GATE SHEETWORKER: PASS
+    GATE GEAR: PASS
+    GATE HOUSE: PASS
+    GATE VILLAGE: PASS
+    GATE BAY: PASS
+    GATE PARTS: PASS
+    GATE DESIGN: PASS
+    GATE ARCHETYPES: PASS
+    GATE PILOTMATRIX: PASS
+    GATE VIEW: PASS
+    GATE STRUT: PASS
+    GATE PREMISES: PASS
+    GATE KITHOST: PASS
+    GATE PARKED: PASS
+    GATE HITBOX: PASS
+    GATE HYDRODYN: PASS
+    GATE WATER: PASS
+    GATE WATERDAMP: PASS
+    GATE RWYTREES: PASS   (alone: in the two-lane run it hit the runner's 1800 s timeout; the first battery passed it too)
+    GATE GAMEPREM: PASS
+    GATE ACCEPT: PASS
+    GATE STORY: PASS
+    GATE PROCURE: PASS
+    GATE FREIGHT: PASS
+    GATE HANGAR: PASS
+    GATE ENERGY: PASS
+    GATE TANKMOUNT: PASS
+    GATE ENGTORQUE: PASS
+    GATE HEADING: PASS
+    GATE PANEL: PASS
+    GATE ELEC: PASS
+    GATE HOTHIGH: PASS
+    GATE FLEX: PASS
+
+RED (15):
+
+    GATE CLOUD: FAIL (1 of 239)
+    GATE RADIALDIV: FAIL (3)
+    GATE TREEHIT: FAIL
+    GATE TREECRASH: FAIL
+    GATE DMGCERT: FAIL
+    GATE DMGGEAR: FAIL
+    GATE DMGINST: FAIL
+    GATE DMGTYRE: FAIL (4)
+    GATE DMGCOMPOSITE: FAIL
+    GATE FRAMECOST: FAIL (22)
+    GATE ROLLANIM: FAIL (1 of 806: G1039 flRevealStart still frames the stand as standFraming assumes (tgt + s*0.45, el 0.16, 1.7 D; orbit +0.55, wing -PI/2))
+    GATE JOINPARITY: 1 FAIL
+    GATE BENCH: FAIL
+    GATE POD: FAIL
+    GATE WORLD: FAIL
+
+**The reds, each accounted for** (run on untouched master 2c2a74459 in its worktree, failing lines compared):
+- **14 are master's own, failing line for line the same on untouched master 2c2a74459** (run in its worktree on the
+  same box, the lines diffed): CLOUD (1 of 239, the lamp pool), RADIALDIV (3: mosquito, mosquito_1, cub hands-off
+  heading), TREEHIT (7 trunk lines), TREECRASH (jodel/trunk0 work moved), DMGCERT (broke at 7.21 g), DMGGEAR (the twin
+  nose-in), DMGINST (2), DMGTYRE (4: taxi turns, the Cub's crosswind roll-outs), DMGCOMPOSITE (the trunk's base bytes),
+  ROLLANIM (G1039 flRevealStart), JOINPARITY (the four tools master's census names; this branch's stol_shots.js
+  goes through the load door's VALIDATED key), BENCH (the phase strip: ROUTE, LOITER), POD (the base's bytes - its
+  base predates train 41), WORLD (13/31 approaches).
+- **FRAMECOST (22) = master's own 1 line + the stale PARKED COOK** (`node tools/parked_cook.js --check`: manifest
+  70c5921745dd = master's build, this tree ba4d9f65fd24, "STALE: every key is captured live until a re-cook"): the
+  parked fleet is captured live, so the stand / taxi draw and uniform counts rise (the census: parking 5 fetches /
+  14.5 MB on master, 1 here; `parked` draws 2 -> 139) - PERF-1's "uniform4fv 626 -> 5176 never existed". The
+  landing's re-cook clears it; G2827 keeps the cook's spec keys master's, so the cook needs nothing else.
+- Run alone (load, not code): **DMGCERTCOST** (its 42 s cost ceiling read 48.5 s with two lanes running; alone 183 s,
+  PASS) and **RWYTREES** (hit the runner's 1800 s timeout with two lanes; alone PASS). HITBOX, a timing comparison,
+  passes in this run (its earlier red in the loaded first battery passed on both trees alone).
+
+**WHAT A0 RUNS ON THE BOX** - `tools/stol_shots.js`. **It works** (cloud, Playwright Chromium + SwiftShader, `--soft`):
+the page booted (BOOT gone), the kit went through the NEW-AEROPLANE door, the editor's STOL rows printed equal to the
+spec the join wrote (`wgSlat 1, wgVG 1, wgDroop 1, wgTip 7` = `{"slat":"slot","slatSpan":1,"vg":1,"droop":0.25}`,
+tip drooped), and six stills were written (two in reports/evidence/STOL-WING-2/cloud_swiftshader_*.jpg: the Wings
+panel with the Endplate / Drooped tiles in their slot, the kit Cub in the shed). What the cloud could NOT do: the
+roll-out started (DEPART, TAXI) but SwiftShader's frame rate never reached the take-off in 400 s, and the first run's
+camera presets looked from behind (az 0 is the tail: fixed to az ~PI for `f`, `le`, `tip`, not re-shot here). On the
+box (GPU, no --soft):
+
+    node flyDiy/tools/_serve.js 8450 . &                     (from the repo root)
+    cd flyDiy && node tools/stol_shots.js --url http://localhost:8450/flyDiy/dev.html \
+         --build tools/fixtures/stol_cub_kit.json --compare cub --out screenshots/stol-2026-10-23/cub --log
+
+For the kit, then the stock Cub (`--compare cub`: the load door's VALIDATED key): stills `panel`, `panel_stol` (the
+panel scrolled to the STOL tiles), `q` `s` `f` `le` `tip`; then the roll-out and the pilot's take-off sampled every
+100 ms - stills at the roll, the lift-off and 10 s into the climb, the LIFT-OFF RUN in metres, the ailerons' drooped
+angle off the flown model - into `<out>_<name>_takeoff.json`. Expected (node): kit lift-off ~84 m, stock ~96 m; the
+ailerons drive2 'flap', 10.0 deg. Send back the PNGs and the two JSONs.
+
+**THE ASKS FOR THE USER**
+1. **The Cub's landing is its elevator's.** Should the design check say so on a STOL kit with a STOL fix line ("the
+   slat's stall is past the elevator: a bigger stabiliser / elevator, or the CG aft" - ctl.flare warns 1.17 today
+   with only "the CG further aft"), and/or should the kit come with a tail mod? The autopilot flies the held speed.
+2. **The automatic slat is drawn HOME** (it deploys with alpha in the solver). Drawing it run out is a moving part
+   through the cage wing layer, the join's snapshot, app.js's surface pass and a linkage drive - its own chantier.
+3. **The STOL technique** (G2820's ask, open): a taildragger leaves at its three-point deck, where a slat buys nothing.
+4. **The devices weigh and cost nothing** (a slatted wing is ~1 kg/m heavier); the machine shop's `stol-kit` pack
+   (`window.MACHINE_SHOP_OWNS`) is the GAME coordinator's to wire.
+5. **Observed, not touched (DESIGN-TRUST's):** the sim genShakedown hands genDesignCheck has been flown before the check
+   probes it (kit Cub, full flap: 0.72 W at 0 deg, 0.69 W at 2.3 deg there; 0.90 / 1.00 fresh), and ctl.elevator /
+   ctl.flare solve their attitude in the body's frame then probe in the world's. Changing them moves the validated
+   builds' check (Rufus's flare 1.16 is DESIGNCHECK's anchor), so only ctl.droop has its own sim.
+
+**What to watch for:**
+- **The parked cook is STALE on this tree** (`node tools/parked_cook.js --check`: manifest 70c5921745dd, tree
+  ba4d9f65fd24): FRAMECOST's 21 draw / uniform rises are that (PERF-1's "uniform4fv 626 -> 5176 never existed"), the
+  landing's re-cook clears them. G2827 makes the cook's spec keys master's, so nothing else is needed.
+- Re-capture the STOL fixture on a merge of master that moves the physics (section 1 names the build).
+- GATE STOL ~5.5 min (six builds through the door, one circuit flown; `wall: 330`).
+- New keys on STOL builds only: `gen.VsFlapAP`, `gen.VsHeld`, `gen.drag.stol`.
+- The aileron here is an ANGLE shift (`ailTau` 0.35 rad): full travel takes the down-going strip into its stall
+  region, so a device ahead of it also raises ctl.aileron at cruise (VG kits do claim better low-speed aileron; the
+  size of it here is the model's).
+
+## G2828-G2829 STOL-WING-2 - THE STOL DEVICES WEIGH AND COST; THE SHOWCASE STOL CUB (KIT, ROTAX 915, 31-INCH TUNDRA TYRES, A BIGGER TAIL, A NEW PAINT JOB); MASTER d7e181f4e MERGED (2026-10-26, STOL-WING-2 for A0, cloud - node + headless Chromium / SwiftShader; branch claude/stol-wing-2, pushed as claude/ready/stol-wing; G2828-G2829 used)
+
+The user, 26 Oct: "add weights and prices first. Build a STOL cub, and do to it the modifications you need to
+demonstrate real STOL capabilities. Give it a new paintjob too, and large wheels. Submit it in your commit and have
+A0 screenshot it from the box here." Then: merge origin/master d7e181f4e (L25c) and push to claude/ready/<topic>.
+
+**G2828 - WHAT EACH DEVICE WEIGHS AND COSTS** (`60_gen_spec.js` GEN_STOL.cost, billed in `61_gen_frame.js` buildPlane
+under its own ledger row, `stol`). Kit-catalogue figures as recalled, +-30 %, in the game's credits (the Cub's A-65
+bills ~10 000, the whole Cub ~30 000):
+
+| device | mass | price | read against |
+|---|---|---|---|
+| fixed slot | 1.2 kg / m of span | 280 / m | Zenith 701 slat pair ~1500 for ~5.5 m |
+| automatic slat | 1.8 kg / m | 420 / m | the tracks and rollers are the weight and the money |
+| VG row | 80 g / m | 1100 the kit | Micro AeroDynamics Cub / Cessna kits ~1000-1400 |
+| LE cuff | 0.6 kg / m | 200 / m | a moulded glove |
+| fence | 0.25 kg | 90 each | a riveted chordwise plate |
+| aileron droop | 3 kg (the pair) | 900 the kit | the R/STOL droop kits: mixer, push-pull rods, bellcranks |
+| Fowler growth | 1.0 kg / m of flap span | 250 / m | the longer tracks and carriage |
+| endplate | 1.5 kg | 350 each | formed sheet and its doubler |
+| drooped tip | +0.6 kg | 300 each | Super Cub drooped tips ~600-800 a pair |
+
+Each device's mass sits on the wing nodes it hangs on (the slat and the cuff on the front-spar nodes of their span,
+a fence on its station, a plate or a drooped tip on the tip's two nodes, the droop's linkage and the Fowler's
+tracks on the rear spar), so the CG, the inertia and the damage layer see it where it is. A wing without a device
+bills nothing: no row, no mass, the same bits (GATE STOL section 1; the six shipped builds below). The user's kit
+Cub (section 6) gains 17.8 kg / 5596: its numbers now are Vs 47.5 km/h (-16 %), Vs0 41.8, Vref 63.2, plaque TO 107 m
+(-25 %), lift-off 92.7 m (stock 96.1), landing roll 71 m (stock 62). GATE STOL section 7 holds every device to its
+catalogue line, the slat's mass ahead of the droop's, a full kit on the Savannah-alike at 15.9 kg / 5176 on a
+48 224 airframe; sections 3 and 4 measure what a device does to the AIR and the DRAWING weightless (its kilos size
+the structure and sag the wing; the mass is section 7's).
+
+**G2829 - THE SHOWCASE STOL CUB** (`tools/fixtures/stol_cub_showcase.json`; built by
+reports/evidence/STOL-WING-2/make_showcase.js). The user's Cub (builds/cub_2026-09-20_corrected.json), every change an
+editor row in spec.cage, the spec stored as the game's load door joins it (re-joining gives it back unchanged). Three
+rounds with the user overnight (26-27 Oct), each shot in the cloud in the PHONE profile (`?profile=phone`):
+- **the kit:** full-span fixed slot, VGs, drooped tips, ailerons drooped 10 deg with the flaps;
+- **the engine:** the Continental A-65 (65 hp) -> the Rotax 915 iS preset (141 hp, 4 kg heavier: the CG stays) on a
+  three-blade carbon prop, 1.80 m (CubCrafters' Carbon Cubs fly a Catto three-blade). The O-320 was tried first:
+  42 kg on the nose, static margin 0.12, the elevator could not flare it (ctl.elevator FAIL);
+- **the gear:** the STANDARD 31-inch tundra entry (s1R 0.39, the tundra carcass, the Cub's own smooth tread and bulge 1)
+  - no hand-tuned tyre geometry, so it follows AIRCRAFT-LOOKS G3548 when L27a lands; the legs 3 in longer (the
+  CubCrafters extended gear); COIL-OVER shocks for the bungees (s1_shockKind 0, flown as 'spring'; the modern Cubs
+  are sprung - the XCub's spring aluminium gear, the aftermarket shock struts; the game already has the coil-over,
+  the spring-blade `beam` leg and the oleo, so nothing new was needed); the vee's triangular panel off; a 0.11 m
+  tailwheel;
+- **the tail:** elevator hinge 45 % (chord 0.66 for 0.42), stab span x1.2 (3.54 m for 2.84): the slot takes the stall
+  past the attitude the stock elevator holds in the flare (section 6's ctl.flare 1.17); with this tail the elevator
+  reaches the slatted wing's whole range and the autopilot flies the wing's own Vs0;
+- **the cowl:** narrower (cw_aftW 0.35 for 0.395, taper 0.93) with its cheeks raised to 0.06 over the 915's heads;
+- **the lights:** off (lightOn 0) - the wing lamps and their bay go (the user: "they don't work here anymore"), and
+  with the switch the nav lights and the beacon;
+- **the paint (after the CubCrafters Carbon Cubs):** a warm off-white with 0.45 metal flake (a pearl) over graphite,
+  one accent - signal orange - on the keyline, a flash along the cabin and the STOL parts (the slot, the VGs, the
+  drooped tips); the sweep carried up the fin (its side projection paints the tailplane graphite too); F-STOL small
+  and black on the white aft of the flash, and large on the right wing top.
+
+The code the look needed (drawing only; the six shipped builds are untouched - below):
+- **the STOL devices are their own livery section** (the user: "highlight through a different color the STOL
+  elements"): genWing (63_gen_wing) reports the skin vertex ranges its STOL block emits (`stol.skin`, present only
+  when there are any); the wing layer (_cage_wing) classes those faces 'stol' -> aeroskin's new `wingStol` section
+  ("the STOL devices", following the wing until repainted; listed on the Wings part);
+- **the tip seam** ("the stuff at the wing end ... right shading"): the wing layer split the skin into paint classes
+  and each class computed its own normals, so the row where the tip meets the panel drew a crease. The wing skin's
+  classes (main, centre, tip, stol) now share one set of normals per source vertex; genWing's deliberate hard edges
+  are doubled rows and stay hard; the caps and the lamp bay keep their own. This changes the SHADING of every wing
+  tip in the editor and the flown model (no geometry, no physics);
+- **a second registration placement** (wreg*, aeroskin AERO_DEC_DEF + the editor's literal in _cage_ui.js, which
+  loads first on dev.html and is the editor's list of keys): the registration's own page placed again, in plan, its
+  own height - off unless a build asks;
+- stol_shots.js: views `tq` (the near tip) and `top` (the plan); the archetype picker dismissed before the stills.
+
+Flown in node, the pilot's own circuit (reports/evidence/STOL-WING-2/showcase_flown.log; fly_fixture.js):
+
+| | Vs clean km/h | Vs0 km/h | Vref km/h | plaque TO m | lift-off run m | landing roll m (touchdown m/s) | all-up kg | price |
+|---|---|---|---|---|---|---|---|---|
+| the user's Cub | 56.6 | 48.4 | 63.0 | 142 | 96.1 | 62 (13.9) | 461 | 30 834 |
+| + the kit (section 6) | 47.5 | 41.8 | 63.2 | 107 | 92.7 | 71 (14.0) | 481 | 36 566 |
+| **the showcase** | **49.4** | **43.5** | **56.6** | **58** | **46.7** | **61 (13.8)** | 525 | 68 893 |
+| HOME -> A4 (the 340 m strip), the first showcase: stock / kit / showcase | | | | | | 57 / 59 / 58 | | |
+
+**The take-off is where it shows: the lift-off run halves (46.7 m vs 96.1).** The landing roll does not, and it is
+the autopilot's flare that decides it, not the aeroplane: every Cub touches down at 13.8-15 m/s in a wheel landing
+(`three: false`), the showcase included, whose wing would hold 12.1 m/s. Big tundra tyres alone on the stock Cub
+cost it (its three-point attitude drops, G970 sends it flapless, the plaque TO grows 142 -> 178 m). The design check
+is `warn`, no fail: ctl.flare 1.10 (the stock Cub's 1.04 passes) and roll.spiral 15.8 (the stock Cub's own warning).
+
+**FOR A0 - SCREENSHOT THE SHOWCASE ON THE BOX** (GPU, no `--soft`; the cloud's stills are
+reports/evidence/STOL-WING-2/showcase_v3_phone_*.jpg):
+
+    node flyDiy/tools/_serve.js 8450 &                       (from the repo root)
+    cd flyDiy && node tools/stol_shots.js --url http://localhost:8450/flyDiy/dev.html \
+         --build tools/fixtures/stol_cub_showcase.json --compare cub --out screenshots/stol-2026-10-27/showcase \
+         --views q,s,f,le,tq,top,panel,air --log
+
+Stills `q` `s` `f` `le` `tq` (the near drooped tip) `top` (the plan: the orange slot, the wing-top F-STOL) and the
+panel; then the roll-out and the pilot's take-off (the lift-off run and the drooped aileron angle into
+`<out>_stol_cub_showcase_takeoff.json`). Expected (node): lift-off ~47 m, the stock Cub (`--compare cub`) ~96 m.
+Send back the PNGs and the two JSONs. Add `?profile=phone` to the URL for the phone's garage.
+
+**THE MERGE (origin/master d7e181f4e, train L25c):** `90_node_exports.js` the union of both lists, less
+`acceptBenchXwind` (no longer defined in src/core - master's ACCEPT-XWIND took it out); HANDOVER both sides; the built
+and cooked files master's (none differ from master on this branch). The STOL baseline re-captured from an untouched
+d7e181f4e tree (`tools/_stol_samebits.js --root=<master> --capture`, reports/evidence/STOL-WING-2/
+capture_master_d7e181f4e.log): master's own physics had moved stearman, caravan, da62 and twinBush since 2c2a74459.
+Master's tech tree (79b_tech.js) already reads this kit (`techStolOn` -> `kit:stol`) through `genStolOf`.
+
+**THE SIX SHIPPED BUILDS, IDENTICAL** (tools/_load_build.js, the game's door: the Cub, the Jodel, `cessnaMetal (1)`,
+`cessnaFloatsWOrks`, the twin floats, Rufus): on untouched master d7e181f4e and on this tree, every fingerprint the
+same - the def, 4 s of flight, the drawing, the design check and machine sheet (Vref, Vs0, TO), the pilot's whole
+circuit (reports/evidence/STOL-WING-2/samebits_master_d7e181f4e.log; this tree: samebits_branch_d77583540.log, after
+every look change above; `diff` empty).
+
+**READY** (27 Oct 12:45 CET, claude/ready/stol-wing at the tip of this branch (code d77583540 + this entry and its evidence); READY for the next train).
+- **Master merged: d7e181f4e (train L25c)**, re-fetched before the push (origin/master still d7e181f4e at 12:45 CET). L27a (AIRCRAFT-LOOKS G3548, the
+  tundra fix) was not on master yet; when it lands, merge it - the showcase sits on the standard 31-inch tundra entry
+  and follows it with no change here.
+- **The gates** (`node --max-old-space-size=4096 tools/run_gates.js --only=<chunk> --no-build --jobs=4`, chunks of
+  three, the load-sensitive ones alone), every gate that reads a file this branch changes (grep of flyDiy/tools for
+  each file name) plus BUILD, JOIN, PARTS, SAVE, STARTER, SIMWORKER, PILOT; the verdict is the battery table's row (a
+  sharded gate prints one GATE line per shard: the failing shard's line is quoted). On d77583540 (the commits
+  after it are this HANDOVER and the evidence) first: STOL and the seven, then the gates that read a file
+  changed since the earlier full battery on 791c23ea7 (G2828 + the first showcase), then the rest; the gates the
+  clock did not reach carry their 791c23ea7 verdict, marked:
+
+    GATE STOL: PASS
+    GATE BUILD: PASS
+    GATE JOIN: PASS
+    GATE PARTS: PASS
+    GATE SAVE: PASS
+    GATE STARTER: PASS
+    GATE SIMWORKER: PASS
+    GATE PILOT: PASS
+    GATE DMGSKIN: PASS
+    GATE ROLLANIM: PASS
+    GATE MEDIA: PASS
+    GATE ASSETS: PASS
+    GATE SKINMAT: PASS
+    GATE LIVERYREACH: PASS
+    GATE LIVERY: PASS
+    GATE WEATHER: PASS
+    GATE EDBUGS: PASS
+    GATE FIT: PASS
+    GATE WINGSPLIT: PASS
+    GATE FRAMES: PASS
+    GATE KNIFE: PASS
+    GATE NACLAG: PASS
+    GATE WINGROWS: PASS
+    GATE BENCH: PASS
+    GATE SHEETWORKER: PASS
+    GATE BAY: PASS
+    GATE DESIGN: PASS
+    GATE ARCHETYPES: FAIL (1)
+    GATE PARKED: PASS
+    GATE FLOWNBAKE: PASS
+    GATE TECH: PASS
+    GATE PROCURE: PASS
+    GATE ENERGY: PASS
+    GATE PANEL: PASS
+    GATE INPUT: PASS
+    GATE SUBSTEP: PASS
+    GATE CLIMATE: PASS
+    GATE ATMO: PASS
+    GATE CLOUD: FAIL (1 of 239)
+    GATE GE: PASS
+    GATE GEN: PASS
+    GATE TAXICLEAR: PASS
+    GATE TOUR: FAIL (2)
+    GATE ALTIPORT: PASS
+    GATE PROFILE: PASS
+    GATE DEFAULT: PASS
+    GATE UISMOKE: PASS
+    GATE UISMOKE-PHONE: PASS
+    GATE BOOT: PASS
+    GATE ASSETBUDGET: PASS
+    GATE ANIMALS: PASS
+    GATE TREEHIT: FAIL
+    GATE TREECRASH: FAIL
+    GATE DMGCERT: FAIL
+    GATE DMGGEAR: FAIL
+    GATE DMGNOSE: PASS
+    GATE DMGINST: FAIL
+    GATE DMGDRIVE: PASS
+    GATE DMGCOMPOSITE: FAIL
+    GATE FRAMECOST: FAIL (22)   [791c23ea7]
+    GATE CARDS: PASS
+    GATE CONTACT: PASS
+    GATE DESIGNCHECK: PASS
+    GATE DESIGNSIM: PASS
+    GATE SPECFIX: PASS
+    GATE ENGID: PASS
+    GATE CGBAND: PASS
+    GATE VILLAGE: PASS
+    GATE VIEW: PASS
+    GATE HITBOX: PASS   [791c23ea7]
+    GATE WATER: PASS
+    GATE WATERDAMP: PASS
+    GATE ACCEPT: PASS
+    GATE POD: FAIL
+    GATE STORY: PASS
+    GATE NAMES: PASS
+    GATE FREIGHT: PASS
+    GATE ATMOS: PASS   [791c23ea7]
+    GATE CESSNAVREF: PASS   [791c23ea7]
+    GATE BIPLANE: PASS   [791c23ea7]
+    GATE MASS: PASS   [791c23ea7]
+    GATE TREES: PASS   [791c23ea7]
+    GATE DMGMEMBERS: PASS   [791c23ea7]
+    GATE DMGSETTLE: PASS   [791c23ea7]
+    GATE DMGHULL: PASS   [791c23ea7]
+    GATE DMGPLOUGH: PASS   [791c23ea7]
+    GATE DMGTYRE: FAIL (4)   [791c23ea7]
+    GATE DMGDETERMINISM: PASS   [791c23ea7]
+    GATE FADES: PASS   [791c23ea7]
+    GATE SPLAT: PASS   [791c23ea7]
+    GATE GROUNDLIB: PASS   [791c23ea7]
+    GATE SURF: PASS   [791c23ea7]
+    GATE LIGHT: PASS   [791c23ea7]
+    GATE FIN: PASS   [791c23ea7]
+    GATE COWL: PASS   [791c23ea7]
+    GATE ENGMESH: PASS   [791c23ea7]
+    GATE JOINPARITY: 1 FAIL   [791c23ea7]
+    GATE ENGINE: PASS   [791c23ea7]
+    GATE GEAR: PASS   [791c23ea7]
+    GATE HOUSE: PASS   [791c23ea7]
+    GATE PILOTMATRIX: PASS   [791c23ea7]
+    GATE STRUT: PASS   [791c23ea7]
+    GATE PREMISES: PASS   [791c23ea7]
+    GATE KITHOST: PASS   [791c23ea7]
+    GATE HYDRODYN: PASS   [791c23ea7]
+    GATE GAMEPREM: PASS   [791c23ea7]
+    GATE HANGAR: PASS   [791c23ea7]
+    GATE TANKMOUNT: PASS   [791c23ea7]
+    GATE ENGTORQUE: PASS   [791c23ea7]
+    GATE HEADING: PASS   [791c23ea7]
+    GATE ELEC: PASS   [791c23ea7]
+    GATE WORLD: FAIL   [791c23ea7]
+    GATE HOTHIGH: PASS   [791c23ea7]
+    GATE FLEX: PASS   [791c23ea7]
+
+- **Reds also red on untouched master d7e181f4e** (run in its worktree; their failing lines compared - the same
+  lines): ARCHETYPES [master d7e181f4e: FAIL (1)], CLOUD [master d7e181f4e: FAIL (1 of 239)], TOUR [master d7e181f4e: FAIL (2)], TREEHIT [master d7e181f4e: FAIL], TREECRASH [master d7e181f4e: FAIL], DMGCERT [master d7e181f4e: FAIL], DMGGEAR [master d7e181f4e: FAIL], DMGINST [master d7e181f4e: FAIL], DMGCOMPOSITE [master d7e181f4e: FAIL], FRAMECOST [master d7e181f4e: FAIL (1)], POD [master d7e181f4e: FAIL], DMGTYRE [master d7e181f4e: FAIL (4)], JOINPARITY [master d7e181f4e: 1 FAIL], WORLD [master d7e181f4e: FAIL]. FRAMECOST: master fails 1 (cessna garage:restore updateMatrixWorld 2269 -> 4553); this tree 22 = that one + 21 stand / taxi draw and uniform rises of the stale parked cook (above). TOUR (the float Cessna ground-loops landing at SEA, 21.5 m/s, the prop strikes at t 1387.9) and ARCHETYPES (the Chinook-alike rejects its take-off) fail on master with the same lines to the number - the six-build identity and GATE STOL section 1 (every card to the bit) say this branch moves neither.
+- **No red here that is green on master.**
+- **Not run** (the clock): RADIALDIV,DMGCERTCOST,RWYTREES - the load-sensitive ones that run alone and last; the clock stopped the battery before them (RADIALDIV was red on master 2c2a74459; DMGCERTCOST and RWYTREES passed alone on 22 Oct). None of them reads a file changed since 791c23ea7: A0 runs them on the box.
+- **The GPU (A0):** no gate in this set needs one (SOFTGPU is not in it). A0's GPU work is the showcase stills and its
+  take-off (stol_shots.js, above). The load-sensitive timing gates (FRAMECOST, HITBOX, DMGCERTCOST, RWYTREES,
+  RADIALDIV) are best judged on the box: FRAMECOST's 22 here are master's 1 + the stale PARKED COOK
+  (`node tools/parked_cook.js --check`: the cook is keyed by the build, and this tree is not the train's build) - the
+  train's re-cook clears them, as on 22 Oct.
+
+**THE ASKS FOR THE USER**
+1. **The landing roll is the autopilot's flare**, not the aeroplane's: every Cub, the showcase included, wheel-lands
+   at ~14 m/s whatever its wing holds. A STOL touchdown (three-point, at the held Vs0, brakes from the touch) would
+   let the kit show on landing too - an autopilot chantier, not this one.
+2. The tailplane is graphite because the tail sweep's side projection covers the whole tail; the drooped tips are
+   orange with the slot. Say if you want either white.
+3. The wing-top registration is a new decal placement (wreg*); its rows are in the decals panel (READY UPDATE below).
+4. The automatic slat is still drawn home; the `stol-kit` machine-shop pack is still the GAME coordinator's to wire.
+
+**What to watch for:** the shared wing normals change the SHADING of every wing tip in the editor and the flown model
+(no geometry); GATE STOL's baseline is d7e181f4e's (re-capture on a merge that moves the cards); GATE STOL ~6 min
+(`wall: 480`).
+
+**READY UPDATE (15:33 CET, 27 Oct; the user: "don't we have the wingtop registration yet? ... we need a new option", "add
+some metallic to the white ... 50-70 %"):**
+- **The wing-top registration has its rows** (_cage_ui.js, My Plane -> Finish -> Registration): "on the wing top",
+  "wing letters", "wing across", "wing along", "wing turn" - the wreg* keys the build already carried. Still
+  reports/evidence/STOL-WING-2/showcase_v3_desktop_reg.jpg.
+- **The decal panel shows a loaded build** (a bug this exposed): a load wrote DEC (the drawing followed) but the
+  panel, built once, kept the boot aeroplane's values - the toggles and pickers had no SYNC and nothing called the
+  sliders'. Toggles and pickers now have one, the livery layers' titles a hook (DEC_RELOAD), and the finish load
+  calls them all.
+- **The pearl:** the off-white's flake 0.45 -> 0.60 (body, wing, fin, stab); the fixture only.
+- **The gates** (the files changed: tools/_cage_ui.js, tools/stol_shots.js, the fixture): every gate that reads
+  _cage_ui.js (grep) plus STOL and the seven, plus UISMOKE / UISMOKE-PHONE (they boot the page), on this code:
+
+    GATE STOL: PASS
+    GATE BUILD: PASS
+    GATE JOIN: PASS
+    GATE STARTER: PASS
+    GATE SAVE: PASS
+    GATE PARTS: PASS
+    GATE CLOUD: FAIL (1 of 239)
+    GATE PILOT: PASS
+    GATE SIMWORKER: PASS
+    GATE MEDIA: PASS
+    GATE SKINMAT: PASS
+    GATE LIVERY: PASS
+    GATE WEATHER: PASS
+    GATE EDBUGS: PASS
+    GATE FIT: PASS
+    GATE NACLAG: PASS
+    GATE BENCH: PASS
+    GATE SHEETWORKER: PASS
+    GATE UISMOKE: PASS
+    GATE PARKED: PASS
+    GATE ENERGY: PASS
+    GATE UISMOKE-PHONE: PASS
+
+  CLOUD 1 of 239 is master's own (the lamp pool line, the same as master d7e181f4e); a run with the screenshot
+  Chrome alongside timed one more probe out at 601 s, and the run alone gave the line above. Master still
+  d7e181f4e (re-fetched 15:33 CET).
+
+**READY UPDATE (A0 round, night of 27-28 Oct; A0: "time RWYTREES on master vs your tree ... the STOL Cub showcase
+CANNOT DEPART the mine's 250 m strip ... find the cause and fix it ... node pilot legs as proof"):**
+- **RWYTREES is not slowed by this branch.** It reads none of this branch's files except 30_solver.js, and that
+  only in a comment; its time is the page harness (tools/_page_node.js over dev.html's scripts, Jolene, three
+  variants, ~3.6 GB each). Timed alone here: master d7e181f4e **1739 s PASS**; this tree (aa0d6c63a) 1801 s,
+  cut by the runner's 1800 s cap (both are well past the gate's own 1200 s wall on this 4-core box). One variant's
+  page child (`--page map`) is master 323 s vs the branch 369 s. The CPU profile puts the difference in
+  meshDecimate (the parked capture), because a branch carrying master's media/parked/* has a cook keyed to
+  master's builds, so the page captures the parked aeroplanes live (~16 s a variant). The train re-cooks, so
+  that gap is not there after the train. The solver itself is unchanged: 6000 steps of the Cub take
+  20.5 / 19.2 s on master and 19.9 / 18.3 s here. A0's 12 minutes is the gate's own time on the box,
+  not 10x: the branch adds 4 % here, the stale cook.
+- **The mine departure: the cause is the line-up, not the tyres or the prop.** pilot_trace on Jolene, mn_strip:
+  - **The spawn is off the run.** The mine spawn stands 18.5 m off the centreline, a 43 deg intercept for the
+    roll's 25 m look-ahead. HOME's spawn faces 85 deg off its run.
+  - **The roll turns onto the line at full power.** At static T/W 0.40 (Rotax 915) the turn became a ground
+    loop: e -43 -> +87 deg in 3.5 s against full rudder, V back to 2 m/s, then rejected ("0.02 m/s2").
+  - **The stock Cub (T/W 0.27) gets away with it.** The same Cub with a 915 or an O-320 does not; the showcase
+    with an O-200 or a 912 leaves (reports/evidence/STOL-WING-2/mine/eng_*.log, stockcub_*.log).
+  - **A capped throttle alone was not enough.** T/W 0.30 only moved the loop: the swing still overshot to +58 and
+    -52 deg (mine/first_try_cap/).
+- **The fix (src/core/43_pilot.js ROLL, G2829; FOR PILOT'S REVIEW):**
+  - **The hold.** While the tail is down and the line is more than 15 deg off, the throttle holds taxi thrust
+    (T/W lineTaxiTW 0.15) until the nose has stayed within 5 deg of the line for 1 s.
+  - **The clock.** The roll's clock (phaseT, which the accelerate-stop rules read) starts at the end of the hold.
+  - **Who arms it.** Only a taildragger on wheels over static T/W lineupTW 0.30. No validated build does: the
+    Cub is 0.27, the Jodel 0.23, the Cessnas are trikes and the float builds are on the water. The validated
+    builds' flights do not change; GATE PILOT is green.
+- **The legs** (reports/evidence/STOL-WING-2/mine/, legs.sh, SUMMARY.txt; before_fix/ is aa0d6c63a):
+
+      showcase  mine      expert   completed  LIFTOFF@11.6 (was: rejected 0.24 m/s2 at 7 s)
+      showcase  mine      student  completed  LIFTOFF@11.2 (was: rejected 0.03 m/s2)
+      showcase  HOME->mine expert  completed  LIFTOFF@12.2, landed at the mine (was: rejected)
+      showcase  HOME->mine student completed  LIFTOFF@13.0, landed at the mine (was: rejected)
+      stock Cub mine      expert   completed  (unchanged)
+      stock Cub HOME->mine expert  completed  (unchanged)
+      stock Cub mine / HOME->mine student: rejected-takeoff 9.4 s / 9.3 s - identical on master d7e181f4e
+      (a student's weave on the 43 / 85 deg line-up; the Cub does not arm the new rule). For PILOT.
+      Cub + 915 (diagnostic only): departs at the mine and HOME (4 of 4). HOME->mine student capsized on the
+      mine's FINAL, after the take-off.
+
+- **The gates** (the files changed in this round: src/core/43_pilot.js and the evidence; master still d7e181f4e,
+  re-fetched 00:20 CET 28 Oct - T-P1 had not landed). Every gate that reads 43_pilot.js (grep), plus STOL and A0's
+  three, on f77934338:
+
+    GATE STOL: PASS
+    GATE PILOT: PASS   [3 shards]
+    GATE STRIPSURF: PASS
+    GATE TAKEOFF: PASS
+    GATE PLAN: PASS
+    GATE LINEUP: PASS
+    GATE DESTTO: PASS   [3 shards]
+    GATE ROUTE: PASS   [3 shards]
+    GATE SEAPLANE: PASS
+    GATE PILOTS: FAIL
+    GATE CLIMATE: PASS
+    GATE CLOUD: FAIL (1 of 239)
+    GATE GEN: PASS   [4 shards]
+    GATE TAXICLEAR: PASS   [4 shards]
+    GATE DMGINST: FAIL
+    GATE MEDIA: PASS
+    GATE BENCH: PASS
+    GATE SIMWORKER: PASS
+    GATE STORY: PASS
+    GATE DMGCERTCOST: PASS
+    GATE RADIALDIV: FAIL (3)
+    GATE RWYTREES: PASS   (alone, outside the runner: 1700 s; master d7e181f4e alone 1739 s)
+
+  - **Reds, all master's own, each with the same line on master d7e181f4e:**
+    - PILOTS: "kit is not where the aeroplane is: refused (Kit is at Ridgeback Strip ...)" - a career check.
+    - CLOUD: 1 of 239, the lamp pool line.
+    - DMGINST: the 'speed' watchdog's two lines.
+    - RADIALDIV: FAIL (3), the HANDS OFF heading. Master reads mosquito -55.8, mosquito_1 -55.9, cub -46.9; this
+      tree reads -56.1, -56.2, -46.9. The Mosquito (M-14P, a taildragger far over T/W 0.30) arms the line-up
+      hold, which is why its number shifts 0.3 deg; the Cub's is identical.
+    - Logs: reports/evidence/STOL-WING-2/gates/a0round/.
+  - **Carried from the aa0d6c63a battery (READY note above):** the gates that do not read 43_pilot.js.
+  - **For A0's box (needs the browser, 2 h):** PILOTPAGE reads 43_pilot.js and has not been run here. The STOL
+    Cub page leg is A0's to book.
 
 ## G3353 - CABIN-MACHINES: THE CABIN KEEPS TWO SMALL MACHINES (2026-10-22, GAME coordinator; claude/cabin-machines on game-fri 5c50f4313; gated Fri 23 Oct 09:05 for L23b)
 - The user's request, verbatim (via A0): "get rid of the large router (the largest of the woodworking machines). Keep only the 2 smaller ones (the drill and another)".
