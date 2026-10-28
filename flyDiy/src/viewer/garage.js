@@ -879,7 +879,8 @@ function garageInit(api) {
       // the firewall after the boot, 1.44 m after a shelf load in the same page). Without one the layer takes the
       // build's own row, as on a first build ever; the second round below measures it.
       try { window.CAGE_DATUM = null; } catch (e) {}
-      E.applySpec(spec);
+      try { if (api.floodArm) api.floodArm(slotName); E.applySpec(spec); }   // G3358: the flood ON in this build (app.js)
+      finally { if (api.floodArm) api.floodArm(null); }
       // G1985: THE SECOND ROUND. The editor's layers run in one order (crew, cowl, engine, wing, ...), and a layer
       // reads what a LATER one drew on the build before: the engine layer hangs a wing mount's nacelles off the wing
       // layer's LAST wing, the float layer its step off the last join's datum and the flown CG. One build of a loaded
