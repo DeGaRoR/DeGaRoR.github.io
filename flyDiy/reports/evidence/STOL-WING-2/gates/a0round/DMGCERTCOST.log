@@ -1,0 +1,11 @@
+=== DMGCERTCOST ===
+  ok   a corrupted record is refused and deleted
+  ok   a stale record (another GEN_CERT_V) is refused and deleted
+GATE DMGCERTCOST: PASS
+
+──────── summary ────────
+DMGCERTCOST PASS   183.2 s
+total            183.2 s
+wall             183.2 s  (jobs 4)
+
+BATTERY: PASS

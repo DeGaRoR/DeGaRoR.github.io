@@ -57,7 +57,10 @@ function machineSheet(def, opts) {
   const r2 = v => v == null ? null : Math.round(v * 100) / 100;
   const Vs = put('Vs', G.VsMeas ?? G.Vs ?? (A.VRot ? A.VRot / 0.99 : null), G.VsMeas != null ? 'measured' : G.Vs != null ? 'measured' : 'genAP');
   const flapsLdg = !!(P.flaps && (P.flaps.ldg ?? 1) > 0) && !G.landsFlapless;
-  const Vs0 = put('Vs0', flapsLdg && G.VsFlap != null ? G.VsFlap : Vs, flapsLdg && G.VsFlap != null ? 'measured' : src.Vs);
+  // G2826: a STOL wing whose elevator cannot fly it to its slatted stall: the slowest it CAN fly the landing
+  // configuration at (64_gen_build genStolHeld) - the ladder is flown off that, never off a stall it cannot reach
+  const Vs0 = G.VsFlapAP != null ? put('Vs0', G.VsFlapAP, 'measured')
+    : put('Vs0', flapsLdg && G.VsFlap != null ? G.VsFlap : Vs, flapsLdg && G.VsFlap != null ? 'measured' : src.Vs);
   const Vy = put('Vy', A.VClimb ?? null, 'genAP');
   const Vbg = put('Vbg', sh && sh.VbestLD != null ? sh.VbestLD : null, 'measured');
   const LDbest = put('LDbest', sh && sh.LDbest != null ? sh.LDbest : null, 'measured');

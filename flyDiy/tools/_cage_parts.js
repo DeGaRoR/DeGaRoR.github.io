@@ -623,7 +623,7 @@ const CAGE_PARTS = [
              at: 'on the cabin carry-through' },
     // LAYER sections (AEROSKIN's AERO_SEC), not cage mesh names: the wing's
     // own livery rows, following the fuselage until overridden
-    sections: ['wingSkin', 'wingTip', 'wingLongeron'],
+    sections: ['wingSkin', 'wingTip', 'wingLongeron', 'wingStol'],   // G2829: the STOL devices' own paint
     // (T2.3 (48): the carry-through beam's switch rides with the centre section)
     groups: [
       ['planform', ['wgSpan', 'wgChord', 'wgChordTip', 'wgTip',
@@ -634,6 +634,8 @@ const CAGE_PARTS = [
       ['aerofoil', ['wgCamber', 'wgThick']],
       ['structure', ['wgCentre', 'wgCentreW', 'wgBeam', 'wgPanels', 'wgCons']],
       ['placement', ['wgDx', 'wgDy', 'wgParaH']],
+      // G2820: the STOL wing's leading-edge and spanwise devices
+      ['STOL devices', ['wgSlat', 'wgSlatSpan', 'wgVG', 'wgFence', 'wgCuff', 'wgCuffSpan']],
     ] },
 
   { key: 'struts', name: 'Lift struts', parent: 'wings', layer: 'wing',
@@ -655,8 +657,8 @@ const CAGE_PARTS = [
     sections: ['wingAil', 'wingFlap'],
     place: { type: 'wgFlapType', at: 'along the trailing edge' },
     groups: [
-      ['flaps', ['wgFlapType', 'wgFlapSpan', 'wgFlapChord']],
-      ['ailerons', ['wgAilOn', 'wgAilSpan', 'wgAilChord']],
+      ['flaps', ['wgFlapType', 'wgFlapSpan', 'wgFlapChord', 'wgFowlerGrow']],
+      ['ailerons', ['wgAilOn', 'wgAilSpan', 'wgAilChord', 'wgDroop']],
     ] },
 
   // G185: THE CABANE — the struts a parasol wing (and a biplane's upper
