@@ -1,0 +1,249 @@
+{
+ "stol/mineL/student": {
+  "outcome": "completed",
+  "t": 804.9,
+  "ga": 0,
+  "bounces": 1,
+  "to": {
+   "run": 17,
+   "Vlo": 15.4,
+   "lifts": 1,
+   "qMax": 22.7
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 1.64,
+   "V": 14,
+   "VoverVs": 1.16,
+   "pastAim": 9,
+   "off": 0,
+   "run": 75,
+   "three": false,
+   "drift": 0.04
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 15.7,
+   "aimIn": 111,
+   "gs": 0.16,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 6.94,
+   "entryVs": -2.22,
+   "t0": 789.2833333333333,
+   "dur": 3.2
+  },
+  "verdicts": [
+   "18.6s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.5 m/s until clear",
+   "37.1s aim-displaced: the approach to Copperhead Mine Street needs 15.2 deg over the obstacle 25 m out (7 m); flying 9.1 deg to an aim 111 m in"
+  ]
+ },
+ "stol/mineL/expert": {
+  "outcome": "completed",
+  "t": 850.5,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 18,
+   "Vlo": 15.6,
+   "lifts": 1,
+   "qMax": 2.8
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 0.98,
+   "V": 13.6,
+   "VoverVs": 1.12,
+   "pastAim": 14,
+   "off": -0.1,
+   "run": 57,
+   "three": false,
+   "drift": -0.28
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 14.5,
+   "aimIn": 111,
+   "gs": 0.16,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 8.4,
+   "entryVs": -2.36,
+   "t0": 836.75,
+   "dur": 4.4
+  },
+  "verdicts": [
+   "17.5s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.5 m/s until clear",
+   "33.5s aim-displaced: the approach to Copperhead Mine Street needs 15.2 deg over the obstacle 25 m out (7 m); flying 9.1 deg to an aim 111 m in"
+  ]
+ },
+ "stol/mine/expert": {
+  "outcome": "completed",
+  "t": 221.9,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 64,
+   "Vlo": 16.1,
+   "lifts": 1,
+   "qMax": 3.3
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 0.93,
+   "V": 13.6,
+   "VoverVs": 1.12,
+   "pastAim": 13,
+   "off": -0.1,
+   "run": 56,
+   "three": false,
+   "drift": -0.25
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 14.5,
+   "aimIn": 111,
+   "gs": 0.16,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 7.3,
+   "entryVs": -2.36,
+   "t0": 208.21666666666667,
+   "dur": 4.4
+  },
+  "verdicts": [
+   "11.6s committed-takeoff: past the point of stopping at V=16.1 with 175 m left — continuing",
+   "16.9s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.5 m/s until clear",
+   "25.9s aim-displaced: the approach to Copperhead Mine Street needs 15.2 deg over the obstacle 25 m out (7 m); flying 9.1 deg to an aim 111 m in"
+  ]
+ },
+ "stol/mine/student": {
+  "outcome": "completed",
+  "t": 187.9,
+  "ga": 0,
+  "bounces": 2,
+  "to": {
+   "run": 58,
+   "Vlo": 15.2,
+   "lifts": 1,
+   "qMax": 21.9
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 2.59,
+   "V": 14.8,
+   "VoverVs": 1.22,
+   "pastAim": 2,
+   "off": 0.2,
+   "run": 73,
+   "three": false,
+   "drift": 0.6
+  },
+  "appr": {
+   "tq": "normal",
+   "Vref": 15.7,
+   "aimIn": 111,
+   "gs": 0.16,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 5.83,
+   "entryVs": -3.39,
+   "t0": 173.15,
+   "dur": 2.7
+  },
+  "verdicts": [
+   "16.9s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.5 m/s until clear",
+   "28.4s aim-displaced: the approach to Copperhead Mine Street needs 15.2 deg over the obstacle 25 m out (7 m); flying 9.1 deg to an aim 111 m in"
+  ]
+ },
+ "stol/mine/bush": {
+  "outcome": "completed",
+  "t": 215,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 60,
+   "Vlo": 15.7,
+   "lifts": 1,
+   "qMax": 26.7
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 0.71,
+   "V": 13.7,
+   "VoverVs": 1.13,
+   "pastAim": 6,
+   "off": 0.1,
+   "run": 56,
+   "three": false,
+   "drift": -0.17
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 14.5,
+   "aimIn": 111,
+   "gs": 0.16,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 7.3,
+   "entryVs": -2.36,
+   "t0": 202,
+   "dur": 3.8
+  },
+  "verdicts": [
+   "17.9s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.5 m/s until clear",
+   "28.2s aim-displaced: the approach to Copperhead Mine Street needs 15.2 deg over the obstacle 25 m out (7 m); flying 9.1 deg to an aim 111 m in"
+  ]
+ },
+ "stol/mineL/bush": {
+  "outcome": "completed",
+  "t": 849.2,
+  "ga": 0,
+  "bounces": 0,
+  "to": {
+   "run": 18,
+   "Vlo": 15.6,
+   "lifts": 1,
+   "qMax": 25.4
+  },
+  "dep": "normal",
+  "depStol": false,
+  "ldg": {
+   "sink": 0.61,
+   "V": 13.7,
+   "VoverVs": 1.13,
+   "pastAim": 8,
+   "off": 0.1,
+   "run": 58,
+   "three": false,
+   "drift": -0.24
+  },
+  "appr": {
+   "tq": "short",
+   "Vref": 14.5,
+   "aimIn": 111,
+   "gs": 0.16,
+   "stol": false
+  },
+  "flare": {
+   "entryAgl": 8.41,
+   "entryVs": -2.34,
+   "t0": 835.75,
+   "dur": 4
+  },
+  "verdicts": [
+   "18s vx-climb: ground ahead above the aeroplane — climbing at Vx 18.5 m/s until clear",
+   "36.4s aim-displaced: the approach to Copperhead Mine Street needs 15.2 deg over the obstacle 25 m out (7 m); flying 9.1 deg to an aim 111 m in"
+  ]
+ }
+}

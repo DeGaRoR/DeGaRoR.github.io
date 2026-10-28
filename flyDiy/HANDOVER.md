@@ -99984,3 +99984,40 @@ the STOL wing it reads; land-way and final-cap are merged in too - land them fir
 ready push: (1) the PILOTPAGE info legs `--only=stol_expert,stol_student` with the frame time at the roll's start; (2) the
 user's persona on the showcase; (3) the --all verdict. PILOT: the qualification knob's semantics (d = true: a custom person
 is qualified unless switched off), flareStolIth 1.5, the gust hop above.
+
+## STOL-PILOT-3 - NO FULL-STALL THREE-POINT IN GUSTY AIR; GATE STOL PINS THE STOL TOUCH (28 Oct 2026, cloud, node only; claude/stol-pilot on a8dbda45e + claude/ready/stol-wing d0154559 merged) - READY, to land AFTER claude/ready/stol-wing
+
+A0 + PILOT's review of a8dbda45e: fixes 1-5 confirmed; the knob default true OK; flareStolIth 1.5 OK, to be pinned in GATE STOL
+with the bush leg. ONE BLOCKER: the 16 cm gust hop (1,4 m/s, gust 0.6: a -8.6 deg wing drop at 0.97 Vs0, a main first at
+1.8 m/s; the base clean at 1.36 m/s, 44 m) - a regression on the base.
+
+**THE FIX** (43_pilot.js, FLARE, A0's "simplest form"): with the planner's gust spread `ap.appr.gust` (gustAt) over
+`stolGustMax` **0.75 m/s** the STOL flare keeps the hold-off's integrator (0.30 / 0.4) instead of deStol / flareStolIth 1.5 -
+no full-stall three-point in gusty air; the approach still carries half the gust (Vref + gust / 2). The gusty leg reads 1.1 m/s
+of spread: 0.75 keeps it a third inside the rule (1.0 was a hair's breadth). Calm and under 0.75 m/s: unchanged (the bush and
+expert calm legs, the 2 m/s crosswind: the same bits as v2's). **Measured, the gusty leg: one touch at 12.3 m/s (1.02 Vs0),
+bank -1.1 deg, 1.34 m/s, 29 m (v2: the hop; the base: 1.36 m/s, 44 m).** Said honestly: A0's stricter form V >= Vs0 + gust / 2
+(12.6 m/s here) is NOT met - 12.3; tell me if the rule is to be held as a speed floor rather than the integrator.
+
+**GATE STOL section 9** (tools/_stol_check.js + tools/_stol_leg.js, three legs side by side, 166 s wall; 131 checks):
+bush calm - three-point, one touch, 1.38 m/s (<= 1.6), 28 m (flareStolIth 1.5 pinned); expert in 1,4 m/s gust 0.6 - the gusty
+branch armed (1.1 > 0.75), one touch, bank -1.1 deg (< 5), 1.34 m/s, 29 m; expert across 2 m/s (wind 0,2: square across HOME)
+- one touch, bank -0.8 deg, 1.41 m/s, 25 m. (Bank and sink read at the first touch; a touch = the first contact + every lift
+of >= 0.15 s back off the surface in FLARE / ROLLOUT, pilot_trace's bounce rule.)
+
+**claude/ready/stol-wing d0154559 MERGED IN** (clean): its line-up hold for a high-thrust taildragger (43_pilot ROLL) lets the
+STOL Cub leave the mine strip - so the mine strip flies in node now. Against the base = master + land-way + final-cap +
+ready/stol-wing d0154559, no STOL law (legs_table_v3_mine.md): the Copperhead mine strip (250 m) circuit, expert 56 -> **32 m**
+(touch 13.6 -> 11.5 m/s), bush 56 -> **33 m**, student identical (73 m); Jolene AFB -> the mine strip, expert 57 -> 32 m, bush
+58 -> 33 m, student identical. The v2 legs (HOME, A4, all five persons) re-flown on the merged core: unchanged (27 / 28 / 30 m).
+
+**VERDICTS (this tree, run_gates --only=..., cloud, 4 jobs, a quiet box):** GATE PILOT PASS (369 s, 3 shards 350 / 296 / 369),
+GATE STOL PASS (584 s; was 382: +202 s for section 9 within the pool's wall), GATE PILOTACT PASS (217 s). Identity:
+tools/_stol_samebits.js on the new base tree (ready/stol-wing d0154559 merged) and on this tree: the six validated builds
+**identical, character for character** (samebits_base_v3.log / samebits_branch_v3.log; the new base's lines also equal the
+old base's 49387ca8).
+GATE PILOTS: its one red (the w3 name regex) is the base's own, unchanged here. The --all battery not run here.
+
+**READY** (28 Oct, claude/stol-pilot at the tip of this entry) - to land **after claude/ready/stol-wing** (merged in at d0154559;
+land-way + final-cap too). A0: the PILOTPAGE info legs `--only=stol_expert,stol_student` with the frame time at the roll's
+start, the user's persona on the showcase, the --all verdict.

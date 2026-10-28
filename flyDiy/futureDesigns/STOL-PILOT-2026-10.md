@@ -1,8 +1,9 @@
 # STOL-PILOT — the autopilot's short-field technique for a STOL wing
 ### (27 Oct 2026, cloud session STOL-PILOT; coordinator A0, the autopilot's owner PILOT reviews every line of 43_pilot.js)
 
-STATUS: **v2 — the law + A0 / PILOT's review (five fixes) + the user's STOL QUALIFICATION, on `claude/stol-pilot`; READY,
-to land after `claude/ready/stol-wing`** (HANDOVER: STOL-PILOT, then STOL-PILOT-2). v1 was 44f44f0ea.
+STATUS: **v3 — the law + the STOL QUALIFICATION + A0 / PILOT's two reviews (five fixes, then the gust hop), on
+`claude/stol-pilot`; READY, to land after `claude/ready/stol-wing`** (HANDOVER: STOL-PILOT, STOL-PILOT-2, STOL-PILOT-3).
+v1 44f44f0ea, v2 a8dbda45e; v3 has `claude/ready/stol-wing` d0154559 merged in (its mine-strip line-up fix).
 
 THE BRIEF (the user, 27 Oct): the stol-wing-2 session built a STOL Cub (`tools/fixtures/stol_cub_showcase.json`: full-span
 fixed slot, VGs, drooped tips and ailerons, Rotax 915 iS 141 hp, a bigger tail, 31-inch tundras). Flown on the autopilot's
@@ -102,6 +103,12 @@ the base flap, the float go-around (G1936/G1949) are the short technique's as be
   stick - the proportional term against 5 deg of error; the mains first at 12.0 m/s). Tried: 1.0 -> three-point at 11.6 m/s,
   30 m; **1.5 -> three-point at 11.3 m/s (0.93 Vs0), 1.38 m/s, 27 m**; 3.0 bounced at 2.1 m/s. (The ramp's end, flareStolK
   0.25 / 0.35 / 0.5, changed nothing: the loop, not the target, was the limit.)
+- (v3, the second review) **NOT IN GUSTY AIR**: with the planner's gust spread (`ap.appr.gust`, gustAt) over `stolGustMax`
+  0.75 m/s the STOL flare keeps the hold-off's integrator - no full-stall three-point a gust can drop a wing out of; the touch
+  keeps part of the gust increment (the approach carries half of it). v2 at 1,4 m/s gust 0.6 (spread 1.1): a -8.6 deg wing
+  drop in the last metre at 0.97 Vs0, a main first at 1.8 m/s, a 16 cm hop - a regression on the base (1.36 m/s, 44 m). v3:
+  one touch at 12.3 m/s (1.02 Vs0), bank -1.1 deg, 1.34 m/s, 29 m. (A0's stricter form, V >= Vs0 + gust / 2 = 12.6 m/s, is
+  NOT met: 12.3 - the hold-off's integrator, A0's "simplest form", is what is implemented.) Calm: unchanged.
 
 DECK ANGLE vs STALL (stol-wing-2's warning): the three-point deck angle of the 31-inch-tundra Cub is 9.9 deg; the slatted
 wing stalls at 26.9 deg of section alpha. The law never asks "the stall": it asks the three-point attitude and lets the wing
@@ -150,6 +157,24 @@ brake friction is the wheel's).
   FINGERPRINT: `tools/_stol_samebits.js` on the merged base and on this branch (§6).
 
 ## 5. The legs
+
+### v3 (the gust rule; ready/stol-wing d0154559 merged: the mine strip flies in node now)
+
+GATE STOL section 9 (reports/evidence/STOL-PILOT/gate_stol_section9_v3.log): bush calm three-point, 1 touch, 1.38 m/s, 28 m;
+expert in 1,4 m/s gust 0.6 one touch, bank -1.1 deg, 1.34 m/s, 29 m; expert across 2 m/s (0,2) one touch, -0.8 deg, 1.41
+m/s, 25 m. The Jolene mine strip (250 m), the base = master + land-way + final-cap + ready/stol-wing d0154559 without this law
+(legs_table_v3_mine.md):
+
+| build / field / pilot | base (merged, no law) | this branch | same? |
+|---|---|---|---|
+| stol / mine 250 m / bush | lift 60 / roll **56** / td 13.7 m/s 0.71 sink | lift 58 / roll **33** / td 11.5 m/s 1.37 sink [STOL] | moved |
+| stol / mine 250 m / expert | lift 64 / roll **56** / td 13.6 m/s 0.93 sink | lift 61 / roll **32** / td 11.5 m/s 1.28 sink [STOL] | moved |
+| stol / mine 250 m / student | lift 58 / roll **73** / td 14.8 m/s 2.59 sink | lift 58 / roll **73** / td 14.8 m/s 2.59 sink | identical |
+| stol / HOME->mine 250 m / bush | lift 18 / roll **58** / td 13.7 m/s 0.61 sink | lift 18 / roll **33** / td 11.4 m/s 1.36 sink [STOL] | moved |
+| stol / HOME->mine 250 m / expert | lift 18 / roll **57** / td 13.6 m/s 0.98 sink | lift 18 / roll **32** / td 11.5 m/s 1.29 sink [STOL] | moved |
+| stol / HOME->mine 250 m / student | lift 17 / roll **75** / td 14 m/s 1.64 sink | lift 17 / roll **75** / td 14 m/s 1.64 sink | identical |
+
+(HOME->mine: Jolene AFB to the mine strip; its "lift" is the rig's run-to-last-contact off the AFB's odd spawn - read the roll.)
 
 ### v2 (the final core: the qualification, the three-point flare, the gain on the shakedown) - all five persons
 

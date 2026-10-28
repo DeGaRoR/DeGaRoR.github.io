@@ -4470,7 +4470,14 @@ function makePilot(sim, def, world, opts) {
           // hold-off's 0.30 at 0.4 held the showcase Cub at +6.7 deg on 0.25-0.34 of stick (P x 5 deg of error), the mains first
           // at 12.0 m/s; at 1.5 the nose reaches the three-point attitude: three-point at 11.3 m/s (0.93 Vs0), 1.38 m/s, 27 m
           // (1.0: 11.6, 30 m; 3.0 bounced at 2.1 m/s)
-          if (ap.stolFld) { SV.IthMaxT = A.deStol ?? 0.70; SV.IthGain = A.flareStolIth ?? 1.5; }
+          // STOL-PILOT-3 (A0 + PILOT's review of a8dbda45e: "in gusty air don't force the full-stall three-point"): ...BUT NOT IN
+          // GUSTY AIR. With the day's gust over stolGustMax (0.75 m/s: the planner's gustAt spread, ap.appr.gust - the gusty leg
+          // GATE STOL flies reads 1.1, a third inside it) the STOL flare keeps the hold-off's integrator: the touch keeps some
+          // of the gust's increment over the stall (the approach carries half of it, Vref + gust / 2) instead of a full-stall
+          // arrival a gust can drop a wing out of. Measured at 1,4 m/s, gust 0.6: the full-stall flare met a -8.6 deg wing drop
+          // in the last metre at 0.97 Vs0, a main first at 1.8 m/s, a 16 cm hop; the hold-off's: one touch at 12.3 m/s (1.02
+          // Vs0), -1.1 deg, 1.34 m/s, 29 m. Calm (and under 0.75 m/s of spread): as before
+          if (ap.stolFld && !(ap.appr && ap.appr.gust > (A.stolGustMax ?? 0.75))) { SV.IthMaxT = A.deStol ?? 0.70; SV.IthGain = A.flareStolIth ?? 1.5; }
           if (altG > 0) engage(decrab ? 'DECRAB' : 'LOC', 'PITCH', 'SPD', { pitch: thC, bank: 0.10, ias: 0.95 * ap.VAppr });   // GTRAM: the round-out onto the slope is flown on power
           else if (sim.hydro) {
             // G3079 (FLOATS-FIX; PERSONA-2 G2462's law, alone): ON THE WATER THE FLARE IS FLOWN ON POWER (FAA-H-8083-23, the
