@@ -98801,6 +98801,42 @@ the G3470 box list above (the markings on the pod, the stainless and rubber unde
 right - the reason `noDec` was there); the stainless (`bareAlu`) and the rubber under the real lights; FRAMECOST with the
 pod (6 draws now, was 4) after the re-cook.
 
+### G3471 (28 Oct) - THE POD OUTSIDE THE CERTIFICATE: claude/ready/cert-rule 014e1b633 MERGED (A0, the user's ruling 27 Oct)
+The user (27 Oct): "Belly pod should indeed be excluded from certificates." The pod is a bolt-on OUTSIDE the certificate:
+fitting, resizing or removing it never withdraws, re-checks or re-stamps one. claude/ready/cert-pod (the cert session's:
+drops `pod` from the cert rule's weight-and-balance group) did not exist at 00:20 or 01:15 UTC and master was still L25c
+d7e181f4e, so this head merges the named fallback, **claude/ready/cert-rule 014e1b633** (merge 3c7e5db34). cert-pod, when it
+lands, merges on top (it touches 66b_cert_rule.js; this branch never edits 66b_cert_rule.js or bench.js).
+- **76_procure.js / app.js: the cert rule's side kept.** Its procureOnSave is kept verbatim as `procureOnSaveCert`; the
+  pod's `procureOnSave` wraps it: the pod billed as ITS OWN LEDGER LINE (`{ k: 'pod' }`, charged as an `upgrade`, the
+  airframe's `podPaid` the price paid - enlarged pays the difference, removed nothing back, refitted again) and the pod
+  stripped from the spec and the ledger the certificate rule sees (`spec.pod` undefined, `ledger.pod` dropped). A pod-only
+  change: not modified, the certificate untouched, no "maker's certificate is still withdrawn". A pod AND another edit: the
+  edit is the cert rule's modification (its dm11 bill on the ledger WITHOUT the pod) + the pod's own line. The old fpNoPod
+  path is gone (the cert rule's fingerprint never sees the pod). app.js: both hooks (the cert rule's shakeReady first, then
+  window.FLYDIY_POD); econMaterialise's podPaid (a new design's first save holds the pod) as before.
+- **90_node_exports.js: the union** (master 941 + the cert rule's 15 + the pod's 13).
+- **GATE POD** H6 rewritten for the ruling (fitted / removed / refitted: certificate untouched, the pod's own line; pod +
+  baggage: dm11 + the pod's line; a scratch Cub; a new design's pod in its first price; `{on:0}` saved = not modified). The
+  certificate compared by CONTENT (the billed doc is a clone). H3 "no substep paid": the c172 on its fitted tanks reads 120
+  without the pod, 121 with - the AIRFRAME's own members re-gauged for the pod's 73 kg rated load (omega 3240 -> 3267), the
+  pod's members never bind (1503 / c/m 710 under the airframe's 3267 / 2904; full and deep too): the check now asks that no
+  pod member sets the step and the step moves by at most 2 % (Math.ceil(s0 x 1.02)).
+- **The no-pod base re-blessed on 014e1b633** (f27d824bc; a worktree of the base, _pod_check.js --bless then --bless-bytes):
+  the cert rule fitted the validated builds' tanks. Measured on this head with no pod: c172 34b5aa36 / e8d01f05, floats
+  f9ac549f / 67877e9, metal 804c1400 / d7970dfd - the base core's certificate and 300 flown steps to the bit.
+
+**Gates on this head** (`run_gates.js --only=<32> --no-build --jobs=4`):
+```
+POD PASS (414) · PODEDITOR PASS · DMGPOD PASS · PROCURE PASS · FREIGHT PASS · CONTRACTS PASS · ECON PASS · BENCH PASS
+UISMOKE PASS · BUILD PASS · JOIN PASS · PARTS PASS · SAVE PASS · STARTER PASS · SIMWORKER PASS · PILOT PASS · ACCEPT PASS
+BUILT PASS · PARKED PASS · LAZY PASS · HANGAR PASS · TECH PASS · STORAGE PASS · STORESPOT PASS · STOREDRAW PASS
+DESIGNCHECK PASS · DESIGNSIM PASS · DMGCERTCOST PASS · BENCHTIME PASS (alone: 44 s; red at jobs=4 on time only - the base
+reads the same alone, 83 s PASS)
+DMGCERT FAIL · ROUNDTRIP FAIL · PILOTS FAIL - THE BASE'S OWN: the same lines on a worktree of 014e1b633 (DMGCERT breaks at
+7.23 g both, ROUNDTRIP "kit is not where the aeroplane is", PILOTS the setup screen's sections) and red on master L25c too
+```
+
 
 ## A0 - landing L23b (23 Oct 2026, gates 10:00-11:00, pushed ~11:20): THE CABIN AT T0 - LAMPS OFF THE WING, THE WORK LAMP, RUFUS'S FLOOD ON, FEWER MACHINES
 Rolling set (1): cabin-lamp ad3165a48 (GAME G3353-G3355 + RUFUS-CERT G3449 claude/light-switch-state merged in):
