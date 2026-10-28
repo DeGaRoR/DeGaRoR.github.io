@@ -1063,6 +1063,14 @@
   // that member and its station on it (R.mem, R.mt). Anything else the bucket draws - a panel, a seat, a fitting, a tube
   // crossing a member - is no member's: never hidden with it, never in its re-ringed copy (dmg_members.js)
   const LOOK_R = 0.035, LOOK_COS = 0.94, LOOK_OFF = 0.09;
+  // ...and on a record the inheritance never bound (made after its list: app.js brkLook) - the tags alone, its binding as
+  // it is: the switch on is the switch off and the members (st: { places, done })
+  function* lookTagOnly(E, T, rest, st) {
+    const R = E.R; R.mem = new Int32Array(R.nv).fill(-1); R.mt = new Float32Array(R.nv);
+    yield* lookTag(E, frameSegs(T, rest, true), st);
+    if (R.rep) for (let v = 0; v < R.nv; v++) { const u = R.rep[v]; if (u !== v) { R.mem[v] = R.mem[u]; R.mt[v] = R.mt[u]; } }
+    st.done = true;
+  }
   function* lookTag(E, Sall, st) {
     const R = E.R, P = R.g.pos, cv = E.cv, rp = R.rep, ix = R.idx0 || R.idx, nt = (ix.length / 3) | 0, nv = R.nv;
     const pl = v => rp ? rp[v] : v;
@@ -1458,7 +1466,7 @@
     }
     return out;
   }
-  const API = { TEAR, TEAR_ABS, DRAPE_K, WRINKLE_L, WRINKLE_A, NEAR_K, SET_HOT, SET_CRUSH, INH_K, INH, inhClass, inhSteps, bindInherit, wallSync, wallFollow, frameSegs, coverGrid, closestCover, triClosest, topo, brokenPairs, bindNearest, dupOf, make, event, bindMore, nodeFrames, polar, poseGen, poseCage, tear, islands, worstStretch, hotNodes, cutWall,
+  const API = { TEAR, TEAR_ABS, DRAPE_K, WRINKLE_L, WRINKLE_A, NEAR_K, SET_HOT, SET_CRUSH, INH_K, INH, inhClass, inhSteps, lookTagOnly, bindInherit, wallSync, wallFollow, frameSegs, coverGrid, closestCover, triClosest, topo, brokenPairs, bindNearest, dupOf, make, event, bindMore, nodeFrames, polar, poseGen, poseCage, tear, islands, worstStretch, hotNodes, cutWall,
                 GPU_W, GPU_K, placesOf, placeArrays, packPlaces, packNodes, rideMirror, slotNode, slotTurns, tearPlaces, onNodes, LOOSE_N, looseIslands, SHELL_TEAR, SHELL_ABS, HELD, REACH, OPT };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (typeof window !== 'undefined') window.SKIN_BREAK = API;
