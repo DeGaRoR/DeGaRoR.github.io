@@ -101333,3 +101333,120 @@ SAVE, PILOTS: PASS.
 **The same two notes as p1's:** the 9 core files change against the base (73b + 73c in MANIFEST.core), so the parked cook
 of 17f331783 goes stale - the local box cooks it and runs FRAMECOST in the train; LAZY's route_draw row is red in the
 cloud too - UNVERIFIED here.
+## MISSIONS-PROPS - THE MISSION MESHES (tools/_mission_gen.js) + WHAT A HIT DOES (2026-10-27, cloud; branch claude/missions-props off claude/missions-p3 afa3e83ce; for Game's review)
+
+The user (27 Oct): "the visuals we need, we'll do ourselves. These are simple meshes to generate. SO first task, list
+the new meshes, and do some professional models for them, ideally reusing materials we already have. Take inspiration
+from the real thing ... Think that floating gates will be hit, how do we want to handle that?"
+
+**THE LIST** (every place kind 73c missionMarkers emits, and what draws it; `MISSION_GEN.forMarker(marker, o)` gives the
+preset's dials from a marker):
+
+| marker | mesh (preset) | the real thing it follows |
+|---|---|---|
+| gate, prop `pylons` (the default now) | `air-race pylon`: a 25 m cone of fabric, 9 sections bulging between seams, chequered cap, galvanised collar, blower + duct, 8 straps to stakes | the Red Bull Air Race "Air Gate": 25 m spinnaker-nylon pylons kept up by a blower, built to tear on contact (+3 s), re-erected in minutes |
+| gate, prop `balloons` | `balloon column`: marker balls (1.8 m, alternating) on a tether up to the band's top, a finned aerostat holding it up, a concrete anchor | power-line marker balls; a tethered aerostat (lit: red light under the envelope) |
+| ring (prop `donut`) | `ring` / `ring, tethered`: a helium torus in 12 banded sections, pinched at the seams, valves; 4 tethers to anchor blocks when `tether` (centre height AGL) is given; 4 amber beads for the night | inflatable race arches / tethered helium shapes |
+| pt (fly to) | `marker flag`: a 12 m mast flying a chequered flag, a bullseye ground target under it | ICAO Annex 14's orange-and-white chequered vehicle flag, scaled up |
+| pt (photo) | `photo target`: the aerial-survey panel cross (white strips, orange centre) | photogrammetry ground control targets |
+| spot (park) | `tie-down spot`: yellow corner brackets on the spot's box (FLEET_SPOT_FOOT frame, +x the nose), a nose bar, 3 anchors (both wings, tail) with ropes coiled, chocks + rope at the mains | a GA tie-down |
+| site | `site, planned` (survey stakes, flagging tape, string line, a centre lath), `site, building` (the pad poured, the mast's lower half up, a pallet under a blue tarp, the upper section lying, a cable drum), `weather station (built)` | the FAA AWOS: 10 m tilt-down mast, anemometer + vane on a cross-arm, red obstruction light, lightning rod, temperature screen at 2 m, solar panel facing south, cabinet, visibility sensor on its own post, ceilometer, rain gauge, fenced compound |
+
+Not meshes (the page draws them as effects/HUD): the point's translucent column, the faint line between gate posts at
+the band, the gate's direction arrow, the state tints (next pulsing / later dim / done grey), the photo flash.
+
+**MATERIALS - NONE NEW** (GATE MISSIONPROPS 5 holds it: no `new THREE.` in the file). The control towers' finish
+(TOWER_GEN: galvanised metal, grey steel, concrete, rough posts, panes, glowing glass) and the house's cloths: the
+windsock's orange (`sock`), the storefront canvas (`awning`, its colour the `canvasCol` dial, white by default), the flag's
+blue (`flag`) and the star's gold (`star`). A `scheme` dial picks the pair a post wears: orange/white (default - the
+obstacle marking pilots read as "keep clear"), blue/white, blue/gold. `sock` is single-sided, so cloth sheets are emitted
+both ways. Same API as the other generators (DEF/ROWS/PRESETS/BAGS/EXTRA/MAT/build/applyFinish/makeFinish/finishReport/
+catOf + KINDS/STATES/SCHEMES/DIMS/forMarker); lod 0 / lod 1; stats carry `strike`, `top`, `lit` (beacons for the night
+pool), the ground AO skirt (none under a floating ring). Budgets (lod 0 / 1 tris): pylon 2028/406, balloons 2610/866,
+ring 1464/384, marker flag 1894/610, photo target 10, tie-down 1178/386, site 138 / 490 / 1320.
+
+**THE BENCH**: `tools/_mission_props.html` (serve the repo root, open /flyDiy/tools/_mission_props.html): every preset on
+a field, the dials live, lod switch; `window.BENCH.show(name | 'all', { yaw, pitch, dist, lod })` for headless shots.
+
+**WHAT A HIT DOES** (my proposal, implemented as the default and switchable per mission - Game / the user to confirm):
+- The props are fabric or a light frame: **a touch never damages the aeroplane and never stops it** (no collider in the
+  flight model - none is added). This is the real race's model too: the pylon tears, the aeroplane flies on.
+- The touch is a **mission event**: 73c `missionStrikeTest(place, a, b, reach)` judges every flight segment against the
+  props' own dimensions (`MISSION_PROP_DIMS`: the pylon cone 25 m, 2.5 -> 0.375 m; the balloon column 0.9 m up to the
+  band's top or 60 m; the ring's 1.2 m tube round its hole = the place's r) with the aeroplane's half-span as `reach`
+  (`missionTrackNew(rec, live, { reach })`; 5 m when the page gives none) - the wing is level, it reaches sideways, so a
+  pass a wingtip too close is a pass AND a strike. Unknown height -> no strike. A ring with no facing is not judged.
+- The tracker emits `{ k: 'strike', key, post: 0 | 1 | 'ring', t, prop, until, pen?, laps?, fail? }`; the struck prop is
+  **torn for `rearm` 30 s** (cannot be hit again meanwhile) - the page swaps in the generator's `torn: 1` variant (the
+  pylon folds over and drapes to the ground, the struck balls burst, the ring's quadrant deflates and sags) until `until`.
+- **`rules.strike`** decides: `'penalty'` (DEFAULT, MISSION_RULES_NEW too) - +3 s on every lap running at that moment
+  (the air race's pylon-hit penalty): the lap's evidence carries `raw`, `pen`, `strikes`, its `s` includes the penalty, so
+  the medal and the target read the penalised time; `{ penalty: s }` its own seconds; `'fail'` - the mission fails at the
+  next stop through careerOnStop's rules pass ("a gate or a ring was hit"; a tracked flight now counts as "on that flight");
+  `'ignore'` - recorded, nothing more. The card's timer line adds "· 2 hit, +6 s" (ev.strikes).
+- Not judged (a call for Game): the ring's tethers and the aerostat's cable (thin; flying through them is not a strike);
+  the balloon column's lifter above the band.
+
+**THE LOCAL SESSION**: lazy-load `_mission_gen.js` with the other generators (build.js MANIFEST.lazy - not added here),
+build each marker's prop from `forMarker(m, { torn, agl, state })` (a ring: `rotation.y = -dir` in radians - through it is
+-z at yaw 0; `tether` = its centre's height over the ground; a balloon post: its gate's band top), place a post at each of
+`m.posts`, a site at its x, z with `career.sites[id].state`, a spot with its `dir` (the spot's ry) - and pass the
+aeroplane's half-span to missionTrackNew. On a 'strike' event: the fabric "thwack" + "+3 s" on the HUD stopwatch, swap
+the torn mesh until `until`.
+
+**Files**: NEW tools/_mission_gen.js, tools/_mission_props.html, tools/_mission_props_check.js (GATE MISSIONPROPS,
+run_gates core tier). Edited: 73c (MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest; tracker
+strikes / torn / penalty; evidence `strikes`; the timer's pen; rules.strike fail; markers' default prop), 73b
+(MISSION_RULES.strike, MISSION_RULES_NEW.strike 'penalty', its validation), 74_ (careerOnStop: a tracked flight is "on
+that flight"), 75_ (the timer line's strikes), 72_contract_data (ev.strikes), 90_ exports. GATE MISSIONS 873 checks (+16
+strike rows), selftest +5 mutations (51).
+
+**THE EDITOR'S UI PASS** (the user, 27 Oct: "Dark theme for the app please, and a little less hostile in the labels (give
+them meaningful names), the tree (is border line unreadable) ... Everything looks like code at this stage ... a passenger
+picker, and an interface that resembles the contract one for preview like in game"). tools/mission_editor.html, rewritten
+presentation, same model calls (the LEAN core list and every verdict unchanged; GATE MISSIONS green):
+- the game's dark editor tokens (src/viewer/editor.css --ed-*) and IBM Plex Sans (vendor/fonts); three columns: Structure,
+  the form, the preview (the in-game card, the player's steps in words and the money, the map, the checks).
+- the tree: two-line rows (the words, then id · type · client in small), the contract type's colour dot (the map screen's
+  cargo / passengers / survey / build), a step as a sentence ("Carry 30 kg + David, Jody from Jolene AFB 13/31 to
+  Ridgeback Strip"), problem / "later" badges, the selected row as the map list's (accent bar, soft fill).
+- the words: "Action: Fly through", "Where: A gate (two posts)", "Looks like: Air-race pylons | Balloon columns", "Its
+  legs are flown: In order | Any order | Any N of them", "If the aircraft crashes: The mission fails", "If a gate post or
+  ring is hit: +3 s on the lap", "Opens after", "Reputation needed", "Departure window: leave between 8 and 10 h"...; a
+  text field edits the words, its key shown small under it (click to rename).
+- no JSON boxes left in the forms: bonuses (a medal, or beating a requirement by n %, +pct), timers (from / to step,
+  seconds or a speed, medals), the aircraft's requirements (kind · at least / at most / exactly · value, its sentence
+  beside), the follow-up order, the departure window, the gate's posts, the ring's centre / altitude, step medals, a
+  step's site change. The raw JSON stays, folded, under "Advanced".
+- THE PEOPLE PICKER: chips with portraits; "+ Add a person" opens a searchable grid of GAME_PEOPLE by role (clients with
+  their contractor, pilots, story people), or a count of unnamed people; used for the client, passengers, boarding,
+  getting off, and every "said by".
+- THE PREVIEW: map_menu.js's contract row and opened paragraph reproduced (type dot, round face, title, pay, ✓ / ⏳ / ✗;
+  the 120 px portrait with the client and contractor, "Contractor: brief. Pays N.", the stops and km, TRACK); a campaign
+  or chapter shows its missions as the list's rows.
+
+## READY claude/ready/missions-props - THE MISSION PROPS, THE STRIKE RULE, THE EDITOR'S UI PASS (2026-10-27, cloud, node + a headless page check; Game reviews before it lands)
+
+**Base: claude/missions-p3 afa3e83ce** (= claude/ready/missions-p3; land p1, then p3, then this). What it does: the
+MISSIONS-PROPS entry above (meshes, what a hit does, the editor). Running careers: unchanged except that a NEW mission
+(MISSION_RULES_NEW) now carries `strike: 'penalty'`, and a mission's laps take +3 s per gate post / ring touched when the
+page feeds the tracker (nothing feeds it yet); today's contracts state no rules - nothing changes for them.
+**Gates** (private copy built there, `run_gates.js --no-build`, 27 Oct): CLOCK, DEFAULT, UISMOKE, UISMOKE-PHONE, NAVAID,
+SAVE, ACCEPT, CONTRACTS, MISSIONS (873 checks; selftest 51/51 red), MISSIONPROPS (new, 84 checks), STAGES, STORY, ROUTES,
+ECON, PROCURE, FREIGHT, PILOTS: PASS. LAZY: FAIL (1) - the same row as p1's, p3's and db58b0b5's (route_draw's lazy door
+in this cloud browser; passes probed alone). MISSIONS + MISSIONPROPS re-run after the editor's last commit: PASS.
+Not run here (GPU / local): the visuals in the game - nothing draws the props yet (the local session's list above).
+
+## READY claude/ready/missions-props (review round, 2026-10-27 evening) - THE MISSION PROPS, THE STRIKE RULE, THE EDITOR'S UI PASS, REBASED ON THE NEW missions-p3
+
+**Base: ready/missions-p0 17f331783**, through claude/ready/missions-p1 and claude/ready/missions-p3 (the review round's,
+above; this replaces the READY note just above, whose base afa3e83ce is gone). The 4 commits rebased: one conflict,
+90_node_exports.js, resolved as the union (the strike names + p1's missionHandoverWired); HANDOVER kept both sides. Not
+for T-P1, not for L28a: it waits for a local page check and the user's look at the props.
+**Gates** (a private copy of the gated code - the notes are HANDOVER only - built there, `run_gates.js --no-build`; no
+local box): MISSIONS (875 checks; selftest 52/52 red), MISSIONPROPS (84 checks), CONTRACTS, STAGES, ECON, CLOCK, FREIGHT,
+PROCURE, ACCEPT, STORY, ROUTES, SAVE, PILOTS, NAVAID, UISMOKE, UISMOKE-PHONE, DEFAULT: PASS. LAZY: FAIL (1) - the
+route_draw row, red in the cloud on every tree tried (the base included): UNVERIFIED here.
+**The parked cook**: the same 9 core files change against the base (73b + 73c in MANIFEST.core; props adds to 72_ / 73b /
+73c / 74_ / 75_ / 90_ within that list): the parked cook of 17f331783 goes stale - the local box cooks it and runs
+FRAMECOST in the train. tools/_mission_gen.js is NOT in MANIFEST.lazy (nothing loads it in the game yet).

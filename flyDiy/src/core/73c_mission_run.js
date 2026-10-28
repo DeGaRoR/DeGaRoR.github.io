@@ -100,6 +100,10 @@ function missionRulesJudge(rec, stop) {
     const L = S.load || {}, aboard = (L.kg || 0) > 0 || (Array.isArray(L.items) && L.items.length > 0);
     if ((S.freight && S.freight.harmed) || (crashed && aboard)) return { fail: 'the freight was damaged', assess: null };
   }
+  if (R.strike === 'fail') {
+    const ev = S.tracks && rec && S.tracks[rec.id], n = ev && Array.isArray(ev.strikes) ? ev.strikes.length : 0;
+    if (n) return { fail: n === 1 ? 'a gate or a ring was hit' : n + ' gates or rings were hit', assess: null };
+  }
   const dmg = S.structural && S.structural.damaged;
   if (R.damage === 'fail' && dmg) return { fail: 'the airframe was damaged' + (S.structural.why ? ' (' + S.structural.why + ')' : ''), assess: null };
   return { fail: '', assess: R.damage === 'assess' ? { damaged: !!dmg, why: (S.structural && S.structural.why) || null } : null };
@@ -135,7 +139,8 @@ function missionTimerOnSub(rec, sub, r, stop, fields) {
     if (t.stop !== sub.id) continue;
     const E = ev && ev.timers && ev.timers[t.id];
     if (!E || !msrNum(E.s)) return { st: 'no', why: 'the ' + t.id + ' timer ran no lap (' + t.start + ' to ' + t.stop + ' in one flight)' };
-    const target = missionTimerTarget(rec, t, fields), timer = { id: t.id, s: E.s, target, splits: E.splits || [] };
+    const target = missionTimerTarget(rec, t, fields), timer = Object.assign({ id: t.id, s: E.s, target, splits: E.splits || [] },
+      E.pen ? { raw: E.raw, pen: E.pen, strikes: E.strikes || 0 } : {});
     if (Array.isArray(t.medals) && t.medals.length) {
       const m = t.medals.slice().sort((a, b) => a.le - b.le).find(x => E.s <= x.le);
       if (!m) return { st: 'no', why: t.id + ': ' + E.s + ' s, ' + Math.max(...t.medals.map(x => x.le)) + ' s or less for a medal' };
@@ -214,6 +219,64 @@ function missionHitTest(p, a, b) {
   }
   return null;
 }
+
+// ---- THE STRIKE: A POST OR A RING TOUCHED (MISSIONS-PROPS) -----------------------------------------------------------------
+// The gate posts and the rings are fabric (tools/_mission_gen.js draws them: the air-race pylon, the balloon column, the
+// helium torus): a touch NEVER harms the aeroplane - there is no collider in the flight model - it TEARS the prop (the
+// page swaps in the generator's torn variant for `rearm` s; a torn prop cannot be hit again) and the mission's
+// rules.strike decides: 'penalty' (the default: +pen s on every lap running then - the air race's +3 s a pylon),
+// { penalty: s }, 'fail' (the mission fails at the next stop: 74_ careerOnStop's rules pass), or 'ignore'.
+// The dimensions are the generator's (GATE MISSIONPROPS holds the two tables equal): a pylon is a cone h tall, r0 at its
+// foot, r1 at its top; a balloon column a cylinder of the balls' radius up to the band's top (alt.max; none: h); a ring
+// a torus of tube radius round its hole (the place's r). `reach` is the aeroplane's half-span (the page's, else this):
+// the wing is level, so it reaches sideways - a pass a wingtip too close is a pass AND a strike.
+const MISSION_PROP_DIMS = { pylons: { h: 25, r0: 2.5, r1: 0.375 }, balloons: { h: 60, r: 0.9 }, donut: { tube: 1.2 }, reach: 5, pen: 3, rearm: 30 };
+const MISSION_GATE_PROP = 'pylons';                            // a gate that names no prop is an air-race gate
+// a mission's strike rule -> { mode: 'penalty' | 'fail' | 'ignore', pen }
+function missionStrikeRule(rec) {
+  const v = rec && rec.rules && rec.rules.strike, D = MISSION_PROP_DIMS.pen;
+  if (v && typeof v === 'object' && msrNum(v.penalty)) return { mode: 'penalty', pen: v.penalty };
+  if (v === 'fail' || v === 'ignore') return { mode: v, pen: 0 };
+  return { mode: 'penalty', pen: D };
+}
+// the height of a sample over a post's foot in the frame the post is measured in: AGL (a post stands on the ground)
+const msrAgl = q => (msrNum(q.agl) ? q.agl : null);
+// one place's posts / ring against the segment a -> b -> [{ post: 0 | 1 | 'ring', t, x, z, y }] (touched: within reach)
+function missionStrikeTest(p, a, b, reach) {
+  const k = msrKind(p), R = msrNum(reach) ? reach : MISSION_PROP_DIMS.reach, out = [];
+  const dx = b.x - a.x, dz = b.z - a.z, L2 = dx * dx + dz * dz;
+  if (k === 'gate') {
+    const prop = p.prop || MISSION_GATE_PROP;
+    p.gate.forEach((g, i) => {
+      const px = +g[0], pz = +g[1];
+      const u = L2 > 0 ? Math.max(0, Math.min(1, ((px - a.x) * dx + (pz - a.z) * dz) / L2)) : 1, q = msrLerp(a, b, u);
+      const d = Math.hypot(q.x - px, q.z - pz), h = msrAgl(q);
+      if (prop === 'balloons') {
+        const D = MISSION_PROP_DIMS.balloons, top = p.alt && msrNum(p.alt.max) ? p.alt.max : D.h, msl = p.alt && p.alt.ref === 'msl';
+        const v = msl ? q.y : h;
+        if (!msrNum(v) || v > top || d > D.r + R) return;
+      } else {
+        const D = MISSION_PROP_DIMS.pylons;
+        if (!msrNum(h) || h > D.h || d > D.r0 + (D.r1 - D.r0) * Math.max(0, h) / D.h + R) return;
+      }
+      out.push({ post: i, t: q.t, x: q.x, z: q.z, y: msrNum(q.y) ? q.y : null });
+    });
+    return out;
+  }
+  if (k === 'ring' && msrNum(p.dir)) {
+    const [cx, cy, cz] = p.ring.map(Number), r = p.dir * Math.PI / 180, nx = Math.sin(r), nz = -Math.cos(r);
+    const sa = (a.x - cx) * nx + (a.z - cz) * nz, sb = (b.x - cx) * nx + (b.z - cz) * nz;
+    if ((sa < 0) === (sb < 0) || !msrNum(a.y) || !msrNum(b.y)) return out;   // not across its plane (or no height known)
+    const u = sa / (sa - sb), q = msrLerp(a, b, u);
+    const lat = (q.x - cx) * nz - (q.z - cz) * nx, up = q.y - cy, tube = MISSION_PROP_DIMS.donut.tube, Rc = p.r + tube;
+    // the wing: lat - R .. lat + R across the ring's plane at height up; its nearest and farthest reach from the centre
+    const lo = lat - R, hi = lat + R, xn = lo <= 0 && hi >= 0 ? 0 : Math.min(Math.abs(lo), Math.abs(hi)), xf = Math.max(Math.abs(lo), Math.abs(hi));
+    const dn = Math.hypot(xn, up), df = Math.hypot(xf, up);
+    const gap = Rc >= dn && Rc <= df ? 0 : Math.min(Math.abs(dn - Rc), Math.abs(df - Rc));
+    if (gap <= tube) out.push({ post: 'ring', t: q.t, x: q.x, z: q.z, y: q.y });
+  }
+  return out;
+}
 // the objectives of a contract's CURRENT leg (stage) not done yet -> [{ key, j, do, place, split?, say? }]; `seq` when the
 // leg's steps run in order (only the next one is armed)
 function missionObjectives(rec, live) {
@@ -225,10 +288,12 @@ function missionObjectives(rec, live) {
   return { seq: st.order === 'seq', objs };
 }
 // a tracker for one contract's flight (the page makes one at departure, per accepted contract with objectives)
-function missionTrackNew(rec, live) {
-  const O = missionObjectives(rec, live);
+// opts.reach: the aeroplane's half-span (m; MISSION_PROP_DIMS.reach when the page gives none)
+function missionTrackNew(rec, live, opts) {
+  const O = missionObjectives(rec, live), o = opts || {};
   return { v: MISSION_RUN_V, id: rec.id, stage: (live && live.stage) || 0, seq: O.seq, objs: O.objs, timers: msrClone(rec.timers || []),
-           hits: {}, laps: {}, last: null };
+           hits: {}, laps: {}, last: null, reach: msrNum(o.reach) && o.reach >= 0 ? o.reach : MISSION_PROP_DIMS.reach,
+           strike: missionStrikeRule(rec), strikes: [], torn: {} };
 }
 // one sample of the flight -> the events it made [{ k: 'hit' | 'photo' | 'split' | 'timer', key, ... }]. Mutates T.
 // In a seq leg only the first objective not yet hit is armed; after a hit the REST of the segment is tested against the
@@ -250,11 +315,33 @@ function missionTrackStep(T, smp) {
       for (const tm of T.timers) {
         const lap = T.laps[tm.id];
         if (tm.start === o.key && !lap) { T.laps[tm.id] = { t0: t, splits: [] }; out.push({ k: 'timer', id: tm.id, state: 'start', t }); }
-        else if (lap && lap.s == null && tm.stop === o.key) { lap.s = Math.round((t - lap.t0) * 10) / 10; out.push({ k: 'timer', id: tm.id, state: 'stop', s: lap.s }); }
+        else if (lap && lap.s == null && tm.stop === o.key) { lap.raw = Math.round((t - lap.t0) * 10) / 10; lap.t1 = t; lap.s = Math.round((lap.raw + (lap.pen || 0)) * 10) / 10; out.push({ k: 'timer', id: tm.id, state: 'stop', s: lap.s }); }
         else if (lap && lap.s == null && o.split != null) { const sp = { key: o.key, s: Math.round((t - lap.t0) * 10) / 10, target: o.split }; lap.splits.push(sp); out.push(Object.assign({ k: 'split', id: tm.id }, sp)); }
       }
     }
     if (T.seq) from = q;                                       // the rest of the segment, for the next one in order
+  }
+  // THE STRIKES: every post and ring of this leg's objectives (passed or not: they still stand), not torn now
+  if (T.strikes) for (const o of T.objs) {
+    for (const h of missionStrikeTest(o.place, a, T.last, T.reach)) {
+      const id = o.key + ':' + h.post, t = Math.round(h.t * 100) / 100;
+      if (T.torn[id] != null && T.torn[id] > t) continue;
+      T.torn[id] = t + MISSION_PROP_DIMS.rearm;
+      const e = { k: 'strike', key: o.key, post: h.post, t, prop: msrKind(o.place) === 'ring' ? (o.place.prop || 'donut') : (o.place.prop || MISSION_GATE_PROP), until: T.torn[id] };
+      if (T.strike.mode === 'penalty' && T.strike.pen > 0) {
+        // every lap running at that moment (started at or before it, not stopped before it) takes the penalty
+        for (const lid of Object.keys(T.laps)) {
+          const L = T.laps[lid];
+          if (L.t0 > t || (L.t1 != null && L.t1 < t)) continue;
+          L.pen = Math.round(((L.pen || 0) + T.strike.pen) * 10) / 10; L.strikes = (L.strikes || 0) + 1;
+          if (L.s != null) L.s = Math.round((L.raw + L.pen) * 10) / 10;
+          e.pen = T.strike.pen; (e.laps = e.laps || []).push(lid);
+        }
+      }
+      if (T.strike.mode === 'fail') e.fail = true;
+      T.strikes.push({ key: o.key, post: h.post, t });
+      out.push(e);
+    }
   }
   return out;
 }
@@ -263,7 +350,9 @@ function missionTrackEvidence(T) {
   if (!T) return null;
   const timers = {};
   for (const id of Object.keys(T.laps)) timers[id] = msrClone(T.laps[id]);
-  return { v: MISSION_RUN_V, id: T.id, stage: T.stage, hits: msrClone(T.hits), timers };
+  const ev = { v: MISSION_RUN_V, id: T.id, stage: T.stage, hits: msrClone(T.hits), timers };
+  if (T.strikes && T.strikes.length) ev.strikes = msrClone(T.strikes);
+  return ev;
 }
 
 // ---- THE NEW VERBS AT A STOP (73_ contractSubOnStop asks) -------------------------------------------------------------------
@@ -352,7 +441,7 @@ function missionMarkers(rec, live, opts) {
       const q = msrXZ(p, F);
       if (q) { m.x = q[0]; m.z = q[1]; }
       if (k === 'pt') { m.r = p.r; if (p.alt) m.alt = msrClone(p.alt); }
-      if (k === 'gate') { m.posts = msrClone(p.gate); if (p.alt) m.alt = msrClone(p.alt); if (p.prop) m.prop = p.prop; if (msrNum(p.dir)) m.dir = p.dir; }
+      if (k === 'gate') { m.posts = msrClone(p.gate); if (p.alt) m.alt = msrClone(p.alt); m.prop = p.prop || MISSION_GATE_PROP; if (msrNum(p.dir)) m.dir = p.dir; }
       if (k === 'ring') { m.y = +p.ring[1]; m.r = p.r; if (msrNum(p.dir)) m.dir = p.dir; m.prop = p.prop || 'donut'; }
       if (k === 'spot') { m.spot = p.spot; const i0 = String(p.spot).indexOf(':'), a = String(p.spot).slice(0, i0), id = String(p.spot).slice(i0 + 1), sp = opts.spots && opts.spots[a] && opts.spots[a].find(z => z[3] === id); if (sp) { m.x = sp[0]; m.z = sp[1]; m.dir = sp[2]; } }
       if (k === 'site') m.site = p.site;

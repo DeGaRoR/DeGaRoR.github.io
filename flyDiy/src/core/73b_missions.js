@@ -29,8 +29,9 @@
 //   legs       [ { order?, steps: [ step ] } ]                           (today's stages)
 //   order?     the legs' order (seq)
 //   onDone?    { say: { who, text } }                 the completion line (72_'s ct.<id>.done)
-//   rules?     { crash, injury, freight, damage }     §3.4: 'fail' | 'reset' | 'assess' | 'ignore'; injury may be
+//   rules?     { crash, injury, freight, damage, strike }   §3.4: 'fail' | 'reset' | 'assess' | 'ignore'; injury may be
 //                                                     { fail: <band> } (34_occupant GEN_OCC.bands: the index or the word)
+//                                                     strike: 'penalty' (+3 s on the laps running) | { penalty: s } | 'fail' | 'ignore'
 //   timers?    [ { id, start, stop, target: s | { refKmh }, splits?, medals?: [ { medal, le } ] } ]          §3.3
 //   startFrom? 'player' | <CONTRACT_DESIGNS id> | { build: 'path.json' }                                      §3.6
 //   prefs?     [ { k, v, need: 'bonus' | 'mandatory', pct? } ]   a configuration the client would like (bonus: +pct)
@@ -64,9 +65,10 @@ const MISSION_PLACES_OF = {
 };
 const MISSION_PLACE_R = { pt: 150, ring: 8 };                  // m: a point's / a ring's radius when none is written
 const MISSION_PROPS = { gate: ['balloons', 'pylons'], ring: ['donut'] };
-const MISSION_RULES = { crash: ['fail', 'reset'], injury: ['fail', 'ignore'], freight: ['fail', 'ignore'], damage: ['assess', 'fail', 'ignore'] };
+const MISSION_RULES = { crash: ['fail', 'reset'], injury: ['fail', 'ignore'], freight: ['fail', 'ignore'], damage: ['assess', 'fail', 'ignore'],
+                        strike: ['penalty', 'fail', 'ignore'] };   // a gate post / a ring touched (73c missionStrikeTest); { penalty: s } too
 // §3.4's rules for a NEW mission that states none (the built-in pack states none: today's crash resets, keeps it live)
-const MISSION_RULES_NEW = { crash: 'fail', injury: 'fail', freight: 'fail', damage: 'assess' };
+const MISSION_RULES_NEW = { crash: 'fail', injury: 'fail', freight: 'fail', damage: 'assess', strike: 'penalty' };
 const MISSION_SITE_STATES = ['planned', 'building', 'built'];
 const MISSION_REQUIRE = ['when', 'maxMin', 'depart', 'plane', 'waitMin'];
 // THE PREFERENCES (§3.6, §7): a configuration word set, each read off the spec in phase 2 (`of`). Values are the GEN
@@ -425,6 +427,8 @@ function missionWhy(m, ctx) {
         const B = typeof GEN_OCC !== 'undefined' && GEN_OCC.bands ? GEN_OCC.bands : null;
         const b = v.fail, okB = (msNum(b) && b >= 1 && b <= 4 && b === Math.round(b)) || (typeof b === 'string' && (!B || B.indexOf(b) >= 1));
         if (!okB) why.push(id + ': rules.injury.fail is a band 1-4 or its word (34_occupant GEN_OCC.bands)');
+      } else if (k === 'strike' && msObj(v)) {
+        if (!(msNum(v.penalty) && v.penalty >= 0 && v.penalty <= 60)) why.push(id + ': rules.strike.penalty is seconds, 0-60');
       } else if (!MISSION_RULES[k].includes(v)) why.push(id + ': rules.' + k + ' is ' + MISSION_RULES[k].join(' | '));
     }
   }

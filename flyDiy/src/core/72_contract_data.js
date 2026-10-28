@@ -593,7 +593,7 @@ const CONTRACT_TEXT = {
   // (MISSIONS-P1/P2) a mission failed by its rules (and offered again), a lap timed, the airframe handed over, the profit,
   // the damage assessed ({t} the mission, {n} a reason / a time / a name, {c} the cost, {p} the profit)
   'ev.failed': CT_('{t}: failed - {n}'), 'ev.restart': CT_('You can start it again.'),
-  'ev.timer': CT_('{t}: {n}'), 'ev.handover': CT_('handed over to the client; the blueprint is saved as {n}'),
+  'ev.timer': CT_('{t}: {n}'), 'ev.strikes': CT_('{n} hit, +{s} s'), 'ev.handover': CT_('handed over to the client; the blueprint is saved as {n}'),
   'ev.handback': CT_('the client\'s aeroplane ({n}) is back with its owner'),
   'ev.profit': CT_('paid {n}, it cost {c} to build: {p} profit'),
   'ev.assess.ok': CT_('the client checked the airframe: not a scratch'), 'ev.assess.bent': CT_('the client noted the damage: {n}'),
