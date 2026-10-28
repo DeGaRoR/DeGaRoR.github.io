@@ -5160,12 +5160,19 @@
   }
   // the job: each record's places classed (the bucket's section and aeroskin's role; a colour bucket's layer ranges from
   // the snapshot, G1859), the legs one binding each, then inhSteps a budget a frame
+  // a named bucket's places by class (its section's, its layers'): cv, obj filled; returns the layers
+  function inhNamed(own, nv, lay, cv, obj) {
+    const mt = model.mats && model.mats[own.name], sec = mt && mt.sec, role = sec ? (AEROSKIN.AERO_ROLE[sec] || '') : '';
+    const rg = lay.get(own.name) || [], layer = new Array(nv).fill('');
+    for (const r of rg) for (let v = r[2]; v < r[3] && v < nv; v++) { layer[v] = r[0]; obj[v] = r[4]; }
+    for (let v = 0; v < nv; v++) cv[v] = SKIN_BREAK.inhClass(sec, role, layer[v]);
+    return layer;
+  }
   function brkInhStep(groups) {
     const K = model.brk, SB = SKIN_BREAK;
     // (G3770, DMG-LOOKS: the list below is the records made so far, once - a record made later, REC_BUDGET a frame, is never
-    // bound by inheritance, and no place of it is the member pool's: the Cub's cage was in it or not by the crash, 0 to 30
-    // members. With the switch on, the inheritance starts once every record is made - a few frames later)
-    if (!K.inhIt && BRK.recPending && lookOn()) return;
+    // bound by inheritance. The switch keeps that binding as it is - on is off plus the members: brkLook tags the members
+    // on the records it skipped, their binding untouched)
     if (!K.inhIt) {
       const lay = new Map(); for (const r of (model.data && model.data.layers) || []) { let L = lay.get(r[1]); if (!L) lay.set(r[1], L = []); L.push(r); }
       const surf = new Set(model.surfParts || []), strut = new Set(model.strutRigs || []);
@@ -5189,10 +5196,7 @@
         } else if (surf.has(own)) cv.fill(SB.INH.cover);
         else if (strut.has(own)) cv.fill(SB.INH.tube);
         else if (own.name) {
-          const mt = model.mats && model.mats[own.name], sec = mt && mt.sec, role = sec ? (AEROSKIN.AERO_ROLE[sec] || '') : '';
-          const rg = lay.get(own.name) || [], layer = new Array(nv).fill('');
-          for (const r of rg) for (let v = r[2]; v < r[3] && v < nv; v++) { layer[v] = r[0]; obj[v] = r[4]; }
-          for (let v = 0; v < nv; v++) cv[v] = SB.inhClass(sec, role, layer[v]);
+          const layer = inhNamed(own, nv, lay, cv, obj);
           if (layer.indexOf('cowl') >= 0) { E.cowl = new Uint8Array(nv); for (let v = 0; v < nv; v++) if (layer[v] === 'cowl') E.cowl[v] = 1; }   // (G1859.5)
         } else cv.fill(SB.INH.cover);
         // no stretch tear on a tube, a rigid part or sheet metal (G1859: not cut to confetti) - the fabric's tear stays
@@ -5224,7 +5228,8 @@
   try { if (/[?&]dmglook=1(&|$)/.test(location.search || '')) window.FLYDIY_DMGLOOK = true; } catch (e) {}
   const lookOn = () => window.FLYDIY_DMGLOOK === true && typeof DMG_MEMBERS !== 'undefined' && !!window.SKIN_BREAK;
   if (lookOn()) SKIN_BREAK.OPT.looks = true;
-  const LOOK = { P: null, vB: -1, M: null, mFor: null, plans: 0, ms: 0, msMax: 0, mMs: 0, slots: 0, pools: null, poolsFor: null, lateLink: 0 };
+  const LOOK = { P: null, vB: -1, M: null, mFor: null, plans: 0, ms: 0, msMax: 0, mMs: 0, slots: 0, pools: null, poolsFor: null, lateLink: 0,
+    late: null, lateFor: null, lateIt: null, lateMs: 0, tubeRecs: null };
   // THE POOLS, one a tube bucket (its section a tube or a wood frame - skin_break.js inhClass), its OWN material cloned
   // (dmg_members.js make): made with the model and parked in the world before its compile (worldSettle). A model made
   // after the world's settle gets them at its first look - a late link, counted (LOOK.lateLink)
@@ -5246,9 +5251,29 @@
   function brkLook(D, K, groups) {
     if (!lookOn()) return;
     const pools = lookPools(true);
-    // the snapshot's members, measured once its binding is done (the records' R.mem: skin_break.js inhSteps)
+    // the snapshot's members, measured once its binding is done (the records' R.mem: skin_break.js inhSteps) and every record
+    // is made; a tube record the binding skipped (made after its list) gets its members' tags alone (skin_break.js
+    // lookTagOnly), 2 ms a frame, its binding as it is
     if (pools && K.inhL && K.inhSt && K.inhSt.done && LOOK.mFor !== K.inhL) {
-      const t0 = performance.now(); LOOK.M = DMG_MEMBERS.measure(K.inhL.map(E => E.R), K.T, K.rest, new Set(pools.keys())); LOOK.mFor = K.inhL; LOOK.vB = -1;
+      if (BRK.recPending) return;
+      if (LOOK.lateFor !== K.inhL) {
+        const inL = new Set(K.inhL.map(E => E.R)), lay = new Map(), strut = new Set(model.strutRigs || []), surf = new Set(model.surfParts || []);
+        for (const r of (model.data && model.data.layers) || []) { let L = lay.get(r[1]); if (!L) lay.set(r[1], L = []); L.push(r); }
+        LOOK.late = []; LOOK.lateFor = K.inhL; LOOK.tubeRecs = { early: [], late: [] };
+        for (const E of K.inhL) if (E.R.mem) LOOK.tubeRecs.early.push(E.R.secName || E.name || '?');
+        for (const [own, , , , , , kind] of groups) { const R = own.brkR;
+          if (!R || inL.has(R) || kind === 'leg' || kind === 'link' || surf.has(own)) continue;
+          const cv = new Uint8Array(R.nv), obj = new Int32Array(R.nv).fill(-1);
+          if (strut.has(own)) cv.fill(SKIN_BREAK.INH.tube); else if (own.name) inhNamed(own, R.nv, lay, cv, obj); else continue;
+          if (cv.indexOf(SKIN_BREAK.INH.tube) < 0) continue;
+          LOOK.late.push({ R, cv, obj }); LOOK.tubeRecs.late.push(R.secName || own.name || '?'); }
+        const L = LOOK.late;
+        LOOK.lateIt = L.length ? (function* () { for (const E of L) yield* SKIN_BREAK.lookTagOnly(E, K.T, K.rest, { places: 0 }); })() : null;
+      }
+      if (LOOK.lateIt) { const t1 = performance.now();
+        while (performance.now() - t1 < 2) if (LOOK.lateIt.next().done) { LOOK.lateIt = null; break; }
+        LOOK.lateMs += performance.now() - t1; if (LOOK.lateIt) return; }
+      const t0 = performance.now(); LOOK.M = DMG_MEMBERS.measure(K.inhL.map(E => E.R).concat(LOOK.late.map(E => E.R)), K.T, K.rest, new Set(pools.keys())); LOOK.mFor = K.inhL; LOOK.vB = -1;
       LOOK.mMs = performance.now() - t0; }
     if (LOOK.vB === D.vB) return;
     const t0 = performance.now(), M = LOOK.mFor === K.inhL ? LOOK.M : null;
@@ -5266,7 +5291,8 @@
   // the coordinator's read (GATE DMGLOOK's page rows, the stills rig)
   window.FLYDIY_DMGLOOK_STATS = () => { const PL = LOOK.pools ? [...new Set(LOOK.pools.values())] : [];
     return { on: lookOn(), pools: PL.length, buckets: LOOK.pools ? [...LOOK.pools.keys()] : [], lateLink: LOOK.lateLink, visible: PL.filter(pm => pm.visible).length, slots: LOOK.slots, plans: LOOK.plans,
-    planMs: +LOOK.ms.toFixed(2), planMsMax: +LOOK.msMax.toFixed(2), measureMs: +LOOK.mMs.toFixed(2), measured: !!LOOK.M, drawn: LOOK.M ? LOOK.M.drawn.reduce((a, x) => a + x, 0) : 0,
+    planMs: +LOOK.ms.toFixed(2), planMsMax: +LOOK.msMax.toFixed(2), measureMs: +LOOK.mMs.toFixed(2), measured: !!LOOK.M, tubeRecs: LOOK.tubeRecs, lateMs: +LOOK.lateMs.toFixed(2),
+    inhRecs: model && model.brk && model.brk.inhL ? model.brk.inhL.length : 0, recs: BRK.recs.length, drawn: LOOK.M ? LOOK.M.drawn.reduce((a, x) => a + x, 0) : 0,
     frames: PL.reduce((a, pm) => a + pm.userData.look.frames, 0), frameMsMax: +Math.max(0, ...PL.map(pm => pm.userData.look.msMax)).toFixed(3),
     modes: LOOK.P ? LOOK.P.slots.reduce((o, q) => (o[q.mode] = (o[q.mode] || 0) + 1, o), {}) : null,
     parts: LOOK.P ? (() => { let w = 0, u = 0, s = 0; for (const x of LOOK.P.part) { if (x !== x) continue; if (x < 0) u++; else if (x === 0 || x === 1) w++; else s++; } return { whole: w, unparted: u, station: s }; })() : null }; };
