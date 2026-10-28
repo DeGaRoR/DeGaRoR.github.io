@@ -20,8 +20,10 @@
 //      records (shellTear): every frame from the first break, no live triangle's edge past (1 + SHELL_TEAR) x its rest +
 //      SHELL_ABS (5 % + 1 cm against fabric's 15 %), every position finite; triangles removed on the breaks; the shell rides
 //      more than one piece
-//   6. DAMAGE OFF UNCHANGED: the validated Cub, Jodel and metal Cessna flown into the 30 m/s trunk with the layer off land
-//      on the base's bytes (reports/evidence/DMG-COMPOSITE/off_ref.json: their hash on claude/dmg-tune 849058d8)
+//   6. DAMAGE OFF UNCHANGED: the validated Cub, Jodel and metal Cessna and the composite build itself flown into the 30 m/s
+//      trunk with the layer off land on the same bytes as with the laminate rows neutral (GEN_CRASH carbon / glass: no
+//      scatter, no joint efficiency, no core) - the same tree, side by side. (It was a frozen hash, off_ref.json, of
+//      train 41's 8 Oct tree: every physics change since moved it, the laminate's or not - master's red, 28 Oct)
 // Run: node tools/_dmg_composite_check.js            (one final `GATE DMGCOMPOSITE: PASS|FAIL`; the parts in children)
 //      node tools/_dmg_composite_check.js --selftest (every check proven able to go red: doctored results, and the
 //                                                     glass row made ductile, which the set check must catch)
@@ -42,8 +44,10 @@ if (argv[0] === '--part') {
   else if (what === 'skin') out = M.skin('composite', 'trunk0');
   else if (what === 'off') {
     const crypto = require('crypto');
+    // (--neutral: the laminate rows as a build with none - the rows' own switches off)
+    if (argv.includes('--neutral')) for (const m of ['carbon', 'glass']) if (C.GEN_CRASH[m]) Object.assign(C.GEN_CRASH[m], { scat: 0, fitE: 0, tauC: 0 });
     out = { hashes: {} };
-    for (const k of ['cub', 'jodel', 'metal']) {
+    for (const k of ['cub', 'jodel', 'metal', 'composite']) {
       M.L.atTrunk(k, Object.assign({ elastic: true }, OFFCASE));
       const sim = M.L.lastRun.sim, h = crypto.createHash('sha1');
       h.update(Buffer.from(Float64Array.from(sim.p).buffer)); h.update(Buffer.from(Float64Array.from(sim.v).buffer));
@@ -84,8 +88,8 @@ function judge(R, ref) {
   yes('shell', k.shell && !k.fabric && k.frames > 0 && k.excess <= 0 && k.finite && k.removed > 0 && k.shellPieces > 1,
     'the shell over the centreline crash (' + k.frames + ' frames broken, ' + k.tris + ' triangles): worst live edge ' + (k.excess > 0 ? '+' : '') + (1000 * k.excess).toFixed(1) +
     ' mm past 5 % + 1 cm (worst stretch x' + k.stretch + '), ' + k.removed + ' removed of which ' + k.torn + ' cracked, on ' + k.shellPieces + ' pieces');
-  yes('offBytes', ref && R.off && ['cub', 'jodel', 'metal'].every(b => R.off.hashes[b] === ref.hashes[b]),
-    'damage OFF: the Cub, the Jodel, the metal Cessna into the 30 m/s trunk on the base\'s bytes (' + (R.off ? JSON.stringify(R.off.hashes) : '-') + ' vs ' + (ref ? ref.base : '-') + ')');
+  yes('offBytes', R.off && R.offN && ['cub', 'jodel', 'metal', 'composite'].every(b => R.off.hashes[b] && R.off.hashes[b] === R.offN.hashes[b]),
+    'damage OFF: the Cub, the Jodel, the metal Cessna and the composite into the 30 m/s trunk on the bytes of the laminate rows neutral (' + (R.off ? JSON.stringify(R.off.hashes) : '-') + ' vs ' + (R.offN ? JSON.stringify(R.offN.hashes) : '-') + ')');
   return out;
 }
 
@@ -101,10 +105,10 @@ async function pool(jobs, n) {
   return out;
 }
 async function runAll(extra) {
-  const jobs = [['card'], ['fly'], ['crash', 'taxi,noseover,hard'], ['crash', 'trunk0,trunk25'], ['skin'], ['off']].map(a => a.concat(extra || []));
+  const jobs = [['card'], ['fly'], ['crash', 'taxi,noseover,hard'], ['crash', 'trunk0,trunk25'], ['skin'], ['off'], ['off', '--neutral']].map(a => a.concat(extra || []));
   const P = await pool(jobs, +((argv.find(a => a.startsWith('--jobs=')) || '').slice(7) || 3));
   const err = P.find(p => p.err); if (err) { console.log(err.err); return null; }
-  return { card: P[0], fly: P[1], crashes: P[2].crashes.concat(P[3].crashes), skin: P[4], off: P[5] };
+  return { card: P[0], fly: P[1], crashes: P[2].crashes.concat(P[3].crashes), skin: P[4], off: P[5], offN: P[6] };
 }
 
 (async () => {
