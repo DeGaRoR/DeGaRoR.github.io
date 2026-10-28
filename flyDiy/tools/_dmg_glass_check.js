@@ -18,6 +18,10 @@
 //      brightens 1500 px or more and darkens none (the glass only adds light); a mark 5 cm off the pane's plane, or facing
 //      away from it, changes not one pixel; a mark costs no program (renderer.info.programs the same). --png <file> keeps
 //      the marked picture.
+//   B  FROM BEHIND (A0's page run, 28 Oct: "FLYDIY_GLASS_TEST returns a mark, NOTHING shows in the cockpit view" - the flown
+//      panes are single sheets wound outward: from the seat every triangle faces away, and a FrontSide pane was never
+//      drawn there): aeroGlass is DoubleSide; seen from behind, a pane with no mark in use changes no pixel against the
+//      pane hidden (its back faces discard first thing), and a mark's crack shows (brightens, never darkens).
 //   N  SMOOTH (the user, 27 Oct: "no flat shading on any deformed or damaged part - it looks bad and looks like a bench"):
 //      the crack block and GLSL_CRACK write no normal (the pane keeps its own smooth, interpolated normals - riding the
 //      wreck too: skin_break / skin_gpu turn each vertex's own rest normal); aeroGlass flatShading false; a curved pane
@@ -147,7 +151,7 @@ function rowS() {
     copy: !!c && c.text === asBlock(),
     pars: /AERO_GLASS_CRACK_PARS/.test(hook) && /uniform float uCrackN;/.test(src) && /uniform vec4 uCrackP\[4\];/.test(src) && /uniform vec4 uCrackQ\[4\];/.test(src),
     call: /dgCrack\(/.test(hook) && /roughnessFactor \+= 0\.6 \* aeroCrack\.x/.test(hook),
-    scatter: /aeroCrk/.test(hook) && /\+ aeroCrk, 1\.0\)/.test(hook),
+    scatter: /aeroCrk/.test(hook) && /\+ aeroSpec \+ aeroCrk : aeroCrk, 1\.0\)/.test(hook) && /if \(!gl_FrontFacing && uCrackN < 0\.5\) discard;/.test(hook),
     loads,
     uniforms: /uCrackN: \{ value: 0 \}/.test(shared) && new RegExp('uCrackP: \\{ value: Array\\.from\\(\\{ length: ' + DG.MAX + ' \\}').test(shared) && new RegExp('uCrackQ: \\{ value: Array\\.from\\(\\{ length: ' + DG.MAX + ' \\}').test(shared),
     gates: hook.indexOf('abs(dot(dgD, dgN)) > ' + DG.GATE_DN) >= 0 && hook.indexOf('dot(dgNf, dgN) < ' + DG.GATE_FACE) >= 0 && hook.indexOf('i < ' + DG.MAX + ';') >= 0,
@@ -272,7 +276,7 @@ async function rowsGR() {
       for (let i = 0; i < n; i++) { st[i * 4] = P.getX(i) + 0.5; st[i * 4 + 1] = P.getY(i) + 0.5; rs[i * 4] = P.getX(i); rs[i * 4 + 1] = P.getY(i); rs[i * 4 + 2] = P.getZ(i); rs[i * 4 + 3] = 2; }
       g.setAttribute('aStruct', new THREE.BufferAttribute(st, 4)); g.setAttribute('aRest', new THREE.BufferAttribute(rs, 4));
       const m = AEROSKIN.aeroGlass(THREE, { screen: 1, ext: [0, 1, 0, 1], fieldM: 1 });
-      sc.add(new THREE.Mesh(g, m));
+      const pane = new THREE.Mesh(g, m); sc.add(pane);
       const U = AEROSKIN.aeroSharedU(THREE), gl = Rn.getContext(), px = new Uint8Array(W * W * 4);
       const shot = () => { Rn.render(sc, cam); gl.readPixels(0, 0, W, W, gl.RGBA, gl.UNSIGNED_BYTE, px); return Array.from(px); };
       const cmp = (a, b) => { let br = 0, dk = 0, ch = 0; for (let i = 0; i < W * W; i++) { const la = a[i * 4] + a[i * 4 + 1] + a[i * 4 + 2], lb = b[i * 4] + b[i * 4 + 1] + b[i * 4 + 2]; if (la !== lb || a[i * 4 + 3] !== b[i * 4 + 3]) ch++; if (lb > la + 6) br++; if (lb < la - 1) dk++; } return { br, dk, ch }; };
@@ -284,6 +288,13 @@ async function rowsGR() {
       DMG_GLASS.pack(U, mk([0.05, 0.02, 0], [0, 0, -1], 1)); const away = shot();
       DMG_GLASS.pack(U, mk([0.05, 0.02, 0], [0, 0, 1], 0.2)); const light = shot();
       DMG_GLASS.pack(U, []); const a2 = shot();
+      // B: FROM BEHIND - the seat's side (A0's 28 Oct page run: from the cockpit every triangle of a flown pane faces away).
+      // No mark: the pane draws nothing there (the same bits as the pane hidden); a mark: its crack shows
+      cam.position.set(0, 0, -0.9); cam.lookAt(0, 0, 0);
+      pane.visible = false; const e0 = shot(); pane.visible = true;
+      const b0 = shot(); DMG_GLASS.pack(U, mk([0.05, 0.02, 0], [0, 0, 1], 1)); const b1 = shot(), imgB = cv.toDataURL('image/png'); DMG_GLASS.pack(U, []);
+      cam.position.set(0, 0, 0.9); cam.lookAt(0, 0, 0);
+      const Bk = { intact: cmp(e0, b0).ch, mark: cmp(b0, b1), side: m.side, imgB };
       // N: SMOOTH (the user, 27 Oct: no flat shading on a damaged part). A CURVED pane - a 0.6 m radius cylinder strip, 12
       // facets over 1 rad, its normals the part's own smooth (radial, shared) ones - under a light near the eye: the
       // luminance along three rows (outside the mark's reach) has no STEP at the facet edges, with the mark on as with it
@@ -309,12 +320,14 @@ async function rowsGR() {
       DMG_GLASS.pack(U, []);
       const flat0 = m.flatShading; m.flatShading = true; m.needsUpdate = true; const sF = shot2(); m.flatShading = flat0; m.needsUpdate = true;
       const N = { flatShading: flat0, off: steps(s0), on: steps(s1), flat: steps(sF), markCh: cmp(s0, s1).ch, imgN };
-      return { ok, u0, progA, progC, mark: cmp(a, c), off: cmp(a, off), away: cmp(a, away), light: cmp(a, light), back: cmp(a, a2), img, N };
+      return { ok, u0, progA, progC, Bk, mark: cmp(a, c), off: cmp(a, off), away: cmp(a, away), light: cmp(a, light), back: cmp(a, a2), img, N };
     });
     if (opt('png')) fs.writeFileSync(opt('png'), Buffer.from(R.img.split(',')[1], 'base64'));
     const ok = R.ok && R.u0 && !errs.length && R.progA === R.progC && R.mark.br >= 1500 && R.mark.dk === 0 && R.off.ch === 0 && R.away.ch === 0 && R.back.ch === 0 && R.light.br > 50 && R.light.br < R.mark.br;
     row('R', ok, 'the page\'s material (the real aeroGlass, three r186): links' + (R.u0 ? '' : ' - the shared block has no uCrack* of MAX') + (errs.length ? ' - ERRORS: ' + errs.slice(0, 2).join(' | ') : '') + '; programs ' + R.progA + ' -> ' + R.progC +
       '; a broken member\'s mark brightens ' + R.mark.br + ' px (>= 1500), darkens ' + R.mark.dk + '; a light one ' + R.light.br + ' px; 5 cm off the plane ' + R.off.ch + ' px changed, facing away ' + R.away.ch + ', cleared ' + R.back.ch);
+    { const B = R.Bk; if (opt('png')) fs.writeFileSync(opt('png').replace(/\.png$/, '_behind.png'), Buffer.from(B.imgB.split(',')[1], 'base64'));
+      row('B', B.side === 2 && B.intact === 0 && B.mark.br >= 1000 && B.mark.dk === 0, 'from behind (the seat\'s side: a flown pane\'s triangles all face away from the cockpit eye): aeroGlass DoubleSide (' + B.side + '); no mark ' + B.intact + ' px changed against the pane hidden (0: its back faces draw nothing); a broken member\'s mark brightens ' + B.mark.br + ' px (>= 1000), darkens ' + B.mark.dk); }
     { const N = R.N, src = fs.readFileSync(AS_FILE, 'utf8'), blk = (src.match(/if \(uCrackN > 0\.5\) \{[\s\S]*?roughnessFactor \+= 0\.6 \* aeroCrack\.x[^\n]*/) || [''])[0];
       const touches = /\bnormal\s*=|geometryNormal|dFdx|dFdy|faceDirection/.test(blk + DG.GLSL_CRACK);
       if (opt('png')) fs.writeFileSync(opt('png').replace(/\.png$/, '_curved.png'), Buffer.from(N.imgN.split(',')[1], 'base64'));

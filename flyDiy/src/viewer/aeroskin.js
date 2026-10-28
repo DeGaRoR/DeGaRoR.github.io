@@ -3876,6 +3876,8 @@ const AEROGLASS_HOOK = function (shader) {
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <common>', AERO_PARS_FS + (W ? W.AERO_WX_PARS_FS : '')
              + AERO_GLASS_CRACK_PARS + '\n#include <common>')
+    // G3623: the pane is DoubleSide for its cracks only - a back face with no mark in use is gone before anything runs
+    .replace('void main() {', 'void main() {\n  if (!gl_FrontFacing && uCrackN < 0.5) discard;')
     .replace('#include <lights_physical_fragment>',
              '#include <lights_physical_fragment>\n' + (W ? W.AERO_WX_CC_FS : ''))
     .replace('#include <roughnessmap_fragment>', `
@@ -4002,7 +4004,9 @@ const AEROGLASS_HOOK = function (shader) {
   // irradiance (over pi): added near-white along the lines and, fainter, over the crazed haze. Zero without a mark
   vec3 aeroIrr = (reflectedLight.directDiffuse + reflectedLight.indirectDiffuse) / max(diffuseColor.rgb, vec3(0.02));
   vec3 aeroCrk = aeroIrr * (0.85 * aeroCrack.x + 0.30 * aeroCrack.y) * vec3(0.93, 0.95, 0.97);
-  gl_FragColor = vec4(aeroDiff * (1.0 - aeroT) * uGlassB.y + aeroSpec + aeroCrk, 1.0);`);
+  // (the back face - the pane seen from the seat: the crack alone, nothing where there is none)
+  if (!gl_FrontFacing && aeroCrack.x + aeroCrack.y <= 0.0) discard;
+  gl_FragColor = vec4(gl_FrontFacing ? aeroDiff * (1.0 - aeroT) * uGlassB.y + aeroSpec + aeroCrk : aeroCrk, 1.0);`);
 };
 
 // THE MULTIPLY PASS (G206): pass 1 of the glass, see the family header. A
@@ -4552,10 +4556,23 @@ function aeroGlass(THREE, o) {
     // folded into the BASE rather than written on top of it, or the two fight
     // and the last one to run wins.
     envMapIntensity: 1.4 * G('refl'),
-    // FRONT SIDE ONLY: with DoubleSide transparency the far side of a curved
-    // pane rendered through the near one and its limb read as a phantom
-    // circle on the bubble (_cage_ui.js:231, the user's own report).
-    side: THREE.FrontSide,
+    // FRONT SIDE FOR THE GLASS ITSELF: with DoubleSide transparency the far
+    // side of a curved pane rendered through the near one and its limb read
+    // as a phantom circle on the bubble (_cage_ui.js:231, the user's own
+    // report). G3623 (DMG-GLASS, A0's 28 Oct page run: "FLYDIY_GLASS_TEST
+    // returns a mark, NOTHING shows in the cockpit view"): the flown panes are
+    // single sheets wound outward, so from the seat every one of their
+    // triangles faces away and the pane - and a crack on it - was never drawn.
+    // So the pane is DoubleSide, and its back faces draw the CRACK ALONE: the
+    // hook discards a back face first thing while no mark is in use (an
+    // intact pane draws exactly as before, its back faces cost a rasterised
+    // discard), and with a mark writes only the crack's scatter - never the
+    // reflection, so the phantom limb cannot come back. The side is set here,
+    // at roll-out: a crash links no program. ONE pass (three draws a
+    // transparent DoubleSide material back side then front side, two programs
+    // and two draws; the pane adds light - the order is nothing to it)
+    side: THREE.DoubleSide,
+    forceSinglePass: true,
     depthWrite: false,
   });
   m.userData.aeroU = U;
