@@ -1,0 +1,32 @@
+──────── summary ────────
+SUBSTEP   PASS   174.2 s
+DEFAULT   PASS    15.2 s
+UISMOKE   FAIL  1800.3 s
+ROLLANIM  FAIL   221.9 s
+MEDIA     PASS     3.2 s
+SKINMAT   PASS    17.5 s
+FIT       PASS    59.4 s
+HANDLE    PASS   912.7 s
+HINGE     PASS   233.0 s
+CLIP      PASS    94.7 s
+CAGEFIT   PASS     0.3 s
+FRAMES    PASS    42.7 s
+KNIFE     PASS    27.7 s
+JOIN      PASS    20.6 s
+JOINPARITY FAIL   762.7 s
+STARTER   PASS     1.6 s
+SAVE      PASS     1.0 s
+BENCH     PASS   505.4 s
+PARTS     PASS    14.2 s
+DESIGN    PASS    66.4 s
+ACCEPT    FAIL  1800.4 s
+TECH      PASS     3.0 s
+PROCURE   PASS    14.4 s
+FREIGHT   PASS   546.0 s
+ENERGY    PASS   295.8 s
+PANEL     PASS     4.4 s
+total           7638.7 s
+wall            2546.3 s  (jobs 3)
+
+BATTERY: FAIL — never deliver red.
+EXIT 1

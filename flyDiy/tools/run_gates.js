@@ -533,6 +533,7 @@ const GATES = [
   // five SPECIFICATIONS, because the shapes alone never build an IFR
   // wing-tank aeroplane and that is where the collisions were.
   { id: 'FIT', file: '_fit_check.js', tier: 'core' },
+  { id: 'HANDLE', file: '_handle_check.js', tier: 'core', wall: 400 },   // DOOR-HINGES-2: no handle on the glass, every build file and card
   // THE RAY INDEX (G1281, GARAGE-LAG): three's Mesh raycast answered from a per-geometry hierarchy must give three's
   // own hit list - both ways on ~3 200 rays (random, axis-aligned, grazing at vertices and edges, inside, near/far)
   // over indexed, non-indexed, transformed, instanced meshes and a sliver soup; the meshes it must leave alone take
