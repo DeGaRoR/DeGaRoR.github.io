@@ -360,6 +360,17 @@
    ],
    "water": true,
    "derelict": false
+  },
+  {
+   "id": "cb_sea",
+   "aero": "cb_sea",
+   "x": 1873.9,
+   "z": -17778.6,
+   "shells": [
+    "field"
+   ],
+   "water": true,
+   "derelict": false
   }
  ],
  "hotspots": [
