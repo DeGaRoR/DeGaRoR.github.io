@@ -9433,8 +9433,68 @@
       ladder: () => ({ i: stLad.i, off: stLad.off, card: stLad.i >= 0 && !stLad.off ? STORY_LADDER[stLad.i].id : null }), skip: storySkipFlight,   // G3370
     };
   }
+  // G3613 GARAGE-GO (the user 25 Oct: "We also need an interface in all game modes for moving between the garages. I
+  // suggest the ability to teleport from the map, clicking on an owned garage allows to teleport there, with whatever
+  // plane is in there"): THE GARAGE HALF of GAME-MENUS's map (G3640s: the markers, the confirm row). Every mode alike:
+  // the sandbox holds HOME alone, a career its hangars; a story-held one is listed, locked, with why.
+  //   garages() -> [{ id, name, aero, here, locked, why, planes, stand }]   planes: the slots inside (floor first);
+  //             stand: the plane that will be on the stand there (the open garage's own: what is on it)
+  //   gotoGarage(id) -> Promise<{ ok, why, stand }>: refused in the air ("land first"), locked, already there; else the
+  //             hangar becomes `here` (playerGoTo - free, instant, as the shed's base select), out of a flight through
+  //             "The shed"'s own trip (rollInScreen), the room re-dressed, and that hangar's plane put on the stand
+  const garageWhy = sh => (sh && sh.locked ? (sh.locked === 'story' ? 'not yours yet - the story hands it over' : 'not yours yet') : '');
+  function garageStand(d, id) {
+    const V = typeof playerStoreView === 'function' ? playerStoreView(d, id) : null;
+    if (!V) return { planes: [], stand: null };
+    const planes = [V.floor].concat(V.inside.slots).filter(Boolean);
+    return { planes, stand: planes[0] || null };
+  }
+  function garagesList() {
+    const d = playerLoad(), A = (world && world.aerodromes) || [], out = [];
+    for (const id of Object.keys(d.sheds || {})) {
+      const sh = d.sheds[id];
+      if (!sh || typeof sh !== 'object') continue;
+      const aero = typeof sh.base === 'string' ? sh.base : 'HOME', a = A.find(x => x.id === aero);
+      const G = garageStand(d, id), here = d.here === id;
+      const kind = ((typeof SHELLS === 'object' && SHELLS[sh.shell]) || {}).name || 'hangar';
+      out.push({ id, name: sh.name || (id === PREM_MAIN && aero === 'HOME' ? 'the main hangar' : 'the ' + String(kind).toLowerCase()) + (a ? ' at ' + (a.name || a.id) : ''),
+                 aero, here, locked: !!sh.locked, why: garageWhy(sh), planes: G.planes, stand: here && inGarage ? (slotOnStand() || G.stand) : G.stand });
+    }
+    return out;
+  }
+  function gotoGarage(id) {
+    const d = playerLoad(), sh = d.sheds && d.sheds[id];
+    if (!sh) return Promise.resolve({ ok: false, why: 'no hangar ' + id, stand: null });
+    if (sh.locked) return Promise.resolve({ ok: false, why: garageWhy(sh), stand: null });
+    if (inGarage && d.here === id) return Promise.resolve({ ok: false, why: 'you are there', stand: slotOnStand() });
+    const air = !inGarage && started && !flEnded && sim && typeof sim.wheelsOnGround === 'function' && sim.wheelsOnGround() === 0;
+    if (air) return Promise.resolve({ ok: false, why: 'land first', stand: null });
+    const r = playerGoTo(d, id);
+    if (!r.ok) return Promise.resolve({ ok: false, why: r.why, stand: null });
+    player = r.doc; playerSave();
+    baseId = player.sheds[player.here].base;
+    return new Promise(res => {
+      const arrive = () => {
+        try {
+          roomFollow();
+          const n = garageStand(playerLoad(), id).stand;
+          if (n && n !== slotOnStand() && window.GARAGE_SPEC && window.GARAGE_SPEC.open) {
+            const W = playerStoreWhere(playerLoad(), n);
+            if (W.kind === 'floor') { storeSyncHold = true; try { window.GARAGE_SPEC.open(n); } finally { storeSyncHold = false; } }
+            else storeMove(n, { kind: 'floor' });   // an inside slot: "Work on" (the floor swap, a resident's in the career)
+            if (inGarage) applyEnv();
+          }
+          storeChanged(); try { if (window.FLYDIY_ROUTE) window.FLYDIY_ROUTE.sync(); } catch (e) {}   // (the base line follows)
+        } catch (e) { console.warn('flyDiy: the garage could not take its plane -', e && e.message); }
+        res({ ok: true, why: '', stand: slotOnStand() || null });
+      };
+      if (inGarage) arrive();
+      else { const ac = $('arrCard'); if (ac) ac.hidden = true; arrivalShown = false; flyOpenSet(null); rollInScreen(arrive); }
+    });
+  }
   window.FLYDIY_PLAYER = {
     doc: () => JSON.parse(JSON.stringify(playerLoad())),
+    garages: () => garagesList(), gotoGarage: id => gotoGarage(id),   // G3613 (GAME-MENUS's map)
     // the gates' and the rigs' door: a whole document in, normalised and lifted like a load (then saved)
     // (with no storage there are no slots to read: the document's own fleet is kept as handed)
     set: doc => { player = playerNormalise(playerMigrate(JSON.parse(JSON.stringify(doc)))); if (PREF) player = playerFleetReconcile(player, fleetSlotNames(player)).doc; playerSave(); if (window.FLYDIY_PLAYER.onChange) window.FLYDIY_PLAYER.onChange(); return window.FLYDIY_PLAYER.doc(); },
