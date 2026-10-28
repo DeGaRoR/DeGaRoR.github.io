@@ -528,6 +528,12 @@ const GATES = [
   // five SPECIFICATIONS, because the shapes alone never build an IFR
   // wing-tank aeroplane and that is where the collisions were.
   { id: 'FIT', file: '_fit_check.js', tier: 'core' },
+  // FITTINGS-MANUAL (2026-10-27): every fitting placeable BY HAND - on the Cub through the layers headless: no hand
+  // row and every row reset to auto place identically (and the save carries none), each hand-placed fitting read
+  // back off the sheet's own triangles (on the skin, at the asked fore/aft and height), 10 mm asked moves 10 mm (no
+  // snap), a fitting the table does not fit here drawn only once placed, the rows in the normal panel (~10 s;
+  // --selftest)
+  { id: 'FITMANUAL', file: '_fit_manual_check.js', tier: 'core' },
   // THE RAY INDEX (G1281, GARAGE-LAG): three's Mesh raycast answered from a per-geometry hierarchy must give three's
   // own hit list - both ways on ~3 200 rays (random, axis-aligned, grazing at vertices and edges, inside, near/far)
   // over indexed, non-indexed, transformed, instanced meshes and a sliver soup; the meshes it must leave alone take

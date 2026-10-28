@@ -139,7 +139,7 @@ function identities(o, W) {
     for (const p of W.CAGE_ACCESS.placed) {
       if ((p.host || '') !== (o.ud.fitHost || '')) continue;      // G300: bags per host
       const r = p.tris && p.tris[o.ud.fitBag];
-      if (r && r[1] > r[0]) out.push({ label: p.key + '/' + (p.side || '') + ' [access' + (p.on ? ', on ' + p.on : '') + (p.mat ? ' ' + p.mat : '') + ']', t0: r[0], t1: r[1], key: p.key });
+      if (r && r[1] > r[0]) out.push({ label: p.key + '/' + (p.side || '') + ' [access' + (p.on ? ', on ' + p.on : '') + (p.mat ? ' ' + p.mat : '') + ']', t0: r[0], t1: r[1], key: p.key, sunk: p.sunk || 0 });
     }
   } else if (o.layer === 'hinge' && o.ud.hingeBag && W.CAGE_HINGE) {
     for (const p of W.CAGE_HINGE.placed) {
@@ -246,6 +246,8 @@ function runBuild(B) {
         cen = cen.map(c => c / vs.size);
         const allow = o.fitKind === 'light' ? lightAllow(o, W, cen)
                     : /staticPort/.test(id.key || '') ? ALLOW.staticPort
+                    // FITTINGS-MANUAL: an upright aerial / beacon sunk into a sloping deck by design (the access layer's `sunk`)
+                    : id.sunk > 0 ? id.sunk + ALLOW.default
                     : o.ud.hingeBag === 'inner' ? ALLOW.hingeInner
                     : (ALLOW[o.fitKind] || ALLOW.default);
         let wd = Infinity, wSkin = null, wAt = null, buried = 0;
