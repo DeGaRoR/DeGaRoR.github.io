@@ -293,6 +293,43 @@ function missionStepOnStop(rec, sub, prog, stop) {
   return { st: 'no', why: 'no runtime for ' + sub.do + ' at a ' + (msrKind(sub.place) || 'place') };
 }
 
+// ---- THE STOP'S OWN CONDITIONS ON A STEP (MISSIONS-P3: the bush missions) ------------------------------------------------------
+// A step done at a stop is judged further, when it says so (74_ contractOnStop asks):
+//   require.maxMin   the flight that ended here took at most that many minutes (the logbook row's t)
+//   require.depart   that flight left inside a local-hour window: { after: h } | { before: h } | { at: [h0, h1] } (wraps
+//                    midnight); its departure hour is stop.departHour (the page's), else the stop's hour less the flight
+//   embark           these people got on here (stop.people.on: [person ids]; a number: that many got on)
+//   disembark        these people got off here (stop.people.off)
+// -> the result (r when nothing fails), or { st: 'no', why }
+const msrHourIn = (h, D) => { if (!D) return true; if (msrNum(D.after)) return h >= D.after; if (msrNum(D.before)) return h < D.before;
+  if (Array.isArray(D.at)) { const [a, b] = D.at; return a < b ? h >= a && h < b : h >= a || h < b; } return true; };
+function missionStopChecks(rec, sub, r, stop) {
+  if (!r || r.st !== 'done' || !sub) return r;
+  const S = stop || {}, R = sub.require || {}, row = S.row || {};
+  if (msrNum(R.maxMin) && msrNum(row.t) && row.t > R.maxMin * 60) return { st: 'no', why: 'the flight took ' + Math.round(row.t / 60) + ' min, ' + R.maxMin + ' allowed' };
+  if (R.depart) {
+    const h = msrNum(S.departHour) ? S.departHour : (msrNum(S.hour) && msrNum(row.t) ? ((S.hour - row.t / 3600) % 24 + 24) % 24 : null);
+    if (h != null && !msrHourIn(h, R.depart)) return { st: 'no', why: 'it left at ' + h.toFixed(1) + ' h, outside its departure window' };
+  }
+  const P = S.people || {};
+  for (const [k, list] of [['embark', P.on], ['disembark', P.off]]) {
+    const want = sub[k];
+    if (want == null) continue;
+    const got = Array.isArray(list) ? list : [];
+    const ids = (Array.isArray(want) ? want : []).filter(x => typeof x === 'string'), n = Array.isArray(want) ? want.filter(x => typeof x === 'number').reduce((a, x) => a + x, 0) : +want || 0;
+    const miss = ids.filter(id => !got.includes(id)), name = id => (typeof peopleName === 'function' ? peopleName(id) : id);
+    if (miss.length) return { st: 'no', why: (k === 'embark' ? 'waiting for ' : 'still aboard: ') + miss.map(name).join(', ') };
+    if (got.length < ids.length + n) return { st: 'no', why: (k === 'embark' ? 'on board here: ' : 'off here: ') + got.length + ' of ' + (ids.length + n) };
+  }
+  return r;
+}
+// a leg's steps all done - or, a choose:N leg, N of them (MISSIONS-P3)
+function missionLegDone(st, subsDone) {
+  const m = /^choose:(\d+)$/.exec(String((st && st.order) || ''));
+  const n = (subsDone || []).filter(Boolean).length;
+  return m ? n >= +m[1] : (st.subs || []).every((s, j) => (subsDone || [])[j]);
+}
+
 // ---- THE MAP'S MARKERS (what a local session draws: the map's symbols, the 3-D props) -------------------------------------
 // -> [{ key, n, do, kind, x, z, y?, r?, posts?, dir?, prop?, alt?, spot?, site?, field?, split?, label, state }]: every
 // step of every leg with a place, in mission order; state 'done' (its sub done), 'next' (the current leg's armed one: the

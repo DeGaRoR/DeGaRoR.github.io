@@ -196,6 +196,7 @@ function careerNormalise(r) {
   for (const k of ['offered', 'accepted', 'done']) if (!Array.isArray(C[k])) C[k] = [];
   if (C.failed != null && !Array.isArray(C.failed)) C.failed = [];      // (MISSIONS-P2) kept when present: the failures
   if (c.sold != null && !Array.isArray(c.sold)) c.sold = [];             // ... and the airframes handed over
+  if (c.sites != null && (typeof c.sites !== 'object' || Array.isArray(c.sites))) c.sites = {};   // (P3) the sites' states
   if (typeof C.tracked !== 'string' || !C.accepted.includes(C.tracked)) C.tracked = C.accepted[0] || null;
   if (!C.live || typeof C.live !== 'object') C.live = {};
   for (const id of C.accepted) if (!C.live[id] || typeof C.live[id] !== 'object') C.live[id] = { stage: 0, subs: [], picked: [], got: {} };
@@ -280,6 +281,11 @@ function careerNeedsOk(doc, rec) {
   const N = rec.needs || {}, P = doc.career.providers[rec.provider] || { rep: 0 };
   if ((N.rep || 0) > P.rep + 1e-9) return false;
   const done = careerDoneIds(doc);
+  // (MISSIONS-P3) the pack's containers (73b missionPackInstall): `needs.of` [{ ids, n }] - at least n of those done (a
+  // chapter, a campaign before this one); `closed` { ids, n } - a choose:N chapter that has had its n: the rest close
+  const nOf = c => (c.ids || []).filter(i => done.includes(i)).length;
+  if ((N.of || []).some(c => nOf(c) < c.n)) return false;
+  if (rec.closed && nOf(rec.closed) >= rec.closed.n) return false;
   return (N.after || []).every(a => done.includes(a));
 }
 
@@ -395,6 +401,8 @@ function contractOnStop(doc, contract, stop, hooks) {
     if (blocked) return { st: 'no', why: 'after an earlier step of this leg' };
     let r = contractSubOnStop(rec, s, { picked: !!L.picked[j], start: L.start || null }, stop, hooks, doc);
     if (rec.timers && typeof missionTimerOnSub === 'function') r = missionTimerOnSub(rec, s, r, stop);
+    // (MISSIONS-P3) the stop's own conditions on the step: the flight's time, its departure, who got on and off
+    if ((s.require || s.embark != null || s.disembark != null) && typeof missionStopChecks === 'function') r = missionStopChecks(rec, s, r, stop);
     if (seq && r.st !== 'done') blocked = true;
     return r;
   });
@@ -418,13 +426,16 @@ function contractOnStop(doc, contract, stop, hooks) {
       // (MISSIONS-P1/P2) the airframe a delivery handed over (the handover's), a lap timed, a line said
       if (st.subs[j].do === 'deliver' && stop.slot) live.slot = stop.slot;
       if (r.timer) { live.timers = Object.assign({}, live.timers || {}); live.timers[r.timer.id] = r.timer; events.push({ k: 'timer', id, timer: r.timer, medal: r.medal || null }); }
-      if (r.say) events.push({ k: 'say', id, say: r.say });
+      // (MISSIONS-P3) every step's line, and what its done does (onDone: say, pay, a site's state)
+      const sy = st.subs[j].say || r.say;
+      if (sy) events.push({ k: 'say', id, say: sy });
+      if (st.subs[j].onDone) careerOnDone(d, rec, st.subs[j].onDone, events);
     } else if (r.st === 'picked') {
       live.picked[j] = true;
       events.push({ k: 'picked', id, stage: live.stage, sub: j, at: stop.aero });
     }
   });
-  if (st.subs.every((s, j) => live.subs[j])) {
+  if (typeof missionLegDone === 'function' ? missionLegDone(st, live.subs) : st.subs.every((s, j) => live.subs[j])) {   // (P3: choose:N)
     events.push({ k: 'stage', id, stage: live.stage });
     live.stage++;
     if (live.stage < rec.stages.length) {
@@ -462,6 +473,7 @@ function careerComplete(d, rec, live, medal, events) {
   // (MISSIONS-P2) THE DELIVERY (§7: "it is sold to the client at a higher price and is no longer ours"; "the BLUEPRINT is
   // saved automatically"): an aircraft order's delivered airframe leaves the fleet and the career's airframes, like a
   // sale; the event names its blueprint (the page saves the design to the sandbox under it) and the profit line
+  if (rec.onDone) careerOnDone(d, rec, rec.onDone, events);             // (MISSIONS-P3) the mission's own done: its line, pay, a site
   const dl = typeof contractDelivery === 'function' ? contractDelivery(rec) : null;
   const handover = dl && dl.sold && live.slot && d.fleet && d.fleet[live.slot] ? careerHandover(d, live.slot, rec, pay, dl) : null;
   careerRefresh(d);
@@ -471,6 +483,21 @@ function careerComplete(d, rec, live, medal, events) {
   if (live.assess) ev.assess = live.assess;
   if (live.timers) ev.timers = live.timers;
   events.push(ev);
+}
+// (MISSIONS-P3) WHAT A DONE DOES (a step's or the mission's onDone): its line (an event), its pay (a ledger line, the
+// contract's), a site's new state (career.sites; a site whose `track` is a world construction stage reveals it when
+// built: the tracks move like an unlock). Mutates d.
+function careerOnDone(d, rec, od, events) {
+  if (od.say) events.push({ k: 'say', id: rec.id, say: od.say });
+  if (typeof od.pay === 'number' && isFinite(od.pay) && od.pay > 0) { playerCharge(d, -od.pay, 'contract', rec.id); events.push({ k: 'bonus', id: rec.id, pay: od.pay }); }
+  const S = od.site;
+  if (S && typeof S.id === 'string') {
+    const c = d.career;
+    c.sites = Object.assign({}, c.sites || {}, { [S.id]: S.state });
+    const m = /^(\w+):(\d+)$/.exec(S.track || '');
+    if (m && S.state === 'built') c.tracks[m[1]] = Math.max(c.tracks[m[1]] || 0, +m[2]);
+    events.push({ k: 'site', id: rec.id, site: S.id, state: S.state, unlock: m && S.state === 'built' ? S.track : null });
+  }
 }
 // (MISSIONS-P2) THE HANDOVER: the airframe `slot` out of the fleet (71_ playerFleetReconcile: the canonical drop, the
 // storage settled) and out of career.airframes; a pilot bound to it freed, a route on it ended (78b_ routesBlock); the

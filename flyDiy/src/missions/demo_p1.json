@@ -28,7 +28,8 @@
       "demo.order",
       "demo.client",
       "demo.rules",
-      "demo.bush"
+      "demo.bush",
+      "demo.supply"
      ]
     }
    ]
@@ -598,9 +599,97 @@
     "provider": "clients",
     "gain": 0.5
    }
+  },
+  {
+   "id": "demo.supply",
+   "kind": "contract",
+   "title": "ms.demo.supply.title",
+   "brief": "ms.demo.supply.brief",
+   "client": "adam",
+   "legs": [
+    {
+     "steps": [
+      {
+       "do": "carry",
+       "from": "HOME",
+       "place": "w3",
+       "load": {
+        "kg": 30,
+        "pax": [
+         "david",
+         "jody"
+        ]
+       },
+       "require": {
+        "maxMin": 20,
+        "depart": {
+         "after": 7
+        }
+       },
+       "disembark": [
+        "david"
+       ],
+       "say": {
+        "who": "adam",
+        "text": "ms.demo.supply.say"
+       },
+       "onDone": {
+        "pay": 300,
+        "site": {
+         "id": "demo.mast",
+         "state": "building"
+        }
+       }
+      }
+     ]
+    },
+    {
+     "order": "choose:1",
+     "steps": [
+      {
+       "do": "land",
+       "place": "w5"
+      },
+      {
+       "do": "land",
+       "place": "w6"
+      }
+     ]
+    }
+   ],
+   "onDone": {
+    "site": {
+     "id": "demo.mast",
+     "state": "built"
+    },
+    "say": {
+     "who": "adam",
+     "text": "ms.demo.supply.done"
+    }
+   },
+   "pay": {
+    "base": 2000
+   },
+   "provider": "clients",
+   "rep": {
+    "provider": "clients",
+    "gain": 0.5
+   }
   }
  ],
- "sites": [],
+ "sites": [
+  {
+   "id": "demo.mast",
+   "asset": "weather mast",
+   "at": {
+    "x": -900,
+    "z": -2500,
+    "hdg": 0
+   },
+   "state": "planned",
+   "field": "w3"
+  }
+ ],
  "text": {
   "ms.demo.title": {
    "t": "Demo missions (P1/P2)",
@@ -688,6 +777,22 @@
   },
   "ms.demo.bush.say": {
    "t": "Thanks for waiting. Let us go.",
+   "draft": true
+  },
+  "ms.demo.supply.title": {
+   "t": "Up before breakfast",
+   "draft": true
+  },
+  "ms.demo.supply.brief": {
+   "t": "David and Jody to Ridgeback, after seven, twenty minutes at most. David stays; Jody goes on to strip 10 or 11, either.",
+   "draft": true
+  },
+  "ms.demo.supply.say": {
+   "t": "David is off - the mast crew starts today.",
+   "draft": true
+  },
+  "ms.demo.supply.done": {
+   "t": "The mast stands. Good work.",
    "draft": true
   }
  }

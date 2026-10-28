@@ -35,7 +35,7 @@ const pack = {
   what: 'flydiy-missions', v: 1, id: 'demo_p1', title: 'ms.demo.title',
   campaigns: [{ id: 'demo', title: 'ms.demo.title', provider: 'clients', order: 'any', chapters: [
     { id: 'demo.speed', title: 'ms.demo.speed', order: 'seq', missions: ['demo.gates', 'demo.rally'] },
-    { id: 'demo.misc', title: 'ms.demo.misc', order: 'any', missions: ['demo.photo', 'demo.order', 'demo.client', 'demo.rules', 'demo.bush'] }] }],
+    { id: 'demo.misc', title: 'ms.demo.misc', order: 'any', missions: ['demo.photo', 'demo.order', 'demo.client', 'demo.rules', 'demo.bush', 'demo.supply'] }] }],
   missions: [
     Object.assign({ id: 'demo.gates', kind: 'challenge', title: 'ms.demo.gates.title', brief: 'ms.demo.gates.brief', client: 'adam',
       legs: [{ order: 'seq', steps: [
@@ -69,8 +69,16 @@ const pack = {
              { order: 'seq', steps: [{ do: 'park', place: { spot: 'w3:' + SPOTS.w3[0][3] } }, { do: 'wait', place: 'w3', require: { waitMin: 30 } },
                                      { do: 'talk', place: 'w3', say: { who: 'adam', text: 'ms.demo.bush.say' } }] }],
       pay: { base: 1200 } }, base),
+    // (MISSIONS-P3) a supply run: David and Jody up to Ridgeback in 20 min, after 07:00; David gets off there (+300 and the
+    // mast's building starts), then the steel on to strip 10 or strip 11 (either) and the mast is built
+    Object.assign({ id: 'demo.supply', kind: 'contract', title: 'ms.demo.supply.title', brief: 'ms.demo.supply.brief', client: 'adam',
+      legs: [{ steps: [{ do: 'carry', from: 'HOME', place: 'w3', load: { kg: 30, pax: ['david', 'jody'] }, require: { maxMin: 20, depart: { after: 7 } },
+                         disembark: ['david'], say: { who: 'adam', text: 'ms.demo.supply.say' }, onDone: { pay: 300, site: { id: 'demo.mast', state: 'building' } } }] },
+             { order: 'choose:1', steps: [{ do: 'land', place: 'w5' }, { do: 'land', place: 'w6' }] }],
+      onDone: { site: { id: 'demo.mast', state: 'built' }, say: { who: 'adam', text: 'ms.demo.supply.done' } },
+      pay: { base: 2000 } }, base),
   ],
-  sites: [],
+  sites: [{ id: 'demo.mast', asset: 'weather mast', at: { x: -900, z: -2500, hdg: 0 }, state: 'planned', field: 'w3' }],
   text: {
     'ms.demo.title': t('Demo missions (P1/P2)'), 'ms.demo.speed': t('Speed'), 'ms.demo.misc': t('The rest'),
     'ms.demo.gates.title': t('Between the balloons'), 'ms.demo.gates.brief': t('Two gates on the way to Ridgeback Strip, timed, then the ring. Low: 150 m at most.'),
@@ -85,6 +93,8 @@ const pack = {
     'ms.demo.rules.title': t('Careful with David'), 'ms.demo.rules.brief': t('David and his gear to Ridgeback Strip. Not a scratch on either.'),
     'ms.demo.bush.title': t('Wait for me'), 'ms.demo.bush.brief': t('Land at Ridgeback, tie down on the first spot, wait half an hour.'),
     'ms.demo.bush.say': t('Thanks for waiting. Let us go.'),
+    'ms.demo.supply.title': t('Up before breakfast'), 'ms.demo.supply.brief': t('David and Jody to Ridgeback, after seven, twenty minutes at most. David stays; Jody goes on to strip 10 or 11, either.'),
+    'ms.demo.supply.say': t('David is off - the mast crew starts today.'), 'ms.demo.supply.done': t('The mast stands. Good work.'),
   },
 };
 const why = M.missionPackValidate(pack, { spots: SPOTS });

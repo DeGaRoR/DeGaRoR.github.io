@@ -661,30 +661,32 @@ const contractFlyable = (rec, fields) => contractDoers(contractSubsOf(rec).filte
 // rules it does not apply. Presentation rides along freely: the client, the speakers (say), the done line, the
 // passengers' names (load.who), a step's id, the embedded route and the pack's tree.
 //   RUNS (73c_mission_run.js): rules, timers, startFrom, prefs, delivery; photo / pass / fly to a point, a gate, a ring
-//           (the in-flight tracker), park on a spot, wait (require.waitMin), talk; a leg's steps in order seq or any; the
-//           new criteria ACCEPT answers (72_accept.js ACCEPT_KINDS)
-//   WAITS:  legs in an order other than seq, choose:N steps, a site place, embark / disembark, require.maxMin / depart,
-//           an onDone doing more than speaking, a criterion ACCEPT does not answer (ldgDistM, cargoL)
+//           (the in-flight tracker), park on a spot, wait (require.waitMin), talk; a leg's steps in order seq, any or
+//           choose:N; (P3) embark / disembark, require.maxMin / depart, a site served by a strip (`field`), an onDone
+//           that speaks, pays or moves a site; the new criteria ACCEPT answers (72_accept.js ACCEPT_KINDS)
+//   WAITS:  legs in an order other than seq, a site with no strip to serve it, a criterion ACCEPT does not answer
+//           (ldgDistM, cargoL)
 const CONTRACT_RUNTIME_PENDING = [];
-const CONTRACT_RUNTIME_WAITS = ['embark', 'disembark'];
+const CONTRACT_RUNTIME_WAITS = [];
+const CONTRACT_ONDONE = ['say', 'pay', 'site'];
 function contractRuntimeOk(rec) {
   const r = rec || {};
   for (const k of CONTRACT_RUNTIME_PENDING) if (r[k] != null && !(Array.isArray(r[k]) && !r[k].length)) return k + ': no runtime yet';
   if (typeof missionStepOnStop !== 'function' && ['rules', 'timers', 'startFrom', 'prefs'].some(k => r[k] != null)) return 'no mission runtime (73c_mission_run.js)';
   if (r.order != null && r.order !== 'seq') return 'legs in order ' + r.order + ' (no runtime yet)';
   for (const st of r.stages || []) {
-    if (st.order != null && st.order !== 'any' && st.order !== 'seq') return 'steps in order ' + st.order + ' (no runtime yet)';
+    if (st.order != null && !/^(any|seq|choose:\d+)$/.test(st.order)) return 'steps in order ' + st.order + ' (no runtime yet)';
     for (const s of st.subs || []) {
       if (!CONTRACT_DO.includes(s.do) && !CONTRACT_DO_NEXT.includes(s.do)) return 'do ' + s.do + ' (no runtime yet)';
       if (CONTRACT_DO_NEXT.includes(s.do) && typeof missionStepOnStop !== 'function') return 'do ' + s.do + ' (no mission runtime)';
-      if (s.place != null && s.place.site != null) return s.do + ' at a site (no runtime yet)';
+      if (s.place != null && s.place.site != null && !s.to && !s.at) return s.do + ' at a site no strip serves (no runtime yet)';
       for (const k of CONTRACT_RUNTIME_WAITS) if (s[k] != null) return s.do + ': ' + k + ' (no runtime yet)';
-      if (s.require != null && Object.keys(s.require).some(k => k !== 'waitMin')) return s.do + ': require.' + Object.keys(s.require).filter(k => k !== 'waitMin').join(', ') + ' (no runtime yet)';
-      if (s.onDone != null && Object.keys(s.onDone).some(k => k !== 'say')) return s.do + ': onDone does more than speak (no runtime yet)';
+      if (s.require != null && Object.keys(s.require).some(k => !['waitMin', 'maxMin', 'depart'].includes(k))) return s.do + ': require.' + Object.keys(s.require).join(', ') + ' (no runtime yet)';
+      if (s.onDone != null && Object.keys(s.onDone).some(k => !CONTRACT_ONDONE.includes(k))) return s.do + ': onDone.' + Object.keys(s.onDone).filter(k => !CONTRACT_ONDONE.includes(k)).join(', ') + ' (no runtime yet)';
       for (const c of s.crit || []) if (!CONTRACT_CRIT_KINDS[c.k] && !(typeof ACCEPT_KINDS !== 'undefined' && ACCEPT_KINDS[c.k])) return 'criterion ' + c.k + ' (ACCEPT does not judge it yet)';
     }
   }
-  if (r.onDone != null && Object.keys(r.onDone).some(k => k !== 'say')) return 'onDone does more than speak (no runtime yet)';
+  if (r.onDone != null && Object.keys(r.onDone).some(k => !CONTRACT_ONDONE.includes(k))) return 'onDone.' + Object.keys(r.onDone).filter(k => !CONTRACT_ONDONE.includes(k)).join(', ') + ' (no runtime yet)';
   return '';
 }
 
