@@ -2081,7 +2081,7 @@ if (!EXT) {
   // casings round the door and the windows, the gutters and the downpipes cut to this ground, the ground skirt on the slab
   // and the field, their bake), in the house frame (the door to +z) turned under this one (the door at local -x) by -PI/2
   // and dropped by the slab's floorY. No flue (the stove corner brings its own through the roof), no lamps (the room's own).
-  // ?roompolish=0 or opts.polish === false: the room as it was.
+  // ?roompolish=0 or opts.polish === false: the room as it was. (G3534d: the part outside the walls only with ?roompolish=1.)
   {
     const HGN = typeof window !== 'undefined' ? window.HANGAR_GEN : null;
     const PRE = { field: 'field shed', club: 'club hangar', works: 'works hangar' }[SHELL];
@@ -2149,8 +2149,14 @@ if (!EXT) {
           g.setIndex(keep); tw.geometry.setIndex(go);
           OUT.add(tw);
         }
-        inner.add(OUT);
-        POLISH_OUT = OUT.children.length ? OUT : null;
+        // G3534d (A0 28 Oct, C2 - s28-g4h: with the outside up, a 2.19 s task in the garage after round trip 2, none with the
+        // polish off): the outside part is OFF by default - never added, never uploaded; the inside sign and the pad stay.
+        // ?roompolish=1 or opts.polish === true: the whole polish (the outside drawn from outside, polishFollow)
+        let full = !!(opts && opts.polish === true);
+        try { full = full || (typeof location !== 'undefined' && /[?&]roompolish=1/.test(location.search || '')); } catch (e) {}
+        if (full) inner.add(OUT);
+        else for (const m of OUT.children) if (m.geometry) m.geometry.dispose();
+        POLISH_OUT = full && OUT.children.length ? OUT : null;
         G.add(inner);
         // (G3540 v2: where the inside sign hung, in this room's frame - x = -Z, z = X - for the stills rig and the gates;
         // G3541: the pad's triangles)
@@ -2158,7 +2164,7 @@ if (!EXT) {
         ROOM_POLISH = { tris: built.stats.tris, gutter: built.stats.gutterLen, pipes: built.stats.downpipes, skirt: !!built.bags.aoskirt,
           signIn: si ? { x: +(-si.z).toFixed(3), y: +(si.y - fy).toFixed(3), z: +si.x.toFixed(3), nx: -si.nz, nz: si.nx, at: si.at, fit: !!spot } : null,
           pad: built.stats.pad ? built.stats.pad.tris : 0, footDark: built.stats.footDark || 0,
-          out: POLISH_OUT ? POLISH_OUT.children.length : 0, shown: 0, compiled: false };   // (G3534b: the outside group, polishFollow)
+          out: POLISH_OUT ? POLISH_OUT.children.length : 0, outOff: !full, shown: 0, compiled: false };   // (G3534b: the outside group, polishFollow; G3534d: off by default)
       } catch (e) { ROOM_POLISH = { error: String(e && e.message || e) }; if (typeof console !== 'undefined') console.warn('room polish:', e && e.message); }
     }
   }
