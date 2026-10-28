@@ -721,6 +721,14 @@
         if (!P) continue;
         out.push({ id: h.id, x: P.x, z: P.z, ry: P.ry, y: P.y, dims: Object.assign({ shell: h.shell }, h.dims), dress: h.parts ? { parts: h.parts } : null });
       }
+      // CLOSED-SHED (the user 28 Oct): a flagged plot the player does not hold stands its offer's shed, shut - the same
+      // entry a purchase gives (no dress until the player dresses it), so buying it rebuilds nothing. A career only:
+      // the sandbox's world stays as it was
+      if (CAREER_DEV && typeof playerClosedSheds === 'function') for (const h of playerClosedSheds(playerLoad())) {
+        const st = siteOf(h.base), P = st && st.plots ? st.plots.find(q => q.id === h.id) : null;
+        if (!P) continue;
+        out.push({ id: h.id, x: P.x, z: P.z, ry: P.ry, y: P.y, dims: Object.assign({ shell: h.shell }, h.dims), dress: null, closed: true });
+      }
     } catch (e) {}
     return out;
   };

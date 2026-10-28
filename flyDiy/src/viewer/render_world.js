@@ -6568,14 +6568,19 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // G2310 (PREM-S3, GAME §4.4): THE SIDE HANGARS YOU HOLD, each at its plot (the premises record's `plots`, contract
     // v1.33), at THAT hangar's shell and dims, dressed: `list` = [{ id, x, z, ry, y, dims { HW, HD, EAVE, shell }, dress }]
     // from app.js (71_player_bases.js playerWorldSheds joined with the site's plot). A plot not held is not in the list
-    // and stands NOTHING (GQ8); HOME's shed is standShed's, never in it; at most two (GQ4). A shed is rebuilt only when
+    // and stands NOTHING (GQ8) - unless its plot is flagged `closedShed` (CLOSED-SHED: its offer's shed, shut, a `closed`
+    // entry); HOME's shed is standShed's, never in it; at most two held (GQ4). A shed is rebuilt only when
     // its key (place, dims, shell, dress) changes; one no longer listed comes down. Residents are never drawn here: the
     // exterior's doors are shut (premResidentsDrawn: an open door AND the camera within 60 m - FLEET-PROPS' to draw).
     const sideSheds = new Map();   // id -> { key, node }
     function setPlayerSheds(list) {
       if (!(typeof genHangarBuild === 'function' && typeof genHangarSupported === 'function' && genHangarSupported(THREE))) return 0;
       const want = new Map();
-      for (const q of (list || []).slice(0, 2)) if (q && q.id && q.id !== 'HOME' && isFinite(+q.x) && isFinite(+q.z)) want.set(q.id, q);
+      // (CLOSED-SHED, the user 28 Oct: a plot not held but flagged stands its offer's shed, shut - `closed` entries, outside
+      // the two held: GQ4 counts what the player holds, not what the street shows)
+      const ok = q => q && q.id && q.id !== 'HOME' && isFinite(+q.x) && isFinite(+q.z);
+      for (const q of (list || []).filter(q => q && !q.closed).slice(0, 2)) if (ok(q)) want.set(q.id, q);
+      for (const q of (list || []).filter(q => q && q.closed)) if (ok(q) && !want.has(q.id)) want.set(q.id, q);
       for (const [id, e] of sideSheds) if (!want.has(id)) { dropShed(e.node); sideSheds.delete(id); }
       for (const [id, q] of want) {
         const key = JSON.stringify([q.x, q.z, q.ry, q.y, q.dims, q.dress || null]);
