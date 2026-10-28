@@ -204314,3 +204314,26 @@ Train gate (box quiet): IN FLIGHT better than L28a (25 fps vs 20, 1-2 frames ove
 the town and the new LOD materials. ACCEPTED under the user's rule (under the loading screen; no feature sacrificed); the TOP item of
 flydiy-notes/PERF-WEEK-KNOWN-ISSUES.md.
 Not in it: fittings-manual (HANDLE overlap with door-hinges-2, back to the hinge session), avionics-gps (new ready, conflict), new-shapes-1.
+
+## PATCHYIELD draft — Codex, 28 Oct 2026 (user-authorized last preparation)
+
+Independent claude/codex-patchyield on a5e89abe9fe691551a7a8a2e5bb5d7ec5ebf7b87. Extra elapsed-work checkpoints
+inside buildPatchSteps' existing sampling and fine-normal loops; 20 ms full
+build / 2 ms partial target, checked every 8/full or 1/partial sample and every
+128 normals. Clock restarted after resume, Date.now fallback; chunk yields kept.
+No arithmetic, sample order, geometry/LOD rule, tolerance, physics or quality
+change. Mesh construction/publication remains after sampling/normals.
+
+PATCHYIELD gate prepared with actual shipped-loop extraction, frozen old span,
+virtual work clock, exact buffer/query-order parity, full/partial sink/UV/tolerance
+clock combinations, cheap cadence, forced intra-chunk yields and cancellation.
+Syntax checked only; no tests/build/browser/cook/measurement or lock while box
+occupied. No speedup claim.
+
+Limit: callers explicitly draining the generator (geoStep all=true, synchronous
+rebuild and townGeoFinish) still drain it. Do not change required near-view
+completion or claim universal task bounds. Measure inner next() intervals and
+outer frame tasks separately. Check epoch cancellation/partial publication and
+finished geometry parity in integration. Total boot throughput may not improve.
+Validate independent M-Y-M and with groundquery only after individual passes;
+full required gate comparison and visuals owed before any ready ref.

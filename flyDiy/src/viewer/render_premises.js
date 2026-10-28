@@ -822,6 +822,10 @@ function make(THREE, scene, world, rec0, opts) {
     // G1528 (POTATO-DEEP): each sunk vertex's own drop, kept for the deeper sink a coarse patch needs (below, the blocks)
     const SK = sinkOf && PL.tolPx > 1 ? new Float32Array(list.length * per) : null;
     let Y = new Float32Array(list.length * per), Y0 = sinkOf ? new Float32Array(list.length * per) : Y, UV = new Float32Array(list.length * per * 2), KIND = new Uint8Array(list.length);
+    // Bound work inside the existing generator, not just between whole chunks.
+    // Partial builds offer finer checkpoints; the caller decides when to pause.
+    const patchNow = typeof performance !== 'undefined' ? () => performance.now() : () => Date.now();
+    const patchMs = part ? 2 : 20; let patchAt = patchNow();
     for (let c = 0; c < list.length; c++) {
       const [ci, cj] = list[c].split(',').map(Number), cx0 = ci * PCH, cz0 = cj * PCH;
       const kc = KIND[c] = kindOf(cx0, cz0), uvOf = (kc && o.patchUV2) || o.patchUV;
@@ -835,8 +839,9 @@ function make(THREE, scene, world, rec0, opts) {
         Y0[v] = groundB(x, z) - patchDrop(x, z) * r - PATCH_TUCK.tuck * (1 - r) * (1 - r);   // (G1406: the build read)
         if (sinkOf) { const sk = sinkOf(x, z); Y[v] = Y0[v] - sk; if (sk > 0) sunk++; if (SK) SK[v] = sk; }
         if (uvOf) { const q = uvOf(x, z); UV[v * 2] = q[0]; UV[v * 2 + 1] = q[1]; }
+        if ((part || (v & 7) === 7) && patchNow() - patchAt >= patchMs) { yield 'patch ground'; patchAt = patchNow(); }
       }
-      if (part || (c & 7) === 7) yield 'patch ground';   // (G2063: a chunk a slice in flight)
+      if (part || (c & 7) === 7) { yield 'patch ground'; patchAt = patchNow(); }   // (G2063: a chunk a slice in flight)
     }
     // the fine normals: each chunk's own grid, as computeVertexNormals made them on the one mesh
     let NRM = new Float32Array(list.length * per * 3);
@@ -846,6 +851,7 @@ function make(THREE, scene, world, rec0, opts) {
       const gx = (at(i1, j) - at(i0, j)) / ((i1 - i0) * RES), gz = (at(i, j1) - at(i, j0)) / ((j1 - j0) * RES);
       const l = Math.hypot(gx, 1, gz), v = (c * per + j * (n + 1) + i) * 3;
       NRM[v] = -gx / l; NRM[v + 1] = 1 / l; NRM[v + 2] = -gz / l;
+      if (((v / 3) & 127) === 127 && patchNow() - patchAt >= patchMs) { yield 'patch normals'; patchAt = patchNow(); }
     }
     // ---- the blocks
     const blocks = new Map();
