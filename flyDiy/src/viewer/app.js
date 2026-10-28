@@ -4629,6 +4629,7 @@
     brkHealUpload(BRK.model);
     BRK.posed = false; if (BRK.model && BRK.model.brk) BRK.model.brk.NF = {};   // (G1867.1: the nodes' turns start again)
     if (BRK.model) { BRK.model._pose = null; BRK.model._poseNG = null; }   // re-posed from the rest on the next frame
+    brkLookClear();                                       // G3770
     BRK.recs.length = 0; BRK.model = null;
   }
   // an index array changed: every geometry drawing it re-uploads it (the rig's mesh, and the flown bake's views on the
@@ -4709,6 +4710,7 @@
               if (SKIN_BREAK.event(R, K.T, D || { br: [], vB: -2 })) brkIdx(R); R.vB = -1; brkNrm(R); n++; }
             if (n) { brkHealUpload(model); model._pose = null; model._poseNG = null; K.healLetGo = (K.healLetGo | 0) + n; } } } }
       BRK.recs.length = 0; BRK.posed = false; if (model && model.brk) model.brk.NF = {};
+      brkLookClear();                                     // G3770
       return null;
     }
     BRK.model = model;
@@ -5023,6 +5025,7 @@
         brkDetach(pa, geo, base);                          // G1858.2: the snapshot never ridden
         const R = brkRec(own, { nv, idx: geo.index.array }, geo, bD, K.rest, fab, true, inhOn ? SB.INH_K : SB.NEAR_K);
         R.secName = own.name || own.meshName || null;   // (the tear census: which bucket - tools/dmg_wreck_stills.js pageTears)
+        if (lookOn() && geo.attributes.uv && geo.attributes.uv.count === nv) R.uv = geo.attributes.uv.array;   // (G3770: the real tube's uv, for its re-ringed copy)
         R.baseD = bD; R.w = new Float64Array(nv * 3);
         // (G1858.1: its as-built positions - the rig's own rest array, the drawn attribute's content before any pose - and
         // that attribute: a heal puts them back. The cage's pose never rewrites a STATIC bucket (it rides the group matrix),
@@ -5043,6 +5046,7 @@
     // done every place rides its nearest node (as G1864's budget); when it is, every record's event is made again on it
     let tInh = 0;
     if (inhOn) { const t0 = performance.now(); brkInhStep(groups); tInh = performance.now() - t0; }
+    if (inhOn) brkLook(D, K, groups);                     // G3770 (DMG-LOOKS): the parting rule's plan and the pool's slots
     let evd = false, evLeft = false;
     { const evMs = brkEvMs(), ng = groups.length, at = ng ? (BRK.evAt || 0) % ng : 0;   // (G3022 v3: from where the last frame stopped)
       for (let j = 0; j < ng; j++) {
@@ -5066,6 +5070,7 @@
     if (!inhOn) for (const R of BRK.recs) { if (left <= 0) break; if (R.pending) left -= SB.bindMore(R, K.T, left); }
     const t2 = performance.now();
     SB.nodeFrames(K.NF, K.T, D, K.rest, sim.p, true);
+    if (LOOK.pools && LOOK.slots) DMG_MEMBERS.frame(LOOK.pools, sim.p, K.NF.q, cg);   // G3770
     const t3 = performance.now();
     const X = { Mi: inv3(xA, yU), B: basis(xA, yU), cg, o, w: null, n: null, nB: null };
     BRK.X = X;
@@ -5155,8 +5160,19 @@
   }
   // the job: each record's places classed (the bucket's section and aeroskin's role; a colour bucket's layer ranges from
   // the snapshot, G1859), the legs one binding each, then inhSteps a budget a frame
+  // a named bucket's places by class (its section's, its layers'): cv, obj filled; returns the layers
+  function inhNamed(own, nv, lay, cv, obj) {
+    const mt = model.mats && model.mats[own.name], sec = mt && mt.sec, role = sec ? (AEROSKIN.AERO_ROLE[sec] || '') : '';
+    const rg = lay.get(own.name) || [], layer = new Array(nv).fill('');
+    for (const r of rg) for (let v = r[2]; v < r[3] && v < nv; v++) { layer[v] = r[0]; obj[v] = r[4]; }
+    for (let v = 0; v < nv; v++) cv[v] = SKIN_BREAK.inhClass(sec, role, layer[v]);
+    return layer;
+  }
   function brkInhStep(groups) {
     const K = model.brk, SB = SKIN_BREAK;
+    // (G3770, DMG-LOOKS: the list below is the records made so far, once - a record made later, REC_BUDGET a frame, is never
+    // bound by inheritance. The switch keeps that binding as it is - on is off plus the members: brkLook tags the members
+    // on the records it skipped, their binding untouched)
     if (!K.inhIt) {
       const lay = new Map(); for (const r of (model.data && model.data.layers) || []) { let L = lay.get(r[1]); if (!L) lay.set(r[1], L = []); L.push(r); }
       const surf = new Set(model.surfParts || []), strut = new Set(model.strutRigs || []);
@@ -5180,10 +5196,7 @@
         } else if (surf.has(own)) cv.fill(SB.INH.cover);
         else if (strut.has(own)) cv.fill(SB.INH.tube);
         else if (own.name) {
-          const mt = model.mats && model.mats[own.name], sec = mt && mt.sec, role = sec ? (AEROSKIN.AERO_ROLE[sec] || '') : '';
-          const rg = lay.get(own.name) || [], layer = new Array(nv).fill('');
-          for (const r of rg) for (let v = r[2]; v < r[3] && v < nv; v++) { layer[v] = r[0]; obj[v] = r[4]; }
-          for (let v = 0; v < nv; v++) cv[v] = SB.inhClass(sec, role, layer[v]);
+          const layer = inhNamed(own, nv, lay, cv, obj);
           if (layer.indexOf('cowl') >= 0) { E.cowl = new Uint8Array(nv); for (let v = 0; v < nv; v++) if (layer[v] === 'cowl') E.cowl[v] = 1; }   // (G1859.5)
         } else cv.fill(SB.INH.cover);
         // no stretch tear on a tube, a rigid part or sheet metal (G1859: not cut to confetti) - the fabric's tear stays
@@ -5209,6 +5222,80 @@
   // (tools/dmg_wall_census.js). Measured: it takes the lining's leaks but not the window beads' (most of the black), so
   // it is the FALLBACK - it runs only on the old binding (?wallbind=0); the inherited one (G1855-G1857) keeps the
   // lining whole on its covering
+  // G3770-G3773 (DMG-LOOKS, dmg_members.js says what and why): ?dmglook=1 (window.FLYDIY_DMGLOOK = true, read at load) -
+  // the wreck's frame members drawn by material: the parting rule (skin_break.js R.look) and the member pool, parked with
+  // the world (worldSettle) and drawn once something is broken. OFF by default: nothing here runs, nothing is made
+  try { if (/[?&]dmglook=1(&|$)/.test(location.search || '')) window.FLYDIY_DMGLOOK = true; } catch (e) {}
+  const lookOn = () => window.FLYDIY_DMGLOOK === true && typeof DMG_MEMBERS !== 'undefined' && !!window.SKIN_BREAK;
+  if (lookOn()) SKIN_BREAK.OPT.looks = true;
+  const LOOK = { P: null, vB: -1, M: null, mFor: null, plans: 0, ms: 0, msMax: 0, mMs: 0, slots: 0, pools: null, poolsFor: null, lateLink: 0,
+    late: null, lateFor: null, lateIt: null, lateMs: 0, tubeRecs: null };
+  // THE POOLS, one a tube bucket (its section a tube or a wood frame - skin_break.js inhClass), its OWN material cloned
+  // (dmg_members.js make): made with the model and parked in the world before its compile (worldSettle). A model made
+  // after the world's settle gets them at its first look - a late link, counted (LOOK.lateLink)
+  function lookPools(late) {
+    if (!lookOn() || !model || !model.wreckBuild || LOOK.poolsFor === model) return LOOK.pools;
+    if (LOOK.pools) for (const pm of LOOK.pools.values()) { scene.remove(pm); pm.geometry.dispose(); pm.material.dispose(); pm.userData.look.tex.dispose(); }
+    const B = model.wreckBuild, pools = new Map(), byMat = new Map();
+    for (const key in B.meshes0) {
+      const mt = model.mats && model.mats[key], sec = mt && mt.sec, role = sec && typeof AEROSKIN !== 'undefined' ? (AEROSKIN.AERO_ROLE[sec] || '') : '';
+      if (!sec || SKIN_BREAK.inhClass(sec, role, '') !== SKIN_BREAK.INH.tube) continue;
+      const src = B.meshes0[key].material; if (!src || Array.isArray(src)) continue;
+      let pm = byMat.get(src);   // (buckets on one material share its pool)
+      if (!pm) { pm = DMG_MEMBERS.make(THREE, src); scene.add(pm); if (renderer.initTexture) renderer.initTexture(pm.userData.look.tex); byMat.set(src, pm); }
+      pools.set(key, pm);
+    }
+    LOOK.pools = pools; LOOK.poolsFor = model; LOOK.M = null; LOOK.mFor = null; if (late && pools.size) LOOK.lateLink++;
+    return pools;
+  }
+  function brkLook(D, K, groups) {
+    if (!lookOn()) return;
+    const pools = lookPools(true);
+    // the snapshot's members, measured once its binding is done (the records' R.mem: skin_break.js inhSteps) and every record
+    // is made; a tube record the binding skipped (made after its list) gets its members' tags alone (skin_break.js
+    // lookTagOnly), 2 ms a frame, its binding as it is
+    if (pools && K.inhL && K.inhSt && K.inhSt.done && LOOK.mFor !== K.inhL) {
+      if (BRK.recPending) return;
+      if (LOOK.lateFor !== K.inhL) {
+        const inL = new Set(K.inhL.map(E => E.R)), lay = new Map(), strut = new Set(model.strutRigs || []), surf = new Set(model.surfParts || []);
+        for (const r of (model.data && model.data.layers) || []) { let L = lay.get(r[1]); if (!L) lay.set(r[1], L = []); L.push(r); }
+        LOOK.late = []; LOOK.lateFor = K.inhL; LOOK.tubeRecs = { early: [], late: [] };
+        for (const E of K.inhL) if (E.R.mem) LOOK.tubeRecs.early.push(E.R.secName || E.name || '?');
+        for (const [own, , , , , , kind] of groups) { const R = own.brkR;
+          if (!R || inL.has(R) || kind === 'leg' || kind === 'link' || surf.has(own)) continue;
+          const cv = new Uint8Array(R.nv), obj = new Int32Array(R.nv).fill(-1);
+          if (strut.has(own)) cv.fill(SKIN_BREAK.INH.tube); else if (own.name) inhNamed(own, R.nv, lay, cv, obj); else continue;
+          if (cv.indexOf(SKIN_BREAK.INH.tube) < 0) continue;
+          LOOK.late.push({ R, cv, obj }); LOOK.tubeRecs.late.push(R.secName || own.name || '?'); }
+        const L = LOOK.late;
+        LOOK.lateIt = L.length ? (function* () { for (const E of L) yield* SKIN_BREAK.lookTagOnly(E, K.T, K.rest, { places: 0 }); })() : null;
+      }
+      if (LOOK.lateIt) { const t1 = performance.now();
+        while (performance.now() - t1 < 2) if (LOOK.lateIt.next().done) { LOOK.lateIt = null; break; }
+        LOOK.lateMs += performance.now() - t1; if (LOOK.lateIt) return; }
+      const t0 = performance.now(); LOOK.M = DMG_MEMBERS.measure(K.inhL.map(E => E.R).concat(LOOK.late.map(E => E.R)), K.T, K.rest, new Set(pools.keys())); LOOK.mFor = K.inhL; LOOK.vB = -1;
+      LOOK.mMs = performance.now() - t0; }
+    if (LOOK.vB === D.vB) return;
+    const t0 = performance.now(), M = LOOK.mFor === K.inhL ? LOOK.M : null;
+    LOOK.P = DMG_MEMBERS.plan(K.T, D, M, K.rest, LOOK.P); LOOK.vB = D.vB; LOOK.plans++;
+    for (const [own] of groups) if (own.brkR) own.brkR.look = LOOK.P;
+    LOOK.slots = pools && M ? DMG_MEMBERS.assign(pools, LOOK.P, M, K.T, K.rest) : 0;
+    const ms = performance.now() - t0; LOOK.ms += ms; if (ms > LOOK.msMax) LOOK.msMax = ms;
+  }
+  function brkLookClear() {
+    if (LOOK.pools && LOOK.slots) { DMG_MEMBERS.clear(LOOK.pools); LOOK.slots = 0; }
+    if (!LOOK.P && LOOK.vB === -1) return;
+    LOOK.P = null; LOOK.vB = -1;
+    const K = model && model.brk; for (const R of (K && K.allRecs) || BRK.recs) R.look = null;
+  }
+  // the coordinator's read (GATE DMGLOOK's page rows, the stills rig)
+  window.FLYDIY_DMGLOOK_STATS = () => { const PL = LOOK.pools ? [...new Set(LOOK.pools.values())] : [];
+    return { on: lookOn(), pools: PL.length, buckets: LOOK.pools ? [...LOOK.pools.keys()] : [], lateLink: LOOK.lateLink, visible: PL.filter(pm => pm.visible).length, slots: LOOK.slots, plans: LOOK.plans,
+    planMs: +LOOK.ms.toFixed(2), planMsMax: +LOOK.msMax.toFixed(2), measureMs: +LOOK.mMs.toFixed(2), measured: !!LOOK.M, tubeRecs: LOOK.tubeRecs, lateMs: +LOOK.lateMs.toFixed(2),
+    inhRecs: model && model.brk && model.brk.inhL ? model.brk.inhL.length : 0, recs: BRK.recs.length, drawn: LOOK.M ? LOOK.M.drawn.reduce((a, x) => a + x, 0) : 0,
+    frames: PL.reduce((a, pm) => a + pm.userData.look.frames, 0), frameMsMax: +Math.max(0, ...PL.map(pm => pm.userData.look.msMax)).toFixed(3),
+    modes: LOOK.P ? LOOK.P.slots.reduce((o, q) => (o[q.mode] = (o[q.mode] || 0) + 1, o), {}) : null,
+    parts: LOOK.P ? (() => { let w = 0, u = 0, s = 0; for (const x of LOOK.P.part) { if (x !== x) continue; if (x < 0) u++; else if (x === 0 || x === 1) w++; else s++; } return { whole: w, unparted: u, station: s }; })() : null }; };
   const WALL_ROLES = new Set(['liner', 'fire', 'sill', 'doorPad']);
   try { if (/[?&]skinwall=0(&|$)/.test(location.search || '')) window.FLYDIY_SKINWALL = false; } catch (e) {}
   window.FLYDIY_SKINWALL_STATS = () => { const L = BRK.recs.filter(R => R.wallIn), K = model && model.brk;
@@ -13193,6 +13280,8 @@
         contactMesh = CONTACT_SHADOW.make(THREE); scene.add(contactMesh); }
       // G2359 (DMG-SCAR): the scar's decal, parked in the world before its compile (its program linked with the world's)
       if (!scarMesh && typeof GROUND_SCAR !== 'undefined' && scarPageOn()) { scarMesh = GROUND_SCAR.make(THREE); scene.add(scarMesh); }
+      // G3770 (DMG-LOOKS): the model's tube pools, parked likewise (?dmglook=1 only; their slot textures allocated now)
+      if (scarPageOn()) lookPools(false);
     } catch (e) { console.warn('world settle:', e && e.message); }
     finally { camera.position.copy(keep); }
   }

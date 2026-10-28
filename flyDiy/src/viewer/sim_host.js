@@ -281,6 +281,15 @@ function simDmgSets(sim) {
   });
   return st;
 }
+// G3770 (DMG-LOOKS): what the page draws a member by, at an event only - each broken member's code (30_solver.js
+// DMG.how: hw, in the broken list's order) and the BENDS: [bi, kt1, dk, nx, nz, ...] for every member bent by a trunk
+// (dk past 1.5 cm: the drawn hinge's station, its depth, the push's horizontal direction), quantised to 0.1 mm / 1e-4
+const SIM_DMG_BEND_MIN = 0.015;
+function simDmgBends(sim) {
+  const bd = [], q = x => Math.round(x * 1e4) / 1e4;
+  sim.beams.forEach((b, bi) => { if (b.dOn && b.dk > SIM_DMG_BEND_MIN) bd.push(bi, q(b.kt1), q(b.dk), q(b.dNx), q(b.dNz)); });
+  return bd;
+}
 // hop: { sB, sS, sC, t } - what the page holds; `win` the set window (s; 0 inline). Returns a payload, or null
 function simDmgHop(sim, hop, coreNode, win) {
   const sg = simDmgSigs(sim);
@@ -295,10 +304,12 @@ function simDmgHop(sim, hop, coreNode, win) {
     hop.sB = sg[0]; hop.sS = sg[1]; hop.t = sim.t;
     const D = sim.damage(), pc = D.breaks ? simDmgPieces(sim, coreNode) : null;
     out = Object.assign(out || {}, { sB: sg[0], sS: sg[1], br: D.broken.slice(), pc: pc ? Array.from(pc) : null, st: simDmgSets(sim) });
+    if (D.how) { out.hw = D.broken.map(bi => D.how[bi]); out.bd = simDmgBends(sim); }   // G3770
     if (D.tieN) { const TY = simDmgTies(sim); out.ty = TY.ty; out.tt = TY.tt; }   // G2040 (DMG-FABRIC)
   } else if (sg[1] !== hop.sS && !(sim.t - hop.t < (win == null ? SIM_DMG_SET_S : win))) {
     hop.sS = sg[1]; hop.t = sim.t;
     out = Object.assign(out || {}, { sS: sg[1], st: simDmgSets(sim) });
+    if (sim.damage().how) out.bd = simDmgBends(sim);   // G3770: a trunk's dent moves the bends, not the broken list
   } else if (!out) return null;
   hop.ms = clk.now() - t0;          // the payload's build (the union-find, the sets): GATE DMGSKIN reads it
   return out;

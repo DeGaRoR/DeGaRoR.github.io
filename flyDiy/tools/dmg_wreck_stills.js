@@ -50,6 +50,10 @@ const CASES = {
   'scuff-slide': { label: 'the runway scuff of a slide: a trunk at 30 m/s, 2.5 m out, the wreck skidding on (G3651)', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 2.5, steps: 1500 }, cams: [['q34', 28, 22], ['aft', 12, 40], ['side', 78, 30]] },
   'furrow-slide': { label: 'the furrow of a slide on soft ground: the scuff-slide 25 m off the runway, on the grass (G3651)', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 2.5, lat: 25, steps: 1500 }, cams: [['q34', 28, 22], ['aft', 12, 40], ['side', 78, 30]] },
   'scuff-blow': { label: 'the runway scuff of a blow: a nose-in at 180 km/h, 10 m/s down, 60 deg (G3651)', o: { kind: 'ground', V: 50, sink: 10, pitch: 60, steps: 1500 }, cams: [['q34', 28, 22], ['aft', 12, 40], ['side', 78, 30]] },
+  // G3770 (DMG-LOOKS, ?dmglook=1): the frame members by material, close - the 30 m/s trunk on the centreline (the cage's
+  // bends and tears, the engine mount, the wood's breaks) and 2.5 m out (the wing's root, a gear leg), the orbit close in
+  'look-0':    { label: 'the frame members close: a trunk at 30 m/s, the centreline (DMG-LOOKS)', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 0, steps: 1500 }, cams: [['brkq', 25, 3.5], ['brks', 15, 3], ['brkq', 50, 2.5], ['brks', 35, 6]] },
+  'look-2.5':  { label: 'the frame members close: a trunk at 30 m/s, 2.5 m out (DMG-LOOKS)', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 2.5, steps: 1500 }, cams: [['brkq', 25, 4], ['brks', 30, 4]] },
   'trunk-2.5': { label: 'a trunk at 30 m/s, the wing 2.5 m out (DMG-D4a\'s wing still)', o: { kind: 'trunk', D: 40, agl: 4, V: 30, off: 2.5, steps: 1500 }, cams: [[200, 22, 16], [250, 55, 26]] },
   'nosein':    { label: 'a nose-in on the ground (180 km/h, 10 m/s, 60 deg; DMG-D4a\'s nose-in still)', o: { kind: 'ground', V: 50, sink: 10, pitch: 60, steps: 1500 }, cams: [[150, 20, 12], [235, 28, 14]] },
   // G1863: the cockpit rule - the severe nose-in watched from the pilot's eye; no stills, its verdict read
@@ -89,6 +93,19 @@ function pageView([az, el, dist]) {
   // ('noseL': the other front quarter, closer - the bent blades' close-up)
   // (14 Oct, the user's comparison stills: 'side' the left side square on, 'q34' the front three-quarter - both from the
   // aeroplane's own heading, as 'nose'; a top view is 'side' at 80 deg)
+  // (G3770, DMG-LOOKS: 'brkq' / 'brks' - the free eye on the BREAKS: the median of the broken members' live ends, from the
+  // aeroplane's front three-quarter or its side, el degrees up, dist metres off - the orbit's centre sits metres from them)
+  if (az === 'brkq' || az === 'brks') {
+    const sim = FLIGHT_PROBE.sim(), Dm = sim.damage(), p = sim.p, xs = [], ys = [], zs = [];
+    for (const bi of Dm.broken) { const b = sim.beams[bi]; for (const i of [b.a, b.b]) { xs.push(p[i * 3]); ys.push(p[i * 3 + 1]); zs.push(p[i * 3 + 2]); } }
+    const med = a => { a.sort((x, y) => x - y); return a[a.length >> 1]; };
+    const g = sim.cgPos(), c = xs.length ? [med(xs), med(ys), med(zs)] : [g[0], g[1], g[2]];
+    const [xA] = sim.axes(), h = Math.atan2(-xA[2], -xA[0]) + (az === 'brks' ? Math.PI / 2 : 0.7), e = el * Math.PI / 180;
+    const E = [c[0] + dist * Math.cos(e) * Math.cos(h), c[1] + dist * Math.sin(e), c[2] + dist * Math.cos(e) * Math.sin(h)];
+    const dx = c[0] - E[0], dy = c[1] - E[1], dz = c[2] - E[2];
+    FLIGHT_PROBE.devFree(E[0], E[1], E[2], Math.atan2(dx, -dz), Math.atan2(dy, Math.hypot(dx, dz)));
+    return new Promise(r => setTimeout(() => r(1), 900));
+  }
   if (az === 'side' || az === 'q34') { const [xA] = FLIGHT_PROBE.sim().axes(); FLIGHT_PROBE.camSet(Math.atan2(-xA[2], -xA[0]) + (az === 'side' ? Math.PI / 2 : 0.7), el * Math.PI / 180, dist); }
   // (G3651 'aft': from behind the aeroplane's own heading - the far chase view down the slide it left)
   else if (az === 'aft') { const [xA] = FLIGHT_PROBE.sim().axes(); FLIGHT_PROBE.camSet(Math.atan2(-xA[2], -xA[0]) + Math.PI, el * Math.PI / 180, dist); }

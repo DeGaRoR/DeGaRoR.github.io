@@ -453,6 +453,10 @@ function makeSim(def, world) {
   // (bm.sec, G1803; DEFORM §10). Written only where the total is (beamYield, beamKink: the armed path), zeroed by reset()
   DMG.wB = new Float64Array(nb);
   const dmgW = (bi, w) => { DMG.work += w; DMG.wB[bi] += w; };
+  // G3770 (DMG-LOOKS): WHY EACH MEMBER BROKE, per member (the first break's `how` is kept for every member, not only the
+  // flight's first): the page draws a broken member by it (skin_break.js's parting rule, dmg_members.js). Written only at a
+  // break, zeroed by reset(); read by sim_host.js simDmgHop. 0 = whole; HOW_CODE below
+  DMG.how = new Uint8Array(nb);
   // G2373 (DMG-OCCUPANT, 34_occupant.js): THE OCCUPANTS' RECORD - each filled seat's pulse and space, kept on an event,
   // judged at its close into one of five bands (DMG.occ). With the layer off (or no cabin) null: nothing of it exists
   const OCC = DMG_ON && typeof genOccSpec === 'function' && GEN_OCC.on !== false ? genOccSpec(def) : null;
@@ -1282,17 +1286,26 @@ function makeSim(def, world) {
     DMG.gPeak = 0; DMG.setMax = 0; DMG.orphans.length = 0; DMG.members = 0; DMG.dents = 0; DMG.primary = 0; DMG.firstPrimary = null; DMG.holed = 0; gF = 0; cIx = cIy = cIz = 0;
     for (const b of beams) b.yielded = false;
     DMG.wB.fill(0);   // G1802
+    DMG.how.fill(0);  // G3770
     if (OCC) { genOccReset(OCS); DMG.occ = null; }   // G2373
     tkSub += 2;       // G1883: every member's contact starts again
     if (SCR !== null) scarReset(SCR);   // G2357: no scar (a new version, empty, if there was one: the page lets it go)
   }
   // (G1816) why a member broke, for the break-order gate: 'fold' (bent round a trunk past its fold angle), 'kink'
   // (crushed past ecu), 'ragged' (spruce's last stage), 'tension' (brittle at its strength, or ductile at etu), 'group'
+  // G3770: `how` as a code - 1 tension (or brittle), 2 kink, 3 fold, 4 ragged, 5 group, 6 a cluster's cut ('root-...',
+  // 'station-...'), 7 core, 8 gate
+  function howCode(how) {
+    if (!how || how === 'tension') return 1;
+    switch (how) { case 'kink': return 2; case 'fold': return 3; case 'ragged': return 4; case 'group': return 5; case 'core': return 7; case 'gate': return 8; }
+    return 6;
+  }
   function beamBreak(bi, how) {
     const b = beams[bi];
     if (b.broken) return;
     b.kB = b.k; b.cB = b.c; b.k = 0; b.c = 0; b.broken = true;
     DMG.breaks++; DMG.broken.push(bi);
+    DMG.how[bi] = howCode(how);                       // G3770
     if (!DMG.firstBreak) DMG.firstBreak = { beam: bi, cls: b.cls, t: simT, seam: b.seam || null, grp: grpOf[bi], how: how || 'tension' };
     if (b.kink) { FLR[nFlr++] = bi; DMG.floors++; nPost = nFlr + nTieL; }  // G1813: the crushed member stays a floor (G2040: nPost)
     postLive = 1;                                     // G1898.4: a break may need the floors or the limiters
