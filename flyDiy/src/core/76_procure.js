@@ -206,13 +206,13 @@ const PROCURE_MODELS = {
     opts: {
       gear:     { def: 'wheels', vals: { wheels: { design: 'c172', eff: { c172: {}, c172f: {} } }, floats: { design: 'c172f', eff: { c172: {}, c172f: {} } } } },
       engine:   { def: 'o540', vals: { o540: { eng: 'o540', eff: { c172: {}, c172f: {} } },
-                                       o320: { eng: 'o320', eff: { c172: PE_({ cost: -11047, emptyKg: -77, massKg: -77, toM: 31, cruiseKmh: -8, rangeKm: 50, tankL: 0, seats: 0 }),
-                                                                   c172f: PE_({ cost: -11025, emptyKg: -77, massKg: -77, toM: 37, cruiseKmh: -29, rangeKm: 40, tankL: 0, seats: 0 }) } },
-                                       io360: { eng: 'io360', eff: { c172: PE_({ cost: -724, emptyKg: -54, massKg: -54, toM: 13, cruiseKmh: -6, rangeKm: 27, tankL: 0, seats: 0 }),
+                                       o320: { eng: 'o320', eff: { c172: PE_({ cost: -11047, emptyKg: -77, massKg: -77, toM: 31, cruiseKmh: -8, rangeKm: 45, tankL: 0, seats: 0 }),
+                                                                   c172f: PE_({ cost: -11025, emptyKg: -77, massKg: -77, toM: 37, cruiseKmh: -29, rangeKm: 36, tankL: 0, seats: 0 }) } },
+                                       io360: { eng: 'io360', eff: { c172: PE_({ cost: -724, emptyKg: -54, massKg: -54, toM: 13, cruiseKmh: -6, rangeKm: 24, tankL: 0, seats: 0 }),
                                                                      c172f: PE_({ cost: -710, emptyKg: -54, massKg: -54, toM: 11, cruiseKmh: -16, rangeKm: 24, tankL: 0, seats: 0 }) } } } },
       tank:     { def: 'std', vals: { std: { tank: 1, eff: { c172: {}, c172f: {} } },
-                                      long: { tank: 1.5, eff: { c172: PE_({ cost: 728, emptyKg: 7, massKg: 17, toM: 6, cruiseKmh: 2, rangeKm: 52, tankL: 14.8, seats: 0 }),
-                                                                c172f: PE_({ cost: 724, emptyKg: 7, massKg: 17, toM: 27, cruiseKmh: 2, rangeKm: 60, tankL: 14.8, seats: 0 }) } } } },
+                                      long: { tank: 1.5, eff: { c172: PE_({ cost: 683, emptyKg: 7, massKg: 17, toM: 6, cruiseKmh: 2, rangeKm: 46, tankL: 13.3, seats: 0 }),
+                                                                c172f: PE_({ cost: 680, emptyKg: 7, massKg: 17, toM: 27, cruiseKmh: 2, rangeKm: 54, tankL: 13.3, seats: 0 }) } } } },
       seats:    { def: '4', vals: { 4: { seats: null, eff: { c172: {}, c172f: {} } },
                                     3: { seats: 1, eff: { c172: PE_({ cost: -1541, emptyKg: -16, massKg: -16, toM: -6, cruiseKmh: -2, rangeKm: -1, tankL: 0, seats: -1 }),
                                                           c172f: PE_({ cost: -1513, emptyKg: -15, massKg: -15, toM: -37, cruiseKmh: -1, rangeKm: -1, tankL: 0, seats: -1 }) } } } },
@@ -389,9 +389,17 @@ function prCanon(v) {
   const ks = Object.keys(v).filter(k => v[k] !== undefined).sort();
   return '{' + ks.map(k => JSON.stringify(k) + ':' + prCanon(v[k])).join(',') + '}';
 }
-// the spec minus what is not the aeroplane (bench.js benchStripCosmetic's blocks and state rows; every other row
-// counts) -> 8 hex digits, the physics version folded in (a certificate from an older physics is another's)
+// G3780 CERT-RULE (the user 26 Oct: "R1-R6 yes"; CERT-REVIEW M3): the factory certificate is signed with the bench's
+// MAJOR fingerprint - ONE list (66b_cert_rule.js certMajor: no version tag, no minor or measured row), so a game update,
+// a passenger, a GPS or the cabin's light switches never make a bought aeroplane MODIFIED or bill it again (the
+// PROCURE_STATE_ROWS copy below had drifted from the bench's: the G3449 switches billed). The old `p1` hash stays only
+// to recognise an airframe signed under it (procureP1Matches).
 function procureFp(spec) {
+  if (!spec || typeof spec !== 'object') return null;
+  const M = (typeof certMajor === 'function') ? certMajor(spec) : null;
+  return M ? M.fp : procureFpP1(spec);
+}
+function procureFpP1(spec, sv, pv) {
   if (!spec || typeof spec !== 'object') return null;
   const c = prClone(spec);
   for (const k of PROCURE_COSMETIC.concat(PROCURE_READOUTS)) delete c[k];
@@ -401,8 +409,17 @@ function procureFp(spec) {
   }
   if (c.systems && typeof c.systems === 'object') for (const k of PROCURE_LOOK.systems) delete c.systems[k];
   if (c.cage && typeof c.cage === 'object') for (const k of Object.keys(c.cage)) if (PROCURE_STATE_ROWS.test(k)) delete c.cage[k];
-  const tag = 'p1|v' + (typeof GEN_SPEC_V !== 'undefined' ? GEN_SPEC_V : 0) + '|p' + (typeof PHYSICS_V !== 'undefined' ? PHYSICS_V : 0) + '|';
+  if (sv == null) sv = typeof GEN_SPEC_V !== 'undefined' ? GEN_SPEC_V : 0;
+  if (pv == null) pv = typeof PHYSICS_V !== 'undefined' ? PHYSICS_V : 0;
+  const tag = 'p1|v' + sv + '|p' + pv + '|';
   return ('0000000' + contractHash(tag + prCanon(c)).toString(16)).slice(-8);
+}
+// M3: was `h` this same spec's p1 signature under ANY version the game ever had? (then the airframe never changed)
+function procureP1Matches(spec, h) {
+  if (!spec || !h) return false;
+  const SV = Math.max(10, typeof GEN_SPEC_V !== 'undefined' ? GEN_SPEC_V : 0), PV = Math.max(6, typeof PHYSICS_V !== 'undefined' ? PHYSICS_V : 0);
+  for (let sv = 0; sv <= SV; sv++) for (let pv = 0; pv <= PV; pv++) if (procureFpP1(spec, sv, pv) === h) return true;
+  return false;
 }
 // a ledger (buildGen's parts.ledger) as the airframe row keeps it: { key: [mass kg 0.01, cost 1] }
 function procureLedgerOf(L) {
@@ -750,44 +767,63 @@ function procureAnchor(doc, slot, spec, opts) {
 // ledger it measured (buildGen). An airframe whose spec no longer carries its certificate's fingerprint is MODIFIED:
 // `factory` false, the certificate withdrawn (kept, struck, with the reason), the change billed (dm11) once; a save
 // that only repainted it (the fingerprint unmoved) changes nothing. -> { ok, doc, modified, bill, why }
+// G3465 / G3780 (BELLY-POD-2; the user 27 Oct: "Belly pod should indeed be excluded from certificates"): THE POD IS A
+// BOLT-ON OUTSIDE THE CERTIFICATE. Fitting, resizing or removing it never withdraws, re-checks or re-stamps one: the
+// certificate's rule below (procureOnSaveCert - the cert rule's own, unchanged) is handed the aeroplane WITHOUT its pod
+// and the ledger without the pod's line (the cert rule's procureFp leaves the pod out too - claude/ready/cert-pod;
+// stripping it here keeps that true on any base). The pod is billed as ITS OWN LEDGER LINE (60d: the moulding, the
+// fittings, the hatch), on every airframe alike: a save whose pod costs more than was paid for a pod before
+// (`podPaid`) pays the difference ('upgrade'); a smaller or removed pod refunds nothing; a pod fitted again is paid
+// again. (A pod billed before this rule sits in the airframe's ledger: that line counts as paid.) -> { ok, doc,
+// modified, bill, why }, the pod's line joined to the certificate side's bill
 function procureOnSave(doc, slot, spec, ledger) {
+  const A0 = doc && doc.career && doc.career.airframes && doc.career.airframes[slot];
+  if (!A0) return procureOnSaveCert(doc, slot, spec, ledger);
+  const podNow = ledger && ledger.pod ? Math.round(+ledger.pod.cost || 0) : 0;
+  const paid = A0.podPaid != null ? A0.podPaid : (A0.ledger && A0.ledger.pod ? Math.round(+A0.ledger.pod[1] || 0) : 0);
+  let d0 = doc, podBill = null;
+  if (podNow !== paid || (A0.ledger && A0.ledger.pod)) {
+    d0 = prClone(doc);
+    const R = d0.career.airframes[slot], cost = Math.max(0, podNow - paid);
+    R.podPaid = podNow;
+    if (R.ledger && R.ledger.pod) delete R.ledger.pod;        // (the certificate side's ledger never carries the pod)
+    if (cost > 0) { playerCharge(d0, cost, 'upgrade', slot); podBill = { cost, lines: [{ k: 'pod', cost }] }; }
+  }
+  const specC = spec && typeof spec === 'object' ? Object.assign({}, spec, { pod: undefined }) : spec;
+  let ledgerC = ledger;
+  if (ledger && ledger.pod) { ledgerC = Object.assign({}, ledger); delete ledgerC.pod; }
+  const r = procureOnSaveCert(d0, slot, specC, ledgerC);
+  if (!podBill) return r;
+  const b = r.bill;
+  return Object.assign({}, r, { bill: b ? { cost: (b.cost || 0) + podBill.cost, lines: (b.lines || []).concat(podBill.lines) } : podBill });
+}
+function procureOnSaveCert(doc, slot, spec, ledger) {
   const c = doc && doc.career, A = c && c.airframes && c.airframes[slot];
   if (!A) return { ok: true, doc, modified: false, bill: null, why: 'not an airframe of the career' };
   const fp = procureFp(spec);
   // a save while the signature is still open (the garage settling, no input touched yet) is the aeroplane the garage
   // built: it signs, it does not withdraw
   if (A.factory && !A.anchored) return Object.assign(procureAnchor(doc, slot, spec), { modified: false, bill: null, why: 'signed on the garage\'s aeroplane' });
-  // G3465 (BELLY-POD-2): THE BELLY POD IS BOUGHT AS WHAT IT IS - a bolt-on part, its own ledger line (60d: the moulding,
-  // the fittings, the hatch). On an airframe with no certificate to withdraw (a scratch build) the save that fits it,
-  // or makes it dearer, pays the difference over what was paid for a pod before (`podPaid`; a smaller or removed pod
-  // refunds nothing, a pod fitted again is paid again); the airframe's own price is its first save's (econMaterialise)
-  if (!A.fp) {
-    const podNow = ledger && ledger.pod ? Math.round(+ledger.pod.cost || 0) : 0, paid = A.podPaid || 0;
-    if (podNow === paid) return { ok: true, doc, modified: !!A.modified, bill: null, why: 'no certificate to withdraw' };
-    const d = prClone(doc), R = d.career.airframes[slot], cost = Math.max(0, podNow - paid);
-    R.podPaid = podNow;
-    if (cost > 0) playerCharge(d, cost, 'upgrade', slot);
-    return { ok: true, doc: d, modified: !!A.modified, bill: cost > 0 ? { cost, lines: [{ k: 'pod', cost }] } : null, why: 'no certificate to withdraw' };
+  if (!A.fp || fp === A.fp) return { ok: true, doc, modified: !!A.modified, bill: null, why: A.fp ? 'the same aeroplane (a repaint is not a change)' : 'no certificate to withdraw' };
+  // G3780 M3: SIGNED UNDER THE OLD HASH, THE SAME AEROPLANE: re-signed with the major fingerprint, nothing withdrawn,
+  // nothing billed - and an airframe an earlier update alone had made MODIFIED (its file's own p1 under another
+  // version) gets its maker's certificate back (that bill was nothing: an update moves no ledger row)
+  if (A.fps !== 'p2' && procureP1Matches(spec, A.fp)) {
+    const d = prClone(doc), R = d.career.airframes[slot];
+    R.fp = fp; R.fps = 'p2';
+    return { ok: true, doc: d, modified: !!R.modified, bill: null, why: 're-signed under the certificate rule (G3780)' };
   }
-  if (fp === A.fp) return { ok: true, doc, modified: !!A.modified, bill: null, why: 'the same aeroplane (a repaint is not a change)' };
+  if (A.modified && !A.factory && A.withdrawn && A.withdrawn.cert && A.fps !== 'p2' && A.fpFile && procureP1Matches(spec, A.fpFile)) {
+    const d = prClone(doc), R = d.career.airframes[slot];
+    R.factory = true; R.modified = false; R.cert = R.withdrawn.cert; delete R.withdrawn; R.fp = fp; R.fps = 'p2';
+    return { ok: true, doc: d, modified: false, bill: null, why: "the maker's certificate restored: only a game update had moved it (G3780)" };
+  }
   const L1 = ledger ? procureLedgerOf(ledger) : null;
-  let B = procureEditBill(A.ledger || null, L1 || A.ledger || null);
-  // ...and on a bought aeroplane, when the pod is ALL that changed (the fingerprint without it is the signed one), the
-  // bill is the pod's own line: its ten kilograms re-gauge the structure, and dm11 would bill every re-gauged line as
-  // rebuilt (12 786 cr for a 3 027 cr pod on the Scout, HANDOVER G2676) - a bolt-on part rebuilds nothing. The maker's
-  // certificate is still withdrawn (PROCURE's rule: an edit is a modification)
-  // (the fingerprint without the pod is kept at each save - `fpNoPod` - so taking the pod off again is a pod-only change
-  // too: nothing to bill, the line removed)
-  const fpNoPod = procureFp(Object.assign({}, spec, { pod: undefined }));
-  if (fpNoPod === (A.fpNoPod || A.fp)) {
-    const c = L1 && L1.pod ? L1.pod[1] : 0, was = A.ledger && A.ledger.pod ? A.ledger.pod[1] : 0;
-    B = { cost: Math.max(0, c - was), lines: c > was ? [{ k: 'pod', cost: c - was }] : [] };
-  }
+  const B = procureEditBill(A.ledger || null, L1 || A.ledger || null);
   const cost = (A.ledger && L1) ? procureEcon('edit', { cost: B.cost, slot }) : 0;
   const d = prClone(doc), R = d.career.airframes[slot];
   if (R.factory) R.withdrawn = { cert: R.cert, why: 'modified in the editor: the maker\'s certificate is withdrawn', at: Math.round(d.clock || 0) };
   R.factory = false; R.modified = true; R.fp = fp; R.cert = null;
-  if (spec && spec.pod !== undefined || A.fpNoPod) R.fpNoPod = fpNoPod;   // (G3465)
   if (L1) R.ledger = L1;
   if (cost > 0) playerCharge(d, cost, 'edit', slot);
   return { ok: true, doc: d, modified: true, bill: { cost, lines: B.lines }, why: '' };

@@ -1888,7 +1888,8 @@ self.onmessage = function (e) {
     // G2225: the fingerprint over EVERY cage row (benchFingerprint's null defaults), never against the garage's live
     // cageDefaults - those follow the build on the stand, and every switch of build re-baked the fleet (FLEET-PROPS B's
     // evening runs: 5 of 6 bakes 'stale' after a Jodel stood in the garage, a 1-2 s garage capture each)
-    const fp = (typeof benchFingerprint === 'function') ? benchFingerprint(spec, null) : 'h' + hash(JSON.stringify(spec));
+    // (G3780: the VERSIONED f2 hash - the parked look follows the generator's version; the certificate's f3 does not)
+    const fp = (typeof benchFingerprintF2 === 'function') ? benchFingerprintF2(spec, null) : 'h' + hash(JSON.stringify(spec));
     const canon = (typeof benchCanon === 'function') ? benchCanon : JSON.stringify;
     const LK = (typeof BENCH_LOOK !== 'undefined') ? BENCH_LOOK : { energy: [], vessel: [], systems: [] };
     const pick = (o, ks) => { const r = {}; if (o && typeof o === 'object') for (const k of ks || []) if (o[k] !== undefined) r[k] = o[k]; return r; };

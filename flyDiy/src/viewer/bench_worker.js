@@ -377,6 +377,13 @@ function benchWorkerBody(CORE, BW) {
         const st = run.rig.state;
         post({ kind: 'destroy', seq: job.seq, ok: run.ok, verdict: st.verdict, brokeAt: st.brokeAt, brokeKey: st.brokeKey, brokeSeam: st.brokeSeam,
                yieldAt: st.yieldAt, breakAt: st.breakAt, breakFirst: st.breakFirst, limit: run.rig.limit, ult: BW.GEN_LOAD_ULT_OF(CORE) });
+      } else if (job.kind === 'loadq') {
+        // G3780: THE WING LOADING, COMPUTED - the rig at the certificate's own loads, unpaced (nobody watches it: the bench
+        // waits for the verdict), the stand's pose as the start; one answer
+        const run = BW.benchLoadRun(CORE, job);
+        let k = 0;
+        while (run.ok && !run.done && k < 60 * 60) { run.pump(60); k += 60; }
+        post({ kind: 'loadq', seq: job.seq, state: run.snapshot().state, frames: k });
       } else if (job.kind === 'sheet') {
         // G2920: one sheet, at once - the page aborts a superseded one by terminating this thread (sheet_link.js)
         post(BW.benchSheetRun(CORE, job));

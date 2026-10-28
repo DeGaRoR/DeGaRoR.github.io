@@ -240,17 +240,22 @@ function genDesignCheck(def, sh, simIn, opts) {
   const smD = sh ? sh.staticMargin : -D.Cma / Math.max(1e-6, D.CLa);
   const smA = sh && sh.envelope && isFinite(sh.envelope.staticMarginAft) ? sh.envelope.staticMarginAft : smD;
   {
-    const lvl = smA < 0 ? 'fail' : (smA < 0.02 || smD > 0.40) ? 'warn' : 'pass';
+    // G3780 (CERT-REVIEW §7; the user 27 Oct: "the margins in the test should be the same as for the coloring of the CG
+    // indicators in the garage"): THE GARAGE'S BANDS ARE THE ROW'S - GEN_MARGIN_BANDS (genMarginBand, the posts' red /
+    // orange / green) and no number of its own: red = fail, orange = warn (a warn still certifies), green = pass
+    const B = GEN_MARGIN_BANDS;
+    const lvl = smA < B.unstable ? 'fail' : (smA < B.comfy || smD > B.noseHeavy) ? 'warn' : 'pass';
     const cbar = D.c;
     row({ id: 'pitch.sm', group: 'pitch', label: 'Static margin (CG ahead of the neutral point)',
           value: r3(smA), unit: 'MAC', level: lvl,
-          limit: 'fail < 0 at any loading; warn < 0.02 (nearly neutral) or > 0.40 as drawn (nose-heavy)',
+          limit: "the garage's CG colours" + ': red (fail) < ' + B.unstable + ' at any loading; orange (warn) < ' + B.comfy +
+                 ' (nearly neutral) or > ' + B.noseHeavy + ' as drawn (nose-heavy); green between',
           why: 'as drawn ' + r3(smD) + (sh && sh.envelope ? ', at the worst loading corner (' + sh.envelope.worst.label + ') ' + r3(smA)
                                                           : ' (the loading corners were not run: the drawn loading only)') +
                ' of the mean chord. Below zero the aeroplane diverges in pitch: any bump grows.',
-          fix: smA < 0.02 ? 'move the CG forward by ' + r2((0.05 - smA) * cbar) + ' m (ballast in the nose, the wing aft, ' +
+          fix: smA < B.comfy ? 'move the CG forward by ' + r2((B.comfy - smA) * cbar) + ' m (ballast in the nose, the wing aft, ' +
                             'or the tanks/seats forward), or grow the stabiliser'
-             : smD > 0.40 ? 'the CG is far forward: the elevator must hold the nose up at every speed - move the wing ' +
+             : smD > B.noseHeavy ? 'the CG is far forward: the elevator must hold the nose up at every speed - move the wing ' +
                             'forward or the load aft by ' + r2((smD - 0.25) * cbar) + ' m' : '' });
   }
   if (t && geom && t.Sh > 0) {
@@ -432,8 +437,8 @@ function genDesignCheck(def, sh, simIn, opts) {
 // tooltip explaining the reasons"). THE BAND OF A STATIC MARGIN (CG ahead of the neutral point, fraction of the mean
 // chord), one function so the garage's posts and the gate read the same edges. PROPOSED edges (the user judges them
 // from the stills): below 0 the aeroplane is unstable in pitch (red); 0-5 % flies but wanders (orange - the indicator's
-// old red line); over 40 % is the design check's own nose-heavy warn (orange); 5-40 % stable (green). The bench's own
-// pitch.sm row (above) is NOT changed: it warns below 2 % - the certification rule is CERT-REVIEW's.
+// old red line); over 40 % is the design check's own nose-heavy warn (orange); 5-40 % stable (green). G3780: THE ONE
+// SOURCE - the bench's pitch.sm row (above) and the pod's full-margin row read these edges, no constant of their own.
 const GEN_MARGIN_BANDS = { unstable: 0, comfy: 0.05, noseHeavy: 0.40 };
 function genMarginBand(sm) {
   if (sm == null || typeof sm !== 'number' || !isFinite(sm)) return null;

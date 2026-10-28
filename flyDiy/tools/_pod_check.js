@@ -405,8 +405,11 @@ function runChecks2(C, D, X, quiet) {
         if (set.has(i)) { wP = Math.max(wP, w); cP = Math.max(cP, c); } else { wA = Math.max(wA, w); cA = Math.max(cA, c); } });
       return { wP, cP, wA, cA, ok: wP < wA && cP < cA }; };
     const b1 = binds(d.def1), b2 = binds(d.def2), b3 = binds(d.def3);
-    ok(d.def1.params.substeps === d.def0.params.substeps && b1.ok && b2.ok && b3.ok,
-       k + ': no substep paid - ' + d.def0.params.substeps + ' with or without; the pod\'s members never set the step (omega ' + n(b1.wP, 0) + ' / c/m ' + n(b1.cP, 0) + ' under the airframe\'s ' + n(b1.wA, 0) + ' / ' + n(b1.cA, 0) + ', full and deep too)');
+    // (G3471: the step may move by the AIRFRAME's re-gauge for the pod's rated load - its own members, a heavier
+    // aeroplane - never by a pod member, and by at most 2 %: the c172 on its fitted tanks sits on the 120/121 edge)
+    const s0 = d.def0.params.substeps, s1 = d.def1.params.substeps;
+    ok(s1 >= s0 && s1 <= Math.ceil(s0 * 1.02) && b1.ok && b2.ok && b3.ok,
+       k + ': no substep paid to the pod - ' + s0 + ' without, ' + s1 + ' with' + (s1 > s0 ? ' (the airframe re-gauged for the rated load: omega ' + n(b1.wA, 0) + ', its own)' : '') + '; the pod\'s members never set the step (omega ' + n(b1.wP, 0) + ' / c/m ' + n(b1.cP, 0) + ' under the airframe\'s ' + n(b1.wA, 0) + ' / ' + n(b1.cA, 0) + ', full and deep too)');
   }
   // ---- H4 THE SCRAPE: a pod that reaches the ground rests and SLIDES on its own nodes (mu 0.8, not a wheel) ----
   {
@@ -440,7 +443,9 @@ function runChecks2(C, D, X, quiet) {
          k + ': no pod - the certificate (' + (b && b.cert) + ') and 300 flown steps (' + (b && b.sim) + ') are the base core\'s, to the bit' + (base ? '' : ' (NO BASE: run --bless-bytes in a base worktree)'));
     }
   }
-  // ---- H6 THE PROCURE PATH: a pod on a BOUGHT aeroplane is a modification, the same door as any other ----
+  // ---- H6 THE PROCURE PATH (G3780; the user 27 Oct: "Belly pod should indeed be excluded from certificates"): the pod is
+  // a bolt-on OUTSIDE the certificate - fitting, resizing or removing it never withdraws, re-checks or re-stamps one; it
+  // is billed as its own ledger line ----
   {
     const fileSpec = JSON.parse(rd(BUILDS.cub.file));
     const L0 = C.buildGen(C.genMigrateSpec(clone(fileSpec.spec))).parts.ledger;
@@ -452,18 +457,23 @@ function runChecks2(C, D, X, quiet) {
     const Lp = C.buildGen(C.genMigrateSpec(clone(withPod))).parts.ledger;
     const w0 = doc.wallet, r = C.procureOnSave(doc, 'Scout 1', withPod, Lp), A = r.doc.career.airframes['Scout 1'];
     ok(b.ok && A0.factory && A0.anchored && A0.cert, 'a bought Scout (the Cub): factory-certified, signed');
-    ok(r.modified && !A.factory && A.modified && A.cert === null && A.withdrawn && A.withdrawn.cert && /certificate is withdrawn/.test(A.withdrawn.why),
-       'a pod fitted and saved: MODIFIED - the factory certificate withdrawn (kept struck: "' + (A.withdrawn && A.withdrawn.why) + '")');
+    const same = (x, y) => JSON.stringify(x) === JSON.stringify(y);             // (the billed doc is a clone: the same certificate, not the same object)
+    ok(!r.modified && A.factory && !A.modified && A.cert && same(A.cert, A0.cert) && !A.withdrawn && A.fp === A0.fp,
+       'a pod fitted and saved: the certificate UNTOUCHED - still factory-certified, its fingerprint the signed one, nothing withdrawn');
     const podLine = r.bill && r.bill.lines.find(l => l.k === 'pod');
-    // G3465: a pod-only change bills the pod's OWN line (dm11 would bill every line its kilograms re-gauged)
-    const dm11 = C.procureEditBill(A0.ledger, C.procureLedgerOf(Lp)).cost;
-    ok(podLine && podLine.cost === Math.round(Lp.pod.cost) && r.bill.lines.length === 1 && r.bill.cost === podLine.cost && Math.round(w0 - r.doc.wallet) === r.bill.cost && r.doc.ledger.slice(-1)[0].k === 'edit' && dm11 > r.bill.cost,
-       'billed its own line, the pod: ' + r.bill.cost + ' cr, charged as an `edit` (dm11 over the re-gauged lines would have been ' + dm11 + ')');
-    const r2 = C.procureOnSave(r.doc, 'Scout 1', b.envelope.spec, L0);
-    ok(r2.modified && r2.doc.career.airframes['Scout 1'].cert === null && r2.bill.cost === 0 && !(r2.bill.lines.some(l => l.k === 'pod')), 'the pod removed and saved: a change again (the certificate stays withdrawn), the removed line bills nothing (' + r2.bill.cost + ' cr)');
+    ok(podLine && podLine.cost === Math.round(Lp.pod.cost) && r.bill.lines.length === 1 && r.bill.cost === podLine.cost && Math.round(w0 - r.doc.wallet) === r.bill.cost && r.doc.ledger.slice(-1)[0].k === 'upgrade',
+       'billed its own line, the pod: ' + (r.bill && r.bill.cost) + ' cr, charged as an `upgrade`');
+    const r2 = C.procureOnSave(r.doc, 'Scout 1', b.envelope.spec, L0), A2 = r2.doc.career.airframes['Scout 1'];
+    ok(!r2.modified && A2.factory && same(A2.cert, A0.cert) && !r2.bill && r2.doc.wallet === r.doc.wallet && A2.podPaid === 0,
+       'the pod removed and saved: the certificate untouched, nothing billed or refunded');
+    const r2b = C.procureOnSave(r2.doc, 'Scout 1', withPod, Lp);
+    ok(!r2b.modified && r2b.bill && r2b.bill.cost === Math.round(Lp.pod.cost), 'refitted: the certificate untouched, the pod paid again (' + (r2b.bill && r2b.bill.cost) + ' cr)');
     const other = Object.assign(clone(withPod), { baggage: (withPod.baggage || 0) + 5 }), Lo = C.buildGen(C.genMigrateSpec(clone(other))).parts.ledger;
     const r3 = C.procureOnSave(doc, 'Scout 1', other, Lo);
-    ok(r3.bill && r3.bill.cost === C.procureEditBill(A0.ledger, C.procureLedgerOf(Lo)).cost, 'a pod AND another edit: dm11 as before (' + (r3.bill && r3.bill.cost) + ' cr)');
+    const LoNoPod = Object.assign({}, Lo); delete LoNoPod.pod;
+    const dm11 = C.procureEditBill(A0.ledger, C.procureLedgerOf(LoNoPod)).cost;
+    ok(r3.modified && r3.bill && r3.bill.cost === dm11 + Math.round(Lp.pod.cost) && r3.bill.lines.some(l => l.k === 'pod'),
+       'a pod AND another edit: the edit is a modification (dm11, ' + dm11 + ' cr, never the pod\'s re-gauging) + the pod\'s own line (' + (r3.bill && r3.bill.cost) + ' cr)');
     // a SCRATCH airframe (no certificate to withdraw): the pod is paid when fitted, the difference when enlarged,
     // nothing when removed, again when refitted; a new design's pod is in its first save's price (not billed twice)
     {
@@ -482,7 +492,8 @@ function runChecks2(C, D, X, quiet) {
     }
     const keep = C.procureOnSave(doc, 'Scout 1', clone(b.envelope.spec), null);
     ok(keep.doc === doc && !keep.modified, 'fitted and removed before a save: the spec WITHOUT the key is the signed aeroplane (not modified)');
-    ok(C.procureFp(Object.assign(clone(b.envelope.spec), { pod: { on: 0 } })) !== A0.fp, '...which is why the editor REMOVES the key: `{ on: 0 }` is another fingerprint (GARAGE_SPEC.remove)');
+    const off = C.procureOnSave(doc, 'Scout 1', Object.assign(clone(b.envelope.spec), { pod: { on: 0 } }), L0);
+    ok(!off.modified && off.doc.career.airframes['Scout 1'].factory && !off.bill, '...and a pod key of any value never reaches the certificate (`{ on: 0 }` saved: the signed aeroplane)');
     const sand = C.playerDefault ? C.playerDefault() : null;
     ok(sand && !sand.career && C.procureOnSave(sand, 'Scout 1', withPod, Lp).doc === sand && /CAREER_DEV && info\.saved && d\.career/.test(rd('src/viewer/app.js')),
        'the sandbox: no career, nothing withdrawn or billed (procureOnSave hands the document back; app.js asks only under CAREER_DEV)');
