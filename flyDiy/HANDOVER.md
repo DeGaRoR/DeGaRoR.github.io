@@ -102811,3 +102811,11 @@ Train gate (box quiet): IN FLIGHT better than L28a (25 fps vs 20, 1-2 frames ove
 the town and the new LOD materials. ACCEPTED under the user's rule (under the loading screen; no feature sacrificed); the TOP item of
 flydiy-notes/PERF-WEEK-KNOWN-ISSUES.md.
 Not in it: fittings-manual (HANDLE overlap with door-hinges-2, back to the hinge session), avionics-gps (new ready, conflict), new-shapes-1.
+
+## Train L28c (A0, Wed 28 Oct, pushed ~20:20; the last train before the credits ran out - the user 16:50: "95 % credits")
+
+Merged onto L28b (a5e89abe9): a-handover-dedupe (HANDOVER back to one copy, 102,809 lines - L28b's integration had appended it twice),
+assets-grove (the crane's GROVE marks painted out, 11/13 + master's GEO/MEDIA), closed-shed (the unowned mine plot stands a closed shed,
+doors shut; bought = the same shed; 9/9, FRAMECOST = master's 15 rows).
+Battery: PARKED row 13 = master's own (identical rows to L28b). Train gate vs L28b: the same accepted costs (perf-week L0: garage ~95-130 s,
+compile 25-51 s), no new row; fps and worst tasks within L28b's spread. Everything else waits for R1: flydiy-notes/RESTART-PLAN.md.
