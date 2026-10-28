@@ -124,18 +124,18 @@
    ]
   },
   "o3": {
-   "x": -57,
-   "z": 642,
+   "x": -170,
+   "z": 621,
    "yaw": -1.637
   },
   "af_park1": {
-   "x": -75,
-   "z": 644,
+   "x": -166,
+   "z": 593,
    "yaw": -1.637
   },
   "af_park2": {
-   "x": -95,
-   "z": 639,
+   "x": -170,
+   "z": 607,
    "yaw": -1.637
   },
   "w3": {
@@ -182,6 +182,6 @@
    "fences": []
   }
  },
- "fieldPatchesWhy": "(t53, 13 Oct: taxiOut1 ends where r_taxi_e's own line meets 13/31's centreline - (175.8, 635.49) - its 16 m dogleg onto the strip was a 1.9 m corner under the 6 m TAXICLEAR 3 holds) SCENERY-ED-1 G2890 (A0 13 Oct ~01:20 'GO'): HOME's main hangar beside the user's long club hangar, its stand, and the two taxi-outs rerouted over rev 28's y_pad and r_taxi_ne / r_taxi_e (r_airport / r_strip are gone); applied after the ship - a re-ship must apply it again; the user's import with the same patch: D:/Dev/flydiy-notes/inbox/jolene_rev28d_home_hangar.json. plots HOME.2 unchanged (pending the user); + plots (ED-1, A0's (a), 13 Oct ~02:15): HOME.2 keeps its shed position and heading and loses its own stand + taxiOut - two of its points ((-130,705), (-138,690)) lay inside the new main hangar; runwaySite serves it the field's new stand / route. The user's import: D:/Dev/flydiy-notes/inbox/jolene_rev28e_home_hangar.json (supersedes rev28d); + the three parked aeroplanes o3 / af_park1 / af_park2 moved onto the pad (t_pad's flatten), keys kept (SCENERY-ED-1, 13 Oct ~15:00: the user's rev 28 note 'the aircraft collection must be redone'; rev 28's y_pad no longer reached them - GATE PARKED 7) - in a row, noses to the eastbound route G3240 NAMES (22 Oct, GAME-PLAN §13, the user: 'Everything should have a fictional name'): w3, SEA, mn_strip, s_strip, mn_s_mine, nv_grounds take their fictional names (src/core/01_names.js; the record renamed without a rev bump) - the save keeps the user's old ones. + mn_y_stand (LOT-CLEAR, the user 22 Oct at the old mine: 'a surface for the starting zone ... the starting zone itself has no pavement'): the mine strip's stand drawn gravel like its lane (band 2) - shipped as the v1 material mn_y_stand_d beside the save's surface; applied after the ship - a re-ship must apply it again + s_vor_ann (JOLENE-FOLD, 25 Oct): the AFB (19) save carries the VOR site with its old name - names' fictional one kept. Every fieldPatch is applied after the ship (the save predates names and lot-clear) - a re-ship must apply them again | AFB-NO-FENCES (the user, 26 Oct via A0: 'can we also just get rid of the fences on the apron? No fences for anything on the WWII site please.'): s_club ships with no fences (its 4 rail runs, the save's)",
+ "fieldPatchesWhy": "(t53, 13 Oct: taxiOut1 ends where r_taxi_e's own line meets 13/31's centreline - (175.8, 635.49) - its 16 m dogleg onto the strip was a 1.9 m corner under the 6 m TAXICLEAR 3 holds) SCENERY-ED-1 G2890 (A0 13 Oct ~01:20 'GO'): HOME's main hangar beside the user's long club hangar, its stand, and the two taxi-outs rerouted over rev 28's y_pad and r_taxi_ne / r_taxi_e (r_airport / r_strip are gone); applied after the ship - a re-ship must apply it again; the user's import with the same patch: D:/Dev/flydiy-notes/inbox/jolene_rev28d_home_hangar.json. plots HOME.2 unchanged (pending the user); + plots (ED-1, A0's (a), 13 Oct ~02:15): HOME.2 keeps its shed position and heading and loses its own stand + taxiOut - two of its points ((-130,705), (-138,690)) lay inside the new main hangar; runwaySite serves it the field's new stand / route. The user's import: D:/Dev/flydiy-notes/inbox/jolene_rev28e_home_hangar.json (supersedes rev28d); + the three parked aeroplanes o3 / af_park1 / af_park2 moved onto the pad (t_pad's flatten), keys kept (SCENERY-ED-1, 13 Oct ~15:00: the user's rev 28 note 'the aircraft collection must be redone'; rev 28's y_pad no longer reached them - GATE PARKED 7) - in a row, noses to the eastbound route G3240 NAMES (22 Oct, GAME-PLAN §13, the user: 'Everything should have a fictional name'): w3, SEA, mn_strip, s_strip, mn_s_mine, nv_grounds take their fictional names (src/core/01_names.js; the record renamed without a rev bump) - the save keeps the user's old ones. + mn_y_stand (LOT-CLEAR, the user 22 Oct at the old mine: 'a surface for the starting zone ... the starting zone itself has no pavement'): the mine strip's stand drawn gravel like its lane (band 2) - shipped as the v1 material mn_y_stand_d beside the save's surface; applied after the ship - a re-ship must apply it again + s_vor_ann (JOLENE-FOLD, 25 Oct): the AFB (19) save carries the VOR site with its old name - names' fictional one kept. Every fieldPatch is applied after the ship (the save predates names and lot-clear) - a re-ship must apply them again | AFB-NO-FENCES (the user, 26 Oct via A0: 'can we also just get rid of the fences on the apron? No fences for anything on the WWII site please.'): s_club ships with no fences (its 4 rail runs, the save's) | DC-3 PARKING (the user 28 Oct via A0; DC3-2's 43bce3a68): o3 / af_park1 / af_park2 to the pad's west pocket by the fire bay, off the DC-3's swept wings",
  "exceptWhy": "sg_k_club:0..22, :frame, :clear - the club kit's STAGE EXPANSION (the editor's stage view expands a kit into its pieces and the save kept them: an editor bug, not the user's scenery); mk_sea, mk_mp_air, mk_mf_air - the town's seaplane base, which the save keeps (TOWN_OFF.keep) and the gate's town cut drops: shipped as they stand (names' fictional names) | AFB-NO-FENCES (the user 26 Oct): af_wk_fence (fence_old, the save's prop by the works) is held back - no fences on the WWII site"
 }
