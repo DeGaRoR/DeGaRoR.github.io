@@ -2952,9 +2952,12 @@ function cageCut(m, S) {
     }
     return [...z.values()];
   };
-  const cutZone = (fis, sill, inset, edgeT, gap) => {
+  // G3570 (DC3-2): `up` (S.win.floorUp, cage units: the raised cabin floor) lifts a door's sill by the most whole
+  // rows that rise no more than it above the row-stepped sill; the rise it made is published per door
+  // (m.doorRise[doorKey]) so the crew layer's floor is the floor, not the row step. Absent: today's cut
+  const cutZone = (fis, sill, inset, edgeT, gap, up, dk) => {
     let keep = fis;
-    if (sill > 0) {
+    if (sill > 0 || up > 0) {
       // ROW-STEPPED SILL (user correction: cut STRAIGHT along the rows
       // the mesh already has — the centroid-vs-bin test staircased).
       // BFS face rows upward from the zone's bottom boundary run and
@@ -2992,7 +2995,7 @@ function cageCut(m, S) {
         rowH += hi - lo; nH++;
       }
       rowH = nH ? rowH / nH : 0.05;
-      const NDROP = Math.round(sill / Math.max(1e-6, rowH));
+      let NDROP = Math.round(sill / Math.max(1e-6, rowH));
       while (q.length) {
         const fi = q.shift(), r = row.get(fi), f = F[fi];
         for (let e = 0; e < 4; e++) {
@@ -3003,6 +3006,15 @@ function cageCut(m, S) {
             row.set(gi, r + 1); q.push(gi);
           }
         }
+      }
+      if (up > 0) {                                   // G3570: the raised floor's rows
+        const lo = [];
+        for (const [fi, r] of row) for (const vi of F[fi].v) lo[r] = Math.min(lo[r] == null ? 1e9 : lo[r], V[vi][1]);
+        const b0 = lo[NDROP];
+        let n = NDROP;
+        if (b0 != null) while (lo[n + 1] != null && lo[n + 1] - b0 <= up + 1e-9) n++;
+        if (b0 != null && dk) (m.doorRise || (m.doorRise = {}))[dk] = lo[n] - b0;
+        NDROP = n;
       }
       keep = fis.filter(fi => {
         const r = row.get(fi);
@@ -3173,7 +3185,7 @@ function cageCut(m, S) {
       : W.doorSill;
     // G207: the door steps back by its recess and shrinks by half its seal
     cutZone(z, Math.max(0, sill || 0), W.doorDepth || 0, 0,
-            (W.doorRim > 0 ? W.doorRim : W.rim * 0.85) * 0.5);
+            (W.doorRim > 0 ? W.doorRim : W.rim * 0.85) * 0.5, W.floorUp > 0 ? W.floorUp : 0, dk);
   }
   // DOORS OWN THEIR WINDOWS (user ruling): glass already separated with
   // a door stays with it — only window faces OUTSIDE every cut door form
@@ -8086,6 +8098,9 @@ function cageSpec(P) {
       if (n[k].yC != null) n[k].yC += (yD - n[k].yC) * tv;
     }
   }
+  // G3570 (DC3-2): THE CABIN FLOOR HEIGHT (floorUp, metres; absent = 0), in cage units for the cut: every door's sill
+  // rises with the floor by the whole rows that fit under it (cageCut), the crew layer's floor by exactly floorUp
+  const floorUpC = (+P.floorUp > 0) ? +P.floorUp / ((CAGE_UNIT || 1) * (P.planeScale || 1)) : 0;
   S.win = { frameW: P.winFrameW, depth: P.winDepth, blow: P.winBlow,
             crGlass: P.crGlass, door: P.doorOn ? 1 : 0,
             doorDepth: P.doorDepth, rim: P.rimW, doorRim: P.doorRim,
@@ -8101,6 +8116,7 @@ function cageSpec(P) {
             // {pilot: v, pax0: v, ...} overrides any door individually
             doorSillPax: Math.max(0,
               (P.doorSillPax != null ? P.doorSillPax : P.doorSill) || 0) };
+  if (floorUpC > 0) S.win.floorUp = floorUpC;
   S.config.doors = { pilot: P.doorOn ? 1 : 0, pax: P.doorPax ? 1 : 0,
                      deep: P.doorDeep ? 1 : 0 };
   S.cut = { on: 1, doors: 1, wins: 1,

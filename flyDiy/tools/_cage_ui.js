@@ -2506,6 +2506,9 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
   d.appendChild(kSpan);
   parent.appendChild(d);
   const rel = k === 'planeScale';
+  // G3570: `absent` - the value a row shows while its key is absent from P (a row the defaults table does not
+  // carry, so a build that never moved it saves no key: the cabin floor height)
+  if (val == null && opts.absent != null) val = opts.absent;
   if (opts.follow && val == null) {
     const fv = frameVal(opts.follow);
     val = fv != null ? fv : lo;
@@ -5568,6 +5571,7 @@ function syncSliders() {
     const el = meta.el;
     if (!el) continue;
     let v = k === 'planeScale' ? relSize() : P[k];
+    if (v == null && opts && opts.absent != null) v = opts.absent;   // G3570: an absent key shows its row's own value
     if (meta.followEl) {
       const on = v == null;
       meta.followEl.checked = on;
