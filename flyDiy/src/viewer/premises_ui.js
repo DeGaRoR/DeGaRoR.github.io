@@ -174,7 +174,18 @@ function mount(host, ctx) {
   // the module's window listeners answer only while this mount is ACTIVE (the game closes and
   // reopens the editor; a closed one must not eat the flight's keys)
   let active = true;
-  const loadWip = () => { try { const t = storage && storage.getItem(LS_WIP); if (t) { const U = PG.unwrap(t); rec = U.rec; recName = U.name; return true; } } catch (e) { console.warn('premises wip:', e.message); } return false; };
+  const loadWip = () => { try { const t = storage && storage.getItem(LS_WIP); if (t) { const U = PG.unwrap(t); rec = U.rec; recName = U.name; wipOwn = true; return true; } } catch (e) { console.warn('premises wip:', e.message); } return false; };
+  // SCENERY VERSIONS (ED-2, 25 Oct): the game's editor opens on MASTER (the game boots it), not on the last autosave - so before the
+  // first write of a session whose record did not come from that autosave, the autosave is KEPT as a slot 'my edits before <date>'
+  // (FILE > 'load a version' / 'load slot' list it; the same text is never kept twice, the last KEEP_N kept). Nothing is wiped
+  let wipOwn = false, recBase = ctx.scenery ? 'master' : 'this record';
+  const KEEP_PRE = 'flydiy.premises.slot.my edits before ', KEEP_N = 4;
+  const writeWip = t => {
+    if (!wipOwn) { wipOwn = true; try { const old = storage.getItem(LS_WIP);
+      if (old && old !== t) { const ks = []; let dup = false; for (let i = 0; i < storage.length; i++) { const k = storage.key(i); if (k && k.indexOf(KEEP_PRE) === 0) { ks.push(k); if (storage.getItem(k) === old) dup = true; } }
+        if (!dup) { const d = new Date(), p2 = v => String(v).padStart(2, '0'); storage.setItem(KEEP_PRE + d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + ' ' + p2(d.getHours()) + ':' + p2(d.getMinutes()), old);
+          ks.sort(); while (ks.length >= KEEP_N) storage.removeItem(ks.shift()); } } } catch (e) { console.warn('premises: keeping the last edits', e.message); } }
+    storage.setItem(LS_WIP, t); };
   // THE EDITOR IN THE FLIGHT LOG (G3082 EDITOR-PERF; A0: "measure every editor action on the user's file"): every command's
   // rebuild, a select, a drag's moves, the autosave, the checks, the open - an 'edit' event with its time and what ran
   // (the composition, the renderer's steps, the game's ground re-sample, the inspector), which tools/analyze_log.js lists
@@ -183,7 +194,7 @@ function mount(host, ctx) {
   const logEdit = (ms, what) => { try { const F = typeof window !== 'undefined' && window.FLIGHT_REC; if (F && F.event && !F.off) F.event('edit', +(+ms).toFixed(1), what); } catch (e) {} };
   let LAST = '';
   let saveT = 0;
-  const autosave = () => { if (!storage) return; clearTimeout(saveT); saveT = setTimeout(() => { saveT = 0; const t0 = PERF.now(); try { storage.setItem(LS_WIP, PG.envelope(recName, rec)); } catch (e) {} const k = snapshot(); logEdit(PERF.now() - t0, 'autosave' + (k ? ' + history slot' : '')); }, 1000); };
+  const autosave = () => { if (!storage) return; clearTimeout(saveT); saveT = setTimeout(() => { saveT = 0; const t0 = PERF.now(); try { writeWip(PG.envelope(recName, rec)); } catch (e) {} const k = snapshot(); logEdit(PERF.now() - t0, 'autosave' + (k ? ' + history slot' : '')); }, 1000); };
   // THE ROLLING HISTORY (G2917; the user: "at least the paths I trace manually should be kept safe"): the autosave is one
   // slot, so a bad edit autosaved over the good one was gone. Every HIST_MS of editing the record is also kept as a slot
   // named 'autosave <date time>' (the FILE section's 'load slot' lists them; the host's storage puts back what the boot
@@ -207,7 +218,7 @@ function mount(host, ctx) {
   }
   // G1535 (UPDATE-NOW): the "Update" pill reloads the page - an edit still inside the autosave's second is written first
   if (typeof window !== 'undefined' && window.UPDATE_NOW && window.UPDATE_NOW.onBeforeUpdate)
-    window.UPDATE_NOW.onBeforeUpdate(() => { if (!saveT || !storage) return; clearTimeout(saveT); saveT = 0; try { storage.setItem(LS_WIP, PG.envelope(recName, rec)); } catch (e) {} });
+    window.UPDATE_NOW.onBeforeUpdate(() => { if (!saveT || !storage) return; clearTimeout(saveT); saveT = 0; try { writeWip(PG.envelope(recName, rec)); } catch (e) {} });
 
   // ---- undo / redo: commands over the record --------------------------------
   const undoS = [], redoS = [];
@@ -2254,6 +2265,32 @@ function mount(host, ctx) {
     const ta = $('textarea', { placeholder: 'paste an envelope or a bare record here, then import', rows: '4' }); ta.className = 'pr-paste';
     P.appendChild(ta);
     rows.button(P, 'import', () => { try { load(ta.value); ta.value = ''; } catch (e) { strip.status('import refused: ' + e.message); } });
+    // SCENERY VERSIONS (ED-2; the user, 25 Oct: 'when getting into the scenery editor, there is an option to load a version, and that's the
+    // only place where scenery can be loaded'): master (what the game boots), the last autosave ('my edits'), and the named versions
+    // of the repo (media/scenery/<island>/index.json). A load replaces the record and composes it into this session's world; the next
+    // boot is master again. 'save as a version' downloads the record stamped as a version (tools/scenery_version.js add commits it)
+    const SC = ctx.scenery || null;
+    if (SC) {
+      const VS = SC.versions(), hasWip = !!(storage && (() => { try { return storage.getItem(LS_WIP); } catch (e) { return null; } })());
+      const opts = [['', 'running: ' + recBase], ['master', 'Master (the shipped scenery)']].concat(hasWip ? [['wip', 'My edits (the last autosave)']] : [], VS.map(v => ['v:' + v.id, v.name + (v.date ? ' (' + v.date + ')' : '')]));
+      rows.select(P, 'load a version', opts, () => '', v => {
+        if (!v) return;
+        try { let t = null, nm = v;
+          if (v === 'master') { t = SC.master; nm = 'master'; }
+          else if (v === 'wip') { t = storage.getItem(LS_WIP); nm = 'my edits'; }
+          else { const V = VS.find(q => 'v:' + q.id === v); t = V ? SC.versionText(V) : null; nm = V ? V.name : v; }
+          if (!t) { strip.status('load refused: ' + nm + ' is not in this build'); return; }
+          load(SC.prep ? SC.prep(t) : t); recBase = nm; if (v === 'wip') wipOwn = true;
+          strip.status('loaded ' + nm + ' - this session only: the game boots master'); palette.refresh();
+        } catch (e) { strip.status('load refused: ' + e.message); } });
+      rows.button(P, 'save as a version (download)', () => {
+        const d = new Date(), p2 = q => String(q).padStart(2, '0'), date = d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
+        const name = ((typeof prompt === 'function' ? prompt('A name for this version:', (recName || 'my scenery') + ' ' + date) : null) || '').trim(); if (!name) return;
+        const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'version';
+        const o = JSON.parse(PG.envelope(recName, rec)); o.scenery = { id, name, date, base: recBase, island: SC.island || null };
+        const a = document.createElement('a'); a.href = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(o)); a.download = 'scenery_' + id + '.json'; a.click();
+        strip.status('saved ' + name + ' as a version (downloaded)'); });
+    }
     if (storage) {
       const slots = [];
       for (let i = 0; i < storage.length; i++) { const k = storage.key(i); if (k && k.startsWith('flydiy.premises.slot.')) slots.push(k.slice(21)); }
@@ -2496,7 +2533,7 @@ function mount(host, ctx) {
     if (!storage) return;
     const n = name || recName || 'premises';
     recName = n; rec.name = rec.name || n;
-    try { storage.setItem('flydiy.premises.slot.' + n, PG.envelope(n, rec)); storage.setItem(LS_WIP, PG.envelope(n, rec)); strip.status('saved as ' + n); } catch (e) { strip.status('save failed: ' + e.message); }
+    try { storage.setItem('flydiy.premises.slot.' + n, PG.envelope(n, rec)); writeWip(PG.envelope(n, rec)); strip.status('saved as ' + n); } catch (e) { strip.status('save failed: ' + e.message); }
     if (section === 'file') palette.refresh();
   }
   // (G2910) the editor holds every polygon as an AREA: a record still carrying foldable v1 entries (a v1 file the migrator
@@ -2505,6 +2542,7 @@ function mount(host, ctx) {
   function load(txt) {
     const U = PG.unwrap(txt);
     rec = foldIn(U.rec); recName = U.name; undoS.length = 0; redoS.length = 0;
+    recBase = U.name || 'an import';   // (SCENERY VERSIONS: what the record was loaded from - 'load a version' names it after)
     select(null); dirty(null);
     strip.status('loaded ' + (recName || '(unnamed)'));
   }
@@ -2627,6 +2665,7 @@ function mount(host, ctx) {
       if (name === 'fold') { const n = PG.foldAreas(rec); dirty(null); return n; }
       if (name === 'paletteEl') { return pal; }
       if (name === 'snapshot') { return snapshot(true); }
+      if (name === 'saveNow') { clearTimeout(saveT); saveT = 0; if (storage) writeWip(PG.envelope(recName, rec)); return !!storage; }   // (SCENERY VERSIONS: the autosave's write, now - GATE SCENERYED 38)
       if (name === 'inspector') { return insp; }
       if (name === 'bank') { return bankTiles().map(t => ({ k: t.k, kind: t.kind, key: t.key, with: t.with || null, group: t.group })); }   // G2893
       if (name === 'tool') { setTool(args.name); return tool; }

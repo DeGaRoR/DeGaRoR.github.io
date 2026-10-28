@@ -1409,6 +1409,53 @@ if (plots.length) {
   check(/const eye0 = camera\.position\.clone\(\), q0 = camera\.quaternion\.clone\(\);/.test(APs) && /camera\.position\.copy\(eye0\); camera\.quaternion\.copy\(q0\); PREM\.host\.cameras\.set\('fly'\);/.test(APs) && !/cameras\.frame\(ov\.extent\)/.test(APs),
         '41 the editor opens in FLY (WASD) from the flight\'s eye, the orbit centred on the aeroplane - not framed on the island-wide extent');
 }
+// 42 SCENERY VERSIONS (41 is EDITOR-ITEMS, ED-1) (ED-2; the user, 24 Oct: "the fact that the game and the player edits can diverge is problematic ... keep some sort
+//    of master, so there is no confusion" - and 25 Oct: "the game always loads master. When getting into the scenery editor, there is an
+//    option to load a version, and that's the only place where scenery can be loaded"): every named version listed in
+//    media/scenery/<island>/index.json is a file of the repo that unwraps and composes (an id once); the boot composes master and never
+//    reads (but the rigs' door) nor deletes the editor's copy; the editor opened on master offers master / the last autosave / the
+//    versions and loads each, and keeps the last autosave as a slot before its first write overwrites it (once, whatever the writes)
+{
+  const SCN_DIR = path.join(TOOLS, '..', 'media', 'scenery');
+  let n = 0, bad = [];
+  for (const isl of (fs.existsSync(SCN_DIR) ? fs.readdirSync(SCN_DIR) : [])) {
+    const ixf = path.join(SCN_DIR, isl, 'index.json'); if (!fs.existsSync(ixf)) continue;
+    let ix = null; try { ix = JSON.parse(fs.readFileSync(ixf, 'utf8')); } catch (e) { bad.push(isl + ': index.json does not parse'); continue; }
+    if (!Array.isArray(ix.versions)) { bad.push(isl + ': index.json has no versions list'); continue; }
+    const ids = new Set();
+    for (const v of ix.versions) {
+      n++;
+      if (!v.id || ids.has(v.id)) bad.push(isl + ': version id missing or twice: ' + v.id); ids.add(v.id);
+      const f = path.join(SCN_DIR, isl, v.file || '');
+      if (!v.file || !fs.existsSync(f)) { bad.push(isl + '/' + v.id + ': no file ' + v.file); continue; }
+      try { const R = PG.unwrap(fs.readFileSync(f, 'utf8')).rec; PG.compose(PG.expandAreas ? PG.expandAreas(R) : R, synth); } catch (e) { bad.push(isl + '/' + v.id + ': does not compose (' + e.message.slice(0, 60) + ')'); }
+    }
+  }
+  check(!bad.length, '42 the named scenery versions (' + n + ') are repo files that compose, one id each', bad.slice(0, 4).join('; '));
+  const WBsrc = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'world_boot.js'), 'utf8'), APsrc = fs.readFileSync(path.join(TOOLS, '..', 'src', 'viewer', 'app.js'), 'utf8');
+  const has = (s, t) => s.indexOf(t) >= 0, wipReads = WBsrc.split('getItem(WIP_KEY)').length - 1;
+  check(wipReads === 1 && has(WBsrc, 'if (rig) { let t = null; try { t = localStorage.getItem(WIP_KEY)') && has(WBsrc, "getItem('flydiy.premises.bootWip') === '1'") && !has(WBsrc, 'removeItem(WIP_KEY)') && !has(WBsrc, "get('scenery')") && has(WBsrc, '      return fixture;'),
+    '42 the game boots master: the editor\'s copy is read only behind the rigs\' door, never deleted; no ?scenery= in the game', 'getItem(WIP_KEY) x' + wipReads);
+  check(has(APsrc, 'scenery: WB.SCN ? { island: WB.SCN.island, master: rec0,') && !has(APsrc, 'clear the saved premises (the map') && !has(APsrc, "flSelect(body, 'scenery'"),
+    '42 the scenery editor gets the versions (master = what the page composed); the WORLD panel neither picks a scenery nor deletes the editor\'s copy');
+  { const M = new Map(), S = { getItem: k => (M.has(k) ? M.get(k) : null), setItem: (k, v) => { M.set(k, String(v)); }, removeItem: k => { M.delete(k); }, key: i => Array.from(M.keys())[i] || null, get length() { return M.size; } };
+    const base = fs.readFileSync(path.join(TOOLS, 'fixtures', 'scenery_user_jolene_rev23.json'), 'utf8');
+    const named = nm => { const o = JSON.parse(base); o.name = nm; (o.premises || o).name = nm; return JSON.stringify(o); };
+    const mineT = named('my edits 38'), verT = named('version 38'), VS = [{ id: 'v38', name: 'Version 38', file: 'v38.json' }];
+    S.setItem('K38', mineT);
+    let sel = null; const rows38 = Object.assign({}, rows, { select: (h, t, opts, g, set) => { if (t === 'load a version') sel = { opts: opts.map(o => o[0]), set }; } });
+    const ed38 = UI.mount(new El('div'), { THREE: null, world: synth, R: makeR(), rows: rows38, els: { chk: null, plaque: null, strip: new El('div') }, viewEl: new El('div'), storage: S, wipKey: 'K38', fresh: true, record: base, camera: () => null, redraw: noop,
+      scenery: { island: 'jolene', master: base, versions: () => VS, versionText: v => (v.id === 'v38' ? verT : null), prep: t => t } });
+    ed38.setSection('file');
+    check(sel && ['master', 'wip', 'v:v38'].every(k => sel.opts.indexOf(k) >= 0), '42 FILE > load a version: master, my edits (the last autosave), the named versions', JSON.stringify(sel && sel.opts));
+    const kept = () => Array.from(M.keys()).filter(k => k.indexOf('flydiy.premises.slot.my edits before ') === 0);
+    ed38.cmd('saveNow'); ed38.cmd('saveNow');
+    check(kept().length === 1 && S.getItem(kept()[0]) === mineT && S.getItem('K38') !== mineT, '42 opened on master, the first autosave keeps the last edits as a slot (once) before it writes', JSON.stringify(kept()));
+    const nameOf = () => { const r = ed38.record(); return r && r.name; };
+    if (sel) { sel.set('v:v38'); const v1 = nameOf(); sel.set('master'); const m1 = nameOf(); sel.set('wip'); const w1 = PG.unwrap(S.getItem('K38')).rec.name;
+      check(v1 === 'version 38' && m1 !== 'version 38' && nameOf() === w1, '42 each loads: the version, master, the last autosave', [v1, m1, nameOf(), w1].join(' / ')); }
+    ed38.close(); }
+}
 // 5 NAMES
 check(/rows\.section\(insp, 'THE SCENERY'\)/.test(UI_SRC) && !/rows\.section\(insp, 'THE PREMISES'\)/.test(UI_SRC), '5 the editor names its record the scenery');
 const APP = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');

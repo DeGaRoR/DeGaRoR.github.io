@@ -496,6 +496,15 @@ for (const f of files)
   check(fs.existsSync(f), `manifest ${path.relative(ROOT, f)} does not exist`);
 const refs = collectRefs(files.filter(f => fs.existsSync(f)));
 const present = walkMedia(MEDIA);
+// SCENERY VERSIONS (ED-2, 25 Oct): media/scenery/<island>/index.json is the scenery editor's list of named versions - world_boot.js
+// fetches it by the island's id (no literal path to scan) - and it names its own version files (tools/scenery_version.js add)
+{ const WB = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'world_boot.js'), 'utf8');
+  const fetches = /getSync\('media\/scenery\/' \+ ISL_ID \+ '\/index\.json'\)/.test(WB);
+  for (const rel of present.filter(r => /^media\/scenery\/[a-z0-9_-]+\/index\.json$/.test(r))) {
+    if (fetches && !refs.has(rel)) refs.set(rel, 'src/viewer/world_boot.js (SCN.versions)');
+    let J = null; try { J = JSON.parse(fs.readFileSync(path.join(ROOT, rel), 'utf8')); } catch (e) {}
+    check(!!(J && Array.isArray(J.versions)), `${rel} is a scenery versions index ({versions: [...]})`);
+    for (const v of (J && J.versions) || []) { const f = rel.slice(0, -'index.json'.length) + (v && v.file); if (v && v.file && !refs.has(f)) refs.set(f, rel); } } }
 checkStore(refs, present);
 // MEDIA ACCEPTED BY NAME (a media file the user accepted by its size; the gate holds it to that size - a re-encode that
 // grows it is a new ask, not a silent pass)
