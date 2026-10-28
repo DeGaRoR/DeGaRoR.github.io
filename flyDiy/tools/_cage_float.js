@@ -297,8 +297,8 @@ function floatKitCard(ev, P) {
     };
   } catch (e) { /* a card is never worth a build */ }
 }
-const prevLoad = PAGE.load;
-PAGE.load = () => { if (prevLoad) prevLoad(); lastPreset = null; lastKit = null; };
+const prevLoadKit = PAGE.load;                    // (A0 L28b: G3700's load hold is chained before; the spec passes through)
+PAGE.load = spec => { if (prevLoadKit) prevLoadKit(spec); lastPreset = null; lastKit = null; };
 if (typeof window !== 'undefined') {
   window.CAGE_FLOAT_STARTER = floatPresetStarter;
   window.CAGE_FLOAT_APPLY_PRESET = applyFloatPreset;
