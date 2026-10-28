@@ -151,6 +151,13 @@ const BASE_OFFERS = {
     plots: { mk_sea: { shells: ['field'], kits: ['park'], pf: 0.8, water: true,
                        dims: { field: { HW: 9, HD: 10, EAVE: 4.4 } } } },
   },
+  // CABIN-LAKE (the user, 25 Oct via A0: "add a seaplane lane on the lake in front of the cabin strip? Where I installed piers?"):
+  // the lake below the Cabin Strip, a slipway shed on the north shore by the user's trestle pier
+  cb_sea: {
+    words: GAME_NAMES.fields.cb_sea + ' · a slipway by the cabin',
+    plots: { cb_sea: { shells: ['field'], kits: ['park'], pf: 0.7, water: true,
+                       dims: { field: { HW: 9, HD: 10, EAVE: 4.4 } } } },
+  },
 };
 
 // The money's rules (the PRICES are THE PRICE BOOK's since G2260 ECONOMY, P5a:
