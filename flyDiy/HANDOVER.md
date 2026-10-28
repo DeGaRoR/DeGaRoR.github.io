@@ -203331,3 +203331,63 @@ The user, 26 Oct via A0: "the shed panel can be 4 times bigger, in and out"; 27 
 - s28-c13h 11:30 (on the no-flag head 05df7ed8f, real parked cook): HANGAR PASS; LIGHT red = master's own studio rig only (as above); parked cook --check (same); FRAMECOST FAIL (1) = master's own key only (cessna boot/garage:restore/three.updateMatrixWorld 2269 -> 4557).
 - The rest of the 25 counted from the C2 head (G3534d touched only the outside group, A0 28 Oct); the full polish itself passed all 25 on 5c21d32aa (s27-c9h).
 - Not on this branch: G3543 the vehicle prints (claude/ready/vehicle-shadows) and G3544 the hangar plinth (claude/ready/hangar-plinth).
+
+## LODS-2026-10 STEP 1 - EVERY NAMED BUILDING AND OUTBUILDING ITS OWN FAR MODEL (2026-10-27, cloud; claude/ready/lods-step1)
+
+A0's landing order for the approved LODS-2026-10 (the full work: `claude/lods-fix`, the reference): one step a branch,
+a box A/B each, the GATE LODS ratchet live from step 1, `--strict` the gate at step 5. The step map:
+`futureDesigns/LODS-2026-10.md` §7 "HOW IT LANDS".
+- **Site items take their lod 1** (`premises_build.js genItem` + the worker's pack / unpack; `render_premises.js
+  buildItem`): every named building's far rung was `detailOf`'s 3 largest plain bags of lod 0 (the school 2 % roofed,
+  the meteo station three floating lids); now banded on its own lod 1 on the town shader (`hlodFarTarr`), its edge by
+  its projected size like a house's.
+- **Outbuildings banded** (`placeDress`): `userData.lod1` = their own lod 1 bags (their near is lod 1): the same mesh
+  and colour far (the user: the box proposal "not the same color at all").
+- **The in-flight stream's builds keep their lod 1** (`HLOD.streamLod1`, `?streamlod1=0` the A/B's before).
+- **Detail roles per generator** (`LOD_DETAIL` on HOUSE / SHED / BIG / HANGAR / TOWER / NAVAID_GEN, read by
+  `lod1Bags`) replace the house-only `LOD1_SHELL`: under it a navaid, a tower kept NOTHING past the detail band (the
+  ratchet caught it - their coarsest rung went from a box to empty). A generator with none keeps its lod 1 whole.
+- **Closure**: `_house_kit.js plate` wound every slab's edge faces inward - fixed; lod-1 walls capped; the shed's
+  lod-1 panels two-skinned, its open front's plate kept. It moves a few obstacle-raster cells by a slab's thickness:
+  the premises cook re-run (31 Jolene cells), the city manifest's `places` input hash with it (no city media).
+- **The far merge reads the building's frame NOW** (`hlodCell`: `g.updateWorldMatrix`; `hlodFarTarr`: the lod-1 root
+  takes it and walks its bags, once a building): `house_tarr`'s merge reads each bag's `matrixWorld` as it stands, and a
+  site item's cell merged before the item was ever walked put its far mesh at the world origin (bounding sphere
+  (0, 6, 0) r 21 for HOME's hangar) - frustum-culled, nothing drawn. Found on the in-game still; `claude/lods-fix`
+  carries the same latent dependency (it drew there by timing). Once a building, not once a bag: a bag each was +13 k
+  `updateMatrixWorld` in the boot's settle (FRAMECOST), once a building +1.5 k.
+- **The ratchet follows the game** (`_lods_lib.js readDetail` reads what the page does: items / outbuildings banded,
+  boxes present; rung ids `far` / `coarsest` stable across steps; an open structure near - the WWII lattice - held to
+  its own near leak + 1 %): 168 of 170 ledger rows heal; the ledger keeps `HLOD.gain` and the city's `farGain`
+  (step 2 / step 3).
+- Not in this step: the plain far fallback and the boxes (step 2), Metlakatla's kit box and city prism (step 3), the
+  meteo generator's `LOD_DETAIL` (its branch).
+- **Numbers.** Far triangles of Jolene's 104 placed named buildings (node, `tools/lods_audit.js`): 307 232 -> 111 192;
+  their coarsest rung 1 040 (boxes) -> 72 404 (lod 1 less its detail roles). GATE LODS: 168 of 170 ledger rows heal.
+  FRAMECOST like for like (both trees `FRAMECOST_QUERY=parkcook=0`, `--compare`; the parked cook is signed with the
+  build id, so any code edit stands the parked aeroplanes live until A0's re-cook - the gate's own HINT; base =
+  90aece7d): stand draws 1130 -> 1138 (Cub) / 1140 -> 1148 (Cessna), taxi 1260.5 -> 1259.5 / 1270.5 -> 1269.5, the
+  shadow pass unchanged; programs at the stand 91 -> 101 / 90 -> 100, at the taxi 85 -> 87; boot draws unchanged, +3
+  lod-1 builds, +4 MiB of texture-array layers, +8 links at the snapshot. Against the gate's baseline with the cook
+  fresh no row of these goes red (master's own values sit under it, the boot rows under G1020/G1021's whole-step
+  ALLOWs) - checked from the censuses, not run on a fresh cook.
+- **Gates** (cloud; not the whole core battery, not --all - the train's): on the final code HOUSE, LODS, TARR,
+  PREMISES, PREMCOOK, GAMEPREM, FADES PASS; HOUSEWORKER PASS after the frame fix. Before it, on this branch: 38 core gates
+  whose source reads the premises, the house kit or a generator, 35 PASS (HOUSE, LODS, TARR, PREMISES, PREMCOOK, MEDIA,
+  TOWNKIT, KITHOST, CITYHOST, CITYCOOK, GAMEPREM, VILLAGE, SITE, PREMRASTER, ROOMMERGE, HWCOV, HOUSEWORKER, AUDIO, ATMO,
+  NAVAID, ANIMALS, DMGSCAR, GFX, STAND, FADES, CONTACT, LOOKS, ASSETS, PATCHFAR, METKIT, PARKED, HITBOX, PAVEMENT, LIFE,
+  OBSTACLE; PREMCOOK, PARKED and HITBOX alone, the parallel pool starved them); CLOUD (the lamp-pool row's regex),
+  FRAMECOST (garage:restore updateMatrixWorld; and on any edited tree the stale parked cook) and SCENERYED (20b, a
+  timing) FAIL IDENTICALLY on the untouched tree.
+- **Re-based on train L28-0** (A0, 28 Oct: held out of L28a for the box A/B and a conflict with ready/meteo-code in
+  `_house_gen.js`): master merged in; `HOUSE_GEN` exports both meteo-code's `std` (G3660) and `LOD_DETAIL`; the cook
+  outputs taken from master and re-cooked on the merged tree (the same 31 Jolene cells, the city places hash). GATE LODS
+  with the meteo station in the catalogue: 138 buildings, PASS (it has no `LOD_DETAIL` yet: its lod 1 stays whole).
+  The 38 gates on the merged tree: 35 PASS; CLOUD (the lamp-pool row), SCENERYED (row 20, EDITOR-PERF timing) and
+  FRAMECOST (the stale parked cook on an edited tree - its HINT - and cessna garage:restore updateMatrixWorld
+  2269 -> 4553) FAIL. The same three on untouched master (4ab6c317): CLOUD the same row, SCENERYED 20b (4028 ms there,
+  3985 here), FRAMECOST garage:restore 2269 -> 4553 - this branch's extra FRAMECOST rows are the parked cook, stale on
+  any edited tree (fresh on master's own build; the train re-cooks).
+- In game (dev.html on SwiftShader, `soft_still.js`, HOME from 420 m, the same camera): `reports/evidence/LODS/step1/` -
+  the club hangar a washed-out box before, its walls, doors and roof lights now; the sheds their own colours; no page
+  error.
