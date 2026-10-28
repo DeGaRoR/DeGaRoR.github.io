@@ -101498,3 +101498,18 @@ route_draw row, red in the cloud on every tree tried (the base included): UNVERI
 **The parked cook**: the same 9 core files change against the base (73b + 73c in MANIFEST.core; props adds to 72_ / 73b /
 73c / 74_ / 75_ / 90_ within that list): the parked cook of 17f331783 goes stale - the local box cooks it and runs
 FRAMECOST in the train. tools/_mission_gen.js is NOT in MANIFEST.lazy (nothing loads it in the game yet).
+
+## Train L28a (A0, Wed 28 Oct, pushed ~10:45 on the user's land-everything rule)
+
+Merged onto L28-0 (4ab6c317d): menus-l28a (game menus + menus UI + phone garage + card-drag + Back confirmation), story-tutor, missions p1/p3/props,
+hydro-trim (with its re-stamps), looks-2, dmg-glass, door-hinges-2, scenery-afb (the user's AFB fold, no fences, cabin lake lane + slipway, meteo
+station site), scenery-dc3park (HOME's three parked planes moved off the DC-3's wings).
+Battery: CLOUD / FRAMECOST / KTX2 = master's standing rows. Named, not breaks (the user 28 Oct 03:00: "land everything, apart if you highly
+suspect a poisoning feature"): MEDIA career_core 553 KB vs a 512 KB budget (the missions' career code; the user 14 Oct: no page-size work);
+LIGHT "the studio is back" = the phone garage's dark studio (by design, the row is stale); PARKED row 13's source scan of the parking step
+(the DC-3 parking moved the stand); DMGSKINGPU a torn edge 528 mm past its bound on the GPU path (damage-only, cosmetic).
+Train gate (box quiet, cpuLoad <= 25 %): a few multi-second tasks per flight (worst 3.5-5.6 s, fps 20 averaged over the run) - the same class
+GAME-MENUS' tree showed alone on 27 Oct (s27-g11b: longTask1s n 4-9, worst 8.2 s), the menus' freeze the user ACCEPTED BY NAME on 28 Oct 02:40
+("take the risk for the menus, we don't care, land that"). Follow-up: GAME-MENUS' 10:25 no-blur A/B + HWCOV's cloud-march warm (f93b69c9c).
+Not in it: garage-flood (accepted 2 s; its ready awaited A0's ok), people-crowd (pushed after the train's merge), windows + fittings (CLIP red),
+cert-rule + cert-pod, new-shapes-1, lods-step1, the shed (its polish freezes 2.2 s), metla-on (L28b).
