@@ -3900,12 +3900,44 @@ function compose(rec0, world, opts) {
     if (n < 2 || (pts[0][0] === pts[n - 1][0] && pts[0][1] === pts[n - 1][1])) return Infinity;
     const DE = roadDeadEnds(it);
     if (!DE[0] && !DE[1]) return Infinity;
-    let best = Infinity, bi = 1, bt = 0;
-    for (let i = 1; i < n; i++) {
-      const a = pts[i - 1], b = pts[i], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
-      const t = l2 > 1e-12 ? ((x - a[0]) * dx + (z - a[1]) * dz) / l2 : 0, tc = Math.max(0, Math.min(1, t));
-      const d = HYP2(x - (a[0] + dx * tc), z - (a[1] + dz * tc));
-      if (d < best) { best = d; bi = i; bt = t; }
+    let best = Infinity, bi = 1, bt = 0, found = false;
+    // The viewer asks this after roadDist: that query already uses the segment
+    // grid, while this end correction still walked the whole island road.
+    // Reuse the SAME grid. Keep the original segment arithmetic and the walk's
+    // first-segment tie rule; visit another ring on an exact distance boundary
+    // so an equally near earlier segment cannot be missed.
+    const I = roadSegIdx(it.road);
+    if (I) {
+      const ci = Math.floor((x - I.x0) / I.C), cj = Math.floor((z - I.z0) / I.C);
+      if (ci >= -2 && cj >= -2 && ci <= I.nx + 1 && cj <= I.nz + 1) {
+        const kMax = Math.min(SEG_RINGS, Math.max(I.nx, I.nz) + 3);
+        for (let k = 0; k <= kMax; k++) {
+          for (let i = ci - k; i <= ci + k; i++) {
+            if (i < 0 || i >= I.nx) continue;
+            const edge = i === ci - k || i === ci + k;
+            for (let j = cj - k; j <= cj + k; j += (edge || k === 0) ? 1 : 2 * k) {
+              if (j < 0 || j >= I.nz) continue;
+              const ids = I.cells.get(i * 65536 + j); if (!ids) continue;
+              for (let m = 0; m < ids.length; m++) {
+                const si = ids[m], a = pts[si - 1], b = pts[si], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
+                const t = l2 > 1e-12 ? ((x - a[0]) * dx + (z - a[1]) * dz) / l2 : 0, tc = Math.max(0, Math.min(1, t));
+                const d = HYP2(x - (a[0] + dx * tc), z - (a[1] + dz * tc));
+                if (d < best || (d === best && si < bi)) { best = d; bi = si; bt = t; }
+              }
+            }
+          }
+          if (best < k * I.C) { found = true; break; }
+        }
+      }
+    }
+    if (!found) {   // short roads, distant/non-finite queries, or no bounded answer: original walk
+      best = Infinity; bi = 1; bt = 0;
+      for (let i = 1; i < n; i++) {
+        const a = pts[i - 1], b = pts[i], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
+        const t = l2 > 1e-12 ? ((x - a[0]) * dx + (z - a[1]) * dz) / l2 : 0, tc = Math.max(0, Math.min(1, t));
+        const d = HYP2(x - (a[0] + dx * tc), z - (a[1] + dz * tc));
+        if (d < best) { best = d; bi = i; bt = t; }
+      }
     }
     const len = i => HYP2(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
     let e = Infinity;

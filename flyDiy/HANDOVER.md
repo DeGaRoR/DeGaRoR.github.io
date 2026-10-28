@@ -204314,3 +204314,33 @@ Train gate (box quiet): IN FLIGHT better than L28a (25 fps vs 20, 1-2 frames ove
 the town and the new LOD materials. ACCEPTED under the user's rule (under the loading screen; no feature sacrificed); the TOP item of
 flydiy-notes/PERF-WEEK-KNOWN-ISSUES.md.
 Not in it: fittings-manual (HANDLE overlap with door-hinges-2, back to the hinge session), avionics-gps (new ready, conflict), new-shapes-1.
+
+## GROUNDQUERY draft — Codex, 28 Oct 2026 (user-requested protected-window work)
+
+Independent branch claude/codex-groundquery on a5e89abe9fe691551a7a8a2e5bb5d7ec5ebf7b87. No test, build, browser,
+cook, timing run or lock during preparation; node --check only. Shaderwarm stays
+separate. The user explicitly requested progress on ground queries during the wait
+and asked that precision cost be judged against visible benefit, not millimetres alone.
+
+roadDist already searches the existing segment grid, but private roadEndIn still
+walked every segment for each visual pavedAt query. Draft uses that same grid for
+nearby long-road samples, exact original projection arithmetic, earliest-segment
+tie breaking and strict ring bound; retains the full walk for fallback cases.
+The changed helper is used only by pavedAt. Its core-file location does not make
+it a flight-dynamics change: terrainH, surfaceAt, roadDist and every precision
+constant are unchanged. No tolerance relaxed or feature/appearance changed.
+
+New GROUNDQUERY gate prepared: exact old-walk parity for both hypot engines,
+endpoint/interior ties, degenerate/closed/short roads and distant/non-finite
+fallbacks; public pavedAt reach/dPre and recomposition; deterministic distance
+operation budget on a 2500-segment road. NOT RUN YET. Syntax checks pass.
+
+Accuracy distinction: end-cap correction documented 0.23-0.59 m pits, whereas
+2 cm patch offsets also address depth fighting. Audit sub-centimetre contact
+polish separately with normal-view/contact-shadow evidence; do not infer that
+all costly pavement work merely buys imperceptible precision. No claimed speedup.
+
+OWED after free-box check: final-master integration, master baseline, parity/gates
+(SCENERYED PREMISES CONTACT PAVEMENT PREMRASTER LOOKS plus briefing gates),
+actual shipped-road operation census, visual proof and cold cooked A/B/A.
+External record: D:/Dev/flydiy-notes/CODEX-LOG-SHADERWARM.md.
