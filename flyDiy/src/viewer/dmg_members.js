@@ -46,6 +46,7 @@
 (function () {
   'use strict';
   const SLOTS = 128;          // a pool's slots (every census run needed at most 98, study 10.3); past them a member keeps today's drawing
+  const RING_MAX = 0.04;      // m: a measured ring wider than this is no drawn tube's (skin_break.js LOOK_R 3.5 cm)
   const RINGS = 14;           // rings a piece (two pieces a slot): clustered at the hinge or the break
   const AROUND = 8;           // the most corners a section has (a sweep's eight; a hex tube's six; a beam's four)
   const TX = 12;              // texels a slot: 8 of state, 4 of the section's corners (8 x (x, y))
@@ -112,6 +113,7 @@
       if (CA.length < 3) continue;
       const n = CA.length; K[bi] = n;
       let rs = 0; for (const q of CA) rs += q.rr; r[bi] = rs / n;
+      if (!(r[bi] <= RING_MAX)) { K[bi] = 0; r[bi] = 0; continue; }   // (a ring wider than any drawn tube: not one tube's - never a slab)
       for (let k = 0; k < n; k++) { const q = CA[k], o = (bi * AROUND + k) * 3; off[o] = q.q[0]; off[o + 1] = q.q[1]; off[o + 2] = q.q[2];
         // its uv at the first end, and at the far end the corner of the far ring nearest it in angle
         let best = RB.C[0], bd = Infinity; for (const w of RB.C) { let d = Math.abs(w.ang - q.ang); if (d > Math.PI) d = 2 * Math.PI - d; if (d < bd) { bd = d; best = w; } }
