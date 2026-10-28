@@ -5574,7 +5574,7 @@
    "tint": {
     "hue": 0,
     "sat": 0.15,
-    "light": 3,
+    "light": 2,
     "bark": 1,
     "alpha": 0.3
    },
@@ -10594,7 +10594,7 @@
     },
     "forest": {
      "ground": "wet",
-     "count": 5000,
+     "count": 3000,
      "radius": 220,
      "under": 20,
      "cover": 1,
@@ -10612,7 +10612,7 @@
      "canopyFloor": 3.5,
      "clump": 0.55,
      "clumpM": 28,
-     "debris": 14
+     "debris": 131
     }
    },
    "grassland": {
