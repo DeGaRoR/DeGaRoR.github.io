@@ -98841,6 +98841,72 @@ Strict light gate RED (11), all in the known classes:
 - cub garage fps 26.7: ONE 2167 ms frame in 160; the other 159 at 33 ms (the garage hitch class, L24b 27.0).
 - metal chase flight 68.9 s vs 63.6 + 5.09 slack: 0.23 s over, the scripted flight's wall time. Named; re-read in L25a.
 Pushed with these, by the user's order of 25 Oct: land last week's items and priority 1 as soon as possible.
+## G3430-G3434 - ASSETS wk44: THE LAKE-SHORE REEDS (playtest 24 Oct item 46) + THE 54-VEHICLE PACK DROPPED (item 45) (2026-10-24, ASSETS-OCT for A0; branch claude/assets-wk44)
+
+**THE REEDS (G3430)** - the user: reeds ("roseaux") in the grass round the lakes, from fern_grass_02.glb ("fern grass 02"
+by Digital screen official, CC BY 4.0; CREDITS.md). Today's pipeline, no new system:
+- the species `reed_marsh` (tools/_trees_tuning.json `tuning`: kind cover, file fern_grass_02.glb, size 62 - the file bakes
+  0.019 m tall through its x0.001 Z-up wrapper, so a 1.2 m clump; noTint: it keeps its own green-brown, as the flowers do;
+  density 0.9 / m2, no patching);
+- the mix `lakeshore` (the reed alone; its forest: no trees, shrubs, rocks or debris) and the terrain-type map's code 1
+  (`lake`) -> `lakeshore`. Code 1 had NO mix, so the first cover ring planted nothing on a lake's 10 m cells - the dry bank
+  of every lake (the land test, render_world okAt with lakeMargin 0.03 m) now takes the reeds; the water is refused as
+  before; the grass FIELD keeps G2572's rule (a dry lake node takes the nearest land code's grass) - reeds AND grass on the
+  bank; the trees read B.density('lakeshore') = 0.
+- tools/tree_prep.py `--only k1,k2`: bakes the named species alone and MERGES them into the baked pack (the rest untouched,
+  nothing pruned, the biomes re-read) - the pack was last re-written by --biomes, and a full re-bake on another Pillow could
+  re-encode every tree map.
+- the source goes to the main checkout's assets/vegetation/grass/ (gitignored); tools/tree_inspect.js indexes it
+  (TREE_ASSETS = the main checkout's assets/ from a worktree).
+- 25 Oct, after the first bake + the 05:00 look (the reeds stood as a solid neon-lime band along every bank, the fern's
+  own picture, noTint): the reed takes the grass's colour recipe instead (sat 0.15, light 2.14, lift 0.29, contrast 0.35:
+  the ground's colour at its foot, as grass_dry), beds (patch 5, share 0.5) and density 0.6 so the bank is not one ribbon;
+  tree_inspect no longer files a cut-out tuft in the cover folder as flat ground (the fern is 3 cm through its x0.001
+  wrapper - --only had found no species); tree_prep writes a NEW normal map as WebP q92 (media_lib's `normal` role; GATE
+  ASSETS jpgNormal stays at 75 - the maps already baked keep their .jpg until their species is baked again).
+- the live page at HOME (05:00 A/B, the same stand, the pack with and without the reed): the reed adds ~8 cover draws
+  (125 vs 117 cover meshes) and casts nothing (covers never cast: cover_ring castOf); none stand near the FRAMECOST taxi
+  point - the first gate run's FRAMECOST rise (+233 draws) is judged in the CPU slot against a control run on the
+  pre-bake pack.
+
+**THE 54-VEHICLE PACK (G3431) - DROPPED** (25 Oct): the user, through A0: "the vehicle pack is from burnout 2, drop it" -
+a game rip, out under the credit-only rule. Nothing of it was processed or committed (no mesh, texture, manifest or credit
+row); the source file in bugReports/ is the user's to delete.
+
+**THE LAKE SHORE AS A BIOME (G3430, 25 Oct)** - the user, through A0: "you've only included the new ferns. It should be a
+new proper biome" - tall weeds, the ferns more spread with varying sizes and random colouration, some of the flowers.
+- mix `lakeshore` (terrain code 1): reed_marsh (the fern, beds of 5 m), grass_reed (tall weeds, beds of 6 m, x1.15),
+  flower_fireweed (sparse beds of 8 m), flower_foam (beds of 4 m), a few shrub_deciduous; the mix's coverSpread
+  0.08 -> 0.3 (the tufts' size jitter); no trees (count 0).
+- the fern's colour: `place.hueTurn` [-45, 6] degrees (new, cover_ring.js) - a hue turn about the grey axis per tuft, from
+  the tuft's own hash (the cell's R() stream and every other species untouched; a species without the key is
+  unchanged), green -> yellow -> bronze; lightness jitter vary 0.03 -> 0.1.
+- the flowers' colour is the KIND_MASTER flower look (trees.js), so the lake shore's fireweed / foam take the user's
+  24 Oct world look (claude/world-look-1024 c5292cf88, ED-2) when that lands - nothing of it is copied here.
+
+**18 LAKESHORE - THE BIOME'S MASK (G3430, 25 Oct)** - the user, through A0: "I'd want the reeds to be a proper biome with its
+mask, and we can paint it and everything, like the other."
+- 18 is a VEGETATION code (28c_biomes SHORE, NAMES[18] 'lake shore'; the tuning map "18": "lakeshore", code 1's "1" gone).
+  Its mask is the land within shoreReach (12 m, ragged by shoreJit 0.35 on a 17 m noise) of a drawn lake's line, under the
+  bank's slope (bankLo 22 deg; the steeper faces stay the 17 rock bank): render_world BIO.shore reads drawnLakeSD - the
+  splat's own lsd field, bilinear as the shader reads it.
+- PAINTED like any biome: a premises cover polygon in the editor's biome tool grows `lakeshore` anywhere (the list is the
+  pack's mixes), and a polygon that speaks (none, another biome, its own mix) erases the band under it (BIO.shoreHere).
+  NOT a terrain-type stamp: STAMP_CODES stays as it is - the splat cannot draw an 18 (NCODE 17; the ground grid's codes are
+  masked at 15). The ground under the band is its own code's. Its own ground texture would be a splat widening (the
+  user's call, asked through A0).
+- THE COVER RING plants it as a SECOND PASS per cell: the centre's mix on its own points (the band's points skipped), then
+  the lake shore's rows on the band's points whatever the centre - a 32 m cell's one mix would miss a 12 m band or swallow
+  the cell. A cell with no band point plants exactly as before (the stream unchanged). The stones stay the centre's; the
+  TREES keep their own code's mix (the fill and the placed trees never read the band).
+- treeReachOf: 1 on the grid -> 18 reached (the fern loads where there are lakes); GATE TREES mirrors it; GATE PREMISES 17
+  checks shoreHere (no band without map[18]; a polygon wins).
+- the fern on the flowers' pattern: beds of 5 m at patchShare 0.6, density 0.45, the mix's size spread 0.3; its colour the
+  ground's at its foot with the hueTurn swing (A0: the flower master on the fern's mesh is a follow-up after the stills).
+- THE FERN'S COLOUR CONTROL (the user, 25 Oct: "I need my lightness, saturation, hue control for them"): F8 > terrain types
+  > lake shore (18, now in the world rail's types: biome tab only - no ground row until the splat carries an 18) > the
+  lakeshore biome > reed marsh's card: hue / saturation / lightness (TREE_LEAF.tintOf, the species' own tint; the world look
+  exports it under `tints`). The same card's density / patch / share / size are the mix row's.
 ## G3450 - P1 CG-COLOURS: THE GARAGE'S CG / NEUTRAL-POINT INDICATORS WEAR ONE BAND - RED / ORANGE / GREEN, '!' ON RED AND ORANGE, A TOOLTIP WITH THE REASONS (2026-10-25, RUFUS-CERT for A0; claude/cg-colours; stills Sun 25 07:45 GPU; for L25b)
 
 The user, 24 Oct: the garage's CG / neutral point indicators get clear colour coding - RED = bad, ORANGE = acceptable, GREEN = good and safe - ONLY that coding, an added "!" in the wording for red and orange, and a tooltip explaining the reasons.
@@ -99086,3 +99152,6 @@ Stills (Mon 26 00:45 s26-g1, before = L25b's files vs after; the session's scrat
 - valid/pair_*: Cub, Jodel, Cessna, Cessna floats, twin floats, Rufus, unchanged at load apart from the entry outline that f46685a6e removes.
 Rig trap: since L25b, dev.html's boot runs ~65 s after the garage objects exist. A still taken before BOOT.state 'gone' shows a half-built world.
 Correction to G3540 above: its evidence was the node page check, not steps_wheels.js. That check is tools/_page_node.js with the user's Cub, rolled out and flown for 240 s: worker and inline PASS, master's app.js FAIL.
+G3430 (Mon 26 Oct 20:20 still, ASSETS): 30 of 76 lake-shore ferns stood BLACK. The shore band's nodes lie on the island's 10 m lake cells (code 1), and the cover ring took their tuft colour from that code - the lake's, black (the grass field already swaps a dry lake cell for the land code round it, G2572; the ring did not). Fix: a shore node on code 1 takes the colour of the nearest land code (6 then 12 m, eight ways) - the colour only; its code and mix are untouched. CODE ONLY (node --check): re-gate (COVER TREES FADES STAND + FRAMECOST with the control) and a re-still before the reeds go ready.
+
+G3430b (the user, Tue 27 Oct 00:15, via A0: "The other reeds color is not good either. Just implement the bright/hue/saturation controls, tune them so they fit the general look, do a small variation per instance ... Don't color them as the ground here."): the lake-shore fern (reed_marsh) is no longer tinted by the ground (place.noTint: 1, no lift). It draws its own texel through the species' material dials, the existing cover tint (hue 0 + the master's 0.045, sat 1 x 1.58, light 0.24 x 1.456) and contrast 0.6 (flattening toward the map's mean lightness). Modelled on the texture's kept-texel mean (0.50, 0.58, 0.19), that lands the tuft near (0.14, 0.19, 0.06) at hue ~83 deg: the island grass's albedo band (0.10-0.20) in a fern green, no pink, no black. Per instance: brightness +-6 % (vary 0.06) and a hue swing of -4..+4 deg (hueTurn). The swing is the new noTint branch in cover_ring.js: a grey multiplier has no hue to turn, so the multiplier turns place.hueRef (the tinted mean, relative: 0.74, 1, 0.31) by the tuft's own hash, and the cell's stream R() is untouched. The pack's place/tint edited in trees_pack.json + trees_pack.js and in _trees_tuning.json (the bins are unchanged, so no re-bake). The 10 m lake-cell colour fix above stays: the band's grass_reed is still ground-tinted. The dials are live on TREE_LEAF.tint for the bench; a re-tune after the still moves only these three numbers.
