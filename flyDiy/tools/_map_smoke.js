@@ -621,7 +621,7 @@ module.exports = function mapSmoke(html, phone) {
   need(+/--ms:(\d+)px/.exec(oF3.html)[1] > +/--ms:(\d+)px/.exec(oF.html)[1], 'the Fleet\'s markers are not sized to the zoom');
   need(o1R.n.marks === 0 && o1R.n.planes === 2, 'the contracts list draws the other lists\' markers');
   say('the Fleet: ' + M1.fleet.length + ' rows (✈, the name, the payload), the paragraph "' + fb.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() + '", no button; the place filter; a marker per aeroplane at its base, sized to the zoom (' + /--ms:(\d+)px/.exec(oF.html)[1] + ' -> ' + /--ms:(\d+)px/.exec(oF3.html)[1] + ' px)');
-  // PILOTS (G2290): the real record - kit hired, 2-3 looking for work; Hire / Flies next / Fire (disabled in the preview)
+  // PILOTS (G2290): the real record - brian hired, 2-3 looking for work; Hire / Flies next / Fire (disabled in the preview)
   const pst = { list: 'pilots', at: null, phone };
   const PL = MR.pilots || [], PH = MM.listHTML(MR, pst);
   need(PL.length >= 3 && PL.length <= 4 && PL.filter(p => p.hired).map(p => p.id).join() === 'brian' && PL.filter(p => !p.hired).every(p => p.onOffer), 'the real Pilots: brian hired, 2-3 looking for work (' + PL.map(p => p.id + (p.hired ? '*' : '')).join() + ')');

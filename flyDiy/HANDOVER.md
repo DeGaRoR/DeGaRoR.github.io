@@ -99386,6 +99386,143 @@ draws.main stand / taxi, every tree on L25b 61e93cb1 (A0's base read ~1 054 / 90
   occluded; the harness is the worst case. For the user (they asked for the plane to face out of the garage): the heading costs
   the water mirror at the stand. (Measured on the cloud box; the cessna not re-run.)
 
+## MISSIONS-P0 - THE MISSION PACK: src/missions/*.json READ INTO TODAY'S CONTRACT RECORD; THE 35 AUTHORED CONTRACTS RETROFITTED (NONE DROPPED); THE TUTORIAL LISTED READ-ONLY; GATE MISSIONS; THE DEV EDITOR tools/mission_editor.html (2026-10-25, cloud, node only + a headless page check; branch claude/missions-p0 off origin/master 61e93cb1 + claude/missions-design; for A0 to land, Game to review 72-75)
+
+Design: futureDesigns/MISSIONS-2026-10-25.md (structure B, §7 the user's decisions, §8 the people addendum). **A running
+career's behaviour is unchanged**: the career still reads 72_contract_data.js's literals; the built-in pack is held to
+them by GATE MISSIONS (records, pay, install, the offers and the documents of two careers walked under both tables).
+
+**Files.**
+- `src/core/73b_missions.js` (NEW, pure) - the pack's format, normaliser, validator (`missionPackValidate`), the two-way
+  conversion with the contract record (`missionToContract` / `missionFromContract`, `missionStrip` = the legacy
+  projection), `missionPackInstall` (a CONTRACT_PROVIDERS-shaped table filled from the pack), `missionReward`,
+  `missionRallyDerive`, `missionTutorial`, `missionPackFromContracts` (the retrofit). **NOT in build.js MANIFEST yet**:
+  in P0 only the editor and the gate read it, so tools/flight_core.js / index.html / career_core are byte-unchanged by it.
+  When phase 1 wires a pack into the career: add it to MANIFEST.core AND MANIFEST.career right after 73_contracts.js.
+- `src/core/73_contracts.js` (EXTENDED, additive; Game owns it - please review): `CONTRACT_DO_NEXT` (photo pass park wait
+  talk), `CONTRACT_CRIT_NEXT` (climbMs stallKmh toDistM ldgDistM fuelLph cargoL pax - same row shape, ACCEPT judges none
+  yet), `contractCritWhy(c, opts)` / `contractValidate(rec, { mission: true })` take them (WITHOUT opts.mission they are
+  refused exactly as before - gated), g1: an order that states `prefs` may say its configuration in its words (the
+  criteria never), `contractPlaceXZ` / `contractPlaceKm` + contractPay's carry / fly km to a place (a field id: the very
+  same arithmetic), `contractRuntimeOk(rec)` ('' = today's runtime can run it; else why), `CONTRACT_RUNTIME_PENDING`.
+  90_node_exports.js exports the six new names. (The core goes stale until A0's build: nothing else in src/core moved.)
+- `src/missions/builtin.json` - the retrofit (written by `tools/_missions_retrofit.js`, `--check` compares).
+- `tools/_missions_lib.js` (the LEAN set = the editor's files; `core: true` over flight_core), `tools/_missions_check.js`
+  (GATE MISSIONS, ~25 s; `--selftest` 18 doctored rules, ~8 min), row in run_gates.js after CONTRACTS.
+- `tools/mission_editor.html` - the dev editor (below). Not linked from the game yet (§7: later, under Dev; UISMOKE then).
+
+**The pack** (`{ what: 'flydiy-missions', v: 1, id, title, campaigns, missions, sites, text, legacy? }`, header of 73b):
+- Campaign -> chapter -> mission ids; mission -> legs -> steps. `order` on every container: seq | any | choose:N;
+  `needs.after` cross-links (a mission's names missions - pack or 72_ ids; a container's names containers).
+- A mission is today's record (id provider kind title brief pay rep unlock needs repeat followUp goods) + `client`
+  (person id; default the provider's client), `legs`, `order`, `onDone.say`, `rules`, `timers`, `startFrom`, `prefs`,
+  `delivery`, `route` (EMBEDDED 38c record), `rally { refKmh, r }`. Pack-level `sites` (id, asset, at {x,z,hdg}, state,
+  track?) - steps move them (`onDone.site`). Words are KEYS (72_'s rule): the pack's own words live in its `text`
+  table (`ms.<id>.title`...); MISSION_TEXT holds the model's labels (crit.<new kind>, pref.*, the built-in containers).
+- A step: `{ id?, do, place?, from?, load { kg, pax: n | [person ids] }, goods?, embark?, disembark?, require { when,
+  maxMin, depart, plane: [criteria] }, medals?, say { who, text }, onDone?, split?, auto? }`. Places: `'w3'` |
+  `{ field }` | `{ pt: [x,z], r, alt }` | `{ gate: [[x,z],[x,z]], alt, prop, dir }` | `{ ring: [x,y,z], r, dir }` |
+  `{ spot: '<field>:<spot id>' }` (src/viewer/fleet_spots_pack.js ids) | `{ site }`. MISSION_PLACES_OF says which verb
+  takes which. **photo over a FIELD (with `from`) IS today's survey** (the 450 m overflight) - the record keeps
+  `do: 'survey'`; the new model has no 'survey' verb. A photo over a point is P1's.
+- Into the record: legs -> `stages`, steps -> `subs`; require.when -> `when`, require.plane -> `crit`, field places ->
+  from / to / at, other places -> `sub.place` (a site's position copied on), pax ids -> `load.pax` (the count) +
+  `load.who`. Everything else rides along. `contractRuntimeOk` keeps a record OUT of the career while it holds anything
+  this runtime does not judge (rules, timers, startFrom, prefs, a non-default order, a new verb, a place, embark /
+  disembark, require.maxMin / depart, an onDone doing more than speaking, a new criterion). Presentation rides freely
+  (client, say, onDone.say, load.who, step ids, route, the tree).
+- **missionPackInstall**: a SEQ chapter of a provider's campaign = its `arc`; an ANY chapter = `builds` (kind build) /
+  `night` (the rest: the night list's "a validated design flies it" check is the one a flying mission needs). Held out
+  with the reason: not runnable, choose:N chapters, container `needs`, a seq campaign of 2+ chapters, another provider's
+  mission in a seq chapter. The built-in pack installs with nothing held, the lists equal 72_'s.
+- **People** (§8): ids only. With 72_people.js loaded the id must be in GAME_PEOPLE (and a `voice` - Tim - is never
+  aboard); without it (master until L26c) the id's SHAPE is checked (a free name like "Adam Smith" is refused either way);
+  `msClientOf` = peopleClientOf, else a 5-id stub map (leonard pete martha kate adam - ids only, the table is not
+  copied). GATE MISSIONS passes in both modes (checked here against claude/people's 72_people.js).
+- **Rally** (§7): `missionRallyDerive` - one `pass` over each route point (a point of the rally's radius, the drawn
+  altitude +-150 m), a split = the route length to it at refKmh, the `rally` timer cp1 -> cpN. Derived checkpoints are
+  `auto: true`; an authored one (auto absent / false) is kept whole on a re-derive; `auto: 'place'` keeps an authored
+  split on a derived checkpoint. Idempotent.
+- **Rules default** for a NEW mission (the editor's "+ mission"): crash fail, injury fail, freight fail, damage assess
+  (MISSION_RULES_NEW); injury may be `{ fail: <band 1-4 | GEN_OCC.bands word> }`. The retrofit states no rules (today:
+  a crash resets and keeps the contract live).
+- **Delivery** (§7: sold, blueprint saved) is the build kind's DEFAULT, written only to say otherwise - so the
+  retrofitted orders carry nothing, and P2's handover will apply to them too (see the questions).
+
+**The retrofit (the user: each retrofitted or dropped).** All 35 RETROFITTED, NONE DROPPED: every one is offered in
+today's careers or held out by a rule that will lift, so dropping one would change a running career (needs Game's
+migration ruling first). Every mission gained its owner (`client`: field leonard, minedock pete, resort martha, survey
+kate, clients adam) and, where 72_ wrote one, its completion line as the client's `onDone.say` (ct.<id>.done - never
+shown today; P3 shows it).
+
+| id | kind | steps | how |
+| field.01 | contract | land, land | as is |
+| field.02-05 | contract | carry | as is (field.03: two carries, any order) |
+| field.n1 | contract | carry | when -> require.when (arrive 00-01) |
+| minedock.01 | contract | photo + land | survey -> photo over a field (from HOME) |
+| minedock.02, .03, .06 | contract | carry | as is |
+| minedock.04 | build | deliver | crit -> require.plane; follow-up kept |
+| minedock.05 | contract | carry + photo | survey -> photo over a field |
+| minedock.b1, .b2 | build | deliver | crit -> require.plane |
+| minedock.n1 | contract | carry | when -> require.when (after dusk) |
+| resort.01, .02, .05 | contract | carry | as is |
+| resort.03 | contract | photo + land | survey -> photo over a field (the photographer's flight: P1 may add the shutter) |
+| resort.04, .b1, .b2 | build | deliver | crit -> require.plane |
+| survey.01, .03 | survey | photo + land | survey -> photo over a field |
+| survey.02, .05 | contract | carry | as is |
+| survey.04 | build | deliver | crit -> require.plane |
+| clients.01 | contract | carry, carry | as is (a T5 tutorial job) |
+| clients.02, .04, .b1 | build | deliver | crit -> require.plane |
+| clients.03 | challenge | fly | medals kept on the fly step (the logbook time); a timer later |
+| clients.05 | build | deliver | crit -> require.plane; STILL HELD OUT (ultimateG 6 > the normal category's 5.7) |
+| clients.n1 | contract | carry, carry | when -> require.when (before dawn) |
+| clients.n2 | contract | carry | when -> require.when; STILL HELD OUT (no door takes the 2.0 m stretcher) |
+
+**The tutorial** (§7: exactly as it is): campaign `tutorial` (readonly, phase 0) listing `story.T0` .. `story.T7` as
+`{ id, tutorial: '<beat>' }` only; the validator refuses any other field on a listing and any order but 79_story.js's.
+The T5 jobs (STORY_JOBS: clients.01, survey.01, resort.01) are retrofitted missions the runtime runs (gated).
+
+**The editor** (`tools/mission_editor.html`; serve flyDiy/ statically, open it): loads the LEAN core set in order (GATE
+MISSIONS holds the list = tools/_missions_lib.js LEAN: 01_names, 72_people*, 34_occupant, 38c_route, 72_contract_data,
+73_contracts, 73b_missions, 79_story) + map_pack.js + fleet_spots_pack.js. The tree (campaign / chapter / mission / leg /
+step, sites, the campaign-less; ✗ = problems, ⏳ = waits for its runtime, 🔒 = tutorial), a form per node (+ a raw JSON
+box), the 2-D map (the island art, zoom / pan; pick a field, a point, a gate's two posts, a ring, the nearest tie-down
+spot, a site's position), the route importer (a 38c record, the `flydiy.routes` library or the `flydiy.routeDraw`
+draft, pasted or a file) + "derive checkpoints + splits", the card preview (the owner's portrait via peopleFace when
+72_people.js is there, else an initial; the words as contractText fills them; offered / paid / best; the runtime
+verdict), the validation list (the game's own missionPackValidate). Save downloads the JSON (commit it in
+src/missions/); a draft stays in the browser. Checked headless in Chromium on master (no people: two 404s for
+72_people*.js, expected) and with claude/people's table + portraits: no page errors, the built-in pack loads and
+validates, a new mission, a point picked on the map, a route imported and a rally derived.
+
+**Gates** (private copy of the tree, `node tools/build.js` there, `run_gates.js --no-build`): CONTRACTS (+ its
+--selftest), MISSIONS (+ --selftest 18/18 red), ECON, STORY, ROUTES, ACCEPT, SAVE, GAMEPREM, NAMES green. UISMOKE not
+run: the game's page is untouched (the editor is a separate tools/ page).
+
+**OPEN QUESTIONS (for Game / A0 / the user)**
+1. **Pay shown != pay paid on the four authored night contracts** (found, not changed - the no-change rule):
+   careerMapContract shows contractPay(rec).total, which adds the condition / night premiums; careerComplete pays
+   contractPayTotal (the story base, no premium). field.n1 card 6420 / paid 4940; minedock.n1 8110 / 6240; clients.n1
+   9460 / 7280; clients.n2 11490 / 8840. Which is right? (missionReward shows both: "offered" and "paid".)
+2. **The switch** (P1, Game): the career reading the pack instead of the literals = the JSON in the bundle (build.js,
+   e.g. baked to a JS object like map_pack.js) + `missionPackInstall` over CONTRACT_PROVIDERS at boot; then delete 72_'s
+   arc / builds / night literals and invert GATE MISSIONS (72_'s tables no longer exist to compare). The editor's
+   "Rebuild built-in from game" button and tools/_missions_retrofit.js retire then.
+3. **Drop candidates** for the user (kept in P0): clients.05 (the aerobatic box: unwinnable until the certificate has an
+   aerobatic category; it also holds the clients:2 unlock - the museum hangar - out of reach; P1's ring course could
+   replace it), clients.n2 (the stretcher, until a door takes 2.0 m), survey.02 (a duplicate of the generated survey
+   samples job). Dropping any needs Game's ruling on careers that already passed it.
+4. **Delivery = sold** applies to every build by default: when P2 implements it, the retrofitted orders (minedock.04,
+   resort.04, survey.04, clients.02/04/05, the b-orders) will leave the fleet too. Confirm, or mark them `delivery:
+   { sold: false }`.
+5. The new criteria's `how` / `src` (stallKmh static off genShakedown Vs, toDistM bench TORun, ldgDistM the bench's
+   landing distance - not measured anywhere yet, fuelLph the leg, cargoL FREIGHT_CARDS, pax the seats) - ACCEPT's owner
+   to confirm in P2. MISSION_PREF_KINDS reads the GEN vocabulary (thrust tractor|pusher from engines[].mount, wing
+   position, tail type, gear type, canopy style, suspension from GEN_SUSPENSION); P2 reads each off the spec.
+6. GATE NAMES does not scan src/missions/*.json (a pack's `text` table can hold words): add src/missions to its scan.
+7. contractImportPack (the narrative pack) knows ct.* keys only: a pack's own `ms.*` keys are rewritten in the pack.
+8. A choose:N chapter, container needs, legs any / steps seq, the timers, the rules: P1 runtime - the install holds such
+   missions out with the reason until then.
 ## G3452 - CG-WARN: A WARNING SIGN IN THE CG READOUT ITSELF ON RED AND ORANGE (2026-10-25, RUFUS-CERT for A0; claude/cg-warn, on top of G3450; for L25c or L26a)
 
 The user on the G3450 stills (25 Oct): "The CG coloring looks good, but I'd put a warning sign straight in the CG text if not good (red or orange)."
@@ -100282,3 +100419,62 @@ The user, 25 Oct: the Śnieżka meteo station another chat modelled on the house
 - LOD: the catalogue's dist [0, 300, 900, 2500] - never drawn from HOME (11 km), so no FRAMECOST row.
 - CODE ONLY in this commit (node --check): placement + cooks + GATE PREMISES SITE SCENERYED STAGES CONTACT PREMCOOK MAPBAKE HOUSE ASSETS MATLIB MEDIA LAZY NAVAID HOUSEWORKER CITYCOOK TOWNKIT SIMWORKER BUILD in Tue 02:45 s27-c2a, the stills (air + summit ground, draws, first-view compile) Tue 04:05 s27-g3a; ready for L27a.
 - The shared checkout still holds the uncommitted originals (tools/_observatory_gen.js, its _house.html edits - which also DROP the matlib.js tag, a stale base - and the futureDesigns doc): the user may remove them.
+## MISSIONS-P0 - MERGE: origin/master d7e181f4 (L25c) + origin/claude/people 2caa3e6a INTO claude/missions-p0; THE PEOPLE STUBS DROPPED; GATES (2026-10-26, cloud; for Game's local review, the GPU gates and the push to ready/)
+
+**Merged.** `857f546e` = origin/master **d7e181f4e** (train L25c built) into claude/missions-p0 (was 92611762);
+`6cb7109e` = origin/claude/people **2caa3e6a** (G3614-G3616 + the PILOTS w3 row) on top. Conflicts, both times only:
+- `src/core/90_node_exports.js`: the UNION - master's / people's list + this branch's six (CONTRACT_DO_NEXT,
+  CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk) after
+  contractFlyable. Every one of the 947 names is defined in MANIFEST.core (none dropped, no duplicates).
+- `HANDOVER.md`: both sides kept (this branch's MISSIONS-P0 entry, then master's L25c entries).
+- Built / cooked files: none conflicted; the committed tools/flight_core.js, index.html, dev.html, sw.js, version.json are
+  master's d7e181f4 build (this branch commits no built file - the core is stale until A0 / Game builds).
+
+**The stubs dropped** (`2d99e861`): 72_people.js is on the branch and in MANIFEST.core, so 73b_missions.js reads
+GAME_PEOPLE / peopleClientOf / peopleName directly - MS_CLIENT_STUB and the ms* fallbacks are gone. Every person id must
+be a GAME_PEOPLE key (a free name and an unknown id refused, a `voice` never aboard); GATE MISSIONS's rows "a voice
+aboard" (always run now) and "a person the table does not hold" (new). The editor and tools/_missions_lib.js load
+72_people_faces.js then 72_people.js (MANIFEST.core's order) as required files; the editor re-checked headless on the
+merged tree: no 404, no page error, the portraits shown. (The MISSIONS-P0 entry above still describes the stub: superseded.)
+
+**Merge fix-ups in two gates (people x master, not missions)**: claude/people renamed the pack's pilot `kit` -> `brian`
+(PEOPLE_FROM_PACK; PILOTS_COMPANION = brian) but master's `tools/_routes_check.js` (21 refs, + `rafe` -> `bryce`) and
+`tools/_map_smoke.js` (the Pilots rows 624-635, UISMOKE's MAP block) still named `kit`: ROUTES threw at its line 84
+(pilots.kit undefined) and UISMOKE / UISMOKE-PHONE failed "the real Pilots: kit hired" on master + people ALONE (checked in
+a separate worktree: d7e181f4 + 2caa3e6a, no missions code - red; d7e181f4 alone - green). Renamed the ids, no expectation
+relaxed. The fleet's "kit" (an aeroplane) rows in _map_smoke.js untouched.
+
+**Gates** (a private copy of the merged tree, `node tools/build.js` there - build 658ad6881170 - then `run_gates.js
+--only=... --no-build`; ROUTES / UISMOKE / UISMOKE-PHONE re-run after the fix-ups):
+GATE MISSIONS: PASS
+GATE CONTRACTS: PASS
+GATE STAGES: PASS
+GATE ECON: PASS
+GATE CLOCK: FAIL (1 of 777)
+GATE ROUTES: PASS            (first run: FAIL - threw, pilots.kit; fixed above)
+GATE UISMOKE: PASS           (first run: FAIL - "the real Pilots: kit hired"; fixed above)
+GATE UISMOKE-PHONE: PASS     (first run: FAIL - the same)
+**CLOCK is red on pure origin/master d7e181f4 too** (the same 1 of 777, checked in a clean worktree): its row "the
+sandbox's player document is unchanged (no day: the pref keeps it; PLAYER_V 2)" pins `CORE.PLAYER_V === 2`, and
+70_player.js holds PLAYER_V = 3 (the sandbox's default has no `day`, no `career`: only the version pin is stale). Not this
+branch's - for CLOCK's owner / A0 (a one-token pin, or a deliberate v3 the row should say).
+
+## MISSIONS-P0 - THE SIZE OF AN ORDER (width, height, length, "fits their shed") + THE CLOCK PIN (2026-10-26, cloud)
+
+The user (26 Oct): "the orders could specify requests in terms of plane dimensions (so they fit in their sheds), width,
+height and length" - and "fix the CLOCK pin to PLAYER_V 3".
+- **Width = spanM** (today's criterion, static, runs now). **New in CONTRACT_CRIT_NEXT** (73_contracts.js; static, how
+  'spec'; ACCEPT judges them in phase 2, so an order naming one waits: contractRuntimeOk):
+  `heightM` (<=, 1-8 m: the parked footprint's h - the fin or the wing top, the number 71_ hangarDoorWhy reads),
+  `lengthM` (<=, 3-25 m: nose and propeller to tail, the footprint's fwd + aft), `fitsShed` (==, a SHELLS row of
+  26_hangar_fit.js - club | works | field - with optional `at.dims: { HW, HD, EAVE }` for the client's own odd shed:
+  through its door (hangarDoorWhy) and parked inside with its fit-out (hangarPark) - phase 2 runs those two on the
+  delivered airframe's footprint). contractCritWhy checks the shell and the dims; contractCritWords names the shed
+  ("fits their Field shed (12 x 16 m, eave 3.2 m): through the door, parked inside") and now reads both tables.
+- The editor: an order's "size (their shed)" row (span / height / length, the shed and its own dims), written into the
+  delivery step's require.plane; it loads 26_hangar_fit.js (LEAN, gated) so its verdicts are the game's.
+- GATE MISSIONS: the sample order carries all four; refused alone: 30 m high, a length asked as "more", a shed nobody
+  builds, a negative width, a shed judged at a load; each new size criterion alone waits for the runtime, the span runs;
+  the words.
+- **GATE CLOCK**: its sandbox row now pins `PLAYER_V === 3` (70_player.js's; was 2 - red on master d7e181f4 too).
+- Gates (private build): MISSIONS, CONTRACTS, CLOCK, NAMES PASS.
