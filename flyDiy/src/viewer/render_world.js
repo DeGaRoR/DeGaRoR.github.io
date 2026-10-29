@@ -2692,11 +2692,44 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         FARLOD.quads.set(key, Q = { m, sig: '', want: null, wantSig: '', tris: 0 });
         return Q;
       };
+      // Patch positions are immutable until resink replaces their cache entry.
+      // Cache their exact Float32 boxes. A patch box bounds every distance from
+      // the combined box centre: scan the most distant box first, then only
+      // patches that can increase the radius. Same sphere as three's full walk.
+      const farBounds = (geo, pos, patches) => {
+        const parts = patches || [{ pos }];
+        let ax = Infinity, ay = Infinity, az = Infinity, bx = -Infinity, by = -Infinity, bz = -Infinity;
+        for (const P of parts) {
+          let b = P.bounds;
+          if (!b) {
+            let x0 = Infinity, y0 = Infinity, z0 = Infinity, x1 = -Infinity, y1 = -Infinity, z1 = -Infinity;
+            const a = P.pos;
+            for (let i = 0; i < a.length; i += 3) {
+              const x = a[i], y = a[i + 1], z = a[i + 2];
+              if (!Number.isFinite(x + y + z)) { geo.computeBoundingSphere(); geo.computeBoundingBox(); return; }
+              x0 = Math.min(x0, x); y0 = Math.min(y0, y); z0 = Math.min(z0, z);
+              x1 = Math.max(x1, x); y1 = Math.max(y1, y); z1 = Math.max(z1, z);
+            }
+            P.bounds = b = [x0, y0, z0, x1, y1, z1];
+          }
+          ax = Math.min(ax, b[0]); ay = Math.min(ay, b[1]); az = Math.min(az, b[2]);
+          bx = Math.max(bx, b[3]); by = Math.max(by, b[4]); bz = Math.max(bz, b[5]);
+        }
+        const box = new THREE.Box3(); box.min.set(ax, ay, az); box.max.set(bx, by, bz);
+        const center = box.getCenter(new THREE.Vector3()); let r2 = 0;
+        const upper = P => { const b = P.bounds, x = Math.max(Math.abs(center.x - b[0]), Math.abs(center.x - b[3])), y = Math.max(Math.abs(center.y - b[1]), Math.abs(center.y - b[4])), z = Math.max(Math.abs(center.z - b[2]), Math.abs(center.z - b[5])); return x * x + y * y + z * z; };
+        const scan = P => { const a = P.pos; for (let i = 0; i < a.length; i += 3) { const x = center.x - a[i], y = center.y - a[i + 1], z = center.z - a[i + 2]; r2 = Math.max(r2, x * x + y * y + z * z); } };
+        let first = null, max = -1;
+        for (const P of parts) { const u = upper(P); if (u > max) { max = u; first = P; } }
+        if (first) scan(first);
+        for (const P of parts) if (P !== first && upper(P) > r2) scan(P);
+        geo.boundingBox = box; geo.boundingSphere = new THREE.Sphere(center, Math.sqrt(r2));
+      };
       const buildQuad = Q => {
-        const nodes = Q.want || [];
+        const nodes = Q.want || [], patches = [];
         const pos = new Float32Array(nodes.length * NV * 3), uv = new Float32Array(nodes.length * NV * 2), nor = new Float32Array(nodes.length * NV * 3);
         const idx = new Uint32Array(nodes.length * TPL.length);
-        nodes.forEach((n, i) => { const P = patchOf(n); pos.set(P.pos, i * NV * 3); uv.set(P.uv, i * NV * 2); nor.set(P.nor, i * NV * 3);
+        nodes.forEach((n, i) => { const P = patchOf(n); patches.push(P); pos.set(P.pos, i * NV * 3); uv.set(P.uv, i * NV * 2); nor.set(P.nor, i * NV * 3);
           const o = i * TPL.length, b = i * NV; for (let k = 0; k < TPL.length; k++) idx[o + k] = TPL[k] + b; });
         const geo = new THREE.BufferGeometry();
         geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -2704,7 +2737,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
         geo.setIndex(new THREE.BufferAttribute(idx, 1));
         // G1200: drawn only - a re-cut builds a new geometry from the patch cache (FARLOD.cache keeps the patches' own)
-        if (nodes.length) { geo.computeBoundingSphere(); geo.computeBoundingBox(); if (typeof GPU_ONLY_GEO === 'function') GPU_ONLY_GEO(geo, true); }   // (G1230: uploaded as the build's slice ends)
+        if (nodes.length) { farBounds(geo, pos, patches); if (typeof GPU_ONLY_GEO === 'function') GPU_ONLY_GEO(geo, true); }   // (G1230: uploaded as the build's slice ends)
         else if (Q.m.geometry.boundingSphere) { geo.boundingSphere = Q.m.geometry.boundingSphere; geo.boundingBox = Q.m.geometry.boundingBox; geo.setDrawRange(0, 0); }
         const old = Q.m.geometry; Q.m.geometry = geo; if (old && old.dispose) old.dispose();
         Q.sig = Q.wantSig; Q.tris = nodes.length * TPL.length / 3; FARLOD.stats.rebuilds++;

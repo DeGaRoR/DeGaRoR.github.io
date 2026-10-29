@@ -102819,3 +102819,49 @@ assets-grove (the crane's GROVE marks painted out, 11/13 + master's GEO/MEDIA), 
 doors shut; bought = the same shed; 9/9, FRAMECOST = master's 15 rows).
 Battery: PARKED row 13 = master's own (identical rows to L28b). Train gate vs L28b: the same accepted costs (perf-week L0: garage ~95-130 s,
 compile 25-51 s), no new row; fps and worst tasks within L28b's spread. Everything else waits for R1: flydiy-notes/RESTART-PLAN.md.
+
+### Ordinary moving-view unevenness — Codex, 30 Oct 2026, provisional
+
+Owner asks for long smooth stretches in normal flight, excluding town
+optimization and post-crash performance. Owner separately observes much
+worse post-crash pacing: retain as a later lead, cause not measured.
+
+Two attempted physics fixtures crashed/stayed in taxi, and an initial
+scenery adapter used camera getter incorrectly. All explicitly DISCARDED;
+no performance claim from them. Corrected fixture uses game's SCENERY
+mode, solver/aircraft off, a repeatable camera corridor from Cedar Harbour
+toward East Point Clearing with sea/mountain/forest views and yaw sweep.
+User watched and confirms travelling over lakes beside mountain is
+representative and stutters; fixed views stable, rotation has rare bad
+hiccups. This isolates graphics, NOT a complete live-flight benchmark.
+
+Exact master62d23a05b, unprofiled150s moving view:4390 frames,127>35ms,
+12>100ms, max150.1ms, p9966.8ms. All-green120-frame share2.856%, longest
+green6.953s, no10s green run.119 of127 ordinary late pairs world-dominant.
+Fixed45s views: sea90.01%, mountain90.02%, forest100% green windows.
+Yaw sweep separately has two first-use shader stalls, worst3201.2ms.
+
+Separate60s CPU profile, not timing verdict:72 world updates>20ms;
+worst114.1ms includes107.6ms FARLOD.update; many50-78ms rebuild tasks.
+Temporary subsystem wrappers only in profiled window, restored afterward.
+Camera adapter mean0.014ms/call. No production logging added.
+
+This topic caches exact Float32 bounding boxes on immutable cached terrain
+patches, unions them for rebuilt quadrants, scans the most distant box
+first and prunes only patches whose mathematical upper distance bound
+cannot enlarge the sphere. Geometry, indices, normals, skirts, LOD
+thresholds and the resulting box-centred sphere unchanged. Cache lifetime
+is the existing patch cache; resink creates replacement patch objects.
+No approximate culling, feature loss, terrain accuracy or physics change.
+
+PATCHBOUNDS PASS:889 Float64 bitwise comparisons against bundled three,
+cache reuse/order/replacement, geometry bytes and drawRange unchanged.
+Warm flat-grid proof27 vertex-component reads vs67500 full walk; this is
+synthetic work-count proof, not a claimed game speedup. Browser candidate
+1261ba8fbf54 is running against identical corrected scenery fixture.
+No ready ref: unprofiled A/B/A, real flight and regression still pending.
+
+Independent on62d23a05b. Supersedes introperf's render_world raw two-pass
+farBounds helper; do not land two competing helpers. Intro app changes
+remain separate. Evidence/harnesses:owned evenness-20261029 directory.
+
