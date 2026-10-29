@@ -102901,3 +102901,15 @@ And I'm not sure we need the 2 options for bi plane and sesquiplane, now that we
     nothing cleared them: the shed's restored aeroplane wore the last crash's cracks.
   - The frame loop now clears them in the garage (`glassClear`). A FLYDIY_GLASS_TEST stamp (GLM.test) stays for its rig.
   - GATES OWED add DMGGLASS, plus one look: crash into glass damage, back to the shed, the windscreen whole.
+- G3879 HOME'S TWO HANGARS (the user, 29 Oct: "the medium hangar was our default hangar from the start. The 'club' preset ...
+  Later, we could buy the larger hangar ... This hangar would have been there, just closed").
+  - HOME is the club, yours from the start (playerDefault, unchanged).
+  - Plot HOME.2 (works first) is now `closedShed: true`: unowned, it stands the large works hangar SHUT, by CLOSED-SHED's rule
+    (a career only, as for the mine plot).
+  - Dims: the world's polished shell takes the room's HW/HD/EAVE (polishedShell), so the SIZE matches by construction. The
+    DOORS may not: inside, club/works are 'sixLeaf' (26_hangar_fit SHELLS), while outside `leaves` is 2 only for the field
+    shed, 0 otherwise (the preset's own door). Owed: a room-vs-world look per shell (club, works), as the field shed had
+    (G3537/G3540-42), with the doors matched in polishedShell.
+  - The medium hangar the user lost at HOME is NOT explained by this (HOME's club always stands): the screenshot decides.
+  - GATES OWED add GAMEPREM SITE TAXICLEAR DESTTO FRAMECOST (a new building at HOME: taxi clearance, HOME's frame cost),
+    plus the parked cook (a core change stales it).
