@@ -102819,3 +102819,33 @@ assets-grove (the crane's GROVE marks painted out, 11/13 + master's GEO/MEDIA), 
 doors shut; bought = the same shed; 9/9, FRAMECOST = master's 15 rows).
 Battery: PARKED row 13 = master's own (identical rows to L28b). Train gate vs L28b: the same accepted costs (perf-week L0: garage ~95-130 s,
 compile 25-51 s), no new row; fps and worst tasks within L28b's spread. Everything else waits for R1: flydiy-notes/RESTART-PLAN.md.
+
+### Codex generated-plot query draft — 29 Oct 2026
+
+Cold loading CPU profiles retained repeated withPlot/inPoly scans. Every
+vegetation point tested every generated house plot, even far from town.
+Use the composition's existing64m-cell helper for generated plots, with
+a cell of conservative halo; preserve array order and the exact inPoly
+test. No geometry, terrain, pavement accuracy, physics or feature changed.
+Generated geometry edits already recompose (as for other spatial indexes);
+list identity/count changes rebuild this cache, noGround flags stay live.
+Non-finite/oversized indexing falls back to the original walk.
+
+Exact draft module check:17279 public cover queries equal the old walk,
+including concave/empty plots, boundaries, overlapping lawn/water rules,
+rotated frames, live ground flags, list replacement/growth/removal and
+bounded fallbacks. Operation test:1000 vs460500 polygon checks.
+New GATE PLOTQUERY is based on public API parity, not a wall-time threshold.
+
+Cold current-master integration A/B/A and30s flight profiles are running
+behind the previous loading-stack gate batch. No game-time improvement is
+claimed yet; no ready ref. A0 owns landing. This source-only topic is
+independent of groundquery's pavement-end index; the measured integration
+contains the prior shader/ground/loadwarm fixes. Normal train build needed.
+Evidence and queue:owned loading-round2-20261029/checks-status.json,
+plot-check.json,flightlog-analysis.json,treatment.json,batch-status.json.
+
+The alternative Float64-workspace raster decoder passed874130 exact
+values in261 real/synthetic cases but only gained about2-5% in its
+headless decode timings. RETIRED: not included in this topic or treatment.
+
