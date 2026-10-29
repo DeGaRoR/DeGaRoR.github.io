@@ -102916,3 +102916,33 @@ flightlog-analysis.json and compressed profiles. No ready ref, no master
 publication. A0 owns landing. Prior loadwarm broad-matrix checkpoint
 38097a068 is separate: same failing assertion identities as master, with
 seed +19GLcalls/+1link requiring A0 review; not a clean --all verdict.
+
+### Plot-query loading hold revised — 29 Oct 2026
+
+Earlier attribution was too strong: the slower integrated boots do not
+establish a repeatable regression caused by indexing. No source change
+needed to the index. Recommend A0 integration review as CPU headroom,
+without claiming a proven end-to-end loading reduction.
+
+Causal same-COMPILED-page A/B/A: scan97.9s, index93.0s, scan86.3s. The
+unchanged control alone varies11.6s. Normal production-source confirmation
+then measures indexed5717286d17c4 at90.5s vs scanadef9578ab2f94.5s.
+Same427plots/6405queries/hash3993777518, actual cover/grass matrix
+fingerprints and no runtime exceptions in all five runs. Cook/check(same),
+fresh profiles, CPU+GPU locks and idle guards before each. User confirmed
+box free. Driver-global cache is not flushed by a new browser profile.
+
+Named sources of variation: same-page world bufferData calls have identical
+5678calls/705MiB, but0.24/4.99/0.30s wall time. getProgramInfoLog totals
+7.97/8.84/4.12s. Thus buffer submission/link waits move by seconds while
+the measured plot lookup itself falls from~1s to6ms. Driver queue/cache
+internals are not established by these measurements. Do not add a new
+scheduler, remove diagnostics, or change geometry to cure a timing result
+that fails the causal control.
+
+Earlier exact source gates remain valid (no production index source edit):
+COVER/GRASSSIDES/PREMRASTER/PREMCOOK/PAVEMENT/PLOTQUERY PASS. CPU cover
+headroom2.37->1.28ms; both short steady captures30fps/p9933.5ms. No claim
+of general freeze removal or clean --all delivery. No ready/master ref.
+Evidence: owned plot-regression-20261029/comparison.json, individual
+JSONs/profiles, status.json and normal-status.json.
