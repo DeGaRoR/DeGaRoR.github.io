@@ -102856,3 +102856,14 @@ And I'm not sure we need the 2 options for bi plane and sesquiplane, now that we
   - **Also a gap - V-tail:** the stab is the fin laid flat (`boxDet` box projection) and canted 30-40 deg. The box detail is
     planar, so on a V-tail it stretches by about 1/cos(cant), ~20 %. Mild; same future item as the tail box planes.
 - GATES OWED add DMGLOOK (the pool) to the list above.
+- G3873 THE FLOATS' SURFACE FIELD (the user, 29 Oct: "do the floats fix please"). In tools/_cage_float.js:
+  - The hull skin now carries `aStruct`, the fuselage's field contract: metres along, metres around, station, rail. It is
+    read off the model frame: along from the hull's first station; around = the girth from the keel (|mz| plus the rise
+    above that station's keel, from 64 bins). A frame every 0.75 m, a rivet row every 0.25 m.
+  - The hull wears `SM('float', { cons: 'alloy', struct: 1, surf: 1 })`: rivet rows, seams, and a field a marking can land on.
+  - Protrusions, the rudder blade and the hardware keep the triplanar 'float' material (surf 0), which is now also alloy:
+    one material never mixes the two branches (GATE SURF).
+  - Both are the 'float' section, so the livery paints them as one. Alloy whatever the fuselage is built of, because every
+    preset is a Wipline.
+  - GATES OWED: SURF FLOATDUP FLOATKIT LIVERYREACH SKINMAT, plus one garage look at a floatplane (rivet rows along the hull,
+    seams at the frames, a registration on the float).
