@@ -13127,7 +13127,7 @@
     const was = holdRender;
     holdRender = true;
     const release = () => { holdRender = was; };
-    return compileCraftLinks().then(() => hybridWarm()).then(release, e => { release(); throw e; });
+    return Promise.all([compileCraftLinks(), craftEarly]).then(() => hybridWarm()).then(release, e => { release(); throw e; });
   }
   // G1121: THE HYBRID'S KEPT LIVE MESHES are out of the graph (flown_bake.js park) and three's compile walks the graph -
   // so the craft's compile takes them by stand-in (their programs and their depth variants, in the world's lights)
@@ -13165,7 +13165,7 @@
   function craftStart() {
     craftLightsKeep();   // (the flown model's light signature: the next boot's prelink keys with it)
     if (!WF || typeof renderer.compileAsync !== 'function' || craftEarly) return;
-    craftEarly = compileCraftLinks().catch(e => console.warn('craft early:', e && e.message));
+    craftEarly = compileCraftLinks().then(() => hybridWarm()).catch(e => console.warn('craft early:', e && e.message));
     // ...and as the shed's own compile step keys it, undressed (the mesh behind the cage, its lights uncounted): the
     // model built here is new to the room (the node census: its ~25 CRAFT_NEAR_ONLY programs were that step's links)
     if (inGarage && hangar && craft.parent === hangarScene) {

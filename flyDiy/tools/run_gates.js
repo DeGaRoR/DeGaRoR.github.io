@@ -453,6 +453,7 @@ const GATES = [
   // G584: the programs - the real three on a fake GL: the depth warm-up is the shadow pass's own set, two
   // boots key and link the same sources, a bake links each program once, the off-scene passes are listed
   { id: 'PROGRAMS', file: '_program_check.js', tier: 'core' },
+  { id: 'EARLYWARM', file: '_earlywarm_check.js', tier: 'core' },
   // G585: the cover ring's rocks and debris as batches - the same instances, reach and thresholds, a draw per batch
   { id: 'COVER', file: '_cover_check.js', tier: 'core' },   // G585 the batches; G2561 the count truncation (the picture to the pixel); G2563 the grass field (tufts, lengths, colour, tiers)
   { id: 'GRASSSIDES', file: '_grass_sides_check.js', tier: 'core' },   // GRASS-DENSE G2565: the premises' grass laws by the runways ('today' unchanged, the pave half never moves, 'sides' cut / bare / wild)

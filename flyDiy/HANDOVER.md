@@ -102819,3 +102819,43 @@ assets-grove (the crane's GROVE marks painted out, 11/13 + master's GEO/MEDIA), 
 doors shut; bought = the same shed; 9/9, FRAMECOST = master's 15 rows).
 Battery: PARKED row 13 = master's own (identical rows to L28b). Train gate vs L28b: the same accepted costs (perf-week L0: garage ~95-130 s,
 compile 25-51 s), no new row; fps and worst tasks within L28b's spread. Everything else waits for R1: flydiy-notes/RESTART-PLAN.md.
+
+### Codex loading revisit — 29 Oct 2026, source topic on62d23a05b
+
+Cold headed Cessna/HOME master controls112.7/109.2/109.2s. Current-master
+integration of shaderwarm(app.js+shed_shadow.js) and groundquery reaches
+93.1/99.5s (build5433d9444e20); app-only shader+ground ablation91.1s.
+No sum of historical isolated savings is claimed. Locks and sustained-idle
+checks used; warm-driver timings still vary.
+
+The remaining aircraft first-use wait is real even AFTER compile readiness:
+four full-build getProgramInfoLog calls911/776/1166/2343ms on aeroskin
+live-eye/band keys, all present and ready in a pre-draw census. Extra
+compileAsync calls are not the next remedy. This topic starts the EXISTING
+hybridWarm after craftEarly links, and makes compileCraft join that early
+chain before releasing render. The final warm remains, so rebuilt aircraft
+continue through the same path. No feature, geometry, shader or quality
+setting removed; no physics or pavement-accuracy changes. Two changed
+production lines; no independent warmer/cache/invalidation system.
+
+Measured with shaderwarm+groundquery integrated:93.1 ->89.9 ->99.5s cold
+boots. The result suggests3-10s beyond that combination; ONE treatment run
+and variable controls, so no precise guaranteed saving. Final world census
+identical:24003 nodes,13043 meshes,51651195 position vertices,744280
+instances; no new runtime exceptions or craft/warm warnings.
+
+Exact topic source on master:normal build1a916337f11c; GATE PROGRAMS: PASS
+and GATE EARLYWARM: PASS (9 deferred-promise ordering, render-hold, failure
+restoration and single-start cases). Integrated measured buildadef9578ab2f.
+Source-only commit:normal train build required. Broader FRAMECOST/ROUNDTRIP/
+BOOTLIFT and visual/play regression remain REQUIRED before landing; this is
+a provisional topic, no ready ref. A0 owns review/merge and landing.
+
+The separate forest budget20 experiment saves only about1.1s of settling
+(14.32-14.56 ->13.26s), preserving333 sections/470331 trees and exact
+static cover/grass tallies; no production budget change committed.
+
+Evidence/harnesses:owned loading-20261029/RESULTS.md,comparison.json,
+full.json,early.json,combined-repeat.json,topic-proof.json, CPU profiles
+(.gz), boot.cjs and early.cjs. Media packs restored after measurement.
+
