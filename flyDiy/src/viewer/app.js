@@ -8375,6 +8375,10 @@
       apWhyPush(AP_WHY.batch(fresh, { to: ap.route && ap.route.to, from: ap.route && ap.route.from }));
     }
     if (apWhyRows.length) apWhyDraw();
+    // G3876: the top bar's trip line follows a drawn route's state (armed / flying / hold / done / left) - it renders
+    // on events only, and a route's steps are the pilot's, so the change is noticed here
+    const dr = ap.drawn, drK = dr ? dr.name + '|' + dr.state : '';
+    if (drK !== apWhySeen.dr) { apWhySeen.dr = drK; if (FL.ready) flRender(); }
   }
   const apWhyDiverted = () => !!(ap && ap.report && ap.report.verdicts && ap.report.verdicts.some(v => v.code === 'divert'));
   function apWhyPlan() {
@@ -17427,6 +17431,12 @@
     // G3560 (AP-HONEST): a flight the pilot DIVERTED says where it flies now - the picker keeps the player's To
     const R = started && !inGarage && ap && ap.route, dv = R && R.to && R.to.id && apWhyDiverted() ? R.to : null;
     if (dv && dv.id !== destId) return flFrom() + ' → ' + (dv.name || dv.id) + ' · diverted';
+    // G3876 (the user, 29 Oct: "when flying a drawn route, the indicator on the top screen should indicate route 1 (or
+    // whatever name) instead of keeping circuit"): a drawn route the pilot holds (43_pilot.js ap.drawn: armed, flown,
+    // or its end's hold) is what the flight is for; done or left, the picker's To says it again
+    const DR = !inGarage && ap && ap.drawn;
+    if (DR && DR.name && (DR.state === 'armed' || DR.state === 'flying' || DR.state === 'hold'))
+      return flFrom() + ' → ' + DR.name + (DR.state === 'hold' ? ' · holding' : '');
     return flFrom() + ' → ' + (dov ? dov.textContent.replace(/^⟳\s*/, '').replace(/ · .*$/, '') : '—');
   };
   const flSel = sel => {

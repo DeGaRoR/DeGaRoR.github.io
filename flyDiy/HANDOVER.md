@@ -102881,3 +102881,9 @@ And I'm not sure we need the 2 options for bi plane and sesquiplane, now that we
     the flown hand.
 - GATES OWED add CREW PARTS JOIN (the crew rows + the people record), plus one garage look: hover the pilot, slide the stick
   hand.
+- G3876 THE TOP BAR NAMES A DRAWN ROUTE (the user, 29 Oct: "when flying a drawn route, the indicator on the top screen should
+  indicate route 1 (or whatever name) instead of keeping circuit").
+  - app.js flTrip (the plate's trip slot and the folded line) now says 'From -> <route name>' while the pilot holds a drawn
+    route (ap.drawn armed / flying / hold, plus ' · holding' on the end's hold). Done or left, the picker's To says it again.
+  - The slot renders on events only, so apWhyTick (every frame) re-renders the plate when ap.drawn's name|state changes.
+  - GATES OWED add APHONEST UISMOKE ROUTES (the plate and the per-frame tick), plus one page look: draw Route 1, fly it.
