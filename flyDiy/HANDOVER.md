@@ -102859,3 +102859,23 @@ Evidence/harnesses:owned loading-20261029/RESULTS.md,comparison.json,
 full.json,early.json,combined-repeat.json,topic-proof.json, CPU profiles
 (.gz), boot.cjs and early.cjs. Media packs restored after measurement.
 
+### Loading-stack broad regression review — 29 Oct 2026
+
+The required area matrix completed against62d23a05b: PROGRAMS, CLOUD,
+SHADOWSKY, LIGHT, CLOCKBAKE, HANGAR, UISMOKE, AA, POSTFX, GFX, WORLDRENDER,
+SHEDSHADOW, FRAMECOST, ROUNDTRIP and BOOTLIFT, plus EARLYWARM9 cases.
+Same failing assertion identities as master in every group. This is
+no-new-failing-check evidence, not a clean --all delivery verdict.
+
+Review of raw row differences: FRAMECOST retains33 failing checks on each
+side; six values change. Seed adds19 GL calls/1 link per build (1460/80 ->
+1479/81) while shed compile links fall47 ->37 Cub/41 Cessna. Those loader
+counts need A0 review/admission; no ratchet ALLOW entry added by Codex.
+ROUNDTRIP retains10 failing checks with identical link/GL/draw/buffer/
+terrain/matrix counters; its sole raw-row mismatch renumbers shader IDs.
+BOOTLIFT and cheap-group failed rows match exactly. No new assertion
+category appeared; no ready ref or master publication.
+
+Evidence:owned loading-20261029/full-*-comparison.json and
+full-gates-status.json completed2026-10-29T10:02:27Z; locks released.
+A0 owns visual/play review and final landing.
