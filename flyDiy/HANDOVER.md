@@ -102887,3 +102887,12 @@ And I'm not sure we need the 2 options for bi plane and sesquiplane, now that we
     route (ap.drawn armed / flying / hold, plus ' · holding' on the end's hold). Done or left, the picker's To says it again.
   - The slot renders on events only, so apWhyTick (every frame) re-renders the plate when ap.drawn's name|state changes.
   - GATES OWED add APHONEST UISMOKE ROUTES (the plate and the per-frame tick), plus one page look: draw Route 1, fly it.
+- G3877 A TANK THAT DOES NOT FIT FLIES AS DRAWN (the user, 29 Oct: "the reservoir draws when valid, does not if invalid.
+  That's not a proper way to handle that").
+  - G1108 dropped an unfit body tank from the join (`edUnfit`), so the flown and parked aeroplane lost a tank whose fuel it
+    still carried, while strut pods and wing tanks were never stamped and flew anyway.
+  - Now the join takes every tank (WYSIWYG). The garage's red stays the editor's warning only: the game rebuilds the shell
+    from CAGE_ENERGY.material (no `bad`), so it flies in its own finish.
+  - `CAGE_JOIN_TAKE_UNFIT` is gone. `CAGE_JOIN_DROP_UNFIT` is GATE TANKMOUNT's A/B, and its rows are flipped: an all-unfit
+    build carries its tank, the A/B is real, the physics hash is the same both ways.
+  - GATES OWED add TANKMOUNT ENERGY JOIN, plus one garage look: push a tank through the skin, roll out, see it.

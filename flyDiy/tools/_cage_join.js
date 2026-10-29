@@ -2207,10 +2207,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // A MARKER IS NOT THE AEROPLANE either (the panel arc, session 4):
       // the crew layer's eye ball is a sizing instrument, not a part
       if (o.userData && o.userData.edMarker) return;
-      // A TANK THAT DOES NOT FIT IS NOT FLOWN (G1108): the energy layer draws
-      // it red in the editor and stamps it; its fuel rides the ledger, not
-      // this mesh. CAGE_JOIN_TAKE_UNFIT is GATE TANKMOUNT's A/B switch only.
-      if (o.userData && o.userData.edUnfit && !window.CAGE_JOIN_TAKE_UNFIT) return;
+      // A TANK THAT DOES NOT FIT IS FLOWN AS DRAWN (G3877, the user, 29 Oct: "the reservoir draws when valid, does
+      // not if invalid. That's not a proper way to handle that" - G1108 dropped it here, so the flown aeroplane lost
+      // a tank whose fuel it still carried). The garage's red is the editor's warning only: the game rebuilds the
+      // shell from CAGE_ENERGY.material, so it flies in its own finish. CAGE_JOIN_DROP_UNFIT is GATE TANKMOUNT's A/B.
+      if (o.userData && o.userData.edUnfit && window.CAGE_JOIN_DROP_UNFIT) return;
       const matList = Array.isArray(o.material) ? o.material : [o.material];
       if (!matList[0] || !matList[0].color) return;
       // AN INVISIBLE MATERIAL IS NOT THE AEROPLANE (G210.2: six white figures
