@@ -19215,46 +19215,14 @@
   // so the canvas keeps the last whole frame; with no target the scene draws onto the canvas and nothing is held)
   if (drawGuard && aa && aa.hold) aa.hold(() => drawGuard.heldNow > 0);
   if (typeof window !== 'undefined') window.FLYDIY_GUARD = drawGuard;
-  // Background compilation must own its material pointers AND its light cache.
-  // compile() replaces currentProgram and sets up targetScene's cached lights;
-  // sharing either with the frame lets it draw a pending future-night program.
-  // Keep one program-owner set per lamp state; a refreshed set replaces it only
-  // after acquiring the same programs, so unseen retained/band keys stay alive.
-  const lampWarmOwners = [null, null];
   function lampsPrep(want) {
     const L = WF && WF.premises && WF.premises.lamps;
-    if (!L || typeof renderer.compileAsync !== 'function') return Promise.resolve();
-    if (typeof PROG_WARM === 'undefined' || !PROG_WARM.twin || !PROG_WARM.standIn) return Promise.resolve();
-    const warm = new THREE.Scene(), lightScene = new THREE.Scene(), twins = new Map(), owners = new Set(), pool = new Set(L.pool || []);
-    const slot = { ms: 4, stamp: -1, spent: 0 };
-    lightScene.fog = scene.fog; lightScene.environment = scene.environment; lightScene.background = scene.background;
-    const copy = m => {
-      if (!m) return m;
-      let t = twins.get(m);
-      if (!t) { t = PROG_WARM.twin(m); twins.set(m, t); owners.add(t); }
-      return t;
-    };
-    const add = (o, m) => warm.add(PROG_WARM.standIn(o, Array.isArray(m) ? m.map(copy) : copy(m)));
-    scene.traverse(o => { if ((o.isMesh || o.isPoints || o.isLine || o.isSprite) && o.material) add(o, o.material); });
-    // Hidden live skins and band twins are outside the graph until a camera cut.
-    if (window.FLOWN_BAKE && FLOWN_BAKE.warmPairs) for (const [o, m] of FLOWN_BAKE.warmPairs()) add(o, m);
-    scene.traverseVisible(o => { if (o.isLight && !pool.has(o)) lightScene.add(PROG_WARM.standIn(o)); });
-    if (want) for (const o of pool) {
-      let visible = true; for (let parent = o.parent; parent; parent = parent.parent) if (!parent.visible) { visible = false; break; }
-      if (visible) lightScene.add(PROG_WARM.standIn(o));
-    }
-    const { helper } = PROG_WARM.depthVariants(THREE, renderer, [warm, lightScene]);
-    helper.traverse(o => { for (const m of (Array.isArray(o.material) ? o.material : [o.material])) if (m) owners.add(m); });
-    const t0 = performance.now(), clear = () => { warm.clear(); helper.clear(); lightScene.clear(); twins.clear(); };
-    const dispose = set => { if (set) for (const m of set) m.dispose(); };
-    return Promise.all([
-      compileSliced(warm, aa && aa.target ? aa.target() : null, lightScene, false, null, slot),
-      compileSliced(helper, PLAIN_RT(), lightScene, true, null, slot)
-    ]).then(() => {
-      const k = want ? 1 : 0, previous = lampWarmOwners[k]; lampWarmOwners[k] = owners;
-      clear(); dispose(previous);
-      if (typeof console !== 'undefined') console.info('lamps: the pool ' + (want ? 'armed' : 'disarmed') + ' after its programs linked (' + Math.round(performance.now() - t0) + ' ms)');
-    }, e => { clear(); dispose(owners); throw e; });
+    if (!L || L.fixedCount || typeof renderer.compileAsync !== 'function') return Promise.resolve();
+    const dress = f => { const was = L.armed; L.arm(want); try { return f(); } finally { L.arm(was); } };
+    const t0 = performance.now();
+    return compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, dress)
+      .then(() => compileDepthVariants(scene, true, dress))
+      .then(() => { if (typeof console !== 'undefined') console.info('lamps: the pool ' + (want ? 'armed' : 'disarmed') + ' after its programs linked (' + Math.round(performance.now() - t0) + ' ms)'); });
   }
   // APPROACH (A0 22 Oct; HWCOV): A GROUP MADE AFTER THE WORLD'S COMPILE LINKS ITS DEPTH PROGRAMS IN THE BACKGROUND. The town kit
   // (render_premises kitHost) casts only near (castFar); its depth programs linked in the frame its shadow came on - 0.5-2 s
@@ -19367,17 +19335,8 @@
   // its lights stood where the frame will find them) and put back before it returns: the stand-ins are gathered and
   // each task's compile made INSIDE it, so the dress never outlives a task - no frame, no other step's compile ever
   // meets it, and the step can run beside the others (its links on the driver's threads) instead of holding the draw
-  function compileSliced(sc, target, lit, fogless, dress, slot) {
+  function compileSliced(sc, target, lit, fogless, dress) {
     const D = dress || (f => f());
-    // Loader slices keep their old budget. Background passes share one budget
-    // per display frame, including readiness polls; never run a loader task
-    // back-to-back with another background task in the same frame.
-    const later = slot ? fn => requestAnimationFrame(stamp => {
-      if (slot.stamp !== stamp) { slot.stamp = stamp; slot.spent = 0; }
-      if (slot.spent >= slot.ms) { later(fn); return; }
-      const t = performance.now(); try { fn(); } finally { slot.spent += performance.now() - t; }
-    }) : fn => setTimeout(fn, 0);
-    const remaining = () => slot ? Math.max(0, slot.ms - slot.spent) : 30;
     if (typeof renderer.compile !== 'function' || typeof renderer.compileAsync !== 'function' || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn)
       return D(() => fogless && PROG_WARM ? PROG_WARM.fogless(lit || sc, () => compilePass(sc, target, lit)) : compilePass(sc, target, lit));
     const reps = [], seen = new Set(), mats = new Set();
@@ -19399,7 +19358,7 @@
     // G1085: a dressed compile runs beside the steps (the one loading's early starts) over sets that mix programs the
     // loading already knows (cheap: the group grows) with new ones (a group of 64 new sources is seconds in one task) -
     // it grows to 16 at most
-    const GMAX = slot ? 1 : dress ? 16 : 64;
+    const GMAX = dress ? 16 : 64;
     return new Promise(res => {
       const tick = () => {
         const t0 = performance.now();
@@ -19408,7 +19367,7 @@
           try {
             if (fogless) litScene.fog = null;
             renderer.setRenderTarget(target, 0);
-            while (i < reps.length && performance.now() - t0 < remaining()) {
+            while (i < reps.length && performance.now() - t0 < 30) {
               const grp = new THREE.Group(), n = Math.min(G, reps.length - i), t1 = performance.now();
               for (let k = 0; k < n; k++) { const [o, m] = reps[i + k]; grp.add(PROG_WARM.standIn(o, m)); }
               i += n;
@@ -19419,21 +19378,20 @@
             }
           } finally { renderer.setRenderTarget(prev); if (fogless) litScene.fog = fog; }
         });
-        if (i < reps.length) { later(tick); return; }
+        if (i < reps.length) { setTimeout(tick, 0); return; }
         // the link: compileAsync's own poll - over EVERY program of the material (G992: compileAsync reads only its
         // currentProgram, the last one keyed; a material met as two object kinds, or lit and fogless, has one program
         // per key, and the ones still linking made the settings screen's first frame wait 1.1 s in getProgramInfoLog)
         const ready = p => !p || !p.isReady || p.isReady();
         const poll = () => {
-          const pt = performance.now();
           for (const m of mats) { const pr = renderer.properties.get(m); let ok = ready(pr.currentProgram);
             if (ok && pr.programs) for (const p of pr.programs.values()) if (!ready(p)) { ok = false; break; }
-            if (ok) mats.delete(m); if (slot && performance.now() - pt >= remaining()) break; }
-          if (!mats.size) res(sc); else if (slot) later(poll); else setTimeout(poll, 10);
+            if (ok) mats.delete(m); }
+          if (!mats.size) res(sc); else setTimeout(poll, 10);
         };
-        if (slot) later(poll); else poll();
+        poll();
       };
-      if (slot) later(tick); else tick();
+      tick();
     });
   }
   // G879 (C4b, train 14's settings freeze named): THE FIRST USE, PAID UNDER THE SCREEN. A program linked in parallel is

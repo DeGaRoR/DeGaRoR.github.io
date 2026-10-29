@@ -102886,3 +102886,38 @@ Day/night A1/B1 stills saved for parity review; no pixel parity claim yet.
 Evidence:owned night-20261029/controlled-results.json and CONTROLLED-RESULTS.md,
 budget-diagnostic.*, diagnostic-budget.js and diagnose-budget.cjs.
 
+### Night specialization removed — 29 Oct 2026, provisional fixed-count solution
+
+The budget-only trial ac23a315 reduced individual compile submissions to
+<=6ms but FAILED smoothness (night all-green57.1%). Exact-key census proves
+all six remaining843-3818ms late programs were ALREADY prepared and ready.
+More variant enumeration cannot cure ANGLE's deferred first-use work.
+
+Final approach replaces that background machinery: keep all8 non-shadow
+lamp slots visible from their initial creation, at zero intensity in day
+and mute. Existing night intensity/selection/positions/ranges unchanged.
+The shader count is constant from boot; existing boot/warm-draw path pays
+first use. Armed remains the emission state/API. No night preparation is
+needed. App change is one guard; render_premises changes count visibility
+and skips redundant prep. Original loader scheduler restored; no duplicate
+warmer, per-frame logging, physics, geometry or quality change.
+
+First cold exact-source spot dd6c284d2b9f: worst night50.1ms, cockpit50ms,
+near33.5ms vs master medians6369/14572/26960ms. No >100ms frame and no
+instrumented shader wait in ANY measured phase; no held image. Night
+all-green89.22% vs master82.55%; longest green43.35s. Near view100% green
+over15s. Day GPUmean22.75ms vs master's21.60-21.75ms; CPUwork9.68ms vs
+9.77-9.92ms.30FPS retained. GPU cost needs same-browser control and repeats.
+Boot117.3s vs controls106.2/106.4/127.3s; no loading improvement claimed.
+
+NIGHTWARM test now exercises real production lamp update and real-three
+program keys: all8 slots present before first compile; unchanged positive
+intensity law; zero day/mute energy; no links or prep across day/night/mute.
+PASS. Original isolated-prep/budget tests/results retained as investigation
+evidence, not production code. Repeated timings, pixel parity and complete
+gate comparison still pending. No ready ref; A0 owns landing.
+
+This is independent on62d23a05b; no shaderwarm dependency. Evidence:owned
+night-20261029/fixed-count-spot.*, budget-diagnostic-diagnosis.json,
+controlled-results.json, scene-stats.json and _fixedlamps_check.js.
+
