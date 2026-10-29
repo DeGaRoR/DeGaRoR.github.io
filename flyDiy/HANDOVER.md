@@ -102866,3 +102866,53 @@ via retry-status.json (the original batch-status.json records an idle-
 guard abort). GPU15-24% at210MHz/P8 and23W is standby: the updated idle
 guard records clocks/power and accepts that low-power state. No game-time
 improvement claimed before the comparisons complete. No ready ref.
+
+### Round-two final result — 29 Oct 2026: HOLD plotquery
+
+Do not land this topic on performance grounds yet. Exact-query CPU savings
+are real, but the integrated startup regression remains unresolved.
+
+Controlled fresh-browser boots on existing shader+ground+loadwarm stack:
+no index A1 92.6s, A2 88.0s, same-export-path control 87.3s. Indexed B
+99.2s and indexed repeat 100.3s. Both integrated builds contain identical
+prior fixes; baseline adef9578ab2f, indexed 5717286d17c4. This is NOT an
+additional loading win. Shared driver cache is not flushed. CPU/GPU locks,
+cook/check(same), and recorded idle guards used. User confirmed box free.
+
+withPlot inclusive sampled boot CPU falls 1023–1045ms to 6ms; steady taxi
+cover work falls 2.37 to 1.28ms. Both short 20s steady windows remain
+29.99fps, p99 33.5ms, zero >100ms frames. No claim of general freeze cure.
+427 actual plots / 6405 queries / hash3993777518 match; actual cover and
+grass instance matrix fingerprints match controls. Exact source build
+0a4c10f3198b passes COVER, GRASSSIDES, PREMRASTER, PREMCOOK, PAVEMENT and
+PLOTQUERY (17279 cases). No geometry, physics or accuracy reduction.
+
+Loader CPU savings are offset elsewhere: indexed control has 11.65s
+getProgramInfoLog on a basic/atmo.inject program at the craft stage;
+same-path no-index has 6.75s on a depth/atmo.inject program at final reveal.
+Step timings omit some inter-step renderer work. These are measured waits,
+not proof the index directly causes shader changes. Next useful loading
+investigation is exact-state program-key ownership at craft/reveal,
+including async warm jobs and the final depth target. Do not remove draws,
+shadows or features to make timing pass.
+
+Retired experiments: early program reflection 100.1 vs restored indexed
+control100.3s (neutral); exact Float64 raster decoder only2–5% faster in
+headless decode, not retained. Their source never entered this topic.
+
+Old supplied Oct24 log: STOP median66.7ms, scene mean41.4ms, slowdown
+grows at near-fixed coordinates and resets on restart; pose/damage path
+is the next evidence-led frame-evenness lead. Current logged-aircraft run
+uses its actual scale1.6 /132nodes / twinR1830 spec (~8.5t), but intended
+fixed-location staging occurred too early and rollout overwrote it. It
+ended in a minor airframe-crush crash; NOT an intact stationary replay.
+Short final window stayed30fps, which does not reproduce or resolve the
+old STOP issue. Old log gpuForeign is in-page timer ownership, not evidence
+of another application using GPU.
+
+Evidence: owned loading-round2-20261029/final-comparison.json,
+analysis-full.json, source-gates-comparison.json, source-*.log,
+flightlog-analysis.json and compressed profiles. No ready ref, no master
+publication. A0 owns landing. Prior loadwarm broad-matrix checkpoint
+38097a068 is separate: same failing assertion identities as master, with
+seed +19GLcalls/+1link requiring A0 review; not a clean --all verdict.
