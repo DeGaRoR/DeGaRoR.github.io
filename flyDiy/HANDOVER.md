@@ -102896,3 +102896,8 @@ And I'm not sure we need the 2 options for bi plane and sesquiplane, now that we
   - `CAGE_JOIN_TAKE_UNFIT` is gone. `CAGE_JOIN_DROP_UNFIT` is GATE TANKMOUNT's A/B, and its rows are flipped: an all-unfit
     build carries its tank, the A/B is real, the physics hash is the same both ways.
   - GATES OWED add TANKMOUNT ENERGY JOIN, plus one garage look: push a tank through the skin, roll out, see it.
+- G3878 THE GARAGE CLEARS THE BROKEN GLASS (the user, 29 Oct: "the broken windscreen shows in the garage after restoring").
+  - DMG-GLASS's impact marks are AEROSKIN's SHARED uniforms (uCrackN/P/Q), and `glassMarks()` ran only `!inGarage`, so
+    nothing cleared them: the shed's restored aeroplane wore the last crash's cracks.
+  - The frame loop now clears them in the garage (`glassClear`). A FLYDIY_GLASS_TEST stamp (GLM.test) stays for its rig.
+  - GATES OWED add DMGGLASS, plus one look: crash into glass damage, back to the shed, the windscreen whole.

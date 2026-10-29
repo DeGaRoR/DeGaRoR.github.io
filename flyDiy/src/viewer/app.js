@@ -18855,6 +18855,10 @@
     if (!inGarage && window.SHADOW_NEAR && SHADOW_NEAR.aim) SHADOW_NEAR.aim();
     if (scarMesh) groundScars();                    // G2359 (DMG-SCAR): the crash's scar, once an event (T41b: after the near maps' aim - G1080 holds the aim right after poseModel)
     if (!inGarage) glassMarks();                    // G3623 (DMG-GLASS): the impact marks on the glazing, once an event (after poseModel: uCraftInv is this frame's)
+    // G3878 (the user, 29 Oct: "the broken windscreen shows in the garage after restoring"): the marks are SHARED
+    // uniforms and glassMarks runs in flight only, so the shed's aeroplane wore the last crash's cracks - the garage
+    // clears them (a test stamp, GLM.test, stays for its rig)
+    else if (GLM.marks.length && !GLM.test && window.AEROSKIN && AEROSKIN.aeroSharedU) glassClear(AEROSKIN.aeroSharedU(THREE));
     // THE FLIGHT CAMERA (the flight rebaseline). It writes the SAME azT/elT/
     // distT the mouse writes, every frame, so a chase eases exactly the way a
     // drag eases and `orbit` is simply the mode that writes nothing. Cockpit
