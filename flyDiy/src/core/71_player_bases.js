@@ -146,10 +146,7 @@ const BASE_OFFERS = {
     plots: {
       HOME: { shells: ['club', 'works', 'field'], kits: null, pf: 1, starter: true,
               dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } },
-      // G3879 (the user, 29 Oct: "the medium hangar was our default hangar from the start. The 'club' preset ... Later,
-      // we could buy the larger hangar ... This hangar would have been there, just closed"): HOME is the club (yours from
-      // the start, playerDefault), HOME.2 the large works hangar standing SHUT until bought (CLOSED-SHED's rule, the mine's)
-      'HOME.2': { shells: ['works', 'club', 'field'], kits: ['park'], pf: 1, closedShed: true,
+      'HOME.2': { shells: ['works', 'club', 'field'], kits: ['park'], pf: 1,
                   dims: { field: { HW: 9, HD: 10, EAVE: 4.0 } } },
     },
   },
