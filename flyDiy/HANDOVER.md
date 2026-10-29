@@ -102883,3 +102883,16 @@ The intro is improved, not perfectly even:13.1% uneven intervals and
 cover/vegetation generation plus scene traversal remain. A0 owns broad
 landing validation and merge; no ready ref or master update by Codex.
 
+
+
+### Introperf overnight required groups — 29 Oct 2026
+
+The remaining CLOUD/SHADOWSKY/HANGAR/UISMOKE, FRAMECOST, ROUNDTRIP and
+BOOTLIFT baseline/candidate groups all completed. Every candidate failed
+row matches master; all four unmatchedCandidateFailureRows arrays empty.
+All eight process exits remain1 because of the same accepted baseline
+failures; this is no-new-red evidence, not a clean --all delivery verdict.
+Focused results recorded above complete the requested area matrix.
+No ready ref or master update. A0 reviews brightness/AA pictures and owns
+landing. Evidence:owned introperf/full-*-comparison.json and
+full-gates-status.json (complete2026-10-28T23:52:24Z); locks released.
