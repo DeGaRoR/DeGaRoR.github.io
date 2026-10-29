@@ -102867,3 +102867,17 @@ And I'm not sure we need the 2 options for bi plane and sesquiplane, now that we
     preset is a Wipline.
   - GATES OWED: SURF FLOATDUP FLOATKIT LIVERYREACH SKINMAT, plus one garage look at a floatplane (rivet rows along the hull,
     seams at the frames, a registration on the float).
+- G3874 THE PILOT LIGHTS ON HOVER (the user, 29 Oct: "when hovering over the pilot, they do not highlight, so they don't feel
+  selectable yet they are").
+  - The cause: a hover hits the character's invisible pick body, named 'edCrewPick'. The hover highlight narrows to the hit's
+    NAME (`only`), and no drawn mesh carried that name, so nothing lit. A click selects with no `only`, which is why it worked.
+  - app.js's layer hit now reports a pick body under its occupant's name (edCrew1..), which still maps to the 'crew' part.
+  - editor.js's narrowing accepts a mesh whose own name OR any ancestor's matches (`inInst`, replacing `instOf`). For the
+    wheels nothing changes: they are still lit as a pair under one name.
+- G3875 THE STICK HAND FORE/AFT (the user: "the hand control for the stick should allow for some fore-aft adjustment").
+  - A new row, `pilStickFwd` 'stick hand fore/aft', -0.08..0.08 m (pilot pose; default 0). It moves the control-column hand's
+    target (L/R->stick or ->yoke) along the pilot's own forward (fig +z) after the palm offset.
+  - It is carried like palm: ctx -> occ.live -> the join's people record -> app.js's flown ctx, so the same solver places
+    the flown hand.
+- GATES OWED add CREW PARTS JOIN (the crew rows + the people record), plus one garage look: hover the pilot, slide the stick
+  hand.

@@ -2930,7 +2930,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
                       // G468: where this rig's sole sits, in the anchor's frame
                       fixF: j.fixF ? j.fixF.toArray() : null });
         }
-        people.push(Object.assign({ key: L.key, role: L.role, idx: L.idx, s: L.s, palm: L.palm,
+        people.push(Object.assign({ key: L.key, role: L.role, idx: L.idx, s: L.s, palm: L.palm, stickFwd: L.stickFwd || 0,
                       fist: L.fist, anim: L.anim, figM, bones, jobs },
                     // G2797: each hand's own fist and grip, when the hands are set apart
                     L.fistL != null ? { fistL: L.fistL, fistR: L.fistR,

@@ -1203,7 +1203,7 @@ const CAGE_PARTS = [
       // G3700: the pilot is the racer (no select); the co-pilot picks
       ['aboard', ['pilOn', 'cabOcc', 'cabWho']],
       ['pilot pose', ['pilElbows', 'pilKnees', 'pilRecline',
-                      'pilHandGrip', 'pilFist', 'pilIdle']],
+                      'pilHandGrip', 'pilFist', 'pilStickFwd', 'pilIdle']],
       ['hands', ['pilHandsApart', 'pilFistL', 'pilFistR', 'pilGripL', 'pilGripR']],   // G2797
       ['passenger pose', ['paxRecline', 'paxFeetOn', 'paxFeetZ',
                           'paxFeetY', 'paxFeetX', 'paxIdle']],

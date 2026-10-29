@@ -2591,7 +2591,7 @@ function ikDefaultPole(occ, chainKey, out) {
 
 // world position + orientation of a grip anchor Object3D
 const _aq = new THREE.Quaternion(), _ap = new THREE.Vector3();
-const _hv = new THREE.Vector3();
+const _hv = new THREE.Vector3(), _hf = new THREE.Vector3(), _qf = new THREE.Quaternion();
 function anchorWorld(o) {
   o.updateWorldMatrix(true, false);
   return { p: o.getWorldPosition(new THREE.Vector3()),
@@ -2652,6 +2652,11 @@ function solveGripJob(occ, j, ctx) {
     const palm = c.side === 'L' ? (ctx.palmL != null ? ctx.palmL : ctx.palm)
                                   : (ctx.palmR != null ? ctx.palmR : ctx.palm);
     aw.p.addScaledVector(_hv, -palm);
+    // G3875: the stick hand fore/aft, along the pilot's own forward (the fig's +z, the frame the pole is kept in)
+    if (ctx.stickFwd && /→(stick|yoke)/.test(j.label || '')) {   // the control column's hand (L/R→stick, →yoke)
+      occ.fig.updateWorldMatrix(true, false);
+      aw.p.addScaledVector(_hf.set(0, 0, 1).applyQuaternion(occ.fig.getWorldQuaternion(_qf)), ctx.stickFwd);
+    }
     // THE FIST CLOSES ON THE GRIP (G279): `fixH` is where the dressed rig's
     // fist actually closed relative to the grip, in the hand's own frame,
     // measured by fitFists() below and carried into flight by the join —
@@ -3597,7 +3602,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     if (!occ.char || LIVE_POLICY === 'none') return occ;
     if (LIVE_POLICY !== 'all' && !jobs.some(j => j.ctl)) return occ;
     for (const m of occ.char.meshes) m.userData.live = true;
-    occ.live = { key: CH.key, role, idx: idx || 1, s, palm: ctx.palm,
+    occ.live = { key: CH.key, role, idx: idx || 1, s, palm: ctx.palm, stickFwd: ctx.stickFwd || 0,
                  fist: P.pilFist == null ? 0.5 : +P.pilFist,
                  anim: occ.animSpec || null,
                  jobs: jobs.filter(j => j.ctl) };
@@ -3699,6 +3704,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     const base = seatedPose(recline, false, SP.tilt);
     const ctx = { s, palm: (P.pilHandGrip != null ? P.pilHandGrip : 0.075) * s,
                   elbows: +P.pilElbows || 0, knees: +P.pilKnees || 0,
+                  stickFwd: (+P.pilStickFwd || 0) * s,     // G3875
                   base, notes, poleFig: null };
     // G2797: each hand on its grip by its own amount when the hands are apart
     if (+P.pilHandsApart) {

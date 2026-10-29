@@ -2238,7 +2238,7 @@
                     // G279: the editor's measured fist correction, hand frame
                     fixH: j.fixH ? new THREE.Vector3().fromArray(j.fixH) : null,
                     fixF: j.fixF ? new THREE.Vector3().fromArray(j.fixF) : null,   // G468: the sole
-                    ctx: { s: r.s, palm: r.palm, palmL: r.palmL, palmR: r.palmR, base: null, notes: null,
+                    ctx: { s: r.s, palm: r.palm, palmL: r.palmL, palmR: r.palmR, stickFwd: r.stickFwd || 0, base: null, notes: null,
                            poleFig: new THREE.Vector3().fromArray(j.poleFig) } });
       }
       const P = { key: r.key, crew, sCrew, jobs, inst: null, fist: r.fist, fistL: r.fistL, fistR: r.fistR,
@@ -7285,7 +7285,10 @@
       while (p && p !== edSitP) {
         const n = p.name || '';
         if (n.lastIndexOf('cageLayer:', 0) === 0) layer = n.slice(10);
-        else if (!name && n) name = n;
+        // G3874 (the user, 29 Oct: "when hovering over the pilot, they do not highlight"): a character's posed pick
+        // body ('edCrewPick', _cage_char.js) answers with its OCCUPANT's name (edCrew1..), the instance the hover
+        // highlight narrows to - the shell's own name matched no drawn mesh, so the hover lit nothing
+        else if (!name && n && !(o.userData && o.userData.charPick && !/^edCrew\d/.test(n))) name = n;
         // a LAYER says for itself whether the x-ray took it (the cowl does):
         // it owns its own materials, so it owns the answer
         if (p.userData && p.userData.xray) thru = true;
