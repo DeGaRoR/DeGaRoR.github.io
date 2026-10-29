@@ -102849,3 +102849,20 @@ The alternative Float64-workspace raster decoder passed874130 exact
 values in261 real/synthetic cases but only gained about2-5% in its
 headless decode timings. RETIRED: not included in this topic or treatment.
 
+### Plot-query exact source proof — 29 Oct 2026
+
+Normal source-topic build0a4c10f3198b. COVER, GRASSSIDES, PREMRASTER,
+PREMCOOK and PAVEMENT PASS on both exact62d23a05b and this source topic.
+PLOTQUERY PASS on the topic:17279 exact queries;1000 vs460500 polygon
+checks. Both source batteries exit0; no new failed row. Source proof
+restores the owned master export afterward; shared tree/index untouched.
+CPU+GPU locks throughout. Evidence:owned loading-round2-20261029/
+source-gates-comparison.json and source-baseline/source-candidate logs.
+
+First integrated control boot92.6s; full427-plot query proof6405 samples
+hash3993777518. Flight-recorder export adapter corrected after that boot;
+its startup/profile evidence remains usable. Candidate and repeat follow
+via retry-status.json (the original batch-status.json records an idle-
+guard abort). GPU15-24% at210MHz/P8 and23W is standby: the updated idle
+guard records clocks/power and accepts that low-power state. No game-time
+improvement claimed before the comparisons complete. No ready ref.
