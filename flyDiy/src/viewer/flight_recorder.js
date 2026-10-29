@@ -101,6 +101,10 @@
     const N = opt.frames || 65536;                  // a power of two, a multiple of CHUNK
     const CHUNK = opt.chunk || 1024;
     const clock = opt.now || now;
+    // Opt-in scene breakdown: one frame in 31; no extra clocks/buffers when off.
+    const detailOn = !OFF && (!!opt.sceneDetail || /[?&]recscene=1(?:&|$)/.test(q));
+    const detailTimes = detailOn ? new Float64Array(6) : null;
+    const detailCost = detailOn ? new Float64Array(6) : null;
     const ringF = new Float32Array(N * NC), ringT = new Float64Array(N);
     const acc = new Float64Array(NS);
     // the push stack (a wrapper inside a wrapper nests; 8 deep is more than the frame has)
@@ -499,6 +503,7 @@
         screen: W.screen ? { w: W.screen.width, h: W.screen.height, availW: W.screen.availWidth, availH: W.screen.availHeight } : null,
         window: { w: W.innerWidth, h: W.innerHeight }, dpr: W.devicePixelRatio || 1,
         cols: COLS, slots: SLOTS, flags: F, freezeMs: FREEZE_MS, codes: names, units: UNITS,
+        sceneDetail: detail ? detail.meta() : null,
         frames: fi, ring: N, events: events.length, eventsDropped: evDropped, revealAt,
         overhead: { frameUsMean: sampN ? +(V[SAMP_SUM] / sampN * 1000).toFixed(1) : null, frameUsMax: +(V[SAMP_MAX] * 1000).toFixed(1), sampled: sampN,
           gpuTimerUsMean: sampN ? +(V[SAMP_GL_SUM] / sampN * 1000).toFixed(1) : null,
@@ -557,8 +562,31 @@
     function chunkDone(k) { if (chunkSink) chunkSink(k); }
     function eventsSince() { const out = events.slice(evSaved); evSaved = events.length; return out; }
 
+    // These inclusive sub-times overlap the existing scene slot; never add them to it.
+    // One bounded recorder event per sampled frame; no GL calls or logging I/O here.
+    const detail = detailOn ? {
+      begin() {
+        if (!open || fi % 31 !== 0) return false;
+        const t = clock(); detailCost[0] = detailCost[1] = t;
+        detailCost[2] = clock() - t;
+        return true;
+      },
+      lap(slot) {
+        const t = clock(); detailTimes[slot] = t - detailCost[0]; detailCost[0] = t;
+        if (slot === 5) event('sceneDetail', detailCost[1], t - detailCost[1],
+          [fi, detailTimes[0], detailTimes[1], detailTimes[2], detailTimes[3], detailTimes[4], detailTimes[5]]);
+        detailCost[2] += clock() - t;
+        if (slot === 5) {
+          detailCost[3] += detailCost[2]; detailCost[4] = Math.max(detailCost[4], detailCost[2]); detailCost[5]++;
+        }
+      },
+      meta: () => ({ everyFrames: 31, units: 'ms, inclusive; overlaps scene',
+        event: 'sceneDetail', columns: ['frame', 'pose', 'contact', 'damage', 'camera', 'meshes', 'water'],
+        samples: detailCost[5], selfUsMean: detailCost[5] ? detailCost[3] * 1000 / detailCost[5] : 0,
+        selfUsMax: detailCost[4] * 1000 })
+    } : null;
     const api = {
-      SLOTS, S, COLS, C, F, N, CHUNK, rec,
+      SLOTS, S, COLS, C, F, N, CHUNK, rec, sceneDetail: detail,
       attach, begin, end, lap, push, pop, event, stats, header, logParts, chunkRec, eventsSince, reveal, gpuMay, town,
       codeOf, names,
       get frame() { return fi; }, get open() { return open; }, get events() { return events; },

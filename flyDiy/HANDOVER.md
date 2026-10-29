@@ -102819,3 +102819,40 @@ assets-grove (the crane's GROVE marks painted out, 11/13 + master's GEO/MEDIA), 
 doors shut; bought = the same shed; 9/9, FRAMECOST = master's 15 rows).
 Battery: PARKED row 13 = master's own (identical rows to L28b). Train gate vs L28b: the same accepted costs (perf-week L0: garage ~95-130 s,
 compile 25-51 s), no new row; fps and worst tasks within L28b's spread. Everything else waits for R1: flydiy-notes/RESTART-PLAN.md.
+
+### Opt-in sampled scene breakdown — 29 Oct 2026
+
+User authorized more detailed logging provided its cost stays negligible.
+?recscene=1 enables one sampled frame in31. Normal play is disabled: no
+extra timer reads or detail buffers. Unsampled enabled frames read no
+extra clock either. Six inclusive sub-times: pose, contact/shadow aiming,
+damage/scars/glass, camera, mesh sync, water. They OVERLAP the existing
+scene slot, not extra work to add to it. No physics or rendering change.
+
+The sampled path writes one sceneDetail event through the existing bounded
+event store, automatically persisted/exported. Detail payload:
+[frame,pose,contact,damage,camera,meshes,water], ms. Header.sceneDetail
+documents columns/cadence and sampler self cost per SAMPLED frame. No GL
+queries, scene traversal, console output or per-frame objects from this
+addition; the rare sample event owns one small array. This targets sustained
+postlanding costs; sparse samples can miss an isolated freeze.
+
+Normal source build cae0820ccd39. FLIGHTREC and UISMOKE PASS on unchanged
+62d23a05b and candidate. SCENEDETAIL PASS: precise durations, frame alignment,
+sample cadence, zero unsampled extra clocks and JSON export. Isolated
+whole-recorder benchmark medians0.461us off/0.503us on, delta0.042us per
+frame. This is NOT a browser-wide performance guarantee; sampler self cost
+is also logged live. Default-off delivery remains the conservative choice.
+
+Old supplied log's 600–720s window has scene40.97ms/cover0.40ms, work63.09ms
+and1871/1873frames>40ms at fixed x/z. Cruise390–480s: scene3.46ms, work24.76ms,
+141/2628frames>40ms. Evidence points to the scene/pose/damage family, not a
+proven individual function. Existing0.3mm/3mm pose tolerances untouched.
+Next: reproduce with the actual scale1.6/132node/twinR1830 aircraft; compare
+healthy parked, after taxi/landing, and repair/reset at fixed camera and
+location. Use detailed log to name the dominant sub-slot before fixing it.
+
+No ready/master publication. A0 owns landing. Evidence: owned
+recscene-20261029/status.json, baseline.log, candidate.log and source files.
+A separate combined human playtest uses its own profile at localhost8768,
+?recscene=1, FPS meter on, no CPU profiler or benchmark GL wrappers.

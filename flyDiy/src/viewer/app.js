@@ -18834,12 +18834,15 @@
       if (!inGarage && ROLLANIM.busy()) { ROLLANIM.cancel(); raBusy = false; }   // left the shed under it: put back
       ROLLANIM.frame(fdt);
     }
+    const sceneSample = FR && FR.sceneDetail && FR.sceneDetail.begin();
     poseModel();
+    if (sceneSample) FR.sceneDetail.lap(0);
     // G1002 (A6-GROUND): the tyres' contact shadows, on this frame's pose (contact_shadow.js)
     if (typeof CONTACT_SHADOW !== 'undefined') contactShadows();
     // G1080 (SHADOW-EYES): the craft's shadow maps aimed at THIS frame's pose (worldUpdate ran before poseModel, on the
     // frame before's - and on the camera under the free camera / the editor): shadow_near.js aim()
     if (!inGarage && window.SHADOW_NEAR && SHADOW_NEAR.aim) SHADOW_NEAR.aim();
+    if (sceneSample) FR.sceneDetail.lap(1);
     if (scarMesh) groundScars();                    // G2359 (DMG-SCAR): the crash's scar, once an event (T41b: after the near maps' aim - G1080 holds the aim right after poseModel)
     if (!inGarage) glassMarks();                    // G3623 (DMG-GLASS): the impact marks on the glazing, once an event (after poseModel: uCraftInv is this frame's)
     // THE FLIGHT CAMERA (the flight rebaseline). It writes the SAME azT/elT/
@@ -18848,6 +18851,7 @@
     // moves `target` instead, like the editor's interior. It runs after the
     // target is set and before the easing, which is the only slot where both
     // of those are true.
+    if (sceneSample) FR.sceneDetail.lap(2);
     flCamera();
     // ease the orbit toward its targets (see the G39 note at the top);
     // snap the last hair so it settles instead of drizzling
@@ -18866,12 +18870,14 @@
     // Covered/Flex flight (lines, points and the shadow proxy all hidden
     // since applyStand stopped forcing them on) that is three fewer dirty
     // BufferAttributes and two fewer draws every frame
+    if (sceneSample) FR.sceneDetail.lap(3);
     if (lines && (lines.visible || pts.visible || (proxy && proxy.mesh.visible))) sync();
     // G3449 (FLOAT-DUP, the user 22 Oct: "it's not an elongated floats, it's a duplicate, untextured" - G451.1 item 94
     // back): the PHYSICS hull is the flight's stand-in for a model without drawn float parts. In the shed the cage layer
     // draws the floats, and floats added there then a spec update (a design tile, the float kit's pitch) rebuild the
     // model without them - so the physics hull is never shown in the shed, and synced only in flight (GATE FLOATDUP)
     if (floatMeshes.length) { const ph = !inGarage; for (const m of floatMeshes) m.visible = ph; if (ph) syncFloats(); }
+    if (sceneSample) FR.sceneDetail.lap(4);
     if (waterFx && !inGarage) syncWaterFx(running ? fdt : 0);   // (G586: the spray on the frame's own time)
     // THE INTERACTION FIELD (H7, G460.8): on while a floatplane is over water (the CG's water level finite),
     // stepped before the render with the CG as its centre; off (the slot cleared) otherwise
@@ -18887,6 +18893,7 @@
       if (want !== WATER.field.on) WATER.fieldOn(want);
       if (want) { const cv = sim.cgVel ? sim.cgVel() : [0, 0, 0]; WATER.fieldStep(THREE, renderer, cgF[0], cgF[2], running ? fdt : 0, cv[0], cv[2]); }   // (the velocity: the box slides aft of the CG under way)
     }
+    if (sceneSample) FR.sceneDetail.lap(5);
     if (FR) FR.lap(FR.S.scene);        // G620: the pose, the camera, the buffers, the spray and the water field
     ++frame; hudAcc += fdt * 60;        // (G586: the readouts every 0.1 s, six 60 Hz frames' worth)
     if (hudAcc >= 5.999) {
