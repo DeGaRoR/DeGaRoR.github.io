@@ -102819,3 +102819,22 @@ assets-grove (the crane's GROVE marks painted out, 11/13 + master's GEO/MEDIA), 
 doors shut; bought = the same shed; 9/9, FRAMECOST = master's 15 rows).
 Battery: PARKED row 13 = master's own (identical rows to L28b). Train gate vs L28b: the same accepted costs (perf-week L0: garage ~95-130 s,
 compile 25-51 s), no new row; fps and worst tasks within L28b's spread. Everything else waits for R1: flydiy-notes/RESTART-PLAN.md.
+
+## G3870-G3871 - BIPLANE: THE SECOND WING WEARS THE FIRST WING'S SKIN; ONE "BIPLANE" OPTION (2026-10-29, A0 for the user; claude/biplane-skin off master 62d23a05b; node --check only, NOT gated)
+The user (29 Oct): "The extra wing in a biplane is not getting the same detailed normal map as the bottom one, at least it does not
+get the ribs from the underlying structure. It was also not reached by any global livery controls, nor could receive the livery ...
+And I'm not sure we need the 2 options for bi plane and sesquiplane, now that we can freely set the size of each wing individually."
+- G3870 THE CAUSE (read, not measured): `aeroPlaneClone` (src/viewer/aeroskin.js) made the second plane's own material with
+  `m.clone()`. three's Material.copy carries neither `onBeforeCompile` nor AEROSKIN's defines: Standard's copy() puts {STANDARD}
+  back over {AEROSKIN_SURF}. So the second wing drew in the garage as a bare MeshStandardMaterial: no rib or spar normal field, no
+  livery field, no weathering, no global dials. The flown aeroplane rebuilt it from the join's payload (the factory), which hid
+  part of it in flight.
+- THE FIX: the copy is now made the way app.js's twins are (G680): userData kept out of copy()'s JSON clone (it holds textures),
+  the defines, the hook unwrapped from ATMO's accessor (`_atmoHook`), and the cache key. The second wing also shares the first
+  wing's program, so there's no extra link.
+- G3871 the design panel's 'planes' row: Monoplane | Biplane. 'Sesquiplane' is gone: a sesquiplane is a biplane with a short
+  second span, set on its own rows. Biplane keeps the builder's second span (the first plane's when it has none), no longer
+  forcing 0.8x. The 'sesqui' design now selects 'biplane'; its over.cage spans (10.0 / 6.5) and ailerons are applied after it,
+  so the built design is unchanged.
+- GATES OWED (pure visual + the panel; light): BIPLANE SKINMAT LIVERYREACH ARCHETYPES DESIGN, plus one garage look at a biplane
+  (top wing ribs + a livery on both).

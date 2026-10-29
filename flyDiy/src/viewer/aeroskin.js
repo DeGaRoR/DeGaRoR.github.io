@@ -1171,9 +1171,20 @@ function aeroBaseReach(map, prev, next, neutral, eq, names, opts) {
 // handed out, and the copy was never one of them: the reach was right, the second wing kept the old paint until the
 // next full build. Each copy remembers its source here; a repaint hands the copy of the source's replacement to every
 // mesh wearing the old copy (or the game's understudy of it), as the cowl's twins do (G1301).
+// G3870 (the user, 29 Oct: "the extra wing in a biplane is not getting the same detailed normal map ... nor could
+// receive the livery"): the copy was m.clone(), and three's Material.copy carries NEITHER the hook nor AEROSKIN's
+// defines - Standard's copy() puts {STANDARD} back over {AEROSKIN_SURF}, and onBeforeCompile is never copied. So the
+// second wing drew as a bare MeshStandardMaterial: no ribs or spars in the normal, no livery field, no weathering, no
+// global dials. Copied here the way app.js's twins are (G680): userData kept out of copy()'s JSON clone (textures),
+// the defines, the hook unwrapped from ATMO's accessor, the cache key - so the copy also shares the first wing's
+// program (no extra link).
 const AERO_PLANE_SRC = new WeakMap();
 function aeroPlaneClone(m, plane) {
-  const m2 = m.clone();
+  const m2 = new m.constructor();
+  { const ud = m.userData; m.userData = {}; try { m2.copy(m); } finally { m.userData = ud; } }
+  m2.defines = Object.assign({}, m.defines);
+  m2.onBeforeCompile = (m._atmoHook !== undefined) ? m._atmoHook : m.onBeforeCompile;
+  if (Object.prototype.hasOwnProperty.call(m, 'customProgramCacheKey')) m2.customProgramCacheKey = m.customProgramCacheKey;
   m2.userData = Object.assign({}, m.userData, { aeroPlane: plane });
   AERO_PLANE_SRC.set(m2, m);
   return m2;
