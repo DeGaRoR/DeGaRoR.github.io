@@ -102819,3 +102819,39 @@ assets-grove (the crane's GROVE marks painted out, 11/13 + master's GEO/MEDIA), 
 doors shut; bought = the same shed; 9/9, FRAMECOST = master's 15 rows).
 Battery: PARKED row 13 = master's own (identical rows to L28b). Train gate vs L28b: the same accepted costs (perf-week L0: garage ~95-130 s,
 compile 25-51 s), no new row; fps and worst tasks within L28b's spread. Everything else waits for R1: flydiy-notes/RESTART-PLAN.md.
+
+### Night preparation isolation — Codex, 29 Oct 2026 (provisional)
+
+Owner priority 1: organic log's night transition accounted for118.39s of
+shader waits in120.01s of freezes. A cold paused graphics reproduction on
+Rufus build817db8cadc76 caught future10-point-light programs in shadow and
+main draws WHILE the real pool was unarmed: depth6154/4429/4414ms and
+carprint3100ms. Later cockpit/near retained skin variants waited1.4-5.1s.
+Diagnostic CPU profiler was active; these are causal evidence, not an
+unprofiled comparative performance verdict.
+
+Root cause: compile(real scene) writes live materials.currentProgram and
+the real scene's cached render-state lights. Shadow rendering consumes
+that state before setupLights on the following frame. Merely restoring
+L.arm does not isolate it. Existing pool preparation also missed detached
+FLOWN_BAKE live/eye/band variants.
+
+Prepare existing stand-ins and material twins against a private target
+scene, including all retained aircraft variants and matching shadow depth
+keys. Never toggle real lights during preparation. Keep one bounded owner
+pack per day/night state; acquire replacements before disposing previous
+owners so unseen variant programs survive. No drawing or altered imagery,
+physics, light quality/count or shader change. Existing compileSliced and
+PROG_WARM remain the single compilation path. No boot work added.
+
+NIGHTWARM uses real bundled three with fake GL readiness: reproduces the
+old pending-program fault; proves live pointers/lights stay unchanged,
+no pending-program inspection by today's frame, no first-use links for
+main/depth/retained views, bounded repeated preparation, rejection cleanup
+and unchanged geometry. PASS. Browser A/B and area regression pending;
+no ready ref, no landing verdict. A0 owns final integration and review.
+Evidence:owned night-20261029 directory (run.cjs, diagnostic.js,
+baseline-diagnostic.*, candidate-isolated.*). All-green120-frame windows,
+longest green streak, p99, >100ms and AA held-image counts are reported
+together; a held image must not be called smooth.
+

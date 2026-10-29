@@ -19215,14 +19215,45 @@
   // so the canvas keeps the last whole frame; with no target the scene draws onto the canvas and nothing is held)
   if (drawGuard && aa && aa.hold) aa.hold(() => drawGuard.heldNow > 0);
   if (typeof window !== 'undefined') window.FLYDIY_GUARD = drawGuard;
+  // Background compilation must own its material pointers AND its light cache.
+  // compile() replaces currentProgram and sets up targetScene's cached lights;
+  // sharing either with the frame lets it draw a pending future-night program.
+  // Keep one program-owner set per lamp state; a refreshed set replaces it only
+  // after acquiring the same programs, so unseen retained/band keys stay alive.
+  const lampWarmOwners = [null, null];
   function lampsPrep(want) {
     const L = WF && WF.premises && WF.premises.lamps;
     if (!L || typeof renderer.compileAsync !== 'function') return Promise.resolve();
-    const dress = f => { const was = L.armed; L.arm(want); try { return f(); } finally { L.arm(was); } };
-    const t0 = performance.now();
-    return compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, dress)
-      .then(() => compileDepthVariants(scene, true, dress))
-      .then(() => { if (typeof console !== 'undefined') console.info('lamps: the pool ' + (want ? 'armed' : 'disarmed') + ' after its programs linked (' + Math.round(performance.now() - t0) + ' ms)'); });
+    if (typeof PROG_WARM === 'undefined' || !PROG_WARM.twin || !PROG_WARM.standIn) return Promise.resolve();
+    const warm = new THREE.Scene(), twins = new Map(), owners = new Set(), pool = new Set(L.pool || []);
+    warm.fog = scene.fog; warm.environment = scene.environment; warm.background = scene.background;
+    const copy = m => {
+      if (!m) return m;
+      let t = twins.get(m);
+      if (!t) { t = PROG_WARM.twin(m); twins.set(m, t); owners.add(t); }
+      return t;
+    };
+    const add = (o, m) => warm.add(PROG_WARM.standIn(o, Array.isArray(m) ? m.map(copy) : copy(m)));
+    scene.traverse(o => { if ((o.isMesh || o.isPoints || o.isLine || o.isSprite) && o.material) add(o, o.material); });
+    // Hidden live skins and band twins are outside the graph until a camera cut.
+    if (window.FLOWN_BAKE && FLOWN_BAKE.warmPairs) for (const [o, m] of FLOWN_BAKE.warmPairs()) add(o, m);
+    scene.traverseVisible(o => { if (o.isLight && !pool.has(o)) warm.add(PROG_WARM.standIn(o)); });
+    if (want) for (const o of pool) {
+      let visible = true; for (let parent = o.parent; parent; parent = parent.parent) if (!parent.visible) { visible = false; break; }
+      if (visible) warm.add(PROG_WARM.standIn(o));
+    }
+    const { helper } = PROG_WARM.depthVariants(THREE, renderer, [warm]);
+    helper.traverse(o => { for (const m of (Array.isArray(o.material) ? o.material : [o.material])) if (m) owners.add(m); });
+    const t0 = performance.now(), clear = () => { warm.clear(); helper.clear(); twins.clear(); };
+    const dispose = set => { if (set) for (const m of set) m.dispose(); };
+    return Promise.all([
+      compileSliced(warm, aa && aa.target ? aa.target() : null, warm),
+      compileSliced(helper, PLAIN_RT(), warm, true)
+    ]).then(() => {
+      const k = want ? 1 : 0, previous = lampWarmOwners[k]; lampWarmOwners[k] = owners;
+      clear(); dispose(previous);
+      if (typeof console !== 'undefined') console.info('lamps: the pool ' + (want ? 'armed' : 'disarmed') + ' after its programs linked (' + Math.round(performance.now() - t0) + ' ms)');
+    }, e => { clear(); dispose(owners); throw e; });
   }
   // APPROACH (A0 22 Oct; HWCOV): A GROUP MADE AFTER THE WORLD'S COMPILE LINKS ITS DEPTH PROGRAMS IN THE BACKGROUND. The town kit
   // (render_premises kitHost) casts only near (castFar); its depth programs linked in the frame its shadow came on - 0.5-2 s
