@@ -102838,3 +102838,21 @@ And I'm not sure we need the 2 options for bi plane and sesquiplane, now that we
   so the built design is unchanged.
 - GATES OWED (pure visual + the panel; light): BIPLANE SKINMAT LIVERYREACH ARCHETYPES DESIGN, plus one garage look at a biplane
   (top wing ribs + a livery on both).
+- G3872 (the user, 29 Oct: "check more widely this use of clone()"). An audit of every material clone() and hand-rolled copy in
+  src/viewer + tools/_cage_*:
+  - **dmg_members.js (the crash look's pool) had the same bug, now fixed:** `src.clone()` of the skin material JSON-cloned
+    its userData, so the hook's `aeroU` texture uniforms came back as plain objects, and AEROSKIN_SURF was lost. That is a likely
+    cause of DEFORM's open "a few yellow fabric patches missing with the look ON" (stills 2026-10-28/2_dmg_looks). The pool now
+    takes `AEROSKIN.aeroDupe`.
+  - **aeroDupe is now THE copy, exported on AEROSKIN** (type, defines, the hook unwrapped from ATMO, the cache key, userData
+    outside copy()'s JSON clone). aeroPlaneClone uses it. The same recipe still lives hand-rolled and correct in four places:
+    app.js compileXrayVariants, parked.js dupe, flown_bake.js copyMat, shader_warm.js twin. Fold them into aeroDupe at leisure.
+  - **No bug:** the lamp lens/cup clones (app.js 2671, parked.js 689: plain materials, no own hook), the panel needles
+    (plain material), _cage_char flatMaterial (re-hooks the gloss itself), the twin-boom fin (group.clone() shares the
+    materials), the cowl twins (they share M.skin), and the scenery clones in render_world/render_premises/hangar (not liveries).
+  - **A gap, not a bug - THE FLOATS:** `SM('float', { surf: 0 })` (tools/_cage_float.js). The hulls draw on the triplanar
+    branch: no rivet rows, no seams, no metric field, so field-placed markings (a registration) have nothing to land on. Real
+    floats are riveted alloy. A future item: give the hull a surface field (surf 1) like the fuselage.
+  - **Also a gap - V-tail:** the stab is the fin laid flat (`boxDet` box projection) and canted 30-40 deg. The box detail is
+    planar, so on a V-tail it stretches by about 1/cos(cant), ~20 %. Mild; same future item as the tail box planes.
+- GATES OWED add DMGLOOK (the pool) to the list above.
