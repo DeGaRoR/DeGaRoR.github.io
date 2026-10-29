@@ -23,7 +23,7 @@ function fixture(){const B=boot(),{THREE:T,ctx}=B;B.load('src/viewer/shader_warm
  const live=new T.Mesh(geometry,new T.MeshStandardMaterial({color:0x123456}));live.castShadow=true;live.name='kept-live';
  const band=live.material.clone();band.defines={BAND_TEST:1};const eye=live.material.clone();eye.defines={EYE_TEST:1};
  const pairs=[[live,live.material],[live,band],[live,eye]],rt=new T.WebGLRenderTarget(64,64),depthRT=new T.WebGLRenderTarget(32,32);
- Object.assign(ctx,{renderer:R,scene,camera,WF:{premises:{lamps:L}},aa:{target:()=>rt},PLAIN_RT:()=>depthRT,FLOWN_BAKE:{warmPairs:()=>pairs}});
+ Object.assign(ctx,{renderer:R,scene,camera,WF:{premises:{lamps:L}},aa:{target:()=>rt},PLAIN_RT:()=>depthRT,FLOWN_BAKE:{warmPairs:()=>pairs},requestAnimationFrame:fn=>setTimeout(()=>fn(Date.now()),1)});
  const c0=app.indexOf('  function compilePass('),c1=app.indexOf('  // G879 (C4b',c0),n0=app.indexOf('  const lampWarmOwners = '),n1=app.indexOf('  // APPROACH',n0);assert(c0>0&&c1>c0&&n0>0&&n1>n0);
  vm.runInContext(app.slice(c0,c1)+'\n'+app.slice(n0,n1),ctx);R.setRenderTarget(rt);R.render(scene,camera);
  return {...B,T,R,ctx,scene,camera,L,pool,a,b,basic,lit,live,band,eye,pairs,geometry,rt,depthRT,setPending(){released=false;waits=0;},release(){released=true;},waits:()=>waits,prepare:want=>vm.runInContext('lampsPrep('+!!want+')',ctx)};
@@ -31,7 +31,7 @@ function fixture(){const B=boot(),{THREE:T,ctx}=B;B.load('src/viewer/shader_warm
 (async()=>{
  {const F=fixture();F.setPending();F.L.arm(true);F.R.compile(F.scene,F.camera);F.L.arm(false);F.R.render(F.scene,F.camera);assert(F.waits()>0,'control must expose pending future programs');console.log('PASS real-three control reproduces premature future-state program use');F.release();}
  const F=fixture(),{R,scene,camera,L,geometry}=F,dayProgram=R.properties.get(F.basic).currentProgram,positions=Buffer.from(geometry.attributes.position.array.buffer).toString('hex');
- F.setPending();let done=false;const job=F.prepare(true).then(()=>{done=true;});await new Promise(r=>setTimeout(r,2));
+ F.setPending();let done=false;const beforeSubmit=F.links.length;const job=F.prepare(true).then(()=>{done=true;});assert.strictEqual(F.links.length,beforeSubmit,'night submission must yield before compiling');await new Promise(r=>setTimeout(r,2));
  assert(!done,'preparation must wait for linking');assert.strictEqual(L.armed,false);assert(F.pool.every(l=>!l.visible));assert.strictEqual(R.properties.get(F.basic).currentProgram,dayProgram,'live basic currentProgram must be untouched');
  R.render(scene,camera);assert.strictEqual(F.waits(),0,'live frame must not inspect a pending future-state program');
  F.release();await job;assert.strictEqual(L.armed,false,'host alone arms the pool');L.arm(true);

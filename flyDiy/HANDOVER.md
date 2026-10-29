@@ -102855,3 +102855,34 @@ baseline-diagnostic.*, candidate-isolated.*). All-green120-frame windows,
 longest green streak, p99, >100ms and AA held-image counts are reported
 together; a held image must not be called smooth.
 
+### Controlled night repeat and budget revision — 29 Oct 2026, provisional
+
+Exact62d23a05b vs f3504c01; alternating3 cold runs each, profiling OFF.
+Median worst frames: night6369.2 ->216.8ms; cockpit14572.3 ->5285.4ms;
+near26960.4 ->3684.8ms. Night GLwait19073.4 ->127.4ms; cockpit14499.5 ->
+5234.4ms; near26894.1 ->3621.8ms. All-green120frame night share82.55 ->
+65.17%, a regression: HOLD. CPU sequence means13.20/15.09%; all6 met
+preflight+mean<=25%; instantaneous peaks retained, not silently excluded.
+No AA held images. Paused graphics fixture, not live-flight certification.
+
+Night prep had inherited30ms loader tasks, twice concurrently; real-three
+compile also traversed its private13000-mesh target scene to gather lights
+on every call. Revision gives background calls a shared4ms display-frame
+slot including readiness polls and uses a lights-only private target.
+Loader defaults unchanged. Individual GL/source calls cannot be preempted;
+diagnostic records overruns rather than promising an impossible hard cap.
+NIGHTWARM real-three regression PASS, including yield-before-first-compile.
+Cold budget-diagnostic browser check running. No ready/landing verdict.
+
+Previous gate batch incomplete: baseline cheap includes known CLOUD/LIGHT
+red; baseline heavy30min and outer40min wrappers timed out before full
+candidate proof. Owned exports restored and own lock released manually.
+Increase wrapper budgets before re-running final matrix. No complete --all.
+
+Full-moon01:00 Jolene capture: exposureBase1.12, eye1, SKY_LIGHT.last
+isMoon=true, phase0.997599, el=-11.7411011; image remains essentially black.
+Requested telemetry logged; no lighting/appearance change in this topic.
+Day/night A1/B1 stills saved for parity review; no pixel parity claim yet.
+Evidence:owned night-20261029/controlled-results.json and CONTROLLED-RESULTS.md,
+budget-diagnostic.*, diagnostic-budget.js and diagnose-budget.cjs.
+
