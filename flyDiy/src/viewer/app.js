@@ -268,7 +268,7 @@
     CLOUDS.init(renderer);
     // A6 (G436.7): the march runs BEFORE the scene (the previous frame's depth ends its rays) and the
     // composite is a quad in the world scene at the cloud's own depth - the silhouettes per MSAA sample
-    aa.setPre((r, cam, rt) => { if (!inGarage) CLOUDS.draw(r, cam, rt); });
+    aa.setPre((r, cam, rt, drawnScene) => { if (drawnScene === scene) CLOUDS.draw(r, cam, rt); });
     aa.needRT(CLOUDS.S.mode !== 'off');
   }
   // THE POST PASSES (POST-FX study, 2026-09-21): src/viewer/post_fx.js - six rows of the GRAPHICS
@@ -9647,10 +9647,7 @@
                      mist: typeof ATMO !== 'undefined' && ATMO.MIST ? ATMO.MIST.room : null, fov: camera.fov };
       setExp(WORLD_EXPOSURE);
       if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = null;   // F3: the room's air stays in the room
-      // G3588 (the playtest 24 Oct, item 48: "No clouds in the intro"): the march never runs under the opening (the loop
-      // reads it as the shed), but its composite quad kept the boot's last world frame (visible, a stale march) and the
-      // dome's cirrus veil follows CLOUDS.update every worldUpdate: both off while it plays, put back at the swap
-      try { if (typeof CLOUDS !== 'undefined' && CLOUDS.S) { stIntroWas.veil = CLOUDS.S.veil; CLOUDS.S.veil = 0; const q = CLOUDS.compositeMesh && CLOUDS.compositeMesh(); if (q) q.visible = false; } } catch (e) {}
+      // The actual world pass now marches fresh clouds, including during the intro.
       window.FLYDIY_MUSIC_HOLD = true;
       stIntroAt = plan.anchor;
       try { storyIntroLamps(true); } catch (e) { console.warn('story intro: the lamps', e && e.message); }   // G3388
@@ -9669,7 +9666,6 @@
       if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = W.mist;
       shedFrameState();
       setExp(W.exp);
-      try { if (W.veil != null && typeof CLOUDS !== 'undefined' && CLOUDS.S) CLOUDS.S.veil = W.veil; } catch (e) {}   // G3588 (the quad: the next march shows it)
       camera.fov = W.fov; camera.updateProjectionMatrix();
     }
     window.FLYDIY_MUSIC_HOLD = false;

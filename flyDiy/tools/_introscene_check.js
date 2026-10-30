@@ -1,0 +1,14 @@
+'use strict';
+const fs=require('fs'),path=require('path'),vm=require('vm'),assert=require('assert'),root=path.join(__dirname,'..');
+const app=fs.readFileSync(process.env.INTRO_APP||root+'/src/viewer/app.js','utf8'),src=fs.readFileSync(process.env.INTRO_AA||root+'/src/viewer/aa_resolve.js','utf8');
+const a=src.indexOf('    function render(scene, camera) {'),b=src.indexOf('    // needRT(on)',a);assert(a>0&&b>a);
+const world={},garage={},camera={updateWorldMatrix(){calls.push('matrix');}},rt={},calls=[];
+const c={S:{rt,fsScene:{},fsCam:{}},AUTO:{on:false},renderer:{getRenderTarget:()=>null,setRenderTarget(){},render(sc){calls.push(sc===world?'world':sc===garage?'garage':'resolve');}}};
+vm.createContext(c);vm.runInContext(src.slice(a,b)+';this.draw=render;',c);
+const hook=app.split('\n').find(s=>s.includes('aa.setPre('));assert(hook);const h={scene:world,inGarage:true,CLOUDS:{draw(r,cam,to){assert.strictEqual(cam,camera);assert.strictEqual(to,rt);calls.push('clouds');}},aa:{setPre(fn){c.S.pre=fn;}}};vm.createContext(h);vm.runInContext(hook,h);
+c.draw(world,camera);assert.deepStrictEqual(calls,['matrix','clouds','world','resolve'],'world intro clouds prepared after camera matrix and before scene');
+calls.length=0;c.draw(garage,camera);assert.deepStrictEqual(calls,['matrix','garage','resolve'],'garage never marches world clouds');
+h.inGarage=false;calls.length=0;c.draw(world,camera);assert(calls.includes('clouds'),'ordinary flight retained');
+c.S.rt=null;calls.length=0;c.draw(world,camera);assert.deepStrictEqual(calls,['world'],'target-less fallback unchanged');
+assert(!app.includes('stIntroWas.veil =')&&!app.includes('CLOUDS.S.veil = 0;'),'intro does not change user cloud settings');
+console.log('GATE INTROSCENE: PASS');
