@@ -51,6 +51,7 @@ const GATES = [
   { id: 'PLOTQUERY', file: '_plotquery_check.js', tier: 'core' },
   { id: 'PATCHBOUNDS', file: '_patchbounds_check.js', tier: 'core' },
   { id: 'PACECADENCE', file: '_pacecadence_check.js', tier: 'core' },
+  { id: 'SCENERYLIGHTS', file: '_scenerylights_check.js', tier: 'core' },
   // THE ATMOSPHERE (G72). Pure model, under a second: the ISA tables, the
   // exact sea-level identity every other gate's anchors depend on, and the
   // powerplant scalings re-derived against 60_gen_spec's own prop synthesis.
