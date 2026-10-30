@@ -103034,3 +103034,7 @@ Two new FRAMECOST stand/bytes.bufferData rows(1812bytes) were traced in the actu
 ### Bounded asynchronous-setup settling
 
 Waiting for the grass ring exposed delayed cloud coverage calibration: skyFractionAsync allocates its transform-feedback buffers once per fit step. Require30 consecutive buffer-upload-quiet frames after both rings idle, still under the original120-frame cap. A permanent allocator reaches that same cap and remains in the measured window; no row/tolerance/budget is waived. COVERIDLE executes the real helper with delayed transient setup and a permanent1812byte/frame counterexample. Master/candidate use the identical helper; rerun FRAMECOST on both.
+
+## PERF wave2 ready handoff — 30 October2026
+
+Owner selected the first/darker night preview: world nightVisibility0.8. All performance/lighting/topic changes are integrated on ready/a-perf-int. See reports/PERF-WAVE2-READY.md for exact scope, matched fixture checks, visible lighting changes, raw standing costs and measurement limits. New busy-machine captures are functional/visual only. Ready/b-perf-int is the sole wave2 delivery ref; historical topic refs are not separate landing requests. No generated files, LF only, no master merge.
