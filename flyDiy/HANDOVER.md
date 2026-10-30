@@ -102900,3 +102900,10 @@ No ready ref: complete gates, live non-crashing flight, visual/LOD catch-up
 checks and clean full-run CPU acceptance are still required. A0 lands.
 Report D:/Dev/flydiy-notes/CODEX-REPORT-EVENNESS-20261030.md.
 
+### WORLDEVEN — ready for A0, Codex, 30 Oct 2026
+
+Exact same tested render_world.js bytes as boundsbudget. Caches exact Float32 patch bounds, uses exact union quadrants/sphere pruning and stops patch dispatch between quadrants after4ms(max2 cheap ones). No terrain accuracy, LOD, mesh, material, solver or shadow quality change. PATCHBOUNDS verifies bit-identical bounds across889cases and six dispatch/force/budget cases. Thirty affected/brief gates completed on exact L28c and candidate: every failed assertion line is identical, not just gate counts. This is not a green full --all.
+
+Graphics-only moving corridor: master119/127 frames>35ms vs17, >100ms11/12 vs3, all-green windows2.86/5.57% vs76.37%, longest~7s vs38.26s. Late texture-pack jobs limit the last seconds; full-run instantaneous CPU spikes exceed25%, so the predeclared first120s is the cleaner attribution diagnostic(>100ms7->0; all-green.94–3.26%->77.53%). Additional normal-light, healthy paused-aircraft combined M/B/M route confirms67.57% green vs3.57/1.24%, longest38.20s vs7.07/5.67s, >100ms3vs14/14, mean phase CPU~10%. The combined build also exposes a separate reflection shader stall from nightwarm; it is held for follow-up, not attributed to this independent world-bounds patch. No live-flight physics performance certification claimed.
+
+Ready is source-only on L28c; regenerate outputs with normal build. Independent of shaderwarm/nightwarm. Supersedes introperf raw-bounds optimization: do not stack both versions. A0 owns merge; shared checkout/index unchanged.
