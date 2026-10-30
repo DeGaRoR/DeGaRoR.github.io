@@ -102820,33 +102820,29 @@ doors shut; bought = the same shed; 9/9, FRAMECOST = master's 15 rows).
 Battery: PARKED row 13 = master's own (identical rows to L28b). Train gate vs L28b: the same accepted costs (perf-week L0: garage ~95-130 s,
 compile 25-51 s), no new row; fps and worst tasks within L28b's spread. Everything else waits for R1: flydiy-notes/RESTART-PLAN.md.
 
-### Scenery/settings first-use warm — final approach, Codex, 30 Oct 2026
+### Exact scenery/settings warm — validated working source, Codex, 30 Oct 2026
 
-The six multi-second rotation links were established for SCENERY, which
-removes craft lights after boot. Actual-flight-light controlsA/B/A have
-zero yaw shader waits and worst50ms. Do NOT claim these six as an ordinary
-flight defect. The extra normal-boot viewwarm experiment is retired.
+The normal-flight-light controls have zero rotation shader waits; the six
+late0-point/0-spot programs were caused by SCENERY dropping aircraft lights.
+Boot-only warm and zero-light-signature prototypes are retired. The latter
+changed420/1,480,000 pixels by one8bit step, so is absent from this tree.
 
-The initial zero-intensity signature prototype eliminated scenery waits,
-but frozen RAF/clock comparison found420/1,480,000 world pixels differ by
-one8bit step (both same-state controls exact0). Rejected for literal pixel
-identity. No ghost lights are present in THIS commit.
+Final approach uses original lights/materials/geometry: existing settings
+screen compiles current scene then first-draws smallest off-camera lawn,
+hangar-shell/coarse-opening representatives through existing warmDrawSliced.
+Optional groupMax1 yields between lazy driver first uses. No added normal
+boot warm or per-frame logging/work. SCENERY queues its screen in a fresh
+task to avoid reentrant BOOT.hide/whenReady; draw held until screen owns it,
+cancelled pending entry releases hold, headless path stays synchronous.
 
-Instead call the existing settings settle screen when SCENERY removes
-craft, compiling the actual zero-aircraft-light state. After that screen's
-existing compileSliced/programsReady and visible warm, first-draw lawn,
-hangar-shell and coarse-opening variants even off-camera. One smallest
-representative per program/layout/kind, one primitive/draw, existing
-warmDrawSliced with optionalgroupMax1 so first-use waits yield between
-programs under the spinner. Same geometry, material, real AA target and
-actual current lights. No extra normal boot or per-frame warm/traversal.
-World graphics settings receive the same off-camera protection. Extend
-existing FLYDIY_SETTLE hook with warmViews for repeatable visual proof.
+VIEWWARM PASS includes selector/no-mutation and deferred/cancel/headless
+checks. Final cold90s yaw: 4 frames>35ms, worst50.1ms,
+0>100ms, zero GL waits, green windows90.47%.
+Frozen RAF/clock before/after actual warm: zero changed world pixels across
+1,480,000 pixels; both same-state controls zero. Source build5154a24e7dff.
+Preceding exact-state prototype likewise zero yaw waits/worst50ms/pixel0.
+Original scenery controls repeatedly showed six late links and2–3s frames.
 
-VIEWWARM checks selection, hidden/smallest/layout/kind distinctions,
-unchanged object/material visibility, target/current-world state, grouping,
-screen call sites, no extra normal boot warm. Normal build/syntax pass;
-cold yaw-exact-B, repeat control and frozen repeated-warm pixel proof
-queued/running. No ready until those and regression checks hold. The old
-signature prototype unit/source is removed, not stacked into this approach.
-A0 owns landing. Evidence: owned evenness-20261029/exact-run-status.json.
+Combined runtime and affected-gate validation still queued; no ready ref
+from this checkpoint. A0 owns landing. Evidence: owned evenness-20261029/
+final-run-status.json,yaw-final-B-stats.json and pixel-check.json.

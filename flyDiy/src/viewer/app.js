@@ -19745,7 +19745,15 @@
         else if (window.FLYDIY_LAZY) window.FLYDIY_LAZY('world_rail').then(() => { if (window.WORLD_RAIL && SCENERY.on) window.WORLD_RAIL.open(); });   // G909: on demand
         flRailSync(); if (flyOpen) flyOpenSet(flyOpen);   // G760: DEV shows itself (its way out), the open flyout says so
         // The aircraft's lights left too: compile and first-draw the exact scenery variants under the existing screen.
-        settleScreen('scenery');
+        // BOOT.hide resolves the old ready promise AFTER its done callback.
+        // Start the next screen in a fresh task, holding the world draw meanwhile.
+        if (typeof BOOT !== 'undefined' && typeof BOOT.show === 'function' && BOOT.log && typeof renderer.compileAsync === 'function') {
+          holdRender = true;
+          setTimeout(() => {
+            if (SCENERY.on) settleScreen('scenery');
+            else if (BOOT.state === 'gone' && (!BOOT.busy || !BOOT.busy())) holdRender = false;
+          }, 0);
+        }
       };
       if (inGarage) rollOut(go); else go();
     },
