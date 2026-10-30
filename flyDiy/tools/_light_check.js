@@ -634,8 +634,13 @@ if (process.argv.includes('--selftest')) {
   check(/SHADOW_NEAR\.make\(scene\)/.test(world) && /SHADOW_NEAR\.follow\(sunNear, cg, SUN, agl, snapToTexels, camera, groundAt\)/.test(world), 'world: the near light made and followed each frame, snapped to its own texels');
   // G1080 (SHADOW-EYES): the craft's maps are aimed at the DRAWN aeroplane - the pose model.grp carries, re-read right
   // after poseModel - never at the point worldUpdate is given (the camera under the free camera / the world editor)
+  const poseAimOrder = text => /poseModel\(\);\s*\n(\s*(\/\/.*|if \(sceneSample\) FR\.sceneDetail\.lap\(0\);|if \(typeof CONTACT_SHADOW !== 'undefined'\) contactShadows\(\);)\n)*\s*if \(!inGarage && window\.SHADOW_NEAR && SHADOW_NEAR\.aim\) SHADOW_NEAR\.aim\(\);/.test(text);
+  const poseFirst = '    poseModel();', aimLast = "    if (!inGarage && window.SHADOW_NEAR && SHADOW_NEAR.aim) SHADOW_NEAR.aim();";
+  const reversedAim = app.replace(poseFirst, '__PERF_POSE__').replace(aimLast, poseFirst).replace('__PERF_POSE__', aimLast);
+  check(!poseAimOrder(reversedAim), 'G1080 negative: moving near-shadow aim before pose is rejected');
+  check(poseAimOrder(app.replace('    if (sceneSample) FR.sceneDetail.lap(0);\n', '')), 'G1080: removing optional pose timing preserves the wiring');
   check(/S\.aimDrawn && AIM\.hAt && drawnCentre\(\)/.test(near) && /aimDrawn: true/.test(near) && /nearTag\(SHADOW_NEAR\.aimPoint \? SHADOW_NEAR\.aimPoint\(cg\) : cg\)/.test(world)
-    && /poseModel\(\);\s*\n(\s*(\/\/.*|if \(typeof CONTACT_SHADOW !== 'undefined'\) contactShadows\(\);)\n)*\s*if \(!inGarage && window\.SHADOW_NEAR && SHADOW_NEAR\.aim\) SHADOW_NEAR\.aim\(\);/.test(app), 'G1080: the near maps follow the drawn aeroplane (aim() after poseModel; the near casters tagged round it)');
+    && poseAimOrder(app), 'G1080: the near maps follow the drawn aeroplane (aim() after poseModel; the near casters tagged round it)');
   // (G601: the registry's pass - a caster over NEAR_MIN_R within reach; GATE STAND runs it)
   check(/nearTag = cg =>/.test(world) && /s\[3\] >= NEAR_MIN_R && Math\.sqrt\(dx \* dx \+ dy \* dy \+ dz \* dz\) - s\[3\] < R/.test(world) &&/Math\.max\(512, Math\.min\(2048, R\.shadowMap \/ 2\)\)/.test(world), 'world: the near casters are the plain meshes (over NEAR_MIN_R) within reach of the CG; the map is half the tier\'s far map');
   check(/SHADOW_NEAR\.tagCraft\(craft(, model\.grp)?\)/.test(app), 'app: the craft is tagged when the model joins the world');

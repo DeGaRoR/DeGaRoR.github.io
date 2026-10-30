@@ -102840,3 +102840,16 @@ No src/, game page, physics, render or style change. Source tree based on exactL
 One source CSS hint, will-change:transform, on the wind graphic. Trace isolated the4.3s first-flight freeze to raster/compositing; scoped cold CSS interventions and a final normal source build1351aba97a29 show worst50.0ms,p9933.5ms,1238frames,zero>100ms,zero exceptions. FinalUISMOKE/GFX/AA PASS. Boot103.628s is not claimed as a loading gain. Earlier before/after stills differ only at tiny anti-aliased gauge edges; geometry/world features are unchanged. A0 must inspect that existing visual evidence before landing under the pixel-identity rule. This ready is a reviewable merge candidate, not permission to waive a visible change.
 
 ExactL28c base; source-only tree, generated outputs reset to master and rebuilt by A0. Existing standing-red game gates are not represented as a clean --all. Do not merge an entire private test stack for this independent topic. A0 owns landing; shared checkout/index untouched.
+
+
+### recscene — A0 merge candidate, Codex, 30 Oct 2026
+
+Opt-in ?recscene=1 one-in31 scene sub-slot logging; default disabled. Same exact app.js and flight_recorder.js bytes as the tested standalone candidatecae0820ccd39. Baseline and candidateFLIGHTREC/UISMOKE exit0; SCENEDETAIL PASS verifies sampling/alignment/zero unsampled clocks/export. Whole-recorder benchmark delta~0.042us/frame is diagnostic, not a browser-wide guarantee. No rendering/physics/quality change and no claimed FPS/loading improvement: value is attribution of future scene stutters. Normal play performs no additional timer reads or detail allocation.
+
+ExactL28c base; source-only tree, generated outputs reset to master and rebuilt by A0. Existing standing-red game gates are not represented as a clean --all. Do not merge an entire private test stack for this independent topic. A0 owns landing; shared checkout/index untouched.
+
+### RECSCENE gate compatibility — Codex, 30 Oct 2026
+
+Two old source-text wiring assertions rejected the optional sampled pose timer inserted between poseModel and contactShadows. Actual pose/contact/near-shadow order never changed. LIGHT now accepts exactly that logger statement in its existing ordered regex; CONTACT removes exactly that statement before its existing adjacency/distance predicate. Mutation checks still reject replacement of pose or contact, and LIGHT still rejects arbitrary mutating work in that gap. Actual LIGHT rerun on combined source removes G1080 failure; only the existing studio row remains. Prior full CONTACT comparison had exactly this one new text-match failure; every other CONTACT assertion passed. Updated actual-recscene source predicate and negative mutations PASS. Full CONTACT rerun is queued as a follow-up, not claimed complete. No runtime source, byte, timer or performance change in this commit. No allowances or budgets changed. Prior FLIGHTREC/UISMOKE/SCENEDETAIL evidence still applies to the byte-identical runtime source. A0 owns landing.
+
+Grooming: LIGHT and CONTACT now keep their actual reorder-negative mutations in the shipped gates. Their optional-timer exception does not accept a real pose/shadow reorder.
