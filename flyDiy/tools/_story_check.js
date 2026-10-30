@@ -881,8 +881,8 @@ async function tutorRun() {
   ok(/const line = !!CAREER_DEV;\n\s*el\.classList\.toggle\('line', line\);/.test(app) && /#arrCard\.line \{[^}]*background:transparent;[^}]*border:0;/.test(fcss) && /#arrCard\.line #arrNotes, #arrCard\.line #bLog, #arrCard\.line #bWhy \{ display:none; \}/.test(fcss),
      "no card in a career: the flight's ending is a line of text at the bottom left (no plate, no Log / What went wrong; the story's line is Tim's)");
   ok(/view: \(\) => \{ storeFloorStand\(\); return/.test(app), "Storage shows the stand's aeroplane on the floor (G3587: the Cub was shown on the stand while Rufus stood there)");
-  ok(/stIntroWas\.veil = CLOUDS\.S\.veil; CLOUDS\.S\.veil = 0; const q = CLOUDS\.compositeMesh && CLOUDS\.compositeMesh\(\); if \(q\) q\.visible = false;/.test(app) && /CLOUDS\.S\.veil = W\.veil;/.test(app),
-     'no clouds in the opening (G3588): the veil off and the stale composite hidden while it plays, the veil back at the swap');
+  ok(app.includes('aa.setPre((r, cam, rt, drawnScene) => { if (drawnScene === scene) CLOUDS.draw(r, cam, rt); });') && !app.includes('CLOUDS.S.veil = 0;') && !app.includes('stIntroWas.veil ='),
+     'the opening renders fresh world clouds; garage passes do not march them and user veil settings are preserved');
   ok(/stSkipEl\.textContent = 'Skip the flight: start on the final';/.test(app) && /rollOut\(\(\) => \{ const r = storyFinalNow\(\);/.test(app) && /ap\.reEngage\(\{ phase: 'INBOUND' \}\);/.test(app),
      'Skip the flight: rolled out, then on the final at the WWII field, a fresh pilot planning its arrival from there (G3584); the garage alone keeps the hangar skip');
   ok(/ap\.afcs\.sel\.de = 0; \} catch \(e\) \{\}\n\s*ap\.reEngage\(\{ phase: 'INBOUND' \}\);/.test(app),

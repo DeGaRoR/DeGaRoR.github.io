@@ -534,7 +534,7 @@
       // turns, not after, and renderer.render (which would) comes next. So the clouds were marched with this frame's
       // eye position and LAST frame's rotation: they slid against the world while orbiting, more as the fps fell, and
       // snapped back on a mirror-capture frame (the mirror refreshes the camera). The matrix is made current first.
-      if (S.pre) { if (camera.updateWorldMatrix) camera.updateWorldMatrix(true, false); S.pre(renderer, camera, S.rt); }
+      if (S.pre) { if (camera.updateWorldMatrix) camera.updateWorldMatrix(true, false); S.pre(renderer, camera, S.rt, scene); }
       renderer.setRenderTarget(S.rt);
       // the auto scale's GPU reading: the scene pass alone (the clouds' and the post passes' own timers are outside it)
       let aq = null;
