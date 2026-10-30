@@ -102819,3 +102819,7 @@ assets-grove (the crane's GROVE marks painted out, 11/13 + master's GEO/MEDIA), 
 doors shut; bought = the same shed; 9/9, FRAMECOST = master's 15 rows).
 Battery: PARKED row 13 = master's own (identical rows to L28b). Train gate vs L28b: the same accepted costs (perf-week L0: garage ~95-130 s,
 compile 25-51 s), no new row; fps and worst tasks within L28b's spread. Everything else waits for R1: flydiy-notes/RESTART-PLAN.md.
+
+### FRAMEPACE — working candidate, Codex, 30 Oct 2026
+
+The phase-preserving 30fps deadline can drift against a 59.98Hz display, admitting a 16.7ms catch-up followed by 50ms despite regular native callbacks. Align the next render deadline to the admitted frame only when the measured interval is within0.3% (max0.1ms) of the cap interval. Actual dt, solver accumulation, stall handling, worker messages, auto-cap rules and nonmatching refresh admission remain unchanged. Same-page 90s A/B/A at59.977Hz:4/0/5 frames>35ms, worst50/33.6/50ms, all-green windows90.47/100/90.36%, longest43.28/90.00/43.45s. No input gap>17ms. This proves the admission fault in that light-load view; no promise of100% green under world streaming. New PACECADENCE checks near60/120Hz, mismatched refresh masks, solver time conservation and legacy/off/stall behavior. Normal-build browser confirmation and affected-gate comparison pending; working branch only, no ready. No core/physics source edit. Exact L28c base, source-only tree; A0 owns merging.
