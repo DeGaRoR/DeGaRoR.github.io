@@ -8,8 +8,10 @@ async function check(fail) {
   const nested = { visible: true }, hidden = { visible: false }, lamp = { visible: true, isLight: true };
   const material = { visible: true }, mesh = { isMesh: true, geometry: {}, material };
   let dressed = false, calls = 0, warned = 0;
-  const craft = { visible: true, traverseVisible(fn) { assert(dressed); fn(mesh); } };
-  const scene = { children: [craft, nested, hidden, lamp] }, target = {}, snapshots = [];
+  const disc = { isMesh: true, geometry: {}, material, visible: false, userData: { propDisc: true } };
+  const craft = { visible: true, traverseVisible(fn) { assert(dressed); fn(mesh); }, traverse(fn) { fn(mesh); fn(disc); } };
+  const sun = { isLight: true, castShadow: true, shadow: {} };
+  const scene = { children: [craft, nested, hidden, lamp, sun], traverseVisible(fn) { assert(dressed); fn(sun); fn(lamp); } }, target = {}, snapshots = [];
   class Group { constructor() { this.children = []; } add(o) { this.children.push(o); } }
   function snapshot() {
     assert(dressed); assert.strictEqual(nested.visible, false); assert.strictEqual(hidden.visible, false);
@@ -21,7 +23,7 @@ async function check(fail) {
     THREE: { Group }, PLAIN_RT: () => target, keptGroup: () => ({ KEPT: [] }),
     craftInWorldNow(fn) { assert(!dressed); dressed = true; try { return fn(); } finally { dressed = false; } },
     PROG_WARM: { standIn: (o, m) => ({ ...o, material: m }),
-      depthVariants() { snapshot(); return { helper: { children: [mesh] } }; },
+      depthVariants(T, R, groups, opt) { snapshot(); assert.strictEqual(opt.kinds.depth, true); assert.strictEqual(opt.kinds.distance, false); assert.strictEqual(groups[0].children.length, 2, 'hidden prop disc included'); return { helper: { children: [mesh] } }; },
       fogless(sc, fn) { assert.strictEqual(sc, scene); return fn(); } },
     compileSliced(group, rt, sc, fogless, dress) {
       assert.strictEqual(rt, target); assert.strictEqual(sc, scene);

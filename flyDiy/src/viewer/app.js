@@ -13158,6 +13158,8 @@
         || typeof renderer.compileAsync !== 'function') return Promise.resolve();
     const list = [];
     craftInWorldNow(() => craft.traverseVisible(o => { if (o.isMesh && o.geometry && o.material) list.push(o); }));
+    // The spinning disc starts hidden, but its two transparent sides reflect later.
+    craft.traverse(o => { if (o.userData && o.userData.propDisc && !list.includes(o)) list.push(o); });
     list.push(...keptGroup().KEPT);
     const dress = fn => craftInWorldNow(() => {
       const hidden = [];
@@ -13172,7 +13174,14 @@
       if (m && m.visible !== false) group.add(PROG_WARM.standIn(o, m));
     }
     const target = PLAIN_RT();
-    const depth = dress(() => PROG_WARM.depthVariants(THREE, renderer, [group]).helper);
+    const depth = dress(() => {
+      // The mesh-only helper has no lights; discover shadow kinds in the lit scene.
+      const kinds = { depth: false, distance: false };
+      scene.traverseVisible(o => { if (o.isLight && o.castShadow && o.shadow) {
+        if (o.isPointLight) kinds.distance = true; else kinds.depth = true;
+      } });
+      return PROG_WARM.depthVariants(THREE, renderer, [group], { kinds }).helper;
+    });
     const noFog = fn => dress(() => PROG_WARM.fogless(scene, fn));
     return compileSliced(group, target, scene, false, dress)
       .then(() => compileSliced(depth, target, scene, true, dress))
