@@ -3823,12 +3823,34 @@ function compose(rec0, world, opts) {
   }
   // the plots: a point inside one takes its zone's grass rule; a plot's lawn is mown to the road's band (no fade thins it,
   // only the pavement and the band kill)
-  const lawnWater = new Map();   // (v1.35: a zone's water, read once, for its water plots' lawn)
+  const lawnWater = new Map();
+  // Generated plot polygons stay fixed for this composition, like the pavement
+  // index. Keep record order in each cell: overlapping plots still pick the first.
+  const lawnCells = new Map(), lawnEmpty = [];
+  let lawnPlots = null, lawnCount = -1, lawnIndexed = false;
+  function plotsAt(lx, lz) {
+    const plots = O.records.plots;
+    if (plots !== lawnPlots || plots.length !== lawnCount) {
+      lawnPlots = plots; lawnCount = plots.length; lawnCells.clear(); lawnIndexed = true;
+      let cells = 0;
+      for (const p of plots) if (p.poly && p.poly.length) {
+        const b = polyBBox(p.poly);
+        // A cell of halo keeps the broad phase conservative at numerical edges.
+        const box = { x0: b.x0 - GS_C, z0: b.z0 - GS_C, x1: b.x1 + GS_C, z1: b.z1 + GS_C };
+        const bounds = [box.x0, box.z0, box.x1, box.z1].map(x => Math.floor(x / GS_C));
+        cells += (bounds[2] - bounds[0] + 1) * (bounds[3] - bounds[1] + 1);
+        if (!bounds.every(Number.isSafeInteger) || !(cells <= 65536)) { lawnIndexed = false; lawnCells.clear(); break; }
+        gsAddTo(lawnCells, box, p);
+      }
+    }
+    return lawnIndexed && Number.isFinite(lx) && Number.isFinite(lz)
+      ? (lawnCells.get(gsKey(Math.floor(lx / GS_C), Math.floor(lz / GS_C))) || lawnEmpty) : plots;
+  }   // (v1.35: a zone's water, read once, for its water plots' lawn)
   function withPlot(lx, lz, kill, boost, cls, cut, surf) {
     let kind = null, grass = null;
     // (v1.35: a plot whose ground is off is the island's here - no lawn, the biome's own; and a water plot mows no lawn
     // within 30 cm of its zone's water - the shore is the biome's, the user: "they draw grass up till the sea")
-    for (const p of O.records.plots) if (p.poly && !p.noGround && inPoly(p.poly, lx, lz)) {
+    for (const p of plotsAt(lx, lz)) if (p.poly && !p.noGround && inPoly(p.poly, lx, lz)) {
       const g = zoneGrass(zoneOf(p.zone));
       if (g.kind === 'lawn' && p.side === 'water') {
         let wy = lawnWater.get(p.zone); if (wy === undefined) lawnWater.set(p.zone, wy = zoneWaterYOf(world, F, zoneOf(p.zone), -Infinity));
@@ -3900,12 +3922,44 @@ function compose(rec0, world, opts) {
     if (n < 2 || (pts[0][0] === pts[n - 1][0] && pts[0][1] === pts[n - 1][1])) return Infinity;
     const DE = roadDeadEnds(it);
     if (!DE[0] && !DE[1]) return Infinity;
-    let best = Infinity, bi = 1, bt = 0;
-    for (let i = 1; i < n; i++) {
-      const a = pts[i - 1], b = pts[i], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
-      const t = l2 > 1e-12 ? ((x - a[0]) * dx + (z - a[1]) * dz) / l2 : 0, tc = Math.max(0, Math.min(1, t));
-      const d = HYP2(x - (a[0] + dx * tc), z - (a[1] + dz * tc));
-      if (d < best) { best = d; bi = i; bt = t; }
+    let best = Infinity, bi = 1, bt = 0, found = false;
+    // The viewer asks this after roadDist: that query already uses the segment
+    // grid, while this end correction still walked the whole island road.
+    // Reuse the SAME grid. Keep the original segment arithmetic and the walk's
+    // first-segment tie rule; visit another ring on an exact distance boundary
+    // so an equally near earlier segment cannot be missed.
+    const I = roadSegIdx(it.road);
+    if (I) {
+      const ci = Math.floor((x - I.x0) / I.C), cj = Math.floor((z - I.z0) / I.C);
+      if (ci >= -2 && cj >= -2 && ci <= I.nx + 1 && cj <= I.nz + 1) {
+        const kMax = Math.min(SEG_RINGS, Math.max(I.nx, I.nz) + 3);
+        for (let k = 0; k <= kMax; k++) {
+          for (let i = ci - k; i <= ci + k; i++) {
+            if (i < 0 || i >= I.nx) continue;
+            const edge = i === ci - k || i === ci + k;
+            for (let j = cj - k; j <= cj + k; j += (edge || k === 0) ? 1 : 2 * k) {
+              if (j < 0 || j >= I.nz) continue;
+              const ids = I.cells.get(i * 65536 + j); if (!ids) continue;
+              for (let m = 0; m < ids.length; m++) {
+                const si = ids[m], a = pts[si - 1], b = pts[si], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
+                const t = l2 > 1e-12 ? ((x - a[0]) * dx + (z - a[1]) * dz) / l2 : 0, tc = Math.max(0, Math.min(1, t));
+                const d = HYP2(x - (a[0] + dx * tc), z - (a[1] + dz * tc));
+                if (d < best || (d === best && si < bi)) { best = d; bi = si; bt = t; }
+              }
+            }
+          }
+          if (best < k * I.C) { found = true; break; }
+        }
+      }
+    }
+    if (!found) {   // short roads, distant/non-finite queries, or no bounded answer: original walk
+      best = Infinity; bi = 1; bt = 0;
+      for (let i = 1; i < n; i++) {
+        const a = pts[i - 1], b = pts[i], dx = b[0] - a[0], dz = b[1] - a[1], l2 = dx * dx + dz * dz;
+        const t = l2 > 1e-12 ? ((x - a[0]) * dx + (z - a[1]) * dz) / l2 : 0, tc = Math.max(0, Math.min(1, t));
+        const d = HYP2(x - (a[0] + dx * tc), z - (a[1] + dz * tc));
+        if (d < best) { best = d; bi = i; bt = t; }
+      }
     }
     const len = i => HYP2(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
     let e = Infinity;

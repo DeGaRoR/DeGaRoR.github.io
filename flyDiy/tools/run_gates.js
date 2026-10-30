@@ -43,6 +43,13 @@ const path = require('path');
 // (The hand-written fleet's own gates — WIND, M3, DRONE, DC3, JODEL, C172,
 // CHINOOK, PA18, C172M, MODEL, CTRL, XCTY/2/3/4/5 — went with the fiches.)
 const GATES = [
+  { id: 'GROUNDQUERY', file: '_groundquery_check.js', tier: 'core' },   // visual pavement end-query parity and operation count
+  { id: 'COOKWAIT', file: '_cookwait_check.js', tier: 'core' },   // CDP deadlines are cancelled after settled cook requests
+  { id: 'PLOTQUERY', file: '_plotquery_check.js', tier: 'core' },
+  { id: 'SCENEDETAIL', file: '_scenedetail_check.js', tier: 'core' },
+  { id: 'NIGHTWARM', file: '_nightwarm_check.js', tier: 'core' },
+  { id: 'PATCHBOUNDS', file: '_patchbounds_check.js', tier: 'core' },
+  { id: 'VIEWWARM', file: '_viewwarm_check.js', tier: 'core' },
   // THE ATMOSPHERE (G72). Pure model, under a second: the ISA tables, the
   // exact sea-level identity every other gate's anchors depend on, and the
   // powerplant scalings re-derived against 60_gen_spec's own prop synthesis.

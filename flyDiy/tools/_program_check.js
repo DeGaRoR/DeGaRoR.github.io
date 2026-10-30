@@ -213,7 +213,27 @@ function warmThenFrame(useOld) {
      '4 the roll-out\'s compile step warms the depth variants in the lit scene and every listed pass');
   // G680: the shed's boot compile warms its own shadow pass and the passes too (the garage's first frame linked them)
   const gc = app.slice(app.indexOf("bootStep('compile'"), app.indexOf("bootStep('compile'") + 3000);
-  ok(/sc = sc \|\| scene/.test(cdv) && /compileDepthVariants\(hangarScene\)/.test(gc), '4 the shed\'s boot compile warms its depth variants and the passes (compileDepthVariants(hangarScene))');
+  ok(/sc = sc \|\| scene/.test(cdv) && /compileDepthVariants\(hangarScene(?:, true(?:, probeCompileDress)?)?\)/.test(gc), '4 the shed\'s boot compile warms its depth variants and the passes (compileDepthVariants(hangarScene))');
+  const pmWarm = gc.indexOf('shaderProgress(pmremWarmBake()'), placeholder = gc.indexOf('.then(() => { shedEnvKey(); })', pmWarm);
+  const room = gc.indexOf('compileSliced(hangarScene, ensureEnvRT(), null, false, probeCompileDress)', placeholder), depth = gc.indexOf('compileDepthVariants(hangarScene', room);
+  const bake = gc.indexOf('done(); return pass(', depth);
+  ok(pmWarm >= 0 && placeholder > pmWarm && room > placeholder && depth > room && bake > depth,
+     '4 PMREM warms before the placeholder draw; room and shadow programs warm before the cube bake');
+  // The asynchronous compiler dresses only its synchronous slices. No subject or
+  // camera state may remain changed while another task or the live view runs.
+  {
+    const at = app.indexOf('  function probeCompileDress(fn) {'), end = app.indexOf('  // G584: THE GENERATORS ARE KEPT.', at);
+    const craft = { visible: true }, edSit = { visible: true }, refSit = { visible: false }, bpSit = { visible: true };
+    const hangar = { shafts: { visible: true } }, camera = { layers: { mask: 1073741825 } };
+    const state = { craft, edSit, refSit, bpSit, hangar, camera, craftInProbe: false };
+    const dress = at >= 0 && end > at ? vm.runInNewContext('(' + app.slice(at, end) + ')', state) : null;
+    let exact = false, threw = false;
+    if (dress) try { dress(() => { exact = camera.layers.mask === 1 && !hangar.shafts.visible && !craft.visible && !edSit.visible && !refSit.visible && !bpSit.visible; throw new Error('test restoration'); }); } catch (e) { threw = e.message === 'test restoration'; }
+    const restored = craft.visible && edSit.visible && !refSit.visible && bpSit.visible && hangar.shafts.visible && camera.layers.mask === 1073741825;
+    state.craftInProbe = true;
+    const included = dress && dress(() => craft.visible && edSit.visible && !refSit.visible && bpSit.visible);
+    ok(exact && threw && restored && included, '4 probe compile uses cube visibility/layers and restores every field even on failure');
+  }
   // the global's name is its own: app.js already had a `const SHADER_WARM` (the warm-launch localStorage key), which
   // shadowed the module inside app.js's scope - the step threw and warmed nothing (the first census after the change)
   const clash = fs.readdirSync(path.join(ROOT, 'src', 'viewer')).filter(f => f.endsWith('.js') && f !== 'shader_warm.js')

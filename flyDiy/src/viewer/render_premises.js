@@ -352,23 +352,19 @@ function make(THREE, scene, world, rec0, opts) {
   // lightK) x on x the runway lenses' colour-keeping dimmer. The world switchboard declares it
   // as `lamps` (render_world) and the mute is honoured here. F8: `village lamps` reads .gain.
   let TARR = null;   // the town's texture arrays (G574, hlodBuild) - above LAMPS, which reads it (G570: no TDZ)
-  // G1340 (SHADER-GUARD) THE POOL'S COUNT IS FIXED: ARMED (all N visible) OR NOT (none). three keys every lit program on
-  // the count of VISIBLE point lights, and the pool used to show only the lamps it had assigned - the published lamps
-  // within `reach` of the eye, 0..8 - so from dusk on every change in that count re-keyed every lit material in the
-  // world: ~60 programs linked synchronously in ONE frame, the ground's five at ~12 s each (the user's flight logs,
-  // 2026-10-03: 79 s frames at the line-up skip's take-off, 97 s at a roll-out after an hour in the shed as the day
-  // crossed dusk). Now an armed pool keeps all N visible, an unassigned one at intensity 0, and the pool arms / disarms
-  // only when the day crosses the lamps' threshold - and then only once `prep(want)` (the host's background compile of
-  // the other count, app.js) has linked its programs: until it resolves the pool stays as it was. Without a prep (the
-  // benches) it switches at once, as before.
+  // Keep all eight non-shadow-casting slots in the shader count from boot.
+  // Daylight and mute use zero intensity; only assigned night lamps emit.
+  // Even an exact program reported ready by KHR can still stall ANGLE at
+  // first draw. Keeping this count avoids that day/night specialization.
   const LAMPS = { pool: [], pub: [], glass: new Map(), smoke: new Set(), glowKeys: new Set(), gain: 2, on: 0, litNow: 0, frame: 0, muted: false, N: 8, reach: 500,
-    armed: false, prep: null, prepping: null, ready: null, prepTok: 0 };
+    armed: false, fixedCount: true, prep: null, prepping: null, ready: null, prepTok: 0 };
   const lampPoolInit = () => {
     if (LAMPS.pool.length) return;
-    for (let i = 0; i < LAMPS.N; i++) { const l = new THREE.PointLight(0xffffff, 0, 10, 1.6); l.castShadow = false; l.visible = LAMPS.armed; l.name = 'premises:lamp' + i; root.add(l); LAMPS.pool.push(l); }
+    for (let i = 0; i < LAMPS.N; i++) { const l = new THREE.PointLight(0xffffff, 0, 10, 1.6); l.castShadow = false; l.visible = true; l.name = 'premises:lamp' + i; root.add(l); LAMPS.pool.push(l); }
   };
-  // arm(on): the pool's count, now (the host's compile dress and the roll-out's key call it; update() goes through prep)
-  LAMPS.arm = on => { lampPoolInit(); on = !!on; LAMPS.armed = on; for (const l of LAMPS.pool) { l.visible = on; if (!on) l.intensity = 0; } return on; };
+  // The eight slots stay in three's count from boot, at zero energy by day.
+  // arm(on): whether the pool may emit, now (the host's compile dress and the roll-out's key call it; update() goes through prep)
+  LAMPS.arm = on => { lampPoolInit(); on = !!on; LAMPS.armed = on; for (const l of LAMPS.pool) { l.visible = true; if (!on) l.intensity = 0; } return on; };
   // want(on): the count the day asks for (the lamps' level `on` 0..1)
   LAMPS.want = on => on > 0 && !LAMPS.muted;
   const _lp = new THREE.Vector3();
@@ -388,7 +384,7 @@ function make(THREE, scene, world, rec0, opts) {
     LAMPS.smokeK = kSmoke;                                   // the animals' plume takes the same hand (animal_run.js)
     const want = LAMPS.want(on);
     if (want !== LAMPS.armed) {
-      if (!LAMPS.prep || LAMPS.ready === want) LAMPS.arm(want);
+      if (LAMPS.fixedCount || !LAMPS.prep || LAMPS.ready === want) LAMPS.arm(want);
       else if (LAMPS.prepping !== want) {   // the other count's programs, linked in the background; the pool waits for them
         const tok = ++LAMPS.prepTok; LAMPS.prepping = want; LAMPS.ready = null;
         Promise.resolve().then(() => LAMPS.prep(want)).catch(e => console.warn('lamps prep:', e && e.message))

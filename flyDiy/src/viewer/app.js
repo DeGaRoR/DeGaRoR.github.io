@@ -960,6 +960,24 @@
     if (!envRT && THREE.WebGLCubeRenderTarget) envRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
     return envRT;
   }
+  // The cube excludes the subjects (and their lights), while the visible garage
+  // includes them. Light counts key every lit program. Dress each compile task
+  // exactly like the cube draw, then restore before yielding to another task.
+  function probeCompileDress(fn) {
+    const subjects = [craft, edSit, refSit, bpSit], was = subjects.map(o => o && o.visible);
+    const shafts = hangar && hangar.shafts, shWas = shafts && shafts.visible;
+    const mask = camera.layers.mask;
+    try {
+      camera.layers.mask = 1;   // a CubeCamera's default layer; no UI or shadow helper layers
+      if (shafts) shafts.visible = false;
+      if (!craftInProbe) subjects.forEach(o => { if (o) o.visible = false; });
+      return fn();
+    } finally {
+      camera.layers.mask = mask;
+      if (shafts) shafts.visible = shWas;
+      subjects.forEach((o, i) => { if (o) o.visible = was[i]; });
+    }
+  }
   // G584: THE GENERATORS ARE KEPT. A PMREMGenerator owns its shaders, and dispose() frees them - a generator
   // made and disposed per bake re-linked its programs every bake (the census: the room's PMREM 14 times in one
   // roll-out, the hangar's textures landing under the world's loading screen). One per source kind, kept for
@@ -13189,9 +13207,9 @@
   function compileCraftShed() {
     if (RA_Q === '0' || typeof ROLLANIM === 'undefined' || !inGarage || !model || typeof renderer.compileAsync !== 'function') return;
     const gs = garageScene(); if (!gs) return;
-    if (gs === hangarScene) shedEnvKey();
+    const envReady = gs === hangarScene ? pmremWarmBake().then(() => { shedEnvKey(); }) : Promise.resolve();
     const inS = f => craftInShed(gs, f);
-    return shaderProgress(compileSliced(gs, aa && aa.target ? aa.target() : null, null, false, inS)
+    return shaderProgress(envReady.then(() => compileSliced(gs, aa && aa.target ? aa.target() : null, null, false, inS))
       .then(() => compileDepthVariants(gs, true, inS))
       .catch(e => console.warn('craft shed compile:', e && e.message)), 'garage', 60000);
   }
@@ -13396,6 +13414,30 @@
   // 3.6 s held 8.6 s after the roll-out click on a cold profile). The program is the session's after (window.FLYDIY_CLOUD_WARM: drew)
   function cloudsWarm() {
     try { if (typeof CLOUDS !== 'undefined' && CLOUDS.warmDraw) window.FLYDIY_CLOUD_WARM = CLOUDS.warmDraw(renderer); } catch (e) { console.warn('clouds warm draw:', e && e.message); }
+  }
+  // First use of these off-camera world variants still links lazily in ANGLE after
+  // compileSliced reports ready. Draw one smallest representative per program/layout
+  // under first light, including hidden LODs; leave live materials and visibility alone.
+  function worldViewWarmDraw() {
+    if (!WF || !renderer.properties || typeof renderer.compileAsync !== 'function') return Promise.resolve(0);
+    const reps = new Map();
+    scene.traverse(o => {
+      if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
+      const g = o.geometry, kind = (o.isInstancedMesh ? 'I' : '') + (o.isSkinnedMesh ? 'S' : '') + (o.isBatchedMesh ? 'B' : '');
+      const layout = Object.keys(g.attributes).map(k => { const a = g.attributes[k]; return k + ':' + a.itemSize + ':' + !!a.normalized + ':' + (a.gpuType || ''); }).join(',');
+      for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
+        if (!m || m.visible === false) continue;
+        const d = m.userData || {};
+        if (!d.uLawn && !d.hangarShell && !(o.userData && o.userData.coarseFill)) continue;
+        const pp = renderer.properties.get(m), pr = pp && pp.currentProgram;
+        const key = (pr ? pr.cacheKey : m.uuid) + '|' + kind + '|' + layout;
+        const prev = reps.get(key);
+        if (!prev || g.attributes.position.count < prev.geometry.attributes.position.count) reps.set(key, o);
+      }
+    });
+    const only = [...new Set(reps.values())];
+    return warmDrawSliced(scene, aa && aa.target ? aa.target() : null, 'world views', only, null, { perKey: true, groupMax: 1 })
+      .then(drawn => { window.FLYDIY_VIEW_WARM = { objects: only.length, drawn }; return drawn; });
   }
   function worldWarmDraw() {
     const a = standAnchor(); if (!a || !WF) return;
@@ -13781,13 +13823,14 @@
             .catch(e => console.warn('settings catch-up compile:', e && e.message)), 'world', 60000))
           .then(() => programsReady(20000))
           .then(() => warmDrawSliced(sc, aa && aa.target ? aa.target() : null, 'first light'))
+          .then(() => garage ? null : worldViewWarmDraw())
           .catch(e => console.warn('settings warm draw:', e && e.message))
           .then(() => { cloudsWarm(); holdRender = false; return framesRendered(2); }) },   // G732 (G1998e: the clouds' march, a cloud row may have rebuilt it)
     ];
     BOOT.show('settings', { steps, set: 'settings', shots: garage ? 'garage' : 'rollout', require: [], landingLabel: 'the new settings',
       done: () => { holdRender = false; if (held && !inGarage) running = true; if (garage) setTimeout(worldPrelinkGfx, 0); }, idle: 20000, hard: 90000, quietFrames: 1 });   // (REVEAL: the world's link starts in the shed)
   }
-  if (typeof window !== 'undefined') window.FLYDIY_SETTLE = settleScreen;
+  if (typeof window !== 'undefined') { window.FLYDIY_SETTLE = settleScreen; window.FLYDIY_SETTLE.warmViews = worldViewWarmDraw; }
   // every texture a material of the scene holds (its uniforms' too), the environment and the background, sent to the
   // GPU ~30 ms a task (initTexture) - the roll-out's 'upload' step, and since G999 the garage boot's compile step too
   // (its first frame spent ~0.3 s in texSubImage2D)
@@ -18834,12 +18877,15 @@
       if (!inGarage && ROLLANIM.busy()) { ROLLANIM.cancel(); raBusy = false; }   // left the shed under it: put back
       ROLLANIM.frame(fdt);
     }
+    const sceneSample = FR && FR.sceneDetail && FR.sceneDetail.begin();
     poseModel();
+    if (sceneSample) FR.sceneDetail.lap(0);
     // G1002 (A6-GROUND): the tyres' contact shadows, on this frame's pose (contact_shadow.js)
     if (typeof CONTACT_SHADOW !== 'undefined') contactShadows();
     // G1080 (SHADOW-EYES): the craft's shadow maps aimed at THIS frame's pose (worldUpdate ran before poseModel, on the
     // frame before's - and on the camera under the free camera / the editor): shadow_near.js aim()
     if (!inGarage && window.SHADOW_NEAR && SHADOW_NEAR.aim) SHADOW_NEAR.aim();
+    if (sceneSample) FR.sceneDetail.lap(1);
     if (scarMesh) groundScars();                    // G2359 (DMG-SCAR): the crash's scar, once an event (T41b: after the near maps' aim - G1080 holds the aim right after poseModel)
     if (!inGarage) glassMarks();                    // G3623 (DMG-GLASS): the impact marks on the glazing, once an event (after poseModel: uCraftInv is this frame's)
     // THE FLIGHT CAMERA (the flight rebaseline). It writes the SAME azT/elT/
@@ -18848,6 +18894,7 @@
     // moves `target` instead, like the editor's interior. It runs after the
     // target is set and before the easing, which is the only slot where both
     // of those are true.
+    if (sceneSample) FR.sceneDetail.lap(2);
     flCamera();
     // ease the orbit toward its targets (see the G39 note at the top);
     // snap the last hair so it settles instead of drizzling
@@ -18866,12 +18913,14 @@
     // Covered/Flex flight (lines, points and the shadow proxy all hidden
     // since applyStand stopped forcing them on) that is three fewer dirty
     // BufferAttributes and two fewer draws every frame
+    if (sceneSample) FR.sceneDetail.lap(3);
     if (lines && (lines.visible || pts.visible || (proxy && proxy.mesh.visible))) sync();
     // G3449 (FLOAT-DUP, the user 22 Oct: "it's not an elongated floats, it's a duplicate, untextured" - G451.1 item 94
     // back): the PHYSICS hull is the flight's stand-in for a model without drawn float parts. In the shed the cage layer
     // draws the floats, and floats added there then a spec update (a design tile, the float kit's pitch) rebuild the
     // model without them - so the physics hull is never shown in the shed, and synced only in flight (GATE FLOATDUP)
     if (floatMeshes.length) { const ph = !inGarage; for (const m of floatMeshes) m.visible = ph; if (ph) syncFloats(); }
+    if (sceneSample) FR.sceneDetail.lap(4);
     if (waterFx && !inGarage) syncWaterFx(running ? fdt : 0);   // (G586: the spray on the frame's own time)
     // THE INTERACTION FIELD (H7, G460.8): on while a floatplane is over water (the CG's water level finite),
     // stepped before the render with the CG as its centre; off (the slot cleared) otherwise
@@ -18887,6 +18936,7 @@
       if (want !== WATER.field.on) WATER.fieldOn(want);
       if (want) { const cv = sim.cgVel ? sim.cgVel() : [0, 0, 0]; WATER.fieldStep(THREE, renderer, cgF[0], cgF[2], running ? fdt : 0, cv[0], cv[2]); }   // (the velocity: the box slides aft of the CG under way)
     }
+    if (sceneSample) FR.sceneDetail.lap(5);
     if (FR) FR.lap(FR.S.scene);        // G620: the pose, the camera, the buffers, the spray and the water field
     ++frame; hudAcc += fdt * 60;        // (G586: the readouts every 0.1 s, six 60 Hz frames' worth)
     if (hudAcc >= 5.999) {
@@ -19217,7 +19267,7 @@
   if (typeof window !== 'undefined') window.FLYDIY_GUARD = drawGuard;
   function lampsPrep(want) {
     const L = WF && WF.premises && WF.premises.lamps;
-    if (!L || typeof renderer.compileAsync !== 'function') return Promise.resolve();
+    if (!L || L.fixedCount || typeof renderer.compileAsync !== 'function') return Promise.resolve();
     const dress = f => { const was = L.armed; L.arm(want); try { return f(); } finally { L.arm(was); } };
     const t0 = performance.now();
     return compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, dress)
@@ -19464,7 +19514,8 @@
       s.matrixAutoUpdate = false; s.matrixWorldAutoUpdate = false; s.matrixWorldNeedsUpdate = false;
       return s;
     };
-    let i = 0, drawn = 0, G = 8;
+    const GMAX = wopt && wopt.groupMax ? Math.max(1, Math.min(64, wopt.groupMax | 0)) : 64;
+    let i = 0, drawn = 0, G = Math.min(8, GMAX);
     return new Promise(res => {
       const tick = () => D(() => {   // (each slice inside the dress)
         const t0 = performance.now();
@@ -19485,7 +19536,7 @@
             catch (e) { console.warn('warm draw:', e && e.message); }
             finally { for (const [g, r] of narrowed) { g.drawRange.start = r[0]; g.drawRange.count = r[1]; } grp.clear(); }
             const dt = performance.now() - t1;
-            G = Math.max(1, Math.min(64, Math.round(G * (dt > 1 ? 20 / dt : 2))));
+            G = Math.max(1, Math.min(GMAX, Math.round(G * (dt > 1 ? 20 / dt : 2))));
           }
         } finally {
           sc.remove(grp);
@@ -19617,8 +19668,9 @@
   function shedPrelink() {
     if (typeof renderer.compileAsync !== 'function' || !hangar || tripKeys.shedCompile !== undefined) return;
     if (typeof BOOT.settled === 'function' && !BOOT.settled(['props', 'crew', 'crewBuild'])) return;
-    shedEnvKey();
-    new Promise(res => setTimeout(res, 0)).then(() => compileSliced(hangarScene, ensureEnvRT()))
+    // Warm the PMREM before shedEnvKey draws its black placeholder, too.
+    new Promise(res => setTimeout(res, 0)).then(() => pmremWarmBake()).then(() => { shedEnvKey(); })
+      .then(() => compileSliced(hangarScene, ensureEnvRT(), null, false, probeCompileDress))
       .then(() => compileSliced(hangarScene, aa && aa.target ? aa.target() : null))
       .then(() => compileDepthVariants(hangarScene, true))
       .then(() => compileXrayVariants())
@@ -19634,8 +19686,8 @@
   // there is no room to compile (the bench, the cloud's SwiftShader, before the hangar): the layer shows them at once.
   if (typeof window !== 'undefined') window.GARAGE_LIGHTS_PREP = dress => {
     if (typeof renderer.compileAsync !== 'function' || !hangar || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn) return null;
-    shedEnvKey();
-    return compileSliced(hangarScene, ensureEnvRT(), null, false, dress)
+    return pmremWarmBake().then(() => { shedEnvKey(); })
+      .then(() => compileSliced(hangarScene, ensureEnvRT(), null, false, dress))
       .then(() => compileSliced(hangarScene, aa && aa.target ? aa.target() : null, null, false, dress))
       .then(() => compileDepthVariants(hangarScene, true, dress))
       .catch(e => console.warn('garage lights prep:', e && e.message));
@@ -19649,16 +19701,21 @@
     // and then baked would compile every material a second time on the
     // first frame. A PMREM of the still-black probe target is that map with
     // zero radiance: same key, same look, and the real bake replaces it.
-    shedEnvKey();
-    const pass = target => compilePass(hangarScene, target);
+    // shedEnvKey renders a PMREM: its own programs must be ready BEFORE that draw.
+    const pass = target => compileSliced(hangarScene, target);
     // ...once the room is complete: a prop or the crew landing AFTER the
     // compile would compile its materials on their first draw, synchronously.
     // Wait (8 s at most) for the bytes that add materials to the scene.
     const settled = () => (typeof BOOT.settled !== 'function') || BOOT.settled(['props', 'crew', 'crewBuild']);
     const t0 = performance.now();
     const whenComplete = () => new Promise(res => { const poll = () => { if (settled() || performance.now() - t0 > 8000) res(); else setTimeout(poll, 50); }; poll(); });
-    return whenComplete().then(() => shaderProgress(pass(ensureEnvRT()).then(() => pmremWarmBake()).then(() => { done(); return pass(aa && aa.target ? aa.target() : null); })
-      .then(() => compileDepthVariants(hangarScene)), 'garage'))   // G680: its shadow pass and the full-screen passes too
+    return whenComplete().then(() => shaderProgress(pmremWarmBake().then(() => { shedEnvKey(); })
+      .then(() => compileSliced(hangarScene, ensureEnvRT(), null, false, probeCompileDress))
+      // The cube bake renders shadow maps as well as room materials. Link their
+      // depth/distance programs in the existing lit-scene state before that draw.
+      .then(() => compileDepthVariants(hangarScene, true, probeCompileDress))
+      .then(() => { done(); return pass(aa && aa.target ? aa.target() : null); })
+      .then(() => compileDepthVariants(hangarScene, true)), 'garage'))   // G680: its shadow pass and the full-screen passes too
       .then(() => (typeof renderer.initTexture === 'function') ? uploadSliced(hangarScene, 'compile', 'uploading the textures') : null)   // G999: not in the first frame
       .then(() => { tripKeys.shedCompile = gfxKey(); })   // B9: the graphics the shed was compiled for (the Fly press re-checks)
       .catch(e => { console.warn('boot compile:', e && e.message); done(); });
@@ -19718,6 +19775,16 @@
         if (window.WORLD_RAIL) window.WORLD_RAIL.open();
         else if (window.FLYDIY_LAZY) window.FLYDIY_LAZY('world_rail').then(() => { if (window.WORLD_RAIL && SCENERY.on) window.WORLD_RAIL.open(); });   // G909: on demand
         flRailSync(); if (flyOpen) flyOpenSet(flyOpen);   // G760: DEV shows itself (its way out), the open flyout says so
+        // The aircraft's lights left too: compile and first-draw the exact scenery variants under the existing screen.
+        // BOOT.hide resolves the old ready promise AFTER its done callback.
+        // Start the next screen in a fresh task, holding the world draw meanwhile.
+        if (typeof BOOT !== 'undefined' && typeof BOOT.show === 'function' && BOOT.log && typeof renderer.compileAsync === 'function') {
+          holdRender = true;
+          setTimeout(() => {
+            if (SCENERY.on) settleScreen('scenery');
+            else if (BOOT.state === 'gone' && (!BOOT.busy || !BOOT.busy())) holdRender = false;
+          }, 0);
+        }
       };
       if (inGarage) rollOut(go); else go();
     },

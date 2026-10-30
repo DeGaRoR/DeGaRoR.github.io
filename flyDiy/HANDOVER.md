@@ -102819,3 +102819,14 @@ assets-grove (the crane's GROVE marks painted out, 11/13 + master's GEO/MEDIA), 
 doors shut; bought = the same shed; 9/9, FRAMECOST = master's 15 rows).
 Battery: PARKED row 13 = master's own (identical rows to L28b). Train gate vs L28b: the same accepted costs (perf-week L0: garage ~95-130 s,
 compile 25-51 s), no new row; fps and worst tasks within L28b's spread. Everything else waits for R1: flydiy-notes/RESTART-PLAN.md.
+
+### Performance integration proof — Codex, 30 Oct 2026
+
+Private clean source-only integration of shaderwarm ace7afe9d65c, groundquery 978de5c02769, cookwait 2886b22478b1, windraster 707b306d8e05, plotquery af7bc6f23dff, recscene 1cf310af904b, flightlogevidence cf0de5272de7, nightwarm 999450923cb5, worldeven f90b19ab750e, scenerylights b6e094933b6c.
+No experimental loadwarm/patchyield/intro or retired viewwarm. Baseline exactL28c.
+This branch is for reproduction and combined validation, NOT an instruction
+to merge the stack wholesale. A0 lands qualified per-item readies.
+Cold M/stack/M night/camera/healthy paused moving-world validation followed
+by all affected source/brief gates queued. No CPU profiler; parked cook
+and check(same), fresh profiles, CPU/GPU locks and busy guards. Read
+mergeprep-20261030/validation-status.json and per-phase JSONs.

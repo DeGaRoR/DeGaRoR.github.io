@@ -128,7 +128,12 @@ const getJSON = url => new Promise((res, rej) => { http.get(url, r => { let b = 
       if (m.method === 'Runtime.consoleAPICalled' && /^parked:/.test((m.params.args[0] && m.params.args[0].value) || '')) console.log('  ' + m.params.args.map(a => a.value !== undefined ? a.value : a.description).join(' ')); };
     const cmd = (method, params) => new Promise(r => { const i = ++id; waits.set(i, r); ws.send(JSON.stringify({ id: i, method, params: params || {} })); });
     const ev = async (expr, ms) => {
-      const r = await Promise.race([cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }), sleep(ms || 120000).then(() => ({ timeout: 1 }))]);
+      // Successful CDP calls must not keep their 2-5 minute timeout alive.
+      let timer, r;
+      try {
+        r = await Promise.race([cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }),
+          new Promise(resolve => { timer = setTimeout(() => resolve({ timeout: 1 }), ms || 120000); })]);
+      } finally { clearTimeout(timer); }
       if (r.timeout) throw new Error('page: timed out on ' + expr.slice(0, 60));
       if (!r.result || r.result.exceptionDetails) throw new Error('page: ' + JSON.stringify(r.result && r.result.exceptionDetails && ((r.result.exceptionDetails.exception && r.result.exceptionDetails.exception.description) || r.result.exceptionDetails.text)));
       return r.result.result.value;
