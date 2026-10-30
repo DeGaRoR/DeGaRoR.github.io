@@ -102819,3 +102819,34 @@ assets-grove (the crane's GROVE marks painted out, 11/13 + master's GEO/MEDIA), 
 doors shut; bought = the same shed; 9/9, FRAMECOST = master's 15 rows).
 Battery: PARKED row 13 = master's own (identical rows to L28b). Train gate vs L28b: the same accepted costs (perf-week L0: garage ~95-130 s,
 compile 25-51 s), no new row; fps and worst tasks within L28b's spread. Everything else waits for R1: flydiy-notes/RESTART-PLAN.md.
+
+
+### Rotation first-use freezes — Codex, 30 Oct 2026, working draft
+
+Owner asks to fix the representative camera-yaw freezes, then prepare
+validated topics for A0. Exact master62d23a05b cold diagnostic with
+progwait hooks names six late colour programs at2216x1023 target:
+LOT_GROUND/uLawn (~658ms), four hangarShell club material variants
+(stem/roof/wall skins, ~362–379ms each), and shell:coarse:openings
+(vertex-colour fill, ~158ms). This is normal colour draw first use,
+not proof of a shadow-only problem. Earlier repeat masters had
+2.6–3.2s frozen yaw frames; terrain bounds does not fix them.
+
+Reuse warmDrawSliced under the existing first-light loader, after
+compileSliced/programsReady and the world's first warm views. Select
+off-camera lawn/hangar shell/coarse-fill variants, smallest geometry
+per program/layout/object kind. Include hidden LODs without changing
+live visibility, material, terrain or camera. Same real AA target and
+world/craft lights. Existing warm draw owns isolated matrices and
+restores drawRange/target/shadow/layers; no second rendering path.
+Optional groupMax1 caps each draw to one representative, so lazy
+driver first use yields between programs. An indivisible driver call
+is still synchronous, but only under the loading screen. No ongoing
+per-frame logging or traversal. FLYDIY_VIEW_WARM is loader-only census.
+
+VIEWWARM unit covers exact representative selection, smallest geometry,
+hidden/coarse/instanced/layout distinctions, no visibility/material
+mutation, correct target/dress and forced one-representative groups.
+Cold candidate, bracketed control and regressions still required.
+No ready ref. Evidence: owned evenness-20261029/yaw-* files; new
+app-only topic independent onmaster. A0 owns all landing.

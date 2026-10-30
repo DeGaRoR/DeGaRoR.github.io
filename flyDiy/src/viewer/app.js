@@ -13397,6 +13397,30 @@
   function cloudsWarm() {
     try { if (typeof CLOUDS !== 'undefined' && CLOUDS.warmDraw) window.FLYDIY_CLOUD_WARM = CLOUDS.warmDraw(renderer); } catch (e) { console.warn('clouds warm draw:', e && e.message); }
   }
+  // First use of these off-camera world variants still links lazily in ANGLE after
+  // compileSliced reports ready. Draw one smallest representative per program/layout
+  // under first light, including hidden LODs; leave live materials and visibility alone.
+  function worldViewWarmDraw() {
+    if (!WF || !renderer.properties || typeof renderer.compileAsync !== 'function') return Promise.resolve(0);
+    const reps = new Map();
+    scene.traverse(o => {
+      if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
+      const g = o.geometry, kind = (o.isInstancedMesh ? 'I' : '') + (o.isSkinnedMesh ? 'S' : '') + (o.isBatchedMesh ? 'B' : '');
+      const layout = Object.keys(g.attributes).map(k => { const a = g.attributes[k]; return k + ':' + a.itemSize + ':' + !!a.normalized + ':' + (a.gpuType || ''); }).join(',');
+      for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
+        if (!m || m.visible === false) continue;
+        const d = m.userData || {};
+        if (!d.uLawn && !d.hangarShell && !(o.userData && o.userData.coarseFill)) continue;
+        const pp = renderer.properties.get(m), pr = pp && pp.currentProgram;
+        const key = (pr ? pr.cacheKey : m.uuid) + '|' + kind + '|' + layout;
+        const prev = reps.get(key);
+        if (!prev || g.attributes.position.count < prev.geometry.attributes.position.count) reps.set(key, o);
+      }
+    });
+    const only = [...new Set(reps.values())];
+    return warmDrawSliced(scene, aa && aa.target ? aa.target() : null, 'world views', only, craftInWorldNow, { perKey: true, groupMax: 1 })
+      .then(drawn => { window.FLYDIY_VIEW_WARM = { objects: only.length, drawn }; return drawn; });
+  }
   function worldWarmDraw() {
     const a = standAnchor(); if (!a || !WF) return;
     const cam = camera.clone(), D = (def && def.params && def.params.viewDist) || 12;
@@ -13666,7 +13690,7 @@
         // every program linked, before the first frame draws them (the boot's warm draw from the stand is a first frame too)
         .then(() => typeof renderer.initTexture === 'function' ? uploadSliced(scene, 'frames', 'first light') : null)
         .then(() => shaderProgress(programsReady(30000), 'world', 60000))
-        .then(() => { if (inGarage) return Promise.resolve(worldWarmDraw()).then(cloudsWarm).then(() => revealPlant(120, 0, () => inGarage)); cloudsWarm(); holdRender = false; return framesRendered(2); }));   // (REVEAL-HITCH: the stand's grass; G1998e: the clouds' march)
+        .then(() => { if (inGarage) return Promise.resolve(worldWarmDraw()).then(worldViewWarmDraw).then(cloudsWarm).then(() => revealPlant(120, 0, () => inGarage)); return worldViewWarmDraw().then(() => { cloudsWarm(); holdRender = false; return framesRendered(2); }); }));   // (REVEAL-HITCH: the stand's grass; G1998e: the clouds' march)
     } },
   ];
   const TRIP_BY = {}; for (const s of TRIP_STEPS) TRIP_BY[s.id] = s;
@@ -19464,7 +19488,8 @@
       s.matrixAutoUpdate = false; s.matrixWorldAutoUpdate = false; s.matrixWorldNeedsUpdate = false;
       return s;
     };
-    let i = 0, drawn = 0, G = 8;
+    const GMAX = wopt && wopt.groupMax ? Math.max(1, Math.min(64, wopt.groupMax | 0)) : 64;
+    let i = 0, drawn = 0, G = Math.min(8, GMAX);
     return new Promise(res => {
       const tick = () => D(() => {   // (each slice inside the dress)
         const t0 = performance.now();
@@ -19485,7 +19510,7 @@
             catch (e) { console.warn('warm draw:', e && e.message); }
             finally { for (const [g, r] of narrowed) { g.drawRange.start = r[0]; g.drawRange.count = r[1]; } grp.clear(); }
             const dt = performance.now() - t1;
-            G = Math.max(1, Math.min(64, Math.round(G * (dt > 1 ? 20 / dt : 2))));
+            G = Math.max(1, Math.min(GMAX, Math.round(G * (dt > 1 ? 20 / dt : 2))));
           }
         } finally {
           sc.remove(grp);
