@@ -102820,29 +102820,10 @@ doors shut; bought = the same shed; 9/9, FRAMECOST = master's 15 rows).
 Battery: PARKED row 13 = master's own (identical rows to L28b). Train gate vs L28b: the same accepted costs (perf-week L0: garage ~95-130 s,
 compile 25-51 s), no new row; fps and worst tasks within L28b's spread. Everything else waits for R1: flydiy-notes/RESTART-PLAN.md.
 
-### Exact scenery/settings warm — validated working source, Codex, 30 Oct 2026
+### scenerylights — ready for A0, Codex, 30 Oct 2026
 
-The normal-flight-light controls have zero rotation shader waits; the six
-late0-point/0-spot programs were caused by SCENERY dropping aircraft lights.
-Boot-only warm and zero-light-signature prototypes are retired. The latter
-changed420/1,480,000 pixels by one8bit step, so is absent from this tree.
+SCENERY removes aircraft lights after boot; lawn/hangar material variants then linked cold. Warm the exact original state under the existing loader/settings screen, including the smallest representative of hidden variants; no fake lights and no added ordinary-boot warm. Final cold six multi-second waits->zero, max50ms; frozen before/after actual warm0changed pixels of1,480,000, same-state controls0. Exact-M VIEWWARM source unit re-run PASS. Actual-aircraft-light controls already had no long links; no claim this scenery fix improves ordinary flight.
 
-Final approach uses original lights/materials/geometry: existing settings
-screen compiles current scene then first-draws smallest off-camera lawn,
-hangar-shell/coarse-opening representatives through existing warmDrawSliced.
-Optional groupMax1 yields between lazy driver first uses. No added normal
-boot warm or per-frame logging/work. SCENERY queues its screen in a fresh
-task to avoid reentrant BOOT.hide/whenReady; draw held until screen owns it,
-cancelled pending entry releases hold, headless path stays synchronous.
+Source-only tree integrated onto exact L28c62d23a05b. Clean combined source normal-build and fresh M/B/M runtime completed without exceptions/crashes;42master/49combined affected checks completed. No new failure attributable to this topic: old integration differences are existing boot-seed counter cells(+19GLcalls/+1seed link, compile links decrease), gzip-budget cell, setup-program IDs and two logger-sensitive CONTACT/LIGHT wiring checks in recscene. The latter are absent from this topic's app/source; they are being corrected separately without changing actual pose/shadow order. No green full --all claim. NIGHT's later reflection warm11-link first-flight regression is excluded from this ready and under separate correction.
 
-VIEWWARM PASS includes selector/no-mutation and deferred/cancel/headless
-checks. Final cold90s yaw: 4 frames>35ms, worst50.1ms,
-0>100ms, zero GL waits, green windows90.47%.
-Frozen RAF/clock before/after actual warm: zero changed world pixels across
-1,480,000 pixels; both same-state controls zero. Source build5154a24e7dff.
-Preceding exact-state prototype likewise zero yaw waits/worst50ms/pixel0.
-Original scenery controls repeatedly showed six late links and2–3s frames.
-
-Combined runtime and affected-gate validation still queued; no ready ref
-from this checkpoint. A0 owns landing. Evidence: owned evenness-20261029/
-final-run-status.json,yaw-final-B-stats.json and pixel-check.json.
+Independent on L28c; groundquery and plotquery share27_premises.js but change distinct lookup paths(their combined exact-source integration was tested). Scenerylights sharesapp.js with other topics; use normal source merge and rebuild, never a whole-file replacement from another ready. A0 owns landing. Shared checkout/index untouched. Evidence: mergeprep-20261030/source-inventory.json, combined-runtime-results.json, merge-gate-row-comparison.json and ready-scenerylights-unit.log.
