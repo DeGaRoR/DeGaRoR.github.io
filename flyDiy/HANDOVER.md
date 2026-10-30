@@ -102820,43 +102820,8 @@ doors shut; bought = the same shed; 9/9, FRAMECOST = master's 15 rows).
 Battery: PARKED row 13 = master's own (identical rows to L28b). Train gate vs L28b: the same accepted costs (perf-week L0: garage ~95-130 s,
 compile 25-51 s), no new row; fps and worst tasks within L28b's spread. Everything else waits for R1: flydiy-notes/RESTART-PLAN.md.
 
-### Flight and New-career evidence — 29 Oct 2026
+### flightlogevidence — ready for A0, Codex, 30 Oct 2026
 
-User priorities: long freezes first, sustained slow zones second, all-green
-stretches robust across cameras/world states third. Intro is also P0; town
-optimization explicitly excluded. A0 owns landing. No game code change in
-this topic: offline extraction and this evidence record only.
+Offline reducer only: actual supplied17,926,899-byte complete log reduced to282,420-byte actionable evidence(98.42% smaller), with2,357,000-byte lossless gzip. Internal assertions verify source roundtrip hash, all freeze/user-mark counts, selected frame values and schema. Exact M-integrated tool proof exits0. Replaced the old session-specific buildProvenance string with an explicit unknown-provenance statement; never imply a new input used the old play build.
 
-Supplied session817db8cadc76:76913rows,46freezes incl loading; world64530
-rows,2225orange>35ms,19>=250ms,15>1s,p9966.6ms.77.92% of eligible120frame
-meter windows contain orange. Night-associated cluster has120.01s frozen
-intervals,118.39s recorded shader work; max33.48s. Garage first-pilot
-candidate15.99s/15.97s shader. Several2–10s gaps have little preceding
-recorded work: browser/GPU/raster/input trace needed, not shader attribution.
-World-update is largest slot before905ordinary late frames:45.37ms mean
-world,0.97ms recorded town. Mirror high-cost cohort averages10.12ms.
-
-Fresh intro captures, no CPU profile/screenshots: incomplete integration
-A27.73fps,8.45%orange,p99100.1ms,9>100ms; complete existing farbounds
-B29.60fps,4.58%orange,p9966.6ms,0>100ms in visible film. One pair only.
-Black warm-up still has8.35/7.15s render stalls. Cover/forest generation
-still runs in the pans. User saw one sky flash at the start of latest run;
-keep issue OPEN despite zero catcher events. Clouds explicitly hidden by
-current intro source; restore them and validate the intended full scene.
-The previous human play build omitted render_world farbounds; A reproduces
-that composition, B includes the complete existing intro candidate.
-
-Compact packet 282352bytes (98.42% smaller), all46
-freezes/48marks and559exact selected rows; lossless archive2357000bytes.
-Original Downloads file unchanged, SHA2565fdcf8bf313126bdba228b7492d37576d79f11ce4e00fabd318ea89df2acd6c6.
-Offline tool verified on Oct29 and Oct24 complete v2 logs; assertions retain
-outliers/marks/selected values and verify gzip roundtrip. Use:
-node tools/perf/flightlog_evidence.js <complete-log.json> <out-dir>
-It is a reduced evidence format, not a replay log. No frame-path overhead.
-
-Global report D:/Dev/flydiy-notes/CODEX-REPORT-FLIGHTLOG-20261029.md; compact
-packet, source archive and comparison at owned flightlog-20261029/.
-Fresh intro source/logs at intro-log-20261029/. STORY gate passes with the
-existing intro topic's matching fixture. Rare intro-state markers are
-diagnostic-source only, not a landed runtime feature. Cook/check before
-each capture. Owned cooked packs restored; no ready/master publication.
+No src/, game page, physics, render or style change. Source tree based on exactL28c62d23a05b; shared checkout/index untouched. These tool-only checks do not assert a green full-game battery. No runtime game regression is introduced because runtime game files are byte-identical to master. A0 owns landing. Proof: owned mergeprep-20261030/tool-proof-status.json and flightlogevidence-proof.log.
