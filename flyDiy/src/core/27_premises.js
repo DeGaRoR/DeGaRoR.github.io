@@ -3823,12 +3823,34 @@ function compose(rec0, world, opts) {
   }
   // the plots: a point inside one takes its zone's grass rule; a plot's lawn is mown to the road's band (no fade thins it,
   // only the pavement and the band kill)
-  const lawnWater = new Map();   // (v1.35: a zone's water, read once, for its water plots' lawn)
+  const lawnWater = new Map();
+  // Generated plot polygons stay fixed for this composition, like the pavement
+  // index. Keep record order in each cell: overlapping plots still pick the first.
+  const lawnCells = new Map(), lawnEmpty = [];
+  let lawnPlots = null, lawnCount = -1, lawnIndexed = false;
+  function plotsAt(lx, lz) {
+    const plots = O.records.plots;
+    if (plots !== lawnPlots || plots.length !== lawnCount) {
+      lawnPlots = plots; lawnCount = plots.length; lawnCells.clear(); lawnIndexed = true;
+      let cells = 0;
+      for (const p of plots) if (p.poly && p.poly.length) {
+        const b = polyBBox(p.poly);
+        // A cell of halo keeps the broad phase conservative at numerical edges.
+        const box = { x0: b.x0 - GS_C, z0: b.z0 - GS_C, x1: b.x1 + GS_C, z1: b.z1 + GS_C };
+        const bounds = [box.x0, box.z0, box.x1, box.z1].map(x => Math.floor(x / GS_C));
+        cells += (bounds[2] - bounds[0] + 1) * (bounds[3] - bounds[1] + 1);
+        if (!bounds.every(Number.isSafeInteger) || !(cells <= 65536)) { lawnIndexed = false; lawnCells.clear(); break; }
+        gsAddTo(lawnCells, box, p);
+      }
+    }
+    return lawnIndexed && Number.isFinite(lx) && Number.isFinite(lz)
+      ? (lawnCells.get(gsKey(Math.floor(lx / GS_C), Math.floor(lz / GS_C))) || lawnEmpty) : plots;
+  }   // (v1.35: a zone's water, read once, for its water plots' lawn)
   function withPlot(lx, lz, kill, boost, cls, cut, surf) {
     let kind = null, grass = null;
     // (v1.35: a plot whose ground is off is the island's here - no lawn, the biome's own; and a water plot mows no lawn
     // within 30 cm of its zone's water - the shore is the biome's, the user: "they draw grass up till the sea")
-    for (const p of O.records.plots) if (p.poly && !p.noGround && inPoly(p.poly, lx, lz)) {
+    for (const p of plotsAt(lx, lz)) if (p.poly && !p.noGround && inPoly(p.poly, lx, lz)) {
       const g = zoneGrass(zoneOf(p.zone));
       if (g.kind === 'lawn' && p.side === 'water') {
         let wy = lawnWater.get(p.zone); if (wy === undefined) lawnWater.set(p.zone, wy = zoneWaterYOf(world, F, zoneOf(p.zone), -Infinity));

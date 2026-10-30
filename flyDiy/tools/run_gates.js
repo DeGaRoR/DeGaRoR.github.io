@@ -48,6 +48,7 @@ const GATES = [
   { id: 'WINDRASTER', file: '_windraster_check.js', tier: 'core' },
   { id: 'SCENEDETAIL', file: '_scenedetail_check.js', tier: 'core' },
   { id: 'GROUNDQUERY', file: '_groundquery_check.js', tier: 'core' },   // visual pavement end-query parity and operation count
+  { id: 'PLOTQUERY', file: '_plotquery_check.js', tier: 'core' },
   // THE ATMOSPHERE (G72). Pure model, under a second: the ISA tables, the
   // exact sea-level identity every other gate's anchors depend on, and the
   // powerplant scalings re-derived against 60_gen_spec's own prop synthesis.
