@@ -102819,3 +102819,31 @@ assets-grove (the crane's GROVE marks painted out, 11/13 + master's GEO/MEDIA), 
 doors shut; bought = the same shed; 9/9, FRAMECOST = master's 15 rows).
 Battery: PARKED row 13 = master's own (identical rows to L28b). Train gate vs L28b: the same accepted costs (perf-week L0: garage ~95-130 s,
 compile 25-51 s), no new row; fps and worst tasks within L28b's spread. Everything else waits for R1: flydiy-notes/RESTART-PLAN.md.
+
+### Scenery rotation: preserve the shader light signature — Codex, 30 Oct 2026
+
+Critical correction to the earlier graphics-only rotation diagnosis:
+SCENERY.enter removes craft AND its lights. The six late lawn/club-shell/
+coarse-opening colour programs had0 point/0 spot, unlike normal flight.
+Retained-aircraft cold master control90s yaw: no shader waits,2>35ms,
+worst50ms,no>100ms,green120-frame share90.70%. Loader viewwarm prototype
+also has no waits and worst50ms, thus no demonstrated flight benefit.
+Do NOT land claude/codex-viewwarm; it is a retired experiment.
+
+This much narrower source-only fix changes SCENERY enter/leave only.
+When craft is removed, retain craftLightSig's point/spot counts through
+zero-intensity non-shadowing stand-ins, using the established prelink
+signature convention. No emitted light, aircraft mesh or flight change.
+Remove stand-ins before restoring craft on exit. No compile, warm draw,
+per-frame traversal or logger is added. The cold program state now matches
+what boot warmed rather than re-keying off-camera variants on rotation.
+
+Normal build34507e3e1024. SCENERYLIGHTS fixture covers repeated enter/leave,
+no duplication, same light counts, zero intensity/no shadow, original light
+immutability, return state, empty signature. Locked execution and cold
+scenery A/B plus frozen-clock paired-pixel proof queued; no ready yet.
+This targets scenery editor/test mode, NOT proof of a normal-flight freeze
+fix. Normal flight's two remaining50ms frames remain separate investigation.
+Evidence in owned evenness-20261029/yaw-* and rotation-finish-status.json.
+The previous blank-render/crashed/serialization-failed fixtures are discarded.
+A0 owns landing. Shared checkout/index and physics are untouched.

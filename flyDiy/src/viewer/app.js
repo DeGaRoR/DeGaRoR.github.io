@@ -19703,7 +19703,7 @@
   // streams round the eye (worldUpdate reads the camera under DEVCAM), so this is the game's own renderer, the
   // game's own world and its own GRAPHICS tier - the bench is the game. `S` (or the rail's button) leaves it.
   const SCENERY_Q = (() => { try { return /[?&]scenery(=1|=on|&|$)/.test(location.search); } catch (e) { return false; } })();
-  const SCENERY = { on: false,
+  const SCENERY = { on: false, lightSignature: null,
     enter() {
       if (SCENERY.on) return;
       const go = () => {
@@ -19711,6 +19711,13 @@
         // a fresh profile's aeroplane chooser (design_flow.js) has nothing to say to the scenery
         for (const x of document.querySelectorAll('.dfClose')) { try { x.click(); } catch (e) {} }
         if (craft && craft.parent) craft.parent.remove(craft);
+        // Removing the aircraft must not re-key every world material after the loader.
+        // Keep its non-shadowing light counts, with zero emitted light (the same
+        // signature used by craftLightsGuess), until the aircraft comes back.
+        const sig = (craftLightSig() || '0,0').split(',').map(Number), g = new THREE.Group();
+        for (let i = 0; i < (sig[0] || 0); i++) g.add(new THREE.PointLight(0xffffff, 0, 2, 1.6));
+        for (let i = 0; i < (sig[1] || 0); i++) { const L = new THREE.SpotLight(0xffffff, 0, 120, 0.42, 0.5, 1.2); g.add(L); g.add(L.target); }
+        if (g.children.length) { g.name = 'sceneryCraftLightSignature'; SCENERY.lightSignature = g; scene.add(g); }
         document.body.classList.add('sceneryMode');
         flCamMode('free');
         const cg = sim.cgPos();
@@ -19724,6 +19731,7 @@
     leave() {
       if (!SCENERY.on) return;
       SCENERY.on = false; running = true;
+      if (SCENERY.lightSignature) { scene.remove(SCENERY.lightSignature); SCENERY.lightSignature = null; }
       if (craft && !craft.parent) scene.add(craft);
       document.body.classList.remove('sceneryMode');
       flCamMode('chase');
