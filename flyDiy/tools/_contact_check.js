@@ -157,7 +157,8 @@ if (process.argv.includes('--drawn')) {
   ok(mesh.count === 0 && !mesh.visible, 'no blob: nothing drawn');
   // the wiring
   const app = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8'), build = fs.readFileSync(path.join(T, 'build.js'), 'utf8');
-  const iPose = app.indexOf('    poseModel();\n    // G1002'), iCs = app.indexOf('contactShadows();', iPose);
+  const frameApp = app.replace('    if (sceneSample) FR.sceneDetail.lap(0);\n', '');
+  const iPose = frameApp.indexOf('    poseModel();\n    // G1002'), iCs = frameApp.indexOf('contactShadows();', iPose);
   ok(iPose > 0 && iCs > iPose && iCs - iPose < 200, 'app.js poses the contact shadows right after poseModel in the frame');
   ok(/'contact_shadow\.js'/.test(build) && build.indexOf("'contact_shadow.js'") < build.indexOf("'app.js'"), 'build.js ships contact_shadow.js before app.js');
   // G2055: both meshes made at load and left in their scenes (the compile steps link the one program), the shed's floor
