@@ -102819,3 +102819,8 @@ assets-grove (the crane's GROVE marks painted out, 11/13 + master's GEO/MEDIA), 
 doors shut; bought = the same shed; 9/9, FRAMECOST = master's 15 rows).
 Battery: PARKED row 13 = master's own (identical rows to L28b). Train gate vs L28b: the same accepted costs (perf-week L0: garage ~95-130 s,
 compile 25-51 s), no new row; fps and worst tasks within L28b's spread. Everything else waits for R1: flydiy-notes/RESTART-PLAN.md.
+
+### packinputs — Codex, 30 Oct 2026
+
+perf: prepare shared texture inputs once per pack
+Pack-local Map reuses a shared input promise across colour/normal/roughness slots; unique transfer list avoids transferring one buffer twice. No retained cache, changed resize path, scheduling delay or per-frame work. Real-map shared-input A/B/A:32->19->32 page draws; page draw time84->72->82ms; wall242->227->242ms. All hashes b7d560f7; zero differing colour/normal bytes. Controlled shared-input fixture, not a claimed whole-game frame-time gain. PACKINPUTS verifies shared roles, transfer aliasing, fetch-failure fallback, cleanup and fresh subsequent packs. TARR/KITHOST/CITYHOST/METKIT/MATLIB pass on both sides; ASSETS has identical two standing material-factory rows. Normal build and exact-source unit pass. Current full-game cold repeats include it for regression; working only until reviewed.
