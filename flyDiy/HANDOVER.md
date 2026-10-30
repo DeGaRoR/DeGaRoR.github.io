@@ -102921,3 +102921,6 @@ This is independent on62d23a05b; no shaderwarm dependency. Evidence:owned
 night-20261029/fixed-count-spot.*, budget-diagnostic-diagnosis.json,
 controlled-results.json, scene-stats.json and _fixedlamps_check.js.
 
+### Nightwarm reflected-aircraft follow-up — Codex, 30 Oct 2026
+
+The combined source run exposed a remaining7.7s frame during the moving free-camera route, with8.53s accumulated shader waits in the aircraft reflection RT(1024x512), plus depth variants. WATER.hullRender hides all non-light scene children except craft; nested premises lamps disappear there, so its2point-light key differs from the warmed main-view10point-light key. Candidate now compiles and first-draws that exact signature using the existing task-scoped dress and sliced warm helpers under the craft loading hold. The real reflection pass, actual light energy and all per-frame code are unchanged. HULLWARM checks exact exclusion, per-task restoration including failure, await-before-release wiring, and guard-off behavior. Browser reproduction and affected-gate follow-up remain pending: working branch only, no ready. Previous main-view/night3-per-side results apply to the parent; do not claim the additional variant validated yet.
