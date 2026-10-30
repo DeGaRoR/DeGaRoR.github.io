@@ -102865,3 +102865,38 @@ Independent on62d23a05b. Supersedes introperf's render_world raw two-pass
 farBounds helper; do not land two competing helpers. Intro app changes
 remain separate. Evidence/harnesses:owned evenness-20261029 directory.
 
+### Ordinary moving-view follow-up — Codex, 30 Oct 2026
+
+Working candidate adds a BETWEEN-quadrant4ms check to the existing
+nearest-first rebuild loop. Keeps max2 cheap quadrants, always allows
+one indivisible quadrant, preserves force and explicit nMax semantics.
+This is not a hard4ms preemption guarantee. Same terrain detail/geometry.
+PATCHBOUNDS checks889 exact bounds cases plus six real dispatch-loop
+cases: heavy/cheap tasks, force and explicit nMax1/2/0.
+
+Unprofiled150s same graphics-only moving corridor (not live-flight FPS):
+master127 late>35ms, bounds alone21, bounds+cap17. Green120-frame
+windows2.86/60.30/76.37%; longestgreen6.95/21.41/38.26s; time in
+>=10s green runs0/64.26/87.31%. Full-path3>100ms remain in candidates.
+Repeated master results are in the external report and compact evidence.
+
+Those residuals coincide with house_tarr timer callbacks between game
+frames, repeatable near136s into route. Do not call them external load
+or claim fixed. No town/building optimization here. Full captures had
+isolatedCPU>25% seconds and are provisional acceptance evidence.
+Before repeat master finished we specified a second contiguous first120s
+diagnostic window (all frames retained, full150s still reported):
+master99 late, bounds16, bounds+cap12; >100ms7/0/0; green windows
+0.94/57.42/77.53%; CPUmax15.82/20.94/22.47%, no samples>25%.
+It is a diagnostic subset, not an independent run or full-run verdict.
+
+Rare yaw freezes remain: the same six late shader links concentrated
+in two frames on master and candidates; exact material naming pending.
+No production logging added. Three fixed45s views remain stable.
+
+Source-gate comparison queued/run via owned validate-after.cjs, same
+base against both variants; see gate-comparison-status.json for verdict.
+No ready ref: complete gates, live non-crashing flight, visual/LOD catch-up
+checks and clean full-run CPU acceptance are still required. A0 lands.
+Report D:/Dev/flydiy-notes/CODEX-REPORT-EVENNESS-20261030.md.
+

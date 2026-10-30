@@ -2759,7 +2759,13 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         if (stale.length) {
           FARLOD.stamp++;
           stale.sort((a, b) => (a.m.geometry.boundingSphere ? a.m.geometry.boundingSphere.center.distanceTo(e) : 0) - (b.m.geometry.boundingSphere ? b.m.geometry.boundingSphere.center.distanceTo(e) : 0));
-          for (const Q of stale.slice(0, nMax != null ? nMax : force ? stale.length : FARLOD.budget)) buildQuad(Q);
+          for (const Q of stale.slice(0, nMax != null ? nMax : force ? stale.length : FARLOD.budget)) {
+            buildQuad(Q);
+            // Keep the existing nearest-first queue and count cap. After a
+            // heavy quadrant, leave the next one to the next frame. Forced
+            // loader work and explicit resink slices retain their old rules.
+            if (!force && nMax == null && performance.now() - t0 >= 4) break;
+          }
           // the patches no quadrant draws any more leave the cache
           const live = new Set(); for (const Q of FARLOD.quads.values()) for (const f of Q.sig.split(',')) if (f) live.add(+f);
           for (const f of [...FARLOD.cache.keys()]) if (!live.has(f)) FARLOD.cache.delete(f);
