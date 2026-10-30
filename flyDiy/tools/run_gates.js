@@ -43,6 +43,7 @@ const path = require('path');
 // (The hand-written fleet's own gates — WIND, M3, DRONE, DC3, JODEL, C172,
 // CHINOOK, PA18, C172M, MODEL, CTRL, XCTY/2/3/4/5 — went with the fiches.)
 const GATES = [
+  { id: 'INTROSTATE', file: '_introstate_check.js', tier: 'core' },
   { id: 'PACKINPUTS', file: '_packinputs_check.js', tier: 'core' },
   { id: 'HULLWARM', file: '_hullwarm_check.js', tier: 'core' },
   { id: 'NIGHTWARM', file: '_nightwarm_check.js', tier: 'core' },
