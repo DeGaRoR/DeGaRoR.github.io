@@ -102819,3 +102819,10 @@ assets-grove (the crane's GROVE marks painted out, 11/13 + master's GEO/MEDIA), 
 doors shut; bought = the same shed; 9/9, FRAMECOST = master's 15 rows).
 Battery: PARKED row 13 = master's own (identical rows to L28b). Train gate vs L28b: the same accepted costs (perf-week L0: garage ~95-130 s,
 compile 25-51 s), no new row; fps and worst tasks within L28b's spread. Everything else waits for R1: flydiy-notes/RESTART-PLAN.md.
+
+
+### cookwait — ready for A0, Codex, 30 Oct 2026
+
+Tool-only change: clear each settled CDP evaluation timeout in finally; preserve successful/error/timeout semantics. COOKWAIT PASS on the exact M-integrated helper under CPU lock. Seven earlier real cooks exited in58.8–66.5s, without the old~5min timer tail; no game FPS/loading benefit claimed.
+
+No src/, game page, physics, render or style change. Source tree based on exactL28c62d23a05b; shared checkout/index untouched. These tool-only checks do not assert a green full-game battery. No runtime game regression is introduced because runtime game files are byte-identical to master. A0 owns landing. Proof: owned mergeprep-20261030/tool-proof-status.json and cookwait-proof.log.
