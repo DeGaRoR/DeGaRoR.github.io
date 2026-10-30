@@ -102833,3 +102833,10 @@ No src/, game page, physics, render or style change. Source tree based on exactL
 Offline reducer only: actual supplied17,926,899-byte complete log reduced to282,420-byte actionable evidence(98.42% smaller), with2,357,000-byte lossless gzip. Internal assertions verify source roundtrip hash, all freeze/user-mark counts, selected frame values and schema. Exact M-integrated tool proof exits0. Replaced the old session-specific buildProvenance string with an explicit unknown-provenance statement; never imply a new input used the old play build.
 
 No src/, game page, physics, render or style change. Source tree based on exactL28c62d23a05b; shared checkout/index untouched. These tool-only checks do not assert a green full-game battery. No runtime game regression is introduced because runtime game files are byte-identical to master. A0 owns landing. Proof: owned mergeprep-20261030/tool-proof-status.json and flightlogevidence-proof.log.
+
+
+### windraster — A0 merge candidate, Codex, 30 Oct 2026
+
+One source CSS hint, will-change:transform, on the wind graphic. Trace isolated the4.3s first-flight freeze to raster/compositing; scoped cold CSS interventions and a final normal source build1351aba97a29 show worst50.0ms,p9933.5ms,1238frames,zero>100ms,zero exceptions. FinalUISMOKE/GFX/AA PASS. Boot103.628s is not claimed as a loading gain. Earlier before/after stills differ only at tiny anti-aliased gauge edges; geometry/world features are unchanged. A0 must inspect that existing visual evidence before landing under the pixel-identity rule. This ready is a reviewable merge candidate, not permission to waive a visible change.
+
+ExactL28c base; source-only tree, generated outputs reset to master and rebuilt by A0. Existing standing-red game gates are not represented as a clean --all. Do not merge an entire private test stack for this independent topic. A0 owns landing; shared checkout/index untouched.
