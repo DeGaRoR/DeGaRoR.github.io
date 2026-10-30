@@ -7616,7 +7616,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // colour, the ground half and the exposure base ease toward it on the wall clock (LE.tau 1.2 s: 95 % in 3.6 s). A writer
   // other than this (the F8 rig rows, the shed's exposure) is seen as a value we did not set and taken at once.
   // LE.on false is the old cut.
-  const LE = { on: true, tau: 1.2, tauCloud: 0.8, init: false, last: 0, cT: 1, cTraw: 1, cTat: 0, cTapplied: 1, applyAt: 0,
+  const LE = { on: true, cut: false, tau: 1.2, tauCloud: 0.8, init: false, last: 0, cT: 1, cTraw: 1, cTat: 0, cTapplied: 1, applyAt: 0,
     sunI: 0, hemiI: 0, ex: NaN, sunC: C(0xffffff), hemiC: C(0xffffff), gndC: C(0xffffff), wSunC: C(0xffffff), wHemiC: C(0xffffff), wGndC: C(0xffffff),
     tSunI: 0, tHemiI: 0, tEx: NaN, tSunC: C(0xffffff), tHemiC: C(0xffffff), tGndC: C(0xffffff), setSunI: NaN, setHemiI: NaN, setEx: NaN, eases: 0, applies: 0, writes: 0 };
   if (typeof window !== 'undefined') window.LIGHT_EASE = LE;
@@ -7675,9 +7675,14 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const d = Math.abs(LE.tSunI - LE.sunI) + Math.abs(LE.tHemiI - LE.hemiI) + (LE.tEx > 0 ? Math.abs(LE.tEx - LE.ex) : 0);
     const dc = Math.abs(LE.tSunC.r - LE.sunC.r) + Math.abs(LE.tSunC.g - LE.sunC.g) + Math.abs(LE.tSunC.b - LE.sunC.b) + Math.abs(LE.tHemiC.r - LE.hemiC.r) + Math.abs(LE.tHemiC.b - LE.hemiC.b) + Math.abs(LE.tGndC.g - LE.gndC.g);
     if (d < 1e-7 && dc < 1e-6) return;
-    LE.sunI += (LE.tSunI - LE.sunI) * k; LE.hemiI += (LE.tHemiI - LE.hemiI) * k;
+    // Ease exposed light energy, not two inverse quantities independently (which makes night jumps flash white).
+    if (LE.tEx > 0 && LE.ex > 0) {
+      const beforeEx = LE.ex, afterEx = beforeEx * Math.exp(Math.log(LE.tEx / beforeEx) * k);
+      LE.sunI = (LE.sunI * beforeEx * (1 - k) + LE.tSunI * LE.tEx * k) / afterEx;
+      LE.hemiI = (LE.hemiI * beforeEx * (1 - k) + LE.tHemiI * LE.tEx * k) / afterEx;
+      LE.ex = afterEx;
+    } else { LE.sunI += (LE.tSunI - LE.sunI) * k; LE.hemiI += (LE.tHemiI - LE.hemiI) * k; }
     LE.sunC.lerp(LE.tSunC, k); LE.hemiC.lerp(LE.tHemiC, k); LE.gndC.lerp(LE.tGndC, k);
-    if (LE.tEx > 0 && LE.ex > 0) LE.ex += (LE.tEx - LE.ex) * k;
     LE.eases++;
     // arrived (every part within a step of its target): the target exactly, written once - the ease then rests (d = 0 above)
     const there = relD(LE.sunI, LE.tSunI) < LE_STEP.i && relD(LE.hemiI, LE.tHemiI) < LE_STEP.i && colD(LE.sunC, LE.tSunC) < LE_STEP.c
@@ -7701,8 +7706,11 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // THE CLOUDS every frame (C1/C4): the drift, the eye (the probe's and the in-cloud slab's), the shadow's scalars - not gated on the sun's move below
     if (ATMO_ON && typeof CLOUDS !== 'undefined' && CLOUDS.ready) { CLOUDS.S.inShed = false; CLOUDS.update(day, camera, world); }
     if (rigCur.manual) return;                                                          // the hand-placed sun: the LIGHT stops following the almanac; the weather does not
-    if (probe && !rigCur.manual) probe.maybe(day, 1.5);
-    if (probeIn && !rigCur.manual) probeIn.maybe(day, 1.5);                                 // A6: the cabin's probe on the same schedule                                   // S5: the reflection probe follows the sun (1.5 deg), the day's dials, the clouds' drift
+    // A clock cut must not fade yesterday's bright cube under today's high night exposure.
+    const probeCut = LE.cut;
+    if (probe && !rigCur.manual) { if (probeCut) probe.bake(day, true); else probe.maybe(day, 1.5); }
+    if (probeIn && !rigCur.manual) { if (probeCut) probeIn.bake(day, true); else probeIn.maybe(day, 1.5); }
+    LE.cut = false;                                 // A6: the cabin's probe on the same schedule                                   // S5: the reflection probe follows the sun (1.5 deg), the day's dials, the clouds' drift
     runwayLightsApply(day, camera.position);                                                // G443: before the sun-moved guard (the exposure and the eye move on their own)
     if (premisesR && premisesR.lamps) {                                                     // G449: the premises lamps, the same fade, the pool re-assigned to the eye
       const W2 = typeof window !== 'undefined' ? window : {};
@@ -7743,7 +7751,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const cT = (typeof CLOUDS !== 'undefined' && CLOUDS.sunT) ? LE.cT : 1;   // G1352: eased (above)
       LE.cTapplied = cT; LE.applyAt = nowL + 300;
       const rL = SKY_LIGHT.applyDay(day, { key: sun, hemi, scene, renderer: LE.on ? null : renderer, unit: LIGHT_UNIT,
-        sunGain: RIG.sun / 2.8, hemiBoost: RIG.hemi / 0.274 * (typeof CLOUDS !== 'undefined' && CLOUDS.hemiUnder ? CLOUDS.hemiUnder(cT) : 1), exposureK: rigCur.exposure / 0.92,
+        nightVisibility: 1.6, sunGain: RIG.sun / 2.8, hemiBoost: RIG.hemi / 0.274 * (typeof CLOUDS !== 'undefined' && CLOUDS.hemiUnder ? CLOUDS.hemiUnder(cT) : 1), exposureK: rigCur.exposure / 0.92,
         gndAlb: rigCur.gndDerive === false ? null : worldAlbedo(),                     // THE GROUND HALF IS DERIVED (sky_light groundHalf: albedo x what falls on it); off, or no albedo, falls back to the row's hex
         gndGain: rigCur.gndGain == null ? 1 : rigCur.gndGain,
         hemiGnd: rigCur.hemiGnd, gb, altM: camera.position.y, cloudT: cT });

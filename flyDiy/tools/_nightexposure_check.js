@@ -6,8 +6,9 @@ let base=1.12,writes=0;const sun={intensity:1,color:new Col()},hemi={intensity:.
 const c={C:()=>new Col(),window:{GFX:G},sun,hemi,renderer};vm.createContext(c);vm.runInContext(s.slice(a,b)+';this.test={LE,lightTake,lightEase,lightShow};',c);const T=c.test;
 T.lightTake(1.12);assert(Number.isFinite(T.LE.setEx),'first write seeds last-written exposure instead of NaN');assert.strictEqual(base,1.12);assert.strictEqual(writes,1);
 const target=.92*Math.pow(2,13)*(1.12/.92);sun.intensity=2.5e-6;hemi.intensity=1e-7;T.lightTake(target);
-for(let i=1;i<=360;i++)T.lightEase(i*1000/30);assert(base>target*.998,'night adaptation reaches the authored schedule');assert(base<=target,'no exposure overshoot');assert.strictEqual(base,renderer.toneMappingExposure);
-for(let i=361;i<=900;i++)T.lightEase(i*1000/30);const settled=writes;for(let i=901;i<=960;i++)T.lightEase(i*1000/30);assert.strictEqual(writes,settled,'settled light keeps zero redundant exposure writes');
+// Exposed-energy easing retains the 1.2s visual tau; allow the quantized base to finish settling.
+for(let i=1;i<=450;i++)T.lightEase(i*1000/30);assert(base>target*.998,'night adaptation reaches the authored schedule');assert(base<=target,'no exposure overshoot');assert.strictEqual(base,renderer.toneMappingExposure);
+for(let i=451;i<=900;i++)T.lightEase(i*1000/30);const settled=writes;for(let i=901;i<=960;i++)T.lightEase(i*1000/30);assert.strictEqual(writes,settled,'settled light keeps zero redundant exposure writes');
 T.LE.setEx=Infinity;T.LE.ex=5;T.lightShow(false);assert.strictEqual(base,5,'invalid prior sentinel recovers');const n=writes;T.LE.ex=NaN;T.lightShow(true);assert.strictEqual(writes,n,'invalid target is never written');
 base=2;T.LE.ex=3;T.LE.setEx=2;T.lightShow(false);assert.strictEqual(base,3,'ordinary finite threshold path retained');
 // A full day/night/day cycle must return to daylight without redundant writes.

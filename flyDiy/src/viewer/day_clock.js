@@ -132,6 +132,8 @@ var DAY_CLOCK = (function () {
     if (careerHook && dt < 0) return { ok: false, why: 'the career\'s clock only moves forward' };
     const T0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : 0;
     world.setDay(o);
+    // A discrete clock cut changes the sky immediately; cut the matching light/exposure targets with it.
+    if (W && W.LIGHT_EASE) { W.LIGHT_EASE.init = false; W.LIGHT_EASE.cut = true; }
     jumps++;
     lastJump = { n: jumps, why: why || 'set', from, to: nowOf(), dtS: dt, version: day.version, t: T0 };
     try { if (W && W.dispatchEvent && typeof CustomEvent === 'function') W.dispatchEvent(new CustomEvent('flydiy:dayjump', { detail: lastJump })); } catch (e) {}

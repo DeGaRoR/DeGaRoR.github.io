@@ -65,6 +65,20 @@ var SKY_LIGHT = (function () {
     API.gnd = [hemi.groundColor.r, hemi.groundColor.g, hemi.groundColor.b];
     return true;
   }
+  // The world may request a minimum readable night ambient in exposed-light units.
+  // This uses the existing hemisphere; rooms remain purely physical unless explicitly opted in.
+  function nightFloor(hemi, exposure, el, minimum) {
+    if (!(minimum > 0 && exposure > 0 && el < 0) || !hemi || !hemi.color) return false;
+    const c = hemi.color;
+    let L = .2126 * c.r + .7152 * c.g + .0722 * c.b;
+    // The old airglow floor multiplied a black sky colour by a positive intensity: still black.
+    if (!(L > 1e-6)) { c.setRGB(.5, .6, 1); L = .2126 * c.r + .7152 * c.g + .0722 * c.b; }
+    const t = Math.min(1, -el / 6), w = t * t * (3 - 2 * t);
+    const target = minimum * w / (exposure * L);
+    if (hemi.intensity >= target) return false;
+    hemi.intensity = target;
+    return true;
+  }
   function applyDay(day, o) {
     if (!day || typeof ATMO === 'undefined') return null;
     if (K_SUN == null && !calibrate()) return null;
@@ -74,6 +88,8 @@ var SKY_LIGHT = (function () {
     if (!isMoon && el < -1.2) isMoon = true; else if (isMoon && el > -0.5) isMoon = false;
     const moonE = (typeof LIGHT_RIG !== 'undefined' ? LIGHT_RIG.MOON_RATIO : 2.5e-6) * day.moonPhase;
     const dir = isMoon ? moon : sun;
+    let ex = (typeof LIGHT_RIG !== 'undefined' ? LIGHT_RIG.exposureFor(el, o.exposureK) : 0.92);
+    if (o.exposureCap != null) ex = Math.min(ex, o.exposureCap);
     const key = o.key;
     if (key) {
       ATMO.sunTransmittance(altKm, dir[1], _T);
@@ -108,6 +124,7 @@ var SKY_LIGHT = (function () {
         // CLOUDS C3: under a cloud the sky's light is the deck's (the sun's transmitted colour diffused), not the zenith's blue
         if (o.cloudT != null && o.cloudT < 1 && !isMoon) { const mT = maxc(_T), w = 0.6 * (1 - Math.max(0, o.cloudT)); hemi.color.lerp(_c3.setRGB(_T[0] / mT, _T[1] / mT, _T[2] / mT), w); }
       }
+      if (boost > 0) nightFloor(hemi, ex, el, o.nightVisibility);
       // ---- THE GROUND HALF IS THE WORLD'S ALBEDO x WHAT FALLS ON IT (2026-09-22) ----
       // It was a hex per rig row (island 0x3a3f30, alps 0x343422): a colour somebody chose, fixed
       // against the sky through every hour, and the last authored green in the rig. It is derived
@@ -139,8 +156,6 @@ var SKY_LIGHT = (function () {
     // the exposure: the schedule, as a base
     // the schedule adapts the eye to the SKY; a room with lamps adapts to its lamps once the sky
     // is darker than they are - o.exposureCap is the exposure those lamps were judged at
-    let ex = (typeof LIGHT_RIG !== 'undefined' ? LIGHT_RIG.exposureFor(el, o.exposureK) : 0.92);
-    if (o.exposureCap != null) ex = Math.min(ex, o.exposureCap);
     if (o.renderer) {
       // against the LIVE base (two rooms share one renderer and each writes on entry), never a memory of our own
       const G = (typeof window !== 'undefined') ? window.GFX : null;
