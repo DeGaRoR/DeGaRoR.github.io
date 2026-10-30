@@ -102820,56 +102820,8 @@ doors shut; bought = the same shed; 9/9, FRAMECOST = master's 15 rows).
 Battery: PARKED row 13 = master's own (identical rows to L28b). Train gate vs L28b: the same accepted costs (perf-week L0: garage ~95-130 s,
 compile 25-51 s), no new row; fps and worst tasks within L28b's spread. Everything else waits for R1: flydiy-notes/RESTART-PLAN.md.
 
-### Codex wind-arrow raster freeze — 28 Oct 23:11
+### windraster — A0 merge candidate, Codex, 30 Oct 2026
 
-Source-only draft on claude/codex-windraster, based on final L28c 62d23a05b.
-A0/Claude owns landing; no master or ready ref changed. One CSS hint,
-will-change:transform on the existing windA SVG; vector, size, stroke,
-colour and wind calculation unchanged.
+One source CSS hint, will-change:transform, on the wind graphic. Trace isolated the4.3s first-flight freeze to raster/compositing; scoped cold CSS interventions and a final normal source build1351aba97a29 show worst50.0ms,p9933.5ms,1238frames,zero>100ms,zero exceptions. FinalUISMOKE/GFX/AA PASS. Boot103.628s is not claimed as a loading gain. Earlier before/after stills differ only at tiny anti-aliased gauge edges; geometry/world features are unchanged. A0 must inspect that existing visual evidence before landing under the pixel-identity rule. This ready is a reviewable merge candidate, not permission to waive a visible change.
 
-Clean cold diagnostic A2: CPU0%, GPU9%, worst first-flight frame4368.3ms.
-The first windA calm->visible at rotate(218deg) was followed by a
-4353.959ms Chrome GPU RasterDecoderImpl::DoEndRasterCHROMIUM::Flush
-(2.654ms GPU-thread CPU); no WebGL call over20ms explained that interval.
-Corrected CSS-hint cold C: CPU9%, GPU9%, worst frame66.7ms, no frame>100ms,
-no exception. These are profiled diagnostics, one successful treatment
-run; final normal-build repeat and broader checks remain owed. Earlier
-B-layer was invalid (a preload insertion before documentElement existed),
-not a hint failure.
-
-Isolated fixed-state PFD screenshots: unchanged baseline repeats are
-pixel-identical; hint differs at106 anti-aliasing pixels inside the
-13x14 arrow rectangle. Arrow geometry/layout unchanged; do not claim
-whole-image pixel identity. The standalone fixture does NOT reproduce
-the game-context freeze (all arms ~17ms), so use it only for visual proof.
-Evidence and exact commands: CODEX-LOG-SHADERWARM.md and owned
-freeze-trace/A2-proof.json, C-layer.json, fixture-results.json and PNGs.
-The persistent first-flight freeze appears addressed by this isolated
-CSS experiment; do not tick the whole freeze family or publish ready yet.
-
-### Wind raster final built-source confirmation — 28 Oct 23:40
-
-Normal clean branch build1351aba97a29, committed CSS (no injected hint),
-UISMOKE/GFX/AA all PASS. Cold Cessna metal HOME/CIRCUIT gamer,30s record
-plus first shot:1238 frames, worst50.0ms,p99 33.5ms,zero >100ms/zero
-page exceptions. Initial CPU22%,GPU10% snapshot; no boot gain claimed
-(103.628s). Earlier profiled clean master worst4368.3ms; first treatment
-66.7ms. This verifies removal of the first-visible-wind-arrow freeze in
-the ordinary built page, not every other round-trip freeze.
-
-Cook/check(same) ran immediately before measurement through the same
-validated tool helper. Afterward, owned packs/manifest restored to
-committed M and rebuilt: buildID unchanged1351aba97a29. No cooked output
-committed. Diagnostic raw traces/profiles are verified .gz archives;
-cleanup/report.json records SHA256 and original sizes. Evidence: owned
-wind-final/summary.json,cold.json,gates.log,restored.json and retry.cjs.
-The first final runner stopped before browser launch on a cwd argument
-error; corrected retry reused passed gates and re-cooked before this run.
-
-A0/Claude owns landing. No master or ready ref published. The additional
-intro regression groups (master/candidate CLOUD/SHADOWSKY/HANGAR/UISMOKE,
-FRAMECOST,ROUNDTRIP,BOOTLIFT) run unattended under PID44532, three-hour
-limit. Inspect introperf/full-gates-status.json, per-group comparisons
-and complete logs before final landing. Existing known reds remain
-visible; the runner never auto-publishes a verdict or branch.
-
+ExactL28c base; source-only tree, generated outputs reset to master and rebuilt by A0. Existing standing-red game gates are not represented as a clean --all. Do not merge an entire private test stack for this independent topic. A0 owns landing; shared checkout/index untouched.
