@@ -43,6 +43,8 @@ const path = require('path');
 // (The hand-written fleet's own gates — WIND, M3, DRONE, DC3, JODEL, C172,
 // CHINOOK, PA18, C172M, MODEL, CTRL, XCTY/2/3/4/5 — went with the fiches.)
 const GATES = [
+  { id: 'HULLWARM', file: '_hullwarm_check.js', tier: 'core' },
+  { id: 'NIGHTWARM', file: '_nightwarm_check.js', tier: 'core' },
   { id: 'COOKWAIT', file: '_cookwait_check.js', tier: 'core' },   // CDP deadlines are cancelled after settled cook requests
   { id: 'FLIGHTEVIDENCE', file: '_flightevidence_check.js', tier: 'core' },
   { id: 'WINDRASTER', file: '_windraster_check.js', tier: 'core' },

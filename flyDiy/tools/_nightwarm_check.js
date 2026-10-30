@@ -1,0 +1,9 @@
+'use strict';
+const fs=require('fs'),path=require('path'),vm=require('vm'),assert=require('assert'),ROOT=process.env.NIGHT_TEST_ROOT||path.join(__dirname,'..'),{boot}=require(ROOT+'/tools/_fake_gl.js'),src=fs.readFileSync(ROOT+'/src/viewer/render_premises.js','utf8');
+const B=boot(),{THREE:T,renderer:R,ctx}=B,root=new T.Scene(),stats={},cam=new T.PerspectiveCamera(55,1,.1,100);cam.position.set(0,0,8);root.add(new T.PointLight(0xffffff,1),new T.PointLight(0xffffff,1));root.add(new T.Mesh(new T.BoxGeometry(),new T.MeshStandardMaterial()));
+Object.assign(ctx,{root,stats,TARR:null});const i=src.indexOf('  const LAMPS = '),j=src.indexOf("  // the bench's bounds",i);assert(i>0&&j>i);vm.runInContext(src.slice(i,j)+'\nglobalThis.TEST_LAMPS=LAMPS;',ctx);const L=ctx.TEST_LAMPS,eye=new T.Vector3();
+let prepares=0;L.prep=()=>{prepares++;return Promise.resolve();};L.update(eye,0,1.12);assert.strictEqual(L.pool.length,8);assert(L.pool.every(l=>l.visible&&l.intensity===0&&!l.castShadow));R.render(root,cam);const n=B.links.length;
+const holder=new T.Group();root.add(holder);L.pub.push({grp:holder,p:[1,2,3],col:[1,.7,.3],range:15,k:3});L.near=null;
+for(const on of [1,.5,0,1]){L.update(eye,on,1.12);R.render(root,cam);assert.strictEqual(B.links.length,n,'day/night keeps exactly the same real-three program');assert(L.pool.every(l=>l.visible));assert.strictEqual(prepares,0,'fixed count needs no background compilation');assert.strictEqual(L.pool[0].intensity,on?3*2.2*1.1*2/1.12*on:0);assert(L.pool.slice(1).every(l=>l.intensity===0));}
+L.mute();L.update(eye,1,1.12);R.render(root,cam);assert(L.pool.every(l=>l.visible&&l.intensity===0));assert.strictEqual(B.links.length,n);L.unmute();L.update(eye,1,1.12);R.render(root,cam);assert(L.pool[0].intensity>0);assert.strictEqual(B.links.length,n);
+console.log('PASS eight slots present before compile; unchanged energy law, zero day/mute energy; no transition links or preparation');console.log('GATE NIGHTWARM: PASS');

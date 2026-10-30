@@ -13127,7 +13127,7 @@
     const was = holdRender;
     holdRender = true;
     const release = () => { holdRender = was; };
-    return compileCraftLinks().then(() => hybridWarm()).then(release, e => { release(); throw e; });
+    return compileCraftLinks().then(() => craftHullWarm()).then(() => hybridWarm()).then(release, e => { release(); throw e; });
   }
   // G1121: THE HYBRID'S KEPT LIVE MESHES are out of the graph (flown_bake.js park) and three's compile walks the graph -
   // so the craft's compile takes them by stand-in (their programs and their depth variants, in the world's lights)
@@ -13147,6 +13147,47 @@
     const FBW = FLOWN_BAKE.FB;   // (the dials: warmkey - one stand-in a program key; warmcanvas - into the canvas)
     return L.length ? warmDrawSliced(scene, FBW.warmCanvas ? null : (aa && aa.target ? aa.target() : null), null, L, craftInWorldNow, { perKey: !!FBW.warmKey }).then(k => { window.__hyWarm.drawn = k; })
       .catch(e => console.warn('hybrid warm:', e && e.message)) : null;
+  }
+  // WATER.hullRender hides every non-light scene child except the aircraft.
+  // Its capture therefore excludes the premises' nested point-light pool.
+  // Warm that exact light signature under the existing craft loading screen;
+  // changing the capture's lights instead would change its night-time image.
+  function craftHullWarm() {
+    if (!WF || !WF.premises || !WF.premises.lamps || !WF.premises.lamps.fixedCount
+        || !window.WATER || !WATER.proto || !WATER.proto.hull
+        || typeof renderer.compileAsync !== 'function') return Promise.resolve();
+    const list = [];
+    craftInWorldNow(() => craft.traverseVisible(o => { if (o.isMesh && o.geometry && o.material) list.push(o); }));
+    // The spinning disc starts hidden, but its two transparent sides reflect later.
+    craft.traverse(o => { if (o.userData && o.userData.propDisc && !list.includes(o)) list.push(o); });
+    list.push(...keptGroup().KEPT);
+    const dress = fn => craftInWorldNow(() => {
+      const hidden = [];
+      for (const o of scene.children) if (o !== craft && o.visible && !o.isLight) {
+        o.visible = false; hidden.push(o);
+      }
+      try { return fn(); }
+      finally { for (const o of hidden) o.visible = true; }
+    });
+    const group = new THREE.Group();
+    for (const o of list) for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
+      if (m && m.visible !== false) group.add(PROG_WARM.standIn(o, m));
+    }
+    const target = PLAIN_RT();
+    const depth = dress(() => {
+      // The mesh-only helper has no lights; discover shadow kinds in the lit scene.
+      const kinds = { depth: false, distance: false };
+      scene.traverseVisible(o => { if (o.isLight && o.castShadow && o.shadow) {
+        if (o.isPointLight) kinds.distance = true; else kinds.depth = true;
+      } });
+      return PROG_WARM.depthVariants(THREE, renderer, [group], { kinds }).helper;
+    });
+    const noFog = fn => dress(() => PROG_WARM.fogless(scene, fn));
+    return compileSliced(group, target, scene, false, dress)
+      .then(() => compileSliced(depth, target, scene, true, dress))
+      .then(() => warmDrawSliced(scene, target, null, list, dress, { perKey: true }))
+      .then(() => warmDrawSliced(scene, target, null, depth.children, noFog, { perKey: true }))
+      .catch(e => console.warn('craft reflection warm:', e && e.message));
   }
   function compileCraftLinks() {
     const inW = craftInWorldNow, KG = (window.FLOWN_BAKE && FLOWN_BAKE.FB.noKeptCompile) ? new THREE.Group() : keptGroup().KG;   // (?fbake=nokeptcompile)
@@ -19253,7 +19294,7 @@
   if (typeof window !== 'undefined') window.FLYDIY_GUARD = drawGuard;
   function lampsPrep(want) {
     const L = WF && WF.premises && WF.premises.lamps;
-    if (!L || typeof renderer.compileAsync !== 'function') return Promise.resolve();
+    if (!L || L.fixedCount || typeof renderer.compileAsync !== 'function') return Promise.resolve();
     const dress = f => { const was = L.armed; L.arm(want); try { return f(); } finally { L.arm(was); } };
     const t0 = performance.now();
     return compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, dress)
