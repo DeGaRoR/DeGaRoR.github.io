@@ -102929,3 +102929,8 @@ The combined source run exposed a remaining7.7s frame during the moving free-cam
 
 fix: include hidden prop disc and actual shadow kinds in reflection warm
 The previous helper passed a mesh-only group to depthVariants with no light kinds, producing an empty depth helper; hidden propDisc also missed two transparent-side variants. Discover kinds from the dressed lit scene and include the exact tagged disc while hidden. Unit now checks both causes explicitly. Cold final-D measurement running; no ready yet. Actual reflection, visibility, shadows and per-frame code unchanged.
+
+### nightwarm — Codex, 30 Oct 2026
+
+fix: finish loader warm in the main view light state
+The reflected-state warm must precede hybridWarm: three retains the last render light state for a following shadow pass. Ending at the2point reflection state introduced11 first-flight depth links in the headless roundtrip; finishing with the existing main-view warm restores10point state before release. HULLWARM now pins this ordering. Parent final-D cold run has zero measured shader waits in all phases,100% green static/night/cockpit phases and moving72.14% green/42.93s longest. Its remaining3.985s frame is town work: previous row prem3910.1ms,town3914.2ms,shader0; town optimization intentionally excluded. Latest ordered source is in fresh controlled repeats and gates, not ready yet.

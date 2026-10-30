@@ -13127,7 +13127,7 @@
     const was = holdRender;
     holdRender = true;
     const release = () => { holdRender = was; };
-    return compileCraftLinks().then(() => hybridWarm()).then(() => craftHullWarm()).then(release, e => { release(); throw e; });
+    return compileCraftLinks().then(() => craftHullWarm()).then(() => hybridWarm()).then(release, e => { release(); throw e; });
   }
   // G1121: THE HYBRID'S KEPT LIVE MESHES are out of the graph (flown_bake.js park) and three's compile walks the graph -
   // so the craft's compile takes them by stand-in (their programs and their depth variants, in the world's lights)

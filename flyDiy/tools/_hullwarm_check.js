@@ -3,7 +3,7 @@ const fs = require('fs'), path = require('path'), vm = require('vm'), assert = r
 const src = fs.readFileSync(process.env.HULL_SOURCE || path.join(__dirname, '../src/viewer/app.js'), 'utf8');
 const start = src.indexOf('  function craftHullWarm() {'), end = src.indexOf('  function compileCraftLinks() {', start);
 assert(start > 0 && end > start, 'loader helper present');
-assert(src.includes('.then(() => craftHullWarm()).then(release,'), 'helper awaited before loading hold is released');
+assert(src.includes('.then(() => craftHullWarm()).then(() => hybridWarm()).then(release,'), 'reflection awaited and main light state restored before release');
 async function check(fail) {
   const nested = { visible: true }, hidden = { visible: false }, lamp = { visible: true, isLight: true };
   const material = { visible: true }, mesh = { isMesh: true, geometry: {}, material };
