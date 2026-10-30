@@ -7661,7 +7661,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       sun.intensity = LE.sunI; sun.color.copy(LE.sunC); hemi.intensity = LE.hemiI; hemi.color.copy(LE.hemiC); hemi.groundColor.copy(LE.gndC);
       LE.setSunI = sun.intensity; LE.setHemiI = hemi.intensity; LE.wSunC.copy(LE.sunC); LE.wHemiC.copy(LE.hemiC); LE.wGndC.copy(LE.gndC); LE.writes++;
     }
-    if (LE.ex > 0 && Math.abs(LE.ex - LE.setEx) > LE.ex * (force ? 1e-4 : LE_STEP.ex)) exSet(LE.ex);
+    // Seed the last-written value: a NaN sentinel otherwise suppresses every exposure update.
+    if (LE.ex > 0 && (!Number.isFinite(LE.setEx) || Math.abs(LE.ex - LE.setEx) > LE.ex * (force ? 1e-4 : LE_STEP.ex))) exSet(LE.ex);
   }
   // lightEase(): a frame of the ease (every dayApply, the guard's early return included)
   function lightEase(now) {
@@ -7731,8 +7732,6 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     dayVer = day.version; dayEl = el; dayAz = az;
     const v = day.sun;
     SUN_SKY.set(v[0], v[1], v[2]);
-    SUN.copy(SUN_SKY);
-    if (SUN.y < SUN_MIN_Y) { const h = Math.hypot(SUN.x, SUN.z) || 1, k = Math.sqrt(1 - SUN_MIN_Y * SUN_MIN_Y) / h; SUN.set(SUN.x * k, SUN_MIN_Y, SUN.z * k); }
     rigCur.elev = el; rigCur.azim = day.rigAzim;
     const t = Math.min(1, Math.max(0, (el + 6) / 12)), k = t * t * (3 - 2 * t);
     if (ATMO_ON && typeof SKY_LIGHT !== 'undefined') {
@@ -7755,6 +7754,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       hemi.intensity = RIG.hemi * LIGHT_UNIT * Math.max(0.06, k);
       if (sun.color && sun.color.setHex && sun.color.lerp) { const w = Math.min(1, Math.max(0, 1 - el / 12)); sun.color.setHex(rigCur.sunCol).lerp(WARM_SUN, w * w); }
     }
+    // applyDay selects the key with hysteresis. Shadows and illumination must follow that same moon or sun.
+    const keyV = ATMO_ON && typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.isMoon ? day.moon : v;
+    SUN.set(keyV[0], keyV[1], keyV[2]);
+    if (SUN.y < SUN_MIN_Y) { const h = Math.hypot(SUN.x, SUN.z) || 1, k = Math.sqrt(1 - SUN_MIN_Y * SUN_MIN_Y) / h; SUN.set(SUN.x * k, SUN_MIN_Y, SUN.z * k); }
     const dim = Math.max(0.03, k);
     if (worldSky && worldSky.material.uniforms && worldSky.material.uniforms.uDim) worldSky.material.uniforms.uDim.value = dim;
     if (!ATMO_ON && scene.fog && scene.fog.color && scene.fog.color.setHex && rigCur.dome) scene.fog.color.setHex(rigCur.dome.haze).multiplyScalar(dim);   // the painted haze, when the atmosphere is off

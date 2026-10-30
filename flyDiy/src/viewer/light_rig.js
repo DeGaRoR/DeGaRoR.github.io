@@ -223,15 +223,17 @@
   //     33 deg and up   0 stops (the base)
   //     10.6 deg      +1.0 (the sunset row's 1.12 x its dimmer key: the
   //                        calibration in sky_light.js fits the product)
-  //     sunset         +2.5     civil dusk (-6)  +6     nautical (-12)  +13
-  //     astro (-18)     +15     night         +15.5  (a full moon at 2.5e-6
-  //                        of the sun reads at ~7 % of noon: a game night;
-  //                        June's -11.5 deg at 55 N is a dim but readable dusk)
+  //     sunset         +2.5     civil dusk (-6)  +6     nautical (-12)  +16
+  //     astro (-18)     +16     night         +16
+  // The summer nautical knot needs three more stops: with the moon low, Cineon
+  // clips the old +13-stop land to black. Fixed-eye browser countertests keep
+  // the land and aircraft readable at +16. Day/civil knots are unchanged; the
+  // curve stays continuous and monotone. This is authored game-night adaptation.
   // Piecewise-linear in elevation, monotone, no discontinuity: the stops
   // move ~0.4 a degree through the twilight, which at 1x is a stop every
   // 5 minutes - imperceptible frame to frame.
   var EV_BASE = 0.92;
-  var EV_KNOTS = [[-90, 15.5], [-18, 15], [-12, 13], [-9, 10], [-6, 6], [-0.833, 2.5], [10.6, 0.6], [33, 0], [90, 0]];
+  var EV_KNOTS = [[-90, 16], [-18, 16], [-12, 16], [-9, 10], [-6, 6], [-0.833, 2.5], [10.6, 0.6], [33, 0], [90, 0]];
   function exposureStops(el) {
     var k = EV_KNOTS;
     if (el <= k[0][0]) return k[0][1];
