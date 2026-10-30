@@ -102871,3 +102871,92 @@ Exact generated-plot spatial lookup; preserves polygon inclusion, generation ord
 Source-only tree integrated onto exact L28c62d23a05b. Clean combined source normal-build and fresh M/B/M runtime completed without exceptions/crashes;42master/49combined affected checks completed. No new failure attributable to this topic: old integration differences are existing boot-seed counter cells(+19GLcalls/+1seed link, compile links decrease), gzip-budget cell, setup-program IDs and two logger-sensitive CONTACT/LIGHT wiring checks in recscene. The latter are absent from this topic's app/source; they are being corrected separately without changing actual pose/shadow order. No green full --all claim. NIGHT's later reflection warm11-link first-flight regression is excluded from this ready and under separate correction.
 
 Independent on L28c; groundquery and plotquery share27_premises.js but change distinct lookup paths(their combined exact-source integration was tested). Scenerylights sharesapp.js with other topics; use normal source merge and rebuild, never a whole-file replacement from another ready. A0 owns landing. Shared checkout/index untouched. Evidence: mergeprep-20261030/source-inventory.json, combined-runtime-results.json, merge-gate-row-comparison.json and ready-plotquery-unit.log.
+
+
+### Ordinary moving-view unevenness — Codex, 30 Oct 2026, provisional
+
+Owner asks for long smooth stretches in normal flight, excluding town
+optimization and post-crash performance. Owner separately observes much
+worse post-crash pacing: retain as a later lead, cause not measured.
+
+Two attempted physics fixtures crashed/stayed in taxi, and an initial
+scenery adapter used camera getter incorrectly. All explicitly DISCARDED;
+no performance claim from them. Corrected fixture uses game's SCENERY
+mode, solver/aircraft off, a repeatable camera corridor from Cedar Harbour
+toward East Point Clearing with sea/mountain/forest views and yaw sweep.
+User watched and confirms travelling over lakes beside mountain is
+representative and stutters; fixed views stable, rotation has rare bad
+hiccups. This isolates graphics, NOT a complete live-flight benchmark.
+
+Exact master62d23a05b, unprofiled150s moving view:4390 frames,127>35ms,
+12>100ms, max150.1ms, p9966.8ms. All-green120-frame share2.856%, longest
+green6.953s, no10s green run.119 of127 ordinary late pairs world-dominant.
+Fixed45s views: sea90.01%, mountain90.02%, forest100% green windows.
+Yaw sweep separately has two first-use shader stalls, worst3201.2ms.
+
+Separate60s CPU profile, not timing verdict:72 world updates>20ms;
+worst114.1ms includes107.6ms FARLOD.update; many50-78ms rebuild tasks.
+Temporary subsystem wrappers only in profiled window, restored afterward.
+Camera adapter mean0.014ms/call. No production logging added.
+
+This topic caches exact Float32 bounding boxes on immutable cached terrain
+patches, unions them for rebuilt quadrants, scans the most distant box
+first and prunes only patches whose mathematical upper distance bound
+cannot enlarge the sphere. Geometry, indices, normals, skirts, LOD
+thresholds and the resulting box-centred sphere unchanged. Cache lifetime
+is the existing patch cache; resink creates replacement patch objects.
+No approximate culling, feature loss, terrain accuracy or physics change.
+
+PATCHBOUNDS PASS:889 Float64 bitwise comparisons against bundled three,
+cache reuse/order/replacement, geometry bytes and drawRange unchanged.
+Warm flat-grid proof27 vertex-component reads vs67500 full walk; this is
+synthetic work-count proof, not a claimed game speedup. Browser candidate
+1261ba8fbf54 is running against identical corrected scenery fixture.
+No ready ref: unprofiled A/B/A, real flight and regression still pending.
+
+Independent on62d23a05b. Supersedes introperf's render_world raw two-pass
+farBounds helper; do not land two competing helpers. Intro app changes
+remain separate. Evidence/harnesses:owned evenness-20261029 directory.
+
+### Ordinary moving-view follow-up — Codex, 30 Oct 2026
+
+Working candidate adds a BETWEEN-quadrant4ms check to the existing
+nearest-first rebuild loop. Keeps max2 cheap quadrants, always allows
+one indivisible quadrant, preserves force and explicit nMax semantics.
+This is not a hard4ms preemption guarantee. Same terrain detail/geometry.
+PATCHBOUNDS checks889 exact bounds cases plus six real dispatch-loop
+cases: heavy/cheap tasks, force and explicit nMax1/2/0.
+
+Unprofiled150s same graphics-only moving corridor (not live-flight FPS):
+master127 late>35ms, bounds alone21, bounds+cap17. Green120-frame
+windows2.86/60.30/76.37%; longestgreen6.95/21.41/38.26s; time in
+>=10s green runs0/64.26/87.31%. Full-path3>100ms remain in candidates.
+Repeated master results are in the external report and compact evidence.
+
+Those residuals coincide with house_tarr timer callbacks between game
+frames, repeatable near136s into route. Do not call them external load
+or claim fixed. No town/building optimization here. Full captures had
+isolatedCPU>25% seconds and are provisional acceptance evidence.
+Before repeat master finished we specified a second contiguous first120s
+diagnostic window (all frames retained, full150s still reported):
+master99 late, bounds16, bounds+cap12; >100ms7/0/0; green windows
+0.94/57.42/77.53%; CPUmax15.82/20.94/22.47%, no samples>25%.
+It is a diagnostic subset, not an independent run or full-run verdict.
+
+Rare yaw freezes remain: the same six late shader links concentrated
+in two frames on master and candidates; exact material naming pending.
+No production logging added. Three fixed45s views remain stable.
+
+Source-gate comparison queued/run via owned validate-after.cjs, same
+base against both variants; see gate-comparison-status.json for verdict.
+No ready ref: complete gates, live non-crashing flight, visual/LOD catch-up
+checks and clean full-run CPU acceptance are still required. A0 lands.
+Report D:/Dev/flydiy-notes/CODEX-REPORT-EVENNESS-20261030.md.
+
+### WORLDEVEN — ready for A0, Codex, 30 Oct 2026
+
+Exact same tested render_world.js bytes as boundsbudget. Caches exact Float32 patch bounds, uses exact union quadrants/sphere pruning and stops patch dispatch between quadrants after4ms(max2 cheap ones). No terrain accuracy, LOD, mesh, material, solver or shadow quality change. PATCHBOUNDS verifies bit-identical bounds across889cases and six dispatch/force/budget cases. Thirty affected/brief gates completed on exact L28c and candidate: every failed assertion line is identical, not just gate counts. This is not a green full --all.
+
+Graphics-only moving corridor: master119/127 frames>35ms vs17, >100ms11/12 vs3, all-green windows2.86/5.57% vs76.37%, longest~7s vs38.26s. Late texture-pack jobs limit the last seconds; full-run instantaneous CPU spikes exceed25%, so the predeclared first120s is the cleaner attribution diagnostic(>100ms7->0; all-green.94–3.26%->77.53%). Additional normal-light, healthy paused-aircraft combined M/B/M route confirms67.57% green vs3.57/1.24%, longest38.20s vs7.07/5.67s, >100ms3vs14/14, mean phase CPU~10%. The combined build also exposes a separate reflection shader stall from nightwarm; it is held for follow-up, not attributed to this independent world-bounds patch. No live-flight physics performance certification claimed.
+
+Ready is source-only on L28c; regenerate outputs with normal build. Independent of shaderwarm/nightwarm. Supersedes introperf raw-bounds optimization: do not stack both versions. A0 owns merge; shared checkout/index unchanged.
