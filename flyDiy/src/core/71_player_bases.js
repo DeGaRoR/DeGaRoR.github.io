@@ -162,7 +162,7 @@ const BASE_OFFERS = {
   },
   mn_strip: {
     words: GAME_NAMES.mine + ' · a derelict shed on the street',
-    plots: { mn_strip: { shells: ['field'], kits: ['park', 'bench', 'curio'], pf: 0.5, derelict: true } },
+    plots: { mn_strip: { shells: ['field'], kits: ['park', 'bench', 'curio'], pf: 0.5, derelict: true, closedShed: true } },
   },
   SEA: {
     words: GAME_NAMES.fields.SEA + ' · a slipway',
@@ -1286,6 +1286,22 @@ function playerWorldSheds(doc) {
   if (S[PREM_MAIN]) one(PREM_MAIN, true);
   for (const id of playerSideIds(doc).slice(0, PREM_SIDE_MAX)) one(id, false);
   return out.slice(0, PREM_WORLD.maxSheds);
+}
+// CLOSED-SHED (the user 28 Oct: an unowned plot draws "a closed shed", so the mine street reads as a compound): a plot
+// flagged `closedShed` that the player does NOT hold stands its offer's shed, shut - the shed playerAcquire would give
+// (the offer's first shell, the shell's dims under the plot's own), so buying it changes nothing in the world but the
+// dress. Its own list, never in playerWorldSheds' GQ4 count: [{ id, base, shell, dims (hangarDims), closed: true }]
+function playerClosedSheds(doc) {
+  const S = (doc && doc.sheds) || {}, out = [];
+  for (const aero of Object.keys(BASE_OFFERS)) {
+    const O = BASE_OFFERS[aero];
+    for (const id of Object.keys(O.plots)) {
+      const P = O.plots[id], shell = P.shells && P.shells[0];
+      if (!P.closedShed || S[id] || !shell || typeof SHELLS === 'undefined' || !SHELLS[shell]) continue;
+      out.push({ id, base: aero, shell, dims: hangarDims({ shell, dims: Object.assign({}, SHELLS[shell].dims, (P.dims && P.dims[shell]) || {}) }), closed: true });
+    }
+  }
+  return out;
 }
 // may a shed's residents be drawn? (GAME §4.4: an open door and the camera within 60 m; a shut shed costs nothing)
 function premResidentsDrawn(doorOpen, camDist) {
