@@ -102819,3 +102819,8 @@ assets-grove (the crane's GROVE marks painted out, 11/13 + master's GEO/MEDIA), 
 doors shut; bought = the same shed; 9/9, FRAMECOST = master's 15 rows).
 Battery: PARKED row 13 = master's own (identical rows to L28b). Train gate vs L28b: the same accepted costs (perf-week L0: garage ~95-130 s,
 compile 25-51 s), no new row; fps and worst tasks within L28b's spread. Everything else waits for R1: flydiy-notes/RESTART-PLAN.md.
+
+
+## PERF SHADERWARM — rebased onto L28c,30Oct2026
+
+Exact app/shed_shadow/program/shedshadow source from the private M-integrated preparation; no built files. Original branch ace7afe9d65cdb72759c16679590d615dedfd8e9 is preserved in local refs/codex-backups/shaderwarm-before-rebase-20261030 and source/provenance artifacts. Early garage target/PMREM compilation and cached shed copy material; original controlled loading GL waits10.6s->.077s, boot6–10s sooner. Residual standalone~732ms shader waits and loader seed+19GLcalls/+1link remain review items. Whole boot60–70s target not achieved. No residual-link claim from the paused night fixture. Working only, wave2; no ready.

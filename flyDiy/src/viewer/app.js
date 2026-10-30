@@ -960,6 +960,24 @@
     if (!envRT && THREE.WebGLCubeRenderTarget) envRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
     return envRT;
   }
+  // The cube excludes the subjects (and their lights), while the visible garage
+  // includes them. Light counts key every lit program. Dress each compile task
+  // exactly like the cube draw, then restore before yielding to another task.
+  function probeCompileDress(fn) {
+    const subjects = [craft, edSit, refSit, bpSit], was = subjects.map(o => o && o.visible);
+    const shafts = hangar && hangar.shafts, shWas = shafts && shafts.visible;
+    const mask = camera.layers.mask;
+    try {
+      camera.layers.mask = 1;   // a CubeCamera's default layer; no UI or shadow helper layers
+      if (shafts) shafts.visible = false;
+      if (!craftInProbe) subjects.forEach(o => { if (o) o.visible = false; });
+      return fn();
+    } finally {
+      camera.layers.mask = mask;
+      if (shafts) shafts.visible = shWas;
+      subjects.forEach((o, i) => { if (o) o.visible = was[i]; });
+    }
+  }
   // G584: THE GENERATORS ARE KEPT. A PMREMGenerator owns its shaders, and dispose() frees them - a generator
   // made and disposed per bake re-linked its programs every bake (the census: the room's PMREM 14 times in one
   // roll-out, the hangar's textures landing under the world's loading screen). One per source kind, kept for
@@ -13189,9 +13207,9 @@
   function compileCraftShed() {
     if (RA_Q === '0' || typeof ROLLANIM === 'undefined' || !inGarage || !model || typeof renderer.compileAsync !== 'function') return;
     const gs = garageScene(); if (!gs) return;
-    if (gs === hangarScene) shedEnvKey();
+    const envReady = gs === hangarScene ? pmremWarmBake().then(() => { shedEnvKey(); }) : Promise.resolve();
     const inS = f => craftInShed(gs, f);
-    return shaderProgress(compileSliced(gs, aa && aa.target ? aa.target() : null, null, false, inS)
+    return shaderProgress(envReady.then(() => compileSliced(gs, aa && aa.target ? aa.target() : null, null, false, inS))
       .then(() => compileDepthVariants(gs, true, inS))
       .catch(e => console.warn('craft shed compile:', e && e.message)), 'garage', 60000);
   }
@@ -19617,8 +19635,9 @@
   function shedPrelink() {
     if (typeof renderer.compileAsync !== 'function' || !hangar || tripKeys.shedCompile !== undefined) return;
     if (typeof BOOT.settled === 'function' && !BOOT.settled(['props', 'crew', 'crewBuild'])) return;
-    shedEnvKey();
-    new Promise(res => setTimeout(res, 0)).then(() => compileSliced(hangarScene, ensureEnvRT()))
+    // Warm the PMREM before shedEnvKey draws its black placeholder, too.
+    new Promise(res => setTimeout(res, 0)).then(() => pmremWarmBake()).then(() => { shedEnvKey(); })
+      .then(() => compileSliced(hangarScene, ensureEnvRT(), null, false, probeCompileDress))
       .then(() => compileSliced(hangarScene, aa && aa.target ? aa.target() : null))
       .then(() => compileDepthVariants(hangarScene, true))
       .then(() => compileXrayVariants())
@@ -19634,8 +19653,8 @@
   // there is no room to compile (the bench, the cloud's SwiftShader, before the hangar): the layer shows them at once.
   if (typeof window !== 'undefined') window.GARAGE_LIGHTS_PREP = dress => {
     if (typeof renderer.compileAsync !== 'function' || !hangar || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn) return null;
-    shedEnvKey();
-    return compileSliced(hangarScene, ensureEnvRT(), null, false, dress)
+    return pmremWarmBake().then(() => { shedEnvKey(); })
+      .then(() => compileSliced(hangarScene, ensureEnvRT(), null, false, dress))
       .then(() => compileSliced(hangarScene, aa && aa.target ? aa.target() : null, null, false, dress))
       .then(() => compileDepthVariants(hangarScene, true, dress))
       .catch(e => console.warn('garage lights prep:', e && e.message));
@@ -19649,16 +19668,21 @@
     // and then baked would compile every material a second time on the
     // first frame. A PMREM of the still-black probe target is that map with
     // zero radiance: same key, same look, and the real bake replaces it.
-    shedEnvKey();
-    const pass = target => compilePass(hangarScene, target);
+    // shedEnvKey renders a PMREM: its own programs must be ready BEFORE that draw.
+    const pass = target => compileSliced(hangarScene, target);
     // ...once the room is complete: a prop or the crew landing AFTER the
     // compile would compile its materials on their first draw, synchronously.
     // Wait (8 s at most) for the bytes that add materials to the scene.
     const settled = () => (typeof BOOT.settled !== 'function') || BOOT.settled(['props', 'crew', 'crewBuild']);
     const t0 = performance.now();
     const whenComplete = () => new Promise(res => { const poll = () => { if (settled() || performance.now() - t0 > 8000) res(); else setTimeout(poll, 50); }; poll(); });
-    return whenComplete().then(() => shaderProgress(pass(ensureEnvRT()).then(() => pmremWarmBake()).then(() => { done(); return pass(aa && aa.target ? aa.target() : null); })
-      .then(() => compileDepthVariants(hangarScene)), 'garage'))   // G680: its shadow pass and the full-screen passes too
+    return whenComplete().then(() => shaderProgress(pmremWarmBake().then(() => { shedEnvKey(); })
+      .then(() => compileSliced(hangarScene, ensureEnvRT(), null, false, probeCompileDress))
+      // The cube bake renders shadow maps as well as room materials. Link their
+      // depth/distance programs in the existing lit-scene state before that draw.
+      .then(() => compileDepthVariants(hangarScene, true, probeCompileDress))
+      .then(() => { done(); return pass(aa && aa.target ? aa.target() : null); })
+      .then(() => compileDepthVariants(hangarScene, true)), 'garage'))   // G680: its shadow pass and the full-screen passes too
       .then(() => (typeof renderer.initTexture === 'function') ? uploadSliced(hangarScene, 'compile', 'uploading the textures') : null)   // G999: not in the first frame
       .then(() => { tripKeys.shedCompile = gfxKey(); })   // B9: the graphics the shed was compiled for (the Fly press re-checks)
       .catch(e => { console.warn('boot compile:', e && e.message); done(); });
