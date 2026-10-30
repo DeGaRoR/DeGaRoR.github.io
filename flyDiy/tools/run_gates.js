@@ -43,6 +43,7 @@ const path = require('path');
 // (The hand-written fleet's own gates — WIND, M3, DRONE, DC3, JODEL, C172,
 // CHINOOK, PA18, C172M, MODEL, CTRL, XCTY/2/3/4/5 — went with the fiches.)
 const GATES = [
+  { id: 'COVERIDLE', file: '_coveridle_check.js', tier: 'core' },
   { id: 'NIGHTVISIBILITY', file: '_nightvisibility_check.js', tier: 'core' },
   { id: 'NIGHTEXPOSURE', file: '_nightexposure_check.js', tier: 'core' },
   { id: 'INTROSCENE', file: '_introscene_check.js', tier: 'core' },

@@ -103026,3 +103026,11 @@ The existing DAY_CLOCK.jump now invalidates the current light ease before publis
 ### Probe cut follows the clock cut
 
 The actual one-second picture still showed a white landscape with already-correct key/hemi/exposure. ATMO's existing probe deliberately crossfaded a bright daytime cube into night radiance for about2s. Reuse its existing bake(day,true) path for both world and cabin probes on discrete DAY_CLOCK cuts; consume that flag once. Ordinary time/cloud drift keeps the original fades. This changes no quality, probe resolution or shader definitions. NIGHTVISIBILITY executes the real two-probe caller block and checks one cut per probe, flag consumption and ordinary maybe/fade behavior.
+
+## PERF COVERIDLE: measure a fully settled stand — 30 October2026
+
+Two new FRAMECOST stand/bytes.bufferData rows(1812bytes) were traced in the actual measured window to cover_ring.buildBlock called by render_world.grassField.update. The old idle predicate inspected TREE_FILL.cover only and ignored the separate TREE_FILL.grass producer and tier upgrades. Wait for both existing rings under the original bounded warm-up, with no ALLOW/baseline/tolerance change. COVERIDLE covers each pending state independently on both producers, plus absent optional features. Compare exact master and candidate with the same corrected fixture. This is tools-only measurement accuracy, not a game/FPS/loading optimization.
+
+### Bounded asynchronous-setup settling
+
+Waiting for the grass ring exposed delayed cloud coverage calibration: skyFractionAsync allocates its transform-feedback buffers once per fit step. Require30 consecutive buffer-upload-quiet frames after both rings idle, still under the original120-frame cap. A permanent allocator reaches that same cap and remains in the measured window; no row/tolerance/budget is waived. COVERIDLE executes the real helper with delayed transient setup and a permanent1812byte/frame counterexample. Master/candidate use the identical helper; rerun FRAMECOST on both.

@@ -468,6 +468,24 @@ const ALLOW = [
 ];
 
 // ---- the census: one build, the page in node ---------------------------------------------------------------
+function ringsIdle(fill) {
+  for (const key of ['cover', 'grass']) {
+    const ring = fill && typeof fill[key] === 'function' ? fill[key]() : null;
+    const s = ring && ring.stat ? ring.stat() : null;
+    if (s && (s.queued > 0 || s.dirty > 0 || s.building || s.tierUp > 0)) return false;
+  }
+  return true;
+}
+async function settleUploads(frames, idle, uploaded, cap = 120, quietFrames = 30) {
+  let more = 0, quiet = 0, previous = uploaded();
+  while (more < cap && quiet < quietFrames) {
+    await frames(1); more++;
+    const current = uploaded();
+    quiet = idle() && current === previous ? quiet + 1 : 0;
+    previous = current;
+  }
+  return more; // A permanent allocation still reaches the original cap and is measured/reported, never exempted.
+}
 async function census(build) {
   const { openPage } = require('./_page_node.js');
   const C = bootMark.C = { who: null, obr: 0, oar: 0, obs: 0, mobr: 0, umw: 0, um: 0, frustum: 0, terrainH: 0, grHeight: 0, renders: 0, hb0: 0, hb1: 0, ht0: 0, ht1: 0, hms0: 0, hms1: 0, pick: null };
@@ -519,8 +537,7 @@ async function census(build) {
   // for many frames: at WARM 6 the counts measured where that transient happened to stand - the taxi's gl.bufferData 15 on
   // master, 30.5 with the reveal's eye placed right (G1119), 0 / 0 at WARM 60 (four Cub censuses, parkcook=0). So after its
   // WARM frames a view warms on until the ring's queue is empty and no block is left to rebuild, 120 frames at most
-  const ringIdle = () => { try { const r = W.TREE_FILL && W.TREE_FILL.cover && W.TREE_FILL.cover(); const s = r && r.stat ? r.stat() : null;
-    return !s || (!(s.queued > 0) && !(s.dirty > 0) && !s.building); } catch (e) { return true; } };
+  const ringIdle = () => ringsIdle(W.TREE_FILL);
   // FRAMECOST_SETTLE=<max frames> (off by default: the gate's own counts are unchanged): LIKE WITH LIKE. The census runs on
   // a virtual clock, so a tree whose boot does more (a warm draw, a compile) reaches the view with the world's streaming
   // elsewhere - the houses and props drawn at the counted frame differ (C4b's cockpit census: houses 4 vs 2, props 9 vs 8,
@@ -542,8 +559,8 @@ async function census(build) {
   };
   let viewTag = 'stand';
   const measure = async (warm, frames) => { rows = null; FP.camSettle(); await settle(viewTag); await P.frames(warm === undefined ? WARM : warm);
-    let more = 0; while (more < 120 && !ringIdle()) { await P.frames(1); more++; }
-    if (more) console.error('  (framecost: ' + more + ' more warm frame' + (more > 1 ? 's' : '') + ' for the cover ring to go idle)');
+    const more = await settleUploads(n => P.frames(n), ringIdle, () => P.rec.bytes.bufferData || 0);
+    if (more) console.error('  (framecost: ' + more + ' more warm frame' + (more > 1 ? 's' : '') + ' for both cover rings to go idle)');
     rows = []; await P.frames(frames || FRAMES); const r = median(rows); rows = null; for (const k of Object.keys(r)) if (/^house\.ms/.test(k)) delete r[k]; return r; };
   const views = {};
   C.phase = () => P.rec.phase;
@@ -1325,4 +1342,4 @@ async function main() {
   console.log('GATE FRAMECOST: ' + (fails ? 'FAIL (' + fails + ')' : 'PASS'));
   process.exit(fails ? 1 : 0);
 }
-if (require.main !== module) module.exports = { census, compare, diff, mean, median, pageHooks, bootMark, NAMES }; else main().catch(e => { console.log('  FAIL ' + (e && e.stack || e)); console.log('GATE FRAMECOST: FAIL'); process.exit(1); });
+if (require.main !== module) module.exports = { ringsIdle, settleUploads, census, compare, diff, mean, median, pageHooks, bootMark, NAMES }; else main().catch(e => { console.log('  FAIL ' + (e && e.stack || e)); console.log('GATE FRAMECOST: FAIL'); process.exit(1); });

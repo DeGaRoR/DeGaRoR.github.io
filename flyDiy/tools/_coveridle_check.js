@@ -1,0 +1,6 @@
+'use strict';
+const assert=require('assert'),{ringsIdle,settleUploads}=require('./_framecost_check.js');
+const cover={queued:0,dirty:0,building:null,tierUp:0},grass={...cover},fill={cover:()=>({stat:()=>cover}),grass:()=>({stat:()=>grass})};
+assert(ringsIdle(fill));for(const field of ['queued','dirty','building','tierUp']){grass[field]=field==='building'?'cell':1;assert(!ringsIdle(fill),'grass '+field+' blocks a steady-state sample');grass[field]=cover[field];cover[field]=field==='building'?'cell':1;assert(!ringsIdle(fill),'cover '+field+' blocks a steady-state sample');cover[field]=field==='building'?null:0;}
+assert(ringsIdle(fill));assert(ringsIdle(null));assert(ringsIdle({cover:fill.cover}),'no grass feature remains supported');
+(async()=>{let frame=0,bytes=0;const n=await settleUploads(async()=>{frame++;if([3,15,35].includes(frame))bytes+=65536;},()=>frame>=30,()=>bytes);assert.strictEqual(n,65,'delayed one-time cloud setup finishes before sampling');frame=0;bytes=0;const capped=await settleUploads(async()=>{frame++;bytes+=1812;},()=>true,()=>bytes);assert.strictEqual(capped,120,'permanent churn reaches the unchanged cap and is still measured');assert.strictEqual(bytes,1812*120);console.log('GATE COVERIDLE: PASS');})().catch(e=>{console.error(e);process.exitCode=1;});
