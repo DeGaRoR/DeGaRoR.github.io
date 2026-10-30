@@ -102819,3 +102819,8 @@ assets-grove (the crane's GROVE marks painted out, 11/13 + master's GEO/MEDIA), 
 doors shut; bought = the same shed; 9/9, FRAMECOST = master's 15 rows).
 Battery: PARKED row 13 = master's own (identical rows to L28b). Train gate vs L28b: the same accepted costs (perf-week L0: garage ~95-130 s,
 compile 25-51 s), no new row; fps and worst tasks within L28b's spread. Everything else waits for R1: flydiy-notes/RESTART-PLAN.md.
+
+### introstate — Codex, 30 Oct 2026
+
+fix: let the drawn intro world own the shared atmosphere
+A career intro draws the world while inGarage remains true. Skip the room atmosphere/exposure/probe update while that opening is active, then restore room mist before refreshing its tables and the saved exposure on swap. Removes duplicate/shared LUT ownership; no atmosphere algorithm, lighting schedule, render quality or camera path change. Reuses the prior introperf app-only finding and excludes its obsolete raw-bounds patch(superseded by worldeven). INTROSTATE verifies active/inactive gates, room update order and mist-before-table restoration; matching STORY fixture checks one restore on play/skip. Source units pass. Cold A/B/A and grouped AA/STORY/CLOUD/ATMO/SHADOWSKY/GFX/UISMOKE checks running. Working only, no ready or performance gain claimed yet.
