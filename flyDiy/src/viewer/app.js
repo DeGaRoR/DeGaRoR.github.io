@@ -13397,6 +13397,30 @@
   function cloudsWarm() {
     try { if (typeof CLOUDS !== 'undefined' && CLOUDS.warmDraw) window.FLYDIY_CLOUD_WARM = CLOUDS.warmDraw(renderer); } catch (e) { console.warn('clouds warm draw:', e && e.message); }
   }
+  // First use of these off-camera world variants still links lazily in ANGLE after
+  // compileSliced reports ready. Draw one smallest representative per program/layout
+  // under first light, including hidden LODs; leave live materials and visibility alone.
+  function worldViewWarmDraw() {
+    if (!WF || !renderer.properties || typeof renderer.compileAsync !== 'function') return Promise.resolve(0);
+    const reps = new Map();
+    scene.traverse(o => {
+      if (!o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
+      const g = o.geometry, kind = (o.isInstancedMesh ? 'I' : '') + (o.isSkinnedMesh ? 'S' : '') + (o.isBatchedMesh ? 'B' : '');
+      const layout = Object.keys(g.attributes).map(k => { const a = g.attributes[k]; return k + ':' + a.itemSize + ':' + !!a.normalized + ':' + (a.gpuType || ''); }).join(',');
+      for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
+        if (!m || m.visible === false) continue;
+        const d = m.userData || {};
+        if (!d.uLawn && !d.hangarShell && !(o.userData && o.userData.coarseFill)) continue;
+        const pp = renderer.properties.get(m), pr = pp && pp.currentProgram;
+        const key = (pr ? pr.cacheKey : m.uuid) + '|' + kind + '|' + layout;
+        const prev = reps.get(key);
+        if (!prev || g.attributes.position.count < prev.geometry.attributes.position.count) reps.set(key, o);
+      }
+    });
+    const only = [...new Set(reps.values())];
+    return warmDrawSliced(scene, aa && aa.target ? aa.target() : null, 'world views', only, null, { perKey: true, groupMax: 1 })
+      .then(drawn => { window.FLYDIY_VIEW_WARM = { objects: only.length, drawn }; return drawn; });
+  }
   function worldWarmDraw() {
     const a = standAnchor(); if (!a || !WF) return;
     const cam = camera.clone(), D = (def && def.params && def.params.viewDist) || 12;
@@ -13781,13 +13805,14 @@
             .catch(e => console.warn('settings catch-up compile:', e && e.message)), 'world', 60000))
           .then(() => programsReady(20000))
           .then(() => warmDrawSliced(sc, aa && aa.target ? aa.target() : null, 'first light'))
+          .then(() => garage ? null : worldViewWarmDraw())
           .catch(e => console.warn('settings warm draw:', e && e.message))
           .then(() => { cloudsWarm(); holdRender = false; return framesRendered(2); }) },   // G732 (G1998e: the clouds' march, a cloud row may have rebuilt it)
     ];
     BOOT.show('settings', { steps, set: 'settings', shots: garage ? 'garage' : 'rollout', require: [], landingLabel: 'the new settings',
       done: () => { holdRender = false; if (held && !inGarage) running = true; if (garage) setTimeout(worldPrelinkGfx, 0); }, idle: 20000, hard: 90000, quietFrames: 1 });   // (REVEAL: the world's link starts in the shed)
   }
-  if (typeof window !== 'undefined') window.FLYDIY_SETTLE = settleScreen;
+  if (typeof window !== 'undefined') { window.FLYDIY_SETTLE = settleScreen; window.FLYDIY_SETTLE.warmViews = worldViewWarmDraw; }
   // every texture a material of the scene holds (its uniforms' too), the environment and the background, sent to the
   // GPU ~30 ms a task (initTexture) - the roll-out's 'upload' step, and since G999 the garage boot's compile step too
   // (its first frame spent ~0.3 s in texSubImage2D)
@@ -19464,7 +19489,8 @@
       s.matrixAutoUpdate = false; s.matrixWorldAutoUpdate = false; s.matrixWorldNeedsUpdate = false;
       return s;
     };
-    let i = 0, drawn = 0, G = 8;
+    const GMAX = wopt && wopt.groupMax ? Math.max(1, Math.min(64, wopt.groupMax | 0)) : 64;
+    let i = 0, drawn = 0, G = Math.min(8, GMAX);
     return new Promise(res => {
       const tick = () => D(() => {   // (each slice inside the dress)
         const t0 = performance.now();
@@ -19485,7 +19511,7 @@
             catch (e) { console.warn('warm draw:', e && e.message); }
             finally { for (const [g, r] of narrowed) { g.drawRange.start = r[0]; g.drawRange.count = r[1]; } grp.clear(); }
             const dt = performance.now() - t1;
-            G = Math.max(1, Math.min(64, Math.round(G * (dt > 1 ? 20 / dt : 2))));
+            G = Math.max(1, Math.min(GMAX, Math.round(G * (dt > 1 ? 20 / dt : 2))));
           }
         } finally {
           sc.remove(grp);
@@ -19703,7 +19729,7 @@
   // streams round the eye (worldUpdate reads the camera under DEVCAM), so this is the game's own renderer, the
   // game's own world and its own GRAPHICS tier - the bench is the game. `S` (or the rail's button) leaves it.
   const SCENERY_Q = (() => { try { return /[?&]scenery(=1|=on|&|$)/.test(location.search); } catch (e) { return false; } })();
-  const SCENERY = { on: false, lightSignature: null,
+  const SCENERY = { on: false,
     enter() {
       if (SCENERY.on) return;
       const go = () => {
@@ -19711,13 +19737,6 @@
         // a fresh profile's aeroplane chooser (design_flow.js) has nothing to say to the scenery
         for (const x of document.querySelectorAll('.dfClose')) { try { x.click(); } catch (e) {} }
         if (craft && craft.parent) craft.parent.remove(craft);
-        // Removing the aircraft must not re-key every world material after the loader.
-        // Keep its non-shadowing light counts, with zero emitted light (the same
-        // signature used by craftLightsGuess), until the aircraft comes back.
-        const sig = (craftLightSig() || '0,0').split(',').map(Number), g = new THREE.Group();
-        for (let i = 0; i < (sig[0] || 0); i++) g.add(new THREE.PointLight(0xffffff, 0, 2, 1.6));
-        for (let i = 0; i < (sig[1] || 0); i++) { const L = new THREE.SpotLight(0xffffff, 0, 120, 0.42, 0.5, 1.2); g.add(L); g.add(L.target); }
-        if (g.children.length) { g.name = 'sceneryCraftLightSignature'; SCENERY.lightSignature = g; scene.add(g); }
         document.body.classList.add('sceneryMode');
         flCamMode('free');
         const cg = sim.cgPos();
@@ -19725,13 +19744,14 @@
         if (window.WORLD_RAIL) window.WORLD_RAIL.open();
         else if (window.FLYDIY_LAZY) window.FLYDIY_LAZY('world_rail').then(() => { if (window.WORLD_RAIL && SCENERY.on) window.WORLD_RAIL.open(); });   // G909: on demand
         flRailSync(); if (flyOpen) flyOpenSet(flyOpen);   // G760: DEV shows itself (its way out), the open flyout says so
+        // The aircraft's lights left too: compile and first-draw the exact scenery variants under the existing screen.
+        settleScreen('scenery');
       };
       if (inGarage) rollOut(go); else go();
     },
     leave() {
       if (!SCENERY.on) return;
       SCENERY.on = false; running = true;
-      if (SCENERY.lightSignature) { scene.remove(SCENERY.lightSignature); SCENERY.lightSignature = null; }
       if (craft && !craft.parent) scene.add(craft);
       document.body.classList.remove('sceneryMode');
       flCamMode('chase');
