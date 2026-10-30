@@ -18373,6 +18373,10 @@
       }
       P.steps = n;
       P.lastPhys = 0;
+      // Nearly matching display/cap clocks must not drift into short/long pairs.
+      // Align that cadence within 0.3% (at most 0.1 ms); real dt and solver debt
+      // above stay unchanged. Non-matching refresh rates keep the old deadline.
+      if (iv && Math.abs(P.dt * 1000 - iv) < Math.min(0.1, iv * 0.003)) P.due = ts + iv;
       // A FREEZE IS KEPT (G620): the readout's history holds every rendered interval, a stall of 250 ms or more
       // FLAGGED (frz) rather than dropped - a freeze is what the readout is for. Auto's readings still skip it (a
       // stall is not a frame rate; G615: nor is a hitch), and a gap the page spent hidden (a tab away) is neither a frame nor a freeze.
