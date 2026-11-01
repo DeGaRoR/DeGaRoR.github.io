@@ -102981,3 +102981,18 @@ Source-only tree integrated onto exact L28c62d23a05b. Clean combined source norm
 Independent on L28c; groundquery and plotquery share27_premises.js but change distinct lookup paths(their combined exact-source integration was tested). Scenerylights sharesapp.js with other topics; use normal source merge and rebuild, never a whole-file replacement from another ready. A0 owns landing. Shared checkout/index untouched. Evidence: mergeprep-20261030/source-inventory.json, combined-runtime-results.json, merge-gate-row-comparison.json and ready-scenerylights-unit.log.
 
 PERF-1 integration: scenery gate/file renamed SCENERYLIGHTS/_scenerylights_check.js; run_gates.js LF only. Nine fresh PERF commits on62d23a05b; old ready histories are represented by these canonical commits rather than merged wholesale. Prior full-stack observations (includes wave-2 shaderwarm/nightwarm; remeasure for this integration): existing MEDIA gzip4.65->4.66MiB; Cub compile links47->37 and Cessna47->41, seed80->81links/1460->1479GLcalls. No page-size optimization, allowance or budget change. Wind AA edge crops require user review before landing. Combined cold3-per-side and affected-gate results are mandatory; see reports/PERF-1-READY.md. A0 owns merging.
+
+## TRAIN L29b (A0, Sun 1 Nov) - Codex perf wave 1 (claude/ready/a-perf-int 6dce81a11)
+
+Landed: COOKWAIT, FLIGHTEVIDENCE, WINDRASTER, RECSCENE, WORLDEVEN, GROUNDQUERY, PLOTQUERY, FRAMEPACE, SCENERYLIGHTS.
+Held: claude/ready/b-perf-int (wave 2). The quiet A/B and bisect (flydiy-notes/L29a-AB-20261101.md) put a 3x rise in roll-out freezes on NIGHTWARM/PACKINPUTS.
+Lead suspect: NIGHTWARM's fixed 8-lamp count (render_premises.js LAMPS.fixedCount). Every lit program compiles with 8 point lights.
+
+Timing vs master (same day, same harness), the worst long task per roll-out, summed over the 6 roll-outs:
+master 17.0 s, a-perf-int 14.8 s (bisect) and 15.0 s (this train). Garage ready 84-97 s (master 85-110 s).
+The stored light reference (ee466b792, 12 Oct) is stale: master itself is RED on 49 rows against it.
+
+Named reds, none a break:
+- PARKED: master's standing red (row 13).
+- PAVEMENT: failed in the parallel battery, PASS alone (13 s) on the same tree.
+- floats garage -> world (SEA lane) 14.9 s: 0.0 s on the same code in the bisect run, so variance.
