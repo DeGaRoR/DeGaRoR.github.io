@@ -142,7 +142,8 @@ for (const [tag, [key0, cons]] of Object.entries(STOCK)) {
 // the copy kept the old paint. aeroPlaneRepaint (a PAGE.repaint hook) hands it the copy of the replacement.
 {
   class FM { constructor(id) { this.id = id; this.userData = {}; }
-             clone() { const c = new FM(this.id + "'"); c.userData = Object.assign({}, this.userData); return c; } }
+             clone() { const c = new FM(this.id + "'"); c.userData = Object.assign({}, this.userData); return c; }
+             copy(s) { this.id = s.id + "'"; return this; } }     // G3872: aeroDupe copies the way three does (new + copy)
   const old = new FM('wing'), nu = new FM('wing-new'), other = new FM('cowl');
   const copy = A.aeroPlaneClone(old, 2);
   ok(copy !== old && copy.userData.aeroPlane === 2 && !old.userData.aeroPlane,
