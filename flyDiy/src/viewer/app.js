@@ -9843,7 +9843,7 @@
     H.open({ from: 'story' });
   }
   // (a hire answers at once: Tim moves on without waiting for the next tick)
-  if (STORY_PAGE && typeof window !== 'undefined') window.addEventListener('flydiy:hired', () => { try { storyCardSync(); } catch (e) {} });
+  if (STORY_PAGE && typeof window !== 'undefined' && typeof window.addEventListener === 'function') window.addEventListener('flydiy:hired', () => { try { storyCardSync(); } catch (e) {} });
   // the lock (and the light): L { allow, deny, free } or null
   function storyTutorLock(L) {
     let on = !!L;
