@@ -50,7 +50,6 @@ const GATES = [
   { id: 'INTROSTATE', file: '_introstate_check.js', tier: 'core' },
   { id: 'PACKINPUTS', file: '_packinputs_check.js', tier: 'core' },
   { id: 'HULLWARM', file: '_hullwarm_check.js', tier: 'core' },
-  { id: 'NIGHTWARM', file: '_nightwarm_check.js', tier: 'core' },
   { id: 'COOKWAIT', file: '_cookwait_check.js', tier: 'core' },   // CDP deadlines are cancelled after settled cook requests
   { id: 'FLIGHTEVIDENCE', file: '_flightevidence_check.js', tier: 'core' },
   { id: 'WINDRASTER', file: '_windraster_check.js', tier: 'core' },

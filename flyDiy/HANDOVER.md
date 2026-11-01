@@ -103038,3 +103038,13 @@ Waiting for the grass ring exposed delayed cloud coverage calibration: skyFracti
 ## PERF wave2 ready handoff — 30 October2026
 
 Owner selected the first/darker night preview: world nightVisibility0.8. All performance/lighting/topic changes are integrated on ready/a-perf-int. See reports/PERF-WAVE2-READY.md for exact scope, matched fixture checks, visible lighting changes, raw standing costs and measurement limits. New busy-machine captures are functional/visual only. Ready/b-perf-int is the sole wave2 delivery ref; historical topic refs are not separate landing requests. No generated files, LF only, no master merge.
+
+## A0 1 Nov: PERF WAVE 2 lands WITHOUT NIGHTWARM's fixed lamp count
+
+The quiet A/B and bisect (flydiy-notes/L29a-AB-20261101.md) traced a 3x rise in roll-out freezes, and a doubled compile, to NIGHTWARM acd8be969.
+Its fixed lamp count keeps all 8 premises point lights visible from boot, so every lit program in the world compiles with 8 point lights.
+render_premises.js is back to its pre-NIGHTWARM pool: 8 lamps visible only when armed, the background prep at dusk (G1340).
+With fixedCount gone, craftHullWarm is a no-op, and the NIGHTWARM gate (it asserted the fixed count) is dropped.
+Everything else in b-perf-int stays: PACKINPUTS, INTROSTATE, INTROCLOUDS, SHADERWARM, NIGHTLIGHT, NIGHTVISIBILITY 0.8, COVERIDLE.
+Timing, the summed worst task over 6 roll-outs: master 17.0 s, wave 1 15.0 s, b-perf-int as sent 45-69 s, this tree 11.4 s. Compile 23-35 s, garage 81-99 s.
+Open (Codex): the dusk switch is back to the G1340 prep path, so a stall at the first lit draw after dusk may return. Rework it without a by-day 8-light cost.
