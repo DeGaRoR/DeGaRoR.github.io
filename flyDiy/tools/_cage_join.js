@@ -672,6 +672,9 @@ function cageJoinSpec(P, M, T) {
   // the panel arc, session 2: the fit, the same way (a null inside it is
   // 'the tier's answer' and must survive — garage.js's merge keeps nulls)
   if (M.systems !== undefined) spec.systems = M.systems;
+  // G2809: THE FURNISHING AS DRAWN (the Furnishing layer's answer: the seats' kind off the drawn seat, the drawn
+  // dash, trim and floor areas, the control stations) - it bills what the cabin shows
+  if (M.outfit !== undefined) spec.outfit = M.outfit;
   return spec;
 }
 
@@ -1806,6 +1809,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       try { M.systems = window.CAGE_PANEL.toSpec(); }
       catch (e) { ERRS.push('the instruments could not be written to the build: '
                             + e.message); }
+    // ...AND THE FURNISHING (G2806), the Furnishing column's answer: the seats' kind and the trim (the trim only
+    // when one was chosen - an unset row writes no key, so a save that never opened it keeps its bytes)
+    if (window.CAGE_FURNISH && window.CAGE_FURNISH.toSpec)
+      try { const o = window.CAGE_FURNISH.toSpec(); if (o) M.outfit = o; }
+      catch (e) { ERRS.push('the furnishing could not be written to the build: '
+                            + e.message); }
     // G134: the drawn engine, resolved — null when the dials still ARE the
     // applied preset, so the registry row keeps flying under its own name.
     // A throw here is a real report, same rule as the shape and the finish.
@@ -2851,6 +2860,7 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             out2.ctl.perSI = c.per / S.k;              // one turn per this much SI
           }
           if (c.steps) out2.ctl.steps = c.steps;
+          if (c.padR) out2.ctl.padR = c.padR;          // G2802: a small part's own pick pad (a breaker at a 16 mm pitch)
         }
         if (A.ax2) Object.assign(out2.ctl,
           { ax2: dirA(A.ax2), drive2: c.drive2, sgn2: c.sgn2, k2: c.k2 || 1 });
@@ -2955,6 +2965,8 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           if (!f) unfit.push(k);
         }
         if (unfit.length) lights.unfit = unfit;
+        // G2808 (W7): the beacon's rate, which the flight flashed at a fixed 45 rpm (written only off the default)
+        if (Pl.li_beaconRpm != null && +Pl.li_beaconRpm !== 45) lights.beaconRpm = +Pl.li_beaconRpm;
       }
     } catch (e) {}
     // G266.1: THE DRAWN TAIL, in the frame every baked vertex is in

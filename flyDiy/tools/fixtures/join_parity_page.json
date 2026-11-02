@@ -1,16 +1,16 @@
 {
  "what": "join-parity-page",
- "at": "2026-10-27T02:42:21.000Z",
+ "at": "2026-10-28T12:15:07.524Z",
  "door": "load (GARAGE_SPEC.set)",
- "chainSig": "24292a1070c04c38b1894b0c3d44e1c2e93be31a",
+ "chainSig": "86084ae43ca0971e5ac2e577aefb675743f39229",
  "builds": {
   "jodel": {
    "file": "builds/jodel_2026-09-20_corrected.json",
    "page": {
     "n": 115,
     "nb": 502,
-    "mass": 464.1828041916167,
-    "build": "16321fe72a49"
+    "mass": 477.1804400589298,
+    "build": "c91f843a3910"
    },
    "spec": {
     "cage": {
@@ -307,8 +307,9 @@
      "dashDepth": 0.14,
      "dashCrease": 3,
      "dashCrown": 0.05,
-     "dashStyle": 0,
+     "dashStyle": 1,
      "dashLegs": 1,
+     "dashV": 1,
      "shoulderOn": 1,
      "shoulderW": 0.07,
      "shoulderH": 0.135,
@@ -334,6 +335,10 @@
      "hgDetail": 1,
      "hgDoor": 1,
      "hgDoorEdge": 0,
+     "hgDrOff": 0,
+     "hgDrTilt": 0,
+     "hgDrSlide": 0,
+     "hgDrInset": 0,
      "hgFinish": 0,
      "lightOn": 1,
      "lightSw": 1,
@@ -694,6 +699,7 @@
      "propOn": 1,
      "engMount": 0,
      "engNacAt": 0.35,
+     "engNacAt2": 0.62,
      "engPylonH": 0.3,
      "engBlockZ": 0,
      "engBlockY": 0,
@@ -1052,7 +1058,9 @@
      "cw_stubKeelH": 0.83,
      "cw_stubSqTop": 0.53,
      "cw_stubSqBot": 0.35,
-     "s2_twHornY": 0.11
+     "s2_twHornY": 0.11,
+     "dashWas": 0,
+     "dashLegsWas": 1
     },
     "v": 10,
     "meta": {
@@ -1159,6 +1167,16 @@
      "look": {
       "bezel": "plastic",
       "sw": "toggle"
+     },
+     "lights": {
+      "nav": 3,
+      "beacon": 1,
+      "taxi": 1,
+      "land": 1,
+      "flood": 1,
+      "pedal": 1,
+      "pax": 1,
+      "instr": 1
      }
     },
     "controls": {
@@ -1480,7 +1498,7 @@
       "regC": 0.3,
       "regCol": 8134444,
       "regOutOn": 0,
-      "regW": 1.6207056561638329,
+      "regW": 1.5743994140625002,
       "imgW": 0.15,
       "imgH": 0.15,
       "wimL": 0.65,
@@ -1528,7 +1546,19 @@
      ]
     },
     "outfit": {
-     "seats": "sling"
+     "seats": "sling",
+     "drawn": {
+      "board": 0.1623,
+      "dash": 0.266,
+      "shoulder": 0.5164,
+      "door": 0,
+      "floor": 0.7505,
+      "console": 0
+     },
+     "ctl": {
+      "stations": 2,
+      "kind": "stick"
+     }
     }
    }
   },
@@ -1537,8 +1567,8 @@
    "page": {
     "n": 97,
     "nb": 404,
-    "mass": 461.6597235065414,
-    "build": "e4f091c75146"
+    "mass": 465.7582109478276,
+    "build": "c91f843a3910"
    },
    "spec": {
     "cage": {
@@ -1835,8 +1865,9 @@
      "dashDepth": 0.39,
      "dashCrease": 1.5,
      "dashCrown": 0,
-     "dashStyle": 0,
+     "dashStyle": 1,
      "dashLegs": 1,
+     "dashV": 1,
      "shoulderOn": 1,
      "shoulderW": 0.07,
      "shoulderH": 0.135,
@@ -1862,6 +1893,10 @@
      "hgDetail": 1,
      "hgDoor": 1,
      "hgDoorEdge": 0,
+     "hgDrOff": 0,
+     "hgDrTilt": 0,
+     "hgDrSlide": 0,
+     "hgDrInset": 0,
      "hgFinish": 0,
      "lightOn": 1,
      "lightSw": 1,
@@ -2222,6 +2257,7 @@
      "propOn": 1,
      "engMount": 0,
      "engNacAt": 0.35,
+     "engNacAt2": 0.62,
      "engPylonH": 0.3,
      "engBlockZ": 0,
      "engBlockY": 0,
@@ -2462,13 +2498,16 @@
      "pedalH": 0.17,
      "pedalSpread": 0.1,
      "pedalAngle": 47,
-     "pilOn": 1,
-     "pilElbows": 0.01,
-     "pilKnees": 0,
-     "pilRecline": 0,
-     "cabWho": 0,
-     "pilFist": 0.5,
-     "pilIdle": 0.5,
+     "dumOn": 1,
+     "dumSize": 1,
+     "dumElbows": 0.01,
+     "dumKnees": 0,
+     "dumRecline": 0,
+     "dumMarkers": 1,
+     "pilotWho": 0,
+     "copWho": 0,
+     "dumFist": 0.5,
+     "dumIdle": 0.5,
      "swMaster": 0,
      "swAlt": 0,
      "swAvionics": 0,
@@ -2477,12 +2516,12 @@
      "paxFeetY": 0,
      "paxFeetX": 0.14,
      "paxIdle": 1,
-     "pilHandGrip": 0.075,
-     "pilHandsApart": 0,
-     "pilFistL": 0.5,
-     "pilFistR": 0.5,
-     "pilGripL": 0.075,
-     "pilGripR": 0.075,
+     "dumHandGrip": 0.075,
+     "dumHandsApart": 0,
+     "dumFistL": 0.5,
+     "dumFistR": 0.5,
+     "dumGripL": 0.075,
+     "dumGripR": 0.075,
      "cabOcc": 0,
      "paxOcc1": 0,
      "paxOcc2": 0,
@@ -2492,6 +2531,7 @@
      "flapX": 0,
      "flapZ": 0,
      "paxSeatZ": 0,
+     "paxSize": 1,
      "paxRecline": 0,
      "fltPreset": 15,
      "fltDetail": 1,
@@ -2568,12 +2608,6 @@
      "acc_grabHandle_lv": 0,
      "acc_tieDownTail_sL": 0,
      "acc_tieDownTail_lv": 0,
-     "fpLegacy": {
-      "pilotWho": 0,
-      "dumSize": 1,
-      "paxSize": 1,
-      "dumMarkers": 1
-     },
      "fltBow": 0.36,
      "fltBowB": 0.15,
      "fltSide": 0.22,
@@ -2581,7 +2615,9 @@
      "cw_stubWaist": -0.07,
      "cw_stubKeelH": 0.83,
      "cw_stubSqTop": 0.53,
-     "cw_stubSqBot": 0.35
+     "cw_stubSqBot": 0.35,
+     "dashWas": 0,
+     "dashLegsWas": 1
     },
     "meta": {
      "name": "Piper Cub",
@@ -2664,7 +2700,7 @@
      "kg": 0
     },
     "fuel": {
-     "litres": 28,
+     "litres": 27,
      "tank": "nose"
     },
     "systems": {
@@ -2687,6 +2723,16 @@
      "look": {
       "bezel": "plastic",
       "sw": "toggle"
+     },
+     "lights": {
+      "nav": 3,
+      "beacon": 1,
+      "taxi": 1,
+      "land": 1,
+      "flood": 1,
+      "pedal": 1,
+      "pax": 1,
+      "instr": 1
      }
     },
     "controls": {
@@ -2997,7 +3043,7 @@
       "regC": -0.18,
       "regCol": 1315860,
       "regOutOn": 0,
-      "regW": 1.7366071428571428,
+      "regW": 1.600464527027027,
       "imgW": 0.15,
       "imgH": 0.15,
       "wimL": 0.65,
@@ -3031,7 +3077,7 @@
      "vessels": [
       {
        "bay": "nose",
-       "capacity": 28,
+       "capacity": 27,
        "along": -0.11691118935264937,
        "lv": 0.4642857142857143,
        "rot": 0,
@@ -3039,7 +3085,7 @@
        "dims": {
         "L": 0.193,
         "W": 0.522,
-        "H": 0.322
+        "H": 0.311
        },
        "finish": null,
        "hue": null,
@@ -3048,7 +3094,19 @@
      ]
     },
     "outfit": {
-     "seats": "sling"
+     "seats": "sling",
+     "drawn": {
+      "board": 0.1897,
+      "dash": 0.2967,
+      "shoulder": 0.5165,
+      "door": 0,
+      "floor": 1.3662,
+      "console": 0
+     },
+     "ctl": {
+      "stations": 1,
+      "kind": "stick"
+     }
     }
    }
   },
@@ -3057,8 +3115,8 @@
    "page": {
     "n": 107,
     "nb": 452,
-    "mass": 888.7716034943926,
-    "build": "16321fe72a49"
+    "mass": 897.8718910347959,
+    "build": "c91f843a3910"
    },
    "spec": {
     "cage": {
@@ -3355,8 +3413,9 @@
      "dashDepth": 0.35,
      "dashCrease": 3,
      "dashCrown": 0.03,
-     "dashStyle": 0,
+     "dashStyle": 1,
      "dashLegs": 1,
+     "dashV": 1,
      "shoulderOn": 1,
      "shoulderW": 0.07,
      "shoulderH": 0.135,
@@ -3382,6 +3441,10 @@
      "hgDetail": 1,
      "hgDoor": 1,
      "hgDoorEdge": 0,
+     "hgDrOff": 0,
+     "hgDrTilt": 0,
+     "hgDrSlide": 0,
+     "hgDrInset": 0,
      "hgFinish": 0,
      "lightOn": 1,
      "lightSw": 1,
@@ -3742,6 +3805,7 @@
      "propOn": 1,
      "engMount": 0,
      "engNacAt": 0.35,
+     "engNacAt2": 0.62,
      "engPylonH": 0.3,
      "engBlockZ": 0,
      "engBlockY": 0,
@@ -4099,7 +4163,9 @@
      "cw_stubWaist": -0.07,
      "cw_stubKeelH": 0.83,
      "cw_stubSqTop": 0.53,
-     "cw_stubSqBot": 0.35
+     "cw_stubSqBot": 0.35,
+     "dashWas": 0,
+     "dashLegsWas": 1
     },
     "wings": [
      {
@@ -4228,6 +4294,16 @@
      "look": {
       "bezel": "plastic",
       "sw": "toggle"
+     },
+     "lights": {
+      "nav": 3,
+      "beacon": 1,
+      "taxi": 1,
+      "land": 1,
+      "flood": 1,
+      "pedal": 1,
+      "pax": 3,
+      "instr": 1
      }
     },
     "cabin": {
@@ -4410,7 +4486,7 @@
       "regC": -0.27,
       "regCol": 0,
       "regMetal": 1,
-      "regW": 1.5972171683933425,
+      "regW": 1.552224774427817,
       "m1On": 1,
       "m1Pat": 1,
       "m1A": 2902577,
@@ -4460,7 +4536,19 @@
      ]
     },
     "outfit": {
-     "seats": "sling"
+     "seats": "sling",
+     "drawn": {
+      "board": 0.4031,
+      "dash": 0.4344,
+      "shoulder": 0.5111,
+      "door": 2.7134,
+      "floor": 1.845,
+      "console": 0
+     },
+     "ctl": {
+      "stations": 2,
+      "kind": "yoke"
+     }
     },
     "fuselage": {
      "material": "alloy",
@@ -4606,8 +4694,8 @@
    "page": {
     "n": 134,
     "nb": 543,
-    "mass": 952.4492536922977,
-    "build": "e4f091c75146"
+    "mass": 959.4428994306456,
+    "build": "c91f843a3910"
    },
    "spec": {
     "cage": {
@@ -4904,8 +4992,9 @@
      "dashDepth": 0.35,
      "dashCrease": 3,
      "dashCrown": 0.03,
-     "dashStyle": 0,
+     "dashStyle": 1,
      "dashLegs": 1,
+     "dashV": 1,
      "shoulderOn": 1,
      "shoulderW": 0.07,
      "shoulderH": 0.135,
@@ -4931,6 +5020,10 @@
      "hgDetail": 1,
      "hgDoor": 1,
      "hgDoorEdge": 0,
+     "hgDrOff": 0,
+     "hgDrTilt": 0,
+     "hgDrSlide": 0,
+     "hgDrInset": 0,
      "hgFinish": 0,
      "lightOn": 1,
      "lightSw": 1,
@@ -5291,6 +5384,7 @@
      "propOn": 1,
      "engMount": 0,
      "engNacAt": 0.35,
+     "engNacAt2": 0.62,
      "engPylonH": 0.3,
      "engBlockZ": 0,
      "engBlockY": 0,
@@ -5531,13 +5625,16 @@
      "pedalH": 0.18,
      "pedalSpread": 0.1,
      "pedalAngle": 25,
-     "pilOn": 1,
-     "pilElbows": 0.08,
-     "pilKnees": 0,
-     "pilRecline": 0,
-     "cabWho": 4,
-     "pilFist": 0.5,
-     "pilIdle": 0.5,
+     "dumOn": 1,
+     "dumSize": 1,
+     "dumElbows": 0.08,
+     "dumKnees": 0,
+     "dumRecline": 0,
+     "dumMarkers": 1,
+     "pilotWho": 2,
+     "copWho": 5,
+     "dumFist": 0.5,
+     "dumIdle": 0.5,
      "swMaster": 0,
      "swAlt": 0,
      "swAvionics": 0,
@@ -5546,12 +5643,12 @@
      "paxFeetY": 0,
      "paxFeetX": 0.14,
      "paxIdle": 1,
-     "pilHandGrip": 0.075,
-     "pilHandsApart": 0,
-     "pilFistL": 0.5,
-     "pilFistR": 0.5,
-     "pilGripL": 0.075,
-     "pilGripR": 0.075,
+     "dumHandGrip": 0.075,
+     "dumHandsApart": 0,
+     "dumFistL": 0.5,
+     "dumFistR": 0.5,
+     "dumGripL": 0.075,
+     "dumGripR": 0.075,
      "cabOcc": 1,
      "paxOcc1": 0,
      "paxOcc2": 0,
@@ -5561,6 +5658,7 @@
      "flapX": 0,
      "flapZ": 0,
      "paxSeatZ": 0,
+     "paxSize": 1,
      "paxRecline": 0,
      "fltPreset": 15,
      "fltDetail": 1,
@@ -5637,12 +5735,6 @@
      "acc_grabHandle_lv": 0,
      "acc_tieDownTail_sL": 0,
      "acc_tieDownTail_lv": 0,
-     "fpLegacy": {
-      "pilotWho": 2,
-      "dumSize": 1,
-      "paxSize": 1,
-      "dumMarkers": 1
-     },
      "fltBow": 0.43,
      "fltBowB": 0.39,
      "fltSide": 0.5,
@@ -5650,7 +5742,9 @@
      "cw_stubWaist": -0.07,
      "cw_stubKeelH": 0.83,
      "cw_stubSqTop": 0.53,
-     "cw_stubSqBot": 0.35
+     "cw_stubSqBot": 0.35,
+     "dashWas": 0,
+     "dashLegsWas": 1
     },
     "wings": [
      {
@@ -5779,6 +5873,16 @@
      "look": {
       "bezel": "plastic",
       "sw": "toggle"
+     },
+     "lights": {
+      "nav": 3,
+      "beacon": 1,
+      "taxi": 1,
+      "land": 1,
+      "flood": 1,
+      "pedal": 1,
+      "pax": 3,
+      "instr": 1
      }
     },
     "cabin": {
@@ -5897,7 +6001,7 @@
       "track": 0.8,
       "volDeck": 1.0120897070518313,
       "inc": -0.5,
-      "x": 1.2272033007786634,
+      "x": 1.2335558446842012,
       "H": 0.45454545454545453,
       "betaBow": 33.21981353759766,
       "aftCurve": 0,
@@ -5955,7 +6059,7 @@
       "regC": 0.14,
       "regCol": 0,
       "regOutOn": 0,
-      "regW": 0.7986085841966712,
+      "regW": 0.7761123872139085,
       "m1On": 1,
       "m1Pat": 1,
       "m1A": 2902577,
@@ -6005,7 +6109,19 @@
      ]
     },
     "outfit": {
-     "seats": "sling"
+     "seats": "sling",
+     "drawn": {
+      "board": 0.4031,
+      "dash": 0.4344,
+      "shoulder": 0.5111,
+      "door": 2.7134,
+      "floor": 1.8379,
+      "console": 0
+     },
+     "ctl": {
+      "stations": 2,
+      "kind": "yoke"
+     }
     },
     "fuselage": {
      "material": "alloy",
@@ -6151,8 +6267,8 @@
    "page": {
     "n": 123,
     "nb": 500,
-    "mass": 487.2442285462623,
-    "build": "16321fe72a49"
+    "mass": 493.040363693466,
+    "build": "c91f843a3910"
    },
    "spec": {
     "cage": {
@@ -6449,8 +6565,9 @@
      "dashDepth": 0.35,
      "dashCrease": 3,
      "dashCrown": 0,
-     "dashStyle": 0,
+     "dashStyle": 1,
      "dashLegs": 1,
+     "dashV": 1,
      "shoulderOn": 1,
      "shoulderW": 0.07,
      "shoulderH": 0.135,
@@ -6476,6 +6593,10 @@
      "hgDetail": 1,
      "hgDoor": 1,
      "hgDoorEdge": 0,
+     "hgDrOff": 0,
+     "hgDrTilt": 0,
+     "hgDrSlide": 0,
+     "hgDrInset": 0,
      "hgFinish": 0,
      "lightOn": 1,
      "lightSw": 1,
@@ -6836,6 +6957,7 @@
      "propOn": 1,
      "engMount": 3,
      "engNacAt": 0.28,
+     "engNacAt2": 0.62,
      "engPylonH": 0.32,
      "engBlockZ": -0.51,
      "engBlockY": -0.09,
@@ -7185,7 +7307,9 @@
      "acc_grabHandle_sL": 0,
      "acc_grabHandle_lv": 0,
      "acc_tieDownTail_sL": 0,
-     "acc_tieDownTail_lv": 0
+     "acc_tieDownTail_lv": 0,
+     "dashWas": 0,
+     "dashLegsWas": 1
     },
     "wings": [
      {
@@ -7333,6 +7457,15 @@
      "look": {
       "bezel": "plastic",
       "sw": "toggle"
+     },
+     "lights": {
+      "nav": 3,
+      "beacon": 2,
+      "taxi": 1,
+      "land": 1,
+      "flood": 1,
+      "pedal": 1,
+      "instr": 1
      }
     },
     "cabin": {
@@ -7466,11 +7599,11 @@
       "sheerK": 0.1,
       "aftHold": 0.2,
       "aftPow": 2,
-      "y": -0.459731384850257,
+      "y": -0.4585403386241568,
       "track": 0.8,
       "volDeck": 0.7239997746977722,
       "inc": 0,
-      "x": 1.2143430113743534
+      "x": 1.221110114066514
      }
     },
     "paint": {
@@ -7515,7 +7648,19 @@
      "tint": null
     },
     "outfit": {
-     "seats": "sling"
+     "seats": "sling",
+     "drawn": {
+      "board": 0.1338,
+      "dash": 0.2443,
+      "shoulder": 0,
+      "door": 0,
+      "floor": 0.3294,
+      "console": 0
+     },
+     "ctl": {
+      "stations": 1,
+      "kind": "stick"
+     }
     },
     "cowl": {
      "fillet": 0.1,
@@ -7606,7 +7751,7 @@
       }
      },
      "decals": {
-      "regW": 1.7113041089928667,
+      "regW": 1.6630979726012325,
       "m1Pat": 4,
       "m1P": 16,
       "m1Q": 8,

@@ -645,6 +645,9 @@ const MANIFEST = {
               // THE COCKPIT IN FLIGHT (the panel arc, session 4): readings,
               // switches, the bus, the lamps — app.js calls in; RENDER slot
               'cockpit.js',
+              // G2803 (AVIONICS-GPS phase 2): the GPS unit's screen - window.FLYDIY_GPS at eval; app.js binds it with
+              // the cockpit and ticks it after CK.frame (it paints at 4 Hz); after cockpit.js, before app.js
+              'gps_face.js',
               // B10 (G1035): the roll-out shot - publishes window.ROLLANIM at eval; app.js's frame loop calls
               // its two hooks and the optional call site (?rollanim=) plays it
               'rollanim.js',
@@ -719,6 +722,9 @@ const MANIFEST = {
     // Instruments part's column and the join's `systems` seam; its geometry
     // comes in session 3. Reads the crew's anchors, so after the crew.
     '_panel_gen.js', '_cage_panel.js',
+    // THE FURNISHING (G2806, AVIONICS-GPS phase 2): the seats' kind and the trim as billed rows - a column and the
+    // join's `outfit` seam, no geometry of its own (the seats it names are the crew's)
+    '_cage_furnish.js',
     '_gear_kit.js', '_gear_gen.js', '_gear_page.js',
     // THE FITTINGS (G81-G84), the reading and drawing halves. Pure modules
     // with no post hook, so they only have to be loaded before the layer.
