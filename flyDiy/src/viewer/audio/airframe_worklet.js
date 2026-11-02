@@ -77,6 +77,7 @@ const AF_E_TD = 1, AF_E_CHIRP = 2, AF_E_THUMP = 3, AF_E_SPLASH = 4, AF_E_LEVER =
 const AF_E_CRUNCH = 6, AF_E_SNAP = 7, AF_E_IMPACT = 8;   // G1740 SND-CRASH
 const VK_LOW = 1, VK_BAND = 2, VK_CHIRP = 3, VK_RING = 4;
 const NV = 12;   // (G1740: was 8 - an impact, its snaps and crunches arrive together)
+const CR_DUCK = 0.25;   // G1740: what an impact leaves of a snap / a crunch already sounding
 // G1740 THE SCRAPE: the grind's level at full (a wreck sliding at scrapeV), per material [band Hz, Q, the band's gain, the
 // rumble's] - wood / tube-and-fabric a duller grind over the structure's rumble, metal a screech (a narrow band: more
 // gain for the same weight) - and its grains a second at full
@@ -112,7 +113,7 @@ const Z_SW = _o; _o += AF_SURF_W;
 const Z_PREV = _o; _o += AF_PARAM_NAMES.length;
 const Z_LEN = _o;
 // the voices: kind, ext gain, int gain, amp, decay per sample, env, age, delay, f0, f1, dur, phase,
-// interior-only (SND-SPACE: output 2), the interior's left / right gains (the wheel's side)
+// interior-only (SND-SPACE: output 2), the interior's left / right gains (the wheel's side), a crash voice (G1740: 15)
 const VW = 16;
 
 class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
@@ -165,6 +166,7 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
     v[o + 12] = this.evIo || 0;
     const pan = this.evPan || 0;
     v[o + 13] = pan > 0 ? 1 - pan : 1; v[o + 14] = pan < 0 ? 1 + pan : 1;
+    v[o + 15] = this.evCrash || 0;   // G1740: a crunch's / a snap's voice (an impact ducks it)
     const f = F_VOICE + best * 8, z = this.z;
     z[f] = z[f + 1] = 0; z[f + 6] = f0; z[f + 7] = q;
     this.coef(f);
@@ -174,6 +176,9 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
     // the wheel's side in the cabin (a: 0 left, 1 right; the tail and a rolling thump centred), the lever inside only
     this.evPan = (e === AF_E_TD || e === AF_E_CHIRP) ? (a === 0 ? -0.6 : a === 1 ? 0.6 : 0) : 0;
     this.evIo = e === AF_E_LEVER ? 1 : 0;
+    this.evCrash = e === AF_E_CRUNCH || e === AF_E_SNAP ? 1 : 0;
+    // G1740: an impact DUCKS the snaps and crunches still sounding (the model masks the ones after it): one big hit
+    if (e === AF_E_IMPACT) { const v = this.v; for (let i = 0; i < NV; i++) if (v[i * VW] !== 0 && v[i * VW + 15] > 0) v[i * VW + 3] *= CR_DUCK; }
     const surfHz = b === 5 ? 1500 : b === 6 || b === 2 ? 3000 : b === 0 ? 2500 : 1800;
     // G1726 (SND-MIX-2, the user: "your engine is quieter than a metal squeal"): measured against the engine at that
     // moment (mix_render --study), a 2 m/s touchdown at idle was +10 / +18 LU over it (chase / cockpit), its chirp +14 /

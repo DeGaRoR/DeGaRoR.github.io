@@ -309811,3 +309811,9 @@ GATE AUDIO CRASH: the reads (worker + inline), the events (break, piece off, ben
 NOT DONE: not heard by a person yet - the levels are first guesses on the touchdown's tamed scale (G1726); a listen on a
   real crash (the Cub into a tree, the Cessna on its nose) is the next step. A piece's own sound where it lands (the
   debris) would need the pieces' positions: the sound is the aeroplane's, at its CG.
+LEGIBLE (same day, A0 for the user: "not many sounds at once? ... otherwise global crashing sounds are OK too"): ONE
+  structural event a frame - a big rise (a hundred members, pieces off) is one snap / tear whose severity is the count's
+  (log), never a burst; a bend crunches only when nothing broke; the IMPACT is taken first and masks the snaps and crunches
+  for 0.2 s (the model) and DUCKS the ones still sounding to 25 % (the worklet's voice slot 15); a TOTAL budget over the
+  three: at most 5 a second, at most 2 within 0.1 s (the impact passes that one, counted); the snap's own gap 0.15 s.
+  GATE CRASH: a 100-member frame = 1 event; the mask; a 3-second wreck within the budget; the duck; +7 mutations.

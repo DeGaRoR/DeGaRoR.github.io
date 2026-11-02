@@ -45,6 +45,11 @@
 //             SCRAPES while it slides (damaged, under scrapeAgl, not on its two mains with nothing broken): a grind
 //             with the speed, metal or wood/fabric by the build (the 'metal' param). Distance, doppler and the
 //             cabin are SND-SPACE's, as for every airframe sound: the events ride the same voice.
+//             LEGIBLE (the user: "not many sounds at once?"): ONE event a frame for the structure - a big rise (a hundred
+//             members, pieces off) is one louder snap / tear scaled by the count, never a burst; a bend crunches only
+//             when nothing broke; the impact is taken first and MASKS the snaps and crunches for CR_MASK s after it (the
+//             worklet ducks the ones already sounding); and a TOTAL budget over the three: at most CR_SEC a second, at
+//             most CR_AT within CR_ONCE s - a big crash reads as one hit with a tail, a small one as a few clear snaps.
 // Scheduling: every target is QUANTISED (AF_Q, at the frame's end) so a steady frame reproduces
 // the last value exactly and the source schedules nothing.
 // ============================================================
@@ -66,7 +71,10 @@ var AIRFRAME_MODEL = (function () {
   const AF_EV_NAMES = ['', 'touchdown', 'chirp', 'thump', 'splash', 'lever', 'crunch', 'snap', 'impact'];
   const EV_CAP = 16, EV_W = 4;
   // the per-type rate limit (s): one touchdown per wheel per 0.25 s, ...
-  const AF_RATE = [0, 0.25, 0.4, 0.2, 0.3, 0.35, 0.1, 0.06, 0.35];
+  const AF_RATE = [0, 0.25, 0.4, 0.2, 0.3, 0.35, 0.1, 0.15, 0.35];
+  // G1740 THE CRASH'S BUDGET over crunch + snap + impact: at most CR_SEC in any second, CR_AT within CR_ONCE s (the
+  // impact passes that one - it ducks what sounds - but counts), and the impact masks the other two for CR_MASK s
+  const CR_SEC = 5, CR_AT = 2, CR_ONCE = 0.1, CR_MASK = 0.2;
   const AF_SURF_PAVED = 5, AF_SURF_WATER = 4;
   // the rough rows' tailwheel rattle (GROUND_SURF codes 0..7: grass rock scree forest water paved gravel sand)
   const AF_ROUGH = [0.5, 1.0, 0.9, 0.7, 0, 0.12, 0.8, 0.4];
@@ -108,16 +116,17 @@ var AIRFRAME_MODEL = (function () {
   // the state: typed slots only
   const S_ = ['t', 'pm0', 'pm1', 'ptw', 'pwet', 'off0', 'off1', 'offT', 'vsMin', 'nzM', 'pde', 'pda', 'pdr', 'pflap',
               'fmov', 'buzz', 'lastSurf', 'kind', 'elec', 'first', 'pdrag', 'rate', 'grace', 'esev', 'vs0',
-              'pBrk', 'pSet', 'pPc', 'wreck', 'metal'];   // G1740: the damage counts last frame, the wreck latch, metal
+              'pBrk', 'pSet', 'pPc', 'wreck', 'metal', 'mask'];   // G1740: the damage counts last frame, the wreck latch, metal, the impact's mask
   const SI = {}; S_.forEach((k, i) => { SI[k] = i; });
   function airframeState() {
     return { s: new Float64Array(S_.length), last: new Float64Array(AF_RATE.length * 3).fill(-1e9),
              tg: new Float32Array(AF_PARAMS.length), ev: new Float64Array(EV_CAP * EV_W), evN: new Int32Array(1),
+             cr: new Float64Array(CR_SEC).fill(-1e9), crI: new Int32Array(1),   // G1740: the crash events' last times (a ring)
              def: null, kindSource: '' };
   }
   function resolve(st, def) {
     const spec = def && def.spec, k = stallKind(spec), s = st.s;
-    s.fill(0); st.last.fill(-1e9); st.tg.fill(0); st.evN[0] = 0;
+    s.fill(0); st.last.fill(-1e9); st.tg.fill(0); st.evN[0] = 0; st.cr.fill(-1e9); st.crI[0] = 0;
     s[SI.kind] = k.kind; s[SI.elec] = flapsElectric(spec) ? 1 : 0; s[SI.first] = 1; s[SI.lastSurf] = 0;
     s[SI.metal] = materialOf(spec || {}) === 'alloy' ? 1 : 0;   // G1740: the wreck's voice
     s[SI.off0] = s[SI.off1] = s[SI.offT] = 1e3; s[SI.nzM] = 1;
@@ -134,6 +143,14 @@ var AIRFRAME_MODEL = (function () {
   function emit(st, type, a, b) {
     const t = st.s[SI.t], li = type * 3 + (type === AF_EV.TD ? a : 0);
     if (t - st.last[li] < AF_RATE[type]) return;
+    if (type >= AF_EV.CRUNCH) {   // G1740: the crash's budget and the impact's mask
+      if (type !== AF_EV.IMPACT && t < st.s[SI.mask]) return;
+      const C = st.cr; let n1 = 0, n0 = 0;
+      for (let i = 0; i < CR_SEC; i++) { const d = t - C[i]; if (d < 1) n1++; if (d < CR_ONCE) n0++; }
+      if (n1 >= CR_SEC || (n0 >= CR_AT && type !== AF_EV.IMPACT)) return;
+      C[st.crI[0]] = t; st.crI[0] = (st.crI[0] + 1) % CR_SEC;
+      if (type === AF_EV.IMPACT) st.s[SI.mask] = t + CR_MASK;
+    }
     st.last[li] = t;
     const n = st.evN[0];
     if (n >= EV_CAP) return;
@@ -223,13 +240,15 @@ var AIRFRAME_MODEL = (function () {
     const nB = p[I.dmgBrk], nS = p[I.dmgSet], nP = p[I.dmgPc], mt = s[SI.metal] | 0, agl = p[I.agl];
     const dB = nB - s[SI.pBrk], dS = nS - s[SI.pSet], dP = nP - s[SI.pPc], gave = dB > 0 || dS > 0 || dP > 0;
     if (!first) {
-      if (dP > 0) { s[SI.esev] = 1; emit(st, AF_EV.SNAP, 1, mt); }                                     // a piece off: the tear
-      else if (dB > 0) { s[SI.esev] = Math.min(1, 0.35 + 0.12 * dB); emit(st, AF_EV.SNAP, 0, mt); }   // a member broken
-      if (dS > 0 || dB > 0) { s[SI.esev] = Math.min(1, 0.25 + 0.08 * (dS > 0 ? dS : 0) + 0.16 * (dB > 0 ? dB : 0) + Vg / 60); emit(st, AF_EV.CRUNCH, 0, mt); }
+      // the impact first (it masks the snaps and crunches of its own frame and the next CR_MASK s), then ONE event for
+      // the structure, its severity the count's (log: 1 member 0.5, 3 0.65, 15 0.95; the pieces off from 0.7)
       const dev = Math.abs(nz - s[SI.nzM]), near = m0 || m1 || tw || water || agl < A.scrapeAgl + 2;
       if (near && (dev > A.impG || (gave && dev > A.impGd))) {
         s[SI.esev] = Math.min(1, 0.2 + (dev - A.impGd) / A.impSpan); emit(st, AF_EV.IMPACT, 0, ls); s[SI.wreck] = 1;
       }
+      if (dP > 0) { s[SI.esev] = Math.min(1, 0.6 + 0.1 * dP + 0.05 * (dB > 0 ? dB : 0)); emit(st, AF_EV.SNAP, 1, mt); }   // a piece off: the tear
+      else if (dB > 0) { s[SI.esev] = Math.min(1, 0.35 + 0.15 * Math.log2(1 + dB)); emit(st, AF_EV.SNAP, 0, mt); }   // members broken
+      else if (dS > 0) { s[SI.esev] = Math.min(1, 0.25 + 0.15 * Math.log2(1 + dS) + Vg / 60); emit(st, AF_EV.CRUNCH, 0, mt); }   // bent, nothing broken
     }
     if (nB > 0 || nS > 0) s[SI.wreck] = 1;
     else if (s[SI.wreck] > 0 && Vg < 0.3 && !gave) s[SI.wreck] = 0;   // an impact with the layer off: the wreck until it stops
