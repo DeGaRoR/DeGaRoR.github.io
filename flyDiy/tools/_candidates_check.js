@@ -14,8 +14,11 @@
 // plaque and a row in review/REVIEW.md. The load chain runs on them too, reported, never red (a review plane that fails to
 // load is named for READY, the user decides).
 // EVERY CANDIDATE LOADS, BUILDS AND DRAWS: the page's own load door headless (tools/_load_build.js: the editor's layers
-// draw it, the join measures it, the energy layer fits the tanks) with no join error, then buildGen on what it made: a
-// finite positive mass, a wing, an engine or none asked for.
+// draw it, the join measures it, the energy layer fits the tanks), then buildGen on what it made: nodes and a finite
+// positive mass. A JOIN ERROR (the join's design findings: a prop through the body, a drawn tail outside the flown
+// envelope) is NAMED, never red - a candidate is built, not validated, and those findings are what the user reviews
+// (2 Nov, the first run: the Tiger Moth's prop and the STOL Cub's elevator chord would have kept two of the user's named
+// planes out). The pool's index note carries each one, so the rack says it too.
 // THE PAGE (source rows): garage.js reads the pool from the repo folder (never localStorage), opens a candidate unnamed
 // with no plaque, draws the rack's 'candidate official' group, and writes EXPORT ALL as one flydiy-fleet file; the ribbon
 // carries the button; the design flow's new-aeroplane cards list the pool; nothing in the core (the career catalogue,
@@ -114,7 +117,7 @@ function chainRows(files, sub) {
     let L = null;
     try { L = LB.loadBuild(path.join('builds', 'candidates', sub || '', f)); }
     catch (e) { bad.push(f + ': the page load chain failed - ' + String(e.message || e).slice(0, 300)); continue; }
-    if (L.errors && L.errors.length) bad.push(f + ': join errors ' + JSON.stringify(L.errors).slice(0, 300));
+    if (L.errors && L.errors.length) console.log('  NAMED ' + f + ': join findings ' + JSON.stringify(L.errors).slice(0, 300));
     let def = null;
     try { def = C.buildGen(JSON.parse(JSON.stringify(L.spec))); }
     catch (e) { bad.push(f + ': buildGen threw - ' + String(e.message || e).slice(0, 200)); continue; }
