@@ -5,12 +5,14 @@
 // the stall warning, the creaks and the flap motor - all synthesised, no
 // sample needed (recorded grains BLEND IN on the main thread, samples.js; the
 // `duck` param lowers the procedural layer a sample is covering) - and a pool
-// of one-shot voices for the events (touchdown, chirp, thump, splash, lever).
+// of one-shot voices for the events (touchdown, chirp, thump, splash, lever;
+// G1740 SND-CRASH: the crunch, the snap, the impact) and the wreck's scrape.
 //
 // INPUTS   none. The k-rate params below are the targets airframe_model.js
 //          computes per frame (src_airframe.js schedules them, tau 30 ms); the
 //          events arrive by port message {t: 'ev', e, s, a, b, k}
-//          (e: 1 touchdown, 2 chirp, 3 thump, 4 splash, 5 lever; s severity
+//          (e: 1 touchdown, 2 chirp, 3 thump, 4 splash, 5 lever, 6 crunch,
+//          7 snap, 8 impact - G1740; s severity
 //          0..1; a the wheel; b the GROUND_SURF row; k 1 = a recorded one-shot
 //          plays beside it, the procedural one at 35 %), {t: 'reset'}.
 // OUTPUTS  0  EXTERIOR mono: the wind the camera hears (gentle), the ground,
@@ -55,7 +57,8 @@
 'use strict';
 
 const AF_PARAM_NAMES = ['windL', 'windF', 'windT', 'windI', 'gndL', 'gndS', 'gndV', 'tailR', 'brk',
-                        'watL', 'watV', 'watStep', 'watSlap', 'watDrag', 'stall', 'stallK', 'creak', 'flapM', 'open', 'duck'];
+                        'watL', 'watV', 'watStep', 'watSlap', 'watDrag', 'stall', 'stallK', 'creak', 'flapM', 'open', 'duck',
+                        'scrape', 'metal'];
 const AF_DENORMAL = 1e-18;
 // the surface table: per GROUND_SURF row [rumble, hiss, hissHz, hissQ, grains per s per m/s, grainHz, grain decay ms, tread hum]
 const AF_SURF = [
@@ -71,8 +74,14 @@ const AF_SURF = [
 const AF_SURF_W = 8;
 // the events, and the one-shot voices' kinds
 const AF_E_TD = 1, AF_E_CHIRP = 2, AF_E_THUMP = 3, AF_E_SPLASH = 4, AF_E_LEVER = 5;
+const AF_E_CRUNCH = 6, AF_E_SNAP = 7, AF_E_IMPACT = 8;   // G1740 SND-CRASH
 const VK_LOW = 1, VK_BAND = 2, VK_CHIRP = 3, VK_RING = 4;
-const NV = 8;
+const NV = 12;   // (G1740: was 8 - an impact, its snaps and crunches arrive together)
+const CR_DUCK = 0.25;   // G1740: what an impact leaves of a snap / a crunch already sounding
+// G1740 THE SCRAPE: the grind's level at full (a wreck sliding at scrapeV), per material [band Hz, Q, the band's gain, the
+// rumble's] - wood / tube-and-fabric a duller grind over the structure's rumble, metal a screech (a narrow band: more
+// gain for the same weight) - and its grains a second at full
+const SCR_A = 0.22, SCR_BAND = [[1100, 0.9, 0.9, 0.5], [2300, 2.5, 2.0, 0.25]], SCR_GRAINS = 220;
 // G1726: the brakes' friction band and the squeal's trace (amplitudes)
 const BRK_FRIC = 0.2, BRK_SQ = 0.006, GND_STRUCT = 0.2, GND_TREAD = 1.2;
 // the stall warning's amplitudes (G1726: were 0.12 / 0.07 - a reed +13-15 LU over the engine at approach power; now a
@@ -85,7 +94,8 @@ let _o = 0;
 const svfAt = () => { const o = _o; _o += 8; return o; };
 const F_WIND = svfAt(), F_HISS = svfAt(), F_TONE = svfAt(), F_CRUNCH = svfAt(), F_RATTLE = svfAt(), F_SPRAY = svfAt(),
       F_SLAP = svfAt(), F_BUB = svfAt(), F_BREATH = svfAt(), F_CRK1 = svfAt(), F_CRK2 = svfAt(), F_TICK = svfAt(),
-      F_BRK = svfAt();   // G1726: the brakes' friction band
+      F_BRK = svfAt(),   // G1726: the brakes' friction band
+      F_SCR = svfAt();   // G1740: the scrape's band
 const F_VOICE = _o; _o += 8 * NV;
 // scalars
 const sl = () => _o++;
@@ -96,18 +106,19 @@ const Z_GUST = sl(), Z_BUFF = sl(), Z_BUMP = sl(), Z_WANDER = sl(), Z_DRAGM = sl
       Z_PHB = sl(), Z_PHS = sl(), Z_PHM = sl(), Z_PHV = sl(),                           // phases: brake, stall, motor, vibrato
       Z_BURST = sl(), Z_BRATE = sl(), Z_BAMP = sl(), Z_T = sl(),
       Z_DENS = sl(),
-      Z_DCX2 = sl(), Z_DCY2 = sl(), Z_DCX3 = sl(), Z_DCY3 = sl();                      // SND-SPACE: int R, int-only
+      Z_DCX2 = sl(), Z_DCY2 = sl(), Z_DCX3 = sl(), Z_DCY3 = sl(),                      // SND-SPACE: int R, int-only
+      Z_ESC = sl(), Z_SCR1 = sl(), Z_SCR2 = sl();                                       // G1740: the scrape's grains, its rumble
 // the surface weights now (smoothed toward the row's), and the previous block's levels
 const Z_SW = _o; _o += AF_SURF_W;
 const Z_PREV = _o; _o += AF_PARAM_NAMES.length;
 const Z_LEN = _o;
 // the voices: kind, ext gain, int gain, amp, decay per sample, env, age, delay, f0, f1, dur, phase,
-// interior-only (SND-SPACE: output 2), the interior's left / right gains (the wheel's side)
+// interior-only (SND-SPACE: output 2), the interior's left / right gains (the wheel's side), a crash voice (G1740: 15)
 const VW = 16;
 
 class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors () {
-    const maxOf = { windF: 6000, gndS: 7, gndV: 100, watV: 100, stallK: 2, duck: 31 };
+    const maxOf = { windF: 6000, gndS: 7, gndV: 100, watV: 100, stallK: 2, duck: 31, metal: 1 };
     return AF_PARAM_NAMES.map(name => ({ name, defaultValue: name === 'windF' ? 250 : 0, minValue: 0,
       maxValue: maxOf[name] != null ? maxOf[name] : 4, automationRate: 'k-rate' }))
       // SND-SPACE (G1642): the doppler - not a model target, so not in AF_PARAM_NAMES (the model's list)
@@ -155,6 +166,7 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
     v[o + 12] = this.evIo || 0;
     const pan = this.evPan || 0;
     v[o + 13] = pan > 0 ? 1 - pan : 1; v[o + 14] = pan < 0 ? 1 + pan : 1;
+    v[o + 15] = this.evCrash || 0;   // G1740: a crunch's / a snap's voice (an impact ducks it)
     const f = F_VOICE + best * 8, z = this.z;
     z[f] = z[f + 1] = 0; z[f + 6] = f0; z[f + 7] = q;
     this.coef(f);
@@ -164,6 +176,9 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
     // the wheel's side in the cabin (a: 0 left, 1 right; the tail and a rolling thump centred), the lever inside only
     this.evPan = (e === AF_E_TD || e === AF_E_CHIRP) ? (a === 0 ? -0.6 : a === 1 ? 0.6 : 0) : 0;
     this.evIo = e === AF_E_LEVER ? 1 : 0;
+    this.evCrash = e === AF_E_CRUNCH || e === AF_E_SNAP ? 1 : 0;
+    // G1740: an impact DUCKS the snaps and crunches still sounding (the model masks the ones after it): one big hit
+    if (e === AF_E_IMPACT) { const v = this.v; for (let i = 0; i < NV; i++) if (v[i * VW] !== 0 && v[i * VW + 15] > 0) v[i * VW + 3] *= CR_DUCK; }
     const surfHz = b === 5 ? 1500 : b === 6 || b === 2 ? 3000 : b === 0 ? 2500 : 1800;
     // G1726 (SND-MIX-2, the user: "your engine is quieter than a metal squeal"): measured against the engine at that
     // moment (mix_render --study), a 2 m/s touchdown at idle was +10 / +18 LU over it (chase / cockpit), its chirp +14 /
@@ -182,6 +197,30 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
     } else if (e === AF_E_LEVER) {
       this.voice(VK_BAND, 0.1, 1, k * 0.08, 0.006, 2500, 0, 1, 0, 1.5);
       this.voice(VK_RING, 0.1, 1, k * 0.1, 0.04, 320, 0, 0.003, 0.03, 4);
+    } else if (e === AF_E_IMPACT) {   // G1740: the hit - a low boom, the structure's crunch, the ground thrown (b: its row)
+      this.voice(VK_LOW, 1, 1, k * (0.3 + 0.5 * s), 0.18 + 0.25 * s, 40 + 35 * s, 0, 1, 0, 0.9);
+      this.voice(VK_BAND, 1, 0.8, k * (0.12 + 0.25 * s), 0.12 + 0.15 * s, 650, 0, 1, 0, 0.6);
+      this.voice(VK_BAND, 1, 0.4, k * (0.05 + 0.12 * s), 0.25, surfHz, 0, 1, 0.02, 0.5);
+    } else if (e === AF_E_CRUNCH) {   // a member bent: metal crumples and rings, wood and fabric creak and thud (b: 1 metal)
+      if (b === 1) {
+        this.voice(VK_BAND, 0.9, 1, k * (0.05 + 0.14 * s), 0.05 + 0.06 * s, 1400, 0, 1, 0, 0.9);
+        this.voice(VK_RING, 0.6, 1, k * (0.04 + 0.1 * s), 0.12, 380, 0, 0.004, 0.01, 14);
+      } else {
+        this.voice(VK_BAND, 0.9, 1, k * (0.05 + 0.14 * s), 0.04 + 0.05 * s, 900, 0, 1, 0, 0.8);
+        this.voice(VK_LOW, 0.7, 1, k * (0.06 + 0.15 * s), 0.06, 110, 0, 1, 0, 0.9);
+      }
+    } else if (e === AF_E_SNAP) {     // a member broken: a crack (wood, tube-and-fabric), a ping and a rip (metal); a = 1 a piece off: the tear
+      if (b === 1) {
+        this.voice(VK_RING, 0.8, 1, k * (0.03 + 0.08 * s), 0.12, 2100, 0, 0.003, 0, 18);
+        this.voice(VK_BAND, 1, 0.8, k * (0.06 + 0.12 * s), 0.006, 4000, 0, 1, 0, 1.2);
+      } else {
+        this.voice(VK_BAND, 1, 0.9, k * (0.08 + 0.18 * s), 0.008 + 0.01 * s, 3000, 0, 1, 0, 1.6);
+        this.voice(VK_RING, 0.6, 1, k * (0.03 + 0.06 * s), 0.03, 1250, 0, 0.003, 0, 5);
+      }
+      if (a === 1) {
+        this.voice(VK_BAND, 1, 0.8, k * 0.25, 0.2, 700, 0, 1, 0.01, 0.5);
+        this.voice(VK_LOW, 1, 1, k * 0.25, 0.15, 70, 0, 1, 0, 0.9);
+      }
     }
   }
 
@@ -207,17 +246,20 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
     const watL = params.watL[0], watV = params.watV[0], watStep = params.watStep[0], watSlap = params.watSlap[0];
     const watDrag = params.watDrag[0], stall = params.stall[0], stallK = params.stallK[0], creak = params.creak[0];
     const flapM = params.flapM[0], open = params.open[0], duck = params.duck[0] | 0;
+    const scrape = params.scrape ? params.scrape[0] : 0, metal = params.metal && params.metal[0] > 0.5 ? 1 : 0;   // G1740
     const pWindL = z[P], pWindI = z[P + 3], pGndL = z[P + 4], pTailR = z[P + 7], pBrk = z[P + 8], pWatL = z[P + 9];
     const pWatSlap = z[P + 12], pWatDrag = z[P + 13], pStall = z[P + 14], pCreak = z[P + 16], pFlapM = z[P + 17], pOpen = z[P + 18];
+    const pScr = z[P + 20];
     // the duck: a recorded loop covers the layer (bits: 1 ground, 2 water, 4 wind, 8 creaks, 16 stall); the procedural keeps 30 %
     const dG = duck & 1 ? 0.3 : 1, dW = duck & 2 ? 0.3 : 1, dA = duck & 4 ? 0.3 : 1, dC = duck & 8 ? 0.3 : 1, dS = duck & 16 ? 0.3 : 1;
     const doWind = windL > 0 || pWindL > 0 || windI > 0 || pWindI > 0;
     const doGnd = gndL > 0 || pGndL > 0, doRat = tailR > 0 || pTailR > 0, doBrk = brk > 0 || pBrk > 0;
     const doSpray = watL > 0 || pWatL > 0, doSlap = watSlap > 0 || pWatSlap > 0, doDrag = watDrag > 0 || pWatDrag > 0;
     const doStall = stallK > 0 && (stall > 0 || pStall > 0), doCreak = creak > 0 || pCreak > 0, doMot = flapM > 0 || pFlapM > 0;
+    const doScr = scrape > 0 || pScr > 0;
     let voices = 0;
     for (let i = 0; i < NV; i++) if (v[i * VW] !== 0) voices++;
-    if (!doWind && !doGnd && !doRat && !doBrk && !doSpray && !doSlap && !doDrag && !doStall && !doCreak && !doMot && voices === 0
+    if (!doWind && !doGnd && !doRat && !doBrk && !doSpray && !doSlap && !doDrag && !doStall && !doCreak && !doMot && !doScr && voices === 0
         && Math.abs(z[Z_DCY0]) < 1e-6 && Math.abs(z[Z_DCY1]) < 1e-6 && Math.abs(z[Z_DCY2]) < 1e-6 && Math.abs(z[Z_DCY3]) < 1e-6) {
       oE.fill(0); if (oI) oI.fill(0); if (oIR) oIR.fill(0); if (oIo) oIo.fill(0);
       this.keep(params); return true;
@@ -237,6 +279,7 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
       z[F_CRUNCH + 6] = gHz * pch; z[F_CRUNCH + 7] = 1.1; this.coef(F_CRUNCH);
     }
     if (doBrk) { z[F_BRK + 6] = 750 * pch; z[F_BRK + 7] = 1.4; this.coef(F_BRK); }
+    if (doScr) { z[F_SCR + 6] = SCR_BAND[metal][0] * pch; z[F_SCR + 7] = SCR_BAND[metal][1]; this.coef(F_SCR); }
     if (doRat) { z[F_RATTLE + 6] = 1900; z[F_RATTLE + 7] = 5; this.coef(F_RATTLE); }
     if (doSpray) { z[F_SPRAY + 6] = (1800 + 90 * watV) * pch; z[F_SPRAY + 7] = 0.5; this.coef(F_SPRAY); }
     if (doSlap) { z[F_SLAP + 6] = 180 + 20 * watV; z[F_SLAP + 7] = 0.8; this.coef(F_SLAP); }
@@ -262,6 +305,7 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
     const pBub = 25 / sr, bubDec = Math.exp(-1 / (0.015 * sr));
     const ratDec = Math.exp(-1 / (0.003 * sr)), tickDec = Math.exp(-1 / (0.0015 * sr));
     const pBurst = creak * 1.2 / sr, pTick = creak * 6 / sr;
+    const pScrG = SCR_GRAINS * scrape / sr, scrDec = Math.exp(-1 / ((metal ? 0.006 : 0.012) * sr)), cScr = 1 - Math.exp(-2 * Math.PI * 70 / sr);
     const fStall = stallK === 1 ? 470 + 110 * stall : 400;
     const fMot = 165;
     const den = z[Z_DENS];
@@ -436,6 +480,20 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
         const m = (pFlapM + (flapM - pFlapM) * u) * z[Z_MOTLP];
         io += 0.008 * m; ext += 0.004 * m;   // G1726: was 0.05 / 0.012 (+7-8 LU over the engine on an approach)
       }
+      // ---- THE SCRAPE (G1740): the wreck sliding - grains of grind over a band of noise, a rumble through the structure ----
+      if (doScr) {
+        const sc = pScr + (scrape - pScr) * u;
+        if (u01 < pScrG) z[Z_ESC] += 0.5 + 0.5 * ((w2 + 1) * 0.5);
+        z[Z_ESC] *= scrDec;
+        const o = F_SCR, x = w1 * (0.35 + z[Z_ESC]);
+        const v3 = x - z[o + 1], v1 = z[o + 2] * z[o] + z[o + 3] * v3, v2 = z[o + 1] + z[o + 3] * z[o] + z[o + 4] * v3;
+        z[o] = 2 * v1 - z[o] + den; z[o + 1] = 2 * v2 - z[o + 1] + den;
+        z[Z_SCR1] += (w2 - z[Z_SCR1]) * cScr; z[Z_SCR2] += (z[Z_SCR1] - z[Z_SCR2]) * cScr;
+        const band = z[o + 5] * v1, rum = z[Z_SCR2] * 12;
+        const gB = SCR_BAND[metal][2], gR = SCR_BAND[metal][3];
+        ext += SCR_A * sc * (gB * band + gR * rum); air += SCR_A * sc * 0.4 * gB * band;
+        inn += SCR_A * sc * (0.55 * gB * band + 1.6 * gR * rum);
+      }
       // ---- THE ONE-SHOTS ----
       if (voices > 0) {
         for (let i = 0; i < NV; i++) {
@@ -510,6 +568,7 @@ class FlyDiyAirframeProcessor extends AudioWorkletProcessor {
     z[P + 8] = params.brk[0]; z[P + 9] = params.watL[0]; z[P + 10] = params.watV[0]; z[P + 11] = params.watStep[0];
     z[P + 12] = params.watSlap[0]; z[P + 13] = params.watDrag[0]; z[P + 14] = params.stall[0]; z[P + 15] = params.stallK[0];
     z[P + 16] = params.creak[0]; z[P + 17] = params.flapM[0]; z[P + 18] = params.open[0]; z[P + 19] = params.duck[0];
+    z[P + 20] = params.scrape ? params.scrape[0] : 0; z[P + 21] = params.metal ? params.metal[0] : 0;   // G1740
   }
 }
 
