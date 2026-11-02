@@ -44,14 +44,18 @@ cleanup() { kill $SRV 2>/dev/null; "$ADB" reverse --remove tcp:$PORT >/dev/null 
 trap cleanup EXIT
 sleep 2; "$ADB" reverse tcp:$PORT tcp:$PORT >/dev/null; "$ADB" forward tcp:$APORT localabstract:chrome_devtools_remote >/dev/null
 ROWS=wgSpan,wgChord,stSpan,finHeight,paxLen,halfW,boomLen,fltL,fltZ,engY,li_lampSize
+REP() { node "$FLY/tools/perf/phone_night_report.js" "$OUTD" > /dev/null 2>&1; }
 PE() { local name="$1"; shift; late && { say "skip $name: past $UNTIL"; return 0; }
-  say "run $name"; timeout 1500 node "$FLY/tools/perf/phone_edit.js" --phone $APORT --port $PORT --page dev.html --build "${PB:-twin}" "$@" >> "$OUTD/$name.txt" 2>&1; say "  $name exit $? ($(tail -1 "$OUTD/$name.txt"))"; }
+  say "run $name"; timeout 1500 node "$FLY/tools/perf/phone_edit.js" --phone $APORT --port $PORT --page dev.html --build "${PB:-twin}" "$@" >> "$OUTD/$name.txt" 2>&1; say "  $name exit $? ($(tail -1 "$OUTD/$name.txt"))"; REP; }
 PE edits   --rows $ROWS --reps 2 --ticks 15 --quiet 3000 --idle 20 --query idle=0 --out "$OUTD/edits.json" --shot "$OUTD/s20_after_tier.jpg" --flightlog "$OUTD/flightlog_edits.json"
+# the crew (A0 2 Nov 21:55, the user: the characters untextured, or not drawn at all, if they cost): hidden and flat beside the base
+PE crew    --rows none --census base,nocrew,crewflat,base --csec 6 --query idle=0 --out "$OUTD/census_crew.json"
+# 7. THE TEST FLIGHT, THIRD (A0 3 Nov 00:55; was last, A0 2 Nov 23:00: the Cub, one auto circuit and back to the shed, capped at
+#    8 min; a dead Chrome or a hot phone (45 C) stops it and is named - never retried)
+PB=cub PE fly --rows none --fly --flycap 480 --query idle=0 --out "$OUTD/fly.json"
 PE typed   --rows $ROWS --reps 1 --typed --quiet 3000 --query idle=0 --out "$OUTD/typed.json"
 PE census  --rows none --census --csec 6 --idle 20 --query idle=0 --out "$OUTD/census_tier.json"
 PE full    --rows none --census base --csec 6 --idle 20 --query "idle=0&phmat=full" --out "$OUTD/census_full.json" --shot "$OUTD/s20_after_full.jpg"
-# the crew (A0 2 Nov 21:55, the user: the characters untextured, or not drawn at all, if they cost): hidden and flat beside the base
-PE crew    --rows none --census base,nocrew,crewflat,base --csec 6 --query idle=0 --out "$OUTD/census_crew.json"
 PE idle    --rows none --idlecheck --out "$OUTD/idle.json"
 # PHONE-GARAGE's G3798c (A0 2 Nov): the registration painted in the decal atlas after the page's first paint (the Cub's came out
 # blank under SwiftShader) - its own pass (the hook reads page 0 every 250 ms: never on the timed passes), the Cub and the twin
@@ -63,8 +67,5 @@ if ! late; then
     --skip boot,drag,frames,soak --shot "$OUTD/s20_after_edit_tab.jpg" --out "$OUTD/touch.json" --no-adb >> "$OUTD/touch.txt" 2>&1
   say "  touch exit $?"
 fi
-# 7. THE TEST FLIGHT, LAST (A0 2 Nov 23:00: after every garage pass, the Cub, one auto circuit and back to the shed, capped at
-#    8 min; a dead Chrome or a hot phone (45 C) stops it and is named - never retried)
-PB=cub PE fly --rows none --fly --flycap 480 --query idle=0 --out "$OUTD/fly.json"
 node "$FLY/tools/perf/phone_night_report.js" "$OUTD" >> "$LOG" 2>&1 && say "report: $OUTD/RESULTS.md"
 say "done"
