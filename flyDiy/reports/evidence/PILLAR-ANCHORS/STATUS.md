@@ -135,7 +135,7 @@ SwiftShader, `tools/plane_shot.js` from this branch.
 | `4b_pod_aft_C_pillar_before_after.jpg` | The pod's aft end. Before, the rear float strut's root hangs in the air aft of the pod (the float's deck station is past the pod's end). After, it is on the C pillar. |
 | `handle_before_after.jpg` | The door handle close (`fit:doorHandle`): the old 115 mm U grab, then the new latch lever (escutcheon, lever, grip at the latch edge, lock barrel) 25 mm from the latch edge. |
 | `4b_side_before.jpg`, `4b_side_after.jpg` | The side preset. |
-| C172-alike as born (snap on) | (shooting) |
+| `c172_born_snap_q.jpg`, `c172_born_snap_door_side.jpg` | The C172-alike born in the design flow (pilSnap 1 by default). Its frame roots the lift strut on the firewall ring, so the foot stands on the A post below the pilot door's hinges, and the lever handle sits by the latch. |
 
 Caveats:
 
