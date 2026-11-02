@@ -31,6 +31,10 @@ const OUT = path.resolve(opt('out', path.join(__dirname, '..', 'reports', 'evide
 const Q = opt('q', '');
 const FALLBACK = opt('fallback', 'D:/Dev/DeGaRoR.github.io');
 const ONLY = (opt('views', '') || '').split(',').filter(Boolean);
+// --build <file.json>: the aeroplane the roll-out flies (a build file, wrapped or bare: GARAGE_SPEC.set before the
+// roll-out); --over '{"li_nav":1}': rows laid over its cage (a test copy, never saved); the twin_ views run only with a build
+const BUILD = opt('build', null), OVER = JSON.parse(opt('over', 'null'));
+const BTAG = BUILD ? '_' + path.basename(BUILD, '.json').replace(/\W+/g, '').slice(0, 24) + (OVER ? '_over' : '') : '';
 // --variants '[{"eye":0},{"eye":1.5}]': each NIGHT view shot once per set of light_rig NIGHT dials (pages that have them;
 // the day views once, with the first set) - the file name carries the set (e.g. _eye1.5)
 const VARIANTS = JSON.parse(opt('variants', '[null]'));
@@ -46,6 +50,8 @@ const BLUE = { date: '2026-12-24', utc: 1 * 3600 };     // 16:00 AKST: the sun a
 const SET_ = { date: '2026-12-24', utc: 0.25 * 3600 };  // 15:15 AKST: the sun near 0
 const NEWM = { date: '2027-01-08', utc: 3 * 3600 };     // two weeks on: the moonless control
 const NOON = { date: '2026-12-23', utc: 21 * 3600 };    // 12:00 AKST: the December noon (the sun ~11.5 deg) - the rig's control
+const DUSK4 = { date: '2026-12-24', utc: 0.85 * 3600 }; // 15:51 AKST: the sun at about -4 deg, the full moon rising ENE
+const LIT = { flood: 1, nav: 1, beacon: 1, land: 1, taxi: 1, instr: 1, pedal: 1, pax: 1 }, DARK = { flood: 0, nav: 0, beacon: 0, land: 0, taxi: 0, instr: 0, pedal: 0, pax: 0 };
 const CLEAR = { cloudCover: 0 }, FEW = { cloudCover: 0.2, cloudType: 'cu' };
 // views: at 'stand' | 'over' (300 m over HOME's field) | 'final' (150 m on a 2 km final to HOME) | 'xz' (agl over x,z);
 //        aim 'runway' | 'seaMoon' | 'awayMoon' | 'moon' | 'sun' | 'toward' (the x,z in V.to); dist the orbit's
@@ -67,7 +73,16 @@ const VIEWS = [
   { name: 'blue_stand',       day: Object.assign({}, BLUE, CLEAR), at: 'stand', aim: 'runway', el: 0.10, dist: 16, settle: 12 },
   { name: 'full_over_sea',    day: Object.assign({}, XMAS, CLEAR), at: 'over', aim: 'seaMoon', el: 0.05, dist: 30 },
   { name: 'new_stand',        day: Object.assign({}, NEWM, CLEAR), at: 'stand', aim: 'runway', el: 0.10, dist: 16, settle: 12 },
-].filter(v => !ONLY.length || ONLY.includes(v.name));
+  // THE USER'S FLOATPLANE ON THE LAKE (A0 2 Nov 19:40, the user: "something readable at night/dusk, and lights that work in
+  // the cabin, and outside to reflect in lakes"): Twin_busher_floats_2 on Cabin Lake, its keels at the height the sea
+  // roll-out seated them (agl 'keep'), the cabin flood and every fitted outside light ON (CK.sw, as the rail's pills)
+  { twin: 1, name: 'twin_dusk_q3',   day: Object.assign({}, DUSK4, CLEAR), ...CABIN, agl: 'keep', aim: 'q3', el: 0.10, dist: 15, lights: LIT, settle: 12 },
+  { twin: 1, name: 'twin_dusk_low',  day: Object.assign({}, DUSK4, CLEAR), ...CABIN, agl: 'keep', aim: 'sun', el: 0.025, dist: 18, lights: LIT },
+  { twin: 1, name: 'twin_full_q3',   day: Object.assign({}, XMAS, CLEAR), ...CABIN, agl: 'keep', aim: 'q3', el: 0.10, dist: 15, lights: LIT, settle: 12 },
+  { twin: 1, name: 'twin_full_low',  day: Object.assign({}, XMAS, CLEAR), ...CABIN, agl: 'keep', aim: 'q3', el: 0.025, dist: 18, lights: LIT },
+  { twin: 1, name: 'twin_full_dark', day: Object.assign({}, XMAS, CLEAR), ...CABIN, agl: 'keep', aim: 'q3', el: 0.10, dist: 15, lights: DARK },
+  { twin: 1, name: 'twin_full_cabin', day: Object.assign({}, XMAS, CLEAR), ...CABIN, agl: 'keep', aim: 'q3', el: 0.04, dist: 6, lights: LIT },
+].filter(v => ONLY.length ? ONLY.includes(v.name) : !!v.twin === !!BUILD);
 
 // ---- in the page ----
 // HOME's strip, the nearest sea's heading from it (72 headings, the first water 600 m - 8 km out), the night's hour
@@ -78,6 +93,8 @@ const SETUP = V => `(async () => {
   ${V.js || ''};
   // the stand is where the roll-out put the aeroplane: kept at the first view, put back for every 'stand' view
   if (!window.__moonStand) window.__moonStand = s.cgPos().slice();
+  // the keels' seat: the CG's height over the water where the roll-out put a float build (first view; 2 m otherwise)
+  if (window.__floatAgl == null) { const c = s.cgPos(), wh = w.waterH ? w.waterH(c[0], c[2]) : null; window.__floatAgl = (s.hydro || ${!!BUILD}) && wh != null && isFinite(wh) && Math.abs(c[1] - wh) < 4 ? c[1] - wh : 2; }
   const A = (w.aerodromes || []).find(a => a.id === 'HOME') || (w.aerodromes || [])[0];
   const strip = A && A.strips ? (A.strips.find(q => !q.flyIn) || A.strips[0]) : A;
   const hd = strip && strip.hdg != null ? strip.hdg : 0;
@@ -104,8 +121,10 @@ const SETUP = V => `(async () => {
   let px = cx, pz = cz, agl = 0, look = [dx, dz];
   if (${JSON.stringify(V.at)} === 'stand') { const st = window.__moonStand, cg = s.cgPos(); if (Math.hypot(st[0] - cg[0], st[1] - cg[1], st[2] - cg[2]) > 0.5) await FLIGHT_PROBE.place({ by: [st[0] - cg[0], st[1] - cg[1], st[2] - cg[2]], zeroV: true }); agl = null; look = [dx, dz]; }
   else if (${JSON.stringify(V.at)} === 'over') { agl = 300; look = [sea[0], sea[1]]; }
-  else if (${JSON.stringify(V.at)} === 'xz') { px = ${+V.x || 0}; pz = ${+V.z || 0}; agl = ${+V.agl || 10}; }
+  else if (${JSON.stringify(V.at)} === 'xz') { px = ${+V.x || 0}; pz = ${+V.z || 0}; agl = ${V.agl === 'keep' ? 'window.__floatAgl' : (+V.agl || 10)}; }
   else if (${JSON.stringify(V.at)} === 'final') { const tx = cx - lh[0] * len / 2, tz = cz - lh[1] * len / 2; px = tx - lh[0] * 1200; pz = tz - lh[1] * 1200; agl = 150; look = [lh[0], lh[1]]; }
+  if (aim === 'q3') { const ax = s.axes ? s.axes() : null; if (ax) { const nx = -ax[0][0], nz = -ax[0][2], lx = -ax[2][0], lz = -ax[2][2];   // the nose, the left wing
+      const ex = nx * 0.77 + lx * 0.64, ez = nz * 0.77 + lz * 0.64, h = Math.hypot(ex, ez) || 1; look = [-ex / h, -ez / h]; } }   // the eye 40 deg off the nose, port side
   if (aim === 'toward') { const T = ${JSON.stringify(V.to || [0, 0])}; const tx = T[0] - px, tz = T[1] - pz, h = Math.hypot(tx, tz) || 1; look = [tx / h, tz / h]; }
   if (aim === 'sun') { const sv = DAY_CLOCK.day().sun, h = Math.hypot(sv[0], sv[2]) || 1; look = [sv[0] / h, sv[2] / h]; }
   if (aim === 'moon' || aim === 'awayMoon') { const mv = DAY_CLOCK.day().moon, h = Math.hypot(mv[0], mv[2]) || 1, k = aim === 'moon' ? 1 : -1; look = [mv[0] / h * k, mv[2] / h * k]; }
@@ -114,8 +133,11 @@ const SETUP = V => `(async () => {
     await FLIGHT_PROBE.place({ by: [px - cg[0], gy - cg[1], pz - cg[2]], zeroV: true }); }
   const az = Math.atan2(-look[1], -look[0]);   // app.js placeCamera: the eye at target + dist (cos el cos az, sin el, cos el sin az), looking back at it
   FLIGHT_PROBE.camSet(az, ${V.el}, ${V.dist});
+  const LT = ${JSON.stringify(V.lights || null)}, K = (typeof CK !== 'undefined') ? CK : null, lit = {};
+  if (LT && K && K.sw) { for (const k of Object.keys(LT)) if (('sw_' + k) in K.sw) { K.sw['sw_' + k] = LT[k]; if (K.handSw) K.handSw['sw_' + k] = true; lit[k] = LT[k]; } if (K.glow) K.glow(0); }
   const d = DAY_CLOCK.day();
-  return { local: d.local, sunEl: +d.sunEl.toFixed(1), moonEl: +d.moonEl.toFixed(1), phase: +d.moonPhase.toFixed(3), sea: sea.map(v => +v.toFixed(2)), az: +az.toFixed(3) };
+  return { lights: LT ? { set: lit, lightOn: K ? K.lightOn : null, unfit: K && K.unfit ? [...K.unfit] : null, lamps: K && K.model && K.model.lamps ? K.model.lamps.map(l => l.kind + ':' + l.key) : null, flood: K && K.model && K.model.floodLight ? +K.model.floodLight.intensity.toExponential(3) : null } : null,
+    floatAgl: window.__floatAgl, local: d.local, sunEl: +d.sunEl.toFixed(1), moonEl: +d.moonEl.toFixed(1), phase: +d.moonPhase.toFixed(3), sea: sea.map(v => +v.toFixed(2)), az: +az.toFixed(3) };
 })()`;
 const FRAMES = n => `new Promise(r => { let k = 0; const f = () => { if (++k >= ${n}) r(k); else requestAnimationFrame(f); }; requestAnimationFrame(f); })`;
 // the light as the page holds it, and the resolve target's fp16 radiance over the ground band
@@ -203,13 +225,21 @@ async function runPage(page) {
     await cmd('Page.navigate', { url });
     await sleep(1500);
     try { await ev("Promise.race([(window.BOOT && BOOT.whenReady) ? BOOT.whenReady().then(() => 'ready') : new Promise(r => setTimeout(() => r('no BOOT'), 18500)), new Promise(r => setTimeout(() => r('timeout'), 150000))])"); } catch (e) { await sleep(18500); }
+    if (BUILD) {   // the build, through the garage's own set door (a new aeroplane: no slot, no plaque), before the roll-out
+      const raw = JSON.parse(fs.readFileSync(BUILD, 'utf8')), spec = raw.spec || raw;
+      if (OVER) spec.cage = Object.assign({}, spec.cage, OVER);
+      for (let i = 0; i < 60 && !(await ev('!!(window.GARAGE_SPEC && GARAGE_SPEC.set)')); i++) await sleep(1000);
+      await ev('(GARAGE_SPEC.set(' + JSON.stringify(spec) + '), 1)'); await sleep(4000);
+      console.log('night_shots: build ' + path.basename(BUILD) + (OVER ? ' over ' + JSON.stringify(OVER) : '') + ' set; gear ' + JSON.stringify(spec.gear && spec.gear.type));
+    }
     let flying = false;
     for (let a = 0; a < 8 && !flying; a++) { await ev("(()=>{const b=document.getElementById('bGo'); if (b) b.click();})()"); await sleep(6000); flying = await ev("/TAXI|DOWNWIND|FINAL|DEPART/.test(document.body.innerText) && !!window.FLIGHT_PROBE"); }
+    if (BUILD) await ev("(()=>{const b=document.getElementById('bPause'); if (b && /pause/i.test(b.textContent)) b.click(); return 1;})()");   // a float build: held on the water before its pilot starts a take-off run
     for (let i = 0; i < 150; i++) { const bs = await ev("window.BOOT ? BOOT.state : 'none'"); if (bs === 'gone' || bs === 'none') break; await sleep(1000); }
     const KEEP = "(()=>{const l=[...document.querySelectorAll('button,a,div')].filter(b=>/keep the current build/i.test(b.textContent||'')&&b.children.length===0&&b.offsetParent);l.forEach(x=>x.click());return l.length;})()";
     for (let i = 0; i < 20; i++) { const n = await ev(KEEP); await sleep(500); if (!n && i > 4) break; }
     await sleep(3000);   // the overlay gone + 3 s
-    const tag = path.basename(page, '.html') + (Q ? '_' + Q.replace(/\W+/g, '') : '');
+    const tag = path.basename(page, '.html') + (Q ? '_' + Q.replace(/\W+/g, '') : '') + BTAG;
     fs.mkdirSync(OUT, { recursive: true });
     const hasNight = await ev('!!(window.LIGHT_RIG && window.LIGHT_RIG.setNight)');
     for (const V of VIEWS) for (const [vi, VAR] of VARIANTS.entries()) {
