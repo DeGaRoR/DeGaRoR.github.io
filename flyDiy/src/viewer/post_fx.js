@@ -665,10 +665,20 @@ const POST_FX = (() => {
     const d = (perfNow() - t0) * 1000; cat.st.tapUs += d; cat.st.n++; if (d > cat.st.tapUsMax) cat.st.tapUsMax = d;
   }
   let catInstalled = false;
+  // PHONE-EDIT-PERF (2 Nov, the user's S20 FE log): ON THE PHONE PROFILE THE CATCHER IS OFF. Its frames there are uneven
+  // by nature (a phone at ~12 fps in the shed): 805 taps, 800 'caught', 542 us a tap, max 159 ms - a debug aid that
+  // only added load and filled the log. localStorage flydiy.rec.catch = '1' (or 'shots') turns it on there too; the
+  // desktop is unchanged
+  const catPref = () => { try { return typeof localStorage !== 'undefined' ? localStorage.getItem('flydiy.rec.catch') : null; } catch (e) { return null; } };
   const catcher = {
-    CAT, tap, install: () => { catInstalled = true; return tap; },
+    CAT, tap, install: () => {
+      catInstalled = true;
+      const W = typeof window !== 'undefined' ? window : null, pf = catPref();
+      if (W && W.PROFILE && W.PROFILE.name === 'phone' && pf !== '1' && pf !== 'shots') { cat.on = false; cat.why = 'phone'; }
+      return tap;
+    },
     get on() { return cat.on; }, set on(v) { cat.on = !!v; },
-    summary: () => ({ on: cat.on, taps: cat.st.taps, queries: cat.st.queries, trips: cat.st.trips, lost: cat.st.lost, caught: cat.st.caught, failed: cat.st.failed, shots: cat.shots,
+    summary: () => ({ on: cat.on, why: cat.why || null, taps: cat.st.taps, queries: cat.st.queries, trips: cat.st.trips, lost: cat.st.lost, caught: cat.st.caught, failed: cat.st.failed, shots: cat.shots,
       tapUs: cat.st.n ? +(cat.st.tapUs / cat.st.n).toFixed(1) : null, tapUsMax: +cat.st.tapUsMax.toFixed(1), spike: CAT.spike, sky: CAT.sky }),
   };
   try { if (typeof localStorage !== 'undefined' && localStorage.getItem('flydiy.rec.catch') === '0') cat.on = false; } catch (e) {}

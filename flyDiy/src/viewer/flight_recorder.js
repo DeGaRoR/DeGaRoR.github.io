@@ -619,6 +619,14 @@
     attach: (renderer, probe) => OFF ? null : REC.attach(renderer, probe),
     begin: REC.begin, end: REC.end, lap: REC.lap, push: REC.push, pop: REC.pop, town: REC.town,   // G3415: the town meter
     event: (kind, ms, detail) => REC.event(kind, null, ms, detail),
+    // PHONE-EDIT-PERF (D): a garage task by name - the commit, the bench's re-checks - run as fn() and logged as 'gtask'
+    // when it took 16 ms or more (the timers after an edit, named in the log). The clock is a rig's real one where it
+    // gives one (window.__realNow: the node page's own clock is virtual), as the post chain's
+    time: (name, fn) => {
+      if (OFF) return fn();
+      const clk = W.__realNow || now, t0 = clk();
+      try { return fn(); } finally { const ms = clk() - t0; if (ms >= 16) REC.event('gtask', null, ms, name); }
+    },
     reveal: how => REC.reveal(how),
     gpuMay: () => OFF || REC.gpuMay(),   // PERF-1 P1: may a subsystem open its GPU timer this frame? (the recorder's arbitration)
     gpuTimer: on => { if (on !== undefined) REC.rec.gpu.off = !on; return !!REC.rec.gpu.ext && !REC.rec.gpu.off; },   // G1995: the GPU timer on / off, live (the self-test)   // G1995: the flight handed to the player (app.js flRevealStart), screen or none

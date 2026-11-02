@@ -953,7 +953,8 @@ function benchInit(api) {
     if (busy || live || flown || away()) return;
     if (!anyRun() && !anyStale()) return;
     if (dirtyT) clearTimeout(dirtyT);
-    const fire = () => {
+    const fire = () => { const FR = window.FLIGHT_REC; if (FR && FR.time) FR.time('bench dirty', fireIn); else fireIn(); };
+    const fireIn = () => {
       dirtyT = null;
       if (busy || live || flown || away()) return;
       if (!idle()) { dirtyT = setTimeout(fire, 400); return; }   // a screen up: after it (the roll-out's own sync ends away)
@@ -977,7 +978,8 @@ function benchInit(api) {
       recheckT = null;
       if (busy || live || flown || dirtyT || !idle()) { scheduleRecheck(); return; }   // (idle: the garage at rest)
       if (!anyStale()) return;
-      runQuiet(null, true);
+      const FR = window.FLIGHT_REC, run = () => runQuiet(null, true);
+      if (FR && FR.time) FR.time('bench recheck', run); else run();
     }, 1200);
   }
   // ...and the other direction: every SETTLED result mirrors the bench into

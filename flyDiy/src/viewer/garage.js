@@ -851,7 +851,7 @@ function garageInit(api) {
   function touch() {
     if (committing || !LS || typeof setTimeout !== 'function') return;
     if (touchT && typeof clearTimeout === 'function') clearTimeout(touchT);
-    touchT = setTimeout(() => { touchT = null; commit(); }, 400);
+    touchT = setTimeout(() => { touchT = null; const FR = window.FLIGHT_REC; if (FR && FR.time) FR.time('garage commit', commit); else commit(); }, 400);
   }
 
   // ---- the shelf --------------------------------------------------------
