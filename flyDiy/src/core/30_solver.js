@@ -470,6 +470,34 @@ function makeSim(def, world) {
   const OCC = DMG_ON && typeof genOccSpec === 'function' && GEN_OCC.on !== false ? genOccSpec(def) : null;
   const OCS = OCC ? genOccState() : null;
   if (OCC) DMG.occ = null;
+  // G2001 (DMG-SCUFF): THE SLIDE WORK PER NODE (J) - what the drawing paints as scrapes (skin_scuff.js), recorded only
+  // with the layer on and never read back by the physics (no force, no state the step uses): the ground's friction work
+  // on a node that is not a wheel (Fn's own Coulomb term, kf |v|^2 dt), and a node's rub along a trunk (the trunk's push
+  // has no friction in the solver: rubbed at a nominal mu 0.5 of its push, bark on a skin, for the picture only). Beside
+  // each node's work, in the BODY frame at that substep (aft, up, right: xAft / yUp / zRt): the slide's direction and the
+  // side it was pushed from (into the surface) weighted by the work, and the work done on SOFT ground (grass, forest
+  // floor, sand: the stain). `scN` counts the substeps that slid (the hop's signature). Zeroed by reset()
+  DMG.sW = new Float64Array(DMG_ON ? n : 0); DMG.sD = new Float64Array(DMG_ON ? n * 3 : 0);
+  DMG.sN = new Float64Array(DMG_ON ? n * 3 : 0); DMG.sG = new Float64Array(DMG_ON ? n : 0); DMG.scN = 0; DMG.scW = 0;
+  const SCUFF_SOFT = [1, 0, 0, 1, 0, 0, 0, 1];      // GROUND_SURF's classes: 0 grass, 3 forest floor, 7 sand
+  function scuffAdd(i, w, dx, dy, dz, ix, iy, iz, soft) {
+    const i3 = i * 3;
+    DMG.sW[i] += w; DMG.scW += w; DMG.scN++;
+    DMG.sD[i3] += w * (dx * xAft[0] + dy * xAft[1] + dz * xAft[2]);
+    DMG.sD[i3+1] += w * (dx * yUp[0] + dy * yUp[1] + dz * yUp[2]);
+    DMG.sD[i3+2] += w * (dx * zRt[0] + dy * zRt[1] + dz * zRt[2]);
+    DMG.sN[i3] += w * (ix * xAft[0] + iy * xAft[1] + iz * xAft[2]);
+    DMG.sN[i3+1] += w * (ix * yUp[0] + iy * yUp[1] + iz * yUp[2]);
+    DMG.sN[i3+2] += w * (ix * zRt[0] + iy * zRt[1] + iz * zRt[2]);
+    if (soft) DMG.sG[i] += w;
+  }
+  // a node pushed off a trunk (normal nx, nz, horizontal) by F: its velocity ALONG the bark (the normal part taken off)
+  function scuffTrunk(i, F, nx, nz, dt) {
+    if (!(F > 0)) return;
+    const i3 = i * 3, vn = v[i3] * nx + v[i3+2] * nz, tx = v[i3] - vn * nx, ty = v[i3+1], tz = v[i3+2] - vn * nz;
+    const st = Math.sqrt(tx * tx + ty * ty + tz * tz);
+    if (st > 0.05) scuffAdd(i, 0.5 * F * st * dt, tx / st, ty / st, tz / st, -nx, 0, -nz, false);
+  }
   // per node: the members still holding it (an ORPHAN, every member broken, is debris: gravity and the ground
   // only, its aero dropped - a lone node carries a strip's lift on its own few kilos and would be flung)
   const nodeDeg = new Int32Array(n), nodeDeg0 = new Int32Array(n), orphan = new Uint8Array(n);
@@ -1312,6 +1340,7 @@ function makeSim(def, world) {
     DMG.wB.fill(0);   // G1802
     DMG.how.fill(0);  // G3770
     if (OCC) { genOccReset(OCS); DMG.occ = null; }   // G2373
+    if (DMG_ON) { DMG.sW.fill(0); DMG.sD.fill(0); DMG.sN.fill(0); DMG.sG.fill(0); DMG.scN = 0; DMG.scW = 0; }   // G2001
     tkSub += 2;       // G1883: every member's contact starts again
     if (SCR !== null) scarReset(SCR);   // G2357: no scar (a new version, empty, if there was one: the page lets it go)
     if (PODS !== null) { DMG.pod.slide.fill(0); DMG.pod.work.fill(0); DMG.pod.fnPeak.fill(0); DMG.pod.tFirst = -1; DMG.pod.n = 0; podC = null; }   // G3463
@@ -3622,6 +3651,7 @@ function makeSim(def, world) {
         cIx += (fa + fb) * nx * dt; cIz += (fa + fb) * nz * dt;
         if (tkPush !== null) { tkPush[b.a] += fa; tkPush[b.b] += fb; }   // G1883: the instrument (sim.damagePush)
         _tkHits++;
+        if (DMG_ON) scuffTrunk(b.a, fa, nx, nz, dt), scuffTrunk(b.b, fb, nx, nz, dt);   // G2001: the rub along the bark
       }
     }
   }
@@ -3738,6 +3768,8 @@ function makeSim(def, world) {
           if (SCR !== null) scarHit(SCR, i, p[i3], p[i3+2], Fn, v[i3+1], kf * sp * sp, dt);   // G2357: the contact, read (DMG-SCAR)
           if (PODS !== null && PODS[i] >= 0) { const P4 = DMG.pod, k = PODS[i]; P4.slide[k] += sp * dt; P4.work[k] += kf * sp * sp * dt; P4.n++;
             if (Fn > P4.fnPeak[k]) P4.fnPeak[k] = Fn; if (P4.tFirst < 0) P4.tFirst = simT; }   // G3463: the pod's scrape, read
+          if (DMG_ON && sp > 0.05) scuffAdd(i, kf * sp * sp * dt, vx / sp, 0, vz / sp, 0, -1, 0,   // G2001: the slide's work
+            SCUFF_SOFT[world && world.surface ? world.surface(p[i3], p[i3+2]) : 0] === 1);
         } else if (SCR !== null) scarHit(SCR, i, p[i3], p[i3+2], Fn, v[i3+1], 0, dt);
       }
     }

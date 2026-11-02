@@ -461,6 +461,7 @@ const GATES = [
   // page (headless Chromium, when present) the same hashes as node - the core's own sin / cos / pow (00_registry.js).
   // Three children at once
   { id: 'DMGDETERMINISM', file: '_dmg_determinism_check.js', tier: 'core', weight: 3, wall: 1800 },
+  { id: 'DMGSCUFF', file: '_dmg_scuff_check.js', tier: 'core', weight: 2, wall: 120 },   // G2005 (DMG-SCUFF): the damage drawn where the physics put it
   // G286: the graphics settings menu - presets, the pref, the handles
   { id: 'GFX', file: '_gfx_check.js', tier: 'core' },
   // G3880-G3884 (GAME-MENUS): the browser's Back asks first - the guard armed at the first input, Back -> the box (the sim held),
