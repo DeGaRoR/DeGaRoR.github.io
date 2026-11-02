@@ -435,7 +435,8 @@ check(/LIGHT_RIG\.groundBounce\(\)/.test(world) &&
   // the deck, so a lamp at the roof line and the wing are in the same place
   // and the lamp reads as hung off the wing. Measuring the built ceiling is
   // what makes it right for a high wing, a low wing and a parasol alike.
-  check(/const ceilAt = \(x, z, rad\) =>/.test(lit),
+  // (CABIN-CRAFT: the search takes the lamp's kind too - its radius sets how far it must stay from glass)
+  check(/const ceilAt = \(x, z, rad, kind\) =>/.test(lit),
         'the cabin lamps no longer measure the ceiling they hang from');
   // G296: THE LADDER. A cabin lamp mounts on the first real structure its
   // cabin's top offers — roof face, ceiling-loop rail, windscreen header,
@@ -443,8 +444,17 @@ check(/LIGHT_RIG\.groundBounce\(\)/.test(world) &&
   // fallback to the spec's roof line hung a dome in the middle of a
   // skylight, so a lamp position may never come from `A.roofY` again.
   // (G442.3: the bubble's flood mounts on the arch or not at all - no coaming fallback, the user's ruling)
-  check(/const LADDER = \{[\s\S]*?flood: \[\[roofAt, frameAt\], \[headerAt, frameAt\], \[coamingAt\], \[archAt\]\]/.test(lit),
+  // CABIN-CRAFT (2026-11-02, the user: "find flat faces, try and stick on the ceiling, but not where there are windows.
+  // Never stick on bubble canopies or any sort of glass. Stick to the aft bulkhead if no other option, or into the
+  // shoulder"): the ladder is ceiling -> aft bulkhead -> shoulder (a convertible's header, an open cockpit's coaming
+  // first; a bubble from the bulkhead, its arch only clear of glass) and every rung asks clearOfGlass. GATE
+  // CABINLAMP measures the result on built aeroplanes; this holds the rule's text.
+  check(/const LADDER = \{[\s\S]*?flood: \[\[roofAt, bulkheadAt, shoulderAt\], \[headerAt, bulkheadAt, shoulderAt\],\s*\[coamingAt, bulkheadAt, shoulderAt\], \[bulkheadAt, archClear, shoulderAt\]\]/.test(lit),
         'the cabin lamps no longer climb the mounting ladder per cabin top (closed / convertible / open / bubble)');
+  check(/const clearOfGlass = \(p, nIn, kind\) =>/.test(lit) && /if \(q\.flat < CEIL_FLAT\) continue;/.test(lit) &&
+        /clearOfGlass\(\[q\.x, q\.y, q\.z\], q\.n, kind\)/.test(lit) &&
+        (lit.match(/clearOfGlass\(/g) || []).length >= 4,
+        'a cabin lamp rung no longer keeps off glass (the ceiling, the bulkhead, the shoulder and the arch each ask clearOfGlass)');
   check(/const mountAt = \(kind, s\) =>/.test(lit) && /mountAt\('flood', pilot\)/.test(lit) && /mountAt\('pax', s\)/.test(lit),
         'the flood or the passenger lamps stopped using the mounting ladder');
   check(!/cl \? cl\.y : A\.roofY/.test(lit) && !/\(cl \? cl\.y : A\.roofY\)/.test(lit),

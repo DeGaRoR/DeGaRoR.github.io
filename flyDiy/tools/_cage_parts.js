@@ -973,7 +973,8 @@ const CAGE_PARTS = [
       // `cowlLoops/Ease/Bulge` -> `nose`: they loft the CAGE's nose cap, not this layer
       ['fitted', ['cowlOn', 'fitNose', 'cowlGap']],
       ['section at the firewall', ['cw_waist', 'cw_deckH', 'cw_keelH',
-                                   'cw_sqAftTop', 'cw_sqAftBot']],
+                                   'cw_sqAftTop', 'cw_sqAftBot',
+                                   'cw_wAftTop', 'cw_wAftBot']],   // CABIN-CRAFT: the width by level
       ['nose bowl', ['cw_lidLen', 'cw_lidShoulder', 'cw_lidRound',
                      'cw_faceRise', 'cw_deckSweep', 'cw_keelSweep',
                      'cw_waistSweep', 'cw_lidMode', 'cw_lidR', 'cw_lidGap']],

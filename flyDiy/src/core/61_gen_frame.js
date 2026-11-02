@@ -2998,6 +2998,19 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       const per = Math.PI * (3 * (a2 + b2) - Math.sqrt((3 * a2 + b2) * (a2 + 3 * b2)));
       cowlM = per * Math.max(0.1, cb.noseGap) *
               (O.cowlKgM2[S.material] || O.cowlKgM2.alloy);
+      // CABIN-CRAFT (2026-11-02): A FIREWALL NARROWER AT THE TOP (or the bottom) IS LESS SKIN - the drawn section's
+      // girth over the round one's (genSectW, the drag build-up's own walk), averaged firewall -> nose where it fades
+      // to 1. Absent rows: no factor, the bit it was.
+      const cwW = genCowlWidths(S);
+      if (cwW) {
+        const girth = w => { let L = 0, pv = null;
+          for (let i = 0; i <= 48; i++) { const q = w ? genSectW(2 * Math.PI * i / 48, a2, b2, b2, 2, 2, w.top, w.bot)
+                                                      : genSect(2 * Math.PI * i / 48, a2, b2, b2, 2, 2);
+            if (pv) L += Math.hypot(q[0] - pv[0], q[1] - pv[1]); pv = q; }
+          return L; };
+        const g1 = girth(null);
+        if (g1 > 0) cowlM *= 0.5 * (1 + girth(cwW) / g1);
+      }
     }
     // THE EXHAUST, from the power it carries. Electric has none.
     const exhM = electric ? 0 : O.exhaustKgKW * kW;
