@@ -29,8 +29,10 @@
 // - THE SPLIT: --ph-split (the view's share, phone.css) per orientation, .5 by default, remembered (flydiy.phSplit);
 //   #phDiv on the line between view and controls moves it - a ghost line while the thumb moves, the view resized once
 //   on release; a double tap puts it back to half.
-// - THE ROW (phone.css): one FIXED GRID a control, ~56 px, never a wrap (the user's stills 13:02-13:03: "rubbish overflowing
-//   of sliders and button components") - label | switch | value | unit over [-] the scale [+], the - / + 40 px.
+// - THE ROW (phone.css): one FIXED GRID a control, never a wrap (the user's stills 13:02-13:03: "rubbish overflowing of
+//   sliders and button components") - label | switch | value | unit over the scale. COMPACT by default (~40 px, the scale the
+//   row's width, - / + in the value's editor); with the row's own - / + (40 px, ~58 px a row) on html.ph-pm - ?phsteps=1 or
+//   flydiy.phSteps=1, PHONE_UI.setSteps - while the user picks from the two stills (A0 2 Nov).
 // - THE VALUE'S EDITOR (#phEdit): a tap on a slider's value or label opens it - the number typed (inputmode decimal),
 //   the unit, - / + (held: they repeat), Done / Enter / a tap outside sets it, Esc leaves it; it rides the keyboard's
 //   top edge (visualViewport). A typed value goes through _cage_ui's own typed field (v_<k>'s change: clamp, then the
@@ -496,10 +498,13 @@
   }
   // the split before the first layout: the view is its size from the boot on
   applySplit();
+  // the row's own - / + (html.ph-pm), off unless asked for
+  const setSteps = on => { on = !!on; D.documentElement.classList.toggle('ph-pm', on); ls.set('flydiy.phSteps', on ? '1' : '0'); W.requestAnimationFrame(placeAll); return on; };
+  try { const q = new URLSearchParams(W.location.search).get('phsteps'); D.documentElement.classList.toggle('ph-pm', q != null ? q === '1' : ls.get('flydiy.phSteps') === '1'); } catch (e) {}
   // the editor opens inside the boot (its 'editor' step); the rail and the tree fill after it
   const poll = setInterval(() => { if (init() && $('edRail') && $('edRail').children.length) { trimRail(); clearInterval(poll); } }, 250);
   W.PHONE_UI = { setTab, tab: () => tab, placeAll, enhance, rows: () => ROWS.size,
-    split: () => ({ o: orient(), f: clampSplit(orient(), splits[orient()]) }), setSplit,
+    split: () => ({ o: orient(), f: clampSplit(orient(), splits[orient()]) }), setSplit, setSteps, steps: () => D.documentElement.classList.contains('ph-pm'),
     edit: k => { const r = D.querySelector('.r.phSlider[data-k="' + k + '"]'); if (r) edOpen(r); return !!ed; },
     editing: () => (ed ? ed.row.dataset.k || '?' : null), editClose: c => edClose(!!c) };
 })();

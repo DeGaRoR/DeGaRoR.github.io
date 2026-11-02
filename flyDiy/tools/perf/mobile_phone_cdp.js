@@ -170,9 +170,14 @@ async function touchChecks(C) {
       say('fine', { ok: f.v !== r.v && Math.abs(f.v - r.v) <= Math.abs(coarse) * 0.15 + r.st, key: r.key, from: r.v, to: f.v, coarseWouldBe: +coarse.toFixed(3) });
       r = await probe();
       // THE ROW'S + (G3900: on line 2 of a fixed grid, 40 px), then the value's editor (G3901: a tap on the value) and its +
-      const pl = await centre('#edRows .r[data-k="' + r.key + '"] .phPlus'); await J('(__ev = { down: 0, input: 0, change: 0 }, 1)');
-      await tap(pl); const p = await valOf(r.key);
-      say('stepper', { ok: Math.abs(p.v - Math.min(r.hi, r.v + r.st)) < r.st * 0.01 + 1e-9 && p.ev.change === 1, key: r.key, from: r.v, to: p.v, step: r.st });
+      // (the row's own - / + only show with html.ph-pm; the compact row has them in the editor alone)
+      const rowSteps = await J('PHONE_UI.steps ? PHONE_UI.steps() : true');
+      let p = { v: r.v };
+      if (rowSteps) {
+        const pl = await centre('#edRows .r[data-k="' + r.key + '"] .phPlus'); await J('(__ev = { down: 0, input: 0, change: 0 }, 1)');
+        await tap(pl); p = await valOf(r.key);
+        say('stepper', { ok: Math.abs(p.v - Math.min(r.hi, r.v + r.st)) < r.st * 0.01 + 1e-9 && p.ev.change === 1, key: r.key, from: r.v, to: p.v, step: r.st });
+      } else say('stepper', { ok: true, skipped: 'compact row: - / + in the editor' });
       await tap(await centre('#edRows .r[data-k="' + r.key + '"] .v'));
       const open = await J('PHONE_UI.editing()');
       await J('(__ev = { down: 0, input: 0, change: 0 }, 1)');
@@ -217,13 +222,13 @@ async function touchChecks(C) {
       const d = await J('(() => { const sc = document.getElementById("edProps"), rows = document.getElementById("edRows"); sc.scrollTop = rows.offsetTop; const b = sc.getBoundingClientRect();' +
         ' const vis = [...rows.querySelectorAll(".r.phSlider")].filter(r => { const q = r.getBoundingClientRect(); return q.height > 0 && q.top >= b.top - 1 && q.bottom <= b.bottom + 1; });' +
         ' const hs = vis.map(r => r.getBoundingClientRect().height); return { rows: vis.length, sheet: Math.round(b.height), rowPx: hs.length ? Math.round(hs.reduce((a, x) => a + x, 0) / hs.length) : 0 }; })()');
-      say('density', Object.assign({ ok: d.rows >= 5 }, d));   // (the user's grid: - / + on line 2 make a row ~58 px: 5-6 rows in half a 360x800 screen)
+      say('density', Object.assign({ ok: d.rows >= (await J('PHONE_UI.steps ? PHONE_UI.steps() : false') ? 5 : 7) }, d));   // (compact ~40 px rows: 7-8 in half a 360x800 screen; with the row's - / + ~58 px: 5-6)
       // THE SHAPE (G3900; the user's 13:02-13:03 stills: rows wrapped, - / + on lines of their own, stray marks): every slider
       // row of the sheet one height, its - / scale / + on one line, nothing past the row's right edge, the knob on the thumb
       const g = await J('(() => { const out = { rows: 0, heights: {}, offLine: [], overflow: [], knobErr: 0 }; for (const r of document.querySelectorAll("#edRows .r.phSlider")) {' +
         ' const rb = r.getBoundingClientRect(); if (!rb.height || r.offsetParent === null) continue; out.rows++; const h = Math.round(rb.height); out.heights[h] = (out.heights[h] || 0) + 1;' +
         ' const m = r.querySelector(".phMinus").getBoundingClientRect(), pl = r.querySelector(".phPlus").getBoundingClientRect(), g = r.querySelector("input[type=range]"), gb = g.getBoundingClientRect();' +
-        ' const mid = q => q.top + q.height / 2; if (Math.abs(mid(m) - mid(gb)) > 3 || Math.abs(mid(pl) - mid(gb)) > 3 || m.right > gb.left + 1 || pl.left < gb.right - 1) out.offLine.push(r.dataset.k);' +
+        ' const mid = q => q.top + q.height / 2; if (m.width && pl.width && (Math.abs(mid(m) - mid(gb)) > 3 || Math.abs(mid(pl) - mid(gb)) > 3 || m.right > gb.left + 1 || pl.left < gb.right - 1)) out.offLine.push(r.dataset.k);' +
         ' for (const c of r.children) { if (c.classList.contains("phKnob")) continue; const cb = c.getBoundingClientRect(); if (cb.width && (cb.right > rb.right + 1 || cb.left < rb.left - 1 || cb.bottom > rb.bottom + 1)) { out.overflow.push(r.dataset.k + ":" + (c.className || c.tagName)); break; } }' +
         ' if (!g.disabled) { const f = (g.value - g.min) / ((g.max - g.min) || 1), tc = gb.left + 11 + f * (gb.width - 22), kb = r.querySelector(".phKnob").getBoundingClientRect(); out.knobErr = Math.max(out.knobErr, Math.round(Math.abs(kb.left + kb.width / 2 - tc) + Math.abs(kb.top + kb.height / 2 - mid(gb)))); } }' +
         ' out.offLine = out.offLine.slice(0, 6); out.overflow = out.overflow.slice(0, 6); return out; })()');

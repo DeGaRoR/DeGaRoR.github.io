@@ -19,7 +19,7 @@ html.phone {
      them a divider the thumb moves (phone.js #phDiv; --ph-split is the VIEW's share, remembered per orientation) */
   --ph-split:.5;
   --ph-vh:calc(var(--ph-split) * 100vh); --ph-vh:calc(var(--ph-split) * 100dvh); --ph-st:var(--ph-vh);
-  --ph-tap:48px; --ph-row:56px; --ph-step:40px; --ph-line2:32px;
+  --ph-tap:48px; --ph-row:40px; --ph-step:40px; --ph-line2:22px;
 }
 @media (orientation:landscape) {
   html.phone { --ph-sw:max(300px, calc((1 - var(--ph-split)) * 100vw)); --ph-vw:calc(100vw - var(--ph-sw)); --ph-sl:var(--ph-vw);
@@ -100,9 +100,9 @@ html.phone #edPartName { font-size:15px; }
 html.phone #edTree .edN { min-height:44px; display:flex; align-items:center; font-size:14px; }
 html.phone #edTree .edN u.fold { min-width:32px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; }
 
-/* ---- THE ROWS (G3900, PHONE-EDIT-LAYOUT; the user, 2 Nov: "touch-friendly AND denser"): ONE CONTROL A ROW, ~56 px.
-   Line 1 the label and its value - a tap on either opens the value's editor (#phEdit: typed, - / +); line 2 - the scale +.
-   ---- */
+/* ---- THE ROWS (G3900, PHONE-EDIT-LAYOUT; the user, 2 Nov: "touch-friendly AND denser"): ONE CONTROL A ROW, ~40 px.
+   Line 1 the label and its value - a tap on either opens the value's editor (#phEdit: typed, - / +); line 2 the scale, the
+   row's width (COMPACT, the default) - or [-] the scale [+] with the row's own - / + (html.ph-pm, ~58 px). ---- */
 html.phone #edRows { padding:0 12px 24px 12px; }
 html.phone #edRows .r { height:auto; min-height:40px; flex-wrap:wrap; row-gap:0; column-gap:8px; padding:2px 0; }
 html.phone #edRows .r > span.k { flex:1 1 auto; width:auto; min-width:0; white-space:normal; overflow:visible;
@@ -117,10 +117,13 @@ html.phone #edRows .r > button { min-height:36px; min-width:36px; }
      line 1   label (one line, ellipsis) ............ | switch | = | value | unit
      line 2   [ - ] [ the scale, all the width left ............................ ] [ + ]
    The columns: 40 px (the - under the label's start) | the label's 1fr | switch | = | value | unit | 40 px (the +).
-   No column gap (an empty column would still cost one): each cell carries its own margin. */
+   No column gap (an empty column would still cost one): each cell carries its own margin. COMPACT (the default, A0 2 Nov):
+   the - / + hidden, the scale across all seven columns; html.ph-pm (the user picks from the stills) shows them. */
 html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider { display:grid; position:relative; height:auto;
   grid-template-columns:var(--ph-step) minmax(0, 1fr) auto auto auto auto var(--ph-step); grid-template-rows:auto var(--ph-line2);
-  column-gap:0; row-gap:4px; align-items:center; min-height:var(--ph-row); padding:4px 0 2px; flex-wrap:nowrap; }
+  column-gap:0; row-gap:0; align-items:center; min-height:var(--ph-row); padding:2px 0 0; flex-wrap:nowrap; }
+html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider { row-gap:4px; padding:4px 0 2px; }
+html.phone.ph-pm { --ph-row:58px; --ph-line2:32px; }
 html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > span.k { grid-row:1; grid-column:1 / 3; width:auto; min-width:0;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:13px; line-height:16px; cursor:pointer; }
 html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=checkbox] { grid-row:1; grid-column:3; margin:0 4px 0 8px; }
@@ -130,18 +133,20 @@ html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .v { grid-row:
 html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > span:not(.k):not(.v):not(.rn):not(.lt) { grid-row:1; grid-column:6 / 8;
   margin-left:6px; width:auto !important; max-width:72px; overflow:hidden; white-space:nowrap; text-align:right; font-size:11px !important; }
 html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phMinus { grid-row:2; grid-column:1; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=range] { grid-row:2; grid-column:2 / 7; width:auto; min-width:0;
-  margin:0 6px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=range] { grid-row:2; grid-column:1 / -1; width:auto; min-width:0; margin:0; }
+html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=range] { grid-column:2 / 7; margin:0 6px; }
 html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phPlus { grid-row:2; grid-column:7; }
 html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .rn { grid-row:3; grid-column:1 / -1; }
 /* the axis mark (editor.css: the row's ::after, 13 px before the label) on line 1, where the label is - the old
    two-line rows centred it on the row and it read as a stray dot by the + */
-html.phone #edRows .r.phSlider[data-ax]:not([data-ax=''])::after { top:12px; }
-/* the - / + on the row: 40 px wide, the line's height, never on a line of their own */
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep { display:block; width:var(--ph-step); height:var(--ph-line2);
+html.phone #edRows .r.phSlider[data-ax]:not([data-ax=''])::after { top:10px; }
+html.phone.ph-pm #edRows .r.phSlider[data-ax]:not([data-ax=''])::after { top:12px; }
+/* the - / + on the row (html.ph-pm): 40 px wide, the line's height, never on a line of their own */
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep { display:none; }
+html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep { display:block; width:var(--ph-step); height:var(--ph-line2);
   padding:0; border-radius:8px; font:500 20px/1 'IBM Plex Sans', sans-serif; color:var(--ed-ink); background:var(--ed-btn-bg);
   border:1px solid var(--ed-btn-bd); touch-action:manipulation; -webkit-user-select:none; user-select:none; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep:active { background:var(--ed-acc-soft); }
+html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep:active { background:var(--ed-acc-soft); }
 /* the value: a chip the thumb taps (the editor types it); never the keyboard in the row */
 html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .v { min-width:64px; height:26px; margin-top:-5px; margin-bottom:-5px;
   padding:0 7px !important; box-sizing:border-box; text-align:right; cursor:pointer; caret-color:transparent;
@@ -162,11 +167,13 @@ html.phone .r .phKnob { display:block; position:absolute; width:var(--ph-tap); h
 html.phone .r .phKnob[hidden] { display:none; }
 /* PLACED BY CSS, MOVED BY A TRANSFORM (G3900; the phone's shed runs ~12 fps - the layout adds no layout reads): the row is a
    size container, phone.js writes only --phf (the value's fraction) - the hit area's centre rides the native thumb's: the
-   scale starts after the - and its 6 px (46 px in) and spans the row less both buttons (100cqw - 92 px); the thumb's centre
-   is 11 px in and travels the scale less its 22 px; vertically the middle of line 2 (the row's foot, 2 px + 16 px up) */
+   thumb's centre is 11 px into the scale and travels it less its 22 px. COMPACT: the scale is the row's width, line 2's
+   middle 11 px up from the row's foot. ph-pm: the scale starts after the - and its 6 px (46 px in) and spans the row less
+   both buttons (100cqw - 92 px); line 2's middle 2 + 16 px up */
 html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider { container-type:inline-size; }
-html.phone .r.phSlider > .phKnob { left:0; top:auto; bottom:-6px; will-change:transform;
-  transform:translate3d(calc(var(--phf, 0) * (100cqw - 114px) + 33px), 0, 0); }
+html.phone .r.phSlider > .phKnob { left:0; top:auto; bottom:-13px; will-change:transform;
+  transform:translate3d(calc(var(--phf, 0) * (100cqw - 22px) - 13px), 0, 0); }
+html.phone.ph-pm .r.phSlider > .phKnob { bottom:-6px; transform:translate3d(calc(var(--phf, 0) * (100cqw - 114px) + 33px), 0, 0); }
 html.phone .r.phSlider.phOff > .phKnob { display:none; }
 html.phone .r.phDrag .phKnob { box-shadow:0 0 0 2px rgba(230,219,201,.45); background:rgba(230,219,201,.08); }
 html.phone .r .phKnob.fine { box-shadow:0 0 0 2px rgba(230,161,90,.8); }
