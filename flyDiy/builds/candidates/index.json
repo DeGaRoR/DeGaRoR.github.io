@@ -11,6 +11,7 @@
     { "file": "stol_cub_kit.json", "name": "Cub STOL kit", "note": "the Cub with the STOL kit", "from": "Pilot (tools/fixtures)" },
     { "file": "cub_quadwin_2026-10.json", "name": "Cub, quad rear window", "note": "the Cub with four rear windows (WINDOWS-FREE)", "from": "tools/fixtures" },
     { "file": "cub_fittings_hand_2026-10.json", "name": "Cub, fittings by hand", "note": "the Cub with hand-placed fittings (FITTINGS-MANUAL)", "from": "tools/fixtures" },
-    { "file": "Twin_busher_floats_2.json", "name": "Twin busher floats", "note": "the user's twin pusher on floats (2 Nov)", "from": "the user" }
+    { "file": "Twin_busher_floats_2.json", "name": "Twin busher floats", "note": "the user's twin pusher on floats (2 Nov), built on the phone, never flown", "from": "the user" },
+    { "file": "ugly_bi.json", "name": "ugly bi", "note": "the user's little biplane: a low wing and a parasol upper wing on N struts, an O-200, spatted taildragger - built on the phone, never flown", "from": "the user" }
   ]
 }
