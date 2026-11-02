@@ -791,7 +791,7 @@ function makePilot(sim, def, world, opts) {
   // G381: the arc turn in progress, the latched level altitude before the
   // slope, the flare's own integrator / cap / timescale, a three-point flag
   let finalLevel = null;
-  let flThr0 = 0, flWI = 0;   // G3079 (FLOATS-FIX, PERSONA-2 G2462's): the water flare's power - the approach throttle at the flare's start, its integrator
+  let flThr0 = 0, flWI = 0, flDI = 0;   // G3079 (FLOATS-FIX, PERSONA-2 G2462's): the water flare's power - the approach throttle at the flare's start, its integrator; flDI: G2385, its drift integrator
   let flI = 0, flCap = 0, flTau = 3.2, flVsF = 0, tdThree = false, altG = 0, flH0 = 1;   // altG: GTRAM, the altiport's grade at the aim; flH0: STOL-PILOT, the flare's entry height
   // G381.1: the power assist on the approach (see apply)
   let pAsst = 0, flLeft = Infinity;
@@ -4510,8 +4510,15 @@ function makePilot(sim, def, world, opts) {
           flCap = trike ? A.thMax
                 : Math.min(A.thMax, (thRest != null ? thRest : A.liftoffTh) + (A.flareOverRest ?? 0.035));
           flCap = Math.max(flCap, thFlare0 + 0.03);
+          // G2385 (DMG-RECAL2; ported 2 Nov): ON THE WATER THE TOUCH IS IN THE PLANING ATTITUDE, NEVER ON THE HEELS (FAA-H-8083-23,
+          // as recalled: a touch too nose-high puts the sterns in first and the bows slap down). The cap is the pitch at which the
+          // afterbody's keel comes down to the step's (32_hydro hydroHeel, read once here: the hull is rigid in pitch), less a
+          // degree (heelMargin, GAME) - the twin on floats ~7.8 deg, the Cessna on floats ~4.3. The wheels' cap (the rest attitude
+          // + 2 deg, or the flare's start + 1.7) let the twin touch at 6.6 deg and the Cessna at 6.4, 1.0-1.2 deg past its heels.
+          // The roll-out's held attitude (min(the touch's, flCap)) follows it
+          if (sim.hydro && typeof hydroHeel === 'function') flCap = Math.min(A.thMax, th + hydroHeel(sim.hydro, sim.p) - (A.heelMargin ?? 0.0175));
           if (altG > 0) flCap += Math.atan(altG);   // GTRAM: the attitude on the slope is the slope's more
-          flI = 0; flVsF = vcg[1]; flH0 = Math.max(0.5, aglG);
+          flI = 0; flVsF = vcg[1]; flH0 = Math.max(0.5, aglG); flDI = 0;
         }
         break;
       }
@@ -4550,6 +4557,16 @@ function makePilot(sim, def, world, opts) {
         // B4: armed on the STRIP-FRAME crosswind (|windZ| + |windX| armed it on
         // a headwind straight down the strip too) — 39b_servos.js decrabArmed
         const decrab = SV.decrabArmed(agl, F);
+        // G2385 (DMG-RECAL2; ported 2 Nov): ON THE WATER THE DRIFT IS KILLED BEFORE THE TOUCH - the upwind wing low (the
+        // sideslip), FAA-H-8083-23's crosswind landing (as recalled): a float that meets the water sliding sideways trips the
+        // aeroplane onto its downwind float. The decrab's bank is a track law; the Cessna on floats met the water drifting
+        // 0.6 m/s downwind in 5 m/s across and rode the downwind float (-3..-6 deg) from one skip to the next. Its bank here
+        // carries a PI on the drift over the lane, 0.1 rad per m/s and 0.1 /s (GAME), inside the decrab's 0.12 (39b phBias)
+        if (sim.hydro && decrab) {
+          const drift = -vcg[0] * F.uz + vcg[2] * F.ux;
+          flDI = clamp(flDI + 0.1 * drift * dt, -0.12, 0.12);
+          SV.phBias = -(0.1 * drift + flDI);
+        } else flDI = 0;
         if (A.flareMode === 'vs')
           engage(decrab ? 'DECRAB' : 'LOC', 'VS', 'IDLE', { vs: -(0.15 + 0.28 * Math.max(0, agl)), thMax: A.flareThMax ?? A.thMax, bank: 0.10, idle: A.flareThr ?? 0 });
         else if (A.flareMode === 'ramp')
