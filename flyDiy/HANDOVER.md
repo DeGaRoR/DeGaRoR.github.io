@@ -309782,3 +309782,81 @@ Timing (light gate, one run): roll-out sum 58.7 s [cub 0.1/13.4, metal 8.6/17.6,
 - **Watch:** L29i's gate (17:15) is the second sample. If it is again over 48.5 s, bisect windows-fittings / new-shapes-1 / belly-pod-2.
 
 Ready refs now landed (for the user's delete list): ready/windows-fittings, ready/new-shapes-1, ready/belly-pod-2, ready/cert-rule (landed rebased in L28b), ready/media-budget, ready/light-studio, a0/finish3, a0/finish3b. NOT landed: ready/avionics-gps.
+
+## G1656-G1658 - SND-AMB-1 (follow-up, the user's ask): SOUNDS DRAWN IN THE WORLD EDITOR - A POINT SOUND, A SOUND AREA, ON / OFF, THE REACH THE AMBIENCE'S; WHAT IS HEARD AT A SPOT; PROVED IN THE REAL PAGE; GATED (2026-10-04, SND-AMB-1 for the Sound Coordinator, cloud; branch claude/snd-amb1-ambience, merged with origin/claude/sound-next 22d30fcf; G1659 unused)
+
+**FOR A0 (the global coordinator) - the user asked for this to reach you:** this touches the WORLD EDITOR and the PREMISES
+CORE, not only the sound: `src/core/27_premises.js` (a new record layer, physics-inert), `src/viewer/premises_ui.js` (a
+SOUND section, after LIFE: no 1-9 key moves) and `src/viewer/render_premises.js` (the sounds' lines, a no-compose fast path
+for a sound edit). No app.js edit, no build.js edit. The full-tier SIMWORKER-EDGES (which edits the world in the editor
+through the worker) was NOT run here: a sound edit takes a new path that composes nothing, and every other layer's path is
+unchanged.
+
+THE USER'S ASK (2026-10-04): "a sound entry in the world editor. Simple, but we should be able to see and set the graphs
+you've shown as evidence, drawn straight on the map, like an object or a polygon ... minimum edition; drop a point sound
+and draw a polygon sound (area, simple on/off weighting, you manage how far the sound travels from there)". And: "Are props
+auto linked to their sounds?" - PARTLY: SND-AMB-2 (G1660-G1667) links by GENERATOR (the proto traffic -> a pickup's pass,
+the tram's cabins -> hum / bell / creak, a house pier's boats -> an outboard, HOUSE_GEN's P.mill -> the mill); the catalogue
+PROPS a user stands in the editor (objects / sites) carry no sound, and no generator fills its own window.<GEN>.SOUND
+table yet. The point sound below is the hand's way meanwhile; PROPOSED for the coordinator: a SOUND column on PROP_REG
+(a prop key -> an emitter loop / one-shot), read by emitters_model's DECLARED table.
+G1656 THE RECORD - 27_premises.js: LAYERS += 'sounds' (DEF, normalise, findById, the duplicate-id check follow); ID_PREFIX
+  sounds 'snd'. An entry: a POINT { id, kind: 'sound', x, z, key, on } or an AREA { id, kind: 'sound', poly, key, on } -
+  `key` an ambience bed (amb.*), `on` true (the bed at full there) or false (silenced there). issues(): a polygon of < 3
+  corners or self-crossing, a point without x / z, a key that is not amb.* (or not a bed when AMBIENCE_MODEL is loaded).
+  INERT: compose reads its layers by name and the raster's signature hashes terrain modifiers; GATE AUDIO AMBRECORD composes
+  THIS text's core with and without two sounds (same heights, same surfaces) and AMBINERT recomposes JOLENE with two
+  sounds (same terrain at 40 points, surfaces, aerodromes, items, raster signatures) - with a 9 m raise as the control.
+  THE RUNTIME - ambience_model.js: REACH, how far each bed carries (forest 120, meadow 100, birds 150, winds / surf / open sea
+  300, rocks 200, lake edge / shore 30, lapping 80, stream 120, harbour 200, village 150, airfield 250, hangar 40, roof rain
+  30, outside rain 150, frogs 200, loons 500; 120 otherwise). A POINT: full within max(6 m, 0.2 x reach), a smoothstep to 0
+  AT the reach (the ring drawn). An AREA: full inside, the smoothstep to 0 a reach outside. ON: target = max(the rules',
+  weight x the ground's height fade - a drawn wind has none); OFF: target x (1 - weight). Read in the zones' phase (20),
+  once a round, allocation-free (the walk of AMBALLOC crosses a drawn point and an OFF area: 5.3 B a moving frame, the
+  scheduled gains' boxed arguments, 0 GC). ambienceSounds(st, rec, frame) prepares them from a record; the composed one
+  (world.premises.rec) as before, and the EDITOR's live one through AMBIENCE.soundsChanged(rec) (the source).
+G1657 THE EDITOR - premises_ui.js: SECTION 'sounds' (label SOUND, a speaker icon in the rail's grammar), tools SELECT · A
+  POINT SOUND · A SOUND AREA · PROBE, wired through the editor's own tables (SECTIONS, TOOL_LABEL / HELP, POLY_TOOLS
+  soundarea -> sounds) and machinery (the ghost, the corners, ✓ close, undo / redo, autosave, delete, drag, Ctrl+click
+  corners, resume drawing). THE INSPECTOR: with nothing selected, "sound to draw" (the 23 beds by the loader's own words,
+  AUDIO_SAMPLES.KEYS[].what) and how far it carries; on a selected sound: the bed, ON / OFF pills, its reach in words, and
+  HEARD HERE - the ambience model run at the spot (1.7 m up, the world's day and wind, the record's live sounds): every bed
+  it plays there as a bar, loudest first (the evidence charts at one place). The PROBE tool in this section shows the same
+  bars for any clicked spot. Script hooks: cmd('soundPick', { key }), cmd('heard', { x, z }). A SOUND EDIT: groundOf
+  'sounds' = false (so the game's onRebuilt skips its ground re-sample - app.js's own rule), the renderer's fast path, and
+  AMBIENCE.soundsChanged(rec). A sound's id is unique over EVERY layer (soundId: snd1..): THE REAL PAGE'S FIRST RUN dragged
+  an elk herd for the point sound - Jolene's animal hotspots are a1.., and findById answers the first layer that has an id.
+  render_premises.js: LAYER_COL.sounds; SOUND_COL on (magenta) / off (muted red); a POINT: a 7 m pin, a ring where it is at
+  full, a faint ring at its reach; an AREA: its outline and a faint line its reach away (each corner along its bisector, the
+  mitre held to 2x) - ground-following lines like every outline (groundLoop, LIFT, depthTest off); hit() picks a point
+  sound within 3 m; the drag's preview redraws its marks. rebuildSteps: a dirty of layer 'sounds' composes NOTHING and
+  redraws the sounds' lines alone (soundOutlines) and the handles.
+G1658 THE PROOF AND THE GATE - tools/audio/sound_editor_proof.js: the BUILT page in headless Chromium (Playwright,
+  SwiftShader): boot on Jolene (~130 s here), roll out, the gesture, the editor opened (PREMISES_EDITOR.openEditor), then the
+  editor's own cmd(): a point sound (loons), a sound area (harbour), an OFF area (airfield around the stand), the point
+  dragged 30 m, the probe. reports/evidence/SND-AMB-1/editor/: proof.json (the record, 7 sound lines by name, the ambience
+  holding 3, the heard bars: loons 1.00 at the point, harbour 1.00 in the area, the airfield gone at the stand; a sound
+  edit 141 ms against a zone's 3760 ms; no page error), inspector_point.png, inspector_probe.png, map.png (the 3D viewport
+  is blank under SwiftShader - the lines are proved by name, a GPU box shows them). GATE AUDIO += AMBDRAWN (the point's and
+  the area's fades, OFF, height fade vs a wind, an unknown bed dropped, the record's frame, the live record then a new
+  composition), AMBRECORD, AMBINERT (above), AMBEDITOR (the section and its tools, the polygon tool's layer, ground-free,
+  the ambience told, the fast path redrawing the sounds alone, the marks, a point sound draggable and pickable, the ids
+  unique over every layer); FILES += the core, premises_ui, render_premises. 15 new mutations: 312 / 312 caught with
+  everyone's. GATE AUDIO now 175 s standalone.
+GATES: AUDIO PASS (312 / 312), PREMISES PASS (372 checks), LIFE, BUILD, UISMOKE, BOOT, MEDIA, CLOUD PASS (the last four on
+  a freshly built tree; the generated files restored - none in this branch). NOT RUN: SIMWORKER-EDGES / -PAGE (full tier,
+  hours), editor_lag (A0's rig, a GPU box). run_gates' GATE AUDIO `wall` wants ~240.
+FOR THE COORDINATOR: (1) the REACH table and the point's core (0.2 x reach) are SND-TUNE's; (2) the bench page
+  (tools/_premises.html) has no ambience loaded: its SOUND section says so and draws nothing; (3) the drawn sounds are the
+  ambience's BEDS (non-positional); a POSITIONAL point (panned, doppler - emitters.js's loop slots) is the natural next step
+  for a point sound, and for the props' own sounds; (4) Jolene's record carries no sound yet - drawing some is the user's.
+PORTED TO MASTER (2026-11-02, Sound Coordinator, A0's dropped-work sweep for FINISH-4): the four commits squashed onto e6c668dab
+  (claude/snd-amb1 -> claude/ready/snd-amb1). What master had moved under it, and how the sounds now sit there:
+  - 27_premises.js: `sounds` after master's `areas` / `junctions` (LAYERS, the empty record, ID_PREFIX 'snd').
+  - premises_ui.js: master's tabs are PALETTES and the right plate the selection's inspector (G2910). The SOUND tab's
+    palette drawer (soundsPalette) holds the bed to draw and the probe's HEARD HERE (before: the section's inspector rows);
+    a selected sound's inspector is as before (bed, on / off, reach, HEARD HERE at it). POLY_TOOLS soundarea -> 'sounds'
+    (never an AREA: nothing composes it); the outline lists SOUNDS; the pick cycle (G3006) picks a sound like the rest.
+  - render_premises.js: master's KEPT outlines (G3084): 'sounds' is an outline layer (its line cached by its JSON like the
+    others); the marks (pin, core ring, reach) are made again after the sweep each time (a handful) and on a select of a
+    sound; a sound edit still composes nothing (rebuildSteps returns before the compose).
