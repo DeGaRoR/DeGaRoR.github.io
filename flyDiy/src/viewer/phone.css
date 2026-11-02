@@ -1,7 +1,7 @@
 /* ======================================================================
    phone.css - THE WORKSHOP ON A PHONE (MOBILE-GARAGE 1, G2102)
    EVERY RULE IS UNDER html.phone, which profile.js sets ONLY on the phone
-   profile (?profile=phone, or the welcome's "Build on this phone"). On the
+   profile (?profile=phone, or the welcome's "Build on this phone" / "Build and test-fly on this phone"). On the
    desktop not one selector here matches: its pixels are the ones they were.
    Not a second editor: the same columns, the same rows (_cage_ui.js's own
    elements), RE-LAID as one sheet under the view (portrait) or beside it
@@ -13,14 +13,16 @@
 html.phone {
   /* THE ESTATE: the view (--ph-vw x --ph-vh at the top left), the sheet
      (--ph-sl, --ph-st, --ph-sw) and the tab bar under it (--ph-tab) */
-  --ph-tab:54px; --ph-sw:100vw; --ph-sl:0px; --ph-vw:100vw;
-  /* G3720 (PHONE-GARAGE; the user, 25 Oct: "much more room for the plane ... two thirds at least ... Only a third of the
-     screen for the sliders"): the view 2/3 of the height, the sheet and its tab bar the last third */
-  --ph-vh:66.6vh; --ph-vh:66.6dvh; --ph-st:var(--ph-vh);
-  --ph-tap:48px;
+  --ph-tab:48px; --ph-sw:100vw; --ph-sl:0px; --ph-vw:100vw;
+  /* G3720 (PHONE-GARAGE; 25 Oct) gave the view 2/3 of the height. G3900 (PHONE-EDIT-LAYOUT; the user, 2 Nov, after
+     building two planes on the S20 FE): HALF AND HALF - the view one half, the controls the other, and the line between
+     them a divider the thumb moves (phone.js #phDiv; --ph-split is the VIEW's share, remembered per orientation) */
+  --ph-split:.5;
+  --ph-vh:calc(var(--ph-split) * 100vh); --ph-vh:calc(var(--ph-split) * 100dvh); --ph-st:var(--ph-vh);
+  --ph-tap:48px; --ph-row:44px; --ph-step:40px; --ph-line1:16px; --ph-line2:22px;
 }
 @media (orientation:landscape) {
-  html.phone { --ph-sw:max(280px, 33.4vw); --ph-vw:calc(100vw - var(--ph-sw)); --ph-sl:var(--ph-vw);
+  html.phone { --ph-sw:max(300px, calc((1 - var(--ph-split)) * 100vw)); --ph-vw:calc(100vw - var(--ph-sw)); --ph-sl:var(--ph-vw);
     --ph-vh:100vh; --ph-vh:100dvh; --ph-st:0px; }
 }
 html.phone, html.phone body { overscroll-behavior:none; -webkit-text-size-adjust:100%; text-size-adjust:100%;
@@ -98,61 +100,164 @@ html.phone #edPartName { font-size:15px; }
 html.phone #edTree .edN { min-height:44px; display:flex; align-items:center; font-size:14px; }
 html.phone #edTree .edN u.fold { min-width:32px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; }
 
-/* ---- THE ROWS (R2): a slider row is two lines - the label (wrapping) and its value chip over the scale ---- */
-html.phone #edRows { padding:4px 14px 24px 12px; }
-html.phone #edRows .r { height:auto; min-height:var(--ph-tap); flex-wrap:wrap; row-gap:0; column-gap:8px; padding:4px 0; }
+/* ---- THE ROWS (G3900, PHONE-EDIT-LAYOUT; the user, 2 Nov: "touch-friendly AND denser"): ONE CONTROL A ROW, 44 px (the whole row the value editor's target).
+   Line 1 the label and its value - a tap on either opens the value's editor (#phEdit: typed, - / +); line 2 the scale, the
+   row's width (COMPACT, the default) - or [-] the scale [+] with the row's own - / + (html.ph-pm, ~58 px). ---- */
+html.phone #edRows { padding:0 12px 24px 12px; }
+html.phone #edRows .r { height:auto; min-height:40px; flex-wrap:wrap; row-gap:0; column-gap:8px; padding:2px 0; }
 html.phone #edRows .r > span.k { flex:1 1 auto; width:auto; min-width:0; white-space:normal; overflow:visible;
-  font-size:13.5px; line-height:1.3; color:var(--ed-dim); }
+  font-size:13px; line-height:1.3; color:var(--ed-dim); }
 html.phone #edRows .r.tog > span.k { width:auto; }
-html.phone #edWrap .r input.v, html.phone #edWrap .r input[type=text] { font-size:15px !important; }
-html.phone #edRows .r > input.v { width:76px; min-height:34px; flex:none; order:1; text-align:right;
-  border-bottom:1px solid rgba(255,248,236,.18) !important; }
-html.phone #edRows .r > span:not(.k):not(.v):not(.lt):not(.rn) { order:2; flex:none; width:auto !important; font-size:11px !important; }
-/* line 1: the label, the value chip, the metres; a break; line 2: - scale + (a flex line break is the row's ::after) */
-html.phone #edRows .r.phSlider::after { content:''; order:3; flex-basis:100%; height:0; }
-html.phone #edRows .r.phSlider > .phMinus { order:4; }
-html.phone #edRows .r.phSlider > input[type=range] { order:5; flex:1 1 0; min-width:60px; }
-html.phone #edRows .r.phSlider > .phPlus { order:6; }
-html.phone #edRows .r > .rn { order:7; }
-html.phone #edRows .r > button:not(.phStep) { min-height:36px; min-width:36px; }
-/* the scale: drawn larger, and it takes NO touch - a finger on it scrolls the sheet (R4) */
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range] { height:var(--ph-tap); pointer-events:none; touch-action:pan-y; }
+html.phone #edWrap .r input[type=text] { font-size:15px !important; }
+html.phone #edRows .r > .rn { flex-basis:100%; }
+html.phone #edRows .r > button { min-height:36px; min-width:36px; }
+/* THE SLIDER ROW IS ONE FIXED GRID, the same for every control (G3900; the user's stills 2 Nov 13:02-13:03, "rubbish
+   overflowing of sliders and button components": the flex rows wrapped, - / + fell onto lines of their own and every
+   row had its own shape). Never a wrap - every child has its cell:
+     line 1   label (one line, ellipsis) ............ | switch | = | value | unit
+     line 2   [ - ] [ the scale, all the width left ............................ ] [ + ]
+   The columns: 40 px (the - under the label's start) | the label's 1fr | switch | = | value | unit | 40 px (the +).
+   No column gap (an empty column would still cost one): each cell carries its own margin. COMPACT (the default, A0 2 Nov):
+   the - / + hidden, the scale across all seven columns; html.ph-pm (the user picks from the stills) shows them. */
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider { display:grid; position:relative; height:auto;
+  grid-template-columns:var(--ph-step) minmax(0, 1fr) auto auto auto auto var(--ph-step); grid-template-rows:var(--ph-line1) var(--ph-line2);
+  column-gap:0; row-gap:0; align-items:center; min-height:var(--ph-row); padding:3px 0; box-sizing:border-box; flex-wrap:nowrap;
+  -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; cursor:pointer; }
+html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider { row-gap:4px; padding:4px 0 2px; }
+html.phone.ph-pm { --ph-row:58px; --ph-line2:32px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > span.k { grid-row:1; grid-column:1 / 3; width:auto; min-width:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:13px; line-height:16px; cursor:pointer; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=checkbox] { grid-row:1; grid-column:3; margin:0 6px 0 10px; transform:none;
+  width:34px; height:20px; border-radius:10px; overflow:visible; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=checkbox]::after { top:2px; left:2px; width:14px; height:14px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=checkbox]:checked::after { left:16px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=checkbox]::before { content:''; position:absolute; left:-5px; right:-5px; top:-12px; bottom:-12px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > button:not(.phStep) { grid-row:1; grid-column:4; margin-left:6px;
+  min-height:26px; min-width:30px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .v { grid-row:1; grid-column:5; margin-left:8px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > span:not(.k):not(.v):not(.rn):not(.lt) { grid-row:1; grid-column:6 / 8;
+  margin-left:6px; width:auto !important; max-width:76px; overflow:hidden; white-space:nowrap; text-align:right; font-size:12px !important; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phMinus { grid-row:2; grid-column:1; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=range] { grid-row:2; grid-column:1 / -1; width:auto; min-width:0; margin:0; }
+html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=range] { grid-column:2 / 7; margin:0 6px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phPlus { grid-row:2; grid-column:7; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .rn { grid-row:3; grid-column:1 / -1; }
+/* the axis mark (editor.css: the row's ::after, 13 px before the label) on line 1, where the label is - the old
+   two-line rows centred it on the row and it read as a stray dot by the + */
+html.phone #edRows .r.phSlider[data-ax]:not([data-ax=''])::after { top:10px; }
+html.phone.ph-pm #edRows .r.phSlider[data-ax]:not([data-ax=''])::after { top:12px; }
+/* the - / + on the row (html.ph-pm): 40 px wide, the line's height, never on a line of their own */
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep { display:none; }
+html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep { display:block; width:var(--ph-step); height:var(--ph-line2);
+  padding:0; border-radius:8px; font:500 20px/1 'IBM Plex Sans', sans-serif; color:var(--ed-ink); background:var(--ed-btn-bg);
+  border:1px solid var(--ed-btn-bd); touch-action:manipulation; -webkit-user-select:none; user-select:none;
+  -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
+html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep:active { background:var(--ed-acc-soft); }
+/* the value: a chip the thumb taps (the editor types it); never the keyboard in the row */
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .v { min-width:64px; height:26px; margin-top:-5px; margin-bottom:-5px;
+  padding:0 7px !important; box-sizing:border-box; text-align:right; cursor:pointer; caret-color:transparent;
+  font:600 15px/24px 'IBM Plex Sans', sans-serif !important; font-variant-numeric:tabular-nums; color:var(--ed-ink) !important;
+  background:var(--ed-btn-bg) !important; border:1px solid var(--ed-hair) !important; border-radius:6px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider.phOpen > .v { border-color:var(--ed-acc) !important; background:var(--ed-acc-soft) !important; }
+/* the scale: drawn between the - and the +, and it takes NO touch - a finger on it scrolls the sheet (R4) */
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range] { height:22px; pointer-events:none; touch-action:pan-y; }
 html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-webkit-slider-runnable-track { height:4px; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-webkit-slider-thumb { width:26px; height:26px; margin-top:-11px;
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-webkit-slider-thumb { width:22px; height:22px; margin-top:-9px;
   box-shadow:0 0 0 1px rgba(0,0,0,.35); }
 html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phFine input[type=range]::-webkit-slider-thumb { background:#e6a15a; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-moz-range-thumb { width:26px; height:26px; }
-/* the knob's hit area: 48 px over the thumb, the one place a finger moves a value (R5) */
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-moz-range-thumb { width:22px; height:22px; }
+/* the knob's hit area: 48 px over the thumb, the one place a finger moves a value (R5) - taller than the row's scale */
 .phKnob { display:none; }
 html.phone .r .phKnob { display:block; position:absolute; width:var(--ph-tap); height:var(--ph-tap); z-index:2;
-  border-radius:50%; touch-action:none; cursor:grab; }
+  border-radius:50%; touch-action:none; cursor:grab; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; outline:none; }
 html.phone .r .phKnob[hidden] { display:none; }
-html.phone .r.phDrag .phKnob { box-shadow:0 0 0 2px rgba(230,219,201,.45); background:rgba(230,219,201,.08); }
+/* PLACED BY CSS, MOVED BY A TRANSFORM (G3900; the phone's shed runs ~12 fps - the layout adds no layout reads): the row is a
+   phone.js writes --phf (the value's fraction) and --phw (the row's width, from a ResizeObserver's entries - never a
+   measure; not a container query: a size container is a stacking context, and the next row would paint over the knob's
+   10 px below its own row) - the hit area's centre rides the native thumb's: the
+   thumb's centre is 11 px into the scale and travels it less its 22 px. FROM THE ROW'S TOP, line 1 a fixed track (--ph-line1),
+   never from its foot: a row whose note (.rn, a third line) shows is taller, and a knob hung from the foot sat 20 px under its
+   scale (the 2 Nov rig's shape red). COMPACT: the scale is the row's width, line 2's middle 3 + 16 + 11 px down. ph-pm: the
+   scale starts after the - and its 6 px (46 px in) and spans the row less both buttons (--phw - 92 px); line 2's middle
+   4 + 16 + 4 + 16 px down */
+html.phone .r.phSlider > .phKnob { left:0; bottom:auto; top:calc(3px + var(--ph-line1) + var(--ph-line2) / 2 - var(--ph-tap) / 2);
+  transform:translate3d(calc(var(--phf, 0) * (var(--phw, 300px) - 22px) - 13px), 0, 0); }
+html.phone.ph-pm .r.phSlider > .phKnob { top:calc(4px + var(--ph-line1) + 4px + var(--ph-line2) / 2 - var(--ph-tap) / 2); transform:translate3d(calc(var(--phf, 0) * (var(--phw, 300px) - 114px) + 33px), 0, 0); }
+html.phone .r.phSlider.phOff > .phKnob { display:none; }
+html.phone .r.phDrag .phKnob { will-change:transform; box-shadow:0 0 0 2px rgba(230,219,201,.45); background:rgba(230,219,201,.08); }
 html.phone .r .phKnob.fine { box-shadow:0 0 0 2px rgba(230,161,90,.8); }
-/* the steppers (R6) */
-.phStep { display:none; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r > .phStep { display:block; flex:none; width:var(--ph-tap); height:var(--ph-tap); padding:0; border-radius:8px;
-  font:500 20px/1 'IBM Plex Sans', sans-serif; color:var(--ed-ink); background:rgba(255,255,255,.05);
-  border:1px solid rgba(255,255,255,.12); touch-action:manipulation; -webkit-user-select:none; user-select:none; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r > .phStep:active { background:rgba(230,219,201,.18); }
 /* toggles, selects and the stepper widgets at a finger's size */
 html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=checkbox] { transform:scale(1.35); margin:0 8px; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r select { min-height:40px; font-size:13px; }
-html.phone #edRows .r > button { min-height:40px; }
-/* the flyout's rows (the display switches, the alphas) take the same knob */
-html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r { min-height:var(--ph-tap); flex-wrap:wrap; position:relative; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r select { min-height:36px; font-size:13px; }
+/* the flyout's rows (the display switches, the alphas) take the same row */
+html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r { min-height:40px; flex-wrap:wrap; position:relative; }
 html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r > span.k { flex:1 1 auto; width:auto; white-space:normal; font-size:13px; }
-html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r.phSlider::after { content:''; order:3; flex-basis:100%; height:0; }
-html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r.phSlider > .phMinus { order:4; }
-html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r.phSlider > input[type=range] { order:5; flex:1 1 0; min-width:60px; }
-html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r.phSlider > .phPlus { order:6; }
-html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r > .v { order:1; }
 
-/* THE BUBBLE (R11): the value over the finger */
-#phBubble { position:fixed; z-index:95; pointer-events:none; padding:7px 12px; border-radius:10px;
+/* ---- THE SECTIONS (G3900): their heads stay at the top of the sheet while their rows scroll under them, and fold on a
+   tap (editor.js secWire, remembered) - compact, so a section costs one 30 px line ---- */
+html.phone #edRows .edH { position:sticky; top:0; z-index:3; margin:0; padding:6px 0 4px; min-height:30px; box-sizing:border-box;
+  align-items:center; background:var(--ed-panel); box-shadow:0 1px 0 var(--ed-hair); }
+html.phone #edRows .edH.edHP { margin:0; padding-top:8px; }
+html.phone #edRows .edH.shut { margin:0; padding-bottom:4px; }
+
+/* ---- THE VALUE'S EDITOR (G3900): a tap on a value or its label - the number typed (inputmode decimal) with its unit,
+   - / + a step (held: they repeat), Done, Enter or a tap outside sets it, Esc leaves it. An input bar, not a card:
+   it stands on the sheet's foot, and on the keyboard's top edge while the keyboard is up (phone.js, visualViewport) ---- */
+html.phone #phEdit { position:fixed; left:var(--ph-sl); width:var(--ph-sw); bottom:var(--ph-tab); z-index:60; box-sizing:border-box;
+  display:grid; grid-template-columns:var(--ph-tap) minmax(0, 1fr) var(--ph-tap) auto var(--ph-tap); grid-template-rows:auto var(--ph-tap);
+  gap:6px 8px; align-items:center; padding:10px 12px 12px; background:var(--ed-panel);
+  border-top:1px solid var(--ed-border); box-shadow:0 -8px 24px rgba(0,0,0,.45); font-family:'IBM Plex Sans', sans-serif; }
+html.phone #phEdit[hidden] { display:none; }
+html.phone #phEdit .phEk { grid-row:1; grid-column:1 / 3; font:500 13px/1.3 'IBM Plex Sans', sans-serif; color:var(--ed-dim);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+html.phone #phEdit .phEr { grid-row:1; grid-column:3 / 5; justify-self:end; font:400 12px/1 'IBM Plex Sans', sans-serif; color:var(--ed-faint);
+  font-variant-numeric:tabular-nums; white-space:nowrap; }
+html.phone #phEdit .phEok { grid-row:1; grid-column:5; min-height:34px; padding:0 8px; border-radius:8px;
+  font:600 12px/1 'IBM Plex Sans', sans-serif; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--ed-acc-ink); background:var(--ed-acc); border:0; }
+html.phone #phEdit .phStep { display:block; grid-row:2; width:var(--ph-tap); height:var(--ph-tap); padding:0; border-radius:8px;
+  font:500 22px/1 'IBM Plex Sans', sans-serif; color:var(--ed-ink); background:var(--ed-btn-bg);
+  border:1px solid var(--ed-btn-bd); touch-action:manipulation; -webkit-user-select:none; user-select:none;
+  -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
+html.phone #phEdit .phMinus { grid-column:1; }
+html.phone #phEdit .phPlus { grid-column:5; }
+html.phone #phEdit .phStep:active { background:var(--ed-acc-soft); }
+html.phone #phEdit .phEsign { grid-row:2; grid-column:3; width:var(--ph-tap); height:var(--ph-tap); padding:0; border-radius:8px;
+  font:500 20px/1 'IBM Plex Sans', sans-serif; color:var(--ed-ink); background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd); }
+html.phone #phEdit .phEsign:active { background:var(--ed-acc-soft); }
+html.phone #phEdit button { -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+html.phone #phEdit .phEin { grid-row:2; grid-column:2; min-width:0; width:100%; height:var(--ph-tap); box-sizing:border-box; padding:0 12px;
+  font:600 22px/1 'IBM Plex Sans', sans-serif; font-variant-numeric:tabular-nums; text-align:right; color:var(--ed-ink);
+  background:var(--ed-board); border:1px solid var(--ed-border); border-radius:8px; outline:none; }
+html.phone #phEdit .phEin:focus { border-color:var(--ed-acc); }
+html.phone #phEdit .phEu { grid-row:2; grid-column:4; font:400 13px/1 'IBM Plex Sans', sans-serif; color:var(--ed-faint); min-width:0; }
+
+/* ---- THE DIVIDER (G3900): the line between the view and the controls, moved by the thumb. While it moves a ghost line
+   shows where it will land; the view takes the new size on release (one resize, not one a frame) ---- */
+html.phone #phDiv { position:fixed; z-index:48; touch-action:none; left:0; width:100vw; top:calc(var(--ph-st) - 22px); height:44px;
+  -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent;
+  display:flex; align-items:center; justify-content:center; }
+html.phone #phDiv::before { content:''; flex:none; width:40px; height:4px; border-radius:2px; background:rgba(255,248,236,.28); }
+html.phone #phDiv.on::before { background:var(--ed-acc); }
+html.phone #phGhost { position:fixed; z-index:49; pointer-events:none; left:0; top:0; width:100vw; height:2px; background:var(--ed-acc);
+  box-shadow:0 0 0 1px rgba(0,0,0,.4); }
+html.phone #phGhost[hidden] { display:none; }
+@media (orientation:landscape) {
+  html.phone #phDiv { top:0; height:100vh; left:calc(var(--ph-sl) - 22px); width:44px; }
+  html.phone #phDiv::before { width:4px; height:40px; }
+  html.phone #phGhost { top:0; left:0; height:100vh; width:2px; }
+}
+.phStep { display:none; }
+
+/* THE BUBBLE (R11): the value over the finger - G3900: BIG while the finger moves it (the finger hides the row), and
+   under it the gain the precision drag is at (the finger's distance from the scale) */
+#phBubble { position:fixed; left:0; top:0; z-index:95; pointer-events:none; padding:8px 14px 7px; border-radius:12px; text-align:center;
+  min-width:200px; box-sizing:border-box;
   background:rgba(26,24,21,.94); border:1px solid rgba(255,248,236,.22); color:#f4efe6;
-  font:600 16px/1 'IBM Plex Sans', sans-serif; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  font:600 26px/1.05 'IBM Plex Sans', sans-serif; white-space:nowrap; font-variant-numeric:tabular-nums; }
+#phBubble small { display:block; margin-top:3px; font:500 12px/1.2 'IBM Plex Sans', sans-serif; color:#97907f; letter-spacing:.04em; }
 #phBubble.fine { border-color:#e6a15a; color:#f2c48f; }
+#phBubble.fine small { color:#e6a15a; }
 #phBubble[hidden] { display:none; }
 
 /* ---- THE INFORMATION PANEL AS A TAB: the plaque and the bench, full width ---- */
