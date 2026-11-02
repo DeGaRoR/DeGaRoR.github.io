@@ -2975,7 +2975,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // SEATS: one per position, at the weight of the kind you chose.
     // Spread over the seat frames so they sit where the people sit — the
     // cabin rings, which is where `pt` already puts the occupants.
-    const seatM = seat.kg * seats;
+    // ...each at the kind DRAWN there (SEATS, 2026-11-02): cabin.seatsKg is the join's seat-by-seat mass when the
+    // seats differ from the outfit's row; absent, every seat is the row's, as before
+    const seatsKg = Array.isArray(cb.seatsKg) ? cb.seatsKg : null;
+    const seatKgAt = i => (seatsKg && typeof seatsKg[i] === 'number') ? seatsKg[i] : seat.kg;
+    let seatM = 0;
+    for (let i = 0; i < seats; i++) seatM += seatKgAt(i);
     // THE PANEL BOARD, from its own geometry. `cab.panel` carries the depth
     // and how far the coaming wraps; the board spans the cabin.
     let panelM = 0;
@@ -3044,7 +3049,7 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // THE SEATS GO WHERE THE SEATS ARE. With measured stations each chair is
     // billed at its own; without, the front ring as before.
     if (seatsX && seatsX.length)
-      for (let i = 0; i < seats; i++) billAt(seatAt(i) != null ? seatAt(i) : ST[1].x, seat.kg, true);
+      for (let i = 0; i < seats; i++) billAt(seatAt(i) != null ? seatAt(i) : ST[1].x, seatKgAt(i), true);
     else half(F[1].BL, F[1].BR, seatM);
     half(F[1].TL, F[1].TR, panelM + plumbM);
     // the cowl and the exhaust go where the ENGINE is (2026-09-04). On a

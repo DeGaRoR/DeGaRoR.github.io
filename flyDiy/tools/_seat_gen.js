@@ -62,44 +62,46 @@ const KIT = () => {
 };
 
 // ---- the presets ---------------------------------------------------------------------------------------------------
-// seatType -> preset. kg is ONE seat as fitted (frame, cushions, its share of the rails), the number the build bills
-// (GEN_SEATS when the preset is wired); hw the seat's outer half-width, back the back's height above the hinge
-// (headrest included), m (metres) and deg. rake/tilt are the preset's own stance, written when it is picked; the
-// rows still move them. Sources and the reasoning: docs/SEATS-REFERENCES.md.
+// seatType -> preset. THE NAMES ARE THE SEAT'S SPIRIT, NOT AN AEROPLANE'S (the user, 2 Nov: "find names avoiding naming
+// planes, get down to the spirit"); what each was modelled on is in docs/SEATS-REFERENCES.md. `key` is the GEN_SEATS row
+// the build bills (kg: ONE seat as fitted - frame, cushions, its share of the rails); `build` the builder below; hw the
+// seat's outer half-width, back the back's height above the hinge (headrest included), m; rake / tilt the preset's own
+// stance (deg), seeded when it is picked - the rows still move them. `pax`: this preset IS a cabin seat; `paxType`:
+// the type a cabin takes when the passengers' own row says "as the pilots'".
+// 0, 1, 2 REPLACED today's tube frame, composite shell and airliner (the user, 2 Nov: "replace both ... also replace
+// the airliner existing seat with the dc3 passenger"): every saved build on them draws these. The tube seat bills
+// 3.0 kg, the `sling` row every saved build already bills, so its mass and CG do not move.
 const SEAT_PRESETS = {
-  3: { key: 'carbon2',  name: 'Carbon bucket',      kg: 4.5,  hw: 0.235, back: 0.80, rake: 22, tilt: 6,
-       note: 'a moulded carbon bucket, integrated headrest, on two rails' },
-  4: { key: 'c172',     name: 'Cessna 172',         kg: 14.0, hw: 0.245, back: 0.70, rake: 13, tilt: 4,
-       note: 'tube and pan frame, cloth inserts with vinyl bolsters, recline lever, on the seat rails' },
-  5: { key: 'icon',     name: 'ICON A5',            kg: 9.0,  hw: 0.265, back: 0.84, rake: 18, tilt: 5,
-       note: 'a sculpted shell, leather with contrast stitching, integrated headrest' },
-  6: { key: 'bonanza',  name: 'Bonanza club',       kg: 18.0, hw: 0.270, back: 0.80, rake: 15, tilt: 4,
-       note: 'pleated leather, a high back, a headrest on posts, armrest' },
-  7: { key: 'ul',       name: 'Ultralight sling',   kg: 3.5,  hw: 0.230, back: 0.56, rake: 16, tilt: 6,
-       note: 'an alloy tube frame and a laced fabric sling, no brace behind' },
-  8: { key: 'extra',    name: 'Extra 330 aerobatic', kg: 6.0, hw: 0.225, back: 0.70, rake: 38, tilt: 10,
-       note: 'a carbon shell deeply reclined, a parachute in the back' },
-  // THE BASE SEAT, REWORKED (the user, 2 Nov: "rework our base seat, it's inspired by a cub"): proposed to replace
-  // seatType 0 once validated - until then it is its own number and every saved build draws the tube seat it drew
-  10: { key: 'cub',     name: 'Cub (tube & sling)', kg: 3.5,  hw: 0.230, back: 0.50, rake: 12, tilt: 4,
-       note: 'the J-3 front seat: a welded tube frame, a laced canvas sling, a loose cushion, a canvas back' },
-  // (the user, 2 Nov: "do you see other types missing? Of really different character ... a modern agricultural plane
-  // ... a WWI aircraft?")
-  11: { key: 'ag',      name: 'Agricultural (AT-802)', kg: 16.0, hw: 0.275, back: 0.88, rake: 11, tilt: 5,
-       note: 'a crash-rated work seat: steel bucket, thick cushions under a sheepskin, height tracks, crush tubes' },
-  12: { key: 'wicker',  name: 'WWI wicker',         kg: 3.0,  hw: 0.230, back: 0.46, rake: 9,  tilt: 3,
-       note: 'the Camel\'s rattan bucket on ash bearers, a leather cushion' },
-  13: { key: 'glider',  name: 'Glider tub',         kg: 3.0,  hw: 0.290, back: 0.66, rake: 40, tilt: 16,
-       note: 'the moulded GRP pan of a sailplane cockpit, an adjustable padded backrest board on a ratchet' },
-  14: { key: 'jump',    name: 'Bush jump seat',     kg: 2.5,  hw: 0.230, back: 0.50, rake: 10, tilt: 3,
-       note: 'the folding canvas seat of a bush cabin: a tube frame on floor hinges, canvas seat and strap back' },
-  15: { key: 'warbird', name: 'Warbird bucket',     kg: 8.0,  hw: 0.245, back: 0.60, rake: 13, tilt: 6,
-       note: 'the Spitfire\'s moulded resin bucket, deep for a seat-pack parachute, on a height-adjust frame' },
-  // (the user, 2 Nov: "maybe model those of the beaver too please"; the passenger bench was dropped the same day)
-  16: { key: 'beaver',  name: 'DHC-2 Beaver',       kg: 12.0, hw: 0.250, back: 0.66, rake: 12, tilt: 4,
-       note: 'a 1950s tube-framed seat, a pressed back panel with lightening holes, channel-pleated cushions' },
-  9: { key: 'dc3',      name: 'DC-3 (1930s)',       kg: 20.0, kgPax: 18.0, hw: 0.260, back: 0.84, backPilot: 0.68, rake: 14, tilt: 4,
-       note: 'pilots: a riveted bucket with cushions and arms; passengers: the deep reclining sleeper' },
+  0:  { key: 'sling',       build: 'cub',     name: 'Tube & sling',      kg: 3.0,  hw: 0.230, back: 0.50, rake: 12, tilt: 4,
+        note: 'a welded tube frame, a laced canvas sling, a loose piped cushion, a canvas back with a pad' },
+  1:  { key: 'carbon',      build: 'carbon2', name: 'Carbon bucket',     kg: 4.5,  hw: 0.235, back: 0.80, rake: 22, tilt: 6,
+        note: 'a moulded carbon bucket, integrated headrest, two pads, on two rails' },
+  2:  { key: 'airliner',    build: 'dc3',     name: 'Vintage airliner',  kg: 18.0, hw: 0.260, back: 0.84, rake: 14, tilt: 4, pax: true,
+        note: 'the deep reclining day seat: buttoned mohair, a linen antimacassar, leather arms, a polished tube frame' },
+  3:  { key: 'touring',     build: 'c172',    name: 'Touring',           kg: 14.0, hw: 0.245, back: 0.70, rake: 13, tilt: 4,
+        note: 'a tube and pan frame on rails, cloth inserts in vinyl bolsters, recline lever, a moulded back shell' },
+  4:  { key: 'sculpted',    build: 'icon',    name: 'Sculpted sport',    kg: 9.0,  hw: 0.265, back: 0.84, rake: 18, tilt: 5,
+        note: 'a sculpted gloss shell, leather bolsters, a quilted centre, contrast stitching, integrated headrest' },
+  5:  { key: 'executive',   build: 'bonanza', name: 'Executive leather', kg: 18.0, hw: 0.270, back: 0.80, rake: 15, tilt: 4,
+        note: 'rolled-pleat leather, a high back, a headrest on posts, an armrest' },
+  6:  { key: 'ultralight',  build: 'ul',      name: 'Ultralight sling',  kg: 3.5,  hw: 0.230, back: 0.56, rake: 16, tilt: 6,
+        note: 'a bent alloy tube frame and a laced canvas sling with a pad, no brace behind' },
+  7:  { key: 'aerobatic',   build: 'extra',   name: 'Aerobatic recline', kg: 6.0,  hw: 0.225, back: 0.70, rake: 38, tilt: 10,
+        note: 'a carbon shell for a pilot lying back, a back-pack parachute in it' },
+  8:  { key: 'vintageCrew', build: 'dc3',     name: 'Vintage crew',      kg: 20.0, hw: 0.260, back: 0.68, rake: 14, tilt: 4, paxType: 2,
+        note: 'a riveted alloy bucket, leather cushions, padded arms, on a column; its cabin takes the vintage airliner seat' },
+  9:  { key: 'work',        build: 'ag',      name: 'Heavy-duty work',   kg: 16.0, hw: 0.275, back: 0.88, rake: 11, tilt: 5,
+        note: 'a crash-rated steel bucket, thick cushions under a sheepskin, height tracks, crush tubes' },
+  10: { key: 'cane',        build: 'wicker',  name: 'Woven cane',        kg: 3.0,  hw: 0.230, back: 0.46, rake: 9,  tilt: 3,
+        note: 'a rattan tub woven on stakes, a wrapped rim, a leather cushion, on ash bearers' },
+  11: { key: 'reclined',    build: 'glider',  name: 'Reclined tub',      kg: 3.0,  hw: 0.290, back: 0.66, rake: 40, tilt: 16,
+        note: 'a moulded glass-fibre pan, a padded backrest board on struts and quadrants, four anchor tubes' },
+  12: { key: 'folding',     build: 'jump',    name: 'Folding canvas',    kg: 2.5,  hw: 0.230, back: 0.50, rake: 10, tilt: 3,
+        note: 'a light frame on floor hinges with quick-release pins, a canvas seat and strap back' },
+  13: { key: 'parachute',   build: 'warbird', name: 'Parachute bucket',  kg: 8.0,  hw: 0.245, back: 0.60, rake: 13, tilt: 6,
+        note: 'a deep moulded resin bucket for a seat-pack parachute, on a height-adjust frame' },
+  14: { key: 'utility',     build: 'beaver',  name: 'Bush utility',      kg: 12.0, hw: 0.250, back: 0.66, rake: 12, tilt: 4,
+        note: 'a painted tube frame, a pressed back panel with lightening holes, channel-pleated cushions' },
 };
 const PRESET_OF = t => SEAT_PRESETS[Math.round(t)] || null;
 
@@ -140,7 +142,7 @@ function mat(finish, tint, o) {
   MAT_POOL.set(pk, m);
   return m;
 }
-const TRIM = { sec: 'seatTrim' }, FRAME = { sec: 'seatFrame' }, ACCENT = { sec: 'seatAccent' };
+const TRIM = { sec: 'seatTrim' }, FRAME = { sec: 'seatFrame' }, ACCENT = { sec: 'seatAccent' }, SEAM = { sec: 'seatSeam' };
 
 // ---- the bag: one indexed buffer per material ----------------------------------------------------------------------
 // THE PARTS (the bake, STEP 3): a seat is drawn as rigid parts the live rows move once it is baked - 'floor' (rails,
@@ -551,7 +553,7 @@ function seatRails(B, mRail, mHole, A, x, z0, z1, gauge) {
 // brackets onto alloy rails.
 function seatCarbon(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
-  const mShell = mat('composite', 0x2a2d31, FRAME), mPad = mat('liner', 0x2c2e33, TRIM), mSt = mat('plasticScr', 0xb8322a),
+  const mShell = mat('composite', 0x2a2d31, FRAME), mPad = mat('liner', 0x2c2e33, TRIM), mSt = mat('plasticScr', 0xb8322a, SEAM),
         mAlu = mat('bareAlu', 0xb6bcc3), mCast = mat('castAlu', 0x8e949a), mDark = mat('rubber', 0x18191c);
   // the shell's occupied face sits 30 mm under the reference (the pad is 30 mm)
   const pad = 0.030;
@@ -614,7 +616,7 @@ function seatCarbon(B, A, P, g, pre, sbs) {
 // back shell with a map pocket, and the late-model tall back with its headrest zone.
 function seatC172(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
-  const mVinyl = mat('leatherDark', 0x6f6a62, TRIM), mCloth = mat('liner', 0x5d6470, ACCENT), mPipe = mat('leatherDark', 0x4a4640),
+  const mVinyl = mat('leatherDark', 0x6f6a62, TRIM), mCloth = mat('liner', 0x5d6470, ACCENT), mPipe = mat('leatherDark', 0x4a4640, SEAM),
         mShell = mat('plastic', 0xb9b2a3), mFrame = mat('trim', 0x40444a, FRAME), mAlu = mat('bareAlu', 0xb6bcc3),
         mChrome = mat('chrome', 0xdfe5ec), mKnob = mat('plasticScr', 0x1c1e22), mDark = mat('rubber', 0x1b1c20);
   B.part = 'pan';
@@ -714,7 +716,7 @@ function seatC172(B, A, P, g, pre, sbs) {
 function seatIcon(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
   const mShell = mat('gelcoat', 0xe9e8e3, FRAME), mLea = mat('leatherDark', 0x2f3236, TRIM), mIns = mat('liner', 0x3a3d43, ACCENT),
-        mSt = mat('plasticScr', 0xe0782f), mAlu = mat('castAlu', 0xa9afb6), mDark = mat('rubber', 0x18191c);
+        mSt = mat('plasticScr', 0xe0782f, SEAM), mAlu = mat('castAlu', 0xa9afb6), mDark = mat('rubber', 0x18191c);
   const pad = 0.040;
   const sp = spine([ptP(S, S.panL + 0.03, g, -0.045), ptP(S, S.panL, g), S.H, ptB(S, S.backL), ptB(S, S.backL + 0.03, -0.03)], 0.11);
   const L = sp.L, sH = sp.sOf(S.H), sHead = sp.sOf(ptB(S, S.backL - 0.22));
@@ -778,7 +780,7 @@ function seatIcon(B, A, P, g, pre, sbs) {
 // skirted base on tracks.
 function seatBonanza(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
-  const mLea = mat('leather', 0xc8a57e, TRIM), mPipe = mat('leather', 0x8a6440), mBase = mat('plasticGrn', 0x2c2b29),
+  const mLea = mat('leather', 0xc8a57e, TRIM), mPipe = mat('leather', 0x8a6440, SEAM), mBase = mat('plasticGrn', 0x2c2b29),
         mChrome = mat('chrome', 0xdfe5ec), mAlu = mat('bareAlu', 0xb6bcc3), mDark = mat('rubber', 0x1b1c20);
   const thP = 0.055;
   const spP = spine([ptP(S, S.panL + 0.03, g, -0.035), ptP(S, S.panL, g), S.H, ptB(S, 0.06)], 0.05);
@@ -849,7 +851,7 @@ function seatBonanza(B, A, P, g, pre, sbs) {
 function seatUL(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
   const mAlu = mat('bareAlu', 0xc2c7cd, FRAME), mSling = mat('webbing', 0x3d5a86, TRIM), mPad = mat('liner', 0x4a5568, ACCENT),
-        mLace = mat('webbing', 0x111214), mBuck = mat('chrome', 0xdfe5ec),
+        mLace = mat('webbing', 0x111214, SEAM), mBuck = mat('chrome', 0xdfe5ec),
         mCast = mat('castAlu', 0x8e949a);
   const K = KIT();
   const tr = 0.0125;
@@ -906,7 +908,7 @@ function seatUL(B, A, P, g, pre, sbs) {
 function seatExtra(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
   const mShell = mat('composite', 0x26292d, FRAME), mPad = mat('leatherDark', 0x1c1d20, TRIM), mChute = mat('webbing', 0x3a5378, ACCENT),
-        mChuteT = mat('webbing', 0x1a1d22), mBuck = mat('chrome', 0xdfe5ec), mCast = mat('castAlu', 0x8e949a);
+        mChuteT = mat('webbing', 0x1a1d22, SEAM), mBuck = mat('chrome', 0xdfe5ec), mCast = mat('castAlu', 0x8e949a);
   const chute = 0.075;                                     // the pack's thickness on the back
   const sp = spine([ptP(S, S.panL + 0.02, g, 0.02), ptP(S, S.panL - 0.02, g), S.H, ptB(S, S.backL), ptB(S, S.backL + 0.02, -0.04)], 0.085);
   const L = sp.L, sH = sp.sOf(S.H);
@@ -957,10 +959,9 @@ function seatExtra(B, A, P, g, pre, sbs) {
 // bay's is the DST/DC-3 day seat - a deep upholstered reclining seat, a high rounded back with a linen antimacassar
 // over the top, padded arms with chrome ends, on a polished tube frame.
 function seatDC3(B, A, P, g, pre, sbs, SP) {
-  if (SP && SP.pax) return seatDC3Pax(B, A, P, g, pre, sbs);
-  pre = Object.assign({}, pre, { back: pre.backPilot || pre.back });
+  if (pre.pax || (SP && SP.pax)) return seatDC3Pax(B, A, P, g, pre.pax ? pre : SEAT_PRESETS[2], sbs);
   const S = stance(A, P, g, pre, sbs);
-  const mBkt = mat('panelMetal', 0x7d8478, FRAME), mLea = mat('leather', 0x4a3426, TRIM), mPipe = mat('leather', 0x2e2018),
+  const mBkt = mat('panelMetal', 0x7d8478, FRAME), mLea = mat('leather', 0x4a3426, TRIM), mPipe = mat('leather', 0x2e2018, SEAM),
         mRiv = mat('bareAlu', 0xc6cbd0), mCast = mat('castAlu', 0x8e949a), mDark = mat('rubber', 0x1b1c20),
         mTrim = mat('trim', 0x3c403a);
   const K = KIT();
@@ -1010,7 +1011,7 @@ function seatDC3(B, A, P, g, pre, sbs, SP) {
 }
 function seatDC3Pax(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
-  const mFab = mat('liner', 0x5b6a5c, TRIM), mPipe = mat('leather', 0x3a2c22), mLin = mat('liner', 0xebe5d6),
+  const mFab = mat('liner', 0x5b6a5c, TRIM), mPipe = mat('leather', 0x3a2c22, SEAM), mLin = mat('liner', 0xebe5d6),
         mChrome = mat('chrome', 0xdfe5ec), mLea = mat('leather', 0x5a3a28, ACCENT), mDark = mat('rubber', 0x1b1c20);
   const K = KIT();
   const thP = 0.06;
@@ -1086,12 +1087,12 @@ function seatDC3Pax(B, A, P, g, pre, sbs) {
 // tube on four short legs bolted to tabs, two uprights for the back with a top bow - a canvas sling laced under the pan
 // and another across the back, a loose box cushion with piping on the sling and a thin pad on the back. No rails: a
 // Cub's seat is bolted to the fuselage, the station is the station. The cushion and the pad wear the seat-trim livery
-// section (the crew's own M.cushion / M.pipe), so the default seat stays the one the user paints.
+// section (the base seat's section since G332), so a seat the user painted keeps its paint.
 function seatCub(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
-  const KM = window.CAGE_CREW_SEAT && window.CAGE_CREW_SEAT.kit && window.CAGE_CREW_SEAT.kit.M;
-  const mCush = (KM && KM.cushion) || mat('hide', 0x7a4f33), mPipe = (KM && KM.pipe) || mat('leather', 0xd8cdb6);
-  const mFrame = mat('trim', 0x4a5056, FRAME), mCanvas = mat('webbing', 0x8a8068, ACCENT), mLace = mat('webbing', 0x2a2722),
+  // the cushion keeps today's tube seat's look (G332's hide, its cream piping) as the sections' bottom-out
+  const mCush = mat('hide', 0x7a4f33, TRIM), mPipe = mat('leather', 0xd8cdb6, SEAM);
+  const mFrame = mat('trim', 0x4a5056, FRAME), mCanvas = mat('webbing', 0x8a8068, ACCENT), mLace = mat('webbing', 0x2a2722, SEAM),
         mCast = mat('castAlu', 0x8e949a), mBolt = mat('chrome', 0xdfe5ec);
   const K = KIT();
   const tr = 0.0095;                                      // 3/4-inch tube
@@ -1179,7 +1180,7 @@ function seatCub(B, A, P, g, pre, sbs) {
 function seatAg(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
   const mBkt = mat('trim', 0x232528, FRAME), mCord = mat('liner', 0x2a2c2f, ACCENT), mWool = mat('liner', 0xd8ccb2, TRIM),
-        mWoolE = mat('leather', 0x6a5440), mSteel = mat('steelTube', 0x6f7780), mCast = mat('castAlu', 0x8e949a),
+        mWoolE = mat('leather', 0x6a5440, SEAM), mSteel = mat('steelTube', 0x6f7780), mCast = mat('castAlu', 0x8e949a),
         mBolt = mat('chrome', 0xdfe5ec), mKnob = mat('plasticScr', 0xc0302a), mDark = mat('rubber', 0x18191c);
   const K = KIT();
   const cush = 0.065;
@@ -1249,7 +1250,7 @@ function seatAg(B, A, P, g, pre, sbs) {
 function seatWicker(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
   const mCane = mat('webbing', 0xcfae70, FRAME), mRim = mat('webbing', 0xb08a4e), mLea = mat('leather', 0x7a4526, TRIM),
-        mPipe = mat('leather', 0x3a2414), mAsh = mat('spruce', 0x8a6a40), mBolt = mat('steelTube', 0x5a6068);
+        mPipe = mat('leather', 0x3a2414, SEAM), mAsh = mat('spruce', 0x8a6a40), mBolt = mat('steelTube', 0x5a6068);
   const K = KIT();
   const cush = 0.050;
   const sp = spine([ptP(S, S.panL, g, -0.02), ptP(S, S.panL - 0.04, g), S.H, ptB(S, S.backL)], 0.10);
@@ -1465,7 +1466,7 @@ function seatJump(B, A, P, g, pre, sbs) {
 // steel frame behind it by two side brackets, raised and lowered by a lever on the right.
 function seatWarbird(B, A, P, g, pre, sbs) {
   const S = stance(A, P, g, pre, sbs);
-  const mBkt = mat('plasticScr', 0x5e2b1a, FRAME), mPack = mat('webbing', 0x8a7f5a, ACCENT), mPackE = mat('webbing', 0x5d5539),
+  const mBkt = mat('plasticScr', 0x5e2b1a, FRAME), mPack = mat('webbing', 0x8a7f5a, ACCENT), mPackE = mat('webbing', 0x5d5539, SEAM),
         mLea = mat('leather', 0x3a2618, TRIM), mSteel = mat('trim', 0x5a6a50), mCast = mat('castAlu', 0x8e949a),
         mBolt = mat('chrome', 0xdfe5ec), mDark = mat('rubber', 0x18191c);
   const K = KIT();
@@ -1523,7 +1524,7 @@ function seatWarbird(B, A, P, g, pre, sbs) {
 // tracks. (Its folding rear bench was modelled and dropped, the user 2 Nov: a cabin takes any preset via paxSeatType.)
 function seatBeaver(B, A, P, g, pre, sbs, SP) {
   const S = stance(A, P, g, pre, sbs);
-  const mFrame = mat('trim', 0x5d6460, FRAME), mLea = mat('leatherDark', 0x6b5a45, TRIM), mPipe = mat('leatherDark', 0x3e3226),
+  const mFrame = mat('trim', 0x5d6460, FRAME), mLea = mat('leatherDark', 0x6b5a45, TRIM), mPipe = mat('leatherDark', 0x3e3226, SEAM),
         mPanel = mat('panelMetal', 0x8a9087, ACCENT), mAlu = mat('bareAlu', 0xb6bcc3), mCast = mat('castAlu', 0x8e949a),
         mDark = mat('rubber', 0x1b1c20), mBolt = mat('chrome', 0xdfe5ec);
   const K = KIT();
@@ -1579,19 +1580,19 @@ const BUILD = { beaver: seatBeaver, glider: seatGlider, jump: seatJump, warbird:
 // the crew's interface: parent, the anchors A, the rows P, the seat's geometry g (seatGeom), this seat's SP, sbs
 function build(parent, A, P, g, SP, sbs) {
   const pre = PRESET_OF(P.seatType);
-  if (!pre || !BUILD[pre.key]) return null;
+  if (!pre || !BUILD[pre.build]) return null;
   // seatGeom carries the squab centre, not the back's station: zBack is szc - 0.20 there
   if (g.zBack == null) g = Object.assign({}, g, { zBack: g.szc - 0.20 });
   const lvl = levelFor(P);
   const B = Bags();
   LOD.lvl = lvl;
   let S;
-  try { S = BUILD[pre.key](B, A, P, g, pre, sbs, SP); } finally { LOD.lvl = 0; }
+  try { S = BUILD[pre.build](B, A, P, g, pre, sbs, SP); } finally { LOD.lvl = 0; }
   const st = B.flush(parent);
-  const kg = SP && SP.pax && pre.kgPax != null ? pre.kgPax : pre.kg;
+  const kg = pre.kg;
   parent.userData.seatStats = { key: pre.key, tris: st.tris, draws: st.draws, kg, lod: lvl };
   return { panY: g.panY, floor: g.floor, szc: g.szc, hw: S.hw, backH: S.backL, rake: g.rake, fit: S.fit,
-           preset: pre.key, tris: st.tris, draws: st.draws, lod: lvl };
+           preset: pre.key, kg, tris: st.tris, draws: st.draws, lod: lvl };
 }
 // WHICH LEVEL A SEAT IS BUILT AT: one level per build, not a THREE.LOD (the join flattens the crew layer's meshes, and
 // a parked aeroplane already drops the whole interior past its first rung): the phone profile builds the phone level,

@@ -518,6 +518,17 @@ function cageJoinSpec(P, M, T) {
   // the measured seat stations (see M.seatsX above); absent = the frame's own
   // pillar rule, which is what every fiche and every older save still gets
   if (Array.isArray(M.seatsX) && M.seatsX.length) cabin.seatsX = M.seatsX;
+  // ...and each seat's mass (SEATS, 2026-11-02), written only when a drawn seat weighs other than the outfit's row:
+  // a cabin of tube & sling seats (3.0 kg, the `sling` row every save bills) keeps its spec - and its certificate -
+  // exactly as it was. Back to all-default after heavier seats, it is cleared (null: the resolver reads it absent,
+  // and the garage's merge cannot keep the stale masses)
+  if (Array.isArray(M.seatsKg) && M.seatsKg.length) {
+    const GS = typeof GEN_SEATS !== 'undefined' ? GEN_SEATS : null;
+    const row = GS && (GS[(spec.outfit && spec.outfit.seats) || 'sling'] || GS.sling);
+    const base = row ? row.kg : 3.0;
+    if (M.seatsKg.some(k => Math.abs(k - base) > 1e-6)) cabin.seatsKg = M.seatsKg;
+    else if (spec.cabin && Array.isArray(spec.cabin.seatsKg)) cabin.seatsKg = null;
+  }
   // G180: the drawn CAPACITY and the seat-by-seat OCCUPANCY, both off the same
   // seat list as seatsX (see M.seats / M.occupied above). Written whenever
   // measured — an all-empty cabin is a real answer, same ruling as `pax`.
@@ -1443,6 +1454,10 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
             .map(s => zFw - s.zBack - SEAT_CG_FWD)
             .filter(x => isFinite(x) && x > 0.05);
           if (xs.length === CRW.seatsAt.length) M.seatsX = xs;
+          // SEATS (2026-11-02): each drawn seat's own mass, the same list and order - a cabin of vintage airliner
+          // seats behind two crew seats weighs what it draws, seat for seat (the user: "MASS/CG honest")
+          const kg = CRW.seatsAt.map(s => +s.kg);
+          if (kg.every(v => isFinite(v) && v > 0) && kg.length === CRW.seatsAt.length) M.seatsKg = kg;
         }
         // the MAINS STATION: with gear.x measured, the wheels-to-axles
         // calibration collapses to off[0] = zFw − cg0[0] — the visual's

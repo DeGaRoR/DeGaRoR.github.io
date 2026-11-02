@@ -106,6 +106,7 @@ const DESIGN_PART = {
   canopy: ['cabin', 'windscreen', 'pilotWindow', 'skylight'],
   mirror: ['fuselage', 'aftDeck', 'aftCabin', 'cabin'],
   seatType: ['seats', 'fit', 'cockpit'],
+  paxSeatType: ['seats', 'fit', 'cockpit'],
   intCons: ['structure', 'fuselage'],
   boomStyle: ['boom', 'tailcone', 'taper', 'fuselage'],
   booms: ['boom', 'tailcone', 'taper', 'fuselage', 'tail'],

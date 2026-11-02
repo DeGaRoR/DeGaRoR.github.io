@@ -14,26 +14,8 @@ const OUT = path.resolve(opt('out', 'seat_shots'));
 const ONLY = opt('only', 'all');
 fs.mkdirSync(OUT, { recursive: true });
 
-// the sheet: today's two kept seats (tube, the old shell for the before/after), then the library
-const SHEET = [
-  { type: 0, rake: 13, tilt: 3, label: 'Tube frame (today\'s default)' },
-  { type: 10, label: 'Cub (the default, reworked)' },
-  { type: 1, rake: 22, tilt: 6, label: 'Composite shell (today)' },
-  { type: 3, label: 'Carbon bucket (reworked)' },
-  { type: 4, label: 'Cessna 172' },
-  { type: 5, label: 'ICON A5' },
-  { type: 6, label: 'Bonanza' },
-  { type: 7, label: 'Ultralight (A22)' },
-  { type: 8, label: 'Extra 330' },
-  { type: 9, label: 'DC-3 pilots' },
-  { type: 9, pax: true, label: 'DC-3 passengers' },
-  { type: 11, label: 'Agricultural (AT-802)' },
-  { type: 12, label: 'WWI wicker (Camel)' },
-  { type: 13, label: 'Glider tub' },
-  { type: 14, label: 'Bush jump seat' },
-  { type: 15, label: 'Warbird bucket' },
-  { type: 16, label: 'Beaver' },
-];
+// the sheet: every seat type, SEAT_PRESETS order (the vintage crew's cabin seat is type 2's)
+const SHEET = Array.from({ length: 15 }, (_, i) => ({ type: i }));
 
 (async () => {
   let pw;
@@ -57,7 +39,7 @@ const SHEET = [
     result.stats = r.stats;
   }
   if (ONLY === 'lod') {
-    const L = list.filter(it => it.type >= 3);
+    const L = list;
     const r = await page.evaluate(([L]) => window.SEAT_BENCH.lodSheet(L, { tw: 360, groups: 2 }), [L]);
     save('seats_lod.png', r.url);
     result.lod = r.stats;
