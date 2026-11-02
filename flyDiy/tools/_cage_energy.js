@@ -1803,7 +1803,12 @@ function balanceApply(r) {
   // CG, the CG follows the step (15 % of the mass), and the loop closes in
   // one pass at this threshold
   if (r.cgMX != null && isFinite(r.cgMX) && isFinite(r.cgMY)) {
-    const prev = window.FLYDIY_CG_MODEL;
+    // FLOAT-CG (2 Nov): measured from the CG the step WAS stood on (the float layer's record), not the last one
+    // published - after a load, GARAGE_SPEC.update's rebuild has app.js publish the CG of the aeroplane the answer is
+    // about before the answer arrives, so the answer always read "not moved" and the page kept the second round's
+    // station: the twin floatplane's step 7 cm aft of node's (GATE JOINPARITY). node's load path (3c) measures the same
+    const F = window.CAGE_FLOAT;
+    const prev = (F && F.cgM) || window.FLYDIY_CG_MODEL;
     window.FLYDIY_CG_MODEL = [r.cgMX, r.cgMY];
     const moved = !prev || Math.hypot(prev[0] - r.cgMX, prev[1] - r.cgMY) > 0.02;
     const UI = window.CAGE_UI, P = UI && UI.P;
