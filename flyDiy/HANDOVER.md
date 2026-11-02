@@ -309816,6 +309816,34 @@ Timing (light gate, one run): roll-out sum 50.0 s [cub 7.0/0.9, metal 2.2/6.4, c
 
 Ready refs now landed (for the user's delete list): ready/roundtrip-fl3, framecost-green, cloud-row, pavement-flake, dmgskingpu-tol, dc3-taxi, pilot-g2811, claude/parked-src13.
 
+## TRAIN PHONE-1a (A0, Mon 2 Nov) - the phone garage, release 1a (the user's night test): the layout, no more 8 s slider waits, the phone look, the CG chip
+
+Landed: claude/ready/phone-1a ebb212b11 (PHONE-EDIT-PERF + PHONE-GARAGE, on L29i 53640b390).
+THE SLIDER WAITS (measured on the user's S20 FE, Twin_busher_floats_2):
+- The 8 s waits were the deform preview's map (_cage_ui near(): a string-keyed grid, an O(r^4) ring walk for parts far from the fuselage). Now an array grid: 2.4 s -> 15 ms desktop, identical answers.
+- Release builds of 72-388 ms on most rows; the floats' CG handshake becomes a release build (1.1 s -> ~75 ms).
+- G1451 takes floatplanes; the fin's {...P} spread is fixed (every slider re-ran the fin/stab); the hinge/float caches; typed = release.
+- These build-path fixes are profile-free: the desktop editor gets them too.
+- INSTANT found ONE real difference: the twin's wing span with the crew layer kept (the footwell uniform 17 cm off). So a floatplane's DRAG release stays WHOLE in 1a (1278feb68): the twin's slider releases are ~1 s, named. The fast path returns on floats in 1b. The SETTLED rows otherwise prove the plan.
+THE PHONE:
+- 50/50 view/controls with a draggable divider;
+- one fixed grid per row, -/+ on every row as the default (the user's pick 2 Nov; ?phsteps=0 = compact);
+- a tap-to-type value editor with a ± key (Samsung's decimal pad has no minus);
+- 44 px hit areas; will-change only while dragging;
+- the editor's bar is opaque (f42694e7c);
+- the phone material tier (no weathering / musgrave field / structure grammar: 9 -> 30 fps in the shed on the S20; ?phmat=full keeps the full look; the user OK'd it 2 Nov);
+- the idle hold (5 s after the last touch the view stops redrawing; ?idle=0);
+- the G1357 catcher off on the phone;
+- the flight recorder's garage edit events (gedit/gtask) + analyze_log's GARAGE EDITS section;
+- the welcome rewritten for the phone (G3905; its test-flight sentence switches on with PROFILE.TABLE.phone.fly);
+- G3798c: the decal atlas is a willReadFrequently CPU canvas, repainted on contextrestored (the registration vanishing);
+- THE CG CHIP (G3906): "CG x % · margin y %" in the band colour at the view's lower left, read from CG_READ, so FLOAT builds show it too. On the user's twin: margin -18 %, unstable in pitch. The 3D posts on floats come in 1b.
+Battery (18 focused gates): PROFILE UILAYER UISMOKE UISMOKE-PHONE CAGEFIT GFX SKINMAT LIVERYREACH PANEL VIEW CARDS CARDDRAG FLIGHTREC LIGHT BOOMBOX BOOT BUILT LAZY: PASS.
+Timing (light gate, one run): roll-out sum 59.3 s [cub 8.9/14.4, metal 9.1/5.9, c172 18.0/3.0]; Cub garage 29.9 fps, p999 33.5 ms.
+- NOT CLEAN, named: the box was busy (cpuLoad 33-36 % on two roll-outs), and an unbooked headless-Chrome CLOUD gate (NIGHT-LOOK, 20:02-20:04) overlapped the c172 chase roll-out.
+- The phone code doesn't run in a roll-out. The roll-out freezes are master's W6 (the shadow-map link), whose fix is tested 23:00 tonight.
+Open for 1b (08:30 3 Nov): the floats' fast release, -/+ then typing, the -/+ 4 px overlap, the precision hold in the -/+ geometry, the CG posts on floats, the PWA (install + force sync), the test flight (G3790-G3794), the sliced fuselage release + spinner, the boom preview.
+
 ## PHONE-TESTFLIGHT G3790-G3794 (Mon 2 Nov) - the test field (a flat world) and the phone's test flight
 
 The user, 27 Oct, asked for a test flight on the phone: "1 building, 1 runway, and some infinite thing. Only ability is to do a circuit". Desktop "can select its environment through the menu option". The change is on claude/phone-testflight, for PHONE-1b.
