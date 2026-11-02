@@ -39,7 +39,7 @@ if (argv[0] === '--build') {
   // in a hard slide, today's metal Cessna's 23 kJ at 30 deg)
   let halfSpan = 0; for (const m of SK.meshes) if (m.nm !== 'members' && m.cls !== SS.CLS.glass && !/^(windscreen|rearWindow)$/.test(m.nm))
     for (let v = 0; v < m.g.nv; v++) halfSpan = Math.max(halfSpan, Math.abs(dotL(m.g.pos, v * 3)));
-  const hiWing = -halfSpan / 3;
+  const hiWing = -halfSpan / 3; out.hiWing = +(halfSpan / 3).toFixed(2);
   for (const c of CASE_IDS) {
     const t0 = Date.now(), r = G.run(k, c, { skin: SK }), D = r.damage, C = { id: c, label: G.CASES[c].label };
     C.phys = { breaks: D.breaks, yields: D.yields, work: Math.round(D.work), scW: Math.round(D.scW || 0), crashed: D.crashed };
@@ -203,7 +203,7 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
     }
     yes(C.intact.payloads === 0 && !C.intact.recs && C.intact.hash === '811c9dc5', 'intact: no payload, no record, nothing drawn');
     const sl = C['slide-L'].n;
-    yes(sl.scrape > 0 && sl.scrapeR === 0, 'the wing-low slide leaves the high (right) wing clean: ' + sl.scrape + ' vertices scraped, ' + sl.scrapeR + ' beyond ' + (halfSpan / 3).toFixed(2) + ' m right ('
+    yes(sl.scrape > 0 && sl.scrapeR === 0, 'the wing-low slide leaves the high (right) wing clean: ' + sl.scrape + ' vertices scraped, ' + sl.scrapeR + ' beyond ' + r.hiWing + ' m right ('
       + C['slide-L'].phys.scW + ' J slid, rolled ' + C['slide-L'].roll + ' deg)');
     yes(sl.scrapeUp === 0, 'the wing-low slide: no scraped vertex faces up (' + sl.scrapeUp + ')');
     yes(sl.coh / sl.scrape > 0.5, 'the wing-low slide went one way: its scraped vertices\' slide coherence along the skin averages ' + (sl.coh / sl.scrape).toFixed(2) + ' (streaked; the taxi\'s rub into a trunk ' + (C['taxi-3'].n.scrape ? (C['taxi-3'].n.coh / C['taxi-3'].n.scrape).toFixed(2) : '-') + ')');
