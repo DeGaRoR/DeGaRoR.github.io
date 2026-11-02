@@ -9,7 +9,7 @@
     { "file": "dc3_2026-10.json", "name": "DC-3-alike", "note": "full size, nine bays - DC3-2 v1 (G3579b, flown 28 Oct); its swivel tailwheel and nose dome rows ride dc3-2", "from": "Deform (claude/dc3-2 19eb0b6a2)" },
     { "file": "stol_cub_showcase.json", "name": "STOL Cub", "note": "the Cub with the STOL kit, a Rotax 915 iS on a three-blade prop and tundra tyres (STOL-WING-2 G2829); open finding: the drawn elevator chord 0.664 is past the flown 0.65 (flies clamped)", "from": "Pilot (tools/fixtures)" },
     { "file": "cub_fittings_hand_2026-10.json", "name": "Cub, fittings by hand", "note": "the Cub with its fittings placed by hand (FITTINGS-MANUAL, 2 Nov)", "from": "tools/fixtures" },
-    { "file": "Twin_busher_floats_2.json", "name": "Twin busher floats", "note": "the user's twin pusher on floats (2 Nov), built on the phone, never flown", "from": "the user" },
+    { "file": "Twin_busher_floats_3.json", "name": "Twin busher floats 3", "note": "the user's twin pusher on floats, stabilised by FLAGSHIP (2 Nov; accepted by the user ~21:10, replaces _2, now in review/) - flies as meant with claude/flagship's float-step fix", "from": "the user" },
     { "file": "ugly_bi.json", "name": "ugly bi", "note": "the user's little biplane: a low wing and a parasol upper wing on N struts, an O-200, spatted taildragger - built on the phone, never flown", "from": "the user" },
     { "file": "mosquito.json", "name": "mosquito", "note": "B-MOSQ (9 Oct; DESIGN-TRUST G2640: it would not fly level - its repro steps stay in tools/fixtures/repro/)", "from": "the user (\"you may also add the mosquito\"; tools/fixtures/repro/)" }
   ]
