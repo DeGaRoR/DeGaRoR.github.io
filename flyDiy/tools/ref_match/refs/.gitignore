@@ -1,0 +1,2 @@
+# the triangles refmatch.py caches next to each GLB (rebuilt on demand)
+*.npz

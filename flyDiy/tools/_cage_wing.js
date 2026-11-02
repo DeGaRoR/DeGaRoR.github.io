@@ -74,6 +74,9 @@ PAGE.defaults = Object.assign({
   // migrator (GEN_MIGRATORS[5]) lifts an old save's angle into the offsets.
   wingOn: 1, wgSpan: 10.0, wgChord: 1.60, wgChordTip: 1.60,
   wgTipX: 0, wgCrankChord: 1.60, wgCrankX: 0,
+  wgPlan: 0, wgPlanAxis: 0.30,     // the elliptic planform (genPlanLaw): off = the straight stations
+  // the wing radiators (off): a Spitfire's pair sits 0.75 m out, a third of the chord back
+  radMode: 0, radX: 0.75, radAt: 0.35, radLen: 1.30, radW: 0.42, radH: 0.24, radFlap: 8, radOilK: 0.55,
   wgDihedral: 3.0, wgIncidence: 1.5, wgWashout: 1.5,
   wgCamber: 2, wgThick: 12,
   wgTip: Math.max(0, TIP_KEYS.indexOf('rounded')), wgPos: 0,
@@ -104,6 +107,7 @@ PAGE.defaults = Object.assign({
   // the trunk's fore/aft sign). Off by default: a monoplane.
   w2On: 0, w2Pos: 2, w2ParaH: 0.45, w2Stagger: 0.35, w2Dy: 0,
   w2Span: 10.0, w2Chord: 1.60, w2ChordTip: 1.60, w2TipX: 0,
+  w2Plan: 0, w2PlanAxis: 0.30,
   w2CrankAt: 0, w2CrankChord: 1.60, w2CrankX: 0, w2DihedralOut: 6,
   w2Dihedral: 3.0, w2Incidence: 1.5, w2Washout: 1.5, w2Camber: 2, w2Thick: 12,
   w2Tip: Math.max(0, TIP_KEYS.indexOf('rounded')), w2Centre: 0, w2Panels: 3,
@@ -130,7 +134,13 @@ const flownOf = (P, plane) => {
 };
 // (G3503: the envelope the drawn span is held by - its `big` one past span[1], the core's genWingEnv rule)
 const envFor = (E, span) => (E && E.big && +span > E.span[1]) ? Object.assign({}, E, E.big) : E;
-const ENVW = P => envFor(typeof GEN_WING_ENVELOPE !== 'undefined' ? GEN_WING_ENVELOPE : null, P && P.wgSpan);
+// the second plane holds to its own floor (GEN_WING_ENVELOPE.second, NEW-SHAPES-1), as clampWing does: its notes say so
+const ENVW = (P, plane) => {
+  const E = envFor(typeof GEN_WING_ENVELOPE !== 'undefined' ? GEN_WING_ENVELOPE : null, P && (plane ? P.w2Span : P.wgSpan));
+  if (!E || !plane || !E.second) return E;
+  return Object.assign({}, E, { chord: [E.second.chord, E.chord[1]], span: [E.second.span, E.span[1]],
+                                spanPerChord: [E.second.spanPerChord, E.spanPerChord[1]] });
+};
 // G3050: and since the rows are WRITTEN BACK to the flown wing (the coerce
 // below), a row the resolver held says where and why until it is moved again
 // (HELD: what was asked, what was written). (P, plane) as the notes above.
@@ -145,19 +155,19 @@ const WHY = {
   wgDx: E => `the leading edge is held ${E.xLE[0]}–${E.xLE[1]} m aft of the firewall (the flown envelope)`,
 };
 const heldNote = k0 => (P, plane) => {
-  const k = plane ? 'w2' + k0.slice(2) : k0, h = HELD[k], E = ENVW(P);
+  const k = plane ? 'w2' + k0.slice(2) : k0, h = HELD[k], E = ENVW(P, plane);
   if (!h || +P[k0] !== h.wrote || !E) return '';
   const f2 = v => (Math.round(v * 1000) / 1000).toString();
   return `held at ${f2(h.wrote)} (asked ${f2(h.asked)}) — ` + (WHY[k0] ? WHY[k0](E) : 'the flown envelope');
 };
 const spanNote = (P, plane) => {
-  const f = flownOf(P, plane), E = ENVW(P);
+  const f = flownOf(P, plane), E = ENVW(P, plane);
   if (!f || !E || !(Math.abs(f.span - f.of.span) > 0.005)) return heldNote('wgSpan')(P, plane);
   return `flies ${f.span.toFixed(2)} m — the span is held to ` +
          `${E.spanPerChord[0]}–${E.spanPerChord[1]} × the root chord`;
 };
 const tipNote = (P, plane) => {
-  const f = flownOf(P, plane), E = ENVW(P);
+  const f = flownOf(P, plane), E = ENVW(P, plane);
   if (!f || !E) return heldNote('wgChordTip')(P, plane);
   const tip = f.chord * f.taper;
   if (!(Math.abs(tip - f.of.tip) > 0.005)) return heldNote('wgChordTip')(P, plane);
@@ -176,10 +186,15 @@ const WING_ITEMS = [
   // G3503 (DC3-BUILD): to the widened envelope's 30 m and 5 m (a full-size DC-3)
   ['wgSpan',   'span',           6.5, 30, 0.1, { ...on, dim: 'm', note: spanNote }],
   ['wgChord',  'root chord',     0.80, 5.00, 0.05, { ...on, dim: 'm' }],
-  ['wgChordTip', 'tip chord',    0.55, 5.00, 0.05, { ...on, dim: 'm', note: tipNote }],
+  ['wgChordTip', 'tip chord',    0.55, 5.00, 0.05, { when: P => +P.wingOn && !+P.wgPlan, dim: 'm', note: tipNote }],
+  // THE ELLIPTIC PLANFORM (the user, 27 Oct, the Spitfire: "a truly elliptic wing"): the chord follows one
+  // ellipse over the whole semispan from the root chord on the centreline, the line at `straight line at` of
+  // the chord runs straight (swept by `tip aft`); the tip chord, the crank and the tip type stand down
+  ['wgPlan',   'planform',       0, 1, 1, ['straight stations', 'elliptic'], on],
+  ['wgPlanAxis', 'straight line at (chord)', 0.10, 0.50, 0.01, { when: P => +P.wingOn && +P.wgPlan === 1 }],
   ['wgTip',    'tips',           0, TIP_KEYS.length - 1, 1,
-   TIP_KEYS.map(k => GEN_TIPS[k].name), on],
-  ['wgCrankAt', 'crank at',      0, 0.85, 0.05, { ...on, note: heldNote('wgCrankAt') }],
+   TIP_KEYS.map(k => GEN_TIPS[k].name), { when: P => +P.wingOn && !+P.wgPlan }],
+  ['wgCrankAt', 'crank at',      0, 0.85, 0.05, { when: P => +P.wingOn && !+P.wgPlan, note: heldNote('wgCrankAt') }],
   // G140: the crank SECTION — its own chord and fore/aft seat, the same
   // two numbers the root and tip carry. On a strutted wing the crank is
   // where the strut lands (the frame's ruling), so this trio IS the
@@ -290,6 +305,21 @@ const WING_ITEMS = [
     ['wgCuff', 'LE cuff', 0, 1, 1],
     ['wgCuffSpan', 'cuff span', 0.20, 0.60, 0.05, { when: P => +P.wgCuff }],
   ], 'open', on],
+  // THE WING RADIATORS (the user, 27 Oct, the Spitfire: "separate cooling devices, placed at the bottom of the
+  // wings"): a ducted radiator under each wing (a Mk IX's pair), or one radiator under the starboard wing and a
+  // smaller oil cooler under the port (a Mk I - V's). Each is a rounded duct lofted on the wing's own lower skin:
+  // an open inlet with its lip and the matrix behind it, the body deepest a third of the way back, the exit
+  // flap at the back. Its cost is the liquid engine's cooling drag (GEN_DRAG.kCool) - drawn here, billed once.
+  ['radiators', [
+    ['radMode', 'wing radiators', 0, 2, 1, ['none', 'a pair', 'starboard + oil cooler']],
+    ['radX',    'out from the centreline', 0.30, 3.00, 0.01, { when: P => +P.radMode > 0, dim: 'm' }],
+    ['radAt',   'inlet station (chord)',   0.00, 0.70, 0.01, { when: P => +P.radMode > 0 }],
+    ['radLen',  'length',                  0.30, 2.50, 0.01, { when: P => +P.radMode > 0, dim: 'm' }],
+    ['radW',    'width',                   0.10, 0.90, 0.01, { when: P => +P.radMode > 0, dim: 'm' }],
+    ['radH',    'depth under the skin',    0.05, 0.60, 0.005, { when: P => +P.radMode > 0, dim: 'm' }],
+    ['radFlap', 'exit flap',               0, 30, 1, { when: P => +P.radMode > 0, dim: 'deg' }],
+    ['radOilK', 'oil cooler size',         0.30, 1.00, 0.01, { when: P => +P.radMode === 2 }],
+  ], on],
 ];
 // G185: THE SECOND PLANE'S ROWS, GENERATED from the first's — the same
 // labels, ranges and steps, the keys re-prefixed, every `when` ANDed with
@@ -305,8 +335,11 @@ const W2_DROP = new Set(['wingOn', 'wgPos', 'wgBrace', 'wgStruts', 'wgStrutZ', '
                          // G2820: the STOL devices are the first plane's in the
                          // editor (the spec and the physics take them per plane)
                          'wgSlat', 'wgSlatSpan', 'wgVG', 'wgFence', 'wgCuff', 'wgCuffSpan',
-                         'wgDroop', 'wgFowlerGrow']);
+                         'wgDroop', 'wgFowlerGrow',
+                         // the wing radiators are the lower wing's, one set (the first plane's rows)
+                         'radMode', 'radX', 'radAt', 'radLen', 'radW', 'radH', 'radFlap', 'radOilK']);
 const w2Key = k => 'w2' + k.slice(2);
+const W2_LO = { w2Span: 2.0, w2Chord: 0.40, w2ChordTip: 0.30 };
 const w2On = P => +P.wingOn && +P.w2On;
 // the first plane's `when`s read wg* keys; the second plane's rows answer
 // with their own values under those names
@@ -324,6 +357,8 @@ const w2Row = it => {
   if (W2_DROP.has(it[0])) return null;
   const out = it.slice();
   out[0] = w2Key(it[0]);
+  // NEW-SHAPES-1: the second plane's size rows reach its own floor (GEN_WING_ENVELOPE.second)
+  if (W2_LO[out[0]] != null) out[2] = W2_LO[out[0]];
   const last = out[out.length - 1];
   const opts = (last && typeof last === 'object' && !Array.isArray(last)) ? last : null;
   const o2 = Object.assign({}, opts || {}, { when: w2When(opts && opts.when) });
@@ -346,10 +381,10 @@ const W2_ITEMS = [
   ['w2Pos', 'position', 0, 3, 1, ['parasol', 'mid wing', 'low wing', 'high wing'], { when: w2On }],
   ['w2ParaH', 'height (cabane)', 0.25, 1.20, 0.01,
    { when: P => w2On(P) && Math.round(P.w2Pos) === 0, dim: 'm' }],
-  ['w2Stagger', 'fore / aft (stagger)', -1.00, 1.00, 0.02, { when: w2On, dim: 'm' }],
-  // the spec's own place.dy (metres, clamped -0.25..0.60 in clampWing —
+  ['w2Stagger', 'fore / aft (stagger)', -2.50, 2.50, 0.02, { when: w2On, dim: 'm' }],
+  // the spec's own place.dy (metres, clamped -1.0..1.5 in clampWing since NEW-SHAPES-1 -
   // the row stops where the physics stops)
-  ['w2Dy', 'up / down', -0.25, 0.60, 0.01, { when: w2On, dim: 'm' }],
+  ['w2Dy', 'up / down', -1.00, 1.50, 0.01, { when: w2On, dim: 'm' }],
   ...WING_ITEMS.map(w2Row).filter(Boolean),
 ];
 // the pair rule on the rows: what the spec would coerce, written back so the
@@ -387,6 +422,7 @@ const ROWBACK = [
   ['wgSpan', w => w.span],
   ['wgChordTip', w => w.chord * w.taper],
   ['wgTipX', w => w.tipX],
+  ['wgPlanAxis', w => w.planAxis, P => +P.wgPlan === 1],
   ['wgCrankAt', w => w.crankAt, P => +P.wgCrankAt > 0],
   ['wgCrankChord', w => w.crankChord, P => +P.wgCrankAt > 0],
   ['wgCrankX', w => w.crankX, P => +P.wgCrankAt > 0],
@@ -824,6 +860,7 @@ function wingGSpec(P) {
       span: P.w2Span, chord: P.w2Chord,
       taper: Math.max(0.2, Math.min(1.0, P.w2ChordTip / Math.max(0.2, P.w2Chord))),
       tipX: +P.w2TipX || 0,
+      plan: +P.w2Plan === 1 ? 'elliptic' : null, planAxis: +P.w2Plan === 1 ? +P.w2PlanAxis : null,
       dihedral: P.w2Dihedral, incidence: P.w2Incidence, washout: P.w2Washout,
       naca: c2 * 1000 + (c2 > 0 ? 400 : 0) + t2,
       panels: Math.round(P.w2Panels),
@@ -858,6 +895,7 @@ function wingGSpec(P) {
       // sweep is never written; the resolved wing derives sweepEff for
       // the polar from what the stations actually do
       tipX: +P.wgTipX || 0,
+      plan: +P.wgPlan === 1 ? 'elliptic' : null, planAxis: +P.wgPlan === 1 ? +P.wgPlanAxis : null,
       dihedral: P.wgDihedral, incidence: P.wgIncidence,
       washout: P.wgWashout,
       naca: cam * 1000 + (cam > 0 ? 400 : 0) + thk,
@@ -934,6 +972,7 @@ const wingYRootEnv = () => {
 
 const prevPost = PAGE.post;
 let boomGroup = null;                        // the twin booms (2026-09-04)
+let radGroup = null;                         // the wing radiators (27 Oct)
 // G2880: the build below, then its early readers (above) - after every exit
 PAGE.post = ctx => {
   wingPost(ctx);
@@ -2432,6 +2471,101 @@ const wingPost = ctx => {
   // cage section the layer factory does not know, and fell back to a bare
   // white MeshStandardMaterial — "the twin booms do not get the colour of
   // the rest of the chassis").
+  // THE WING RADIATORS (27 Oct): their own layer and section, as the twin booms below are (`cageLayer:rad`,
+  // `radSkin` - the wing's paint until repainted); lofted on the drawn lower skin (underAt), cage metres
+  if (radGroup) { radGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+                  if (radGroup.parent) radGroup.parent.remove(radGroup); radGroup = null; }
+  if (+P.radMode > 0 && underAt && leAt && teAt) {
+    radGroup = new THREE.Group();
+    radGroup.name = 'cageLayer:rad';
+    let rm = null;
+    try {
+      if (window.CAGE_SECMAT) rm = window.CAGE_SECMAT('radSkin', { surf: 0, fieldM: 1, struct: 1, side: THREE.DoubleSide });
+    } catch (e) {}
+    if (!rm) rm = new THREE.MeshStandardMaterial({ color: 0x8a8f96, metalness: 0.3, roughness: 0.5, side: THREE.DoubleSide });
+    const coreM = new THREE.MeshStandardMaterial({ color: 0x1b1d1f, metalness: 0.4, roughness: 0.8, side: THREE.DoubleSide });
+    // a rounded rectangle, top edge at yT, depth d, half-width hw, corner r; NP points, clockwise from top left
+    const NP = 28;
+    const ring = (xc, yT, d, hw, z) => {
+      const r = Math.max(0.005, Math.min(0.42 * d, 0.45 * hw)), pts = [];
+      const per = [];   // the perimeter, as (x, y) offsets
+      const arc = (cx, cy, a0, a1, n) => { for (let i = 0; i <= n; i++) {
+        const a = a0 + (a1 - a0) * i / n; per.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]); } };
+      per.push([-hw, 0]); per.push([hw, 0]);
+      arc(hw - r, -d + r, 0, -Math.PI / 2, 6);
+      arc(-hw + r, -d + r, -Math.PI / 2, -Math.PI, 6);
+      // resample to NP evenly by index (the perimeter is short; the arcs carry the shape)
+      for (let i = 0; i < NP; i++) {
+        const t = i / NP * per.length, j = Math.floor(t) % per.length, k2 = (j + 1) % per.length, f = t - Math.floor(t);
+        pts.push([xc + per[j][0] + (per[k2][0] - per[j][0]) * f, yT + per[j][1] + (per[k2][1] - per[j][1]) * f, z]);
+      }
+      return pts;
+    };
+    const loft = (rings, mat, name) => {
+      const pos = [], idx = [];
+      for (const rg of rings) for (const p of rg) pos.push(p[0], p[1], p[2]);
+      for (let a = 0; a + 1 < rings.length; a++)
+        for (let i = 0; i < NP; i++) {
+          const i2 = (i + 1) % NP, A = a * NP + i, B = a * NP + i2, C = (a + 1) * NP + i, D = (a + 1) * NP + i2;
+          idx.push(A, C, B, B, C, D);
+        }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.setIndex(idx); g.computeVertexNormals();
+      const m = new THREE.Mesh(g, mat); m.name = name; radGroup.add(m);
+    };
+    const cap = (rg, mat, name) => {           // a flat fill of one ring (the matrix behind a lip)
+      const pos = [], idx = [], c = [0, 0, 0];
+      for (const p of rg) { pos.push(p[0], p[1], p[2]); c[0] += p[0] / NP; c[1] += p[1] / NP; c[2] += p[2] / NP; }
+      pos.push(c[0], c[1], c[2]);
+      for (let i = 0; i < NP; i++) idx.push(NP, i, (i + 1) % NP);
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      g.setIndex(idx); g.computeVertexNormals();
+      const m = new THREE.Mesh(g, mat); m.name = name; radGroup.add(m);
+    };
+    const one = (s, k, tag) => {
+      const xc = s * (+P.radX), le = leAt(xc), te = teAt(xc);
+      if (!le || !te) return;
+      const chord = le.z - te.z, L = (+P.radLen) * k, W2 = 0.5 * (+P.radW) * k, H = (+P.radH) * k;
+      const z0 = le.z - (+P.radAt) * chord;
+      const NZ = 22, outer = [], inner = [];
+      for (let i = 0; i <= NZ; i++) {
+        const u = i / NZ, z = z0 - u * L;
+        const sk = underAt(xc, z) || underAt(xc, Math.max(te.z + 0.01, Math.min(le.z - 0.01, z)));
+        const yT = (sk ? sk.y : le.yBot) + 0.02;          // the duct's top runs just inside the skin
+        // the side view: the inlet lip at 0.82, the deepest a third back, the exit at 0.72
+        const d = H * (u < 0.33 ? 0.82 + 0.18 * Math.sin(u / 0.33 * Math.PI / 2)
+                                : 1 - 0.28 * Math.pow((u - 0.33) / 0.67, 1.6));
+        const hw = W2 * (0.94 + 0.06 * Math.sin(Math.PI * u));
+        outer.push(ring(xc, yT, d + 0.02, hw, z));
+        if (i === 0 || i === NZ) inner.push(ring(xc, yT, (d + 0.02) * 0.84 - 0.005, hw * 0.86, z + (i ? 0.03 : -0.05) * L));
+      }
+      loft(outer, rm, 'edRad' + tag);
+      loft([outer[0], inner[0]], rm, 'edRadLip' + tag);              // the inlet lip, rolled in
+      loft([inner[1], outer[NZ]], rm, 'edRadExit' + tag);            // the exit's wall
+      cap(inner[0], coreM, 'edRadCore' + tag);                       // the matrix behind the inlet
+      cap(inner[1], coreM, 'edRadCoreAft' + tag);
+      // the exit flap: the duct's lower wall carried on, hinged down by radFlap
+      const fl = (+P.radFlap) * Math.PI / 180, fL = 0.22 * L;
+      const last = outer[NZ], zE = last[0][2];
+      const fp = [], fi = [];
+      for (const p of last) if (p[1] < last[0][1] - 0.45 * (+P.radH) * k) fp.push(p);
+      if (fp.length >= 2) {
+        const pos = [];
+        for (const p of fp) pos.push(p[0], p[1], p[2], p[0], p[1] - fL * Math.sin(fl), zE - fL * Math.cos(fl));
+        for (let i = 0; i + 1 < fp.length; i++) fi.push(2 * i, 2 * i + 1, 2 * i + 2, 2 * i + 2, 2 * i + 1, 2 * i + 3);
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+        g.setIndex(fi); g.computeVertexNormals();
+        const m = new THREE.Mesh(g, rm); m.name = 'edRadFlap' + tag; radGroup.add(m);
+      }
+    };
+    // cage x: + is the aeroplane's starboard (the Mk V's radiator side), - its port
+    if (Math.round(P.radMode) === 1) { one(1, 1, 'R'); one(-1, 1, 'L'); }
+    else { one(1, 1, 'R'); one(-1, +P.radOilK || 0.55, 'L'); }
+    scene.add(radGroup);
+  }
   if (boomGroup) { boomGroup.traverse(o => { if (o.geometry) o.geometry.dispose(); });
                    if (boomGroup.parent) boomGroup.parent.remove(boomGroup); boomGroup = null; }
   window.CAGE_BOOMS = null;

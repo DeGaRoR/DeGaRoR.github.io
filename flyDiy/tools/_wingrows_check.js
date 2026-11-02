@@ -100,7 +100,9 @@ const S9 = [
   ['a 0.10 m centre section flies 0.20', { wgCentreW: 0.10 }, 'wgCentreW', 0.20, /^held at 0\.2 \(asked 0\.1\)/],
   ['a 0.60 flap beside a 0.55 aileron', { wgFlapType: Math.max(1, JT.FLAP_KEYS.indexOf('plain')), wgAilOn: 1, wgAilSpan: 0.55, wgFlapSpan: 0.60 }, 'wgFlapSpan', 0.41, /^held at 0\.41 \(asked 0\.6\) — the flap ends/],
   ['the second plane: tip 0.55 on a 2.10 root', { w2On: 1, wgPos: 0, w2Pos: 2, w2Chord: 2.10, w2ChordTip: 0.55 }, 'w2ChordTip', 0.945, /^held at 0\.945 \(asked 0\.55\) — the tip is held/],
-  ['the second plane: span 6.5 on a 2.10 chord', { w2On: 1, wgPos: 0, w2Pos: 2, w2Chord: 2.10, w2ChordTip: 2.10, w2Span: 6.5 }, 'w2Span', 8.40, /^held at 8\.4/],
+  // (NEW-SHAPES-1 gave the second plane its own floor, GEN_WING_ENVELOPE.second - 2 x its chord, not the first plane's
+  // 4: 6.5 on a 2.10 chord flies now; below 2 x it is held, and a 9 m upper plane keeps the 0.45 x upper rule under it)
+  ['the second plane: span 3.5 on a 2.10 chord', { w2On: 1, wgPos: 0, w2Pos: 2, w2Chord: 2.10, w2ChordTip: 2.10, w2Span: 3.5, wgSpan: 9.0 }, 'w2Span', 4.20, /^held at 4\.2 \(asked 3\.5\) — the span is held to 2–18 m and 2–20 ×/],
 ];
 function s9(label) {
   console.log('S9 - the three §9 rows and their siblings, both planes' + (label || ''));

@@ -150,7 +150,7 @@ const INSTALL_ROWS = new Set([
   // where the outlet leaves are made FOR THE AIRFRAME, by the builder, and
   // are the first thing changed on a real installation. A turboprop's
   // stacks are the same choice, so `stackStyle` rides here with them.
-  'exStyle', 'exDrop', 'exOut', 'exAim', 'exOutX', 'exOutY', 'exOutZ',
+  'exStyle', 'exDrop', 'exOut', 'exAim', 'exOutX', 'exOutY', 'exOutZ', 'exPair',
   'stackStyle',
   // THE AIR FILTER, likewise a bolt-on: a canister airbox or a pair of
   // cones, or none at all. (`injected` is NOT here — carburettor or
@@ -346,9 +346,11 @@ window.CAGE_ENG_SOUND = (P) => {
 // the installation rows (mount, firewall, services, radiator) stay the
 // builder's. Appended, so every saved index still names the same engine.
 const CUSTOM_ENGINE = EP.CUSTOM_ENGINE || 'custom engine';
-const PRESET_NAMES = Object.keys(EP.PRESETS).filter(n => n !== 'bare engine')
-  .concat([CUSTOM_ENGINE]);
-const CUSTOM_IDX = PRESET_NAMES.length - 1;
+// (NEW-SHAPES-1: the saved order is ENG_PAGE.presetNames() - the custom engine keeps slot 41, the presets added since
+// it took that slot follow it, so no saved index moves; the menu still lists it last, by power, PRESET_ORDER)
+const PRESET_NAMES = EP.presetNames ? EP.presetNames()
+  : Object.keys(EP.PRESETS).filter(n => n !== 'bare engine').concat([CUSTOM_ENGINE]);
+const CUSTOM_IDX = PRESET_NAMES.indexOf(CUSTOM_ENGINE);
 const isCustomEng = P => Math.round(P.engPreset) === CUSTOM_IDX;
 // the type a preset belongs to, from its own table row (null for custom)
 const presetArch = name => {
@@ -437,7 +439,11 @@ if (typeof window !== 'undefined') {
 }
 const rowNames = r => r.k === 'material' && CW.MATERIALS
   ? CW.MATERIALS.map(mm => mm.name) : r.names;
-const LBL = { noseOff: 'fore / aft (base off the flange)' };
+// THE PROPELLER'S SHAFT (the user, 27 Oct: "ensure the propeller can be offset from the engine using a slider for
+// length of shaft"): the cone's base off the flange IS the extension shaft - the cone grows its own hub back to the
+// engine (G244), and the blades ride the cone - so the row says so, and reaches 1.5 m (an extension-shaft nose, a
+// long-nosed inline); negative tucks the cone back over the flange as before
+const LBL = { noseOff: 'shaft length (prop off the engine)' };
 const grpItems = id => ((window.COWL_ROWS || []).find(g => g.id === id) ||
   { rows: [] }).rows
   .filter(r => CW.P[r.k] !== undefined && !DEAD_SPIN.has(r.k))

@@ -3570,8 +3570,45 @@ GEN_MIGRATORS[5] = r => {
 //             the derived block branches on.
 //
 // The crank still means what G61-era code said: ONE break, two sections.
+//
+//   elliptic  `plan: 'elliptic'` (the Spitfire's wing, the user: "a truly
+//             elliptic wing"): the chord follows ONE ellipse over the whole
+//             semispan, c0 sqrt(1 - (z/semi)^2) with c0 = `chord` the
+//             CENTRELINE chord, constant across the cabin as every law is.
+//             The line at `planAxis` of the chord (0.30 on the Spitfire,
+//             measured) runs straight, swept by `tipX` at the tip; the
+//             offsets below are the FRONT SPAR's (the section scales about
+//             it: 63's wingSectionAt), so the drawn line at planAxis is the
+//             straight one. The chord closes on the ellipse itself (no tip
+//             bow), floored at ELL.tip of c0 so the last section is a tip,
+//             not a point; `cBox` floors the STRUCTURAL depth (a spar box
+//             must keep a depth to the tip rib).
 // ---------------------------------------------------------------------------
+const GEN_PLAN_ELL = { tip: 0.035, box: 0.25 };
 function genPlanLaw(w, zR, semi) {
+  if (w.plan === 'elliptic') {
+    const c0 = w.chord, sf = GEN_RULES.sparFront;
+    const ax = w.planAxis != null ? +w.planAxis : 0.30;
+    const spanE = Math.max(1e-6, semi - zR);
+    const rel = z => {
+      const u = Math.max(zR, Math.min(z, semi)) / Math.max(1e-6, semi);
+      return Math.sqrt(Math.max(0, 1 - u * u));
+    };
+    const cAt = z => c0 * Math.max(GEN_PLAN_ELL.tip, rel(z));
+    const cBox = z => c0 * Math.max(GEN_PLAN_ELL.box, rel(z));
+    const xTip = w.tipX == null ? 0 : +w.tipX, cR = cAt(zR);
+    // the front spar's walk: the planAxis line straight means the spar moves
+    // aft by (planAxis - sparFront) of every metre of chord lost, plus the sweep
+    const xoff = z => {
+      z = Math.max(zR, Math.min(z, semi));
+      return (ax - sf) * (cR - cAt(z)) + xTip * (z - zR) / spanE;
+    };
+    // the DRAWN leading edge, aft of xLE: the section sits on the front spar
+    // (at sparFront of its own chord), the spar at sparFront of c0 + xoff
+    const leAt = z => sf * c0 + xoff(z) - sf * cAt(z);
+    return { zC: 0, xTip, xCrk: 0, cCrk: null, tipC: cAt(semi), cAt, xoff,
+             explicit: true, ell: true, cBox, leAt, axis: ax };
+  }
   const span = Math.max(1e-6, semi - zR);
   const zC = w.crankAt > 0 ? zR + span * w.crankAt : 0;
   const swT = Math.tan((w.sweep || 0) * Math.PI / 180);
@@ -3962,6 +3999,10 @@ const GEN_DEFAULT = {
             // Null = derived from sweep/taper exactly as v5 did — `sweep`
             // stays the legacy input; these are the honest model.
             crankChord: null, crankX: null, tipX: null,
+            // THE ELLIPTIC PLANFORM (genPlanLaw): `plan` null = the straight
+            // stations above, 'elliptic' = one ellipse over the semispan;
+            // `planAxis` the chord fraction that runs straight (null 0.30)
+            plan: null, planAxis: null,
             // EXTRA LOFT STATIONS (G189): spanwise metres from the centreline
             // where the covering must have a row — the lamp bay's two edges,
             // so a narrow bay is cut on its own geometry. Null = none.
@@ -4400,11 +4441,19 @@ function genPlanePair(pos0, pos1) {
 // A build that asks 18 m or less is clamped by exactly the numbers above, so
 // nothing it draws moves (the metal Cessna's drawn 1.51 m cabin is held to
 // its 1.45, as ever). The editor's rows reach the big envelope.
+// NEW-SHAPES-1 (the user, 27 Oct, matching a Camel and a Tiger Moth to reference models: "our settings for the
+// biplanes are too restrictive, and the sliders too. We should freely set both wings sizes"): the leading edge to
+// 1.2 m AHEAD of the firewall (an upper plane overhanging its engine - the DH.82's 0.52 m, the Camel's 0.26 off the
+// physics datum - was held at 0.20), the second plane's up / down to -1.0 .. +1.5 m, and `second`: the second
+// plane's own size floor (a short lower plane - a sesquiplane's - was held to the first plane's 6.5 m and 0.80 m).
+// Only a wing the old numbers clamped moves.
+// The chord to 3.0 m (the Spitfire's elliptic wing, 27 Oct: 2.55 m on the centreline, 11.2 m of span).
 const GEN_WING_ENVELOPE = {
-  chord: [0.80, 2.10], span: [6.5, 18.0], spanPerChord: [4.0, 20.0],
-  taper: [0.45, 1.0], xLE: [-0.20, 3.00],
-  placeDx: [-1.2, 1.8], placeDy: [-0.25, 0.60],
-  big: { chord: [0.80, 5.00], span: [6.5, 30.0], xLE: [-0.20, 9.00] },
+  chord: [0.80, 3.00], span: [6.5, 18.0], spanPerChord: [4.0, 20.0],
+  taper: [0.45, 1.0], xLE: [-1.20, 3.00],
+  placeDx: [-1.2, 1.8], placeDy: [-1.0, 1.5],
+  big: { chord: [0.80, 5.00], span: [6.5, 30.0], xLE: [-1.20, 9.00] },
+  second: { chord: 0.40, span: 2.0, spanPerChord: 2.0 },
 };
 // is a wing of this span a big aeroplane's? / the envelope it is clamped by / is this spec a big aeroplane?
 function genEnvBig(span) { return +span > GEN_WING_ENVELOPE.span[1]; }
@@ -4423,7 +4472,7 @@ function clampWing(w, S, k) {
   // positive stagger, upper forward, is a lower plane aft). Its controls,
   // when it carries any, are clamped as the aeroplane's are.
   if (k > 0) {
-    w.stagger = genClamp(w.stagger == null ? 0.35 : w.stagger, -1.0, 1.0);
+    w.stagger = genClamp(w.stagger == null ? 0.35 : w.stagger, -2.5, 2.5);
     if (w.controls && typeof w.controls === 'object') clampControls(w.controls);
     else w.controls = null;
   }
@@ -4432,7 +4481,10 @@ function clampWing(w, S, k) {
   // aspect ratio to 20. Every build inside the old 1.15-2.10 / 6.5-14 box is
   // untouched; GATE GEN's wild spec still clamps, and the sail archetype's
   // circuit is the new corner's flight test.
-  const E = genWingEnv(w.span);                          // G3503: the big envelope past 18 m asked
+  const E0 = genWingEnv(w.span);                         // G3503: the big envelope past 18 m asked
+  // NEW-SHAPES-1: the second plane sized freely below the first plane's floor (GEN_WING_ENVELOPE.second)
+  const E = k > 0 ? Object.assign({}, E0, { chord: [GEN_WING_ENVELOPE.second.chord, E0.chord[1]],
+    span: [GEN_WING_ENVELOPE.second.span, E0.span[1]], spanPerChord: [GEN_WING_ENVELOPE.second.spanPerChord, E0.spanPerChord[1]] }) : E0;
   w.chord = genClamp(w.chord, ...E.chord);
   w.span = genClamp(w.span, Math.max(E.span[0], E.spanPerChord[0] * w.chord),
                             Math.min(E.span[1], E.spanPerChord[1] * w.chord));
@@ -4456,6 +4508,14 @@ function clampWing(w, S, k) {
   // and absent are both "off", and neither may reach the resolved spec: a
   // key there moves genCertKey's hash on an aeroplane that flies the same)
   if ('stol' in w) { const st = genStolOf(w.stol); if (st) w.stol = st; else delete w.stol; }
+  // THE ELLIPTIC PLANFORM: one curve, so no crank; its tip IS the ellipse's
+  // closing (the 'elliptic' tip's Oswald factor and loft arc stand for it)
+  if (w.plan !== 'elliptic') { w.plan = null; w.planAxis = null; }
+  else {
+    w.planAxis = genClamp(w.planAxis == null ? 0.30 : +w.planAxis, 0.10, 0.50);
+    w.crankAt = 0;
+    w.tip = 'elliptic';
+  }
   // CRANK: a second wing section, and only a second. `crankAt` is the break
   // station as a fraction of the semispan; 0 means a single straight panel.
   // This is the Jodel's wing — a flat centre section and sharply dihedralled
@@ -5118,6 +5178,13 @@ function clampSpec(spec) {
   if (!['acrylic', 'polycarbonate', 'glass'].includes(cb.glazingMat)) cb.glazingMat = 'acrylic';
   cb.glazedM2 = (typeof cb.glazedM2 === 'number' && isFinite(cb.glazedM2) && cb.glazedM2 >= 0)
     ? genClamp(cb.glazedM2, 0, 40) : null;
+  // G3516 (NEW-SHAPES-1): an OPEN COCKPIT'S SCREENS, m2 as the join measured them (cabin.glazing 'none' because every
+  // seated section is open, tools/_cage_join.js). ABSENT unless the join wrote it - no default, so every build that
+  // never opened a section keeps every key it had; the frame bills it (61_gen_frame)
+  if ('screenM2' in cb) {
+    if (typeof cb.screenM2 === 'number' && isFinite(cb.screenM2) && cb.screenM2 > 0) cb.screenM2 = genClamp(cb.screenM2, 0, 10);
+    else delete cb.screenM2;
+  }
   // G185: the wing clamp is a function of the PLANE (clampWing, above), run
   // on every entry of wings[] — a biplane's second plane keeps the same
   // envelope as the first.
@@ -5607,8 +5674,27 @@ function resolveSpec(spec) {
   // G140: the one planform law — legacy fields reproduce the pre-G140
   // expressions verbatim inside it, stations make it piecewise.
   const LAW = genPlanLaw(w, zR0, semi);
-  let cBar, yMac, xAC;
-  if (!LAW.explicit) {
+  let cBar, yMac, xAC, ellA = 0;
+  if (LAW.ell) {
+    // THE ELLIPTIC WING, integrated: no trapezoid composes a curve. Area, MAC
+    // (2/S int c^2), and the quarter chord of the DRAWN sections (their own
+    // leading edge, LAW.leAt) weighted by area; the sweep reported is the
+    // quarter-chord line's - an ellipse's leading edge turns to 90 deg at the
+    // tip and says nothing there.
+    const n = 240, dz = (semi - zR0) / n;
+    let A = 0, cS = 0, xS = 0, swS = 0;
+    for (let i = 0; i < n; i++) {
+      const z = zR0 + (i + 0.5) * dz, c = LAW.cAt(z);
+      const q = z2 => LAW.leAt(z2) + 0.25 * LAW.cAt(z2);
+      A += c * dz; cS += c * c * dz; xS += c * dz * (w.xLE + q(z));
+      swS += c * dz * Math.abs(Math.atan2(q(z + 0.5 * dz) - q(z - 0.5 * dz), dz)) * 180 / Math.PI;
+    }
+    cBar = cS / Math.max(1e-9, A);
+    xAC = xS / Math.max(1e-9, A);
+    yMac = null;
+    w.sweepEff = swS / Math.max(1e-9, A);
+    ellA = A;
+  } else if (!LAW.explicit) {
     // LEGACY (sweep/taper only): the pre-G140 lines, byte for byte. The
     // aerodynamic centre sits at the quarter chord OF THE MAC, and sweep
     // carries that aft with the spanwise station the MAC lives at:
@@ -5649,7 +5735,8 @@ function resolveSpec(spec) {
   // is a radius inboard of the tip — implicit, so settle it by iteration (it
   // converges in two on any sane taper). LAW.cAt IS the old `lin` when the
   // stations are null, so the legacy bow is unchanged to the bit.
-  const bowF = (GEN_TIPS[w.tip] || GEN_TIPS.rounded).bow || 0;
+  // (an elliptic planform closes on its own curve: no bow)
+  const bowF = LAW.ell ? 0 : (GEN_TIPS[w.tip] || GEN_TIPS.rounded).bow || 0;
   let Rb = bowF * LAW.cAt(semi);
   for (let i = 0; i < 3; i++) Rb = bowF * LAW.cAt(Math.max(zR0, semi - Rb));
   Rb = Math.max(0, Math.min(Rb, 0.45 * (semi - zR0)));
@@ -5672,7 +5759,10 @@ function resolveSpec(spec) {
   //
   // The bow still comes off: it removes a quarter of the rectangle it replaces
   // on each tip (half-ellipse of span Rb and chord tipC).
-  const Sw = !LAW.explicit
+  const Sw = LAW.ell
+    // the elliptic wing: the centre's rectangle at its own chord, and the integral
+    ? 2 * zR0 * LAW.cAt(zR0) * ctrK + 2 * ellA
+    : !LAW.explicit
     ? 2 * zR0 * w.chord * ctrK
       + (semi - zR0) * w.chord * (1 + w.taper)
       - 2 * w.tipC * Rb * (1 - Math.PI / 4)

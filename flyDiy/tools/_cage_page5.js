@@ -180,6 +180,7 @@ window.CAGE_PAGE = {
     // design keeps whatever it says. `seatPitch` is gone with the tandem
     // layout — a bay's length is its pitch.
     cabOcc: 0, paxOcc1: 0, paxOcc2: 0, paxOcc3: 0, paxOcc4: 0,
+    pilotRear: 0,                                // G3515: absent from spec.cage at 0 (CAGE_ZERO_ABSENT)
     paxAbreast: 0, flapX: 0, flapZ: 0,                                   // T2.3 (132), (18)
     paxSeatZ: 0, paxRecline: 0,
   },
@@ -433,6 +434,21 @@ window.CAGE_PAGE = {
       // the nose (cageSpec), so this row says what a nose-mounted build is
       // and gets out of the way of the ones that have no choice.
       ['noseFinish', 'nose front',    0, 1, 1, ['firewall', 'aerodynamic']],
+      // G3510 (NEW-SHAPES-1): THE ROUND BODY — G19's aero nose, a row again.
+      // The fuselage's full rings run on through the windscreen zone to the
+      // front: no fold, no deck, one shapable cylinder (the frames and the
+      // roundness rows act on every ring of it). A firewall front ends in the
+      // engine face, an aerodynamic one in G19's point. The key keeps its
+      // G19 name (`aeroNose`: it rides every saved build); the label says
+      // what it builds.
+      ['aeroNose',  'body front',     0, 1, 1, ['windscreen fold', 'full rings (round body)']],
+      ['aeroWsLen', 'forward section length', 0.20, 2.50, 0.01, { when: P => +P.aeroNose, dim: 'len' }],
+      ['aeroLen',   'front cone length', 0.10, 2.50, 0.01, { when: P => +P.aeroNose, dim: 'len' }],
+      ['aeroTipW',  'front width ×',  0.05, 1.20, 0.01, { when: P => +P.aeroNose }],
+      ['aeroTipH',  'front height ×', 0.05, 1.20, 0.01, { when: P => +P.aeroNose }],
+      ['aeroDroop', 'front droop',   -0.30, 0.60, 0.005, { when: P => +P.aeroNose, dim: 'len' }],
+      // NEW-SHAPES-1: the front's own bottom roundness (no default: a build that never set it keeps the shell's)
+      ['aeroRound', 'front roundness (bottom)', 0, 1, 0.01, { when: P => +P.aeroNose }],
       // THE CAP'S LOFT, moved out of `2 - engine` with it: how many rings the
       // front closes with, how they ease into the last one and how far they
       // bulge on the way. `cowlLoops` runs to 5 now — an aerodynamic nose is
@@ -518,6 +534,26 @@ window.CAGE_PAGE = {
         ['winFrameW', 'window frame',   0.00, 0.05, 0.002, { dim: 'len' }],
         ['winDepth',  'window recess',  0.00, 0.06, 0.002,
          { when: P => +P.winFrameW > 0, dim: 'len' }],
+      ], 'open'],
+      // G3511 (NEW-SHAPES-1, the user: "the sections holding the pilot and
+      // second person should be identified as proper sections, and the
+      // fuselage openings should be clean"): THE COCKPIT'S OWN OPENING, and the
+      // rows every opening shares (each passenger bay opens on its own row).
+      // (The shared rows show for the cockpit and bays 1-3: a 4th bay opened
+      // alone keeps them hidden — GATE PARTS' one-flip sweep cannot reach a
+      // switch that needs four bays AND reads as a discriminator.)
+      ['opening', [
+        ['cpOpen',    'open at the top', 0, 1, 1, ['closed', 'open']],
+        ['openCut',   'opening cut',    0, 1, 1, ['above the ceiling rail', 'above the waistband'],
+         { when: P => ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3'].some(k => +P[k] > 0) }],
+        ['openFore',  'decking ahead',  0.00, 0.60, 0.005, { when: P => ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3'].some(k => +P[k] > 0), dim: 'len' }],
+        ['openAft',   'decking behind', 0.00, 0.60, 0.005, { when: P => ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3'].some(k => +P[k] > 0), dim: 'len' }],
+        ['openRim',   'coaming roll',   0.00, 0.05, 0.001, { when: P => ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3'].some(k => +P[k] > 0), dim: 'len' }],
+        ['openScreen','screens',        0, 1, 1, { when: P => ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3'].some(k => +P[k] > 0) }],
+        ['openScreenH', 'screen height', 0.05, 0.50, 0.005,
+         { when: P => (P => ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3'].some(k => +P[k] > 0))(P) && +P.openScreen, dim: 'len' }],
+        ['openScreenRake', 'screen rake', 0, 70, 1,
+         { when: P => (P => ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3'].some(k => +P[k] > 0))(P) && +P.openScreen }],
       ], 'open'],
       ['doors', [
         ['doorOn',    'pilot door',     0, 1, 1],
@@ -636,6 +672,12 @@ window.CAGE_PAGE = {
         // passenger bay. Tandem is retired: it is 'single' with a bay
         // (cageFromSpec reads an older file's 2 as 0).
         ['seatLayout','row',            0, 1, 1, ['single', 'side-by-side']],
+        // G3515 (NEW-SHAPES-1, the user: "have an option in the seat section to
+        // designate back seat as pilot seat"): a tandem's PILOT IN BAY 1 - the
+        // stick, the pedals, the throttle and the panel go with them; the front
+        // seat takes bay 1's passenger ('bay 1 seated'), with nothing in front
+        ['pilotRear', 'pilot\'s seat', 0, 1, 1, ['the front (cockpit)', 'the rear (bay 1)'],
+         { when: P => +P.seatLayout !== 1 && +P.paxCount >= 1 }],
         // DC3-2 (G3573, the user 25 Oct: "a very flexible seat height ... for such a big plane, big freedom on the seat
         // arrangements and sliders"): the ranges a 29 m airliner's cockpit needs (a high cockpit floor, a long one), the
         // light aeroplanes' values inside them - a range only clamps the slider, so no saved build moves
@@ -944,6 +986,12 @@ window.CAGE_PAGE = {
       // crew layer clamps, and the join bills the seats actually filled.
       // (T2.3 (132): 'three' fills a bench; the crew layer clamps to the
       // bay's own seating as before)
+      // G3511: each bay its own opening (the coaming and the screens are the
+      // cabin's 'opening' rows, shared)
+      ['paxOpen1',  'bay 1 open at the top', 0, 1, 1, ['closed', 'open'], { when: P => +P.paxCount >= 1 }],
+      ['paxOpen2',  'bay 2 open at the top', 0, 1, 1, ['closed', 'open'], { when: P => +P.paxCount >= 2 }],
+      ['paxOpen3',  'bay 3 open at the top', 0, 1, 1, ['closed', 'open'], { when: P => +P.paxCount >= 3 }],
+      ['paxOpen4',  'bay 4 open at the top', 0, 1, 1, ['closed', 'open'], { when: P => +P.paxCount >= 4 }],
       // (G3573: a COUNT, 0-48 - rows x the row's seats - filled from the bay's first row (by its aft ring) forward, each row from the aisle out; the old
       // dropdown's 0-3 are the same numbers)
       ['paxOcc1',   'bay 1 seated',    0, 48, 1,
@@ -1063,6 +1111,10 @@ window.CAGE_PAGE = {
       ['boomMidT',  'pod ring station', 0.1, 0.9, 0.01,
        { when: P => !+P.boomStyle && +P.boomMidOn }],
       ['boomMidPinch','pod pinch',     0.2, 1.4, 0.01,
+       { when: P => !+P.boomStyle && +P.boomMidOn }],
+      // the pinch in plan alone (unset = the pod pinch): a boom whose side lines run straight to the post while its
+      // sides stay full and close late (the DH.82's, measured against its reference model)
+      ['boomMidPinchW','pod pinch (plan)', 0.2, 1.6, 0.01,
        { when: P => !+P.boomStyle && +P.boomMidOn }],
     ]],
     // POLYCOUNT (user, G28): every density dial in one place — grouped,

@@ -58,6 +58,9 @@ const ENGINE_SOUND_TABLE = {
   m14p_v530:         { cyl: 9,  arch: 'radial', twoStroke: 0, dispL: 10.13 },
   r1340_hs12d40:     { cyl: 9,  arch: 'radial', twoStroke: 0, dispL: 22.02 },
   rotax503_wood:     { cyl: 2,  arch: 'inline', twoStroke: 1, dispL: 0.59 },
+  // NEW-SHAPES-1: the Camel's rotary and the Spitfire's V-12 (their presets in tools/_eng_page.js)
+  clerget9b_wood:    { cyl: 9,  arch: 'radial', twoStroke: 0, dispL: 16.29 },
+  merlin66_rotol4:   { cyl: 12, arch: 'vee',    twoStroke: 0, dispL: 27.04 },
 };
 const ENGINE_SOUND_DEFAULT = { cyl: 4, arch: 'flat', twoStroke: 0, dispL: 2.8 };
 const ENGINE_SOUND_ARCHS = ['flat', 'inline', 'vee', 'radial'];

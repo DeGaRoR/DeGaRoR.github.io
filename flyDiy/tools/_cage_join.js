@@ -32,6 +32,7 @@ const CAGE_JOIN_ENGINES = {
   'rotax 582': 'rotax582_ivo',
   'Verner Scarlett 7U': 'verner7u_wood',
   'Rotec R3600': 'rotec3600_std',
+  'Clerget 9B': 'clerget9b_wood',          // NEW-SHAPES-1: the Camel's rotary
   'P&W R-985': 'r985_hs2b20',
   'P&W R-1830': 'r1830_hs23e50',
   // THE TWO G165 IN-LINES WERE ORPHANS until 2026-09-05: neither had a row
@@ -43,6 +44,7 @@ const CAGE_JOIN_ENGINES = {
   // the aero Vs (2026-09-05, the V test)
   'Hirth HM 508D': 'hirth508_wood',
   'Argus As 10C': 'argus10c_wood',
+  'Rolls-Royce Merlin 66': 'merlin66_rotol4',   // the Spitfire's V12 (27 Oct)
   // the coverage fill (2026-09-05)
   'lycoming O-320': 'o320_mccauley',
   'lycoming O-540': 'o540_hartzell',
@@ -176,6 +178,7 @@ function cageJoinPlane2(P, T) {
     span: P.w2Span, chord: P.w2Chord,
     taper: Math.max(0.2, Math.min(1.0, P.w2ChordTip / Math.max(0.2, P.w2Chord))),
     tipX: +P.w2TipX || 0,
+    plan: +P.w2Plan === 1 ? 'elliptic' : null, planAxis: +P.w2Plan === 1 ? +P.w2PlanAxis : null,
     dihedral: P.w2Dihedral, incidence: P.w2Incidence, washout: P.w2Washout,
     naca: c2 * 1000 + (c2 > 0 ? 400 : 0) + t2,
     panels: Math.round(P.w2Panels),
@@ -221,6 +224,8 @@ function cageJoinSpec(P, M, T) {
       // resolved wing derives sweepEff from what the stations do), and
       // tipX 0 is a real value: straight
       tipX: +P.wgTipX || 0,
+      // the elliptic planform (genPlanLaw), the wing layer's own two fields
+      plan: +P.wgPlan === 1 ? 'elliptic' : null, planAxis: +P.wgPlan === 1 ? +P.wgPlanAxis : null,
       dihedral: P.wgDihedral, incidence: P.wgIncidence,
       washout: P.wgWashout,
       naca: cam * 1000 + (cam > 0 ? 400 : 0) + thk,
@@ -463,6 +468,29 @@ function cageJoinSpec(P, M, T) {
   // 'cabin.glazing') - written only when off, an open cockpit stayed open in
   // the file through the garage's merge after the row came back on
   if (P.glazeOn != null) cabin.glazing = +P.glazeOn ? 'glass' : 'none';
+  // G3511: EVERY SEATED SECTION OPEN IS AN OPEN COCKPIT — the drawn holes are
+  // the flown ones: the drag's open-cockpit term (the hole + a head per seat,
+  // genFusCdA) instead of a closed cabin's screen step. A section left closed
+  // (a cabin ahead of an open rear seat) keeps the cabin's glazing.
+  {
+    const r = k => Math.round(+P[k] || 0);
+    // G3515: with the pilot in bay 1 (a tandem), bay 1 is the pilot's section
+    // and the cockpit is seated only when bay 1's row says the second person
+    // is aboard
+    const rear = r('pilotRear') > 0 && r('paxCount') >= 1 && r('seatLayout') !== 1 && !r('mirror');
+    const seated = rear ? [['paxOpen1', 1]].concat(r('paxOcc1') > 0 ? [['cpOpen', 1]] : [])
+                        : [['cpOpen', 1]];
+    for (let n = rear ? 2 : 1; n <= Math.min(4, r('paxCount')); n++)
+      if (r('paxOcc' + n) > 0) seated.push(['paxOpen' + n, 1]);
+    if (cabin.glazing === 'glass' && (r('cpOpen') > 0 || r('paxOpen1') > 0)
+        && seated.every(([k]) => r(k) > 0)) {
+      cabin.glazing = 'none';
+      // G3516: the screens are still glass - their area, measured off the sheet (on an all-open aeroplane the glass
+      // the sheet carries is the screens'), billed by the frame
+      const UIo = typeof window !== 'undefined' ? window.CAGE_UI : null;
+      if (UIo && UIo.glazedM2 > 0) cabin.screenM2 = +UIo.glazedM2.toFixed(3);
+    }
+  }
   // T2.2: the glazing MATERIAL (the cage's one row) and the glazed AREA the
   // editor measured off its built sheet (CAGE_UI.glazedM2, m2 after the scale)
   if (P.glazeMat != null)
@@ -1767,8 +1795,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
     if (drawn) {
       M.seats = drawn.length;
       M.occupied = drawn.map(s => s.filled ? 1 : 0);
-      M.pilots = drawn.filter(s => !s.section && s.filled).length;
-      M.pax = drawn.filter(s => s.section && s.filled).length;
+      // (G3515: a rear pilot sits in bay 1 and is still the pilot)
+      M.pilots = drawn.filter(s => (s.pilot || !s.section) && s.filled).length;
+      M.pax = drawn.filter(s => !s.pilot && s.section && s.filled).length;
     } else {
       M.seats = perRow + perBay * bays;
       const occ = [1];
@@ -1837,7 +1866,9 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
   const tables = () => ({
     TIP_KEYS: typeof GEN_TIPS !== 'undefined' ? Object.keys(GEN_TIPS) : [],
     FLAP_KEYS: typeof GEN_FLAPS !== 'undefined' ? Object.keys(GEN_FLAPS) : [],
-    PRESET_NAMES: (window.ENG_PAGE && window.ENG_PAGE.PRESETS)
+    // the saved order (ENG_PAGE.presetNames, NEW-SHAPES-1): the custom engine's slot maps to no registry row, as before
+    PRESET_NAMES: (window.ENG_PAGE && window.ENG_PAGE.presetNames) ? window.ENG_PAGE.presetNames()
+      : (window.ENG_PAGE && window.ENG_PAGE.PRESETS)
       ? Object.keys(window.ENG_PAGE.PRESETS).filter(n => n !== 'bare engine')
       : [],
   });

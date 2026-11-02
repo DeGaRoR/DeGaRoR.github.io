@@ -128,6 +128,9 @@ const station = (i, name) => [name, [
   ['s' + i + 'Drop',  'up / down (leg drop)',     0.05, 1.60, 0.01, sOnM(i)],
   // the wheel's fore/aft FROM the fitting — the leg's rake, on every family;
   // hidden on a tailwheel, whose spring length already is that knob
+  // NEW-SHAPES-1: the legs' root - no default (an old file keeps the rule it was built by)
+  ['s' + i + 'Root',  'legs root on', 0, 1, 1, ['auto (a wing under the body)', 'the fuselage'],
+   { when: P => +P['s' + i + 'On'] && Math.round(P['s' + i + 'Leg']) !== 3 }],
   ['s' + i + 'AxZ',   'wheel fore / aft (from fitting)', -1.2, 1.2, 0.01,
    { when: P => +P['s' + i + 'On'] && Math.round(P['s' + i + 'Leg']) !== 3,
      dim: 'm' }],
@@ -432,7 +435,9 @@ PAGE.post = ctx => {
       // the fairing's instruments ride the station (G133)
       const fOpt = { full: st.fair === 2, skirt: st.fairSkirt,
                      tail: st.fairTail, rake: st.fairRake, width: st.fairW };
-      const m = wingMount(st, sgn);
+      // NEW-SHAPES-1 (the Camel, 27 Oct): a biplane's V bolts to the fuselage's lower longerons, ahead of and under
+      // the lower plane - the low-wing rule below would root it on that plane. `s<i>Root` 1 says the fuselage.
+      const m = st.root === 1 ? null : wingMount(st, sgn);
       // THE OPEN FRAME (2026-09-04, spec §1.7): with no skin the fuselage
       // contract is a surface that is not there — the leg roots on the
       // nearest truss member instead, with a pivot (see openMount); the

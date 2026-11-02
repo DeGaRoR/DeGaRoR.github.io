@@ -42,6 +42,10 @@ const REF = [
   { key: 'argus10c_wood', name: 'Argus As 10C', arch: 'vee', cyl: 8,
     vee: 90, inlineAim: 0, bore: 0.120, stroke: 0.140, rpm: 2000,
     mass: 213, powerW: 176000 },
+  // the Spitfire's Merlin 66 (27 Oct): upright, liquid, geared, two-speed blown to +18 lb
+  { key: 'merlin66_rotol4', name: 'Rolls-Royce Merlin 66', arch: 'vee', cyl: 12,
+    vee: 60, inlineAim: 1, bore: 0.1372, stroke: 0.1524, rpm: 3000,
+    mass: 744, powerW: 1283000, geared: 1, liquid: 1, blower: 2, boost: 2.22 },
   // THE COVERAGE FILL (2026-09-05): every new piston row, so the instrument
   // reads the whole ladder — the blown ones through their published boost
   { key: 'o320_mccauley', name: 'Lycoming O-320-E2D', arch: 'flat', cyl: 4,

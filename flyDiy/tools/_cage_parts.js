@@ -270,7 +270,9 @@ const CAGE_PARTS = [
       // G1321; selecting Fuselage still shows them all, part by part)
       ['longerons', ['bandH', 'crSill', 'crKeel', 'crCeil', 'ceilInset',
                      'ringPullIn']],
-      ['roundness', ['topRound', 'botRound']],
+      // G3510: the round body (the aero nose's full rings) is the whole
+      // shell's choice, beside the roundness it is shaped by
+      ['roundness', ['topRound', 'botRound', 'aeroNose']],
       ['section angles', ['topAngCeil', 'topAngRoof'], EXPERT],
       ['creases', ['crPillar', 'crBand', 'crCap', 'crFrame'], EXPERT],
       ['compensation', ['topComp'], EXPERT],
@@ -308,6 +310,9 @@ const CAGE_PARTS = [
       // 2026-09-03, it was the strangest row in the audit: a cage shape control
       // sitting in a layer that can be switched off.
       ['front', ['noseFinish', 'cowlLoops', 'cowlEase', 'cowlEaseBot', 'cowlBulge']],
+      // G3510: the round body's front — its forward section and the cone to
+      // the engine face (or the point), the rows G19 wrote
+      ['round body front', ['aeroWsLen', 'aeroLen', 'aeroTipW', 'aeroTipH', 'aeroDroop', 'aeroRound']],
       // THE COWL LOOPS' OWN WIDTHS (the nose ring pair's deck lift and bottom
       // became the nose FRAME's rows, T2.1; the loops are not frames)
       ['cowl loops', ['ringCowl1W', 'ringCowl2W']],
@@ -348,6 +353,11 @@ const CAGE_PARTS = [
       // (the window ring and cabin pillar offsets, and the cabin pillar's
       // lean, are the door-post and cabin FRAMES' rows under Fuselage, T2.1)
       ['pillars', ['pillarW', 'cabPillarW'], EXPERT],
+      // G3511: THE PILOT'S SECTION OPEN AT THE TOP, and the rows every
+      // opening shares (the coaming is the window joints' strip, the screens
+      // are glazing: their sections stay those parts')
+      ['opening', ['cpOpen', 'openCut', 'openFore', 'openAft', 'openRim',
+                   'openScreen', 'openScreenH', 'openScreenRake']],
     ] },
 
   // the section leaves the design draws under Cabin. Each is a real material
@@ -479,6 +489,8 @@ const CAGE_PARTS = [
       // G180: who sits in each bay is the BAY's own row — click a bay, seat
       // its passengers (bays counted front to back from the cockpit)
       ['aboard', ['paxOcc1', 'paxOcc2', 'paxOcc3', 'paxOcc4']],
+      // G3511: each bay open at the top on its own row
+      ['opening', ['paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4']],
       // G1321 (the user: "map these sections to their respective parts in
       // the editor's tree"): the frame this part shapes, moved from Fuselage
       ['passenger frame', ['frPaxTopY', 'frPaxWaistW', 'frPaxBotY']],
@@ -543,7 +555,7 @@ const CAGE_PARTS = [
       ['boom frame', ['aftRoofY', 'frBoomWaistW', 'aftKeelY']],
       ['boom frame, detail', ['frBoomWaistY', 'frBoomTopW', 'frBoomBotW',
                               'frBoomTopZ', 'frBoomWaistZ', 'frBoomBotZ'], EXPERT],
-      ['pod ring', ['boomMidOn', 'boomMidT', 'boomMidPinch']],
+      ['pod ring', ['boomMidOn', 'boomMidT', 'boomMidPinch', 'boomMidPinchW']],
     ] },
 
   // G2770 (the user: "The tail cone ... I think it should be a section of
@@ -634,7 +646,7 @@ const CAGE_PARTS = [
     // (T2.3 (48): the carry-through beam's switch rides with the centre section)
     groups: [
       ['planform', ['wgSpan', 'wgChord', 'wgChordTip', 'wgTip',
-                    'wgCrankAt', 'wgCrankChord', 'wgCrankX', 'wgTipX']],
+                    'wgCrankAt', 'wgCrankChord', 'wgCrankX', 'wgTipX', 'wgPlan', 'wgPlanAxis']],
       // wgPos -> `design`
       ['rigging', ['wgDihedral', 'wgDihedralOut', 'wgIncidence',
                    'wgWashout']],
@@ -657,6 +669,16 @@ const CAGE_PARTS = [
              at: 'the foot, on the fuselage side' },
     groups: [
       ['foot', ['wgStruts', 'wgStrutZ', 'wgStrutX']],
+    ] },
+
+  // THE WING RADIATORS (27 Oct): a ducted radiator under each wing, or one and an oil cooler - their own layer
+  // (`cageLayer:rad`, drawn by the wing layer on its lower skin) and their own livery section
+  { key: 'radiators', name: 'Wing radiators', parent: 'wings', layer: 'rad',
+    when: P => +P.wingOn,
+    sections: ['radSkin'],
+    place: { on: 'radMode', out: 'radX', at: 'under the wing, on its lower skin' },
+    groups: [
+      ['radiators', ['radMode', 'radX', 'radAt', 'radLen', 'radW', 'radH', 'radFlap', 'radOilK']],
     ] },
 
   { key: 'wingCtl', name: 'Control surfaces', parent: 'wings', layer: 'wing',
@@ -693,7 +715,7 @@ const CAGE_PARTS = [
     sections: ['wingSkin2', 'wingTip2'],
     groups: [
       ['planform', ['w2Span', 'w2Chord', 'w2ChordTip', 'w2Tip',
-                    'w2CrankAt', 'w2CrankChord', 'w2CrankX', 'w2TipX']],
+                    'w2CrankAt', 'w2CrankChord', 'w2CrankX', 'w2TipX', 'w2Plan', 'w2PlanAxis']],
       ['rigging', ['w2Dihedral', 'w2DihedralOut', 'w2Incidence', 'w2Washout']],
       ['aerofoil', ['w2Camber', 'w2Thick']],
       ['structure', ['w2Centre', 'w2CentreW', 'w2Beam', 'w2Panels', 'w2Cons']],
@@ -904,7 +926,7 @@ const CAGE_PARTS = [
       ['induction + exhaust', ['eng_injected', 'eng_airStyle',
                                'eng_airbox', 'eng_intake', 'eng_exStyle',
                                'eng_exDrop', 'eng_exOut', 'eng_exAim',
-                               'eng_exOutX', 'eng_exOutY', 'eng_exOutZ']],
+                               'eng_exOutX', 'eng_exOutY', 'eng_exOutZ', 'eng_exPair']],
       ['ignition + accessories', ['eng_leads', 'eng_leadR', 'eng_mags',
                                   'eng_genOn', 'eng_oilFill']],
       ['radiator', ['eng_radX', 'eng_radY', 'eng_radZ', 'eng_radW',
@@ -1051,7 +1073,7 @@ const CAGE_PARTS = [
     groups: [
       // `s1R`/`s2R` (the wheel radii) -> `wheels` (2026-09-03, the user: "the
       // wheel radius for example is under the main gear and not the wheel")
-      ['station', ['s1On', 's1Z', 's1X', 's1Leg', 's1Drop', 's1AxZ', 's1Brake',
+      ['station', ['s1On', 's1Z', 's1X', 's1Leg', 's1Drop', 's1AxZ', 's1Root', 's1Brake',
                    's1Steer']],
       ['fairing', ['s1Fair', 's1FairSkirt', 's1FairTail', 's1FairRake',
                    's1FairW', 's1LegFair']],
@@ -1059,7 +1081,7 @@ const CAGE_PARTS = [
                  's1_beamBow', 's1_beamRake']],
       ['linkage', ['s1_linkAng', 's1_linkSwing', 's1_linkArmW',
                    's1_linkVee', 's1_linkSpread', 's1_linkX',
-                   's1_linkPanel']],
+                   's1_linkPanel', 's1_linkAxle', 's1_linkAxleX']],
       ['shock', ['s1_shockKind', 's1_shockAt', 's1_shockZ', 's1_shockAng',
                  's1_bungeeSpan']],
       ['oleo', ['s1_oleoAng', 's1_oleoDia', 's1_oleoCyl', 's1_oleoScissor',
@@ -1097,7 +1119,7 @@ const CAGE_PARTS = [
              type: ['s2Leg', 's2Steer', 's2Brake', 's2Fair', 's2LegFair'],
              fore: 's2Z', out: 's2X', up: 's2Drop', at: 'station 2' },
     groups: [
-      ['station', ['s2On', 's2Z', 's2X', 's2Leg', 's2Drop', 's2AxZ', 's2Brake',
+      ['station', ['s2On', 's2Z', 's2X', 's2Leg', 's2Drop', 's2AxZ', 's2Root', 's2Brake',
                    's2Steer']],
       ['fairing', ['s2Fair', 's2FairSkirt', 's2FairTail', 's2FairRake',
                    's2FairW', 's2LegFair']],
@@ -1105,7 +1127,7 @@ const CAGE_PARTS = [
                  's2_beamBow', 's2_beamRake']],
       ['linkage', ['s2_linkAng', 's2_linkSwing', 's2_linkArmW',
                    's2_linkVee', 's2_linkSpread', 's2_linkX',
-                   's2_linkPanel']],
+                   's2_linkPanel', 's2_linkAxle', 's2_linkAxleX']],
       ['shock', ['s2_shockKind', 's2_shockAt', 's2_shockZ', 's2_shockAng',
                  's2_bungeeSpan']],
       ['oleo', ['s2_oleoAng', 's2_oleoDia', 's2_oleoCyl', 's2_oleoScissor',
@@ -1143,7 +1165,7 @@ const CAGE_PARTS = [
     place: { type: ['seatType', 'seatLayout'], fore: 'seatZ', up: 'seatH',
              at: 'on the cabin floor' },
     groups: [
-      ['seating', ['seatType', 'seatLayout', 'seatZ', 'seatH', 'seatRake',
+      ['seating', ['seatType', 'seatLayout', 'pilotRear', 'seatZ', 'seatH', 'seatRake',
                    'seatTilt', 'seatGap']],
       // G180: the passenger seats' own set (every seat in a passenger bay)
       ['passenger seats', ['paxSeatZ', 'seat2H', 'seat2Rake', 'seat2Tilt']],

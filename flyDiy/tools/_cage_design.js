@@ -181,6 +181,7 @@ function iconFlap(key) {
   if (key === 'plain') p.push({ d: 'M40 15 L58 24 L40 21 Z' });
   if (key === 'slotted') p.push({ d: 'M43 17 L60 26 L44 23 Z' });
   if (key === 'fowler') p.push({ d: 'M46 20 L63 28 L47 26 Z' });
+  if (key === 'split') p.push({ d: 'M26 24 L40 22 L52 32 Z' });   // the lower skin hinged down
   return { vb: '0 0 64 40', paths: p };
 }
 
@@ -798,8 +799,8 @@ function designEngineModels() {
 function designPresetNames() {
   const EP = gEngPage();
   if (!EP || !EP.PRESETS) return [];
-  return Object.keys(EP.PRESETS).filter(n => n !== 'bare engine')
-    .concat([EP.CUSTOM_ENGINE || 'custom engine']);
+  return EP.presetNames ? EP.presetNames()          // NEW-SHAPES-1: the saved order's one keeper (_eng_page.js)
+    : Object.keys(EP.PRESETS).filter(n => n !== 'bare engine').concat([EP.CUSTOM_ENGINE || 'custom engine']);
 }
 function designPresetIndex(name) {
   const i = designPresetNames().indexOf(name);
@@ -879,6 +880,8 @@ function iconExhaust(mode) {
   if (mode === 3) paths.push({ d: 'M24 20 Q24 28 30 29', w: 2 },
                              { d: 'M30 26 Q42 23 52 28 Q42 35 30 32 Z' },
                              { d: 'M52 30 L62 30', w: 1.6 });
+  // the ejector stubs: short pipes swept back off the side, in pairs
+  if (mode === 4) for (const x of [16, 22, 32, 38]) paths.push({ d: 'M' + x + ' 20 L' + (x + 5) + ' 27', w: 2.4 });
   return { vb: '0 0 64 40', paths };
 }
 // THE LEG, bare or under its streamline shroud
@@ -1245,9 +1248,12 @@ const DESIGN_ROWS = [
   { key: 'wgFlapType', label: 'Flaps', kind: 'discriminator',
     group: 'wing', status: 'live', twin: ['wgFlapType'],
     read: P => Math.round(P.wgFlapType),
-    options: () => ['none', 'plain', 'slotted', 'fowler'].map((k, i) => ({
-      value: i, label: ((gFlaps() || {})[k] || { name: k }).name,
-      icon: iconFlap(k), writes: { cage: { wgFlapType: i } } })) },
+    // (the split flap, the Spitfire's, 27 Oct: the physics had it, the tile did not; its value is its own
+    // index in GEN_FLAPS, as the row's)
+    options: () => ['none', 'plain', 'slotted', 'fowler', 'split'].map(k => {
+      const i = Math.max(0, Object.keys(gFlaps() || {}).indexOf(k));
+      return { value: i, label: ((gFlaps() || {})[k] || { name: k }).name,
+               icon: iconFlap(k), writes: { cage: { wgFlapType: i } } }; }) },
 
   // ---- G2820: THE STOL WING (60_gen_spec GEN_SLATS / GEN_STOL) ----------
   // Every device off by default; each tile writes its one cage row. The
@@ -1804,6 +1810,8 @@ const DESIGN_ROWS = [
         note: 'the ports gathered into one pipe a bank', writes: { cage: { eng_exStyle: 2 } } },
       { value: 3, label: 'Expansion', icon: iconExhaust(3),
         note: 'the two-stroke\'s tuned chamber', writes: { cage: { eng_exStyle: 3 } } },
+      { value: 4, label: 'Ejector stubs', icon: iconExhaust(4),
+        note: 'short stubs swept back off the cowl\'s side (the Merlin\'s)', writes: { cage: { eng_exStyle: 4 } } },
     ] },
   ...[1, 2].map(i => ({ key: (i === 1 ? 'mains' : 'third') + 'FairT',
     label: 'Fairing', kind: 'discriminator',
@@ -1860,7 +1868,8 @@ const DESIGN_ROWS = [
     help: 'the shape for that kind of engine, sized to the one fitted',
     read: P => null,
     options: [['flat', 'Boxer', 'engFlat'], ['inline', 'In-line', 'engInline'],
-              ['vee', 'V engine', 'engVee'], ['radial', 'Radial', 'engRadial'],
+              ['vee', 'V engine', 'engVee'], ['faired', 'Faired V (Spitfire)', 'engVee'],
+              ['radial', 'Radial', 'engRadial'],
               ['electric', 'Electric', 'engElectric'], ['turbine', 'Turboprop', 'engTurbine']]
       .map(([v, label, ic]) => ({ value: v, label, icon: ICON[ic],
         writes: { cage: { fitNose: 2 } },
@@ -1930,6 +1939,20 @@ const PLAN_C172 = { wgCrankAt: 0.42, wgCrankChord: P => +P.wgChord,
                     wgChordTip: P => +(+P.wgChord * 0.72).toFixed(2),
                     wgTipX: 0.30 };
 
+// G3517: the open tandem trainer's rows (the round body, both sections open, the pilot in the rear)
+// THE BODY'S COLOUR AS THE GLOBAL PAINT PICK WRITES IT (aeroskin.js aeroBaseReach, G2750): every exterior cage section
+// - the skin, the rail bands, the pillars - not `body` alone (a tint on `body` left the round body's rails in the
+// fabric's own colour on the bench). The liveries' cards spread it into finish.sections beside spec.paint.base.
+const BODY_PAINT = hex => Object.fromEntries(['body', 'taper', 'taperPanel', 'waistband', 'ceilingLoop', 'floorLoop',
+  'pillarWindow', 'pillarCabin', 'pillarPassenger', 'pillarTail', 'pillarFront', 'pillarTaper'].map(k => [k, { tint: hex }]));
+const OPEN_TANDEM = {
+  aeroNose: 1, noseFinish: 0, topRound: 1, botRound: 0,
+  // the upper plane's centre section cut back at the trailing edge over the cockpit (GEN_CENTRE_KEYS 'cutout': the
+  // PT-17's and the DH.82A's, the way a seated occupant gets in and looks up)
+  wgCentre: 3,
+  cpOpen: 1, paxOpen1: 1, paxCount: 1, pilotRear: 1, cabOcc: 0, paxSeatZ: 0.12,
+  openCut: 0, openFore: 0.12, openAft: 0.12, openRim: 0.022, openScreen: 1, openScreenH: 0.24, openScreenRake: 38,
+};
 const ARCHETYPES = [
   { key: 'cub', kind: 'recreation', name: 'Cub-alike', note: 'taildragger, strut-braced high ' +
       'wing, windscreen, tube & fabric, tandem',
@@ -1983,37 +2006,277 @@ const ARCHETYPES = [
   // (the DH.82's inverted Gipsy Major had no row in the join's engine map
   // until G195; PERF STUDY chantier 0 (2026-09-15) puts the card on it -
   // the study had flagged its power numbers as not comparable)
+  // G3517 (NEW-SHAPES-1, the user 26 Oct: "Move the archetypes, the current ones are rubbish anyways"): the two
+  // tandem trainers are BORN as what they are - the round body (the aero nose's full rings to the engine face,
+  // topRound 1 over slab sides), both sections open with a coaming and a small screen ahead of each, the pilot in
+  // the REAR seat (as both types are flown solo; the panel and the controls go with them). The rows are the ones
+  // the proofs were measured and flown on (tools/newshapes_build.js, HANDOVER G3510): the keel set so a seated head
+  // stands ~21 cm over the coaming, the mains dropped for a prop clearance over FAR 23.925's 0.229 m.
   { key: 'tigermoth', kind: 'recreation', name: 'Tiger Moth-alike', note: 'wood & fabric biplane, ' +
-      'swept upper plane, lower ailerons, wires, tandem open cockpits, inverted Gipsy Major',
+      'swept upper plane, lower ailerons, wires, round turtle-deck body, tandem open cockpits flown from the rear, inverted Gipsy Major',
     sel: { class: 'eab', role: 'trainer', seatLayout: 0, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 2, boomStyle: 0, section: 1,
            wgPos: 3, wgBrace: 1, wgTip: 2, wgFlapType: 0, planes: 'biplane',
            engFamily: 'inline', engModel: 'DH Gipsy Major', engMount: 'nose',
            gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
            finArch: 'rounded', empennage: 'conv', scheme: 'trim', base: 0xf2c437, trim: 0x1b3a5c },
-    over: { cage: { wgSpan: 8.94, wgChord: 1.37, wgChordTip: 1.37, wgTipX: 0.30,
-                    wgParaH: 0.40, w2Span: 8.94, w2Chord: 1.37, w2ChordTip: 1.37,
-                    w2Pos: 2, w2Stagger: 0.55, wgAilOn: 0, w2AilOn: 1,
-                    bpInter: 0, bpWires: 1, bpCabane: 0 },
-            spec: { fuel: { litres: 87 } } } },       // 19 imp gal, the centre-section tank
+    over: { cage: { wgSpan: 8.94, wgChord: 1.37, wgChordTip: 1.37, wgTipX: 0.37,
+                    // G3517: the front cockpit under the centre section, the rear one clear of the trailing edge (the
+                    // DH.82A's), the upper plane higher; the planes' station: measured (STEP 1 below)
+                    wgParaH: 0.58, wgDx: 0.35, w2Span: 8.94, w2Chord: 1.37, w2ChordTip: 1.37,
+                    w2Pos: 2, w2Stagger: 0.56, wgAilOn: 0, w2AilOn: 1,
+                    bpInter: 0, bpWires: 1, bpCabane: 0,
+                    ...OPEN_TANDEM,
+                    halfW: 0.54, roofHalfW: 0.42, roofY: 0.68, keelY: -0.58, waistY: 0.22, floorY: -0.32,
+                    // G3519: the boom frame's top and bottom on the line from the rear cockpit to the tail post (the
+                    // class's 0.78 / -0.765 stood the taper ring over the deck and under the keel: a hump top and bottom)
+                    aftRoofY: 0.63, aftKeelY: -0.42, taperW: 0.92,   // (the class's 0.78 pinched the plan aft of the rear cockpit)
+                    pilotLen: 1.04, paxLen: 1.06, s1Drop: 0.6,      // (a prop clearance of 0.25 m: FAR 23.925 0.229)
+                    aeroWsLen: 0.59, aeroLen: 0.24, aeroTipW: 0.91, aeroTipH: 0.95, aeroDroop: 0.025,
+                    // MEASURED (tools/REF_MATCH.md; the user's DH.82 model, Sketchfab 'Dh82' by manilov.ap, CC-BY-4.0, its
+                    // 8.94 m span x 0.98, its length anchored at the type's 7.29 m; every station aft of the prop's plane): the body 2.3 m
+                    // shorter, its sections station by station
+                    boomLen: 3.36, cw_cowlLen: 0.85, cw_taperW: 0.45, cw_taperH: 0.84, engY: 0.21, frCabTopY: 0.64,
+                    frCabBotY: -0.6, frCabWaistW: 0.525, frCabBotW: 0.5, frPaxTopY: 0.66, frPaxBotY: -0.52,
+                    frPaxWaistW: 0.495, frPaxBotW: 0.47, frBoomWaistW: 0.485, frBoomTopW: 0.38, frBoomBotW: 0.45,
+                    tailRoofY: 0.38, tailKeelY: 0.03, tailHalfW: 0.12, boomMidPinch: 1, w2Dy: 0.07,
+                    cw_keelSweep: 0.04, s1X: 0.69, s1R: 0.22, wgDihedral: 3, w2Dihedral: 4,
+                    // the tail outlines fitted (1 - IoU 0.15 / 0.11); the mains: STEP 3 below
+                    s1Z: 2.08, s1AxZ: -0.29, finDorsal: 0, finHeight: 0.8, finChord: 0.85, finChordTip: 1.48,
+                    finSweep: 27.5, finHinge: 0.255, finTipZ: -0.37, finTipY: -0.225, finAftZ: 0.125, finAftY: -0.78,
+                    finBaseZ: -0.5, finBaseY: 0.345, finMidY: -0.155, finUY: -0.19, finLEZ: -0.315, finLEY: -0.02,
+                    finShoulderZ: 0.285, finShoulderY: -0.03, finTopY: 0.085, finTERoot: 0.17, finTEU: -0.175,
+                    finTEMid: -0.025, finSharpTip: 0, finSharpAft: 0, finSharpBase: 0.55, finSharpShoulder: 0.15,
+                    finSharpLE: 1.45, finRootFwd: 0, stTipZ: -0.6, stTipY: -0.675, stAftZ: -0.185, stAftY: -0.71,
+                    stBaseZ: 0.14, stBaseY: 0.01, stMidY: -0.455, stUY: -0.18, stRootFwd: 0, stLEZ: -0.575,
+                    stLEY: -0.15, stShoulderZ: 0.445, stShoulderY: -0.08, stTopY: 0.175, stTERoot: 0.005,
+                    stTEU: -0.195, stTEMid: -0.2, stSharpTip: 0, stSharpAft: 2.25, stSharpBase: 0,
+                    stSharpShoulder: 0.85, stSharpLE: 1.75, stSpan: 1.36, stChord: 1.36, stChordTip: 0.75,
+                    stSweep: 0, stHinge: 0.08,
+                    // STEP 1/2 (prop datum, 27 Oct): the wings 0.44 aft and both swept as measured (LE within 1 cm), the keel
+                    // and deck lines straight to the post, the boom full in plan and closing late (its own plan pinch)
+                    w2TipX: 0.415, boomMidPinchW: 1.55,
+                    // the tips by measurement (fit_tips: clipped 0.093 / 0.108 against rounded 0.135 / 0.147; the type's tip rounds
+                    // its trailing corner, a shape the garage does not offer - the closest taken)
+                    wgTip: 1, w2Tip: 1,
+                    // STEP 3, the gear (prop datum): the V from the lower longeron 1.02 aft (the type's front strut) back to its rear
+                    // leg, the wheel exact (1 mm / 4 mm); the split axle, as the type's hinges on a bracket under the belly
+                    s1Root: 1, s1_linkSpread: 1,
+                    // STEP 3, the cowl, in the user's order (27 Oct): waist and sizes fitted to the nose (fitNose); the top squarer,
+                    // the bottom rounder; the barrel narrowed to the type's tapering nose and DROOPED to it (the face 0.21 under the thrust
+                    // line, the inverted Gipsy's); no front inlet (the type's nose cap is closed); engY puts the thrust line back
+                    cw_lidRise: -0.056, cw_faceRise: 0.006, cw_lidMode: 0, cw_sqFrontTop: 0.62, cw_sqFrontBot: 0.8,
+                    cw_apMode: 0,
+                    // the face by eye against the reference's head-on view: a tombstone - round on top, straight sides, flat bottom
+                    cw_lidSqTop: 0.62, cw_lidSqBot: 0.8 },
+            // the registration on the rear fuselage's side, clear of the cockpits (the user, 27 Oct)
+            // THE LIVERY (27 Oct, the user: "a proper livery for each"): an RAF elementary trainer - trainer yellow
+            // overall, the type A roundel (blue / white / red) on the fuselage and on all four wing panels, the fin
+            // flash (red leading, white, blue), the serial in black on the rear fuselage. No trim line.
+            spec: { fuel: { litres: 87 },                                              // 19 imp gal, the centre-section tank
+                    paint: { job: 'full', sweep: 0, base: 0xf2c437, trim: 0xf2c437 },
+                    finish: { decals: {
+                      regL: 4.00, regC: 0.04, regH: 0.24, regCol: 0x20211f, regOutOn: 0,
+                      // the fuselage roundel, between the rear cockpit and the serial
+                      m1On: 1, m1Pat: 8, m1A: 0x23306b, m1B: 0xf4f2ea, m1D: 0xb5342a, m1P: 1, m1Q: 0.667, m1R: 0.333,
+                      m1Tgt: 0, m1Mode: 0, m1L: 2.70, m1C: 0.0, m1W: 0.62, m1H: 0.62,
+                      // the wing roundels, one on each panel (field: root to tip, leading to trailing edge)
+                      m2On: 1, m2Pat: 8, m2A: 0x23306b, m2B: 0xf4f2ea, m2D: 0xb5342a, m2P: 1, m2Q: 0.667, m2R: 0.333,
+                      m2Tgt: 4, m2Mode: 0, m2L: 3.10, m2C: 0.68, m2W: 1.00, m2H: 1.00,
+                      // the fin flash: three upright bands (red leading, white, blue) on the fin alone (the fin target),
+                      // stood in the side view on the fixed fin ahead of the rudder post
+                      m3On: 1, m3Pat: 9, m3A: 0xb5342a, m3B: 0xf4f2ea, m3D: 0x23306b, m3P: 3, m3Q: 3, m3R: 0,
+                      m3Tgt: 6, m3Mode: 1, m3L: 2.50, m3C: 0.70, m3W: 0.50, m3H: 0.60 },
+                      // trainer yellow on the planes and the tail (the fabric's own cream otherwise)
+                      sections: { ...BODY_PAINT(0xf2c437), wingSkin: { tint: 0xf2c437 }, finSkin: { tint: 0xf2c437 }, stabSkin: { tint: 0xf2c437 } } },
+                    meta: { reg: 'T7230' } } } },
   // PERF STUDY chantier 0 (2026-09-15): the PT-17's engine is the 220 hp
   // W-670 (a row since G195), not the 450 hp R-985 the card flew (ROC
   // +156 %, V75 +35 % against the type - the engine, not the airframe)
   { key: 'stearman', kind: 'recreation', name: 'Stearman-alike', note: 'radial biplane trainer, ' +
-      'oleo gear, wires and N struts, lower ailerons',
+      'oleo gear, wires and N struts, lower ailerons, round turtle-deck body, tandem open cockpits flown from the rear',
     sel: { class: 'n23', role: 'trainer', seatLayout: 0, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 1, boomStyle: 0, section: 1,
            wgPos: 3, wgBrace: 1, wgTip: 2, wgFlapType: 0, planes: 'biplane',
            engFamily: 'radial', engModel: 'Continental W-670', engMount: 'nose',
            prop: 'alu2',                       // chantier 2: a 2.5 m two-blade metal, not the cage's 1.91
            gearLayout: 'tail', suspension: 'oleo', s1Fair: 0,
-           finArch: 'broad', empennage: 'conv', scheme: 'trim', base: 0xf2c437, trim: 0x1b3a5c },
+           // G3517: the Cub's rounded fin - the 'broad' one read vTaper 0.24 against the flown 0.35 floor (a join
+           // ERRS row on the card itself)
+           finArch: 'rounded', empennage: 'conv', scheme: 'trim', base: 0xf2c437, trim: 0x1b3a5c },
     over: { cage: { wgSpan: 9.80, wgChord: 1.52, wgChordTip: 1.52, wgTipX: 0,
-                    wgDx: 0.60,      // wings forward: the R-985 sits on the nose (CG 22 % MAC, margin 21 %)
-                    wgParaH: 0.45, w2Span: 9.80, w2Chord: 1.52, w2ChordTip: 1.52,
-                    w2Pos: 2, w2Stagger: 0.60, wgAilOn: 0, w2AilOn: 1,
-                    bpInter: 0, bpWires: 1, bpCabane: 0, cw_propD: 2.5 },
-            spec: { fuel: { litres: 174 }, prop: { D: 2.5, blades: 2 } } } },      // 46 US gal in the upper centre section
+                    // G3517: the cockpits stand AFT of the upper wing as on the PT-17 (the front opening under its trailing
+                    // edge, the rear clear of it - the bench's first picture had the wing over both and the screens
+                    // through its skin): a long forward deck (aeroWsLen), the wings 0.15 forward, the upper plane higher
+                    wgDx: 0.55,      // (the planes' station now follows the shorter forward deck: measured below)
+                    wgParaH: 0.44, w2Span: 9.5, w2Chord: 1.52, w2ChordTip: 1.52,
+                    w2Pos: 2, w2Stagger: 0.66, wgAilOn: 0, w2AilOn: 1,
+                    bpInter: 0, bpWires: 1, bpCabane: 0, cw_propD: 2.5,
+                    // the PT-17's Continental radial runs UNCOWLED (the user, 27 Oct: "remove the cowl, there's a proper
+                    // option for that" - the cowl part's own switch)
+                    cowlOn: 0,
+                    ...OPEN_TANDEM,
+                    halfW: 0.74, roofHalfW: 0.59, roofY: 0.76, keelY: -0.63, waistY: 0.28, floorY: -0.30,
+                    // G3519: the boom frame's top and bottom on the line from the rear cockpit to the tail post (the
+                    // class's 0.78 / -0.765 stood the taper ring over the deck and under the keel: a hump top and bottom)
+                    aftRoofY: 0.76, aftKeelY: -0.5, taperW: 0.92,   // (the class's 0.78 pinched the plan aft of the rear cockpit)
+                    boomMidPinch: 1.2,    // (the class's 0.86 pod pinch sagged the deck and lifted the belly mid-boom)
+                    pilotLen: 1.19, paxLen: 1.23,
+                    // the mains measured (below): the wheel's centre 0.75 m aft of the firewall and 1.24 under the thrust
+                    // line on R 0.285 (G3517's 0.80 drop / 2.30 station stood a 0.20 wheel 0.67 m further aft - the
+                    // prop strike it cured is re-checked by the flown fixture)
+                    s1Drop: 0.69, s1Z: 2.2,
+                    aeroWsLen: 1.18, aeroLen: 0.55, aeroTipW: 0.78, aeroTipH: 0.72, aeroDroop: 0.0,
+                    // MEASURED (tools/REF_MATCH.md; the user's PT-17 model, Sketchfab 'Boeing Stearman PT.17' by helijah,
+                    // CC-BY-4.0, its 9.80 m span x 1.002): the body 0.87 m shorter, the planes 0.6 m forward and the upper
+                    // 0.3 m lower, the wider oval body, bigger wheels (R 0.285) further out, the oleo legs on the fuselage
+                    // side, and the tail outlines fitted (1 - IoU 0.16 / 0.16 against a reference merged by material)
+                    boomLen: 3.5, w2Dy: 0.21, wgDihedral: 0.5, w2Dihedral: 0.5, s1R: 0.285, s1X: 0.87, s1AxZ: 0.23,
+                    s1Root: 1, frBoomWaistW: 0.65, frBoomTopW: 0.52, frBoomBotW: 0.6, tailRoofY: 0.5,
+                    tailKeelY: -0.15, tailHalfW: 0.04, s1_oleoAng: 60, finDorsal: 0, finKeel: 1, finHeight: 0.97,
+                    finChord: 1.04, finChordTip: 0.57, finSweep: -10, finHinge: 0.205, finTipZ: -0.41,
+                    finTipY: -0.645, finAftZ: -0.1, finAftY: -0.85, finBaseZ: -0.11, finBaseY: 0.41,
+                    finMidY: -0.42, finUY: 0.2, finLEZ: -0.03, finLEY: -0.2, finShoulderZ: 0.5,
+                    finShoulderY: -0.055, finTopY: 0.015, finTERoot: -0.25, finTEU: -0.4, finTEMid: -0.195,
+                    finSharpTip: 0, finSharpAft: 1.05, finSharpBase: 0.2, finSharpShoulder: 0.85, finSharpLE: 1.9,
+                    finRootFwd: -0.2, stTipZ: 0.23, stTipY: -0.495, stAftZ: 0.05, stAftY: -0.66, stBaseZ: 0.29,
+                    stBaseY: 0.19, stMidY: -0.8, stUY: -0.115, stRootFwd: 0, stLEZ: -0.69, stLEY: 0.125,
+                    stShoulderZ: 0.265, stShoulderY: -0.095, stTopY: 0.26, stTERoot: 0.055, stTEU: 0.125,
+                    stTEMid: 0.05, stSharpTip: 0, stSharpAft: 0, stSharpBase: 0.55, stSharpShoulder: 1.6, stSharpLE: 0,
+                    stSpan: 1.51, stChord: 1.57, stChordTip: 0.69, stSweep: -10, stHinge: 0.25,
+                    stY: 0.54,
+                    // re-anchored on the published PT-17 (the user: 'sources prevail'): 7.54 m long, the lower plane 31 ft 2 in
+                    engY: -0.08,
+                    s2Z: 0.5, s2Drop: 0.16,
+                    wgTip: 4 },     // the tailplane 0.16 m over the thrust line, on the reference's
+            // the registration on the rear fuselage's side, clear of the cockpits (the user, 27 Oct: "get them out
+            // of the cockpit area"): the default 2.10 m aft of the round body's forward datum lands on the cockpits
+            // THE LIVERY (27 Oct, the user: "a proper livery for each"): a US Army PT-17 of 1940 - true blue fuselage,
+            // chrome yellow planes and tail, the rudder's blue upright band at the hinge and the thirteen red and white
+            // stripes aft of it, the white star with its red centre in the blue disc on the wings, the serial in black
+            spec: { fuel: { litres: 174 }, prop: { D: 2.5, blades: 2 },    // 46 US gal in the upper centre section
+                    // the body's blue: the paint's base, and BODY_PAINT's sections (the global pick's reach)
+                    paint: { job: 'full', sweep: 0, base: 0x23306b, trim: 0x23306b },
+                    finish: { decals: {
+                      regL: 4.40, regC: 0.05, regH: 0.26, regCol: 0xf4f2ea, regOutOn: 0,   // white on the blue
+                      // the rudder's stripes, lying (across the layer), on the fin alone, in the side view
+                      m1On: 1, m1Pat: 9, m1A: 0xb5342a, m1B: 0xf4f2ea, m1D: 0xf4f2ea, m1P: 13, m1Q: 2, m1R: 1,
+                      m1Tgt: 6, m1Mode: 1, m1L: 3.60, m1C: 0.62, m1W: 0.44, m1H: 1.56,
+                      // the blue band at the rudder's hinge
+                      m2On: 1, m2Pat: 9, m2A: 0x23306b, m2B: 0x23306b, m2D: 0x23306b, m2P: 1, m2Q: 1, m2R: 0,
+                      m2Tgt: 6, m2Mode: 1, m2L: 3.29, m2C: 0.62, m2W: 0.16, m2H: 1.56,
+                      // the wing stars (field: root to tip, leading to trailing edge)
+                      m3On: 1, m3Pat: 8, m3A: 0x23306b, m3B: 0xf4f2ea, m3D: 0xb5342a, m3P: 1, m3Q: 0.667, m3R: 0.22, m3S: 1,
+                      m3Tgt: 4, m3Mode: 0, m3L: 3.55, m3C: 0.76, m3W: 1.20, m3H: 1.20 },
+                      sections: { ...BODY_PAINT(0x23306b), wingSkin: { tint: 0xf2c437 }, finSkin: { tint: 0xf2c437 },
+                                  stabSkin: { tint: 0xf2c437 } } },
+                    meta: { reg: '40-1749' } } } },
+  // NEW-SHAPES-1 (the user, 27 Oct: "the stearman and the moth are very similar, can you try a sopwith camel as a
+  // third proof? And be careful on matching the actual dimensions as best you could?"): the Sopwith Camel F.1 - the
+  // round body, ONE open cockpit under the upper plane's trailing edge, two equal 8.53 x 1.37 m planes, the upper flat,
+  // the lower at 5 deg and 0.46 m aft, four ailerons, the Clerget 9B rotary up front (its own catalogue entry).
+  // THE SHAPE IS MEASURED, NOT GUESSED (the user's reference model, 27 Oct: "here's a reference 3d model ... once
+  // scaled, it should be the source of all the measurements you need" - Sketchfab 'Sopwith' by stealth86, CC-BY-4.0,
+  // scaled to the 8.53 m span): every number below was read off it in its terms - metres AFT OF THE FIREWALL (the
+  // cowl's back face) and ABOVE THE THRUST LINE - and matched on the built aeroplane by tools/ref_match (the method:
+  // tools/REF_MATCH.md). Every row is a garage row; nothing here is out of a hand's reach.
+  { key: 'camel', kind: 'recreation', name: 'Camel-alike', note: 'rotary scout biplane, ' +
+      'equal planes, flat upper, lower dihedral, one open cockpit, round body',
+    sel: { class: 'eab', role: 'touring', seatLayout: 0, paxCount: 0,
+           canopy: 'screen', mirror: 0, intCons: 2,      // wood: the spruce and ash box girder
+           boomStyle: 0, section: 1,
+           wgPos: 3, wgBrace: 1, wgTip: 2, wgFlapType: 0, planes: 'biplane',
+           engFamily: 'radial', engModel: 'Clerget 9B', engMount: 'nose', prop: 'wood2',
+           gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
+           finArch: 'rounded', empennage: 'conv', scheme: 'trim', base: 0x3d5c40, trim: 0xf4f2ea },   // PC10 khaki over clear-doped linen
+    over: { cage: { wgSpan: 8.53, wgChord: 1.37, wgChordTip: 1.37, wgTipX: 0, wgDihedral: 0, cw_propD: 2.59,   // the 8 ft 6 in wooden propeller
+                    w2Span: 8.53, w2Chord: 1.37, w2ChordTip: 1.37, w2Dihedral: 3,   // the reference measures 2.8 deg; the row steps 0.5 (the F.1 drawings say 5)
+                    w2Pos: 2, w2Stagger: 0.48, wgAilOn: 1, w2AilOn: 1,
+                    bpInter: 0, bpWires: 1, bpCabane: 0,
+                    ...OPEN_TANDEM, paxCount: 0, paxOpen1: 0, pilotRear: 0,
+                    // the upper centre section NOT cut (the user's review)
+                    wgCentre: 0,
+                    // THE WINGS (reference: upper LE 0.08 m AHEAD of the firewall at 1.19 m over the thrust line, lower LE
+                    // 0.41 m aft with its root in the fuselage's bottom line, the gap 1.5 m)
+                    wgDx: 0.4, wgParaH: 0.58, w2Dy: 0.15,   // wgDx: the row's step nearest the reference (the LE 2.6 cm
+                    // aft; the envelope opened 27 Oct no longer holds it); the stagger takes the lower plane to its own station
+                    // THE BODY (cage units, x 0.745 = m; the reference station by station: 1.02 m deep and 0.68 m wide at
+                    // the cockpit, 1.05 m wide at the cowl, the top 0.61 over the thrust line, the bottom flat 0.41 under it
+                    // to the cockpit, then ONE straight taper top and bottom to the tail post 4.50 m aft - the user, 27 Oct:
+                    // "keep the continuous line front to back")
+                    halfW: 0.67, roofHalfW: 0.55, roofY: 0.945, keelY: -0.425, waistY: 0.22, floorY: -0.25,
+                    pilotLen: 1.15, frCabTopY: 0.945, frCabBotY: -0.425, frCabWaistW: 0.45, frCabTopW: 0.37, frCabBotW: 0.45,
+                    paxLen: 0.54, taperOn: 0,
+                    aftRoofY: 0.88, aftKeelY: -0.37, frBoomWaistW: 0.42, frBoomTopW: 0.34, frBoomBotW: 0.42,
+                    boomLen: 3.87, boomMidPinch: 1.25,
+                    tailRoofY: 0.405, tailKeelY: -0.05, tailHalfW: 0.06,
+                    // THE NOSE: the deck rises behind the cowl into the gun hump (the user's sketch), the front ring meets the
+                    // cowl at the top and the sides, the bottom stays flat above the cowl's lower lip, and the sections round
+                    // off toward the front ("blends from rounded rectangle to more fully rounded in the nose section")
+                    // ONE LINE, FEW EXCEPTIONS (the user, 27 Oct: "the nose part of your fuselage has become a little ugly
+                    // with time ... rework that one with as little exceptions as possible"): the cockpit ring carries the
+                    // body's full width, the front holds it to the cowl (no flare, no windscreen-frame widening), and the
+                    // cockpit and boom frames take the one taper aft
+                    aeroWsLen: 0.50, aeroLen: 0.24, aeroTipW: 1.04, aeroTipH: 0.92, aeroDroop: 0.065, aeroRound: 0.5,
+                    // THE COWL: free of the fuselage (it is bigger than the nose it sits on - "in reality, they don't fit in
+                    // size"), ONE diameter fore to aft ("the cowl does not extend in diameter fore"), 1.10 m across (the
+                    // reference's 1.05, and the Clerget's heads need 1.06 + clearance: 0 vertices through), round about the
+                    // thrust line, so it laps the nose's top and sides and hangs below its bottom ("where it hangs lower");
+                    // the engine 6 cm under the face's centre carries the thrust line there
+                    fitNose: 0, cw_aftW: 0.555, cw_aftH: 0.555, cw_deckH: 0.90, cw_keelH: 1.10, cw_waist: -0.10,
+                    cw_taperW: 1.0, cw_taperH: 1.0, cw_cowlLen: 0.34, engY: -0.06,
+                    // the engine drawn back into the barrel (the stand-off the engine bench calls fore / aft): 0 vertices of
+                    // the Clerget outside the cowl, measured
+                    eng_mountGap: 0.40,
+                    // THE TAIL, fitted to the reference's outline (1 - IoU 0.070 side, 0.063 plan; tools/ref_match/fit_tail.js): a small fin and a big D
+                    // rudder hinged on the tail post, no dorsal; a square-ended tailplane with rounded tips, the elevators
+                    // notched at the root. Drawn areas 0.70 m2 (fin + rudder; the Camel's 0.28 + 0.455) and 2.22 m2 (the
+                    // Camel's 1.30 + 0.98). The card states the macro rows, so the birth's seed keeps them.
+                    finDorsal: 0,
+                    finHeight: 0.5, finChord: 1.11, finChordTip: 1.17, finSweep: 14.5, finHinge: 0.21,
+                    finTipZ: -0.37, finTipY: -0.61, finAftZ: 0.075, finAftY: -0.405, finBaseZ: -0.155, finBaseY: -0.045,
+                    finMidY: -0.8, finUY: -0.1, finLEZ: -0.71, finLEY: -0.055, finShoulderZ: 0.425, finShoulderY: -0.1,
+                    finTopY: 0.07, finTERoot: -0.22, finTEU: -0.23, finTEMid: -0.215, finRootFwd: -0.05,
+                    finSharpTip: 0, finSharpAft: 0.3, finSharpBase: 0, finSharpShoulder: 0.1, finSharpLE: 1.15,
+                    stSpan: 1.08, stChord: 1.08, stChordTip: 0.75, stSweep: 0, stHinge: 0.16,
+                    stTipZ: -0.07, stTipY: -0.65, stAftZ: -0.275, stAftY: -0.595, stBaseZ: -0.03, stBaseY: 0.005,
+                    stMidY: -0.12, stUY: -0.14, stLEZ: -0.8, stLEY: -0.2, stShoulderZ: 0.43, stShoulderY: 0.095,
+                    stTopY: 0.04, stTERoot: 0.315, stTEU: -0.185, stTEMid: -0.155, stRootFwd: 0,
+                    stSharpTip: 1.55, stSharpAft: 0.9, stSharpBase: 0.85, stSharpShoulder: 0, stSharpLE: 0.9,
+                    stY: 0.535,     // the tailplane 0.24 m over the thrust line, on the reference's (x 0.745 = m)
+                    // THE GEAR (reference: the wheels' centre 0.35 m aft of the firewall, their bottom 1.46 m under the
+                    // thrust line): big thin wheels (700 x 75 mm, covered) on a V each side and one cross axle, bungee at
+                    // the apexes
+                    // (the wheel placed by itself - s1X / s1AxZ / s1Drop - and the V's roots by the station and its base: the
+                    // user, 27 Oct: "you can manipulate the suspension anchor point and the wheel separately")
+                    // the V on the FUSELAGE (s1Root 1: its feet on the lower longerons, 0.07 and 0.87 m aft of the firewall
+                    // - the low-wing rule would bolt it to the lower plane), the wheel then put back on its own spot
+                    s1Root: 1, s1Z: 2.01, s1_linkSpread: 0.81, s1_linkAng: 43,
+                    s1X: 0.525, s1AxZ: -0.12, s1Drop: 0.70,
+                    s1R: 0.35, whProfile: 2, whBulge: 0.85, whRim: 0, whCap: 2,
+                    // the cross axle and the X of bracing wires between the two V's (the reference's)
+                    s1Leg: 1, s1_linkVee: 1, s1_linkX: 0, s1_linkPanel: 0, s1_linkAxle: 1, s1_linkAxleX: 1, s1_shockKind: 1,
+                    // the tips chosen by tools/ref_match/fit_tips.py (elliptic: the closest the garage has, both planes)
+                    wgTip: 3, w2Tip: 3 },
+            // THE LIVERY (27 Oct, the user: "a proper livery for each" - the bands chosen by the user): the PC10 khaki
+            // planes and tail, the fuselage aft of the cockpit in yellow and dark grey bands, the cowl and the front panels
+            // grey, the rudder's RFC tricolour (blue leading, white, red), the type A roundels on the planes
+            spec: { fuel: { litres: 136 },
+                    paint: { job: 'full', sweep: 0, base: 0x8a8d8f, trim: 0x8a8d8f },
+                    finish: { decals: {
+                      regL: 3.75, regC: 0.10, regH: 0.16, regCol: 0xf4f2ea, regOutOn: 0,
+                      // the bands, upright, wrapped round the rear fuselage (field: metres aft of the firewall)
+                      m1On: 1, m1Pat: 9, m1A: 0xf2c437, m1B: 0x3a3d40, m1D: 0x3a3d40, m1P: 8, m1Q: 2, m1R: 0,
+                      m1Tgt: 0, m1Mode: 0, m1L: 2.35, m1C: 0.0, m1W: 1.90, m1H: 3.00,
+                      // the rudder's tricolour on the fin alone, aft of the post, in the side view
+                      m2On: 1, m2Pat: 9, m2A: 0x23306b, m2B: 0xf4f2ea, m2D: 0xb5342a, m2P: 3, m2Q: 3, m2R: 0,
+                      m2Tgt: 6, m2Mode: 1, m2L: 2.33, m2C: 0.40, m2W: 0.62, m2H: 1.10,
+                      // the wing roundels
+                      m3On: 1, m3Pat: 8, m3A: 0x23306b, m3B: 0xf4f2ea, m3D: 0xb5342a, m3P: 1, m3Q: 0.667, m3R: 0.333,
+                      m3Tgt: 4, m3Mode: 0, m3L: 3.20, m3C: 0.68, m3W: 1.05, m3H: 1.05 },
+                      sections: { ...BODY_PAINT(0x8a8d8f), cowlSkin: { tint: 0x8a8d8f }, wingSkin: { tint: 0x3d5c40 },
+                                  finSkin: { tint: 0x3d5c40 }, finRud: { tint: 0xf4f2ea }, stabSkin: { tint: 0x3d5c40 } } },
+                    meta: { reg: 'B6313' } } } },
   { key: 'pittsAlike', kind: 'fiction', name: 'aerobatic biplane', note: 'short-span four-aileron ' +
       'biplane on I struts and wires, spring gear, flat six',
     sel: { class: 'eab', role: 'touring', seatLayout: 0, paxCount: 0,
@@ -2139,6 +2402,42 @@ const ARCHETYPES = [
                     cowl: { halfW: 0.42 },
                     finish: { decals: { m1On: 1, m1Pat: 2, m1A: 0x7c3327,
                                         m1B: 0xc7c9cc, m1D: 0x7c3327 } } } } },
+  { key: 'spitfire', kind: 'recreation', name: 'Spitfire-alike (WIP)', note: 'elliptic-wing fighter, ' +
+      'Merlin V12 on the nose, radiators under the wings, one seat under a blown hood',
+    // THE SPITFIRE LF Mk IX (the user, 27 Oct: "I would want a spitfire"), built to the user's reference model by
+    // tools/REF_MATCH.md (refs/spitfire.json; Sketchfab 'Spitfire Highpoly' by Renafox, CC-BY-4.0), its span on
+    // the published 36 ft 10 in and its length on the museum's 9.5 m. THE BODY: a lofted alloy monocoque, round in
+    // section, its ROOF RUNNING AFT as the high spine to the fin (the cabin body: a turtledeck pod falls away behind
+    // its hood and thins to a boom - the RV's line, not this one's: drawn both, 27 Oct); the windscreen and the blown
+    // hood are the cabin's own glazing (a skylight with the bubble glass over it); the Merlin in a long faired bonnet
+    // WORK IN PROGRESS (the user, 27 Oct: "drop your efforts on the spitfire, we're starting from too far ... deliver
+    // the spitfire as a WIP"): step 1 half done - the firewall, the wing's station and height, the windscreen and
+    // the tail post placed; the sections, the cowl, the tail and the gear are not matched, and it has not been
+    // flown. Blocked from the birth list and the gates until it is.
+    blocked: 'WIP: the Spitfire is half-matched (tools/REF_MATCH.md section 10) and not flown',
+    sel: { class: 'eab', role: 'aerobatic', seatLayout: 0, paxCount: 0,
+           canopy: 'screen', mirror: 0, intCons: 3, boomStyle: 0, section: 3,
+           wgPos: 2, wgBrace: 1, wgTip: 3, wgFlapType: 4, planes: 'mono',
+           engFamily: 'vee', engModel: 'Rolls-Royce Merlin 66', engMount: 'nose', prop: 'wood2',
+           gearLayout: 'tail', suspension: 'oleo', s1Fair: 0,
+           finArch: 'rounded', empennage: 'conv', scheme: 'trim', base: 0x3d5c40, trim: 0x20211f },
+    over: { cage: { // THE ELLIPTIC WING (genPlanLaw): 2.55 m on the centreline, the 30 % chord line straight, 6 deg
+                    wgPlan: 1, wgPlanAxis: 0.30, wgSpan: 11.23, wgChord: 2.55, wgTipX: 0,
+                    wgDihedral: 6, wgIncidence: 2, wgWashout: 2.5, wgCamber: 2, wgThick: 13,
+                    // the windscreen and the hood: the cabin's skylight, bulged
+                    skylight: 1, skyExt: 2, bubble: 1,
+                    // STEP 1 so far (prop datum, refs/spitfire.json): the firewall 2.35 m aft of the prop (the bonnet
+                    // 1.8 m over the Merlin and its bay), the wing's LE 2.0 aft and its chord line 0.60 under the
+                    // thrust line (exact), the windscreen at 3.4, the hood to 4.7, the tail post at 9.24
+                    cw_cowlLen: 1.30, cw_lidLen: 0.50, wgDx: 1.05, wgDy: -0.5, boomLen: 5.22,
+                    halfW: 0.62, roofHalfW: 0.52, roofY: 0.85, keelY: -1.15,
+                    noseLen: 1.40, wsRun: 0.60, pilotLen: 1.10, paxLen: 0.30,
+                    // the radiators under the wings, the Mk IX's pair (the reference's: 0.55 - 0.95 m out)
+                    radMode: 1, radX: 0.75, radAt: 0.35, radLen: 1.30, radW: 0.42, radH: 0.24,
+                    // the Rotol four-blade on the Merlin's reduction
+                    cw_bladeN: 4, cw_material: 0 },
+            spec: { prop: { blades: 4, material: 'wood', pitch: 'cruise' },
+                    fuel: { litres: 386 } } } },          // 85 imp gal, the two fuselage tanks
   { key: 'savannah', kind: 'recreation', name: 'Savannah-alike', note: 'STOL microlight, high ' +
       'wing, big flaps, bush role',
     sel: { class: 'ulm', role: 'bush', seatLayout: 1, paxCount: 0,
@@ -2729,6 +3028,10 @@ function designBake(sel, over) {
   };
   if (tipKeys[Math.round(full.wgTip)])
     wing.tip = tipKeys[Math.round(full.wgTip)];
+  // THE ELLIPTIC PLANFORM is intent (the join's own two fields, and the tip
+  // offset its straight line is swept by)
+  if (+full.wgPlan === 1)
+    Object.assign(wing, { plan: 'elliptic', planAxis: +full.wgPlanAxis || 0.30, tipX: +full.wgTipX || 0 });
   // PERF STUDY chantier 0 (2026-09-15): THE AIRFOIL AND THE INCIDENCE ARE
   // INTENT. The join's own line verbatim (_cage_join.js: naca from
   // wgCamber/wgThick, incidence, washout); without it every card flew
@@ -2776,6 +3079,8 @@ function designBake(sel, over) {
     };
     if (w2.position === 'parasol') w2.cabaneH = +full.w2ParaH || 0.45;
     if (tipKeys[Math.round(full.w2Tip)]) w2.tip = tipKeys[Math.round(full.w2Tip)];
+    if (+full.w2Plan === 1)
+      Object.assign(w2, { plan: 'elliptic', planAxis: +full.w2PlanAxis || 0.30, tipX: +full.w2TipX || 0 });
     wings.push(w2);
     Object.assign(bracing, {
       interplane: ['N', 'I', 'none'][Math.round(full.bpInter || 0)] || 'N',
@@ -2860,8 +3165,18 @@ function designBake(sel, over) {
   // tail on twenty-five cards (the sweep, P0) becomes a tail sized to each
   // card's own wing. A twin-boom card keeps its drawn size (the headless
   // build cannot root its fin on the booms and says so).
-  const seed = (over && over.stock) ? null : designTailSeed(full, out);
-  if (seed) {
+  const seed0 = (over && over.stock) ? null : designTailSeed(full, out);
+  // NEW-SHAPES-1 (the user, 27 Oct, the Camel drawn to a reference model: "I insist on fin/rudder/stabs shapes done
+  // carefully"): A CARD THAT DRAWS A SURFACE ITSELF keeps it. The seed writes the macro height and chord as ONE
+  // number (absolute, not a ratio), which keeps a drawn outline only while the two are equal - a fin fitted to a
+  // reference has height and chord of its own. A card stating a surface's macro rows (finHeight / stSpan in its
+  // cage) keeps its own size for that surface (the seed's cuts still go on); no card stated them before this, so
+  // every other birth is untouched.
+  const oc = (over && over.cage) || {};
+  const seed = seed0 ? Object.fromEntries(Object.entries(seed0).filter(([k]) =>
+    !(/^fin(Height|Chord)$/.test(k) && oc.finHeight != null) &&
+    !(/^st(Span|Chord)$/.test(k) && oc.stSpan != null))) : null;
+  if (seed && Object.keys(seed).length) {
     Object.assign(full, seed);
     out.cage = C2.cageToSpec(full);
   }

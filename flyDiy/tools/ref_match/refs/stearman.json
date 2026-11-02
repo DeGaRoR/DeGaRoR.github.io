@@ -1,0 +1,137 @@
+{
+  "name": "Boeing-Stearman PT-17",
+  "glb": "refs/stearman.glb",
+  "source": "Sketchfab 'Boeing Stearman PT.17' by helijah (https://sketchfab.com/3d-models/boeing-stearman-pt17-3ccea297db744ba4aee10ef3f5289bf2), CC-BY-4.0",
+  "axes": "x=z,y=y,z=-x",
+  "scale": {
+    "by": "span",
+    "part": "upper",
+    "metres": 9.8
+  },
+  "parts": {
+    "hub": [
+      {
+        "node": "/Object_6"
+      }
+    ],
+    "fuselage": [
+      {
+        "node": "/Object_22",
+        "box": {
+          "absx": [
+            0,
+            0.6
+          ]
+        }
+      }
+    ],
+    "upper": [
+      {
+        "node": "/Object_19",
+        "box": {
+          "y": [
+            0.8,
+            2
+          ]
+        }
+      }
+    ],
+    "lower": [
+      {
+        "node": "/Object_19",
+        "box": {
+          "y": [
+            -1,
+            0
+          ]
+        }
+      },
+      {
+        "node": "/Object_21",
+        "box": {
+          "y": [
+            -1,
+            0
+          ]
+        }
+      }
+    ],
+    "fin": [
+      {
+        "node": "/Object_18",
+        "box": {
+          "absx": [
+            0,
+            0.07
+          ],
+          "z": [
+            -4,
+            -2.2
+          ],
+          "y": [
+            0.2,
+            2
+          ]
+        }
+      }
+    ],
+    "stab": [
+      {
+        "node": "/Object_18",
+        "box": {
+          "absx": [
+            0.12,
+            2.5
+          ],
+          "z": [
+            -4,
+            -2.2
+          ],
+          "y": [
+            0,
+            0.9
+          ]
+        }
+      },
+      {
+        "node": "/Object_20"
+      }
+    ],
+    "tyre": [
+      {
+        "node": "/Object_26",
+        "box": {
+          "y": [
+            -2,
+            0
+          ]
+        }
+      }
+    ],
+    "legs": [
+      {
+        "node": "/Object_25"
+      }
+    ]
+  },
+  "note": "merged by material: the planes share Object_19 (split by height), the fin and tailplane Object_18 (split by span); no cowl - the PT-17's radial is exposed, so the firewall is the fuselage's front face",
+  "anchors": {
+    "length": {
+      "metres": 7.54,
+      "source": "24 ft 9 in: American Heritage Museum, GlobalAir (Planes of Fame 24 ft 3 in, Wikipedia 25 ft 0.25 in)"
+    },
+    "height": {
+      "metres": 2.79,
+      "source": "9 ft 2 in: Pima Air & Space Museum, Planes of Fame"
+    }
+  },
+  "sources": {
+    "span upper": "32 ft 2 in (9.80 m) - every source",
+    "span lower": "31 ft 2 in (9.50 m) - National Stearman Fly-In",
+    "chord": "5 ft (1.524 m) both planes - National Stearman Fly-In",
+    "tread": "6 ft 4 1/4 in (1.937 m) - National Stearman Fly-In",
+    "wing area": "297.4 sq ft (27.63 m2) - Dave's Warbirds, skytamer",
+    "fuselage": "rectangular welded chrome-molybdenum steel tube, metal panels forward, fabric aft - skytamer (no width published)"
+  },
+  "card": "stearman"
+}
