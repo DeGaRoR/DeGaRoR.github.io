@@ -127,7 +127,10 @@ the bench's failed test, with the layer's own reason — never a silent rule sta
    aft aperture is not bolted to the nose; the engine layer says why, and the join files it as an error row.
 3. **The booms belong to the Booms row.** The style row never adds or removes them; Single removes them whole (the
    fins come back to the body, the stab back to its keel seat — the tile already writes that).
-4. **Tail parts follow their real host.** The dorsal is the fin's: it rides each boom's fin on twin booms of either
+4. **A rod clears the rear disc** (the user, 2 Nov: "very possible, with Rod on top or below the engine and prop").
+   The tile that puts an aft engine on a single rod moves the rod to the far side of the disc, 80 mm clear; the prop
+   check files a disc through the rod as an error.
+5. **Tail parts follow their real host.** The dorsal is the fin's: it rides each boom's fin on twin booms of either
    style; switching Rod & pod ↔ Lofted on twin booms carries it over.
 
 ## 10. Missing points (step 3) and the gaps left
@@ -135,7 +138,7 @@ the bench's failed test, with the layer's own reason — never a silent rule sta
 | point | status |
 |---|---|
 | Dorsal fillet on rod-style twin booms | ADDED (step 3) — opt-in (`finDorsalTube`), so a saved rod twin stays bit-identical |
-| Dorsal on a single bare rod | borderline — the user's call (STATUS) |
+| Dorsal on a single bare rod | ADDED (the user: yes) — the same opt-in row |
 | T-tail between two fin tips (the Adam A500's) | garage gap |
 | Inverted V on twin booms (the Shadow UAV's) | garage gap |
 | A tail-cone pusher on a single lofted body (Do 335, Lear Fan) | garage gap |
@@ -148,7 +151,7 @@ Greyed tiles with their one-line reason (a saved build holding one loads unchang
 | tile | greyed when | why |
 |---|---|---|
 | Fuselage style · Lofted skin | a pusher or a push-pull on a single boom | a lofted body runs to the tail: no aft bulkhead for the pusher |
-| Booms · Single | a pusher on a lofted body, or a push-pull | the pod would run to the tail (lofted) / the rear disc would sweep the rod |
+| Booms · Single | a pusher or push-pull on a LOFTED body (on a rod it stays live: the rod fit moves the rod clear of the disc — the user's call) | the pod would run to the tail |
 | Empennage · T-tail, V-tail | twin booms | the stab cannot seat on a centre fin the booms do not have |
 | Wing position · Mid, Low | over-the-wing engine | the pylon stands on a high wing or a parasol |
 
