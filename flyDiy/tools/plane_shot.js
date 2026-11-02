@@ -20,7 +20,9 @@
 //                                 (to its left), <el> deg above the chord (negative: below), a <fov> deg lens (then,
 //                                 optional, /<fill> the aeroplane's share of the frame, default 0.84 - <fill>c: of the
 //                                 inscribed circle instead, a maskable icon's safe zone - and /<W>x<H> the still's
-//                                 own size - e.g. hero:38/-12/35/0.7/1024x1024 for an app icon's square); the left
+//                                 own size - e.g. hero:38/-12/35/0.7/1024x1024 for an app icon's square); profile[/<fill>
+//                                 [/<W>x<H>]] the left side (the thumbnail); board:<fov>/<height> THE PLANE BOARD - the
+//                                 hero (38 / -12, the lens) at 3:2 and a column of side / plan / front at one scale; the left
 //                                 side, orthographic - drawn by the page's renderer at --psize 1800x1200 on a dark studio
 //                                 (--bg0 / --bg1 the backdrop's centre and edge, --key / --rim the portrait lights)
 //        [--same 0.9]             the share of the file's cage rows the page must hold after the import (assert 3)
@@ -174,7 +176,7 @@ const PORTRAIT = `(o) => {
   const P = window.FLIGHT_PROBE, R = P.renderer(), S = P.hangarScene(), cam0 = P.camera(), root = window.CAGE_UI_SCENE;
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
   const pitch0 = root.rotation.x;
-  if (o.kind === 'hero') root.rotation.x = 0;
+  if (o.kind !== 'profile') root.rotation.x = 0;   // the air's attitude for the hero and the board's 3-view; the thumbnail stands
   root.updateMatrixWorld(true);
   // the box of what is drawn (the hidden overlays out), and the aeroplane's own axes (z forward in the cage, the mount
   // turned to the room; up is the room's)
@@ -189,67 +191,100 @@ const PORTRAIT = `(o) => {
   root.traverseVisible(m => { const pa = m.isMesh && m.geometry && m.geometry.attributes && m.geometry.attributes.position; if (!pa) return;
     const step = Math.max(1, Math.floor(pa.count / 300)); for (let i = 0; i < pa.count; i += step) corners.push(pv.fromBufferAttribute(pa, i).applyMatrix4(m.matrixWorld).clone().sub(c)); });
   if (!corners.length) for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) corners.push(V(x, y, z).sub(c));
-  const yaw = (o.kind === 'hero' ? o.yaw : 90) * Math.PI / 180, el = (o.kind === 'hero' ? o.el : 0) * Math.PI / 180;
-  const d = fwd.clone().multiplyScalar(Math.cos(yaw) * Math.cos(el)).addScaledVector(left, Math.sin(yaw) * Math.cos(el)).addScaledVector(up, Math.sin(el)).normalize();
   const fill = o.fill || 0.84;
-  let cam;
-  if (o.kind === 'hero') {
-    cam = new THREE.PerspectiveCamera(o.fov, aspect, 0.05, 2000);
-    const tv = Math.tan(o.fov * Math.PI / 360) * fill, th = tv * aspect;
+  // the aeroplane's own frame: the drawn points' extents along the nose, the left wing and up - the orthos' one scale
+  const ext = { f: [1e9, -1e9], l: [1e9, -1e9], u: [1e9, -1e9] };
+  for (const p of corners) for (const [k, ax] of [['f', fwd], ['l', left], ['u', up]]) { const v = p.dot(ax); if (v < ext[k][0]) ext[k][0] = v; if (v > ext[k][1]) ext[k][1] = v; }
+  const mid = k => (ext[k][0] + ext[k][1]) / 2, len = k => Math.max(0.1, ext[k][1] - ext[k][0]);
+  const cc = c.clone().addScaledVector(fwd, mid('f')).addScaledVector(left, mid('l')).addScaledVector(up, mid('u'));
+  // the hero: a lens of its own, the distance that holds every drawn point, then the target moved to centre what is seen
+  const heroCam = (fov, aspect, yawD, elD, fl, circle) => {
+    const yaw = yawD * Math.PI / 180, el = elD * Math.PI / 180;
+    const d = fwd.clone().multiplyScalar(Math.cos(yaw) * Math.cos(el)).addScaledVector(left, Math.sin(yaw) * Math.cos(el)).addScaledVector(up, Math.sin(el)).normalize();
+    const cam = new THREE.PerspectiveCamera(fov, aspect, 0.05, 2000);
+    const tt = Math.tan(fov * Math.PI / 360), tv = tt * fl, th = tv * aspect;
     let t = c.clone(), D = 1;
-    for (let it = 0; it < 3; it++) {   // the distance that holds every corner, then the target moved to centre what is seen
+    for (let it = 0; it < 3; it++) {
       cam.position.copy(t).addScaledVector(d, 10); cam.up.copy(up); cam.lookAt(t); cam.updateMatrixWorld(true);
       const rx = V(1, 0, 0).transformDirection(cam.matrixWorld), ry = V(0, 1, 0).transformDirection(cam.matrixWorld);
       const off = c.clone().sub(t);
-      D = 0; for (const p0 of corners) { const p = p0.clone().add(off); const z = p.dot(d); D = Math.max(D, o.circle ? z + Math.hypot(p.dot(rx) / th, p.dot(ry) / tv) : Math.max(z + Math.abs(p.dot(rx)) / th, z + Math.abs(p.dot(ry)) / tv)); }
+      D = 0; for (const p0 of corners) { const p = p0.clone().add(off); const z = p.dot(d); D = Math.max(D, circle ? z + Math.hypot(p.dot(rx) / th, p.dot(ry) / tv) : Math.max(z + Math.abs(p.dot(rx)) / th, z + Math.abs(p.dot(ry)) / tv)); }
       cam.position.copy(t).addScaledVector(d, D); cam.lookAt(t); cam.updateMatrixWorld(true); cam.updateProjectionMatrix();
       let x0 = 1, x1 = -1, y0 = 1, y1 = -1; for (const p0 of corners) { const q = p0.clone().add(c).project(cam); x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y); }
-      const tt = Math.tan(o.fov * Math.PI / 360);
       t.addScaledVector(rx, (x0 + x1) / 2 * tt * aspect * D).addScaledVector(ry, (y0 + y1) / 2 * tt * D);
     }
     cam.position.copy(t).addScaledVector(d, D); cam.lookAt(t);
+    return cam;
+  };
+  // an orthographic eye from <from> (a unit axis of the aeroplane), <s> px a metre, centred on the drawn extents
+  const ortho = (from, camUp, w, h, s) => { const cam = new THREE.OrthographicCamera(-w / (2 * s), w / (2 * s), h / (2 * s), -h / (2 * s), 0.05, 2000);
+    cam.position.copy(cc).addScaledVector(from, 80); cam.up.copy(camUp); cam.lookAt(cc); return cam; };
+  // THE PANELS, in the still's px: { cam, x, y, w, h, low (the key from below: a hero seen from under), caption }
+  const panels = []; let OW = o.w, OH = o.h;
+  if (o.kind === 'hero') panels.push({ cam: heroCam(o.fov, o.w / o.h, o.yaw, o.el, fill, o.circle), x: 0, y: 0, w: o.w, h: o.h, low: true });
+  else if (o.kind === 'profile') {   // the left side, the nose to the frame's left (the thumbnail)
+    const s = Math.min(o.w * fill / len('f'), o.h * fill / len('u'));
+    panels.push({ cam: ortho(left, up, o.w, o.h, s), x: 0, y: 0, w: o.w, h: o.h });
   } else {
-    let hw = 0, hh = 0; const rx = fwd.clone().negate();   // looking at the left side, the nose to the frame's left
-    for (const p of corners) { hw = Math.max(hw, Math.abs(p.dot(rx))); hh = Math.max(hh, Math.abs(p.y)); }
-    const half = Math.max(hw / aspect, hh) / fill;
-    cam = new THREE.OrthographicCamera(-half * aspect, half * aspect, half, -half, 0.05, 2000);
-    cam.position.copy(c).addScaledVector(d, 60); cam.up.copy(up); cam.lookAt(c);
+    // THE PLANE BOARD (the user, 2 Nov: "a full board: top, side, front AND hero shot, well composited, without much
+    // margin between the pictures"): the hero on the left at 3:2 the board's height; on the right one column, the three
+    // orthos at ONE scale - the side (the nose left), the plan below it (the nose up: span across, as the front's) and
+    // the front under the plan, the span of the two aligned - a 3-view drawing's column, sized so its height is the
+    // hero's; gutters of a few px
+    const Hb = o.h, g = 4, pad = Math.round(0.045 * Hb), L = len('f'), Sp = len('l'), Hh = len('u');
+    const s = (Hb - 2 * g - 6 * pad) / (L + 2 * Hh);
+    const Wc = Math.round(s * Math.max(L, Sp) + 2 * pad), hs = Math.round(s * Hh + 2 * pad), ht = Math.round(s * L + 2 * pad), hf = Hb - 2 * g - hs - ht;
+    const Wh = Math.round(Hb * 1.5);
+    OW = Wh + g + Wc; OH = Hb;
+    panels.push({ cam: heroCam(o.fov, Wh / Hb, o.yaw, o.el, 0.86), x: 0, y: 0, w: Wh, h: Hb, low: true, caption: true });
+    panels.push({ cam: ortho(left, up, Wc, hs, s), x: Wh + g, y: 0, w: Wc, h: hs });
+    panels.push({ cam: ortho(up, fwd, Wc, ht, s), x: Wh + g, y: hs + g, w: Wc, h: ht });
+    panels.push({ cam: ortho(fwd, up, Wc, hf, s), x: Wh + g, y: hs + ht + 2 * g, w: Wc, h: hf });
   }
-  cam.layers.mask = cam0.layers.mask; if (typeof UI_LAYER !== 'undefined') UI_LAYER.blind(cam);
-  cam.updateMatrixWorld(true); cam.updateProjectionMatrix();
-  // the studio, dressed for a portrait: the backdrop, the two lights, the pool out
-  const bg = document.createElement('canvas'); bg.width = 512; bg.height = Math.round(512 / aspect);
-  const g2 = bg.getContext('2d'), gr = g2.createRadialGradient(bg.width * 0.5, bg.height * 0.42, 0, bg.width * 0.5, bg.height * 0.5, bg.width * 0.62);
-  gr.addColorStop(0, o.bg0); gr.addColorStop(1, o.bg1); g2.fillStyle = gr; g2.fillRect(0, 0, bg.width, bg.height);
-  const bgTex = new THREE.CanvasTexture(bg); if (THREE.SRGBColorSpace) bgTex.colorSpace = THREE.SRGBColorSpace;
+  for (const p of panels) { p.cam.layers.mask = cam0.layers.mask; if (typeof UI_LAYER !== 'undefined') UI_LAYER.blind(p.cam); p.cam.updateMatrixWorld(true); p.cam.updateProjectionMatrix(); }
+  // the studio, dressed for a portrait: a backdrop a panel, the two lights, the pool out
+  const bgTex = (w, h) => { const bg = document.createElement('canvas'); bg.width = 512; bg.height = Math.max(8, Math.round(512 * h / w));
+    const g2 = bg.getContext('2d'), gr = g2.createRadialGradient(bg.width * 0.5, bg.height * 0.42, 0, bg.width * 0.5, bg.height * 0.5, Math.max(bg.width, bg.height) * 0.62);
+    gr.addColorStop(0, o.bg0); gr.addColorStop(1, o.bg1); g2.fillStyle = gr; g2.fillRect(0, 0, bg.width, bg.height);
+    const t = new THREE.CanvasTexture(bg); if (THREE.SRGBColorSpace) t.colorSpace = THREE.SRGBColorSpace; return t; };
+  for (const p of panels) p.bg = bgTex(p.w, p.h);
   const lights = new THREE.Group();
   const key = new THREE.DirectionalLight(0xfff0dc, o.key), rim = new THREE.DirectionalLight(0xe6eeff, o.rim);
-  key.position.copy(c).addScaledVector(fwd, 6).addScaledVector(left, 5).addScaledVector(up, o.kind === 'hero' ? -2 : 3); key.target.position.copy(c);
-  rim.position.copy(c).addScaledVector(fwd, -7).addScaledVector(left, -2).addScaledVector(up, 6); rim.target.position.copy(c);
+  rim.position.copy(c).addScaledVector(fwd, -7).addScaledVector(left, -2).addScaledVector(up, 6); rim.target.position.copy(c); key.target.position.copy(c);
   lights.add(key, key.target, rim, rim.target); S.add(lights);
   const hid = []; S.traverse(m => { if (m.visible && /^studio:pool$/.test(m.name || '')) { m.visible = false; hid.push(m); } });
   const bg0 = S.background;
   const sz = R.getSize(new THREE.Vector2()), pr = R.getPixelRatio();
+  let meta = {}; try { meta = (GARAGE_SPEC.get() || {}).meta || {}; } catch (e) {}
   const shot = () => {
-    R.setPixelRatio(1); R.setSize(W, H, false); R.render(S, cam);
-    const out = document.createElement('canvas'); out.width = o.w; out.height = o.h;
-    const g = out.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
-    g.drawImage(R.domElement, 0, 0, W, H, 0, 0, o.w, o.h);
+    const out = document.createElement('canvas'); out.width = OW; out.height = OH;
+    const g = out.getContext('2d'); g.fillStyle = o.bg1; g.fillRect(0, 0, OW, OH); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+    for (const p of panels) {
+      key.position.copy(c).addScaledVector(fwd, 6).addScaledVector(left, 5).addScaledVector(up, p.low ? -2 : 3);
+      S.background = p.bg; R.setPixelRatio(1); R.setSize(p.w * o.ss, p.h * o.ss, false); R.render(S, p.cam);
+      g.drawImage(R.domElement, 0, 0, p.w * o.ss, p.h * o.ss, p.x, p.y, p.w, p.h);
+      if (p.caption && (meta.name || meta.reg)) {   // the name and the registration, the garage's type, low on the hero
+        const fs = Math.round(p.h * 0.034), x = p.x + Math.round(p.h * 0.04), y = p.y + p.h - Math.round(p.h * 0.045);
+        g.textBaseline = 'alphabetic'; g.fillStyle = '#e8ded0'; g.font = '600 ' + fs + "px 'IBM Plex Sans', system-ui, sans-serif";
+        g.fillText(String(meta.name || ''), x, y - (meta.reg ? Math.round(fs * 0.95) : 0));
+        if (meta.reg) { g.fillStyle = '#a89c8c'; g.font = '500 ' + Math.round(fs * 0.7) + "px 'IBM Plex Sans', system-ui, sans-serif"; g.fillText(String(meta.reg), x, y); }
+      }
+    }
     return out.toDataURL('image/png').split(',')[1];
   };
   let a, b;
   try {
-    S.background = bgTex;
     a = shot();
     root.visible = false; b = shot(); root.visible = true;
   } finally {
-    root.visible = true; S.background = bg0; S.remove(lights); key.dispose && key.dispose(); rim.dispose && rim.dispose(); bgTex.dispose();
+    root.visible = true; S.background = bg0; S.remove(lights); key.dispose && key.dispose(); rim.dispose && rim.dispose(); for (const p of panels) p.bg.dispose();
     for (const m of hid) m.visible = true;
     root.rotation.x = pitch0; root.updateMatrixWorld(true);
     R.setPixelRatio(pr); R.setSize(sz.x, sz.y, false);
     try { window.dispatchEvent(new Event('resize')); } catch (e) {}
   }
-  return { a, b, eye: cam.position.toArray().map(x => +x.toFixed(3)), fov: o.kind === 'hero' ? o.fov : 0,
+  const cam = panels[0].cam;
+  return { a, b, eye: cam.position.toArray().map(x => +x.toFixed(3)), fov: cam.isPerspectiveCamera ? cam.fov : 0, w: OW, h: OH,
            box: [box.min.toArray(), box.max.toArray()].flat().map(x => +x.toFixed(3)), dist: +cam.position.distanceTo(c).toFixed(2) };
 }`;
 
@@ -336,14 +371,21 @@ async function shoot(o) {
         const VR = { view: v }; BR.views.push(VR);
         try {
           let asked = null;
-          if (/^(hero:|profile$)/.test(v)) {
+          if (/^(hero:|board:|profile($|\/))/.test(v)) {
             // A PORTRAIT: drawn in the page (PORTRAIT above), the craft-hidden twin with it; the same frame checks
-            // hero:<yaw>/<el>/<fov>[/<fill>[/<W>x<H>]] - the box's share of the frame and the still's own size (the app
-            // icon's square, A0 2 Nov) over --psize
-            const hp = v === 'profile' ? [] : v.slice(5).split('/');
-            const [yaw, el, fov, fill] = v === 'profile' ? [90, 0, 0, 0] : hp.slice(0, 4).map(parseFloat);
-            const ps = hp[4] ? hp[4].split('x').map(Number) : o.psize;
-            const po = Object.assign({ kind: v === 'profile' ? 'profile' : 'hero', yaw, el, fov, fill: fill || 0, circle: /c$/.test(hp[3] || ''), w: ps[0], h: ps[1], ss: 2 }, o.look);
+            // hero:<yaw>/<el>/<fov>[/<fill>[/<W>x<H>]] - the aeroplane's share of the frame and the still's own size (the
+            // app icon's square, A0 2 Nov) over --psize; profile[/<fill>[/<W>x<H>]] the same; board:<fov>/<height>
+            const kind = v.split(/[:/]/)[0];
+            const hp = kind === 'profile' ? v.split('/').slice(1) : v.slice(kind.length + 1).split('/');
+            let po;
+            if (kind === 'board') po = { kind, yaw: 38, el: -12, fov: parseFloat(hp[0]), w: 0, h: +hp[1], ss: 2 };
+            else {
+              const [yaw, el, fov, fill] = kind === 'profile' ? [90, 0, 0, parseFloat(hp[0])] : hp.slice(0, 4).map(parseFloat);
+              const fs = kind === 'profile' ? hp[0] : hp[3], sz = kind === 'profile' ? hp[1] : hp[4];
+              const ps = sz ? sz.split('x').map(Number) : o.psize;
+              po = { kind, yaw, el, fov, fill: fill || 0, circle: /c$/.test(fs || ''), w: ps[0], h: ps[1], ss: 2 };
+            }
+            Object.assign(po, o.look);
             if (!o.keepUi) { await C.ev('(() => { if (window.SHOT_MODE) SHOT_MODE.enter(); return 1; })()'); await frames(3); }
             const pr = await J('(' + PORTRAIT + ')(' + JSON.stringify(po) + ')', 120000);
             await C.ev('(() => { if (window.SHOT_MODE && SHOT_MODE.on) SHOT_MODE.exit(); return 1; })()');
@@ -514,7 +556,7 @@ async function pair(dirA, dirB, out, labels, chrome) {
     // name their recipe in `what` (PORTRAITS)
     if (!j || !j.spec || !j.spec.cage) bail(EXIT.build, b + ' is not a flyDiy build (what: ' + (j && j.what) + ')');
   }
-  for (const v of o.views) if (!PRESET[v] && !/^part:./.test(v) && !/^hero:[-\d.]+\/[-\d.]+\/[\d.]+(\/0?\.\d+c?(\/\d{2,4}x\d{2,4})?)?$/.test(v) && v !== 'profile' &&!/^(orbit|close):[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v)) bail(EXIT.run, 'unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>, close:<az>/<el>/<dist>)');
+  for (const v of o.views) if (!PRESET[v] && !/^part:./.test(v) && !/^hero:[-\d.]+\/[-\d.]+\/[\d.]+(\/0?\.\d+c?(\/\d{2,4}x\d{2,4})?)?$/.test(v) && !/^profile(\/0?\.\d+(\/\d{2,4}x\d{2,4})?)?$/.test(v) && !/^board:[\d.]+\/\d{3,4}$/.test(v) &&!/^(orbit|close):[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v)) bail(EXIT.run, 'unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>, close:<az>/<el>/<dist>)');
   if (!(size.length === 2 && size.every(n => n >= 200 && n <= 4096))) bail(EXIT.run, '--size WxH (200-4096)');
   if (!fs.existsSync(path.join(o.root, 'flyDiy', o.page))) bail(EXIT.run, 'no page ' + o.page + ' in ' + path.join(o.root, 'flyDiy') + (o.page === 'index.html' ? ' (not built? --page dev.html)' : ''));
   if (!chrome) bail(EXIT.browser, 'no Chromium here (--chrome <path>, or the cloud image\'s /opt/node-tools playwright)');
