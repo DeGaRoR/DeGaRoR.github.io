@@ -190,6 +190,15 @@ function runTrace(o) {
   const legs = []; let leg = null;
   let capT = null, above = [], vErr = [], thrs = [];
   let flare = null; const roll = { e: [], dr: [], xt: [] };
+  // G3911 (PILOT-1 P0, the user 2 Nov: "speed a little too fast, turns for final, ends up dozens of meters too high
+  // because it turned flat, does not put flaps on or reduce speed/altitude fast enough so it never even catches the
+  // glideslope ... then goes around"): ONE RECORD PER ARRIVAL - the downwind's speed over its last 20 s (and against
+  // Vref), the speed and height at the base turn, the height lost on the base, the roll-out on final (above the slope
+  // at the final's first sample), the final's length (to the aim, m) and duration, the line error (|above slope|,
+  // 0.5 s samples) p50 / p95 over the whole final and below 150 m agl, the first flap movement on final, how it ended
+  const arrivals = []; let arr = null, dwV = [];
+  const r1n = v => v == null ? null : r1(v);
+  const pctl = (a, q) => { if (!a.length) return null; const b = a.slice().sort((x, y) => x - y); return b[Math.min(b.length - 1, Math.floor(q * b.length))]; };
   // G2085 (PILOT-PERSONA): the person's numbers - the take-off's lift-offs (the contacts leaving the surface for >= 0.1 s
   // before the aeroplane is away: one is clean, more are hops), the rotation's peak pitch rate (0.25 s filtered, ROLL ..
   // CLIMB), the circuit's cross-track rms on the straight legs (the fillets excluded), the touchdowns after the first
@@ -218,7 +227,13 @@ function runTrace(o) {
     const cd = (ap.status && ap.status.conds) || [];
     const g = k => { const q = cd.find(x => x.what === k); return q ? q.have : null; };
     if (ph !== last) {
-      phases.push({ ph, t: r1(t) });
+      // G3911: the arrivals - a DOWNWIND opens one, BASE and FINAL mark it, leaving FINAL closes it
+      if (last === 'FINAL' && arr && arr.fin) { arr.end = ph; arr.finalT = r1(t - arr.fin.t0); arrivals.push(arr); arr = null; }
+      if (ph === 'DOWNWIND') { arr = { dw: true }; dwV = []; }
+      if (ph === 'BASE') { arr = arr || { dw: false }; const w = dwV.filter(q => q[0] >= t - 20).map(q => q[1]);
+        arr.dwV = w.length ? r1(mean(w)) : null; arr.Vbase = r1(d.V); arr.base0 = { t, agl: d.agl }; }
+      if (ph === 'FINAL') { arr = arr || { dw: false }; arr.fin = { t0: t, agl: d.agl, flap0: c.flap || 0, n: 0 }; arr.line = []; arr.lineLow = []; arr.signed = [];
+        if (arr.base0) arr.baseLost = r1(arr.base0.agl - d.agl); }
       if (ph === 'ROLL') rollS0 = d.s;
       if (ph === 'CROSSWIND' && hTurn == null) hTurn = r1(d.agl);
       if (['CROSSWIND', 'DOWNWIND', 'BASE', 'ENROUTE', 'INBOUND'].includes(ph)) {
@@ -278,6 +293,14 @@ function runTrace(o) {
         if (leg.settleT == null && t - leg.t0 > 8 && Math.abs(xt) < 20) leg.settleT = r1(t - leg.t0);
       }
     }
+    if (ph === 'DOWNWIND') dwV.push([t, d.V]);
+    if (ph === 'FINAL' && arr && arr.fin) {
+      const F = arr.fin, ab = g('above slope');
+      if (F.n === 0) { F.rollOut = ab; F.aim = g('to the aim'); }
+      if (F.flapT == null && (c.flap || 0) > F.flap0 + 0.05) F.flapT = r1(t - F.t0);
+      if (F.n % 30 === 0 && ab != null) { arr.line.push(Math.abs(ab)); arr.signed.push(ab); if (d.agl < 150) arr.lineLow.push(Math.abs(ab)); }
+      F.n++;
+    }
     if (ph === 'FINAL') {
       const ab = g('above slope');
       if (capT == null && ab != null && Math.abs(ab) < 4 && (t - (phases[phases.length - 1].t)) > 5) capT = t;
@@ -296,6 +319,7 @@ function runTrace(o) {
     if (ph === 'STOPPED' && ap.t > 5) { tEnd = t; break; }
   }
   if (leg) legs.push(leg);
+  if (arr && arr.fin) { arr.end = 'end'; arr.finalT = r1(tEnd - arr.fin.t0); arrivals.push(arr); }
   const rep = ap.report, L = rep.landing, TD = ap.tdInfo;
   let zeroX = 0;
   for (let i = 1; i < roll.e.length; i++) if (roll.e[i - 1] * roll.e[i] < 0 && Math.abs(roll.e[i]) > 0.5) zeroX++;
@@ -321,6 +345,11 @@ function runTrace(o) {
     final: capT == null ? null : { captureT: r1(capT), aboveRms: r1(rms(above)), vRms: r2(rms(vErr)), vErrMean: r2(mean(vErr)),
                                    thrMin: r2(Math.min(...thrs)), thrMax: r2(Math.max(...thrs)) },
     flare: flare,
+    // G3911 (PILOT-1 P0): the arrivals, the user's chain measured (m, m/s, s; line = |above the slope|)
+    arrivals: arrivals.map(a => ({ dw: a.dw, dwV: a.dwV ?? null, dwVoverVref: a.dwV != null ? r2(a.dwV / VApprOf()) : null, Vbase: a.Vbase ?? null,
+      baseLost: a.baseLost ?? null, rollOut: a.fin.rollOut != null ? r1(a.fin.rollOut) : null, finalLen: a.fin.aim ?? null, finalT: a.finalT,
+      lineP50: r1n(pctl(a.line, 0.5)), lineP95: r1n(pctl(a.line, 0.95)), lowP50: r1n(pctl(a.lineLow, 0.5)), lowP95: r1n(pctl(a.lineLow, 0.95)),
+      signedP50: r1n(pctl(a.signed, 0.5)), flapT: a.fin.flapT ?? null, end: a.end })),
     track: { xtRms: PX.xt.length ? r1(rms(PX.xt)) : null, n: PX.xt.length },   // G2085: the circuit's cross-track rms on the straights (m)
     bounces: PX.td, pitchMax: r1(PX.pitchMax),
     // G2460 (PERSONA-2): the stabilised approach (43 PILOT_STAB) - the gate's height, the finals judged, the go-arounds
@@ -394,6 +423,10 @@ if (require.main === module) {
     if (out.track && out.track.xtRms != null) console.log('  circuit tracking: cross-track rms ' + out.track.xtRms + ' m on the straights · bounces ' + out.bounces);
     for (const l of out.legs) console.log('  ' + l.name.padEnd(9) + ' overshoot ' + String(l.overshoot).padStart(4) + ' m  settle ' + (l.settleT == null ? '  —' : l.settleT + ' s') + '  roll reversals ' + l.rollRev + '/min');
     if (out.final) console.log('  final: captured at ' + out.final.captureT + ' s · above-slope rms ' + out.final.aboveRms + ' m · V-VAppr rms ' + out.final.vRms + ' (mean ' + out.final.vErrMean + ') · thr ' + out.final.thrMin + '..' + out.final.thrMax);
+    for (const [i, a] of out.arrivals.entries())
+      console.log('  arrival ' + (i + 1) + ': downwind ' + (a.dwV == null ? '-' : a.dwV + ' m/s (' + a.dwVoverVref + ' Vref)') + ' · base turn ' + (a.Vbase ?? '-') + ' m/s, ' + (a.baseLost ?? '-') +
+                  ' m lost on the base · final ' + (a.finalLen ?? '-') + ' m / ' + a.finalT + ' s, rolled out ' + (a.rollOut ?? '-') + ' m above · line |err| p50 ' + a.lineP50 + ' p95 ' + a.lineP95 +
+                  ' (below 150 m: ' + a.lowP50 + ' / ' + a.lowP95 + ', signed p50 ' + a.signedP50 + ') · flap ' + (a.flapT == null ? 'none' : 'at ' + a.flapT + ' s') + ' · -> ' + a.end);
     if (out.flare) console.log('  flare: from ' + out.flare.entryAgl + ' m at ' + out.flare.entryVs + ' m/s, ' + out.flare.dur + ' s');
     if (out.dep) console.log('  departure: ' + out.dep.technique + (out.dep.Vx ? ' · Vx ' + out.dep.Vx + ' m/s' : '') + (out.dep.runNeed ? ' · run needed ' + out.dep.runNeed + ' m of ' + out.dep.len : ''));
     if (out.circuit) console.log('  circuit: ' + out.circuit.hand + '-hand at ' + out.circuit.hC + ' m, join ' + out.circuit.join + (out.circuit.declared ? ' (declared ' + JSON.stringify(out.circuit.declared) + ')' : ''));
