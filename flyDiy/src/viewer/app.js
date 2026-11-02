@@ -2679,6 +2679,31 @@
     // C4a (G870): THE FLOWN BAKE, when the roll-out's 'bake' step made one for THIS payload (flown_bake.js): the
     // exterior AEROSKIN buckets wear ONE baked material through an atlas uv per vertex (`uv1`); null = the live shader
     const FBK = (data.cage && window.FLOWN_BAKE) ? window.FLOWN_BAKE.forPayload(data) : null;
+    // G2004 (DMG-SCUFF): THE DAMAGE DRAWN - with the damage layer on for this flight (scuffFor) the exterior's materials
+    // are WRAPPED COPIES (skin_scuff.js wrap: their own hook, then the damage block; one program per hook wrapped, linked
+    // with the rest at the roll-out) and every geometry they draw gets the two record attributes (zero) before the hybrid's
+    // views leave the graph. With the layer off nothing here runs: no copy, no attribute, no program (scuffMat returns
+    // the material it was given)
+    const SCUFF = data.cage ? scuffFor(curDef) : null;
+    const scuffMat = (m, kind) => {
+      if (!SCUFF || !m || !m.isMaterial || (m.userData && m.userData.aeroInside)) return m;
+      const k = kind || (m.userData && m.userData.aeroFinish === 'glass' ? 'glass' : 'live');
+      const ud = m.userData; m.userData = {};
+      let c; try { c = new m.constructor(); c.copy(m); } finally { m.userData = ud; }
+      c.userData = Object.assign({}, ud, { scuff: k, scuffRe: h => SCUFF.wrap(h, k, SCUFF.U, SCUFF.W) });
+      if (m.defines) c.defines = Object.assign({}, m.defines);
+      for (const q of ['clearcoat', 'clearcoatRoughness', 'transmission', 'envMapIntensity']) if (m[q] !== undefined && c[q] !== undefined) c[q] = m[q];
+      // the glass's blend follows the pooled pane's (aeroSetGlassBlend flips the pool's, live)
+      if (k === 'glass') Object.defineProperty(c, 'blendDst', { get: () => m.blendDst, set: () => {}, configurable: true });
+      // the material's OWN hook: in the game ATMO turns onBeforeCompile into a prototype accessor that keeps a material's
+      // hook in _atmoHook and serves it wrapped (atmo.js install; flown_bake.js hookOf) - an own-property test alone found
+      // none, and the copy drew without AEROSKIN's hook (its programs failed to compile: the soft-still run, 2026-10-06)
+      const own = Object.prototype.hasOwnProperty.call(m, 'onBeforeCompile') ? m.onBeforeCompile : (m._atmoHook || null);
+      c.onBeforeCompile = SCUFF.wrap(own, k, SCUFF.U, SCUFF.W);   // (asleep until the first damage: the plain program)
+      c.name = (m.name || 'aeroskin') + ':scuff';
+      c.needsUpdate = true;
+      return c;
+    };
     const mkGeo = (g, ownPos) => {
       const fbUv = FBK ? FBK.uv(g) : null;
       // (C4b: a cabin bucket keeps its live geometry - the cockpit view draws it - and carries its atlas uv beside)
@@ -2745,7 +2770,7 @@
       // CAGE_UNIT x planeScale.
       if (data.cage && typeof AEROSKIN !== 'undefined' && m.fin) {
         const A = AEROSKIN;
-        return matCache[mn] = (m.fin === 'glass')
+        return matCache[mn] = scuffMat((m.fin === 'glass')
           // G216: THE PANE AS THE BUILDER LEFT IT — the spec's own glazing
           // dials (aeroGlassSpec), the pane's measured extent and the field
           // scale it was measured in. This used to be a colour and an
@@ -2790,7 +2815,7 @@
               memF: m.memF || null,                   // G214
               metalK: m.metalK || 0,                  // G215
               ribM: m.ribM, wearK: m.wearK, wearM: m.wearM,
-              side: THREE.DoubleSide });
+              side: THREE.DoubleSide }));      // G2004: scuffMat - the material itself with the damage layer off
       }
       // ...AND SO ARE THE TANKS AND THE PACKS (2026-09-04, user: "the fuel
       // tank material does not seem to make it in game — red in the editor,
@@ -3896,6 +3921,8 @@
     const wreckBuild = { geoOf: new Map(), parentOf: new Map(), meshes0: Object.assign({}, meshes), keyOf: keyOfMesh, rigsAll: null };   // (keyOf: G1860, DMG-D4b's debris)
     grp.traverse(o => { if (!o.isMesh || !o.geometry) return; wreckBuild.parentOf.set(o, o.parent);
       if (o.geometry.attributes.position) wreckBuild.geoOf.set(o.geometry.attributes.position, o.geometry); });
+    // G2004 (DMG-SCUFF): each geometry's finish (the record's class: metal, fabric, wood, glass), taken here with the map
+    if (SCUFF) { wreckBuild.finOf = new Map(); grp.traverse(o => { if (o.isMesh && o.geometry && o.material && o.material.userData) wreckBuild.finOf.set(o.geometry, o.material.userData.aeroFinish || ''); }); }
     let fold = null, foldIn = null, foldEye = null;
     if (FBK && !FBK.ab && window.FLOWN_BAKE.mergeModel) {
       const written = new Set();
@@ -3935,6 +3962,9 @@
     relive(foldIn, k => FBK.inner(k));
     relive(fold, k => FBK.has(k) && !FBK.inner(k), FBK && FBK.hybrid ? 'far' : null);
     relive(foldEye, k => FBK.has(k) && !FBK.inner(k), 'eye');
+    // G2004 (DMG-SCUFF): the baked exterior on its wrapped copy, and the record attributes on every geometry a wrapped
+    // material draws - now, while the hybrid's views are still in the graph (they park below)
+    const scuffAt = SCUFF ? scuffAttach(grp, FBK, scuffMat, SCUFF.W) : null;
     // G1121: the kept live meshes (the cabin's; the hybrid's exterior) out of the graph until they are drawn
     for (const F of [fold, foldIn, foldEye]) if (F && F.park) F.park();
     wreckBuild.folds = [fold, foldIn, foldEye].filter(F => F && F.live);   // (DMG-D4b: the hybrid's folds - GATE DMGUPLOAD reads their members' visibility)
@@ -3958,6 +3988,7 @@
     // a merged bucket's rig moved nothing (the merge takes only those); the
     // first rig stays whatever it is - sparDeltas reads its station table
     const m = Object.assign(entry, { grp, props, deltas, deltaSets, people, still, wreckBuild,
+                        scuff: scuffAt,                                // G2004 (DMG-SCUFF): null with the layer off
                         fold: foldIn,                                  // C4b: the cabin's swap (view(cockpit))
                         foldExt: (fold && fold.fade) || foldEye || null,   // the hybrid: the exterior's band (G1124: two zones)
                         rigs: still ? rigs.filter((r, i) => i === 0 || !still.names.has(r.name)) : rigs,
@@ -4764,7 +4795,9 @@
         poseRigid(c.obj);                             // G357: in the true frame
       }
     }
-    brkCage(xA, yU, cg, [O[0] + oR[0], O[1] + oR[1], oR[2]], skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0], still);   // G1851
+    { const oB = [O[0] + oR[0], O[1] + oR[1], oR[2]];
+      scuffFrame(oB);                              // G2004 (DMG-SCUFF): its own event test (two compares; null with the layer off)
+      brkCage(xA, yU, cg, oB, skinMode === 1 ? SKIN_GAINS[1] : SKIN_GAINS[0], still); }   // G1851
     wreckFrame();                                                    // G1860-G1863 (DMG-D4b): nothing damaged, one test
   }
   // G1851 / G1852 (DMG-D4a): THE SKIN OVER A BREAK (src/viewer/skin_break.js; DEFORM-AND-BREAK §2.5, §5.1, §8.4). Both
@@ -4916,14 +4949,14 @@
   // the record of one group: g { nv, idx }, geo its geometry, base its rest in the frame of `rest` (the nodes'); its
   // binding is made here, at the first break (skin_break.js bindNearest: the generated skin's whole, the cage's on its
   // nearest node and then where the breaks are)
-  function brkRec(owner, g, geo, base, rest, fabric, cage, K) {
-    if (owner.brkR) { if (BRK.recs.indexOf(owner.brkR) < 0) { BRK.recs.push(owner.brkR); if (model.brk) model.brk.recLive = true; } return owner.brkR; }
+  function brkRec(owner, g, geo, base, rest, fabric, cage, K, noPush) {
+    if (owner.brkR) { if (!noPush && BRK.recs.indexOf(owner.brkR) < 0) { BRK.recs.push(owner.brkR); if (model.brk) model.brk.recLive = true; } return owner.brkR; }
     if (!cage) Object.assign(g, SKIN_BREAK.bindNearest(base, g.nv, rest, def.nodes.length));
     // (G1867: the cage's records welded - its vertices bound, evented and posed once a place - and riding whole: see brkCage)
     const R = SKIN_BREAK.make(g, K || SKIN_BREAK.NEAR_K, { fabric, cage, pos: base, rest, weld: !!cage, rideAll: !!cage, shell: !fabric && brkComposite() });
     // (G1866: the record's own geometry first - a folded member is out of the graph, and a walk alone left it out: its
     // index edits then reached nothing, neither the member nor the fold's copy)
-    R.geo = geo; R.geos = [geo]; owner.brkR = R; BRK.recs.push(R);
+    R.geo = geo; R.geos = [geo]; owner.brkR = R; if (!noPush) BRK.recs.push(R);   // (G2004: a scuff's record, on the break list at the first break)
     { const K = model.brk; if (K) { (K.allRecs || (K.allRecs = [])).push(R); K.recLive = true; } }   // (G1859.8: every record, for the heal)
     model.grp.traverse(m => { if (m.geometry && m.geometry.index && m.geometry.index.array === geo.index.array && R.geos.indexOf(m.geometry) < 0) R.geos.push(m.geometry); });
     return R;
@@ -5143,6 +5176,81 @@
     const key = new Map(groups.map(g => [g, near(g)]));
     groups.sort((p, q) => key.get(p) - key.get(q));
   }
+  // ---- G2004 (DMG-SCUFF): THE BREAK PATH'S RECORDS FOR THE SCUFF, made as brkCage makes them (brkCage itself untouched:
+  // these mirror its frame and its groups; the record itself is brkMakeRec, brkCage's own - one recipe, 2 Nov - and a record
+  // made here is the one brkCage finds on its owner at the first break) ----
+  const brkInv3 = (X, Y) => { const Z = [X[1]*Y[2]-X[2]*Y[1], X[2]*Y[0]-X[0]*Y[2], X[0]*Y[1]-X[1]*Y[0]];
+    const a = X[0], b = Y[0], c = Z[0], d = X[1], e = Y[1], f = Z[1], g = X[2], h = Y[2], k = Z[2];
+    const det = a * (e * k - f * h) - b * (d * k - f * g) + c * (d * h - e * g) || 1e-9;
+    return [(e * k - f * h) / det, (c * h - b * k) / det, (b * f - c * e) / det, (f * g - d * k) / det, (a * k - c * g) / det,
+            (c * d - a * f) / det, (d * h - e * g) / det, (b * g - a * h) / det, (a * e - b * d) / det]; };
+  const brkBasis = (X, Y) => { const Z = [X[1]*Y[2]-X[2]*Y[1], X[2]*Y[0]-X[0]*Y[2], X[0]*Y[1]-X[1]*Y[0]]; return [X[0], Y[0], Z[0], X[1], Y[1], Z[1], X[2], Y[2], Z[2]]; };
+  // the cage's record state (model.brk) and its rest frame - brkCage's own `!K.rest` block, the same numbers (the scuff
+  // may come first: its records are made at the roll-out); X0 / Y0 the body's rest axes in the design frame
+  function brkK() {
+    if (!model.brk || model.brk.def !== def) model.brk = { def, T: SKIN_BREAK.topo(def.beams, def.nodes.length), NF: {}, down: [0, -1, 0] };
+    const K = model.brk, N = def.nodes, n = N.length;
+    if (!K.rest || !K.X0) {
+      const R2 = def.refs, avg = ids => { const q = [0, 0, 0]; for (const i of ids) for (let j = 0; j < 3; j++) q[j] += N[i].p[j] / ids.length; return q; };
+      const nrm = a => { const L = Math.hypot(a[0], a[1], a[2]) || 1e-9; return [a[0] / L, a[1] / L, a[2] / L]; };
+      const t1 = avg(R2.noseFrame), t2 = avg(R2.tailMid), u1 = avg(R2.upLo), u2 = avg(R2.upHi);
+      const X0 = nrm([t2[0]-t1[0], t2[1]-t1[1], t2[2]-t1[2]]), Y0 = nrm([u2[0]-u1[0], u2[1]-u1[1], u2[2]-u1[2]]);
+      if (!K.rest) {
+        K.B0 = brkBasis(X0, Y0); K.Mi0 = brkInv3(X0, Y0); K.og = avg(R2.origin || R2.noseFrame);
+        K.rest = new Float64Array(n * 3); for (let i = 0; i < n; i++) for (let j = 0; j < 3; j++) K.rest[i*3+j] = N[i].p[j];
+        K.geoOf = (model.wreckBuild && model.wreckBuild.geoOf) || new Map();
+        if (!K.geoOf.size) model.grp.traverse(m => { if (m.isMesh && m.geometry && m.geometry.attributes.position) K.geoOf.set(m.geometry.attributes.position, m.geometry); });
+      }
+      K.X0 = X0; K.Y0 = Y0;
+    }
+    return K;
+  }
+  // the skin's groups as brkCage lists them - [owner, g, posAttr, base, off, fabric] (the gear legs and control links it
+  // adds under the wall are rigid parts, not skin the scuff draws on)
+  function brkGroups() {
+    const fabW = brkFabricWing(), fabB = def.spec && def.spec.material === 'tubeFabric';
+    const groups = [];
+    const rigsW = (model.wreckBuild && model.wreckBuild.rigsAll && brkInhWant()) ? model.wreckBuild.rigsAll : model.rigs;
+    for (const r of rigsW) groups.push([r, r.g, r.posAttr, r.base, null, (r.bind && r.bind.bound.length) ? fabW : fabB]);
+    for (const s2 of model.surfParts || []) groups.push([s2, null, s2.posAttr, s2.base, s2.pivot, fabW]);
+    for (const s2 of (model.strutRigs || []).concat(model.anchorRigs || [])) groups.push([s2, null, s2.posAttr, s2.base, null, false]);
+    for (let i = groups.length - 1; i >= 0; i--) if (groups[i][0].wreckGone) groups.splice(i, 1);
+    return groups;
+  }
+  // G2004 / 2 Nov (the port onto master): A GROUP'S RECORD - brkCage's own recipe, ONE function for both (the scuff's
+  // mirror of 6 Oct had fallen behind it: the tear census's secName, G3770's uv): its rest in the frame's coordinates,
+  // og + B0 (base + off + o), its normals there (B0^-T n). noPush: made by the scuff at the roll-out, off the break list
+  // until a break. The snapshot's detach (G1858.2, brkDetach) is NOT here: brkCage does it at the first break, on a record
+  // it made or one it found (R.detached), so an intact flight's snapshot is untouched
+  function brkMakeRec(own, pa, base, off, fab, o, inhOn, noPush) {
+    const K = model.brk, SB = SKIN_BREAK, geo = K.geoOf.get(pa);
+    if (!geo || !geo.index) return null;
+    if (own.brkR) return own.brkR;
+    const nv = pa.count, bD = new Float64Array(nv * 3), B0 = K.B0, og = K.og, Mi0 = K.Mi0;
+    const fx = (off ? off[0] : 0) + o[0], fy = (off ? off[1] : 0) + o[1], fz = (off ? off[2] : 0) + o[2];
+    for (let v = 0; v < nv; v++) { const a = base[v*3] + fx, b = base[v*3+1] + fy, c = base[v*3+2] + fz;
+      bD[v*3] = og[0] + B0[0]*a + B0[1]*b + B0[2]*c; bD[v*3+1] = og[1] + B0[3]*a + B0[4]*b + B0[5]*c; bD[v*3+2] = og[2] + B0[6]*a + B0[7]*b + B0[8]*c; }
+    const R = brkRec(own, { nv, idx: geo.index.array }, geo, bD, K.rest, fab, true, inhOn ? SB.INH_K : SB.NEAR_K, noPush);
+    R.secName = own.name || own.meshName || null;   // (the tear census: which bucket - tools/dmg_wreck_stills.js pageTears)
+    if (lookOn() && geo.attributes.uv && geo.attributes.uv.count === nv) R.uv = geo.attributes.uv.array;   // (G3770: the real tube's uv, for its re-ringed copy)
+    R.baseD = bD; R.w = new Float64Array(nv * 3);
+    // (G1858.1: its as-built positions - the rig's own rest array, the drawn attribute's content before any pose - and
+    // that attribute: a heal puts them back. The cage's pose never rewrites a STATIC bucket (it rides the group matrix),
+    // so a wreck's riding stayed in it after a reset: the next flight drew the last wreck's covering - the user's
+    // 'intact' shots full of giant sheets)
+    R.base0 = base; R.paRef = pa;
+    const na = geo.attributes.normal;
+    if (na && na.count === nv) {
+      R.nAttr = na; R.nRest = Float32Array.from(na.array); const nB = R.nB = new Float32Array(nv * 3);
+      for (let v = 0; v < nv; v++) { const x = na.array[v*3], y = na.array[v*3+1], z = na.array[v*3+2];
+        const a = Mi0[0]*x + Mi0[3]*y + Mi0[6]*z, b = Mi0[1]*x + Mi0[4]*y + Mi0[7]*z, c = Mi0[2]*x + Mi0[5]*y + Mi0[8]*z, L = Math.hypot(a, b, c) || 1;
+        nB[v*3] = a / L; nB[v*3+1] = b / L; nB[v*3+2] = c / L; }
+    }
+    return R;
+  }
+  // the scuff's record for a group (brkGroups' row): brkMakeRec with the wall's binding size when the wall binds, kept off
+  // the break list (noPush) until a break
+  const brkCageRec = (own, pa, base, off, fab, o, noPush) => brkMakeRec(own, pa, base, off, fab, o, brkInhWant(), noPush);
   function brkCage(xA, yU, cg, o, gain, still) {
     const D = brkState();
     if (!D || model.gen) return;
@@ -5213,29 +5321,13 @@
       if (!own.brkR && brkFast() && recLeft <= 0) { BRK.recPending = true; continue; }
       if (!own.brkR) {
         recLeft -= pa.count;
-        // its rest in the frame's coordinates, og + B0 (base + off + o), and its normals there (B0^-T n)
-        const nv = pa.count, bD = new Float64Array(nv * 3), B0 = K.B0, og = K.og, Mi0 = K.Mi0;
-        const fx = (off ? off[0] : 0) + o[0], fy = (off ? off[1] : 0) + o[1], fz = (off ? off[2] : 0) + o[2];
-        for (let v = 0; v < nv; v++) { const a = base[v*3] + fx, b = base[v*3+1] + fy, c = base[v*3+2] + fz;
-          bD[v*3] = og[0] + B0[0]*a + B0[1]*b + B0[2]*c; bD[v*3+1] = og[1] + B0[3]*a + B0[4]*b + B0[5]*c; bD[v*3+2] = og[2] + B0[6]*a + B0[7]*b + B0[8]*c; }
         brkDetach(pa, geo, base);                          // G1858.2: the snapshot never ridden
-        const R = brkRec(own, { nv, idx: geo.index.array }, geo, bD, K.rest, fab, true, inhOn ? SB.INH_K : SB.NEAR_K);
-        R.secName = own.name || own.meshName || null;   // (the tear census: which bucket - tools/dmg_wreck_stills.js pageTears)
-        if (lookOn() && geo.attributes.uv && geo.attributes.uv.count === nv) R.uv = geo.attributes.uv.array;   // (G3770: the real tube's uv, for its re-ringed copy)
-        R.baseD = bD; R.w = new Float64Array(nv * 3);
-        // (G1858.1: its as-built positions - the rig's own rest array, the drawn attribute's content before any pose - and
-        // that attribute: a heal puts them back. The cage's pose never rewrites a STATIC bucket (it rides the group matrix),
-        // so a wreck's riding stayed in it after a reset: the next flight drew the last wreck's covering - the user's
-        // 'intact' shots full of giant sheets)
-        R.base0 = base; R.paRef = pa;
-        const na = geo.attributes.normal;
-        if (na && na.count === nv) {
-          R.nAttr = na; R.nRest = Float32Array.from(na.array); const nB = R.nB = new Float32Array(nv * 3);
-          for (let v = 0; v < nv; v++) { const x = na.array[v*3], y = na.array[v*3+1], z = na.array[v*3+2];
-            const a = Mi0[0]*x + Mi0[3]*y + Mi0[6]*z, b = Mi0[1]*x + Mi0[4]*y + Mi0[7]*z, c = Mi0[2]*x + Mi0[5]*y + Mi0[8]*z, L = Math.hypot(a, b, c) || 1;
-            nB[v*3] = a / L; nB[v*3+1] = b / L; nB[v*3+2] = c / L; }
-        }
-      } else if (BRK.recs.indexOf(own.brkR) < 0) { BRK.recs.push(own.brkR); K.recLive = true; }   // (a record let go at a heal or an A/B: held again)
+        brkMakeRec(own, pa, base, off, fab, o, inhOn).detached = true;   // (2 Nov: the one recipe, the scuff's too)
+      } else {
+        // (G2004: a record the scuff made at the roll-out - its snapshot detached here, at the first break, as brkCage's own)
+        if (!own.brkR.detached) { brkDetach(pa, geo, base); own.brkR.detached = true; }
+        if (BRK.recs.indexOf(own.brkR) < 0) { BRK.recs.push(own.brkR); K.recLive = true; }   // (a record let go at a heal or an A/B: held again)
+      }
       tRec += performance.now() - t0;
     }
     // G1855-G1857 / G1859 (DMG-WALL): THE BINDING INHERITED, BRK_BIND places a frame (skin_break.js inhSteps); until it is
@@ -6019,6 +6111,196 @@
     WK.posOf = null; WK.bladeGone = null; WK.bays = null;
     WK.hid = []; WK.idx = []; WK.pos = []; WK.model = null; WK.P = null; WK.W = null; WK.t = null; WK.rigs = null; WK.cab = null;
   }
+  // ---- G2000-G2009 (DMG-SCUFF): THE DAMAGE DRAWN WHERE THE PHYSICS PUT IT (skin_scuff.js) ------------------------------
+  // The layer: on with the damage layer (the build's params.damage, else ?damage / FLYDIY_DAMAGE, else the default - the
+  // solver's own DMG_ON rule), off with ?scuff=0 (FLYDIY_SCUFF = false: the A/B, no wrapper made). null = off: the model
+  // carries no scuff state, buildModel wraps nothing, scuffFrame returns on its first test
+  function scuffFor(d) {
+    if (!window.SKIN_SCUFF || window.FLYDIY_SCUFF === false) return null;
+    const on = ((d && d.params && d.params.damage) ?? (typeof window.FLYDIY_DAMAGE === 'boolean' ? window.FLYDIY_DAMAGE
+               : (typeof GEN_DAMAGE_DEFAULT !== 'undefined' && GEN_DAMAGE_DEFAULT))) === true;
+    if (!on) return null;
+    const S = window.SKIN_SCUFF;
+    return { S, wrap: S.wrap, U: S.uniforms(THREE), W: S.waker() };   // W: this flight's wrappers asleep / awake (skin_scuff.js wrap)
+  }
+  // at the build: the baked exterior on its wrapped copy; every geometry a wrapped material draws gets the two record
+  // attributes, ZERO (aDmg Uint8 x4, aDmgD Int8 x4: 8 bytes a vertex) - one pair per position attribute (the fold and its
+  // views share theirs). A wrapped program draws nothing without them (a missing attribute reads the context's generic
+  // value, which another program may have set), so every one has them from the start
+  function scuffAttach(grp, FBK, scuffMat, W) {
+    const S = window.SKIN_SCUFF;
+    const at = { W, pre: 0, bindUs: 10, ms: { fields: 0, rec1: 0, recs: 0, bind: 0, tick: 0, upload: 0 }, byPos: new Map(), byGeo: new Map(), byIdx: new Map(), st: S.state(), vB: 0, vF: 0, F: null, req: false, work: false,
+                 recs: [], todo: null, made: false, pend: 0, bound: 0, show: true, any: false, bytes: 0, uploads: 0, mkMs: 0, frameMax: 0, verts: 0 };
+    const bk = FBK && FBK.mat, bkC = bk ? scuffMat(bk, 'baked') : null;
+    grp.traverse(o => {
+      if (!o.isMesh || !o.geometry || !o.geometry.attributes.position) return;
+      if (bk && o.material === bk) o.material = bkC;
+      const ms = Array.isArray(o.material) ? o.material : [o.material];
+      if (!ms.some(m => m && m.userData && m.userData.scuff)) return;
+      const g = o.geometry, pa = g.attributes.position;
+      let e = at.byPos.get(pa);
+      if (!e) {
+        const nv = pa.count;
+        e = { a: new THREE.BufferAttribute(new Uint8Array(nv * 4), 4, true), d: new THREE.BufferAttribute(new Int8Array(nv * 4), 4, true) };
+        at.byPos.set(pa, e); at.verts += nv;
+      }
+      if (!g.attributes.aDmg) { g.setAttribute('aDmg', e.a); g.setAttribute('aDmgD', e.d); }
+      at.byGeo.set(g, e); if (g.index) at.byIdx.set(g.index, e);
+    });
+    return at;
+  }
+  // where a record's bytes go: its geometry's own pair (drawn itself), and every merged copy that draws it (the fold's,
+  // the still merge's - each registered its index mirror on the source: G1866's ixMirror, with its vertex offset)
+  function scuffTargets(at, geo) {
+    const out = [], own = at.byGeo.get(geo);
+    if (own) out.push({ e: own, vo: 0 });
+    for (const M of (geo.userData && geo.userData.ixMirror) || []) { const e = at.byIdx.get(M.attr); if (e && e !== own) out.push({ e, vo: M.vo }); }
+    return out;
+  }
+  function scuffUpload(at, R) {
+    const n4 = R.nv * 4;
+    for (const T of R.scT) {
+      const o4 = T.vo * 4;
+      T.e.a.array.set(R.sc.rec, o4); T.e.d.array.set(R.sc.dir, o4);
+      T.e.a.addUpdateRange(o4, n4); T.e.d.addUpdateRange(o4, n4); T.e.a.needsUpdate = true; T.e.d.needsUpdate = true;
+      at.bytes += n4 * 2; at.uploads++;
+    }
+  }
+  // EVERY FRAME (from poseModel, just before brkCage): two compares while nothing happens. On an EVENT (the damage
+  // state's vB or vF moved: a break, a set, a slide) the fields are read and a pass is asked for; the records are made
+  // (budgeted), the no-break binding requested where the damage is, the pass ticked (skin_scuff.js SC.budget places a
+  // frame), and each record finished is uploaded - its own range of its pair and of every merged copy's
+  function scuffFrame(o) {
+    const at = model && model.scuff;
+    if (!at || model.gen) return;
+    const D = dmgNow();
+    if (!D) return;
+    const ev = D.vB !== at.vB || D.vF !== at.vF;
+    if (!ev && !at.work) return;
+    const S = SKIN_SCUFF, SB = SKIN_BREAK, t0 = performance.now(), PM = at.ms;   // (PM: each phase's worst, ms)
+    const K = brkK();
+    if (ev) { at.vB = D.vB; at.vF = D.vF; at.F = S.fields(def, D, { X0: K.X0, Y0: K.Y0 }); at.req = true; }
+    const tK = performance.now(); PM.fields = Math.max(PM.fields, tK - t0);
+    // the records: made at the roll-out (scuffPrelink, under its screen); here only where it could not run - ~4 ms of
+    // them a frame from the first event
+    if (!at.made) { scuffRecs(at, o, 4, K, PM); at.mkMs += performance.now() - tK; PM.recs = Math.max(PM.recs, performance.now() - tK); }
+    if (at.made) {
+      // the binding the pass reads: with nothing broken, skin_break's own where the damage is (bindWanted); broken, the
+      // break path's budgeted binding - a pass again once either has moved
+      let pend = 0;
+      let b = 0, cut = false;   // (cut: the frame's time ran out before every record was asked - more next frame)
+      // (the binding's budget from its own measured cost a place - skin_break's bindNearest, ~10 us a place assumed
+      // until measured - so one record's call never runs past the frame's time)
+      const tB = performance.now();
+      // (DMG-WALL: once a break bound the records by inheritance - K.inhL - that IS the binding, kept through a heal;
+      // nearest-node binding here would overwrite it)
+      if (!D.br.length && at.F && !at.F.zero && !(K.inhL && K.inhL.length)) {
+        for (const R of at.recs) {
+          const left = S.SC.frameMs - (performance.now() - t0);
+          if (left <= 0) { cut = true; break; }
+          const want = Math.min(S.SC.bindBudget - b, Math.max(16, Math.floor(left * 1000 / at.bindUs)));
+          if (want <= 0) { cut = true; break; }
+          const t1 = performance.now(), n = S.bindWanted(R, at.F, SB, K.T, want);
+          if (n >= 16) at.bindUs = 0.7 * at.bindUs + 0.3 * Math.max(1, (performance.now() - t1) * 1000 / n);
+          b += n;
+        }
+        if (b) { at.bound += b; at.req = true; }
+      }
+      PM.bind = Math.max(PM.bind, performance.now() - tB);
+      at.lastBound = b || (cut ? 1 : 0);
+      // a record's binding moved (skin_break bumps R.dv: an event's kept weights, the wall's inheritance done) - a pass
+      // again on it, once there is damage to draw
+      let dv = 0; for (const R of at.recs) dv += R.dv || 0;
+      if (dv !== at.dv) { at.dv = dv; if (at.F && !at.F.zero) at.req = true; }
+      for (const R of at.recs) if (R.pending) pend += R.pending.length;
+      if (at.pend && !pend) at.req = true;
+      at.pend = pend;
+      if (at.req && at.F) { S.request(at.st, at.F, at.recs); at.req = false; }
+      const tT = performance.now();
+      const fin = S.tick(at.st, null, Math.max(0.5, S.SC.frameMs - (tT - t0)));   // (the frame's time left)
+      const tU = performance.now(); PM.tick = Math.max(PM.tick, tU - tT);
+      for (const R of fin) scuffUpload(at, R);
+      PM.upload = Math.max(PM.upload, performance.now() - tU);
+      if (fin.length) {
+        if (fin.some(R => R.sc.cls === S.CLS.glass)) {
+          const P = S.paneVec(at.st, Q => { const A = Q.R.scA; return [A[Q.at * 3], A[Q.at * 3 + 1], A[Q.at * 3 + 2]]; });
+          SCUFF_U().uDmgPane.value.forEach((v, k) => v.set(P[k * 4], P[k * 4 + 1], P[k * 4 + 2], P[k * 4 + 3]));
+        }
+        if (!S.busy(at.st)) at.any = at.recs.some(R => R.sc.any);
+        else if (fin.some(R => R.sc.any)) at.any = true;
+        SCUFF_U().uDmgOn.value = at.any && at.show ? 1 : 0;
+        // the block wakes with the first damage drawn (its programs linked at the roll-out: scuffPrelink) and sleeps
+        // again when the records are zero (a reset)
+        at.W.awake = at.any; S.wakeSet(at.W);
+      }
+    }
+    at.work = !at.made || at.req || S.busy(at.st) || at.pend > 0 || at.lastBound > 0
+      || !!(K.inhIt && !(K.inhSt && K.inhSt.done));   // (the wall's inheritance still binding: its R.dv to come)   // (bound places this frame: maybe more next)
+    at.frameMax = Math.max(at.frameMax, performance.now() - t0);
+  }
+  // G2004.1: THE DAMAGE'S PROGRAMS AT THE ROLL-OUT (compileCraftLinks, after the craft's own). The wrapped materials draw asleep (the plain program)
+  // until the first damage; here, under the craft step's screen, the same walk again with the block awake - the craft and
+  // the hybrid's kept meshes and band twins by stand-in, compiled and drawn once - then asleep again. Every material
+  // keeps both programs (three's per-material map), so the wake at the crash links nothing. Damage off: no model.scuff
+  function scuffPrelink(inW) {
+    const at = model && model.scuff;
+    if (!at || !at.W || typeof SKIN_SCUFF === 'undefined') return null;
+    const W = at.W, S = SKIN_SCUFF, tgt = aa && aa.target ? aa.target() : null;
+    // the records too, here under the screen (the biggest group's alone was 16-31 ms on the SwiftShader page: at the
+    // first event that was a frame over budget, once)
+    if (!at.made && !model.gen) {
+      const t1 = performance.now(), O = model.off || SKIN_CFG[curKey].off, oR = model.oRest || [0, 0, 0];
+      try { scuffRecs(at, [O[0] + oR[0], O[1] + oR[1], oR[2]], Infinity, brkK(), null); } catch (e) { console.warn('scuff records:', e && e.message); }
+      at.premade = +(performance.now() - t1).toFixed(1);
+    }
+    W.pre++; S.wakeSet(W);
+    const done = () => { W.pre--; S.wakeSet(W); at.pre++; };
+    let job;
+    try {
+      const { KG, KEPT } = keptGroup();
+      const mine = [];   // the craft's meshes on a wrapped material (their first draws awake), and the kept stand-ins
+      craft.traverse(o => { if (o.isMesh && o.material && (Array.isArray(o.material) ? o.material : [o.material]).some(m => m && m.userData && m.userData.scuff)) mine.push(o); });
+      job = compileSliced(craft, tgt, scene, false, inW)
+        .then(() => KG.children.length ? compileSliced(KG, tgt, scene, false, inW) : null)
+        .then(() => warmDrawSliced(scene, tgt, null, mine.concat(KEPT), inW));
+    } catch (e) { job = Promise.reject(e); }
+    return shaderProgress(job.then(done, e => { done(); console.warn('scuff prelink:', e && e.message); }), 'world', 60000);
+  }
+  // THE RECORDS: the break path's own (brkCageRec - the same record a break would make, off the break list until one
+  // comes), only for groups something draws with a pair; ms: the time they may take (Infinity: all of them). The pose
+  // offset they are made with is the model's own constant (poseModel's oB: model.off + model.oRest), not a frame's
+  function scuffRecs(at, o, ms, K, PM) {
+    const S = SKIN_SCUFF, t0 = performance.now();
+    if (!at.todo) at.todo = brkGroups().filter(G => { const geo = K.geoOf.get(G[2]); return geo && geo.index && scuffTargets(at, geo).length; });
+    const fin = model.wreckBuild && model.wreckBuild.finOf;
+    while (at.todo.length && performance.now() - t0 < ms) {
+      const [own, , pa, base, off, fab] = at.todo.shift(), tR = performance.now();
+      const R = brkCageRec(own, pa, base, off, fab, o, true);
+      if (PM) PM.rec1 = Math.max(PM.rec1, performance.now() - tR);
+      if (!R) continue;
+      if (!R.sc) S.prep(R, { cls: S.clsOf(fin ? fin.get(R.geo) : ''), nrm: R.nB || S.restNormals(R.baseD, R.idx0 || R.idx, R.nv, R.rep),
+                             base: R.baseD, Mi: K.Mi0, nA: R.nRest || null });
+      R.restN = K.rest; R.scA = base; R.scT = scuffTargets(at, R.geo);
+      at.recs.push(R);
+    }
+    if (!at.todo.length) { at.made = true; at.req = !!at.F; }   // (made before any event: no pass wanted, nothing per frame)
+  }
+  const SCUFF_U = () => SKIN_SCUFF.uniforms(THREE);
+  // the hooks: the A/B on the same page (the block's branch off and on: no program changes) and the numbers
+  window.FLYDIY_SCUFF_SHOW = on => { const at = model && model.scuff; if (!at) return null; at.show = on !== false; SCUFF_U().uDmgOn.value = at.any && at.show ? 1 : 0; return at.show; };
+  window.FLYDIY_SCUFF_STATS = () => {
+    const at = model && model.scuff;
+    if (!at) return { on: false };
+    const st = at.st, cnt = { crush: 0, scrape: 0, torn: 0, verts: 0 };
+    for (const R of at.recs) { const r = R.sc.rec; for (let v = 0; v < R.nv; v++) { cnt.verts++; if (R.sc.cls === 4) continue; if (r[v * 4]) cnt.crush++; if (r[v * 4 + 1]) cnt.scrape++; if (r[v * 4 + 2]) cnt.torn++; } }
+    return { on: true, recs: at.recs.length, attrVerts: at.verts, passes: st.passes, places: st.places, frameMs: +at.frameMax.toFixed(2), tickMs: +st.ms.frameMax.toFixed(2),
+             tornMs: +st.ms.torn.toFixed(2), mkMs: +at.mkMs.toFixed(1), bound: at.bound, uploads: at.uploads, bytes: at.bytes, any: at.any, uOn: SCUFF_U().uDmgOn.value,
+             awake: at.W.on, flips: at.W.flips, mats: at.W.mats.size, prelinks: at.pre, premade: at.premade == null ? null : at.premade, made: at.made,
+             phases: Object.fromEntries(Object.entries(at.ms).map(([k, v]) => [k, +v.toFixed(2)])), bindUs: +at.bindUs.toFixed(2),
+             panes: st.panes.map(P => ({ sev: +P.sev.toFixed(3), slot: P.slot })), counts: cnt, busy: S_busy(st) };
+  };
+  const S_busy = st => (window.SKIN_SCUFF ? SKIN_SCUFF.busy(st) : false);
+
   // G1002 (A6-GROUND, the playtest's "floaty" taxi): THE CONTACT SHADOWS. One instanced draw of soft dark blobs on
   // the ground straight under each tyre (and a faint one under the fuselage), fading with the tyre's height over
   // the ground it stands on - contact_shadow.js says why and how.
@@ -13439,6 +13721,7 @@
       catch (e) { console.warn('craft depth compile:', e && e.message); }
     }
     return shaderProgress(Promise.all(jobs).catch(e => console.warn('craft compile:', e && e.message)), 'world', 60000)
+      .then(() => scuffPrelink(inW))
       .then(() => compileCraftShed());
   }
   // the craft's programs STARTED, not awaited: the one loading's 'spec' fires it (the model it flies is built there); the
@@ -19036,6 +19319,7 @@
   // G1898: ?damage=1|0 - the damage layer for this page's flights (and the worker's, through its init), ahead of
   // GEN_DAMAGE_DEFAULT; a build's own params.damage still wins
   try { const m = /[?&]damage=([01])(&|$)/.exec(location.search || ''); if (m) window.FLYDIY_DAMAGE = m[1] === '1'; } catch (e) {}
+  try { if (/[?&]scuff=0(&|$)/.test(location.search || '')) window.FLYDIY_SCUFF = false; } catch (e) {}   // G2004: the damage drawn, off (the A/B)
   const SIMW_ON = (() => { try { const m = /[?&]simw=([01])(&|$)/.exec(location.search || ''); if (m) return m[1] === '1';
     const p = prefGet('flydiy.simw', ''); if (p === '0' || p === '1') return p === '1'; } catch (e) {} return SIMW_DEFAULT; })();
   const SIMW = (SIMW_ON && !GARAGE_ONLY && typeof SIM_LINK !== 'undefined' && typeof location !== 'undefined') ? SIM_LINK.make({
