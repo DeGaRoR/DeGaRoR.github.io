@@ -18230,6 +18230,15 @@
     window.FLYDIY_MENU.add({ k: 'display', label: 'Display', when: () => !inGarage, page: pg(['instruments', 'map', 'trace', 'screen']), before: 'graphics' });
     window.FLYDIY_MENU.add({ k: 'log', label: 'Export my log', sec: '', when: () => !!(window.FLIGHT_REC && window.FLIGHT_REC.save),
       act: () => { try { window.FLIGHT_REC.save(); } catch (e) { console.warn('flyDiy: the log -', e && e.message); } }, before: 'main' });
+    // G3910 (PHONE-1b, the installed app; the user 2 Nov: "a force sync explicit option"): update_now.js does both - and the
+    // whole screen, where the browser has the Fullscreen API (an installed window keeps the status bar otherwise)
+    const UN = () => window.UPDATE_NOW;
+    window.FLYDIY_MENU.add({ k: 'updcheck', label: 'Check for update', sec: '', when: () => !!(UN() && UN().checkNow),
+      act: () => { gmOpen(false); UN().checkNow(); }, before: 'main' });
+    window.FLYDIY_MENU.add({ k: 'updclean', label: 'Clean download & reload', sec: '', when: () => !!(UN() && UN().cleanReload),
+      act: () => { gmOpen(false); UN().cleanReload(); }, before: 'main' });
+    window.FLYDIY_MENU.add({ k: 'fullscreen', label: 'Full screen', sec: '', when: () => !!(document.fullscreenEnabled && document.documentElement.requestFullscreen),
+      act: () => { gmOpen(false); try { if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => {}); } catch (e) {} }, before: 'main' });
     window.FLYDIY_MENU.add({ k: 'dev', label: 'Dev', when: () => !inGarage,
       page: body => { if (!flDevOn) flDevSet(true); pg(['patterns', 'engines', 'controls', 'ground', 'scenery', 'world', 'log', 'overlays'])(body);
         const b = flSection(body, 'pilotS', 'pilot', 'the style and the personality'); if (b) FL_BUILD.slot_pilot(b); }, before: 'main' });

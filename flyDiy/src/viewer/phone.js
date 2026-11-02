@@ -48,6 +48,9 @@
   'use strict';
   const W = typeof window !== 'undefined' ? window : null;
   if (!W || !W.PROFILE || !W.PROFILE.is || !W.PROFILE.is('ui', 'touch')) return;   // THE DESKTOP: nothing below runs
+  // THE TEST FLIGHT'S PAGE (PHONE-TESTFLIGHT 2 Nov: html.phfly beside html.phone, PROFILE.flight): no split, sheet, tab bar,
+  // knob, editor or tick there - the flight has the whole screen (phone.css stands down on it the same way)
+  if (W.PROFILE.flight || (W.document && W.document.documentElement && W.document.documentElement.classList.contains('phfly'))) return;
   const D = W.document, $ = id => D.getElementById(id);
   const KNOB = 22, HIT = 48, FINE_MS = 350, FINE_GAIN = 0.1, STILL_PX = 6, REP0 = 400, REP = 80;
   const V_FREE = 40, V_MIN = 0.05;
