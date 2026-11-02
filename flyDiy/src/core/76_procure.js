@@ -774,7 +774,37 @@ function procureAnchor(doc, slot, spec, opts) {
 // ledger it measured (buildGen). An airframe whose spec no longer carries its certificate's fingerprint is MODIFIED:
 // `factory` false, the certificate withdrawn (kept, struck, with the reason), the change billed (dm11) once; a save
 // that only repainted it (the fingerprint unmoved) changes nothing. -> { ok, doc, modified, bill, why }
+// G3465 / G3780 (BELLY-POD-2; the user 27 Oct: "Belly pod should indeed be excluded from certificates"): THE POD IS A
+// BOLT-ON OUTSIDE THE CERTIFICATE. Fitting, resizing or removing it never withdraws, re-checks or re-stamps one: the
+// certificate's rule below (procureOnSaveCert - the cert rule's own, unchanged) is handed the aeroplane WITHOUT its pod
+// and the ledger without the pod's line (the cert rule's procureFp leaves the pod out too - claude/ready/cert-pod;
+// stripping it here keeps that true on any base). The pod is billed as ITS OWN LEDGER LINE (60d: the moulding, the
+// fittings, the hatch), on every airframe alike: a save whose pod costs more than was paid for a pod before
+// (`podPaid`) pays the difference ('upgrade'); a smaller or removed pod refunds nothing; a pod fitted again is paid
+// again. (A pod billed before this rule sits in the airframe's ledger: that line counts as paid.) -> { ok, doc,
+// modified, bill, why }, the pod's line joined to the certificate side's bill
 function procureOnSave(doc, slot, spec, ledger) {
+  const A0 = doc && doc.career && doc.career.airframes && doc.career.airframes[slot];
+  if (!A0) return procureOnSaveCert(doc, slot, spec, ledger);
+  const podNow = ledger && ledger.pod ? Math.round(+ledger.pod.cost || 0) : 0;
+  const paid = A0.podPaid != null ? A0.podPaid : (A0.ledger && A0.ledger.pod ? Math.round(+A0.ledger.pod[1] || 0) : 0);
+  let d0 = doc, podBill = null;
+  if (podNow !== paid || (A0.ledger && A0.ledger.pod)) {
+    d0 = prClone(doc);
+    const R = d0.career.airframes[slot], cost = Math.max(0, podNow - paid);
+    R.podPaid = podNow;
+    if (R.ledger && R.ledger.pod) delete R.ledger.pod;        // (the certificate side's ledger never carries the pod)
+    if (cost > 0) { playerCharge(d0, cost, 'upgrade', slot); podBill = { cost, lines: [{ k: 'pod', cost }] }; }
+  }
+  const specC = spec && typeof spec === 'object' ? Object.assign({}, spec, { pod: undefined }) : spec;
+  let ledgerC = ledger;
+  if (ledger && ledger.pod) { ledgerC = Object.assign({}, ledger); delete ledgerC.pod; }
+  const r = procureOnSaveCert(d0, slot, specC, ledgerC);
+  if (!podBill) return r;
+  const b = r.bill;
+  return Object.assign({}, r, { bill: b ? { cost: (b.cost || 0) + podBill.cost, lines: (b.lines || []).concat(podBill.lines) } : podBill });
+}
+function procureOnSaveCert(doc, slot, spec, ledger) {
   const c = doc && doc.career, A = c && c.airframes && c.airframes[slot];
   if (!A) return { ok: true, doc, modified: false, bill: null, why: 'not an airframe of the career' };
   const fp = procureFp(spec);

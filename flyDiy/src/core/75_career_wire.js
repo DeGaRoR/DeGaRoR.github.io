@@ -302,6 +302,12 @@ function careerStopRecord(o) {
   // departure hour (else the stop's hour less the flight)
   if (o.people && typeof o.people === 'object') out.people = { on: (Array.isArray(o.people.on) ? o.people.on : []).filter(x => typeof x === 'string'), off: (Array.isArray(o.people.off) ? o.people.off : []).filter(x => typeof x === 'string') };
   if (typeof o.departHour === 'number' && isFinite(o.departHour)) out.departHour = Math.round((((o.departHour % 24) + 24) % 24) * 100) / 100;
+  // (G3464, BELLY-POD-2) THE BELLY POD TORN OFF TOOK ITS FREIGHT: the kilos of the items that rode in it (the damage
+  // layer's verdict, sim.damage().structural.pod: freight 'lost') - only then a key (every other record as it was)
+  if (o.structural && o.structural.podFreight === 'lost' && Array.isArray(o.items)) {
+    const kg = o.items.filter(p => p && p.space === 'pod').reduce((a, p) => a + (+p.kg || 0), 0);
+    if (kg > 0) out.structural.podLost = Math.round(kg * 1000) / 1000;
+  }
   return out;
 }
 // (G2705 CAREER-DAMAGE, §R.4: "free repair everywhere, but after a crash you reset to your STARTING PLACE") A CRASH

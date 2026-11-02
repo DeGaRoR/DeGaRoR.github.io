@@ -235,7 +235,74 @@ function freightDoorPass(card, door, item) {
 // an item against every door of a card -> { ok, door, how } (the first door that takes it, in the card's order)
 function freightDoorAny(card, item) {
   for (const d of (card && card.doors) || []) { const r = freightDoorPass(card, d, item); if (r.ok) return Object.assign({ door: d.id }, r); }
+  if (card && card.pod) { const r = freightPodDoor(card.pod, item); if (r.ok) return { ok: true, door: 'pod', how: r.how, pod: true }; }   // G3464
   return { ok: false, door: null, why: freightItem(item).id + ' passes no door' };
+}
+
+// ---- THE BELLY POD AS A SPACE (G3464, BELLY-POD-2; FREIGHT §1 "later a belly pod") ----------------------------------
+// freightCardPod(card, def, yD) -> the card with `pod`: the def's belly pod (60d genPodSpace) in the CARD'S frame (x m aft
+// of the firewall and z the lateral as they are; y the cage sheet's, gen y + yD - the join's keel datum, as FREIGHT-STRAP
+// reads it), its side hatch, its floor limit and rated load, and its shell (its kilograms at its centroid: the card's
+// base was measured without one). A card without a def pod is returned as it is. `sig` keys the memos.
+function freightCardPod(card, def, yD) {
+  const R = def && def.parts && def.parts.pod;
+  if (!card || !R || typeof genPodSpace !== 'function') return card;
+  const sp = genPodSpace(def.spec, def.parts.ST, R), y = +yD || 0, B = sp.box, D = sp.door;
+  const pod = { box: { x0: frR3(B.x0), x1: frR3(B.x1), y0: frR3(B.y0 + y), y1: frR3(B.y1 + y), halfW: frR3(B.halfW) },
+                door: { side: D.side, x0: frR3(D.x0), x1: frR3(D.x1), y0: frR3(D.y0 + y), y1: frR3(D.y1 + y), w: frR3(D.w), h: frR3(D.h) },
+                kgM2: sp.floorKgM2, maxKg: sp.maxKg, litres: frR3(sp.litres), shell: { kg: frR3(R.shellKg), x: frR3(R.xShell) } };
+  return Object.assign({}, card, { pod, sig: (card.sig || card.id || '') + '|pod:' + [pod.box.x0, pod.box.x1, pod.box.y1 - pod.box.y0, pod.box.halfW].join(',') });
+}
+// THE POD'S HATCH: a side door (FREIGHT §1: "an item must pass the door"), entered sideways and level. An orientation
+// passes if its height fits the hatch and the hold, its width the hold's, its length the hold's, and its length gets
+// through the hatch either straight (length <= the hatch's width) or SWUNG IN, end first, round the corner from the hatch
+// into the hold: the ladder-round-a-corner bound for a plank of the item's width t, L <= ((W - t)^(2/3) + (w - t)^(2/3))^(3/2)
+// with W the hold's width and w the hatch's (exact for a line, a little generous for a plank; a pod has only its side
+// hatch, so a 1.9 m pair of skis needs a long hatch or a wide pod). -> { ok, how: [lx, ly, lz] }
+const frPodSwing = (W, w, t) => (W > t && w > t) ? CORE_MATH.pow(CORE_MATH.pow(W - t, 2 / 3) + CORE_MATH.pow(w - t, 2 / 3), 1.5) : 0;
+function freightPodDoor(pod, item) {
+  const it = freightItem(item), K = FREIGHT_KINDS[it.kind], q = K.squeeze || 1, B = pod.box, D = pod.door;
+  for (const [lx, ly, lz] of frOrients(it)) {
+    if (!(ly * q <= D.h + 1e-9 && ly <= B.y1 - B.y0 + 1e-9 && lz <= 2 * B.halfW + 1e-9 && lx <= B.x1 - B.x0 + 1e-9)) continue;
+    if (lx * q <= D.w + 1e-9 || lx <= frPodSwing(2 * B.halfW, D.w, lz * q) + 1e-9) return { ok: true, how: [lx, ly, lz] };
+  }
+  return { ok: false, why: it.id + ' (' + it.dims.join(' x ') + ' m) passes neither a door nor the pod\'s hatch' };
+}
+// one item into the pod beside the pod's items already there (placed rows with space 'pod'): the floor first, then on a
+// stackable item, low, nearest the station xt, nearest the middle - the cabin packer's own order. -> a placed row | null
+function frPodPlace(pod, placed, it, xt) {
+  const P = FREIGHT_PACK, B = pod.box, mine = placed.filter(p => p.space === 'pod');
+  let best = null;
+  for (const [lx, ly, lz] of frOrients(it)) {
+    const q = FREIGHT_KINDS[it.kind].squeeze || 1;            // (this orientation through the hatch, as freightPodDoor)
+    if (ly * q > pod.door.h + 1e-9 || lz > 2 * B.halfW + 1e-9 || (lx * q > pod.door.w + 1e-9 && lx > frPodSwing(2 * B.halfW, pod.door.w, lz * q) + 1e-9)) continue;
+    const xs = [];
+    for (let x0 = B.x0; x0 + lx <= B.x1 + 1e-9; x0 += P.step) xs.push(frR3(x0));
+    xs.sort((a, b) => Math.abs(a + lx / 2 - xt) - Math.abs(b + lx / 2 - xt) || a - b);
+    const zs = [];
+    for (let k = 0; k * P.zStep <= B.halfW; k++) { zs.push(frR3(-lz / 2 + k * P.zStep)); if (k) zs.push(frR3(-lz / 2 - k * P.zStep)); }
+    for (const x0 of xs) {
+      const x1 = frR3(x0 + lx), ys = [{ y: B.y0, on: null, level: 0 }];
+      for (const p of mine) if (p.stack && p.at.x0 <= x0 + 1e-9 && p.at.x1 >= x1 - 1e-9) ys.push({ y: p.at.y1, on: p.id, sup: p, level: 1 });
+      for (const { y, on, sup, level } of ys) {
+        if (y + ly > B.y1 + 1e-9) continue;
+        for (const z0 of zs) {
+          const z1 = frR3(z0 + lz);
+          if (z0 < -B.halfW - 1e-9 || z1 > B.halfW + 1e-9) continue;
+          if (sup && (z0 < sup.at.z0 - 1e-9 || z1 > sup.at.z1 + 1e-9)) continue;
+          const b = { x0, x1, y0: y, y1: y + ly, z0, z1 };
+          if (mine.some(q => frOverlap(b, q.at))) continue;
+          const sc = [level, frR3(y - B.y0), frR3(Math.abs(0.5 * (x0 + x1) - xt)), frR3(Math.abs(0.5 * (z0 + z1)))];
+          let better = !best;
+          for (let k = 0; !better && k < sc.length; k++) { if (sc[k] < best.sc[k] - 1e-9) better = true; else if (sc[k] > best.sc[k] + 1e-9) break; }
+          if (better) best = { sc, row: { id: it.id, kind: it.kind, kg: it.kg, dims: it.dims, stack: it.stack && FREIGHT_KINDS[it.kind].stack,
+            at: { x0: frR3(x0), x1, y0: frR3(y), y1: frR3(y + ly), z0: frR3(z0), z1 }, on, door: 'pod', how: [lx, ly, lz], space: 'pod' } };
+          break;
+        }
+      }
+    }
+  }
+  return best ? best.row : null;
 }
 // THE HARD NO-NO: the items of a load that pass no door of this card -> [id]
 function freightNoDoor(card, items) {
@@ -290,6 +357,7 @@ function freightReport(card, placed, opts) {
   const pax = seats.filter(s => s.occ && s.i > 0);
   const paxWanted = Math.max(0, o.pax | 0);
   let kg = Mm.base.kg, mx = Mm.base.kg * Mm.base.x;
+  if (card.pod) { kg += card.pod.shell.kg; mx += card.pod.shell.kg * card.pod.shell.x; }   // G3464: the pod's own shell
   for (const s of pax) { kg += occKg; mx += occKg * s.x; }
   for (const p of placed) { const xc = 0.5 * (p.at.x0 + p.at.x1); kg += p.kg; mx += p.kg * xc; }
   const x = mx / kg;
@@ -307,12 +375,13 @@ function freightReport(card, placed, opts) {
   for (const p of placed) {
     if (p.on) continue;
     const A = (p.at.x1 - p.at.x0) * (p.at.z1 - p.at.z0);
-    const space = frSpaceOf(spaces, 0.5 * (p.at.x0 + p.at.x1)), S = spaces.find(s => s.id === space);
+    const space = p.space === 'pod' ? 'pod' : frSpaceOf(spaces, 0.5 * (p.at.x0 + p.at.x1)), S = p.space === 'pod' && card.pod ? { kgM2: card.pod.kgM2 } : spaces.find(s => s.id === space);
     const kgM2 = A > 0 ? (load[p.id] || 0) / A : Infinity;
     floor.push({ id: p.id, space, kgM2: frR3(kgM2), limit: S ? S.kgM2 : null, ok: !S || kgM2 <= S.kgM2 + 1e-9 });
   }
   const bagS = spaces.find(s => s.id === 'baggage');
-  const bagKg = frR3(placed.filter(p => bagS && frSpaceOf(spaces, 0.5 * (p.at.x0 + p.at.x1)) === 'baggage').reduce((s, p) => s + p.kg, 0));
+  const bagKg = frR3(placed.filter(p => bagS && p.space !== 'pod' && frSpaceOf(spaces, 0.5 * (p.at.x0 + p.at.x1)) === 'baggage').reduce((s, p) => s + p.kg, 0));
+  const podKg = frR3(placed.filter(p => p.space === 'pod').reduce((s, p) => s + p.kg, 0));   // G3464
   const out = {
     mass: { kg: frR3(kg), mtow: Mm.mtow, margin: frR3(Mm.mtow - kg), ok: kg <= Mm.mtow + 1e-6 },
     cg: { x: frR3(x), pct: pct(x), range: [fwd, aft], pctRange: [pct(fwd), pct(aft)], margin: frR3(cgMargin), ok: cgMargin >= -1e-6,
@@ -322,13 +391,16 @@ function freightReport(card, placed, opts) {
     seats: { pax: pax.length, wanted: paxWanted, ok: pax.length >= paxWanted, out: seats.filter(s => s.out).map(s => s.i) },
     cargoKg: freightKg(placed),
   };
-  out.ok = out.mass.ok && out.cg.ok && out.floorOk && out.baggage.ok && out.seats.ok;
+  // G3464: the belly pod's rated load (its floor limit x its floor), when the card carries one (no pod: no key)
+  if (card.pod) out.pod = { kg: podKg, limit: card.pod.maxKg, ok: podKg <= card.pod.maxKg + 1e-9 };
+  out.ok = out.mass.ok && out.cg.ok && out.floorOk && out.baggage.ok && out.seats.ok && (!out.pod || out.pod.ok);
   out.why = [];
   if (!out.seats.ok) out.why.push(paxWanted + ' passengers, ' + pax.length + ' seats beside the pilot');
   if (!out.mass.ok) out.why.push(frR3(kg - Mm.mtow) + ' kg over the MTOW (' + Mm.mtow + ' kg)');
   if (!out.cg.ok) out.why.push('the CG ' + out.cg.pct + ' % MAC is ' + out.cg.side + ' of the certified ' + out.cg.pctRange.join('-') + ' %');
   for (const f of floor) if (!f.ok) out.why.push(f.id + ': ' + Math.round(f.kgM2) + ' kg/m2 on the ' + f.space + ' floor (' + f.limit + ')');
   if (!out.baggage.ok) out.why.push(bagKg + ' kg in the baggage bay, the placard says ' + out.baggage.limit);
+  if (out.pod && !out.pod.ok) out.why.push(podKg + ' kg in the belly pod, rated ' + out.pod.limit);
   return out;
 }
 
@@ -376,8 +448,21 @@ function freightPack(card, itemsIn, opts) {
     if (!door.ok) { res.unplaced.push({ id: it.id, why: door.why || 'passes no door' }); continue; }
     const cgNow = mx / kg, cgWant = Math.min(Mm.cg[1], Math.max(Mm.cg[0], cgNow));
     const xt = ((kg + it.kg) * cgWant - mx) / Math.max(1e-9, it.kg);
+    // G3464: the belly pod - what only its hatch takes goes there, and what the cabin finds no room for tries it
+    const toPod = () => {
+      if (!card.pod || !freightPodDoor(card.pod, it).ok) return false;
+      const row = frPodPlace(card.pod, placed, it, xt);
+      if (!row) return false;
+      if (o.limits !== false && placed.filter(q => q.space === 'pod').reduce((a, q) => a + q.kg, 0) + it.kg > card.pod.maxKg + 1e-9) return false;
+      placed.push(row); kg += it.kg; mx += it.kg * 0.5 * (row.at.x0 + row.at.x1);
+      return true;
+    };
+    if (door.pod) { if (!toPod()) res.unplaced.push({ id: it.id, why: it.id + ' (' + it.dims.join(' x ') + ' m) finds no room in the belly pod' }); continue; }
     let best = null;
+    let inPod = false;
     for (const strict of (o.limits === false ? [false] : [true, false])) {
+      // (G3464: the cabin within its limits first, then the pod, and only then the cabin out of its limits)
+      if (!strict && o.limits !== false && toPod()) { inPod = true; break; }
       for (const [lx, ly, lz] of frOrients(it)) {
         // x candidates: the whole hold at the pack step, nearest the target first (ties: forward first)
         const xs = [];
@@ -394,7 +479,7 @@ function freightPack(card, itemsIn, opts) {
           const ys = [];
           const rest = freightRestY(card, x0, x1);
           if (rest != null) ys.push({ y: rest, on: null, level: 0 });
-          if (!stackHit) for (const p of placed) if (p.stack && p.at.x0 <= x0 + 1e-9 && p.at.x1 >= x1 - 1e-9) ys.push({ y: p.at.y1, on: p.id, sup: p, level: 1 });
+          if (!stackHit) for (const p of placed) if (p.stack && p.space !== 'pod' && p.at.x0 <= x0 + 1e-9 && p.at.x1 >= x1 - 1e-9) ys.push({ y: p.at.y1, on: p.id, sup: p, level: 1 });
           for (const { y, on, sup, level } of ys) {
             if (level && stackHit) continue;
             const zm = frZMax(card, x0, x1, y, y + ly);
@@ -433,7 +518,8 @@ function freightPack(card, itemsIn, opts) {
       }
       if (best) break;
     }
-    if (!best) { res.unplaced.push({ id: it.id, why: it.id + ' (' + it.dims.join(' x ') + ' m) finds no room in the hold' }); continue; }
+    if (inPod) continue;
+    if (!best) { if (!toPod()) res.unplaced.push({ id: it.id, why: it.id + ' (' + it.dims.join(' x ') + ' m) finds no room in the hold' }); continue; }
     best.cand.space = frSpaceOf(spaces, 0.5 * (best.cand.at.x0 + best.cand.at.x1));
     placed.push(best.cand);
     const bId = best.cand.on ? baseOf(best.cand.on) : it.id;
@@ -459,7 +545,7 @@ function freightFits(card, items, opts) {
   const its = freightSplit(items);
   if (!its.length) return { ok: true, seatsOut: [], why: '', room: true };
   if (!card || !card.hold) return { ok: false, seatsOut: [], why: 'no hold', room: false };
-  const key = (card.id || JSON.stringify(card.mass)) + '|' + pax + '|' + its.map(i => i.id + ':' + i.kind + ':' + i.kg + ':' + i.dims.join(',')).sort().join(';');
+  const key = (card.sig || card.id || JSON.stringify(card.mass)) + '|' + pax + '|' + its.map(i => i.id + ':' + i.kind + ':' + i.kg + ':' + i.dims.join(',')).sort().join(';');
   if (frFitMemo.has(key)) return frFitMemo.get(key);
   let r;
   const nd = its.filter(it => !freightDoorAny(card, it).ok);

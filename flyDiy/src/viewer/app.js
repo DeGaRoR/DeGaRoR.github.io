@@ -5372,6 +5372,7 @@
     if (!K.inhIt) {
       const lay = new Map(); for (const r of (model.data && model.data.layers) || []) { let L = lay.get(r[1]); if (!L) lay.set(r[1], L = []); L.push(r); }
       const surf = new Set(model.surfParts || []), strut = new Set(model.strutRigs || []);
+      const podN = def.parts && def.parts.podFrame ? def.parts.podFrame.nodes : null;   // G3463
       const L = [];
       for (const [own, , , , , , kind] of groups) {
         const R = own.brkR; if (!R) continue;
@@ -5391,6 +5392,11 @@
           E.fixed = [[rn, 1]]; cv.fill(SB.INH.rigid);
         } else if (surf.has(own)) cv.fill(SB.INH.cover);
         else if (strut.has(own)) cv.fill(SB.INH.tube);
+        else if (own.name && podN && model.mats && model.mats[own.name] && model.mats[own.name].sec === 'pod') {
+          // G3463 (BELLY-POD-2): THE BELLY POD RIDES ITS OWN FOUR NODES as one moulded body (61_gen_frame's podFrame): torn
+          // off at its fittings it leaves with them, crushed it follows them - never bound to the belly's longerons
+          E.fixed = podN.map(i => [i, 1 / podN.length]); cv.fill(SB.INH.rigid);
+        }
         else if (own.name) {
           const layer = inhNamed(own, nv, lay, cv, obj);
           if (layer.indexOf('cowl') >= 0) { E.cowl = new Uint8Array(nv); for (let v = 0; v < nv; v++) if (layer[v] === 'cowl') E.cowl[v] = 1; }   // (G1859.5)
@@ -7117,6 +7123,8 @@
   }
   function setAircraft(key) {
     def = AIRCRAFT[key]();
+    // G2675 (BELLY-POD-2): the garage's aeroplane is the frame its belly pod's section and mesh hang under
+    if (key === 'gen' && typeof window !== 'undefined' && window.CAGE_POD && window.CAGE_POD.frame) try { window.CAGE_POD.frame(def); } catch (e) {}
     sim = makeSim(def, world);
     sim.reset(0);
     if (typeof window !== 'undefined') window.FLYDIY_SIM = sim;   // H1: the headless rig reads it
@@ -8877,7 +8885,8 @@
     try {
       const D = sim.damage ? sim.damage() : null;
       const S = (D && D.structural) || (flDmg && flDmg.structural) || null;
-      return S ? { damaged: !!S.damaged, why: S.why || null } : null;
+      // (G3464: with a belly pod, its freight's fate - 60d genPodDamage: 'lost' when it tore off)
+      return S ? Object.assign({ damaged: !!S.damaged, why: S.why || null }, S.pod ? { podFreight: S.pod.freight } : {}) : null;
     } catch (e) { return null; }
   }
   function careerStopApply(d, how, W, wrecked) {
@@ -9048,6 +9057,9 @@
     const B = econBuildPrice();
     if (!B) return d;
     const r = econMaterialise(d, name, B.cost, B.wants, { price: B.price });
+    // (G3465: a belly pod in the design is in that price - the airframe row says so, so the same save does not bill it again)
+    const podPaid = curKey === 'gen' && def && def.parts && def.parts.ledger && def.parts.ledger.pod ? def.parts.ledger.pod.cost : 0;
+    if (r.ok && podPaid > 0 && r.doc.career && r.doc.career.airframes && r.doc.career.airframes[name]) r.doc.career.airframes[name].podPaid = Math.round(podPaid);
     if (!r.ok) { console.warn('flyDiy (career): ' + name + ' was saved but not paid for - ' + r.why); return d; }
     ecNote = 'built ' + name + ': ' + ecFmt(r.cost);
     return r.doc;
@@ -10587,7 +10599,9 @@
   // validated design the sandbox put there (frStandDesign)
   function frCard() {
     const slot = slotOnStand();
-    return freightLoadCard(playerLoad(), slot, frEnv(slot)) || (frStandDesign && FREIGHT_CARDS[frStandDesign]) || null;
+    const c = freightLoadCard(playerLoad(), slot, frEnv(slot)) || (frStandDesign && FREIGHT_CARDS[frStandDesign]) || null;
+    // G3464 (BELLY-POD-2): the stand's aeroplane with a belly pod - its hold is a space of the card (76_ freightCardPod)
+    return c && curKey === 'gen' && def && def.parts && def.parts.pod && typeof freightCardPod === 'function' ? freightCardPod(c, def, fsYD()) : c;
   }
   // THE FRAME: card -> world, on the stand. The card was measured off the CAGE MESH (tools/_freight_site.js: the
   // sheet's sections, y and the lateral as they are, x = zFw - z with zFw the join's wsFront ring, G49), and the cage
@@ -11501,6 +11515,12 @@
         fail: () => setTimeout(go, 0) })) return;
     setTimeout(go, 0);
   }
+  // G2675 (BELLY-POD-2): the pod's section reads the garage's sheet only when it is already known (never a shakedown
+  // inside a drag) and, when it is not, asks for the post-idle run (shakeSoon: debounced, then the section refreshed) -
+  // the plaque's own ask (drawPlaque) runs only while the plaque is open
+  if (typeof window !== 'undefined') window.FLYDIY_POD = {
+    shake: () => (curKey === 'gen' && shakeKnown() ? shakeOf() : null),
+    need: () => { if (curKey === 'gen' && inGarage && !shakeKnown()) shakeSoon(); } };
   let shakeSoonT = null, shakeSoonI = null;
   function shakeSoon() {
     if (sheetAsk()) return;
@@ -11519,6 +11539,7 @@
         try { flRender(); } catch (e) {}
         try { drawPlaque(); } catch (e) {}
         try { if (indStale) buildIndicators(); } catch (e) {}
+        try { if (window.CAGE_POD) window.CAGE_POD.refresh(); } catch (e) {}   // G2675: the pod's readouts, measured
       };
       if (typeof requestIdleCallback === 'function') shakeSoonI = requestIdleCallback(go, { timeout: 2000 });
       else go();
@@ -11978,6 +11999,10 @@
         (C.legs || []).some(l => !l.ok) ? 'bad' : judge('pod clearance', w.clear));
       R('pod drag', n1(p.cda, 3) + ' m² · ' + n1((p.dragShare || 0) * 100, 0) + '% of the body · '
         + n1((cr.dV || 0) * 3.6, 1) + ' km/h cruise · ' + n1(cr.dClimb, 2) + ' m/s climb');
+      // G3461 (BELLY-POD-2): what the pod costs this aeroplane against itself with no pod (its drag and its shell)
+      if (p.perf) R('pod cost', 'take-off ' + (p.perf.dTO >= 0 ? '+' : '') + n1(p.perf.dTO, 0) + ' m (' + n1(p.perf.toWith, 0) + ')'
+        + ' · climb ' + n1(p.perf.dClimb, 2) + ' m/s (' + n1(p.perf.climbWith, 2) + ')'
+        + ' · cruise ' + n1(p.perf.dCruise * 3.6, 1) + ' km/h (' + n1(p.perf.cruiseWith * 3.6, 0) + ')');
       if (b.staticMargin != null)
         R('pod full', (b.cgPct != null ? n1(b.cgPct * 100, 0) + '% MAC' : n1(b.cgX, 2) + ' m') + ' · margin '
           + n1(b.staticMargin, 2) + (b.overGross > 0 ? ' · ' + n1(b.overGross, 0) + ' kg over the design gross' : ''),
@@ -18455,7 +18480,10 @@
     // G2410 (BELLY-POD): the pod's row, for a build that carries one
     hasPod: () => !!(def && def.parts && def.parts.pod),
     // ...and its door: the spec's `pod.on`, through the join's own merge (a rebuild; the bench re-renders on it)
-    podToggle: on => { if (window.GARAGE_SPEC && curKey === 'gen') window.GARAGE_SPEC.update({ pod: { on: on ? 1 : 0 } }); },
+    podToggle: on => { if (window.GARAGE_SPEC && curKey === 'gen') {
+      // G2675: the editor's section is the one door (on: its block, off: the key removed - the aeroplane's own bytes)
+      if (window.CAGE_POD && window.CAGE_POD.setOn) window.CAGE_POD.setOn(!!on);
+      else window.GARAGE_SPEC.update({ pod: { on: on ? 1 : 0 } }); } },
     hydroStart: () => htStart(),
     hydroPoll: () => htPoll(),
     hydroEnd: () => htEnd(),
