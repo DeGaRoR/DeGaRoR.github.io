@@ -4139,7 +4139,7 @@ body.bpOpen #edView { visibility:hidden; }
 /* ======================================================================
    phone.css - THE WORKSHOP ON A PHONE (MOBILE-GARAGE 1, G2102)
    EVERY RULE IS UNDER html.phone, which profile.js sets ONLY on the phone
-   profile (?profile=phone, or the welcome's "Build on this phone"). On the
+   profile (?profile=phone, or the welcome's "Build on this phone" / "Build and test-fly on this phone"). On the
    desktop not one selector here matches: its pixels are the ones they were.
    Not a second editor: the same columns, the same rows (_cage_ui.js's own
    elements), RE-LAID as one sheet under the view (portrait) or beside it
@@ -4151,14 +4151,16 @@ body.bpOpen #edView { visibility:hidden; }
 html.phone {
   /* THE ESTATE: the view (--ph-vw x --ph-vh at the top left), the sheet
      (--ph-sl, --ph-st, --ph-sw) and the tab bar under it (--ph-tab) */
-  --ph-tab:54px; --ph-sw:100vw; --ph-sl:0px; --ph-vw:100vw;
-  /* G3720 (PHONE-GARAGE; the user, 25 Oct: "much more room for the plane ... two thirds at least ... Only a third of the
-     screen for the sliders"): the view 2/3 of the height, the sheet and its tab bar the last third */
-  --ph-vh:66.6vh; --ph-vh:66.6dvh; --ph-st:var(--ph-vh);
-  --ph-tap:48px;
+  --ph-tab:48px; --ph-sw:100vw; --ph-sl:0px; --ph-vw:100vw;
+  /* G3720 (PHONE-GARAGE; 25 Oct) gave the view 2/3 of the height. G3900 (PHONE-EDIT-LAYOUT; the user, 2 Nov, after
+     building two planes on the S20 FE): HALF AND HALF - the view one half, the controls the other, and the line between
+     them a divider the thumb moves (phone.js #phDiv; --ph-split is the VIEW's share, remembered per orientation) */
+  --ph-split:.5;
+  --ph-vh:calc(var(--ph-split) * 100vh); --ph-vh:calc(var(--ph-split) * 100dvh); --ph-st:var(--ph-vh);
+  --ph-tap:48px; --ph-row:44px; --ph-step:40px; --ph-line1:16px; --ph-line2:22px;
 }
 @media (orientation:landscape) {
-  html.phone { --ph-sw:max(280px, 33.4vw); --ph-vw:calc(100vw - var(--ph-sw)); --ph-sl:var(--ph-vw);
+  html.phone { --ph-sw:max(300px, calc((1 - var(--ph-split)) * 100vw)); --ph-vw:calc(100vw - var(--ph-sw)); --ph-sl:var(--ph-vw);
     --ph-vh:100vh; --ph-vh:100dvh; --ph-st:0px; }
 }
 html.phone, html.phone body { overscroll-behavior:none; -webkit-text-size-adjust:100%; text-size-adjust:100%;
@@ -4236,61 +4238,174 @@ html.phone #edPartName { font-size:15px; }
 html.phone #edTree .edN { min-height:44px; display:flex; align-items:center; font-size:14px; }
 html.phone #edTree .edN u.fold { min-width:32px; min-height:44px; display:inline-flex; align-items:center; justify-content:center; }
 
-/* ---- THE ROWS (R2): a slider row is two lines - the label (wrapping) and its value chip over the scale ---- */
-html.phone #edRows { padding:4px 14px 24px 12px; }
-html.phone #edRows .r { height:auto; min-height:var(--ph-tap); flex-wrap:wrap; row-gap:0; column-gap:8px; padding:4px 0; }
+/* ---- THE ROWS (G3900, PHONE-EDIT-LAYOUT; the user, 2 Nov: "touch-friendly AND denser"): ONE CONTROL A ROW, 44 px (the whole row the value editor's target).
+   Line 1 the label and its value - a tap on either opens the value's editor (#phEdit: typed, - / +); line 2 the scale, the
+   row's width (COMPACT, the default) - or [-] the scale [+] with the row's own - / + (html.ph-pm, ~58 px). ---- */
+html.phone #edRows { padding:0 12px 24px 12px; }
+html.phone #edRows .r { height:auto; min-height:40px; flex-wrap:wrap; row-gap:0; column-gap:8px; padding:2px 0; }
 html.phone #edRows .r > span.k { flex:1 1 auto; width:auto; min-width:0; white-space:normal; overflow:visible;
-  font-size:13.5px; line-height:1.3; color:var(--ed-dim); }
+  font-size:13px; line-height:1.3; color:var(--ed-dim); }
 html.phone #edRows .r.tog > span.k { width:auto; }
-html.phone #edWrap .r input.v, html.phone #edWrap .r input[type=text] { font-size:15px !important; }
-html.phone #edRows .r > input.v { width:76px; min-height:34px; flex:none; order:1; text-align:right;
-  border-bottom:1px solid rgba(255,248,236,.18) !important; }
-html.phone #edRows .r > span:not(.k):not(.v):not(.lt):not(.rn) { order:2; flex:none; width:auto !important; font-size:11px !important; }
-/* line 1: the label, the value chip, the metres; a break; line 2: - scale + (a flex line break is the row's ::after) */
-html.phone #edRows .r.phSlider::after { content:''; order:3; flex-basis:100%; height:0; }
-html.phone #edRows .r.phSlider > .phMinus { order:4; }
-html.phone #edRows .r.phSlider > input[type=range] { order:5; flex:1 1 0; min-width:60px; }
-html.phone #edRows .r.phSlider > .phPlus { order:6; }
-html.phone #edRows .r > .rn { order:7; }
-html.phone #edRows .r > button:not(.phStep) { min-height:36px; min-width:36px; }
-/* the scale: drawn larger, and it takes NO touch - a finger on it scrolls the sheet (R4) */
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range] { height:var(--ph-tap); pointer-events:none; touch-action:pan-y; }
+html.phone #edWrap .r input[type=text] { font-size:15px !important; }
+html.phone #edRows .r > .rn { flex-basis:100%; }
+html.phone #edRows .r > button { min-height:36px; min-width:36px; }
+/* THE SLIDER ROW IS ONE FIXED GRID, the same for every control (G3900; the user's stills 2 Nov 13:02-13:03, "rubbish
+   overflowing of sliders and button components": the flex rows wrapped, - / + fell onto lines of their own and every
+   row had its own shape). Never a wrap - every child has its cell:
+     line 1   label (one line, ellipsis) ............ | switch | = | value | unit
+     line 2   [ - ] [ the scale, all the width left ............................ ] [ + ]
+   The columns: 40 px (the - under the label's start) | the label's 1fr | switch | = | value | unit | 40 px (the +).
+   No column gap (an empty column would still cost one): each cell carries its own margin. COMPACT (a pick since the user chose the row's - / + on 2 Nov 18:20, html.ph-pm the default - phone.js):
+   the - / + hidden, the scale across all seven columns; html.ph-pm (the user picks from the stills) shows them. */
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider { display:grid; position:relative; height:auto;
+  grid-template-columns:var(--ph-step) minmax(0, 1fr) auto auto auto auto var(--ph-step); grid-template-rows:var(--ph-line1) var(--ph-line2);
+  column-gap:0; row-gap:0; align-items:center; min-height:var(--ph-row); padding:3px 0; box-sizing:border-box; flex-wrap:nowrap;
+  -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; cursor:pointer; }
+html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider { row-gap:4px; padding:4px 0 2px; }
+html.phone.ph-pm { --ph-row:58px; --ph-line2:32px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > span.k { grid-row:1; grid-column:1 / 3; width:auto; min-width:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:13px; line-height:16px; cursor:pointer; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=checkbox] { grid-row:1; grid-column:3; margin:0 6px 0 10px; transform:none;
+  width:34px; height:20px; border-radius:10px; overflow:visible; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=checkbox]::after { top:2px; left:2px; width:14px; height:14px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=checkbox]:checked::after { left:16px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=checkbox]::before { content:''; position:absolute; left:-5px; right:-5px; top:-12px; bottom:-12px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > button:not(.phStep) { grid-row:1; grid-column:4; margin-left:6px;
+  min-height:26px; min-width:30px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .v { grid-row:1; grid-column:5; margin-left:8px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > span:not(.k):not(.v):not(.rn):not(.lt) { grid-row:1; grid-column:6 / 8;
+  margin-left:6px; width:auto !important; max-width:76px; overflow:hidden; white-space:nowrap; text-align:right; font-size:12px !important; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phMinus { grid-row:2; grid-column:1; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=range] { grid-row:2; grid-column:1 / -1; width:auto; min-width:0; margin:0; }
+html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > input[type=range] { grid-column:2 / 7; margin:0 6px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phPlus { grid-row:2; grid-column:7; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .rn { grid-row:3; grid-column:1 / -1; }
+/* the axis mark (editor.css: the row's ::after, 13 px before the label) on line 1, where the label is - the old
+   two-line rows centred it on the row and it read as a stray dot by the + */
+html.phone #edRows .r.phSlider[data-ax]:not([data-ax=''])::after { top:10px; }
+html.phone.ph-pm #edRows .r.phSlider[data-ax]:not([data-ax=''])::after { top:12px; }
+/* the - / + on the row (html.ph-pm): 40 px wide, the line's height, never on a line of their own */
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep { display:none; }
+html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep { display:block; width:var(--ph-step); height:var(--ph-line2);
+  padding:0; border-radius:8px; font:500 20px/1 'IBM Plex Sans', sans-serif; color:var(--ed-ink); background:var(--ed-btn-bg);
+  border:1px solid var(--ed-btn-bd); touch-action:manipulation; -webkit-user-select:none; user-select:none;
+  -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
+html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep:active { background:var(--ed-acc-soft); }
+/* drawn 40 x 32 (line 2), HIT 44 x 44 (A0's PHONE-UI-GUIDELINES; the row's - / + the default since the user's pick 2 Nov 18:20):
+   the box's own pseudo-element reaches 6 px up and down, 2 px each side - as the switch's does */
+html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep { position:relative; }
+html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep::before { content:''; position:absolute; left:-2px; right:-2px; top:-6px; bottom:-6px; }
+/* the value: a chip the thumb taps (the editor types it); never the keyboard in the row */
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .v { min-width:64px; height:26px; margin-top:-5px; margin-bottom:-5px;
+  padding:0 7px !important; box-sizing:border-box; text-align:right; cursor:pointer; caret-color:transparent;
+  font:600 15px/24px 'IBM Plex Sans', sans-serif !important; font-variant-numeric:tabular-nums; color:var(--ed-ink) !important;
+  background:var(--ed-btn-bg) !important; border:1px solid var(--ed-hair) !important; border-radius:6px; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider.phOpen > .v { border-color:var(--ed-acc) !important; background:var(--ed-acc-soft) !important; }
+/* the scale: drawn between the - and the +, and it takes NO touch - a finger on it scrolls the sheet (R4) */
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range] { height:22px; pointer-events:none; touch-action:pan-y; }
 html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-webkit-slider-runnable-track { height:4px; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-webkit-slider-thumb { width:26px; height:26px; margin-top:-11px;
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-webkit-slider-thumb { width:22px; height:22px; margin-top:-9px;
   box-shadow:0 0 0 1px rgba(0,0,0,.35); }
 html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phFine input[type=range]::-webkit-slider-thumb { background:#e6a15a; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-moz-range-thumb { width:26px; height:26px; }
-/* the knob's hit area: 48 px over the thumb, the one place a finger moves a value (R5) */
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=range]::-moz-range-thumb { width:22px; height:22px; }
+/* the knob's hit area: 48 px over the thumb, the one place a finger moves a value (R5) - taller than the row's scale */
 .phKnob { display:none; }
 html.phone .r .phKnob { display:block; position:absolute; width:var(--ph-tap); height:var(--ph-tap); z-index:2;
-  border-radius:50%; touch-action:none; cursor:grab; }
+  border-radius:50%; touch-action:none; cursor:grab; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; outline:none; }
 html.phone .r .phKnob[hidden] { display:none; }
-html.phone .r.phDrag .phKnob { box-shadow:0 0 0 2px rgba(230,219,201,.45); background:rgba(230,219,201,.08); }
+/* PLACED BY CSS, MOVED BY A TRANSFORM (G3900; the phone's shed runs ~12 fps - the layout adds no layout reads): the row is a
+   phone.js writes --phf (the value's fraction) and --phw (the row's width, from a ResizeObserver's entries - never a
+   measure; not a container query: a size container is a stacking context, and the next row would paint over the knob's
+   10 px below its own row) - the hit area's centre rides the native thumb's: the
+   thumb's centre is 11 px into the scale and travels it less its 22 px. FROM THE ROW'S TOP, line 1 a fixed track (--ph-line1),
+   never from its foot: a row whose note (.rn, a third line) shows is taller, and a knob hung from the foot sat 20 px under its
+   scale (the 2 Nov rig's shape red). COMPACT: the scale is the row's width, line 2's middle 3 + 16 + 11 px down. ph-pm: the
+   scale starts after the - and its 6 px (46 px in) and spans the row less both buttons (--phw - 92 px); line 2's middle
+   4 + 16 + 4 + 16 px down */
+html.phone .r.phSlider > .phKnob { left:0; bottom:auto; top:calc(3px + var(--ph-line1) + var(--ph-line2) / 2 - var(--ph-tap) / 2);
+  transform:translate3d(calc(var(--phf, 0) * (var(--phw, 300px) - 22px) - 13px), 0, 0); }
+html.phone.ph-pm .r.phSlider > .phKnob { top:calc(4px + var(--ph-line1) + 4px + var(--ph-line2) / 2 - var(--ph-tap) / 2); transform:translate3d(calc(var(--phf, 0) * (var(--phw, 300px) - 114px) + 33px), 0, 0); }
+html.phone .r.phSlider.phOff > .phKnob { display:none; }
+html.phone .r.phDrag .phKnob { will-change:transform; box-shadow:0 0 0 2px rgba(230,219,201,.45); background:rgba(230,219,201,.08); }
 html.phone .r .phKnob.fine { box-shadow:0 0 0 2px rgba(230,161,90,.8); }
-/* the steppers (R6) */
-.phStep { display:none; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r > .phStep { display:block; flex:none; width:var(--ph-tap); height:var(--ph-tap); padding:0; border-radius:8px;
-  font:500 20px/1 'IBM Plex Sans', sans-serif; color:var(--ed-ink); background:rgba(255,255,255,.05);
-  border:1px solid rgba(255,255,255,.12); touch-action:manipulation; -webkit-user-select:none; user-select:none; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r > .phStep:active { background:rgba(230,219,201,.18); }
 /* toggles, selects and the stepper widgets at a finger's size */
 html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r input[type=checkbox] { transform:scale(1.35); margin:0 8px; }
-html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r select { min-height:40px; font-size:13px; }
-html.phone #edRows .r > button { min-height:40px; }
-/* the flyout's rows (the display switches, the alphas) take the same knob */
-html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r { min-height:var(--ph-tap); flex-wrap:wrap; position:relative; }
+html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r select { min-height:36px; font-size:13px; }
+/* the flyout's rows (the display switches, the alphas) take the same row */
+html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r { min-height:40px; flex-wrap:wrap; position:relative; }
 html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r > span.k { flex:1 1 auto; width:auto; white-space:normal; font-size:13px; }
-html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r.phSlider::after { content:''; order:3; flex-basis:100%; height:0; }
-html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r.phSlider > .phMinus { order:4; }
-html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r.phSlider > input[type=range] { order:5; flex:1 1 0; min-width:60px; }
-html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r.phSlider > .phPlus { order:6; }
-html.phone :is(#edFlyBody, #gmPage, #edPopCard) .r > .v { order:1; }
 
-/* THE BUBBLE (R11): the value over the finger */
-#phBubble { position:fixed; z-index:95; pointer-events:none; padding:7px 12px; border-radius:10px;
+/* ---- THE SECTIONS (G3900): their heads stay at the top of the sheet while their rows scroll under them, and fold on a
+   tap (editor.js secWire, remembered) - compact, so a section costs one 30 px line ---- */
+html.phone #edRows .edH { position:sticky; top:0; z-index:3; margin:0; padding:6px 0 4px; min-height:30px; box-sizing:border-box;
+  align-items:center; background:var(--ed-panel); box-shadow:0 1px 0 var(--ed-hair); }
+html.phone #edRows .edH.edHP { margin:0; padding-top:8px; }
+html.phone #edRows .edH.shut { margin:0; padding-bottom:4px; }
+
+/* ---- THE VALUE'S EDITOR (G3900): a tap on a value or its label - the number typed (inputmode decimal) with its unit,
+   - / + a step (held: they repeat), Done, Enter or a tap outside sets it, Esc leaves it. An input bar, not a card:
+   it stands on the sheet's foot, and on the keyboard's top edge while the keyboard is up (phone.js, visualViewport) ---- */
+/* THE BAR'S OWN PALETTE (the 2 Nov 19:00 diag: the bar is body-level, and the --ed-* tokens live on the panels - editor.css
+   40 - so its background and buttons came out TRANSPARENT: the rows showed through and the rig's editor still showed no bar).
+   editor.css's values, here, for the one body-level box that wears them */
+html.phone #phEdit { --ed-panel:#201d1a; --ed-board:#1a1815; --ed-border:rgba(255,248,236,.14); --ed-ink:#f4efe6; --ed-dim:#c0b8ac;
+  --ed-faint:#97907f; --ed-acc:#e6dbc9; --ed-acc-ink:#221f1b; --ed-acc-soft:rgba(230,219,201,.14); --ed-btn-bg:rgba(255,255,255,.06);
+  --ed-btn-bd:rgba(255,255,255,.18); }
+html.phone #phEdit { position:fixed; left:var(--ph-sl); width:var(--ph-sw); bottom:var(--ph-tab); z-index:60; box-sizing:border-box;
+  display:grid; grid-template-columns:var(--ph-tap) minmax(0, 1fr) var(--ph-tap) auto var(--ph-tap); grid-template-rows:auto var(--ph-tap);
+  gap:6px 8px; align-items:center; padding:10px 12px 12px; background:var(--ed-panel);
+  border-top:1px solid var(--ed-border); box-shadow:0 -8px 24px rgba(0,0,0,.45); font-family:'IBM Plex Sans', sans-serif; }
+html.phone #phEdit[hidden] { display:none; }
+html.phone #phEdit .phEk { grid-row:1; grid-column:1 / 3; font:500 13px/1.3 'IBM Plex Sans', sans-serif; color:var(--ed-dim);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+html.phone #phEdit .phEr { grid-row:1; grid-column:3 / 5; justify-self:end; font:400 12px/1 'IBM Plex Sans', sans-serif; color:var(--ed-faint);
+  font-variant-numeric:tabular-nums; white-space:nowrap; }
+html.phone #phEdit .phEok { grid-row:1; grid-column:5; min-height:34px; padding:0 8px; border-radius:8px;
+  font:600 12px/1 'IBM Plex Sans', sans-serif; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--ed-acc-ink); background:var(--ed-acc); border:0; }
+html.phone #phEdit .phStep { display:block; grid-row:2; width:var(--ph-tap); height:var(--ph-tap); padding:0; border-radius:8px;
+  font:500 22px/1 'IBM Plex Sans', sans-serif; color:var(--ed-ink); background:var(--ed-btn-bg);
+  border:1px solid var(--ed-btn-bd); touch-action:manipulation; -webkit-user-select:none; user-select:none;
+  -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
+html.phone #phEdit .phMinus { grid-column:1; }
+html.phone #phEdit .phPlus { grid-column:5; }
+html.phone #phEdit .phStep:active { background:var(--ed-acc-soft); }
+html.phone #phEdit .phEsign { grid-row:2; grid-column:3; width:var(--ph-tap); height:var(--ph-tap); padding:0; border-radius:8px;
+  font:500 20px/1 'IBM Plex Sans', sans-serif; color:var(--ed-ink); background:var(--ed-btn-bg); border:1px solid var(--ed-btn-bd); }
+html.phone #phEdit .phEsign:active { background:var(--ed-acc-soft); }
+html.phone #phEdit button { -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+html.phone #phEdit .phEin { grid-row:2; grid-column:2; min-width:0; width:100%; height:var(--ph-tap); box-sizing:border-box; padding:0 12px;
+  font:600 22px/1 'IBM Plex Sans', sans-serif; font-variant-numeric:tabular-nums; text-align:right; color:var(--ed-ink);
+  background:var(--ed-board); border:1px solid var(--ed-border); border-radius:8px; outline:none; }
+html.phone #phEdit .phEin:focus { border-color:var(--ed-acc); }
+html.phone #phEdit .phEu { grid-row:2; grid-column:4; font:400 13px/1 'IBM Plex Sans', sans-serif; color:var(--ed-faint); min-width:0; }
+
+/* ---- THE DIVIDER (G3900): the line between the view and the controls, moved by the thumb. While it moves a ghost line
+   shows where it will land; the view takes the new size on release (one resize, not one a frame) ---- */
+html.phone #phDiv { position:fixed; z-index:48; touch-action:none; left:0; width:100vw; top:calc(var(--ph-st) - 22px); height:44px;
+  -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent;
+  display:flex; align-items:center; justify-content:center; }
+html.phone #phDiv::before { content:''; flex:none; width:40px; height:4px; border-radius:2px; background:rgba(255,248,236,.28); }
+html.phone #phDiv.on::before { background:var(--ed-acc); }
+html.phone #phGhost { position:fixed; z-index:49; pointer-events:none; left:0; top:0; width:100vw; height:2px; background:var(--ed-acc);
+  box-shadow:0 0 0 1px rgba(0,0,0,.4); }
+html.phone #phGhost[hidden] { display:none; }
+@media (orientation:landscape) {
+  html.phone #phDiv { top:0; height:100vh; left:calc(var(--ph-sl) - 22px); width:44px; }
+  html.phone #phDiv::before { width:4px; height:40px; }
+  html.phone #phGhost { top:0; left:0; height:100vh; width:2px; }
+}
+.phStep { display:none; }
+
+/* THE BUBBLE (R11): the value over the finger - G3900: BIG while the finger moves it (the finger hides the row), and
+   under it the gain the precision drag is at (the finger's distance from the scale) */
+#phBubble { position:fixed; left:0; top:0; z-index:95; pointer-events:none; padding:8px 14px 7px; border-radius:12px; text-align:center;
+  min-width:200px; box-sizing:border-box;
   background:rgba(26,24,21,.94); border:1px solid rgba(255,248,236,.22); color:#f4efe6;
-  font:600 16px/1 'IBM Plex Sans', sans-serif; white-space:nowrap; font-variant-numeric:tabular-nums; }
+  font:600 26px/1.05 'IBM Plex Sans', sans-serif; white-space:nowrap; font-variant-numeric:tabular-nums; }
+#phBubble small { display:block; margin-top:3px; font:500 12px/1.2 'IBM Plex Sans', sans-serif; color:#97907f; letter-spacing:.04em; }
 #phBubble.fine { border-color:#e6a15a; color:#f2c48f; }
+#phBubble.fine small { color:#e6a15a; }
 #phBubble[hidden] { display:none; }
 
 /* ---- THE INFORMATION PANEL AS A TAB: the plaque and the bench, full width ---- */
@@ -4309,6 +4424,19 @@ html.phone #bRun, html.phone #bAward, html.phone body.mode-fly #bAward {
   width:calc(var(--ph-sw) - 16px); max-width:none;
   max-height:calc(100vh - var(--ph-st) - var(--ph-tab) - 16px);
   max-height:calc(100dvh - var(--ph-st) - var(--ph-tab) - 16px); overflow-y:auto; }
+
+/* THE CG ON THE VIEW'S EDGE (G3906; the user 2 Nov: "I can't see the CG and margin indicators in the phone interface"):
+   phone.js's chip at the view's lower left - the posts' reading in numbers, in the margin band's colour (app.js's
+   red / orange / green, P1 CG-COLOURS). Above the divider's hit zone (--ph-vh less 22 px) in portrait, the view's foot in
+   landscape; no pointer (the orbit's finger passes through); one line, ellipsed in a narrow view */
+html.phone #phCg { position:fixed; left:10px; top:calc(var(--ph-vh) - 62px); z-index:45; pointer-events:none;
+  max-width:calc(var(--ph-vw) - 20px); box-sizing:border-box; padding:6px 10px 6px 9px; border-radius:8px;
+  border-left:3px solid #c0b8ac; background:rgba(20,18,15,.8); color:#f4efe6;   /* (body-level: the --ed-* tokens live on the panels, editor.css 40) */
+  font:600 13px/16px 'IBM Plex Sans', sans-serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+html.phone #phCg[hidden] { display:none; }
+html.phone #phCg[data-band="green"] { border-left-color:#6fd08a; }
+html.phone #phCg[data-band="orange"] { border-left-color:#ffa13d; color:#ffc27a; }
+html.phone #phCg[data-band="red"] { border-left-color:#ff6b5b; color:#ff8f82; }
 </style>
 </head>
 <body>
@@ -4393,7 +4521,7 @@ html.phone #bRun, html.phone #bAward, html.phone body.mode-fly #bAward {
     </div>
   </aside>
 </div>
-<script>window.FLYDIY_BUILD='7e3d50ce031f';window.FLYDIY_BUILD_DATE='2026-11-02T16:15:22.602Z';</script>
+<script>window.FLYDIY_BUILD='b1d38d3d392d';window.FLYDIY_BUILD_DATE='2026-11-02T18:28:19.830Z';</script>
 <script>
 // ===========================================================================
 // THE NAMES (G3240 NAMES, 2026-10-22; GAME-PLAN-2026-10-15 §R and §13). The user, 15 Oct: "Everything should have a
@@ -5550,7 +5678,7 @@ html.updNowUp #bootPanel { bottom:84px; }
 //            The bench check (the shakedown) and the density altitude stay: pure computations, no world
 //
 // How a page becomes a phone: ?profile=phone (any device - the rigs, the S20's adb run, a desktop to look at it);
-// welcome.js's device gate on a phone or tablet ("Build on this phone", remembered); ?profile=desktop forces the trunk.
+// welcome.js's device gate on a phone or tablet ("Build on this phone" - "Build and test-fly on this phone" once the test field ships, G3905 - remembered); ?profile=desktop forces the trunk.
 (function () {
   'use strict';
   const W = typeof window !== 'undefined' ? window : null;
@@ -5934,19 +6062,28 @@ html.updNowUp #bootPanel { bottom:84px; }
     try { play.focus(); } catch (e) {}
   });
   // THE DEVICE GATE: resolves 'potato' when the player tries anyway (it never resolves otherwise: nothing loads)
-  // G2100 (MOBILE-GARAGE 1): ...or 'phone' - "Build on this phone": the garage alone, laid out for a touch screen, on the
-  // lightest picture (profile.js 'phone'). Offered where WebGL2 is (a phone or tablet), the gate's primary button
+  // G2100 (MOBILE-GARAGE 1): ...or 'phone' - the garage, laid out for a touch screen, on the lightest picture (profile.js
+  // 'phone'). Offered where WebGL2 is (a phone or tablet), the gate's primary button.
+  // G3905 (PHONE-1, the user 2 Nov: the old card said only "made for a computer"): what the phone DOES now, in the game's
+  // voice - build in the studio with the thumb's controls, save, and (once the test field ships) a circuit on it; the
+  // island and the career still want a computer. THE TEST FLIGHT IS SAID ONLY WHEN IT SHIPS: the phone profile flies
+  // nowhere until the test field gives it somewhere (profile.js TABLE.phone.fly, 'none' until PHONE-TESTFLIGHT G3790)
+  const phoneFlies = () => { try { const t = W.PROFILE && W.PROFILE.TABLE && W.PROFILE.TABLE.phone; return !!t && !!t.fly && t.fly !== 'none'; } catch (e) { return false; } };
   const showGate = (env, d) => new Promise(res => {
     const { card } = open();
-    card.appendChild(el('h1', null, 'flyDiy is made for a computer, for now'));
+    const flies = env.webgl2 && phoneFlies();
+    card.appendChild(el('h1', null, env.webgl2 ? 'The workshop fits in a phone' : 'flyDiy is made for a computer, for now'));
     card.appendChild(el('p', null, !env.webgl2
       ? 'This browser has no WebGL2, which the game draws with. A recent Chrome, Edge or Firefox on a desktop or a laptop has it.'
-      : 'Phones and tablets do not have the memory the island needs yet: the browser closes the page before it has loaded. The garage alone fits: build your aeroplane here, save it, and fly it on a computer.'));
+      : 'Build your aeroplane here, with controls made for a thumb, and save it.' +
+        (flies ? ' Then take it round a circuit on the test field: the full physics, one strip, one hangar.' : '')));
     facts(card, env, d);
-    card.appendChild(el('p', null, 'Open this page on a desktop or a laptop to fly.'));
+    card.appendChild(el('p', null, env.webgl2
+      ? 'The island and the career still need a computer: a phone does not have the memory for them yet.'
+      : 'Open this page on a desktop or a laptop to fly.'));
     const foot = el('div', 'wfoot');
     if (env.webgl2) {
-      const ph = el('button', 'wplay', 'Build on this phone'); ph.type = 'button';
+      const ph = el('button', 'wplay', flies ? 'Build and test-fly on this phone' : 'Build on this phone'); ph.type = 'button';
       ph.onclick = () => { W.document.getElementById('welcome').remove(); res('phone'); };
       foot.appendChild(ph);
     }
@@ -62105,7 +62242,7 @@ if (typeof module !== 'undefined' && typeof require === 'function' && typeof __f
 })();
 </script>
 <script type="text/x-flydiy">window.BOOT&&BOOT.phase('core','reading the model')</script>
-<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='f86d37bcee5f';window.FLYDIY_BUILD='7e3d50ce031f';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=b77b48a0"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
+<script type="text/x-flydiy">window.FLYDIY_CORE_SHA='f86d37bcee5f';window.FLYDIY_BUILD='b1d38d3d392d';window.FLYDIY_AUDIO_SRC={"engine_worklet":"src/viewer/audio/engine_worklet.js?v=26807db6","prop_worklet":"src/viewer/audio/prop_worklet.js?v=48283511","airframe_worklet":"src/viewer/audio/airframe_worklet.js?v=b77b48a0"};window.FLYDIY_MUSIC=[{"id":"fma238392","file":"media/audio/music/holiznacc0_yet_again.ae80f04f.mp3","title":"Yet Again","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/yet-again-lofi-peaceful/","station":"lofi","contexts":["garage","welcome"],"lufs":-16,"durationS":135.9},{"id":"fma275835","file":"media/audio/music/holiznacc0_break_from_reality.6cd41edd.mp3","title":"Break From Reality","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/break-from-reality-lofi-peaceful-mp3/","station":"lofi","contexts":["garage","welcome","cruise"],"lufs":-16,"durationS":207},{"id":"fma275843","file":"media/audio/music/holiznacc0_the_best_of_times.4c1984ae.mp3","title":"The Best Of Times","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/the-best-of-times-lofi-relaxing-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":168},{"id":"fma267057","file":"media/audio/music/holiznacc0_faded_in_the_sunlight.4ce1349b.mp3","title":"Faded in the Sunlight","artist":"HoliznaCC0","album":"Summer Air ( Lo-fi )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/summer-air-lo-fi/faded-in-the-sunlight/","station":"lofi","contexts":["garage","welcome"],"lufs":-17.2,"durationS":178.2},{"id":"fma265836","file":"media/audio/music/holiznacc0_peaceful_drift.55118944.mp3","title":"Peaceful Drift","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/peaceful-drift-lofi-nostalgic-calm/","station":"lofi","contexts":["garage"],"lufs":-17.4,"durationS":128.3},{"id":"fma265847","file":"media/audio/music/holiznacc0_ease_into_night.32448511.mp3","title":"Ease into Night","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ease-into-night-lofi-relax-chill/","station":"lofi","contexts":["garage"],"lufs":-17.9,"durationS":151.8},{"id":"fma268742","file":"media/audio/music/holiznacc0_washed_up.eca2e877.mp3","title":"Washed Up","artist":"HoliznaCC0","album":"OCEAN MEMORY ( Lo-fi Chill )","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/ocean-memory-lo-fi-chill/washed-up/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":234.6},{"id":"fma275832","file":"media/audio/music/holiznacc0_down_time.c1f35243.mp3","title":"Down Time","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/down-time-lofi-peaceful-mp3/","station":"lofi","contexts":["garage"],"lufs":-16,"durationS":130.3},{"id":"fma275836","file":"media/audio/music/holiznacc0_ocean_breeze.1c28251e.mp3","title":"Ocean Breeze","artist":"HoliznaCC0","album":"Public Domain Lofi","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/public-domain-lofi/ocean-breeze-lofi-ukulele-peaceful-mp3/","station":"lofi","contexts":["garage","cruise"],"lufs":-16,"durationS":197.6},{"id":"fma164357","file":"media/audio/music/loyalty_freak_music_traveling_in_your_mind.993d471f.mp3","title":"Traveling in your mind","artist":"Loyalty Freak Music","album":"TO CHILL AND STAY AWAKE","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/TO_CHILL_AND_STAY_AWAKE/Loyalty_Freak_Music_-_TO_CHILL_AND_STAY_AWAKE_-_05_Traveling_in_your_mind/","station":"lofi","contexts":["cruise","welcome","garage"],"lufs":-18.2,"durationS":236.6},{"id":"fma171982","file":"media/audio/music/loyalty_freak_music_beach.b048753f.mp3","title":"Beach","artist":"Loyalty Freak Music","album":"MELODIES WITH A BEAT","licence":"CC0","source":"https://freemusicarchive.org/music/Loyalty_Freak_Music/MELODIES_WITH_A_BEAT/Loyalty_Freak_Music_-_MELODIES_WITH_A_BEAT_-_08_Beach/","station":"lofi","contexts":["garage"],"lufs":-17.3,"durationS":161},{"id":"fma279362","file":"media/audio/music/holiznacc0_kodama.566d47aa.mp3","title":"Kodama","artist":"HoliznaCC0","album":"Nature Spirit","licence":"CC0","source":"https://freemusicarchive.org/music/holiznacc0/nature-spirit/kodama/","station":"jazz","contexts":["garage"],"lufs":-18.7,"durationS":150.7},{"id":"fma278622","file":"media/audio/music/ketsa_as_above_so_below.89e379ac.mp3","title":"As Above So Below","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/as-above-so-below-1/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":233.4},{"id":"fma279012","file":"media/audio/music/ketsa_time_runs_like_the_thames.6ff984d7.mp3","title":"Time Runs Like The Thames","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/vintage-modernity/time-runs-like-the-thames/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":274},{"id":"fmaia_shreveport_stomp","file":"media/audio/music/jelly_roll_morton_shreveport_stomp.e54398f1.mp3","title":"Shreveport Stomp","artist":"Jelly Roll Morton","album":"1924","licence":"Public domain","source":"https://archive.org/details/shreveport-stomp-jelly-roll-morton-1924","station":"jazz","contexts":["garage"],"lufs":-21,"durationS":171},{"id":"fmaia_wolverine_blues","file":"media/audio/music/benson_orchestra_of_chicago_jelly_roll_morton_wolverine_blues.1d938bf6.mp3","title":"Wolverine Blues","artist":"Benson Orchestra of Chicago (Jelly Roll Morton)","album":"1923, Library of Congress National Jukebox","licence":"Public domain","source":"https://archive.org/details/loc-jukebox-67806-wolverine-blues","station":"jazz","contexts":["garage"],"lufs":-17.5,"durationS":184.8},{"id":"fma278664","file":"media/audio/music/tommaso_croce_generic_sloppy_dub.9cc4f5ec.mp3","title":"Generic Sloppy Dub","artist":"Tommaso Croce","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Dilating_Times/backwards/generic-sloppy-dub/","station":"dubambient","contexts":["garage","cruise"],"lufs":-17.4,"durationS":316.7},{"id":"fma278757","file":"media/audio/music/1000_handz_greenery.6b82d1b4.mp3","title":"Greenery","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/greenery/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":209.4},{"id":"fma278845","file":"media/audio/music/guided_levitation_return_to_our_home.763873e2.mp3","title":"Return To Our Home","artist":"Guided Levitation","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/guided-levitation/eternal/return-to-our-home/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":430.2},{"id":"fma279307","file":"media/audio/music/matthew_c_wright_calming_royalty_free_piano_a_season_of_change.1228ba10.mp3","title":"Calming Royalty Free Piano - \"A Season of Change\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/calming-royalty-free-piano-a-season-of-change/","station":"classical","contexts":["garage","welcome"],"lufs":-17.6,"durationS":151},{"id":"fma279308","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_autumn_sunshine.cfc128af.mp3","title":"Gentle Royalty Free Piano - \"Autumn Sunshine\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-autumn-sunshine/","station":"classical","contexts":["garage","welcome"],"lufs":-18.7,"durationS":186.2},{"id":"fma279304","file":"media/audio/music/matthew_c_wright_gentle_royalty_free_piano_rustling.3ea1a7a8.mp3","title":"Gentle Royalty Free Piano - \"Rustling\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/slow-royalty-free-piano-away-for-autumn/gentle-royalty-free-piano-rustling/","station":"classical","contexts":["garage","welcome"],"lufs":-17,"durationS":161.1},{"id":"fmaia_goldberg_14","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_13.e46289fd.mp3","title":"Goldberg Variations, BWV 988: Variatio 13","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":254.5},{"id":"fmaia_goldberg_20","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_19.024a83f6.mp3","title":"Goldberg Variations, BWV 988: Variatio 19","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.2,"durationS":85},{"id":"fmaia_goldberg_25","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_24_canone_a.38d27e77.mp3","title":"Goldberg Variations, BWV 988: Variatio 24, Canone all'Ottava","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16.4,"durationS":165.5},{"id":"fmaia_goldberg_27","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_variatio_26.cb2b4f50.mp3","title":"Goldberg Variations, BWV 988: Variatio 26","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-16,"durationS":122.8},{"id":"fmaia_goldberg_31","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria_da_capo.b65c85c5.mp3","title":"Goldberg Variations, BWV 988: Aria da capo","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-17.2,"durationS":170.1},{"id":"fmaia_goldberg_01","file":"media/audio/music/kimiko_ishizaka_j_s_bach_goldberg_variations_bwv_988_aria.8a525c07.mp3","title":"Goldberg Variations, BWV 988: Aria","artist":"Kimiko Ishizaka (J. S. Bach)","album":"The Open Goldberg Variations","licence":"CC0","source":"https://archive.org/details/OpenGoldbergVariations","station":"classical","contexts":["garage","welcome"],"lufs":-19.6,"durationS":299.5},{"id":"fma278391","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_i_m_callin_late.73576f4b.mp3","title":"Peaceful Royalty Free Guitar - \"I'm Callin' Late\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-im-callin-late/","station":"roots","contexts":["garage","cruise"],"lufs":-19.2,"durationS":138.8},{"id":"fma279039","file":"media/audio/music/mr_smith_ranchero.03b7fda8.mp3","title":"Ranchero","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/synchromatic/ranchero/","station":"roots","contexts":["garage","cruise"],"lufs":-16.5,"durationS":114.2},{"id":"fma278388","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_a_cloudy_life.5400048e.mp3","title":"Calming Royalty Free Guitar - \"A Cloudy Life\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-a-cloudy-life/","station":"roots","contexts":["garage"],"lufs":-19,"durationS":170.8},{"id":"fma237449","file":"media/audio/music/mr_smith_ships.d2277b62.mp3","title":"Ships","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/ships/","station":"roots","contexts":["garage","cruise"],"lufs":-16.6,"durationS":82.1},{"id":"fma248055","file":"media/audio/music/mr_smith_quidi_vidi.94325e9a.mp3","title":"Quidi Vidi","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/quidi-vidi/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.9},{"id":"fma248226","file":"media/audio/music/mr_smith_in_the_mist.4ca7d4da.mp3","title":"In the Mist","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/in-the-mist/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":54.7},{"id":"fma256748","file":"media/audio/music/maarten_schellekens_whispers_of_the_glen.a0af8efe.mp3","title":"Whispers of the Glen","artist":"Maarten Schellekens","album":null,"licence":"CC0","source":"https://freemusicarchive.org/music/maarten-schellekens/public-domain-1/whispers-of-the-glen/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":161.6},{"id":"fma273704p1","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_1.cc7cdbdd.mp3","title":"Ghostman Blues, part 1","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":161},{"id":"fma273704p3","file":"media/audio/music/daniel_william_lawrence_ghostman_blues_full_album_part_3.0ee810e4.mp3","title":"Ghostman Blues, part 3","artist":"Daniel William Lawrence","album":"Ghostman Blues - Full Album (Traditional, Instrumental Blues)","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/ghostman-blues-full-album-traditional-instrumental-blues/ghostman-blues-full-album-traditional-instrumental-blues-album/","station":"blues","contexts":["garage"],"lufs":-16.1,"durationS":178.9},{"id":"fma271999p2","file":"media/audio/music/daniel_william_lawrence_a_land_of_corn_and_wine_part_2.1a3e2a6e.mp3","title":"A Land of Corn and Wine, part 2","artist":"Daniel William Lawrence","album":"A Land of Corn and Wine","licence":"CC0","source":"https://freemusicarchive.org/music/daniel-william-lawrence/a-land-of-corn-and-wine/a-land-of-corn-and-wine-traditional-instrumental-blues-full-album/","station":"blues","contexts":["garage"],"lufs":-16,"durationS":355.7},{"id":"fma277192","file":"media/audio/music/ketsa_time_falls_like_autumn_leaves.0b326725.mp3","title":"Time falls like Autumn Leaves","artist":"Ketsa","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/Ketsa/soul-sighs/time-falls-like-autumn-leaves/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":159.7},{"id":"fma279132","file":"media/audio/music/1000_handz_neighbor.194f378e.mp3","title":"Neighbor","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/neighbor/","station":"jazz","contexts":["garage","cruise"],"lufs":-16,"durationS":129.9},{"id":"fma279302","file":"media/audio/music/1000_handz_busted_tape.8ac88609.mp3","title":"Busted Tape","artist":"1000 Handz","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/1000-handz/cc-by-free-to-use-chillstudylounge-instrumentals/busted-tape/","station":"jazz","contexts":["garage"],"lufs":-16,"durationS":66},{"id":"fma277908","file":"media/audio/music/pamela_yuen_beloved.95635664.mp3","title":"Beloved","artist":"Pamela Yuen","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/pamela-yuen/ambient-music-1/beloved-1/","station":"dubambient","contexts":["garage","cruise"],"lufs":-16,"durationS":211.7},{"id":"fma233918","file":"media/audio/music/mr_smith_the_newfie.010088ef.mp3","title":"The Newfie","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/the-newfie/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":87.3},{"id":"fma237242","file":"media/audio/music/mr_smith_da_rock.f15eeafe.mp3","title":"Da Rock","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/da-rock/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":119},{"id":"fma237915","file":"media/audio/music/mr_smith_nfld.ba344a97.mp3","title":"NFLD","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/a-new-roar/nfld/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":105.5},{"id":"fma246044","file":"media/audio/music/mr_smith_the_newfie_pt_2.6d0e2be2.mp3","title":"The Newfie Pt 2","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/the-newfie-pt-2/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":85.4},{"id":"fma250186","file":"media/audio/music/mr_smith_sun_glitter.0a050709.mp3","title":"Sun Glitter","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/sun-glitter/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":66.5},{"id":"fma252236","file":"media/audio/music/mr_smith_birchy_nap.e91e17e6.mp3","title":"Birchy Nap","artist":"Mr Smith","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/mr-smith/kerplunk/birchy-nap/","station":"roots","contexts":["garage","cruise"],"lufs":-16,"durationS":55.2},{"id":"fma278389","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_brown_hair_and_chacos.53071383.mp3","title":"Quiet Royalty Free Guitar - \"Brown Hair and Chacos\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-brown-hair-and-chacos/","station":"roots","contexts":["garage","cruise"],"lufs":-18.5,"durationS":151},{"id":"fma278390","file":"media/audio/music/matthew_c_wright_slow_royalty_free_guitar_how_about_forever.19ea0bdb.mp3","title":"Slow Royalty Free Guitar - \"How About Forever\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/slow-royalty-free-guitar-how-about-forever/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":189.2},{"id":"fma278392","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_just_a_flight_away.b39b38a7.mp3","title":"Relaxing Royalty Free Guitar - \"Just a Flight Away\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-just-a-flight-away/","station":"roots","contexts":["garage","cruise"],"lufs":-17.9,"durationS":124.3},{"id":"fma278394","file":"media/audio/music/matthew_c_wright_peaceful_royalty_free_guitar_montana.ac8ceebf.mp3","title":"Peaceful Royalty Free Guitar - \"Montana\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/peaceful-royalty-free-guitar-montana/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":156},{"id":"fma278395","file":"media/audio/music/matthew_c_wright_soothing_royalty_free_guitar_old_steel.a75dce3f.mp3","title":"Soothing Royalty Free Guitar - \"Old Steel\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/soothing-royalty-free-guitar-old-steel/","station":"roots","contexts":["garage","cruise"],"lufs":-20.6,"durationS":131.9},{"id":"fma278396","file":"media/audio/music/matthew_c_wright_relaxing_royalty_free_guitar_so_proud_of_you.dd50ab59.mp3","title":"Relaxing Royalty Free Guitar - \"So Proud of You\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/relaxing-royalty-free-guitar-so-proud-of-you/","station":"roots","contexts":["garage","cruise"],"lufs":-19.5,"durationS":205.4},{"id":"fma278397","file":"media/audio/music/matthew_c_wright_quiet_royalty_free_guitar_this_here_house.560c1a4a.mp3","title":"Quiet Royalty Free Guitar - \"This Here House\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/quiet-royalty-free-guitar-this-here-house/","station":"roots","contexts":["garage","cruise"],"lufs":-22,"durationS":157},{"id":"fma278398","file":"media/audio/music/matthew_c_wright_calming_royalty_free_guitar_time_to_let_go.c14ebc99.mp3","title":"Calming Royalty Free Guitar - \"Time to Let Go\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/calming-royalty-free-guitar-time-to-let-go/","station":"roots","contexts":["garage","cruise"],"lufs":-20.4,"durationS":178.8},{"id":"fma278399","file":"media/audio/music/matthew_c_wright_simple_royalty_free_guitar_village_on_the_lake.b92784aa.mp3","title":"Simple Royalty Free Guitar - \"Village on the Lake\"","artist":"Matthew C. Wright","album":null,"licence":"CC-BY 4.0","source":"https://freemusicarchive.org/music/matthew-c-wright/simple-royalty-free-guitar-endless-skyway/simple-royalty-free-guitar-village-on-the-lake/","station":"roots","contexts":["garage","cruise"],"lufs":-18.9,"durationS":130.3}];window.FLYDIY_AUDIO_MEDIA={"amb.forest.day":["media/audio/sfx/amb_forest_day_288899.157bf96e.mp3"],"amb.forest.night":["media/audio/sfx/amb_forest_night_333221.3df54da1.mp3"],"amb.wind.light":["media/audio/sfx/amb_wind_light_160469.4d45c6a1.mp3"],"amb.wind.clear":["media/audio/sfx/amb_wind_clear_156414.f23315bb.mp3"],"amb.wind.mountain":["media/audio/sfx/amb_wind_mountain_165526.140f3920.mp3"],"amb.wind.storm":["media/audio/sfx/amb_wind_storm_157280.9fdd2a2c.mp3"],"amb.shore.surf":["media/audio/sfx/amb_shore_surf_155641.27350310.mp3"],"amb.shore.rocks":["media/audio/sfx/amb_shore_rocks_155895.6ee71344.mp3"],"amb.lake.near":["media/audio/sfx/amb_lake_near_135046.22d12339.mp3"],"amb.lake.lap":["media/audio/sfx/amb_lake_lap_428088.0018a69a.mp3"],"amb.stream":["media/audio/sfx/amb_stream_264180.4ff25da2.mp3"],"amb.harbour":["media/audio/sfx/amb_harbour_339440.fc5b7cd1.mp3"],"amb.village":["media/audio/sfx/amb_village_435819.20299c23.mp3"],"amb.airfield":["media/audio/sfx/amb_airfield_319102.6b4237cf.mp3"],"amb.hangar":["media/audio/sfx/amb_hangar_427861.f9afe454.mp3"],"amb.rain.roof":["media/audio/sfx/amb_rain_roof_329578.c0aba715.mp3"],"amb.frogs.night":["media/audio/sfx/amb_frogs_night_135561.9aa1f6e9.mp3"],"amb.loons":["media/audio/sfx/amb_loons_39339.7d136ae5.mp3"],"amb.meadow":["media/audio/sfx/amb_meadow_639459.3facef88.mp3"],"bird.eagle":["media/audio/sfx/bird_eagle_381200.1d11590c.mp3","media/audio/sfx/bird_eagle_392212.13114290.mp3","media/audio/sfx/bird_eagle_nps-golden-eagle.ca760fa8.mp3"],"bird.gull":["media/audio/sfx/bird_gull_166710.bb2f19eb.mp3","media/audio/sfx/bird_gull_263786.51e3ecb8.mp3","media/audio/sfx/bird_gull_73497.919ce49c.mp3"],"bird.crow":["media/audio/sfx/bird_crow_182090.1a94cd39.mp3","media/audio/sfx/bird_crow_361470.92582da1.mp3","media/audio/sfx/bird_crow_75162.543a2c22.mp3","media/audio/sfx/bird_crow_nps-raven.8c13e1ca.mp3"],"bird.owl":["media/audio/sfx/bird_owl_465697.2ee834d0.mp3","media/audio/sfx/bird_owl_479588.817cca9b.mp3","media/audio/sfx/bird_owl_558396.fc398755.mp3"],"dog":["media/audio/sfx/dog_160366.86fe02dc.mp3"],"gnd.gravel":["media/audio/sfx/gnd_gravel_251661.0e48f11b.mp3"],"mech.creak":["media/audio/sfx/mech_creak_119468.101f6d88.mp3","media/audio/sfx/mech_creak_238289.6d8b72b3.mp3"],"mech.door":["media/audio/sfx/mech_door_345066.66dbaf6d.mp3"],"mech.switch":["media/audio/sfx/mech_switch_361371.9ced067b.mp3","media/audio/sfx/mech_switch_423957.6b08a0c1.mp3"],"water.drip":["media/audio/sfx/water_drip_166986.f81c294b.mp3"],"ui.click":["media/audio/sfx/ui_click_528561.bdd8b52e.mp3"],"vehicle.pickup":["media/audio/sfx/vehicle_pickup_450227.be208f91.mp3"],"amb.rain.outside":["media/audio/sfx/amb_rain_outside_523391.da71d15a.mp3"],"amb.birds.open":["media/audio/sfx/amb_birds_open_456766.c24bacac.mp3"],"amb.lake.shore":["media/audio/sfx/amb_lake_shore_352356.21fc75ef.mp3"],"amb.sea.open":["media/audio/sfx/amb_sea_open_460061.6c0c2f0e.mp3"],"bird.loon":["media/audio/sfx/bird_loon_39339.3c306d67.mp3","media/audio/sfx/bird_loon_nps-loon.ebce31d5.mp3","media/audio/sfx/bird_loon_nps-loon.c47baae3.mp3"],"tram.bell":["media/audio/sfx/tram_bell_497561.9e7279e8.mp3"],"tram.hum":["media/audio/sfx/tram_hum_442493.2b3fe7d3.mp3"],"boat.idle":["media/audio/sfx/boat_idle_637743.0d3d93e0.mp3"],"animal.bear":["media/audio/sfx/animal_bear_nps-grizzly-vocal.def683e6.mp3","media/audio/sfx/animal_bear_nps-grizzly-vocal.98163160.mp3","media/audio/sfx/animal_bear_nps-grizzly-roar.02f72aba.mp3"],"animal.elk":["media/audio/sfx/animal_elk_nps-elk-bugle-1.10ba252d.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.d2390a80.mp3","media/audio/sfx/animal_elk_nps-elk-bugle-2.c7320d85.mp3"],"animal.deer":["media/audio/sfx/animal_deer_351113.97a7d90b.mp3","media/audio/sfx/animal_deer_351113.5b6da753.mp3"],"animal.whale.blow":["media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.58dfd4e5.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.d2504229.mp3","media/audio/sfx/animal_whale_blow_nps-humpback-trumpet.7663f71d.mp3"],"animal.orca.blow":["media/audio/sfx/animal_orca_blow_nps-porpoise.b8a0c8fc.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.5d0de2ec.mp3","media/audio/sfx/animal_orca_blow_nps-porpoise.45872e4e.mp3"],"bird.thrush":["media/audio/sfx/bird_thrush_nps-varied-thrush.603dc854.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dc4d4664.mp3","media/audio/sfx/bird_thrush_nps-varied-thrush.dba365b7.mp3"],"mill.stamp":["media/audio/sfx/mill_stamp_322871.33f9ef7a.mp3"]};window.FLYDIY_VOICE={"voice":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"voices":{"norman":{"name":"norman","id":"en_US-norman-medium","who":"male, US, low and even","role":"Norman, the host","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/norman/medium","dataset":"LibriVox readings by one reader, ~15.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (1200 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"john":{"name":"john","id":"en_US-john-medium","who":"male, US","role":"Chief Walt Brennan (the interview)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/john/medium","dataset":"LibriVox readings by one reader, ~12.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"fine-tuned (600 epochs) from en_US-kristin-medium, itself trained from scratch on public-domain LibriVox","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"kristin":{"name":"kristin","id":"en_US-kristin-medium","who":"female, US","role":"Officer Dana Hale (recorded messages)","quality":"medium","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/kristin/medium","dataset":"LibriVox readings by one reader, ~11.5 h, compiled by Bryce Beattie","datasetLicence":"public domain","datasetUrl":"https://librivox.org","lineage":"trained from scratch (2000 epochs, medium)","credit":null,"render":{"lufs":-20,"kbps":48,"takes":"whole"}},"libritts":{"name":"libritts","id":"en_US-libritts-high","who":"US, 904 speakers (LibriTTS)","role":"the residents who phone in","quality":"high","engine":"Piper 1.2.0 (rhasspy/piper) + piper-phonemize 1.1.0 - MIT; a render tool only, nothing of it ships","modelLicence":"MIT (the rhasspy/piper-voices repository)","modelUrl":"https://huggingface.co/rhasspy/piper-voices/tree/main/en/en_US/libritts/high","dataset":"LibriTTS train-clean-360 (Zen et al. 2019; from LibriSpeech, from LibriVox)","datasetLicence":"CC BY 4.0","datasetUrl":"http://www.openslr.org/60/","lineage":"trained from scratch on train-clean-360","credit":"LibriTTS corpus by Heiga Zen et al. (Google), CC BY 4.0, http://www.openslr.org/60/","render":{"lufs":-20,"kbps":48,"takes":"whole"}}},"script":{"file":"media/audio/voice/radio_script.96bc74e6.json","items":352,"seconds":2085.9,"bytes":12743609}}</script>
 <script type="text/x-flydiy" src="src/models/pa18_model.js?v=d854feec"></script>
 <script type="text/x-flydiy" src="src/models/c172_model.js?v=52c3ced6"></script>
 <script type="text/x-flydiy" src="src/models/d112_model.js?v=3678040d"></script>
@@ -109512,11 +109649,13 @@ function meshStats(B) {
     vol += dot(A, n) / 6;
   }
   // open edges: every directed edge must have its reverse
-  const E = new Map();
+  // (PHONE-EDIT-PERF, 2 Nov: a number per edge, a * nv + b, not an 'a>b' string and a split - the same count; this ran
+  // on every float build, 2.9 s self over a few minutes of edits on the user's S20 FE)
+  const nv = p.length / 3, E = new Map();
   for (let t = 0; t < ix.length; t += 3)
-    for (let k = 0; k < 3; k++) { const a = ix[t + k], b = ix[t + (k + 1) % 3]; E.set(a + '>' + b, (E.get(a + '>' + b) || 0) + 1); }
+    for (let k = 0; k < 3; k++) { const e = ix[t + k] * nv + ix[t + (k + 1) % 3]; E.set(e, (E.get(e) || 0) + 1); }
   let open = 0;
-  for (const [k, n] of E) { const [a, b] = k.split('>'); if (!E.has(b + '>' + a) || n !== 1) open++; }
+  for (const [e, n] of E) { const a = Math.floor(e / nv), b = e - a * nv; if (!E.has(b * nv + a) || n !== 1) open++; }
   return { vol, closure: [sx / 2, sy / 2, sz / 2], open, tris: ix.length / 3, verts: p.length / 3 };
 }
 
@@ -111348,8 +111487,12 @@ PAGE.post = ctx => {
   // diving past the tightening, user report). Rod mode builds without
   // both — as the real tube-boom aeroplanes fly — and the user's
   // finKeel/finDorsal choices return with the loft.
+  // PHONE-EDIT-PERF (2 Nov): the two overrides on an object that reads the rest THROUGH P, not a spread of it - a spread
+  // enumerates every key, and the post chain then records the fin as reading ALL of P (G1441's `all`): every row of
+  // every slider re-ran the fin, the stab, the access fittings, the lights and the hinges (~360 ms a release on the
+  // user's S20 FE, on their twin-boom floatplane). finSpec reads its keys by name: the same values
   const S = FIN.finSpec(P.boomStyle
-    ? { ...P, finKeel: 0, finDorsal: 0 } : P);
+    ? Object.assign(Object.create(P), { finKeel: 0, finDorsal: 0 }) : P);
   S.cutPrep = cutMode;              // crease the rails the cut runs along
   // TWIN BOOMS (2026-09-04): the fin rides a BOOM, not the fuselage — its
   // deck is the boom's own top line (a straight tube), its keel the tube's
@@ -118906,7 +119049,12 @@ function balanceApply(r) {
     const held = typeof window.CAGE_FLOAT_HELD === 'function' && window.CAGE_FLOAT_HELD();
     if (moved && !held && P && +P.gearFloats > 0 && typeof UI.build === 'function') {
       clearTimeout(balanceApply._t);
-      balanceApply._t = setTimeout(() => { try { UI.build(); } catch (e) {} }, 60);
+      // PHONE-EDIT-PERF: never under a held slider (the drag's own release follows), and as a release's build (buildCg)
+      const go = () => {
+        if (typeof UI.dragging === 'function' && UI.dragging()) { balanceApply._t = setTimeout(go, 250); return; }
+        try { UI.buildWhy = 'cg'; (UI.buildCg || UI.build)(); } catch (e) {}
+      };
+      balanceApply._t = setTimeout(go, 60);
     }
   }
   for (const fn of (window.BALANCE_LISTENERS || [])) { try { fn(r); } catch (e) {} }
@@ -120157,13 +120305,16 @@ function skinProbe(scene, s) {
 // downward; a flank exit above the waist would get the inward one).
 // a ray against the cage SHEET (cage units × FS), skin faces only — the
 // same triangles GATE CLIP measures; returns { t, n } or null
-function sheetRay(mesh, FS, o, d, tMax) {
-  if (!mesh || !mesh.V || !mesh.F) return null;
-  const GGk = window.GEAR_GEN;
-  const CMk = GGk && GGk.CAGE_MATS ? new Set(GGk.CAGE_MATS) : null;
-  let best = null;
-  const zLo = Math.min(o[2], o[2] + d[2] * tMax) - 0.05, zHi = Math.max(o[2], o[2] + d[2] * tMax) + 0.05;
-  const Vv = mesh.V;
+// PHONE-EDIT-PERF (2 Nov): THE SHEET'S SKIN FACES AND THEIR Z-RANGES, ONCE PER SHEET. sheetRay ran over every face of the
+// sheet on every call - the material Set made again, each face's z-range measured again - and the cable routing calls it
+// dozens of times a build (`sheetRay` 0.6 s self in a few minutes of edits on the user's S20 FE). A sheet is not changed
+// once built (the kept sheet, G1300); the list keeps the faces' own order, so the ray meets the same faces in the same
+// order and the nearest hit is the same one
+const SHEET_FACES = new WeakMap();
+function sheetFaces(mesh, FS, mats) {
+  let c = SHEET_FACES.get(mesh);
+  if (c && c.FS === FS && c.mats === mats && c.nF === mesh.F.length) return c;
+  const CMk = mats ? new Set(mats) : null, Vv = mesh.V, F = [], Z = [];
   for (const f of mesh.F) {
     if (CMk && !CMk.has(f.m)) continue;
     const v = f.v || f;
@@ -120171,7 +120322,22 @@ function sheetRay(mesh, FS, o, d, tMax) {
     // the window, not a vertex fall inside it
     let fz0 = Infinity, fz1 = -Infinity;
     for (const i of v) { const z = Vv[i][2] * FS; if (z < fz0) fz0 = z; if (z > fz1) fz1 = z; }
-    if (fz1 < zLo || fz0 > zHi) continue;
+    F.push(v); Z.push(fz0, fz1);
+  }
+  c = { FS, mats, nF: mesh.F.length, F, Z };
+  SHEET_FACES.set(mesh, c);
+  return c;
+}
+function sheetRay(mesh, FS, o, d, tMax) {
+  if (!mesh || !mesh.V || !mesh.F) return null;
+  const GGk = window.GEAR_GEN;
+  const SF = sheetFaces(mesh, FS, GGk && GGk.CAGE_MATS ? GGk.CAGE_MATS : null);
+  let best = null;
+  const zLo = Math.min(o[2], o[2] + d[2] * tMax) - 0.05, zHi = Math.max(o[2], o[2] + d[2] * tMax) + 0.05;
+  const Vv = mesh.V;
+  for (let fi = 0; fi < SF.F.length; fi++) {
+    const v = SF.F[fi];
+    if (SF.Z[fi * 2 + 1] < zLo || SF.Z[fi * 2] > zHi) continue;
     for (let k = 1; k + 1 < v.length; k++) {
       const a = Vv[v[0]], b = Vv[v[k]], c = Vv[v[k + 1]];
       const e1 = [(b[0] - a[0]) * FS, (b[1] - a[1]) * FS, (b[2] - a[2]) * FS];
@@ -126497,7 +126663,56 @@ function updateDims(box, FS) {
 // and the page's post chain (the layers): ~0.5 + ~0.45 s for a larger aeroplane, which as one task was the longest
 // of parked.js's captures under the roll-out screen (applySpecSteps). build() runs it to the end - every slider,
 // every door, exactly as before.
-function build() { const g = buildSteps(); while (!g.next().done); }
+function build() {
+  const t0 = performance.now(), g = buildSteps();
+  try { while (!g.next().done); } finally { geBuilt(performance.now() - t0); }
+}
+// PHONE-EDIT-PERF (D, 2 Nov - the user's S20 FE: "second long waits, impossible to operate", and the log could only say
+// "TimerHandler:setTimeout 8550ms; DOMWindow.onpointerup up 1510ms"): THE GARAGE'S EDITS IN THE FLIGHT RECORDER. Every
+// handler that builds (a row's input / change / typed value, the pointer up, the 350 ms pause) is timed as ONE edit and
+// logged as a 'gedit' event: the row's key, how (drag / input / release / typed / pause, or a bare call: the CG
+// handshake 'cg', a switch), the handler's whole ms, the builds in it and their ms, the sheet's ms, the build's path
+// (deform / preview / detail / release plan / whole, and why a release went whole), the post chain's layers that ran
+// (the last build's, the eight longest) and the game's CAGE_ON_BUILD. A drag's ticks are COUNTED, not logged (a tick a
+// frame: the counters below are numbers in place, nothing allocated) and ride the release's event; a tick of 50 ms or
+// more is logged on its own (a frame that long is the cost being looked for). Nothing here changes what is built.
+// tools/analyze_log.js prints them (GARAGE EDITS).
+const GE = { on: 0, t0: 0, build: 0, nb: 0, sheet: 0, path: '', why: '', onBuild: 0, key: '', ticks: 0, tickSum: 0, tickMax: 0, tickBuild: 0 };
+const geNow = () => (window.__realNow ? window.__realNow() : performance.now());   // (a rig's real clock, as the chain's)
+const geR = x => Math.round(x * 10) / 10;
+function geBegin() {
+  if (GE.on++ > 0) return;
+  GE.t0 = geNow(); GE.build = 0; GE.nb = 0; GE.sheet = 0; GE.path = ''; GE.why = ''; GE.onBuild = 0;
+}
+function geEnd(how, key) {
+  if (GE.on <= 0) return;
+  if (--GE.on > 0) return;
+  geDone(how, key || GE.key, geNow() - GE.t0);
+}
+function geDone(how, key, ms) {
+  if (!GE.nb && ms < 4) return;              // nothing built, nothing to say
+  if (how === 'drag' && ms < 50) { GE.ticks++; GE.tickSum += ms; GE.tickBuild += GE.build; if (ms > GE.tickMax) GE.tickMax = ms; return; }
+  const R = typeof window !== 'undefined' ? window.FLIGHT_REC : null;
+  if (!R || typeof R.event !== 'function') { if (how !== 'drag') GE.ticks = GE.tickSum = GE.tickMax = GE.tickBuild = 0; return; }
+  const CH = window.CAGE_CHAIN, L = GE.nb && CH && Array.isArray(CH.last) ? CH.last : null;
+  let layers = '';
+  if (L) layers = L.filter(l => l.ran && l.ms >= 1).sort((a, b) => b.ms - a.ms).slice(0, 8).map(l => l.name + ' ' + Math.round(l.ms)).join(', ');
+  const d = { k: key || null, how, build: geR(GE.build), builds: GE.nb, sheet: geR(GE.sheet), path: GE.path || null, why: GE.why || null,
+              layers, onBuild: geR(GE.onBuild) };
+  if (how !== 'drag' && GE.ticks) { d.ticks = GE.ticks; d.tickMean = geR(GE.tickSum / GE.ticks); d.tickMax = geR(GE.tickMax); d.tickBuild = geR(GE.tickBuild); }
+  if (how !== 'drag') GE.ticks = GE.tickSum = GE.tickMax = GE.tickBuild = 0;
+  try { R.event('gedit', ms, d); } catch (e) {}
+}
+// a build outside any handler (the CG handshake's, a switch's, a load's): an edit of its own; `CAGE_UI.buildWhy` names it
+function geBuilt(ms) {
+  GE.build += ms; GE.nb++;
+  if (GE.on) return;
+  const UI = typeof window !== 'undefined' ? window.CAGE_UI : null;
+  const why = (UI && UI.buildWhy) || (DRAG_TICK ? 'drag' : 'call');
+  if (UI && UI.buildWhy) UI.buildWhy = null;
+  geDone(why, why === 'drag' ? GE.key : '', ms);
+  GE.build = 0; GE.nb = 0; GE.sheet = 0; GE.path = ''; GE.why = ''; GE.onBuild = 0;
+}
 // G1303 (GARAGE-LAG-2): THE DETAIL LAYERS WAIT FOR THE PAUSE. A slider dragged under a held pointer rebuilt every
 // layer on every tick; the ones that only DRESS the aeroplane - the lights, the control hinges, the access fittings,
 // the tanks (the energy layer reads the crew and the wing; nothing that builds before it reads it) - ride the post
@@ -126514,12 +126729,19 @@ function dragSettle() {
 }
 // G1451 (RELEASE-FAST): the build a drag's release runs (dragSettle) - it may run only what the drag reached
 let RELEASE = false;
+// PHONE-EDIT-PERF (2 Nov): THE CG HANDSHAKE'S BUILD IS A RELEASE TOO. The balance worker's answer moved the floatplane's
+// CG 2 cm (G396) and rebuilt the WHOLE aeroplane for the float layer's step - 0.8-1.2 s on the user's S20 FE after every
+// edit, and inside the next drag when it landed there. Only the float layer reads the CG (FLYDIY_CG_MODEL); the build runs
+// as a release's (G1451: what moved, what a preview left stale) with the float layer always run. buildCg() is that build
+// (_cage_energy's handshake calls it, after the hand is off the sliders)
+let CG_ONLY = false;
+function buildCg() { CG_ONLY = true; try { build(); } finally { CG_ONLY = false; } }
 function dragSettleSoon() {
   if (DRAG_T) clearTimeout(DRAG_T);
-  DRAG_T = setTimeout(() => { DRAG_T = null; dragSettle(); }, (window.CAGE_UI && window.CAGE_UI.dragSettleMs) || 350);
+  DRAG_T = setTimeout(() => { DRAG_T = null; geBegin(); try { dragSettle(); } finally { geEnd('pause'); } }, (window.CAGE_UI && window.CAGE_UI.dragSettleMs) || 350);
 }
 if (typeof window !== 'undefined' && window.addEventListener) {
-  const up = () => { if (DRAG_ON) { DRAG_ON = null; dragSettle(); } };
+  const up = () => { if (DRAG_ON) { DRAG_ON = null; geBegin(); try { dragSettle(); } finally { geEnd('release'); } } };
   window.addEventListener('pointerup', up, true);
   window.addEventListener('pointercancel', up, true);
 }
@@ -126722,23 +126944,40 @@ function standInfo(stand, L) {
   for (let i = 0; i < nB; i++) for (let a = 0; a < 3; a++) { const x = V[i][a]; if (x < lo[a]) lo[a] = x; if (x > hi[a]) hi[a] = x; }
   const ext = Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) || 1;
   const cs = ext / Math.max(4, Math.cbrt(nB) * 1.5);
-  const cell = new Map(), ck = (x, y, z) => x + ',' + y + ',' + z;
+  // PHONE-EDIT-PERF (2 Nov, the user's S20 FE): THE GRID IS AN ARRAY, AND A RING WALKS ITS SHELL ONLY. The cells were a Map
+  // of 'x,y,z' strings and a ring visited every cell of its cube (skipping the inside): a part far from the fuselage - the
+  // floats, a boom's tail, the fin - walked out to r 64, O(r^4) string lookups. On the user's twin-boom floatplane one
+  // press's measure (standSoon -> standFollowers) was a 6-8 s task on the phone (`near` 18.6 s self in a profile). Same
+  // cells, same visiting order (x, then y, then z ascending; a cell outside the grid is empty, as the Map had it), same
+  // answers - only the empty cells and the cube's inside are no longer visited
+  const nx = Math.floor((hi[0] - lo[0]) / cs) + 1, ny = Math.floor((hi[1] - lo[1]) / cs) + 1, nz = Math.floor((hi[2] - lo[2]) / cs) + 1;
+  const cell = new Array(nx * ny * nz);
   for (let i = 0; i < nB; i++) {
-    const k = ck(Math.floor((V[i][0] - lo[0]) / cs), Math.floor((V[i][1] - lo[1]) / cs), Math.floor((V[i][2] - lo[2]) / cs));
-    let a = cell.get(k); if (!a) cell.set(k, a = []); a.push(i);
+    const k = (Math.floor((V[i][0] - lo[0]) / cs) * ny + Math.floor((V[i][1] - lo[1]) / cs)) * nz + Math.floor((V[i][2] - lo[2]) / cs);
+    let a = cell[k]; if (!a) cell[k] = a = []; a.push(i);
   }
   const near = (p, k) => {             // the k nearest base vertices (k = 1: the nearest)
     const cx = Math.floor((p[0] - lo[0]) / cs), cy = Math.floor((p[1] - lo[1]) / cs), cz = Math.floor((p[2] - lo[2]) / cs);
     const best = [];                   // [d2, i] sorted
+    const visit = a => {
+      for (const i of a) {
+        const d2 = (V[i][0] - p[0]) ** 2 + (V[i][1] - p[1]) ** 2 + (V[i][2] - p[2]) ** 2;
+        if (best.length < k || d2 < best[best.length - 1][0]) {
+          best.push([d2, i]); best.sort((u, w) => u[0] - w[0]); if (best.length > k) best.pop();
+        }
+      }
+    };
     for (let r = 0; r < 64; r++) {
-      for (let x = cx - r; x <= cx + r; x++) for (let y = cy - r; y <= cy + r; y++) for (let z = cz - r; z <= cz + r; z++) {
-        if (Math.max(Math.abs(x - cx), Math.abs(y - cy), Math.abs(z - cz)) !== r) continue;
-        const a = cell.get(ck(x, y, z)); if (!a) continue;
-        for (const i of a) {
-          const d2 = (V[i][0] - p[0]) ** 2 + (V[i][1] - p[1]) ** 2 + (V[i][2] - p[2]) ** 2;
-          if (best.length < k || d2 < best[best.length - 1][0]) {
-            best.push([d2, i]); best.sort((u, w) => u[0] - w[0]); if (best.length > k) best.pop();
-          }
+      const x0 = Math.max(0, cx - r), x1 = Math.min(nx - 1, cx + r), y0 = Math.max(0, cy - r), y1 = Math.min(ny - 1, cy + r);
+      const z0 = Math.max(0, cz - r), z1 = Math.min(nz - 1, cz + r);
+      for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) {
+        const base = (x * ny + y) * nz;
+        if (Math.abs(x - cx) === r || Math.abs(y - cy) === r) {      // on the shell's x / y faces: the whole z run
+          for (let z = z0; z <= z1; z++) { const a = cell[base + z]; if (a) visit(a); }
+        } else {                                                      // inside them: the two z faces alone
+          const zA = cz - r, zB = cz + r;
+          if (zA >= 0 && zA < nz) { const a = cell[base + zA]; if (a) visit(a); }
+          if (r > 0 && zB >= 0 && zB < nz) { const a = cell[base + zB]; if (a) visit(a); }
         }
       }
       // every cell within r rings is seen: done once the k-th is closer than the ring's inner edge
@@ -126916,17 +127155,20 @@ let PRE_KEY = null, STAT0 = '', WHOLE_SEQ = 0;      // WHOLE_SEQ: the chain's ru
 const RELEASE_INFO = { n: 0, whole: 0, last: null };
 function releaseWhy(built) {
   const CH = window.CAGE_CHAIN;
-  if (!RELEASE) return 'not a release';
+  if (!RELEASE && !CG_ONLY) return 'not a release';
   if (PREVIEW_OFF() || (window.CAGE_UI && window.CAGE_UI.releaseFast === false)) return 'off';
   if (!CH || !CH.on || !CH.cur) return 'no chain';
   if (DEFORMED) return 'a deformed drag';
   // a floatplane: the float layer stands its step on the CG the balance worker answers (FLYDIY_CG_MODEL, G396 - not a
-  // P key, so no record holds it) and the handshake rebuilds when that CG moves 2 cm; its release is the whole build,
-  // as it was
-  if (+P.gearFloats > 0) return 'a floatplane (the CG handshake)';
+  // P key, so no record holds it) - PHONE-EDIT-PERF: its CG build (buildCg) is the plan with the float layer always run
+  // (below; INSTANT --settled: the same aeroplane as the whole build's). A DRAG's release on a floatplane stays whole
+  // (PHONE-1a, 2 Nov 19:10): on the user's twin the wgSpan release kept the crew layer and its footwell ended 17 cm off
+  // the whole build's (the weathering's uFootA) - a feed the plan does not know yet; PHONE-1b finds it
+  if (RELEASE && !CG_ONLY && +P.gearFloats > 0) return 'a floatplane\'s drag (PHONE-1a)';
   if (built !== LAST_SHEET || !meshObj || built.mesh !== MS) return 'the sheet moved';
   if (PRE_KEY == null || preKey() !== PRE_KEY) return 'a pre-chain row moved';
-  if (craftKey() !== CRAFT_KEY) return 'the sit moved';
+  // (PHONE-EDIT-PERF: a moved sit - the floats' CG step, the gear - is measured again at the release's start, below, as
+  // the whole build measures it at its own; it no longer sends the release whole)
   return '';
 }
 function* releaseSteps(built, rplan) {
@@ -127058,6 +127300,7 @@ function* buildSteps() {
     try { ok = deformTick(LAST_SHEET, step, L); } catch (e) { PREVIEW.deformWhy = 'threw: ' + (e && e.message); ok = false; }
     cageStill = !ok && PREVIEW.deformWhy === 'the cage did not move';
     if (ok) {
+      GE.path = 'deform';
       yield 'post';
       DRAG_LATE = true;
       if (DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
@@ -127066,7 +127309,9 @@ function* buildSteps() {
       return;
     }
   }
+  const tSheet = geNow();
   const built = sheetKept(P, { step, level: L });
+  GE.sheet += geNow() - tSheet;
   const spec = built.spec, m = built.cage;
   // G1442 (GARAGE-INSTANT): A DRAG TICK THAT KEEPS THE SHEET IS A PREVIEW. The fuselage on the stand is this
   // sheet's already (its mesh, its decals, its weathering, the panels), so only the layers whose inputs moved run
@@ -127077,6 +127322,7 @@ function* buildSteps() {
   const plan = (DRAG_TICK && CH && CH.on && built === LAST_SHEET && meshObj && !PREVIEW_OFF() &&
     !(window.CAGE_UI && window.CAGE_UI.dragDefer === false)) ? CH.plan(P) : null;
   if (plan) {
+    GE.path = 'preview';
     standRestore(LAST_SHEET);
     yield 'post';
     DRAG_LATE = true;
@@ -127091,9 +127337,11 @@ function* buildSteps() {
     return;
   }
   // G1451: a drag's release that keeps the sheet runs what the drag reached
-  if (RELEASE) {
+  if (RELEASE || CG_ONLY) {
     const why = releaseWhy(built);
     const rplan = !why ? CH.plan(P, true, built.sheet) : null;
+    // PHONE-EDIT-PERF: a floatplane's float layer reads the CG, which no record holds - it runs on every release
+    if (rplan && +P.gearFloats > 0) CH.layers.forEach((l, i) => { if (l.name === 'float' && !rplan.run[i]) { rplan.run[i] = true; rplan.why[i] = 'cg'; } });
     // a bisecting knob: CAGE_UI.releaseForce = [layer names] runs them too
     const RF = window.CAGE_UI && window.CAGE_UI.releaseForce;
     if (rplan && Array.isArray(RF)) CH.layers.forEach((l, i) => { if (RF.includes(l.name) && !rplan.run[i]) { rplan.run[i] = true; rplan.why[i] = 'forced'; } });
@@ -127103,8 +127351,24 @@ function* buildSteps() {
     // layer runs anyway and the rows pass (dash, rims, shoulder on all four builds)
     const crewL = CH.layers.find(l => l.name === 'crew');
     const crewMoved = !!(rplan && crewL && crewL.seq > WHOLE_SEQ && !rplan.why.includes('sheet') && !(Array.isArray(RF) && RF.length));
-    if (rplan && !crewMoved) { yield* releaseSteps(built, rplan); eyeAfterBuild(); return; }
+    if (rplan && !crewMoved) {
+      // PHONE-EDIT-PERF: THE CRAFT FRAME FROM WHERE THE LAST DRAW PUT THE MOUNT - what a whole build measures before its layers
+      // (G1301; G1443's deformed drag measures it the same way after its draw). The layers that publish in it (the
+      // weathering's sources: applyWeather, every release) then publish in this one
+      if (craftKey() !== CRAFT_KEY) {
+        const A0 = AK();
+        if (A0 && A0.aeroSetCraft) {
+          const mnt = (window.CAGE_JOIN && window.CAGE_JOIN.mount && window.CAGE_JOIN.mount()) || ((typeof window !== 'undefined') && window.CAGE_UI_SCENE);
+          let mw = new THREE.Matrix4();
+          if (mnt) { mnt.updateWorldMatrix(true, false); mw = mnt.matrixWorld; }
+          A0.aeroSetCraft(THREE, mw, { lateral: 'x', along: 'z', up: 'y', aft: true });
+          CRAFT_KEY = craftKey();
+        }
+      }
+      GE.path = 'release plan'; yield* releaseSteps(built, rplan); eyeAfterBuild(); return;
+    }
     RELEASE_INFO.whole++; RELEASE_INFO.last = { whole: crewMoved ? 'the crew moved in the drag' : (why || 'no plan') };
+    GE.why = RELEASE_INFO.last.whole;
   }
   LAST_SHEET = built;
   M0 = m;
@@ -127304,6 +127568,7 @@ function* buildSteps() {
   // sheet's are (G1442) - the parts stand where the cage holds them; the settle build is whole.
   const plan2 = cageStill && CH && CH.on ? CH.plan(P) : null;
   if (plan2) {
+    GE.path = 'detail';
     yield 'post';
     DRAG_LATE = true;
     if (DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
@@ -127316,6 +127581,7 @@ function* buildSteps() {
     return;
   }
   SEC_EPOCH++;
+  GE.path = DRAG_TICK ? 'whole (deferred)' : 'whole';
   yield 'post';                          // G680: the layers in a task of their own when a caller slices the build
   // G1303: a drag tick defers the detail layers; any other build is whole, and settles a deferred one
   const defer = DRAG_TICK && !(window.CAGE_UI && window.CAGE_UI.dragDefer === false);
@@ -127453,7 +127719,7 @@ function draw() {
   // EXT: the game's loop renders the shared scene; ping the mount so the
   // sit transform follows every rebuild (pitch/gy move with the gear)
   if (!renderer) {
-    if (window.CAGE_ON_BUILD) window.CAGE_ON_BUILD();
+    if (window.CAGE_ON_BUILD) { const t0 = geNow(); try { window.CAGE_ON_BUILD(); } finally { if (GE.on) GE.onBuild += geNow() - t0; } }
     return;
   }
   const r = cv.parentElement.getBoundingClientRect();
@@ -127721,19 +127987,25 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
       vf.value = fmtV(+e.target.value);
       // G1303: a tick under a held pointer is a DRAG tick - the detail layers wait for the pause (dragBuild)
       DRAG_TICK = DRAG_ON === rng;
+      GE.key = k; geBegin();
+      const how = DRAG_TICK ? 'drag' : 'input';
       try { oninput(rel ? (sizeRef || 1) * +e.target.value : +e.target.value); }
-      finally { DRAG_TICK = false; }
+      finally { DRAG_TICK = false; geEnd(how, k); }
       if (DRAG_LATE) dragSettleSoon();
     };
     rng.addEventListener('pointerdown', () => { DRAG_ON = rng; standSoon(); });
-    rng.addEventListener('change', () => { if (DRAG_ON === rng) DRAG_ON = null; dragSettle(); });
+    rng.addEventListener('change', () => { if (DRAG_ON === rng) DRAG_ON = null; geBegin(); try { dragSettle(); } finally { geEnd('release', k); } });
     vf.onchange = () => {                // typed values clamp to the range
       if (rng.disabled) { vf.value = fmtV(rng.value); return; }
       let v = parseFloat(vf.value);
       if (!Number.isFinite(v)) { vf.value = fmtV(rng.value); return; }
       v = Math.max(lo, Math.min(hi, v));
       rng.value = v; vf.value = fmtV(v);
-      oninput(rel ? (sizeRef || 1) * v : v);
+      // PHONE-EDIT-PERF (the brief: "typed values take the same path"): a typed value is a release - one tick, no
+      // preview before it - and builds as G1451's release does (what the value moved, the rest kept; the whole build
+      // when the sheet moved, as a drag's release)
+      GE.key = k; geBegin(); RELEASE = true;
+      try { oninput(rel ? (sizeRef || 1) * v : v); } finally { RELEASE = false; geEnd('typed', k); }
     };
     widget = meta.el = rng; meta.vf = vf;
   }
@@ -130860,7 +131132,7 @@ if (typeof ResizeObserver !== 'undefined')
 if (PAGE.defaultStep && $('step')) $('step').value = PAGE.defaultStep;
 anchorSize();                              // the page opens at its ×1
 syncSliders();
-window.CAGE_UI = { P, build, repaint, draw, applyPreset, syncSliders, republish /* G2227 */, reg: () => decReg(),   // G318: the tape reads it
+window.CAGE_UI = { P, build, buildCg, repaint, draw, applyPreset, syncSliders, republish /* G2227 */, reg: () => decReg(),   // G318: the tape reads it
   preview: PREVIEW,                      // G1442: the drag previews (n, the last plan)
   release: RELEASE_INFO,                 // G1451: the releases (n run partially, whole, the last one's plan)
   // G3715 (COWL-RES): the eye sheet - the interior view's switch (eyeWatch's; a rig's), the flight capture's hold (_cage_join), the
@@ -131641,6 +131913,14 @@ if (!window.CAGE_UI_LAZY) CAGE_UI_BOOT();
     attach: (renderer, probe) => OFF ? null : REC.attach(renderer, probe),
     begin: REC.begin, end: REC.end, lap: REC.lap, push: REC.push, pop: REC.pop, town: REC.town,   // G3415: the town meter
     event: (kind, ms, detail) => REC.event(kind, null, ms, detail),
+    // PHONE-EDIT-PERF (D): a garage task by name - the commit, the bench's re-checks - run as fn() and logged as 'gtask'
+    // when it took 16 ms or more (the timers after an edit, named in the log). The clock is a rig's real one where it
+    // gives one (window.__realNow: the node page's own clock is virtual), as the post chain's
+    time: (name, fn) => {
+      if (OFF) return fn();
+      const clk = W.__realNow || now, t0 = clk();
+      try { return fn(); } finally { const ms = clk() - t0; if (ms >= 16) REC.event('gtask', null, ms, name); }
+    },
     reveal: how => REC.reveal(how),
     gpuMay: () => OFF || REC.gpuMay(),   // PERF-1 P1: may a subsystem open its GPU timer this frame? (the recorder's arbitration)
     gpuTimer: on => { if (on !== undefined) REC.rec.gpu.off = !on; return !!REC.rec.gpu.ext && !REC.rec.gpu.off; },   // G1995: the GPU timer on / off, live (the self-test)   // G1995: the flight handed to the player (app.js flRevealStart), screen or none
@@ -138123,10 +138403,20 @@ const POST_FX = (() => {
     const d = (perfNow() - t0) * 1000; cat.st.tapUs += d; cat.st.n++; if (d > cat.st.tapUsMax) cat.st.tapUsMax = d;
   }
   let catInstalled = false;
+  // PHONE-EDIT-PERF (2 Nov, the user's S20 FE log): ON THE PHONE PROFILE THE CATCHER IS OFF. Its frames there are uneven
+  // by nature (a phone at ~12 fps in the shed): 805 taps, 800 'caught', 542 us a tap, max 159 ms - a debug aid that
+  // only added load and filled the log. localStorage flydiy.rec.catch = '1' (or 'shots') turns it on there too; the
+  // desktop is unchanged
+  const catPref = () => { try { return typeof localStorage !== 'undefined' ? localStorage.getItem('flydiy.rec.catch') : null; } catch (e) { return null; } };
   const catcher = {
-    CAT, tap, install: () => { catInstalled = true; return tap; },
+    CAT, tap, install: () => {
+      catInstalled = true;
+      const W = typeof window !== 'undefined' ? window : null, pf = catPref();
+      if (W && W.PROFILE && W.PROFILE.name === 'phone' && pf !== '1' && pf !== 'shots') { cat.on = false; cat.why = 'phone'; }
+      return tap;
+    },
     get on() { return cat.on; }, set on(v) { cat.on = !!v; },
-    summary: () => ({ on: cat.on, taps: cat.st.taps, queries: cat.st.queries, trips: cat.st.trips, lost: cat.st.lost, caught: cat.st.caught, failed: cat.st.failed, shots: cat.shots,
+    summary: () => ({ on: cat.on, why: cat.why || null, taps: cat.st.taps, queries: cat.st.queries, trips: cat.st.trips, lost: cat.st.lost, caught: cat.st.caught, failed: cat.st.failed, shots: cat.shots,
       tapUs: cat.st.n ? +(cat.st.tapUs / cat.st.n).toFixed(1) : null, tapUsMax: +cat.st.tapUsMax.toFixed(1), spike: CAT.spike, sky: CAT.sky }),
   };
   try { if (typeof localStorage !== 'undefined' && localStorage.getItem('flydiy.rec.catch') === '0') cat.on = false; } catch (e) {}
@@ -161846,9 +162136,15 @@ function aeroAtlas(THREE) {
   const S = AERO_ATLAS_PX;
   const cv = document.createElement('canvas');
   cv.width = cv.height = S;
-  const g = cv.getContext('2d');
+  // G3798c: A CANVAS OF THE CPU'S. The registration's page is read back on every paint (its distance field), and a canvas
+  // the browser keeps on the graphics card can come back BLANK: under SwiftShader the Cub's registration page was empty on
+  // the first probe (2 Nov 15:40, inputs identical to the RTX's), drawn on the second, whose hook read the canvas back
+  // every 250 ms - which moves it to the CPU. AERO_TEXT_SIG then skipped every repaint. willReadFrequently is the hint
+  // for exactly this canvas (and its readbacks become a copy, not a GPU stall - the phone's); a restore still repaints.
+  const g = cv.getContext('2d', { willReadFrequently: true });
   g.clearRect(0, 0, S, S);
   AERO_ATLAS_CV = cv;
+  if (typeof cv.addEventListener === 'function') cv.addEventListener('contextrestored', () => aeroAtlasRepaint());   // (the gates' mock canvas has none)
   const t = new THREE.CanvasTexture(cv);
   // flipY stays TRUE — the canvas convention this repo uses everywhere except
   // props.js, which sets false because glTF's uv origin is top-left. Mixing
@@ -161971,6 +162267,20 @@ const AERO_SDF_SPREAD = P => Math.max(4, Math.round(P * 0.03));
 // only when what is on it changes.
 const AERO_TEXT_SIG = {};
 const AERO_TEXT_ASPECT = {};
+// G3798c: WHAT EACH PAGE LAST WORE, to paint it again when the canvas comes back blank (its context restored): the
+// arguments, not the pixels - a page is repainted by the same call that drew it
+const AERO_PAGE_LAST = {};
+function aeroAtlasRepaint() {
+  for (const p of Object.keys(AERO_PAGE_LAST)) {
+    const L = AERO_PAGE_LAST[p];
+    try {
+      if (L.kind === 'text') { delete AERO_TEXT_SIG[p]; aeroDecalText.apply(null, L.args); }
+      else if (L.kind === 'kit') { delete AERO_KIT_SIG[p]; aeroKitDraw.apply(null, L.args); }
+      else if (L.kind === 'img') aeroDecalImage.apply(null, L.args);
+    } catch (e) {}
+  }
+  if (AERO_ATLAS) AERO_ATLAS.needsUpdate = true;
+}
 
 function aeroDecalText(THREE, page, text, colHex, outHex, font) {
   const t = aeroAtlas(THREE), S = AERO_ATLAS_PX, N = AERO_ATLAS_N;
@@ -161981,6 +162291,7 @@ function aeroDecalText(THREE, page, text, colHex, outHex, font) {
     return AERO_TEXT_ASPECT[page].aspect;
   }
   AERO_TEXT_SIG[page] = sig;
+  AERO_PAGE_LAST[page] = { kind: 'text', args: [THREE, page, text, colHex, outHex, font] };
   const g = AERO_ATLAS_CV.getContext('2d');
   g.save();
   g.clearRect(px, py, P, P);
@@ -162079,6 +162390,7 @@ function aeroDecalImage(THREE, page, img) {
   aeroDilate(g, px, py, P, P, Math.round(5 * P / AERO_PAGE_REF));
   t.needsUpdate = true;
   AERO_PAGE_IMG[page] = { aspect: img.width / img.height };
+  AERO_PAGE_LAST[page] = { kind: 'img', args: [THREE, page, img] };
   return img.width / img.height;
 }
 // THE IMAGE PAGES TRAVEL WITH THE BUILD (G190, the user: "the box projection
@@ -162113,6 +162425,7 @@ function aeroDecalImageClear(THREE, page) {
   const P = S / N, px = (page % N) * P, py = Math.floor(page / N) * P;
   AERO_ATLAS_CV.getContext('2d').clearRect(px, py, P, P);
   delete AERO_PAGE_IMG[page];
+  delete AERO_PAGE_LAST[page];
   const t = aeroAtlas(THREE); t.needsUpdate = true;
 }
 function aeroDecalImageFrom(THREE, page, dataURL, cb) {
@@ -162147,6 +162460,33 @@ let AERO_DEC = null;
 // ...and a page may switch it OFF for one load (window.AEROWX_OFF, the bench's
 // ?nowx) — the program key is the hook's source, so the choice is per LOAD
 function aeroWx() { return (typeof AEROWX !== 'undefined' && !(typeof window !== 'undefined' && window.AEROWX_OFF)) ? AEROWX : null; }
+// PHONE-EDIT-PERF (B, the user 2 Nov: "for the phone ... the materials will be the things hitting it ... disabling the most
+// costly ones"): THE PHONE'S MATERIAL TIER. Measured on the user's S20 FE (Adreno 650, the Twin busher on floats, the studio):
+// the full skin 9.2 fps; the weathering compiled out 16.7; + the large-scale field (aeroField: 3 x 4-octave musgrave a
+// fragment) 23.5; + the structure grammar (aeroStructure: members, tapes, laps, rivets) 30 solid (p90 34 ms). The paint, the
+// decals and registration, the detail sheet, the lights, the IBL and the clear coat stay. On the phone profile only, decided
+// once at the first compile (a page is one tier: the hooks' toString stays the program key); ?phmat=full or localStorage
+// flydiy.phoneMat = 'full' keeps the full skin on a phone. The desktop compiles exactly as before
+let AERO_LITE_V = null;
+function aeroLite() {
+  if (AERO_LITE_V !== null) return AERO_LITE_V;
+  AERO_LITE_V = false;
+  try {
+    const W = typeof window !== 'undefined' ? window : null;
+    if (W && W.PROFILE && W.PROFILE.name === 'phone') {
+      const q = (W.location && W.location.search) || '', m = /[?&]phmat=(full|lite)(&|$)/.exec(q);
+      const pref = (() => { try { return W.localStorage && W.localStorage.getItem('flydiy.phoneMat'); } catch (e) { return null; } })();
+      AERO_LITE_V = m ? m[1] === 'lite' : pref !== 'full';
+    }
+    if (W) { W.AERO_LITE = AERO_LITE_V; if (W.FLIGHT_REC && W.FLIGHT_REC.event) W.FLIGHT_REC.event('phmat', null, AERO_LITE_V ? 'lite' : 'full'); }
+  } catch (e) {}
+  return AERO_LITE_V;
+}
+// the lite tier's two cuts in the skin's fragment text (the calls' own lines, AERO_SURFACE_FS)
+function aeroLiteFS(fs) {
+  return fs.replace('vec3 aeroSN = aeroStructure(aeroM, aeroRA);', 'vec3 aeroSN = vec3(0.0, 0.0, 1.0);')
+    .replace(/aeroField\(aeroFC, aeroDF, aeroFR\);/g, '');
+}
 function aeroSharedU(THREE) {
   if (AERO_DEC) return AERO_DEC;
   const z4 = () => Array.from({ length: AERO_MAXD },
@@ -162835,6 +163175,7 @@ function aeroKitDraw(THREE, L) {
                L.r, L.s, L.clr, L.asp].join('|');
   if (AERO_KIT_SIG[L.page] === sig) return false;
   AERO_KIT_SIG[L.page] = sig;
+  AERO_PAGE_LAST[L.page] = { kind: 'kit', args: [THREE, L] };
   const P = S / N, px = (L.page % N) * P, py = Math.floor(L.page / N) * P;
   const g = AERO_ATLAS_CV.getContext('2d');
   g.save();
@@ -164021,7 +164362,8 @@ const AEROSKIN_HOOK = function (shader) {
   if (typeof ATMO !== 'undefined') ATMO.inject(shader);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
   // THE WEATHERING (G345): read here, at compile, and spliced in as text —
   // the same text for every material, so the one-program rule holds
-  const W = aeroWx();
+  const lite = aeroLite();                   // PHONE-EDIT-PERF: the phone's tier (above)
+  const W = lite ? null : aeroWx();
   const u = this.userData.aeroU;
   for (const k in u) shader.uniforms[k] = u[k];
   // the aeroplane-wide ones, BY REFERENCE: one write reaches every section
@@ -164049,6 +164391,7 @@ const AEROSKIN_HOOK = function (shader) {
     .replace('#include <clearcoat_normal_fragment_begin>',
              '#ifdef USE_CLEARCOAT\n  vec3 clearcoatNormal = normal;\n#endif')   // USE_CLEARCOAT since r13x (W0.5a)
     .replace('#include <lights_fragment_end>', AERO_CABIN_FS);
+  if (lite) shader.fragmentShader = aeroLiteFS(shader.fragmentShader);
 };
 
 // THE CABIN'S DARKNESS, IN THE SHADER (G206.1). After every light has been
@@ -164327,7 +164670,7 @@ vec2 aeroCrack = vec2(0.0);
 ` + AERO_GLASS_CRACK_FS + '\n';
 
 const AEROGLASS_HOOK = function (shader) {
-  const W = aeroWx();                       // G345, as in AEROSKIN_HOOK
+  const W = aeroLite() ? null : aeroWx();   // G345, as in AEROSKIN_HOOK (PHONE-EDIT-PERF: none on the phone's tier)
   const u = this.userData.aeroU;
   for (const k in u) shader.uniforms[k] = u[k];
   const d = this.userData.aeroD;
@@ -170840,7 +171183,7 @@ function garageInit(api) {
   function touch() {
     if (committing || !LS || typeof setTimeout !== 'function') return;
     if (touchT && typeof clearTimeout === 'function') clearTimeout(touchT);
-    touchT = setTimeout(() => { touchT = null; commit(); }, 400);
+    touchT = setTimeout(() => { touchT = null; const FR = window.FLIGHT_REC; if (FR && FR.time) FR.time('garage commit', commit); else commit(); }, 400);
   }
 
   // ---- the shelf --------------------------------------------------------
@@ -174892,7 +175235,8 @@ function benchInit(api) {
     if (busy || live || flown || away()) return;
     if (!anyRun() && !anyStale()) return;
     if (dirtyT) clearTimeout(dirtyT);
-    const fire = () => {
+    const fire = () => { const FR = window.FLIGHT_REC; if (FR && FR.time) FR.time('bench dirty', fireIn); else fireIn(); };
+    const fireIn = () => {
       dirtyT = null;
       if (busy || live || flown || away()) return;
       if (!idle()) { dirtyT = setTimeout(fire, 400); return; }   // a screen up: after it (the roll-out's own sync ends away)
@@ -174916,7 +175260,8 @@ function benchInit(api) {
       recheckT = null;
       if (busy || live || flown || dirtyT || !idle()) { scheduleRecheck(); return; }   // (idle: the garage at rest)
       if (!anyStale()) return;
-      runQuiet(null, true);
+      const FR = window.FLIGHT_REC, run = () => runQuiet(null, true);
+      if (FR && FR.time) FR.time('bench recheck', run); else run();
     }, 1200);
   }
   // ...and the other direction: every SETTLED result mirrors the bench into
@@ -189504,17 +189849,43 @@ function editorInit(api) {
 //   (R13): moves in between are coalesced, the last value kept, and the one still waiting when the finger lifts is
 //   delivered by profile.js's early pointerup hook, before the editor's release build runs.
 // THE RAIL keeps the profile's entries (profile.js 'rail'); the rest are a desktop's.
+//
+// G3900-G3904 PHONE-EDIT-LAYOUT (the user, 2 Nov, two planes built on an S20 FE: "split 50/50", "the controls too
+// narrow", "touch-friendly AND denser", and they typed values when the sliders lagged - typing is first-class):
+// - THE SPLIT: --ph-split (the view's share, phone.css) per orientation, .5 by default, remembered (flydiy.phSplit);
+//   #phDiv on the line between view and controls moves it - a ghost line while the thumb moves, the view resized once
+//   on release; a double tap puts it back to half.
+// - THE ROW (phone.css): one FIXED GRID a control, never a wrap (the user's stills 13:02-13:03: "rubbish overflowing of
+//   sliders and button components") - label | switch | value | unit over the scale. COMPACT a pick (~44 px, the scale the
+//   row's width, - / + in the value's editor); with the row's own - / + (40 px, ~58 px a row) on html.ph-pm - THE DEFAULT since the user's pick (2 Nov 18:20);
+//   the compact row through ?phsteps=0 / flydiy.phSteps=0 / PHONE_UI.setSteps(false).
+// - THE VALUE'S EDITOR (#phEdit): a tap on a slider's value or label opens it - the number typed (inputmode decimal),
+//   the unit, - / + (held: they repeat), Done / Enter / a tap outside sets it, Esc leaves it; it rides the keyboard's
+//   top edge (visualViewport). A typed value goes through _cage_ui's own typed field (v_<k>'s change: clamp, then the
+//   editor's oninput - one full build, no drag).
+// - THE PRECISION DRAG: the farther the finger from the scale (vertically), the smaller the gain - 1 within 40 px, then
+//   40 / distance (x0.5 at 80 px, x0.25 at 160, never under x0.05); the hold-still fine (x0.1) multiplies it. The value
+//   is integrated move by move, so a gain change never jumps it. The bubble says the value big and the gain under it.
+// THE EVENT CONTRACT (for a cheap preview on `input` and the full build on `change` - PHONE-EDIT-PERF): a drag and a
+//   held - / + are pointerdown on the range, `input` at most once a frame while the finger moves, then the window's
+//   pointerup and the range's `change` once on release; a typed value is v_<k>'s `change` alone (no pointerdown, no
+//   `input` on the range). Nothing here builds the aeroplane: the editor's own handlers do.
 (function () {
   'use strict';
   const W = typeof window !== 'undefined' ? window : null;
   if (!W || !W.PROFILE || !W.PROFILE.is || !W.PROFILE.is('ui', 'touch')) return;   // THE DESKTOP: nothing below runs
   const D = W.document, $ = id => D.getElementById(id);
-  const KNOB = 26, HIT = 48, FINE_MS = 350, FINE_GAIN = 0.1, STILL_PX = 6, REP0 = 400, REP = 80;
+  const KNOB = 22, HIT = 48, FINE_MS = 350, FINE_GAIN = 0.1, STILL_PX = 6, REP0 = 400, REP = 80;
+  const V_FREE = 40, V_MIN = 0.05;
+  // a detent the thumb feels (8 ms): a step, entering fine, entering the precision drag - where the phone has a vibrator
+  const buzz = () => { try { if (W.navigator && typeof W.navigator.vibrate === 'function') W.navigator.vibrate(8); } catch (e) {} };   // the precision drag: full gain within 40 px of the scale, then 40 / distance
+  const ls = { get: k => { try { return W.localStorage.getItem(k); } catch (e) { return null; } },
+               set: (k, v) => { try { W.localStorage.setItem(k, v); } catch (e) {} } };
 
   // ---- the page: no browser zoom (a pinch is the view's), no pull-to-refresh (phone.css) -------------------------
   try {
     const mv = D.querySelector('meta[name=viewport]');
-    if (mv) mv.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover');
+    if (mv) mv.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-visual');
   } catch (e) {}
 
   // ---- THE SHEET'S TABS ------------------------------------------------------------------------------------------
@@ -189572,16 +189943,25 @@ function editorInit(api) {
 
   // ---- THE BUBBLE (R11) -------------------------------------------------------------------------------------------
   let bubble = null;
-  const bubbleShow = (x, y, text, fine) => {
-    if (!bubble) { bubble = D.createElement('div'); bubble.id = 'phBubble'; D.body.appendChild(bubble); }
-    bubble.textContent = text + (fine ? '  · fine ×0.1' : '');
-    bubble.classList.toggle('fine', !!fine);
-    bubble.hidden = false;
-    const w = bubble.offsetWidth || 80;
-    bubble.style.left = Math.round(Math.max(6, Math.min(W.innerWidth - w - 6, x - w / 2))) + 'px';
-    bubble.style.top = Math.round(Math.max(6, y - 74)) + 'px';
+  // the value big; under it the gain (1: the hint that moving away from the scale is finer)
+  const gainText = g => g >= 0.999 ? 'slide away from the scale: finer' : 'fine ×' + (g >= 0.1 ? g.toFixed(2) : g.toFixed(3)).replace(/0+$/, '');
+  const bubbleShow = (x, y, text, gain) => {
+    if (!bubble) { bubble = D.createElement('div'); bubble.id = 'phBubble'; bubble.appendChild(D.createElement('b')); bubble.appendChild(D.createElement('small')); D.body.appendChild(bubble); }
+    gain = gain == null ? 1 : gain;
+    bubble.firstChild.textContent = text;
+    bubble.lastChild.textContent = gainText(gain);
+    const fine = gain < 0.999;
+    if (bubble.__fine !== fine) { bubble.__fine = fine; bubble.classList.toggle('fine', fine); }
+    if (bubble.hidden) bubble.hidden = false;
+    // ITS SIZE IS READ ONCE A DRAG (and again only when the text is longer than when it was read): one layout read at
+    // the press, none a frame - the value's digits are tabular, so a same-length text is a same-size bubble
+    const n = text.length + (fine ? 100 : 0);
+    if (!bubble.__wh || n > bubble.__n) { bubble.__n = n; bubble.__wh = [bubble.offsetWidth || 120, bubble.offsetHeight || 54]; }
+    const [w, h] = bubble.__wh;
+    const tx = Math.round(Math.max(6, Math.min(W.innerWidth - w - 6, x - w / 2))), ty = Math.round(Math.max(6, y - h - 44));
+    bubble.style.transform = 'translate3d(' + tx + 'px,' + ty + 'px,0)';
   };
-  const bubbleHide = () => { if (bubble) bubble.hidden = true; };
+  const bubbleHide = () => { if (bubble) { bubble.hidden = true; bubble.__wh = null; } };
 
   // ---- THE FINGER KNOB --------------------------------------------------------------------------------------------
   const ROWS = new Set();   // enhanced rows (each keeps its own parts on __ph)
@@ -189604,32 +189984,42 @@ function editorInit(api) {
     const mu = ph.mu && ph.mu.textContent ? '  ' + ph.mu.textContent : '';
     return t + mu;
   };
+  // THE KNOB IS PLACED BY CSS (G3900; A0 2 Nov: the phone's shed already runs at ~12 fps - the layout adds no layout
+  // reads): phone.css moves the hit area with a transform from the row's --phf (the value's fraction of the scale) over
+  // the row's width (--phw, below) - so this WRITES, and only what changed: no box is ever measured here
   function place(row) {
     const ph = row.__ph; if (!ph) return;
-    // (a row parked in the editor's nursery or in a folded section has no box: skipped before anything is measured)
-    if (!row.isConnected || row.offsetParent === null || ph.rng.disabled) { if (!ph.knob.hidden) ph.knob.hidden = true; return; }
-    const rng = ph.rng, w = rng.offsetWidth;
-    if (!w) { ph.knob.hidden = true; return; }
-    ph.knob.hidden = false;
+    const rng = ph.rng, off = !!rng.disabled;
+    if (ph.off !== off) { ph.off = off; row.classList.toggle('phOff', off); }
     const { lo, hi } = rangeOf(rng);
     const f = hi > lo ? Math.max(0, Math.min(1, (num(rng.value, lo) - lo) / (hi - lo))) : 0;
-    const x = rng.offsetLeft + KNOB / 2 + f * (w - KNOB);
-    ph.knob.style.left = Math.round(x - HIT / 2) + 'px';
-    ph.knob.style.top = Math.round(rng.offsetTop + rng.offsetHeight / 2 - HIT / 2) + 'px';
+    const t = f.toFixed(4);
+    if (ph.f !== t) { ph.f = t; row.style.setProperty('--phf', t); }
+    if ((!drag || drag.row !== row) && ph.aria !== rng.value) { ph.aria = rng.value;   // (the knob as a slider to the screen reader and the rig)
+      ph.knob.setAttribute('aria-valuemin', String(lo)); ph.knob.setAttribute('aria-valuemax', String(hi));
+      ph.knob.setAttribute('aria-valuenow', String(rng.value)); ph.knob.setAttribute('aria-valuetext', valueText(row)); }
   }
   function placeAll() { for (const r of ROWS) if (r.isConnected) place(r); }
+  // THE ROW'S WIDTH for the knob's transform (--phw): a ResizeObserver's own entries - written when a row's width changes
+  // (a turn, the divider, a sheet opening), never measured by a read of ours
+  const roRows = typeof ResizeObserver === 'function' ? new ResizeObserver(es => { for (const e of es) {
+    const w = Math.round(e.contentRect.width); if (w && e.target.__phw !== w) { e.target.__phw = w; e.target.style.setProperty('--phw', w + 'px'); } } }) : null;
 
   // THE DRAG: one at a time
   let drag = null;
+  // G3903: the precision drag's gain from the finger's distance to the scale - and the hold-still fine on top
+  const gainOf = d => (d.fine ? FINE_GAIN : 1) * Math.max(V_MIN, Math.min(1, V_FREE / Math.max(V_FREE, Math.abs(d.y - d.yTrack))));
   function tick() {   // R13: the pending value, at most once a frame
     if (!drag) return;
     drag.raf = 0;
     const v = drag.pending; drag.pending = null;
-    if (v == null || v === num(drag.rng.value, NaN)) return;
-    drag.rng.value = String(v);
-    drag.rng.dispatchEvent(new Event('input', { bubbles: true }));
-    place(drag.row);
-    bubbleShow(drag.x, drag.y, valueText(drag.row), drag.fine);
+    if (v != null && v !== num(drag.rng.value, NaN)) {
+      drag.rng.value = String(v);
+      drag.rng.dispatchEvent(new Event('input', { bubbles: true }));
+      place(drag.row);
+      drag.moveBubble = true;
+    }
+    if (drag.moveBubble) { drag.moveBubble = false; bubbleShow(drag.x, drag.y, valueText(drag.row), gainOf(drag)); }
   }
   const flush = () => { if (drag && drag.pending != null) { if (drag.raf) W.cancelAnimationFrame(drag.raf); tick(); } };
   // the early release hook (profile.js): the last move reaches the slider as a tick, before the editor's release
@@ -189642,23 +190032,27 @@ function editorInit(api) {
     const ph = row.__ph, rng = ph.rng;
     if (rng.disabled || drag) return;
     e.preventDefault(); e.stopPropagation();
+    if (ed) edClose(false);
     try { ph.knob.setPointerCapture(e.pointerId); } catch (x) {}
     const { lo, hi } = rangeOf(rng);
-    drag = { row, rng, id: e.pointerId, x0: e.clientX, v0: num(rng.value, lo), span: hi - lo, w: Math.max(40, rng.offsetWidth - KNOB),
-             fine: false, moved: false, x: e.clientX, y: e.clientY, pending: null, raf: 0, hold: 0, t0: e.timeStamp, judged: false,
-             xd: e.clientX, vd: num(rng.value, lo) };
+    const kb = ph.knob.getBoundingClientRect();
+    // THE VALUE IS INTEGRATED move by move (G3903): `acc` is the unsnapped value, `xl` the last x - so the gain (the
+    // finger's height over the scale, the hold-still fine) can change mid-drag and the value never jumps
+    drag = { row, rng, id: e.pointerId, span: hi - lo, w: Math.max(40, rng.offsetWidth - KNOB), acc: num(rng.value, lo), xl: e.clientX,
+             yTrack: kb.top + kb.height / 2, fine: false, moved: false, x: e.clientX, y: e.clientY, pending: null, raf: 0, hold: 0,
+             t0: e.timeStamp, judged: false, xd: e.clientX, vd: num(rng.value, lo) };
     // R9: held still FINE_MS, the knob goes fine. Judged on the events' own clock (a move whose timestamp is FINE_MS past
     // the press with nothing moved before it), so a busy main thread - a phone mid-build - cannot turn a held press
     // coarse by running the timer late; the timer only shows it (the amber knob, the bubble) while the finger rests
     const goFine = () => { if (!drag || drag.moved || drag.fine) return;
-      drag.fine = true; drag.x0 = drag.x; drag.v0 = num(rng.value, lo);
+      drag.fine = true; buzz();
       ph.knob.classList.add('fine'); row.classList.add('phFine');
-      bubbleShow(drag.x, drag.y, valueText(row), true); };
+      bubbleShow(drag.x, drag.y, valueText(row), gainOf(drag)); };
     drag.goFine = goFine;
     drag.hold = setTimeout(goFine, FINE_MS);
     row.classList.add('phDrag');
     press(rng);
-    bubbleShow(e.clientX, e.clientY, valueText(row), false);
+    bubbleShow(e.clientX, e.clientY, valueText(row), 1);
   }
   function knobMove(e) {
     if (!drag || e.pointerId !== drag.id) return;
@@ -189670,17 +190064,21 @@ function editorInit(api) {
       if (Math.abs(e.clientX - drag.xd) <= STILL_PX) { drag.y = e.clientY; return; }
       drag.judged = true;
       const held = e.timeStamp - drag.t0 >= FINE_MS;
-      if (held && !drag.fine) drag.goFine();   // (x0 is still the press's: nothing moved)
-      else if (!held && drag.fine) { drag.fine = false; drag.x0 = drag.xd; drag.v0 = drag.vd;
+      if (held && !drag.fine) drag.goFine();
+      else if (!held && drag.fine) { drag.fine = false;
         drag.row.__ph.knob.classList.remove('fine'); drag.row.classList.remove('phFine'); }
+      drag.acc = drag.vd; drag.xl = drag.xd;
     }
-    drag.x = e.clientX; drag.y = e.clientY;
-    if (!drag.moved && Math.abs(e.clientX - drag.x0) > STILL_PX) drag.moved = true;
-    const gain = drag.fine ? FINE_GAIN : 1;
-    const v = snap(drag.rng, drag.v0 + (e.clientX - drag.x0) / drag.w * drag.span * gain);
-    drag.pending = v;
+    drag.y = e.clientY;
+    if (!drag.moved && Math.abs(e.clientX - drag.xd) > STILL_PX) drag.moved = true;
+    const g = gainOf(drag);
+    if (g < 0.999 && !drag.fine && !drag.prec) { drag.prec = true; buzz(); } else if (g >= 0.999) drag.prec = false;
+    const { lo, hi } = rangeOf(drag.rng);
+    drag.acc = Math.max(lo, Math.min(hi, drag.acc + (e.clientX - drag.xl) / drag.w * drag.span * g));
+    drag.xl = drag.x = e.clientX;
+    drag.pending = snap(drag.rng, drag.acc);
+    drag.moveBubble = true;   // (the tick moves it: one write a frame, whatever the pointer's rate)
     if (!drag.raf) drag.raf = W.requestAnimationFrame(tick);
-    bubbleShow(drag.x, drag.y, valueText(drag.row), drag.fine);
   }
   function knobUp(e) {
     if (!drag || e.pointerId !== drag.id) return;
@@ -189693,63 +190091,272 @@ function editorInit(api) {
     place(d.row);
   }
 
-  // THE STEPPERS (R6): a tap is one step; held, they repeat - one press, ticks, one release, as a drag
+  // THE STEPPERS (R6), on the row and in the value's editor: a tap is one step; held, they repeat - one press, ticks, one
+  // release, as a drag
   let rep = null;
+  // the row of key k on the page now (one phone.js enhanced, on screen first) - a rebuilt row's successor
+  function liveRow(k) {
+    if (!k) return null;
+    const all = [...D.querySelectorAll('.r.phSlider[data-k="' + k + '"]')].filter(r => r.__ph);
+    return all.find(r => r.offsetParent !== null) || all[0] || null;
+  }
   function stepDown(row, dir, e) {
     const ph = row.__ph, rng = ph.rng;
     if (rng.disabled || drag || rep) return;
-    e.preventDefault();
+    e.preventDefault();   // (and the editor's input keeps the focus: the keyboard stays up)
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch (x) {}
     const one = () => {
+      // a held step outlives a rebuild of its row: it steps the row of the same key that is on the page now
+      if (!rep.rng.isConnected) { const nr = liveRow(rep.row.dataset.k); if (nr) { rep.row = nr; rep.rng = nr.__ph.rng; } }
+      const row = rep.row, rng = rep.rng;
       const { st } = rangeOf(rng);
       const v = snap(rng, num(rng.value, 0) + dir * st);
       if (v === num(rng.value, NaN)) return;
       rng.value = String(v);
       rng.dispatchEvent(new Event('input', { bubbles: true }));
       place(row);
+      edShow();
+      buzz();
     };
     press(rng);
+    rep = { row, rng, t: 0 };
     one();
-    rep = { row, rng, t: setTimeout(function again() { one(); rep.t = setTimeout(again, REP); }, REP0) };
+    rep.t = setTimeout(function again() { if (!rep) return; one(); rep.t = setTimeout(again, REP); }, REP0);
   }
   function stepUp() {
     if (!rep) return;
     clearTimeout(rep.t);
     const r = rep; rep = null;
+    if (!r.rng.isConnected) { const nr = liveRow(r.row.dataset.k); if (nr) { r.row = nr; r.rng = nr.__ph.rng; } }   // (the release reaches the live row)
     release(r.rng);
+    edShow();
+  }
+
+  // ---- THE VALUE'S EDITOR (G3901-G3902) --------------------------------------------------------------------------
+  let ed = null;   // { row } while open
+  const edEl = {};
+  const fmtN = x => { const v = +x; return Number.isFinite(v) ? String(+v.toFixed(6)) : String(x); };
+  function edBuild() {
+    if (edEl.box) return edEl.box;
+    const box = D.createElement('div'); box.id = 'phEdit'; box.hidden = true; box.setAttribute('role', 'dialog');
+    const mk = (tag, cls, txt) => { const e = D.createElement(tag); e.className = cls; if (txt != null) e.textContent = txt; box.appendChild(e); return e; };
+    edEl.k = mk('span', 'phEk'); edEl.r = mk('span', 'phEr');
+    edEl.ok = mk('button', 'phEok', 'Done'); edEl.ok.type = 'button';
+    edEl.minus = mk('button', 'phStep phMinus', '−'); edEl.minus.type = 'button'; edEl.minus.setAttribute('aria-label', 'less');
+    edEl.inp = mk('input', 'phEin'); edEl.inp.type = 'text'; edEl.inp.inputMode = 'decimal'; edEl.inp.setAttribute('enterkeyhint', 'done');
+    edEl.inp.setAttribute('autocomplete', 'off'); edEl.inp.spellcheck = false;
+    // THE SIGN (A0 2 Nov, PHONE-UI-GUIDELINES: inputmode decimal has no '-' on Samsung Keyboard, the user's, and their
+    // values go negative - deck height -0.300): a key that flips the typed number's sign, the digits keypad kept
+    edEl.sign = mk('button', 'phEsign', '±'); edEl.sign.type = 'button'; edEl.sign.setAttribute('aria-label', 'change the sign');
+    edEl.u = mk('span', 'phEu');
+    edEl.plus = mk('button', 'phStep phPlus', '+'); edEl.plus.type = 'button'; edEl.plus.setAttribute('aria-label', 'more');
+    // the OK button and Enter set the typed number; - / + set it first (a typed 2.4 then + is 2.4 + a step), then step
+    edEl.ok.addEventListener('pointerdown', e => { e.preventDefault(); edPressAt = performance.now(); });
+    edEl.sign.addEventListener('pointerdown', e => { e.preventDefault(); edPressAt = performance.now(); });   // (the field keeps the focus: the keypad stays up)
+    edEl.sign.addEventListener('click', () => { const t = String(edEl.inp.value).trim();
+      edEl.inp.value = t.startsWith('-') ? t.slice(1) : t.startsWith('+') ? '-' + t.slice(1) : '-' + t;
+      try { edEl.inp.focus({ preventScroll: true }); const n = edEl.inp.value.length; edEl.inp.setSelectionRange(n, n); } catch (e) {} });
+    edEl.ok.addEventListener('click', () => edClose(true));
+    edEl.inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); edClose(true); } else if (e.key === 'Escape') { e.preventDefault(); edClose(false); } });
+    for (const [b, dir] of [[edEl.minus, -1], [edEl.plus, 1]]) {
+      // (preventDefault as Done and the sign: the field keeps the focus, so the keypad stays up across a step and what is
+      // typed after it reaches the field - the 2 Nov rig's 'typed' red: a tap on + took the focus, the digits went nowhere)
+      b.addEventListener('pointerdown', e => { if (!ed) return; e.preventDefault(); edPressAt = performance.now(); edCommit(); stepDown(ed.row, dir, e); });
+      b.addEventListener('pointerup', stepUp);
+      b.addEventListener('pointercancel', stepUp);
+      b.addEventListener('lostpointercapture', stepUp);
+      b.addEventListener('contextmenu', e => e.preventDefault());
+    }
+    // a tap anywhere else sets what was typed and leaves (as the row's own typed field did on blur); Esc leaves without
+    D.addEventListener('pointerdown', e => { if (ed && !box.contains(e.target)) edClose(true); }, true);
+    D.addEventListener('keydown', e => { if (ed && e.key === 'Escape') edClose(false); });
+    // THE KEYBOARD: the bar stands on its top edge (Chrome resizes the visual viewport, not the layout one)
+    const vv = W.visualViewport;
+    if (vv) { const pin = () => { if (!ed) return; const kb = W.innerHeight - (vv.height + vv.offsetTop);
+      box.style.bottom = kb > 60 ? Math.round(kb) + 'px' : ''; };
+      vv.addEventListener('resize', pin); vv.addEventListener('scroll', pin); edEl.pin = pin; }
+    D.body.appendChild(box);
+    return (edEl.box = box);
+  }
+  const cur = row => { const ph = row.__ph; return ph.vf ? ph.vf.value : ph.rng.value; };
+  function edShow() {
+    if (!ed) return;
+    const ph = ed.row.__ph;
+    // the model's value, unless the thumb is typing (the field no longer shows what was last put in it)
+    if (D.activeElement !== edEl.inp || edEl.inp.value === ed.synced) { edEl.inp.value = cur(ed.row); ed.synced = edEl.inp.value; }
+    edEl.u.textContent = ph.mu && ph.mu.textContent ? ph.mu.textContent : '';
+  }
+  // NO GHOST CLICK THROUGH THE EDITOR (the 2 Nov 18:50 diag: a tap on the editor's + stepped deck height, then the tap's own
+  // click landed on the row BEHIND the bar - the editor reopened on the wing chord, and the number typed next went there):
+  // a row ignores a click inside the open editor's box, or within 700 ms of a press on the editor's buttons
+  let edPressAt = -1e9;
+  function ghostOfEditor(e) {
+    if (performance.now() - edPressAt < 700) return true;
+    const b = ed && edEl.box && !edEl.box.hidden ? edEl.box.getBoundingClientRect() : null;
+    return !!b && e.clientX >= b.left && e.clientX <= b.right && e.clientY >= b.top && e.clientY <= b.bottom;
+  }
+  function edOpen(row) {
+    const ph = row && row.__ph;
+    if (!ph || ph.rng.disabled || drag) return;
+    if (ed && ed.row !== row) edClose(false);
+    edBuild();
+    ed = { row, synced: null };
+    row.classList.add('phOpen');
+    const { lo, hi } = rangeOf(ph.rng);
+    edEl.k.textContent = (ph.k && ph.k.textContent) || '';
+    edEl.minus.setAttribute('aria-label', 'less: ' + edEl.k.textContent); edEl.plus.setAttribute('aria-label', 'more: ' + edEl.k.textContent);
+    edEl.r.textContent = fmtN(lo) + ' – ' + fmtN(hi);
+    edEl.inp.value = cur(row); ed.synced = edEl.inp.value;
+    edShow();
+    edEl.box.hidden = false;
+    edEl.box.style.bottom = '';
+    try { edEl.inp.focus({ preventScroll: true }); edEl.inp.select(); } catch (e) {}
+    if (edEl.pin) setTimeout(edEl.pin, 300);
+  }
+  // the typed number, through the editor's own typed field (clamped, one build) - or, with none, the range's own path
+  function edCommit() {
+    if (!ed) return false;
+    const ph = ed.row.__ph, t = String(edEl.inp.value).trim().replace(',', '.');
+    if (t === ed.synced || t === String(cur(ed.row))) return false;
+    const v = parseFloat(t);
+    if (!Number.isFinite(v)) { edShow(); return false; }
+    if (ph.vf) { ph.vf.value = String(v); ph.vf.dispatchEvent(new Event('change', { bubbles: true })); }
+    else { press(ph.rng); ph.rng.value = String(snap(ph.rng, v)); ph.rng.dispatchEvent(new Event('input', { bubbles: true })); release(ph.rng); }
+    place(ed.row);
+    edEl.inp.value = cur(ed.row); ed.synced = edEl.inp.value; edShow();   // (the clamped, formatted value)
+    return true;
+  }
+  function edClose(commit) {
+    if (!ed) return;
+    if (commit) edCommit();
+    stepUp();
+    ed.row.classList.remove('phOpen');
+    ed = null;
+    if (edEl.box) { edEl.box.hidden = true; edEl.box.style.bottom = ''; }
+    try { if (D.activeElement === edEl.inp) edEl.inp.blur(); } catch (e) {}
+  }
+
+  // THE CG ON THE VIEW'S EDGE (G3906; the user 2 Nov, on the phone: "I can't see the CG and margin indicators in the phone
+  // interface, significant issue"): the desktop reads them off the two posts in the picture; at 360 px a post's label is a
+  // smudge, so the numbers ride a chip at the view's lower left - CG in % of the wing chord, the stability margin, the
+  // band's colour (P1 CG-COLOURS, genMarginBand) and its warning sign. app.js buildIndicators writes window.CG_READ where
+  // it builds the posts; this only copies it, on the 400 ms tick, and writes nothing when it has not changed
+  let cgEl = null, cgLast = '';
+  function cgChip() {
+    const R = W.CG_READ, txt = !R || W.CG_MARKS_ON === false || (R.cg == null && R.sm == null) ? '' : (R.mark ? '⚠ ' : '') +
+      (R.cg != null ? 'CG ' + R.cg + ' %' : '') + (R.cg != null && R.sm != null ? ' · ' : '') + (R.sm != null ? 'margin ' + R.sm + ' %' : '') +
+      (R.mark && R.title ? ' — ' + R.title : '');
+    const key = txt + '|' + (R && R.band || '');
+    if (key === cgLast) return;
+    cgLast = key;
+    if (!cgEl) { cgEl = D.createElement('div'); cgEl.id = 'phCg'; cgEl.setAttribute('role', 'status'); D.body.appendChild(cgEl); }
+    cgEl.textContent = txt; cgEl.hidden = !txt;
+    cgEl.dataset.band = (R && R.band) || '';
   }
 
   function enhance(row) {
     if (!row || row.__ph || !row.classList || !row.classList.contains('r')) return;
     const rng = row.querySelector(':scope > input[type=range]');
     if (!rng) return;
-    const knob = D.createElement('i'); knob.className = 'phKnob'; knob.setAttribute('aria-hidden', 'true');
+    const knob = D.createElement('i'); knob.className = 'phKnob'; knob.setAttribute('role', 'slider'); knob.tabIndex = -1;
     const minus = D.createElement('button'); minus.type = 'button'; minus.className = 'phStep phMinus'; minus.textContent = '−'; minus.setAttribute('aria-label', 'less');
     const plus = D.createElement('button'); plus.type = 'button'; plus.className = 'phStep phPlus'; plus.textContent = '+'; plus.setAttribute('aria-label', 'more');
     row.insertBefore(minus, rng);
     rng.insertAdjacentElement('afterend', plus);
     row.appendChild(knob);
-    const vf = row.querySelector(':scope > input.v'), mu = [...row.children].find(c => c.tagName === 'SPAN' && !c.classList.contains('k') && !c.classList.contains('v') && c !== knob) || null;
-    row.__ph = { rng, knob, vf, mu, minus, plus };
+    const k = row.querySelector(':scope > span.k');
+    const vf = row.querySelector(':scope > input.v');
+    const mu = [...row.children].find(c => c.tagName === 'SPAN' && !c.classList.contains('k') && !c.classList.contains('v') && !c.classList.contains('rn') && c !== knob) || null;
+    row.__ph = { rng, knob, vf, mu, k, minus, plus };
+    if (k) { knob.setAttribute('aria-label', k.textContent); minus.setAttribute('aria-label', 'less: ' + k.textContent); plus.setAttribute('aria-label', 'more: ' + k.textContent); }
     row.classList.add('phSlider');
     knob.addEventListener('pointerdown', e => knobDown(row, e));
     knob.addEventListener('pointermove', knobMove);
     knob.addEventListener('pointerup', knobUp);
     knob.addEventListener('pointercancel', knobUp);
     knob.addEventListener('lostpointercapture', knobUp);
-    for (const [b, dir] of [[minus, -1], [plus, 1]]) {
-      b.addEventListener('pointerdown', e => stepDown(row, dir, e));
+    for (const [b, dir] of [[minus, -1], [plus, 1]]) {   // R6: a tap one step, held they repeat
+      b.addEventListener('pointerdown', e => { if (ed) edClose(true); stepDown(row, dir, e); });
       b.addEventListener('pointerup', stepUp);
       b.addEventListener('pointercancel', stepUp);
       b.addEventListener('lostpointercapture', stepUp);
       b.addEventListener('contextmenu', e => e.preventDefault());
     }
+    // G3901: the value (and its label) open the editor - the row's own field never raises the keyboard
+    if (vf) { vf.readOnly = true; vf.inputMode = 'none'; vf.tabIndex = -1; }
+    // the row's whole height opens it (A0 2 Nov: a target >= 44 px) - all but the knob, a switch, a button, a select
+    row.addEventListener('click', e => { const t = e.target;
+      if (t && t.closest && t.closest('.phKnob, button, select, input[type=checkbox]')) return;
+      if (ghostOfEditor(e)) return;
+      e.preventDefault(); edOpen(row); });
     ROWS.add(row);
+    if (roRows) roRows.observe(row);
     place(row);
   }
   function enhanceIn(host) {
     if (!host) return;
     for (const r of host.querySelectorAll('.r')) enhance(r);
+    // A ROW REBUILT IS THE SAME ROW (the 2 Nov 19:00 diag: a step on the editor's + rebuilt the rows - _cage_ui renders them
+    // again on the release build - and the editor, its row gone, closed under the thumb; the number typed next went nowhere):
+    // the editor follows the new row of the same key; only a key that is gone (another part picked) closes it
+    if (ed && !ed.row.isConnected) { const nr = liveRow(ed.row.dataset.k); if (nr) { ed.row = nr; nr.classList.add('phOpen'); edShow(); } else edClose(false); }
+  }
+
+  // ---- THE SPLIT (G3900) -----------------------------------------------------------------------------------------
+  const LS_SPLIT = 'flydiy.phSplit', SPLIT0 = 0.5;
+  const orient = () => (W.innerWidth > W.innerHeight ? 'l' : 'p');
+  const LIM = { p: [0.28, 0.72], l: [0.35, 0.75] };
+  let splits = { p: SPLIT0, l: SPLIT0 };
+  try { const s = JSON.parse(ls.get(LS_SPLIT) || 'null'); if (s && typeof s === 'object') for (const o of ['p', 'l']) if (Number.isFinite(+s[o])) splits[o] = +s[o]; } catch (e) {}
+  const clampSplit = (o, f) => Math.max(LIM[o][0], Math.min(LIM[o][1], f));
+  function applySplit() {
+    const o = orient();
+    D.documentElement.style.setProperty('--ph-split', String(clampSplit(o, splits[o])));
+    W.requestAnimationFrame(placeAll);
+  }
+  function setSplit(f, o) {
+    o = o || orient();
+    splits[o] = clampSplit(o, f);
+    ls.set(LS_SPLIT, JSON.stringify(splits));
+    applySplit();
+    return splits[o];
+  }
+  function buildDivider() {
+    if ($('phDiv')) return;
+    const dv = D.createElement('div'); dv.id = 'phDiv'; dv.setAttribute('role', 'separator'); dv.setAttribute('aria-label', 'move the line between the view and the controls');
+    const gh = D.createElement('div'); gh.id = 'phGhost'; gh.hidden = true;
+    D.body.appendChild(dv); D.body.appendChild(gh);
+    let mv = null, lastTap = 0;
+    const at = e => { const o = orient(), size = o === 'l' ? W.innerWidth : W.innerHeight;
+      return { o, f: clampSplit(o, (o === 'l' ? e.clientX : e.clientY) / size), size }; };
+    dv.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      if (e.timeStamp - lastTap < 320) { lastTap = 0; setSplit(SPLIT0); return; }   // a double tap: back to half
+      lastTap = e.timeStamp;
+      try { dv.setPointerCapture(e.pointerId); } catch (x) {}
+      mv = { id: e.pointerId, moved: false, x: e.clientX, y: e.clientY };
+      dv.classList.add('on');
+    });
+    dv.addEventListener('pointermove', e => {
+      if (!mv || e.pointerId !== mv.id) return;
+      if (!mv.moved && Math.hypot(e.clientX - mv.x, e.clientY - mv.y) < 4) return;
+      mv.moved = true;
+      const a = at(e);
+      mv.f = a.f; mv.px = Math.round(a.f * a.size); mv.o = a.o;
+      if (!mv.raf) mv.raf = W.requestAnimationFrame(() => { if (!mv) return; mv.raf = 0;
+        if (gh.hidden) gh.hidden = false;
+        gh.style.transform = mv.o === 'l' ? 'translate3d(' + mv.px + 'px,0,0)' : 'translate3d(0,' + mv.px + 'px,0)'; });
+    });
+    const end = e => {
+      if (!mv || (e && e.pointerId !== mv.id)) return;
+      const m = mv; mv = null;
+      if (m.raf) W.cancelAnimationFrame(m.raf);
+      dv.classList.remove('on'); gh.hidden = true;
+      if (m.moved && m.f != null) { lastTap = 0; setSplit(m.f); }
+    };
+    dv.addEventListener('pointerup', end);
+    dv.addEventListener('pointercancel', end);
+    dv.addEventListener('lostpointercapture', end);
   }
 
   // ---- WIRING: the rows arrive with the editor (and move in and out of the column on every selection) -----------
@@ -189759,7 +190366,6 @@ function editorInit(api) {
     enhanceIn(host);
     if (typeof MutationObserver === 'function')
       new MutationObserver(() => { enhanceIn(host); W.requestAnimationFrame(placeAll); }).observe(host, { childList: true, subtree: true });
-    if (typeof ResizeObserver === 'function') new ResizeObserver(() => placeAll()).observe(host);
     host.addEventListener('scroll', () => {}, { passive: true });
   }
   let up = false;
@@ -189769,22 +190375,36 @@ function editorInit(api) {
       up = true;
       D.body.classList.add('ph');
       buildTabs();
+      buildDivider();
       watch($('edRows'));
       watch($('edFlyBody'));
       // a value set by anything but a finger (a load, a reset, the typed chip, syncSliders) moves the knob too
       // G3725 (PHONE-GARAGE): the rail's rows open in the MENU's pages (#gmPanel, app.js) and the top bar's card
       // (#edPopCard, editor.js) now - both made later than this, so they are watched once they exist
-      setInterval(() => { if (!drag && !D.hidden) { watch($('gmPanel')); watch($('edPopCard')); placeAll(); } }, 400);
-      W.addEventListener('resize', () => W.requestAnimationFrame(placeAll));
-      W.addEventListener('orientationchange', () => setTimeout(placeAll, 200));
+      setInterval(() => { if (!drag && !D.hidden) { watch($('gmPanel')); watch($('edPopCard')); placeAll(); cgChip(); } }, 400);
+      // the split is the orientation's own (a turn of the phone takes the other one)
+      W.addEventListener('resize', applySplit);
+      W.addEventListener('orientationchange', () => setTimeout(applySplit, 200));
     }
     hookSelection();
     trimRail();
     return true;
   }
+  // the split before the first layout: the view is its size from the boot on
+  applySplit();
+  // THE ROW'S OWN - / + (html.ph-pm): THE DEFAULT (the user 2 Nov 18:20, from the two stills: "on the phone layout, I prefer
+  // the alternative +- every row"); the compact row (- / + in the value's editor) stays a pick: ?phsteps=0, flydiy.phSteps=0
+  const setSteps = on => { on = !!on; D.documentElement.classList.toggle('ph-pm', on); ls.set('flydiy.phSteps', on ? '1' : '0'); W.requestAnimationFrame(placeAll); return on; };
+  try { const q = new URLSearchParams(W.location.search).get('phsteps'); D.documentElement.classList.toggle('ph-pm', q != null ? q !== '0' : ls.get('flydiy.phSteps') !== '0'); } catch (e) {}
   // the editor opens inside the boot (its 'editor' step); the rail and the tree fill after it
   const poll = setInterval(() => { if (init() && $('edRail') && $('edRail').children.length) { trimRail(); clearInterval(poll); } }, 250);
-  W.PHONE_UI = { setTab, tab: () => tab, placeAll, enhance, rows: () => ROWS.size };
+  W.PHONE_UI = { setTab, tab: () => tab, placeAll, enhance, rows: () => ROWS.size,
+    split: () => ({ o: orient(), f: clampSplit(orient(), splits[orient()]) }), setSplit, setSteps, steps: () => D.documentElement.classList.contains('ph-pm'),
+    // (the row on screen, the one phone.js enhanced: the first match in the page may be a hidden copy - the 2 Nov editor
+    // still opened nothing)
+    edit: k => { const all = [...D.querySelectorAll('.r.phSlider[data-k="' + k + '"]')];
+      const r = all.find(x => x.__ph && x.offsetParent !== null) || all.find(x => x.__ph); if (r) edOpen(r); return !!ed; },
+    editing: () => (ed ? ed.row.dataset.k || '?' : null), editClose: c => edClose(!!c) };
 })();
 </script>
 <script type="text/x-flydiy">
@@ -214438,6 +215058,9 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // G255: a screenshot has no marks; G1115: nor the roll-out shot (the CG post and its labels rode out on the aeroplane)
     gGrp.visible = !!d && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) && !window.__frLoading   // G2345: not under the loading view (its own CG bar)
       && !stMarksOff;   // G3357: not on the story's paint-only stage (T0)
+    // G3906: the phone's CG chip follows the same reasons to hide (a screenshot, the roll-out, the loading view, the story's
+    // paint stage) - but not the stand offset: the numbers stand without a place to draw the posts
+    window.CG_MARKS_ON = inGarage && curKey === 'gen' && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) && !window.__frLoading && !stMarksOff;
     if (d) gGrp.position.set(d[0], d[1], d[2]);
   }
   function buildIndicators() {
@@ -214462,7 +215085,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     const P = def.parts;
     const [xA] = sim.axes();
     // the live answer when there is one (see refreshIndicators), else the sim
-    let cg, d, smTxt = null, cgTxt = null, smV = null;
+    let cg, d, smTxt = null, cgTxt = null, smV = null, cgPct = null;
     const b = LAST_BAL;
     if (b && P.GAL != null && P.GAR != null) {
       const a = P.GAL * 3, c2 = P.GAR * 3;
@@ -214473,14 +215096,14 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       d = b.npX - b.cgX;
       if (b.staticMargin != null) { smTxt = 'stability margin ' + (b.staticMargin * 100).toFixed(0) + ' %'; smV = b.staticMargin; }
       if (b.cBar > 0 && typeof b.xLEmac === 'number' && isFinite(b.xLEmac))
-        cgTxt = ((b.cgX - b.xLEmac) / b.cBar * 100).toFixed(0) + ' % of the wing chord';
+        cgTxt = (cgPct = (b.cgX - b.xLEmac) / b.cBar * 100).toFixed(0) + ' % of the wing chord';
     } else {
       const s = shakeOf();
       cg = sim.cgPos();
       d = s.npX - s.cgX;
       if (s.staticMargin != null) { smTxt = 'stability margin ' + (s.staticMargin * 100).toFixed(0) + ' %'; smV = s.staticMargin; }
       if (s.cBar > 0 && typeof s.xLEmac === 'number' && isFinite(s.xLEmac))
-        cgTxt = ((s.cgX - s.xLEmac) / s.cBar * 100).toFixed(0) + ' % of the wing chord';
+        cgTxt = (cgPct = (s.cgX - s.xLEmac) / s.cBar * 100).toFixed(0) + ' % of the wing chord';
     }
     const V = [], C = [];
     const seg = (a, b, col) => {
@@ -214504,6 +215127,11 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // readout opens on a warning sign; with no readout (no wing chord) the band's title stands in
     if (MB && MB.mark) cgTxt = '⚠ ' + (cgTxt || MB.title);
     gTipBand = MB ? Object.assign({ sm: smV }, MB) : null;
+    // G3906 (the user 2 Nov, on the phone: "I can't see the CG and margin indicators in the phone interface"): the posts'
+    // reading as numbers too, for a readout that is not a 3D mark (phone.js's chip on the view's edge) - written here, the
+    // one place the posts are built from, so the two never disagree
+    if (typeof window !== 'undefined') window.CG_READ = { cg: cgPct != null && isFinite(cgPct) ? Math.round(cgPct) : null,
+      sm: smV != null && isFinite(smV) ? Math.round(smV * 100) : null, band: MB ? MB.band : null, mark: MB ? MB.mark : '', title: MB ? MB.title : '' };
     // an upright post from the ground to well above the aeroplane, so the two
     // are comparable at a glance from any angle
     const label = (px, py, pz, text, col, sub) => {
@@ -216794,6 +217422,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   window.BENCH_CHANGED = syncGoLabel;
 
   window.CAGE_ON_BUILD = () => {
+    if (window.FLYDIY_IDLE) window.FLYDIY_IDLE.wake();   // PHONE-EDIT-PERF: the phone's still shed draws again
     placeEditor();
     refreshInterior();
     // THE HALF-AND-HALF SURVIVES A REBUILD (G142). Every slider drag throws
@@ -220805,6 +221434,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   // drives it, so the render follows the panel's 160 ms fold instead of
   // snapping at the end of it.
   function resize() {
+    if (window.FLYDIY_IDLE) window.FLYDIY_IDLE.wake();   // PHONE-EDIT-PERF: (the phone's divider resizes the canvas, no window resize)
     const w = canvas.clientWidth || window.innerWidth;
     const h = canvas.clientHeight || window.innerHeight;
     renderer.setSize(w, h, false);
@@ -221195,6 +221825,42 @@ window.FLYDIY_WORLD_COMPOSE = function () {
   if (SIMW) { window.FLYDIY_SIMW = SIMW; PACE.worker = () => SIMW.perf(); }
   let simwRan = -1;   // G820: the steps the worker's snapshot moved the picture on this frame (the recorder's wran)
   let frame = 0, wdFrame = 0, hudAcc = 0, shedT = 0;
+  // PHONE-EDIT-PERF (B; PHONE-UI-GUIDELINES 4, "don't re-render the view while it doesn't change"): THE PHONE'S SHED HOLDS
+  // WHEN NOTHING IS TOUCHED. The user's S20 FE drew the idle shed at ~12 fps of full GPU work (673 draws, 407 k triangles,
+  // frame p50 85 ms) - for a view nothing was moving but the control check's sweep and the day's clock. On the phone
+  // profile, IDLE_HOLD_MS after the last touch (a pointer, a wheel, a key anywhere on the page), the last build
+  // (CAGE_ON_BUILD: an edit, a typed value, the CG handshake, a load), a resize, or a change in what the scene holds (its
+  // children, the renderer's geometries and textures: an async load landing), the loop stops drawing: the sweep, the day
+  // clock, the beacon stand where they are and the canvas keeps its last frame; the next touch draws again. The loop
+  // itself keeps its non-visual ticks (the advisor's slice, the load rig - a running rig never holds). The desktop is
+  // unchanged. Off: localStorage flydiy.phoneIdle = '0' or ?idle=0 (the A/B; the user's call on the look, via A0)
+  const IDLE_HOLD_MS = 5000;
+  const IDLE_ON = (() => {
+    try {
+      if (!(window.PROFILE && window.PROFILE.name === 'phone')) return false;
+      if (/[?&]idle=0(&|$)/.test(location.search || '')) return false;
+      return prefGet('flydiy.phoneIdle', '') !== '0';
+    } catch (e) { return false; }
+  })();
+  const IDLE = { wake: 0, sig: -1, held: 0 };
+  const idleWake = () => { IDLE.wake = perfNow(); };
+  if (IDLE_ON) {
+    for (const k of ['pointerdown', 'pointermove', 'wheel', 'keydown', 'touchstart']) window.addEventListener(k, idleWake, { capture: true, passive: true });
+    window.addEventListener('resize', idleWake);
+    window.FLYDIY_IDLE = { wake: idleWake, get held() { return IDLE.held; }, ms: IDLE_HOLD_MS };
+  }
+  // the hold this frame? (in the shed only, nothing animating that a player started, the boot's screen gone)
+  function idleHold() {
+    if (!IDLE_ON || !inGarage || holdRender || (rig && !rig.state.done)) { IDLE.held = 0; return false; }
+    if (typeof BOOT !== 'undefined' && BOOT.state && BOOT.state !== 'gone') { IDLE.wake = perfNow(); return false; }
+    if (typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) { IDLE.wake = perfNow(); return false; }
+    const gs = garageScene(), mem = renderer.info && renderer.info.memory;
+    const sig = (gs ? gs.children.length : 0) * 1e6 + (mem ? mem.geometries * 1e3 + mem.textures : 0);
+    if (sig !== IDLE.sig) { IDLE.sig = sig; IDLE.wake = perfNow(); }
+    const h = perfNow() - IDLE.wake >= IDLE_HOLD_MS;
+    IDLE.held = h ? IDLE.held + 1 : 0;
+    return h;
+  }
   // THE LOOP STARTS ONCE, WHATEVER STARTS IT (the laptop log, 5 Oct): 'first light' was its only start, and a garage
   // load the watchdog lifted at 120 s, then a Fly press, superseded that step (G640: a newer run owns the chain) -
   // no frame ever drawn. The boot's done() starts it too.
@@ -221224,7 +221890,8 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     }
     // THE DAY ADVANCES WITH PLAY (SKY S1, ruling aj): one clock, shed and world; a game pause pauses it
     // (G586: in the shed on the frame's own time; in flight it ticks after the solver, on the sim's)
-    if (typeof DAY_CLOCK !== 'undefined' && inGarage) DAY_CLOCK.tick(fdt);
+    const idleNow = idleHold();        // PHONE-EDIT-PERF: the phone's still shed (below)
+    if (typeof DAY_CLOCK !== 'undefined' && inGarage && !idleNow) DAY_CLOCK.tick(fdt);
     if ((frame & 63) === 0) clockRowsSync(false);   // G2650: the route rows' clock line, to the minute (a string compare)
     if (inpEv && !inGarage && FL.ready && inpEv.fired.length) {
       if (inpEv.fired.indexOf('apToggle') >= 0) setManual(!manual, 'key');
@@ -221247,7 +221914,7 @@ window.FLYDIY_WORLD_COMPOSE = function () {
       // answers it — physics off, so it costs nothing either.
       // G1064: under the ROLL-OUT SHOT the shot writes over this later in the frame (ROLLANIM.frame, before poseModel):
       // its own brisk check of every surface, then the four held at neutral while it rolls (rollanim.js)
-      shedT += fdt;
+      if (!idleNow) shedT += fdt;
       const tS = shedT;                // (G586: the sweep on seconds, not frames)
       if (INP && INP.active()) INP.write(sim.ctl);
       else {
@@ -221271,6 +221938,8 @@ window.FLYDIY_WORLD_COMPOSE = function () {
     // is still there to look at rather than snapping back the frame it finishes
     else if (inGarage && rig) updateLoadViz(rig);
     if (inGarage) { fixTick(); PACE.hold(); if (SIMW) SIMW.shed(); }   // A9: the advisor's page slice, when it has no thread (G820: no worker flight in the shed)
+    // PHONE-EDIT-PERF: the still shed - nothing posed, nothing drawn; the frame told as held (not counted by the cap's auto)
+    if (idleNow) { if (FR) FR.end(false, cgFinite(sim.cgPos())); PACE.end(perfNow() - tLoop0, 0, pc.steps, typeof ts === 'number' ? ts : perfNow(), 0, true); return; }
     else if (rollHold) { PACE.hold(); if (SIMW) SIMW.warm(); }    // G690: the roll-out screen is up - the flight starts on the stand when it lifts
     else if (running && !inGarage) {
       // A9: 2× steps twice a frame on the test flight; a doubled step that
