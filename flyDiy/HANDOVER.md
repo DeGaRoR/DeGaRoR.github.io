@@ -307558,3 +307558,174 @@ Train gate (box quiet): IN FLIGHT better than L28a (25 fps vs 20, 1-2 frames ove
 the town and the new LOD materials. ACCEPTED under the user's rule (under the loading screen; no feature sacrificed); the TOP item of
 flydiy-notes/PERF-WEEK-KNOWN-ISSUES.md.
 Not in it: fittings-manual (HANDLE overlap with door-hinges-2, back to the hinge session), avionics-gps (new ready, conflict), new-shapes-1.
+
+## G3534b/c + G3540 v3/v4 - THE SHED: THE ROOM'S POLISH OUTSIDE ONLY WHILE THE EYE IS OUT, THE SIGN FITTED TO THE GABLE (2026-10-26..28, HANGARS-LOOK for A0, LOCAL-GPU; claude/ready/hangars-look on master d7e181f4e = L25c, master 20a534e89 = L28a merged in; READY for L28b)
+The user, 26 Oct via A0: "the shed panel can be 4 times bigger, in and out"; 27 Oct: "about 8 meters total, and it should fit on the gambrel. Inside, maybe a 6 meters one, and no problem if it hangs low", then "5.5 m is fine, keep it under the roof line" and "just roll it in, with all the shed modifications". The new rule (28 Oct 03:00): land everything unless a poisoning feature is highly suspected. The user, 28 Oct 11:40 via A0, on the cost below: "I don't want the shed room polish to go. I'll accept a performance impact for now ... I don't want to sacrifice functionality" - the full polish ships ON, its cost on the performance-week list.
+- G3540 v3 (8025755d0, 5627b8e04): the board four times its face, over the door and inside; its material at the file's one site (GATE ASSETS AS4a), its texture's mean (tex_means.py, GATE PREMISES 22).
+- G3540 v4 (77e6c3315, 2e24c1725): the plank over the door as wide as the gable holds - its foot 0.6 m over the door's head (clear of the timber leaf's track), its top corners 0.15 m under the roof line: ~5.5 m on the field shed's 18 m front. The inside board has its own width (dims.sign.inW, HANGAR_GEN signInW), 6 m under the eave; hangarSignSpot clears it by its own width and counts the props taller than its (lower) foot. Premises re-cooked (GATE PREMCOOK).
+- G3534b (32b0060dd): the room is built once and kept between trips, so its own passes (the frame, the env bake, the floor's shadow bakes, the compile) drew the room's polish every entry (A0 26 Oct s26-g0h, alone on master: entry 4.90 s, 1.81 s with the polish off, +0.44 s every entry after). What stands outside the walls (casings, gutters, pipes, the sign over the door, the skirt) is split off by each triangle's centre into room:polish-out and drawn only while the eye is outside (polishFollow, from the app.js garage loop while inGarage); its programs compile async after 60 frames inside.
+- G3534c (5c21d32aa): s27-g7x 13:45 (TIMED, box alone, real cook) still showed the first roll-out +2.1 s with a 1.28 s task, round trip 2's entry +0.77 s and a 578 ms task in the dwell after it, vs the polish off: the first frame outside uploaded every OUT mesh at once, and OUT was left visible for the next entry's passes. Now, once compileAsync resolves, OUT's meshes go up ONE A FRAME from inside (the walls' depth hides them), so the first frame outside uploads nothing; polishHide() at the roll-out (app.js, after envAway) leaves the room with OUT hidden.
+- The L28a merge (c8eb25dea): boombox.js / editor.js / _boombox_check.js take master's G3723 radio card (it supersedes G3533's card beside the icon; the card stays draggable), 90_node_exports.js master's list + hangarSignSpot, _framecost_check.js both ALLOW rows, the premises re-cooked on the merge (c4faf56d4, GATE PREMCOOK). G3534d (the polish's outside off by default, A0's C2) was committed, gated at 11:00 and REVERTED on the user's 11:40 call (05df7ed8f: hangar.js byte for byte the merge's).
+### THE GATES (Tue 27 Oct s27-c9h 17:45, on 5c21d32aa, parked cook --check (same))
+- 25 PASS: HANGAR BOOMBOX STAND GAMEPREM ROOMMERGE HOUSE PREMISES TARR HOUSEWORKER ASSETS MATLIB LIGHT STORY UILAYER AUDIO PREMCOOK MEDIA CITYHOST KITHOST METKIT LOOKS GFX SITE CONTACT ROLLANIM (PREMCOOK green: no re-cook on the head).
+- FRAMECOST: FAIL (1) = master's own key only (cessna boot/garage:restore/three.updateMatrixWorld 2269 -> 4553).
+### THE TIMED RE-MEASURE, THE COST ACCEPTED (Wed 28 Oct s28-g4h 05:10, box alone, real parked cook then RESTORED, cub @HOME, a 3 s garage dwell after each entry; FIX = 5c21d32aa, OFF = ?roompolish=0)
+- FIX vs OFF: first entry world -> garage 9.98 s vs 5.58 s (+4.4 s; FIX ran first, on a cold driver shader cache, part of it); the dwell after it worst task 903 ms / 20.9 fps vs 198 ms / 28.2 fps; first roll-out 13.96 s (task 1693 ms) vs 12.84 s (task 1887 ms, master's own - OFF has it too; +1.1 s, was +2.1 s before G3534c); round trip 2 out 10.95 vs 10.95 s; round trip 2 in 1.81 s (task 1410 ms) vs 0.55 s; the dwell after it worst task 2187 ms / 8.3 fps vs 0 ms / 29.9 fps.
+- Cost named: ACCEPTED by the user (28 Oct 11:40) - the first entry +4.4 s and a 2.2 s task in the garage dwell after round trip 2 (1.4 s on that entry), on the performance-week list (the dwell freeze is not diagnosed: likely the room's passes or a program change when room:polish-out's visibility flips; next step a --progwatch profile of that dwell).
+### THE GATES ON THE L28a MERGE (Wed 28 Oct)
+- s28-c11h 11:00 (on the C2 head 22ef1b28b + the premises cook c4faf56d4): PREMCOOK red -> re-cooked (2 cells: p_m1_2, p_m3_m10) -> green; 22 PASS (AUDIO BOOMBOX GFX HOUSEWORKER STAND ROLLANIM UILAYER CONTACT LOOKS MATLIB ROOMMERGE HOUSE SITE PREMISES PREMCOOK TARR KITHOST CITYHOST METKIT GAMEPREM STORY HANGAR); MEDIA / ASSETS / LIGHT red = master's own (L28a): career_core.9d9c443c.js 553.1 KB over its 512 KB, src/viewer/studio.js's 2 material sites and its second light rig (PHONE-GARAGE 9f20ac6dd) - those files identical to origin/master here.
+- s28-c13h 11:30 (on the no-flag head 05df7ed8f, real parked cook): HANGAR PASS; LIGHT red = master's own studio rig only (as above); parked cook --check (same); FRAMECOST FAIL (1) = master's own key only (cessna boot/garage:restore/three.updateMatrixWorld 2269 -> 4557).
+- The rest of the 25 counted from the C2 head (G3534d touched only the outside group, A0 28 Oct); the full polish itself passed all 25 on 5c21d32aa (s27-c9h).
+- Not on this branch: G3543 the vehicle prints (claude/ready/vehicle-shadows) and G3544 the hangar plinth (claude/ready/hangar-plinth).
+
+## LODS-2026-10 STEP 1 - EVERY NAMED BUILDING AND OUTBUILDING ITS OWN FAR MODEL (2026-10-27, cloud; claude/ready/lods-step1)
+
+A0's landing order for the approved LODS-2026-10 (the full work: `claude/lods-fix`, the reference): one step a branch,
+a box A/B each, the GATE LODS ratchet live from step 1, `--strict` the gate at step 5. The step map:
+`futureDesigns/LODS-2026-10.md` §7 "HOW IT LANDS".
+- **Site items take their lod 1** (`premises_build.js genItem` + the worker's pack / unpack; `render_premises.js
+  buildItem`): every named building's far rung was `detailOf`'s 3 largest plain bags of lod 0 (the school 2 % roofed,
+  the meteo station three floating lids); now banded on its own lod 1 on the town shader (`hlodFarTarr`), its edge by
+  its projected size like a house's.
+- **Outbuildings banded** (`placeDress`): `userData.lod1` = their own lod 1 bags (their near is lod 1): the same mesh
+  and colour far (the user: the box proposal "not the same color at all").
+- **The in-flight stream's builds keep their lod 1** (`HLOD.streamLod1`, `?streamlod1=0` the A/B's before).
+- **Detail roles per generator** (`LOD_DETAIL` on HOUSE / SHED / BIG / HANGAR / TOWER / NAVAID_GEN, read by
+  `lod1Bags`) replace the house-only `LOD1_SHELL`: under it a navaid, a tower kept NOTHING past the detail band (the
+  ratchet caught it - their coarsest rung went from a box to empty). A generator with none keeps its lod 1 whole.
+- **Closure**: `_house_kit.js plate` wound every slab's edge faces inward - fixed; lod-1 walls capped; the shed's
+  lod-1 panels two-skinned, its open front's plate kept. It moves a few obstacle-raster cells by a slab's thickness:
+  the premises cook re-run (31 Jolene cells), the city manifest's `places` input hash with it (no city media).
+- **The far merge reads the building's frame NOW** (`hlodCell`: `g.updateWorldMatrix`; `hlodFarTarr`: the lod-1 root
+  takes it and walks its bags, once a building): `house_tarr`'s merge reads each bag's `matrixWorld` as it stands, and a
+  site item's cell merged before the item was ever walked put its far mesh at the world origin (bounding sphere
+  (0, 6, 0) r 21 for HOME's hangar) - frustum-culled, nothing drawn. Found on the in-game still; `claude/lods-fix`
+  carries the same latent dependency (it drew there by timing). Once a building, not once a bag: a bag each was +13 k
+  `updateMatrixWorld` in the boot's settle (FRAMECOST), once a building +1.5 k.
+- **The ratchet follows the game** (`_lods_lib.js readDetail` reads what the page does: items / outbuildings banded,
+  boxes present; rung ids `far` / `coarsest` stable across steps; an open structure near - the WWII lattice - held to
+  its own near leak + 1 %): 168 of 170 ledger rows heal; the ledger keeps `HLOD.gain` and the city's `farGain`
+  (step 2 / step 3).
+- Not in this step: the plain far fallback and the boxes (step 2), Metlakatla's kit box and city prism (step 3), the
+  meteo generator's `LOD_DETAIL` (its branch).
+- **Numbers.** Far triangles of Jolene's 104 placed named buildings (node, `tools/lods_audit.js`): 307 232 -> 111 192;
+  their coarsest rung 1 040 (boxes) -> 72 404 (lod 1 less its detail roles). GATE LODS: 168 of 170 ledger rows heal.
+  FRAMECOST like for like (both trees `FRAMECOST_QUERY=parkcook=0`, `--compare`; the parked cook is signed with the
+  build id, so any code edit stands the parked aeroplanes live until A0's re-cook - the gate's own HINT; base =
+  90aece7d): stand draws 1130 -> 1138 (Cub) / 1140 -> 1148 (Cessna), taxi 1260.5 -> 1259.5 / 1270.5 -> 1269.5, the
+  shadow pass unchanged; programs at the stand 91 -> 101 / 90 -> 100, at the taxi 85 -> 87; boot draws unchanged, +3
+  lod-1 builds, +4 MiB of texture-array layers, +8 links at the snapshot. Against the gate's baseline with the cook
+  fresh no row of these goes red (master's own values sit under it, the boot rows under G1020/G1021's whole-step
+  ALLOWs) - checked from the censuses, not run on a fresh cook.
+- **Gates** (cloud; not the whole core battery, not --all - the train's): on the final code HOUSE, LODS, TARR,
+  PREMISES, PREMCOOK, GAMEPREM, FADES PASS; HOUSEWORKER PASS after the frame fix. Before it, on this branch: 38 core gates
+  whose source reads the premises, the house kit or a generator, 35 PASS (HOUSE, LODS, TARR, PREMISES, PREMCOOK, MEDIA,
+  TOWNKIT, KITHOST, CITYHOST, CITYCOOK, GAMEPREM, VILLAGE, SITE, PREMRASTER, ROOMMERGE, HWCOV, HOUSEWORKER, AUDIO, ATMO,
+  NAVAID, ANIMALS, DMGSCAR, GFX, STAND, FADES, CONTACT, LOOKS, ASSETS, PATCHFAR, METKIT, PARKED, HITBOX, PAVEMENT, LIFE,
+  OBSTACLE; PREMCOOK, PARKED and HITBOX alone, the parallel pool starved them); CLOUD (the lamp-pool row's regex),
+  FRAMECOST (garage:restore updateMatrixWorld; and on any edited tree the stale parked cook) and SCENERYED (20b, a
+  timing) FAIL IDENTICALLY on the untouched tree.
+- **Re-based on train L28-0** (A0, 28 Oct: held out of L28a for the box A/B and a conflict with ready/meteo-code in
+  `_house_gen.js`): master merged in; `HOUSE_GEN` exports both meteo-code's `std` (G3660) and `LOD_DETAIL`; the cook
+  outputs taken from master and re-cooked on the merged tree (the same 31 Jolene cells, the city places hash). GATE LODS
+  with the meteo station in the catalogue: 138 buildings, PASS (it has no `LOD_DETAIL` yet: its lod 1 stays whole).
+  The 38 gates on the merged tree: 35 PASS; CLOUD (the lamp-pool row), SCENERYED (row 20, EDITOR-PERF timing) and
+  FRAMECOST (the stale parked cook on an edited tree - its HINT - and cessna garage:restore updateMatrixWorld
+  2269 -> 4553) FAIL. The same three on untouched master (4ab6c317): CLOUD the same row, SCENERYED 20b (4028 ms there,
+  3985 here), FRAMECOST garage:restore 2269 -> 4553 - this branch's extra FRAMECOST rows are the parked cook, stale on
+  any edited tree (fresh on master's own build; the train re-cooks).
+- In game (dev.html on SwiftShader, `soft_still.js`, HOME from 420 m, the same camera): `reports/evidence/LODS/step1/` -
+  the club hangar a washed-out box before, its walls, doors and roof lights now; the sheds their own colours; no page
+  error.
+## HWCOV - METLA-ON (23 Oct 2026, the user: "Metlakatla ON."; for L24a): METLAKATLA ON BY DEFAULT, WITH THE NEW TOWN HOST
+What ?town=1&cityhost=1 did is the default now; the GRAPHICS 'towns' row stays the way to turn it off.
+- gfx_settings: the 'towns' row's default is 'all' (`def`, a free row's default was its first step); pv 9 -> 10: a stored 'nearby' was the old default (every save wrote the free row), not a pick - it takes 'all'; a 'nearby' saved from now on stays. The budget's cap is unchanged: potato, laptop and the software rung never build Metlakatla.
+- build.js (the loader's raster variant): a 'nearby' saved before pv 10 reads as town on.
+- render_premises: the town host from its pack (CITY) with the town on unless ?cityhost=0 (the old kit host, for an A/B).
+- FRAMECOST's census stays the field's (town=0 in its query unless FRAMECOST_QUERY names the town): its baseline was taken with Metlakatla cut.
+- GATE GFX (the default, the migration, the loader rule), GATE CITYHOST row H.
+What the strict light gate sees with the town on (the user accepted the cost; Fri 23 Oct A/B, master 20a136670, floats P vs O): at the CIRCUIT (~6 km from the town) loop +2.9 ms (world +0.9, render +2.0), +26 draws, +1.1 M tris, frames over 34 ms +0.07 pt, p99 equal; the close visit p99 50.0 = off; the approach's town-host cell builds 167-434 ms ENROUTE (CITY-B's slicing, next week). The boot gains the town step (~1.9 s) and the kit's host (~0.3 s).
+
+## G3617 + G3619 - PEOPLE-CROWD: THE PASSENGERS WAIT IN A LINE AT THE EMBARK POINT, THEN BOARD IN ORDER; FOUR NEW BODIES (ADAM, JODY, KATE, PETE); SHADOWS + FEET BLOBS (2026-10-25/27, PEOPLE-CROWD for A0, local GPU; branch claude/people-crowd, master d7e181f4e merged in fcd0e1965; for L28a)
+The user 25 Oct: "prioritize the people job, and the passengers queuing ... under strict performance constraints".
+- **G3619, THE LINE (src/viewer/crowd.js, lazy).** run() takes spec.line / spec.seed: at the roll-out the job's passengers
+  stand in single file on the path's first metres, facing the aeroplane's door, each on their own seeded idle and phase
+  (phone, briefcase, happy, sad, swat; a pacer at the back on the 'pace' clip with its baked drift); after the hold (2.5 s,
+  the run's clock starting with its first drawn frame) they walk out in order, queue, turn and fade into their seats as
+  G2970 did. States: line, walk, queue, turn, board, seated.
+- **WHO (app.js crowdPax).** The job's own client first (FLYDIY_PEOPLE.client of the contract's provider), then
+  FLYDIY_PEOPLE.pool('passenger', 64, contractId) - the same job, the same faces on a reload - and only bodies the cast holds
+  (CROWD.castKeys()). Reserved people and pilots never queue (the pool holds neither); Tim stays a voice. A seat the build
+  already fills takes a drawn passenger (the build's figure hidden, out of the line). Without the seam (no FLYDIY_PEOPLE)
+  the cast order is used. THE SEAM'S MERGE: Game's window.FLYDIY_PEOPLE door (G3614, claude/ready/people + ready/hire)
+  and crowdPax are one app.js hunk apart - the merge keeps BOTH (crowdPax, then the door); checked with merge-tree against
+  both ready branches, node --check clean.
+- **G3617, THE BODIES (tools/char_prep.py, chars_table.py, src/chars/crowd_pack.json).** Adam Ch08, Jody Ch37, Kate Ch21,
+  Pete Ch17 + six clips (phone 12 fps, briefcase, happy, sad, swat, pacing cut to its loop 27.27-36.67 s, reach 1.28 m),
+  imported as-is (credit-only, CREDITS.md). Baked Mon 26 Oct 01:15-01:29 (CHARS + KTX2 PASS):
+  | body | MiB |
+  |------|-----|
+  | adam | 6.01 |
+  | jody | 4.19 |
+  | kate | 4.38 |
+  | pete | 4.47 |
+  The cast of ten 41.36 MiB -> the budgets castMiB 42, memberMiB 6.1 (A0 26 Oct). Nothing at boot: the pack is fetched
+  only for a job that seats passengers.
+- **GATE KTX2 ROW 10 (commit b792110ca, its own).** Row 10 reads the cast's rows from crowd_pack.json, and a character
+  diffuse may be ETC1S where the cast's encoder picks it (colorCodec 'auto').
+- **SHADOWS (the user 26 Oct: "passengers should have shadows").** render_world nearTag tags a passenger's pieces by the
+  whole person's sphere (userData.crowdPerson), so the CAP 4 posed people (NEAR 60 m) cast into the near map's 60 m box.
+  Smooth idle shadows: shadow_near S.posedHz, 60 by default (?posedhz=0 the cache as it was) - the near map is redrawn
+  while a queued passenger is posed; at the stand it was already redrawn every frame in every row (nearDrawn = frames,
+  'none' included - board item shadow-near-cache), so it adds no pass. FEET: src/viewer/contact_shadow.js make(THREE, max)
+  - one instanced quad per person under the feet like the wheels' blobs (footA 0.8 / footCore 0.6), ?crowdcontact=0 off.
+  At the game's 16:00 the line stands in the hangar's shade (the user 27 Oct: the boarding point STAYS).
+- **COST (s27-g7c 27 Oct, Jolene stand, 3 waiting, real parked_cook + --check same first).** Counts: crowd shadows +60
+  shadow draws (306 -> 366), +0.48 M shadow tris; feet 1 draw; smooth idles 0 extra near-map passes. The ms of that run
+  fell with run order (32 -> 17 ms p50) - drift, so no ms delta is claimed; A0's interleaved ABAB on Wed 28 measures them.
+  Stand rows over100 0. BOARDING over100: 3 in 1408 frames while the line walks out / boards - split by the per-hitch log
+  (crowd_cost: the states two frames back / now, programs, textures, geometries) in s27-g9p Tue 17:58: the 3 were each one passenger's turn -> board (130-190 ms, +0 programs / textures / geometries): the seated figure's FIRST SHOW on fade twins built that frame. THE FIX (75d5d48d7, app.js crowdWarmSeat): every seat's twins built and its figure compiled (renderer.compileAsync) on them and on its own materials under the roll-out's screen - shown for the call, hidden after; a live passenger landing late warmed by crowdTick. L28a s28-g2p Wed 28 02:45 (TIMED, the box alone, fcd0e1965, cook --check same): the board row x2 over100 0 / 0 (walking/boarding p50 16.6 / p95 19.2-19.5 ms, the taxi after 0), warmMs 339 / 452 under the screen. crowd_cost's hitch log now says the ms inside crowdSeatFade and inside renderer.render across each frame over 100 ms.
+- **TOOLS.** tools/crowd_cost.js (rows none / off / nofeet / cache / hz12 / every / board; --rows), tools/crowd_shot.js
+  (the queue's stills with the eye asserted; --diag the shadow flags, --probe the crowd's draws by pass + the sun ray,
+  --preset <hour>), tools/_stand_check.js, tools/_chars_check.js (the line, the pace drift).
+- **GATES (L28a s28-g2p Wed 28 02:55-03:14, fcd0e1965 = this branch + master d7e181f4e, build 01071dfc7a4d, a real cook --check same, --no-build --jobs=2, the 40 the grep of the touched files gives):** 32 PASS (UISMOKE + UISMOKE-PHONE green: crowdPax's contract read under CAREER_DEV, 31954588f - red in s27-c9pc Tue). 8 red, none in a crowd file, riding by the user's rule of 28 Oct (land everything but a real break): FRAMECOST = master's (updateMatrixWorld 2269 -> 4553 at the cessna's garage restore; page errors 55 = master's 55), FOG = master's (the gate wants !inGarage, master's app.js has !inShed), CLOCK 1/777, CLOUD 1/239 (the lamp pool), TREEHIT (the trunk does not stop the CG: 63.5 / 83.7 m of 60), ROUNDTRIP (the setup screen's sections), RWYLIGHTS (jolene w5 15/24, w4 16/22), LAKEBED (02/20's pond 28 texels, 4 without water) - for A0 against master's own rows.
+HOT FILES: src/viewer/crowd.js, src/viewer/app.js (crowdPax, fsPeople/jobOwn), src/viewer/render_world.js (nearTag),
+src/viewer/shadow_near.js (posedHz), src/viewer/contact_shadow.js, src/chars/crowd_pack.json, tools/_ktx2_check.js.
+
+## G3851-G3852 + G3858 - TYRES: EVERY NORMAL TYRE RIBBED, THE TUNDRA LUGGED OR SMOOTH, THE TREAD ROW GONE; THE WHOLE-AEROPLANE SILHOUETTE SETTLES AFTER A DRAG (2026-10-27/28, AIRCRAFT-LOOKS, LOCAL; for L28b; claude/ready/tyres, rebased on master 20a534e89)
+- The user: "the tread options can go, the normal wheels should stay, and tiny planes should still be able to get tiny wheels"; "1a" (ribbed for every normal tyre, the stock Cub and Jodel included); "I also want a Tundra tyre with no pattern".
+- G3851 (review, futureDesigns/TYRES-2026-10.md): every wheel row swept headless (26 stops x 3 carcasses x 4 sizes, 0.06-0.45 m R) - all build, no NaN. The 'blocked' tread stood 7.6 % R proud; it is gone.
+- G3852 (_gear_gen.js, _gear_page.js, _cage_parts.js): each carcass draws its own tread - standard and slim ribbed, the tundra bush lugs. The 'tread' row leaves the panel and the parts lists. whTread stays in DEF and in every file as loaded: it is hashed, so it is read and ignored, and no certificate moves.
+  The tundra's own 'tundra tread' row (cage whSlick: bush lugs / smooth) shows on the tundra carcass only. Absent or 0 = the lugs, so every tundra on file draws as before. whSlick is drawing only (the physics reads the carcass, whProfile): bench.js BENCH_STATE_ROWS and 76_procure PROCURE_STATE_ROWS skip it, so toggling it never withdraws a certificate or marks a procured plane modified. On the rebase both regexes keep master's DOOR-HINGES `|^hgDr[A-Z]` beside whSlick.
+- G3858 SIL-SETTLE (editor.js, A0's GARAGE-LAG hardening): with the root picked, the whole-aeroplane silhouette (G3543) is not rebuilt on every cage drag tick. The stale one is cleared while CAGE_UI.dragging(), and the aeroplane the hand stops on gets its silhouette once (rootSilSoon).
+- Gates (Wed 28 03:12, on 29fbef3f1 = these commits before the rebase): GEAR BENCH PROCURE PARTS DESIGN EDBUGS JOIN CONTACT SAVE UISMOKE DEFAULT PANEL UILAYER VIEW TECH all PASS. New rows: GEAR (smooth tundra = nothing proud, fewer tris; whSlick ignored on a standard tyre), BENCH (whSlick keeps the fingerprint, whTread off default still moves it), PROCURE (whSlick 1 leaves procureFp unmoved).
+- FRAMECOST (03:50, a real parked_cook, --check same, the committed packs restored after): one red, cessna boot/garage:restore/three.updateMatrixWorld 2269 -> 4553 = master's (the same row red in the train logs). Every tris row is down, so no ALLOW is needed.
+- Stills: flydiy-notes/evidence-2026-10-18/2026-10-28/g3852_three_tyres_close.png (the user's Cub: ribbed standard / 31" tundra lugs / 31" tundra smooth).
+- Open: the outboard cap/valve reach on standard/slim (G3853) wants a face still; the cloud tyre proposals (G3853-G3855) are not in this branch.
+
+## Train L28b (A0, Wed 28 Oct, pushed ~15:45; the user: "pack that one", land everything that isn't a poison)
+
+19 features, via A0's integration branch claude/ready/a-l28b-int 0245523e3 (15 readies, A0-resolved: _cage_float's PAGE.load chain, _hangar_gen's
+export list, app.js crew names + the passengers' hidden filter, STATE_ROWS pilOn + whSlick, _cage_page5's WHO_DEFAULT removed + the quad rows;
+16 gates PASS on it) + assets-construction + cert-pod (on top of the integration; the Cessna floats file = crew-hands' floats.x 1.2272 + the cert's
+25 L tank; the Meridian rows re-emitted) + cloud-mrt-warm:
+the racer-only pilot + crew grid, the passengers' queue (boarding stutter fixed), the floodlight, the shed with its full room polish + signs,
+the story + the cabin light at T0, AP-HONEST, Metlakatla ON, the float kit (seaplane prop; climb props back to their pre-L28a thrust), tyres,
+the free-quad window, the STOL wing, the mine garage pad, LODs step 1, the crash looks (switch OFF) + the DMGCOMPOSITE live reference,
+the construction machines (crane reads "GLOVE": fix in L28c), the cert rule (Rufus certified + his log, the margins, the pod outside the cert),
+the first-launch cloud freeze fix + the AA cleanup.
+
+Battery: CLOUD, FRAMECOST (the flood's accepted seed links + master's restore key), MEDIA, LIGHT, PARKED row 13, DMGSKINGPU = master's / accepted;
+HOUSEWORKER = Metlakatla's page-vs-worker parity row (named); LIVERY = "garageFloodArm is not defined" in the cage-editor seed harness (it loads
+garage.js without app.js) - a harness gap, not the player's page.
+Train gate (box quiet): IN FLIGHT better than L28a (25 fps vs 20, 1-2 frames over 100 ms vs 3-5; worst frame ~3.5 s). LOAD: garage ready
+~120 s (L28a ~70, master ~60) with one 28-30 s task under the loading screen. Profile (pb_l28b_boot.cpuprofile): ~37 s of shader-link waits
+(gl.getProgramInfoLog from getUniforms), mostly inside bakeHangarEnv - the floodlight's 2-light variants multiplied across the shed polish,
+the town and the new LOD materials. ACCEPTED under the user's rule (under the loading screen; no feature sacrificed); the TOP item of
+flydiy-notes/PERF-WEEK-KNOWN-ISSUES.md.
+Not in it: fittings-manual (HANDLE overlap with door-hinges-2, back to the hinge session), avionics-gps (new ready, conflict), new-shapes-1.
+
+## G3649 - ROUNDTRIP UNDER THE FLIGHT LAYOUT: THE SETUP CHILD ON ?flui=old (2026-10-28, GAME-MENUS, LOCAL; for L28c; claude/ready/roundtrip-fl2, on master a5e89abe9)
+Why: since L28a (menus-l28a) the default flight layout fl2 has no rail, and app.js setupOpen returns under it (G3649): the loading screen has no setup panel. GATE ROUNDTRIP's setup child still opened the default page, waited for #bootSetup, found no anti-aliasing pill and no "level horizon" row, touched nothing - six rows red on the missing touch (hold, pulse, LIVE both ways, the wait, the settle), no break (its own "no script, timer or frame threw" rows green). The seventh, "the setup screen's sections", was master's: FLY gained a "drawn" section.
+What changed (tools/_roundtrip_check.js only): openCounted(hooks, query) adds a query to ROUNDTRIP_QUERY; the setup child runs ?flui=old (the old layout, where the setup screen lives) and asserts it did (FLYDIY_FL2 off); each trips child asserts the default boot is fl2 (FLYDIY_FL2.on: no setup panel on its loading screen); FLY's expected sections gain 'drawn'. No page change.
+Gates: ROUNDTRIP.
