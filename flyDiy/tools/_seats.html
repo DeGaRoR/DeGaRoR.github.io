@@ -93,8 +93,8 @@ function build(type, opt) {
   return lastStats;
 }
 // frame the seat: its box, an eye on a bearing (az from +z, the seat's front, toward +x, the occupant's left)
-function shoot(az, el, w, h) {
-  const box = new THREE.Box3().setFromObject(host);
+function shoot(az, el, w, h, frame) {
+  const box = frame ? frame.clone() : new THREE.Box3().setFromObject(host);
   const c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3());
   const R = 0.5 * Math.hypot(s.x, s.y, s.z);
   const d = R / Math.sin(camera.fov * D2R / 2) * 0.86;
@@ -134,9 +134,41 @@ function sheet(list, o) {
   });
   return { url: out.toDataURL('image/png'), stats };
 }
+// THE LOD SHEET: one row per seat, its three levels (hero / mid / phone) side by side, the same 3/4 eye and the same
+// framing (the hero's box frames all three, so the levels compare pixel for pixel)
+function lodSheet(list, o) {
+  const tw = (o && o.tw) || 360, cap = 46, names = ['hero', 'mid', 'phone'];
+  const groups = (o && o.groups) || 2;                  // seats per row of the page
+  const rowsN = Math.ceil(list.length / groups);
+  const out = document.createElement('canvas');
+  out.width = groups * 3 * tw; out.height = rowsN * (tw + cap);
+  const g = out.getContext('2d');
+  g.fillStyle = '#e4e3df'; g.fillRect(0, 0, out.width, out.height);
+  const stats = [];
+  list.forEach((it, i) => {
+    const gx = (i % groups) * 3 * tw, gy = Math.floor(i / groups) * (tw + cap);
+    const row = { label: it.label, lv: [] };
+    let frame = null;
+    for (let L = 0; L < 3; L++) {
+      window.SEAT_GEN.force = L;
+      const st = build(it.type, it);
+      if (!frame) frame = new THREE.Box3().setFromObject(host);
+      g.drawImage(shoot(35, 16, tw, tw, frame), gx + L * tw, gy);
+      row.lv.push({ tris: st.tris, draws: st.draws });
+      g.fillStyle = '#4a4e55'; g.font = '13px system-ui, sans-serif';
+      g.fillText(names[L] + ' · ' + st.tris + ' tris · ' + st.draws + ' draws', gx + L * tw + 10, gy + tw + 36);
+    }
+    window.SEAT_GEN.force = null;
+    g.fillStyle = '#22252a'; g.font = '600 16px system-ui, sans-serif';
+    g.fillText(it.label, gx + 10, gy + tw + 18);
+    g.strokeStyle = '#c9c7c1'; g.strokeRect(gx + 0.5, gy + 0.5, 3 * tw - 1, tw + cap - 1);
+    stats.push(row);
+  });
+  return { url: out.toDataURL('image/png'), stats };
+}
 // one seat, one view, big (a close-up for the validation)
 function single(type, az, el, w, h, opt) { const st = build(type, opt); shoot(az, el, w, h); return { url: cv.toDataURL('image/png'), stats: st }; }
-window.SEAT_BENCH = { build, shoot, sheet, single, A };
+window.SEAT_BENCH = { build, shoot, sheet, lodSheet, single, A };
 // interactive: ?seat=N, drag to orbit
 const T = +(Q.get('seat') || 4);
 let az = 35, el = 16;
