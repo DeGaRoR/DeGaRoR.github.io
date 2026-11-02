@@ -578,7 +578,7 @@ function makePilot(sim, def, world, opts) {
     ap.phase = ph; phaseT = 0;
     if (wrHold) { sim.ctl.wr = null; wrHold = false; }
     if (ph === 'ROLLOUT') wrLanded = false;
-    piv = null;                                  // G1938: a pivot belongs to the phase that began it
+    piv = null; bsT = 0; bsN = 0;                // G1938: a pivot belongs to the phase that began it (G3480: and its count)
     { const S_ = ap.afcs.sel; S_.wK = S_.vFloor = S_.toCap = S_.thrFull = S_.flc = S_.thMin = null; if (flcOn) { flcOn = false; SV.IthGain = null; SV.pitchK = 1; } }   // G2125: the climb law's selections are the phase's that set them
   };
   const PATS = {};
@@ -811,6 +811,8 @@ function makePilot(sim, def, world, opts) {
   // the nose well aside, and at a taxi corner tighter than the wheels steer (below). Every other aeroplane: none of it
   const SWIV = !!(def && def.params && def.params.twSwivel) && !trike;
   let piv = null, pivSaid = false, pivN = 0;
+  // G3480 (DC-3 TAXI): the time the wheels have not held the route's turn, the turns on the spot it took, said once
+  let bsT = 0, bsN = 0, bsSaid = false;
   // G2450: the room a turn on the spot asks from a strip's end - the half-span + 1.5 m (the wing sweeps round the CG),
   // 6 m at least (the tail's swing behind the mains)
   const pivRoom = () => Math.max(6, ((def.params.gen && def.params.gen.span > 0) ? def.params.gen.span / 2 : 5) + 1.5);
@@ -1784,7 +1786,14 @@ function makePilot(sim, def, world, opts) {
     // the nosewheel at full lock and the inside toe brake: the C172 turns 180 deg in ~15 s with the CG moving 4.3 m at
     // most (scratch trk: 0.6 throttle, the stick at its taxi elevator) - on the strip, where the lane U-turn beside
     // East Point took it 9.1 m off the centreline
-    if (onStrip && isFinite(RgMin) && (from.len || 1100) < 300 && Math.abs(cross) <= 4 && runAhead >= 0.75 * (from.len || 1100)) {
+    // G2811: ...WHEREVER IT STOPPED, FACING THE END. The 3/4-of-the-strip-ahead test predates G2450's roll on to the end:
+    // a taildragger facing the end the run starts from rolls on there and pivots, so the whole strip is its run however
+    // far short of the end it stopped. Without it, a stop under 3/4 fell through to the pattern's route and its lane U-turn
+    // at the pose - on Jumbo Mine (250 m) the user's Cub, stopped 162 m from the end (88 m ahead, 187.5 needed; master's
+    // stopped 61 m from it, 189 ahead: a 1.5 m margin), ran into an obstacle beside the strip 7.5 s into that U-turn
+    // (10 g, 82 members broken). A tricycle pivots where it stands (G1949): it keeps the test
+    const facingEnd = !trike && (nose[0] * t[0] + nose[1] * t[1]) < -0.2;
+    if (onStrip && isFinite(RgMin) && (from.len || 1100) < 300 && Math.abs(cross) <= 4 && (runAhead >= 0.75 * (from.len || 1100) || facingEnd)) {
       ap.path = null; ap.stopAfterLineup = true;
       // G2450 EAST-POINT-DEPART: ...BUT NOT SHORT OF THE END. A short strip is left from its very end (the user's Cub at
       // East Point stopped 37 m from the closed end in the game, turned there and rolled from 37.3 m in, downwind -
@@ -1797,6 +1806,22 @@ function makePilot(sim, def, world, opts) {
         if (dEnd > spot + 3) ap.pivSpot = { x: from.x - t[0] * (from.len / 2 - spot), z: from.z - t[1] * (from.len / 2 - spot), spot, from: Math.round(dEnd) };
       }
       return 'LINEUP';
+    }
+    // G2811: ...AND FACING THE TAKE-OFF WAY WITH TOO LITTLE AHEAD: BACK ALONG THE CENTRELINE. A one-way short strip
+    // landed and left the same way (Jumbo Mine, 250 m: in and out the same direction) leaves the aeroplane facing its
+    // take-off with the start end behind it. Under 3/4 of the strip ahead, the pattern's route back begins with a lane
+    // U-turn at the pose - the user's Cub on its 0.95 notch, stopped 161.7 m from the far end (88 m behind it), ran into
+    // an obstacle beside the strip 7.5 s into it (10 g; master's, 189 m ahead, went from where it stood). A taildragger
+    // turns on the spot instead (TAXI's G1938 pivot toward a point behind), taxis back along the centreline to the turn's
+    // spot at the start end (its half-span + 1.5 m in) and turns there (LINEUP's roll on, then its pivot): the whole strip
+    if (!trike && onStrip && isFinite(RgMin) && (from.len || 1100) < 300 && Math.abs(cross) <= 4 && (nose[0] * t[0] + nose[1] * t[1]) > 0.2) {
+      const spot = pivRoom(), sEnd = -(from.len / 2) + spot;
+      if (sPos - sEnd > spot + 3) {
+        ap.path = null; ap.taxiPath = null; ap.stopAfterLineup = true;
+        ap.taxiTgt = [from.x + t[0] * sEnd, from.z + t[1] * sEnd];
+        ap.pivSpot = { x: ap.taxiTgt[0], z: ap.taxiTgt[1], spot, from: Math.round(sPos - sEnd + spot) };
+        return 'TAXI';
+      }
     }
     if (PAT && PAT.routes && typeof patternPath === 'function') {
       let ids = null, nodes = PAT.nodes;
@@ -2133,11 +2158,27 @@ function makePilot(sim, def, world, opts) {
     const tThrCruise = A.thrCruise ?? 0.6, tThrFloor = A.thrFloor ?? 0.12;
     const tVs0 = SH && SH.Vs0 != null ? SH.Vs0 : (A.VRot || 18) / 0.99;
     // the trim attitude at speed V: alpha = a0 + k / V^2 through (Vcruise, alphaCruise) and (VAppr, alphaAppr)
+    // G2811: ...IN THE CONFIGURATION FLOWN. (VAppr, alphaAppr) is the landing flap's approach; the clean wing's is
+    // (gen.VApprClean, gen.alphaApprClean). ON THE DEPARTURE (ROLL, LIFTOFF, CLIMB) the approach point moves from the clean
+    // one to the landing one as the flap goes past its take-off setting to the landing setting: the take-off and the climb
+    // fly the clean point (as every flapless lander always has - the Jodel on its 0.7 notch read the landing point low and
+    // hopped off three times). EVERY OTHER PHASE flies the landing point, the fit it always had: blended there too (the
+    // flap under its landing setting through the circuit and the final's first seconds) it moved the user's Cub's whole
+    // arrival - PILOTMATRIX 2 Nov, the Cub cells 60 s shorter, touching at the aim at 1.3-1.9 m/s (0.6 before), the
+    // ham-fist's roll-out swinging 57.6 deg. The Cub's landing point IS its cruise attitude (-0.060 rad at 19.6 and at
+    // 31.5 m/s: the Fowler flap's), its clean point +0.003 at 22.9: the blend raised every flapless leg 3-4 deg
+    const TA_DEP = { ROLL: 1, LIFTOFF: 1, CLIMB: 1 };
     const tAlphaAt = (() => {
-      const g = def.params.gen || {};
-      const V1 = A.VCruise || 30, V2 = A.VAppr || 22, a1 = g.alphaCruise ?? 0.05, a2 = g.alphaAppr ?? 0.12;
-      const k = (a2 - a1) / (1 / (V2 * V2) - 1 / (V1 * V1) || 1e-9), a0 = a1 - k / (V1 * V1);
-      return Vv => clamp(a0 + k / Math.max(Vv * Vv, 25), -0.05, (A.thMax ?? 0.2) + 0.05);
+      const g = def.params.gen || {}, F = def.params.flaps;
+      const V1 = A.VCruise || 30, a1 = g.alphaCruise ?? 0.05, VL = A.VAppr || 22, aL = g.alphaAppr ?? 0.12;
+      const VC = g.VApprClean ?? VL, aC = g.alphaApprClean ?? aL;
+      const fL = F ? (F.ldg ?? 1) : 0, fT = F ? Math.min(F.to ?? 0, fL) : 0;
+      return Vv => {
+        const w = (fL > fT && TA_DEP[ap.phase]) ? clamp(((sim.ctl.flap || 0) - fT) / (fL - fT), 0, 1) : 1;
+        const V2 = VC + (VL - VC) * w, a2 = aC + (aL - aC) * w;
+        const k = (a2 - a1) / (1 / (V2 * V2) - 1 / (V1 * V1) || 1e-9), a0 = a1 - k / (V1 * V1);
+        return clamp(a0 + k / Math.max(Vv * Vv, 25), -0.05, (A.thMax ?? 0.2) + 0.05);
+      };
     })();
     const tecs = (o) => {
       // o: { ias, alt | vs | gs (the slope from the aim), thMax, vsUp, vsDn }
@@ -3054,7 +3095,8 @@ function makePilot(sim, def, world, opts) {
       // (the last 25 deg at ~7 deg/s: a fixed 60 % there crawled the Cub's last 20 deg for 27 s)
       const rT = near ? 0.12 : 0.35;
       // (a tricycle's at 0.6 at most: at 0.75 the C172 swung 5.4 m, at 0.6 4.3 m - scratch trk)
-      if (slow) piv.thr = clamp(piv.thr + (r < rT ? 0.15 : -0.30) * dt, 0.15, A.pivotThrMax ?? (trike ? 0.60 : 0.75));
+      // (G3480: an airframe whose wheels steer past 13 m - the 8.5 t DC-3 turned 36 deg in 30 s on 0.75 - to full power)
+      if (slow) piv.thr = clamp(piv.thr + (r < rT ? 0.15 : -0.30) * dt, 0.15, A.pivotThrMax ?? (trike ? 0.60 : RgMin > (A.taxiBsRg ?? 13) ? 1.0 : 0.75));
       const noseDown = thRest != null && th < thRest - 0.10;      // the tail coming up: no power
       // G1949: ON THE HEADING (within the 9 deg the end asks) the power stays off and the brakes stop it - a burst
       // there kept the Cub creeping at 1.2 m/s, never 'done', 6 m along a teardrop's diagonal (ISLAND-TOUR, Jumbo Mine)
@@ -3273,9 +3315,29 @@ function makePilot(sim, def, world, opts) {
           // either gear, and the rate term only differentiated the contact's
           // yaw jitter (the rudder lane's 2.5-4 Hz chatter, 76-290 reversals
           // a minute on the stock, the C172 and the aluminium C172)
-          engage('TAXI', 'DE', 'TAXI', { dr: SV.taxiRudder(drFF, drMaxG),
-                                          de: A.taxiDe ?? 0.30, gsp: pathSpeed(ap.path, L.i, Vg, vMax, L.sRem) });
-          const tMax = 40 + 1.6 * ap.path.len / taxiV;
+          // G3480 (DC-3 TAXI; the user's DC-3 replayed out of the HOME stand 25 Oct: the rudder on its stop for 15 s at 3.3 m/s,
+          // swung 30 m wide of the taxi route, into the parked aircraft beside the stand at 20 s, the taxi timed out at 327 s):
+          // AN AIRFRAME WHOSE WHEELS CANNOT STEER THE SITE'S OWN LANE TURN TURNS ON THE SPOT. Its wheels steer past 13 m (RgMin,
+          // the pivot's Rpiv: the DC-3 29.2 m on its tailwheel - the Cub 11.3, Rufus 9.6, the Jodel 9.2, the C172 5.3 never meet
+          // it); the rudder on its stop with the nose 20 deg and more off the way for 0.5 s: stop and pivot to the way (G1938's
+          // pivot - the inside brake, full rudder, a burst of power), then the follower from where it stood; while it rolls the
+          // turns are walked at 1.5 m/s. (The first cut, for every airframe, moved the Cub's Jolene stand-to-roll 190 -> 234 s;
+          // the second, the inside brake at 1.5 m/s with no stop, still turned the DC-3 on ~25 m into a parked wing at 46 s)
+          const eH = wrapPi(hT - Math.atan2(nose[1], nose[0])), bigG = RgMin > (A.taxiBsRg ?? 13);
+          const drC = SV.taxiRudder(drFF, drMaxG);
+          bsT = bigG && Math.abs(drC) > 0.95 * drMaxG && Math.abs(eH) > 0.35 ? bsT + dt : 0;
+          if (bsT > 0.5 && bsN < 6) {
+            bsT = 0; bsN++;
+            piv = { hdg: hT, j: L.i, t0: ap.t, thr: 0, sg: eH >= 0 ? 1 : -1 }; pivN++;
+            if (!bsSaid) { bsSaid = true; say('pivot', 'a turn of ' + Math.round(Math.abs(eH) * 57.3) + ' deg that the wheels (' + RgMin.toFixed(1) + ' m) cannot steer on the route - turning on the spot'); }
+            pivotFly(piv.hdg);
+            break;
+          }
+          let gsp = pathSpeed(ap.path, L.i, Vg, vMax, L.sRem);
+          if (bigG && Math.abs(eH) > 0.2) gsp = Math.min(gsp, A.taxiVTurn ?? 1.5);
+          engage('TAXI', 'DE', 'TAXI', { dr: drC, de: A.taxiDe ?? 0.30, gsp });
+          // (G3480: the big airframe's turns walked and its turns on the spot are its route's time too - the DC-3 timed out at 327 s)
+          const tMax = (40 + 1.6 * ap.path.len / taxiV) * (bigG ? 2 : 1) + 45 * bsN;
           setStatus('following the taxi route to the hold', [
             cond('to the hold', Math.round(L.sRem), 2, L.sRem < 2, 'm'),
             cond('off the line', Math.abs(L.ey), 2.5, Math.abs(L.ey) < 2.5, 'm')]);
@@ -3392,7 +3454,7 @@ function makePilot(sim, def, world, opts) {
                        : (alig > 0.988 && Math.abs(sCr) < 8 && Math.abs(eR) < 0.15)) {
           if (ap.stopAfterLineup) { go('STOP'); break; }
           go('ROLL'); ap.t = Math.max(ap.t, 1); rollS0 = null;
-        } else if (phaseT > 60) { say('lineup-timeout', 'could not line up in 60 s — stopping to replan'); go('STOP'); }
+        } else if (phaseT > (RgMin > (A.taxiBsRg ?? 13) ? 120 : 60)) { say('lineup-timeout', 'could not line up in ' + Math.round(phaseT) + ' s — stopping to replan'); go('STOP'); }   // (G3480: a big airframe's turn on the spot, 120 s)
         break;
       }
 
