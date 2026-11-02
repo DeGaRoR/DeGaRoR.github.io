@@ -543,9 +543,9 @@ async function introRun() {
   H.world.terrainH = terr;
   vm.runInContext(src, H);
   const lazy = [];
-  let exp = 1.1;
+  let exp = 1.1, shedRestores = 0;
   Object.assign(H, { WF: {}, inGarage: true, roomBase: () => 'w9', roomId: () => 'w9', siteOf: () => ({ plots: [plot] }), WORLD_EXPOSURE: 0.9,
-    renderer: { get toneMappingExposure() { return exp; } }, setExp: v => { exp = v; }, ATMO: { MIST: { room: 'the room' } },
+    shedFrameState: () => { shedRestores++; }, renderer: { get toneMappingExposure() { return exp; } }, setExp: v => { exp = v; }, ATMO: { MIST: { room: 'the room' } },
     FLYDIY_LAZY: n => { lazy.push(n); return Promise.resolve([true]); },
     camera: { fov: 46, position: { x: 0, y: 0, z: 0, set(x, y, z) { this.x = x; this.y = y; this.z = z; } }, lookAt() {}, updateProjectionMatrix() {}, updateMatrixWorld() {} } });
   const settle = async () => { for (let i = 0; i < 400; i++) { await new Promise(r => setTimeout(r, 5)); if (!H.window.FLYDIY_STORY || !H.window.FLYDIY_STORY.pending()) return; } };
@@ -553,7 +553,7 @@ async function introRun() {
   const half = () => vm.runInContext('(function () {\n' + P.half + '\nreturn { storyIntroWanted, storyIntroCurtain, storyIntroBoot, storyIntroFrame, el: () => stCardEl }; })', H)();
   const curtains = () => els.filter(e => e.id === 'stIntro').length;
   const play = async (skipAt) => {
-    career(); H.stIntroArm = true; H.FLYDIY_INTRO_LAST = null; lazy.length = 0;
+    career(); H.stIntroArm = true; H.FLYDIY_INTRO_LAST = null; lazy.length = 0; shedRestores = 0;
     const c0 = curtains(), X = half();
     await settle();
     const cur = els.filter(e => e.id === 'stIntro').slice(-1)[0];
@@ -569,7 +569,7 @@ async function introRun() {
     }
     return { up, during, worldF, n, skipF, near, X, last: H.FLYDIY_INTRO_LAST };
   };
-  const after = X => exp === 1.1 && H.ATMO.MIST.room === 'the room' && H.camera.fov === 46 && H.FLYDIY_MUSIC_HOLD === false &&
+  const after = X => shedRestores === 1 && exp === 1.1 && H.ATMO.MIST.room === 'the room' && H.camera.fov === 46 && H.FLYDIY_MUSIC_HOLD === false &&
     M.storyOf(P.get()).beat === 'T0' && X.el() && !X.el().hidden && /The cabin/.test(X.el().innerHTML);
   let r = await play(null);
   ok(r.up, 'a New career: the black curtain up under the loading screen (z 60 < the boot\'s 70), story_intro.js asked for');
@@ -881,8 +881,8 @@ async function tutorRun() {
   ok(/const line = !!CAREER_DEV;\n\s*el\.classList\.toggle\('line', line\);/.test(app) && /#arrCard\.line \{[^}]*background:transparent;[^}]*border:0;/.test(fcss) && /#arrCard\.line #arrNotes, #arrCard\.line #bLog, #arrCard\.line #bWhy \{ display:none; \}/.test(fcss),
      "no card in a career: the flight's ending is a line of text at the bottom left (no plate, no Log / What went wrong; the story's line is Tim's)");
   ok(/view: \(\) => \{ storeFloorStand\(\); return/.test(app), "Storage shows the stand's aeroplane on the floor (G3587: the Cub was shown on the stand while Rufus stood there)");
-  ok(/stIntroWas\.veil = CLOUDS\.S\.veil; CLOUDS\.S\.veil = 0; const q = CLOUDS\.compositeMesh && CLOUDS\.compositeMesh\(\); if \(q\) q\.visible = false;/.test(app) && /CLOUDS\.S\.veil = W\.veil;/.test(app),
-     'no clouds in the opening (G3588): the veil off and the stale composite hidden while it plays, the veil back at the swap');
+  ok(app.includes('aa.setPre((r, cam, rt, drawnScene) => { if (drawnScene === scene) CLOUDS.draw(r, cam, rt); });') && !app.includes('CLOUDS.S.veil = 0;') && !app.includes('stIntroWas.veil ='),
+     'the opening renders fresh world clouds; garage passes do not march them and user veil settings are preserved');
   ok(/stSkipEl\.textContent = 'Skip the flight: start on the final';/.test(app) && /rollOut\(\(\) => \{ const r = storyFinalNow\(\);/.test(app) && /ap\.reEngage\(\{ phase: 'INBOUND' \}\);/.test(app),
      'Skip the flight: rolled out, then on the final at the WWII field, a fresh pilot planning its arrival from there (G3584); the garage alone keeps the hangar skip');
   ok(/ap\.afcs\.sel\.de = 0; \} catch \(e\) \{\}\n\s*ap\.reEngage\(\{ phase: 'INBOUND' \}\);/.test(app),

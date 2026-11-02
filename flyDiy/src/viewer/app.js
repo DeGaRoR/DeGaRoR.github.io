@@ -268,7 +268,7 @@
     CLOUDS.init(renderer);
     // A6 (G436.7): the march runs BEFORE the scene (the previous frame's depth ends its rays) and the
     // composite is a quad in the world scene at the cloud's own depth - the silhouettes per MSAA sample
-    aa.setPre((r, cam, rt) => { if (!inGarage) CLOUDS.draw(r, cam, rt); });
+    aa.setPre((r, cam, rt, drawnScene) => { if (drawnScene === scene) CLOUDS.draw(r, cam, rt); });
     aa.needRT(CLOUDS.S.mode !== 'off');
   }
   // THE POST PASSES (POST-FX study, 2026-09-21): src/viewer/post_fx.js - six rows of the GRAPHICS
@@ -960,6 +960,24 @@
     if (!envRT && THREE.WebGLCubeRenderTarget) envRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
     return envRT;
   }
+  // The cube excludes the subjects (and their lights), while the visible garage
+  // includes them. Light counts key every lit program. Dress each compile task
+  // exactly like the cube draw, then restore before yielding to another task.
+  function probeCompileDress(fn) {
+    const subjects = [craft, edSit, refSit, bpSit], was = subjects.map(o => o && o.visible);
+    const shafts = hangar && hangar.shafts, shWas = shafts && shafts.visible;
+    const mask = camera.layers.mask;
+    try {
+      camera.layers.mask = 1;   // a CubeCamera's default layer; no UI or shadow helper layers
+      if (shafts) shafts.visible = false;
+      if (!craftInProbe) subjects.forEach(o => { if (o) o.visible = false; });
+      return fn();
+    } finally {
+      camera.layers.mask = mask;
+      if (shafts) shafts.visible = shWas;
+      subjects.forEach((o, i) => { if (o) o.visible = was[i]; });
+    }
+  }
   // G584: THE GENERATORS ARE KEPT. A PMREMGenerator owns its shaders, and dispose() frees them - a generator
   // made and disposed per bake re-linked its programs every bake (the census: the room's PMREM 14 times in one
   // roll-out, the hangar's textures landing under the world's loading screen). One per source kind, kept for
@@ -1217,6 +1235,12 @@
     if (r && r.rebake) { bakeHangarEnvSliced(); r.markBaked(); }   // G2662: the clock's bake, a slice a frame
     if (r && hangar.moodFor) { const mi = hangar.moodFor(world.day); if (mi !== hangarMood) setMood(mi, { fromClock: true }); }
     shedCraftLights(world.day);
+  }
+  // The scene actually drawn owns the shared atmosphere. Resume the room before its first post-intro frame.
+  function shedFrameState() {
+    if (typeof ATMO !== 'undefined') ATMO.setAP(false);
+    shedDayTick();
+    envSliceStep();
   }
   function setEnvSource(k) {
     envSource = k === 'sky' ? 'sky' : 'room';
@@ -9641,10 +9665,7 @@
                      mist: typeof ATMO !== 'undefined' && ATMO.MIST ? ATMO.MIST.room : null, fov: camera.fov };
       setExp(WORLD_EXPOSURE);
       if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = null;   // F3: the room's air stays in the room
-      // G3588 (the playtest 24 Oct, item 48: "No clouds in the intro"): the march never runs under the opening (the loop
-      // reads it as the shed), but its composite quad kept the boot's last world frame (visible, a stale march) and the
-      // dome's cirrus veil follows CLOUDS.update every worldUpdate: both off while it plays, put back at the swap
-      try { if (typeof CLOUDS !== 'undefined' && CLOUDS.S) { stIntroWas.veil = CLOUDS.S.veil; CLOUDS.S.veil = 0; const q = CLOUDS.compositeMesh && CLOUDS.compositeMesh(); if (q) q.visible = false; } } catch (e) {}
+      // The actual world pass now marches fresh clouds, including during the intro.
       window.FLYDIY_MUSIC_HOLD = true;
       stIntroAt = plan.anchor;
       try { storyIntroLamps(true); } catch (e) { console.warn('story intro: the lamps', e && e.message); }   // G3388
@@ -9660,9 +9681,9 @@
     stIntroPose = null; stIntroWas = null; stIntroAt = null;
     try { storyIntroLamps(false); } catch (e) {}   // G3388: the world's lights as the flight will find them
     if (W) {
-      setExp(W.exp);
       if (typeof ATMO !== 'undefined' && ATMO.MIST) ATMO.MIST.room = W.mist;
-      try { if (W.veil != null && typeof CLOUDS !== 'undefined' && CLOUDS.S) CLOUDS.S.veil = W.veil; } catch (e) {}   // G3588 (the quad: the next march shows it)
+      shedFrameState();
+      setExp(W.exp);
       camera.fov = W.fov; camera.updateProjectionMatrix();
     }
     window.FLYDIY_MUSIC_HOLD = false;
@@ -13127,7 +13148,7 @@
     const was = holdRender;
     holdRender = true;
     const release = () => { holdRender = was; };
-    return compileCraftLinks().then(() => hybridWarm()).then(release, e => { release(); throw e; });
+    return compileCraftLinks().then(() => craftHullWarm()).then(() => hybridWarm()).then(release, e => { release(); throw e; });
   }
   // G1121: THE HYBRID'S KEPT LIVE MESHES are out of the graph (flown_bake.js park) and three's compile walks the graph -
   // so the craft's compile takes them by stand-in (their programs and their depth variants, in the world's lights)
@@ -13147,6 +13168,47 @@
     const FBW = FLOWN_BAKE.FB;   // (the dials: warmkey - one stand-in a program key; warmcanvas - into the canvas)
     return L.length ? warmDrawSliced(scene, FBW.warmCanvas ? null : (aa && aa.target ? aa.target() : null), null, L, craftInWorldNow, { perKey: !!FBW.warmKey }).then(k => { window.__hyWarm.drawn = k; })
       .catch(e => console.warn('hybrid warm:', e && e.message)) : null;
+  }
+  // WATER.hullRender hides every non-light scene child except the aircraft.
+  // Its capture therefore excludes the premises' nested point-light pool.
+  // Warm that exact light signature under the existing craft loading screen;
+  // changing the capture's lights instead would change its night-time image.
+  function craftHullWarm() {
+    if (!WF || !WF.premises || !WF.premises.lamps || !WF.premises.lamps.fixedCount
+        || !window.WATER || !WATER.proto || !WATER.proto.hull
+        || typeof renderer.compileAsync !== 'function') return Promise.resolve();
+    const list = [];
+    craftInWorldNow(() => craft.traverseVisible(o => { if (o.isMesh && o.geometry && o.material) list.push(o); }));
+    // The spinning disc starts hidden, but its two transparent sides reflect later.
+    craft.traverse(o => { if (o.userData && o.userData.propDisc && !list.includes(o)) list.push(o); });
+    list.push(...keptGroup().KEPT);
+    const dress = fn => craftInWorldNow(() => {
+      const hidden = [];
+      for (const o of scene.children) if (o !== craft && o.visible && !o.isLight) {
+        o.visible = false; hidden.push(o);
+      }
+      try { return fn(); }
+      finally { for (const o of hidden) o.visible = true; }
+    });
+    const group = new THREE.Group();
+    for (const o of list) for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
+      if (m && m.visible !== false) group.add(PROG_WARM.standIn(o, m));
+    }
+    const target = PLAIN_RT();
+    const depth = dress(() => {
+      // The mesh-only helper has no lights; discover shadow kinds in the lit scene.
+      const kinds = { depth: false, distance: false };
+      scene.traverseVisible(o => { if (o.isLight && o.castShadow && o.shadow) {
+        if (o.isPointLight) kinds.distance = true; else kinds.depth = true;
+      } });
+      return PROG_WARM.depthVariants(THREE, renderer, [group], { kinds }).helper;
+    });
+    const noFog = fn => dress(() => PROG_WARM.fogless(scene, fn));
+    return compileSliced(group, target, scene, false, dress)
+      .then(() => compileSliced(depth, target, scene, true, dress))
+      .then(() => warmDrawSliced(scene, target, null, list, dress, { perKey: true }))
+      .then(() => warmDrawSliced(scene, target, null, depth.children, noFog, { perKey: true }))
+      .catch(e => console.warn('craft reflection warm:', e && e.message));
   }
   function compileCraftLinks() {
     const inW = craftInWorldNow, KG = (window.FLOWN_BAKE && FLOWN_BAKE.FB.noKeptCompile) ? new THREE.Group() : keptGroup().KG;   // (?fbake=nokeptcompile)
@@ -13189,9 +13251,9 @@
   function compileCraftShed() {
     if (RA_Q === '0' || typeof ROLLANIM === 'undefined' || !inGarage || !model || typeof renderer.compileAsync !== 'function') return;
     const gs = garageScene(); if (!gs) return;
-    if (gs === hangarScene) shedEnvKey();
+    const envReady = gs === hangarScene ? pmremWarmBake().then(() => { shedEnvKey(); }) : Promise.resolve();
     const inS = f => craftInShed(gs, f);
-    return shaderProgress(compileSliced(gs, aa && aa.target ? aa.target() : null, null, false, inS)
+    return shaderProgress(envReady.then(() => compileSliced(gs, aa && aa.target ? aa.target() : null, null, false, inS))
       .then(() => compileDepthVariants(gs, true, inS))
       .catch(e => console.warn('craft shed compile:', e && e.message)), 'garage', 60000);
   }
@@ -18685,10 +18747,9 @@
       if (CK && CK.dashAction) for (const id of inpEv.fired) CK.dashAction(id);
     }
     if (inGarage) {
-      if (typeof ATMO !== 'undefined') ATMO.setAP(false);   // S4/F3: no sky in the shed, so no aerial perspective - but the MIST still runs, as the room's own air
-      // ONE SKY (S5): the day on the shed every frame; the room's probe re-shot when the sun has moved 1.5 deg
-      shedDayTick();
-      envSliceStep();   // G2662: the clock's room-probe bake, a slice this frame
+      // The opening draws the world while the career remains in the garage. Its atmosphere and exposure belong
+      // to that eye; updating the room here would rebuild the same shared LUTs again at altitude zero.
+      if (!stIntro || !stIntroAt) shedFrameState();
       // CONTROL CHECK. The solver is stopped in the garage, so every control
       // sits at zero and the surfaces never move — which reads as "the surfaces
       // do not work" even when they do. Sweep them instead, the way you would
@@ -19253,7 +19314,7 @@
   if (typeof window !== 'undefined') window.FLYDIY_GUARD = drawGuard;
   function lampsPrep(want) {
     const L = WF && WF.premises && WF.premises.lamps;
-    if (!L || typeof renderer.compileAsync !== 'function') return Promise.resolve();
+    if (!L || L.fixedCount || typeof renderer.compileAsync !== 'function') return Promise.resolve();
     const dress = f => { const was = L.armed; L.arm(want); try { return f(); } finally { L.arm(was); } };
     const t0 = performance.now();
     return compileSliced(scene, aa && aa.target ? aa.target() : null, null, false, dress)
@@ -19654,8 +19715,9 @@
   function shedPrelink() {
     if (typeof renderer.compileAsync !== 'function' || !hangar || tripKeys.shedCompile !== undefined) return;
     if (typeof BOOT.settled === 'function' && !BOOT.settled(['props', 'crew', 'crewBuild'])) return;
-    shedEnvKey();
-    new Promise(res => setTimeout(res, 0)).then(() => compileSliced(hangarScene, ensureEnvRT()))
+    // Warm the PMREM before shedEnvKey draws its black placeholder, too.
+    new Promise(res => setTimeout(res, 0)).then(() => pmremWarmBake()).then(() => { shedEnvKey(); })
+      .then(() => compileSliced(hangarScene, ensureEnvRT(), null, false, probeCompileDress))
       .then(() => compileSliced(hangarScene, aa && aa.target ? aa.target() : null))
       .then(() => compileDepthVariants(hangarScene, true))
       .then(() => compileXrayVariants())
@@ -19671,8 +19733,8 @@
   // there is no room to compile (the bench, the cloud's SwiftShader, before the hangar): the layer shows them at once.
   if (typeof window !== 'undefined') window.GARAGE_LIGHTS_PREP = dress => {
     if (typeof renderer.compileAsync !== 'function' || !hangar || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn) return null;
-    shedEnvKey();
-    return compileSliced(hangarScene, ensureEnvRT(), null, false, dress)
+    return pmremWarmBake().then(() => { shedEnvKey(); })
+      .then(() => compileSliced(hangarScene, ensureEnvRT(), null, false, dress))
       .then(() => compileSliced(hangarScene, aa && aa.target ? aa.target() : null, null, false, dress))
       .then(() => compileDepthVariants(hangarScene, true, dress))
       .catch(e => console.warn('garage lights prep:', e && e.message));
@@ -19686,16 +19748,21 @@
     // and then baked would compile every material a second time on the
     // first frame. A PMREM of the still-black probe target is that map with
     // zero radiance: same key, same look, and the real bake replaces it.
-    shedEnvKey();
-    const pass = target => compilePass(hangarScene, target);
+    // shedEnvKey renders a PMREM: its own programs must be ready BEFORE that draw.
+    const pass = target => compileSliced(hangarScene, target);
     // ...once the room is complete: a prop or the crew landing AFTER the
     // compile would compile its materials on their first draw, synchronously.
     // Wait (8 s at most) for the bytes that add materials to the scene.
     const settled = () => (typeof BOOT.settled !== 'function') || BOOT.settled(['props', 'crew', 'crewBuild']);
     const t0 = performance.now();
     const whenComplete = () => new Promise(res => { const poll = () => { if (settled() || performance.now() - t0 > 8000) res(); else setTimeout(poll, 50); }; poll(); });
-    return whenComplete().then(() => shaderProgress(pass(ensureEnvRT()).then(() => pmremWarmBake()).then(() => { done(); return pass(aa && aa.target ? aa.target() : null); })
-      .then(() => compileDepthVariants(hangarScene)), 'garage'))   // G680: its shadow pass and the full-screen passes too
+    return whenComplete().then(() => shaderProgress(pmremWarmBake().then(() => { shedEnvKey(); })
+      .then(() => compileSliced(hangarScene, ensureEnvRT(), null, false, probeCompileDress))
+      // The cube bake renders shadow maps as well as room materials. Link their
+      // depth/distance programs in the existing lit-scene state before that draw.
+      .then(() => compileDepthVariants(hangarScene, true, probeCompileDress))
+      .then(() => { done(); return pass(aa && aa.target ? aa.target() : null); })
+      .then(() => compileDepthVariants(hangarScene, true)), 'garage'))   // G680: its shadow pass and the full-screen passes too
       .then(() => (typeof renderer.initTexture === 'function') ? uploadSliced(hangarScene, 'compile', 'uploading the textures') : null)   // G999: not in the first frame
       .then(() => { tripKeys.shedCompile = gfxKey(); })   // B9: the graphics the shed was compiled for (the Fly press re-checks)
       .catch(e => { console.warn('boot compile:', e && e.message); done(); });

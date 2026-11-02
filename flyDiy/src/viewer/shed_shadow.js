@@ -37,6 +37,12 @@ var SHED_SHADOW = (function () {
   const ST = { frames: 0, bakes: 0, lightBakes: 0, why: '', whys: {}, baked: 0, live: 0, lights: 0, off: '', ms: 0, msMax: 0 };
   let R = null, SC = null, CAM = null, frame = 0, lastBake = -1e9, bakedCount = 0, mwau = true, inFrame = false, shFrame = false, owe = '', armed = null;
   const recs = new Map();          // caster -> its record (the pose and what its depth depends on, stillness, baked)
+  // Keep the tiny copy shaders across garage trips; depth targets still release.
+  // Disposing the last copy material also frees its shader-stage/program cache:
+  // cold master re-linked shedShadowCopy for 4.225 s on the first return.
+  // Pool size never exceeds the maximum simultaneously cached light count.
+  const copyMats = [];
+  let copyRenderer = null;
   const LT = new Map();            // light -> { rt, quad, key, map }
   const casters = [], lights = [], restore = [], quadsOn = [], glass = [];
   const T = () => window.THREE;
@@ -117,7 +123,8 @@ var SHED_SHADOW = (function () {
     q.name = 'shedShadowCopy'; q.castShadow = false; q.receiveShadow = false; q.userData.noPick = true; q.userData.shedShadowCopy = true;
     q.raycast = () => {};
     q.intersectsFrustum = fr => fr === L.shadow.getFrustum();   // only its own light's pass: the main pass, the glass, the probes cull it
-    q.customDepthMaterial = new TH.ShaderMaterial({ name: 'shedShadowCopy', uniforms: { tDepth: { value: null } },
+    if (copyRenderer !== R) { for (const m of copyMats) m.dispose(); copyMats.length = 0; copyRenderer = R; }
+    q.customDepthMaterial = copyMats.pop() || new TH.ShaderMaterial({ name: 'shedShadowCopy', uniforms: { tDepth: { value: null } },
       vertexShader: 'void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }',
       fragmentShader: 'uniform highp sampler2D tDepth;\nvoid main() { gl_FragDepth = texelFetch(tDepth, ivec2(gl_FragCoord.xy), 0).r; gl_FragColor = vec4(1.0); }',
       side: TH.DoubleSide, depthTest: true, depthWrite: true });
@@ -368,10 +375,11 @@ var SHED_SHADOW = (function () {
     if (SC && shFrame) SC.matrixWorldAutoUpdate = mwau;
     inFrame = false; shFrame = false;
   }
-  // out of the shed: the static depths and the copies go (the next garage frame re-bakes)
+  // Out of the shed: free static depths and copy geometry; retain only the tiny
+  // copy materials/programs, with no texture reference (the next frame re-bakes).
   function release() {
     if (inFrame) post();
-    for (const [, E] of LT) { if (E.quad.parent) E.quad.parent.remove(E.quad); E.quad.geometry.dispose(); E.quad.material.dispose(); E.quad.customDepthMaterial.dispose(); if (E.rt) E.rt.dispose(); }
+    for (const [, E] of LT) { if (E.quad.parent) E.quad.parent.remove(E.quad); E.quad.geometry.dispose(); E.quad.material.dispose(); E.quad.customDepthMaterial.uniforms.tDepth.value = null; copyMats.push(E.quad.customDepthMaterial); if (E.rt) E.rt.dispose(); }
     LT.clear(); recs.clear(); bakedCount = 0; lastBake = -1e9; owe = '';
   }
   const held = () => LT.size > 0 || recs.size > 0;

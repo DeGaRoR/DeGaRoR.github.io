@@ -79,10 +79,11 @@ const ok = (c, msg, detail) => { if (!c) fails++; console.log((c ? '  PASS ' : '
     ok(!bad.length && n > 0, tag + ': every light\'s bake + live pass == the full pass, each caster once (' + n + ' lights)', bad.slice(0, 4).join('; '));
   };
 
+  const copyMaterials = new Set(); let copyDisposed = 0;
   // 1 AT REST
   { const s0 = st(); let maxLive = 0, copies = 0, frames = 0;
     for (let i = 0; i < 30; i++) { const r = await frame(); frames++;
-      for (const [, b] of r) { const last = b[b.length - 1] || []; maxLive = Math.max(maxLive, last.filter(o => !isCopy(o)).length); copies += last.filter(isCopy).length; } }
+      for (const [, b] of r) { const last = b[b.length - 1] || []; maxLive = Math.max(maxLive, last.filter(o => !isCopy(o)).length); copies += last.filter(isCopy).length; for (const q of last.filter(isCopy)) if (!copyMaterials.has(q.customDepthMaterial)) { copyMaterials.add(q.customDepthMaterial); q.customDepthMaterial.addEventListener('dispose', () => { copyDisposed++; }); } } }
     const s1 = st();
     ok(s1.bakes === s0.bakes && s1.lightBakes === s0.lightBakes, '1 at rest: 30 frames, no bake', 'bakes ' + s0.bakes + ' -> ' + s1.bakes + ', light bakes ' + s0.lightBakes + ' -> ' + s1.lightBakes + ', why ' + s1.why);
     ok(s1.baked >= 300 && s1.live <= 6, '1 at rest: the shed\'s casters baked, the movers live', 'baked ' + s1.baked + ', live ' + s1.live + ' (' + SS.liveList().map(x => x.name).join(', ') + ')');
@@ -90,8 +91,9 @@ const ok = (c, msg, detail) => { if (!c) fails++; console.log((c ? '  PASS ' : '
     ok(copies === frames * s1.lights || copies > 0, '1 at rest: each map takes its static depth\'s copy', copies + ' copies over ' + frames + ' frames, ' + s1.lights + ' lights'); }
   // 2 EXACT (the next bake after a release: the cache off then on)
   const full = await fullSets();
+  ok(copyMaterials.size > 0 && [...copyMaterials].every(m => m.uniforms.tDepth.value === null) && copyDisposed === 0, '2 release frees depth references while keeping copy shader materials');
   ok(full.size >= 6, '2 the full pass: retro\'s shed casts six maps (five lamps and the key)', full.size + ' maps; casters ' + [...full.values()].map(s => s.size).join('/'));
-  { const r = await untilBake('joined', 60); ok(!!r, '2 the cache on again bakes within 60 frames'); if (r) exact(r, full, '2 EXACT'); }
+  { const r = await untilBake('joined', 60); ok(!!r, '2 the cache on again bakes within 60 frames'); if (r) { exact(r, full, '2 EXACT'); const reused = [...r.values()].flat(2).filter(isCopy); ok(reused.length > 0 && reused.every(q => copyMaterials.has(q.customDepthMaterial)) && copyDisposed === 0, '2 returning to the cache reuses every copy material instead of relinking'); } }
   // 3 A PROP MOVED
   let prop = null; SC.traverse(o => { if (!prop && o.isMesh && o.castShadow && /^prop:(crate|drum|stool|jerrycan|box)/.test(nameOf(o))) prop = o; });
   ok(!!prop, '3 a shed prop to move', prop ? nameOf(prop) : 'none');

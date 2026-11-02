@@ -393,8 +393,15 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
       const pd = packDrawer(px, document), mk = stats.marks = {};
       const here = x => new Promise(r => setTimeout(() => { const t = now(); r(pd(x)); const d = now() - t; mk.hereMs = (mk.hereMs || 0) + d; mk.hereMax = Math.max(mk.hereMax || 0, d); mk.here = (mk.here || 0) + 1; }, 0));
       const file = x => typeof x.src === 'string' && x.src && x.naturalWidth > 0 && x.naturalWidth <= px && x.naturalHeight <= px && typeof fetch === 'function';
-      const bm = x => (!x || Array.isArray(x)) ? Promise.resolve(x || null) : file(x)
-        ? fetch(x.src).then(r => { if (!r.ok) throw new Error(r.status); return r.blob(); }).catch(() => here(x)) : here(x);
+      // A normal/rough map may feed several layer pairs. Prepare each input once
+      // per pack, preserving the page's exact resize bytes without retaining a cache.
+      const prepared = new Map();
+      const bm = x => {
+        if (!x || Array.isArray(x)) return Promise.resolve(x || null);
+        if (prepared.has(x)) { mk.shared = (mk.shared || 0) + 1; return prepared.get(x); }
+        const job = file(x) ? fetch(x.src).then(r => { if (!r.ok) throw new Error(r.status); return r.blob(); }).catch(() => here(x)) : here(x);
+        prepared.set(x, job); return job;
+      };
       return Promise.all([Promise.all(A.map(bm)), Promise.all(N.map(p => Promise.all([bm(p[0]), bm(p[1])])))]).then(([BA, BN]) => new Promise((res, rej) => {
         mk.inputs = Math.round(now() - t0); if (mk.here) { mk.hereMs = Math.round(mk.hereMs); mk.hereMax = +mk.hereMax.toFixed(1); }
         const url = URL.createObjectURL(new Blob([PACK_WORKER_SRC()], { type: 'text/javascript' }));
@@ -402,7 +409,7 @@ mat3 tFrame(vec3 eye_pos, vec3 surf_norm, vec2 uv) {
         const done = () => { try { w.terminate(); } catch (e) {} URL.revokeObjectURL(url); };
         w.onmessage = e => { mk.recv = Math.round(now() - t0); done(); if (e.data && e.data.dA) res(e.data); else rej(new Error(e.data && e.data.err || 'no stacks')); };
         w.onerror = e => { done(); rej(new Error(e && e.message || 'worker error')); };
-        const tr = [...BA, ...BN.flat()].filter(b => b && (typeof b.close === 'function' || ArrayBuffer.isView(b))).map(b => ArrayBuffer.isView(b) ? b.buffer : b);
+        const tr = [...new Set([...BA, ...BN.flat()].filter(b => b && (typeof b.close === 'function' || ArrayBuffer.isView(b))).map(b => ArrayBuffer.isView(b) ? b.buffer : b))];
         w.postMessage({ px, A: BA, N: BN }, tr);
         mk.posted = Math.round(now() - t0);
       })).then(D => {

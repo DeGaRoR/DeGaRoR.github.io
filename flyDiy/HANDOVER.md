@@ -102996,3 +102996,69 @@ Named reds, none a break:
 - PARKED: master's standing red (row 13).
 - PAVEMENT: failed in the parallel battery, PASS alone (13 s) on the same tree.
 - floats garage -> world (SEA lane) 14.9 s: 0.0 s on the same code in the bisect run, so variance.
+
+## PERF NIGHTWARM: keep lamp signature and warm reflected aircraft variants — wave2 review candidate
+
+Source b9bfbdf2ff92f2cd8d8c63820d2de5a2c81456e4 on first-wave integration 00fe9337ad5c1bbc3e080061f18b4a0d3f7f2f9c. No built files. This is a review branch, not a ready. Night row/HULLWARM comparison completed with0new case identities; source pictures and live Rufus replay still need review. Pack fixture byte parity verified, game-wide benefit not claimed. Intro full-session CPU timing invalid for acceptance; new scene-argument guard needs full rerun. Shaderwarm residual links/seed counters remain held. The pitch-black-night investigation separately found a NaN last-exposure sentinel that prevents adaptation; its source-function regression test passes a one-line candidate and fails master, but no new browser replay is claimed. Do not include that unreviewed candidate silently in this tree.
+
+
+## PERF PACKINPUTS: prepare each shared input once per texture pack — wave2 review candidate
+
+Source a7d19d85c0f7cd2273d1a826bc0d74a40d8e23eb on first-wave integration 00fe9337ad5c1bbc3e080061f18b4a0d3f7f2f9c. No built files. This is a review branch, not a ready. Night row/HULLWARM comparison completed with0new case identities; source pictures and live Rufus replay still need review. Pack fixture byte parity verified, game-wide benefit not claimed. Intro full-session CPU timing invalid for acceptance; new scene-argument guard needs full rerun. Shaderwarm residual links/seed counters remain held. The pitch-black-night investigation separately found a NaN last-exposure sentinel that prevents adaptation; its source-function regression test passes a one-line candidate and fails master, but no new browser replay is claimed. Do not include that unreviewed candidate silently in this tree.
+
+
+## PERF INTROSTATE: let the world own sky state during the opening — wave2 review candidate
+
+Source 62c9c2b1a3501108c46eca306d15e88a77b72e7e on first-wave integration 00fe9337ad5c1bbc3e080061f18b4a0d3f7f2f9c. No built files. This is a review branch, not a ready. Night row/HULLWARM comparison completed with0new case identities; source pictures and live Rufus replay still need review. Pack fixture byte parity verified, game-wide benefit not claimed. Intro full-session CPU timing invalid for acceptance; new scene-argument guard needs full rerun. Shaderwarm residual links/seed counters remain held. The pitch-black-night investigation separately found a NaN last-exposure sentinel that prevents adaptation; its source-function regression test passes a one-line candidate and fails master, but no new browser replay is claimed. Do not include that unreviewed candidate silently in this tree.
+
+
+## PERF INTROSCENE: render fresh clouds for the actual world scene — wave2 review candidate
+
+Source 77959a1e56b1586ae682a60d1bb0c94bf9b3679a on first-wave integration 00fe9337ad5c1bbc3e080061f18b4a0d3f7f2f9c. No built files. This is a review branch, not a ready. Night row/HULLWARM comparison completed with0new case identities; source pictures and live Rufus replay still need review. Pack fixture byte parity verified, game-wide benefit not claimed. Intro full-session CPU timing invalid for acceptance; new scene-argument guard needs full rerun. Shaderwarm residual links/seed counters remain held. The pitch-black-night investigation separately found a NaN last-exposure sentinel that prevents adaptation; its source-function regression test passes a one-line candidate and fails master, but no new browser replay is claimed. Do not include that unreviewed candidate silently in this tree.
+
+
+## PERF SHADERWARM: prepare exact bake targets before first use — wave2 review candidate
+
+Source c29fd98c8143c6dc66249045b3a47193f7aba172 on first-wave integration 00fe9337ad5c1bbc3e080061f18b4a0d3f7f2f9c. No built files. This is a review branch, not a ready. Night row/HULLWARM comparison completed with0new case identities; source pictures and live Rufus replay still need review. Pack fixture byte parity verified, game-wide benefit not claimed. Intro full-session CPU timing invalid for acceptance; new scene-argument guard needs full rerun. Shaderwarm residual links/seed counters remain held. The pitch-black-night investigation separately found a NaN last-exposure sentinel that prevents adaptation; its source-function regression test passes a one-line candidate and fails master, but no new browser replay is claimed. Do not include that unreviewed candidate silently in this tree.
+
+## PERF NIGHTLIGHT: initialize the exposure write sentinel — 30 October2026
+
+The light easing state starts with setEx=NaN. Its threshold comparison could never pass, leaving exposure at garage daylight1.12 throughout a moonlit night. Seed the first write when the previous value is non-finite; preserve the authored schedule, easing and uniform-write thresholds. NIGHTEXPOSURE executes actual source functions, proves night convergence, settled zero redundant writes, external-writer handover and daylight return. Browser pictures and cycle checks belong to the wave2 delivery report. No exposure multiplier or tone curve changed.
+
+### Night-light visual follow-up
+
+The initialized exposure alone revealed the sky but left the land black in the actual Cineon/linear/8x-MSAA view. The main directional light still aimed at the solar horizon while SKY_LIGHT selected lunar energy. Aim the light/shadows from that selected moon, keeping SUN_SKY solar for atmosphere. Fixed-eye countertests also show the +13 nautical exposure is below Cineon's0.004 black cutoff on ordinary land: +16 restores visible runway/terrain/aircraft. Keep day/civil knots unchanged and deep-night adaptation monotone at16stops. No tone curve, physical moon ratio, AA, clouds or detail disabled. These are intentional visual repairs; the earlier pixel-identical performance claim does not cover this lighting commit. NIGHTEXPOSURE also executes the real aim block, checks solar/fallback/clamp paths and curve continuity. Final source gates/pictures required.
+
+## PERF NIGHTVISIBILITY: readable night ambient and bounded light adaptation — 30 October2026
+
+User rejected the initial barely-visible moonlit land as still much too dark. Extend the existing world hemisphere with an exposed-luminance floor, smoothly ramped below the horizon. The sky/exposure/tone pipeline stays unchanged; no extra lights or programs. The floor is opt-in on the world only: room/garage callers retain their exact old physical behavior. Recompute the existing ground bounce after the floor. Zero-colour airglow gets a finite cool tint. Daylight bypasses the floor. Also blend the exposed key/hemi energy while exposure eases geometrically: independently easing light down and exposure up caused huge intermediate white flashes. Real source-function tests cover day/night/day and zero-light endpoints, steady writes, floor invariance over exposure, absent-option room behavior and continuous dusk ramp. New browser figures after the user's busy-box warning are visual/functional only, not accepted performance measurements.
+
+### Atomic clock cuts
+
+The existing DAY_CLOCK.jump now invalidates the current light ease before publishing its one dayjump event. The next world apply cuts key/hemi/exposure together with the already-cut atmosphere; ticking/weather still use bounded exposed-energy easing. This avoids a bright old exposure on a newly bright dawn sky. NIGHTVISIBILITY executes the actual jump function: one set/event/save, notification after invalidation, and a rejected backward career wait leaves state untouched. The separate exposure convergence check retains0.2% accuracy with a15s settling window for the new visual-energy interpolation.
+
+### Probe cut follows the clock cut
+
+The actual one-second picture still showed a white landscape with already-correct key/hemi/exposure. ATMO's existing probe deliberately crossfaded a bright daytime cube into night radiance for about2s. Reuse its existing bake(day,true) path for both world and cabin probes on discrete DAY_CLOCK cuts; consume that flag once. Ordinary time/cloud drift keeps the original fades. This changes no quality, probe resolution or shader definitions. NIGHTVISIBILITY executes the real two-probe caller block and checks one cut per probe, flag consumption and ordinary maybe/fade behavior.
+
+## PERF COVERIDLE: measure a fully settled stand — 30 October2026
+
+Two new FRAMECOST stand/bytes.bufferData rows(1812bytes) were traced in the actual measured window to cover_ring.buildBlock called by render_world.grassField.update. The old idle predicate inspected TREE_FILL.cover only and ignored the separate TREE_FILL.grass producer and tier upgrades. Wait for both existing rings under the original bounded warm-up, with no ALLOW/baseline/tolerance change. COVERIDLE covers each pending state independently on both producers, plus absent optional features. Compare exact master and candidate with the same corrected fixture. This is tools-only measurement accuracy, not a game/FPS/loading optimization.
+
+### Bounded asynchronous-setup settling
+
+Waiting for the grass ring exposed delayed cloud coverage calibration: skyFractionAsync allocates its transform-feedback buffers once per fit step. Require30 consecutive buffer-upload-quiet frames after both rings idle, still under the original120-frame cap. A permanent allocator reaches that same cap and remains in the measured window; no row/tolerance/budget is waived. COVERIDLE executes the real helper with delayed transient setup and a permanent1812byte/frame counterexample. Master/candidate use the identical helper; rerun FRAMECOST on both.
+
+## PERF wave2 ready handoff — 30 October2026
+
+Owner selected the first/darker night preview: world nightVisibility0.8. All performance/lighting/topic changes are integrated on ready/a-perf-int. See reports/PERF-WAVE2-READY.md for exact scope, matched fixture checks, visible lighting changes, raw standing costs and measurement limits. New busy-machine captures are functional/visual only. Ready/b-perf-int is the sole wave2 delivery ref; historical topic refs are not separate landing requests. No generated files, LF only, no master merge.
+
+## A0 1 Nov: PERF WAVE 2 lands WITHOUT NIGHTWARM's fixed lamp count
+
+The quiet A/B and bisect (flydiy-notes/L29a-AB-20261101.md) traced a 3x rise in roll-out freezes, and a doubled compile, to NIGHTWARM acd8be969.
+Its fixed lamp count keeps all 8 premises point lights visible from boot, so every lit program in the world compiles with 8 point lights.
+render_premises.js is back to its pre-NIGHTWARM pool: 8 lamps visible only when armed, the background prep at dusk (G1340).
+With fixedCount gone, craftHullWarm is a no-op, and the NIGHTWARM gate (it asserted the fixed count) is dropped.
+Everything else in b-perf-int stays: PACKINPUTS, INTROSTATE, INTROCLOUDS, SHADERWARM, NIGHTLIGHT, NIGHTVISIBILITY 0.8, COVERIDLE.
+Timing, the summed worst task over 6 roll-outs: master 17.0 s, wave 1 15.0 s, b-perf-int as sent 45-69 s, this tree 11.4 s. Compile 23-35 s, garage 81-99 s.
+Open (Codex): the dusk switch is back to the G1340 prep path, so a stall at the first lit draw after dusk may return. Rework it without a by-day 8-light cost.
