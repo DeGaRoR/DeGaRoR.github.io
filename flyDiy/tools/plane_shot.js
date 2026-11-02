@@ -22,7 +22,8 @@
 //                                 inscribed circle instead, a maskable icon's safe zone - and /<W>x<H> the still's
 //                                 own size - e.g. hero:38/-12/35/0.7/1024x1024 for an app icon's square); profile[/<fill>
 //                                 [/<W>x<H>]] the left side (the thumbnail); board:<fov>/<height> THE PLANE BOARD - the
-//                                 hero (38 / -12, the lens) at 3:2 and a column of side / plan / front at one scale; the left
+//                                 hero (yaw 38, el -12 or as asked, the lens) at 5:4 (or as asked) and a column of side / plan /
+//                                 front at one scale; cuts:<fov>/<side px>[/<el>[/<aspect>]] the four views matted alone; the left
 //                                 side, orthographic - drawn by the page's renderer at --psize 1800x1200 on a dark studio
 //                                 (--bg0 / --bg1 the backdrop's centre and edge, --key / --rim the portrait lights)
 //        [--same 0.9]             the share of the file's cage rows the page must hold after the import (assert 3)
@@ -231,22 +232,22 @@ const PORTRAIT = `(o) => {
     // simple collage"): the hero and the three orthos each alone, the background matted away (shot() below), for a
     // composer that packs by the silhouettes. o.h: the side view's length in px; the plan and the front at its scale
     const s = o.h / len('f'), ow = a => Math.round(s * a) + 24;
-    const Wh = Math.round(o.h * 1.25), Hh = Math.round(Wh / 1.5);
-    panels.push({ name: 'hero', cam: heroCam(o.fov, 1.5, o.yaw, o.el, 0.94), w: Wh, h: Hh, low: true });
+    const ha = o.aspect || 1.25, Wh = Math.round(o.h * 1.25), Hh = Math.round(Wh / ha);   // the hero squarer (the user, 2 Nov: "a more square image, easier to composite")
+    panels.push({ name: 'hero_m' + Math.round(Math.abs(o.el)), cam: heroCam(o.fov, ha, o.yaw, o.el, 0.94), w: Wh, h: Hh, low: true });
     panels.push({ name: 'side', cam: ortho(left, up, ow(len('f')), ow(len('u')), s), w: ow(len('f')), h: ow(len('u')), s });
     panels.push({ name: 'top', cam: ortho(up, fwd, ow(len('l')), ow(len('f')), s), w: ow(len('l')), h: ow(len('f')), s });
     panels.push({ name: 'front', cam: ortho(fwd, up, ow(len('l')), ow(len('u')), s), w: ow(len('l')), h: ow(len('u')), s });
     for (const p of panels) { p.x = 0; p.y = 0; }
   } else {
     // THE PLANE BOARD (the user, 2 Nov: "a full board: top, side, front AND hero shot, well composited, without much
-    // margin between the pictures"): the hero on the left at 3:2 the board's height; on the right one column, the three
+    // margin between the pictures"): the hero on the left at 5:4 (the user picked a squarer hero, 2 Nov) the board's height; on the right one column, the three
     // orthos at ONE scale - the side (the nose left), the plan below it (the nose up: span across, as the front's) and
     // the front under the plan, the span of the two aligned - a 3-view drawing's column, sized so its height is the
     // hero's; gutters of a few px
     const Hb = o.h, g = 4, pad = Math.round(0.045 * Hb), L = len('f'), Sp = len('l'), Hh = len('u');
     const s = (Hb - 2 * g - 6 * pad) / (L + 2 * Hh);
     const Wc = Math.round(s * Math.max(L, Sp) + 2 * pad), hs = Math.round(s * Hh + 2 * pad), ht = Math.round(s * L + 2 * pad), hf = Hb - 2 * g - hs - ht;
-    const Wh = Math.round(Hb * 1.5);
+    const Wh = Math.round(Hb * (o.aspect || 1.25));
     OW = Wh + g + Wc; OH = Hb;
     panels.push({ cam: heroCam(o.fov, Wh / Hb, o.yaw, o.el, 0.86), x: 0, y: 0, w: Wh, h: Hb, low: true, caption: true });
     panels.push({ cam: ortho(left, up, Wc, hs, s), x: Wh + g, y: 0, w: Wc, h: hs });
@@ -413,11 +414,11 @@ async function shoot(o) {
           if (/^(hero:|board:|cuts:|profile($|\/))/.test(v)) {
             // A PORTRAIT: drawn in the page (PORTRAIT above), the craft-hidden twin with it; the same frame checks
             // hero:<yaw>/<el>/<fov>[/<fill>[/<W>x<H>]] - the aeroplane's share of the frame and the still's own size (the
-            // app icon's square, A0 2 Nov) over --psize; profile[/<fill>[/<W>x<H>]] the same; board:<fov>/<height>; cuts:<fov>/<side px>
+            // app icon's square, A0 2 Nov) over --psize; profile[/<fill>[/<W>x<H>]] the same; board:<fov>/<height>[/<el>[/<hero aspect>]]; cuts the same, <side px>
             const kind = v.split(/[:/]/)[0];
             const hp = kind === 'profile' ? v.split('/').slice(1) : v.slice(kind.length + 1).split('/');
             let po;
-            if (kind === 'board' || kind === 'cuts') po = { kind, yaw: 38, el: -12, fov: parseFloat(hp[0]), w: 0, h: +hp[1], ss: 2 };
+            if (kind === 'board' || kind === 'cuts') po = { kind, yaw: 38, el: hp[2] != null ? parseFloat(hp[2]) : -12, aspect: hp[3] != null ? parseFloat(hp[3]) : 1.25, fov: parseFloat(hp[0]), w: 0, h: +hp[1], ss: 2 };
             else {
               const [yaw, el, fov, fill] = kind === 'profile' ? [90, 0, 0, parseFloat(hp[0])] : hp.slice(0, 4).map(parseFloat);
               const fs = kind === 'profile' ? hp[0] : hp[3], sz = kind === 'profile' ? hp[1] : hp[4];
@@ -608,7 +609,7 @@ async function pair(dirA, dirB, out, labels, chrome) {
     // name their recipe in `what` (PORTRAITS)
     if (!j || !j.spec || !j.spec.cage) bail(EXIT.build, b + ' is not a flyDiy build (what: ' + (j && j.what) + ')');
   }
-  for (const v of o.views) if (!PRESET[v] && !/^part:./.test(v) && !/^hero:[-\d.]+\/[-\d.]+\/[\d.]+(\/0?\.\d+c?(\/\d{2,4}x\d{2,4})?)?$/.test(v) && !/^profile(\/0?\.\d+(\/\d{2,4}x\d{2,4})?)?$/.test(v) && !/^(board|cuts):[\d.]+\/\d{3,4}$/.test(v) &&!/^(orbit|close):[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v)) bail(EXIT.run, 'unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>, close:<az>/<el>/<dist>)');
+  for (const v of o.views) if (!PRESET[v] && !/^part:./.test(v) && !/^hero:[-\d.]+\/[-\d.]+\/[\d.]+(\/0?\.\d+c?(\/\d{2,4}x\d{2,4})?)?$/.test(v) && !/^profile(\/0?\.\d+(\/\d{2,4}x\d{2,4})?)?$/.test(v) && !/^(board|cuts):[\d.]+\/\d{3,4}(\/-?[\d.]+(\/[\d.]+)?)?$/.test(v) &&!/^(orbit|close):[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v)) bail(EXIT.run, 'unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>, close:<az>/<el>/<dist>)');
   if (!(size.length === 2 && size.every(n => n >= 200 && n <= 4096))) bail(EXIT.run, '--size WxH (200-4096)');
   if (!fs.existsSync(path.join(o.root, 'flyDiy', o.page))) bail(EXIT.run, 'no page ' + o.page + ' in ' + path.join(o.root, 'flyDiy') + (o.page === 'index.html' ? ' (not built? --page dev.html)' : ''));
   if (!chrome) bail(EXIT.browser, 'no Chromium here (--chrome <path>, or the cloud image\'s /opt/node-tools playwright)');
