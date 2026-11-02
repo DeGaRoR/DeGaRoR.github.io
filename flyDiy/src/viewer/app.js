@@ -15312,7 +15312,7 @@
       try { return CAREER_DEV && typeof careerWaitWindow === 'function' && world && world.day ? careerWaitWindow(playerLoad(), world.day) : null; } catch (e) { return null; }
     }
     if (CAREER_DEV && window.FLYDIY_CLOCK) window.FLYDIY_CLOCK.jobWait = clockJobWait;   // the day panel's career WAIT reads it
-    // G2650 (SIM-CLOCK): the route row's clock line + its wait select (routeBuild calls this per host)
+    // G2650 (SIM-CLOCK): the route row's clock line (routeBuild calls this per host; TIME-CONTROLS: its wait select is the time menu's now)
     function clockRowBuild(host, where) {
       const CK = typeof DAY_CLOCK !== 'undefined' && DAY_CLOCK.day && DAY_CLOCK.day() && DAY_CLOCK.wait ? DAY_CLOCK : null;
       for (let i = clockRows.length - 1; i >= 0; i--) if (clockRows[i].host === host) clockRows.splice(i, 1);
@@ -15320,41 +15320,12 @@
       const lab = document.createElement('label');
       const sp = document.createElement('span'); sp.textContent = 'clock'; lab.appendChild(sp);
       const v = document.createElement('b'); v.className = 'routeBase routeClock';
-      v.title = CK.isCareer() ? 'The career\'s clock: it runs with flown time, and moves on by waiting' : 'The sim clock (set it in the day panel)';
+      v.title = CK.isCareer() ? 'The career\'s clock: it runs with flown time, and moves on by waiting (the time menu, top bar)' : 'The sim clock (set it in the time menu, top bar)';
       lab.appendChild(v);
-      const sel = document.createElement('select'); sel.className = 'routeWait';
-      sel.title = 'Wait it out on the ground: the clock jumps to the next such hour (tomorrow\'s when it has passed)';
-      let nOpt = 0;
-      const fill = () => {
-        sel.innerHTML = ''; nOpt = 0;
-        const head = document.createElement('option'); head.value = ''; head.textContent = 'wait until…'; sel.appendChild(head);
-        const today = CK.day().localDate;
-        const opt = (val, words, key) => {
-          const r = CK.waitPreview(val), o = document.createElement('option'); o.value = key || (typeof val === 'number' ? 'h' + val : val);
-          o.textContent = words + (r ? ' · ' + clockHhmm(r) + (clockDateOf(r) !== today ? ' (next day)' : '') : '');
-          sel.appendChild(o); nOpt++;
-        };
-        // G2665 (NIGHT-OPS): the career's Wait "until the window opens" - the tracked contract's time-of-day window, first
-        const jw = clockJobWait();
-        if (jw) opt(jw.target, 'the job\'s window (' + jw.words + ')', 'job');
-        for (const p of (window.DAY_UI ? window.DAY_UI.PRESETS : CK.PRESETS.map(k => ({ k, label: k })))) opt(p.k, p.label);
-        for (let h = 0; h < 24; h++) opt(h, String(h).padStart(2, '0') + ':00');
-        sel.value = '';
-      };
-      fill();
-      sel.addEventListener('pointerenter', fill); sel.addEventListener('focus', fill);
-      sel.onchange = e => {
-        const k = e.target.value; if (!k) return;
-        const jw = k === 'job' ? clockJobWait() : null;
-        if (k === 'job' && !jw) { sel.value = ''; return; }
-        const r = CK.wait(jw ? jw.target : /^h\d+$/.test(k) ? +k.slice(1) : k);
-        sel.value = '';
-        if (r && !r.ok) { sel.title = r.why; return; }
-        clockRowsSync(true);
-        if (typeof flRefreshDay === 'function') try { flRefreshDay(); } catch (er) {}
-      };
-      lab.appendChild(sel); host.appendChild(lab);
-      clockRows.push({ host, where, v, sel, last: '', opts: () => nOpt });
+      // TIME-CONTROLS (A0 2 Nov): the "wait until…" select that stood here is gone - the time menu (the top bar's time
+      // button, DAY_UI.menu) is the one place for time; the line says the hour and the date
+      host.appendChild(lab);
+      clockRows.push({ host, where, v, sel: null, last: '', opts: () => 0 });
       clockRowsSync(true);
     }
     routeBuild($('edRoute'), 'garage');
