@@ -1,16 +1,16 @@
 {
  "what": "join-parity-page",
- "at": "2026-11-02T15:17:47.330Z",
+ "at": "2026-11-02T20:30:26.210Z",
  "door": "load (GARAGE_SPEC.set)",
- "chainSig": "7ad75321e8fc27dda5c69af4b091ebc2ceaf8d77",
+ "chainSig": "a962b06755b52d347c072b86c6c8923f6ee846fe",
  "builds": {
   "jodel": {
    "file": "builds/jodel_2026-09-20_corrected.json",
    "page": {
     "n": 115,
     "nb": 502,
-    "mass": 477.1804400589298,
-    "build": "ce5e95116e9f"
+    "mass": 464.1828041916167,
+    "build": "d983bc023e7a"
    },
    "spec": {
     "cage": {
@@ -1197,16 +1197,6 @@
      "look": {
       "bezel": "plastic",
       "sw": "toggle"
-     },
-     "lights": {
-      "nav": 3,
-      "beacon": 1,
-      "taxi": 1,
-      "land": 1,
-      "flood": 1,
-      "pedal": 1,
-      "pax": 1,
-      "instr": 1
      }
     },
     "controls": {
@@ -1579,19 +1569,7 @@
      ]
     },
     "outfit": {
-     "seats": "sling",
-     "drawn": {
-      "board": 0.1623,
-      "dash": 0.266,
-      "shoulder": 0.5164,
-      "door": 0,
-      "floor": 0.7505,
-      "console": 0
-     },
-     "ctl": {
-      "stations": 2,
-      "kind": "stick"
-     }
+     "seats": "sling"
     }
    }
   },
@@ -1600,8 +1578,8 @@
    "page": {
     "n": 97,
     "nb": 404,
-    "mass": 466.682962078923,
-    "build": "ce5e95116e9f"
+    "mass": 461.6597235065414,
+    "build": "d983bc023e7a"
    },
    "spec": {
     "cage": {
@@ -2786,16 +2764,6 @@
      "look": {
       "bezel": "plastic",
       "sw": "toggle"
-     },
-     "lights": {
-      "nav": 3,
-      "beacon": 1,
-      "taxi": 1,
-      "land": 1,
-      "flood": 1,
-      "pedal": 1,
-      "pax": 1,
-      "instr": 1
      }
     },
     "controls": {
@@ -3160,19 +3128,7 @@
      ]
     },
     "outfit": {
-     "seats": "sling",
-     "drawn": {
-      "board": 0.1897,
-      "dash": 0.2967,
-      "shoulder": 0.5165,
-      "door": 0,
-      "floor": 1.3662,
-      "console": 0
-     },
-     "ctl": {
-      "stations": 1,
-      "kind": "stick"
-     }
+     "seats": "sling"
     }
    }
   },
@@ -3181,8 +3137,8 @@
    "page": {
     "n": 107,
     "nb": 452,
-    "mass": 895.024977531437,
-    "build": "ce5e95116e9f"
+    "mass": 885.8240051405495,
+    "build": "d983bc023e7a"
    },
    "spec": {
     "cage": {
@@ -4393,16 +4349,6 @@
      "look": {
       "bezel": "plastic",
       "sw": "toggle"
-     },
-     "lights": {
-      "nav": 3,
-      "beacon": 1,
-      "taxi": 1,
-      "land": 1,
-      "flood": 1,
-      "pedal": 1,
-      "pax": 3,
-      "instr": 1
      }
     },
     "cabin": {
@@ -4635,19 +4581,7 @@
      ]
     },
     "outfit": {
-     "seats": "sling",
-     "drawn": {
-      "board": 0.4031,
-      "dash": 0.4344,
-      "shoulder": 0.5111,
-      "door": 2.7134,
-      "floor": 1.845,
-      "console": 0
-     },
-     "ctl": {
-      "stations": 2,
-      "kind": "yoke"
-     }
+     "seats": "sling"
     },
     "fuselage": {
      "material": "alloy",
@@ -4756,8 +4690,8 @@
      "tip": "rounded",
      "tipV": null,
      "tipH": null,
-     "vSweep": 38.17512112852634,
-     "stabH": 0.04828709160565377,
+     "vSweep": 38.175121128526335,
+     "stabH": 0.04828709160565392,
      "dorsal": {
       "len": 0.34,
       "height": 0.16,
@@ -4765,7 +4699,7 @@
       "angle": null,
       "area": 0.11896522017949966
      },
-     "vHeight": 1.4041700990346622,
+     "vHeight": 1.4041700990346624,
      "vChord": 1.0382763924195082,
      "vX": 5.340068190527831,
      "vTaper": 0.6733361264080304,
@@ -4793,8 +4727,8 @@
    "page": {
     "n": 134,
     "nb": 543,
-    "mass": 956.5707659797354,
-    "build": "ce5e95116e9f"
+    "mass": 949.4822188477656,
+    "build": "d983bc023e7a"
    },
    "spec": {
     "cage": {
@@ -6005,16 +5939,6 @@
      "look": {
       "bezel": "plastic",
       "sw": "toggle"
-     },
-     "lights": {
-      "nav": 3,
-      "beacon": 1,
-      "taxi": 1,
-      "land": 1,
-      "flood": 1,
-      "pedal": 1,
-      "pax": 3,
-      "instr": 1
      }
     },
     "cabin": {
@@ -6241,19 +6165,7 @@
      ]
     },
     "outfit": {
-     "seats": "sling",
-     "drawn": {
-      "board": 0.4031,
-      "dash": 0.4344,
-      "shoulder": 0.5111,
-      "door": 2.7134,
-      "floor": 1.8254,
-      "console": 0
-     },
-     "ctl": {
-      "stations": 2,
-      "kind": "yoke"
-     }
+     "seats": "sling"
     },
     "fuselage": {
      "material": "alloy",
@@ -6399,8 +6311,8 @@
    "page": {
     "n": 123,
     "nb": 500,
-    "mass": 492.82601501314394,
-    "build": "ce5e95116e9f"
+    "mass": 487.02175564630664,
+    "build": "d983bc023e7a"
    },
    "spec": {
     "cage": {
@@ -7616,15 +7528,6 @@
      "look": {
       "bezel": "plastic",
       "sw": "toggle"
-     },
-     "lights": {
-      "nav": 3,
-      "beacon": 2,
-      "taxi": 1,
-      "land": 1,
-      "flood": 1,
-      "pedal": 1,
-      "instr": 1
      }
     },
     "cabin": {
@@ -7758,11 +7661,11 @@
       "sheerK": 0.1,
       "aftHold": 0.2,
       "aftPow": 2,
-      "y": -0.44607509977411774,
+      "y": -0.44700975806244336,
       "track": 0.8,
       "volDeck": 0.7239997746977722,
       "inc": 0,
-      "x": 1.291933185020472
+      "x": 1.28662278775748
      }
     },
     "paint": {
@@ -7807,19 +7710,7 @@
      "tint": null
     },
     "outfit": {
-     "seats": "sling",
-     "drawn": {
-      "board": 0.1338,
-      "dash": 0.2443,
-      "shoulder": 0,
-      "door": 0,
-      "floor": 0.3294,
-      "console": 0
-     },
-     "ctl": {
-      "stations": 1,
-      "kind": "stick"
-     }
+     "seats": "sling"
     },
     "cowl": {
      "fillet": 0.1,
