@@ -51,7 +51,10 @@ if (argv[0] === '--tank') {
   W.CAGE_ENERGY.fromSpec(spec.energy, spec);
   SH.sceneBuild(spec, { garage: spec, resolved: () => def.spec, inGame: true });
   const rows = (W.CAGE_ENERGY.results() || []).map(r => ({ bay: r.v && r.v.bay, L: r.v && +r.v.capacity,
-    dash: +(((r.why || []).join(' ').match(/through the dash \((\d+)/) || [])[1] || 0) }));
+    // (TANK-FIT: the drawn clearance names the dash by depth - "N mm into the dash" - not by a point count: a
+    // contact with it counts as one)
+    dash: +(((r.why || []).join(' ').match(/through the dash \((\d+)/) || [])[1] || 0) ||
+          (/\d+ mm (?:into|through) the dash|no room for the pads: \d+ mm to the dash/.test((r.why || []).join(' ')) ? 1 : 0) }));
   process.stdout.write(JSON.stringify(rows));
   process.exit(0);
 }
