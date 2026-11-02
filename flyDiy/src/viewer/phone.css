@@ -154,8 +154,9 @@ html.phone:where(:not(.phfly)).ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r
   -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
 html.phone:where(:not(.phfly)).ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep:active { background:var(--ed-acc-soft); }
 /* drawn 40 x 32 (line 2), HIT 44 x 44 (A0's PHONE-UI-GUIDELINES; the row's - / + the default since the user's pick 2 Nov 18:20):
-   the box's own pseudo-element reaches 6 px up and down, 2 px each side - as the switch's does */
-html.phone:where(:not(.phfly)).ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep { position:relative; }
+   the box's own pseudo-element reaches 6 px up and down, 2 px each side - as the switch's does; z-index 1: the reach below
+   lay under the next row (the 2 Nov rig: the - / + foot 4 px short of 44) */
+html.phone:where(:not(.phfly)).ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep { position:relative; z-index:1; }
 html.phone:where(:not(.phfly)).ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep::before { content:''; position:absolute; left:-2px; right:-2px; top:-6px; bottom:-6px; }
 /* the value: a chip the thumb taps (the editor types it); never the keyboard in the row */
 html.phone:where(:not(.phfly)) :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .v { min-width:64px; height:26px; margin-top:-5px; margin-bottom:-5px;
