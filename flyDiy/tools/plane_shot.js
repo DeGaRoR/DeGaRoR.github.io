@@ -17,7 +17,9 @@
 //                                 meant close (no cut-off check: a detail - the slot, the VG row - is cut by design) -
 //                                 default q,s,t,f
 //        [--views hero:<yaw>/<el>/<fov>,profile]  PORTRAITS (2 Nov): the level airframe from <yaw> deg off the nose
-//                                 (to its left), <el> deg above the chord (negative: below), a <fov> deg lens; the left
+//                                 (to its left), <el> deg above the chord (negative: below), a <fov> deg lens (then,
+//                                 optional, /<fill> the box's share of the frame, default 0.84, and /<W>x<H> the still's
+//                                 own size - e.g. hero:38/-12/35/0.7/1024x1024 for an app icon's square); the left
 //                                 side, orthographic - drawn by the page's renderer at --psize 1800x1200 on a dark studio
 //                                 (--bg0 / --bg1 the backdrop's centre and edge, --key / --rim the portrait lights)
 //        [--same 0.9]             the share of the file's cage rows the page must hold after the import (assert 3)
@@ -183,7 +185,7 @@ const PORTRAIT = `(o) => {
   const corners = []; for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) corners.push(V(x, y, z).sub(c));
   const yaw = (o.kind === 'hero' ? o.yaw : 90) * Math.PI / 180, el = (o.kind === 'hero' ? o.el : 0) * Math.PI / 180;
   const d = fwd.clone().multiplyScalar(Math.cos(yaw) * Math.cos(el)).addScaledVector(left, Math.sin(yaw) * Math.cos(el)).addScaledVector(up, Math.sin(el)).normalize();
-  const fill = 0.84;
+  const fill = o.fill || 0.84;
   let cam;
   if (o.kind === 'hero') {
     cam = new THREE.PerspectiveCamera(o.fov, aspect, 0.05, 2000);
@@ -330,8 +332,12 @@ async function shoot(o) {
           let asked = null;
           if (/^(hero:|profile$)/.test(v)) {
             // A PORTRAIT: drawn in the page (PORTRAIT above), the craft-hidden twin with it; the same frame checks
-            const [yaw, el, fov] = v === 'profile' ? [90, 0, 0] : v.slice(5).split('/').map(Number);
-            const po = Object.assign({ kind: v === 'profile' ? 'profile' : 'hero', yaw, el, fov, w: o.psize[0], h: o.psize[1], ss: 2 }, o.look);
+            // hero:<yaw>/<el>/<fov>[/<fill>[/<W>x<H>]] - the box's share of the frame and the still's own size (the app
+            // icon's square, A0 2 Nov) over --psize
+            const hp = v === 'profile' ? [] : v.slice(5).split('/');
+            const [yaw, el, fov, fill] = v === 'profile' ? [90, 0, 0, 0] : hp.slice(0, 4).map(Number);
+            const ps = hp[4] ? hp[4].split('x').map(Number) : o.psize;
+            const po = Object.assign({ kind: v === 'profile' ? 'profile' : 'hero', yaw, el, fov, fill: fill || 0, w: ps[0], h: ps[1], ss: 2 }, o.look);
             if (!o.keepUi) { await C.ev('(() => { if (window.SHOT_MODE) SHOT_MODE.enter(); return 1; })()'); await frames(3); }
             const pr = await J('(' + PORTRAIT + ')(' + JSON.stringify(po) + ')', 120000);
             await C.ev('(() => { if (window.SHOT_MODE && SHOT_MODE.on) SHOT_MODE.exit(); return 1; })()');
@@ -502,7 +508,7 @@ async function pair(dirA, dirB, out, labels, chrome) {
     // name their recipe in `what` (PORTRAITS)
     if (!j || !j.spec || !j.spec.cage) bail(EXIT.build, b + ' is not a flyDiy build (what: ' + (j && j.what) + ')');
   }
-  for (const v of o.views) if (!PRESET[v] && !/^part:./.test(v) && !/^hero:[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v) && v !== 'profile' &&!/^(orbit|close):[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v)) bail(EXIT.run, 'unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>, close:<az>/<el>/<dist>)');
+  for (const v of o.views) if (!PRESET[v] && !/^part:./.test(v) && !/^hero:[-\d.]+\/[-\d.]+\/[\d.]+(\/0?\.\d+(\/\d{2,4}x\d{2,4})?)?$/.test(v) && v !== 'profile' &&!/^(orbit|close):[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v)) bail(EXIT.run, 'unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>, close:<az>/<el>/<dist>)');
   if (!(size.length === 2 && size.every(n => n >= 200 && n <= 4096))) bail(EXIT.run, '--size WxH (200-4096)');
   if (!fs.existsSync(path.join(o.root, 'flyDiy', o.page))) bail(EXIT.run, 'no page ' + o.page + ' in ' + path.join(o.root, 'flyDiy') + (o.page === 'index.html' ? ' (not built? --page dev.html)' : ''));
   if (!chrome) bail(EXIT.browser, 'no Chromium here (--chrome <path>, or the cloud image\'s /opt/node-tools playwright)');
