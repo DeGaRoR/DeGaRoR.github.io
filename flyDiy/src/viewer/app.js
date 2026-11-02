@@ -13645,13 +13645,21 @@
   // re-key every program of the room, depth ones included: compileCraftShed links them, the shot first USED them. Here,
   // under the craft phase's screen: every link done (programsReady), the shed dressed as the shot dresses it (craftInShed),
   // its casters through the shadow pass (warmDrawSliced's shadow, the scratch maps: SHED_SHADOW's maps and copies untouched),
-  // then every program's first use. FLYDIY_SHADOW_WARM_SHED = { drawn, lights, firstUse }
+  // then every program's first use. FLYDIY_SHADOW_WARM_SHED = { drawn, lights, canvas, firstUse }
+  // W6c: ...ONTO THE CANVAS TOO. The same profile's frame was drawn with NO AA target (aa_resolve render's !S.rt branch: the
+  // canvas, its 'srgb' output), and GAME-MENUS' ROUNDTRIP diag saw roll-out 1 link three programs (a basic, two physical
+  // with the shed's CUBEUV environment) keyed 'srgb' while every program before them was the target's 'srgb-linear': the
+  // shed's compile keyed the room for the target the shot did not draw into. With a target up here, the dressed room is
+  // also compiled for the canvas and drawn there once (warmDrawSliced, the stand-ins in the garage camera's frustum)
   const shedShadowWarm = () => {
     const gs = garageScene(); if (!gs) return null;
-    const inS = f => craftInShed(gs, f);
-    return Promise.resolve(craftEarly).then(() => programsReady(30000))
-      .then(() => warmDrawSliced(gs, aa && aa.target ? aa.target() : null, null, null, inS, { shadow: true }))
-      .then(k => firstUseSliced().then(u => { window.FLYDIY_SHADOW_WARM_SHED = { drawn: k, lights: SHADOW_WARM_LIGHTS, firstUse: u }; }))
+    const inS = f => craftInShed(gs, f), tgt = aa && aa.target ? aa.target() : null;
+    const canvas = tgt ? compileSliced(gs, null, null, false, inS).catch(e => console.warn('shed canvas compile:', e && e.message)) : null;
+    let onCanvas = 0;
+    return Promise.resolve(craftEarly).then(() => canvas).then(() => programsReady(30000))
+      .then(() => warmDrawSliced(gs, tgt, null, null, inS, { shadow: true }))
+      .then(k => tgt ? warmDrawSliced(gs, null, null, null, inS).then(c => { onCanvas = c; return k; }) : k)
+      .then(k => firstUseSliced().then(u => { window.FLYDIY_SHADOW_WARM_SHED = { drawn: k, lights: SHADOW_WARM_LIGHTS, canvas: tgt ? onCanvas : null, firstUse: u }; }))
       .catch(e => console.warn('shed shadow warm:', e && e.message));
   };
   // the roll-out stand's heading (its site's stand.hdg: the nose's - the tail, flRevealStart's hdg, is it + pi; checked on
