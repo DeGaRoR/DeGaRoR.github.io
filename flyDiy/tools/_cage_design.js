@@ -174,7 +174,10 @@ const stolLock = opt => {
 
 // CONFIG-MATRIX: a lofted twin's DRAWN dorsal carried onto rod-style booms (their own row, finDorsalTube); any other
 // state keeps the row as it is. A cage write, resolved before the tile's boomStyle
-const dorsalToRod = P => (+P.boomTwin && !+P.boomStyle) ? (+P.finDorsal ? 1 : 0) : (+P.finDorsalTube || 0);
+const dorsalToRod = P => !+P.boomStyle ? (+P.finDorsal ? 1 : 0) : (+P.finDorsalTube || 0);
+// ...and the rod placed clear of a rear disc on the next build (_cage_eng.js CAGE_ROD_FIT_NEXT): the panel's door
+// (design_flow.js doApply runs `after`); designApply and the births never call it
+const rodFit = () => { if (W.CAGE_ROD_FIT_NEXT) W.CAGE_ROD_FIT_NEXT(); };
 
 // FLAP — the classic trailing-edge cross-sections: none, hinged plain, the
 // slotted gap, the fowler sliding aft. Drawn, because the generator prices a
@@ -1110,12 +1113,13 @@ const DESIGN_ROWS = [
       // loft's finDorsal and back (a rod twin's stored finDorsal was never drawn - the rod clamp). Resolved before
       // boomStyle (designApply reads each function against the keys written above it)
       { value: 0, label: 'Lofted skin', icon: ICON.boomLoft,
-        writes: { cage: { finDorsal: P => (+P.boomStyle && +P.boomTwin) ? (+P.finDorsalTube ? 1 : 0) : P.finDorsal,
+        writes: { cage: { finDorsal: P => +P.boomStyle ? (+P.finDorsalTube ? 1 : 0) : P.finDorsal,
                           boomStyle: 0 } } },
       // 2026-09-04 (the user): "the rod settings should automatically turn
       // the taper section on. It can be removed manually afterwards"
       { value: 1, label: 'Rod & pod', icon: ICON.boomRod,
         note: 'an always-bare tube carries the tail; the taper section comes on with it',
+        after: rodFit,
         writes: { cage: { finDorsalTube: dorsalToRod, boomStyle: 1, taperOn: 1 } } },
     ] },
 
@@ -1127,7 +1131,7 @@ const DESIGN_ROWS = [
     help: 'two booms leave the wing; the pod ends at the bulkhead',
     read: P => +P.boomTwin ? 'twin' : 'single',
     options: [
-      { value: 'single', label: 'Single', icon: ICON.boomLoft,
+      { value: 'single', label: 'Single', icon: ICON.boomLoft, after: rodFit,
         writes: { cage: { boomTwin: 0, stMount: 0, stX: 0.05 } } },
       { value: 'twin', label: 'Twin booms', icon: ICON.boomTwin,
         note: 'two booms off the wing, a fin each, the stab between them',
@@ -1383,7 +1387,7 @@ const DESIGN_ROWS = [
       { value: 'nose', label: 'Nose', icon: ICON.mountNose,
         writes: { cage: { engMount: 0, cowlOn: 1, noseFinish: 0, aeroAftOn: 1,
                           cowlLoops: P => Math.max(2, Math.round(+P.cowlLoops || 0)) } } },
-      { value: 'pusher', label: 'Pusher', icon: ICON.mountPusher,
+      { value: 'pusher', label: 'Pusher', icon: ICON.mountPusher, after: rodFit,
         note: 'on the back of the aft bulkhead — the pod ends there (rod boom); no cowl',
         // ENGINE TOP = BOOM BOTTOM (2026-09-11, the user: "For pusher
         // configurations, engine and boom should be opposite; engine top =

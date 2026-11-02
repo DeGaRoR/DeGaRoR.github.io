@@ -909,6 +909,22 @@ PAGE.post = ctx => {
   });
   else engPlace(ctx, null);
 };
+// CONFIG-MATRIX (2 Nov, the user: a push-pull or a pusher on a single rod "is very possible, with Rod on top or
+// below the engine and prop. A lot of our current planes use this"): THE ROD CLEARS THE REAR DISC. The rod leaves the
+// aft bulkhead right behind the pusher's disc; `rodY` is the builder's free slider (G26), so the layer never moves it
+// on its own - a TILE that puts an aft engine on a single rod (Pusher, Rod & pod, Booms·Single) arms one fit, and
+// the next placement moves the rod to the far side of the disc from the hub (below a hub over the bulkhead's middle,
+// above one under it), clear by ROD_CLEAR, then builds once more so the rod and the tail ride there. A rod the
+// builder already set clear of the disc is left where it is.
+let rodFitNext = false;
+window.CAGE_ROD_FIT_NEXT = () => { rodFitNext = true; };
+const ROD_CLEAR = 0.08;      // m between the blade tip and the rod (the Pusher tile's own 80 mm)
+// the single rod's axis height (scene metres) at `dz` metres aft of the bulkhead, and its radius; null off a rod
+function rodAxis(P, FS) {
+  if (!+P.boomStyle || +P.boomTwin) return null;
+  const t = Math.tan((+P.rodIncl || 0) * Math.PI / 180);
+  return { y: dz => (+P.rodY || 0) * FS + t * dz, r: Math.max(0.015, (+P.rodD || 0.12) / 2) * FS, t };
+}
 // the layer's own build; `prev` is the first pass's units when the wing places
 // it again (G2880) - superseded, their propeller check stands down
 function engPlace(ctx, prev) {
@@ -1171,7 +1187,7 @@ function engPlace(ctx, prev) {
     // are built after this layer): the hub and the radius are kept here.
     let propHub = null;
     if (pg) { ug.updateMatrixWorld(true); const hv = new THREE.Vector3(); pg.getWorldPosition(hv); propHub = [hv.x, hv.y, hv.z]; }
-    unitOut.push({ kind: u.kind, aft: !!u.aft, exhaustAt, exhaustDir,
+    unitOut.push({ kind: u.kind, aft: !!u.aft, exhaustAt, exhaustDir, faceZ: f.z, faceYc: f.yc,
                    at: [ug.position.x, ug.position.y, ug.position.z],
                    prop: pg ? { hub: propHub, R: 0.5 * Math.max(0.2, +CW.P.propD || 1.5), group: pg } : null,
                    propFit: null });
@@ -1187,6 +1203,7 @@ function engPlace(ctx, prev) {
   // `propFit`, the join says it (and the status line). Runs after the
   // chain: the engine layer is built before the wing and the gear, so the
   // post schedules it as a microtask and the join calls it outright.
+  const FSc = FS;
   const propFitCheck = () => {
     const W = window.CAGE_WING, AF = window.CAGE_GEAR && window.CAGE_GEAR.AF;
     const inWing = (x, y, z) => {
@@ -1227,6 +1244,13 @@ function engPlace(ctx, prev) {
       const why = [];
       if (wingHits) why.push('through the wing (' + wingHits + ' of ' + n + ' points)');
       if (bodyHits) why.push('through the body (' + bodyHits + ' points)');
+      // CONFIG-MATRIX: THE ROD IN THE DISC, measured exactly (the sampled rings above step 15 deg and miss a 12 cm
+      // tube): an aft disc on a single rod strikes it when the rod's axis is nearer the hub than R plus its radius
+      const RA = u.aft && rodAxis(P, FSc);
+      if (RA && isFinite(u.faceZ)) {
+        const miss = Math.abs(hy - RA.y(u.faceZ - hz)) - R - RA.r;
+        if (miss < 0) why.push('through the rod boom (' + Math.round(-1000 * miss) + ' mm of blade past it)');
+      }
       u.propFit = { ok: !why.length, why, R, hub: u.prop.hub, wingHits, bodyHits, n };
       if (why.length) {
         const bad = new THREE.MeshStandardMaterial({ color: 0x7a1a12, roughness: 0.6, metalness: 0.1,
@@ -1239,6 +1263,35 @@ function engPlace(ctx, prev) {
   };
   if (typeof queueMicrotask === 'function') queueMicrotask(() => { if (unitOut.superseded) return; try { propFitCheck(); } catch (e) {} });
 
+  if (rodFitNext && !prev) {
+    rodFitNext = false;
+    const RA = rodAxis(P, FS), u = unitOut.find(v => v.aft && v.prop && v.prop.hub);
+    if (RA && u && isFinite(u.faceZ)) {
+      const hy = u.prop.hub[1], R = u.prop.R, dz = u.faceZ - u.prop.hub[2];
+      if (Math.abs(hy - RA.y(dz)) < R + RA.r) {
+        const below = !(hy < (isFinite(u.faceYc) ? u.faceYc : hy) - 1e-3);
+        const yAx = below ? hy - R - ROD_CLEAR - RA.r : hy + R + ROD_CLEAR + RA.r;
+        const v = Math.max(-0.9, Math.min(0.9, Math.round(((yAx - RA.t * dz) / FS) / 0.005) * 0.005));
+        // what the rod's slider range could not give (metres): a lone pusher's engine takes it (engY moves that one
+        // unit - the Pusher tile's own "engine top = boom bottom" rule, carried on); a push-pull's engY would move
+        // the nose engine too, so there the notice says what is left and the prop check files it
+        const short = Math.max(0, (below ? (v * FS + RA.t * dz) - yAx : yAx - (v * FS + RA.t * dz)));
+        let eMove = 0, left = short;
+        if (short > 1e-3 && mountK === 1) {
+          const e0 = +P.engY || 0, e1 = Math.max(-0.5, Math.min(0.5, e0 + (below ? 1 : -1) * short));
+          eMove = e1 - e0; left = Math.max(0, short - Math.abs(eMove));
+          P.engY = Math.round(e1 / 0.005) * 0.005;
+        }
+        if (Math.abs(v - (+P.rodY || 0)) > 1e-6 || eMove) {
+          P.rodY = v;
+          if (stat) stat.textContent += '  ·  rod: moved ' + (below ? 'below' : 'above') + ' the disc (rod height ' + v.toFixed(3) + ')' +
+            (eMove ? ', the engine ' + (below ? 'up' : 'down') + ' ' + Math.round(1000 * Math.abs(eMove)) + ' mm' : '') +
+            (left > 1e-3 ? ' - ' + Math.round(1000 * left) + ' mm of blade still reach it: raise the rear engine or shorten the prop' : '');
+          setTimeout(() => { const UI = window.CAGE_UI; if (UI && UI.syncSliders) UI.syncSliders(); if (UI && UI.build) UI.build(); }, 0);
+        }
+      }
+    }
+  }
   window.CAGE_ENG = { name: PRESET_NAMES[Math.round(P.engPreset)],
                       resolved: R, zFw, exhaustAt,
                       propFitCheck,                                // G477: the disc's clearance, per unit (the join calls it)
