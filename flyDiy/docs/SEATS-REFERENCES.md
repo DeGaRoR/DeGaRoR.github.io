@@ -17,6 +17,7 @@ recline), so the pilot sits right whatever the preset. What the user keeps on th
 recline (`seatRake`), squab tilt (`seatTilt`), fore/aft (`seatZ`), layout and spacing (`seatLayout`, `seatGap`), and
 since this session the passengers' own seat (`paxSeatType`, -1 = the pilots'). What is calibrated: width and back
 height (a cabin narrower than the seat scales its width to the room, a low roof shortens the back; `fit` says so).
+Levels of detail: the same generator at three levels (hero / mid / phone), see reports/evidence/SEATS/STATUS.md.
 
 | # | preset | modelled on | width (outer) | back above hinge | mass / seat | default recline / tilt |
 |---|---|---|---|---|---|---|
@@ -35,7 +36,7 @@ height (a cabin narrower than the seat scales its width to the room, a low roof 
 | 13 | Glider tub | ASK-21 / Discus-type cockpit pan + backrest | 0.58 m | 0.66 m | 3 *est.* (pan is hull) | 40 / 16 |
 | 14 | Bush jump seat | Beaver / Husky folding cabin seat | 0.46 m | 0.50 m | 2.5 *est.* | 10 / 3 |
 | 15 | Warbird bucket | Spitfire / T-6 pilot's bucket | 0.49 m | 0.60 m | 8 *est.* | 13 / 6 |
-| 16 | Beaver | DHC-2 Beaver crew seat; rear bench | 0.50 m (bench 0.56 / place) | 0.66 m crew, 0.56 m bench | 12 crew, 6 per bench place *est.* | 12 / 4 |
+| 16 | Beaver | DHC-2 Beaver crew seat | 0.50 m | 0.66 m | 12 *est.* | 12 / 4 |
 
 Belts: none (the user, 2 Nov: "drop the seat belts for all"). The harness belongs to the occupant layer if it returns.
 Headrests: part of the seat (Bonanza on posts, ICON / carbon / ag / glider integrated or padded); the headliner and trim
@@ -98,10 +99,9 @@ olive canvas seat, and a canvas back hung between two uprights with a webbing st
 lightening holes, pressed vertical ribs in the back, a padded leather shoulder cushion, the seat-pack parachute in the
 pan, hung from a steel frame behind with a height lever.
 
-**Beaver.** Crew: a 1950s painted steel-tube frame whose side members run into the back, a pressed alloy back panel
-with flanged lightening holes, channel-pleated leatherette cushions, short floor tracks. Cabin: the folding rear bench,
-drawn as one section per seated place (box cushion as wide as the place, webbing straps and a thin pad on tube
-uprights), so a row reads as one bench.
+**Beaver.** The crew seat: a 1950s painted steel-tube frame whose side members run into the back, a pressed alloy back
+panel with flanged lightening holes, channel-pleated leatherette cushions, short floor tracks. (The folding rear bench
+was modelled and dropped, the user 2 Nov; a cabin takes any preset through `paxSeatType`.)
 
 ## Finishes
 

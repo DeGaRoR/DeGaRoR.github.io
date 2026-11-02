@@ -35,7 +35,31 @@
 const D2R = Math.PI / 180;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
-const KIT = () => window.GEAR_KIT;
+// THE LEVELS OF DETAIL (the user, 2 Nov: "simply the same generation process, with less detail ... cleaner, more
+// controllable, and more suited to proper LOD construction"): no decimation. The same generator runs at a LEVEL - 0 the
+// hero (the close-up master), 1 mid, 2 phone - and every primitive reads it: lattice rows, tube sides, edge segments,
+// revolve segments scale by k, and the small features step off by level (fine(l): drawn only below level l):
+//   level 1 drops: stitching, rail holes, rivets, bolts, lacing, buttons; pleats at 60 %; domed tube ends -> flat
+//   level 2 drops: piping, lugs, the bindings, every groove; the wicker's cane strands become one woven sheet
+// The silhouette, the radii and the materials are the same at every level; only the resolution and the trim go.
+const LOD = { lvl: 0 };
+const LVL = [{ k: 1, nE: 3, gr: 1, fil: 5 }, { k: 0.45, nE: 2, gr: 0.6, fil: 3 }, { k: 0.14, nE: 1, gr: 0, fil: 2 }];
+const det = () => LVL[LOD.lvl] || LVL[0];
+const nRes = (n, min) => Math.max(min || 1, Math.round(n * det().k));
+const fine = l => LOD.lvl < l;
+// GEAR_KIT at the level: revolves and round sections take fewer segments, bolts go at 1, lugs at 2
+const KIT = () => {
+  const K = window.GEAR_KIT;
+  if (!K || LOD.lvl === 0) return K;
+  return Object.assign({}, K, {
+    // a turned part under 16 mm radius (a roller, a knob, a bushing, a button) is gone at the phone level
+    revolve: (bag, ctr, axis, prof, segs, cap) => (fine(2) || Math.max(...prof.map(q => q[0])) >= 0.016)
+      ? K.revolve(bag, ctr, axis, prof, nRes(segs || 30, 5), cap) : null,
+    secRound: (r, sides) => K.secRound(r, nRes(sides || 14, 4)),
+    bolt: (...a) => (fine(1) ? K.bolt(...a) : null),
+    lug: (...a) => (fine(2) ? K.lug(...a) : null),
+  });
+};
 
 // ---- the presets ---------------------------------------------------------------------------------------------------
 // seatType -> preset. kg is ONE seat as fitted (frame, cushions, its share of the rails), the number the build bills
@@ -71,9 +95,9 @@ const SEAT_PRESETS = {
        note: 'the folding canvas seat of a bush cabin: a tube frame on floor hinges, canvas seat and strap back' },
   15: { key: 'warbird', name: 'Warbird bucket',     kg: 8.0,  hw: 0.245, back: 0.60, rake: 13, tilt: 6,
        note: 'the Spitfire\'s moulded resin bucket, deep for a seat-pack parachute, on a height-adjust frame' },
-  // (the user, 2 Nov: "maybe model those of the beaver too please, pilot and passengers")
-  16: { key: 'beaver',  name: 'DHC-2 Beaver',       kg: 12.0, kgPax: 6.0, hw: 0.250, back: 0.66, backPax: 0.56, rake: 12, tilt: 4,
-       note: 'pilots: a 1950s tube-framed seat, a pressed back panel with lightening holes, channel-pleated cushions; passengers: the folding bench' },
+  // (the user, 2 Nov: "maybe model those of the beaver too please"; the passenger bench was dropped the same day)
+  16: { key: 'beaver',  name: 'DHC-2 Beaver',       kg: 12.0, hw: 0.250, back: 0.66, rake: 12, tilt: 4,
+       note: 'a 1950s tube-framed seat, a pressed back panel with lightening holes, channel-pleated cushions' },
   9: { key: 'dc3',      name: 'DC-3 (1930s)',       kg: 20.0, kgPax: 18.0, hw: 0.260, back: 0.84, backPilot: 0.68, rake: 14, tilt: 4,
        note: 'pilots: a riveted bucket with cushions and arms; passengers: the deep reclining sleeper' },
 };
@@ -163,11 +187,33 @@ function Bags() {
   };
   return B;
 }
+// a path at the level: points closer than the level's step to the last kept one are dropped, unless the path turns
+// there by more than ~25 degrees (a corner keeps its shape)
+const STEP = [0, 0.015, 0.035];
+const thin = (pts, closed) => {
+  const st = STEP[LOD.lvl] || 0;
+  if (!st || pts.length < 4) return pts;
+  const out = [pts[0]];
+  for (let i = 1; i < pts.length - 1; i++) {
+    const a = out[out.length - 1], b = pts[i], c = pts[i + 1];
+    const d = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+    const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], w = [c[0] - b[0], c[1] - b[1], c[2] - b[2]];
+    const cs = (u[0] * w[0] + u[1] * w[1] + u[2] * w[2]) / ((Math.hypot(...u) * Math.hypot(...w)) || 1);
+    if (d >= st || cs < 0.9) out.push(b);
+  }
+  out.push(pts[pts.length - 1]);
+  return closed && out.length < 4 ? pts : out;
+};
 // GEAR_KIT draws into a bag with v(p) / quad / tri: ours speaks the same tongue
 const kitTube = (bag, pts, r, sides, ends) => {
   const K = KIT(); if (!K || pts.length < 2) return;
-  const path = K.fillet(pts, r, 5);
+  const path = thin(K.fillet(pts, r, det().fil));
   const P = [];
+  sides = nRes(sides || 12, fine(2) ? 5 : 4);
+  if (ends !== 'open' && !fine(1)) {     // flat-capped from level 1
+    K.sweep(bag, path, () => K.secRound(r, sides), true);
+    return;
+  }
   if (ends !== 'open') {                 // domed ends, the crew's tubeRun idiom
     const t0 = K.nrm(K.sub(path[1], path[0])), t1 = K.nrm(K.sub(path[path.length - 1], path[path.length - 2]));
     for (const th of [0, 35, 65]) P.push({ p: K.off(path[0], t0, -r * Math.cos(th * D2R)), s: Math.max(0.02, Math.sin(th * D2R)) });
@@ -179,11 +225,12 @@ const kitTube = (bag, pts, r, sides, ends) => {
 // a closed loop of points swept round (piping, stitch lines, a rim bead)
 const kitLoop = (bag, pts, r, sides) => {
   const K = KIT(); if (!K || pts.length < 3) return;
-  K.sweep(bag, pts.concat([pts[0], pts[1]]), () => K.secRound(r, sides || 6), false);
+  pts = thin(pts, true);
+  K.sweep(bag, pts.concat([pts[0], pts[1]]), () => K.secRound(r, nRes(sides || 6, 4)), false);
 };
 const kitLine = (bag, pts, r, sides) => {
   const K = KIT(); if (!K || pts.length < 2) return;
-  K.sweep(bag, pts, () => K.secRound(r, sides || 5), true);
+  K.sweep(bag, thin(pts), () => K.secRound(r, nRes(sides || 5, 3)), true);
 };
 
 // ---- the spine: a side profile (y, z) as an arc-length curve -------------------------------------------------------
@@ -235,9 +282,12 @@ function slab(bag, o) {
   const onS = o.on ? sc - o.on.sc : 0;                   // s0 / s1 are in the base's own arc length
   const hw0 = o.hw, th = o.th, r = Math.min(o.r, th * 0.999);
   const rs = o.ends === false ? 1e-4 : Math.min(o.rs != null ? o.rs : r, hs * 0.5);
-  const xs = edgeCoords(hw0, Math.min(o.rx != null ? o.rx : r, hw0 * 0.5), o.nx || 14, o.nE || 3);
-  const ss = edgeCoords(hs, rs, o.ns || 24, o.nE || 3);
-  const ts = edgeCoords(th, r, o.nt || 1, o.nE || 3);
+  const nE = Math.min(o.nE || 3, det().nE);
+  const mn = fine(2) ? 2 : 1;
+  const xs = edgeCoords(hw0, Math.min(o.rx != null ? o.rx : r, hw0 * 0.5), nRes(o.nx || 14, mn), nE);
+  const ss = edgeCoords(hs, rs, nRes(o.ns || 24, mn), nE);
+  const ts = edgeCoords(th, r, fine(1) ? (o.nt || 1) : 1, nE);
+  const grK = det().gr;
   const hwAt = o.hwAt || (() => 1);
   const map = (x, s, t) => {
     const u = clamp(x / hw0, -1.2, 1.2), v = clamp(s / hs, -1.2, 1.2), tn = clamp(t / th, -1, 1);
@@ -245,7 +295,7 @@ function slab(bag, o) {
     let dt = 0, dx = 0;
     if (o.crown) dt += o.crown * Math.pow(Math.max(0, 1 - u * u), 1.2) * Math.pow(Math.max(0, 1 - v * v), 0.8) * top;
     if (o.crownAt) dt += o.crownAt(u, v) * top;
-    if (o.groove) dt -= o.groove(u, v) * smooth(0.2, 0.9, tn);
+    if (o.groove && grK) dt -= grK * o.groove(u, v) * smooth(0.2, 0.9, tn);
     if (o.wing) { const w = o.wing(u, v); dt += w[0]; dx += w[1] || 0; }
     const xw = x * hwAt(v) - Math.sign(x) * dx;
     // ON ANOTHER SLAB (o.on): a pad laid in a shell is built in the SHELL'S own surface coordinates - its underside is
@@ -326,6 +376,7 @@ function dens(loop, step) {
 }
 // the piping: a welt round the slab's occupied face where the face turns into the side (the 45-degree line)
 function piping(bag, S, R, side) {
+  if (!fine(2)) return;
   // THE WELT IS ON THE EDGE (the user, 2 Nov: "seams need to match better"): the occupied face's boundary rectangle,
   // taken through the slab's OWN rounding (the 3D box edge lands on the 45-degree line of the radius, the corner on the
   // octant's centre) and mapped through its own fields - so the piping follows the cushion exactly, corners included.
@@ -339,7 +390,7 @@ function piping(bag, S, R, side) {
       P.push([a[0] + (b[0] - a[0]) * u / L2, a[1] + (b[1] - a[1]) * u / L2]);
       const x = a[0] + (b[0] - a[0]) * u / L2, s2 = a[1] + (b[1] - a[1]) * u / L2;
       const nearC = (S.hw - Math.abs(x) < rc) && (S.hs - Math.abs(s2) < rc);
-      u += nearC ? 0.0035 : 0.02;
+      u += (nearC ? 0.0035 : 0.02) / det().k;
     }
   };
   const ex = S.hw, es = S.hs;
@@ -350,7 +401,8 @@ function piping(bag, S, R, side) {
 // the rolled rim of a moulded shell: a bead along all four edges of the slab (sides AND ends, following the surface -
 // a chord across the end would float in front of a curved shell)
 function rimBead(bag, S, R) {
-  const loop = [], NS = 70, NX = 16, ex = S.hw * 0.999, es = S.hs * 0.999;
+  if (!fine(2)) return;                    // the phone level: the shell's own edge
+  const loop = [], NS = nRes(70, 12), NX = nRes(16, 4), ex = S.hw * 0.999, es = S.hs * 0.999;
   for (let k = 0; k < NS; k++) loop.push([ex, -es + 2 * es * k / NS]);
   for (let k = 0; k < NX; k++) loop.push([ex - 2 * ex * k / NX, es]);
   for (let k = 0; k < NS; k++) loop.push([-ex, es - 2 * es * k / NS]);
@@ -363,7 +415,8 @@ function rimBead(bag, S, R) {
 // (a superellipse). o: { u0, u1, v0, v1 (the region, normalised -1..1 on the base), d, tuck, nx, ns, n (corner
 // squareness), groove(a, b) (the skin's own quilting, a / b -1..1 across its region, < d) }
 function skin(bag, S, o) {
-  const NX = o.nx || 14, NS = o.ns || 16, n = o.n || 6, d = o.d != null ? o.d : 0.003, tuck = o.tuck != null ? o.tuck : 0.004;
+  const NX = nRes(o.nx || 14, 3), NS = nRes(o.ns || 16, 3), n = o.n || 6, d = o.d != null ? o.d : 0.003, tuck = o.tuck != null ? o.tuck : 0.004;
+  const grK = det().gr;
   const at = (a, b, dd) => {
     const ma = Math.max(Math.abs(a), Math.abs(b));
     const k = ma > 1e-9 ? ma / Math.pow(Math.pow(Math.abs(a), n) + Math.pow(Math.abs(b), n), 1 / n) : 1;
@@ -377,7 +430,11 @@ function skin(bag, S, o) {
     for (let j = 0; j <= NS; j++) {
       const a = -1 + 2 * i / NX, b = -1 + 2 * j / NS;
       const e = Math.min(i, NX - i, j, NS - j);
-      const dd = e === 0 ? -tuck : (e === 1 ? d * 0.7 : d - (o.groove ? o.groove(a, b) : 0));
+      // the phone level: the base's few facets cut between the exact surface's points, so the skin lifts clear of
+      // them and its border stops short of tucking under (a raised panel at that distance, not a patchwork)
+      const dd = !fine(2) ? (e === 0 ? d * 1.6 : d * 1.6 + 0.007)
+               : !fine(1) ? (e === 0 ? -tuck * 0.3 : (e === 1 ? d + 0.002 : d + 0.003 - (o.groove && grK ? grK * o.groove(a, b) : 0)))
+               : e === 0 ? -tuck : (e === 1 ? d * 0.7 : d - (o.groove && grK ? grK * o.groove(a, b) : 0));
       row.push(bag.v(at(a, b, dd)));
     }
     id.push(row);
@@ -388,6 +445,7 @@ function skin(bag, S, o) {
 // THE BINDING round a skin's edge (a sheepskin's leather tape): a welt laid along the skin's OWN second ring - the
 // very grid points its edge turns down from - so it sits on the edge and nowhere else
 function skinBind(bag, K, R) {
+  if (!fine(2)) return;
   const ring = [];
   const NX = K.NX, NS = K.NS, a1 = 1 - 2 / NX, b1 = 1 - 2 / NS;
   const step = 0.25;
@@ -399,6 +457,7 @@ function skinBind(bag, K, R) {
 }
 // the stitch round a skin, a few millimetres inside its seam
 function skinStitch(bag, K, inset, R) {
+  if (!fine(1)) return;
   const pts = [];
   const N = 60;
   const e = 1 - inset;
@@ -419,12 +478,14 @@ const region = (u0, u1, v0, v1, w) => (u, v) => smooth(u0 - w, u0 + w, u) * (1 -
                                                 smooth(v0 - w, v0 + w, v) * (1 - smooth(v1 - w, v1 + w, v));
 // a stitch line on the occupied face, inset from the rim (contrast stitching reads at a metre as a fine line)
 function stitchLoop(bag, S, inset, R) {
+  if (!fine(1)) return;
   const loop = dens(rrect(S.hw - S.rx - inset, S.hs - S.rs - inset, 0.03, 4), 0.015)
     .map(q => S.map(q[0], q[1], S.th + 0.0012));
   kitLoop(bag, loop, R || 0.0011, 4);
 }
 // a stitch line along s at a fixed x (a bolster's seam), or along x at a fixed s
 function stitchRun(bag, S, x0, x1, s0, s1, R, lift) {
+  if (!fine(1)) return;
   const pts = [];
   const n = Math.max(2, Math.ceil(Math.hypot(x1 - x0, s1 - s0) / 0.015));
   for (let k = 0; k <= n; k++) pts.push(S.map(x0 + (x1 - x0) * k / n, s0 + (s1 - s0) * k / n, S.th + (lift || 0.0012)));
@@ -469,9 +530,11 @@ function seatRails(B, mRail, mHole, A, x, z0, z1, gauge) {
     const path = [];
     for (let k = 0; k <= 8; k++) { const z = z0 + (z1 - z0) * k / 8; path.push([xr, A.floorAt(z) + 0.001, z]); }
     // the section: a flanged hat 34 mm wide, 14 mm tall (u = up, v = across)
-    const sec = [[0, -0.017], [0.003, -0.017], [0.003, -0.009], [0.014, -0.008], [0.016, -0.006], [0.016, 0.006],
-                 [0.014, 0.008], [0.003, 0.009], [0.003, 0.017], [0, 0.017]];
-    K.sweep(bag, path, () => sec, true, [0, 1, 0]);
+    const sec = fine(2) ? [[0, -0.017], [0.003, -0.017], [0.003, -0.009], [0.014, -0.008], [0.016, -0.006], [0.016, 0.006],
+                 [0.014, 0.008], [0.003, 0.009], [0.003, 0.017], [0, 0.017]]
+                        : [[0, -0.017], [0.016, -0.008], [0.016, 0.008], [0, 0.017]];
+    K.sweep(bag, fine(1) ? path : [path[0], path[path.length - 1]], () => sec, true, [0, 1, 0]);
+    if (!fine(1)) continue;
     const hb = B.of(mHole);
     const n = Math.floor((z1 - z0 - 0.04) / 0.026);
     for (let k = 0; k <= n; k++) {
@@ -808,7 +871,7 @@ function seatUL(B, A, P, g, pre, sbs) {
   for (const sd of [-1, 1]) kitTube(fb, ss.map(s => edge(sd, s)), tr, 14);
   for (const s of [0, sp.L]) { const a = edge(-1, s), b = edge(1, s); kitTube(fb, [a, b], tr, 14); }
   // the lacing: cord zig-zags from the sling's edge round the tube
-  {
+  if (fine(1)) {
     const lb = B.of(mLace);
     for (const sd of [-1, 1]) for (let k = 1; k < 15; k++) {
       const s = sp.L * (k + 0.5) / 16;
@@ -912,7 +975,7 @@ function seatDC3(B, A, P, g, pre, sbs, SP) {
   {
     rimBead(B.of(mBkt), sh, 0.006);
     const rb = B.of(mRiv);
-    for (const sd of [-1, 1]) for (let k = 2; k < 40; k += 2) {
+    if (fine(1)) for (const sd of [-1, 1]) for (let k = 2; k < 40; k += 2) {
       const s = -sh.hs + 2 * sh.hs * k / 40;
       const p = sh.map(sd * sh.hw * 0.93, s, sh.th + 0.0004);
       K.revolve(rb, p, [sd, 0, 0], [[0.0028, 0], [0.002, 0.0012], [0, 0.0016]], 6, false);
@@ -972,7 +1035,7 @@ function seatDC3Pax(B, A, P, g, pre, sbs) {
                                 groove: btn });
   piping(B.of(mPipe), bk, 0.006);
   // the buttons themselves
-  {
+  if (fine(1)) {
     const bb = B.of(mPipe);
     for (const a of [-0.45, 0, 0.45]) for (const b of [-0.5, -0.1, 0.3]) {
       const p = bk.map(a * bk.hw, b * bk.hs, bk.th + 0.016 * (1 - a * a) * Math.exp(-(((b + 0.4) / 0.35) ** 2)) - 0.012);
@@ -1046,7 +1109,7 @@ function seatCub(B, A, P, g, pre, sbs) {
   const sl = slab(B.of(mCanvas), { sx: S.sx, sp: spS, s0: 0, s1: spS.L, hw: w - tr - 0.012, th: 0.002, r: 0.0019, rx: 0.0019, rs: 0.0019,
                                    face: false, nx: 12, ns: 14, nt: 1, wing: (u, v) => [-0.012 * (1 - u * u) * (1 - v * v), 0] });
   // its lacing round the rails
-  {
+  if (fine(1)) {
     const lb = B.of(mLace);
     for (const sd of [-1, 1]) for (let k = 1; k < 10; k++) {
       const z = zF - 0.03 - (zF - zR - 0.06) * k / 10;
@@ -1094,7 +1157,7 @@ function seatCub(B, A, P, g, pre, sbs) {
   const spB = spine([up(0.05), up(bTop - 0.04)], 0);
   slab(B.of(mCanvas), { sx: S.sx, sp: spB, s0: 0, s1: spB.L, hw: w - tr - 0.010, th: 0.002, r: 0.0019, rx: 0.0019, rs: 0.0019,
                         face: false, lift: -padT - 0.012, nx: 10, ns: 12, nt: 1 });
-  {
+  if (fine(1)) {
     const lb = B.of(mLace);
     for (const sd of [-1, 1]) for (let k = 1; k < 9; k++) {
       const q = up(0.05 + (bTop - 0.10) * k / 9, -padT - 0.012);
@@ -1164,7 +1227,7 @@ function seatAg(B, A, P, g, pre, sbs) {
     const top = sh.map(sd * S.hw * 0.42, sp.sOf([S.H[0], z]) - L / 2, -sh.th)[1];
     const fl = A.floorAt(z), h = Math.max(0.04, top - fl);
     const prof = [[0, 0], [0.04, 0], [0.04, 0.012]];
-    const nR = 6;
+    const nR = fine(1) ? 6 : 2;
     for (let k = 0; k < nR; k++) { const y0 = 0.012 + (h - 0.03) * k / nR; prof.push([0.034, y0 + (h - 0.03) / nR * 0.3], [0.036, y0 + (h - 0.03) / nR * 0.7]); }
     prof.push([0.036, h - 0.012], [0.042, h - 0.012], [0.042, h], [0, h]);
     K.revolve(B.of(mCast), [x, fl, z], [0, 1, 0], prof, 20, false);
@@ -1206,14 +1269,22 @@ function seatWicker(B, A, P, g, pre, sbs) {
   };
   // the weavers: flat cane strips across the tub at a 13 mm pitch, over and under the stakes (45 mm apart), each row
   // offset half a stake from the last - the basket weave
-  const STAKE = 0.045, PITCH = 0.0125, WID = 0.0118, TH = 0.0026;
-  {
+  const STAKE = 0.045, PITCH = 0.0125 * (fine(1) ? 1 : 2), WID = 0.0118 * (fine(1) ? 1 : 2), TH = 0.0026;
+  if (!fine(2)) {
+    // the phone level: the weave as one sheet, both faces, over the tub's own surface
+    const wb = B.of(mCane), NX = 8, NS = 14, F = [], Bk = [];
+    for (let i = 0; i <= NX; i++) { const rf = [], rb = []; for (let j = 0; j <= NS; j++) {
+      const x = -S.hw + 2 * S.hw * i / NX, s2 = -L / 2 + L * j / NS;
+      rf.push(wb.v(tub.map(x, s2, TH / 2))); rb.push(wb.v(tub.map(x, s2, -TH / 2))); } F.push(rf); Bk.push(rb); }
+    for (let i = 0; i < NX; i++) for (let j = 0; j < NS; j++) {
+      wb.quad(F[i][j], F[i + 1][j], F[i + 1][j + 1], F[i][j + 1]); wb.quad(Bk[i][j], Bk[i][j + 1], Bk[i + 1][j + 1], Bk[i + 1][j]); }
+  } else {
     const wb = B.of(mCane);
     const nRow = Math.floor((L - 0.03) / PITCH);
     for (let r = 0; r < nRow; r++) {
       const s2 = -L / 2 + 0.015 + r * PITCH;
       const pts = [], ns = [], ds = [];
-      const NX = Math.ceil(2 * S.hw / 0.0075);
+      const NX = Math.ceil(2 * S.hw / (0.0075 / det().k));
       for (let k = 0; k <= NX; k++) {
         const x = -S.hw * 0.995 + 1.99 * S.hw * k / NX;
         const ov = 0.0028 * Math.sin((x / STAKE) * Math.PI + r * Math.PI);
@@ -1228,7 +1299,7 @@ function seatWicker(B, A, P, g, pre, sbs) {
     }
   }
   // the stakes: the round canes the weave is woven on, every 45 mm, end to end
-  {
+  if (fine(2)) {
     const cb = B.of(mRim);
     for (let x = -S.hw + STAKE / 2; x <= S.hw - STAKE / 2 + 1e-6; x += STAKE) {
       const pts = [];
@@ -1410,7 +1481,7 @@ function seatWarbird(B, A, P, g, pre, sbs) {
                                 groove: ribs, nx: 24, ns: 50, nt: 1 });
   rimBead(B.of(mBkt), sh, 0.007);
   // the lightening holes in the flared sides: dark ovals set into the wall
-  for (const sd of [-1, 1]) for (const f of [0.35, 0.62]) {
+  if (fine(2)) for (const sd of [-1, 1]) for (const f of [0.35, 0.62]) {
     const s2 = sH * f;
     const c = sh.map(sd * S.hw * 0.86, s2 - L / 2, sh.th + 0.0006);
     const n = K.nrm(K.sub(sh.map(sd * S.hw * 0.86, s2 - L / 2, sh.th + 0.01), c));
@@ -1447,13 +1518,10 @@ function seatWarbird(B, A, P, g, pre, sbs) {
 }
 
 // ---- 16. DHC-2 BEAVER ------------------------------------------------------------------------------------------------------
-// TWO seats under one preset, as the DC-3: the cockpit's is the Beaver's crew seat - a painted steel-tube frame whose
-// side members run up into the back, a pressed alloy back panel with flanged lightening holes, channel-pleated
-// leatherette cushions (the vertical rolls of the period), short fore/aft tracks; a cabin's is the rear BENCH - each
-// seat draws its own section of it (a box cushion as wide as its place, a back of three webbing straps between tube
-// uprights and a thin pad), so a row of them reads as one bench that folds forward for cargo.
+// The Beaver's crew seat: a painted steel-tube frame whose side members run up into the back, a pressed alloy back panel
+// with flanged lightening holes, channel-pleated leatherette cushions (the vertical rolls of the period), short fore/aft
+// tracks. (Its folding rear bench was modelled and dropped, the user 2 Nov: a cabin takes any preset via paxSeatType.)
 function seatBeaver(B, A, P, g, pre, sbs, SP) {
-  if (SP && SP.pax) return seatBeaverBench(B, A, P, g, pre, sbs);
   const S = stance(A, P, g, pre, sbs);
   const mFrame = mat('trim', 0x5d6460, FRAME), mLea = mat('leatherDark', 0x6b5a45, TRIM), mPipe = mat('leatherDark', 0x3e3226),
         mPanel = mat('panelMetal', 0x8a9087, ACCENT), mAlu = mat('bareAlu', 0xb6bcc3), mCast = mat('castAlu', 0x8e949a),
@@ -1505,51 +1573,6 @@ function seatBeaver(B, A, P, g, pre, sbs, SP) {
   seatRails(B, mAlu, mDark, A, S.sx, zR - 0.16, zF + 0.16, w);
   return S;
 }
-function seatBeaverBench(B, A, P, g, pre, sbs) {
-  pre = Object.assign({}, pre, { back: pre.backPax || pre.back, hw: pre.hw * 1.12 });
-  const S = stance(A, P, g, pre, sbs);
-  const mFrame = mat('trim', 0x5d6460, FRAME), mLea = mat('leatherDark', 0x6b5a45, TRIM), mPipe = mat('leatherDark', 0x3e3226),
-        mStrap = mat('webbing', 0x4d4a3a, ACCENT), mCast = mat('castAlu', 0x8e949a), mBolt = mat('chrome', 0xdfe5ec);
-  const K = KIT();
-  const tr = 0.0105, w = S.hw;
-  const thP = 0.05;
-  const yPan = z => S.H[0] - 2 * thP - 0.004 - tr + (z - S.H[1]) * Math.tan(g.tilt);
-  const zR = S.H[1] - 0.03, zF = S.F[1] - 0.03;
-  const fb = B.of(mFrame);
-  // the bench's frame section: a front and a rear rail across (its width), a leg pair at the section's ends
-  for (const z of [zF, zR]) kitTube(fb, [[S.sx - w, yPan(z), z], [S.sx + w, yPan(z), z]], tr, 12);
-  for (const sd of [-1, 1]) {
-    const x = S.sx + sd * (w - 0.02);
-    kitTube(fb, [[x, yPan(zF), zF], [x, yPan(zR), zR]], tr * 0.9, 12);
-    kitTube(fb, [[x, yPan(zF), zF], [x, A.floorAt(zF + 0.02) + 0.012, zF + 0.02]], tr * 0.9, 12);
-    const fz = zR - 0.01;
-    K.boxIn(B.of(mCast), [x, A.floorAt(fz) + 0.003, fz], [0.018, 0.003, 0.022], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
-    K.lug(B.of(mCast), [x, A.floorAt(fz) + 0.016, fz], [1, 0, 0], [0, 1, 0], 0.011, 0.008, 0.014);
-    kitTube(fb, [[x, yPan(zR), zR], [x, A.floorAt(fz) + 0.016, fz]], tr * 0.9, 12);
-    K.bolt(B.of(mBolt), [x + 0.008, A.floorAt(fz) + 0.016, fz], [1, 0, 0], 0.0045, 0.004);
-    // the back's upright
-    const t = ptB(S, S.backL, -0.03);
-    kitTube(fb, [[x, yPan(zR), zR], [x, t[0], t[1]]], tr, 12);
-  }
-  { const t = ptB(S, S.backL, -0.03); kitTube(fb, [[S.sx - w + 0.02, t[0], t[1]], [S.sx + w - 0.02, t[0], t[1]]], tr, 12); }
-  // the cushion: a box cushion as wide as the place (the next seat's section meets it), piped front and back
-  const spP = spine([ptP(S, S.panL, g, -0.02), ptP(S, S.panL - 0.02, g), S.H, ptB(S, 0.04)], 0.035);
-  const sH = spP.sOf(S.H);
-  const cs = slab(B.of(mLea), { sx: S.sx, sp: spP, s0: 0, s1: sH - 0.01, hw: w, th: thP, r: 0.024, rx: 0.010, rs: 0.035, face: true,
-                                nx: 18, ns: 14, nt: 4, crown: 0.008, groove: grooves([-0.3, 0.3], 0.07, 0.007, 'u', 0.86) });
-  piping(B.of(mPipe), cs, 0.0045);
-  // the back: three webbing straps between the uprights, a thin pad over them
-  for (const k of [0.25, 0.50, 0.75]) {
-    const spT = spine([ptB(S, S.backL * k - 0.025, -0.03), ptB(S, S.backL * k + 0.025, -0.03)], 0);
-    slab(B.of(mStrap), { sx: S.sx, sp: spT, s0: 0, s1: spT.L, hw: w - 0.02, th: 0.0022, r: 0.0021, rx: 0.0021, rs: 0.0021,
-                         face: false, nx: 10, ns: 2, nt: 1, wing: (u, v) => [-0.008 * (1 - u * u), 0] });
-  }
-  const spB = spine([ptB(S, 0.06), ptB(S, S.backL - 0.04)], 0);
-  const pd = slab(B.of(mLea), { sx: S.sx, sp: spB, s0: 0, s1: spB.L, hw: w - 0.03, th: 0.014, r: 0.012, rx: 0.010, rs: 0.02, face: true,
-                                lift: 0.0, nx: 14, ns: 12, nt: 2, crown: 0.006 });
-  piping(B.of(mPipe), pd, 0.004);
-  return S;
-}
 
 // ---- dispatch ------------------------------------------------------------------------------------------------------------
 const BUILD = { beaver: seatBeaver, glider: seatGlider, jump: seatJump, warbird: seatWarbird, ag: seatAg, wicker: seatWicker, cub: seatCub, carbon2: seatCarbon, c172: seatC172, icon: seatIcon, bonanza: seatBonanza, ul: seatUL, extra: seatExtra, dc3: seatDC3 };
@@ -1559,16 +1582,32 @@ function build(parent, A, P, g, SP, sbs) {
   if (!pre || !BUILD[pre.key]) return null;
   // seatGeom carries the squab centre, not the back's station: zBack is szc - 0.20 there
   if (g.zBack == null) g = Object.assign({}, g, { zBack: g.szc - 0.20 });
+  const lvl = levelFor(P);
   const B = Bags();
-  const S = BUILD[pre.key](B, A, P, g, pre, sbs, SP);
+  LOD.lvl = lvl;
+  let S;
+  try { S = BUILD[pre.key](B, A, P, g, pre, sbs, SP); } finally { LOD.lvl = 0; }
   const st = B.flush(parent);
   const kg = SP && SP.pax && pre.kgPax != null ? pre.kgPax : pre.kg;
-  parent.userData.seatStats = { key: pre.key, tris: st.tris, draws: st.draws, kg };
+  parent.userData.seatStats = { key: pre.key, tris: st.tris, draws: st.draws, kg, lod: lvl };
   return { panY: g.panY, floor: g.floor, szc: g.szc, hw: S.hw, backH: S.backL, rake: g.rake, fit: S.fit,
-           preset: pre.key, tris: st.tris, draws: st.draws };
+           preset: pre.key, tris: st.tris, draws: st.draws, lod: lvl };
+}
+// WHICH LEVEL A SEAT IS BUILT AT: one level per build, not a THREE.LOD (the join flattens the crew layer's meshes, and
+// a parked aeroplane already drops the whole interior past its first rung): the phone profile builds the phone level,
+// everything else the hero; SEAT_GEN.force (the bench), ?seatlod=0|1|2 or P.seatLod override, in that order
+function levelFor(P) {
+  if (API.force != null) return API.force;
+  if (typeof window !== 'undefined') {
+    const m = /[?&]seatlod=([012])(&|$)/.exec((window.location && window.location.search) || '');
+    if (m) return +m[1];
+  }
+  if (P && P.seatLod != null && +P.seatLod >= 0) return Math.min(2, Math.round(+P.seatLod));
+  if (typeof window !== 'undefined' && window.PROFILE && window.PROFILE.name === 'phone') return 2;
+  return 0;
 }
 
-const API = { SEAT_PRESETS, PRESET_OF, build, slab, spine, mat, splitParts: false };
+const API = { SEAT_PRESETS, PRESET_OF, build, slab, spine, mat, splitParts: false, force: null, levelFor };
 if (typeof window !== 'undefined') window.SEAT_GEN = API;
 if (typeof module !== 'undefined') module.exports = API;
 })();

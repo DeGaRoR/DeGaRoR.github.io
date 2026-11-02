@@ -2,7 +2,7 @@
 // seat_shot.js - THE SEAT STUDIO'S CAMERA (SEATS, 2026-11-02). Opens tools/_seats.html in a headless Chromium
 // (SwiftShader is enough: one seat on a cyclorama is a small scene) and writes the contact sheet and close-ups.
 //
-//   node flyDiy/tools/seat_shot.js --out <dir> [--only sheet|close] [--types 0,3,4] [--tw 520]
+//   node flyDiy/tools/seat_shot.js --out <dir> [--only sheet|close|lod] [--types 0,3,4] [--tw 520]
 //   -> <dir>/seats_sheet.png (every seat, 3/4 over side), <dir>/seat_<key>_q.png close-ups, and a line
 //      SEAT_SHOT {json} with each seat's triangles, draws and kg (the STATUS table is made from it)
 'use strict';
@@ -32,8 +32,7 @@ const SHEET = [
   { type: 13, label: 'Glider tub' },
   { type: 14, label: 'Bush jump seat' },
   { type: 15, label: 'Warbird bucket' },
-  { type: 16, label: 'Beaver pilots' },
-  { type: 16, pax: true, label: 'Beaver passengers (bench)' },
+  { type: 16, label: 'Beaver' },
 ];
 
 (async () => {
@@ -57,6 +56,12 @@ const SHEET = [
     save('seats_sheet.png', r.url);
     result.stats = r.stats;
   }
+  if (ONLY === 'lod') {
+    const L = list.filter(it => it.type >= 3);
+    const r = await page.evaluate(([L]) => window.SEAT_BENCH.lodSheet(L, { tw: 360, groups: 2 }), [L]);
+    save('seats_lod.png', r.url);
+    result.lod = r.stats;
+  }
   if (ONLY === 'all' || ONLY === 'close') {
     for (const it of list) {
       const r = await page.evaluate(([it]) => window.SEAT_BENCH.single(it.type, 35, 16, 1200, 1200, it), [it]);
@@ -65,7 +70,7 @@ const SHEET = [
       save('seat_' + r2.stats.key.replace(/[^a-z0-9]+/gi, '') + (it.pax ? '_pax' : '') + '_back.png', r2.url);
     }
   }
-  console.log('SEAT_SHOT ' + JSON.stringify({ stats: result.stats, errors: errs.slice(0, 20) }));
+  console.log('SEAT_SHOT ' + JSON.stringify({ stats: result.stats, lod: result.lod, errors: errs.slice(0, 20) }));
   await browser.close();
   if (errs.length) { console.log('FAIL page errors: ' + errs.length); process.exit(7); }
 })().catch(e => { console.log('FAIL ' + (e && e.stack || e)); process.exit(1); });

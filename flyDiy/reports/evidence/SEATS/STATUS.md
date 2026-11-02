@@ -10,7 +10,8 @@
   -1 = the pilots' type) dresses passenger seats separately; `window.CAGE_CREW_SEAT` exports the builder for the bench.
 - User asks this session, all done: belts dropped from every preset; the UL's back brace dropped; the base seat
   reworked as a Cub seat (preset 10, proposed to replace type 0 once validated); ag, WWI wicker, glider, bush jump seat,
-  warbird bucket, Beaver crew + bench added; the glider tub on four small tubes; cushions flat-topped.
+  warbird bucket, Beaver added (its passenger bench modelled, then dropped); the glider tub on four small tubes;
+  cushions flat-topped; the levels of detail by regeneration.
 - Finishes: every preset's materials are the finish system's, and its main materials go through the editor's livery
   resolver (`seatTrim` upholstery, `seatFrame`, `seatAccent`); the preset's look is the bottom-out, a pick overrides.
 - The bench: `tools/_seats.html` (open with `?seat=N`, drag to orbit) and `tools/seat_shot.js` (headless, ~10 s for
@@ -18,36 +19,44 @@
 
 ## Renders
 - `seats_sheet.jpg`: all seats, 3/4 over side (today's tube and composite shell beside the new ones).
-- `close/seat_<key>_q.jpg` / `_back.jpg`: each seat front-3/4 and from behind.
+- `seats_lod.jpg`: every preset at its three levels (hero / mid / phone), the same eye and framing.
+- `close/seat_<key>_q.jpg` / `_back.jpg`: each seat front-3/4 and from behind (the hero level).
 - In-cabin shots: NOT YET (the user, 2 Nov: "keep modeling and looking at the sheet first, before you do expensive
   screenshots"). A scratch rig view `seat:<az>/<el>/<dist>` (frame the seats part, orbit) is ready for them.
 
-## Triangles / draws per seat (the hi master, drawn live today; the LOD levels are the next step)
-| preset | kg | tris | draws |
-|---|---|---|---|
-| Tube frame (today) | 3.0 | 4 184 | 59 |
-| Cub (reworked base) | 3.5 | 19 012 | 7 |
-| Composite shell (today) | 7.0 | 2 252 | 4 |
-| Carbon bucket | 4.5 | 23 264 | 6 |
-| Cessna 172 | 14 | 31 308 | 9 |
-| ICON A5 | 9 | 31 952 | 7 |
-| Bonanza | 18 | 28 120 | 6 |
-| Ultralight (A22) | 3.5 | 12 816 | 6 |
-| Extra 330 | 6 | 21 218 | 6 |
-| DC-3 pilots | 20 | 29 952 | 7 |
-| DC-3 passengers | 18 | 28 136 | 6 |
-| Agricultural | 16 | 41 796 | 7 |
-| WWI wicker | 3 | 44 330 | 6 |
-| Glider tub | 3 | 21 672 | 7 |
-| Bush jump seat | 2.5 | 8 544 | 6 |
-| Warbird bucket | 8 | 22 680 | 8 |
-| Beaver crew | 12 | 21 684 | 7 |
-| Beaver bench (per place) | 6 | 16 380 | 6 |
+## Levels of detail (by REGENERATION, not decimation - the user, 2 Nov)
+The same generator at a level: 0 hero, 1 mid, 2 phone. Every primitive reads it (lattice rows, tube sides, edge and
+revolve segments scale by k = 1 / 0.45 / 0.14; paths thin to a 15 / 35 mm step, corners kept); small features step off
+(mid: stitching, rail holes, rivets, bolts, lacing, buttons, domed tube ends; phone: piping, lugs, bindings, turned
+parts under 16 mm radius, grooves, shell rim beads; the wicker's cane strands become one woven sheet). An insert lifts
+clear of its base where the base's facets would cut it. ONE level per seat build (not a THREE.LOD: the join flattens
+the crew layer, and a parked aeroplane already drops the interior past its first rung): the phone profile builds the
+phone level, everything else the hero; `?seatlod=0|1|2`, `P.seatLod` or `SEAT_GEN.force` override. Generation is fast
+enough that nothing is cached: 7-80 ms a seat at hero, 1-4 ms at phone (node, this box).
 
-Too heavy for the phone as masters; draws are fine (one bag per material). Next (agreed direction, pending the user's
-go): LOD by REGENERATION, not decimation - a detail level on every primitive (lattice rows, tube sides, edge segments)
-and per-level feature drops (stitching, rail holes, rivets, lacing, cane strands), three levels (hero / mid / phone
-~400-800 tris), mounted as a THREE.LOD; cached through the prop-pack path only if run-time generation is too slow.
+| preset | kg | hero tris / draws | mid | phone |
+|---|---|---|---|---|
+| Cub (reworked base) | 3.5 | 19 012 / 7 | 4 256 / 5 | 908 / 4 |
+| Carbon bucket | 4.5 | 23 264 / 6 | 5 212 / 4 | 956 / 4 |
+| Cessna 172 | 14 | 31 308 / 9 | 6 512 / 9 | 1 250 / 6 |
+| ICON A5 | 9 | 31 952 / 7 | 6 732 / 5 | 1 028 / 5 |
+| Bonanza | 18 | 28 120 / 6 | 5 808 / 5 | 936 / 4 |
+| Ultralight (A22) | 3.5 | 12 816 / 6 | 2 640 / 4 | 766 / 4 |
+| Extra 330 | 6 | 21 218 / 6 | 5 164 / 5 | 728 / 5 |
+| DC-3 pilots | 20 | 29 952 / 7 | 6 812 / 6 | 1 028 / 5 |
+| DC-3 passengers | 18 | 28 136 / 6 | 6 544 / 6 | 1 320 / 5 |
+| Agricultural | 16 | 41 796 / 7 | 7 820 / 7 | 1 228 / 5 |
+| WWI wicker | 3 | 44 330 / 6 | 11 684 / 5 | 1 272 / 4 |
+| Glider tub | 3 | 21 672 / 7 | 5 744 / 7 | 988 / 6 |
+| Bush jump seat | 2.5 | 8 544 / 6 | 2 692 / 6 | 640 / 4 |
+| Warbird bucket | 8 | 22 680 / 8 | 5 480 / 7 | 792 / 5 |
+| Beaver | 12 | 21 684 / 7 | 4 704 / 6 | 1 012 / 5 |
+| (today) Tube frame | 3.0 | 4 184 / 59 | — | — |
+| (today) Composite shell | 7.0 | 2 252 / 4 | — | — |
+
+Phone: 640-1 320 triangles, 4-6 draws a seat (a four-seat C172 ~5k, 24 draws). Above the 400-800 first guess; it can go
+lower (fewer cushion rows, no frame on the far side) if the S20 says so. The Beaver's passenger bench was dropped (the
+user, 2 Nov); a cabin takes any preset through `paxSeatType`.
 
 ## Identity (existing builds bit-identical)
 - `tools/flight_core.js` unchanged (the seats are editor-layer only): mass, CG, cert untouched.
@@ -58,9 +67,11 @@ and per-level feature drops (stitching, rail holes, rivets, lacing, cane strands
   after the verdict).
 
 ## Gates
-Run: PARTS, DESIGN, SAVE, JOIN, CAGEFIT, NODUMMY, PILOTS, UISMOKE, UISMOKE-PHONE, SKINMAT, CABIN, CLIP, DMGOCCUPANT,
-STARTER, FRAMES, DASH, PANEL - started on this commit's tree; still running at commit time on this box (DMGOCCUPANT
-alone > 7 min). Results go into the next STATUS update.
+On the first commit's tree (8ea4d126 + its build): PARTS, DESIGN, SAVE, JOIN, CAGEFIT, PILOTS, UISMOKE, UISMOKE-PHONE,
+SKINMAT, CABIN, DMGOCCUPANT, STARTER, FRAMES, DASH, PANEL - PASS. CLIP and NODUMMY - FAIL, both STANDING: the same
+two fail identically on a clean origin/master worktree (CLIP: stock+ifr's navAerial 9.2 mm into the fin skin, the
+access layer; NODUMMY: retired-figure references in _crew_head_probe.js, newshapes_build.js, quickshot.js). Neither
+reads the seat files.
 
 ## Rig handbrake (A0's note)
 The cockpit shot came from the repo's own `tools/plane_shot.js`: the built `index.html` of this branch (master
@@ -71,6 +82,8 @@ that a too-narrow vertex net once "hung the knob at the ASI's height". So the bo
 GAME's `dashBotAt` picking a panel vertex on that Cub, not the rig - for CABIN-CRAFT to confirm on the game side.
 
 ## Needed from the user
-1. Verdict on the sheet (which presets, any reshaping).
+1. Verdict on the sheet and the LOD sheet (which presets, any reshaping, is the phone level good enough).
 2. Replace type 0 with the Cub seat and type 1 with the carbon bucket? (Changes every saved build that uses them.)
-3. Go on the LOD-by-regeneration step.
+3. Then the wiring (STEP 3): the Interior-style options and the `paxSeatType` row in the editor, the GEN_SEATS mass
+   rows (each preset's kg into the build, the bench and the cert), the seatFrame / seatAccent finish rows, and the
+   in-cabin shots.
