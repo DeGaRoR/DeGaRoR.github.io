@@ -114,7 +114,8 @@ const NAMED = /^(cageSheet|cageSpec|buildCage2|cageSubdivide|cageRefitArc|cageGl
       let rel;
       if (TYPED) { const vf = D.getElementById('v_' + k); vf.value = String(Math.min(hi, Math.max(lo, base + dir * d * (r % 2 ? -1 : 1) * TICKS)));
         const tB = now(); vf.dispatchEvent(new Ev('change')); rel = now() - tB; }
-      else { const tB = now(); el.dispatchEvent(new Ev('change')); W.dispatchEvent(new PE('pointerup')); rel = now() - tB; }
+      // (PHONE-EDIT-PERF P-2: the release builds after a paint - flushed here, inside the timed window)
+      else { const tB = now(); el.dispatchEvent(new Ev('change')); W.dispatchEvent(new PE('pointerup')); if (U.releaseFlush) U.releaseFlush(); rel = now() - tB; }
       ACC.on = false;
       if (flag('prof') && r === 0) prof = hot((await post('Profiler.stop')).profile);
       const fn = ACC.m; const chain = W.CAGE_CHAIN && W.CAGE_CHAIN.last ? W.CAGE_CHAIN.last.map(x => [x.name, x.ran ? x.ms : -1]) : null;

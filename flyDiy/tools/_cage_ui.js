@@ -1537,7 +1537,61 @@ function geBuilt(ms) {
 let DRAG_ON = null, DRAG_TICK = false, DRAG_LATE = false, DRAG_T = null;
 function dragSettle() {
   if (DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
+  relCancel();
   if (DRAG_LATE) { DRAG_LATE = false; RELEASE = true; try { build(); } finally { RELEASE = false; } }
+}
+// PHONE-EDIT-PERF (P-2, the brief: "on release: no synchronous work in pointerup beyond scheduling ... UI over 1 s shows a
+// spinner"): THE RELEASE BUILDS AFTER A PAINT. The hand's release (the slider's change, the pointer up) schedules the
+// settle build instead of running it in the handler: the knob lets go and a frame is drawn first, then the build runs in
+// one task of its own - the aeroplane standing until then is the drag's last, never a half-built one. A build that
+// takes long shows a small spinner in the view's corner (its CSS turns on the compositor, so it moves while the build
+// holds the page; it fades in only after 250 ms, so a quick release never flashes it). Anything that needs the
+// settled aeroplane first - a new press on a slider, CAGE_UI.releaseFlush() - runs the pending build at once; any
+// other build in between settles it (it clears DRAG_LATE) and the pending one finds nothing to do.
+// `CAGE_UI.releaseLater = false`: the release builds in the handler, as before.
+let REL_PEND = null;                    // { t, how, key, done }
+function relCancel() { if (REL_PEND) { clearTimeout(REL_PEND.t); REL_PEND.done = true; REL_PEND = null; } }
+function relRun(R) {
+  if (R.done) return;
+  R.done = true; if (REL_PEND === R) REL_PEND = null;
+  clearTimeout(R.t);
+  geBegin();
+  try { dragSettle(); } finally { geEnd(R.how, R.key); busySpin(false); }
+}
+function dragSettleLater(how, key) {
+  if (DRAG_T) { clearTimeout(DRAG_T); DRAG_T = null; }
+  if (!DRAG_LATE) return;
+  if ((window.CAGE_UI && window.CAGE_UI.releaseLater === false) || typeof requestAnimationFrame !== 'function') {
+    geBegin(); try { dragSettle(); } finally { geEnd(how, key); } return;
+  }
+  if (REL_PEND) { REL_PEND.how = how; REL_PEND.key = key; return; }
+  const R = REL_PEND = { t: 0, how, key, done: false };
+  busySpin(true);
+  // a frame first (the release drawn), then the build; a page whose frames do not come (a hidden tab, a rig) builds
+  // after 100 ms anyway
+  R.t = setTimeout(() => relRun(R), 100);
+  requestAnimationFrame(() => { if (R.done) return; clearTimeout(R.t); R.t = setTimeout(() => relRun(R), 0); });
+}
+function releaseFlush() { if (REL_PEND) relRun(REL_PEND); }
+let BUSY_EL = null;
+function busySpin(on) {
+  if (typeof document === 'undefined' || !document.createElement) return;
+  if (!on) { if (BUSY_EL) BUSY_EL.classList.remove('on'); return; }
+  if (!BUSY_EL) {
+    BUSY_EL = document.createElement('div');
+    BUSY_EL.id = 'cageBusy'; BUSY_EL.setAttribute('aria-hidden', 'true');
+    const st = document.createElement('style');
+    st.textContent = '#cageBusy{position:fixed;width:22px;height:22px;border-radius:50%;border:3px solid rgba(232,224,208,.25);' +
+      'border-top-color:rgba(232,224,208,.9);opacity:0;pointer-events:none;z-index:40;will-change:transform,opacity;' +
+      'animation:cageBusySpin .8s linear infinite;transition:opacity .12s}' +
+      '#cageBusy.on{opacity:1;transition:opacity .15s .25s}@keyframes cageBusySpin{to{transform:rotate(360deg)}}';
+    document.head.appendChild(st); document.body.appendChild(BUSY_EL);
+  }
+  // the view's bottom-left corner (the game's canvas, else the editor's own)
+  const c = document.getElementById('c') || (typeof cv !== 'undefined' ? cv : null);
+  const r = c && c.getBoundingClientRect ? c.getBoundingClientRect() : { left: 0, bottom: (window.innerHeight || 600) };
+  BUSY_EL.style.left = Math.round(r.left + 14) + 'px'; BUSY_EL.style.top = Math.round(r.bottom - 40) + 'px';
+  BUSY_EL.classList.add('on');
 }
 // G1451 (RELEASE-FAST): the build a drag's release runs (dragSettle) - it may run only what the drag reached
 let RELEASE = false;
@@ -1553,7 +1607,7 @@ function dragSettleSoon() {
   DRAG_T = setTimeout(() => { DRAG_T = null; geBegin(); try { dragSettle(); } finally { geEnd('pause'); } }, (window.CAGE_UI && window.CAGE_UI.dragSettleMs) || 350);
 }
 if (typeof window !== 'undefined' && window.addEventListener) {
-  const up = () => { if (DRAG_ON) { DRAG_ON = null; geBegin(); try { dragSettle(); } finally { geEnd('release'); } } };
+  const up = () => { if (DRAG_ON) { DRAG_ON = null; dragSettleLater('release', GE.key); } };
   window.addEventListener('pointerup', up, true);
   window.addEventListener('pointercancel', up, true);
 }
@@ -2802,8 +2856,8 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
       finally { DRAG_TICK = false; geEnd(how, k); }
       if (DRAG_LATE) dragSettleSoon();
     };
-    rng.addEventListener('pointerdown', () => { DRAG_ON = rng; standSoon(); });
-    rng.addEventListener('change', () => { if (DRAG_ON === rng) DRAG_ON = null; geBegin(); try { dragSettle(); } finally { geEnd('release', k); } });
+    rng.addEventListener('pointerdown', () => { releaseFlush(); DRAG_ON = rng; standSoon(); });
+    rng.addEventListener('change', () => { if (DRAG_ON === rng) DRAG_ON = null; dragSettleLater('release', k); });
     vf.onchange = () => {                // typed values clamp to the range
       if (rng.disabled) { vf.value = fmtV(rng.value); return; }
       let v = parseFloat(vf.value);
@@ -5941,7 +5995,7 @@ if (typeof ResizeObserver !== 'undefined')
 if (PAGE.defaultStep && $('step')) $('step').value = PAGE.defaultStep;
 anchorSize();                              // the page opens at its ×1
 syncSliders();
-window.CAGE_UI = { P, build, buildCg, repaint, draw, applyPreset, syncSliders, republish /* G2227 */, reg: () => decReg(),   // G318: the tape reads it
+window.CAGE_UI = { P, build, buildCg, releaseFlush, repaint, draw, applyPreset, syncSliders, republish /* G2227 */, reg: () => decReg(),   // G318: the tape reads it
   preview: PREVIEW,                      // G1442: the drag previews (n, the last plan)
   release: RELEASE_INFO,                 // G1451: the releases (n run partially, whole, the last one's plan)
   // G3715 (COWL-RES): the eye sheet - the interior view's switch (eyeWatch's; a rig's), the flight capture's hold (_cage_join), the
@@ -5949,7 +6003,7 @@ window.CAGE_UI = { P, build, buildCg, repaint, draw, applyPreset, syncSliders, r
   eyeView, eyeHold, eyeStats: EYE_STATS, eyeStanding: () => !!(EYE_OBJ && meshObj === EYE_OBJ),
   // G2920 (GARAGE-SHEET): a hand on a slider, or its settle build still owed - the performance sheet's thread is asked
   // for the aeroplane the drag ends on, not for each tick (app.js sheetAsk, sheet_link.js held)
-  dragging: () => !!(DRAG_ON || DRAG_T || DRAG_LATE),
+  dragging: () => !!(DRAG_ON || DRAG_T || DRAG_LATE || REL_PEND),
   // THE TWO HALVES OF A LOAD (G63). `applySpec` puts a build into the editor;
   // `toSpec` takes the editor's whole parameter set out as the spec's `cage`
   // fragment — layer keys included, view keys excluded. Every shelf load,

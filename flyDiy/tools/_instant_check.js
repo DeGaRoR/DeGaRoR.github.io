@@ -28,7 +28,9 @@ const ROOT = path.join(__dirname, '..');
 const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] !== undefined && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
 const BUILDS = { cub: 'builds/cub_2026-09-20_corrected.json', metal: 'bugReports/cessnaMetal (1).json', jodel: 'builds/jodel_2026-09-20_corrected.json',
-  cessna: 'builds/cessna172_2026-09-20_corrected.json', floats: 'bugReports/cessnaFloatsWOrks.json' };
+  cessna: 'builds/cessna172_2026-09-20_corrected.json', floats: 'bugReports/cessnaFloatsWOrks.json',
+  // PHONE-EDIT-PERF (2 Nov): the user's twin-boom pusher on floats (their S20 FE log's plane; the file's own name)
+  twin: 'bugReports/Twin_busher_floats_2.json' };
 const WANT = opt('builds', 'cub,metal').split(',');
 // the rows: one or more of each preview kind (a kept sheet's layer rows, the cage's rows, the sheet's detail rows)
 const ROWS = (opt('only', null) ? opt('only').split(',') : ['wgSpan', 'wgChord', 'stSpan', 's1X', 'seatH', 'paxLen', 'halfW', 'roofY', 'noseDroop', 'rimW', 'dashDepth', 'frCabTopW', 'dashBack', 'shoulderT']);
@@ -91,6 +93,7 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       const capD = FL ? FL.stats.captures - cap0 : 0;
       U.dragSettleMs = 350;
       el.dispatchEvent(new Ev('change', EVO)); winToo('change'); W.dispatchEvent(new PE('pointerup', EVO));
+      if (U.releaseFlush) U.releaseFlush();   // (PHONE-EDIT-PERF P-2: the release builds after a paint - here, now)
       if (capD) { dragCaps += capD; bad++; log(k.padEnd(12) + ' FLEET: ' + capD + ' capture(s) started DURING the drag'); }
       const relN = U.release ? U.release.n - rl0 : 0, relW = U.release ? U.release.whole - rw0 : 0;
       const relTxt = !U.release ? '' : relN ? '  release: partial [' + ((U.release.last && U.release.last.why) || '') + '; floor ' + ((U.release.last && U.release.last.floor) || '') + ']'
