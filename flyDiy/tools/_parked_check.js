@@ -816,7 +816,10 @@ async function fleetStood() {
   check(!/\b(capture|batchSteps|bakeData|bakeNow|fleetBake|fleetQueue|captureAll|enqueue)\s*\(/.test(fsSrc.replace(/^\s*\/\/.*$/gm, '')), '13 SOURCE: fleet_stand.js calls no capture, no bake, no queue');
   const app = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'app.js'), 'utf8');
   const park = (app.match(/\{ id: 'parking',[\s\S]*?\} \},/) || [''])[0];
-  check(/key: \(\) => WF \? 'at ' \+ anchorStr\(\) \+ fleetStandKey\(\) : null/.test(park) && /const fl = fleetStand\(\);/.test(park) && /if \(!FS_ON\(\)\) return '';/.test(app) && /from: inGarage \? rollFromId\(\) : fromId/.test(app),
+  // (a012529f, G3585: fleetCtx's from takes the story's HOME first - CAREER_DEV's story page, T0/T1, the client's Cub
+  // waiting - and the roll-out's aerodrome after it, as before; the row matches that whole from)
+  check(/key: \(\) => WF \? 'at ' \+ anchorStr\(\) \+ fleetStandKey\(\) : null/.test(park) && /const fl = fleetStand\(\);/.test(park) && /if \(!FS_ON\(\)\) return '';/.test(app)
+        && /from: \(CAREER_DEV && STORY_PAGE && storyFleetFrom\(\)\) \|\| \(inGarage \? rollFromId\(\) : fromId\)/.test(app),
     "13 SOURCE: the parking step keys on the fleet's set ('' with the flag off) and stands it, from the roll-out's aerodrome");
   const pk = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'parked.js'), 'utf8');
   check(/if \(!wanted\(key\)\) \{ FLEET\.stats\.notWanted\+\+; return false; \}/.test(pk) && /quiet < FLEET\.idleMs/.test(pk), '13 SOURCE: fleetQueue asks wants(); fleetStep waits for the idle window');
