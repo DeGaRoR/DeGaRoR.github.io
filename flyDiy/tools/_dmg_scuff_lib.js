@@ -20,14 +20,22 @@ const CASES = {
   'trunk-0': { label: 'a trunk at 30 m/s, the centreline', kind: 'trunk', o: { D: 40, agl: 4, V: 30, secs: 5, off: 0, r: 0.3, h: 10.05 } },
   'taxi-3': { label: 'a 3 m/s taxi into a trunk', kind: 'trunk', o: { D: 6, agl: 0, V: 3, secs: 6, off: 0, r: 0.3, h: 10.05 } },
   noseover: { label: 'a nose-over (12 m/s into a 35 cm stump)', kind: 'trunk', o: { D: 8, agl: 0, V: 12, secs: 6, off: 0, r: 0.25, h: 0.35, stumpAtWheels: true } },
-  // (2 Nov, the port onto master: `roll` is the LEAST roll - the staging rolls on, a degree at a time to 60, until the
-  // lowest point is a wing's tip. On today's metal Cessna 25 deg sat it on its low main wheel (a wheel slides no work):
-  // 0 J slid, where 6 Oct's build slid 692 J. The Cub and the Jodel are on their tips at 25 deg, as before)
+  // (2 Nov, the port onto master: `roll` is the LEAST roll - stage() rolls on, 5 deg at a time to 60, until the first
+  // second slides. On today's metal Cessna 25 deg touches the tip and falls back onto the gear: 0 J slid, where 6 Oct's
+  // build slid 692 J. The Cub and the Jodel slide at 25 deg, as before)
   'slide-L': { label: 'a wing-low slide (rolled 25 deg or more left onto the tip, 15 m/s)', kind: 'slide', o: { V: 15, roll: 25, sink: 0.8, secs: 3 } },
 };
 
 // the case's sim, staged (TREE-CRASH's atTrunk for the trunks; the slide rolled about the body's own axis)
 function stage(k, c, damage) {
+  // (the slide: from `roll`, 5 deg more at a time to 60, the least roll whose first second SLIDES - DMG.scW > 0. A tip
+  // that only touches lets the aeroplane fall back onto its gear: today's metal Cessna at 25 deg, 0 J)
+  if (c.kind === 'slide' && !c.probed) for (let deg = c.o.roll || 25; ; deg += 5) {
+    const cc = Object.assign({}, c, { probed: true, o: Object.assign({}, c.o, { roll: deg }) });
+    if (deg >= 60) return stage(k, cc, damage);
+    const pr = stage(k, cc, true).sim; for (let f = 0; f < 60; f++) pr.step(1 / 60);
+    if ((pr.damage().scW || 0) > 0) return stage(k, cc, damage);
+  }
   const C = L.core(), o = c.o, d0 = L.defOf(k), def = Object.assign({}, d0, { params: Object.assign({}, d0.params, { damage }) });
   const elev = 300, { W, TH, strip } = L.flatWorld(elev), sim = C.makeSim(def, W);
   sim.reset(0);
