@@ -34,6 +34,13 @@ const cen = (R, name) => { if (!R || !R.census) return; L.push('### ' + name, ''
   for (const c of R.census) L.push('| ' + c.v + ' | ' + c.fps + ' | ' + c.p50 + ' | ' + c.p90 + ' | ' + c.max + ' | ' + c.work + ' |'); L.push(''); };
 if (ct || cf) { L.push('## Materials (the shed rendering continuously)', ''); cen(ct, 'The phone tier (default)'); cen(cf, 'The full look (?phmat=full)'); }
 if (idle && idle.idlecheck) L.push('## The idle hold', '', 'After 7 s untouched: ' + idle.idlecheck.idleFps + ' fps rendered (the hold: ' + idle.idlecheck.heldFrames + ' frames held); after a touch: ' + idle.idlecheck.afterTouchFps + ' fps.', '');
+const regs = ['cub', 'twin'].map(b => [b, J('reg_' + b + '.json')]).filter(x => x[1]);
+if (regs.length) {
+  L.push('## The registration in the decal atlas (PHONE-GARAGE G3798c: PASS = page 0 inked)', '', '| build | verdict | inked px | context lost | events (last) |', '|---|---|---|---|---|');
+  for (const [b, r] of regs) { const e = r.evaljs || {};
+    L.push('| ' + b + ' | ' + (e.err ? 'ERR ' + e.err : e.pass ? 'PASS' : 'FAIL') + ' | ' + (e.inked == null ? '-' : e.inked) + ' | ' + (e.lost == null ? '-' : e.lost) + ' | ' + (Array.isArray(e.log) ? e.log.map(x => x.ev).join(' ').slice(0, 120) : String(e.log || '')) + ' |'); }
+  L.push('');
+}
 if (touch && touch.touch) {
   L.push('## PHONE-GARAGE\'s touch checks (portrait, as held)', '', '| check | ok | detail |', '|---|---|---|');
   for (const [k, v] of Object.entries(touch.touch)) L.push('| ' + k + ' | ' + (v && v.ok ? 'ok' : 'FAIL') + ' | ' + JSON.stringify(v).slice(0, 160).replace(/\|/g, '/') + ' |');

@@ -44,6 +44,11 @@ const CENSUS = opt('census', null) ? opt('census').split(',') : (flag('census') 
 // --shot <file.jpg>: the page after the idle / census (Page.captureScreenshot); --flightlog <file.json>: the page's flight log
 const IDLECHECK = flag('idlecheck'), SHOTF = opt('shot', null), FLOGF = opt('flightlog', null);
 const CSEC = +opt('csec', 8);
+// --initjs <file>: a script added before the page's own (Page.addScriptToEvaluateOnNewDocument, after the build's); --evaljs <file>:
+// an expression evaluated --evalwait s after the boot (its // lines dropped), its value in the JSON as evaljs (PHONE-GARAGE's G3798c
+// registration check: CLOUD-SHOTS/atlas_hook.js + reg_check.js); --shotview s|q|t: the still from the editor's framing preset
+const INITJS = opt('initjs', null), EVALJS = opt('evaljs', null), EVALWAIT = +opt('evalwait', 8), SHOTVIEW = opt('shotview', null);
+const VIEWS = { q: [-2.5, 0.25, 12], s: [-Math.PI / 2, 0.06, 13], t: [-Math.PI / 2, 1.35, 15] };   // (plane_shot.js PRESET)
 const PHONE = flag('phone'), APORT = +(opt('phone', '') || 9333);
 const ADB = process.env.ADB || 'D:/Dev/platform-tools/adb.exe';
 const adb = (...a) => { try { return require('child_process').execFileSync(ADB, a, { encoding: 'utf8', timeout: 20000 }); } catch (e) { return ''; } };
@@ -184,13 +189,17 @@ const CENSUS_JS = `(() => { if (window.__CEN) return 'again'; const C = window._
   else { await b.cmd('Emulation.setDeviceMetricsOverride', { width: VW, height: VH, deviceScaleFactor: DPR, mobile: true });
     await b.cmd('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 }); }
   const url = 'http://localhost:' + PORT + '/flyDiy/' + opt('page', 'index.html') + '?profile=phone' + (opt('query', '') ? '&' + opt('query') : '');
-  const l = await b.load(url, MB.preScript(BUILD, null, null));
+  const l = await b.load(url, MB.preScript(BUILD, null, null) + (INITJS ? '\n;' + fs.readFileSync(INITJS, 'utf8') : ''));
   log('loaded ' + l.state + ' in ' + l.sec + ' s (' + url + ')');
   await sleep(6000);
   R.meta = JSON.parse(await b.ev(`JSON.stringify({ profile: window.PROFILE && PROFILE.name, catcher: window.POST_FX && POST_FX.catcher && POST_FX.catcher.summary(),
     menuLog: !!(window.FLYDIY_MENU), dpr: devicePixelRatio, canvas: (() => { const c = document.getElementById('c'); return c ? [c.width, c.height] : null; })() })`));
   log('page: ' + JSON.stringify(R.meta));
   log('harness ' + await b.ev(HARNESS));
+  if (EVALJS) { await sleep(EVALWAIT * 1000);
+    const ex = fs.readFileSync(EVALJS, 'utf8').split('\n').filter(x => !/^\s*\/\//.test(x)).join('\n');
+    try { R.evaljs = await b.ev('JSON.stringify(' + ex + ')', 60000); try { R.evaljs = JSON.parse(R.evaljs); } catch (e) {} } catch (e) { R.evaljs = { err: e.message }; }
+    log('evaljs: ' + JSON.stringify(R.evaljs).slice(0, 300)); save(); }
   if (CPU > 1 && !PHONE) await b.cmd('Emulation.setCPUThrottlingRate', { rate: CPU });
   await sleep(3000);
   if (IDLE) {
@@ -240,6 +249,7 @@ const CENSUS_JS = `(() => { if (window.__CEN) return 'again'; const C = window._
     for (const e of last.ev) log('      +' + e[0] + ' ' + e[1] + ' ' + r1(e[2]) + ' ms ' + (e[3] && typeof e[3] === 'object' ? [e[3].how, e[3].path, e[3].why, 'build ' + e[3].build + '/' + e[3].builds, 'sheet ' + e[3].sheet, 'onBuild ' + e[3].onBuild, e[3].layers].filter(Boolean).join(' | ') : e[3]));
     if (prof) log('      prof self: ' + prof.slice(0, 14).map(([f, ms]) => f + ' ' + ms).join(', '));
   }
+  if (SHOTF && SHOTVIEW && VIEWS[SHOTVIEW]) { try { await b.ev('(() => { FLIGHT_PROBE.pan(0, 0, 0); FLIGHT_PROBE.camSet(' + VIEWS[SHOTVIEW].join(', ') + '); return 1; })()', 20000); } catch (e) { log('shotview: ' + e.message); } await sleep(2500); }
   if (SHOTF) { const sh = await b.cmd('Page.captureScreenshot', { format: 'jpeg', quality: 85 }); if (sh.result) { fs.writeFileSync(SHOTF, Buffer.from(sh.result.data, 'base64')); log('still -> ' + SHOTF); } }
   if (FLOGF) { try { const t = await b.ev(`(() => { const R = window.FLIGHT_REC && window.FLIGHT_REC.rec; const p = R && R.logParts ? R.logParts() : null; return p ? (Array.isArray(p) ? p.join('') : String(p)) : ''; })()`, 120000);
     if (t && t !== '__timeout') { fs.writeFileSync(FLOGF, t); log('flight log -> ' + FLOGF + ' (' + t.length + ' chars)'); } } catch (e) { log('flight log: ' + e.message); } }

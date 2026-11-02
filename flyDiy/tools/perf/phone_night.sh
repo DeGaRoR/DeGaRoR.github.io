@@ -8,6 +8,7 @@
 #   2. typed values (the value chip's change) on the same rows;
 #   3. the material census on the phone tier (the default) and the full look (?phmat=full), each with a still;
 #   4. the idle hold (no ?idle=0): frames after 7 s untouched, then after a touch;
+#   4b. PHONE-GARAGE's registration check (G3798c: CLOUD-SHOTS/atlas_hook.js + reg_check.js), the Cub and the twin, a side still each;
 #   5. PHONE-GARAGE's touch checks (tools/perf/mobile_phone_cdp.js, its touch section, portrait as the phone holds it) and a
 #      still of the Edit tab;
 #   6. RESULTS.md (tools/perf/phone_night_report.js) - the after table beside the 2 Nov live-build table.
@@ -42,12 +43,16 @@ trap cleanup EXIT
 sleep 2; "$ADB" reverse tcp:$PORT tcp:$PORT >/dev/null; "$ADB" forward tcp:$APORT localabstract:chrome_devtools_remote >/dev/null
 ROWS=wgSpan,wgChord,stSpan,finHeight,paxLen,halfW,boomLen,fltL,fltZ,engY,li_lampSize
 PE() { local name="$1"; shift; late && { say "skip $name: past $UNTIL"; return 0; }
-  say "run $name"; timeout 1500 node "$FLY/tools/perf/phone_edit.js" --phone $APORT --port $PORT --page dev.html --build twin "$@" >> "$OUTD/$name.txt" 2>&1; say "  $name exit $? ($(tail -1 "$OUTD/$name.txt"))"; }
+  say "run $name"; timeout 1500 node "$FLY/tools/perf/phone_edit.js" --phone $APORT --port $PORT --page dev.html --build "${PB:-twin}" "$@" >> "$OUTD/$name.txt" 2>&1; say "  $name exit $? ($(tail -1 "$OUTD/$name.txt"))"; }
 PE edits   --rows $ROWS --reps 2 --ticks 15 --quiet 3000 --idle 20 --query idle=0 --out "$OUTD/edits.json" --shot "$OUTD/s20_after_tier.jpg" --flightlog "$OUTD/flightlog_edits.json"
 PE typed   --rows $ROWS --reps 1 --typed --quiet 3000 --query idle=0 --out "$OUTD/typed.json"
 PE census  --rows none --census --csec 6 --idle 20 --query idle=0 --out "$OUTD/census_tier.json"
 PE full    --rows none --census base --csec 6 --idle 20 --query "idle=0&phmat=full" --out "$OUTD/census_full.json" --shot "$OUTD/s20_after_full.jpg"
 PE idle    --rows none --idlecheck --out "$OUTD/idle.json"
+# PHONE-GARAGE's G3798c (A0 2 Nov): the registration painted in the decal atlas after the page's first paint (the Cub's came out
+# blank under SwiftShader) - its own pass (the hook reads page 0 every 250 ms: never on the timed passes), the Cub and the twin
+CS=D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-02/CLOUD-SHOTS
+for RB in cub twin; do PB=$RB PE reg_$RB --rows none --query idle=0 --initjs "$CS/atlas_hook.js" --evaljs "$CS/reg_check.js" --evalwait 15 --shotview s --shot "$OUTD/s20_reg_${RB}_side.jpg" --out "$OUTD/reg_$RB.json"; done
 if ! late; then
   say "run touch (PHONE-GARAGE's checks)"
   timeout 900 node "$FLY/tools/perf/mobile_phone_cdp.js" --port $APORT --url "http://localhost:$PORT/flyDiy/dev.html?profile=phone" --build "$FLY/bugReports/Twin_busher_floats_2.json" \
