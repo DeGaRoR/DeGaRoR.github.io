@@ -1,59 +1,104 @@
-# Wave 2 follow-up, 2 Nov 2026
+# Wave 2 focused diagnostic: 2–3 November 2026
 
-Working candidate only. No runtime performance verdict or landing approval.
-Base at investigation start: origin/master d1a754b942b398333f485e6208514bf3f8724c33 (L29f).
-Timed work planned for 21:00 Brussels or overnight, after rebase onto L29h and both box guards clear.
+Status: **NOT READY. Runtime comparison invalid; no performance gain claimed.**
+Measured sources: master 0fcf54ef9d1c556f4bb7f6f39c02fc41776d4d62 (PH1A),
+candidate 8e5b4b9fef15439a4aa79600074b3d67360ed8ad. Later working commits
+that publish this report change documentation only.
 
-## W3: isolated dusk preparation
+## The booked window and cleanup
 
-The previous prep temporarily armed the live pool and compiled live materials.
-Putting lights back did not put each material's Three currentProgram back. The
-new helper prepares exact zero/eight-pool variants on material twins and a light
-snapshot, retaining their programs until replacement. Neither lights nor live
-material pointers change during preparation. Visible daytime count stays zero.
-Shadow kinds, fogless depth targets, instancing and hidden LOD material variants
-are included. No extra boot precompile is introduced.
+The user moved the single focused measure to 2 Nov 23:50–3 Nov 00:20 Brussels.
+Both guards cleared, and the GPU lock was acquired at 23:51. Only this focused
+master/candidate scenario ran, not the light train or delivery battery. No new
+measurement launched after 00:10. The candidate finished and the lock was
+released by 00:09. At 00:14, no test-profile Chrome or 8775/8776 listener remained,
+and no codex GPU lock remained. The one-time automation was deleted.
 
-Preparation dispatch begins after a rendered frame and uses a 4 ms work budget,
-at most one compileAsync call per frame. KHR polling owns driver completion;
-pool readiness is published only when every promise resolves. A rejected prep
-leaves the previous count intact, rather than marking a failed job ready.
+All runs used exact plain Git exports, fresh profiles, identical saved Rufus/
+graphics settings and profiling OFF. Master parked cook check was (same), build
+b1d38d3d392d. Candidate was built as b0f6f6b54871 and re-cooked on 8775; its check
+then said (same). Afterward, the exported original manifest and all four packed
+files were byte-verified restored. Shared checkout/index/packs were untouched.
 
-**Limit to prove, not waive:** a single Three shader-source generation is
-indivisible and can exceed 4 ms. `__lampWarm.maxSliceMs` records this explicitly.
-There is no claim of a strict 4 ms execution bound, zero first-use driver work,
-or improved all-green share until runtime measurement. No-KHR backends require
-separate assessment. A failed prep keeps its count pending rather than retrying
-an expensive broken compile every frame.
+## Retained observations, not a qualified comparison
 
-## W2: garage loader lifetime candidate
+| Item | Master | Candidate | Interpretation |
+|---|---:|---:|---|
+| Navigation to ready | 141.8 s | 155.1 s | One observation each; candidate +13.3 s is a possible cost to investigate, not a proven regression or gain |
+| CPU mean, including boot | 24.15% | 24.09% | Both <=25%; phase means also <=25% |
+| Raw frame export | `__timeout`, 9 bytes | `__timeout`, 9 bytes | Invalid: no frame metrics may be derived |
+| Diagnostic/GL-wait export | timed out | timed out | No usable program-wait attribution |
+| Dusk end pool | armed, ready=true | armed, ready=null | Candidate isolated-preparation path was not confirmed |
+| Candidate preparation marker | n/a | absent | Reject the scenario as proof of the fix |
+| Camera end-state capture | timed out | timed out | Three-second CDP deadline exceeded; not a measured worst-frame duration |
+| Dusk end AGL | 0 m | 0 m | Airborne fixture did not remain controlled; `over=false` alone was insufficient |
 
-Source evidence: shedPrelink and craftStart's shed compile launch asynchronous
-chains which the boot never joins. They may still compile x-ray/room variants
-after the interactive garage starts. Retain both promises and join them under
-firstFrame before the final x-ray pass. This moves no rendering feature and adds
-no new compile work. Runtime attribution is still required: do not present this
-as a proven explanation of the observed 3–4 s frame.
+**Worst frame, total recorded shader waits, frames >100 ms, all-green window
+share, FPS and garage p99.9: unavailable.** Neither row is a valid performance
+sample. The original scripts wrote complete=true after accepting a timeout
+sentinel; that flag is explicitly overruled by focused-analysis.json and
+INVALID-CAPTURE.txt. Original raw artifacts are preserved, not silently fixed.
+No side is credited with zero freezes or smoothness improvements.
 
-## Validation
+The new post-boot joins remain a source hypothesis. The garage's specific 3–4 s
+frame was not attributed. The camera probes becoming unresponsive on both sides
+are a lead, but do not distinguish shader compilation from other blocking work.
+Fresh-profile/driver-cache and required candidate re-cook differences further
+limit any reading of the single loading-time pair. W4 is not diagnosed.
 
-- DUSKISOLATED: real Three on fake GL proves cached day/night/depth keys, live
-  pointers untouched, deferred one-job dispatch, and error propagation.
-- GARAGEPRELINK: executable boot callback with deferred promises proves the
-  loader waits for both early chains. Syntax checked. No browser/GPU yet.
-- Required runtime: 3+ same-day interleaved master/candidate controls, profiling
-  off, cold night sequence, CPU <=25%, normal daytime light train. Report dusk,
-  cockpit and near worst frame, waits, >100 ms, all-green windows; rollout sum
-  from six taskWorst rows, boot time/compile and garage idle outliers.
-- Record driver/cache metadata and raw ranges. W4 diagnosis only after W3/W2.
-- Run delivery gates against the exact committed export, comparing every red
-  identity with the same-day master. No changed baselines or tolerated new reds.
-- Shared app/premises/shader helper are read by PROGRAMS, LIGHT, CLOUD,
-  FRAMECOST, HOUSEWORKER, ROUNDTRIP and many other gates. None of those owners'
-  gate files or feature implementations was edited. The delivery battery must
-  expose any overlap rather than silently clearing a known red.
+## Harness fault and correction
 
-No packs, generated build outputs, master, or ready branch are to be committed
-or pushed. A0 owns landing.
+I used a three-second CDP capture timeout during exactly the long stalls being
+investigated, then failed to reject its `__timeout` return. This lost the frame
+and wait exports. The corrected local harness removes those short capture races,
+uses the independent hard-stop timer, validates phase objects and frame columns,
+saves garage and dusk snapshots BEFORE risky camera changes, and fails if the
+candidate's dusk marker is absent. It records prep attachment, pose, sim clock
+and boot state. The next controlled shader fixture is deliberately paused at a
+known airborne pose, preventing the autopilot from resetting it; it is explicitly
+not live-flight proof. Capture-validity positive/negative tests and syntax pass.
+**The corrected harness has not had a browser smoke test yet.**
 
-Latest user correction: timed comparison no earlier than 21:00 Brussels, after FINISH-4 completes; both box guards remain mandatory.
+Browser cleanup was also adapted to current master_bench's return API: the
+current helper no longer exposes ch/ws. Cleanup targets only the uniquely named
+test profiles, with process-tree termination, and the final process check was
+empty. No other session's processes or locks were touched.
+
+## Production candidate and remaining blockers
+
+W3 source change owns isolated material twins/light state and retains ready
+programs. It does not restore the fixed eight lights by day or add a boot warm.
+Real Three fake-GL DUSKISOLATED confirms day/night/depth keys, untouched live
+currentProgram pointers, deferred dispatch and error propagation. A 4 ms dispatch
+budget is not a hard bound on indivisible shader source generation; runtime
+maxSliceMs and first-use waits remain unproven. Runtime must confirm the exact
+prep callback is attached and exercised before drawing conclusions.
+
+W2 source change joins the early shed and craft-shed prelinks under firstFrame.
+GARAGEPRELINK executes the boot callback and proves both chains are awaited;
+it does not prove these chains caused the observed garage hitch. Its possible
+boot cost must be controlled before retaining/landing it.
+
+Named blockers:
+- CAPTURE-INVALID: frame and GL-wait exports rejected on both sides.
+- DUSK-PATH-UNCONFIRMED: candidate marker absent.
+- FIXTURE-UNCONTROLLED: aircraft returned to ground during the night interval.
+- REPEATS-MISSING: required 3+ interleaved same-day controls not run.
+- DELIVERY-MISSING: full exact-export delivery gates and visual parity not run.
+
+No new production gate verdict is asserted. Source gates DUSKISOLATED and
+GARAGEPRELINK and app syntax passed on the rebased committed export. The affected
+PROGRAMS/LIGHT/CLOUD/FRAMECOST/HOUSEWORKER/ROUNDTRIP and other source consumers
+still need their owning sessions' delivery review; their gate implementations
+and owned feature work were not edited. No baseline, budget or red was waived.
+
+Next authorized slot: smoke-test the hardened capture first; require valid
+garage+dusk raw files and a confirmed candidate callback before camera probes.
+Then collect the requested repeated same-day controls and loading/gate proof.
+No ready ref or READY report is published; A0 must not land this working branch
+on the basis of this diagnostic. No further timed work is scheduled.
+
+Artifacts:
+C:/Users/denis/.codex/visualizations/2026/10/28/01a1834a-4c11-7490-8807-decc2d02abeb/wave2-followup-20261102/focused-results/
+The focused-analysis.json validator, raw side files and INVALID-CAPTURE.txt
+belong together. The local hardened runtime is source/syntax checked only.
