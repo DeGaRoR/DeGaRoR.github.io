@@ -4490,6 +4490,88 @@ function checkShutter(S) {
   return F;
 }
 
+// ---- G1740 SND-CRASH: THE CRASH'S SOUNDS (the user, 29 Oct: "crashes silent") --------------------------------------
+// THE NUMBERS: audio_params reads the damage layer's counts (the worker's state, else the inline solver's record).
+// THE MODEL: a member broken snaps (+ a crunch), a piece off tears (the snap at full, a = 1), a member bent crunches, a
+// reset (the counts back to 0) and an aeroplane loaded broken say nothing; an impact is nz off its mean by > impG near
+// the ground (a hard landing's 2.5 g alone stays the thump's; with the structure giving, > impGd is an impact); the wreck
+// scrapes while it slides (damaged, low, not on its two mains whole), never parked, never whole on its wheels, never in
+// the water; the material is the build's. THE VOICE: each crash event's energy orders with its severity, finite, under
+// the ceiling; the scrape rises with its level and metal's is brighter than wood's.
+function checkCrash(S, report) {
+  const F = [], AP = loadParams(S.params), M = modelOf(S), W = voiceOf(S), I = AF_I, E = M.AF_EV;
+  // THE NUMBERS
+  { const out = AP.audioParamsBlock(), b = FLOWN[0];
+    const wk = { out: b.sim.out, ctl: b.sim.ctl, eng: b.sim.eng, wheelContacts: () => null, dmgState: () => ({ br: [4, 9], nPc: 2, sS: '3:1' }) };
+    AP.audioParams(wk, { mode: 'chase' }, b.def, out, null, 1 / 60);
+    const J = AP.I, got = [out.s[J.dmgBrk], out.s[J.dmgSet], out.s[J.dmgPc]].join();
+    if (got !== '2,4,1') F.push('the worker\'s damage state read as broken / bent / pieces ' + got + ' (want 2,4,1)');
+    const il = { out: b.sim.out, ctl: b.sim.ctl, eng: b.sim.eng, wheelContacts: () => null, damage: () => ({ breaks: 1, yields: 2, dents: 1, cl: [] }) };
+    const out2 = AP.audioParamsBlock();   // (a fresh block reads on its first frame: the damage is read at AP_CONTACT_HZ)
+    AP.audioParams(il, { mode: 'chase' }, b.def, out2, null, 1 / 60);
+    const g2 = [out2.s[J.dmgBrk], out2.s[J.dmgSet], out2.s[J.dmgPc]].join();
+    if (g2 !== '1,3,0') F.push('the inline solver\'s damage read as ' + g2 + ' (want 1,3,0)'); }
+  // THE MODEL: a sequence of frames [n, {brk, set, pc, nz, Vg, agl, main0, main1, water}] -> the events and the last targets
+  const run = (seq, def) => {
+    const st = M.airframeState(), Q = synthP(def || CUB().def), ev = []; let tg = null;
+    for (const [n, o] of seq) for (let f = 0; f < n; f++) {
+      Q.s[I.dmgBrk] = o.brk || 0; Q.s[I.dmgSet] = o.set || 0; Q.s[I.dmgPc] = o.pc || 0;
+      Q.s[I.nz] = o.nz != null ? o.nz : 1; Q.s[I.Vg] = Q.s[I.V] = o.Vg || 0; Q.s[I.agl] = o.agl != null ? o.agl : 0.8;
+      for (const k of ['main0', 'main1', 'water']) Q.s[I[k]] = o[k] ? 1 : 0;
+      Q.s[I.surf0] = o.main0 ? 0 : -1; Q.s[I.surf1] = o.main1 ? 0 : -1;
+      tg = M.airframeStep(Q, st, 1 / 60);
+      for (let k = 0; k < st.evN[0]; k++) ev.push(Array.from(st.ev.subarray(k * 4, k * 4 + 4)));
+      st.evN[0] = 0;
+    }
+    return { ev, tg: Array.from(tg) };
+  };
+  const of = (r, e) => r.ev.filter(x => x[0] === e);
+  let r = run([[10, { Vg: 20 }], [5, { Vg: 20, brk: 1 }]]);
+  if (of(r, E.SNAP).length !== 1 || of(r, E.SNAP)[0][2] !== 0 || of(r, E.CRUNCH).length !== 1) F.push('a member broken: ' + JSON.stringify(r.ev) + ' (want one snap, a = 0, and one crunch)');
+  r = run([[10, { Vg: 20, brk: 1 }], [5, { Vg: 20, brk: 3, pc: 1 }]]);
+  { const sn = of(r, E.SNAP); if (sn.length !== 1 || sn[0][2] !== 1 || !(sn[0][1] >= 0.99)) F.push('a piece off: ' + JSON.stringify(sn) + ' (want one snap at full, a = 1)'); }
+  r = run([[10, { Vg: 20 }], [5, { Vg: 20, set: 2 }]]);
+  if (of(r, E.CRUNCH).length !== 1 || of(r, E.SNAP).length) F.push('a member bent: ' + JSON.stringify(r.ev) + ' (want one crunch, no snap)');
+  if (run([[10, { Vg: 0, brk: 5, set: 4, pc: 1 }], [10, { Vg: 0 }], [10, { Vg: 0 }]]).ev.length) F.push('an aeroplane loaded broken, then reset whole, made a crash event');
+  r = run([[60, { Vg: 25, main0: 1, main1: 1, agl: 1.2 }], [1, { Vg: 25, main0: 1, main1: 1, agl: 1.2, nz: 6 }], [10, { Vg: 25, main0: 1, main1: 1, agl: 1.2 }]]);
+  if (of(r, E.IMPACT).length !== 1) F.push('a 5 g hit on the ground made ' + of(r, E.IMPACT).length + ' impacts (want 1)');
+  r = run([[60, { Vg: 25, main0: 1, main1: 1, agl: 1.2 }], [1, { Vg: 25, main0: 1, main1: 1, agl: 1.2, nz: 3.5 }], [10, { Vg: 25, main0: 1, main1: 1, agl: 1.2 }]]);
+  if (of(r, E.IMPACT).length) F.push('a hard landing\'s 2.5 g, the structure whole, made an impact (the thump\'s)');
+  r = run([[60, { Vg: 25, main0: 1, main1: 1, agl: 1.2 }], [1, { Vg: 25, main0: 1, main1: 1, agl: 1.2, nz: 3.5, set: 1 }], [10, { Vg: 25, main0: 1, main1: 1, agl: 1.2, set: 1 }]]);
+  if (of(r, E.IMPACT).length !== 1) F.push('2.5 g with a member bent in that frame made ' + of(r, E.IMPACT).length + ' impacts (want 1)');
+  r = run([[60, { Vg: 40, agl: 200 }], [1, { Vg: 40, agl: 200, nz: 7 }]]);
+  if (of(r, E.IMPACT).length) F.push('a 6 g pull at 200 m made an impact (the ground is not near)');
+  // the scrape
+  const T = M.T, scr = o => run([[20, o]]).tg[T.scrape];
+  const sl = scr({ Vg: 15, brk: 2, agl: 0.8 }), park = scr({ Vg: 0, brk: 2, agl: 0.8 }), whole = scr({ Vg: 15, main0: 1, main1: 1, agl: 1.2 }),
+        wet = scr({ Vg: 15, brk: 2, agl: 0.8, water: 1, main0: 1 }), high = scr({ Vg: 15, brk: 2, agl: 30 }), dented = scr({ Vg: 15, set: 1, main0: 1, main1: 1, agl: 1.2 });
+  if (!(sl > 0.5)) F.push('a broken aeroplane sliding at 15 m/s scrapes at ' + sl + ' (want > 0.5)');
+  if (park || whole || wet || high || dented) F.push('a scrape where none is: parked ' + park + ', whole on its wheels ' + whole + ', in the water ' + wet + ', 30 m up ' + high + ', dented rolling on its two mains ' + dented);
+  { const s1 = scr({ Vg: 5, brk: 1, agl: 0.8 }), s2 = scr({ Vg: 18, brk: 1, agl: 0.8 }); if (!(s2 > s1 + 0.2)) F.push('the scrape does not rise with the speed: ' + s1 + ' at 5 m/s, ' + s2 + ' at 18'); }
+  { const mOf = b => run([[3, { Vg: 15, brk: 1 }]], b.def).tg[T.metal];
+    const cub = mOf(CUB()), met = mOf(FLOWN[3]);
+    if (cub !== 0 || met !== 1) F.push('the wreck\'s material: the Cub ' + cub + ', ' + FLOWN[3].name + ' ' + met + ' (want 0, 1)'); }
+  // THE VOICE
+  const enOf = (e, s, a, b) => { const x = renderAt(W, {}, 0.6, [[0.01, e, s, a || 0, b || 0]]); let pk = 0; for (const y of x.ext) { if (!Number.isFinite(y)) return NaN; pk = Math.max(pk, Math.abs(y)); } return [dbOf(rmsOf(x.ext, 0, x.ext.length)), pk]; };
+  const line = [];
+  for (const [e, nm, b] of [[E.IMPACT, 'impact', 0], [E.CRUNCH, 'crunch wood', 0], [E.CRUNCH, 'crunch metal', 1], [E.SNAP, 'snap wood', 0], [E.SNAP, 'snap metal', 1]]) {
+    const lo = enOf(e, 0.2, 0, b), hi = enOf(e, 0.9, 0, b);
+    if (!(hi[0] > lo[0] + 2) || !(hi[1] < 0.99)) F.push('the ' + nm + '\'s energy at severity 0.2 / 0.9: ' + lo[0].toFixed(1) + ' / ' + hi[0].toFixed(1) + ' dB, peak ' + hi[1].toFixed(2) + ' (want +2 dB, under 0.99)');
+    line.push(nm + ' ' + lo[0].toFixed(1) + '/' + hi[0].toFixed(1));
+  }
+  { const sOff = enOf(E.SNAP, 0.6, 0, 0), sTear = enOf(E.SNAP, 0.6, 1, 0); if (!(sTear[0] > sOff[0] + 2)) F.push('a piece off is not louder than a member broken: ' + sTear[0].toFixed(1) + ' vs ' + sOff[0].toFixed(1) + ' dB'); }
+  // a crash beside a touchdown: the impact at full over the hardest touchdown
+  { const td = enOf(E.TD, 1, 0, 0), im = enOf(E.IMPACT, 1, 0, 0); if (!(im[0] > td[0] + 6)) F.push('an impact at full (' + im[0].toFixed(1) + ' dB) is not 6 dB over the hardest touchdown (' + td[0].toFixed(1) + ')'); line.push('touchdown at full ' + td[0].toFixed(1)); }
+  { const a = renderAt(W, { scrape: 0.3, gndS: 0 }, 1.2), b = renderAt(W, { scrape: 1, gndS: 0 }, 1.2), m = renderAt(W, { scrape: 1, metal: 1, gndS: 0 }, 1.2);
+    const ea = rmsOf(a.ext, 12000, a.ext.length), eb = rmsOf(b.ext, 12000, b.ext.length);
+    if (!(dbOf(eb) > dbOf(ea) + 4)) F.push('the scrape at 1 is not 4 dB over 0.3: ' + dbOf(eb).toFixed(1) + ' / ' + dbOf(ea).toFixed(1) + ' dB');
+    const cw = centroid(b.ext, W.sr), cm = centroid(m.ext, W.sr);
+    if (!(cm > cw * 1.3)) F.push('metal\'s scrape (' + Math.round(cm) + ' Hz) is not brighter than wood\'s (' + Math.round(cw) + ' Hz)');
+    line.push('scrape 0.3/1 ' + dbOf(ea).toFixed(1) + '/' + dbOf(eb).toFixed(1) + ' dB, centroid wood ' + Math.round(cw) + ' / metal ' + Math.round(cm) + ' Hz'); }
+  if (report) report.push('the crash (dB rms, severity 0.2/0.9): ' + line.join(' | '));
+  return F;
+}
+
 const CHECKS = { MIX: checkMix,NUMBERS: checkNumbers, CONTACTS: checkContacts, BUDGET: checkBudget, GESTURE: checkGesture,
                  SILENCE: checkSilence, SETTINGS: checkSettings, SOURCES: checkSources, WIRING: checkWiring,
                  MUSIC_CAT: checkMusicCatalogue, MUSIC_CTX: checkMusicContexts, MUSIC_SHUFFLE: checkMusicShuffle,
@@ -4498,7 +4580,7 @@ const CHECKS = { MIX: checkMix,NUMBERS: checkNumbers, CONTACTS: checkContacts, B
                  RADIO_STATIONS: checkRadioStations, RADIO_PICKER: checkRadioPicker,
                  RADIO_TALK: checkRadioTalk, RADIO_BUDGET: checkRadioBudget, RADIO_WIRING: checkRadioWiring, RADIO_CLIPS: checkRadioClips,
                  RADIO_LINT: checkRadioLint, RADIO_HORIZON: checkRadioHorizon, RADIO_WX: checkRadioWx, RADIO_XFADE: checkRadioXfade, VOICE_LICENCE: checkVoiceLicence,
-                 AFMODEL: checkAfModel, AFVOICE: checkAfVoice, AFALLOC: checkAfAlloc, AFFLOWN: checkAfFlown, AFSOURCE: checkAfSource,
+                 AFMODEL: checkAfModel, AFVOICE: checkAfVoice, AFALLOC: checkAfAlloc, AFFLOWN: checkAfFlown, AFSOURCE: checkAfSource, CRASH: checkCrash,
                  SAMPLES: checkSamples, INERT: checkInert,
                  SP_CABIN: checkSpCabin, SP_DOPPLER: checkSpDoppler, SP_ABSORB: checkSpAbsorb, SP_XFADE: checkSpXfade,
                  SP_IR: checkSpIr, SP_GRAPH: checkSpGraph, SP_BUDGET: checkSpBudget, SP_CRAFT: checkSpCraft,
@@ -4561,7 +4643,20 @@ const MUT = [
   ['the Cub gets a horn', 'model', "return { kind: AF_STALL.none, source: (mat || 'unknown')", "return { kind: AF_STALL.reed, source: (mat || 'unknown')", 'AFMODEL'],
   ['the reed without airflow', 'model', 'if (kind === AF_STALL.reed) sw = Math.min(1, Math.max(0, m)) * airflow;', 'if (kind === AF_STALL.reed) sw = Math.min(1, Math.max(0, m));', 'AFMODEL'],
   ['the model allocates a frame', 'model', '    s[SI.first] = 0;\n', '    s[SI.first] = 0; st.lastFrame = [s[SI.t]];\n', 'AFALLOC'],
-  ['the worklet\'s params renamed', 'worklet', "'stallK', 'creak', 'flapM', 'open', 'duck'];", "'stallK', 'creak', 'flapM', 'open', 'duk'];", 'AFVOICE'],
+  ['the worklet\'s params renamed', 'worklet', "'stallK', 'creak', 'flapM', 'open', 'duck',\n                        'scrape', 'metal'];", "'stallK', 'creak', 'flapM', 'open', 'duk',\n                        'scrape', 'metal'];", 'AFVOICE'],   // (G1740: re-anchored on the scrape's two)
+  // G1740 SND-CRASH: each break of the crash's sounds, red on CRASH
+  ['the damage never read', 'params', '      if (D && D.br) {\n        s[I.dmgBrk] = D.br.length;', '      if (D && D.br) {\n        s[I.dmgBrk] = 0;', 'CRASH'],
+  ['the inline damage never read', 'params', "if (G && typeof G.breaks === 'number') { s[I.dmgBrk] = G.breaks;", "if (G && typeof G.breaks === 'number') { s[I.dmgBrk] = 0;", 'CRASH'],
+  ['a break is silent', 'model', 'else if (dB > 0) { s[SI.esev] = Math.min(1, 0.35 + 0.12 * dB); emit(st, AF_EV.SNAP, 0, mt); }', '', 'CRASH'],
+  ['a piece off is a plain break', 'model', 'if (dP > 0) { s[SI.esev] = 1; emit(st, AF_EV.SNAP, 1, mt); }', 'if (dP > 0) { s[SI.esev] = 0.5; emit(st, AF_EV.SNAP, 0, mt); }', 'CRASH'],
+  ['an aeroplane loaded broken crashes', 'model', '    if (!first) {\n      if (dP > 0)', '    if (true) {\n      if (dP > 0)', 'CRASH'],
+  ['a hard landing is an impact', 'model', '(dev > A.impG || (gave && dev > A.impGd))', '(dev > A.impGd)', 'CRASH'],
+  ['the impact far from the ground', 'model', 'if (near && (dev > A.impG', 'if ((dev > A.impG', 'CRASH'],
+  ['a whole aeroplane scrapes on its wheels', 'model', '(!(m0 && m1) || nB > 0)', 'true', 'CRASH'],
+  ['the scrape deaf to the speed', 'model', 'tg[T.scrape] = slide ? Math.pow(Math.min(1, Vg / A.scrapeV), 0.7) : 0;', 'tg[T.scrape] = slide ? 1 : 0;', 'CRASH'],
+  ['the impact deaf to its severity', 'worklet', "} else if (e === AF_E_IMPACT) {   // G1740: the hit - a low boom, the structure's crunch, the ground thrown (b: its row)\n", "} else if (e === AF_E_IMPACT) {   // G1740: the hit - a low boom, the structure's crunch, the ground thrown (b: its row)\n      s = 0.5;\n", 'CRASH'],
+  ['metal scrapes like wood', 'worklet', 'SCR_BAND = [[1100, 0.9, 0.9, 0.5], [2300, 2.5, 2.0, 0.25]]', 'SCR_BAND = [[1100, 0.9, 0.9, 0.5], [1100, 0.9, 0.9, 0.5]]', 'CRASH'],
+  ['the scrape unheard', 'worklet', '    const doScr = scrape > 0 || pScr > 0;', '    const doScr = false;', 'CRASH'],
   ['gravel sounds like scree', 'worklet', '[0.65, 0.20, 3200, 0.8, 28, 3500, 4, 0],', '[0.95, 0.30, 1500, 0.8, 12, 1900, 9, 0],', 'AFVOICE'],
   ['the touchdown deaf to its severity', 'worklet', 'this.voice(VK_LOW, 1, 0.45, k * (0.035 + 0.15 * s), 0.05 + 0.09 * s, 90 + 150 * s, 0, 1, 0, 0.9);\n      this.voice(VK_BAND, 1, 0.3, k * (0.02 + 0.06 * s)', 'this.voice(VK_LOW, 1, 0.45, k * 0.11, 0.1, 160, 0, 1, 0, 0.9);\n      this.voice(VK_BAND, 1, 0.3, k * 0.05', 'AFVOICE'],   // (G1726: re-anchored on the tamed levels)
   ['the horn outside', 'worklet', 'io += dS * STALL_REED * sp *', 'ext += dS * STALL_REED * sp *', 'AFVOICE'],

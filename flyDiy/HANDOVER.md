@@ -309782,3 +309782,32 @@ Timing (light gate, one run): roll-out sum 58.7 s [cub 0.1/13.4, metal 8.6/17.6,
 - **Watch:** L29i's gate (17:15) is the second sample. If it is again over 48.5 s, bisect windows-fittings / new-shapes-1 / belly-pod-2.
 
 Ready refs now landed (for the user's delete list): ready/windows-fittings, ready/new-shapes-1, ready/belly-pod-2, ready/cert-rule (landed rebased in L28b), ready/media-budget, ready/light-studio, a0/finish3, a0/finish3b. NOT landed: ready/avionics-gps.
+
+## G1740 - SND-CRASH: THE CRASH IS HEARD (2026-11-02, Sound Coordinator, for the user via A0 - WORLD-1 "Crash sounds", the user's 29 Oct flight notes: "crashes silent")
+WHAT: the airframe voice (the one that already does the touchdown, the chirp, the splash) gains three one-shots and one layer,
+  all synthesised (no file, no licence), all driven by the DAMAGE LAYER'S OWN COUNTS - nothing new in the solver:
+  - SNAP: a member BROKEN (the count of broken members rises): a crack in wood and tube-and-fabric, a ping and a rip in
+    metal; a PIECE OFF (the pieces past the body rise) is the snap at full with a tear and a thud.
+  - CRUNCH: a member BENT or dented (yields + dents rise; also with each break): metal crumples and rings, wood creaks and thuds.
+  - IMPACT: the hit itself - nz off its own mean by > 4 g near the ground (or > 2 g in a frame the structure gave): a low
+    boom, the structure's crunch, the ground thrown (by the surface row). So a crash with the damage layer OFF is heard too;
+    a hard landing's 2.5 g on a whole aeroplane stays the old thump.
+  - SCRAPE (k-rate 'scrape' 0..1 + 'metal'): the wreck sliding (damaged, under 2 m agl, not on its two mains whole, never in
+    the water), with the speed (full at 20 m/s): grains of grind over a band (wood ~1.1 kHz, metal a ~2.3 kHz screech) and
+    a rumble through the structure. The material is the build's (spec material 'alloy' = metal).
+WHERE: audio_params.js (scalars dmgBrk / dmgSet / dmgPc, appended: the worker's sim.dmgState() - sim_view.js's, kept by
+  the page, sent on change - else the inline solver's sim.damage() counters; read at AP_CONTACT_HZ, the worker's
+  'yields:dents' string parsed only when a new one arrives); airframe_model.js (the CRASH section after the contact
+  events: a RISE of a count is an event, a reset to 0 and an aeroplane loaded broken are silent; AF_EV 6-8, AF_RATE,
+  AF_TUNE impG / impGd / impSpan / scrapeAgl / scrapeV); airframe_worklet.js (the voices; NV 8 -> 12; the scrape layer,
+  allocation-free like the rest); src_airframe.js (EV_KEY / EV_OUT nulls for 6-8: no recording).
+LOUDNESS AND DISTANCE: the events ride the airframe voice, so SND-SPACE spatialises them (distance, doppler, the cabin
+  transfer inside) like the touchdown; an impact at full is >= 6 dB over the hardest touchdown (GATE AUDIO CRASH).
+  The music does not duck under a crash (a follow-up if the user wants it: AUDIO.emit on IMPACT).
+GATE AUDIO CRASH: the reads (worker + inline), the events (break, piece off, bend, impact vs hard landing vs a pull at
+  altitude, no event on a reset or a broken load), the scrape (slides / parked / whole / water / altitude / speed /
+  material), the voice (energy with severity, the tear over a break, the impact over a touchdown, metal brighter); 12
+  mutations. The airframe's existing checks (AFMODEL / AFVOICE / AFALLOC: no allocation) green with it.
+NOT DONE: not heard by a person yet - the levels are first guesses on the touchdown's tamed scale (G1726); a listen on a
+  real crash (the Cub into a tree, the Cessna on its nose) is the next step. A piece's own sound where it lands (the
+  debris) would need the pieces' positions: the sound is the aeroplane's, at its CG.
