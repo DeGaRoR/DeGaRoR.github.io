@@ -1013,6 +1013,12 @@ const GATES = [
   // G2741 STORY-CORE: the tutorial's beats, pure; G2742 STORY-PAGE: + the page half (app.js's story half run headless over
   // the core: a New career at the cabin, the card, an ack, a stop at HOME -> the client's Cub in the hangar; Q1; the occasions)
   { id: 'STORY', file: '_story_check.js', tier: 'core', wall: 20 },
+  // CANDIDATE OFFICIAL (the user, 2 Nov): the staging pool builds/candidates/ - the index and its files (the user's names,
+  // no orphan, no plaque), every candidate through the page's own load door headless (_load_build.js) and buildGen, the
+  // review/ folder not offered (none in the index, each in REVIEW.md; its load chain reported, never red), the garage's
+  // rack group / new-aeroplane cards / EXPORT ALL source rows, the core never naming the pool; `--selftest`: eleven
+  // breaks, each red. ~1 s static, the load chain ~20 s a candidate uncached (tools/.joincache/ after)
+  { id: 'CANDIDATES', file: '_candidates_check.js', argv: ['--selftest'], tier: 'core', wall: 300 },
   // G3240-G3249 NAMES (GAME-PLAN §13, the user 15 Oct: "Everything should have a fictional name"): no real person,
   // organisation or place it lists is shown - the source's string literals (comments skipped), the island record, the
   // built page (index.html + its chunks), the evaluated text tables (GAME_NAMES, the contracts, the plots, the story,
