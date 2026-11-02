@@ -44,7 +44,9 @@ const ONLY = (opt('views', '') || '').split(',').filter(Boolean);
 // the game's default day (light breeze, few cu) - the same <step> folder, so the user sees their own view improve.
 const SCENE = opt('scene', null), STEP = opt('step', 'step0');
 const OUT = path.resolve(opt('out', SCENE ? 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-03/night/refscene/' + STEP : path.join(__dirname, '..', 'reports', 'evidence', 'NIGHT-LOOK')));
-const TWIN_DEF = 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-02/phone/Twin_busher_floats_2.json';
+// the user accepted FLAGSHIP's stabilised _3 (2 Nov ~22:00, A0): it loads as designed with the float-step fix (claude/flagship
+// 621df2b46, _cage_float.js) - on a master without it the floats' station clamps back (named on step 0's frames)
+const TWIN_DEF = 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-02/phone/Twin_busher_floats_3.json';
 const BUILD = opt('build', SCENE === 'ref' ? TWIN_DEF : null), OVER = JSON.parse(opt('over', 'null'));
 const SPAWN = opt('spawn', SCENE === 'ref' ? 'mk_sea' : null);
 const BTAG = BUILD ? '_' + path.basename(BUILD, '.json').replace(/\W+/g, '').slice(0, 24) + (OVER ? '_over' : '') : '';
