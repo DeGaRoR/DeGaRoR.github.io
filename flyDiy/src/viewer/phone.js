@@ -29,7 +29,7 @@
 // - THE SPLIT: --ph-split (the view's share, phone.css) per orientation, .5 by default, remembered (flydiy.phSplit);
 //   #phDiv on the line between view and controls moves it - a ghost line while the thumb moves, the view resized once
 //   on release; a double tap puts it back to half.
-// - THE ROW (phone.css): one control a row, ~44 px, the scale the row's width; the row's - / + moved into the editor.
+// - THE ROW (phone.css): one control a row, ~40 px, the scale the row's width; the row's - / + moved into the editor.
 // - THE VALUE'S EDITOR (#phEdit): a tap on a slider's value or label opens it - the number typed (inputmode decimal),
 //   the unit, - / + (held: they repeat), Done / Enter / a tap outside sets it, Esc leaves it; it rides the keyboard's
 //   top edge (visualViewport). A typed value goes through _cage_ui's own typed field (v_<k>'s change: clamp, then the
@@ -119,13 +119,18 @@
     gain = gain == null ? 1 : gain;
     bubble.firstChild.textContent = text;
     bubble.lastChild.textContent = gainText(gain);
-    bubble.classList.toggle('fine', gain < 0.999);
-    bubble.hidden = false;
-    const w = bubble.offsetWidth || 120, h = bubble.offsetHeight || 54;
-    bubble.style.left = Math.round(Math.max(6, Math.min(W.innerWidth - w - 6, x - w / 2))) + 'px';
-    bubble.style.top = Math.round(Math.max(6, y - h - 44)) + 'px';
+    const fine = gain < 0.999;
+    if (bubble.__fine !== fine) { bubble.__fine = fine; bubble.classList.toggle('fine', fine); }
+    if (bubble.hidden) bubble.hidden = false;
+    // ITS SIZE IS READ ONCE A DRAG (and again only when the text is longer than when it was read): one layout read at
+    // the press, none a frame - the value's digits are tabular, so a same-length text is a same-size bubble
+    const n = text.length + (fine ? 100 : 0);
+    if (!bubble.__wh || n > bubble.__n) { bubble.__n = n; bubble.__wh = [bubble.offsetWidth || 120, bubble.offsetHeight || 54]; }
+    const [w, h] = bubble.__wh;
+    const tx = Math.round(Math.max(6, Math.min(W.innerWidth - w - 6, x - w / 2))), ty = Math.round(Math.max(6, y - h - 44));
+    bubble.style.transform = 'translate3d(' + tx + 'px,' + ty + 'px,0)';
   };
-  const bubbleHide = () => { if (bubble) bubble.hidden = true; };
+  const bubbleHide = () => { if (bubble) { bubble.hidden = true; bubble.__wh = null; } };
 
   // ---- THE FINGER KNOB --------------------------------------------------------------------------------------------
   const ROWS = new Set();   // enhanced rows (each keeps its own parts on __ph)
@@ -148,18 +153,17 @@
     const mu = ph.mu && ph.mu.textContent ? '  ' + ph.mu.textContent : '';
     return t + mu;
   };
+  // THE KNOB IS PLACED BY CSS (G3900; A0 2 Nov: the phone's shed already runs at ~12 fps - the layout adds no layout
+  // reads): phone.css moves the hit area with a transform from the row's --phf (the value's fraction of the scale) over
+  // the row's own width (a container-query unit) - so this WRITES, and only what changed: no box is ever measured here
   function place(row) {
     const ph = row.__ph; if (!ph) return;
-    // (a row parked in the editor's nursery or in a folded section has no box: skipped before anything is measured)
-    if (!row.isConnected || row.offsetParent === null || ph.rng.disabled) { if (!ph.knob.hidden) ph.knob.hidden = true; return; }
-    const rng = ph.rng, w = rng.offsetWidth;
-    if (!w) { ph.knob.hidden = true; return; }
-    ph.knob.hidden = false;
+    const rng = ph.rng, off = !!rng.disabled;
+    if (ph.off !== off) { ph.off = off; row.classList.toggle('phOff', off); }
     const { lo, hi } = rangeOf(rng);
     const f = hi > lo ? Math.max(0, Math.min(1, (num(rng.value, lo) - lo) / (hi - lo))) : 0;
-    const x = rng.offsetLeft + KNOB / 2 + f * (w - KNOB);
-    ph.knob.style.left = Math.round(x - HIT / 2) + 'px';
-    ph.knob.style.top = Math.round(rng.offsetTop + rng.offsetHeight / 2 - HIT / 2) + 'px';
+    const t = f.toFixed(4);
+    if (ph.f !== t) { ph.f = t; row.style.setProperty('--phf', t); }
   }
   function placeAll() { for (const r of ROWS) if (r.isConnected) place(r); }
 
@@ -171,11 +175,13 @@
     if (!drag) return;
     drag.raf = 0;
     const v = drag.pending; drag.pending = null;
-    if (v == null || v === num(drag.rng.value, NaN)) return;
-    drag.rng.value = String(v);
-    drag.rng.dispatchEvent(new Event('input', { bubbles: true }));
-    place(drag.row);
-    bubbleShow(drag.x, drag.y, valueText(drag.row), gainOf(drag));
+    if (v != null && v !== num(drag.rng.value, NaN)) {
+      drag.rng.value = String(v);
+      drag.rng.dispatchEvent(new Event('input', { bubbles: true }));
+      place(drag.row);
+      drag.moveBubble = true;
+    }
+    if (drag.moveBubble) { drag.moveBubble = false; bubbleShow(drag.x, drag.y, valueText(drag.row), gainOf(drag)); }
   }
   const flush = () => { if (drag && drag.pending != null) { if (drag.raf) W.cancelAnimationFrame(drag.raf); tick(); } };
   // the early release hook (profile.js): the last move reaches the slider as a tick, before the editor's release
@@ -232,8 +238,8 @@
     drag.acc = Math.max(lo, Math.min(hi, drag.acc + (e.clientX - drag.xl) / drag.w * drag.span * g));
     drag.xl = drag.x = e.clientX;
     drag.pending = snap(drag.rng, drag.acc);
+    drag.moveBubble = true;   // (the tick moves it: one write a frame, whatever the pointer's rate)
     if (!drag.raf) drag.raf = W.requestAnimationFrame(tick);
-    bubbleShow(drag.x, drag.y, valueText(drag.row), g);
   }
   function knobUp(e) {
     if (!drag || e.pointerId !== drag.id) return;
@@ -427,14 +433,16 @@
       if (!mv || e.pointerId !== mv.id) return;
       if (!mv.moved && Math.hypot(e.clientX - mv.x, e.clientY - mv.y) < 4) return;
       mv.moved = true;
-      const a = at(e), px = Math.round(a.f * a.size) + 'px';
-      gh.hidden = false;
-      if (a.o === 'l') { gh.style.left = px; gh.style.top = '0px'; } else { gh.style.top = px; gh.style.left = '0px'; }
-      mv.f = a.f;
+      const a = at(e);
+      mv.f = a.f; mv.px = Math.round(a.f * a.size); mv.o = a.o;
+      if (!mv.raf) mv.raf = W.requestAnimationFrame(() => { if (!mv) return; mv.raf = 0;
+        if (gh.hidden) gh.hidden = false;
+        gh.style.transform = mv.o === 'l' ? 'translate3d(' + mv.px + 'px,0,0)' : 'translate3d(0,' + mv.px + 'px,0)'; });
     });
     const end = e => {
       if (!mv || (e && e.pointerId !== mv.id)) return;
       const m = mv; mv = null;
+      if (m.raf) W.cancelAnimationFrame(m.raf);
       dv.classList.remove('on'); gh.hidden = true;
       if (m.moved && m.f != null) { lastTap = 0; setSplit(m.f); }
     };
@@ -450,7 +458,6 @@
     enhanceIn(host);
     if (typeof MutationObserver === 'function')
       new MutationObserver(() => { enhanceIn(host); W.requestAnimationFrame(placeAll); }).observe(host, { childList: true, subtree: true });
-    if (typeof ResizeObserver === 'function') new ResizeObserver(() => placeAll()).observe(host);
     host.addEventListener('scroll', () => {}, { passive: true });
   }
   let up = false;

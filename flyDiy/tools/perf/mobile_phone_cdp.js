@@ -237,7 +237,7 @@ async function touchChecks(C) {
   const C = await connect(); R.chrome = C.ver.Browser; log('phone ' + R.device + ' (Android ' + R.android + '), ' + R.chrome + '; battery ' + R.thermalsAtStart.batteryC + ' C');
   const save = () => fs.writeFileSync(OUT, JSON.stringify(R, null, 1));
   // the pre-script: the build in flydiy.wip; a rig flag the page already honours nowhere else is NOT set (the phone is the subject)
-  const wip = fs.readFileSync(path.join(ROOT, BUILDS[BK] || BK), 'utf8');
+  const wip = fs.readFileSync(path.isAbsolute(BUILDS[BK] || BK) ? (BUILDS[BK] || BK) : path.join(ROOT, BUILDS[BK] || BK), 'utf8');
   await C.cmd('Page.addScriptToEvaluateOnNewDocument', { source: 'try { if (!sessionStorage.getItem("mp.wip")) { localStorage.setItem("flydiy.wip", ' + JSON.stringify(wip) + '); sessionStorage.setItem("mp.wip", "1"); } } catch (e) {}' });
   if (flag('cold')) { await C.cmd('Network.enable'); await C.cmd('Network.clearBrowserCache');
     await C.cmd('Storage.clearDataForOrigin', { origin: new URL(URL0).origin, storageTypes: 'all' }); }
