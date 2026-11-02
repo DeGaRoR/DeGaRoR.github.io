@@ -30,9 +30,9 @@
 //   #phDiv on the line between view and controls moves it - a ghost line while the thumb moves, the view resized once
 //   on release; a double tap puts it back to half.
 // - THE ROW (phone.css): one FIXED GRID a control, never a wrap (the user's stills 13:02-13:03: "rubbish overflowing of
-//   sliders and button components") - label | switch | value | unit over the scale. COMPACT by default (~40 px, the scale the
-//   row's width, - / + in the value's editor); with the row's own - / + (40 px, ~58 px a row) on html.ph-pm - ?phsteps=1 or
-//   flydiy.phSteps=1, PHONE_UI.setSteps - while the user picks from the two stills (A0 2 Nov).
+//   sliders and button components") - label | switch | value | unit over the scale. COMPACT a pick (~44 px, the scale the
+//   row's width, - / + in the value's editor); with the row's own - / + (40 px, ~58 px a row) on html.ph-pm - THE DEFAULT since the user's pick (2 Nov 18:20);
+//   the compact row through ?phsteps=0 / flydiy.phSteps=0 / PHONE_UI.setSteps(false).
 // - THE VALUE'S EDITOR (#phEdit): a tap on a slider's value or label opens it - the number typed (inputmode decimal),
 //   the unit, - / + (held: they repeat), Done / Enter / a tap outside sets it, Esc leaves it; it rides the keyboard's
 //   top edge (visualViewport). A typed value goes through _cage_ui's own typed field (v_<k>'s change: clamp, then the
@@ -542,9 +542,10 @@
   }
   // the split before the first layout: the view is its size from the boot on
   applySplit();
-  // the row's own - / + (html.ph-pm), off unless asked for
+  // THE ROW'S OWN - / + (html.ph-pm): THE DEFAULT (the user 2 Nov 18:20, from the two stills: "on the phone layout, I prefer
+  // the alternative +- every row"); the compact row (- / + in the value's editor) stays a pick: ?phsteps=0, flydiy.phSteps=0
   const setSteps = on => { on = !!on; D.documentElement.classList.toggle('ph-pm', on); ls.set('flydiy.phSteps', on ? '1' : '0'); W.requestAnimationFrame(placeAll); return on; };
-  try { const q = new URLSearchParams(W.location.search).get('phsteps'); D.documentElement.classList.toggle('ph-pm', q != null ? q === '1' : ls.get('flydiy.phSteps') === '1'); } catch (e) {}
+  try { const q = new URLSearchParams(W.location.search).get('phsteps'); D.documentElement.classList.toggle('ph-pm', q != null ? q !== '0' : ls.get('flydiy.phSteps') !== '0'); } catch (e) {}
   // the editor opens inside the boot (its 'editor' step); the rail and the tree fill after it
   const poll = setInterval(() => { if (init() && $('edRail') && $('edRail').children.length) { trimRail(); clearInterval(poll); } }, 250);
   W.PHONE_UI = { setTab, tab: () => tab, placeAll, enhance, rows: () => ROWS.size,

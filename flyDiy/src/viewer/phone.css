@@ -117,7 +117,7 @@ html.phone #edRows .r > button { min-height:36px; min-width:36px; }
      line 1   label (one line, ellipsis) ............ | switch | = | value | unit
      line 2   [ - ] [ the scale, all the width left ............................ ] [ + ]
    The columns: 40 px (the - under the label's start) | the label's 1fr | switch | = | value | unit | 40 px (the +).
-   No column gap (an empty column would still cost one): each cell carries its own margin. COMPACT (the default, A0 2 Nov):
+   No column gap (an empty column would still cost one): each cell carries its own margin. COMPACT (a pick since the user chose the row's - / + on 2 Nov 18:20, html.ph-pm the default - phone.js):
    the - / + hidden, the scale across all seven columns; html.ph-pm (the user picks from the stills) shows them. */
 html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider { display:grid; position:relative; height:auto;
   grid-template-columns:var(--ph-step) minmax(0, 1fr) auto auto auto auto var(--ph-step); grid-template-rows:var(--ph-line1) var(--ph-line2);
@@ -153,6 +153,10 @@ html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep 
   border:1px solid var(--ed-btn-bd); touch-action:manipulation; -webkit-user-select:none; user-select:none;
   -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
 html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep:active { background:var(--ed-acc-soft); }
+/* drawn 40 x 32 (line 2), HIT 44 x 44 (A0's PHONE-UI-GUIDELINES; the row's - / + the default since the user's pick 2 Nov 18:20):
+   the box's own pseudo-element reaches 6 px up and down, 2 px each side - as the switch's does */
+html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep { position:relative; }
+html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep::before { content:''; position:absolute; left:-2px; right:-2px; top:-6px; bottom:-6px; }
 /* the value: a chip the thumb taps (the editor types it); never the keyboard in the row */
 html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .v { min-width:64px; height:26px; margin-top:-5px; margin-bottom:-5px;
   padding:0 7px !important; box-sizing:border-box; text-align:right; cursor:pointer; caret-color:transparent;

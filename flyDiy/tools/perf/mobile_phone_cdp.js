@@ -230,10 +230,11 @@ async function touchChecks(C) {
           '   const vb = v.getBoundingClientRect(), rb = row.getBoundingClientRect(), vx = vb.left + vb.width / 2, vin = e => row.contains(e) && !e.closest(".phKnob");' +
           '   out.value = rb.height >= 44 && [[vx - 21, vb.top + vb.height / 2], [vx + 21, vb.top + vb.height / 2], [vx, rb.top + 2], [vx, rb.bottom - 2]].every(([x, y]) => hit(x, y, vin)) ? "ok" : "small";' +
           '   out.knob = around(kb.getBoundingClientRect(), e => e === kb) ? "ok" : "small"; out.rowPx = Math.round(row.getBoundingClientRect().height);' +
-          '   if (cb) out.switch = around(cb.getBoundingClientRect(), e => e === cb) ? "ok" : "small"; out.key = row.dataset.k; }' +
+          '   if (cb) out.switch = around(cb.getBoundingClientRect(), e => e === cb) ? "ok" : "small"; out.key = row.dataset.k;' +
+          '   const pl = row.querySelector(".phPlus"), mi = row.querySelector(".phMinus"); if (pl && pl.offsetParent !== null) { out.plus = around(pl.getBoundingClientRect(), e => e === pl) ? "ok" : "small"; out.minus = around(mi.getBoundingClientRect(), e => e === mi) ? "ok" : "small"; } }' +
           ' const dv = document.getElementById("phDiv"); if (dv) { const b = dv.getBoundingClientRect(); out.divider = (b.height >= 44 || b.width >= 44) && hit(b.left + b.width / 2 + 30, b.top + b.height / 2, e => e === dv) ? "ok" : "small"; out.dividerPx = Math.round(Math.min(b.height, b.width)); }' +
           ' return out; })()');
-        say('hit44', Object.assign({ ok: h.value === 'ok' && h.knob === 'ok' && h.divider === 'ok' && (!h.switch || h.switch === 'ok') }, h));
+        say('hit44', Object.assign({ ok: h.value === 'ok' && h.knob === 'ok' && h.divider === 'ok' && (!h.switch || h.switch === 'ok') && (!h.plus || (h.plus === 'ok' && h.minus === 'ok')) }, h));
       }
       // PRECISION: up 160 px from the scale, then sideways - the gain is 40 / 160
       r = await probe();
