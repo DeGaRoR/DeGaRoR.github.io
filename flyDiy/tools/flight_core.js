@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: 5abc22bd714bce5d
+// body-sha256: a27a746b91f2c86b
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -18325,6 +18325,23 @@ function makeSim(def, world) {
 //   bus.V, bus.amps (net into the battery, + charging), bus.soc, bus.loadA,
 //   bus.altOn (the alternator is carrying the bus), bus.ok (volts enough
 //   for an instrument), bus.starterOk (volts enough to crank)
+//
+// THE BREAKERS AND THE AVIONICS BUS (G2801, AVIONICS-GPS phase 2). A load
+// may name its breaker (`cb`) and ride the avionics bus (`av`); cfg.breakers
+// [{key, A}] are the breaker panel genSystemsResolve lists.
+//   bus.avionics            the avionics master (true/false): an `av` load
+//                           draws nothing with it off
+//   bus.cb[key]             a breaker IN (true, the default) or pulled /
+//                           tripped (false): its loads draw nothing
+//   bus.tripped[key]        set when a breaker opened itself: the sum of its
+//                           loads went over its rating (a pilot's push resets
+//                           it by setting bus.cb[key] true again)
+//   bus.powered(key)        is that load alive now: the bus up, the master
+//                           on, its own switch, its breaker, its bus
+//   bus.alt                 the alternator's switch; with the field breaker
+//                           ('field') out the alternator makes nothing either
+// A load with neither field behaves exactly as before: a bus without
+// breakers is the bus it always was. step() allocates nothing.
 // ============================================================
 const ELEC_V_FULL = 12.7, ELEC_V_LOW = 11.8, ELEC_V_ALT = 14.1;
 const ELEC_MIN_V = 9.0;            // an instrument reads below this and dies
@@ -18336,9 +18353,18 @@ function makeBus(cfg) {
   const altA = Math.max(0, +cfg.altA || 0);
   const cutIn = cfg.altCutIn > 0 ? +cfg.altCutIn : 1100;
   const starterA = cfg.starterA > 0 ? +cfg.starterA : 150;
-  const loads = (cfg.loads || []).map(l => ({ key: l.key, amps: Math.max(0, +l.amps || 0) }));
+  const loads = (cfg.loads || []).map(l => ({ key: l.key, amps: Math.max(0, +l.amps || 0),
+                                              av: !!l.av, cb: l.cb != null ? String(l.cb) : null }));
+  const byKey = {};
+  for (const l of loads) byKey[l.key] = l;
+  const breakers = (cfg.breakers || []).map(b => ({ key: String(b.key), A: Math.max(0, +b.A || 0), sum: 0 }));
+  const cbOf = {};
+  for (const b of breakers) cbOf[b.key] = b;
+  // a load is live when its own switch, its breaker and its bus let it be (the master is the caller's test)
+  const live = l => bus.on[l.key] !== false && (!l.av || bus.avionics) && (l.cb === null || bus.cb[l.cb] !== false);
   const bus = {
     master: battAh > 0 || altA > 0, alt: altA > 0, on: {},
+    avionics: true, cb: {}, tripped: {}, breakers,
     soc: 1, V: 0, amps: 0, loadA: 0, altOn: false, ok: false, starterOk: false,
     battAh, altA, cutIn,
     // the battery's open-circuit voltage from its charge, a straight line
@@ -18346,23 +18372,42 @@ function makeBus(cfg) {
     // the gauge cannot tell)
     vBatt() { return battAh > 0 && bus.soc > 0
       ? ELEC_V_LOW + (ELEC_V_FULL - ELEC_V_LOW) * Math.min(1, Math.max(0, (bus.soc - 0.2) / 0.8)) : 0; },
-    setLoad(key, amps) {
-      const l = loads.find(q => q.key === key);
-      if (l) l.amps = Math.max(0, +amps || 0); else loads.push({ key, amps: Math.max(0, +amps || 0) });
+    setLoad(key, amps, cb) {
+      const l = byKey[key];
+      if (l) { l.amps = Math.max(0, +amps || 0); if (cb !== undefined) l.cb = cb != null ? String(cb) : null; }
+      else { const n = { key, amps: Math.max(0, +amps || 0), av: false, cb: cb != null ? String(cb) : null };
+             loads.push(n); byKey[key] = n; }
     },
-    loads: () => loads.map(l => ({ key: l.key, amps: l.amps, on: bus.on[l.key] !== false })),
+    loads: () => loads.map(l => ({ key: l.key, amps: l.amps, on: bus.on[l.key] !== false, av: l.av, cb: l.cb })),
+    powered(key) {
+      if (!bus.ok || !bus.master) return false;
+      const l = byKey[key];
+      return l ? live(l) : true;
+    },
     step(dt, rpm, cranking) {
       let load = 0;
       if (bus.master) {
-        for (const l of loads) if (bus.on[l.key] !== false) load += l.amps;
+        // each breaker's sum, then any that its loads drove over its rating opens (G2801)
+        for (let i = 0; i < breakers.length; i++) breakers[i].sum = 0;
+        for (let i = 0; i < loads.length; i++) {
+          const l = loads[i];
+          if (!live(l)) continue;
+          if (l.cb !== null) { const b = cbOf[l.cb]; if (b) b.sum += l.amps; }
+        }
+        for (let i = 0; i < breakers.length; i++) {
+          const b = breakers[i];
+          if (b.A > 0 && b.sum > b.A + 1e-9 && bus.cb[b.key] !== false) { bus.cb[b.key] = false; bus.tripped[b.key] = true; }
+        }
+        for (let i = 0; i < loads.length; i++) if (live(loads[i])) load += loads[i].amps;
         if (cranking) load += starterA;
       }
       bus.loadA = load;
-      bus.altOn = !!(bus.master && bus.alt && altA > 0 && rpm >= cutIn);
+      const field = bus.cb.field !== false;        // the alternator's field breaker (G2801)
+      bus.altOn = !!(bus.master && bus.alt && field && altA > 0 && rpm >= cutIn);
       if (!bus.master || battAh <= 0) {
         // no master: nothing flows. A running alternator with no battery
         // (a generator-only aeroplane) still carries its loads
-        bus.altOn = !!(bus.alt && altA > 0 && rpm >= cutIn && battAh <= 0 && bus.master);
+        bus.altOn = !!(bus.alt && field && altA > 0 && rpm >= cutIn && battAh <= 0 && bus.master);
         bus.V = bus.altOn ? ELEC_V_ALT : 0;
         bus.amps = 0;
       } else if (bus.altOn) {
@@ -21645,7 +21690,11 @@ function scarRest(R, p, v, world, t, D) {
   if (t - Q.tc < SCAR.restDt) return;
   Q.tc = t;
   let vm = 0; if (v) for (let i = 0; i < R.n; i++) { const s = v[i * 3] * v[i * 3] + v[i * 3 + 1] * v[i * 3 + 1] + v[i * 3 + 2] * v[i * 3 + 2]; if (s > vm) vm = s; }
-  if (Math.sqrt(vm) > SCAR.vRest && t - Q.t0 < SCAR.restMax) return;
+  if (Math.sqrt(vm) > SCAR.vRest && t - Q.t0 < SCAR.restMax) { Q.calm = 0; return; }
+  // G2810: AT REST ON TWO READS IN A ROW. One read is an instant: a loose part bouncing or rolling reads near zero at
+  // the bottom of a bounce - the user's Cub 2.5 m out (DMGSCAR 2H) sealed at 7.33 s with a lone node still at ~1.2 m/s,
+  // which came to lie 0.84 m out of its hull (the margin 0.76). The hulls are the page's only (the solver never reads them)
+  if (t - Q.t0 < SCAR.restMax && (Q.calm = (Q.calm || 0) + 1) < 2) return;
   R.rest = null;
   const H = scarHulls(R, p, world, D), old = R.out.prims, oldH = old.filter(x => x.k === 'h');
   if (!H.length || (oldH.length && H.every(h => { for (let j = 0; j < h.p.length; j += 2) if (!scarIn(oldH, h.p[j], h.p[j + 1], false)) return false; return true; }))) return;
@@ -21757,7 +21806,10 @@ function scarBox(prims, sweep) {
   for (const c of prims) {
     if (c.k === 'c') { x0 = Math.min(x0, c.x - c.r); x1 = Math.max(x1, c.x + c.r); z0 = Math.min(z0, c.z - c.r); z1 = Math.max(z1, c.z + c.r); continue; }
     if (c.k === 's' && !sweep) continue;
-    for (let j = 0; j < c.p.length; j += 2) { const h = c.k === 'h' ? c.m : (c.ws ? c.ws[j / 2] : c.w) / 2; x0 = Math.min(x0, c.p[j] - h); x1 = Math.max(x1, c.p[j] + h); z0 = Math.min(z0, c.p[j + 1] - h); z1 = Math.max(z1, c.p[j + 1] + h); }
+    // (G2810: a sweep's point at the widest of its legs' widths - scarSweepIn takes each leg at its wider end, so a point's
+    // own width under-boxed a narrow end next to a wide one: the Cub's 2.5 m-out sweep, 4.21 -> 10.62 m, kept a shrub)
+    const wS = (j2) => c.k === 's' && c.ws && c.p.length > 2 ? Math.max(c.ws[j2], j2 > 0 ? c.ws[j2 - 1] : 0, j2 + 1 < c.ws.length ? c.ws[j2 + 1] : 0) : null;
+    for (let j = 0; j < c.p.length; j += 2) { const h = c.k === 'h' ? c.m : (wS(j / 2) ?? (c.ws ? c.ws[j / 2] : c.w)) / 2; x0 = Math.min(x0, c.p[j] - h); x1 = Math.max(x1, c.p[j] + h); z0 = Math.min(z0, c.p[j + 1] - h); z1 = Math.max(z1, c.p[j + 1] + h); }
   }
   return x0 <= x1 ? [x0, z0, x1, z1] : null;
 }
@@ -31149,7 +31201,9 @@ const GEN_ACCESS = {
     // build in the battery.
     at: () => ({ sL: -0.35, lv: 'crown' }),
     snap: 'bay', side: 'centre',
-    form: 'capProud', size: { d: 0.075, h: 0.014 },
+    // G2808 (E8): with a fuel sight gauge fitted, its wire stands up through the cap (_fit_gen.js capSight)
+    form: R => (Array.isArray(R.items) && R.items.includes('fuelSight')) ? 'capSight' : 'capProud',
+    size: { d: 0.075, h: 0.014, wire: 0.11 },
   },
   fuelCapWing: {
     name: 'Wing filler cap',
@@ -31313,7 +31367,9 @@ const GEN_ACCESS = {
   staticPort: {
     name: 'Static port',
     serves: 'the altimeter, the ASI and the VSI',
-    need: R => R.systems === 'minimal' ? 0 : 2,
+    // G2808: wherever an instrument reads the static line (the items as fitted), else the tier's answer
+    need: R => Array.isArray(R.items) ? (R.items.some(k => k === 'asi' || k === 'alt' || k === 'vsi') ? 2 : 0)
+                                      : (R.systems === 'minimal' ? 0 : 2),
     // aft of the cabin, on the flank at waist height: the flattest and least
     // disturbed piece of skin an aeroplane has
     at: R => ({ sL: R.cabinAft + 0.30, lv: 1.85 }),
@@ -31324,7 +31380,10 @@ const GEN_ACCESS = {
     name: 'Venturi',
     serves: 'the vacuum for the turn indicator, on an aeroplane with no'
           + ' engine-driven pump',
-    need: R => (R.systems === 'basic' && (R.material === 'tubeFabric' || R.material === 'aluTube')) ? 1 : 0,
+    // G2808 (E5): drawn where the fit's suction IS a venturi (billed on the build: systems.elec.vac), on any
+    // airframe - it followed the tier's NAME and the tube airframes, so a custom fit with one drew none
+    need: R => (R.vac !== undefined ? R.vac === 'venturi'
+                : (R.systems === 'basic' && (R.material === 'tubeFabric' || R.material === 'aluTube'))) ? 1 : 0,
     at: () => ({ sL: 0.34, lv: 1.45 }),
     snap: 'ring', side: 'port',
     form: 'venturi', size: { d: 0.058, len: 0.190, stand: 0.070 },
@@ -31415,7 +31474,9 @@ const GEN_ACCESS = {
     // an aeroplane with no fin to carry one (a V-tail), and the rod boom
     // keeps its clamped one (G189, GATE FIT's row); the crown placer now
     // refuses the fin's footprint as well, for every crown row.
-    need: R => R.systems === 'minimal' ? 0 : R.booms ? 0 : R.rod ? 1 : R.fin ? 0 : 1,
+    // G2809 (E9): only where a beacon IS fitted - the lights on, the beacon among them and a battery behind it
+    // (R.beaconLamp; unknown on a spec with no drawing: the rule as before) - and billed and loaded as that lamp
+    need: R => R.beaconLamp === false ? 0 : R.systems === 'minimal' ? 0 : R.booms ? 0 : R.rod ? 1 : R.fin ? 0 : 1,
     // 'free', not 'ring'. A beacon is a small light on its own doubler and
     // does not bolt through a frame, and snapping it to one put it on the
     // same station as the comm aerial — two fittings in one place, which
@@ -31547,6 +31608,11 @@ function genAccessNeeds(S) {
     avionics:  (() => { const r = genSystemsResolve(S);
                         return { com: r.avionics.com !== 'none', nav: r.avionics.nav !== 'none',
                                  xpdr: r.avionics.xpdr !== 'none' }; })(),
+    // G2808: the fitted dials and the suction, as the core resolves them (the static port, the venturi, the sight)
+    items:     genSystemsResolve(S).items,
+    vac:       genSystemsResolve(S).vac,
+    // G2809: a beacon fitted as a lamp (the census the join wrote; none known on a spec with no drawing)
+    beaconLamp: (S.systems && S.systems.lights && typeof S.systems.lights === 'object') ? +S.systems.lights.beacon > 0 : undefined,
     material:  f.material || 'tubeFabric',
     cargo:     (S.cargo && S.cargo.len) || 0,
     engine:    !!((S.engines && S.engines.length) || S.engine),
@@ -31620,6 +31686,12 @@ function genAccessNeedsCage(P, extra) {
       const T = GEN_SYSTEMS[E.systems] || GEN_SYSTEMS.basic;
       return { com: T.avionics.com !== 'none', nav: T.avionics.nav !== 'none',
                xpdr: T.avionics.xpdr !== 'none' }; })(),
+    // G2808: the fitted dials and the suction (the editor hands the resolved ones over; a bench takes the tier's)
+    items:     Array.isArray(E.items) ? E.items : genSystemsResolve({ systems: { fit: E.systems || 'basic' } }).items,
+    vac:       E.vac !== undefined ? E.vac : genSystemsResolve({ systems: { fit: E.systems || 'basic' } }).vac,
+    // G2809: the beacon fitted as a lamp - the editor's answer (lights, beacon, battery), else the cage's own rows
+    beaconLamp: E.beaconLamp !== undefined ? !!E.beaconLamp
+      : !!(+(P.lightOn == null ? 0 : P.lightOn) && (P.li_beaconFit == null || +P.li_beaconFit)),
     material:  E.material || 'tubeFabric',
     cargo:     E.cargo || 0,
     engine:    !!(P.engOn == null ? 1 : +P.engOn),
@@ -31993,6 +32065,36 @@ const GEN_SEATS = {
   standard: { name: 'Upholstered',        kg: 11.0, price: 900 },
   energy:   { name: 'Energy-absorbing',   kg: 15.0, price: 2600 },
 };
+// THE CABIN'S TRIM, CHOSEN (G2806, AVIONICS-GPS phase 2; the user, 11 Oct: "cabin furnishing (seats, panel, trim)
+// accounted accurately", a row of its own). The lining - side panels, floor covering, headliner, soundproofing, the
+// heater's ducting - as a fraction of Raymer's GA furnishings law on the design gross (GEN_OUTFIT.furnK's law). Until
+// now the fraction was the INSTRUMENT TIER's (a minimal panel bought a bare cabin, an IFR panel a lined one, whatever
+// was drawn: AVIONICS-STATUS §1A's hidden coupling). `spec.outfit.trim` chooses it; ABSENT (every save before this
+// row), it is the tier's, exactly as before - so a save that never touches the row bills what it did, byte for byte.
+//   k  the fraction of Raymer's furnishings (0.0582 W0 - 29.5 kg); priced at the outfit's 60 cr a kilo
+// G2809: ON A DRAWN CABIN (spec.outfit.drawn - every build the editor measured) THE TRIM IS THE FINISH OF THE DRAWN
+// SURFACES: `pad` kg/m2 on the sill shoulders, the door panels and the console, `cover` kg/m2 over the floor board;
+// unset is 'light'. `k` (Raymer's fraction) is the rule only for a spec with no drawing (a fiche, an archetype).
+const GEN_TRIM = {
+  bare:  { name: 'Bare',            k: 0,    pad: 0.6, cover: 0.3, note: 'painted panels and a rubber floor mat: a J-3' },
+  light: { name: 'Light trim',      k: 0.25, pad: 1.2, cover: 0.6, note: 'thin pads and a floor mat: a Champ or a Jodel' },
+  lined: { name: 'Lined',           k: 0.5,  pad: 2.0, cover: 0.9, note: 'upholstered panels and carpet: a basic trainer' },
+  full:  { name: 'Lined and quiet', k: 1.0,  pad: 3.0, cover: 1.5, note: 'upholstered and soundproofed behind, thick carpet: a 172 as delivered' },
+};
+// a drawn cabin's measured surfaces (m2), or null for a spec with no drawing
+function genDrawnCabin(S) {
+  const d = S && S.outfit && S.outfit.drawn;
+  return (d && typeof d === 'object') ? d : null;
+}
+// THE LINING'S FRACTION: the chosen trim's, else the instrument tier's (the rule every save before G2806 bills by).
+// The ONE reader for the frame's furnishing and the design gross's fixed point (61_gen_frame), so the two agree.
+// G2809: 0 on a drawn cabin - its lining is billed from the drawn surfaces (a fixed mass in both passes).
+function genFurnK(S) {
+  if (genDrawnCabin(S)) return 0;
+  const t = S && S.outfit && S.outfit.trim;
+  if (t != null && GEN_TRIM[t]) return GEN_TRIM[t].k;
+  return GEN_OUTFIT.furnK[genSystemsResolve(S).tier] || 0;
+}
 
 // AREAL DENSITIES for the sheet items, kg/m2 of surface.
 //   panel   an alloy instrument board with its mounts and coaming ribs
@@ -32033,6 +32135,19 @@ const GEN_OUTFIT = {
   // the design gross the first pass solved (it is part of that fixed point).
   furnK: { minimal: 0, basic: 0.5, ifr: 1.0, custom: 0.5 },
   furnKgPerKg: 0.0582, furnKgOffset: 29.5,
+  // THE DRAWN FURNISHING (G2809, the user of 25 Oct: "Wysiwyg, and as billed for all"). When the editor measured
+  // the cabin it drew (spec.outfit.drawn, m2), the panel board and the lining are billed from THOSE surfaces and
+  // the two estimates above step aside (the cab.panel board, the Raymer lump - which stays the cross-check):
+  //   board  the instrument facia, panelKgM2 (an alloy board with its mounts)
+  //   dash   the moulded dash shell round it, the coaming and the glareshield: dashShellKgM2
+  //   shoulder / door / console   the sill shoulders, the door panels, the console box: the trim's pad density
+  //   floor  the floor board (ply, floorPlyKgM2) under the trim's covering
+  dashShellKgM2: 2.4,
+  floorPlyKgM2: 2.5,
+  // CONTROLS AS DRAWN (G2809): each station the crew draws past the first is a second set (ctlDualKg), and a
+  // station's column over a plain stick weighs this much more (a yoke's column, tube and wheel; a side stick's
+  // gimbal box)
+  ctlStationKg: { stick: 0, yoke: 1.5, side: 0.4, none: 0 },
 };
 
 // THE GAUGE LAW (PERF STUDY chantier 1, 2026-09-15). Per structural class,
@@ -32157,7 +32272,8 @@ const GEN_INSTR = {
              power: 'elec', amps: 0.02 },
   clock:   { name: '8-day clock',          d: 0.0572, kg: 0.25, price: 240,
              power: 'none', note: 'mechanical; a digital one is ~150' },
-  hobbs:   { name: 'hour meter',           d: 0,      kg: 0.10, price: 110,
+  // (G2808: drawn - a 2-1/4 in counter on the panel; it was faceless, billed and powered and never seen)
+  hobbs:   { name: 'hour meter',           d: 0.0572, kg: 0.10, price: 110,
              power: 'elec', amps: 0.02 },
   compass: { name: 'magnetic compass',     d: 0.0700, kg: 0.30, price: 300,
              power: 'none', coaming: true, note: 'Airpath C2300 class' },
@@ -32197,6 +32313,59 @@ const GEN_ELEC = {
   // the harness: master + breakers + the wire, once, plus a little per item
   harness: { kg: 1.2, kgPerItem: 0.15, price: 250 },
 };
+// THE ELECTRICS AS INSTALLED PARTS (G2801, AVIONICS-GPS phase 2; futureDesigns/AVIONICS-STATUS-2026-10.md §1B, §1G).
+// The rows above BILL; this table says what each billed thing IS once it is bolted in: its size, and where it hangs.
+// It moves no mass and no price: the parts genSystemsResolve lists are the bill's own rows broken out (the harness
+// row split into the bus - the master contactor, the bus bar and the breaker panel - and the wire), each `at` the
+// frame station 61_gen_frame bills it on (`firewallLow` the firewall ring's lower pair, `engine` the accessory case
+// = the engine pair, `panel` the firewall ring's top pair, where the dash hangs). The engine bay draws the battery,
+// the generator and the starter from these (no longer from its own rows); the dash draws the breakers.
+//   dims  a box, m (length x width x height, the battery's case); len / dia a can (the rotating machines)
+const GEN_ELEC_PARTS = {
+  battery: {
+    lead:    { dims: [0.178, 0.079, 0.168], note: 'Odyssey PC680: 178 x 79 x 168 mm' },
+    lithium: { dims: [0.150, 0.086, 0.132], note: 'EarthX ETX900: 150 x 86 x 132 mm' },
+  },
+  alternator: {
+    gen20: { len: 0.21, dia: 0.11, note: 'a belt generator on the case top' },
+    alt60: { len: 0.16, dia: 0.13, note: 'Plane-Power class, gear-driven on the accessory pad' },
+  },
+  starter: { yes: { len: 0.19, dia: 0.09, note: 'Sky-Tec class, on the ring gear' } },
+  // the bus: the master contactor and the bus bar (`kg`), plus a breaker each (`perBreaker`) - the share of the
+  // harness row that is not wire. The wire is the rest of the row, so the two always add up to it exactly.
+  bus: { kg: 0.45, perBreaker: 0.03 },
+  // a breaker's rating: the next standard push-to-reset size over 1.4 x what it feeds (a Klixon 7274's sizes);
+  // the alternator's field breaker is 5 A whatever the alternator
+  breakerSizes: [1, 2, 3, 5, 7.5, 10, 15, 20, 25, 30, 35],
+  breakerMargin: 1.4, fieldA: 5,
+};
+// THE LAMPS' DRAWS (A at 12 V) - cockpit.js's LIGHT_AMPS moved into the core (E6): the bus, the breaker sizes and
+// GATE ELEC read one table. The beacon draws half its rating on average (the lamp is pulsed).
+const GEN_LIGHT_AMPS = { taxi: 5, beacon: 3, land: 8, nav: 2.5, flood: 0.5, instr: 0.6, pedal: 0.3, pax: 0.5 };
+// the interior lamps share one breaker ('cabinLt'); each outside light has its own (named apart from the radios':
+// the NAV receiver's breaker is 'nav', the navigation lights' 'navLt')
+const GEN_LIGHT_BREAKER = { taxi: 'taxiLt', beacon: 'beaconLt', land: 'landLt', nav: 'navLt',
+                            flood: 'cabinLt', instr: 'cabinLt', pedal: 'cabinLt', pax: 'cabinLt' };
+// THE LAMPS AS PARTS (G2809, AVIONICS-STATUS M5 / E1 / E2; the user, 25 Oct: "Wysiwyg, and as billed for all"): a
+// fitting's mass and price PER LAMP DRAWN - the light layer's census (spec.systems.lights {key: lamps}, the join
+// writes it from what the layer drew). A lamp on a build with no battery is not drawn and not billed; a key with no
+// lamp drawn (the passenger light with no passenger seat) puts no load on the bus.
+//   nav      one tip or tail light (a set is three)        instr  the posts on the bezels and their rheostat
+const GEN_LIGHT_PARTS = {
+  nav:    { name: 'navigation light',   kg: 0.20, price: 140 },
+  beacon: { name: 'beacon',             kg: 0.45, price: 380 },
+  land:   { name: 'landing light',      kg: 0.40, price: 240 },
+  taxi:   { name: 'taxi light',         kg: 0.40, price: 200 },
+  flood:  { name: 'cabin flood',        kg: 0.08, price: 45 },
+  instr:  { name: 'instrument posts',   kg: 0.10, price: 90 },
+  pedal:  { name: 'pedal light',        kg: 0.08, price: 45 },
+  pax:    { name: 'passenger light',    kg: 0.08, price: 45 },
+};
+function genBreakerSize(amps) {
+  const P = GEN_ELEC_PARTS, need = Math.max(1, (+amps || 0) * P.breakerMargin);
+  for (const s of P.breakerSizes) if (s >= need - 1e-9) return s;
+  return P.breakerSizes[P.breakerSizes.length - 1];
+}
 // THE AVIONICS. The radios need a bus; the aerials that carry them are
 // GEN_ACCESS rows (comm / nav / transponder) and read this through
 // genAccessNeeds. `later` rows are declared so the ledger's schema is final
@@ -32218,14 +32387,26 @@ const GEN_AVIONICS = {
     vor:  { name: 'VOR receiver + CDI',   kg: 1.6, price: 2200, amps: 0.5, later: true,
             note: 'a second-hand KX 155 + KI 208; navaids are a world item' },
   },
+  // G2803 (AVIONICS-GPS phase 2): the GPS is DRAWN now - a unit on the panel's plate whose screen is the moving map
+  // (src/viewer/gps_face.js) - so its rows lose `later` and carry their FACE: the unit's front (w x h) and the
+  // screen in it (sw x sh), m, from the makers' drawings. Mass, price and draw are unchanged. The portable is drawn
+  // in a panel cradle (the plate is where the layout has room; a yoke mount is the crew layer's, not this one's).
   gps: {
     none:     { name: 'no GPS',             kg: 0,   price: 0,    amps: 0 },
-    portable: { name: 'portable GPS',       kg: 0.7, price: 900,  amps: 0.5, later: true,
-                note: 'aera 660 class on a yoke mount' },
-    panel:    { name: 'panel GPS navigator', kg: 1.5, price: 4500, amps: 1.0, later: true,
-                note: 'GPS 175 class' },
-    glass:    { name: 'glass PFD/MFD',       kg: 3.5, price: 6500, amps: 2.5, later: true,
-                note: 'G3X Touch / HDX class with ADAHRS and magnetometer' },
+    // G2812 (the user, 27 Oct: "fix the bezel so the screen fills it ... a few generic buttons straight on the GPS"):
+    // the face is the unit's housing ROUND its screen - a frame, a band of four softkeys (`keys`: under the screen, or a
+    // column on its left for a slim navigator) and, where the face leaves the room, the dual knob on the pilot's right.
+    // The glass unit's was 198 x 159 mm round a 155 x 93 screen, drawn on its side (159 wide): half of it blank housing.
+    // `knob`: the unit has the dual knob (a portable has none: its screen is centred)
+    portable: { name: 'portable GPS',       kg: 0.7, price: 900,  amps: 0.5,
+                face: { w: 0.135, h: 0.087, sw: 0.111, sh: 0.067, keys: 'below' },
+                note: 'aera 660 class (135 x 87 mm, a 5 in 800 x 480 screen) in a panel cradle' },
+    panel:    { name: 'panel GPS navigator', kg: 1.5, price: 4500, amps: 1.0,
+                face: { w: 0.159, h: 0.051, sw: 0.112, sh: 0.040, keys: 'left', knob: true },
+                note: 'GPS 175 class (6.25 x 2 in, a 4.8 in screen)' },
+    glass:    { name: 'glass PFD/MFD',       kg: 3.5, price: 6500, amps: 2.5,
+                face: { w: 0.193, h: 0.115, sw: 0.155, sh: 0.093, keys: 'below', knob: true },
+                note: 'G3X Touch / HDX class with ADAHRS and magnetometer (a 7 in screen, 193 x 115 mm with its softkeys and dual knob); drawn as its map page' },
   },
 };
 // THE TIERS: what each fit buys. Day VFR is what an engine and an airframe
@@ -32262,7 +32443,14 @@ const GEN_SYSTEMS_SIDES = ['pilot', 'centre'];
 //   (keys), dropped[] ({key, why}), rows[] ({key, group, name, kg, price,
 //   amps}), bill.panel/elec/avionics {kg, price}, kg, price, loads[] ({key,
 //   amps}), hasBus, battAh, altA, starter (bool), vac (key)
-function genSystemsResolve(S) {
+// G2801 (AVIONICS-GPS phase 2) adds, moving nothing in the bill:
+//   loads[].av      the radios ride the AVIONICS bus, behind the avionics master
+//   loads[].cb      the breaker that feeds the load
+//   breakers[]      {key, A, feeds[], group} - one per powered dial and radio, the alternator's field, and (with
+//                   opts.lights, the light keys the build has FITTED) one per outside light and one for the cabin's
+//   parts[]         {key, kind, name, kg, at, dims | len/dia} - the electrics as installed things (GEN_ELEC_PARTS);
+//                   the bus and the wire split the harness row and add up to it exactly
+function genSystemsResolve(S, opts) {
   const sy = (S && S.systems) || {};
   const tier = GEN_SYSTEMS[sy.fit] ? sy.fit : 'basic';
   const T = GEN_SYSTEMS[tier];
@@ -32286,6 +32474,11 @@ function genSystemsResolve(S) {
   const seen = new Set(), items = [], dropped = [];
   const hasBus = elec.battery !== 'none';
   const vacOn = elec.vac !== 'none';
+  // NO ROOM ON THE DASH (G2808, the user: "Wysiwyg, and as billed for all"): what the panel's layout could not place
+  // (a dial, a radio head, the GPS, a breaker - the join writes `noRoom` from the layout the dash was drawn with) is
+  // not drawn, so it is not carried: off the bill, off the bus. The panel layer lays out from its own state, which
+  // never holds this list, so a dial dropped here is offered the dash again on every build.
+  const noRoom = new Set(Array.isArray(sy.noRoom) ? sy.noRoom.filter(k => typeof k === 'string') : []);
   for (const k of src) {
     const r = rowOf(k);
     if (!r || seen.has(k)) continue;
@@ -32296,10 +32489,15 @@ function genSystemsResolve(S) {
     if (battery && !custom && (k === 'oilP' || k === 'oilT')) { dropped.push({ key: k, why: 'no oil (electric)' }); continue; }
     if (r.power === 'elec' && !hasBus) { dropped.push({ key: k, why: 'no battery' }); continue; }
     if (r.power === 'vac' && !vacOn) { dropped.push({ key: k, why: 'no suction' }); continue; }
+    if (noRoom.has(k)) { dropped.push({ key: k, why: 'no room on the dash' }); continue; }
     items.push(k);
   }
+  // G2809 (E10): a generator or a starter with no battery has nothing to charge and nothing to crank from - not fitted
+  for (const k of ['alternator', 'starter'])
+    if (!hasBus && elec[k] !== 'none') { dropped.push({ key: k, why: 'no battery' }); elec[k] = 'none'; }
   for (const k of ['com', 'xpdr', 'nav', 'gps'])
     if (avionics[k] !== 'none' && !hasBus) { dropped.push({ key: k, why: 'no battery' }); avionics[k] = 'none'; }
+    else if (avionics[k] !== 'none' && noRoom.has(k)) { dropped.push({ key: k, why: 'no room on the dash' }); avionics[k] = 'none'; }
   // the bill, row by row
   const rows = [], loads = [];
   const nTanks = Math.max(1, ((S && S.energy && S.energy.vessels) || []).length || 1);
@@ -32320,13 +32518,71 @@ function genSystemsResolve(S) {
     const r = GEN_AVIONICS[k][avionics[k]];
     if (r.kg > 0 || r.price > 0) {
       rows.push({ key: k + ':' + avionics[k], group: 'avionics', name: r.name, kg: r.kg, price: r.price, amps: r.amps || 0 });
-      nPowered++; loads.push({ key: k, amps: r.amps || 0 });
+      nPowered++; loads.push({ key: k, amps: r.amps || 0, av: true });
     }
+  }
+  // THE LAMPS DRAWN (G2809): each key's lamps billed per lamp, its load on the bus; with no battery none is drawn
+  // (the light layer asks hasBus) and any the census still names is dropped
+  const census = (sy.lights && typeof sy.lights === 'object') ? sy.lights : null;
+  const lampKeys = [];
+  if (census) for (const k of Object.keys(GEN_LIGHT_PARTS)) {
+    const n = Math.max(0, Math.round(+census[k] || 0));
+    if (!n) continue;
+    if (!hasBus) { dropped.push({ key: 'light:' + k, why: 'no battery' }); continue; }
+    const r = GEN_LIGHT_PARTS[k];
+    rows.push({ key: 'light:' + k, group: 'elec', name: r.name + (n > 1 ? ' x ' + n : ''), kg: +(r.kg * n).toFixed(3),
+                price: r.price * n, amps: GEN_LIGHT_AMPS[k] || 0, lamps: n });
+    lampKeys.push(k);
+    nPowered++;
   }
   if (hasBus) {
     const H = GEN_ELEC.harness;
     rows.push({ key: 'harness', group: 'elec', name: 'master, breakers and harness',
                 kg: +(H.kg + H.kgPerItem * nPowered).toFixed(3), price: H.price, amps: 0 });
+  }
+  // THE BREAKERS (G2801): a load is fed through its own, the radios' through theirs on the avionics bus
+  const breakers = [];
+  if (hasBus) {
+    // (a breaker the dash had no room for is not fitted: its load is fed straight off the bus, G2808)
+    for (const l of loads) {
+      if (noRoom.has('breaker:' + l.key)) continue;
+      l.cb = l.key;
+      breakers.push({ key: l.key, A: genBreakerSize(l.amps), feeds: [l.key], group: l.av ? 'avionics' : 'panel' });
+    }
+    if (elec.alternator !== 'none' && !noRoom.has('breaker:field'))
+      breakers.push({ key: 'field', A: GEN_ELEC_PARTS.fieldA, feeds: ['alternator'], group: 'elec' });
+    const lit = (opts && Array.isArray(opts.lights)) ? opts.lights : census ? lampKeys : [];
+    const lb = {};
+    for (const k of Object.keys(GEN_LIGHT_AMPS)) {
+      if (!lit.includes(k)) continue;
+      const b = GEN_LIGHT_BREAKER[k];
+      if (noRoom.has('breaker:' + b)) continue;
+      if (!lb[b]) { lb[b] = { key: b, A: 0, feeds: [], group: 'lights', amps: 0 }; breakers.push(lb[b]); }
+      lb[b].feeds.push(k); lb[b].amps += GEN_LIGHT_AMPS[k] * (k === 'beacon' ? 0.5 : 1);
+    }
+    for (const b of Object.values(lb)) { b.A = genBreakerSize(b.amps); delete b.amps; }
+  }
+  // THE PARTS (G2801): the electrics rows as installed things, each where the frame bills it
+  const parts = [];
+  {
+    const PT = GEN_ELEC_PARTS;
+    const put = (k, at) => {
+      const v = elec[k], r = GEN_ELEC[k][v], g = PT[k] && PT[k][v];
+      if (!(r && r.kg > 0)) return;
+      parts.push(Object.assign({ key: k, kind: v, name: r.name, kg: r.kg, at }, g ? cleanPart(g) : {}));
+    };
+    const cleanPart = g => { const o = {}; for (const q of ['dims', 'len', 'dia']) if (g[q] != null) o[q] = g[q]; return o; };
+    put('battery', 'firewallLow');
+    put('alternator', 'engine');
+    put('starter', 'engine');
+    put('vac', 'engine');
+    const hr = rows.find(r => r.key === 'harness');
+    if (hr) {
+      const busKg = +Math.min(hr.kg, PT.bus.kg + PT.bus.perBreaker * breakers.length).toFixed(3);
+      parts.push({ key: 'bus', kind: 'bus', name: 'master contactor, bus bar and ' + breakers.length + ' breakers',
+                   kg: busKg, at: 'panel', breakers: breakers.length });
+      parts.push({ key: 'wire', kind: 'wire', name: 'the wire', kg: hr.kg - busKg, at: 'panel' });
+    }
   }
   const sum = g => rows.filter(r => r.group === g)
     .reduce((a, r) => ({ kg: a.kg + r.kg, price: a.price + r.price }), { kg: 0, price: 0 });
@@ -32337,7 +32593,9 @@ function genSystemsResolve(S) {
     items, elec, avionics, dropped, rows,
     bill: { panel, elec: el, avionics: av },
     kg: panel.kg + el.kg + av.kg, price: panel.price + el.price + av.price,
-    loads, hasBus, battAh: GEN_ELEC.battery[elec.battery].Ah,
+    loads, breakers, parts, hasBus, battAh: GEN_ELEC.battery[elec.battery].Ah,
+    // G2809: the light keys with a lamp drawn (null: no census - a spec with no drawing, every fitted light counts)
+    lamps: census ? lampKeys : null,
     altA: GEN_ELEC.alternator[elec.alternator].A,
     starter: elec.starter === 'yes', vac: elec.vac,
     // A3: what the `fuel` slot measures on this build - 'fuel' (litres, a
@@ -35109,6 +35367,22 @@ function clampSpec(spec) {
   S.fuel.litres = genClamp(S.fuel.litres, 0, genBig(S) ? 4000 : 2000);
   if (!S.outfit || typeof S.outfit !== 'object') S.outfit = { seats: 'sling' };
   if (!GEN_SEATS[S.outfit.seats]) S.outfit.seats = 'sling';
+  // G2806: a trim the catalogue does not know is the tier's (removed, never written: an unset row adds no key)
+  if (S.outfit.trim != null && !GEN_TRIM[S.outfit.trim]) delete S.outfit.trim;
+  // G2809: the drawn cabin's surfaces (m2, finite, >= 0, at most 30 each) and the control stations (0..4, a known
+  // kind); anything else is no drawing at all
+  if (S.outfit.drawn != null) {
+    const d = S.outfit.drawn, o = {};
+    if (d && typeof d === 'object') for (const k of ['board', 'dash', 'shoulder', 'door', 'floor', 'console'])
+      o[k] = genClamp(isFinite(+d[k]) ? +d[k] : 0, 0, 30);
+    if (d && typeof d === 'object') S.outfit.drawn = o; else delete S.outfit.drawn;
+  }
+  if (S.outfit.ctl != null) {
+    const c = S.outfit.ctl;
+    if (c && typeof c === 'object' && GEN_OUTFIT.ctlStationKg[c.kind] != null)
+      S.outfit.ctl = { stations: Math.round(genClamp(isFinite(+c.stations) ? +c.stations : 1, 0, 4)), kind: c.kind };
+    else delete S.outfit.ctl;
+  }
   {
     const E = S.energy || (S.energy = {});
     if (E.kind !== 'battery') E.kind = 'fuel';
@@ -40511,6 +40785,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     spend(r.price);
     if (r.key.startsWith('battery:')) halfOn(F[0].BL, F[0].BR, r.kg);
     else if (r.key === 'harness') halfOn(F[0].TL, F[0].TR, r.kg);
+    // G2809: the lamps drawn - the beacon at the tail, the tip / wing lamps on the wing's carry-through (the cabin's
+    // front ring, top), the cabin's lamps on its front ring
+    else if (r.key === 'light:beacon') halfOn(F[F.length - 1].TL, F[F.length - 1].TR, r.kg);
+    else if (r.key === 'light:nav' || r.key === 'light:land' || r.key === 'light:taxi') halfOn(F[1].TL, F[1].TR, r.kg);
+    else if (r.key.startsWith('light:')) halfOn(F[1].TL, F[1].TR, r.kg);
     else halfOn(engPair[0], engPair[1], r.kg);
   }
   sec('avionics');
@@ -40533,6 +40812,11 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // exactly what that check is for: an occupant weighs 80 kg and nothing
     // else may ride in on the same number.
     const seats = Math.max(1, seatRows.length);
+    // G2809: A DRAWN CABIN BILLS WHAT IT DRAWS - a chair at every seat the cabin draws (cabin.seatsX: the
+    // cockpit's and every bay's, each at its own station), the board and the lining off the drawn surfaces, the
+    // control stations the crew drew. A spec with no drawing (a fiche, an archetype) bills as it always did.
+    const DR = genDrawnCabin(S);
+    const chairs = DR ? (seatsX ? seatsX.length : (S.seats != null ? Math.max(0, S.seats) : seats)) : seats;
     const EN = (S.engines && S.engines[0]) || {};
     const PPn = S.pplant || POWERPLANTS[EN.type] || POWERPLANTS.a65_sensenich74;
     const kW = ((PPn.engine && PPn.engine.powerW) || 0) / 1000;
@@ -40540,11 +40824,12 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // SEATS: one per position, at the weight of the kind you chose.
     // Spread over the seat frames so they sit where the people sit — the
     // cabin rings, which is where `pt` already puts the occupants.
-    const seatM = seat.kg * seats;
+    const seatM = seat.kg * chairs;
     // THE PANEL BOARD, from its own geometry. `cab.panel` carries the depth
     // and how far the coaming wraps; the board spans the cabin.
     let panelM = 0;
-    if (cb.panel && cb.panel.on) {
+    if (DR) panelM = (DR.board || 0) * O.panelKgM2 + (DR.dash || 0) * O.dashShellKgM2;   // G2809: as drawn
+    else if (cb.panel && cb.panel.on) {
       const pw = 2 * cb.halfW * (0.6 + 0.8 * (cb.panel.wrap || 0));
       panelM = pw * (cb.panel.depth || 0.25) * O.panelKgM2;
     }
@@ -40576,7 +40861,10 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // THE CONTROLS, from the reach: out to the tips and back to the tail.
     // Dual controls are a second stick and a second set of pedals.
     const reach = S.geom.semi + S.fuse.tailArm;
-    const ctlM = O.ctlKgM * reach + (seats > 1 ? O.ctlDualKg : 0);
+    // G2809: the stations the crew drew - a second set for each past the first, a yoke's column over a stick
+    const CT = DR && S.outfit && S.outfit.ctl;
+    const ctlM = CT ? O.ctlKgM * reach + Math.max(0, CT.stations - 1) * O.ctlDualKg + CT.stations * (O.ctlStationKg[CT.kind] || 0)
+                    : O.ctlKgM * reach + (seats > 1 ? O.ctlDualKg : 0);
     // THE GLAZING: the windscreen and the side windows, over the cabin.
     // ...an OPEN FRAME (PERF STUDY chantier 1) has a windscreen and no side
     // windows — there is no side to put them in
@@ -40598,8 +40886,14 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     // as a fraction of Raymer's GA law on the DESIGN GROSS (GEN_OUTFIT.furnK)
     // — pass 2 only, on the gross pass 1 solved (genDesignGross carries the
     // same term in its fixed point); pass 1 bills nothing here
+    // (G2806: the fraction is genFurnK's - the chosen trim, else the tier's exactly as before)
     const furnM = (GG && GG.W0 > 0)
-      ? (O.furnK[genSystemsResolve(S).tier] || 0) * Math.max(0, O.furnKgPerKg * GG.W0 - O.furnKgOffset) : 0;
+      ? genFurnK(S) * Math.max(0, O.furnKgPerKg * GG.W0 - O.furnKgOffset) : 0;
+    // G2809: THE DRAWN LINING - the pads on the sill shoulders, the door panels and the console at the trim's pad
+    // density, the floor board's ply under its covering; both passes (a fixed mass, not a law of the gross)
+    const TR = GEN_TRIM[(S.outfit && S.outfit.trim) || 'light'] || GEN_TRIM.light;
+    const trimM = DR ? ((DR.shoulder || 0) + (DR.door || 0) + (DR.console || 0)) * TR.pad +
+                       (DR.floor || 0) * (O.floorPlyKgM2 + TR.cover) : 0;
     // WHERE IT ALL SITS. Each item goes on the frame it belongs to, so the
     // centre of gravity is the real one: seats and controls and glazing on
     // the cabin rings, the panel and the plumbing at the panel frame, the
@@ -40608,9 +40902,15 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
                                 bill(m, 0); };
     // THE SEATS GO WHERE THE SEATS ARE. With measured stations each chair is
     // billed at its own; without, the front ring as before.
+    // THE FURNISHING IS ITS OWN ROW (G2806, AVIONICS-GPS phase 2; the user, 11 Oct): the chairs and the lining bill
+    // to a section of their own, `furnish`, so the plaque and the price show them apart from the cowl and the
+    // glass. The section marker moves; the masses go on the same nodes IN THE SAME ORDER as before, so the
+    // airframe the solver flies is the same to the last bit (tools/avionics_parity.js).
+    sec('furnish');
     if (seatsX && seatsX.length)
-      for (let i = 0; i < seats; i++) billAt(seatAt(i) != null ? seatAt(i) : ST[1].x, seat.kg, true);
-    else half(F[1].BL, F[1].BR, seatM);
+      for (let i = 0; i < chairs; i++) billAt(seatAt(i) != null ? seatAt(i) : ST[1].x, seat.kg, true);   // (G3570: on the raised floor)
+    else if (seatM > 0) half(F[1].BL, F[1].BR, seatM);
+    sec('outfit');
     half(F[1].TL, F[1].TR, panelM + plumbM);
     // the cowl and the exhaust go where the ENGINE is (2026-09-04). On a
     // nose mount they were billed on ring 0 — the WINDSCREEN BASE, the
@@ -40635,13 +40935,25 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
     half(F[1].BL, F[1].BR, 0.5 * ctlM);
     half(F[iCabR].BL, F[iCabR].BR, 0.5 * ctlM);         // G3504: the cabin's rear ring
     // the furnishing on the cabin floor, both rings (G3570: the floor is in it - at the raised floor's height)
+    sec('furnish');
     if (floorUp > 0) for (const rg of [F[1], F[iCabR]]) { onRing(rg, 'L', 0.25 * furnM); onRing(rg, 'R', 0.25 * furnM); }
     else {
     half(F[1].BL, F[1].BR, 0.5 * furnM);
     half(F[iCabR].BL, F[iCabR].BR, 0.5 * furnM);
     }
-    spend(Math.round(seat.price * seats + 40 * (panelM + cowlM + glassM) +
-                     28 * (exhM + plumbM + ctlM) + 60 * furnM));
+    // G2809: the drawn lining and the floor board, on the same floor (raised with it, as the furnishing - G3570)
+    if (trimM > 0) {
+      if (floorUp > 0) for (const rg of [F[1], F[iCabR]]) { onRing(rg, 'L', 0.25 * trimM); onRing(rg, 'R', 0.25 * trimM); }
+      else { half(F[1].BL, F[1].BR, 0.5 * trimM); half(F[iCabR].BL, F[iCabR].BR, 0.5 * trimM); }
+    }
+    // the price: the outfit's one rounded sum as before, the furnishing's share (the chairs and 60 cr a kilo of
+    // lining) carved out of it, so the total is the credit it was
+    const outfitCr = Math.round(seat.price * chairs + 40 * (panelM + cowlM + glassM) +
+                                28 * (exhM + plumbM + ctlM) + 60 * (furnM + trimM));
+    const furnCr = Math.round(seat.price * chairs + 60 * (furnM + trimM));
+    spend(furnCr);
+    sec('outfit');
+    spend(outfitCr - furnCr);
   }
   sec('paint');
   {
@@ -40882,7 +41194,7 @@ function genDesignGross(S, a, cg) {
   const gOf = (c, W) => Math.min(G.hi, Math.max(G.lo, CORE_MATH.pow(W / ref(c), G.e[c])));
   // the furnishing (GEN_OUTFIT.furnK, Raymer on W0) is billed in pass 2
   // and belongs to the same fixed point
-  const O = GEN_OUTFIT, fK = (O.furnK && O.furnK[genSystemsResolve(S).tier]) || 0;
+  const O = GEN_OUTFIT, fK = genFurnK(S);            // (G2806: the chosen trim, else the tier's)
   const furnOf = W => fK * Math.max(0, O.furnKgPerKg * W - O.furnKgOffset);
   let W = Mfix + Ms;
   for (let i = 0; i < G.iterations; i++) {
@@ -44532,7 +44844,35 @@ function genTrim(def) {
       if (g.VsFlapAP !== undefined) { delete g.VsFlapAP; delete g.VsHeld; }   // G2826: flapless, the held flap speed goes
       return genTrim(def);               // re-measure the lot at the new config
     };
+    // G2810 (AVIONICS-GPS, the user 26 Oct: "do the partial-flap fix"): NOT FLAPS OR NOTHING. A builder whose full flap
+    // will not trim (G2034) or flare (G970) does not take all of it away - he lands on the notch that fits. G2809's bill
+    // moved the user's Cub's CG 5.9 mm aft and its full-flap trim from -0.1494 to -0.1548, past the 0.1543 budget by
+    // 0.0005, and the rule took the whole flap: Vref 17.5 -> 20.6 m/s, Copperhead and East Point lost. So, first, THE
+    // LARGEST LANDING SETTING, in 0.05 notches, that fits BOTH budgets - each notch measured as genTrim measures: its own
+    // stall (genClMax at that setting, the same instrument as gen.VsFlap), the approach speed scaled to it, the trim on
+    // final and the flare's elevator at 1.10 of its stall. Only when no notch fits does the flapless rule below stand.
+    const notchFits = f => {
+      const cm = genClMax(def, f), VsF = Math.sqrt(2 * cm.W / (RHO * cm.Sw * Math.max(1e-6, cm.CLmax)));
+      const Vf = A.VAppr * VsF / Math.max(1e-6, g.VsFlap), Vtd = 1.10 * VsF;
+      sim.ctl.flap = f;
+      const de = deAt(Vf, genAlphaForLift(sim, Vf, W, aMax)), deF = deAt(Vtd, genAlphaForLift(sim, Vtd, W, aMax));
+      return { f, VsF, ok: Math.abs(de) <= trimBudget(de) && deF <= 0.35 };
+    };
+    const landPartial = () => {
+      if (g.landsPartialFlap != null || !(ldg > 0)) return null;
+      // the notches under the setting that failed, bisected (the trim and the flare grow with the flap: fits is monotone)
+      let lo = 0, hi = Math.round(ldg / 0.05), best = null;
+      while (hi - lo > 1) { const k = (lo + hi) >> 1, r = notchFits(Math.round(k * 5) / 100); if (r.ok) { lo = k; best = r; } else hi = k; }
+      sim.ctl.flap = ldg;
+      if (!best) return null;
+      def.params.flaps.ldg = best.f;
+      const k = best.VsF / Math.max(1e-6, g.VsFlap);
+      A.VAppr *= k; A.VApprShort *= k;
+      g.VsFlap = best.VsF; g.landsPartialFlap = best.f; g.flapLdgFull = ldg;
+      return genTrim(def);               // re-measure the lot at the notch
+    };
     if (Math.abs(g.deAppr) > trimBudget(g.deAppr) && ldg > 0) {
+      { const d2 = landPartial(); if (d2) return d2; }
       sim.ctl.flap = 0;
       const Va0 = A.VAppr * rat;
       const de0 = deAt(Va0, genAlphaForLift(sim, Va0, W, aMax));
@@ -44558,6 +44898,7 @@ function genTrim(def) {
       const Vtd = 1.10 * (g.VsFlapAP || g.VsFlap);       // G2826: a STOL wing's held touchdown
       g.deFlare = deAt(Vtd, genAlphaForLift(sim, Vtd, W, aMax));
       if (g.deFlare > 0.35) {
+        { const d2 = landPartial(); if (d2) return d2; }
         sim.ctl.flap = 0;
         const V0 = 1.10 * g.Vs;
         const deF0 = deAt(V0, genAlphaForLift(sim, V0, W, aMax));
@@ -44568,6 +44909,16 @@ function genTrim(def) {
     if (Math.abs(g.deAppr) > trimBudget(g.deAppr)) g.apprTrimFail = g.deAppr;
     g.W = W;
     g.alphaAppr = aA;
+    // G2811: THE APPROACH POINT ON THE CLEAN WING. The pilot's trim-attitude fit runs through (VCruise, alphaCruise)
+    // and the approach point (VAppr, alphaAppr) - the LANDING configuration's - and flew it in every configuration. A
+    // notch build's take-off read it low (the Jodel on 0.7: its approach 24.2 m/s at 0.032 rad, flapless 27.4 at 0.111):
+    // the ground-effect run-up let the nose down and it hopped off three times. The clean point - the approach speed on
+    // the clean stall (the same instrument: VsMeas over VsFlap) and the clean wing's attitude there - is what the pilot
+    // flies until the flap goes past its take-off setting (43_pilot tAlphaAt). A flapless lander's is its own exactly
+    if (ldg > 0) {
+      g.VApprClean = Va * (g.VsMeas || g.Vs) / Math.max(1e-6, g.VsFlap);
+      sim.ctl.flap = 0; g.alphaApprClean = genAlphaForLift(sim, g.VApprClean, W, aMax); sim.ctl.flap = ldg;
+    } else { g.VApprClean = Va; g.alphaApprClean = aA; }
     g.LDappr = rA.Fy / Math.max(1e-6, rA.drag);
     g.dragAppr = rA.drag;
     g.TavailAppr = Tav(Va);
@@ -58788,7 +59139,7 @@ const techOptionOk = (doc, modelId, opts, row, val) => {
   return s != null && s <= careerTechSeg(doc);
 };
 if (typeof module !== 'undefined')
-  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep };
+  module.exports = { STORY_GRANT, STORY_T6_FEE, TERRAIN_CODEC, ISLAND_GEN, OBSTACLES, TREE_HITS, PREMISES_GEN, AIRFIELD_SITE, AIRFIELD_SITES, siteOf, standFor, siteOnFlat, AIRFIELD_PAD, siteToLocal, siteToWorld, siteRunway, siteRunwayModel, siteScoreDirections, siteMarkers, RWY_LIGHTS, runwayLightStrips, runwayLightSite, runwayLightPoints, STRIP_SURFACES, stripSurface, stripGear, stripAllows, stripFallback, stripLandable, sitePaintStrip, siteOnPad, siteHangarBox, sitePattern, sitePatternIssues, patternPath, pathLocate, pathLook, pathSpeed, groundRmin, ATM, makeAtmos, atmosWater, ATMOS_ISA, SOLAR, DAY, CLOUD_FIELD, CLIMATE, atmosPowerRatio, atmosPropScale, decodeProp, decodePropPart, registerPropPack, propList, PROP_REG, decodeChar, registerChar, charList, CHAR_REG, decodeCharAnim, registerCharAnim, CHAR_ANIMS, decodeAnimal, decodeAnimalClips, registerAnimal, animalList, animalClips, animalClip, ANIMAL_REG, makeSim, HYDRO, makeBus, vortexKernel, makePilot, machineSheet, PILOT_STYLES, PILOT_PHASES, PILOT_UNITS, navMake, navLegGeom, navDeg, navRad, navDiff, NAV_FULL_SCALE, makeCrosswindProbe, genCrosswindLimit, placeAtAerodrome, placeAtStand, seatOnGround, placeAtLineup, makeWorld, bakeHydrology, POWERPLANTS, GEN_ENG_THERMO, genEngineThermo, GEN_SHAFT, genShaftRpm, genEngineRpm, genEnginePrice, GEN_DRIVE, GEN_DRIVE_OS, GEN_DRIVE_STRIKE, genDriveSpec, genDriveState, genDriveOverspeed, genDriveStrikeTier, genDriveTorqueFactor, GEN_NOSE, genNoseSpec, genNoseF, genNoseWork, genNoseLayer, genNoseShell, POLARS, PAR, RHO, hyp2, hyp3, GROUND_SURF, decodeModel, decodeB64, defCG, defOrigin, defBodyProject, makeSkinBinding, sparDeltas, applySkinDeform, makeHingeBinding, applyHinges, makeLinkage, buildGen, resolveSpec, clampSpec, genPlanePair, genNormaliseSpec, genIsSectioned, GEN_SPEC_V, PHYSICS_V, GEN_MIGRATORS, GEN_MIGRATE_CAGE_DEFAULTS, genMigrateSpec, genFrame, genShakedown, genDesignCheck, genDesignDerivs, genSpecAtFuel, genDensityAlt, genClimbAt, genTORunAt, GEN_DA_CASES, genPolar, genThinAirfoil, GEN_DEFAULT, GEN_PRESETS, GEN_MATERIALS, GEN_CRASH, GEN_CRASH_TUBE_DT, genPhysKey, GEN_BUILD_GRAMMAR, GEN_SURF_MATERIALS, GEN_SURF_DEFAULT, GEN_SURF_DEFAULT_TAIL, GEN_TAIL_ENVELOPE, GEN_SURF_LEGACY, genSurfKey, genSurfMaterial, GEN_ACCESS, genAccessNeeds, genAccessNeedsCage, genAccessList, GEN_SHAPES, GEN_FLAPS, GEN_TRAVEL, GEN_FLAP_TRAVEL, genTravel, GEN_HINGE, GEN_EDGE, GEN_HINGE_KIT, genHingeFamily, genHingeCount, genHingeStations, GEN_TANKS, GEN_BAYS, GEN_FUELS, GEN_CELLS, GEN_VESSELS, genVesselResolve, genEnergyResolve, genBayResolve, genBayList, GEN_BAY_WALL, GEN_SEATS, GEN_OUTFIT, GEN_GAUGE, GEN_DRAG, genNacaT, genAerofoilArea, genWingBay, GEN_SYSTEMS, GEN_INSTR, GEN_ELEC, GEN_AVIONICS, GEN_SYSTEMS_UNITS, GEN_SYSTEMS_SIDES, genSystemsResolve, GEN_SEATING, GEN_TIPS, GEN_INTAKES, GEN_FINISH, GEN_PRICES, GEN_PROP_MATS, GEN_PROP_PITCH, genPropSynth, genPropAuto, GEN_SUSPENSION, GEN_RULES, genWing, GEN_INFL, poseSkinGen, genNodeBody, genMesh, genBeamInto, genRestFrame, genAirfoil, makeLoadTest, genLoadStations, genLoadCarried, genGroundPowerCap, genTrueBox, genNetEig, genRigidFloatOf, GEN_BOX_N, GEN_BOX_KMIN, GEN_NET_MAX, GEN_LOAD_LIMIT, GEN_LOAD_ULT, GEN_LOAD_LIFT, GEN_CERT, GEN_CERT_V, genDamageOn, GEN_CERT_CACHE, genCertKey, genCertify, genCertifySteps, genCertAttach, genCertSystem, genCertForces, genCertBench, genCertBenchPose, genCertDrop, genCertDropSim, genCertSettled, genCertCombine, genCertMirror, GEN_CERT_HOOK, genCertBow, genCertFlown, genCertAeroLoads, genCertProbeSim, genCertSpeeds, genCertSink, genCertDrive, genSect, genSuper, genCrownToN, genCrownScale, genMonoSpline, genBodyCurve, genBodyRows, GEN_N_ELL, GEN_N_BOX, GEN_LSTEP, SHELLS, shellLims, HANGAR_CAPS, HANGAR_KITS, HANGAR_KITS_DEFAULT, hangarFootprint, hangarFit, hangarFitRing, hangarCaps, hangarWants, PLAYER_V, PLAYER_MIGRATORS, playerMigrate, playerDefault, playerNormalise, playerLift, playerShedDims, meshDecimate, MESH_DECIMATE_SRC, GP_PARKED_FOOT, GP_PARKED_DEFAULT, GP_CLEAR, GP_HALF_DEFAULT, parkedFoot, gpParkedDist, gpClearWay, GEN_WING_ENVELOPE, GEN_FIELDS, genFieldClamp, genNullToDefault, genSpecMerge, SERVO_GAINS, makeServos, SERVO_TUNE, servoWrapPi, servoCrossWind, servoRestHeight, FLIGHT_BASES, FLIGHT_BASE_DEFAULT, flightBases, flightBase, flightWhere, flightCanDepart, flightStripGeom, flightToChoices, flightToRecord, flightLeg, flightRouteMigrate, FLIGHT_FIELD_R, servoStepHold, PILOT_PROFILES, pilotProfile, GEN_DMG_GROUP, GEN_CERT_FLOOR, TYRE_CN, genCertMirrorAll, genCertMountKinds, GEN_COVER, SCAR, SCAR_SURF, scarSurf, scarMake, scarHit, scarStrike, scarReset, scarFrame, scarSeal, scarSegD, scarSimplify, scarSweepIn, scarIn, scarBox, CORE_MATH, fsin: CORE_MATH.sin, fcos: CORE_MATH.cos, fpow: CORE_MATH.pow, BASE_OFFERS, PREM_RATES, KIT_PRICES, PARK_CLR, PARK_DOOR_CLR, PARK_STEP, hangarDims, hangarDoor, hangarDoorWhy, hangarObstacles, parkFoot, hangarPark, hangarRoomFor, playerHangarsAt, playerBaseIds, playerResidents, playerFootOf, playerWhere, playerPack, playerCharge, playerFleetReconcile, playerStore, playerWheelOut, playerArrive, playerRecover, shellPrice, plotPrice, playerOffers, playerAcquire, playerRelease, playerUpgradeCost, playerUpgrade, playerGoTo, playerClock, playerLabourFactor, FLEET_SPOT, FLEET_SPOT_FOOT, fleetSpots, fleetSpotDist, fleetSpotPts, fleetField, PREM_MAIN, PREM_SIDE_MAX, PREM_SLOTS, PREM_WEAR, playerLedger, playerIsMain, playerSideIds, playerSlots, playerFits, playerWearNow, playerWearReset, playerWearMacro, playerWearSpec, playerFootOfDef, playerPlace, playerBringHome, playerRollFrom, flightBasesOf, playerPilot, PILOT_PROFILE_KNOBS, pilotProfileSpec, ACCEPT_RULES, ACCEPT_KINDS, acceptEvidence, acceptStatic, acceptDesignRow, acceptLegMeasure, makeAcceptRecorder, acceptSampleOf, acceptLoadOfSim, makeAcceptLeg, acceptLegStart, acceptCanon, acceptHash, acceptSign, acceptSigned, acceptStopAt, acceptVerdict, acceptPlaqueLeg, acceptFpOk, CONTRACT_FIELDS, CONTRACT_DESIGNS, CONTRACT_TRACKS, CONTRACT_PROVIDERS, CONTRACT_TEXT, CONTRACT_KINDS, CONTRACT_DO, CONTRACT_OPS, CONTRACT_CRIT_KINDS, CONTRACT_CONFIG_WORDS, CONTRACT_FIT, CONTRACT_PAY, CONTRACT_GEN, CONTRACT_DUSK_H, CONTRACT_FOLLOW_MAX, CONTRACT_JOB_CLASSES, contractHash, contractRng, contractKm, contractFieldsOf, contractText, contractTextOk, contractLoadWords, contractKeys, contractNormalise, contractCritWhy, contractConfigWord, contractValidate, contractCrit, contractAuthored, contractGearOk, contractTakeoffM, contractSubFit, contractCanDo, contractDoers, contractSubsOf, contractClasses, contractPay, contractEpoch, contractJob, contractJobs, contractJobById, contractVars, contractFollowUp, contractFollowById, contractCritDiff, contractSubOnStop, contractPayTotal, contractImportPack, contractCritWords, contractFollowLine, CAREER_V, CAREER_KEY, CAREER_GRANT, CAREER_VOUCHER, careerKey, careerNew, careerNormalise, careerContract, careerNeedsOk, careerOfferIds, careerRefresh, careerOffers, careerAccept, careerTrack, careerAbandon, contractOnStop, careerComplete, careerOnStop, contractCertUlt, contractCertifiable, CAREER_MAP_LOOK, CAREER_MAP_V, careerDesignCert, careerDesignOfShake, careerMapContract, careerMapRecord, careerOverflewAdd, careerStopRecord, careerTrackedLoad, careerLegCrit, careerAcceptHook, careerEventLines, STAGE_REVEALS, STAGE_SHOT, STAGE_PHASES, stageMaxes, stageTracksOf, stageKey, stageRevealsBetween, stageElementsAt, stagePointOf, stageReveal, stageHost, contractStoryBase, ECON_V, ECON_BOOK, econRound, econRefPrice, econShellPrice, econLedgerCost, econAirframePrice, econCatalogPrice, econSignOn, econRepairCost, ECON_LEDGER, econLedgerClass, econAfford, econBuy, econMaterialise, econAcquire, econUpgrade, econFlyable, econRepair, ECON_TEXT, econLoans, econLoanOffer, econLoanPay, econLoanJob, ECON_BANDS, ECON_REF, econRefPick, econRefFly, econReference, econCalibration, PROCURE_V, PROCURE_MARGIN, PROCURE_USED_MAX, PROCURE_USED_EVERY, PROCURE_COND, PROCURE_DELIVERY, PROCURE_COSMETIC, PROCURE_LOOK, PROCURE_STATE_ROWS, PROCURE_TEXT, procureText, PROCURE_MAKERS, PROCURE_ENGINES, PROCURE_TINTS, PROCURE_FINISH, PROCURE_MODELS, PROCURE_EFF_KEYS, procureValidated, procureCatalogue, procureModelIds, procureDefaults, procureDesignOf, procureRegOk, procureOpts, procureBaseSpec, procureSpec, procureCert, procureFp, procureFpP1, procureP1Matches, procureLedgerOf, procureEditBill, procureEconStub, procureEcon, procureEconSource, procurePrice, procureOptWord, procureSheet, procureBoard, procureBuildDesign, procureSaveDesign, procureAirframeSlots, procureEnvelope, procureBuyModel, procureUsedCert, procureFlyableAt, procureUsedEpoch, PROCURE_REPAIRS, procureUsedListing, procureMarket, procureUsedById, procureMarketOf, procureSold, procureUsedWords, procureUsedSpec, procureBuyUsed, procureOnSave, procureAnchor, PROCURE_READOUTS, PROCURE_ENG_BASE, PROCURE_ENG_DIALS, PREM_WORLD, playerWorldSheds, playerClosedSheds, premResidentsDrawn, playerRollHangar, playerPlotSite, careerMapMark, FREIGHT_V, FREIGHT_KINDS, FREIGHT_BAG, FREIGHT_GOODS, FREIGHT_GENERIC, FREIGHT_STRETCHER, FREIGHT_FLOOR, FREIGHT_SEAT, FREIGHT_PACK, FREIGHT_DOOR_GRID, FREIGHT_CARDS, freightItem, freightSplit, freightItems, freightKg, freightRestY, freightHoldFits, freightDoorPass, freightDoorAny, freightNoDoor, freightSeats, freightObstacles, freightSpaces, freightReport, freightPack, freightCardPod, freightPodDoor, freightFits, freightCardOf, freightSubItems, freightMark, GEN_POD, genPodOn, genPodKeel, genPodResolve, genPodStraddle, genPodSpace, genPodCdA, genPodClearance, genPodBalance, genCertPodMounts, genPodShell, PILOTS_V, PILOTS_ORDER, PILOTS_COMPANION, PILOTS_RESERVED, PILOTS_MARKET, PILOTS_GROW, PILOTS_WEATHER, PILOTS_SHORT_M, PILOTS_PAVED, PILOTS_SIGNON_STUB, PILOTS_TRAITS, PILOTS_REFUSALS, PILOTS_ROSTER, PILOTS_TEXT, PILOTS_KNOB_SEC, pilotsText, pilotsName, pilotsKnobs, pilotsBaseFlat, pilotsProfile, pilotsLandings, pilotsGrowth, pilotsFlatOf, pilotsProfileOf, pilotsFliesLike, pilotsSignOn, pilotsBlock, pilotsCompanion, pilotsHired, pilotsOffers, pilotsHire, pilotsFire, pilotsPick, pilotsPicked, pilotsPlace, pilotsBoatHome, pilotsRefusal, pilotsCanFly, pilotsOnFlightEnd, pilotsRepairK, pilotsCard, pilotsImportPack, FREIGHT_LOAD_V, freightLoadNew, freightLoadPropose, freightLoadAshore, freightLoadReport, freightLoadTarget, freightLoadMove, freightLoadUnload, freightLoadSeat, freightLoadRecord, freightLoadAccept, freightAccepted, freightLoadFromRecord, freightLoadCard, freightLoadJob, freightStopItems, freightLoadSettle, contractSites, contractStops, contractDests, CONTRACT_SHAPES, CONTRACT_THEN, HANGAR_LAYOUTS, hangarLayout, hangarRows, CAREER_MAIN, careerMainShed, jsonFinite, jsonReadFinite, DAY_WAIT_TARGETS, DAY_WAIT_MIN_S, DAY_MOON_WORDS, dayAbs, dayFromAbs, dayProbe, dayPresetUtc, dayWaitUntil, dayNextFullMoon, dayMoonAt, dayMoonWord, dayLocalAbs, dayDuskDawnH, CONTRACT_DAWN_H, CONTRACT_WHEN_KINDS, contractWhenWhy, contractWhenWords, contractWhenOk, CAREER_DAY0, careerDayOk, careerDayNorm, careerDay, careerDaySet, careerCrashReset, CONTRACT_NIGHT, contractWhenSpan, contractWhenMid, contractWhenNight, contractWhenWait, contractSky, contractMoonAt, contractMoonWords, contractFlyable, careerOfferSky, careerLocalDate, careerNightLine, careerTrackedWhen, careerWaitWindow, careerWindowNight, FREIGHT_STRAP_V, FREIGHT_LOOK, FREIGHT_STRAP, freightLookGoods, freightLookKey, freightStrapGenY, freightStrapShares, freightStrapSeats, freightStrapSeatBill, freightStrapBaggage, freightStrapAdds, freightStrapFlags, freightStrapFor, freightStrapStacks, freightStrapBands, freightStrapMesh, freightStrapNext, VPROFILE, ROUTE_V, ROUTE_MARGIN, ROUTE_AGL_DEFAULT, ROUTE_MAX_PTS, ROUTE_ENDS, routeGroundAt, routeSafeAlt, routeAltMSL, routeSetRef, routeNew, routeAddPt, routeNormalise, routePerf, routeSpeedOf, routeCaptureR, routeProfile, routeLegs, routeVPerf, routeVLegs, FLARE_ARM_MAX, NAV_FIXES, PREM_STORE, playerStoreSlots, playerBaseOutside, playerStoreWhere, playerStoreSettle, playerMove, playerFloorSync, playerFlyStart, playerStoreView, playerResidentsShown, playerCardOf, PILOT_STAB, STORY_V, STORY_ROLES, STORY_CHECKS, STORY_BEATS, storySite, storyChecklist, storyNew, storyNormalise, storyOf, storyStart, storyJobsOpen, storyMask, storyStep, playerShedLocked, playerShedsOpen, playerSendTo, storyGrantCabin, STORY_FILES, STORY_SLOTS, STORY_CABIN_SHED, STORY_NO_CABIN, STORY_JOBS, STORY_OCCASIONS, storyCabinShed, storyNewCareer, storyClientSpec, storyApply, storyOccasionListings, storyJobIds, storyJobHeld, storyCard, STORY_TIM, storyTimLines, STORY_LADDER, STORY_LADDER_RULE, storyLadderNew, storyLadderStep, ROUTES_V, ROUTES_PAY, routesList, routesActive, routeOfPlane, routeOfPilot, routeNow, routeDesignOf, routeTerms, routeOffer, routeSign, routeSettle, routeEnd, routesBlock, routePos, routeWords, routeAeroName, routeSettleLines, routesMapOf, routeOfferWords, pilotsOnRoute, storyRoutePilot, storyRouteLine, storyRoute, genMarginBand, GEN_MARGIN_BANDS, CERT_FP_SCHEME, CERT_GROUPS, CERT_GROUP_KEYS, CERT_STATE_ROWS, CERT_MINOR_BLOCKS, certStrip, certMajorOf, certMajor, certGroupsChanged, certChangeLine, certCanon, certHash, genEnvBig, genWingEnv, genBig, scarBoxes, scarChains, scarBowl, scarHulls, scarHull, scarHullIn, GEN_OCC, genOccSpec, genOccSpaceOf, genOccSeries, genOccJudge, genOccDRI, genOccEiband, genOccCFC, genOccWire, TECH_V, TECH_MAX, TECH_SEGS, TECH_TABLE, TECH_GEAR_TYPES, TECH_CANOPY_STYLES, TECH_FAMILIES, techName, techWhy, techSegOf, techKeysOfSpec, techKeysOfSystems, techStolOn, techStageOfSpec, techOver, techNew, techNormalise, careerTechOf, careerTechSeg, careerTechAllows, careerTechStageOk, careerTechUnlock, TECH_SURF_ROW, TECH_ROWS, techRowKeys, techKeysOfPatch, TECH_DESIGNS, techKeysOfModel, techStageOfKeys, techStageOfModel, techListingOk, techModelOk, techOptionOk, GAME_NAMES, fieldName, careerOwnSlots, careerImportable, careerCopyName, careerSaveKey, careerSlotTag, CAREER_SLOT_TAG, careerImport, GEN_ENG_LAYOUTS, genEngLayoutOf, genEngLayoutEngines, GAME_PEOPLE, PEOPLE_FACES, PEOPLE_BGS, PEOPLE_BG, PEOPLE_BG_SCENES, PEOPLE_BG_PILOT, PEOPLE_BG_PX, peopleBg, PEOPLE_V, PEOPLE_IDS, PEOPLE_ROLES, PEOPLE_FACE_PX, PEOPLE_FACE_DIR, PEOPLE_FROM_PACK, peopleOf, peopleName, peopleClientOf, peopleFace, peoplePool, pilotsWage, pilotsPayroll, pilotsDay, pilotsId, PILOTS_WAGE_STUB, PILOTS_LEVEL, PILOTS_DAY_S, PILOTS_PAY_UT_S, CONTRACT_DO_NEXT, CONTRACT_CRIT_NEXT, contractPlaceXZ, contractPlaceKm, CONTRACT_RUNTIME_PENDING, contractRuntimeOk, pilotCanFly, CONTRACT_RUNTIME_WAITS, MISSION_PACK_WHAT, MISSION_PACK_V, MISSION_DO, MISSION_PLACE_KINDS, MISSION_PLACES_OF, MISSION_RULES, MISSION_RULES_NEW, MISSION_PREF_KINDS, MISSION_TEXT, missionText, missionOrder, missionPlaceKind, missionPlaceNorm, missionPlaceWhy, missionPersonWhy, missionNormalise, missionPackNormalise, missionToContract, missionFromContract, missionStrip, missionCanon, missionWhy, missionPackValidate, missionPackContracts, missionPackInstall, missionReward, missionRallyDerive, missionTutorial, missionPackFromContracts, MISSION_RUN_V, MISSION_FLIGHT_KINDS, missionInFlight, missionPrefOf, missionPrefsJudge, missionHandoverWired, contractDelivery, contractProfit, missionBlueprintName, missionRulesJudge, missionTimerTarget, missionTimerOnSub, missionTimerGroups, missionTimersOnStop, missionHitTest, missionObjectives, missionTrackNew, missionTrackStep, missionTrackEvidence, missionStepOnStop, missionMarkers, careerHandover, careerFail, careerRestart, careerOrderBind, ACCEPT_LOAD_LAWS, missionStopChecks, missionLegDone, careerOnDone, CONTRACT_ONDONE, MISSION_PROP_DIMS, MISSION_GATE_PROP, missionStrikeRule, missionStrikeTest, STORY_REG, STORY_TUTOR, storyTutorSteps, storyTutorTick, storyTutorNext, storyFinalPose, storyFinalWay, GEN_SEAPLANE_PROPS, hangarSignSpot, GEN_SLATS, GEN_STOL, GEN_STOL_ROWS, genStolOf, genStolCage, genStolLocked, genStolStrip, genStolFences, genStallAngle, GEN_STOL_ROW_OFF, genStolCageOff, genStolGain, GEN_TRIM, genFurnK, GEN_LIGHT_PARTS, genDrawnCabin, GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, genBreakerSize, GEN_POD_UI, genPodLD, genPodShapeOf, genPodFromVolume, genPodReadout, GEN_POD_NODE_Z, genPodNodesAt, GEN_POD_DMG, genPodDamage, genPodFloorAt, genPodGearKeep };
 
 // (DMG-DETERMINISM G2353, standalone): NODE REFUSES A STALE CORE. tools/flight_core.js is generated (tools/build.js) and
 // tracked, so a tree whose generated files were put back from git (`git checkout -- tools/flight_core.js`, a stash, a fresh
