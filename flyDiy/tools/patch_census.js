@@ -29,9 +29,9 @@ const W = IN.islandWorld('jolene', { premises: fs.readFileSync(path.join(T, 'fix
 const O = W.premises.overlay, PG = C.PREMISES_GEN;
 const body = lift('  const extentWorld = () =>', '\n') + '\n' + lift('  let patch = null, patchKey', '  // THE ROADS (game)') +
   (RP.indexOf('  const REFINE_NEAR = ') > 0 ? lift('  const REFINE_NEAR = ', '  const pavSeed = ') : '');   // (G2115: the refined pavements, sinkNear's)
-// (TERRAIN-MATCH rebase, 2 Nov: render_premises' module-level consts the lifted body reads - FAR_SC / FAR_HYST since the far
-//  cells - lifted as the page declares them, the way _patch_law.js lifts LONE_OFF)
-const MODC = ['FAR_SC'].map(k => { const m = new RegExp('^const ' + k + ' = [^\\n]*;', 'm').exec(RP); return m ? m[0] : ''; }).filter(Boolean).join('\n');
+// (TERRAIN-MATCH rebase, 2 Nov: render_premises' module-level far corridor the lifted body reads - G3088's FAR_SC / FAR_HYST,
+//  farMergeArrays, farWant - lifted as the page declares them, between its PATCH FAR markers, the way _patch_law.js lifts LONE_OFF)
+const MODC = RP.indexOf('// ---- PATCH FAR (G3088) BEGIN') >= 0 ? lift('// ---- PATCH FAR (G3088) BEGIN', '// ---- PATCH FAR (G3088) END') : '';
 const added = [];
 const G = { ground: { add: m => added.push(m), remove: () => {} } };
 const run = new Function('THREE', 'O', 'PG', 'G', 'o', 'world',
@@ -40,7 +40,9 @@ const run = new Function('THREE', 'O', 'PG', 'G', 'o', 'world',
 const t0 = Date.now();
 const R = run(THREE, O, PG, G, { game: true, patchMat: null, patchUV: null }, W);
 const ms = Date.now() - t0;
-const blocks = R.patch.children;
+// (G3088: the far corridor's merged super-cells sit beside the blocks - the same vertices as their blocks' coarsest levels,
+//  drawn instead of them past the last level's distance: the blocks' LODs count them)
+const blocks = R.patch.children.filter(c => c.levels);
 const lvTris = [0, 0, 0, 0], lvSkirt = [0, 0, 0, 0];
 const rows = blocks.map(lod => ({ pos: [lod.position.x, lod.position.z], levels: lod.levels.map((L, k) => {
   const g = L.object.geometry, tris = g.index.count / 3; lvTris[k] += tris;

@@ -20,7 +20,7 @@
 //      tier's copies share their layer's program and draw by a polygon offset), build.js ships ground_tier.js before
 //      render_world.js.
 //   5. THE BUDGET: at FRAMECOST's two views (HOME's stand and the half-way point of its taxi) the premises' patch (every block
-//      at the level its distance draws: tools/patch_census.js) + the pavement within 3 km + the tier, against train 37b's own
+//      at the level its distance draws: tools/patch_census.js) + the pavement within 3 km + the tier, against master's own
 //      numbers (frozen below) - on potato's budget (patchTolPx 3) and gamer's (1). The patch's skirts between two chunks of one
 //      block (never seen: one LOD, one row of vertices) pay for the tier and the refined rows.
 //
@@ -44,6 +44,8 @@ const ALLOW = [
   { id: 'nv_strip overrun start', p95: 8, why: 'nv_meadow (as nv_strip stand)' },
   { id: 'nv_strip lane', p95: 10, why: 'nv_meadow (as nv_strip stand)' },
   { id: 'mn_strip overrun start', p95: 8, why: 'mn_main across its 18 m on the cut past the end: rows across 3 m (REFINE.roadV off: 13 k more over Jolene)' },
+  { id: 'w3 overrun start', worst: 45, why: 'r5\'s rim where r40\'s square end meets its side: G1001\'s side lift over a sliver pavedAt names r40\'s (so the site\'s edge filter keeps it); the 0.42 m pit under r40\'s cap past that end is gone (27_premises pastJoinedEnd, 2 Nov)' },
+  { id: 'w5 overrun end', p95: 15, worst: 50, why: 'a11~d: the user\'s grass apron across it at its 2 m grid, as nv_meadow (pavement.js REFINE: grass polygons not refined - translucent, the patch seen through it); its gravel apron within 27 mm (2 Nov, master d1a754b94)' },
 ];
 const allow = id => ALLOW.find(a => a.id === id) || {};
 for (const preset of ['gamer', 'potato']) {
@@ -177,14 +179,20 @@ const RW = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 
 
 // ---- 5. the budget --------------------------------------------------------------------------------------------------
 {
-  // train 37b's (068584d) own numbers at the two views: the patch drawn (tools/patch_census.js on its render_premises.js) and
+  // (was: train 37b's (068584d) numbers, re-taken below) the two views: the patch drawn (tools/patch_census.js on its render_premises.js) and
   // the pavement within 3 km (tools/ground_drawn.js's meshes on its pavement.js)
   // potato's patchTolPx read off gfx_settings.js BUDGETS: 3 on train 37b; 6 on train 38 (POTATO-DEEP G1528, measured on
   // origin/claude/potato-deep-g1520's render_premises.js: 377 600 / 395 520) - the base the budget row of that train is held to
   const GFXS = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'gfx_settings.js'), 'utf8'), mP = /potato:\s*\{[^}]*patchTolPx: (\d+)/.exec(GFXS), POT = mP ? +mP[1] : 1;
-  const PATCH0 = { 3: { 'HOME stand': 462272, 'HOME taxi': 528576 }, 6: { 'HOME stand': 377600, 'HOME taxi': 395520 } }[POT];
-  ok(!!PATCH0, 'potato\'s patchTolPx (' + POT + ') has its train\'s frozen base here');
-  const BASE = { potato: { 'HOME stand': (PATCH0 || {})['HOME stand'] + 258858, 'HOME taxi': (PATCH0 || {})['HOME taxi'] + 258858 }, gamer: { 'HOME stand': 924736 + 258858, 'HOME taxi': 939328 + 258858 } };
+  // RE-TAKEN 2 Nov on master d1a754b94 (the rebase): since train 38 the user's own roads and aprons (rev 28's r39-r45, a24-a30,
+  // the AFB, the mine pad) took the pavement within 3 km of HOME from 258 858 to 720 454 / 727 302 triangles and the patch
+  // under them with it - master's own growth, not this branch's. The same counts on master's sources: patch_census.js --src
+  // master's render_premises.js, ground_drawn.js's meshes on master's pavement.js. The branch's tier and refined rows are
+  // paid for by the skirts it drops (2 Nov: potato -3 / -8 k, gamer -53 / -59 k under master at the two views)
+  const PATCH0 = { 6: { 'HOME stand': 476864, 'HOME taxi': 485568 } }[POT];
+  ok(!!PATCH0, 'potato\'s patchTolPx (' + POT + ') has its base here (master d1a754b94)');
+  const PAV0 = { 'HOME stand': 720454, 'HOME taxi': 727302 };
+  const BASE = { potato: { 'HOME stand': (PATCH0 || {})['HOME stand'] + PAV0['HOME stand'], 'HOME taxi': (PATCH0 || {})['HOME taxi'] + PAV0['HOME taxi'] }, gamer: { 'HOME stand': 1222208 + PAV0['HOME stand'], 'HOME taxi': 1304000 + PAV0['HOME taxi'] } };
   const C = require(path.join(T, 'flight_core.js')), home = C.siteOf('HOME'), tp = home.taxiOut, m = tp[Math.floor(tp.length / 2)];
   const views = { 'HOME stand': [home.stand.x, home.stand.z], 'HOME taxi': m };
   const pav = {}; for (const [k, [x, z]] of Object.entries(views)) { let t = 0; for (const M of GD.MESHES) { const cx = (M.box[0] + M.box[2]) / 2, cz = (M.box[1] + M.box[3]) / 2; if (Math.hypot(cx - x, cz - z) < 3000) t += M.idx.length / 3; } pav[k] = t; }
@@ -196,7 +204,7 @@ const RW = fs.readFileSync(path.join(ROOT, 'src', 'viewer', 'render_world.js'), 
     for (const v of P.views) {
       if (!BASE[preset][v.id]) continue;
       const now = v.tris + pav[v.id] + tier;
-      ok(now <= BASE[preset][v.id], `${preset} (patchTolPx ${tol}) ${v.id}: the patch + the pavement within 3 km + the tier no more than its train's base (37b at patchTolPx 3, 38 at 6)`, `${BASE[preset][v.id]} -> ${now} (patch ${v.tris}, pavement ${pav[v.id]}, tier ${tier})`);
+      ok(now <= BASE[preset][v.id], `${preset} (patchTolPx ${tol}) ${v.id}: the patch + the pavement within 3 km + the tier no more than master's (d1a754b94)`, `${BASE[preset][v.id]} -> ${now} (patch ${v.tris}, pavement ${pav[v.id]}, tier ${tier})`);
     }
   }
   ok(/if \(nc !== undefined && KIND\[nc\] === KIND\[c\] && blockOf\(nc\) === blockOf\(c\)\) continue;/.test(RP), 'render_premises: no skirt on an edge two chunks of one block share (one LOD: one row of vertices)');
