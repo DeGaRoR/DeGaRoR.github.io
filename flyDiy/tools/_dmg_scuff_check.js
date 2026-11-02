@@ -34,6 +34,12 @@ if (argv[0] === '--build') {
   const k = argv[1], SK = G.skinOf(k), d0 = SK.d0, out = { key: k, label: L.BUILDS[k].label, cases: {} };
   out.skin = { meshes: SK.meshes.length, verts: SK.meshes.reduce((a, m) => a + m.g.nv, 0) };
   const dotL = (p, o) => (p[o] - SK.mid[0]) * SK.left[0] + (p[o + 1] - SK.mid[1]) * SK.left[1] + (p[o + 2] - SK.mid[2]) * SK.left[2];
+  // (2 Nov, A0 rule (b): the slide's "high side" is the high WING - a third of the half-span out from the centreline and
+  // beyond, the half-span read off the wing's own payload; inboard of it the belly and the right gear legs may scrape
+  // in a hard slide, today's metal Cessna's 23 kJ at 30 deg)
+  let halfSpan = 0; for (const m of SK.meshes) if (m.nm !== 'members' && m.cls !== SS.CLS.glass && !/^(windscreen|rearWindow)$/.test(m.nm))
+    for (let v = 0; v < m.g.nv; v++) halfSpan = Math.max(halfSpan, Math.abs(dotL(m.g.pos, v * 3)));
+  const hiWing = -halfSpan / 3;
   for (const c of CASE_IDS) {
     const t0 = Date.now(), r = G.run(k, c, { skin: SK }), D = r.damage, C = { id: c, label: G.CASES[c].label };
     C.phys = { breaks: D.breaks, yields: D.yields, work: Math.round(D.work), scW: Math.round(D.scW || 0), crashed: D.crashed };
@@ -86,7 +92,7 @@ if (argv[0] === '--build') {
             n.scrape++;
             n.coh += Math.hypot(S.dir[v * 4], S.dir[v * 4 + 1], S.dir[v * 4 + 2]) / 127;   // the slide's coherence along the skin
             if (S.rec[v * 4 + 3]) n.soil++;
-            if (dotL(R.mesh.g.pos, v * 3) < -0.05) n.scrapeR++;                 // on the right (the high side)
+            if (dotL(R.mesh.g.pos, v * 3) < hiWing) n.scrapeR++;                // on the high (right) wing
             const nr = S.nrm; if (nr[v * 3] * Y0[0] + nr[v * 3 + 1] * Y0[1] + nr[v * 3 + 2] * Y0[2] > 0.5) n.scrapeUp++;   // facing up
           }
           if (t8) { n.torn++; if (!(R.active && dead)) n.tornNoDead++;
@@ -131,7 +137,7 @@ if (argv[0] === '--build') {
           if (c8) { W.crush++; const K = R.K, src = (R.active && R.w2) ? R.w2 : R.ww; let ok = false;
             for (let q = 0; q < K; q++) if (src[v * K + q] > 0 && worked[R.wi[v * K + q]]) ok = true;
             if (!ok) W.orphan++; }
-          if (s8) { W.scrape++; if (dotL(R.mesh.g.pos, v * 3) < -0.05) W.scrapeR++; }
+          if (s8) { W.scrape++; if (dotL(R.mesh.g.pos, v * 3) < hiWing) W.scrapeR++; }
           if (t8) { W.torn++; if (!(R.active && R.dead)) W.tornNoDead++; }
         }
       }
@@ -197,7 +203,7 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
     }
     yes(C.intact.payloads === 0 && !C.intact.recs && C.intact.hash === '811c9dc5', 'intact: no payload, no record, nothing drawn');
     const sl = C['slide-L'].n;
-    yes(sl.scrape > 0 && sl.scrapeR === 0, 'the wing-low slide scrapes the low (left) side only: ' + sl.scrape + ' vertices scraped, ' + sl.scrapeR + ' on the right ('
+    yes(sl.scrape > 0 && sl.scrapeR === 0, 'the wing-low slide leaves the high (right) wing clean: ' + sl.scrape + ' vertices scraped, ' + sl.scrapeR + ' beyond ' + (halfSpan / 3).toFixed(2) + ' m right ('
       + C['slide-L'].phys.scW + ' J slid, rolled ' + C['slide-L'].roll + ' deg)');
     yes(sl.scrapeUp === 0, 'the wing-low slide: no scraped vertex faces up (' + sl.scrapeUp + ')');
     yes(sl.coh / sl.scrape > 0.5, 'the wing-low slide went one way: its scraped vertices\' slide coherence along the skin averages ' + (sl.coh / sl.scrape).toFixed(2) + ' (streaked; the taxi\'s rub into a trunk ' + (C['taxi-3'].n.scrape ? (C['taxi-3'].n.coh / C['taxi-3'].n.scrape).toFixed(2) : '-') + ')');
@@ -220,7 +226,7 @@ const yes = (ok, msg) => { checks++; if (!ok) fails++; console.log('  ' + (ok ? 
       console.log('  DMG-WALL (inherited, K = 8): ' + ['slide-L', 'noseover', 'trunk-0'].map(c => c + ' crush ' + Wl[c].crush + ' / scrape ' + Wl[c].scrape + ' / torn ' + Wl[c].torn).join('; '));
       yes([s, no, tr].every(W => W.K8) && no.inh && tr.inh, k + ', DMG-WALL: the records at K = 8 and bound by inheritance at the first break (nose-over, trunk)');
       yes([s, no, tr].every(W => W.orphan === 0) && tr.crush > 0, k + ', DMG-WALL: every crushed vertex on an end of a member that took work, through the inherited weights (' + (no.orphan + tr.orphan) + ' not, of ' + (no.crush + tr.crush) + ')');
-      yes(s.scrape > 0 && s.scrapeR === 0, k + ', DMG-WALL: the wing-low slide scrapes the low side only (' + s.scrape + ' / ' + s.scrapeR + ' on the right)');
+      yes(s.scrape > 0 && s.scrapeR === 0, k + ', DMG-WALL: the wing-low slide leaves the high wing clean (' + s.scrape + ' / ' + s.scrapeR + ' on the right wing)');
       yes([no, tr].every(W => W.tornNoDead === 0), k + ', DMG-WALL: the torn band only where triangles went');
       yes([s, no, tr].every(W => W.plBad === 0), k + ', DMG-WALL: every record\'s place list follows its welds after the inheritance split them');
       yes(tr.hash === Wl.det, k + ', DMG-WALL: deterministic (' + tr.hash + ' / ' + Wl.det + ')'); }
