@@ -309755,3 +309755,30 @@ T-P1 did not land: new-shapes-1 turned four battery gates red that the cloud's o
   stand / taxi rows that are the STALE PARKED COOK (`parked_cook.js --check`: manifest 1bd647158b91, this tree
   5ec99dc3f3bd - every parked key captured live; master's is current). **A0: `node tools/parked_cook.js` on the box, then
   FRAMECOST.** The full core battery (252 jobs, ~4 h of this container) was not run here.
+
+## TRAIN L29h (A0, Mon 2 Nov) - FINISH-3 without the GPS: hand-placed fittings, new shapes, the belly pod (+ the MEDIA budgets, the LIGHT studio row)
+
+Landed:
+- claude/a0/finish3b df347ca21 = FINISH-3 (finish3 7e7637648) with the avionics-gps merge 8090d6de5 REVERTED.
+  - The revert conflicted in 90_node_exports only: master's names kept, minus the 8 avionics added (GEN_ELEC_PARTS, GEN_LIGHT_AMPS, GEN_LIGHT_BREAKER, GEN_LIGHT_PARTS, GEN_TRIM, genBreakerSize, genDrawnCabin, genFurnK; none used elsewhere).
+  - It carries: ready/windows-fittings (FITTINGS-MANUAL + master's DOOR-HINGES-2 both kept in _cage_access), ready/new-shapes-1 (6 files hand-merged), ready/belly-pod-2 (cert-rule files = master's, the pod's own delta re-applied).
+- claude/ready/media-budget c7cb33ce9 (Game): MEDIA's wire budget 4.6 -> 5.0 MiB and the career core 512 -> 640 KB, the growing landings named. No page-size work (user 14 Oct).
+- claude/ready/light-studio acb3e0ccb (PHONE-GARAGE): LIGHT row 4g catches an accidental studio, not the phone's own dark studio (G3726, L28a).
+
+WHY THE GPS IS OUT: the L29g bisect (2 Nov):
+- PILOTMATRIX passes on master and fails from avionics-gps on: 10 Cub HOME cells, sink 0.5 -> 1.7-1.9, hamfist swing 57.6 deg. The cause is G2811 in 43_pilot.js, which rode on the branch: the flap-blended trim point flies the clean approach with partial flap, and the user's Cub has flaps. Pilot coordinator is fixing it.
+- Every timing run with the GPS was 67-96 s summed roll-out worst task (L29g 77.7, GXall 88.6, GXwf 96.2, GXns 67.2; master 27-48.5).
+- avionics-gps goes back as train GPS-1, after the G2811 fix and its own stall fix + timed run.
+
+Battery (24 focused gates): PILOTMATRIX PASS (the Cub is back to master's), FIT, FITMANUAL, HANDLE, PODEDITOR, FREIGHT, STRUT, STAGES, TANKMOUNT, ECON, ROUTES, PANEL, DASH, HANGAR, PILOTS, LIVERYREACH, LIGHT, BUILT, LAZY PASS. Named reds:
+- CLIP: windows-fittings' own (the nav aerial sunk 9.2 mm into the fin skin vs the 5.5 mm allowed; the user's 27 Oct "rather sunk than floating"). It rides.
+- JOINPARITY 4: the stored page capture (27 Oct) is stale (mass 885.8 node vs 888.8 page); red on master too. Re-capture with join_parity_page.js.
+- POD: "pod off = the base's bytes" against stored base hashes. These match a tree with the GPS's generator changes (the pod was gated on one), so with the GPS out they differ. A stale fixture, not a pod change. Re-capture after GPS-1.
+- DMGSCAR 2 of 106: a 2H trunk crash, one wreck point outside the grass cull, a gouge point off the contacts. Not in the earlier batteries; Deform runs it on master in today's window to tell master's from new.
+- MEDIA: orphan parked packs at gate time. The train's own parked cook since replaced them; this push commits the deletions.
+
+Timing (light gate, one run): roll-out sum 58.7 s [cub 0.1/13.4, metal 8.6/17.6, c172 17.7/1.4], Cub garage 29.9 fps.
+- That's above master's overnight spread (27-48.5 s), but one run swings ~20 s (W4). L29f, already live, had a 16.8 s c172 roll-out task itself.
+- **Watch:** L29i's gate (17:15) is the second sample. If it is again over 48.5 s, bisect windows-fittings / new-shapes-1 / belly-pod-2.
+
+Ready refs now landed (for the user's delete list): ready/windows-fittings, ready/new-shapes-1, ready/belly-pod-2, ready/cert-rule (landed rebased in L28b), ready/media-budget, ready/light-studio, a0/finish3, a0/finish3b. NOT landed: ready/avionics-gps.
