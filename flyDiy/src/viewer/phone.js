@@ -23,12 +23,33 @@
 //   (R13): moves in between are coalesced, the last value kept, and the one still waiting when the finger lifts is
 //   delivered by profile.js's early pointerup hook, before the editor's release build runs.
 // THE RAIL keeps the profile's entries (profile.js 'rail'); the rest are a desktop's.
+//
+// G3900-G3904 PHONE-EDIT-LAYOUT (the user, 2 Nov, two planes built on an S20 FE: "split 50/50", "the controls too
+// narrow", "touch-friendly AND denser", and they typed values when the sliders lagged - typing is first-class):
+// - THE SPLIT: --ph-split (the view's share, phone.css) per orientation, .5 by default, remembered (flydiy.phSplit);
+//   #phDiv on the line between view and controls moves it - a ghost line while the thumb moves, the view resized once
+//   on release; a double tap puts it back to half.
+// - THE ROW (phone.css): one control a row, ~44 px, the scale the row's width; the row's - / + moved into the editor.
+// - THE VALUE'S EDITOR (#phEdit): a tap on a slider's value or label opens it - the number typed (inputmode decimal),
+//   the unit, - / + (held: they repeat), Done / Enter / a tap outside sets it, Esc leaves it; it rides the keyboard's
+//   top edge (visualViewport). A typed value goes through _cage_ui's own typed field (v_<k>'s change: clamp, then the
+//   editor's oninput - one full build, no drag).
+// - THE PRECISION DRAG: the farther the finger from the scale (vertically), the smaller the gain - 1 within 40 px, then
+//   40 / distance (x0.5 at 80 px, x0.25 at 160, never under x0.05); the hold-still fine (x0.1) multiplies it. The value
+//   is integrated move by move, so a gain change never jumps it. The bubble says the value big and the gain under it.
+// THE EVENT CONTRACT (for a cheap preview on `input` and the full build on `change` - PHONE-EDIT-PERF): a drag and a
+//   held - / + are pointerdown on the range, `input` at most once a frame while the finger moves, then the window's
+//   pointerup and the range's `change` once on release; a typed value is v_<k>'s `change` alone (no pointerdown, no
+//   `input` on the range). Nothing here builds the aeroplane: the editor's own handlers do.
 (function () {
   'use strict';
   const W = typeof window !== 'undefined' ? window : null;
   if (!W || !W.PROFILE || !W.PROFILE.is || !W.PROFILE.is('ui', 'touch')) return;   // THE DESKTOP: nothing below runs
   const D = W.document, $ = id => D.getElementById(id);
-  const KNOB = 26, HIT = 48, FINE_MS = 350, FINE_GAIN = 0.1, STILL_PX = 6, REP0 = 400, REP = 80;
+  const KNOB = 22, HIT = 48, FINE_MS = 350, FINE_GAIN = 0.1, STILL_PX = 6, REP0 = 400, REP = 80;
+  const V_FREE = 40, V_MIN = 0.05;   // the precision drag: full gain within 40 px of the scale, then 40 / distance
+  const ls = { get: k => { try { return W.localStorage.getItem(k); } catch (e) { return null; } },
+               set: (k, v) => { try { W.localStorage.setItem(k, v); } catch (e) {} } };
 
   // ---- the page: no browser zoom (a pinch is the view's), no pull-to-refresh (phone.css) -------------------------
   try {
@@ -91,14 +112,18 @@
 
   // ---- THE BUBBLE (R11) -------------------------------------------------------------------------------------------
   let bubble = null;
-  const bubbleShow = (x, y, text, fine) => {
-    if (!bubble) { bubble = D.createElement('div'); bubble.id = 'phBubble'; D.body.appendChild(bubble); }
-    bubble.textContent = text + (fine ? '  · fine ×0.1' : '');
-    bubble.classList.toggle('fine', !!fine);
+  // the value big; under it the gain (1: the hint that moving away from the scale is finer)
+  const gainText = g => g >= 0.999 ? 'slide away from the scale: finer' : 'fine ×' + (g >= 0.1 ? g.toFixed(2) : g.toFixed(3)).replace(/0+$/, '');
+  const bubbleShow = (x, y, text, gain) => {
+    if (!bubble) { bubble = D.createElement('div'); bubble.id = 'phBubble'; bubble.appendChild(D.createElement('b')); bubble.appendChild(D.createElement('small')); D.body.appendChild(bubble); }
+    gain = gain == null ? 1 : gain;
+    bubble.firstChild.textContent = text;
+    bubble.lastChild.textContent = gainText(gain);
+    bubble.classList.toggle('fine', gain < 0.999);
     bubble.hidden = false;
-    const w = bubble.offsetWidth || 80;
+    const w = bubble.offsetWidth || 120, h = bubble.offsetHeight || 54;
     bubble.style.left = Math.round(Math.max(6, Math.min(W.innerWidth - w - 6, x - w / 2))) + 'px';
-    bubble.style.top = Math.round(Math.max(6, y - 74)) + 'px';
+    bubble.style.top = Math.round(Math.max(6, y - h - 44)) + 'px';
   };
   const bubbleHide = () => { if (bubble) bubble.hidden = true; };
 
@@ -140,6 +165,8 @@
 
   // THE DRAG: one at a time
   let drag = null;
+  // G3903: the precision drag's gain from the finger's distance to the scale - and the hold-still fine on top
+  const gainOf = d => (d.fine ? FINE_GAIN : 1) * Math.max(V_MIN, Math.min(1, V_FREE / Math.max(V_FREE, Math.abs(d.y - d.yTrack))));
   function tick() {   // R13: the pending value, at most once a frame
     if (!drag) return;
     drag.raf = 0;
@@ -148,7 +175,7 @@
     drag.rng.value = String(v);
     drag.rng.dispatchEvent(new Event('input', { bubbles: true }));
     place(drag.row);
-    bubbleShow(drag.x, drag.y, valueText(drag.row), drag.fine);
+    bubbleShow(drag.x, drag.y, valueText(drag.row), gainOf(drag));
   }
   const flush = () => { if (drag && drag.pending != null) { if (drag.raf) W.cancelAnimationFrame(drag.raf); tick(); } };
   // the early release hook (profile.js): the last move reaches the slider as a tick, before the editor's release
@@ -161,23 +188,27 @@
     const ph = row.__ph, rng = ph.rng;
     if (rng.disabled || drag) return;
     e.preventDefault(); e.stopPropagation();
+    if (ed) edClose(false);
     try { ph.knob.setPointerCapture(e.pointerId); } catch (x) {}
     const { lo, hi } = rangeOf(rng);
-    drag = { row, rng, id: e.pointerId, x0: e.clientX, v0: num(rng.value, lo), span: hi - lo, w: Math.max(40, rng.offsetWidth - KNOB),
-             fine: false, moved: false, x: e.clientX, y: e.clientY, pending: null, raf: 0, hold: 0, t0: e.timeStamp, judged: false,
-             xd: e.clientX, vd: num(rng.value, lo) };
+    const kb = ph.knob.getBoundingClientRect();
+    // THE VALUE IS INTEGRATED move by move (G3903): `acc` is the unsnapped value, `xl` the last x - so the gain (the
+    // finger's height over the scale, the hold-still fine) can change mid-drag and the value never jumps
+    drag = { row, rng, id: e.pointerId, span: hi - lo, w: Math.max(40, rng.offsetWidth - KNOB), acc: num(rng.value, lo), xl: e.clientX,
+             yTrack: kb.top + kb.height / 2, fine: false, moved: false, x: e.clientX, y: e.clientY, pending: null, raf: 0, hold: 0,
+             t0: e.timeStamp, judged: false, xd: e.clientX, vd: num(rng.value, lo) };
     // R9: held still FINE_MS, the knob goes fine. Judged on the events' own clock (a move whose timestamp is FINE_MS past
     // the press with nothing moved before it), so a busy main thread - a phone mid-build - cannot turn a held press
     // coarse by running the timer late; the timer only shows it (the amber knob, the bubble) while the finger rests
     const goFine = () => { if (!drag || drag.moved || drag.fine) return;
-      drag.fine = true; drag.x0 = drag.x; drag.v0 = num(rng.value, lo);
+      drag.fine = true;
       ph.knob.classList.add('fine'); row.classList.add('phFine');
-      bubbleShow(drag.x, drag.y, valueText(row), true); };
+      bubbleShow(drag.x, drag.y, valueText(row), gainOf(drag)); };
     drag.goFine = goFine;
     drag.hold = setTimeout(goFine, FINE_MS);
     row.classList.add('phDrag');
     press(rng);
-    bubbleShow(e.clientX, e.clientY, valueText(row), false);
+    bubbleShow(e.clientX, e.clientY, valueText(row), 1);
   }
   function knobMove(e) {
     if (!drag || e.pointerId !== drag.id) return;
@@ -189,17 +220,20 @@
       if (Math.abs(e.clientX - drag.xd) <= STILL_PX) { drag.y = e.clientY; return; }
       drag.judged = true;
       const held = e.timeStamp - drag.t0 >= FINE_MS;
-      if (held && !drag.fine) drag.goFine();   // (x0 is still the press's: nothing moved)
-      else if (!held && drag.fine) { drag.fine = false; drag.x0 = drag.xd; drag.v0 = drag.vd;
+      if (held && !drag.fine) drag.goFine();
+      else if (!held && drag.fine) { drag.fine = false;
         drag.row.__ph.knob.classList.remove('fine'); drag.row.classList.remove('phFine'); }
+      drag.acc = drag.vd; drag.xl = drag.xd;
     }
-    drag.x = e.clientX; drag.y = e.clientY;
-    if (!drag.moved && Math.abs(e.clientX - drag.x0) > STILL_PX) drag.moved = true;
-    const gain = drag.fine ? FINE_GAIN : 1;
-    const v = snap(drag.rng, drag.v0 + (e.clientX - drag.x0) / drag.w * drag.span * gain);
-    drag.pending = v;
+    drag.y = e.clientY;
+    if (!drag.moved && Math.abs(e.clientX - drag.xd) > STILL_PX) drag.moved = true;
+    const g = gainOf(drag);
+    const { lo, hi } = rangeOf(drag.rng);
+    drag.acc = Math.max(lo, Math.min(hi, drag.acc + (e.clientX - drag.xl) / drag.w * drag.span * g));
+    drag.xl = drag.x = e.clientX;
+    drag.pending = snap(drag.rng, drag.acc);
     if (!drag.raf) drag.raf = W.requestAnimationFrame(tick);
-    bubbleShow(drag.x, drag.y, valueText(drag.row), drag.fine);
+    bubbleShow(drag.x, drag.y, valueText(drag.row), g);
   }
   function knobUp(e) {
     if (!drag || e.pointerId !== drag.id) return;
@@ -212,12 +246,13 @@
     place(d.row);
   }
 
-  // THE STEPPERS (R6): a tap is one step; held, they repeat - one press, ticks, one release, as a drag
+  // THE STEPPERS (R6), in the value's editor since G3900: a tap is one step; held, they repeat - one press, ticks, one
+  // release, as a drag
   let rep = null;
   function stepDown(row, dir, e) {
     const ph = row.__ph, rng = ph.rng;
     if (rng.disabled || drag || rep) return;
-    e.preventDefault();
+    e.preventDefault();   // (and the editor's input keeps the focus: the keyboard stays up)
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch (x) {}
     const one = () => {
       const { st } = rangeOf(rng);
@@ -226,6 +261,7 @@
       rng.value = String(v);
       rng.dispatchEvent(new Event('input', { bubbles: true }));
       place(row);
+      edShow();
     };
     press(rng);
     one();
@@ -236,6 +272,92 @@
     clearTimeout(rep.t);
     const r = rep; rep = null;
     release(r.rng);
+    edShow();
+  }
+
+  // ---- THE VALUE'S EDITOR (G3901-G3902) --------------------------------------------------------------------------
+  let ed = null;   // { row } while open
+  const edEl = {};
+  const fmtN = x => { const v = +x; return Number.isFinite(v) ? String(+v.toFixed(6)) : String(x); };
+  function edBuild() {
+    if (edEl.box) return edEl.box;
+    const box = D.createElement('div'); box.id = 'phEdit'; box.hidden = true; box.setAttribute('role', 'dialog');
+    const mk = (tag, cls, txt) => { const e = D.createElement(tag); e.className = cls; if (txt != null) e.textContent = txt; box.appendChild(e); return e; };
+    edEl.k = mk('span', 'phEk'); edEl.r = mk('span', 'phEr');
+    edEl.ok = mk('button', 'phEok', 'Done'); edEl.ok.type = 'button';
+    edEl.minus = mk('button', 'phStep phMinus', '−'); edEl.minus.type = 'button'; edEl.minus.setAttribute('aria-label', 'less');
+    edEl.inp = mk('input', 'phEin'); edEl.inp.type = 'text'; edEl.inp.inputMode = 'decimal'; edEl.inp.setAttribute('enterkeyhint', 'done');
+    edEl.inp.setAttribute('autocomplete', 'off'); edEl.inp.spellcheck = false;
+    edEl.u = mk('span', 'phEu');
+    edEl.plus = mk('button', 'phStep phPlus', '+'); edEl.plus.type = 'button'; edEl.plus.setAttribute('aria-label', 'more');
+    // the OK button and Enter set the typed number; - / + set it first (a typed 2.4 then + is 2.4 + a step), then step
+    edEl.ok.addEventListener('pointerdown', e => e.preventDefault());
+    edEl.ok.addEventListener('click', () => edClose(true));
+    edEl.inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); edClose(true); } else if (e.key === 'Escape') { e.preventDefault(); edClose(false); } });
+    for (const [b, dir] of [[edEl.minus, -1], [edEl.plus, 1]]) {
+      b.addEventListener('pointerdown', e => { if (!ed) return; edCommit(); stepDown(ed.row, dir, e); });
+      b.addEventListener('pointerup', stepUp);
+      b.addEventListener('pointercancel', stepUp);
+      b.addEventListener('lostpointercapture', stepUp);
+      b.addEventListener('contextmenu', e => e.preventDefault());
+    }
+    // a tap anywhere else sets what was typed and leaves (as the row's own typed field did on blur); Esc leaves without
+    D.addEventListener('pointerdown', e => { if (ed && !box.contains(e.target)) edClose(true); }, true);
+    D.addEventListener('keydown', e => { if (ed && e.key === 'Escape') edClose(false); });
+    // THE KEYBOARD: the bar stands on its top edge (Chrome resizes the visual viewport, not the layout one)
+    const vv = W.visualViewport;
+    if (vv) { const pin = () => { if (!ed) return; const kb = W.innerHeight - (vv.height + vv.offsetTop);
+      box.style.bottom = kb > 60 ? Math.round(kb) + 'px' : ''; };
+      vv.addEventListener('resize', pin); vv.addEventListener('scroll', pin); edEl.pin = pin; }
+    D.body.appendChild(box);
+    return (edEl.box = box);
+  }
+  const cur = row => { const ph = row.__ph; return ph.vf ? ph.vf.value : ph.rng.value; };
+  function edShow() {
+    if (!ed) return;
+    const ph = ed.row.__ph;
+    // the model's value, unless the thumb is typing (the field no longer shows what was last put in it)
+    if (D.activeElement !== edEl.inp || edEl.inp.value === ed.synced) { edEl.inp.value = cur(ed.row); ed.synced = edEl.inp.value; }
+    edEl.u.textContent = ph.mu && ph.mu.textContent ? ph.mu.textContent : '';
+  }
+  function edOpen(row) {
+    const ph = row && row.__ph;
+    if (!ph || ph.rng.disabled || drag) return;
+    if (ed && ed.row !== row) edClose(false);
+    edBuild();
+    ed = { row, synced: null };
+    row.classList.add('phOpen');
+    const { lo, hi } = rangeOf(ph.rng);
+    edEl.k.textContent = (ph.k && ph.k.textContent) || '';
+    edEl.r.textContent = fmtN(lo) + ' – ' + fmtN(hi);
+    edEl.inp.value = cur(row); ed.synced = edEl.inp.value;
+    edShow();
+    edEl.box.hidden = false;
+    edEl.box.style.bottom = '';
+    try { edEl.inp.focus({ preventScroll: true }); edEl.inp.select(); } catch (e) {}
+    if (edEl.pin) setTimeout(edEl.pin, 300);
+  }
+  // the typed number, through the editor's own typed field (clamped, one build) - or, with none, the range's own path
+  function edCommit() {
+    if (!ed) return false;
+    const ph = ed.row.__ph, t = String(edEl.inp.value).trim().replace(',', '.');
+    if (t === ed.synced || t === String(cur(ed.row))) return false;
+    const v = parseFloat(t);
+    if (!Number.isFinite(v)) { edShow(); return false; }
+    if (ph.vf) { ph.vf.value = String(v); ph.vf.dispatchEvent(new Event('change', { bubbles: true })); }
+    else { press(ph.rng); ph.rng.value = String(snap(ph.rng, v)); ph.rng.dispatchEvent(new Event('input', { bubbles: true })); release(ph.rng); }
+    place(ed.row);
+    edEl.inp.value = cur(ed.row); ed.synced = edEl.inp.value; edShow();   // (the clamped, formatted value)
+    return true;
+  }
+  function edClose(commit) {
+    if (!ed) return;
+    if (commit) edCommit();
+    stepUp();
+    ed.row.classList.remove('phOpen');
+    ed = null;
+    if (edEl.box) { edEl.box.hidden = true; edEl.box.style.bottom = ''; }
+    try { if (D.activeElement === edEl.inp) edEl.inp.blur(); } catch (e) {}
   }
 
   function enhance(row) {
@@ -243,32 +365,82 @@
     const rng = row.querySelector(':scope > input[type=range]');
     if (!rng) return;
     const knob = D.createElement('i'); knob.className = 'phKnob'; knob.setAttribute('aria-hidden', 'true');
-    const minus = D.createElement('button'); minus.type = 'button'; minus.className = 'phStep phMinus'; minus.textContent = '−'; minus.setAttribute('aria-label', 'less');
-    const plus = D.createElement('button'); plus.type = 'button'; plus.className = 'phStep phPlus'; plus.textContent = '+'; plus.setAttribute('aria-label', 'more');
-    row.insertBefore(minus, rng);
-    rng.insertAdjacentElement('afterend', plus);
     row.appendChild(knob);
-    const vf = row.querySelector(':scope > input.v'), mu = [...row.children].find(c => c.tagName === 'SPAN' && !c.classList.contains('k') && !c.classList.contains('v') && c !== knob) || null;
-    row.__ph = { rng, knob, vf, mu, minus, plus };
+    const k = row.querySelector(':scope > span.k');
+    const vf = row.querySelector(':scope > input.v'), sv = row.querySelector(':scope > span.v');
+    const mu = [...row.children].find(c => c.tagName === 'SPAN' && !c.classList.contains('k') && !c.classList.contains('v') && !c.classList.contains('rn') && c !== knob) || null;
+    row.__ph = { rng, knob, vf, mu, k };
     row.classList.add('phSlider');
     knob.addEventListener('pointerdown', e => knobDown(row, e));
     knob.addEventListener('pointermove', knobMove);
     knob.addEventListener('pointerup', knobUp);
     knob.addEventListener('pointercancel', knobUp);
     knob.addEventListener('lostpointercapture', knobUp);
-    for (const [b, dir] of [[minus, -1], [plus, 1]]) {
-      b.addEventListener('pointerdown', e => stepDown(row, dir, e));
-      b.addEventListener('pointerup', stepUp);
-      b.addEventListener('pointercancel', stepUp);
-      b.addEventListener('lostpointercapture', stepUp);
-      b.addEventListener('contextmenu', e => e.preventDefault());
-    }
+    // G3901: the value (and its label) open the editor - the row's own field never raises the keyboard
+    if (vf) { vf.readOnly = true; vf.inputMode = 'none'; vf.tabIndex = -1; }
+    for (const t of [vf || sv, k]) if (t) t.addEventListener('click', e => { e.preventDefault(); edOpen(row); });
     ROWS.add(row);
     place(row);
   }
   function enhanceIn(host) {
     if (!host) return;
     for (const r of host.querySelectorAll('.r')) enhance(r);
+    if (ed && !ed.row.isConnected) edClose(false);   // the row left (another part picked): its editor goes with it
+  }
+
+  // ---- THE SPLIT (G3900) -----------------------------------------------------------------------------------------
+  const LS_SPLIT = 'flydiy.phSplit', SPLIT0 = 0.5;
+  const orient = () => (W.innerWidth > W.innerHeight ? 'l' : 'p');
+  const LIM = { p: [0.28, 0.72], l: [0.35, 0.75] };
+  let splits = { p: SPLIT0, l: SPLIT0 };
+  try { const s = JSON.parse(ls.get(LS_SPLIT) || 'null'); if (s && typeof s === 'object') for (const o of ['p', 'l']) if (Number.isFinite(+s[o])) splits[o] = +s[o]; } catch (e) {}
+  const clampSplit = (o, f) => Math.max(LIM[o][0], Math.min(LIM[o][1], f));
+  function applySplit() {
+    const o = orient();
+    D.documentElement.style.setProperty('--ph-split', String(clampSplit(o, splits[o])));
+    W.requestAnimationFrame(placeAll);
+  }
+  function setSplit(f, o) {
+    o = o || orient();
+    splits[o] = clampSplit(o, f);
+    ls.set(LS_SPLIT, JSON.stringify(splits));
+    applySplit();
+    return splits[o];
+  }
+  function buildDivider() {
+    if ($('phDiv')) return;
+    const dv = D.createElement('div'); dv.id = 'phDiv'; dv.setAttribute('role', 'separator'); dv.setAttribute('aria-label', 'move the line between the view and the controls');
+    const gh = D.createElement('div'); gh.id = 'phGhost'; gh.hidden = true;
+    D.body.appendChild(dv); D.body.appendChild(gh);
+    let mv = null, lastTap = 0;
+    const at = e => { const o = orient(), size = o === 'l' ? W.innerWidth : W.innerHeight;
+      return { o, f: clampSplit(o, (o === 'l' ? e.clientX : e.clientY) / size), size }; };
+    dv.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      if (e.timeStamp - lastTap < 320) { lastTap = 0; setSplit(SPLIT0); return; }   // a double tap: back to half
+      lastTap = e.timeStamp;
+      try { dv.setPointerCapture(e.pointerId); } catch (x) {}
+      mv = { id: e.pointerId, moved: false, x: e.clientX, y: e.clientY };
+      dv.classList.add('on');
+    });
+    dv.addEventListener('pointermove', e => {
+      if (!mv || e.pointerId !== mv.id) return;
+      if (!mv.moved && Math.hypot(e.clientX - mv.x, e.clientY - mv.y) < 4) return;
+      mv.moved = true;
+      const a = at(e), px = Math.round(a.f * a.size) + 'px';
+      gh.hidden = false;
+      if (a.o === 'l') { gh.style.left = px; gh.style.top = '0px'; } else { gh.style.top = px; gh.style.left = '0px'; }
+      mv.f = a.f;
+    });
+    const end = e => {
+      if (!mv || (e && e.pointerId !== mv.id)) return;
+      const m = mv; mv = null;
+      dv.classList.remove('on'); gh.hidden = true;
+      if (m.moved && m.f != null) { lastTap = 0; setSplit(m.f); }
+    };
+    dv.addEventListener('pointerup', end);
+    dv.addEventListener('pointercancel', end);
+    dv.addEventListener('lostpointercapture', end);
   }
 
   // ---- WIRING: the rows arrive with the editor (and move in and out of the column on every selection) -----------
@@ -288,20 +460,27 @@
       up = true;
       D.body.classList.add('ph');
       buildTabs();
+      buildDivider();
       watch($('edRows'));
       watch($('edFlyBody'));
       // a value set by anything but a finger (a load, a reset, the typed chip, syncSliders) moves the knob too
       // G3725 (PHONE-GARAGE): the rail's rows open in the MENU's pages (#gmPanel, app.js) and the top bar's card
       // (#edPopCard, editor.js) now - both made later than this, so they are watched once they exist
       setInterval(() => { if (!drag && !D.hidden) { watch($('gmPanel')); watch($('edPopCard')); placeAll(); } }, 400);
-      W.addEventListener('resize', () => W.requestAnimationFrame(placeAll));
-      W.addEventListener('orientationchange', () => setTimeout(placeAll, 200));
+      // the split is the orientation's own (a turn of the phone takes the other one)
+      W.addEventListener('resize', applySplit);
+      W.addEventListener('orientationchange', () => setTimeout(applySplit, 200));
     }
     hookSelection();
     trimRail();
     return true;
   }
+  // the split before the first layout: the view is its size from the boot on
+  applySplit();
   // the editor opens inside the boot (its 'editor' step); the rail and the tree fill after it
   const poll = setInterval(() => { if (init() && $('edRail') && $('edRail').children.length) { trimRail(); clearInterval(poll); } }, 250);
-  W.PHONE_UI = { setTab, tab: () => tab, placeAll, enhance, rows: () => ROWS.size };
+  W.PHONE_UI = { setTab, tab: () => tab, placeAll, enhance, rows: () => ROWS.size,
+    split: () => ({ o: orient(), f: clampSplit(orient(), splits[orient()]) }), setSplit,
+    edit: k => { const r = D.querySelector('.r.phSlider[data-k="' + k + '"]'); if (r) edOpen(r); return !!ed; },
+    editing: () => (ed ? ed.row.dataset.k || '?' : null), editClose: c => edClose(!!c) };
 })();

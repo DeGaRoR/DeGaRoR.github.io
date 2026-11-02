@@ -169,9 +169,53 @@ async function touchChecks(C) {
       const coarse = fdx / Math.max(40, r.w - 26) * (r.hi - r.lo);
       say('fine', { ok: f.v !== r.v && Math.abs(f.v - r.v) <= Math.abs(coarse) * 0.15 + r.st, key: r.key, from: r.v, to: f.v, coarseWouldBe: +coarse.toFixed(3) });
       r = await probe();
-      const pl = await centre('#edRows .r[data-k="' + r.key + '"] .phPlus'); await J('(__ev = { down: 0, input: 0, change: 0 }, 1)');
-      await tap(pl); const p = await valOf(r.key);
-      say('stepper', { ok: Math.abs(p.v - Math.min(r.hi, r.v + r.st)) < r.st * 0.01 + 1e-9 && p.ev.change === 1, key: r.key, from: r.v, to: p.v, step: r.st });
+      // G3901-G3902 (PHONE-EDIT-LAYOUT): the row's - / + live in the value's editor now - a tap on the value opens it
+      await tap(await centre('#edRows .r[data-k="' + r.key + '"] .v'));
+      const open = await J('PHONE_UI.editing()');
+      await J('(__ev = { down: 0, input: 0, change: 0 }, 1)');
+      await tap(await J('(() => { const b = document.querySelector("#phEdit .phPlus").getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; })()'));
+      const p = await valOf(r.key);
+      say('stepper', { ok: open === r.key && Math.abs(p.v - Math.min(r.hi, r.v + r.st)) < r.st * 0.01 + 1e-9 && p.ev.change === 1, key: r.key, opened: open, from: r.v, to: p.v, step: r.st });
+      // TYPED: the editor's number, Enter - the row's typed path (v_<k> change), no drag events on the range
+      const want = +(r.lo + (r.hi - r.lo) * 0.37).toFixed(6);
+      await J('(__ev = { down: 0, input: 0, change: 0 }, document.querySelector("#phEdit .phEin").select(), 1)');
+      await C.cmd('Input.insertText', { text: String(want) });
+      await C.cmd('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+      await C.cmd('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 }); await sleep(600);
+      const ty = await valOf(r.key), closed = await J('PHONE_UI.editing()');
+      say('typed', { ok: Math.abs(ty.v - want) <= r.st + 1e-9 && ty.ev.down === 0 && closed === null, key: r.key, want, got: ty.v, events: ty.ev, editorAfter: closed });
+      // PRECISION: up 160 px from the scale, then sideways - the gain is 40 / 160
+      r = await probe();
+      const pdx = r.x + 100 < r.x1 ? 100 : -100, up = Math.max(20, r.y - 160) - r.y;
+      { const t0 = Date.now() / 1000; await touch('touchStart', [[r.x, r.y]], t0);
+        for (let i = 1; i <= 6; i++) { await touch('touchMove', [[r.x, r.y + up * i / 6]], t0 + 0.03 * i); await sleep(30); }
+        for (let i = 1; i <= 10; i++) { await touch('touchMove', [[r.x + pdx * i / 10, r.y + up]], t0 + 0.18 + 0.03 * i); await sleep(30); }
+        await touch('touchEnd', [], t0 + 0.6); await sleep(400); }
+      const pr = await valOf(r.key), coarseP = pdx / Math.max(40, r.w - 22) * (r.hi - r.lo), g = 40 / Math.abs(up);
+      say('precise', { ok: pr.v !== r.v && Math.abs(pr.v - r.v) <= Math.abs(coarseP) * g * 1.4 + r.st && Math.abs(pr.v - r.v) < Math.abs(coarseP) * 0.6, key: r.key, from: r.v, to: pr.v, coarseWouldBe: +coarseP.toFixed(3), gain: +g.toFixed(3) });
+    }
+    // THE SPLIT (G3900): half and half by default; the divider moves it on release; a double tap puts it back
+    {
+      const s0 = await J('({ s: PHONE_UI.split(), c: document.getElementById("c").getBoundingClientRect().height, h: innerHeight, w: innerWidth })');
+      const land = s0.s.o === 'l', size = land ? s0.w : s0.h, at = Math.round(size * s0.s.f), to = Math.round(size * 0.4);
+      const mid = land ? [at, s0.h / 2] : [s0.w / 2, at];
+      await swipe(mid, land ? [to, s0.h / 2] : [s0.w / 2, to], 8);
+      await sleep(500);
+      const s1 = await J('({ s: PHONE_UI.split(), c: document.getElementById("c").getBoundingClientRect() })');
+      { const q = land ? [to, s0.h / 2] : [s0.w / 2, to];   // a double tap (two presses inside 320 ms)
+        await touch('touchStart', [q]); await touch('touchEnd', []); await sleep(90); await touch('touchStart', [q]); await touch('touchEnd', []); await sleep(500); }
+      const s2 = await J('PHONE_UI.split()');
+      say('split', { ok: Math.abs(s0.s.f - 0.5) < 0.01 && Math.abs(s1.s.f - 0.4) < 0.02 && Math.abs((land ? s1.c.width : s1.c.height) - to) < 6 && Math.abs(s2.f - 0.5) < 0.01,
+        before: s0.s, canvas0: Math.round(land ? s0.w * s0.s.f : s0.c), after: s1.s, canvas1: Math.round(land ? s1.c.width : s1.c.height), backTo: s2 });
+      await J('(PHONE_UI.setSplit(0.5), 1)');
+    }
+    // DENSITY (G3900): slider rows wholly on screen in the controls at once, the heads scrolled away
+    {
+      const d = await J('(() => { const sc = document.getElementById("edProps"), rows = document.getElementById("edRows"); sc.scrollTop = rows.offsetTop; const b = sc.getBoundingClientRect();' +
+        ' const vis = [...rows.querySelectorAll(".r.phSlider")].filter(r => { const q = r.getBoundingClientRect(); return q.height > 0 && q.top >= b.top - 1 && q.bottom <= b.bottom + 1; });' +
+        ' const hs = vis.map(r => r.getBoundingClientRect().height); return { rows: vis.length, sheet: Math.round(b.height), rowPx: hs.length ? Math.round(hs.reduce((a, x) => a + x, 0) / hs.length) : 0 }; })()');
+      say('density', Object.assign({ ok: d.rows >= 8 }, d));
+      await J('(document.getElementById("edProps").scrollTop = 0, 1)');
     }
     // THE VIEW
     const vb = await J('(() => { const b = document.getElementById("c").getBoundingClientRect(); return [b.left + b.width / 2, b.top + b.height / 2]; })()');
