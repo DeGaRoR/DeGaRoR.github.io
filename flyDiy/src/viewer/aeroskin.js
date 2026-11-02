@@ -1171,10 +1171,30 @@ function aeroBaseReach(map, prev, next, neutral, eq, names, opts) {
 // handed out, and the copy was never one of them: the reach was right, the second wing kept the old paint until the
 // next full build. Each copy remembers its source here; a repaint hands the copy of the source's replacement to every
 // mesh wearing the old copy (or the game's understudy of it), as the cowl's twins do (G1301).
+// G3870 (the user, 29 Oct: "the extra wing in a biplane is not getting the same detailed normal map ... nor could
+// receive the livery"): the copy was m.clone(), and three's Material.copy carries NEITHER the hook nor AEROSKIN's
+// defines - Standard's copy() puts {STANDARD} back over {AEROSKIN_SURF}, and onBeforeCompile is never copied. So the
+// second wing drew as a bare MeshStandardMaterial: no ribs or spars in the normal, no livery field, no weathering, no
+// global dials. Copied here the way app.js's twins are (G680): userData kept out of copy()'s JSON clone (textures),
+// the defines, the hook unwrapped from ATMO's accessor, the cache key - so the copy also shares the first wing's
+// program (no extra link).
+// aeroDupe: THE copy of a hooked material, exported so no layer reaches for clone() again (the same recipe lives
+// hand-rolled in app.js compileXrayVariants, parked.js dupe, flown_bake.js copyMat and shader_warm.js twin).
+const aeroOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+function aeroDupe(m) {
+  const t = new m.constructor();
+  { const ud = m.userData; m.userData = {}; try { t.copy(m); } finally { m.userData = ud; } }
+  if (m.defines) t.defines = Object.assign({}, m.defines);
+  const hook = aeroOwn(m, '_atmoHook') ? m._atmoHook : aeroOwn(m, 'onBeforeCompile') ? m.onBeforeCompile : undefined;
+  if (hook !== undefined) t.onBeforeCompile = hook;
+  if (aeroOwn(m, 'customProgramCacheKey')) t.customProgramCacheKey = m.customProgramCacheKey;
+  t.userData = Object.assign({}, m.userData);
+  return t;
+}
 const AERO_PLANE_SRC = new WeakMap();
 function aeroPlaneClone(m, plane) {
-  const m2 = m.clone();
-  m2.userData = Object.assign({}, m.userData, { aeroPlane: plane });
+  const m2 = aeroDupe(m);
+  m2.userData.aeroPlane = plane;
   AERO_PLANE_SRC.set(m2, m);
   return m2;
 }
@@ -5016,7 +5036,7 @@ if (typeof window !== 'undefined')
                       AERO_KIT_LDEF, AERO_KIT_FIELDS,
                       aeroKitKnob, aeroKitLayers, aeroKitDraw, aeroKitArgs, AERO_KIT_CLEAR,
                       AERO_HARD, AERO_PROP_FIN, AERO_WEAR_K,
-                      AERO_SEC, aeroSecResolve, aeroBaseReach, aeroFinishLegacy, aeroPlaneClone, aeroPlaneRepaint,
+                      AERO_SEC, aeroSecResolve, aeroBaseReach, aeroFinishLegacy, aeroPlaneClone, aeroPlaneRepaint, aeroDupe,
                       aeroHardFinish, aeroHardMat, aeroHardOn, aeroSetWear,
                       aeroSharedU,          // G345: uCraftInv for the sources
                       // THE LAB (G206)
@@ -5042,7 +5062,7 @@ if (typeof module !== 'undefined')
                      AERO_KIT, AERO_KIT_LAYERS, AERO_KIT_PAGE0,
                      AERO_KIT_LDEF, AERO_KIT_FIELDS,
                      aeroKitKnob, aeroKitLayers, aeroKitArgs, AERO_KIT_CLEAR,
-                     AERO_SEC, aeroSecResolve, aeroBaseReach, aeroFinishLegacy, aeroPlaneClone, aeroPlaneRepaint,
+                     AERO_SEC, aeroSecResolve, aeroBaseReach, aeroFinishLegacy, aeroPlaneClone, aeroPlaneRepaint, aeroDupe,
                      AERO_FINISH_DEF, AERO_LAB_FIELDS, AERO_LAB_GRAM,
                      AERO_GAIN_DEF, GLASS_DEF, aeroIsInside, AERO_CABIN_DEF,
                      aeroDecOk, aeroRestBake };

@@ -3822,9 +3822,9 @@ function editorInit(api) {
   // WHICH NAMED OBJECT a mesh belongs to — the nearest name on the way up,
   // the same walk `ownerOf` does, stopping one step earlier. Used to narrow a
   // hover to the ONE instance under the pointer.
-  const instOf = (o, layerRoot) => {
-    for (let p = o; p && p !== layerRoot; p = p.parent) if (p.name) return p.name;
-    return '';
+  const inInst = (o, layerRoot, only) => {
+    for (let p = o; p && p !== layerRoot; p = p.parent) if (p.name === only) return true;
+    return false;
   };
 
   // `only` narrows a LAYER highlight to the named instance under the pointer
@@ -4023,7 +4023,9 @@ function editorInit(api) {
         // outlined, or the body would be drawn twice.
         if (!o.isMesh || (o.userData && (o.userData.edHi || o.userData.charPick))) return;
         if (!keys.has(ownerOf(o, child, def))) return;
-        if (only && instOf(o, child) !== only) return;
+        // G3874: the instance is the hovered NAME or any node above it - a character's meshes keep their own
+        // names under the occupant's (edCrew1), which is the name a hover on its pick body now carries
+        if (only && !inInst(o, child, only)) return;
         const mk = o.isSkinnedMesh ? hiSkinMk(o) : null;
         if (wantFill) {
           const m = mk ? mk(o.geometry, mat) : new THREE.Mesh(o.geometry, mat);

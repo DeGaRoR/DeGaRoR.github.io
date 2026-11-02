@@ -1196,19 +1196,18 @@ const DESIGN_ROWS = [
   { key: 'planes', label: 'Wings', kind: 'discriminator',
     group: 'wing', status: 'live', twin: ['w2On'], arm: true,
     help: 'a second plane is a real aeroplane: its truss braces both wings',
-    read: P => !+P.w2On ? 'mono'
-             : (+P.w2Span < 0.8 * +P.wgSpan ? 'sesqui' : 'biplane'),
+    // G3871 (the user, 29 Oct: "I'm not sure we need the 2 options for bi plane and sesquiplane, now that we can
+    // freely set the size of each wing individually"): two planes are ONE option; a sesquiplane is a biplane whose
+    // second span the builder set short (the 'sesqui' design keeps its own spans through over.cage)
+    read: P => !+P.w2On ? 'mono' : 'biplane',
     options: [
       { value: 'mono', label: 'Monoplane', icon: iconFront('high'),
         writes: { cage: { w2On: 0 } } },
-      // the option's own fact is the lower span's RATIO to the upper's (that
-      // is what "biplane" vs "sesquiplane" means, and what `read` derives
-      // it from), so the span it writes is a real write, armed — a custom
-      // equal-or-longer lower plane is kept by max()
+      // the second plane's span is the builder's own row: kept as set, the first plane's when it has none
       { value: 'biplane', label: 'Biplane', icon: iconFront('parasol', 'none', { second: 1 }),
-        note: 'two equal planes, wires and N struts',
+        note: 'two planes, each sized on its own; wires and N struts',
         writes: { cage: { w2On: 1,
-                          w2Span: P => Math.max(+P.w2Span || 0, +(0.8 * +P.wgSpan).toFixed(2)) } },
+                          w2Span: P => +P.w2Span > 0 ? +P.w2Span : +P.wgSpan } },
         seed: { cage: {
           // (biplane audit, 2026-09-21: the seed follows the BAND — a low
           // or mid first plane keeps its band and gets a parasol over it;
@@ -1222,19 +1221,6 @@ const DESIGN_ROWS = [
           w2ChordTip: P => +P.wgChordTip, w2Tip: P => P.wgTip,
           wgAilOn: P => Math.round(P.wgPos) === 2 ? 1 : 0,
           w2AilOn: P => Math.round(P.wgPos) === 2 ? 0 : 1,
-          bpInter: 0, bpWires: 1, bpCabane: 0 } } },
-      { value: 'sesqui', label: 'Sesquiplane', icon: iconFront('parasol', 'none', { second: 0.7 }),
-        note: 'a short lower plane under a long upper',
-        writes: { cage: { w2On: 1, w2Span: P => +(0.72 * +P.wgSpan).toFixed(2) } },
-        seed: { cage: {
-          wgPos: P => Math.round(P.wgPos) === 2 ? 2 : Math.round(P.wgPos) === 1 ? 1 : 3,
-          wgParaH: 0.45,
-          w2Pos: P => Math.round(P.wgPos) === 2 || Math.round(P.wgPos) === 1 ? 0 : 2,
-          w2ParaH: 0.45,
-          w2Stagger: P => Math.round(P.wgPos) === 2 || Math.round(P.wgPos) === 1 ? -0.35 : 0.35,
-          w2Chord: P => +(0.80 * +P.wgChord).toFixed(2),
-          w2ChordTip: P => +(0.80 * +P.wgChordTip).toFixed(2), w2Tip: P => P.wgTip,
-          wgAilOn: 1, w2AilOn: 0,
           bpInter: 0, bpWires: 1, bpCabane: 0 } } },
     ] },
 
@@ -2045,7 +2031,7 @@ const ARCHETYPES = [
       'long upper one, leaning struts, wires',
     sel: { class: 'eab', role: 'touring', seatLayout: 0, paxCount: 1,
            canopy: 'screen', mirror: 0, intCons: 1, boomStyle: 0, section: 1,
-           wgPos: 3, wgBrace: 1, wgTip: 2, wgFlapType: 0, planes: 'sesqui',
+           wgPos: 3, wgBrace: 1, wgTip: 2, wgFlapType: 0, planes: 'biplane',
            engFamily: 'flat', engModel: 'continental O-200', engMount: 'nose',
            gearLayout: 'tail', suspension: 'bungee', s1Fair: 0,
            finArch: 'straight', empennage: 'conv', scheme: 'trim', base: 0xefe6cf, trim: 0x7c3327 },

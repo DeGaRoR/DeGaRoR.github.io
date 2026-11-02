@@ -170,6 +170,7 @@ window.CAGE_PAGE = {
     swMaster: 0, swAlt: 0, swAvionics: 0,      // G311/G318: the shed's button states (off, unlit)
     paxFeetOn: 1, paxFeetZ: 0.55, paxFeetY: 0, paxFeetX: 0.14, paxIdle: 1,
     pilHandGrip: 0.075,
+    pilStickFwd: 0,              // G3875: the stick hand fore/aft (0 = where the grip puts it)
     // G2797: the hands apart (0 = one setting for both, as always)
     pilHandsApart: 0, pilFistL: 0.5, pilFistR: 0.5, pilGripL: 0.075, pilGripR: 0.075,
     // G180 — WHO IS ABOARD, per section, and the passengers' own seat and
@@ -786,6 +787,9 @@ window.CAGE_PAGE = {
         // sitting-idle clip (0 = a statue)
         ['pilFist',   'fist closed',    0, 1, 0.05,
          { when: P => !+P.pilHandsApart }],
+        // G3875 (the user, 29 Oct: "the hand control for the stick should allow for some fore-aft adjustment,
+        // because right now the stick is not perfectly held"): metres along the pilot's own forward, the stick hand only
+        ['pilStickFwd', 'stick hand fore/aft', -0.08, 0.08, 0.005],
         // G2797 (the user's garage review, 18 Oct: "hand controls applied per
         // hand"): the two hands set apart - each one's fist and its place on
         // the grip; off, both follow the two rows above

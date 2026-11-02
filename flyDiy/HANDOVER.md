@@ -307729,3 +307729,84 @@ Not in it: fittings-manual (HANDLE overlap with door-hinges-2, back to the hinge
 Why: since L28a (menus-l28a) the default flight layout fl2 has no rail, and app.js setupOpen returns under it (G3649): the loading screen has no setup panel. GATE ROUNDTRIP's setup child still opened the default page, waited for #bootSetup, found no anti-aliasing pill and no "level horizon" row, touched nothing - six rows red on the missing touch (hold, pulse, LIVE both ways, the wait, the settle), no break (its own "no script, timer or frame threw" rows green). The seventh, "the setup screen's sections", was master's: FLY gained a "drawn" section.
 What changed (tools/_roundtrip_check.js only): openCounted(hooks, query) adds a query to ROUNDTRIP_QUERY; the setup child runs ?flui=old (the old layout, where the setup screen lives) and asserts it did (FLYDIY_FL2 off); each trips child asserts the default boot is fl2 (FLYDIY_FL2.on: no setup panel on its loading screen); FLY's expected sections gain 'drawn'. No page change.
 Gates: ROUNDTRIP.
+## G3870-G3871 - BIPLANE: THE SECOND WING WEARS THE FIRST WING'S SKIN; ONE "BIPLANE" OPTION (2026-10-29, A0 for the user; claude/biplane-skin off master 62d23a05b; node --check only, NOT gated)
+The user (29 Oct): "The extra wing in a biplane is not getting the same detailed normal map as the bottom one, at least it does not
+get the ribs from the underlying structure. It was also not reached by any global livery controls, nor could receive the livery ...
+And I'm not sure we need the 2 options for bi plane and sesquiplane, now that we can freely set the size of each wing individually."
+- G3870 THE CAUSE (read, not measured): `aeroPlaneClone` (src/viewer/aeroskin.js) made the second plane's own material with
+  `m.clone()`. three's Material.copy carries neither `onBeforeCompile` nor AEROSKIN's defines: Standard's copy() puts {STANDARD}
+  back over {AEROSKIN_SURF}. So the second wing drew in the garage as a bare MeshStandardMaterial: no rib or spar normal field, no
+  livery field, no weathering, no global dials. The flown aeroplane rebuilt it from the join's payload (the factory), which hid
+  part of it in flight.
+- THE FIX: the copy is now made the way app.js's twins are (G680): userData kept out of copy()'s JSON clone (it holds textures),
+  the defines, the hook unwrapped from ATMO's accessor (`_atmoHook`), and the cache key. The second wing also shares the first
+  wing's program, so there's no extra link.
+- G3871 the design panel's 'planes' row: Monoplane | Biplane. 'Sesquiplane' is gone: a sesquiplane is a biplane with a short
+  second span, set on its own rows. Biplane keeps the builder's second span (the first plane's when it has none), no longer
+  forcing 0.8x. The 'sesqui' design now selects 'biplane'; its over.cage spans (10.0 / 6.5) and ailerons are applied after it,
+  so the built design is unchanged.
+- GATES OWED (pure visual + the panel; light): BIPLANE SKINMAT LIVERYREACH ARCHETYPES DESIGN, plus one garage look at a biplane
+  (top wing ribs + a livery on both).
+- G3872 (the user, 29 Oct: "check more widely this use of clone()"). An audit of every material clone() and hand-rolled copy in
+  src/viewer + tools/_cage_*:
+  - **dmg_members.js (the crash look's pool) had the same bug, now fixed:** `src.clone()` of the skin material JSON-cloned
+    its userData, so the hook's `aeroU` texture uniforms came back as plain objects, and AEROSKIN_SURF was lost. That is a likely
+    cause of DEFORM's open "a few yellow fabric patches missing with the look ON" (stills 2026-10-28/2_dmg_looks). The pool now
+    takes `AEROSKIN.aeroDupe`.
+  - **aeroDupe is now THE copy, exported on AEROSKIN** (type, defines, the hook unwrapped from ATMO, the cache key, userData
+    outside copy()'s JSON clone). aeroPlaneClone uses it. The same recipe still lives hand-rolled and correct in four places:
+    app.js compileXrayVariants, parked.js dupe, flown_bake.js copyMat, shader_warm.js twin. Fold them into aeroDupe at leisure.
+  - **No bug:** the lamp lens/cup clones (app.js 2671, parked.js 689: plain materials, no own hook), the panel needles
+    (plain material), _cage_char flatMaterial (re-hooks the gloss itself), the twin-boom fin (group.clone() shares the
+    materials), the cowl twins (they share M.skin), and the scenery clones in render_world/render_premises/hangar (not liveries).
+  - **A gap, not a bug - THE FLOATS:** `SM('float', { surf: 0 })` (tools/_cage_float.js). The hulls draw on the triplanar
+    branch: no rivet rows, no seams, no metric field, so field-placed markings (a registration) have nothing to land on. Real
+    floats are riveted alloy. A future item: give the hull a surface field (surf 1) like the fuselage.
+  - **Also a gap - V-tail:** the stab is the fin laid flat (`boxDet` box projection) and canted 30-40 deg. The box detail is
+    planar, so on a V-tail it stretches by about 1/cos(cant), ~20 %. Mild; same future item as the tail box planes.
+- GATES OWED add DMGLOOK (the pool) to the list above.
+- G3873 THE FLOATS' SURFACE FIELD (the user, 29 Oct: "do the floats fix please"). In tools/_cage_float.js:
+  - The hull skin now carries `aStruct`, the fuselage's field contract: metres along, metres around, station, rail. It is
+    read off the model frame: along from the hull's first station; around = the girth from the keel (|mz| plus the rise
+    above that station's keel, from 64 bins). A frame every 0.75 m, a rivet row every 0.25 m.
+  - The hull wears `SM('float', { cons: 'alloy', struct: 1, surf: 1 })`: rivet rows, seams, and a field a marking can land on.
+  - Protrusions, the rudder blade and the hardware keep the triplanar 'float' material (surf 0), which is now also alloy:
+    one material never mixes the two branches (GATE SURF).
+  - Both are the 'float' section, so the livery paints them as one. Alloy whatever the fuselage is built of, because every
+    preset is a Wipline.
+  - GATES OWED: SURF FLOATDUP FLOATKIT LIVERYREACH SKINMAT, plus one garage look at a floatplane (rivet rows along the hull,
+    seams at the frames, a registration on the float).
+- G3874 THE PILOT LIGHTS ON HOVER (the user, 29 Oct: "when hovering over the pilot, they do not highlight, so they don't feel
+  selectable yet they are").
+  - The cause: a hover hits the character's invisible pick body, named 'edCrewPick'. The hover highlight narrows to the hit's
+    NAME (`only`), and no drawn mesh carried that name, so nothing lit. A click selects with no `only`, which is why it worked.
+  - app.js's layer hit now reports a pick body under its occupant's name (edCrew1..), which still maps to the 'crew' part.
+  - editor.js's narrowing accepts a mesh whose own name OR any ancestor's matches (`inInst`, replacing `instOf`). For the
+    wheels nothing changes: they are still lit as a pair under one name.
+- G3875 THE STICK HAND FORE/AFT (the user: "the hand control for the stick should allow for some fore-aft adjustment").
+  - A new row, `pilStickFwd` 'stick hand fore/aft', -0.08..0.08 m (pilot pose; default 0). It moves the control-column hand's
+    target (L/R->stick or ->yoke) along the pilot's own forward (fig +z) after the palm offset.
+  - It is carried like palm: ctx -> occ.live -> the join's people record -> app.js's flown ctx, so the same solver places
+    the flown hand.
+- GATES OWED add CREW PARTS JOIN (the crew rows + the people record), plus one garage look: hover the pilot, slide the stick
+  hand.
+- G3876 THE TOP BAR NAMES A DRAWN ROUTE (the user, 29 Oct: "when flying a drawn route, the indicator on the top screen should
+  indicate route 1 (or whatever name) instead of keeping circuit").
+  - app.js flTrip (the plate's trip slot and the folded line) now says 'From -> <route name>' while the pilot holds a drawn
+    route (ap.drawn armed / flying / hold, plus ' · holding' on the end's hold). Done or left, the picker's To says it again.
+  - The slot renders on events only, so apWhyTick (every frame) re-renders the plate when ap.drawn's name|state changes.
+  - GATES OWED add APHONEST UISMOKE ROUTES (the plate and the per-frame tick), plus one page look: draw Route 1, fly it.
+- G3877 A TANK THAT DOES NOT FIT FLIES AS DRAWN (the user, 29 Oct: "the reservoir draws when valid, does not if invalid.
+  That's not a proper way to handle that").
+  - G1108 dropped an unfit body tank from the join (`edUnfit`), so the flown and parked aeroplane lost a tank whose fuel it
+    still carried, while strut pods and wing tanks were never stamped and flew anyway.
+  - Now the join takes every tank (WYSIWYG). The garage's red stays the editor's warning only: the game rebuilds the shell
+    from CAGE_ENERGY.material (no `bad`), so it flies in its own finish.
+  - `CAGE_JOIN_TAKE_UNFIT` is gone. `CAGE_JOIN_DROP_UNFIT` is GATE TANKMOUNT's A/B, and its rows are flipped: an all-unfit
+    build carries its tank, the A/B is real, the physics hash is the same both ways.
+  - GATES OWED add TANKMOUNT ENERGY JOIN, plus one garage look: push a tank through the skin, roll out, see it.
+- G3878 THE GARAGE CLEARS THE BROKEN GLASS (the user, 29 Oct: "the broken windscreen shows in the garage after restoring").
+  - DMG-GLASS's impact marks are AEROSKIN's SHARED uniforms (uCrackN/P/Q), and `glassMarks()` ran only `!inGarage`, so
+    nothing cleared them: the shed's restored aeroplane wore the last crash's cracks.
+  - The frame loop now clears them in the garage (`glassClear`). A FLYDIY_GLASS_TEST stamp (GLM.test) stays for its rig.
+  - GATES OWED add DMGGLASS, plus one look: crash into glass damage, back to the shed, the windscreen whole.

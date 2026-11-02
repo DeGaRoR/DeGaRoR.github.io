@@ -332,7 +332,32 @@ const dirCage = m => { const r = rotInc(m); return [-r[2], r[1], -r[0]]; };
 // a FLOAT_GEN part -> a mesh in the cage frame (indexed, smooth normals);
 // `mirror` flips the model's z (the port float is the starboard build
 // mirrored, so its paddle and its pump-out cups land inboard and outboard)
-function partMesh(part, at, mat, mirror, name) {
+// G3873 (the user, 29 Oct: "do the floats fix"): THE HULL'S SURFACE FIELD. The hulls drew on AEROSKIN's triplanar
+// branch (surf 0): no rivet rows, no seams, nothing a field-placed marking could land on - and a Wipline float is
+// riveted aluminium. The field is the fuselage's contract (_cage_ui.js surfAttr: metres along, metres around,
+// station, rail), read off the model frame (metres, mx along the hull, my up, mz across): along from the hull's
+// first station, around = the girth from the keel (|mz| across the bottom plus the rise above that station's keel,
+// so a chine and a side wall keep counting), a frame every FLT_FRAME m, a rivet row every FLT_RAIL m. |mz|, so the
+// mirrored port float carries the same field.
+const FLT_FRAME = 0.75, FLT_RAIL = 0.25;
+function hullField(part) {
+  const n = part.pos.length / 3, NB = 64;
+  let x0 = Infinity, x1 = -Infinity;
+  for (let i = 0; i < n; i++) { const x = part.pos[i * 3]; if (x < x0) x0 = x; if (x > x1) x1 = x; }
+  const span = Math.max(1e-6, x1 - x0), binOf = x => Math.min(NB - 1, Math.floor((x - x0) / span * NB));
+  const keel = new Float32Array(NB).fill(Infinity);
+  for (let i = 0; i < n; i++) { const b = binOf(part.pos[i * 3]); keel[b] = Math.min(keel[b], part.pos[i * 3 + 1]); }
+  for (let b = 1; b < NB; b++) if (!isFinite(keel[b])) keel[b] = keel[b - 1];
+  for (let b = NB - 2; b >= 0; b--) if (!isFinite(keel[b])) keel[b] = keel[b + 1];
+  const a = new Float32Array(n * 4);
+  for (let i = 0; i < n; i++) {
+    const x = part.pos[i * 3], y = part.pos[i * 3 + 1], z = Math.abs(part.pos[i * 3 + 2]);
+    const along = x - x0, around = z + Math.max(0, y - keel[binOf(x)]);
+    a[i * 4] = along; a[i * 4 + 1] = around; a[i * 4 + 2] = along / FLT_FRAME; a[i * 4 + 3] = around / FLT_RAIL;
+  }
+  return new THREE.BufferAttribute(a, 4);
+}
+function partMesh(part, at, mat, mirror, name, field) {
   if (!part || !part.idx.length) return null;
   const n = part.pos.length / 3, pos = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) {
@@ -346,6 +371,7 @@ function partMesh(part, at, mat, mirror, name) {
   const idx = !mirror ? part.idx.map((v, i) => (i % 3 === 1 ? part.idx[i + 1] : i % 3 === 2 ? part.idx[i - 1] : v)) : part.idx;
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  if (field) g.setAttribute('aStruct', hullField(part));
   g.setIndex(n > 65535 ? new THREE.Uint32BufferAttribute(idx, 1) : new THREE.Uint16BufferAttribute(idx, 1));
   g.computeVertexNormals();
   const mesh = new THREE.Mesh(g, mat);
@@ -425,8 +451,14 @@ PAGE.post = ctx => {
   group.name = 'cageLayer:float';
   scene.add(group);
   const SM = typeof window !== 'undefined' && window.CAGE_SECMAT;
-  const hullM = () => (SM && SM('float', { surf: 0, fieldM: 1, tint0: 0xd8d2c2 }))
+  // G3873: the hull skin wears the field (surf 1, the aluminium grammar: frames, rivet rows, seams); the parts
+  // without one (protrusions, the rudder blade, the deck hardware) stay triplanar - one material never mixes the two
+  // branches (_surf_check.js). Both are the 'float' section, so the livery paints them as one, and both alloy: every
+  // float preset is a Wipline (riveted aluminium), whatever the fuselage is built of.
+  const hullM = () => (SM && SM('float', { cons: 'alloy', surf: 0, fieldM: 1, tint0: 0xd8d2c2 }))
     || new THREE.MeshStandardMaterial({ color: 0xd8d2c2, roughness: 0.55, metalness: 0.05 });
+  const hullSkinM = () => (SM && SM('float', { cons: 'alloy', struct: 1, surf: 1, fieldM: 1, tint0: 0xd8d2c2 }))
+    || hullM();
   const deckM = () => (SM && SM('floatDeck', { surf: 0, fieldM: 1, tint0: 0x2e3135 }))
     || new THREE.MeshStandardMaterial({ color: 0x2e3135, roughness: 0.95, metalness: 0.0 });
   const strutM = () => (SM && SM('gearLeg', { surf: 0, fieldM: 1, tint0: 0x98a2ad }))
@@ -456,8 +488,9 @@ PAGE.post = ctx => {
     let out = null;
     if (FG) {
       out = FG.build(HP, { HY, detail: +P.fltDetail ? 1 : 0, rudder: +P.fltRudder ? 1 : 0, paddle, xAft: HP.xAft });
-      const add = (part, mat, nm) => { const m = partMesh(part, at, mat, mirror, nm); if (m) ug.add(m); return m; };
-      add(out.hull, hullM(), 'edFloatHull' + tag);
+      const add = (part, mat, nm, field) => { const m = partMesh(part, at, mat, mirror, nm, field); if (m) ug.add(m); return m; };
+      const skin = hullSkinM();
+      add(out.hull, skin, 'edFloatHull' + tag, !!SM);
       if (out.protrusions) add(out.protrusions, hullM());
       if (out.bumper) add(out.bumper, rubberM());
       if (out.deck) add(out.deck, deckM());

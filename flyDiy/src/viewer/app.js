@@ -2262,7 +2262,7 @@
                     // G279: the editor's measured fist correction, hand frame
                     fixH: j.fixH ? new THREE.Vector3().fromArray(j.fixH) : null,
                     fixF: j.fixF ? new THREE.Vector3().fromArray(j.fixF) : null,   // G468: the sole
-                    ctx: { s: r.s, palm: r.palm, palmL: r.palmL, palmR: r.palmR, base: null, notes: null,
+                    ctx: { s: r.s, palm: r.palm, palmL: r.palmL, palmR: r.palmR, stickFwd: r.stickFwd || 0, base: null, notes: null,
                            poleFig: new THREE.Vector3().fromArray(j.poleFig) } });
       }
       const P = { key: r.key, crew, sCrew, jobs, inst: null, fist: r.fist, fistL: r.fistL, fistR: r.fistR,
@@ -7309,7 +7309,10 @@
       while (p && p !== edSitP) {
         const n = p.name || '';
         if (n.lastIndexOf('cageLayer:', 0) === 0) layer = n.slice(10);
-        else if (!name && n) name = n;
+        // G3874 (the user, 29 Oct: "when hovering over the pilot, they do not highlight"): a character's posed pick
+        // body ('edCrewPick', _cage_char.js) answers with its OCCUPANT's name (edCrew1..), the instance the hover
+        // highlight narrows to - the shell's own name matched no drawn mesh, so the hover lit nothing
+        else if (!name && n && !(o.userData && o.userData.charPick && !/^edCrew\d/.test(n))) name = n;
         // a LAYER says for itself whether the x-ray took it (the cowl does):
         // it owns its own materials, so it owns the answer
         if (p.userData && p.userData.xray) thru = true;
@@ -8396,6 +8399,10 @@
       apWhyPush(AP_WHY.batch(fresh, { to: ap.route && ap.route.to, from: ap.route && ap.route.from }));
     }
     if (apWhyRows.length) apWhyDraw();
+    // G3876: the top bar's trip line follows a drawn route's state (armed / flying / hold / done / left) - it renders
+    // on events only, and a route's steps are the pilot's, so the change is noticed here
+    const dr = ap.drawn, drK = dr ? dr.name + '|' + dr.state : '';
+    if (drK !== apWhySeen.dr) { apWhySeen.dr = drK; if (FL.ready) flRender(); }
   }
   const apWhyDiverted = () => !!(ap && ap.report && ap.report.verdicts && ap.report.verdicts.some(v => v.code === 'divert'));
   function apWhyPlan() {
@@ -17530,6 +17537,12 @@
     // G3560 (AP-HONEST): a flight the pilot DIVERTED says where it flies now - the picker keeps the player's To
     const R = started && !inGarage && ap && ap.route, dv = R && R.to && R.to.id && apWhyDiverted() ? R.to : null;
     if (dv && dv.id !== destId) return flFrom() + ' → ' + (dv.name || dv.id) + ' · diverted';
+    // G3876 (the user, 29 Oct: "when flying a drawn route, the indicator on the top screen should indicate route 1 (or
+    // whatever name) instead of keeping circuit"): a drawn route the pilot holds (43_pilot.js ap.drawn: armed, flown,
+    // or its end's hold) is what the flight is for; done or left, the picker's To says it again
+    const DR = !inGarage && ap && ap.drawn;
+    if (DR && DR.name && (DR.state === 'armed' || DR.state === 'flying' || DR.state === 'hold'))
+      return flFrom() + ' → ' + DR.name + (DR.state === 'hold' ? ' · holding' : '');
     return flFrom() + ' → ' + (dov ? dov.textContent.replace(/^⟳\s*/, '').replace(/ · .*$/, '') : '—');
   };
   const flSel = sel => {
@@ -18954,6 +18967,10 @@
     if (sceneSample) FR.sceneDetail.lap(1);
     if (scarMesh) groundScars();                    // G2359 (DMG-SCAR): the crash's scar, once an event (T41b: after the near maps' aim - G1080 holds the aim right after poseModel)
     if (!inGarage) glassMarks();                    // G3623 (DMG-GLASS): the impact marks on the glazing, once an event (after poseModel: uCraftInv is this frame's)
+    // G3878 (the user, 29 Oct: "the broken windscreen shows in the garage after restoring"): the marks are SHARED
+    // uniforms and glassMarks runs in flight only, so the shed's aeroplane wore the last crash's cracks - the garage
+    // clears them (a test stamp, GLM.test, stays for its rig)
+    else if (GLM.marks.length && !GLM.test && window.AEROSKIN && AEROSKIN.aeroSharedU) glassClear(AEROSKIN.aeroSharedU(THREE));
     // THE FLIGHT CAMERA (the flight rebaseline). It writes the SAME azT/elT/
     // distT the mouse writes, every frame, so a chase eases exactly the way a
     // drag eases and `orbit` is simply the mode that writes nothing. Cockpit
