@@ -4409,7 +4409,10 @@ const GEN_WING_ENVELOPE = {
   chord: [0.80, 3.00], span: [6.5, 18.0], spanPerChord: [4.0, 20.0],
   taper: [0.45, 1.0], xLE: [-1.20, 3.00],
   placeDx: [-1.2, 1.8], placeDy: [-1.0, 1.5],
-  big: { chord: [0.80, 5.00], span: [6.5, 30.0], xLE: [-1.20, 9.00] },
+  // G3579 (DC3-2, the reference model's fit): a big wing's taper to 0.25 (the DC-3's outer panel, 4.63 -> 1.4 m) and its
+  // crank chord to the big chord (its constant-chord centre section, 4.63 m) - past 18 m only: every validated build's
+  // wing is inside the small box, which is unchanged
+  big: { chord: [0.80, 5.00], span: [6.5, 30.0], xLE: [-1.20, 9.00], taper: [0.25, 1.0], crankChord: [0.55, 5.00] },
   second: { chord: 0.40, span: 2.0, spanPerChord: 2.0 },
 };
 // is a wing of this span a big aeroplane's? / the envelope it is clamped by / is this spec a big aeroplane?
@@ -4438,13 +4441,25 @@ function clampWing(w, S, k) {
   // aspect ratio to 20. Every build inside the old 1.15-2.10 / 6.5-14 box is
   // untouched; GATE GEN's wild spec still clamps, and the sail archetype's
   // circuit is the new corner's flight test.
-  const E0 = genWingEnv(w.span);                         // G3503: the big envelope past 18 m asked
   // NEW-SHAPES-1: the second plane sized freely below the first plane's floor (GEN_WING_ENVELOPE.second)
-  const E = k > 0 ? Object.assign({}, E0, { chord: [GEN_WING_ENVELOPE.second.chord, E0.chord[1]],
-    span: [GEN_WING_ENVELOPE.second.span, E0.span[1]], spanPerChord: [GEN_WING_ENVELOPE.second.spanPerChord, E0.spanPerChord[1]] }) : E0;
+  const envOf = sp => { const E0 = genWingEnv(sp);       // G3503: the big envelope past 18 m asked
+    return k > 0 ? Object.assign({}, E0, { chord: [GEN_WING_ENVELOPE.second.chord, E0.chord[1]],
+      span: [GEN_WING_ENVELOPE.second.span, E0.span[1]], spanPerChord: [GEN_WING_ENVELOPE.second.spanPerChord, E0.spanPerChord[1]] }) : E0; };
+  let E = envOf(w.span);
+  const big = genEnvBig(w.span), chord0 = w.chord;
   w.chord = genClamp(w.chord, ...E.chord);
   w.span = genClamp(w.span, Math.max(E.span[0], E.spanPerChord[0] * w.chord),
                             Math.min(E.span[1], E.spanPerChord[1] * w.chord));
+  // G3579: THE ENVELOPE OF THE SPAN THAT FLIES. A wing asking past 18 m on a chord whose aspect holds it under (19.4 m on
+  // 0.89: held at 17.9) took the big envelope here and the small one on the next resolve - its crank chord flew 3.74 m,
+  // then 2.10 (GATE WINGROWS' sweep). Read again off the clamped span and, if that is the other envelope, clamped again by
+  // it: a wing that is small or big from the start takes exactly the path it always did
+  if (genEnvBig(w.span) !== big) {
+    E = envOf(w.span);
+    w.chord = genClamp(chord0, ...E.chord);
+    w.span = genClamp(w.span, Math.max(E.span[0], E.spanPerChord[0] * w.chord),
+                              Math.min(E.span[1], E.spanPerChord[1] * w.chord));
+  }
   w.taper = genClamp(w.taper, ...E.taper);
   w.dihedral = genClamp(w.dihedral, 0, 6);
   // Quarter-chord sweep, degrees, positive aft. At the speeds this game flies
@@ -4489,7 +4504,7 @@ function clampWing(w, S, k) {
     const reach = Math.tan(30 * Math.PI / 180) *
                   Math.max(0.5, 0.5 * w.span - 0.3);
     if (w.crankChord != null)
-      w.crankChord = genClamp(w.crankChord, 0.55, 2.10);
+      w.crankChord = genClamp(w.crankChord, ...(E.crankChord || [0.55, 2.10]));
     if (w.tipX != null) w.tipX = genClamp(w.tipX, -reach, reach);
     if (w.crankX != null) w.crankX = genClamp(w.crankX, -reach, reach);
     // G189: loft cuts are finite stations strictly inside the semispan,
@@ -5235,6 +5250,8 @@ function clampSpec(spec) {
   // draws its own shell, so this prices on every leg family — the old
   // tricycle-only condition in genGearCdA is retired.
   if (!['none', 'spat', 'full'].includes(S.gear.twFairing)) S.gear.twFairing = 'none';
+  // G3575: the full-swivel third wheel - true, or no key at all (a build that never chose it carries none)
+  if (S.gear.twSwivel !== true) delete S.gear.twSwivel;
   // G133: the LEG fairings, the droplet lengths and the layup — every one
   // drawn by the gear layer before it is priced anywhere (the G121.2 rule).
   if (!['none', 'fair'].includes(S.gear.legFair)) S.gear.legFair = 'none';

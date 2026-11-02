@@ -806,6 +806,10 @@ function makePilot(sim, def, world, opts) {
   // G1938: THE PIVOT (TAXI / LINEUP, below) - the tightest turn the wheels steer (39_ground_path groundRmin, at the
   // taxi's 0.85 of rudder) and the pivot in progress { hdg, j, thr, t0 }; a trike's nosewheel turns tight enough
   const RgMin = (typeof groundRmin === 'function') ? groundRmin(def, 0.85) : Infinity;
+  // G3575 (DC3-2): A FULL-SWIVEL TAILWHEEL (30_solver twSwivel: steered by the rudder until the toe brake breaks it out)
+  // is turned the way its crews turn it - ON THE SPOT, the inside brake (pivotFly): off the stand when the way out leaves
+  // the nose well aside, and at a taxi corner tighter than the wheels steer (below). Every other aeroplane: none of it
+  const SWIV = !!(def && def.params && def.params.twSwivel) && !trike;
   let piv = null, pivSaid = false, pivN = 0;
   // G3480 (DC-3 TAXI): the time the wheels have not held the route's turn, the turns on the spot it took, said once
   let bsT = 0, bsN = 0, bsSaid = false;
@@ -1980,6 +1984,7 @@ function makePilot(sim, def, world, opts) {
       const L = ap.phase === 'ROLL' || ap.phase === 'ROLLOUT' || ap.phase === 'ABORT' ? (A.lookRoll ?? 25)
               : ap.phase === 'FINAL' || ap.phase === 'FLARE' ? lookA
               : (ap.phase === 'LINEUP' && trike && ap.route && ap.route.from && (ap.route.from.len || 1100) < 300) ? 20   // G1949: a tricycle's line-up after its turn on a short strip merges in metres (150 m of look: 2 deg toward a centreline 6 m away)
+              : (ap.phase === 'LINEUP' && SWIV) ? 60   // G3578: a full swivel's line-up merges on its own circle (the DC-3's 58 m at the line-up's rudder; 150 m crawled 5 m in 30 s)
               : lookC;
       const fx = ap.dirX * L, fz = -sCr;
       tx = fx * F.ux - fz * F.uz; tz = fx * F.uz + fz * F.ux;
@@ -3079,7 +3084,11 @@ function makePilot(sim, def, world, opts) {
       // on the heading within ~9 deg and not swinging fast: the taxi's own steering takes the rest rolling
       // (a TRICYCLE walks round its turn at ~1-1.5 m/s on the nosewheel - G1949: holding it to 1.0 m/s here kept the
       // C172's pivot 'not done' while its own power rolled it 20 m along East Point, 8 m off the centreline, for 40 s)
-      if (Math.abs(err) < 0.15 && r < 0.20 && Vg < (trike ? 1.8 : 1.0)) { c.brakeD = 0; return true; }
+      // G3578: ...A FULL SWIVEL'S LINE-UP ONLY ONCE ITS SWING HAS STOPPED (under 3 deg/s, the brakes holding it there,
+      // below): its wheel castors after the pivot and re-locks only on a straight track, so the 11 deg/s it was let go at
+      // carried the 8-bay DC-3 on round past the take-off heading at HOME's hold and circled it 37 m off the centreline.
+      // (Not the taxi's pivots: held there, the swing's end moved HOME's 49 deg corner exit and the tail met a billboard)
+      if (Math.abs(err) < 0.15 && r < (SWIV && ap.phase === 'LINEUP' ? 0.05 : 0.20) && Vg < (trike ? 1.8 : 1.0)) { c.brakeD = 0; return true; }
       const slow = Vg < (A.pivotVg ?? 1.2);
       const near = Math.abs(err) < 0.45;                           // ~25 deg: the power off, the turn coasts in
       // the throttle walks up until the nose turns at ~20 deg/s, back down if the aeroplane starts to roll away
@@ -3190,6 +3199,17 @@ function makePilot(sim, def, world, opts) {
           if (!TP.turn || !TP.first) ap.pivAt = null;
           if (TP.turn && !TP.first && !piv) { piv = { hdg: TP.hdg, j: 0, t0: ap.t, thr: 0, sg: TP.sg }; pivN++; pivSaid = true; }
         }
+        // G3575: A FULL SWIVEL OFF THE STAND - the way out's first 10 m more than 45 deg off the nose: the pivot onto it
+        // first (the steered DC-3 arced 30 m wide through the parked row turning onto HOME's east lane)
+        if (SWIV && ap.path && !piv && ap.swStart !== ap.path && ap.pathI === 0 && Vg < 1.0) {
+          ap.swStart = ap.path;
+          const P = ap.path.pts; let j = 0; while (j < P.length - 1 && P[j].s < 10) j++;
+          const hW = Math.atan2(P[j].z - cg[2], P[j].x - cg[0]);
+          if (Math.abs(wrapPi(hW - Math.atan2(nose[1], nose[0]))) > 0.8) {
+            piv = { hdg: hW, j, t0: ap.t, thr: 0, sg: 0 }; pivN++;
+            say('pivot', 'the way out leaves ' + Math.round(Math.abs(wrapPi(hW - Math.atan2(nose[1], nose[0]))) * 57.3) + ' deg off the nose - turning on the spot first (the inside brake: the tailwheel swivels)');
+          }
+        }
         if (ap.path && piv) {
           setStatus('turning on the spot (the inside brake, full rudder)', [cond('heading to go', Math.round(Math.abs(wrapPi(piv.hdg - Math.atan2(nose[1], nose[0]))) * 57.3), 6, false, 'deg')]);
           if (pivotFly(piv.hdg) || ap.t - piv.t0 > 40) { ap.pathI = piv.j; piv = null; SV.relatch(); }
@@ -3209,6 +3229,29 @@ function makePilot(sim, def, world, opts) {
           // 9.4 m, cost GATE LINEUP 26 s and a roll 12.7 m off the skip's pose)
           const shortHere = (ap.route.from.len || 1100) < 300;
           const Rpiv = Math.max(RgMin, 13);
+          // G3575: A FULL SWIVEL AT A CORNER the wheels cannot steer (tighter than 1 / (1.1 Rpiv), turning more than 45 deg
+          // in all): rolled on to the corner's middle (half its turn), turned on the spot to the heading the path leaves it
+          // on, the path taken up again there - the steered DC-3 swept the turn's 25 m circle instead
+          if (SWIV && isFinite(Rpiv) && !piv) {
+            const P = ap.path.pts, hi = k => Math.abs(P[k].kap) > 1 / (1.1 * Rpiv);
+            let b0 = -1;
+            for (let k = L.i; k < P.length && P[k].s - P[L.i].s < 12; k++) if (hi(k)) { b0 = k; break; }
+            if (b0 >= 0) {
+              while (b0 > 0 && hi(b0 - 1)) b0--;                     // the corner's own start (the aeroplane may be in it)
+              let b1 = b0, turn = 0;
+              while (b1 + 1 < P.length && hi(b1 + 1)) { turn += wrapPi(P[b1 + 1].hdg - P[b1].hdg); b1++; }
+              if (Math.abs(turn) > 0.8 && ap.swCorner !== P[b0]) {
+                let bm = b0, acc = 0; while (bm < b1 && Math.abs(acc) < Math.abs(turn) / 2) { acc += wrapPi(P[bm + 1].hdg - P[bm].hdg); bm++; }
+                if (P[bm].s - P[L.i].s < 1.5) {
+                  ap.swCorner = P[b0];
+                  piv = { hdg: P[b1].hdg, j: b1, t0: ap.t, thr: 0, sg: turn >= 0 ? 1 : -1 }; pivN++;
+                  if (!pivSaid) { pivSaid = true; say('pivot', 'a ' + Math.round(Math.abs(turn) * 57.3) + ' deg corner tighter than the wheels steer (' + RgMin.toFixed(1) + ' m) - turning on the spot (the tailwheel swivels)'); }
+                  pivotFly(piv.hdg);
+                  break;
+                }
+              }
+            }
+          }
           // (a TAILDRAGGER's: the C172's nosewheel pivot at East Point's lane U-turn looped its replanning and never
           // rolled - a tricycle steers the U-turn as before; its wide swing at Jumbo Mine's end is OWED, G1938)
           if (shortHere && isFinite(Rpiv) && !trike) {
@@ -3347,6 +3390,19 @@ function makePilot(sim, def, world, opts) {
             break;
           }
           ap.pivSpot = null; ap.pivSpotT = null;
+        }
+        // G3578 (DC3-2): A FULL SWIVEL LINES UP ON THE SPOT. Stopped at the hold more than 40 deg off the take-off heading,
+        // it turns on the toe brake (the pivot below) to an intercept of the centreline - the take-off heading turned toward
+        // it by atan(off / 60 m), 45 deg at most - and merges on its 60 m look (above). Steered on the wheel, the 8-bay DC-3
+        // (a 58 m circle at the line-up's rudder) arced from HOME's hold 71 deg off across the centreline to 30 m beyond it,
+        // crawled back for the rest of the 60 s, and the hold replanned the departure (G3577's, 23 deg off, lined up in 10 s)
+        if (SWIV && !piv && phaseT < 0.5 && alig < 0.766 && Vg < 1.5 && isFinite(sCr)) {
+          // the centreline lies at -sCr (-uz, ux) (G1949, above); the take-off heading is -u
+          const a = Math.min(0.785, Math.atan(Math.abs(sCr) / 60)), s = -Math.sign(sCr) || 0;
+          const dx = -F.ux * CORE_MATH.cos(a) + s * -F.uz * CORE_MATH.sin(a), dz = -F.uz * CORE_MATH.cos(a) + s * F.ux * CORE_MATH.sin(a);
+          piv = { hdg: Math.atan2(dz, dx), j: 0, t0: ap.t, thr: 0 };
+          say('pivot', 'lined up ' + Math.round(Math.acos(clamp(alig, -1, 1)) * 57.3) + ' deg off the take-off heading, ' + Math.abs(sCr).toFixed(1) +
+              ' m off the centreline - turning on the spot onto a ' + Math.round(a * 57.3) + ' deg intercept (the tailwheel swivels)');
         }
         if ((!trike || trikePiv) && isFinite(RgMin) && (piv || (alig < -0.2 && Vg < 3 && (trikePiv || RgMin > 0.5 * (ap.route.from.wid || 30) - Math.abs(sCr))))) {
           // G1949: A TRICYCLE SETS ITS TURN UP FIRST. Its turn swings the CG ~6.5 m to the inside (above), so turned on the

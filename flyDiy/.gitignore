@@ -27,3 +27,6 @@ bench/
 screenshots/
 # the pilot matrix's run files (tools/pilot_matrix.js --out): measurements, not sources
 pilot_runs/
+
+# tools/quick_view.js output: a build seen without the game (regenerated on demand)
+reports/quick_view/

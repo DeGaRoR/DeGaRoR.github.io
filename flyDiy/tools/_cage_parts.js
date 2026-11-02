@@ -309,7 +309,7 @@ const CAGE_PARTS = [
       // the cowl LAYER is fitted, and it lofts THIS part. Filed under Cowl until
       // 2026-09-03, it was the strangest row in the audit: a cage shape control
       // sitting in a layer that can be switched off.
-      ['front', ['noseFinish', 'cowlLoops', 'cowlEase', 'cowlEaseBot', 'cowlBulge']],
+      ['front', ['noseFinish', 'cowlLoops', 'cowlEase', 'cowlEaseBot', 'cowlBulge', 'noseDome']],
       // G3510: the round body's front — its forward section and the cone to
       // the engine face (or the point), the rows G19 wrote
       ['round body front', ['aeroWsLen', 'aeroLen', 'aeroTipW', 'aeroTipH', 'aeroDroop', 'aeroRound']],
@@ -488,7 +488,8 @@ const CAGE_PARTS = [
       ['seat layout', ['paxRows', 'paxPitch', 'paxAisle', 'paxSeatW']],
       // G180: who sits in each bay is the BAY's own row — click a bay, seat
       // its passengers (bays counted front to back from the cockpit)
-      ['aboard', ['paxOcc1', 'paxOcc2', 'paxOcc3', 'paxOcc4']],
+      ['aboard', ['paxOcc1', 'paxOcc2', 'paxOcc3', 'paxOcc4', 'paxOcc5', 'paxOcc6',
+                  'paxOcc7', 'paxOcc8', 'paxOcc9', 'paxOcc10', 'paxOcc11', 'paxOcc12']],
       // G3511: each bay open at the top on its own row
       ['opening', ['paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4']],
       // G1321 (the user: "map these sections to their respective parts in

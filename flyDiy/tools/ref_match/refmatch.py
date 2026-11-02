@@ -133,6 +133,22 @@ else:
     e_ = lay('eng').reshape(-1, 3); oF = lay('sheet').reshape(-1, 3)[:, 2].max(); oTL = (e_[:, 1].min() + e_[:, 1].max()) / 2
 if ref.get('datum') == 'prop':
     rF = part('hub').reshape(-1, 3)[:, 2].mean(); oF = prop_plane(lay('eng'), oTL)
+# "datum": "nose" - A TWIN (the DC-3, 27 Oct): no engine on the body, so every station is measured aft of the FUSELAGE'S
+# NOSE TIP on both sides (the reference's fuselage role, our cage sheet), and the nacelles are parts measured against it;
+# "level": "body" - every height above the centre of the fuselage's DEEPEST section (mid top / bottom there), on both
+# sides, instead of a thrust line the nacelles' own placement would move
+def deep_centre(T):
+    P = T.reshape(-1, 3); z0, z1 = P[:, 2].min(), P[:, 2].max(); best = None
+    for zc in np.arange(z0 + 0.1, z1 - 0.1, 0.1):
+        S = cut(T, 2, zc)
+        if len(S) < 6: continue
+        d = S[:, 1].max() - S[:, 1].min()
+        if best is None or d > best[0]: best = (d, (S[:, 1].max() + S[:, 1].min()) / 2)
+    return best[1]
+if ref.get('datum') == 'nose':
+    rF = part('fuselage').reshape(-1, 3)[:, 2].max(); oF = lay('sheet').reshape(-1, 3)[:, 2].max()
+if ref.get('level') == 'body':
+    rTL = deep_centre(part('fuselage')); oTL = deep_centre(lay('sheet'))
 R = lambda T: T - np.array([0, rTL, rF]) if len(T) else T          # into (x, up, -aft)
 Ou = lambda T: T - np.array([0, oTL, oF]) if len(T) else T
 # "fbox": a box in the MATCH's own terms (metres: aft of the firewall, above the thrust line, |x|), applied once the
@@ -187,6 +203,15 @@ def heads(side):
     return out
 hr, ho = heads(REF), heads(OUR)
 
+# --dump-ref <file.npz>: every role's triangles and every marker's, and ours by layer, IN THE MATCH'S OWN FRAME (x span, up
+# above the datum's level, z fore: -z is metres aft of the datum) - for slicing by hand what the tables do not print
+# (the DC-3's crank: the wing cut at every metre)
+if opt('--dump-ref'):
+    D_ = {'ref_' + r: partF(r) for r in ref['parts']}
+    for mk, nd in (ref.get('markers') or {}).items():
+        m_, _ = match(nd); D_['mark_' + mk.replace(' ', '_')] = R(GT[m_])
+    for k_, v_ in L.items(): D_['ours_' + k_] = Ou(v_)
+    np.savez_compressed(opt('--dump-ref'), **D_); print('dumped the match frame -> ' + opt('--dump-ref'))
 print('== %s: headline (m; aft of the firewall, above the thrust line; scale x %.5f)' % (ref['name'], s))
 for k in hr:
     o = ho.get(k, np.nan); print('  %-24s ours %7.3f  ref %7.3f  d %+7.3f' % (k, o, hr[k], o - hr[k]))

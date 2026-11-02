@@ -101075,6 +101075,256 @@ should keep that rotation. ... did you try modifying the tail wheel for better t
      before the committed third landing (4.35 m/s on its second touch, held). The trip completes; the pilot's flare for a heavy
      taildragger is the pilot's lot (P1), not this branch's.
 
+### G3575-G3576 - DC3-2 ROUND 3 (2026-10-26, cloud): THE FULL-SWIVEL TAILWHEEL, AND NO POWER LINE ALONG A TAXIWAY (branch claude/dc3-2 on ab6a84914 - queued as claude/ready/dc3-2 for L27a, NOT moved; this round goes out as claude/ready/dc3-3 after origin/master carries ab6a84914)
+The user (26 Oct, verbatim): "yes do the swivelling tailwheel for heavy builds. Maybe just make it a new type? I don't want a limit on
+options for heavy." - "if no one uses castor, you may delete it or replace it with your full swivel mechanics" - and, AN EXPLICIT
+PERMISSION: "you may also remove the electrical poles around the taxiways, they should never have been there for starters. Mention in
+your handover notes that you got explicit permission".
+- **G3575 THE FULL-SWIVEL TAILWHEEL** - a third-wheel type any build may choose (no weight limit):
+  - **the row:** the gear page's tailwheel 'steering' row (`s2Steer`: fixed / linked / castor) was the PICTURE's only - every third
+    wheel flew 'linked' (steered by the rudder to +-28.6 deg, 62_gen_aero twSteer 0.5). 'castor' (index 2) - which no saved build,
+    fixture or preset in the repo carries (searched: every `s2Steer` is 1) - is now **'full swivel'** and is the one type that reaches
+    the physics (tools/_gear_page.js STEERS; tools/_cage_join.js writes `spec.gear.twSwivel: true` only when chosen; clampSpec keeps
+    true or no key; 62_gen_aero params.twSwivel only when set). A player's own local save that had picked 'castor' (draw-only) now
+    flies the swivel - the one behaviour change outside the repo's builds. 'fixed' still flies linked (a question below);
+  - **the law (30_solver twSwivel, null unless chosen - not one line runs otherwise):** it STEERS like the linked wheel - the
+    rudder's, the ground's own stability for every ordinary taxi, take-off and landing - until the TOE BRAKE pushes it out: at taxi
+    pace (under twSwV 5 m/s) a split past twSwB 0.2 (|ctl.brakeD|) breaks it out and it castors along its own ground track (no side
+    force but the tyre's lag); the braked main and the engines turn the aeroplane round it. It re-engages with the brake off once its
+    track swings back within twSwE 0.12 rad of the body's line or the rudder's (the Scott kind's lock near centre). Tried first and
+    rejected, measured: (a) a breakout on the tyre's slip angle - never fired (the DC-3 crawls round the steered wheel's own 24 m
+    circle at 4.6 deg of slip, the brake only drags); (b) on the side-force share of the grip - the tailwheel node's side slip is
+    the lattice's jitter as much as a load (95th percentile 30x on a straight roll, more in S-turns than in a braked turn): the
+    wheel broke out at random and castored the DC-3 into a weave;
+  - **measured (dc3_break `--hands pivot`: the inside brake, 0.45 power, full rudder, on the open runway, 30 s):** linked 9 deg
+    turned (the steered wheel holds the tail); full swivel 1 110 deg, the CG within 6.7 m of where it started - a pivot (held at
+    power it keeps spinning, as a real one does);
+  - **the DC-3 fixture** (tools/dc3_build.js DC3_ROWS s2Steer: 2, `--build`): full swivel - the real DC-3's (the diff: the row
+    and `twSwivel: true`);
+  - **the taxi back (dc3_break taxiBack):** a full-swivel aeroplane PIVOTS round on the inside toe brake where the way back lies
+    behind (no teardrop): the brake from 0.8 rad off, damped on the error's rate, held until the swing has stopped (let go earlier,
+    the castoring DC-3 swung on into the next pivot - a slalom up the taxiway); no toe brake outside the pivot. From the landing's
+    stop: parked 2.5 m off the stand at 181 s (the steered teardrop: 202 s), 0 contacts, least clearance 6.2 m (the club's C172);
+  - the identity: Cub, Jodel, both Cessnas, the twin floatplane, Rufus ALL IDENTICAL to L25b (the law's code is behind TWSW).
+- **G3576 NO POWER LINE ALONG A TAXIWAY (with the user's explicit permission, above):** every road without a `poles` key stood the
+  'auto' power line - HOME's two taxiway arms (r_taxi_ne, r_taxi_e) included. src/viewer/render_premises.js buildLine: a TAXIWAY
+  (27_premises' composed ro.taxiway: concrete, 10 m wide or more, joined to a strip or an apron) stands none. On Jolene that is
+  exactly HOME's two arms (GATE SCENERYED 30 holds both: the rule, and the island's taxiways = those two). The poles were drawn only
+  (not in the cook, not in the obstacle registry): no flight, census or cook changes. THE FIXTURE IS UNTOUCHED this round (a local
+  session edits island_jolene.json: the AFB fold, the fences).
+- **THE WHOLE TRIP AGAIN, the DC-3 on its full-swivel tailwheel** (dc3_break home, the works stand, damage on; physics limits and
+  certificate stamped, identical): taxi out 0 contacts (least clearance 13.6 m), the circuit, the two bounce go-arounds and the
+  committed landing, STOPPED; the taxi back PIVOTED on the runway and parked 2.5 m off the stand in 180 s; 0 contacts, 0 yields,
+  0 breaks. reports/evidence/DC3-2/home_trip_swivel_phys.json / _cert.json.
+- **Gates (this round):** PASS - GEN (4 shards), UISMOKE, SIMWORKER, GEAR, PARTS, BUILD, JOIN, DESIGN, PAVEMENT (alone: its coverAt
+  timing row read 2 137 ms with the box running two trips beside it), ASSETS, GFX, FLOATS, TAKEOFF, LINEUP, SUBSTEP, SAVE, CABIN,
+  STARTER, EDBUGS, FRAMES, PANEL. RED, master's own: `GATE DMGTYRE: FAIL (4)` - the Jodel's and the metal Cessna's taxi-turn radius
+  against the old law, the Cub's crosswind roll-out at 4 / 5 m/s: the same four rows, the same numbers, on an L25b worktree;
+  SCENERYED only its 20b timing row (as before). Identity ALL IDENTICAL.
+- **NOT YET:** origin/master merged (after Tue 08:00, when L27a carries ab6a84914), the gates re-run on the merge, then the READY
+  commit pushed as claude/ready/dc3-3.
+- **The user's answers (26 Oct): "remove fixed, and teach the autopilot the pivot":**
+  - **'fixed' is gone from the THIRD wheel's row** (tools/_cage_gear.js: its dropdown shows 'linked' and 'full swivel' - the row's
+    `optOrder` may now be a subset, tools/_cage_ui.js mkRow; every index still means its name, so a saved number never changes
+    meaning). The mains keep 'fixed' (their own and only value). A saved third wheel at 0 flies linked, as it always did;
+  - **the autopilot pivots a full-swivel aeroplane** (43_pilot `SWIV`, a taildragger with params.twSwivel - every other build: not
+    one line of it): (1) OFF THE STAND - the way out's first 10 m more than 45 deg off the nose: pivotFly onto it first; (2) AT A
+    TAXI CORNER tighter than the wheels steer (1 / (1.1 Rpiv)) turning more than 45 deg: rolled on to the corner's middle, turned on
+    the spot (pivotFly: the inside toe brake, which breaks the swivel out) to the heading the path leaves it on, the path taken up
+    there. The long-strip rule (no pivot at HOME's lane U-turn) stays for every other build. HOME's trip: "a 49 deg corner tighter
+    than the wheels steer (29.2 m) - turning on the spot (the tailwheel swivels)" at 61.6 s; the trip complete (0 contacts, 0 yields,
+    STOPPED, parked 2.5 m off the stand) - home_trip_swivel_phys.json; GATE PILOT (3 shards), PILOTACT, LINEUP, TAKEOFF, UISMOKE,
+    GEAR, PARTS, BUILD, SAVE, ENGINE, ENGID, EDBUGS, STARTER, DESIGN PASS; identity ALL IDENTICAL.
+
+### G3577 - DC3-2 ROUND 4 (2026-10-27, cloud): THE DC-3 REDRAWN - THE PILOTS AT THEIR CONTROLS, THE NOSE COLLAPSED, THE NACELLES FAIRED, THE TAILWHEEL AT SIZE, ONE SMOOTH LINE, A SHORT COCKPIT AND FOUR BAYS
+The user (26 Oct, verbatim): "put the pilots close to their controls / ensure you collapse the aero nose. It has a control, use it /
+put the "carenage" around the engines. The option exists, the wing mounted engines get fairings / Give the tail wheel a decent size if
+not already done / try and have a smoother overall shape, by modifying the pillar dimensions of the passenger section, that should
+allow you to get rid of the breaking point you have / Do we have anything allowing for the tail to be curved in it profile, like the
+real plane, or are we stuck with straight fuselage pieces?" - and: "I question your choice of a super long cabin compared to more
+passenger sections. The first passenger section could be considered cargo for example. The ability of designating a section as either
+passenger or cargo is interesting. To me, the cabin shouldn't be longer than the space where pilots sit, or maybe including navigator."
+All of it is the DC-3's own rows (tools/dc3_build.js DC3_ROWS, the fixture rebuilt with `--build`): no code changes, the validated
+builds untouched. Measured off the load chain (tools/dc3_probe.js sheet; the crew layer's meshes; the editor's own fuselage sheet):
+- **THE COCKPIT IS THE PILOTS'** (pilotLen 1.5 -> 1.1: 2.4 -> 1.76 m) and **FOUR BAYS** of 2.26 m in its place (paxCount 3 -> 4,
+  paxLen 1.75 -> 1.41): the same 10.8 m, the fuselage 18.68 -> 18.88 m. The first bay stands where the DC-3's navigator / radio /
+  forward hold are - but its seats are drawn (QUESTION 9).
+- **THE PILOTS AT THEIR CONTROLS:** the seat backs 1.99 -> 3.75 m along (the shorter cockpit 0.64 m, seatZ 0.205 -> 1.32), the
+  yokes off the panel 0.16 -> 0.42 m, the throttles 0.40 m aft (thrZ): the hands 0.2 m off the yokes (they were 2.4 m behind them),
+  the feet on the pedals (the pedals follow the seat).
+- **THE AERO NOSE COLLAPSED:** the nose's front 'firewall' -> 'aerodynamic' (noseFinish 1), its tip collapse 0.25 -> 0.85 (noseTip).
+- **THE NACELLES FAIRED:** the cowl's termination 'nacelle tail cone' (cw_aftMode 1 - the wing-mounted engine's own fairing aft of
+  the cowl), 2.4 m long (cw_tailLen).
+- **THE TAILWHEEL AT SIZE:** s2R 0.08 -> 0.20 m (the DC-3's 16 in tyre), its trail 0.08 -> 0.14, the swivel's drop 0.105 -> 0.03 and
+  the spring's 0.05 -> -0.025 (the tail would rise 0.12 m on the bigger wheel: the deck stays 11.4 deg, was 11.6). (s2Drop does
+  nothing on a tailwheel leg: its spring rows are its length.)
+- **ONE SMOOTH LINE** - the old drawing, as the editor's own sheet measures it: a constant tube from the cockpit to z -7.4 m, then a
+  cone in two straight pieces (the aft shoulder to the boom frame at -9.0, the boom to the tail post at -12.4) - THE BREAK at the
+  boom frame (the roof's slope -0.26 then -0.14, the belly's 0.11 then 0.27). Now: the PASSENGER FRAME (the last bay's aft ring)
+  stands on the DC-3's upswept curve - roof 0.75, bottom -0.64, waist 0.13 x 0.63, top / bottom half-widths 0.55 / 0.53 (cage units
+  x 1.6 m) - the RUN to it curved (frPaxProfile 'curve', ease 0, bias -0.6: held at the cabin, steepest at its end, so it flows
+  into the cone), and the BOOM FRAME moved onto the same curve (aftRoofY 0.64, aftKeelY -0.48, waist 0.12 x 0.49, top / bottom
+  0.42 / 0.40): the belly rises from under the wing in one sweep to the tail post, the roof falls in one to the fin, the plan tapers
+  the same way. (Measured: the sheet's top / bottom / half-width in 0.2 m stations, before and after.)
+- **"IS THE TAIL CURVED, OR STRAIGHT PIECES?"** - the fuselage is lofted ring to ring and subdivided twice, so a curve is drawn by
+  standing the rings on it: the passenger run's own profile ('curve': ease, bias, bulge) curves every ring between the cabin frame
+  and the passenger frame; the cone is ONE span, boom frame to tail ring (straight between them, rounded by the subdivision); a
+  conventional fuselage has no extra cone ring (the boom's 'pod ring' - boomMidOn / boomMidT / boomMidPinch - is the pod style's).
+  So: the upsweep is a curve through the bays, and the cone's last 3.5 m one straight span continuing it. A cone ring of its own
+  for the conventional fuselage would be a new row (QUESTION 10).
+- **THE AIRFRAME AFTER** (dc3_build's sheet): 8 581 kg (8 527), SM 0.106 (0.090), deck 11.4, prop clear 1.02 m, Vs 59 kt, TO run
+  309 m, design check 13 rows fail [] warn []; the drops (dc3_break, damage on, both limits): 3.05 m/s level and three-point
+  0 yields 0 breaks, 4.6 m/s three-point 0 / 0, 4.6 m/s level the main gear's bracket yields (no break) as before; the crew layer:
+  every seat's pan 15 cm over the floor, the bays tapered aft included (tools/evidence/DC3-2.js --parts garage, ROW OK x10).
+- **THE WHOLE HOME TRIP on the redrawn DC-3** (dc3_break home, physics limits): taxi out 0 contacts (the corner pivot at 61.7 s),
+  the circuit, the two bounce go-arounds, the committed landing STOPPED; the taxi back pivoted and parked 2.5 m off the stand; 0
+  contacts, 0 BREAKS - and 255 YIELDS: at 1 158 s, the committed landing's second touch at 4.50 m/s (the certificate's limit sink is
+  3.05) set the inboard wing member by the nacelle (WB-WF, ratio 1.00; on the old drawing the same member reached 0.96 on the same
+  landing's 4.35 m/s). A set, no break - the autopilot's bounce (QUESTION 6), not the drawing. reports/evidence/DC3-2/
+  home_trip_redrawn_phys.json; profile_before_after.png (the editor's sheet, old grey / new red: side and plan).
+- **Questions:**
+  9. **A bay of CARGO** (the user's: "the first passenger section could be considered cargo"): a bay's use, passengers or freight -
+     no seats drawn, no one aboard, its volume and floor a hold (FREIGHT's cards are the validated builds' own measured spaces).
+     A new system: go?
+  10. **A cone ring** for the conventional fuselage (a station and a section between the boom frame and the tail post, like the
+     pod's): wanted, to curve the cone's last 3.5 m too?
+
+### G3578 - DC3-2 ROUND 5 (2026-10-27, cloud): THE DC-3 THE USER'S WAY - THE PILOTS' BAY, EIGHT BAYS OF ONE ROW, THE NOSE ON THREE RINGS; AND A LOOK WITHOUT THE GAME (tools/quick_view.js)
+The user (27 Oct, verbatim): "I would have used a short cabin, the length of the pilot bays. An aeronose with 3 loops, and collapsed
+to make a round nose. Most importantly, I would have put as many passengers sections as they were seat rows, or maybe half of that
+(one over the other). That would have given me the right amount of seats, and a dense structure. I think it is closer to the
+airplane's real design. Would my method work, would the plane fly better or worse, and be more or less on-spec? Can you try building
+this version, while keeping the good work on the smooth curvature over the whole body?" - and, mid-round: "can you build a super
+simple renderer for real quick visualization? I'd like to see what the new one looks like, but without booting the game".
+- **THE EDITOR'S BAY ROW 0-4 -> 0-12** (`paxCount`, '5 · passengers' and the base panel) and **eight more 'bay N seated' rows**
+  (`paxOcc5`-`paxOcc12`, absent at 0, in the parts tree's 'aboard'): the join, the crew layer and the generator already read
+  `paxOcc<n>` for any n and the bay count unclamped - only the editor's stepper stopped at 4 (a saved 8 loaded, a typed 5 clamped
+  to 4). The design tile's 0-4 icons are untouched (a pick there writes 0-4; a build of more reads as itself). Every build before
+  identical (dc3_identity: the six validated planes' def / ledger / sheet / fly20 hashes = master's).
+- **THE DC-3'S ROWS** (tools/dc3_build.js DC3_ROWS, the fixture rebuilt with `--build`): the cockpit the pilots' bay alone (pilotLen
+  1.1 -> 1.0: 1.60 m), EIGHT BAYS of 0.96 m (paxCount 4 -> 8, paxLen 1.41 -> 0.60), each ONE ROW of 2 + 1 across an aisle
+  (paxAbreast 0 -> 4: the DC-3's own; rows 1.12 m apart as drawn), the cone 0.72 m longer (boomLen 2.2 -> 2.65: the fuselage 19.24
+  m, was 18.88; 3.0 put it on an axle instead of the tailwheel); the nose on three rings (cowlLoops 0 -> 3), its tip collapse 0.85
+  -> 0.90. The G3577 frame rows (the passenger frame and the boom frame on the curve) kept as they were. 9 bays (pilotLen 1.0, paxLen
+  0.58) failed the design check at its worst loading corner (pitch.sm -0.005): 8 is the most this wing position carries.
+- **SEATS:** 26 (2 crew + 8 x 3) - was 10 (2 + 4 x 2); the first bay can stand empty as the forward hold (QUESTION 9 still: a bay
+  of cargo, no seats drawn). 21 seated aft of it = the DC-3's 21.
+- **THE CREW** (the crew layer's meshes): seat backs 3.91 m along (3.75), hands ON the yokes (4.25-4.56 vs the yokes' 4.46-4.52;
+  G3577's were 0.2 m short), the feet on the pedals - seatZ needed no change.
+- **THE SHEET, OLD -> NEW** (the same load chain, tools/dc3_probe.js sheet): mass 8 581 -> 8 727 kg (the 16 more seats 105 kg, the
+  four more bays' frames 41), SM 0.106 -> 0.107, deck 11.4 -> 11.5, Vs 58.8 -> 59.3 kt clean, 53.6 -> 54.1 flaps, cruise 132 -> 134
+  kt, climb 8.41 -> 8.28 m/s, TO run 309 -> 321 m, design check 13 rows fail [] both (warn yaw.dutch 0.108 new, under its line).
+  The FLYING LATTICE IS THE SAME SIZE: 132 nodes both, 589 -> 587 beams - the bays are drawn frames (the cage, the seats, the
+  skin), the solver's structure does not get denser with them.
+- **FLOWN** (dc3_build, the pilot's circuit, 600 s): lift-off 471 m at 82 kt (old 462 m at 82), climb max 9.9 m/s (10.1), touch
+  1.5 m/s at 65 kt (old 1.3) - and both builds bounce into the SAME two go-arounds and run out of time (QUESTION 6, the pilot's).
+- **DAMAGE ON** (dc3_break, physics limits): the drops at 2.0 / 3.05 / 3.85 / 4.6 m/s level 0 yields 0 breaks (G3577's 4.6 set the
+  main gear's bracket); taxi idle / sturn / power / stick / pivot / rough 0 / 0; turn and burst crash INTO HOME's buildings off the
+  works stand (obstacle at 11.8 s and 26.3 s) - as G3577 does (11.9 s, 31.6 s; its burst's peak strain 871 %, the new 25 %).
+- **THE HOME TRIP, AND THE LINE-UP A FULL SWIVEL WAS MISSING (src/core/43_pilot.js, twSwivel builds only):** on the new build
+  the taxi out was G3577's to the hold (the 61.7 s corner pivot, the same stop 17 m off the centreline) - but stopped 71 deg off
+  the take-off heading (G3577's 23), and from there LINEUP's steered turn (a 58 m circle at its 0.45 rudder) crossed the
+  centreline 52 deg off, ran to 30 m beyond it and crawled back on the 150 m look until its 60 s ran out; the hold replanned,
+  the second taxi set the left stab tip on an obstacle (313 yields) and a prop came 0.82 m inside a parked car, no take-off.
+  Measured on the open runway (fixed hands): the rudder's sense is the same steered or castoring, and the wheel re-locks on its
+  own (1-4 s) - but a castoring DC-3 keeps its swing, and the pivot let it go at 0.20 rad/s. Now, for a full swivel only:
+  (1) more than 40 deg off at the line-up's start (walking pace), a turn on the spot onto an intercept of the centreline (the
+  take-off heading turned toward it by atan(off / 60 m), 45 deg at most); (2) that pivot ends only once the swing is under 0.05
+  rad/s (the brakes hold it - the taxi's own pivots keep 0.20: held there too, HOME's corner exit moved and the tail met a
+  billboard at 78.7 s); (3) the line-up merges on a 60 m look (its circle), not 150. The trip now: the pivot onto a 16 deg
+  intercept at 330.5 s, merged 17 -> 3 m, ROLL at 356 s, three circuits (two bounce go-arounds, QUESTION 6), the committed
+  landing STOPPED at 1 214 s, the taxi back pivoted and parked 2.49 m off the stand: 0 CONTACTS, 0 YIELDS, 0 BREAKS (the 4.7 m/s
+  touch sets nothing - G3577's 4.5 set an inboard wing member); the least clearance 9.0 m out (billboard reg232), 6.2 m back
+  (aircraft reg43). reports/evidence/DC3-2/home_trip_8bay_phys.json. dc3_break: `home --homeSecs N --log` (the line-up's
+  conditions every second), `lineup` (the line-up alone from a placed pose - placed at HOME's hold the pilot plans another
+  hold 705 m on, so it does not reproduce the trip's; kept for the open-runway checks).
+- **Gates (`--only=... --no-build`):** PASS - BUILD, PARTS, SAVE, JOIN, CABIN, DESIGN, PANEL (the editor rows), PILOT (3 shards),
+  TAKEOFF (the pilot change, on the final code); dc3_identity ALL IDENTICAL (the six validated planes = master's, fly20 included).
+  Not READY: origin/master still to merge (task 7, claude/ready/dc3-3).
+- **THE LOOK** (tools/quick_view.js, new - a tool, not a gate): the build through the page's load door, the scene's meshes and the
+  editor's fuselage sheet as one triangle soup, one self-contained HTML (WebGL2, no library: orbit, zoom, pan, side / top / front /
+  3/4 / all four, x-ray), and `--png=` the four views through the pre-installed Chromium. Output in reports/quick_view/ (ignored).
+  Two traps found: the headless scene has NO fuselage skin (the page draws it off the sheet itself, no layer does - the probe
+  draws the sheet), and _load_build's child cuts a large probe result short (it exits straight after writing to a pipe - the
+  tool runs the same child with stdout to a file). reports/evidence/DC3-2/g3578_quick_view.png (new), g3577_quick_view.png (old),
+  g3578_nose.png.
+- **WHAT THE LOOK SHOWS** (and the sheet's numbers did not): the nose is a short blunt wedge, not the DC-3's round nose - three
+  rings and the tip collapsed 0.9 still end in a point at mid-height - and only two cabin windows are drawn (the drawn windows are
+  ABSOLUTE stations, G245: they stayed where the old bays had them).
+- **Questions:**
+  11. **The round nose**: the aero nose's rows (noseLen, noseTip, cowlLoops) give a wedge at this size; a nose profile row (the
+     bulge the passenger run has) for the nose - wanted?
+  12. **The windows**: seven a side, one per row - re-draw the drawn windows at the new rows' stations (rows, no code), or a
+     'window per bay' option on the bays (code)?
+
+### G3579 - DC3-2 ROUND 6 (2026-10-27, cloud): THE DC-3 FITTED TO THE USER'S REFERENCE MODEL - STEP 1 AND THE SURFACES (STAGED, NOT FLOWN)
+The user (27 Oct): "Attached is a reference 3d model, to be scaled first according to official wing span. I also attach a procedure
+for fitting a plane to a given 3d model. You'll first ensure to match the key points and dimensions, and aerodynamic surfaces" -
+then, steering through the round: the wheels retracted in the model ("they go down and back", a drawing), "move the wheels a lot
+fore", the tailwheel "very much fore, ahead of the stabs", "nose rings ... so it can bend nicely", "very round, so use the round
+top + round bottom options", the fin from "the curved, cub-like one, and straighten only the rudder", the stabs from "the chinook
+starting point and round only the elevator's ends", the dorsal fillet option; screenshots regularly (tools/quick_view.js).
+- **The tool on this branch:** tools/ref_match/ and tools/REF_MATCH.md from claude/new-shapes-1 (tools only, no card), the
+  reference refs/dc3.glb + refs/dc3.json (span 28.96 m, length 19.66 m: NASM). Added: refmatch.py `"datum": "nose"` +
+  `"level": "body"` (a twin), `--dump-ref`; fit_tail.js `--hold`. REF_MATCH.md section 11 (the log) and section 7 (the gaps).
+- **The envelope (src/core/60_gen_spec.js, spans past 18 m only):** a big wing's taper to 0.25 and its crank chord to 5 m;
+  the editor's `wgCrankChord` to 5 m and `wgTipX` to 4 m (tools/_cage_wing.js). AND A FIXED POINT (GATE WINGROWS' sweep
+  caught it on the wider crank row: 393/400): clampWing chose the envelope off the ASKED span, so a wing asking past 18 m on a
+  chord that holds it under (19.4 m on 0.89 m) took the big envelope's crank chord once and the small one on the next resolve -
+  now read again off the clamped span and clamped again by it. dc3_identity ALL IDENTICAL; the flown DC-3 fixture
+  byte-identical; gates WINGROWS SPECFIX GEN DESIGN JOIN BUILD SAVE PARTS PANEL PASS.
+- **STAGED, NOT THE FLOWN DC-3 (until v1, below):** tools/dc3_build.js `DC3_FIT` (106 rows) over DC3_ROWS, `--fit` ->
+  tools/fixtures/dc3_fit_wip.json (gone at v1) (join errors 0, on its wheels, deck 12.3 deg). The flown fixture and the HOME trip are
+  G3578's, unchanged. What holds the fit back from the flown DC-3: the design check (`pitch.sm` -0.017 at the worst loading
+  corner, `yaw.dutch`), the nacelles / props (step 3), then the HOME trip again.
+- **Measured (ours / ref, m aft of the nose, above the body's centre):** tail post 19.203 / 19.195; wing plan 1 - IoU 0.065
+  (0.783 before); body half-width 1.088 / 1.088; tailplane LE 16.096 / 16.092, TE 19.221 / 19.217, span 7.815 / 7.808; fin top
+  3.546 / 3.548; main wheel centre 5.41 aft (the model's station, extended per the drawing); tailwheel 16.96 / 16.96.
+- **Questions:**
+  13. **The fin station:** a row placing the fin's hinge ahead of the tail post (the DC-3's rudder overhangs the cone by 0.5 m)?
+  14. **A concave dorsal fillet** (the DC-3's LE curving into the spine): ours is convex, so it is off - wanted?
+  15. **The tailwheel's height:** the model's sets a 10 deg deck, the drawing ~14 deg, ours 12.3 - which?
+
+### G3579b - DC3-2 v1 (2026-10-28, cloud): THE USER'S LAST BATCH, FLOWN - THE REFERENCE FIT IS THE DC-3
+The user (28 Oct): "the cabin is far too long ... half of the current length, and you'll compensate by adding an extra passenger
+section. If there is the option, disable the seats for that one. In the cabin, you'll disable the option skylight, and the not so
+well-named 'bubble canopy' ... rename that option ... into 'glass ceiling'. You should also get accurate prop positioning ... Our
+engines also seem to sit too high. And finally, is there any option for the nose to be more softly rounded? ... If there's nothing,
+we need a control, going from a cone to a soft rounded shape ... Once you'll have done all that, give it another test flight,
+report, and if it flies well, we'll call it v1" - and "your tailwheel should be bigger and drop further ... look at the reference".
+- **The cockpit halved** (pilotLen 1.0 -> 0.5: 0.80 m) and a NINTH BAY (paxCount 9; the cone 0.21 shorter: the tail post 19.19
+  m, the reference's 19.20). The first bay stands empty - its seats are drawn: no row turns a bay's seats off (QUESTION 9's
+  cargo bay). The pilots had been pushed through their yokes into the nose (the design check's worst corner: pitch.sm -0.27):
+  seatZ 1.32 -> 0.50, the hands on the yokes again.
+- **'bubble glass' -> 'glass ceiling'** (tools/_cage_page5.js: the label only; the key `bubble` rides every saved build; the
+  canopy's own 'bubble', canopy 3, is the real bubble canopy) - OFF on the DC-3. The skylight was already off.
+- **The props:** ours 1.05 m aft and 0.43 m outboard of the reference's (the axis within 3 cm). engBlockZ 1.0 (the WHOLE nacelle
+  forward), engNacAt 0.21 -> 0.18, cw_noseOff 0.12, engY -0.03, the nacelle's tail cone 2.4 -> 3.35 m: the spinner's front 2.45 m
+  aft of the nose (2.45), 2.61 m out (2.62), the axis -0.97 (-0.97), the nacelle's end within 5 cm. "Too high": the axis was not
+  - our nacelle is 1.0 m deep against the reference's 1.75 (its houses the retracted wheel), which may be what reads high.
+  With the engines' mass a metre forward the static margin rose to 0.18 and the worst loading corner passes.
+- **The tailwheel** the reference's: 0.52 m (s2R 0.26), its centre 1.13 m under the body's (s2_twLegDrop 0.42 - s2Drop does
+  nothing on a tailwheel leg): a 10.0 deg deck (the model's).
+- **THE NOSE'S ROUNDNESS, a new row** (tools/_cage_gen.js cageSpec + the cowl-loop loft; tools/_cage_page5.js, _cage_parts.js):
+  `noseDome` 0-1, 'nose roundness (cone -> dome)', absent 0 = every build ring for ring (dc3_identity ALL IDENTICAL). The front
+  rings' dims ease toward the true quarter-ellipse and the rings are spaced along the arc (they crowd in where the nose turns);
+  with the tip collapsed (noseTip 0.98), uncreased (crNoseCap 0, crFrontCap 0) and the nose joint band off (its crease drew a
+  polygon at the tip) the tip has no point and no facet. The DC-3 at 0.3: the reference's nose within 3-6 cm over its first
+  0.75 m (1.0 reads 25 cm too blunt). reports/evidence/DC3-2/v1_nose_dome_0_03_1.png (0, 0.3, 1).
+- **The outer dihedral 7.5 -> 6.5 deg:** at the reference's chord-line slope the Dutch roll diverged (yaw.dutch damping -0.021);
+  at 6.5 the design check passes every row (yaw.dutch 0.089, a warn).
+- **FLOWN (v1):** the sheet 8 880 kg, SM 0.177, Vs 59.5 kt clean / 53.6 flaps, cruise 133 kt, climb 8.1 m/s, TO run 328 m; the
+  pilot's circuit: lift-off at 371 m, 73 kt, climb 9.7 m/s, the FIRST approach landed (0.35 m/s), landing roll 291 m (real 245),
+  STOPPED - no go-around, no damage. The drops 2.0 / 3.05 / 3.85 / 4.6 m/s: 0 yields; taxi idle / sturn / stick / pivot / rough
+  0 / 0; `power` (full throttle 14 s on the ground to 62 kt, then full brakes) sets tailplane members (554 yields, no break, 3.4
+  g as the tail comes down) - an abuse hand (G3578's reached 51 kt and set nothing). THE HOME TRIP: the corner pivot, lined up
+  straight, the circuit, two bounce go-arounds (QUESTION 6, the pilot's), the landing STOPPED, the taxi back parked 2.47 m off
+  the stand: 0 CONTACTS, 0 YIELDS, 0 BREAKS. reports/evidence/DC3-2/home_trip_v1_phys.json, v1_overlay_{side,top,front}.png,
+  v1_3d.png.
+- **v1:** DC3_FIT is laid over DC3_ROWS in every build (tools/dc3_build.js dc3FullRaw); tools/fixtures/dc3_2026-10.json IS it
+  (its spec = the flown one, checked); the staged fixture and `--fit` are gone.
+- **Gates:** GEN (4 shards) CABIN BUILD EDBUGS FRAMES JOIN WINGROWS STARTER SAVE PARTS DESIGN PANEL PASS (PARTS after noseDome
+  joined the nose's 'front' part); dc3_identity ALL IDENTICAL. Not READY: origin/master to merge (claude/ready/dc3-3).
 ### DC3-2 SPLIT FOR A0 (27 Oct, train check: "claude/ready/dc3-2 ab6a84914 ALONE adds +183 draws.main at HOME's stand and +232 at the taxi")
 claude/ready/dc3-2 is now the CODE (+ HOME's stand heading, -0.8552: island_jolene.json's HOME stand row and its manifest patch);
 the three parked aeroplanes' moves (o3 / af_park1 / af_park2, their premises cook, the fleet-spot pack) are claude/ready/dc3-2-scenery,
