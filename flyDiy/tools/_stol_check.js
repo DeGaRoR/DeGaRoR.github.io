@@ -65,6 +65,11 @@
 //   6 THE USER'S CUB    (G2824) their Cub with a STOL kit (tools/fixtures/
 //                       stol_cub_kit.json), joined from the editor's rows,
 //                       benched and FLOWN against master's stock circuit.
+//   9 THE STOL LAW AT   (STOL-PILOT-3) the showcase flown by the autopilot's
+//     THE TOUCH         STOL law: the bush pilot calm (three-point, one
+//                       touch, sink <= 1.6), the expert in gusts and across
+//                       2 m/s (one touch, |bank| < 5 deg, sink <= 1.6) -
+//                       tools/_stol_leg.js, three side by side.
 'use strict';
 const PHY = {};
 const fs = require('fs'), path = require('path'), zlib = require('zlib'), crypto = require('crypto');
@@ -707,6 +712,47 @@ if (!BENCH_ONLY) {
     ok(shK.design && shK.design.verdict !== 'fail' && !dc.some(r => r.level === 'fail'),
        `the design check: ${shK.design && shK.design.verdict} (${dc.filter(r => r.level !== 'pass').map(r => r.id + ' ' + r.value).join(', ')})`);
   }
+}
+
+// =========================================================================
+// 9. THE STOL LAW AT THE TOUCH (STOL-PILOT-3, A0 + PILOT's review of a8dbda45e, 28 Oct): the showcase flown by the autopilot's
+// STOL law (43_pilot.js, STOL-PILOT) on three legs off HOME, side by side (tools/_stol_leg.js, ~2.5 min wall), each with its
+// shakedown as the page hands it:
+//   bush   the bush pilot (STOL-qualified), calm - the full-stall flare pinned: three-point, one touch, sink <= 1.6 m/s
+//          (flareStolIth 1.5: 2 x under the 3.0 that bounced)
+//   gust   the expert in 1,4 m/s, gust 0.6 (the planner reads ~1.1 m/s of spread: over stolGustMax 0.75) - NO full-stall
+//          three-point in gusty air (the hold-off's integrator; a8dbda45e's full stall hopped 16 cm off a -8.6 deg wing
+//          drop): one touch, |bank| < 5 deg at the touch, sink <= 1.6 m/s
+//   xwind  the expert in a 2 m/s crosswind (0,2: across HOME's strip), calm otherwise - the same three
+if (!BENCH_ONLY) {
+  console.log('9. THE STOL LAW AT THE TOUCH (the showcase: bush calm, expert in gusts, expert across 2 m/s)');
+  const os = require('os'), cp = require('child_process');
+  const FXS = path.join(T, 'fixtures', 'stol_cub_showcase.json'), RUN = path.join(T, '_stol_leg.js');
+  const LEGS = { bush: ['--profile', 'bush'], gust: ['--wind', '1,4', '--gust', '0.6'], xwind: ['--wind', '0,2'] };
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'stol9_')), t0 = Date.now();
+  const q = a => "'" + String(a).replace(/'/g, "'\\''") + "'";
+  cp.execSync(Object.keys(LEGS).map(k => [process.execPath, RUN, FXS, ...LEGS[k]].map(q).join(' ') + ' > ' + q(path.join(dir, k + '.out')) + ' 2>&1 &').join(' ') + ' wait',
+              { shell: '/bin/bash', stdio: 'inherit' });
+  const R = {};
+  for (const k of Object.keys(LEGS)) {
+    const txt = fs.readFileSync(path.join(dir, k + '.out'), 'utf8').trim().split('\n');
+    try { R[k] = JSON.parse(txt[txt.length - 1]); } catch (e) { R[k] = { err: txt.slice(-3).join(' | ') }; }
+    console.log('     ' + k.padEnd(6) + ' ' + JSON.stringify(R[k]));
+  }
+  fs.rmSync(dir, { recursive: true, force: true });
+  const flew = (r, k) => ok(r && r.outcome === 'completed' && !r.ga && r.appr && r.appr.stol && r.appr.technique === 'short',
+    `${k}: the STOL law flew it and landed first time (${r && (r.err || r.outcome)})`);
+  const B = R.bush, G = R.gust, X = R.xwind;
+  if (flew(B, 'bush')) ok(B.landing.three === true && B.touches === 1 && B.td.sink <= 1.6,
+    `bush (calm): three-point, one touch, ${B.td.sink} m/s at ${B.td.V} m/s (three ${B.landing.three}, ${B.touches} touch(es)); roll ${B.landing.run} m`);
+  if (flew(G, 'gust')) {
+    ok(G.appr.gust > 0.75, `gust: the day reads ${G.appr.gust} m/s of gust - over stolGustMax 0.75, the gusty branch armed`);
+    ok(G.touches === 1 && Math.abs(G.td.bank) < 5 && G.td.sink <= 1.6,
+       `gust: one touch (${G.touches}), bank ${G.td.bank} deg at the touch (< 5), ${G.td.sink} m/s (<= 1.6) at ${G.td.V} m/s; roll ${G.landing.run} m`);
+  }
+  if (flew(X, 'xwind')) ok(X.touches === 1 && Math.abs(X.td.bank) < 5 && X.td.sink <= 1.6,
+    `xwind 2 m/s: one touch (${X.touches}), bank ${X.td.bank} deg at the touch (< 5), ${X.td.sink} m/s (<= 1.6) at ${X.td.V} m/s; roll ${X.landing.run} m`);
+  console.log('     [section 9: ' + ((Date.now() - t0) / 1000).toFixed(0) + ' s wall]');
 }
 
 // =========================================================================

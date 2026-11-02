@@ -104,6 +104,8 @@ function machineSheet(def, opts) {
     src,
     shakedown: !!sh,
   };
+  // STOL-PILOT: the STOL devices' gain, off the shakedown (64_gen_build genStolGain) - a wing with a stall-angle device only
+  if (sh && sh.stolGain) S.stolGain = sh.stolGain;
   // ---- THE POLAR, AS A CURVE (CLIMATE K3) -----------------------------------
   // The sheet knows two points of the glide polar - minimum sink at Vms and the
   // sink at best glide at Vbg - and a variometer needs the whole curve: to say

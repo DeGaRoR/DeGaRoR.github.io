@@ -910,6 +910,10 @@ function genShakedown(def, opts) {
   if (!(opts && opts.slim) && typeof genDesignCheck === 'function') {
     try { out.design = genDesignCheck(def, out, sim); } catch (e) { out.design = null; }
   }
+  // STOL-PILOT: WHAT THE STOL DEVICES BUY (genStolGain, below) rides the sheet the page builds post-idle or in its worker -
+  // the autopilot reads it from there, never probing at the roll's start (~0.1 s). Only a wing with a stall-angle device
+  // gets the key; every other shakedown is the same object as before
+  if (!(opts && opts.slim)) { const sg = genStolGain(def); if (sg) out.stolGain = sg; }
   return out;
 }
 
@@ -1108,6 +1112,34 @@ function genStolHeld(def) {
   A.VApprShort *= VsAP / Vs0;
   g.VsFlapAP = VsAP;
   g.VsHeld = Vheld;
+}
+
+// STOL-PILOT (27 Oct): WHAT THE DEVICES BUY THE LANDING - the stall speed the same wing would have WITHOUT its STOL
+// devices, in the landing configuration: the highest lift each wing makes over a sweep of attitudes (prop off, the
+// landing flap, 0.5 deg steps to 35 deg), the device-less one off the same def with every strip's `stol` key taken off.
+// Returns { gain, VsPlain0 } - gain = sqrt(Lmax plain / Lmax with the devices) (the slot + VGs of the showcase Cub
+// 0.85), VsPlain0 = the measured flapped stall / gain - or null on a wing without a stall-angle device (genStolHeld's
+// own test). Carried on the shakedown (`stolGain`, genShakedown) for the autopilot (43_pilot stolSheet); writes nothing on
+// the def
+function genStolGain(def) {
+  if (!def.strips || !def.strips.some(st => st.stol && (st.stol.dAs > 0 || st.stol.sa > 0))) return null;
+  const P = def.params, g = P.gen || {};
+  const ldg = P.flaps ? (P.flaps.ldg ?? 1) : 0;
+  const Vs0 = ldg > 0 && !g.landsFlapless ? g.VsFlap : (g.VsMeas || g.Vs);
+  if (!(Vs0 > 0)) return null;
+  const lmax = d => {
+    const sim = makeSim(d, null);
+    sim.reset(0);
+    sim.ctl.flap = ldg;
+    let m = 0;
+    for (let a = 0; a < 0.611; a += 0.0087) m = Math.max(m, genProbeAt(sim, 15, a).Fy);
+    return m;
+  };
+  const plain = Object.assign({}, def, { strips: def.strips.map(st => { if (!st.stol) return st; const o = Object.assign({}, st); delete o.stol; return o; }) });
+  const Ld = lmax(def), Lp = lmax(plain);
+  if (!(Ld > 0 && Lp > 0)) return null;
+  const gain = Math.sqrt(Lp / Ld);
+  return { gain, VsPlain0: Vs0 / gain };
 }
 
 // ---------------------------------------------------------------------------
