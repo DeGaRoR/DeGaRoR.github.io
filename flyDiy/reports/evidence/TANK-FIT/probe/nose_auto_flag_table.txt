@@ -1,0 +1,14 @@
+== builds/cub_2026-09-20_corrected.json
+{"before":{"L":28,"ok":false,"why":"46 mm into a crew member","dims":{"L":0.193,"W":0.522,"H":0.324}},"after":{"L":11,"ok":true,"why":"","dims":{"L":0.128,"W":0.627,"H":0.209,"profile":[1,0.975,0.95,0.898,0.835,0.76,0.671,0.455,0.329]},"along":-0.2446,"ms":434.1919429996051},"cgMoveMM":{"x":15.9,"y":36.9},"massKg":{"before":461.7,"after":445.2},"fuelL":{"before":28,"after":11}}
+== builds/jodel_2026-09-20_corrected.json
+{"before":{"L":45,"ok":false,"why":"21 mm into a crew member","dims":{"L":0.305,"W":0.759,"H":0.229}},"after":{"L":5,"ok":true,"why":"","dims":{"L":0.207,"W":0.789,"H":0.067,"profile":[1,0.933,0.867,0.753,0.587,0,0,0,0]},"along":-0.3116,"ms":299.69102899963036},"cgMoveMM":{"x":28.8,"y":-37.2},"massKg":{"before":464.2,"after":425.4},"fuelL":{"before":45,"after":5}}
+== builds/composite_jodel_2026-10-07.json
+{"before":{"L":45,"ok":false,"why":"21 mm into a crew member","dims":{"L":0.305,"W":0.759,"H":0.229}},"after":{"L":5,"ok":true,"why":"","dims":{"L":0.207,"W":0.823,"H":0.057,"profile":[1,1,0.906,0.706,0.678,0.057,0,0,0]},"along":-0.3116,"ms":319.7640880001709},"cgMoveMM":{"x":27.2,"y":-33.4},"massKg":{"before":514.4,"after":473.3},"fuelL":{"before":45,"after":5}}
+== tools/fixtures/camel_2026-10.json
+{"before":{"L":44,"ok":false,"why":"57 mm into the engine, left","dims":{"L":0.115,"W":0.726,"H":0.622}},"after":{"L":44,"ok":false,"why":"61 mm into the engine, left","dims":{"L":0.123,"W":0.727,"H":0.579},"along":-0.08168587396447201,"ms":102.25134299974889},"cgMoveMM":{"x":-0.2,"y":0},"massKg":{"before":716,"after":716},"fuelL":{"before":44,"after":44}}
+== tools/fixtures/cub_fittings_hand_2026-10.json
+{"before":{"L":28,"ok":false,"why":"46 mm into a crew member","dims":{"L":0.193,"W":0.522,"H":0.324}},"after":{"L":11,"ok":true,"why":"","dims":{"L":0.128,"W":0.627,"H":0.209,"profile":[1,0.975,0.95,0.898,0.835,0.76,0.671,0.455,0.329]},"along":-0.2446,"ms":440.37184499995783},"cgMoveMM":{"x":15.9,"y":36.9},"massKg":{"before":461.7,"after":445.2},"fuelL":{"before":28,"after":11}}
+== tools/fixtures/cub_quadwin_2026-10.json
+{"before":{"L":28,"ok":false,"why":"46 mm into a crew member","dims":{"L":0.193,"W":0.522,"H":0.324}},"after":{"L":11,"ok":true,"why":"","dims":{"L":0.128,"W":0.627,"H":0.209,"profile":[1,0.975,0.95,0.898,0.835,0.76,0.671,0.455,0.329]},"along":-0.2446,"ms":515.4250360000879},"cgMoveMM":{"x":15.9,"y":36.9},"massKg":{"before":461.2,"after":444.8},"fuelL":{"before":28,"after":11}}
+== tools/fixtures/stol_cub_kit.json
+{"before":{"L":28,"ok":false,"why":"46 mm into a crew member","dims":{"L":0.193,"W":0.522,"H":0.324}},"after":{"L":11,"ok":true,"why":"","dims":{"L":0.128,"W":0.627,"H":0.209,"profile":[1,0.975,0.95,0.898,0.835,0.76,0.671,0.455,0.329]},"along":-0.2446,"ms":311.9951089997776},"cgMoveMM":{"x":15.5,"y":36.2},"massKg":{"before":482.3,"after":466},"fuelL":{"before":28,"after":11}}

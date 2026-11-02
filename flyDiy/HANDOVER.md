@@ -310980,3 +310980,18 @@ BATTERY (44 gates, jobs 8): green except, all named:
 
 TIMED (light): RED 53 vs the 12 Oct baseline ee466b792 (no reference taken since). Warm nav -> garage 65 -> 141 s (shader links MISS, worst 31 s), chase 29.8 -> 19.9 fps, compile 3.5 -> 32 s.
 A/B on the box 09:00-09:29 (master_bench --only loads,garage, cub): master F4 2f104df85 nav -> garage 136.6 s (35 links > 5 s) vs this train 150.8 s (40 links > 5 s): THE BOOT COST IS ALREADY ON MASTER (FINISH-4, whose own timed gate was killed at 40 min - this is why). Landed under the user's land-everything rule with the cost named; the F4 boot/link + chase cost goes on the perf-week list and gets a bisect (F4's 21 branches) in a box slot. Also seen: this train's bench garage sample reads 0.5 fps (one 12.8 s frame; master 30.1) - the light gate's garage rows "not measured": suspect the 1b idle hold on desktop vs the bench (needs &idle=0); PHONE-EDIT-PERF to confirm. CABIN-CRAFT ran node work 08:42-08:59 (inside the timed window, after the boot rows) - noted.
+## TANK-FIT - THE TANK VERDICT IS THE DRAWN TANK AGAINST THE DRAWN AEROPLANE; DRAGS JUDGE ONE FRAME; THE PUSHER'S COWL IS A BAY; STRUT TANKS HONEST; THE NOSE TANK FITTED TO THE NOSE (2026-11-03, TANK-FIT for A0, cloud; claude/tank-fit off master 0fcf54ef9, unbuilt)
+- The whole report: `reports/evidence/TANK-FIT/STATUS.md` (the cases A-D and their causes, the false-red table, the
+  nose litres, the strut rule, ms before/after, gates, the user's open questions).
+- `_cage_energy.js judgeTank`: red = a drawn surface into the drawn solid / within 5 mm / the crew within 10 mm,
+  named with its depth; the surfaces sampled against the tank's exact solid (a lazy two-level grid over the sheet,
+  the engine, the cowl). The bay fit's 35 mm-wall corners, the band and the hand's range no longer decide.
+  `window.TANK_FIT_LEGACY` = master's tests. The red bead `edTankClash_*` is a marker (edMarker).
+- A slider input asks one frame (`dragLayout`), the release the full layout; the fore/aft hand keeps the tank's height
+  (`lvKeepingHeight`). Caches keyed on the source objects (soup, grid, crew points, wing slicer, geometry).
+- A body bay the body ends in continues into a pusher's cowl (cowlReach / cowlSection / cowlPlace).
+- Strut tanks: never remapped to the nose; `unmounted` in the core when the wing has no struts (not billed, not in
+  fuel.litres); hung under the strut on a pylon; drag `gen.drag.strutPods`.
+- `noseAuto` (fit: 'auto'): a deck tank behind the panel (floor the dash's bottom, top the deck less a 10 cm gap);
+  new nose tanks only; `window.TANK_NOSE_AUTO_ALL` for the saves' no-station nose tanks, pending the user.
+- Tools: `tools/tank_fit_probe.js`, `tools/tank_shot.js` (cutaway renders, `--legacy`).
