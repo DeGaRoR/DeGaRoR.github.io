@@ -13639,6 +13639,21 @@
     : warmDrawSliced(scene, aa && aa.target ? aa.target() : null, 'first light', null, craftInWorldNow, { shadow: true })
       .catch(e => { console.warn('shadow warm draw:', e && e.message); return 0; })
       .then(k => firstUseSliced().then(u => { window.FLYDIY_SHADOW_WARM = { drawn: k, lights: SHADOW_WARM_LIGHTS, firstUse: u }; return k; }));
+  // ...AND THE SHOT'S (the craft phase's 'shedWarm' step). GPS-STALL's profile (gps_prof2, 2 Nov) put the 3.6 s on the roll-out
+  // SHOT's first frame (78-96 ms after the screen went), in the SHED: getShaderInfoLog under getUniforms < WebGLShadowMap <
+  // SHED_SHADOW's bake - a caster three levels down (the aeroplane's parts in the dressed shed). The craft's lights shown
+  // re-key every program of the room, depth ones included: compileCraftShed links them, the shot first USED them. Here,
+  // under the craft phase's screen: every link done (programsReady), the shed dressed as the shot dresses it (craftInShed),
+  // its casters through the shadow pass (warmDrawSliced's shadow, the scratch maps: SHED_SHADOW's maps and copies untouched),
+  // then every program's first use. FLYDIY_SHADOW_WARM_SHED = { drawn, lights, firstUse }
+  const shedShadowWarm = () => {
+    const gs = garageScene(); if (!gs) return null;
+    const inS = f => craftInShed(gs, f);
+    return Promise.resolve(craftEarly).then(() => programsReady(30000))
+      .then(() => warmDrawSliced(gs, aa && aa.target ? aa.target() : null, null, null, inS, { shadow: true }))
+      .then(k => firstUseSliced().then(u => { window.FLYDIY_SHADOW_WARM_SHED = { drawn: k, lights: SHADOW_WARM_LIGHTS, firstUse: u }; }))
+      .catch(e => console.warn('shed shadow warm:', e && e.message));
+  };
   // the roll-out stand's heading (its site's stand.hdg: the nose's - the tail, flRevealStart's hdg, is it + pi; checked on
   // the metal Cessna and the Cub at HOME: -1.8656 / 1.2760), null where there is none (the water, a spawn)
   function standHdg() {
@@ -13837,6 +13852,11 @@
       fn: () => { syncApply(tripSync, true); } },
     { id: 'craft', part: 'craft', label: "your aeroplane's shaders", w: 4, key: () => modelId() + '|' + (WF ? 'w' : '-') + '|' + gfxKey(), deps: ['spec'],
       fn: () => compileCraft() },
+    // W6 (GPS-STALL): the roll-out shot's shadow pass, its first draws and every program's first use under this screen
+    // (shedShadowWarm), once per aeroplane and graphics; only where the shot plays. ?shadowwarm=0: off (the A/B)
+    { id: 'shedWarm', part: 'craft', label: "your aeroplane's shaders", w: 2, key: () => modelId() + '|' + gfxKey(), deps: ['craft'],
+      when: () => !SHADOW_WARM_OFF && RA_Q !== '0' && typeof ROLLANIM !== 'undefined' && inGarage && !!WF && typeof renderer.compileAsync === 'function',
+      fn: () => shedShadowWarm() },
     // ---- THE WORLD: built once (the boot), then only what a new stand or new graphics need
     { id: 'world', part: 'world', label: 'laying out the world', w: 20, key: () => WF ? 'built' : null,
       fn: () => { if (PK_ASYNC()) window.PARKED.async = true; return buildWorldSliced(); } },   // G680: a slice a task
