@@ -47,16 +47,22 @@ everything else the hero; `?seatlod=0|1|2` forces one. 1-4 ms to generate a phon
   seatsX), `_cage_design.js` / `_cage_page5.js` / `_cage_parts.js` / `design_flow.js` (rows), `aeroskin.js` (sections),
   `test_skinmat.js` (its crew-section list), `_cage8.html` / `_bake_joined.js` (load the library), GATE SEATS (new).
 
-## Gates
-GATE SEATS (new, core): PASS. The wiring battery's results are below (updated when it finished).
-Standing reds (identical on a clean origin/master worktree, earlier today): CLIP (stock+ifr's navAerial 9.2 mm into the
-fin skin, the access layer) and NODUMMY (retired-figure references in _crew_head_probe.js, newshapes_build.js,
-quickshot.js). Neither reads a seat file.
+## Gates (on the wiring, 8557b230 + its build)
+PASS: SEATS (new), GEN, WEIGHT, BUILD, JOIN, SAVE, PARTS, DESIGN, STARTER, PROCURE, PILOTS, CAGEFIT, CABIN, FRAMES,
+DMGOCCUPANT, SKINMAT, UISMOKE, UISMOKE-PHONE, TANKMOUNT, PANEL, DASH.
+STANDING reds - each fails identically on a clean origin/master worktree (checked today), none reads a seat file:
+- JOINPARITY: the metal Cessna / Cessna floats node vs the 27 Oct page capture (885.824 vs 888.772 kg, the same on
+  master), the fixture's byte check, and the raw-loader census - the capture wants re-taking by its owner.
+- LIVERY: crashes in app.js's editor seed (`garageFloodArm is not defined`), master too.
+- CLIP (stock+ifr's navAerial 9.2 mm into the fin skin) and NODUMMY (retired-figure references in three tools): from the
+  first run, master too.
 
 ## Renders
 - `seats_sheet.jpg`: all 15, 3/4 over side. `seats_lod.jpg`: each at hero / mid / phone.
 - `close/`: each seat front-3/4 and from behind (hero; taken before the renumbering, file names by the old keys).
-- `cabin/`: the seats in their aeroplanes (the game page, SwiftShader) - see below.
+- In-cabin shots: NOT YET. A first try from outside (the game page, the phone profile) showed only dark windows: the
+  cabin darkening and the skin hide the seats, and the scratch rig's pan to the seats did not take (the eye stayed on
+  the build's centre). Owed: an eye inside the cabin, or the skin hidden, in the rig.
 
 ## Rig handbrake (A0's note)
 The cockpit shot came from the repo's own `tools/plane_shot.js`: the built `index.html` (master 0fcf54ef + the seat
