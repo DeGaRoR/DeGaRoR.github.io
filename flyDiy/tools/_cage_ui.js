@@ -2088,6 +2088,11 @@ function* releaseSteps(built, rplan) {
     scene.traverse(o => { if (o.material) for (const m of (Array.isArray(o.material) ? o.material : [o.material])) used.add(m); });
     for (const m of [...PAINT_REQ.keys()]) if (!used.has(m)) PAINT_REQ.delete(m);
   }
+  // a kept crew layer's footwell, published again (PHONE-1b): the shared block is not the editor's alone -
+  // a load ends on the flown aeroplane's own (garage.js's sync rebuild -> app.js, through the join's map: on the user's
+  // twin 16.9 cm lower), and a whole build puts the editor's back when its crew layer runs; a release that keeps the crew
+  // layer kept the flown one (INSTANT twin wgSpan, the first row after the boot)
+  if (ci >= 0 && !rplan.run[ci]) republishCrew(false);
   try { applyWeather(); } catch (e) { console.error('weather:', e); }
   applyRowVis();
   syncFollow();
@@ -4449,13 +4454,18 @@ function decalImagesFrom(images) {
 // ended on the footwell and the weather's sources ~13 cm off the whole build (INSTANT --fleet's wgSpan; --fleet-baked, no
 // capture, clean). This puts back what the editor's layers hold NOW: the crew's footwell and plate holes (CAGE_CREW, set
 // at each crew build), the weather's sources and macros (applyWeather re-measures them off the live layers).
-function republish() {
+// (holes: false - the release's call: the crew layer publishes its footwell at every build it runs, its plate holes only
+// as null with the crew off, so a release puts back the footwell alone - the whole build's block)
+function republishCrew(holes = true) {
   const A = AK(), C = window.CAGE_CREW;
   if (A) try {
     const crew = !!(P.crewOn && C);
     if (A.aeroSetFootwell) A.aeroSetFootwell(THREE, crew ? (C.footwell || null) : null);
-    if (A.aeroSetHoles) A.aeroSetHoles(THREE, crew ? (C.holes || null) : null);
+    if (holes && A.aeroSetHoles) A.aeroSetHoles(THREE, crew ? (C.holes || null) : null);
   } catch (e) { console.error('republish: crew', e); }
+}
+function republish() {
+  republishCrew();
   try { applyWeather(); } catch (e) { console.error('republish: weather', e); }
 }
 function applyWeather() {
