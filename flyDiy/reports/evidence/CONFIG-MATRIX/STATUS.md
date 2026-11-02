@@ -64,7 +64,22 @@ A saved build in one of these cells loads unchanged (engine: the join's error ro
 
 ## Gates
 
-(running — see below)
+Steps 2-3 (`claude/config-matrix` 2686e99b0, `run_gates.js --only=` the thirteen named):
+
+| PASS | GEN (4 shards, 748 s), CAGEFIT, COWL, JOIN, STARTER, FLOATKIT, SAVE, PARTS, DESIGN |
+|---|---|
+| FAIL, **standing** | CLIP (stock+ifr: navAerial 9.2 mm into the fin), TECH (pitch:seaplane has no segment), NODUMMY (retired-figure references in `_crew_head_probe.js`, `newshapes_build.js`, `quickshot.js`), ENGCONFIG (identity digests against its pin f353a0f8; the three cards differ from their saved files) |
+
+Standing = run on `origin/master` 0fcf54ef9 in a clean worktree: the same four FAIL, with byte-identical FAIL lines.
+ENGCONFIG's identity section prints the SAME digests on this branch and on master for the Cub, the Jodel, the C172
+and its metal / floats builds, the twin floatplane, the Chinook, the four fixtures and Rufus: the validated builds are
+bit-identical to master (the gate is red against its own stale pin, on both).
+
+Step 4 (`claude/config-matrix-step4` 7173bd9a7): CAGEFIT, COWL, JOIN, STARTER, SAVE, PARTS, DESIGN, UISMOKE PASS;
+TECH the standing red.
+
+The sweeps: `sweep_before.txt`, `sweep_after_steps2-3.txt` (the four XX cells left are step 4's greyed ones, now a
+join error instead of an engine on the nose).
 
 ## Borderline cells for the user to decide
 
