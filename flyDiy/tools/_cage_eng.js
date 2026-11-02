@@ -892,6 +892,7 @@ function engPlace(ctx, prev) {
   const { scene, mesh, P, stat } = ctx;
   if (prev) prev.superseded = true;
   dispose(group); group = null;
+  window.CAGE_ENG_LOST = null;
   if (!P.engOn) return null;
 
   const FS = (CG2 && CG2.CAGE_UNIT || 1) * (P.planeScale || 1);
@@ -901,15 +902,23 @@ function engPlace(ctx, prev) {
   const NF = window.CAGE_NOSE;
   const mountK = Math.round(P.engMount || 0);
   const units = NF && NF.engineFaces ? NF.engineFaces(mesh, FS, P) : [];
+  // CONFIG-MATRIX: EVERY ENGINE THE MOUNT LISTS IS BOLTED ON, OR THE LAYER SAYS WHICH IS NOT AND WHY. The join flies
+  // the mount's list whatever was drawn; CAGE_ENG_LOST is what it files as an error row (an engine flown and not
+  // drawn), and CAGE_ENG no longer outlives a build that drew nothing (its stations flew on as the old drawing's)
+  const want = ({ 3: 2, 4: 2, 5: 3, 6: 4 })[mountK] || 1;
+  const aftFace = !!(+P.rearAperture || (CG2 && CG2.cageAftEngineFace && CG2.cageAftEngineFace(P)));
+  const whyLost = mountK === 1 || (mountK === 4 && !aftFace)
+      ? (aftFace ? 'no aft bulkhead face' : 'an aft engine needs the pod to end at the aft bulkhead (Rod & pod, or twin booms)')
+    : mountK === 2 ? ([0, 3].includes(Math.round(P.wgPos || 0)) ? 'no wing to sit on' : 'the over-the-wing mount needs a HIGH wing (or a parasol)')
+    : mountK === 3 || mountK >= 5 ? 'no wing to hang the nacelles on'
+    : 'no engine face on this body';
+  if (units.length < want) window.CAGE_ENG_LOST = { mount: mountK, want, got: units.length, why: whyLost };
   if (!units.length) {
-    if (stat) stat.textContent += '  ·  engine: ' +
-      (mountK === 1 ? (P.boomStyle ? 'no aft bulkhead face' : 'a pusher needs a rod boom (the pod ends at the aft bulkhead)')
-     : mountK === 2 ? ([0, 3].includes(Math.round(P.wgPos || 0)) ? 'no wing to sit on' : 'the over-the-wing mount needs a HIGH wing')
-     : mountK === 3 || mountK >= 5 ? 'no wing to hang the nacelles on'
-     : mountK === 4 ? 'a push-pull needs the pod to end at the aft bulkhead (rod or twin booms)'
-     : 'no engine face on this body');
+    if (stat) stat.textContent += '  ·  engine: ' + whyLost;
+    window.CAGE_ENG = null;
     return null;
   }
+  if (units.length < want && stat) stat.textContent += '  ·  engine: ' + units.length + ' of ' + want + ' drawn — ' + whyLost;
   const face = units[0].face;
 
   // spec: the shared dial dict (engSpecOfP — the join resolves the same

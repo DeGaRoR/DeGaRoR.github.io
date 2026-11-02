@@ -1392,6 +1392,12 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       // THE ENGINES' STATIONS (2026-09-04): each drawn unit's mount point,
       // model frame — x aft of the firewall, y over the cabin keel, z lateral
       {
+        // CONFIG-MATRIX: an engine the mount lists and the engine layer could not bolt on (no face on this body)
+        // flies at the rule's station where nothing is drawn - an ERROR row, the bench's failed test, never silent
+        const EL = window.CAGE_ENG_LOST;
+        if (EL && EL.got < EL.want)
+          ERRS.push('engine: ' + (EL.want - EL.got) + ' of ' + EL.want + ' not drawn — ' + EL.why +
+                    '; it flies where nothing is drawn');
         const CE = window.CAGE_ENG;
         if (CE && Array.isArray(CE.units) && CE.units.length) {
           M.engUnits = CE.units.map(u =>

@@ -72,7 +72,8 @@ function buildFin(P, mesh, L, approx) {
   if (!+P.finOn) return null;
   const cutMode = Math.round(P.finCut || 0);
   // ROD BOOM (G26.4): no keel wrap, no dorsal on a bare tube
-  const S = FIN.finSpec(P.boomStyle ? { ...P, finKeel: 0, finDorsal: 0 } : P);
+  // (the fin layer's clamp, CONFIG-MATRIX: rod-style twin booms draw the dorsal by their own finDorsalTube row)
+  const S = FIN.finSpec(P.boomStyle ? { ...P, finKeel: 0, finDorsal: (+P.boomTwin && +P.finDorsalTube) ? 1 : 0 } : P);
   S.cutPrep = cutMode;
   const TB = boomDeck(P);
   if (!TB && +P.boomTwin) approx.push('fin: twin-boom deck (rooted on the fuselage centreline)');

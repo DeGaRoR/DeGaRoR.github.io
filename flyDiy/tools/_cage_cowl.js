@@ -449,6 +449,12 @@ function engineFaces(mesh, FS, P) {
   const bz = +P.engBlockZ || 0, by = +P.engBlockY || 0;
   const aim = Math.round(P.engAim || 0);
   if (mount === 1) {
+    // CONFIG-MATRIX: ONLY A BODY THAT ENDS AT A BULKHEAD HAS AN AFT FACE (_cage_gen.js cageAftEngineFace, the rule
+    // the sheet's aperture follows; or the page's own rear-aperture row). Without one the aft-most cap noseFace finds
+    // is the NOSE's - or, on an aerodynamic nose, the windscreen band - and the pusher was bolted there facing aft,
+    // its disc in front of the cabin. No face, no engine: the engine layer says why and the join files it.
+    const C2 = window.CAGE2;
+    if (C2 && C2.cageAftEngineFace && !+P.rearAperture && !C2.cageAftEngineFace(P)) return [];
     const f = noseFace(mesh, FS, 'tail');
     // G461 (the Chinook): THE PUSHER'S BLOCK MOVES TOO. The pod's aft face
     // is where the mount bolts, and a Chinook's engine sits over the wing's

@@ -70,7 +70,7 @@ function state(P, spec) {
   const S = r.built.spec || {};
   const cfg = S.config || {};
   const P2 = r.P;
-  const dorsalDrawn = !!(+P2.finOn && +P2.finDorsal && !+P2.boomStyle);   // _cage_fin.js's clamp, as the layer reads it
+  const dorsalDrawn = !!(+P2.finOn && (+P2.boomStyle ? +P2.boomTwin && +P2.finDorsalTube : +P2.finDorsal));   // _cage_fin.js's clamp
   const flown = J ? {
     engines: (J.engines || []).map(e => e.mount + (isFinite(e.x) ? '@' + (+e.x).toFixed(2) : '@rule')),
     tail: J.tail && J.tail.type, boom: J.fuselage && J.fuselage.boom,
