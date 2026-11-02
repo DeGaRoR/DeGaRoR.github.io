@@ -1,149 +1,149 @@
 {
  "cub": {
   "def": "358103acb25720b4",
-  "game": "3697ef1bb10d0960",
+  "game": "c69780f252d5fc93",
   "ledger": {
-   "empty": 356.52009,
-   "cost": 32495
+   "empty": 351.263222,
+   "cost": 30834
   },
   "fly": {
-   "hash": "df9d2a263104b640",
+   "hash": "ac9605ee65c4a230",
    "cg": [
-    -258.9863,
-    316.5986,
-    278.7563
+    -250.8304,
+    317.9638,
+    278.3591
    ]
   },
-  "joined": "510d380c6d27c4df",
+  "joined": "f5a1e70c39bf09b5",
   "joinedLedger": {
-   "empty": 350.303306,
-   "cost": 31086
+   "empty": 354.112297,
+   "cost": 31215
   }
  },
  "jodel": {
   "def": "4b9627b45e434d0b",
-  "game": "3311fa0acba3a790",
+  "game": "6a292943df3cb646",
   "ledger": {
-   "empty": 355.086486,
-   "cost": 36300
+   "empty": 341.782804,
+   "cost": 34422
   },
   "fly": {
-   "hash": "6271208d3533e04c",
+   "hash": "d6f350fa57f6550c",
    "cg": [
-    -14.3858,
-    204.1758,
-    340.1395
+    -7.4039,
+    209.5297,
+    321.1831
    ]
   },
-  "joined": "7bd2d85ae636e0c7",
+  "joined": "3b455460bc723d70",
   "joinedLedger": {
-   "empty": 350.676716,
-   "cost": 34782
+   "empty": 340.851299,
+   "cost": 34383
   }
  },
  "metal": {
   "def": "bf7972bfa27e56ac",
-  "game": "dbc5eecf273c58e1",
+  "game": "0d07c0a5e5a63457",
   "ledger": {
-   "empty": 678.07465,
-   "cost": 95774
+   "empty": 668.611603,
+   "cost": 94095
   },
   "fly": {
-   "hash": "26e9aacf6a55d392",
+   "hash": "0078dd3818d4714b",
    "cg": [
-    -687.5097,
-    275.2655,
-    509.4059
+    -676.8219,
+    279.3403,
+    508.5211
    ]
   },
-  "joined": "2ce35453b089d6be",
+  "joined": "9eb4f9f8f68e48e2",
   "joinedLedger": {
-   "empty": 658.994666,
-   "cost": 93465
+   "empty": 667.525804,
+   "cost": 94045
   }
  },
  "floats": {
   "def": "6154f22ebfc3a53e",
-  "game": "c666f4638d497eb6",
+  "game": "cce39b9d2e8f5457",
   "ledger": {
-   "empty": 739.646722,
-   "cost": 97336
+   "empty": 732.289254,
+   "cost": 95789
   },
   "fly": {
-   "hash": "e1fe32735066ab07",
+   "hash": "b3672d1fb8f99714",
    "cg": [
-    -928.1039,
-    200.0775,
-    440.7224
+    -921.0456,
+    205.7557,
+    440.7487
    ]
   },
-  "joined": "71027665a2dcb4aa",
+  "joined": "489900658f90a5d3",
   "joinedLedger": {
-   "empty": 717.792176,
-   "cost": 94924
+   "empty": 728.36711,
+   "cost": 95633
   }
  },
  "twinFloats": {
   "def": "08898fe29c2176f2",
-  "game": "7954f6a9b66b5341",
+  "game": "9e3ed7dfcb141c9a",
   "ledger": {
-   "empty": 397.810088,
-   "cost": 35736
+   "empty": 393.564229,
+   "cost": 35442
   },
   "fly": {
-   "hash": "7baf756335efa194",
+   "hash": "47c1a382d60aa551",
    "cg": [
-    -773.1182,
-    251.5656,
-    137.377
+    -764.2129,
+    258.7227,
+    141.1463
    ]
   },
-  "joined": "3cf16a5778f96706",
+  "joined": "922778083fddb1f2",
   "joinedLedger": {
-   "empty": 391.291816,
-   "cost": 35355
+   "empty": 391.010942,
+   "cost": 35343
   }
  },
  "cessna172": {
   "def": "449918ffb4e0fdb0",
-  "game": "6630170db8e42d19",
+  "game": "c82ea22e6e6b484b",
   "ledger": {
-   "empty": 648.332095,
-   "cost": 90603
+   "empty": 644.063956,
+   "cost": 89242
   },
   "fly": {
-   "hash": "6bca7a9e30cd804f",
+   "hash": "f16661894db994f2",
    "cg": [
-    -907.0804,
-    214.6608,
-    342.7058
+    -909.2731,
+    213.9518,
+    341.901
    ]
   },
-  "joined": "5607d759a5218178",
+  "joined": "654ab3118ac68616",
   "joinedLedger": {
-   "empty": 630.535183,
-   "cost": 88379
+   "empty": 642.890203,
+   "cost": 89189
   }
  },
  "rufus": {
   "def": "cebba3a093f39b4f",
-  "game": "2287d04ea31b6d16",
+  "game": "0c07382d3bbc4871",
   "ledger": {
-   "empty": 285.152003,
-   "cost": 39864
+   "empty": 273.441962,
+   "cost": 37581
   },
   "fly": {
-   "hash": "a25ce45e1eca96ef",
+   "hash": "6f7cbcaf9c8c655a",
    "cg": [
-    -88.0642,
-    302.6067,
-    268.1241
+    -58.791,
+    308.2165,
+    244.289
    ]
   },
-  "joined": "fe26ecf30f14618e",
+  "joined": "27b35e2a38407caa",
   "joinedLedger": {
-   "empty": 279.584583,
-   "cost": 37951
+   "empty": 273.844361,
+   "cost": 37598
   }
  }
 }
