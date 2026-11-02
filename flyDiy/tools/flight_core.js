@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: fdf1e2746a5041ac
+// body-sha256: 352dec659a067839
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -611,6 +611,20 @@ const POWERPLANTS = {
     engine: { name: 'Rotax 915 iS', mass: 84, powerW: 105000, aspiration: 'turbo', critAlt: 4600, family: 'four', cooling: 'liquid', rpm: 5800, gear: 2.54 },
     prop:   { name: '3-blade carbon 1.80 m', D: 1.80, Tstatic: 2061, kV2: 0.2090 },
   },
+  // THE 915's BIG BROTHER (FLAGSHIP, the user 2 Nov: "add the 916 iS engine row" - four aboard on floats wanted more
+  // than the 915's T/W 0.24). Rotax's product page (flyrotax.com/products/916-is-c, read 2 Nov 2026): take-off power
+  // 117 kW / 160 hp at 5 800 rpm (5 min; max continuous 101 kW / 137 hp at 5 500), full take-off power to 15 000 ft
+  // (4 600 m, rounded as the 915's), gearbox i = 2.54, 1 352 cm3 (84 x 61 mm, the 915's bore and stroke), 85.8 kg with
+  // the gearbox, overload clutch, turbocharger, intercooler and exhaust (the 915's 84 kg is the same scope).
+  // Wikipedia (en.wikipedia.org/wiki/Rotax_916_iS) rounds the power to 119 kW; the maker's 117 is used. Its fuel flow
+  // (10-20 % under the 915's at the same continuous power, the same page) is not a row: the family's SFC law reads
+  // 'four' for both. The prop is genPropSynth's at 1.80 m, 3 carbon blades, standard pitch, 117 kW (the 915's row
+  // through the same call gives its 2061 / 0.2090 exactly). Price: the game's ladder, the 915's +12 % with the power.
+  rotax916_carbon: {
+    price: 38000,
+    engine: { name: 'Rotax 916 iS', mass: 85.8, powerW: 117000, aspiration: 'turbo', critAlt: 4600, family: 'four', cooling: 'liquid', rpm: 5800, gear: 2.54 },
+    prop:   { name: '3-blade carbon 1.80 m', D: 1.80, Tstatic: 2216, kV2: 0.2090 },
+  },
   // THE IN-LINE'S CEILING: the inverted six of the PT-19 trainer
   ranger440_wood: {
     price: 35000,
@@ -926,7 +940,7 @@ const GEN_ENG_CG = {
   mikron3_wood: 0.31, gipsymajor1_wood: 0.39,
   hirth508_wood: 0.35, argus10c_wood: 0.39,
   o320_mccauley: 0.24, o540_hartzell: 0.33, io550_hartzell3: 0.34,
-  io720_hartzell3: 0.42, rotax915_carbon: 0.24, ranger440_wood: 0.50,
+  io720_hartzell3: 0.42, rotax915_carbon: 0.24, rotax916_carbon: 0.24, ranger440_wood: 0.50,
   w670_hs2b: 0.15, r755_hs2b: 0.16, m14p_v530: 0.14, r1340_hs12d40: 0.16,
   r985_hs2b20: 0.15, r1830_hs23e50: 0.16, merlin66_rotol4: 0.63,
   outrunner2212_9x47: 0.02, outrunner6374_18x10: 0.06, eppg_direct_130: 0.13,
@@ -20970,7 +20984,7 @@ const GEN_DRIVE = {
     o540_hartzell: { cyl: 6 }, io550_hartzell3: { cyl: 6 }, io720_hartzell3: { cyl: 8 }, vw2180_wood: { cyl: 4 },
     jabiru2200_std: { cyl: 4 }, mikron3_wood: { cyl: 4 }, gipsymajor1_wood: { cyl: 4 }, ranger440_wood: { cyl: 6 },
     hirth508_wood: { cyl: 8 }, argus10c_wood: { cyl: 8 },
-    rotax912_warp: { cyl: 4 }, rotax915_carbon: { cyl: 4 },
+    rotax912_warp: { cyl: 4 }, rotax915_carbon: { cyl: 4 }, rotax916_carbon: { cyl: 4 },
     rotax582_ivo: { cyl: 2, rpmMax: 6800 }, rotax503_wood: { cyl: 2 }, rotax277_pusher: { cyl: 1 },
     r1830_hs23e50: { cyl: 14 }, r985_hs2b20: { cyl: 9 }, r1340_hs12d40: { cyl: 9 }, r755_hs2b: { cyl: 7 }, w670_hs2b: { cyl: 7 },
     m14p_v530: { cyl: 9 }, verner7u_wood: { cyl: 7 }, rotec3600_std: { cyl: 9 }, clerget9b_wood: { cyl: 9 },
@@ -36391,27 +36405,6 @@ function genSect(theta, halfW, yUp, yDn, nTop, nBot) {
   return [h * t * cy, halfW * t * cz];
 }
 
-// CABIN-CRAFT (2026-11-02): THE COWL'S FIREWALL WIDTH BY LEVEL - the cage's `cw_wAftTop` / `cw_wAftBot` (the cowl
-// layer's 'width at the top / bottom line (x widest)', _cowl_gen.js wAftTop): the drawn section narrows with height,
-// 1 at the waist, w at the line, faded to 1 at the nose. The flown cowl wets and weighs that section. Null when both
-// are absent or 1 - every caller then takes its old path, to the bit.
-function genCowlWidths(S) {
-  const c = S && S.cage;
-  if (!c) return null;
-  const t = c.cw_wAftTop != null && isFinite(+c.cw_wAftTop) ? Math.max(0.2, Math.min(2, +c.cw_wAftTop)) : 1;
-  const b = c.cw_wAftBot != null && isFinite(+c.cw_wAftBot) ? Math.max(0.2, Math.min(2, +c.cw_wAftBot)) : 1;
-  return (t === 1 && b === 1) ? null : { top: t, bot: b };
-}
-// genSect with the width by level (the drawn cowl's sectPt rule): the lateral coordinate scales by 1 + (w - 1) v,
-// v the height over the half's own depth
-function genSectW(theta, halfW, yUp, yDn, nTop, nBot, wTop, wBot) {
-  const q = genSect(theta, halfW, yUp, yDn, nTop, nBot);
-  const up = q[0] >= 0, w = up ? wTop : wBot;
-  if (w == null || w === 1) return q;
-  const h = Math.max(1e-5, up ? yUp : yDn);
-  return [q[0], q[1] * (1 + (w - 1) * Math.min(1, Math.abs(q[0]) / h))];
-}
-
 // Symmetric superellipse about the section centre. Retained because the cowl,
 // the tail cone cap and the legacy genRing wrapper all want a shape that is the
 // same above and below; new work should prefer genSect.
@@ -40646,19 +40639,6 @@ function genLattice(S, gearX, track, kScale, gross, gauge) {
       const per = Math.PI * (3 * (a2 + b2) - Math.sqrt((3 * a2 + b2) * (a2 + 3 * b2)));
       cowlM = per * Math.max(0.1, cb.noseGap) *
               (O.cowlKgM2[S.material] || O.cowlKgM2.alloy);
-      // CABIN-CRAFT (2026-11-02): A FIREWALL NARROWER AT THE TOP (or the bottom) IS LESS SKIN - the drawn section's
-      // girth over the round one's (genSectW, the drag build-up's own walk), averaged firewall -> nose where it fades
-      // to 1. Absent rows: no factor, the bit it was.
-      const cwW = genCowlWidths(S);
-      if (cwW) {
-        const girth = w => { let L = 0, pv = null;
-          for (let i = 0; i <= 48; i++) { const q = w ? genSectW(2 * Math.PI * i / 48, a2, b2, b2, 2, 2, w.top, w.bot)
-                                                      : genSect(2 * Math.PI * i / 48, a2, b2, b2, 2, 2);
-            if (pv) L += Math.hypot(q[0] - pv[0], q[1] - pv[1]); pv = q; }
-          return L; };
-        const g1 = girth(null);
-        if (g1 > 0) cowlM *= 0.5 * (1 + girth(cwW) / g1);
-      }
     }
     // THE EXHAUST, from the power it carries. Electric has none.
     const exhM = electric ? 0 : O.exhaustKgKW * kW;
@@ -41591,14 +41571,12 @@ function genFusSwet(S, ST) {
   const nT = genCrownToN(fu.crownTop == null ? 0.72 : fu.crownTop);
   const nB = genCrownToN(fu.crownSide == null ? 0.07 : fu.crownSide);
   const N = 32;
-  // (CABIN-CRAFT: `w` - the cowl's width by level, genCowlWidths - only on the cowl's own stations)
-  const per = (halfW, h, nTop, nBot, w) => {
+  const per = (halfW, h, nTop, nBot) => {
     if (!(halfW > 0) || !(h > 0)) return 0;
     let L = 0, prev = null;
     for (let i = 0; i <= N; i++) {
       const th = 2 * Math.PI * i / N;
-      const q = w ? genSectW(th, halfW, 0.5 * h, 0.5 * h, nTop, nBot, w.top, w.bot)
-                  : genSect(th, halfW, 0.5 * h, 0.5 * h, nTop, nBot);
+      const q = genSect(th, halfW, 0.5 * h, 0.5 * h, nTop, nBot);
       if (prev) L += Math.hypot(q[0] - prev[0], q[1] - prev[1]);
       prev = q;
     }
@@ -41606,13 +41584,12 @@ function genFusSwet(S, ST) {
   };
   // ...and the section's AREA, the same walk closed by the shoelace (G461,
   // the body's own pitching moment needs the volume)
-  const area = (halfW, h, nTop, nBot, w) => {
+  const area = (halfW, h, nTop, nBot) => {
     if (!(halfW > 0) || !(h > 0)) return 0;
     let a = 0, prev = null, first = null;
     for (let i = 0; i <= N; i++) {
       const th = 2 * Math.PI * i / N;
-      const q = w ? genSectW(th, halfW, 0.5 * h, 0.5 * h, nTop, nBot, w.top, w.bot)
-                  : genSect(th, halfW, 0.5 * h, 0.5 * h, nTop, nBot);
+      const q = genSect(th, halfW, 0.5 * h, 0.5 * h, nTop, nBot);
       if (prev) a += prev[0] * q[1] - q[0] * prev[1];
       prev = q; if (!first) first = q;
     }
@@ -41628,11 +41605,9 @@ function genFusSwet(S, ST) {
   if (S.cowl && typeof S.cowl.secAt === 'function' && S.cowl.len > 0) {
     cowlL = S.cowl.len;
     const K = 8; let prevP = null, prevA = null;
-    const cwW = genCowlWidths(S);                  // CABIN-CRAFT: the drawn firewall's width by level (null = as before)
     for (let i = 0; i <= K; i++) {
       const c = S.cowl.secAt(1 - i / K);          // t 1 = the nose, 0 = the firewall
-      const ww = cwW ? { top: cwW.top + (1 - cwW.top) * c.t, bot: cwW.bot + (1 - cwW.bot) * c.t } : null;
-      const pc = per(c.halfW, c.yHi - c.yLo, 2.5, 2.5, ww), ac = area(c.halfW, c.yHi - c.yLo, 2.5, 2.5, ww);
+      const pc = per(c.halfW, c.yHi - c.yLo, 2.5, 2.5), ac = area(c.halfW, c.yHi - c.yLo, 2.5, 2.5);
       if (prevP != null) { swet += 0.5 * (prevP + pc) * (cowlL / K); vol += (prevA + ac + Math.sqrt(prevA * ac)) / 3 * (cowlL / K); }
       prevP = pc; prevA = ac;
     }
@@ -58646,7 +58621,7 @@ const TECH_TABLE = {
   'eng:io360_mccauley': 2, 'eng:o540_hartzell': 2, 'eng:io550_hartzell3': 2, 'eng:io720_hartzell3': 2, 'eng:ranger440_wood': 2,
   'eng:hirth508_wood': 2, 'eng:argus10c_wood': 2, 'eng:w670_hs2b': 2, 'eng:r755_hs2b': 2, 'eng:m14p_v530': 2,
   'eng:r985_hs2b20': 2, 'eng:r1340_hs12d40': 2, 'eng:r1830_hs23e50': 2, 'eng:merlin66_rotol4': 2,
-  'eng:rotax915_carbon': 3,
+  'eng:rotax915_carbon': 3, 'eng:rotax916_carbon': 3,
   'eng:emrax268_carbon': 3, 'eng:emrax228_3blade': 3, 'eng:e811_velis': 3, 'eng:sp260d_class': 3, 'eng:eppg_direct_130': 3,
   'eng:fes_folding_100': 3, 'eng:outrunner2212_9x47': 3, 'eng:outrunner3548_12x6': 3, 'eng:outrunner6374_18x10': 3,
   'eng:pt6a114a_hartzell3': 3, 'eng:pt6a34_hartzell4': 3, 'eng:pt6a42_hartzell4': 3, 'eng:pt6a60a_hartzell4': 3,

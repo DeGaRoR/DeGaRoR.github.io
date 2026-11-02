@@ -609,6 +609,20 @@ const POWERPLANTS = {
     engine: { name: 'Rotax 915 iS', mass: 84, powerW: 105000, aspiration: 'turbo', critAlt: 4600, family: 'four', cooling: 'liquid', rpm: 5800, gear: 2.54 },
     prop:   { name: '3-blade carbon 1.80 m', D: 1.80, Tstatic: 2061, kV2: 0.2090 },
   },
+  // THE 915's BIG BROTHER (FLAGSHIP, the user 2 Nov: "add the 916 iS engine row" - four aboard on floats wanted more
+  // than the 915's T/W 0.24). Rotax's product page (flyrotax.com/products/916-is-c, read 2 Nov 2026): take-off power
+  // 117 kW / 160 hp at 5 800 rpm (5 min; max continuous 101 kW / 137 hp at 5 500), full take-off power to 15 000 ft
+  // (4 600 m, rounded as the 915's), gearbox i = 2.54, 1 352 cm3 (84 x 61 mm, the 915's bore and stroke), 85.8 kg with
+  // the gearbox, overload clutch, turbocharger, intercooler and exhaust (the 915's 84 kg is the same scope).
+  // Wikipedia (en.wikipedia.org/wiki/Rotax_916_iS) rounds the power to 119 kW; the maker's 117 is used. Its fuel flow
+  // (10-20 % under the 915's at the same continuous power, the same page) is not a row: the family's SFC law reads
+  // 'four' for both. The prop is genPropSynth's at 1.80 m, 3 carbon blades, standard pitch, 117 kW (the 915's row
+  // through the same call gives its 2061 / 0.2090 exactly). Price: the game's ladder, the 915's +12 % with the power.
+  rotax916_carbon: {
+    price: 38000,
+    engine: { name: 'Rotax 916 iS', mass: 85.8, powerW: 117000, aspiration: 'turbo', critAlt: 4600, family: 'four', cooling: 'liquid', rpm: 5800, gear: 2.54 },
+    prop:   { name: '3-blade carbon 1.80 m', D: 1.80, Tstatic: 2216, kV2: 0.2090 },
+  },
   // THE IN-LINE'S CEILING: the inverted six of the PT-19 trainer
   ranger440_wood: {
     price: 35000,
@@ -924,7 +938,7 @@ const GEN_ENG_CG = {
   mikron3_wood: 0.31, gipsymajor1_wood: 0.39,
   hirth508_wood: 0.35, argus10c_wood: 0.39,
   o320_mccauley: 0.24, o540_hartzell: 0.33, io550_hartzell3: 0.34,
-  io720_hartzell3: 0.42, rotax915_carbon: 0.24, ranger440_wood: 0.50,
+  io720_hartzell3: 0.42, rotax915_carbon: 0.24, rotax916_carbon: 0.24, ranger440_wood: 0.50,
   w670_hs2b: 0.15, r755_hs2b: 0.16, m14p_v530: 0.14, r1340_hs12d40: 0.16,
   r985_hs2b20: 0.15, r1830_hs23e50: 0.16, merlin66_rotol4: 0.63,
   outrunner2212_9x47: 0.02, outrunner6374_18x10: 0.06, eppg_direct_130: 0.13,
