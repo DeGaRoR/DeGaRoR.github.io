@@ -184,7 +184,9 @@ async function shoot(o) {
 
     // THE PAGE: the phone profile (the garage alone, no world; the studio where it has landed), the laptop preset on
     // both renderers (the software rung would pick potato by itself - gfx_settings.js - and the A/B must be one preset)
-    const url = 'http://localhost:' + o.servePort + '/flyDiy/' + o.page + '?profile=phone&gfx=laptop&intro=0';
+    // PHONE-EDIT-PERF (2 Nov): the phone profile draws the phone's material tier (aeroskin.js aeroLite: no weathering, no
+    // large-scale field, no structure grammar) - a still of a BUILD is its full look: ?phmat=full (--phmat lite: the tier)
+    const url = 'http://localhost:' + o.servePort + '/flyDiy/' + o.page + '?profile=phone&gfx=laptop&intro=0&phmat=' + (o.phmat === 'lite' ? 'lite' : 'full');
     log('page', url);
     await C.cmd('Page.navigate', { url });
     await until('the garage', '!!(window.BOOT && BOOT.state === "gone" && BOOT.set === "garage" && BOOT.stepI >= (BOOT.steps || []).length && !BOOT.current && window.FLIGHT_PROBE && window.CAGE_UI && window.GARAGE_SPEC)', 2000);
@@ -372,7 +374,7 @@ async function pair(dirA, dirB, out, labels, chrome) {
   const builds = (opt('build', '') || '').split(',').filter(Boolean);
   const size = (opt('size', '1920x1080')).split('x').map(Number);
   const o = {
-    builds, out, size, chrome, gpu: flag('gpu'), page: opt('page', 'index.html'), secs: +opt('secs', 1500),
+    builds, out, size, chrome, gpu: flag('gpu'), page: opt('page', 'index.html'), secs: +opt('secs', 1500), phmat: opt('phmat', 'full'),
     views: (opt('views', 'q,s,t,f')).split(',').filter(Boolean), keepUi: flag('keep-ui'), fallback: opt('fallback', null),
     root: path.resolve(opt('root', REPO)),
   };
