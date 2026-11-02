@@ -21,6 +21,7 @@
 // when a capture starts between a row's pointerdown and its pointerup, or when no capture ran in the idle time after
 // the rows (the queue never drains); the rows' own same-scene verdict holds as without the flag.
 // Usage: node --max-old-space-size=4096 tools/_instant_check.js [--builds cub,metal,jodel,cessna,floats] [--only k1,k2] [--fleet | --fleet-baked]
+//        [--settled [rows]] [--cgfree] [--float-release]
 // Exit 1 on any difference. No --help.
 'use strict';
 const fs = require('fs'), path = require('path'), vm = require('vm'), crypto = require('crypto');
@@ -77,6 +78,16 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       set(x) { fv = x; if (x) cgUsed = { CAGE_DATUM: CGT.CAGE_DATUM.read, FLYDIY_CG_MODEL: CGT.FLYDIY_CG_MODEL.read }; } }); }
     const CGFREE = argv.includes('--cgfree');
     const U = W.CAGE_UI, Ev = W.Event, PE = W.PointerEvent || W.Event;
+    // --float-release (PHONE-1b diag): a floatplane's drag release takes the plan again (1a sends it whole); a differing
+    // row then says who wrote the shared footwell (uFootA) on each way, and what the crew layer measured
+    if (argv.includes('--float-release')) U.floatRelease = true;
+    const FW = [];
+    { const A = W.AEROSKIN; if (A && A.aeroSetFootwell) { const f0 = A.aeroSetFootwell;
+      A.aeroSetFootwell = function (T, fw) {
+        const st = String(new Error().stack || '').split('\n').slice(2, 5).map(s => s.trim().replace(/^at /, '').replace(/\(.*[\\/]/, '(')).join(' < ');
+        FW.push((fw ? fw.yLip + '/' + fw.zTop + '/' + fw.zFloor : 'null') + '  ' + st); if (FW.length > 40) FW.shift();
+        return f0.apply(this, arguments); }; } }
+    const crewFw = () => JSON.stringify(W.CAGE_CREW && W.CAGE_CREW.footwell);
     const FL = FLEETQ ? W.PARKED.fleet : null, EVO = FLEETQ ? { bubbles: true } : undefined;
     if (FL) log('fleet: on ' + W.PARKED.fleetOn() + ', stood ' + (W.FLEET_STAND ? W.FLEET_STAND.state.holders.length : 0) + ', queued ' + FL.stats.queued + ', captures so far ' + FL.stats.captures + ', queue ' + FL.queue.join(' '));
     let dragCaps = 0;
@@ -98,6 +109,7 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       // (--fleet: the node page keeps window's listeners apart from the elements' - _page_node.js WL - so a bubbling event
       // never reaches them; a browser's window sees every one of these in its capture phase: the drag is told to it too)
       const winToo = t => { if (FLEETQ) W.dispatchEvent(new PE(t)); };
+      FW.length = 0;
       el.dispatchEvent(new PE('pointerdown', EVO)); winToo('pointerdown');
       for (let i = 1; i <= 4; i++) { el.value = String(Math.min(hi, Math.max(lo, x0 + dir * d * i))); el.dispatchEvent(new Ev('input', EVO)); winToo('input'); await P.until(() => false, 30); }
       if (FL) await P.until(() => false, 4000);                   // --fleet: the slider HELD STILL past the queue's idle window
@@ -112,6 +124,7 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       await P.until(() => false, SETTLE);
       const previews = U.preview ? U.preview.n - pv0 : 0, deforms = U.preview ? U.preview.deform - df0 : 0;
       const hA = hash(), A = JSON.parse(run(FP));
+      const fwA = FW.splice(0), crA = crewFw();
       // the long way: the sheet built, nothing kept (G1450-G1455's caches - the sheet's stages, the cavity bake, the
       // tank soup, the soles - off with it: RELEASE_FAST_OFF)
       const long = () => { U.sheetKeep = false; W.RELEASE_FAST_OFF = true; cgPin = CGFREE ? null : cgUsed;
@@ -119,6 +132,7 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       long();
       if (SETTLE > 1500) await P.until(() => false, SETTLE);
       const hB = hash(), B = JSON.parse(run(FP));
+      const fwB = FW.slice(), crB = crewFw();
       long();
       if (SETTLE > 1500) await P.until(() => false, SETTLE);
       const C = JSON.parse(run(FP));
@@ -134,6 +148,9 @@ const FP = fs.readFileSync(path.join(__dirname, 'perf', 'garage_lag_same.js'), '
       rowT.push([k, Date.now() - tR]);
       for (const i of diffs.slice(0, 3)) { const a = A.out[i] || '(none)', b = B.out[i] || '(none)'; let c = 0; while (c < a.length && a[c] === b[c]) c++;
         log('   @' + i + ' short: ' + a.slice(0, 50) + ' ..@' + c + ': ' + a.slice(Math.max(0, c - 60), c + 120) + '\n     long:  ' + b.slice(0, 50) + ' ..@' + c + ': ' + b.slice(Math.max(0, c - 60), c + 120)); }
+      if (!same && (fwA.length || fwB.length))
+        log('   footwell, crew: short ' + crA + '  long ' + crB + '\n   writes, short:\n     ' + fwA.slice(-5).join('\n     ') +
+            '\n   writes, long:\n     ' + fwB.slice(-5).join('\n     '));
       // back to the build's value (a whole build)
       el.value = String(x0); el.dispatchEvent(new Ev('input')); el.dispatchEvent(new Ev('change'));
       await P.until(() => false, 1500);
