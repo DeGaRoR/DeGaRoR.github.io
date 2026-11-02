@@ -19991,7 +19991,15 @@
   // then put back, a task at a time): the room's programs keyed with them, linked on the driver's threads (its two
   // targets and its depth variants, as shedPrelink), and the layer shows the lights when this resolves. null when
   // there is no room to compile (the bench, the cloud's SwiftShader, before the hangar): the layer shows them at once.
+  // G1999b (HWCOV, FRAMECOST seed rows): BEFORE THE BOOT'S OWN COMPILE STEP, NOTHING TO PREP - null, the layer shows the
+  // lights at once and the compile step keys the room with them. G3358 (GARAGE-FLOOD) arms the cabin flood in the editor's
+  // seed build: its light set was prepped in the seed (81 links, 21 draws) with the lights hidden till it resolved, so the
+  // compile step, keyed on the count without the flood, linked the room a second time (compile/links 5 -> 40) - two sets
+  // linked, one of them dropped the moment the flood showed. Under the screen, before the room's compile, there is no frame
+  // a new light set can stall
+  let shedCompileStarted = false;
   if (typeof window !== 'undefined') window.GARAGE_LIGHTS_PREP = dress => {
+    if (!shedCompileStarted && typeof BOOT !== 'undefined' && BOOT.state && BOOT.state !== 'gone') return null;
     if (typeof renderer.compileAsync !== 'function' || !hangar || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn) return null;
     return pmremWarmBake().then(() => { shedEnvKey(); })
       .then(() => compileSliced(hangarScene, ensureEnvRT(), null, false, dress))
@@ -20000,6 +20008,7 @@
       .catch(e => console.warn('garage lights prep:', e && e.message));
   };
   bootStep('compile', 'compiling the shaders', 14, () => {
+    shedCompileStarted = true;   // G1999b: from here a new light set preps (GARAGE_LIGHTS_PREP)
     const done = () => { envDeferred = false; if (envDirty || !envPM) { envDirty = false; bakeHangarEnv(); } if (hangar && hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene); };
     if (inGarage) shedDayTick();   // C0c: the day first - the passes compile what first light draws, the bake shoots it once
     if (typeof renderer.compileAsync !== 'function' || !hangar) { done(); return; }
