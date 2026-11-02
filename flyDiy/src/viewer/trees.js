@@ -68,6 +68,8 @@
   // `bio` is the live BIOMES handle when there is one (F8 edits its map; the pack's is the shipped one).
   function treeReachOf(world, bio) {
     if (!PACK || !PACK.biomes || typeof BIOMES === 'undefined') return null;
+    // G3790 (PHONE-TESTFLIGHT): the test field stands no tree - the cover ring's grass alone (the phone's heap)
+    if (world && world.flat) return ['grass_dry'];
     const I = world && world.island;
     if (!I || !I.ttype) return null;
     const B = bio || BIOMES.make(PACK);

@@ -2873,6 +2873,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // upwelled light's and scales with the body's own reflectance: faint on the clear sea, plain in a silty harbour)
     if (WSH && WSH.proto && WSH.proto.shadow) water.receiveShadow = true;
     if (WSH) WSH.watch(water, renderer);   // the perf rig's GPU timer round its draw
+    // G3790 (PHONE-TESTFLIGHT): the test field has no sea - its ground is AT the sea plane's level everywhere, so the plane
+    // is not drawn there (the mesh stays: the frame's water code keeps its one object)
+    if (world.flat) water.visible = false;
     scene.add(water);
     // THE NEAR SEA MOVES (H4, G393; before the water shader, ruling at's
     // carve-out): a 360 m patch of the sea around the aeroplane, its

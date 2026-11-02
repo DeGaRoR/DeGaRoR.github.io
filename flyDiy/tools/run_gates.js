@@ -235,6 +235,11 @@ const GATES = [
   // G2104 (MOBILE-GARAGE 1): THE SAME SMOKE ON THE PHONE PROFILE (?profile=phone): the garage-only boot's steps in order,
   // no world, no sim worker, no roll-out, the lightest preset; phone.css scoped to html.phone selector by selector
   { id: 'UISMOKE-PHONE', file: 'test_ui_smoke.js', argv: ['--phone'], tier: 'core', wall: 60 },
+  // G3790-G3794 (PHONE-TESTFLIGHT): THE TEST FIELD - makeWorld's opts.flat (the ground 0, HOME alone, no water, town or
+  // tree; small), the page's switches (the loader's pill, the boot, the worker, the phone's flight variant), and the Cub,
+  // the Jodel and the Cessna each flying the pilot's circuit on it and arriving (the Cub's also on the analytic world: the
+  // same circuit). Four flights in their own processes
+  { id: 'TESTFIELD', file: '_testfield_check.js', tier: 'core', wall: 180 },
   // the loading screen's brain alone (LOADING S1): the step chain, the
   // readiness aggregator, the watchdogs, in the harness's synchronous shape
   { id: 'BOOT', file: 'test_boot.js', tier: 'core' },

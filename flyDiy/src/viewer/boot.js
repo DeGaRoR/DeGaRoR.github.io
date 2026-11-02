@@ -358,7 +358,8 @@
   const DKEY = 'flydiy.boot.deck';
   function deckState() { let d = null; try { d = JSON.parse(sget(DKEY) || 'null'); } catch (e) {} return (d && typeof d === 'object') ? d : {}; }
   // the procedural 24 km world (?world=none, the graphics menu's world row): the island's cards stay out
-  function analytic() { return typeof window !== 'undefined' && window.FLYDIY_WORLD === 'none'; }
+  // (G3790: and the test field, the analytic HOME on flat ground)
+  function analytic() { return typeof window !== 'undefined' && (window.FLYDIY_WORLD === 'none' || window.FLYDIY_WORLD === 'testfield'); }
   function deckFor(dset) {
     const all = (typeof window !== 'undefined' && Array.isArray(window.BOOT_CARDS)) ? window.BOOT_CARDS : [];
     const poolSet = dset === 'rollin' ? 'garage' : dset === 'settings' ? B._shotSet : dset;
