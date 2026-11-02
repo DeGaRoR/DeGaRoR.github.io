@@ -1541,6 +1541,13 @@ function dragSettle() {
 }
 // G1451 (RELEASE-FAST): the build a drag's release runs (dragSettle) - it may run only what the drag reached
 let RELEASE = false;
+// PHONE-EDIT-PERF (2 Nov): THE CG HANDSHAKE'S BUILD IS A RELEASE TOO. The balance worker's answer moved the floatplane's
+// CG 2 cm (G396) and rebuilt the WHOLE aeroplane for the float layer's step - 0.8-1.2 s on the user's S20 FE after every
+// edit, and inside the next drag when it landed there. Only the float layer reads the CG (FLYDIY_CG_MODEL); the build runs
+// as a release's (G1451: what moved, what a preview left stale) with the float layer always run. buildCg() is that build
+// (_cage_energy's handshake calls it, after the hand is off the sliders)
+let CG_ONLY = false;
+function buildCg() { CG_ONLY = true; try { build(); } finally { CG_ONLY = false; } }
 function dragSettleSoon() {
   if (DRAG_T) clearTimeout(DRAG_T);
   DRAG_T = setTimeout(() => { DRAG_T = null; geBegin(); try { dragSettle(); } finally { geEnd('pause'); } }, (window.CAGE_UI && window.CAGE_UI.dragSettleMs) || 350);
@@ -1749,23 +1756,40 @@ function standInfo(stand, L) {
   for (let i = 0; i < nB; i++) for (let a = 0; a < 3; a++) { const x = V[i][a]; if (x < lo[a]) lo[a] = x; if (x > hi[a]) hi[a] = x; }
   const ext = Math.max(hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]) || 1;
   const cs = ext / Math.max(4, Math.cbrt(nB) * 1.5);
-  const cell = new Map(), ck = (x, y, z) => x + ',' + y + ',' + z;
+  // PHONE-EDIT-PERF (2 Nov, the user's S20 FE): THE GRID IS AN ARRAY, AND A RING WALKS ITS SHELL ONLY. The cells were a Map
+  // of 'x,y,z' strings and a ring visited every cell of its cube (skipping the inside): a part far from the fuselage - the
+  // floats, a boom's tail, the fin - walked out to r 64, O(r^4) string lookups. On the user's twin-boom floatplane one
+  // press's measure (standSoon -> standFollowers) was a 6-8 s task on the phone (`near` 18.6 s self in a profile). Same
+  // cells, same visiting order (x, then y, then z ascending; a cell outside the grid is empty, as the Map had it), same
+  // answers - only the empty cells and the cube's inside are no longer visited
+  const nx = Math.floor((hi[0] - lo[0]) / cs) + 1, ny = Math.floor((hi[1] - lo[1]) / cs) + 1, nz = Math.floor((hi[2] - lo[2]) / cs) + 1;
+  const cell = new Array(nx * ny * nz);
   for (let i = 0; i < nB; i++) {
-    const k = ck(Math.floor((V[i][0] - lo[0]) / cs), Math.floor((V[i][1] - lo[1]) / cs), Math.floor((V[i][2] - lo[2]) / cs));
-    let a = cell.get(k); if (!a) cell.set(k, a = []); a.push(i);
+    const k = (Math.floor((V[i][0] - lo[0]) / cs) * ny + Math.floor((V[i][1] - lo[1]) / cs)) * nz + Math.floor((V[i][2] - lo[2]) / cs);
+    let a = cell[k]; if (!a) cell[k] = a = []; a.push(i);
   }
   const near = (p, k) => {             // the k nearest base vertices (k = 1: the nearest)
     const cx = Math.floor((p[0] - lo[0]) / cs), cy = Math.floor((p[1] - lo[1]) / cs), cz = Math.floor((p[2] - lo[2]) / cs);
     const best = [];                   // [d2, i] sorted
+    const visit = a => {
+      for (const i of a) {
+        const d2 = (V[i][0] - p[0]) ** 2 + (V[i][1] - p[1]) ** 2 + (V[i][2] - p[2]) ** 2;
+        if (best.length < k || d2 < best[best.length - 1][0]) {
+          best.push([d2, i]); best.sort((u, w) => u[0] - w[0]); if (best.length > k) best.pop();
+        }
+      }
+    };
     for (let r = 0; r < 64; r++) {
-      for (let x = cx - r; x <= cx + r; x++) for (let y = cy - r; y <= cy + r; y++) for (let z = cz - r; z <= cz + r; z++) {
-        if (Math.max(Math.abs(x - cx), Math.abs(y - cy), Math.abs(z - cz)) !== r) continue;
-        const a = cell.get(ck(x, y, z)); if (!a) continue;
-        for (const i of a) {
-          const d2 = (V[i][0] - p[0]) ** 2 + (V[i][1] - p[1]) ** 2 + (V[i][2] - p[2]) ** 2;
-          if (best.length < k || d2 < best[best.length - 1][0]) {
-            best.push([d2, i]); best.sort((u, w) => u[0] - w[0]); if (best.length > k) best.pop();
-          }
+      const x0 = Math.max(0, cx - r), x1 = Math.min(nx - 1, cx + r), y0 = Math.max(0, cy - r), y1 = Math.min(ny - 1, cy + r);
+      const z0 = Math.max(0, cz - r), z1 = Math.min(nz - 1, cz + r);
+      for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) {
+        const base = (x * ny + y) * nz;
+        if (Math.abs(x - cx) === r || Math.abs(y - cy) === r) {      // on the shell's x / y faces: the whole z run
+          for (let z = z0; z <= z1; z++) { const a = cell[base + z]; if (a) visit(a); }
+        } else {                                                      // inside them: the two z faces alone
+          const zA = cz - r, zB = cz + r;
+          if (zA >= 0 && zA < nz) { const a = cell[base + zA]; if (a) visit(a); }
+          if (r > 0 && zB >= 0 && zB < nz) { const a = cell[base + zB]; if (a) visit(a); }
         }
       }
       // every cell within r rings is seen: done once the k-th is closer than the ring's inner edge
@@ -1943,17 +1967,17 @@ let PRE_KEY = null, STAT0 = '', WHOLE_SEQ = 0;      // WHOLE_SEQ: the chain's ru
 const RELEASE_INFO = { n: 0, whole: 0, last: null };
 function releaseWhy(built) {
   const CH = window.CAGE_CHAIN;
-  if (!RELEASE) return 'not a release';
+  if (!RELEASE && !CG_ONLY) return 'not a release';
   if (PREVIEW_OFF() || (window.CAGE_UI && window.CAGE_UI.releaseFast === false)) return 'off';
   if (!CH || !CH.on || !CH.cur) return 'no chain';
   if (DEFORMED) return 'a deformed drag';
   // a floatplane: the float layer stands its step on the CG the balance worker answers (FLYDIY_CG_MODEL, G396 - not a
-  // P key, so no record holds it) and the handshake rebuilds when that CG moves 2 cm; its release is the whole build,
-  // as it was
-  if (+P.gearFloats > 0) return 'a floatplane (the CG handshake)';
+  // P key, so no record holds it) - PHONE-EDIT-PERF: its release is the plan with the float layer always run (below), no
+  // longer the whole build
   if (built !== LAST_SHEET || !meshObj || built.mesh !== MS) return 'the sheet moved';
   if (PRE_KEY == null || preKey() !== PRE_KEY) return 'a pre-chain row moved';
-  if (craftKey() !== CRAFT_KEY) return 'the sit moved';
+  // (PHONE-EDIT-PERF: a moved sit - the floats' CG step, the gear - is measured again at the release's start, below, as
+  // the whole build measures it at its own; it no longer sends the release whole)
   return '';
 }
 function* releaseSteps(built, rplan) {
@@ -2122,9 +2146,11 @@ function* buildSteps() {
     return;
   }
   // G1451: a drag's release that keeps the sheet runs what the drag reached
-  if (RELEASE) {
+  if (RELEASE || CG_ONLY) {
     const why = releaseWhy(built);
     const rplan = !why ? CH.plan(P, true, built.sheet) : null;
+    // PHONE-EDIT-PERF: a floatplane's float layer reads the CG, which no record holds - it runs on every release
+    if (rplan && +P.gearFloats > 0) CH.layers.forEach((l, i) => { if (l.name === 'float' && !rplan.run[i]) { rplan.run[i] = true; rplan.why[i] = 'cg'; } });
     // a bisecting knob: CAGE_UI.releaseForce = [layer names] runs them too
     const RF = window.CAGE_UI && window.CAGE_UI.releaseForce;
     if (rplan && Array.isArray(RF)) CH.layers.forEach((l, i) => { if (RF.includes(l.name) && !rplan.run[i]) { rplan.run[i] = true; rplan.why[i] = 'forced'; } });
@@ -2134,7 +2160,22 @@ function* buildSteps() {
     // layer runs anyway and the rows pass (dash, rims, shoulder on all four builds)
     const crewL = CH.layers.find(l => l.name === 'crew');
     const crewMoved = !!(rplan && crewL && crewL.seq > WHOLE_SEQ && !rplan.why.includes('sheet') && !(Array.isArray(RF) && RF.length));
-    if (rplan && !crewMoved) { GE.path = 'release plan'; yield* releaseSteps(built, rplan); eyeAfterBuild(); return; }
+    if (rplan && !crewMoved) {
+      // PHONE-EDIT-PERF: THE CRAFT FRAME FROM WHERE THE LAST DRAW PUT THE MOUNT - what a whole build measures before its layers
+      // (G1301; G1443's deformed drag measures it the same way after its draw). The layers that publish in it (the
+      // weathering's sources: applyWeather, every release) then publish in this one
+      if (craftKey() !== CRAFT_KEY) {
+        const A0 = AK();
+        if (A0 && A0.aeroSetCraft) {
+          const mnt = (window.CAGE_JOIN && window.CAGE_JOIN.mount && window.CAGE_JOIN.mount()) || ((typeof window !== 'undefined') && window.CAGE_UI_SCENE);
+          let mw = new THREE.Matrix4();
+          if (mnt) { mnt.updateWorldMatrix(true, false); mw = mnt.matrixWorld; }
+          A0.aeroSetCraft(THREE, mw, { lateral: 'x', along: 'z', up: 'y', aft: true });
+          CRAFT_KEY = craftKey();
+        }
+      }
+      GE.path = 'release plan'; yield* releaseSteps(built, rplan); eyeAfterBuild(); return;
+    }
     RELEASE_INFO.whole++; RELEASE_INFO.last = { whole: crewMoved ? 'the crew moved in the drag' : (why || 'no plan') };
     GE.why = RELEASE_INFO.last.whole;
   }
@@ -2769,8 +2810,11 @@ const mkRow = (parent, k, label, lo, hi, st, val, oninput, names, opts) => {
       if (!Number.isFinite(v)) { vf.value = fmtV(rng.value); return; }
       v = Math.max(lo, Math.min(hi, v));
       rng.value = v; vf.value = fmtV(v);
-      GE.key = k; geBegin();
-      try { oninput(rel ? (sizeRef || 1) * v : v); } finally { geEnd('typed', k); }
+      // PHONE-EDIT-PERF (the brief: "typed values take the same path"): a typed value is a release - one tick, no
+      // preview before it - and builds as G1451's release does (what the value moved, the rest kept; the whole build
+      // when the sheet moved, as a drag's release)
+      GE.key = k; geBegin(); RELEASE = true;
+      try { oninput(rel ? (sizeRef || 1) * v : v); } finally { RELEASE = false; geEnd('typed', k); }
     };
     widget = meta.el = rng; meta.vf = vf;
   }
@@ -5897,7 +5941,7 @@ if (typeof ResizeObserver !== 'undefined')
 if (PAGE.defaultStep && $('step')) $('step').value = PAGE.defaultStep;
 anchorSize();                              // the page opens at its ×1
 syncSliders();
-window.CAGE_UI = { P, build, repaint, draw, applyPreset, syncSliders, republish /* G2227 */, reg: () => decReg(),   // G318: the tape reads it
+window.CAGE_UI = { P, build, buildCg, repaint, draw, applyPreset, syncSliders, republish /* G2227 */, reg: () => decReg(),   // G318: the tape reads it
   preview: PREVIEW,                      // G1442: the drag previews (n, the last plan)
   release: RELEASE_INFO,                 // G1451: the releases (n run partially, whole, the last one's plan)
   // G3715 (COWL-RES): the eye sheet - the interior view's switch (eyeWatch's; a rig's), the flight capture's hold (_cage_join), the

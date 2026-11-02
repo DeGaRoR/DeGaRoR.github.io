@@ -17,7 +17,11 @@
 // Usage: node tools/perf/phone_edit.js --port 8741 --udd D:/upe1 [--build twin|cub|jodel|cessna|floats|<path>]
 //          [--rows wgSpan,fltL] [--reps 3] [--ticks 20] [--cpu 6] [--dpr 2.625] [--w 412] [--h 915] [--quiet 1500]
 //          [--typed] [--idle 10] [--prof] [--query 'extra=1'] [--out file.json]
-// The box: a browser run - boxlock + A0's slot first. No --help (an unknown flag is ignored).
+// --phone [adbPort]: THE REAL PHONE (the user's S20 FE on the cable; A0 2 Nov): this tree served on --port, given to the phone
+//   as its own localhost (adb reverse - a separate origin, so the user's own flydiy.wip and settings on the live site are never
+//   touched), the phone's Chrome over adb forward (default 9333) - a NEW tab of our own, closed at the end; no emulation, no
+//   throttle (the phone is the measure). The phone renders: no box lock needed, but nothing heavy beside a TIMED gate.
+// The box (the desktop proxy): a browser run - boxlock + A0's slot first. No --help (an unknown flag is ignored).
 'use strict';
 const fs = require('fs'), path = require('path');
 const MB = require('../master_bench.js');
@@ -25,7 +29,7 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 && argv[i + 1] !== undefined && !argv[i + 1].startsWith('--') ? argv[i + 1] : d; };
 const flag = k => argv.includes('--' + k);
 const PORT = +opt('port', 0), UDD = opt('udd', null);
-if (!PORT || !UDD) { console.error('phone_edit: --port and --udd are required'); process.exit(2); }
+if (!PORT || (!UDD && !argv.includes('--phone'))) { console.error('phone_edit: --port (and --udd, but for --phone) are required'); process.exit(2); }
 if (PORT >= 8600 && PORT <= 8680) { console.error('phone_edit: --port inside 8600-8680 (the cook ports) - pick 87xx'); process.exit(2); }
 const REPO = path.resolve(__dirname, '..', '..', '..');
 const BUILDS = { twin: 'bugReports/Twin_busher_floats_2.json', cub: 'builds/cub_2026-09-20_corrected.json', jodel: 'builds/jodel_2026-09-20_corrected.json',
@@ -35,6 +39,50 @@ const BK = opt('build', 'twin'), BUILD = BUILDS[BK] || BK;
 const ROWS = opt('rows', 'wgSpan,wgChord,stSpan,finHeight,paxLen,halfW,boomLen,fltL,fltZ,engY,li_lampSize').split(',');
 const REPS = +opt('reps', 3), TICKS = +opt('ticks', 20), CPU = +opt('cpu', 6), DPR = +opt('dpr', 2.625), VW = +opt('w', 412), VH = +opt('h', 915);
 const QUIET = +opt('quiet', 1500), IDLE = +opt('idle', 0), TYPED = flag('typed');
+const CENSUS = opt('census', null) ? opt('census').split(',') : (flag('census') ? ['base', 'noenv', 'lights1', 'nolamps', 'lambert', 'basic', 'halfres', 'base'] : null);
+const CSEC = +opt('csec', 8);
+const PHONE = flag('phone'), APORT = +(opt('phone', '') || 9333);
+const ADB = process.env.ADB || 'D:/Dev/platform-tools/adb.exe';
+const adb = (...a) => { try { return require('child_process').execFileSync(ADB, a, { encoding: 'utf8', timeout: 20000 }); } catch (e) { return ''; } };
+// the phone's Chrome: our own tab (never the user's), the same { ev, cmd, load, close, exc } as master_bench's browser
+async function phoneBrowser() {
+  adb('reverse', 'tcp:' + PORT, 'tcp:' + PORT);
+  adb('forward', 'tcp:' + APORT, 'localabstract:chrome_devtools_remote');
+  const base = 'http://127.0.0.1:' + APORT;
+  const ver = await fetch(base + '/json/version').then(r => r.json()).catch(() => null);
+  if (!ver) throw new Error('no DevTools on :' + APORT + ' - Chrome open on the phone, USB debugging allowed? (adb devices)');
+  // the browser's socket: a target of our own (Target.createTarget - the phone's /json/new refuses), attached flat
+  const ws = new WebSocket(ver.webSocketDebuggerUrl); await new Promise((r, j) => { ws.onopen = r; ws.onerror = j; });
+  let id = 0, sid = null; const waits = new Map(), exc = []; let closed = false;
+  ws.onmessage = e => { const m = JSON.parse(e.data); if (m.id && waits.has(m.id)) { waits.get(m.id)(m); waits.delete(m.id); }
+    if (m.sessionId && m.sessionId !== sid) return;
+    if (m.method === 'Runtime.exceptionThrown') exc.push(((m.params.exceptionDetails.exception || {}).description || m.params.exceptionDetails.text || '').split('\n')[0]);
+    if (m.method === 'Inspector.targetCrashed') exc.push('TARGET CRASHED'); };
+  ws.onclose = () => { closed = true; for (const f of waits.values()) f({ error: { message: 'closed' } }); waits.clear(); };
+  const raw = (method, params, session) => closed ? Promise.resolve({ error: { message: 'closed' } }) : new Promise(r => { const i = ++id; waits.set(i, r);
+    ws.send(JSON.stringify(Object.assign({ id: i, method, params: params || {} }, session ? { sessionId: session } : {}))); });
+  const tgt = await raw('Target.createTarget', { url: 'about:blank' });
+  if (!tgt.result) throw new Error('createTarget: ' + JSON.stringify(tgt.error));
+  const targetId = tgt.result.targetId;
+  const att = await raw('Target.attachToTarget', { targetId, flatten: true });
+  sid = att.result && att.result.sessionId;
+  if (!sid) throw new Error('attach: ' + JSON.stringify(att.error));
+  const cmd = (method, params) => raw(method, params, sid);
+  const ev = async (expr, ms) => {
+    const r = await Promise.race([cmd('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }), sleep(ms || 120000).then(() => ({ result: { result: { value: '__timeout' } } }))]);
+    if (r.error) throw new Error(r.error.message); const d = r.result; if (d.exceptionDetails) throw new Error((d.exceptionDetails.exception || {}).description || d.exceptionDetails.text);
+    return d.result.value; };
+  process.on('exit', () => { try { ws.send(JSON.stringify({ id: ++id, method: 'Target.closeTarget', params: { targetId } })); } catch (e) {} });
+  await cmd('Page.enable'); await cmd('Runtime.enable'); await cmd('Inspector.enable');
+  const load = async (url, pre) => {
+    await cmd('Page.addScriptToEvaluateOnNewDocument', { source: pre });
+    const t0 = Date.now(); await cmd('Page.navigate', { url }); await sleep(3000);
+    const r = await ev("(() => Promise.race([(window.BOOT && BOOT.whenReady) ? BOOT.whenReady().then(() => 'ready') : new Promise(r => setTimeout(() => r('no BOOT'), 30000)), new Promise(r => setTimeout(() => r('boot timeout'), 300000))]))()", 310000);
+    return { state: r, sec: +((Date.now() - t0) / 1000).toFixed(1) };
+  };
+  const close = async () => { try { await raw('Target.closeTarget', { targetId }); } catch (e) {} try { ws.close(); } catch (e) {} };
+  return { ev, cmd, load, close, exc, device: adb('shell', 'getprop', 'ro.product.model').trim() };
+}
 const OUT = path.resolve(opt('out', path.join(__dirname, 'phone_edit_' + BK + '_' + Date.now() + '.json')));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const log = s => console.log('  ' + s);
@@ -87,6 +135,36 @@ const HARNESS = `(() => { if (window.__PE) return 'again';
     return { n: fr.length, fr, stats: st }; };
   return 'ok'; })()`;
 
+
+// --census [v1,v2,...]: THE SHED'S MATERIALS, A/B (A0 2 Nov, the user: "the materials will be the things hitting it"): each
+// variant applied in the page, --csec seconds of frames after a 4 s settle (the programs it needs linked), reverted. The scene is
+// the one the game renders to the screen (caught off FLYDIY_RENDERER.render). Variants: base; noenv (scene.environment and
+// every envMap off); lights1 (the first directional light alone); nolamps (the aeroplane's own point / spot lights off);
+// lambert / basic (every mesh's material as a Lambert / Basic one with its colour and map - the cheap-material bounds);
+// halfres (the pixel ratio halved). ?idle=0 belongs with it (the shed must draw).
+const CENSUS_JS = `(() => { if (window.__CEN) return 'again'; const C = window.__CEN = { scenes: new Set(), undo: [] };
+  const r = window.FLYDIY_RENDERER, o = r.render; r.render = function (sc, cam) { if (!r.getRenderTarget()) C.scenes.add(sc); return o.apply(this, arguments); };
+  C.scene = () => { let best = null, n = -1; for (const sc of C.scenes) { let k = 0; sc.traverse(x => { if (x.isMesh) k++; }); if (k > n) { n = k; best = sc; } } return best; };
+  const mats = sc => { const L = []; sc.traverse(x => { if (x.isMesh && x.material) L.push(x); }); return L; };
+  C.apply = v => { const sc = C.scene(); if (!sc) return 'no scene'; const T = window.THREE;
+    if (v === 'noenv') { const e = sc.environment; sc.environment = null; C.undo.push(() => { sc.environment = e; });
+      for (const m of mats(sc)) for (const mt of [].concat(m.material)) if (mt.envMap) { const em = mt.envMap; mt.envMap = null; mt.needsUpdate = true; C.undo.push(() => { mt.envMap = em; mt.needsUpdate = true; }); }
+      sc.traverse(x => { if (x.isMaterial) {} }); for (const m of mats(sc)) for (const mt of [].concat(m.material)) mt.needsUpdate = true; }
+    if (v === 'lights1') { let kept = false; sc.traverse(x => { if (x.isLight && x.visible) { if (x.isDirectionalLight && !kept) { kept = true; return; } x.visible = false; C.undo.push(() => { x.visible = true; }); } }); }
+    if (v === 'nolamps') sc.traverse(x => { if ((x.isPointLight || x.isSpotLight) && x.visible) { x.visible = false; C.undo.push(() => { x.visible = true; }); } });
+    if (v === 'lambert' || v === 'basic') { const K = v === 'lambert' ? T.MeshLambertMaterial : T.MeshBasicMaterial, cache = new Map();
+      for (const m of mats(sc)) { if (m.isSkinnedMesh) continue; const old = m.material;
+        const mk = mt => { if (cache.has(mt)) return cache.get(mt); const n = new K({ color: mt.color ? mt.color.clone() : 0xcccccc, map: mt.map || null, transparent: !!mt.transparent, opacity: mt.opacity == null ? 1 : mt.opacity, side: mt.side, depthWrite: mt.depthWrite, vertexColors: !!mt.vertexColors }); cache.set(mt, n); return n; };
+        m.material = Array.isArray(old) ? old.map(mk) : mk(old); C.undo.push(() => { m.material = old; }); } }
+    if (v === 'halfres') { const pr = r.getPixelRatio(); r.setPixelRatio(pr * 0.5); window.dispatchEvent(new Event('resize')); C.undo.push(() => { r.setPixelRatio(pr); window.dispatchEvent(new Event('resize')); }); }
+    return 'ok'; };
+  C.revert = () => { while (C.undo.length) try { C.undo.pop()(); } catch (e) {} return 'ok'; };
+  C.sample = async (v, settle, sec) => { const a = C.apply(v); await new Promise(rs => setTimeout(rs, settle));
+    const G = window.__PE, t0 = performance.now(), info = window.FLYDIY_RENDERER.info; await new Promise(rs => setTimeout(rs, sec * 1000));
+    const fr = G.fr.filter(f => f[0] > t0).map(f => f[1]).sort((x, y) => x - y), q = p => fr.length ? +fr[Math.min(fr.length - 1, Math.floor(p * fr.length))].toFixed(1) : null;
+    const out = { v, a, n: fr.length, fps: +(fr.length / sec).toFixed(1), p50: q(0.5), p90: q(0.9), calls: info.render.calls, tris: info.render.triangles, programs: info.programs ? info.programs.length : null };
+    C.revert(); await new Promise(rs => setTimeout(rs, 1500)); return out; };
+  return 'ok'; })()`;
 (async () => {
   if (await MB.serveRoot(PORT)) { console.error('phone_edit: port ' + PORT + ' is taken'); process.exit(4); }
   const srv = MB.serve(PORT, null); await sleep(800);
@@ -96,11 +174,12 @@ const HARNESS = `(() => { if (window.__PE) return 'again';
   process.on('exit', done);
   const R = { date: new Date().toISOString(), build: BK, file: BUILD, cpu: CPU, dpr: DPR, w: VW, h: VH, ticks: TICKS, reps: REPS, rows: [] };
   const save = () => fs.writeFileSync(OUT, JSON.stringify(R, null, 1));
-  const b = await MB.browser(UDD);
-  // the phone: its viewport and DPR, touch, a mobile UA's layout; the CPU after the boot (a 6x boot takes minutes)
-  await b.cmd('Emulation.setDeviceMetricsOverride', { width: VW, height: VH, deviceScaleFactor: DPR, mobile: true });
-  await b.cmd('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
-  const url = 'http://localhost:' + PORT + '/flyDiy/index.html?profile=phone' + (opt('query', '') ? '&' + opt('query') : '');
+  const b = PHONE ? await phoneBrowser() : await MB.browser(UDD);
+  if (PHONE) { R.device = b.device; R.cpu = 1; log('the phone: ' + b.device); }
+  // the proxy: the phone's viewport and DPR, touch, a mobile UA's layout; the CPU after the boot (a 6x boot takes minutes)
+  else { await b.cmd('Emulation.setDeviceMetricsOverride', { width: VW, height: VH, deviceScaleFactor: DPR, mobile: true });
+    await b.cmd('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 }); }
+  const url = 'http://localhost:' + PORT + '/flyDiy/' + opt('page', 'index.html') + '?profile=phone' + (opt('query', '') ? '&' + opt('query') : '');
   const l = await b.load(url, MB.preScript(BUILD, null, null));
   log('loaded ' + l.state + ' in ' + l.sec + ' s (' + url + ')');
   await sleep(6000);
@@ -108,7 +187,7 @@ const HARNESS = `(() => { if (window.__PE) return 'again';
     menuLog: !!(window.FLYDIY_MENU), dpr: devicePixelRatio, canvas: (() => { const c = document.getElementById('c'); return c ? [c.width, c.height] : null; })() })`));
   log('page: ' + JSON.stringify(R.meta));
   log('harness ' + await b.ev(HARNESS));
-  if (CPU > 1) await b.cmd('Emulation.setCPUThrottlingRate', { rate: CPU });
+  if (CPU > 1 && !PHONE) await b.cmd('Emulation.setCPUThrottlingRate', { rate: CPU });
   await sleep(3000);
   if (IDLE) {
     const id = JSON.parse(await b.ev(`(async () => JSON.stringify(await __PE.idle(${IDLE})))()`, IDLE * 1000 + 30000));
@@ -117,7 +196,16 @@ const HARNESS = `(() => { if (window.__PE) return 'again';
     log('idle ' + IDLE + ' s: ' + id.n + ' frames, p50 ' + R.idle.p50 + ' p90 ' + R.idle.p90 + ' max ' + R.idle.max + ' ms; ' + JSON.stringify(id.stats || {}).slice(0, 300));
     save();
   }
-  for (const k of ROWS) {
+  if (CENSUS) {
+    log('census ' + await b.ev(CENSUS_JS));
+    R.census = [];
+    for (const v of CENSUS) {
+      const c = JSON.parse(await b.ev(`(async () => JSON.stringify(await __CEN.sample(${JSON.stringify(v)}, 4000, ${CSEC})))()`, CSEC * 1000 + 60000));
+      R.census.push(c); save();
+      log('census ' + v.padEnd(9) + ' ' + c.fps + ' fps  p50 ' + c.p50 + '  p90 ' + c.p90 + ' ms  draws ' + c.calls + '  tris ' + c.tris + '  programs ' + c.programs + (c.a !== 'ok' ? '  (' + c.a + ')' : ''));
+    }
+  }
+  for (const k of (opt('rows', null) === 'none' ? [] : ROWS)) {
     const reps = []; let prof = null, x0 = null;
     for (let r = 0; r < REPS + (flag('prof') ? 1 : 0); r++) {
       const P = flag('prof') && r === 0;
@@ -141,7 +229,7 @@ const HARNESS = `(() => { if (window.__PE) return 'again';
     if (prof) log('      prof self: ' + prof.slice(0, 14).map(([f, ms]) => f + ' ' + ms).join(', '));
   }
   R.exc = b.exc.slice();
-  if (CPU > 1) await b.cmd('Emulation.setCPUThrottlingRate', { rate: 1 });
+  if (CPU > 1 && !PHONE) await b.cmd('Emulation.setCPUThrottlingRate', { rate: 1 });
   await b.close();
   save(); log('-> ' + OUT);
   process.exit(0);

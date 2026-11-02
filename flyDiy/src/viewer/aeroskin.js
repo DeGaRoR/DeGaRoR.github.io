@@ -1833,6 +1833,33 @@ let AERO_DEC = null;
 // ...and a page may switch it OFF for one load (window.AEROWX_OFF, the bench's
 // ?nowx) — the program key is the hook's source, so the choice is per LOAD
 function aeroWx() { return (typeof AEROWX !== 'undefined' && !(typeof window !== 'undefined' && window.AEROWX_OFF)) ? AEROWX : null; }
+// PHONE-EDIT-PERF (B, the user 2 Nov: "for the phone ... the materials will be the things hitting it ... disabling the most
+// costly ones"): THE PHONE'S MATERIAL TIER. Measured on the user's S20 FE (Adreno 650, the Twin busher on floats, the studio):
+// the full skin 9.2 fps; the weathering compiled out 16.7; + the large-scale field (aeroField: 3 x 4-octave musgrave a
+// fragment) 23.5; + the structure grammar (aeroStructure: members, tapes, laps, rivets) 30 solid (p90 34 ms). The paint, the
+// decals and registration, the detail sheet, the lights, the IBL and the clear coat stay. On the phone profile only, decided
+// once at the first compile (a page is one tier: the hooks' toString stays the program key); ?phmat=full or localStorage
+// flydiy.phoneMat = 'full' keeps the full skin on a phone. The desktop compiles exactly as before
+let AERO_LITE_V = null;
+function aeroLite() {
+  if (AERO_LITE_V !== null) return AERO_LITE_V;
+  AERO_LITE_V = false;
+  try {
+    const W = typeof window !== 'undefined' ? window : null;
+    if (W && W.PROFILE && W.PROFILE.name === 'phone') {
+      const q = (W.location && W.location.search) || '', m = /[?&]phmat=(full|lite)(&|$)/.exec(q);
+      const pref = (() => { try { return W.localStorage && W.localStorage.getItem('flydiy.phoneMat'); } catch (e) { return null; } })();
+      AERO_LITE_V = m ? m[1] === 'lite' : pref !== 'full';
+    }
+    if (W) { W.AERO_LITE = AERO_LITE_V; if (W.FLIGHT_REC && W.FLIGHT_REC.event) W.FLIGHT_REC.event('phmat', null, AERO_LITE_V ? 'lite' : 'full'); }
+  } catch (e) {}
+  return AERO_LITE_V;
+}
+// the lite tier's two cuts in the skin's fragment text (the calls' own lines, AERO_SURFACE_FS)
+function aeroLiteFS(fs) {
+  return fs.replace('vec3 aeroSN = aeroStructure(aeroM, aeroRA);', 'vec3 aeroSN = vec3(0.0, 0.0, 1.0);')
+    .replace(/aeroField\(aeroFC, aeroDF, aeroFR\);/g, '');
+}
 function aeroSharedU(THREE) {
   if (AERO_DEC) return AERO_DEC;
   const z4 = () => Array.from({ length: AERO_MAXD },
@@ -3707,7 +3734,8 @@ const AEROSKIN_HOOK = function (shader) {
   if (typeof ATMO !== 'undefined') ATMO.inject(shader);   // S4: the aerial-perspective sampler (a hook of its own loses the prototype's)
   // THE WEATHERING (G345): read here, at compile, and spliced in as text —
   // the same text for every material, so the one-program rule holds
-  const W = aeroWx();
+  const lite = aeroLite();                   // PHONE-EDIT-PERF: the phone's tier (above)
+  const W = lite ? null : aeroWx();
   const u = this.userData.aeroU;
   for (const k in u) shader.uniforms[k] = u[k];
   // the aeroplane-wide ones, BY REFERENCE: one write reaches every section
@@ -3735,6 +3763,7 @@ const AEROSKIN_HOOK = function (shader) {
     .replace('#include <clearcoat_normal_fragment_begin>',
              '#ifdef USE_CLEARCOAT\n  vec3 clearcoatNormal = normal;\n#endif')   // USE_CLEARCOAT since r13x (W0.5a)
     .replace('#include <lights_fragment_end>', AERO_CABIN_FS);
+  if (lite) shader.fragmentShader = aeroLiteFS(shader.fragmentShader);
 };
 
 // THE CABIN'S DARKNESS, IN THE SHADER (G206.1). After every light has been
@@ -4013,7 +4042,7 @@ vec2 aeroCrack = vec2(0.0);
 ` + AERO_GLASS_CRACK_FS + '\n';
 
 const AEROGLASS_HOOK = function (shader) {
-  const W = aeroWx();                       // G345, as in AEROSKIN_HOOK
+  const W = aeroLite() ? null : aeroWx();   // G345, as in AEROSKIN_HOOK (PHONE-EDIT-PERF: none on the phone's tier)
   const u = this.userData.aeroU;
   for (const k in u) shader.uniforms[k] = u[k];
   const d = this.userData.aeroD;
