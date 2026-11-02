@@ -53,7 +53,7 @@ const MAT = {
   dark:    lam(0x3a4048),      // rubber, boots, bungee
   bronze:  lam(0xa8843c),      // bushes, castor pivot
   fair:    lam(0xcfd6de),      // spats
-  mark:    new THREE.MeshBasicMaterial({ color: 0xff4d3d }),
+  mark:    new THREE.MeshBasicMaterial({ color: 0xff4d3d }),  // pre-ok: a bench marker (not used in the world)
 };
 
 // AEROSKIN (G70). The undercarriage was the most visible thing still wearing

@@ -127,7 +127,7 @@ P.make = function (THREE, opts) {
               uDelay: { value: o.delay }, uRise: { value: o.rise }, uSpread: { value: o.spread },
               uR0: { value: o.r0 }, uK: { value: o.k }, uSmokeLit: { value: 1 },
               uLean: { value: new THREE.Vector2(o.lean, 0) } };
-  const mat = new THREE.MeshBasicMaterial({ color: o.colour === undefined ? P.RECIPE.colour : o.colour,
+  const mat = new THREE.MeshBasicMaterial({ color: o.colour === undefined ? P.RECIPE.colour : o.colour,  // pre-ok: x uSmokeLit, which carries P (LAMPS.smokeK)
                                             transparent: true, opacity: 1, depthWrite: false,
                                             side: THREE.DoubleSide, fog: true });
   mat.name = 'plume';

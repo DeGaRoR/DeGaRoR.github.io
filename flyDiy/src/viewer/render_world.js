@@ -34,6 +34,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // the true direction, which is what the dome draws the disc at. Both are
   // written from world.day in dayApply() unless the rig is set to manual.
   const SUN_SKY = SUN.clone();
+  const KEY_SKY = SUN.clone();   // G2600: the key's true direction - the sun's by day, the moon's when the moon is the key
   let miniCanvas = null;              // W13 minimap underlay, baked with the outer ring
   let minimapBox = null;              // ...and WHERE it is: { x0, z0, size } in world metres.
                                       // An ISLAND's bounds are its own square - not centred on
@@ -124,7 +125,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // are G1066's, the second lobe one more vertex in the same layer. All of it in the glow's vertex shader (rwyAx: the
   // lobe's axis and whether it is two-way): one dot product and a height test; a shrouded-out light is clipped there.
   const RWY = { meshes: [], glows: [], fix: null, glow: null, tex: null, shown: false,
-    U: { lvl: { value: 0 }, px: { value: 540 } } };      // the glow's level (the day's), the bound target's half-height (px)
+    U: { lvl: { value: 0 }, px: { value: 540 }, pre: { value: 1 } } };   // pre: G2620 the pre-exposure (the light x P, its shape in true units)      // the glow's level (the day's), the bound target's half-height (px)
   const RWY_DEEP = 2;                                   // the mirrored inset fixture's depth in the geometry (m)
   const RWY_LENS_Y = 0.265, RWY_INSET_Y = 0.015;        // the glow's centre over the ground: the well-glass's middle, the inset dome's
   const RWY_LENS_R = 0.067;                             // the well-glass's radius (the core's floor width close up)
@@ -224,7 +225,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   const RWY_GLOW_FS = `
     float rwR = length(gl_PointCoord - 0.5) * vRwy.z, rwQ = rwR / vRwy.y;
     float rwS = exp(-2.7726 * rwQ * rwQ) + 0.06 / (1.0 + rwQ * rwQ) * (1.0 - smoothstep(0.3 * vRwy.z, 0.5 * vRwy.z, rwR));
-    outgoingLight = diffuseColor.rgb * vRwy.x * rwS;`;
+    outgoingLight = diffuseColor.rgb * vRwy.x * rwS * uRwyP;`;   // G2620: x P - the level, the HDR ceiling and the core's width stay in true units
   // the haze TRANSMITS the light and adds nothing (mistApply is affine in the colour: T = m(1) - m(0))
   const RWY_GLOW_AP = `
     #ifdef USE_FOG
@@ -241,10 +242,10 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const m = MATLIB.make(THREE, 'points', { size: 1, sizeAttenuation: false, vertexColors: true, transparent: true, depthWrite: false,
       fog: ap, blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendEquation: THREE.AddEquation });
     m.onBeforeCompile = sh => {
-      sh.uniforms.uRwyL = RWY.U.lvl; sh.uniforms.uRwyPx = RWY.U.px;
+      sh.uniforms.uRwyL = RWY.U.lvl; sh.uniforms.uRwyPx = RWY.U.px; sh.uniforms.uRwyP = RWY.U.pre;
       sh.vertexShader = sh.vertexShader.replace('void main() {', 'uniform float uRwyL, uRwyPx;\nattribute vec3 rwyAx;\nvarying vec3 vRwy;\nvoid main() {')
         .replace('gl_PointSize = size;', RWY_GLOW_VS);
-      sh.fragmentShader = sh.fragmentShader.replace('void main() {', 'varying vec3 vRwy;\nvoid main() {')
+      sh.fragmentShader = sh.fragmentShader.replace('void main() {', 'uniform float uRwyP;\nvarying vec3 vRwy;\nvoid main() {')
         .replace('outgoingLight = diffuseColor.rgb;', RWY_GLOW_FS)
         .replace('#include <tonemapping_fragment>', RWY_GLOW_AP);
     };
@@ -821,7 +822,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // terrain and the sky right), and with scene.environment taken away the same frame drew whole. No probe (null, the
     // path a world without ATMO takes for it), no cube bakes; the hemisphere and the sun light the world
     const softEnv = typeof window !== 'undefined' && window.GFX && window.GFX.soft && window.GFX.soft();
-    probe = softEnv ? null : ATMO.makeProbe(renderer, { frameYaw: 0, cap: capOf, gb, onSwap: t => { envMap = t; scene.environment = t; },   // the cap: THE GROUND UNDER THE CRAFT (above)
+    probe = softEnv ? null : ATMO.makeProbe(renderer, { frameYaw: 0, cap: capOf, gb, pre: true, onSwap: t => { envMap = t; scene.environment = t; },   // the cap: THE GROUND UNDER THE CRAFT (above)
       // CLOUDS C3: the layer over the dome in the probe's scene (the water and the skin reflect the clouds),
       // re-baked as the clouds drift past the eye
       decorate: typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh ? es => { const m = CLOUDS.domeMesh(0, 20, 24); if (m) es.add(m); } : null,
@@ -834,7 +835,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // material in the cabin took it as its ambient from below. The same sky over a NEUTRAL cap (the
     // cabin's own floor and walls, a dark warm grey) is the environment while the eye is in the cockpit
     // (app.js hands the view over through WORLD_RIG.interior); baked on the world probe's schedule.
-    probeIn = softEnv ? null : ATMO.makeProbe(renderer, { frameYaw: 0, capHex: 0x3f3c38, gb, onSwap: t => { envIn = t; if (interiorView) scene.environment = t; },
+    probeIn = softEnv ? null : ATMO.makeProbe(renderer, { frameYaw: 0, capHex: 0x3f3c38, gb, pre: true, onSwap: t => { envIn = t; if (interiorView) scene.environment = t; },
       decorate: typeof CLOUDS !== 'undefined' && CLOUDS.domeMesh ? es => { const m = CLOUDS.domeMesh(0, 20, 24); if (m) es.add(m); } : null });
     if (probeIn) probeIn.bake(world.day);
   } else {
@@ -873,7 +874,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       const ref = Eg([0, Math.sin(33.4 * Math.PI / 180), Math.cos(33.4 * Math.PI / 180)]);
       return Math.min(1.5, Eg(s) / Math.max(1e-9, ref));
     })() : 1;
-    es.add(new THREE.Mesh(grndG, new THREE.MeshBasicMaterial({
+    es.add(new THREE.Mesh(grndG, new THREE.MeshBasicMaterial({  // pre-ok: the ATMO-off cap (P = 1 there)
       color: C(0xffffff).setRGB(capOf()[0], capOf()[1], capOf()[2]).multiplyScalar(gb).multiplyScalar(capK), side: THREE.BackSide,   // the one-shot bake: the table's grass (the craft has not stood anywhere yet)
       toneMapped: false, fog: false })));
     const pmrem = new THREE.PMREMGenerator(renderer);
@@ -1168,7 +1169,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   };
   yield 'light';
   const hemiLight = () => {
-    const h = new THREE.HemisphereLight(C(RIG.skyCol), C(RIG.gndCol), RIG.hemi * LIGHT_UNIT);
+    const h = new THREE.HemisphereLight(C(RIG.skyCol), C(RIG.gndCol), RIG.hemi * LIGHT_UNIT);  // pre-ok: applyDay drives it x P
     h.groundColor.multiplyScalar(gb);      // occluded, like every bounce here
     return h;
   };
@@ -1191,7 +1192,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   // knew about the other. The sky half is untouched.
   const hemi = hemiLight();
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(C(SUNC), RIG.sun * LIGHT_UNIT);
+  const sun = new THREE.DirectionalLight(C(SUNC), RIG.sun * LIGHT_UNIT);  // pre-ok: applyDay drives it x P
   sun.castShadow = true;
   sun.shadow.mapSize.set(1024, 1024);
   sun.shadow.bias = -0.0009;
@@ -1314,6 +1315,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     const k = Math.pow(0.92 / Math.max(0.92, ex), 0.9);
     const lit = worldSwitch ? worldSwitch.on('runway') : true;
     RWY.U.lvl.value = lit ? on * 1.2 * k : 0;
+    RWY.U.pre.value = (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.P) ? LIGHT_RIG.P() : 1;   // G2620
     // by day the layer is not drawn nor even frustum-tested: the strips' layers hidden (a loop over the STRIPS, and only
     // when the state turns)
     const show = RWY.U.lvl.value > 0;
@@ -2906,8 +2908,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     {
       const geoB = new THREE.SphereGeometry(0.9, 12, 8);
       const matOf = {};
-      const mat = hex => matOf[hex] || (matOf[hex] = new THREE.MeshStandardMaterial({ color: C(hex), emissive: C(hex), emissiveIntensity: 0.25, roughness: 0.6 }));
-      const put = (x, z, hex, r) => { const m = new THREE.Mesh(geoB, mat(hex)); if (r) m.scale.setScalar(r); m.position.set(x, 0, z); m.castShadow = false; scene.add(m); buoys.push(m); };
+      const mat = hex => matOf[hex] || (matOf[hex] = new THREE.MeshStandardMaterial({ color: C(hex), emissive: C(hex), emissiveIntensity: 0.25, roughness: 0.6 }));  // pre-ok: held x P by matP below
+      const matP = hex => { const m = mat(hex); if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.preHold) LIGHT_RIG.preHold(m, 'emissiveIntensity', 0.25); return m; };   // G2620: the buoys' glow x P
+      const put = (x, z, hex, r) => { const m = new THREE.Mesh(geoB, matP(hex)); if (r) m.scale.setScalar(r); m.position.set(x, 0, z); m.castShadow = false; scene.add(m); buoys.push(m); };
       for (const a of (world.aerodromes || [])) {
         if (a.kind !== 'water') continue;
         const ca = Math.cos(a.hdg), sa = Math.sin(a.hdg);        // along the lane: (ca, sa) in x,z
@@ -3650,7 +3653,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
         }
       } else {
         // the cone: unlit white, tinted per instance at draw as before
-        meshes.push(new THREE.Mesh(srcGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })));
+        meshes.push(new THREE.Mesh(srcGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false })));  // pre-ok: the impostor albedo bake (offscreen, not light)
       }
       for (const mm of meshes) sc.add(mm);
       const cam = new THREE.OrthographicCamera(-M, M, M, -M, 0.1, bs.r * 8);
@@ -7661,7 +7664,8 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       sun.intensity = LE.sunI; sun.color.copy(LE.sunC); hemi.intensity = LE.hemiI; hemi.color.copy(LE.hemiC); hemi.groundColor.copy(LE.gndC);
       LE.setSunI = sun.intensity; LE.setHemiI = hemi.intensity; LE.wSunC.copy(LE.sunC); LE.wHemiC.copy(LE.hemiC); LE.wGndC.copy(LE.gndC); LE.writes++;
     }
-    // Seed the last-written value: a NaN sentinel otherwise suppresses every exposure update.
+    // G2601 / PERF NIGHTLIGHT: seed the last-written value - LE.setEx starts NaN (nothing written yet) and a NaN sentinel
+    // otherwise suppresses every exposure update (the stuck 1.12 of 3 Oct - 8 Oct, and again until Codex's 30 Oct fix)
     if (LE.ex > 0 && (!Number.isFinite(LE.setEx) || Math.abs(LE.ex - LE.setEx) > LE.ex * (force ? 1e-4 : LE_STEP.ex))) exSet(LE.ex);
   }
   // lightEase(): a frame of the ease (every dayApply, the guard's early return included)
@@ -7690,9 +7694,32 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     if (there) { LE.sunI = LE.tSunI; LE.hemiI = LE.tHemiI; LE.sunC.copy(LE.tSunC); LE.hemiC.copy(LE.tHemiC); LE.gndC.copy(LE.tGndC); if (LE.tEx > 0) LE.ex = LE.tEx; }
     lightShow(there);
   }
+  // keyAim(d): the key's direction (SUN: the light's placement, the shadow maps' and the impostors' depth) along d, held
+  // 2 deg over the horizon for the shadow maths; KEY_SKY the true one (the spray's light, the glare). G2600 MOONLIGHT
+  // (the user: "currently the night is absolutely dark"): since G408 SUN was the sun's every hour - with the MOON as the
+  // key (sky_light, below -1.2 deg) the moonlight came from under the far horizon on the sun's bearing, grazing at the
+  // 2 deg floor: a horizontal field took sin 2 deg (3.5 %) of it and every tree's shadow ran for hundreds of metres. The
+  // shed has aimed its key at the moon since S5 (hangar.js applyDay); the world now does the same.
+  function keyAim(d) {
+    KEY_SKY.set(d[0], d[1], d[2]);
+    SUN.copy(KEY_SKY);
+    if (SUN.y < SUN_MIN_Y) { const h = Math.hypot(SUN.x, SUN.z) || 1, k = Math.sqrt(1 - SUN_MIN_Y * SUN_MIN_Y) / h; SUN.set(SUN.x * k, SUN_MIN_Y, SUN.z * k); }
+  }
+  // G2620 THE PRE-EXPOSURE: the switch, in the frame it happens - the lights and the ease's own values by the ratio (the
+  // ease must not see a foreign write, nor animate x16384), the day re-applied at once; the probes are cut in dayApply
+  let preCut = false;
+  if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.onPre) LIGHT_RIG.onPre((P, old) => {
+    const r = P / old;
+    if (sun) sun.intensity *= r; if (hemi) hemi.intensity *= r;
+    for (const k of ['sunI', 'hemiI', 'tSunI', 'tHemiI', 'setSunI', 'setHemiI']) if (LE[k] === LE[k]) LE[k] *= r;
+    dayVer = -1; preCut = true;
+  });
   function dayApply() {
     const day = world.day;
     if (!day) return;
+    // G2620: this frame's pre-exposure, FIRST (the atmosphere's and the clouds' scale are copied below): 2^14 under
+    // -6.5 deg, 1 above -5.5 (light_rig preFor); 1 under the hand-placed sun and without the physical sky
+    if (typeof LIGHT_RIG !== 'undefined' && LIGHT_RIG.setPre) LIGHT_RIG.setPre(ATMO_ON && !rigCur.manual && LIGHT_RIG.preFor ? LIGHT_RIG.preFor(day.sunEl) : 1);
     // THE WEATHER IS NOT THE SUN (CLIMATE K4.1). `rigCur.manual` is the F8 dial
     // that lets a developer place the sun by hand, and it used to return from
     // the whole of this function - which also froze the mist, the aerial
@@ -7706,8 +7733,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // THE CLOUDS every frame (C1/C4): the drift, the eye (the probe's and the in-cloud slab's), the shadow's scalars - not gated on the sun's move below
     if (ATMO_ON && typeof CLOUDS !== 'undefined' && CLOUDS.ready) { CLOUDS.S.inShed = false; CLOUDS.update(day, camera, world); }
     if (rigCur.manual) return;                                                          // the hand-placed sun: the LIGHT stops following the almanac; the weather does not
-    // A clock cut must not fade yesterday's bright cube under today's high night exposure.
-    const probeCut = LE.cut;
+    // A clock cut (Codex, NIGHTVISIBILITY) or a P switch (G2620, the pre-exposure) must not fade yesterday's cube under
+    // today's units: both cut the probes at once (the mirror re-captures itself on a P switch: water.js)
+    const probeCut = LE.cut || preCut; preCut = false;
     if (probe && !rigCur.manual) { if (probeCut) probe.bake(day, true); else probe.maybe(day, 1.5); }
     if (probeIn && !rigCur.manual) { if (probeCut) probeIn.bake(day, true); else probeIn.maybe(day, 1.5); }
     LE.cut = false;                                 // A6: the cabin's probe on the same schedule                                   // S5: the reflection probe follows the sun (1.5 deg), the day's dials, the clouds' drift
@@ -7740,6 +7768,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     dayVer = day.version; dayEl = el; dayAz = az;
     const v = day.sun;
     SUN_SKY.set(v[0], v[1], v[2]);
+    keyAim(v);
     rigCur.elev = el; rigCur.azim = day.rigAzim;
     const t = Math.min(1, Math.max(0, (el + 6) / 12)), k = t * t * (3 - 2 * t);
     if (ATMO_ON && typeof SKY_LIGHT !== 'undefined') {
@@ -7750,7 +7779,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       // pixel by the splice; the hemisphere is one light, so it takes the layer's transmittance at the eye)
       const cT = (typeof CLOUDS !== 'undefined' && CLOUDS.sunT) ? LE.cT : 1;   // G1352: eased (above)
       LE.cTapplied = cT; LE.applyAt = nowL + 300;
-      const rL = SKY_LIGHT.applyDay(day, { key: sun, hemi, scene, renderer: LE.on ? null : renderer, unit: LIGHT_UNIT,
+      const rL = SKY_LIGHT.applyDay(day, { key: sun, hemi, scene, renderer: LE.on ? null : renderer, unit: LIGHT_UNIT, pre: true,
         nightVisibility: 0.8, sunGain: RIG.sun / 2.8, hemiBoost: RIG.hemi / 0.274 * (typeof CLOUDS !== 'undefined' && CLOUDS.hemiUnder ? CLOUDS.hemiUnder(cT) : 1), exposureK: rigCur.exposure / 0.92,
         gndAlb: rigCur.gndDerive === false ? null : worldAlbedo(),                     // THE GROUND HALF IS DERIVED (sky_light groundHalf: albedo x what falls on it); off, or no albedo, falls back to the row's hex
         gndGain: rigCur.gndGain == null ? 1 : rigCur.gndGain,
@@ -7762,10 +7791,9 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
       hemi.intensity = RIG.hemi * LIGHT_UNIT * Math.max(0.06, k);
       if (sun.color && sun.color.setHex && sun.color.lerp) { const w = Math.min(1, Math.max(0, 1 - el / 12)); sun.color.setHex(rigCur.sunCol).lerp(WARM_SUN, w * w); }
     }
-    // applyDay selects the key with hysteresis. Shadows and illumination must follow that same moon or sun.
-    const keyV = ATMO_ON && typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.isMoon ? day.moon : v;
-    SUN.set(keyV[0], keyV[1], keyV[2]);
-    if (SUN.y < SUN_MIN_Y) { const h = Math.hypot(SUN.x, SUN.z) || 1, k = Math.sqrt(1 - SUN_MIN_Y * SUN_MIN_Y) / h; SUN.set(SUN.x * k, SUN_MIN_Y, SUN.z * k); }
+    // applyDay selects the key with hysteresis. Shadows and illumination must follow that same moon or sun (Codex,
+    // PERF NIGHTLIGHT; G2600's keyAim: SUN held 2 deg up for the shadow maths, KEY_SKY the true one for the spray and the glare)
+    keyAim(ATMO_ON && typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.isMoon ? day.moon : v);
     const dim = Math.max(0.03, k);
     if (worldSky && worldSky.material.uniforms && worldSky.material.uniforms.uDim) worldSky.material.uniforms.uDim.value = dim;
     if (!ATMO_ON && scene.fog && scene.fog.color && scene.fog.color.setHex && rigCur.dome) scene.fog.color.setHex(rigCur.dome.haze).multiplyScalar(dim);   // the painted haze, when the atmosphere is off
@@ -7847,7 +7875,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
   const rigApply = () => {
     const R = rigCur, el = R.elev * Math.PI / 180, az = R.azim * Math.PI / 180;
     // the row's direction only when the rig is MANUAL (or the world has no day); otherwise the day's (dayApply)
-    if (R.manual || !world.day) { SUN.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).normalize(); SUN_SKY.copy(SUN); }
+    if (R.manual || !world.day) { SUN.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el)).normalize(); SUN_SKY.copy(SUN); KEY_SKY.copy(SUN); }
     dayVer = -1;                                   // a row write re-arms the day's pass on the next frame
     sun.intensity = (RIG.sun = R.sunI) * LIGHT_UNIT; if (sun.color && sun.color.setHex) sun.color.setHex(R.sunCol);
     hemi.intensity = (RIG.hemi = R.hemi) * LIGHT_UNIT;
@@ -7980,7 +8008,7 @@ function* buildWorldSceneSteps(scene, world, renderer, camera, shedDims) {
     // F1: the TRUE visibility - what the eye can see through the mist we actually drew, as
     // against `day.visibilityKm`, which is what the day was AUTHORED with. The climate chantier
     // asked for this so the WEATHER panel and the pilot's briefing can quote the real one.
-    visM: () => VIS.visM, SUN, SUN_SKY, sun, hemi, minimap: miniCanvas, minimapBox, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, exposureNow: () => LE.ex, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, treeShadowed, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: (box) => repaintStrips(box), townGeoFinish: () => geoStep(0, true), get farLod() { return farLod; },   // (G2063: the far tier's cut and patch cache, for a rig)
+    visM: () => VIS.visM, SUN, SUN_SKY, KEY_SKY, relight: () => { dayVer = -1; }, sun, hemi, minimap: miniCanvas, minimapBox, setWindVis, get envMap() { return envMap; }, get skyDome() { return worldSky; }, exposureNow: () => LE.ex, waterDrawY, probe, rig: worldRig, ground: groundApi, envAlbedo, treeShadowed, scene, camera, far: FAR, cover: COVER, premises: premisesR, refreshGround, repaintStrips: (box) => repaintStrips(box), townGeoFinish: () => geoStep(0, true), get farLod() { return farLod; },   // (G2063: the far tier's cut and patch cache, for a rig)
     // THE ROLL-OUT SCREEN'S HANDLES (LOADING S3): the ring grown under the
     // overlay, and the payload's settle to wait on (a rejected settle = cones)
     prewarm: (cg, o) => fillApi ? fillApi.prewarm(cg, o) : { phase: 'done', done: true, trees: 'fallback' },

@@ -120,7 +120,7 @@
     for (const s of card.seats || []) H.seatVisible(s.i, !st.seatsOut.includes(s.i));
     for (const s of st.seatsOut) {
       const S = card.seats.find(q => q.i === s);
-      const m = new T.Mesh(new T.PlaneGeometry(0.5, S.w), new T.MeshBasicMaterial({ color: lin(0xd3c3ae), transparent: true, opacity: 0.35, depthWrite: false, side: T.DoubleSide }));
+      const m = new T.Mesh(new T.PlaneGeometry(0.5, S.w), new T.MeshBasicMaterial({ color: lin(0xd3c3ae), transparent: true, opacity: 0.35, depthWrite: false, side: T.DoubleSide }));  // pre-ok: the load card's seat overlay (a UI plate, not light)
       m.rotation.x = -Math.PI / 2;
       m.position.set(S.back - 0.25, (freightRestY(card, S.back - 0.5, S.back) || floorY) + 0.005, S.z);
       m.userData.frOcc = true; grp.add(m);

@@ -236,21 +236,151 @@
   var EV_KNOTS = [[-90, 16], [-18, 16], [-12, 16], [-9, 10], [-6, 6], [-0.833, 2.5], [10.6, 0.6], [33, 0], [90, 0]];
   function exposureStops(el) {
     var k = EV_KNOTS;
-    if (el <= k[0][0]) return k[0][1];
+    // G2600: the NIGHT EYE dial - stops over the schedule once the night is dark (eased in from nautical to
+    // astronomical twilight, 0 above -12 deg: the day and the twilight are the schedule's to the bit)
+    var e = NIGHT.eye ? NIGHT.eye * smooth01((-12 - el) / 6) : 0;
+    if (el <= k[0][0]) return k[0][1] + e;
     for (var i = 1; i < k.length; i++) if (el <= k[i][0]) {
       var t = (el - k[i - 1][0]) / (k[i][0] - k[i - 1][0]);
-      return k[i - 1][1] + t * (k[i][1] - k[i - 1][1]);
+      return k[i - 1][1] + t * (k[i][1] - k[i - 1][1]) + e;
     }
     return k[k.length - 1][1];
   }
   function exposureFor(el, k) { return EV_BASE * Math.pow(2, exposureStops(el)) * (k == null ? 1 : k); }
   // the illuminance ratios the sky's two lights stand in (sun = 1)
   var MOON_RATIO = 2.5e-6;        // a full moon: 0.25 lux against 1e5
+  var SUN_LUX = 1e5;              // ... and the 1e5 lux the sun stands for: the scale that names a radiance in cd/m2
+
+  // ---- 5. THE NIGHT (G2600 MOONLIGHT, 2026-10-08) ----------------------------
+  // The user: "can we have some full moon nights, where it's possible to see something, so VFR at night,
+  // even though super dangerous, becomes somehow possible?" The schedule above was always meant to read a
+  // full moon as a game night; what follows is the rest of what the eye does in it, kept physical:
+  //   THE PHASE LAW. A moon's light is not its lit fraction: the half moon gives ~9 % of the full, not 50 %
+  //     (the regolith's back-scatter; Allen 1973 as Krisciunas & Schaefer 1991 use it,
+  //     m(alpha) = -12.73 + 0.026|alpha| + 4e-9 alpha^4, alpha the phase angle). moonE(phase) is what the
+  //     key, the sky, the clouds and the mist all take - one law, read everywhere the moon lights.
+  //   THE NIGHT EYE (scotopic vision, the Purkinje shift). Under ~3 cd/m2 the cones give way to the rods,
+  //     which see no colour and peak in the blue-green (507 nm): a moonlit field is grey-blue, red goes dark
+  //     first, a lamp stays coloured because IT is bright. The grade is per pixel ON ITS ABSOLUTE LUMINANCE
+  //     (the radiance in the frame x SUN_LUX / the room's scale), before the one tone map (aa_resolve's
+  //     blit, under the linear compositing - a uniform branch, no pass): the rods' share runs from 0 at
+  //     `colourCd` to 1 a thousandth of it (CIE's mesopic range is 0.005-5 cd/m2), times `desat`. The rods'
+  //     response in linear sRGB is the Larson-Rushmeier-Piatko (1997) scotopic luminance evaluated at the
+  //     three primaries (0.033 0.765 0.202 - red a sixth of its photopic weight, blue three times), and the
+  //     grey it gives is tinted toward the blue-grey moonlight reads as (`blue`). By day the share is 0
+  //     (the sun above -0.833 deg) and the blit skips the branch: the day is the day to the bit.
+  // Every number here is a dial (moon_ui.js mounts them on the left rail's NIGHT, double-click resets);
+  // NIGHT_DEF holds the resting values.
+  // the resting values, judged on the 8 Oct stills (reports/evidence/MOONLIGHT/sheet_full_moon.jpg: before | eye 0 | +1 | +2):
+  // +1 stop reads a full moon as a dangerous but flyable night (the coast, the lakes, the strips, the ridges), +2 is a dusk
+  // NIGHT-LOOK (2 Nov, merged onto master): eye 0. The +1 was judged over the 8 Oct schedule (the night at +15); Codex's
+  // PERF NIGHTLIGHT (30 Oct) raised the schedule's night to +16, the same level, so the eye's own stop stays a dial (0..)
+  // and the deep night is the +16 the user saw on 8 Oct (GATE ATMO: astronomical night 12..16)
+  var NIGHT_DEF = { eye: 0, moon: 1, desat: 0.9, blue: 0.6, colourCd: 3 };
+  var NIGHT = {}; for (var nk in NIGHT_DEF) NIGHT[nk] = NIGHT_DEF[nk];
+  function smooth01(x) { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); }
+  // the phase law: a phase's light over the full moon's (phase = the illuminated fraction, 06_solar)
+  function moonPhaseLaw(phase) {
+    var k = Math.max(0, Math.min(1, phase == null ? 0 : phase));
+    var a = Math.acos(Math.max(-1, Math.min(1, 2 * k - 1))) * 180 / Math.PI;   // the phase angle, deg (0 full, 180 new)
+    return Math.pow(10, -0.4 * (0.026 * a + 4e-9 * a * a * a * a));
+  }
+  function moonE(phase) { return MOON_RATIO * NIGHT.moon * moonPhaseLaw(phase); }
+  // the grade's uniforms: ONE set, shared by reference with every blit material aa_resolve builds
+  var V4 = function (a, b, c, d) { return (T && T.Vector4) ? new T.Vector4(a, b, c, d) : [a, b, c, d]; };
+  var nightU = { uNightEye: { value: V4(0, 0, 0, 0) }, uNightTint: { value: V4(1, 1, 1, 0) } };
+  var NIGHT_GLSL = [
+    'uniform vec4 uNightEye;    // x the night\'s share (0 by day), y log2(cd/m2 per unit), z/w log2 cd/m2: rods alone / colour whole',
+    'uniform vec4 uNightTint;   // rgb the rods\' tint (luma 1), a their share at full rod vision',
+    'vec3 nightEye(vec3 c) {',
+    '  if (uNightEye.x <= 0.0) return c;',
+    '  float Lp = dot(c, vec3(0.2126, 0.7152, 0.0722));',
+    '  float Ls = dot(c, vec3(0.033, 0.765, 0.202));',
+    '  float rod = (1.0 - smoothstep(uNightEye.z, uNightEye.w, log2(max(Lp, 1e-30)) + uNightEye.y)) * uNightEye.x * uNightTint.a;',
+    '  return mix(c, Ls * uNightTint.rgb, rod);',
+    '}'].join('\n');
+  var BLUE_TINT = [0.86, 1.0, 1.37];   // moonlight's blue-grey, luma ~1
+  // nightGrade(el, scale): the grade's uniforms for a sun elevation and the room's radiance scale (ATMO.U.scale)
+  function nightGrade(el, scale) {
+    var s = smooth01((-0.833 - el) / 5.167);   // 0 at sunset, 1 at civil dusk
+    var u = nightU.uNightEye.value, t = nightU.uNightTint.value;
+    var y = Math.log(SUN_LUX / Math.max(1e-9, scale || 1)) / Math.LN2;
+    var hi = Math.log(Math.max(1e-4, NIGHT.colourCd)) / Math.LN2, lo = hi - Math.log(1000) / Math.LN2;
+    var b = Math.max(0, Math.min(1, NIGHT.blue));
+    var r = 1 + (BLUE_TINT[0] - 1) * b, g = 1 + (BLUE_TINT[1] - 1) * b, bl = 1 + (BLUE_TINT[2] - 1) * b;
+    var l = 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+    var a = s > 0 ? Math.max(0, Math.min(1, NIGHT.desat)) : 0;
+    if (u.set) { u.set(s, y, lo, hi); t.set(r / l, g / l, bl / l, a); }
+    else { u[0] = s; u[1] = y; u[2] = lo; u[3] = hi; t[0] = r / l; t[1] = g / l; t[2] = bl / l; t[3] = a; }
+    return s;
+  }
+  // the dials: set / reset / the defaults (published, so a reset reads the one table)
+  // ---- 6. THE PRE-EXPOSURE (G2620 PRE-EXPOSURE, 2026-10-08) -----------------
+  // The frame's target is HalfFloat and holds UN-EXPOSED radiance (G448.3's linear compositing: the exposure is the
+  // blit's). A moonlit night is ~1e-7 of the day's scale - fp16 SUBNORMALS stepped in 5.96e-8: G2600 measured the
+  // full-moon ground at 6-11 distinct values and the final's ground band at ONE (reports/evidence/MOONLIGHT). So at
+  // night every radiance written into the WORLD's frame is multiplied by P and the renderer's exposure divided by P
+  // (Frostbite's pre-exposure): the picture is the same, the precision is fp16's normal range.
+  //   P is ONE SWITCH: 2^14 once the sun is under -6.5 deg, 1 again above -5.5 (the hysteresis). Every writer, the
+  //   eased lights, the exposure, the probes and the mirror move in the same frame (setPre's listeners), so a switch
+  //   per whole stop would have been ten chances a dusk to flash a frame. The range: at -6 deg the brightest radiance
+  //   in the frame (the twilight sky ~800, the moon's disc ~6e3, a lamp) stays under fp16's 65 504; the full-moon
+  //   ground lands at ~6.5e-3, ten bits of mantissa.
+  //   By day P = 1 and every writer multiplies by 1: the day is bit-identical by construction. The GARAGE keeps P = 1
+  //   (its lamps cap the exposure: no precision problem) - its applyDay sets it on entry, the world's on the way out.
+  //   GFX keeps the TRUE exposure as its base (every nightK dimmer reads it unchanged) and puts base / P on the renderer.
+  // A WRITER OF ABSOLUTE LIGHT IN THE WORLD (a lamp, an emissive, an unlit colour) multiplies by P() where it writes
+  // (per frame), or registers its constant with preHold(obj, key, base) (written base x P at every switch). GATE LIGHT
+  // sweeps the sources for writers that do neither and do not name why they are exempt.
+  var PRE_NIGHT = 16384, PRE_IN = -6.5, PRE_OUT = -5.5;
+  var PRE = { P: 1, switches: 0 }, preFns = [], preHeld = [];
+  // preFor(el): the P a sun elevation asks for, from the P in force (the hysteresis)
+  function preFor(el) { return PRE.P > 1 ? (el > PRE_OUT ? 1 : PRE.P) : (el < PRE_IN ? PRE_NIGHT : 1); }
+  // setPre(P): the switch - the held constants written, then every listener told (old, new), in this frame
+  function setPre(P) {
+    P = (typeof P === 'number' && P > 0 && isFinite(P)) ? P : 1;
+    if (P === PRE.P) return false;
+    var old = PRE.P; PRE.P = P; PRE.switches++;
+    var live = [];
+    for (var i = 0; i < preHeld.length; i++) { var h = preHeld[i]; try { if (writeHeld(h)) live.push(h); } catch (e) {} }
+    preHeld = live;   // the held objects that are gone (a material disposed with its aeroplane) leave the list
+    for (var j = 0; j < preFns.length; j++) { try { preFns[j](P, old); } catch (e) {} }
+    return true;
+  }
+  // held WEAKLY (a WeakRef where there is one): a held material does not outlive the aeroplane or the world it belongs to
+  var hold = function (o) { return (typeof WeakRef === 'function') ? { r: new WeakRef(o) } : { o: o }; };
+  var heldObj = function (h) { return h.ref.r ? h.ref.r.deref() : h.ref.o; };
+  function writeHeld(h) {
+    var o = heldObj(h); if (!o) return false;
+    if (h.color) { o.setRGB(h.base[0] * PRE.P, h.base[1] * PRE.P, h.base[2] * PRE.P); return true; }
+    o[h.key] = h.base * PRE.P;
+    return true;
+  }
+  // preHold(obj, key, base): a constant held at base x P (obj[key] = base * P now and at every switch); returns base.
+  // preHold(color, 'rgb') holds a THREE.Color at its current rgb x P.
+  function preHold(obj, key, base) {
+    if (!obj) return base;
+    for (var i = 0; i < preHeld.length; i++) if (heldObj(preHeld[i]) === obj && preHeld[i].key === key) { if (key !== 'rgb') preHeld[i].base = base; writeHeld(preHeld[i]); return base; }
+    var h = key === 'rgb' ? { ref: hold(obj), key: key, color: true, base: [obj.r, obj.g, obj.b] } : { ref: hold(obj), key: key, base: base };
+    preHeld.push(h); writeHeld(h); return base;
+  }
+  function onPre(fn) { if (typeof fn === 'function') preFns.push(fn); return fn; }
+  function setNight(o) {
+    if (o) for (var k in o) if (k in NIGHT_DEF && typeof o[k] === 'number' && isFinite(o[k])) NIGHT[k] = o[k];
+    return night();
+  }
+  function night() { var o = {}; for (var k in NIGHT) o[k] = NIGHT[k]; return o; }
 
   var API = {
     PHYS: PHYS,
     applyRig: applyRig,
     exposureFor: exposureFor, exposureStops: exposureStops, EV_BASE: EV_BASE, MOON_RATIO: MOON_RATIO,
+    // G2600 THE NIGHT: the phase law, the night eye's grade, the dials
+    SUN_LUX: SUN_LUX, moonPhaseLaw: moonPhaseLaw, moonE: moonE, nightU: nightU, NIGHT_GLSL: NIGHT_GLSL, nightGrade: nightGrade,
+    // G2620 THE PRE-EXPOSURE
+    P: function () { return PRE.P; }, PRE_NIGHT: PRE_NIGHT, preFor: preFor, setPre: setPre, preHold: preHold, onPre: onPre,
+    preState: function () { return { P: PRE.P, switches: PRE.switches, held: preHeld.length, listeners: preFns.length }; },
+    setNight: setNight, night: night, nightDefaults: function () { var o = {}; for (var k in NIGHT_DEF) o[k] = NIGHT_DEF[k]; return o; },
     board: board,
     census: census,
     rowByKey: rowByKey,

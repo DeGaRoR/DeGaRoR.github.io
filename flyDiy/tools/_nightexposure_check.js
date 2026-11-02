@@ -17,10 +17,13 @@ T.LE.tEx=1.12;for(let i=961;i<=1560;i++)T.lightEase(i*1000/30);assert(Math.abs(b
 base=4;renderer.toneMappingExposure=4;T.LE.tEx=4;T.lightEase(1561*1000/30);assert.strictEqual(T.LE.ex,4);
 T.LE.on=false;T.lightTake(2);assert.strictEqual(base,2,'disabled ease applies target directly');
 // Execute the actual post-selection light-aim block: lunar direction, solar direction, and horizon clamp.
-const keyStart=s.indexOf('    const keyV = ATMO_ON'),keyEnd=s.indexOf('    const dim =',keyStart);assert(keyStart>0&&keyEnd>keyStart);
-const vec={x:0,y:0,z:0,set(x,y,z){this.x=x;this.y=y;this.z=z;return this;}};
-const aim={ATMO_ON:true,SKY_LIGHT:{isMoon:true},day:{moon:[.6,.8,0]},v:[0,.5,Math.sqrt(.75)],SUN:vec,SUN_MIN_Y:Math.sin(2*Math.PI/180),Math};vm.createContext(aim);
-const apply=()=>vm.runInContext('(function(){'+s.slice(keyStart,keyEnd)+'})()',aim);apply();assert.strictEqual(vec.x,.6);assert.strictEqual(vec.y,.8,'night key follows moon, not the below-horizon sun');
+// (NIGHT-LOOK: the block calls G2600's keyAim - SUN clamped for the shadows, KEY_SKY the true direction - run with it)
+const keyStart=s.indexOf('    // applyDay selects the key with hysteresis.'),keyEnd=s.indexOf('    const dim =',keyStart);assert(keyStart>0&&keyEnd>keyStart);
+const kaStart=s.indexOf('  function keyAim(d) {'),kaEnd=s.indexOf('\n  }\n',kaStart)+4;assert(kaStart>0&&kaEnd>kaStart);
+const V3=()=>({x:0,y:0,z:0,set(x,y,z){this.x=x;this.y=y;this.z=z;return this;},copy(o){return this.set(o.x,o.y,o.z);}});
+const vec=V3(),key=V3();
+const aim={ATMO_ON:true,SKY_LIGHT:{isMoon:true},day:{moon:[.6,.8,0]},v:[0,.5,Math.sqrt(.75)],SUN:vec,KEY_SKY:key,SUN_MIN_Y:Math.sin(2*Math.PI/180),Math};vm.createContext(aim);
+const apply=()=>vm.runInContext('(function(){'+s.slice(kaStart,kaEnd)+s.slice(keyStart,keyEnd)+'})()',aim);apply();assert.strictEqual(vec.x,.6);assert.strictEqual(vec.y,.8,'night key follows moon, not the below-horizon sun');assert.strictEqual(key.y,.8,'KEY_SKY follows the moon too');
 aim.SKY_LIGHT.isMoon=false;apply();assert.strictEqual(vec.x,0);assert.strictEqual(vec.y,.5,'day direction unchanged');aim.ATMO_ON=false;aim.SKY_LIGHT.isMoon=true;apply();assert.strictEqual(vec.y,.5,'non-atmospheric path stays solar');
 aim.ATMO_ON=true;aim.day.moon=[1,-.1,0];apply();assert.strictEqual(vec.y,aim.SUN_MIN_Y,'low key keeps existing shadow horizon clamp');assert(Math.abs(Math.hypot(vec.x,vec.y,vec.z)-1)<1e-12);
 const rig=require(path.join(__dirname,'../src/viewer/light_rig.js'));assert.strictEqual(rig.exposureStops(-12),16,'measured summer-night readability');assert.strictEqual(rig.exposureStops(-9),10);assert.strictEqual(rig.exposureFor(33),.92,'noon target unchanged');

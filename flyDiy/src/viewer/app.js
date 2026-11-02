@@ -153,8 +153,8 @@
       if (typeof propWarm !== 'function' || typeof propMesh !== 'function') return Promise.resolve(null);
       return propWarm(key).then(() => new Promise(res => setTimeout(res, 120))).then(() => {
         const N = 96, g = propMesh(THREE, key), scene = new THREE.Scene();
-        scene.add(new THREE.HemisphereLight(0xdfe8f0, 0x40382f, 2.4));
-        const dl = new THREE.DirectionalLight(0xffffff, 2.2); dl.position.set(3, 5, 4); scene.add(dl); scene.add(g);
+        scene.add(new THREE.HemisphereLight(0xdfe8f0, 0x40382f, 2.4));  // pre-ok: the prop icon's own offscreen scene (a thumbnail, not the world's frame)
+        const dl = new THREE.DirectionalLight(0xffffff, 2.2); dl.position.set(3, 5, 4); scene.add(dl); scene.add(g);  // pre-ok: the prop icon's own offscreen scene
         const box = new THREE.Box3().setFromObject(g), sz = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3()), r = Math.max(sz.x, sz.y, sz.z, 0.1) * 0.62;
         const cam = new THREE.PerspectiveCamera(32, 1, r * 0.05, r * 40); cam.position.set(c.x + r * 2.0, c.y + r * 1.45, c.z + r * 2.4); cam.lookAt(c);
         const rt = new THREE.WebGLRenderTarget(N, N), prev = renderer.getRenderTarget(), cc = renderer.getClearColor(new THREE.Color()), ca = renderer.getClearAlpha();
@@ -2131,7 +2131,7 @@
     const pos = new Float32Array(ids.length * 3);
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setIndex([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]);
-    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+    const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({  // pre-ok: colorWrite false (the next line)
       colorWrite: false, depthWrite: false, side: THREE.DoubleSide }));
     mesh.castShadow = true; mesh.frustumCulled = false;
     craft.add(mesh);
@@ -2837,7 +2837,7 @@
         const src = m.lamp && window.CAGE_LIGHT.lensMat ? window.CAGE_LIGHT.lensMat(m.lamp, 1.0, m.lampCol)
                   : m.lampCup && window.CAGE_LIGHT.cupMat ? window.CAGE_LIGHT.cupMat(1.0, m.lampCol, true, m.lampCup, m.lampK)
                   : null;
-        if (src) { const lm = src.clone(); lm.userData = Object.assign({}, src.userData); lm.emissiveIntensity = 0; return matCache[mn] = lm; }
+        if (src) { const lm = src.clone(); lm.userData = Object.assign({}, src.userData); lm.emissiveIntensity = 0; return matCache[mn] = lm; }  // pre-ok: a lamp clone at 0 - cockpit.js drives it x P
       }
       if (data.cage && m.char && window.CAGE_CHAR &&
           window.CAGE_CHAR.flatMaterial) {
@@ -2885,7 +2885,7 @@
       if (m.emis && m.tex) {
         common.emissive = new THREE.Color(m.emis[0], m.emis[1], m.emis[2]);
         common.emissiveMap = texs[m.tex];
-        common.emissiveIntensity = EMIS_GAIN;
+        common.emissiveIntensity = EMIS_GAIN;  // pre-ok: held x P below (preHold, the faces)
       }
       // A NAMED SHEET THAT IS NOT THERE IS NOT A WHITE ONE. `map: undefined` with
       // the default tint renders the group flat WHITE, which is the worst of the
@@ -2905,6 +2905,7 @@
       // is not AEROSKIN's) takes the cabin's darkness through the small hook
       if (m.inside && typeof AEROSKIN !== 'undefined' && AEROSKIN.aeroCabinHook)
         AEROSKIN.aeroCabinHook(THREE, std, 1);
+      if (m.emis && m.tex && window.LIGHT_RIG && LIGHT_RIG.preHold) LIGHT_RIG.preHold(std, 'emissiveIntensity', EMIS_GAIN);   // G2620: the faces' constant glow x P
       return matCache[mn] = std;
     };
     const grp = new THREE.Group();
@@ -3504,7 +3505,7 @@
             picks.push({ obj: pg, key: mp[1] === 'throttle' ? 'thr' : mp[1] });
             if (mp[1] !== 'throttle') {
               const pad = new THREE.Mesh(new THREE.SphereGeometry(mp[1] === 'flap' ? 0.05 : 0.035, 8, 6),
-                new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false }));
+                new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false, colorWrite: false }));  // pre-ok: colorWrite false
               pad.userData.pickPad = 1;
               pad.visible = false;     // C4b (G875): the ray answers it unshown (cockpit.js padSwitches says why)
               if (mp[1] === 'flap') pad.position.set(0, 0.22, 0.14);   // up the lever, where the grip is
@@ -7087,7 +7088,7 @@
       S.commit();
       if (D.sheets) D.sheets.commit(waterFx.t);
       // lit by the world's own sun and sky, in the eye's frame
-      if (WF && WF.sun && WF.hemi) { const sd = WF.SUN_SKY || WF.sun.position; sunIrr.copy(WF.sun.color).multiplyScalar(WF.sun.intensity); skyIrr.copy(WF.hemi.color).multiplyScalar(WF.hemi.intensity);
+      if (WF && WF.sun && WF.hemi) { const sd = WF.KEY_SKY || WF.SUN_SKY || WF.sun.position;   /* G2600: the key's direction (the moon's at night) */ sunIrr.copy(WF.sun.color).multiplyScalar(WF.sun.intensity); skyIrr.copy(WF.hemi.color).multiplyScalar(WF.hemi.intensity);
         S.light([sd.x, sd.y, sd.z], sunIrr, skyIrr, camera); if (D.sheets) D.sheets.light([sd.x, sd.y, sd.z], sunIrr, skyIrr, camera); }
     } else waterFx.pts.geometry.attributes.position.needsUpdate = true;
     if (tW) waterFx.ms = performance.now() - tW;
@@ -8069,7 +8070,7 @@
     if (patVis) {
       if (patVis.papiUpdate) {   // G449: the PAPI's lenses at the runway lights' level (a lamp judged at the day's exposure, dimmed back through the night's schedule)
         const cgP = sim.cgPos(), exP = (window.GFX && GFX.exposureBase && GFX.exposureBase() != null) ? GFX.exposureBase() : 0.92;
-        patVis.papiUpdate(cgP[0], cgP[1], cgP[2], 1.2 * Math.pow(0.92 / Math.max(0.92, exP), 0.9));
+        patVis.papiUpdate(cgP[0], cgP[1], cgP[2], 1.2 * Math.pow(0.92 / Math.max(0.92, exP), 0.9) * (window.LIGHT_RIG && LIGHT_RIG.P ? LIGHT_RIG.P() : 1));   // G2620: x P
       }
       if (patVis.setLegs && ap.legs !== patLegsRef) { patLegsRef = ap.legs; try { patVis.setLegs(ap.legs, ap.altRef); } catch (e) {} }
     }
@@ -9757,8 +9758,8 @@
     if (!sg || sg === '0,0') { sg = '2,1'; try { sg = localStorage.getItem(CRAFT_LIGHTS) || sg; } catch (e) {} }
     if (!stIntroLampGrp || stIntroLampGrp.userData.sig !== sg) {
       const [np, ns] = sg.split(',').map(Number), g = new THREE.Group();
-      for (let i = 0; i < (np || 0); i++) g.add(new THREE.PointLight(0xffffff, 0, 2, 1.6));
-      for (let i = 0; i < (ns || 0); i++) { const L = new THREE.SpotLight(0xffffff, 0, 120, 0.42, 0.5, 1.2); g.add(L); g.add(L.target); }
+      for (let i = 0; i < (np || 0); i++) g.add(new THREE.PointLight(0xffffff, 0, 2, 1.6));  // pre-ok: a warm-up variant at intensity 0 (a program key, no light)
+      for (let i = 0; i < (ns || 0); i++) { const L = new THREE.SpotLight(0xffffff, 0, 120, 0.42, 0.5, 1.2); g.add(L); g.add(L.target); }  // pre-ok: a warm-up variant at intensity 0
       g.userData.sig = sg; g.name = 'storyIntroLamps'; stIntroLampGrp = g;
     }
     if (stIntroLampGrp.children.length && stIntroLampGrp.parent !== scene) scene.add(stIntroLampGrp);
@@ -12418,14 +12419,14 @@
     // disappearing inside the covering.
     const bar = (col, order) => {
       const m = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1),
-        new THREE.MeshBasicMaterial({ color: col, depthTest: false }));
+        new THREE.MeshBasicMaterial({ color: col, depthTest: false }));  // pre-ok: the load test's debug bars (not light)
       m.frustumCulled = false; m.renderOrder = order; m.visible = false;
       grp.add(m); return m;
     };
     // THE RED FLAG is a marker, not a recoloured member: the covering is
     // normally on during a test, and a red line under fabric is no flag at all.
     const flag = new THREE.Mesh(new THREE.SphereGeometry(0.11, 10, 8),
-      new THREE.MeshBasicMaterial({ color: 0xff2a1e, depthTest: false }));
+      new THREE.MeshBasicMaterial({ color: 0xff2a1e, depthTest: false }));  // pre-ok: the load test's debug flag (not light)
     flag.frustumCulled = false; flag.visible = false; flag.renderOrder = 1000;
     grp.add(flag);
     craft.add(grp);
@@ -13541,8 +13542,8 @@
     let want = '2,1'; try { want = localStorage.getItem(CRAFT_LIGHTS) || want; } catch (e) {}
     if (!lightStandIns || lightStandIns.userData.sig !== want) {
       const [np, ns] = want.split(',').map(Number), g = new THREE.Group();
-      for (let i = 0; i < (np || 0); i++) g.add(new THREE.PointLight(0xffffff, 0, 2, 1.6));
-      for (let i = 0; i < (ns || 0); i++) { const L = new THREE.SpotLight(0xffffff, 0, 120, 0.42, 0.5, 1.2); g.add(L); g.add(L.target); }
+      for (let i = 0; i < (np || 0); i++) g.add(new THREE.PointLight(0xffffff, 0, 2, 1.6));  // pre-ok: intensity 0: a compile stand-in
+      for (let i = 0; i < (ns || 0); i++) { const L = new THREE.SpotLight(0xffffff, 0, 120, 0.42, 0.5, 1.2); g.add(L); g.add(L.target); }  // pre-ok: intensity 0: a compile stand-in
       g.userData.sig = want; g.name = 'craftLightStandIns'; lightStandIns = g;
     }
     if (!lightStandIns.children.length) return fn();
@@ -16542,6 +16543,7 @@
     night(body) {
       const H = { row: flRow, range: flRange, pills: flPills, note: flNote, select: flSelect, field: flField };
       if (window.DAY_UI) window.DAY_UI.mount(body, H, { day: (typeof DAY_CLOCK !== 'undefined') ? DAY_CLOCK : null, refresh: flRefreshDay, open: flyOpenSet });
+      if (window.MOON_UI) window.MOON_UI.mount(body, H);   // G2600: the night's dials (the moonlight, the night eye, the night colour, the stars)
       // THE AEROPLANE'S LIGHTS: the cockpit's own switches (CK.sw), pressed from the rail - the
       // same write a click on the panel makes, and the same claim: a switch the hand set stays
       // the hand's until the next sunset or sunrise, when the pilot's rule takes all of them again
@@ -19269,7 +19271,7 @@
     // THE SUN'S GLARE (SKY S7): additive quads over the resolved frame, gated on occlusion rays
     if (framePresented && typeof SKY_GLARE !== 'undefined' && world.day && typeof SKY_LIGHT !== 'undefined' && SKY_LIGHT.last) {   // (G1340: a held frame draws nothing on the canvas)
       const L = SKY_LIGHT.last;
-      const d = inShed ? (hangar && hangar.dayDir ? hangar.dayDir() : null) : (WF ? [WF.SUN_SKY.x, WF.SUN_SKY.y, WF.SUN_SKY.z] : null);
+      const d = inShed ? (hangar && hangar.dayDir ? hangar.dayDir() : null) : (WF ? (k => [k.x, k.y, k.z])(WF.KEY_SKY || WF.SUN_SKY) : null);   // G2600: the moon's glare when the moon is the key
       if (d) {
         glareDir.set(d[0], d[1], d[2]);
         SKY_GLARE.setOccluders(() => inShed ? [garageScene()] : [craft]);
