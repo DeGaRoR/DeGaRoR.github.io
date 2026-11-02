@@ -63,56 +63,20 @@ function fromSpec(sy) {
   seeded = true;
   if (panelBody) renderPanel();
 }
-// WHAT THE DASH HAD NO ROOM FOR (G2808): the last layout's overflow - dials, radio heads, the GPS, breakers - as
-// genSystemsResolve's `noRoom` keys. Only the join's answer and the column's bill carry it; the layout itself is
-// laid out from SY, which never does, so a dropped dial is offered the dash again on every build.
-function noRoom() {
-  const L = LAST && LAST.layout;
-  return L ? (L.overflow || []).concat(L.extraOverflow || []) : [];
-}
-// THE LAMPS DRAWN (G2809): the light layer's census (CAGE_LIGHT.drawn: lamps a key), the lights fitted and a battery
-// behind them, plus the dials' post lights when the instrument light is fitted - genSystemsResolve bills a lamp per
-// lamp and the flight loads only these
-function lampCensus() {
-  const P = window.CAGE_UI && window.CAGE_UI.P;
-  if (!P || !+P.lightOn) return {};
-  const R = resolve(P);
-  if (!R || !R.hasBus) return {};
-  const D = (window.CAGE_LIGHT && window.CAGE_LIGHT.drawn) || {}, o = {};
-  for (const k of Object.keys(D)) if (D[k] > 0 && litFitted(P, k)) o[k] = D[k];
-  if (litFitted(P, 'instr') && LAST && LAST.layout && LAST.layout.dials.some(d => !d.coaming)) o.instr = 1;
-  // ...and the beacon the fittings layer stands on the crown or the rod where no fin carries one (it is that lamp)
-  const AC = window.CAGE_ACCESS;
-  const crown = AC && Array.isArray(AC.placed) ? AC.placed.filter(q => q.key === 'beacon').length : 0;
-  if (crown && litFitted(P, 'beacon')) o.beacon = (o.beacon || 0) + crown;
-  return o;
-}
 function toSpec() {
   if (!seeded) seed();
-  const o = cl(SY), nr = noRoom();
-  o.lights = lampCensus();
-  // (written when there is something; an empty list only over an earlier one, so a build that always fitted keeps
-  // its bytes - garage.js's merge replaces an array whole)
-  let had = false;
-  try { const g = window.GARAGE_SPEC && window.GARAGE_SPEC.get && window.GARAGE_SPEC.get(); had = !!(g && g.systems && Array.isArray(g.systems.noRoom) && g.systems.noRoom.length); } catch (e) {}
-  if (nr.length || had) o.noRoom = nr;
-  return o;
+  return cl(SY);
 }
 // the resolved fit, as the core answers it — tier, items, electrics, radios,
-// the bill, what was dropped and why. `billed`: as the join writes it, what the dash had no room for dropped (G2808)
-function resolve(Pl, billed) {
+// the bill, what was dropped and why
+function resolve() {
   if (!seeded) seed();
   const C = core();
   if (!C.resolve) return null;
-  const sy = cl(SY);
-  if (billed) sy.noRoom = noRoom();
   const S = (inGame() && window.GARAGE_SPEC && window.GARAGE_SPEC.get)
-    ? Object.assign({}, window.GARAGE_SPEC.get(), { systems: sy })
-    : { systems: sy };
-  // G2802: the lights the build has FITTED, so the breaker panel carries theirs (the cockpit binds the same list)
-  const P = Pl || (window.CAGE_UI && window.CAGE_UI.P) || null;
-  const lights = P && +P.lightOn ? EXT_LIGHTS.concat(INT_LIGHTS).filter(k => litFitted(P, k)) : [];
-  return C.resolve(S, { lights });
+    ? Object.assign({}, window.GARAGE_SPEC.get(), { systems: cl(SY) })
+    : { systems: cl(SY) };
+  return C.resolve(S);
 }
 
 // the bench remembers its fit across reloads, as the energy panel does; the
@@ -260,8 +224,7 @@ function renderPanel() {
     B.appendChild(el('div', 'r', 'the core (flight_core.js) is not loaded — no catalogue'));
     return;
   }
-  // R: the fit as chosen (the selects); RB: as carried and billed - what the dash had no room for dropped (G2808)
-  const R = resolve(), RB = resolve(null, true) || R;
+  const R = resolve();
 
   // ---- the tier, the units, the side --------------------------------------
   select(B, 'fit', 'a tier presets the list, the electrics and the radios; ' +
@@ -284,11 +247,11 @@ function renderPanel() {
     LOOK_SW, SY.look.sw, v => { SY.look.sw = v; renderPanel(); commit(); });
 
   // ---- the dials -----------------------------------------------------------
-  const dials = fold(B, 'dials · ' + RB.items.length + ' fitted', true);
-  const fitted = new Set(RB.items);
+  const dials = fold(B, 'dials · ' + R.items.length + ' fitted', true);
+  const fitted = new Set(R.items);
   const wanted = new Set(SY.items || (C.TIERS[R.tier].items || C.TIERS.basic.items));
   const dropped = {};
-  for (const d of RB.dropped) dropped[d.key] = d.why;
+  for (const d of R.dropped) dropped[d.key] = d.why;
   for (const k of Object.keys(C.INSTR)) {
     const r = C.INSTR[k];
     const d = row(dials, r.name, (r.note || '') + (r.power !== 'none' ? ' · needs ' +
@@ -320,28 +283,6 @@ function renderPanel() {
       Object.keys(tab).map(q => [q, tab[q].name + (tab[q].kg ? ' · ' + fmtKg(tab[q].kg) + ' · ' + fmtCr(tab[q].price) : '')]),
       R.elec[k], v => { makeCustom(); SY.elec[k] = v; renderPanel(); commit(); });
   }
-  // G2802 (AVIONICS-GPS phase 2): WHAT IS BOLTED IN, AND WHERE - the electrics rows as the parts the aeroplane
-  // carries (genSystemsResolve's parts: the engine bay draws the battery, the generator and the starter from these;
-  // the dash draws the breakers), each at the frame station it is billed on
-  const lay = LAST && LAST.layout;
-  if (R.parts && R.parts.length) {
-    const AT = { firewallLow: 'on the firewall, low (the engine bay)', engine: 'on the engine\'s accessory case',
-                 panel: 'behind the dash' };
-    const inst = row(elec, 'installed', 'each part where the aeroplane carries it, and what it weighs there');
-    inst.appendChild(el('span', 'v', R.parts.length + ' parts'));
-    for (const q of R.parts) {
-      const d = row(elec, '   ' + q.name, AT[q.at] || q.at);
-      d.appendChild(el('span', 'v', fmtKg(q.kg) + ' · ' + (AT[q.at] || q.at)));
-    }
-  }
-  if (R.breakers && R.breakers.length) {
-    const lost = lay && lay.extraOverflow ? lay.extraOverflow.filter(x => /^breaker:/.test(x)) : [];
-    const d = row(elec, 'breakers', 'a push-to-reset breaker per circuit, on the dash: pull one in flight and ' +
-      'what it feeds goes dark; one that pops out was overloaded');
-    d.appendChild(el('span', 'v', RB.breakers.map(b => (CB_LABEL[b.key] || b.key) + ' ' + b.A).join(' · ') +
-      (lost.length ? ' — ' + lost.length + ' with no room on the dash (not fitted, not billed)' : '')));
-    if (lost.length) d.lastChild.style.color = '#e08a5a';
-  }
 
   // ---- the radios -------------------------------------------------------------
   const av = fold(B, 'radios', true);
@@ -353,24 +294,14 @@ function renderPanel() {
         (tab[q].later ? ' — declared, not drawn yet' : '')]),
       R.avionics[k], v => { makeCustom(); SY.avionics[k] = v; renderPanel(); commit(); });
   }
-  // G2803: where the GPS went - on the plate, in its cradle on the glareshield, or nowhere (named, not drawn)
-  if (R.avionics.gps !== 'none') {
-    const lay2 = LAST && LAST.layout;
-    const S = lay2 && lay2.screens ? lay2.screens.find(q => q.k === 'gps') : null;
-    const d = row(av, 'GPS on the dash', 'the moving map: the island, your track, the next waypoint and the ' +
-      'ground speed, alive on the avionics bus behind its breaker');
-    d.appendChild(el('span', 'v', S ? (S.coaming ? 'in a cradle on the glareshield' : 'on the panel, in front of the pilot')
-      : (lay2 ? 'no room on this dash — not fitted, not billed' : '…')));
-    if (lay2 && !S) d.lastChild.style.color = '#e08a5a';
-  }
 
   // ---- the bill ----------------------------------------------------------------
-  const bill = fold(B, 'the bill · ' + fmtKg(RB.kg) + ' · ' + fmtCr(RB.price), false);
+  const bill = fold(B, 'the bill · ' + fmtKg(R.kg) + ' · ' + fmtCr(R.price), false);
   const groups = [['panel', 'instruments'], ['elec', 'electrics'], ['avionics', 'radios']];
   for (const [g, name] of groups) {
-    const rows = RB.rows.filter(r => r.group === g);
+    const rows = R.rows.filter(r => r.group === g);
     if (!rows.length) continue;
-    const sum = RB.bill[g];
+    const sum = R.bill[g];
     const h = row(bill, name, '');
     h.appendChild(el('span', 'v', fmtKg(sum.kg) + ' · ' + fmtCr(sum.price)));
     for (const r of rows) {
@@ -381,13 +312,13 @@ function renderPanel() {
       d.appendChild(el('span', 'v', fmtKg(r.kg) + ' · ' + fmtCr(r.price)));
     }
   }
-  if (RB.dropped.length) {
-    const d = row(bill, 'not fitted', 'items this build cannot feed, or the dash has no room for — they bill nothing');
-    d.appendChild(el('span', 'v', RB.dropped.map(x => (C.INSTR[x.key] ? C.INSTR[x.key].name : x.key) +
+  if (R.dropped.length) {
+    const d = row(bill, 'not fitted', 'items this build cannot feed — they bill nothing');
+    d.appendChild(el('span', 'v', R.dropped.map(x => (C.INSTR[x.key] ? C.INSTR[x.key].name : x.key) +
       ' (' + x.why + ')').join(', ')));
   }
-  if (RB.loads.length) {
-    const amps = RB.loads.reduce((a, l) => a + l.amps, 0);
+  if (R.loads.length) {
+    const amps = R.loads.reduce((a, l) => a + l.amps, 0);
     const d = row(bill, 'bus load', 'the continuous draw of everything fitted, at 12 V');
     d.appendChild(el('span', 'v', amps.toFixed(1) + ' A' +
       (R.altA ? ' of ' + R.altA + ' A' : '') + (R.battAh ? ' · ' + R.battAh + ' Ah' : '')));
@@ -584,9 +515,8 @@ const nrm3 = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / 
 // 'label'`), so the flight rebuilds it through `material('label')`. A
 // tape is a quad a hair off the plate, alpha-tested (ragged tape edges,
 // no sorting); which tape a switch wears is LABEL_OF.
-// (G2808: the taxi light and the flood wear their own words, WORD_OF - the sheet's 'cruise' and 'Dash' named other things)
-const LABEL_OF = { pax: 'Cabin', instr: 'Instr', pedal: 'Feet',
-                   beacon: 'beac', nav: 'pos', land: 'land',
+const LABEL_OF = { pax: 'Cabin', flood: 'Dash', instr: 'Instr', pedal: 'Feet',
+                   beacon: 'beac', nav: 'pos', land: 'land', taxi: 'cruise',
                    master: 'Bat.', alt: 'Alt.', avionics: 'Avionics',        // G318: the second sheet
                    flap: 'Flaps',                                              // G335: the dash switch's tape
                    key: 'OFF/R/L/BOTH' };                                      // G371: the magneto sequence over the key
@@ -719,45 +649,6 @@ function keyTapeMaterial() {
   const sh = labelSheet();
   if (sh && sh.img && !(sh.img.complete && sh.img.naturalWidth)) sh.img.addEventListener('load', paint);
   return keyTapeMat;
-}
-// THE WORDS THE USER'S SHEET HAS NO TAPE FOR (G2808, W6 of the status: the taxi light wore the sheet's 'cruise' - a
-// cruise light is another lamp - and the cabin flood its 'Dash'): written on the blank tile the way the key's OFF / ON
-// is, one tile a word, on ONE material (`panelSet: 'wordtape'`, the reg tape's contract: the join buckets it, the
-// flight rebuilds it through material('wordtape'))
-const WORD_TAPE = ['Taxi', 'Flood'];
-const WORD_OF = { taxi: 'Taxi', flood: 'Flood' };
-let wordTapeMat = null;
-function wordTapeMaterial() {
-  if (wordTapeMat) return wordTapeMat;
-  const n = WORD_TAPE.length;
-  const cv = HAS_DOM ? document.createElement('canvas') : null;
-  if (cv) { cv.width = 512; cv.height = 160 * n; }
-  const tex = cv ? new THREE.CanvasTexture(cv) : null;
-  if (tex) { tex.colorSpace = THREE.SRGBColorSpace; tex.anisotropy = 8; }
-  wordTapeMat = new THREE.MeshStandardMaterial({ map: tex, color: 0xffffff, roughness: 0.92, metalness: 0,
-    transparent: true, alphaTest: 0.02, depthWrite: false, side: THREE.FrontSide });
-  wordTapeMat.userData.aeroskin = 1;
-  wordTapeMat.userData.panelSet = 'wordtape';
-  wordTapeMat.userData.inside = 1;
-  const paint = () => {
-    if (!cv) return;
-    const g = cv.getContext('2d'), sh = labelSheet();
-    if (!g || !g.clearRect) return;
-    g.clearRect(0, 0, 512, 160 * n);
-    const bi = sh ? sh.names.indexOf('blank') : -1;
-    WORD_TAPE.forEach((word, i) => {
-      if (sh && sh.img && sh.img.complete && sh.img.naturalWidth && bi >= 0)
-        g.drawImage(sh.img, 0, bi * sh.h, sh.w, sh.h, 0, i * 160, 512, 160);
-      else { g.fillStyle = '#e6e1d5'; g.fillRect(24, i * 160 + 30, 464, 100); }
-      g.fillStyle = '#1b1b1d'; g.font = `700 76px ${FONT_REG}`; g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.save(); g.translate(256, i * 160 + 84); g.rotate(-0.02); g.fillText(word, 0, 0); g.restore();
-    });
-    if (tex) tex.needsUpdate = true;
-  };
-  paint();
-  const sh = labelSheet();
-  if (sh && sh.img && !(sh.img.complete && sh.img.naturalWidth)) sh.img.addEventListener('load', paint);
-  return wordTapeMat;
 }
 function setReg(text) {
   const t = String(text == null ? '' : text).trim();
@@ -1466,202 +1357,12 @@ function keyAt(parent, x, y, z, pos) {
   return g;
 }
 
-// ---- G2802: THE BREAKERS (AVIONICS-GPS phase 2) -------------------------------------
-// A push-to-reset thermal breaker (a Klixon 7274's size): a plated 9 mm collar on the plate, a black 6 mm button
-// standing out of it with a white band round its foot that shows only when the button is OUT - pulled by the hand
-// or popped by an overload (the bus, 31_elec.js). Law 'switch', k 0, a 4 mm slide on `cb_<key>` (1 = out), its own
-// 7 mm pick pad (the 16 mm pitch would let the generic pad pick the neighbour).
-function breakerAt(parent, x, y, z, key, out) {
-  const K = KIT();
-  const base = K.Bag();
-  K.revolve(base, [x, y, z + 0.0005], [0, 0, -1],
-    [[0.0045, 0], [0.0045, 0.0018], [0.0038, 0.0026], [0, 0.0026]], 24, false);
-  base.mesh(parent, matFor('barrel'));
-  const g = gaugeAt(parent, 'edGauge_cb_' + key, [x, y, z - 0.0026], [0, 0, 1], 'cb_' + key, 'switch',
-    { k: 0, sgn: 1, slide: [0, 0, -0.004], slideDrive: 'cb_' + key, padR: 0.007 });
-  const btn = K.Bag();
-  K.revolve(btn, [0, 0, 0.0040], [0, 0, -1],
-    [[0.0030, 0], [0.0030, 0.0095], [0.0025, 0.0102], [0, 0.0102]], 20, false);
-  btn.mesh(g, matFor('knob'));
-  const band = K.Bag();                               // the white band, inside the collar while the button is in
-  K.revolve(band, [0, 0, 0.0038], [0, 0, -1], [[0.00305, 0], [0.00305, 0.0034], [0, 0.0034]], 20, false);
-  band.mesh(g, matFor('needle'));
-  if (out) g.position.z -= 0.004;
-  return g;
-}
-// the tape over the row: each breaker's name and its rating, on one canvas (`panelSet: 'cbtape'`, the reg tape's
-// contract: one material the join buckets and the flight rebuilds through material('cbtape')), repainted when the
-// row changes. Cells left to right are the row's +x first (the mirror rule: u runs against x).
-const CB_LABEL = { fuel: 'FUEL', volts: 'VOLT', aiE: 'ATT', turn: 'TURN', hobbs: 'HOBBS', com: 'COM', xpdr: 'XPDR',
-                   nav: 'NAV', gps: 'GPS', field: 'ALT FLD', navLt: 'NAV LT', beaconLt: 'BCN', landLt: 'LDG',
-                   taxiLt: 'TAXI', cabinLt: 'CABIN' };
-let cbMat = null, cbCv = null, cbTex = null, cbSig = null;
-function cbTapeMaterial(rows) {
-  if (!cbMat) {
-    cbCv = HAS_DOM ? document.createElement('canvas') : null;
-    if (cbCv) { cbCv.width = 1024; cbCv.height = 96; }
-    cbTex = cbCv ? new THREE.CanvasTexture(cbCv) : null;
-    if (cbTex) { cbTex.colorSpace = THREE.SRGBColorSpace; cbTex.anisotropy = 8; }
-    cbMat = new THREE.MeshStandardMaterial({ map: cbTex, color: 0xffffff, roughness: 0.92, metalness: 0,
-      transparent: true, alphaTest: 0.02, depthWrite: false, side: THREE.FrontSide });
-    cbMat.userData.aeroskin = 1;
-    cbMat.userData.panelSet = 'cbtape';
-    cbMat.userData.inside = 1;
-  }
-  // `rows`: [[{key, A}]] - one band of the canvas per row, the row's cells left to right (+x first)
-  if (rows && cbCv) {
-    const sig = JSON.stringify(rows.map(r => r.map(b => [b.key, b.A])));
-    if (sig !== cbSig) {
-      cbSig = sig;
-      const g = cbCv.getContext('2d');
-      if (g && g.clearRect) {
-        const nMax = Math.max(1, ...rows.map(r => r.length)), cw = Math.min(160, Math.floor(2048 / nMax));
-        cbCv.width = cw * nMax; cbCv.height = 96 * rows.length;
-        g.clearRect(0, 0, cbCv.width, cbCv.height);
-        g.textAlign = 'center'; g.textBaseline = 'middle';
-        rows.forEach((r, ri) => r.forEach((b, i) => {
-          const x0 = i * cw, y0 = ri * 96;
-          g.fillStyle = '#e6e1d5'; g.fillRect(x0 + 4, y0 + 6, cw - 8, 84);
-          g.fillStyle = '#1b1b1d';
-          g.font = `700 ${cw >= 120 ? 26 : 20}px ${FONT_REG}`;
-          g.fillText(CB_LABEL[b.key] || String(b.key).toUpperCase(), x0 + cw / 2, y0 + 32);
-          g.font = `600 30px ${FONT_REG}`;
-          g.fillText(b.A ? String(b.A) : '', x0 + cw / 2, y0 + 68);
-        }));
-        if (cbTex) cbTex.needsUpdate = true;
-      }
-    }
-  }
-  return cbMat;
-}
-// ---- G2803: THE GPS UNIT ------------------------------------------------------------
-// the fitted GPS's face (GEN_AVIONICS.gps[kind].face), or null with none fitted
-function gpsFace(R) {
-  const k = R && R.avionics && R.avionics.gps;
-  const row = k && k !== 'none' && typeof GEN_AVIONICS !== 'undefined' && GEN_AVIONICS.gps[k];
-  return row && row.face ? Object.assign({}, row.face) : null;
-}
-// the screen's material is the moving map's own (src/viewer/gps_face.js: FLYDIY_GPS.material(), one instance the
-// shed, the flight and a parked aeroplane share); a page without it (the bench) gets a dark glass in its place
-let gpsFallback = null;
-function gpsMaterial(aspect, kind) {
-  const G = typeof window !== 'undefined' ? window.FLYDIY_GPS : null;
-  // (the unit stands in the shed off, its name on the glass - app.js puts it back in standby on the way into the
-  // garage; a flight's bind darkens it and the bus lights it; while a flight holds it, this call changes nothing)
-  if (G && typeof G.material === 'function') { const m = G.material(aspect, kind); if (m) return m; }
-  if (!gpsFallback) {
-    gpsFallback = new THREE.MeshStandardMaterial({ color: 0x0b0d10, roughness: 0.25, metalness: 0, side: THREE.FrontSide });
-    gpsFallback.userData.aeroskin = 1; gpsFallback.userData.panelSet = 'gps'; gpsFallback.userData.inside = 1;
-  }
-  return gpsFallback;
-}
-// the unit: a bevelled block 10 mm proud of the plate, its screen one quad 0.3 mm proud of that, and two knobs
-// where the face leaves a margin beside the screen (the pilot's right, -x)
-// G2812 (the user, 27 Oct: "fix the bezel so the screen fills it ... a few generic buttons straight on the GPS ...
-// accurately modelled in 3D, with a professional look"). THE UNIT, round its screen: a housing with rounded corners and
-// a chamfered front edge (bevelBlockInto drew it on its side: its sweep runs the first half-size along y - the 198 mm
-// glass unit stood 198 tall round a 93 mm screen), the screen behind a gloss lip, four SOFTKEYS - generic, their
-// labels painted on the screen at each key (gps_face.js, the same KEYS order) - and on a face with the room, the dual
-// concentric knob on the pilot's right. Cage frame: +x is the pilot's LEFT (the mirror rule), the front is -z.
-// A softkey is a gauge on the `gpskey` law (cockpit.js: a click presses it 1.2 mm in and calls FLYDIY_GPS.key).
-const GPS_KEYS = ['rngDn', 'rngUp', 'orient', 'page'];      // (gps_face.js KEYS: the left-to-right order on the glass)
-// a rounded rectangle, half-sizes hx (x) by hy (y), corner radius rad, in the kit sweep's (u, v) = (y, x) plane
-const roundSect = (hx, hy, rad) => {
-  const o = [], n = 5, r = Math.max(0, Math.min(rad, hx, hy));
-  for (const [cx, cy, a0] of [[hx - r, hy - r, 0], [-hx + r, hy - r, 90], [-hx + r, -hy + r, 180], [hx - r, -hy + r, 270]])
-    for (let i = 0; i <= n; i++) { const a = (a0 + 90 * i / n) * Math.PI / 180; o.push([cy + r * Math.sin(a), cx + r * Math.cos(a)]); }
-  return o;
-};
-// a rounded block standing OUT of its plane (-z) from z0 to z1, its front edge chamfered by ch
-function roundBlockInto(bag, x, y, z0, z1, hx, hy, rad, ch) {
-  KIT().sweep(bag, [[x, y, z0], [x, y, z1 + ch], [x, y, z1]],
-    t => (t > 0.99 ? roundSect(hx - ch, hy - ch, rad - ch * 0.6) : roundSect(hx, hy, rad)), true, [0, 1, 0]);
-}
-// the unit's plan: where the screen, the keys and the knob sit on a face (shared with GATE GPSFACE)
-function gpsPlan(S, keysAt, knob) {
-  const W = S.w, H = S.h, sw = S.sw, sh = S.sh;
-  const m = Math.min(0.007, Math.max(0.003, (H - sh) / 2 - 0.0005));          // the frame round the glass
-  const P = { W, H, sw, sh, m, keys: [], knob: null };
-  if (keysAt === 'left') {
-    const kw = 0.011, colX = W / 2 - m - kw / 2;                                   // a column on the pilot's left
-    P.xs = colX - kw / 2 - 0.004 - sw / 2; P.ys = 0;
-    for (let i = 0; i < GPS_KEYS.length; i++)
-      P.keys.push({ k: GPS_KEYS[i], x: colX, y: sh / 2 - (i + 0.5) * sh / GPS_KEYS.length, hx: kw / 2, hy: Math.min(0.0032, sh / GPS_KEYS.length / 2 - 0.0012) });
-  } else {
-    P.xs = knob ? W / 2 - m - sw / 2 : 0; P.ys = H / 2 - m - sh / 2;            // the screen at the top (left of the knob)
-    const band = (P.ys - sh / 2) + H / 2, yk = -H / 2 + band / 2;               // the band under it
-    const kx = Math.min(0.0062, sw / GPS_KEYS.length / 2 - 0.003), ky = Math.min(0.0034, band / 2 - 0.0022);
-    if (ky > 0.0015)
-      for (let i = 0; i < GPS_KEYS.length; i++)
-        P.keys.push({ k: GPS_KEYS[i], x: P.xs + sw / 2 - (i + 0.5) * sw / GPS_KEYS.length, y: yk, hx: kx, hy: ky });
-  }
-  // the knob: in the margin on the pilot's right (-x) when it is wide enough
-  const right = (P.xs - sw / 2) + W / 2;
-  if (knob && right >= 0.016) P.knob = { x: -W / 2 + right / 2, y: keysAt === 'left' ? 0 : P.ys, r: Math.min(0.0075, right / 2 - 0.003) };
-  return P;
-}
-function gpsUnitAt(parent, S, kind) {
-  const K = KIT();
-  const AV = typeof GEN_AVIONICS !== 'undefined' ? GEN_AVIONICS : null;
-  const face = (AV && AV.gps[kind] && AV.gps[kind].face) || {};
-  const keysAt = S.keys || face.keys || 'below';
-  const P = gpsPlan(S, keysAt, S.knob != null ? !!S.knob : !!face.knob);
-  const zF = -0.010;                                                              // the housing's front
-  // the housing: 10 mm proud, 4 mm corners, a 1.2 mm chamfer round its front
-  const bez = K.Bag();
-  roundBlockInto(bez, 0, 0, 0.0005, zF, P.W / 2, P.H / 2, 0.004, 0.0012);
-  bez.mesh(parent, matFor('hub'));                  // (near-black: the keys and the knob read against it)
-  // the glass's lip: a gloss frame 0.8 mm proud of the housing round the screen
-  const lip = K.Bag(), lw = 0.0016, zl = zF - 0.0004, ez = 0.0004;
-  const hw = P.sw / 2, hh = P.sh / 2;
-  K.boxIn(lip, [P.xs, P.ys + hh + lw / 2, zl], [hw + lw, lw / 2, ez], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
-  K.boxIn(lip, [P.xs, P.ys - hh - lw / 2, zl], [hw + lw, lw / 2, ez], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
-  K.boxIn(lip, [P.xs + hw + lw / 2, P.ys, zl], [lw / 2, hh, ez], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
-  K.boxIn(lip, [P.xs - hw - lw / 2, P.ys, zl], [lw / 2, hh, ez], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
-  lip.mesh(parent, matFor('ball'));
-  // the screen: one quad, flush with the lip's inner edge (u runs against x: the mirror rule)
-  const sb = UVBag(gpsMaterial(P.sw / P.sh, kind)), z = zF - 0.0003;
-  sb.v([P.xs + hw, P.ys - hh, z], [0, 0]); sb.v([P.xs - hw, P.ys - hh, z], [1, 0]);
-  sb.v([P.xs - hw, P.ys + hh, z], [1, 1]); sb.v([P.xs + hw, P.ys + hh, z], [0, 1]);
-  sb.quad(0, 1, 2, 3);
-  sb.mesh(parent, 'edGauge_gps');
-  // THE SOFTKEYS: a rounded cap 2.2 mm proud, its front chamfered, on its own gauge (press: 1.2 mm in, gk_<key>)
-  for (const q of P.keys) {
-    const g = gaugeAt(parent, 'edGauge_gpskey_' + q.k, [q.x, q.y, zF], [0, 0, 1], 'gk_' + q.k, 'gpskey',
-      { k: 0, sgn: 1, slide: [0, 0, 0.0012], slideDrive: 'gk_' + q.k, padR: Math.min(0.008, Math.max(q.hx, q.hy) + 0.002) });
-    const cap = K.Bag();
-    roundBlockInto(cap, 0, 0, 0.0004, -0.0022, q.hx, q.hy, Math.min(q.hx, q.hy) * 0.55, 0.0006);
-    cap.mesh(g, matFor('grip'));
-    // its legend, inlaid white on the cap: - (range down), + (range up), a chevron (north / track up), stacked bars (page)
-    const lg = K.Bag(), zt = -0.0022 - 0.0001, t = 0.00045, s2 = Math.min(q.hx, q.hy) * 0.55;
-    const bar = (cx, cy, hl, a) => { const c = Math.cos(a), sn = Math.sin(a);
-      K.boxIn(lg, [cx, cy, zt], [hl, t, 0.00012], [c, sn, 0], [-sn, c, 0], [0, 0, 1]); };
-    if (q.k === 'rngDn') bar(0, 0, s2, 0);
-    else if (q.k === 'rngUp') { bar(0, 0, s2, 0); bar(0, 0, s2, Math.PI / 2); }
-    else if (q.k === 'orient') { bar(s2 * 0.42, s2 * 0.05, s2 * 0.62, -0.85); bar(-s2 * 0.42, s2 * 0.05, s2 * 0.62, 0.85); }   // a chevron, point up
-    else if (q.k === 'page') { bar(0, s2 * 0.42, s2 * 0.85, 0); bar(0, -s2 * 0.42, s2 * 0.85, 0); }
-    lg.mesh(g, matFor('needle'));
-  }
-  // THE DUAL KNOB: an outer ring with a ridged grip and an inner knob standing out of it, on a collar
-  if (P.knob) {
-    const kb = K.Bag(), r = P.knob.r, x = P.knob.x, y = P.knob.y;
-    K.revolve(kb, [x, y, zF], [0, 0, -1], [[r * 1.12, 0], [r * 1.12, 0.0012], [0, 0.0012]], 28, false);   // the collar
-    kb.mesh(parent, matFor('barrel'));
-    const ko = K.Bag();
-    K.sweep(ko, [[x, y, zF - 0.0012], [x, y, zF - 0.0072]], () => ridgedSect(r, 18, 0.06, 54), true, [0, 1, 0]);
-    ko.mesh(parent, matFor('grip'));                    // the outer ring
-    const ki = K.Bag();
-    K.revolve(ki, [x, y, zF - 0.0072], [0, 0, -1], [[r * 0.62, 0], [r * 0.62, 0.0062], [r * 0.55, 0.0070], [0, 0.0070]], 28, false);
-    ki.mesh(parent, matFor('knob'));                    // the inner knob
-  }
-}
-
 // ---- the build ------------------------------------------------------------------
 const EXT_LIGHTS = ['taxi', 'beacon', 'land', 'nav'];
 const INT_LIGHTS = ['flood', 'instr', 'pedal', 'pax'];
 // G2796: each light fitted on its own (_cage_light.js `li_<k>Fit`, 1 by default)
 const litFitted = (P, k) => !P || P['li_' + k + 'Fit'] == null || !!+P['li_' + k + 'Fit'];
-let LAST = null, fontsWaited = false, extrasSig = null;
+let LAST = null, fontsWaited = false;
 // THE HOLES (G279): [{ g (the dial's group), r }] as built, resolved by
 // `holesIn(parent)` to centres in the parent's frame once the tree stands
 let HOLES = [];
@@ -1678,25 +1379,20 @@ function build(parent, A, P, pilotX) {
   const G = PG(), K = KIT();
   if (!G || !K) return null;
   MOVING = [];
-  const R = resolve(P);
+  const R = resolve();
   if (!R) return null;
   const units = R.units;
-  const radios = ['com', 'xpdr', 'nav'].filter(k => R.avionics[k] !== 'none');   // G2808: the NAV head drawn
+  const radios = ['com', 'xpdr'].filter(k => R.avionics[k] !== 'none');
   const lightsOn = P && +P.lightOn;
   const L = G.layout(A, {
     items: R.items, side: R.side, pilotX, radios,
     elec: { hasBus: R.hasBus, altA: R.altA },
-    avionics: ['com', 'xpdr', 'nav', 'gps'].some(k => R.avionics[k] !== 'none'),   // G2801: the avionics bus's master
     energyKind: R.energyKind,                                 // G442.1: the key's kind (a pack's power key)
     // G2796: a switch only for a light that is FITTED
-    // (G2809: and a battery to feed them - with none the light layer draws no lamp, so no switch either)
-    extLights: lightsOn && +P.lightSw && R.hasBus ? EXT_LIGHTS.filter(k => litFitted(P, k)) : [],
-    intLights: lightsOn && +P.lightSw && R.hasBus ? INT_LIGHTS.filter(k => litFitted(P, k)) : [],
+    extLights: lightsOn && +P.lightSw ? EXT_LIGHTS.filter(k => litFitted(P, k)) : [],
+    intLights: lightsOn && +P.lightSw ? INT_LIGHTS.filter(k => litFitted(P, k)) : [],
     flapSwitch: P && Math.round(+P.flapCtl || 0) === 1,      // G335
     swStyle: (SY.look && SY.look.sw) || 'toggle',             // G371
-    // G2802 / G2803: the breaker row and the GPS unit, placed in what the dials and switches left free
-    breakers: (R.breakers || []).map(b => b.key),
-    screens: gpsFace(R) ? [Object.assign({ k: 'gps', cradle: R.avionics.gps === 'portable' }, gpsFace(R))] : [],
   });
   const grp = new THREE.Group();
   grp.name = 'edPanel';
@@ -1939,21 +1635,13 @@ function build(parent, A, P, pilotX) {
     if (!F) { meshDial(); continue; }
     if (d.k === 'turn') {
       // the aeroplane symbol tilts about +z; the ball sits in its tube
-      // (G2808, E7: with its gauge and hand, so the join bakes the law's stops - without them the symbol never banked)
-      const g = gaugeAt(dg, 'edGauge_turn_plane', [cx, cy, zF - 0.0065], [0, 0, 1], 'r', 'lin', { sgn: 1, k: 1, gauge: 'turn', hand: 'plane', units });
+      const g = gaugeAt(dg, 'edGauge_turn_plane', [cx, cy, zF - 0.0065], [0, 0, 1], 'r', 'lin', { sgn: 1, k: 1 });
       const sb = K.Bag();
       K.boxIn(sb, [0, 0, 0], [r * 0.62, 0.0018, 0.0008], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
       K.boxIn(sb, [0, r * 0.10, 0], [0.0018, r * 0.12, 0.0008], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
       K.boxIn(sb, [0, -r * 0.02, 0], [r * 0.10, r * 0.06, 0.0008], [1, 0, 0], [0, 1, 0], [0, 0, 1]);
       sb.mesh(g, matFor('symbol'));
-      // THE BALL (G2808, E7): it hangs in the painted tube - an arc of 1.05 r about a point 0.55 r over the face's
-      // centre - and swings along it with the sideslip (FACES.slip; it was a fixed disc, drawn above the centre)
-      const gb = gaugeAt(dg, 'edGauge_turn_ball', [cx, cy + r * 0.55, zF - 0.0060], [0, 0, 1], 'beta', 'lin',
-        { sgn: -1, k: 1, gauge: 'slip', hand: 'ball', units });
-      const bb = K.Bag(), rb = r * 0.075, prof = [];
-      for (let i = 0; i <= 8; i++) { const ph = Math.PI * i / 8; prof.push([rb * Math.sin(ph), -rb * Math.cos(ph)]); }
-      K.revolve(bb, [0, -r * 1.05, 0], [0, 0, 1], prof, 14, false);
-      bb.mesh(gb, matFor('hub'));
+      K.revolve(hub, [cx, cy + r * 0.50, zF - 0.0065], [0, 0, 1], [[r * 0.055, -0.001], [r * 0.055, 0.001]], 12, true);
       meshDial(); continue;
     }
     for (const H of F.hands) {
@@ -1968,24 +1656,7 @@ function build(parent, A, P, pilotX) {
       nb.mesh(g, needleAt(g, degH, faceDim(P)));         // lit by the posts (G305)
       g.rotation.z = clockRad(degH);
     }
-    // G2808 (W5): a hand that rides this face on its own scale (the ammeter on the volt / ammeter)
-    let nH = F.hands.length;
-    for (const hk of Object.keys(G.FACES)) {
-      const FX = G.FACES[hk];
-      if (FX.host !== d.k || hk === 'slip') continue;
-      for (const H of FX.hands) {
-        const v0 = rest[H.drive] != null ? rest[H.drive] : 0;
-        const g = gaugeAt(dg, 'edGauge_' + d.k + '_' + hk, [cx, cy, zF - 0.004], [0, 0, 1], H.drive, H.law,
-          { sgn: 1, k: 1, hand: H.name, gauge: hk, units });
-        const nb = K.Bag();
-        needleInto(nb, H, r * 0.86, 0.0025 + 0.0012 * nH);
-        const degH = G.angleOf(hk, H, v0, units, facts);
-        nb.mesh(g, needleAt(g, degH, faceDim(P)));
-        g.rotation.z = clockRad(degH);
-        nH++;
-      }
-    }
-    hubAt(hub, cx, cy, zF - 0.004 - 0.0012 * nH, r * 0.10);   // G442.2: the cap hides the tails
+    hubAt(hub, cx, cy, zF - 0.004 - 0.0012 * F.hands.length, r * 0.10);   // G442.2: the cap hides the tails
     meshDial();
   }
   // ---- the switch row, each on the plate under it
@@ -2033,15 +1704,6 @@ function build(parent, A, P, pilotX) {
       lb.v([w / 2, -h / 2, 0], [0, 0]); lb.v([-w / 2, -h / 2, 0], [1, 0]); lb.v([-w / 2, h / 2, 0], [1, 1]); lb.v([w / 2, h / 2, 0], [0, 1]);
       lb.quad(0, 1, 2, 3);
       const m = lb.mesh(lg, 'edGauge_label'); if (m) m.renderOrder = 3;
-    } else if (WORD_OF[s.k] && sheet && HAS_DOM) {
-      // G2808 (W6): the taxi light's and the flood's own words
-      const lg = new THREE.Group();
-      lg.position.set(0, 0.019, -0.0006);
-      sg.add(lg);
-      const lb = UVBag(wordTapeMaterial());
-      const w = Math.min(0.038, (s.pitch || 0.040) - 0.002), h = w * 160 / 512;
-      labelInto(lb, WORD_TAPE.indexOf(WORD_OF[s.k]), WORD_TAPE.length, 0, 0, 0, w, h);
-      const m = lb.mesh(lg, 'edGauge_label'); if (m) m.renderOrder = 3;
     } else if (li >= 0) {
       const lg = new THREE.Group();
       // G371: the flap switch's tape clears its 44 mm escutcheon; the key's
@@ -2055,51 +1717,6 @@ function build(parent, A, P, pilotX) {
       labelInto(lb, li, sheet.n, 0, 0, 0, w, h);
       const m = lb.mesh(lg, 'edGauge_label'); if (m) m.renderOrder = 3;
     }
-  }
-  // ---- G2802: THE BREAKERS - a push-to-reset button per circuit on the plate, pulled (or tripped) out 4 mm, law
-  // 'switch' with no turn and a slide on `cb_<key>` (the push-pull's contract): the flight's click pulls and
-  // pushes it, the bus opens its loads (31_elec.js). One tape over the row names each and its rating.
-  const cbRows = (L.breakers && L.breakers.rows) || [];
-  for (const b of (L.breakers && L.breakers.row) || []) {
-    const sg = standOn(b.x, b.y, 0.006);
-    sg.name = 'edBreaker_' + b.k;
-    breakerAt(sg, 0, 0, 0, b.k, false);
-  }
-  if (cbRows.length && HAS_DOM) {
-    // ONE canvas for every row (the reg tape's contract: one material): row r's cells are the canvas's band r
-    const all = (L.breakers.row || []).map(b => (R.breakers || []).find(q => q.key === b.k) || { key: b.k, A: 0 });
-    const tm = cbTapeMaterial(cbRows.map(rw => rw.row.map(b => all.find(q => q.key === b.k))));
-    const nMax = Math.max(...cbRows.map(rw => rw.row.length)), nR = cbRows.length;
-    cbRows.forEach((rw, ri) => {
-      const n = rw.row.length, pitch = rw.pitch, h = 0.0095;
-      const xA = rw.row[0].x + pitch / 2, xB = rw.row[n - 1].x - pitch / 2, yT = rw.y + 0.0145;
-      const tg = standOn((xA + xB) / 2, yT, 0.01);
-      const tb = UVBag(tm);
-      const w = xA - xB, u1 = n / nMax, v0 = 1 - (ri + 1) / nR, v1 = 1 - ri / nR;
-      tb.v([w / 2, -h / 2, -0.0004], [0, v0]); tb.v([-w / 2, -h / 2, -0.0004], [u1, v0]);
-      tb.v([-w / 2, h / 2, -0.0004], [u1, v1]); tb.v([w / 2, h / 2, -0.0004], [0, v1]);
-      tb.quad(0, 1, 2, 3);
-      const m = tb.mesh(tg, 'edGauge_cbtape'); if (m) m.renderOrder = 3;
-    });
-  }
-  // ---- G2803: THE GPS - its unit on the plate (a bezel block, two knobs) and its screen, ONE quad on the GPS's own
-  // material (`panelSet: 'gps'`: the join buckets it and the flight's gps_face.js paints the moving map into it)
-  for (const S of (L.screens || [])) {
-    let sg;
-    if (S.coaming) {
-      // the cradle on the glareshield: a foot on the coaming, a short arm, the unit leaning back 12 deg to the eye,
-      // in the panel's own (unrotated) frame like the compass
-      sg = new THREE.Group();
-      sg.position.set(S.cx, S.cy, S.z);
-      sg.rotation.x = 0.21;
-      grp.add(sg);
-      const K = KIT(), foot = K.Bag();
-      bevelBlockInto(foot, S.cx, S.top + 0.003, S.z + 0.02, S.z - 0.02, 0.022, 0.003, 0.001);
-      K.revolve(foot, [S.cx, S.top, S.z + 0.006], [0, 1, 0], [[0.006, 0], [0.006, 0.014], [0, 0.014]], 16, false);
-      foot.mesh(grp, matFor('plate'));
-    } else sg = standOn(S.cx, S.cy, Math.min(S.w, S.h) * 0.4);
-    sg.name = 'edGps';
-    gpsUnitAt(sg, S, R.avionics.gps);
   }
   bowl.mesh(grp, matFor('bowl')); symC.mesh(grp, matFor('needle'));   // pale: the card is black now (G311)
   // THE REGISTRATION TAPE (G318): on the dash's roll above the plate, at
@@ -2126,13 +1743,6 @@ function build(parent, A, P, pilotX) {
         () => { if (facesMat) facesMat.emissiveIntensity = 0; });
   } catch (e) {}
   LAST = { layout: L, faces, slotOf, units, facts, group: grp };
-  // G2802 / G2803: the column says where the GPS and the breakers went (G2808: and which dials found no room - the
-  // bill drops them), which only this build knows - re-render it once when that answer changes (the column renders
-  // before the rebuild a commit triggers)
-  {
-    const xs = JSON.stringify([L.overflow || [], L.extraOverflow || [], (L.screens || []).map(q => [q.k, !!q.coaming])]);
-    if (xs !== extrasSig) { extrasSig = xs; if (panelBody) try { renderPanel(); } catch (e) {} }
-  }
   // THE FONT LANDS AFTER THE FIRST PAINT: the vendored Plex loads async, so
   // the first atlas may be in the fallback face. When the fonts are ready the
   // sheet is painted again in place — same slots, one upload.
@@ -2159,9 +1769,7 @@ window.CAGE_PANEL = {
   build, get moving() { return MOVING; }, MAT,
   material: k => (k === 'faces' ? facesMaterial() : k === 'ao' ? aoMaterial()
                   : k === 'label' ? labelMaterial() : k === 'needle' ? needleMaterial()
-                  : k === 'reg' ? regMaterial() : k === 'keytape' ? keyTapeMaterial()
-                  : k === 'cbtape' ? cbTapeMaterial() : k === 'gps' ? gpsMaterial()            // G2802 / G2803
-                  : k === 'wordtape' ? wordTapeMaterial() : matFor(k)),                          // G2808
+                  : k === 'reg' ? regMaterial() : k === 'keytape' ? keyTapeMaterial() : matFor(k)),
   holes: holesIn,                              // G279: the plate's cut-outs, in a parent's frame
   tape, setReg,                                // G318: a tape for any surface; the registration
   atlas: () => atlasCv, last: () => LAST, faceDim,

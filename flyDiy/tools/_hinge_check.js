@@ -655,9 +655,7 @@ const doorAxisErr = q => {
         const sp = j && (j.spec || j);
         if (!sp || !sp.cage) continue;
         nF++;
-        // a file baked since the rows exist carries them at 0 (ENGCONFIG's example layouts): the old bench hashes it without them
-        const spOld = JSON.parse(JSON.stringify(sp)); for (const k of Object.keys(spOld.cage)) if (/^hgDr[A-Z]/.test(k)) delete spOld.cage[k];
-        check(BE.benchFingerprint(sp, D) === BEold.benchFingerprint(spOld, D) && BE.benchFingerprint(sp) === BEold.benchFingerprint(spOld),
+        check(BE.benchFingerprint(sp, D) === BEold.benchFingerprint(sp, D) && BE.benchFingerprint(sp) === BEold.benchFingerprint(sp),
               'DOOR AXIS: ' + f + ' hashes differently under the new state rows');
       }
       check(nF >= 8, 'DOOR AXIS: too few build files to hold the old hashes on', nF);

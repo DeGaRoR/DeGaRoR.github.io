@@ -427,11 +427,7 @@ function scarRest(R, p, v, world, t, D) {
   if (t - Q.tc < SCAR.restDt) return;
   Q.tc = t;
   let vm = 0; if (v) for (let i = 0; i < R.n; i++) { const s = v[i * 3] * v[i * 3] + v[i * 3 + 1] * v[i * 3 + 1] + v[i * 3 + 2] * v[i * 3 + 2]; if (s > vm) vm = s; }
-  if (Math.sqrt(vm) > SCAR.vRest && t - Q.t0 < SCAR.restMax) { Q.calm = 0; return; }
-  // G2810: AT REST ON TWO READS IN A ROW. One read is an instant: a loose part bouncing or rolling reads near zero at
-  // the bottom of a bounce - the user's Cub 2.5 m out (DMGSCAR 2H) sealed at 7.33 s with a lone node still at ~1.2 m/s,
-  // which came to lie 0.84 m out of its hull (the margin 0.76). The hulls are the page's only (the solver never reads them)
-  if (t - Q.t0 < SCAR.restMax && (Q.calm = (Q.calm || 0) + 1) < 2) return;
+  if (Math.sqrt(vm) > SCAR.vRest && t - Q.t0 < SCAR.restMax) return;
   R.rest = null;
   const H = scarHulls(R, p, world, D), old = R.out.prims, oldH = old.filter(x => x.k === 'h');
   if (!H.length || (oldH.length && H.every(h => { for (let j = 0; j < h.p.length; j += 2) if (!scarIn(oldH, h.p[j], h.p[j + 1], false)) return false; return true; }))) return;
@@ -543,10 +539,7 @@ function scarBox(prims, sweep) {
   for (const c of prims) {
     if (c.k === 'c') { x0 = Math.min(x0, c.x - c.r); x1 = Math.max(x1, c.x + c.r); z0 = Math.min(z0, c.z - c.r); z1 = Math.max(z1, c.z + c.r); continue; }
     if (c.k === 's' && !sweep) continue;
-    // (G2810: a sweep's point at the widest of its legs' widths - scarSweepIn takes each leg at its wider end, so a point's
-    // own width under-boxed a narrow end next to a wide one: the Cub's 2.5 m-out sweep, 4.21 -> 10.62 m, kept a shrub)
-    const wS = (j2) => c.k === 's' && c.ws && c.p.length > 2 ? Math.max(c.ws[j2], j2 > 0 ? c.ws[j2 - 1] : 0, j2 + 1 < c.ws.length ? c.ws[j2 + 1] : 0) : null;
-    for (let j = 0; j < c.p.length; j += 2) { const h = c.k === 'h' ? c.m : (wS(j / 2) ?? (c.ws ? c.ws[j / 2] : c.w)) / 2; x0 = Math.min(x0, c.p[j] - h); x1 = Math.max(x1, c.p[j] + h); z0 = Math.min(z0, c.p[j + 1] - h); z1 = Math.max(z1, c.p[j + 1] + h); }
+    for (let j = 0; j < c.p.length; j += 2) { const h = c.k === 'h' ? c.m : (c.ws ? c.ws[j / 2] : c.w) / 2; x0 = Math.min(x0, c.p[j] - h); x1 = Math.max(x1, c.p[j] + h); z0 = Math.min(z0, c.p[j + 1] - h); z1 = Math.max(z1, c.p[j + 1] + h); }
   }
   return x0 <= x1 ? [x0, z0, x1, z1] : null;
 }
