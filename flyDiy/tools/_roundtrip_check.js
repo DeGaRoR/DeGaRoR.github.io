@@ -14,7 +14,7 @@
 //   world's terrainH), in all and step by step (the steps' rows, FRAMECOST's marks). THE VERDICT:
 //   - the boot ran the world's steps (world .. frames) and the aeroplane's programs in the world's light ('craft');
 //   - the FIRST roll-out after the boot, and the THIRD (no change), run NO step and link NO program;
-//   - the SECOND (a slider moved) runs only the aircraft's steps (snapshot, [bake], spec, craft) - no world step;
+//   - the SECOND (a slider moved) runs only the aircraft's steps (snapshot, [bake], spec, craft, [shedWarm]) - no world step;
 //   - NOTHING TICKS THE WORLD IN THE SHED: over every stretch spent in the shed (after each roll-in, the slider's
 //     rebuild included) the world's update door (WF.worldUpdate), the premises' tick and the world scene's
 //     updateMatrixWorld are counted and must be 0 (and are > 0 in flight: the counters can see) - BUT the hangar view's
@@ -48,7 +48,8 @@ const argv = process.argv.slice(2);
 const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i + 1] : d; };
 
 const newC = () => ({ who: null, obr: 0, oar: 0, obs: 0, mobr: 0, umw: 0, um: 0, frustum: 0, terrainH: 0, grHeight: 0, renders: 0, pick: null });
-const AIRCRAFT = ['snapshot', 'bake', 'spec', 'craft'];
+// (W6b, 2 Nov: shedWarm - the roll-out shot's shadow pass warmed under the craft phase's screen; keyed on the aeroplane, part 'craft')
+const AIRCRAFT = ['snapshot', 'bake', 'spec', 'craft', 'shedWarm'];
 const WORLD = ['world', 'town', 'parking', 'trees', 'ring', 'settle', 'images', 'upload', 'worldCompile', 'frames'];
 // ALLOW - A0's rule (c), 2 Nov: a real cost not fixed today passes ONLY up to the amount measured, named here, in
 // flydiy-notes/PERF-WEEK-KNOWN-ISSUES.md and in the row's detail (ALLOWED ...), for the user to veto. Not a slack: the

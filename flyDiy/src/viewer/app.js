@@ -13613,6 +13613,55 @@
   // update would give them). Under the boot's overlay after the warm draw, and a slice a task during the roll-out shot
   // (every roll-out: a flight that ended far away left the stand's cells dropped). ?revealplant=0: off (the A/B)
   const REVEAL_PLANT_OFF = /[?&]revealplant=0(&|$)/.test((typeof location !== 'undefined' && location.search) || '');   // (the gates' node vm has no location)
+  // W6 (GPS-STALL, A0 2 Nov): THE SHADOW PASS'S FIRST DRAWS, UNDER THE SCREEN. The roll-out's worst task (3.6-5.4 s, the
+  // train gate's) was the first shadow-map render after the reveal: gl.getProgramInfoLog under three's getUniforms <
+  // SM.render - its depth programs linked by compileDepthVariants but first USED there, every warm draw holding the shadow
+  // pass off. This draws one stand-in of every shown caster (a caster off by distance too: userData.mayCast) through
+  // three's own shadow pass (getDepthMaterial: the depth material, its side, its map, the light state - the frame's key)
+  // into a scratch map per light, the main pass overridden by one plain material (warmDrawSliced's shadow: no lit program
+  // linked or drawn for it - G1998's whole-world main-pass warm cost the loader 2-6 s and moved nothing, 27 Oct A/B), the
+  // whole shown world (no frustum: a caster behind the camera casts into the stand), a slice a task.
+  // THEN EVERY PROGRAM'S FIRST USE (G1998b, GAME-MENUS' hand-over profiles, 27 Oct): a program linked under the screen
+  // (COMPLETION_STATUS ready) and never used paid its first use - getProgramInfoLog under getUniforms, 2.0-2.4 s on the
+  // shot -> flight hand-over - on its first frame. getUniforms is three's first use (onFirstUse: the logs, the uniforms'
+  // locations) and a no-op once used: every program the renderer holds, a call a task while the screen is up.
+  // FLYDIY_SHADOW_WARM = { drawn, lights, firstUse: { n, paid, ms } }. ?shadowwarm=0: both off (the A/B)
+  const SHADOW_WARM_OFF = /[?&]shadowwarm=0(&|$)/.test((typeof location !== 'undefined' && location.search) || '');
+  let SHADOW_WARM_LIGHTS = 0;
+  const firstUseSliced = () => new Promise(res => {
+    const progs = (renderer.info && renderer.info.programs ? renderer.info.programs.slice() : []).filter(p => p && typeof p.getUniforms === 'function');
+    let i = 0, paid = 0, ms = 0;
+    const tick = () => {
+      const t0 = performance.now();
+      while (i < progs.length && performance.now() - t0 < 30) {
+        const p = progs[i++], t1 = performance.now();
+        if (p.isReady && !p.isReady()) continue;   // (still linking: programsReady's, not ours - its frame waits as before)
+        try { p.getUniforms(); } catch (e) {}
+        const d = performance.now() - t1; if (d > 1) { paid++; ms += d; }
+      }
+      if (i < progs.length) setTimeout(tick, 0); else res({ n: progs.length, paid, ms: Math.round(ms) });
+    };
+    tick();
+  });
+  const shadowWarm = () => SHADOW_WARM_OFF || !WF ? Promise.resolve(0)
+    : warmDrawSliced(scene, aa && aa.target ? aa.target() : null, 'first light', null, craftInWorldNow, { shadow: true })
+      .catch(e => { console.warn('shadow warm draw:', e && e.message); return 0; })
+      .then(k => firstUseSliced().then(u => { window.FLYDIY_SHADOW_WARM = { drawn: k, lights: SHADOW_WARM_LIGHTS, firstUse: u }; return k; }));
+  // ...AND THE SHOT'S (the craft phase's 'shedWarm' step). GPS-STALL's profile (gps_prof2, 2 Nov) put the 3.6 s on the roll-out
+  // SHOT's first frame (78-96 ms after the screen went), in the SHED: getShaderInfoLog under getUniforms < WebGLShadowMap <
+  // SHED_SHADOW's bake - a caster three levels down (the aeroplane's parts in the dressed shed). The craft's lights shown
+  // re-key every program of the room, depth ones included: compileCraftShed links them, the shot first USED them. Here,
+  // under the craft phase's screen: every link done (programsReady), the shed dressed as the shot dresses it (craftInShed),
+  // its casters through the shadow pass (warmDrawSliced's shadow, the scratch maps: SHED_SHADOW's maps and copies untouched),
+  // then every program's first use. FLYDIY_SHADOW_WARM_SHED = { drawn, lights, firstUse }
+  const shedShadowWarm = () => {
+    const gs = garageScene(); if (!gs) return null;
+    const inS = f => craftInShed(gs, f);
+    return Promise.resolve(craftEarly).then(() => programsReady(30000))
+      .then(() => warmDrawSliced(gs, aa && aa.target ? aa.target() : null, null, null, inS, { shadow: true }))
+      .then(k => firstUseSliced().then(u => { window.FLYDIY_SHADOW_WARM_SHED = { drawn: k, lights: SHADOW_WARM_LIGHTS, firstUse: u }; }))
+      .catch(e => console.warn('shed shadow warm:', e && e.message));
+  };
   // the roll-out stand's heading (its site's stand.hdg: the nose's - the tail, flRevealStart's hdg, is it + pi; checked on
   // the metal Cessna and the Cub at HOME: -1.8656 / 1.2760), null where there is none (the water, a spawn)
   function standHdg() {
@@ -13811,6 +13860,11 @@
       fn: () => { syncApply(tripSync, true); } },
     { id: 'craft', part: 'craft', label: "your aeroplane's shaders", w: 4, key: () => modelId() + '|' + (WF ? 'w' : '-') + '|' + gfxKey(), deps: ['spec'],
       fn: () => compileCraft() },
+    // W6 (GPS-STALL): the roll-out shot's shadow pass, its first draws and every program's first use under this screen
+    // (shedShadowWarm), once per aeroplane and graphics; only where the shot plays. ?shadowwarm=0: off (the A/B)
+    { id: 'shedWarm', part: 'craft', label: "your aeroplane's shaders", w: 2, key: () => modelId() + '|' + gfxKey(), deps: ['craft'],
+      when: () => !SHADOW_WARM_OFF && RA_Q !== '0' && typeof ROLLANIM !== 'undefined' && inGarage && !!WF && typeof renderer.compileAsync === 'function',
+      fn: () => shedShadowWarm() },
     // ---- THE WORLD: built once (the boot), then only what a new stand or new graphics need
     { id: 'world', part: 'world', label: 'laying out the world', w: 20, key: () => WF ? 'built' : null,
       fn: () => { if (PK_ASYNC()) window.PARKED.async = true; return buildWorldSliced(); } },   // G680: a slice a task
@@ -13957,7 +14011,8 @@
         // every program linked, before the first frame draws them (the boot's warm draw from the stand is a first frame too)
         .then(() => typeof renderer.initTexture === 'function' ? uploadSliced(scene, 'frames', 'first light') : null)
         .then(() => shaderProgress(programsReady(30000), 'world', 60000))
-        .then(() => { if (inGarage) return Promise.resolve(worldWarmDraw()).then(cloudsWarm).then(() => revealPlant(120, 0, () => inGarage)).then(() => hviewBoot()); cloudsWarm(); holdRender = false; return framesRendered(2); }));   // (REVEAL-HITCH: the stand's grass; G1998e: the clouds' march; G3630: the view out of the door)
+        .then(() => { if (inGarage) return Promise.resolve(worldWarmDraw()).then(shadowWarm).then(cloudsWarm).then(() => revealPlant(120, 0, () => inGarage)).then(() => hviewBoot());
+          return shadowWarm().then(() => { cloudsWarm(); holdRender = false; return framesRendered(2); }); }));   // (REVEAL-HITCH: the stand's grass; W6: the shadow pass's first draws, every program's first use; G1998e: the clouds' march; G3630: the view out of the door)
     } },
   ];
   const TRIP_BY = {}; for (const s of TRIP_STEPS) TRIP_BY[s.id] = s;
@@ -19140,7 +19195,7 @@
       ? [camera.position.x, camera.position.y, camera.position.z] : cg);
     else if (hangar && garageIsHangar()) {
       hangar.faceShafts(camera);
-      if (hangar.polishFollow) hangar.polishFollow(camera, renderer, hangarScene);   // G3534b: the polish's outside, only from outside
+      if (hangar.polishFollow) hangar.polishFollow(camera, renderer, hangarScene, aa && aa.target ? aa.target() : null);   // G3534b: the polish's outside, only from outside (W6d: compiled for the room's target)
     }
     if (FR) FR.lap(FR.S.world);        // G620: the world's update (its premises, cover ring and fill pushed apart)
     if (CRW.M && !inGarage) crowdTick(rollHold || (typeof window !== 'undefined' && window.FLYDIY_HELD) ? 0 : fdt);   // G2970: the passengers
@@ -19779,7 +19834,13 @@
     const reps = [], seen = new Set(), lights = [];
     // ...and only what the first frame's MAIN pass will draw: the world's visibility contract as the loop applies it
     // (the far quadrants the air hides), the camera's frustum (an object that culls itself in the frame culls here)
-    const vis = (!only && sc === scene && !inGarage && WF && WF.vis) ? WF.vis : null;
+    // SHADOW (wopt.shadow, W6): the shadow pass's draws - the shown CASTERS, the whole scene (neither the vis contract nor
+    // the frustum: the shadow camera's), the pass run in each slice's render on the stand-ins alone (it tests the warm
+    // camera's layers), the main pass drawing them with one plain material (sc.overrideMaterial: the pass ignores it)
+    const shadowW = !!(wopt && wopt.shadow) && !only && !!renderer.shadowMap && renderer.shadowMap.enabled;
+    if (wopt && wopt.shadow && !shadowW) return Promise.resolve(0);
+    const casts = o => o.castShadow || !!(o.userData && o.userData.mayCast);
+    const vis = (!only && !shadowW && sc === scene && !inGarage && WF && WF.vis) ? WF.vis : null;
     const fr = new THREE.Frustum();
     try {
       if (vis) vis.apply(camera);
@@ -19788,9 +19849,17 @@
     const each = o => {
       if (o.isLight) { lights.push(o); return; }
       if (!(o.isMesh || o.isPoints || o.isLine) || !o.material || !o.geometry || !o.geometry.attributes) return;
-      if (!only && o.frustumCulled && !o.isBatchedMesh) { try { if (!fr.intersectsObject(o)) return; } catch (e) {} }
+      if (shadowW && !casts(o)) return;
+      if (!only && !shadowW && o.frustumCulled && !o.isBatchedMesh) { try { if (!fr.intersectsObject(o)) return; } catch (e) {} }
       const g = o.geometry;
-      const gk = Object.keys(g.attributes).join(',') + '|' + Object.keys(g.morphAttributes || {}).join(',') + (g.index ? 'i' : '');
+      // G1998 (HWCOV): THE LAYOUT IS THE FORMAT, NOT THE NAMES. ANGLE (D3D11) builds a draw-time variant per vertex
+      // format - a Float32 normal and an Int8 normalized one are two variants of one program - so the key carries each
+      // attribute's array type, item size and normalized flag (and the index's type): a layout keyed by names alone
+      // warmed one format and left the other to link on the taxi's frame (the cold profile's 2.3 s, Tue 27 Oct)
+      const fmt = a => { const arr = a.isInterleavedBufferAttribute ? a.data.array : a.array;
+        return (arr ? arr.constructor.name.slice(0, 5) : '?') + a.itemSize + (a.normalized ? 'n' : '') + (a.isInterleavedBufferAttribute ? 'x' : ''); };
+      const gk = Object.keys(g.attributes).map(n => n + ':' + fmt(g.attributes[n])).join(',') + '|' + Object.keys(g.morphAttributes || {}).join(',')
+        + (g.index ? 'i' + (g.index.array ? g.index.array.BYTES_PER_ELEMENT : '') : '');
       const ok = (o.isInstancedMesh ? 'I' + (o.instanceColor ? 'c' : '') + (o.morphTexture ? 'm' : '') : '') + (o.isSkinnedMesh ? 'S' : '') + (o.isBatchedMesh ? 'B' : '')
         + (o.isPoints ? 'P' : o.isLine ? 'L' + (o.isLineSegments ? 's' : '') : 'M');
       for (const m of (Array.isArray(o.material) ? o.material : [o.material])) {
@@ -19819,18 +19888,43 @@
       s.matrix = new THREE.Matrix4(); s.matrixWorld = new THREE.Matrix4();
       s.modelViewMatrix = new THREE.Matrix4(); s.normalMatrix = new THREE.Matrix3();
       s.matrixAutoUpdate = false; s.matrixWorldAutoUpdate = false; s.matrixWorldNeedsUpdate = false;
+      if (shadowW) s.castShadow = true;   // (a caster off by distance: its depth program all the same)
       return s;
     };
+    // W6: THE SHADOW PASS INTO SCRATCH MAPS. Each slice hands every shadow light a 4 x 4 map of its own kind (three makes
+    // it on the first slice, as it makes the real one: the same attachments, so the same draw-time variant) and puts the
+    // light's map, size, update flags, matrix and camera back after: the frame's maps and their lookups stay as the last
+    // frame left them (the sun's is drawn on the world's clock, the near one cached - a warm draw into them would stand)
+    const shadowLs = shadowW ? lights.filter(L => L.castShadow && L.shadow && L.shadow.mapSize) : [], scratch = new Map();
+    if (shadowW) SHADOW_WARM_LIGHTS = shadowLs.length;
+    if (shadowW && !shadowLs.length) return Promise.resolve(0);
+    const plain = shadowW ? (warmDrawSliced.plain || (warmDrawSliced.plain = new THREE.MeshBasicMaterial())) : null;
+    const shadowSwap = () => shadowLs.map(L => {
+      const S = L.shadow, C = S.camera;
+      const k = [S.map, S.mapSize.x, S.mapSize.y, S.autoUpdate, S.needsUpdate, S.matrix.clone(),
+        C ? [C.position.clone(), C.quaternion.clone(), C.matrixWorld.clone(), C.matrixWorldInverse.clone(), C.projectionMatrix.clone()] : null];
+      S.map = scratch.get(L) || null; S.mapSize.set(4, 4); S.autoUpdate = true;
+      return k;
+    });
+    const shadowBack = kept => shadowLs.forEach((L, j) => {
+      const S = L.shadow, C = S.camera, k = kept[j];
+      if (S.map) scratch.set(L, S.map);
+      S.map = k[0]; S.mapSize.set(k[1], k[2]); S.autoUpdate = k[3]; S.needsUpdate = k[4]; S.matrix.copy(k[5]);
+      if (C && k[6]) { C.position.copy(k[6][0]); C.quaternion.copy(k[6][1]); C.matrixWorld.copy(k[6][2]); C.matrixWorldInverse.copy(k[6][3]); C.projectionMatrix.copy(k[6][4]); }
+    });
+    const scratchFree = () => { for (const m of scratch.values()) { try { if (m.depthTexture) m.depthTexture.dispose(); m.dispose(); } catch (e) {} } scratch.clear(); };
     const GMAX = wopt && wopt.groupMax ? Math.max(1, Math.min(64, wopt.groupMax | 0)) : 64;
     let i = 0, drawn = 0, G = Math.min(8, GMAX);
     return new Promise(res => {
       const tick = () => D(() => {   // (each slice inside the dress)
         const t0 = performance.now();
         const prevRT = renderer.getRenderTarget(), SM = renderer.shadowMap, au = SM.autoUpdate, nu = SM.needsUpdate;
-        const grp = new THREE.Group();
+        const grp = new THREE.Group(), ov = sc.overrideMaterial;
         for (const L of lights) L.layers.enable(WARM_LAYER);
+        let kept = null;
         try {
-          SM.autoUpdate = false; SM.needsUpdate = false;
+          SM.autoUpdate = shadowW; SM.needsUpdate = false;
+          if (shadowW) { kept = shadowSwap(); sc.overrideMaterial = plain; }
           renderer.setRenderTarget(target || null);
           sc.add(grp);
           // a group of stand-ins a draw (the render walks the whole scene once: the group grows while that is the cost),
@@ -19848,12 +19942,14 @@
         } finally {
           sc.remove(grp);
           for (const L of lights) L.layers.disable(WARM_LAYER);
+          if (kept) { shadowBack(kept); sc.overrideMaterial = ov; }
           SM.autoUpdate = au; SM.needsUpdate = nu;
           renderer.setRenderTarget(prevRT);
         }
         if (typeof BOOT !== 'undefined' && BOOT.phase && label) BOOT.phase('frames', label, reps.length ? i / reps.length : 1);
         if (i < reps.length) { setTimeout(tick, 0); return; }
-        if (window.FLYDIY_LOG_COMPILE) console.log('warm draw: ' + drawn + ' stand-ins of ' + reps.length);
+        scratchFree();
+        if (window.FLYDIY_LOG_COMPILE) console.log('warm draw: ' + drawn + ' stand-ins of ' + reps.length + (shadowW ? ' (shadow pass, ' + shadowLs.length + ' lights)' : ''));
         res(drawn);
       });
       tick();
