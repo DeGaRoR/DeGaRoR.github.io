@@ -1,5 +1,5 @@
 // GENERATED FILE - DO NOT EDIT. Built from src/core/ by tools/build.js.
-// body-sha256: f86d37bcee5f2e89
+// body-sha256: 80851886e79e5872
 // ============================================================
 // CUB FLIGHT CORE — M1
 // node-beam chassis + strip-theory aero + prop + ground
@@ -3420,6 +3420,11 @@ function makeWorld(seed, opts) {
   // premise). Without it every line below is the analytic world, byte for
   // byte (GATE WORLD's goldens).
   const ISL = (opts && opts.island) || null;
+  // THE TEST FIELD (G3790, PHONE-TESTFLIGHT; the user, 27 Oct: "1 building, 1 runway, and some infinite thing"):
+  // opts.flat is the analytic world with every stage subtracted - the ground 0 everywhere, HOME alone (the same strip,
+  // heading and site: its hangar is the one building), no water, no towns or roads, no generated strips, no trees. The
+  // stages below short-circuit on it; without it every line is the analytic world byte for byte (GATE WORLD's goldens)
+  const FLAT = !ISL && !!(opts && opts.flat);
   const BOUNDS = ISL ? { x0: ISL.bounds.x0, z0: ISL.bounds.z0, x1: ISL.bounds.x1, z1: ISL.bounds.z1 }
                      : { x0: -12000, z0: -12000, x1: 12000, z1: 12000 };
   // WHERE THE WORLD STANDS (SKY S1): the island declares its own geo (28_island.js:
@@ -3548,7 +3553,7 @@ function makeWorld(seed, opts) {
     // point of a 1 m grid over the box; GATE GE pins the identity. The island
     // never reaches here (h0 routes it to its raster) and the premises layer
     // composes on top. opts.exactGround keeps the long path for the proof.
-    if (!EXACT_GROUND && x >= -1180 && x <= 130 && z >= -90 && z <= 90) return 0;
+    if (FLAT || (!EXACT_GROUND && x >= -1180 && x <= 130 && z >= -90 && z <= 90)) return 0;
     // IQ-style domain warp (W7): displace the sampling point by two noise
     // channels before the main field — ridges curve, valleys wind, the
     // value-noise blobbiness dies. ⚙ WARP 320 m; the continental masks
@@ -3643,6 +3648,7 @@ function makeWorld(seed, opts) {
   // the island keeps HOME alone - at the field's height; no meadows, no
   // sea lane (the analytic coordinates mean nothing on it)
   if (ISL) { aerodromes.splice(1); aerodromes[0].elev = PADH; }
+  if (FLAT) aerodromes.splice(1);   // (the test field: HOME alone, at 0)
   // an island with premises: the analytic HOME record goes the moment the
   // premises declare one (setPremises below); the shim record stays until then
   // landing meadows: blend terrain toward the height at each meadow centre.
@@ -3703,7 +3709,10 @@ function makeWorld(seed, opts) {
   // the island's water (28_island hydro): 'map' (the default since G2990) the map's lakes, no rivers; 'blend' (G413)
   // the map's lakes and the bake's rivers between them; 'proc' (G405) the analytic bake's lakes and rivers
   const HM = ISL ? ISL.hydro : 'proc';
-  const HYD = bakeHydrology(
+  // (the test field bakes nothing: dry everywhere, no reach, no lake - the bake's own shape, empty)
+  const HYD = FLAT ? { rivers: [], lakeCount: 0, lakeCells: 0, riverCells: 0, segCount: 0, lakeSurf: [],
+    carve: (x, z, h) => h, water: () => -Infinity, riverWater: () => -Infinity, seaAt: () => false, distW: () => 1e9,
+    grids: null, stats: { bakeMs: 0, N: 0, maxAcc: 0, cellW: (BOUNDS.x1 - BOUNDS.x0) / 512 } } : bakeHydrology(
     (x, z) => blendM(x, z, h0(x, z)) + domes(x, z),
     // 24 km domain at 46.9 m cells; A0m2 = physical drainage threshold
     // (river widths/depths are normalized to drainage AREA inside the
@@ -3749,7 +3758,7 @@ function makeWorld(seed, opts) {
   // the stage-1 grids, organic road network grown from the home airfield,
   // bridges across water runs, building footprints. Roads add a shallow
   // grading term to terrainH below.
-  const SET = ISL
+  const SET = ISL || FLAT
     ? { settlements: [], roads: [], buildings: [], roadNear: () => 1e9, roadDelta: (x, z, h) => h,
         inCore: () => false, stats: { bakeMs: 0 } }
     : bakeSettlements({ grids: HYD.grids, terrain: tV1, water: HYD.water, distW: HYD.distW, meadows, salt: SALT });
@@ -3792,13 +3801,13 @@ function makeWorld(seed, opts) {
   // G1253 NO GENERATED STRIPS ON AN ISLAND (QUICK-BYTES): the island never took them (below, and baseH grades none),
   // and its search found none on Jolene - so AERO.surfaceAt / inBox / grade (the biomes' aeroSurf, the trees' box
   // and treeGround) already answered -1 / false / h. The stub says so without the 1 587-candidate scan (14-20 ms)
-  const AERO = ISL
+  const AERO = ISL || FLAT
     ? { strips: [], grade: (x, z, h) => h, surfaceAt: () => -1, inBox: () => false, stats: { bakeMs: 0 } }
     : bakeAerodromes({
       terrain: tV2, water: HYD.water, carved: (x, z) => { tV2(x, z); return _cd; }, settlements: SET.settlements,
       meadows, roadNear: SET.roadNear, SURFACE, salt: SALT, buildings: SET.buildings });
   // the island takes no generated strips (maps first: its field is a premises record)
-  if (!ISL) for (const st of AERO.strips) aerodromes.push(st);
+  if (!ISL && !FLAT) for (const st of AERO.strips) aerodromes.push(st);
 
   // stage 0-4 terrain: the world as the generator makes it
   // THE GROUND'S CEILING OVER A RECTANGLE (PHYSICS PERF 2026-09-24): an upper bound of terrainH at
@@ -4092,7 +4101,7 @@ function makeWorld(seed, opts) {
   // Records {x,z,h,s,sp}: h = GROUND height at base, s scale in the v0
   // envelope (solver radius/canopy formulas unchanged), sp = species.
   const trees = [], CELL = 64, grid = new Map();
-  {
+  if (!FLAT) {   // (the test field stands no tree)
     const GS = 64, G0x = BOUNDS.x0, G0z = BOUNDS.z0;   // ±12000 m (24 km domain, W6): GN 375
     const GNx = Math.ceil((BOUNDS.x1 - BOUNDS.x0) / GS), GNz = Math.ceil((BOUNDS.z1 - BOUNDS.z0) / GS);
     for (let gz = 0; gz < GNz; gz++) for (let gx = 0; gx < GNx; gx++) {
@@ -4372,7 +4381,9 @@ function makeWorld(seed, opts) {
     }
     return SURFACE.GRASS;
   };
-  const surface = ISL ? islandSurface : B.surface;
+  // (the test field: grass, under whatever a strip or a premises surface says there)
+  const flatSurface = (x, z) => { const a = aeroSurfAll(x, z); return a >= 0 ? a : SURFACE.GRASS; };
+  const surface = ISL ? islandSurface : FLAT ? flatSurface : B.surface;
   // G1091: THE TREES' GROUND - the class a tree's placement reads (the fill's FOREST_FLOOR / GRASS test). 'today': the
   // surface, as it was (`sc` the caller's own reading of it). 'map' / 'mapx': a premises surface still answers (an
   // apron, a road, a yard - and in 'mapx' the shoulders), but the registry's strip box past the paving (its
@@ -4589,6 +4600,7 @@ function makeWorld(seed, opts) {
   return {
     // ---- v1 contract (futureDesigns/WORLD-CONTRACT.md) ----
     v: 1, seed: SEED,
+    flat: FLAT,   // G3790: the test field (opts.flat) - the physics worker makes its own with the same switch
     bounds: BOUNDS,
     island: ISL ? { id: ISL.id, canopyAt: ISL.canopyAt, effClass: ISL.effClass, classAt: ISL.classAt, coastAt: ISL.coastAt, seaFloor: ISL.seaFloor,
                     lakeBed: ISL.lakeBed || null, LAKE_BED: ISL.LAKE_BED || null,   // G1335: the carved lakebed (the far terrain's patches take it)
