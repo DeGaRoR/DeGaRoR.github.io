@@ -81,11 +81,24 @@ TECH the standing red.
 The sweeps: `sweep_before.txt`, `sweep_after_steps2-3.txt` (the four XX cells left are step 4's greyed ones, now a
 join error instead of an engine on the nose).
 
-## Borderline cells for the user to decide
+## The user's calls (2 Nov) — applied
 
-1. The dorsal on a SINGLE bare rod (an ultralight's tube): today clamped off (G26.4: "a bare tube has no deck").
-   Offer it too, rooted on the tube like the twin's?
-2. Push-pull with a single boom: greyed (the rear disc sweeps the rod), or offer it with the rod moved under the disc
-   the way the Pusher tile does?
-3. T-tail and V-tail on twin booms: greyed (step 4), or build the Adam A500's stab between the fin tips and the
-   Shadow's inverted V as new garage rows?
+1. **The dorsal on the single bare rod: yes.** The same opt-in row (`finDorsalTube`) on any tube host; saved single
+   rods (Chinook, Birdman, the pusher fixture: `finDorsal 1` stored, never drawn) stay bit-identical. The style tiles
+   carry the DRAWN dorsal on either boom count: the stock's dorsal now rides onto the rod when its Pusher tile is
+   picked (`after/stock_pusher_tile_rod_fitted_below_disc_side.png`).
+2. **Push-pull / pusher on a single rod: move the rod below.** Booms·Single stays live on a rod (greyed only on a
+   lofted body, which has no aft face). A tile that puts an aft engine on a single rod (Pusher, Rod & pod,
+   Booms·Single) arms one fit (`_cage_eng.js` `CAGE_ROD_FIT_NEXT`): the rod goes to the far side of the disc from the
+   hub, 80 mm clear (below by default, above an engine set low), and the layer builds once more; a rod the builder
+   already set clear is left alone. Measured: the stock + Pusher tile, rod −0.34 (inside the disc by 0.30 m — the
+   Pusher tile's own rule never cleared it) → −0.72, clear. The prop check now measures the rod exactly (the sampled
+   rings missed a 12 cm tube): a disc through the rod is a `prop:` error row; every saved single-rod pusher passes.
+   **Left for after PHONE-1b:** a push-pull's rear engine sits on the bulkhead's centre line with a ~1.9 m disc, so
+   the rod at its slider limit (−0.9) still leaves blade through it (the push-pull fixture: 284 mm;
+   `after/pushpull_single_rod_at_limit_side.png`). A lone pusher's fit raises its engine (`engY`) by the rest; a
+   push-pull's `engY` would move the NOSE engine too, and the rear's own height row (`engBlockY`) is what PHONE-1b
+   changes for cowled pushers — so the fit says how much is left ("N mm of blade still reach it: raise the rear
+   engine or shorten the prop") and the bench files it. Once PHONE-1b lands, the fit can raise the rear unit alone.
+3. **T / V on twin booms: no new options now** (the inverted V would need its own undercarriage). They stay greyed
+   (step 4).
