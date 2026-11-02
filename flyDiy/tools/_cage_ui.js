@@ -1972,8 +1972,11 @@ function releaseWhy(built) {
   if (!CH || !CH.on || !CH.cur) return 'no chain';
   if (DEFORMED) return 'a deformed drag';
   // a floatplane: the float layer stands its step on the CG the balance worker answers (FLYDIY_CG_MODEL, G396 - not a
-  // P key, so no record holds it) - PHONE-EDIT-PERF: its release is the plan with the float layer always run (below), no
-  // longer the whole build
+  // P key, so no record holds it) - PHONE-EDIT-PERF: its CG build (buildCg) is the plan with the float layer always run
+  // (below; INSTANT --settled: the same aeroplane as the whole build's). A DRAG's release on a floatplane stays whole
+  // (PHONE-1a, 2 Nov 19:10): on the user's twin the wgSpan release kept the crew layer and its footwell ended 17 cm off
+  // the whole build's (the weathering's uFootA) - a feed the plan does not know yet; PHONE-1b finds it
+  if (RELEASE && !CG_ONLY && +P.gearFloats > 0) return 'a floatplane\'s drag (PHONE-1a)';
   if (built !== LAST_SHEET || !meshObj || built.mesh !== MS) return 'the sheet moved';
   if (PRE_KEY == null || preKey() !== PRE_KEY) return 'a pre-chain row moved';
   // (PHONE-EDIT-PERF: a moved sit - the floats' CG step, the gear - is measured again at the release's start, below, as

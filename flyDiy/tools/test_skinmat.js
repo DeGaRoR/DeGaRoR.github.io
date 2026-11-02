@@ -648,7 +648,8 @@ check(/uWearK:\s*\{\s*value/.test(SRC),
 // holds the module's own rules; these are the hook points.
 check(/function aeroWx\(\) \{ return \(typeof AEROWX !== 'undefined' && !\(typeof window !== 'undefined' && window\.AEROWX_OFF\)\) \? AEROWX : null; \}/.test(SRC),
   'aeroskin does not read the weathering module lazily (a bench without it must run)');
-check((SRC.match(/const W = aeroWx\(\);/g) || []).length >= 2,
+// (PHONE-EDIT-PERF 2 Nov: the phone's material tier reads it the same way, null on the tier: 'lite ? null : aeroWx()')
+check((SRC.match(/const W = (?:(?:lite|aeroLite\(\)) \? null : )?aeroWx\(\);/g) || []).length >= 2,
   'the hooks do not read the module at compile (skin AND glass)');
 check(/AERO_SURFACE_FS \+ \(W \? W\.AERO_WX_SURF_FS : ''\)/.test(SRC),
   'the weathering block is not spliced at the tail of the surface pass');
