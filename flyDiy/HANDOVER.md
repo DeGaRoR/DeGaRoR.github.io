@@ -309791,3 +309791,27 @@ Why: GATE ROUNDTRIP red on master (6 rows: 3 each for the Cub and the Cessna). A
 What changed (tools/_roundtrip_check.js only): ALLOW (each cost's bar, why and PERF-WEEK row, printed in the row's detail as ALLOWED); inView() (a stack test for hviewCapture); the counters' view share (T.attr in the shed's stretches only); the trips child records out.hview (the view made: the 20 000 bar again without it). No page change, no build, no cook.
 Not a slack: each ALLOW is the measured amount, and the old bar comes back the moment its cause is gone. The 1 GB bufferSubData a roll-out is aa_resolve -> renderer.render every frame (~1.6 MB a frame), the same with ?hview=0 and on 28 Oct: not a stall. Node sees the view never whole (stats: faces 0, captures 0), so ROUNDTRIP does not test the finished view.
 Gates: ROUNDTRIP.
+
+## TRAIN L29i (A0, Mon 2 Nov) - master's standing reds: ROUNDTRIP, FRAMECOST, CLOUD, PAVEMENT, DMGSKINGPU, PARKED; the DC-3 taxi; the pilot's G2811 fixed
+
+Landed (all on L29h e6c668dab):
+- ready/roundtrip-fl3 9cf3b170d (GAME-MENUS):
+  - ROUNDTRIP's shed row counts the hangar view's own capture apart (rule b, G3630 L29f);
+  - two ALLOWs, named PERF-WEEK W7 (the view moves the cover ring) and W8 (3 'srgb' links at the first take-off: hangar.js polishFollow compiles with the canvas bound; the fix is in HW-COVERAGE's W6 branch).
+- ready/framecost-green 316d1780a (HW-COVERAGE): the garage flood's lights are prepped once, not twice at boot (G3358's seed prep), so FRAMECOST went from 17 red rows to 5.
+- ready/cloud-row f8fc319f5 (HW-COVERAGE): CLOUD's lamp-pool row reads G2955's filter (rule b).
+- ready/pavement-flake 8f55c621c (SCENERY-ED-2): PAVEMENT's pave-only timing is the best of 5 interleaved pairs at <= 1.10x (the flake under load).
+- ready/dmgskingpu-tol 2b210ee8e (Deform): the late tear's float32 bound is max(0.01 mm, 2x the case's own mirror drift) (rule b).
+- ready/dc3-taxi 9f1d8db60 (Deform, G3480-G3480e): a big-wheeled airframe (RgMin > 13 m: the DC-3 29.2; Cub/Rufus/Jodel/C172 untouched) brakes round turns its wheels can't hold, pivots where the route turns past its wheels, and walks its turns.
+- ready/pilot-g2811 4d8523d5e (Pilot): the GPS cloud session's G2811 (the short-strip pivot, back along the centreline at the mine, the flap-blended trim) + the fix: the blend applies only on ROLL/LIFTOFF/CLIMB, and every arrival flies the landing point. PILOTMATRIX: no cell worse than the baseline.
+- claude/parked-src13 f34ea7abc (cloud): PARKED row 13's source match follows G3585 (rule b).
+
+Battery (21 gates): CLOUD, PILOT, PILOTCANFLY, PILOTACT, TAXICLEAR, LINEUP, ROUTE, ROUTES, PILOTS, PILOTMATRIX, DMGSKINGPU, GFX, ROUNDTRIP, MEDIA, LIGHT, PARKED, PAVEMENT, BUILT, LAZY PASS. Named reds:
+- STOL: the fixture is stale vs master's moved defs (since d7e181f4e); Pilot re-captures it tonight.
+- FRAMECOST 5: boot/garage compile links 5 -> 40 and updateMatrixWorld (cub seed, cessna seed/restore) against the 12 Oct baseline, which is stale. A fresh baseline is taken on the landed tree (HW-COVERAGE).
+
+Timing (light gate, one run): roll-out sum 50.0 s [cub 7.0/0.9, metal 2.2/6.4, c172 13.0/20.4]. Master's spread is 27-48.5 s, and L29h was 58.7 s.
+- Cub garage bench: 23.3 fps, from ONE 2.9 s frame inside the window (p99 33.5 ms, p999 2934 ms). That's W2 (the garage frame after boot, Codex wave 2) at its known size, in 4 of 6 wave-2 runs.
+- WATCH: framecost-green changes the boot's light prep. HW-COVERAGE checks that W2's frame isn't now landing in the garage idle.
+
+Ready refs now landed (for the user's delete list): ready/roundtrip-fl3, framecost-green, cloud-row, pavement-flake, dmgskingpu-tol, dc3-taxi, pilot-g2811, claude/parked-src13.
