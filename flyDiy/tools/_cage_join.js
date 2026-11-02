@@ -51,6 +51,7 @@ const CAGE_JOIN_ENGINES = {
   'continental IO-550': 'io550_hartzell3',
   'lycoming IO-720': 'io720_hartzell3',
   'rotax 915 iS': 'rotax915_carbon',
+  'rotax 916 iS': 'rotax916_carbon',   // FLAGSHIP (2 Nov)
   'Ranger L-440': 'ranger440_wood',
   'Continental W-670': 'w670_hs2b',
   'Jacobs R-755': 'r755_hs2b',

@@ -52,6 +52,7 @@ const ENGINE_SOUND_TABLE = {
   io550_hartzell3:   { cyl: 6,  arch: 'flat',   twoStroke: 0, dispL: 9.05 },
   io720_hartzell3:   { cyl: 8,  arch: 'flat',   twoStroke: 0, dispL: 11.83 },
   rotax915_carbon:   { cyl: 4,  arch: 'flat',   twoStroke: 0, dispL: 1.35 },
+  rotax916_carbon:   { cyl: 4,  arch: 'flat',   twoStroke: 0, dispL: 1.35 },   // the 915's block (1 352 cm3, flyrotax.com)
   ranger440_wood:    { cyl: 6,  arch: 'inline', twoStroke: 0, dispL: 7.23 },
   w670_hs2b:         { cyl: 7,  arch: 'radial', twoStroke: 0, dispL: 10.94 },
   r755_hs2b:         { cyl: 7,  arch: 'radial', twoStroke: 0, dispL: 12.42 },
