@@ -70,8 +70,13 @@ for (const g of ROWS) {
 // from the first click. A birth still seeds the section from the fuselage
 // once (see `sectionFromFace` in PAGE.post), and `fitted` is one click away
 // for a builder who wants the body to keep winning.
+// CABIN-CRAFT (2026-11-02): ROWS ABSENT AT THEIR DEFAULT (the G3570 floor-height rule). The firewall's width by level
+// is NOT in the defaults table: the file states every row the page knows (G377), so a defaulted row would ride into
+// every saved build and move every key the game hashes it by. A build that never moved it carries no key; the row
+// shows its `absent` value, and the generator is handed that value whenever the key is absent (below).
+const ABSENT_AT = { wAftTop: 1, wAftBot: 1 };
 const cowlDef = { cowlOn: 1, fitNose: 2, cowlGap: 0.0 };
-for (const k of SHOWN) cowlDef['cw_' + k] = CW.P[k];
+for (const k of SHOWN) if (!(k in ABSENT_AT)) cowlDef['cw_' + k] = CW.P[k];
 PAGE.defaults = Object.assign(cowlDef, PAGE.defaults || {});
 
 // ---- panel ----------------------------------------------------------------
@@ -101,7 +106,10 @@ const groupItems = g => g.rows
                                                    : r.hi,
                 r.step, rowNames(r)];
     const w = r.when ? panelWhen(r.when) : null;
-    if (w) it.push({ when: w });
+    const o = {};
+    if (w) o.when = w;
+    if (r.k in ABSENT_AT) o.absent = ABSENT_AT[r.k];      // CABIN-CRAFT
+    if (Object.keys(o).length) it.push(o);
     return it;
   });
 
@@ -1134,6 +1142,8 @@ function cowlPlace(ctx, again) {
   for (const k of SHOWN) {
     const v = P['cw_' + k];
     if (v !== undefined && CW.P[k] !== undefined) CW.P[k] = v;
+    // CABIN-CRAFT: an absent row is its default, not the last aeroplane's value (CW.P is one object for every build)
+    else if (v == null && k in ABSENT_AT) CW.P[k] = ABSENT_AT[k];
   }
   // THE AFT SECTION IS THE FIREWALL — its size AND its shape. One section, not
   // two that are asked to agree.

@@ -100,6 +100,10 @@ const COWL_ROWS = [
     { k: 'deckH', label: 'top line height (× half-height)', lo: 0.2, hi: 1.9, step: 0.01 },
     { k: 'keelH', label: 'bottom line depth (× half-height)', lo: 0.2, hi: 1.9, step: 0.01 },
     { k: 'waist', label: 'widest line height (bottom → top)', lo: -0.85, hi: 0.85, step: 0.01 },
+    // CABIN-CRAFT (2026-11-02): the width at the top line and at the bottom line, × the width at the widest line
+    // (`aftW`) - a cabin that tightens at the roof. Absent = 1 (the rounded rectangle); see wAftTop in _cowl_gen.js
+    { k: 'wAftTop', label: 'width at the top line (× widest)', lo: 0.4, hi: 1.3, step: 0.01 },
+    { k: 'wAftBot', label: 'width at the bottom line (× widest)', lo: 0.4, hi: 1.3, step: 0.01 },
     { k: 'sqAftTop', label: 'top half (diamond · round · square)', lo: 0, hi: 1, step: 0.01 },
     { k: 'sqAftBot', label: 'bottom half (diamond · round · square)', lo: 0, hi: 1, step: 0.01 },
   ] },

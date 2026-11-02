@@ -552,6 +552,10 @@ const GATES = [
   // from below" — which has been reported three times, each time by a
   // different KIND of source that no switch could reach.
   { id: 'LIGHT', file: '_light_check.js', tier: 'core' },
+  // CABIN-CRAFT (2026-11-02): WHERE THE CABIN LAMPS SIT - the validated builds, a bubble, a skylight and the user's
+  // twin through the load door: no lamp on, under or beside glass; each on its expected rung (roof / bulkhead /
+  // shoulder) and on that rung's surface
+  { id: 'CABINLAMP', file: '_cabinlamp_check.js', tier: 'core' },
   // EDITOR-BUGS (G2780-G2789, the user's slider review of 10 Oct): the glass centre wears the cabin's glazing, the
   // tundra is a torus, every tail cone has its zone (the mirrored pod's too), the Mosquito's whole-cabin shoulder,
   // and the comment strip the source-scan gates share is a lexer. Seconds.

@@ -309815,3 +309815,96 @@ Timing (light gate, one run): roll-out sum 50.0 s [cub 7.0/0.9, metal 2.2/6.4, c
 - WATCH: framecost-green changes the boot's light prep. HW-COVERAGE checks that W2's frame isn't now landing in the garage idle.
 
 Ready refs now landed (for the user's delete list): ready/roundtrip-fl3, framecost-green, cloud-row, pavement-flake, dmgskingpu-tol, dc3-taxi, pilot-g2811, claude/parked-src13.
+
+## CABIN-CRAFT - THE PUSHER COWL'S SECTION BY LEVEL, THE CABIN LAMPS OFF THE GLASS, A FULLER INTERIOR PROPOSED (2026-11-02, local session for A0; branch claude/cabin-craft off origin/master 53640b390 = L29i)
+The user, designing their flagship (Twin_busher_floats_2, 2 Nov), three asks:
+1. "the 'back cowl' is constrained to a square section. The profile of the cabin here is not really square, it
+   tightens at the top. It would be good to have a control to set the width at the top and bottom (and waist)
+   individually."
+2. "the placement of interior lights remains funny, it probably needs stronger rules; find flat faces, try and stick
+   on the ceiling, but not where there are windows. Never stick on bubble canopies or any sort of glass. Stick to the
+   aft bulkhead if no other option, or into the shoulder."
+3. "If I look at the reference picture, I also find our interior fairly empty." (propose first, with stills)
+
+### 1. THE COWL'S FIREWALL SECTION, WIDTH BY LEVEL
+- WHERE IT WAS SQUARE: the cowl generator's section (tools/_cowl_gen.js sectionAtZ / sectPt) is a superellipse with
+  ONE half-width `aftW` at the widest line and squareness per half: a rounded rectangle, never narrower at the top.
+  The pusher's cowl stands on the pod's aft face (engineFaces mount 1), so on the twin it is the "back cowl". The
+  cage's own frames (frPost*/frCab* Top/Waist/Bot W, roofHalfW) already draw a cabin that tightens at the roof; the
+  cowl could not follow it.
+- THE ROWS (extend the section rows, no parallel system): `cw_wAftTop` / `cw_wAftBot` - 'width at the top line /
+  bottom line (x widest)', 0.4-1.3, in the cowl's 'section at the firewall' group (_cowl_rows.js g_secFire;
+  _cage_parts.js the cowl part's group). The width at the widest line stays `cw_aftW` (the barrel's row; locked to the
+  face in fitted / sealed). The section narrows linearly with height in each half: x = c^e a (1 + (w - 1) v), v the
+  height over the half's depth (sectPt), so a square section gets straight sides from the waist to each line; the
+  implicit (sectF) uses the same half-width at the point's level, so the aperture rims, the scoop trim and the
+  fasteners all see the drawn surface. The factor fades to 1 at the barrel end (like the squareness lerps aft ->
+  front) and rounds out down a nacelle's tail cone.
+- THE BUILDER'S IN EVERY FIT MODE: fitted / sealed fit size + squareness as before and never touch the two rows -
+  fitting them from the face in `fitted` would move every fitted validated build.
+- ABSENT AT THEIR DEFAULT (the G3570 floor-height rule): not in the page's defaults table (`ABSENT_AT` in
+  _cage_cowl.js), the rows show 1 (`absent` opt), a build that never moved them carries no key; CW.P is reset to 1
+  when the key is absent (CW.P is one object for every build - the last aeroplane's value must not leak).
+- WYSIWYG: the flown cowl is the core's derived one (60_gen_spec 4c secAt), not the drawn one - a standing gap for the
+  whole cowl (its aftW / aftH / squareness never reached the core either). The new rows DO reach it: the core reads
+  them off spec.cage (genCowlWidths, 60b_gen_loft.js; genSectW the same rule as sectPt) - the drag build-up wets the
+  cowl's stations with the width faded firewall -> nose (62_gen_aero genFusSwet), the outfit row bills the skin's
+  girth ratio (61_gen_frame cowlM). Absent / 1 = the old path, to the bit. Measured on the twin: top 0.75 -> wetted
+  12.19333 -> 12.16845 m2, volume 2.99832 -> 2.98865 m3, empty 554.0096 -> 553.8976 kg; top 0.6 / bottom 0.9 ->
+  12.14539 m2, 553.7988 kg.
+- Still: evidence-2026-10-18/2026-11-03/cabin-craft/cowl_firewall_section.png (the twin's section at 1/1, top 0.75,
+  top 0.6 + bottom 0.9, over the fuselage's own section just ahead of the aft face: it tightens at the top, between
+  today's square and 0.75).
+
+### 2. THE CABIN LAMPS: CEILING CLEAR OF GLASS -> AFT BULKHEAD -> SHOULDER
+- MEASURED FIRST (tools/_cabinlamp_probe.js, through the load door with the sheet published): on the base tree 11 of
+  21 cabin lamps of the set were on glass or within reach of it - the Jodel's and Rufus's touching the pilot window,
+  both float/skylight Cessnas' touching the sky windows, the bubble's arch lamp touching the windscreen, the twin's
+  flood 7 cm from its pilot window.
+- THE RULE (_cage_light.js sites): `clearOfGlass(p, n, kind)` - no glass vertex within the lamp's radius + 10 cm, no
+  glass face along the surface's outward normal within 0.5 m (the glass of the sheet, CAGE_GLASS_MATS, collected once
+  per build). The ladder, in the user's order: `roofAt` (a ceiling face flat enough - |n.y| >= 0.80, was 0.55 - and
+  clear; over the seat, else the nearest clear one within 0.45 m) -> `bulkheadAt` (the first aft bulkhead behind the
+  seat - the interior's `bulkhead`, or a pusher pod's aft `firewall` - on its cabin face at the seat's own spot (x 0.7
+  of the seat's, two thirds up from the waist: the face holding that point, the point on its plane - face centres put
+  the pilot's and the right seat's lamps in one place), aimed at the lap)
+  -> `shoulderAt` (the sill trim's vertical leg at the head station). A convertible keeps its header first (G296), an
+  open cockpit its coaming; a bubble starts at the bulkhead (G442.3's "aft bulkhead if available"), then the arch only
+  clear of glass, then the shoulder. G296's frame rail (beside a skylight) left the ladder. One lamp per spot: a front
+  and a rear seat on one side asking for the same bulkhead place share one fitting.
+- WHY THE TWIN'S LAMPS LOOKED "FUNNY" (the stills): G296's search took the LOWEST face of the crown band, meaning the
+  liner under the skin - but on a curved roof the lowest face of the band is its FLANK at the window head, so every
+  lamp went to the roof's edge, beside the windscreen's corner or the side window. Now a face is the liner when
+  nothing of the band lies under it within 4 cm across, and of those (flat, clear) the one nearest over the seat wins.
+- AFTER: every lamp of the set clear of glass. Moved (page view): Jodel 21/17 cm, metal Cessna 10/9 cm, Rufus 8 cm,
+  twin floats 33 cm, the twin's four now symmetric over the seats on the flat liner; the float and skylight Cessnas'
+  front-seat lamps (the flood and the right seat's) to the aft bulkhead (no flat ceiling clear of the skylight within
+  0.45 m of the front seats), the bubble's from outside on the turtledeck to its bulkhead.
+- Stills (tools/cabin_stills.js - NEW, dash_stills.js's rasteriser framed on the cabin, with the lamps - node - lamps yellow, glass blue): cabin-craft/CMP_lamps_{twin,jodel,
+  skylight,bubble}_{up,side,q34}.png, before | after.
+- A HEADLESS GAP CLOSED, OPT-IN: the light layer hangs its lamps off CAGE_UI.MS, which the page's build publishes
+  before the layers run and the headless chain never did - every headless cabin lamp missed the roof (no rung found:
+  no lamp). FLYDIY_HEADLESS_MS=1 (tools/_load_build.js -> _scene_headless.js opts.ms) publishes it; opt-in so no other
+  headless drawing (the identity's draw hash, FRAMES) moves.
+- GATE CABINLAMP (tools/_cabinlamp_check.js, core): the six validated builds + a bubble (v8 twin-boom) + a skylight
+  (v10 172) + the user's twin (tools/fixtures/Twin_busher_floats_2.json): no lamp on, under or beside glass; each on
+  its recorded rung and that rung's surface; every pilot has a flood. GATE LIGHT's ladder assertion follows the new
+  ladder and asserts every rung asks clearOfGlass.
+
+### 3. THE CABIN'S UPPER HALF - PROPOSED, NOT CODED
+The user refined it (2 Nov ~20:05, via A0): "we don't need further detail on the dashboard, this one is good. We need
+more detail on the top of the cabin, which is currently a box, and it is seen in pictures. These are mostly flat
+panels. Maybe we can do some texture work in there, plus addition of some details in cabin? Let's really target the top
+half, what you see through windows." evidence-2026-10-18/2026-11-03/cabin-craft/INTERIOR-PROPOSAL.md: today the
+ceiling and the upper walls are one flat liner (role `liner`, the plain `weave` cloth) and the roof carries nothing.
+Proposed first cut: T1 a HEADLINER (the liner's roof faces their own section with a stitched-channel bake - the liner
+pass's matF picks the material per face; 0 tris, +1 material, a flat fallback on the light tier), T2 upper-wall trim
+with joins at the frames, G1 an overhead console that carries the cabin flood; then visors and grab handles
+(HEADRESTS moved to the user's dedicated SEATS session, 2 Nov ~22:00: they are part of the seat). Judged from outside through the glass on the bench (the twin, the Cub, the C172; day and
+dusk) - the GPU look is booked 3 Nov ~10:45-11:00. Nothing coded until the user picks.
+
+### THE IDENTITY PROOF
+tools/newshapes_identity.js, origin/master 53640b390 (a clean copy of the tree) vs this branch: Cub, Jodel, metal
+Cessna, Cessna floats, twin floatplane, Rufus - IDENTITY: ALL IDENTICAL (spec, def, draw, certKey, procureFp, ledger,
+price, sheet, design, mass, nodes, beams, fly20). The page's drawing of the cabin lamps moves by design (above); the
+identity's headless draw has no cabin lamps on either side (the headless gap).
