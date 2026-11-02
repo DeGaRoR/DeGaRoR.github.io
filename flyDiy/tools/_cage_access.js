@@ -53,6 +53,11 @@ const PAGE = window.CAGE_PAGE || (window.CAGE_PAGE = {});
 const CG2 = window.CAGE2, GG = window.GEAR_GEN, K = window.GEAR_KIT;
 let OPEN_BAND = { P: null, v: null };     // G3519: the open cockpits' crown band, once a build
 const SITE = window.FIT_SITE, FG = window.FIT_GEN;
+// PILLAR-ANCHORS: the latch lever's sizes (FIT_GEN.FORMS.handleLever): the escutcheon's length and height, the
+// lever's stand-off, its bar's half-thickness - a light-aircraft outside handle, 115 x 36 mm, 22 mm proud
+const LEVER_SIZE = { w: 0.115, h: 0.036, reach: 0.022, r: 0.006 };
+// the fittings that are ANCHORS (a hand or a foot or a rope pulls on them): on the pillars, these go to a pillar
+const PIL_ANCHORS = new Set(['step', 'grabHandle']);
 if (!SITE || !FG || !K) {
   console.error('cage access layer: fitting modules not loaded');
   return;
@@ -686,6 +691,17 @@ PAGE.post = ctx => {
   let wingF = null, wingTried = false;
   let wingF2 = null, wing2Tried = false;      // G185: the second plane's field
 
+  // PILLAR-ANCHORS (2026-11-02, the user: "Pillars should really be the target for all fixation devices and
+  // anchors"): with `pilSnap` on, the door handle is the latch lever (form 'handleLever'), held to its strip by the
+  // aft edge, and a body fitting whose site lands on a door's panel (measured on _4b: the boarding step and the belly
+  // inspection plate on the pilot door) goes to the nearest pillar at its own height, off every door face
+  const pilOn = Math.round(+P.pilSnap || 0) === 1;
+  const PSm = window.PILLAR_SITE;
+  let PSa = null;
+  if (pilOn && PSm && CG2 && CG2.cageResolve && ctx.spec) {
+    try { PSa = PSm.pillarsOf(mesh, CG2.cageResolve(ctx.spec), FS); } catch (e) { PSa = null; }
+  }
+  const pilMoved = [], pilTaken = [];
   AUTO = {}; AUTO_BUILT = true;
   for (const row of rows) {
     const fam = FAMILY[row.key];
@@ -702,7 +718,9 @@ PAGE.post = ctx => {
     // trap bay is not the cowl's colour, is pixelated and does not bend to
     // the cowl"). One door: the cowl's, whenever the cowl layer is drawn.
     if (row.key === 'oilDoor' && Math.round(P.cowlOn === undefined ? 1 : P.cowlOn)) continue;
-    const form = FG.FORMS[row.form];
+    // PILLAR-ANCHORS: on the pillars, the door handle is the latch lever (FIT_GEN's handleLever)
+    const leverRow = pilOn && row.key === 'doorHandle' && FG.FORMS.handleLever;
+    const form = FG.FORMS[leverRow ? 'handleLever' : row.form];
     if (!form) { if (!row.absent) unplaced.push(row); continue; }
 
     // ONLY THE CAGE IS IN CAGE UNITS. Its field and its vertices both scale by
@@ -744,8 +762,17 @@ PAGE.post = ctx => {
       const edge = Math.round(+P.hgDoorEdge || 0);
       // DOOR-HINGES-2: on the door's SOLID skin (never its glass), lying
       // along the chord; the frame beside it when the door has no room
-      sites = recs.map(r => SITE.doorHandleSite(r, { edge, inset: 0.06 / FS, dSL: dSL / FS, dLV: dLV,
-                                                    mesh, FS, size: row.size })).filter(Boolean);
+      // PILLAR-ANCHORS: THE HANDLE BY THE LATCH. On the pillars, the handle is a lever by the door's latch edge (the
+      // edge it shuts against the pillar on): its near end 25 mm in from that edge, at the waist, and the two nudges
+      // HELD to the latch strip - 0..0.10 m further in along the chord, +-0.15 m up or down - so no nudge walks it
+      // into the middle of the panel; the search under it still keeps it off the glass
+      const lever = pilOn;
+      const dSLh = lever ? Math.max(0, Math.min(0.10, dSL)) : dSL, dLVh = lever ? Math.max(-0.15, Math.min(0.15, dLV)) : dLV;
+      sites = recs.map(r => SITE.doorHandleSite(r, { edge, inset: (lever ? 0.025 : 0.06) / FS, dSL: dSLh / FS, dLV: dLVh,
+                                                    mesh, FS, size: lever ? LEVER_SIZE : row.size })).filter(Boolean)
+        // which way along the chord the latch is: the site lies `along` the chord, +z (forward); the latch is the
+        // edge opposite the hinges - aft (-) for a forward-hung door, forward (+) for an aft-hung one
+        .map(st => Object.assign(st, { latch: edge === 2 ? 1 : -1 }));
     } else if (row.on === 'boom') {
       const want = typeof row.side === 'function' ? row.side(R) : row.side;
       sites = boomSites(row, P, R, atSL, atLV, bagsFor, want || 'both');
@@ -903,6 +930,38 @@ PAGE.post = ctx => {
       const hl = ((+sz.w || 0.13) * 0.5 + 2 * r + 0.006) / K2, hh = (2 * r + 0.006) / K2;
       sites = sites.map(s => SITE.handleOffGlass(mesh, s, { FS: K2, hl, hh, along: [0, 1, 0] })).filter(Boolean);
     }
+    // PILLAR-ANCHORS: OFF THE DOORS, ONTO THE PILLARS (above). The pillar nearest the site's station, at the
+    // site's own height, its footprint's centre column wholly on skin that is not a door's; no pillar within reach
+    // (0.8 m) or no clear skin on it: the site stays, and the door-swing check reports it
+    if (PSa && row.on === 'body' && !byHand && SITE.pillarSite) {
+      const sz = row.size || {};
+      const hl = (Math.max(+sz.w || 0, (+sz.r || 0) * 2, 0.04) * 0.5) / K2;
+      const hh = (Math.max(+sz.h || 0, (+sz.w || 0) * 0.5, (+sz.r || 0) * 2, 0.04) * 0.5) / K2;
+      const anchor = PIL_ANCHORS.has(row.key) || /^tieDown|^strap|^grab/.test(row.key);
+      sites = sites.map(s => {
+        const pm = [s.p[0] * K2, s.p[1] * K2, s.p[2] * K2];
+        if (!PSm.inDoor(PSa, pm, 0.02, { panelOnly: true })) return s;
+        const sgn = pm[0] >= 0 ? 1 : -1;
+        // not on another fitting already moved there (cage units, this flank)
+        // ...and never forward of the firewall (the sheet runs on under the cowling there)
+        const zFwC = PSa.zFw != null ? (PSa.zFw - 0.05) / K2 : Infinity;
+        const avoid = (z, y) => z + hl > zFwC ||
+          pilTaken.some(t => t.sgn === sgn && Math.abs(t.z - z) < t.hl + hl + 0.01 / K2 && Math.abs(t.y - y) < t.hh + hh + 0.01 / K2);
+        const take = (q, why) => { pilTaken.push({ sgn, z: q.p[2], y: q.p[1], hl, hh }); pilMoved.push(row.key + '>' + why); return Object.assign({}, s, { p: q.p, n: q.n, pillar: why }); };
+        // AN ANCHOR (a step, a grab, a tie-down, a strap) goes to a PILLAR: the nearest by station with clear skin
+        // at the site's own height. Anything else (an inspection plate, a port) only has to come OFF the door: the
+        // nearest skin that is not a door's, under the sill first
+        if (anchor) {
+          const dz = pl => pm[2] < pl.z0 ? pl.z0 - pm[2] : pm[2] > pl.z1 ? pm[2] - pl.z1 : 0;
+          for (const pl of PSa.pillars.filter(pl => dz(pl) <= 0.8).sort((a, b) => dz(a) - dz(b))) {
+            const q = SITE.pillarSite(mesh, sgn, pl.z0 / K2, pl.z1 / K2, pm[1] / K2, hl, hh, { FS: K2, avoid });
+            if (q) return take(q, pl.key);
+          }
+        }
+        const q = SITE.clearSite && SITE.clearSite(mesh, sgn, pm[2] / K2, pm[1] / K2, hl, hh, { FS: K2, avoid, reach: 0.4 });
+        return q ? take(q, 'off') : s;
+      });
+    }
     // FITTINGS-MANUAL: the auto site recorded, then the hand's
     AUTO[row.key] = autoOf(row, kind, sites, atSL0, mesh, K2);
     if (byHand && kind !== 'rod' && kind !== 'boom') {
@@ -1004,7 +1063,7 @@ PAGE.post = ctx => {
       // merged bags, so the range every form wrote is recorded with the site
       const B = bagsFor(s.host);
       const t0 = {}; for (const k of FG.FIT_BAGS) t0[k] = B[k].tris;
-      try { form(B, F, row.size || {}, { surf, pitch }); }
+      try { form(B, F, (leverRow ? LEVER_SIZE : row.size) || {}, { surf, pitch, latch: s.latch }); }
       catch (e) { unplaced.push(row); continue; }
       nFit++;
       const tris = {}; for (const k of FG.FIT_BAGS) tris[k] = [t0[k], B[k].tris];
@@ -1040,9 +1099,10 @@ PAGE.post = ctx => {
   scene.add(group);
 
   // (rows: what this aeroplane needs plus what a hand placed - the table rows only looked up are not in it)
-  window.CAGE_ACCESS = { needs: R, rows: rows.filter(r => !r.absent || placed.some(q => q.key === r.key)), placed, unplaced, tris, auto: AUTO };
+  window.CAGE_ACCESS = { pilMoved: [...new Set(pilMoved)], needs: R, rows: rows.filter(r => !r.absent || placed.some(q => q.key === r.key)), placed, unplaced, tris, auto: AUTO };
   if (stat)
     stat.textContent += '  ·  fittings: ' + nFit + ' (' + tris + ' t)' +
-      (unplaced.length ? ' · ' + unplaced.length + ' unplaced' : '');
+      (unplaced.length ? ' · ' + unplaced.length + ' unplaced' : '') +
+      (pilMoved.length ? ' · off the doors onto the pillars: ' + [...new Set(pilMoved)].join(', ') : '');
 };
 })();

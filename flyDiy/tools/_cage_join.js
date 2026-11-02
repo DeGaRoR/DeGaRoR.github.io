@@ -1394,6 +1394,16 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
           if (!fwOk) NOTES.push('floats: no firewall anchor — the step station keeps the rule');
         }
       }
+      // PILLAR-ANCHORS (2026-11-02): THE DOOR-SWING CHECK'S ANSWER, a note per door that is RED (under 20 mm of
+      // clearance somewhere in its 0-90 deg swing). The sweep is ~1 s a door, so the join never runs it (export is
+      // called on every preview): it reads the last answer the editor's idle pass left (_cage_hinge.js) when it is
+      // this build's, and says nothing otherwise. A note, not an error: the build flies either way - the user decides
+      // per build what moves (STATUS of PILLAR-ANCHORS)
+      {
+        const DS = window.CAGE_DOORSWING, PSm = window.PILLAR_SITE;
+        if (DS && DS.last && DS.P === P && PSm)
+          for (const d of DS.last.doors) if (d.red) NOTES.push('door swing: ' + PSm.swingLine(d) + ' — under ' + DS.last.redMM + ' mm');
+      }
       // THE ENGINES' STATIONS (2026-09-04): each drawn unit's mount point,
       // model frame — x aft of the firewall, y over the cabin keel, z lateral
       {

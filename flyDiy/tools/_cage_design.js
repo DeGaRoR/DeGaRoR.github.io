@@ -2977,7 +2977,9 @@ function designFull(sel, over) {
   const C2 = W.CAGE2 || ((typeof CAGE2 !== 'undefined') ? CAGE2 : null);
   const PG = W.CAGE_PAGE || ((typeof CAGE_PAGE !== 'undefined') ? CAGE_PAGE : null);
   if (!C2 || !C2.cageToSpec) throw new Error('CAGE2 not loaded');
-  const base = Object.assign(C2.cageDefaults(), (PG && PG.defaults) || {});
+  // PILLAR-ANCHORS (2026-11-02): A CARD BORN HERE STANDS ITS ANCHORS ON THE PILLARS - the default for a new
+  // placement (the row's own default stays 0: a saved build is never moved by opening it)
+  const base = Object.assign(C2.cageDefaults(), (PG && PG.defaults) || {}, { pilSnap: 1 });
   const { cage, spec, missing } = designApply(base, sel);
   if (missing.length) throw new Error('unresolved: ' + missing.join(', '));
   const stock = over && over.stock ? designStock(over.stock) : null;

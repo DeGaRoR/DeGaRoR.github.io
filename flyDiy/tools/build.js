@@ -730,7 +730,7 @@ const MANIFEST = {
     '_gear_kit.js', '_gear_gen.js', '_gear_page.js',
     // THE FITTINGS (G81-G84), the reading and drawing halves. Pure modules
     // with no post hook, so they only have to be loaded before the layer.
-    '_fit_site.js', '_fit_gen.js',
+    '_fit_site.js', '_pillar_site.js', '_fit_gen.js',   // PILLAR-ANCHORS: the pillars and the doors, one record
     // THE HINGE SHAPES (G238): the same table/placer/shapes split, over
     // GEAR_KIT. Pure module, no post hook — only has to be before the layer.
     '_hinge_gen.js',

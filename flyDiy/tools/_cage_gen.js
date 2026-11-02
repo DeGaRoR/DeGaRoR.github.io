@@ -7959,7 +7959,7 @@ const CAGE_OPEN_ROWS = ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4'
   'openCut', 'openFore', 'openAft', 'openRim', 'openScreen', 'openScreenH', 'openScreenRake'];
 // G3515: a layer row that is ABSENT at 0 the same way (the rear-pilot seat): a
 // build that never set it keeps every key it had
-const CAGE_ZERO_ABSENT = ['pilotRear'];
+const CAGE_ZERO_ABSENT = ['pilotRear', 'pilSnap'];   // PILLAR-ANCHORS: the pillar snap, likewise
 const cageAnyOpen = P => !!P && ['cpOpen', 'paxOpen1', 'paxOpen2', 'paxOpen3', 'paxOpen4']
   .some(k => Math.round(+P[k] || 0) > 0);
 function cageToSpec(P) {

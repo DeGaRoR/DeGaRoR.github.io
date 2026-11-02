@@ -350,6 +350,7 @@ function surfaceList(scene, P, FS, mesh) {
       const liftH = 0.002;
       const A = V.add(P0, V.mul(m, need + liftH)), B = V.add(P1, V.mul(m, need + liftH));
       out.push({ key: 'door_' + rec.key.replace(':', '_') + sfx, kind: 'door', obj: null, host: null,
+                 door: rec.key, part: sfx === '_top' ? 'up' : sfx === '_bot' ? 'lo' : 'all',   // PILLAR-ANCHORS: the swing's axis
                  A, B, r: rBar, aft: into, face: m, faces: 1, slide: null,
                  chord: V.len(V.sub(omid, mid)) * FS, flat: 1,
                  inset: +P.hgDrInset || 0 });
@@ -1114,10 +1115,44 @@ PAGE.post = ctx => {
 
   window.CAGE_HINGE = { placed, tris, surfs: surfs.map(s => s.key), hostOf,
     links: links.map(L => ({ key: L.key, surf: L.surf, kind: L.kind,
-                             pin: L.pin, tip: L.tip, pinCastor: !!L.pinCastor })) };
+                             pin: L.pin, tip: L.tip, pinCastor: !!L.pinCastor })),
+    // PILLAR-ANCHORS: each door's hinge line as the barrels sit on it (metres, the cage frame) - the axis the
+    // door-swing check turns the door about (one line, the one drawn)
+    doors: surfs.filter(s => s.kind === 'door' && s.door).map(s => ({ door: s.door, part: s.part, A: s.A.slice(), B: s.B.slice() })) };
   if (stat)
     stat.textContent += '  ·  hinges: ' + placed.reduce((a, p) => a + p.n, 0) +
       ' on ' + placed.length + ' surfaces (' + tris + ' t)';
+  doorSwingSchedule(ctx, FS);
 };
+
+// PILLAR-ANCHORS (2026-11-02): THE DOOR-SWING CHECK, in the editor. A door is a zone with hinges drawn on one edge
+// and nothing opened it; the user's twin's doors hit the float strut and scraped the lift strut's foot and nobody
+// could see it. PILLAR_SITE.doorSwingReport turns every door 0 -> 90 deg about the line drawn above against every
+// drawn layer (~1 s a door), so it runs when the hand has stopped (an idle callback after the build, dropped when a
+// newer build supersedes it), appends its answer to the status line and leaves it on CAGE_DOORSWING for the join's
+// notes. A page without idle callbacks (node: the gates, the load door) never schedules it - they call the report.
+let swingTok = 0;
+function doorSwingSchedule(ctx, FS) {
+  const tok = ++swingTok;
+  window.CAGE_DOORSWING = { tok, last: null, P: ctx.P };
+  const PSm = window.PILLAR_SITE;
+  if (!PSm || !PSm.doorSwingReport || typeof window.requestIdleCallback !== 'function' || !ctx.mesh) return;
+  const { scene, mesh, P, stat, spec } = ctx;
+  window.requestIdleCallback(() => {
+    if (tok !== swingTok) return;
+    try {
+      const R = CG2 && CG2.cageResolve ? CG2.cageResolve(spec || CG2.cageSpec(Object.assign({}, P))) : null;
+      const rep = PSm.doorSwingReport(THREE, scene, mesh, R, FS,
+        { edge: Math.round(+P.hgDoorEdge || 0), hinges: window.CAGE_HINGE && window.CAGE_HINGE.doors });
+      if (tok !== swingTok) return;
+      window.CAGE_DOORSWING.last = rep;
+      if (stat && rep.doors.length) {
+        const w = rep.worst;
+        stat.textContent += '  ·  doors: ' + (rep.red ? 'SWING RED ' : 'swing ok, least ') + PSm.swingLine(w) +
+          (rep.red ? ' — under ' + rep.redMM + ' mm' : '');
+      }
+    } catch (e) {}
+  }, { timeout: 4000 });
+}
 
 })();

@@ -426,6 +426,53 @@ const FORMS = {
     sweep(bags.metal, resample(path, 26), () => secRound(r, 9), true, F.n);
   },
 
+  // PILLAR-ANCHORS (2026-11-02, the user: the handles "are also modeled poorly"): THE DOOR'S LATCH LEVER. What a
+  // light aeroplane's door wears outside is not a grab rail (the 115 mm U the table's doorHandle was) but a short
+  // lever lying flush along the chord over an escutcheon: pivoted at the end AWAY from the latch, its grip at the
+  // latch end turned out a finger's depth, so the hand that pulls it pulls the door off the pillar it shuts on.
+  // S { w the escutcheon's length, h its height, reach the grip's stand-off, r the lever's half-thickness };
+  // ctx.latch +1 / -1: which way along F.side the latch edge lies. ~230 triangles (the U it replaces drew 320).
+  handleLever(bags, F, S, ctx) {
+    const L = S.w || 0.115, H = S.h || 0.036, reach = S.reach || 0.022, r = S.r || 0.006;
+    const lt = (ctx && ctx.latch) || 1;
+    // the escutcheon: a rounded-rectangle pad on the site's tangent plane (NOT the conforming surface: its (u, v) are
+    // round-the-section and along-the-body, and this frame is turned along the door's chord - the pad stood upright
+    // across the window's sill, GATE HANDLE; the access layer lifts the frame by the skin's rise under the
+    // footprint, so the pad's foot never sinks), its face a chamfer in, a fan on top - 48 triangles where
+    // plateInto's grid is ~200
+    {
+      const rc = H * 0.40, t = 0.0022, out = [];
+      const corner = (cu, cv, a0) => { for (let k = 0; k <= 3; k++) { const a = a0 + k * Math.PI / 6;
+        out.push([cu + rc * Math.cos(a), cv + rc * Math.sin(a)]); } };
+      const hu = L / 2 - rc, hv = H / 2 - rc;
+      corner(hu, hv, 0); corner(-hu, hv, Math.PI / 2); corner(-hu, -hv, Math.PI); corner(hu, -hv, 1.5 * Math.PI);
+      const foot = ([u, v]) => at(F, u, v, 0);
+      const b = bags.metal, n0 = out.length;
+      const lo = out.map(uv => b.v(foot(uv)));
+      const ins = 0.82;
+      const topS = out.map(([u, v]) => b.v(off(foot([u * ins, v * ins]), F.n, t)));
+      const topC = out.map(([u, v]) => b.v(off(foot([u * ins, v * ins]), F.n, t)));
+      for (let i = 0; i < n0; i++) { const j = (i + 1) % n0; b.quad(lo[i], lo[j], topS[j], topS[i]); }
+      const c = b.v(off(foot([0, 0]), F.n, t));
+      for (let i = 0; i < n0; i++) b.tri(c, topC[i], topC[(i + 1) % n0]);
+    }
+    const uP = -lt * L * 0.33, uG = lt * L * 0.36;
+    // the pivot boss
+    revolve(bags.metal, at(F, uP, 0, 0.0018), F.n,
+      [[r * 1.7, 0.0], [r * 1.7, reach * 0.45], [r * 1.15, reach * 0.62]], 8, true);
+    // the lever: up off the boss, along the chord to the latch end, the grip's lip turned back toward the skin
+    const path = fillet([
+      at(F, uP, 0, reach * 0.55),
+      at(F, uP + lt * L * 0.16, 0, reach * 0.86),
+      at(F, uG, 0, reach),
+      at(F, uG + lt * L * 0.09, 0, reach * 0.58),
+    ], r * 1.4, 2);
+    sweep(bags.metal, resample(path, 9), () => secRound(r, 6), true, F.n);
+    // the lock barrel, on the escutcheon between the boss and the grip
+    revolve(bags.metal, at(F, uP + lt * L * 0.30, 0, 0.0018), F.n,
+      [[r * 0.95, 0.0], [r * 0.95, 0.0035]], 6, true);
+  },
+
   // the tie-down ring: the boss, and the ring hanging out of it. A tie-down
   // that is a solid loop is a tie-down nobody can get a rope through.
   ringTiedown(bags, F, S) {
