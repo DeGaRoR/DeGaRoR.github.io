@@ -904,7 +904,9 @@ const GEN_ACCESS = {
     // build in the battery.
     at: () => ({ sL: -0.35, lv: 'crown' }),
     snap: 'bay', side: 'centre',
-    form: 'capProud', size: { d: 0.075, h: 0.014 },
+    // G2808 (E8): with a fuel sight gauge fitted, its wire stands up through the cap (_fit_gen.js capSight)
+    form: R => (Array.isArray(R.items) && R.items.includes('fuelSight')) ? 'capSight' : 'capProud',
+    size: { d: 0.075, h: 0.014, wire: 0.11 },
   },
   fuelCapWing: {
     name: 'Wing filler cap',
@@ -1068,7 +1070,9 @@ const GEN_ACCESS = {
   staticPort: {
     name: 'Static port',
     serves: 'the altimeter, the ASI and the VSI',
-    need: R => R.systems === 'minimal' ? 0 : 2,
+    // G2808: wherever an instrument reads the static line (the items as fitted), else the tier's answer
+    need: R => Array.isArray(R.items) ? (R.items.some(k => k === 'asi' || k === 'alt' || k === 'vsi') ? 2 : 0)
+                                      : (R.systems === 'minimal' ? 0 : 2),
     // aft of the cabin, on the flank at waist height: the flattest and least
     // disturbed piece of skin an aeroplane has
     at: R => ({ sL: R.cabinAft + 0.30, lv: 1.85 }),
@@ -1079,7 +1083,10 @@ const GEN_ACCESS = {
     name: 'Venturi',
     serves: 'the vacuum for the turn indicator, on an aeroplane with no'
           + ' engine-driven pump',
-    need: R => (R.systems === 'basic' && (R.material === 'tubeFabric' || R.material === 'aluTube')) ? 1 : 0,
+    // G2808 (E5): drawn where the fit's suction IS a venturi (billed on the build: systems.elec.vac), on any
+    // airframe - it followed the tier's NAME and the tube airframes, so a custom fit with one drew none
+    need: R => (R.vac !== undefined ? R.vac === 'venturi'
+                : (R.systems === 'basic' && (R.material === 'tubeFabric' || R.material === 'aluTube'))) ? 1 : 0,
     at: () => ({ sL: 0.34, lv: 1.45 }),
     snap: 'ring', side: 'port',
     form: 'venturi', size: { d: 0.058, len: 0.190, stand: 0.070 },
@@ -1170,7 +1177,9 @@ const GEN_ACCESS = {
     // an aeroplane with no fin to carry one (a V-tail), and the rod boom
     // keeps its clamped one (G189, GATE FIT's row); the crown placer now
     // refuses the fin's footprint as well, for every crown row.
-    need: R => R.systems === 'minimal' ? 0 : R.booms ? 0 : R.rod ? 1 : R.fin ? 0 : 1,
+    // G2809 (E9): only where a beacon IS fitted - the lights on, the beacon among them and a battery behind it
+    // (R.beaconLamp; unknown on a spec with no drawing: the rule as before) - and billed and loaded as that lamp
+    need: R => R.beaconLamp === false ? 0 : R.systems === 'minimal' ? 0 : R.booms ? 0 : R.rod ? 1 : R.fin ? 0 : 1,
     // 'free', not 'ring'. A beacon is a small light on its own doubler and
     // does not bolt through a frame, and snapping it to one put it on the
     // same station as the comm aerial — two fittings in one place, which
@@ -1302,6 +1311,11 @@ function genAccessNeeds(S) {
     avionics:  (() => { const r = genSystemsResolve(S);
                         return { com: r.avionics.com !== 'none', nav: r.avionics.nav !== 'none',
                                  xpdr: r.avionics.xpdr !== 'none' }; })(),
+    // G2808: the fitted dials and the suction, as the core resolves them (the static port, the venturi, the sight)
+    items:     genSystemsResolve(S).items,
+    vac:       genSystemsResolve(S).vac,
+    // G2809: a beacon fitted as a lamp (the census the join wrote; none known on a spec with no drawing)
+    beaconLamp: (S.systems && S.systems.lights && typeof S.systems.lights === 'object') ? +S.systems.lights.beacon > 0 : undefined,
     material:  f.material || 'tubeFabric',
     cargo:     (S.cargo && S.cargo.len) || 0,
     engine:    !!((S.engines && S.engines.length) || S.engine),
@@ -1375,6 +1389,12 @@ function genAccessNeedsCage(P, extra) {
       const T = GEN_SYSTEMS[E.systems] || GEN_SYSTEMS.basic;
       return { com: T.avionics.com !== 'none', nav: T.avionics.nav !== 'none',
                xpdr: T.avionics.xpdr !== 'none' }; })(),
+    // G2808: the fitted dials and the suction (the editor hands the resolved ones over; a bench takes the tier's)
+    items:     Array.isArray(E.items) ? E.items : genSystemsResolve({ systems: { fit: E.systems || 'basic' } }).items,
+    vac:       E.vac !== undefined ? E.vac : genSystemsResolve({ systems: { fit: E.systems || 'basic' } }).vac,
+    // G2809: the beacon fitted as a lamp - the editor's answer (lights, beacon, battery), else the cage's own rows
+    beaconLamp: E.beaconLamp !== undefined ? !!E.beaconLamp
+      : !!(+(P.lightOn == null ? 0 : P.lightOn) && (P.li_beaconFit == null || +P.li_beaconFit)),
     material:  E.material || 'tubeFabric',
     cargo:     E.cargo || 0,
     engine:    !!(P.engOn == null ? 1 : +P.engOn),
@@ -1748,6 +1768,36 @@ const GEN_SEATS = {
   standard: { name: 'Upholstered',        kg: 11.0, price: 900 },
   energy:   { name: 'Energy-absorbing',   kg: 15.0, price: 2600 },
 };
+// THE CABIN'S TRIM, CHOSEN (G2806, AVIONICS-GPS phase 2; the user, 11 Oct: "cabin furnishing (seats, panel, trim)
+// accounted accurately", a row of its own). The lining - side panels, floor covering, headliner, soundproofing, the
+// heater's ducting - as a fraction of Raymer's GA furnishings law on the design gross (GEN_OUTFIT.furnK's law). Until
+// now the fraction was the INSTRUMENT TIER's (a minimal panel bought a bare cabin, an IFR panel a lined one, whatever
+// was drawn: AVIONICS-STATUS §1A's hidden coupling). `spec.outfit.trim` chooses it; ABSENT (every save before this
+// row), it is the tier's, exactly as before - so a save that never touches the row bills what it did, byte for byte.
+//   k  the fraction of Raymer's furnishings (0.0582 W0 - 29.5 kg); priced at the outfit's 60 cr a kilo
+// G2809: ON A DRAWN CABIN (spec.outfit.drawn - every build the editor measured) THE TRIM IS THE FINISH OF THE DRAWN
+// SURFACES: `pad` kg/m2 on the sill shoulders, the door panels and the console, `cover` kg/m2 over the floor board;
+// unset is 'light'. `k` (Raymer's fraction) is the rule only for a spec with no drawing (a fiche, an archetype).
+const GEN_TRIM = {
+  bare:  { name: 'Bare',            k: 0,    pad: 0.6, cover: 0.3, note: 'painted panels and a rubber floor mat: a J-3' },
+  light: { name: 'Light trim',      k: 0.25, pad: 1.2, cover: 0.6, note: 'thin pads and a floor mat: a Champ or a Jodel' },
+  lined: { name: 'Lined',           k: 0.5,  pad: 2.0, cover: 0.9, note: 'upholstered panels and carpet: a basic trainer' },
+  full:  { name: 'Lined and quiet', k: 1.0,  pad: 3.0, cover: 1.5, note: 'upholstered and soundproofed behind, thick carpet: a 172 as delivered' },
+};
+// a drawn cabin's measured surfaces (m2), or null for a spec with no drawing
+function genDrawnCabin(S) {
+  const d = S && S.outfit && S.outfit.drawn;
+  return (d && typeof d === 'object') ? d : null;
+}
+// THE LINING'S FRACTION: the chosen trim's, else the instrument tier's (the rule every save before G2806 bills by).
+// The ONE reader for the frame's furnishing and the design gross's fixed point (61_gen_frame), so the two agree.
+// G2809: 0 on a drawn cabin - its lining is billed from the drawn surfaces (a fixed mass in both passes).
+function genFurnK(S) {
+  if (genDrawnCabin(S)) return 0;
+  const t = S && S.outfit && S.outfit.trim;
+  if (t != null && GEN_TRIM[t]) return GEN_TRIM[t].k;
+  return GEN_OUTFIT.furnK[genSystemsResolve(S).tier] || 0;
+}
 
 // AREAL DENSITIES for the sheet items, kg/m2 of surface.
 //   panel   an alloy instrument board with its mounts and coaming ribs
@@ -1788,6 +1838,19 @@ const GEN_OUTFIT = {
   // the design gross the first pass solved (it is part of that fixed point).
   furnK: { minimal: 0, basic: 0.5, ifr: 1.0, custom: 0.5 },
   furnKgPerKg: 0.0582, furnKgOffset: 29.5,
+  // THE DRAWN FURNISHING (G2809, the user of 25 Oct: "Wysiwyg, and as billed for all"). When the editor measured
+  // the cabin it drew (spec.outfit.drawn, m2), the panel board and the lining are billed from THOSE surfaces and
+  // the two estimates above step aside (the cab.panel board, the Raymer lump - which stays the cross-check):
+  //   board  the instrument facia, panelKgM2 (an alloy board with its mounts)
+  //   dash   the moulded dash shell round it, the coaming and the glareshield: dashShellKgM2
+  //   shoulder / door / console   the sill shoulders, the door panels, the console box: the trim's pad density
+  //   floor  the floor board (ply, floorPlyKgM2) under the trim's covering
+  dashShellKgM2: 2.4,
+  floorPlyKgM2: 2.5,
+  // CONTROLS AS DRAWN (G2809): each station the crew draws past the first is a second set (ctlDualKg), and a
+  // station's column over a plain stick weighs this much more (a yoke's column, tube and wheel; a side stick's
+  // gimbal box)
+  ctlStationKg: { stick: 0, yoke: 1.5, side: 0.4, none: 0 },
 };
 
 // THE GAUGE LAW (PERF STUDY chantier 1, 2026-09-15). Per structural class,
@@ -1912,7 +1975,8 @@ const GEN_INSTR = {
              power: 'elec', amps: 0.02 },
   clock:   { name: '8-day clock',          d: 0.0572, kg: 0.25, price: 240,
              power: 'none', note: 'mechanical; a digital one is ~150' },
-  hobbs:   { name: 'hour meter',           d: 0,      kg: 0.10, price: 110,
+  // (G2808: drawn - a 2-1/4 in counter on the panel; it was faceless, billed and powered and never seen)
+  hobbs:   { name: 'hour meter',           d: 0.0572, kg: 0.10, price: 110,
              power: 'elec', amps: 0.02 },
   compass: { name: 'magnetic compass',     d: 0.0700, kg: 0.30, price: 300,
              power: 'none', coaming: true, note: 'Airpath C2300 class' },
@@ -1952,6 +2016,59 @@ const GEN_ELEC = {
   // the harness: master + breakers + the wire, once, plus a little per item
   harness: { kg: 1.2, kgPerItem: 0.15, price: 250 },
 };
+// THE ELECTRICS AS INSTALLED PARTS (G2801, AVIONICS-GPS phase 2; futureDesigns/AVIONICS-STATUS-2026-10.md §1B, §1G).
+// The rows above BILL; this table says what each billed thing IS once it is bolted in: its size, and where it hangs.
+// It moves no mass and no price: the parts genSystemsResolve lists are the bill's own rows broken out (the harness
+// row split into the bus - the master contactor, the bus bar and the breaker panel - and the wire), each `at` the
+// frame station 61_gen_frame bills it on (`firewallLow` the firewall ring's lower pair, `engine` the accessory case
+// = the engine pair, `panel` the firewall ring's top pair, where the dash hangs). The engine bay draws the battery,
+// the generator and the starter from these (no longer from its own rows); the dash draws the breakers.
+//   dims  a box, m (length x width x height, the battery's case); len / dia a can (the rotating machines)
+const GEN_ELEC_PARTS = {
+  battery: {
+    lead:    { dims: [0.178, 0.079, 0.168], note: 'Odyssey PC680: 178 x 79 x 168 mm' },
+    lithium: { dims: [0.150, 0.086, 0.132], note: 'EarthX ETX900: 150 x 86 x 132 mm' },
+  },
+  alternator: {
+    gen20: { len: 0.21, dia: 0.11, note: 'a belt generator on the case top' },
+    alt60: { len: 0.16, dia: 0.13, note: 'Plane-Power class, gear-driven on the accessory pad' },
+  },
+  starter: { yes: { len: 0.19, dia: 0.09, note: 'Sky-Tec class, on the ring gear' } },
+  // the bus: the master contactor and the bus bar (`kg`), plus a breaker each (`perBreaker`) - the share of the
+  // harness row that is not wire. The wire is the rest of the row, so the two always add up to it exactly.
+  bus: { kg: 0.45, perBreaker: 0.03 },
+  // a breaker's rating: the next standard push-to-reset size over 1.4 x what it feeds (a Klixon 7274's sizes);
+  // the alternator's field breaker is 5 A whatever the alternator
+  breakerSizes: [1, 2, 3, 5, 7.5, 10, 15, 20, 25, 30, 35],
+  breakerMargin: 1.4, fieldA: 5,
+};
+// THE LAMPS' DRAWS (A at 12 V) - cockpit.js's LIGHT_AMPS moved into the core (E6): the bus, the breaker sizes and
+// GATE ELEC read one table. The beacon draws half its rating on average (the lamp is pulsed).
+const GEN_LIGHT_AMPS = { taxi: 5, beacon: 3, land: 8, nav: 2.5, flood: 0.5, instr: 0.6, pedal: 0.3, pax: 0.5 };
+// the interior lamps share one breaker ('cabinLt'); each outside light has its own (named apart from the radios':
+// the NAV receiver's breaker is 'nav', the navigation lights' 'navLt')
+const GEN_LIGHT_BREAKER = { taxi: 'taxiLt', beacon: 'beaconLt', land: 'landLt', nav: 'navLt',
+                            flood: 'cabinLt', instr: 'cabinLt', pedal: 'cabinLt', pax: 'cabinLt' };
+// THE LAMPS AS PARTS (G2809, AVIONICS-STATUS M5 / E1 / E2; the user, 25 Oct: "Wysiwyg, and as billed for all"): a
+// fitting's mass and price PER LAMP DRAWN - the light layer's census (spec.systems.lights {key: lamps}, the join
+// writes it from what the layer drew). A lamp on a build with no battery is not drawn and not billed; a key with no
+// lamp drawn (the passenger light with no passenger seat) puts no load on the bus.
+//   nav      one tip or tail light (a set is three)        instr  the posts on the bezels and their rheostat
+const GEN_LIGHT_PARTS = {
+  nav:    { name: 'navigation light',   kg: 0.20, price: 140 },
+  beacon: { name: 'beacon',             kg: 0.45, price: 380 },
+  land:   { name: 'landing light',      kg: 0.40, price: 240 },
+  taxi:   { name: 'taxi light',         kg: 0.40, price: 200 },
+  flood:  { name: 'cabin flood',        kg: 0.08, price: 45 },
+  instr:  { name: 'instrument posts',   kg: 0.10, price: 90 },
+  pedal:  { name: 'pedal light',        kg: 0.08, price: 45 },
+  pax:    { name: 'passenger light',    kg: 0.08, price: 45 },
+};
+function genBreakerSize(amps) {
+  const P = GEN_ELEC_PARTS, need = Math.max(1, (+amps || 0) * P.breakerMargin);
+  for (const s of P.breakerSizes) if (s >= need - 1e-9) return s;
+  return P.breakerSizes[P.breakerSizes.length - 1];
+}
 // THE AVIONICS. The radios need a bus; the aerials that carry them are
 // GEN_ACCESS rows (comm / nav / transponder) and read this through
 // genAccessNeeds. `later` rows are declared so the ledger's schema is final
@@ -1973,14 +2090,26 @@ const GEN_AVIONICS = {
     vor:  { name: 'VOR receiver + CDI',   kg: 1.6, price: 2200, amps: 0.5, later: true,
             note: 'a second-hand KX 155 + KI 208; navaids are a world item' },
   },
+  // G2803 (AVIONICS-GPS phase 2): the GPS is DRAWN now - a unit on the panel's plate whose screen is the moving map
+  // (src/viewer/gps_face.js) - so its rows lose `later` and carry their FACE: the unit's front (w x h) and the
+  // screen in it (sw x sh), m, from the makers' drawings. Mass, price and draw are unchanged. The portable is drawn
+  // in a panel cradle (the plate is where the layout has room; a yoke mount is the crew layer's, not this one's).
   gps: {
     none:     { name: 'no GPS',             kg: 0,   price: 0,    amps: 0 },
-    portable: { name: 'portable GPS',       kg: 0.7, price: 900,  amps: 0.5, later: true,
-                note: 'aera 660 class on a yoke mount' },
-    panel:    { name: 'panel GPS navigator', kg: 1.5, price: 4500, amps: 1.0, later: true,
-                note: 'GPS 175 class' },
-    glass:    { name: 'glass PFD/MFD',       kg: 3.5, price: 6500, amps: 2.5, later: true,
-                note: 'G3X Touch / HDX class with ADAHRS and magnetometer' },
+    // G2812 (the user, 27 Oct: "fix the bezel so the screen fills it ... a few generic buttons straight on the GPS"):
+    // the face is the unit's housing ROUND its screen - a frame, a band of four softkeys (`keys`: under the screen, or a
+    // column on its left for a slim navigator) and, where the face leaves the room, the dual knob on the pilot's right.
+    // The glass unit's was 198 x 159 mm round a 155 x 93 screen, drawn on its side (159 wide): half of it blank housing.
+    // `knob`: the unit has the dual knob (a portable has none: its screen is centred)
+    portable: { name: 'portable GPS',       kg: 0.7, price: 900,  amps: 0.5,
+                face: { w: 0.135, h: 0.087, sw: 0.111, sh: 0.067, keys: 'below' },
+                note: 'aera 660 class (135 x 87 mm, a 5 in 800 x 480 screen) in a panel cradle' },
+    panel:    { name: 'panel GPS navigator', kg: 1.5, price: 4500, amps: 1.0,
+                face: { w: 0.159, h: 0.051, sw: 0.112, sh: 0.040, keys: 'left', knob: true },
+                note: 'GPS 175 class (6.25 x 2 in, a 4.8 in screen)' },
+    glass:    { name: 'glass PFD/MFD',       kg: 3.5, price: 6500, amps: 2.5,
+                face: { w: 0.193, h: 0.115, sw: 0.155, sh: 0.093, keys: 'below', knob: true },
+                note: 'G3X Touch / HDX class with ADAHRS and magnetometer (a 7 in screen, 193 x 115 mm with its softkeys and dual knob); drawn as its map page' },
   },
 };
 // THE TIERS: what each fit buys. Day VFR is what an engine and an airframe
@@ -2017,7 +2146,14 @@ const GEN_SYSTEMS_SIDES = ['pilot', 'centre'];
 //   (keys), dropped[] ({key, why}), rows[] ({key, group, name, kg, price,
 //   amps}), bill.panel/elec/avionics {kg, price}, kg, price, loads[] ({key,
 //   amps}), hasBus, battAh, altA, starter (bool), vac (key)
-function genSystemsResolve(S) {
+// G2801 (AVIONICS-GPS phase 2) adds, moving nothing in the bill:
+//   loads[].av      the radios ride the AVIONICS bus, behind the avionics master
+//   loads[].cb      the breaker that feeds the load
+//   breakers[]      {key, A, feeds[], group} - one per powered dial and radio, the alternator's field, and (with
+//                   opts.lights, the light keys the build has FITTED) one per outside light and one for the cabin's
+//   parts[]         {key, kind, name, kg, at, dims | len/dia} - the electrics as installed things (GEN_ELEC_PARTS);
+//                   the bus and the wire split the harness row and add up to it exactly
+function genSystemsResolve(S, opts) {
   const sy = (S && S.systems) || {};
   const tier = GEN_SYSTEMS[sy.fit] ? sy.fit : 'basic';
   const T = GEN_SYSTEMS[tier];
@@ -2041,6 +2177,11 @@ function genSystemsResolve(S) {
   const seen = new Set(), items = [], dropped = [];
   const hasBus = elec.battery !== 'none';
   const vacOn = elec.vac !== 'none';
+  // NO ROOM ON THE DASH (G2808, the user: "Wysiwyg, and as billed for all"): what the panel's layout could not place
+  // (a dial, a radio head, the GPS, a breaker - the join writes `noRoom` from the layout the dash was drawn with) is
+  // not drawn, so it is not carried: off the bill, off the bus. The panel layer lays out from its own state, which
+  // never holds this list, so a dial dropped here is offered the dash again on every build.
+  const noRoom = new Set(Array.isArray(sy.noRoom) ? sy.noRoom.filter(k => typeof k === 'string') : []);
   for (const k of src) {
     const r = rowOf(k);
     if (!r || seen.has(k)) continue;
@@ -2051,10 +2192,15 @@ function genSystemsResolve(S) {
     if (battery && !custom && (k === 'oilP' || k === 'oilT')) { dropped.push({ key: k, why: 'no oil (electric)' }); continue; }
     if (r.power === 'elec' && !hasBus) { dropped.push({ key: k, why: 'no battery' }); continue; }
     if (r.power === 'vac' && !vacOn) { dropped.push({ key: k, why: 'no suction' }); continue; }
+    if (noRoom.has(k)) { dropped.push({ key: k, why: 'no room on the dash' }); continue; }
     items.push(k);
   }
+  // G2809 (E10): a generator or a starter with no battery has nothing to charge and nothing to crank from - not fitted
+  for (const k of ['alternator', 'starter'])
+    if (!hasBus && elec[k] !== 'none') { dropped.push({ key: k, why: 'no battery' }); elec[k] = 'none'; }
   for (const k of ['com', 'xpdr', 'nav', 'gps'])
     if (avionics[k] !== 'none' && !hasBus) { dropped.push({ key: k, why: 'no battery' }); avionics[k] = 'none'; }
+    else if (avionics[k] !== 'none' && noRoom.has(k)) { dropped.push({ key: k, why: 'no room on the dash' }); avionics[k] = 'none'; }
   // the bill, row by row
   const rows = [], loads = [];
   const nTanks = Math.max(1, ((S && S.energy && S.energy.vessels) || []).length || 1);
@@ -2075,13 +2221,71 @@ function genSystemsResolve(S) {
     const r = GEN_AVIONICS[k][avionics[k]];
     if (r.kg > 0 || r.price > 0) {
       rows.push({ key: k + ':' + avionics[k], group: 'avionics', name: r.name, kg: r.kg, price: r.price, amps: r.amps || 0 });
-      nPowered++; loads.push({ key: k, amps: r.amps || 0 });
+      nPowered++; loads.push({ key: k, amps: r.amps || 0, av: true });
     }
+  }
+  // THE LAMPS DRAWN (G2809): each key's lamps billed per lamp, its load on the bus; with no battery none is drawn
+  // (the light layer asks hasBus) and any the census still names is dropped
+  const census = (sy.lights && typeof sy.lights === 'object') ? sy.lights : null;
+  const lampKeys = [];
+  if (census) for (const k of Object.keys(GEN_LIGHT_PARTS)) {
+    const n = Math.max(0, Math.round(+census[k] || 0));
+    if (!n) continue;
+    if (!hasBus) { dropped.push({ key: 'light:' + k, why: 'no battery' }); continue; }
+    const r = GEN_LIGHT_PARTS[k];
+    rows.push({ key: 'light:' + k, group: 'elec', name: r.name + (n > 1 ? ' x ' + n : ''), kg: +(r.kg * n).toFixed(3),
+                price: r.price * n, amps: GEN_LIGHT_AMPS[k] || 0, lamps: n });
+    lampKeys.push(k);
+    nPowered++;
   }
   if (hasBus) {
     const H = GEN_ELEC.harness;
     rows.push({ key: 'harness', group: 'elec', name: 'master, breakers and harness',
                 kg: +(H.kg + H.kgPerItem * nPowered).toFixed(3), price: H.price, amps: 0 });
+  }
+  // THE BREAKERS (G2801): a load is fed through its own, the radios' through theirs on the avionics bus
+  const breakers = [];
+  if (hasBus) {
+    // (a breaker the dash had no room for is not fitted: its load is fed straight off the bus, G2808)
+    for (const l of loads) {
+      if (noRoom.has('breaker:' + l.key)) continue;
+      l.cb = l.key;
+      breakers.push({ key: l.key, A: genBreakerSize(l.amps), feeds: [l.key], group: l.av ? 'avionics' : 'panel' });
+    }
+    if (elec.alternator !== 'none' && !noRoom.has('breaker:field'))
+      breakers.push({ key: 'field', A: GEN_ELEC_PARTS.fieldA, feeds: ['alternator'], group: 'elec' });
+    const lit = (opts && Array.isArray(opts.lights)) ? opts.lights : census ? lampKeys : [];
+    const lb = {};
+    for (const k of Object.keys(GEN_LIGHT_AMPS)) {
+      if (!lit.includes(k)) continue;
+      const b = GEN_LIGHT_BREAKER[k];
+      if (noRoom.has('breaker:' + b)) continue;
+      if (!lb[b]) { lb[b] = { key: b, A: 0, feeds: [], group: 'lights', amps: 0 }; breakers.push(lb[b]); }
+      lb[b].feeds.push(k); lb[b].amps += GEN_LIGHT_AMPS[k] * (k === 'beacon' ? 0.5 : 1);
+    }
+    for (const b of Object.values(lb)) { b.A = genBreakerSize(b.amps); delete b.amps; }
+  }
+  // THE PARTS (G2801): the electrics rows as installed things, each where the frame bills it
+  const parts = [];
+  {
+    const PT = GEN_ELEC_PARTS;
+    const put = (k, at) => {
+      const v = elec[k], r = GEN_ELEC[k][v], g = PT[k] && PT[k][v];
+      if (!(r && r.kg > 0)) return;
+      parts.push(Object.assign({ key: k, kind: v, name: r.name, kg: r.kg, at }, g ? cleanPart(g) : {}));
+    };
+    const cleanPart = g => { const o = {}; for (const q of ['dims', 'len', 'dia']) if (g[q] != null) o[q] = g[q]; return o; };
+    put('battery', 'firewallLow');
+    put('alternator', 'engine');
+    put('starter', 'engine');
+    put('vac', 'engine');
+    const hr = rows.find(r => r.key === 'harness');
+    if (hr) {
+      const busKg = +Math.min(hr.kg, PT.bus.kg + PT.bus.perBreaker * breakers.length).toFixed(3);
+      parts.push({ key: 'bus', kind: 'bus', name: 'master contactor, bus bar and ' + breakers.length + ' breakers',
+                   kg: busKg, at: 'panel', breakers: breakers.length });
+      parts.push({ key: 'wire', kind: 'wire', name: 'the wire', kg: hr.kg - busKg, at: 'panel' });
+    }
   }
   const sum = g => rows.filter(r => r.group === g)
     .reduce((a, r) => ({ kg: a.kg + r.kg, price: a.price + r.price }), { kg: 0, price: 0 });
@@ -2092,7 +2296,9 @@ function genSystemsResolve(S) {
     items, elec, avionics, dropped, rows,
     bill: { panel, elec: el, avionics: av },
     kg: panel.kg + el.kg + av.kg, price: panel.price + el.price + av.price,
-    loads, hasBus, battAh: GEN_ELEC.battery[elec.battery].Ah,
+    loads, breakers, parts, hasBus, battAh: GEN_ELEC.battery[elec.battery].Ah,
+    // G2809: the light keys with a lamp drawn (null: no census - a spec with no drawing, every fitted light counts)
+    lamps: census ? lampKeys : null,
     altA: GEN_ELEC.alternator[elec.alternator].A,
     starter: elec.starter === 'yes', vac: elec.vac,
     // A3: what the `fuel` slot measures on this build - 'fuel' (litres, a
@@ -4864,6 +5070,22 @@ function clampSpec(spec) {
   S.fuel.litres = genClamp(S.fuel.litres, 0, genBig(S) ? 4000 : 2000);
   if (!S.outfit || typeof S.outfit !== 'object') S.outfit = { seats: 'sling' };
   if (!GEN_SEATS[S.outfit.seats]) S.outfit.seats = 'sling';
+  // G2806: a trim the catalogue does not know is the tier's (removed, never written: an unset row adds no key)
+  if (S.outfit.trim != null && !GEN_TRIM[S.outfit.trim]) delete S.outfit.trim;
+  // G2809: the drawn cabin's surfaces (m2, finite, >= 0, at most 30 each) and the control stations (0..4, a known
+  // kind); anything else is no drawing at all
+  if (S.outfit.drawn != null) {
+    const d = S.outfit.drawn, o = {};
+    if (d && typeof d === 'object') for (const k of ['board', 'dash', 'shoulder', 'door', 'floor', 'console'])
+      o[k] = genClamp(isFinite(+d[k]) ? +d[k] : 0, 0, 30);
+    if (d && typeof d === 'object') S.outfit.drawn = o; else delete S.outfit.drawn;
+  }
+  if (S.outfit.ctl != null) {
+    const c = S.outfit.ctl;
+    if (c && typeof c === 'object' && GEN_OUTFIT.ctlStationKg[c.kind] != null)
+      S.outfit.ctl = { stations: Math.round(genClamp(isFinite(+c.stations) ? +c.stations : 1, 0, 4)), kind: c.kind };
+    else delete S.outfit.ctl;
+  }
   {
     const E = S.energy || (S.energy = {});
     if (E.kind !== 'battery') E.kind = 'fuel';

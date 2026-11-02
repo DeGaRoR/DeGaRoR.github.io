@@ -671,6 +671,8 @@ function runReach(mode) {
     // G185: a biplane with a tank in a second-plane bay, and one without
     { wing2: true, semispan2: 4.5, tank2: true, ail2: true },
     { wing2: true, semispan2: 4.5, tank2: false, ail2: false },
+    // G2809: a V-tail (no fin to carry the beacon) with its beacon fitted as a lamp - the crown beacon's one case
+    { fin: false, beaconLamp: true },
   ];
   for (const over of SPREAD) {
     const R = Object.assign({}, base, over);
@@ -694,7 +696,8 @@ function runReach(mode) {
 function runRod() {
   const AC = ACC();
   const D = G.cageDefaults();
-  const P = Object.assign({}, D, { boomStyle: 1 });
+  // (G2809: the beacon on the rod is the beacon LAMP's - the lights on, the beacon fitted)
+  const P = Object.assign({}, D, { boomStyle: 1, lightOn: 1, li_beaconFit: 1 });
   const R = AC.genAccessNeedsCage(P, { systems: 'ifr' });
   check(!!R.rod && R.rod.len > 0.5 && R.rod.r > 0,
     'rod: the requirement record carries the rod (from, len, r)');
@@ -707,6 +710,11 @@ function runRod() {
     check(!!by[k] && by[k].at.sL > R.rod.from && by[k].at.sL < R.rod.from + R.rod.len,
       'rod: ' + k + ' sits along the tube', by[k] ? by[k].at.sL.toFixed(2) : '-');
   }
+  // G2809 (E9): the lights off, or the beacon unfitted, or no battery behind it - no beacon on the rod
+  for (const [why, P2, E2] of [['the lights off', Object.assign({}, P, { lightOn: 0 }), { systems: 'ifr' }],
+                               ['the beacon unfitted', Object.assign({}, P, { li_beaconFit: 0 }), { systems: 'ifr' }],
+                               ['no battery', P, { systems: 'ifr', beaconLamp: false }]])
+    check(!AC.genAccessList(AC.genAccessNeedsCage(P2, E2)).some(r => r.key === 'beacon'), 'rod: ' + why + ' - no beacon fitting');
   const R0 = AC.genAccessNeedsCage(D, { systems: 'ifr' });
   const rows0 = AC.genAccessList(R0);
   check(!R0.rod && rows0.some(r => r.key === 'inspTail') &&

@@ -1401,7 +1401,17 @@ PAGE.post = (ctx) => {
   // the old rotors belong to a group that has just been thrown away
   rotors.length = 0; lampMats = [];
   if (tickRAF) { cancelAnimationFrame(tickRAF); tickRAF = 0; }
-  if (!+P.lightOn) return;
+  if (!+P.lightOn) { window.CAGE_LIGHT = Object.assign(window.CAGE_LIGHT || {}, { drawn: {} }); return; }
+  // G2809 (AVIONICS-STATUS E1): NO BATTERY, NO LAMP - a lamp that can never light is not fitted, so it is not drawn
+  // (and genSystemsResolve bills none); the panel draws no light switch either
+  try {
+    const R = window.CAGE_PANEL && window.CAGE_PANEL.resolve ? window.CAGE_PANEL.resolve(P) : null;
+    if (R && !R.hasBus) {
+      window.CAGE_LIGHT = Object.assign(window.CAGE_LIGHT || {}, { drawn: {} });
+      if (stat) stat.textContent += '  ·  lights: none (no battery to feed them)';
+      return;
+    }
+  } catch (e) {}
   bayFromP(P);            // the same resolution the wing layer did, one owner
   const beaconRpm = P.li_beaconRpm != null ? +P.li_beaconRpm
                                            : LIGHTS.beacon.rpm;

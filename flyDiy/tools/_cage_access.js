@@ -594,6 +594,12 @@ PAGE.post = ctx => {
         ? (r => ({ com: r.avionics.com !== 'none', nav: r.avionics.nav !== 'none',
                    xpdr: r.avionics.xpdr !== 'none' }))(genSystemsResolve(GS))
         : undefined,
+      // G2808: the fitted dials and the suction (the static port, the venturi, the fuel sight's wire)
+      items: (typeof genSystemsResolve === 'function') ? genSystemsResolve(GS).items : undefined,
+      vac: (typeof genSystemsResolve === 'function') ? genSystemsResolve(GS).vac : undefined,
+      // G2809: a beacon fitted as a lamp (the lights on, the beacon fitted, a battery to feed it)
+      beaconLamp: !!(+P.lightOn && (P.li_beaconFit == null || +P.li_beaconFit) &&
+        (typeof genSystemsResolve === 'function' ? genSystemsResolve(GS).hasBus : true)),
       material: GS.fuselage && GS.fuselage.material,
       cargo: GS.cargo && GS.cargo.len,
     };
