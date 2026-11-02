@@ -9,6 +9,10 @@
 // THE POOL (builds/candidates/index.json): it parses, names files that exist in the folder (the user's own file names,
 // nothing invented: a plain name - letters, digits, space, . _ - ( ) - no path; the user's 'flydiy-build (3).json' kept), every .json in the folder is named by it (no orphan the game cannot reach),
 // every file is a build (an envelope with a spec), and none claims a certificate (no plaque).
+// THE REVIEW FOLDER (builds/candidates/review/, the user 2 Nov: "I need to review them first"): the planes found in the
+// repo, NOT offered - none in the index (and the page's plain-name rule cannot reach a sub-folder) - each a build with no
+// plaque and a row in review/REVIEW.md. The load chain runs on them too, reported, never red (a review plane that fails to
+// load is named for READY, the user decides).
 // EVERY CANDIDATE LOADS, BUILDS AND DRAWS: the page's own load door headless (tools/_load_build.js: the editor's layers
 // draw it, the join measures it, the energy layer fits the tanks) with no join error, then buildGen on what it made: a
 // finite positive mass, a wing, an engine or none asked for.
@@ -49,6 +53,27 @@ function poolRows(P) {
   for (const f of Object.keys(P.files)) if (!seen.has(f)) bad.push(f + ' is in builds/candidates/ but not in index.json (the game cannot reach it)');
   return { bad, ok, list: idx.planes };
 }
+function reviewRows(R, index) {
+  const bad = [];
+  let idx = null; try { idx = JSON.parse(index); } catch (e) { return bad; }
+  const listed = new Set(((idx && idx.planes) || []).map(p => p && p.file));
+  for (const f of Object.keys(R.files)) {
+    if (listed.has(f) || listed.has('review/' + f)) bad.push('review/' + f + ' is in index.json - a review plane is not offered');
+    let o = null; try { o = JSON.parse(R.files[f]); } catch (e) { bad.push('review/' + f + ' does not parse'); continue; }
+    if (!o || !o.spec || typeof o.spec !== 'object') bad.push('review/' + f + ' is not a build (no spec)');
+    else if (o.plaque) bad.push('review/' + f + ' carries a plaque');
+    if (R.md.indexOf('| ' + f + ' |') < 0) bad.push('review/' + f + ' has no row in review/REVIEW.md');
+  }
+  for (const p of ((idx && idx.planes) || [])) if (p && typeof p.file === 'string' && /review/i.test(p.file)) bad.push('index.json names a review path: ' + p.file);
+  return bad;
+}
+function reviewNow() {
+  const RD = path.join(DIR, 'review'), files = {};
+  if (!fs.existsSync(RD)) return { files, md: '' };
+  for (const f of fs.readdirSync(RD)) if (/\.json$/.test(f)) files[f] = fs.readFileSync(path.join(RD, f), 'utf8');
+  let md = ''; try { md = fs.readFileSync(path.join(RD, 'REVIEW.md'), 'utf8'); } catch (e) {}
+  return { files, md };
+}
 function poolNow() {
   const files = {};
   for (const f of fs.readdirSync(DIR)) if (/\.json$/.test(f) && f !== 'index.json') files[f] = fs.readFileSync(path.join(DIR, f), 'utf8');
@@ -81,13 +106,13 @@ function sourcesNow() {
 }
 
 // ---- every candidate loads, builds and draws ----------------------------------------------------------------------
-function chainRows(files) {
+function chainRows(files, sub) {
   const bad = [];
   const LB = require('./_load_build.js'), C = require('./flight_core.js');
   for (const f of files) {
     const t0 = Date.now();
     let L = null;
-    try { L = LB.loadBuild(path.join('builds', 'candidates', f)); }
+    try { L = LB.loadBuild(path.join('builds', 'candidates', sub || '', f)); }
     catch (e) { bad.push(f + ': the page load chain failed - ' + String(e.message || e).slice(0, 300)); continue; }
     if (L.errors && L.errors.length) bad.push(f + ': join errors ' + JSON.stringify(L.errors).slice(0, 300));
     let def = null;
@@ -107,12 +132,16 @@ function chainRows(files) {
 }
 
 // ---- run ---------------------------------------------------------------------------------------------------------------
-const P = poolNow(), S = sourcesNow();
+const P = poolNow(), S = sourcesNow(), R = reviewNow();
 const pr = poolRows(P);
-const bad = pr.bad.concat(sourceRows(S));
-console.log('GATE CANDIDATES - the pool: ' + pr.list.length + ' planes, ' + pr.ok.length + ' read as builds');
-if (!STATIC && !pr.bad.length) bad.push(...chainRows(pr.ok));
-else if (STATIC) console.log('  (--static: the load chain not run)');
+const bad = pr.bad.concat(sourceRows(S), reviewRows(R, P.index));
+console.log('GATE CANDIDATES - the pool: ' + pr.list.length + ' planes offered, ' + pr.ok.length + ' read as builds; review/: ' +
+  Object.keys(R.files).length + ' planes (not offered)');
+if (!STATIC && !pr.bad.length) {
+  bad.push(...chainRows(pr.ok));
+  console.log('  review/ (reported, never red):');
+  for (const b of chainRows(Object.keys(R.files), 'review')) console.log('  REVIEW ' + b);
+} else if (STATIC) console.log('  (--static: the load chain not run)');
 
 if (SELF) {
   const red = (what, fn) => { const r = fn(); console.log('  selftest ' + what + ': ' + (r.length ? 'red (ok)' : 'GREEN - the check is inert')); if (!r.length) bad.push('selftest inert: ' + what); };
@@ -125,6 +154,8 @@ if (SELF) {
   red('the candidate opened with its plaque', () => sourceRows(Object.assign({}, S, { garage: S.garage.replace("loadSpec(g.spec, '')", 'loadSpec(g.spec, c.name, g.plaque, g.log)') })));
   red('the rack group gone', () => sourceRows(Object.assign({}, S, { garage: S.garage.replace('gfGroupH gfCandH">candidate official', 'gfGroupH">') })));
   red('the core names the pool', () => sourceRows(Object.assign({}, S, { core: S.core + "\nconst X = 'builds/candidates/a.json';" })));
+  red('a review plane offered', () => { const o = JSON.parse(P.index); o.planes.push({ file: Object.keys(R.files)[0], name: 'x' }); return reviewRows(R, JSON.stringify(o)); });
+  red('a review plane with no REVIEW.md row', () => reviewRows({ files: R.files, md: '' }, P.index));
   red('no export all button', () => sourceRows(Object.assign({}, S, { body: S.body.replace('<button id="gExportAll"', '<button id="gX"') })));
 }
 
