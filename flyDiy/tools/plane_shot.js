@@ -16,6 +16,10 @@
 //                                 or its name), orbit:<az>/<el>/<dist> (deg, deg, m), close:<az>/<el>/<dist> the same
 //                                 meant close (no cut-off check: a detail - the slot, the VG row - is cut by design) -
 //                                 default q,s,t,f
+//        [--views hero:<yaw>/<el>/<fov>,profile]  PORTRAITS (2 Nov): the level airframe from <yaw> deg off the nose
+//                                 (to its left), <el> deg above the chord (negative: below), a <fov> deg lens; the left
+//                                 side, orthographic - drawn by the page's renderer at --psize 1800x1200 on a dark studio
+//                                 (--bg0 / --bg1 the backdrop's centre and edge, --key / --rim the portrait lights)
 //        [--size 1920x1080]       the viewport (CSS px, DPR 1); the still is the 3D canvas only (the phone's sheet takes a third)
 //        [--gpu]                  the machine's graphics card instead of SwiftShader (the box's A/B; a visible window)
 //        [--page index.html]      index.html (built) or dev.html (the loose src/)
@@ -152,6 +156,94 @@ const ANALYSE = `async (a, b) => {
   return out;
 }`;
 
+// ---- PORTRAITS (PORTRAITS, 2 Nov; the user: "3/4 bottom-up shot, low FOV, possibly dark studio background" - "I'm
+// getting lost myself"): the aeroplane's picture for a card or a gallery, drawn by the page's own renderer into its own
+// camera, not the editor's orbit (whose lens is fixed and whose eye stops at the floor):
+//   hero:<yaw>/<el>/<fov>  the airframe LEVEL (the stance's pitch taken off - the air, not the ramp), the eye <yaw> deg
+//                          round from the nose to the aeroplane's left, <el> deg above (negative: below) the level
+//                          chord, a lens of <fov> deg (vertical); the box fitted to ~84 % of the frame, centred
+//   profile                the left side, an orthographic eye level with it, on its gear as it stands - the silhouette
+// A dark studio either way: the studio's black under a soft radial backdrop, the studio's own lights plus a portrait
+// key (low at the front, so a belly seen from below is lit) and a rim from behind; no pool, no floor. Drawn at 2x and
+// halved (the supersample is the anti-aliasing). The page's size, lens and pose come back as they were.
+const PORTRAIT = `(o) => {
+  const P = window.FLIGHT_PROBE, R = P.renderer(), S = P.hangarScene(), cam0 = P.camera(), root = window.CAGE_UI_SCENE;
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  const pitch0 = root.rotation.x;
+  if (o.kind === 'hero') root.rotation.x = 0;
+  root.updateMatrixWorld(true);
+  // the box of what is drawn (the hidden overlays out), and the aeroplane's own axes (z forward in the cage, the mount
+  // turned to the room; up is the room's)
+  const box = new THREE.Box3(), gb = new THREE.Box3();
+  root.traverseVisible(m => { if (!m.isMesh || !m.geometry) return; const g = m.geometry; if (!g.boundingBox) g.computeBoundingBox(); gb.copy(g.boundingBox).applyMatrix4(m.matrixWorld); box.union(gb); });
+  const fwd = V(0, 0, 1).transformDirection(root.parent.matrixWorld); fwd.y = 0; fwd.normalize();
+  const up = V(0, 1, 0), left = V().crossVectors(up, fwd).normalize();
+  const c = box.getCenter(V()), W = o.w * o.ss, H = o.h * o.ss, aspect = o.w / o.h;
+  const corners = []; for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) corners.push(V(x, y, z).sub(c));
+  const yaw = (o.kind === 'hero' ? o.yaw : 90) * Math.PI / 180, el = (o.kind === 'hero' ? o.el : 0) * Math.PI / 180;
+  const d = fwd.clone().multiplyScalar(Math.cos(yaw) * Math.cos(el)).addScaledVector(left, Math.sin(yaw) * Math.cos(el)).addScaledVector(up, Math.sin(el)).normalize();
+  const fill = 0.84;
+  let cam;
+  if (o.kind === 'hero') {
+    cam = new THREE.PerspectiveCamera(o.fov, aspect, 0.05, 2000);
+    const tv = Math.tan(o.fov * Math.PI / 360) * fill, th = tv * aspect;
+    let t = c.clone(), D = 1;
+    for (let it = 0; it < 3; it++) {   // the distance that holds every corner, then the target moved to centre what is seen
+      cam.position.copy(t).addScaledVector(d, 10); cam.up.copy(up); cam.lookAt(t); cam.updateMatrixWorld(true);
+      const rx = V(1, 0, 0).transformDirection(cam.matrixWorld), ry = V(0, 1, 0).transformDirection(cam.matrixWorld);
+      const off = c.clone().sub(t);
+      D = 0; for (const p0 of corners) { const p = p0.clone().add(off); const z = p.dot(d); D = Math.max(D, z + Math.abs(p.dot(rx)) / th, z + Math.abs(p.dot(ry)) / tv); }
+      cam.position.copy(t).addScaledVector(d, D); cam.lookAt(t); cam.updateMatrixWorld(true); cam.updateProjectionMatrix();
+      let x0 = 1, x1 = -1, y0 = 1, y1 = -1; for (const p0 of corners) { const q = p0.clone().add(c).project(cam); x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y); }
+      const tt = Math.tan(o.fov * Math.PI / 360);
+      t.addScaledVector(rx, (x0 + x1) / 2 * tt * aspect * D).addScaledVector(ry, (y0 + y1) / 2 * tt * D);
+    }
+    cam.position.copy(t).addScaledVector(d, D); cam.lookAt(t);
+  } else {
+    let hw = 0, hh = 0; const rx = fwd.clone().negate();   // looking at the left side, the nose to the frame's left
+    for (const p of corners) { hw = Math.max(hw, Math.abs(p.dot(rx))); hh = Math.max(hh, Math.abs(p.y)); }
+    const half = Math.max(hw / aspect, hh) / fill;
+    cam = new THREE.OrthographicCamera(-half * aspect, half * aspect, half, -half, 0.05, 2000);
+    cam.position.copy(c).addScaledVector(d, 60); cam.up.copy(up); cam.lookAt(c);
+  }
+  cam.layers.mask = cam0.layers.mask; if (typeof UI_LAYER !== 'undefined') UI_LAYER.blind(cam);
+  cam.updateMatrixWorld(true); cam.updateProjectionMatrix();
+  // the studio, dressed for a portrait: the backdrop, the two lights, the pool out
+  const bg = document.createElement('canvas'); bg.width = 512; bg.height = Math.round(512 / aspect);
+  const g2 = bg.getContext('2d'), gr = g2.createRadialGradient(bg.width * 0.5, bg.height * 0.42, 0, bg.width * 0.5, bg.height * 0.5, bg.width * 0.62);
+  gr.addColorStop(0, o.bg0); gr.addColorStop(1, o.bg1); g2.fillStyle = gr; g2.fillRect(0, 0, bg.width, bg.height);
+  const bgTex = new THREE.CanvasTexture(bg); if (THREE.SRGBColorSpace) bgTex.colorSpace = THREE.SRGBColorSpace;
+  const lights = new THREE.Group();
+  const key = new THREE.DirectionalLight(0xfff0dc, o.key), rim = new THREE.DirectionalLight(0xe6eeff, o.rim);
+  key.position.copy(c).addScaledVector(fwd, 6).addScaledVector(left, 5).addScaledVector(up, o.kind === 'hero' ? -2 : 3); key.target.position.copy(c);
+  rim.position.copy(c).addScaledVector(fwd, -7).addScaledVector(left, -2).addScaledVector(up, 6); rim.target.position.copy(c);
+  lights.add(key, key.target, rim, rim.target); S.add(lights);
+  const hid = []; S.traverse(m => { if (m.visible && /^studio:pool$/.test(m.name || '')) { m.visible = false; hid.push(m); } });
+  const bg0 = S.background;
+  const sz = R.getSize(new THREE.Vector2()), pr = R.getPixelRatio();
+  const shot = () => {
+    R.setPixelRatio(1); R.setSize(W, H, false); R.render(S, cam);
+    const out = document.createElement('canvas'); out.width = o.w; out.height = o.h;
+    const g = out.getContext('2d'); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+    g.drawImage(R.domElement, 0, 0, W, H, 0, 0, o.w, o.h);
+    return out.toDataURL('image/png').split(',')[1];
+  };
+  let a, b;
+  try {
+    S.background = bgTex;
+    a = shot();
+    root.visible = false; b = shot(); root.visible = true;
+  } finally {
+    root.visible = true; S.background = bg0; S.remove(lights); key.dispose && key.dispose(); rim.dispose && rim.dispose(); bgTex.dispose();
+    for (const m of hid) m.visible = true;
+    root.rotation.x = pitch0; root.updateMatrixWorld(true);
+    R.setPixelRatio(pr); R.setSize(sz.x, sz.y, false);
+    try { window.dispatchEvent(new Event('resize')); } catch (e) {}
+  }
+  return { a, b, eye: cam.position.toArray().map(x => +x.toFixed(3)), fov: o.kind === 'hero' ? o.fov : 0,
+           box: [box.min.toArray(), box.max.toArray()].flat().map(x => +x.toFixed(3)), dist: +cam.position.distanceTo(c).toFixed(2) };
+}`;
+
 // ---- one boot, every build, every view ----------------------------------------------------------------------------
 async function shoot(o) {
   const R = { builds: [], errors: [], fails: [], t: {} };
@@ -235,6 +327,26 @@ async function shoot(o) {
         const VR = { view: v }; BR.views.push(VR);
         try {
           let asked = null;
+          if (/^(hero:|profile$)/.test(v)) {
+            // A PORTRAIT: drawn in the page (PORTRAIT above), the craft-hidden twin with it; the same frame checks
+            const [yaw, el, fov] = v === 'profile' ? [90, 0, 0] : v.slice(5).split('/').map(Number);
+            const po = Object.assign({ kind: v === 'profile' ? 'profile' : 'hero', yaw, el, fov, w: o.psize[0], h: o.psize[1], ss: 2 }, o.look);
+            if (!o.keepUi) { await C.ev('(() => { if (window.SHOT_MODE) SHOT_MODE.enter(); return 1; })()'); await frames(3); }
+            const pr = await J('(' + PORTRAIT + ')(' + JSON.stringify(po) + ')', 120000);
+            await C.ev('(() => { if (window.SHOT_MODE && SHOT_MODE.on) SHOT_MODE.exit(); return 1; })()');
+            Object.assign(VR, { door: 'portrait', eye: pr.eye, fov: pr.fov, dist: pr.dist, box: pr.box });
+            const P = await J('(' + ANALYSE + ')(' + JSON.stringify(pr.a) + ', ' + JSON.stringify(pr.b) + ')', 180000);
+            VR.picture = P;
+            const bad = why => { const f = path.join(o.out, base + '_' + name + '_FAIL.png'); fs.writeFileSync(f, Buffer.from(pr.a, 'base64')); VR.failPng = f; return why; };
+            if (P.topShare > 0.97) throw Object.assign(new Error(bad('the portrait is one flat colour')), { code: EXIT.frame });
+            if (!(P.craftShare > 0.02)) throw Object.assign(new Error(bad('the aeroplane is not in the portrait (' + (100 * (P.craftShare || 0)).toFixed(2) + ' %)')), { code: EXIT.frame });
+            if (P.cut && P.cut.length) throw Object.assign(new Error(bad('the aeroplane is cut off at the ' + P.cut.join(' and ') + ' edge')), { code: EXIT.frame });
+            const out = path.join(o.out, base + '_' + name + '.png');
+            fs.writeFileSync(out, Buffer.from(pr.a, 'base64'));
+            VR.png = out; VR.t = +((Date.now() - tv) / 1000).toFixed(1);
+            log(base, v, 'ok', VR.t + ' s,', 'aeroplane', (100 * P.craftShare).toFixed(1) + ' % of', P.w + 'x' + P.h, '->', path.relative(process.cwd(), out));
+            continue;
+          }
           if (PRESET[v]) {
             const label = PRESET[v][0];
             // the doors in order: the top bar's VIEWS button (PHONE-GARAGE G3724), the camera flyout's pill (the rail's,
@@ -375,15 +487,20 @@ async function pair(dirA, dirB, out, labels, chrome) {
     builds, out, size, chrome, gpu: flag('gpu'), page: opt('page', 'index.html'), secs: +opt('secs', 1500),
     views: (opt('views', 'q,s,t,f')).split(',').filter(Boolean), keepUi: flag('keep-ui'), fallback: opt('fallback', null),
     root: path.resolve(opt('root', REPO)),
+    psize: (opt('psize', '1800x1200')).split('x').map(Number),
+    // the portrait's studio: the backdrop's centre and edge, the key's and the rim's strength
+    look: { bg0: opt('bg0', '#2b2724'), bg1: opt('bg1', '#0a0908'), key: +opt('key', 2.2), rim: +opt('rim', 2.6) },
   };
   // the arguments, before anything is launched (--dry stops here)
   if (!builds.length) bail(EXIT.run, '--build <file.json>[,<file2.json>]: which aeroplane(s)');
   for (const b of builds) {
     if (!fs.existsSync(b)) bail(EXIT.build, 'no such build file: ' + b);
     let j = null; try { j = JSON.parse(fs.readFileSync(b, 'utf8')); } catch (e) { bail(EXIT.build, b + ' is not JSON: ' + e.message); }
-    if (!j || j.what !== 'flydiy-build' || !j.spec || !j.spec.cage) bail(EXIT.build, b + ' is not a flyDiy build (what: ' + (j && j.what) + ')');
+    // the garage's own rule (garage.js unwrap: a spec with a cage), not the export's label - the pool's NEW-SHAPES files
+    // name their recipe in `what` (PORTRAITS)
+    if (!j || !j.spec || !j.spec.cage) bail(EXIT.build, b + ' is not a flyDiy build (what: ' + (j && j.what) + ')');
   }
-  for (const v of o.views) if (!PRESET[v] && !/^part:./.test(v) && !/^(orbit|close):[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v)) bail(EXIT.run, 'unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>, close:<az>/<el>/<dist>)');
+  for (const v of o.views) if (!PRESET[v] && !/^part:./.test(v) && !/^hero:[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v) && v !== 'profile' &&!/^(orbit|close):[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v)) bail(EXIT.run, 'unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>, close:<az>/<el>/<dist>)');
   if (!(size.length === 2 && size.every(n => n >= 200 && n <= 4096))) bail(EXIT.run, '--size WxH (200-4096)');
   if (!fs.existsSync(path.join(o.root, 'flyDiy', o.page))) bail(EXIT.run, 'no page ' + o.page + ' in ' + path.join(o.root, 'flyDiy') + (o.page === 'index.html' ? ' (not built? --page dev.html)' : ''));
   if (!chrome) bail(EXIT.browser, 'no Chromium here (--chrome <path>, or the cloud image\'s /opt/node-tools playwright)');
