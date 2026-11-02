@@ -107,12 +107,15 @@
 //      tail-down steer gains ease as (VTailUp/V)^2 like the trike's.
 //   6. The speed hold's throttle gets a term on the measured acceleration.
 // ============================================================
+// (rejectFrac, G3900: the user 2 Nov ~21:10 "You can set the abort rule to 80% runway" - normal 0.60 -> 0.80; cautious
+// 0.50 -> 0.70 and brisk 0.70 -> 0.85, the steps kept but the brisk one short of the end: a run judged at 0.85 still has
+// the strip's last 15 % to stop in, the planner's stop checks above it unchanged)
 const PILOT_STYLES = {
-  cautious: { name: 'cautious', rejectFrac: 0.50, bank: 0.80, VapprK: 1.06, gaHigh: 40,
+  cautious: { name: 'cautious', rejectFrac: 0.70, bank: 0.80, VapprK: 1.06, gaHigh: 40,
               gaXT: 10, taxiK: 0.80, hTurnK: 1.30, reserve: 120, patW: 3.0, needK: 1.3 },
-  normal:   { name: 'normal',   rejectFrac: 0.60, bank: 1.00, VapprK: 1.00, gaHigh: 60,
+  normal:   { name: 'normal',   rejectFrac: 0.80, bank: 1.00, VapprK: 1.00, gaHigh: 60,
               gaXT: 15, taxiK: 1.00, hTurnK: 1.00, reserve: 80,  patW: 2.6, needK: 1.0 },
-  brisk:    { name: 'brisk',    rejectFrac: 0.70, bank: 1.15, VapprK: 0.97, gaHigh: 80,
+  brisk:    { name: 'brisk',    rejectFrac: 0.85, bank: 1.15, VapprK: 0.97, gaHigh: 80,
               gaXT: 20, taxiK: 1.25, hTurnK: 0.75, reserve: 50,  patW: 2.3, needK: 0.9 },
 };
 // G2460 (PERSONA-2): THE STABILISED APPROACH - the criteria every person flies FINAL by (Flight Safety Foundation, ALAR
@@ -3702,10 +3705,15 @@ function makePilot(sim, def, world, opts) {
           // ...of the run AVAILABLE from where the roll began (a hold sits
           // 110 m in), not of the strip: measured, the 60 % of the strip came
           // 5 m AFTER the point of no stopping on a 990 m run
-          if (!reject && runUsed > ST.rejectFrac * (runUsed + left))
-            reject = Math.round(runUsed) + ' m used (' + Math.round(ST.rejectFrac * 100) +
-                     ' % of the run) still on the wheels at V=' + V.toFixed(1) + (V >= vr ? ' past Vr=' + vr.toFixed(1) : ' of Vr=' + vr.toFixed(1)) +
-                     ' (the sheet says ' + Math.round(A.TORun ?? 0) + ' m) — dropping it';
+          if (!reject && runUsed > ST.rejectFrac * (runUsed + left)) {
+            // G3900 (A0 2 Nov, FLAGSHIP's twin 4-up on the SEA lane): SAY WHY - the lift-off (~1.4 Vr, the comment above) at
+            // the acceleration measured, against what is left: more power or less weight
+            const dLo = accF > 0.02 ? Math.max(0, (gsOf(1.4 * vr) ** 2 - gsOf(V) ** 2) / (2 * accF)) : Infinity;
+            reject = 'will not reach lift-off in the ' + (sim.hydro ? 'lane' : 'strip') + ': ' + Math.round(runUsed) + ' m used (' + Math.round(ST.rejectFrac * 100) +
+                     ' % of the run) still on the ' + (sim.hydro ? 'water' : 'wheels') + ' at V=' + V.toFixed(1) + (V >= vr ? ' past Vr=' + vr.toFixed(1) : ' of Vr=' + vr.toFixed(1)) +
+                     ', ' + accF.toFixed(2) + ' m/s^2 - lift-off ~' + (isFinite(dLo) ? Math.round(dLo) + ' m' : 'never') + ' further, ' + Math.round(left) + ' m left' +
+                     ' (the sheet says ' + Math.round(A.TORun ?? 0) + ' m) — more power or less weight; dropping it';
+          }
           // G435: A NOSE-OVER IS SAID AS ONE. The user's pusher (985 N on a
           // boom-mounted engine) was thrown onto its nose in two seconds and
           // the verdict read "thrust is going nowhere" - true and useless.
