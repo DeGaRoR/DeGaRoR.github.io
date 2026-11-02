@@ -307875,3 +307875,19 @@ Named reds, none a break:
 - AUDIOENG and PAVEMENT: flaky under the parallel battery, PASS alone.
 
 Open for Codex: rework NIGHTWARM's dusk switch without the by-day 8-light cost (three keys every lit program on the visible point-light count).
+
+## TRAIN L29f (A0, Mon 2 Nov) - FINISH-2: the view out of the garage door + the cloud plane-shot tool
+
+Landed:
+- claude/hangar-view-g3630 0e556a3f6 (G3630 HANGAR-VIEW), merged onto 695f0f216 as claude/a0/finish2-hview 35e26b7cb. app.js had 2 conflicts, and both sides were kept:
+  - the boot's warm step runs cloudsWarm, then revealPlant, then hviewBoot;
+  - the frame loop has the studio check (G3726) plus hviewTick / hviewFlight.
+- claude/cloud-shots 5ffd2df90: tools/plane_shot.js only (G3795-G3799).
+
+Focused battery (14): HANGARVIEW, SHEDSHADOW, PROGRAMS, DAY, HULLWARM, STORY, ROUTES, ECON, BUILT, LAZY PASS. Red, all master's: FRAMECOST, LIVERY, LIGHT, ROUNDTRIP.
+Timing (light gate, judged against master's overnight spread 27-48.5 s): roll-out sum 37.1 s. Cub garage 29.9 fps.
+Watch: the first garage -> world trip had one 8.0 s frame (master 0.2 / 0.2 / 5.3 s over 3 runs). REPEAT below.
+REPEAT (L29f2, 07:10): roll-out sum 34.3 s, garage ready 84-110 s, Cub garage 29.9 fps. The first garage -> world trip had one 6.9 s frame again.
+**Named cost (perf week W5):** the first take-off from the garage after boot carries one ~7-8 s frame (2 of 2 runs). Without the hangar view it is 0.2 s on most runs, 3-5 s at worst.
+Lead suspect: the view's capture / render targets being let go or re-made on the first leave (hviewFlight / the capture's six faces).
+`?hview=0` turns the view off for an A/B.
