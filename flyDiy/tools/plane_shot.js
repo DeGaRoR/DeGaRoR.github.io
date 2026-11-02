@@ -225,6 +225,18 @@ const PORTRAIT = `(o) => {
   else if (o.kind === 'profile') {   // the left side, the nose to the frame's left (the thumbnail)
     const s = Math.min(o.w * fill / len('f'), o.h * fill / len('u'));
     panels.push({ cam: ortho(left, up, o.w, o.h, s), x: 0, y: 0, w: o.w, h: o.h });
+  } else if (o.kind === 'cuts') {
+    // THE CUT-OUTS (the user, 2 Nov 21:45: "look at actual pixels, and not just images bounding boxes, so images can
+    // 'interpenetrate' each other ... the difference between something that looks like a beautiful illustration and a
+    // simple collage"): the hero and the three orthos each alone, the background matted away (shot() below), for a
+    // composer that packs by the silhouettes. o.h: the side view's length in px; the plan and the front at its scale
+    const s = o.h / len('f'), ow = a => Math.round(s * a) + 24;
+    const Wh = Math.round(o.h * 1.25), Hh = Math.round(Wh / 1.5);
+    panels.push({ name: 'hero', cam: heroCam(o.fov, 1.5, o.yaw, o.el, 0.94), w: Wh, h: Hh, low: true });
+    panels.push({ name: 'side', cam: ortho(left, up, ow(len('f')), ow(len('u')), s), w: ow(len('f')), h: ow(len('u')), s });
+    panels.push({ name: 'top', cam: ortho(up, fwd, ow(len('l')), ow(len('f')), s), w: ow(len('l')), h: ow(len('f')), s });
+    panels.push({ name: 'front', cam: ortho(fwd, up, ow(len('l')), ow(len('u')), s), w: ow(len('l')), h: ow(len('u')), s });
+    for (const p of panels) { p.x = 0; p.y = 0; }
   } else {
     // THE PLANE BOARD (the user, 2 Nov: "a full board: top, side, front AND hero shot, well composited, without much
     // margin between the pictures"): the hero on the left at 3:2 the board's height; on the right one column, the three
@@ -272,10 +284,37 @@ const PORTRAIT = `(o) => {
     }
     return out.toDataURL('image/png').split(',')[1];
   };
-  let a, b;
+  // A CUT-OUT: the panel drawn twice, on black and on white - the difference is the background's share (1 - alpha), the
+  // black draw over alpha the colour (difference matting: exact for the anti-aliased edge and the glass, as the blend
+  // happens in the output's values both times); normalised by an empty corner's difference, cropped to the silhouette
+  const grab = (p, col) => {
+    key.position.copy(c).addScaledVector(fwd, 6).addScaledVector(left, 5).addScaledVector(up, p.low ? -2 : 3);
+    S.background = col; R.setPixelRatio(1); R.setSize(p.w * o.ss, p.h * o.ss, false); R.render(S, p.cam);
+    const cv = document.createElement('canvas'); cv.width = p.w; cv.height = p.h;
+    const g = cv.getContext('2d', { willReadFrequently: true }); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+    g.drawImage(R.domElement, 0, 0, p.w * o.ss, p.h * o.ss, 0, 0, p.w, p.h);
+    return g.getImageData(0, 0, p.w, p.h).data;
+  };
+  const matte = p => {
+    const k = grab(p, new THREE.Color(0, 0, 0)), wt = grab(p, new THREE.Color(1, 1, 1));
+    const bgD = Math.max(1, ((wt[0] - k[0]) + (wt[1] - k[1]) + (wt[2] - k[2])) / 3);
+    const out = new ImageData(p.w, p.h), d = out.data; let x0 = p.w, y0 = p.h, x1 = -1, y1 = -1, n = 0;
+    for (let i = 0, j = 0; i < d.length; i += 4, j++) {
+      const A = Math.max(0, Math.min(255, 255 * (1 - ((wt[i] - k[i]) + (wt[i + 1] - k[i + 1]) + (wt[i + 2] - k[i + 2])) / 3 / bgD)));
+      if (A < 2) continue;
+      const f = 255 / A; d[i] = Math.min(255, k[i] * f); d[i + 1] = Math.min(255, k[i + 1] * f); d[i + 2] = Math.min(255, k[i + 2] * f); d[i + 3] = A;
+      const x = j % p.w, y = (j / p.w) | 0; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; n++;
+    }
+    if (!n) return { name: p.name, px: 0 };
+    const cv = document.createElement('canvas'); cv.width = x1 - x0 + 1; cv.height = y1 - y0 + 1;
+    cv.getContext('2d').putImageData(out, -x0, -y0);
+    return { name: p.name, png: cv.toDataURL('image/png').split(',')[1], w: cv.width, h: cv.height, px: n, s: p.s || null,
+             edge: x0 === 0 || y0 === 0 || x1 === p.w - 1 || y1 === p.h - 1 };
+  };
+  let a, b, cuts = null;
   try {
-    a = shot();
-    root.visible = false; b = shot(); root.visible = true;
+    if (o.kind === 'cuts') cuts = panels.map(matte);
+    else { a = shot(); root.visible = false; b = shot(); root.visible = true; }
   } finally {
     root.visible = true; S.background = bg0; S.remove(lights); key.dispose && key.dispose(); rim.dispose && rim.dispose(); for (const p of panels) p.bg.dispose();
     for (const m of hid) m.visible = true;
@@ -284,7 +323,7 @@ const PORTRAIT = `(o) => {
     try { window.dispatchEvent(new Event('resize')); } catch (e) {}
   }
   const cam = panels[0].cam;
-  return { a, b, eye: cam.position.toArray().map(x => +x.toFixed(3)), fov: cam.isPerspectiveCamera ? cam.fov : 0, w: OW, h: OH,
+  return { a, b, cuts, meta: { name: meta.name || null, reg: meta.reg || null }, eye: cam.position.toArray().map(x => +x.toFixed(3)), fov: cam.isPerspectiveCamera ? cam.fov : 0, w: OW, h: OH,
            box: [box.min.toArray(), box.max.toArray()].flat().map(x => +x.toFixed(3)), dist: +cam.position.distanceTo(c).toFixed(2) };
 }`;
 
@@ -371,14 +410,14 @@ async function shoot(o) {
         const VR = { view: v }; BR.views.push(VR);
         try {
           let asked = null;
-          if (/^(hero:|board:|profile($|\/))/.test(v)) {
+          if (/^(hero:|board:|cuts:|profile($|\/))/.test(v)) {
             // A PORTRAIT: drawn in the page (PORTRAIT above), the craft-hidden twin with it; the same frame checks
             // hero:<yaw>/<el>/<fov>[/<fill>[/<W>x<H>]] - the aeroplane's share of the frame and the still's own size (the
-            // app icon's square, A0 2 Nov) over --psize; profile[/<fill>[/<W>x<H>]] the same; board:<fov>/<height>
+            // app icon's square, A0 2 Nov) over --psize; profile[/<fill>[/<W>x<H>]] the same; board:<fov>/<height>; cuts:<fov>/<side px>
             const kind = v.split(/[:/]/)[0];
             const hp = kind === 'profile' ? v.split('/').slice(1) : v.slice(kind.length + 1).split('/');
             let po;
-            if (kind === 'board') po = { kind, yaw: 38, el: -12, fov: parseFloat(hp[0]), w: 0, h: +hp[1], ss: 2 };
+            if (kind === 'board' || kind === 'cuts') po = { kind, yaw: 38, el: -12, fov: parseFloat(hp[0]), w: 0, h: +hp[1], ss: 2 };
             else {
               const [yaw, el, fov, fill] = kind === 'profile' ? [90, 0, 0, parseFloat(hp[0])] : hp.slice(0, 4).map(parseFloat);
               const fs = kind === 'profile' ? hp[0] : hp[3], sz = kind === 'profile' ? hp[1] : hp[4];
@@ -390,6 +429,19 @@ async function shoot(o) {
             const pr = await J('(' + PORTRAIT + ')(' + JSON.stringify(po) + ')', 120000);
             await C.ev('(() => { if (window.SHOT_MODE && SHOT_MODE.on) SHOT_MODE.exit(); return 1; })()');
             Object.assign(VR, { door: 'portrait', eye: pr.eye, fov: pr.fov, dist: pr.dist, box: pr.box });
+            if (pr.cuts) {   // THE CUT-OUTS: one transparent PNG a view + <base>_cuts.json (the orthos' px a metre, the name, the reg)
+              VR.cuts = [];
+              for (const k of pr.cuts) {
+                if (!k.px) throw Object.assign(new Error('the ' + k.name + ' cut-out is empty'), { code: EXIT.frame });
+                if (k.edge) throw Object.assign(new Error('the ' + k.name + ' cut-out touches its frame (cut off)'), { code: EXIT.frame });
+                const f = path.join(o.out, base + '_cut_' + k.name + '.png'); fs.writeFileSync(f, Buffer.from(k.png, 'base64'));
+                VR.cuts.push({ name: k.name, w: k.w, h: k.h, px: k.px, s: k.s, png: f });
+              }
+              fs.writeFileSync(path.join(o.out, base + '_cuts.json'), JSON.stringify({ build: base, meta: pr.meta, cuts: VR.cuts }, null, 1));
+              VR.t = +((Date.now() - tv) / 1000).toFixed(1);
+              log(base, v, 'ok', VR.t + ' s,', VR.cuts.map(k => k.name + ' ' + k.w + 'x' + k.h).join(', '));
+              continue;
+            }
             const P = await J('(' + ANALYSE + ')(' + JSON.stringify(pr.a) + ', ' + JSON.stringify(pr.b) + ')', 180000);
             VR.picture = P;
             const bad = why => { const f = path.join(o.out, base + '_' + name + '_FAIL.png'); fs.writeFileSync(f, Buffer.from(pr.a, 'base64')); VR.failPng = f; return why; };
@@ -556,7 +608,7 @@ async function pair(dirA, dirB, out, labels, chrome) {
     // name their recipe in `what` (PORTRAITS)
     if (!j || !j.spec || !j.spec.cage) bail(EXIT.build, b + ' is not a flyDiy build (what: ' + (j && j.what) + ')');
   }
-  for (const v of o.views) if (!PRESET[v] && !/^part:./.test(v) && !/^hero:[-\d.]+\/[-\d.]+\/[\d.]+(\/0?\.\d+c?(\/\d{2,4}x\d{2,4})?)?$/.test(v) && !/^profile(\/0?\.\d+(\/\d{2,4}x\d{2,4})?)?$/.test(v) && !/^board:[\d.]+\/\d{3,4}$/.test(v) &&!/^(orbit|close):[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v)) bail(EXIT.run, 'unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>, close:<az>/<el>/<dist>)');
+  for (const v of o.views) if (!PRESET[v] && !/^part:./.test(v) && !/^hero:[-\d.]+\/[-\d.]+\/[\d.]+(\/0?\.\d+c?(\/\d{2,4}x\d{2,4})?)?$/.test(v) && !/^profile(\/0?\.\d+(\/\d{2,4}x\d{2,4})?)?$/.test(v) && !/^(board|cuts):[\d.]+\/\d{3,4}$/.test(v) &&!/^(orbit|close):[-\d.]+\/[-\d.]+\/[\d.]+$/.test(v)) bail(EXIT.run, 'unknown view ' + v + ' (q, s, t, f, i, part:<key>, orbit:<az>/<el>/<dist>, close:<az>/<el>/<dist>)');
   if (!(size.length === 2 && size.every(n => n >= 200 && n <= 4096))) bail(EXIT.run, '--size WxH (200-4096)');
   if (!fs.existsSync(path.join(o.root, 'flyDiy', o.page))) bail(EXIT.run, 'no page ' + o.page + ' in ' + path.join(o.root, 'flyDiy') + (o.page === 'index.html' ? ' (not built? --page dev.html)' : ''));
   if (!chrome) bail(EXIT.browser, 'no Chromium here (--chrome <path>, or the cloud image\'s /opt/node-tools playwright)');
