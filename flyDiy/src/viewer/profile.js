@@ -27,7 +27,7 @@
 //            The bench check (the shakedown) and the density altitude stay: pure computations, no world
 //
 // How a page becomes a phone: ?profile=phone (any device - the rigs, the S20's adb run, a desktop to look at it);
-// welcome.js's device gate on a phone or tablet ("Build on this phone", remembered); ?profile=desktop forces the trunk.
+// welcome.js's device gate on a phone or tablet ("Build on this phone" - "Build and test-fly on this phone" once the test field ships, G3905 - remembered); ?profile=desktop forces the trunk.
 (function () {
   'use strict';
   const W = typeof window !== 'undefined' ? window : null;
