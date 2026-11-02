@@ -8,7 +8,7 @@ const dir = process.argv[2];
 if (!dir) { console.error('usage: node tools/perf/phone_night_report.js <dir>'); process.exit(2); }
 const J = f => { try { return JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); } catch (e) { return null; } };
 const f0 = x => (x == null || !isFinite(x) ? '-' : Math.round(x) + '');
-const before = J('before_live_2nov.json'), edits = J('edits.json'), typed = J('typed.json'), ct = J('census_tier.json'), cf = J('census_full.json'), cc = J('census_crew.json'),
+const before = J('before_live_2nov.json'), edits = J('edits.json'), typed = J('typed.json'), ct = J('census_tier.json'), cf = J('census_full.json'), cc = J('census_crew.json'), fly = J('fly.json'),
   idle = J('idle.json'), touch = J('touch.json');
 const L = ['# PHONE-1 overnight check on the S20 FE', '', 'Generated ' + new Date().toISOString() + ' by tools/perf/phone_night_report.js from ' + dir + '.', ''];
 if (edits) {
@@ -50,5 +50,11 @@ if (touch && touch.touch) {
 }
 const stills = fs.readdirSync(dir).filter(f => /\.jpg$/.test(f));
 if (stills.length) L.push('## Stills', '', ...stills.map(f => '- ' + f), '', 'Before (2 Nov, the live look and the phone tier): ../../2026-11-02/phone/s20_material_full.jpg, s20_material_tier1.jpg.', '');
+if (fly && fly.fly) { const F = fly.fly, m = x => x && x.heap != null ? x.heap + ' MB' : '-', f = x => x && x.fps != null ? x.fps + ' fps (p90 ' + x.p90 + ' ms)' : '-';
+  L.push('## The test flight on the phone (PHONE-TESTFLIGHT, the Cub)', '', '- verdict: ' + F.verdict + (F.outcome ? ' (outcome ' + F.outcome + ', ' + F.circuitSec + ' s after the tap, sim ' + F.simT + ' s)' : ''),
+    '- the tap: ' + F.tap + '; reloaded into the flight ' + (F.reloaded != null ? F.reloaded + ' s' : 'NO') + ', boot lifted ' + (F.ready != null ? F.ready + ' s' : '-') + ', rolled out (first autopilot phase) ' + (F.rollout != null ? F.rollout + ' s' : '-') + ', take-off roll ' + (F.roll != null ? F.roll + ' s' : '-') + ' after the tap',
+    '- heap: garage ' + m(F.garage && F.garage.mem) + ', in flight ' + m(F.flight && F.flight.mem) + ', the garage again ' + m(F.after && F.after.mem) + (F.shedSec != null ? ' (the shed button: ' + F.shedSec + ' s)' : ''),
+    '- frames: garage ' + f(F.garage && F.garage.frames) + ', in flight ' + f(F.flight && F.flight.frames) + (F.flight ? ' (' + F.flight.phase + ')' : ''),
+    '- phases: ' + (F.phases || []).map(p => p[1] + ' ' + p[0] + ' s').join(', '), '- battery temperature: ' + (F.temp || []).join(', ') + ' C', ''); }
 fs.writeFileSync(path.join(dir, 'RESULTS.md'), L.join('\n'));
 console.log('RESULTS.md: ' + L.length + ' lines');

@@ -12,6 +12,7 @@
 #   4b. PHONE-GARAGE's registration check (G3798c: CLOUD-SHOTS/atlas_hook.js + reg_check.js), the Cub and the twin, a side still each;
 #   5. PHONE-GARAGE's touch checks (tools/perf/mobile_phone_cdp.js, its touch section, portrait as the phone holds it) and a
 #      still of the Edit tab;
+#   7. the test flight (PHONE-TESTFLIGHT), last: the Cub, one auto circuit, back to the shed (fly.json);
 #   6. RESULTS.md (tools/perf/phone_night_report.js) - the after table beside the 2 Nov live-build table.
 # At the end: our tab closed (each rig closes its own), the adb forwards removed, the server stopped. The phone's screen
 # settings are left as they are (a sleeping screen is woken with a key event and noted; a locked one is noted and the
@@ -62,5 +63,8 @@ if ! late; then
     --skip boot,drag,frames,soak --shot "$OUTD/s20_after_edit_tab.jpg" --out "$OUTD/touch.json" --no-adb >> "$OUTD/touch.txt" 2>&1
   say "  touch exit $?"
 fi
+# 7. THE TEST FLIGHT, LAST (A0 2 Nov 23:00: after every garage pass, the Cub, one auto circuit and back to the shed, capped at
+#    8 min; a dead Chrome or a hot phone (45 C) stops it and is named - never retried)
+PB=cub PE fly --rows none --fly --flycap 480 --query idle=0 --out "$OUTD/fly.json"
 node "$FLY/tools/perf/phone_night_report.js" "$OUTD" >> "$LOG" 2>&1 && say "report: $OUTD/RESULTS.md"
 say "done"

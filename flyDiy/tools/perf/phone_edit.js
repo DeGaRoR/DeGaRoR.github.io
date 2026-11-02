@@ -50,6 +50,12 @@ const CSEC = +opt('csec', 8);
 const INITJS = opt('initjs', null), EVALJS = opt('evaljs', null), EVALWAIT = +opt('evalwait', 8), SHOTVIEW = opt('shotview', null);
 const VIEWS = { q: [-2.5, 0.25, 12], s: [-Math.PI / 2, 0.06, 13], t: [-Math.PI / 2, 1.35, 15] };   // (plane_shot.js PRESET)
 const PHONE = flag('phone'), APORT = +(opt('phone', '') || 9333);
+// --fly [--flycap 480] (A0 2 Nov 23:00, PHONE-TESTFLIGHT G3791): THE PHONE'S TEST FLIGHT, once - the garage's heap and frames,
+// the tap (BENCH_RUN('flight'), the burger's Test flight line), the reload hand-off, tap -> the first autopilot phase (the
+// roll-out) and -> ROLL, the frames and the heap in the climb, the circuit's end (STOPPED, its outcome), the shed button
+// (PROFILE.flyEnd) and the garage's heap after. Capped at --flycap seconds; a crashed tab or a dead socket stops it and is
+// named - never retried
+const FLY = flag('fly'), FLYCAP = +opt('flycap', 480);
 const ADB = process.env.ADB || 'D:/Dev/platform-tools/adb.exe';
 const adb = (...a) => { try { return require('child_process').execFileSync(ADB, a, { encoding: 'utf8', timeout: 20000 }); } catch (e) { return ''; } };
 // the phone's Chrome: our own tab (never the user's), the same { ev, cmd, load, close, exc } as master_bench's browser
@@ -90,6 +96,48 @@ async function phoneBrowser() {
   };
   const close = async () => { try { await raw('Target.closeTarget', { targetId }); } catch (e) {} try { ws.close(); } catch (e) {} };
   return { ev, cmd, load, close, exc, device: adb('shell', 'getprop', 'ro.product.model').trim() };
+}
+async function flyPass(b, save) {
+  const F = { cap: FLYCAP, phases: [] }, T0 = Date.now(), left = () => FLYCAP * 1000 - (Date.now() - T0), sec = t => +((t - F.tapAt) / 1000).toFixed(1);
+  const dead = () => b.exc.includes('TARGET CRASHED');
+  const ev = (expr, ms) => b.ev(expr, ms || 15000).catch(e => '__err ' + e.message);
+  const mem = async () => { const v = await ev("JSON.stringify(performance.memory ? { heap: Math.round(performance.memory.usedJSHeapSize / 1048576), total: Math.round(performance.memory.totalJSHeapSize / 1048576) } : null)"); try { return JSON.parse(v); } catch (e) { return v; } };
+  const frames = async s => { await sleep(s * 1000); const v = await ev(`(() => { const r = window.FLIGHT_REC && FLIGHT_REC.stats(${s * 1000}); return JSON.stringify(r ? { fps: +r.fps.toFixed(1), p50: +r.med.toFixed(1), p90: +r.p90.toFixed(1), max: Math.round(r.max) } : null); })()`); try { return JSON.parse(v); } catch (e) { return v; } };
+  const state = async () => { const v = await ev("JSON.stringify({ fly: !!(window.PROFILE && PROFILE.flight), ready: !!(window.BOOT && BOOT.state === 'gone'), ap: (() => { try { const a = window.FLIGHT_PROBE && FLIGHT_PROBE.ap && FLIGHT_PROBE.ap(); return a ? { phase: a.phase || null, t: Math.round(+a.t || 0), outcome: (a.report && a.report.outcome) || null } : null; } catch (e) { return null; } })(), heat: null })", 8000);
+    try { return JSON.parse(v); } catch (e) { return { err: String(v) }; } };
+  // the phone's battery temperature (tenths of a degree): 'runs hot' is 45 C - the pass stops there
+  const temp = () => { const m = /temperature: (\d+)/.exec(adb('shell', 'dumpsys', 'battery')); return m ? +m[1] / 10 : null; };
+  F.temp = [temp()];
+  F.garage = { mem: await mem(), frames: await frames(10) }; save();
+  F.tapAt = Date.now();
+  F.tap = await ev("(() => { try { if (!window.BENCH_RUN) return 'no BENCH_RUN'; return window.BENCH_RUN('flight') ? 'tapped' : 'refused (the bench row not usable or busy)'; } catch (e) { return 'threw: ' + e.message; } })()", 20000);
+  let last = null, climbed = false, tT = Date.now();
+  // (the reload can cut the tap's own evaluate - an error there still waits for the flight)
+  if (/^(no BENCH_RUN|refused|threw)/.test(F.tap)) F.verdict = 'the tap: ' + F.tap;
+  while (!F.verdict && left() > 0) {
+    await sleep(1000);
+    if (Date.now() - tT > 30000) { tT = Date.now(); const c = temp(); F.temp.push(c); if (c != null && c >= 45) { F.verdict = 'stopped: the phone at ' + c + ' C (' + sec(Date.now()) + ' s, phase ' + last + ')'; break; } }
+    if (dead()) { F.verdict = 'the tab CRASHED at ' + sec(Date.now()) + ' s (phase ' + last + ')'; break; }
+    const s = await state();
+    if (s.err && /closed/.test(s.err)) { F.verdict = 'the DevTools socket closed at ' + sec(Date.now()) + ' s (Chrome gone?)'; break; }
+    if (s.fly && F.reloaded == null) F.reloaded = sec(Date.now());
+    if (s.fly && s.ready && F.ready == null) F.ready = sec(Date.now());
+    const ph = s.ap && s.ap.phase;
+    if (s.fly && ph && ph !== last) { last = ph; F.phases.push([sec(Date.now()), ph]); if (F.rollout == null) F.rollout = sec(Date.now()); if (ph === 'ROLL' && F.roll == null) F.roll = sec(Date.now()); save(); }
+    if (s.fly && !climbed && F.roll != null && sec(Date.now()) - F.roll > 25 && ph && ph !== 'ROLL' && ph !== 'STOPPED') {
+      climbed = true; F.flight = { phase: ph, mem: await mem(), frames: await frames(10) }; save(); }
+    if (s.fly && ph === 'STOPPED') { F.outcome = s.ap.outcome; F.circuitSec = sec(Date.now()); F.simT = s.ap.t; break; }
+  }
+  if (!F.verdict && F.outcome == null) F.verdict = (F.reloaded == null ? 'no reload into the flight' : F.rollout == null ? 'reloaded, never rolled out' : 'cut at the cap in ' + last) + ' (' + FLYCAP + ' s)';
+  if (!dead() && F.reloaded != null && !/socket/.test(F.verdict || '')) {
+    F.shedAt = Date.now();
+    await ev("(() => { try { PROFILE.flyEnd(); return 'ok'; } catch (e) { return 'threw: ' + e.message; } })()", 10000);
+    for (let i = 0; i < 90; i++) { await sleep(1000); const s = await state(); if (s.ready && !s.fly) { F.shedSec = +((Date.now() - F.shedAt) / 1000).toFixed(1); break; } if (dead() || (s.err && /closed/.test(s.err))) { F.shedSec = 'died'; break; } }
+    if (typeof F.shedSec === 'number') { await sleep(4000); F.after = { mem: await mem() }; }
+  }
+  F.temp.push(temp());
+  if (!F.verdict) F.verdict = F.outcome === 'completed' ? 'ok' : 'the circuit ended ' + F.outcome;
+  return F;
 }
 const OUT = path.resolve(opt('out', path.join(__dirname, 'phone_edit_' + BK + '_' + Date.now() + '.json')));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -210,6 +258,13 @@ const CENSUS_JS = `(() => { if (window.__CEN) return 'again'; const C = window._
   R.meta = JSON.parse(await b.ev(`JSON.stringify({ profile: window.PROFILE && PROFILE.name, catcher: window.POST_FX && POST_FX.catcher && POST_FX.catcher.summary(),
     menuLog: !!(window.FLYDIY_MENU), dpr: devicePixelRatio, canvas: (() => { const c = document.getElementById('c'); return c ? [c.width, c.height] : null; })() })`));
   log('page: ' + JSON.stringify(R.meta));
+  if (FLY) {
+    R.fly = await flyPass(b, () => save());
+    save();
+    log('fly: ' + JSON.stringify(R.fly));
+    R.exceptions = b.exc.slice(0, 20); save();
+    await b.close(); process.exit(R.fly.verdict === 'ok' ? 0 : 1);
+  }
   log('harness ' + await b.ev(HARNESS));
   if (EVALJS) { await sleep(EVALWAIT * 1000);
     const ex = fs.readFileSync(EVALJS, 'utf8').split('\n').filter(x => !/^\s*\/\//.test(x)).join('\n');
