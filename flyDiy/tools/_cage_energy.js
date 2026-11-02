@@ -1739,7 +1739,7 @@ function judgeAll(scene, inv, results, ctx) {
 // It is the shape of a nose tank that says `fit: 'auto'` (a new nose tank, the panel's 'auto-fit' row) and of NONE
 // other: a saved tank keeps its shape. `window.TANK_NOSE_AUTO_ALL` also fits the nose tanks a save left to the bay
 // rule (no station, no box: the Cub's and the Jodel's) - the user's call before it is the default (STATUS.md).
-const NOSE_AUTO_ON = false;       // the auto-fit itself (TANK-FIT commit 2; commit 1 lands with it off)
+const NOSE_AUTO_ON = true;  // the auto-fit itself (TANK-FIT commit 2; commit 1 lands with it off)
 const NOSE_GAP = 0.10;            // m under the deck top: the user's "10 cm gap" (the panel's row can change it)
 const NOSE_CLR = 0.02;            // m to the firewall, the panel back and the walls (the pads, the straps)
 const NOSE_FLOOR_CLR = 0.01;      // m above the dash's bottom edge
