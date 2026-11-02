@@ -743,6 +743,13 @@ async function tutorRun() {
   const t2 = TU.T2, w2 = t2.map(s => s.wait).filter(Boolean).join();
   ok(w2 === 'inHangar,storeOpen,clientOnStand,starterInside' && t2[0].free && t2[0].allow === 'shed' && /parked outside/.test(t2.map(s => s.say).join(' ')) && /INSIDE/.test(t2.map(s => s.say).join(' ')) && !t2[t2.length - 1].wait,
      'T2, the WWII arrival: the taxi or The shed (free), the hangar, the contract (the Cub parked outside), Storage, the swap, the ultralight into a visible slot, the list', ids('T2'));
+  // G3585 T6b ("the tutorial must hire"): one free step - the hire screen opened from the story in the garage (never in
+  // flight), a short wallet topped up to the cheapest sign-on (the story-opened screen cannot close before a hire)
+  const t6 = TU.T6 || [], h6 = t6[0] || {};
+  ok(t6.length === 1 && h6.wait === 'hiredPilot' && facts.has('hiredPilot') && h6.open === 'hire' && h6.free && !h6.allow && /[Hh]ire a pilot/.test(h6.say || '') &&
+     /if \(step\.open === 'hire'\) storyHireOpen\(\);/.test(app) && /function storyHireOpen\(\) \{[\s\S]{0,200}!inGarage[\s\S]{0,400}playerCharge\(d, -need, 'story', 'T6:signon'\)[\s\S]{0,200}H\.open\(\{ from: 'story' \}\)/.test(app) &&
+     /s\.beat === 'T6' && inGarage && !STORY_TUTOR_FACTS\.hiredPilot\(\)\)\)\) storyCardSync\(\)/.test(app) && /addEventListener\('flydiy:hired'/.test(app),
+     'T6b: Tim asks for a hire (free, nothing held); the hire screen opens from the story in the garage only, a short wallet topped up to the cheapest sign-on, the 3 s tick and the hired event move him on', ids('T6'));
   // the tick and the Next
   let f = {};
   const fact = k => !!f[k];

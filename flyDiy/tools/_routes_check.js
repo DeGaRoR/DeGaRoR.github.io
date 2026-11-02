@@ -164,6 +164,12 @@ function story(M) {
   const nopilot = JSON.parse(J(st.doc)); nopilot.career.roster = [];
   const np = M.storyApply(M.careerNormalise(nopilot), eff, { aeros });
   ok(np.ok && !M.routesActive(np.doc).length && (M.storyOf(np.doc).offers || []).some(x => x.k === 'route' && x.signed === false && x.why), 'no free pilot: nothing signed, the offer kept with its reason (never a guess)', np.why);
+  // G3585 T6b ("the tutorial must hire"): a pilot hired at T6 flies the route, not the companion
+  const hd = JSON.parse(J(st.doc)); hd.wallet = 1e6;
+  const pick = M.pilotsOffers(M.careerNormalise(hd))[0], hr = pick ? M.pilotsHire(M.careerNormalise(hd), pick) : { ok: false, why: 'nobody on offer' };
+  const ha = hr.ok ? M.storyApply(hr.doc, eff, { aeros }) : { ok: false };
+  const HR = ha.ok ? M.routesActive(ha.doc)[0] || {} : {};
+  ok(hr.ok && pick !== M.PILOTS_COMPANION && HR.pilot === pick, 'T6b: the pilot you hired flies the route (storyRoutePilot: the latest own hire before the companion)', J({ pick, why: hr.why, pilot: HR.pilot }));
   return fails;
 }
 
