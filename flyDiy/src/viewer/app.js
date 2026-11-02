@@ -12158,6 +12158,9 @@
     // G255: a screenshot has no marks; G1115: nor the roll-out shot (the CG post and its labels rode out on the aeroplane)
     gGrp.visible = !!d && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) && !window.__frLoading   // G2345: not under the loading view (its own CG bar)
       && !stMarksOff;   // G3357: not on the story's paint-only stage (T0)
+    // G3906: the phone's CG chip follows the same reasons to hide (a screenshot, the roll-out, the loading view, the story's
+    // paint stage) - but not the stand offset: the numbers stand without a place to draw the posts
+    window.CG_MARKS_ON = inGarage && curKey === 'gen' && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) && !window.__frLoading && !stMarksOff;
     if (d) gGrp.position.set(d[0], d[1], d[2]);
   }
   function buildIndicators() {
@@ -12182,7 +12185,7 @@
     const P = def.parts;
     const [xA] = sim.axes();
     // the live answer when there is one (see refreshIndicators), else the sim
-    let cg, d, smTxt = null, cgTxt = null, smV = null;
+    let cg, d, smTxt = null, cgTxt = null, smV = null, cgPct = null;
     const b = LAST_BAL;
     if (b && P.GAL != null && P.GAR != null) {
       const a = P.GAL * 3, c2 = P.GAR * 3;
@@ -12193,14 +12196,14 @@
       d = b.npX - b.cgX;
       if (b.staticMargin != null) { smTxt = 'stability margin ' + (b.staticMargin * 100).toFixed(0) + ' %'; smV = b.staticMargin; }
       if (b.cBar > 0 && typeof b.xLEmac === 'number' && isFinite(b.xLEmac))
-        cgTxt = ((b.cgX - b.xLEmac) / b.cBar * 100).toFixed(0) + ' % of the wing chord';
+        cgTxt = (cgPct = (b.cgX - b.xLEmac) / b.cBar * 100).toFixed(0) + ' % of the wing chord';
     } else {
       const s = shakeOf();
       cg = sim.cgPos();
       d = s.npX - s.cgX;
       if (s.staticMargin != null) { smTxt = 'stability margin ' + (s.staticMargin * 100).toFixed(0) + ' %'; smV = s.staticMargin; }
       if (s.cBar > 0 && typeof s.xLEmac === 'number' && isFinite(s.xLEmac))
-        cgTxt = ((s.cgX - s.xLEmac) / s.cBar * 100).toFixed(0) + ' % of the wing chord';
+        cgTxt = (cgPct = (s.cgX - s.xLEmac) / s.cBar * 100).toFixed(0) + ' % of the wing chord';
     }
     const V = [], C = [];
     const seg = (a, b, col) => {
@@ -12224,6 +12227,11 @@
     // readout opens on a warning sign; with no readout (no wing chord) the band's title stands in
     if (MB && MB.mark) cgTxt = '⚠ ' + (cgTxt || MB.title);
     gTipBand = MB ? Object.assign({ sm: smV }, MB) : null;
+    // G3906 (the user 2 Nov, on the phone: "I can't see the CG and margin indicators in the phone interface"): the posts'
+    // reading as numbers too, for a readout that is not a 3D mark (phone.js's chip on the view's edge) - written here, the
+    // one place the posts are built from, so the two never disagree
+    if (typeof window !== 'undefined') window.CG_READ = { cg: cgPct != null && isFinite(cgPct) ? Math.round(cgPct) : null,
+      sm: smV != null && isFinite(smV) ? Math.round(smV * 100) : null, band: MB ? MB.band : null, mark: MB ? MB.mark : '', title: MB ? MB.title : '' };
     // an upright post from the ground to well above the aeroplane, so the two
     // are comparable at a glance from any angle
     const label = (px, py, pz, text, col, sub) => {
@@ -19983,7 +19991,15 @@
   // then put back, a task at a time): the room's programs keyed with them, linked on the driver's threads (its two
   // targets and its depth variants, as shedPrelink), and the layer shows the lights when this resolves. null when
   // there is no room to compile (the bench, the cloud's SwiftShader, before the hangar): the layer shows them at once.
+  // G1999b (HWCOV, FRAMECOST seed rows): BEFORE THE BOOT'S OWN COMPILE STEP, NOTHING TO PREP - null, the layer shows the
+  // lights at once and the compile step keys the room with them. G3358 (GARAGE-FLOOD) arms the cabin flood in the editor's
+  // seed build: its light set was prepped in the seed (81 links, 21 draws) with the lights hidden till it resolved, so the
+  // compile step, keyed on the count without the flood, linked the room a second time (compile/links 5 -> 40) - two sets
+  // linked, one of them dropped the moment the flood showed. Under the screen, before the room's compile, there is no frame
+  // a new light set can stall
+  let shedCompileStarted = false;
   if (typeof window !== 'undefined') window.GARAGE_LIGHTS_PREP = dress => {
+    if (!shedCompileStarted && typeof BOOT !== 'undefined' && BOOT.state && BOOT.state !== 'gone') return null;
     if (typeof renderer.compileAsync !== 'function' || !hangar || typeof PROG_WARM === 'undefined' || !PROG_WARM.standIn) return null;
     return pmremWarmBake().then(() => { shedEnvKey(); })
       .then(() => compileSliced(hangarScene, ensureEnvRT(), null, false, dress))
@@ -19992,6 +20008,7 @@
       .catch(e => console.warn('garage lights prep:', e && e.message));
   };
   bootStep('compile', 'compiling the shaders', 14, () => {
+    shedCompileStarted = true;   // G1999b: from here a new light set preps (GARAGE_LIGHTS_PREP)
     const done = () => { envDeferred = false; if (envDirty || !envPM) { envDirty = false; bakeHangarEnv(); } if (hangar && hangar.bakeGroundShadow) hangar.bakeGroundShadow(renderer, hangarScene); };
     if (inGarage) shedDayTick();   // C0c: the day first - the passes compile what first light draws, the bake shoots it once
     if (typeof renderer.compileAsync !== 'function' || !hangar) { done(); return; }

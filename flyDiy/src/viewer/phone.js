@@ -30,9 +30,9 @@
 //   #phDiv on the line between view and controls moves it - a ghost line while the thumb moves, the view resized once
 //   on release; a double tap puts it back to half.
 // - THE ROW (phone.css): one FIXED GRID a control, never a wrap (the user's stills 13:02-13:03: "rubbish overflowing of
-//   sliders and button components") - label | switch | value | unit over the scale. COMPACT by default (~40 px, the scale the
-//   row's width, - / + in the value's editor); with the row's own - / + (40 px, ~58 px a row) on html.ph-pm - ?phsteps=1 or
-//   flydiy.phSteps=1, PHONE_UI.setSteps - while the user picks from the two stills (A0 2 Nov).
+//   sliders and button components") - label | switch | value | unit over the scale. COMPACT a pick (~44 px, the scale the
+//   row's width, - / + in the value's editor); with the row's own - / + (40 px, ~58 px a row) on html.ph-pm - THE DEFAULT since the user's pick (2 Nov 18:20);
+//   the compact row through ?phsteps=0 / flydiy.phSteps=0 / PHONE_UI.setSteps(false).
 // - THE VALUE'S EDITOR (#phEdit): a tap on a slider's value or label opens it - the number typed (inputmode decimal),
 //   the unit, - / + (held: they repeat), Done / Enter / a tap outside sets it, Esc leaves it; it rides the keyboard's
 //   top edge (visualViewport). A typed value goes through _cage_ui's own typed field (v_<k>'s change: clamp, then the
@@ -268,12 +268,21 @@
   // THE STEPPERS (R6), on the row and in the value's editor: a tap is one step; held, they repeat - one press, ticks, one
   // release, as a drag
   let rep = null;
+  // the row of key k on the page now (one phone.js enhanced, on screen first) - a rebuilt row's successor
+  function liveRow(k) {
+    if (!k) return null;
+    const all = [...D.querySelectorAll('.r.phSlider[data-k="' + k + '"]')].filter(r => r.__ph);
+    return all.find(r => r.offsetParent !== null) || all[0] || null;
+  }
   function stepDown(row, dir, e) {
     const ph = row.__ph, rng = ph.rng;
     if (rng.disabled || drag || rep) return;
     e.preventDefault();   // (and the editor's input keeps the focus: the keyboard stays up)
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch (x) {}
     const one = () => {
+      // a held step outlives a rebuild of its row: it steps the row of the same key that is on the page now
+      if (!rep.rng.isConnected) { const nr = liveRow(rep.row.dataset.k); if (nr) { rep.row = nr; rep.rng = nr.__ph.rng; } }
+      const row = rep.row, rng = rep.rng;
       const { st } = rangeOf(rng);
       const v = snap(rng, num(rng.value, 0) + dir * st);
       if (v === num(rng.value, NaN)) return;
@@ -284,13 +293,15 @@
       buzz();
     };
     press(rng);
+    rep = { row, rng, t: 0 };
     one();
-    rep = { row, rng, t: setTimeout(function again() { one(); rep.t = setTimeout(again, REP); }, REP0) };
+    rep.t = setTimeout(function again() { if (!rep) return; one(); rep.t = setTimeout(again, REP); }, REP0);
   }
   function stepUp() {
     if (!rep) return;
     clearTimeout(rep.t);
     const r = rep; rep = null;
+    if (!r.rng.isConnected) { const nr = liveRow(r.row.dataset.k); if (nr) { r.row = nr; r.rng = nr.__ph.rng; } }   // (the release reaches the live row)
     release(r.rng);
     edShow();
   }
@@ -314,8 +325,8 @@
     edEl.u = mk('span', 'phEu');
     edEl.plus = mk('button', 'phStep phPlus', '+'); edEl.plus.type = 'button'; edEl.plus.setAttribute('aria-label', 'more');
     // the OK button and Enter set the typed number; - / + set it first (a typed 2.4 then + is 2.4 + a step), then step
-    edEl.ok.addEventListener('pointerdown', e => e.preventDefault());
-    edEl.sign.addEventListener('pointerdown', e => e.preventDefault());   // (the field keeps the focus: the keypad stays up)
+    edEl.ok.addEventListener('pointerdown', e => { e.preventDefault(); edPressAt = performance.now(); });
+    edEl.sign.addEventListener('pointerdown', e => { e.preventDefault(); edPressAt = performance.now(); });   // (the field keeps the focus: the keypad stays up)
     edEl.sign.addEventListener('click', () => { const t = String(edEl.inp.value).trim();
       edEl.inp.value = t.startsWith('-') ? t.slice(1) : t.startsWith('+') ? '-' + t.slice(1) : '-' + t;
       try { edEl.inp.focus({ preventScroll: true }); const n = edEl.inp.value.length; edEl.inp.setSelectionRange(n, n); } catch (e) {} });
@@ -324,7 +335,7 @@
     for (const [b, dir] of [[edEl.minus, -1], [edEl.plus, 1]]) {
       // (preventDefault as Done and the sign: the field keeps the focus, so the keypad stays up across a step and what is
       // typed after it reaches the field - the 2 Nov rig's 'typed' red: a tap on + took the focus, the digits went nowhere)
-      b.addEventListener('pointerdown', e => { if (!ed) return; e.preventDefault(); edCommit(); stepDown(ed.row, dir, e); });
+      b.addEventListener('pointerdown', e => { if (!ed) return; e.preventDefault(); edPressAt = performance.now(); edCommit(); stepDown(ed.row, dir, e); });
       b.addEventListener('pointerup', stepUp);
       b.addEventListener('pointercancel', stepUp);
       b.addEventListener('lostpointercapture', stepUp);
@@ -348,6 +359,15 @@
     // the model's value, unless the thumb is typing (the field no longer shows what was last put in it)
     if (D.activeElement !== edEl.inp || edEl.inp.value === ed.synced) { edEl.inp.value = cur(ed.row); ed.synced = edEl.inp.value; }
     edEl.u.textContent = ph.mu && ph.mu.textContent ? ph.mu.textContent : '';
+  }
+  // NO GHOST CLICK THROUGH THE EDITOR (the 2 Nov 18:50 diag: a tap on the editor's + stepped deck height, then the tap's own
+  // click landed on the row BEHIND the bar - the editor reopened on the wing chord, and the number typed next went there):
+  // a row ignores a click inside the open editor's box, or within 700 ms of a press on the editor's buttons
+  let edPressAt = -1e9;
+  function ghostOfEditor(e) {
+    if (performance.now() - edPressAt < 700) return true;
+    const b = ed && edEl.box && !edEl.box.hidden ? edEl.box.getBoundingClientRect() : null;
+    return !!b && e.clientX >= b.left && e.clientX <= b.right && e.clientY >= b.top && e.clientY <= b.bottom;
   }
   function edOpen(row) {
     const ph = row && row.__ph;
@@ -390,6 +410,24 @@
     try { if (D.activeElement === edEl.inp) edEl.inp.blur(); } catch (e) {}
   }
 
+  // THE CG ON THE VIEW'S EDGE (G3906; the user 2 Nov, on the phone: "I can't see the CG and margin indicators in the phone
+  // interface, significant issue"): the desktop reads them off the two posts in the picture; at 360 px a post's label is a
+  // smudge, so the numbers ride a chip at the view's lower left - CG in % of the wing chord, the stability margin, the
+  // band's colour (P1 CG-COLOURS, genMarginBand) and its warning sign. app.js buildIndicators writes window.CG_READ where
+  // it builds the posts; this only copies it, on the 400 ms tick, and writes nothing when it has not changed
+  let cgEl = null, cgLast = '';
+  function cgChip() {
+    const R = W.CG_READ, txt = !R || W.CG_MARKS_ON === false || (R.cg == null && R.sm == null) ? '' : (R.mark ? '⚠ ' : '') +
+      (R.cg != null ? 'CG ' + R.cg + ' %' : '') + (R.cg != null && R.sm != null ? ' · ' : '') + (R.sm != null ? 'margin ' + R.sm + ' %' : '') +
+      (R.mark && R.title ? ' — ' + R.title : '');
+    const key = txt + '|' + (R && R.band || '');
+    if (key === cgLast) return;
+    cgLast = key;
+    if (!cgEl) { cgEl = D.createElement('div'); cgEl.id = 'phCg'; cgEl.setAttribute('role', 'status'); D.body.appendChild(cgEl); }
+    cgEl.textContent = txt; cgEl.hidden = !txt;
+    cgEl.dataset.band = (R && R.band) || '';
+  }
+
   function enhance(row) {
     if (!row || row.__ph || !row.classList || !row.classList.contains('r')) return;
     const rng = row.querySelector(':scope > input[type=range]');
@@ -423,6 +461,7 @@
     // the row's whole height opens it (A0 2 Nov: a target >= 44 px) - all but the knob, a switch, a button, a select
     row.addEventListener('click', e => { const t = e.target;
       if (t && t.closest && t.closest('.phKnob, button, select, input[type=checkbox]')) return;
+      if (ghostOfEditor(e)) return;
       e.preventDefault(); edOpen(row); });
     ROWS.add(row);
     if (roRows) roRows.observe(row);
@@ -431,7 +470,10 @@
   function enhanceIn(host) {
     if (!host) return;
     for (const r of host.querySelectorAll('.r')) enhance(r);
-    if (ed && !ed.row.isConnected) edClose(false);   // the row left (another part picked): its editor goes with it
+    // A ROW REBUILT IS THE SAME ROW (the 2 Nov 19:00 diag: a step on the editor's + rebuilt the rows - _cage_ui renders them
+    // again on the release build - and the editor, its row gone, closed under the thumb; the number typed next went nowhere):
+    // the editor follows the new row of the same key; only a key that is gone (another part picked) closes it
+    if (ed && !ed.row.isConnected) { const nr = liveRow(ed.row.dataset.k); if (nr) { ed.row = nr; nr.classList.add('phOpen'); edShow(); } else edClose(false); }
   }
 
   // ---- THE SPLIT (G3900) -----------------------------------------------------------------------------------------
@@ -513,7 +555,7 @@
       // a value set by anything but a finger (a load, a reset, the typed chip, syncSliders) moves the knob too
       // G3725 (PHONE-GARAGE): the rail's rows open in the MENU's pages (#gmPanel, app.js) and the top bar's card
       // (#edPopCard, editor.js) now - both made later than this, so they are watched once they exist
-      setInterval(() => { if (!drag && !D.hidden) { watch($('gmPanel')); watch($('edPopCard')); placeAll(); } }, 400);
+      setInterval(() => { if (!drag && !D.hidden) { watch($('gmPanel')); watch($('edPopCard')); placeAll(); cgChip(); } }, 400);
       // the split is the orientation's own (a turn of the phone takes the other one)
       W.addEventListener('resize', applySplit);
       W.addEventListener('orientationchange', () => setTimeout(applySplit, 200));
@@ -524,9 +566,10 @@
   }
   // the split before the first layout: the view is its size from the boot on
   applySplit();
-  // the row's own - / + (html.ph-pm), off unless asked for
+  // THE ROW'S OWN - / + (html.ph-pm): THE DEFAULT (the user 2 Nov 18:20, from the two stills: "on the phone layout, I prefer
+  // the alternative +- every row"); the compact row (- / + in the value's editor) stays a pick: ?phsteps=0, flydiy.phSteps=0
   const setSteps = on => { on = !!on; D.documentElement.classList.toggle('ph-pm', on); ls.set('flydiy.phSteps', on ? '1' : '0'); W.requestAnimationFrame(placeAll); return on; };
-  try { const q = new URLSearchParams(W.location.search).get('phsteps'); D.documentElement.classList.toggle('ph-pm', q != null ? q === '1' : ls.get('flydiy.phSteps') === '1'); } catch (e) {}
+  try { const q = new URLSearchParams(W.location.search).get('phsteps'); D.documentElement.classList.toggle('ph-pm', q != null ? q !== '0' : ls.get('flydiy.phSteps') !== '0'); } catch (e) {}
   // the editor opens inside the boot (its 'editor' step); the rail and the tree fill after it
   const poll = setInterval(() => { if (init() && $('edRail') && $('edRail').children.length) { trimRail(); clearInterval(poll); } }, 250);
   W.PHONE_UI = { setTab, tab: () => tab, placeAll, enhance, rows: () => ROWS.size,

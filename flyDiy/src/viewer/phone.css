@@ -117,7 +117,7 @@ html.phone #edRows .r > button { min-height:36px; min-width:36px; }
      line 1   label (one line, ellipsis) ............ | switch | = | value | unit
      line 2   [ - ] [ the scale, all the width left ............................ ] [ + ]
    The columns: 40 px (the - under the label's start) | the label's 1fr | switch | = | value | unit | 40 px (the +).
-   No column gap (an empty column would still cost one): each cell carries its own margin. COMPACT (the default, A0 2 Nov):
+   No column gap (an empty column would still cost one): each cell carries its own margin. COMPACT (a pick since the user chose the row's - / + on 2 Nov 18:20, html.ph-pm the default - phone.js):
    the - / + hidden, the scale across all seven columns; html.ph-pm (the user picks from the stills) shows them. */
 html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider { display:grid; position:relative; height:auto;
   grid-template-columns:var(--ph-step) minmax(0, 1fr) auto auto auto auto var(--ph-step); grid-template-rows:var(--ph-line1) var(--ph-line2);
@@ -153,6 +153,10 @@ html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep 
   border:1px solid var(--ed-btn-bd); touch-action:manipulation; -webkit-user-select:none; user-select:none;
   -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
 html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep:active { background:var(--ed-acc-soft); }
+/* drawn 40 x 32 (line 2), HIT 44 x 44 (A0's PHONE-UI-GUIDELINES; the row's - / + the default since the user's pick 2 Nov 18:20):
+   the box's own pseudo-element reaches 6 px up and down, 2 px each side - as the switch's does */
+html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep { position:relative; }
+html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .phStep::before { content:''; position:absolute; left:-2px; right:-2px; top:-6px; bottom:-6px; }
 /* the value: a chip the thumb taps (the editor types it); never the keyboard in the row */
 html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider > .v { min-width:64px; height:26px; margin-top:-5px; margin-bottom:-5px;
   padding:0 7px !important; box-sizing:border-box; text-align:right; cursor:pointer; caret-color:transparent;
@@ -203,6 +207,12 @@ html.phone #edRows .edH.shut { margin:0; padding-bottom:4px; }
 /* ---- THE VALUE'S EDITOR (G3900): a tap on a value or its label - the number typed (inputmode decimal) with its unit,
    - / + a step (held: they repeat), Done, Enter or a tap outside sets it, Esc leaves it. An input bar, not a card:
    it stands on the sheet's foot, and on the keyboard's top edge while the keyboard is up (phone.js, visualViewport) ---- */
+/* THE BAR'S OWN PALETTE (the 2 Nov 19:00 diag: the bar is body-level, and the --ed-* tokens live on the panels - editor.css
+   40 - so its background and buttons came out TRANSPARENT: the rows showed through and the rig's editor still showed no bar).
+   editor.css's values, here, for the one body-level box that wears them */
+html.phone #phEdit { --ed-panel:#201d1a; --ed-board:#1a1815; --ed-border:rgba(255,248,236,.14); --ed-ink:#f4efe6; --ed-dim:#c0b8ac;
+  --ed-faint:#97907f; --ed-acc:#e6dbc9; --ed-acc-ink:#221f1b; --ed-acc-soft:rgba(230,219,201,.14); --ed-btn-bg:rgba(255,255,255,.06);
+  --ed-btn-bd:rgba(255,255,255,.18); }
 html.phone #phEdit { position:fixed; left:var(--ph-sl); width:var(--ph-sw); bottom:var(--ph-tab); z-index:60; box-sizing:border-box;
   display:grid; grid-template-columns:var(--ph-tap) minmax(0, 1fr) var(--ph-tap) auto var(--ph-tap); grid-template-rows:auto var(--ph-tap);
   gap:6px 8px; align-items:center; padding:10px 12px 12px; background:var(--ed-panel);
@@ -276,3 +286,16 @@ html.phone #bRun, html.phone #bAward, html.phone body.mode-fly #bAward {
   width:calc(var(--ph-sw) - 16px); max-width:none;
   max-height:calc(100vh - var(--ph-st) - var(--ph-tab) - 16px);
   max-height:calc(100dvh - var(--ph-st) - var(--ph-tab) - 16px); overflow-y:auto; }
+
+/* THE CG ON THE VIEW'S EDGE (G3906; the user 2 Nov: "I can't see the CG and margin indicators in the phone interface"):
+   phone.js's chip at the view's lower left - the posts' reading in numbers, in the margin band's colour (app.js's
+   red / orange / green, P1 CG-COLOURS). Above the divider's hit zone (--ph-vh less 22 px) in portrait, the view's foot in
+   landscape; no pointer (the orbit's finger passes through); one line, ellipsed in a narrow view */
+html.phone #phCg { position:fixed; left:10px; top:calc(var(--ph-vh) - 62px); z-index:45; pointer-events:none;
+  max-width:calc(var(--ph-vw) - 20px); box-sizing:border-box; padding:6px 10px 6px 9px; border-radius:8px;
+  border-left:3px solid #c0b8ac; background:rgba(20,18,15,.8); color:#f4efe6;   /* (body-level: the --ed-* tokens live on the panels, editor.css 40) */
+  font:600 13px/16px 'IBM Plex Sans', sans-serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+html.phone #phCg[hidden] { display:none; }
+html.phone #phCg[data-band="green"] { border-left-color:#6fd08a; }
+html.phone #phCg[data-band="orange"] { border-left-color:#ffa13d; color:#ffc27a; }
+html.phone #phCg[data-band="red"] { border-left-color:#ff6b5b; color:#ff8f82; }
