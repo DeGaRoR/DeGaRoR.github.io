@@ -20,6 +20,7 @@
 //                                 (to its left), <el> deg above the chord (negative: below), a <fov> deg lens; the left
 //                                 side, orthographic - drawn by the page's renderer at --psize 1800x1200 on a dark studio
 //                                 (--bg0 / --bg1 the backdrop's centre and edge, --key / --rim the portrait lights)
+//        [--same 0.9]             the share of the file's cage rows the page must hold after the import (assert 3)
 //        [--size 1920x1080]       the viewport (CSS px, DPR 1); the still is the 3D canvas only (the phone's sheet takes a third)
 //        [--gpu]                  the machine's graphics card instead of SwiftShader (the box's A/B; a visible window)
 //        [--page index.html]      index.html (built) or dev.html (the loose src/)
@@ -309,12 +310,12 @@ async function shoot(o) {
         if (C.S.dialogs.length > d0) break;
         let got = {}; try { got = JSON.parse(await C.ev(probe, 60000)) || {}; } catch (e) {}
         same = keys.filter(k => typeof got[k] === 'number' && Math.abs(got[k] - wantCage[k]) <= 1e-6 * Math.max(1, Math.abs(wantCage[k]))).length;
-        if (keys.length && same / keys.length >= 0.9) break;
+        if (keys.length && same / keys.length >= o.same) break;
         if (i > 120 || left() <= 0) break;
       }
       BR.cageRows = keys.length; BR.cageSame = same;
       if (C.S.dialogs.length > d0) { fail(EXIT.build, base + ': the import said "' + C.S.dialogs.slice(d0).join(' / ') + '"'); continue; }
-      if (!keys.length || same / keys.length < 0.9) { fail(EXIT.build, base + ': the page\'s build is not the file\'s (' + same + ' of ' + keys.length + ' cage rows equal)'); continue; }
+      if (!keys.length || same / keys.length < o.same) { fail(EXIT.build, base + ': the page\'s build is not the file\'s (' + same + ' of ' + keys.length + ' cage rows equal)'); continue; }
       // the build settles: its box the same over two looks a few frames apart (the join's second round, the floats' datum)
       const box = '(() => { const o = window.CAGE_UI_SCENE; if (!o || typeof THREE === "undefined") return null; const b = new THREE.Box3().setFromObject(o); return b.isEmpty() ? null : [b.min.toArray(), b.max.toArray()].flat().map(v => +v.toFixed(3)); })()';
       let prev = null;
@@ -488,6 +489,7 @@ async function pair(dirA, dirB, out, labels, chrome) {
     views: (opt('views', 'q,s,t,f')).split(',').filter(Boolean), keepUi: flag('keep-ui'), fallback: opt('fallback', null),
     root: path.resolve(opt('root', REPO)),
     psize: (opt('psize', '1800x1200')).split('x').map(Number),
+    same: +opt('same', 0.9),   // the share of the file's cage rows the page must hold (an old v7 / v8 file: the build's clamps and migrations pull more)
     // the portrait's studio: the backdrop's centre and edge, the key's and the rim's strength
     look: { bg0: opt('bg0', '#2b2724'), bg1: opt('bg1', '#0a0908'), key: +opt('key', 2.2), rim: +opt('rim', 2.6) },
   };
