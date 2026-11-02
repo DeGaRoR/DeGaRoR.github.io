@@ -20,7 +20,10 @@ const CASES = {
   'trunk-0': { label: 'a trunk at 30 m/s, the centreline', kind: 'trunk', o: { D: 40, agl: 4, V: 30, secs: 5, off: 0, r: 0.3, h: 10.05 } },
   'taxi-3': { label: 'a 3 m/s taxi into a trunk', kind: 'trunk', o: { D: 6, agl: 0, V: 3, secs: 6, off: 0, r: 0.3, h: 10.05 } },
   noseover: { label: 'a nose-over (12 m/s into a 35 cm stump)', kind: 'trunk', o: { D: 8, agl: 0, V: 12, secs: 6, off: 0, r: 0.25, h: 0.35, stumpAtWheels: true } },
-  'slide-L': { label: 'a wing-low slide (rolled 25 deg left onto the tip, 15 m/s)', kind: 'slide', o: { V: 15, roll: 25, sink: 0.8, secs: 3 } },
+  // (2 Nov, the port onto master: `roll` is the LEAST roll - the staging rolls on, a degree at a time to 60, until the
+  // lowest point is a wing's tip. On today's metal Cessna 25 deg sat it on its low main wheel (a wheel slides no work):
+  // 0 J slid, where 6 Oct's build slid 692 J. The Cub and the Jodel are on their tips at 25 deg, as before)
+  'slide-L': { label: 'a wing-low slide (rolled 25 deg or more left onto the tip, 15 m/s)', kind: 'slide', o: { V: 15, roll: 25, sink: 0.8, secs: 3 } },
 };
 
 // the case's sim, staged (TREE-CRASH's atTrunk for the trunks; the slide rolled about the body's own axis)
@@ -41,12 +44,21 @@ function stage(k, c, damage) {
         for (let j = 0; j < 3; j++) out[i*3+j] = c0[j] + d[j] * cs + cr[j] * sn + kk[j] * kd * (1 - cs); } return out; };
     const leftOf = i => /L$/.test(def.nodes[i].tag || '') ? 1 : /R$/.test(def.nodes[i].tag || '') ? -1 : 0;
     let P = rot(th), score = 0; for (let i = 0; i < n; i++) score += leftOf(i) * (P[i*3+1] - p[i*3+1]);
-    if (score > 0) P = rot(-th);        // the left side must go DOWN
-    let yMin = Infinity; for (let i = 0; i < n; i++) yMin = Math.min(yMin, P[i*3+1] - def.nodes[i].r);
+    const sg = score > 0 ? -1 : 1;     // the left side must go DOWN
+    // the lowest point a TIP: more than 3 m from the roll axis (a main wheel stands ~1.6 m off it, a tip 5 m and more) -
+    // else a degree more roll, to 60
+    const axisD = i => { const d = [p[i*3] - c0[0], p[i*3+1] - c0[1], p[i*3+2] - c0[2]], kd = kk[0]*d[0] + kk[1]*d[1] + kk[2]*d[2];
+      return Math.sqrt(Math.max(0, d[0]*d[0] + d[1]*d[1] + d[2]*d[2] - kd * kd)); };
+    let yMin = Infinity, deg = o.roll || 25;
+    for (;; deg++) {
+      P = rot(sg * deg * Math.PI / 180); yMin = Infinity; let iMin = -1;
+      for (let i = 0; i < n; i++) { const y = P[i*3+1] - def.nodes[i].r; if (y < yMin) { yMin = y; iMin = i; } }
+      if (axisD(iMin) > 3 || deg >= 60) break;
+    }
     for (let i = 0; i < n; i++) { p[i*3] = P[i*3]; p[i*3+1] = P[i*3+1] + (elev + 0.02 - yMin); p[i*3+2] = P[i*3+2];
       v[i*3] = o.V * fx; v[i*3+1] = -o.sink; v[i*3+2] = o.V * fz; }
     sim.ctl.thr = 0;
-    return { sim, def, N: o.secs * 60 };
+    return { sim, def, N: o.secs * 60, roll: deg };
   }
   if (o.V) for (let i = 0; i < sim.n; i++) { sim.v[i*3] = o.V * fx; sim.v[i*3+2] = o.V * fz; }
   if (c.kind === 'trunk') {
@@ -93,7 +105,7 @@ function skinOf(k) {
 function run(k, caseId, opts) {
   const o = opts || {}, C = L.core(), c = CASES[caseId], damage = o.damage !== false;
   const SK = o.skin || skinOf(k), { d0, rest, meshes, B } = SK, n = d0.nodes.length;
-  const { sim, def, N } = stage(k, c, damage);
+  const { sim, def, N, roll } = stage(k, c, damage);
   const T = SB.topo(d0.beams, n), core = d0.refs.noseFrame[0];
   const hop = SH.simDmgHop0(), D = SV.simViewDmgState(n, d0.beams.length);
   const st = SS.state(), NF = {}, live = new Float32Array(n * 3);
@@ -150,7 +162,7 @@ function run(k, caseId, opts) {
     st.next = null; SS.begin(st, SS.fields(d0, D, B), recs); passAll();
   }
   passes = st.passes;
-  return { sim, def, D, recs, st, payloads, passes, frameMax, bound, recMs, SK, inh, damage: sim.damage() };
+  return { sim, def, D, recs, st, payloads, passes, frameMax, bound, recMs, SK, inh, damage: sim.damage(), roll };
 }
 // the records' bytes, hashed (FNV-1a over every record's rec and dir, in order)
 function hashOf(recs) {
