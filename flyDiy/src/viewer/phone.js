@@ -268,12 +268,21 @@
   // THE STEPPERS (R6), on the row and in the value's editor: a tap is one step; held, they repeat - one press, ticks, one
   // release, as a drag
   let rep = null;
+  // the row of key k on the page now (one phone.js enhanced, on screen first) - a rebuilt row's successor
+  function liveRow(k) {
+    if (!k) return null;
+    const all = [...D.querySelectorAll('.r.phSlider[data-k="' + k + '"]')].filter(r => r.__ph);
+    return all.find(r => r.offsetParent !== null) || all[0] || null;
+  }
   function stepDown(row, dir, e) {
     const ph = row.__ph, rng = ph.rng;
     if (rng.disabled || drag || rep) return;
     e.preventDefault();   // (and the editor's input keeps the focus: the keyboard stays up)
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch (x) {}
     const one = () => {
+      // a held step outlives a rebuild of its row: it steps the row of the same key that is on the page now
+      if (!rep.rng.isConnected) { const nr = liveRow(rep.row.dataset.k); if (nr) { rep.row = nr; rep.rng = nr.__ph.rng; } }
+      const row = rep.row, rng = rep.rng;
       const { st } = rangeOf(rng);
       const v = snap(rng, num(rng.value, 0) + dir * st);
       if (v === num(rng.value, NaN)) return;
@@ -284,13 +293,15 @@
       buzz();
     };
     press(rng);
+    rep = { row, rng, t: 0 };
     one();
-    rep = { row, rng, t: setTimeout(function again() { one(); rep.t = setTimeout(again, REP); }, REP0) };
+    rep.t = setTimeout(function again() { if (!rep) return; one(); rep.t = setTimeout(again, REP); }, REP0);
   }
   function stepUp() {
     if (!rep) return;
     clearTimeout(rep.t);
     const r = rep; rep = null;
+    if (!r.rng.isConnected) { const nr = liveRow(r.row.dataset.k); if (nr) { r.row = nr; r.rng = nr.__ph.rng; } }   // (the release reaches the live row)
     release(r.rng);
     edShow();
   }
@@ -314,8 +325,8 @@
     edEl.u = mk('span', 'phEu');
     edEl.plus = mk('button', 'phStep phPlus', '+'); edEl.plus.type = 'button'; edEl.plus.setAttribute('aria-label', 'more');
     // the OK button and Enter set the typed number; - / + set it first (a typed 2.4 then + is 2.4 + a step), then step
-    edEl.ok.addEventListener('pointerdown', e => e.preventDefault());
-    edEl.sign.addEventListener('pointerdown', e => e.preventDefault());   // (the field keeps the focus: the keypad stays up)
+    edEl.ok.addEventListener('pointerdown', e => { e.preventDefault(); edPressAt = performance.now(); });
+    edEl.sign.addEventListener('pointerdown', e => { e.preventDefault(); edPressAt = performance.now(); });   // (the field keeps the focus: the keypad stays up)
     edEl.sign.addEventListener('click', () => { const t = String(edEl.inp.value).trim();
       edEl.inp.value = t.startsWith('-') ? t.slice(1) : t.startsWith('+') ? '-' + t.slice(1) : '-' + t;
       try { edEl.inp.focus({ preventScroll: true }); const n = edEl.inp.value.length; edEl.inp.setSelectionRange(n, n); } catch (e) {} });
@@ -324,7 +335,7 @@
     for (const [b, dir] of [[edEl.minus, -1], [edEl.plus, 1]]) {
       // (preventDefault as Done and the sign: the field keeps the focus, so the keypad stays up across a step and what is
       // typed after it reaches the field - the 2 Nov rig's 'typed' red: a tap on + took the focus, the digits went nowhere)
-      b.addEventListener('pointerdown', e => { if (!ed) return; e.preventDefault(); edCommit(); stepDown(ed.row, dir, e); });
+      b.addEventListener('pointerdown', e => { if (!ed) return; e.preventDefault(); edPressAt = performance.now(); edCommit(); stepDown(ed.row, dir, e); });
       b.addEventListener('pointerup', stepUp);
       b.addEventListener('pointercancel', stepUp);
       b.addEventListener('lostpointercapture', stepUp);
@@ -348,6 +359,15 @@
     // the model's value, unless the thumb is typing (the field no longer shows what was last put in it)
     if (D.activeElement !== edEl.inp || edEl.inp.value === ed.synced) { edEl.inp.value = cur(ed.row); ed.synced = edEl.inp.value; }
     edEl.u.textContent = ph.mu && ph.mu.textContent ? ph.mu.textContent : '';
+  }
+  // NO GHOST CLICK THROUGH THE EDITOR (the 2 Nov 18:50 diag: a tap on the editor's + stepped deck height, then the tap's own
+  // click landed on the row BEHIND the bar - the editor reopened on the wing chord, and the number typed next went there):
+  // a row ignores a click inside the open editor's box, or within 700 ms of a press on the editor's buttons
+  let edPressAt = -1e9;
+  function ghostOfEditor(e) {
+    if (performance.now() - edPressAt < 700) return true;
+    const b = ed && edEl.box && !edEl.box.hidden ? edEl.box.getBoundingClientRect() : null;
+    return !!b && e.clientX >= b.left && e.clientX <= b.right && e.clientY >= b.top && e.clientY <= b.bottom;
   }
   function edOpen(row) {
     const ph = row && row.__ph;
@@ -441,6 +461,7 @@
     // the row's whole height opens it (A0 2 Nov: a target >= 44 px) - all but the knob, a switch, a button, a select
     row.addEventListener('click', e => { const t = e.target;
       if (t && t.closest && t.closest('.phKnob, button, select, input[type=checkbox]')) return;
+      if (ghostOfEditor(e)) return;
       e.preventDefault(); edOpen(row); });
     ROWS.add(row);
     if (roRows) roRows.observe(row);
@@ -449,7 +470,10 @@
   function enhanceIn(host) {
     if (!host) return;
     for (const r of host.querySelectorAll('.r')) enhance(r);
-    if (ed && !ed.row.isConnected) edClose(false);   // the row left (another part picked): its editor goes with it
+    // A ROW REBUILT IS THE SAME ROW (the 2 Nov 19:00 diag: a step on the editor's + rebuilt the rows - _cage_ui renders them
+    // again on the release build - and the editor, its row gone, closed under the thumb; the number typed next went nowhere):
+    // the editor follows the new row of the same key; only a key that is gone (another part picked) closes it
+    if (ed && !ed.row.isConnected) { const nr = liveRow(ed.row.dataset.k); if (nr) { ed.row = nr; nr.classList.add('phOpen'); edShow(); } else edClose(false); }
   }
 
   // ---- THE SPLIT (G3900) -----------------------------------------------------------------------------------------
