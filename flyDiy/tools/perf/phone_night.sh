@@ -7,6 +7,7 @@
 #      (?idle=0), 20 s of the idle shed's frames, the phone's own flight log (GARAGE EDITS) and a still;
 #   2. typed values (the value chip's change) on the same rows;
 #   3. the material census on the phone tier (the default) and the full look (?phmat=full), each with a still;
+#   3b. the crew: hidden and untextured beside the base (census_crew.json);
 #   4. the idle hold (no ?idle=0): frames after 7 s untouched, then after a touch;
 #   4b. PHONE-GARAGE's registration check (G3798c: CLOUD-SHOTS/atlas_hook.js + reg_check.js), the Cub and the twin, a side still each;
 #   5. PHONE-GARAGE's touch checks (tools/perf/mobile_phone_cdp.js, its touch section, portrait as the phone holds it) and a
@@ -48,6 +49,8 @@ PE edits   --rows $ROWS --reps 2 --ticks 15 --quiet 3000 --idle 20 --query idle=
 PE typed   --rows $ROWS --reps 1 --typed --quiet 3000 --query idle=0 --out "$OUTD/typed.json"
 PE census  --rows none --census --csec 6 --idle 20 --query idle=0 --out "$OUTD/census_tier.json"
 PE full    --rows none --census base --csec 6 --idle 20 --query "idle=0&phmat=full" --out "$OUTD/census_full.json" --shot "$OUTD/s20_after_full.jpg"
+# the crew (A0 2 Nov 21:55, the user: the characters untextured, or not drawn at all, if they cost): hidden and flat beside the base
+PE crew    --rows none --census base,nocrew,crewflat,base --csec 6 --query idle=0 --out "$OUTD/census_crew.json"
 PE idle    --rows none --idlecheck --out "$OUTD/idle.json"
 # PHONE-GARAGE's G3798c (A0 2 Nov): the registration painted in the decal atlas after the page's first paint (the Cub's came out
 # blank under SwiftShader) - its own pass (the hook reads page 0 every 250 ms: never on the timed passes), the Cub and the twin

@@ -8,7 +8,7 @@ const dir = process.argv[2];
 if (!dir) { console.error('usage: node tools/perf/phone_night_report.js <dir>'); process.exit(2); }
 const J = f => { try { return JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8')); } catch (e) { return null; } };
 const f0 = x => (x == null || !isFinite(x) ? '-' : Math.round(x) + '');
-const before = J('before_live_2nov.json'), edits = J('edits.json'), typed = J('typed.json'), ct = J('census_tier.json'), cf = J('census_full.json'),
+const before = J('before_live_2nov.json'), edits = J('edits.json'), typed = J('typed.json'), ct = J('census_tier.json'), cf = J('census_full.json'), cc = J('census_crew.json'),
   idle = J('idle.json'), touch = J('touch.json');
 const L = ['# PHONE-1 overnight check on the S20 FE', '', 'Generated ' + new Date().toISOString() + ' by tools/perf/phone_night_report.js from ' + dir + '.', ''];
 if (edits) {
@@ -33,6 +33,8 @@ if (typed) {
 const cen = (R, name) => { if (!R || !R.census) return; L.push('### ' + name, '', '| variant | fps | frame median | p90 | max | CPU work |', '|---|---|---|---|---|---|');
   for (const c of R.census) L.push('| ' + c.v + ' | ' + c.fps + ' | ' + c.p50 + ' | ' + c.p90 + ' | ' + c.max + ' | ' + c.work + ' |'); L.push(''); };
 if (ct || cf) { L.push('## Materials (the shed rendering continuously)', ''); cen(ct, 'The phone tier (default)'); cen(cf, 'The full look (?phmat=full)'); }
+if (cc) { L.push('## The crew in the shed (the user 2 Nov: untextured or hidden if they cost)', '', 'The crew layer: ' + JSON.stringify(cc.crewInfo || null), '');
+  cen(cc, 'base / nocrew (the crew hidden) / crewflat (an untextured Lambert of each colour), on the phone tier'); }
 if (idle && idle.idlecheck) L.push('## The idle hold', '', 'After 7 s untouched: ' + idle.idlecheck.idleFps + ' fps rendered (the hold: ' + idle.idlecheck.heldFrames + ' frames held); after a touch: ' + idle.idlecheck.afterTouchFps + ' fps.', '');
 const regs = ['cub', 'twin'].map(b => [b, J('reg_' + b + '.json')]).filter(x => x[1]);
 if (regs.length) {

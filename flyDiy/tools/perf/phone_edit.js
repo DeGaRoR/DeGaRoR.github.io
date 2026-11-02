@@ -164,7 +164,22 @@ const CENSUS_JS = `(() => { if (window.__CEN) return 'again'; const C = window._
         m.material = Array.isArray(old) ? old.map(mk) : mk(old); C.undo.push(() => { m.material = old; }); } }
     if (v === 'halfres') { const pr = r.getPixelRatio(); r.setPixelRatio(pr * 0.5); window.dispatchEvent(new Event('resize')); C.undo.push(() => { r.setPixelRatio(pr); window.dispatchEvent(new Event('resize')); }); }
     if (v === 'noplane') for (const m of mats(sc)) if (m.visible) { m.visible = false; C.undo.push(() => { m.visible = true; }); }
+    if (v === 'nocrew') { const g = C.crew(sc); if (!g) return 'no crew'; g.visible = false; C.undo.push(() => { g.visible = true; }); }
+    if (v === 'crewflat') { const g = C.crew(sc); if (!g) return 'no crew'; const cache = new Map();
+      g.traverse(m => { if (!m.isMesh || !m.material) return; const old = m.material;
+        const mk = mt => { if (cache.has(mt)) return cache.get(mt); const n = new T.MeshLambertMaterial({ color: mt.color ? mt.color.clone() : 0xb8b2a6, transparent: !!mt.transparent, opacity: mt.opacity == null ? 1 : mt.opacity, side: mt.side, skinning: !!mt.skinning }); cache.set(mt, n); return n; };
+        m.material = Array.isArray(old) ? old.map(mk) : mk(old); C.undo.push(() => { m.material = old; }); }); }
     return 'ok'; };
+  // THE CREW (A0 2 Nov 21:55, the user: "the characters could be rendered without texture if need be, or even not at all"): the
+  // crew layer's group - nocrew hides it, crewflat dresses it in an untextured Lambert of each material's colour
+  C.crew = sc => sc.getObjectByName('cageLayer:crew') || null;
+  C.crewInfo = () => { const sc = C.scene(), g = sc && C.crew(sc); if (!g) return { crew: null };
+    let meshes = 0, skinned = 0, tris = 0, bones = 0; const tex = new Map();
+    g.traverse(m => { if (!m.isMesh || !m.visible) return; meshes++; if (m.isSkinnedMesh) { skinned++; bones += m.skeleton ? m.skeleton.bones.length : 0; }
+      const gm = m.geometry; if (gm) tris += (gm.index ? gm.index.count : (gm.attributes.position ? gm.attributes.position.count : 0)) / 3;
+      for (const mt of (Array.isArray(m.material) ? m.material : [m.material])) for (const k of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap'])
+        if (mt && mt[k] && mt[k].image) tex.set(mt[k].uuid, (mt[k].image.width || 0) + 'x' + (mt[k].image.height || 0)); });
+    return { meshes, skinned, bones, tris: Math.round(tris), textures: tex.size, sizes: [...new Set(tex.values())] }; };
   C.revert = () => { while (C.undo.length) try { C.undo.pop()(); } catch (e) {} return 'ok'; };
   C.sample = async (v, settle, sec) => { const a = C.apply(v); await new Promise(rs => setTimeout(rs, settle));
     await new Promise(rs => setTimeout(rs, sec * 1000));
@@ -220,6 +235,7 @@ const CENSUS_JS = `(() => { if (window.__CEN) return 'again'; const C = window._
   if (CENSUS) {
     log('census ' + await b.ev(CENSUS_JS));
     R.census = [];
+    if (CENSUS.some(v => /crew/.test(v))) { R.crewInfo = JSON.parse(await b.ev('JSON.stringify(__CEN.crewInfo())')); log('crew: ' + JSON.stringify(R.crewInfo)); save(); }
     for (const v of CENSUS) {
       const c = JSON.parse(await b.ev(`(async () => JSON.stringify(await __CEN.sample(${JSON.stringify(v)}, 4000, ${CSEC})))()`, CSEC * 1000 + 60000));
       R.census.push(c); save();
