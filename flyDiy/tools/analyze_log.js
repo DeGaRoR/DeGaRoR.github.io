@@ -372,7 +372,10 @@ function analyze(log, opt) {
   const flightCols = rows.some(r => num(r.hdg) || num(r.rud));
   const A = { flight: { v: H.v || 1, cols: flightCols, flights, winds, header: H.flight || null, buildSpec: !!H.buildSpec }, takeoffs: tos,
     trees: treeEv, hwsteps: events.filter(e => e.kind === 'hwstep'), skies: events.filter(e => e.kind === 'sky'), header: H, t0, revealT, revealInferred, reveals, frames: rows.length, boots, scopeName, scopeFrames: scope.length, dist, phases, worst, stretches: stretches.slice(0, 10), slowS,
-    over100: over100.slice(0, 30).map(r => ({ i: r.i, t: r.t, dt: r.dt, phase: r.ph })), over100N: over100.length, longTasks, evCount, catches, catcher: H.catcher || null, targets, editor };
+    over100: over100.slice(0, 30).map(r => ({ i: r.i, t: r.t, dt: r.dt, phase: r.ph })), over100N: over100.length, longTasks, evCount, catches, catcher: H.catcher || null, targets, editor,
+    // PHONE-EDIT-PERF (D): the garage's edits (_cage_ui 'gedit': one per handler that built) and the named tasks after them ('gtask')
+    gedits: events.filter(e => e.kind === 'gedit').map(e => Object.assign({ t: e.t, ms: e.ms }, e.detail && typeof e.detail === 'object' ? e.detail : {})),
+    gtasks: events.filter(e => e.kind === 'gtask').map(e => ({ t: e.t, ms: e.ms, name: String(e.detail) })) };
   Object.defineProperty(A, 'rows', { value: rows, enumerable: false });   // G3322: --trace's (kept out of --json)
   return A;
 }
@@ -516,6 +519,19 @@ function report(A, opt) {
     for (const c of E.classes) L.push('  ' + c.cls.padEnd(12) + String(c.n).padStart(3) + f0(c.med).padStart(12) + f0(c.worst).padStart(11));
     L.push('  the slowest (ms, at, the frame it landed in, what ran):');
     for (const e of E.slowest) L.push('  ' + f0(e.ms).padStart(6) + ' ms at ' + ts(e.t) + (e.frame != null ? '  frame ' + f0(e.frame) + ' ms' : '') + '  ' + e.detail.slice(0, 220));
+    L.push('');
+  }
+  if (A.gedits.length || A.gtasks.length) {
+    // PHONE-EDIT-PERF (D): every edit, in time order with the named tasks between them
+    L.push('GARAGE EDITS (PHONE-EDIT-PERF - one per handler that built; how: drag/input/release/typed/pause, or a bare call): ' + A.gedits.length + ' edits, ' + A.gtasks.length + ' tasks of 16 ms or more');
+    const all = A.gedits.map(e => ({ t: e.t, e })).concat(A.gtasks.map(g => ({ t: g.t, g }))).sort((a, b) => a.t - b.t);
+    for (const x of all) {
+      if (x.g) { L.push('  ' + ts(x.t) + '  task ' + x.g.name + ' ' + f0(x.g.ms) + ' ms'); continue; }
+      const e = x.e;
+      L.push('  ' + ts(e.t) + '  ' + String(e.how).padEnd(8) + ' ' + String(e.k || '-').padEnd(12) + f0(e.ms).padStart(7) + ' ms: build ' + f0(e.build) + ' (' + e.builds + ', ' + (e.path || '?') +
+        (e.why ? ': ' + e.why : '') + '), sheet ' + f0(e.sheet) + ', on-build ' + f0(e.onBuild) + (e.ticks ? ' | drag ' + e.ticks + ' ticks, mean ' + f1(e.tickMean) + ' max ' + f0(e.tickMax) + ' ms' : ''));
+      if (e.layers) L.push('             layers: ' + e.layers);
+    }
     L.push('');
   }
   if (A.catcher || A.catches.length) {

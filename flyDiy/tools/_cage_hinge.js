@@ -492,13 +492,16 @@ function skinProbe(scene, s) {
 // downward; a flank exit above the waist would get the inward one).
 // a ray against the cage SHEET (cage units × FS), skin faces only — the
 // same triangles GATE CLIP measures; returns { t, n } or null
-function sheetRay(mesh, FS, o, d, tMax) {
-  if (!mesh || !mesh.V || !mesh.F) return null;
-  const GGk = window.GEAR_GEN;
-  const CMk = GGk && GGk.CAGE_MATS ? new Set(GGk.CAGE_MATS) : null;
-  let best = null;
-  const zLo = Math.min(o[2], o[2] + d[2] * tMax) - 0.05, zHi = Math.max(o[2], o[2] + d[2] * tMax) + 0.05;
-  const Vv = mesh.V;
+// PHONE-EDIT-PERF (2 Nov): THE SHEET'S SKIN FACES AND THEIR Z-RANGES, ONCE PER SHEET. sheetRay ran over every face of the
+// sheet on every call - the material Set made again, each face's z-range measured again - and the cable routing calls it
+// dozens of times a build (`sheetRay` 0.6 s self in a few minutes of edits on the user's S20 FE). A sheet is not changed
+// once built (the kept sheet, G1300); the list keeps the faces' own order, so the ray meets the same faces in the same
+// order and the nearest hit is the same one
+const SHEET_FACES = new WeakMap();
+function sheetFaces(mesh, FS, mats) {
+  let c = SHEET_FACES.get(mesh);
+  if (c && c.FS === FS && c.mats === mats && c.nF === mesh.F.length) return c;
+  const CMk = mats ? new Set(mats) : null, Vv = mesh.V, F = [], Z = [];
   for (const f of mesh.F) {
     if (CMk && !CMk.has(f.m)) continue;
     const v = f.v || f;
@@ -506,7 +509,22 @@ function sheetRay(mesh, FS, o, d, tMax) {
     // the window, not a vertex fall inside it
     let fz0 = Infinity, fz1 = -Infinity;
     for (const i of v) { const z = Vv[i][2] * FS; if (z < fz0) fz0 = z; if (z > fz1) fz1 = z; }
-    if (fz1 < zLo || fz0 > zHi) continue;
+    F.push(v); Z.push(fz0, fz1);
+  }
+  c = { FS, mats, nF: mesh.F.length, F, Z };
+  SHEET_FACES.set(mesh, c);
+  return c;
+}
+function sheetRay(mesh, FS, o, d, tMax) {
+  if (!mesh || !mesh.V || !mesh.F) return null;
+  const GGk = window.GEAR_GEN;
+  const SF = sheetFaces(mesh, FS, GGk && GGk.CAGE_MATS ? GGk.CAGE_MATS : null);
+  let best = null;
+  const zLo = Math.min(o[2], o[2] + d[2] * tMax) - 0.05, zHi = Math.max(o[2], o[2] + d[2] * tMax) + 0.05;
+  const Vv = mesh.V;
+  for (let fi = 0; fi < SF.F.length; fi++) {
+    const v = SF.F[fi];
+    if (SF.Z[fi * 2 + 1] < zLo || SF.Z[fi * 2] > zHi) continue;
     for (let k = 1; k + 1 < v.length; k++) {
       const a = Vv[v[0]], b = Vv[v[k]], c = Vv[v[k + 1]];
       const e1 = [(b[0] - a[0]) * FS, (b[1] - a[1]) * FS, (b[2] - a[2]) * FS];

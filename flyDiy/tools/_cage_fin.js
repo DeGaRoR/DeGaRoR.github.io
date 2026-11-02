@@ -548,8 +548,12 @@ PAGE.post = ctx => {
   // diving past the tightening, user report). Rod mode builds without
   // both — as the real tube-boom aeroplanes fly — and the user's
   // finKeel/finDorsal choices return with the loft.
+  // PHONE-EDIT-PERF (2 Nov): the two overrides on an object that reads the rest THROUGH P, not a spread of it - a spread
+  // enumerates every key, and the post chain then records the fin as reading ALL of P (G1441's `all`): every row of
+  // every slider re-ran the fin, the stab, the access fittings, the lights and the hinges (~360 ms a release on the
+  // user's S20 FE, on their twin-boom floatplane). finSpec reads its keys by name: the same values
   const S = FIN.finSpec(P.boomStyle
-    ? { ...P, finKeel: 0, finDorsal: 0 } : P);
+    ? Object.assign(Object.create(P), { finKeel: 0, finDorsal: 0 }) : P);
   S.cutPrep = cutMode;              // crease the rails the cut runs along
   // TWIN BOOMS (2026-09-04): the fin rides a BOOM, not the fuselage — its
   // deck is the boom's own top line (a straight tube), its keel the tube's

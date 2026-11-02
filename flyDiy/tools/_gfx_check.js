@@ -642,7 +642,13 @@ const modes = async () => {
     ok(w.FLYDIY_MODE === 'sandbox' && !w.FLYDIY_WELCOME && (w.warned || []).some(m => /mode=garage/.test(m)), '?mode=garage: the sandbox at once, said in the console'); }
   // a phone: the device gate, then the menu
   { const w = await pg('', PAGES, {}, { userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) Mobile', userAgentData: { mobile: true } }, 'Adreno (TM) 740');
-    ok(w.screen() === 'card' && /made for a computer/.test(w.$(x => x.tagName === 'h1')[0].textContent), 'a phone: the device gate first');
+    // G3905 (PHONE-1, the user 2 Nov): the gate says what the phone does now - the workshop fits, the island and the career still
+    // want a computer; the test flight and its button name only once the phone profile flies (profile.js TABLE.phone.fly)
+    const fl = w.PROFILE && w.PROFILE.TABLE && w.PROFILE.TABLE.phone && w.PROFILE.TABLE.phone.fly !== 'none';
+    const txt = w.$(x => x.tagName === 'p').map(x => x.textContent).join(' '), btn = (w.$(x => x.className === 'wplay')[0] || {}).textContent;
+    ok(w.screen() === 'card' && /workshop fits in a phone/.test(w.$(x => x.tagName === 'h1')[0].textContent) && /still need a computer/.test(txt) &&
+       btn === (fl ? 'Build and test-fly on this phone' : 'Build on this phone') && /test field/.test(txt) === !!fl,
+       'a phone: the device gate first - what the phone does (' + btn + '), the test flight said only when it ships');
     w.$(x => x.className === 'wlink' && /try anyway/.test(x.textContent))[0].onclick(); await tick(); await tick();
     ok(w.screen() === 'menu' && w.WELCOME.pick === 'potato', '..."try anyway": potato, then the menu'); }
   // the CSS: every row a 48 px target or more, three greys and one accent, IBM Plex Sans

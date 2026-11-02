@@ -12171,6 +12171,9 @@
     // G255: a screenshot has no marks; G1115: nor the roll-out shot (the CG post and its labels rode out on the aeroplane)
     gGrp.visible = !!d && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) && !window.__frLoading   // G2345: not under the loading view (its own CG bar)
       && !stMarksOff;   // G3357: not on the story's paint-only stage (T0)
+    // G3906: the phone's CG chip follows the same reasons to hide (a screenshot, the roll-out, the loading view, the story's
+    // paint stage) - but not the stand offset: the numbers stand without a place to draw the posts
+    window.CG_MARKS_ON = inGarage && curKey === 'gen' && !SHOT.on && !(typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) && !window.__frLoading && !stMarksOff;
     if (d) gGrp.position.set(d[0], d[1], d[2]);
   }
   function buildIndicators() {
@@ -12195,7 +12198,7 @@
     const P = def.parts;
     const [xA] = sim.axes();
     // the live answer when there is one (see refreshIndicators), else the sim
-    let cg, d, smTxt = null, cgTxt = null, smV = null;
+    let cg, d, smTxt = null, cgTxt = null, smV = null, cgPct = null;
     const b = LAST_BAL;
     if (b && P.GAL != null && P.GAR != null) {
       const a = P.GAL * 3, c2 = P.GAR * 3;
@@ -12206,14 +12209,14 @@
       d = b.npX - b.cgX;
       if (b.staticMargin != null) { smTxt = 'stability margin ' + (b.staticMargin * 100).toFixed(0) + ' %'; smV = b.staticMargin; }
       if (b.cBar > 0 && typeof b.xLEmac === 'number' && isFinite(b.xLEmac))
-        cgTxt = ((b.cgX - b.xLEmac) / b.cBar * 100).toFixed(0) + ' % of the wing chord';
+        cgTxt = (cgPct = (b.cgX - b.xLEmac) / b.cBar * 100).toFixed(0) + ' % of the wing chord';
     } else {
       const s = shakeOf();
       cg = sim.cgPos();
       d = s.npX - s.cgX;
       if (s.staticMargin != null) { smTxt = 'stability margin ' + (s.staticMargin * 100).toFixed(0) + ' %'; smV = s.staticMargin; }
       if (s.cBar > 0 && typeof s.xLEmac === 'number' && isFinite(s.xLEmac))
-        cgTxt = ((s.cgX - s.xLEmac) / s.cBar * 100).toFixed(0) + ' % of the wing chord';
+        cgTxt = (cgPct = (s.cgX - s.xLEmac) / s.cBar * 100).toFixed(0) + ' % of the wing chord';
     }
     const V = [], C = [];
     const seg = (a, b, col) => {
@@ -12237,6 +12240,11 @@
     // readout opens on a warning sign; with no readout (no wing chord) the band's title stands in
     if (MB && MB.mark) cgTxt = '⚠ ' + (cgTxt || MB.title);
     gTipBand = MB ? Object.assign({ sm: smV }, MB) : null;
+    // G3906 (the user 2 Nov, on the phone: "I can't see the CG and margin indicators in the phone interface"): the posts'
+    // reading as numbers too, for a readout that is not a 3D mark (phone.js's chip on the view's edge) - written here, the
+    // one place the posts are built from, so the two never disagree
+    if (typeof window !== 'undefined') window.CG_READ = { cg: cgPct != null && isFinite(cgPct) ? Math.round(cgPct) : null,
+      sm: smV != null && isFinite(smV) ? Math.round(smV * 100) : null, band: MB ? MB.band : null, mark: MB ? MB.mark : '', title: MB ? MB.title : '' };
     // an upright post from the ground to well above the aeroplane, so the two
     // are comparable at a glance from any angle
     const label = (px, py, pz, text, col, sub) => {
@@ -14529,6 +14537,7 @@
   window.BENCH_CHANGED = syncGoLabel;
 
   window.CAGE_ON_BUILD = () => {
+    if (window.FLYDIY_IDLE) window.FLYDIY_IDLE.wake();   // PHONE-EDIT-PERF: the phone's still shed draws again
     placeEditor();
     refreshInterior();
     // THE HALF-AND-HALF SURVIVES A REBUILD (G142). Every slider drag throws
@@ -18548,6 +18557,7 @@
   // drives it, so the render follows the panel's 160 ms fold instead of
   // snapping at the end of it.
   function resize() {
+    if (window.FLYDIY_IDLE) window.FLYDIY_IDLE.wake();   // PHONE-EDIT-PERF: (the phone's divider resizes the canvas, no window resize)
     const w = canvas.clientWidth || window.innerWidth;
     const h = canvas.clientHeight || window.innerHeight;
     renderer.setSize(w, h, false);
@@ -18938,6 +18948,42 @@
   if (SIMW) { window.FLYDIY_SIMW = SIMW; PACE.worker = () => SIMW.perf(); }
   let simwRan = -1;   // G820: the steps the worker's snapshot moved the picture on this frame (the recorder's wran)
   let frame = 0, wdFrame = 0, hudAcc = 0, shedT = 0;
+  // PHONE-EDIT-PERF (B; PHONE-UI-GUIDELINES 4, "don't re-render the view while it doesn't change"): THE PHONE'S SHED HOLDS
+  // WHEN NOTHING IS TOUCHED. The user's S20 FE drew the idle shed at ~12 fps of full GPU work (673 draws, 407 k triangles,
+  // frame p50 85 ms) - for a view nothing was moving but the control check's sweep and the day's clock. On the phone
+  // profile, IDLE_HOLD_MS after the last touch (a pointer, a wheel, a key anywhere on the page), the last build
+  // (CAGE_ON_BUILD: an edit, a typed value, the CG handshake, a load), a resize, or a change in what the scene holds (its
+  // children, the renderer's geometries and textures: an async load landing), the loop stops drawing: the sweep, the day
+  // clock, the beacon stand where they are and the canvas keeps its last frame; the next touch draws again. The loop
+  // itself keeps its non-visual ticks (the advisor's slice, the load rig - a running rig never holds). The desktop is
+  // unchanged. Off: localStorage flydiy.phoneIdle = '0' or ?idle=0 (the A/B; the user's call on the look, via A0)
+  const IDLE_HOLD_MS = 5000;
+  const IDLE_ON = (() => {
+    try {
+      if (!(window.PROFILE && window.PROFILE.name === 'phone')) return false;
+      if (/[?&]idle=0(&|$)/.test(location.search || '')) return false;
+      return prefGet('flydiy.phoneIdle', '') !== '0';
+    } catch (e) { return false; }
+  })();
+  const IDLE = { wake: 0, sig: -1, held: 0 };
+  const idleWake = () => { IDLE.wake = perfNow(); };
+  if (IDLE_ON) {
+    for (const k of ['pointerdown', 'pointermove', 'wheel', 'keydown', 'touchstart']) window.addEventListener(k, idleWake, { capture: true, passive: true });
+    window.addEventListener('resize', idleWake);
+    window.FLYDIY_IDLE = { wake: idleWake, get held() { return IDLE.held; }, ms: IDLE_HOLD_MS };
+  }
+  // the hold this frame? (in the shed only, nothing animating that a player started, the boot's screen gone)
+  function idleHold() {
+    if (!IDLE_ON || !inGarage || holdRender || (rig && !rig.state.done)) { IDLE.held = 0; return false; }
+    if (typeof BOOT !== 'undefined' && BOOT.state && BOOT.state !== 'gone') { IDLE.wake = perfNow(); return false; }
+    if (typeof ROLLANIM !== 'undefined' && ROLLANIM.busy && ROLLANIM.busy()) { IDLE.wake = perfNow(); return false; }
+    const gs = garageScene(), mem = renderer.info && renderer.info.memory;
+    const sig = (gs ? gs.children.length : 0) * 1e6 + (mem ? mem.geometries * 1e3 + mem.textures : 0);
+    if (sig !== IDLE.sig) { IDLE.sig = sig; IDLE.wake = perfNow(); }
+    const h = perfNow() - IDLE.wake >= IDLE_HOLD_MS;
+    IDLE.held = h ? IDLE.held + 1 : 0;
+    return h;
+  }
   // THE LOOP STARTS ONCE, WHATEVER STARTS IT (the laptop log, 5 Oct): 'first light' was its only start, and a garage
   // load the watchdog lifted at 120 s, then a Fly press, superseded that step (G640: a newer run owns the chain) -
   // no frame ever drawn. The boot's done() starts it too.
@@ -18967,7 +19013,8 @@
     }
     // THE DAY ADVANCES WITH PLAY (SKY S1, ruling aj): one clock, shed and world; a game pause pauses it
     // (G586: in the shed on the frame's own time; in flight it ticks after the solver, on the sim's)
-    if (typeof DAY_CLOCK !== 'undefined' && inGarage) DAY_CLOCK.tick(fdt);
+    const idleNow = idleHold();        // PHONE-EDIT-PERF: the phone's still shed (below)
+    if (typeof DAY_CLOCK !== 'undefined' && inGarage && !idleNow) DAY_CLOCK.tick(fdt);
     if ((frame & 63) === 0) clockRowsSync(false);   // G2650: the route rows' clock line, to the minute (a string compare)
     if (inpEv && !inGarage && FL.ready && inpEv.fired.length) {
       if (inpEv.fired.indexOf('apToggle') >= 0) setManual(!manual, 'key');
@@ -18990,7 +19037,7 @@
       // answers it — physics off, so it costs nothing either.
       // G1064: under the ROLL-OUT SHOT the shot writes over this later in the frame (ROLLANIM.frame, before poseModel):
       // its own brisk check of every surface, then the four held at neutral while it rolls (rollanim.js)
-      shedT += fdt;
+      if (!idleNow) shedT += fdt;
       const tS = shedT;                // (G586: the sweep on seconds, not frames)
       if (INP && INP.active()) INP.write(sim.ctl);
       else {
@@ -19014,6 +19061,8 @@
     // is still there to look at rather than snapping back the frame it finishes
     else if (inGarage && rig) updateLoadViz(rig);
     if (inGarage) { fixTick(); PACE.hold(); if (SIMW) SIMW.shed(); }   // A9: the advisor's page slice, when it has no thread (G820: no worker flight in the shed)
+    // PHONE-EDIT-PERF: the still shed - nothing posed, nothing drawn; the frame told as held (not counted by the cap's auto)
+    if (idleNow) { if (FR) FR.end(false, cgFinite(sim.cgPos())); PACE.end(perfNow() - tLoop0, 0, pc.steps, typeof ts === 'number' ? ts : perfNow(), 0, true); return; }
     else if (rollHold) { PACE.hold(); if (SIMW) SIMW.warm(); }    // G690: the roll-out screen is up - the flight starts on the stand when it lifts
     else if (running && !inGarage) {
       // A9: 2× steps twice a frame on the test flight; a doubled step that
