@@ -443,8 +443,13 @@ PAGE.post = ctx => {
     if (rows !== held.rows) held = null;
     else if (DAT && DAT.fwOk) zStep = DAT.zFw - held.x;
   }
-  const zc = Math.max(AF.z0 + 0.3, Math.min(AF.z1 - 0.3, zStep));
-  const keelY = AF.keelAt(zc) - +P.fltDrop;
+  // FLAGSHIP (2 Nov, the user's Twin busher floats): A TWIN-BOOM'S POD ENDS AT THE WING, and its CG sits behind it
+  // (the engine, the booms, the tail): held 0.3 m inside the pod, the step stood 4-8 deg AHEAD of that CG whatever
+  // fltZ said. On twin booms the step may stand up to AFT_REACH behind the pod's end; the rear struts then rake
+  // forward to its last frame (root, below). Every other airframe keeps the 0.3 m it had.
+  const twin = !!+P.boomTwin, AFT_REACH = 0.6;
+  const zc = Math.max(AF.z0 + (twin ? -AFT_REACH : 0.3), Math.min(AF.z1 - 0.3, zStep));
+  const keelY = AF.keelAt(Math.max(AF.z0 + 0.05, zc)) - +P.fltDrop;
   const track = +P.fltTrack;
 
   group = new THREE.Group();
@@ -541,7 +546,8 @@ PAGE.post = ctx => {
   const ang = +P.fltStrutAng * D2R;
   const sg = GK.Bag(), wg = GK.Bag(), hg = GK.Bag();
   const t = +P.fltStrutR;
-  const root = (z, sd) => { const q = AF.surf(z, sd * ang); return [q[0], q[1], q[2]]; };
+  // (a twin-boom's rear strut roots on the pod's last frame, never in the air behind it)
+  const root = (z, sd) => { const q = AF.surf(twin ? Math.max(AF.z0 + 0.05, z) : z, sd * ang); return [q[0], q[1], q[2]]; };
   const member = (pin, tip, bag, tt) => { streamlined(bag, pin, tip, tt); rec.members.push({ pin, tip }); };
   const wire = (a, b) => {
     GK.tube(wg, a, b, 0.0025, 6);
