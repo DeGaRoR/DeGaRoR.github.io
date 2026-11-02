@@ -373,9 +373,29 @@ check(/LIGHT_RIG\.groundBounce\(\)/.test(world) &&
 // 4g. THERE IS NO SECOND, UNCONTROLLED ROOM. The studio was a white void with
 // a full-strength hemisphere, a warm fill and a bright-floored dome, none of
 // it switchable, reachable only as a silent fallback.
-check(!/new THREE\.Scene\(\)[\s\S]{0,200}studio/.test(app) && !/\bstudio\./.test(app),
-      'the studio is back — a second light rig with no switches, entered by ' +
-      'accident when the hangar fails to build');
+// G3726 (PHONE-GARAGE, landed in L28a) brought a studio back ON PURPOSE: the
+// black studio (studio.js), the phone's room (PROFILE room 'studio') and a
+// desktop MENU option, OFF by default. The row used to forbid the word; it now
+// forbids the ACCIDENT - a studio built anywhere but behind its switch, the
+// switch turned on by any line but its own, or a failed hangar answered with
+// anything but the empty room and its console line.
+{
+  const studioWrites = (app.match(/\bstudioOn\s*=(?!=)/g) || []).length;
+  const studioBuilds = (app.match(/\bSTUDIO\.build\(/g) || []).length;
+  check(/const STUDIO_PHONE = [^\n]*PROFILE\.is\('room', 'studio'\)/.test(app) &&
+        /let studioOn = STUDIO_PHONE \|\| prefGet\('flydiy\.garageStudio', '0'\) === '1'/.test(app) &&
+        studioWrites === 2 && /function setStudio\(on\) \{[^}]*studioOn = on;/.test(app),
+        'the studio is back — a second light rig with no switches, entered by ' +
+        'accident when the hangar fails to build (its switch is no longer the ' +
+        'phone profile or the MENU option alone: ' + studioWrites + ' writes)');
+  check(studioBuilds === 1 && /if \(studioOn\) \{[^}]{0,200}\bSTUDIO\.build\(/.test(app) &&
+        !/new THREE\.Scene\(\)[^\n]*studio|studio\w*\s*=\s*new THREE\.Scene\(/i.test(app.replace(/\/\/[^\n]*/g, '')),
+        'the studio is built outside its switch (' + studioBuilds + ' builds) — ' +
+        'a room the hangar\'s failure can fall into');
+  check(/function garageScene\(\)[\s\S]{0,400}no fallback room by design[\s\S]{0,120}return hangarScene;/.test(app),
+        'a hangar that fails to build no longer leaves the empty room and says so ' +
+        '— the silent fallback the studio was');
+}
 
 // ---------------------------------------------------------------------------
 // 5. THE AEROPLANE'S OWN LAMPS (2026-08-31, four items from the user's second
