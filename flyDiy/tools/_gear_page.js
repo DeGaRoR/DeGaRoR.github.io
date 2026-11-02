@@ -37,7 +37,7 @@ const DEF = {
   // the wheel
   whProfile: 0, whTread: 0, whRibs: 3, whRim: 0, whBolts: 6, whCap: 1,
   whValve: 1, whBrake: 0,
-  whSlick: 0,        // G3852: a tundra's tread - 0 the bush lugs, 1 smooth
+  whSlick: 0,        // G3852: a tundra's tread - 0 the bush lugs, 1 smooth, 2 the bevelled lugs (G3851b)
                      // (a look: the fingerprints skip it, bench.js)
   whBulge: 1,        // sidewall inflation x (G33: the balloon look, on
                      // top of the carcass profile; 1 = as drawn before)
@@ -128,7 +128,7 @@ const WHEEL_ROWS = [
   // G3852: the 'tread' row (ribbed / smooth / blocked) is gone - each carcass draws its own; whTread stays in DEF
   // and in every file as loaded (a hashed cage row); the tundra keeps a choice of its own (the user: "a Tundra tyre
   // with no pattern"), shown only on that carcass
-  ['whSlick', 'tundra tread', 0, 1, 1, ['bush lugs', 'smooth'], { when: P => Math.round(+P.whProfile || 0) === 1 }],
+  ['whSlick', 'tundra tread', 0, 2, 1, ['bush lugs', 'smooth', 'bevelled lugs'], { when: P => Math.round(+P.whProfile || 0) === 1 }],
   ['whBulge', 'sidewall bulge ×', 0.85, 1.40, 0.01],
   ['whRibs', 'ribs', 1, 5, 1],
   ['whRim', 'rim', 0, 2, 1, ['cast disc', 'spoked', 'lightened']],
