@@ -27,7 +27,6 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i
 const PAGES = opt('pages', 'index.html').split(',');
 const SIZE = opt('size', '1600x900').split('x').map(Number);
 const SPORT = +opt('port', 8547);
-const OUT = path.resolve(opt('out', SCENE === 'ref' ? 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-03/night/refscene/' + opt('step', 'step0') : path.join(__dirname, '..', 'reports', 'evidence', 'NIGHT-LOOK')));
 const Q = opt('q', '');
 const FALLBACK = opt('fallback', 'D:/Dev/DeGaRoR.github.io');
 const ONLY = (opt('views', '') || '').split(',').filter(Boolean);
@@ -40,7 +39,11 @@ const ONLY = (opt('views', '') || '').split(',').filter(Boolean);
 // water to the spot the SCENE SOLVER picks for its heading (below), framed three-quarter front, low over the water, the
 // lit town waterfront and the lit Skyline summit (685 m, the tram's top station) behind. The scene's numbers are
 // printed on its row (the plane's spot, the eye, the bearing), so a step that changes them says so.
+// --scene user: THE USER'S OWN FRAME (A0 2 Nov ~21:00, the user's screenshot of the live game, Jolene AFB at dusk with
+// Codex's night floor): the default aeroplane held 180 m over HOME, the camera behind and above it toward the sunset,
+// the game's default day (light breeze, few cu) - the same <step> folder, so the user sees their own view improve.
 const SCENE = opt('scene', null), STEP = opt('step', 'step0');
+const OUT = path.resolve(opt('out', SCENE ? 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-03/night/refscene/' + STEP : path.join(__dirname, '..', 'reports', 'evidence', 'NIGHT-LOOK')));
 const TWIN_DEF = 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-02/phone/Twin_busher_floats_2.json';
 const BUILD = opt('build', SCENE === 'ref' ? TWIN_DEF : null), OVER = JSON.parse(opt('over', 'null'));
 const SPAWN = opt('spawn', SCENE === 'ref' ? 'mk_sea' : null);
@@ -107,7 +110,12 @@ const VIEWS = [
   { ref: 1, name: 'ref_blue',       day: Object.assign({}, APR_BLUE, CLEAR), aim: 'ref', el: 0.035, dist: 17, lights: LIT, settle: 10 },
   { ref: 1, name: 'ref_night',      day: Object.assign({}, APR_NIGHT, CLEAR), aim: 'ref', el: 0.035, dist: 17, lights: LIT, settle: 12 },
   { ref: 1, name: 'ref_dusk_dark',  day: Object.assign({}, APR_DUSK, CLEAR), aim: 'ref', el: 0.035, dist: 17, lights: DARK, settle: 8 },
-].filter(v => ONLY.length ? ONLY.includes(v.name) : SCENE === 'ref' ? !!v.ref : (!v.ref && !!v.twin === !!BUILD));
+  // THE USER'S FRAME: 2 Nov 2026 16:30 / 16:45 AKST (the HUD's "16:.."; the sun -3.9 / -6.0 deg at az 249 / 252, the moon
+  // down: Codex's floor alone), and the full night (17:45, -14.4) for the same eye
+  { user: 1, name: 'jolene_dusk',   day: { date: '2026-11-03', utc: 1.5 * 3600 }, at: 'over', agl: 180, aim: 'sun', el: 0.22, dist: 24, settle: 14 },
+  { user: 1, name: 'jolene_dusk6',  day: { date: '2026-11-03', utc: 1.75 * 3600 }, at: 'over', agl: 180, aim: 'sun', el: 0.22, dist: 24, settle: 10 },
+  { user: 1, name: 'jolene_night',  day: { date: '2026-11-03', utc: 2.75 * 3600 }, at: 'over', agl: 180, aim: 'sun', el: 0.22, dist: 24, settle: 10 },
+].filter(v => ONLY.length ? ONLY.includes(v.name) : SCENE === 'ref' ? !!v.ref : SCENE === 'user' ? !!v.user : (!v.ref && !v.user && !!v.twin === !!BUILD));
 
 // ---- in the page ----
 // HOME's strip, the nearest sea's heading from it (72 headings, the first water 600 m - 8 km out), the night's hour
@@ -145,7 +153,7 @@ const SETUP = V => `(async () => {
   if (${JSON.stringify(V.preset || null)}) DAY_CLOCK.preset(${JSON.stringify(V.preset || null)});   // a named hour solved on that date (the clock's own)
   let px = cx, pz = cz, agl = 0, look = [dx, dz];
   if (${JSON.stringify(V.at)} === 'stand') { const st = window.__moonStand, cg = s.cgPos(); if (Math.hypot(st[0] - cg[0], st[1] - cg[1], st[2] - cg[2]) > 0.5) await FLIGHT_PROBE.place({ by: [st[0] - cg[0], st[1] - cg[1], st[2] - cg[2]], zeroV: true }); agl = null; look = [dx, dz]; }
-  else if (${JSON.stringify(V.at)} === 'over') { agl = 300; look = [sea[0], sea[1]]; }
+  else if (${JSON.stringify(V.at)} === 'over') { agl = ${+V.agl || 300}; look = [sea[0], sea[1]]; }
   else if (${JSON.stringify(V.at)} === 'xz') { px = ${+V.x || 0}; pz = ${+V.z || 0}; agl = ${V.agl === 'keep' ? 'window.__floatAgl' : (+V.agl || 10)}; }
   else if (${JSON.stringify(V.at)} === 'final') { const tx = cx - lh[0] * len / 2, tz = cz - lh[1] * len / 2; px = tx - lh[0] * 1200; pz = tz - lh[1] * 1200; agl = 150; look = [lh[0], lh[1]]; }
   if (aim === 'q3') { const ax = s.axes ? s.axes() : null; if (ax) { const nx = -ax[0][0], nz = -ax[0][2], lx = -ax[2][0], lz = -ax[2][2];   // the nose, the left wing
