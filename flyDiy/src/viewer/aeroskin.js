@@ -1532,9 +1532,15 @@ function aeroAtlas(THREE) {
   const S = AERO_ATLAS_PX;
   const cv = document.createElement('canvas');
   cv.width = cv.height = S;
-  const g = cv.getContext('2d');
+  // G3798c: A CANVAS OF THE CPU'S. The registration's page is read back on every paint (its distance field), and a canvas
+  // the browser keeps on the graphics card can come back BLANK: under SwiftShader the Cub's registration page was empty on
+  // the first probe (2 Nov 15:40, inputs identical to the RTX's), drawn on the second, whose hook read the canvas back
+  // every 250 ms - which moves it to the CPU. AERO_TEXT_SIG then skipped every repaint. willReadFrequently is the hint
+  // for exactly this canvas (and its readbacks become a copy, not a GPU stall - the phone's); a restore still repaints.
+  const g = cv.getContext('2d', { willReadFrequently: true });
   g.clearRect(0, 0, S, S);
   AERO_ATLAS_CV = cv;
+  if (typeof cv.addEventListener === 'function') cv.addEventListener('contextrestored', () => aeroAtlasRepaint());   // (the gates' mock canvas has none)
   const t = new THREE.CanvasTexture(cv);
   // flipY stays TRUE — the canvas convention this repo uses everywhere except
   // props.js, which sets false because glTF's uv origin is top-left. Mixing
@@ -1657,6 +1663,20 @@ const AERO_SDF_SPREAD = P => Math.max(4, Math.round(P * 0.03));
 // only when what is on it changes.
 const AERO_TEXT_SIG = {};
 const AERO_TEXT_ASPECT = {};
+// G3798c: WHAT EACH PAGE LAST WORE, to paint it again when the canvas comes back blank (its context restored): the
+// arguments, not the pixels - a page is repainted by the same call that drew it
+const AERO_PAGE_LAST = {};
+function aeroAtlasRepaint() {
+  for (const p of Object.keys(AERO_PAGE_LAST)) {
+    const L = AERO_PAGE_LAST[p];
+    try {
+      if (L.kind === 'text') { delete AERO_TEXT_SIG[p]; aeroDecalText.apply(null, L.args); }
+      else if (L.kind === 'kit') { delete AERO_KIT_SIG[p]; aeroKitDraw.apply(null, L.args); }
+      else if (L.kind === 'img') aeroDecalImage.apply(null, L.args);
+    } catch (e) {}
+  }
+  if (AERO_ATLAS) AERO_ATLAS.needsUpdate = true;
+}
 
 function aeroDecalText(THREE, page, text, colHex, outHex, font) {
   const t = aeroAtlas(THREE), S = AERO_ATLAS_PX, N = AERO_ATLAS_N;
@@ -1667,6 +1687,7 @@ function aeroDecalText(THREE, page, text, colHex, outHex, font) {
     return AERO_TEXT_ASPECT[page].aspect;
   }
   AERO_TEXT_SIG[page] = sig;
+  AERO_PAGE_LAST[page] = { kind: 'text', args: [THREE, page, text, colHex, outHex, font] };
   const g = AERO_ATLAS_CV.getContext('2d');
   g.save();
   g.clearRect(px, py, P, P);
@@ -1765,6 +1786,7 @@ function aeroDecalImage(THREE, page, img) {
   aeroDilate(g, px, py, P, P, Math.round(5 * P / AERO_PAGE_REF));
   t.needsUpdate = true;
   AERO_PAGE_IMG[page] = { aspect: img.width / img.height };
+  AERO_PAGE_LAST[page] = { kind: 'img', args: [THREE, page, img] };
   return img.width / img.height;
 }
 // THE IMAGE PAGES TRAVEL WITH THE BUILD (G190, the user: "the box projection
@@ -1799,6 +1821,7 @@ function aeroDecalImageClear(THREE, page) {
   const P = S / N, px = (page % N) * P, py = Math.floor(page / N) * P;
   AERO_ATLAS_CV.getContext('2d').clearRect(px, py, P, P);
   delete AERO_PAGE_IMG[page];
+  delete AERO_PAGE_LAST[page];
   const t = aeroAtlas(THREE); t.needsUpdate = true;
 }
 function aeroDecalImageFrom(THREE, page, dataURL, cb) {
@@ -2548,6 +2571,7 @@ function aeroKitDraw(THREE, L) {
                L.r, L.s, L.clr, L.asp].join('|');
   if (AERO_KIT_SIG[L.page] === sig) return false;
   AERO_KIT_SIG[L.page] = sig;
+  AERO_PAGE_LAST[L.page] = { kind: 'kit', args: [THREE, L] };
   const P = S / N, px = (L.page % N) * P, py = Math.floor(L.page / N) * P;
   const g = AERO_ATLAS_CV.getContext('2d');
   g.save();
