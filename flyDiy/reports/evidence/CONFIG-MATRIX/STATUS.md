@@ -78,6 +78,11 @@ bit-identical to master (the gate is red against its own stale pin, on both).
 Step 4 (`claude/config-matrix-step4` 7173bd9a7): CAGEFIT, COWL, JOIN, STARTER, SAVE, PARTS, DESIGN, UISMOKE PASS;
 TECH the standing red.
 
+After the user's calls (`claude/config-matrix` 98ed1fcd9, the same thirteen): GEN (753 s), CAGEFIT, COWL, JOIN,
+STARTER, FLOATKIT, SAVE, PARTS, DESIGN PASS; CLIP, TECH, NODUMMY, ENGCONFIG the standing four, FAIL lines
+byte-identical to master's. Step 4 rebased (`claude/config-matrix-step4` 1b0225c3d): CAGEFIT, COWL, JOIN, STARTER,
+SAVE, PARTS, DESIGN, UISMOKE PASS; TECH standing.
+
 The sweeps: `sweep_before.txt`, `sweep_after_steps2-3.txt` (the four XX cells left are step 4's greyed ones, now a
 join error instead of an engine on the nose).
 
