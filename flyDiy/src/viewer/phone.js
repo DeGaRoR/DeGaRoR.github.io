@@ -322,7 +322,9 @@
     edEl.ok.addEventListener('click', () => edClose(true));
     edEl.inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); edClose(true); } else if (e.key === 'Escape') { e.preventDefault(); edClose(false); } });
     for (const [b, dir] of [[edEl.minus, -1], [edEl.plus, 1]]) {
-      b.addEventListener('pointerdown', e => { if (!ed) return; edCommit(); stepDown(ed.row, dir, e); });
+      // (preventDefault as Done and the sign: the field keeps the focus, so the keypad stays up across a step and what is
+      // typed after it reaches the field - the 2 Nov rig's 'typed' red: a tap on + took the focus, the digits went nowhere)
+      b.addEventListener('pointerdown', e => { if (!ed) return; e.preventDefault(); edCommit(); stepDown(ed.row, dir, e); });
       b.addEventListener('pointerup', stepUp);
       b.addEventListener('pointercancel', stepUp);
       b.addEventListener('lostpointercapture', stepUp);
@@ -529,6 +531,9 @@
   const poll = setInterval(() => { if (init() && $('edRail') && $('edRail').children.length) { trimRail(); clearInterval(poll); } }, 250);
   W.PHONE_UI = { setTab, tab: () => tab, placeAll, enhance, rows: () => ROWS.size,
     split: () => ({ o: orient(), f: clampSplit(orient(), splits[orient()]) }), setSplit, setSteps, steps: () => D.documentElement.classList.contains('ph-pm'),
-    edit: k => { const r = D.querySelector('.r.phSlider[data-k="' + k + '"]'); if (r) edOpen(r); return !!ed; },
+    // (the row on screen, the one phone.js enhanced: the first match in the page may be a hidden copy - the 2 Nov editor
+    // still opened nothing)
+    edit: k => { const all = [...D.querySelectorAll('.r.phSlider[data-k="' + k + '"]')];
+      const r = all.find(x => x.__ph && x.offsetParent !== null) || all.find(x => x.__ph); if (r) edOpen(r); return !!ed; },
     editing: () => (ed ? ed.row.dataset.k || '?' : null), editClose: c => edClose(!!c) };
 })();

@@ -19,7 +19,7 @@ html.phone {
      them a divider the thumb moves (phone.js #phDiv; --ph-split is the VIEW's share, remembered per orientation) */
   --ph-split:.5;
   --ph-vh:calc(var(--ph-split) * 100vh); --ph-vh:calc(var(--ph-split) * 100dvh); --ph-st:var(--ph-vh);
-  --ph-tap:48px; --ph-row:44px; --ph-step:40px; --ph-line2:22px;
+  --ph-tap:48px; --ph-row:44px; --ph-step:40px; --ph-line1:16px; --ph-line2:22px;
 }
 @media (orientation:landscape) {
   html.phone { --ph-sw:max(300px, calc((1 - var(--ph-split)) * 100vw)); --ph-vw:calc(100vw - var(--ph-sw)); --ph-sl:var(--ph-vw);
@@ -120,7 +120,7 @@ html.phone #edRows .r > button { min-height:36px; min-width:36px; }
    No column gap (an empty column would still cost one): each cell carries its own margin. COMPACT (the default, A0 2 Nov):
    the - / + hidden, the scale across all seven columns; html.ph-pm (the user picks from the stills) shows them. */
 html.phone :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider { display:grid; position:relative; height:auto;
-  grid-template-columns:var(--ph-step) minmax(0, 1fr) auto auto auto auto var(--ph-step); grid-template-rows:auto var(--ph-line2);
+  grid-template-columns:var(--ph-step) minmax(0, 1fr) auto auto auto auto var(--ph-step); grid-template-rows:var(--ph-line1) var(--ph-line2);
   column-gap:0; row-gap:0; align-items:center; min-height:var(--ph-row); padding:3px 0; box-sizing:border-box; flex-wrap:nowrap;
   -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; cursor:pointer; }
 html.phone.ph-pm :is(#wsUI, #edView, #gmPage, #edPopCard) .r.phSlider { row-gap:4px; padding:4px 0 2px; }
@@ -175,12 +175,14 @@ html.phone .r .phKnob[hidden] { display:none; }
    phone.js writes --phf (the value's fraction) and --phw (the row's width, from a ResizeObserver's entries - never a
    measure; not a container query: a size container is a stacking context, and the next row would paint over the knob's
    10 px below its own row) - the hit area's centre rides the native thumb's: the
-   thumb's centre is 11 px into the scale and travels it less its 22 px. COMPACT: the scale is the row's width, line 2's
-   middle 3 + 11 px up from the row's foot. ph-pm: the scale starts after the - and its 6 px (46 px in) and spans the row less
-   both buttons (--phw - 92 px); line 2's middle 2 + 16 px up */
-html.phone .r.phSlider > .phKnob { left:0; top:auto; bottom:-10px;
+   thumb's centre is 11 px into the scale and travels it less its 22 px. FROM THE ROW'S TOP, line 1 a fixed track (--ph-line1),
+   never from its foot: a row whose note (.rn, a third line) shows is taller, and a knob hung from the foot sat 20 px under its
+   scale (the 2 Nov rig's shape red). COMPACT: the scale is the row's width, line 2's middle 3 + 16 + 11 px down. ph-pm: the
+   scale starts after the - and its 6 px (46 px in) and spans the row less both buttons (--phw - 92 px); line 2's middle
+   4 + 16 + 4 + 16 px down */
+html.phone .r.phSlider > .phKnob { left:0; bottom:auto; top:calc(3px + var(--ph-line1) + var(--ph-line2) / 2 - var(--ph-tap) / 2);
   transform:translate3d(calc(var(--phf, 0) * (var(--phw, 300px) - 22px) - 13px), 0, 0); }
-html.phone.ph-pm .r.phSlider > .phKnob { bottom:-6px; transform:translate3d(calc(var(--phf, 0) * (var(--phw, 300px) - 114px) + 33px), 0, 0); }
+html.phone.ph-pm .r.phSlider > .phKnob { top:calc(4px + var(--ph-line1) + 4px + var(--ph-line2) / 2 - var(--ph-tap) / 2); transform:translate3d(calc(var(--phf, 0) * (var(--phw, 300px) - 114px) + 33px), 0, 0); }
 html.phone .r.phSlider.phOff > .phKnob { display:none; }
 html.phone .r.phDrag .phKnob { will-change:transform; box-shadow:0 0 0 2px rgba(230,219,201,.45); background:rgba(230,219,201,.08); }
 html.phone .r .phKnob.fine { box-shadow:0 0 0 2px rgba(230,161,90,.8); }
