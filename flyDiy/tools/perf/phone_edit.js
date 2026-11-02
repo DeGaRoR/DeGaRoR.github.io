@@ -103,12 +103,13 @@ async function flyPass(b, save) {
   const ev = (expr, ms) => b.ev(expr, ms || 15000).catch(e => '__err ' + e.message);
   const mem = async () => { const v = await ev("JSON.stringify(performance.memory ? { heap: Math.round(performance.memory.usedJSHeapSize / 1048576), total: Math.round(performance.memory.totalJSHeapSize / 1048576) } : null)"); try { return JSON.parse(v); } catch (e) { return v; } };
   const frames = async s => { await sleep(s * 1000); const v = await ev(`(() => { const r = window.FLIGHT_REC && FLIGHT_REC.stats(${s * 1000}); return JSON.stringify(r ? { fps: +r.fps.toFixed(1), p50: +r.med.toFixed(1), p90: +r.p90.toFixed(1), max: Math.round(r.max) } : null); })()`); try { return JSON.parse(v); } catch (e) { return v; } };
-  const state = async () => { const v = await ev("JSON.stringify({ fly: !!(window.PROFILE && PROFILE.flight), ready: !!(window.BOOT && BOOT.state === 'gone'), ap: (() => { try { const a = window.FLIGHT_PROBE && FLIGHT_PROBE.ap && FLIGHT_PROBE.ap(); return a ? { phase: a.phase || null, t: Math.round(+a.t || 0), outcome: (a.report && a.report.outcome) || null } : null; } catch (e) { return null; } })(), heat: null })", 8000);
+  const state = async () => { const v = await ev("JSON.stringify({ fly: !!(window.PROFILE && PROFILE.flight), ready: !!(window.BOOT && BOOT.state === 'gone'), ap: (() => { try { const a = window.FLIGHT_PROBE && FLIGHT_PROBE.ap && FLIGHT_PROBE.ap(); return a ? { phase: a.phase || null, t: Math.round(+a.t || 0), outcome: (a.report && a.report.outcome) || null } : null; } catch (e) { return null; } })(), started: !!(window.FLYDIY_PHONE_FLY && FLYDIY_PHONE_FLY.started), hidden: document.hidden })", 8000);
     try { return JSON.parse(v); } catch (e) { return { err: String(v) }; } };
   // the phone's battery temperature (tenths of a degree): 'runs hot' is 45 C - the pass stops there
   const temp = () => { const m = /temperature: (\d+)/.exec(adb('shell', 'dumpsys', 'battery')); return m ? +m[1] / 10 : null; };
   F.temp = [temp()];
   F.garage = { mem: await mem(), frames: await frames(10) }; save();
+  await b.cmd('Page.bringToFront').catch(() => null);
   F.tapAt = Date.now();
   F.tap = await ev("(() => { try { if (!window.BENCH_RUN) return 'no BENCH_RUN'; return window.BENCH_RUN('flight') ? 'tapped' : 'refused (the bench row not usable or busy)'; } catch (e) { return 'threw: ' + e.message; } })()", 20000);
   let last = null, climbed = false, tT = Date.now();
@@ -123,12 +124,16 @@ async function flyPass(b, save) {
     if (s.fly && F.reloaded == null) F.reloaded = sec(Date.now());
     if (s.fly && s.ready && F.ready == null) F.ready = sec(Date.now());
     const ph = s.ap && s.ap.phase;
+    if (s.ap) F.lastT = s.ap.t;
+    if (s.fly && s.started && F.started == null) F.started = sec(Date.now());
+    if (s.fly && F.front == null) { F.front = sec(Date.now()); await b.cmd('Page.bringToFront').catch(() => null); }
+    if (s.hidden) F.hiddenSeen = (F.hiddenSeen || 0) + 1;
     if (s.fly && ph && ph !== last) { last = ph; F.phases.push([sec(Date.now()), ph]); if (F.rollout == null) F.rollout = sec(Date.now()); if (ph === 'ROLL' && F.roll == null) F.roll = sec(Date.now()); save(); }
     if (s.fly && !climbed && F.roll != null && sec(Date.now()) - F.roll > 25 && ph && ph !== 'ROLL' && ph !== 'STOPPED') {
       climbed = true; F.flight = { phase: ph, mem: await mem(), frames: await frames(10) }; save(); }
     if (s.fly && ph === 'STOPPED') { F.outcome = s.ap.outcome; F.circuitSec = sec(Date.now()); F.simT = s.ap.t; break; }
   }
-  if (!F.verdict && F.outcome == null) F.verdict = (F.reloaded == null ? 'no reload into the flight' : F.rollout == null ? 'reloaded, never rolled out' : 'cut at the cap in ' + last) + ' (' + FLYCAP + ' s)';
+  if (!F.verdict && F.outcome == null) F.verdict = (F.reloaded == null ? 'no reload into the flight' : F.rollout == null ? 'reloaded, never rolled out' : 'cut at the cap in ' + last + ' at sim t ' + F.lastT + ' s') + ' (' + FLYCAP + ' s)';
   if (!dead() && F.reloaded != null && !/socket/.test(F.verdict || '')) {
     F.shedAt = Date.now();
     await ev("(() => { try { PROFILE.flyEnd(); return 'ok'; } catch (e) { return 'threw: ' + e.message; } })()", 10000);

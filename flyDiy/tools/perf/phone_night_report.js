@@ -55,6 +55,6 @@ if (fly && fly.fly) { const F = fly.fly, m = x => x && x.heap != null ? x.heap +
     '- the tap: ' + F.tap + '; reloaded into the flight ' + (F.reloaded != null ? F.reloaded + ' s' : 'NO') + ', boot lifted ' + (F.ready != null ? F.ready + ' s' : '-') + ', rolled out (first autopilot phase) ' + (F.rollout != null ? F.rollout + ' s' : '-') + ', take-off roll ' + (F.roll != null ? F.roll + ' s' : '-') + ' after the tap',
     '- heap: garage ' + m(F.garage && F.garage.mem) + ', in flight ' + m(F.flight && F.flight.mem) + ', the garage again ' + m(F.after && F.after.mem) + (F.shedSec != null ? ' (the shed button: ' + F.shedSec + ' s)' : ''),
     '- frames: garage ' + f(F.garage && F.garage.frames) + ', in flight ' + f(F.flight && F.flight.frames) + (F.flight ? ' (' + F.flight.phase + ')' : ''),
-    '- phases: ' + (F.phases || []).map(p => p[1] + ' ' + p[0] + ' s').join(', '), '- battery temperature: ' + (F.temp || []).join(', ') + ' C', ''); }
+    '- phases: ' + (F.phases || []).map(p => p[1] + ' ' + p[0] + ' s').join(', '), (F.hiddenSeen ? '- the tab was HIDDEN in ' + F.hiddenSeen + ' polls (rAF stops: the flight waits)' : '- the tab stayed in front') + (F.started != null ? '; the roll-out called ' + F.started + ' s after the tap' : ''), '- battery temperature: ' + (F.temp || []).join(', ') + ' C', ''); }
 fs.writeFileSync(path.join(dir, 'RESULTS.md'), L.join('\n'));
 console.log('RESULTS.md: ' + L.length + ' lines');
