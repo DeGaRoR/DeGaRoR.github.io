@@ -618,9 +618,21 @@ function seatAirline(parent, A, P, g) {
   bag.mesh(parent);
 }
 
-function buildSeat(parent, A, P, sx, zBack, sbs, SP) {
+function buildSeat(parent, A, P, sx, zBack, sbs, SP, pl) {
   const g = seatGeom(A, P, sx, zBack, sbs, SP);
+  // THE PASSENGERS' OWN SEAT (SEATS, 2026-11-02, the user: "maybe that should be a flag too, pilot and passenger
+  // seats"): `paxSeatType` dresses every passenger bay's seat; absent or -1 (every build before) = the pilots' type
+  const paxT = pl && pl.section && !pl.pilot && P.paxSeatType != null ? Math.round(+P.paxSeatType) : -1;
+  if (paxT >= 0 && paxT !== Math.round(P.seatType || 0)) P = Object.assign({}, P, { seatType: paxT });
   const type = Math.round(P.seatType || 0);
+  // SEATS (2026-11-02): seatType 3 and up are the seat library's presets (tools/_seat_gen.js) - calibrated models
+  // with the same interface; 0 / 1 / 2 below are untouched, so every saved build draws the seat it drew. `pl` tells
+  // a preset whether this is a passenger's seat (the DC-3 seats its passengers differently from its pilots).
+  if (type >= 3 && typeof window !== 'undefined' && window.SEAT_GEN) {
+    const r = window.SEAT_GEN.build(parent, A, P, g,
+      Object.assign({}, SP, { pax: !!(pl && pl.section && !pl.pilot) }), sbs);
+    if (r) return { panY: r.panY, floor: r.floor, szc: r.szc, hw: r.hw, backH: r.backH, rake: r.rake };
+  }
   if (type === 1) seatShell(parent, A, P, g);
   else if (type === 2) seatAirline(parent, A, P, g);
   else seatTube(parent, A, P, g);
@@ -632,6 +644,11 @@ function buildSeat(parent, A, P, sx, zBack, sbs, SP) {
   return { panY: g.panY, floor: g.floor, szc: g.szc, hw: g.hw,
            backH: g.backH, rake: g.rake };
 }
+
+// THE SEAT LIBRARY'S DOOR (SEATS, 2026-11-02): the seat builder and the small kit it is made of, for the seat
+// bench (tools/_seats.html) and tools/_seat_gen.js (which lays its harness webbing with the crew's own ribbon)
+if (typeof window !== 'undefined')
+  window.CAGE_CREW_SEAT = { buildSeat, seatGeom, kit: { M, Bag, tubeRun, cushion, ribbon, filletPath } };
 
 // ---- CONTROLS -------------------------------------------------------------
 // each builder returns { obj (an anchor Object3D placed AT the grip,
@@ -3384,7 +3401,7 @@ PAGE.post = ({ scene, spec, mesh, P, stat }) => {
     group.add(sg);
     const SP = pl.section ? sp2 : sp1;
     return Object.assign({}, pl, { SP },
-      buildSeat(sg, A, P, pl.x, pl.zBack, sbs, SP));
+      buildSeat(sg, A, P, pl.x, pl.zBack, sbs, SP, pl));
   });
   const pilot = seats.find(s => s.pilot);
 
