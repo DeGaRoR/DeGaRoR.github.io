@@ -1396,6 +1396,11 @@ if (typeof window !== 'undefined' && window.CAGE_UI_LAZY) (() => {
       }
       // THE ENGINES' STATIONS (2026-09-04): each drawn unit's mount point,
       // model frame — x aft of the firewall, y over the cabin keel, z lateral
+      // CONFIG-MATRIX step 4: a T or V tail on twin booms is a greyed combination; a build that holds one loads as it
+      // is, with this notice (the stab flies as drawn and measured)
+      if (+P.boomTwin && (+P.stCant >= 20 || Math.round(+P.stMount || 0) === 2))
+        NOTES.push('tail: ' + (+P.stCant >= 20 ? 'a V-tail' : 'a stab on the fin tip') + ' on twin booms is not a ' +
+                   'configuration the garage builds (its tile is greyed) - it flies as drawn');
       {
         // CONFIG-MATRIX: an engine the mount lists and the engine layer could not bolt on (no face on this body)
         // flies at the rule's station where nothing is drawn - an ERROR row, the bench's failed test, never silent
