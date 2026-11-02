@@ -5,16 +5,23 @@
 // a 30 m/s trunk crash would end at: every Jolene tree record within the fine tiles' range, sampled evenly (seeded), and
 // every aerodrome's runway ends +60 m (the over-run). Prints per site the drawn - physics (mm, + drawn over: a resting
 // piece looks sunk; - drawn under: it looks hovering), and the worst. FLYDIY_GROUND_RASTER=1 is the page's default.
-//   FLYDIY_GROUND_RASTER=1 node tools/dmg_settle_terrain.js [--sites 40] [--json f]
+//   FLYDIY_GROUND_RASTER=1 node tools/dmg_settle_terrain.js [--sites 40] [--json f] [--stack full|tier]
+//     (G2115, TERRAIN-MATCH, ported onto master) --stack full: tools/terrain_match.js's stack (the far terrain under the patch
+//     where the fine tiles do not reach: mn_strip, nv_strip, tw_ski); --stack tier: and the 1 m contact tier under the
+//     aeroplane (src/viewer/ground_tier.js) - the ground a wreck at that site is drawn on; --far: the trees past the fine tiles too
 'use strict';
-process.argv.push('--none');
 const path = require('path'), fs = require('fs');
-const GD = require('./ground_drawn.js');
 const argv = process.argv.slice(2), arg = (k, d) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : d; };
+const STACK = arg('--stack', 'patch');
+const GD = (() => { const a = process.argv; a.push('--none'); try { return require('./ground_drawn.js'); } finally { a.pop(); } })();
+const TM = STACK !== 'patch' ? (() => { const a = process.argv; a.push('--nowheels', '--brief', '--site', '\u0000'); try { return require('./terrain_match.js'); } finally { a.splice(-4); } })() : null;
+const drawnAt = STACK === 'tier' ? TM.drawnUnder : STACK === 'full' ? TM.drawn : GD.drawnAt;
 const W = GD.W, NS = +arg('--sites', 40);
 const sites = [];
 // the trees (the world's own records; those the drawn fine tiles reach)
-const T = (W.trees || []).filter(t => Number.isFinite(t.x) && Number.isFinite(t.z) && !Number.isNaN(GD.drawnAt(t.x, t.z).y));
+// (the trees the original rig reached - the fine tiles' and the patch's; --far: and those on the far terrain past them, where
+// no contact tier stands: G2115's owed finding)
+const T = (W.trees || []).filter(t => Number.isFinite(t.x) && Number.isFinite(t.z) && !Number.isNaN((argv.includes('--far') ? drawnAt : GD.drawnAt)(t.x, t.z).y));
 let seed = 12345; const rnd = () => { seed = (seed * 1103515245 + 12345) >>> 0; return seed / 4294967296; };
 for (let i = 0; i < NS && T.length; i++) { const t = T[Math.floor(rnd() * T.length)]; sites.push({ id: 'tree@' + t.x.toFixed(0) + ',' + t.z.toFixed(0), x: t.x, z: t.z }); }
 for (const a of W.aerodromes) { if (!a.len || a.kind === 'water') continue;
@@ -22,7 +29,7 @@ for (const a of W.aerodromes) { if (!a.len || a.kind === 'water') continue;
 const rows = [];
 for (const s of sites) {
   const d = []; const kinds = {};
-  for (let i = -20; i <= 20; i++) for (let j = -20; j <= 20; j++) { const x = s.x + i * 0.5, z = s.z + j * 0.5, q = GD.drawnAt(x, z);
+  for (let i = -20; i <= 20; i++) for (let j = -20; j <= 20; j++) { const x = s.x + i * 0.5, z = s.z + j * 0.5, q = drawnAt(x, z);
     if (!Number.isFinite(q.y)) continue; d.push((q.y - W.terrainH(x, z)) * 1000); kinds[q.kind] = (kinds[q.kind] || 0) + 1; }
   if (!d.length) continue;
   d.sort((a, b) => a - b);
@@ -31,5 +38,5 @@ for (const s of sites) {
 for (const r of rows) console.log(r.id.padEnd(28) + ' drawn - physics (mm): min ' + String(r.min).padStart(7) + '  p5 ' + String(r.p5).padStart(7) + '  p50 ' + String(r.p50).padStart(6) + '  p95 ' + String(r.p95).padStart(6) + '  max ' + String(r.max).padStart(6) + '  on top: ' + JSON.stringify(r.kinds));
 const all = rows.flatMap(r => [r.min, r.max]), under = Math.min(...rows.map(r => r.min)), over = Math.max(...rows.map(r => r.max));
 const p95u = rows.map(r => r.p5).sort((a, b) => a - b), med = p95u[Math.floor(p95u.length / 2)];
-console.log('DMG-SETTLE TERRAIN: ' + rows.length + ' sites (' + T.length + ' trees in reach): the drawn ground at most ' + (-under).toFixed(1) + ' mm UNDER the physics (a resting piece reads that much over it), at most ' + over.toFixed(1) + ' mm over; the sites\' median p5 ' + med.toFixed(1) + ' mm');
+console.log('DMG-SETTLE TERRAIN (' + STACK + '): ' + rows.length + ' sites (' + T.length + ' trees in reach): the drawn ground at most ' + (-under).toFixed(1) + ' mm UNDER the physics (a resting piece reads that much over it), at most ' + over.toFixed(1) + ' mm over; the sites\' median p5 ' + med.toFixed(1) + ' mm');
 if (arg('--json', null)) fs.writeFileSync(arg('--json'), JSON.stringify({ rows, under, over }, null, 1));
