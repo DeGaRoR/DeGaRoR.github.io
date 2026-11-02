@@ -56,9 +56,9 @@ for (const f of files) {
   const saved = flag('snap-only') ? null : one(flag('off') ? { pilSnap: 0 } : {});
   const snap = one({ pilSnap: 1 });
   const row = { build: label, ms: Date.now() - t0, pillars: snap.pillars,
-                saved: saved && { doors: saved.rep.doors.map(d => ({ key: d.key, minMM: d.minMM, deg: d.deg, who: d.who, byCat: d.byCat })), red: saved.rep.red,
+                saved: saved && { doors: saved.rep.doors.map(d => ({ key: d.key, minMM: d.minMM, deg: d.deg, who: d.who, byCat: d.byCat, onClosed: d.onClosed })), red: saved.rep.red,
                                   strut: saved.strut, floats: saved.floats, fittings: saved.fittings },
-                snap: { doors: snap.rep.doors.map(d => ({ key: d.key, minMM: d.minMM, deg: d.deg, who: d.who, byCat: d.byCat })), red: snap.rep.red,
+                snap: { doors: snap.rep.doors.map(d => ({ key: d.key, minMM: d.minMM, deg: d.deg, who: d.who, byCat: d.byCat, onClosed: d.onClosed })), red: snap.rep.red,
                         strut: snap.strut, floats: snap.floats, fittings: snap.fittings } };
   rows.push(row);
   const fmt = s => s ? s.doors.map(d => d.key + ' ' + d.minMM + (d.minMM < PS.SWING_RED_MM ? '!' : '') + '@' + d.deg).join(', ') || 'no doors' : '-';
@@ -73,8 +73,9 @@ const cell = (s, key) => {
   if (!d) return '-';
   const c = CATS.map(k => d.byCat && d.byCat[k] ? k.replace('wing strut', 'w.strut').replace('float strut', 'f.strut') + ' ' + d.byCat[k].mm +
                           (d.byCat[k].mm < 60 && d.byCat[k].deg != null ? '@' + d.byCat[k].deg : '') : null).filter(Boolean);
+  const on = Object.keys(d.onClosed || {});
   return (d.minMM < PS.SWING_RED_MM ? '**RED ' : '') + d.minMM + ' mm' + (d.deg != null ? ' @' + d.deg + '°' : '') + (d.minMM < PS.SWING_RED_MM ? '**' : '') +
-         (c.length ? ' (' + c.join(', ') + ')' : '');
+         (c.length ? ' (' + c.join(', ') + ')' : '') + (on.length ? '; ON the closed door: ' + on.join(', ') : '');
 };
 const md = ['| build | door | as saved: least (by kind, mm) | with the pillar snap | what the snap changes |', '|---|---|---|---|---|'];
 for (const r of rows) {

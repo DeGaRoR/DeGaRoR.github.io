@@ -394,7 +394,7 @@ function swingSweep(door, axes, obstacles, opt) {
   const onDoor = t => t.every(p => { let m = Infinity; gClosed.near(p, ride, ti => { const q = door.tris[ti]; m = Math.min(m, ptTri(p, q[0], q[1], q[2])); }); return m <= ride; });
   let nObs = 0;
   // the least clearance to each KIND of obstacle over the whole swing (mm, and the angle it is reached at)
-  const byCat = {};
+  const byCat = {}, onClosed = {};
   const note = (c, d, deg, who) => { const mm = Math.round(d * 1000); const b = byCat[c]; if (!b || mm < b.mm) byCat[c] = { mm, deg, who }; };
   const axs = axes && axes.length ? axes : axesOf(door, 0, null);
   for (const ax of axs) {
@@ -454,6 +454,16 @@ function swingSweep(door, axes, obstacles, opt) {
       }
       return { mm: Math.round(m * 1000), who };
     };
+    // WHAT TOUCHES THE CLOSED DOOR (0 deg, within 5 mm, by kind): a strut root or a step bolted on the door's skin,
+    // a wing root fillet laid over its sill - the finding behind a red that starts at the first degree. Measured
+    // apart from the swing (whose minimum starts at `from`)
+    {
+      const seen = {};
+      for (const [q0, ti0] of oS) {
+        gD.near(q0, 0.005, ti => { const t = tris[ti]; const d = ptTri(q0, t[0], t[1], t[2]); if (d <= 0.005) seen[oC[ti0]] = oW[ti0]; });
+      }
+      for (const k in seen) onClosed[k] = seen[k];
+    }
     // COARSE, THEN FINE: every `step` degrees, then every degree either side of the coarse minimum
     let cBest = null;
     for (let deg = from; deg <= max + 1e-9; deg += stepD) {
@@ -469,7 +479,7 @@ function swingSweep(door, axes, obstacles, opt) {
       }
     if (cBest && cBest.mm < best.mm) best = { mm: cBest.mm, deg: cBest.deg, who: cBest.who };
   }
-  return { minMM: best.mm, deg: best.deg, who: best.who, axes: axs.length, obs: nObs, byCat, perDeg };
+  return { minMM: best.mm, deg: best.deg, who: best.who, axes: axs.length, obs: nObs, byCat, onClosed, perDeg };
 }
 
 // WHAT AN OBSTACLE IS, for the table (the brief's columns: the wing, its struts, the float struts, the booms, any
@@ -542,15 +552,17 @@ function doorSwingReport(THREE, scene, mesh, R, FS, o) {
   const doors = [];
   for (const d of PS.doors) {
     const sw = swingSweep(d, axesOf(d, o.edge, o.hinges), obs, o);
-    doors.push({ key: d.key, minMM: sw.minMM, deg: sw.deg, who: sw.who, byCat: sw.byCat, red: sw.minMM < SWING_RED_MM });
+    doors.push({ key: d.key, minMM: sw.minMM, deg: sw.deg, who: sw.who, byCat: sw.byCat, onClosed: sw.onClosed, red: sw.minMM < SWING_RED_MM });
   }
   const worst = doors.reduce((a, d) => (!a || d.minMM < a.minMM ? d : a), null);
   return { doors, worst, red: doors.some(d => d.red), redMM: SWING_RED_MM };
 }
-// one line for a door's answer ('pilot:P 0 mm at 3 deg - float strut')
+// one line for a door's answer ('pilot:P 0 mm at 3 deg (float strut), on the closed door: float strut')
 function swingLine(d) {
   const cat = d.who ? catOf(d.who.split(' ')[0], d.who) : '';
-  return d.key + ' ' + d.minMM + ' mm' + (d.deg != null ? ' at ' + d.deg + ' deg' : '') + (cat ? ' (' + cat + ')' : '');
+  const on = Object.keys(d.onClosed || {});
+  return d.key + ' ' + d.minMM + ' mm' + (d.deg != null ? ' at ' + d.deg + ' deg' : '') + (cat ? ' (' + cat + ')' : '') +
+         (on.length ? ', on the closed door: ' + on.join(', ') : '');
 }
 
 const API = { SWING_CATS, SWING_RED_MM, doorSwingReport, swingLine, catOf, pillarsOf, onPillar, pillarOfFrame, frameStations, strutRootStation, floatRootStations, inDoor, swingSweep, sceneObstacles, axesOf, ptTri, rot, bandsOf };

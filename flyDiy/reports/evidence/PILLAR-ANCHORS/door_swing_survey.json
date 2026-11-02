@@ -1,0 +1,2847 @@
+[
+ {
+  "build": "bugReports/Twin_busher_floats_2.json",
+  "ms": 33451,
+  "pillars": "C* B* A*",
+  "saved": {
+   "doors": [
+    {
+     "key": "pax0:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "engine": {
+       "mm": 78,
+       "deg": 4,
+       "who": "cowl"
+      },
+      "hinge": {
+       "mm": 3,
+       "deg": 13,
+       "who": "hinge edLink_flapR"
+      },
+      "float strut": {
+       "mm": 15,
+       "deg": 6,
+       "who": "float edFloatStruts"
+      },
+      "boom": {
+       "mm": 88,
+       "deg": 88,
+       "who": "boom edBoomR"
+      }
+     },
+     "onClosed": {
+      "wing": "wing edFit_longeron"
+     }
+    },
+    {
+     "key": "pax0:M",
+     "minMM": 0,
+     "deg": 3,
+     "who": "wing",
+     "byCat": {
+      "engine": {
+       "mm": 78,
+       "deg": 4,
+       "who": "cowl"
+      },
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "hinge": {
+       "mm": 2,
+       "deg": 13,
+       "who": "hinge edLink_flapL"
+      },
+      "float strut": {
+       "mm": 15,
+       "deg": 6,
+       "who": "float edFloatStruts"
+      },
+      "boom": {
+       "mm": 90,
+       "deg": 88,
+       "who": "boom edBoomL"
+      }
+     },
+     "onClosed": {
+      "wing": "wing edFit_longeron"
+     }
+    },
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "float edFloatStruts",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing edFit_liftstrut"
+      },
+      "float strut": {
+       "mm": 0,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      }
+     },
+     "onClosed": {
+      "wing": "wing",
+      "float strut": "float edFloatStruts",
+      "anchor": "access edAcc_static_metal"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 3,
+     "who": "access edAcc_static_metal",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing edFit_liftstrut"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "float strut": {
+       "mm": 0,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      }
+     },
+     "onClosed": {
+      "wing": "wing",
+      "float strut": "float edFloatStruts",
+      "anchor": "access edAcc_static_metal"
+     }
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 180 mm · 1.47 m · 2/2 on wing · off 162 mm · fwd -0.16!",
+   "floats": "floats: custom 4.59 x 0.55 x 0.45 m, step z 1.17, keel -1.56, a strut root ON the pilot:P / pilot:M door, the pair displaces 1272 kg to the deck, 54 kg of hull",
+   "fittings": "fittings: 16 (10288 t) · 1 unplaced"
+  },
+  "snap": {
+   "doors": [
+    {
+     "key": "pax0:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "engine": {
+       "mm": 78,
+       "deg": 4,
+       "who": "cowl"
+      },
+      "hinge": {
+       "mm": 3,
+       "deg": 13,
+       "who": "hinge edLink_flapR"
+      },
+      "anchor": {
+       "mm": 38,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "wing strut": {
+       "mm": 20,
+       "deg": 3,
+       "who": "wing edFit_liftstrut"
+      },
+      "float strut": {
+       "mm": 36,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      },
+      "boom": {
+       "mm": 88,
+       "deg": 88,
+       "who": "boom edBoomR"
+      }
+     },
+     "onClosed": {
+      "wing": "wing edFit_longeron"
+     }
+    },
+    {
+     "key": "pax0:M",
+     "minMM": 0,
+     "deg": 3,
+     "who": "wing",
+     "byCat": {
+      "engine": {
+       "mm": 78,
+       "deg": 4,
+       "who": "cowl"
+      },
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "hinge": {
+       "mm": 2,
+       "deg": 13,
+       "who": "hinge edLink_flapL"
+      },
+      "anchor": {
+       "mm": 38,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "float strut": {
+       "mm": 36,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      },
+      "wing strut": {
+       "mm": 14,
+       "deg": 3,
+       "who": "wing edFit_liftstrut"
+      },
+      "boom": {
+       "mm": 90,
+       "deg": 88,
+       "who": "boom edBoomL"
+      }
+     },
+     "onClosed": {
+      "wing": "wing edFit_longeron"
+     }
+    },
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 38,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing edFit_liftstrut"
+      },
+      "float strut": {
+       "mm": 65,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      }
+     },
+     "onClosed": {
+      "wing": "wing"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 3,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing edFit_liftstrut"
+      },
+      "anchor": {
+       "mm": 38,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "float strut": {
+       "mm": 65,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      }
+     },
+     "onClosed": {
+      "wing": "wing"
+     }
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 177 mm · 1.48 m · 2/2 on wing · off 162 mm · on the centre (B) pillar · fwd -0.16!",
+   "floats": "floats: custom 4.59 x 0.55 x 0.45 m, step z 1.17, keel -1.56, struts on B + C pillars, the pair displaces 1272 kg to the deck, 54 kg of hull",
+   "fittings": "fittings: 16 (8728 t) · 1 unplaced · off the doors onto the pillars: step>B"
+  }
+ },
+ {
+  "build": "builds/c172r_wipline2350_landprop_2026-10-20.json",
+  "ms": 23259,
+  "pillars": "C* B* A*",
+  "saved": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "float edFloatStruts",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing"
+      },
+      "float strut": {
+       "mm": 0,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 28,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {
+      "float strut": "float edFloatStruts"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 3,
+     "who": "float edFloatStruts",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "float strut": {
+       "mm": 0,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 28,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {
+      "float strut": "float edFloatStruts"
+     }
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 217 mm · 2.83 m · 4/4 on wing · off 157 mm · fwd 0.15!",
+   "floats": "floats: Wipline 2350 5.97 x 0.74 x 0.53 m, step z 0.55, keel -1.83, a strut root ON the pilot:P / pilot:M door, the pair displaces 2590 kg to the deck (catalogue 2590 max, 2332 rated), 110 kg of hull",
+   "fittings": "fittings: 18 (8240 t) · 1 unplaced"
+  },
+  "snap": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 13,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing"
+      },
+      "float strut": {
+       "mm": 49,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      },
+      "anchor": {
+       "mm": 36,
+       "deg": 8,
+       "who": "access edAcc_static_metal"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 53,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {}
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 13,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 5,
+       "deg": 73,
+       "who": "access edAcc_static_metal"
+      },
+      "float strut": {
+       "mm": 49,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 53,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {}
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 239 mm · 2.89 m · 4/4 on wing · off 157 mm · on the windscreen (A) post · fwd 0.15!",
+   "floats": "floats: Wipline 2350 5.97 x 0.74 x 0.53 m, step z 0.55, keel -1.83, struts on B pillar (aft no ring has no pillar), the pair displaces 2590 kg to the deck (catalogue 2590 max, 2332 rated), 110 kg of hull",
+   "fittings": "fittings: 18 (7460 t) · 1 unplaced · off the doors onto the pillars: inspBelly>off, oatProbe>off, step>B, venturi>off"
+  }
+ },
+ {
+  "build": "builds/c172r_wipline2350_stcprop_2026-10-20.json",
+  "ms": 22025,
+  "pillars": "C* B* A*",
+  "saved": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "float edFloatStruts",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing"
+      },
+      "float strut": {
+       "mm": 0,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 28,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {
+      "float strut": "float edFloatStruts"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 3,
+     "who": "float edFloatStruts",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "float strut": {
+       "mm": 0,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 28,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {
+      "float strut": "float edFloatStruts"
+     }
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 217 mm · 2.83 m · 4/4 on wing · off 157 mm · fwd 0.15!",
+   "floats": "floats: Wipline 2350 5.97 x 0.74 x 0.53 m, step z 0.55, keel -1.83, a strut root ON the pilot:P / pilot:M door, the pair displaces 2590 kg to the deck (catalogue 2590 max, 2332 rated), 110 kg of hull",
+   "fittings": "fittings: 18 (8240 t) · 1 unplaced"
+  },
+  "snap": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 13,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing"
+      },
+      "float strut": {
+       "mm": 49,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      },
+      "anchor": {
+       "mm": 36,
+       "deg": 8,
+       "who": "access edAcc_static_metal"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 53,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {}
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 13,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 5,
+       "deg": 73,
+       "who": "access edAcc_static_metal"
+      },
+      "float strut": {
+       "mm": 49,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 53,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {}
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 239 mm · 2.89 m · 4/4 on wing · off 157 mm · on the windscreen (A) post · fwd 0.15!",
+   "floats": "floats: Wipline 2350 5.97 x 0.74 x 0.53 m, step z 0.55, keel -1.83, struts on B pillar (aft no ring has no pillar), the pair displaces 2590 kg to the deck (catalogue 2590 max, 2332 rated), 110 kg of hull",
+   "fittings": "fittings: 18 (7460 t) · 1 unplaced · off the doors onto the pillars: inspBelly>off, oatProbe>off, step>B, venturi>off"
+  }
+ },
+ {
+  "build": "builds/cessna172_2026-09-20.json",
+  "ms": 18008,
+  "pillars": "C* B* A*",
+  "saved": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 8,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 58,
+       "deg": 3,
+       "who": "access edAcc_static_paint"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 23,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {
+      "wing": "wing"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 8,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 23,
+       "who": "wing edFit_liftstrut"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 7,
+       "who": "access edAcc_static_metal"
+      }
+     },
+     "onClosed": {
+      "wing": "wing"
+     }
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 236 mm · 2.68 m · 4/4 on wing · off 187 mm · fwd 0.18!",
+   "floats": null,
+   "fittings": "fittings: 15 (7404 t)"
+  },
+  "snap": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 8,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing edFit_liftstrut"
+      },
+      "anchor": {
+       "mm": 78,
+       "deg": 3,
+       "who": "access edAcc_static_paint"
+      }
+     },
+     "onClosed": {
+      "wing": "wing"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 8,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 23,
+       "who": "wing edFit_liftstrut"
+      },
+      "anchor": {
+       "mm": 8,
+       "deg": 73,
+       "who": "access edAcc_static_metal"
+      }
+     },
+     "onClosed": {
+      "wing": "wing"
+     }
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 198 mm · 2.62 m · 4/4 on wing · off 187 mm · on the centre (B) pillar · fwd 0.18!",
+   "floats": null,
+   "fittings": "fittings: 15 (6624 t) · off the doors onto the pillars: inspBelly>off, oatProbe>off, venturi>off, step>B"
+  }
+ },
+ {
+  "build": "builds/cessna172_2026-09-20_corrected.json",
+  "ms": 16931,
+  "pillars": "C* B* A*",
+  "saved": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 13,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 66,
+       "deg": 3,
+       "who": "access edAcc_static_paint"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 28,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {}
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 13,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 28,
+       "who": "wing edFit_liftstrut"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 13,
+       "who": "access edAcc_static_metal"
+      }
+     },
+     "onClosed": {}
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 217 mm · 2.83 m · 4/4 on wing · off 157 mm · fwd 0.15!",
+   "floats": null,
+   "fittings": "fittings: 16 (7440 t)"
+  },
+  "snap": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 13,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 64,
+       "deg": 3,
+       "who": "access edAcc_static_paint"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 53,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {}
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 13,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 5,
+       "deg": 73,
+       "who": "access edAcc_static_metal"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 53,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {}
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 239 mm · 2.89 m · 4/4 on wing · off 157 mm · on the windscreen (A) post · fwd 0.15!",
+   "floats": null,
+   "fittings": "fittings: 16 (6660 t) · off the doors onto the pillars: inspBelly>off, oatProbe>off, venturi>off, step>B"
+  }
+ },
+ {
+  "build": "builds/chinook_2026-09-21.json",
+  "ms": 7257,
+  "pillars": "C* B*",
+  "saved": {
+   "doors": [],
+   "red": false,
+   "strut": "strut: snap 187 mm · 3.61 m · 4/4 on wing · off 3 mm",
+   "floats": null,
+   "fittings": "fittings: 10 (6454 t)"
+  },
+  "snap": {
+   "doors": [],
+   "red": false,
+   "strut": "strut: snap 186 mm · 3.59 m · 4/4 on wing · off 3 mm · on the centre (B) pillar",
+   "floats": null,
+   "fittings": "fittings: 10 (6454 t)"
+  }
+ },
+ {
+  "build": "builds/chinook_2026-09-21_corrected.json",
+  "ms": 6170,
+  "pillars": "C* B*",
+  "saved": {
+   "doors": [],
+   "red": false,
+   "strut": "strut: snap 187 mm · 3.60 m · 4/4 on wing · off 3 mm",
+   "floats": null,
+   "fittings": "fittings: 10 (6454 t)"
+  },
+  "snap": {
+   "doors": [],
+   "red": false,
+   "strut": "strut: snap 186 mm · 3.56 m · 4/4 on wing · off 3 mm · on the centre (B) pillar",
+   "floats": null,
+   "fittings": "fittings: 10 (6454 t)"
+  }
+ },
+ {
+  "build": "builds/composite_jodel_2026-10-07.json",
+  "ms": 15562,
+  "pillars": "B* A*",
+  "saved": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "gear": {
+       "mm": 7,
+       "deg": 88,
+       "who": "gear edLegL"
+      }
+     },
+     "onClosed": {
+      "wing": "wing",
+      "anchor": "access edAcc_static_metal"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 3,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "gear": {
+       "mm": 7,
+       "deg": 88,
+       "who": "gear edLegR"
+      }
+     },
+     "onClosed": {
+      "wing": "wing",
+      "anchor": "access edAcc_static_metal"
+     }
+    }
+   ],
+   "red": true,
+   "strut": null,
+   "floats": null,
+   "fittings": "fittings: 11 (4090 t) · 1 unplaced"
+  },
+  "snap": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 46,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "gear": {
+       "mm": 7,
+       "deg": 88,
+       "who": "gear edLegL"
+      }
+     },
+     "onClosed": {
+      "wing": "wing"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 3,
+     "who": "wing",
+     "byCat": {
+      "anchor": {
+       "mm": 0,
+       "deg": 13,
+       "who": "access edAcc_static_metal"
+      },
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "gear": {
+       "mm": 7,
+       "deg": 88,
+       "who": "gear edLegR"
+      }
+     },
+     "onClosed": {
+      "wing": "wing"
+     }
+    }
+   ],
+   "red": true,
+   "strut": null,
+   "floats": null,
+   "fittings": "fittings: 11 (3310 t) · 1 unplaced · off the doors onto the pillars: step>B, baggageDoor>off"
+  }
+ },
+ {
+  "build": "builds/cub_2026-09-20.json",
+  "ms": 17797,
+  "pillars": "C* B* A*",
+  "saved": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "gear edLegL",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 18,
+       "who": "wing edFit_liftstrut"
+      },
+      "gear": {
+       "mm": 0,
+       "deg": 3,
+       "who": "gear edLegL"
+      }
+     },
+     "onClosed": {
+      "wing strut": "wing edFit_liftstrut",
+      "gear": "gear edLegL"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 8,
+     "who": "access edAcc_static_metal",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 8,
+       "who": "access edAcc_static_metal"
+      },
+      "gear": {
+       "mm": 2,
+       "deg": 3,
+       "who": "gear edLegR"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 18,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {
+      "wing strut": "wing edFit_liftstrut",
+      "gear": "gear edLegR"
+     }
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 173 mm · 3.63 m · 4/4 on wing · off 1 mm",
+   "floats": null,
+   "fittings": "fittings: 14 (8610 t)"
+  },
+  "snap": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "gear edLegL",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 60,
+       "deg": 3,
+       "who": "access edAcc_static_paint"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing edFit_liftstrut"
+      },
+      "gear": {
+       "mm": 0,
+       "deg": 3,
+       "who": "gear edLegL"
+      }
+     },
+     "onClosed": {
+      "wing strut": "wing edFit_liftstrut",
+      "gear": "gear edLegL"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 8,
+     "who": "access edAcc_static_metal",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 8,
+       "who": "access edAcc_static_metal"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing edFit_liftstrut"
+      },
+      "gear": {
+       "mm": 2,
+       "deg": 3,
+       "who": "gear edLegR"
+      }
+     },
+     "onClosed": {
+      "wing strut": "wing edFit_liftstrut",
+      "gear": "gear edLegR"
+     }
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 163 mm · 3.61 m · 4/4 on wing · off 1 mm · on the centre (B) pillar",
+   "floats": null,
+   "fittings": "fittings: 14 (7830 t) · off the doors onto the pillars: inspBelly>off, step>B"
+  }
+ },
+ {
+  "build": "builds/cub_2026-09-20_corrected.json",
+  "ms": 17128,
+  "pillars": "C* B* A*",
+  "saved": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "gear edLegL",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 18,
+       "who": "wing edFit_liftstrut"
+      },
+      "gear": {
+       "mm": 0,
+       "deg": 3,
+       "who": "gear edLegL"
+      }
+     },
+     "onClosed": {
+      "wing strut": "wing edFit_liftstrut",
+      "gear": "gear edLegL"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 8,
+     "who": "access edAcc_static_metal",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 8,
+       "who": "access edAcc_static_metal"
+      },
+      "gear": {
+       "mm": 2,
+       "deg": 3,
+       "who": "gear edLegR"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 18,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {
+      "wing strut": "wing edFit_liftstrut",
+      "gear": "gear edLegR"
+     }
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 173 mm · 3.63 m · 4/4 on wing · off 1 mm",
+   "floats": null,
+   "fittings": "fittings: 14 (8610 t)"
+  },
+  "snap": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "gear edLegL",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 60,
+       "deg": 3,
+       "who": "access edAcc_static_paint"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing edFit_liftstrut"
+      },
+      "gear": {
+       "mm": 0,
+       "deg": 3,
+       "who": "gear edLegL"
+      }
+     },
+     "onClosed": {
+      "wing strut": "wing edFit_liftstrut",
+      "gear": "gear edLegL"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 8,
+     "who": "access edAcc_static_metal",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 8,
+       "who": "access edAcc_static_metal"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing edFit_liftstrut"
+      },
+      "gear": {
+       "mm": 2,
+       "deg": 3,
+       "who": "gear edLegR"
+      }
+     },
+     "onClosed": {
+      "wing strut": "wing edFit_liftstrut",
+      "gear": "gear edLegR"
+     }
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 163 mm · 3.61 m · 4/4 on wing · off 1 mm · on the centre (B) pillar",
+   "floats": null,
+   "fittings": "fittings: 14 (7830 t) · off the doors onto the pillars: inspBelly>off, step>B"
+  }
+ },
+ {
+  "build": "builds/jodel_2026-09-20.json",
+  "ms": 13160,
+  "pillars": "C* B* A*",
+  "saved": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "gear": {
+       "mm": 64,
+       "deg": 88,
+       "who": "gear edLegL"
+      }
+     },
+     "onClosed": {
+      "wing": "wing",
+      "anchor": "access edAcc_static_metal"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 3,
+     "who": "access edAcc_static_metal",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "gear": {
+       "mm": 64,
+       "deg": 88,
+       "who": "gear edLegR"
+      }
+     },
+     "onClosed": {
+      "wing": "wing",
+      "anchor": "access edAcc_static_metal"
+     }
+    }
+   ],
+   "red": true,
+   "strut": null,
+   "floats": null,
+   "fittings": "fittings: 15 (6554 t) · 1 unplaced"
+  },
+  "snap": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 40,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "gear": {
+       "mm": 64,
+       "deg": 88,
+       "who": "gear edLegL"
+      }
+     },
+     "onClosed": {
+      "wing": "wing"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 3,
+     "who": "wing",
+     "byCat": {
+      "anchor": {
+       "mm": 0,
+       "deg": 18,
+       "who": "access edAcc_static_metal"
+      },
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "gear": {
+       "mm": 64,
+       "deg": 88,
+       "who": "gear edLegR"
+      }
+     },
+     "onClosed": {
+      "wing": "wing"
+     }
+    }
+   ],
+   "red": true,
+   "strut": null,
+   "floats": null,
+   "fittings": "fittings: 15 (5774 t) · 1 unplaced · off the doors onto the pillars: step>B"
+  }
+ },
+ {
+  "build": "builds/jodel_2026-09-20_corrected.json",
+  "ms": 15359,
+  "pillars": "B* A*",
+  "saved": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "gear": {
+       "mm": 7,
+       "deg": 88,
+       "who": "gear edLegL"
+      }
+     },
+     "onClosed": {
+      "wing": "wing",
+      "anchor": "access edAcc_static_metal"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 3,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "gear": {
+       "mm": 7,
+       "deg": 88,
+       "who": "gear edLegR"
+      }
+     },
+     "onClosed": {
+      "wing": "wing",
+      "anchor": "access edAcc_static_metal"
+     }
+    }
+   ],
+   "red": true,
+   "strut": null,
+   "floats": null,
+   "fittings": "fittings: 15 (6554 t) · 1 unplaced"
+  },
+  "snap": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 46,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "gear": {
+       "mm": 7,
+       "deg": 88,
+       "who": "gear edLegL"
+      }
+     },
+     "onClosed": {
+      "wing": "wing"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 3,
+     "who": "wing",
+     "byCat": {
+      "anchor": {
+       "mm": 0,
+       "deg": 13,
+       "who": "access edAcc_static_metal"
+      },
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "gear": {
+       "mm": 7,
+       "deg": 88,
+       "who": "gear edLegR"
+      }
+     },
+     "onClosed": {
+      "wing": "wing"
+     }
+    }
+   ],
+   "red": true,
+   "strut": null,
+   "floats": null,
+   "fittings": "fittings: 15 (5774 t) · 1 unplaced · off the doors onto the pillars: step>B, baggageDoor>off"
+  }
+ },
+ {
+  "build": "builds/pa18_floats_2026-10-23.json",
+  "ms": 18143,
+  "pillars": "C* B* A*",
+  "saved": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "float edFloatStruts",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 8,
+       "who": "access edAcc_static_metal"
+      },
+      "float strut": {
+       "mm": 0,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 18,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {
+      "wing strut": "wing edFit_liftstrut",
+      "float strut": "float edFloatStruts",
+      "anchor": "access edAcc_static_metal"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 3,
+     "who": "float edFloatStruts",
+     "byCat": {
+      "anchor": {
+       "mm": 0,
+       "deg": 8,
+       "who": "access edAcc_static_metal"
+      },
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "float strut": {
+       "mm": 0,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 18,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {
+      "wing strut": "wing edFit_liftstrut",
+      "float strut": "float edFloatStruts",
+      "anchor": "access edAcc_static_metal"
+     }
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 173 mm · 3.63 m · 4/4 on wing · off 1 mm",
+   "floats": "floats: Wipline 2100 5.36 x 0.74 x 0.53 m, step z 0.82, keel -1.56, a strut root ON the pilot:P / pilot:M door, the pair displaces 2342 kg to the deck (catalogue 2342 max, 2108 rated), 100 kg of hull",
+   "fittings": "fittings: 18 (10670 t)"
+  },
+  "snap": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 8,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 18,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "float strut": {
+       "mm": 158,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {
+      "wing strut": "wing edFit_liftstrut"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 8,
+     "who": "access edAcc_static_metal",
+     "byCat": {
+      "anchor": {
+       "mm": 0,
+       "deg": 8,
+       "who": "access edAcc_static_metal"
+      },
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "float strut": {
+       "mm": 158,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {
+      "wing strut": "wing edFit_liftstrut"
+     }
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 163 mm · 3.61 m · 4/4 on wing · off 1 mm · on the centre (B) pillar",
+   "floats": "floats: Wipline 2100 5.36 x 0.74 x 0.53 m, step z 0.82, keel -1.56, struts on B + C pillars, the pair displaces 2342 kg to the deck (catalogue 2342 max, 2108 rated), 100 kg of hull",
+   "fittings": "fittings: 18 (9890 t) · off the doors onto the pillars: inspBelly>off, step>B"
+  }
+ },
+ {
+  "build": "builds/rufus_2026-10-18_certified.json",
+  "ms": 5071,
+  "pillars": "B*",
+  "saved": {
+   "doors": [],
+   "red": false,
+   "strut": "strut: snap 165 mm · 3.44 m · 2/2 on wing · off 52 mm · fwd 0.05 · 2 on frame",
+   "floats": null,
+   "fittings": "fittings: 3 (2160 t) · 1 unplaced"
+  },
+  "snap": {
+   "doors": [],
+   "red": false,
+   "strut": "strut: snap 156 mm · 3.48 m · 2/2 on wing · off 52 mm · on the centre (B) pillar · fwd 0.05 · 2 on frame",
+   "floats": null,
+   "fittings": "fittings: 3 (2160 t) · 1 unplaced"
+  }
+ },
+ {
+  "build": "builds/candidates/Twin_busher_floats_4b.json",
+  "ms": 25767,
+  "pillars": "C* B* A*",
+  "saved": {
+   "doors": [
+    {
+     "key": "pax0:P",
+     "minMM": 3,
+     "deg": 90,
+     "who": "wing edFit_liftstrut",
+     "byCat": {
+      "engine": {
+       "mm": 79,
+       "deg": 3,
+       "who": "cowl"
+      },
+      "float strut": {
+       "mm": 45,
+       "deg": 8,
+       "who": "float edFloatStruts"
+      },
+      "wing": {
+       "mm": 33,
+       "deg": 73,
+       "who": "wing"
+      },
+      "wing strut": {
+       "mm": 3,
+       "deg": 90,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {}
+    },
+    {
+     "key": "pax0:M",
+     "minMM": 3,
+     "deg": 90,
+     "who": "wing edFit_liftstrut",
+     "byCat": {
+      "engine": {
+       "mm": 79,
+       "deg": 3,
+       "who": "cowl"
+      },
+      "float strut": {
+       "mm": 45,
+       "deg": 8,
+       "who": "float edFloatStruts"
+      },
+      "wing": {
+       "mm": 33,
+       "deg": 73,
+       "who": "wing"
+      },
+      "wing strut": {
+       "mm": 3,
+       "deg": 90,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {}
+    },
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "access edAcc_static_metal",
+     "byCat": {
+      "wing": {
+       "mm": 64,
+       "deg": 8,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "float strut": {
+       "mm": 0,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      },
+      "wing strut": {
+       "mm": 1,
+       "deg": 23,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {
+      "float strut": "float edFloatStruts",
+      "anchor": "access edAcc_static_metal"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 3,
+     "who": "float edFloatStruts",
+     "byCat": {
+      "wing": {
+       "mm": 64,
+       "deg": 8,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 18,
+       "who": "wing edFit_liftstrut"
+      },
+      "float strut": {
+       "mm": 0,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      }
+     },
+     "onClosed": {
+      "float strut": "float edFloatStruts",
+      "anchor": "access edAcc_static_metal"
+     }
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 180 mm · 3.89 m · 2/2 on wing · off 163 mm · fwd -0.16!",
+   "floats": "floats: custom 5.00 x 0.68 x 0.48 m, step z 1.09, keel -1.56, a strut root ON the pilot:P / pilot:M door, the pair displaces 1768 kg to the deck, 72 kg of hull",
+   "fittings": "fittings: 16 (10288 t) · 1 unplaced"
+  },
+  "snap": {
+   "doors": [
+    {
+     "key": "pax0:P",
+     "minMM": 0,
+     "deg": 78,
+     "who": "wing edFit_liftstrut",
+     "byCat": {
+      "engine": {
+       "mm": 79,
+       "deg": 3,
+       "who": "cowl"
+      },
+      "anchor": {
+       "mm": 38,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 78,
+       "who": "wing edFit_liftstrut"
+      },
+      "float strut": {
+       "mm": 36,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      },
+      "wing": {
+       "mm": 33,
+       "deg": 73,
+       "who": "wing"
+      }
+     },
+     "onClosed": {}
+    },
+    {
+     "key": "pax0:M",
+     "minMM": 0,
+     "deg": 78,
+     "who": "wing edFit_liftstrut",
+     "byCat": {
+      "engine": {
+       "mm": 79,
+       "deg": 3,
+       "who": "cowl"
+      },
+      "anchor": {
+       "mm": 38,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "float strut": {
+       "mm": 36,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 78,
+       "who": "wing edFit_liftstrut"
+      },
+      "wing": {
+       "mm": 33,
+       "deg": 73,
+       "who": "wing"
+      }
+     },
+     "onClosed": {}
+    },
+    {
+     "key": "pilot:P",
+     "minMM": 38,
+     "deg": 3,
+     "who": "access edAcc_static_metal",
+     "byCat": {
+      "wing": {
+       "mm": 64,
+       "deg": 8,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 38,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "wing strut": {
+       "mm": 49,
+       "deg": 3,
+       "who": "wing edFit_liftstrut"
+      },
+      "float strut": {
+       "mm": 65,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      }
+     },
+     "onClosed": {}
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 38,
+     "deg": 3,
+     "who": "access edAcc_static_metal",
+     "byCat": {
+      "wing": {
+       "mm": 64,
+       "deg": 8,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 38,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "wing strut": {
+       "mm": 56,
+       "deg": 8,
+       "who": "wing edFit_liftstrut"
+      },
+      "float strut": {
+       "mm": 65,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      }
+     },
+     "onClosed": {}
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 177 mm · 3.85 m · 2/2 on wing · off 163 mm · on the centre (B) pillar · fwd -0.16!",
+   "floats": "floats: custom 5.00 x 0.68 x 0.48 m, step z 1.09, keel -1.56, struts on B + C pillars, the pair displaces 1768 kg to the deck, 72 kg of hull",
+   "fittings": "fittings: 16 (8728 t) · 1 unplaced · off the doors onto the pillars: step>B, staticPort>off"
+  }
+ },
+ {
+  "build": "builds/candidates/camel_2026-10.json",
+  "ms": 9671,
+  "pillars": "B* W",
+  "saved": {
+   "doors": [],
+   "red": false,
+   "strut": null,
+   "floats": null,
+   "fittings": "fittings: 15 (6554 t) · 2 unplaced"
+  },
+  "snap": {
+   "doors": [],
+   "red": false,
+   "strut": null,
+   "floats": null,
+   "fittings": "fittings: 15 (6554 t) · 2 unplaced"
+  }
+ },
+ {
+  "build": "builds/candidates/cub_fittings_hand_2026-10.json",
+  "ms": 15753,
+  "pillars": "C* B* A*",
+  "saved": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "gear edLegL",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 18,
+       "who": "wing edFit_liftstrut"
+      },
+      "gear": {
+       "mm": 0,
+       "deg": 3,
+       "who": "gear edLegL"
+      }
+     },
+     "onClosed": {
+      "wing strut": "wing edFit_liftstrut",
+      "gear": "gear edLegL"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 8,
+     "who": "access edAcc_static_metal",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 8,
+       "who": "access edAcc_static_metal"
+      },
+      "gear": {
+       "mm": 2,
+       "deg": 3,
+       "who": "gear edLegR"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 18,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {
+      "wing strut": "wing edFit_liftstrut",
+      "gear": "gear edLegR"
+     }
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 173 mm · 3.63 m · 4/4 on wing · off 1 mm",
+   "floats": null,
+   "fittings": "fittings: 16 (9410 t)"
+  },
+  "snap": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "gear edLegL",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 60,
+       "deg": 3,
+       "who": "access edAcc_static_paint"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing edFit_liftstrut"
+      },
+      "gear": {
+       "mm": 0,
+       "deg": 3,
+       "who": "gear edLegL"
+      }
+     },
+     "onClosed": {
+      "wing strut": "wing edFit_liftstrut",
+      "gear": "gear edLegL"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 8,
+     "who": "access edAcc_static_metal",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 8,
+       "who": "access edAcc_static_metal"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing edFit_liftstrut"
+      },
+      "gear": {
+       "mm": 2,
+       "deg": 3,
+       "who": "gear edLegR"
+      }
+     },
+     "onClosed": {
+      "wing strut": "wing edFit_liftstrut",
+      "gear": "gear edLegR"
+     }
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 163 mm · 3.61 m · 4/4 on wing · off 1 mm · on the centre (B) pillar",
+   "floats": null,
+   "fittings": "fittings: 16 (8630 t) · off the doors onto the pillars: inspBelly>off"
+  }
+ },
+ {
+  "build": "builds/candidates/dc3_2026-10.json",
+  "ms": 18514,
+  "pillars": "C* M0 M1 M2 M3 M4 M5 M6 M7 B* A*",
+  "saved": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 60,
+     "deg": null,
+     "who": null,
+     "byCat": {
+      "anchor": {
+       "mm": 75,
+       "deg": 3,
+       "who": "access edAcc_static_paint"
+      }
+     },
+     "onClosed": {}
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 13,
+     "who": "access edAcc_static_metal",
+     "byCat": {
+      "anchor": {
+       "mm": 0,
+       "deg": 13,
+       "who": "access edAcc_static_metal"
+      }
+     },
+     "onClosed": {}
+    }
+   ],
+   "red": true,
+   "strut": null,
+   "floats": null,
+   "fittings": "fittings: 17 (8204 t) · 1 unplaced"
+  },
+  "snap": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 60,
+     "deg": null,
+     "who": null,
+     "byCat": {
+      "anchor": {
+       "mm": 75,
+       "deg": 3,
+       "who": "access edAcc_static_paint"
+      }
+     },
+     "onClosed": {}
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 18,
+     "who": "access edAcc_static_metal",
+     "byCat": {
+      "anchor": {
+       "mm": 0,
+       "deg": 18,
+       "who": "access edAcc_static_metal"
+      }
+     },
+     "onClosed": {}
+    }
+   ],
+   "red": true,
+   "strut": null,
+   "floats": null,
+   "fittings": "fittings: 17 (7424 t) · 1 unplaced · off the doors onto the pillars: oatProbe>off, venturi>off"
+  }
+ },
+ {
+  "build": "builds/candidates/mosquito.json",
+  "ms": 5188,
+  "pillars": "",
+  "saved": {
+   "doors": [],
+   "red": false,
+   "strut": null,
+   "floats": null,
+   "fittings": "fittings: 5 (1152 t)"
+  },
+  "snap": {
+   "doors": [],
+   "red": false,
+   "strut": null,
+   "floats": null,
+   "fittings": "fittings: 5 (1152 t)"
+  }
+ },
+ {
+  "build": "builds/candidates/stearman_2026-10.json",
+  "ms": 6457,
+  "pillars": "C* B* W",
+  "saved": {
+   "doors": [],
+   "red": false,
+   "strut": null,
+   "floats": null,
+   "fittings": "fittings: 16 (9410 t) · 2 unplaced"
+  },
+  "snap": {
+   "doors": [],
+   "red": false,
+   "strut": null,
+   "floats": null,
+   "fittings": "fittings: 16 (9410 t) · 2 unplaced"
+  }
+ },
+ {
+  "build": "builds/candidates/stol_cub_showcase.json",
+  "ms": 18676,
+  "pillars": "C* B* A*",
+  "saved": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "gear edLegL",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 8,
+       "who": "access edAcc_static_metal"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 18,
+       "who": "wing edFit_liftstrut"
+      },
+      "gear": {
+       "mm": 0,
+       "deg": 3,
+       "who": "gear edLegL"
+      }
+     },
+     "onClosed": {
+      "wing strut": "wing edFit_liftstrut",
+      "gear": "gear edLegL",
+      "anchor": "access edAcc_static_metal"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 8,
+     "who": "access edAcc_static_metal",
+     "byCat": {
+      "anchor": {
+       "mm": 0,
+       "deg": 8,
+       "who": "access edAcc_static_metal"
+      },
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "gear": {
+       "mm": 2,
+       "deg": 3,
+       "who": "gear edLegR"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 18,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {
+      "wing strut": "wing edFit_liftstrut",
+      "gear": "gear edLegR",
+      "anchor": "access edAcc_static_metal"
+     }
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 173 mm · 3.63 m · 4/4 on wing · off 1 mm",
+   "floats": null,
+   "fittings": "fittings: 18 (10670 t)"
+  },
+  "snap": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "gear edLegL",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 18,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing edFit_liftstrut"
+      },
+      "gear": {
+       "mm": 0,
+       "deg": 3,
+       "who": "gear edLegL"
+      }
+     },
+     "onClosed": {
+      "wing strut": "wing edFit_liftstrut",
+      "gear": "gear edLegL"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 8,
+     "who": "access edAcc_static_metal",
+     "byCat": {
+      "anchor": {
+       "mm": 0,
+       "deg": 8,
+       "who": "access edAcc_static_metal"
+      },
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing edFit_liftstrut"
+      },
+      "gear": {
+       "mm": 2,
+       "deg": 3,
+       "who": "gear edLegR"
+      }
+     },
+     "onClosed": {
+      "wing strut": "wing edFit_liftstrut",
+      "gear": "gear edLegR"
+     }
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 163 mm · 3.61 m · 4/4 on wing · off 1 mm · on the centre (B) pillar",
+   "floats": null,
+   "fittings": "fittings: 18 (9890 t) · off the doors onto the pillars: inspBelly>off, step>B"
+  }
+ },
+ {
+  "build": "builds/candidates/tigermoth_2026-10.json",
+  "ms": 8264,
+  "pillars": "C* B* W",
+  "saved": {
+   "doors": [],
+   "red": false,
+   "strut": null,
+   "floats": null,
+   "fittings": "fittings: 15 (6554 t) · 2 unplaced"
+  },
+  "snap": {
+   "doors": [],
+   "red": false,
+   "strut": null,
+   "floats": null,
+   "fittings": "fittings: 15 (6554 t) · 2 unplaced"
+  }
+ },
+ {
+  "build": "builds/candidates/ugly_bi.json",
+  "ms": 14906,
+  "pillars": "B* A*",
+  "saved": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "wing edCap_capRoot",
+     "byCat": {
+      "wing strut": {
+       "mm": 0,
+       "deg": 13,
+       "who": "brace edFit_wire"
+      },
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "gear": {
+       "mm": 43,
+       "deg": 13,
+       "who": "gear edLegL"
+      }
+     },
+     "onClosed": {
+      "wing": "wing edCap_capRoot"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 3,
+     "who": "wing edCap_capRoot",
+     "byCat": {
+      "wing strut": {
+       "mm": 0,
+       "deg": 13,
+       "who": "brace edFit_wire"
+      },
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "gear": {
+       "mm": 43,
+       "deg": 13,
+       "who": "gear edLegR"
+      }
+     },
+     "onClosed": {
+      "wing": "wing edCap_capRoot"
+     }
+    }
+   ],
+   "red": true,
+   "strut": null,
+   "floats": null,
+   "fittings": "fittings: 8 (3106 t) · 2 unplaced"
+  },
+  "snap": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "wing edCap_capRoot",
+     "byCat": {
+      "wing strut": {
+       "mm": 0,
+       "deg": 13,
+       "who": "brace edFit_wire"
+      },
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "gear": {
+       "mm": 43,
+       "deg": 13,
+       "who": "gear edLegL"
+      }
+     },
+     "onClosed": {
+      "wing": "wing edCap_capRoot"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 3,
+     "who": "wing edCap_capRoot",
+     "byCat": {
+      "wing strut": {
+       "mm": 0,
+       "deg": 13,
+       "who": "brace edFit_wire"
+      },
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "gear": {
+       "mm": 43,
+       "deg": 13,
+       "who": "gear edLegR"
+      }
+     },
+     "onClosed": {
+      "wing": "wing edCap_capRoot"
+     }
+    }
+   ],
+   "red": true,
+   "strut": null,
+   "floats": null,
+   "fittings": "fittings: 8 (2326 t) · 2 unplaced · off the doors onto the pillars: step>B"
+  }
+ },
+ {
+  "build": "metal Cessna (bugReports/cessnaMetal (1).json)",
+  "ms": 16887,
+  "pillars": "C* B* A*",
+  "saved": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 8,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 58,
+       "deg": 3,
+       "who": "access edAcc_static_paint"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 23,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {
+      "wing": "wing"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 8,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 23,
+       "who": "wing edFit_liftstrut"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 7,
+       "who": "access edAcc_static_metal"
+      }
+     },
+     "onClosed": {
+      "wing": "wing"
+     }
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 236 mm · 2.68 m · 4/4 on wing · off 187 mm · fwd 0.18!",
+   "floats": null,
+   "fittings": "fittings: 15 (7404 t)"
+  },
+  "snap": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 8,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing edFit_liftstrut"
+      },
+      "anchor": {
+       "mm": 78,
+       "deg": 3,
+       "who": "access edAcc_static_paint"
+      }
+     },
+     "onClosed": {
+      "wing": "wing"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 8,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 8,
+       "who": "wing"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 23,
+       "who": "wing edFit_liftstrut"
+      },
+      "anchor": {
+       "mm": 8,
+       "deg": 73,
+       "who": "access edAcc_static_metal"
+      }
+     },
+     "onClosed": {
+      "wing": "wing"
+     }
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 198 mm · 2.62 m · 4/4 on wing · off 187 mm · on the centre (B) pillar · fwd 0.18!",
+   "floats": null,
+   "fittings": "fittings: 15 (6624 t) · off the doors onto the pillars: inspBelly>off, oatProbe>off, venturi>off, step>B"
+  }
+ },
+ {
+  "build": "Cessna floats (bugReports/cessnaFloatsWOrks.json)",
+  "ms": 19627,
+  "pillars": "C* B* A*",
+  "saved": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "float edFloatStruts",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "float strut": {
+       "mm": 0,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 23,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {
+      "wing": "wing edCap_capRoot",
+      "float strut": "float edFloatStruts"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 3,
+     "who": "float edFloatStruts",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 0,
+       "deg": 3,
+       "who": "access edAcc_static_metal"
+      },
+      "float strut": {
+       "mm": 0,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 23,
+       "who": "wing edFit_liftstrut"
+      }
+     },
+     "onClosed": {
+      "wing": "wing edCap_capRoot",
+      "float strut": "float edFloatStruts"
+     }
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 236 mm · 2.70 m · 4/4 on wing · off 186 mm · fwd 0.18!",
+   "floats": "floats: custom 6.95 x 0.68 x 0.45 m, step z 0.55, keel -1.83, the pair displaces 2024 kg to the deck, 54 kg of hull",
+   "fittings": "fittings: 17 (8204 t) · 1 unplaced"
+  },
+  "snap": {
+   "doors": [
+    {
+     "key": "pilot:P",
+     "minMM": 0,
+     "deg": 3,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 35,
+       "deg": 8,
+       "who": "access edAcc_static_metal"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing edFit_liftstrut"
+      },
+      "float strut": {
+       "mm": 52,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      }
+     },
+     "onClosed": {
+      "wing": "wing edCap_capRoot"
+     }
+    },
+    {
+     "key": "pilot:M",
+     "minMM": 0,
+     "deg": 3,
+     "who": "wing",
+     "byCat": {
+      "wing": {
+       "mm": 0,
+       "deg": 3,
+       "who": "wing"
+      },
+      "anchor": {
+       "mm": 8,
+       "deg": 73,
+       "who": "access edAcc_static_metal"
+      },
+      "wing strut": {
+       "mm": 0,
+       "deg": 13,
+       "who": "wing edFit_liftstrut"
+      },
+      "float strut": {
+       "mm": 52,
+       "deg": 3,
+       "who": "float edFloatStruts"
+      }
+     },
+     "onClosed": {
+      "wing": "wing edCap_capRoot"
+     }
+    }
+   ],
+   "red": true,
+   "strut": "strut: snap 198 mm · 2.63 m · 4/4 on wing · off 186 mm · on the centre (B) pillar · fwd 0.18!",
+   "floats": "floats: custom 6.95 x 0.68 x 0.45 m, step z 0.55, keel -1.83, struts on B pillar (aft no ring has no pillar), the pair displaces 2024 kg to the deck, 54 kg of hull",
+   "fittings": "fittings: 17 (7424 t) · 1 unplaced · off the doors onto the pillars: inspBelly>off, oatProbe>off, step>B, venturi>off"
+  }
+ },
+ {
+  "build": "twin floatplane (tools/fixtures/build_v7_ultralight_2026-09-05.json)",
+  "ms": 6249,
+  "pillars": "B*",
+  "saved": {
+   "doors": [],
+   "red": false,
+   "strut": "strut: snap 169 mm · 4.04 m · 4/4 on wing · off 52 mm · fwd 0.05 · 2 on frame",
+   "floats": "floats: custom 4.60 x 0.64 x 0.45 m, step z 0.93, keel -1.06, the pair displaces 1448 kg to the deck, 54 kg of hull",
+   "fittings": "fittings: 8 (3924 t) · 4 unplaced"
+  },
+  "snap": {
+   "doors": [],
+   "red": false,
+   "strut": "strut: snap 159 mm · 4.04 m · 4/4 on wing · off 52 mm · on the centre (B) pillar · fwd 0.05 · 2 on frame",
+   "floats": "floats: custom 4.60 x 0.64 x 0.45 m, step z 0.93, keel -1.06, struts on B pillar (aft no ring has no pillar), the pair displaces 1448 kg to the deck, 54 kg of hull",
+   "fittings": "fittings: 8 (3924 t) · 4 unplaced"
+  }
+ }
+]
