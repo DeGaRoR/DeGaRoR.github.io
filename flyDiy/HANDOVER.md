@@ -309815,3 +309815,24 @@ Timing (light gate, one run): roll-out sum 50.0 s [cub 7.0/0.9, metal 2.2/6.4, c
 - WATCH: framecost-green changes the boot's light prep. HW-COVERAGE checks that W2's frame isn't now landing in the garage idle.
 
 Ready refs now landed (for the user's delete list): ready/roundtrip-fl3, framecost-green, cloud-row, pavement-flake, dmgskingpu-tol, dc3-taxi, pilot-g2811, claude/parked-src13.
+
+## PHONE-TESTFLIGHT G3790-G3794 (Mon 2 Nov) - the test field (a flat world) and the phone's test flight
+
+The user, 27 Oct, asked for a test flight on the phone: "1 building, 1 runway, and some infinite thing. Only ability is to do a circuit". Desktop "can select its environment through the menu option". The change is on claude/phone-testflight, for PHONE-1b.
+- THE TEST FIELD: `makeWorld(0, { flat: true })` (20_world.js FLAT) builds HOME alone, with the analytic record, its site and its hangar, on ground 0 everywhere. It has no water, settlement, road, generated strip or tree, and the surface is grass. It takes 3 ms and 0.4 MB of heap; the analytic world takes 710 ms and 20 MB. `world.flat` tells the page, the worker (sim_link worldMsg passes flat), render_world (no sea plane) and trees.js.
+- THE DESKTOP: FLYDIY_WORLDS has `{ id: 'testfield', name: 'Test field' }` as a world pill; `?world=testfield` also opens it. The WIP is kept under its own key, and no island is fetched.
+- THE PHONE (profile.js):
+  - `TABLE.phone.fly = 'testfield'` is THE ONE SWITCH. With 'none', the bench row and the menu line go.
+  - The bench's Test flight row and the burger's "Test flight" line call startTestFlight. It runs syncBuild and GARAGE_SPEC.commit, then `PROFILE.flyStart(card)`, which stores the sessionStorage intent 'flydiy.phone.fly' and reloads.
+  - The page boots FLIGHT's rows (boot 'testfield') with html.phfly set. At the boot's end, app.js phoneFlyGo rolls the aeroplane out on the pilot's circuit.
+  - There is no hand flying (setManual refused). Floats are refused in v1.
+  - The shed button calls `PROFILE.flyEnd()`, which reloads the garage page.
+  - The intent is read once, so a reload in flight comes back to the garage. `?testflight=1` is the rigs' door.
+- GATES (new): TESTFIELD (_testfield_check.js, core tier: the world, the trunk, the page source, and the Cub, Jodel and Cessna circuits arriving on the flat field, plus the Cub A/B against the analytic world); UISMOKE-PHONEFLY (test_ui_smoke.js --phonefly).
+- RUN 2 Nov 22:15-22:31 in A0's slot (GPU lock TESTFLIGHT): TESTFIELD PASS 23/23, UISMOKE-PHONE PASS, UISMOKE-PHONEFLY PASS.
+  - Cub 249 s, 1.4 m/s; Jodel 353 s, 1.0 m/s; Cessna 172 328 s, 1.13 m/s; the Cub on the analytic world 249 s with the same phases.
+- BROWSER (desktop Chrome, the same slot):
+  - `?world=testfield` taxis out of the shed and climbs on the autopilot over flat grass (heap ~0.9 GB, the desktop's full page).
+  - `?profile=phone`: the garage is 286 MB. The bench row reloads into the flight at 340-373 MB, which flew the whole circuit (completed, 48 km/h, 1.38 m/s, landing run 36 m). The shed button goes back to the garage at 287 MB, and the bench row shows "FLEW THE CIRCUIT, certified".
+- NOT RUN here (they ride PHONE-1b's gates): the rest of the touched-file set. Not on a real phone: the S20 run is PHONE-EDIT-PERF's (02:00-08:00).
+- Known: the flight page shows the garage's phone layout pieces until PHONE-GARAGE's html.phfly stand-down (PHONE-1b). A hidden browser pane stops rAF, so the flight waits at DEPART; that is the pane, not the page.

@@ -903,6 +903,10 @@
   // user: "an option only if it comes for free"): the default garage pays three boolean reads and nothing else
   const STUDIO_PHONE = (() => { try { return !!(window.PROFILE && window.PROFILE.is && window.PROFILE.is('room', 'studio')); } catch (e) { return false; } })();
   let studioOn = STUDIO_PHONE || prefGet('flydiy.garageStudio', '0') === '1', studio = null;
+  // G3791 (PHONE-TESTFLIGHT): THE PHONE'S TEST FLIGHT - a phone page booted with the test-flight intent (profile.js
+  // PROFILE.flight: boot 'testfield'). It rolls out on the pilot's circuit as the boot lifts (bootOpts.done), the hand is
+  // not offered (setManual), and every way back to the shed is the garage page again (rollInScreen -> PROFILE.flyEnd)
+  const PHONE_FLY = (() => { try { return !!(window.PROFILE && window.PROFILE.flight); } catch (e) { return false; } })();
   if (typeof window !== 'undefined') window.FLYDIY_SHED = () => hangar;   // G1522: the garage's shed (its materials), for the menu's live rows
   // WHERE THE REFLECTIONS COME FROM (user: "can we get lighting from HDRI? Try
   // that as a new option"). Two sources, one target:
@@ -8227,6 +8231,7 @@
   function setManual(on, by) {
     on = !!on;
     if (!INP || on === manual) return;
+    if (on && PHONE_FLY) return;   // G3791: the phone's test flight is the pilot's (no hand flying in v1)
     manual = on;
     if (!on) apTakeArmed = false;   // G3325
     prefSet('flydiy.flManual', on ? '1' : '0');
@@ -11262,6 +11267,14 @@
   let testFlight = null;
   function startTestFlight(card) {
     if (!inGarage) return false;
+    // G3791 (PHONE-TESTFLIGHT): THE PHONE GARAGE HANDS OFF - it has no world; the build is synced and committed (the WIP
+    // the flight page restores), the card kept for the next load, and the page reloads on the test field
+    // (profile.js flyStart; false when the profile has no test flight). Floats: the test field has no water (v1)
+    if (GARAGE_ONLY) {
+      if (floatsOn()) return false;
+      try { if (window.CAGE_UI) syncBuild(); if (window.GARAGE_SPEC && window.GARAGE_SPEC.commit) window.GARAGE_SPEC.commit(); } catch (e) { console.warn('flyDiy: the build could not be kept for the test flight -', e && e.message); return false; }
+      try { return !!(window.PROFILE && window.PROFILE.flyStart && window.PROFILE.flyStart(card ? { alt: card.alt || null, V: card.V || null, fp: card.fp || null } : null)); } catch (e) { return false; }
+    }
     const fp = card && card.fp;
     rollOut(() => {
       started = true;
@@ -14023,6 +14036,8 @@
   // the doors call this instead of the pair; the shim (no BOOT.show) runs
   // the pair inline as before.
   function rollInScreen(after) {
+    // G3791: the phone's test flight goes back to the garage page (the studio, no world in memory), never to a shed here
+    if (PHONE_FLY) { try { if (window.PROFILE && window.PROFILE.flyEnd) { window.PROFILE.flyEnd(); return; } } catch (e) {} }
     if ($('bootRoute')) $('bootRoute').hidden = true;   // G710: the roll-out's route picker goes with its screen
     if (typeof BOOT === 'undefined' || typeof BOOT.show !== 'function' || !BOOT.log || typeof renderer.compileAsync !== 'function') {
       enterGarage(); openEditor(); if (after) after(); return;
@@ -18096,6 +18111,14 @@
         return () => { if (home && route.parentNode !== home) home.insertBefore(route, home.firstChild); };
       } });
   } catch (e) { console.warn('flyDiy: the destination button -', e && e.message); }
+  // G3791 (PHONE-TESTFLIGHT): THE PHONE MENU'S TEST FLIGHT - one line, in the garage, while the profile's switch is on
+  // (fly 'testfield'): the bench's own row run (bench.js BENCH_RUN), which hands off to the test field (startTestFlight)
+  // (the profile asked directly: GARAGE_ONLY is declared further down, in its temporal dead zone here)
+  if (window.FLYDIY_MENU && window.PROFILE && window.PROFILE.is && window.PROFILE.is('boot', 'garage')) try {
+    window.FLYDIY_MENU.add({ k: 'testflight', label: 'Test flight', sec: 'Flight', before: 'controls',
+      when: () => inGarage && !floatsOn() && !!(window.PROFILE && window.PROFILE.is && window.PROFILE.is('fly', 'testfield')),
+      act: () => { gmOpen(false); try { if (window.BENCH_RUN) window.BENCH_RUN('flight'); } catch (e) { console.warn('flyDiy: the test flight -', e && e.message); } } });
+  } catch (e) { console.warn('flyDiy: the test flight line -', e && e.message); }
 
   // ---- G3643-G3649 THE FLIGHT LAYOUT (the user's 25 Oct mockup and answers) ---------------------------------------------
   // "a simplified interface ... all the current options, but in a clearer, and more mobile friendly interface". The same
@@ -19495,7 +19518,7 @@
   // captured now through the editor - a round trip, the user's build put back
   // - under the loading screen, where the seconds belong. PARKED.ready after
   // this: a build the world editor parks later captures on the spot.
-  if (!GARAGE_ONLY) bootStep('parked', 'parking the other aeroplanes', 8, () => {   // G2100: no world, no parked aeroplanes
+  if (!GARAGE_ONLY && !PHONE_FLY) bootStep('parked', 'parking the other aeroplanes', 8, () => {   // G2100: no world, no parked aeroplanes (G3791: none on the phone's test field either - its heap)
     if (window.PARKED && window.PARKED.captureAll) window.PARKED.captureAll();
   });
   // (B9: before the commit too - a capture puts the player's build back through the editor, as the batch does)
@@ -20113,9 +20136,18 @@
       flRailSync(); if (flyOpen) flyOpenSet(flyOpen);
     } };
   if (typeof window !== 'undefined') window.SCENERY = SCENERY;
+  // G3791 (PHONE-TESTFLIGHT): THE TEST FLIGHT'S START on the phone's flight page - the bench's own (startTestFlight: the
+  // card it carried over, the fingerprint it armed, the director), on the pilot's circuit off HOME
+  function phoneFlyGo() {
+    const I = (window.PROFILE && window.PROFILE.flight) || {}, c = I.card || null;
+    let went = false;
+    try { went = !!startTestFlight(c ? { alt: c.alt || null, V: c.V || null, fp: c.fp || null } : null); } catch (e) { console.warn('flyDiy: the test flight could not start -', e && e.message); }
+    window.FLYDIY_PHONE_FLY = { started: went, card: c, at: Date.now() };
+  }
   const bootOpts = { set: 'garage', landingLabel: 'the last pieces landing',
     done: () => { tripClose(bootTrip); if (PK_ASYNC() && window.PARKED.async) { window.PARKED.async = false; parkedFlush(); } setupClose(); if (SCENERY_Q) setTimeout(() => SCENERY.enter(), 0);
       if (SIMW) SIMW.prewarm(); startLoop();
+      if (PHONE_FLY) setTimeout(phoneFlyGo, 0);   // G3791: the phone's test flight rolls out as the screen lifts
       if (CAREER_DEV && STORY_PAGE) storyIntroBoot(); },   // G3380 (STORY-INTRO): a New career's opening, as the screen lifts   // G820 (C1c): the physics worker's world made on its own thread while the player is in the shed
     require: ['sky', 'env', 'room', 'props', 'propTex', 'skin', 'crew', 'crewTex', 'crewBuild'],
     // the program count rides on every step's log entry: what each step compiled

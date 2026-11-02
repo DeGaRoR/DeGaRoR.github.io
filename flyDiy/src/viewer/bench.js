@@ -818,7 +818,11 @@ function benchInit(api) {
 
   // G2100 (MOBILE-GARAGE 1): THE PROFILE'S TESTS OFF (profile.js 'bench': the phone garage has no world - no test flight,
   // no crosswind, no water - and the live sandbag rig waits for the phone's heat to be measured); the desktop's is null
-  const benchOff = id => { const P = typeof window !== 'undefined' && window.PROFILE; const off = P && P.get ? P.get('benchOff') : null; return !!(off && off.indexOf(id) >= 0); };
+  // G3791 (PHONE-TESTFLIGHT): the test flight's row follows the profile's `fly` - off while it is 'none' (the phone's
+  // switch: on, the row hands off to the test field, app.js startTestFlight)
+  const benchOff = id => { const P = typeof window !== 'undefined' && window.PROFILE; const off = P && P.get ? P.get('benchOff') : null;
+    if (id === 'flight' && P && P.is && P.is('fly', 'none')) return true;
+    return !!(off && off.indexOf(id) >= 0); };
   const usable = t => !!(t.run || t.start) &&
     (t.needs || []).every(k => typeof api[k] === 'function') &&
     (!t.when || t.when(api)) &&                       // S1 (G451.1): a row for this build only (the hydroplane test wants floats)
@@ -1370,6 +1374,14 @@ function benchInit(api) {
   // fingerprint) changes nothing: the certificate keeps its first day and its card is not shown again.
   let outFp = null;
   window.BENCH_ROLLOUT = () => { outFp = fpNow(); };
+  // G3791 (PHONE-TESTFLIGHT): ONE ROW RUN FROM OUTSIDE - the phone menu's Test flight line runs the bench's own row (its
+  // card, its arming, its running line); false when the row is not offered here or the bench is busy
+  window.BENCH_RUN = id => {
+    const t = BENCH_TESTS.filter(x => x.id === id)[0];
+    if (!t || !usable(t) || busyNow()) return false;
+    runOne(t, null);
+    return true;
+  };
   // G2273 (ACCEPT): the fingerprint the acceptance leg and the logbook row are signed with (the roll-out's), and the
   // live one the plaque's "proved in flight" row is withdrawn against
   window.BENCH_FP_OUT = () => outFp;
