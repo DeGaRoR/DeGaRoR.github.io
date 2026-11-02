@@ -27,13 +27,23 @@ const opt = (k, d) => { const i = argv.indexOf('--' + k); return i >= 0 ? argv[i
 const PAGES = opt('pages', 'index.html').split(',');
 const SIZE = opt('size', '1600x900').split('x').map(Number);
 const SPORT = +opt('port', 8547);
-const OUT = path.resolve(opt('out', path.join(__dirname, '..', 'reports', 'evidence', 'NIGHT-LOOK')));
+const OUT = path.resolve(opt('out', SCENE === 'ref' ? 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-03/night/refscene/' + opt('step', 'step0') : path.join(__dirname, '..', 'reports', 'evidence', 'NIGHT-LOOK')));
 const Q = opt('q', '');
 const FALLBACK = opt('fallback', 'D:/Dev/DeGaRoR.github.io');
 const ONLY = (opt('views', '') || '').split(',').filter(Boolean);
 // --build <file.json>: the aeroplane the roll-out flies (a build file, wrapped or bare: GARAGE_SPEC.set before the
 // roll-out); --over '{"li_nav":1}': rows laid over its cage (a test copy, never saved); the twin_ views run only with a build
-const BUILD = opt('build', null), OVER = JSON.parse(opt('over', 'null'));
+// --scene ref: THE REFERENCE SCENE (A0 2 Nov ~20:00, the user: "try and reproduce the screenshot somehow. Put my little
+// plane in there, get somewhere with some lights, trees and mountains"): ONE repeatable frame, re-rendered after every
+// NIGHT-LOOK step into <evidence>/refscene/<--step> (default step0). The user's floatplane rolled out at Cedar Harbour
+// Seaplane Base (FLYDIY_ROUTE.spawn mk_sea: the keels seated on the water by the game's own placement), moved on the
+// water to the spot the SCENE SOLVER picks for its heading (below), framed three-quarter front, low over the water, the
+// lit town waterfront and the lit Skyline summit (685 m, the tram's top station) behind. The scene's numbers are
+// printed on its row (the plane's spot, the eye, the bearing), so a step that changes them says so.
+const SCENE = opt('scene', null), STEP = opt('step', 'step0');
+const TWIN_DEF = 'D:/Dev/flydiy-notes/evidence-2026-10-18/2026-11-02/phone/Twin_busher_floats_2.json';
+const BUILD = opt('build', SCENE === 'ref' ? TWIN_DEF : null), OVER = JSON.parse(opt('over', 'null'));
+const SPAWN = opt('spawn', SCENE === 'ref' ? 'mk_sea' : null);
 const BTAG = BUILD ? '_' + path.basename(BUILD, '.json').replace(/\W+/g, '').slice(0, 24) + (OVER ? '_over' : '') : '';
 // --variants '[{"eye":0},{"eye":1.5}]': each NIGHT view shot once per set of light_rig NIGHT dials (pages that have them;
 // the day views once, with the first set) - the file name carries the set (e.g. _eye1.5)
@@ -52,6 +62,16 @@ const NEWM = { date: '2027-01-08', utc: 3 * 3600 };     // two weeks on: the moo
 const NOON = { date: '2026-12-23', utc: 21 * 3600 };    // 12:00 AKST: the December noon (the sun ~11.5 deg) - the rig's control
 const DUSK4 = { date: '2026-12-24', utc: 0.85 * 3600 }; // 15:51 AKST: the sun at about -4 deg, the full moon rising ENE
 const LIT = { flood: 1, nav: 1, beacon: 1, land: 1, taxi: 1, instr: 1, pedal: 1, pax: 1 }, DARK = { flood: 0, nav: 0, beacon: 0, land: 0, taxi: 0, instr: 0, pedal: 0, pax: 0 };
+// the reference scene's days (06_solar): 19 Apr 2027 AKDT, the full moon (99.2 %) rising in the ESE as the sun sets in the
+// WNW - at 04:25Z the sun at -4.2 deg and the moon 7.8 deg up at az 126 true (107 grid), over the town and the summit
+const APR_DUSK = { date: '2027-04-20', utc: 4.42 * 3600 }, APR_BLUE = { date: '2027-04-20', utc: 4.75 * 3600 };   // -4.2 / -6.7 deg
+const APR_NIGHT = { date: '2027-04-20', utc: 7 * 3600 };   // 23:00 AKDT: the sun at -19.9, the moon 19.8 deg up at az 162
+// the lit things of the island's premises (the fixture's sites whose items carry lit panes or lamps, and the town's built
+// zones), for the scene solver: [x, z, weight]
+const LITS = (() => { try { const fj = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'island_jolene.json'), 'utf8')), L = [];
+  for (const q of fj.layers.sites) { const n = (q.items || []).filter(i => /house|cabin|store|lodge|shed|church|cannery|warehouse|boat|wharf|pier|floats|light|hangar|big\//i.test(i.key)).length; if (n) L.push([q.at.x, q.at.z, Math.min(n, 5)]); }
+  for (const z of fj.layers.zones) if (/residential|commercial|industrial|harbour/.test(z.kind)) { let cx = 0, cz = 0; for (const p of z.poly) { cx += p[0]; cz += p[1]; } L.push([cx / z.poly.length, cz / z.poly.length, 4]); }
+  return L; } catch (e) { return []; } })();
 const CLEAR = { cloudCover: 0 }, FEW = { cloudCover: 0.2, cloudType: 'cu' };
 // views: at 'stand' | 'over' (300 m over HOME's field) | 'final' (150 m on a 2 km final to HOME) | 'xz' (agl over x,z);
 //        aim 'runway' | 'seaMoon' | 'awayMoon' | 'moon' | 'sun' | 'toward' (the x,z in V.to); dist the orbit's
@@ -82,7 +102,12 @@ const VIEWS = [
   { twin: 1, name: 'twin_full_low',  day: Object.assign({}, XMAS, CLEAR), ...CABIN, agl: 'keep', aim: 'q3', el: 0.025, dist: 18, lights: LIT },
   { twin: 1, name: 'twin_full_dark', day: Object.assign({}, XMAS, CLEAR), ...CABIN, agl: 'keep', aim: 'q3', el: 0.10, dist: 15, lights: DARK },
   { twin: 1, name: 'twin_full_cabin', day: Object.assign({}, XMAS, CLEAR), ...CABIN, agl: 'keep', aim: 'q3', el: 0.04, dist: 6, lights: LIT },
-].filter(v => ONLY.length ? ONLY.includes(v.name) : !!v.twin === !!BUILD);
+  // THE REFERENCE SCENE: the dusk (the main shot), the deeper blue hour, the full-moon night, and the lights-off control
+  { ref: 1, name: 'ref_dusk',       day: Object.assign({}, APR_DUSK, CLEAR), aim: 'ref', el: 0.035, dist: 17, lights: LIT, settle: 14 },
+  { ref: 1, name: 'ref_blue',       day: Object.assign({}, APR_BLUE, CLEAR), aim: 'ref', el: 0.035, dist: 17, lights: LIT, settle: 10 },
+  { ref: 1, name: 'ref_night',      day: Object.assign({}, APR_NIGHT, CLEAR), aim: 'ref', el: 0.035, dist: 17, lights: LIT, settle: 12 },
+  { ref: 1, name: 'ref_dusk_dark',  day: Object.assign({}, APR_DUSK, CLEAR), aim: 'ref', el: 0.035, dist: 17, lights: DARK, settle: 8 },
+].filter(v => ONLY.length ? ONLY.includes(v.name) : SCENE === 'ref' ? !!v.ref : (!v.ref && !!v.twin === !!BUILD));
 
 // ---- in the page ----
 // HOME's strip, the nearest sea's heading from it (72 headings, the first water 600 m - 8 km out), the night's hour
@@ -125,10 +150,32 @@ const SETUP = V => `(async () => {
   else if (${JSON.stringify(V.at)} === 'final') { const tx = cx - lh[0] * len / 2, tz = cz - lh[1] * len / 2; px = tx - lh[0] * 1200; pz = tz - lh[1] * 1200; agl = 150; look = [lh[0], lh[1]]; }
   if (aim === 'q3') { const ax = s.axes ? s.axes() : null; if (ax) { const nx = -ax[0][0], nz = -ax[0][2], lx = -ax[2][0], lz = -ax[2][2];   // the nose, the left wing
       const ex = nx * 0.77 + lx * 0.64, ez = nz * 0.77 + lz * 0.64, h = Math.hypot(ex, ez) || 1; look = [-ex / h, -ez / h]; } }   // the eye 40 deg off the nose, port side
+  if (aim === 'ref') {   // THE SCENE SOLVER: the eye 40 deg off the nose (port or starboard), the look fixed by that; the plane
+    // (30, 40 or 50 deg off the nose) anywhere on Cedar Harbour's water (a 100 m sweep of the bay) where the plane, the eye and 150 m ahead are water;
+    // scored on the lit things in a 25 deg cone (250 m - 3.5 km) and the relief's angle (8 deg cap)
+    if (!window.__refScene) {
+      const ax = s.axes(), n = [-ax[0][0], -ax[0][2]], l = [-ax[2][0], -ax[2][2]], LITS = ${JSON.stringify(LITS)}, dist = ${+V.dist || 17};
+      const nn = Math.hypot(n[0], n[1]) || 1; n[0] /= nn; n[1] /= nn; const ll = Math.hypot(l[0], l[1]) || 1; l[0] /= ll; l[1] /= ll;
+      let best = null;
+      for (const side of [1, -1]) for (const off of [30, 40, 50]) { const co = Math.cos(off / 57.2958), si = Math.sin(off / 57.2958), e = [n[0] * co + side * l[0] * si, n[1] * co + side * l[1] * si], lk = [-e[0], -e[1]];
+        for (let px = -5200; px <= -1300; px += 100) for (let pz = -10600; pz <= -8300; pz += 100) {
+          if (!wet(px, pz) || !wet(px + e[0] * dist, pz + e[1] * dist)) continue;
+          let fg = true; for (let k = 20; k <= 150; k += 26) if (!wet(px + lk[0] * k, pz + lk[1] * k)) { fg = false; break; } if (!fg) continue;
+          const ex = px + e[0] * dist, ez = pz + e[1] * dist, ey = (w.waterH(px, pz) || 0) + 1.5;
+          let L = 0; for (const p of LITS) { const vx = p[0] - ex, vz = p[1] - ez, dd = Math.hypot(vx, vz); if (dd < 250 || dd > 3500) continue; if ((vx * lk[0] + vz * lk[1]) / dd < 0.906) continue; L += p[2]; }
+          let mt = 0; for (let k = 800; k <= 16000; k += 200) { const a = Math.atan2(w.terrainH(ex + lk[0] * k, ez + lk[1] * k) - ey, k) * 57.2958; if (a > mt) mt = a; }
+          const sc = Math.min(L, 30) * 0.5 + Math.min(mt, 8) * 2;
+          if (!best || sc > best.sc) best = { sc, side, off, px, pz, look: lk, L, mt: +mt.toFixed(1) };
+        } }
+      window.__refScene = best || { sc: 0, side: 1, px: -4200, pz: -9500, look: [0.94, 0.34], L: 0, mt: 0 };
+    }
+    const R = window.__refScene; px = R.px; pz = R.pz; agl = window.__floatAgl; look = R.look;
+  }
   if (aim === 'toward') { const T = ${JSON.stringify(V.to || [0, 0])}; const tx = T[0] - px, tz = T[1] - pz, h = Math.hypot(tx, tz) || 1; look = [tx / h, tz / h]; }
   if (aim === 'sun') { const sv = DAY_CLOCK.day().sun, h = Math.hypot(sv[0], sv[2]) || 1; look = [sv[0] / h, sv[2] / h]; }
   if (aim === 'moon' || aim === 'awayMoon') { const mv = DAY_CLOCK.day().moon, h = Math.hypot(mv[0], mv[2]) || 1, k = aim === 'moon' ? 1 : -1; look = [mv[0] / h * k, mv[2] / h * k]; }
   if (aim === 'runway' && ${JSON.stringify(V.at)} === 'stand') { const cg = s.cgPos(); look = [cx - cg[0] + dx * len * 0.3, cz - cg[2] + dz * len * 0.3]; const l = Math.hypot(look[0], look[1]) || 1; look = [look[0] / l, look[1] / l]; }
+  if (aim === 'ref' && agl == null) agl = 2;
   if (agl != null) { const cg = s.cgPos(), gy = Math.max(w.terrainH(px, pz), w.waterH ? (w.waterH(px, pz) || -1e9) : -1e9) + agl;
     await FLIGHT_PROBE.place({ by: [px - cg[0], gy - cg[1], pz - cg[2]], zeroV: true }); }
   const az = Math.atan2(-look[1], -look[0]);   // app.js placeCamera: the eye at target + dist (cos el cos az, sin el, cos el sin az), looking back at it
@@ -137,7 +184,7 @@ const SETUP = V => `(async () => {
   if (LT && K && K.sw) { for (const k of Object.keys(LT)) if (('sw_' + k) in K.sw) { K.sw['sw_' + k] = LT[k]; if (K.handSw) K.handSw['sw_' + k] = true; lit[k] = LT[k]; } if (K.glow) K.glow(0); }
   const d = DAY_CLOCK.day();
   return { lights: LT ? { set: lit, lightOn: K ? K.lightOn : null, unfit: K && K.unfit ? [...K.unfit] : null, lamps: K && K.model && K.model.lamps ? K.model.lamps.map(l => l.kind + ':' + l.key) : null, flood: K && K.model && K.model.floodLight ? +K.model.floodLight.intensity.toExponential(3) : null } : null,
-    floatAgl: window.__floatAgl, local: d.local, sunEl: +d.sunEl.toFixed(1), moonEl: +d.moonEl.toFixed(1), phase: +d.moonPhase.toFixed(3), sea: sea.map(v => +v.toFixed(2)), az: +az.toFixed(3) };
+    floatAgl: window.__floatAgl, scene: window.__refScene ? (R => ({ plane: [Math.round(R.px), Math.round(R.pz)], side: R.side > 0 ? 'port' : 'starboard', offNose: R.off, bearingGrid: Math.round((Math.atan2(R.look[0], -R.look[1]) * 57.2958 + 360) % 360), lits: R.L, reliefDeg: R.mt, score: +R.sc.toFixed(1) }))(window.__refScene) : null, local: d.local, sunEl: +d.sunEl.toFixed(1), moonEl: +d.moonEl.toFixed(1), phase: +d.moonPhase.toFixed(3), sea: sea.map(v => +v.toFixed(2)), az: +az.toFixed(3) };
 })()`;
 const FRAMES = n => `new Promise(r => { let k = 0; const f = () => { if (++k >= ${n}) r(k); else requestAnimationFrame(f); }; requestAnimationFrame(f); })`;
 // the light as the page holds it, and the resolve target's fp16 radiance over the ground band
@@ -232,6 +279,7 @@ async function runPage(page) {
       await ev('(GARAGE_SPEC.set(' + JSON.stringify(spec) + '), 1)'); await sleep(4000);
       console.log('night_shots: build ' + path.basename(BUILD) + (OVER ? ' over ' + JSON.stringify(OVER) : '') + ' set; gear ' + JSON.stringify(spec.gear && spec.gear.type));
     }
+    if (SPAWN) { await ev('(window.FLYDIY_ROUTE && FLYDIY_ROUTE.spawn ? FLYDIY_ROUTE.spawn(' + JSON.stringify(SPAWN) + ') : null)'); console.log('night_shots: roll-out from ' + SPAWN); }
     let flying = false;
     for (let a = 0; a < 8 && !flying; a++) { await ev("(()=>{const b=document.getElementById('bGo'); if (b) b.click();})()"); await sleep(6000); flying = await ev("/TAXI|DOWNWIND|FINAL|DEPART/.test(document.body.innerText) && !!window.FLIGHT_PROBE"); }
     if (BUILD) await ev("(()=>{const b=document.getElementById('bPause'); if (b && /pause/i.test(b.textContent)) b.click(); return 1;})()");   // a float build: held on the water before its pilot starts a take-off run
